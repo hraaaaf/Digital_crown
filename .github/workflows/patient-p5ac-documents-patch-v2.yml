@@ -1,0 +1,133 @@
+name: Patient P5AC Documents Patch V2
+
+on:
+  pull_request:
+    branches:
+      - agent/patient-page-p4-imagerie
+    paths:
+      - '.github/workflows/patient-p5ac-documents-patch-v2.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: github.head_ref == 'agent/patient-page-p5-documents'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref }}
+          fetch-depth: 0
+      - name: Apply structure-aware P5-A/C patch
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import re
+
+          tabs=Path('frontend/src/features/admin/DocumentStudio/StudioTabs.tsx')
+          vocab=Path('frontend/src/features/admin/DocumentStudio/DocumentStudioVocabulary.ts')
+          content=Path('frontend/src/features/admin/DocumentStudio/DocumentHubContent.tsx')
+          hub=Path('frontend/src/features/admin/DocumentHub.tsx')
+          history=Path('frontend/src/features/patients/PatientDocuments.tsx')
+
+          # P5-C — remove the clinical assistant from the document taxonomy/surface.
+          t=tabs.read_text(encoding='utf-8')
+          t=t.replace(', Brain', '').replace('Brain, ', '')
+          t='\n'.join(line for line in t.splitlines() if "activeTab === 'plan'" not in line) + '\n'
+          tabs.write_text(t,encoding='utf-8')
+
+          t=vocab.read_text(encoding='utf-8')
+          t='\n'.join(line for line in t.splitlines() if "plan: 'Compagnon Diagnostique'" not in line) + '\n'
+          vocab.write_text(t,encoding='utf-8')
+
+          t=content.read_text(encoding='utf-8')
+          t=t.replace("import { TreatmentPlanStudio } from './TreatmentPlanStudio';\n", '')
+          t=re.sub(r"type PlanConversionHandler = .*?;\n", '', t)
+          t=t.replace('  onConvertPlanToQuote: PlanConversionHandler;\n','').replace('  onConvertPlanToQuote,\n','')
+          t=re.sub(r"\n    \{activeTab === 'plan' && \(\n      <TreatmentPlanStudio.*?\n    \)\}\n", '\n', t, flags=re.S)
+          content.write_text(t,encoding='utf-8')
+
+          t=hub.read_text(encoding='utf-8')
+          t=t.replace("import { convertPlanActsToQuoteItems } from './DocumentStudio/AccountingPlanConversionPolicy';\n", '')
+          t=re.sub(r"\n  const handleConvertPlanToQuote = useCallback\(\(allActs: any\[\]\) => \{.*?\n  \}, \[setItems, setActiveTab, syncDocumentTab\]\);\n", '\n', t, flags=re.S)
+          t=t.replace('          onConvertPlanToQuote={handleConvertPlanToQuote}\n','')
+          hub.write_text(t,encoding='utf-8')
+
+          # P5-A — backend error is not an empty archive, and blob URLs are bounded.
+          t=history.read_text(encoding='utf-8')
+          if 'RefreshCcw' not in t:
+              t=t.replace('  FileX2,\n', '  FileX2,\n  RefreshCcw,\n')
+          t=t.replace("  const [loading, setLoading] = useState(true);\n  const [searchTerm, setSearchTerm] = useState('');", "  const [loading, setLoading] = useState(true);\n  const [fetchError, setFetchError] = useState(false);\n  const [reloadKey, setReloadKey] = useState(0);\n  const [searchTerm, setSearchTerm] = useState('');")
+          old="""    const fetchDocs = async () => {
+      try {
+        const res = await api.get(`/patients/${id}/documents`);
+        setDocs(res.data);
+      } catch (err) {
+        console.error("Erreur archives:", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchDocs();
+  }, [id]);"""
+          new="""    const fetchDocs = async () => {
+      setLoading(true);
+      setFetchError(false);
+      try {
+        const res = await api.get(`/patients/${id}/documents`);
+        setDocs(res.data);
+      } catch (err) {
+        console.error("Erreur archives:", err);
+        setDocs([]);
+        setFetchError(true);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchDocs();
+  }, [id, reloadKey]);"""
+          if old not in t and 'setFetchError(true)' not in t: raise SystemExit('PatientDocuments fetch block not recognized')
+          t=t.replace(old,new)
+          t=t.replace("      const res = await api.get(`/${clean}`, { responseType: 'blob' });\n      window.open(URL.createObjectURL(res.data), '_blank');", "      const res = await api.get(`/${clean}`, { responseType: 'blob' });\n      const blobUrl = URL.createObjectURL(res.data);\n      window.open(blobUrl, '_blank', 'noopener,noreferrer');\n      window.setTimeout(() => URL.revokeObjectURL(blobUrl), 60_000);")
+          t=t.replace("      const a = document.createElement('a');\n      a.href = URL.createObjectURL(res.data);\n      a.download = filename;\n      a.click();", "      const a = document.createElement('a');\n      const blobUrl = URL.createObjectURL(res.data);\n      a.href = blobUrl;\n      a.download = filename;\n      document.body.appendChild(a);\n      a.click();\n      a.remove();\n      window.setTimeout(() => URL.revokeObjectURL(blobUrl), 1_000);")
+          if 'if (fetchError)' not in t:
+              marker='  return (\n    <div className="space-y-6 animate-in fade-in duration-700 h-full flex flex-col">'
+              error_ui='''  if (fetchError) {
+    return (
+      <div className="flex flex-col items-center justify-center py-28 gap-4 text-center">
+        <ArchiveX size={40} className="text-rose-400" />
+        <div>
+          <h3 className="text-slate-800 font-black text-lg">Impossible de charger l'historique</h3>
+          <p className="text-slate-400 text-sm mt-1">Aucun état vide n'est déduit tant que le backend ne répond pas.</p>
+        </div>
+        <button type="button" onClick={() => setReloadKey(key => key + 1)} className="flex items-center gap-2 px-4 py-2 rounded-xl bg-primary text-white font-black text-xs uppercase tracking-widest">
+          <RefreshCcw size={15} /> Réessayer
+        </button>
+      </div>
+    );
+  }
+
+'''
+              if marker not in t: raise SystemExit('PatientDocuments return marker missing')
+              t=t.replace(marker,error_ui+marker)
+          t=t.replace('Doublon de contenu détecté','Contenu similaire à vérifier')
+          history.write_text(t,encoding='utf-8')
+
+          merged='\n'.join(p.read_text(encoding='utf-8') for p in [tabs,vocab,content,hub])
+          for forbidden in ['Compagnon Diagnostique', "activeTab === 'plan'", 'TreatmentPlanStudio', 'onConvertPlanToQuote']:
+              if forbidden in merged: raise SystemExit(f'P5-C exposure remains: {forbidden}')
+          hist=history.read_text(encoding='utf-8')
+          for required in ["Impossible de charger l'historique", 'Réessayer', 'Contenu similaire à vérifier', 'URL.revokeObjectURL', 'setFetchError(true)']:
+              if required not in hist: raise SystemExit(f'P5-A missing: {required}')
+          PY
+          git diff --check
+      - name: Commit guarded patch
+        run: |
+          git config user.name 'digital-crown-ci'
+          git config user.email 'actions@users.noreply.github.com'
+          git add frontend/src/features/admin/DocumentStudio/StudioTabs.tsx frontend/src/features/admin/DocumentStudio/DocumentStudioVocabulary.ts frontend/src/features/admin/DocumentStudio/DocumentHubContent.tsx frontend/src/features/admin/DocumentHub.tsx frontend/src/features/patients/PatientDocuments.tsx
+          git diff --cached --quiet && exit 0
+          git commit -m 'fix(patient): harden P5 document truth boundary'
+          git push origin HEAD:${GITHUB_HEAD_REF}
