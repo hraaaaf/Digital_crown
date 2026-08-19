@@ -94,7 +94,7 @@ export const AssistantParo: React.FC<AssistantParoProps> = ({ onComplete, onCanc
     return (
       <div className="flex flex-col items-center justify-center py-10 gap-4">
         <HeartPulse className="w-12 h-12 text-rose-500 animate-pulse" />
-        <h3 className="text-sm font-black uppercase tracking-widest text-slate-500">Génération du Diagnostic AAP/EFP 2017...</h3>
+        <h3 className="text-sm font-black uppercase tracking-widest text-slate-500">Synthèse structurée en cours...</h3>
       </div>
     );
   }
