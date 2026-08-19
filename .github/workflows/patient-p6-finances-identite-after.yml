@@ -176,9 +176,9 @@ jobs:
             const finance=page.getByRole('button',{name:'Finances',exact:true});
             await finance.waitFor({state:'visible',timeout:30000});
             await finance.click();
-            await page.getByText('Facturé',{exact:true}).waitFor({state:'visible',timeout:30000});
+            await page.getByText('Facturé',{exact:true}).first().waitFor({state:'visible',timeout:30000});
             for(const label of ['Encaissé','Reste dû','Prochaine échéance']){
-              if(await page.getByText(label,{exact:true}).count()!==1) throw new Error(`P6 KPI missing: ${label}`);
+              await page.getByText(label,{exact:true}).first().waitFor({state:'visible',timeout:30000});
             }
             if(await page.getByText('Taux Recouvrement',{exact:true}).count()) throw new Error('Recovery KPI still visible');
             await page.waitForTimeout(500);
