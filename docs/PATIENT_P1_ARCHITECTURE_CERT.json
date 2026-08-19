@@ -1,0 +1,64 @@
+{
+  "lot": "Patient P1 Architecture générale",
+  "status": "CERTIFIED",
+  "goal": "Réduire la densité de la fiche Patient et faire apparaître immédiatement l'identité, les alertes utiles et les actions fréquentes, sans redesign gratuit ni perte fonctionnelle.",
+  "certified_product_head": "67e979b3df2058bf7079f36c84abd67a3f0e2e0c",
+  "baseline": {
+    "source": "P0-I AFTER",
+    "run_id": 32186499282,
+    "artifact_id": 9342853792,
+    "viewports": ["390x844", "430x932", "768x1024", "1280x900"]
+  },
+  "visual_after": {
+    "workflow_run_id": 32201889501,
+    "run_number": 6,
+    "artifact_id": 9347877116,
+    "artifact_name": "patient-p1-architecture-after",
+    "digest": "sha256:0e1c42bc50b64c12b9f13da25483dbbe52cc963cdcfed62dd9afd064c5b3b8e4",
+    "captures": 4,
+    "viewports": ["390x844", "430x932", "768x1024", "1280x900"],
+    "noHorizontalOverflow": true,
+    "runtimeErrors": [],
+    "http5xx": [],
+    "mainSpaces": 5,
+    "documentsMerged": true,
+    "visual_score": 9.7,
+    "visual_score_scope": "P1 architecture/header/navigation only",
+    "visual_notes": [
+      "Header substantially more compact on desktop and mobile.",
+      "Quick actions remain explicitly labelled on 390/430 after final mobile correction.",
+      "Five main spaces are readable and reachable; small viewports use a horizontal tab rail without global page overflow.",
+      "No redesign outside the written P1 goal."
+    ]
+  },
+  "contracts": {
+    "main_spaces": ["Vue d’ensemble", "Clinique", "Imagerie", "Documents", "Finances"],
+    "quick_actions": ["RDV", "Examen/Suivi", "Document", "Encaisser"],
+    "documents_navigation": ["Créer", "Historique"],
+    "legacy_navigation_removed": ["Radiologie (IA)", "Documents A5", "Archives & Historique"],
+    "technical_labels_simplified": ["Céphalométrie COM -> Céphalométrie", "Panoramique DENTEX -> Panoramique"],
+    "clinical_logic_changed": false,
+    "financial_logic_changed": false
+  },
+  "exact_head_certification": {
+    "ci": {
+      "run_id": 32201889504,
+      "run_number": 1141,
+      "conclusion": "success"
+    },
+    "t2_runtime_browser_certification": {
+      "run_id": 32201889557,
+      "run_number": 396,
+      "conclusion": "success"
+    },
+    "visual_after": {
+      "run_id": 32201889501,
+      "run_number": 6,
+      "conclusion": "success"
+    }
+  },
+  "safety": {
+    "vercel_deploy": false,
+    "merged": false
+  }
+}
