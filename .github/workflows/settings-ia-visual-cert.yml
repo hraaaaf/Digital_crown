@@ -63,8 +63,8 @@ jobs:
               });
               await page.goto('http://127.0.0.1:4178/settings-ia-cert.html',{waitUntil:'networkidle'});
               await page.getByRole('heading',{name:'Paramètres',exact:true}).waitFor({timeout:15000});
-              await page.getByRole('button',{name:'IA & Système',exact:true}).click();
-              await page.getByRole('heading',{name:'Intelligence & Performance',exact:true}).waitFor({state:'visible'});
+              await page.getByRole('button',{name:/^(IA & Système|Performance & Assistance)$/}).click();
+              await page.getByRole('heading',{name:/^(Intelligence & Performance|Performance & Assistance)$/}).waitFor({state:'visible'});
               const bodyWidth=await page.evaluate(()=>document.documentElement.scrollWidth); if(bodyWidth>width) throw new Error(`Horizontal overflow: document=${bodyWidth}, viewport=${width}`);
               if(errors.length) throw new Error(errors.join('\n'));
               await page.screenshot({path:`${output}/admin-ia-${width}x1200.png`,fullPage:true,animations:'disabled'}); await context.close();
