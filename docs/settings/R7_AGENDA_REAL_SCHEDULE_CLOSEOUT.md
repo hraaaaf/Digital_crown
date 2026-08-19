@@ -2,9 +2,9 @@
 
 Date : 2026-08-19
 Repo : `hraaaaf/Digital_crown`
-PR : `#178`
-Branche : `settings-r7-agenda-real-schedule`
-HEAD produit certifié avant closeout : `e45f677a44d7ad7c950efcd88d9afed17585df95`
+PR : `#178` — **MERGED**
+Merge : `4f20832ee70fecf5878242cc1a98ef633d8be129`
+HEAD produit certifié : `e45f677a44d7ad7c950efcd88d9afed17585df95`
 
 ## Goal
 
@@ -25,9 +25,9 @@ Faire de **Réglages → Horaires & Agenda** une configuration réellement appli
 - bulk prévalidé avant insertion ;
 - AgendaModal restitue le `detail` backend lorsqu’un rendez-vous est refusé.
 
-## Preuves exact-HEAD
+## Preuves exactes du produit mergé
 
-Toutes les gates ci-dessous ont terminé **SUCCESS** sur `e45f677a44d7ad7c950efcd88d9afed17585df95` :
+Toutes les gates ont terminé **SUCCESS** sur le HEAD produit `e45f677a44d7ad7c950efcd88d9afed17585df95` :
 
 - Agenda downstream #20 — run `32247944292` ;
 - Settings RBAC #120 — run `32247944286` ;
@@ -35,6 +35,8 @@ Toutes les gates ci-dessous ont terminé **SUCCESS** sur `e45f677a44d7ad7c950efc
 - Settings Read Truth #36 — run `32247944343` ;
 - CI #1353 — run `32247944342` ;
 - T2 Runtime Browser #601 — run `32247944318`.
+
+Le delta de closeout jusqu’au HEAD PR final était documentaire uniquement ; la synchronisation avec `master` avait **zéro fichier modifié**. Le squash merge `4f20832...` a donc intégré le même produit certifié.
 
 ### Tests
 
@@ -55,21 +57,16 @@ Settings Agenda AFTER :
 - aucun défaut visuel bloquant observé ;
 - modale utilisable à 390 px.
 
-Downstream Agenda exact-HEAD :
+Downstream Agenda :
 - artifact `9367836333` ;
 - digest `sha256:b84a8b4fc3d790460e989e228885cb67f20c483c50c05634042fc863c85acb6e` ;
 - 10 captures Jour/Semaine × 1440/1024/768/430/390 ;
-- `scrollWidth == clientWidth` sur tous les viewports ;
+- `scrollWidth == clientWidth` partout ;
 - aucune erreur console/page.
 
-Read Truth :
-- artifact `9368899089` ;
-- digest `sha256:aa88423df608baa007eb9dfc95af432522a58c75b8832ef61ec4e5f3b9470960` ;
-- états d’erreur fail-closed lisibles, sans faux état vide.
+Read Truth : artifact `9368899089`, digest `sha256:aa88423df608baa007eb9dfc95af432522a58c75b8832ef61ec4e5f3b9470960`.
 
-RBAC :
-- artifact `9368027180` ;
-- digest `sha256:f7739ec8d68a2b2152103b104b18969d25ff650593dddb439193fafff4e686e5`.
+RBAC : artifact `9368027180`, digest `sha256:f7739ec8d68a2b2152103b104b18969d25ff650593dddb439193fafff4e686e5`.
 
 ## Score visuel
 
@@ -85,8 +82,8 @@ La CI verte expose encore des avertissements existants : dépendances npm signal
 
 ## Statut
 
-**CERTIFIÉ — READY TO MERGE**.
+**CLOSED — CERTIFIÉ — MERGED**.
 
-Le lot ne devient `CLOSED — MERGED` et ne compte dans l’avancement qu’après merge et vérification post-merge.
+Avancement chantier après merge : **5/15 = 33,3 %**.
 
 Aucun déploiement Vercel.

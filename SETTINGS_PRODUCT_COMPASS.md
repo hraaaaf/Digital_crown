@@ -26,7 +26,7 @@ Le preset personnel `Dr. Benmoussa Achraf` reste réservé au superadmin propri�
 
 Statut : **CERTIFIÉ R2**.
 
-## 4. Lots certifiés / état courant
+## 4. Lots certifiés
 
 | Lot | Décision | Statut | Score visuel |
 |---|---|---|---:|
@@ -34,9 +34,9 @@ Statut : **CERTIFIÉ R2**.
 | R3 Design & Ambiance | GARDER / CLARIFIER | CLOSED — MERGED (#173) | 9,7/10 |
 | R4 Modèles documentaires | PDF réel = vérité | CLOSED — MERGED (#174) | 9,2/10 |
 | R6 Catalogue Actes | GARDER architecture / REFONDRE CRUD | CLOSED — MERGED (#177) | 9,6/10 |
-| R7 Horaires & Agenda | GARDER / RENDRE RÉEL | CERTIFIÉ — READY TO MERGE (#178) | 9,3/10 |
+| R7 Horaires & Agenda | GARDER / RENDRE RÉEL | CLOSED — MERGED (#178) | 9,3/10 |
 
-Progression **créditée avant merge R7 : 4/15 = 26,7 %**. Après merge et vérification post-merge de R7 : **5/15 = 33,3 %**.
+**Avancement vérifié : 5/15 = 33,3 %.**
 
 ## 5. Décisions restantes
 
@@ -50,13 +50,15 @@ Shell/RBAC/Truth Gates : **GARDER**. Doctrine de sauvegarde inter-onglets : **À
 
 ### R7 — Horaires & Agenda
 
-**CERTIFIÉ — READY TO MERGE**.
+**CLOSED — CERTIFIÉ — MERGED**.
 
-Implémenté : semaine 7 jours réelle, jours fermés, exceptions, journée continue, bornes réelles dans Daily/Weekly, garde pause/hors-plage, backend autoritaire sur create/update/bulk, compatibilité legacy fail-safe, feedback backend explicite.
+Semaine 7 jours réelle, jours fermés, exceptions, journée continue, bornes Daily/Weekly, garde pause/hors-plage, backend autoritaire create/update/bulk, compatibilité legacy fail-safe et feedback backend explicite.
 
-Preuves canoniques : `docs/settings/R7_AGENDA_REAL_SCHEDULE_VISUAL_GOAL.md` et `docs/settings/R7_AGENDA_REAL_SCHEDULE_CLOSEOUT.md`.
+Preuves : `docs/settings/R7_AGENDA_REAL_SCHEDULE_VISUAL_GOAL.md` + `docs/settings/R7_AGENDA_REAL_SCHEDULE_CLOSEOUT.md`. Merge `4f20832ee70fecf5878242cc1a98ef633d8be129`.
 
 ### R8 — Performance & Assistance
+
+**LOT ACTIF SUIVANT — PR #183**.
 
 Décision corrigée après audit complet :
 - Mode Performance : **GARDER** ; downstream réel ;
@@ -64,7 +66,9 @@ Décision corrigée après audit complet :
 - Conseils cliniques contextuels : **GARDER** ; consommateurs réels `Sidebar` + `Step1Cephalo` ;
 - Indicateurs patient : **GARDER / RENOMMER / EXPLIQUER** ; consommateurs `Dashboard` + `PatientList/PatientScoreBadge` ; backend = 60 % assiduité RDV + 40 % encaissé/facturé, neutre 50 sans données, override praticien possible.
 
-PR #183 ouverte, visuellement pré-certifiée. Seul défaut identifié : workflow RBAC historique attend encore `IA & Système` au lieu de `Performance & Assistance`. Un seul commit final est prévu après R7.
+État préparé : BEFORE/AFTER 5 viewports inspectés ; CI/T2/IA Visual/Branding/Read Truth verts sur HEAD `1dd53e754447b2cb325bae44ef75f511cbeda85a`. Seul défaut prouvé : harness RBAC historique attend encore `IA & Système` au lieu de `Performance & Assistance`.
+
+Next R8 : synchroniser sur master post-R7 → corriger le harness RBAC → un seul commit final → certification exact-head → score/closeout/merge.
 
 ### R9 — Sécurité & Backup
 
@@ -82,35 +86,35 @@ Ne pas refondre isolément. Prouver les dépendances, extraire les idées utiles
 
 P1 : doctrine sauvegarde ; modèles documentaires ✅ ; Catalogue CRUD ✅ ; Profil ✅ ; mot de passe Team ; Branding ✅.
 
-P2 : Agenda réel **certifié, merge en attente** ; Catalogue avancé ; Performance & Assistance ; Audit Log humanisé ; indicateurs patient explicables ; QR documentaire ; restauration guidée.
+P2 : Agenda réel ✅ ; Catalogue avancé ; **Performance & Assistance ACTIF** ; Audit Log humanisé ; indicateurs patient explicables ; QR documentaire ; restauration guidée.
 
 P3 : TemplateBuilder legacy ; suppression de toggles/features uniquement après preuve downstream.
 
 ## 7. HANDOVER COURANT
 
 - Chantier : **Réglages — Product Review & Simplification**
-- Lot courant : **R7 closeout / merge**
+- Lot actif : **R8 — Performance & Assistance**
 - Repo : `hraaaaf/Digital_crown`
-- PR : `#178`
-- Branche : `settings-r7-agenda-real-schedule`
-- HEAD produit certifié : `e45f677a44d7ad7c950efcd88d9afed17585df95`
-- Gates exact-head : Downstream #20 ✅ ; RBAC #120 ✅ ; Agenda Visual #28 ✅ ; Read Truth #36 ✅ ; CI #1353 ✅ ; T2 #601 ✅
-- Tests : backend 2748 passed / 7 skipped ; frontend 367 passed ; build ✅
-- Score R7 : **9,3/10**
-- Blocage réel : aucun avant commit documentaire final puis recertification exacte
-- Next exact : **commit closeout unique → recertification exact-HEAD → merge #178 → post-merge → R8 #183**
-- Avancement crédité : **4/15 = 26,7 %** ; après merge R7 : **5/15 = 33,3 %**
+- Base : `master`
+- Dernier merge R7 : `4f20832ee70fecf5878242cc1a98ef633d8be129`
+- R7 : CLOSED — score **9,3/10**
+- PR active : `#183`
+- Branche R8 : `settings-r8-performance-assistance`
+- HEAD R8 préparé : `1dd53e754447b2cb325bae44ef75f511cbeda85a`
+- Preuves R8 déjà acquises : CI ✅ ; T2 ✅ ; IA Visual ✅ ; Branding Visual ✅ ; Read Truth ✅ ; BEFORE/AFTER 5 viewports inspectés
+- Défaut R8 restant : RBAC harness libellé historique
+- Next exact : **sync master → patch RBAC unique → exact-head gates → score → closeout → merge**
+- Avancement vérifié : **5/15 = 33,3 %**
 - Vercel : **aucun déploiement**
 
 ## 8. Journal
 
-### 2026-08-19 — R7 CERTIFIÉ, READY TO MERGE
+### 2026-08-19 — R7 CLOSED
 
-- six gates exact-HEAD vertes ;
-- backend 2748 passed ; frontend 367 passed ; build vert ;
+- PR #178 mergée ; merge `4f20832...` ;
+- six gates produit vertes ; backend 2748 passed ; frontend 367 passed ;
 - 10 AFTER Settings + 10 downstream inspectées sur 5 viewports ;
-- aucun overflow horizontal downstream ;
-- score **9,3/10** ;
+- aucun overflow horizontal downstream ; score **9,3/10** ;
 - aucun Vercel.
 
 ### 2026-08-19 — R6 CLOSED
