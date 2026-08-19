@@ -26,8 +26,14 @@ jobs:
             echo '=== designConfig refs ==='
             grep -R -n --exclude-dir=node_modules --exclude-dir=.git 'designConfig' frontend/src || true
             echo
+            echo '=== templateApi imports/usages ==='
+            grep -R -n --exclude-dir=node_modules --exclude-dir=.git -E 'templateApi|from .*/templateApi|from .*templateApi' frontend/src || true
+            echo
             echo '=== document template routes/imports ==='
             grep -R -n --exclude-dir=node_modules --exclude-dir=.git -E 'template-builder|template_builder|document-template|DocumentTemplate|TemplateStudio' frontend/src || true
+            echo
+            echo '=== backend template route declarations ==='
+            grep -R -n --exclude-dir=.git -E '@(router|app)\.(get|post|put|delete|patch).*template|/templates|document_templates|DocumentTemplate' backend || true
             echo
             echo '=== persisted template refs ==='
             grep -R -n --exclude-dir=node_modules --exclude-dir=.git -E 'selected_template|branding_preview_scope|branding_scope' frontend/src/features frontend/src/pages frontend/src/App.tsx || true
