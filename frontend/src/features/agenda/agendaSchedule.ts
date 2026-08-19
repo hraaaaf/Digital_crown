@@ -84,6 +84,17 @@ export const isDateOpen = (
   exceptions?: AgendaExceptionLike[] | null,
 ): boolean => getDaySchedule(date, settings).is_open && !getExceptionForDate(date, exceptions);
 
+export const isTimeWithinSchedule = (time: string, schedule: DaySchedule): boolean => {
+  if (!schedule.is_open || !/^\d{2}:\d{2}$/.test(time)) return false;
+  const target = timeToMinutes(time);
+  const morningStart = timeToMinutes(schedule.morning_start);
+  const morningEnd = timeToMinutes(schedule.morning_end);
+  if (schedule.is_continuous) return target >= morningStart && target < morningEnd;
+  const afternoonStart = timeToMinutes(schedule.afternoon_start);
+  const afternoonEnd = timeToMinutes(schedule.afternoon_end);
+  return (target >= morningStart && target < morningEnd) || (target >= afternoonStart && target < afternoonEnd);
+};
+
 export const getDayBounds = (schedule: DaySchedule): { startHour: number; endHour: number } => {
   const startMinutes = timeToMinutes(schedule.morning_start);
   const endMinutes = timeToMinutes(schedule.is_continuous ? schedule.morning_end : schedule.afternoon_end);

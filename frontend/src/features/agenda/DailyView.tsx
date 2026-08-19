@@ -3,7 +3,7 @@ import { api } from '../../services/api';
 import { Plus, Loader2, RefreshCw, Calendar } from 'lucide-react';
 import { cn } from '../../utils/cn';
 import { AgendaModal } from './AgendaModal';
-import { getDayBounds, getDaySchedule, getExceptionForDate, isDateOpen, type AgendaExceptionLike, type AgendaSettingsLike } from './agendaSchedule';
+import { getDayBounds, getDaySchedule, getExceptionForDate, isDateOpen, isTimeWithinSchedule, type AgendaExceptionLike, type AgendaSettingsLike } from './agendaSchedule';
 
 export type AppointmentStatus = 'PRÉVU' | 'EN_S_ATTENTE' | 'EN_FAUTEUIL' | 'TERMINÉ' | 'ANNULÉ' | 'EN_ATTENTE_DEMANDE' | 'EN_ATTENTE_CONFIRM' | 'CONFIRMÉ' | 'REFUSÉ' | 'EXPIRÉ' | 'ABSENT';
 
@@ -56,6 +56,7 @@ export const DailyView: React.FC<DailyViewProps> = ({ selectedDate, agendaSettin
     const hours = startHour + Math.floor(slotIndex / slotsPerHour);
     const minutes = (slotIndex % slotsPerHour) * 15;
     const timeString = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
+    if (!isTimeWithinSchedule(timeString, daySchedule)) return;
     
     setInitialTime(timeString);
     setEditingAppointment(null);

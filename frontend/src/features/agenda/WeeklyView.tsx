@@ -5,7 +5,7 @@ import { cn } from '../../utils/cn';
 import toast from 'react-hot-toast';
 import { AgendaModal } from './AgendaModal';
 import type { Appointment, AppointmentStatus } from './DailyView';
-import { formatScheduleSummary, getDaySchedule, getExceptionForDate, getWeekBounds, isDateOpen, type AgendaExceptionLike, type AgendaSettingsLike } from './agendaSchedule';
+import { formatScheduleSummary, getDaySchedule, getExceptionForDate, getWeekBounds, isDateOpen, isTimeWithinSchedule, type AgendaExceptionLike, type AgendaSettingsLike } from './agendaSchedule';
 
 interface WeeklyViewProps {
   selectedDate: Date;
@@ -48,6 +48,7 @@ export const WeeklyView: React.FC<WeeklyViewProps> = ({ selectedDate, agendaSett
     const hours = startHour + Math.floor(slotIndex / 4);
     const minutes = (slotIndex % 4) * 15;
     const timeString = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
+    if (!isTimeWithinSchedule(timeString, getDaySchedule(date, agendaSettings))) return;
     
     setModalDate(date);
     setInitialTime(timeString);
