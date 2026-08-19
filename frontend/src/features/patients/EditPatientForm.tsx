@@ -27,13 +27,15 @@ export const EditPatientForm = () => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [fetchError, setFetchError] = useState(false);
+  const [reloadKey, setReloadKey] = useState(0);
   
   const [formData, setFormData] = useState({
     numero_dossier: '',
     nom: '',
     prenom: '',
     date_naissance: '',
-    sexe: 'F',
+    sexe: '',
     telephone: '',
     telephone_2: '',
     telephone_3: '',
@@ -49,7 +51,7 @@ export const EditPatientForm = () => {
   const [showPhone2, setShowPhone2] = useState(false);
   const [showPhone3, setShowPhone3] = useState(false);
   const [numeroError, setNumeroError] = useState('');
-  const [dossierStatus, setDossierStatus] = useState<{ status: 'idle' | 'checking' | 'available' | 'taken', owner?: string }>({ status: 'idle' });
+  const [dossierStatus, setDossierStatus] = useState<{ status: 'idle' | 'checking' | 'available' | 'taken' | 'error', owner?: string }>({ status: 'idle' });
   const [originalNumero, setOriginalNumero] = useState('');
 
   // Chargement initial des données du patient
@@ -57,6 +59,7 @@ export const EditPatientForm = () => {
     const fetchPatient = async () => {
       try {
         setLoading(true);
+        setFetchError(false);
         const res = await api.get(`/patients/${id}`);
         const patient = res.data;
         
@@ -72,7 +75,7 @@ export const EditPatientForm = () => {
           nom: patient.nom || '',
           prenom: patient.prenom || '',
           date_naissance: dateFormatted,
-          sexe: patient.sexe || 'F',
+          sexe: patient.sexe === 'M' || patient.sexe === 'F' ? patient.sexe : '',
           telephone: patient.telephone || '',
           telephone_2: patient.telephone_2 || '',
           telephone_3: patient.telephone_3 || '',
@@ -90,12 +93,13 @@ export const EditPatientForm = () => {
         setOriginalNumero(patient.numero_dossier || '');
       } catch (err) {
         console.error("Erreur de récupération:", err);
+        setFetchError(true);
       } finally {
         setLoading(false);
       }
     };
     fetchPatient();
-  }, [id]);
+  }, [id, reloadKey]);
 
   // Check availability when numero_dossier changes
   useEffect(() => {
@@ -119,7 +123,8 @@ export const EditPatientForm = () => {
           setDossierStatus({ status: 'available' });
         }
       } catch (err) {
-        setDossierStatus({ status: 'available' });
+        console.error('Erreur vérification numéro de dossier:', err);
+        setDossierStatus({ status: 'error' });
       }
     }, 500);
 
@@ -155,6 +160,19 @@ export const EditPatientForm = () => {
     <div className="h-screen flex flex-col items-center justify-center gap-4 bg-slate-50">
       <Loader2 className="animate-spin text-[#003380]" size={48} />
       <p className="text-slate-400 font-black uppercase tracking-widest text-[10px]">Chargement du dossier...</p>
+    </div>
+  );
+
+  if (fetchError) return (
+    <div className="min-h-[60vh] flex flex-col items-center justify-center gap-4 text-center px-6">
+      <AlertCircle size={42} className="text-rose-500" />
+      <div>
+        <h2 className="font-black text-slate-800 text-xl">Impossible de charger le patient</h2>
+        <p className="text-slate-500 text-sm mt-1">Le formulaire n'est pas affiché avec des valeurs par défaut.</p>
+      </div>
+      <button type="button" onClick={() => setReloadKey(key => key + 1)} className="flex items-center gap-2 px-4 py-2 rounded-xl bg-[#003380] text-white font-black text-xs uppercase tracking-widest">
+        <RefreshCw size={15} /> Réessayer
+      </button>
     </div>
   );
 
@@ -223,6 +241,9 @@ export const EditPatientForm = () => {
             )}
             {dossierStatus.status === 'available' && (
               <p className="mt-2 text-xs text-emerald-600 font-bold">✓ Numéro disponible</p>
+            )}
+            {dossierStatus.status === 'error' && (
+              <p className="mt-2 text-xs text-amber-600 font-bold flex items-center gap-1"><AlertTriangle size={13} /> Disponibilité non vérifiée</p>
             )}
             <p className="mt-2 text-xs text-slate-500">
               ⚠️ Modifiez avec précaution - ce numéro est utilisé pour identifier le dossier physique

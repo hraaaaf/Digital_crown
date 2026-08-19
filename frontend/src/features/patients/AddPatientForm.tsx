@@ -34,14 +34,14 @@ export const AddPatientForm = () => {
   const prefillPrenom = searchParams.get('prenom') || '';
 
   // État pour la validation du numéro de dossier
-  const [dossierStatus, setDossierStatus] = useState<{ status: 'idle' | 'checking' | 'available' | 'taken', owner?: string }>({ status: 'idle' });
+  const [dossierStatus, setDossierStatus] = useState<{ status: 'idle' | 'checking' | 'available' | 'taken' | 'error', owner?: string }>({ status: 'idle' });
 
   const [formData, setFormData] = useState<any>({
     numero_dossier: '',
     nom: prefillNom,
     prenom: prefillPrenom,
     date_naissance: '',
-    sexe: 'F', 
+    sexe: '',
     telephone: '',
     telephone_2: '',
     telephone_3: '',
@@ -94,7 +94,8 @@ export const AddPatientForm = () => {
           setDossierStatus({ status: 'available' });
         }
       } catch (err) {
-        setDossierStatus({ status: 'available' }); // Fallback silent
+        console.error('Erreur vérification numéro de dossier:', err);
+        setDossierStatus({ status: 'error' });
       }
     }, 500);
 
@@ -142,6 +143,7 @@ export const AddPatientForm = () => {
         newErrors.date_naissance = "Date invalide (doit être entre 1900 et aujourd'hui).";
       }
     }
+    if (!formData.sexe) newErrors.sexe = "Le sexe doit être renseigné explicitement.";
     // Téléphone, email et adresse sont optionnels
     
     if (formData.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
@@ -153,7 +155,7 @@ export const AddPatientForm = () => {
   };
 
   // Vérification préalable des doublons
-  const checkDuplicate = async (): Promise<boolean> => {
+  const checkDuplicate = async (): Promise<boolean | null> => {
     try {
       const response = await api.post('/patients/check-duplicate', {
         numero_dossier: formData.numero_dossier || null,
@@ -178,7 +180,8 @@ export const AddPatientForm = () => {
       return false; // Pas de doublon
     } catch (err) {
       console.error("Erreur vérification doublon:", err);
-      return false; // En cas d'erreur, on continue (le backend vérifiera aussi)
+      setErrors(previous => ({ ...previous, global: "Vérification anti-doublon indisponible. Réessayez avant de créer le patient." }));
+      return null;
     }
   };
 
@@ -191,6 +194,7 @@ export const AddPatientForm = () => {
       setLoading(true);
       const hasDuplicate = await checkDuplicate();
       setLoading(false);
+      if (hasDuplicate === null) return;
       if (hasDuplicate) return; // Arrêter ici, attendre la décision de l'utilisateur
     }
 
@@ -253,23 +257,23 @@ export const AddPatientForm = () => {
   };
 
   return (
-    <div className="max-w-4xl mx-auto p-10">
-      <div className="bg-white/70 backdrop-blur-xl rounded-[2.5rem] shadow-[0_20px_60px_rgba(0,0,0,0.05)] border border-white/80 overflow-hidden">
+    <div className="w-full min-w-0 max-w-4xl mx-auto px-3 sm:px-6 lg:px-10 py-6 lg:py-10">
+      <div className="w-full min-w-0 bg-white/70 backdrop-blur-xl rounded-[2.5rem] shadow-[0_20px_60px_rgba(0,0,0,0.05)] border border-white/80 overflow-hidden">
         
         {/* Header Premium */}
-        <div className="bg-[#003380] px-10 py-8 flex justify-between items-center relative overflow-hidden">
-          <div className="flex items-center gap-5 relative z-10">
+        <div className="bg-[#003380] px-5 sm:px-10 py-6 sm:py-8 flex justify-between items-center relative overflow-hidden">
+          <div className="flex min-w-0 items-center gap-3 sm:gap-5 relative z-10">
             <div className="p-4 bg-white/10 rounded-2xl border border-white/20 backdrop-blur-md">
               <User className="text-white w-8 h-8" />
             </div>
             <div>
-              <h2 className="text-3xl font-black text-white tracking-tight">Nouveau Patient</h2>
+              <h2 className="text-2xl sm:text-3xl font-black text-white tracking-tight leading-tight">Nouveau Patient</h2>
               <p className="text-blue-200 text-sm font-medium mt-1">Digital Crown — Vérification anti-doublon activée</p>
             </div>
           </div>
         </div>
 
-        <form onSubmit={handleSubmit} className="p-10 space-y-10">
+        <form onSubmit={handleSubmit} className="p-5 sm:p-10 space-y-8 sm:space-y-10">
           {errors.global && (
             <div className="p-4 bg-red-50 text-red-700 rounded-2xl border border-red-100 flex items-center gap-2 font-bold text-sm">
               <Activity className="w-5 h-5" /> {errors.global}
@@ -333,6 +337,11 @@ export const AddPatientForm = () => {
                   <UserCheck size={12} /> Numéro disponible
                 </p>
               )}
+              {dossierStatus.status === 'error' && (
+                <p className="text-amber-600 text-[10px] font-black uppercase tracking-widest mt-2 ml-1 flex items-center gap-1">
+                  <AlertTriangle size={12} /> Disponibilité non vérifiée
+                </p>
+              )}
             </div>
 
             {/* Champs Nom et Prénom - nécessaires dans les deux cas */}
@@ -392,11 +401,13 @@ export const AddPatientForm = () => {
                   name="sexe" 
                   value={formData.sexe} 
                   onChange={handleChange}
-                  className={inputClass}
+                  className={cn(inputClass, errors.sexe && "border-red-400 focus:border-red-400 focus:ring-red-100")}
                 >
+                  <option value="">Choisir…</option>
                   <option value="F">Féminin</option>
                   <option value="M">Masculin</option>
                 </select>
+                {errors.sexe && <span className="text-red-500 text-xs mt-1 ml-1">{errors.sexe}</span>}
               </div>
 
               <div>
