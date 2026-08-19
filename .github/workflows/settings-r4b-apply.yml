@@ -1,0 +1,100 @@
+name: Settings R4B Premium Models Apply
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/settings-r4b-apply.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    if: github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: settings-r4-document-studio
+          fetch-depth: 0
+      - name: Apply premium model delegation and truthful typography
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import re
+
+          path = Path('backend/services/base_template.py')
+          text = path.read_text(encoding='utf-8')
+
+          def replace(pattern, replacement, label):
+              global text
+              text, count = re.subn(pattern, replacement, text, flags=re.M | re.S)
+              if count != 1:
+                  raise SystemExit(f'{label}: expected 1 replacement, got {count}')
+
+          replace(
+              r'^    def _register_fonts\(self\):.*?(?=^    def update_active_fonts\(self, config\):)',
+              '''    def _register_fonts(self):\n        from backend.services.premium_document_headers import register_document_fonts\n        register_document_fonts(self)\n\n''',
+              'register_fonts',
+          )
+          replace(
+              r'^    def update_active_fonts\(self, config\):.*?(?=^    def _prepare_arabic\(self, text\):)',
+              '''    def update_active_fonts(self, config):\n        from backend.services.premium_document_headers import update_document_fonts\n        update_document_fonts(self, config)\n\n''',
+              'update_active_fonts',
+          )
+
+          delegates = [
+              ('swiss', 'royal'),
+              ('royal', 'clinical'),
+              ('clinical', 'modern'),
+              ('modern', 'heritage'),
+          ]
+          for current, nxt in delegates:
+              pattern = rf'^    def _draw_header_{current}\(self, canvas, config, logo_path, p_color, s_color, a_color, p_width, p_height, fr_lines, ar_lines, h_scale\):.*?(?=^    def _draw_header_{nxt}\()'
+              replacement = f'''    def _draw_header_{current}(self, canvas, config, logo_path, p_color, s_color, a_color, p_width, p_height, fr_lines, ar_lines, h_scale):\n        from backend.services.premium_document_headers import draw_{current}\n        return draw_{current}(self, canvas, config, logo_path, p_color, s_color, a_color, p_width, p_height, fr_lines, ar_lines, h_scale)\n\n'''
+              replace(pattern, replacement, f'header_{current}')
+
+          replace(
+              r'^    def _draw_header_heritage\(self, canvas, config, logo_path, p_color, s_color, a_color, p_width, p_height, fr_lines, ar_lines, h_scale\):.*?(?=^    def _draw_footer\()',
+              '''    def _draw_header_heritage(self, canvas, config, logo_path, p_color, s_color, a_color, p_width, p_height, fr_lines, ar_lines, h_scale):\n        from backend.services.premium_document_headers import draw_heritage\n        return draw_heritage(self, canvas, config, logo_path, p_color, s_color, a_color, p_width, p_height, fr_lines, ar_lines, h_scale)\n\n\n''',
+              'header_heritage',
+          )
+
+          path.write_text(text, encoding='utf-8')
+
+          constants = Path('frontend/src/features/admin/constants.ts')
+          ctext = constants.read_text(encoding='utf-8')
+          new_fonts = '''export const PREMIUM_FONTS = [\n  { id: 'inter', name: 'Sans Clinique', desc: 'Sans-serif neutre et déterministe pour une lecture médicale immédiate.', class: 'font-sans' },\n  { id: 'outfit', name: 'Outfit', desc: 'Typographie réellement embarquée, moderne et premium.', class: 'font-outfit' },\n  { id: 'playfair', name: 'Sérif Prestige', desc: 'Sérif classique fiable pour une identité plus institutionnelle.', class: 'font-serif' },\n  { id: 'mono', name: 'Mono Technique', desc: 'Monospace déterministe pour une esthétique technique assumée.', class: 'font-mono' },\n];'''
+          ctext, count = re.subn(r'export const PREMIUM_FONTS = \[.*?\n\];', new_fonts, ctext, count=1, flags=re.S)
+          if count != 1:
+              raise SystemExit(f'PREMIUM_FONTS: expected 1 replacement, got {count}')
+          constants.write_text(ctext, encoding='utf-8')
+
+          controls = Path('frontend/src/features/admin/Settings/tabs/branding/StudioControls.tsx')
+          stext = controls.read_text(encoding='utf-8')
+          replacements = {
+              "{ id: 'swiss', name: 'Swiss Clinic', desc: 'Précision & Clarté' }": "{ id: 'swiss', name: 'Swiss Clinic', desc: 'Grille asymétrique précise' }",
+              "{ id: 'royal', name: 'Royal Elite', desc: 'Symétrie Absolue' }": "{ id: 'royal', name: 'Royal Elite', desc: 'Symétrie premium équilibrée' }",
+              "{ id: 'clinical', name: 'Clinical Grid', desc: 'Rigueur Scientifique' }": "{ id: 'clinical', name: 'Clinical Grid', desc: 'Grille institutionnelle' }",
+              "{ id: 'modern', name: 'Modern Flush', desc: 'Aération Contemporaine' }": "{ id: 'modern', name: 'Modern Flush', desc: 'Accent vertical contemporain' }",
+              "{ id: 'heritage', name: 'L\\'Héritage', desc: 'Prestige Classique' }": "{ id: 'heritage', name: 'L\\'Héritage', desc: 'Papeterie classique sobre' }",
+          }
+          for old, new in replacements.items():
+              if old not in stext:
+                  raise SystemExit(f'missing StudioControls template string: {old}')
+              stext = stext.replace(old, new, 1)
+          controls.write_text(stext, encoding='utf-8')
+          PY
+      - name: Verify Python syntax
+        run: python -m py_compile backend/services/base_template.py backend/services/premium_document_headers.py
+      - name: Commit and push
+        run: |
+          if git diff --quiet; then
+            echo "No changes to commit"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add backend/services/base_template.py frontend/src/features/admin/constants.ts frontend/src/features/admin/Settings/tabs/branding/StudioControls.tsx
+          git commit -m "settings: premiumize document model identities"
+          git push origin HEAD:settings-r4-document-studio
