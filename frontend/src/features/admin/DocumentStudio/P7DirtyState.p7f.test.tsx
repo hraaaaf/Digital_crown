@@ -3,7 +3,6 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import TreatmentPlanStudio from './TreatmentPlanStudio';
 import { isP7Dirty, setP7Dirty } from './P7DirtyState';
-import { shouldGuardDocumentTabTransition } from './DocumentTabNavigationPolicy';
 
 const mocks = vi.hoisted(() => ({
   get: vi.fn(),
@@ -21,21 +20,12 @@ describe('P7-F dirty-state boundary', () => {
     vi.restoreAllMocks();
   });
 
-  it('guards leaving P7 while the proposal is dirty', () => {
+  it('tracks P7 proposal dirtiness independently from Documents navigation', () => {
+    expect(isP7Dirty()).toBe(false);
     setP7Dirty(true);
-    const dirty = {
-      prescription: false,
-      certificate: false,
-      accounting: false,
-      installment: false,
-      libre: false,
-      plan: isP7Dirty(),
-    };
-
-    expect(shouldGuardDocumentTabTransition('plan', 'devis', dirty)).toBe(true);
-
+    expect(isP7Dirty()).toBe(true);
     setP7Dirty(false);
-    expect(shouldGuardDocumentTabTransition('plan', 'devis', { ...dirty, plan: isP7Dirty() })).toBe(false);
+    expect(isP7Dirty()).toBe(false);
   });
 
   it('marks P7 dirty after interaction and clears it on explicit reset', async () => {
