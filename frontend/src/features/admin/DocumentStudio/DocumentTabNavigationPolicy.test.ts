@@ -7,7 +7,6 @@ const clean: DocumentDirtySnapshot = {
   accounting: false,
   installment: false,
   libre: false,
-  plan: false,
 };
 
 describe('shouldGuardDocumentTabTransition', () => {
@@ -18,7 +17,6 @@ describe('shouldGuardDocumentTabTransition', () => {
     ['honoraires', 'accounting'],
     ['echeancier', 'installment'],
     ['libre', 'libre'],
-    ['plan', 'plan'],
   ] as const)('guards dirty %s transitions', (activeTab, dirtyKey) => {
     const nextTab: DocumentTab = activeTab === 'ordonnance' ? 'certificat' : 'ordonnance';
     expect(shouldGuardDocumentTabTransition(activeTab, nextTab, { ...clean, [dirtyKey]: true })).toBe(true);
