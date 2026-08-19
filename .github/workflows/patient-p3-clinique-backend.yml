@@ -90,6 +90,6 @@ jobs:
 
       - name: P3 targeted clinical persistence tests
         run: |
-          pytest -q \
+          pytest -q -x --tb=short \
             backend/tests/test_patient_p3_odontogram.py \
             backend/tests/test_patient_p3_clinical_conclusions.py
