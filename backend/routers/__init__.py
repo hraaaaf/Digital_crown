@@ -5,11 +5,24 @@
 from . import patients as patients
 from . import patient_odontogram as patient_odontogram
 from . import patient_clinical_conclusions as patient_clinical_conclusions
+from . import patient_journey_p4 as patient_journey_p4
 from . import ia as ia
 from . import imaging_lifecycle_p4 as imaging_lifecycle_p4
 
+# Replace only the P2 Journey GET handler. Milestone create/delete routes remain on the
+# original patients router. The P4 facade delegates to the P2 aggregator then removes
+# recoverably trashed Pano/Cephalo events.
+patients.router.routes = [
+    route
+    for route in patients.router.routes
+    if not (
+        getattr(route, "path", None) == "/{patient_id}/journey"
+        and "GET" in (getattr(route, "methods", set()) or set())
+    )
+]
 patients.router.include_router(patient_odontogram.router)
 patients.router.include_router(patient_clinical_conclusions.router)
+patients.router.include_router(patient_journey_p4.router)
 
 # P4 replaces only the two normal hard-delete handlers. The scientific upload,
 # analysis, report and history routes remain untouched. A user DELETE now records
