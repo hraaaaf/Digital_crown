@@ -22,10 +22,9 @@ import { cn } from '../../../utils/cn';
 import { EliteGhostLoader } from '../../../components/EliteGhostLoader';
 import { LegacyActeNotes, type LegacyActe } from './LegacyActeNotes';
 
-// P0-TREATMENT-JOURNEY-1 — fil chronologique du dossier patient. Remplace PatientTracking comme
-// rendu par défaut de l'onglet "tracking" (voir docs/TREATMENT_JOURNEY_DESIGN.md, STATE.md).
-// N'est jamais la source de vérité : agrège des données déjà présentes en base, la navigation
-// renvoie toujours vers l'écran qui possède réellement la donnée.
+// P2 — Vue d'ensemble factuelle du dossier patient.
+// PatientJourney n'est jamais la source de vérité : il agrège des données persistées
+// et renvoie vers l'écran qui possède réellement chaque donnée.
 
 interface JourneyEvent {
   event_key: string;
@@ -91,14 +90,14 @@ const PHASE_LABELS: Record<string, string> = {
 };
 
 const SOURCE_LABELS: Record<string, string> = {
-  appointment: 'Consultations',
-  treatment_plan_step: 'Plan',
+  appointment: 'Agenda',
+  treatment_plan_step: 'Master Plan',
   document_archive: 'Documents',
   panoramic_analysis: 'Panoramique',
   cephalo_analysis: 'Céphalométrie',
   payment: 'Paiements',
-  installment: 'Échéances',
-  lab_job: 'Labo',
+  installment: 'Échéancier',
+  lab_job: 'Laboratoire',
   journey_milestone: 'Jalons',
 };
 
@@ -132,9 +131,6 @@ export const PatientJourney = ({ patientId }: PatientJourneyProps) => {
   const [searchParams, setSearchParams] = useSearchParams();
   const queryClient = useQueryClient();
   const [fullHistory, setFullHistory] = useState(false);
-  // null = aucune phase encore manipulée manuellement -> le pliage suit le défaut
-  // (seule la phase la plus récente est dépliée). Dès qu'une phase est togglée, on
-  // fige l'état courant (défaut inclus) dans le Set pour ne plus recalculer le défaut.
   const [expandedPhases, setExpandedPhases] = useState<Set<string> | null>(null);
   const [expandedEvents, setExpandedEvents] = useState<Set<string>>(new Set());
   const [sourceFilter, setSourceFilter] = useState<string | null>(null);
@@ -166,9 +162,6 @@ export const PatientJourney = ({ patientId }: PatientJourneyProps) => {
 
   const events = data?.events ?? [];
   const filteredEvents = sourceFilter ? events.filter((e) => e.source === sourceFilter) : events;
-
-  // Basé sur les événements filtrés : un filtre actif ne doit jamais faire disparaître
-  // le seul groupe restant derrière un pliage par défaut hérité de la vue non filtrée.
   const currentPhase = filteredEvents.length > 0 ? filteredEvents[0].phase_hint : null;
 
   const grouped = useMemo(() => {
@@ -233,7 +226,7 @@ export const PatientJourney = ({ patientId }: PatientJourneyProps) => {
         setSearchParams({ tab: 'radiology' });
         break;
       case 'TREATMENT_PLAN_TAB':
-        setSearchParams({ tab: 'admin' });
+        setSearchParams({ tab: 'clinical' });
         break;
       case 'ACCOUNTING_TAB':
         setSearchParams({ tab: 'finances' });
@@ -291,51 +284,119 @@ export const PatientJourney = ({ patientId }: PatientJourneyProps) => {
     );
   }
 
+  const planEvents = events.filter((ev) => ev.source === 'treatment_plan_step');
+  const pendingPlanEvent = planEvents.find((ev) => ev.status === 'pending' || ev.status === 'PENDING') ?? null;
+  const planReferenceDate = planEvents[0]?.date ?? null;
+  const calculatedAt = new Date();
+
+  const nextAction = data.summary.next_appointment
+    ? {
+        title: 'Ouvrir le prochain rendez-vous',
+        detail: format(new Date(data.summary.next_appointment), "EEEE d MMMM yyyy 'à' HH:mm", { locale: fr }),
+        source: 'Agenda',
+        date: data.summary.next_appointment,
+        open: () => navigate('/agenda'),
+      }
+    : pendingPlanEvent
+      ? {
+          title: pendingPlanEvent.title,
+          detail: 'Étape en attente dans le Master Plan enregistré',
+          source: 'Master Plan',
+          date: pendingPlanEvent.date,
+          open: () => handleEventClick(pendingPlanEvent),
+        }
+      : null;
+
   return (
-    <div className="space-y-8 animate-in fade-in duration-500">
-      {/* Bandeau résumé */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <div className="bg-card-bg p-6 rounded-[2rem] border border-border-main shadow-sm">
-          <p className="text-[10px] font-black uppercase tracking-[0.12em] text-text-muted mb-2">Plan de traitement</p>
-          <div className="text-3xl font-black" style={{ color: 'var(--primary)' }}>
-            {data.summary.active_plan_steps}/{data.summary.total_plan_steps}
+    <div className="space-y-6 md:space-y-8 animate-in fade-in duration-500">
+      <section className="bg-card-bg rounded-[2rem] border border-border-main shadow-sm p-5 md:p-6" aria-label="Prochaine action factuelle">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div className="min-w-0">
+            <p className="text-[10px] font-black uppercase tracking-[0.12em] text-text-muted mb-2">Prochaine action</p>
+            {nextAction ? (
+              <>
+                <h2 className="text-lg md:text-xl font-black text-slate-800 break-words">{nextAction.title}</h2>
+                <p className="text-sm text-text-muted font-bold mt-1">{nextAction.detail}</p>
+                <p className="text-[11px] text-text-muted mt-2">
+                  Source : <span className="font-black">{nextAction.source}</span> · {format(new Date(nextAction.date), 'd MMM yyyy', { locale: fr })}
+                </p>
+              </>
+            ) : (
+              <>
+                <h2 className="text-lg md:text-xl font-black text-slate-500">Aucune action planifiée</h2>
+                <p className="text-[11px] text-text-muted mt-2">Aucun RDV futur ni étape PENDING enregistrée dans le Master Plan.</p>
+              </>
+            )}
           </div>
-          <div className="text-xs text-text-muted font-bold mt-1">étapes en cours</div>
+          {nextAction && (
+            <button
+              onClick={nextAction.open}
+              className="shrink-0 inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-primary text-white text-xs font-black hover:bg-primary/90 transition-colors"
+            >
+              Ouvrir la source <ExternalLink size={14} />
+            </button>
+          )}
         </div>
+      </section>
+
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-4">
+        <div className="bg-card-bg p-5 md:p-6 rounded-[2rem] border border-border-main shadow-sm">
+          <p className="text-[10px] font-black uppercase tracking-[0.12em] text-text-muted mb-2">Plan actif</p>
+          {data.summary.total_plan_steps > 0 ? (
+            <>
+              <div className="text-2xl md:text-3xl font-black" style={{ color: 'var(--primary)' }}>
+                {data.summary.active_plan_steps} / {data.summary.total_plan_steps}
+              </div>
+              <div className="text-xs text-text-muted font-bold mt-1">étapes en attente / total</div>
+            </>
+          ) : (
+            <div className="text-lg font-black text-slate-500">Aucun plan enregistré</div>
+          )}
+          <p className="text-[11px] text-text-muted mt-3">
+            Source : <span className="font-black">Master Plan</span>
+            {planReferenceDate ? ` · ${format(new Date(planReferenceDate), 'd MMM yyyy', { locale: fr })}` : ''}
+          </p>
+        </div>
+
+        <div className="bg-card-bg p-5 md:p-6 rounded-[2rem] border border-border-main shadow-sm">
+          <p className="text-[10px] font-black uppercase tracking-[0.12em] text-text-muted mb-2">Prochain RDV</p>
+          <div className="text-lg md:text-xl font-black text-slate-800">
+            {data.summary.next_appointment
+              ? format(new Date(data.summary.next_appointment), "d MMM yyyy · HH:mm", { locale: fr })
+              : 'Aucun RDV planifié'}
+          </div>
+          <p className="text-[11px] text-text-muted mt-3">
+            Source : <span className="font-black">Agenda</span>
+            {data.summary.next_appointment ? ` · ${format(new Date(data.summary.next_appointment), 'd MMM yyyy', { locale: fr })}` : ''}
+          </p>
+        </div>
+
         <div className={cn(
-          'p-6 rounded-[2rem] border shadow-sm',
+          'p-5 md:p-6 rounded-[2rem] border shadow-sm',
           !data.summary.has_billing_data
             ? 'bg-slate-50 border-slate-200'
             : data.summary.remaining_due > 0 ? 'bg-red-50 border-red-100' : 'bg-card-bg border-border-main'
         )}>
-          <p className="text-[10px] font-black uppercase tracking-[0.12em] text-text-muted mb-2">Reste dû</p>
+          <p className="text-[10px] font-black uppercase tracking-[0.12em] text-text-muted mb-2">Situation financière</p>
           {!data.summary.has_billing_data ? (
-            <div className="text-3xl font-black text-slate-400">Solde indéterminé</div>
+            <div className="text-lg md:text-xl font-black text-slate-500">Solde indéterminé</div>
           ) : (
-            <div className={cn('text-3xl font-black', data.summary.remaining_due > 0 ? 'text-red-600' : 'text-emerald-600')}>
+            <div className={cn('text-2xl md:text-3xl font-black', data.summary.remaining_due > 0 ? 'text-red-600' : 'text-emerald-600')}>
               {data.summary.remaining_due.toLocaleString('fr-MA')} MAD
             </div>
           )}
-        </div>
-        <div className="bg-card-bg p-6 rounded-[2rem] border border-border-main shadow-sm">
-          <p className="text-[10px] font-black uppercase tracking-[0.12em] text-text-muted mb-2">Prochain RDV</p>
-          <div className="text-lg font-black text-slate-800">
-            {data.summary.next_appointment
-              ? format(new Date(data.summary.next_appointment), 'd MMM yyyy', { locale: fr })
-              : '—'}
-          </div>
-        </div>
-        <div className="bg-card-bg p-6 rounded-[2rem] border border-border-main shadow-sm">
-          <p className="text-[10px] font-black uppercase tracking-[0.12em] text-text-muted mb-2">Dernier document</p>
-          <div className="text-lg font-black text-slate-800">
-            {data.summary.last_document_date
-              ? format(new Date(data.summary.last_document_date), 'd MMM yyyy', { locale: fr })
-              : '—'}
-          </div>
+          <p className="text-[11px] text-text-muted mt-3">
+            Source : <span className="font-black">Actes + paiements</span> · calcul {format(calculatedAt, 'd MMM yyyy', { locale: fr })}
+          </p>
         </div>
       </div>
 
-      {/* Filtres + actions */}
+      {data.summary.last_document_date && (
+        <p className="text-xs text-text-muted font-bold px-1">
+          Dernier document enregistré : {format(new Date(data.summary.last_document_date), 'd MMM yyyy', { locale: fr })} · Source : Documents
+        </p>
+      )}
+
       <div className="flex flex-wrap items-center gap-2">
         <button
           onClick={() => setSourceFilter(null)}
@@ -377,68 +438,72 @@ export const PatientJourney = ({ patientId }: PatientJourneyProps) => {
 
       {data.truncated && (
         <div className="text-xs font-bold text-amber-600 bg-amber-50 border border-amber-200 rounded-xl px-4 py-2">
-          {data.events.length} événements affichés sur {data.total_events_available} — affinez les filtres pour voir le reste.
+          {data.events.length} événements affichés sur {data.total_events_available} · affinez les filtres pour voir le reste.
         </div>
       )}
 
-      {/* Timeline groupée par phase */}
       {grouped.length === 0 ? (
         <div className="text-center py-16 bg-card-bg rounded-[2.5rem] border border-border-main">
           <p className="text-text-muted font-bold">Aucun événement pour l'instant.</p>
-          <p className="text-text-muted text-sm mt-1">Le parcours de ce patient apparaîtra ici au fil des actes, documents et paiements.</p>
+          <p className="text-text-muted text-sm mt-1">Les sources enregistrées apparaîtront ici au fil du dossier.</p>
         </div>
       ) : (
-        <div className="space-y-4">
+        <div className="space-y-4" aria-label="Chronologie factuelle">
           {grouped.map(({ phase, items }) => {
             const expanded = isPhaseExpanded(phase);
             return (
               <div key={phase} className="bg-card-bg rounded-[2rem] border border-border-main shadow-sm overflow-hidden">
                 <button
                   onClick={() => togglePhase(phase)}
-                  className="w-full flex items-center justify-between px-6 py-4 hover:bg-slate-50 transition-colors"
+                  className="w-full flex items-center justify-between px-5 md:px-6 py-4 hover:bg-slate-50 transition-colors"
                 >
-                  <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-3 min-w-0">
                     {expanded ? <ChevronDown size={18} /> : <ChevronRight size={18} />}
-                    <span className="font-black text-slate-800">{PHASE_LABELS[phase] ?? phase}</span>
+                    <span className="font-black text-slate-800 truncate">{PHASE_LABELS[phase] ?? phase}</span>
                     <span className="text-xs font-bold text-text-muted">{items.length}</span>
                   </div>
                 </button>
                 {expanded && (
-                  <div className="p-6 pt-0 space-y-4">
+                  <div className="p-4 md:p-6 pt-0 space-y-4">
                     {items.map((ev) => {
                       const Icon = SOURCE_ICONS[ev.source] ?? FileText;
                       const isExpanded = expandedEvents.has(ev.event_key);
                       return (
-                        <div key={ev.event_key} className="flex gap-4">
+                        <div key={ev.event_key} className="flex gap-3 md:gap-4">
                           <div className="flex flex-col items-center">
-                            <div className="w-10 h-10 rounded-full bg-slate-100 border-4 border-white shadow-sm flex items-center justify-center text-primary z-10">
+                            <div className="w-9 h-9 md:w-10 md:h-10 rounded-full bg-slate-100 border-4 border-white shadow-sm flex items-center justify-center text-primary z-10">
                               <Icon size={16} />
                             </div>
                           </div>
-                          <div className="flex-1 bg-white border border-slate-100 rounded-2xl p-4 shadow-sm">
+                          <div className="flex-1 min-w-0 bg-white border border-slate-100 rounded-2xl p-4 shadow-sm">
                             <button
                               onClick={() => handleEventClick(ev)}
-                              className="w-full flex items-center justify-between text-left group"
+                              className="w-full text-left group"
                             >
-                              <div>
-                                <div className="font-bold text-slate-800">{ev.title}</div>
-                                <div className="text-xs text-text-muted font-bold">
-                                  {format(new Date(ev.date), "d MMM yyyy 'à' HH:mm", { locale: fr })}
+                              <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2">
+                                <div className="min-w-0">
+                                  <div className="font-bold text-slate-800 break-words">{ev.title}</div>
+                                  <div className="text-xs text-text-muted font-bold">
+                                    {format(new Date(ev.date), "d MMM yyyy 'à' HH:mm", { locale: fr })}
+                                  </div>
                                 </div>
-                              </div>
-                              <div className="flex items-center gap-2">
-                                <span className={cn('px-2 py-0.5 rounded-md text-[10px] uppercase tracking-widest font-bold', statusColorClass(ev.status))}>
+                                <span className={cn('self-start px-2 py-0.5 rounded-md text-[10px] uppercase tracking-widest font-bold', statusColorClass(ev.status))}>
                                   {ev.status}
                                 </span>
+                              </div>
+                              <div className="mt-2 flex flex-wrap items-center justify-between gap-2 text-[11px] text-text-muted">
+                                <span>
+                                  Source : <span className="font-black">{SOURCE_LABELS[ev.source] ?? ev.source}</span> · réf. #{ev.ref_id}
+                                </span>
                                 {ev.navigation_target !== 'INLINE' && (
-                                  <ExternalLink size={14} className="text-slate-300 group-hover:text-primary transition-colors" />
+                                  <span className="inline-flex items-center gap-1 font-black text-primary">
+                                    Ouvrir la source <ExternalLink size={12} />
+                                  </span>
                                 )}
                               </div>
                             </button>
                             {ev.related_event_key && (
-                              <p className="text-[11px] text-slate-400 font-bold mt-1">
-                                Généré depuis une analyse liée
-                              </p>
+                              <p className="text-[11px] text-slate-400 font-bold mt-1">Généré depuis une analyse liée</p>
                             )}
                             {ev.source === 'journey_milestone' && isExpanded && (
                               <div className="mt-3 pt-3 border-t border-slate-100 flex justify-end">
@@ -462,22 +527,21 @@ export const PatientJourney = ({ patientId }: PatientJourneyProps) => {
         </div>
       )}
 
-      {/* Actes historiques (legacy — patients avec des Acte réels, ~13% du cabinet) */}
       {actes.length > 0 && (
         <div className="bg-card-bg rounded-[2.5rem] border border-border-main shadow-sm overflow-hidden">
           <button
             onClick={() => togglePhase('__legacy_actes__')}
-            className="w-full flex items-center justify-between px-8 py-6 hover:bg-slate-50 transition-colors"
+            className="w-full flex items-center justify-between px-5 md:px-8 py-5 md:py-6 hover:bg-slate-50 transition-colors"
           >
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-3 min-w-0">
               {isPhaseExpanded('__legacy_actes__') ? <ChevronDown size={18} /> : <ChevronRight size={18} />}
-              <h2 className="text-lg font-black">Actes historiques ({actes.length})</h2>
+              <h2 className="text-lg font-black truncate">Actes historiques ({actes.length})</h2>
             </div>
           </button>
           {isPhaseExpanded('__legacy_actes__') && (
-            <div className="p-8 pt-0 space-y-6">
+            <div className="p-5 md:p-8 pt-0 space-y-6">
               {actes.map((acte) => (
-                <div key={acte.id} className="bg-white border border-slate-100 rounded-3xl p-6 shadow-sm">
+                <div key={acte.id} className="bg-white border border-slate-100 rounded-3xl p-5 md:p-6 shadow-sm">
                   <h3 className="text-lg font-black text-slate-800 mb-3">{acte.libelle}</h3>
                   <LegacyActeNotes acte={acte} patientId={patientId} />
                 </div>
