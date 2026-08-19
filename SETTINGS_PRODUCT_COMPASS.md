@@ -18,7 +18,7 @@ Décisions : **GARDER / AMÉLIORER / REFONDRE / DÉPLACER / SUPPRIMER / À PROUV
 
 Pour chaque lot significatif : audit downstream → BEFORE si UI → Goal + critères → wireframe/référence → implémentation → tests → AFTER mêmes viewports + score → docs canoniques → merge/post-merge.
 
-Ne jamais créditer un lot sans preuve. Une CI queued/in-progress n’arrête pas le travail indépendant. Vercel reste interdit sans autorisation explicite.
+Ne jamais créditer un lot sans preuve. Une CI queued/in-progress n’arrête pas le travail indépendant. Une preuve CI sur un parent peut être réutilisée uniquement si l’équivalence produit du delta est explicitement démontrée. Vercel reste interdit sans autorisation explicite.
 
 ## 3. Règle propriétaire Benmoussa
 
@@ -35,8 +35,9 @@ Statut : **CERTIFIÉ R2**.
 | R4 Modèles documentaires | PDF réel = vérité | CLOSED — MERGED (#174) | 9,2/10 |
 | R6 Catalogue Actes | GARDER architecture / REFONDRE CRUD | CLOSED — MERGED (#177) | 9,6/10 |
 | R7 Horaires & Agenda | GARDER / RENDRE RÉEL | CLOSED — MERGED (#178) | 9,3/10 |
+| R8 Performance & Assistance | GARDER / CLARIFIER / DÉPLACER | CERTIFIÉ — READY TO MERGE (#183) | 9,5/10 |
 
-**Avancement vérifié : 5/15 = 33,3 %.**
+**Avancement comptabilisé : 5/15 = 33,3 %.** R8 ne sera crédité qu’après preuve du merge.
 
 ## 5. Décisions restantes
 
@@ -58,17 +59,22 @@ Preuves : `docs/settings/R7_AGENDA_REAL_SCHEDULE_VISUAL_GOAL.md` + `docs/setting
 
 ### R8 — Performance & Assistance
 
-**LOT ACTIF SUIVANT — PR #183**.
+**CERTIFIÉ — READY TO MERGE — PR #183**.
 
-Décision corrigée après audit complet :
+Décision finale :
 - Mode Performance : **GARDER** ; downstream réel ;
-- Arrière-plan animé : **DÉPLACER vers Design & Ambiance** ; downstream réel ;
-- Conseils cliniques contextuels : **GARDER** ; consommateurs réels `Sidebar` + `Step1Cephalo` ;
-- Indicateurs patient : **GARDER / RENOMMER / EXPLIQUER** ; consommateurs `Dashboard` + `PatientList/PatientScoreBadge` ; backend = 60 % assiduité RDV + 40 % encaissé/facturé, neutre 50 sans données, override praticien possible.
+- Arrière-plan animé : **DÉPLACER vers Design & Ambiance** ;
+- Conseils cliniques contextuels : **GARDER** ; consommateurs `Sidebar` + `Step1Cephalo` ;
+- Indicateurs patient : **GARDER / RENOMMER / EXPLIQUER** ; backend = 60 % assiduité RDV + 40 % encaissé/facturé, neutre 50 sans données, override praticien possible ;
+- aucune nouvelle IA/LLM ; aucun champ persistant supprimé.
 
-État préparé : BEFORE/AFTER 5 viewports inspectés ; CI/T2/IA Visual/Branding/Read Truth verts sur HEAD `1dd53e754447b2cb325bae44ef75f511cbeda85a`. Seul défaut prouvé : harness RBAC historique attend encore `IA & Système` au lieu de `Performance & Assistance`.
+HEAD certifié : `bfabc0cb4809b7cca2a0a9b4bee4cc93b669d482`.
 
-Next R8 : synchroniser sur master post-R7 → corriger le harness RBAC → un seul commit final → certification exact-head → score/closeout/merge.
+Preuves exact-head : IA Visual #18 ✅ ; Branding #65 ✅ ; RBAC #124 ✅ ; Profile R2 #24 ✅ ; Read Truth #12 ✅ ; T2 #644 ✅. CI #1396 ✅ sur le parent produit-identique `7ee155...`; delta vers `bfabc0...` = une seule ligne dans le harness IA (`--with-deps chromium` → `chromium`), zéro fichier produit.
+
+Score : **9,5/10**.
+
+Closeout : `docs/settings/R8_PERFORMANCE_ASSISTANCE_CLOSEOUT.md`.
 
 ### R9 — Sécurité & Backup
 
@@ -86,28 +92,39 @@ Ne pas refondre isolément. Prouver les dépendances, extraire les idées utiles
 
 P1 : doctrine sauvegarde ; modèles documentaires ✅ ; Catalogue CRUD ✅ ; Profil ✅ ; mot de passe Team ; Branding ✅.
 
-P2 : Agenda réel ✅ ; Catalogue avancé ; **Performance & Assistance ACTIF** ; Audit Log humanisé ; indicateurs patient explicables ; QR documentaire ; restauration guidée.
+P2 : Agenda réel ✅ ; Catalogue avancé ; **Performance & Assistance CERTIFIÉ / READY TO MERGE** ; **Audit Log humanisé = prochain lot** ; indicateurs patient explicables ; QR documentaire ; restauration guidée.
 
 P3 : TemplateBuilder legacy ; suppression de toggles/features uniquement après preuve downstream.
 
 ## 7. HANDOVER COURANT
 
 - Chantier : **Réglages — Product Review & Simplification**
-- Lot actif : **R8 — Performance & Assistance**
+- Lot actif : **R8 — Performance & Assistance — closeout/merge**
 - Repo : `hraaaaf/Digital_crown`
 - Base : `master`
-- Dernier merge R7 : `4f20832ee70fecf5878242cc1a98ef633d8be129`
-- R7 : CLOSED — score **9,3/10**
+- Master actuel : `5c2593d4a3d063c439faa8746403c793fb2241f4`
 - PR active : `#183`
 - Branche R8 : `settings-r8-performance-assistance`
-- HEAD R8 préparé : `1dd53e754447b2cb325bae44ef75f511cbeda85a`
-- Preuves R8 déjà acquises : CI ✅ ; T2 ✅ ; IA Visual ✅ ; Branding Visual ✅ ; Read Truth ✅ ; BEFORE/AFTER 5 viewports inspectés
-- Défaut R8 restant : RBAC harness libellé historique
-- Next exact : **sync master → patch RBAC unique → exact-head gates → score → closeout → merge**
-- Avancement vérifié : **5/15 = 33,3 %**
+- HEAD produit certifié : `bfabc0cb4809b7cca2a0a9b4bee4cc93b669d482`
+- Score R8 : **9,5/10**
+- Gates exact-head : IA #18 ✅ ; Branding #65 ✅ ; RBAC #124 ✅ ; Profile R2 #24 ✅ ; Read Truth #12 ✅ ; T2 #644 ✅
+- CI de référence produit : #1396 ✅ sur `7ee155...` ; équivalence produit jusqu’à `bfabc0...` vérifiée
+- Next exact : **merge #183 → post-merge docs → créditer 6/15 → reconstruire R9-A sur master**
+- Avancement comptabilisé : **5/15 = 33,3 %**
 - Vercel : **aucun déploiement**
 
 ## 8. Journal
+
+### 2026-08-19 — R8 CERTIFIÉ / READY TO MERGE
+
+- PR #183 ; HEAD certifié `bfabc0...` ;
+- ancienne surface `IA & Système` remplacée par `Performance & Assistance` ;
+- arrière-plan animé déplacé vers Design & Ambiance ;
+- conseils cliniques et indicateurs patients conservés sur preuve downstream ;
+- score patient expliqué factuellement 60/40 ;
+- AFTER exact-head inspecté sur 1440/1024/768/430/390 ; score **9,5/10** ;
+- six gates exact-head vertes + CI verte sur parent produit-identique ;
+- aucun Vercel.
 
 ### 2026-08-19 — R7 CLOSED
 
