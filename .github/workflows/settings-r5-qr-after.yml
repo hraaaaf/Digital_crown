@@ -36,7 +36,8 @@ jobs:
           grep -n "prefix=\"/api/documents\"" backend/main.py
           python -m py_compile backend/services/base_template.py backend/services/base_template_core.py backend/services/qr_document_routes.py
           python - <<'PY'
-          from backend.services.qr_document_routes import build_document_qr_url
+          import runpy
+          build_document_qr_url = runpy.run_path('backend/services/qr_document_routes.py')['build_document_qr_url']
           assert build_document_qr_url('http://localhost:8000', 'verify', 42) == 'http://localhost:8000/api/documents/verify/42'
           assert build_document_qr_url('http://localhost:8000/', 'track', 'DOC-7') == 'http://localhost:8000/api/documents/track/DOC-7'
           assert build_document_qr_url('https://cabinet/api', 'verify', 1) == 'https://cabinet/api/documents/verify/1'
