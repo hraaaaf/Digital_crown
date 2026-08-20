@@ -6,11 +6,6 @@ import type {
   CabinetConfig,
   CabinetConfigCreate,
   CabinetInitStatus,
-  DocumentTemplate,
-  DocumentTemplateList,
-  DocumentTemplateCreate,
-  DocumentTemplateUpdate,
-  TemplatePreviewRequest,
   LetterheadUploadResponse,
 } from '../types/template';
 
@@ -55,7 +50,7 @@ export const cabinetApi = {
   uploadLogo: async (file: File): Promise<{ logo_url: string }> => {
     const formData = new FormData();
     formData.append('file', file);
-    
+
     const { data } = await api.post('/clinics/me/logo', formData, {
       headers: {
         'Content-Type': 'multipart/form-data',
@@ -72,7 +67,7 @@ export const cabinetApi = {
     formData.append('file', file);
     formData.append('margins_top', marginsTop.toString());
     formData.append('margins_bottom', marginsBottom.toString());
-    
+
     const { data } = await api.post('/clinics/me/letterhead', formData, {
       headers: {
         'Content-Type': 'multipart/form-data',
@@ -80,76 +75,8 @@ export const cabinetApi = {
     });
     return data;
   },
-
 };
 
-// --- Templates API ---
-
-export const templateApi = {
-  /**
-   * Récupérer tous les templates d'un cabinet
-   */
-  getByClinic: async (clinicId: string, type?: string): Promise<DocumentTemplateList[]> => {
-    const { data } = await api.get(`/clinics/${clinicId}/templates`, {
-      params: type ? { type } : undefined,
-    });
-    return data;
-  },
-
-  /**
-   * Récupérer un template spécifique
-   */
-  getById: async (templateId: string): Promise<DocumentTemplate> => {
-    const { data } = await api.get(`/templates/${templateId}`);
-    return data;
-  },
-
-  /**
-   * Créer un nouveau template (admin uniquement pour les templates système)
-   */
-  create: async (template: DocumentTemplateCreate): Promise<DocumentTemplate> => {
-    const { data } = await api.post('/templates', template);
-    return data;
-  },
-
-  /**
-   * Mettre à jour un template (design_config uniquement)
-   */
-  update: async (templateId: string, updates: DocumentTemplateUpdate): Promise<DocumentTemplate> => {
-    const { data } = await api.put(`/templates/${templateId}`, updates);
-    return data;
-  },
-
-  /**
-   * Supprimer un template personnalisé
-   */
-  delete: async (templateId: string): Promise<{ message: string }> => {
-    const { data } = await api.delete(`/templates/${templateId}`);
-    return data;
-  },
-
-  /**
-   * Définir comme template par défaut
-   */
-  setDefault: async (templateId: string): Promise<{ message: string }> => {
-    const { data } = await api.post(`/templates/${templateId}/set-default`);
-    return data;
-  },
-
-  /**
-   * Générer un PDF de prévisualisation
-   * Retourne un Blob PDF
-   */
-  preview: async (request: TemplatePreviewRequest): Promise<Blob> => {
-    const { data } = await api.post(`/templates/${request.template_id}/preview`, request, {
-      responseType: 'blob',
-    });
-    return data;
-  },
-};
-
-// Export combiné
 export default {
   cabinet: cabinetApi,
-  template: templateApi,
 };
