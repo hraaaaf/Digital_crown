@@ -24,7 +24,14 @@ const putMock = vi.mocked(api.put);
 describe('useSettingsStore saveProfile truth contract', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    localStorage.clear();
     useSettingsStore.setState({
+      profile: {
+        ...useSettingsStore.getState().profile,
+        performance_mode: false,
+        clinical_tips_enabled: true,
+        show_patient_badges: true,
+      },
       saving: false,
       saveSuccess: false,
       isDirty: true,
@@ -51,5 +58,30 @@ describe('useSettingsStore saveProfile truth contract', () => {
     expect(state.saving).toBe(false);
     expect(state.saveSuccess).toBe(true);
     expect(state.isDirty).toBe(false);
+  });
+
+  it('keeps runtime preferences staged until backend persistence succeeds', async () => {
+    localStorage.setItem('performanceMode', 'false');
+    putMock.mockResolvedValueOnce({ data: {} } as any);
+
+    useSettingsStore.getState().updateProfile({ performance_mode: true });
+    expect(localStorage.getItem('performanceMode')).toBe('false');
+    expect(useSettingsStore.getState().isDirty).toBe(true);
+
+    await useSettingsStore.getState().saveProfile();
+
+    expect(localStorage.getItem('performanceMode')).toBe('true');
+    expect(useSettingsStore.getState().isDirty).toBe(false);
+  });
+
+  it('never commits staged runtime preferences when backend persistence fails', async () => {
+    localStorage.setItem('clinical_tips_enabled', 'true');
+    putMock.mockRejectedValueOnce(new Error('backend unavailable'));
+
+    useSettingsStore.getState().updateProfile({ clinical_tips_enabled: false });
+    await expect(useSettingsStore.getState().saveProfile()).rejects.toThrow('backend unavailable');
+
+    expect(localStorage.getItem('clinical_tips_enabled')).toBe('true');
+    expect(useSettingsStore.getState().isDirty).toBe(true);
   });
 });

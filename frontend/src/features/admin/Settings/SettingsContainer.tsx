@@ -1,16 +1,17 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
-  Settings as SettingsIcon,
-  UserCircle,
-  Palette,
-  Gauge,
-  Shield,
-  Users,
-  Save,
-  Loader2,
-  CheckCircle2,
+  AlertTriangle,
   BookOpen,
-  Calendar
+  Calendar,
+  CheckCircle2,
+  Gauge,
+  Loader2,
+  Palette,
+  Save,
+  Settings as SettingsIcon,
+  Shield,
+  UserCircle,
+  Users,
 } from 'lucide-react';
 import { useSettingsStore } from './hooks/useSettingsStore';
 import { SettingsReadError, TabButton } from './components/SharedUI';
@@ -26,10 +27,69 @@ import type { Tab } from './types';
 import { DigitalCrownLoader } from '../../../components/DigitalCrownLoader';
 import { useAuthStore } from '../../../stores/useAuthStore';
 import { getSettingsAccess } from '../../../utils/settingsAccess';
-import { commitRuntimePreferences } from './runtimePreferences';
 import { api } from '../../../services/api';
+import {
+  isProfileBackedTab,
+  shouldShowPendingConfigNotice,
+  shouldShowSharedSaveBar,
+  shouldWarnBeforeUnload,
+} from './saveDoctrine';
 
-const profileBackedTabs: Tab[] = ['profil', 'branding', 'ia'];
+const SettingsSaveBar: React.FC<{
+  saving: boolean;
+  saveSuccess: boolean;
+  onSave: () => Promise<void>;
+}> = ({ saving, saveSuccess, onSave }) => (
+  <div className="sticky top-4 z-30 mb-6" data-testid="settings-save-bar">
+    <div
+      role="status"
+      aria-live="polite"
+      className={cn(
+        'flex flex-col gap-4 rounded-2xl border px-4 py-4 shadow-lg backdrop-blur-xl sm:flex-row sm:items-center sm:justify-between sm:px-5',
+        saveSuccess
+          ? 'border-emerald-200 bg-emerald-50/95 shadow-emerald-100/70'
+          : 'border-amber-200 bg-amber-50/95 shadow-amber-100/70',
+      )}
+    >
+      <div className="flex min-w-0 items-start gap-3">
+        <div
+          className={cn(
+            'mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl',
+            saveSuccess ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700',
+          )}
+        >
+          {saveSuccess ? <CheckCircle2 size={18} /> : <AlertTriangle size={18} />}
+        </div>
+        <div className="min-w-0">
+          <p className={cn('font-black', saveSuccess ? 'text-emerald-900' : 'text-amber-950')}>
+            {saveSuccess
+              ? 'Configuration enregistrée'
+              : saving
+                ? 'Enregistrement de la configuration…'
+                : 'Modifications de la configuration non enregistrées'}
+          </p>
+          <p className={cn('mt-1 text-xs font-medium leading-relaxed', saveSuccess ? 'text-emerald-700' : 'text-amber-800')}>
+            {saveSuccess
+              ? 'Les réglages Profil, Design et Performance ont été confirmés par le backend.'
+              : 'Profil, Design & Ambiance et Performance & Assistance partagent cette sauvegarde.'}
+          </p>
+        </div>
+      </div>
+
+      {!saveSuccess && (
+        <button
+          type="button"
+          onClick={() => void onSave()}
+          disabled={saving}
+          className="inline-flex w-full shrink-0 items-center justify-center gap-2 rounded-xl bg-slate-950 px-5 py-3 text-sm font-black text-white shadow-lg shadow-slate-950/15 transition hover:bg-black disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
+        >
+          {saving ? <Loader2 size={17} className="animate-spin" /> : <Save size={17} />}
+          {saving ? 'Enregistrement…' : 'Enregistrer la configuration'}
+        </button>
+      )}
+    </div>
+  </div>
+);
 
 const SettingsContainer: React.FC = () => {
   const user = useAuthStore((state) => state.user);
@@ -90,13 +150,23 @@ const SettingsContainer: React.FC = () => {
     }
   }, [activeTab, tabs]);
 
+  useEffect(() => {
+    if (!shouldWarnBeforeUnload(isDirty)) return undefined;
+
+    const handleBeforeUnload = (event: BeforeUnloadEvent) => {
+      event.preventDefault();
+      event.returnValue = '';
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [isDirty]);
+
   const handleGlobalSave = async () => {
     try {
       await saveProfile();
-      commitRuntimePreferences(useSettingsStore.getState().profile);
     } catch {
-      // The store owns the user-facing error toast. Runtime preferences remain
-      // untouched until a backend write succeeds.
+      // The store owns the user-facing error toast and keeps isDirty=true.
     }
   };
 
@@ -110,18 +180,21 @@ const SettingsContainer: React.FC = () => {
     return null;
   }
 
-  const activeProfileBackedTab = profileBackedTabs.includes(activeTab);
+  const activeProfileBackedTab = isProfileBackedTab(activeTab);
+  const showSharedSaveBar = access.canSettings && !profileReadError && shouldShowSharedSaveBar(activeTab, {
+    isDirty,
+    saving,
+    saveSuccess,
+  });
+  const showPendingNotice = access.canSettings && !profileReadError && shouldShowPendingConfigNotice(activeTab, isDirty);
 
   return (
     <div className="max-w-[1600px] mx-auto px-4 sm:px-8 py-8 animate-in fade-in duration-700">
       {activeTab === 'profil' && (
         <style>{`
-          @media (max-width: 639px) {
-            .settings-profile-surface .sticky.bottom-6 {
-              position: static !important;
-              bottom: auto !important;
-              margin-top: 1.5rem;
-            }
+          /* R1: the Settings shell is now the only visible owner of staged saves. */
+          .settings-profile-surface .sticky.bottom-6 {
+            display: none !important;
           }
         `}</style>
       )}
@@ -192,37 +265,18 @@ const SettingsContainer: React.FC = () => {
             ))}
           </nav>
 
-          {access.canSettings && !profileReadError && activeTab !== 'profil' && (
-            <div className="pt-6">
-              <button
-                onClick={handleGlobalSave}
-                disabled={saving || (!isDirty && !saveSuccess)}
-                className={cn(
-                  "w-full py-5 rounded-[1.5rem] font-black text-base transition-all duration-500 shadow-2xl flex items-center justify-center gap-4",
-                  saveSuccess
-                    ? "bg-emerald-500 text-white shadow-emerald-500/30"
-                    : (!isDirty && !saveSuccess)
-                      ? "bg-slate-200 text-slate-400 shadow-none cursor-not-allowed"
-                      : "bg-slate-900 text-white hover:bg-black shadow-slate-900/20"
-                )}
-              >
-                {saving ? (
-                  <>
-                    <Loader2 className="animate-spin" size={24} />
-                    <span>Synchronisation...</span>
-                  </>
-                ) : saveSuccess ? (
-                  <>
-                    <CheckCircle2 size={24} />
-                    <span>Config. Sauvegardée !</span>
-                  </>
-                ) : (
-                  <>
-                    <Save size={24} />
-                    <span>Mettre à jour le Profil</span>
-                  </>
-                )}
-              </button>
+          {showPendingNotice && (
+            <div
+              data-testid="settings-pending-config-notice"
+              className="flex items-start gap-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-amber-900 shadow-sm"
+            >
+              <AlertTriangle size={17} className="mt-0.5 shrink-0 text-amber-600" />
+              <div className="min-w-0">
+                <p className="text-xs font-black">Configuration non enregistrée</p>
+                <p className="mt-1 text-[11px] font-medium leading-relaxed text-amber-700">
+                  Revenez à Profil, Design ou Performance pour enregistrer les modifications en attente.
+                </p>
+              </div>
             </div>
           )}
         </div>
@@ -233,6 +287,14 @@ const SettingsContainer: React.FC = () => {
           activeTab === 'equipe' && 'settings-team-surface'
         )}>
           <div className="min-w-0 p-5 sm:p-12">
+            {showSharedSaveBar && (
+              <SettingsSaveBar
+                saving={saving}
+                saveSuccess={saveSuccess}
+                onSave={handleGlobalSave}
+              />
+            )}
+
             {profileReadError && activeProfileBackedTab ? (
               <SettingsReadError
                 title={activeTab === 'profil' ? 'Profil indisponible' : 'Configuration cabinet indisponible'}
