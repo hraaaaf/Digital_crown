@@ -4,11 +4,13 @@ on:
   pull_request:
     paths:
       - "backend/services/base_template.py"
+      - "backend/services/base_template_core.py"
       - "backend/services/premium_document_headers.py"
       - "backend/services/generators/ordonnance_gen.py"
       - "backend/tests/test_premium_document_headers.py"
       - "frontend/src/features/admin/constants.ts"
       - "frontend/src/features/admin/Settings/tabs/branding/StudioControls.tsx"
+      - "frontend/src/features/admin/Settings/tabs/branding/StudioControlsCore.tsx"
       - ".github/workflows/settings-document-models-audit.yml"
   workflow_dispatch:
 
@@ -30,7 +32,15 @@ jobs:
       - name: Contract check premium font mappings
         run: |
           python - <<'PY'
+          import sys
+          import types
+          from pathlib import Path
           from reportlab.pdfbase import pdfmetrics
+
+          backend_pkg = types.ModuleType('backend')
+          backend_pkg.__path__ = [str(Path('backend').resolve())]
+          sys.modules['backend'] = backend_pkg
+
           from backend.services.premium_document_headers import update_document_fonts
 
           class Base:
@@ -60,11 +70,17 @@ jobs:
       - name: Generate five real ordonnance models
         run: |
           python - <<'PY'
+          import sys
+          import types
           from pathlib import Path
           from types import SimpleNamespace
           import shutil
           import fitz
           from PIL import Image, ImageDraw, ImageFont
+
+          backend_pkg = types.ModuleType('backend')
+          backend_pkg.__path__ = [str(Path('backend').resolve())]
+          sys.modules['backend'] = backend_pkg
 
           from backend.services.generators.ordonnance_gen import OrdonnanceGenerator
 

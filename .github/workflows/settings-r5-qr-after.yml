@@ -25,8 +25,8 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          test "$(git hash-object backend/services/base_template_core.py)" = "ef695ba7abc0c8b6c98b3be255352996f806a1e9"
-          test "$(git hash-object frontend/src/features/admin/Settings/tabs/branding/StudioControlsCore.tsx)" = "38f08ee3b80b03ea4083c830749177c557012905"
+          test "$(git hash-object backend/services/base_template_core.py)" = "5ecbd105e2dd31fe06204b9d71812f98d38c5e41"
+          test "$(git hash-object frontend/src/features/admin/Settings/tabs/branding/StudioControlsCore.tsx)" = "08e1374ce5c55f682a3a7b21f613cbe14c928ef6"
           grep -n "Vérification du document" frontend/src/features/admin/Settings/tabs/branding/StudioControls.tsx
           grep -n "Suivi du paiement" frontend/src/features/admin/Settings/tabs/branding/StudioControls.tsx
           grep -n "Aucun paiement n’est encaissé ici" frontend/src/features/admin/Settings/tabs/branding/StudioControls.tsx
