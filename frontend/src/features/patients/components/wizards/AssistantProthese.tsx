@@ -82,7 +82,7 @@ export const AssistantProthese: React.FC<AssistantProtheseProps> = ({ onComplete
     return (
       <div className="flex flex-col items-center justify-center py-10 gap-4">
         <Diamond className="w-12 h-12 text-blue-500 animate-pulse" />
-        <h3 className="text-sm font-black uppercase tracking-widest text-slate-500">Génération du Plan Prothétique...</h3>
+        <h3 className="text-sm font-black uppercase tracking-widest text-slate-500">Synthèse structurée en cours...</h3>
       </div>
     );
   }

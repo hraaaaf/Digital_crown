@@ -5,7 +5,6 @@ import { isPrescriptionDirty, setPrescriptionDirty } from './PrescriptionDirtySt
 import { isCertificateDirty, setCertificateDirty } from './CertificateDirtyState';
 import { isInstallmentDirty, setInstallmentDirty } from './InstallmentDirtyState';
 import { isLibreDirty, setLibreDirty } from './LibreDirtyState';
-import { isP7Dirty, setP7Dirty } from './P7DirtyState';
 import { shouldGuardDocumentTabTransition } from './DocumentTabNavigationPolicy';
 import {
   isCertifiableDocumentStudioTab,
@@ -17,16 +16,21 @@ type TabChangeSource = 'ui' | 'url';
 type UseDocumentHubNavigationParams = {
   hasAccountingDraft: boolean;
   resetHonorairesFinancialDraft: () => void;
+  allowedTabs: CertifiableDocumentStudioTab[];
 };
 
 export function useDocumentHubNavigation({
   hasAccountingDraft,
   resetHonorairesFinancialDraft,
+  allowedTabs,
 }: UseDocumentHubNavigationParams) {
   const [searchParams, setSearchParams] = useSearchParams();
   const requestedDocumentTab = searchParams.get('documentTab');
+  const fallbackTab = allowedTabs[0] ?? 'certificat';
   const [activeTab, setActiveTab] = useState<CertifiableDocumentStudioTab>(() =>
-    isCertifiableDocumentStudioTab(requestedDocumentTab) ? requestedDocumentTab : 'ordonnance'
+    isCertifiableDocumentStudioTab(requestedDocumentTab) && allowedTabs.includes(requestedDocumentTab)
+      ? requestedDocumentTab
+      : fallbackTab
   );
   const [pendingTab, setPendingTab] = useState<CertifiableDocumentStudioTab | null>(null);
   const [pendingTabSource, setPendingTabSource] = useState<TabChangeSource>('ui');
@@ -37,7 +41,6 @@ export function useDocumentHubNavigation({
     accounting: hasAccountingDraft,
     installment: isInstallmentDirty(),
     libre: isLibreDirty(),
-    plan: isP7Dirty(),
   });
 
   const clearDirtyForTab = (tab: CertifiableDocumentStudioTab) => {
@@ -58,9 +61,6 @@ export function useDocumentHubNavigation({
       case 'libre':
         setLibreDirty(false);
         break;
-      case 'plan':
-        setP7Dirty(false);
-        break;
       default:
         break;
     }
@@ -74,6 +74,7 @@ export function useDocumentHubNavigation({
   };
 
   const commitTabChange = (newTab: CertifiableDocumentStudioTab, source: TabChangeSource) => {
+    if (!allowedTabs.includes(newTab)) return;
     setActiveTab(newTab);
     if (source === 'ui') syncDocumentTab(newTab);
   };
@@ -82,7 +83,7 @@ export function useDocumentHubNavigation({
     newTab: CertifiableDocumentStudioTab,
     source: TabChangeSource = 'ui'
   ) => {
-    if (newTab === activeTab) return;
+    if (!allowedTabs.includes(newTab) || newTab === activeTab) return;
 
     if (activeTab === 'devis' && newTab === 'honoraires') {
       resetHonorairesFinancialDraft();
@@ -101,12 +102,22 @@ export function useDocumentHubNavigation({
 
   useEffect(() => {
     const nextTab = searchParams.get('documentTab');
-    if (isCertifiableDocumentStudioTab(nextTab) && nextTab !== activeTab) {
-      handleTabChange(nextTab, 'url');
+    if (isCertifiableDocumentStudioTab(nextTab) && allowedTabs.includes(nextTab)) {
+      if (nextTab !== activeTab) handleTabChange(nextTab, 'url');
+      return;
     }
-  // Deliberately reacts only to URL/search changes; current dirty state is read at transition time.
+
+    const nextFallback = allowedTabs[0];
+    if (!nextFallback) return;
+    if (activeTab !== nextFallback) setActiveTab(nextFallback);
+    if (nextTab !== nextFallback) {
+      const nextParams = new URLSearchParams(searchParams);
+      nextParams.set('documentTab', nextFallback);
+      setSearchParams(nextParams, { replace: true });
+    }
+  // Deliberately reacts to URL and permission changes; dirty state is read only for allowed transitions.
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchParams]);
+  }, [searchParams, allowedTabs]);
 
   const cancelPendingTab = () => {
     if (pendingTabSource === 'url') {
@@ -119,7 +130,11 @@ export function useDocumentHubNavigation({
   };
 
   const confirmPendingTab = () => {
-    if (!pendingTab) return;
+    if (!pendingTab || !allowedTabs.includes(pendingTab)) {
+      setPendingTab(null);
+      setPendingTabSource('ui');
+      return;
+    }
     const nextTab = pendingTab;
     const source = pendingTabSource;
     clearDirtyForTab(activeTab);
@@ -146,6 +161,5 @@ export function useDocumentHubNavigation({
     handleTabChange,
     cancelPendingTab,
     confirmPendingTab,
-    syncDocumentTab,
   };
 }

@@ -1,0 +1,108 @@
+{
+  "lot": "P7",
+  "title": "Certification finale Page Patient",
+  "status": "PRODUCT_HEAD_CERTIFIED_PENDING_CLOSEOUT_RECERTIFICATION",
+  "product_head": "a173b2f364905d20973987d0d66a38d5c2d8c7b9",
+  "stack": {
+    "base_p6": "2a0ac2ade90f2bae99c6e7c11302755d856a730e",
+    "p2_closeout_parent": "b09fc0d2bc257f0fdc53c04e7225900dfd6fd36e",
+    "p3_parent": "02126a646322d1c1d98351ea33489384be49ab57",
+    "p4_parent": "27f55a6e807c2c59b444f5c4356388043d284cfa",
+    "p5_included_via_p6": "76fe188a7a9606e2ed93dd6d347753a2dbab3c14",
+    "behind_p6": 0,
+    "behind_p3": 0,
+    "behind_p4": 0
+  },
+  "exact_product_head_gates": {
+    "ci": {
+      "run_id": 32313285672,
+      "run_number": 1456,
+      "conclusion": "success"
+    },
+    "t2_runtime_browser": {
+      "run_id": 32313285673,
+      "run_number": 698,
+      "conclusion": "success"
+    },
+    "p7_final_matrix": {
+      "run_id": 32313285794,
+      "run_number": 1,
+      "conclusion": "success",
+      "artifact_id": 9387291316,
+      "artifact_name": "patient-p7-final-certification",
+      "artifact_digest": "sha256:86f0da848ad1e9a191d1be81ff2e31e105b6477ac1bc9681a12b3204a1ea730f"
+    }
+  },
+  "visual_evidence": {
+    "captures": 40,
+    "expected_captures": 40,
+    "surfaces_per_viewport": 10,
+    "viewports": ["390x844", "430x932", "768x1024", "1280x900"],
+    "surfaces": [
+      "overview",
+      "clinical",
+      "imaging-rvg",
+      "imaging-panoramic",
+      "imaging-cephalo",
+      "documents-create",
+      "documents-history",
+      "finances",
+      "add-patient",
+      "edit-patient"
+    ],
+    "invalid_captures": 0,
+    "horizontal_overflow": 0,
+    "runtime_errors": 0,
+    "http_5xx": 0,
+    "visual_score": 9.4,
+    "visual_score_scale": 10,
+    "non_blocking_observations": [
+      "On small mobile widths, the Document Studio type rail remains horizontally scrollable by design.",
+      "The floating Crown Bot control can consume part of the lower-right visual space on some mobile captures."
+    ]
+  },
+  "persisted_roundtrips": {
+    "odontogram": true,
+    "practitioner_clinical_conclusion": true,
+    "master_plan": true,
+    "master_plan_revision": true,
+    "rvg_upload_list_download": true,
+    "explicit_act_payment": true,
+    "financial_snapshot_after_payment": {
+      "has_billing_data": true,
+      "total_billed": 1000,
+      "total_collected": 100,
+      "remaining_due": 900,
+      "payment_method": "ESPECES"
+    }
+  },
+  "integrated_lot_closure": {
+    "P0": "canonical closeout certificate already CLOSED",
+    "P1": "canonical architecture certificate retained",
+    "P2": "canonical Journey certificate retained and code included in P7",
+    "P3": "integrated P7 source/boundary/backend/browser proof",
+    "P4": "integrated P7 imaging truth/lifecycle/backend/browser proof",
+    "P5": "integrated P7 Document Studio RBAC/history + exact-head T2 browser/PDF proof",
+    "P6": "canonical finance/identity certificate retained and P6 final included"
+  },
+  "validated_contracts": [
+    "five-space Patient architecture remains intact",
+    "Patient Journey remains factual, sourced and free of opaque risk truth",
+    "ClinicalHub uses persisted odontogram, practitioner-retained conclusions and versioned Master Plan",
+    "clinical assistant output remains proposal-only until explicit practitioner validation",
+    "RVG, panoramic and cephalometric imaging remain separated by modality truth and permissions",
+    "cephalometry does not invent patient age/sex or auto-write treatment strategy",
+    "panoramic UI does not overclaim deterministic tooth-localization as diagnostic AI",
+    "Documents exposes Create/History, removes Diagnostic Companion and normalizes legacy plan URL",
+    "Document Studio PDF/print/browser contracts pass exact-head T2",
+    "Finances exposes Facturé / Encaissé / Reste dû / Prochaine échéance without false recovery KPI",
+    "Add/Edit share the canonical identity contract with no implicit sex selection",
+    "targeted tenant/RBAC/isolation tests pass for clinical, imaging, documents and finance scopes"
+  ],
+  "coverage_boundary": {
+    "statement": "No standalone claim is made for a new exhaustive keyboard/focus accessibility certification beyond the tests and browser interactions actually executed. P7 closure is bound to the written P7 certification plan and the exact-head evidence above.",
+    "full_sequential_create_patient_to_archive_e2e": "not claimed as one monolithic scenario; persistence and document/PDF flows are proven by dedicated exact-head gates"
+  },
+  "closeout_rule": "The documentary closeout commit that adds this certificate and realigns PAGE_PATIENT_AUDIT_ROADMAP.md must itself pass proportional exact-HEAD CI, T2 Runtime Browser Certification and Patient P7 Final Certification before the Page Patient chantier is declared CLOSED.",
+  "vercel": "not_deployed"
+}

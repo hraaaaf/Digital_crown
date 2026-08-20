@@ -1,7 +1,6 @@
 import React from 'react';
 import { cn } from '../../../utils/cn';
 import { AccountingStudio } from '../AccountingStudio';
-import { TreatmentPlanStudio } from './TreatmentPlanStudio';
 import { CertificateForm } from './Forms/CertificateForm';
 import { InstallmentStudio } from './Forms/InstallmentStudio';
 import { LibreForm } from './Forms/LibreForm';
@@ -11,7 +10,6 @@ import type { SelectedSurfaceData } from '../../../components/odontogram/types';
 import type { CertifiableDocumentStudioTab } from './DocumentStudioVocabulary';
 
 type Generator = ReturnType<typeof useDocumentGenerator>;
-type PlanConversionHandler = React.ComponentProps<typeof TreatmentPlanStudio>['onConvertToQuote'];
 
 type DocumentHubContentProps = {
   activeTab: CertifiableDocumentStudioTab;
@@ -45,7 +43,6 @@ type DocumentHubContentProps = {
   setLibreAlignment: React.Dispatch<React.SetStateAction<'left' | 'center' | 'right' | 'justify'>>;
   setEcheancierPayload: React.Dispatch<React.SetStateAction<any>>;
   setSelectedTeethFromOdontogram: React.Dispatch<React.SetStateAction<SelectedSurfaceData[]>>;
-  onConvertPlanToQuote: PlanConversionHandler;
   generator: Generator;
 };
 
@@ -81,17 +78,9 @@ export const DocumentHubContent: React.FC<DocumentHubContentProps> = ({
   setLibreAlignment,
   setEcheancierPayload,
   setSelectedTeethFromOdontogram,
-  onConvertPlanToQuote,
   generator,
 }) => (
   <div data-tour="document-hub-content" className="flex-1 flex flex-col p-2 min-h-min shrink-0">
-    {activeTab === 'plan' && (
-      <TreatmentPlanStudio
-        patientId={Number(patientId)}
-        onConvertToQuote={onConvertPlanToQuote}
-      />
-    )}
-
     {activeTab === 'ordonnance' && (
       <>
         <div className="flex items-center gap-2 mb-3 px-1">

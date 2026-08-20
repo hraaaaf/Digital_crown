@@ -1,0 +1,27 @@
+{
+  "phase": "P7_FINAL_CERTIFICATION_CANDIDATE",
+  "status": "PREPARED_NOT_YET_CERTIFIED",
+  "base_p6": "2a0ac2ade90f2bae99c6e7c11302755d856a730e",
+  "p3_current": "02126a646322d1c1d98351ea33489384be49ab57",
+  "p4_current": "27f55a6e807c2c59b444f5c4356388043d284cfa",
+  "p2_closeout": "b09fc0d2bc257f0fdc53c04e7225900dfd6fd36e",
+  "required_gates": [
+    "CI exact HEAD",
+    "T2 Runtime Browser Certification exact HEAD",
+    "Patient P7 Final Certification exact HEAD"
+  ],
+  "visual_matrix": {
+    "viewports": ["390x844", "430x932", "768x1024", "1280x900"],
+    "surfaces_per_viewport": 10,
+    "expected_captures": 40
+  },
+  "persistence_roundtrips": [
+    "odontogram",
+    "practitioner clinical conclusion",
+    "Master Plan + revision",
+    "RVG upload/list/download",
+    "explicit Acte payment + financial snapshot"
+  ],
+  "vercel": "not_deployed",
+  "closeout_rule": "Do not mark CLOSED until exact-head gates are green and the visual artifact is inspected."
+}

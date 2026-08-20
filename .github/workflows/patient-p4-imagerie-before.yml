@@ -1,0 +1,131 @@
+name: Patient P4 Imagerie Before
+
+on:
+  pull_request:
+    branches:
+      - agent/patient-page-p3-clinique
+    paths:
+      - 'docs/PATIENT_P4_IMAGERIE_GOAL.md'
+      - '.github/workflows/patient-p4-imagerie-before.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  before:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      ENVIRONMENT: test
+      SECRET_KEY: patient-p4-before-secret-000001
+      DATABASE_URL: sqlite:///./t2-runtime-cert.db
+      TELEMETRY_ENABLED: 'false'
+      CLOUD_AI_ENABLED: 'false'
+      DEBUG: 'false'
+      ALLOWED_ORIGINS: 'http://127.0.0.1:5173,http://localhost:5173'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: d36b0871029516a3d09f65c130b824b3768c9bad
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install backend
+        run: |
+          python -m pip install --upgrade pip
+          pip install torch==2.12.0 torchvision==0.27.0 --index-url https://download.pytorch.org/whl/cpu
+          grep -vE '^(torch|torchvision)([<=>].*)?$' requirements.txt > /tmp/requirements-p4-before.txt
+          pip install -r /tmp/requirements-p4-before.txt
+          pip install httpx==0.27.2
+
+      - name: Install frontend and Chromium
+        working-directory: frontend
+        run: |
+          npm ci
+          npm install --no-save playwright@1.55.0
+          npx playwright install --with-deps chromium
+
+      - name: Start backend
+        run: |
+          rm -f t2-runtime-cert.db
+          python scripts/t2_runtime_server.py > /tmp/p4-before-backend.log 2>&1 &
+          for i in {1..90}; do if curl -fsS http://127.0.0.1:8005/health >/dev/null; then exit 0; fi; sleep 1; done
+          cat /tmp/p4-before-backend.log
+          exit 1
+
+      - name: Start frontend
+        working-directory: frontend
+        run: |
+          npm run dev -- --host 127.0.0.1 --port 5173 > /tmp/p4-before-front.log 2>&1 &
+          for i in {1..90}; do if curl -fsS http://127.0.0.1:5173 >/dev/null; then exit 0; fi; sleep 1; done
+          cat /tmp/p4-before-front.log
+          exit 1
+
+      - name: Capture P4 BEFORE
+        working-directory: frontend
+        run: |
+          mkdir -p ../artifacts/p4-imagerie-before
+          cat > .p4-before.mjs <<'JS'
+          import fs from 'node:fs';
+          import path from 'node:path';
+          import { chromium, request } from 'playwright';
+          const out=path.resolve('../artifacts/p4-imagerie-before');
+          const viewports=[{width:390,height:844},{width:430,height:932},{width:768,height:1024},{width:1280,height:900}];
+          const api=await request.newContext({baseURL:'http://127.0.0.1:8005'});
+          const login=await api.post('/api/auth/login',{form:{username:'t2-browser@cabinet.ma',password:'T2BrowserPass123!'}});
+          if(!login.ok()) throw new Error(await login.text());
+          const tok=await login.json(); const headers={Authorization:`Bearer ${tok.access_token}`};
+          const ps=await api.get('/api/patients',{headers});
+          const patient=(await ps.json()).find(p=>p.numero_dossier==='T2-0001');
+          if(!patient) throw new Error('T2 patient missing');
+          const ortho=await api.patch(`/api/patients/${patient.id}/ortho`,{headers,data:{is_ortho_active:true}});
+          if(!ortho.ok()) throw new Error(`Unable to activate ortho fixture: ${ortho.status()} ${await ortho.text()}`);
+          const browser=await chromium.launch({headless:true}); const evidence=[];
+          for(const viewport of viewports){
+            const ctx=await browser.newContext({viewport,colorScheme:'light'}); const page=await ctx.newPage();
+            await page.addInitScript(({a,r})=>{localStorage.setItem('token',a);localStorage.setItem('refresh_token',r||'');localStorage.setItem('appMode','prod');},{a:tok.access_token,r:tok.refresh_token});
+            const errors=[]; const http5xx=[];
+            page.on('pageerror',e=>errors.push(String(e)));
+            page.on('response',r=>{if(r.status()>=500)http5xx.push({url:r.url(),status:r.status()});});
+            await page.goto(`http://127.0.0.1:5173/patients/${patient.id}`,{waitUntil:'networkidle',timeout:90000});
+            const imaging=page.getByRole('button',{name:'Imagerie',exact:true});
+            await imaging.waitFor({state:'visible',timeout:30000});
+            await imaging.click();
+            const ceph=page.getByRole('button',{name:'Céphalométrie',exact:true});
+            await ceph.waitFor({state:'visible',timeout:30000});
+            await ceph.click();
+            await page.getByText('Studio Céphalométrique',{exact:true}).waitFor({state:'visible',timeout:30000});
+            await page.waitForTimeout(800);
+            const cephaloOverflow=await page.evaluate(()=>document.documentElement.scrollWidth>document.documentElement.clientWidth+2);
+            const cephaloShot=`p4-before-cephalo-${viewport.width}x${viewport.height}.png`;
+            await page.screenshot({path:path.join(out,cephaloShot),fullPage:false});
+
+            await page.getByRole('button',{name:'Panoramique',exact:true}).click();
+            await page.waitForTimeout(1200);
+            const panoOverflow=await page.evaluate(()=>document.documentElement.scrollWidth>document.documentElement.clientWidth+2);
+            const panoShot=`p4-before-panoramic-${viewport.width}x${viewport.height}.png`;
+            await page.screenshot({path:path.join(out,panoShot),fullPage:false});
+            evidence.push({viewport,cephaloOverflow,panoOverflow,errors,http5xx,cephaloShot,panoShot,url:page.url()});
+            await ctx.close();
+          }
+          fs.writeFileSync(path.join(out,'evidence.json'),JSON.stringify(evidence,null,2));
+          fs.writeFileSync(path.join(out,'summary.json'),JSON.stringify({captures:evidence.length*2,evidence},null,2));
+          await browser.close(); await api.dispose();
+          if(evidence.length!==4) process.exit(1);
+          JS
+          node .p4-before.mjs
+          rm .p4-before.mjs
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: patient-p4-imagerie-before
+          path: artifacts/p4-imagerie-before
+          if-no-files-found: error
+          retention-days: 14

@@ -83,7 +83,7 @@ export const AssistantOrtho: React.FC<AssistantOrthoProps> = ({ onComplete, onCa
     return (
       <div className="flex flex-col items-center justify-center py-10 gap-4">
         <Smile className="w-12 h-12 text-indigo-500 animate-pulse" />
-        <h3 className="text-sm font-black uppercase tracking-widest text-slate-500">Génération du Plan Orthodontique...</h3>
+        <h3 className="text-sm font-black uppercase tracking-widest text-slate-500">Synthèse structurée en cours...</h3>
       </div>
     );
   }

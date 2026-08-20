@@ -1,276 +1,279 @@
 # Page Patient — Audit & Refonte Premium
 
-Statut canonique du chantier Page Patient. Ce document sert de boussole : aucun lot n'est considéré terminé sans preuve explicite.
+Statut canonique du chantier Page Patient. Cette roadmap consolide les lots P0→P7 ; les Goal détaillés, preuves historiques et audits scientifiques restent dans les documents `PATIENT_P*` dédiés.
 
 ## Goal global
 
-Transformer la Page Patient en workspace clinique simple, traçable, sûr et cohérent, sans perdre les fonctions déjà utiles.
+Transformer la Page Patient en workspace clinique simple, traçable, sûr et cohérent, sans perdre les fonctions utiles ni créer de seconde vérité clinique, administrative ou financière.
 
 ## Succès global
 
 - Une seule vérité par donnée clinique, administrative et financière.
-- Isolation stricte entre cabinets et entre patients.
+- Isolation stricte cabinet/patient et permissions métier explicites.
 - Aucune donnée patient, clinique ou financière inventée silencieusement.
-- Les décisions cliniques automatiques sont bornées, explicables, sourcées et soumises à validation praticien.
-- Architecture lisible en 5 espaces : Vue d’ensemble, Clinique, Imagerie, Documents, Finances.
-- Les flux legacy sont supprimés après migration vers le flux canonique.
-- Baseline visuelle, mockup cible et captures après implémentation sur les mêmes viewports pour chaque changement UI.
-- Régression fonctionnelle, permissions, sécurité, isolation Patient A→B, documents A5/A4 et règles cliniques certifiées avant clôture.
+- Architecture en 5 espaces : Vue d’ensemble, Clinique, Imagerie, Documents, Finances.
+- Persistance clinique et financière relue côté backend après mutation.
+- Documents/PDF et médias accessibles par flux authentifiés.
+- Baselines, Goals/wireframes et AFTER conservés pour les lots UI.
+- CI/T2 et certification finale exécutées sur un HEAD P7 consolidé unique.
+- Aucun déploiement Vercel sans autorisation explicite.
 
-## Preuves globales requises
+## État de fermeture
 
-- Tests backend/frontend ciblés puis régression raisonnable.
-- Tests d'isolation tenant et patient.
-- Tests de vérité financière et clinique.
-- Sources scientifiques primaires pour toute règle thérapeutique automatisée.
-- Captures baseline/mockup/après pour tout changement UI.
-- CI exacte sur HEAD final du lot.
+**HEAD produit P7 certifié : `a173b2f364905d20973987d0d66a38d5c2d8c7b9`.**
+
+Preuves exactes sur ce HEAD produit :
+- CI `32313285672` (#1456) — SUCCESS.
+- T2 Runtime Browser Certification `32313285673` (#698) — SUCCESS.
+- Patient P7 Final Certification `32313285794` (#1) — SUCCESS.
+- Artifact P7 `9387291316`, digest `sha256:86f0da848ad1e9a191d1be81ff2e31e105b6477ac1bc9681a12b3204a1ea730f`.
+- 40/40 captures : 10 surfaces × 390x844 / 430x932 / 768x1024 / 1280x900.
+- 0 overflow horizontal, 0 erreur runtime, 0 HTTP 5xx.
+- Score visuel final Page Patient : **9,4/10**.
+- Round-trips persistés : odontogramme, conclusion praticien, Master Plan + révision, RVG upload/list/download, paiement explicite + snapshot financier.
+
+**Règle de clôture :** le commit documentaire qui contient ce closeout et `docs/PATIENT_P7_FINAL_CERT.json` doit lui-même repasser les gates proportionnels exact-HEAD avant déclaration globale `CLOSED`.
 
 ---
 
 # P0 — Vérité & sécurité
 
-**Goal :** supprimer les états faux, les fuites de données et les doubles vérités avant toute refonte visuelle.
+**Goal :** supprimer les états faux, les fuites et doubles vérités avant la refonte visuelle.
 
-## P0-A — Isolation anti-doublon Patient
-- [x] Scoper `nom + prénom + date_naissance` par `employer_id`.
-- [x] Garantir qu'aucune pré-détection ne renvoie l'identité d'un autre cabinet.
-- [x] Couvrir création, modification, import CSV et endpoint de précheck.
-- [x] Test croisé tenant A/B.
+**Statut : CLOSED.**
 
-**Succès :** un patient identique dans deux cabinets est autorisé et invisible hors tenant.
+Contrats fermés :
+- anti-doublon tenant-scopé ;
+- identité sans sexe implicite ;
+- ClinicalHub fail-closed et Master Plan backend-authoritative ;
+- assistants cliniques proposition-only ;
+- paiements liés au bon patient/acte/échéance avec méthode explicite ;
+- RVG authentifié + corbeille/restauration ;
+- source médicale canonique unique ;
+- neutralité clinique vis-à-vis du score commercial ;
+- NBA/panoramique bornés, sans promotion d’heuristique en vérité clinique ;
+- PDF panoramique patient-authorized et blob-streamed.
 
-## P0-B — Sexe et données d'identité sans défaut inventé
-- [x] Supprimer les fallbacks silencieux `M`/`F` côté schémas/import.
-- [x] Refuser ou signaler explicitement les valeurs invalides.
-- [x] Ne toucher au formulaire visuel qu'après baseline UI.
-
-**Succès :** aucune voie de création/import ne déduit le sexe sans entrée valide.
-
-## P0-C — Vérité clinique / ClinicalHub
-- [x] Supprimer les plans ou diagnostics fictifs initialisés côté frontend.
-- [x] Le backend devient la seule source autoritative du Master Plan.
-- [x] `localStorage` ne peut jamais être présenté comme donnée clinique sauvegardée.
-- [x] Aucun toast de succès/synchronisation avant succès backend prouvé.
-- [x] Audit spécifique odontogramme et diagnostic local.
-
-**Succès :** un dossier clinique vide reste réellement vide ; une erreur de persistance reste visible comme erreur.
-
-## P0-D — Assistants cliniques fail-closed
-- [x] Reclasser les assistants comme outils de collecte/proposition, pas moteurs de diagnostic autonome.
-- [x] Interdire toute prescription/antibiothérapie/sédation/imagerie/acte catégorique non validée.
-- [x] Supprimer l'ordre scientifique universel codé en dur.
-- [x] Construire une matrice de règles scientifiques avec source primaire, indication, contre-indication, version et besoin de validation praticien.
-- [x] Revoir Général, Examen complet, Paro, Endo, Chirurgie, Prothèse, Pédodontie, Ortho, ATM, Pathologie.
-
-**Succès :** aucune proposition clinique ne devient vérité dossier ou traitement sans validation explicite du praticien.
-
-## P0-E — Paiements et échéanciers
-- [x] Aucun mode de paiement par défaut implicite.
-- [x] Vérifier que `acte_id` appartient au même patient avant mutation.
-- [x] Vérifier que `installment_id` appartient au même patient avant mutation.
-- [x] Migrer la Page Patient depuis `/accounting/plans` vers le flux `/installments` réconcilié.
-- [x] Déprécier puis supprimer le flux legacy après migration.
-- [x] Reste dû / taux de recouvrement : jamais 100 % lorsque la base de facturation est absente.
-
-**Succès :** toute entrée financière est reliée à la bonne entité et aucune méthode/solde n'est inventé.
-
-## P0-F — RVG et médias patients
-- [x] Supprimer l'authentification par token en query string côté RVG.
-- [x] Utiliser un fetch authentifié/blob ou le mécanisme média authentifié canonique.
-- [x] Vérifier symétrie upload/list/open/download/delete et permissions.
-- [x] Préférer corbeille/restore à suppression permanente dans la surface clinique.
-
-**Succès :** aucun secret dans l'URL et aucune action média hors permission/patient.
-
-## P0-G — Sources médicales structurées
-- [x] Résoudre le doublon `Patient.antecedents_medicaux` / `DossierClinique.antecedents_medicaux`.
-- [x] Définir une source canonique.
-- [x] Préparer le modèle structuré de sécurité médicale sans inventer les champs avant l'audit clinique dédié.
-
-**Succès :** une seule source de vérité médicale critique.
-
-## P0-H — Neutralité clinique
-- [x] Retirer `PatientScoreBadge` de la surface clinique.
-- [x] Séparer indicateurs factuels administratifs (absences, solde) de toute hiérarchie VIP/Gold/Silver/Bronze.
-
-**Succès :** aucune classification commerciale/solvabilité n'influence visuellement la lecture clinique.
-
-## P0-I — NBA / radar / panoramique : frontière de vérité
-- [x] Supprimer les conclusions cliniques automatiques issues d'heuristiques temporelles ou commerciales.
-- [x] Supprimer les grades Premium/PLATINUM de la logique clinique Patient.
-- [x] Ne plus transformer la durée orthodontique en progression clinique ou date de fin estimée.
-- [x] Présenter les détections panoramiques au maximum comme repères techniques à valider par le praticien.
-- [x] Désactiver l'inférence panoramique legacy vers facturation / plan de traitement.
-- [x] Borner le contexte RAG panoramique à des repères FDI neutres, sans labels pathologiques.
-
-**Succès :** aucune heuristique commerciale, temporelle ou détection panoramique ne devient diagnostic, risque retenu, traitement ou vérité clinique automatique.
-
-### Preuves P0 consolidées
-
-- P0-C : `docs/PATIENT_P0_CLINICALHUB_CERT.json`.
-- P0-D : AFTER 20 captures, run `32187055163`, proposition-only/fail-closed.
-- P0-E UI : AFTER 8 captures, vérité KPI + échéancier responsive.
-- P0-F : `docs/PATIENT_P0F_RVG_CERT.json`.
-- P0-G : `docs/PATIENT_P0G_MEDICAL_SOURCE_CERT.json`.
-- P0-H : `docs/PATIENT_P0H_NEUTRALITY_CERT.json`.
-- P0-I : AFTER run `32186499282`, artifact `9342853792`, 4 captures, 0 runtime/5xx, score de scope 9,7/10.
-- Code candidate `653b19b926019653ea8c1f6ad4c21f17005aeb5e` : CI `32195798290` (#1095) SUCCESS + T2 `32195798150` (#356) SUCCESS.
-- Tout commit documentaire de closeout postérieur doit lui-même repasser CI/T2 exact-HEAD avant déclaration CLOSED.
+Preuve canonique : `docs/PATIENT_P0_CLOSEOUT_CERT.json`.
+Exact-head closeout : CI `32196646837` + T2 `32196646938` — SUCCESS.
 
 ---
 
 # P1 — Architecture générale Page Patient
 
-**Goal :** réduire la densité et faire apparaître immédiatement la prochaine action utile.
+**Goal :** réduire la densité et faire apparaître immédiatement identité, alertes utiles et actions fréquentes.
 
-Avant toute implémentation UI :
-- [x] captures baseline des viewports concernés ;
-- [x] Goal visuel écrit ;
-- [x] mockup/wireframe basé sur l'application existante ;
-- [x] comparaison avant/mockup/après.
-
-Architecture cible :
-1. Vue d’ensemble
-2. Clinique
-3. Imagerie
-4. Documents
-5. Finances
-
-Actions :
-- [x] Header compact : identité, âge/date naissance, dossier, assurance, alertes critiques.
-- [x] Actions rapides : RDV, séance/examen, document, encaissement.
-- [x] Fusionner Archives dans Documents.
-- [x] Renommer `Documents A5` en `Documents`.
-- [x] Renommer `Radiologie (IA)` en `Imagerie`.
-- [x] Éviter les labels techniques internes dans la navigation utilisateur.
+- [x] Header compact.
+- [x] Actions rapides RDV / Examen-Suivi / Document / Encaisser.
+- [x] 5 espaces principaux.
+- [x] Archives fusionnées dans Documents.
+- [x] Labels techniques/legacy retirés de la navigation.
+- [x] AFTER 4 viewports sans overflow/runtime/5xx.
 
 **Statut : CERTIFIED.**
 
-### Preuves P1
-
-- Goal + wireframe : `docs/PATIENT_P1_ARCHITECTURE_GOAL.md`.
+Preuves :
+- Goal : `docs/PATIENT_P1_ARCHITECTURE_GOAL.md`.
 - Certificat : `docs/PATIENT_P1_ARCHITECTURE_CERT.json`.
-- Product HEAD certifié : `67e979b3df2058bf7079f36c84abd67a3f0e2e0c`.
-- Visual AFTER : run `32201889501` (#6) SUCCESS, artifact `9347877116`, digest `sha256:0e1c42bc50b64c12b9f13da25483dbbe52cc963cdcfed62dd9afd064c5b3b8e4`.
-- 4 captures : 390x844, 430x932, 768x1024, 1280x900 ; zéro overflow horizontal global, zéro runtime error, zéro HTTP 5xx.
-- CI : run `32201889504` (#1141) SUCCESS.
-- T2 Runtime Browser Certification : run `32201889557` (#396) SUCCESS.
-- Score visuel de scope P1 : **9,7/10**.
-- Le commit documentaire de closeout postérieur au product HEAD doit lui-même repasser CI/T2 exact-HEAD avant déclaration CLOSED.
+- Product HEAD : `67e979b3df2058bf7079f36c84abd67a3f0e2e0c`.
+- Visual `32201889501`, CI `32201889504`, T2 `32201889557` — SUCCESS.
+- Score P1 : **9,7/10**.
 
 ---
 
 # P2 — Vue d’ensemble / Patient Journey
 
-**Goal :** faire de `PatientJourney` la colonne vertébrale du dossier sans dupliquer les sources.
+**Goal :** faire de `PatientJourney` la colonne vertébrale factuelle du dossier sans dupliquer les sources.
 
-- [ ] Résumé clinique traçable avec source/date.
-- [ ] Prochaine action.
-- [ ] Plan actif.
-- [ ] Prochain RDV.
-- [ ] Situation financière résumée sans faux zéro.
-- [ ] Timeline avec navigation vers la source réelle.
-- [ ] Revoir le routage Treatment Plan actuellement détourné vers Documents.
-- [ ] Supprimer les messages d'"intelligence" opaques ou non traçables.
+- [x] Résumé/provenance factuels.
+- [x] Prochaine action issue d’une source réelle ou état neutre.
+- [x] Aucun faux `0/0` lorsqu’aucun Master Plan n’existe.
+- [x] Prochain RDV réel prioritaire.
+- [x] Situation financière sans faux zéro lorsque la base facturée manque.
+- [x] Timeline avec source + `ref_id` et navigation vers la source.
+- [x] Treatment Plan ouvre Clinique, pas Documents.
+- [x] Messages de risque/intelligence opaques retirés de la Vue d’ensemble.
+
+**Statut : CLOSED / CERTIFIED.**
+
+Preuves :
+- `docs/PATIENT_P2_JOURNEY_GOAL.md`.
+- `docs/PATIENT_P2_JOURNEY_CERT.json`.
+- Product HEAD `6dffc5537eb2099acdc06dc57352af9e3b60f009` : AFTER `32206275528`, CI `32206275513`, T2 `32206275516` — SUCCESS.
+- Closeout HEAD `b09fc0d2bc257f0fdc53c04e7225900dfd6fd36e` : AFTER `32207231496`, CI `32207231428`, T2 `32207231444` — SUCCESS.
+- Score P2 : **9,7/10**.
+- Le code P2 est ancêtre du HEAD P7 final.
 
 ---
 
 # P3 — Clinique
 
-**Goal :** regrouper l'état clinique autour de données validées et structurées.
+**Goal :** regrouper l’état clinique autour de données validées, persistées et structurées.
 
-- [ ] Profil médical / alertes structurées.
-- [ ] Odontogramme canonique et persistant.
-- [ ] Examen général.
-- [ ] Examens spécialisés.
-- [ ] Hypothèses vs diagnostic retenu clairement distingués.
-- [ ] Master Plan versionné/traçable.
-- [ ] Déplacer le Compagnon Diagnostique depuis Documents vers Clinique si confirmé pertinent.
-- [ ] Certification scientifique composant par composant.
+- [x] Bloc Sécurité médicale depuis la source Patient.
+- [x] `VigilanceRadar` retiré de la lecture clinique principale.
+- [x] Odontogramme canonique persistant backend avec révision/concurrence.
+- [x] Examens général et spécialisés conservés.
+- [x] Proposition assistant distincte d’une conclusion retenue par le praticien.
+- [x] Conclusions praticien append-only et persistées.
+- [x] Master Plan backend + historique de révisions.
+- [x] Compagnon Diagnostique retiré de Documents ; **non déplacé automatiquement vers Clinique**, faute de justification scientifique suffisante pour conserver son ancien moteur.
+- [x] Assistants conservés bornés à collecte/synthèse proposition-only ; aucune prescription/compta/Master Plan automatique.
+
+**Statut produit : CERTIFIED PAR INTÉGRATION P7.**
+
+Preuves :
+- Goal : `docs/PATIENT_P3_CLINIQUE_GOAL.md`.
+- Frontière : `docs/PATIENT_P3_SCIENTIFIC_BOUNDARY_AUDIT.md`.
+- Source P3 finale réintégrée dans P7 : `02126a646322d1c1d98351ea33489384be49ab57`.
+- P7 targeted backend : odontogramme, conclusions, Master Plan revisions — SUCCESS.
+- P7 targeted frontend : authority boundary + persistence — SUCCESS.
+- P7 browser : surface Clinique sur 4 viewports, zéro overflow/runtime/5xx — SUCCESS.
+- P7 round-trips : odontogramme + conclusion praticien + Master Plan/révision réellement relus côté backend.
+
+P3 n’a pas de certificat JSON autonome séparé : son certificat de fermeture intégré est `docs/PATIENT_P7_FINAL_CERT.json` afin d’éviter de recréer une seconde vérité de stack.
 
 ---
 
 # P4 — Imagerie
 
-**Goal :** un espace unique RVG + Panoramique + Céphalométrie.
+**Goal :** unifier RVG + Panoramique + Céphalométrie sans mélanger leurs contrats scientifiques ni inventer de données.
 
-- [ ] RVG intégré à la navigation Imagerie.
-- [ ] Panoramique et Céphalo conservés avec leurs propres gates scientifiques.
-- [ ] Permissions cohérentes par type d'imagerie.
-- [ ] Historique, acquisition, rapport, suppression/restauration cohérents.
-- [ ] Aucun libellé IA si la fonction réelle est déterministe ou si la provenance n'est pas explicitée.
+- [x] Navigation Imagerie : RVG / Panoramique / Céphalométrie.
+- [x] RVG réutilise le contrat authentifié P0-F ; aucun stockage parallèle.
+- [x] Permissions modalité alignées avec le backend.
+- [x] Céphalo : aucun fallback âge `20` / sexe `M` inventé.
+- [x] Céphalo : aucune stratégie thérapeutique auto-écrite via `generateTreatmentPlan()`.
+- [x] Panoramique : vocabulaire borné au repérage dentaire/déterministe + validation praticien.
+- [x] Labels IA/SOTA/« Zéro-Hallucination » legacy retirés de cette surface.
+- [x] Suppression normale Pano/Céphalo récupérable via corbeille/restauration ; analyse/fichier préservés.
+- [x] Tests tenant/RBAC/lifecycle/consommateurs.
+
+**Statut produit : CERTIFIED PAR INTÉGRATION P7.**
+
+Preuves :
+- Goal : `docs/PATIENT_P4_IMAGERIE_GOAL.md`.
+- P4 final intégré comme parent P7 : `27f55a6e807c2c59b444f5c4356388043d284cfa`.
+- P7 backend : `test_patient_p4_imaging_trash.py` + `test_patient_p4_imaging_consumers.py` — SUCCESS.
+- P7 frontend : `PatientP4ImagingTruth.test.ts` — SUCCESS.
+- P7 browser : RVG/Panoramique/Céphalo × 4 viewports — SUCCESS.
+- P7 RVG round-trip upload/list/download — SUCCESS.
+
+Aucune formule/norme scientifique n’a été modifiée par P7 ; aucune nouvelle revendication scientifique n’est ajoutée.
 
 ---
 
 # P5 — Documents
 
-**Goal :** conserver le Document Studio durci et simplifier son entrée depuis le patient.
+**Goal :** conserver le Document Studio durci et rendre son entrée Patient honnête, fail-closed et permissionnée.
 
-- [ ] Créer / Historique dans le même espace.
-- [ ] Archives fusionnées.
-- [ ] Ordonnance, certificat, devis, honoraires, échéancier, libre conservés selon contrats certifiés.
-- [ ] Poursuivre les certifications propres au Document Studio sans dupliquer les travaux déjà validés.
-- [ ] Vérifier A5/A4, impression, preview, archivage, permissions et isolation Patient A→B.
+- [x] Créer / Historique dans le même espace Documents.
+- [x] Archives fusionnées, pas de seconde archive.
+- [x] Ordonnance / Certificat / Devis / Note Honoraires / Suivi Paiement / Document Libre conservés selon leurs contrats.
+- [x] Compagnon Diagnostique retiré des types documentaires.
+- [x] URL legacy `documentTab=plan` normalisée.
+- [x] Historique fail-closed ; faux état vide après erreur interdit.
+- [x] Heuristique doublon reclassée comme signal à vérifier, pas vérité métier.
+- [x] RBAC frontend aligné sur les permissions backend ; backend reste autoritaire.
+- [x] Blob authentifié + object URLs gérées pour ouverture/téléchargement.
+- [x] A5/A4, navigateur Document Studio, PDF/impression et fraîcheur output couverts par T2 exact-head.
+
+**Statut produit : CERTIFIED PAR INTÉGRATION P7.**
+
+Preuves :
+- Goal : `docs/PATIENT_P5_DOCUMENTS_GOAL.md`.
+- P5 final `76fe188a7a9606e2ed93dd6d347753a2dbab3c14`, déjà inclus via P6 puis P7.
+- P7 frontend : Document Studio RBAC + PatientDocuments truth — SUCCESS.
+- P7 browser : Créer/Historique × 4 viewports — SUCCESS.
+- T2 exact P7 HEAD `32313285673` — SUCCESS pour Document Studio navigateur, PDF/impression et fraîcheur output.
+
+P5 n’a pas de certificat JSON autonome séparé : sa fermeture intégrée est portée par `docs/PATIENT_P7_FINAL_CERT.json`.
 
 ---
 
 # P6 — Finances & identité Patient
 
-**Goal :** rendre création/édition/finance plus courte et sans ambiguïté.
+**Goal :** rendre création/édition/finance courte, explicite et sans faux état.
 
-- [ ] Unifier Add/Edit Patient autour d'un même contrat de formulaire.
-- [ ] Corriger anti-doublon fail-open côté UI.
-- [ ] Réduire la saisie initiale au nécessaire puis enrichir dans le dossier.
-- [ ] Simplifier KPI patient : Facturé / Encaissé / Reste dû / Prochaine échéance.
-- [ ] Reléguer ou supprimer le taux de recouvrement côté fiche patient.
-- [ ] Harmoniser encaissement rapide, acte et échéancier avec le contrat financier canonique.
+- [x] Add/Edit partagent `PatientIdentityContract`.
+- [x] Aucun sexe implicite.
+- [x] Préchecks dossier/doublon fail-closed.
+- [x] Échec GET Edit => erreur explicite, aucun patient fantôme.
+- [x] KPI : Facturé / Encaissé / Reste dû / Prochaine échéance.
+- [x] Base de facturation absente => solde indéterminé, jamais faux zéro.
+- [x] Finances/Encaisser suivent `accounting/payments`.
+- [x] Méthode de paiement explicite.
+
+**Statut : CLOSED / CERTIFIED.**
+
+Preuves :
+- Goal : `docs/PATIENT_P6_FINANCES_IDENTITE_GOAL.md`.
+- Certificat : `docs/PATIENT_P6_FINANCES_IDENTITE_CERT.json`.
+- Product HEAD `fb2bd0357d6da6d4c3be9b51be45d84c764589c1` : CI `32309262380`, T2 `32309262379`, AFTER `32309262388` — SUCCESS.
+- AFTER : 12/12 captures propres ; score **9,6/10**.
+- Closeout HEAD P6 `2a0ac2ade90f2bae99c6e7c11302755d856a730e` : CI `32310800414`, T2 `32310800398`, BEFORE `32310800419`, AFTER `32310800428` — SUCCESS.
+- P6 final est parent principal du HEAD P7.
 
 ---
 
 # P7 — Certification finale Page Patient
 
-**Goal :** fermer la Page Patient uniquement après preuve fonctionnelle, visuelle, clinique et sécurité.
+**Goal :** fermer la Page Patient uniquement après preuve fonctionnelle, visuelle, clinique et sécurité sur un HEAD consolidé unique.
 
-- [ ] Tests backend ciblés + régression Patient.
-- [ ] Tests frontend ciblés + build/typecheck.
-- [ ] Isolation tenant A/B.
-- [ ] Isolation Patient A→B et reset des drafts.
-- [ ] RBAC par surface : patient, clinique, documents, accounting, prescriptions, imagerie.
-- [ ] Parcours création → consultation → acte → document → paiement → archive.
-- [ ] 390 / 430 / 768 / desktop selon surfaces réellement supportées.
-- [ ] Clavier, focus, modales, responsive, erreurs réseau.
-- [ ] Captures avant/mockup/après mêmes viewports.
-- [ ] Score visuel final argumenté.
-- [ ] CI exacte sur HEAD final.
-- [ ] Mise à jour ROADMAP/STATUS/SESSION/CHANGELOG selon pertinence.
+- [x] Stack P2/P3/P4/P5/P6 consolidée ; P7 derrière P6/P3/P4 = 0.
+- [x] Contrat source final P0→P6.
+- [x] Tests backend ciblés P0/P2/P3/P4/P6.
+- [x] Tests frontend ciblés Journey/Clinique/Imagerie/Documents/Finances/Identité + build.
+- [x] Tests tenant/RBAC/isolation couverts par les suites ciblées des surfaces concernées.
+- [x] Persistance relue : odontogramme, conclusion praticien, Master Plan + révision, RVG, paiement/snapshot.
+- [x] Documents/PDF/impression/fraîcheur output via T2 exact-head.
+- [x] 40 captures finales : 10 surfaces × 4 viewports.
+- [x] 0 overflow horizontal / runtime error / HTTP 5xx dans la matrice P7.
+- [x] Score visuel final argumenté : **9,4/10**.
+- [x] CI `32313285672`, T2 `32313285673`, P7 Final `32313285794` — SUCCESS sur `a173b2f...`.
+- [x] Certificat produit final : `docs/PATIENT_P7_FINAL_CERT.json`.
+
+### Limites explicitement non sur-vendues
+
+- Aucun nouveau **audit autonome exhaustif clavier/focus** n’est revendiqué au-delà des interactions navigateur et tests réellement exécutés.
+- Le parcours complet n’est pas revendiqué comme un unique scénario monolithique « création Patient → archive » ; ses persistance/actions critiques sont prouvées par les gates dédiés P7 + T2.
+- Deux dettes UX mobiles non bloquantes restent visibles : rail horizontal des types Documents et emprise du bouton flottant Crown Bot en bas à droite.
+
+### Preuve visuelle finale
+
+Artifact `9387291316` :
+- overview ;
+- clinical ;
+- imaging-rvg ;
+- imaging-panoramic ;
+- imaging-cephalo ;
+- documents-create ;
+- documents-history ;
+- finances ;
+- add-patient ;
+- edit-patient ;
+
+sur `390x844`, `430x932`, `768x1024`, `1280x900`.
+
+**Statut produit : CERTIFIED.**
+
+**Statut chantier : PENDING CLOSEOUT EXACT-HEAD RECERTIFICATION** tant que le commit documentaire portant cette roadmap et le certificat final n’a pas lui-même repassé CI + T2 + P7 Final.
 
 ---
 
-## Architecture cible de référence
+## Architecture finale de référence
 
 ```text
 PATIENT
-├── Header compact
-│   ├── Identité / âge / dossier
-│   ├── Assurance
-│   └── Alertes médicales critiques
-├── Actions rapides
-│   ├── RDV
-│   ├── Séance / examen
-│   ├── Document
-│   └── Encaisser
+├── Header compact + alertes utiles + actions rapides
 ├── Vue d’ensemble
-│   ├── Résumé clinique traçable
-│   ├── Prochaine action
-│   ├── Plan actif
-│   └── Patient Journey
+│   └── Patient Journey factuel et sourcé
 ├── Clinique
 │   ├── Sécurité médicale
-│   ├── Odontogramme
-│   ├── Examens
-│   ├── Diagnostics validés
-│   └── Plan de traitement
+│   ├── Odontogramme persistant
+│   ├── Examens / propositions
+│   ├── Conclusions praticien
+│   └── Master Plan versionné
 ├── Imagerie
 │   ├── RVG
 │   ├── Panoramique
@@ -282,16 +285,16 @@ PATIENT
     ├── Facturé
     ├── Encaissé
     ├── Reste dû
-    └── Échéances
+    └── Prochaine échéance
 ```
 
 ## Règles de chantier
 
-- Pas de rebuild gratuit : préserver les composants utiles et durcis.
-- Pas de nouvelle abstraction sans nécessité démontrée.
+- Pas de rebuild gratuit.
+- Backend autoritaire pour persistance, tenant et RBAC.
 - Pas de vérité clinique/financière dans `localStorage`.
 - Pas de succès UI avant succès backend réel.
 - Pas de donnée médicale ou financière implicite.
-- Pas de changement UI sans baseline + mockup.
+- Pas de changement UI sans baseline + Goal visuel + référence + AFTER.
 - Pas de déploiement Vercel sans autorisation explicite.
-- Un lot n'est CLOSED qu'avec preuves sur son HEAD exact.
+- Un lot n’est `CLOSED` qu’avec preuves sur son HEAD exact.

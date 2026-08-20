@@ -1,0 +1,58 @@
+{
+  "lot": "P6",
+  "title": "Finances & identité Patient",
+  "status": "PRODUCT_HEAD_CERTIFIED",
+  "product_head": "fb2bd0357d6da6d4c3be9b51be45d84c764589c1",
+  "base_p5": "76fe188a7a9606e2ed93dd6d347753a2dbab3c14",
+  "stack_sync": {
+    "behind": 0,
+    "ahead": 50,
+    "merge_base": "76fe188a7a9606e2ed93dd6d347753a2dbab3c14"
+  },
+  "proofs": {
+    "ci": {
+      "run_id": 32309262380,
+      "run_number": 1447,
+      "conclusion": "success"
+    },
+    "t2": {
+      "run_id": 32309262379,
+      "run_number": 689,
+      "conclusion": "success"
+    },
+    "before": {
+      "run_id": 32309262409,
+      "run_number": 44,
+      "conclusion": "success",
+      "artifact_id": 9385927643,
+      "artifact_digest": "sha256:65306e82215e15537d33d150c48c99e7428314f68bc912666f66f996f7884811"
+    },
+    "after": {
+      "run_id": 32309262388,
+      "run_number": 31,
+      "conclusion": "success",
+      "artifact_id": 9385921989,
+      "artifact_digest": "sha256:a451b7d29b62f85598a9d2d9d6279ac2a5dcc5d58a86c26c20c5d1d2faf4e9a1",
+      "captures": 12,
+      "viewports": ["390x844", "430x932", "768x1024", "1280x900"],
+      "invalid_captures": 0,
+      "horizontal_overflow": 0,
+      "runtime_errors": 0,
+      "http_5xx": 0
+    }
+  },
+  "visual_score": 9.6,
+  "visual_score_scale": 10,
+  "validated_contracts": [
+    "Add/Edit share PatientIdentityContract",
+    "No implicit sex selection",
+    "Duplicate and dossier prechecks fail closed",
+    "Edit GET failure never renders a phantom patient form",
+    "Financial KPIs are Facturé / Encaissé / Reste dû / Prochaine échéance",
+    "Missing billing basis never becomes a false zero balance",
+    "Finance visibility and payment actions follow accounting/payments RBAC",
+    "Payment method remains explicit"
+  ],
+  "closeout_rule": "The documentary closeout commit containing this certificate must itself pass exact-HEAD CI and T2 before P6 is declared CLOSED.",
+  "vercel": "not_deployed"
+}

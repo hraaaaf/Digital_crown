@@ -27,8 +27,6 @@ export const StudioFooter: React.FC<StudioFooterProps> = ({
   sideStudioType,
   onTogglePreview
 }) => {
-  if (activeTab === 'plan') return null;
-
   const preparesFreshPdf = activeTab === 'certificat' || activeTab === 'libre';
 
   return (

@@ -20,6 +20,7 @@ import {
   Mail
 } from 'lucide-react';
 import { MotifSelector } from './components/MotifSelector';
+import { createPatientIdentityFormData, patientIdentityFromApi, patientIdentityToApiPayload, validatePatientIdentity, type DossierStatus } from './PatientIdentityContract';
 
 
 export const EditPatientForm = () => {
@@ -27,29 +28,14 @@ export const EditPatientForm = () => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [fetchError, setFetchError] = useState(false);
+  const [reloadKey, setReloadKey] = useState(0);
   
-  const [formData, setFormData] = useState({
-    numero_dossier: '',
-    nom: '',
-    prenom: '',
-    date_naissance: '',
-    sexe: 'F',
-    telephone: '',
-    telephone_2: '',
-    telephone_3: '',
-    email: '',
-    adresse: '',
-    assurance: 'AUCUNE',
-    assurance_privee_nom: '',
-    assurance_complementaire: false,
-    assurance_complementaire_nom: '',
-    antecedents_medicaux: '',
-    motif_consultation: [] as string[]
-  });
+  const [formData, setFormData] = useState(() => createPatientIdentityFormData());
   const [showPhone2, setShowPhone2] = useState(false);
   const [showPhone3, setShowPhone3] = useState(false);
   const [numeroError, setNumeroError] = useState('');
-  const [dossierStatus, setDossierStatus] = useState<{ status: 'idle' | 'checking' | 'available' | 'taken', owner?: string }>({ status: 'idle' });
+  const [dossierStatus, setDossierStatus] = useState<DossierStatus>({ status: 'idle' });
   const [originalNumero, setOriginalNumero] = useState('');
 
   // Chargement initial des données du patient
@@ -57,45 +43,23 @@ export const EditPatientForm = () => {
     const fetchPatient = async () => {
       try {
         setLoading(true);
+        setFetchError(false);
         const res = await api.get(`/patients/${id}`);
         const patient = res.data;
         
-        // Formater la date de naissance pour l'input type="date" (YYYY-MM-DD)
-        let dateFormatted = '';
-        if (patient.date_naissance) {
-          const date = new Date(patient.date_naissance);
-          dateFormatted = date.toISOString().split('T')[0];
-        }
-        
-        setFormData({
-          numero_dossier: patient.numero_dossier || '',
-          nom: patient.nom || '',
-          prenom: patient.prenom || '',
-          date_naissance: dateFormatted,
-          sexe: patient.sexe || 'F',
-          telephone: patient.telephone || '',
-          telephone_2: patient.telephone_2 || '',
-          telephone_3: patient.telephone_3 || '',
-          email: patient.email || '',
-          adresse: patient.adresse || '',
-          assurance: patient.assurance || 'AUCUNE',
-          assurance_privee_nom: patient.assurance_privee_nom || '',
-          assurance_complementaire: patient.assurance_complementaire || false,
-          assurance_complementaire_nom: patient.assurance_complementaire_nom || '',
-          antecedents_medicaux: patient.antecedents_medicaux || '',
-          motif_consultation: patient.motif_consultation || []
-        });
+        setFormData(patientIdentityFromApi(patient));
         if (patient.telephone_2) setShowPhone2(true);
         if (patient.telephone_3) setShowPhone3(true);
         setOriginalNumero(patient.numero_dossier || '');
       } catch (err) {
         console.error("Erreur de récupération:", err);
+        setFetchError(true);
       } finally {
         setLoading(false);
       }
     };
     fetchPatient();
-  }, [id]);
+  }, [id, reloadKey]);
 
   // Check availability when numero_dossier changes
   useEffect(() => {
@@ -119,7 +83,8 @@ export const EditPatientForm = () => {
           setDossierStatus({ status: 'available' });
         }
       } catch (err) {
-        setDossierStatus({ status: 'available' });
+        console.error('Erreur vérification numéro de dossier:', err);
+        setDossierStatus({ status: 'error' });
       }
     }, 500);
 
@@ -129,10 +94,15 @@ export const EditPatientForm = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setNumeroError('');
+    const identityErrors = validatePatientIdentity(formData);
+    if (Object.keys(identityErrors).length > 0) {
+      window.alert(Object.values(identityErrors)[0]);
+      return;
+    }
     setSaving(true);
     try {
       // Mise à jour via l'API
-      await api.put(`/patients/${id}`, formData);
+      await api.put(`/patients/${id}`, patientIdentityToApiPayload(formData));
       // Retour immédiat à la fiche patient après succès
       navigate(`/patients/${id}`);
     } catch (err: any) {
@@ -155,6 +125,19 @@ export const EditPatientForm = () => {
     <div className="h-screen flex flex-col items-center justify-center gap-4 bg-slate-50">
       <Loader2 className="animate-spin text-[#003380]" size={48} />
       <p className="text-slate-400 font-black uppercase tracking-widest text-[10px]">Chargement du dossier...</p>
+    </div>
+  );
+
+  if (fetchError) return (
+    <div className="min-h-[60vh] flex flex-col items-center justify-center gap-4 text-center px-6">
+      <AlertCircle size={42} className="text-rose-500" />
+      <div>
+        <h2 className="font-black text-slate-800 text-xl">Impossible de charger le patient</h2>
+        <p className="text-slate-500 text-sm mt-1">Le formulaire n'est pas affiché avec des valeurs par défaut.</p>
+      </div>
+      <button type="button" onClick={() => setReloadKey(key => key + 1)} className="flex items-center gap-2 px-4 py-2 rounded-xl bg-[#003380] text-white font-black text-xs uppercase tracking-widest">
+        <RefreshCw size={15} /> Réessayer
+      </button>
     </div>
   );
 
@@ -224,6 +207,9 @@ export const EditPatientForm = () => {
             {dossierStatus.status === 'available' && (
               <p className="mt-2 text-xs text-emerald-600 font-bold">✓ Numéro disponible</p>
             )}
+            {dossierStatus.status === 'error' && (
+              <p className="mt-2 text-xs text-amber-600 font-bold flex items-center gap-1"><AlertTriangle size={13} /> Disponibilité non vérifiée</p>
+            )}
             <p className="mt-2 text-xs text-slate-500">
               ⚠️ Modifiez avec précaution - ce numéro est utilisé pour identifier le dossier physique
             </p>
@@ -268,9 +254,10 @@ export const EditPatientForm = () => {
             <select 
               name="sexe" 
               value={formData.sexe} 
-              onChange={(e) => setFormData({...formData, sexe: e.target.value})}
+              onChange={(e) => setFormData({...formData, sexe: e.target.value as '' | 'M' | 'F'})}
               className={inputClass}
             >
+              <option value="">Choisir…</option>
               <option value="F">Féminin</option>
               <option value="M">Masculin</option>
             </select>
@@ -352,7 +339,6 @@ export const EditPatientForm = () => {
                 className={cn(inputClass, "pl-14")} 
                 value={formData.telephone} 
                 onChange={(e) => setFormData({...formData, telephone: e.target.value})} 
-                required 
               />
             </div>
 

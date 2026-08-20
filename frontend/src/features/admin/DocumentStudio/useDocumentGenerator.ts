@@ -365,7 +365,6 @@ export function useDocumentGenerator(params: UseDocumentGeneratorParams) {
     force = false,
   ) => {
     if (!patientId) return;
-    if (activeTab === 'plan') return;
 
     // Flux dédié échéancier — même pattern blob+fallback que honoraires
     if (activeTab === 'echeancier') {

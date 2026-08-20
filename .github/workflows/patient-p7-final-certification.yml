@@ -1,0 +1,161 @@
+name: Patient P7 Final Certification
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: patient-p7-final-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  final-certification:
+    name: P7 Final Patient Matrix
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      ENVIRONMENT: test
+      SECRET_KEY: patient-p7-final-secret-000001-long-enough
+      DATABASE_URL: sqlite:///./t2-runtime-cert.db
+      TELEMETRY_ENABLED: 'false'
+      CLOUD_AI_ENABLED: 'false'
+      DEBUG: 'false'
+      ALLOWED_ORIGINS: 'http://127.0.0.1:5173,http://localhost:5173'
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Final source truth contract
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          details = Path('frontend/src/features/patients/PatientDetailsInner.tsx').read_text(encoding='utf-8')
+          journey = Path('frontend/src/features/patients/components/PatientJourney.tsx').read_text(encoding='utf-8')
+          clinical = Path('frontend/src/features/patients/components/ClinicalHub.tsx').read_text(encoding='utf-8')
+          ceph = Path('frontend/src/features/ortho/CephaloWorkspace.tsx').read_text(encoding='utf-8')
+          pano = Path('frontend/src/features/panoramic/PanoramicStudio.tsx').read_text(encoding='utf-8')
+          docs = Path('frontend/src/features/admin/DocumentHub.tsx').read_text(encoding='utf-8')
+          finances = Path('frontend/src/features/patients/components/PatientFinances.tsx').read_text(encoding='utf-8')
+          identity = Path('frontend/src/features/patients/PatientIdentityContract.ts').read_text(encoding='utf-8')
+
+          for required in ['Vue d’ensemble', 'Clinique', 'Imagerie', 'Documents', 'Finances', 'const canFinance = Boolean(']:
+              assert required in details, required
+          for forbidden in ['Radiologie (IA)', 'Documents A5', 'Archives & Historique']:
+              assert forbidden not in details, forbidden
+          for required in ['Prochaine action', 'Solde indéterminé', 'Source :', "setSearchParams({ tab: 'clinical' })"]:
+              assert required in journey, required
+          for required in ['Sécurité médicale', 'patientClinicalPersistence.saveOdontogram', 'patientClinicalPersistence.createConclusion', 'Proposition à valider', 'Master Plan']:
+              assert required in clinical, required
+          for forbidden in ['VigilanceRadar', 'odontogram_state_']:
+              assert forbidden not in clinical, forbidden
+          for forbidden in ["age || 20", "sexe: data.sexe || 'M'", 'generateTreatmentPlan(']:
+              assert forbidden not in ceph, forbidden
+          for forbidden in ['Studio Panoramique IA', 'Détection SOTA', 'Intelligence Clinique IA', 'Zéro-Hallucination']:
+              assert forbidden not in pano, forbidden
+          assert 'Compagnon Diagnostique' not in docs
+          for required in ['Facturé', 'Encaissé', 'Reste dû', 'Prochaine échéance', 'Indéterminé']:
+              assert required in finances, required
+          assert 'Taux Recouvrement' not in finances
+          assert "sexe: ''" in identity
+          PY
+
+      - name: Install backend
+        run: |
+          python -m pip install --upgrade pip
+          pip install torch==2.12.0 torchvision==0.27.0 --index-url https://download.pytorch.org/whl/cpu
+          grep -vE '^(torch|torchvision)([<=>].*)?$' requirements.txt > /tmp/requirements-p7.txt
+          pip install -r /tmp/requirements-p7.txt
+          pip install httpx==0.27.2 pytest
+
+      - name: Targeted P0-P6 backend certification
+        run: |
+          pytest -q \
+            backend/tests/test_patient_p0_final_contract.py \
+            backend/tests/test_patient_p2_journey_truth.py \
+            backend/tests/test_patient_p3_odontogram.py \
+            backend/tests/test_patient_p3_clinical_conclusions.py \
+            backend/tests/test_patient_p3_master_plan_revisions.py \
+            backend/tests/test_patient_p4_imaging_trash.py \
+            backend/tests/test_patient_p4_imaging_consumers.py \
+            backend/tests/test_patient_p6_financial_snapshot.py
+
+      - name: Install frontend and Chromium
+        working-directory: frontend
+        run: |
+          npm ci
+          npm install --no-save playwright@1.55.0
+          npx playwright install --with-deps chromium
+
+      - name: Targeted P0-P6 frontend certification and build
+        working-directory: frontend
+        run: |
+          npm test -- --run \
+            src/features/patients/components/PatientJourney.test.tsx \
+            src/features/patients/PatientP3ClinicalAssistantBoundary.test.ts \
+            src/features/patients/services/patientClinicalPersistence.test.ts \
+            src/features/patients/PatientP4ImagingTruth.test.ts \
+            src/features/admin/DocumentStudio/DocumentStudioRbac.p5.test.ts \
+            src/features/admin/DocumentStudio/PatientDocumentsTruth.p5.test.ts \
+            src/features/patients/PatientP6Truth.test.ts \
+            src/features/patients/PatientIdentityContract.p6.test.ts \
+            src/features/patients/PatientP6PaymentContract.test.ts
+          npm run build
+
+      - name: Start isolated backend
+        run: |
+          rm -f t2-runtime-cert.db
+          python scripts/t2_runtime_server.py > /tmp/p7-backend.log 2>&1 &
+          for i in {1..90}; do
+            if curl -fsS http://127.0.0.1:8005/health >/dev/null; then exit 0; fi
+            sleep 1
+          done
+          cat /tmp/p7-backend.log
+          exit 1
+
+      - name: Start frontend
+        working-directory: frontend
+        run: |
+          npm run dev -- --host 127.0.0.1 --port 5173 > /tmp/p7-frontend.log 2>&1 &
+          for i in {1..90}; do
+            if curl -fsS http://127.0.0.1:5173 >/dev/null; then exit 0; fi
+            sleep 1
+          done
+          cat /tmp/p7-frontend.log
+          exit 1
+
+      - name: Execute P7 persisted browser matrix
+        working-directory: frontend
+        shell: bash
+        run: |
+          set -o pipefail
+          mkdir -p ../artifacts/p7-final
+          node scripts/certify-patient-p7-browser.mjs 2>&1 | tee ../artifacts/p7-final/runner.log
+
+      - name: Dump runtime logs on failure
+        if: failure()
+        run: |
+          echo '===== BACKEND ====='
+          cat /tmp/p7-backend.log || true
+          echo '===== FRONTEND ====='
+          cat /tmp/p7-frontend.log || true
+
+      - name: Upload P7 evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: patient-p7-final-certification
+          path: artifacts/p7-final
+          if-no-files-found: error
+          retention-days: 14

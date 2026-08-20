@@ -20,8 +20,9 @@ import { useDocumentGenerator } from './DocumentStudio/useDocumentGenerator';
 import { type SelectedSurfaceData } from '../../components/odontogram/types';
 import { useAccountingStore } from './store/useAccountingStore';
 import { accountingDocumentTotal } from './DocumentStudio/AccountingTotalPolicy';
-import { convertPlanActsToQuoteItems } from './DocumentStudio/AccountingPlanConversionPolicy';
 import { documentPreviewFingerprint } from './DocumentStudio/DocumentPreviewFingerprint';
+import { useAuthStore } from '../../stores/useAuthStore';
+import { allowedDocumentStudioTabs } from './DocumentStudio/DocumentStudioPermissionPolicy';
 
 interface DocumentHubProps {
   patientId: string | undefined;
@@ -53,6 +54,12 @@ interface GenericClinicalData {
 export type HubDocumentType = CertifiableDocumentStudioTab;
 
 export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName, editData }) => {
+  const user = useAuthStore(state => state.user);
+  const allowedTabs = useMemo<CertifiableDocumentStudioTab[]>(
+    () => allowedDocumentStudioTabs(user),
+    [user],
+  );
+
   const [docDate, setDocDate] = useState(new Date().toISOString().split('T')[0]);
   const [sideStudioType, setSideStudioType] = useState<'NONE' | 'PREVIEW'>('NONE');
   const [smartSuggestion, setSmartSuggestion] = useState<{ rationale: string; drugs: DrugItem[] } | null>(null);
@@ -94,10 +101,10 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
     handleTabChange,
     cancelPendingTab,
     confirmPendingTab,
-    syncDocumentTab,
   } = useDocumentHubNavigation({
     hasAccountingDraft: items.some(item => item.description.trim()),
     resetHonorairesFinancialDraft,
+    allowedTabs,
   });
 
   const patientDetails = useDocumentHubPatient(patientId);
@@ -114,8 +121,7 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
     showLegalAnnotations, echeancierPayload,
   }), [
     patientId, patientDetails, activeTab, drugs, certifType, certifDays, certifStartDate, certifCustomMotif,
-    items, paymentMode, libreTitle, libreContent, libreCustomPatient, libreCustomDate,
-    libreHideHeader, librePageSize, libreAlignment, docDate, selectedTeethFromOdontogram, smartSuggestion,
+    items, paymentMode, libreTitle, libreContent, libreCustomPatient, libreCustomDate, libreHideHeader, librePageSize, libreAlignment, docDate, selectedTeethFromOdontogram, smartSuggestion,
     installments, isAccounted, paymentStatus, isGlobalNote, showLegalAnnotations, echeancierPayload,
   ]);
 
@@ -165,49 +171,54 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
   }, [generator.handleGenerate]);
 
   useEffect(() => {
-    if (editData?.clinical_data) {
-      const type = editData.type.toLowerCase();
-      const d = editData.clinical_data as GenericClinicalData;
-      if (type === 'ordonnance') {
-        setActiveTab('ordonnance');
-        if (d.medications) setDrugs(d.medications.map((m: { nom?: string; dosage?: string; forme?: string; posologie?: string; type?: 'MEDICAMENT' | 'EXAMEN' }, idx: number) => ({
-          id: Date.now() + idx, name: m.nom || '', dosage: m.dosage || '',
-          forme: m.forme || 'Sachets', posologie: m.posologie || '',
-          type: m.type || 'MEDICAMENT'
-        })));
-      } else if (type === 'certificat') {
-        setActiveTab('certificat');
-        setCertifType(d.reason || 'Arrêt de travail');
-        setCertifDays(d.days ?? 0);
-        setCertifStartDate(d.start_date || '');
-        setCertifCustomMotif(d.content || '');
-        if (!d.doc_date && d.start_date) setDocDate(d.start_date);
-      } else if (type === 'libre' || type === 'lettre') {
-        setActiveTab('libre');
-        setLibreTitle(d.title || 'Note Médicale');
-        setLibreContent(d.content || '');
-        setLibreCustomPatient(d.custom_patient || '');
-        setLibreCustomDate(d.custom_date || '');
-        setLibreHideHeader(d.hide_patient_header || false);
-        setLibrePageSize(d.page_size || 'A5');
-        setLibreAlignment(d.alignment || 'justify');
-      } else {
-        setActiveTab(type === 'devis' ? 'devis' : 'honoraires');
-        const srcItems = d.items || d.payments || [];
-        setItems(srcItems.map((i: { acte: string; dent: string; montant?: number; prix_unitaire?: number; dents?: number[] }, idx: number) => ({
-          id: Date.now() + idx,
-          description: i.acte || '',
-          dent: i.dent || '0',
-          price: i.montant ?? i.prix_unitaire ?? 0,
-          toothNumbers: i.dents || [],
-        })));
-      }
-      if (d.doc_date) setDocDate(d.doc_date);
+    if (!editData?.clinical_data) return;
+
+    const type = editData.type.toLowerCase();
+    const d = editData.clinical_data as GenericClinicalData;
+    const desiredTab: CertifiableDocumentStudioTab =
+      type === 'ordonnance' ? 'ordonnance' :
+      type === 'certificat' ? 'certificat' :
+      type === 'libre' || type === 'lettre' ? 'libre' :
+      type === 'devis' ? 'devis' : 'honoraires';
+
+    if (!allowedTabs.includes(desiredTab)) return;
+    setActiveTab(desiredTab);
+
+    if (desiredTab === 'ordonnance') {
+      if (d.medications) setDrugs(d.medications.map((m: { nom?: string; dosage?: string; forme?: string; posologie?: string; type?: 'MEDICAMENT' | 'EXAMEN' }, idx: number) => ({
+        id: Date.now() + idx, name: m.nom || '', dosage: m.dosage || '',
+        forme: m.forme || 'Sachets', posologie: m.posologie || '',
+        type: m.type || 'MEDICAMENT'
+      })));
+    } else if (desiredTab === 'certificat') {
+      setCertifType(d.reason || 'Arrêt de travail');
+      setCertifDays(d.days ?? 0);
+      setCertifStartDate(d.start_date || '');
+      setCertifCustomMotif(d.content || '');
+      if (!d.doc_date && d.start_date) setDocDate(d.start_date);
+    } else if (desiredTab === 'libre') {
+      setLibreTitle(d.title || 'Note Médicale');
+      setLibreContent(d.content || '');
+      setLibreCustomPatient(d.custom_patient || '');
+      setLibreCustomDate(d.custom_date || '');
+      setLibreHideHeader(d.hide_patient_header || false);
+      setLibrePageSize(d.page_size || 'A5');
+      setLibreAlignment(d.alignment || 'justify');
+    } else {
+      const srcItems = d.items || d.payments || [];
+      setItems(srcItems.map((i: { acte: string; dent: string; montant?: number; prix_unitaire?: number; dents?: number[] }, idx: number) => ({
+        id: Date.now() + idx,
+        description: i.acte || '',
+        dent: i.dent || '0',
+        price: i.montant ?? i.prix_unitaire ?? 0,
+        toothNumbers: i.dents || [],
+      })));
     }
-  }, [editData, setActiveTab, setItems]);
+    if (d.doc_date) setDocDate(d.doc_date);
+  }, [editData, allowedTabs, setActiveTab, setItems]);
 
   useEffect(() => {
-    if (!patientId || activeTab !== 'ordonnance') {
+    if (!patientId || activeTab !== 'ordonnance' || !allowedTabs.includes('ordonnance')) {
       setSmartSuggestion(null);
       return;
     }
@@ -224,7 +235,7 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
     return () => {
       cancelled = true;
     };
-  }, [patientId, activeTab]);
+  }, [patientId, activeTab, allowedTabs]);
 
   useEffect(() => {
     if (activeTab === 'certificat' || activeTab === 'libre') {
@@ -232,12 +243,16 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
     }
   }, [activeTab]);
 
-  const handleConvertPlanToQuote = useCallback((allActs: any[]) => {
-    const newItems = convertPlanActsToQuoteItems(allActs);
-    setItems(previous => [...previous, ...newItems]);
-    setActiveTab('devis');
-    syncDocumentTab('devis');
-  }, [setItems, setActiveTab, syncDocumentTab]);
+  if (allowedTabs.length === 0) {
+    return (
+      <div className="h-full min-h-[320px] flex items-center justify-center p-6">
+        <div className="max-w-md text-center rounded-3xl border border-border-main bg-card-bg p-8 shadow-sm">
+          <h3 className="text-lg font-black text-text-main">Aucun type de document autorisé</h3>
+          <p className="mt-2 text-sm text-text-muted">Les permissions du compte ne permettent pas de générer un document depuis ce dossier Patient.</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="relative w-full h-full overflow-hidden flex animate-in fade-in duration-700">
@@ -258,7 +273,7 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
           onTogglePreview={() => setSideStudioType(prev => prev === 'PREVIEW' ? 'NONE' : 'PREVIEW')}
         />
 
-        <StudioTabs data-tour="document-tabs" activeTab={activeTab} onTabChange={handleTabChange} />
+        <StudioTabs data-tour="document-tabs" activeTab={activeTab} onTabChange={handleTabChange} allowedTabs={allowedTabs} />
 
         <DocumentHubContent
           activeTab={activeTab}
@@ -292,7 +307,6 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
           setLibreAlignment={setLibreAlignment}
           setEcheancierPayload={setEcheancierPayload}
           setSelectedTeethFromOdontogram={setSelectedTeethFromOdontogram}
-          onConvertPlanToQuote={handleConvertPlanToQuote}
           generator={generator}
         />
 
