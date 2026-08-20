@@ -1,0 +1,408 @@
+name: Settings R1 Save Doctrine PR Certification
+
+on:
+  pull_request:
+    branches: [master]
+    paths:
+      - "frontend/src/features/admin/Settings/SettingsContainer.tsx"
+      - "frontend/src/features/admin/Settings/saveDoctrine.ts"
+      - "frontend/src/features/admin/Settings/saveDoctrine.test.ts"
+      - "frontend/src/features/admin/Settings/hooks/useSettingsStore.ts"
+      - "frontend/src/features/admin/Settings/hooks/useSettingsStore.test.ts"
+      - "docs/settings/R1_SAVE_DOCTRINE_GOAL.md"
+      - ".github/workflows/settings-r1-save-doctrine-pr-cert.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: settings-r1-save-doctrine-pr-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+env:
+  BEFORE_SHA: 2a6bfd8a10baddf770fed5e2ffbecc3f65f4468d
+  AFTER_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+
+jobs:
+  certify:
+    name: R1 BEFORE + AFTER + contracts
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout candidate with history
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Resolve exact PR head
+        run: git fetch origin "$AFTER_SHA"
+
+      - name: Setup Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install frontend and Chromium once
+        working-directory: frontend
+        run: |
+          npm ci
+          npm install --no-save --package-lock=false playwright@1.55.0
+          npx playwright install --with-deps chromium
+
+      - name: Inject R1 browser harness
+        working-directory: frontend
+        run: |
+          cat > settings-r1-pr-cert.html <<'EOF'
+          <!doctype html>
+          <html lang="fr">
+            <head>
+              <meta charset="UTF-8" />
+              <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+              <title>Settings R1 Save Doctrine</title>
+            </head>
+            <body>
+              <div id="root"></div>
+              <script type="module" src="/src/settings-r1-pr-cert.tsx"></script>
+            </body>
+          </html>
+          EOF
+
+          cat > src/settings-r1-pr-cert.tsx <<'EOF'
+          import React from 'react';
+          import { createRoot } from 'react-dom/client';
+          import { MemoryRouter } from 'react-router-dom';
+          import './index.css';
+          import Settings from './pages/Settings';
+          import { useAuthStore } from './stores/useAuthStore';
+
+          useAuthStore.setState({
+            user: {
+              id: 1,
+              email: 'admin@r1-settings.local',
+              nom_complet: 'Dr R1 Settings',
+              role: 'ADMIN',
+              is_superadmin: false,
+              permissions: {},
+            } as any,
+            isAuthenticated: true,
+            isLoading: false,
+            error: null,
+          });
+
+          createRoot(document.getElementById('root')!).render(
+            <React.StrictMode>
+              <MemoryRouter initialEntries={['/settings']}>
+                <Settings />
+              </MemoryRouter>
+            </React.StrictMode>,
+          );
+          EOF
+
+          cat > settings-r1-pr-cert.mjs <<'EOF'
+          import { chromium } from 'playwright';
+          import { createServer } from 'vite';
+          import fs from 'node:fs/promises';
+
+          const stage = process.env.STAGE;
+          if (!['before', 'after'].includes(stage)) throw new Error(`Unknown stage: ${stage}`);
+
+          const root = 'settings-r1-pr-artifacts';
+          const output = `${root}/${stage}`;
+          await fs.mkdir(output, { recursive: true });
+
+          const profile = {
+            id: 1,
+            public_id: 'r1-settings',
+            nom_cabinet: 'Cabinet R1 Baseline',
+            nom_praticien: 'Achraf R1',
+            nom_praticien_ar: 'أشرف',
+            footer_address: 'Rabat, Maroc',
+            footer_phones: '📞 05 37 00 00 00',
+            inpe: '123456789',
+            ice: '001234567890123',
+            if_: '12345678',
+            primary_color: '#003380',
+            secondary_color: '#1e40af',
+            accent_color: '#60a5fa',
+            selected_theme: 'elite',
+            font_fr: 'inter',
+            selected_template: 'swiss',
+            header_lines_fr: ['Dr. Achraf R1', 'Chirurgien Dentiste'],
+            header_lines_ar: ['د. أشرف', 'طبيب جراحة الأسنان'],
+            specialty_ids: [],
+            contacts_json: {
+              fixe: { enabled: true, value: '05 37 00 00 00' },
+              mobile: { enabled: true, value: '06 00 00 00 00' },
+              whatsapp: { enabled: false, value: '' },
+              instagram: { enabled: false, value: '' },
+            },
+            margin_top: 3.6,
+            margin_bottom: 3.2,
+            watermark_enabled: true,
+            use_letterhead: false,
+            qr_code_enabled: false,
+            qr_code_type: 'VCARD',
+            qr_code_style: 'dots',
+            show_patient_badges: true,
+            performance_mode: false,
+            clinical_tips_enabled: true,
+            hide_header: true,
+            hide_footer: true,
+            cabinet_type: 'PRIVE',
+          };
+
+          const specialties = [{
+            id: 1,
+            name: 'Omnipratique',
+            color: '#1e40af',
+            pathologies: [{ id: 1, specialty_id: 1, name: 'Caries', description: '', is_active: true }],
+            acts: [{ id: 1, specialty_id: 1, name: 'Consultation', code: 'CONS', base_price: 300, color: '#60a5fa', is_active: true }],
+          }];
+
+          const week = Object.fromEntries(
+            ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'].map(day => [day, {
+              is_open: day !== 'sunday',
+              is_continuous: false,
+              morning_start: '09:00',
+              morning_end: '13:00',
+              afternoon_start: '14:00',
+              afternoon_end: '18:00',
+            }]),
+          );
+
+          const agenda = {
+            id: 1,
+            opening_time_morning: '09:00',
+            closing_time_morning: '13:00',
+            opening_time_afternoon: '14:00',
+            closing_time_afternoon: '18:00',
+            is_continuous: false,
+            agenda_mode: 'EXACT',
+            use_tickets: false,
+            weekly_schedule: week,
+          };
+
+          const team = [{
+            id: 2,
+            email: 'assistante@r1.local',
+            role: 'SECRETAIRE',
+            nom_complet: 'Assistante R1',
+            telephone_mobile: '0600000000',
+            is_active: true,
+            approval_status: 'approved',
+            created_at: '2026-08-20T10:00:00',
+            permissions: { agenda: true, patients: true, settings: false },
+          }];
+
+          const reply = body => ({ status: 200, contentType: 'application/json', body: JSON.stringify(body) });
+          const tabs = [
+            ['profil', 'Profil Cabinet', 'staged'],
+            ['branding', 'Design & Ambiance', 'staged'],
+            ['ia', 'Performance & Assistance', 'staged'],
+            ['catalogue', 'Catalogue Actes', 'atomic'],
+            ['agenda', 'Horaires & Agenda', 'atomic'],
+            ['securite', 'Sécurité & Backup', 'atomic'],
+            ['equipe', 'Mon Équipe', 'atomic'],
+          ];
+          const widths = [1440, 1024, 768, 430, 390];
+
+          const server = await createServer({
+            server: { host: '127.0.0.1', port: 4181, strictPort: true },
+            clearScreen: false,
+          });
+          await server.listen();
+          const browser = await chromium.launch();
+
+          try {
+            for (const width of widths) {
+              const context = await browser.newContext({ viewport: { width, height: 1200 } });
+              const page = await context.newPage();
+              const errors = [];
+              const layouts = [];
+              let profilePuts = 0;
+
+              page.on('pageerror', error => errors.push(`pageerror: ${error.message}`));
+              page.on('console', message => {
+                if (message.type() === 'error') errors.push(`console: ${message.text()}`);
+              });
+
+              await page.route('**/*', async route => {
+                const request = route.request();
+                const url = new URL(request.url());
+                if (!url.pathname.startsWith('/api/')) return route.continue();
+
+                if (request.method() === 'PUT' && url.pathname === '/api/clinics/me') {
+                  profilePuts += 1;
+                  return route.fulfill(reply({ ...profile, ...(request.postDataJSON?.() || {}) }));
+                }
+                if (request.method() !== 'GET') return route.fulfill(reply({}));
+                if (url.pathname === '/api/clinics/me') return route.fulfill(reply(profile));
+                if (url.pathname.includes('/specialties')) return route.fulfill(reply(specialties));
+                if (url.pathname.endsWith('/agenda/settings')) return route.fulfill(reply(agenda));
+                if (url.pathname.endsWith('/agenda/exceptions') || url.pathname.endsWith('/agenda/upcoming-holidays')) return route.fulfill(reply([]));
+                if (url.pathname.includes('/audit-logs')) return route.fulfill(reply({ total: 0, logs: [] }));
+                if (url.pathname.includes('/team/quota')) return route.fulfill(reply({
+                  plan: 'GOLD', dentistes_used: 1, dentistes_max: 2,
+                  secretaires_used: 1, secretaires_max: 2, pending_count: 0,
+                  can_add_dentiste: true, can_add_secretaire: true,
+                }));
+                if (url.pathname.includes('/team')) return route.fulfill(reply(team));
+                if (url.pathname.includes('/mobile')) return route.fulfill(reply([]));
+                if (url.pathname.includes('/backup')) return route.fulfill(reply({ status: 'ok' }));
+                return route.fulfill(reply({}));
+              });
+
+              await page.goto('http://127.0.0.1:4181/settings-r1-pr-cert.html', { waitUntil: 'networkidle' });
+              await page.getByRole('heading', { name: 'Paramètres' }).waitFor({ state: 'visible', timeout: 15000 });
+
+              const cabinetInput = page.locator('input[name="nom_cabinet"]');
+              await cabinetInput.fill(`Cabinet R1 Dirty ${width}`);
+              await cabinetInput.press('Tab');
+              await page.waitForTimeout(100);
+
+              if (stage === 'after') {
+                const prevented = await page.evaluate(() => {
+                  const event = new Event('beforeunload', { cancelable: true });
+                  return !window.dispatchEvent(event);
+                });
+                if (!prevented) throw new Error(`beforeunload not protected at ${width}px`);
+              }
+
+              for (const [tabId, label, mode] of tabs) {
+                if (tabId !== 'profil') {
+                  await page.getByRole('button', { name: new RegExp(`^${label}$`, 'i') }).click();
+                  await page.waitForTimeout(120);
+                }
+
+                if (stage === 'after') {
+                  if (mode === 'staged') {
+                    await page.getByTestId('settings-save-bar').waitFor({ state: 'visible' });
+                    await page.getByRole('button', { name: 'Enregistrer la configuration' }).waitFor({ state: 'visible' });
+                    if (await page.getByTestId('settings-pending-config-notice').count()) {
+                      throw new Error(`Atomic pending notice leaked into ${tabId}`);
+                    }
+                    if (tabId === 'profil' && await page.getByRole('button', { name: /Mettre à jour le profil/i }).count()) {
+                      throw new Error('Legacy Profile save button remains visible');
+                    }
+                  } else {
+                    if (await page.getByTestId('settings-save-bar').count()) throw new Error(`Shared save bar leaked into ${tabId}`);
+                    await page.getByTestId('settings-pending-config-notice').waitFor({ state: 'visible' });
+                    if (await page.getByRole('button', { name: /Mettre à jour le profil/i }).count()) throw new Error(`Legacy save leaked into ${tabId}`);
+                    if (await page.getByRole('button', { name: 'Enregistrer la configuration' }).count()) throw new Error(`Shared save action leaked into ${tabId}`);
+                  }
+                }
+
+                const layout = await page.evaluate(() => ({
+                  viewport: window.innerWidth,
+                  clientWidth: document.documentElement.clientWidth,
+                  scrollWidth: document.documentElement.scrollWidth,
+                }));
+                layouts.push({ tab: tabId, ...layout });
+                if (stage === 'after' && layout.scrollWidth > layout.clientWidth) {
+                  throw new Error(`Overflow ${tabId} ${width}px: ${JSON.stringify(layout)}`);
+                }
+
+                await page.screenshot({
+                  path: `${output}/${tabId}-${width}x1200.png`,
+                  fullPage: true,
+                  animations: 'disabled',
+                });
+              }
+
+              if (stage === 'after') {
+                await page.getByRole('button', { name: /^Performance & Assistance$/i }).click();
+                await page.getByRole('button', { name: 'Mode Performance' }).click();
+                if (await page.evaluate(() => localStorage.getItem('performanceMode')) !== 'false') {
+                  throw new Error('Runtime preference committed before backend save');
+                }
+                await page.getByRole('button', { name: 'Enregistrer la configuration' }).click();
+                await page.getByText('Configuration enregistrée', { exact: true }).waitFor({ state: 'visible' });
+                if (await page.evaluate(() => localStorage.getItem('performanceMode')) !== 'true') {
+                  throw new Error('Runtime preference not committed after backend save');
+                }
+                if (profilePuts !== 1) throw new Error(`Expected 1 profile PUT, got ${profilePuts}`);
+                const stillPrevented = await page.evaluate(() => {
+                  const event = new Event('beforeunload', { cancelable: true });
+                  return !window.dispatchEvent(event);
+                });
+                if (stillPrevented) throw new Error(`beforeunload still protected after save at ${width}px`);
+              }
+
+              await fs.writeFile(`${output}/${width}x1200.errors.txt`, errors.join('\n'));
+              await fs.writeFile(`${output}/${width}x1200.layout.json`, JSON.stringify(layouts, null, 2));
+              await context.close();
+            }
+          } finally {
+            await browser.close();
+            await server.close();
+          }
+          EOF
+
+      - name: Capture BEFORE from immutable base
+        run: git checkout "$BEFORE_SHA"
+
+      - name: Run BEFORE browser capture
+        working-directory: frontend
+        env:
+          STAGE: before
+        run: node settings-r1-pr-cert.mjs
+
+      - name: Checkout exact PR head
+        run: git checkout "$AFTER_SHA"
+
+      - name: Source truth R1
+        run: |
+          set -euo pipefail
+          grep -n "Enregistrer la configuration" frontend/src/features/admin/Settings/SettingsContainer.tsx
+          grep -n "settings-pending-config-notice" frontend/src/features/admin/Settings/SettingsContainer.tsx
+          grep -n "beforeunload" frontend/src/features/admin/Settings/SettingsContainer.tsx
+          test "$(grep -c "syncRuntimePreferences(profile)" frontend/src/features/admin/Settings/hooks/useSettingsStore.ts)" -eq 2
+          if sed -n '/updateProfile: (updates)/,/updateContacts:/p' frontend/src/features/admin/Settings/hooks/useSettingsStore.ts | grep -q "syncRuntimePreferences"; then
+            echo "updateProfile still commits runtime preferences before backend save" >&2
+            exit 1
+          fi
+
+      - name: Targeted R1 tests
+        working-directory: frontend
+        run: npm test -- src/features/admin/Settings/saveDoctrine.test.ts src/features/admin/Settings/hooks/useSettingsStore.test.ts src/features/admin/Settings/runtimePreferences.test.ts src/features/admin/Settings/hooks/themePersistenceTruth.test.ts
+
+      - name: Frontend build
+        working-directory: frontend
+        run: npm run build
+
+      - name: Run AFTER browser capture and assertions
+        working-directory: frontend
+        env:
+          STAGE: after
+        run: node settings-r1-pr-cert.mjs
+
+      - name: Verify R1 evidence
+        working-directory: frontend
+        run: |
+          set -euo pipefail
+          test "$(find settings-r1-pr-artifacts/before -name '*.png' | wc -l)" -eq 35
+          test "$(find settings-r1-pr-artifacts/after -name '*.png' | wc -l)" -eq 35
+          if grep -R -n -E 'pageerror:|console:' settings-r1-pr-artifacts/after/*.errors.txt; then
+            echo "Runtime errors detected in R1 AFTER" >&2
+            exit 1
+          fi
+          cat > settings-r1-pr-artifacts/metadata.txt <<EOF
+          before_sha=${BEFORE_SHA}
+          after_sha=${AFTER_SHA}
+          goal=R1 doctrine de sauvegarde explicite et anti-perte
+          tabs=profil,branding,ia,catalogue,agenda,securite,equipe
+          viewports=1440x1200,1024x1200,768x1200,430x1200,390x1200
+          before_screenshots=35
+          after_screenshots=35
+          EOF
+
+      - name: Upload R1 exact-head proof
+        uses: actions/upload-artifact@v4
+        with:
+          name: settings-r1-save-doctrine-pr-cert
+          path: frontend/settings-r1-pr-artifacts/
+          if-no-files-found: error
+          retention-days: 14

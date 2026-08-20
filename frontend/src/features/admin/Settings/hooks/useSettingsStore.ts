@@ -241,17 +241,10 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
   },
 
   updateProfile: (updates) => {
-    set((state) => {
-      const profile = { ...state.profile, ...updates };
-      if (
-        'show_patient_badges' in updates ||
-        'performance_mode' in updates ||
-        'clinical_tips_enabled' in updates
-      ) {
-        syncRuntimePreferences(profile);
-      }
-      return { profile, isDirty: true };
-    });
+    set((state) => ({
+      profile: { ...state.profile, ...updates },
+      isDirty: true,
+    }));
     if (updates.selected_theme || updates.primary_color || updates.accent_color) {
       get().applyTheme({ persist: false });
     }
@@ -301,6 +294,7 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
 
       await api.put('/clinics/me', payload);
       get().applyTheme({ persist: true });
+      syncRuntimePreferences(profile);
 
       if (safeStorage.get('appMode') === 'demo') {
         sessionStorage.setItem('demoConfig', JSON.stringify({
@@ -312,7 +306,7 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
       }
 
       set({ saveSuccess: true, isDirty: false });
-      toast.success('Profil mis à jour');
+      toast.success('Configuration enregistrée');
       setTimeout(() => set({ saveSuccess: false }), 3000);
     } catch (err) {
       console.error('Save error', err);
