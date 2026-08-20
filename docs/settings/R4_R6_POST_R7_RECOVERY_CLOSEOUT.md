@@ -2,8 +2,8 @@
 
 Date : 2026-08-20
 Repo : `hraaaaf/Digital_crown`
-PR : `#193`
-Branche : `settings-recovery-r4-r6-post-r7`
+PR : `#193` — **CLOSED — MERGED**
+Merge : `639c40ef4f0f86229cacbc54a16939307dd968e5`
 HEAD produit certifié : `5ac5104dae3e51cc72c22362bba5fd9b259df650`
 
 ## Goal
@@ -79,9 +79,9 @@ Les commits postérieurs au HEAD produit certifié ne modifient que `SETTINGS_PR
 
 ## Statut
 
-**CERTIFIÉ — READY TO MERGE**.
+**CLOSED — CERTIFIÉ — MERGED**.
 
-Cette récupération ne crée pas de nouveau lot produit et ne change pas l’avancement nominal de la roadmap : après merge, les lots R4 et R6 redeviennent créditables et l’état vérifié revient à **10/15 = 66,7 %**.
+R4 et R6 redeviennent créditables. L’état vérifié du chantier revient à **10/15 = 66,7 %**.
 
 ## Vercel
 
