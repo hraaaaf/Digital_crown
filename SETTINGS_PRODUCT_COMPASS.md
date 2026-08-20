@@ -39,8 +39,9 @@ Statut : **CERTIFIÉ R2**.
 | R8 Performance & Assistance | GARDER / CLARIFIER / DÉPLACER | CLOSED — MERGED (#183) | 9,5/10 |
 | R9-A Journal d’Audit | GARDER / HUMANISER | CLOSED — MERGED (#185) | 9,6/10 |
 | R10-A Mon Équipe / mot de passe | GARDER / ALIGNER VÉRITÉ BACKEND | CLOSED — MERGED (#188) | 9,4/10 |
+| R11 TemplateBuilder legacy | SUPPRIMER FRONTEND ORPHELIN / CONSERVER BACKEND | CLOSED — MERGED (#191) | n/a — aucun écran actif modifié |
 
-**Avancement vérifié : 8/15 = 53,3 %.**
+**Avancement vérifié : 9/15 = 60,0 %.**
 
 ## 5. Décisions restantes
 
@@ -50,7 +51,19 @@ Shell/RBAC/Truth Gates : **GARDER**. Doctrine de sauvegarde inter-onglets : **À
 
 ### R5 — QR documentaire
 
-**GARDER / RENDRE EXPLICITE ET TESTABLE**. PR d’audit #187 préparée ; aucune refonte avant preuve des destinations réelles.
+**LOT ACTIF — GARDER / RENDRE EXPLICITE ET TESTABLE**.
+
+L’ancienne PR #187 a été **fermée sans merge** car elle était prep-only sur une base périmée. Ses conclusions essentielles ont été revalidées sur le master post-R10/R11 :
+- les 7 types UI restent `VCARD`, `WEBSITE`, `INSTAGRAM`, `WHATSAPP`, `LOCATION`, `VALIDATION`, `PAYMENT` ;
+- l’UI affiche encore `Signature` pour `VALIDATION` et `Paiement` pour `PAYMENT` ;
+- un champ générique `Lien / Numéro / Identifiant` est partagé par les 7 types ;
+- l’aperçu Document montre seulement le pictogramme QR + le code brut du type, sans destination ;
+- `BaseTemplate` encode `VALIDATION` vers `${BACKEND_URL}/verify/<id>` et `PAYMENT` vers `${BACKEND_URL}/track/<id>` ;
+- `verification.router` est monté sous `/api/documents`, donc les routes réelles sont `/api/documents/verify/...` et `/api/documents/track/...`.
+
+Défaut confirmé : **les deux destinations backend sont mal préfixées dans le QR**.
+
+Cible R5 : corriger les URLs, renommer les promesses trompeuses, contextualiser la saisie par type, rendre la destination compréhensible/testable et conserver les champs backend existants sans migration.
 
 ### R7 — Horaires & Agenda
 
@@ -99,44 +112,57 @@ Closeout : `docs/settings/R10A_TEAM_PASSWORD_TRUTH_CLOSEOUT.md`.
 
 ### R11 — TemplateBuilder legacy
 
-**LOT ACTIF — RECONSTRUCTION D’AUDIT SUR MASTER POST-R10**.
+**CLOSED — CERTIFIÉ SCOPE FRONTEND — MERGED**.
 
-L’ancienne PR #186 a été **fermée sans merge** car son hypothèse de départ était devenue fausse : `frontend/src/features/admin/TemplateBuilder.tsx` existe réellement sur master.
+Décision : **SUPPRIMER le frontend orphelin, CONSERVER le domaine backend**.
 
-Faits actuels déjà vérifiés :
-- `TemplateBuilder.tsx` existe mais n’est pas routé dans `App.tsx` ;
-- il appelle `templateApi.getById/update/preview/setDefault` ;
-- le router `/api/templates` actuel expose list/get/create/set-default/delete mais pas update/preview ;
-- `DocumentTemplate` + table `document_templates` persistent réellement `body_html` et `design_config` ;
-- le seed recrée 6 styles ordonnance + 1 certificat au démarrage ;
-- `DocumentFactory` instancie encore `TemplateEngine` et possède `_get_default_template()`, mais ses méthodes publiques inspectées délèguent directement aux générateurs ReportLab ;
-- `OrdonnanceGenerator` lit la configuration active depuis `CabinetConfig`, pas `DocumentTemplate.design_config` ;
-- le backend `DesignConfig` et le `CabinetConfig` actif constituent deux architectures documentaires parallèles.
+Preuves :
+- reachability BEFORE #3 `32365989327` — SUCCESS, artifact `9405292952`, digest `sha256:7d25355bc2aa2fd5350beef48aed9985bc1f46fc3817fd118e05a4b433a8d66d` ;
+- `TemplateBuilder.tsx` non routé et sans consommation produit externe ;
+- `templateApi` template consommé uniquement par ce builder ;
+- `DocumentTemplate` largement référencé backend et conservé ;
+- `TemplateEngine` + tests + instanciation `DocumentFactory` conservés hors scope ;
+- commit produit `fb51b02125baee2996694db2e1ab2173ece30897` ;
+- R11 AFTER/reachability #4 `32366397114` — SUCCESS, artifact `9405470141`, digest `sha256:67a7e753e8bc51f8293c9c9f91d39adffc7d73a78cbe690a068654b28b1f8543` ;
+- T2 #707 — SUCCESS ; frontend CI tests/build — SUCCESS ;
+- aucun fichier backend dans le diff produit R11.
 
-Pré-verdict : **TemplateBuilder / TemplateEngine = legacy candidat à quarantaine/suppression**, mais **ne pas supprimer les données ni le modèle `DocumentTemplate` avant preuve repo-wide d’absence de dépendances**.
+Merge squash : `a4af5ce0ad535e8c154fb7cecee931cba7f76204`.
+Closeout : `docs/settings/R11_TEMPLATEBUILDER_REACHABILITY_CLOSEOUT.md`.
+Aucun score visuel : aucun écran actif n’a été modifié.
 
 ## 6. Roadmap active
 
 P1 : doctrine sauvegarde ; modèles documentaires ✅ ; Catalogue CRUD ✅ ; Profil ✅ ; mot de passe Team ✅ ; Branding ✅.
 
-P2 : Agenda réel ✅ ; Catalogue avancé ; Performance & Assistance ✅ ; Audit Log humanisé ✅ ; indicateurs patient explicables ; QR documentaire ; restauration guidée.
+P2 : Agenda réel ✅ ; Catalogue avancé ; Performance & Assistance ✅ ; Audit Log humanisé ✅ ; indicateurs patient explicables ; **QR documentaire ACTIF** ; restauration guidée.
 
-P3 : **TemplateBuilder legacy ACTIF** ; suppression de toggles/features uniquement après preuve downstream.
+P3 : TemplateBuilder legacy ✅ frontend orphelin supprimé ; dette backend TemplateEngine conservée pour lot séparé si utile ; suppression de toggles/features uniquement après preuve downstream.
 
 ## 7. HANDOVER COURANT
 
 - Chantier : **Réglages — Product Review & Simplification**
-- Lot actif : **R11 — TemplateBuilder legacy**
+- Lot actif : **R5 — QR documentaire**
 - Repo : `hraaaaf/Digital_crown`
 - Base : `master`
-- Dernier merge : R10-A `5e8307d4d20ee6ed0df18ee7d06fe2cdb24bc24a`
-- R10-A : CLOSED — score **9,4/10**
-- Ancienne PR R11 : #186 **CLOSED — NON MERGÉE — SUPERSEDED**
-- Next exact : **repo-wide reachability TemplateBuilder / TemplateEngine / DocumentTemplate → classifier dépendances actives vs legacy → nouveau Goal R11 propre → décision quarantaine/suppression minimale**
-- Avancement vérifié : **8/15 = 53,3 %**
+- Dernier merge : R11 `a4af5ce0ad535e8c154fb7cecee931cba7f76204`
+- R11 : CLOSED — frontend orphelin supprimé, backend templates conservé
+- Ancienne PR R5 : #187 **CLOSED — NON MERGÉE — SUPERSEDED**
+- Défaut R5 prouvé : QR `VALIDATION/PAYMENT` sans préfixe `/api/documents`, libellés UI trompeurs et destination non explicitée
+- Next exact : **reconstruire R5 sur master post-R11 → BEFORE 5 viewports → Goal/mockup → correctif URL + UI → AFTER/tests**
+- Avancement vérifié : **9/15 = 60,0 %**
 - Vercel : **aucun déploiement**
 
 ## 8. Journal
+
+### 2026-08-20 — R11 CLOSED
+
+- PR #191 squash-mergée ; merge `a4af5ce0...` ;
+- reachability repo-wide prouvée avant suppression ;
+- `TemplateBuilder.tsx` et API frontend template orpheline retirés ;
+- `cabinetApi`, `DocumentTemplate`, seed, router `/api/templates` et `TemplateEngine` conservés ;
+- R11 #4 et T2 #707 verts ; frontend CI tests/build vert ; aucun backend produit modifié ;
+- aucun écran actif modifié ; aucun Vercel.
 
 ### 2026-08-20 — R10-A CLOSED
 
