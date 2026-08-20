@@ -1,0 +1,80 @@
+name: Settings R11 TemplateBuilder Reachability Audit
+
+on:
+  pull_request:
+    branches: [master]
+    paths:
+      - 'docs/settings/R11_TEMPLATEBUILDER_REACHABILITY_GOAL.md'
+      - '.github/workflows/settings-r11-templatebuilder-reachability.yml'
+      - 'frontend/src/features/admin/TemplateBuilder.tsx'
+      - 'frontend/src/services/templateApi.ts'
+      - 'frontend/src/types/template.ts'
+      - 'frontend/src/App.tsx'
+      - 'backend/routers/templates.py'
+      - 'backend/services/template_engine.py'
+      - 'backend/services/document_factory.py'
+      - 'backend/models.py'
+      - 'backend/seed_templates.py'
+
+permissions:
+  contents: read
+
+jobs:
+  reachability:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Capture repo-wide references
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts/r11
+          {
+            echo '# R11 repo-wide reachability'
+            echo
+            echo '## HEAD'
+            git rev-parse HEAD
+            echo
+            for needle in 'TemplateBuilder' 'templateApi' 'TemplateEngine' '_get_default_template' 'settings/templates' 'DocumentTemplate'; do
+              echo "## ${needle}"
+              rg -n --hidden \
+                --glob '!.git/**' \
+                --glob '!node_modules/**' \
+                --glob '!artifacts/**' \
+                -- "$needle" . || true
+              echo
+            done
+          } > artifacts/r11/reachability.txt
+
+          # Machine-readable counts, useful for proving whether references exist
+          python - <<'PY'
+          import json, pathlib, subprocess
+          needles = [
+              'TemplateBuilder', 'templateApi', 'TemplateEngine',
+              '_get_default_template', 'settings/templates', 'DocumentTemplate'
+          ]
+          out = {}
+          for needle in needles:
+              p = subprocess.run([
+                  'rg','-n','--hidden','--glob','!.git/**','--glob','!node_modules/**',
+                  '--glob','!artifacts/**','--',needle,'.'
+              ], capture_output=True, text=True)
+              lines = [x for x in p.stdout.splitlines() if x.strip()]
+              out[needle] = {'count': len(lines), 'lines': lines}
+          pathlib.Path('artifacts/r11/reachability.json').write_text(
+              json.dumps(out, indent=2, ensure_ascii=False), encoding='utf-8'
+          )
+          PY
+
+          cat artifacts/r11/reachability.txt
+
+      - name: Upload reachability artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: settings-r11-templatebuilder-reachability
+          path: artifacts/r11/
+          retention-days: 14
