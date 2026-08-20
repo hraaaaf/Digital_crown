@@ -4,6 +4,7 @@ on:
   pull_request:
     paths:
       - "frontend/src/features/admin/Settings/SettingsContainer.tsx"
+      - "frontend/src/features/admin/Settings/saveDoctrine.ts"
       - "frontend/src/features/admin/Settings/tabs/ProfileTab.tsx"
       - "frontend/src/features/admin/Settings/hooks/useSettingsStore.ts"
       - ".github/workflows/settings-profile-r2-visual-cert.yml"
@@ -16,9 +17,14 @@ jobs:
   visual:
     name: Profile R2 AFTER
     runs-on: ubuntu-latest
+    env:
+      HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout exact candidate
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.HEAD_SHA }}
 
       - uses: actions/setup-node@v4
         with:
@@ -133,7 +139,7 @@ jobs:
             cabinet_type: 'PRIVE',
           };
 
-          const json = body => ({ status: 200, contentType: 'application/json', body: JSON.stringify(body) });
+          const reply = body => ({ status: 200, contentType: 'application/json', body: JSON.stringify(body) });
           const server = await createServer({ server: { host: '127.0.0.1', port: 4182, strictPort: true }, clearScreen: false });
           await server.listen();
           const browser = await chromium.launch();
@@ -144,33 +150,55 @@ jobs:
                 const context = await browser.newContext({ viewport: { width, height: 1200 } });
                 const page = await context.newPage();
                 const errors = [];
-                page.on('pageerror', e => errors.push(`pageerror: ${e.message}`));
-                page.on('console', m => { if (m.type() === 'error') errors.push(`console: ${m.text()}`); });
+                page.on('pageerror', error => errors.push(`pageerror: ${error.message}`));
+                page.on('console', message => {
+                  if (message.type() === 'error') errors.push(`console: ${message.text()}`);
+                });
 
                 await page.route('**/*', async route => {
                   const request = route.request();
                   const url = new URL(request.url());
-                  if (url.port !== '8005' || !url.pathname.startsWith('/api/')) return route.continue();
-                  if (request.method() !== 'GET') return route.fulfill(json({}));
-                  if (url.pathname === '/api/clinics/me') return route.fulfill(json(profile));
-                  if (url.pathname.endsWith('/specialties')) return route.fulfill(json([]));
-                  if (url.pathname.endsWith('/agenda/settings')) return route.fulfill(json({
+                  if (!url.pathname.startsWith('/api/')) return route.continue();
+                  if (request.method() !== 'GET') return route.fulfill(reply({}));
+                  if (url.pathname === '/api/clinics/me') return route.fulfill(reply(profile));
+                  if (url.pathname.endsWith('/specialties')) return route.fulfill(reply([]));
+                  if (url.pathname.endsWith('/agenda/settings')) return route.fulfill(reply({
                     opening_time_morning: '09:00', closing_time_morning: '13:00',
                     opening_time_afternoon: '14:00', closing_time_afternoon: '18:00',
                     is_continuous: false, agenda_mode: 'EXACT', use_tickets: false,
                   }));
-                  if (url.pathname.includes('/team/quota')) return route.fulfill(json({ plan: 'GOLD', dentistes_used: 1, dentistes_max: 2, secretaires_used: 0, secretaires_max: 2, pending_count: 0, can_add_dentiste: true, can_add_secretaire: true }));
-                  if (url.pathname.includes('/team')) return route.fulfill(json([]));
-                  if (url.pathname.includes('/audit-logs')) return route.fulfill(json({ total: 0, logs: [] }));
-                  return route.fulfill(json({}));
+                  if (url.pathname.endsWith('/agenda/exceptions') || url.pathname.endsWith('/agenda/upcoming-holidays')) return route.fulfill(reply([]));
+                  if (url.pathname.includes('/team/quota')) return route.fulfill(reply({
+                    plan: 'GOLD', dentistes_used: 1, dentistes_max: 2,
+                    secretaires_used: 0, secretaires_max: 2, pending_count: 0,
+                    can_add_dentiste: true, can_add_secretaire: true,
+                  }));
+                  if (url.pathname.includes('/team')) return route.fulfill(reply([]));
+                  if (url.pathname.includes('/audit-logs')) return route.fulfill(reply({ total: 0, logs: [] }));
+                  return route.fulfill(reply({}));
                 });
 
                 await page.goto(`http://127.0.0.1:4182/settings-r2-profile-cert.html?role=${role}`, { waitUntil: 'networkidle' });
                 await page.getByRole('heading', { name: 'Paramètres' }).waitFor({ state: 'visible', timeout: 15000 });
                 await page.getByText('Aucun détourage automatique', { exact: false }).waitFor({ state: 'visible' });
 
-                const profileSave = page.getByRole('button', { name: /Mettre à jour le profil/i });
-                if (await profileSave.count() !== 1) throw new Error('Profile must expose exactly one save action');
+                const cabinetInput = page.locator('input[name="nom_cabinet"]');
+                await cabinetInput.fill(`Cabinet R2 Dirty ${role} ${width}`);
+                await cabinetInput.press('Tab');
+                await page.waitForTimeout(100);
+
+                if (await page.getByRole('button', { name: /Mettre à jour le profil/i }).count()) {
+                  throw new Error('Legacy Profile save action must remain removed after R1');
+                }
+                const sharedSave = page.getByRole('button', { name: 'Enregistrer la configuration' });
+                if (await sharedSave.count() !== 1) throw new Error('Profile must expose exactly one shared staged save action after a real edit');
+                await page.getByTestId('settings-save-bar').waitFor({ state: 'visible' });
+
+                const layout = await page.evaluate(() => ({
+                  clientWidth: document.documentElement.clientWidth,
+                  scrollWidth: document.documentElement.scrollWidth,
+                }));
+                if (layout.scrollWidth > layout.clientWidth) throw new Error(`Profile overflow at ${width}px`);
 
                 await page.screenshot({ path: `${output}/${role}-profil-collapsed-${width}x1200.png`, fullPage: true, animations: 'disabled' });
 
@@ -178,7 +206,7 @@ jobs:
                 await page.getByText('Personnalisation avancée').waitFor({ state: 'visible' });
                 if (role === 'superadmin') {
                   await page.getByRole('button', { name: /Modèle Benmoussa/i }).waitFor({ state: 'visible' });
-                  if (await page.getByRole('button', { name: /Réinitialiser depuis le cabinet/i }).count()) throw new Error('Standard reset action leaked into superadmin state');
+                  if (await page.getByRole('button', { name: /Réinitialiser depuis le cabinet/i }).count()) throw new Error('Standard reset leaked into superadmin state');
                 } else {
                   await page.getByRole('button', { name: /Réinitialiser depuis le cabinet/i }).waitFor({ state: 'visible' });
                   if (await page.getByRole('button', { name: /Modèle Benmoussa/i }).count()) throw new Error('Personal Benmoussa preset leaked to standard admin');
@@ -212,12 +240,10 @@ jobs:
 
       - name: Record metadata
         working-directory: frontend
-        env:
-          HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
         run: |
           cat > settings-profile-r2-artifacts/metadata.txt <<EOF
           head_sha=${HEAD_SHA}
-          goal=R2 Profil Cabinet simplification et vérité produit
+          goal=R2 Profil Cabinet simplification + R1 shared save compatibility
           viewports=1440x1200,768x1200,390x1200
           roles=ADMIN,SUPERADMIN
           states=collapsed,advanced
