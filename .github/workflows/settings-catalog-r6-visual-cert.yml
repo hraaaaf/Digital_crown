@@ -1,0 +1,237 @@
+name: Settings Catalog R6 Visual Certification
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/settings-catalog-r6-visual-cert.yml"
+      - "frontend/src/features/admin/Settings/tabs/CatalogTab.tsx"
+      - "frontend/src/features/admin/Settings/hooks/useCatalogStore.ts"
+      - "frontend/src/test/catalogR6Crud.test.ts"
+
+permissions:
+  contents: read
+
+jobs:
+  catalog-visual:
+    name: Catalog R6 visual
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install frontend and browser
+        working-directory: frontend
+        run: |
+          npm ci
+          npm install --no-save --package-lock=false playwright@1.55.0
+          npx playwright install --with-deps chromium
+
+      - name: Inject Catalog visual harness
+        working-directory: frontend
+        run: |
+          cat > settings-catalog-r6.html <<'EOF'
+          <!doctype html>
+          <html lang="fr">
+            <head>
+              <meta charset="UTF-8" />
+              <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+              <title>Settings Catalog R6 Visual</title>
+            </head>
+            <body>
+              <div id="root"></div>
+              <script type="module" src="/src/settings-catalog-r6.tsx"></script>
+            </body>
+          </html>
+          EOF
+
+          cat > src/settings-catalog-r6.tsx <<'EOF'
+          import React from 'react';
+          import { createRoot } from 'react-dom/client';
+          import { MemoryRouter } from 'react-router-dom';
+          import './index.css';
+          import Settings from './pages/Settings';
+          import { useAuthStore } from './stores/useAuthStore';
+
+          useAuthStore.setState({
+            user: {
+              id: 1,
+              email: 'admin@catalog-r6.local',
+              nom_complet: 'Dr Catalogue R6',
+              role: 'ADMIN',
+              is_superadmin: false,
+              permissions: {},
+            } as any,
+            isAuthenticated: true,
+            isLoading: false,
+            error: null,
+          });
+
+          createRoot(document.getElementById('root')!).render(
+            <React.StrictMode>
+              <MemoryRouter initialEntries={['/settings']}>
+                <Settings />
+              </MemoryRouter>
+            </React.StrictMode>,
+          );
+          EOF
+
+          cat > settings-catalog-r6.mjs <<'EOF'
+          import { chromium } from 'playwright';
+          import { createServer } from 'vite';
+          import fs from 'node:fs/promises';
+
+          const output = 'settings-catalog-r6-artifacts';
+          await fs.mkdir(output, { recursive: true });
+
+          const profile = {
+            id: 1,
+            public_id: 'catalog-r6',
+            nom_cabinet: 'Cabinet Dentaire R6',
+            nom_praticien: 'Dr Catalogue R6',
+            primary_color: '#003380',
+            secondary_color: '#1e40af',
+            accent_color: '#60a5fa',
+            selected_theme: 'elite',
+            font_fr: 'inter',
+            selected_template: 'swiss',
+            header_lines_fr: ['Dr Catalogue R6', 'Chirurgien Dentiste'],
+            header_lines_ar: [],
+            specialty_ids: [],
+            contacts_json: {},
+            margin_top: 3.6,
+            margin_bottom: 3.2,
+            watermark_enabled: true,
+            use_letterhead: false,
+            qr_code_enabled: false,
+            show_patient_badges: true,
+            performance_mode: false,
+            clinical_tips_enabled: true,
+            cabinet_type: 'PRIVE',
+          };
+
+          const catalog = [
+            {
+              id: 1,
+              name: 'Omnipratique',
+              color: '#1e40af',
+              pathologies: [
+                { id: 1, specialty_id: 1, name: 'Caries', description: 'Lésion carieuse', is_active: true },
+                { id: 2, specialty_id: 1, name: 'Gingivite', description: '', is_active: true },
+              ],
+              acts: [
+                { id: 1, specialty_id: 1, name: 'Consultation', code: 'CONS', base_price: 300, color: '#60a5fa', is_active: true },
+                { id: 2, specialty_id: 1, name: 'Détartrage', code: 'DET', base_price: 450, color: '#38bdf8', is_active: true },
+                { id: 3, specialty_id: 1, name: 'Composite 1 face', code: 'COMP1', base_price: 500, color: '#38bdf8', is_active: false },
+              ],
+            },
+            {
+              id: 2,
+              name: 'Orthodontie',
+              color: '#7c3aed',
+              pathologies: [
+                { id: 3, specialty_id: 2, name: 'Classe II', description: '', is_active: true },
+              ],
+              acts: [
+                { id: 4, specialty_id: 2, name: 'Bilan orthodontique', code: 'ORTHO-BILAN', base_price: 900, color: '#7c3aed', is_active: true },
+              ],
+            },
+          ];
+
+          const json = body => ({ status: 200, contentType: 'application/json', body: JSON.stringify(body) });
+          const server = await createServer({ server: { host: '127.0.0.1', port: 4181, strictPort: true }, clearScreen: false });
+          await server.listen();
+          const browser = await chromium.launch();
+
+          try {
+            for (const width of [1440, 1024, 768, 430, 390]) {
+              const context = await browser.newContext({ viewport: { width, height: 1200 } });
+              const page = await context.newPage();
+              const runtimeErrors = [];
+              page.on('pageerror', error => runtimeErrors.push(`pageerror: ${error.message}`));
+              page.on('console', message => { if (message.type() === 'error') runtimeErrors.push(`console: ${message.text()}`); });
+
+              await page.route('**/*', async route => {
+                const request = route.request();
+                const url = new URL(request.url());
+                if (url.port !== '8005' || !url.pathname.startsWith('/api/')) return route.continue();
+                if (request.method() !== 'GET') return route.fulfill(json({}));
+                if (url.pathname === '/api/clinics/me') return route.fulfill(json(profile));
+                if (url.pathname.endsWith('/catalog/specialties')) return route.fulfill(json(catalog));
+                return route.fulfill(json({}));
+              });
+
+              await page.goto('http://127.0.0.1:4181/settings-catalog-r6.html', { waitUntil: 'networkidle' });
+              await page.getByRole('heading', { name: 'Paramètres' }).waitFor({ state: 'visible', timeout: 15000 });
+              await page.getByRole('button', { name: /Catalogue Actes/i }).click();
+              await page.getByRole('heading', { name: /Catalogue des actes/i }).waitFor({ state: 'visible' });
+              await page.getByText('Inactif', { exact: true }).waitFor({ state: 'visible' });
+
+              const overflow = await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth);
+              if (overflow) throw new Error(`Horizontal overflow at ${width}px`);
+
+              await page.screenshot({
+                path: `${output}/admin-catalog-${width}x1200.png`,
+                fullPage: true,
+                animations: 'disabled',
+              });
+
+              await page.getByRole('button', { name: "Modifier l'acte Consultation" }).click();
+              await page.getByRole('dialog').waitFor({ state: 'visible' });
+              await page.getByRole('heading', { name: "Modifier l'acte" }).waitFor({ state: 'visible' });
+
+              const modalOverflow = await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth);
+              if (modalOverflow) throw new Error(`Horizontal modal overflow at ${width}px`);
+
+              await page.screenshot({
+                path: `${output}/admin-catalog-act-modal-${width}x1200.png`,
+                fullPage: true,
+                animations: 'disabled',
+              });
+
+              await fs.writeFile(`${output}/admin-catalog-${width}x1200.errors.txt`, runtimeErrors.join('\n'));
+              await context.close();
+            }
+          } finally {
+            await browser.close();
+            await server.close();
+          }
+          EOF
+
+      - name: Capture Catalog proof
+        working-directory: frontend
+        run: node settings-catalog-r6.mjs
+
+      - name: Verify proof
+        working-directory: frontend
+        run: |
+          count=$(find settings-catalog-r6-artifacts -name '*.png' | wc -l)
+          test "$count" -eq 10
+          if grep -R -n -E 'pageerror:|console:' settings-catalog-r6-artifacts/*.errors.txt; then
+            echo "Runtime errors detected" >&2
+            exit 1
+          fi
+
+      - name: Record metadata
+        working-directory: frontend
+        run: |
+          cat > settings-catalog-r6-artifacts/metadata.txt <<EOF
+          head_sha=${{ github.event.pull_request.head.sha }}
+          viewports=1440x1200,1024x1200,768x1200,430x1200,390x1200
+          states=page,act-edit-modal
+          expected_screenshots=10
+          fixture=same-catalog-fixture
+          product_scope=Settings Catalog only
+          EOF
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: settings-catalog-r6-visual-cert
+          path: frontend/settings-catalog-r6-artifacts/
+          if-no-files-found: error
+          retention-days: 14

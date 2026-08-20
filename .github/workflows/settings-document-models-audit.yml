@@ -1,0 +1,162 @@
+name: Settings Document Models Visual Audit
+
+on:
+  pull_request:
+    paths:
+      - "backend/services/base_template.py"
+      - "backend/services/premium_document_headers.py"
+      - "backend/services/generators/ordonnance_gen.py"
+      - "backend/tests/test_premium_document_headers.py"
+      - "frontend/src/features/admin/constants.ts"
+      - "frontend/src/features/admin/Settings/tabs/branding/StudioControls.tsx"
+      - ".github/workflows/settings-document-models-audit.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install audit dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install reportlab arabic-reshaper python-bidi svglib pillow qrcode pymupdf
+      - name: Contract check premium font mappings
+        run: |
+          python - <<'PY'
+          from reportlab.pdfbase import pdfmetrics
+          from backend.services.premium_document_headers import update_document_fonts
+
+          class Base:
+              outfit_font = 'Outfit'
+              outfit_bold = 'Outfit-Bold'
+              premium_font = 'Helvetica'
+              premium_bold = 'Helvetica-Bold'
+              header_font = 'Helvetica'
+              header_bold = 'Helvetica-Bold'
+              @staticmethod
+              def _get_val(config, key, default=None):
+                  return (config or {}).get(key, default)
+
+          base = Base()
+          expected = {
+              'inter': ('Helvetica', 'Helvetica-Bold'),
+              'playfair': ('Times-Roman', 'Times-Bold'),
+              'serif': ('Times-Roman', 'Times-Bold'),
+              'mono': ('Courier', 'Courier-Bold'),
+          }
+          for font_id, pair in expected.items():
+              update_document_fonts(base, {'font_fr': font_id})
+              assert (base.premium_font, base.premium_bold) == pair
+              pdfmetrics.getFont(base.premium_font)
+              pdfmetrics.getFont(base.premium_bold)
+          PY
+      - name: Generate five real ordonnance models
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          from types import SimpleNamespace
+          import shutil
+          import fitz
+          from PIL import Image, ImageDraw, ImageFont
+
+          from backend.services.generators.ordonnance_gen import OrdonnanceGenerator
+
+          out = Path('settings-document-models-audit')
+          pdf_dir = out / 'pdf'
+          png_dir = out / 'png'
+          pdf_dir.mkdir(parents=True, exist_ok=True)
+          png_dir.mkdir(parents=True, exist_ok=True)
+
+          upload_dir = Path('backend/static/uploads')
+          upload_dir.mkdir(parents=True, exist_ok=True)
+          logo_filename = 'audit-logo.png'
+          logo_path = upload_dir / logo_filename
+          logo = Image.new('RGBA', (400, 400), (255, 255, 255, 0))
+          draw = ImageDraw.Draw(logo)
+          draw.ellipse((14, 14, 386, 386), fill='#003380')
+          font = ImageFont.truetype('backend/static/assets/fonts/Outfit-Bold.ttf', 150)
+          bbox = draw.textbbox((0, 0), 'DC', font=font)
+          x = (400 - (bbox[2] - bbox[0])) / 2
+          y = (400 - (bbox[3] - bbox[1])) / 2 - bbox[1]
+          draw.text((x, y), 'DC', fill='white', font=font)
+          logo.save(logo_path)
+
+          patient = SimpleNamespace(
+              nom='ALAMI', prenom='Sara', date_naissance=__import__('datetime').date(1990, 4, 12)
+          )
+          medications = [
+              SimpleNamespace(nom='Amoxicilline', forme='Gélules', dosage='1 g', posologie='1 g matin et soir pendant 7 jours', type='MEDICAMENT'),
+              SimpleNamespace(nom='Paracétamol', forme='Comprimés', dosage='1 g', posologie='1 comprimé si douleur, maximum 3 par jour pendant 3 jours', type='MEDICAMENT'),
+              SimpleNamespace(nom='Bain de bouche chlorhexidine', forme='Solution', dosage='0,12 %', posologie='2 bains de bouche par jour pendant 7 jours. Ne pas avaler.', type='MEDICAMENT'),
+          ]
+          data = SimpleNamespace(id='AUDIT-R4', doc_date='2026-08-19', medications=medications, show_legal_annotations=True)
+
+          common = {
+              'font_fr': 'inter',
+              'primary_color': '#003380',
+              'secondary_color': '#1e40af',
+              'accent_color': '#60a5fa',
+              'nom_cabinet': 'Cabinet Dentaire Digital Crown',
+              'nom_praticien': 'Dr. Achraf Benmoussa',
+              'nom_complet': 'Achraf Benmoussa',
+              'header_lines_fr': ['Dr. Achraf Benmoussa', 'Chirurgien Dentiste', 'Omnipratique & Esthétique'],
+              'header_lines_ar': ['د. أشرف بنموسى', 'طبيب جراحة الأسنان'],
+              'footer_address': 'Rabat, Maroc',
+              'footer_phones': '05 37 00 00 00',
+              'footer_email': 'contact@digitalcrown.local',
+              'logo_path': logo_filename,
+              'margin_top': None,
+              'margin_bottom': None,
+              'qr_code_enabled': False,
+              'watermark_enabled': False,
+              'hide_header': False,
+              'hide_footer': False,
+              'use_letterhead': False,
+              'header_font_scale': 1.0,
+              'header_logo_scale': 1.0,
+              'header_line_height': 1.0,
+          }
+
+          templates = ['swiss', 'royal', 'clinical', 'modern', 'heritage']
+          generator = OrdonnanceGenerator(str(pdf_dir / '_tmp'))
+          assert generator.base_template.arabic_font == 'ArabicFont', (
+              'Audit runner must resolve a Unicode Arabic font; broken-glyph fallback is forbidden.'
+          )
+          assert Path(generator.base_template.arabic_font_path).exists()
+          (out / 'font-proof.txt').write_text(
+              f"arabic_font={generator.base_template.arabic_font}\n"
+              f"arabic_font_path={generator.base_template.arabic_font_path}\n",
+              encoding='utf-8',
+          )
+
+          for template in templates:
+              config = dict(common, selected_template=template)
+              generated = Path(generator.generate(patient, data, custom_config=config))
+              target_pdf = pdf_dir / f'{template}.pdf'
+              shutil.copy2(generated, target_pdf)
+
+              doc = fitz.open(target_pdf)
+              assert doc.page_count == 1, f'{template}: expected one page, got {doc.page_count}'
+              page = doc[0]
+              pix = page.get_pixmap(matrix=fitz.Matrix(2.2, 2.2), alpha=False)
+              pix.save(png_dir / f'{template}.png')
+              doc.close()
+
+          shutil.copy2(logo_path, out / logo_filename)
+          assert len(list(pdf_dir.glob('*.pdf'))) == 5
+          assert len(list(png_dir.glob('*.png'))) == 5
+          PY
+      - name: Upload five-model audit
+        uses: actions/upload-artifact@v4
+        with:
+          name: settings-document-models-audit
+          path: settings-document-models-audit/
+          if-no-files-found: error
+          retention-days: 14

@@ -55,11 +55,10 @@ export const CROWN_MESSAGES: Record<number, string> = {
 };
 
 export const PREMIUM_FONTS = [
-  { id: 'inter', name: 'Inter Tight', desc: 'Clarté clinique absolue, lecture rapide.', class: 'font-sans' },
-  { id: 'outfit', name: 'Outfit', desc: 'Design premium, élégance moderne.', class: 'font-outfit' },
-  { id: 'playfair', name: 'Playfair Display', desc: 'Prestige traditionnel, haute spécialité.', class: 'font-playfair' },
-  { id: 'mono', name: 'JetBrains Mono', desc: 'Sécurité maximale des dosages (Monospace).', class: 'font-mono' },
-  { id: 'serif', name: 'Lora', desc: 'Sérif humaniste, lisibilité optimale sur papier.', class: 'font-serif' }
+  { id: 'inter', name: 'Sans Clinique', desc: 'Sans-serif neutre et déterministe pour une lecture médicale immédiate.', class: 'font-sans' },
+  { id: 'outfit', name: 'Outfit', desc: 'Typographie réellement embarquée, moderne et premium.', class: 'font-outfit' },
+  { id: 'playfair', name: 'Sérif Prestige', desc: 'Sérif classique fiable pour une identité plus institutionnelle.', class: 'font-serif' },
+  { id: 'mono', name: 'Mono Technique', desc: 'Monospace déterministe pour une esthétique technique assumée.', class: 'font-mono' },
 ];
 
 export const DESIGN_VARIANTS = [
