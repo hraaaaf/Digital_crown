@@ -34,6 +34,7 @@ Statut : **CERTIFIÉ R2**.
 | R2 Profil Cabinet | GARDER / SIMPLIFIER | CLOSED — MERGED (#171) | 9,6/10 |
 | R3 Design & Ambiance | GARDER / CLARIFIER | CLOSED — MERGED (#173) | 9,7/10 |
 | R4 Modèles documentaires | PDF réel = vérité | CLOSED — MERGED (#174) | 9,2/10 |
+| R5 QR documentaire | GARDER / RENDRE EXPLICITE ET TESTABLE | CLOSED — MERGED (#192) | 9,4/10 |
 | R6 Catalogue Actes | GARDER architecture / REFONDRE CRUD | CLOSED — MERGED (#177) | 9,6/10 |
 | R7 Horaires & Agenda | GARDER / RENDRE RÉEL | CLOSED — MERGED (#178) | 9,3/10 |
 | R8 Performance & Assistance | GARDER / CLARIFIER / DÉPLACER | CLOSED — MERGED (#183) | 9,5/10 |
@@ -41,7 +42,7 @@ Statut : **CERTIFIÉ R2**.
 | R10-A Mon Équipe / mot de passe | GARDER / ALIGNER VÉRITÉ BACKEND | CLOSED — MERGED (#188) | 9,4/10 |
 | R11 TemplateBuilder legacy | SUPPRIMER FRONTEND ORPHELIN / CONSERVER BACKEND | CLOSED — MERGED (#191) | n/a — aucun écran actif modifié |
 
-**Avancement vérifié : 9/15 = 60,0 %.**
+**Avancement vérifié : 10/15 = 66,7 %.**
 
 ## 5. Décisions restantes
 
@@ -51,19 +52,34 @@ Shell/RBAC/Truth Gates : **GARDER**. Doctrine de sauvegarde inter-onglets : **À
 
 ### R5 — QR documentaire
 
-**LOT ACTIF — GARDER / RENDRE EXPLICITE ET TESTABLE**.
+**CLOSED — CERTIFIÉ — MERGED**.
 
-L’ancienne PR #187 a été **fermée sans merge** car elle était prep-only sur une base périmée. Ses conclusions essentielles ont été revalidées sur le master post-R10/R11 :
-- les 7 types UI restent `VCARD`, `WEBSITE`, `INSTAGRAM`, `WHATSAPP`, `LOCATION`, `VALIDATION`, `PAYMENT` ;
-- l’UI affiche encore `Signature` pour `VALIDATION` et `Paiement` pour `PAYMENT` ;
-- un champ générique `Lien / Numéro / Identifiant` est partagé par les 7 types ;
-- l’aperçu Document montre seulement le pictogramme QR + le code brut du type, sans destination ;
-- `BaseTemplate` encode `VALIDATION` vers `${BACKEND_URL}/verify/<id>` et `PAYMENT` vers `${BACKEND_URL}/track/<id>` ;
-- `verification.router` est monté sous `/api/documents`, donc les routes réelles sont `/api/documents/verify/...` et `/api/documents/track/...`.
+Décision finale : **GARDER / RENDRE EXPLICITE ET TESTABLE**.
 
-Défaut confirmé : **les deux destinations backend sont mal préfixées dans le QR**.
+Résultat :
+- 7 types QR conservés ;
+- `Signature` renommé `Vérification du document` ;
+- `Paiement` renommé `Suivi du paiement` avec avertissement explicite qu’aucun paiement n’est encaissé ici ;
+- VALIDATION corrigé vers `/api/documents/verify/<document>` ;
+- PAYMENT corrigé vers `/api/documents/track/<document>` ;
+- Website / Instagram / WhatsApp contextualisés ; Maps reste basé sur l’adresse du cabinet ;
+- `BaseTemplateCore` et `StudioControlsCore` préservés ;
+- compatibilité historique `ImageReader` restaurée dans la façade `BaseTemplate` après détection par la CI complète.
 
-Cible R5 : corriger les URLs, renommer les promesses trompeuses, contextualiser la saisie par type, rendre la destination compréhensible/testable et conserver les champs backend existants sans migration.
+Preuves :
+- BEFORE canonique `32370918895` — SUCCESS — artifact `9407139877` ;
+- HEAD produit corrigé `a40722fc3db8f1c89d25ee66e37143034029654c` ;
+- AFTER final `32374163733` — SUCCESS — artifact `9408382545` — digest `sha256:7272aa7d2f74c74516f6daf5b8a3f5f9b8d2b9232ee95781e9a101651700607c` ;
+- CI #1476 `32374163732` — SUCCESS ;
+- T2 #712 `32374163943` — SUCCESS ;
+- RBAC #132 `32374163649` — SUCCESS ;
+- Patient P7 Final #11 `32374163768` — SUCCESS ;
+- 5 viewports sans overflow horizontal ni erreur runtime ;
+- score visuel **9,4/10** ;
+- closeout `docs/settings/R5_QR_TRUTH_CLOSEOUT.md` ;
+- PR #192 mergée ; merge `2b342efdd8dd59fbffec6833549173b1dd74c577`.
+
+Dette non bloquante : la microcopie Maps peut afficher `Destination : Source : adresse du cabinet`.
 
 ### R7 — Horaires & Agenda
 
@@ -133,27 +149,38 @@ Aucun score visuel : aucun écran actif n’a été modifié.
 
 ## 6. Roadmap active
 
-P1 : doctrine sauvegarde ; modèles documentaires ✅ ; Catalogue CRUD ✅ ; Profil ✅ ; mot de passe Team ✅ ; Branding ✅.
+P1 : **doctrine sauvegarde — prochain lot recommandé** ; modèles documentaires ✅ ; Catalogue CRUD ✅ ; Profil ✅ ; mot de passe Team ✅ ; Branding ✅.
 
-P2 : Agenda réel ✅ ; Catalogue avancé ; Performance & Assistance ✅ ; Audit Log humanisé ✅ ; indicateurs patient explicables ; **QR documentaire ACTIF** ; restauration guidée.
+P2 : Agenda réel ✅ ; Catalogue avancé ; Performance & Assistance ✅ ; Audit Log humanisé ✅ ; indicateurs patient explicables ; QR documentaire ✅ ; restauration guidée.
 
 P3 : TemplateBuilder legacy ✅ frontend orphelin supprimé ; dette backend TemplateEngine conservée pour lot séparé si utile ; suppression de toggles/features uniquement après preuve downstream.
 
 ## 7. HANDOVER COURANT
 
 - Chantier : **Réglages — Product Review & Simplification**
-- Lot actif : **R5 — QR documentaire**
+- Lot actif : **aucun — R5 vient d’être fermé**
+- Prochain lot recommandé : **R1 — Shell / doctrine de sauvegarde**
 - Repo : `hraaaaf/Digital_crown`
 - Base : `master`
-- Dernier merge : R11 `a4af5ce0ad535e8c154fb7cecee931cba7f76204`
-- R11 : CLOSED — frontend orphelin supprimé, backend templates conservé
-- Ancienne PR R5 : #187 **CLOSED — NON MERGÉE — SUPERSEDED**
-- Défaut R5 prouvé : QR `VALIDATION/PAYMENT` sans préfixe `/api/documents`, libellés UI trompeurs et destination non explicitée
-- Next exact : **reconstruire R5 sur master post-R11 → BEFORE 5 viewports → Goal/mockup → correctif URL + UI → AFTER/tests**
-- Avancement vérifié : **9/15 = 60,0 %**
+- Dernier merge produit : R5 `2b342efdd8dd59fbffec6833549173b1dd74c577`
+- R5 : CLOSED — CERTIFIÉ — MERGED (#192)
+- R5 closeout : `docs/settings/R5_QR_TRUTH_CLOSEOUT.md`
+- Dernière preuve produit R5 : CI #1476 `32374163732` + AFTER #3 `32374163733` + T2 #712 `32374163943` — SUCCESS
+- Next exact : **R1 → audit de la doctrine de sauvegarde inter-onglets et de l’état dirty/save, sans changement produit avant cartographie**
+- Avancement vérifié : **10/15 = 66,7 %**
 - Vercel : **aucun déploiement**
 
 ## 8. Journal
+
+### 2026-08-20 — R5 CLOSED
+
+- PR #192 mergée ; merge `2b342efdd8dd59fbffec6833549173b1dd74c577` ;
+- destinations QR VALIDATION/PAYMENT corrigées vers `/api/documents/verify|track/...` ;
+- libellés `Vérification du document` / `Suivi du paiement` rendus factuels ;
+- compatibilité historique `ImageReader` restaurée après détection CI ;
+- AFTER final, CI #1476, T2 #712, RBAC #132 et P7 Final #11 verts ;
+- 5 viewports propres ; score **9,4/10** ;
+- aucun Vercel.
 
 ### 2026-08-20 — R11 CLOSED
 
