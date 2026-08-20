@@ -164,7 +164,7 @@ P3 : TemplateBuilder legacy ✅ frontend orphelin supprimé ; dette backend Temp
 - Base : `master`
 - Branche : `settings-recovery-r4-r6-post-r7`
 - HEAD produit certifié : `5ac5104dae3e51cc72c22362bba5fd9b259df650`
-- HEAD docs : `6bccb2b78eb792c46417d54647a188dbd5ceb829` ; delta = closeout Markdown-only
+- Delta documentaire final : closeout + compass uniquement ; zéro fichier produit
 - CI #1481 `32380900040` — SUCCESS
 - R4 Document Models #21, Branding #68, R5 QR #6, R6 #11, RBAC #135, Read Truth #39, T2 #715, R11 #7 et P7 #14 — SUCCESS
 - Closeout : `docs/settings/R4_R6_POST_R7_RECOVERY_CLOSEOUT.md`
