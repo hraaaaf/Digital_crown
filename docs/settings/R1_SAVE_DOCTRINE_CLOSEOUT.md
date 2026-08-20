@@ -6,7 +6,8 @@ PR : #194
 Base BEFORE : `2a6bfd8a10baddf770fed5e2ffbecc3f65f4468d`
 HEAD produit certifié : `e472ec47f411850f3270335fd92278c1c08b4fc5`
 HEAD final produit + harness : `10ca5475279f579a841bbcce041ffcb7fb6b3f5e`
-Statut : **CERTIFIED — READY TO MERGE**
+Merge squash : `4833a9e54c4fa7383e5ca5096afa18f0a5b500f1`
+Statut : **CLOSED — CERTIFIED — MERGED**
 
 ## Goal
 
@@ -68,6 +69,6 @@ Le bouton local historique de `ProfileTab.tsx` existe encore dans le markup mais
 
 ## Conclusion
 
-**R1 CERTIFIED — READY TO MERGE.**
+**R1 CLOSED — CERTIFIED — MERGED.**
 
 La doctrine de sauvegarde affichée correspond désormais à la persistance réelle : staged pour Profil / Design / Performance, atomique ailleurs, protection anti-perte active, runtime committé uniquement après vérité backend.
