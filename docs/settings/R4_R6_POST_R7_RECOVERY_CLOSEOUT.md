@@ -73,6 +73,10 @@ Même grille de viewports : `1440 / 1024 / 768 / 430 / 390`.
 - R5 : 5 viewports sans overflow ; QR factuel intact ; score maintenu **9,4/10** ;
 - R6 : 5 viewports + 5 modales inspectés ; erreurs runtime 0/5 ; score maintenu **9,6/10**.
 
+## Équivalence documentaire finale
+
+Les commits postérieurs au HEAD produit certifié ne modifient que `SETTINGS_PRODUCT_COMPASS.md` et ce closeout. Les preuves produit exact-head restent valides.
+
 ## Statut
 
 **CERTIFIÉ — READY TO MERGE**.
