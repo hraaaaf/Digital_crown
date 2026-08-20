@@ -32,41 +32,52 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p artifacts/r11
-          {
-            echo '# R11 repo-wide reachability'
-            echo
-            echo '## HEAD'
-            git rev-parse HEAD
-            echo
-            for needle in 'TemplateBuilder' 'templateApi' 'TemplateEngine' '_get_default_template' 'settings/templates' 'DocumentTemplate'; do
-              echo "## ${needle}"
-              rg -n --hidden \
-                --glob '!.git/**' \
-                --glob '!node_modules/**' \
-                --glob '!artifacts/**' \
-                -- "$needle" . || true
-              echo
-            done
-          } > artifacts/r11/reachability.txt
-
-          # Machine-readable counts, useful for proving whether references exist
+          git rev-parse HEAD > artifacts/r11/head.txt
           python - <<'PY'
-          import json, pathlib, subprocess
+          import json
+          from pathlib import Path
+
           needles = [
               'TemplateBuilder', 'templateApi', 'TemplateEngine',
               '_get_default_template', 'settings/templates', 'DocumentTemplate'
           ]
-          out = {}
+          skip_parts = {'.git', 'node_modules', 'artifacts', '__pycache__'}
+          allowed_suffixes = {
+              '.py', '.ts', '.tsx', '.js', '.jsx', '.md', '.yml', '.yaml',
+              '.json', '.toml', '.ini', '.cfg', '.txt', '.html', '.css', '.scss'
+          }
+          out = {needle: {'count': 0, 'lines': []} for needle in needles}
+
+          for path in Path('.').rglob('*'):
+              if not path.is_file():
+                  continue
+              if any(part in skip_parts for part in path.parts):
+                  continue
+              if path.suffix.lower() not in allowed_suffixes:
+                  continue
+              try:
+                  text = path.read_text(encoding='utf-8')
+              except (UnicodeDecodeError, OSError):
+                  continue
+              for lineno, line in enumerate(text.splitlines(), 1):
+                  for needle in needles:
+                      if needle in line:
+                          entry = f"{path.as_posix()}:{lineno}:{line.strip()}"
+                          out[needle]['lines'].append(entry)
+
           for needle in needles:
-              p = subprocess.run([
-                  'rg','-n','--hidden','--glob','!.git/**','--glob','!node_modules/**',
-                  '--glob','!artifacts/**','--',needle,'.'
-              ], capture_output=True, text=True)
-              lines = [x for x in p.stdout.splitlines() if x.strip()]
-              out[needle] = {'count': len(lines), 'lines': lines}
-          pathlib.Path('artifacts/r11/reachability.json').write_text(
+              out[needle]['count'] = len(out[needle]['lines'])
+
+          Path('artifacts/r11/reachability.json').write_text(
               json.dumps(out, indent=2, ensure_ascii=False), encoding='utf-8'
           )
+
+          lines = ['# R11 repo-wide reachability', '']
+          for needle in needles:
+              lines.append(f"## {needle} ({out[needle]['count']})")
+              lines.extend(out[needle]['lines'] or ['<none>'])
+              lines.append('')
+          Path('artifacts/r11/reachability.txt').write_text('\n'.join(lines), encoding='utf-8')
           PY
 
           cat artifacts/r11/reachability.txt
