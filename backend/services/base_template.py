@@ -9,6 +9,10 @@ from backend.services.base_template_core import BaseTemplate as _BaseTemplateCor
 from backend.services import base_template_core as _core
 from backend.services.qr_document_routes import build_document_qr_url
 
+# Compatibility alias intentionally kept on the façade module: historical tests and
+# callers patch backend.services.base_template.ImageReader directly.
+ImageReader = _core.ImageReader
+
 
 class BaseTemplate(_BaseTemplateCore):
     """Base template with truthful document QR destinations."""
@@ -95,7 +99,7 @@ class BaseTemplate(_BaseTemplateCore):
                 y_pos = 0.8 * _core.cm + qr_offset_y * _core.cm
                 x_pos = max(0.2 * _core.cm, min(x_pos, p_width - qr_size - 0.2 * _core.cm))
                 y_pos = max(0.2 * _core.cm, min(y_pos, p_height - qr_size - 0.2 * _core.cm))
-                canvas.drawImage(_core.ImageReader(qr_bytes), x_pos, y_pos, width=qr_size, height=qr_size, mask='auto')
+                canvas.drawImage(ImageReader(qr_bytes), x_pos, y_pos, width=qr_size, height=qr_size, mask='auto')
 
                 if qr_label:
                     canvas.setFont(self.premium_bold, 6)
