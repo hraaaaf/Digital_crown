@@ -1,0 +1,129 @@
+name: Settings R11 TemplateBuilder Reachability Audit
+
+on:
+  pull_request:
+    branches: [master]
+    paths:
+      - 'docs/settings/R11_TEMPLATEBUILDER_REACHABILITY_GOAL.md'
+      - '.github/workflows/settings-r11-templatebuilder-reachability.yml'
+      - 'frontend/src/features/admin/TemplateBuilder.tsx'
+      - 'frontend/src/services/templateApi.ts'
+      - 'frontend/src/types/template.ts'
+      - 'frontend/src/App.tsx'
+      - 'backend/routers/templates.py'
+      - 'backend/services/template_engine.py'
+      - 'backend/services/document_factory.py'
+      - 'backend/models.py'
+      - 'backend/seed_templates.py'
+
+permissions:
+  contents: read
+
+jobs:
+  reachability:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: R11 source truth guard
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+
+          builder = Path('frontend/src/features/admin/TemplateBuilder.tsx')
+          service = Path('frontend/src/services/templateApi.ts').read_text(encoding='utf-8')
+          app = Path('frontend/src/App.tsx').read_text(encoding='utf-8')
+          header = Path('frontend/src/components/Header.tsx').read_text(encoding='utf-8')
+          wizard = Path('frontend/src/features/admin/SetupWizard/SetupWizard.tsx').read_text(encoding='utf-8')
+          router = Path('backend/routers/templates.py').read_text(encoding='utf-8')
+          models = Path('backend/models.py').read_text(encoding='utf-8')
+          seed = Path('backend/seed_templates.py').read_text(encoding='utf-8')
+
+          assert not builder.exists(), 'TemplateBuilder.tsx doit être supprimé après preuve de non-reachability'
+          assert 'export const templateApi' not in service, 'templateApi legacy doit être retiré'
+          assert 'export const cabinetApi' in service, 'cabinetApi actif doit être conservé'
+          assert "from './services/templateApi'" in app and 'cabinetApi' in app
+          assert "from '../services/templateApi'" in header and 'cabinetApi' in header
+          assert "from '../../../services/templateApi'" in wizard and 'cabinetApi' in wizard
+          assert 'DocumentTemplate' in router, 'router templates backend doit être conservé'
+          assert 'class DocumentTemplate' in models, 'modèle DocumentTemplate doit être conservé'
+          assert 'models.DocumentTemplate' in seed, 'seed DocumentTemplate doit être conservé'
+          PY
+
+      - name: Capture repo-wide references
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts/r11
+          git rev-parse HEAD > artifacts/r11/head.txt
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          needles = [
+              'TemplateBuilder', 'templateApi', 'TemplateEngine',
+              '_get_default_template', 'settings/templates', 'DocumentTemplate'
+          ]
+          skip_parts = {'.git', 'node_modules', 'artifacts', '__pycache__'}
+          allowed_suffixes = {
+              '.py', '.ts', '.tsx', '.js', '.jsx', '.md', '.yml', '.yaml',
+              '.json', '.toml', '.ini', '.cfg', '.txt', '.html', '.css', '.scss'
+          }
+          out = {needle: {'count': 0, 'lines': []} for needle in needles}
+
+          for path in Path('.').rglob('*'):
+              if not path.is_file():
+                  continue
+              if any(part in skip_parts for part in path.parts):
+                  continue
+              if path.suffix.lower() not in allowed_suffixes:
+                  continue
+              try:
+                  text = path.read_text(encoding='utf-8')
+              except (UnicodeDecodeError, OSError):
+                  continue
+              for lineno, line in enumerate(text.splitlines(), 1):
+                  for needle in needles:
+                      if needle in line:
+                          out[needle]['lines'].append(f"{path.as_posix()}:{lineno}:{line.strip()}")
+
+          for needle in needles:
+              out[needle]['count'] = len(out[needle]['lines'])
+
+          Path('artifacts/r11/reachability.json').write_text(
+              json.dumps(out, indent=2, ensure_ascii=False), encoding='utf-8'
+          )
+
+          lines = ['# R11 repo-wide reachability', '']
+          for needle in needles:
+              lines.append(f"## {needle} ({out[needle]['count']})")
+              lines.extend(out[needle]['lines'] or ['<none>'])
+              lines.append('')
+          Path('artifacts/r11/reachability.txt').write_text('\n'.join(lines), encoding='utf-8')
+          PY
+
+          cat artifacts/r11/reachability.txt
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Frontend build
+        working-directory: frontend
+        run: |
+          npm ci
+          npm run build
+
+      - name: Upload reachability artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: settings-r11-templatebuilder-reachability
+          path: artifacts/r11/
+          retention-days: 14
