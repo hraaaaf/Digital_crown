@@ -33,9 +33,9 @@ Statut : **CERTIFIÉ R2**.
 |---|---|---|---:|
 | R2 Profil Cabinet | GARDER / SIMPLIFIER | CLOSED — MERGED (#171) | 9,6/10 |
 | R3 Design & Ambiance | GARDER / CLARIFIER | CLOSED — MERGED (#173) | 9,7/10 |
-| R4 Modèles documentaires | PDF réel = vérité | CLOSED — MERGED (#174) — recovery #193 certifiée | 9,2/10 |
+| R4 Modèles documentaires | PDF réel = vérité | CLOSED — MERGED (#174) — recovery #193 MERGED | 9,2/10 |
 | R5 QR documentaire | GARDER / RENDRE EXPLICITE ET TESTABLE | CLOSED — MERGED (#192) | 9,4/10 |
-| R6 Catalogue Actes | GARDER architecture / REFONDRE CRUD | CLOSED — MERGED (#177) — recovery #193 certifiée | 9,6/10 |
+| R6 Catalogue Actes | GARDER architecture / REFONDRE CRUD | CLOSED — MERGED (#177) — recovery #193 MERGED | 9,6/10 |
 | R7 Horaires & Agenda | GARDER / RENDRE RÉEL | CLOSED — MERGED (#178) | 9,3/10 |
 | R8 Performance & Assistance | GARDER / CLARIFIER / DÉPLACER | CLOSED — MERGED (#183) | 9,5/10 |
 | R9-A Journal d’Audit | GARDER / HUMANISER | CLOSED — MERGED (#185) | 9,6/10 |
@@ -158,26 +158,25 @@ P3 : TemplateBuilder legacy ✅ frontend orphelin supprimé ; dette backend Temp
 ## 7. HANDOVER COURANT
 
 - Chantier : **Réglages — Product Review & Simplification**
-- Lot actif : **Recovery R4 + R6 post-R7 — PR #193**
-- Statut : **CERTIFIÉ — READY TO MERGE**
+- Lot actif : **R1 — Shell / doctrine de sauvegarde — audit à ouvrir**
+- Recovery R4 + R6 post-R7 : **CLOSED — CERTIFIÉ — MERGED (#193)**
 - Repo : `hraaaaf/Digital_crown`
 - Base : `master`
-- Branche : `settings-recovery-r4-r6-post-r7`
-- HEAD produit certifié : `5ac5104dae3e51cc72c22362bba5fd9b259df650`
-- Delta documentaire final : closeout + compass uniquement ; zéro fichier produit
+- Merge recovery : `639c40ef4f0f86229cacbc54a16939307dd968e5`
+- HEAD produit certifié recovery : `5ac5104dae3e51cc72c22362bba5fd9b259df650`
 - CI #1481 `32380900040` — SUCCESS
 - R4 Document Models #21, Branding #68, R5 QR #6, R6 #11, RBAC #135, Read Truth #39, T2 #715, R11 #7 et P7 #14 — SUCCESS
 - Closeout : `docs/settings/R4_R6_POST_R7_RECOVERY_CLOSEOUT.md`
 - Scores : R4 **9,2/10** ; R5 **9,4/10** ; R6 **9,6/10**
-- Prochain lot après merge : **R1 — Shell / doctrine de sauvegarde**
-- Next exact : **merge #193 → vérifier master → reprendre R1 en audit uniquement**
-- Avancement vérifié après merge : **10/15 = 66,7 %**
+- Next exact : **R1 → audit de la doctrine de sauvegarde inter-onglets et de l’état dirty/save, sans changement produit avant cartographie**
+- Avancement vérifié : **10/15 = 66,7 %**
 - Vercel : **aucun déploiement**
 
 ## 8. Journal
 
-### 2026-08-20 — RECOVERY R4 + R6 POST-R7 CERTIFIÉE
+### 2026-08-20 — RECOVERY R4 + R6 POST-R7 CLOSED
 
+- PR #193 mergée ; merge `639c40ef4f0f86229cacbc54a16939307dd968e5` ;
 - R7 avait régressé hors scope des surfaces R4/R6 certifiées ;
 - récupération ciblée sans revert global de R7 ;
 - R4 replacé dans les `*Core` compatibles R5 ;
