@@ -1,0 +1,156 @@
+name: Settings R5 QR AFTER
+
+on:
+  pull_request:
+    branches: [master]
+    paths:
+      - '.github/workflows/settings-r5-qr-after.yml'
+      - 'frontend/src/features/admin/Settings/tabs/branding/StudioControls.tsx'
+      - 'frontend/src/features/admin/Settings/tabs/branding/StudioControlsCore.tsx'
+      - 'backend/services/base_template.py'
+      - 'backend/services/base_template_core.py'
+      - 'backend/services/qr_document_routes.py'
+      - 'backend/tests/test_r5_qr_document_routes.py'
+
+permissions:
+  contents: read
+
+jobs:
+  after:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: R5 source and preservation truth
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git hash-object backend/services/base_template_core.py)" = "ef695ba7abc0c8b6c98b3be255352996f806a1e9"
+          test "$(git hash-object frontend/src/features/admin/Settings/tabs/branding/StudioControlsCore.tsx)" = "38f08ee3b80b03ea4083c830749177c557012905"
+          grep -n "Vérification du document" frontend/src/features/admin/Settings/tabs/branding/StudioControls.tsx
+          grep -n "Suivi du paiement" frontend/src/features/admin/Settings/tabs/branding/StudioControls.tsx
+          grep -n "Aucun paiement n’est encaissé ici" frontend/src/features/admin/Settings/tabs/branding/StudioControls.tsx
+          grep -n "/api/documents/verify/<document>" frontend/src/features/admin/Settings/tabs/branding/StudioControls.tsx
+          grep -n "/api/documents/track/<document>" frontend/src/features/admin/Settings/tabs/branding/StudioControls.tsx
+          grep -n "build_document_qr_url" backend/services/base_template.py
+          grep -n "prefix=\"/api/documents\"" backend/main.py
+          python -m py_compile backend/services/base_template.py backend/services/base_template_core.py backend/services/qr_document_routes.py
+          python - <<'PY'
+          import runpy
+          build_document_qr_url = runpy.run_path('backend/services/qr_document_routes.py')['build_document_qr_url']
+          assert build_document_qr_url('http://localhost:8000', 'verify', 42) == 'http://localhost:8000/api/documents/verify/42'
+          assert build_document_qr_url('http://localhost:8000/', 'track', 'DOC-7') == 'http://localhost:8000/api/documents/track/DOC-7'
+          assert build_document_qr_url('https://cabinet/api', 'verify', 1) == 'https://cabinet/api/documents/verify/1'
+          assert build_document_qr_url('https://cabinet/api/documents', 'track', 1) == 'https://cabinet/api/documents/track/1'
+          PY
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Frontend build and browser
+        working-directory: frontend
+        run: |
+          npm ci
+          npm run build
+          npm install --no-save --package-lock=false playwright@1.55.0
+          npx playwright install --with-deps chromium
+
+      - name: Inject R5 QR AFTER harness
+        working-directory: frontend
+        run: |
+          cat > settings-r5-after.html <<'EOF'
+          <!doctype html><html lang="fr"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/><link rel="icon" href="data:,"/><title>R5 QR AFTER</title></head><body><div id="root"></div><script type="module" src="/src/settings-r5-after.tsx"></script></body></html>
+          EOF
+          cat > src/settings-r5-after.tsx <<'EOF'
+          import React from 'react';
+          import { createRoot } from 'react-dom/client';
+          import { MemoryRouter } from 'react-router-dom';
+          import './index.css';
+          import Settings from './pages/Settings';
+          import { useAuthStore } from './stores/useAuthStore';
+          useAuthStore.setState({ user: ({ id:1,email:'admin@r5.local',nom_complet:'Dr QR',role:'ADMIN',is_superadmin:false,permissions:{} } as any),isAuthenticated:true,isLoading:false,error:null });
+          createRoot(document.getElementById('root')!).render(<MemoryRouter initialEntries={['/settings']}><Settings /></MemoryRouter>);
+          EOF
+          cat > settings-r5-after.mjs <<'EOF'
+          import { chromium } from 'playwright';
+          import { createServer } from 'vite';
+          import fs from 'node:fs/promises';
+          const output='settings-r5-after'; await fs.mkdir(output,{recursive:true});
+          const profile={
+            id:1,public_id:'r5-after',nom_cabinet:'Cabinet QR',nom_praticien:'Dr QR',nom_praticien_ar:'',
+            footer_address:'Rabat, Maroc',footer_phones:'05 37 00 00 00',primary_color:'#003380',secondary_color:'#1e40af',accent_color:'#60a5fa',
+            selected_theme:'elite',font_fr:'inter',selected_template:'swiss',header_lines_fr:['Dr QR','Chirurgien Dentiste'],header_lines_ar:[],
+            specialty_ids:[],contacts_json:{whatsapp:{enabled:true,value:'212600000000'}},margin_top:3.6,margin_bottom:3.2,
+            watermark_enabled:true,use_letterhead:false,hide_header:false,hide_footer:false,cabinet_type:'PRIVE',
+            qr_code_enabled:true,qr_code_type:'VALIDATION',qr_code_value:'',qr_code_label:'Vérifier le document',qr_code_style:'dots',qr_code_color:'#003380'
+          };
+          const json=body=>({status:200,contentType:'application/json',body:JSON.stringify(body)});
+          const server=await createServer({server:{host:'127.0.0.1',port:4192,strictPort:true},clearScreen:false}); await server.listen();
+          const browser=await chromium.launch();
+          try {
+            for (const width of [1440,1024,768,430,390]) {
+              const context=await browser.newContext({viewport:{width,height:1200}}); const page=await context.newPage(); const errors=[];
+              page.on('pageerror',e=>errors.push(`pageerror: ${e.message}`));
+              page.on('console',m=>{if(m.type()==='error') errors.push(`console: ${m.text()}`)});
+              await page.route('**/api/**',async route=>{const url=new URL(route.request().url()); if(url.pathname.endsWith('/clinics/me'))return route.fulfill(json(profile)); return route.fulfill(json({}));});
+              await page.goto('http://127.0.0.1:4192/settings-r5-after.html',{waitUntil:'networkidle'});
+              await page.getByRole('heading',{name:'Paramètres',exact:true}).waitFor({timeout:15000});
+              await page.getByRole('button',{name:'Design & Ambiance',exact:true}).click();
+
+              const qrHeading=page.locator('h3:visible').filter({hasText:/^Code QR$/}).first();
+              await qrHeading.waitFor({timeout:15000});
+              const validation=page.getByRole('button',{name:'Vérification du document',exact:true});
+              await validation.waitFor();
+              await page.getByText('Le QR ouvre la page de vérification du document généré.',{exact:true}).waitFor();
+              await page.getByText('Destination : /api/documents/verify/<document>',{exact:true}).waitFor();
+              if(await page.getByRole('button',{name:'Signature',exact:true}).count()) throw new Error('Legacy Signature button is still visible');
+
+              await page.getByRole('button',{name:'Suivi du paiement',exact:true}).click();
+              await page.getByText('Le QR ouvre l’état de paiement du document. Aucun paiement n’est encaissé ici.',{exact:true}).waitFor();
+              await page.getByText('Destination : /api/documents/track/<document>',{exact:true}).waitFor();
+
+              await page.getByRole('button',{name:'Maps',exact:true}).click();
+              await page.getByText('Destination : Source : adresse du cabinet',{exact:true}).waitFor();
+
+              await page.getByRole('button',{name:'Site Web',exact:true}).click();
+              await page.getByText('Adresse du site Web',{exact:true}).waitFor();
+              await page.getByPlaceholder('https://cabinet.ma').waitFor();
+
+              await validation.click();
+              await page.getByText('Destination : /api/documents/verify/<document>',{exact:true}).waitFor();
+              const qrCard=qrHeading.locator('xpath=ancestor::div[contains(@class,"rounded-2xl")][1]');
+              await qrCard.scrollIntoViewIfNeeded(); await page.waitForTimeout(100);
+              const layout=await page.evaluate(()=>({clientWidth:document.documentElement.clientWidth,scrollWidth:document.documentElement.scrollWidth}));
+              if(layout.scrollWidth>layout.clientWidth) throw new Error(`Horizontal overflow: ${layout.scrollWidth}>${layout.clientWidth}`);
+              if(errors.length) throw new Error(errors.join('\n'));
+              await page.screenshot({path:`${output}/qr-page-${width}x1200.png`,fullPage:true,animations:'disabled'});
+              await qrCard.screenshot({path:`${output}/qr-card-${width}x1200.png`,animations:'disabled'});
+              await fs.writeFile(`${output}/qr-${width}.layout.json`,JSON.stringify(layout,null,2));
+              await fs.writeFile(`${output}/qr-${width}.errors.txt`,errors.join('\n'));
+              await context.close();
+            }
+          } finally {await browser.close();await server.close();}
+          EOF
+
+      - name: Capture and assert R5 AFTER
+        working-directory: frontend
+        run: node settings-r5-after.mjs
+
+      - name: Verify AFTER proof count
+        working-directory: frontend
+        run: |
+          test "$(find settings-r5-after -name 'qr-card-*.png' | wc -l)" -eq 5
+          test "$(find settings-r5-after -name 'qr-page-*.png' | wc -l)" -eq 5
+          if grep -R -n -E 'pageerror:|console:' settings-r5-after/*.errors.txt; then exit 1; fi
+
+      - name: Upload AFTER artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: settings-r5-qr-after
+          path: frontend/settings-r5-after/
+          if-no-files-found: warn
+          retention-days: 14
