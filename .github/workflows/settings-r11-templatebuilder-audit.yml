@@ -1,0 +1,83 @@
+name: Settings R11 TemplateBuilder Dependency Audit
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/settings-r11-templatebuilder-audit.yml"
+      - "docs/settings/R11_TEMPLATEBUILDER_ORPHAN_CLEANUP_GOAL.md"
+      - "frontend/src/features/admin/TemplateBuilder.tsx"
+      - "frontend/src/App.tsx"
+      - "frontend/src/pages/Settings.tsx"
+      - "frontend/src/components/Sidebar.tsx"
+      - "frontend/src/features/admin/Settings/**"
+      - "frontend/src/features/admin/DocumentHub.tsx"
+      - "frontend/src/features/admin/DocumentStudio/**"
+      - "frontend/src/services/templateApi.ts"
+      - "backend/main.py"
+      - "backend/models.py"
+      - "backend/routers/templates.py"
+      - "backend/services/template_engine.py"
+      - "backend/services/document_factory.py"
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Prove TemplateBuilder reachability and preserved runtime contracts
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p r11-templatebuilder-audit
+
+          {
+            echo '=== matching filenames ==='
+            find frontend/src -type f \( -iname '*template*builder*' -o -iname '*builder*template*' -o -iname '*templatebuilder*' \) -print | sort
+            echo
+            echo '=== TemplateBuilder refs (all frontend/src) ==='
+            grep -R -n --exclude-dir=node_modules --exclude-dir=.git -E 'TemplateBuilder|template[ -]?builder|Template Builder' frontend/src || true
+            echo
+            echo '=== external TemplateBuilder refs (excluding legacy file itself) ==='
+            grep -R -n --exclude-dir=node_modules --exclude-dir=.git --exclude='TemplateBuilder.tsx' -E 'TemplateBuilder|template[ -]?builder|Template Builder' frontend/src || true
+            echo
+            echo '=== templateApi imports/usages ==='
+            grep -R -n --exclude-dir=node_modules --exclude-dir=.git -E 'templateApi|from .*/templateApi|from .*templateApi' frontend/src || true
+            echo
+            echo '=== DocumentTemplate / design config refs ==='
+            grep -R -n --exclude-dir=node_modules --exclude-dir=.git -E 'DocumentTemplate|DesignConfig|design_config|body_html|selected_template' frontend/src backend || true
+            echo
+            echo '=== frontend routes / settings / document surfaces ==='
+            grep -n -E 'TemplateBuilder|template-builder|template_builder|/templates' frontend/src/App.tsx frontend/src/pages/Settings.tsx frontend/src/components/Sidebar.tsx frontend/src/features/admin/Settings/SettingsContainer.tsx frontend/src/features/admin/DocumentHub.tsx || true
+            echo
+            echo '=== backend template runtime contracts ==='
+            grep -n 'include_router(templates.router' backend/main.py || true
+            grep -n 'class DocumentTemplate' backend/models.py || true
+            grep -n -E 'DocumentFactory|TemplateEngine' backend/services/document_factory.py backend/services/template_engine.py backend/routers/documents.py || true
+          } | tee r11-templatebuilder-audit/references.txt
+
+          external_refs="$(grep -R -n --exclude-dir=node_modules --exclude-dir=.git --exclude='TemplateBuilder.tsx' -E 'TemplateBuilder|template[ -]?builder|Template Builder' frontend/src || true)"
+          if [[ -n "$external_refs" ]]; then
+            echo 'Unexpected external TemplateBuilder reference(s):' >&2
+            printf '%s\n' "$external_refs" >&2
+            exit 1
+          fi
+
+          grep -q 'include_router(templates.router' backend/main.py
+          grep -q 'class DocumentTemplate' backend/models.py
+          grep -q 'TemplateEngine' backend/services/document_factory.py
+          grep -q 'DocumentFactory' backend/routers/documents.py
+
+          printf 'head_sha=%s\n' "${{ github.event.pull_request.head.sha }}" > r11-templatebuilder-audit/metadata.txt
+          printf 'external_templatebuilder_refs=0\n' >> r11-templatebuilder-audit/metadata.txt
+          printf 'backend_template_runtime_preserved=true\n' >> r11-templatebuilder-audit/metadata.txt
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: settings-r11-templatebuilder-dependency-audit
+          path: r11-templatebuilder-audit/
+          if-no-files-found: error
+          retention-days: 14
