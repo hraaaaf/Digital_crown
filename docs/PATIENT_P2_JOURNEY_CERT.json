@@ -1,0 +1,64 @@
+{
+  "status": "PRODUCT_CERTIFIED",
+  "phase": "P2_VIEW_OVERVIEW_PATIENT_JOURNEY",
+  "product_head": "6dffc5537eb2099acdc06dc57352af9e3b60f009",
+  "baseline": {
+    "phase": "P1_ARCHITECTURE",
+    "run_id": 32201889501,
+    "artifact_id": 9347877116,
+    "digest": "sha256:0e1c42bc50b64c12b9f13da25483dbbe52cc963cdcfed62dd9afd064c5b3b8e4",
+    "viewports": ["390x844", "430x932", "768x1024", "1280x900"]
+  },
+  "gates": {
+    "visual_after": {
+      "run_id": 32206275528,
+      "run_number": 5,
+      "conclusion": "success"
+    },
+    "t2_runtime_browser": {
+      "run_id": 32206275516,
+      "run_number": 431,
+      "conclusion": "success"
+    },
+    "ci": {
+      "run_id": 32206275513,
+      "run_number": 1177,
+      "conclusion": "success"
+    }
+  },
+  "after_artifact": {
+    "artifact_id": 9349302470,
+    "name": "patient-p2-journey-after",
+    "digest": "sha256:e9367ab9eb5aaa3d860a6658a994dda1828229b6174a2a16c2b0ebe83f171b0e",
+    "captures": [
+      "p2-after-390x844.png",
+      "p2-after-430x932.png",
+      "p2-after-768x1024.png",
+      "p2-after-1280x900.png"
+    ],
+    "summary": {
+      "captures": 4,
+      "no_horizontal_overflow": true,
+      "runtime_errors": 0,
+      "http_5xx": 0,
+      "opaque_risk_absent": true,
+      "false_plan_zero_absent": true,
+      "provenance_visible": true
+    }
+  },
+  "verified_contracts": [
+    "FlashSummary opaque risk removed from Patient overview",
+    "no /ai-summary call from FlashSummary",
+    "no false 0/0 plan state when no Master Plan exists",
+    "future appointment has priority as factual next action",
+    "without future appointment, a persisted PENDING Master Plan Journey event may be surfaced",
+    "without either source, next action is neutral",
+    "financial summary preserves has_billing_data and displays an indeterminate state when billing basis is absent",
+    "Journey event provenance exposes source and ref_id",
+    "Treatment Plan navigation targets Clinical rather than Documents",
+    "existing Journey filters, milestones, legacy Acte section and authenticated document opening remain accessible"
+  ],
+  "visual_score": 9.7,
+  "visual_score_scale": 10,
+  "note": "This certificate binds UI/runtime evidence to product_head. Closeout-document commits after product_head require exact-head repository CI/T2 before the PR can be marked ready or merged; they do not alter the already captured P2 UI unless product files change."
+}

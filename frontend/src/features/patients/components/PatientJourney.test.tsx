@@ -191,12 +191,14 @@ describe('PatientJourney', () => {
 
   it('always displays an open item even if it is older than the 12-month window', async () => {
     // Le backend décide de l'inclusion (item ouvert) — le frontend doit juste l'afficher
-    // sans le filtrer localement par date.
+    // dans la chronologie sans le filtrer localement par date. P2 peut aussi reprendre
+    // son titre dans la carte "Prochaine action", d'où le scope explicite ici.
     mockApiGet({ events: [EVENT_OLD_OPEN_STEP] })
     renderJourney()
 
     await waitFor(() => {
-      expect(screen.getByText('Détartrage')).toBeInTheDocument()
+      const chronology = screen.getByLabelText('Chronologie factuelle')
+      expect(within(chronology).getByText('Détartrage')).toBeInTheDocument()
     })
   })
 
