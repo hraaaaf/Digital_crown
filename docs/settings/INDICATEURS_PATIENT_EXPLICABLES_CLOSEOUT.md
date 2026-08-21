@@ -2,7 +2,8 @@
 
 Date : 2026-08-21
 Repo : `hraaaaf/Digital_crown`
-PR : #199 — merge pending
+PR : #199 — **MERGED**
+Merge : `b22e7bc9e7981eef54916c4e1412fa69ad612bf5`
 
 ## Goal
 
@@ -99,7 +100,7 @@ BEFORE → mockup → AFTER inspecté sur les 15 captures.
 
 Score visuel final : **9,3/10**.
 
-## Gates exact HEAD de certification
+## Gates de certification produit
 
 - Patient Indicators Truth #6 `32497490038` — SUCCESS ;
 - CI #1531 `32497490220` — SUCCESS ;
@@ -108,6 +109,18 @@ Score visuel final : **9,3/10**.
 - Patient P1 Architecture After #14 `32497490228` — SUCCESS ;
 - Catalog Connected Truth Certification #24 `32497490107` — SUCCESS ;
 - Patient Indicators BEFORE #12 `32497490154` — SUCCESS.
+
+## Gates du HEAD closeout
+
+HEAD closeout pré-merge : `bc1137011438b26bad7f340699c9f1b6f3e378c8`.
+
+- Patient Indicators Truth #7 `32498981650` — SUCCESS ;
+- CI #1533 `32498981685` — SUCCESS ;
+- T2 #753 `32498981646` — SUCCESS ;
+- Patient P7 #52 `32498981617` — SUCCESS ;
+- Patient P1 Architecture After #15 `32498981643` — SUCCESS ;
+- Catalog Connected Truth #26 `32498981615` — SUCCESS ;
+- Patient Indicators BEFORE #13 `32498981616` — SUCCESS.
 
 ## Historique de diagnostic utile
 
@@ -118,10 +131,16 @@ Score visuel final : **9,3/10**.
 
 Après répétition des faux négatifs de tests hérités, la stratégie a été consolidée avant le run final afin d'éviter les micro-pushes successifs.
 
-## Décision pré-merge
+## Post-merge
 
-**Indicateurs patient explicables = CERTIFIÉ / READY TO MERGE.**
+PR #199 squash-mergée dans `master` : `b22e7bc9e7981eef54916c4e1412fa69ad612bf5`.
 
-Le lot ne sera déclaré `CLOSED / MERGED` qu'après merge #199 et vérification post-merge sur `master`.
+État canonique post-merge également consigné dans `docs/settings/INDICATEURS_PATIENT_EXPLICABLES_POSTMERGE.md`.
+
+## Décision finale
+
+**Indicateurs patient explicables = CLOSED — CERTIFIÉ — MERGED.**
+
+Le chantier Réglages est crédité à **13/15 = 86,7 %**. Lot suivant : **Restauration guidée**, audit uniquement.
 
 Aucun Vercel.
