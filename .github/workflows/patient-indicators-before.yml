@@ -116,7 +116,7 @@ jobs:
             page.on('response',r=>{if(r.status()>=500)http5xx.push({url:r.url(),status:r.status()});});
 
             await page.goto('http://127.0.0.1:5173/patients',{waitUntil:'networkidle',timeout:90000});
-            await page.getByText('Dossiers Patients',{exact:true}).waitFor({state:'visible',timeout:30000});
+            await page.getByRole('heading',{name:'Dossiers Patients',exact:true}).waitFor({state:'visible',timeout:30000});
             await page.waitForTimeout(1200);
             const listShot=`before-list-${viewport.width}x${viewport.height}.png`;
             const listOverflow=await page.evaluate(()=>document.documentElement.scrollWidth>document.documentElement.clientWidth+2);
