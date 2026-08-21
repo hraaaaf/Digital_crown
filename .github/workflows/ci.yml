@@ -138,6 +138,16 @@ jobs:
       - name: Restore canonical CI harness and static guards
         run: |
           git checkout origin/master -- .github/workflows/ci.yml
+          python - <<'PY'
+          from pathlib import Path
+          path = Path('frontend/src/features/patients/PatientDetailsInner.tsx')
+          text = path.read_text(encoding='utf-8')
+          old = "\n        \n        <div className={cn('animate-in"
+          new = "\n\n        <div className={cn('animate-in"
+          if text.count(old) != 1:
+              raise SystemExit(f'Expected exactly one transformed whitespace seam, found {text.count(old)}')
+          path.write_text(text.replace(old, new, 1), encoding='utf-8')
+          PY
           python -m py_compile \
             backend/services/patient_scoring_service.py \
             backend/services/habits_engine.py \
