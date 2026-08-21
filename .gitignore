@@ -22,6 +22,8 @@ backups/
 .mimocode/
 .vibecode-backup/
 .coverage
+.beads/
+.antigravitycli/
 
 # ========================================
 # MODELES IA (Trop lourds pour Git)
