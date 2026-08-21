@@ -28,6 +28,39 @@ jobs:
       - name: Apply guarded transformation
         run: python .github/scripts/apply_patient_indicators.py
 
+      - name: Finalize factual NBA copy
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path('backend/services/habits_engine.py')
+          text = path.read_text(encoding='utf-8')
+          replacements = {
+              '"message": f"Taux d\'annulation : {int(_taux * 100)}% sur {len(_rdvs_b1)} RDV.",':
+                  '"message": f"Sur les 6 derniers mois : {int(_taux * 100)}% d\'annulations sur {len(_rdvs_b1)} RDV observés.",',
+              '"message": f"Patient annule systématiquement à {_cursed_hour}h ({_curse_count} fois). Éviter ce créneau.",':
+                  '"message": f"{_curse_count} annulations enregistrées à {_cursed_hour}h dans l\'historique observé.",',
+          }
+          for old, new in replacements.items():
+              if text.count(old) != 1:
+                  raise SystemExit(f'Expected one habits copy occurrence: {old}')
+              text = text.replace(old, new)
+          path.write_text(text, encoding='utf-8')
+
+          test_path = Path('backend/tests/test_patient_indicators_explainable.py')
+          test_text = test_path.read_text(encoding='utf-8')
+          marker = '    assert "Suivi ortho à replanifier" in text\n'
+          addition = (
+              marker
+              + '    assert "Sur les 6 derniers mois" in text\n'
+              + '    assert "annulations enregistrées" in text\n'
+              + '    assert "systématiquement" not in text\n'
+          )
+          if test_text.count(marker) != 1:
+              raise SystemExit('Expected habits test marker once')
+          test_path.write_text(test_text.replace(marker, addition), encoding='utf-8')
+          PY
+
       - name: Static guards
         run: |
           python -m py_compile \
