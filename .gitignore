@@ -67,12 +67,14 @@ frontend/.eslintcache
 # ========================================
 .DS_Store
 Thumbs.db
+*.lnk
 
 # ========================================
 # FICHIERS TEMPORAIRES / NOTES
 # ========================================
 notes.txt
 arborescence.txt
+frontend/lint-targets.txt
 
 # Beads / Dolt files (added by bd init)
 .dolt/
