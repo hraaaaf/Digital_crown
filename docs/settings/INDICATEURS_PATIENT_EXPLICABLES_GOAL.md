@@ -3,7 +3,8 @@
 Date : 2026-08-21
 Repo : `hraaaaf/Digital_crown`
 Base BEFORE immuable : `e18597176a97805ae7839f2052340354257a0ae8`
-Statut : **CERTIFIÉ PRODUIT — merge pending**
+Statut : **CLOSED — CERTIFIÉ — MERGED (#199)**
+Merge : `b22e7bc9e7981eef54916c4e1412fa69ad612bf5`
 
 ## Goal
 
@@ -16,11 +17,11 @@ Remplacer les jugements patient opaques ou surinterprétés par des repères fac
 3. Les repères visibles disent ce qui s'est réellement passé : RDV terminés/annulés, facturé/encaissé/reste dû, absence éventuelle de RDV futur.
 4. Toute donnée financière insuffisante reste `Indéterminé`, jamais convertie en faux zéro.
 5. La segmentation manuelle reste possible mais est explicitement présentée comme **tag cabinet manuel**, jamais comme conclusion calculée.
-6. Le hover patient conserve les faits utiles (dernière visite, prochain RDV, vigilance, informations financières) mais retire le score d'intelligence et le vocabulaire trompeur `IA` / `Analyse clinique` lorsqu'il s'agit de règles déterministes.
-7. Le moteur NBA conserve les règles déterministes utiles, mais les titres/messages décrivent le fait déclencheur et sa fenêtre d'observation au lieu d'inférer un comportement (`no-show`, `perte patient`, etc.).
+6. Le hover patient conserve les faits utiles mais retire le score d'intelligence et le vocabulaire trompeur `IA` / `Analyse clinique` lorsqu'il s'agit de règles déterministes.
+7. Le moteur NBA conserve les règles déterministes utiles, avec titres/messages factuels et fenêtre d'observation explicite.
 8. `Fantôme` devient un libellé opérationnel neutre, de type `Sans RDV futur` / `À replanifier`, avec motif explicite.
-9. La variation céphalométrique IMPA peut être affichée comme variation brute, mais aucune hausse/baisse seule ne doit être qualifiée automatiquement d'`amélioration` ou `dégradation`.
-10. `FlashSummary` mort (`return null`) est retiré de la page patient et de ses imports si aucun consommateur réel n'est trouvé.
+9. La variation céphalométrique IMPA peut être affichée comme variation brute, sans qualification automatique `amélioration` / `dégradation` par signe seul.
+10. `FlashSummary` mort est retiré après preuve de non-consommation.
 
 ## Contraintes préservées
 
@@ -35,42 +36,15 @@ Remplacer les jugements patient opaques ou surinterprétés par des repères fac
 
 Référence : `docs/settings/INDICATEURS_PATIENT_EXPLICABLES_MOCKUP.svg`.
 
-### Liste patients
-
-- Le nom reste visuellement dominant.
-- Remplacer la couronne/grade par 2 à 3 repères compacts maximum.
-- Les repères doivent être textuels et compréhensibles sans légende : ex. `3 RDV honorés · 1 annulé`, `800 / 1 000 MAD encaissés`, `Sans RDV futur`.
-- Un tag manuel éventuel doit porter explicitement la mention `Tag cabinet` dans son détail.
-- Aucun badge ne doit donner une valeur morale ou clinique au patient.
-
-### Hover patient
-
-- Titre `Repères du dossier`.
-- Pas de score circulaire `/100`.
-- Conserver dernière visite / prochain RDV / vigilances factuelles.
-- Chaque alerte/recommandation doit exposer une justification courte ou une donnée source directement dans le texte.
-- Remplacer `Alertes IA & Suggestion` par `Repères & actions`.
-- Remplacer `Assistant Virtuel ODF • Temps réel` par `Données du dossier • règles déterministes`.
-
-### Page patient
-
-- Aucun toast silencieux prétendant une `Next Best Action` sans raison visible.
-- Si une action est proposée, montrer le fait déclencheur dans le message.
-- Journey et Finances ne sont pas redessinés hors nécessité.
+- Liste : nom dominant, 2–3 repères factuels compacts maximum, tag manuel explicitement identifié.
+- Hover : `Repères du dossier`, aucun `/100`, faits utiles conservés, provenance déterministe visible.
+- Page patient : toute action proposée affiche son fait déclencheur ; Journey et Finances hors refonte.
 
 ## Viewports de preuve
 
-Même jeu BEFORE / AFTER :
-- 1440 × 1200
-- 768 × 1200
-- 390 × 1200
-- 360 × 1200
-- 320 × 1200
+1440 × 1200, 768 × 1200, 390 × 1200, 360 × 1200, 320 × 1200.
 
-Surfaces :
-1. liste patients ;
-2. hover patient ;
-3. page patient / suivi.
+Surfaces : liste patients, hover patient, page patient / suivi.
 
 ## Preuve acquise
 
@@ -99,9 +73,9 @@ Digest `sha256:7e568a5327f76bfab834bc23ea6eb4ec664eae97e3107a588d13bc879c022a14`
 - hover mobile corrigé à 360/320 px ;
 - score visuel : **9,3/10**.
 
-Dette visuelle non bloquante : la liste patients conserve à 320/360 px un layout étroit/tronqué déjà présent dans le BEFORE. Le nouveau hover, lui, reste contenu dans le viewport.
+Dette visuelle non bloquante : la liste patients conserve à 320/360 px un layout étroit/tronqué déjà présent dans le BEFORE. Le nouveau hover reste contenu dans le viewport.
 
-## Gates de certification
+## Gates
 
 HEAD de certification : `ffe2cf7546a79ea476c393a6251fc0aba2036ff1`.
 
@@ -112,8 +86,12 @@ HEAD de certification : `ffe2cf7546a79ea476c393a6251fc0aba2036ff1`.
 - Patient P1 Architecture After #14 `32497490228` — SUCCESS ;
 - Catalog Connected Truth #24 `32497490107` — SUCCESS.
 
+HEAD closeout : `bc1137011438b26bad7f340699c9f1b6f3e378c8`.
+
+- Truth #7, CI #1533, T2 #753, P7 #52, P1 #15, Catalogue #26 et BEFORE #13 — SUCCESS.
+
 Produit principal : `f39944aeaaf3688f496a81f1df0d7dde8aa74692`.
-Le delta `f39944a… → ffe2cf7…` ne touche que le workflow de certification et des tests hérités ; aucun fichier produit n'est modifié.
+Le delta jusqu'au HEAD de certification ne touche que le workflow de certification et des tests hérités ; aucun fichier produit n'est modifié.
 
 ## Décisions audit verrouillées
 
@@ -125,3 +103,8 @@ Le delta `f39944a… → ffe2cf7…` ne touche que le workflow de certification 
 - Badge `Fantôme` : **GARDER LA DÉTECTION / RENOMMER**.
 - Jugement IMPA `amélioration/dégradation` par signe seul : **SUPPRIMER LE JUGEMENT**.
 - FlashSummary mort : **SUPPRIMER APRÈS PREUVE DE NON-CONSOMMATION**.
+
+## Post-merge
+
+PR #199 squash-mergée : `b22e7bc9e7981eef54916c4e1412fa69ad612bf5`.
+Le lot est **CLOSED — CERTIFIÉ — MERGED**.
