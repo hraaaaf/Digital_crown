@@ -1,14 +1,7 @@
 import { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { motion, AnimatePresence } from 'framer-motion';
-import { 
-  Calendar, 
-  Clock, 
-  Activity, 
-  DollarSign, 
-  ShieldAlert,
-  Loader2
-} from 'lucide-react';
+import { AnimatePresence, motion } from 'framer-motion';
+import { Activity, Calendar, Clock, DollarSign, Loader2, ShieldAlert } from 'lucide-react';
 import { api } from '../../../services/api';
 import { cn } from '../../../utils/cn';
 
@@ -21,16 +14,8 @@ interface PatientSummaryHoverCardProps {
 
 interface IntelligenceData {
   patient_summary: {
-    last_visit: {
-      date: string;
-      acte: string;
-      days_ago: number;
-    } | null;
-    next_visit: {
-      date: string;
-      time: string;
-      motif: string;
-    } | null;
+    last_visit: { date: string; acte: string; days_ago: number } | null;
+    next_visit: { date: string; time: string; motif: string } | null;
     clinical_summary: string;
     alerts: string[];
     risk_level: 'low' | 'moderate' | 'high';
@@ -47,278 +32,164 @@ interface IntelligenceData {
     source_type?: string;
     trust_level?: number;
   }>;
-  intelligence_score: number;
+  intelligence_score: number | null;
   timestamp: string;
 }
 
-export const PatientSummaryHoverCard = ({
-  patientId,
-  patientName,
-  patientDossier,
-  triggerRect
-}: PatientSummaryHoverCardProps) => {
+export const PatientSummaryHoverCard = ({ patientId, patientName, patientDossier, triggerRect }: PatientSummaryHoverCardProps) => {
   const [data, setData] = useState<IntelligenceData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
-  const [coords, setCoords] = useState({ top: 0, left: 0 });
+  const [frame, setFrame] = useState({ top: 0, left: 0, width: 380 });
 
   useEffect(() => {
     if (!patientId) return;
-
-    let isMounted = true;
-    // eslint-disable-next-line react-hooks/set-state-in-effect
+    let mounted = true;
     setLoading(true);
-     
     setError(false);
-
     api.get(`/intelligence/patient/${patientId}`)
       .then(res => {
-        if (isMounted) {
-          setData(res.data);
-          setLoading(false);
-        }
+        if (!mounted) return;
+        setData(res.data);
+        setLoading(false);
       })
       .catch(err => {
-        console.error("Error fetching patient hover intelligence:", err);
-        if (isMounted) {
-          setError(true);
-          setLoading(false);
-        }
+        console.error('Error fetching patient dossier markers:', err);
+        if (!mounted) return;
+        setError(true);
+        setLoading(false);
       });
-
-    return () => {
-      isMounted = false;
-    };
+    return () => { mounted = false; };
   }, [patientId]);
 
-  // Calcul du positionnement dynamique par rapport au rectangle déclencheur (triggerRect)
   useEffect(() => {
     if (!triggerRect) return;
-
     const padding = 12;
-    const cardWidth = 380;
-    const cardHeight = 350; // estimation
     const viewportWidth = window.innerWidth;
     const viewportHeight = window.innerHeight;
-
-    let top = triggerRect.top + window.scrollY;
+    const width = Math.min(380, Math.max(280, viewportWidth - padding * 2));
+    const estimatedHeight = 430;
     let left = triggerRect.right + padding + window.scrollX;
+    let top = triggerRect.top + window.scrollY;
 
-    // Si pas assez de place à droite, on l'affiche à gauche
-    if (left + cardWidth > viewportWidth + window.scrollX) {
-      left = triggerRect.left - cardWidth - padding + window.scrollX;
+    if (left + width > viewportWidth + window.scrollX) {
+      left = triggerRect.left - width - padding + window.scrollX;
     }
-
-    // Si toujours pas assez de place à gauche (mobile/petit écran), on centre verticalement et horizontalement au-dessus/en-dessous
-    if (left < window.scrollX) {
-      left = Math.max(window.scrollX + padding, (viewportWidth - cardWidth) / 2 + window.scrollX);
+    if (left < window.scrollX + padding) {
+      left = window.scrollX + padding;
       top = triggerRect.bottom + padding + window.scrollY;
     }
-
-    // Ajustement de la hauteur par rapport aux limites de l'écran
-    if (top + cardHeight > viewportHeight + window.scrollY) {
-      top = Math.max(window.scrollY + padding, viewportHeight + window.scrollY - cardHeight - padding);
+    if (top + estimatedHeight > viewportHeight + window.scrollY) {
+      top = Math.max(window.scrollY + padding, viewportHeight + window.scrollY - estimatedHeight - padding);
     }
-
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setCoords({ top, left });
+    setFrame({ top, left, width });
   }, [triggerRect]);
 
   if (!triggerRect) return null;
 
-  const cardContent = (
+  const otherInsights = data?.insights.filter(i => !['financial_risk', 'financial', 'safety'].includes(i.type)) ?? [];
+  const financialInsights = data?.insights.filter(i => i.type === 'financial_risk' || i.type === 'financial') ?? [];
+
+  return createPortal(
     <AnimatePresence>
       <motion.div
-        initial={{ opacity: 0, scale: 0.95, y: 10 }}
+        initial={{ opacity: 0, scale: 0.97, y: 8 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
-        exit={{ opacity: 0, scale: 0.95, y: 10 }}
-        transition={{ duration: 0.2, ease: 'easeOut' }}
-        style={{
-          position: 'absolute',
-          top: coords.top,
-          left: coords.left,
-          width: 380,
-          zIndex: 99999,
-        }}
-        className="bg-card-bg/95 dark:bg-[#0f172a]/95 backdrop-blur-2xl border border-border-main/80 dark:border-white/10 rounded-[2rem] p-6 shadow-[0_20px_50px_rgba(0,0,0,0.15)] pointer-events-none select-none flex flex-col gap-4 font-sans text-text-main"
+        exit={{ opacity: 0, scale: 0.97, y: 8 }}
+        transition={{ duration: 0.18, ease: 'easeOut' }}
+        style={{ position: 'absolute', top: frame.top, left: frame.left, width: frame.width, zIndex: 99999 }}
+        className="pointer-events-none flex max-w-[calc(100vw-24px)] select-none flex-col gap-4 rounded-[2rem] border border-border-main/80 bg-card-bg/95 p-5 font-sans text-text-main shadow-[0_20px_50px_rgba(0,0,0,0.15)] backdrop-blur-2xl dark:border-white/10 dark:bg-[#0f172a]/95"
       >
-        {/* Header : Patient & Dossier */}
-        <div className="flex items-center justify-between border-b border-border-main/50 pb-3">
-          <div>
-            <h4 className="font-black text-primary text-base leading-tight tracking-tight uppercase">
-              {patientName}
-            </h4>
-            <span className="text-[10px] font-bold text-text-muted font-mono tracking-wider">
-              {patientDossier}
-            </span>
-          </div>
-          
-          {/* Score circulaire intelligent */}
-          {!loading && !error && data && (
-            <div className="flex items-center gap-2">
-              <div className="relative w-10 h-10 flex items-center justify-center">
-                <svg className="w-full h-full transform -rotate-90" viewBox="0 0 36 36">
-                  <path
-                    className="text-border-main/30"
-                    strokeWidth="3.5"
-                    stroke="currentColor"
-                    fill="none"
-                    d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
-                  />
-                  <motion.path
-                    initial={{ strokeDasharray: "0, 100" }}
-                    animate={{ strokeDasharray: `${data.intelligence_score}, 100` }}
-                    transition={{ duration: 0.8, ease: "easeOut" }}
-                    className="text-primary"
-                    strokeWidth="3.5"
-                    strokeDasharray="0, 100"
-                    strokeLinecap="round"
-                    stroke="currentColor"
-                    fill="none"
-                    d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
-                  />
-                </svg>
-                <div className="absolute font-black text-[11px] text-primary">
-                  {data.intelligence_score}
-                </div>
-              </div>
-            </div>
-          )}
+        <div className="border-b border-border-main/50 pb-3">
+          <p className="text-[9px] font-black uppercase tracking-widest text-text-muted">Repères du dossier</p>
+          <h4 className="mt-1 break-words text-base font-black leading-tight tracking-tight text-primary uppercase">{patientName}</h4>
+          <span className="font-mono text-[10px] font-bold tracking-wider text-text-muted">{patientDossier}</span>
         </div>
 
         {loading ? (
-          <div className="py-8 flex flex-col items-center justify-center gap-2">
+          <div className="flex flex-col items-center justify-center gap-2 py-8">
             <Loader2 className="animate-spin text-primary" size={24} />
-            <span className="text-[9px] font-black uppercase text-text-muted tracking-widest">
-              Analyse clinique...
-            </span>
+            <span className="text-[9px] font-black uppercase tracking-widest text-text-muted">Chargement des repères...</span>
           </div>
         ) : error || !data ? (
-          <div className="py-4 text-center text-xs text-text-muted italic">
-            Impossible de charger la synthèse clinique.
-          </div>
+          <div className="py-4 text-center text-xs italic text-text-muted">Impossible de charger les repères du dossier.</div>
         ) : (
           <div className="space-y-4 text-xs">
-            {/* ALERTES CRITIQUES / MÉDICALES */}
-            {data.patient_summary.alerts && data.patient_summary.alerts.length > 0 && (
-              <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-3 flex gap-2.5 items-start animate-pulse">
-                <ShieldAlert className="text-red-500 flex-shrink-0 mt-0.5" size={16} />
+            {data.patient_summary.alerts?.length > 0 && (
+              <div className="flex items-start gap-2.5 rounded-xl border border-red-500/20 bg-red-500/10 p-3">
+                <ShieldAlert className="mt-0.5 flex-shrink-0 text-red-500" size={16} />
                 <div>
-                  <h5 className="font-black text-red-500 text-[10px] uppercase tracking-wider">Vigilance Médicale</h5>
-                  <p className="text-[10px] font-bold text-red-400 mt-1 leading-normal">
-                    {data.patient_summary.alerts.join(', ')}
-                  </p>
+                  <h5 className="text-[10px] font-black uppercase tracking-wider text-red-500">Vigilance dossier</h5>
+                  <p className="mt-1 text-[10px] font-bold leading-normal text-red-500">{data.patient_summary.alerts.join(', ')}</p>
                 </div>
               </div>
             )}
 
-            {/* SYNTHÈSE CLINIQUE */}
             <div className="space-y-2">
-              <span className="text-[9px] font-black text-text-muted uppercase tracking-widest block">
-                Résumé Clinique
-              </span>
-              <p className="text-[11px] font-medium leading-relaxed bg-primary/5 rounded-xl p-2.5 border border-primary/5">
-                {data.patient_summary.clinical_summary || "Aucune information clinique disponible."}
+              <span className="block text-[9px] font-black uppercase tracking-widest text-text-muted">Résumé du dossier</span>
+              <p className="rounded-xl border border-primary/5 bg-primary/5 p-2.5 text-[11px] font-medium leading-relaxed">
+                {data.patient_summary.clinical_summary || 'Aucune information clinique disponible.'}
               </p>
+              {data.patient_summary.cephalo_trend && data.patient_summary.cephalo_trend !== 'données insuffisantes' && (
+                <p className="text-[9px] font-bold text-text-muted">Céphalométrie : {data.patient_summary.cephalo_trend}</p>
+              )}
             </div>
 
-            {/* DÉTAILS VISITES */}
-            <div className="grid grid-cols-2 gap-3">
-              {/* Dernière Visite */}
-              <div className="bg-card-bg border border-border-main p-2.5 rounded-xl flex items-start gap-2.5">
-                <Clock className="text-blue-500 flex-shrink-0 mt-0.5" size={14} />
-                <div>
-                  <span className="text-[8px] font-black text-text-muted uppercase tracking-widest block">Dernière Visite</span>
+            <div className="grid grid-cols-2 gap-2">
+              <div className="flex min-w-0 items-start gap-2 rounded-xl border border-border-main bg-card-bg p-2.5">
+                <Clock className="mt-0.5 flex-shrink-0 text-blue-500" size={14} />
+                <div className="min-w-0">
+                  <span className="block text-[8px] font-black uppercase tracking-widest text-text-muted">Dernière visite</span>
                   {data.patient_summary.last_visit ? (
-                    <>
-                      <span className="font-bold text-[10px] leading-tight block truncate mt-0.5">
-                        {data.patient_summary.last_visit.acte}
-                      </span>
-                      <span className="text-[9px] font-mono text-text-muted">
-                        il y a {data.patient_summary.last_visit.days_ago} jours
-                      </span>
-                    </>
-                  ) : (
-                    <span className="text-[10px] font-medium text-text-muted block mt-0.5">—</span>
-                  )}
+                    <><span className="mt-0.5 block truncate text-[10px] font-bold">{data.patient_summary.last_visit.acte}</span><span className="font-mono text-[9px] text-text-muted">il y a {data.patient_summary.last_visit.days_ago} jours</span></>
+                  ) : <span className="mt-0.5 block text-[10px] text-text-muted">—</span>}
                 </div>
               </div>
-
-              {/* Prochain RDV */}
-              <div className="bg-card-bg border border-border-main p-2.5 rounded-xl flex items-start gap-2.5">
-                <Calendar className="text-emerald-500 flex-shrink-0 mt-0.5" size={14} />
-                <div>
-                  <span className="text-[8px] font-black text-text-muted uppercase tracking-widest block">Prochain RDV</span>
+              <div className="flex min-w-0 items-start gap-2 rounded-xl border border-border-main bg-card-bg p-2.5">
+                <Calendar className="mt-0.5 flex-shrink-0 text-emerald-500" size={14} />
+                <div className="min-w-0">
+                  <span className="block text-[8px] font-black uppercase tracking-widest text-text-muted">Prochain RDV</span>
                   {data.patient_summary.next_visit ? (
-                    <>
-                      <span className="font-bold text-[10px] leading-tight block truncate mt-0.5">
-                        {data.patient_summary.next_visit.motif || "Soin"}
-                      </span>
-                      <span className="text-[9px] font-mono text-text-muted block mt-0.5">
-                        {new Date(data.patient_summary.next_visit.date).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' })} à {data.patient_summary.next_visit.time}
-                      </span>
-                    </>
-                  ) : (
-                    <span className="text-[10px] font-medium text-text-muted block mt-0.5">—</span>
-                  )}
+                    <><span className="mt-0.5 block truncate text-[10px] font-bold">{data.patient_summary.next_visit.motif || 'Soin'}</span><span className="mt-0.5 block font-mono text-[9px] text-text-muted">{new Date(data.patient_summary.next_visit.date).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' })} à {data.patient_summary.next_visit.time}</span></>
+                  ) : <span className="mt-0.5 block text-[10px] font-bold text-amber-600">Aucun RDV futur</span>}
                 </div>
               </div>
             </div>
 
-            {/* DÉCISIONS COMPTABLES ET FINANCIÈRES */}
-            {data.insights.some(i => i.type === 'financial_risk' || i.type === 'financial') && (
-              <div className="border-t border-border-main/50 pt-3">
-                {data.insights
-                  .filter(i => i.type === 'financial_risk' || i.type === 'financial')
-                  .map(i => (
-                    <div 
-                      key={i.id} 
-                      className={cn(
-                        "flex items-center gap-2 px-3 py-2 rounded-xl border text-[10px]",
-                        i.type === 'financial_risk'
-                          ? "bg-amber-500/10 border-amber-500/20 text-amber-500 font-black animate-pulse"
-                          : "bg-primary/5 border-primary/10 text-primary font-bold"
-                      )}
-                    >
-                      <DollarSign size={14} />
-                      <span className="flex-1">{i.content}</span>
+            {financialInsights.length > 0 && (
+              <div className="space-y-1 border-t border-border-main/50 pt-3">
+                {financialInsights.map(i => (
+                  <div key={i.id} className={cn('flex items-start gap-2 rounded-xl border px-3 py-2 text-[10px]', i.type === 'financial_risk' ? 'border-amber-500/20 bg-amber-500/10 font-black text-amber-600' : 'border-primary/10 bg-primary/5 font-bold text-primary')}>
+                    <DollarSign size={14} className="mt-0.5 flex-shrink-0" />
+                    <span className="flex-1">{i.content}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {otherInsights.length > 0 && (
+              <div className="space-y-2 border-t border-border-main/50 pt-3">
+                <span className="block text-[8px] font-black uppercase tracking-widest text-text-muted">Repères & actions</span>
+                <div className="max-h-28 space-y-2 overflow-y-auto pr-1">
+                  {otherInsights.slice(0, 3).map(i => (
+                    <div key={i.id} className="flex items-start gap-2 rounded-lg bg-primary/[0.03] p-2">
+                      <Activity className="mt-0.5 flex-shrink-0 text-primary" size={12} />
+                      <div className="min-w-0 leading-tight">
+                        <span className="block text-[9px] font-bold text-primary">{i.title}</span>
+                        <p className="mt-0.5 text-[9px] font-medium leading-normal text-text-muted">{i.content}</p>
+                        <p className="mt-1 text-[8px] font-bold text-slate-400">{i.source_type === 'DETERMINISTIC' ? 'Source : dossier · règle déterministe' : 'Source : dossier'}</p>
+                      </div>
                     </div>
                   ))}
-              </div>
-            )}
-
-            {/* AUTRES INSIGHTS PRÉDICTIFS */}
-            {data.insights.some(i => i.type !== 'financial_risk' && i.type !== 'financial' && i.type !== 'safety') && (
-              <div className="border-t border-border-main/50 pt-3 space-y-2">
-                <span className="text-[8px] font-black text-text-muted uppercase tracking-widest block">
-                  Alertes IA & Suggestion
-                </span>
-                <div className="max-h-20 overflow-y-auto pr-1 space-y-1.5">
-                  {data.insights
-                    .filter(i => i.type !== 'financial_risk' && i.type !== 'financial' && i.type !== 'safety')
-                    .slice(0, 2)
-                    .map(i => (
-                      <div key={i.id} className="flex gap-2 items-start p-1.5 rounded-lg hover:bg-primary/5 transition-all">
-                        <Activity className="text-primary flex-shrink-0 mt-0.5" size={12} />
-                        <div className="leading-tight">
-                          <span className="font-bold text-[9px] block text-primary">{i.title}</span>
-                          <p className="text-[9px] font-medium text-text-muted mt-0.5">{i.content}</p>
-                        </div>
-                      </div>
-                    ))}
                 </div>
               </div>
             )}
           </div>
         )}
 
-        {/* Footer info */}
-        <div className="text-[8px] font-bold text-text-muted text-center uppercase tracking-widest mt-1">
-          Assistant Virtuel ODF • Temps réel
-        </div>
+        <div className="mt-1 text-center text-[8px] font-bold uppercase tracking-widest text-text-muted">Données du dossier • règles déterministes</div>
       </motion.div>
-    </AnimatePresence>
+    </AnimatePresence>,
+    document.body,
   );
-
-  return createPortal(cardContent, document.body);
 };

@@ -30,7 +30,6 @@ import { ClinicalHub } from './components/ClinicalHub';
 import { PatientJourney } from './components/PatientJourney';
 import { PatientFinances } from './components/PatientFinances';
 import { PatientRvgPanel } from './components/PatientRvgPanel';
-import { FlashSummary } from '../../components/clinical/FlashSummary';
 import { QuickPayModal } from './components/QuickPayModal';
 import { usePatientStore } from '../../stores/usePatientStore';
 import { useAuthStore } from '../../stores/useAuthStore';
@@ -165,7 +164,7 @@ export const PatientDetails = () => {
     if (!id) return;
     const timer = setTimeout(() => {
       api.get(`/intelligence/patient/${id}/nba`).then(res => {
-        if (res.data.nba) toast(`💡 ${res.data.nba.title} — ${res.data.nba.action}`, { duration: 6000 });
+        if (res.data.nba) toast(`💡 ${res.data.nba.title} — ${res.data.nba.message}${res.data.nba.action ? ` · Action : ${res.data.nba.action}` : ''}`, { duration: 7000 });
       }).catch(() => {});
     }, 1500);
     return () => clearTimeout(timer);
@@ -295,7 +294,6 @@ export const PatientDetails = () => {
           </div>
         )}
 
-        {activeTab === 'tracking' && <FlashSummary patientId={Number(id)} patientName={fullName} />}
 
         <div className={cn('animate-in fade-in slide-in-from-bottom-8 duration-700 h-full', !isDocuments && 'delay-150')}>
           {activeTab === 'radiology' && (

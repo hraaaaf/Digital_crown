@@ -221,8 +221,8 @@ class HabitsEngine:
         if not has_antecedents:
             triggers.append({
                 "type": "QUALITY",
-                "title": "Sécurité Clinique",
-                "message": "Antécédents médicaux non renseignés. Risque de contre-indication.",
+                "title": "Dossier à compléter",
+                "message": "Antécédents médicaux non renseignés dans le dossier.",
                 "action": "Compléter Dossier"
             })
 
@@ -237,7 +237,7 @@ class HabitsEngine:
             if not _next_ortho_rdv:
                 triggers.append({
                     "type": "ORTHO_GAP",
-                    "title": "Gap Ortho Critique",
+                    "title": "Suivi ortho à replanifier",
                     "message": "Traitement orthodontique actif — aucun RDV futur planifié.",
                     "action": "Planifier RDV Ortho"
                 })
@@ -246,7 +246,7 @@ class HabitsEngine:
                 if _days_until > 45:
                     triggers.append({
                         "type": "ORTHO_GAP",
-                        "title": "Gap Ortho Critique",
+                        "title": "Suivi ortho à replanifier",
                         "message": f"Prochain RDV ortho dans {_days_until}j (seuil critique : 45j).",
                         "action": "Avancer le RDV"
                     })
@@ -273,7 +273,7 @@ class HabitsEngine:
                 if not _has_future_rdv:
                     triggers.append({
                         "type": "ABANDON_RISK",
-                        "title": "Risque Perte Patient",
+                        "title": "Annulations consécutives sans rebooking",
                         "message": f"{_consecutive_cancels} RDV annulés consécutifs sans rebooking.",
                         "action": "Contacter le Patient"
                     })
@@ -294,7 +294,7 @@ class HabitsEngine:
             if _days_devis > 60 and not _acte_after:
                 triggers.append({
                     "type": "TREATMENT_ABANDONED",
-                    "title": "Traitement Non Commencé",
+                    "title": "Devis sans acte commencé",
                     "message": f"Devis établi il y a {_days_devis}j sans acte commencé.",
                     "action": "Rappeler le patient"
                 })
@@ -328,7 +328,7 @@ class HabitsEngine:
             if _taux > 0.4:
                 triggers.append({
                     "type": "NOSHOW_RISK",
-                    "title": "Risque No-Show Élevé",
+                    "title": "Annulations fréquentes",
                     "message": f"Taux d'annulation : {int(_taux * 100)}% sur {len(_rdvs_b1)} RDV.",
                     "action": "Envoyer rappel WhatsApp"
                 })

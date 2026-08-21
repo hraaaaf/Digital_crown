@@ -1,5 +1,4 @@
-"""Third batch of pure unit tests — treatment_plan_engine, patient_scoring helpers,
-clinical_intelligence._resolve_motifs."""
+"""Third batch of pure unit tests — treatment_plan_engine and clinical_intelligence helpers."""
 
 
 # ── treatment_plan_engine ─────────────────────────────────────────────────────
@@ -157,38 +156,6 @@ class TestTreatmentPlanEngineGeneratePlan:
         assert eng.PRICING_MAP["implant"] == 8000.0
 
 
-# ── patient_scoring_service._grade_from_score ─────────────────────────────────
-
-class TestGradeFromScore:
-    def _svc(self):
-        from backend.services.patient_scoring_service import PatientScoringService
-        return PatientScoringService()
-
-    def test_score_95_is_platinum(self):
-        assert self._svc()._grade_from_score(95) == "PLATINUM"
-
-    def test_score_90_is_platinum(self):
-        assert self._svc()._grade_from_score(90) == "PLATINUM"
-
-    def test_score_89_is_gold(self):
-        assert self._svc()._grade_from_score(89) == "GOLD"
-
-    def test_score_75_is_gold(self):
-        assert self._svc()._grade_from_score(75) == "GOLD"
-
-    def test_score_74_is_silver(self):
-        assert self._svc()._grade_from_score(74) == "SILVER"
-
-    def test_score_50_is_silver(self):
-        assert self._svc()._grade_from_score(50) == "SILVER"
-
-    def test_score_49_is_bronze(self):
-        assert self._svc()._grade_from_score(49) == "BRONZE"
-
-    def test_score_0_is_bronze(self):
-        assert self._svc()._grade_from_score(0) == "BRONZE"
-
-
 # ── clinical_intelligence._resolve_motifs ─────────────────────────────────────
 
 class TestResolveMotifs:
@@ -204,7 +171,6 @@ class TestResolveMotifs:
 
     def test_valid_json_array(self):
         result = self._fn('["carie", "abces"]')
-        # "carie" and "abces" are valid catalog keys
         assert isinstance(result, list)
         assert len(result) == 2
 

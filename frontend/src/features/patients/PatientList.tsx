@@ -331,7 +331,7 @@ export const PatientList = () => {
                             {show_patient_badges && <PatientScoreBadge patientId={p.id!} className="scale-75 origin-left" onUpdate={() => fetchPatients(true)} />}
                             {p.id && fantomeIds.has(p.id) && (
                               <span className="flex items-center gap-1 px-2 py-0.5 bg-red-500/10 text-red-400 border border-red-500/20 rounded-lg text-[9px] font-black uppercase tracking-widest">
-                                <AlertTriangle size={10} /> Fantôme
+                                <AlertTriangle size={10} /> Sans RDV futur
                               </span>
                             )}
                           </div>
@@ -436,7 +436,7 @@ export const PatientList = () => {
                         </h4>
                         {p.id && fantomeIds.has(p.id) && (
                           <span className="flex items-center gap-1 px-2 py-0.5 bg-red-500/10 text-red-400 border border-red-500/20 rounded-lg text-[9px] font-black uppercase tracking-widest">
-                            <AlertTriangle size={10} /> Fantôme
+                            <AlertTriangle size={10} /> Sans RDV futur
                           </span>
                         )}
                       </div>

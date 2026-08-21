@@ -1,0 +1,243 @@
+name: Patient Indicators Truth Certification
+
+on:
+  pull_request:
+    branches:
+      - master
+    paths:
+      - 'backend/services/patient_scoring_service.py'
+      - 'backend/services/habits_engine.py'
+      - 'backend/services/rag_context.py'
+      - 'backend/services/clinical_intelligence.py'
+      - 'backend/services/elite_manager.py'
+      - 'backend/tests/test_patient_scoring_service.py'
+      - 'backend/tests/test_patient_indicators_explainable.py'
+      - 'frontend/src/stores/usePatientScoresStore.ts'
+      - 'frontend/src/features/patients/components/PatientScoreBadge.tsx'
+      - 'frontend/src/features/patients/components/PatientSummaryHoverCard.tsx'
+      - 'frontend/src/features/patients/PatientDetailsInner.tsx'
+      - 'frontend/src/features/patients/PatientList.tsx'
+      - 'frontend/src/features/patients/PatientIndicatorsExplainable.test.ts'
+
+permissions:
+  contents: read
+
+jobs:
+  certify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      ENVIRONMENT: test
+      SECRET_KEY: patient-indicators-cert-secret-000001
+      DATABASE_URL: sqlite:///./t2-runtime-cert.db
+      TELEMETRY_ENABLED: 'false'
+      CLOUD_AI_ENABLED: 'false'
+      DEBUG: 'false'
+      ALLOWED_ORIGINS: 'http://127.0.0.1:5173,http://localhost:5173'
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install backend
+        run: |
+          python -m pip install --upgrade pip
+          pip install torch==2.12.0 torchvision==0.27.0 --index-url https://download.pytorch.org/whl/cpu
+          grep -vE '^(torch|torchvision)([<=>].*)?$' requirements.txt > /tmp/requirements-patient-indicators.txt
+          pip install -r /tmp/requirements-patient-indicators.txt
+          pip install httpx==0.27.2 pytest pytest-asyncio
+
+      - name: Targeted backend truth tests
+        run: |
+          python -m pytest -q \
+            backend/tests/test_patient_scoring_service.py \
+            backend/tests/test_patient_indicators_explainable.py
+
+      - name: Install frontend and Chromium
+        working-directory: frontend
+        run: |
+          npm ci
+          npm install --no-save playwright@1.55.0
+          npx playwright install --with-deps chromium
+
+      - name: Targeted frontend truth tests
+        working-directory: frontend
+        run: npm test -- src/features/patients/PatientIndicatorsExplainable.test.ts
+
+      - name: Frontend production build
+        working-directory: frontend
+        run: npm run build
+
+      - name: Start backend
+        run: |
+          rm -f t2-runtime-cert.db
+          python scripts/t2_runtime_server.py > /tmp/patient-indicators-backend.log 2>&1 &
+          for i in {1..90}; do if curl -fsS http://127.0.0.1:8005/health >/dev/null; then exit 0; fi; sleep 1; done
+          cat /tmp/patient-indicators-backend.log
+          exit 1
+
+      - name: Start frontend
+        working-directory: frontend
+        run: |
+          npm run dev -- --host 127.0.0.1 --port 5173 > /tmp/patient-indicators-front.log 2>&1 &
+          for i in {1..90}; do if curl -fsS http://127.0.0.1:5173 >/dev/null; then exit 0; fi; sleep 1; done
+          cat /tmp/patient-indicators-front.log
+          exit 1
+
+      - name: Runtime truth and AFTER captures
+        working-directory: frontend
+        run: |
+          mkdir -p ../artifacts/patient-indicators-after
+          cat > .patient-indicators-after.mjs <<'JS'
+          import fs from 'node:fs';
+          import path from 'node:path';
+          import { chromium, request } from 'playwright';
+
+          const out = path.resolve('../artifacts/patient-indicators-after');
+          const viewports = [
+            {width:1440,height:1200},
+            {width:768,height:1200},
+            {width:390,height:1200},
+            {width:360,height:1200},
+            {width:320,height:1200},
+          ];
+          const fail = message => { throw new Error(message); };
+
+          const api = await request.newContext({baseURL:'http://127.0.0.1:8005'});
+          const login = await api.post('/api/auth/login',{form:{username:'t2-browser@cabinet.ma',password:'T2BrowserPass123!'}});
+          if (!login.ok()) fail(`login ${login.status()}: ${await login.text()}`);
+          const tok = await login.json();
+          const headers = {Authorization:`Bearer ${tok.access_token}`};
+          const ps = await api.get('/api/patients',{headers});
+          if (!ps.ok()) fail(`patients ${ps.status()}: ${await ps.text()}`);
+          const patients = await ps.json();
+          const patient = patients.find(p=>p.numero_dossier==='T2-0001') || patients[0];
+          if (!patient) fail('No seeded patient available');
+
+          const scores = await api.get('/api/patients/scores',{headers});
+          if (!scores.ok()) fail(`scores ${scores.status()}: ${await scores.text()}`);
+          const scoreMap = await scores.json();
+          const factual = scoreMap[String(patient.id)] ?? scoreMap[patient.id];
+          if (!factual) fail('Missing factual patient indicators');
+          if (factual.score !== null || factual.grade !== null || factual.is_manual !== false) {
+            fail(`Automatic score/grade still active: ${JSON.stringify(factual)}`);
+          }
+          if (factual.details?.assiduite_score !== null || factual.details?.solvabilite_score !== null) {
+            fail(`Legacy sub-scores still active: ${JSON.stringify(factual.details)}`);
+          }
+
+          const setTag = await api.patch(`/api/patients/${patient.id}/grade`,{headers,data:{grade:'GOLD',comment:'certification tag cabinet'}});
+          if (!setTag.ok()) fail(`manual tag set ${setTag.status()}: ${await setTag.text()}`);
+          const taggedScores = await api.get('/api/patients/scores',{headers});
+          const taggedMap = await taggedScores.json();
+          const tagged = taggedMap[String(patient.id)] ?? taggedMap[patient.id];
+          if (tagged?.grade !== 'GOLD' || tagged?.is_manual !== true || tagged?.score !== null) fail(`Manual tag contract broken: ${JSON.stringify(tagged)}`);
+          const resetTag = await api.patch(`/api/patients/${patient.id}/grade`,{headers,data:{grade:null,comment:null}});
+          if (!resetTag.ok()) fail(`manual tag reset ${resetTag.status()}: ${await resetTag.text()}`);
+
+          const intelRes = await api.get(`/api/intelligence/patient/${patient.id}`,{headers});
+          if (!intelRes.ok()) fail(`intelligence ${intelRes.status()}: ${await intelRes.text()}`);
+          const intelligence = await intelRes.json();
+          if (intelligence.intelligence_score !== null) fail(`Global intelligence score still computed: ${JSON.stringify(intelligence.intelligence_score)}`);
+
+          const browser = await chromium.launch({headless:true});
+          const evidence = [];
+
+          for (const viewport of viewports) {
+            const ctx = await browser.newContext({viewport,colorScheme:'light'});
+            const page = await ctx.newPage();
+            await page.addInitScript(({a,r})=>{
+              localStorage.setItem('token',a);
+              localStorage.setItem('refresh_token',r||'');
+              localStorage.setItem('appMode','prod');
+            },{a:tok.access_token,r:tok.refresh_token});
+
+            const errors=[]; const http5xx=[];
+            page.on('pageerror',e=>errors.push(String(e)));
+            page.on('response',r=>{if(r.status()>=500)http5xx.push({url:r.url(),status:r.status()});});
+
+            await page.goto('http://127.0.0.1:5173/patients',{waitUntil:'networkidle',timeout:90000});
+            await page.getByRole('heading',{name:'Dossiers Patients',exact:true}).waitFor({state:'visible',timeout:30000});
+            await page.waitForTimeout(1500);
+            const dossier=String(patient.numero_dossier||'');
+            let row=page.locator('tbody tr').first();
+            if(dossier){
+              const exact=page.getByText(dossier,{exact:true});
+              if(await exact.count()) row=exact.first().locator('xpath=ancestor::tr');
+            }
+            const rowText=await row.innerText();
+            if (!rowText.includes('RDV')) fail(`Factual RDV marker absent at ${viewport.width}: ${rowText}`);
+            if (!/SANS RDV FUTUR/i.test(rowText)) fail(`No-future-RDV marker absent at ${viewport.width}: ${rowText}`);
+            if (/Fantôme|Platinum|Gold Status|Bronze \(Vigilance\)/.test(rowText)) fail(`Legacy judgment remains at ${viewport.width}: ${rowText}`);
+
+            const listShot=`after-list-${viewport.width}x${viewport.height}.png`;
+            const listOverflow=await page.evaluate(()=>document.documentElement.scrollWidth>document.documentElement.clientWidth+2);
+            await page.screenshot({path:path.join(out,listShot),fullPage:false});
+
+            await row.hover();
+            await page.getByText('Repères du dossier',{exact:true}).waitFor({state:'visible',timeout:10000});
+            const provenance=page.getByText('Données du dossier • règles déterministes',{exact:true});
+            await provenance.waitFor({state:'attached',timeout:10000});
+            await page.waitForTimeout(500);
+            const hoverShot=`after-hover-${viewport.width}x${viewport.height}.png`;
+            const hoverOverflow=await page.evaluate(()=>document.documentElement.scrollWidth>document.documentElement.clientWidth+2);
+            const hoverText=await page.locator('body').innerText();
+            if (/Alertes IA & Suggestion|Assistant Virtuel ODF/.test(hoverText)) fail(`Legacy intelligence copy remains at ${viewport.width}`);
+            await page.screenshot({path:path.join(out,hoverShot),fullPage:false});
+
+            const nbaResponsePromise = page.waitForResponse(r=>r.url().includes(`/api/intelligence/patient/${patient.id}/nba`),{timeout:15000}).catch(()=>null);
+            await page.goto(`http://127.0.0.1:5173/patients/${patient.id}?tab=tracking`,{waitUntil:'networkidle',timeout:90000});
+            const nbaResponse=await nbaResponsePromise;
+            await page.waitForTimeout(2200);
+            const patientShot=`after-patient-${viewport.width}x${viewport.height}.png`;
+            const patientOverflow=await page.evaluate(()=>document.documentElement.scrollWidth>document.documentElement.clientWidth+2);
+            const pageText=await page.locator('body').innerText();
+            let nbaMessage=null;
+            if (nbaResponse?.ok()) {
+              const nbaPayload=await nbaResponse.json();
+              nbaMessage=nbaPayload?.nba?.message ?? null;
+              if (nbaMessage && !pageText.includes(nbaMessage)) fail(`NBA reason hidden at ${viewport.width}: ${nbaMessage}`);
+            }
+            await page.screenshot({path:path.join(out,patientShot),fullPage:false});
+
+            evidence.push({viewport,patient_id:patient.id,numero_dossier:patient.numero_dossier,listShot,hoverShot,patientShot,listOverflow,hoverOverflow,patientOverflow,nbaMessage,errors,http5xx});
+            await ctx.close();
+          }
+
+          const proof={
+            head_sha:process.env.GITHUB_SHA || null,
+            patient_id:patient.id,
+            automatic_score:factual.score,
+            automatic_grade:factual.grade,
+            factual_details:factual.details,
+            intelligence_score:intelligence.intelligence_score,
+            captures:evidence.length*3,
+            evidence,
+          };
+          fs.writeFileSync(path.join(out,'evidence.json'),JSON.stringify(proof,null,2));
+          await browser.close(); await api.dispose();
+
+          if(evidence.length!==5) fail(`Expected 5 viewports, got ${evidence.length}`);
+          if(evidence.some(e=>e.listOverflow||e.hoverOverflow||e.patientOverflow)) fail(`Horizontal overflow: ${JSON.stringify(evidence.filter(e=>e.listOverflow||e.hoverOverflow||e.patientOverflow))}`);
+          if(evidence.some(e=>e.errors.length)) fail(`Page errors: ${JSON.stringify(evidence.filter(e=>e.errors.length))}`);
+          if(evidence.some(e=>e.http5xx.length)) fail(`HTTP 5xx: ${JSON.stringify(evidence.filter(e=>e.http5xx.length))}`);
+          JS
+          GITHUB_SHA="$GITHUB_SHA" node .patient-indicators-after.mjs
+          rm .patient-indicators-after.mjs
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: patient-indicators-after-${{ github.sha }}
+          path: artifacts/patient-indicators-after
+          if-no-files-found: error
+          retention-days: 14

@@ -173,8 +173,8 @@ class EliteManager:
                     "trust_level": 1.0
                 })
 
-            # 4. Score d'intelligence globale
-            intel_score = self._calculate_intelligence_score(db, patient_id, summary, insights, solde_impaye)
+            # Aucun score global : les dimensions clinique, documentaire et financière restent séparées.
+            intel_score = None
 
             # 5. Apprentissage Heuristique (Pondération et Filtrage selon historique)
             if doctor_id:
@@ -190,7 +190,7 @@ class EliteManager:
             logger.error(f"EliteManager Error: {e}")
             return {
                 "error": str(e),
-                "intelligence_score": 0,
+                "intelligence_score": None,
                 "insights": []
             }
 

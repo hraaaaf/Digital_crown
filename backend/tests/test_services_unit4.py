@@ -95,20 +95,20 @@ class TestExtractCephaloTrend:
     def test_single_item_returns_insufficient(self):
         assert self._fn([self._make_cephalo(90.0)]) == "données insuffisantes"
 
-    def test_stable_within_2_degrees(self):
+    def test_small_delta_is_reported_without_judgment(self):
         c1 = self._make_cephalo(90.0)
         c2 = self._make_cephalo(91.5)
-        assert self._fn([c1, c2]) == "stable"
+        assert self._fn([c1, c2]) == "ΔIMPA -1.5° entre les deux dernières analyses"
 
-    def test_deterioration_impa_increased(self):
+    def test_positive_delta_is_reported_without_judgment(self):
         c1 = self._make_cephalo(95.0)
         c2 = self._make_cephalo(90.0)
-        assert self._fn([c1, c2]) == "dégradation"
+        assert self._fn([c1, c2]) == "ΔIMPA +5.0° entre les deux dernières analyses"
 
-    def test_amelioration_impa_decreased(self):
+    def test_negative_delta_is_reported_without_judgment(self):
         c1 = self._make_cephalo(85.0)
         c2 = self._make_cephalo(92.0)
-        assert self._fn([c1, c2]) == "amélioration"
+        assert self._fn([c1, c2]) == "ΔIMPA -7.0° entre les deux dernières analyses"
 
     def test_missing_impa_returns_insufficient(self):
         c1 = self._make_cephalo(None)
@@ -121,10 +121,10 @@ class TestExtractCephaloTrend:
         c2 = self._make_cephalo(90.0)
         assert self._fn([c1, c2]) == "données insuffisantes"
 
-    def test_exactly_2_degrees_is_stable(self):
+    def test_exactly_two_degree_delta_is_reported_without_threshold(self):
         c1 = self._make_cephalo(92.0)
         c2 = self._make_cephalo(90.0)
-        assert self._fn([c1, c2]) == "stable"
+        assert self._fn([c1, c2]) == "ΔIMPA +2.0° entre les deux dernières analyses"
 
 
 # ── ghost_memory_service._hash_context ───────────────────────────────────────

@@ -44,7 +44,7 @@ def _extract_panoramic_landmarks(panoramics: list) -> list[str]:
 
 
 def _extract_cephalo_trend(cephalos: list) -> str:
-    """Compare IMPA between last 2 cephalo analyses to detect instability."""
+    """Expose uniquement la variation IMPA brute entre les deux dernières analyses."""
     if len(cephalos) < 2:
         return "données insuffisantes"
     a1 = (cephalos[0].angles_data or {})
@@ -53,10 +53,8 @@ def _extract_cephalo_trend(cephalos: list) -> str:
     impa2 = a2.get("IMPA", {}).get("valeur")
     if impa1 is None or impa2 is None:
         return "données insuffisantes"
-    diff = impa1 - impa2
-    if abs(diff) <= 2:
-        return "stable"
-    return "amélioration" if diff < 0 else "dégradation"
+    diff = float(impa1) - float(impa2)
+    return f"ΔIMPA {diff:+.1f}° entre les deux dernières analyses"
 
 
 def build_patient_rag_context(patient_id: int, db: Session, months: int = 24) -> dict[str, Any]:

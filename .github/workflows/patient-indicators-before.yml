@@ -1,0 +1,174 @@
+name: Patient Indicators BEFORE
+
+on:
+  pull_request:
+    branches:
+      - master
+    paths:
+      - 'docs/settings/INDICATEURS_PATIENT_EXPLICABLES_GOAL.md'
+      - 'docs/settings/INDICATEURS_PATIENT_EXPLICABLES_MOCKUP.svg'
+      - '.github/workflows/patient-indicators-before.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  before:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    env:
+      ENVIRONMENT: test
+      SECRET_KEY: patient-indicators-before-secret-000001
+      DATABASE_URL: sqlite:///./t2-runtime-cert.db
+      TELEMETRY_ENABLED: 'false'
+      CLOUD_AI_ENABLED: 'false'
+      DEBUG: 'false'
+      ALLOWED_ORIGINS: 'http://127.0.0.1:5173,http://localhost:5173'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: e18597176a97805ae7839f2052340354257a0ae8
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install backend
+        run: |
+          python -m pip install --upgrade pip
+          pip install torch==2.12.0 torchvision==0.27.0 --index-url https://download.pytorch.org/whl/cpu
+          grep -vE '^(torch|torchvision)([<=>].*)?$' requirements.txt > /tmp/requirements-patient-indicators-before.txt
+          pip install -r /tmp/requirements-patient-indicators-before.txt
+          pip install httpx==0.27.2
+
+      - name: Install frontend and Chromium
+        working-directory: frontend
+        run: |
+          npm ci
+          npm install --no-save playwright@1.55.0
+          npx playwright install --with-deps chromium
+
+      - name: Start backend
+        run: |
+          rm -f t2-runtime-cert.db
+          python scripts/t2_runtime_server.py > /tmp/patient-indicators-before-backend.log 2>&1 &
+          for i in {1..90}; do if curl -fsS http://127.0.0.1:8005/health >/dev/null; then exit 0; fi; sleep 1; done
+          cat /tmp/patient-indicators-before-backend.log
+          exit 1
+
+      - name: Start frontend
+        working-directory: frontend
+        run: |
+          npm run dev -- --host 127.0.0.1 --port 5173 > /tmp/patient-indicators-before-front.log 2>&1 &
+          for i in {1..90}; do if curl -fsS http://127.0.0.1:5173 >/dev/null; then exit 0; fi; sleep 1; done
+          cat /tmp/patient-indicators-before-front.log
+          exit 1
+
+      - name: Capture exact BEFORE
+        working-directory: frontend
+        run: |
+          mkdir -p ../artifacts/patient-indicators-before
+          cat > .patient-indicators-before.mjs <<'JS'
+          import fs from 'node:fs';
+          import path from 'node:path';
+          import { chromium, request } from 'playwright';
+
+          const out = path.resolve('../artifacts/patient-indicators-before');
+          const viewports = [
+            {width:1440,height:1200},
+            {width:768,height:1200},
+            {width:390,height:1200},
+            {width:360,height:1200},
+            {width:320,height:1200},
+          ];
+
+          const api = await request.newContext({baseURL:'http://127.0.0.1:8005'});
+          const login = await api.post('/api/auth/login',{form:{username:'t2-browser@cabinet.ma',password:'T2BrowserPass123!'}});
+          if (!login.ok()) throw new Error(`login ${login.status()}: ${await login.text()}`);
+          const tok = await login.json();
+          const headers = {Authorization:`Bearer ${tok.access_token}`};
+          const ps = await api.get('/api/patients',{headers});
+          if (!ps.ok()) throw new Error(`patients ${ps.status()}: ${await ps.text()}`);
+          const patients = await ps.json();
+          const patient = patients.find(p=>p.numero_dossier==='T2-0001') || patients[0];
+          if (!patient) throw new Error('No seeded patient available');
+
+          const browser = await chromium.launch({headless:true});
+          const evidence = [];
+
+          for (const viewport of viewports) {
+            const ctx = await browser.newContext({viewport,colorScheme:'light'});
+            const page = await ctx.newPage();
+            await page.addInitScript(({a,r})=>{
+              localStorage.setItem('token',a);
+              localStorage.setItem('refresh_token',r||'');
+              localStorage.setItem('appMode','prod');
+            },{a:tok.access_token,r:tok.refresh_token});
+
+            const errors=[]; const http5xx=[];
+            page.on('pageerror',e=>errors.push(String(e)));
+            page.on('response',r=>{if(r.status()>=500)http5xx.push({url:r.url(),status:r.status()});});
+
+            await page.goto('http://127.0.0.1:5173/patients',{waitUntil:'networkidle',timeout:90000});
+            await page.getByRole('heading',{name:'Dossiers Patients',exact:true}).waitFor({state:'visible',timeout:30000});
+            await page.waitForTimeout(1200);
+            const listShot=`before-list-${viewport.width}x${viewport.height}.png`;
+            const listOverflow=await page.evaluate(()=>document.documentElement.scrollWidth>document.documentElement.clientWidth+2);
+            const legacyBadgeText=await page.getByText(/Platinum Elite|Gold Status|Silver|Bronze \(Vigilance\)/).count();
+            await page.screenshot({path:path.join(out,listShot),fullPage:false});
+
+            let row=page.locator('tbody tr').first();
+            const dossier=String(patient.numero_dossier||'');
+            if(dossier){
+              const exact=page.getByText(dossier,{exact:true});
+              if(await exact.count()) row=exact.first().locator('xpath=ancestor::tr');
+            }
+            if(await row.count()) await row.hover();
+            await page.waitForTimeout(1200);
+            const hoverShot=`before-hover-${viewport.width}x${viewport.height}.png`;
+            const hoverOverflow=await page.evaluate(()=>document.documentElement.scrollWidth>document.documentElement.clientWidth+2);
+            const aiSuggestionLabel=await page.getByText('Alertes IA & Suggestion',{exact:true}).count();
+            const assistantFooter=await page.getByText('Assistant Virtuel ODF • Temps réel',{exact:true}).count();
+            const clinicalAnalysisLoader=await page.getByText('Analyse clinique...',{exact:true}).count();
+            await page.screenshot({path:path.join(out,hoverShot),fullPage:false});
+
+            await page.goto(`http://127.0.0.1:5173/patients/${patient.id}?tab=tracking`,{waitUntil:'networkidle',timeout:90000});
+            await page.waitForTimeout(2200);
+            const pageShot=`before-patient-${viewport.width}x${viewport.height}.png`;
+            const patientOverflow=await page.evaluate(()=>document.documentElement.scrollWidth>document.documentElement.clientWidth+2);
+            const bodyText=(await page.locator('body').innerText()).slice(0,12000);
+            await page.screenshot({path:path.join(out,pageShot),fullPage:false});
+
+            evidence.push({
+              viewport,
+              patient_id:patient.id,
+              numero_dossier:patient.numero_dossier,
+              listShot,hoverShot,pageShot,
+              listOverflow,hoverOverflow,patientOverflow,
+              legacyBadgeText,aiSuggestionLabel,assistantFooter,clinicalAnalysisLoader,
+              hasNextBestActionToast:/💡/.test(bodyText),
+              errors,http5xx,
+            });
+            await ctx.close();
+          }
+
+          fs.writeFileSync(path.join(out,'evidence.json'),JSON.stringify({base_sha:'e18597176a97805ae7839f2052340354257a0ae8',captures:evidence.length*3,evidence},null,2));
+          await browser.close(); await api.dispose();
+          if(evidence.length!==5 || evidence.some(e=>!fs.existsSync(path.join(out,e.listShot))||!fs.existsSync(path.join(out,e.hoverShot))||!fs.existsSync(path.join(out,e.pageShot)))) process.exit(1);
+          JS
+          node .patient-indicators-before.mjs
+          rm .patient-indicators-before.mjs
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: patient-indicators-before-e1859717
+          path: artifacts/patient-indicators-before
+          if-no-files-found: error
+          retention-days: 14
