@@ -56,6 +56,7 @@ __pycache__/
 # ========================================
 # FRONTEND (REACT/VITE)
 # ========================================
+node_modules/
 frontend/node_modules/
 frontend/dist/
 frontend/dist-rehearsal/
@@ -75,6 +76,10 @@ Thumbs.db
 notes.txt
 arborescence.txt
 frontend/lint-targets.txt
+/test-results/
+*.log
+/coverage_*.txt
+/temp_preview.*
 
 # Beads / Dolt files (added by bd init)
 .dolt/
