@@ -1,6 +1,6 @@
 # Catalogue connecté — Goal visuel et contrat métier
 
-Statut : PREPARED — non certifié
+Statut : CERTIFIÉ — produit `f0238b8245b61430ca64714f74aa87a580c7d37a`
 
 ## Goal
 
@@ -22,7 +22,7 @@ SHA immuable : `e0be81e25833782a2cfc3ebddff68983d2624f9c`.
 
 À ce SHA, `ClinicalHub.tsx` = blob `45d0c00031f7078dc260263b7c8c9a86615e56b9` et le Master Plan persiste uniquement `title / assistant / status / date_str`. Aucun sélecteur catalogue ni snapshot catalogue n'est affiché ou stocké.
 
-La certification PR doit recapturer ce BEFORE dans le même run que l'AFTER aux viewports : 1440x1200, 768x1200, 390x1200, 360x1200, 320x1200.
+Viewports certifiés : 1440x1200, 768x1200, 390x1200, 360x1200, 320x1200.
 
 ## Référence visuelle / wireframe avant implémentation
 
@@ -48,11 +48,12 @@ Master Plan
 - override nom/tarif explicite avant ajout ;
 - mobile sans overflow horizontal ;
 - aucun changement visuel dans le cœur clinique P7 hors ajout du bloc catalogue ;
-- le badge visible est `Tarif figé`, pas `snapshot`.
+- le badge visible est `Tarif figé`, pas `snapshot` ;
+- labels du sélecteur explicitement associés à leurs inputs.
 
 ## Architecture de sécurité
 
-Les implémentations P7 Clinique et Prescriptions sont déplacées sans modification dans des `*Core` byte-identiques. Les façades ne remplacent que les points d'intégration catalogue. Le run vérifie les SHA des deux cores.
+Les implémentations P7 Clinique et Prescriptions sont déplacées sans modification dans des `*Core` byte-identiques. Les façades ne remplacent que les points d'intégration catalogue. La certification vérifie les SHA des deux cores.
 
 Pour le Master Plan :
 - nouveau snapshot : `act_id` validé contre `cabinet_catalog_acts` du tenant courant et acte actif ;
@@ -62,16 +63,32 @@ Pour le Master Plan :
 - prix stocké en `NUMERIC(12,2)` ;
 - révision du plan conserve également le snapshot JSON.
 
-## Preuve attendue
+## Certification finale
 
-Workflow `Catalog Connected Truth Certification` :
-1. checkout BEFORE exact ;
-2. captures BEFORE 5 viewports ;
-3. checkout PR HEAD exact ;
-4. preuve byte-identique des cores ;
-5. tests ciblés backend/frontend + build ;
-6. enregistre un snapshot à 500 DH ;
-7. modifie/désactive le catalogue à 650 DH ;
-8. prouve que le plan reste à 500 DH et qu'un changement de statut fonctionne ;
-9. réactive l'acte à 650 DH et prouve que le nouveau sélecteur propose 650 DH ;
-10. captures AFTER sur les mêmes 5 viewports + contrôle overflow/page errors/HTTP 5xx.
+Workflow `Catalog Connected Truth Certification` #8, run `32474152651` — SUCCESS.
+Artifact `9443760454`.
+Digest `sha256:09e14f0391143bf7faf28ce38f1ea84d034139dec32fc8b39313dae8c0973ca9`.
+
+Preuves :
+1. BEFORE exact recapturé sur 5 viewports ;
+2. cores certifiés byte-identiques ;
+3. tests backend ciblés verts ;
+4. tests frontend ciblés + build verts ;
+5. snapshot enregistré à 500 DH ;
+6. catalogue modifié/désactivé à 650 DH ;
+7. plan historique resté à 500 DH ;
+8. mise à jour du statut historique réussie pendant désactivation ;
+9. acte réactivé à 650 DH et sélecteur AFTER prérempli à 650 DH ;
+10. AFTER 5/5 : overflow 0, page errors 0, HTTP 5xx 0.
+
+Score visuel : **9,5/10**.
+
+Gates exact HEAD produit `f0238b8245b61430ca64714f74aa87a580c7d37a` :
+- Catalogue #8 `32474152651` — SUCCESS ;
+- CI #1509 `32474152694` — SUCCESS ;
+- T2 #734 `32474152628` — SUCCESS ;
+- P7 #33 `32474152905` — SUCCESS.
+
+Closeout détaillé : `docs/settings/CATALOG_CONNECTED_CLOSEOUT.md`.
+
+Aucun Vercel.
