@@ -43,7 +43,7 @@ jobs:
           from pathlib import Path
           details = Path('frontend/src/features/patients/PatientDetailsInner.tsx').read_text(encoding='utf-8')
           journey = Path('frontend/src/features/patients/components/PatientJourney.tsx').read_text(encoding='utf-8')
-          clinical = Path('frontend/src/features/patients/components/ClinicalHub.tsx').read_text(encoding='utf-8')
+          clinical = Path('frontend/src/features/patients/components/ClinicalHubCore.tsx').read_text(encoding='utf-8')
           ceph = Path('frontend/src/features/ortho/CephaloWorkspace.tsx').read_text(encoding='utf-8')
           pano = Path('frontend/src/features/panoramic/PanoramicStudio.tsx').read_text(encoding='utf-8')
           docs = Path('frontend/src/features/admin/DocumentHub.tsx').read_text(encoding='utf-8')
