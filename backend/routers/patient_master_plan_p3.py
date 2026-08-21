@@ -49,9 +49,10 @@ def _snapshot_key(title: str, assistant: str) -> Tuple[str, str]:
 
 
 def _step_snapshot(step_data: ConnectedTreatmentPlanStepCreate, order_index: int, snapshot: Optional[dict] = None) -> dict:
-    payload = step_data.model_dump(mode="json")
+    payload = step_data.model_dump(mode="json", exclude={"catalog_snapshot"})
     payload["order_index"] = order_index
-    payload["catalog_snapshot"] = snapshot
+    if snapshot is not None:
+        payload["catalog_snapshot"] = snapshot
     return payload
 
 
