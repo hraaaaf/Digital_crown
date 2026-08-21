@@ -75,6 +75,25 @@ Réduire le dépôt aux sources, outils et preuves encore utiles, sans supprimer
 - Preuve d'obsolescence : créé avec le hardening médias du 2026-07-06 comme utilitaire explicite de comptage avant/après ; aucune référence actuelle ; aucun rôle runtime, migration, backup/recovery ou launcher.
 - Preuve de non-régression : CI `32508317596`, T2 `32508317598`, Catalogue `32508317593`, Patient P7 `32508317587` — SUCCESS.
 
+### P4-F — superseded Devis certification harness — MERGED ✅
+- PR : #211
+- Head certifié : `b3e8c54c0f10fc77982e7f3a567571ad6d9c8577`
+- Merge : `b3aa7711e6ac0256e1a9b718ce4f55068e39b6c3`
+- Diff : 1 fichier, +0 / -91.
+- Retiré : `scripts/certify_p3_devis.sh`.
+- Preuve de remplacement : `scripts/certify_document_studio_p3_p6.sh` recouvre les mêmes tests Devis ciblés et une régression P3→P6 plus large ; `certify_document_studio_t2.sh` exige les harness P3→P6, P7 et T1, mais pas ce harness P3 Devis.
+- Preuve de non-régression : CI `32509375426`, T2 `32509375450`, Catalogue `32509375382`, Patient P7 `32509375455` — SUCCESS.
+
+### P4-G — shared VS Code workspace sanitization — MERGED ✅
+- PR : #212
+- Head certifié : `abe2e4ca8b32ab3ade4c4b6218240d8faa0ac53a`
+- Merge : `28c2aeb084c19cd77332db14af62a88cb843033a`
+- Diff : `.vscode/settings.json` uniquement, +2 / -6.
+- Retirés : préférence personnelle `editor.fontSize`, préférence locale `task.quickOpen.showAll`, interpréteur Windows `python.defaultInterpreterPath`, tableau vide `css.customData`.
+- Conservés : `css.lint.unknownAtRules` et `python.analysis.extraPaths`, normalisé en `${workspaceFolder}/backend`.
+- Preuve de non-régression : CI `32513372590`, T2 `32513372730`, Catalogue `32513372685`, Patient P7 `32513372642` — SUCCESS.
+- Vérification post-merge : le fichier sur `master` contient uniquement les deux réglages portables attendus.
+
 ## Éléments explicitement conservés
 - `backend/routers/admin_legacy.py` : utilisé par `admin.py`.
 - `backend/routers/mobile_legacy.py` : utilisé par `mobile.py`.
@@ -87,6 +106,7 @@ Réduire le dépôt aux sources, outils et preuves encore utiles, sans supprimer
 - `scripts/migrate_bot_pending_actions.py` et `scripts/migrate_m1_subscription_plans.py` : migrations idempotentes/rejouables sans remplacement canonique suffisamment prouvé.
 - backup/bootstrap/release/recovery, setup HTTPS/backup, probes T2, prod safety, preflight data audit et validation scientifique : rôles opératoires actuels ou de reprise, conservés.
 - `Start_DigitalCrown.bat`, `Start_PROD.bat`, `run_real_backend.ps1` : relèvent du chantier Portability/launcher.
+- `.claude/` et `.codex/` : configurations partagées de développement ; non classées machine-local.
 
 ## Audit workflows — état après P4-D
 - Le cimetière Patient P3→P6 mort est retiré.
@@ -96,21 +116,21 @@ Réduire le dépôt aux sources, outils et preuves encore utiles, sans supprimer
 - `dashboard-visual-cert.yml` : path-scoped Dashboard + manuel ; conservé.
 - Les workflows Settings inspectés restent actifs sur `master` ; conservés.
 
-## P4-F — superseded Devis certification harness — PRÉPARÉ, NON VALIDÉ
-Candidat : `scripts/certify_p3_devis.sh`.
+## Closeout borné — 2026-08-21
 
-Preuves disponibles :
-- aucune référence actuelle trouvée vers `certify_p3_devis.sh` ;
-- son contenu est un harness de certification P3 Devis : tests backend Devis ciblés, suite backend complète, tests frontend, build ;
-- `scripts/certify_document_studio_p3_p6.sh` recouvre ces mêmes tests Devis ciblés et ajoute une régression P3→P6 plus large, les suites complètes et les safety gates ;
-- `scripts/certify_document_studio_t2.sh` exige explicitement les harness P3→P6, P7 et T1, mais pas `certify_p3_devis.sh` ;
-- aucune preuve historique supplémentaire fiable n'a été retrouvée via la recherche de commits, donc la décision repose uniquement sur la couverture exécutable actuelle.
+### Résultat
+Le Goal du tamis raisonnablement borné est atteint sur les classes auditées : artefacts générés suivis, fichiers machine-local, scripts one-shot, anciens patchs/snapshots, routers dormants, workflows de branches disparues, harness de certification remplacés et préférences workspace locales.
 
-La suppression P4-F ne doit être créditée qu'après reconstruction sur le master courant, diff exact, puis CI + T2 + Catalogue + Patient P7 verts sur le même HEAD.
+### Preuve
+- Tous les lots P2→P4-G crédités ci-dessus ont été fusionnés après leurs preuves respectives.
+- Les suppressions potentiellement sensibles ont été validées par CI + T2 + Catalogue + Patient P7 sur leur HEAD exact avant merge.
+- Le balayage terminal borné n'a produit aucune suppression supplémentaire suffisamment prouvée pour justifier un nouveau lot.
+- Les éléments ambigus ou encore opératoires sont explicitement conservés au lieu d'être supprimés sur leur nom.
+- Aucun changement n'a touché les données patient.
+- Aucun déploiement Vercel n'a été effectué.
+
+### Limite
+Ce closeout ne prétend pas démontrer l'absence mathématique de tout code mort futur ou de toute dette d'architecture. Les futurs changements peuvent créer de nouveaux reliquats ; un nouveau tamis devra alors repartir de preuves fraîches.
 
 ## Next exact
-1. Reconstruire P4-F sur le master courant.
-2. Supprimer uniquement `scripts/certify_p3_devis.sh` et vérifier le diff exact.
-3. Publier un seul commit / une seule PR / un seul benchmark.
-4. Certifier CI + T2 + Catalogue + Patient P7.
-5. Si vert : merge exact-head, closeout canonique, puis validation finale du tamis et décision de clôture.
+Aucune suppression supplémentaire n'est autorisée sans nouvelle preuve positive. Le prochain chantier distinct pour les fichiers volontairement conservés est `Portability / launcher`, notamment les launchers Windows et chemins locaux encore nécessaires au runtime actuel.
