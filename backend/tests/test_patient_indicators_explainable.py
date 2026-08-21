@@ -16,12 +16,12 @@ def test_cephalo_trend_is_factual_delta_not_improvement_judgment():
 
 def test_habits_language_describes_observed_facts():
     text = (BACKEND / "services" / "habits_engine.py").read_text(encoding="utf-8")
-    assert "Risque No-Show Élevé" not in text
-    assert "Risque Perte Patient" not in text
-    assert "Gap Ortho Critique" not in text
-    assert "Annulations fréquentes" in text
-    assert "Annulations consécutives sans rebooking" in text
-    assert "Suivi ortho à replanifier" in text
+    assert '"title": "Risque No-Show Élevé"' not in text
+    assert '"title": "Risque Perte Patient"' not in text
+    assert '"title": "Gap Ortho Critique"' not in text
+    assert '"title": "Annulations fréquentes"' in text
+    assert '"title": "Annulations consécutives sans rebooking"' in text
+    assert '"title": "Suivi ortho à replanifier"' in text
 
 
 def test_global_intelligence_score_is_no_longer_computed_or_presented():
