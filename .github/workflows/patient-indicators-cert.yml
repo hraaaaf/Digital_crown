@@ -176,7 +176,7 @@ jobs:
             }
             const rowText=await row.innerText();
             if (!rowText.includes('RDV')) fail(`Factual RDV marker absent at ${viewport.width}: ${rowText}`);
-            if (!rowText.includes('Sans RDV futur')) fail(`No-future-RDV marker absent at ${viewport.width}: ${rowText}`);
+            if (!/SANS RDV FUTUR/i.test(rowText)) fail(`No-future-RDV marker absent at ${viewport.width}: ${rowText}`);
             if (/Fantôme|Platinum|Gold Status|Bronze \(Vigilance\)/.test(rowText)) fail(`Legacy judgment remains at ${viewport.width}: ${rowText}`);
 
             const listShot=`after-list-${viewport.width}x${viewport.height}.png`;
