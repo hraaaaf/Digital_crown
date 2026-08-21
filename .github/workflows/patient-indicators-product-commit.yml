@@ -1,0 +1,51 @@
+name: Patient Indicators Product Commit
+
+on:
+  push:
+    branches:
+      - settings-patient-indicators-explainable
+    paths:
+      - '.github/scripts/apply_patient_indicators.py'
+      - '.github/workflows/patient-indicators-product-commit.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  product-commit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: settings-patient-indicators-explainable
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Apply guarded transformation
+        run: python .github/scripts/apply_patient_indicators.py
+
+      - name: Static guards
+        run: |
+          python -m py_compile \
+            backend/services/patient_scoring_service.py \
+            backend/services/habits_engine.py \
+            backend/services/rag_context.py \
+            backend/services/clinical_intelligence.py \
+            backend/services/elite_manager.py \
+            backend/tests/test_patient_scoring_service.py \
+            backend/tests/test_patient_indicators_explainable.py
+          git diff --check
+          git diff --exit-code -- docs/settings/INDICATEURS_PATIENT_EXPLICABLES_GOAL.md docs/settings/INDICATEURS_PATIENT_EXPLICABLES_MOCKUP.svg
+
+      - name: Commit product atomically
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git status --short
+          git commit -m "feat(patient): replace opaque indicators with factual markers"
+          git push origin HEAD:settings-patient-indicators-explainable
