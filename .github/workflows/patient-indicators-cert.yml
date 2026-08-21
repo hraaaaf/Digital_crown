@@ -54,11 +54,11 @@ jobs:
           pip install torch==2.12.0 torchvision==0.27.0 --index-url https://download.pytorch.org/whl/cpu
           grep -vE '^(torch|torchvision)([<=>].*)?$' requirements.txt > /tmp/requirements-patient-indicators.txt
           pip install -r /tmp/requirements-patient-indicators.txt
-          pip install httpx==0.27.2
+          pip install httpx==0.27.2 pytest pytest-asyncio
 
       - name: Targeted backend truth tests
         run: |
-          pytest -q \
+          python -m pytest -q \
             backend/tests/test_patient_scoring_service.py \
             backend/tests/test_patient_indicators_explainable.py
 
