@@ -59,6 +59,10 @@ def _step_snapshot(step_data: ConnectedTreatmentPlanStepCreate, order_index: int
 def _attach_snapshots(db: Session, plan):
     if plan is None:
         return None
+    # Bulk replacement bypasses relationship bookkeeping. Always invalidate the
+    # collection before serializing so a freshly-created/replaced plan cannot
+    # return a stale empty `steps` list while its rows already exist in SQL.
+    db.expire(plan, ["steps"])
     steps = list(getattr(plan, "steps", []) or [])
     step_ids = [step.id for step in steps]
     rows = (

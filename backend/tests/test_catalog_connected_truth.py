@@ -1,7 +1,53 @@
+from datetime import datetime
 from decimal import Decimal
 from pathlib import Path
 
+from backend import models
+from backend.security import get_password_hash
 from backend.services.catalog_connected_truth import flatten_catalog_acts
+
+
+PASSWORD = "CatalogTruth123!"
+
+
+def _make_owner(db, email: str):
+    user = models.User(
+        email=email,
+        hashed_password=get_password_hash(PASSWORD),
+        role="DENTISTE",
+        nom_complet="Catalogue Truth Test",
+        is_active=True,
+        is_licensed=True,
+        permissions={"settings": True, "clinical": True},
+    )
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+    return user
+
+
+def _make_patient(db, owner, dossier: str):
+    patient = models.Patient(
+        numero_dossier=dossier,
+        nom="CATALOGUE",
+        prenom="Patient",
+        date_naissance=datetime(1990, 1, 1),
+        sexe="M",
+        employer_id=owner.id,
+    )
+    db.add(patient)
+    db.commit()
+    db.refresh(patient)
+    return patient
+
+
+def _headers(client, user):
+    response = client.post(
+        "/api/auth/login",
+        data={"username": user.email, "password": PASSWORD},
+    )
+    assert response.status_code == 200, response.text
+    return {"Authorization": f"Bearer {response.json()['access_token']}"}
 
 
 def test_flatten_catalog_acts_preserves_public_contract_and_filters_inactive():
@@ -51,3 +97,59 @@ def test_master_plan_validates_new_snapshot_tenant_but_reuses_history():
     assert "revision_snapshot" in source
     assert "treatment_plan_catalog_snapshots" in model
     assert "Numeric(12, 2)" in model
+
+
+def test_master_plan_http_put_and_get_return_persisted_catalog_snapshot(client, db):
+    owner = _make_owner(db, "catalog-http-roundtrip@test.ma")
+    patient = _make_patient(db, owner, "CAT-HTTP-1")
+    headers = _headers(client, owner)
+
+    specialty_response = client.post(
+        "/api/catalog/specialties",
+        headers=headers,
+        json={"name": "Certification Catalogue HTTP", "color": "#64748B"},
+    )
+    assert specialty_response.status_code == 201, specialty_response.text
+    specialty = specialty_response.json()
+
+    act_response = client.post(
+        f"/api/catalog/specialties/{specialty['id']}/acts",
+        headers=headers,
+        json={
+            "name": "Détartrage HTTP certifié",
+            "code": "CERT-HTTP-001",
+            "base_price": 500,
+            "color": "#0F766E",
+            "is_active": True,
+        },
+    )
+    assert act_response.status_code == 201, act_response.text
+    act = act_response.json()
+
+    master_url = f"/api/patients/{patient.id}/master-plan"
+    snapshot = {
+        "act_id": act["id"],
+        "code": "CERT-HTTP-001",
+        "name": "Détartrage HTTP certifié",
+        "price": 500,
+    }
+    payload = [
+        {
+            "title": "Détartrage HTTP certifié",
+            "assistant": "Catalogue cabinet · Certification Catalogue HTTP · CERT-HTTP-001 · 500 DH · Tarif capturé",
+            "status": "pending",
+            "date_str": "À planifier",
+            "order_index": 0,
+            "catalog_snapshot": snapshot,
+        }
+    ]
+
+    saved = client.put(master_url, headers=headers, json=payload)
+    assert saved.status_code == 200, saved.text
+    saved_step = saved.json()["steps"][0]
+    assert saved_step["catalog_snapshot"] == snapshot
+
+    reread = client.get(master_url, headers=headers)
+    assert reread.status_code == 200, reread.text
+    reread_step = reread.json()["steps"][0]
+    assert reread_step["catalog_snapshot"] == snapshot
