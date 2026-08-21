@@ -1,6 +1,6 @@
 # SETTINGS PRODUCT COMPASS — Réglages / Paramètres
 
-Dernière mise à jour : 2026-08-20
+Dernière mise à jour : 2026-08-21
 Repo : `hraaaaf/Digital_crown`
 Statut : **BOUSSOLE CANONIQUE ACTIVE**
 
@@ -41,8 +41,9 @@ Statut : **CERTIFIÉ R2**.
 | R9-A Journal d’Audit | GARDER / HUMANISER | CLOSED — MERGED (#185) | 9,6/10 |
 | R10-A Mon Équipe / mot de passe | GARDER / ALIGNER VÉRITÉ BACKEND | CLOSED — MERGED (#188) | 9,4/10 |
 | R11 TemplateBuilder legacy | SUPPRIMER FRONTEND ORPHELIN / CONSERVER BACKEND | CLOSED — MERGED (#191) | n/a |
+| Catalogue avancé / Catalogue connecté | GARDER / CONNECTER / FIGER HISTORIQUE | CLOSED — MERGED (#195) | 9,5/10 |
 
-**Avancement vérifié : 11/15 = 73,3 %.**
+**Avancement vérifié : 12/15 = 80,0 %.**
 
 ## 5. R1 — décision finale
 
@@ -77,31 +78,47 @@ Dette non bloquante : le bouton local historique de `ProfileTab.tsx` reste dans 
 - **R9-A Audit Log** : #185, merge `bda7f99aa95e9341f5154293618c35949bcae331`, closeout `docs/settings/R9A_AUDIT_LOG_HUMANIZED_CLOSEOUT.md`.
 - **R10-A Team mot de passe** : #188, merge `5e8307d4d20ee6ed0df18ee7d06fe2cdb24bc24a`, closeout `docs/settings/R10A_TEAM_PASSWORD_TRUTH_CLOSEOUT.md`.
 - **R11 TemplateBuilder frontend** : #191, merge `a4af5ce0ad535e8c154fb7cecee931cba7f76204`, closeout `docs/settings/R11_TEMPLATEBUILDER_REACHABILITY_CLOSEOUT.md`.
+- **Catalogue avancé / Catalogue connecté** : #195, merge `5f6187b30906e5f51b6176fa3143702d4b6d62ed`, closeout `docs/settings/CATALOG_CONNECTED_CLOSEOUT.md`, score **9,5/10**.
 
 ## 7. Roadmap restante
 
 Axes encore explicitement nommés dans la roadmap et non crédités :
 
-1. **Catalogue avancé** — audit produit/downstream à ouvrir ;
-2. **Indicateurs patient explicables** — audit valeur métier + consommateurs ;
-3. **Restauration guidée** — audit Sécurité & Backup ;
-4. **Dette backend TemplateEngine / reachability restante** — uniquement après preuve downstream, sans suppression spéculative.
+1. **Indicateurs patient explicables** — audit valeur métier + consommateurs ;
+2. **Restauration guidée** — audit Sécurité & Backup ;
+3. **Dette backend TemplateEngine / reachability restante** — uniquement après preuve downstream, sans suppression spéculative.
 
-L’ordre recommandé suit le chemin critique existant : **Catalogue avancé d’abord**.
+L’ordre recommandé suit le chemin critique existant : **Indicateurs patient explicables d’abord**.
 
 ## 8. HANDOVER COURANT
 
 - Chantier : **Réglages — Product Review & Simplification**
-- Dernier lot fermé : **R1 — Shell / doctrine de sauvegarde**
-- PR R1 : #194 — MERGED
-- Merge R1 : `4833a9e54c4fa7383e5ca5096afa18f0a5b500f1`
-- Score R1 : **9,5/10**
-- Closeout : `docs/settings/R1_SAVE_DOCTRINE_CLOSEOUT.md`
-- Next exact : **Catalogue avancé → audit uniquement : surface UI, store, endpoints, consommateurs, valeur cabinet, doublons, options inutiles et gaps après R6 CRUD**
-- Avancement vérifié : **11/15 = 73,3 %**
+- Dernier lot fermé : **Catalogue avancé / Catalogue connecté**
+- PR : #195 — MERGED
+- Merge : `5f6187b30906e5f51b6176fa3143702d4b6d62ed`
+- HEAD produit certifié : `f0238b8245b61430ca64714f74aa87a580c7d37a`
+- Catalogue #8 `32474152651`, CI #1509 `32474152694`, T2 #734 `32474152628`, P7 #33 `32474152905` — SUCCESS
+- Artifact : `9443760454` — digest `sha256:09e14f0391143bf7faf28ce38f1ea84d034139dec32fc8b39313dae8c0973ca9`
+- Score : **9,5/10**
+- Closeout : `docs/settings/CATALOG_CONNECTED_CLOSEOUT.md`
+- Next exact : **Indicateurs patient explicables → audit uniquement : surface UI, données, calculs, provenance, explicabilité, consommateurs et valeur cabinet**
+- Avancement vérifié : **12/15 = 80,0 %**
 - Vercel : **aucun déploiement**
 
 ## 9. Journal récent
+
+### 2026-08-21 — Catalogue avancé / Catalogue connecté CLOSED
+
+- catalogue R6 connecté au flux clinique et au Master Plan ;
+- snapshot historique nom/code/tarif figé par valeur ;
+- preuve 500 DH → catalogue 650 DH → historique 500 DH ;
+- statut historique modifiable pendant désactivation ;
+- tenant isolation et quick-add contract verrouillés ;
+- AFTER 5/5, 0 overflow, 0 page error, 0 HTTP 5xx ;
+- score **9,5/10** ;
+- Catalogue #8, CI #1509, T2 #734, P7 #33 — SUCCESS ;
+- PR #195 squash-mergée : `5f6187b30906e5f51b6176fa3143702d4b6d62ed` ;
+- aucun Vercel.
 
 ### 2026-08-20 — R1 CLOSED
 

@@ -2,7 +2,8 @@
 
 Date : 2026-08-21
 Repo : `hraaaaf/Digital_crown`
-PR : #195
+PR : #195 — MERGED
+Merge : `5f6187b30906e5f51b6176fa3143702d4b6d62ed`
 
 ## Goal
 
@@ -81,8 +82,16 @@ Scénario certifié :
 
 CI #1509 : garde production, backend full test suite, frontend tests et build — SUCCESS.
 
+## Merge et post-merge
+
+- PR #195 passée ready puis squash-mergée ;
+- merge GitHub vérifié : `5f6187b30906e5f51b6176fa3143702d4b6d62ed` ;
+- `master` contient le produit certifié et ce closeout ;
+- `SETTINGS_PRODUCT_COMPASS.md` est mis à jour à **12/15 = 80,0 %** ;
+- next : **Indicateurs patient explicables**.
+
 ## Décision
 
-**Catalogue avancé / Catalogue connecté = CLOSED / CERTIFIÉ**, sous réserve du merge GitHub et du post-merge canonique, qui doivent être enregistrés après preuve.
+**Catalogue avancé / Catalogue connecté = CLOSED / CERTIFIÉ / MERGED.**
 
 Aucun Vercel.
