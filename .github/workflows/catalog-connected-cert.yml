@@ -1,0 +1,131 @@
+name: Catalog Connected Truth Certification
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: catalog-connected-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  certify:
+    name: Catalog connected BEFORE-AFTER
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      ENVIRONMENT: test
+      SECRET_KEY: catalog-connected-cert-secret-000001-long
+      DATABASE_URL: sqlite:///./t2-runtime-cert.db
+      TELEMETRY_ENABLED: 'false'
+      CLOUD_AI_ENABLED: 'false'
+      DEBUG: 'false'
+      ALLOWED_ORIGINS: 'http://127.0.0.1:5173,http://localhost:5173'
+      BEFORE_SHA: e0be81e25833782a2cfc3ebddff68983d2624f9c
+    steps:
+      - name: Checkout exact PR head to retain certification script
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - run: cp frontend/scripts/certify-catalog-connected-browser.mjs /tmp/catalog-connected-cert.mjs
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Checkout immutable BEFORE
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.BEFORE_SHA }}
+
+      - name: Install backend
+        run: |
+          python -m pip install --upgrade pip
+          pip install torch==2.12.0 torchvision==0.27.0 --index-url https://download.pytorch.org/whl/cpu
+          grep -vE '^(torch|torchvision)([<=>].*)?$' requirements.txt > /tmp/requirements-catalog-connected.txt
+          pip install -r /tmp/requirements-catalog-connected.txt
+          pip install httpx==0.27.2 pytest
+
+      - name: Install frontend and Chromium
+        working-directory: frontend
+        run: |
+          npm ci
+          npm install --no-save playwright@1.55.0
+          npx playwright install --with-deps chromium
+          cp /tmp/catalog-connected-cert.mjs scripts/.catalog-connected-cert.mjs
+
+      - name: Start BEFORE runtime
+        run: |
+          rm -f t2-runtime-cert.db
+          python scripts/t2_runtime_server.py > /tmp/catalog-before-backend.log 2>&1 &
+          cd frontend && npm run dev -- --host 127.0.0.1 --port 5173 > /tmp/catalog-before-frontend.log 2>&1 &
+          for i in {1..90}; do curl -fsS http://127.0.0.1:8005/health >/dev/null && curl -fsS http://127.0.0.1:5173 >/dev/null && exit 0; sleep 1; done
+          cat /tmp/catalog-before-backend.log; cat /tmp/catalog-before-frontend.log; exit 1
+
+      - name: Capture BEFORE on exact viewports
+        working-directory: frontend
+        run: CATALOG_CERT_MODE=before CATALOG_CERT_OUT=../artifacts/catalog-connected/before node scripts/.catalog-connected-cert.mjs
+
+      - name: Stop BEFORE runtime
+        if: always()
+        run: |
+          pkill -f t2_runtime_server.py || true
+          pkill -f 'vite.*5173' || true
+
+      - name: Checkout exact PR head without deleting installed dependencies
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          clean: false
+
+      - name: Prove certified cores are byte-identical
+        run: |
+          test "$(git hash-object frontend/src/features/patients/components/ClinicalHubCore.tsx)" = "45d0c00031f7078dc260263b7c8c9a86615e56b9"
+          test "$(git hash-object backend/routers/prescriptions_core.py)" = "2d092b55b937d639af95536299ba0b95674fa020"
+
+      - name: Targeted backend truth tests
+        run: |
+          pytest -q backend/tests/test_catalog_connected_truth.py backend/tests/test_patient_p3_master_plan_revisions.py
+
+      - name: Targeted frontend truth tests and build
+        working-directory: frontend
+        run: |
+          npm test -- --run src/features/patients/components/catalogPlanTruth.test.ts src/features/patients/PatientP3ClinicalAssistantBoundary.test.ts
+          npm run build
+
+      - name: Start AFTER runtime
+        run: |
+          rm -f t2-runtime-cert.db
+          python scripts/t2_runtime_server.py > /tmp/catalog-after-backend.log 2>&1 &
+          cd frontend && npm run dev -- --host 127.0.0.1 --port 5173 > /tmp/catalog-after-frontend.log 2>&1 &
+          for i in {1..90}; do curl -fsS http://127.0.0.1:8005/health >/dev/null && curl -fsS http://127.0.0.1:5173 >/dev/null && exit 0; sleep 1; done
+          cat /tmp/catalog-after-backend.log; cat /tmp/catalog-after-frontend.log; exit 1
+
+      - name: Execute snapshot mutation proof and capture AFTER
+        working-directory: frontend
+        run: CATALOG_CERT_MODE=after CATALOG_CERT_OUT=../artifacts/catalog-connected/after node scripts/certify-catalog-connected-browser.mjs
+
+      - name: Dump runtime logs on failure
+        if: failure()
+        run: |
+          cat /tmp/catalog-before-backend.log || true
+          cat /tmp/catalog-before-frontend.log || true
+          cat /tmp/catalog-after-backend.log || true
+          cat /tmp/catalog-after-frontend.log || true
+
+      - name: Upload BEFORE-AFTER evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: catalog-connected-before-after
+          path: artifacts/catalog-connected
+          if-no-files-found: error
+          retention-days: 14
