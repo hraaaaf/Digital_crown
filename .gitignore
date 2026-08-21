@@ -20,6 +20,8 @@ certs/
 artifacts/
 backups/
 .mimocode/
+.vibecode-backup/
+.coverage
 
 # ========================================
 # MODELES IA (Trop lourds pour Git)
