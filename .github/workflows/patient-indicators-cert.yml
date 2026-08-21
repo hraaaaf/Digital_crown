@@ -185,11 +185,12 @@ jobs:
 
             await row.hover();
             await page.getByText('Repères du dossier',{exact:true}).waitFor({state:'visible',timeout:10000});
+            const provenance=page.getByText('Données du dossier • règles déterministes',{exact:true});
+            await provenance.waitFor({state:'attached',timeout:10000});
             await page.waitForTimeout(500);
             const hoverShot=`after-hover-${viewport.width}x${viewport.height}.png`;
             const hoverOverflow=await page.evaluate(()=>document.documentElement.scrollWidth>document.documentElement.clientWidth+2);
             const hoverText=await page.locator('body').innerText();
-            if (!hoverText.includes('Données du dossier • règles déterministes')) fail(`Hover provenance absent at ${viewport.width}`);
             if (/Alertes IA & Suggestion|Assistant Virtuel ODF/.test(hoverText)) fail(`Legacy intelligence copy remains at ${viewport.width}`);
             await page.screenshot({path:path.join(out,hoverShot),fullPage:false});
 
