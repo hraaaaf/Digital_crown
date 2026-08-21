@@ -50,9 +50,21 @@ Réduire le dépôt aux sources, outils et preuves encore utiles, sans supprimer
 - Merge : `e1df2bececfe4afa57848394bfe04bc619d56084`
 - Diff : 2 fichiers, +0 / -329.
 - Retirés : `backend/routers/clinical.py` et `backend/routers/medical_library.py`.
-- Preuve structurelle : aucun des deux routers n'était monté ; `clinical.py` appelait une méthode disparue ; `medical_library.py` dupliquait d'anciennes surfaces cliniques et contenait des calculs pédiatriques hardcodés.
+- Preuve structurelle : aucun des deux routers n'était monté ; `clinical.py` appelait une méthode disparue ; `medical_library.py` dupliquait d'anciennes surfaces cliniques, contenait des calculs pédiatriques hardcodés et référençait des modèles désormais absents de `models.py`.
 - Preuve de non-régression : CI `32505278694`, T2 `32505278677`, Catalogue `32505278710`, Patient P7 `32505278733` — SUCCESS.
 - Cartographie `backend/routers` après audit : aucun autre router orphelin évident ; les modules `patient_*`/`imaging_lifecycle_p4` sont injectés par `routers/__init__.py`, et les façades `*_legacy`/`*_core` restantes sont utilisées.
+
+### P4-D — dead Patient phase workflows — MERGED ✅
+- PR : #208
+- Head certifié : `77470f493edb28c0f70ba95fc6b81b28e248871a`
+- Merge : `38460500e04f2fa714a3268324a4ae5ea665543e`
+- Diff : 14 workflows, +0 / -1 561.
+- Retirés : anciens workflows Patient P3→P6 BEFORE/AFTER/backend/UI/stack-sync ciblant exclusivement des branches empilées désormais supprimées.
+- Branches historiques vérifiées absentes : `agent/patient-page-p2-journey`, `agent/patient-page-p3-clinique`, `agent/patient-page-p4-imagerie`, `agent/patient-page-p5-documents`.
+- Deux stack-sync retirés détenaient encore inutilement `contents: write`.
+- Remplacement prouvé : `patient-p7-final-certification.yml` reste actif sur chaque PR et recouvre explicitement les contrats/tests P0→P6 backend, frontend et navigateur.
+- Préservés : `patient-p1-architecture-after.yml`, `patient-p2-journey-after.yml`, workflows Settings actifs, `patient-p0e-payment-after.yml` (manuel encore utilisable), `patient-indicators-before.yml` (baseline encore déclenchable).
+- Preuve de non-régression : CI `32506537354`, T2 `32506537235`, Catalogue `32506537212`, Patient P7 `32506537310` — SUCCESS.
 
 ## Éléments explicitement conservés
 - `backend/routers/admin_legacy.py` : utilisé par `admin.py`.
@@ -60,31 +72,34 @@ Réduire le dépôt aux sources, outils et preuves encore utiles, sans supprimer
 - `backend/routers/prescriptions_core.py` : utilisé par la façade `prescriptions.py`.
 - `backend/services/base_template_core.py` : utilisé par la façade `base_template.py`.
 - `backend/services/prescription_service_legacy.py` : classe parente active de `PrescriptionService`.
-- `backend/deprecated/convert_to_onnx.py` : convertisseur générique, consolidation éventuelle mais suppression non prouvée.
+- `backend/deprecated/convert_to_onnx.py` : convertisseur générique paramétrable ; `backend/scripts/panoramic_export.py` est spécialisé et ne le remplace pas exactement.
 - `backend/scripts/migrate_qr_style.py` : compatibilité anciennes bases non encore remplacée de façon certaine.
+- `scripts/certify_document_studio_p3_p6.sh`, `scripts/certify_document_studio_p7.sh`, `scripts/certify_document_studio_t1.sh` : harness actifs de régression ; `certify_document_studio_t2.sh` exige explicitement leur présence.
+- `scripts/migrate_bot_pending_actions.py` : migration idempotente/rejouable sans équivalent Alembic évident prouvé.
 - `Start_DigitalCrown.bat`, `Start_PROD.bat`, `run_real_backend.ps1` : relèvent du chantier Portability/launcher.
 
-## P4-D — dead Patient phase workflows — PRÉPARÉ, NON VALIDÉ
-Scope audité : 14 workflows historiques P3→P6 qui ciblent exclusivement des branches de stack supprimées (`agent/patient-page-p2-journey`, `agent/patient-page-p3-clinique`, `agent/patient-page-p4-imagerie`, `agent/patient-page-p5-documents`).
+## Audit workflows — état après P4-D
+- Le cimetière Patient P3→P6 mort est retiré.
+- `patient-p0e-payment-after.yml` : branche automatique historique supprimée, mais `workflow_dispatch` reste utilisable ; conservé.
+- `patient-indicators-before.yml` : baseline figée mais toujours déclenchable sur PR `master` quand son goal/mockup/workflow change ; conservé.
+- `agenda-r7-downstream-baseline.yml` : déclenché uniquement si son workflow change ; conservé.
+- `dashboard-visual-cert.yml` : path-scoped Dashboard + manuel ; conservé.
+- Les workflows Settings inspectés restent actifs sur `master` ; conservés.
+
+## P4-E — one-shot verification utilities — AUDIT EN COURS
+Candidat prouvé à examiner :
+- `backend/scripts/count_records.py`.
 
 Preuves disponibles :
-- les quatre branches historiques ont été vérifiées absentes ;
-- les workflows P3/P4/P5/P6 BEFORE/AFTER/backend/UI et stack-sync concernés ne peuvent donc plus se déclencher normalement ;
-- deux stack-sync conservent inutilement `contents: write` ;
-- la certification consolidée `patient-p7-final-certification.yml` tourne sur chaque PR et recouvre explicitement les contrats/tests P0→P6 backend, frontend et navigateur ;
-- les régressions `patient-p1-architecture-after.yml` et `patient-p2-journey-after.yml` restent actives sur `master` et doivent être conservées ;
-- les workflows Settings R5 BEFORE/AFTER restent eux aussi actifs sur `master` et sont conservés.
+- ajouté le 2026-07-06 dans le commit `bc80661b5d077f75981510820a068537e4088ad9` de sécurisation des médias ;
+- le message de commit le décrit explicitement comme « Utility to verify record counts before/after » ;
+- le script est read-only et ne fait que compter patients/RDV/actes/documents et fichiers uploads/media ;
+- aucun second utilitaire one-shot suffisamment prouvé n'a encore été identifié pour le regrouper sans inventer du nettoyage.
 
-Préparation hors branche uniquement : ancien candidat `7ddd398fca1c0a943b79da6fa120177388a999f0`, 14 suppressions, +0 / -1 561. Il doit être reconstruit sur le master courant avant publication.
-
-## Audit workflows — reste à trancher séparément
-- `patient-p0e-payment-after.yml` : ancienne branche dédiée + manuel, ne surcharge pas les PR actuelles.
-- `patient-indicators-before.yml` : snapshot BEFORE figé sur ancien commit, candidat futur de retrait mais non responsable de la file courante.
-- Ne supprimer aucun autre workflow sans vérifier trigger, branche cible et couverture de remplacement.
+Décision actuelle : ne pas publier de suppression mono-fichier avant d'avoir terminé l'audit des scripts/migrations restants et vérifié qu'aucun usage opératoire actuel n'existe.
 
 ## Next exact
-1. Reconstruire P4-D sur le master courant après ce closeout.
-2. Vérifier diff exact : 14 suppressions, aucune autre modification.
-3. Publier un seul commit P4-D et une seule PR.
-4. Certifier CI + T2 + Catalogue + Patient P7.
-5. Si vert : merge exact-head, closeout canonique, puis poursuivre les autres orphelins prouvables.
+1. Terminer l'audit de `scripts/` et `backend/scripts/` sur les utilitaires/migrations encore présents.
+2. Si plusieurs one-shot réellement obsolètes sont prouvés : préparer P4-E en un seul lot, un commit, un run.
+3. Sinon : conserver les outils encore utiles, retirer uniquement `count_records.py` si la preuve finale justifie un lot autonome, puis certification complète.
+4. Après dernier lot sûr : validation finale du tamis, cohérence canonique et closeout global.
