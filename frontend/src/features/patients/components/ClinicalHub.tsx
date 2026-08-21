@@ -42,6 +42,10 @@ export const ClinicalHub: React.FC<ClinicalHubProps> = ({ patientId }) => {
   const [draftPrice, setDraftPrice] = useState('');
   const [saving, setSaving] = useState(false);
 
+  const catalogSearchInputId = `catalog-plan-search-${patientId}`;
+  const catalogNameInputId = `catalog-plan-name-${patientId}`;
+  const catalogPriceInputId = `catalog-plan-price-${patientId}`;
+
   const loadCatalog = async () => {
     setCatalogLoading(true);
     setCatalogError(null);
@@ -136,10 +140,11 @@ export const ClinicalHub: React.FC<ClinicalHubProps> = ({ patientId }) => {
         ) : (
           <div className="mt-4 grid min-w-0 grid-cols-1 gap-3 xl:grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)_auto] xl:items-end">
             <div className="relative min-w-0">
-              <label className="text-[10px] font-black uppercase tracking-wider text-text-muted">Acte du catalogue</label>
+              <label htmlFor={catalogSearchInputId} className="text-[10px] font-black uppercase tracking-wider text-text-muted">Acte du catalogue</label>
               <div className="relative mt-1">
                 <Search size={15} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-text-muted" />
                 <input
+                  id={catalogSearchInputId}
                   value={query}
                   onChange={(event) => {
                     setQuery(event.target.value);
@@ -164,8 +169,8 @@ export const ClinicalHub: React.FC<ClinicalHubProps> = ({ patientId }) => {
             </div>
 
             <div className="grid min-w-0 grid-cols-1 gap-2 sm:grid-cols-[minmax(0,1fr)_8rem]">
-              <div><label className="text-[10px] font-black uppercase tracking-wider text-text-muted">Nom retenu</label><input value={draftName} onChange={(event) => setDraftName(event.target.value)} disabled={!selectedAct} className="mt-1 min-h-11 w-full rounded-xl border border-border-main bg-white px-3 text-sm font-bold text-text-main outline-none focus:border-primary disabled:bg-slate-50 disabled:text-text-muted dark:bg-slate-900" /></div>
-              <div><label className="text-[10px] font-black uppercase tracking-wider text-text-muted">Tarif DH</label><input inputMode="decimal" value={draftPrice} onChange={(event) => setDraftPrice(event.target.value)} disabled={!selectedAct} className="mt-1 min-h-11 w-full rounded-xl border border-border-main bg-white px-3 text-sm font-black text-text-main outline-none focus:border-primary disabled:bg-slate-50 disabled:text-text-muted dark:bg-slate-900" /></div>
+              <div><label htmlFor={catalogNameInputId} className="text-[10px] font-black uppercase tracking-wider text-text-muted">Nom retenu</label><input id={catalogNameInputId} value={draftName} onChange={(event) => setDraftName(event.target.value)} disabled={!selectedAct} className="mt-1 min-h-11 w-full rounded-xl border border-border-main bg-white px-3 text-sm font-bold text-text-main outline-none focus:border-primary disabled:bg-slate-50 disabled:text-text-muted dark:bg-slate-900" /></div>
+              <div><label htmlFor={catalogPriceInputId} className="text-[10px] font-black uppercase tracking-wider text-text-muted">Tarif DH</label><input id={catalogPriceInputId} inputMode="decimal" value={draftPrice} onChange={(event) => setDraftPrice(event.target.value)} disabled={!selectedAct} className="mt-1 min-h-11 w-full rounded-xl border border-border-main bg-white px-3 text-sm font-black text-text-main outline-none focus:border-primary disabled:bg-slate-50 disabled:text-text-muted dark:bg-slate-900" /></div>
             </div>
 
             <button onClick={() => void addToPlan()} disabled={!selectedAct || !draftName.trim() || saving} className={cn('inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-primary px-4 text-xs font-black text-white shadow-sm transition-all disabled:cursor-not-allowed disabled:opacity-40', 'xl:min-w-40')}><Plus size={15} /> {saving ? 'Ajout…' : 'Ajouter au plan'}</button>
