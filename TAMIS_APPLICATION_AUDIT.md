@@ -44,6 +44,16 @@ Réduire le dépôt aux sources, outils et preuves encore utiles, sans supprimer
 - Conservés volontairement : backup/bootstrap/release/recovery, migration QR, exports ONNX, `backend/seed_demo.py`, launchers actuels.
 - 4/4 certifications vertes.
 
+### P4-C — dormant clinical routers — MERGED ✅
+- PR : #206
+- Head certifié : `5cb01ca0e54005f5fbdf5786e5682b62465b6ff9`
+- Merge : `e1df2bececfe4afa57848394bfe04bc619d56084`
+- Diff : 2 fichiers, +0 / -329.
+- Retirés : `backend/routers/clinical.py` et `backend/routers/medical_library.py`.
+- Preuve structurelle : aucun des deux routers n'était monté ; `clinical.py` appelait une méthode disparue ; `medical_library.py` dupliquait d'anciennes surfaces cliniques et contenait des calculs pédiatriques hardcodés.
+- Preuve de non-régression : CI `32505278694`, T2 `32505278677`, Catalogue `32505278710`, Patient P7 `32505278733` — SUCCESS.
+- Cartographie `backend/routers` après audit : aucun autre router orphelin évident ; les modules `patient_*`/`imaging_lifecycle_p4` sont injectés par `routers/__init__.py`, et les façades `*_legacy`/`*_core` restantes sont utilisées.
+
 ## Éléments explicitement conservés
 - `backend/routers/admin_legacy.py` : utilisé par `admin.py`.
 - `backend/routers/mobile_legacy.py` : utilisé par `mobile.py`.
@@ -54,27 +64,27 @@ Réduire le dépôt aux sources, outils et preuves encore utiles, sans supprimer
 - `backend/scripts/migrate_qr_style.py` : compatibilité anciennes bases non encore remplacée de façon certaine.
 - `Start_DigitalCrown.bat`, `Start_PROD.bat`, `run_real_backend.ps1` : relèvent du chantier Portability/launcher.
 
-## P4-C — dormant clinical routers — PRÉPARÉ, NON VALIDÉ
-Candidats :
-- `backend/routers/clinical.py`
-- `backend/routers/medical_library.py`
+## P4-D — dead Patient phase workflows — PRÉPARÉ, NON VALIDÉ
+Scope audité : 14 workflows historiques P3→P6 qui ciblent exclusivement des branches de stack supprimées (`agent/patient-page-p2-journey`, `agent/patient-page-p3-clinique`, `agent/patient-page-p4-imagerie`, `agent/patient-page-p5-documents`).
 
 Preuves disponibles :
-- ni l'un ni l'autre n'est monté dans `backend/main.py` ou `backend/routers/__init__.py` ;
-- `clinical.py` appelle `ClinicalIntelligenceService.extract_pubmed_pearls()`, méthode absente du service actuel ;
-- `medical_library.py` contient d'anciennes surfaces médicaments/diagnostics/règles et des calculs pédiatriques hardcodés ;
-- les surfaces canoniques actuelles incluent `clinical_data.py` (RBAC, données cliniques versionnées) et `medications.py` (référentiel national).
+- les quatre branches historiques ont été vérifiées absentes ;
+- les workflows P3/P4/P5/P6 BEFORE/AFTER/backend/UI et stack-sync concernés ne peuvent donc plus se déclencher normalement ;
+- deux stack-sync conservent inutilement `contents: write` ;
+- la certification consolidée `patient-p7-final-certification.yml` tourne sur chaque PR et recouvre explicitement les contrats/tests P0→P6 backend, frontend et navigateur ;
+- les régressions `patient-p1-architecture-after.yml` et `patient-p2-journey-after.yml` restent actives sur `master` et doivent être conservées ;
+- les workflows Settings R5 BEFORE/AFTER restent eux aussi actifs sur `master` et sont conservés.
 
-La suppression P4-C ne doit être créditée qu'après certification exacte du HEAD puis merge.
+Préparation hors branche uniquement : ancien candidat `7ddd398fca1c0a943b79da6fa120177388a999f0`, 14 suppressions, +0 / -1 561. Il doit être reconstruit sur le master courant avant publication.
 
-## Audit workflows — en cours
-- Les anciens workflows ne sont pas supprimés sur leur nom seul.
+## Audit workflows — reste à trancher séparément
 - `patient-p0e-payment-after.yml` : ancienne branche dédiée + manuel, ne surcharge pas les PR actuelles.
-- `patient-p1-architecture-after.yml` et `patient-p2-journey-after.yml` : régressions PR encore path-scoped, conservées.
 - `patient-indicators-before.yml` : snapshot BEFORE figé sur ancien commit, candidat futur de retrait mais non responsable de la file courante.
+- Ne supprimer aucun autre workflow sans vérifier trigger, branche cible et couverture de remplacement.
 
 ## Next exact
-1. Rebaser/reconstruire P4-C sur le master courant après ce closeout.
-2. Publier un seul commit P4-C.
-3. Certifier CI + T2 + Catalogue + Patient P7.
-4. Si vert : merge exact-head, puis poursuivre l'audit lifecycle des workflows et autres orphelins runtime.
+1. Reconstruire P4-D sur le master courant après ce closeout.
+2. Vérifier diff exact : 14 suppressions, aucune autre modification.
+3. Publier un seul commit P4-D et une seule PR.
+4. Certifier CI + T2 + Catalogue + Patient P7.
+5. Si vert : merge exact-head, closeout canonique, puis poursuivre les autres orphelins prouvables.
