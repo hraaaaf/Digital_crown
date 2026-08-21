@@ -3,7 +3,7 @@
 Date : 2026-08-21
 Repo : `hraaaaf/Digital_crown`
 Base BEFORE immuable : `e18597176a97805ae7839f2052340354257a0ae8`
-Statut : **PREPARED — non certifié**
+Statut : **CERTIFIÉ PRODUIT — merge pending**
 
 ## Goal
 
@@ -48,15 +48,15 @@ Référence : `docs/settings/INDICATEURS_PATIENT_EXPLICABLES_MOCKUP.svg`.
 - Titre `Repères du dossier`.
 - Pas de score circulaire `/100`.
 - Conserver dernière visite / prochain RDV / vigilances factuelles.
-- Chaque alerte/recommandation doit exposer une justification courte (`Pourquoi ?`) ou une donnée source directement dans le texte.
+- Chaque alerte/recommandation doit exposer une justification courte ou une donnée source directement dans le texte.
 - Remplacer `Alertes IA & Suggestion` par `Repères & actions`.
-- Remplacer `Assistant Virtuel ODF • Temps réel` par une provenance factuelle, par ex. `Données du dossier • règles déterministes`.
+- Remplacer `Assistant Virtuel ODF • Temps réel` par `Données du dossier • règles déterministes`.
 
 ### Page patient
 
 - Aucun toast silencieux prétendant une `Next Best Action` sans raison visible.
 - Si une action est proposée, montrer le fait déclencheur dans le message.
-- Journey et Finances ne doivent pas être redessinés hors nécessité.
+- Journey et Finances ne sont pas redessinés hors nécessité.
 
 ## Viewports de preuve
 
@@ -72,19 +72,48 @@ Surfaces :
 2. hover patient ;
 3. page patient / suivi.
 
-## Preuve attendue
+## Preuve acquise
 
-- BEFORE exact sur `e18597176a97805ae7839f2052340354257a0ae8` ;
-- mockup présent avant modification produit ;
-- tests backend ciblés sur indicateurs/NBA/tenant isolation ;
-- tests frontend ciblés ;
-- build frontend ;
-- AFTER exact mêmes 5 viewports et mêmes surfaces ;
-- 0 overflow horizontal non intentionnel ;
+### BEFORE
+
+Patient Indicators BEFORE #12 `32497490154` — **SUCCESS**.
+Artifact `9452286533`.
+Digest `sha256:5db90db3c19348e65d96345d6f021d32f7a72cbe486d0fd4a80d06c768bdcd23`.
+
+### AFTER
+
+Patient Indicators Truth Certification #6 `32497490038` — **SUCCESS**.
+Artifact `9452294425`.
+Digest `sha256:7e568a5327f76bfab834bc23ea6eb4ec664eae97e3107a588d13bc879c022a14`.
+
+- 15/15 captures AFTER ;
+- 0 overflow horizontal ;
 - 0 page error ;
 - 0 HTTP 5xx ;
-- inspection visuelle BEFORE → mockup → AFTER ;
-- score visuel final uniquement après inspection réelle des captures.
+- score automatique : `null` ;
+- grade automatique : `null` ;
+- sous-scores assiduité/solvabilité : `null` ;
+- intelligence score : `null` ;
+- tag cabinet manuel préservé ;
+- justification NBA visible sur 5/5 viewports ;
+- hover mobile corrigé à 360/320 px ;
+- score visuel : **9,3/10**.
+
+Dette visuelle non bloquante : la liste patients conserve à 320/360 px un layout étroit/tronqué déjà présent dans le BEFORE. Le nouveau hover, lui, reste contenu dans le viewport.
+
+## Gates de certification
+
+HEAD de certification : `ffe2cf7546a79ea476c393a6251fc0aba2036ff1`.
+
+- Patient Indicators Truth #6 `32497490038` — SUCCESS ;
+- CI #1531 `32497490220` — SUCCESS ;
+- T2 #751 `32497490136` — SUCCESS ;
+- Patient P7 #50 `32497490547` — SUCCESS ;
+- Patient P1 Architecture After #14 `32497490228` — SUCCESS ;
+- Catalog Connected Truth #24 `32497490107` — SUCCESS.
+
+Produit principal : `f39944aeaaf3688f496a81f1df0d7dde8aa74692`.
+Le delta `f39944a… → ffe2cf7…` ne touche que le workflow de certification et des tests hérités ; aucun fichier produit n'est modifié.
 
 ## Décisions audit verrouillées
 
