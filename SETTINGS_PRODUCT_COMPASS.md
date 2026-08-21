@@ -42,8 +42,9 @@ Statut : **CERTIFIÉ R2**.
 | R10-A Mon Équipe / mot de passe | GARDER / ALIGNER VÉRITÉ BACKEND | CLOSED — MERGED (#188) | 9,4/10 |
 | R11 TemplateBuilder legacy | SUPPRIMER FRONTEND ORPHELIN / CONSERVER BACKEND | CLOSED — MERGED (#191) | n/a |
 | Catalogue avancé / Catalogue connecté | GARDER / CONNECTER / FIGER HISTORIQUE | CLOSED — MERGED (#195) | 9,5/10 |
+| Indicateurs patient explicables | SUPPRIMER JUGEMENTS / GARDER REPÈRES FACTUELS | CLOSED — MERGED (#199) | 9,3/10 |
 
-**Avancement vérifié : 12/15 = 80,0 %.**
+**Avancement vérifié : 13/15 = 86,7 %.**
 
 ## 5. R1 — décision finale
 
@@ -55,7 +56,7 @@ Résultat :
 - aucun faux bouton global sur les domaines atomiques ;
 - dirty-state protégé par `beforeunload` ;
 - préférences runtime committées uniquement après succès backend ;
-- Read Truth conservé ;
+- Read Truth conservée ;
 - 35 BEFORE + 35 AFTER, 5 viewports, 0 overflow, 0 erreur runtime ;
 - score **9,5/10**.
 
@@ -79,33 +80,51 @@ Dette non bloquante : le bouton local historique de `ProfileTab.tsx` reste dans 
 - **R10-A Team mot de passe** : #188, merge `5e8307d4d20ee6ed0df18ee7d06fe2cdb24bc24a`, closeout `docs/settings/R10A_TEAM_PASSWORD_TRUTH_CLOSEOUT.md`.
 - **R11 TemplateBuilder frontend** : #191, merge `a4af5ce0ad535e8c154fb7cecee931cba7f76204`, closeout `docs/settings/R11_TEMPLATEBUILDER_REACHABILITY_CLOSEOUT.md`.
 - **Catalogue avancé / Catalogue connecté** : #195, merge `5f6187b30906e5f51b6176fa3143702d4b6d62ed`, closeout `docs/settings/CATALOG_CONNECTED_CLOSEOUT.md`, score **9,5/10**.
+- **Indicateurs patient explicables** : #199, merge `b22e7bc9e7981eef54916c4e1412fa69ad612bf5`, closeout `docs/settings/INDICATEURS_PATIENT_EXPLICABLES_CLOSEOUT.md`, post-merge `docs/settings/INDICATEURS_PATIENT_EXPLICABLES_POSTMERGE.md`, score **9,3/10**.
 
 ## 7. Roadmap restante
 
 Axes encore explicitement nommés dans la roadmap et non crédités :
 
-1. **Indicateurs patient explicables** — audit valeur métier + consommateurs ;
-2. **Restauration guidée** — audit Sécurité & Backup ;
-3. **Dette backend TemplateEngine / reachability restante** — uniquement après preuve downstream, sans suppression spéculative.
+1. **Restauration guidée** — audit Sécurité & Backup ;
+2. **Dette backend TemplateEngine / reachability restante** — uniquement après preuve downstream, sans suppression spéculative.
 
-L’ordre recommandé suit le chemin critique existant : **Indicateurs patient explicables d’abord**.
+L’ordre recommandé suit le chemin critique existant : **Restauration guidée d’abord**.
 
 ## 8. HANDOVER COURANT
 
 - Chantier : **Réglages — Product Review & Simplification**
-- Dernier lot fermé : **Catalogue avancé / Catalogue connecté**
-- PR : #195 — MERGED
-- Merge : `5f6187b30906e5f51b6176fa3143702d4b6d62ed`
-- HEAD produit certifié : `f0238b8245b61430ca64714f74aa87a580c7d37a`
-- Catalogue #8 `32474152651`, CI #1509 `32474152694`, T2 #734 `32474152628`, P7 #33 `32474152905` — SUCCESS
-- Artifact : `9443760454` — digest `sha256:09e14f0391143bf7faf28ce38f1ea84d034139dec32fc8b39313dae8c0973ca9`
-- Score : **9,5/10**
-- Closeout : `docs/settings/CATALOG_CONNECTED_CLOSEOUT.md`
-- Next exact : **Indicateurs patient explicables → audit uniquement : surface UI, données, calculs, provenance, explicabilité, consommateurs et valeur cabinet**
-- Avancement vérifié : **12/15 = 80,0 %**
+- Dernier lot fermé : **Indicateurs patient explicables**
+- PR : #199 — MERGED
+- Merge : `b22e7bc9e7981eef54916c4e1412fa69ad612bf5`
+- HEAD produit principal : `f39944aeaaf3688f496a81f1df0d7dde8aa74692`
+- HEAD de certification : `ffe2cf7546a79ea476c393a6251fc0aba2036ff1`
+- Truth #7 `32498981650`, CI #1533 `32498981685`, T2 #753 `32498981646`, P7 #52 `32498981617`, P1 #15 `32498981643`, Catalogue #26 `32498981615`, BEFORE #13 `32498981616` — SUCCESS
+- Artifact AFTER final : `9452294425` — digest `sha256:7e568a5327f76bfab834bc23ea6eb4ec664eae97e3107a588d13bc879c022a14`
+- Score : **9,3/10**
+- Closeout : `docs/settings/INDICATEURS_PATIENT_EXPLICABLES_CLOSEOUT.md`
+- Post-merge : `docs/settings/INDICATEURS_PATIENT_EXPLICABLES_POSTMERGE.md`
+- Next exact : **Restauration guidée → audit Sécurité & Backup, code/routes/tests/UI existants, aucune modification produit**
+- Avancement vérifié : **13/15 = 86,7 %**
 - Vercel : **aucun déploiement**
 
 ## 9. Journal récent
+
+### 2026-08-21 — Indicateurs patient explicables CLOSED
+
+- scores/grades automatiques retirés ;
+- repères RDV/finance factuels conservés ;
+- tag cabinet manuel conservé ;
+- intelligence score `/100` retiré ;
+- `Fantôme` remplacé par `Sans RDV futur` ;
+- NBA déterministe rendu explicable ;
+- IMPA exposé en delta brut sans jugement automatique ;
+- FlashSummary mort retiré ;
+- AFTER 15/15, 0 overflow, 0 page error, 0 HTTP 5xx ;
+- score **9,3/10** ;
+- Truth #7, CI #1533, T2 #753, P7 #52, P1 #15, Catalogue #26 et BEFORE #13 — SUCCESS ;
+- PR #199 squash-mergée : `b22e7bc9e7981eef54916c4e1412fa69ad612bf5` ;
+- aucun Vercel.
 
 ### 2026-08-21 — Catalogue avancé / Catalogue connecté CLOSED
 
