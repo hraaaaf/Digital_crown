@@ -2,17 +2,20 @@ import { create } from 'zustand';
 import { api } from '../services/api';
 
 export interface PatientScoreData {
-  score: number;
-  grade: 'PLATINUM' | 'GOLD' | 'SILVER' | 'BRONZE';
+  score: number | null;
+  grade: 'PLATINUM' | 'GOLD' | 'SILVER' | 'BRONZE' | null;
   is_manual: boolean;
-  comment?: string;
+  comment?: string | null;
   details: {
-    assiduite_score: number;
-    solvabilite_score: number;
-    rdv_honores?: number;
-    rdv_annules?: number;
-    total_facture?: number;
-    total_encaisse?: number;
+    assiduite_score?: null;
+    solvabilite_score?: null;
+    rdv_honores: number;
+    rdv_annules: number;
+    rdv_total_observe: number;
+    total_facture: number;
+    total_encaisse: number;
+    remaining_due: number | null;
+    has_billing_data: boolean;
   };
 }
 
@@ -20,11 +23,10 @@ interface PatientScoresState {
   scores: Record<number, PatientScoreData>;
   loading: boolean;
   loaded: boolean;
-  /** Charge les scores de TOUS les patients en un seul appel batch. */
   fetchScores: (force?: boolean) => Promise<void>;
 }
 
-let _inflight: Promise<void> | null = null;
+let inflight: Promise<void> | null = null;
 
 export const usePatientScoresStore = create<PatientScoresState>((set, get) => ({
   scores: {},
@@ -33,25 +35,24 @@ export const usePatientScoresStore = create<PatientScoresState>((set, get) => ({
 
   fetchScores: async (force = false) => {
     if (!force && (get().loaded || get().loading)) return;
-    if (_inflight) return _inflight; // dédoublonne les appels concurrents (N badges montés en même temps)
+    if (inflight) return inflight;
 
     set({ loading: true });
-    _inflight = (async () => {
+    inflight = (async () => {
       try {
         const res = await api.get('/patients/scores');
-        // Les clés JSON sont des strings → on normalise en number
         const map: Record<number, PatientScoreData> = {};
-        for (const [k, v] of Object.entries(res.data || {})) {
-          map[Number(k)] = v as PatientScoreData;
+        for (const [key, value] of Object.entries(res.data || {})) {
+          map[Number(key)] = value as PatientScoreData;
         }
         set({ scores: map, loaded: true });
       } catch (err) {
-        console.error('Erreur chargement scores patients', err);
+        console.error('Erreur chargement repères patients', err);
       } finally {
         set({ loading: false });
-        _inflight = null;
+        inflight = null;
       }
     })();
-    return _inflight;
+    return inflight;
   },
 }));

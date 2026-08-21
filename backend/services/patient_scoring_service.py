@@ -1,162 +1,137 @@
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 from backend import models
-import math
+
 
 class PatientScoringService:
-    
-    def calculate_score(self, db: Session, patient_id: int) -> dict:
-        """
-        Calcule le score dynamique d'un patient basé sur :
-        1. L'assiduité aux rendez-vous (60%)
-        2. La régularité des paiements (40%)
-        """
-        # --- 1. INDICE D'ASSIDUITÉ (60%) ---
-        appointments = db.query(models.Appointment).filter(models.Appointment.patient_id == patient_id).all()
-        
-        appt_score = 100.0
-        honores = 0
-        no_shows = 0
-        annules = 0
+    """Expose des repères patient factuels sans produire de note comportementale."""
 
-        for appt in appointments:
-            if appt.status == models.AppointmentStatus.TERMINE:
-                honores += 1
-                appt_score += 5  # Bonus fidélité
-            elif appt.status == models.AppointmentStatus.ANNULE:
-                annules += 1
-                appt_score -= 10 # Malus annulation
-            # Si on avait un statut NO_SHOW, on appliquerait -30. On suppose ANNULE regroupe pour l'instant.
-
-        if honores == 0 and annules == 0:
-            # Neutre : aucun historique de RDV honoré/annulé — ni confiance (100) ni
-            # défiance, juste absence de données (audit fonctionnel 2026-07-12 : un
-            # patient tout neuf ne doit pas hériter d'un grade PLATINUM par défaut).
-            appt_score = 50.0
-        else:
-            # Clamp entre 0 et 100
-            appt_score = max(0.0, min(100.0, appt_score))
-
-        # --- 2. INDICE DE SOLVABILITÉ (40%) ---
-        # Total facturé
-        actes = db.query(models.Acte).filter(models.Acte.patient_id == patient_id).all()
-        total_facture = sum(acte.montant for acte in actes)
-
-        # Total encaissé
-        payments = db.query(models.Payment).filter(models.Payment.patient_id == patient_id).all()
-        total_encaisse = sum(payment.amount for payment in payments)
-
-        if total_facture > 0:
-            ratio = (total_encaisse / total_facture) * 100
-            solv_score = max(0.0, min(100.0, ratio))
-        else:
-            solv_score = 50.0  # neutre : aucune donnée de facturation
-
-        # --- 3. CALCUL FINAL ET GRADE ---
-        final_score = math.floor((appt_score * 0.6) + (solv_score * 0.4))
-        
-        if final_score >= 90:
-            grade = "PLATINUM"
-        elif final_score >= 75:
-            grade = "GOLD"
-        elif final_score >= 50:
-            grade = "SILVER"
-        else:
-            grade = "BRONZE"
-            
+    @staticmethod
+    def _details(
+        *,
+        rdv_honores: int,
+        rdv_annules: int,
+        total_facture: float,
+        total_encaisse: float,
+        has_billing_data: bool,
+    ) -> dict:
+        remaining_due = (
+            round(max(total_facture - total_encaisse, 0.0), 2)
+            if has_billing_data
+            else None
+        )
         return {
-            "score": final_score,
-            "grade": grade,
-            "details": {
-                "assiduite_score": math.floor(appt_score),
-                "solvabilite_score": math.floor(solv_score),
-                "rdv_honores": honores,
-                "rdv_annules": annules,
-                "total_facture": total_facture,
-                "total_encaisse": total_encaisse
-            }
+            # Anciens champs conservés explicitement nuls pour compatibilité de contrat :
+            # ils ne doivent plus être interprétés comme des scores.
+            "assiduite_score": None,
+            "solvabilite_score": None,
+            "rdv_honores": int(rdv_honores),
+            "rdv_annules": int(rdv_annules),
+            "rdv_total_observe": int(rdv_honores + rdv_annules),
+            "total_facture": round(float(total_facture), 2),
+            "total_encaisse": round(float(total_encaisse), 2),
+            "remaining_due": remaining_due,
+            "has_billing_data": bool(has_billing_data),
         }
 
-    def _grade_from_score(self, final_score: int) -> str:
-        if final_score >= 90:
-            return "PLATINUM"
-        if final_score >= 75:
-            return "GOLD"
-        if final_score >= 50:
-            return "SILVER"
-        return "BRONZE"
+    def calculate_score(self, db: Session, patient_id: int) -> dict:
+        """Retourne les faits historiques ; aucun score/grade automatique n'est calculé."""
+        appointments = db.query(models.Appointment).filter(
+            models.Appointment.patient_id == patient_id
+        ).all()
+        rdv_honores = sum(
+            1 for appt in appointments if appt.status == models.AppointmentStatus.TERMINE
+        )
+        rdv_annules = sum(
+            1 for appt in appointments if appt.status == models.AppointmentStatus.ANNULE
+        )
+
+        actes = db.query(models.Acte).filter(models.Acte.patient_id == patient_id).all()
+        payments = db.query(models.Payment).filter(models.Payment.patient_id == patient_id).all()
+        total_facture = sum(float(acte.montant or 0.0) for acte in actes)
+        total_encaisse = sum(float(payment.amount or 0.0) for payment in payments)
+        has_billing_data = len(actes) > 0
+
+        return {
+            "score": None,
+            "grade": None,
+            "details": self._details(
+                rdv_honores=rdv_honores,
+                rdv_annules=rdv_annules,
+                total_facture=total_facture,
+                total_encaisse=total_encaisse,
+                has_billing_data=has_billing_data,
+            ),
+        }
 
     def calculate_scores_bulk(self, db: Session, employer_id: int) -> dict:
-        """
-        Calcule les scores de TOUS les patients d'un cabinet en 3 requêtes agrégées
-        (au lieu de 3 requêtes par patient). Évite le flood de N appels /score.
-        Retourne {patient_id: {score, grade, details}}.
-        """
+        """Agrège les mêmes faits en batch, sans N appels ni notation automatique."""
         patient_ids = [
-            pid for (pid,) in db.query(models.Patient.id)
-            .filter(models.Patient.employer_id == employer_id).all()
+            pid
+            for (pid,) in db.query(models.Patient.id)
+            .filter(models.Patient.employer_id == employer_id)
+            .all()
         ]
         if not patient_ids:
             return {}
 
-        # 1. RDV agrégés par patient + statut
         appt_rows = (
-            db.query(models.Appointment.patient_id, models.Appointment.status, func.count().label("c"))
+            db.query(
+                models.Appointment.patient_id,
+                models.Appointment.status,
+                func.count().label("c"),
+            )
             .filter(models.Appointment.patient_id.in_(patient_ids))
             .group_by(models.Appointment.patient_id, models.Appointment.status)
             .all()
         )
-        honores: dict = {}
-        annules: dict = {}
-        for pid, status, c in appt_rows:
+        honores: dict[int, int] = {}
+        annules: dict[int, int] = {}
+        for pid, status, count in appt_rows:
             name = status.name if hasattr(status, "name") else str(status)
             if name == "TERMINE":
-                honores[pid] = honores.get(pid, 0) + c
+                honores[pid] = honores.get(pid, 0) + int(count)
             elif name == "ANNULE":
-                annules[pid] = annules.get(pid, 0) + c
+                annules[pid] = annules.get(pid, 0) + int(count)
 
-        # 2. Total facturé / encaissé par patient
         acte_rows = (
-            db.query(models.Acte.patient_id, func.coalesce(func.sum(models.Acte.montant), 0))
+            db.query(
+                models.Acte.patient_id,
+                func.count(models.Acte.id),
+                func.coalesce(func.sum(models.Acte.montant), 0),
+            )
             .filter(models.Acte.patient_id.in_(patient_ids))
-            .group_by(models.Acte.patient_id).all()
+            .group_by(models.Acte.patient_id)
+            .all()
         )
-        factures = {pid: float(total or 0) for pid, total in acte_rows}
+        billing = {
+            pid: {"count": int(count), "total": float(total or 0.0)}
+            for pid, count, total in acte_rows
+        }
         pay_rows = (
-            db.query(models.Payment.patient_id, func.coalesce(func.sum(models.Payment.amount), 0))
+            db.query(
+                models.Payment.patient_id,
+                func.coalesce(func.sum(models.Payment.amount), 0),
+            )
             .filter(models.Payment.patient_id.in_(patient_ids))
-            .group_by(models.Payment.patient_id).all()
+            .group_by(models.Payment.patient_id)
+            .all()
         )
-        encaisses = {pid: float(total or 0) for pid, total in pay_rows}
+        encaisses = {pid: float(total or 0.0) for pid, total in pay_rows}
 
-        result = {}
+        result: dict[int, dict] = {}
         for pid in patient_ids:
-            h = honores.get(pid, 0)
-            a = annules.get(pid, 0)
-            if h == 0 and a == 0:
-                appt_score = 50.0  # neutre — même règle que calculate_score()
-            else:
-                appt_score = max(0.0, min(100.0, 100.0 + 5 * h - 10 * a))
-
-            total_facture = factures.get(pid, 0.0)
-            total_encaisse = encaisses.get(pid, 0.0)
-            if total_facture > 0:
-                solv_score = max(0.0, min(100.0, (total_encaisse / total_facture) * 100))
-            else:
-                solv_score = 50.0  # neutre — même règle que calculate_score()
-
-            final_score = math.floor((appt_score * 0.6) + (solv_score * 0.4))
+            billing_row = billing.get(pid, {"count": 0, "total": 0.0})
             result[pid] = {
-                "score": final_score,
-                "grade": self._grade_from_score(final_score),
-                "details": {
-                    "assiduite_score": math.floor(appt_score),
-                    "solvabilite_score": math.floor(solv_score),
-                    "rdv_honores": h,
-                    "rdv_annules": a,
-                    "total_facture": total_facture,
-                    "total_encaisse": total_encaisse,
-                },
+                "score": None,
+                "grade": None,
+                "details": self._details(
+                    rdv_honores=honores.get(pid, 0),
+                    rdv_annules=annules.get(pid, 0),
+                    total_facture=billing_row["total"],
+                    total_encaisse=encaisses.get(pid, 0.0),
+                    has_billing_data=billing_row["count"] > 0,
+                ),
             }
         return result
 

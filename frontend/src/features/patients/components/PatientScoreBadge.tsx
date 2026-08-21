@@ -1,5 +1,5 @@
-import { useEffect, useState, useRef } from 'react';
-import { Crown, Gem, ShieldCheck, AlertCircle, Loader2, RefreshCcw } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
+import { CalendarCheck2, Loader2, RefreshCcw, Tag, WalletCards } from 'lucide-react';
 import { api } from '../../../services/api';
 import { cn } from '../../../utils/cn';
 import { usePatientScoresStore } from '../../../stores/usePatientScoresStore';
@@ -10,177 +10,114 @@ interface PatientScoreBadgeProps {
   onUpdate?: () => void;
 }
 
-export const PatientScoreBadge = ({ patientId, className, onUpdate }: PatientScoreBadgeProps) => {
-  // Les scores sont chargés UNE fois en batch (store partagé) → plus de N appels /score.
-  const data = usePatientScoresStore(s => s.scores[patientId]) || null;
-  const storeLoading = usePatientScoresStore(s => s.loading);
-  const loaded = usePatientScoresStore(s => s.loaded);
-  const fetchScores = usePatientScoresStore(s => s.fetchScores);
+const MANUAL_TAGS = {
+  PLATINUM: 'VIP',
+  GOLD: 'Fidèle',
+  SILVER: 'Standard',
+  BRONZE: 'À recontacter',
+} as const;
 
+const money = (value: number) => value.toLocaleString('fr-MA', { maximumFractionDigits: 0 });
+
+export const PatientScoreBadge = ({ patientId, className, onUpdate }: PatientScoreBadgeProps) => {
+  const data = usePatientScoresStore(state => state.scores[patientId]) || null;
+  const storeLoading = usePatientScoresStore(state => state.loading);
+  const loaded = usePatientScoresStore(state => state.loaded);
+  const fetchScores = usePatientScoresStore(state => state.fetchScores);
   const [showMenu, setShowMenu] = useState(false);
   const [isUpdating, setIsUpdating] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
-  // Déclenche le chargement batch une seule fois (le store dédoublonne les appels concurrents)
   useEffect(() => {
     if (!loaded && !storeLoading) fetchScores();
   }, [loaded, storeLoading, fetchScores]);
 
-  const loading = !loaded && !data;
+  useEffect(() => {
+    if (!showMenu) return;
+    const close = (event: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) setShowMenu(false);
+    };
+    document.addEventListener('mousedown', close);
+    return () => document.removeEventListener('mousedown', close);
+  }, [showMenu]);
 
-  const handleUpdateGrade = async (newGrade: string | null) => {
+  const updateManualTag = async (grade: keyof typeof MANUAL_TAGS | null) => {
     setIsUpdating(true);
     try {
       await api.patch(`/patients/${patientId}/grade`, {
-        grade: newGrade,
-        comment: newGrade ? `Modifié manuellement par le praticien.` : null
+        grade,
+        comment: grade ? 'Tag cabinet manuel.' : null,
       });
-      await fetchScores(true); // recharge le batch (reflète le nouveau grade)
+      await fetchScores(true);
       onUpdate?.();
       setShowMenu(false);
     } catch (error) {
-      console.error("Erreur mise à jour grade", error);
+      console.error('Erreur mise à jour tag cabinet', error);
     } finally {
       setIsUpdating(false);
     }
   };
 
-  // Fermeture au clic extérieur
-  useEffect(() => {
-    if (!showMenu) return;
-    const handleClickOutside = (event: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
-        setShowMenu(false);
-      }
-    };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [showMenu]);
-
-  if (loading) {
-    return (
-      <div className={cn("w-8 h-8 rounded-xl bg-slate-100 flex items-center justify-center", className)}>
-        <Loader2 size={14} className="animate-spin text-slate-300" />
-      </div>
-    );
+  if (!loaded && !data) {
+    return <Loader2 size={14} className={cn('animate-spin text-slate-300', className)} />;
   }
-
   if (!data) return null;
 
-  const gradeConfig = {
-    PLATINUM: {
-      icon: <Crown size={14} strokeWidth={3} />,
-      bg: "bg-slate-950",
-      text: "text-slate-50",
-      border: "border-slate-800",
-      shadow: "shadow-[0_0_15px_-3px_rgba(0,0,0,0.4)]",
-      label: "Platinum Elite",
-      desc: "Patient VIP. Excellence clinique et administrative."
-    },
-    GOLD: {
-      icon: <Gem size={14} strokeWidth={2.5} />,
-      bg: "bg-[#FFF9E6]",
-      text: "text-[#B48A05]",
-      border: "border-[#F3E2B4]",
-      shadow: "shadow-sm",
-      label: "Gold Status",
-      desc: "Haut niveau de fiabilité. Engagement exemplaire."
-    },
-    SILVER: {
-      icon: <ShieldCheck size={14} strokeWidth={2.5} />,
-      bg: "bg-slate-50",
-      text: "text-slate-500",
-      border: "border-slate-200",
-      shadow: "shadow-none",
-      label: "Silver",
-      desc: "Patient standard. Suivi régulier et conforme."
-    },
-    BRONZE: {
-      icon: <AlertCircle size={14} strokeWidth={2.5} />,
-      bg: "bg-rose-50",
-      text: "text-rose-600",
-      border: "border-rose-100",
-      shadow: "shadow-none",
-      label: "Bronze (Vigilance)",
-      desc: "Attention requise : Historique d'absences ou retards."
-    }
-  };
-
-  const config = (data.grade && gradeConfig[data.grade]) || gradeConfig.SILVER;
+  const { rdv_honores, rdv_annules, has_billing_data, total_facture, total_encaisse } = data.details;
+  const hasRdvHistory = rdv_honores + rdv_annules > 0;
+  const manualLabel = data.is_manual && data.grade ? MANUAL_TAGS[data.grade] : null;
 
   return (
-    <div className={cn("relative", className)}>
-      <div 
-        onClick={(e) => {
-          e.stopPropagation();
-          setShowMenu(!showMenu);
-        }}
-        className={cn(
-          "flex items-center justify-center w-8 h-8 rounded-xl border transition-all cursor-pointer hover:scale-110 active:scale-95 group",
-          config.bg, config.text, config.border, config.shadow,
-          data.is_manual && "ring-2 ring-offset-2 ring-slate-400"
-        )}
+    <div className={cn('relative inline-flex max-w-full flex-wrap items-center gap-1.5', className)} ref={menuRef}>
+      <span className="inline-flex max-w-full items-center gap-1 rounded-lg border border-indigo-100 bg-indigo-50 px-2 py-1 text-[9px] font-black text-indigo-700 whitespace-nowrap">
+        <CalendarCheck2 size={11} />
+        {hasRdvHistory ? `${rdv_honores} RDV honoré${rdv_honores > 1 ? 's' : ''} · ${rdv_annules} annulé${rdv_annules > 1 ? 's' : ''}` : 'Aucun historique RDV'}
+      </span>
+
+      <span className="inline-flex max-w-full items-center gap-1 rounded-lg border border-emerald-100 bg-emerald-50 px-2 py-1 text-[9px] font-black text-emerald-700 whitespace-nowrap">
+        <WalletCards size={11} />
+        {has_billing_data ? `${money(total_encaisse)} / ${money(total_facture)} MAD encaissés` : 'Facturation indéterminée'}
+      </span>
+
+      <button
+        type="button"
+        onClick={(event) => { event.stopPropagation(); setShowMenu(value => !value); }}
+        className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2 py-1 text-[9px] font-black text-slate-500 hover:bg-slate-50 whitespace-nowrap"
+        aria-label="Tag cabinet manuel"
+        title="Tag cabinet manuel"
       >
-        {config.icon}
-        {data.is_manual && (
-          <div className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-blue-500 border-2 border-white rounded-full" />
-        )}
-      </div>
+        <Tag size={10} /> {manualLabel ? `Tag cabinet · ${manualLabel}` : 'Tag cabinet'}
+      </button>
 
       {showMenu && (
-        <div 
-          ref={menuRef}
-          onClick={(e) => e.stopPropagation()}
-          className="absolute right-0 top-full mt-3 w-72 bg-white rounded-[2rem] shadow-[0_25px_50px_-12px_rgba(0,0,0,0.25)] border border-slate-100 p-4 z-[9999] animate-in fade-in zoom-in-95 duration-200 origin-top-right"
-        >
-          <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-4 px-2">Modifier le Badge Patient</h4>
-          
-          <div className="space-y-2">
-            {(Object.keys(gradeConfig) as Array<keyof typeof gradeConfig>).map((g) => (
+        <div onClick={event => event.stopPropagation()} className="absolute left-0 top-full z-[9999] mt-2 w-64 rounded-2xl border border-slate-100 bg-white p-3 text-left shadow-2xl">
+          <p className="px-2 pb-2 text-[9px] font-black uppercase tracking-widest text-slate-400">Tag cabinet manuel</p>
+          <p className="px-2 pb-3 text-[10px] font-medium leading-relaxed text-slate-500">Ce tag est choisi par le cabinet. Il n'est jamais calculé automatiquement.</p>
+          <div className="space-y-1">
+            {(Object.keys(MANUAL_TAGS) as Array<keyof typeof MANUAL_TAGS>).map(grade => (
               <button
-                key={g}
+                key={grade}
+                type="button"
                 disabled={isUpdating}
-                onClick={() => handleUpdateGrade(g)}
-                className={cn(
-                  "w-full flex items-center gap-3 p-3 rounded-2xl transition-all text-left group/item",
-                  data.grade === g ? "bg-slate-50 ring-1 ring-slate-100" : "hover:bg-slate-50"
-                )}
+                onClick={() => updateManualTag(grade)}
+                className="w-full rounded-xl px-3 py-2 text-left text-xs font-bold text-slate-700 hover:bg-slate-50"
               >
-                <div className={cn("p-2 rounded-xl transition-transform group-hover/item:scale-110", gradeConfig[g].bg, gradeConfig[g].text)}>
-                  {gradeConfig[g].icon}
-                </div>
-                <div className="flex-1">
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm font-black text-slate-800">{gradeConfig[g].label}</span>
-                    {data.grade === g && <div className="w-1.5 h-1.5 rounded-full bg-blue-500" />}
-                  </div>
-                  <p className="text-[10px] font-bold text-slate-400 leading-tight mt-0.5">{gradeConfig[g].desc}</p>
-                </div>
+                {MANUAL_TAGS[grade]}
               </button>
             ))}
           </div>
-
-          <div className="mt-4 pt-4 border-t border-slate-50 flex flex-col gap-2">
-            {data.is_manual && (
-              <button
-                disabled={isUpdating}
-                onClick={() => handleUpdateGrade(null)}
-                className="w-full py-3 rounded-xl text-[10px] font-black uppercase tracking-widest text-blue-500 hover:bg-blue-50 transition-all flex items-center justify-center gap-2"
-              >
-                <RefreshCcw size={12} />
-                Réinitialiser en auto
-              </button>
-            )}
+          {data.is_manual && (
             <button
-              onClick={() => setShowMenu(false)}
-              className="w-full py-3 rounded-xl text-[10px] font-black uppercase tracking-widest text-slate-400 hover:bg-slate-50 transition-all"
+              type="button"
+              disabled={isUpdating}
+              onClick={() => updateManualTag(null)}
+              className="mt-2 flex w-full items-center justify-center gap-1 border-t border-slate-100 pt-3 text-[9px] font-black uppercase tracking-wider text-blue-600"
             >
-              Fermer
+              <RefreshCcw size={11} /> Retirer le tag
             </button>
-          </div>
+          )}
         </div>
       )}
-
     </div>
   );
 };

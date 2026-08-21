@@ -152,16 +152,6 @@ class ClinicalIntelligenceService:
         for um in urgent_motifs:
             alerts.append(f"⚡ Urgence déclarée : {um['label']}")
             
-        # Check last analysis for instability
-        last_analyses = db.query(models.CephaloAnalysis).filter(models.CephaloAnalysis.patient_id == patient_id).order_by(desc(models.CephaloAnalysis.created_at)).limit(2).all()
-        if len(last_analyses) >= 2:
-            a1 = last_analyses[0].angles_data
-            a2 = last_analyses[1].angles_data
-            if a1 and a2 and 'IMPA' in a1 and 'IMPA' in a2:
-                diff = abs(a1['IMPA'].get('valeur', 0) - a2['IMPA'].get('valeur', 0))
-                if diff > 3:
-                    alerts.append("IMPA instable sur les dernières analyses.")
-
         risk_level = "low"
         if alerts: risk_level = "moderate"
         if any("Alerte Médicale" in a for a in alerts): risk_level = "high"
@@ -197,8 +187,8 @@ class ClinicalIntelligenceService:
             impa1 = a1.get("IMPA", {}).get("valeur")
             impa2 = a2.get("IMPA", {}).get("valeur")
             if impa1 is not None and impa2 is not None:
-                diff = impa1 - impa2
-                cephalo_trend = "stable" if abs(diff) <= 2 else ("amélioration" if diff < 0 else "dégradation")
+                diff = float(impa1) - float(impa2)
+                cephalo_trend = f"ΔIMPA {diff:+.1f}° entre les deux dernières analyses"
 
         # Compile treatment hints from motifs (deduplicated)
         seen_specialties: set = set()
