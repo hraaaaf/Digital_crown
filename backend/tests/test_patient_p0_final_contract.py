@@ -9,7 +9,7 @@ def _read(relative: str) -> str:
 
 
 def test_p0_clinicalhub_has_no_fabricated_clinical_truth():
-    hub = _read("frontend/src/features/patients/components/ClinicalHub.tsx")
+    hub = _read("frontend/src/features/patients/components/ClinicalHubCore.tsx")
     for banned in (
         "Détartrage & Surfaçage",
         "scientificOrder",

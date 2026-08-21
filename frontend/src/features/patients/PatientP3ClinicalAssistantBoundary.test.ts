@@ -20,7 +20,7 @@ const specialized = [
 ];
 
 const hub = readFileSync(
-  resolve(process.cwd(), 'src/features/patients/components/ClinicalHub.tsx'),
+  resolve(process.cwd(), 'src/features/patients/components/ClinicalHubCore.tsx'),
   'utf8',
 );
 
