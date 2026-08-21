@@ -2,7 +2,7 @@ from datetime import datetime
 
 from sqlalchemy import Column, DateTime, ForeignKey, Integer, Numeric, String, UniqueConstraint
 
-from backend.database import Base
+from backend.models import Base
 
 
 class TreatmentPlanCatalogSnapshot(Base):
