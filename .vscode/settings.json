@@ -1,10 +1,6 @@
 {
-  "css.customData": [],
   "css.lint.unknownAtRules": "ignore",
-  "editor.fontSize": 21,
-  "task.quickOpen.showAll": false,
-  "python.defaultInterpreterPath": "${workspaceFolder}\\\\venv\\\\Scripts\\\\python.exe",
   "python.analysis.extraPaths": [
-    "${workspaceFolder}\\\\backend"
+    "${workspaceFolder}/backend"
   ]
 }
