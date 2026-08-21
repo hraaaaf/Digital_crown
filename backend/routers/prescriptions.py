@@ -63,13 +63,8 @@ def quick_add_catalog_act(
     for specialty in catalog:
         for act in specialty.get("acts") or []:
             if str(act.get("name") or "").strip().casefold() == name.casefold():
-                if act.get("is_active") is False or float(act.get("base_price") or 0.0) != base_price:
-                    updated = catalog_store.update_owned(
-                        db, catalog_store.acts, int(act["id"]), tenant_id,
-                        {"is_active": True, "base_price": base_price},
-                    )
-                    if updated:
-                        act = updated
+                # Preserve the historical quick-add contract: an existing act is
+                # returned as-is. Quick-add must never mutate its price or state.
                 return {
                     "id": int(act["id"]),
                     "catalog_act_id": int(act["id"]),
@@ -80,7 +75,7 @@ def quick_add_catalog_act(
                     "is_habit": False,
                 }
 
-    category = str(payload.get("category") or "").strip() or "DIVERS"
+    category = str(payload.get("category") or "").strip().upper() or "DIVERS"
     specialty = next(
         (row for row in catalog if str(row.get("name") or "").strip().casefold() == category.casefold()),
         None,

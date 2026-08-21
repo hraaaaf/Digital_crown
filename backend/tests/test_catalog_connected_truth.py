@@ -3,6 +3,7 @@ from decimal import Decimal
 from pathlib import Path
 
 from backend import models
+from backend.models_catalog_plan import TreatmentPlanCatalogSnapshot
 from backend.security import get_password_hash
 from backend.services.catalog_connected_truth import flatten_catalog_acts
 
@@ -95,6 +96,7 @@ def test_master_plan_validates_new_snapshot_tenant_but_reuses_history():
     assert "_same_snapshot(explicit, preserved)" in source
     assert "snapshot = queue.popleft()" in source
     assert "revision_snapshot" in source
+    assert "_serialize_plan(db, plan)" in source
     assert "treatment_plan_catalog_snapshots" in model
     assert "Numeric(12, 2)" in model
 
@@ -148,6 +150,13 @@ def test_master_plan_http_put_and_get_return_persisted_catalog_snapshot(client, 
     assert saved.status_code == 200, saved.text
     saved_step = saved.json()["steps"][0]
     assert saved_step["catalog_snapshot"] == snapshot
+
+    persisted = (
+        db.query(TreatmentPlanCatalogSnapshot)
+        .filter(TreatmentPlanCatalogSnapshot.step_id == saved_step["id"])
+        .one()
+    )
+    assert persisted.as_payload() == snapshot
 
     reread = client.get(master_url, headers=headers)
     assert reread.status_code == 200, reread.text

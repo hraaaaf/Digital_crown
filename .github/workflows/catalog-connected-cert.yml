@@ -93,7 +93,7 @@ jobs:
 
       - name: Targeted backend truth tests
         run: |
-          pytest -q backend/tests/test_catalog_connected_truth.py backend/tests/test_patient_p3_master_plan_revisions.py
+          pytest -q backend/tests/test_catalog_connected_truth.py backend/tests/test_patient_p3_master_plan_revisions.py backend/tests/test_prescriptions_router.py::TestCatalogQuickAdd
 
       - name: Targeted frontend truth tests and build
         working-directory: frontend

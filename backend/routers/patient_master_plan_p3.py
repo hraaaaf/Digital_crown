@@ -56,14 +56,16 @@ def _step_snapshot(step_data: ConnectedTreatmentPlanStepCreate, order_index: int
     return payload
 
 
-def _attach_snapshots(db: Session, plan):
+def _serialize_plan(db: Session, plan):
+    """Build the public DTO from SQL rows; never rely on ad-hoc ORM attributes."""
     if plan is None:
         return None
-    # Bulk replacement bypasses relationship bookkeeping. Always invalidate the
-    # collection before serializing so a freshly-created/replaced plan cannot
-    # return a stale empty `steps` list while its rows already exist in SQL.
-    db.expire(plan, ["steps"])
-    steps = list(getattr(plan, "steps", []) or [])
+    steps = (
+        db.query(models.TreatmentPlanStep)
+        .filter(models.TreatmentPlanStep.plan_id == plan.id)
+        .order_by(models.TreatmentPlanStep.order_index.asc(), models.TreatmentPlanStep.id.asc())
+        .all()
+    )
     step_ids = [step.id for step in steps]
     rows = (
         db.query(TreatmentPlanCatalogSnapshot)
@@ -73,9 +75,25 @@ def _attach_snapshots(db: Session, plan):
         else []
     )
     by_step = {row.step_id: row.as_payload() for row in rows}
-    for step in steps:
-        step.catalog_snapshot = by_step.get(step.id)
-    return plan
+    return {
+        "id": plan.id,
+        "patient_id": plan.patient_id,
+        "created_at": plan.created_at,
+        "updated_at": plan.updated_at,
+        "steps": [
+            {
+                "id": step.id,
+                "plan_id": step.plan_id,
+                "title": step.title,
+                "assistant": step.assistant,
+                "status": step.status.value if hasattr(step.status, "value") else str(step.status),
+                "date_str": step.date_str,
+                "order_index": step.order_index,
+                "catalog_snapshot": by_step.get(step.id),
+            }
+            for step in steps
+        ],
+    }
 
 
 def _old_snapshot_queues(db: Session, plan) -> Dict[Tuple[str, str], Deque[dict]]:
@@ -153,7 +171,7 @@ def get_master_plan_p3(
         .filter(models.TreatmentMasterPlan.patient_id == patient_id)
         .first()
     )
-    return _attach_snapshots(db, plan)
+    return _serialize_plan(db, plan)
 
 
 @router.put("/{patient_id}/master-plan", response_model=ConnectedTreatmentMasterPlanOut)
@@ -253,7 +271,6 @@ def update_master_plan_p3(
 
     db.commit()
     db.refresh(plan)
-    _attach_snapshots(db, plan)
 
     audit_service.log(
         db=db,
@@ -264,7 +281,7 @@ def update_master_plan_p3(
         resource_id=str(plan.id),
         details=f"patient_id={patient_id} revision={revision.revision} steps={len(revision_snapshot)}",
     )
-    return plan
+    return _serialize_plan(db, plan)
 
 
 @router.get("/{patient_id}/master-plan/revisions")
