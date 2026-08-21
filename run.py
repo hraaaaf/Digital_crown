@@ -29,7 +29,7 @@ def _first_boot_bootstrap() -> None:
 
     env_path = _appdata_env_path()
     if env_path is None or env_path.exists():
-        return  # installation déjà configurée — ne jamais écraser un .env existant
+        return
 
     import secrets
     import socket
@@ -61,18 +61,7 @@ def _first_boot_bootstrap() -> None:
 
 def _setup_frozen_logging() -> None:
     """Redirige les logs applicatifs vers un fichier quand l'EXE est packagé
-    sans console (`console=False` dans `DigitalCrown.spec`).
-
-    Sans ça, tout `logging`/`print` part dans le vide dès que la console
-    disparaît — un problème de démarrage devient impossible à diagnostiquer
-    sans terminal. Configure le root logger AVANT `from backend.main import
-    app` : `backend/main.py` appelle `logging.basicConfig(level=logging.INFO)`
-    à son import, qui ne fait rien si le root logger a déjà un handler — donc
-    tous les logs applicatifs (y compris ceux de `backend.main` et ses
-    routers) atterrissent dans ce fichier, sans dupliquer la config.
-
-    No-op hors build PyInstaller (comportement console actuel inchangé en dev).
-    """
+    sans console (`console=False` dans `DigitalCrown.spec`)."""
     if not getattr(sys, "frozen", False):
         return
 
@@ -89,9 +78,6 @@ def _setup_frozen_logging() -> None:
     logging.basicConfig(level=logging.INFO, handlers=[handler])
 
     def _log_uncaught_exception(exc_type, exc_value, exc_tb):
-        # Sans console, une exception non interceptée disparaît silencieusement
-        # (l'EXE se ferme sans aucune trace). On la journalise avant de laisser
-        # le comportement par défaut s'appliquer.
         logging.getLogger("uncaught").critical(
             "Exception non interceptée — arrêt de l'application",
             exc_info=(exc_type, exc_value, exc_tb),
@@ -101,8 +87,31 @@ def _setup_frozen_logging() -> None:
     sys.excepthook = _log_uncaught_exception
 
 
+def _maybe_run_guided_restore_worker() -> None:
+    """Exécute le worker de restauration avant tout import du runtime FastAPI.
+
+    Le worker tourne dans un second processus du même EXE, attend l'arrêt du
+    processus applicatif, applique la restauration puis relance l'EXE. Il ne
+    doit donc jamais importer backend.main avant d'avoir terminé son travail.
+    """
+    if len(sys.argv) < 2 or sys.argv[1] != "--guided-restore-worker":
+        return
+
+    import argparse
+
+    parser = argparse.ArgumentParser(add_help=False)
+    parser.add_argument("--guided-restore-worker", dest="restore_id", required=True)
+    parser.add_argument("--parent-pid", dest="parent_pid", type=int, required=True)
+    args = parser.parse_args(sys.argv[1:])
+
+    from backend.services.guided_restore_worker import GuidedRestoreWorker
+
+    raise SystemExit(GuidedRestoreWorker.run(args.restore_id, args.parent_pid, sys.executable))
+
+
 _first_boot_bootstrap()
 _setup_frozen_logging()
+_maybe_run_guided_restore_worker()
 
 import uvicorn
 import multiprocessing
@@ -113,16 +122,7 @@ from backend.main import app
 
 
 def _resolve_host_port():
-    """Résout l'adresse d'écoute selon l'environnement.
-
-    - CABINET_HOST / CABINET_PORT explicites : toujours prioritaires.
-    - ENVIRONMENT=cabinet : 0.0.0.0 par défaut (la PWA mobile du cabinet doit
-      pouvoir joindre le backend depuis le LAN — appairage QR, snapshot).
-      Restreindre l'accès au sous-réseau du cabinet via le pare-feu Windows
-      (cf. docs/CABINET_ONPREM_GUIDE.md §2).
-    - Tout autre environnement (dev/local/test/production) : 127.0.0.1,
-      défaut sûr — jamais d'exposition réseau implicite.
-    """
+    """Résout l'adresse d'écoute selon l'environnement."""
     env = os.environ.get("ENVIRONMENT", "development").lower()
     default_host = "0.0.0.0" if env == "cabinet" else "127.0.0.1"
     host = os.environ.get("CABINET_HOST", default_host)
@@ -140,7 +140,10 @@ if __name__ == '__main__':
 
     host, port = _resolve_host_port()
 
-    if getattr(sys, 'frozen', False):
+    if (
+        getattr(sys, 'frozen', False)
+        and os.environ.get("DIGITALCROWN_RESTORE_RESTART") != "1"
+    ):
         threading.Thread(target=open_browser, args=(port,), daemon=True).start()
 
     uvicorn.run(app, host=host, port=port, log_level="info")

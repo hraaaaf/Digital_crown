@@ -1,17 +1,6 @@
 name: Settings Guided Restore BEFORE
 
 on:
-  pull_request:
-    branches:
-      - master
-    paths:
-      - 'docs/settings/GUIDED_RESTORE_GOAL.md'
-      - 'docs/settings/GUIDED_RESTORE_MOCKUP.svg'
-      - '.github/workflows/settings-guided-restore-before.yml'
-      - 'frontend/src/features/admin/Settings/tabs/SecurityTab.tsx'
-      - 'backend/services/backup_service.py'
-      - 'backend/routers/admin.py'
-      - 'backend/scripts/**restore**'
   workflow_dispatch:
 
 permissions:
@@ -74,24 +63,12 @@ jobs:
 
           const output = 'settings-guided-restore-before-artifacts';
           const viewports = [
-            { width: 1440, height: 1200 },
-            { width: 768, height: 1200 },
-            { width: 390, height: 1200 },
-            { width: 360, height: 1200 },
-            { width: 320, height: 1200 },
+            { width: 1440, height: 1200 }, { width: 768, height: 1200 }, { width: 390, height: 1200 },
+            { width: 360, height: 1200 }, { width: 320, height: 1200 },
           ];
           await fs.mkdir(output, { recursive: true });
           const json = body => ({ status: 200, contentType: 'application/json', body: JSON.stringify(body) });
-          const profile = {
-            id: 1, public_id: 'guided-restore-cert', nom_cabinet: 'Cabinet Restore', nom_praticien: 'Dr Restore',
-            footer_address: 'Rabat, Maroc', footer_phones: '05 37 00 00 00', primary_color: '#003380',
-            secondary_color: '#1e40af', accent_color: '#60a5fa', selected_theme: 'elite', font_fr: 'inter',
-            selected_template: 'swiss', header_lines_fr: ['Dr Restore'], header_lines_ar: [], specialty_ids: [],
-            contacts_json: {}, margin_top: 3.6, margin_bottom: 3.2, watermark_enabled: false, use_letterhead: false,
-            qr_code_enabled: false, qr_code_type: 'VCARD', qr_code_style: 'dots', show_patient_badges: true,
-            performance_mode: false, clinical_tips_enabled: true, hide_header: true, hide_footer: true, cabinet_type: 'PRIVE',
-          };
-
+          const profile = { id: 1, public_id: 'guided-restore-cert', nom_cabinet: 'Cabinet Restore', nom_praticien: 'Dr Restore', footer_address: 'Rabat, Maroc', footer_phones: '05 37 00 00 00', primary_color: '#003380', secondary_color: '#1e40af', accent_color: '#60a5fa', selected_theme: 'elite', font_fr: 'inter', selected_template: 'swiss', header_lines_fr: ['Dr Restore'], header_lines_ar: [], specialty_ids: [], contacts_json: {}, margin_top: 3.6, margin_bottom: 3.2, watermark_enabled: false, use_letterhead: false, qr_code_enabled: false, qr_code_type: 'VCARD', qr_code_style: 'dots', show_patient_badges: true, performance_mode: false, clinical_tips_enabled: true, hide_header: true, hide_footer: true, cabinet_type: 'PRIVE' };
           const server = await createServer({ server: { host: '127.0.0.1', port: 4178, strictPort: true }, clearScreen: false });
           await server.listen();
           const browser = await chromium.launch({ headless: true });
@@ -100,16 +77,12 @@ jobs:
             for (const viewport of viewports) {
               const context = await browser.newContext({ viewport, colorScheme: 'light' });
               const page = await context.newPage();
-              const pageErrors = [];
-              const http5xx = [];
-              const requestFailed = [];
+              const pageErrors = []; const http5xx = []; const requestFailed = [];
               page.on('pageerror', e => pageErrors.push(String(e)));
               page.on('response', r => { if (r.status() >= 500) http5xx.push({ url: r.url(), status: r.status() }); });
               page.on('requestfailed', r => requestFailed.push({ url: r.url(), error: r.failure()?.errorText || 'unknown' }));
-
               await page.route('**/*', async route => {
-                const request = route.request();
-                const url = new URL(request.url());
+                const request = route.request(); const url = new URL(request.url());
                 if (url.port !== '8005' || !url.pathname.startsWith('/api/')) return route.continue();
                 if (request.method() !== 'GET') return route.fulfill(json({}));
                 if (url.pathname === '/api/clinics/me') return route.fulfill(json(profile));
@@ -117,30 +90,20 @@ jobs:
                 if (url.pathname.includes('/backups')) return route.fulfill(json([]));
                 return route.fulfill(json({}));
               });
-
               await page.goto('http://127.0.0.1:4178/settings-guided-restore-before.html', { waitUntil: 'networkidle', timeout: 90000 });
               await page.getByRole('heading', { name: 'Paramètres', exact: true }).waitFor({ timeout: 15000 });
               await page.getByRole('button', { name: 'Sécurité & Backup', exact: true }).click();
               await page.getByRole('heading', { name: 'Sécurité & Souveraineté', exact: true }).waitFor({ state: 'visible' });
               await page.getByText('Sauvegarde chiffrée vérifiée', { exact: true }).waitFor({ state: 'visible' });
-
               const overflow = await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth + 2);
               const filename = `before-security-${viewport.width}x${viewport.height}.png`;
               await page.screenshot({ path: `${output}/${filename}`, fullPage: true, animations: 'disabled' });
               evidence.push({ viewport, filename, overflow, pageErrors, http5xx, requestFailed });
               await context.close();
             }
-          } finally {
-            await browser.close();
-            await server.close();
-          }
-
+          } finally { await browser.close(); await server.close(); }
           const invalid = evidence.filter(e => e.overflow || e.pageErrors.length || e.http5xx.length || e.requestFailed.length);
-          await fs.writeFile(`${output}/evidence.json`, JSON.stringify({
-            immutable_before_sha: '99c2aa32c6b145804467f7f38ea10722c2714e78',
-            evidence,
-            invalid,
-          }, null, 2));
+          await fs.writeFile(`${output}/evidence.json`, JSON.stringify({ immutable_before_sha: '99c2aa32c6b145804467f7f38ea10722c2714e78', evidence, invalid }, null, 2));
           if (evidence.length !== 5) throw new Error(`Expected 5 viewports, got ${evidence.length}`);
           if (invalid.length) throw new Error(`Invalid BEFORE evidence: ${JSON.stringify(invalid)}`);
           EOF
