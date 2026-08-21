@@ -66,6 +66,15 @@ Réduire le dépôt aux sources, outils et preuves encore utiles, sans supprimer
 - Préservés : `patient-p1-architecture-after.yml`, `patient-p2-journey-after.yml`, workflows Settings actifs, `patient-p0e-payment-after.yml` (manuel encore utilisable), `patient-indicators-before.yml` (baseline encore déclenchable).
 - Preuve de non-régression : CI `32506537354`, T2 `32506537235`, Catalogue `32506537212`, Patient P7 `32506537310` — SUCCESS.
 
+### P4-E — one-shot media count utility — MERGED ✅
+- PR : #209
+- Head certifié : `24ed414b94c035e170ba524e4c33f891d3f96ee2`
+- Merge : `6e191fa779ef0b23b4028697df07598c45301655`
+- Diff : 1 fichier, +0 / -35.
+- Retiré : `backend/scripts/count_records.py`.
+- Preuve d'obsolescence : créé avec le hardening médias du 2026-07-06 comme utilitaire explicite de comptage avant/après ; aucune référence actuelle ; aucun rôle runtime, migration, backup/recovery ou launcher.
+- Preuve de non-régression : CI `32508317596`, T2 `32508317598`, Catalogue `32508317593`, Patient P7 `32508317587` — SUCCESS.
+
 ## Éléments explicitement conservés
 - `backend/routers/admin_legacy.py` : utilisé par `admin.py`.
 - `backend/routers/mobile_legacy.py` : utilisé par `mobile.py`.
@@ -75,7 +84,8 @@ Réduire le dépôt aux sources, outils et preuves encore utiles, sans supprimer
 - `backend/deprecated/convert_to_onnx.py` : convertisseur générique paramétrable ; `backend/scripts/panoramic_export.py` est spécialisé et ne le remplace pas exactement.
 - `backend/scripts/migrate_qr_style.py` : compatibilité anciennes bases non encore remplacée de façon certaine.
 - `scripts/certify_document_studio_p3_p6.sh`, `scripts/certify_document_studio_p7.sh`, `scripts/certify_document_studio_t1.sh` : harness actifs de régression ; `certify_document_studio_t2.sh` exige explicitement leur présence.
-- `scripts/migrate_bot_pending_actions.py` : migration idempotente/rejouable sans équivalent Alembic évident prouvé.
+- `scripts/migrate_bot_pending_actions.py` et `scripts/migrate_m1_subscription_plans.py` : migrations idempotentes/rejouables sans remplacement canonique suffisamment prouvé.
+- backup/bootstrap/release/recovery, setup HTTPS/backup, probes T2, prod safety, preflight data audit et validation scientifique : rôles opératoires actuels ou de reprise, conservés.
 - `Start_DigitalCrown.bat`, `Start_PROD.bat`, `run_real_backend.ps1` : relèvent du chantier Portability/launcher.
 
 ## Audit workflows — état après P4-D
@@ -86,20 +96,21 @@ Réduire le dépôt aux sources, outils et preuves encore utiles, sans supprimer
 - `dashboard-visual-cert.yml` : path-scoped Dashboard + manuel ; conservé.
 - Les workflows Settings inspectés restent actifs sur `master` ; conservés.
 
-## P4-E — one-shot verification utilities — AUDIT EN COURS
-Candidat prouvé à examiner :
-- `backend/scripts/count_records.py`.
+## P4-F — superseded Devis certification harness — PRÉPARÉ, NON VALIDÉ
+Candidat : `scripts/certify_p3_devis.sh`.
 
 Preuves disponibles :
-- ajouté le 2026-07-06 dans le commit `bc80661b5d077f75981510820a068537e4088ad9` de sécurisation des médias ;
-- le message de commit le décrit explicitement comme « Utility to verify record counts before/after » ;
-- le script est read-only et ne fait que compter patients/RDV/actes/documents et fichiers uploads/media ;
-- aucun second utilitaire one-shot suffisamment prouvé n'a encore été identifié pour le regrouper sans inventer du nettoyage.
+- aucune référence actuelle trouvée vers `certify_p3_devis.sh` ;
+- son contenu est un harness de certification P3 Devis : tests backend Devis ciblés, suite backend complète, tests frontend, build ;
+- `scripts/certify_document_studio_p3_p6.sh` recouvre ces mêmes tests Devis ciblés et ajoute une régression P3→P6 plus large, les suites complètes et les safety gates ;
+- `scripts/certify_document_studio_t2.sh` exige explicitement les harness P3→P6, P7 et T1, mais pas `certify_p3_devis.sh` ;
+- aucune preuve historique supplémentaire fiable n'a été retrouvée via la recherche de commits, donc la décision repose uniquement sur la couverture exécutable actuelle.
 
-Décision actuelle : ne pas publier de suppression mono-fichier avant d'avoir terminé l'audit des scripts/migrations restants et vérifié qu'aucun usage opératoire actuel n'existe.
+La suppression P4-F ne doit être créditée qu'après reconstruction sur le master courant, diff exact, puis CI + T2 + Catalogue + Patient P7 verts sur le même HEAD.
 
 ## Next exact
-1. Terminer l'audit de `scripts/` et `backend/scripts/` sur les utilitaires/migrations encore présents.
-2. Si plusieurs one-shot réellement obsolètes sont prouvés : préparer P4-E en un seul lot, un commit, un run.
-3. Sinon : conserver les outils encore utiles, retirer uniquement `count_records.py` si la preuve finale justifie un lot autonome, puis certification complète.
-4. Après dernier lot sûr : validation finale du tamis, cohérence canonique et closeout global.
+1. Reconstruire P4-F sur le master courant.
+2. Supprimer uniquement `scripts/certify_p3_devis.sh` et vérifier le diff exact.
+3. Publier un seul commit / une seule PR / un seul benchmark.
+4. Certifier CI + T2 + Catalogue + Patient P7.
+5. Si vert : merge exact-head, closeout canonique, puis validation finale du tamis et décision de clôture.
