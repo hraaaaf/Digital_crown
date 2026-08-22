@@ -18,6 +18,8 @@ MAX_MEDIA_ARCHIVE_ENTRIES = int(os.environ.get("GUIDED_RESTORE_MAX_MEDIA_ENTRIES
 MAX_ARCHIVE_UNCOMPRESSED_BYTES = int(
     os.environ.get("GUIDED_RESTORE_MAX_UNCOMPRESSED_BYTES", str(20 * 1024**3))
 )
+REQUIRED_DIGITAL_CROWN_TABLES = frozenset({"users", "patients"})
+
 
 def _sha256(path: Path) -> str:
     digest = hashlib.sha256()
@@ -25,6 +27,36 @@ def _sha256(path: Path) -> str:
         for chunk in iter(lambda: handle.read(1024 * 1024), b""):
             digest.update(chunk)
     return digest.hexdigest()
+
+
+def _directory_digest(root: Path) -> dict[str, int | str]:
+    """Return one deterministic digest for a media tree without exposing paths."""
+    if not root.exists():
+        return {"files": 0, "bytes": 0, "sha256": hashlib.sha256(b"").hexdigest()}
+    if not root.is_dir():
+        raise ValueError("Racine média invalide")
+
+    digest = hashlib.sha256()
+    count = 0
+    total = 0
+    files = sorted((path for path in root.rglob("*") if path.is_file()), key=lambda p: p.as_posix())
+    if len(files) > MAX_MEDIA_ARCHIVE_ENTRIES:
+        raise ValueError("Arborescence média trop volumineuse")
+    for path in files:
+        if path.is_symlink():
+            raise ValueError("Lien symbolique média interdit")
+        relative = path.relative_to(root).as_posix().encode("utf-8")
+        size = path.stat().st_size
+        digest.update(relative)
+        digest.update(b"\0")
+        digest.update(str(size).encode("ascii"))
+        digest.update(b"\0")
+        with path.open("rb") as handle:
+            for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+                digest.update(chunk)
+        count += 1
+        total += size
+    return {"files": count, "bytes": total, "sha256": digest.hexdigest()}
 
 
 def _safe_job_id(value: str) -> str:
@@ -53,7 +85,6 @@ def _validate_zip_infos(infos: list[zipfile.ZipInfo], *, max_entries: int = MAX_
     for info in infos:
         if not _safe_zip_member(info.filename):
             raise ValueError("Archive refusée : chemin interne non sûr")
-        # Unix symlink bit in external attributes. Never follow links from a backup.
         mode = (info.external_attr >> 16) & 0o170000
         if mode == 0o120000:
             raise ValueError("Archive refusée : lien symbolique interdit")
@@ -62,26 +93,40 @@ def _validate_zip_infos(infos: list[zipfile.ZipInfo], *, max_entries: int = MAX_
             raise ValueError("Archive refusée : contenu décompressé trop volumineux")
 
 
-def _sqlite_integrity(path: Path) -> None:
-    conn = sqlite3.connect(str(path))
-    try:
-        row = conn.execute("PRAGMA integrity_check").fetchone()
-        if not row or str(row[0]).lower() != "ok":
-            raise ValueError("Intégrité SQLite invalide")
-    finally:
-        conn.close()
+def _open_database_for_validation(path: Path, driver: str):
+    if driver == "pysqlcipher":
+        try:
+            from sqlcipher3 import dbapi2 as sqlcipher
+        except ImportError as exc:
+            raise RuntimeError("sqlcipher3 indisponible") from exc
+        passphrase = os.getenv("CABINET_MASTER_KEY_HEX") or os.getenv("SECRET_KEY")
+        if not passphrase:
+            raise RuntimeError("Clé SQLCipher indisponible")
+        conn = sqlcipher.connect(str(path))
+        safe_key = passphrase.replace("'", "''")
+        conn.execute(f"PRAGMA key = '{safe_key}'")
+        return conn
+    return sqlite3.connect(str(path))
 
 
 def _validate_database_file(path: Path, driver: str) -> None:
     if not path.exists() or path.stat().st_size <= 0:
         raise ValueError("Sauvegarde base de données vide")
-    if driver == "pysqlcipher":
-        from backend.database import engine as active_engine
 
-        passphrase = BackupService._sqlcipher_passphrase(active_engine)
-        BackupService._verify_sqlcipher_file(path, passphrase)
-    else:
-        _sqlite_integrity(path)
+    conn = _open_database_for_validation(path, driver)
+    try:
+        row = conn.execute("PRAGMA integrity_check").fetchone()
+        if not row or str(row[0]).lower() != "ok":
+            raise ValueError("Intégrité SQLite invalide")
+        tables = {
+            str(row[0])
+            for row in conn.execute("SELECT name FROM sqlite_master WHERE type='table'").fetchall()
+        }
+        missing = REQUIRED_DIGITAL_CROWN_TABLES - tables
+        if missing:
+            raise ValueError("Schéma Digital Crown incompatible")
+    finally:
+        conn.close()
 
 
 def _decrypt_backup_key(source: Path, target: Path) -> None:
@@ -137,4 +182,3 @@ def _extract_encrypted_media(source: Path, destination: Path) -> None:
             target.parent.mkdir(parents=True, exist_ok=True)
             with media_zip.open(info, "r") as src, target.open("wb") as dst:
                 shutil.copyfileobj(src, dst, length=1024 * 1024)
-
