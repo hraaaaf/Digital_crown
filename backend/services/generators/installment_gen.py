@@ -1,5 +1,7 @@
 import os
 from datetime import datetime
+from xml.sax.saxutils import escape
+
 from reportlab.lib.pagesizes import A4
 from reportlab.lib import colors
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
@@ -9,14 +11,32 @@ from backend.models import InstallmentPlan, Patient, CabinetConfig
 from backend.services.base_template import BaseTemplate, PageCounter
 
 
-def _contact_value(config: CabinetConfig, key: str) -> str:
-    contacts = getattr(config, "contacts_json", None) or {}
-    entry = contacts.get(key) if isinstance(contacts, dict) else None
-    if isinstance(entry, dict) and entry.get("enabled") and entry.get("value"):
-        return str(entry["value"])
-    if isinstance(entry, str):
-        return entry
-    return ""
+def _cabinet_contact_lines(config: CabinetConfig) -> list[str]:
+    """Projette les contacts canoniques de l'organisation pour le PDF."""
+    lines: list[str] = []
+    address = (getattr(config, "footer_address", None) or "").strip()
+    if address:
+        lines.append(escape(address))
+
+    contacts: list[str] = []
+    contacts_json = getattr(config, "contacts_json", None)
+    if isinstance(contacts_json, dict):
+        labels = {"fixe": "Tél", "mobile": "Mob", "whatsapp": "WhatsApp", "instagram": "Insta"}
+        for key in ("fixe", "mobile", "whatsapp", "instagram"):
+            info = contacts_json.get(key)
+            if isinstance(info, dict) and info.get("enabled") and info.get("value"):
+                contacts.append(f"{labels[key]}: {escape(str(info['value']).strip())}")
+
+    # footer_phones reste une projection legacy de contacts_json pour les anciennes
+    # installations. Il ne redevient jamais une nouvelle source métier.
+    if not contacts:
+        legacy_projection = (getattr(config, "footer_phones", None) or "").strip()
+        if legacy_projection:
+            contacts.append(escape(legacy_projection))
+
+    if contacts:
+        lines.append(" / ".join(contacts))
+    return lines
 
 
 def generate_installment_plan(
@@ -25,7 +45,7 @@ def generate_installment_plan(
     config: CabinetConfig,
     output_dir: str
 ) -> str:
-    """Génère un PDF d'échéancier avec l'identité de l'organisation canonique."""
+    """Génère un PDF d'échéancier avec l'identité organisationnelle canonique."""
     os.makedirs(output_dir, exist_ok=True)
     filename = f"Echeancier_{patient.nom}_{patient.prenom}_{datetime.now().strftime('%Y%m%d%H%M%S')}.pdf"
     filepath = os.path.join(output_dir, filename)
@@ -47,13 +67,9 @@ def generate_installment_plan(
 
     elements = []
 
-    organization_name = (config.nom_cabinet or "Cabinet dentaire").strip()
-    address = (config.footer_address or config.adresse or "").strip()
-    phone = (config.footer_phones or config.telephone or "").strip()
-    email = _contact_value(config, "email")
-
-    elements.append(Paragraph(f"<b>{organization_name.upper()}</b>", title_style))
-    contact_lines = [line for line in (address, f"Tél: {phone}" if phone else "", f"Email: {email}" if email else "") if line]
+    organization_name = (getattr(config, "nom_cabinet", None) or "Cabinet dentaire").strip()
+    elements.append(Paragraph(f"<b>{escape(organization_name.upper())}</b>", title_style))
+    contact_lines = _cabinet_contact_lines(config)
     if contact_lines:
         elements.append(Paragraph("<br/>".join(contact_lines), normal_style))
     elements.append(Spacer(1, 30))

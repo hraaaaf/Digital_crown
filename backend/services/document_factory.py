@@ -170,26 +170,38 @@ class DocumentFactory:
 
         config = self._get_cabinet_config(user_id, db)
         filepath = generate_installment_plan(plan, patient, config, self.output_dir)
+        filename = os.path.basename(filepath)
 
         if not archive:
             return {
-                "url": f"/static/documents/{os.path.basename(filepath)}",
+                "url": f"/static/documents/{filename}",
                 "archive_id": None,
-                "filename": os.path.basename(filepath)
+                "filename": filename
             }
 
-        archive_obj = ArchiveService.archive_document(
-            db=db,
+        # L'archive canonique exige le contenu et le vrai schéma DocumentArchive.
+        # L'échéancier n'a pas de DocumentType dédié : AUTRE + métadonnées explicites
+        # évite d'inventer une seconde taxonomie ou des colonnes fantômes.
+        with open(filepath, "rb") as handle:
+            file_content = handle.read()
+
+        archive_obj, _ = ArchiveService(db).archive_document(
             patient_id=patient.id,
-            user_id=user_id,
-            document_type="echeancier",
+            file_content=file_content,
+            filename=filename,
+            doc_type=models.DocumentType.AUTRE,
+            uploaded_by_id=user_id,
             title=f"Échéancier - {plan.title}",
-            file_path=filepath,
-            data_snapshot={"plan_id": plan.id},
+            tags=["ECHEANCIER"],
+            clinical_data={"kind": "ECHEANCIER", "plan_id": plan.id},
+            is_accounted=False,
+            is_collected=False,
         )
 
+        # Compatibilité API : le PDF généré reste accessible à son URL historique ;
+        # archive_id pointe vers la copie canonique versionnée.
         return {
-            "url": f"/static/documents/{os.path.basename(filepath)}",
+            "url": f"/static/documents/{filename}",
             "archive_id": archive_obj.id,
-            "filename": os.path.basename(filepath)
+            "filename": filename
         }
