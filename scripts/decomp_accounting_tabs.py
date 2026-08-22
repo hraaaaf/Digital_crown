@@ -63,7 +63,7 @@ PAGE.write_text(updated, encoding="utf-8")
 final = PAGE.read_text(encoding="utf-8")
 if final.count("<AccountingTabs") != 1:
     raise SystemExit("AccountingTabs replacement missing")
-if "<Calculator" in final or "<AlertCircle" in final:
-    raise SystemExit("Tabs-only icon implementation unexpectedly remains in AccountingPage")
+if "Ghost Treasury Hub" in final or "Visual Insights" in final or "{/* TABS NAVIGATION */}" in final:
+    raise SystemExit("Accounting tabs implementation unexpectedly remains in AccountingPage")
 
 print("P0-A shell step prepared: accounting tabs extracted mechanically")
