@@ -1,0 +1,217 @@
+name: Onboarding Settings P2 Visual Certification
+
+on:
+  pull_request:
+    paths:
+      - "frontend/src/features/admin/SetupWizard/**"
+      - "frontend/src/features/admin/types.ts"
+      - "frontend/src/services/templateApi.ts"
+      - "backend/routers/clinic_setup_p4.py"
+      - "backend/routers/__init__.py"
+      - ".github/workflows/onboarding-settings-p2-visual-cert.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  visual:
+    name: P2 Onboarding AFTER
+    runs-on: ubuntu-latest
+    env:
+      HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+    steps:
+      - name: Checkout exact candidate
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.HEAD_SHA }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install frontend and Chromium
+        working-directory: frontend
+        run: |
+          npm ci
+          npm install --no-save --package-lock=false playwright@1.55.0
+          npx playwright install --with-deps chromium
+
+      - name: Inject P2 onboarding harness
+        working-directory: frontend
+        run: |
+          cat > onboarding-p2-cert.html <<'EOF'
+          <!doctype html>
+          <html lang="fr"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/><title>P2 Onboarding</title></head><body><div id="root"></div><script type="module" src="/src/onboarding-p2-cert.tsx"></script></body></html>
+          EOF
+
+          cat > src/onboarding-p2-cert.tsx <<'EOF'
+          import React from 'react';
+          import { createRoot } from 'react-dom/client';
+          import { MemoryRouter } from 'react-router-dom';
+          import './index.css';
+          import { SetupWizard } from './features/admin/SetupWizard/SetupWizard';
+          import { useSetupStore } from './features/admin/SetupWizard/store/useSetupStore';
+
+          const params = new URLSearchParams(window.location.search);
+          const step = Number(params.get('step') || '1');
+          useSetupStore.getState().reset();
+          useSetupStore.setState({
+            currentStep: step,
+            cabinetType: 'PRIVE',
+            identity: {
+              nomCabinet: 'Cabinet Dentaire Baseline',
+              nomPraticien: 'Dr Canonique',
+              nomPraticienAR: 'د. قانوني',
+              adresse: 'Rabat, Maroc',
+              ice: 'ICE-42',
+              if: 'IF-42',
+              inpe: 'PRO-42',
+              inpeEtablissement: 'EST-42',
+            },
+            selectedSpecialties: ['generaliste'],
+            customSpecialty: { fr: '', ar: '' },
+            contacts: {
+              fixe: { enabled: true, value: '05 37 00 00 00' },
+              mobile: { enabled: false, value: '' },
+              whatsapp: { enabled: false, value: '' },
+              instagram: { enabled: false, value: '' },
+            },
+            selectedTheme: 'elite',
+            selectedTemplate: 'swiss',
+            selectedFont: 'inter',
+            qrConfig: { enabled: true, type: 'VCARD', value: 'Dr Canonique', label: 'Coordonnées', color: null, style: 'dots' },
+          } as any);
+
+          createRoot(document.getElementById('root')!).render(
+            <MemoryRouter initialEntries={['/setup']}><SetupWizard /></MemoryRouter>,
+          );
+          EOF
+
+          cat > onboarding-p2-cert.mjs <<'EOF'
+          import { chromium } from 'playwright';
+          import { createServer } from 'vite';
+          import fs from 'node:fs/promises';
+
+          const output = 'onboarding-p2-artifacts';
+          await fs.mkdir(output, { recursive: true });
+          const practitioner = { id: 42, nom_complet: 'Dr Canonique', nom_complet_ar: 'د. قانوني', inpe_professionnel: 'PRO-42' };
+          const draft = {
+            id: 'draft-42', public_id: 'draft-public', owner_id: 42,
+            nom_cabinet: 'Cabinet Dentaire Baseline', nom_praticien: 'Dr Canonique', nom_praticien_ar: 'د. قانوني',
+            footer_address: 'Rabat, Maroc', footer_phones: '📞 05 37 00 00 00', ice: 'ICE-42', if_: 'IF-42',
+            inpe: 'PRO-42', inpe_professionnel: 'PRO-42', inpe_etablissement: 'EST-42', cabinet_type: 'PRIVE',
+            specialty_ids: ['generaliste'], custom_specialty_fr: '', custom_specialty_ar: '',
+            contacts_json: { fixe: { enabled: true, value: '05 37 00 00 00' }, mobile: { enabled: false, value: '' }, whatsapp: { enabled: false, value: '' }, instagram: { enabled: false, value: '' } },
+            primary_color: '#003380', secondary_color: '#1e40af', accent_color: '#60a5fa', selected_theme: 'elite', selected_template: 'swiss', font_fr: 'inter',
+            margin_top: 3.6, margin_bottom: 3.2, header_scale: 1.1, header_font_scale: 1, header_logo_scale: 1, header_line_height: 1,
+            footer_font_scale: 1, footer_qr_scale: 1, footer_line_height: 1, use_letterhead: false,
+            qr_code_enabled: true, qr_code_type: 'VCARD', qr_code_value: 'Dr Canonique', qr_code_label: 'Coordonnées', qr_code_color: '#003380', qr_code_style: 'dots',
+            is_initialized: false, created_at: new Date().toISOString(), updated_at: new Date().toISOString(), header_lines_fr: [], header_lines_ar: [], watermark_enabled: true, watermark_opacity: .1, font_ar: 'Amiri'
+          };
+          const reply = body => ({ status: 200, contentType: 'application/json', body: JSON.stringify(body) });
+          const server = await createServer({ server: { host: '127.0.0.1', port: 4187, strictPort: true }, clearScreen: false });
+          await server.listen();
+          const browser = await chromium.launch();
+          const viewports = [1440, 1024, 768, 430, 390];
+          const health = [];
+
+          try {
+            for (const width of viewports) {
+              for (let step = 1; step <= 7; step++) {
+                const context = await browser.newContext({ viewport: { width, height: 1200 } });
+                const page = await context.newPage();
+                const errors = [];
+                page.on('pageerror', e => errors.push(`pageerror:${e.message}`));
+                page.on('console', m => { if (m.type() === 'error') errors.push(`console:${m.text()}`); });
+                await page.route('**/api/**', async route => {
+                  const req = route.request(); const url = new URL(req.url());
+                  if (req.method() === 'GET' && url.pathname === '/api/clinics/me/practitioner') return route.fulfill(reply(practitioner));
+                  if (req.method() === 'GET' && url.pathname === '/api/clinics/me') return route.fulfill(reply(draft));
+                  if (req.method() === 'POST' && url.pathname === '/api/clinics/') return route.fulfill(reply(draft));
+                  if (req.method() === 'POST' && url.pathname === '/api/clinics/complete-setup') return route.fulfill(reply({ ...draft, is_initialized: true }));
+                  if (req.method() === 'POST' && (url.pathname.endsWith('/logo') || url.pathname.endsWith('/letterhead'))) return route.fulfill(reply({}));
+                  return route.fulfill(reply({}));
+                });
+                await page.goto(`http://127.0.0.1:4187/onboarding-p2-cert.html?step=${step}`, { waitUntil: 'networkidle' });
+                await page.getByText(`Étape ${step} / 7`, { exact: false }).waitFor({ state: width < 768 ? 'visible' : 'hidden', timeout: 15000 }).catch(() => {});
+                const layout = await page.evaluate(() => ({ clientWidth: document.documentElement.clientWidth, scrollWidth: document.documentElement.scrollWidth }));
+                if (layout.scrollWidth > layout.clientWidth) throw new Error(`overflow step=${step} width=${width} scroll=${layout.scrollWidth}`);
+                if (errors.length) throw new Error(`runtime step=${step} width=${width}: ${errors.join(';')}`);
+                if (width <= 430) {
+                  const compact = await page.getByText(`Étape ${step} / 7`, { exact: false }).isVisible();
+                  if (!compact) throw new Error(`compact progress missing at ${width}px step ${step}`);
+                }
+                await page.screenshot({ path: `${output}/step-${step}-${width}x1200.png`, fullPage: true, animations: 'disabled' });
+                health.push({ step, width, ...layout, errors });
+                await context.close();
+              }
+            }
+
+            const context = await browser.newContext({ viewport: { width: 1440, height: 1200 } });
+            const page = await context.newPage();
+            const calls = [];
+            await page.route('**/api/**', async route => {
+              const req = route.request(); const url = new URL(req.url());
+              if (req.method() === 'GET' && url.pathname === '/api/clinics/me/practitioner') return route.fulfill(reply(practitioner));
+              if (req.method() === 'GET' && url.pathname === '/api/clinics/me') return route.fulfill(reply(draft));
+              calls.push(`${req.method()} ${url.pathname}`);
+              if (req.method() === 'POST' && url.pathname === '/api/clinics/') return route.fulfill(reply(draft));
+              if (req.method() === 'POST' && url.pathname === '/api/clinics/complete-setup') return route.fulfill(reply({ ...draft, is_initialized: true }));
+              return route.fulfill(reply({}));
+            });
+            await page.goto('http://127.0.0.1:4187/onboarding-p2-cert.html?step=7', { waitUntil: 'networkidle' });
+            await page.evaluate(() => localStorage.removeItem('digitalcrown_theme'));
+            await page.getByRole('button', { name: /Finaliser l'Installation/i }).click();
+            await page.waitForTimeout(300);
+            const draftIndex = calls.indexOf('POST /api/clinics/');
+            const completeIndex = calls.indexOf('POST /api/clinics/complete-setup');
+            if (draftIndex < 0 || completeIndex <= draftIndex) throw new Error(`bad setup call order: ${calls.join(' -> ')}`);
+            const persistedTheme = await page.evaluate(() => localStorage.getItem('digitalcrown_theme'));
+            if (persistedTheme !== 'elite') throw new Error(`theme not persisted after completion ACK: ${persistedTheme}`);
+            await fs.writeFile(`${output}/submit-order.txt`, calls.join('\n'));
+            await context.close();
+
+            await fs.writeFile(`${output}/health.json`, JSON.stringify(health, null, 2));
+          } finally {
+            await browser.close(); await server.close();
+          }
+          EOF
+
+      - name: Capture and verify P2 AFTER
+        working-directory: frontend
+        run: node onboarding-p2-cert.mjs
+
+      - name: Verify proof cardinality and contracts
+        working-directory: frontend
+        run: |
+          count=$(find onboarding-p2-artifacts -name 'step-*.png' | wc -l)
+          test "$count" -eq 35
+          grep -q 'POST /api/clinics/' onboarding-p2-artifacts/submit-order.txt
+          grep -q 'POST /api/clinics/complete-setup' onboarding-p2-artifacts/submit-order.txt
+          grep -q 'INPE professionnel' src/features/admin/SetupWizard/steps/Step1Identity.tsx
+          grep -q 'INPE établissement' src/features/admin/SetupWizard/steps/Step3Contacts.tsx
+          grep -q 'QR Code' src/features/admin/SetupWizard/steps/Step7Confirmation.tsx
+          ! grep -q "localStorage.setItem('digitalcrown_theme', selectedTheme)" src/features/admin/SetupWizard/store/useSetupStore.ts
+
+      - name: Record metadata
+        working-directory: frontend
+        run: |
+          cat > onboarding-p2-artifacts/metadata.txt <<EOF
+          head_sha=${HEAD_SHA}
+          goal=P2 onboarding mirrors canonical Settings truth with two-phase completion
+          viewports=1440x1200,1024x1200,768x1200,430x1200,390x1200
+          steps=1,2,3,4,5,6,7
+          expected_screenshots=35
+          EOF
+
+      - name: Upload P2 visual proof
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: onboarding-settings-p2-after
+          path: frontend/onboarding-p2-artifacts/
+          if-no-files-found: error
+          retention-days: 14

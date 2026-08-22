@@ -13,6 +13,7 @@ from . import imaging_lifecycle_p4 as imaging_lifecycle_p4
 from . import clinics as clinics
 from . import clinic_identity_p4 as clinic_identity_p4
 from . import clinic_profile_p4 as clinic_profile_p4
+from . import clinic_setup_p4 as clinic_setup_p4
 
 # Bring P3 Master Plan truth forward: same public GET/PUT path, immutable revision per
 # successful save, plus /master-plan/revisions.
@@ -87,3 +88,16 @@ clinics.router.routes = [
     )
 ]
 clinics.router.include_router(clinic_profile_p4.router)
+
+# P4D replaces the legacy setup POST / handler. Draft persistence now uses the same
+# User/CabinetConfig ownership split as Settings, and completion is an explicit second
+# phase so failed optional uploads cannot leave a falsely initialized cabinet.
+clinics.router.routes = [
+    route
+    for route in clinics.router.routes
+    if not (
+        getattr(route, "path", None) == "/"
+        and "POST" in (getattr(route, "methods", set()) or set())
+    )
+]
+clinics.router.include_router(clinic_setup_p4.router)
