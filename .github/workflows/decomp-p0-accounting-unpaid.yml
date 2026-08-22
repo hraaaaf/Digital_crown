@@ -58,3 +58,5 @@ jobs:
           git add -- frontend/src/pages/AccountingPage.tsx frontend/src/features/accounting/components/UnpaidPanel.tsx
           git commit -m 'refactor(accounting): extract unpaid panel'
           git push origin HEAD:agent/decomp-p0-large-files
+
+# v2 trigger: script guard corrected before execution
