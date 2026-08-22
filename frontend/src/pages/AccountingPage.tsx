@@ -43,55 +43,8 @@ import {
 } from 'recharts';
 import { api } from '../services/api';
 
-// --- COMPOSANTS INTERNES ---
-
-interface HonoraireItem {
-  id: number | string;
-  patient_id: number;
-  patient_name: string;
-  assurance: string;
-  date: string;
-  title: string;
-  amount: number;
-  file_url: string;
-  payment_status?: string;
-  is_collected?: boolean;
-  validated_by?: string;
-}
-
-// --- Groupe les notes par patient_id + date (clé composite) ---
-interface GroupedItem {
-  key: string;
-  patient_id: number;
-  patient_name: string;
-  assurance: string;
-  date: string;
-  total: number;
-  notes: HonoraireItem[];
-}
-
-const groupByPatientDate = (items: HonoraireItem[]): GroupedItem[] => {
-  const map = new Map<string, GroupedItem>();
-  items.forEach(item => {
-    const dateKey = new Date(item.date).toLocaleDateString('fr-FR');
-    const key = `${item.patient_id}_${dateKey}`;
-    if (!map.has(key)) {
-      map.set(key, {
-        key,
-        patient_id: item.patient_id,
-        patient_name: item.patient_name,
-        assurance: item.assurance,
-        date: item.date,
-        total: 0,
-        notes: [],
-      });
-    }
-    const group = map.get(key)!;
-    group.total += item.amount;
-    group.notes.push(item);
-  });
-  return Array.from(map.values());
-};
+import type { HonoraireItem } from '../features/accounting/types';
+import { groupByPatientDate } from '../features/accounting/utils';
 
 export const AccountingPage = () => {
   const [searchParams] = useSearchParams();
