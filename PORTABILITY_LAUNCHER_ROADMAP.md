@@ -1,6 +1,6 @@
 # Portability & Launcher — roadmap canonique
 
-Dernière mise à jour vérifiée : 2026-08-22.
+Dernière mise à jour vérifiée : 2026-08-23.
 
 ## Goal global
 
@@ -56,45 +56,57 @@ Retirer du cœur partagé les branches et primitives Windows/macOS directes néc
 - T2 Runtime Browser run `32599659693` — SUCCESS.
 
 ### Limites laissées volontairement à P2+
-- double autorité d'ouverture navigateur encore présente ;
-- readiness basée sur délai fixe dans `run.py` ;
-- absence de single-instance/supervisor complet ;
 - packaging macOS non construit ;
 - licence/secrets inter-machine non traités ;
 - bundle cabinet de migration non défini.
 
 ---
 
-## P2 — Runtime Supervisor — ACTIVE 🟡
+## P2 — Runtime Supervisor — CLOSED ✅
 
 ### Goal
 Créer une autorité unique de lifecycle du runtime local.
 
-### Succès
-- une seule instance par poste ;
-- une seule autorité d'ouverture UI ;
-- port canonique unique ;
-- readiness `/health` avant ouverture ;
-- démarrage, arrêt, crash et restart déterministes ;
-- Guided Restore reste compatible avec le restart hors-processus.
+### Implémentation vérifiée
+- verrou inter-processus non bloquant derrière `PlatformAdapter` sur Windows et POSIX ;
+- `RuntimeSupervisor` stdlib pur pour single-instance et readiness ;
+- second lancement : attend l'instance existante, ouvre son UI puis sort ;
+- premier lancement : ouvre l'UI uniquement après health réel ;
+- `backend.main` ne possède plus d'autorité d'ouverture navigateur ;
+- `.env` canonique chargé avant résolution `CABINET_HOST` / `CABINET_PORT` ;
+- import du backend lourd après arbitrage single-instance ;
+- `run.py` reste la source canonique du port et du lifecycle ;
+- restart Guided Restore conserve `DIGITALCROWN_RESTORE_RESTART` et reste compatible avec le supervisor.
 
-### Défauts déjà vérifiés
-- `run.py` ouvre `127.0.0.1:8005` après un délai fixe de 2 s ;
-- `backend/main.py` ouvre encore `127.0.0.1:8000` en build mode ;
-- la duplication peut produire deux onglets et un port erroné.
+### Preuve
+- PR `#220` — MERGED ;
+- head candidat : `0b6071b663162575efe0de40c411a8ff29763d7a` ;
+- merge master : `19bf42b61001c77c219fc2b957d6dadc84f79480` ;
+- Portability Runtime run `32601811079` — SUCCESS ;
+- Windows — SUCCESS ;
+- macOS — SUCCESS ;
+- Ubuntu — SUCCESS ;
+- CI générale run `32601811065` — SUCCESS ;
+- Guided Restore AFTER run `32601811069` — SUCCESS ;
+- T2 Runtime Browser run `32601811078` — SUCCESS ;
+- Catalog Connected Truth run `32601811060` — SUCCESS ;
+- Patient P7 Final Certification run `32601811091` — SUCCESS.
 
-### Preuve requise
-- tests unitaires supervisor ;
-- test concurrent-launch / single-instance ;
-- readiness réelle, aucun `sleep` comme critère de santé ;
-- CI exacte HEAD ;
-- non-régression Guided Restore.
+### Défaut intermédiaire non crédité
+Le candidat précédent `a61f54d7…` déplaçait le chargement `.env` après `_resolve_host_port()`. Il aurait pu ignorer `CABINET_HOST` / `CABINET_PORT` du fichier cabinet. Il a été corrigé avant certification finale et n'est pas crédité.
 
 ---
 
-## P3 — Cabinet Bundle portability — PLANNED
+## P3 — Cabinet Bundle portability — NEXT
 
 Définir un contrat de migration explicite regroupant au minimum DB, médias et configuration exportable, avec manifeste/version/checksums et restauration vérifiée. Les secrets ou identifiants machine-bound ne doivent pas être copiés aveuglément.
+
+### Direction technique déjà auditée
+- ne pas transporter `backup.key`, `.env`, locks, logs, caches ou secrets machine-bound ;
+- produire un snapshot DB portable indépendant de la clé SQLCipher source ;
+- chiffrer le bundle avec une clé de migration indépendante du poste ;
+- à destination : vérifier le bundle, reconstruire les artefacts locaux avec les clés destination, puis réutiliser le moteur Guided Restore existant ;
+- conserver rescue DB/WAL, bascule média atomique, smoke-check et rollback existants.
 
 ## P4 — License & secrets rebinding — PLANNED
 
@@ -117,7 +129,8 @@ Certification finale sur environnements propres : installation, premier boot, re
 ## État courant
 
 - P1 : CLOSED ✅
-- P2 : ACTIVE 🟡
-- P3→P7 : PLANNED
+- P2 : CLOSED ✅
+- P3 : NEXT
+- P4→P7 : PLANNED
 - progression chiffrée : **non définie** tant qu'une pondération canonique des lots n'est pas fixée ; ne pas inventer de pourcentage.
-- Next exact : P2 Runtime Supervisor — supprimer la double autorité, introduire readiness et single-instance, puis certifier exact-head.
+- Next exact : P3 Cabinet Bundle portability — implémenter le format portable, la validation destination et les tests de migration inter-machine sans transporter les secrets machine-bound.
