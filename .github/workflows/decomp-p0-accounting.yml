@@ -45,7 +45,7 @@ jobs:
       - name: Verify intended diff only
         run: |
           git diff --check
-          changed="$(git status --short | awk '{print $2}' | sort)"
+          changed="$(git status --short -uall | awk '{print $2}' | sort)"
           expected="$(printf '%s\n' \
             frontend/src/features/accounting/types.ts \
             frontend/src/features/accounting/utils.ts \
