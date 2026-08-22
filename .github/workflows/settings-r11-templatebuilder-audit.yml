@@ -18,6 +18,7 @@ on:
       - "backend/routers/templates.py"
       - "backend/services/template_engine.py"
       - "backend/services/document_factory.py"
+      - "backend/tests/test_template_engine.py"
 
 permissions:
   contents: read
@@ -27,7 +28,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Prove TemplateBuilder reachability and preserved runtime contracts
+      - name: Prove TemplateBuilder cleanup and preserved DocumentTemplate contracts
         shell: bash
         run: |
           set -euo pipefail
@@ -52,10 +53,10 @@ jobs:
             echo '=== frontend routes / settings / document surfaces ==='
             grep -n -E 'TemplateBuilder|template-builder|template_builder|/templates' frontend/src/App.tsx frontend/src/pages/Settings.tsx frontend/src/components/Sidebar.tsx frontend/src/features/admin/Settings/SettingsContainer.tsx frontend/src/features/admin/DocumentHub.tsx || true
             echo
-            echo '=== backend template runtime contracts ==='
+            echo '=== backend template contracts ==='
             grep -n 'include_router(templates.router' backend/main.py || true
             grep -n 'class DocumentTemplate' backend/models.py || true
-            grep -n -E 'DocumentFactory|TemplateEngine' backend/services/document_factory.py backend/services/template_engine.py backend/routers/documents.py || true
+            grep -n -E 'DocumentFactory|TemplateEngine|_get_default_template' backend/services/document_factory.py backend/routers/documents.py || true
           } | tee r11-templatebuilder-audit/references.txt
 
           external_refs="$(grep -R -n --exclude-dir=node_modules --exclude-dir=.git --exclude='TemplateBuilder.tsx' -E 'TemplateBuilder|template[ -]?builder|Template Builder' frontend/src || true)"
@@ -67,12 +68,16 @@ jobs:
 
           grep -q 'include_router(templates.router' backend/main.py
           grep -q 'class DocumentTemplate' backend/models.py
-          grep -q 'TemplateEngine' backend/services/document_factory.py
+          grep -q 'DocumentTemplate' backend/routers/templates.py
           grep -q 'DocumentFactory' backend/routers/documents.py
+          test ! -e backend/services/template_engine.py
+          test ! -e backend/tests/test_template_engine.py
+          ! grep -q -E 'TemplateEngine|template_engine|_get_default_template' backend/services/document_factory.py
 
           printf 'head_sha=%s\n' "${{ github.event.pull_request.head.sha }}" > r11-templatebuilder-audit/metadata.txt
           printf 'external_templatebuilder_refs=0\n' >> r11-templatebuilder-audit/metadata.txt
-          printf 'backend_template_runtime_preserved=true\n' >> r11-templatebuilder-audit/metadata.txt
+          printf 'documenttemplate_runtime_preserved=true\n' >> r11-templatebuilder-audit/metadata.txt
+          printf 'legacy_templateengine_removed=true\n' >> r11-templatebuilder-audit/metadata.txt
 
       - uses: actions/upload-artifact@v4
         if: always()

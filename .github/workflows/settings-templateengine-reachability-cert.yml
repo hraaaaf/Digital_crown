@@ -1,0 +1,123 @@
+name: Settings TemplateEngine Reachability Certification
+
+on:
+  pull_request:
+    branches: [master]
+    paths:
+      - 'backend/services/template_engine.py'
+      - 'backend/services/document_factory.py'
+      - 'backend/tests/test_template_engine.py'
+      - 'backend/routers/documents.py'
+      - 'backend/routers/templates.py'
+      - 'backend/models.py'
+      - 'backend/seed_templates.py'
+      - 'backend/main.py'
+      - 'docs/settings/TEMPLATEENGINE_REACHABILITY_GOAL.md'
+      - '.github/workflows/settings-templateengine-reachability-cert.yml'
+      - '.github/workflows/settings-r11-templatebuilder-audit.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  certify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Prove dead engine removed and live template contracts preserved
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts/templateengine
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          backend = Path('backend')
+          document_factory = Path('backend/services/document_factory.py')
+          documents_router = Path('backend/routers/documents.py')
+          templates_router = Path('backend/routers/templates.py')
+          models = Path('backend/models.py')
+          seed = Path('backend/seed_templates.py')
+          main = Path('backend/main.py')
+
+          assert not Path('backend/services/template_engine.py').exists(), 'template_engine.py doit être supprimé'
+          assert not Path('backend/tests/test_template_engine.py').exists(), 'test_template_engine.py doit être supprimé avec le module isolé'
+
+          factory_text = document_factory.read_text(encoding='utf-8')
+          for forbidden in ('TemplateEngine', 'template_engine', '_get_default_template'):
+              assert forbidden not in factory_text, f'référence résiduelle dans DocumentFactory: {forbidden}'
+
+          assert 'OrdonnanceGenerator' in factory_text
+          assert 'CertificatGenerator' in factory_text
+          assert 'AccountingGenerator' in factory_text
+          assert 'LibreGenerator' in factory_text
+          assert 'BilanOrthoPDFGenerator' in factory_text
+
+          documents_text = documents_router.read_text(encoding='utf-8')
+          assert 'DocumentFactory' in documents_text
+          assert 'create_ordonnance' in documents_text
+          assert 'create_certificat' in documents_text
+          assert 'create_devis' in documents_text
+
+          router_text = templates_router.read_text(encoding='utf-8')
+          model_text = models.read_text(encoding='utf-8')
+          seed_text = seed.read_text(encoding='utf-8')
+          main_text = main.read_text(encoding='utf-8')
+          assert 'DocumentTemplate' in router_text
+          assert 'class DocumentTemplate' in model_text
+          assert 'models.DocumentTemplate' in seed_text
+          assert 'include_router(templates.router' in main_text
+
+          forbidden_needles = (
+              'TemplateEngine',
+              'SecureTemplateRenderer',
+              'backend.services.template_engine',
+              '_get_default_template',
+          )
+          refs = {needle: [] for needle in forbidden_needles}
+          for path in backend.rglob('*.py'):
+              if '__pycache__' in path.parts:
+                  continue
+              text = path.read_text(encoding='utf-8')
+              for lineno, line in enumerate(text.splitlines(), 1):
+                  for needle in forbidden_needles:
+                      if needle in line:
+                          refs[needle].append(f'{path.as_posix()}:{lineno}:{line.strip()}')
+          leftovers = {needle: lines for needle, lines in refs.items() if lines}
+          assert not leftovers, f'références legacy résiduelles: {leftovers}'
+
+          positive = {
+              'document_factory': str(document_factory),
+              'documents_router_uses_factory': True,
+              'documenttemplate_model_preserved': True,
+              'documenttemplate_router_preserved': True,
+              'documenttemplate_seed_preserved': True,
+              'templates_router_mounted': True,
+              'legacy_references': refs,
+          }
+          Path('artifacts/templateengine/reachability.json').write_text(
+              json.dumps(positive, indent=2, ensure_ascii=False), encoding='utf-8'
+          )
+          PY
+
+      - name: Compile active document entrypoints
+        run: python -m py_compile backend/services/document_factory.py backend/routers/documents.py backend/routers/templates.py backend/main.py
+
+      - name: Record exact HEAD
+        run: |
+          git rev-parse HEAD | tee artifacts/templateengine/head.txt
+          git diff --stat HEAD^ HEAD | tee artifacts/templateengine/diff-stat.txt
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: settings-templateengine-reachability
+          path: artifacts/templateengine/
+          if-no-files-found: error
+          retention-days: 14
