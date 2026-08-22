@@ -58,3 +58,5 @@ jobs:
           git add -- frontend/src/pages/AccountingPage.tsx frontend/src/features/accounting/components/TreasuryPanel.tsx
           git commit -m 'refactor(accounting): extract treasury panel'
           git push origin HEAD:agent/decomp-p0-large-files
+
+# retry after EliteGhostLoader import fix
