@@ -63,7 +63,11 @@ PAGE.write_text(updated, encoding="utf-8")
 final = PAGE.read_text(encoding="utf-8")
 if final.count("<AccountingTabs") != 1:
     raise SystemExit("AccountingTabs replacement missing")
-if "Ghost Treasury Hub" in final or "Visual Insights" in final or "{/* TABS NAVIGATION */}" in final:
-    raise SystemExit("Accounting tabs implementation unexpectedly remains in AccountingPage")
+if START in final:
+    raise SystemExit("Original tabs block sentinel unexpectedly remains in AccountingPage")
+if final.count(END) != 1:
+    raise SystemExit("History branch boundary changed unexpectedly")
+if replacement.strip() not in final:
+    raise SystemExit("AccountingTabs structural replacement missing")
 
 print("P0-A shell step prepared: accounting tabs extracted mechanically")
