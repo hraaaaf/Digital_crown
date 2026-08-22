@@ -1,0 +1,40 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1440" height="1100" viewBox="0 0 1440 1100">
+  <rect width="1440" height="1100" fill="#f8fafc"/>
+  <rect x="120" y="70" width="1200" height="960" rx="36" fill="#ffffff" stroke="#e2e8f0" stroke-width="2"/>
+  <text x="180" y="145" font-family="Arial, sans-serif" font-size="34" font-weight="700" fill="#0f172a">Sécurité &amp; Backup</text>
+  <text x="180" y="185" font-family="Arial, sans-serif" font-size="18" fill="#64748b">Sauvegarder, vérifier et restaurer le cabinet sans écraser l’état courant à l’aveugle.</text>
+  <rect x="180" y="235" width="500" height="250" rx="28" fill="#f8fafc" stroke="#cbd5e1"/>
+  <circle cx="250" cy="310" r="34" fill="#ecfdf5" stroke="#a7f3d0"/>
+  <text x="237" y="319" font-family="Arial" font-size="27" fill="#047857">↓</text>
+  <text x="305" y="300" font-family="Arial" font-size="22" font-weight="700" fill="#0f172a">Créer un point de restauration</text>
+  <text x="305" y="333" font-family="Arial" font-size="16" fill="#64748b">DB chiffrée vérifiée + couverture explicitée.</text>
+  <rect x="305" y="382" width="290" height="58" rx="14" fill="#059669"/>
+  <text x="344" y="418" font-family="Arial" font-size="17" font-weight="700" fill="#ffffff">Créer et télécharger</text>
+  <rect x="720" y="235" width="540" height="680" rx="28" fill="#ffffff" stroke="#cbd5e1" stroke-width="2"/>
+  <text x="770" y="300" font-family="Arial" font-size="25" font-weight="700" fill="#0f172a">Restaurer le cabinet</text>
+  <text x="770" y="334" font-family="Arial" font-size="16" fill="#64748b">Préparation d’abord. Bascule seulement après redémarrage contrôlé.</text>
+  <text x="770" y="392" font-family="Arial" font-size="15" font-weight="700" fill="#334155">Package sélectionné</text>
+  <rect x="770" y="410" width="440" height="56" rx="12" fill="#f8fafc" stroke="#cbd5e1"/>
+  <text x="794" y="445" font-family="Arial" font-size="15" fill="#475569">backup-cabinet-2026-08-21.dcr</text>
+  <text x="770" y="518" font-family="Arial" font-size="15" font-weight="700" fill="#334155">Préflight</text>
+  <g font-family="Arial" font-size="16" fill="#334155">
+    <text x="780" y="558">✓ Fichier lisible et checksum valide</text>
+    <text x="780" y="594">✓ Base compatible avec cette version</text>
+    <text x="780" y="630">✓ Médias présents et manifestés</text>
+    <text x="780" y="666">✓ Point de secours actuel sera créé</text>
+  </g>
+  <rect x="770" y="704" width="440" height="82" rx="14" fill="#fff7ed" stroke="#fdba74"/>
+  <text x="794" y="738" font-family="Arial" font-size="15" font-weight="700" fill="#9a3412">Aucune donnée actuelle ne sera écrasée sans</text>
+  <text x="794" y="764" font-family="Arial" font-size="15" fill="#9a3412">point de secours vérifié. L’application redémarrera.</text>
+  <rect x="770" y="814" width="440" height="60" rx="14" fill="#0f172a"/>
+  <text x="895" y="851" font-family="Arial" font-size="17" font-weight="700" fill="#ffffff">Préparer la restauration</text>
+  <rect x="180" y="535" width="500" height="380" rx="28" fill="#f8fafc" stroke="#cbd5e1"/>
+  <text x="230" y="596" font-family="Arial" font-size="21" font-weight="700" fill="#0f172a">Confirmation finale</text>
+  <text x="230" y="635" font-family="Arial" font-size="16" fill="#64748b">Après préflight et point de secours seulement.</text>
+  <text x="230" y="692" font-family="Arial" font-size="15" fill="#334155">Tapez RESTAURER pour confirmer</text>
+  <rect x="230" y="714" width="400" height="56" rx="12" fill="#ffffff" stroke="#cbd5e1"/>
+  <text x="254" y="750" font-family="Arial" font-size="16" fill="#94a3b8">RESTAURER</text>
+  <rect x="230" y="802" width="400" height="60" rx="14" fill="#dc2626" opacity="0.35"/>
+  <text x="329" y="840" font-family="Arial" font-size="17" font-weight="700" fill="#ffffff">Redémarrer et restaurer</text>
+  <text x="180" y="980" font-family="Arial" font-size="14" fill="#64748b">Mockup de référence • restauration guidée • état PREPARED</text>
+</svg>

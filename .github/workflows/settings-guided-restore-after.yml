@@ -1,0 +1,187 @@
+name: Settings Guided Restore AFTER
+
+on:
+  pull_request:
+    branches:
+      - master
+    paths:
+      - 'frontend/src/features/admin/Settings/tabs/SecurityTab.tsx'
+      - 'backend/services/guided_restore.py'
+      - 'backend/services/guided_restore_archive.py'
+      - 'backend/services/guided_restore_worker.py'
+      - 'backend/routers/admin.py'
+      - 'backend/tests/test_guided_restore.py'
+      - 'run.py'
+      - '.github/workflows/settings-guided-restore-after.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  certify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install targeted backend truth dependencies
+        run: python -m pip install --disable-pip-version-check pytest cryptography sqlalchemy python-dotenv
+
+      - name: Compile restore entrypoints
+        run: python -m py_compile backend/services/guided_restore.py backend/services/guided_restore_archive.py backend/services/guided_restore_worker.py backend/routers/admin.py run.py
+
+      - name: Targeted guided restore truth tests
+        run: python -m pytest backend/tests/test_guided_restore.py -q --noconftest
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install frontend
+        working-directory: frontend
+        run: npm ci
+
+      - name: Frontend build
+        working-directory: frontend
+        run: npm run build
+
+      - name: Install Chromium for AFTER evidence
+        working-directory: frontend
+        run: |
+          npm install --no-save --package-lock=false playwright@1.55.0
+          npx playwright install --with-deps chromium
+
+      - name: Inject guided restore AFTER harness
+        working-directory: frontend
+        run: |
+          cat > settings-guided-restore-after.html <<'EOF'
+          <!doctype html><html lang="fr"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/><link rel="icon" href="data:,"/><title>Guided Restore AFTER</title></head><body><div id="root"></div><script type="module" src="/src/settings-guided-restore-after.tsx"></script></body></html>
+          EOF
+
+          cat > src/settings-guided-restore-after.tsx <<'EOF'
+          import React from 'react';
+          import { createRoot } from 'react-dom/client';
+          import { MemoryRouter } from 'react-router-dom';
+          import './index.css';
+          import Settings from './pages/Settings';
+          import { useAuthStore } from './stores/useAuthStore';
+
+          useAuthStore.setState({
+            user: ({ id: 1, email: 'admin@guided-restore-cert.local', nom_complet: 'Dr Restore', role: 'ADMIN', is_superadmin: false, permissions: {} } as any),
+            isAuthenticated: true,
+            isLoading: false,
+            error: null,
+          });
+
+          createRoot(document.getElementById('root')!).render(
+            <MemoryRouter initialEntries={['/settings']}><Settings /></MemoryRouter>,
+          );
+          EOF
+
+          cat > settings-guided-restore-after.mjs <<'EOF'
+          import { chromium } from 'playwright';
+          import { createServer } from 'vite';
+          import fs from 'node:fs/promises';
+
+          const output = 'settings-guided-restore-after-artifacts';
+          const viewports = [
+            { width: 1440, height: 1200 },
+            { width: 768, height: 1200 },
+            { width: 390, height: 1200 },
+            { width: 360, height: 1200 },
+            { width: 320, height: 1200 },
+          ];
+          await fs.mkdir(output, { recursive: true });
+          const json = body => ({ status: 200, contentType: 'application/json', body: JSON.stringify(body) });
+          const profile = {
+            id: 1, public_id: 'guided-restore-cert', nom_cabinet: 'Cabinet Restore', nom_praticien: 'Dr Restore',
+            footer_address: 'Rabat, Maroc', footer_phones: '05 37 00 00 00', primary_color: '#003380',
+            secondary_color: '#1e40af', accent_color: '#60a5fa', selected_theme: 'elite', font_fr: 'inter',
+            selected_template: 'swiss', header_lines_fr: ['Dr Restore'], header_lines_ar: [], specialty_ids: [],
+            contacts_json: {}, margin_top: 3.6, margin_bottom: 3.2, watermark_enabled: false, use_letterhead: false,
+            qr_code_enabled: false, qr_code_type: 'VCARD', qr_code_style: 'dots', show_patient_badges: true,
+            performance_mode: false, clinical_tips_enabled: true, hide_header: true, hide_footer: true, cabinet_type: 'PRIVE',
+          };
+          const preflight = {
+            restore_id: '11111111111111111111111111111111',
+            status: 'preflight_ready', original_name: 'cabinet-2026-08-21.db.enc', size_bytes: 18432000,
+            archive_type: 'Sauvegarde base de données', backup_created_at: '2026-08-21T21:42:00Z', compatible: true,
+            restore_database: true, restore_media: false, media_file_count: 0, preserved: ['Médias actuels'],
+            warnings: ['Sauvegarde DB seule : les médias actuels seront préservés'], errors: [],
+          };
+
+          const server = await createServer({ server: { host: '127.0.0.1', port: 4178, strictPort: true }, clearScreen: false });
+          await server.listen();
+          const browser = await chromium.launch({ headless: true });
+          const evidence = [];
+          try {
+            for (const viewport of viewports) {
+              const context = await browser.newContext({ viewport, colorScheme: 'light' });
+              const page = await context.newPage();
+              const pageErrors = [];
+              const http5xx = [];
+              const requestFailed = [];
+              page.on('pageerror', e => pageErrors.push(String(e)));
+              page.on('response', r => { if (r.status() >= 500) http5xx.push({ url: r.url(), status: r.status() }); });
+              page.on('requestfailed', r => requestFailed.push({ url: r.url(), error: r.failure()?.errorText || 'unknown' }));
+
+              await page.route('**/*', async route => {
+                const request = route.request();
+                const url = new URL(request.url());
+                if (url.port !== '8005' || !url.pathname.startsWith('/api/')) return route.continue();
+                if (request.method() === 'POST' && url.pathname === '/api/admin/restore/preflight') return route.fulfill(json(preflight));
+                if (request.method() === 'DELETE' && url.pathname.startsWith('/api/admin/restore/')) return route.fulfill(json({ status: 'cancelled' }));
+                if (request.method() !== 'GET') return route.fulfill(json({}));
+                if (url.pathname === '/api/clinics/me') return route.fulfill(json(profile));
+                if (url.pathname.includes('/audit-logs')) return route.fulfill(json({ total: 0, logs: [] }));
+                if (url.pathname.includes('/backups')) return route.fulfill(json([]));
+                return route.fulfill(json({}));
+              });
+
+              await page.goto('http://127.0.0.1:4178/settings-guided-restore-after.html', { waitUntil: 'networkidle', timeout: 90000 });
+              await page.getByRole('heading', { name: 'Paramètres', exact: true }).waitFor({ timeout: 15000 });
+              await page.getByRole('button', { name: 'Sécurité & Backup', exact: true }).click();
+              await page.getByRole('heading', { name: 'Sécurité & Souveraineté', exact: true }).waitFor({ state: 'visible' });
+              await page.getByText('Restauration guidée', { exact: true }).waitFor({ state: 'visible' });
+              await page.locator('input[type=file]').setInputFiles({ name: 'cabinet.db.enc', mimeType: 'application/octet-stream', buffer: Buffer.from('certification') });
+              await page.getByText('Préflight validé', { exact: true }).waitFor({ state: 'visible', timeout: 15000 });
+
+              const overflow = await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth + 2);
+              const filename = `after-security-${viewport.width}x${viewport.height}.png`;
+              await page.screenshot({ path: `${output}/${filename}`, fullPage: true, animations: 'disabled' });
+              evidence.push({ viewport, filename, overflow, pageErrors, http5xx, requestFailed });
+              await context.close();
+            }
+          } finally {
+            await browser.close();
+            await server.close();
+          }
+
+          const invalid = evidence.filter(e => e.overflow || e.pageErrors.length || e.http5xx.length || e.requestFailed.length);
+          await fs.writeFile(`${output}/evidence.json`, JSON.stringify({ evidence, invalid }, null, 2));
+          if (evidence.length !== 5) throw new Error(`Expected 5 viewports, got ${evidence.length}`);
+          if (invalid.length) throw new Error(`Invalid AFTER evidence: ${JSON.stringify(invalid)}`);
+          EOF
+
+      - name: Capture AFTER 5 viewports
+        working-directory: frontend
+        run: node settings-guided-restore-after.mjs
+
+      - name: Verify AFTER proof count
+        working-directory: frontend
+        run: test "$(find settings-guided-restore-after-artifacts -name '*.png' | wc -l)" -eq 5
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: guided-restore-after
+          path: frontend/settings-guided-restore-after-artifacts/
+          if-no-files-found: ignore
+          retention-days: 14
