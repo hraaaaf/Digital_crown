@@ -15,6 +15,7 @@ from typing import Any
 
 from backend.core.media_paths import get_media_root
 from backend.core.paths import AppPaths
+from backend.core.platform import get_platform_adapter
 from backend.services.backup_service import BackupService
 from backend.services.guided_restore_archive import (
     _decrypt_backup_key,
@@ -401,21 +402,12 @@ class GuidedRestoreService:
 
     @staticmethod
     def _launch_detached_worker(restore_id: str, parent_pid: int, executable: str) -> None:
-        creationflags = 0
-        kwargs: dict[str, Any] = {"close_fds": True}
-        if os.name == "nt":
-            creationflags = getattr(subprocess, "DETACHED_PROCESS", 0x00000008) | getattr(
-                subprocess, "CREATE_NEW_PROCESS_GROUP", 0x00000200
-            )
-            kwargs["creationflags"] = creationflags
-        else:
-            kwargs["start_new_session"] = True
         subprocess.Popen(
             [executable, "--guided-restore-worker", restore_id, "--parent-pid", str(parent_pid)],
             stdin=subprocess.DEVNULL,
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
-            **kwargs,
+            **get_platform_adapter().detached_process_kwargs(),
         )
 
     @staticmethod
