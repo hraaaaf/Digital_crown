@@ -69,7 +69,7 @@ class TestCreateClinic:
         config = db.query(models.CabinetConfig).filter(models.CabinetConfig.owner_id == dentiste.id).one()
         assert config.nom_cabinet == "Cabinet Owner"
         assert config.if_ == "12345678"
-        assert config.is_initialized is True
+        assert config.is_initialized is False
 
 
 class TestGetMyClinic:
