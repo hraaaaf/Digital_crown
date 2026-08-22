@@ -1,0 +1,85 @@
+name: DECOMP P0-B Cephalo reticles
+
+on:
+  pull_request:
+    branches: [master]
+    paths:
+      - 'scripts/decomp_cephalo_reticles.py'
+      - '.github/workflows/decomp-cephalo-reticles.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  refactor-and-verify:
+    if: github.head_ref == 'agent/decomp-p0-large-files'
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/decomp-p0-large-files
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Apply guarded reticles extraction
+        run: python scripts/decomp_cephalo_reticles.py
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: npm ci
+      - name: TypeScript exact check
+        working-directory: frontend
+        run: npx tsc -b --pretty false
+      - name: Ortho targeted regression
+        working-directory: frontend
+        run: npx vitest run src/features/ortho/cephaloUtils.test.ts
+      - name: Verify v4.2 drag contract and P0 exit
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          page = Path('frontend/src/features/ortho/CephaloTracingLayer.tsx')
+          child = Path('frontend/src/features/ortho/components/CephaloLandmarkReticles.tsx')
+          page_text = page.read_text(encoding='utf-8')
+          child_text = child.read_text(encoding='utf-8')
+          for token in [
+              'setPointerCapture(e.pointerId)',
+              'setActiveDragPos({ id: pt.id, ...coords })',
+              'onUpdateLandmarks(',
+              'const dispX = isDragged && activeDragPos ? activeDragPos.x : pt.x;',
+              'const dispY = isDragged && activeDragPos ? activeDragPos.y : pt.y;',
+          ]:
+              if token not in child_text:
+                  raise SystemExit(f'v4.2 contract missing: {token}')
+          if 'getScreenCTM()' not in Path('frontend/src/features/ortho/hooks/useCephaloInteraction.ts').read_text(encoding='utf-8'):
+              raise SystemExit('canonical coordinate conversion missing')
+          size = page.stat().st_size
+          lines = len(page_text.splitlines())
+          print(f'CephaloTracingLayer after: {size} bytes / {lines} lines')
+          if size >= 50000 or lines >= 1000:
+              raise SystemExit(f'P0 exit criterion not met: {size} bytes / {lines} lines')
+          PY
+      - name: Verify intended diff only
+        run: |
+          python - <<'PY'
+          import subprocess
+          expected = {
+              'frontend/src/features/ortho/CephaloTracingLayer.tsx',
+              'frontend/src/features/ortho/components/CephaloLandmarkReticles.tsx',
+          }
+          lines = subprocess.check_output(['git', 'status', '--short', '-uall'], text=True).splitlines()
+          paths = {line[3:] for line in lines if line.strip()}
+          if paths != expected:
+              raise SystemExit(f'Unexpected cephalo reticles diff: {sorted(paths)}')
+          PY
+      - name: Commit verified reticles extraction
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -- frontend/src/features/ortho/CephaloTracingLayer.tsx frontend/src/features/ortho/components/CephaloLandmarkReticles.tsx
+          git commit -m 'refactor(ortho): extract landmark reticles'
+          git push origin HEAD:agent/decomp-p0-large-files
