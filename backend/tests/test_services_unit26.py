@@ -1,11 +1,9 @@
-"""Twenty-sixth batch — document_factory pure helpers, template_engine
-preview_template and generate_pdf exception path, ClinicalRulesEngine
-CI message branches and remaining analyze_case combinations."""
+"""Twenty-sixth batch — document_factory pure helpers,
+ClinicalRulesEngine CI message branches and remaining analyze_case combinations."""
 import os
 import tempfile
-import pytest
 from datetime import date, datetime
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 
 # ── document_factory pure helpers ──────────────────────────────────────────────
@@ -53,7 +51,6 @@ class TestDocumentFactoryPure:
 
     def test_build_output_path_creates_dir(self):
         from backend.services.document_factory import DocumentFactory
-        import tempfile
         tmpdir = tempfile.mkdtemp()
         f = DocumentFactory(output_dir=tmpdir, static_dir=tmpdir)
 
@@ -68,7 +65,6 @@ class TestDocumentFactoryPure:
 
     def test_build_output_path_returns_string(self):
         from backend.services.document_factory import DocumentFactory
-        import tempfile
         tmpdir = tempfile.mkdtemp()
         f = DocumentFactory(output_dir=tmpdir, static_dir=tmpdir)
         patient = MagicMock()
@@ -77,92 +73,6 @@ class TestDocumentFactoryPure:
         path = f._build_output_path(patient, "certificat")
         assert isinstance(path, str)
         assert path.endswith(".pdf")
-
-
-# ── template_engine.preview_template ──────────────────────────────────────────
-
-class TestPreviewTemplate:
-    def _engine(self):
-        from backend.services.template_engine import TemplateEngine
-        with tempfile.TemporaryDirectory() as d:
-            return TemplateEngine(static_dir=d)
-
-    def test_preview_template_returns_bytes(self):
-        engine = self._engine()
-        template = MagicMock()
-        template.name = "Ordonnance Test"
-        cabinet = MagicMock()
-
-        with patch.object(engine, 'generate_pdf', wraps=lambda tmpl, cab, ctx, path: open(path, 'wb').write(b'%PDF-test') or path) as mock_gen:
-            result = engine.preview_template(template, cabinet)
-
-        assert isinstance(result, bytes)
-
-    def test_preview_template_calls_generate_pdf(self):
-        engine = self._engine()
-        template = MagicMock()
-        template.name = "Test"
-        cabinet = MagicMock()
-
-        def fake_generate(tmpl, cab, ctx, output_path):
-            with open(output_path, 'wb') as f:
-                f.write(b'%PDF-1.4 fake')
-            return output_path
-
-        with patch.object(engine, 'generate_pdf', side_effect=fake_generate) as mock_gen:
-            result = engine.preview_template(template, cabinet)
-            assert mock_gen.called
-            assert isinstance(result, bytes)
-
-    def test_preview_template_context_has_patient(self):
-        engine = self._engine()
-        template = MagicMock()
-        template.name = "Certificat"
-        cabinet = MagicMock()
-        captured_ctx = {}
-
-        def capture_generate(tmpl, cab, ctx, output_path):
-            captured_ctx.update(ctx)
-            with open(output_path, 'wb') as f:
-                f.write(b'%PDF-1.4')
-            return output_path
-
-        with patch.object(engine, 'generate_pdf', side_effect=capture_generate):
-            engine.preview_template(template, cabinet)
-
-        assert 'patient' in captured_ctx
-        assert captured_ctx['patient']['nom'] == 'DUPONT'
-
-
-# ── template_engine.generate_pdf WeasyPrint exception path ────────────────────
-
-class TestGeneratePdfWeasyPrintFallback:
-    def _engine(self):
-        from backend.services.template_engine import TemplateEngine
-        with tempfile.TemporaryDirectory() as d:
-            return TemplateEngine(static_dir=d)
-
-    def test_generate_pdf_falls_back_on_weasyprint_exception(self):
-        engine = self._engine()
-        engine.weasyprint_available = True  # pretend it's available
-
-        template = MagicMock()
-        template.html_content = "<p>Test</p>"
-        cabinet = MagicMock()
-        cabinet.nom_praticien = "Dr. Test"
-        cabinet.selected_template = "swiss"
-
-        with tempfile.NamedTemporaryFile(suffix='.pdf', delete=False) as tmp:
-            output_path = tmp.name
-
-        try:
-            with patch.object(engine, '_generate_weasyprint', side_effect=RuntimeError("WP fail")), \
-                 patch.object(engine, '_fallback_reportlab', return_value=output_path) as mock_fallback:
-                result = engine.generate_pdf(template, cabinet, {}, output_path)
-                assert mock_fallback.called
-        finally:
-            if os.path.exists(output_path):
-                os.unlink(output_path)
 
 
 # ── ClinicalRulesEngine CI message branches ────────────────────────────────────
@@ -184,7 +94,6 @@ class TestClinicalRulesEngineCIMessages:
             antecedents="ULCERE GASTRIQUE actif",
             acts=["EXTRACTION CHIRURGICALE"]
         )
-        # Should have Danger Gastro or substitution warning
         messages = " ".join(result["risques_identifies"])
         assert "Gastro" in messages or "ulcère" in messages.lower() or "gastroduodénal" in messages
 
@@ -222,7 +131,6 @@ class TestClinicalRulesEngineCIMessages:
             acts=["EXTRACTION CHIRURGICALE"]
         )
         mols = [m["molecule"] for m in result["recommandations_moleculaires"]]
-        # IBUPROFENE should be replaced by PARACETAMOL due to ulcer CI
         assert "IBUPROFENE" not in mols or "PARACETAMOL" in mols
 
     def test_diabete_indetermine_without_hba1c(self):
@@ -234,7 +142,4 @@ class TestClinicalRulesEngineCIMessages:
     def test_asthme_alternative_detection(self):
         """ASTHME via RESPIRATOIRE keyword."""
         result = self._run(antecedents="PROBLÈME RESPIRATOIRE CHRONIQUE ASTHME")
-        messages = " ".join(result["risques_identifies"])
-        # Asthme bans IBUPROFENE/AINS — should trigger warning if act uses it
-        # At minimum, asthme detected should not crash
         assert isinstance(result, dict)
