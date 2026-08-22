@@ -11,6 +11,7 @@ on:
 permissions:
   contents: write
 
+# Trigger marker: explicit user-authored push after workflow creation.
 jobs:
   apply-followup:
     if: github.actor != 'github-actions[bot]'
