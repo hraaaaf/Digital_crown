@@ -286,8 +286,9 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
     const contactString = parts.join(' | ');
 
     try {
+      const { logo_path: _logoPath, ...persistableProfile } = profile;
       const payload = {
-        ...profile,
+        ...persistableProfile,
         footer_phones: contactString,
         contacts_json: contacts
       };

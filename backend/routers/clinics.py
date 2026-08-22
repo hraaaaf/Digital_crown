@@ -21,6 +21,35 @@ from backend.services.license_service import LicenseService
 router = APIRouter()
 
 
+def _has_settings_write_access(current_user: models.User) -> bool:
+    if is_superadmin_user(current_user):
+        return True
+    if current_user.role == models.UserRole.ADMIN:
+        return True
+    if current_user.role == models.UserRole.DENTISTE and current_user.employer_id is None:
+        return True
+    permissions = current_user.permissions or {}
+    return permissions.get("settings") is True
+
+
+def _require_settings_write(
+    current_user: models.User = Depends(get_current_user),
+) -> models.User:
+    if not _has_settings_write_access(current_user):
+        raise HTTPException(status_code=403, detail="Permission Réglages requise.")
+    return current_user
+
+
+def _require_setup_owner(
+    current_user: models.User = Depends(get_current_user),
+) -> models.User:
+    if is_superadmin_user(current_user):
+        return current_user
+    if current_user.role not in (models.UserRole.ADMIN, models.UserRole.DENTISTE) or current_user.employer_id is not None:
+        raise HTTPException(status_code=403, detail="Initialisation réservée au compte principal.")
+    return current_user
+
+
 def _normalize_hex(color) -> str:
     return "#{:02X}{:02X}{:02X}".format(*color[:3])
 
@@ -148,31 +177,11 @@ def check_init_status(
 @router.post("/")
 def create_clinic(
     config: schemas.CabinetConfigCreate,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(_require_setup_owner),
 ):
     """Créer la configuration d'un nouveau cabinet (Wizard étape 1)."""
-    admin_user = db.query(models.User).filter(
-        models.User.role.in_([models.UserRole.ADMIN, models.UserRole.DENTISTE]),
-        models.User.employer_id == None,
-    ).order_by(models.User.created_at.asc()).first()
-
-    if not admin_user:
-        admin_email = settings.SUPERADMIN_EMAIL
-        admin_initial_pwd = os.getenv("SUPERADMIN_INITIAL_PASSWORD", "")
-        if not admin_email or not admin_initial_pwd:
-            raise HTTPException(
-                status_code=500,
-                detail="SUPERADMIN_EMAIL et SUPERADMIN_INITIAL_PASSWORD doivent être définis dans l'environnement avant le setup."
-            )
-        from backend.database import pwd_context
-        admin_user = models.User(
-            email=admin_email,
-            hashed_password=pwd_context.hash(admin_initial_pwd),
-            role=models.UserRole.ADMIN,
-            nom_complet=config.header_lines_fr[0] if config.header_lines_fr else "Administrateur"
-        )
-        db.add(admin_user)
-        db.flush()
+    admin_user = current_user
 
     existing_cabinet = db.query(models.CabinetConfig).filter(models.CabinetConfig.owner_id == admin_user.id).first()
 
@@ -206,25 +215,7 @@ def get_my_clinic(db: Session = Depends(database.get_db), current_user: models.U
     config = db.query(models.CabinetConfig).filter(models.CabinetConfig.owner_id == employer_id).first()
 
     if not config:
-        config = models.CabinetConfig(
-            owner_id=employer_id,
-            nom_cabinet=current_user.nom_complet or "Mon Cabinet",
-            nom_praticien=current_user.nom_complet or "Docteur",
-            primary_color="#003380",
-            secondary_color="#1e40af",
-            accent_color="#60a5fa",
-            font_fr="Inter",
-            font_ar="Amiri",
-            qr_code_enabled=False,
-            qr_code_style="dots",
-            qr_code_type="VCARD",
-            watermark_enabled=False,
-            margin_top=3.6,
-            margin_bottom=3.2
-        )
-        db.add(config)
-        db.commit()
-        db.refresh(config)
+        raise HTTPException(status_code=404, detail="Cabinet non configuré")
 
     return config
 
@@ -233,31 +224,14 @@ def get_my_clinic(db: Session = Depends(database.get_db), current_user: models.U
 def update_my_clinic(
     config_update: schemas.CabinetConfigUpdate,
     db: Session = Depends(database.get_db),
-    current_user: models.User = Depends(get_current_user)
+    current_user: models.User = Depends(_require_settings_write)
 ):
     """Mettre à jour la configuration du cabinet."""
     employer_id = current_user.get_employer_id()
     config = db.query(models.CabinetConfig).filter(models.CabinetConfig.owner_id == employer_id).first()
 
     if not config:
-        config = models.CabinetConfig(
-            owner_id=employer_id,
-            nom_cabinet=current_user.nom_complet or "Mon Cabinet",
-            nom_praticien=current_user.nom_complet or "Docteur",
-            primary_color="#003380",
-            secondary_color="#1e40af",
-            accent_color="#60a5fa",
-            font_fr="Inter",
-            font_ar="Amiri",
-            qr_code_enabled=False,
-            qr_code_style="dots",
-            qr_code_type="VCARD",
-            watermark_enabled=False,
-            margin_top=3.6,
-            margin_bottom=3.2
-        )
-        db.add(config)
-        db.flush()
+        raise HTTPException(status_code=404, detail="Cabinet non configuré")
 
     update_dict = _normalize_clinic_update_dict(
         config_update.model_dump(exclude_unset=True),
@@ -277,7 +251,7 @@ def update_my_clinic(
 async def upload_clinic_logo(
     file: UploadFile = File(...),
     db: Session = Depends(database.get_db),
-    current_user: models.User = Depends(get_current_user)
+    current_user: models.User = Depends(_require_settings_write)
 ):
     """Uploader le logo du cabinet."""
     allowed_types = ["image/png", "image/jpeg", "image/jpg", "image/svg+xml"]
@@ -370,7 +344,7 @@ async def upload_clinic_letterhead(
     header_pct: float = Form(25.0),
     footer_pct: float = Form(18.0),
     db: Session = Depends(database.get_db),
-    current_user: models.User = Depends(get_current_user)
+    current_user: models.User = Depends(_require_settings_write)
 ):
     """Uploader le papier en-tête (Letterhead) du cabinet."""
     allowed_types = ["image/png", "image/jpeg", "image/jpg", "application/pdf"]
