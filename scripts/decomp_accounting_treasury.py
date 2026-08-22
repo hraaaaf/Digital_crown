@@ -35,6 +35,7 @@ if any(token not in body for token in required):
     raise SystemExit("Treasury panel baseline changed; refusing automated refactor")
 
 component = """import { AlertTriangle, Loader2, Mail, Receipt, Search, Send } from 'lucide-react';
+import { EliteGhostLoader } from '../../../components/EliteGhostLoader';
 import { cn } from '../../../utils/cn';
 
 interface TreasuryPanelProps {
