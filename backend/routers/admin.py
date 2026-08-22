@@ -1,16 +1,18 @@
 """Admin router compatibility wrapper for fail-closed Settings security fixes.
 
 The historical admin router remains byte-for-byte in ``admin_legacy``. Only the
-mobile revoke, manual database export and guided restore endpoints are owned here
-so unrelated admin behavior is not rewritten as part of the Settings hardening.
+mobile revoke, verified backup/portable bundle and guided restore endpoints are
+owned here so unrelated admin behavior is not rewritten as part of hardening.
 """
-from fastapi import Depends, File, HTTPException, UploadFile
+from fastapi import Depends, File, Form, HTTPException, UploadFile
 from fastapi.responses import FileResponse, JSONResponse
 from pydantic import BaseModel
+from starlette.background import BackgroundTask
 
 from backend.core.paths import AppPaths
 from backend.security import token_blacklist
 from backend.services.backup_service import BackupService
+from backend.services.cabinet_bundle import CabinetBundleService
 from backend.services.guided_restore import GuidedRestoreService
 from . import admin_legacy as _legacy
 from .admin_legacy import *  # noqa: F401,F403
@@ -25,6 +27,10 @@ router.routes[:] = [
 
 class GuidedRestoreApplyRequest(BaseModel):
     confirmation: str
+
+
+class CabinetBundleExportRequest(BaseModel):
+    migration_secret: str
 
 
 @router.post("/revoke-mobile")
@@ -115,6 +121,46 @@ def export_database(
     )
 
 
+@router.post("/export-cabinet")
+def export_portable_cabinet(
+    payload: CabinetBundleExportRequest,
+    db=Depends(_legacy.database.get_db),
+    current_user=Depends(_legacy.require_permission("admin")),
+):
+    """Create a portable Windows/macOS cabinet bundle protected by a migration phrase."""
+    try:
+        result = CabinetBundleService.export_active_cabinet(payload.migration_secret)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except RuntimeError as exc:
+        _legacy.logger.error("Portable cabinet export refused: %s", type(exc).__name__)
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    except Exception as exc:
+        _legacy.logger.error("Portable cabinet export failed: %s", type(exc).__name__)
+        raise HTTPException(status_code=500, detail="Export portable du cabinet impossible.") from exc
+
+    bundle_path = result["path"]
+    _legacy.audit_service.log(
+        db=db,
+        user_id=current_user.id,
+        employer_id=current_user.get_employer_id(),
+        action="EXPORT_PORTABLE_CABINET",
+        resource_type="CabinetBundle",
+        resource_id=None,
+        severity="CRITICAL",
+        details=(
+            f"Bundle cabinet portable créé ({result.get('size_bytes', 0)} octets, "
+            f"{result.get('media_file_count', 0)} médias); secrets machine-bound exclus."
+        ),
+    )
+    return FileResponse(
+        path=bundle_path,
+        filename=result["filename"],
+        media_type="application/vnd.digitalcrown.cabinet-bundle",
+        background=BackgroundTask(bundle_path.unlink, missing_ok=True),
+    )
+
+
 def _restore_not_found(exc: Exception) -> HTTPException:
     return HTTPException(status_code=404, detail="Restauration introuvable.")
 
@@ -125,7 +171,7 @@ async def guided_restore_preflight(
     db=Depends(_legacy.database.get_db),
     current_user=Depends(_legacy.require_permission("admin")),
 ):
-    """Stage and inspect a backup without mutating the active cabinet state."""
+    """Stage and inspect a local backup without mutating the active cabinet state."""
     employer_id = current_user.get_employer_id()
     try:
         result = await GuidedRestoreService.preflight_upload(backup, owner_employer_id=employer_id)
@@ -146,6 +192,45 @@ async def guided_restore_preflight(
         details=(
             f"Préflight restauration: compatible={result.get('compatible')} "
             f"type={result.get('archive_type')} taille={result.get('size_bytes', 0)}."
+        ),
+    )
+    return result
+
+
+@router.post("/restore/portable/preflight")
+async def portable_cabinet_preflight(
+    migration_secret: str = Form(...),
+    backup: UploadFile = File(...),
+    db=Depends(_legacy.database.get_db),
+    current_user=Depends(_legacy.require_permission("admin")),
+):
+    """Convert a portable bundle to destination-local staging, then reuse Guided Restore."""
+    employer_id = current_user.get_employer_id()
+    try:
+        result = await CabinetBundleService.preflight_upload(
+            backup,
+            migration_secret,
+            owner_employer_id=employer_id,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except RuntimeError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    except Exception as exc:
+        _legacy.logger.error("Portable cabinet preflight failed: %s", type(exc).__name__)
+        raise HTTPException(status_code=500, detail="Préflight du bundle cabinet impossible.") from exc
+
+    _legacy.audit_service.log(
+        db=db,
+        user_id=current_user.id,
+        employer_id=employer_id,
+        action="PORTABLE_CABINET_PREFLIGHT",
+        resource_type="BackupRestore",
+        resource_id=result["restore_id"],
+        severity="CRITICAL",
+        details=(
+            f"Bundle portable converti vers staging local; compatible={result.get('compatible')} "
+            f"médias={result.get('media_file_count', 0)}; aucun secret de migration journalisé."
         ),
     )
     return result
