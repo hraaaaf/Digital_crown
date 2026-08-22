@@ -12,6 +12,8 @@ jobs:
   refactor-and-certify:
     if: github.head_ref == 'agent/decomp-p0-large-files' && contains(github.event.pull_request.body || '', 'DECOMP_P0C_RUN')
     runs-on: ubuntu-24.04
+    env:
+      PYTHONPATH: .
     steps:
       - name: Checkout decomposition branch
         uses: actions/checkout@v4
