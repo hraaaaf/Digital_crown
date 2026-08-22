@@ -1,0 +1,51 @@
+name: Onboarding Settings P4A Apply
+
+on:
+  push:
+    branches:
+      - agent/onboarding-settings-reconciliation
+    paths:
+      - scripts/p4_onboarding_settings_patch.py
+      - .github/workflows/onboarding-settings-p4a-apply.yml
+
+permissions:
+  contents: write
+
+jobs:
+  apply-p4a:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Apply exact P4A patch
+        run: python scripts/p4_onboarding_settings_patch.py
+      - name: Syntax and diff checks
+        run: |
+          python -m compileall backend/routers/clinics.py backend/schemas/cabinet.py backend/models.py
+          git diff --check
+          python - <<'PY'
+          from pathlib import Path
+          clinics = Path('backend/routers/clinics.py').read_text()
+          schema = Path('backend/schemas/cabinet.py').read_text()
+          store = Path('frontend/src/features/admin/Settings/hooks/useSettingsStore.ts').read_text()
+          api = Path('frontend/src/services/api.ts').read_text()
+          assert 'Depends(_require_setup_owner)' in clinics
+          assert 'Depends(_require_settings_write)' in clinics
+          assert 'order_by(models.User.created_at.asc()).first()' not in clinics
+          assert 'class CabinetConfigCreate(CabinetConfigBase):\n    model_config = ConfigDict(extra="forbid", populate_by_name=True)' in schema
+          assert 'logo_path: _logoPath' in store
+          assert "_offline: true" not in api
+          PY
+      - name: Commit P4A product changes
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git rm scripts/p4_onboarding_settings_patch.py .github/workflows/onboarding-settings-p4a-apply.yml
+          git add -- backend/routers/clinics.py backend/schemas/cabinet.py backend/models.py frontend/src/features/admin/Settings/hooks/useSettingsStore.ts frontend/src/services/api.ts
+          git commit -m "fix: align onboarding and settings truth boundary"
+          git push origin HEAD:agent/onboarding-settings-reconciliation
