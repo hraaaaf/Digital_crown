@@ -15,8 +15,12 @@ from backend.core.media_paths import get_media_root
 from backend.core.paths import AppPaths
 from backend.services.guided_restore import GuidedRestoreService, _utc_now
 from backend.services.guided_restore_archive import (
-    _decrypt_backup_key, _extract_encrypted_media, _validate_database_file,
+    _decrypt_backup_key,
+    _directory_digest,
+    _extract_encrypted_media,
+    _validate_database_file,
 )
+
 
 class GuidedRestoreWorker:
     @staticmethod
@@ -65,6 +69,13 @@ class GuidedRestoreWorker:
         return rescued
 
     @staticmethod
+    def _verify_database_rescue(rescue_dir: Path, driver: str) -> None:
+        source = rescue_dir / "clinical_vault.db"
+        if not source.exists():
+            raise RuntimeError("Secours DB introuvable")
+        _validate_database_file(source, driver)
+
+    @staticmethod
     def _restore_database_from_rescue(target: Path, rescue_dir: Path) -> None:
         for suffix in ("", "-wal", "-shm"):
             current = Path(str(target) + suffix)
@@ -94,7 +105,12 @@ class GuidedRestoreWorker:
                 temp.unlink()
 
     @staticmethod
-    def _apply_media(source_enc: Path, media_root: Path, rescue_media: Path) -> None:
+    def _apply_media(
+        source_enc: Path,
+        media_root: Path,
+        rescue_media: Path,
+        expected_current_digest: dict[str, Any] | None,
+    ) -> None:
         prepared = media_root.parent / f".guided-restore-media-{uuid.uuid4().hex}"
         if prepared.exists():
             shutil.rmtree(prepared)
@@ -102,7 +118,17 @@ class GuidedRestoreWorker:
         if rescue_media.exists():
             shutil.rmtree(rescue_media)
         if media_root.exists():
+            if expected_current_digest is not None and _directory_digest(media_root) != expected_current_digest:
+                shutil.rmtree(prepared, ignore_errors=True)
+                raise RuntimeError("Médias modifiés depuis la préparation : restauration annulée")
             os.replace(media_root, rescue_media)
+            if expected_current_digest is not None and _directory_digest(rescue_media) != expected_current_digest:
+                os.replace(rescue_media, media_root)
+                shutil.rmtree(prepared, ignore_errors=True)
+                raise RuntimeError("Secours média non vérifiable : restauration annulée")
+        elif expected_current_digest and int(expected_current_digest.get("files", 0)) > 0:
+            shutil.rmtree(prepared, ignore_errors=True)
+            raise RuntimeError("Médias actuels introuvables depuis la préparation")
         try:
             os.replace(prepared, media_root)
         except Exception:
@@ -169,20 +195,28 @@ class GuidedRestoreWorker:
 
         try:
             cls._wait_parent_exit(parent_pid)
+            GuidedRestoreService._verify_staged_job(job)
             update("applying")
 
             rescued = cls._rescue_database(target_db, rescue_db)
-            rescue_dir.mkdir(parents=True, exist_ok=True)
+            driver = str(job.get("active_driver") or "pysqlite")
+            cls._verify_database_rescue(rescue_db, driver)
             update(
                 "applying",
                 rescue_created_at=_utc_now(),
                 rescue_database_files=rescued,
+                rescue_database_verified=True,
                 rescue_media_atomic=bool(job.get("restore_media") and media_root.exists()),
             )
 
-            cls._apply_database(job_dir / "database.enc", target_db, str(job.get("active_driver") or "pysqlite"))
+            cls._apply_database(job_dir / "database.enc", target_db, driver)
             if job.get("restore_media"):
-                cls._apply_media(job_dir / "media.enc", media_root, rescue_media)
+                cls._apply_media(
+                    job_dir / "media.enc",
+                    media_root,
+                    rescue_media,
+                    job.get("prepared_media_digest"),
+                )
 
             update("restarting")
             relaunched = cls._launch_app(executable)
@@ -207,7 +241,8 @@ class GuidedRestoreWorker:
                     except Exception:
                         relaunched.kill()
                 update("rolling_back", result="warning", message=str(exc))
-                cls._restore_database_from_rescue(target_db, rescue_db)
+                if rescue_db.exists():
+                    cls._restore_database_from_rescue(target_db, rescue_db)
                 if job.get("restore_media"):
                     cls._rollback_media(media_root, rescue_media)
                 rollback_process = cls._launch_app(executable)
