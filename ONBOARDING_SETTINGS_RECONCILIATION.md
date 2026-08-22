@@ -1,6 +1,6 @@
 # Digital Crown — Onboarding ↔ Réglages / Clinic Identity Reconciliation
 
-Status: **ACTIVE — P0 CLOSED / P1 CLOSED / P2 ACTIVE**
+Status: **ACTIVE — P0 CLOSED / P1 CLOSED / P3 ACTIVE before P2 implementation**
 
 Branch: `agent/onboarding-settings-reconciliation`
 PR: `#214` (draft)
@@ -12,11 +12,24 @@ Une seule vérité cohérente :
 
 `Inscription / activation essai → onboarding → backend/DB → Réglages → consommateurs → reprise de session`
 
+### Règle directionnelle obligatoire
+
+**Réglages est la surface produit canonique de configuration.**
+
+L’onboarding n’est pas une seconde configuration indépendante et ne redéfinit pas Réglages. Il est une **projection guidée de la configuration canonique disponible dans Réglages**.
+
+Donc :
+- si une donnée existe dans onboarding et Réglages, onboarding doit reprendre le **même concept, même nom métier, même type, même enum, même validation, même default, même backend, même persistance et même permission** ;
+- une option utile peut rester dans onboarding même si elle n’est pas strictement indispensable au démarrage ;
+- on ne déplace pas automatiquement QR, branding, spécialités, thème, logo, etc. vers Réglages ;
+- on retire de l’onboarding uniquement ce qui est réellement faux, dupliqué, mort ou sans valeur dans une première configuration ;
+- lorsqu’onboarding et Réglages divergent, **onboarding s’aligne sur le contrat Réglages**, sauf si Réglages lui-même viole le modèle métier canonique P1 ; dans ce cas P3 corrige d’abord Réglages, puis onboarding s’y aligne.
+
 Aucun déploiement Vercel sans autorisation explicite.
 
 ## Avancement canonique
 
-Le chantier comprend 9 lots P0→P8. Crédit uniquement lorsqu’un lot est entièrement certifié.
+9 lots P0→P8. Crédit uniquement sur lot entièrement certifié.
 
 - P0 CLOSED ✅
 - P1 CLOSED ✅
@@ -27,56 +40,51 @@ Le chantier comprend 9 lots P0→P8. Crédit uniquement lorsqu’un lot est enti
 
 # P0 — Audit & Truth Map — CLOSED ✅
 
-## Preuve
+## Preuves
 
 ### Contrat
-
 - Run : `32560853707 — Onboarding Settings P0 Certification #3`
 - Conclusion : **SUCCESS**
 - HEAD certifié : `eecb28cedd65bac8196ce8002c42893ad3ada28c`
 
 ### BEFORE visuel
-
 - Run : `32560178433`
 - Artifact : `9472575193 — onboarding-settings-p0-before`
 - Digest : `sha256:4b80b57fd7d0dd5f33d98c04fbbb78cb5623b51056fef6df1227054e0cbefa95`
 - 70 screenshots : 7 étapes onboarding + 7 onglets Réglages × 5 viewports
-- Viewports : 1440 / 1024 / 768 / 430 / 390
-- 0 erreur runtime/pageerror/console enregistrée
-- 14 overflows : uniquement SetupWizard à 430/390
-- `scrollWidth=569` sur les 14 écrans concernés
-- Réglages sans overflow sur les 5 viewports
+- 1440 / 1024 / 768 / 430 / 390
+- 0 erreur runtime/pageerror/console
+- 14 overflows : SetupWizard uniquement à 430/390
+- `scrollWidth=569`
+- Réglages : aucun overflow sur les 5 viewports
 
-Aucun code produit modifié dans P0.
+Aucun code produit modifié en P0.
 
 ## Findings P0 bloquants
 
 ### CRITICAL
-
-1. `POST /api/clinics/` sans `current_user`, ownership choisi globalement.
-2. Mutations cabinet protégées par auth mais pas par permission Settings backend.
-3. `saveProfile()` envoie des champs interdits par `CabinetConfigUpdate(extra="forbid")`.
+1. `POST /api/clinics/` sans `current_user`, ownership global/non déterministe.
+2. Mutations cabinet authentifiées mais sans permission Settings backend.
+3. Payload `saveProfile()` incompatible avec `CabinetConfigUpdate(extra="forbid")`.
 
 ### HIGH
-
-4. IF perdu à la création (`if_` frontend vs alias entrant `if`).
+4. IF perdu à la création (`if_` vs alias `if`).
 5. Spécialité personnalisée UI sans persistance.
-6. Onboarding non atomique avant uploads logo/letterhead.
-7. Erreur init transformée en faux « setup requis ».
+6. Onboarding non atomique avant uploads.
+7. Erreur init transformée en faux setup requis.
 8. Thème onboarding persisté localement avant ACK backend.
-9. Faux succès offline desktop : HTTP 200 synthétique, aucune mise en queue réelle par `api.ts`.
-10. AccountingGenerator cherche la config sur `owner_id == user_id` au lieu de l’employeur.
+9. Faux succès offline desktop sans queue réelle.
+10. AccountingGenerator lit config sur raw `user_id`.
 11. Échéancier référence `models.Clinic` inexistant.
-17. Signup classique et activation essai produisent deux états initiaux divergents.
-20. SetupWizard déborde à 430/390 ; cause primaire : stepper 7×`w-12`, `gap-4`, labels `whitespace-nowrap`, padding `px-8`.
+17. Signup classique et essai produisent deux états initiaux divergents.
+20. SetupWizard overflow mobile 430/390.
 
 ### MEDIUM
-
-12. Switch multi-cabinet frontend sans backend persistant correspondant.
-13. Identifiants légaux en double source CabinetConfig/User.
-14. `contacts_json` + `footer_phones` comme deux représentations persistées.
+12. Switch multi-cabinet frontend sans backend réel.
+13. Identifiants légaux double source.
+14. `contacts_json` + `footer_phones` double représentation.
 15. Confirmation onboarding incomplète / QR mal nommé.
-16. Defaults frontend/backend divergents, notamment `swiss` vs `classic`.
+16. Defaults frontend/backend divergents (`swiss` vs `classic`).
 18. Password UI min 4 vs backend min 8.
 19. Signup annonce un cabinet pré-enregistré alors qu’il ne crée qu’un User.
 
@@ -84,293 +92,222 @@ Aucun code produit modifié dans P0.
 
 # P1 — Canonical Data Model — CLOSED ✅
 
-## Goal P1
-
-Définir le modèle minimal qui donne un propriétaire unique à chaque donnée, couvre solo/équipe/clinique et sépare explicitement organisation, praticien, acteur et signataire sans créer de tables spéculatives.
-
-## Décision architecturale
-
-### 1. `User` = compte + praticien
-
-Aucune table `Practitioner` nouvelle.
-
-Preuves repo :
-- `Acte.praticien_id → users.id` ;
-- les dentistes secondaires sont déjà des `User(role=DENTISTE)` ;
-- `team.py` les rattache au compte principal via `employer_id` ;
-- les plans PREMIUM/ELITE supportent plusieurs dentistes.
-
-Owner canonique User :
-- identité de connexion ;
-- rôle/permissions ;
-- nom professionnel FR ;
-- futur nom professionnel AR ;
-- coordonnées personnelles/professionnelles propres ;
-- INPE **professionnel** ;
-- identité du signataire sur les documents cliniques.
-
-### 2. `CabinetConfig` = profil d’organisation
-
-On conserve la table/modèle existant au lieu d’un renommage massif. Sémantiquement, elle devient l’`OrganizationProfile` du cabinet.
-
-Owner canonique CabinetConfig :
-- nom de structure ;
-- type de structure ;
-- adresse ;
-- contacts structure ;
-- ICE / IF de l’entité d’exercice/facturation ;
-- INPE **établissement** s’il existe ;
-- spécialités/services proposés par la structure ;
-- logo / letterhead ;
-- branding document ;
-- QR organisation/document ;
-- thème et préférences partagées.
-
-### 3. `employer_id` = membership mono-organisation
-
-Conserver le mécanisme actuel tant qu’aucun vrai besoin multi-organisation/multi-site n’est démontré.
-
-Ne pas créer de table Membership maintenant.
-
-### 4. `owner_id` n’est pas le signataire
-
-`CabinetConfig.owner_id` reste la clé de tenancy du compte principal. Le propriétaire administratif n’est pas automatiquement le praticien qui signe un document.
-
-### 5. Actor et Signer sont deux concepts différents
-
-- **actor_user** : utilisateur qui déclenche l’action, utile pour audit/permissions ;
-- **signer_user** : dentiste responsable/signataire lorsque le document l’exige ;
-- **organization** : établissement émetteur/branding partagé.
-
-Une secrétaire peut être actor autorisé d’un devis sans jamais devenir signer clinique.
-
-## Pourquoi aucune table Practitioner
-
-Créer Practitioner aujourd’hui introduirait `User ↔ Practitioner` pour représenter une personne que le produit représente déjà par User. Cela ajouterait migration, synchronisation et conflits sans valeur démontrée.
-
-Une table Practitioner ne redevient justifiée que si un praticien doit exister indépendamment de tout compte utilisateur ou appartenir à plusieurs organisations. Ce besoin n’est pas prouvé dans le produit actuel.
-
-## Type de structure
-
-Décision : conserver physiquement `PRIVE | CLINIQUE` pour compatibilité P1/P5.
-
-Règles :
-- `PRIVE` signifie **cabinet dentaire**, pas « mono-praticien » ;
-- `CLINIQUE` couvre **clinique / centre dentaire** tant qu’aucun comportement distinct ne justifie une troisième valeur ;
-- le nombre de praticiens est dérivé de l’équipe réelle, jamais du `cabinet_type` ;
-- ne pas ajouter SOLO/CABINET/CENTRE uniquement pour afficher plus de boutons.
-
-Conséquence P2 : supprimer la promesse UI « Mono-praticien » attachée à `PRIVE`.
-
-## Identifiants légaux
-
-### ICE / IF
-
-Owner canonique : **profil d’organisation / entité d’exercice et de facturation** dans CabinetConfig.
-
-L’OMPIC décrit l’ICE comme identifiant uniforme de l’entreprise, pour personnes morales ou entreprises personnes physiques, aux côtés notamment de l’IF. Le fait qu’un cabinet soit exploité par une personne physique ne justifie donc pas de dupliquer ICE/IF dans User : CabinetConfig représente ici l’entité d’exercice/facturation.
-
-Source primaire : OMPIC — `https://www.ompic.ma/fr/content/identifiant-commun-de-lentreprise`
-
-### INPE
-
-L’INPE ne peut pas rester un champ unique ambigu.
-
-Les sources officielles ANAM et Ministère de la Santé distinguent explicitement :
-- INPE professionnel de santé ;
-- INPE établissement de santé.
-
-Sources primaires :
-- ANAM Guide INPE 2020 — `https://anam.ma/anam/wp-content/uploads/2021/11/Guide-INPE-2020.pdf`
-- ANAM Référentiel administratif INPE 2023 — `https://anam.ma/anam/wp-content/uploads/2023/02/Referentiel-administratif-INPE-2023.pdf`
-- Ministère de la Santé — activité « Code INPE ».
-
-Target P4 :
-- `User.inpe_professionnel` nullable ;
-- `CabinetConfig.inpe_etablissement` nullable ;
-- `CabinetConfig.inpe` devient legacy transitoire jusqu’à P5.
-
-Aucun legacy INPE ne sera silencieusement classé professionnel/établissement sans preuve.
-
-## Matrice source-of-truth P1
-
-| Concept | Owner canonique | Champ cible / règle | Legacy actuel |
-|---|---|---|---|
-| Email/login | User | `email` | User |
-| Nom praticien FR | User | `nom_complet` | CabinetConfig.nom_praticien dupliqué |
-| Nom praticien AR | User | futur `nom_complet_ar` | CabinetConfig.nom_praticien_ar |
-| Rôle/permissions | User | existant | User |
-| Tél. praticien | User | telephone_* | User |
-| INPE praticien | User | futur `inpe_professionnel` | CabinetConfig.inpe ambigu / User.identifiants_legaux |
-| Nom structure | CabinetConfig | `nom_cabinet` | existant |
-| Type structure | CabinetConfig | `cabinet_type` | existant |
-| Adresse structure | CabinetConfig | `footer_address` puis alias métier `adresse` | User.adresse_complete fallback |
-| Contacts structure | CabinetConfig | `contacts_json` | footer_phones dérivé |
-| ICE structure/facturation | CabinetConfig | `ice` | User.identifiants_legaux fallback |
-| IF structure/facturation | CabinetConfig | `if_` | User.identifiants_legaux fallback |
-| INPE établissement | CabinetConfig | futur `inpe_etablissement` | `inpe` ambigu |
-| Services/spécialités structure | CabinetConfig | `specialty_ids` | existant |
-| Custom specialty si conservée | CabinetConfig | cible à définir P2/P4 | UI sans DB |
-| Branding | CabinetConfig | existant | existant |
-| Header auto | dérivé | organisation + signer selon document | header global avec praticien owner |
-| Header custom | CabinetConfig | override de présentation | header_lines_fr/ar |
-| Footer contacts | dérivé | contacts_json | footer_phones persisté |
-| Thème | CabinetConfig | backend canonique, localStorage cache seulement | double vérité |
-| Tenant/team | User | `employer_id` | existant |
-| Multi-cabinet | aucun | non supporté | activeCabinetId/clinic_id incomplets |
-
-## Politique documentaire canonique
-
-### Documents cliniques personnels
-
-Ordonnance, certificat et tout document légalement/personnellement signé par un praticien :
-- organization_config = CabinetConfig de `signer_user.get_employer_id()` ;
-- signer = User DENTISTE explicite ;
-- actor = utilisateur courant ;
-- aucun fallback silencieux vers le propriétaire si le signer requis est absent.
-
-Le certificat médical implémente déjà l’essentiel de ce pattern : config employeur + nom du User signataire.
-
-### Rapports cliniques
-
-Céphalométrie et rapports assimilés :
-- branding organisation ;
-- praticien responsable explicite quand affiché ;
-- ne jamais utiliser `CabinetConfig.nom_praticien` comme identité universelle de clinique.
-
-### Documents financiers
-
-Devis, note d’honoraires, échéancier :
-- issuer = organisation ;
-- actor = utilisateur ayant déclenché l’action ;
-- signer praticien non implicite par défaut ;
-- config toujours chargée via employeur/tenant, pas raw user_id.
-
-### Document libre
-
-- branding = organisation ;
-- signer uniquement si le document exige explicitement une signature ;
-- actor conservé pour audit.
-
-## Politique header/footer
-
-### Header
-
-Le header partagé ne doit plus encoder le propriétaire comme praticien global.
-
-- header automatique = identité organisationnelle ;
-- identité du praticien/signataire = bloc/document contextuel ;
-- un header custom existant reste conservé byte-for-byte jusqu’à action explicite de l’utilisateur.
-
-### Footer
-
-- adresse/contact/ICE/IF = organisation ;
-- INPE établissement seulement si renseigné/classifié ;
-- INPE praticien dans le bloc signataire/clinique approprié, pas comme identifiant global indistinct ;
-- `footer_phones` devient une projection dérivée de `contacts_json` et non une seconde source éditable.
-
-## Politique QR
-
-Le type détermine le scope :
-- VALIDATION / PAYMENT → document ;
-- WEBSITE / INSTAGRAM / WHATSAPP / LOCATION → organisation ;
-- VCARD → praticien signataire lorsqu’il existe ; sans signer explicite, pas de fallback silencieux vers un propriétaire arbitraire.
-
-## Legacy / migration contract pour P5
-
-### Noms praticien
-
-- si `User.nom_complet` vide et `CabinetConfig.nom_praticien` présent → backfill User ;
-- si les deux identiques → reconciled ;
-- si les deux diffèrent → ne pas écraser, état à réconcilier.
-
-`nom_praticien_ar` suit la même règle vers le futur `User.nom_complet_ar`.
-
-### ICE / IF
-
-- CabinetConfig est cible canonique ;
-- si cible vide et legacy owner `User.identifiants_legaux` possède une valeur → backfill conflict-aware ;
-- si deux valeurs différentes → aucune substitution silencieuse.
-
-### INPE
-
-- créer deux cibles nullables ;
-- ne jamais deviner la nature d’un `CabinetConfig.inpe` legacy ;
-- conserver la valeur legacy jusqu’à classification explicite Professionnel / Établissement ;
-- afficher une configuration à compléter plutôt qu’un faux choix automatique.
-
-### Contacts
-
-- `contacts_json` gagne ;
-- `footer_phones` devient dérivé ;
-- si contacts_json vide mais footer legacy présent, conserver en compatibilité jusqu’à normalisation explicite.
-
-### Headers custom
-
-Ne pas reconstruire automatiquement les headers custom existants. Les préserver jusqu’à reset/édition explicite.
-
-## Scénarios métier P1
-
-| Scénario | Organisation | Praticiens | Membership | Verdict |
-|---|---|---|---|---|
-| Dentiste seul | 1 CabinetConfig | owner User | owner sans employer | couvert |
-| Cabinet + assistant | 1 CabinetConfig | owner User | secrétaire employer_id=owner | couvert |
-| Cabinet/clinique multi-dentistes | 1 CabinetConfig | owner + User DENTISTE secondaires | employer_id=owner | couvert |
-| Centre à gestion centralisée | 1 CabinetConfig | plusieurs User | employer_id=owner | couvert tant qu’un seul site/tenant |
-| Multi-site / multi-organisation | non modélisé | potentiellement multi-membership | employer_id insuffisant | hors scope tant que besoin non prouvé |
-
-## P1 preuves code
-
-- `backend/models.py` : User, employer_id, Acte.praticien_id, CabinetConfig.owner_id unique.
-- `backend/routers/team.py` : dentistes secondaires réels + quotas multi-praticiens.
-- `backend/services/generators/certificat_gen.py` : config employeur + signer User.
-- `backend/services/generators/libre_gen.py` : config employeur.
-- `backend/services/document_factory.py` : helper `_get_cabinet_config()` via employer pour certains rapports.
-- `backend/services/generators/ordonnance_gen.py` : contre-exemple raw user_id à corriger P6.
-- `backend/services/generators/accounting_gen.py` : contre-exemple raw user_id à corriger P6.
-- `backend/services/base_template_core.py` : header/footer global mélange actuellement organisation et praticien.
-- `frontend/src/features/admin/SetupWizard/steps/Step1Identity.tsx` : PRIVE présenté à tort comme mono-praticien.
-
-## P1 non-objectifs
-
-- pas de table Practitioner ;
-- pas de table Membership ;
-- pas de modèle multi-site ;
-- pas de nouveau type SOLO/CENTRE sans comportement métier ;
-- pas de migration DB dans P1 ;
-- pas de modification UI dans P1.
+## Décision
+
+### User = compte + praticien
+Pas de nouvelle table Practitioner.
+
+Preuves :
+- `Acte.praticien_id → User.id` ;
+- dentistes secondaires = `User(role=DENTISTE)` ;
+- rattachement via `employer_id` ;
+- PREMIUM/ELITE supportent plusieurs dentistes.
+
+Owner User : auth, rôle/permissions, identité professionnelle du praticien, coordonnées propres, futur INPE professionnel, identité du signataire.
+
+### CabinetConfig = organisation
+Conserver le modèle actuel comme profil organisationnel.
+
+Owner CabinetConfig : nom structure, type, adresse, contacts structure, ICE/IF, futur INPE établissement, spécialités/services structure, logo/letterhead, branding, QR, thème et préférences partagées.
+
+### employer_id = membership mono-organisation
+Conserver tant qu’aucun vrai besoin multi-site/multi-organisation n’est démontré. Pas de table Membership maintenant.
+
+### owner ≠ actor ≠ signer
+- owner : propriétaire tenant/config ;
+- actor : utilisateur qui déclenche l’action ;
+- signer : dentiste responsable/signataire quand requis.
+
+### Type de structure
+Conserver `PRIVE | CLINIQUE` pour compatibilité.
+- `PRIVE` = cabinet dentaire, pas forcément mono-praticien ;
+- `CLINIQUE` = clinique/centre tant qu’aucun comportement distinct n’impose une nouvelle valeur ;
+- nombre de praticiens = équipe réelle, pas `cabinet_type`.
+
+### Identifiants
+- ICE / IF → organisation/entité d’exercice et facturation ;
+- INPE → deux sujets distincts : professionnel et établissement ;
+- aucune classification automatique d’un INPE legacy ambigu.
+
+Sources primaires : OMPIC pour ICE, ANAM/Ministère de la Santé pour INPE.
+
+### Documents
+Documents cliniques personnels : branding organisation + signer User DENTISTE explicite.  
+Documents financiers : issuer organisation, actor audité, signer non implicite.  
+Header automatique : identité organisationnelle ; identité praticien contextuelle.  
+Footer : données organisationnelles.  
+QR : scope selon type ; VCARD praticien seulement si signer explicite.
+
+### Legacy
+- nom praticien CabinetConfig → User seulement si cible vide ; conflit = pas d’écrasement ;
+- ICE/IF CabinetConfig gagne, backfill conflict-aware depuis User legacy ;
+- INPE legacy conservé jusqu’à classification explicite ;
+- `contacts_json` gagne sur `footer_phones` ;
+- headers custom préservés byte-for-byte tant qu’utilisateur ne les réinitialise pas.
 
 ## Verdict P1
 
-**CLOSED.** Le modèle cible est suffisamment déterminé pour exécuter P2/P3/P4/P5 sans décision architecturale restante sur l’ownership principal.
+**CLOSED.** Modèle métier suffisamment déterminé pour la réconciliation produit.
 
 ---
 
-# P2 — Onboarding Product Reconciliation — ACTIVE
+# P3 — Réglages Canonical Contract — ACTIVE
 
-## Goal P2
+> Exécuté avant l’implémentation P2, car onboarding doit s’aligner sur Réglages et non l’inverse.
 
-Réduire le premier onboarding aux données réellement nécessaires au démarrage, sans demander deux fois ce qui existe déjà et sans faire promettre à l’UI une persistance qu’elle n’a pas.
+## Goal P3
 
-Chaque champ doit devenir exactement l’un de :
-- `REQUIRED NOW`
-- `OPTIONAL NOW`
-- `LATER IN SETTINGS`
-- `REMOVE`
+Faire de Réglages la **référence fonctionnelle et contractuelle** de toute configuration cabinet/praticien réellement exposée au produit.
+
+## Succès P3
+
+Pour chaque valeur exposée dans Réglages :
+1. concept métier explicite ;
+2. owner P1 explicite (`User` ou `CabinetConfig`) ;
+3. nom métier et nom technique canoniques ;
+4. type/enum/default uniques ;
+5. validation unique ;
+6. lecture et écriture réelles ;
+7. backend cible identifié ;
+8. permission cible identifiée ;
+9. fallback éventuel classé legacy uniquement ;
+10. correspondance onboarding indiquée : `MIRROR`, `OPTIONAL MIRROR`, `SETTINGS ONLY`, `REMOVE`.
+
+## Règle P3
+
+P3 ne redesign pas Réglages par défaut. Il verrouille le contrat de la surface existante et ne corrige que ce qui contredit P1 ou la vérité backend.
+
+## Matrice à produire
+
+| Réglage canonique | Owner | Champ backend | Type/default/validation | Permission | Onboarding | Verdict |
+|---|---|---|---|---|---|---|
+
+## Surfaces prioritaires
+
+### Profil Cabinet
+- type structure ;
+- nom structure ;
+- identité praticien FR/AR ;
+- adresse ;
+- contacts ;
+- ICE / IF / INPE ;
+- spécialités ;
+- logo.
+
+### Design & Ambiance
+- template ;
+- couleurs ;
+- polices ;
+- marges/scales ;
+- header/footer ;
+- letterhead ;
+- thème ;
+- QR si la surface y est réellement exposée.
+
+### Performance / Équipe
+Seulement les valeurs qui impactent le contrat d’onboarding ou l’ownership.
+
+## Findings P0 à résoudre dans P3/P4
+
+- payload Settings avec extras interdits ;
+- `nom` / `nom_praticien` / User.nom_complet ;
+- custom specialties sans backend ;
+- `footer_phones` vs `contacts_json` ;
+- template `swiss` vs `classic` ;
+- INPE ambigu ;
+- multi-cabinet UI mort ;
+- permissions backend manquantes.
+
+---
+
+# P2 — Onboarding Product Reconciliation — SPEC ACTIVE / IMPLEMENTATION AFTER P3
+
+## Goal P2 corrigé
+
+Construire l’onboarding comme **version guidée de Réglages**, pas comme un modèle parallèle ni comme un assistant minimaliste imposant la suppression de fonctionnalités.
+
+### Principe
+
+Pour toute donnée conservée dans onboarding :
+
+`champ onboarding = même donnée que Réglages = même owner P1 = même contrat backend`
+
+L’onboarding peut sélectionner un sous-ensemble ergonomique de Réglages, mais il ne crée jamais :
+- alias métier concurrent ;
+- default différent ;
+- validation différente ;
+- persistance locale autonome ;
+- payload différent ;
+- représentation dérivée persistée comme seconde vérité.
+
+## Classification P2 corrigée
+
+La classification précédente qui mettait presque tout en `LATER IN SETTINGS` est **annulée**.
+
+Les catégories deviennent :
+- `MIRROR REQUIRED` : demandé pendant onboarding et identique à Réglages ;
+- `MIRROR OPTIONAL` : disponible pendant onboarding pour une meilleure première configuration, identique à Réglages ;
+- `SETTINGS ONLY` : existe dans Réglages mais n’apporte pas assez de valeur au premier démarrage ;
+- `REMOVE` : faux, mort, redondant ou sans contrat produit réel.
+
+### Pré-classement, à finaliser après matrice P3
+
+| Domaine onboarding actuel | Direction |
+|---|---|
+| Type de structure | `MIRROR REQUIRED` |
+| Nom de structure | `MIRROR REQUIRED` |
+| Adresse structure | `MIRROR REQUIRED` |
+| Identité praticien FR/AR | `MIRROR` depuis la section praticien de Réglages, préremplie depuis User quand disponible |
+| Contacts | `MIRROR OPTIONAL` |
+| ICE / IF | `MIRROR OPTIONAL` si Réglages les conserve dans Profil |
+| INPE | `MIRROR OPTIONAL`, mais seulement après séparation professionnel/établissement P3/P4 |
+| Spécialités | `MIRROR OPTIONAL` |
+| Spécialité personnalisée | suspendue jusqu’à décision P3 : vraie persistance ou REMOVE |
+| QR | `MIRROR OPTIONAL` si Réglages l’expose réellement |
+| Logo / letterhead | `MIRROR OPTIONAL` |
+| Template / couleurs / police | `MIRROR OPTIONAL` |
+| Marges/scales avancés | probablement `SETTINGS ONLY`, à confirmer par P3 UX |
+| Thème | `MIRROR OPTIONAL` si Réglages reste source canonique backend |
+| `footer_phones` dérivé | `REMOVE` comme saisie/source indépendante |
+| faux switch multi-cabinet | `REMOVE` hors besoin réel |
+
+Aucune suppression produit P2 ne sera faite avant la matrice P3 finale.
+
+## Goal visuel P2
+
+L’onboarding doit :
+- **ressembler fonctionnellement à Réglages**, avec mêmes libellés et choix ;
+- rester guidé, progressif et agréable pour une première installation ;
+- afficher clairement ce qui pourra être modifié ensuite dans Réglages ;
+- fonctionner à 390/430 sans overflow ;
+- ne jamais faire croire qu’une valeur est sauvegardée avant ACK backend ;
+- éviter les options avancées qui noient la première installation, sans supprimer les options utiles.
+
+Le nombre d’étapes n’est **pas fixé à 3**. Il sera dérivé du contrat Réglages et du mockup, pas décidé arbitrairement.
 
 ## Gates UI P2
 
-Avant modification produit :
-1. BEFORE déjà acquis via P0 ;
-2. Goal visuel écrit ;
-3. mockup/wireframe obligatoire ;
-4. seulement ensuite implémentation ;
-5. AFTER mêmes viewports ;
-6. comparaison + score.
+1. BEFORE P0 déjà acquis ;
+2. matrice canonique Réglages P3 ;
+3. Goal visuel P2 ;
+4. mockup/wireframe ;
+5. implémentation onboarding ;
+6. AFTER mêmes viewports ;
+7. BEFORE → mockup → AFTER + tests + score.
 
 ---
 
-# Tests obligatoires du chantier
+# Ordre d’exécution réel
+
+Pour respecter la dépendance produit :
+
+`P0 → P1 → P3 → P2 → P4 → P5 → P6 → P7 → P8`
+
+Les numéros de lots restent inchangés ; seul l’ordre d’exécution P2/P3 est inversé.
+
+---
+
+# Tests obligatoires
 
 T1 fresh install  
 T2 reload  
@@ -396,7 +333,9 @@ T21 sous-compte → config employeur dans documents
 T22 échéancier sans `models.Clinic` fantôme  
 T23 password contract frontend/backend identique  
 T24 signup classic/trial convergent avant onboarding  
-T25 SetupWizard 390/430 sans overflow après correction UX
+T25 SetupWizard 390/430 sans overflow après correction UX  
+T26 chaque champ onboarding correspond exactement à un réglage canonique ou à une justification `onboarding-only` explicitement approuvée  
+T27 onboarding → Settings : égalité exacte après sauvegarde/reload
 
 ---
 
@@ -404,8 +343,8 @@ T25 SetupWizard 390/430 sans overflow après correction UX
 
 - **P0 — Audit & Truth Map — CLOSED ✅**
 - **P1 — Canonical Data Model — CLOSED ✅**
-- **P2 — Onboarding Product Reconciliation — ACTIVE**
-- **P3 — Settings Reconciliation**
+- **P2 — Onboarding Product Reconciliation — SPEC ACTIVE / implementation après P3**
+- **P3 — Settings Reconciliation — ACTIVE**
 - **P4 — Backend / Persistence / Permissions**
 - **P5 — Legacy Migration**
 - **P6 — Consumer Reconciliation**
@@ -415,11 +354,12 @@ T25 SetupWizard 390/430 sans overflow après correction UX
 ## Reprise
 
 Chantier : `Onboarding ↔ Réglages`
-Lot courant : `P2 — Onboarding Product Reconciliation`
-P0 preuve : run `32560853707` SUCCESS
-P1 modèle : `User = compte/praticien`, `CabinetConfig = organisation`, `employer_id = membership mono-org`
+Lot courant : `P3 — Settings Canonical Contract`
+P0 : run `32560853707` SUCCESS
+P1 : `User = compte/praticien`, `CabinetConfig = organisation`, `employer_id = membership mono-org`
+Direction produit : **Réglages canonique → onboarding miroir guidé**
 Produit modifié P0/P1 : **non**
 BEFORE : 70 captures acquises
 Finding UX principal : SetupWizard 569 px sur 430/390
 Avancement global certifié : **22,2 % (2/9 lots)**
-Next exact : classer tous les champs onboarding, écrire Goal visuel P2, produire mockup avant toute modification produit.
+Next exact : **verrouiller la matrice canonique de Réglages, puis dériver le mockup onboarding à partir de cette matrice avant toute modification produit.**
