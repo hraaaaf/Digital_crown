@@ -1,0 +1,47 @@
+name: Onboarding Settings P4A Follow-up
+
+on:
+  push:
+    branches:
+      - agent/onboarding-settings-reconciliation
+    paths:
+      - scripts/p4a_followup_patch.py
+      - .github/workflows/onboarding-settings-p4a-followup.yml
+
+permissions:
+  contents: write
+
+jobs:
+  apply-followup:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Apply follow-up patch
+        run: python scripts/p4a_followup_patch.py
+      - name: Validate patch
+        run: |
+          python -m compileall backend/database.py
+          git diff --check
+          python - <<'PY'
+          from pathlib import Path
+          db = Path('backend/database.py').read_text()
+          wf = Path('.github/workflows/onboarding-settings-p0-cert.yml').read_text()
+          assert 'custom_specialty_fr' in db
+          assert 'header_customized' in db
+          assert 'P0/P4A regression contract: PASS' in wf
+          assert 'assert "if_" in create_by_name.model_fields_set' in wf
+          PY
+      - name: Commit clean follow-up
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git rm scripts/p4a_followup_patch.py .github/workflows/onboarding-settings-p4a-followup.yml
+          git add -- backend/database.py .github/workflows/onboarding-settings-p0-cert.yml
+          git commit -m "test: convert P0 findings into P4A regression guards"
+          git push origin HEAD:agent/onboarding-settings-reconciliation
