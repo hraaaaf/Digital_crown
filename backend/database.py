@@ -172,7 +172,6 @@ def migrate_appointment_columns():
                     conn.commit()
                     logger.info(f"✅ Added column {col_name} to appointments table")
                 except Exception as e:
-                    # Column already exists or other error
                     conn.rollback()
                     logger.debug(f"Column {col_name} may already exist: {e}")
     except Exception as e:
@@ -181,12 +180,7 @@ def migrate_appointment_columns():
 
 def migrate_actes_columns():
     """Ajoute les colonnes additives de la table actes si absentes (ALTER TABLE,
-    SQLite ou PostgreSQL) :
-    - document_archive_id : dédoublonnage Acte / DocumentArchive dans
-      /accounting/honoraires (UNIFY-ACT-PERSISTENCE-1).
-    - deleted_at : corbeille comptabilité, masque l'acte des vues de facturation
-      sans jamais le supprimer réellement (soft-delete, symétrique à
-      Patient.deleted_at / DocumentArchive.deleted_at)."""
+    SQLite ou PostgreSQL)."""
     from sqlalchemy import text
     datetime_type = "TIMESTAMP" if engine.dialect.name == "postgresql" else "DATETIME"
     try:
@@ -252,15 +246,16 @@ def migrate_proactive_alert_columns():
 
 
 def migrate_cabinet_config_columns():
-    """Ajoute les colonnes de décalage manette (logo/QR) si absentes (ALTER TABLE,
-    SQLite ou PostgreSQL) : offset en cm appliqué par-dessus la position calculée
-    par le template d'en-tête actif / l'ancrage bas-droite du QR footer."""
+    """Ajoute les colonnes CabinetConfig additives absentes (SQLite/PostgreSQL)."""
     from sqlalchemy import text
     new_columns = [
         ("header_logo_offset_x", "FLOAT"),
         ("header_logo_offset_y", "FLOAT"),
         ("qr_code_offset_x", "FLOAT"),
         ("qr_code_offset_y", "FLOAT"),
+        ("custom_specialty_fr", "VARCHAR(255)"),
+        ("custom_specialty_ar", "VARCHAR(255)"),
+        ("header_customized", "BOOLEAN DEFAULT FALSE"),
     ]
     try:
         with engine.connect() as conn:

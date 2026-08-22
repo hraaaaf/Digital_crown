@@ -11,7 +11,7 @@ permissions:
 
 jobs:
   contract:
-    name: P0 contract truth
+    name: P0/P4A regression truth
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -32,7 +32,6 @@ jobs:
 
           root = pathlib.Path.cwd()
           schemas_dir = root / "backend" / "schemas"
-
           backend_pkg = types.ModuleType("backend")
           backend_pkg.__path__ = [str(root / "backend")]
           schemas_pkg = types.ModuleType("backend.schemas")
@@ -50,92 +49,59 @@ jobs:
           load("backend.schemas.base", schemas_dir / "base.py")
           cabinet = load("backend.schemas.cabinet", schemas_dir / "cabinet.py")
 
-          # IF create contract is asymmetric: frontend sends if_, create schema accepts alias if.
-          create_by_name = cabinet.CabinetConfigCreate(nom_cabinet="P0", **{"if_": "12345678"})
-          assert "if_" not in create_by_name.model_fields_set
-          assert "if_" not in create_by_name.model_dump(exclude_unset=True)
-          create_by_alias = cabinet.CabinetConfigCreate(nom_cabinet="P0", **{"if": "12345678"})
-          assert create_by_alias.if_ == "12345678"
-
-          # Settings profile currently contains fields rejected by strict update schema.
-          for forbidden in ("custom_specialty_fr", "custom_specialty_ar", "logo_path"):
-              try:
-                  cabinet.CabinetConfigUpdate(**{forbidden: "P0"})
-              except ValidationError as exc:
-                  assert any(err.get("type") == "extra_forbidden" for err in exc.errors())
-              else:
-                  raise AssertionError(f"{forbidden} unexpectedly accepted")
-
-          assert cabinet.CabinetConfigCreate().selected_template == "classic"
+          create_by_name = cabinet.CabinetConfigCreate(nom_cabinet="P4", **{"if_": "12345678"})
+          assert create_by_name.if_ == "12345678"
+          assert "if_" in create_by_name.model_fields_set
+          assert create_by_name.model_dump(exclude_unset=True)["if_"] == "12345678"
+          assert cabinet.CabinetConfigCreate().selected_template == "swiss"
+          assert cabinet.CabinetConfigCreate().font_fr == "inter"
+          assert cabinet.CabinetConfigUpdate(custom_specialty_fr="Implantologie").custom_specialty_fr == "Implantologie"
+          try:
+              cabinet.CabinetConfigUpdate(logo_path="forbidden")
+          except ValidationError as exc:
+              assert any(err.get("type") == "extra_forbidden" for err in exc.errors())
+          else:
+              raise AssertionError("logo_path must stay upload-endpoint-only")
 
           clinics_text = (root / "backend" / "routers" / "clinics.py").read_text(encoding="utf-8")
-          clinics_tree = ast.parse(clinics_text)
-          clinic_functions = {
-              node.name: node for node in clinics_tree.body
-              if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
-          }
-          def clinic_segment(name):
-              return ast.get_source_segment(clinics_text, clinic_functions[name]) or ""
+          tree = ast.parse(clinics_text)
+          funcs = {node.name: node for node in tree.body if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))}
+          seg = lambda name: ast.get_source_segment(clinics_text, funcs[name]) or ""
+          create_src = seg("create_clinic")
+          update_src = seg("update_my_clinic")
+          get_src = seg("get_my_clinic")
+          logo_src = seg("upload_clinic_logo")
+          letter_src = seg("upload_clinic_letterhead")
+          assert "_require_setup_owner" in create_src
+          assert "db.query(models.User)" not in create_src
+          assert "_require_settings_write" in update_src
+          assert "_require_settings_write" in logo_src
+          assert "_require_settings_write" in letter_src
+          assert "models.CabinetConfig(" not in get_src
+          assert "db.commit()" not in get_src
 
-          create_src = clinic_segment("create_clinic")
-          assert "get_current_user" not in create_src
-          assert "db.query(models.User)" in create_src
+          store = (root / "frontend" / "src" / "features" / "admin" / "Settings" / "hooks" / "useSettingsStore.ts").read_text(encoding="utf-8")
+          assert "logo_path: _logoPath" in store
+          api_text = (root / "frontend" / "src" / "services" / "api.ts").read_text(encoding="utf-8")
+          assert "_offline: true" not in api_text
+          assert "offline-write-blocked" in api_text
 
-          update_src = clinic_segment("update_my_clinic")
-          assert "get_current_user" in update_src
-          assert "require_permission" not in update_src
-
-          get_src = clinic_segment("get_my_clinic")
-          assert "models.CabinetConfig(" in get_src
-          assert "db.commit()" in get_src
-
-          # Entry flows: UI accepts 4 chars, backend requires 8.
+          # Findings intentionally left for later P4/P2/P6 lots remain visible.
           auth_schema = (root / "backend" / "schemas" / "auth.py").read_text(encoding="utf-8")
           register_page = (root / "frontend" / "src" / "pages" / "RegisterPage.tsx").read_text(encoding="utf-8")
           trial_page = (root / "frontend" / "src" / "pages" / "ActivateTrialPage.tsx").read_text(encoding="utf-8")
           assert "PASSWORD_MIN_LENGTH = 8" in auth_schema
           assert "minLength={4}" in register_page
           assert "minLength={4}" in trial_page
-          assert "Votre cabinet a bien été pré-enregistré" in register_page
-
-          # Classic signup creates only User; trial activation also creates CabinetConfig(initialized=false).
-          auth_router = (root / "backend" / "routers" / "auth.py").read_text(encoding="utf-8")
-          auth_tree = ast.parse(auth_router)
-          signup_node = next(
-              node for node in auth_tree.body
-              if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)) and node.name == "signup_client"
-          )
-          signup_src = ast.get_source_segment(auth_router, signup_node) or ""
-          assert "new_user = models.User(" in signup_src
-          assert "models.CabinetConfig(" not in signup_src
-
-          public_router = (root / "backend" / "routers" / "public.py").read_text(encoding="utf-8")
-          assert "async def activate_trial_code" in public_router
-          assert "models.CabinetConfig(" in public_router
-          assert "is_initialized=False" in public_router
-
-          # Frontend init error is currently collapsed into setup-required state.
           app_text = (root / "frontend" / "src" / "App.tsx").read_text(encoding="utf-8")
           assert "setIsInitialized(false)" in app_text
-
-          # Theme is written locally during onboarding before final backend acknowledgement.
           setup_text = (root / "frontend" / "src" / "features" / "admin" / "SetupWizard" / "SetupWizard.tsx").read_text(encoding="utf-8")
           assert "localStorage.setItem('digitalcrown_theme', selectedTheme)" in setup_text
-
-          # Desktop Axios offline path claims queueing, returns synthetic 200, but never enqueues.
-          api_text = (root / "frontend" / "src" / "services" / "api.ts").read_text(encoding="utf-8")
-          assert "Mode hors-ligne" in api_text
-          assert "offline-queue" in api_text
-          assert "_offline: true" in api_text
-          assert "enqueueAction" not in api_text
-
-          # Consumer divergence and phantom model.
-          accounting_text = (root / "backend" / "services" / "generators" / "accounting_gen.py").read_text(encoding="utf-8")
-          assert "CabinetConfig.owner_id == user_id" in accounting_text
-          factory_text = (root / "backend" / "services" / "document_factory.py").read_text(encoding="utf-8")
-          models_text = (root / "backend" / "models.py").read_text(encoding="utf-8")
-          assert "models.Clinic" in factory_text
-          assert "class Clinic(" not in models_text
-
-          print("P0 contract truth: PASS")
+          accounting = (root / "backend" / "services" / "generators" / "accounting_gen.py").read_text(encoding="utf-8")
+          assert "CabinetConfig.owner_id == user_id" in accounting
+          factory = (root / "backend" / "services" / "document_factory.py").read_text(encoding="utf-8")
+          models = (root / "backend" / "models.py").read_text(encoding="utf-8")
+          assert "models.Clinic" in factory
+          assert "class Clinic(" not in models
+          print("P0/P4A regression contract: PASS")
           PY
