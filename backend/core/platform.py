@@ -7,10 +7,38 @@ import tempfile
 import webbrowser
 from collections.abc import Mapping
 from pathlib import Path
-from typing import Any
+from typing import Any, BinaryIO
 
 
 APP_NAME = "DigitalCrown"
+
+
+class PlatformFileLock:
+    """Process-scoped file lock released automatically when the handle closes."""
+
+    def __init__(self, adapter: "PlatformAdapter", handle: BinaryIO) -> None:
+        self._adapter = adapter
+        self._handle = handle
+        self._released = False
+
+    @property
+    def released(self) -> bool:
+        return self._released
+
+    def release(self) -> None:
+        if self._released:
+            return
+        try:
+            self._adapter._unlock_file(self._handle)
+        finally:
+            self._handle.close()
+            self._released = True
+
+    def __enter__(self) -> "PlatformFileLock":
+        return self
+
+    def __exit__(self, exc_type, exc_value, traceback) -> None:
+        self.release()
 
 
 class PlatformAdapter:
@@ -157,6 +185,52 @@ class PlatformAdapter:
         else:
             kwargs["start_new_session"] = True
         return kwargs
+
+    def try_acquire_process_lock(self, path: str | Path) -> PlatformFileLock | None:
+        """Acquire a non-blocking process lock, returning None when already held."""
+        lock_path = Path(path)
+        self.ensure_private_directory(lock_path.parent)
+        fd = os.open(lock_path, os.O_RDWR | os.O_CREAT, 0o600)
+        handle = os.fdopen(fd, "r+b", buffering=0)
+        try:
+            if os.fstat(handle.fileno()).st_size == 0:
+                handle.write(b"\0")
+            handle.seek(0)
+            self._lock_file_nonblocking(handle)
+        except OSError:
+            handle.close()
+            return None
+        except Exception:
+            handle.close()
+            raise
+        return PlatformFileLock(self, handle)
+
+    def _lock_file_nonblocking(self, handle: BinaryIO) -> None:
+        if self.is_windows:
+            import msvcrt
+
+            handle.seek(0)
+            msvcrt.locking(handle.fileno(), msvcrt.LK_NBLCK, 1)
+            return
+
+        import fcntl
+
+        fcntl.flock(handle.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+
+    def _unlock_file(self, handle: BinaryIO) -> None:
+        try:
+            if self.is_windows:
+                import msvcrt
+
+                handle.seek(0)
+                msvcrt.locking(handle.fileno(), msvcrt.LK_UNLCK, 1)
+                return
+
+            import fcntl
+
+            fcntl.flock(handle.fileno(), fcntl.LOCK_UN)
+        except OSError:
+            pass
 
     def is_process_alive(self, pid: int) -> bool:
         if pid <= 0:

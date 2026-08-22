@@ -94,11 +94,17 @@ _maybe_run_guided_restore_worker()
 
 import multiprocessing
 import threading
-import time
 
 import uvicorn
 
-from backend.main import app
+
+def _load_launcher_environment() -> None:
+    """Load the canonical env before resolving cabinet host/port or acquiring runtime state."""
+    from backend.env_loader import load_backend_env
+
+    load_backend_env(override=False)
+    if os.environ.get("ENVIRONMENT", "development").lower() in ("development", "local", "test"):
+        load_backend_env(override=True)
 
 
 def _resolve_host_port():
@@ -110,23 +116,36 @@ def _resolve_host_port():
     return host, port
 
 
-def open_browser(port: int):
-    # P2 replaces this fixed delay with an actual readiness gate.
-    from backend.core.platform import get_platform_adapter
+def main() -> int:
+    multiprocessing.freeze_support()
+    _load_launcher_environment()
+    host, port = _resolve_host_port()
+    instance_lock = None
 
-    time.sleep(2)
-    get_platform_adapter().open_uri(f"http://127.0.0.1:{port}")
+    if getattr(sys, "frozen", False):
+        from backend.core.runtime_supervisor import RuntimeSupervisor
+
+        supervisor = RuntimeSupervisor(port)
+        suppress_browser = os.environ.get("DIGITALCROWN_RESTORE_RESTART") == "1"
+        instance_lock = supervisor.claim_or_focus_existing(open_existing=not suppress_browser)
+        if instance_lock is None:
+            return 0
+        if not suppress_browser:
+            threading.Thread(
+                target=supervisor.open_ui_when_ready,
+                kwargs={"timeout": 120.0},
+                daemon=True,
+            ).start()
+
+    from backend.main import app
+
+    try:
+        uvicorn.run(app, host=host, port=port, log_level="info")
+        return 0
+    finally:
+        if instance_lock is not None:
+            instance_lock.release()
 
 
 if __name__ == "__main__":
-    multiprocessing.freeze_support()
-
-    host, port = _resolve_host_port()
-
-    if (
-        getattr(sys, "frozen", False)
-        and os.environ.get("DIGITALCROWN_RESTORE_RESTART") != "1"
-    ):
-        threading.Thread(target=open_browser, args=(port,), daemon=True).start()
-
-    uvicorn.run(app, host=host, port=port, log_level="info")
+    raise SystemExit(main())
