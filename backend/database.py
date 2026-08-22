@@ -270,6 +270,12 @@ def migrate_cabinet_config_columns():
     except Exception as e:
         logger.warning(f"Migration warning (cabinet_configs): {e}")
 
+    # P4E: existing installations must receive the canonical practitioner/organization
+    # identity columns on the same startup migration path already called by main.lifespan.
+    # The helper is idempotent and deliberately performs no legacy value backfill.
+    from backend.models_identity_p4 import migrate_identity_columns
+    migrate_identity_columns(engine)
+
 
 def get_db():
     db = SessionLocal()
