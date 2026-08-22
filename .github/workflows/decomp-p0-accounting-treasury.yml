@@ -1,9 +1,9 @@
 name: DECOMP P0-A Accounting treasury panel
 
 on:
-  push:
+  pull_request:
     branches:
-      - agent/decomp-p0-large-files
+      - master
     paths:
       - '.github/workflows/decomp-p0-accounting-treasury.yml'
       - 'scripts/decomp_accounting_treasury.py'
@@ -13,7 +13,7 @@ permissions:
 
 jobs:
   refactor-and-verify:
-    if: github.actor != 'github-actions[bot]'
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.actor != 'github-actions[bot]'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -58,5 +58,3 @@ jobs:
           git add -- frontend/src/pages/AccountingPage.tsx frontend/src/features/accounting/components/TreasuryPanel.tsx
           git commit -m 'refactor(accounting): extract treasury panel'
           git push origin HEAD:agent/decomp-p0-large-files
-
-# trigger after workflow creation
