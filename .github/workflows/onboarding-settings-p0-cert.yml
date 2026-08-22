@@ -3,7 +3,6 @@ name: Onboarding Settings P0 Certification
 on:
   pull_request:
     paths:
-      - "ONBOARDING_SETTINGS_RECONCILIATION.md"
       - ".github/workflows/onboarding-settings-p0-cert.yml"
   workflow_dispatch:
 
@@ -21,7 +20,7 @@ jobs:
           python-version: "3.12"
       - name: Install minimal schema runtime
         run: pip install "pydantic==2.6.3"
-      - name: Prove current cabinet schema contracts
+      - name: Prove current onboarding/settings contracts
         run: |
           python - <<'PY'
           import ast
@@ -90,6 +89,31 @@ jobs:
           update_src = segment("update_my_clinic")
           assert "get_current_user" in update_src
           assert "require_permission" not in update_src
+
+          # Account entry truth: frontend accepts 4-char passwords while backend requires 8.
+          auth_schema = (root / "backend" / "schemas" / "auth.py").read_text(encoding="utf-8")
+          register_page = (root / "frontend" / "src" / "pages" / "RegisterPage.tsx").read_text(encoding="utf-8")
+          trial_page = (root / "frontend" / "src" / "pages" / "ActivateTrialPage.tsx").read_text(encoding="utf-8")
+          assert "PASSWORD_MIN_LENGTH = 8" in auth_schema
+          assert "minLength={4}" in register_page
+          assert "minLength={4}" in trial_page
+
+          # Classic signup creates a User; trial activation additionally creates an uninitialized CabinetConfig.
+          auth_router = (root / "backend" / "routers" / "auth.py").read_text(encoding="utf-8")
+          public_router = (root / "backend" / "routers" / "public.py").read_text(encoding="utf-8")
+          assert "def signup" in auth_router
+          assert "models.CabinetConfig(" not in ast.get_source_segment(
+              auth_router,
+              next(node for node in ast.parse(auth_router).body if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)) and node.name == "signup")
+          )
+          assert "models.CabinetConfig(" in public_router
+          assert "is_initialized=False" in public_router
+
+          # Global Axios offline path claims queueing but never enqueues the mutation.
+          api_text = (root / "frontend" / "src" / "services" / "api.ts").read_text(encoding="utf-8")
+          assert "Action mise en file d'attente" in api_text
+          assert "_offline: true" in api_text
+          assert "enqueueAction" not in api_text
 
           # Product consumer baseline: accounting generator still keys CabinetConfig on raw user_id.
           accounting_text = (root / "backend" / "services" / "generators" / "accounting_gen.py").read_text(encoding="utf-8")
@@ -270,7 +294,8 @@ jobs:
           const widths = [1440, 1024, 768, 430, 390];
           const settingsTabs = [
             ['profil', 'Profil Cabinet'], ['branding', 'Design & Ambiance'], ['catalogue', 'Catalogue Actes'],
-            ['agenda', 'Horaires & Agenda'], ['ia', 'IA & Système'], ['securite', 'Sécurité & Backup'], ['equipe', 'Mon Équipe'],
+            ['agenda', 'Horaires & Agenda'], ['performance', 'Performance & Assistance'],
+            ['securite', 'Sécurité & Backup'], ['equipe', 'Mon Équipe'],
           ];
           const failures = [];
 
@@ -297,32 +322,41 @@ jobs:
             });
           }
 
-          async function inspect(page, width, key) {
+          function watchRuntime(page) {
             const runtimeErrors = [];
             page.on('pageerror', error => runtimeErrors.push(`pageerror: ${error.message}`));
-            page.on('console', message => { if (message.type() === 'error') runtimeErrors.push(`console: ${message.text()}`); });
+            page.on('console', message => {
+              if (message.type() === 'error') runtimeErrors.push(`console: ${message.text()}`);
+            });
+            return runtimeErrors;
+          }
+
+          async function inspect(page, width, key, runtimeErrors) {
             await page.waitForTimeout(100);
             const scrollWidth = await page.evaluate(() => document.documentElement.scrollWidth);
             if (scrollWidth > width) failures.push(`${key}: overflow ${scrollWidth}>${width}`);
             if (runtimeErrors.length) failures.push(`${key}: ${runtimeErrors.join(' | ')}`);
           }
 
+          let fatalError = null;
           try {
             for (const width of widths) {
               for (let step = 1; step <= 7; step++) {
                 const context = await browser.newContext({ viewport: { width, height: 1200 } });
                 const page = await context.newPage();
+                const runtimeErrors = watchRuntime(page);
                 await installApiRoutes(page);
                 const key = `setup-step${step}-${width}x1200`;
                 await page.goto(`http://127.0.0.1:4178/onboarding-settings-p0-cert.html?mode=setup&step=${step}`, { waitUntil: 'networkidle' });
                 await page.getByText('Digital Crown').first().waitFor({ state: 'visible', timeout: 15000 });
-                await inspect(page, width, key);
+                await inspect(page, width, key, runtimeErrors);
                 await page.screenshot({ path: `${output}/${key}.png`, fullPage: true, animations: 'disabled' });
                 await context.close();
               }
 
               const context = await browser.newContext({ viewport: { width, height: 1200 } });
               const page = await context.newPage();
+              const runtimeErrors = watchRuntime(page);
               await installApiRoutes(page);
               await page.goto('http://127.0.0.1:4178/onboarding-settings-p0-cert.html?mode=settings', { waitUntil: 'networkidle' });
               await page.getByRole('heading', { name: 'Paramètres', exact: true }).waitFor({ state: 'visible', timeout: 15000 });
@@ -330,17 +364,21 @@ jobs:
                 await page.getByRole('button', { name: new RegExp(label, 'i') }).click();
                 await page.waitForTimeout(150);
                 const key = `settings-${tabId}-${width}x1200`;
-                await inspect(page, width, key);
+                await inspect(page, width, key, runtimeErrors);
                 await page.screenshot({ path: `${output}/${key}.png`, fullPage: true, animations: 'disabled' });
               }
               await context.close();
             }
+          } catch (error) {
+            fatalError = error;
+            failures.push(`harness-fatal: ${error?.stack || error}`);
           } finally {
+            await fs.writeFile(`${output}/runtime-overflow.txt`, failures.join('\n'));
             await browser.close();
             await server.close();
           }
 
-          await fs.writeFile(`${output}/runtime-overflow.txt`, failures.join('\n'));
+          if (fatalError) throw fatalError;
           EOF
 
       - name: Capture P0 BEFORE surfaces
@@ -360,7 +398,7 @@ jobs:
           product_base_sha=${PRODUCT_BASE_SHA}
           goal=BEFORE read-only: document onboarding and settings before any product modification.
           setup_steps=1,2,3,4,5,6,7
-          settings_tabs=profil,branding,catalogue,agenda,ia,securite,equipe
+          settings_tabs=profil,branding,catalogue,agenda,performance,securite,equipe
           viewports=1440x1200,1024x1200,768x1200,430x1200,390x1200
           expected_screenshots=70
           product_changes=none
