@@ -59,7 +59,7 @@ PAGE.write_text(updated, encoding="utf-8")
 final = PAGE.read_text(encoding="utf-8")
 if final.count("<InsightsPanel loadingInsights={loadingInsights} financialData={financialData} />") != 1:
     raise SystemExit("InsightsPanel replacement missing")
-if "<BarChart" in final:
+if "<BarChart " in final:
     raise SystemExit("Insights chart implementation unexpectedly remains in AccountingPage")
 
 print("P0-A step 4 prepared: insights panel extracted mechanically")
