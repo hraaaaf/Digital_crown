@@ -33,7 +33,6 @@ from backend.services.panoramic_service import panoramic_engine
 from backend.core.media_paths import get_media_root
 from backend.core.paths import AppPaths
 from backend.services.license_service import LicenseService
-import webbrowser
 import sentry_sdk
 from backend.config import settings as app_settings
 
@@ -208,10 +207,6 @@ async def lifespan(app: FastAPI):
 
         # 4. Tâche background : re-synchronisation Firebase toutes les 6h
         firebase_sync_task = asyncio.create_task(_periodic_firebase_sync())
-
-        # 5. Ouverture automatique du navigateur (Build mode uniquement)
-        if hasattr(sys, '_MEIPASS'):
-            webbrowser.open("http://127.0.0.1:8000")
 
     except asyncio.CancelledError:
         raise
