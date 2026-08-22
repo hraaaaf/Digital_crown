@@ -1,26 +1,30 @@
-name: Portability P1 OS Abstraction Certification
+name: Portability Runtime Certification
 
 on:
   pull_request:
     paths:
       - "backend/core/platform.py"
       - "backend/core/paths.py"
+      - "backend/core/runtime_supervisor.py"
       - "backend/env_loader.py"
+      - "backend/main.py"
       - "backend/services/guided_restore.py"
       - "backend/services/guided_restore_worker.py"
       - "backend/tests/test_platform_abstraction.py"
+      - "backend/tests/test_runtime_supervisor.py"
       - "scripts/portability_p1_check.py"
+      - "scripts/portability_p2_check.py"
       - "run.py"
       - ".github/workflows/portability-p1-cert.yml"
   workflow_dispatch:
 
 concurrency:
-  group: portability-p1-${{ github.ref }}
+  group: portability-runtime-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
-  adapter-contract:
-    name: Adapter contract (${{ matrix.os }})
+  runtime-contract:
+    name: Runtime contract (${{ matrix.os }})
     strategy:
       fail-fast: false
       matrix:
@@ -34,11 +38,14 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Install minimal test dependency
+      - name: Install minimal P1 dependency
         run: python -m pip install python-dotenv
 
-      - name: Compile P1 runtime boundary and harness
-        run: python -m py_compile backend/core/platform.py backend/core/paths.py backend/env_loader.py backend/services/guided_restore.py backend/services/guided_restore_worker.py run.py scripts/portability_p1_check.py
+      - name: Compile portability runtime boundaries and harnesses
+        run: python -m py_compile backend/core/platform.py backend/core/paths.py backend/core/runtime_supervisor.py backend/env_loader.py backend/main.py backend/services/guided_restore.py backend/services/guided_restore_worker.py run.py scripts/portability_p1_check.py scripts/portability_p2_check.py
 
-      - name: Run isolated P1 adapter and static-guard certification
+      - name: Preserve P1 OS abstraction contract
         run: python scripts/portability_p1_check.py
+
+      - name: Certify P2 runtime supervisor
+        run: python scripts/portability_p2_check.py
