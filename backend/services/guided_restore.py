@@ -13,11 +13,17 @@ from datetime import datetime, timezone
 from pathlib import Path, PurePosixPath
 from typing import Any
 
+from backend.core.media_paths import get_media_root
 from backend.core.paths import AppPaths
 from backend.services.backup_service import BackupService
 from backend.services.guided_restore_archive import (
-    _decrypt_backup_key, _inspect_encrypted_media, _safe_job_id, _sha256,
-    _validate_database_file, _validate_zip_infos,
+    _decrypt_backup_key,
+    _directory_digest,
+    _inspect_encrypted_media,
+    _safe_job_id,
+    _sha256,
+    _validate_database_file,
+    _validate_zip_infos,
 )
 
 FORMAT_VERSION = 1
@@ -28,6 +34,7 @@ RESTORE_ROOT_NAME = "guided-restore"
 
 def _utc_now() -> str:
     return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+
 
 class GuidedRestoreService:
     @staticmethod
@@ -61,8 +68,43 @@ class GuidedRestoreService:
             raise FileNotFoundError("Restauration introuvable")
         return json.loads(path.read_text(encoding="utf-8"))
 
+    @staticmethod
+    def _assert_owner(job: dict[str, Any], employer_id: int | None) -> None:
+        if employer_id is None:
+            return
+        owner = job.get("owner_employer_id")
+        if owner is None:
+            raise PermissionError("Restauration introuvable")
+        try:
+            if int(owner) != int(employer_id):
+                raise PermissionError("Restauration introuvable")
+        except (TypeError, ValueError) as exc:
+            raise PermissionError("Restauration introuvable") from exc
+
     @classmethod
-    async def preflight_upload(cls, upload) -> dict[str, Any]:
+    def get_owned_job(cls, restore_id: str, employer_id: int) -> dict[str, Any]:
+        job = cls.get_job(restore_id)
+        cls._assert_owner(job, employer_id)
+        return job
+
+    @classmethod
+    def _verify_staged_job(cls, job: dict[str, Any]) -> None:
+        directory = cls.job_dir(str(job["restore_id"]))
+        checks = (
+            (directory / "source.upload", job.get("source_sha256"), "Package de restauration modifié depuis le préflight"),
+            (directory / "database.enc", job.get("database_sha256"), "Sauvegarde DB modifiée depuis le préflight"),
+        )
+        for path, expected, message in checks:
+            if not path.exists() or not expected or _sha256(path) != expected:
+                raise ValueError(message)
+        if job.get("restore_media"):
+            media_path = directory / "media.enc"
+            expected = job.get("media_sha256")
+            if not media_path.exists() or not expected or _sha256(media_path) != expected:
+                raise ValueError("Sauvegarde média modifiée depuis le préflight")
+
+    @classmethod
+    async def preflight_upload(cls, upload, *, owner_employer_id: int | None = None) -> dict[str, Any]:
         restore_id = uuid.uuid4().hex
         directory = cls.job_dir(restore_id)
         directory.mkdir(parents=True, exist_ok=False)
@@ -80,12 +122,12 @@ class GuidedRestoreService:
                     target.write(chunk)
             if size <= 0:
                 raise ValueError("Fichier de sauvegarde vide")
-            result = cls.preflight_file(
+            return cls.preflight_file(
                 source,
                 original_name=Path(getattr(upload, "filename", "backup") or "backup").name,
                 restore_id=restore_id,
+                owner_employer_id=owner_employer_id,
             )
-            return result
         except Exception:
             shutil.rmtree(directory, ignore_errors=True)
             raise
@@ -103,6 +145,7 @@ class GuidedRestoreService:
         original_name: str,
         restore_id: str | None = None,
         active_engine: tuple[str, str] | None = None,
+        owner_employer_id: int | None = None,
     ) -> dict[str, Any]:
         restore_id = _safe_job_id(restore_id or uuid.uuid4().hex)
         directory = cls.job_dir(restore_id)
@@ -124,7 +167,6 @@ class GuidedRestoreService:
         media_source: Path | None = None
         media_file_count = 0
         format_name = "legacy-db"
-        manifest: dict[str, Any] = {}
 
         if zipfile.is_zipfile(source):
             archive_type = "Archive complète manifestée"
@@ -231,6 +273,7 @@ class GuidedRestoreService:
         now = _utc_now()
         job: dict[str, Any] = {
             "restore_id": restore_id,
+            "owner_employer_id": owner_employer_id,
             "status": "preflight_ready" if compatible and not errors else "blocked",
             "created_at": now,
             "updated_at": now,
@@ -252,6 +295,9 @@ class GuidedRestoreService:
             "database_encryption": db_encryption,
             "media_encryption": media_encryption,
             "target_db_path": target_db_path,
+            "source_sha256": _sha256(source),
+            "database_sha256": _sha256(db_source),
+            "media_sha256": _sha256(media_source) if media_source else None,
             "steps": [{"at": now, "state": "preflight", "result": "ok" if compatible and not errors else "blocked"}],
         }
         cls._write_job(job)
@@ -263,13 +309,61 @@ class GuidedRestoreService:
             "restore_id", "status", "created_at", "updated_at", "original_name", "size_bytes",
             "archive_type", "format", "format_version", "backup_created_at", "compatible",
             "restore_database", "restore_media", "media_file_count", "preserved", "warnings", "errors",
-            "steps", "rescue_created_at", "smoke_check", "rollback", "message",
+            "steps", "prepared_at", "rescue_created_at", "smoke_check", "rollback", "message",
         }
         return {key: value for key, value in job.items() if key in allowed}
 
     @classmethod
-    def cancel(cls, restore_id: str) -> None:
+    def prepare(cls, restore_id: str, *, owner_employer_id: int | None = None) -> dict[str, Any]:
         job = cls.get_job(restore_id)
+        cls._assert_owner(job, owner_employer_id)
+        if not job.get("compatible") or job.get("status") != "preflight_ready":
+            raise ValueError("Préflight valide requis avant préparation")
+        cls._verify_staged_job(job)
+
+        result = BackupService.backup_active_database()
+        if result.get("status") != "SUCCESS" or not result.get("backup_filename"):
+            raise RuntimeError("Impossible de créer le point de secours DB vérifié")
+        backup_path = AppPaths.get_user_data_dir() / "backups" / str(result["backup_filename"])
+        if not backup_path.exists() or backup_path.stat().st_size <= 0:
+            raise RuntimeError("Point de secours DB vérifié introuvable")
+        expected_checksum = str(result.get("checksum") or "")
+        if expected_checksum and _sha256(backup_path) != expected_checksum:
+            raise RuntimeError("Checksum du point de secours DB invalide")
+
+        rescue_dir = cls.job_dir(restore_id) / "rescue"
+        rescue_dir.mkdir(parents=True, exist_ok=True)
+        prepared_db = rescue_dir / "prepared-current.db.enc"
+        shutil.copy2(backup_path, prepared_db)
+        prepared_plain = rescue_dir / ".prepared-current.db"
+        try:
+            _decrypt_backup_key(prepared_db, prepared_plain)
+            _validate_database_file(prepared_plain, str(job.get("active_driver") or "pysqlite"))
+        finally:
+            if prepared_plain.exists():
+                prepared_plain.unlink()
+
+        media_digest = None
+        if job.get("restore_media"):
+            media_digest = _directory_digest(get_media_root())
+
+        cls._verify_staged_job(job)
+        now = _utc_now()
+        job.update(
+            status="prepared",
+            updated_at=now,
+            prepared_at=now,
+            prepared_rescue_db_sha256=_sha256(prepared_db),
+            prepared_media_digest=media_digest,
+        )
+        job.setdefault("steps", []).append({"at": now, "state": "prepared", "result": "ok"})
+        cls._write_job(job)
+        return cls.public_job(job)
+
+    @classmethod
+    def cancel(cls, restore_id: str, *, owner_employer_id: int | None = None) -> None:
+        job = cls.get_job(restore_id)
+        cls._assert_owner(job, owner_employer_id)
         if job.get("status") in {"scheduled", "applying", "restarting", "rolling_back"}:
             raise RuntimeError("Restauration déjà engagée : annulation impossible")
         shutil.rmtree(cls.job_dir(restore_id), ignore_errors=True)
@@ -279,12 +373,20 @@ class GuidedRestoreService:
         return bool(getattr(sys, "frozen", False)) and os.environ.get("ENVIRONMENT", "").strip().lower() == "cabinet"
 
     @classmethod
-    def request_apply(cls, restore_id: str, confirmation: str) -> dict[str, Any]:
+    def request_apply(
+        cls,
+        restore_id: str,
+        confirmation: str,
+        *,
+        owner_employer_id: int | None = None,
+    ) -> dict[str, Any]:
         if confirmation != CONFIRMATION_TOKEN:
             raise ValueError(f"Confirmation exacte requise : {CONFIRMATION_TOKEN}")
         job = cls.get_job(restore_id)
-        if not job.get("compatible") or job.get("status") != "preflight_ready":
-            raise ValueError("Préflight valide requis avant restauration")
+        cls._assert_owner(job, owner_employer_id)
+        if not job.get("compatible") or job.get("status") != "prepared":
+            raise ValueError("Préparation sécurisée requise avant restauration")
+        cls._verify_staged_job(job)
         if not cls.runtime_apply_supported():
             raise RuntimeError("Apply hors-processus disponible uniquement dans l'exécutable cabinet")
 
@@ -320,5 +422,3 @@ class GuidedRestoreService:
     def _terminate_parent_after_response() -> None:
         time.sleep(0.8)
         os._exit(0)
-
-

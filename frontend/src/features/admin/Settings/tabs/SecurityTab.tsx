@@ -36,6 +36,7 @@ type RestoreState = {
   preserved: string[];
   warnings: string[];
   errors: string[];
+  prepared_at?: string;
   smoke_check?: string;
   rollback?: string;
   message?: string;
@@ -63,6 +64,7 @@ const apiErrorMessage = (error: unknown, fallback: string): string => {
 export const SecurityTab: React.FC = () => {
   const [isExporting, setIsExporting] = useState(false);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [isPreparing, setIsPreparing] = useState(false);
   const [isApplying, setIsApplying] = useState(false);
   const [restore, setRestore] = useState<RestoreState | null>(null);
   const [confirmation, setConfirmation] = useState('');
@@ -117,6 +119,24 @@ export const SecurityTab: React.FC = () => {
     }
   };
 
+  const handlePrepareRestore = async () => {
+    if (!restore || restore.status !== 'preflight_ready') return;
+    setIsPreparing(true);
+    setRestoreError(null);
+    try {
+      const response = await api.post<RestoreState>(`/admin/restore/${restore.restore_id}/prepare`, {}, { timeout: 600_000 });
+      setRestore(response.data);
+      setConfirmation('');
+      toast.success('Préparation sécurisée validée');
+    } catch (error) {
+      const message = apiErrorMessage(error, 'Impossible de préparer le point de secours.');
+      setRestoreError(message);
+      toast.error(message);
+    } finally {
+      setIsPreparing(false);
+    }
+  };
+
   const pollRestoreStatus = async (restoreId: string) => {
     const deadline = Date.now() + 120_000;
     while (Date.now() < deadline) {
@@ -142,7 +162,7 @@ export const SecurityTab: React.FC = () => {
   };
 
   const handleApplyRestore = async () => {
-    if (!restore || confirmation !== 'RESTAURER') return;
+    if (!restore || restore.status !== 'prepared' || confirmation !== 'RESTAURER') return;
     setIsApplying(true);
     setRestoreError(null);
     try {
@@ -180,7 +200,14 @@ export const SecurityTab: React.FC = () => {
   const restoreInFlight = restore
     ? ['scheduled', 'applying', 'restarting', 'rolling_back'].includes(restore.status)
     : false;
-  const canApply = Boolean(restore?.compatible && confirmation === 'RESTAURER' && !restoreInFlight && !isApplying);
+  const canPrepare = Boolean(restore?.compatible && restore.status === 'preflight_ready' && !isPreparing && !restoreInFlight);
+  const canApply = Boolean(
+    restore?.compatible
+    && restore.status === 'prepared'
+    && confirmation === 'RESTAURER'
+    && !restoreInFlight
+    && !isApplying,
+  );
 
   return (
     <div className="space-y-12">
@@ -219,7 +246,7 @@ export const SecurityTab: React.FC = () => {
                   <span className="px-2.5 py-1 rounded-full text-[11px] font-black tracking-wide uppercase bg-amber-100 text-amber-800">Action sensible</span>
                 </div>
                 <p className="text-sm text-slate-600 mt-2 font-medium max-w-2xl">
-                  Analyse la sauvegarde avant toute modification. L’application crée un secours local, applique la restauration hors du processus actif, redémarre puis vérifie la base. En cas d’échec, le rollback est automatique.
+                  Analyse la sauvegarde, prépare un point de secours vérifié, puis exige une confirmation forte avant le redémarrage. La bascule destructive reste hors du processus actif et rollback automatiquement si le smoke check échoue.
                 </p>
               </div>
             </div>
@@ -301,11 +328,35 @@ export const SecurityTab: React.FC = () => {
                 </div>
               )}
 
-              {restore.compatible && !terminalRestoreStates.has(restore.status) && (
+              {restore.compatible && restore.status === 'preflight_ready' && (
                 <div className="mt-6 pt-5 border-t border-slate-100">
-                  <div className="rounded-2xl bg-slate-950 p-4 sm:p-5 text-white">
-                    <p className="font-black text-sm">Confirmation forte requise</p>
-                    <p className="text-xs text-slate-300 mt-1">Tapez <span className="font-black text-white">RESTAURER</span>. Le secours local est créé immédiatement avant l’apply.</p>
+                  <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 sm:p-5">
+                    <p className="font-black text-sm text-slate-900">Étape 2 · Préparer la restauration</p>
+                    <p className="text-xs text-slate-600 mt-1">
+                      Revalide le package, crée et vérifie un secours DB, puis fige l’empreinte des médias actuels si le package remplace des médias. Aucune bascule destructive à cette étape.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => void handlePrepareRestore()}
+                      disabled={!canPrepare}
+                      className="mt-4 w-full sm:w-auto rounded-xl bg-slate-900 hover:bg-slate-800 px-5 py-3 text-sm font-black text-white transition disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                    >
+                      {isPreparing ? <Loader2 size={18} className="animate-spin" /> : <CheckCircle2 size={18} />}
+                      {isPreparing ? 'Préparation et vérification...' : 'Préparer la restauration'}
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {restore.compatible && restore.status === 'prepared' && (
+                <div className="mt-6 pt-5 border-t border-slate-100">
+                  <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-bold text-emerald-900 flex items-start gap-3">
+                    <CheckCircle2 size={18} className="mt-0.5 shrink-0" />
+                    <span>Préparation sécurisée validée. Le package et le point de secours DB ont été vérifiés avant confirmation.</span>
+                  </div>
+                  <div className="mt-4 rounded-2xl bg-slate-950 p-4 sm:p-5 text-white">
+                    <p className="font-black text-sm">Confirmation finale</p>
+                    <p className="text-xs text-slate-300 mt-1">Tapez <span className="font-black text-white">RESTAURER</span>. L’application s’arrêtera, revérifiera le secours exact puis basculera hors-processus.</p>
                     <div className="mt-4 flex flex-col sm:flex-row gap-3">
                       <input
                         value={confirmation}
@@ -322,7 +373,7 @@ export const SecurityTab: React.FC = () => {
                         className="rounded-xl bg-amber-500 hover:bg-amber-400 px-5 py-3 text-sm font-black text-slate-950 transition disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                       >
                         {isApplying || restoreInFlight ? <Loader2 size={18} className="animate-spin" /> : <Upload size={18} />}
-                        {restoreInFlight ? 'Restauration en cours...' : 'Appliquer la restauration'}
+                        {restoreInFlight ? 'Restauration en cours...' : 'Redémarrer et restaurer'}
                       </button>
                     </div>
                   </div>
