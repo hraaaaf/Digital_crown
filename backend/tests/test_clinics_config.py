@@ -86,7 +86,12 @@ class TestCabinetConfigIsolation:
         def _login(user):
             r = client.post("/api/auth/login", data={"username": user.email, "password": "Pass123!"})
             assert r.status_code == 200, r.text
-            return {"Authorization": f"Bearer {r.json()['access_token']}"}
+            headers = {"Authorization": f"Bearer {r.json()['access_token']}"}
+            # get_current_user is intentionally cookie-first. Clear the shared
+            # TestClient cookie so each captured bearer token represents an
+            # independent client/session instead of the last login winning.
+            client.cookies.clear()
+            return headers
 
         ha = _login(a)
         hb = _login(b)

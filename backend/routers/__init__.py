@@ -10,6 +10,8 @@ from . import patient_journey_p4 as patient_journey_p4
 from . import patient_financial_p6 as patient_financial_p6
 from . import ia as ia
 from . import imaging_lifecycle_p4 as imaging_lifecycle_p4
+from . import clinics as clinics
+from . import clinic_identity_p4 as clinic_identity_p4
 
 # Bring P3 Master Plan truth forward: same public GET/PUT path, immutable revision per
 # successful save, plus /master-plan/revisions.
@@ -68,3 +70,7 @@ ia.router.routes = [
     )
 ]
 ia.router.include_router(imaging_lifecycle_p4.router)
+
+# P4B extends the canonical clinic settings surface instead of registering a parallel
+# top-level router. Practitioner identity remains under /api/clinics/me/practitioner.
+clinics.router.include_router(clinic_identity_p4.router)

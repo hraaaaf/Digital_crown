@@ -111,6 +111,7 @@ class CabinetConfigBase(BaseModel):
     ice: Optional[str] = Field(default="", max_length=50)
     if_: Optional[str] = Field(default="", max_length=50, alias="if")
     inpe: Optional[str] = Field(default="", max_length=50)
+    inpe_etablissement: Optional[str] = Field(default=None, max_length=50)
     letterhead_path: Optional[str] = None
     use_letterhead: Optional[bool] = None
     primary_color: str = Field(default="#003380", pattern=r"^#[0-9A-Fa-f]{6}$")
