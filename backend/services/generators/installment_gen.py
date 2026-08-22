@@ -8,55 +8,59 @@ from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from backend.models import InstallmentPlan, Patient, CabinetConfig
 from backend.services.base_template import BaseTemplate, PageCounter
 
+
+def _contact_value(config: CabinetConfig, key: str) -> str:
+    contacts = getattr(config, "contacts_json", None) or {}
+    entry = contacts.get(key) if isinstance(contacts, dict) else None
+    if isinstance(entry, dict) and entry.get("enabled") and entry.get("value"):
+        return str(entry["value"])
+    if isinstance(entry, str):
+        return entry
+    return ""
+
+
 def generate_installment_plan(
-    plan: InstallmentPlan, 
-    patient: Patient, 
-    clinic: CabinetConfig, 
+    plan: InstallmentPlan,
+    patient: Patient,
+    config: CabinetConfig,
     output_dir: str
 ) -> str:
-    """
-    Génère un PDF d'échéancier de paiement de type "Premium".
-    """
+    """Génère un PDF d'échéancier avec l'identité de l'organisation canonique."""
     os.makedirs(output_dir, exist_ok=True)
     filename = f"Echeancier_{patient.nom}_{patient.prenom}_{datetime.now().strftime('%Y%m%d%H%M%S')}.pdf"
     filepath = os.path.join(output_dir, filename)
 
-    doc = SimpleDocTemplate(
-        filepath,
-        pagesize=A4,
-        rightMargin=40,
-        leftMargin=40,
-        topMargin=40,
-        bottomMargin=40
-    )
-
     styles = getSampleStyleSheet()
-    
+
     title_style = ParagraphStyle(
         'TitleStyle',
         parent=styles['Heading1'],
         fontSize=24,
         textColor=colors.HexColor('#0F172A'),
         spaceAfter=20,
-        alignment=1 # Center
+        alignment=1
     )
-    
+
     normal_style = styles['Normal']
     normal_style.fontSize = 11
     normal_style.textColor = colors.HexColor('#334155')
 
     elements = []
 
-    # En-tête (Clinique)
-    elements.append(Paragraph(f"<b>{clinic.name.upper()}</b>", title_style))
-    elements.append(Paragraph(f"{clinic.address}<br/>Tél: {clinic.phone}<br/>Email: {clinic.email}", normal_style))
+    organization_name = (config.nom_cabinet or "Cabinet dentaire").strip()
+    address = (config.footer_address or config.adresse or "").strip()
+    phone = (config.footer_phones or config.telephone or "").strip()
+    email = _contact_value(config, "email")
+
+    elements.append(Paragraph(f"<b>{organization_name.upper()}</b>", title_style))
+    contact_lines = [line for line in (address, f"Tél: {phone}" if phone else "", f"Email: {email}" if email else "") if line]
+    if contact_lines:
+        elements.append(Paragraph("<br/>".join(contact_lines), normal_style))
     elements.append(Spacer(1, 30))
 
-    # Titre du document
     elements.append(Paragraph("<b>ÉCHÉANCIER DE PAIEMENT</b>", title_style))
     elements.append(Spacer(1, 20))
 
-    # Informations Patient & Plan
     patient_info = [
         ["Patient :", f"{patient.nom} {patient.prenom}"],
         ["Traitement :", plan.title],
@@ -72,9 +76,8 @@ def generate_installment_plan(
     elements.append(t_info)
     elements.append(Spacer(1, 30))
 
-    # Tableau des échéances
     data = [["Échéance", "Date Prévue", "Montant (MAD)", "Statut"]]
-    
+
     for inst in plan.installments:
         status_text = "Payé" if inst.status == "PAYE" else "En Attente"
         date_str = inst.due_date.strftime("%d/%m/%Y")
@@ -92,11 +95,9 @@ def generate_installment_plan(
         ('FONTSIZE', (0,0), (-1,-1), 10),
         ('PADDING', (0,0), (-1,-1), 8),
     ]))
-    
+
     elements.append(t_installments)
     elements.append(Spacer(1, 40))
-
-    # Footer
     elements.append(Paragraph("<i>Document généré électroniquement par Digital Crown Elite Edition.</i>", normal_style))
 
     compression = 1.0

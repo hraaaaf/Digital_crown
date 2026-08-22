@@ -217,7 +217,7 @@ def generate_installment_preview(
         raise HTTPException(status_code=404, detail="Patient introuvable")
 
     config = db.query(models.CabinetConfig).filter(
-        models.CabinetConfig.owner_id == current_user.id
+        models.CabinetConfig.owner_id == current_user.get_employer_id()
     ).first()
 
     patient_name = f"{patient.nom.upper()} {patient.prenom.capitalize()}"
