@@ -15,7 +15,7 @@ from backend.core.media_paths import get_media_root
 from backend.core.paths import AppPaths
 from backend.services.guided_restore import GuidedRestoreService, _utc_now
 from backend.services.guided_restore_archive import (
-    _decrypt_backup_key, _extract_encrypted_media, _seal_directory, _validate_database_file,
+    _decrypt_backup_key, _extract_encrypted_media, _validate_database_file,
 )
 
 class GuidedRestoreWorker:
@@ -173,14 +173,11 @@ class GuidedRestoreWorker:
 
             rescued = cls._rescue_database(target_db, rescue_db)
             rescue_dir.mkdir(parents=True, exist_ok=True)
-            sealed_rescue = rescue_dir / "media-rescue.zip.enc"
-            if job.get("restore_media") and media_root.exists():
-                _seal_directory(media_root, sealed_rescue)
             update(
                 "applying",
                 rescue_created_at=_utc_now(),
                 rescue_database_files=rescued,
-                rescue_media_encrypted=sealed_rescue.exists(),
+                rescue_media_atomic=bool(job.get("restore_media") and media_root.exists()),
             )
 
             cls._apply_database(job_dir / "database.enc", target_db, str(job.get("active_driver") or "pysqlite"))

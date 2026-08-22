@@ -17,6 +17,7 @@ from backend.services.guided_restore_worker import GuidedRestoreWorker
 
 
 def _patch_appdata(monkeypatch, tmp_path: Path):
+    tmp_path.mkdir(parents=True, exist_ok=True)
     monkeypatch.setattr(AppPaths, "get_user_data_dir", staticmethod(lambda: tmp_path))
 
 
@@ -164,6 +165,34 @@ def test_inner_media_path_traversal_is_blocked(tmp_path, monkeypatch):
     with pytest.raises(ValueError, match="chemin interne non sûr"):
         archive_mod._inspect_encrypted_media(encrypted)
 
+
+
+def test_media_archive_allows_realistic_file_counts(tmp_path, monkeypatch):
+    _patch_appdata(monkeypatch, tmp_path / "appdata")
+    encrypted = tmp_path / "media-many.enc"
+    encrypted.write_bytes(_media_enc(monkeypatch, {f"patient/{i}.jpg": b"x" for i in range(12)}))
+
+    assert archive_mod._inspect_encrypted_media(encrypted) == 12
+
+
+def test_outer_archive_rejects_duplicate_basenames(tmp_path, monkeypatch):
+    _patch_appdata(monkeypatch, tmp_path / "appdata")
+    bundle = tmp_path / "ambiguous.zip"
+    with zipfile.ZipFile(bundle, "w") as archive:
+        archive.writestr("manifest.json", json.dumps({
+            "format": "digital-crown-guided-restore",
+            "version": 1,
+            "database": {"filename": "database.db.enc", "engine": "sqlite"},
+        }))
+        archive.writestr("one/database.db.enc", b"one")
+        archive.writestr("two/database.db.enc", b"two")
+
+    with pytest.raises(ValueError, match="noms de fichiers ambigus"):
+        GuidedRestoreService.preflight_file(
+            bundle,
+            original_name="ambiguous.zip",
+            active_engine=("sqlite", "pysqlite"),
+        )
 
 def test_confirmation_is_exact_and_runtime_is_fail_closed(tmp_path, monkeypatch):
     _patch_appdata(monkeypatch, tmp_path / "appdata")

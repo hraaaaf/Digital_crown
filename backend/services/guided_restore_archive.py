@@ -14,6 +14,7 @@ from cryptography.fernet import InvalidToken
 from backend.services.backup_service import BackupService
 
 MAX_ARCHIVE_ENTRIES = 8
+MAX_MEDIA_ARCHIVE_ENTRIES = int(os.environ.get("GUIDED_RESTORE_MAX_MEDIA_ENTRIES", "250000"))
 MAX_ARCHIVE_UNCOMPRESSED_BYTES = int(
     os.environ.get("GUIDED_RESTORE_MAX_UNCOMPRESSED_BYTES", str(20 * 1024**3))
 )
@@ -45,8 +46,8 @@ def _safe_zip_member(name: str) -> bool:
     return True
 
 
-def _validate_zip_infos(infos: list[zipfile.ZipInfo]) -> None:
-    if not infos or len(infos) > MAX_ARCHIVE_ENTRIES:
+def _validate_zip_infos(infos: list[zipfile.ZipInfo], *, max_entries: int = MAX_ARCHIVE_ENTRIES) -> None:
+    if not infos or len(infos) > max_entries:
         raise ValueError("Archive non reconnue ou trop complexe")
     total = 0
     for info in infos:
@@ -110,7 +111,7 @@ def _inspect_encrypted_media(source: Path) -> int:
         raise ValueError("Archive média chiffrée invalide ou clé cabinet incompatible") from exc
     with zipfile.ZipFile(io.BytesIO(decrypted), "r") as media_zip:
         infos = media_zip.infolist()
-        _validate_zip_infos(infos)
+        _validate_zip_infos(infos, max_entries=MAX_MEDIA_ARCHIVE_ENTRIES)
         return len([info for info in infos if not info.is_dir()])
 
 
@@ -122,7 +123,7 @@ def _extract_encrypted_media(source: Path, destination: Path) -> None:
     destination.mkdir(parents=True, exist_ok=False)
     with zipfile.ZipFile(io.BytesIO(decrypted), "r") as media_zip:
         infos = media_zip.infolist()
-        _validate_zip_infos(infos)
+        _validate_zip_infos(infos, max_entries=MAX_MEDIA_ARCHIVE_ENTRIES)
         for info in infos:
             target = destination / PurePosixPath(info.filename)
             target_resolved = target.resolve(strict=False)
@@ -136,15 +137,4 @@ def _extract_encrypted_media(source: Path, destination: Path) -> None:
             target.parent.mkdir(parents=True, exist_ok=True)
             with media_zip.open(info, "r") as src, target.open("wb") as dst:
                 shutil.copyfileobj(src, dst, length=1024 * 1024)
-
-
-def _seal_directory(source: Path, encrypted_target: Path) -> None:
-    buffer = io.BytesIO()
-    with zipfile.ZipFile(buffer, "w", zipfile.ZIP_DEFLATED) as archive:
-        if source.exists():
-            for root, _dirs, files in os.walk(source):
-                for filename in files:
-                    absolute = Path(root) / filename
-                    archive.write(absolute, absolute.relative_to(source).as_posix())
-    encrypted_target.write_bytes(_master_cipher().encrypt(buffer.getvalue()))
 

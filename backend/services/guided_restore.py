@@ -166,7 +166,12 @@ class GuidedRestoreService:
                     if manifest.get("overall_status") not in (None, "SUCCESS"):
                         errors.append("Le manifeste indique une sauvegarde incomplète")
 
-                member_by_basename = {PurePosixPath(name).name: name for name in names}
+                member_by_basename: dict[str, str] = {}
+                for name in names:
+                    basename = PurePosixPath(name).name
+                    if basename in member_by_basename:
+                        raise ValueError("Archive refusée : noms de fichiers ambigus")
+                    member_by_basename[basename] = name
                 if not db_name or PurePosixPath(db_name).name not in member_by_basename:
                     raise ValueError("Archive non reconnue : sauvegarde DB absente")
                 with archive.open(member_by_basename[PurePosixPath(db_name).name]) as src, db_source.open("wb") as dst:
