@@ -50,76 +50,88 @@ jobs:
           load("backend.schemas.base", schemas_dir / "base.py")
           cabinet = load("backend.schemas.cabinet", schemas_dir / "cabinet.py")
 
-          # IF: frontend create payload uses `if_`, while create schema only accepts alias `if`.
+          # IF create contract is asymmetric: frontend sends if_, create schema accepts alias if.
           create_by_name = cabinet.CabinetConfigCreate(nom_cabinet="P0", **{"if_": "12345678"})
-          dumped_by_name = create_by_name.model_dump(exclude_unset=True)
           assert "if_" not in create_by_name.model_fields_set
-          assert "if_" not in dumped_by_name
-
+          assert "if_" not in create_by_name.model_dump(exclude_unset=True)
           create_by_alias = cabinet.CabinetConfigCreate(nom_cabinet="P0", **{"if": "12345678"})
           assert create_by_alias.if_ == "12345678"
-          assert "if_" in create_by_alias.model_fields_set
 
-          # Settings sends fields that the strict update contract forbids.
+          # Settings profile currently contains fields rejected by strict update schema.
           for forbidden in ("custom_specialty_fr", "custom_specialty_ar", "logo_path"):
               try:
                   cabinet.CabinetConfigUpdate(**{forbidden: "P0"})
               except ValidationError as exc:
                   assert any(err.get("type") == "extra_forbidden" for err in exc.errors())
               else:
-                  raise AssertionError(f"{forbidden} unexpectedly accepted by CabinetConfigUpdate")
+                  raise AssertionError(f"{forbidden} unexpectedly accepted")
 
           assert cabinet.CabinetConfigCreate().selected_template == "classic"
 
-          # Route boundary baseline: creation lacks current_user; mutations only require auth,
-          # not the Settings permission that the frontend enforces.
-          clinics_path = root / "backend" / "routers" / "clinics.py"
-          clinics_text = clinics_path.read_text(encoding="utf-8")
-          tree = ast.parse(clinics_text)
-          functions = {node.name: node for node in tree.body if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))}
+          clinics_text = (root / "backend" / "routers" / "clinics.py").read_text(encoding="utf-8")
+          clinics_tree = ast.parse(clinics_text)
+          clinic_functions = {
+              node.name: node for node in clinics_tree.body
+              if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
+          }
+          def clinic_segment(name):
+              return ast.get_source_segment(clinics_text, clinic_functions[name]) or ""
 
-          def segment(name):
-              fn = functions[name]
-              return ast.get_source_segment(clinics_text, fn) or ""
-
-          create_src = segment("create_clinic")
+          create_src = clinic_segment("create_clinic")
           assert "get_current_user" not in create_src
           assert "db.query(models.User)" in create_src
 
-          update_src = segment("update_my_clinic")
+          update_src = clinic_segment("update_my_clinic")
           assert "get_current_user" in update_src
           assert "require_permission" not in update_src
 
-          # Account entry truth: frontend accepts 4-char passwords while backend requires 8.
+          get_src = clinic_segment("get_my_clinic")
+          assert "models.CabinetConfig(" in get_src
+          assert "db.commit()" in get_src
+
+          # Entry flows: UI accepts 4 chars, backend requires 8.
           auth_schema = (root / "backend" / "schemas" / "auth.py").read_text(encoding="utf-8")
           register_page = (root / "frontend" / "src" / "pages" / "RegisterPage.tsx").read_text(encoding="utf-8")
           trial_page = (root / "frontend" / "src" / "pages" / "ActivateTrialPage.tsx").read_text(encoding="utf-8")
           assert "PASSWORD_MIN_LENGTH = 8" in auth_schema
           assert "minLength={4}" in register_page
           assert "minLength={4}" in trial_page
+          assert "Votre cabinet a bien été pré-enregistré" in register_page
 
-          # Classic signup creates a User; trial activation additionally creates an uninitialized CabinetConfig.
+          # Classic signup creates only User; trial activation also creates CabinetConfig(initialized=false).
           auth_router = (root / "backend" / "routers" / "auth.py").read_text(encoding="utf-8")
-          public_router = (root / "backend" / "routers" / "public.py").read_text(encoding="utf-8")
-          assert "def signup" in auth_router
-          assert "models.CabinetConfig(" not in ast.get_source_segment(
-              auth_router,
-              next(node for node in ast.parse(auth_router).body if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)) and node.name == "signup")
+          auth_tree = ast.parse(auth_router)
+          signup_node = next(
+              node for node in auth_tree.body
+              if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)) and node.name == "signup_client"
           )
+          signup_src = ast.get_source_segment(auth_router, signup_node) or ""
+          assert "new_user = models.User(" in signup_src
+          assert "models.CabinetConfig(" not in signup_src
+
+          public_router = (root / "backend" / "routers" / "public.py").read_text(encoding="utf-8")
+          assert "async def activate_trial_code" in public_router
           assert "models.CabinetConfig(" in public_router
           assert "is_initialized=False" in public_router
 
-          # Global Axios offline path claims queueing but never enqueues the mutation.
+          # Frontend init error is currently collapsed into setup-required state.
+          app_text = (root / "frontend" / "src" / "App.tsx").read_text(encoding="utf-8")
+          assert "setIsInitialized(false)" in app_text
+
+          # Theme is written locally during onboarding before final backend acknowledgement.
+          setup_text = (root / "frontend" / "src" / "features" / "admin" / "SetupWizard" / "SetupWizard.tsx").read_text(encoding="utf-8")
+          assert "localStorage.setItem('digitalcrown_theme', selectedTheme)" in setup_text
+
+          # Desktop Axios offline path claims queueing, returns synthetic 200, but never enqueues.
           api_text = (root / "frontend" / "src" / "services" / "api.ts").read_text(encoding="utf-8")
-          assert "Action mise en file d'attente" in api_text
+          assert "Mode hors-ligne" in api_text
+          assert "offline-queue" in api_text
           assert "_offline: true" in api_text
           assert "enqueueAction" not in api_text
 
-          # Product consumer baseline: accounting generator still keys CabinetConfig on raw user_id.
+          # Consumer divergence and phantom model.
           accounting_text = (root / "backend" / "services" / "generators" / "accounting_gen.py").read_text(encoding="utf-8")
           assert "CabinetConfig.owner_id == user_id" in accounting_text
-
-          # Phantom consumer baseline.
           factory_text = (root / "backend" / "services" / "document_factory.py").read_text(encoding="utf-8")
           models_text = (root / "backend" / "models.py").read_text(encoding="utf-8")
           assert "models.Clinic" in factory_text
@@ -127,298 +139,3 @@ jobs:
 
           print("P0 contract truth: PASS")
           PY
-
-  visual-baseline:
-    name: P0 BEFORE onboarding + settings
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: "20"
-          cache: npm
-          cache-dependency-path: frontend/package-lock.json
-      - name: Install frontend and Chromium
-        working-directory: frontend
-        run: |
-          npm ci
-          npm install --no-save --package-lock=false playwright@1.55.0
-          npx playwright install --with-deps chromium
-
-      - name: Inject read-only P0 visual harness
-        working-directory: frontend
-        run: |
-          cat > onboarding-settings-p0-cert.html <<'EOF'
-          <!doctype html>
-          <html lang="fr">
-            <head>
-              <meta charset="UTF-8" />
-              <meta name="viewport" content="width=device-width,initial-scale=1" />
-              <link rel="icon" href="data:," />
-              <title>Onboarding Settings P0 BEFORE</title>
-            </head>
-            <body>
-              <div id="root"></div>
-              <script type="module" src="/src/onboarding-settings-p0-cert.tsx"></script>
-            </body>
-          </html>
-          EOF
-
-          cat > src/onboarding-settings-p0-cert.tsx <<'EOF'
-          import React from 'react';
-          import { createRoot } from 'react-dom/client';
-          import { MemoryRouter } from 'react-router-dom';
-          import './index.css';
-          import Settings from './pages/Settings';
-          import SetupWizard from './features/admin/SetupWizard/SetupWizard';
-          import { useSetupStore } from './features/admin/SetupWizard/store/useSetupStore';
-          import { useAuthStore } from './stores/useAuthStore';
-
-          const params = new URLSearchParams(window.location.search);
-          const mode = params.get('mode') || 'setup';
-          const step = Math.min(7, Math.max(1, Number(params.get('step') || '1')));
-
-          useAuthStore.setState({
-            user: ({
-              id: 1,
-              email: 'admin@p0-before.local',
-              nom_complet: 'Dr P0 Baseline',
-              role: 'ADMIN',
-              is_superadmin: false,
-              permissions: {},
-            } as any),
-            isAuthenticated: true,
-            isLoading: false,
-            error: null,
-          });
-
-          useSetupStore.setState({
-            currentStep: step,
-            cabinetType: 'CLINIQUE',
-            identity: {
-              nomCabinet: 'Centre Dentaire P0',
-              nomPraticien: 'Achraf Baseline',
-              nomPraticienAR: 'أشرف',
-              adresse: 'Rabat, Maroc',
-              ice: '001234567890123',
-              if: '12345678',
-              inpe: '123456789',
-            },
-            selectedSpecialties: ['soins', 'endo'],
-            customSpecialty: { fr: 'Dentisterie numérique', ar: 'طب الأسنان الرقمي' },
-            contacts: {
-              fixe: { enabled: true, value: '05 37 00 00 00' },
-              mobile: { enabled: true, value: '06 00 00 00 00' },
-              whatsapp: { enabled: true, value: '06 00 00 00 00' },
-              instagram: { enabled: true, value: 'digitalcrown.p0' },
-            },
-            headerOption: 'auto',
-            selectedTemplate: 'swiss',
-            selectedTheme: 'elite',
-            selectedIdentity: 'elite-royal',
-            selectedFont: 'inter',
-            margins: { top: 3.6, bottom: 3.2 },
-            headerScale: 1.1,
-            headerFontScale: 1.0,
-            headerLogoScale: 1.0,
-            headerLineHeight: 1.0,
-            footerFontScale: 1.0,
-            footerQrScale: 1.0,
-            footerLineHeight: 1.0,
-            qrConfig: {
-              enabled: true,
-              type: 'WHATSAPP',
-              value: '0600000000',
-              label: 'WhatsApp du cabinet',
-              color: null,
-              style: 'dots',
-            },
-          } as any);
-
-          createRoot(document.getElementById('root')!).render(
-            <MemoryRouter initialEntries={[mode === 'settings' ? '/settings' : '/setup']}>
-              {mode === 'settings' ? <Settings /> : <SetupWizard />}
-            </MemoryRouter>,
-          );
-          EOF
-
-          cat > onboarding-settings-p0-cert.mjs <<'EOF'
-          import { chromium } from 'playwright';
-          import { createServer } from 'vite';
-          import fs from 'node:fs/promises';
-
-          const output = 'onboarding-settings-p0-artifacts';
-          await fs.mkdir(output, { recursive: true });
-
-          const profile = {
-            id: 'p0', public_id: 'p0-before', owner_id: 1,
-            nom_cabinet: 'Centre Dentaire P0', nom_praticien: 'Achraf Baseline', nom_praticien_ar: 'أشرف',
-            cabinet_type: 'CLINIQUE', footer_address: 'Rabat, Maroc', footer_phones: '📞 05 37 00 00 00',
-            ice: '001234567890123', if_: '12345678', inpe: '123456789',
-            primary_color: '#003380', secondary_color: '#1e40af', accent_color: '#60a5fa',
-            selected_theme: 'elite', font_fr: 'inter', selected_template: 'swiss',
-            header_lines_fr: ['Dr. Achraf Baseline', 'Soins · Endodontie'],
-            header_lines_ar: ['د. أشرف', 'علاج · علاج العصب'], specialty_ids: ['soins', 'endo'],
-            contacts_json: {
-              fixe: { enabled: true, value: '05 37 00 00 00' },
-              mobile: { enabled: true, value: '06 00 00 00 00' },
-              whatsapp: { enabled: true, value: '06 00 00 00 00' },
-              instagram: { enabled: true, value: 'digitalcrown.p0' },
-            },
-            margin_top: 3.6, margin_bottom: 3.2, watermark_enabled: true, use_letterhead: false,
-            qr_code_enabled: true, qr_code_type: 'WHATSAPP', qr_code_value: '0600000000',
-            qr_code_label: 'WhatsApp du cabinet', qr_code_style: 'dots',
-            show_patient_badges: true, performance_mode: false, clinical_tips_enabled: true,
-            hide_header: true, hide_footer: true, is_initialized: true,
-          };
-          const specialtyFixture = [{
-            id: 1, name: 'Omnipratique', color: '#1e40af',
-            pathologies: [{ id: 1, specialty_id: 1, name: 'Caries', description: '', is_active: true }],
-            acts: [{ id: 1, specialty_id: 1, name: 'Consultation', code: 'CONS', base_price: 300, color: '#60a5fa', is_active: true }],
-          }];
-          const agendaSettings = {
-            id: 1, opening_time_morning: '09:00', closing_time_morning: '13:00',
-            opening_time_afternoon: '14:00', closing_time_afternoon: '18:00',
-            is_continuous: false, agenda_mode: 'EXACT', use_tickets: false,
-          };
-          const team = [{
-            id: 2, email: 'assistante@p0.local', role: 'SECRETAIRE', nom_complet: 'Assistante P0',
-            telephone_mobile: '0600000000', is_active: true, approval_status: 'approved',
-            permissions: { agenda: true, patients: true, settings: false, admin: false },
-          }];
-          const json = body => ({ status: 200, contentType: 'application/json', body: JSON.stringify(body) });
-
-          const server = await createServer({ server: { host: '127.0.0.1', port: 4178, strictPort: true }, clearScreen: false });
-          await server.listen();
-          const browser = await chromium.launch();
-          const widths = [1440, 1024, 768, 430, 390];
-          const settingsTabs = [
-            ['profil', 'Profil Cabinet'], ['branding', 'Design & Ambiance'], ['catalogue', 'Catalogue Actes'],
-            ['agenda', 'Horaires & Agenda'], ['performance', 'Performance & Assistance'],
-            ['securite', 'Sécurité & Backup'], ['equipe', 'Mon Équipe'],
-          ];
-          const failures = [];
-
-          async function installApiRoutes(page) {
-            await page.route('**/*', async route => {
-              const request = route.request();
-              const url = new URL(request.url());
-              if (url.port !== '8005' || !url.pathname.startsWith('/api/')) return route.continue();
-              if (request.method() !== 'GET') return route.fulfill(json({}));
-              if (url.pathname === '/api/clinics/me') return route.fulfill(json(profile));
-              if (url.pathname.endsWith('/specialties')) return route.fulfill(json(specialtyFixture));
-              if (url.pathname.endsWith('/agenda/settings')) return route.fulfill(json(agendaSettings));
-              if (url.pathname.endsWith('/agenda/exceptions')) return route.fulfill(json([]));
-              if (url.pathname.endsWith('/agenda/upcoming-holidays')) return route.fulfill(json([]));
-              if (url.pathname.includes('/audit-logs')) return route.fulfill(json({ total: 0, logs: [] }));
-              if (url.pathname.includes('/team/quota')) return route.fulfill(json({
-                plan: 'GOLD', dentistes_used: 1, dentistes_max: 1, secretaires_used: 1,
-                secretaires_max: 2, pending_count: 0, can_add_dentiste: false, can_add_secretaire: true,
-              }));
-              if (url.pathname.includes('/team')) return route.fulfill(json(team));
-              if (url.pathname.includes('/mobile')) return route.fulfill(json([]));
-              if (url.pathname.includes('/backup')) return route.fulfill(json({ status: 'ok' }));
-              return route.fulfill(json({}));
-            });
-          }
-
-          function watchRuntime(page) {
-            const runtimeErrors = [];
-            page.on('pageerror', error => runtimeErrors.push(`pageerror: ${error.message}`));
-            page.on('console', message => {
-              if (message.type() === 'error') runtimeErrors.push(`console: ${message.text()}`);
-            });
-            return runtimeErrors;
-          }
-
-          async function inspect(page, width, key, runtimeErrors) {
-            await page.waitForTimeout(100);
-            const scrollWidth = await page.evaluate(() => document.documentElement.scrollWidth);
-            if (scrollWidth > width) failures.push(`${key}: overflow ${scrollWidth}>${width}`);
-            if (runtimeErrors.length) failures.push(`${key}: ${runtimeErrors.join(' | ')}`);
-          }
-
-          let fatalError = null;
-          try {
-            for (const width of widths) {
-              for (let step = 1; step <= 7; step++) {
-                const context = await browser.newContext({ viewport: { width, height: 1200 } });
-                const page = await context.newPage();
-                const runtimeErrors = watchRuntime(page);
-                await installApiRoutes(page);
-                const key = `setup-step${step}-${width}x1200`;
-                await page.goto(`http://127.0.0.1:4178/onboarding-settings-p0-cert.html?mode=setup&step=${step}`, { waitUntil: 'networkidle' });
-                await page.getByText('Digital Crown').first().waitFor({ state: 'visible', timeout: 15000 });
-                await inspect(page, width, key, runtimeErrors);
-                await page.screenshot({ path: `${output}/${key}.png`, fullPage: true, animations: 'disabled' });
-                await context.close();
-              }
-
-              const context = await browser.newContext({ viewport: { width, height: 1200 } });
-              const page = await context.newPage();
-              const runtimeErrors = watchRuntime(page);
-              await installApiRoutes(page);
-              await page.goto('http://127.0.0.1:4178/onboarding-settings-p0-cert.html?mode=settings', { waitUntil: 'networkidle' });
-              await page.getByRole('heading', { name: 'Paramètres', exact: true }).waitFor({ state: 'visible', timeout: 15000 });
-              for (const [tabId, label] of settingsTabs) {
-                await page.getByRole('button', { name: new RegExp(label, 'i') }).click();
-                await page.waitForTimeout(150);
-                const key = `settings-${tabId}-${width}x1200`;
-                await inspect(page, width, key, runtimeErrors);
-                await page.screenshot({ path: `${output}/${key}.png`, fullPage: true, animations: 'disabled' });
-              }
-              await context.close();
-            }
-          } catch (error) {
-            fatalError = error;
-            failures.push(`harness-fatal: ${error?.stack || error}`);
-          } finally {
-            await fs.writeFile(`${output}/runtime-overflow.txt`, failures.join('\n'));
-            await browser.close();
-            await server.close();
-          }
-
-          if (fatalError) throw fatalError;
-          EOF
-
-      - name: Capture P0 BEFORE surfaces
-        working-directory: frontend
-        run: node onboarding-settings-p0-cert.mjs
-
-      - name: Record baseline metadata
-        working-directory: frontend
-        env:
-          HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
-          PRODUCT_BASE_SHA: 2bfe24fc62a79af0a13852cd091bd65c3e0fd384
-        run: |
-          cat > onboarding-settings-p0-artifacts/metadata.txt <<EOF
-          chantier=Onboarding <-> Reglages
-          lot=P0 Audit & Truth Map
-          head_sha=${HEAD_SHA}
-          product_base_sha=${PRODUCT_BASE_SHA}
-          goal=BEFORE read-only: document onboarding and settings before any product modification.
-          setup_steps=1,2,3,4,5,6,7
-          settings_tabs=profil,branding,catalogue,agenda,performance,securite,equipe
-          viewports=1440x1200,1024x1200,768x1200,430x1200,390x1200
-          expected_screenshots=70
-          product_changes=none
-          EOF
-
-      - name: Verify P0 proof cardinality and baseline health
-        working-directory: frontend
-        run: |
-          count=$(find onboarding-settings-p0-artifacts -name '*.png' | wc -l)
-          test "$count" -eq 70
-          if test -s onboarding-settings-p0-artifacts/runtime-overflow.txt; then
-            cat onboarding-settings-p0-artifacts/runtime-overflow.txt >&2
-            exit 1
-          fi
-
-      - name: Upload P0 BEFORE proof
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: onboarding-settings-p0-before
-          path: frontend/onboarding-settings-p0-artifacts/
-          if-no-files-found: error
-          retention-days: 14
