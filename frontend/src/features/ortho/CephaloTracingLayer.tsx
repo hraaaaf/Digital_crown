@@ -50,7 +50,7 @@
  * ─────────────────────────────────────────────────────────────────────────────
  */
 
-import React, { useState, useRef, useCallback, useEffect } from 'react';
+import React from 'react';
 import { motion } from 'framer-motion';
 import { cn } from '../../utils/cn';
 import type { Landmark, ImageFilters, VTOSettings } from './cephaloShared';
@@ -59,6 +59,7 @@ import { AnatomicalTooth } from './components/AnatomicalTooth';
 import { WedgeZone } from './components/WedgeZone';
 import { CephaloCalibrationOverlay } from './components/CephaloCalibrationOverlay';
 import { CephaloMagnifierOverlay } from './components/CephaloMagnifierOverlay';
+import { useCephaloInteraction } from './hooks/useCephaloInteraction';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // TYPES EXPORTÉS (Locaux)
@@ -230,72 +231,27 @@ export const CephaloTracingLayer: React.FC<CephaloTracingLayerProps> = ({
   const P = PALETTE[uiMode as PaletteKey];
   const isPro = uiMode === 'pro';
 
-  // ── Refs ──────────────────────────────────────────────────────────────────
-  const svgRef = useRef<SVGSVGElement>(null);
+  const {
+    svgRef,
+    activeDragId,
+    setActiveDragId,
+    activeDragPos,
+    setActiveDragPos,
+    magnifier,
+    setMagnifier,
+    clientToSVG,
+    getPoint,
+    handleSvgClick,
+  } = useCephaloInteraction({
+    landmarks,
+    imageWidth,
+    imageHeight,
+    magnifierEnabled,
+    isCalibrating,
+    onAddCalibrationPoint,
+    onEmptyAreaClick,
+  });
 
-  // ── State ─────────────────────────────────────────────────────────────────
-  /**
-   * activeDragId  : ID du point en cours de drag
-   * activeDragPos : position SVG temps-réel calculée via getScreenCTM()
-   *
-   * IMPORTANT : pendant le drag, les cercles SVG sont rendus à
-   * dispX/dispY = activeDragPos (pas à pt.x/pt.y). C'est ce qui garantit
-   * que le pixel visuel correspond exactement à la coordonnée SVG réelle.
-   */
-  const [activeDragId, setActiveDragId] = useState<string | null>(null);
-  const [activeDragPos, setActiveDragPos] = useState<{ id: string; x: number; y: number } | null>(null);
-  const [magnifier, setMagnifier] = useState<{ x: number; y: number; show: boolean }>(
-    { x: 0, y: 0, show: false }
-  );
-
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    if (!magnifierEnabled && magnifier.show) setMagnifier(m => ({ ...m, show: false }));
-  }, [magnifierEnabled]); // eslint-disable-line
-
-  // ─────────────────────────────────────────────────────────────────────────
-  // clientToSVG — conversion pixel-perfect via getScreenCTM().inverse()
-  //
-  // getScreenCTM() retourne la matrice de l'espace SVG user-space vers le
-  // viewport écran. Son inverse transforme (clientX, clientY) en coordonnées
-  // SVG, en tenant compte automatiquement de :
-  //   - viewBox + preserveAspectRatio (letterboxing exact)
-  //   - CSS transforms sur le SVG et ses ancêtres
-  //   - Zoom navigateur / scroll
-  //
-  // Ne jamais utiliser getBoundingClientRect + scaling manuel.
-  // ─────────────────────────────────────────────────────────────────────────
-
-  const clientToSVG = useCallback((clientX: number, clientY: number): { x: number; y: number } | null => {
-    const svg = svgRef.current;
-    if (!svg) return null;
-    const ctm = svg.getScreenCTM();
-    if (!ctm) return null;
-    const pt = svg.createSVGPoint();
-    pt.x = clientX;
-    pt.y = clientY;
-    const svgPt = pt.matrixTransform(ctm.inverse());
-    return {
-      x: Math.max(0, Math.min(imageWidth, svgPt.x)),
-      y: Math.max(0, Math.min(imageHeight, svgPt.y)),
-    };
-  }, [imageWidth, imageHeight]);
-
-  // ─────────────────────────────────────────────────────────────────────────
-  // GETPOINT — résolveur temps réel
-  // Retourne activeDragPos pour le point draggé (pour lignes, dents, wedges)
-  // ─────────────────────────────────────────────────────────────────────────
-
-  const getPoint = useCallback((pts: Landmark[], id: string): Landmark | undefined => {
-    const pt = pts.find(l => l.id === id || l.id.toLowerCase() === id.toLowerCase());
-    const adp = activeDragPos;
-    if (pts === landmarks && pt && adp?.id === pt.id) {
-      return { ...pt, x: adp.x, y: adp.y };
-    }
-    return pt;
-  }, [landmarks, activeDragPos]);
-
-  // ─────────────────────────────────────────────────────────────────────────
   // HOVER METRIC
   // ─────────────────────────────────────────────────────────────────────────
 
@@ -306,23 +262,6 @@ export const CephaloTracingLayer: React.FC<CephaloTracingLayerProps> = ({
   const isLineHovered = (lineId: string) =>
     isHoverActive &&
     hoveredMetric!.lines.map(l => l.toLowerCase()).includes(lineId.toLowerCase());
-
-  // ─────────────────────────────────────────────────────────────────────────
-  // CLICK HANDLER (calibration / empty area)
-  // ─────────────────────────────────────────────────────────────────────────
-
-  const handleSvgClick = useCallback((e: React.MouseEvent<SVGSVGElement>) => {
-    if (activeDragId) return; // fin d'un drag → ignorer le click synthétique
-    const coords = clientToSVG(e.clientX, e.clientY);
-    if (!coords) return;
-    if (isCalibrating && onAddCalibrationPoint) {
-      onAddCalibrationPoint(coords);
-      return;
-    }
-    if (e.target === e.currentTarget && onEmptyAreaClick) {
-      onEmptyAreaClick(coords);
-    }
-  }, [clientToSVG, activeDragId, isCalibrating, onAddCalibrationPoint, onEmptyAreaClick]);
 
   // ─────────────────────────────────────────────────────────────────────────
   // LOUPE — positionnement adaptatif (évite les bords)
