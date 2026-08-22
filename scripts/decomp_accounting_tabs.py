@@ -56,7 +56,7 @@ updated = updated.replace(
     IMPORT_ANCHOR + "import { AccountingTabs } from '../features/accounting/components/AccountingTabs';\n",
     1,
 )
-updated = updated.replace("  Calculator,\n", "", 1)
+# AlertCircle is tabs-only; Calculator is still used by the History "Bilan des Actes" section.
 updated = updated.replace("  AlertCircle,\n", "", 1)
 PAGE.write_text(updated, encoding="utf-8")
 
