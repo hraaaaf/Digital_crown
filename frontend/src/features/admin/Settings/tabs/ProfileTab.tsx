@@ -28,7 +28,7 @@ import { cn } from '../../../../utils/cn';
 import { API_BASE } from '../../../../services/api';
 import { useAuthStore } from '../../../../stores/useAuthStore';
 
-const DebouncedInput = ({ name, value, onChange, className, placeholder, onFocus, type = "text" }: any) => {
+const DebouncedInput = ({ name, value, onChange, className, placeholder, onFocus, type = "text", disabled = false }: any) => {
   const [localVal, setLocalVal] = React.useState(value);
   React.useEffect(() => { setLocalVal(value); }, [value]);
   return (
@@ -43,6 +43,7 @@ const DebouncedInput = ({ name, value, onChange, className, placeholder, onFocus
       className={className}
       placeholder={placeholder}
       onFocus={onFocus}
+      disabled={disabled}
     />
   );
 };
@@ -59,6 +60,7 @@ export const ProfileTab: React.FC = () => {
     deleteLogo
   } = useSettingsStore();
   const user = useAuthStore((state) => state.user);
+  const canEditPractitionerIdentity = Boolean(user?.is_superadmin || !user?.employer_id);
 
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -189,6 +191,11 @@ export const ProfileTab: React.FC = () => {
         icon={<UserCircle size={32} />}
       >
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+          <div className="md:col-span-2 rounded-2xl border border-blue-100 bg-blue-50/60 p-4">
+            <p className="text-[10px] font-black uppercase tracking-widest text-blue-700">Structure d’exercice · Source cabinet</p>
+            <p className="mt-1 text-xs font-medium text-blue-800/80">Nom, type, adresse et identifiants de l’établissement appartiennent au cabinet.</p>
+          </div>
+
           <div className="md:col-span-2">
             <label className={labelClass}>Type de Structure</label>
             <div className="flex gap-4 mt-2 mb-6">
@@ -225,14 +232,24 @@ export const ProfileTab: React.FC = () => {
               placeholder="Ex: Cabinet Dentaire Benmoussa"
             />
           </div>
+
+          <div className="md:col-span-2 rounded-2xl border border-primary/15 bg-primary/5 p-4">
+            <p className="text-[10px] font-black uppercase tracking-widest text-primary">Praticien principal · Source compte praticien</p>
+            <p className="mt-1 text-xs font-medium text-slate-600">
+              Nom et INPE professionnel suivent le compte du praticien, jamais une copie dans le cabinet.
+              {!canEditPractitionerIdentity && ' Modification réservée au praticien principal.'}
+            </p>
+          </div>
+
           <div>
             <label className={labelClass}>Nom du Docteur (Français)</label>
             <DebouncedInput
               name="nom"
               value={profile.nom}
               onChange={handleProfileChange}
-              className={inputClass}
+              className={cn(inputClass, !canEditPractitionerIdentity && 'opacity-60 cursor-not-allowed')}
               placeholder="Ex: Benmoussa Achraf"
+              disabled={!canEditPractitionerIdentity}
             />
             <p className="text-[9px] text-slate-400 mt-2 font-medium italic">Le titre "Dr." sera ajouté automatiquement sur les documents.</p>
           </div>
@@ -243,11 +260,12 @@ export const ProfileTab: React.FC = () => {
                 name="nom_praticien_ar"
                 value={profile.nom_praticien_ar}
                 onChange={handleProfileChange}
-                className={inputClass + " text-right font-amiri text-lg"}
+                className={cn(inputClass, "text-right font-amiri text-lg", !canEditPractitionerIdentity && 'opacity-60 cursor-not-allowed')}
                 placeholder="مثال: بنموسى أشرف"
                 onFocus={() => setShowArKeyboard({type: 'name'})}
+                disabled={!canEditPractitionerIdentity}
               />
-              {showArKeyboard?.type === 'name' && (
+              {showArKeyboard?.type === 'name' && canEditPractitionerIdentity && (
                 <div className="absolute top-full right-0 mt-2 z-50">
                   <div className="fixed inset-0" onClick={() => setShowArKeyboard(null)} />
                   <ArabicKeyboard onInput={(char) => {
@@ -263,6 +281,20 @@ export const ProfileTab: React.FC = () => {
               )}
             </div>
             <p className="text-[9px] text-slate-400 mt-2 font-medium italic text-right">سيتم إضافة لقب ".د" تلقائياً.</p>
+          </div>
+
+          <div className="md:col-span-2">
+            <label className={labelClass}>INPE professionnel</label>
+            <input
+              type="text"
+              name="inpe"
+              value={profile.inpe}
+              onChange={handleProfileChange}
+              disabled={!canEditPractitionerIdentity}
+              className={cn(inputClass, !canEditPractitionerIdentity && 'opacity-60 cursor-not-allowed')}
+              placeholder="INPE du praticien"
+            />
+            <p className="text-[9px] text-slate-400 mt-2 font-medium italic">Attaché au compte du praticien principal.</p>
           </div>
 
           <div className="md:col-span-2 bg-primary/5 p-4 rounded-2xl border border-primary/10 flex items-center gap-4">
@@ -401,16 +433,23 @@ export const ProfileTab: React.FC = () => {
             </div>
           </div>
 
-          <div>
-            <label className={labelClass}>Numéro INPE</label>
-            <input type="text" name="inpe" value={profile.inpe} onChange={handleProfileChange} className={inputClass} />
-          </div>
-          <div>
-            <label className={labelClass}>ICE / IF</label>
-            <div className="grid grid-cols-2 gap-4">
-              <input type="text" name="ice" value={profile.ice || ''} onChange={handleProfileChange} className={inputClass} placeholder="ICE" />
-              <input type="text" name="if" value={profile.if || ''} onChange={handleProfileChange} className={inputClass} placeholder="IF" />
+          <div className="md:col-span-2 rounded-2xl border border-slate-100 bg-slate-50/70 p-5">
+            <p className="text-[10px] font-black uppercase tracking-widest text-slate-600">Identifiants établissement · Source cabinet</p>
+            <div className="mt-4 grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div>
+                <label className={labelClass}>INPE établissement</label>
+                <input type="text" name="inpe_etablissement" value={profile.inpe_etablissement || ''} onChange={handleProfileChange} className={inputClass} placeholder="INPE établissement" />
+              </div>
+              <div>
+                <label className={labelClass}>ICE</label>
+                <input type="text" name="ice" value={profile.ice || ''} onChange={handleProfileChange} className={inputClass} placeholder="ICE" />
+              </div>
+              <div>
+                <label className={labelClass}>IF</label>
+                <input type="text" name="if" value={profile.if || ''} onChange={handleProfileChange} className={inputClass} placeholder="IF" />
+              </div>
             </div>
+            <p className="mt-3 text-[9px] font-medium italic text-slate-400">L’ancien INPE ambigu n’est jamais reclassé automatiquement.</p>
           </div>
         </div>
       </SettingsSection>

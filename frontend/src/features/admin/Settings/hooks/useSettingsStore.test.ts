@@ -60,6 +60,25 @@ describe('useSettingsStore saveProfile truth contract', () => {
     expect(state.isDirty).toBe(false);
   });
 
+  it('sends practitioner and establishment INPE in the same backend write', async () => {
+    putMock.mockResolvedValueOnce({ data: {} } as any);
+    useSettingsStore.getState().updateProfile({
+      inpe: 'PRO-42',
+      inpe_etablissement: 'EST-42',
+    });
+
+    await useSettingsStore.getState().saveProfile();
+
+    expect(putMock).toHaveBeenCalledTimes(1);
+    expect(putMock).toHaveBeenCalledWith(
+      '/clinics/me',
+      expect.objectContaining({
+        inpe: 'PRO-42',
+        inpe_etablissement: 'EST-42',
+      }),
+    );
+  });
+
   it('keeps runtime preferences staged until backend persistence succeeds', async () => {
     localStorage.setItem('performanceMode', 'false');
     putMock.mockResolvedValueOnce({ data: {} } as any);
