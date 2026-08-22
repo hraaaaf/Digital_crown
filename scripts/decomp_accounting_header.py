@@ -71,6 +71,8 @@ updated = updated.replace(
     IMPORT_ANCHOR + "import { AccountingHeader } from '../features/accounting/components/AccountingHeader';\n",
     1,
 )
+updated = updated.replace("  Receipt,\n", "", 1)
+updated = updated.replace("  FileSpreadsheet,\n", "", 1)
 PAGE.write_text(updated, encoding="utf-8")
 
 final = PAGE.read_text(encoding="utf-8")
