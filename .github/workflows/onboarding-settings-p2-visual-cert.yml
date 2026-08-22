@@ -4,6 +4,7 @@ on:
   pull_request:
     paths:
       - "frontend/src/features/admin/SetupWizard/**"
+      - "frontend/src/features/admin/components/CrownGuide.tsx"
       - "frontend/src/features/admin/types.ts"
       - "frontend/src/services/templateApi.ts"
       - "backend/routers/clinic_setup_p4.py"
@@ -144,8 +145,11 @@ jobs:
                   const compact = await page.getByText(`Étape ${step} / 7`, { exact: false }).isVisible();
                   if (!compact) throw new Error(`compact progress missing at ${width}px step ${step}`);
                 }
+                const guideVisible = await page.getByTestId('crown-guide').isVisible();
+                if (width < 1280 && guideVisible) throw new Error(`CrownGuide must not overlay onboarding at ${width}px step ${step}`);
+                if (width >= 1280 && !guideVisible) throw new Error(`CrownGuide should remain available on wide desktop at ${width}px step ${step}`);
                 await page.screenshot({ path: `${output}/step-${step}-${width}x1200.png`, fullPage: true, animations: 'disabled' });
-                health.push({ step, width, ...layout, errors });
+                health.push({ step, width, ...layout, guideVisible, errors });
                 await context.close();
               }
             }
@@ -201,7 +205,7 @@ jobs:
         run: |
           cat > onboarding-p2-artifacts/metadata.txt <<EOF
           head_sha=${HEAD_SHA}
-          goal=P2 onboarding mirrors canonical Settings truth with two-phase completion
+          goal=P2 onboarding mirrors canonical Settings truth with two-phase completion and non-overlapping guidance
           viewports=1440x1200,1024x1200,768x1200,430x1200,390x1200
           steps=1,2,3,4,5,6,7
           expected_screenshots=35
