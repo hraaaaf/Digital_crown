@@ -7,6 +7,8 @@ on:
       - 'backend/services/template_engine.py'
       - 'backend/services/document_factory.py'
       - 'backend/tests/test_template_engine.py'
+      - 'backend/tests/test_services_unit*.py'
+      - 'backend/tests/test_settings_branding_preview_files.py'
       - 'backend/routers/documents.py'
       - 'backend/routers/templates.py'
       - 'backend/models.py'
@@ -46,33 +48,41 @@ jobs:
           seed = Path('backend/seed_templates.py')
           main = Path('backend/main.py')
 
-          assert not Path('backend/services/template_engine.py').exists(), 'template_engine.py doit être supprimé'
-          assert not Path('backend/tests/test_template_engine.py').exists(), 'test_template_engine.py doit être supprimé avec le module isolé'
+          errors = []
+          if Path('backend/services/template_engine.py').exists():
+              errors.append('template_engine.py doit être supprimé')
+          if Path('backend/tests/test_template_engine.py').exists():
+              errors.append('test_template_engine.py doit être supprimé avec le module isolé')
 
           factory_text = document_factory.read_text(encoding='utf-8')
           for forbidden in ('TemplateEngine', 'template_engine', '_get_default_template'):
-              assert forbidden not in factory_text, f'référence résiduelle dans DocumentFactory: {forbidden}'
+              if forbidden in factory_text:
+                  errors.append(f'référence résiduelle dans DocumentFactory: {forbidden}')
 
-          assert 'OrdonnanceGenerator' in factory_text
-          assert 'CertificatGenerator' in factory_text
-          assert 'AccountingGenerator' in factory_text
-          assert 'LibreGenerator' in factory_text
-          assert 'BilanOrthoPDFGenerator' in factory_text
+          for required in (
+              'OrdonnanceGenerator', 'CertificatGenerator', 'AccountingGenerator',
+              'LibreGenerator', 'BilanOrthoPDFGenerator'
+          ):
+              if required not in factory_text:
+                  errors.append(f'générateur actif absent de DocumentFactory: {required}')
 
           documents_text = documents_router.read_text(encoding='utf-8')
-          assert 'DocumentFactory' in documents_text
-          assert 'create_ordonnance' in documents_text
-          assert 'create_certificat' in documents_text
-          assert 'create_devis' in documents_text
+          for required in ('DocumentFactory', 'create_ordonnance', 'create_certificat', 'create_devis'):
+              if required not in documents_text:
+                  errors.append(f'contrat documents absent: {required}')
 
           router_text = templates_router.read_text(encoding='utf-8')
           model_text = models.read_text(encoding='utf-8')
           seed_text = seed.read_text(encoding='utf-8')
           main_text = main.read_text(encoding='utf-8')
-          assert 'DocumentTemplate' in router_text
-          assert 'class DocumentTemplate' in model_text
-          assert 'models.DocumentTemplate' in seed_text
-          assert 'include_router(templates.router' in main_text
+          if 'DocumentTemplate' not in router_text:
+              errors.append('DocumentTemplate absent du router templates')
+          if 'class DocumentTemplate' not in model_text:
+              errors.append('DocumentTemplate model absent')
+          if 'models.DocumentTemplate' not in seed_text:
+              errors.append('DocumentTemplate seed absent')
+          if 'include_router(templates.router' not in main_text:
+              errors.append('router /api/templates non monté')
 
           forbidden_needles = (
               'TemplateEngine',
@@ -90,29 +100,34 @@ jobs:
                       if needle in line:
                           refs[needle].append(f'{path.as_posix()}:{lineno}:{line.strip()}')
           leftovers = {needle: lines for needle, lines in refs.items() if lines}
-          assert not leftovers, f'références legacy résiduelles: {leftovers}'
+          if leftovers:
+              errors.append(f'références legacy résiduelles: {leftovers}')
 
-          positive = {
+          evidence = {
               'document_factory': str(document_factory),
-              'documents_router_uses_factory': True,
-              'documenttemplate_model_preserved': True,
-              'documenttemplate_router_preserved': True,
-              'documenttemplate_seed_preserved': True,
-              'templates_router_mounted': True,
+              'documents_router_uses_factory': 'DocumentFactory' in documents_text,
+              'documenttemplate_model_preserved': 'class DocumentTemplate' in model_text,
+              'documenttemplate_router_preserved': 'DocumentTemplate' in router_text,
+              'documenttemplate_seed_preserved': 'models.DocumentTemplate' in seed_text,
+              'templates_router_mounted': 'include_router(templates.router' in main_text,
               'legacy_references': refs,
+              'errors': errors,
           }
           Path('artifacts/templateengine/reachability.json').write_text(
-              json.dumps(positive, indent=2, ensure_ascii=False), encoding='utf-8'
+              json.dumps(evidence, indent=2, ensure_ascii=False), encoding='utf-8'
           )
+          if errors:
+              raise AssertionError('\n'.join(errors))
           PY
 
       - name: Compile active document entrypoints
         run: python -m py_compile backend/services/document_factory.py backend/routers/documents.py backend/routers/templates.py backend/main.py
 
       - name: Record exact HEAD
+        if: always()
         run: |
           git rev-parse HEAD | tee artifacts/templateengine/head.txt
-          git diff --stat HEAD^ HEAD | tee artifacts/templateengine/diff-stat.txt
+          git diff --stat HEAD^ HEAD | tee artifacts/templateengine/diff-stat.txt || true
 
       - uses: actions/upload-artifact@v4
         if: always()
