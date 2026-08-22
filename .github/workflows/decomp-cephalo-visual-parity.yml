@@ -89,8 +89,8 @@ jobs:
                 imageWidth={imageWidth}
                 imageHeight={imageHeight}
                 onUpdateLandmarks={() => {}}
-                activePointId="A"
-                focusedPointId={pro ? 'U1_incisal' : null}
+                activePointId={pro ? null : 'A'}
+                focusedPointId={null}
                 visualDebug={{ normative_zones: [{ cx: 565, cy: 305, rx: 24, ry: 18, rotation: 12 }] }}
                 isCalibrating={calibration}
                 calibrationPoints={calibration ? [{ x: 350, y: 650 }, { x: 650, y: 650 }] : []}
@@ -192,6 +192,7 @@ jobs:
           PY
 
       - name: Upload BEFORE / AFTER evidence
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: decomp-p0b-cephalo-visual-parity
