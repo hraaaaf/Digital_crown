@@ -7,7 +7,10 @@ interface CrownGuideProps {
 
 export const CrownGuide: React.FC<CrownGuideProps> = React.memo(({ message }) => {
   return (
-    <div className="fixed bottom-8 right-8 z-[200] flex flex-col items-end gap-3 pointer-events-none">
+    <div
+      data-testid="crown-guide"
+      className="hidden xl:flex fixed bottom-8 right-8 z-[200] flex-col items-end gap-3 pointer-events-none"
+    >
       <div className="bg-white/80 backdrop-blur-xl border border-primary/20 p-4 rounded-3xl rounded-br-none shadow-2xl max-w-[280px] animate-in slide-in-from-bottom-4 duration-500 pointer-events-auto">
         <p className="text-[11px] font-bold text-slate-700 leading-relaxed">
           {message}

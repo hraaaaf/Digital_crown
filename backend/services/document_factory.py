@@ -10,10 +10,11 @@ from sqlalchemy.orm import Session
 from backend import models, schemas
 from backend.services.generators.ordonnance_gen import OrdonnanceGenerator
 from backend.services.generators.certificat_gen import CertificatGenerator
-from backend.services.generators.accounting_gen import AccountingGenerator
+from backend.services.generators.tenant_aware_accounting_gen import TenantAwareAccountingGenerator
 from backend.services.generators.libre_gen import LibreGenerator
 from backend.services.generators.bilan_ortho_gen import BilanOrthoPDFGenerator
 from backend.services.generators.installment_gen import generate_installment_plan
+from backend.services.archive_service import ArchiveService
 from backend.services.certificate_payload_policy import normalize_and_validate_certificate_data
 from backend.services.honoraires_contract import validate_honoraires_document_data
 
@@ -32,7 +33,7 @@ class DocumentFactory:
         # Générateurs PDF réellement utilisés par les routes produit.
         self.ord_gen = OrdonnanceGenerator(self.output_dir)
         self.cert_gen = CertificatGenerator(self.output_dir)
-        self.acc_gen = AccountingGenerator(self.output_dir)
+        self.acc_gen = TenantAwareAccountingGenerator(self.output_dir)
         self.libre_gen = LibreGenerator(self.output_dir)
         self.ceph_gen = BilanOrthoPDFGenerator(self.output_dir)
     
@@ -155,40 +156,52 @@ class DocumentFactory:
 
         En mode preview (`archive=False`), aucune archive BDD n'est créée.
         """
+        actor = db.query(models.User).filter(models.User.id == user_id).first()
+        if not actor:
+            raise ValueError("Utilisateur introuvable")
+
         plan = db.query(models.InstallmentPlan).filter(models.InstallmentPlan.id == plan_id).first()
         if not plan:
             raise ValueError("Plan introuvable")
-            
+
         patient = plan.patient
-        clinic = db.query(models.Clinic).filter(models.Clinic.employer_id == patient.employer_id).first()
-        if not clinic:
-            raise ValueError("Clinique non trouvée")
-            
-        filepath = generate_installment_plan(plan, patient, clinic, self.output_dir)
+        if not patient or patient.employer_id != actor.get_employer_id():
+            raise ValueError("Accès refusé: le plan n'appartient pas au cabinet de l'utilisateur")
+
+        config = self._get_cabinet_config(user_id, db)
+        filepath = generate_installment_plan(plan, patient, config, self.output_dir)
+        filename = os.path.basename(filepath)
 
         if not archive:
             return {
-                "url": f"/static/documents/{os.path.basename(filepath)}",
+                "url": f"/static/documents/{filename}",
                 "archive_id": None,
-                "filename": os.path.basename(filepath)
+                "filename": filename
             }
-        
-        # Archiver uniquement hors preview.
-        archive_obj = models.DocumentArchive(
+
+        # L'archive canonique exige le contenu et le vrai schéma DocumentArchive.
+        # L'échéancier n'a pas de DocumentType dédié : AUTRE + métadonnées explicites
+        # évite d'inventer une seconde taxonomie ou des colonnes fantômes.
+        with open(filepath, "rb") as handle:
+            file_content = handle.read()
+
+        archive_obj, _ = ArchiveService(db).archive_document(
             patient_id=patient.id,
-            clinic_id=clinic.id,
-            document_type="echeancier",
+            file_content=file_content,
+            filename=filename,
+            doc_type=models.DocumentType.AUTRE,
+            uploaded_by_id=user_id,
             title=f"Échéancier - {plan.title}",
-            file_path=filepath,
-            created_by=user_id,
-            data_snapshot={"plan_id": plan.id}
+            tags=["ECHEANCIER"],
+            clinical_data={"kind": "ECHEANCIER", "plan_id": plan.id},
+            is_accounted=False,
+            is_collected=False,
         )
-        db.add(archive_obj)
-        db.commit()
-        db.refresh(archive_obj)
-        
+
+        # Compatibilité API : le PDF généré reste accessible à son URL historique ;
+        # archive_id pointe vers la copie canonique versionnée.
         return {
-            "url": f"/static/documents/{os.path.basename(filepath)}",
+            "url": f"/static/documents/{filename}",
             "archive_id": archive_obj.id,
-            "filename": os.path.basename(filepath)
+            "filename": filename
         }

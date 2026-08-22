@@ -180,7 +180,6 @@ async def activate_trial_code(
         cabinet = models.CabinetConfig(
             owner_id=user.id,
             nom_cabinet=(payload.cabinet_name or trial_code.cabinet_name or payload.nom_complet).strip(),
-            nom_praticien=payload.nom_complet,
             header_lines_fr=[display_name],
             is_initialized=False,
             font_fr="Inter",
@@ -195,7 +194,6 @@ async def activate_trial_code(
         db.flush()
     else:
         cabinet.nom_cabinet = (payload.cabinet_name or trial_code.cabinet_name or cabinet.nom_cabinet or payload.nom_complet).strip()
-        cabinet.nom_praticien = payload.nom_complet
         cabinet.is_initialized = False
 
     trial_code.consumed_at = now

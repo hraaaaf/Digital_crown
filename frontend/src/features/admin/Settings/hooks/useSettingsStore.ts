@@ -44,6 +44,7 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
     adresse: '',
     telephone: '',
     inpe: '',
+    inpe_etablissement: '',
     margin_top: 3.6,
     margin_bottom: 3.2,
     watermark_enabled: true,
@@ -112,6 +113,7 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
           adresse: res.data.footer_address || res.data.adresse || '',
           telephone: res.data.footer_phones || res.data.telephone || '',
           inpe: res.data.inpe || '',
+          inpe_etablissement: res.data.inpe_etablissement || '',
           ice: res.data.ice || '',
           if: res.data.if_ || res.data.if || '',
           margin_top: res.data.margin_top ?? 3.6,
@@ -286,8 +288,9 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
     const contactString = parts.join(' | ');
 
     try {
+      const { logo_path: _logoPath, ...persistableProfile } = profile;
       const payload = {
-        ...profile,
+        ...persistableProfile,
         footer_phones: contactString,
         contacts_json: contacts
       };

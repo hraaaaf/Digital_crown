@@ -616,6 +616,9 @@ class CabinetConfig(Base):
     header_lines_fr: Mapped[List[str]] = mapped_column(JSON, default=list, nullable=False)
     header_lines_ar: Mapped[List[str]] = mapped_column(JSON, default=list, nullable=False)
     specialty_ids: Mapped[List[str]] = mapped_column(JSON, default=list, nullable=False)
+    custom_specialty_fr: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    custom_specialty_ar: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    header_customized: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     
     # Pied de page
     footer_address: Mapped[str] = mapped_column(Text, nullable=False, default="")
@@ -630,7 +633,7 @@ class CabinetConfig(Base):
     primary_color: Mapped[str] = mapped_column(String(7), default="#003380", nullable=False)
     secondary_color: Mapped[str] = mapped_column(String(7), default="#1e40af", nullable=False)
     accent_color: Mapped[str] = mapped_column(String(7), default="#60a5fa", nullable=False)
-    font_fr: Mapped[str] = mapped_column(String(50), default="Helvetica")
+    font_fr: Mapped[str] = mapped_column(String(50), default="inter")
     font_ar: Mapped[str] = mapped_column(String(50), default="Amiri")
     
     # Options watermark
@@ -645,7 +648,7 @@ class CabinetConfig(Base):
     is_initialized: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     selected_theme: Mapped[str] = mapped_column(String(20), default="elite", nullable=False)
     app_accent_color: Mapped[Optional[str]] = mapped_column(String(7), nullable=True, default=None)
-    selected_template: Mapped[str] = mapped_column(String(20), default="classic", nullable=False)
+    selected_template: Mapped[str] = mapped_column(String(20), default="swiss", nullable=False)
     cabinet_type: Mapped[CabinetType] = mapped_column(SQLEnum(CabinetType), default=CabinetType.PRIVE, nullable=False)
     header_scale: Mapped[float] = mapped_column(Float, default=1.0, nullable=False)
     header_font_scale: Mapped[float] = mapped_column(Float, default=1.0, nullable=False)

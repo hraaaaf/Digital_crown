@@ -1,0 +1,109 @@
+name: Onboarding Settings P0 Certification
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/onboarding-settings-p0-cert.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  contract:
+    name: P0 regression truth
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install minimal schema runtime
+        run: pip install "pydantic==2.6.3"
+      - name: Prove current onboarding/settings contracts
+        run: |
+          python - <<'PY'
+          import ast
+          import importlib.util
+          import pathlib
+          import sys
+          import types
+          from pydantic import ValidationError
+
+          root = pathlib.Path.cwd()
+          schemas_dir = root / "backend" / "schemas"
+          backend_pkg = types.ModuleType("backend")
+          backend_pkg.__path__ = [str(root / "backend")]
+          schemas_pkg = types.ModuleType("backend.schemas")
+          schemas_pkg.__path__ = [str(schemas_dir)]
+          sys.modules["backend"] = backend_pkg
+          sys.modules["backend.schemas"] = schemas_pkg
+
+          def load(name, path):
+              spec = importlib.util.spec_from_file_location(name, path)
+              module = importlib.util.module_from_spec(spec)
+              sys.modules[name] = module
+              spec.loader.exec_module(module)
+              return module
+
+          load("backend.schemas.base", schemas_dir / "base.py")
+          cabinet = load("backend.schemas.cabinet", schemas_dir / "cabinet.py")
+
+          create_by_name = cabinet.CabinetConfigCreate(nom_cabinet="P4", **{"if_": "12345678"})
+          assert create_by_name.if_ == "12345678"
+          assert "if_" in create_by_name.model_fields_set
+          assert create_by_name.model_dump(exclude_unset=True)["if_"] == "12345678"
+          assert cabinet.CabinetConfigCreate().selected_template == "swiss"
+          assert cabinet.CabinetConfigCreate().font_fr == "inter"
+          assert cabinet.CabinetConfigUpdate(custom_specialty_fr="Implantologie").custom_specialty_fr == "Implantologie"
+          try:
+              cabinet.CabinetConfigUpdate(logo_path="forbidden")
+          except ValidationError as exc:
+              assert any(err.get("type") == "extra_forbidden" for err in exc.errors())
+          else:
+              raise AssertionError("logo_path must stay upload-endpoint-only")
+
+          clinics_text = (root / "backend" / "routers" / "clinics.py").read_text(encoding="utf-8")
+          tree = ast.parse(clinics_text)
+          funcs = {node.name: node for node in tree.body if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))}
+          seg = lambda name: ast.get_source_segment(clinics_text, funcs[name]) or ""
+          create_src = seg("create_clinic")
+          update_src = seg("update_my_clinic")
+          get_src = seg("get_my_clinic")
+          logo_src = seg("upload_clinic_logo")
+          letter_src = seg("upload_clinic_letterhead")
+          assert "_require_setup_owner" in create_src
+          assert "db.query(models.User)" not in create_src
+          assert 'require_permission("settings")' in update_src
+          assert 'require_permission("settings")' in logo_src
+          assert 'require_permission("settings")' in letter_src
+          assert "models.CabinetConfig(" not in get_src
+          assert "db.commit()" not in get_src
+
+          store = (root / "frontend" / "src" / "features" / "admin" / "Settings" / "hooks" / "useSettingsStore.ts").read_text(encoding="utf-8")
+          assert "logo_path: _logoPath" in store
+          api_text = (root / "frontend" / "src" / "services" / "api.ts").read_text(encoding="utf-8")
+          assert "_offline: true" not in api_text
+          assert "offline-write-blocked" in api_text
+
+          # P2/P4 resolved invariants. A regression gate must assert the fixed truth,
+          # never require historical defects to remain in the product.
+          auth_schema = (root / "backend" / "schemas" / "auth.py").read_text(encoding="utf-8")
+          register_page = (root / "frontend" / "src" / "pages" / "RegisterPage.tsx").read_text(encoding="utf-8")
+          trial_page = (root / "frontend" / "src" / "pages" / "ActivateTrialPage.tsx").read_text(encoding="utf-8")
+          public_route = (root / "backend" / "routers" / "public.py").read_text(encoding="utf-8")
+          setup_store = (root / "frontend" / "src" / "features" / "admin" / "SetupWizard" / "store" / "useSetupStore.ts").read_text(encoding="utf-8")
+
+          assert "PASSWORD_MIN_LENGTH = 8" in auth_schema
+          assert "minLength={8}" in register_page
+          assert "minLength={8}" in trial_page
+          assert "Votre cabinet a bien été pré-enregistré" not in register_page
+          assert "brouillon de structure" in trial_page
+          assert "nom_praticien=payload.nom_complet" not in public_route
+          assert "cabinet.nom_praticien = payload.nom_complet" not in public_route
+          assert "localStorage.setItem('digitalcrown_theme', selectedTheme)" not in setup_store
+
+          # P6 consumer truth is certified by its own behavioral tests. P0 must not
+          # encode P6 debt-presence assertions such as models.Clinic or raw user_id ownership.
+          print("P0 regression contract: PASS")
+          PY

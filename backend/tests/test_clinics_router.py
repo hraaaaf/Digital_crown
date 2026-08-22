@@ -1,8 +1,25 @@
-"""Tests routers/clinics.py — init-status, get/update clinic config."""
+"""Tests routers/clinics.py — init-status, create/get/update clinic config."""
 import pytest
 
 
 BASE = "/api/clinics"
+
+
+@pytest.fixture()
+def configured_cabinet(db, dentiste):
+    from backend import models
+    config = db.query(models.CabinetConfig).filter(models.CabinetConfig.owner_id == dentiste.id).first()
+    if not config:
+        config = models.CabinetConfig(
+            owner_id=dentiste.id,
+            nom_cabinet="Cabinet Test",
+            nom_praticien="Dr. Test",
+            is_initialized=True,
+        )
+        db.add(config)
+        db.commit()
+        db.refresh(config)
+    return config
 
 
 class TestInitStatus:
@@ -20,18 +37,13 @@ class TestInitStatus:
 
     def test_init_status_prefers_authenticated_user_cabinet_flag(self, client, db, auth_headers, dentiste):
         from backend import models
-
-        config = db.query(models.CabinetConfig).filter(models.CabinetConfig.owner_id == dentiste.id).first()
-        if not config:
-            config = models.CabinetConfig(
-                owner_id=dentiste.id,
-                nom_cabinet="Cabinet Test",
-                nom_praticien="Dr Test",
-                is_initialized=False,
-            )
-            db.add(config)
-        else:
-            config.is_initialized = False
+        config = models.CabinetConfig(
+            owner_id=dentiste.id,
+            nom_cabinet="Cabinet Test",
+            nom_praticien="Dr Test",
+            is_initialized=False,
+        )
+        db.add(config)
         db.commit()
 
         r = client.get(f"{BASE}/init-status", headers=auth_headers)
@@ -41,23 +53,47 @@ class TestInitStatus:
         assert body["needs_setup"] is True
 
 
+class TestCreateClinic:
+    def test_create_requires_auth(self, client):
+        r = client.post(f"{BASE}/", json={"nom_cabinet": "Cabinet A"})
+        assert r.status_code == 401
+
+    def test_create_binds_exact_authenticated_owner(self, client, db, auth_headers, dentiste):
+        from backend import models
+        r = client.post(
+            f"{BASE}/",
+            json={"nom_cabinet": "Cabinet Owner", "if_": "12345678"},
+            headers=auth_headers,
+        )
+        assert r.status_code == 200, r.text
+        config = db.query(models.CabinetConfig).filter(models.CabinetConfig.owner_id == dentiste.id).one()
+        assert config.nom_cabinet == "Cabinet Owner"
+        assert config.if_ == "12345678"
+        assert config.is_initialized is False
+
+
 class TestGetMyClinic:
     def test_get_requires_auth(self, client):
         r = client.get(f"{BASE}/me")
         assert r.status_code == 401
 
-    def test_get_returns_config(self, client, auth_headers):
+    def test_get_returns_existing_config(self, client, auth_headers, configured_cabinet):
         r = client.get(f"{BASE}/me", headers=auth_headers)
         assert r.status_code == 200
         body = r.json()
-        assert "nom_cabinet" in body or "primary_color" in body
+        assert body["nom_cabinet"] == configured_cabinet.nom_cabinet
 
-    def test_get_creates_config_if_missing(self, client, auth_headers):
+    def test_get_missing_is_404_and_does_not_create(self, client, db, auth_headers, dentiste):
+        from backend import models
+        assert db.query(models.CabinetConfig).filter(models.CabinetConfig.owner_id == dentiste.id).first() is None
         r = client.get(f"{BASE}/me", headers=auth_headers)
-        assert r.status_code == 200
+        assert r.status_code == 404
+        assert db.query(models.CabinetConfig).filter(models.CabinetConfig.owner_id == dentiste.id).first() is None
 
 
 class TestUpdateMyClinic:
+    pytestmark = pytest.mark.usefixtures("configured_cabinet")
+
     def test_update_requires_auth(self, client):
         r = client.put(f"{BASE}/me", json={"primary_color": "#FF0000"})
         assert r.status_code == 401
@@ -69,6 +105,17 @@ class TestUpdateMyClinic:
     def test_update_nom(self, client, auth_headers):
         r = client.put(f"{BASE}/me", json={"nom": "Dr. Test Cabinet"}, headers=auth_headers)
         assert r.status_code == 200
+
+    def test_update_custom_specialty_round_trip(self, client, auth_headers):
+        r = client.put(
+            f"{BASE}/me",
+            json={"custom_specialty_fr": "Implantologie", "custom_specialty_ar": "زراعة الأسنان"},
+            headers=auth_headers,
+        )
+        assert r.status_code == 200, r.text
+        body = client.get(f"{BASE}/me", headers=auth_headers).json()
+        assert body["custom_specialty_fr"] == "Implantologie"
+        assert body["custom_specialty_ar"] == "زراعة الأسنان"
 
     def test_update_footer_phones(self, client, auth_headers):
         r = client.put(
@@ -127,6 +174,8 @@ class TestLogoUpload:
 
 
 class TestLetterheadUpload:
+    pytestmark = pytest.mark.usefixtures("configured_cabinet")
+
     def _png_bytes(self, width=200, height=300, color=(10, 40, 120)):
         """Vraie image PNG en mémoire (Pillow est une dépendance du projet)."""
         import io
@@ -158,7 +207,6 @@ class TestLetterheadUpload:
 
     def test_upload_png_succeeds_and_activates_letterhead(self, client, auth_headers):
         import io
-        client.get(f"{BASE}/me", headers=auth_headers)
         r = client.post(
             f"{BASE}/me/letterhead",
             files={"file": ("model.png", io.BytesIO(self._png_bytes()), "image/png")},
@@ -170,10 +218,7 @@ class TestLetterheadUpload:
         assert body["letterhead_url"].endswith(".png")
 
     def test_upload_pdf_is_converted_to_real_png(self, client, auth_headers):
-        """Le bug historique stockait les octets PDF bruts renommés .png.
-        Désormais le fichier stocké doit être un vrai PNG (signature magique)."""
         import io, os
-        client.get(f"{BASE}/me", headers=auth_headers)
         r = client.post(
             f"{BASE}/me/letterhead",
             files={"file": ("model.pdf", io.BytesIO(self._pdf_bytes()), "application/pdf")},
@@ -189,11 +234,8 @@ class TestLetterheadUpload:
         assert not magic.startswith(b"%PDF")
 
     def test_strip_body_blanks_the_middle_band(self, client, auth_headers):
-        """strip_body=true : la bande centrale devient blanche, l'en-tête (bande
-        haute) garde sa couleur d'origine."""
         import io, os
         from PIL import Image
-        client.get(f"{BASE}/me", headers=auth_headers)
         colored = self._png_bytes(width=100, height=200, color=(200, 30, 30))
         r = client.post(
             f"{BASE}/me/letterhead",
@@ -213,7 +255,6 @@ class TestLetterheadUpload:
 
     def test_corrupt_pdf_returns_400_not_500(self, client, auth_headers):
         import io
-        client.get(f"{BASE}/me", headers=auth_headers)
         r = client.post(
             f"{BASE}/me/letterhead",
             files={"file": ("bad.pdf", io.BytesIO(b"not a real pdf"), "application/pdf")},
@@ -222,10 +263,7 @@ class TestLetterheadUpload:
         assert r.status_code == 400
 
     def test_delete_letterhead_via_put_me(self, client, auth_headers):
-        """La suppression passe par PUT /me (letterhead_path=null) — vérifie que le
-        backend l'accepte bien, c'est ce que le nouveau bouton frontend appellera."""
         import io
-        client.get(f"{BASE}/me", headers=auth_headers)
         up = client.post(
             f"{BASE}/me/letterhead",
             files={"file": ("model.png", io.BytesIO(self._png_bytes()), "image/png")},

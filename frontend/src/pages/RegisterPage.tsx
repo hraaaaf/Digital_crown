@@ -78,8 +78,8 @@ export const RegisterPage: React.FC = () => {
               </div>
               <h2 className="text-lg font-black text-slate-800 mb-2">Demande Envoyée</h2>
               <p className="text-sm font-bold text-slate-500 mb-6">
-                Votre cabinet a bien été pré-enregistré.<br/><br/>
-                Votre compte est actuellement <strong>en attente de validation</strong> par notre équipe (SuperAdmin). Vous recevrez un accès dès sa vérification.
+                Votre compte a bien été enregistré.<br/><br/>
+                Il est actuellement <strong>en attente de validation</strong> par notre équipe (SuperAdmin). Après activation, connectez-vous pour configurer votre cabinet dans l'onboarding.
               </p>
               <Link to="/login" className="px-6 py-3 bg-slate-900 text-white font-bold rounded-xl shadow-md hover:bg-slate-800 transition-colors">
                 Retour à l'accueil
@@ -126,8 +126,8 @@ export const RegisterPage: React.FC = () => {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   className="w-full pl-12 pr-4 py-3 bg-slate-50/50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all font-medium text-slate-900"
-                  placeholder="4 caractères minimum"
-                  minLength={4}
+                  placeholder="8 caractères minimum"
+                  minLength={8}
                   required
                 />
               </div>

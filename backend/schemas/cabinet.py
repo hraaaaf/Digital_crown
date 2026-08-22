@@ -100,6 +100,9 @@ class CabinetConfigBase(BaseModel):
     header_lines_fr: List[str] = Field(default_factory=list, max_length=6)
     header_lines_ar: List[str] = Field(default_factory=list, max_length=6)
     specialty_ids: List[str] = Field(default_factory=list)
+    custom_specialty_fr: Optional[str] = Field(default=None, max_length=255)
+    custom_specialty_ar: Optional[str] = Field(default=None, max_length=255)
+    header_customized: bool = Field(default=False)
     footer_address: Optional[str] = Field(default="", max_length=500)
     footer_phones: Optional[str] = Field(default="", max_length=255)
     adresse: Optional[str] = Field(default="", max_length=500, alias="adresse")
@@ -108,18 +111,19 @@ class CabinetConfigBase(BaseModel):
     ice: Optional[str] = Field(default="", max_length=50)
     if_: Optional[str] = Field(default="", max_length=50, alias="if")
     inpe: Optional[str] = Field(default="", max_length=50)
+    inpe_etablissement: Optional[str] = Field(default=None, max_length=50)
     letterhead_path: Optional[str] = None
     use_letterhead: Optional[bool] = None
     primary_color: str = Field(default="#003380", pattern=r"^#[0-9A-Fa-f]{6}$")
     secondary_color: str = Field(default="#1e40af", pattern=r"^#[0-9A-Fa-f]{6}$")
     accent_color: str = Field(default="#60a5fa", pattern=r"^#[0-9A-Fa-f]{6}$")
-    font_fr: str = Field(default="Helvetica", max_length=50)
+    font_fr: str = Field(default="inter", max_length=50)
     font_ar: str = Field(default="Amiri", max_length=50)
     watermark_enabled: bool = Field(default=True)
     watermark_opacity: float = Field(default=0.10, ge=0.0, le=1.0)
     selected_theme: str = Field(default="elite", max_length=20)
     app_accent_color: Optional[str] = Field(default=None, pattern=r"^(?:#[0-9A-Fa-f]{6})?$")
-    selected_template: str = Field(default="classic", max_length=20)
+    selected_template: str = Field(default="swiss", max_length=20)
     margin_top: float = Field(default=3.6, ge=0.0, le=15.0)
     margin_bottom: float = Field(default=3.2, ge=0.0, le=15.0)
     header_scale: float = Field(default=1.0, ge=0.5, le=2.0)
@@ -151,7 +155,7 @@ class CabinetConfigBase(BaseModel):
 
 
 class CabinetConfigCreate(CabinetConfigBase):
-    pass
+    model_config = ConfigDict(extra="forbid", populate_by_name=True)
 
 
 class CabinetConfigUpdate(CabinetConfigBase):

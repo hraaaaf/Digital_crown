@@ -1,11 +1,10 @@
 import React from 'react';
-import { Sun, Moon, Sparkles, HeartPulse, CheckCircle2 } from 'lucide-react';
+import { Sun, Moon, Sparkles, HeartPulse, CheckCircle2, Info } from 'lucide-react';
 import { cn } from '../../../../utils/cn';
-import toast from 'react-hot-toast';
 
 interface Props {
   selectedTheme: 'elite' | 'emerald' | 'rose' | 'prestige';
-  setSelectedThemeAndPersist: (v: 'elite' | 'emerald' | 'rose' | 'prestige') => void;
+  setSelectedTheme: (v: 'elite' | 'emerald' | 'rose' | 'prestige') => void;
 }
 
 const THEMES = [
@@ -15,52 +14,44 @@ const THEMES = [
   { id: 'prestige' as const, label: 'Nuit Intense', class: 'bg-card border-border-main text-text-main', desc: 'Luxe', icon: Moon, iconColor: 'text-primary' },
 ] as const;
 
-export const Step6Theme: React.FC<Props> = ({ selectedTheme, setSelectedThemeAndPersist }) => (
+export const Step6Theme: React.FC<Props> = ({ selectedTheme, setSelectedTheme }) => (
   <div className="space-y-6 animate-in fade-in duration-300">
     <div className="text-center mb-8">
-      <h2 className="text-2xl font-black text-text-main">Atmosphère Élite</h2>
-      <p className="text-sm text-text-muted">Choisissez l'univers visuel qui vous ressemble.</p>
+      <h2 className="text-2xl font-black text-text-main">Design & Ambiance</h2>
+      <p className="text-sm text-text-muted">Prévisualisez le même thème que dans Réglages.</p>
     </div>
 
-    <div className="grid grid-cols-2 gap-4">
+    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
       {THEMES.map((t) => (
         <button
+          type="button"
           key={t.id}
-          onClick={() => setSelectedThemeAndPersist(t.id)}
+          onClick={() => setSelectedTheme(t.id)}
           className={cn(
-            "flex flex-col items-center gap-4 p-6 rounded-[2rem] border-2 transition-all group relative overflow-hidden",
+            "flex items-center sm:flex-col sm:items-center gap-4 p-5 sm:p-6 rounded-[2rem] border-2 transition-all group relative overflow-hidden text-left sm:text-center",
             t.class,
-            selectedTheme === t.id ? "ring-4 ring-primary/20 border-primary scale-[1.05] shadow-xl shadow-primary/10" : "opacity-60 grayscale hover:grayscale-0 hover:opacity-100"
+            selectedTheme === t.id ? "ring-4 ring-primary/20 border-primary shadow-xl shadow-primary/10" : "opacity-70 hover:opacity-100"
           )}
         >
-          <div className={cn("inline-flex w-16 h-16 rounded-[1.5rem] items-center justify-center transition-transform group-hover:rotate-12", t.id === 'prestige' ? 'bg-white/10' : 'bg-white shadow-inner')}>
-            <t.icon size={32} className={t.iconColor} />
+          <div className={cn("inline-flex w-14 h-14 shrink-0 rounded-[1.25rem] items-center justify-center transition-transform group-hover:rotate-6", t.id === 'prestige' ? 'bg-white/10' : 'bg-white shadow-inner')}>
+            <t.icon size={28} className={t.iconColor} />
           </div>
-          <div className="text-center">
+          <div>
             <span className="block text-[10px] font-black uppercase tracking-[0.2em] mb-1">{t.label}</span>
             <span className="text-[9px] opacity-60 font-medium">{t.desc}</span>
           </div>
           {selectedTheme === t.id && (
-            <div className="absolute top-4 right-4 animate-bounce"><CheckCircle2 size={20} className="text-primary" /></div>
+            <div className="absolute top-4 right-4"><CheckCircle2 size={20} className="text-primary" /></div>
           )}
         </button>
       ))}
     </div>
 
-    <div className="mt-8 p-6 rounded-3xl bg-primary/5 border border-primary/10 space-y-4">
-      <div className="flex items-center gap-4">
-        <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary">
-          <Sparkles size={18} />
-        </div>
-        <div className="flex gap-2">
-          <button onClick={() => setSelectedThemeAndPersist('elite')} className="px-3 py-1.5 rounded-lg text-[10px] font-black hover:bg-slate-100 transition-colors">ANNULER</button>
-          <button
-            onClick={() => toast.success('Thème confirmé !')}
-            className="px-3 py-1.5 rounded-lg bg-primary text-white text-[10px] font-black shadow-lg shadow-primary/20"
-          >
-            CONFIRMER
-          </button>
-        </div>
+    <div className="mt-8 flex items-start gap-3 rounded-2xl border border-blue-100 bg-blue-50/60 p-4 text-blue-900">
+      <Info size={18} className="mt-0.5 shrink-0 text-blue-600" />
+      <div>
+        <p className="text-xs font-black">Aperçu uniquement</p>
+        <p className="mt-1 text-[11px] font-medium leading-relaxed text-blue-800/80">Le thème n’est enregistré localement qu’après la confirmation backend finale. Quitter ou échouer pendant l’installation ne modifie pas vos préférences persistantes.</p>
       </div>
     </div>
   </div>

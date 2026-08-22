@@ -35,7 +35,7 @@ def _build_factory(monkeypatch, tmp_path):
     _FakeGenerator.calls = []
     monkeypatch.setattr(document_factory_module, "OrdonnanceGenerator", _FakeGenerator)
     monkeypatch.setattr(document_factory_module, "CertificatGenerator", _NoopGenerator)
-    monkeypatch.setattr(document_factory_module, "AccountingGenerator", _NoopGenerator)
+    monkeypatch.setattr(document_factory_module, "TenantAwareAccountingGenerator", _NoopGenerator)
     monkeypatch.setattr(document_factory_module, "LibreGenerator", _NoopGenerator)
     monkeypatch.setattr(document_factory_module, "BilanOrthoPDFGenerator", _NoopGenerator)
     return document_factory_module.DocumentFactory(

@@ -6,6 +6,7 @@ export interface IdentityState {
   ice: string;
   if: string;
   inpe: string;
+  inpeEtablissement: string;
 }
 
 export type HeaderOption = 'auto' | 'letterhead';

@@ -15,7 +15,9 @@ export interface CabinetProfile {
   nom: string;
   adresse: string;
   telephone: string;
+  /** @deprecated Settings facade alias for User.inpe_professionnel. */
   inpe: string;
+  inpe_etablissement?: string;
   nom_cabinet?: string;
   letterhead_path?: string;
   use_letterhead?: boolean;

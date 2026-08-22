@@ -100,9 +100,8 @@ api.interceptors.response.use(
       if (!_authFailed) {
         const method = original?.method?.toLowerCase() || 'get';
         if (!navigator.onLine && ['post', 'put', 'patch', 'delete'].includes(method)) {
-          toast.success('📡 Mode hors-ligne : Action mise en file d\'attente. Elle sera synchronisée.', { id: 'offline-queue', duration: 4000 });
-          // Résoudre silencieusement pour éviter le crash UI (Background Sync s'en chargera)
-          return Promise.resolve({ data: { _offline: true }, status: 200, statusText: 'OK', headers: {}, config: original });
+          toast.error('Mode hors-ligne : sauvegarde impossible sans confirmation serveur.', { id: 'offline-write-blocked', duration: 4000 });
+          return Promise.reject(error);
         } else {
           toast.error('Serveur injoignable', { id: 'network-error' });
         }

@@ -6,8 +6,7 @@ CABINET_PAYLOAD = {
     "nom_cabinet": "Cabinet Test",
     "adresse": "10 rue de la Paix, Alger",
     "telephone": "021000000",
-    "email": "cabinet@test.dz",
-    "specialite": "Dentiste généraliste",
+    "specialty_ids": ["generaliste"],
 }
 
 
@@ -23,8 +22,15 @@ class TestCabinetConfig:
 
     def test_create_cabinet(self, client, auth_headers):
         r = client.post("/api/clinics/", json=CABINET_PAYLOAD, headers=auth_headers)
-        # Should succeed or 409 if already exists
-        assert r.status_code in (200, 201, 409)
+        assert r.status_code in (200, 201, 400), r.text
+
+    def test_create_rejects_unknown_fields(self, client, auth_headers):
+        r = client.post(
+            "/api/clinics/",
+            json={**CABINET_PAYLOAD, "email": "cabinet@test.dz", "specialite": "Dentiste généraliste"},
+            headers=auth_headers,
+        )
+        assert r.status_code == 422
 
     def test_check_init_status(self, client, auth_headers):
         r = client.get("/api/clinics/init-status", headers=auth_headers)
@@ -33,8 +39,9 @@ class TestCabinetConfig:
         assert "is_initialized" in body
 
     def test_update_me(self, client, auth_headers):
-        # Ensure cabinet exists
-        client.post("/api/clinics/", json=CABINET_PAYLOAD, headers=auth_headers)
+        # Ensure cabinet exists.
+        created = client.post("/api/clinics/", json=CABINET_PAYLOAD, headers=auth_headers)
+        assert created.status_code in (200, 201, 400), created.text
         r = client.put(
             "/api/clinics/me",
             json={
@@ -44,7 +51,8 @@ class TestCabinetConfig:
             },
             headers=auth_headers,
         )
-        assert r.status_code in (200, 201, 404)
+        assert r.status_code == 200, r.text
+        assert r.json()["nom_cabinet"] == "Cabinet Mis à Jour"
 
     def test_init_status_requires_authentication(self, client):
         """init-status is tenant-scoped and requires authentication."""
@@ -63,30 +71,41 @@ class TestCabinetConfigIsolation:
                 email=email,
                 hashed_password=get_password_hash("Pass123!"),
                 role="DENTISTE",
+                nom_complet=f"Dr {suffix.upper()}",
                 is_active=True,
                 is_licensed=True,
             )
             db.add(u)
             db.commit()
-            return email
+            db.refresh(u)
+            return u
 
         a = _make("a")
         b = _make("b")
 
-        def _login(email):
-            r = client.post("/api/auth/login", data={"username": email, "password": "Pass123!"})
-            return {"Authorization": f"Bearer {r.json()['access_token']}"}
+        def _login(user):
+            r = client.post("/api/auth/login", data={"username": user.email, "password": "Pass123!"})
+            assert r.status_code == 200, r.text
+            headers = {"Authorization": f"Bearer {r.json()['access_token']}"}
+            # get_current_user is intentionally cookie-first. Clear the shared
+            # TestClient cookie so each captured bearer token represents an
+            # independent client/session instead of the last login winning.
+            client.cookies.clear()
+            return headers
 
         ha = _login(a)
         hb = _login(b)
 
-        client.post("/api/clinics/cabinet-config", json={**CABINET_PAYLOAD, "nom_cabinet": "Cabinet A"}, headers=ha)
-        client.post("/api/clinics/cabinet-config", json={**CABINET_PAYLOAD, "nom_cabinet": "Cabinet B"}, headers=hb)
+        ra_create = client.post("/api/clinics/", json={**CABINET_PAYLOAD, "nom_cabinet": "Cabinet A"}, headers=ha)
+        rb_create = client.post("/api/clinics/", json={**CABINET_PAYLOAD, "nom_cabinet": "Cabinet B"}, headers=hb)
+        assert ra_create.status_code in (200, 201), ra_create.text
+        assert rb_create.status_code in (200, 201), rb_create.text
 
-        ra = client.get("/api/clinics/cabinet-config", headers=ha)
-        rb = client.get("/api/clinics/cabinet-config", headers=hb)
-
-        # Each user gets their own cabinet
-        if ra.status_code == 200 and rb.status_code == 200:
-            assert ra.json().get("nom_cabinet") != rb.json().get("nom_cabinet") or \
-                   ra.json().get("nom_cabinet") in ("Cabinet A",) and rb.json().get("nom_cabinet") in ("Cabinet B",)
+        ra = client.get("/api/clinics/me", headers=ha)
+        rb = client.get("/api/clinics/me", headers=hb)
+        assert ra.status_code == 200
+        assert rb.status_code == 200
+        assert ra.json()["owner_id"] == a.id
+        assert rb.json()["owner_id"] == b.id
+        assert ra.json()["nom_cabinet"] == "Cabinet A"
+        assert rb.json()["nom_cabinet"] == "Cabinet B"
