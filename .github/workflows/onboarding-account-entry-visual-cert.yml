@@ -1,0 +1,199 @@
+name: Onboarding Account Entry Visual Certification
+
+on:
+  pull_request:
+    paths:
+      - "frontend/src/pages/RegisterPage.tsx"
+      - "frontend/src/pages/ActivateTrialPage.tsx"
+      - "backend/routers/public.py"
+      - "backend/tests/test_trial_activation_identity.py"
+      - "docs/mockups/onboarding-account-entry.html"
+      - ".github/workflows/onboarding-account-entry-visual-cert.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  visual:
+    name: Account Entry BEFORE AFTER
+    runs-on: ubuntu-latest
+    env:
+      HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+    steps:
+      - name: Checkout exact candidate with parent
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.HEAD_SHA }}
+          fetch-depth: 2
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install frontend and Chromium
+        working-directory: frontend
+        run: |
+          npm ci
+          npm install --no-save --package-lock=false playwright@1.55.0
+          npx playwright install --with-deps chromium
+
+      - name: Capture parent BEFORE and candidate AFTER
+        run: |
+          set -euo pipefail
+          HEAD="$HEAD_SHA"
+          BEFORE="$(git rev-parse "${HEAD}^")"
+          mkdir -p "$RUNNER_TEMP/account-entry-proof"
+
+          capture_ref() {
+            ref="$1"
+            label="$2"
+            git checkout --detach "$ref"
+            cd frontend
+
+            cat > account-entry-cert.html <<'EOF'
+          <!doctype html><html lang="fr"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/><title>Account Entry</title></head><body><div id="root"></div><script type="module" src="/src/account-entry-cert.tsx"></script></body></html>
+          EOF
+
+            cat > src/account-entry-cert.tsx <<'EOF'
+          import React from 'react';
+          import { createRoot } from 'react-dom/client';
+          import { MemoryRouter } from 'react-router-dom';
+          import './index.css';
+          import { RegisterPage } from './pages/RegisterPage';
+          import { ActivateTrialPage } from './pages/ActivateTrialPage';
+
+          const page = new URLSearchParams(window.location.search).get('page') || 'register';
+          createRoot(document.getElementById('root')!).render(
+            <MemoryRouter initialEntries={[page === 'trial' ? '/activate-trial' : '/register']}>
+              {page === 'trial' ? <ActivateTrialPage /> : <RegisterPage />}
+            </MemoryRouter>,
+          );
+          EOF
+
+            cat > account-entry-cert.mjs <<'EOF'
+          import { chromium } from 'playwright';
+          import { createServer } from 'vite';
+          import fs from 'node:fs/promises';
+
+          const label = process.env.PROOF_LABEL;
+          const output = process.env.PROOF_OUTPUT;
+          const server = await createServer({ server: { host: '127.0.0.1', port: 4191, strictPort: true }, clearScreen: false });
+          await server.listen();
+          const browser = await chromium.launch();
+          const results = [];
+          const reply = body => ({ status: 200, contentType: 'application/json', body: JSON.stringify(body) });
+
+          try {
+            for (const width of [1440, 390]) {
+              for (const pageName of ['register', 'trial']) {
+                const context = await browser.newContext({ viewport: { width, height: 1200 } });
+                const page = await context.newPage();
+                const errors = [];
+                page.on('pageerror', e => errors.push(`pageerror:${e.message}`));
+                page.on('console', m => { if (m.type() === 'error') errors.push(`console:${m.text()}`); });
+                await page.route('**/api/**', async route => {
+                  const url = new URL(route.request().url());
+                  if (url.pathname.endsWith('/auth/signup')) return route.fulfill(reply({ id: 1, email: 'entry@test.ma', role: 'DENTISTE', nom_complet: 'Dr Entry', is_active: false }));
+                  if (url.pathname.endsWith('/public/activate-trial')) return route.fulfill(reply({ status: 'success', message: "Essai activé avec succès. Connectez-vous pour finaliser l'installation.", email: 'trial@test.ma' }));
+                  if (url.pathname.includes('/public/trial-code/')) return route.fulfill(reply({ email: 'trial@test.ma', nom_complet: 'Dr Trial', cabinet_name: 'Cabinet Trial', trial_days: 30, expires_at: '2026-08-30T00:00:00' }));
+                  return route.fulfill(reply({}));
+                });
+
+                await page.goto(`http://127.0.0.1:4191/account-entry-cert.html?page=${pageName}`, { waitUntil: 'networkidle' });
+                const layout = await page.evaluate(() => ({ clientWidth: document.documentElement.clientWidth, scrollWidth: document.documentElement.scrollWidth }));
+                if (layout.scrollWidth > layout.clientWidth) throw new Error(`${label} ${pageName} overflow ${width}: ${layout.scrollWidth}`);
+                if (errors.length) throw new Error(`${label} ${pageName} runtime ${width}: ${errors.join(';')}`);
+                const password = page.locator('input[type="password"]');
+                const minLength = await password.getAttribute('minlength');
+                const formText = await page.locator('body').innerText();
+                await page.screenshot({ path: `${output}/${label}-${pageName}-form-${width}x1200.png`, fullPage: true, animations: 'disabled' });
+
+                if (pageName === 'register') {
+                  const inputs = page.locator('input');
+                  await inputs.nth(0).fill('Dr Entry');
+                  await inputs.nth(1).fill('entry@test.ma');
+                  await inputs.nth(2).fill('TestPass123!');
+                  await page.locator('input[type="checkbox"]').nth(0).check();
+                  await page.locator('input[type="checkbox"]').nth(1).check();
+                  await page.getByRole('button', { name: /Créer mon compte/i }).click();
+                  await page.getByText('Demande Envoyée').waitFor({ state: 'visible' });
+                } else {
+                  const inputs = page.locator('input');
+                  await inputs.nth(0).fill('TRIAL-ENTRY-01');
+                  await inputs.nth(1).fill('trial@test.ma');
+                  await inputs.nth(2).fill('TestPass123!');
+                  await inputs.nth(3).fill('Dr Trial');
+                  await inputs.nth(4).fill('Cabinet Trial');
+                  await page.locator('input[type="checkbox"]').nth(0).check();
+                  await page.locator('input[type="checkbox"]').nth(1).check();
+                  await page.getByRole('button', { name: /Activer Mon Essai/i }).click();
+                  await page.getByText('Essai activé', { exact: true }).waitFor({ state: 'visible' });
+                }
+                const successText = await page.locator('body').innerText();
+                await page.screenshot({ path: `${output}/${label}-${pageName}-success-${width}x1200.png`, fullPage: true, animations: 'disabled' });
+                results.push({ label, pageName, width, minLength, formText, successText });
+                await context.close();
+              }
+            }
+            await fs.writeFile(`${output}/${label}-contract.json`, JSON.stringify(results, null, 2));
+          } finally {
+            await browser.close(); await server.close();
+          }
+          EOF
+
+            PROOF_LABEL="$label" PROOF_OUTPUT="$RUNNER_TEMP/account-entry-proof" node account-entry-cert.mjs
+            cd ..
+          }
+
+          capture_ref "$BEFORE" before
+          capture_ref "$HEAD" after
+
+          cd "$GITHUB_WORKSPACE"
+          test "$(find "$RUNNER_TEMP/account-entry-proof" -name '*.png' | wc -l)" -eq 16
+          node - <<'EOF'
+          const fs = require('fs');
+          const p = process.env.RUNNER_TEMP + '/account-entry-proof/';
+          const before = JSON.parse(fs.readFileSync(p + 'before-contract.json'));
+          const after = JSON.parse(fs.readFileSync(p + 'after-contract.json'));
+          if (!before.every(x => x.minLength === '4')) throw new Error('BEFORE password contract is not 4 as expected');
+          if (!after.every(x => x.minLength === '8')) throw new Error('AFTER password contract is not 8');
+          const regBefore = before.filter(x => x.pageName === 'register').map(x => x.successText).join('\n');
+          const regAfter = after.filter(x => x.pageName === 'register').map(x => x.successText).join('\n');
+          const trialAfter = after.filter(x => x.pageName === 'trial').map(x => x.formText + '\n' + x.successText).join('\n');
+          if (!regBefore.includes('cabinet a bien été pré-enregistré')) throw new Error('Expected legacy wording absent from BEFORE');
+          if (regAfter.includes('cabinet a bien été pré-enregistré')) throw new Error('False cabinet preregistration wording remains');
+          if (!regAfter.includes('Votre compte a bien été enregistré')) throw new Error('Canonical account wording missing');
+          if (!trialAfter.includes('brouillon de structure')) throw new Error('Trial draft truth wording missing');
+          EOF
+
+          git checkout --detach "$HEAD"
+          mkdir -p frontend/account-entry-proof
+          cp -R "$RUNNER_TEMP/account-entry-proof/." frontend/account-entry-proof/
+          cat > frontend/account-entry-proof/metadata.txt <<EOF
+          head_sha=$HEAD
+          before_sha=$BEFORE
+          goal=Account entry wording and password contract reconciled with backend truth
+          viewports=1440x1200,390x1200
+          pages=register,activate-trial
+          states=form,success
+          expected_screenshots=16
+          EOF
+
+      - name: Verify source truth
+        run: |
+          grep -q 'minLength={8}' frontend/src/pages/RegisterPage.tsx
+          grep -q 'minLength={8}' frontend/src/pages/ActivateTrialPage.tsx
+          ! grep -q 'Votre cabinet a bien été pré-enregistré' frontend/src/pages/RegisterPage.tsx
+          grep -q 'brouillon de structure' frontend/src/pages/ActivateTrialPage.tsx
+
+      - name: Upload account entry proof
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: onboarding-account-entry-before-after
+          path: frontend/account-entry-proof/
+          if-no-files-found: error
+          retention-days: 14

@@ -161,7 +161,8 @@ export const ActivateTrialPage: React.FC = () => {
                         value={form.password}
                         onChange={(e) => setForm((prev) => ({ ...prev, password: e.target.value }))}
                         className="w-full rounded-2xl border border-slate-200 bg-slate-50 py-3 pl-11 pr-4 outline-none transition-all focus:border-[#003380] focus:ring-2 focus:ring-[#003380]/10"
-                        minLength={4}
+                        placeholder="8 caractères minimum"
+                        minLength={8}
                         required
                       />
                     </div>
@@ -256,6 +257,7 @@ export const ActivateTrialPage: React.FC = () => {
               <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
                 <p className="text-xs font-black uppercase tracking-[0.16em] text-blue-200">Cabinet</p>
                 <p className="mt-2 text-lg font-black">{preview?.cabinet_name || form.cabinet_name || 'À renseigner'}</p>
+                <p className="mt-2 text-xs font-semibold leading-relaxed text-slate-300">Le code prépare un brouillon de structure. L'onboarding finalise ensuite sa configuration.</p>
               </div>
               <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
                 <p className="text-xs font-black uppercase tracking-[0.16em] text-blue-200">Essai</p>
