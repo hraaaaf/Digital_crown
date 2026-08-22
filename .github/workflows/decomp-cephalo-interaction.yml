@@ -58,3 +58,5 @@ jobs:
           git add -- frontend/src/features/ortho/CephaloTracingLayer.tsx frontend/src/features/ortho/hooks/useCephaloInteraction.ts
           git commit -m 'refactor(ortho): extract cephalo interaction foundation'
           git push origin HEAD:agent/decomp-p0-large-files
+
+# trigger: p0-b2 interaction gate
