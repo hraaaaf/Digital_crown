@@ -47,63 +47,79 @@ Preuves :
 - T2 et Catalog verts sur le HEAD ayant déclenché le controller ;
 - harness temporaires supprimés après usage.
 
-## P0-B — CephaloTracingLayer — NEXT
+## P0-B — CephaloTracingLayer — CLOSED
 
-Responsabilités mélangées :
+Résultat vérifié :
 
-- conversion coordonnées SVG / pointer events ;
-- drag landmarks + magnifier ;
-- VTO et déplacement tissus mous ;
-- rendu des analyses squelettiques ;
-- wedges IMPA / I-F ;
-- profil cutané spline ;
-- projections N'/A'/B' + McNamara ;
-- calibration ;
-- loupe.
+- `CephaloTracingLayer.tsx` : 61 545 B -> 45 326 B (-26,4 %) ;
+- 1 263 lignes -> 995 lignes ;
+- le fichier sort des deux seuils P0 : <50 000 B et <1 000 lignes ;
+- aucune formule céphalométrique, norme clinique, coordonnée ou interaction volontairement modifiée.
 
-Ordre sûr :
+Extractions conservées :
 
-1. extraire les couches purement visuelles de calibration et loupe ;
-2. isoler pointeur / drag sans changer `getScreenCTM().inverse()` ;
-3. extraire VTO et profil cutané avec tests purs ;
-4. extraire projections et skeletal overlay sans toucher aux formules ni aux normes.
+- `components/CephaloCalibrationOverlay.tsx`
+- `components/CephaloMagnifierOverlay.tsx`
+- `hooks/useCephaloInteraction.ts`
+- `components/CephaloLandmarkReticles.tsx`
+- `components/CephaloSvgDefs.tsx`
 
-Succès : orchestrateur sous le seuil P0, aucune variation de coordonnées, formules, normes ou interaction.
+Contrats v4.2 explicitement préservés :
 
-Preuve :
+- conversion canonique `getScreenCTM().inverse()` ;
+- `setPointerCapture` ;
+- `activeDragPos` utilisé pour `dispX/dispY` pendant le drag ;
+- commit final via `onUpdateLandmarks` ;
+- defs SVG loupe/glow/VTO conservées.
 
-- tests math / VTO / coordonnées ;
-- tests ortho existants ;
-- capture BEFORE puis AFTER sur les mêmes viewports si l'extraction affecte le rendu ;
-- validation explicite du drag, calibration, loupe, IMPA et I/F.
+Preuves :
 
-## P0-C — models.py
+- overlays run `32594263257` SUCCESS ;
+- interaction run `32594481359` SUCCESS ;
+- sortie P0 / reticles + defs run `32594870931` SUCCESS ;
+- TypeScript exact vert ;
+- `cephaloUtils.test.ts` : 15/15 tests verts ;
+- visual parity run `32595321289` SUCCESS ;
+- 9/9 paires BEFORE/AFTER pixel-identiques : standard, calibration et pro en 1280 / 768 / 390 ;
+- zéro erreur runtime dans le harness visuel ;
+- artifact GitHub `9481401688`, digest `sha256:4fe1810dbe7403855ec171cff70bf13fa9d0360db9284b870b698e2ac84ae640` ;
+- score visuel de parité : 10/10, fondé sur égalité pixel stricte des 9 paires ;
+- harness temporaires retirés après certification.
+
+## P0-C — models.py — CURRENT
+
+Baseline revalidée sur `master` @ `d96c36cdf0d33a75d751f6aea3a9b89b6894683e` :
+
+- `backend/models.py` — 74 684 B — 1 444 lignes ;
+- ce merge master est docs-only et ne modifie pas le registre ORM ;
+- satellites déjà existants à respecter : `models_catalog_plan.py`, `models_clinical_p3.py`, `models_identity_p4.py`, `models_imaging_p4.py`.
 
 Nature : registre multi-domaines SQLAlchemy. Ce fichier ne doit pas être découpé comme un simple composant UI.
 
-Architecture cible : conserver `backend/models.py` comme agrégateur de compatibilité et déplacer les définitions vers des modules partageant une seule `Base`.
+Architecture d'exécution verrouillée :
 
-Domaines cibles :
+- une seule `Base`, déplacée dans un module neutre puis ré-exportée par `backend.models` ;
+- `backend.models` reste la façade historique de compatibilité ;
+- extraction mécanique des domaines de queue autonomes, sans architecture parallèle aux satellites existants ;
+- aucune migration ni modification de schéma.
 
-- enums/base ;
-- auth/cabinet ;
-- patients/clinical ;
-- imaging ;
-- documents ;
-- accounting ;
-- intelligence/mobile ;
-- lab/stock ;
-- marketplace ;
-- bot.
+Succès :
 
-Succès : tous les imports historiques continuent de fonctionner, metadata SQLAlchemy identique, aucune migration de schéma.
+- `backend/models.py` <50 000 B et <1 000 lignes ;
+- tous les imports historiques continuent de fonctionner ;
+- metadata SQLAlchemy et relations ORM strictement identiques avant/après ;
+- aucune migration de schéma.
 
-Preuve :
+Preuve requise avant commit produit :
 
-- snapshot avant/après de `Base.metadata` : tables, colonnes, FK, contraintes et indexes ;
-- import complet de l'agrégateur ;
-- tests backend ciblés ;
-- absence de changement de schéma.
+- snapshot avant/après de `Base.metadata` : tables, colonnes, FK, contraintes, indexes ;
+- snapshot des relations ORM après `configure_mappers()` ;
+- façade d'imports historique ;
+- satellites existants sur la même `Base` ;
+- `Base.metadata.create_all()` sur SQLite mémoire ;
+- compilation Python et tests backend ciblés ;
+- diff limité aux modules de modèles prévus ;
+- un seul benchmark/run lourd après préparation complète.
 
 ## Hors scope
 
