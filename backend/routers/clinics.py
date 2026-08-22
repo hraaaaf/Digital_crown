@@ -14,30 +14,11 @@ from PIL import Image
 from backend import models, schemas, database
 from backend.config import settings
 from backend.database import get_db
-from backend.routers.auth import get_current_user, is_superadmin_user
+from backend.routers.auth import get_current_user, is_superadmin_user, require_permission
 from backend.services.logo_processor import LogoProcessor
 from backend.services.license_service import LicenseService
 
 router = APIRouter()
-
-
-def _has_settings_write_access(current_user: models.User) -> bool:
-    if is_superadmin_user(current_user):
-        return True
-    if current_user.role == models.UserRole.ADMIN:
-        return True
-    if current_user.role == models.UserRole.DENTISTE and current_user.employer_id is None:
-        return True
-    permissions = current_user.permissions or {}
-    return permissions.get("settings") is True
-
-
-def _require_settings_write(
-    current_user: models.User = Depends(get_current_user),
-) -> models.User:
-    if not _has_settings_write_access(current_user):
-        raise HTTPException(status_code=403, detail="Permission Réglages requise.")
-    return current_user
 
 
 def _require_setup_owner(
@@ -224,7 +205,7 @@ def get_my_clinic(db: Session = Depends(database.get_db), current_user: models.U
 def update_my_clinic(
     config_update: schemas.CabinetConfigUpdate,
     db: Session = Depends(database.get_db),
-    current_user: models.User = Depends(_require_settings_write)
+    current_user: models.User = Depends(require_permission("settings"))
 ):
     """Mettre à jour la configuration du cabinet."""
     employer_id = current_user.get_employer_id()
@@ -251,7 +232,7 @@ def update_my_clinic(
 async def upload_clinic_logo(
     file: UploadFile = File(...),
     db: Session = Depends(database.get_db),
-    current_user: models.User = Depends(_require_settings_write)
+    current_user: models.User = Depends(require_permission("settings"))
 ):
     """Uploader le logo du cabinet."""
     allowed_types = ["image/png", "image/jpeg", "image/jpg", "image/svg+xml"]
@@ -344,7 +325,7 @@ async def upload_clinic_letterhead(
     header_pct: float = Form(25.0),
     footer_pct: float = Form(18.0),
     db: Session = Depends(database.get_db),
-    current_user: models.User = Depends(_require_settings_write)
+    current_user: models.User = Depends(require_permission("settings"))
 ):
     """Uploader le papier en-tête (Letterhead) du cabinet."""
     allowed_types = ["image/png", "image/jpeg", "image/jpg", "application/pdf"]

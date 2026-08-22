@@ -74,9 +74,9 @@ jobs:
           letter_src = seg("upload_clinic_letterhead")
           assert "_require_setup_owner" in create_src
           assert "db.query(models.User)" not in create_src
-          assert "_require_settings_write" in update_src
-          assert "_require_settings_write" in logo_src
-          assert "_require_settings_write" in letter_src
+          assert 'require_permission("settings")' in update_src
+          assert 'require_permission("settings")' in logo_src
+          assert 'require_permission("settings")' in letter_src
           assert "models.CabinetConfig(" not in get_src
           assert "db.commit()" not in get_src
 
