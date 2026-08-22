@@ -1,0 +1,199 @@
+name: DECOMP P0-B Cephalo Visual Parity
+
+on:
+  pull_request:
+    branches: [master]
+    paths:
+      - 'frontend/src/features/ortho/CephaloTracingLayer.tsx'
+      - 'frontend/src/features/ortho/components/CephaloCalibrationOverlay.tsx'
+      - 'frontend/src/features/ortho/components/CephaloMagnifierOverlay.tsx'
+      - 'frontend/src/features/ortho/components/CephaloLandmarkReticles.tsx'
+      - 'frontend/src/features/ortho/components/CephaloSvgDefs.tsx'
+      - 'frontend/src/features/ortho/hooks/useCephaloInteraction.ts'
+      - '.github/workflows/decomp-cephalo-visual-parity.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  visual-parity:
+    if: github.head_ref == 'agent/decomp-p0-large-files'
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout full history
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install frontend and Chromium
+        working-directory: frontend
+        run: |
+          npm ci
+          npm install --no-save --package-lock=false playwright@1.55.0
+          npx playwright install --with-deps chromium
+
+      - name: Inject deterministic cephalo visual harness
+        working-directory: frontend
+        run: |
+          cat > visual-cephalo-cert.html <<'EOF'
+          <!doctype html>
+          <html lang="fr">
+            <head>
+              <meta charset="UTF-8" />
+              <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+              <title>Cephalo visual parity</title>
+            </head>
+            <body><div id="root"></div><script type="module" src="/src/visual-cephalo-cert.tsx"></script></body>
+          </html>
+          EOF
+
+          cat > src/visual-cephalo-cert.tsx <<'EOF'
+          import React from 'react';
+          import { createRoot } from 'react-dom/client';
+          import './index.css';
+          import { CephaloTracingLayer } from './features/ortho/CephaloTracingLayer';
+          import type { Landmark } from './features/ortho/cephaloShared';
+
+          const state = new URLSearchParams(window.location.search).get('state') ?? 'standard';
+          const imageWidth = 1000;
+          const imageHeight = 800;
+          const landmarks: Landmark[] = [
+            ['S',420,105],['N',500,125],['Po',285,205],['Or',655,215],['A',565,305],['B',548,472],
+            ['Pog',560,610],['Me',535,705],['Gn',558,658],['Go',305,605],['ANS',600,330],['PNS',370,340],
+            ['Co',300,300],['Occ_Ant',650,420],['Occ_Post',350,430],
+            ['U1_incisal',610,405],['U1_apex',570,330],['L1_incisal',600,455],['L1_apex',555,535],
+            ['G_soft',515,92],['N_soft',535,130],['Prn',700,245],['Cm',675,285],['Sn_soft',630,315],
+            ['Ls_soft',665,380],['Ls2',670,395],['St',650,420],['Li2',665,440],['Li_soft',655,455],
+            ['B_soft',615,515],['Pog_soft',605,600],['Me_soft',570,700]
+          ].map(([id,x,y]) => ({ id: id as string, x: x as number, y: y as number }));
+
+          const background = `<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="800" viewBox="0 0 1000 800"><rect width="1000" height="800" fill="#172033"/><ellipse cx="520" cy="390" rx="250" ry="330" fill="#334155" opacity=".72"/><path d="M320 190 C560 80 760 220 720 430 C690 610 560 730 350 650" fill="none" stroke="#94a3b8" stroke-width="22" opacity=".48"/><path d="M420 330 C520 285 650 315 680 390 C610 450 500 460 405 420" fill="none" stroke="#cbd5e1" stroke-width="13" opacity=".5"/></svg>`;
+          const imageSrc = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(background)}`;
+          const calibration = state === 'calibration';
+          const pro = state === 'pro';
+          const magnifierEnabled = state !== 'standard';
+
+          createRoot(document.getElementById('root')!).render(
+            <div style={{ position: 'relative', width: '100vw', height: '100vh', overflow: 'hidden', background: '#020617' }}>
+              <CephaloTracingLayer
+                imageSrc={imageSrc}
+                imgFilters={{ brightness: 100, contrast: 100, invert: false }}
+                landmarks={landmarks}
+                imageWidth={imageWidth}
+                imageHeight={imageHeight}
+                onUpdateLandmarks={() => {}}
+                activePointId="A"
+                focusedPointId={pro ? 'U1_incisal' : null}
+                visualDebug={{ normative_zones: [{ cx: 565, cy: 305, rx: 24, ry: 18, rotation: 12 }] }}
+                isCalibrating={calibration}
+                calibrationPoints={calibration ? [{ x: 350, y: 650 }, { x: 650, y: 650 }] : []}
+                onAddCalibrationPoint={() => {}}
+                uiMode={pro ? 'pro' : 'standard'}
+                hoveredMetric={null}
+                magnifierEnabled={magnifierEnabled}
+                performanceMode={true}
+                vto={{ enabled: false, showGhostFace: true, showSoftTissue: true, u1_offset: { x: 0, y: 0 }, l1_offset: { x: 0, y: 0 }, mand_offset: { x: 0, y: 0 } }}
+                activeAnalysis="all"
+              />
+            </div>
+          );
+          EOF
+
+          cat > visual-cephalo-cert.mjs <<'EOF'
+          import { chromium } from 'playwright';
+          import { createServer } from 'vite';
+          import fs from 'node:fs/promises';
+
+          const output = process.env.OUTPUT_DIR;
+          if (!output) throw new Error('OUTPUT_DIR required');
+          await fs.mkdir(output, { recursive: true });
+
+          const server = await createServer({ server: { host: '127.0.0.1', port: 4178, strictPort: true }, clearScreen: false });
+          await server.listen();
+          const browser = await chromium.launch();
+          const failures = [];
+          try {
+            for (const state of ['standard', 'calibration', 'pro']) {
+              for (const width of [1280, 768, 390]) {
+                const context = await browser.newContext({ viewport: { width, height: 900 }, reducedMotion: 'reduce' });
+                const page = await context.newPage();
+                const errors = [];
+                page.on('pageerror', error => errors.push(`pageerror: ${error.message}`));
+                page.on('console', msg => { if (msg.type() === 'error') errors.push(`console: ${msg.text()}`); });
+                await page.goto(`http://127.0.0.1:4178/visual-cephalo-cert.html?state=${state}`, { waitUntil: 'networkidle' });
+                await page.locator('svg').waitFor({ state: 'visible' });
+                if (state !== 'standard') {
+                  const box = await page.locator('svg').boundingBox();
+                  if (!box) throw new Error('SVG bounding box unavailable');
+                  await page.mouse.move(box.x + box.width * 0.55, box.y + box.height * 0.50);
+                  await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+                }
+                if (errors.length) failures.push(`${state}-${width}: ${errors.join(' | ')}`);
+                await page.screenshot({ path: `${output}/${state}-${width}.png`, fullPage: true, animations: 'disabled' });
+                await context.close();
+              }
+            }
+          } finally {
+            await browser.close();
+            await server.close();
+          }
+          if (failures.length) throw new Error(`Runtime errors:\n${failures.join('\n')}`);
+          EOF
+
+      - name: Capture immutable BEFORE baseline
+        working-directory: frontend
+        env:
+          OUTPUT_DIR: visual-artifacts/before
+        run: |
+          git checkout --force a25893c7c1c3bb5bbecd6fb8ff54a0d81ab440a0
+          node visual-cephalo-cert.mjs
+
+      - name: Capture AFTER head
+        working-directory: frontend
+        env:
+          OUTPUT_DIR: visual-artifacts/after
+          AFTER_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          git checkout --force "$AFTER_SHA"
+          node visual-cephalo-cert.mjs
+
+      - name: Require pixel-identical parity
+        working-directory: frontend
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import hashlib
+          before = Path('visual-artifacts/before')
+          after = Path('visual-artifacts/after')
+          names = sorted(p.name for p in before.glob('*.png'))
+          if len(names) != 9:
+              raise SystemExit(f'Expected 9 BEFORE screenshots, got {len(names)}')
+          mismatches = []
+          for name in names:
+              b = hashlib.sha256((before / name).read_bytes()).hexdigest()
+              a_path = after / name
+              if not a_path.exists():
+                  mismatches.append(f'{name}: AFTER missing')
+                  continue
+              a = hashlib.sha256(a_path.read_bytes()).hexdigest()
+              print(f'{name}: before={b} after={a}')
+              if a != b:
+                  mismatches.append(name)
+          if mismatches:
+              raise SystemExit('Visual parity mismatch: ' + ', '.join(mismatches))
+          print('CEPHALO_VISUAL_PARITY_OK: 9/9 pixel-identical screenshots')
+          PY
+
+      - name: Upload BEFORE / AFTER evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: decomp-p0b-cephalo-visual-parity
+          path: frontend/visual-artifacts
+          if-no-files-found: error
