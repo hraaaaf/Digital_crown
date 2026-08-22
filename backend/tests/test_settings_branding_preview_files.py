@@ -33,7 +33,6 @@ class _NoopGenerator:
 
 def _build_factory(monkeypatch, tmp_path):
     _FakeGenerator.calls = []
-    monkeypatch.setattr(document_factory_module, "TemplateEngine", lambda **kwargs: object())
     monkeypatch.setattr(document_factory_module, "OrdonnanceGenerator", _FakeGenerator)
     monkeypatch.setattr(document_factory_module, "CertificatGenerator", _NoopGenerator)
     monkeypatch.setattr(document_factory_module, "AccountingGenerator", _NoopGenerator)

@@ -5,11 +5,9 @@ import os
 import logging
 import uuid
 from datetime import datetime, date
-from typing import Optional
 from sqlalchemy.orm import Session
 
 from backend import models, schemas
-from backend.services.template_engine import TemplateEngine
 from backend.services.generators.ordonnance_gen import OrdonnanceGenerator
 from backend.services.generators.certificat_gen import CertificatGenerator
 from backend.services.generators.accounting_gen import AccountingGenerator
@@ -31,49 +29,12 @@ class DocumentFactory:
         self.static_dir = static_dir
         os.makedirs(self.output_dir, exist_ok=True)
         
-        # Nouveau moteur de templates SaaS
-        self.template_engine = TemplateEngine(static_dir=static_dir)
-        
-        # Anciens générateurs (fallback et documents complexes)
+        # Générateurs PDF réellement utilisés par les routes produit.
         self.ord_gen = OrdonnanceGenerator(self.output_dir)
         self.cert_gen = CertificatGenerator(self.output_dir)
         self.acc_gen = AccountingGenerator(self.output_dir)
         self.libre_gen = LibreGenerator(self.output_dir)
         self.ceph_gen = BilanOrthoPDFGenerator(self.output_dir)
-    
-    def _get_default_template(self, doc_type: str, db: Session, user_id: int) -> Optional[models.DocumentTemplate]:
-        """Récupère le template par défaut pour un type de document."""
-        enum_map = {
-            'ordonnance': models.DocumentType.ORDONNANCE,
-            'certificat': models.DocumentType.CERTIFICAT,
-            'devis': models.DocumentType.DEVIS,
-            'honoraires': models.DocumentType.NOTE_HONORAIRES,
-            'note': models.DocumentType.NOTE_HONORAIRES,
-            'libre': models.DocumentType.DOCUMENT_LIBRE,
-            'cephalo': models.DocumentType.RAPPORT_CEPHALO
-        }
-        actual_type = enum_map.get(doc_type.lower(), models.DocumentType.AUTRE)
-        
-        # 1. Chercher template perso par défaut
-        template = db.query(models.DocumentTemplate).filter(
-            models.DocumentTemplate.type == actual_type,
-            models.DocumentTemplate.user_id == user_id,
-            models.DocumentTemplate.is_default == True
-        ).first()
-        
-        if template: return template
-        
-        # 2. Chercher template système par défaut
-        template = db.query(models.DocumentTemplate).filter(
-            models.DocumentTemplate.type == actual_type,
-            models.DocumentTemplate.is_system == True,
-            models.DocumentTemplate.is_default == True
-        ).first()
-        
-        return template or db.query(models.DocumentTemplate).filter(
-            models.DocumentTemplate.type == actual_type,
-            models.DocumentTemplate.is_system == True
-        ).first()
     
     def _get_cabinet_config(self, user_id: int, db: Session) -> models.CabinetConfig:
         """Récupère la config du cabinet — filtre sur l'employeur (isolation multi-tenant)."""

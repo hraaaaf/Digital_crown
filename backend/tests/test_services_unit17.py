@@ -1,7 +1,6 @@
 """Seventeenth batch — HabitsEngine.get_recommended_duration (pure),
 prescription_service generic molecule branches,
-CSSGenerator letterhead path, LicenseService._get_fernet."""
-import pytest
+LicenseService._get_fernet."""
 
 
 # ── HabitsEngine.get_recommended_duration ─────────────────────────────────────
@@ -88,14 +87,13 @@ class TestGetRecommendedDuration:
 # ── PrescriptionService._normalize_to_molecule (generic branches) ─────────────
 
 class TestNormalizeToMoleculeGeneric:
-    """Cover the generic-name fallthrough branches (lines 310-329) not hit by brand-name tests."""
+    """Cover the generic-name fallthrough branches not hit by brand-name tests."""
 
     def _svc(self):
         from backend.services.prescription_service import PrescriptionService
         return PrescriptionService()
 
     def test_ibuprofene_generic(self):
-        # "IBUPROFENE 400MG" doesn't match any brand key → hits generic check
         assert self._svc()._normalize_to_molecule("IBUPROFENE 400MG") == "IBUPROFENE"
 
     def test_ibuprofen_english_spelling(self):
@@ -156,43 +154,6 @@ class TestCheckDrugInteractionsAinsAspirin:
         assert "ddi" in types
 
 
-# ── CSSGenerator — letterhead path ───────────────────────────────────────────
-
-class TestCSSGeneratorLetterhead:
-    def _gen(self):
-        from backend.services.template_engine import CSSGenerator
-        return CSSGenerator()
-
-    def _design_with_letterhead(self, hide_header=True, hide_footer=True):
-        from backend.schemas.cabinet import DesignConfig, LetterheadConfig
-        lh = LetterheadConfig(
-            enabled=True,
-            image_url="http://example.com/logo.png",
-            hide_default_header=hide_header,
-            hide_default_footer=hide_footer
-        )
-        return DesignConfig(letterhead=lh)
-
-    def test_letterhead_enabled_adds_background_image(self):
-        css = self._gen().generate(self._design_with_letterhead())
-        assert "background-image" in css
-
-    def test_letterhead_hide_header_adds_display_none(self):
-        css = self._gen().generate(self._design_with_letterhead(hide_header=True))
-        assert "display: none" in css
-
-    def test_letterhead_hide_footer_adds_display_none(self):
-        css = self._gen().generate(self._design_with_letterhead(hide_footer=True))
-        assert "display: none" in css
-
-    def test_letterhead_no_hide_has_no_display_none(self):
-        css = self._gen().generate(self._design_with_letterhead(hide_header=False, hide_footer=False))
-        # background-image still present but no display:none
-        assert "background-image" in css
-        # hide css should not be present
-        assert ".header, .doc-header { display: none !important; }" not in css
-
-
 # ── LicenseService._get_fernet ────────────────────────────────────────────────
 
 class TestLicenseServiceGetFernet:
@@ -215,6 +176,5 @@ class TestLicenseServiceGetFernet:
         svc = self._svc()
         f1 = svc._get_fernet()
         f2 = svc._get_fernet()
-        # Both should decrypt the same token
         token = f1.encrypt(b"hello")
         assert f2.decrypt(token) == b"hello"
