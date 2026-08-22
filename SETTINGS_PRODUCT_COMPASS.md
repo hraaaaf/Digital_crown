@@ -2,7 +2,7 @@
 
 Dernière mise à jour : 2026-08-22
 Repo : `hraaaaf/Digital_crown`
-Statut : **BOUSSOLE CANONIQUE ACTIVE**
+Statut : **ROADMAP CANONIQUE FERMÉE — 15/15 CERTIFIÉS**
 
 > Source de reprise prioritaire du chantier Réglages / Paramètres.
 > Aucun déploiement Vercel sans autorisation explicite.
@@ -37,56 +37,62 @@ Une preuve CI sur un parent n’est réutilisable que si le delta suivant est pr
 | Catalogue avancé / Catalogue connecté | GARDER / CONNECTER / FIGER HISTORIQUE | CLOSED — MERGED (#195) | 9,5/10 |
 | Indicateurs patient explicables | SUPPRIMER JUGEMENTS / GARDER REPÈRES FACTUELS | CLOSED — MERGED (#199) | 9,3/10 |
 | Restauration guidée | GARDER / SÉCURISER / RENDRE RÉVERSIBLE | CLOSED — CERTIFIÉE — MERGED (#213) | 9,4/10 |
+| TemplateEngine backend / reachability | SUPPRIMER MOTEUR ORPHELIN / CONSERVER CONTRATS ACTIFS | CLOSED — CERTIFIÉ — MERGED (#215) | n/a |
 
-**Avancement vérifié : 14/15 = 93,3 %.**
+**Avancement vérifié : 15/15 = 100 %.**
 
-## Dernier lot fermé — Restauration guidée
+## Dernier lot fermé — TemplateEngine backend / reachability
 
-PR #213 squash-mergée : `83d7dcda0e8e364f00fa7f2847bcbe65cf6dfe38`.
+PR #215 squash-mergée : `8120f8617bca29d7911ad2cb5fb42f58451eb89a`.
 
 Résultat certifié :
-- préflight sans mutation ;
-- intégrité archive + schéma Digital Crown ;
-- étape explicite « Préparer la restauration » ;
-- secours DB vérifié avant bascule ;
-- DB + WAL protégés ;
-- médias protégés par empreinte et renommage atomique ;
-- apply hors-processus ;
-- redémarrage + smoke check ;
-- rollback automatique DB + médias ;
-- audit persistant ;
-- jobs scopés au cabinet.
+- `backend/services/template_engine.py` supprimé après preuve de non-reachability produit ;
+- import / instanciation `TemplateEngine` et `_get_default_template()` retirés de `DocumentFactory` ;
+- tests batch dépendant encore du module mort nettoyés ;
+- `DocumentTemplate` modèle/table conservé ;
+- `/api/templates` conservé et monté ;
+- seed `DocumentTemplate` conservé ;
+- générateurs PDF ReportLab actifs conservés ;
+- `backend/services/css_generator.py` autonome conservé ;
+- aucune modification UI.
 
 Preuves :
-- HEAD produit certifié `453b5213f728b87bb64303cb0f06417b2b3d6fe2` ;
-- BEFORE #22 `32529921293` — SUCCESS ;
-- AFTER #3 `32559882456` — SUCCESS ;
-- artifact `9472491713` — `sha256:adb6a3ef4b5ab0f8848dcbf7ba442f150b5a0160a64adadb0ef66066d77c2dc8` ;
-- CI #1590 `32559882536`, Security #10, RBAC #146, T2 #789, Catalogue #62, P7 #88, R11 #8 — SUCCESS ;
-- AFTER 5/5, 0 overflow, 0 page error, 0 HTTP 5xx, 0 request failure ;
-- score visuel **9,4/10** ;
-- closeout : `docs/settings/GUIDED_RESTORE_CLOSEOUT.md` ;
-- post-merge : `docs/settings/GUIDED_RESTORE_POSTMERGE.md`.
-
-Dette non bloquante : le format historique des médias reste un payload Fernet monolithique ; une évolution streaming/chunked serait préférable pour des archives gigantesques, sans remettre en cause la sûreté transactionnelle certifiée.
+- HEAD produit certifié `4846fd212ab991d3902bfc0e5f1fd939b47af59a` ;
+- TemplateEngine Reachability #2 `32561612304` — SUCCESS ;
+- artifact `9472936525` — `sha256:b573262196f860d8e99ea8a82aea2a417dd2d0ff91afe4844b9961ef06dfe02d` ;
+- zéro référence `TemplateEngine`, `SecureTemplateRenderer`, `backend.services.template_engine` ou `_get_default_template` dans le garde repo-wide ;
+- `DocumentTemplate` modèle/router/seed et montage `/api/templates` prouvés présents ;
+- CI #1600 `32561612377` — SUCCESS ;
+- T2 #797 `32561612293` — SUCCESS ;
+- P7 #96 `32561612291` — SUCCESS ;
+- Catalogue #70 `32561612292` — SUCCESS ;
+- R11 Dependency #11 `32561612296` — SUCCESS ;
+- R11 Reachability #14 `32561612340` — SUCCESS ;
+- aucun review thread ouvert ;
+- closeout : `docs/settings/TEMPLATEENGINE_REACHABILITY_CLOSEOUT.md` ;
+- post-merge : `docs/settings/TEMPLATEENGINE_REACHABILITY_POSTMERGE.md`.
 
 ## Roadmap restante
 
-Un seul axe reste non crédité :
+**Aucun lot restant dans la roadmap canonique actuelle Réglages / Paramètres.**
 
-1. **Dette backend TemplateEngine / reachability restante** — audit downstream exhaustif, preuve d’usage/référencement, décision GARDER / RÉDUIRE / SUPPRIMER uniquement sur preuve ; aucune suppression spéculative.
+Le score 15/15 signifie que les 15 lots définis ont été fermés avec leurs preuves requises. Il ne signifie pas qu’aucune dette future ou nouvelle amélioration ne pourra être identifiée dans Digital Crown.
 
-## HANDOVER COURANT
+## HANDOVER FINAL
 
 - Chantier : **Réglages — Product Review & Simplification**
-- Dernier lot fermé : **Restauration guidée**
-- PR : #213 — MERGED
-- Merge : `83d7dcda0e8e364f00fa7f2847bcbe65cf6dfe38`
-- HEAD produit certifié : `453b5213f728b87bb64303cb0f06417b2b3d6fe2`
-- AFTER #3 : `32559882456` — SUCCESS
-- CI #1590 : `32559882536` — SUCCESS
-- Artifact AFTER : `9472491713`
-- Score : **9,4/10**
-- Avancement vérifié : **14/15 = 93,3 %**
-- Next exact : **Dette backend TemplateEngine / reachability restante → audit code/routes/imports/usages/tests/docs, aucune modification produit avant cartographie downstream**
+- Statut : **CLOSED — 15/15 CERTIFIÉS**
+- Dernier lot : **TemplateEngine backend / reachability**
+- PR : #215 — MERGED
+- Merge : `8120f8617bca29d7911ad2cb5fb42f58451eb89a`
+- HEAD produit certifié : `4846fd212ab991d3902bfc0e5f1fd939b47af59a`
+- CI #1600 : `32561612377` — SUCCESS
+- T2 #797 : `32561612293` — SUCCESS
+- P7 #96 : `32561612291` — SUCCESS
+- Catalogue #70 : `32561612292` — SUCCESS
+- Artifact reachability : `9472936525`
+- Closeout : `docs/settings/TEMPLATEENGINE_REACHABILITY_CLOSEOUT.md`
+- Post-merge : `docs/settings/TEMPLATEENGINE_REACHABILITY_POSTMERGE.md`
+- Avancement vérifié : **15/15 = 100 %**
+- Next exact : **aucune action restante dans la roadmap canonique actuelle**
 - Vercel : **aucun déploiement**
