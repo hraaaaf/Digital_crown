@@ -1,0 +1,173 @@
+name: DECOMP P0-C Models ORM Certification
+
+on:
+  pull_request:
+    types: [edited]
+    branches: [master]
+
+permissions:
+  contents: write
+
+jobs:
+  refactor-and-certify:
+    if: github.head_ref == 'agent/decomp-p0-large-files' && contains(github.event.pull_request.body || '', 'DECOMP_P0C_RUN')
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout decomposition branch
+        uses: actions/checkout@v4
+        with:
+          ref: agent/decomp-p0-large-files
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install exact ORM dependency
+        run: python -m pip install --disable-pip-version-check SQLAlchemy==2.0.28
+
+      - name: Guard immutable P0-C baseline
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p = Path('backend/models.py')
+          size = p.stat().st_size
+          lines = len(p.read_text(encoding='utf-8').splitlines())
+          print(f'BASELINE_MODELS: {size} bytes / {lines} lines')
+          if size != 74684 or lines != 1444:
+              raise SystemExit(f'P0-C baseline drift: {size} bytes / {lines} lines')
+          for path in [
+              'backend/models_base.py',
+              'backend/models_platform.py',
+              'backend/models_operations.py',
+              'backend/models_bot_settings.py',
+          ]:
+              if Path(path).exists():
+                  raise SystemExit(f'Unexpected pre-existing extraction target: {path}')
+          PY
+
+      - name: Snapshot ORM BEFORE
+        run: python scripts/snapshot_models_metadata.py > /tmp/models-before.json
+
+      - name: Apply guarded P0-C extraction
+        run: python scripts/decomp_models_p0.py
+
+      - name: Verify intended product diff and P0 exit
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import subprocess
+          expected = {
+              'backend/models.py',
+              'backend/models_base.py',
+              'backend/models_platform.py',
+              'backend/models_operations.py',
+              'backend/models_bot_settings.py',
+          }
+          lines = subprocess.check_output(['git', 'status', '--short', '-uall'], text=True).splitlines()
+          paths = {line[3:] for line in lines if line.strip()}
+          if paths != expected:
+              raise SystemExit(f'Unexpected P0-C product diff: {sorted(paths)}')
+          p = Path('backend/models.py')
+          size = p.stat().st_size
+          count = len(p.read_text(encoding='utf-8').splitlines())
+          print(f'MODELS_P0_EXIT: {size} bytes / {count} lines')
+          if size >= 50000 or count >= 1000:
+              raise SystemExit(f'P0 exit criterion not met: {size} bytes / {count} lines')
+          if any('migration' in path.lower() or 'alembic' in path.lower() for path in paths):
+              raise SystemExit('Schema migration touched unexpectedly')
+          PY
+          git diff --check
+
+      - name: Create single local final product commit
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -- backend/models.py backend/models_base.py backend/models_platform.py backend/models_operations.py backend/models_bot_settings.py
+          git commit -m 'refactor(models): extract platform operations and bot domains'
+          echo "FINAL_PRODUCT_COMMIT=$(git rev-parse HEAD)" >> "$GITHUB_ENV"
+
+      - name: Snapshot ORM AFTER and require exact equality
+        run: |
+          python scripts/snapshot_models_metadata.py > /tmp/models-after.json
+          diff -u /tmp/models-before.json /tmp/models-after.json
+          python - <<'PY'
+          import json
+          before = json.load(open('/tmp/models-before.json', encoding='utf-8'))
+          after = json.load(open('/tmp/models-after.json', encoding='utf-8'))
+          print(f"ORM_SNAPSHOT_IDENTICAL: tables={after['table_count']} mappers={after['mapper_count']} exports={len(after['exports'])}")
+          assert before == after
+          PY
+
+      - name: Compile model modules
+        run: |
+          python -m compileall -q \
+            backend/models.py \
+            backend/models_base.py \
+            backend/models_platform.py \
+            backend/models_operations.py \
+            backend/models_bot_settings.py \
+            backend/models_catalog_plan.py \
+            backend/models_clinical_p3.py \
+            backend/models_identity_p4.py \
+            backend/models_imaging_p4.py
+
+      - name: Historical imports, shared Base and in-memory schema smoke
+        run: |
+          python - <<'PY'
+          from sqlalchemy import create_engine
+          from sqlalchemy.orm import configure_mappers
+          import backend.models as models
+          import backend.models_catalog_plan as catalog
+          import backend.models_clinical_p3 as clinical
+          import backend.models_imaging_p4 as imaging
+          import backend.models_identity_p4 as identity
+
+          from backend.models import (
+              Base, AgendaMode, LabJobStatus, AuditLog, RevokedToken, AIFeedback,
+              ProactiveAlert, DeviceToken, ClinicalContraindication, ClinicalDrug,
+              ClinicalProtocolDB, ZKAPairingToken, GhostMemoryLog, MilestoneType,
+              JourneyMilestone, Lab, LabJob, StockCategorie, StockItem,
+              PartnerOrderStatus, PartnerSettlementBasis, PartnerRevenueModel,
+              PartnerProductAvailability, PartnerOrder, PartnerOrderEvent,
+              PartnerSupplier, PartnerCatalogProduct, BotSession, BotMessage,
+              BotPendingAction, CabinetSettings, AgendaException,
+          )
+
+          assert catalog.Base is Base
+          assert clinical.Base is Base
+          assert imaging.Base is Base
+          assert models.Base is Base
+          assert identity.User is models.User
+          assert identity.CabinetConfig is models.CabinetConfig
+
+          configure_mappers()
+          engine = create_engine('sqlite:///:memory:')
+          Base.metadata.create_all(engine)
+          print(f'SQLITE_CREATE_ALL_OK: {len(Base.metadata.tables)} tables')
+          PY
+
+      - name: Verify exact final commit contents
+        run: |
+          python - <<'PY'
+          import subprocess
+          expected = {
+              'backend/models.py',
+              'backend/models_base.py',
+              'backend/models_platform.py',
+              'backend/models_operations.py',
+              'backend/models_bot_settings.py',
+          }
+          paths = set(subprocess.check_output(
+              ['git', 'diff-tree', '--no-commit-id', '--name-only', '-r', 'HEAD'], text=True
+          ).splitlines())
+          if paths != expected:
+              raise SystemExit(f'Unexpected final product commit paths: {sorted(paths)}')
+          status = subprocess.check_output(['git', 'status', '--porcelain'], text=True).strip()
+          if status:
+              raise SystemExit(f'Working tree not clean after certification: {status}')
+          print('FINAL_PRODUCT_COMMIT_OK:', subprocess.check_output(['git', 'rev-parse', 'HEAD'], text=True).strip())
+          PY
+
+      - name: Push the single certified product commit
+        run: git push origin HEAD:agent/decomp-p0-large-files
