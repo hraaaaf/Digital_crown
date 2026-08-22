@@ -57,6 +57,8 @@ import type { Landmark, ImageFilters, VTOSettings } from './cephaloShared';
 import { toDeg, projectPointOnLine, getPerpendicularTick, buildWedgePath } from './cephaloMath';
 import { AnatomicalTooth } from './components/AnatomicalTooth';
 import { WedgeZone } from './components/WedgeZone';
+import { CephaloCalibrationOverlay } from './components/CephaloCalibrationOverlay';
+import { CephaloMagnifierOverlay } from './components/CephaloMagnifierOverlay';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // TYPES EXPORTÉS (Locaux)
@@ -1164,99 +1166,26 @@ export const CephaloTracingLayer: React.FC<CephaloTracingLayerProps> = ({
           );
         })}
 
-        {/* ══ CALIBRATION ══════════════════════════════════════════════ */}
-        {isCalibrating && (
-          <g className="pointer-events-none">
-            {/* Règle dynamique qui suit le curseur */}
-            {!activeDragId && magnifier.show && (
-              <g opacity="0.6">
-                <line 
-                  x1={magnifier.x - 40} y1={magnifier.y} 
-                  x2={magnifier.x + 40} y2={magnifier.y} 
-                  stroke="#eab308" strokeWidth="0.5" strokeDasharray="2,2" 
-                />
-                <line 
-                  x1={magnifier.x} y1={magnifier.y - 40} 
-                  x2={magnifier.x} y2={magnifier.y + 40} 
-                  stroke="#eab308" strokeWidth="0.5" strokeDasharray="2,2" 
-                />
-                <circle cx={magnifier.x} cy={magnifier.y} r="15" fill="none" stroke="#eab308" strokeWidth="0.5" strokeDasharray="1,2" />
-              </g>
-            )}
+        <CephaloCalibrationOverlay
+          isCalibrating={isCalibrating}
+          activeDragId={activeDragId}
+          magnifier={magnifier}
+          calibrationPoints={calibrationPoints}
+        />
 
-            {calibrationPoints && calibrationPoints.map((cpt, i) => (
-              <g key={`calib-group-${i}`}>
-                <path
-                  d={[
-                    `M ${cpt.x - 16} ${cpt.y} L ${cpt.x + 16} ${cpt.y}`,
-                    `M ${cpt.x} ${cpt.y - 16} L ${cpt.x} ${cpt.y + 16}`,
-                  ].join(' ')}
-                  stroke="#eab308" strokeWidth="2" vectorEffect="non-scaling-stroke" 
-                />
-                <circle cx={cpt.x} cy={cpt.y} r="4" fill="#eab308" />
-              </g>
-            ))}
-            {calibrationPoints && calibrationPoints.length === 2 && (
-              <g>
-                <line
-                  x1={calibrationPoints[0].x} y1={calibrationPoints[0].y}
-                  x2={calibrationPoints[1].x} y2={calibrationPoints[1].y}
-                  stroke="#eab308" strokeWidth="2" strokeDasharray="6,4"
-                  vectorEffect="non-scaling-stroke" 
-                />
-                <rect 
-                  x={Math.min(calibrationPoints[0].x, calibrationPoints[1].x) + Math.abs(calibrationPoints[0].x - calibrationPoints[1].x)/2 - 20}
-                  y={Math.min(calibrationPoints[0].y, calibrationPoints[1].y) + Math.abs(calibrationPoints[0].y - calibrationPoints[1].y)/2 - 10}
-                  width="40" height="20" rx="4" fill="#eab308" 
-                />
-                <text 
-                   x={Math.min(calibrationPoints[0].x, calibrationPoints[1].x) + Math.abs(calibrationPoints[0].x - calibrationPoints[1].x)/2}
-                   y={Math.min(calibrationPoints[0].y, calibrationPoints[1].y) + Math.abs(calibrationPoints[0].y - calibrationPoints[1].y)/2 + 4}
-                   fontSize="10" fontWeight="bold" fill="#000" textAnchor="middle"
-                >
-                  REF
-                </text>
-              </g>
-            )}
-          </g>
-        )}
-
-        {/* ══ LOUPE SVG PIXEL-PERFECT ═══════════════════════════════════
-            Image repositionnée : x = magX - cursor.x × zoom
-            Croix de visée au centre exact.
-            ══════════════════════════════════════════════════════════ */}
-        {magnifierEnabled && magnifier.show && imageSrc && (
-          <g className="pointer-events-none">
-            <circle cx={magX} cy={magY} r={MAG_R}
-              fill={P.magnifierBg} stroke={P.magnifierRing}
-              strokeWidth="2" vectorEffect="non-scaling-stroke" />
-            <image
-              href={imageSrc}
-              x={magX - magnifier.x * MAG_ZOOM}
-              y={magY - magnifier.y * MAG_ZOOM}
-              width={imageWidth * MAG_ZOOM}
-              height={imageHeight * MAG_ZOOM}
-              clipPath="url(#cephalo-mag-clip)"
-              preserveAspectRatio="none"
-              style={{
-                filter: [
-                  `brightness(${imgFilters?.brightness ?? 100}%)`,
-                  `contrast(${imgFilters?.contrast ?? 100}%)`,
-                  `invert(${imgFilters?.invert ? 100 : 0}%)`,
-                ].join(' '),
-              }}
-            />
-            <circle cx={magX} cy={magY} r={MAG_R - 1}
-              fill="none" stroke={P.magnifierRing}
-              strokeWidth="1" opacity="0.35" vectorEffect="non-scaling-stroke" />
-            <line x1={magX - 14} y1={magY} x2={magX + 14} y2={magY}
-              stroke={P.crosshairCol} strokeWidth="1.2" opacity="0.95" vectorEffect="non-scaling-stroke" />
-            <line x1={magX} y1={magY - 14} x2={magX} y2={magY + 14}
-              stroke={P.crosshairCol} strokeWidth="1.2" opacity="0.95" vectorEffect="non-scaling-stroke" />
-            <circle cx={magX} cy={magY} r={2.2}
-              fill={P.crosshairCol} opacity="1" vectorEffect="non-scaling-stroke" />
-          </g>
-        )}
+        <CephaloMagnifierOverlay
+          magnifierEnabled={magnifierEnabled}
+          magnifier={magnifier}
+          imageSrc={imageSrc}
+          imageWidth={imageWidth}
+          imageHeight={imageHeight}
+          imgFilters={imgFilters}
+          magX={magX}
+          magY={magY}
+          MAG_R={MAG_R}
+          MAG_ZOOM={MAG_ZOOM}
+          palette={P}
+        />
       </svg>
     </div>
   );
