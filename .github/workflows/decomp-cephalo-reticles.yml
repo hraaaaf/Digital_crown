@@ -83,3 +83,5 @@ jobs:
           git add -- frontend/src/features/ortho/CephaloTracingLayer.tsx frontend/src/features/ortho/components/CephaloLandmarkReticles.tsx
           git commit -m 'refactor(ortho): extract landmark reticles'
           git push origin HEAD:agent/decomp-p0-large-files
+
+# trigger: p0-b3 reticles gate
