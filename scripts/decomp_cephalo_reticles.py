@@ -3,6 +3,7 @@ import textwrap
 
 PAGE = Path("frontend/src/features/ortho/CephaloTracingLayer.tsx")
 OUT = Path("frontend/src/features/ortho/components/CephaloLandmarkReticles.tsx")
+DEFS_OUT = Path("frontend/src/features/ortho/components/CephaloSvgDefs.tsx")
 
 text = PAGE.read_text(encoding="utf-8")
 
@@ -124,12 +125,10 @@ updated = updated.replace(
     1,
 )
 
-# SOFT_TISSUE_IDS is now owned by the reticles component.
 soft_start = updated.index("const SOFT_TISSUE_IDS = new Set([")
 soft_end = updated.index("]);", soft_start) + len("]);")
 updated = updated[:soft_start] + updated[soft_end:]
 
-# isPointHovered is now local to the reticles component; line-hover logic stays in parent.
 point_hover = '''  const isPointHovered = (ptId: string) =>
     !isHoverActive ||
     hoveredMetric!.points.map(p => p.toLowerCase()).includes(ptId.toLowerCase());
@@ -138,16 +137,73 @@ if point_hover not in updated:
     raise SystemExit("point hover baseline changed")
 updated = updated.replace(point_hover, "", 1)
 
+DEFS_START = "        {/* ── DEFS "
+DEFS_END = "        {/* ══ IMAGE DE FOND"
+if updated.count(DEFS_START) != 1 or updated.count(DEFS_END) != 1:
+    raise SystemExit("svg defs sentinels changed; refusing automated refactor")
+defs_start = updated.index(DEFS_START)
+defs_end = updated.index(DEFS_END, defs_start)
+defs_body = textwrap.dedent(updated[defs_start:defs_end]).rstrip()
+
+for token in [
+    'clipPath id="cephalo-mag-clip"',
+    'filter id="dc-glow-pro"',
+    'linearGradient id="ghostFaceGradient"',
+    'filter id="skinGlow"',
+]:
+    if token not in defs_body:
+        raise SystemExit(f"svg defs contract changed; missing: {token}")
+
+defs_component = '''interface CephaloSvgDefsProps {
+  magX: number;
+  magY: number;
+  MAG_R: number;
+  isPro: boolean;
+}
+
+export const CephaloSvgDefs = ({ magX, magY, MAG_R, isPro }: CephaloSvgDefsProps) => (
+  <>
+''' + textwrap.indent(defs_body, "    ") + '''
+  </>
+);
+'''
+DEFS_OUT.write_text(defs_component, encoding="utf-8")
+
+defs_replacement = '''        <CephaloSvgDefs
+          magX={magX}
+          magY={magY}
+          MAG_R={MAG_R}
+          isPro={isPro}
+        />
+
+'''
+updated = updated[:defs_start] + defs_replacement + updated[defs_end:]
+
+reticle_import = "import { CephaloLandmarkReticles } from './components/CephaloLandmarkReticles';\n"
+if reticle_import not in updated:
+    raise SystemExit("reticles import anchor missing")
+updated = updated.replace(
+    reticle_import,
+    reticle_import + "import { CephaloSvgDefs } from './components/CephaloSvgDefs';\n",
+    1,
+)
+
 PAGE.write_text(updated, encoding="utf-8")
 
 final = PAGE.read_text(encoding="utf-8")
 child = OUT.read_text(encoding="utf-8")
+defs_child = DEFS_OUT.read_text(encoding="utf-8")
 if final.count("<CephaloLandmarkReticles") != 1:
     raise SystemExit("reticles replacement missing or duplicated")
+if final.count("<CephaloSvgDefs") != 1:
+    raise SystemExit("svg defs replacement missing or duplicated")
 for token in required:
     if token not in child:
         raise SystemExit(f"drag contract missing from extracted reticles: {token}")
 if "getBoundingClientRect" in child:
     raise SystemExit("forbidden manual coordinate conversion introduced")
+for token in ['cephalo-mag-clip', 'dc-glow-pro', 'ghostFaceGradient', 'skinGlow']:
+    if token not in defs_child:
+        raise SystemExit(f"svg defs missing after extraction: {token}")
 
-print("P0-B3 prepared: landmark reticles extracted mechanically with pointer contract preserved")
+print("P0-B3 prepared: reticles + SVG defs extracted mechanically; pointer and visual contracts preserved")

@@ -44,8 +44,10 @@ jobs:
           from pathlib import Path
           page = Path('frontend/src/features/ortho/CephaloTracingLayer.tsx')
           child = Path('frontend/src/features/ortho/components/CephaloLandmarkReticles.tsx')
+          defs_child = Path('frontend/src/features/ortho/components/CephaloSvgDefs.tsx')
           page_text = page.read_text(encoding='utf-8')
           child_text = child.read_text(encoding='utf-8')
+          defs_text = defs_child.read_text(encoding='utf-8')
           for token in [
               'setPointerCapture(e.pointerId)',
               'setActiveDragPos({ id: pt.id, ...coords })',
@@ -57,6 +59,9 @@ jobs:
                   raise SystemExit(f'v4.2 contract missing: {token}')
           if 'getScreenCTM()' not in Path('frontend/src/features/ortho/hooks/useCephaloInteraction.ts').read_text(encoding='utf-8'):
               raise SystemExit('canonical coordinate conversion missing')
+          for token in ['cephalo-mag-clip', 'dc-glow-pro', 'ghostFaceGradient', 'skinGlow']:
+              if token not in defs_text:
+                  raise SystemExit(f'svg defs contract missing: {token}')
           size = page.stat().st_size
           lines = len(page_text.splitlines())
           print(f'CephaloTracingLayer after: {size} bytes / {lines} lines')
@@ -70,6 +75,7 @@ jobs:
           expected = {
               'frontend/src/features/ortho/CephaloTracingLayer.tsx',
               'frontend/src/features/ortho/components/CephaloLandmarkReticles.tsx',
+              'frontend/src/features/ortho/components/CephaloSvgDefs.tsx',
           }
           lines = subprocess.check_output(['git', 'status', '--short', '-uall'], text=True).splitlines()
           paths = {line[3:] for line in lines if line.strip()}
@@ -80,8 +86,8 @@ jobs:
         run: |
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add -- frontend/src/features/ortho/CephaloTracingLayer.tsx frontend/src/features/ortho/components/CephaloLandmarkReticles.tsx
-          git commit -m 'refactor(ortho): extract landmark reticles'
+          git add -- frontend/src/features/ortho/CephaloTracingLayer.tsx frontend/src/features/ortho/components/CephaloLandmarkReticles.tsx frontend/src/features/ortho/components/CephaloSvgDefs.tsx
+          git commit -m 'refactor(ortho): extract landmark reticles and svg defs'
           git push origin HEAD:agent/decomp-p0-large-files
 
-# trigger: p0-b3 reticles gate
+# trigger: p0-b3 reticles+defs gate
