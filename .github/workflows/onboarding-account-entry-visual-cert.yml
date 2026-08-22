@@ -120,6 +120,22 @@ jobs:
                   await page.locator('input[type="checkbox"]').nth(1).check();
                   await page.getByRole('button', { name: /Créer mon compte/i }).click();
                   await page.getByText('Demande Envoyée').waitFor({ state: 'visible' });
+                  // Framer Motion mounts the success card before its opacity transition
+                  // finishes. Wait for the *effective* ancestor opacity so the screenshot
+                  // proves the user-visible settled state rather than the first frame.
+                  await page.waitForFunction(() => {
+                    const heading = Array.from(document.querySelectorAll('h2')).find(
+                      el => el.textContent?.trim() === 'Demande Envoyée'
+                    );
+                    if (!heading) return false;
+                    let node = heading;
+                    let opacity = 1;
+                    while (node) {
+                      opacity *= Number.parseFloat(getComputedStyle(node).opacity || '1');
+                      node = node.parentElement;
+                    }
+                    return opacity >= 0.95;
+                  });
                 } else {
                   const inputs = page.locator('input');
                   await inputs.nth(0).fill('TRIAL-ENTRY-01');

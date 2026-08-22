@@ -6,14 +6,14 @@ P1 fixed the ownership model:
 
 These additive columns keep that contract without creating a parallel Practitioner table.
 Legacy CabinetConfig.inpe is deliberately left untouched because its historical meaning is
-ambiguous and must be classified explicitly during P5 migration.
+ambiguous and must never be classified automatically.
 """
 from __future__ import annotations
 
 import logging
 
 from sqlalchemy import String, inspect, text
-from sqlalchemy.orm import mapped_column
+from sqlalchemy.orm import Session, mapped_column
 
 from backend.models import CabinetConfig, User
 
@@ -42,11 +42,12 @@ _IDENTITY_COLUMNS = {
 
 
 def migrate_identity_columns(engine) -> None:
-    """Add P4B identity columns to existing installations, idempotently.
+    """Upgrade existing installations to the canonical identity contract, idempotently.
 
-    Fresh databases receive the columns through ``Base.metadata.create_all``. Existing
-    databases are altered only when the corresponding table already exists. No legacy
-    value is copied or guessed here.
+    Phase 1 adds the P4B columns when needed. Phase 2 runs the deliberately conservative
+    P5 legacy backfill: only empty canonical practitioner-name fields may be populated.
+    Ambiguous INPE, legal IDs, contacts, footer and custom headers are never inferred or
+    rewritten here.
     """
     inspector = inspect(engine)
     for table_name, columns in _IDENTITY_COLUMNS.items():
@@ -69,3 +70,20 @@ def migrate_identity_columns(engine) -> None:
                 refreshed = {col["name"] for col in inspect(engine).get_columns(table_name)}
                 if column_name not in refreshed:
                     raise
+
+    # P5: only run the value migration when both backing tables exist. Keeping this on the
+    # same startup hook as P4E guarantees schema-before-data ordering on old installations.
+    refreshed_inspector = inspect(engine)
+    if refreshed_inspector.has_table("users") and refreshed_inspector.has_table("cabinet_configs"):
+        from backend.services.clinic_identity_legacy_migration import migrate_legacy_identity_values
+
+        with Session(engine) as db:
+            report = migrate_legacy_identity_values(db)
+        if report.changed or report.practitioner_fr_conflicts or report.practitioner_ar_conflicts:
+            logger.info(
+                "P5 identity migration: scanned=%s changed=%s conflicts_fr=%s conflicts_ar=%s",
+                report.scanned,
+                report.changed,
+                report.practitioner_fr_conflicts,
+                report.practitioner_ar_conflicts,
+            )
