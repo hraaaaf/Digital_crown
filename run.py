@@ -1,34 +1,21 @@
-import sys
 import os
+import sys
 
 
 def _first_boot_bootstrap() -> None:
-    """Génère %APPDATA%/DigitalCrown/.env au tout premier démarrage de l'EXE
-    packagé, s'il n'existe pas encore — secrets aléatoires, jamais écrasé.
+    """Create the persistent cabinet environment on first packaged launch.
 
-    Doit s'exécuter AVANT `from backend.main import app` : `backend/main.py`
-    appelle `load_backend_env()` dès son import (niveau module), qui lit ce
-    fichier s'il existe déjà. Sans ce bootstrap, un EXE fraîchement installé
-    n'a aucun `.env` et `SECRET_KEY` retombe sur un placeholder faible — le
-    lifespan de `backend/main.py` refuse alors de démarrer (garde-fou
-    sécurité volontaire, cf. `validate_environment_invariants`).
-
-    Ne s'exécute JAMAIS hors du build PyInstaller (`sys.frozen`) : lancer
-    `python run.py` en dev garde le comportement actuel (`backend/.env` ou
-    `.env.local`, `ENVIRONMENT=development` par défaut) — aucun changement
-    pour les postes de développement.
-
-    N'importe volontairement que `backend.env_loader` (aucune dépendance sur
-    `backend.config`/`backend.database`) pour ne jamais déclencher la lecture
-    des settings avant que ce fichier n'existe.
+    This runs before importing ``backend.main`` so cabinet secrets exist before
+    settings/database initialization. Development launches remain untouched.
     """
     if not getattr(sys, "frozen", False):
         return
 
-    from backend.env_loader import _appdata_env_path
+    from backend.core.paths import AppPaths
+    from backend.core.platform import get_platform_adapter
 
-    env_path = _appdata_env_path()
-    if env_path is None or env_path.exists():
+    env_path = AppPaths.get_env_path()
+    if env_path.exists():
         return
 
     import secrets
@@ -55,13 +42,11 @@ def _first_boot_bootstrap() -> None:
         f"CABINET_MASTER_KEY_HEX={secrets.token_hex(32)}\n"
         f"ALLOWED_ORIGINS={origins}\n"
     )
-    env_path.parent.mkdir(parents=True, exist_ok=True)
-    env_path.write_text(env_content, encoding="utf-8")
+    get_platform_adapter().atomic_write_text(env_path, env_content)
 
 
 def _setup_frozen_logging() -> None:
-    """Redirige les logs applicatifs vers un fichier quand l'EXE est packagé
-    sans console (`console=False` dans `DigitalCrown.spec`)."""
+    """Redirect packaged-app logs to the platform-owned log directory."""
     if not getattr(sys, "frozen", False):
         return
 
@@ -69,8 +54,7 @@ def _setup_frozen_logging() -> None:
     from logging.handlers import RotatingFileHandler
     from backend.core.paths import AppPaths
 
-    log_dir = AppPaths.get_user_data_dir() / "logs"
-    log_dir.mkdir(parents=True, exist_ok=True)
+    log_dir = AppPaths.get_log_dir()
     handler = RotatingFileHandler(
         log_dir / "digitalcrown.log", maxBytes=5_000_000, backupCount=5, encoding="utf-8"
     )
@@ -88,12 +72,7 @@ def _setup_frozen_logging() -> None:
 
 
 def _maybe_run_guided_restore_worker() -> None:
-    """Exécute le worker de restauration avant tout import du runtime FastAPI.
-
-    Le worker tourne dans un second processus du même EXE, attend l'arrêt du
-    processus applicatif, applique la restauration puis relance l'EXE. Il ne
-    doit donc jamais importer backend.main avant d'avoir terminé son travail.
-    """
+    """Run the restore worker before importing the FastAPI runtime."""
     if len(sys.argv) < 2 or sys.argv[1] != "--guided-restore-worker":
         return
 
@@ -113,16 +92,17 @@ _first_boot_bootstrap()
 _setup_frozen_logging()
 _maybe_run_guided_restore_worker()
 
-import uvicorn
 import multiprocessing
 import threading
 import time
-import webbrowser
+
+import uvicorn
+
 from backend.main import app
 
 
 def _resolve_host_port():
-    """Résout l'adresse d'écoute selon l'environnement."""
+    """Resolve the listen address according to the application environment."""
     env = os.environ.get("ENVIRONMENT", "development").lower()
     default_host = "0.0.0.0" if env == "cabinet" else "127.0.0.1"
     host = os.environ.get("CABINET_HOST", default_host)
@@ -131,17 +111,20 @@ def _resolve_host_port():
 
 
 def open_browser(port: int):
+    # P2 replaces this fixed delay with an actual readiness gate.
+    from backend.core.platform import get_platform_adapter
+
     time.sleep(2)
-    webbrowser.open(f"http://127.0.0.1:{port}")
+    get_platform_adapter().open_uri(f"http://127.0.0.1:{port}")
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     multiprocessing.freeze_support()
 
     host, port = _resolve_host_port()
 
     if (
-        getattr(sys, 'frozen', False)
+        getattr(sys, "frozen", False)
         and os.environ.get("DIGITALCROWN_RESTORE_RESTART") != "1"
     ):
         threading.Thread(target=open_browser, args=(port,), daemon=True).start()

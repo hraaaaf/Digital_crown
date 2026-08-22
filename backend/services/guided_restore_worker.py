@@ -13,6 +13,7 @@ from urllib.request import urlopen
 
 from backend.core.media_paths import get_media_root
 from backend.core.paths import AppPaths
+from backend.core.platform import get_platform_adapter
 from backend.services.guided_restore import GuidedRestoreService, _utc_now
 from backend.services.guided_restore_archive import (
     _decrypt_backup_key,
@@ -25,18 +26,7 @@ from backend.services.guided_restore_archive import (
 class GuidedRestoreWorker:
     @staticmethod
     def _pid_alive(pid: int) -> bool:
-        if pid <= 0:
-            return False
-        if os.name == "nt":
-            result = subprocess.run(
-                ["tasklist", "/FI", f"PID eq {pid}"], capture_output=True, text=True, check=False
-            )
-            return str(pid) in result.stdout
-        try:
-            os.kill(pid, 0)
-            return True
-        except OSError:
-            return False
+        return get_platform_adapter().is_process_alive(pid)
 
     @classmethod
     def _wait_parent_exit(cls, pid: int, timeout: float = 20.0) -> None:
