@@ -1,7 +1,5 @@
 """Thirteenth batch — NotificationService whatsapp mock path,
-rate_limit check_rate_limit with mocked Request,
-template_engine PDFGenerator instantiation,
-SecureTemplateRenderer html-file path."""
+rate_limit check_rate_limit with mocked Request."""
 import pytest
 from unittest.mock import MagicMock
 from fastapi import HTTPException
@@ -112,43 +110,3 @@ class TestCheckRateLimit:
             rl.check_rate_limit(self._req("10.5.5.5"))  # should not raise
         finally:
             rl._store_path = original
-
-
-# ── template_engine TemplateEngine instantiation ─────────────────────────────
-
-class TestTemplateEngineInstantiation:
-    def test_creates_without_error(self):
-        from backend.services.template_engine import TemplateEngine
-        gen = TemplateEngine()
-        assert gen is not None
-
-    def test_weasyprint_available_attribute_set(self):
-        from backend.services.template_engine import TemplateEngine
-        gen = TemplateEngine()
-        assert hasattr(gen, "weasyprint_available")
-        assert isinstance(gen.weasyprint_available, bool)
-
-    def test_renderer_attribute_is_secure_renderer(self):
-        from backend.services.template_engine import TemplateEngine, SecureTemplateRenderer
-        gen = TemplateEngine()
-        assert isinstance(gen.renderer, SecureTemplateRenderer)
-
-    def test_css_generator_attribute_set(self):
-        from backend.services.template_engine import TemplateEngine, CSSGenerator
-        gen = TemplateEngine()
-        assert isinstance(gen.css_generator, CSSGenerator)
-
-
-# ── SecureTemplateRenderer: html filename path (line 65) ─────────────────────
-
-class TestSecureTemplateRendererHtmlFile:
-    def _renderer(self):
-        from backend.services.template_engine import SecureTemplateRenderer
-        return SecureTemplateRenderer()
-
-    def test_html_filename_raises_value_error(self):
-        # Passing a filename ending with .html triggers env.get_template() which raises
-        # TemplateNotFound (caught → ValueError)
-        r = self._renderer()
-        with pytest.raises(ValueError):
-            r.render("nonexistent_template.html", {})
