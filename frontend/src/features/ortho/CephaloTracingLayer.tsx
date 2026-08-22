@@ -50,13 +50,18 @@
  * ─────────────────────────────────────────────────────────────────────────────
  */
 
-import React, { useState, useRef, useCallback, useEffect } from 'react';
+import React from 'react';
 import { motion } from 'framer-motion';
 import { cn } from '../../utils/cn';
 import type { Landmark, ImageFilters, VTOSettings } from './cephaloShared';
 import { toDeg, projectPointOnLine, getPerpendicularTick, buildWedgePath } from './cephaloMath';
 import { AnatomicalTooth } from './components/AnatomicalTooth';
 import { WedgeZone } from './components/WedgeZone';
+import { CephaloCalibrationOverlay } from './components/CephaloCalibrationOverlay';
+import { CephaloMagnifierOverlay } from './components/CephaloMagnifierOverlay';
+import { CephaloLandmarkReticles } from './components/CephaloLandmarkReticles';
+import { CephaloSvgDefs } from './components/CephaloSvgDefs';
+import { useCephaloInteraction } from './hooks/useCephaloInteraction';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // TYPES EXPORTÉS (Locaux)
@@ -193,9 +198,7 @@ const IF_COMP_HALF = Math.max(IF_MEAN - IF_COMP_LOW, IF_COMP_HIGH - IF_MEAN);
 // Points tissu mou non interactifs (vision_service.py)
 // ─────────────────────────────────────────────────────────────────────────────
 
-const SOFT_TISSUE_IDS = new Set([
-  'ul', 'll', 'sn', 'stpog', 'ls', 'li', 'prn', 'cm', 'g_soft', 'n_soft', 'a_soft', 'st', 'b_soft', 'pog_soft', 'me_soft', 'g-soft', 'n-soft'
-]);
+
 
 // ─────────────────────────────────────────────────────────────────────────────
 // COMPOSANT PRINCIPAL
@@ -228,99 +231,34 @@ export const CephaloTracingLayer: React.FC<CephaloTracingLayerProps> = ({
   const P = PALETTE[uiMode as PaletteKey];
   const isPro = uiMode === 'pro';
 
-  // ── Refs ──────────────────────────────────────────────────────────────────
-  const svgRef = useRef<SVGSVGElement>(null);
+  const {
+    svgRef,
+    activeDragId,
+    setActiveDragId,
+    activeDragPos,
+    setActiveDragPos,
+    magnifier,
+    setMagnifier,
+    clientToSVG,
+    getPoint,
+    handleSvgClick,
+  } = useCephaloInteraction({
+    landmarks,
+    imageWidth,
+    imageHeight,
+    magnifierEnabled,
+    isCalibrating,
+    onAddCalibrationPoint,
+    onEmptyAreaClick,
+  });
 
-  // ── State ─────────────────────────────────────────────────────────────────
-  /**
-   * activeDragId  : ID du point en cours de drag
-   * activeDragPos : position SVG temps-réel calculée via getScreenCTM()
-   *
-   * IMPORTANT : pendant le drag, les cercles SVG sont rendus à
-   * dispX/dispY = activeDragPos (pas à pt.x/pt.y). C'est ce qui garantit
-   * que le pixel visuel correspond exactement à la coordonnée SVG réelle.
-   */
-  const [activeDragId, setActiveDragId] = useState<string | null>(null);
-  const [activeDragPos, setActiveDragPos] = useState<{ id: string; x: number; y: number } | null>(null);
-  const [magnifier, setMagnifier] = useState<{ x: number; y: number; show: boolean }>(
-    { x: 0, y: 0, show: false }
-  );
-
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    if (!magnifierEnabled && magnifier.show) setMagnifier(m => ({ ...m, show: false }));
-  }, [magnifierEnabled]); // eslint-disable-line
-
-  // ─────────────────────────────────────────────────────────────────────────
-  // clientToSVG — conversion pixel-perfect via getScreenCTM().inverse()
-  //
-  // getScreenCTM() retourne la matrice de l'espace SVG user-space vers le
-  // viewport écran. Son inverse transforme (clientX, clientY) en coordonnées
-  // SVG, en tenant compte automatiquement de :
-  //   - viewBox + preserveAspectRatio (letterboxing exact)
-  //   - CSS transforms sur le SVG et ses ancêtres
-  //   - Zoom navigateur / scroll
-  //
-  // Ne jamais utiliser getBoundingClientRect + scaling manuel.
-  // ─────────────────────────────────────────────────────────────────────────
-
-  const clientToSVG = useCallback((clientX: number, clientY: number): { x: number; y: number } | null => {
-    const svg = svgRef.current;
-    if (!svg) return null;
-    const ctm = svg.getScreenCTM();
-    if (!ctm) return null;
-    const pt = svg.createSVGPoint();
-    pt.x = clientX;
-    pt.y = clientY;
-    const svgPt = pt.matrixTransform(ctm.inverse());
-    return {
-      x: Math.max(0, Math.min(imageWidth, svgPt.x)),
-      y: Math.max(0, Math.min(imageHeight, svgPt.y)),
-    };
-  }, [imageWidth, imageHeight]);
-
-  // ─────────────────────────────────────────────────────────────────────────
-  // GETPOINT — résolveur temps réel
-  // Retourne activeDragPos pour le point draggé (pour lignes, dents, wedges)
-  // ─────────────────────────────────────────────────────────────────────────
-
-  const getPoint = useCallback((pts: Landmark[], id: string): Landmark | undefined => {
-    const pt = pts.find(l => l.id === id || l.id.toLowerCase() === id.toLowerCase());
-    const adp = activeDragPos;
-    if (pts === landmarks && pt && adp?.id === pt.id) {
-      return { ...pt, x: adp.x, y: adp.y };
-    }
-    return pt;
-  }, [landmarks, activeDragPos]);
-
-  // ─────────────────────────────────────────────────────────────────────────
   // HOVER METRIC
   // ─────────────────────────────────────────────────────────────────────────
 
   const isHoverActive = !!hoveredMetric;
-  const isPointHovered = (ptId: string) =>
-    !isHoverActive ||
-    hoveredMetric!.points.map(p => p.toLowerCase()).includes(ptId.toLowerCase());
   const isLineHovered = (lineId: string) =>
     isHoverActive &&
     hoveredMetric!.lines.map(l => l.toLowerCase()).includes(lineId.toLowerCase());
-
-  // ─────────────────────────────────────────────────────────────────────────
-  // CLICK HANDLER (calibration / empty area)
-  // ─────────────────────────────────────────────────────────────────────────
-
-  const handleSvgClick = useCallback((e: React.MouseEvent<SVGSVGElement>) => {
-    if (activeDragId) return; // fin d'un drag → ignorer le click synthétique
-    const coords = clientToSVG(e.clientX, e.clientY);
-    if (!coords) return;
-    if (isCalibrating && onAddCalibrationPoint) {
-      onAddCalibrationPoint(coords);
-      return;
-    }
-    if (e.target === e.currentTarget && onEmptyAreaClick) {
-      onEmptyAreaClick(coords);
-    }
-  }, [clientToSVG, activeDragId, isCalibrating, onAddCalibrationPoint, onEmptyAreaClick]);
 
   // ─────────────────────────────────────────────────────────────────────────
   // LOUPE — positionnement adaptatif (évite les bords)
@@ -836,31 +774,12 @@ export const CephaloTracingLayer: React.FC<CephaloTracingLayerProps> = ({
           if (!activeDragId) setMagnifier(m => ({ ...m, show: false }));
         }}
       >
-        {/* ── DEFS ──────────────────────────────────────────────────── */}
-        <defs>
-          <clipPath id="cephalo-mag-clip">
-            <circle cx={magX} cy={magY} r={MAG_R} />
-          </clipPath>
-          {isPro && (
-            <filter id="dc-glow-pro" x="-80%" y="-80%" width="260%" height="260%">
-              <feGaussianBlur in="SourceGraphic" stdDeviation="5" result="blur" />
-              <feMerge>
-                <feMergeNode in="blur" />
-                <feMergeNode in="SourceGraphic" />
-              </feMerge>
-            </filter>
-          )}
-          {/* Définitions VTO Elite */}
-          <linearGradient id="ghostFaceGradient" x1="0%" y1="0%" x2="100%" y2="0%">
-            <stop offset="0%" stopColor="#00f5ff" stopOpacity="0.22" />
-            <stop offset="60%" stopColor="#00f5ff" stopOpacity="0.08" />
-            <stop offset="100%" stopColor="#00f5ff" stopOpacity="0" />
-          </linearGradient>
-          <filter id="skinGlow">
-            <feGaussianBlur stdDeviation="15" result="blur" />
-            <feComposite in="SourceGraphic" in2="blur" operator="over" />
-          </filter>
-        </defs>
+        <CephaloSvgDefs
+          magX={magX}
+          magY={magY}
+          MAG_R={MAG_R}
+          isPro={isPro}
+        />
 
         {/* ══ IMAGE DE FOND ═══════════════════════════════════════════
             Radiographie céphalométrique - rendue en premier (arrière-plan)
@@ -1030,233 +949,46 @@ export const CephaloTracingLayer: React.FC<CephaloTracingLayerProps> = ({
             colors={{ norm: P.wedgeU1Norm, comp: P.wedgeU1Comp, severe: P.wedgeU1Severe, normLine: P.wedgeU1Norm }} />
         )}
 
-        {/* ══ RÉTICULES — Pointer Events natifs (v4.2) ══════════════════
-            ────────────────────────────────────────────────────────────
-            PRINCIPE FONDAMENTAL :
-              Pendant le drag, cx/cy/x/y de TOUS les éléments du point
-              utilisent dispX/dispY = activeDragPos (coordonnée SVG
-              temps-réel calculée par getScreenCTM().inverse()).
-              Jamais pt.x/pt.y pendant le drag.
-            ────────────────────────────────────────────────────────────
-            setPointerCapture : garantit que onPointerMove/Up continuent
-            même si le curseur sort de la hitbox (drag rapide).
-            ══════════════════════════════════════════════════════════ */}
-        {!isCalibrating && baseOpacity > 0.08 && landmarks.map(pt => {
-          const isSoft = SOFT_TISSUE_IDS.has(pt.id.toLowerCase());
-          const isDragged = activeDragId === pt.id;
-          const isActive = pt.id === activePointId;
-          const isFocused = pt.id === focusedPointId;
-          const isHovMetric = isPointHovered(pt.id);
+        <CephaloLandmarkReticles
+          landmarks={landmarks}
+          isCalibrating={isCalibrating}
+          baseOpacity={baseOpacity}
+          activeDragId={activeDragId}
+          activeDragPos={activeDragPos}
+          activePointId={activePointId}
+          focusedPointId={focusedPointId}
+          hoveredMetric={hoveredMetric}
+          palette={P}
+          isPro={isPro}
+          setActiveDragId={setActiveDragId}
+          setActiveDragPos={setActiveDragPos}
+          magnifierEnabled={magnifierEnabled}
+          setMagnifier={setMagnifier}
+          clientToSVG={clientToSVG}
+          onPointMouseDown={onPointMouseDown}
+          onUpdateLandmarks={onUpdateLandmarks}
+        />
 
-          // Mode Isolation : masquer tout sauf le point draggé
-          if (activeDragId && !isDragged) return null;
+        <CephaloCalibrationOverlay
+          isCalibrating={isCalibrating}
+          activeDragId={activeDragId}
+          magnifier={magnifier}
+          calibrationPoints={calibrationPoints}
+        />
 
-          // ── Position d'affichage ──────────────────────────────────
-          // C'est ici que réside le correctif : pendant le drag,
-          // on affiche à la position calculée par getScreenCTM,
-          // pas à la position commitée (pt.x, pt.y).
-          const dispX = isDragged && activeDragPos ? activeDragPos.x : pt.x;
-          const dispY = isDragged && activeDragPos ? activeDragPos.y : pt.y;
-
-          const baseColor = isSoft ? '#ff8a65'
-            : pt.id.startsWith('U') ? P.ptU
-              : pt.id.startsWith('L') ? P.ptL
-                : P.ptDefault;
-          const renderColor = (isActive || isFocused || isDragged) ? '#ffffff' : baseColor;
-
-          const ptOp = activeDragId
-            ? (isDragged ? 1 : P.isolationDim)
-            : (isHovMetric ? baseOpacity : baseOpacity * 0.42);
-
-          const glowStyle = isPro && (isDragged || isFocused || isHovMetric)
-            ? { filter: `drop-shadow(0 0 6px ${renderColor})` } : {};
-
-          return (
-            <motion.g
-              key={pt.id}
-              animate={{ opacity: ptOp }}
-              transition={{ duration: 0.12 }}
-            >
-              <g
-                style={{ pointerEvents: 'all', cursor: isDragged ? 'grabbing' : 'grab', ...glowStyle }}
-                onPointerDown={e => {
-                  e.stopPropagation();
-                  // setPointerCapture : les événements continuent même hors hitbox
-                  (e.currentTarget as Element).setPointerCapture(e.pointerId);
-                  setActiveDragId(pt.id);
-                  onPointMouseDown?.(pt.id);
-                }}
-                onPointerMove={e => {
-                  if (activeDragId !== pt.id) return;
-                  e.stopPropagation();
-                  const coords = clientToSVG(e.clientX, e.clientY);
-                  if (!coords) return;
-                  // Mettre à jour la position d'affichage en temps réel
-                  setActiveDragPos({ id: pt.id, ...coords });
-                  if (magnifierEnabled) setMagnifier({ x: coords.x, y: coords.y, show: true });
-                }}
-                onPointerUp={e => {
-                  if (activeDragId !== pt.id) return;
-                  e.stopPropagation();
-                  const coords = clientToSVG(e.clientX, e.clientY);
-                  setActiveDragId(null);
-                  setActiveDragPos(null);
-                  setMagnifier(m => ({ ...m, show: false }));
-                  if (coords) {
-                    // Commit de la position finale dans le tableau landmarks
-                    onUpdateLandmarks(
-                      landmarks.map(l => l.id === pt.id ? { ...l, x: coords.x, y: coords.y } : l)
-                    );
-                  }
-                }}
-                onPointerEnter={() => {
-                  if (!activeDragId && magnifierEnabled) {
-                    setMagnifier({ x: pt.x, y: pt.y, show: true });
-                  }
-                }}
-                onPointerLeave={() => {
-                  if (!activeDragId) setMagnifier(m => ({ ...m, show: false }));
-                }}
-              >
-                {/* Hitbox magnétique invisible r=20 */}
-                <circle cx={dispX} cy={dispY} r={20} fill="transparent" stroke="transparent" />
-
-                {/* Point visuel — cx/cy = dispX/dispY (suit le curseur) */}
-                <circle cx={dispX} cy={dispY}
-                  r={isFocused || isDragged ? 4.5 : 2.5}
-                  fill={renderColor}
-                  vectorEffect="non-scaling-stroke" />
-
-                {/* Halo de sélection */}
-                {(isActive || isFocused || isDragged) && (
-                  <>
-                    <circle cx={dispX} cy={dispY} r={9}
-                      fill="none" stroke={renderColor}
-                      strokeWidth="1.5" opacity="0.55"
-                      vectorEffect="non-scaling-stroke" />
-                    {isPro && (
-                      <motion.circle cx={dispX} cy={dispY} r={15}
-                        fill="none" stroke={renderColor} strokeWidth="0.8"
-                        vectorEffect="non-scaling-stroke"
-                        animate={{ opacity: [0.5, 0.08, 0.5] }}
-                        transition={{ duration: 1.6, repeat: Infinity, ease: 'easeInOut' }} />
-                    )}
-                  </>
-                )}
-
-                {/* Étiquette — ancrée sur dispX/dispY */}
-                {(isHovMetric || isDragged || isFocused) && (
-                  <text
-                    x={dispX} y={dispY} dx="13" dy="-13"
-                    fontSize="10"
-                    fontFamily="'IBM Plex Mono','JetBrains Mono',monospace"
-                    fontWeight="900"
-                    className="pointer-events-none select-none fill-white"
-                    style={!isPro
-                      ? { paintOrder: 'stroke', stroke: 'rgba(0,0,0,0.85)', strokeWidth: '3.5px' }
-                      : {}}
-                  >
-                    {pt.id}
-                  </text>
-                )}
-              </g>
-            </motion.g>
-          );
-        })}
-
-        {/* ══ CALIBRATION ══════════════════════════════════════════════ */}
-        {isCalibrating && (
-          <g className="pointer-events-none">
-            {/* Règle dynamique qui suit le curseur */}
-            {!activeDragId && magnifier.show && (
-              <g opacity="0.6">
-                <line 
-                  x1={magnifier.x - 40} y1={magnifier.y} 
-                  x2={magnifier.x + 40} y2={magnifier.y} 
-                  stroke="#eab308" strokeWidth="0.5" strokeDasharray="2,2" 
-                />
-                <line 
-                  x1={magnifier.x} y1={magnifier.y - 40} 
-                  x2={magnifier.x} y2={magnifier.y + 40} 
-                  stroke="#eab308" strokeWidth="0.5" strokeDasharray="2,2" 
-                />
-                <circle cx={magnifier.x} cy={magnifier.y} r="15" fill="none" stroke="#eab308" strokeWidth="0.5" strokeDasharray="1,2" />
-              </g>
-            )}
-
-            {calibrationPoints && calibrationPoints.map((cpt, i) => (
-              <g key={`calib-group-${i}`}>
-                <path
-                  d={[
-                    `M ${cpt.x - 16} ${cpt.y} L ${cpt.x + 16} ${cpt.y}`,
-                    `M ${cpt.x} ${cpt.y - 16} L ${cpt.x} ${cpt.y + 16}`,
-                  ].join(' ')}
-                  stroke="#eab308" strokeWidth="2" vectorEffect="non-scaling-stroke" 
-                />
-                <circle cx={cpt.x} cy={cpt.y} r="4" fill="#eab308" />
-              </g>
-            ))}
-            {calibrationPoints && calibrationPoints.length === 2 && (
-              <g>
-                <line
-                  x1={calibrationPoints[0].x} y1={calibrationPoints[0].y}
-                  x2={calibrationPoints[1].x} y2={calibrationPoints[1].y}
-                  stroke="#eab308" strokeWidth="2" strokeDasharray="6,4"
-                  vectorEffect="non-scaling-stroke" 
-                />
-                <rect 
-                  x={Math.min(calibrationPoints[0].x, calibrationPoints[1].x) + Math.abs(calibrationPoints[0].x - calibrationPoints[1].x)/2 - 20}
-                  y={Math.min(calibrationPoints[0].y, calibrationPoints[1].y) + Math.abs(calibrationPoints[0].y - calibrationPoints[1].y)/2 - 10}
-                  width="40" height="20" rx="4" fill="#eab308" 
-                />
-                <text 
-                   x={Math.min(calibrationPoints[0].x, calibrationPoints[1].x) + Math.abs(calibrationPoints[0].x - calibrationPoints[1].x)/2}
-                   y={Math.min(calibrationPoints[0].y, calibrationPoints[1].y) + Math.abs(calibrationPoints[0].y - calibrationPoints[1].y)/2 + 4}
-                   fontSize="10" fontWeight="bold" fill="#000" textAnchor="middle"
-                >
-                  REF
-                </text>
-              </g>
-            )}
-          </g>
-        )}
-
-        {/* ══ LOUPE SVG PIXEL-PERFECT ═══════════════════════════════════
-            Image repositionnée : x = magX - cursor.x × zoom
-            Croix de visée au centre exact.
-            ══════════════════════════════════════════════════════════ */}
-        {magnifierEnabled && magnifier.show && imageSrc && (
-          <g className="pointer-events-none">
-            <circle cx={magX} cy={magY} r={MAG_R}
-              fill={P.magnifierBg} stroke={P.magnifierRing}
-              strokeWidth="2" vectorEffect="non-scaling-stroke" />
-            <image
-              href={imageSrc}
-              x={magX - magnifier.x * MAG_ZOOM}
-              y={magY - magnifier.y * MAG_ZOOM}
-              width={imageWidth * MAG_ZOOM}
-              height={imageHeight * MAG_ZOOM}
-              clipPath="url(#cephalo-mag-clip)"
-              preserveAspectRatio="none"
-              style={{
-                filter: [
-                  `brightness(${imgFilters?.brightness ?? 100}%)`,
-                  `contrast(${imgFilters?.contrast ?? 100}%)`,
-                  `invert(${imgFilters?.invert ? 100 : 0}%)`,
-                ].join(' '),
-              }}
-            />
-            <circle cx={magX} cy={magY} r={MAG_R - 1}
-              fill="none" stroke={P.magnifierRing}
-              strokeWidth="1" opacity="0.35" vectorEffect="non-scaling-stroke" />
-            <line x1={magX - 14} y1={magY} x2={magX + 14} y2={magY}
-              stroke={P.crosshairCol} strokeWidth="1.2" opacity="0.95" vectorEffect="non-scaling-stroke" />
-            <line x1={magX} y1={magY - 14} x2={magX} y2={magY + 14}
-              stroke={P.crosshairCol} strokeWidth="1.2" opacity="0.95" vectorEffect="non-scaling-stroke" />
-            <circle cx={magX} cy={magY} r={2.2}
-              fill={P.crosshairCol} opacity="1" vectorEffect="non-scaling-stroke" />
-          </g>
-        )}
+        <CephaloMagnifierOverlay
+          magnifierEnabled={magnifierEnabled}
+          magnifier={magnifier}
+          imageSrc={imageSrc}
+          imageWidth={imageWidth}
+          imageHeight={imageHeight}
+          imgFilters={imgFilters}
+          magX={magX}
+          magY={magY}
+          MAG_R={MAG_R}
+          MAG_ZOOM={MAG_ZOOM}
+          palette={P}
+        />
       </svg>
     </div>
   );

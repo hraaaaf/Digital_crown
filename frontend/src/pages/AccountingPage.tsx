@@ -1,8 +1,6 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { Link, useSearchParams, useNavigate } from 'react-router-dom';
-import toast from 'react-hot-toast';
+import React from 'react';
+import { Link } from 'react-router-dom';
 import {
-  Receipt,
   Search,
   Filter,
   Calendar,
@@ -19,11 +17,6 @@ import {
   Calculator,
   Check,
   Mail,
-  FileSpreadsheet,
-  AlertTriangle,
-  Send,
-  AlertCircle,
-  CheckCheck
 } from 'lucide-react';
 import { EliteGhostLoader } from '../components/EliteGhostLoader';
 import { cn } from '../utils/cn';
@@ -36,380 +29,73 @@ import {
   Tooltip, 
   ResponsiveContainer,
   BarChart,
-  Bar,
   Cell,
   PieChart,
   Pie
 } from 'recharts';
-import { api } from '../services/api';
-
-// --- COMPOSANTS INTERNES ---
-
-interface HonoraireItem {
-  id: number | string;
-  patient_id: number;
-  patient_name: string;
-  assurance: string;
-  date: string;
-  title: string;
-  amount: number;
-  file_url: string;
-  payment_status?: string;
-  is_collected?: boolean;
-  validated_by?: string;
-}
-
-// --- Groupe les notes par patient_id + date (clé composite) ---
-interface GroupedItem {
-  key: string;
-  patient_id: number;
-  patient_name: string;
-  assurance: string;
-  date: string;
-  total: number;
-  notes: HonoraireItem[];
-}
-
-const groupByPatientDate = (items: HonoraireItem[]): GroupedItem[] => {
-  const map = new Map<string, GroupedItem>();
-  items.forEach(item => {
-    const dateKey = new Date(item.date).toLocaleDateString('fr-FR');
-    const key = `${item.patient_id}_${dateKey}`;
-    if (!map.has(key)) {
-      map.set(key, {
-        key,
-        patient_id: item.patient_id,
-        patient_name: item.patient_name,
-        assurance: item.assurance,
-        date: item.date,
-        total: 0,
-        notes: [],
-      });
-    }
-    const group = map.get(key)!;
-    group.total += item.amount;
-    group.notes.push(item);
-  });
-  return Array.from(map.values());
-};
+import type { HonoraireItem } from '../features/accounting/types';
+import { groupByPatientDate } from '../features/accounting/utils';
+import { useAccountingController } from '../features/accounting/hooks/useAccountingController';
+import { AccountingTabs } from '../features/accounting/components/AccountingTabs';
+import { AccountingHeader } from '../features/accounting/components/AccountingHeader';
+import { InsightsPanel } from '../features/accounting/components/InsightsPanel';
+import { TreasuryPanel } from '../features/accounting/components/TreasuryPanel';
+import { UnpaidPanel } from '../features/accounting/components/UnpaidPanel';
 
 export const AccountingPage = () => {
-  const [searchParams] = useSearchParams();
-  
-  const [items, setItems] = useState<HonoraireItem[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [exporting, setExporting] = useState(false);
-  const [exportingCsv, setExportingCsv] = useState(false);
-  const [sendingEmail, setSendingEmail] = useState<string | null>(null);
-  const [overdueData, setOverdueData] = useState<any>(null);
-  const [editingCell, setEditingCell] = useState<{ id: string; field: 'title' | 'amount' } | null>(null);
-  const [editingValue, setEditingValue] = useState<string>('');
-  const [totalAmount, setTotalAmount] = useState(0);
-  const [totalCollected, setTotalCollected] = useState(0);
-  const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
-  const [activeTab, setActiveTab] = useState<'history' | 'treasury' | 'insights' | 'unpaid'>(
-    searchParams.get('tab') === 'insights' ? 'insights' :
-    searchParams.get('tab') === 'treasury' ? 'treasury' :
-    searchParams.get('tab') === 'unpaid' ? 'unpaid' : 'history'
-  );
-  const [treasuryData, setTreasuryData] = useState<any>(null);
-  const [loadingTreasury, setLoadingTreasury] = useState(false);
-
-  const [debtData, setDebtData] = useState<{
-    total_patients: number;
-    total_amount: number;
-    items: Array<{
-      patient_id: number; nom: string; prenom: string;
-      telephone: string; assurance: string;
-      total_billed: number; total_paid: number; remaining_due: number;
-    }>;
-  } | null>(null);
-  const [loadingDebts, setLoadingDebts] = useState(false);
-
-  // États pour Visual Insights
-  const [loadingInsights, setLoadingInsights] = useState(false);
-  const [projections, setProjections] = useState<any>(null);
-  const [conversions, setConversions] = useState<any>(null);
-  const [distributions, setDistributions] = useState<any[]>([]);
-
-  const [financialData, setFinancialData] = useState<any>(null);
-
-  const fetchVisualInsights = useCallback(async () => {
-    setLoadingInsights(true);
-    try {
-      const res = await api.get('/analytics/financial');
-      setFinancialData(res.data);
-    } catch (err) {
-      console.error("Erreur chargement Visual Insights:", err);
-    } finally {
-      setLoadingInsights(false);
-    }
-  }, []);
-
-  const toggleGroup = (key: string) => {
-    setExpandedGroups(prev => {
-      const next = new Set(prev);
-      if (next.has(key)) {
-        next.delete(key);
-      } else {
-        next.add(key);
-      }
-      return next;
-    });
-  };
-
-  // Filters
-  const [confirmDeleteId, setConfirmDeleteId] = useState<number | string | null>(null);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [selectedAssurance, setSelectedAssurance] = useState('ALL');
-  const [treasuryStatusFilter, setTreasuryStatusFilter] = useState('ALL');
-  const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1);
-  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
-  const [filterType, setFilterType] = useState<'all' | 'insured_notes_only'>('all');
-  const [summaryByTitle, setSummaryByTitle] = useState<Record<string, number>>({});
-
-  const months = [
-    "Janvier", "Février", "Mars", "Avril", "Mai", "Juin",
-    "Juillet", "Août", "Septembre", "Octobre", "Novembre", "Décembre"
-  ];
-
-  const fetchHonoraires = useCallback(async () => {
-    setLoading(true);
-    try {
-      let url = `/accounting/honoraires?year=${selectedYear}`;
-      if (selectedMonth !== 0) url += `&month=${selectedMonth}`;
-      if (selectedAssurance !== 'ALL') url += `&assurance=${selectedAssurance}`;
-      url += `&filter_type=${filterType}`;
-      
-      const res = await api.get(url);
-      setItems(res.data.items || []);
-      setTotalAmount(res.data.total_amount || 0);
-      setTotalCollected(res.data.total_collected || 0);
-      setSummaryByTitle(res.data.summary_by_title || {});
-    } catch (err) {
-      console.error("Erreur honoraires:", err);
-    } finally {
-      setLoading(false);
-    }
-  }, [selectedYear, selectedMonth, selectedAssurance, filterType]);
-
-  const fetchTreasury = useCallback(async () => {
-    setLoadingTreasury(true);
-    try {
-      const [treasuryRes, overdueRes] = await Promise.all([
-        api.get('/accounting/treasury-hub'),
-        api.get('/accounting/overdue?days=30'),
-      ]);
-      setTreasuryData(treasuryRes.data);
-      setOverdueData(overdueRes.data);
-    } catch (err) {
-      console.error("Erreur treasury hub:", err);
-    } finally {
-      setLoadingTreasury(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    if (activeTab === 'history') {
-      fetchHonoraires();
-    } else if (activeTab === 'treasury') {
-      fetchTreasury();
-    } else if (activeTab === 'insights') {
-      fetchVisualInsights();
-    } else if (activeTab === 'unpaid' && !debtData) {
-      setLoadingDebts(true);
-      api.get('/accounting/patient-debts')
-        .then(res => setDebtData(res.data))
-        .catch(() => {})
-        .finally(() => setLoadingDebts(false));
-    }
-  }, [activeTab, fetchHonoraires, fetchTreasury, fetchVisualInsights, debtData]);
-
-  const handleExport = async () => {
-    setExporting(true);
-    try {
-      let url = `/accounting/export-pdf?year=${selectedYear}`;
-      if (selectedMonth !== 0) url += `&month=${selectedMonth}`;
-      if (selectedAssurance !== 'ALL') url += `&assurance=${selectedAssurance}`;
-      
-      const response = await api.get(url, { responseType: 'blob' });
-      const blob = new Blob([response.data], { type: 'application/pdf' });
-      const downloadUrl = window.URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = downloadUrl;
-      link.setAttribute('download', `Rapport_Honoraires_${selectedYear}_${selectedMonth || 'Global'}.pdf`);
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-    } catch (err) {
-      console.error("Erreur export:", err);
-      alert("Erreur lors de la génération du rapport PDF.");
-    } finally {
-      setExporting(false);
-    }
-  };
-
-  const handleViewDocument = async (url: string) => {
-    try {
-      const response = await api.get(url, { responseType: 'blob' });
-      const blob = new Blob([response.data], { type: 'application/pdf' });
-      const docUrl = window.URL.createObjectURL(blob);
-      window.open(docUrl, '_blank');
-      // Cleanup URL after a while
-      setTimeout(() => window.URL.revokeObjectURL(docUrl), 5000);
-    } catch (err) {
-      console.error("Erreur visualisation document:", err);
-      alert("Impossible de visualiser le document (Problème d'accès ou de token).");
-    }
-  };
-
-  const handleDownloadDocument = async (url: string, filename: string) => {
-    try {
-      const response = await api.get(url, { responseType: 'blob' });
-      const blob = new Blob([response.data], { type: 'application/pdf' });
-      const docUrl = window.URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = docUrl;
-      link.setAttribute('download', filename);
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      setTimeout(() => window.URL.revokeObjectURL(docUrl), 5000);
-    } catch (err) {
-      console.error("Erreur téléchargement document:", err);
-      alert("Erreur lors du téléchargement.");
-    }
-  };
-
-  const handleDelete = (id: number | string) => {
-    setConfirmDeleteId(id);
-  };
-
-  const confirmDelete = async () => {
-    if (!confirmDeleteId) return;
-    try {
-      await api.post(`/documents/${confirmDeleteId}/trash`);
-      setItems(prev => prev.filter(item => item.id !== confirmDeleteId));
-      fetchHonoraires();
-      const isActe = String(confirmDeleteId).startsWith('acte_');
-      toast.success(isActe ? "Acte déplacé dans la corbeille." : "Note déplacée dans la corbeille.");
-    } catch (err) {
-      console.error("Erreur suppression honoraire:", err);
-      toast.error("Erreur lors de la suppression.");
-    } finally {
-      setConfirmDeleteId(null);
-    }
-  };
-
-  const handleEncaisser = async (id: number | string) => {
-    try {
-      await api.post(`/accounting/encaisser/${id}`);
-      toast.success("Règlement encaissé avec succès !");
-      fetchTreasury(); // Rafraîchir les données
-    } catch (err) {
-      console.error("Erreur encaissement:", err);
-      toast.error("Échec de l'encaissement.");
-    }
-  };
-
-  const handleExportCsv = async () => {
-    setExportingCsv(true);
-    try {
-      let url = `/accounting/export-csv?year=${selectedYear}`;
-      if (selectedMonth !== 0) url += `&month=${selectedMonth}`;
-      if (selectedAssurance !== 'ALL') url += `&assurance=${selectedAssurance}`;
-      url += `&filter_type=${filterType}`;
-      const response = await api.get(url, { responseType: 'blob' });
-      const blob = new Blob([response.data], { type: 'text/csv;charset=utf-8-sig' });
-      const downloadUrl = window.URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = downloadUrl;
-      link.setAttribute('download', `Compta_${selectedYear}_${selectedMonth || 'Annuel'}.csv`);
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-    } catch (err) {
-      toast.error("Erreur lors de l'export CSV.");
-    } finally {
-      setExportingCsv(false);
-    }
-  };
-
-  const handleSendEmail = async (itemId: string | number) => {
-    setSendingEmail(String(itemId));
-    try {
-      await api.post(`/accounting/send-email/${itemId}`);
-      toast.success("Note envoyée par email au patient.");
-    } catch (err: any) {
-      const detail = err?.response?.data?.detail || "Erreur d'envoi email.";
-      toast.error(detail);
-    } finally {
-      setSendingEmail(null);
-    }
-  };
-
-  const handleRelance = async (itemId: string) => {
-    setSendingEmail(itemId);
-    try {
-      await api.post(`/accounting/relance/${itemId}`);
-      toast.success("Relance envoyée par email.");
-    } catch (err: any) {
-      const detail = err?.response?.data?.detail || "Erreur d'envoi de relance.";
-      toast.error(detail);
-    } finally {
-      setSendingEmail(null);
-    }
-  };
-
-  const startEdit = (id: string | number, field: 'title' | 'amount', currentValue: string | number) => {
-    setEditingCell({ id: String(id), field });
-    setEditingValue(String(currentValue));
-  };
-
-  const cancelEdit = () => {
-    setEditingCell(null);
-    setEditingValue('');
-  };
-
-  const commitEdit = async () => {
-    if (!editingCell) return;
-    const trimmed = editingValue.trim();
-    if (!trimmed) { cancelEdit(); return; }
-
-    const body: Record<string, string | number> = {};
-    if (editingCell.field === 'title') {
-      body.title = trimmed;
-    } else {
-      const parsed = parseFloat(trimmed.replace(',', '.'));
-      if (isNaN(parsed) || parsed < 0) { toast.error("Montant invalide"); return; }
-      body.amount = parsed;
-    }
-
-    try {
-      await api.patch(`/accounting/item/${editingCell.id}`, body);
-      setItems(prev => prev.map(item =>
-        String(item.id) === editingCell.id
-          ? { ...item, [editingCell.field === 'title' ? 'title' : 'amount']: editingCell.field === 'title' ? trimmed : parseFloat(trimmed.replace(',', '.')) }
-          : item
-      ));
-      toast.success("Modifié avec succès.");
-    } catch (err: any) {
-      toast.error(err?.response?.data?.detail || "Erreur de modification.");
-    } finally {
-      cancelEdit();
-    }
-  };
-
-  const navigate = useNavigate();
-
-  const handlePatientClick = (patientId: number) => {
-    navigate(`/patients/${patientId}`);
-  };
-
-  const filteredItems = items.filter(item => 
-    item.patient_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    item.title.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const {
+    items,
+    loading,
+    exporting,
+    exportingCsv,
+    sendingEmail,
+    overdueData,
+    editingCell,
+    editingValue,
+    setEditingValue,
+    totalAmount,
+    totalCollected,
+    expandedGroups,
+    activeTab,
+    setActiveTab,
+    treasuryData,
+    loadingTreasury,
+    debtData,
+    loadingDebts,
+    loadingInsights,
+    financialData,
+    toggleGroup,
+    confirmDeleteId,
+    setConfirmDeleteId,
+    searchTerm,
+    setSearchTerm,
+    selectedAssurance,
+    setSelectedAssurance,
+    treasuryStatusFilter,
+    setTreasuryStatusFilter,
+    selectedMonth,
+    setSelectedMonth,
+    selectedYear,
+    setSelectedYear,
+    filterType,
+    setFilterType,
+    summaryByTitle,
+    months,
+    handleExport,
+    handleViewDocument,
+    handleDownloadDocument,
+    handleDelete,
+    confirmDelete,
+    handleEncaisser,
+    handleExportCsv,
+    handleSendEmail,
+    handleRelance,
+    startEdit,
+    cancelEdit,
+    commitEdit,
+    handlePatientClick,
+    filteredItems,
+  } = useAccountingController();
 
   const getStatusBadge = (item: HonoraireItem) => {
     if (item.payment_status === 'PAYE') {
@@ -504,59 +190,16 @@ export const AccountingPage = () => {
   return (
     <div className="max-w-[1600px] mx-auto w-full px-6 py-8 md:px-10 md:py-10 space-y-8 animate-in fade-in duration-700">
       
-      <header className="flex flex-col md:flex-row md:items-center justify-between gap-6 bg-card/80 backdrop-blur-xl border border-border-main p-8 rounded-[2.5rem] shadow-[0_8px_40px_rgba(0,0,0,0.04)]">
-        <div className="flex items-center gap-5">
-          <div className="w-14 h-14 bg-primary text-white rounded-2xl flex items-center justify-center shadow-lg shadow-primary/20" style={{ backgroundColor: 'var(--primary)' }}>
-            <Receipt size={28} />
-          </div>
-          <div>
-            <h1 className="text-3xl font-black tracking-tight" style={{ color: 'var(--primary)' }}>Comptabilité & Honoraires</h1>
-            <p className="text-slate-500 font-medium mt-1 uppercase text-[10px] tracking-widest flex items-center gap-2">
-              <TrendingUp size={14} className="text-emerald-500" />
-              Suivi des encaissements par assurance
-            </p>
-          </div>
-        </div>
-
-        <div className="flex flex-wrap items-center gap-4">
-          <div className="flex gap-2 mr-4">
-            {Object.entries(breakdown).map(([ass, amount]) => amount > 0 && (
-              <div key={ass} className="px-3 py-2 bg-slate-50 border border-slate-100 rounded-xl flex flex-col items-center min-w-[80px]">
-                <span className="text-[9px] font-black text-slate-400 uppercase tracking-tighter">{ass === 'MUTUELLE_FAR' ? 'FAR' : ass}</span>
-                <span className="text-[11px] font-bold" style={{ color: 'var(--primary)' }}>{amount.toLocaleString('fr-FR')}</span>
-              </div>
-            ))}
-          </div>
-          <div className="flex gap-2">
-            <div className="bg-slate-50 px-6 py-4 rounded-3xl border border-slate-100 flex flex-col items-end shadow-sm">
-              <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Total Facturé</span>
-              <span className="text-xl font-black text-slate-400">{totalAmount.toLocaleString('fr-FR')} MAD</span>
-            </div>
-            <div className="bg-emerald-50 px-6 py-4 rounded-3xl border border-emerald-100 flex flex-col items-end shadow-sm">
-              <span className="text-[10px] font-black text-emerald-600 uppercase tracking-widest mb-1">Total Encaissé</span>
-              <span className="text-2xl font-black" style={{ color: 'var(--primary)' }}>{totalCollected.toLocaleString('fr-FR')} MAD</span>
-            </div>
-          </div>
-
-          <button
-            onClick={handleExportCsv}
-            disabled={exportingCsv || items.length === 0}
-            className="flex items-center gap-2 px-5 py-4 bg-emerald-600 text-white rounded-[1.5rem] font-black uppercase text-[11px] tracking-widest shadow-lg shadow-emerald-200 hover:-translate-y-1 transition-all active:scale-95 disabled:opacity-50 disabled:translate-y-0"
-          >
-            {exportingCsv ? <Loader2 className="animate-spin" size={18} /> : <FileSpreadsheet size={18} />}
-            CSV
-          </button>
-          <button
-            onClick={handleExport}
-            disabled={exporting || items.length === 0}
-            className="flex items-center gap-3 px-6 py-4 text-white rounded-[1.5rem] font-black uppercase text-[12px] tracking-widest shadow-xl shadow-primary/20 hover:-translate-y-1 transition-all active:scale-95 disabled:opacity-50 disabled:translate-y-0"
-            style={{ backgroundColor: 'var(--primary)' }}
-          >
-            {exporting ? <Loader2 className="animate-spin" size={20} /> : <Download size={20} />}
-            {exporting ? "Génération..." : "PDF"}
-          </button>
-        </div>
-      </header>
+      <AccountingHeader
+        breakdown={breakdown}
+        totalAmount={totalAmount}
+        totalCollected={totalCollected}
+        exportingCsv={exportingCsv}
+        exporting={exporting}
+        itemsCount={items.length}
+        handleExportCsv={handleExportCsv}
+        handleExport={handleExport}
+      />
 
       {/* SECTION INSIGHTS FINANCIERS */}
       {activeTab === 'history' && (
@@ -641,59 +284,12 @@ export const AccountingPage = () => {
         </div>
       )}
 
-      {/* TABS NAVIGATION */}
-      <div className="flex gap-2 p-1.5 bg-slate-100 rounded-2xl w-fit">
-        <button 
-          onClick={() => setActiveTab('history')}
-          className={cn(
-            "px-8 py-3 rounded-xl text-[11px] font-black uppercase tracking-widest transition-all",
-            activeTab === 'history' ? "bg-white shadow-lg text-primary" : "text-slate-500 hover:text-slate-800"
-          )}
-          style={activeTab === 'history' ? { color: 'var(--primary)' } : {}}
-        >
-          Historique des Encaissements
-        </button>
-        <button 
-          onClick={() => setActiveTab('treasury')}
-          className={cn(
-            "px-8 py-3 rounded-xl text-[11px] font-black uppercase tracking-widest transition-all flex items-center gap-2 relative",
-            activeTab === 'treasury' ? "bg-white shadow-lg text-indigo-600" : "text-slate-500 hover:text-slate-800"
-          )}
-        >
-          <Calculator size={14} /> Ghost Treasury Hub
-          {treasuryData?.pending_count > 0 && (
-            <span className="ml-1 px-1.5 py-0.5 bg-indigo-100 text-indigo-600 text-[9px] rounded-full font-black animate-pulse">
-              {treasuryData.pending_count}
-            </span>
-          )}
-        </button>
-        <button
-          onClick={() => setActiveTab('insights')}
-          className={cn(
-            "px-8 py-3 rounded-xl text-[11px] font-black uppercase tracking-widest transition-all flex items-center gap-2 relative",
-            activeTab === 'insights' ? "bg-white shadow-lg text-primary" : "text-slate-500 hover:text-slate-800"
-          )}
-          style={activeTab === 'insights' ? { color: 'var(--primary)' } : {}}
-        >
-          <BarChart2 size={14} /> Visual Insights
-        </button>
-        <button
-          onClick={() => setActiveTab('unpaid')}
-          className={cn(
-            "px-8 py-3 rounded-xl text-[11px] font-black uppercase tracking-widest transition-all flex items-center gap-2 relative",
-            activeTab === 'unpaid' ? "bg-white shadow-lg" : "text-slate-500 hover:text-slate-800"
-          )}
-          style={activeTab === 'unpaid' ? { color: 'var(--primary)' } : {}}
-        >
-          <AlertCircle size={14} />
-          Impayés
-          {debtData && debtData.total_patients > 0 && (
-            <span className="ml-1 px-1.5 py-0.5 bg-red-100 text-red-600 text-[9px] rounded-full font-black">
-              {debtData.total_patients}
-            </span>
-          )}
-        </button>
-      </div>
+      <AccountingTabs
+        activeTab={activeTab}
+        setActiveTab={setActiveTab}
+        treasuryData={treasuryData}
+        debtData={debtData}
+      />
 
       {activeTab === 'history' ? (
         <>
@@ -1051,397 +647,25 @@ export const AccountingPage = () => {
       </main>
         </>
       ) : activeTab === 'treasury' ? (
-        <div className="space-y-8 animate-in slide-in-from-bottom-4 duration-500">
-           {/* Treasury Overview Cards */}
-           <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-              <div className="bg-white p-8 rounded-[2rem] border border-slate-200 shadow-sm flex flex-col gap-2">
-                 <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">En Attente</span>
-                 <span className="text-3xl font-black text-slate-800">{treasuryData?.pending_total?.toLocaleString('fr-FR')} MAD</span>
-                 <div className="flex items-center gap-2 text-amber-500 mt-2">
-                    <div className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
-                    <span className="text-[10px] font-bold uppercase">{treasuryData?.pending_count} dossiers à régulariser</span>
-                 </div>
-              </div>
-              <div className="bg-white p-8 rounded-[2rem] border border-slate-200 shadow-sm flex flex-col gap-2">
-                 <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Règlements Partiels</span>
-                 <span className="text-3xl font-black text-slate-800">{treasuryData?.partial_total?.toLocaleString('fr-FR')} MAD</span>
-                 <span className="text-[10px] font-bold text-blue-500 uppercase mt-2 italic">Solde restant à percevoir</span>
-              </div>
-              <div className="bg-indigo-600 p-8 rounded-[2rem] shadow-xl shadow-indigo-200 flex flex-col gap-2 text-white">
-                 <span className="text-[10px] font-black text-indigo-200 uppercase tracking-widest">Alerte Chèques</span>
-                 <span className="text-3xl font-black">{treasuryData?.cheques_count || 0}</span>
-                 <p className="text-[10px] font-medium text-indigo-100 mt-2 leading-relaxed">
-                    Chèques en attente de dépôt bancaire ou d'encaissement définitif.
-                 </p>
-              </div>
-              <div className="bg-emerald-600 p-8 rounded-[2rem] shadow-xl shadow-emerald-200 flex flex-col gap-2 text-white">
-                 <span className="text-[10px] font-black text-emerald-200 uppercase tracking-widest">Potentiel Immédiat</span>
-                 <span className="text-3xl font-black">{( (treasuryData?.pending_total || 0) + (treasuryData?.partial_total || 0) ).toLocaleString('fr-FR')} MAD</span>
-                 <p className="text-[10px] font-medium text-emerald-100 mt-2 leading-relaxed">
-                    Trésorerie latente à recouvrir activement ce mois.
-                 </p>
-              </div>
-           </div>
-
-           {/* OVERDUE ALERT BANNER */}
-           {overdueData && overdueData.total > 0 && (
-             <div className="bg-rose-50 border border-rose-200 rounded-[2rem] p-6 flex flex-col md:flex-row md:items-center justify-between gap-4">
-               <div className="flex items-center gap-4">
-                 <div className="w-10 h-10 bg-rose-100 text-rose-600 rounded-xl flex items-center justify-center">
-                   <AlertTriangle size={20} />
-                 </div>
-                 <div>
-                   <p className="font-black text-rose-700 text-sm uppercase tracking-widest">
-                     {overdueData.total} note{overdueData.total > 1 ? 's' : ''} en retard &gt; 30 jours
-                   </p>
-                   <p className="text-[10px] text-rose-500 font-medium mt-0.5">
-                     Total : {overdueData.total_amount?.toLocaleString('fr-FR')} MAD non recouvré
-                   </p>
-                 </div>
-               </div>
-               <div className="flex flex-wrap gap-2">
-                 {overdueData.items.slice(0, 5).map((item: any) => (
-                   <div key={item.id} className="flex items-center gap-2 bg-white border border-rose-100 rounded-xl px-3 py-2">
-                     <div>
-                       <p className="text-[10px] font-black text-slate-700">{item.patient_name}</p>
-                       <p className="text-[9px] text-rose-400 font-bold">{item.amount.toLocaleString('fr-FR')} MAD — {item.days_overdue}j</p>
-                     </div>
-                     {item.patient_email && (
-                       <button
-                         onClick={() => handleRelance(item.id)}
-                         disabled={sendingEmail === item.id}
-                         className="p-1.5 bg-rose-50 text-rose-500 rounded-lg hover:bg-rose-500 hover:text-white transition-all border border-rose-100 disabled:opacity-50"
-                         title="Envoyer relance email"
-                       >
-                         {sendingEmail === item.id ? <Loader2 size={12} className="animate-spin" /> : <Send size={12} />}
-                       </button>
-                     )}
-                   </div>
-                 ))}
-                 {overdueData.total > 5 && (
-                   <span className="flex items-center px-3 py-2 text-[9px] font-black text-rose-400">+{overdueData.total - 5} autres</span>
-                 )}
-               </div>
-             </div>
-           )}
-
-           <div className="bg-white rounded-[2.5rem] border border-slate-200 overflow-hidden shadow-sm">
-              <div className="px-8 py-6 border-b border-slate-100 bg-slate-50/50 flex flex-col md:flex-row md:items-center justify-between gap-4">
-                 <div>
-                   <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest">Dossiers en souffrance</h3>
-                   <p className="text-[10px] text-slate-400 font-medium">Liste des notes non réglées ou partiellement réglées</p>
-                 </div>
-                 
-                 <div className="flex flex-wrap items-center gap-3">
-                    <div className="relative group">
-                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-indigo-600 transition-colors" size={14} />
-                      <input 
-                        type="text" 
-                        placeholder="Rechercher..." 
-                        className="pl-9 pr-4 py-2 bg-white border border-slate-200 rounded-xl text-[10px] font-bold focus:ring-4 focus:ring-indigo-500/5 outline-none transition-all w-48"
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                      />
-                    </div>
-                    <select
-                      className="bg-white border border-slate-200 rounded-xl px-3 py-2 text-[10px] font-bold outline-none focus:ring-4 focus:ring-indigo-500/5"
-                      value={treasuryStatusFilter}
-                      onChange={(e) => setTreasuryStatusFilter(e.target.value)}
-                    >
-                      <option value="ALL">Tous Statuts</option>
-                      <option value="EN_ATTENTE">En Attente</option>
-                      <option value="PARTIEL">Partiel</option>
-                    </select>
-                 </div>
-              </div>
-             
-             {loadingTreasury ? (
-               <div className="py-10 relative h-[300px]">
-                 <EliteGhostLoader text="Chargement..." fullScreen={false} size="small" />
-               </div>
-             ) : (
-               <table className="w-full text-left">
-                  <thead>
-                    <tr className="bg-slate-50/50 border-b border-slate-100">
-                      <th className="px-8 py-4 text-[9px] font-black text-slate-400 uppercase tracking-widest">Patient</th>
-                      <th className="px-8 py-4 text-[9px] font-black text-slate-400 uppercase tracking-widest">Date Émission</th>
-                      <th className="px-8 py-4 text-[9px] font-black text-slate-400 uppercase tracking-widest">Montant</th>
-                      <th className="px-8 py-4 text-[9px] font-black text-slate-400 uppercase tracking-widest">Statut</th>
-                      <th className="px-8 py-4 text-[9px] font-black text-slate-400 uppercase tracking-widest text-center">Action</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {(treasuryData?.items || [])
-                      .filter((item: any) =>
-                        (item.patient_name.toLowerCase().includes(searchTerm.toLowerCase())) &&
-                        (treasuryStatusFilter === 'ALL' || item.status === treasuryStatusFilter)
-                      )
-                      .map((item: any) => (
-                      <tr key={item.id} className="border-b border-slate-100 hover:bg-slate-50 transition-all group">
-                        <td className="px-8 py-5">
-                          <button 
-                            onClick={() => handlePatientClick(item.patient_id)}
-                            className="font-bold text-slate-700 hover:text-indigo-600 transition-colors text-left"
-                          >
-                            {item.patient_name}
-                          </button>
-                        </td>
-                        <td className="px-8 py-5 text-sm text-slate-500">
-                          {new Date(item.date).toLocaleDateString('fr-FR')}
-                        </td>
-                        <td className="px-8 py-5">
-                          <span className="font-black text-indigo-600">{item.amount.toLocaleString('fr-FR')} MAD</span>
-                        </td>
-                        <td className="px-8 py-5">
-                          <span className={cn(
-                            "px-2.5 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest",
-                            item.status === 'EN_ATTENTE' ? "bg-amber-100 text-amber-700" : 
-                            item.status === 'A_ENCAISSER' ? "bg-blue-100 text-blue-700" :
-                            "bg-purple-100 text-purple-700"
-                          )}>
-                            {item.status === 'EN_ATTENTE' ? 'En Attente' : 
-                             item.status === 'A_ENCAISSER' ? 'À Encaisser' : 'Partiel'}
-                          </span>
-                        </td>
-                        <td className="px-8 py-5">
-                          <div className="flex justify-center gap-2">
-                             <button
-                                onClick={() => handleSendEmail(`doc_${item.id}`)}
-                                disabled={sendingEmail === `doc_${item.id}`}
-                                className="p-2 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-600 hover:text-white transition-all border border-blue-100 disabled:opacity-50"
-                                title="Envoyer par email"
-                             >
-                                {sendingEmail === `doc_${item.id}` ? <Loader2 size={14} className="animate-spin" /> : <Mail size={14} />}
-                             </button>
-                             <button
-                                onClick={() => handleViewDocument(`documents/${item.id}/download`)}
-                                className="p-2 bg-indigo-50 text-indigo-600 rounded-lg hover:bg-indigo-600 hover:text-white transition-all border border-indigo-100"
-                                title="Voir la note"
-                             >
-                                <Receipt size={14} />
-                             </button>
-                             <button
-                                onClick={() => handleEncaisser(item.id)}
-                                className="px-4 py-2 bg-emerald-50 text-emerald-600 rounded-xl text-[9px] font-black uppercase tracking-widest border border-emerald-100 hover:bg-emerald-600 hover:text-white transition-all"
-                             >
-                                Encaisser
-                             </button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-               </table>
-             )}
-           </div>
-         </div>
+        <TreasuryPanel
+          treasuryData={treasuryData}
+          overdueData={overdueData}
+          loadingTreasury={loadingTreasury}
+          searchTerm={searchTerm}
+          setSearchTerm={setSearchTerm}
+          treasuryStatusFilter={treasuryStatusFilter}
+          setTreasuryStatusFilter={setTreasuryStatusFilter}
+          sendingEmail={sendingEmail}
+          handleRelance={handleRelance}
+          handlePatientClick={handlePatientClick}
+          handleSendEmail={handleSendEmail}
+          handleViewDocument={handleViewDocument}
+          handleEncaisser={handleEncaisser}
+        />
       ) : activeTab === 'insights' ? (
-        <div className="space-y-8 animate-in slide-in-from-bottom-4 duration-500">
-          {loadingInsights ? (
-            <div className="py-20 relative h-[400px]">
-              <EliteGhostLoader text="Calcul des indicateurs financiers..." fullScreen={false} size="medium" />
-            </div>
-          ) : (
-            <>
-              {/* KPIs Financiers */}
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-                <div className="bg-white p-8 rounded-[2rem] border border-slate-200 shadow-sm flex flex-col gap-2 relative overflow-hidden group hover:border-primary/20 transition-all">
-                  <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Revenu Ce Mois</span>
-                  <div className="flex items-baseline gap-2 mt-1">
-                    <span className="text-3xl font-black text-slate-800">
-                      {financialData?.revenue_this_month ? Math.round(financialData.revenue_this_month).toLocaleString('fr-FR') : 0}
-                    </span>
-                    <span className="text-xs font-bold text-slate-400 ml-1">MAD</span>
-                  </div>
-                </div>
-
-                <div className="bg-white p-8 rounded-[2rem] border border-slate-200 shadow-sm flex flex-col gap-2 relative overflow-hidden group hover:border-primary/20 transition-all">
-                  <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Revenu Mois Dernier</span>
-                  <div className="flex items-baseline gap-2 mt-1">
-                    <span className="text-3xl font-black text-slate-800">
-                      {financialData?.revenue_last_month ? Math.round(financialData.revenue_last_month).toLocaleString('fr-FR') : 0}
-                    </span>
-                    <span className="text-xs font-bold text-slate-400 ml-1">MAD</span>
-                  </div>
-                </div>
-
-                <div className="bg-white p-8 rounded-[2rem] border border-slate-200 shadow-sm flex flex-col gap-2 relative overflow-hidden group hover:border-primary/20 transition-all">
-                  <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Taux de Recouvrement</span>
-                  <div className="flex items-baseline gap-2 mt-1">
-                    <span className="text-3xl font-black text-slate-800">{financialData?.recovery_rate || 0}%</span>
-                  </div>
-                  <div className="w-full bg-slate-100 rounded-full h-1.5 mt-2 overflow-hidden">
-                    <div 
-                      className="h-full rounded-full transition-all duration-1000" 
-                      style={{ width: `${financialData?.recovery_rate || 0}%`, backgroundColor: 'var(--primary)' }}
-                    />
-                  </div>
-                </div>
-
-                <div className="p-8 rounded-[2rem] shadow-xl shadow-primary/10 flex flex-col gap-2 text-white relative overflow-hidden group hover:brightness-105 transition-all" style={{ backgroundColor: 'var(--primary)' }}>
-                  <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -mr-16 -mt-16 blur-2xl group-hover:scale-125 transition-all duration-700" />
-                  <span className="text-[10px] font-black text-white/70 uppercase tracking-widest relative z-10">Total Facturé Global</span>
-                  <div className="flex items-baseline gap-2 mt-1 relative z-10">
-                    <span className="text-3xl font-black">
-                      {financialData?.total_billed ? Math.round(financialData.total_billed).toLocaleString('fr-FR') : 0}
-                    </span>
-                    <span className="text-xs font-bold text-white/80 ml-1">MAD</span>
-                  </div>
-                  <span className="text-[10px] font-medium text-white/70 mt-4 block relative z-10">
-                    Total encaissé : {financialData?.total_paid ? Math.round(financialData.total_paid).toLocaleString('fr-FR') : 0} MAD
-                  </span>
-                </div>
-              </div>
-
-              {/* GRAPHIQUES */}
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mt-8">
-                {/* 1. Évolution Revenu */}
-                <div className="bg-white border border-slate-200/80 p-8 rounded-[2.5rem] shadow-sm flex flex-col h-[400px]">
-                  <div>
-                    <h3 className="text-base font-black tracking-tight" style={{ color: 'var(--primary)' }}>Évolution du Revenu</h3>
-                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1">Chiffre d'Affaires Mensuel (6 derniers mois)</p>
-                  </div>
-                  <div className="flex-1 min-h-0 w-full mt-6">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <BarChart data={financialData?.monthly_revenue || []}>
-                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                        <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 9, fontWeight: 700, fill: '#94a3b8' }} />
-                        <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 9, fontWeight: 700, fill: '#94a3b8' }} />
-                        <Tooltip
-                          content={({ active, payload }) => {
-                            if (active && payload && payload.length) {
-                              const item = payload[0];
-                              return (
-                                <div className="bg-white/95 backdrop-blur-md p-4 rounded-2xl border border-slate-200 shadow-2xl">
-                                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">{item.payload.name}</p>
-                                  <p className="text-sm font-black text-primary" style={{ color: 'var(--primary)' }}>
-                                    {(item.value as number).toLocaleString('fr-FR')} MAD
-                                  </p>
-                                </div>
-                              );
-                            }
-                            return null;
-                          }}
-                        />
-                        <Bar dataKey="revenue" fill="var(--primary)" radius={[8, 8, 0, 0]} />
-                      </BarChart>
-                    </ResponsiveContainer>
-                  </div>
-                </div>
-
-                {/* 2. Top Actes */}
-                <div className="bg-white border border-slate-200/80 p-8 rounded-[2.5rem] shadow-sm flex flex-col h-[400px]">
-                  <div>
-                    <h3 className="text-base font-black tracking-tight" style={{ color: 'var(--primary)' }}>Actes les plus rentables</h3>
-                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1">Top 5 actes (Chiffre d'Affaires généré)</p>
-                  </div>
-                  <div className="flex-1 min-h-0 w-full mt-6">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <BarChart layout="vertical" data={financialData?.top_acts_revenue || []}>
-                        <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#f1f5f9" />
-                        <XAxis type="number" axisLine={false} tickLine={false} tick={{ fontSize: 9, fontWeight: 700, fill: '#94a3b8' }} />
-                        <YAxis type="category" dataKey="name" width={100} axisLine={false} tickLine={false} tick={{ fontSize: 9, fontWeight: 700, fill: '#94a3b8' }} />
-                        <Tooltip
-                          content={({ active, payload }) => {
-                            if (active && payload && payload.length) {
-                              const item = payload[0];
-                              return (
-                                <div className="bg-white/95 backdrop-blur-md p-4 rounded-2xl border border-slate-200 shadow-2xl">
-                                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">{item.payload.name}</p>
-                                  <p className="text-sm font-black text-primary" style={{ color: 'var(--primary)' }}>
-                                    {(item.value as number).toLocaleString('fr-FR')} MAD
-                                  </p>
-                                </div>
-                              );
-                            }
-                            return null;
-                          }}
-                        />
-                        <Bar dataKey="value" fill="#8b5cf6" radius={[0, 8, 8, 0]} />
-                      </BarChart>
-                    </ResponsiveContainer>
-                  </div>
-                </div>
-              </div>
-            </>
-          )}
-        </div>
+        <InsightsPanel loadingInsights={loadingInsights} financialData={financialData} />
       ) : activeTab === 'unpaid' ? (
-        <div className="space-y-6 animate-in slide-in-from-bottom-4 duration-500">
-          {/* KPI summary */}
-          <div className="grid grid-cols-2 gap-4">
-            <div className="bg-white p-6 rounded-[2rem] border border-slate-200 shadow-sm">
-              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Patients Débiteurs</p>
-              <p className="text-3xl font-black text-slate-800">{debtData?.total_patients ?? '—'}</p>
-            </div>
-            <div className="bg-red-50 p-6 rounded-[2rem] border border-red-100 shadow-sm">
-              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Total Impayé</p>
-              <p className="text-3xl font-black text-red-600">
-                {debtData ? `${debtData.total_amount.toLocaleString('fr-MA')} MAD` : '—'}
-              </p>
-            </div>
-          </div>
-
-          {/* Table patients débiteurs */}
-          <div className="bg-white rounded-[2rem] border border-slate-200 shadow-sm overflow-hidden">
-            {loadingDebts ? (
-              <div className="flex justify-center py-16">
-                <Loader2 className="animate-spin text-slate-300" size={32} />
-              </div>
-            ) : !debtData || debtData.items.length === 0 ? (
-              <div className="flex flex-col items-center py-16 text-slate-400">
-                <CheckCheck size={40} className="text-emerald-300 mb-3" />
-                <p className="font-bold">Aucun impayé — excellent !</p>
-              </div>
-            ) : (
-              <table className="w-full">
-                <thead>
-                  <tr className="border-b border-slate-100">
-                    <th className="text-left px-6 py-3 text-[10px] font-black text-slate-400 uppercase tracking-widest">Patient</th>
-                    <th className="text-left px-6 py-3 text-[10px] font-black text-slate-400 uppercase tracking-widest">Téléphone</th>
-                    <th className="text-right px-6 py-3 text-[10px] font-black text-slate-400 uppercase tracking-widest">Facturé</th>
-                    <th className="text-right px-6 py-3 text-[10px] font-black text-slate-400 uppercase tracking-widest">Encaissé</th>
-                    <th className="text-right px-6 py-3 text-[10px] font-black text-slate-400 uppercase tracking-widest">Restant Dû</th>
-                    <th className="px-6 py-3"></th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-50">
-                  {debtData.items.map(item => (
-                    <tr key={item.patient_id} className="hover:bg-slate-50 transition-colors">
-                      <td className="px-6 py-4">
-                        <p className="font-black text-sm text-slate-800">{item.nom} {item.prenom}</p>
-                        {item.assurance && item.assurance !== 'AUCUNE' && (
-                          <p className="text-[10px] text-slate-400 font-bold mt-0.5">{item.assurance}</p>
-                        )}
-                      </td>
-                      <td className="px-6 py-4 text-sm text-slate-600 font-medium">{item.telephone}</td>
-                      <td className="px-6 py-4 text-right text-sm font-bold text-slate-600">
-                        {item.total_billed.toLocaleString('fr-MA')}
-                      </td>
-                      <td className="px-6 py-4 text-right text-sm font-bold text-emerald-600">
-                        {item.total_paid.toLocaleString('fr-MA')}
-                      </td>
-                      <td className="px-6 py-4 text-right">
-                        <span className="text-sm font-black text-red-600">
-                          {item.remaining_due.toLocaleString('fr-MA')} MAD
-                        </span>
-                      </td>
-                      <td className="px-6 py-4">
-                        <a
-                          href={`/patients/${item.patient_id}?tab=finances`}
-                          className="text-[10px] font-black uppercase tracking-widest px-3 py-1.5 rounded-lg border border-primary/20 hover:bg-primary/5 transition-colors whitespace-nowrap"
-                          style={{ color: 'var(--primary)' }}
-                        >
-                          Voir Dossier
-                        </a>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            )}
-          </div>
-        </div>
+        <UnpaidPanel debtData={debtData} loadingDebts={loadingDebts} />
       ) : null}
     </div>
   );
