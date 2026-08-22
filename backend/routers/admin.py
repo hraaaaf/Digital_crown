@@ -115,6 +115,10 @@ def export_database(
     )
 
 
+def _restore_not_found(exc: Exception) -> HTTPException:
+    return HTTPException(status_code=404, detail="Restauration introuvable.")
+
+
 @router.post("/restore/preflight")
 async def guided_restore_preflight(
     backup: UploadFile = File(...),
@@ -122,8 +126,9 @@ async def guided_restore_preflight(
     current_user=Depends(_legacy.require_permission("admin")),
 ):
     """Stage and inspect a backup without mutating the active cabinet state."""
+    employer_id = current_user.get_employer_id()
     try:
-        result = await GuidedRestoreService.preflight_upload(backup)
+        result = await GuidedRestoreService.preflight_upload(backup, owner_employer_id=employer_id)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     except Exception as exc:
@@ -133,7 +138,7 @@ async def guided_restore_preflight(
     _legacy.audit_service.log(
         db=db,
         user_id=current_user.id,
-        employer_id=current_user.get_employer_id(),
+        employer_id=employer_id,
         action="GUIDED_RESTORE_PREFLIGHT",
         resource_type="BackupRestore",
         resource_id=result["restore_id"],
@@ -146,6 +151,39 @@ async def guided_restore_preflight(
     return result
 
 
+@router.post("/restore/{restore_id}/prepare")
+def guided_restore_prepare(
+    restore_id: str,
+    db=Depends(_legacy.database.get_db),
+    current_user=Depends(_legacy.require_permission("admin")),
+):
+    """Create and verify the safety point before strong confirmation becomes available."""
+    employer_id = current_user.get_employer_id()
+    try:
+        result = GuidedRestoreService.prepare(restore_id, owner_employer_id=employer_id)
+    except (FileNotFoundError, PermissionError) as exc:
+        raise _restore_not_found(exc) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except RuntimeError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+
+    _legacy.audit_service.log(
+        db=db,
+        user_id=current_user.id,
+        employer_id=employer_id,
+        action="GUIDED_RESTORE_PREPARED",
+        resource_type="BackupRestore",
+        resource_id=restore_id,
+        severity="CRITICAL",
+        details=(
+            "Package revalidé; point de secours DB créé et vérifié; "
+            "empreinte média figée lorsqu'une restauration média est prévue."
+        ),
+    )
+    return result
+
+
 @router.get("/restore/{restore_id}/status")
 def guided_restore_status(
     restore_id: str,
@@ -153,9 +191,10 @@ def guided_restore_status(
 ):
     """Return the persisted, non-sensitive audit status for a restore job."""
     try:
-        return GuidedRestoreService.public_job(GuidedRestoreService.get_job(restore_id))
-    except (FileNotFoundError, ValueError) as exc:
-        raise HTTPException(status_code=404, detail="Restauration introuvable.") from exc
+        job = GuidedRestoreService.get_owned_job(restore_id, current_user.get_employer_id())
+        return GuidedRestoreService.public_job(job)
+    except (FileNotFoundError, ValueError, PermissionError) as exc:
+        raise _restore_not_found(exc) from exc
 
 
 @router.delete("/restore/{restore_id}")
@@ -165,22 +204,23 @@ def guided_restore_cancel(
     current_user=Depends(_legacy.require_permission("admin")),
 ):
     """Discard a staged restore while it is still reversible."""
+    employer_id = current_user.get_employer_id()
     try:
-        GuidedRestoreService.cancel(restore_id)
-    except (FileNotFoundError, ValueError) as exc:
-        raise HTTPException(status_code=404, detail="Restauration introuvable.") from exc
+        GuidedRestoreService.cancel(restore_id, owner_employer_id=employer_id)
+    except (FileNotFoundError, ValueError, PermissionError) as exc:
+        raise _restore_not_found(exc) from exc
     except RuntimeError as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from exc
 
     _legacy.audit_service.log(
         db=db,
         user_id=current_user.id,
-        employer_id=current_user.get_employer_id(),
+        employer_id=employer_id,
         action="GUIDED_RESTORE_CANCELLED",
         resource_type="BackupRestore",
         resource_id=restore_id,
         severity="INFO",
-        details="Préflight de restauration annulé avant toute mutation.",
+        details="Restauration préparée annulée avant toute bascule destructive.",
     )
     return {"status": "cancelled"}
 
@@ -193,19 +233,20 @@ def guided_restore_apply(
     current_user=Depends(_legacy.require_permission("admin")),
 ):
     """Arm the detached cabinet worker; the live process never edits its own DB."""
+    employer_id = current_user.get_employer_id()
     try:
         if payload.confirmation != "RESTAURER":
             raise ValueError("Confirmation exacte requise : RESTAURER")
         if not GuidedRestoreService.runtime_apply_supported():
             raise RuntimeError("Apply hors-processus disponible uniquement dans l'exécutable cabinet")
-        job = GuidedRestoreService.get_job(restore_id)
-        if not job.get("compatible") or job.get("status") != "preflight_ready":
-            raise ValueError("Préflight valide requis avant restauration")
+        job = GuidedRestoreService.get_owned_job(restore_id, employer_id)
+        if not job.get("compatible") or job.get("status") != "prepared":
+            raise ValueError("Préparation sécurisée requise avant restauration")
 
         _legacy.audit_service.log(
             db=db,
             user_id=current_user.id,
-            employer_id=current_user.get_employer_id(),
+            employer_id=employer_id,
             action="GUIDED_RESTORE_APPLY_REQUESTED",
             resource_type="BackupRestore",
             resource_id=restore_id,
@@ -215,9 +256,13 @@ def guided_restore_apply(
                 "secours local, apply hors-processus, smoke check et rollback obligatoires."
             ),
         )
-        result = GuidedRestoreService.request_apply(restore_id, payload.confirmation)
-    except FileNotFoundError as exc:
-        raise HTTPException(status_code=404, detail="Restauration introuvable.") from exc
+        result = GuidedRestoreService.request_apply(
+            restore_id,
+            payload.confirmation,
+            owner_employer_id=employer_id,
+        )
+    except (FileNotFoundError, PermissionError) as exc:
+        raise _restore_not_found(exc) from exc
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     except RuntimeError as exc:
