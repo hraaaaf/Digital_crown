@@ -1,0 +1,38 @@
+name: Mobile M6 Materialize Sources
+
+on:
+  push:
+    branches: [audit/mobile-m6-generator]
+    paths: [.github/workflows/mobile-m6-source-commit.yml]
+
+permissions:
+  contents: write
+
+jobs:
+  materialize:
+    name: Materialize exact master source files
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: audit/mobile-m6-generator
+          fetch-depth: 0
+      - name: Copy exact master sources into audit namespace
+        run: |
+          mkdir -p m6-source/backend/routers
+          mkdir -p m6-source/frontend/src/features/mobile/Dashboard/hooks
+          mkdir -p m6-source/frontend/src
+          mkdir -p m6-source/frontend
+          git show a65d14dddddea3d513913f1453b26c259ef9a7fe:backend/routers/auth.py > m6-source/backend/routers/auth.py
+          git show a65d14dddddea3d513913f1453b26c259ef9a7fe:frontend/src/features/mobile/Dashboard/hooks/useMobileDashboard.ts > m6-source/frontend/src/features/mobile/Dashboard/hooks/useMobileDashboard.ts
+          git show a65d14dddddea3d513913f1453b26c259ef9a7fe:frontend/src/main.tsx > m6-source/frontend/src/main.tsx
+          git show a65d14dddddea3d513913f1453b26c259ef9a7fe:frontend/vite.config.ts > m6-source/frontend/vite.config.ts
+          printf 'source=a65d14dddddea3d513913f1453b26c259ef9a7fe\n' > m6-source/metadata.txt
+      - name: Commit audit-only source copies
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -- m6-source
+          git diff --cached --check
+          git commit -m "chore(mobile): materialize exact M6 sources"
+          git push origin HEAD:audit/mobile-m6-generator
