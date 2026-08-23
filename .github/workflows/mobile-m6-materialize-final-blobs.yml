@@ -1,0 +1,63 @@
+name: Mobile M6 Materialize Final Blobs
+
+on:
+  push:
+    branches: [audit/mobile-m6-generator]
+    paths: [.github/workflows/mobile-m6-materialize-final-blobs.yml]
+
+permissions:
+  actions: read
+  contents: write
+
+jobs:
+  materialize:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: audit/mobile-m6-generator
+          fetch-depth: 0
+      - name: Download previously generated detached candidate
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh api repos/${{ github.repository }}/actions/artifacts/9485239294/zip > /tmp/m6.zip
+          rm -rf /tmp/m6 && mkdir -p /tmp/m6
+          unzip -q /tmp/m6.zip -d /tmp/m6
+          test -f /tmp/m6/files/backend/routers/admin_legacy.py
+          test -f /tmp/m6/files/backend/routers/mobile_legacy.py
+      - name: Apply final reviewed mobile legacy delta
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p = Path('/tmp/m6/files/backend/routers/mobile_legacy.py')
+          s = p.read_text(encoding='utf-8')
+          replacements = [
+              ("from backend import models, database\n", "from backend import models, database\nfrom backend.models_platform import MobilePairedDevice\n"),
+              ("        tenant_id = int(payload[\"tenant_id\"])\n        user = db.query(models.User).filter(models.User.id == user_id).first()\n        if not user or not user.is_active or user.get_employer_id() != tenant_id:\n            raise err\n        return user, tenant_id, payload\n", "        tenant_id = int(payload[\"tenant_id\"])\n        device_id = payload.get(\"device_id\")\n        if not device_id:\n            raise err\n        user = db.query(models.User).filter(models.User.id == user_id).first()\n        if not user or not user.is_active or user.get_employer_id() != tenant_id:\n            raise err\n        device = db.query(MobilePairedDevice).filter(\n            MobilePairedDevice.device_id == device_id,\n            MobilePairedDevice.user_id == user_id,\n            MobilePairedDevice.employer_id == tenant_id,\n            MobilePairedDevice.revoked_at.is_(None),\n        ).first()\n        if not device:\n            raise err\n        return user, tenant_id, payload\n"),
+              ('description="Token à usage unique (UUID 5 min). Si client_public_key_hex est fourni, utilise ECDH (secp256r1) pour chiffrer la masterKey.",', 'description="Secret QR haute entropie ou code manuel 6 chiffres, à usage unique 5 min. ECDH (secp256r1) est obligatoire pour transmettre la clé.",'),
+              ("    db.add(models.MobilePairedDevice(\n", "    db.add(MobilePairedDevice(\n"),
+              ('    current_user: models.User = Depends(require_mobile_permission(["agenda", "patients"])),\n', '    current_user: models.User = Depends(require_mobile_permission("agenda")),\n'),
+              ("    # ──────────────────────────────────────────────────────────────────────────────────────────────────\n    from backend.services.accounting_service import accounting_service\n    kpis = accounting_service.get_finance_kpis(db, employer_id, today)\n\n    # Nombre total patients \n", "    # Les agrégats financiers ne sont même pas lus sans permission finance.\n    # Nombre total patients \n"),
+              ("    else:\n        finance_data = {\n            \"today_revenue\": kpis[\"today_revenue\"],\n", "    else:\n        from backend.services.accounting_service import accounting_service\n        kpis = accounting_service.get_finance_kpis(db, employer_id, today)\n        finance_data = {\n            \"today_revenue\": kpis[\"today_revenue\"],\n"),
+          ]
+          for old, new in replacements:
+              if s.count(old) != 1:
+                  raise SystemExit(f'mobile_legacy replacement count={s.count(old)} for {old[:80]!r}')
+              s = s.replace(old, new, 1)
+          p.write_text(s, encoding='utf-8')
+          PY
+      - name: Verify exact reviewed blob hashes
+        run: |
+          test "$(git hash-object /tmp/m6/files/backend/routers/admin_legacy.py)" = "03e31df1fbb5727c9cfb133be66f63e1d1254ba1"
+          test "$(git hash-object /tmp/m6/files/backend/routers/mobile_legacy.py)" = "bf6fec62472676bf19b759b795694363c020b437"
+      - name: Publish audit-only blob carriers
+        run: |
+          mkdir -p m6-materialized/backend/routers
+          cp /tmp/m6/files/backend/routers/admin_legacy.py m6-materialized/backend/routers/admin_legacy.py
+          cp /tmp/m6/files/backend/routers/mobile_legacy.py m6-materialized/backend/routers/mobile_legacy.py
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add m6-materialized
+          git commit -m "chore(mobile): materialize reviewed M6.1 blobs"
+          git push origin HEAD:audit/mobile-m6-generator
