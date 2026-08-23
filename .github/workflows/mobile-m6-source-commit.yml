@@ -33,6 +33,5 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add -- m6-source
-          git diff --cached --check
           git commit -m "chore(mobile): materialize exact M6 sources"
           git push origin HEAD:audit/mobile-m6-generator
