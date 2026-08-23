@@ -18,13 +18,15 @@ jobs:
       STAGE_BRANCH: audit/mobile-m61-blob-stage
       PATCH_B64_SHA256: b59f024b159fd0badf7e89dfaddbba1276e9f99be42166455ee0b7e5f58a7a9c
       PATCH_SHA256: e3a7197e2fd645d62832550f851a81da0e13b5f3b7decbc4e1cb4ac216f9d784
+      CORRECTION_B64_SHA256: f8ce458fe2bdb0e50037014f8abb4c93183fa70401eed085e7a6981fa5ed289f
+      CORRECTION_SHA256: 0dce0d34bdb3fadd5120cbaed846463e54d4dfcbcbb0a7ef95d509af9b039e45
     steps:
       - uses: actions/checkout@v4
         with:
           ref: audit/mobile-m6-generator
           fetch-depth: 0
 
-      - name: Reconstruct exact final candidate
+      - name: Reconstruct exact corrected candidate
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -37,7 +39,6 @@ jobs:
           rm -rf /tmp/m61-artifact && mkdir /tmp/m61-artifact
           unzip -q /tmp/m61.zip -d /tmp/m61-artifact
           test -d /tmp/m61-artifact/files
-
           cp -a /tmp/m61-artifact/files/. /tmp/m61/
 
           PATCH_B64="$GITHUB_WORKSPACE/.github/m6/m61-post-artifact.patch.gz.b64"
@@ -48,14 +49,21 @@ jobs:
           git apply --check /tmp/m61-post.patch
           git apply /tmp/m61-post.patch
 
-      - name: Verify exact 13 final blobs
+          CORRECTION_B64="$GITHUB_WORKSPACE/.github/m6/m61-correction.patch.gz.b64"
+          printf '%s  %s\n' "$CORRECTION_B64_SHA256" "$CORRECTION_B64" | sha256sum -c -
+          base64 -d "$CORRECTION_B64" | gzip -d > /tmp/m61-correction.patch
+          printf '%s  %s\n' "$CORRECTION_SHA256" /tmp/m61-correction.patch | sha256sum -c -
+          git apply --check /tmp/m61-correction.patch
+          git apply /tmp/m61-correction.patch
+
+      - name: Verify exact 13 corrected final blobs
         working-directory: /tmp/m61
         env:
           PYTHONDONTWRITEBYTECODE: "1"
         run: |
           set -euo pipefail
           test "$(git hash-object backend/database.py)" = "77aebb07ce0b91e924e897d217cf98e7141b4d74"
-          test "$(git hash-object backend/main.py)" = "69e2f9d4ebcc3bb57239bb5c7f47f3a128d69e8e"
+          test "$(git hash-object backend/main.py)" = "99be9a280d941d5297720ad5f833155661e287fd"
           test "$(git hash-object backend/models.py)" = "7c23a93116a2cdd0a786951c1256dfee13efa961"
           test "$(git hash-object backend/models_platform.py)" = "682ee86d17b2578893c083aca1002d3c5b0e2ff8"
           test "$(git hash-object backend/routers/admin_legacy.py)" = "0eedd80b5a3b2c022655f9a84fa3dc59b667adca"
@@ -63,7 +71,7 @@ jobs:
           test "$(git hash-object backend/routers/mobile_legacy.py)" = "9cba5cb7c2ec0ca26842baffe6105720fa374e3e"
           test "$(git hash-object backend/security.py)" = "2ca778135261f45e5db52ec93103c410725a4fc3"
           test "$(git hash-object backend/tests/test_mobile_credential_hardening.py)" = "e1412be9963d7c885dd90075d114f2913715b6f1"
-          test "$(git hash-object backend/tests/test_mobile_identity_security.py)" = "08ce82af80ec4da1dbbbe3ddd4c184acc4191d77"
+          test "$(git hash-object backend/tests/test_mobile_identity_security.py)" = "59235ff24aed22e5672a93ae23cfd719f36fd7a3"
           test "$(git hash-object backend/utils/rate_limit.py)" = "37bb5e164463d898dfe784c8c7429c581e5105c0"
           test "$(git hash-object frontend/src/features/mobile/Onboarding/OnboardingScanner.tsx)" = "27210fe4dfcee7146162e85895958dca98d4c97e"
           test "$(git hash-object frontend/src/services/zka/MobileStorage.ts)" = "2003f2cb044a15fc9c2f8f15f02c7c78d8a1827a"
@@ -73,6 +81,12 @@ jobs:
             backend/routers/admin_legacy.py backend/routers/mobile.py backend/routers/mobile_legacy.py \
             backend/security.py backend/utils/rate_limit.py \
             backend/tests/test_mobile_credential_hardening.py backend/tests/test_mobile_identity_security.py
+
+          grep -q 'token_type == "mobile"' backend/main.py
+          grep -q 'get_mobile_user_license_status' backend/main.py
+          grep -q 'camera=(self), microphone=(), geolocation=()' backend/main.py
+          grep -q 'test_mobile_mutation_uses_numeric_subject_as_user_id' backend/tests/test_mobile_identity_security.py
+          grep -q 'test_permissions_policy_allows_same_origin_camera_only' backend/tests/test_mobile_identity_security.py
 
           git add -- \
             backend/database.py backend/main.py backend/models.py backend/models_platform.py \
@@ -85,12 +99,12 @@ jobs:
           test "$(git diff --cached --name-only | wc -l)" -eq 13
           ! git diff --cached --name-only | grep -Eq '(^|/)sw\.js$|vite\.config\.ts$|useMobileDashboard\.ts$|frontend/src/services/api\.ts$'
 
-      - name: Publish audit staging only
+      - name: Publish corrected audit staging only
         working-directory: /tmp/m61
         run: |
           set -euo pipefail
           git config user.name "Digital Crown M6 Audit"
           git config user.email "123034021+hraaaaf@users.noreply.github.com"
-          git commit -m "audit(m6): materialize exact M6.1 final blobs"
+          git commit -m "audit(m6): materialize corrected M6.1 final blobs"
           test "$(git rev-list --count "$BASE_SHA"..HEAD)" -eq 1
           git push --force origin "HEAD:refs/heads/$STAGE_BRANCH"
