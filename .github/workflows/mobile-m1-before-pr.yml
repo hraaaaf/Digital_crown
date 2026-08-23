@@ -1,0 +1,96 @@
+name: Mobile M1 BEFORE Observable
+
+on:
+  pull_request:
+    branches: [master]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  capture:
+    name: Capture mobile M1 baseline
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout exact PR head
+        uses: actions/checkout@v4
+
+      - name: Setup Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install frontend and Chromium
+        working-directory: frontend
+        run: |
+          npm ci
+          npm install --no-save --package-lock=false playwright@1.55.0
+          npx playwright install --with-deps chromium
+
+      - name: Load frozen M1 harness
+        run: |
+          git fetch --no-tags --depth=1 origin audit/mobile-m1-before-20260823
+          git show dd04c98699b4dc2eb40e76863325c7faee6b54b6:.github/workflows/mobile-m1-before-audit.yml > /tmp/mobile-m1-harness.yml
+          python - <<'PY'
+          from pathlib import Path
+
+          lines = Path('/tmp/mobile-m1-harness.yml').read_text().splitlines()
+
+          def extract(step_name: str, destination: str):
+              marker = f'      - name: {step_name}'
+              start = lines.index(marker)
+              run_idx = next(i for i in range(start + 1, len(lines)) if lines[i].startswith('        run: |'))
+              out = []
+              for line in lines[run_idx + 1:]:
+                  if line.startswith('      - name: '):
+                      break
+                  if line.startswith('          '):
+                      out.append(line[10:])
+                  elif not line.strip():
+                      out.append('')
+                  else:
+                      raise RuntimeError(f'Unexpected harness indentation: {line!r}')
+              Path(destination).write_text('\n'.join(out) + '\n')
+
+          extract('Inject isolated M1 visual harness', '/tmp/m1-inject.sh')
+          extract('Capture exact-head BEFORE', '/tmp/m1-capture.sh')
+          PY
+          test -s /tmp/m1-inject.sh
+          test -s /tmp/m1-capture.sh
+
+      - name: Inject isolated visual harness
+        working-directory: frontend
+        run: bash /tmp/m1-inject.sh
+
+      - name: Capture exact-head BEFORE
+        working-directory: frontend
+        run: bash /tmp/m1-capture.sh
+
+      - name: Record audit metadata
+        if: always()
+        working-directory: frontend
+        run: |
+          mkdir -p mobile-m1-before-artifacts
+          cat > mobile-m1-before-artifacts/metadata-observable.txt <<EOF
+          chantier=Digital Crown Mobile M1
+          goal=BEFORE exact-head visual and runtime baseline, no product changes
+          source_master=a65d14dddddea3d513913f1453b26c259ef9a7fe
+          product_equivalent=98fe4440806b38d33cbdfb32eab6e7bc85e9b573
+          harness_source=dd04c98699b4dc2eb40e76863325c7faee6b54b6
+          observable_pr_head=${GITHUB_SHA}
+          viewports=390x844,430x932,768x1024
+          scenarios=onboarding,agenda,finance,lab,assistant,security,dentists,superadmin
+          deployment=none
+          EOF
+
+      - name: Upload M1 BEFORE evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mobile-m1-before
+          path: frontend/mobile-m1-before-artifacts/
+          if-no-files-found: error
+          retention-days: 14
