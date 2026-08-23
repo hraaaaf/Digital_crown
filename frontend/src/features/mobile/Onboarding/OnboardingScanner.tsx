@@ -72,7 +72,7 @@ export const OnboardingScanner = () => {
         throw new Error('Reponse d\'appairage non securisee (masterKey en clair refusee).');
       }
 
-      const { publicId, access_token, server_public_key_hex, encrypted_master_key_hex } = payload;
+      const { publicId, access_token, refresh_token, device_id, server_public_key_hex, encrypted_master_key_hex } = payload;
 
       if (!server_public_key_hex || !encrypted_master_key_hex) {
         throw new Error('Réponse d\'appairage non sécurisée (ECDH manquant).');
@@ -87,9 +87,9 @@ export const OnboardingScanner = () => {
       if (!/^[0-9a-fA-F]{16}$/.test(publicId) || !/^[0-9a-fA-F]{64}$/.test(masterKey)) {
         throw new Error('Credentials reçus invalides.');
       }
-      if (!access_token) throw new Error('JWT mobile manquant dans la réponse.');
+      if (!access_token || !refresh_token || !device_id) throw new Error('Session mobile durable incomplète.');
 
-      await MobileStorage.saveCredentials({ publicId, masterKey, access_token, api_base_url: API_BASE });
+      await MobileStorage.saveCredentials({ publicId, masterKey, access_token, refresh_token, device_id, api_base_url: API_BASE });
       setPhase('success');
       // Si déjà en HTTPS → dashboard direct. Sinon → proposer l'install cert (optionnel).
       const alreadySecure = window.isSecureContext;

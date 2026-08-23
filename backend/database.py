@@ -277,6 +277,27 @@ def migrate_cabinet_config_columns():
     migrate_identity_columns(engine)
 
 
+
+def migrate_zka_pairing_token_columns():
+    """Ajoute l'identité utilisateur et le code manuel séparé aux tokens ZKA existants."""
+    from sqlalchemy import text
+    new_columns = [
+        ("user_id", "INTEGER"),
+        ("manual_code", "VARCHAR(6)"),
+    ]
+    try:
+        with engine.connect() as conn:
+            for col_name, col_type in new_columns:
+                try:
+                    conn.execute(text(f"ALTER TABLE zka_pairing_tokens ADD COLUMN {col_name} {col_type}"))
+                    conn.commit()
+                    logger.info("Added column %s to zka_pairing_tokens", col_name)
+                except Exception as exc:
+                    conn.rollback()
+                    logger.debug("Column %s may already exist: %s", col_name, exc)
+    except Exception as exc:
+        logger.warning("Migration warning (zka_pairing_tokens): %s", exc)
+
 def get_db():
     db = SessionLocal()
     try:

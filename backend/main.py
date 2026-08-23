@@ -110,6 +110,40 @@ async def get_user_license_status(email: str) -> tuple[bool, str]:
     _license_cache[email] = (*result, now)
     return result
 
+
+def _get_mobile_user_status_sync(user_id: int):
+    with database.SessionLocal() as db:
+        user = db.query(models.User).filter(models.User.id == int(user_id)).first()
+        if not user:
+            return (False, "USER_NOT_FOUND")
+        if user.email and user.email.lower() == _SUPERADMIN_EMAIL:
+            return (True, "OK")
+        if user.is_suspended:
+            return (False, "SUSPENDED")
+        if user.is_archived:
+            return (False, "ARCHIVED")
+        if not user.is_licensed:
+            return (False, "NOT_LICENSED")
+        if user.license_expires_at and datetime.utcnow() > user.license_expires_at:
+            return (False, "LICENSE_EXPIRED")
+        return (True, "OK")
+
+
+async def get_mobile_user_license_status(user_id: int) -> tuple[bool, str]:
+    """Résout un JWT mobile par user_id sans confondre son sub numérique avec un email."""
+    cache_key = f"mobile-user:{int(user_id)}"
+    now = time.time()
+    cached = _license_cache.get(cache_key)
+    if cached and (now - cached[2]) < _CACHE_TTL:
+        return cached[0], cached[1]
+    try:
+        result = await run_in_threadpool(_get_mobile_user_status_sync, int(user_id))
+    except Exception as e:
+        logger.error("Erreur vérification licence mobile user_id=%s: %s", user_id, e)
+        result = (False, "LICENSE_STATUS_UNAVAILABLE")
+    _license_cache[cache_key] = (*result, now)
+    return result
+
 def validate_environment_invariants(cfg) -> list[str]:
     """Invariants de démarrage par environnement — retourne la liste des erreurs bloquantes.
 
@@ -168,6 +202,7 @@ async def lifespan(app: FastAPI):
         database.migrate_patient_columns()
         database.migrate_proactive_alert_columns()
         database.migrate_cabinet_config_columns()
+        database.migrate_zka_pairing_token_columns()
 
         # Activation de la synchronisation Zero-Knowledge (Observer Mode)
         sync_manager.start_listening()
@@ -349,7 +384,8 @@ async def license_check_middleware(request: Request, call_next):
         from jose import jwt
         from backend.security import SECRET_KEY, ALGORITHM
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        email: str = payload.get("sub", "")
+        token_type = payload.get("type")
+        subject: str = payload.get("sub", "")
     except Exception as e:
         err_str = str(e).lower()
         if "expired" in err_str or "signature" in err_str:
@@ -362,12 +398,20 @@ async def license_check_middleware(request: Request, call_next):
         logger.error(f"JWT Decode error in middleware: {e}")
         return await call_next(request)
 
-    # SuperAdmin : bypass total, jamais bloqué
-    if email.lower() == _SUPERADMIN_EMAIL:
-        return await call_next(request)
-
-    # Vérification licence per-user (SQLite + cache TTL 60s)
-    is_ok, reason = await get_user_license_status(email)
+    # Le JWT mobile porte un user_id numérique dans sub ; les JWT web portent un email.
+    # Ne jamais interpréter l'un comme l'autre : cela bloquerait toutes les mutations mobiles.
+    if token_type == "mobile":
+        try:
+            mobile_user_id = int(subject)
+        except (TypeError, ValueError):
+            return JSONResponse(status_code=401, content={"detail": "TOKEN_INVALID"})
+        is_ok, reason = await get_mobile_user_license_status(mobile_user_id)
+    else:
+        email = subject
+        # SuperAdmin : bypass total, jamais bloqué
+        if email.lower() == _SUPERADMIN_EMAIL:
+            return await call_next(request)
+        is_ok, reason = await get_user_license_status(email)
     if not is_ok:
         if request.method in ["POST", "PUT", "PATCH", "DELETE"]:
             messages = {
@@ -396,7 +440,7 @@ async def security_headers_middleware(request: Request, call_next):
     response.headers["X-Frame-Options"] = "DENY"
     response.headers["X-XSS-Protection"] = "1; mode=block"
     response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
-    response.headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()"
+    response.headers["Permissions-Policy"] = "camera=(self), microphone=(), geolocation=()"
     if request.url.scheme == "https":
         response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
     return response
