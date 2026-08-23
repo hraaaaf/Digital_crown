@@ -5,11 +5,16 @@ import io
 import os
 import shutil
 import sqlite3
+import tempfile
 import uuid
 import zipfile
 from pathlib import Path, PurePosixPath
 
+from cryptography.exceptions import InvalidTag
 from cryptography.fernet import InvalidToken
+from cryptography.hazmat.primitives import hashes
+from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
+from cryptography.hazmat.primitives.kdf.hkdf import HKDF
 
 from backend.services.backup_service import BackupService
 
@@ -19,6 +24,11 @@ MAX_ARCHIVE_UNCOMPRESSED_BYTES = int(
     os.environ.get("GUIDED_RESTORE_MAX_UNCOMPRESSED_BYTES", str(20 * 1024**3))
 )
 REQUIRED_DIGITAL_CROWN_TABLES = frozenset({"users", "patients"})
+MEDIA_AESGCM_FORMAT = "master_aesgcm_v1"
+MEDIA_AESGCM_MAGIC = b"DCMEDIA1"
+MEDIA_AESGCM_NONCE_BYTES = 12
+MEDIA_AESGCM_TAG_BYTES = 16
+MEDIA_AESGCM_CHUNK_BYTES = 1024 * 1024
 
 
 def _sha256(path: Path) -> str:
@@ -149,7 +159,89 @@ def _master_cipher():
         raise ValueError("Clé maître cabinet indisponible") from exc
 
 
-def _inspect_encrypted_media(source: Path) -> int:
+def _master_aesgcm_key() -> bytes:
+    master_key_hex = os.getenv("CABINET_MASTER_KEY_HEX", "").strip()
+    try:
+        master = bytes.fromhex(master_key_hex)
+    except ValueError as exc:
+        raise ValueError("Clé maître cabinet invalide") from exc
+    if len(master) != 32:
+        raise ValueError("Clé maître cabinet indisponible")
+    return HKDF(
+        algorithm=hashes.SHA256(),
+        length=32,
+        salt=None,
+        info=b"digital-crown-guided-restore-media-aesgcm-v1",
+    ).derive(master)
+
+
+def _encrypt_streaming_media_archive(source_zip: Path, target: Path) -> None:
+    nonce = os.urandom(MEDIA_AESGCM_NONCE_BYTES)
+    encryptor = Cipher(algorithms.AES(_master_aesgcm_key()), modes.GCM(nonce)).encryptor()
+    encryptor.authenticate_additional_data(MEDIA_AESGCM_MAGIC)
+    target.unlink(missing_ok=True)
+    with source_zip.open("rb") as src, target.open("wb") as dst:
+        dst.write(MEDIA_AESGCM_MAGIC)
+        dst.write(nonce)
+        for chunk in iter(lambda: src.read(MEDIA_AESGCM_CHUNK_BYTES), b""):
+            dst.write(encryptor.update(chunk))
+        dst.write(encryptor.finalize())
+        dst.write(encryptor.tag)
+
+
+def _decrypt_streaming_media_archive(source: Path, target_zip: Path) -> None:
+    minimum = len(MEDIA_AESGCM_MAGIC) + MEDIA_AESGCM_NONCE_BYTES + MEDIA_AESGCM_TAG_BYTES
+    if source.stat().st_size <= minimum:
+        raise ValueError("Archive média AES-GCM invalide")
+    with source.open("rb") as src:
+        magic = src.read(len(MEDIA_AESGCM_MAGIC))
+        if magic != MEDIA_AESGCM_MAGIC:
+            raise ValueError("Archive média AES-GCM invalide")
+        nonce = src.read(MEDIA_AESGCM_NONCE_BYTES)
+        src.seek(-MEDIA_AESGCM_TAG_BYTES, os.SEEK_END)
+        tag = src.read(MEDIA_AESGCM_TAG_BYTES)
+        ciphertext_start = len(MEDIA_AESGCM_MAGIC) + MEDIA_AESGCM_NONCE_BYTES
+        ciphertext_end = source.stat().st_size - MEDIA_AESGCM_TAG_BYTES
+        ciphertext_bytes = ciphertext_end - ciphertext_start
+        src.seek(ciphertext_start)
+        decryptor = Cipher(algorithms.AES(_master_aesgcm_key()), modes.GCM(nonce, tag)).decryptor()
+        decryptor.authenticate_additional_data(MEDIA_AESGCM_MAGIC)
+        remaining = ciphertext_bytes
+        try:
+            with target_zip.open("wb") as dst:
+                while remaining > 0:
+                    chunk = src.read(min(MEDIA_AESGCM_CHUNK_BYTES, remaining))
+                    if not chunk:
+                        raise ValueError("Archive média AES-GCM tronquée")
+                    remaining -= len(chunk)
+                    dst.write(decryptor.update(chunk))
+                dst.write(decryptor.finalize())
+        except InvalidTag as exc:
+            target_zip.unlink(missing_ok=True)
+            raise ValueError("Archive média AES-GCM invalide ou clé cabinet incompatible") from exc
+        except Exception:
+            target_zip.unlink(missing_ok=True)
+            raise
+
+
+def _is_streaming_media_archive(source: Path) -> bool:
+    if not source.exists() or source.stat().st_size < len(MEDIA_AESGCM_MAGIC):
+        return False
+    with source.open("rb") as handle:
+        return handle.read(len(MEDIA_AESGCM_MAGIC)) == MEDIA_AESGCM_MAGIC
+
+
+def _inspect_encrypted_media(source: Path, encryption: str = "master_key") -> int:
+    if encryption == MEDIA_AESGCM_FORMAT or _is_streaming_media_archive(source):
+        with tempfile.TemporaryDirectory(prefix="digitalcrown-media-inspect-") as temp_name:
+            plain_zip = Path(temp_name) / "media.zip"
+            _decrypt_streaming_media_archive(source, plain_zip)
+            with zipfile.ZipFile(plain_zip, "r") as media_zip:
+                infos = media_zip.infolist()
+                _validate_zip_infos(infos, max_entries=MAX_MEDIA_ARCHIVE_ENTRIES)
+                return len([info for info in infos if not info.is_dir()])
+    if encryption != "master_key":
+        raise ValueError("Format de chiffrement média non supporté")
     try:
         decrypted = _master_cipher().decrypt(source.read_bytes())
     except InvalidToken as exc:
@@ -160,25 +252,48 @@ def _inspect_encrypted_media(source: Path) -> int:
         return len([info for info in infos if not info.is_dir()])
 
 
-def _extract_encrypted_media(source: Path, destination: Path) -> None:
+def _extract_zip_safely(media_zip: zipfile.ZipFile, destination: Path) -> None:
+    infos = media_zip.infolist()
+    _validate_zip_infos(infos, max_entries=MAX_MEDIA_ARCHIVE_ENTRIES)
+    for info in infos:
+        target = destination / PurePosixPath(info.filename)
+        target_resolved = target.resolve(strict=False)
+        try:
+            target_resolved.relative_to(destination.resolve())
+        except ValueError as exc:
+            raise RuntimeError("Chemin média hors destination") from exc
+        if info.is_dir():
+            target.mkdir(parents=True, exist_ok=True)
+            continue
+        target.parent.mkdir(parents=True, exist_ok=True)
+        with media_zip.open(info, "r") as src, target.open("wb") as dst:
+            shutil.copyfileobj(src, dst, length=1024 * 1024)
+
+
+def _extract_encrypted_media(source: Path, destination: Path, encryption: str = "master_key") -> None:
+    destination.mkdir(parents=True, exist_ok=False)
+    if encryption == MEDIA_AESGCM_FORMAT or _is_streaming_media_archive(source):
+        try:
+            with tempfile.TemporaryDirectory(prefix="digitalcrown-media-extract-") as temp_name:
+                plain_zip = Path(temp_name) / "media.zip"
+                _decrypt_streaming_media_archive(source, plain_zip)
+                with zipfile.ZipFile(plain_zip, "r") as media_zip:
+                    _extract_zip_safely(media_zip, destination)
+            return
+        except Exception:
+            shutil.rmtree(destination, ignore_errors=True)
+            raise
+    if encryption != "master_key":
+        shutil.rmtree(destination, ignore_errors=True)
+        raise RuntimeError("Format de chiffrement média non supporté")
     try:
         decrypted = _master_cipher().decrypt(source.read_bytes())
     except InvalidToken as exc:
+        shutil.rmtree(destination, ignore_errors=True)
         raise RuntimeError("Impossible de déchiffrer les médias restaurés") from exc
-    destination.mkdir(parents=True, exist_ok=False)
-    with zipfile.ZipFile(io.BytesIO(decrypted), "r") as media_zip:
-        infos = media_zip.infolist()
-        _validate_zip_infos(infos, max_entries=MAX_MEDIA_ARCHIVE_ENTRIES)
-        for info in infos:
-            target = destination / PurePosixPath(info.filename)
-            target_resolved = target.resolve(strict=False)
-            try:
-                target_resolved.relative_to(destination.resolve())
-            except ValueError as exc:
-                raise RuntimeError("Chemin média hors destination") from exc
-            if info.is_dir():
-                target.mkdir(parents=True, exist_ok=True)
-                continue
-            target.parent.mkdir(parents=True, exist_ok=True)
-            with media_zip.open(info, "r") as src, target.open("wb") as dst:
-                shutil.copyfileobj(src, dst, length=1024 * 1024)
+    try:
+        with zipfile.ZipFile(io.BytesIO(decrypted), "r") as media_zip:
+            _extract_zip_safely(media_zip, destination)
+    except Exception:
+        shutil.rmtree(destination, ignore_errors=True)
+        raise
