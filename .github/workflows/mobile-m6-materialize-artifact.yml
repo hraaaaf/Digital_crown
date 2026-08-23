@@ -1,0 +1,46 @@
+name: Mobile M6.1 Materialize Frozen Artifact
+
+on:
+  push:
+    branches: [audit/mobile-m6-generator]
+    paths: [.github/workflows/mobile-m6-materialize-artifact.yml]
+
+permissions:
+  actions: read
+  contents: write
+
+jobs:
+  materialize:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: audit/mobile-m6-generator
+          fetch-depth: 0
+      - name: Materialize frozen candidate and current auth source
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh api repos/${{ github.repository }}/actions/artifacts/9485239294/zip > /tmp/m6.zip
+          rm -rf /tmp/m6-artifact m6-stage
+          mkdir -p /tmp/m6-artifact m6-stage
+          unzip -q /tmp/m6.zip -d /tmp/m6-artifact
+          test -f /tmp/m6-artifact/file-list.txt
+          while IFS= read -r path; do
+            [ -z "$path" ] && continue
+            src="/tmp/m6-artifact/files/$path"
+            [ -f "$src" ] || continue
+            mkdir -p "m6-stage/$(dirname "$path")"
+            cp "$src" "m6-stage/$path"
+          done < /tmp/m6-artifact/file-list.txt
+          mkdir -p m6-stage/backend/routers
+          git show 2bf0f639b198b5aacdd1f797f62ea9ac11aa9cff:backend/routers/auth.py > m6-stage/backend/routers/auth.py
+          cp /tmp/m6-artifact/file-list.txt m6-stage/artifact-file-list.txt
+          printf 'base=2bf0f639b198b5aacdd1f797f62ea9ac11aa9cff\nartifact=9485239294\n' > m6-stage/metadata.txt
+      - name: Commit audit-only staged files
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -- m6-stage
+          git commit -m "chore(mobile): materialize frozen M6.1 candidate"
+          git push origin HEAD:audit/mobile-m6-generator
