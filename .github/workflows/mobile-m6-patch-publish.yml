@@ -67,6 +67,7 @@ jobs:
             backend/security.py backend/utils/rate_limit.py \
             backend/tests/test_mobile_credential_hardening.py backend/tests/test_mobile_identity_security.py
 
+          git add -N backend/tests/test_mobile_identity_security.py
           cat > /tmp/expected-m61-paths <<'EOF'
           backend/database.py
           backend/main.py
