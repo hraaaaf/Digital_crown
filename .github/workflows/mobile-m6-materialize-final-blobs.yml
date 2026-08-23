@@ -18,8 +18,8 @@ jobs:
       STAGE_BRANCH: audit/mobile-m61-blob-stage
       PATCH_B64_SHA256: b59f024b159fd0badf7e89dfaddbba1276e9f99be42166455ee0b7e5f58a7a9c
       PATCH_SHA256: e3a7197e2fd645d62832550f851a81da0e13b5f3b7decbc4e1cb4ac216f9d784
-      CORRECTION_B64_SHA256: f8ce458fe2bdb0e50037014f8abb4c93183fa70401eed085e7a6981fa5ed289f
-      CORRECTION_SHA256: 0dce0d34bdb3fadd5120cbaed846463e54d4dfcbcbb0a7ef95d509af9b039e45
+      CORRECTION_B64_SHA256: 058d981259735504002363252a9a18e97f9ce29008296160b27dace3f7dc6bad
+      CORRECTION_SHA256: b3c081ae9edf56e89dd12f0ef795442da1444936d54aa109e2542eea51688f72
     steps:
       - uses: actions/checkout@v4
         with:
@@ -66,12 +66,12 @@ jobs:
           test "$(git hash-object backend/main.py)" = "99be9a280d941d5297720ad5f833155661e287fd"
           test "$(git hash-object backend/models.py)" = "7c23a93116a2cdd0a786951c1256dfee13efa961"
           test "$(git hash-object backend/models_platform.py)" = "682ee86d17b2578893c083aca1002d3c5b0e2ff8"
-          test "$(git hash-object backend/routers/admin_legacy.py)" = "0eedd80b5a3b2c022655f9a84fa3dc59b667adca"
+          test "$(git hash-object backend/routers/admin_legacy.py)" = "184fa27e4fefd2244bc4f2b648dbdb421b63fbcf"
           test "$(git hash-object backend/routers/mobile.py)" = "02a6a2e8ef1c3f061ccb6b5de7e79df5523bc89d"
           test "$(git hash-object backend/routers/mobile_legacy.py)" = "9cba5cb7c2ec0ca26842baffe6105720fa374e3e"
           test "$(git hash-object backend/security.py)" = "2ca778135261f45e5db52ec93103c410725a4fc3"
           test "$(git hash-object backend/tests/test_mobile_credential_hardening.py)" = "e1412be9963d7c885dd90075d114f2913715b6f1"
-          test "$(git hash-object backend/tests/test_mobile_identity_security.py)" = "59235ff24aed22e5672a93ae23cfd719f36fd7a3"
+          test "$(git hash-object backend/tests/test_mobile_identity_security.py)" = "db541ce1777944b695e9095c32606ad9d354fdf1"
           test "$(git hash-object backend/utils/rate_limit.py)" = "37bb5e164463d898dfe784c8c7429c581e5105c0"
           test "$(git hash-object frontend/src/features/mobile/Onboarding/OnboardingScanner.tsx)" = "27210fe4dfcee7146162e85895958dca98d4c97e"
           test "$(git hash-object frontend/src/services/zka/MobileStorage.ts)" = "2003f2cb044a15fc9c2f8f15f02c7c78d8a1827a"
@@ -85,8 +85,10 @@ jobs:
           grep -q 'token_type == "mobile"' backend/main.py
           grep -q 'get_mobile_user_license_status' backend/main.py
           grep -q 'camera=(self), microphone=(), geolocation=()' backend/main.py
+          grep -q 'token_blacklist.revoke_mobile_access(emp_id, db)' backend/routers/admin_legacy.py
           grep -q 'test_mobile_mutation_uses_numeric_subject_as_user_id' backend/tests/test_mobile_identity_security.py
           grep -q 'test_permissions_policy_allows_same_origin_camera_only' backend/tests/test_mobile_identity_security.py
+          grep -q 'test_admin_revoke_mobile_invalidates_claimed_device_and_refresh' backend/tests/test_mobile_identity_security.py
 
           git add -- \
             backend/database.py backend/main.py backend/models.py backend/models_platform.py \
