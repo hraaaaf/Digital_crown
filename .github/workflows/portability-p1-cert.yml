@@ -8,17 +8,22 @@ on:
       - "backend/core/runtime_supervisor.py"
       - "backend/env_loader.py"
       - "backend/main.py"
+      - "backend/routers/__init__.py"
       - "backend/routers/admin.py"
+      - "backend/routers/license_portability_p4.py"
       - "backend/services/cabinet_bundle.py"
       - "backend/services/guided_restore.py"
       - "backend/services/guided_restore_archive.py"
       - "backend/services/guided_restore_worker.py"
+      - "backend/services/license_service.py"
+      - "backend/services/portability_license_rebind.py"
       - "backend/tests/test_cabinet_bundle.py"
       - "backend/tests/test_platform_abstraction.py"
       - "backend/tests/test_runtime_supervisor.py"
       - "scripts/portability_p1_check.py"
       - "scripts/portability_p2_check.py"
       - "scripts/portability_p3_check.py"
+      - "scripts/portability_p4_check.py"
       - "run.py"
       - ".github/workflows/portability-p1-cert.yml"
   workflow_dispatch:
@@ -47,7 +52,27 @@ jobs:
         run: python -m pip install python-dotenv cryptography==46.0.5
 
       - name: Compile portability runtime boundaries and harnesses
-        run: python -m py_compile backend/core/platform.py backend/core/paths.py backend/core/runtime_supervisor.py backend/env_loader.py backend/main.py backend/routers/admin.py backend/services/cabinet_bundle.py backend/services/guided_restore.py backend/services/guided_restore_archive.py backend/services/guided_restore_worker.py run.py scripts/portability_p1_check.py scripts/portability_p2_check.py scripts/portability_p3_check.py
+        run: >-
+          python -m py_compile
+          backend/core/platform.py
+          backend/core/paths.py
+          backend/core/runtime_supervisor.py
+          backend/env_loader.py
+          backend/main.py
+          backend/routers/__init__.py
+          backend/routers/admin.py
+          backend/routers/license_portability_p4.py
+          backend/services/cabinet_bundle.py
+          backend/services/guided_restore.py
+          backend/services/guided_restore_archive.py
+          backend/services/guided_restore_worker.py
+          backend/services/license_service.py
+          backend/services/portability_license_rebind.py
+          run.py
+          scripts/portability_p1_check.py
+          scripts/portability_p2_check.py
+          scripts/portability_p3_check.py
+          scripts/portability_p4_check.py
 
       - name: Preserve P1 OS abstraction contract
         run: python scripts/portability_p1_check.py
@@ -57,3 +82,6 @@ jobs:
 
       - name: Certify P3 portable cabinet bundle
         run: python scripts/portability_p3_check.py
+
+      - name: Certify P4 licence and machine-security rebind
+        run: python scripts/portability_p4_check.py
