@@ -97,22 +97,66 @@ Le candidat précédent `a61f54d7…` déplaçait le chargement `.env` après `_
 
 ---
 
-## P3 — Cabinet Bundle portability — NEXT
+## P3 — Cabinet Bundle portability — CLOSED ✅
 
-Définir un contrat de migration explicite regroupant au minimum DB, médias et configuration exportable, avec manifeste/version/checksums et restauration vérifiée. Les secrets ou identifiants machine-bound ne doivent pas être copiés aveuglément.
+### Goal
+Rendre les données cabinet portables entre machines/OS supportés sans transporter les secrets liés à la machine source.
 
-### Direction technique déjà auditée
-- ne pas transporter `backup.key`, `.env`, locks, logs, caches ou secrets machine-bound ;
-- produire un snapshot DB portable indépendant de la clé SQLCipher source ;
-- chiffrer le bundle avec une clé de migration indépendante du poste ;
-- à destination : vérifier le bundle, reconstruire les artefacts locaux avec les clés destination, puis réutiliser le moteur Guided Restore existant ;
-- conserver rescue DB/WAL, bascule média atomique, smoke-check et rollback existants.
+### Implémentation vérifiée
+- bundle canonique chiffré `.dcbundle` avec manifeste/version/intégrité ;
+- export SQLCipher indépendant de la clé machine source ;
+- médias inclus puis rechiffrés pour la restauration destination ;
+- `.env`, `backup.key`, `license_vault.bin`, locks/logs/caches exclus ;
+- Guided Restore réutilisé pour prepare/apply/smoke/rollback ;
+- frontière `PlatformAdapter` respectée ;
+- certification Windows/macOS/Ubuntu.
 
-## P4 — License & secrets rebinding — PLANNED
+### Preuve
+- head candidat : `89708100838b85f3574674de21882684c98be9f6` ;
+- PR `#222` — MERGED ;
+- merge master : `98fe4440806b38d33cbdfb32eab6e7bc85e9b573` ;
+- Portability Runtime Certification `32605929004` — SUCCESS ;
+- Settings Guided Restore AFTER `32605928982` — SUCCESS ;
+- T2 Runtime Browser Certification `32605928994` — SUCCESS ;
+- Catalog Connected Truth Certification `32605928980` — SUCCESS ;
+- Patient P7 Final Certification `32605928983` — SUCCESS ;
+- CI `32605929015` — SUCCESS.
 
-Définir ce qui est portable, régénéré ou réautorisé lors d'un changement de poste/OS. Vérifier le comportement Windows DPAPI et le stockage sécurisé macOS, ainsi que le contrat de machine binding de la licence.
+---
 
-## P5 — Native/scientific dependency parity — PLANNED
+## P4 — License & secrets rebinding — CLOSED ✅
+
+### Goal
+Lors d'une migration inter-machine, conserver l'identité et les données du cabinet sans transporter ni faire confiance aux secrets, sessions ou coffre licence de la machine source.
+
+### Implémentation vérifiée
+- secrets machine destination conservés/régénérés localement ;
+- `license_vault.bin` non portable et revalidation locale obligatoire ;
+- grâce offline stricte 72 h + anti-clock rollback ;
+- indisponibilité Firebase non destructive (`active=None`) ;
+- `/recheck-license` lié à l'identité `CabinetConfig` authentifiée ;
+- détection d'un restore portable par manifeste validé, indépendamment de l'extension du fichier ;
+- rebind portable invalide licence locale + pairings/tokens mobiles ;
+- pools SQLAlchemy disposés avant restore et dans les chemins d'échec/finally ;
+- coffre local : clé faible/prévisible refusée, écriture atomique et permissions privées via abstraction plateforme ;
+- Guided Restore rollback-safe ;
+- garde P1 respectée sur Windows/macOS/Ubuntu.
+
+### Preuve
+- head candidat : `3bc7426848d544183f235244ae8eab7b255d1341` ;
+- PR `#224` — MERGED ;
+- merge produit master : `40cb22d6dddcbae6dee7340dc23956decaf701d8` ;
+- Portability Runtime Certification `32610745183` — SUCCESS ;
+- Settings Guided Restore AFTER `32610745196` — SUCCESS ;
+- Onboarding Settings P2 Visual Certification `32610745220` — SUCCESS ;
+- T2 Runtime Browser Certification `32610745188` — SUCCESS ;
+- Catalog Connected Truth Certification `32610745249` — SUCCESS ;
+- Patient P7 Final Certification `32610745225` — SUCCESS ;
+- CI `32610745134` — SUCCESS.
+
+---
+
+## P5 — Native/scientific dependency parity — NEXT
 
 Prouver que SQLCipher, moteurs locaux, ONNX/PyTorch et autres dépendances natives nécessaires au produit fonctionnent sur les plateformes/architectures réellement supportées. Aucune équivalence scientifique n'est supposée sur la seule base d'un import réussi.
 
@@ -128,9 +172,13 @@ Certification finale sur environnements propres : installation, premier boot, re
 
 ## État courant
 
-- P1 : CLOSED ✅
-- P2 : CLOSED ✅
-- P3 : NEXT
-- P4→P7 : PLANNED
-- progression chiffrée : **non définie** tant qu'une pondération canonique des lots n'est pas fixée ; ne pas inventer de pourcentage.
-- Next exact : P3 Cabinet Bundle portability — implémenter le format portable, la validation destination et les tests de migration inter-machine sans transporter les secrets machine-bound.
+- P0 : CLOSED ✅ — 5 EP ;
+- P1 : CLOSED ✅ — 13 EP ;
+- P2 : CLOSED ✅ — 13 EP ;
+- P3 : CLOSED ✅ — 13 EP ;
+- P4 : CLOSED ✅ — 8 EP ;
+- P5 : NEXT ;
+- P6→P7 : PLANNED ;
+- progression vérifiée : `52 / 162 EP` = **32.1%** ;
+- aucun EP partiel n'est crédité pour un lot ouvert ;
+- Next exact : P5 Native/scientific dependency parity — verrouiller provenance des modèles/fixtures, dépendances natives et exécution réelle Windows/macOS Apple Silicon avant tout benchmark de parité scientifique.
