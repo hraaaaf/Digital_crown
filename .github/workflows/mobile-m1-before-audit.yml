@@ -1,0 +1,344 @@
+name: Mobile M1 BEFORE Audit
+
+on:
+  push:
+    branches:
+      - "audit/mobile-m1-before-20260823"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  capture:
+    name: Capture mobile M1 baseline
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout exact audit head
+        uses: actions/checkout@v4
+
+      - name: Setup Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install frontend and Chromium
+        working-directory: frontend
+        run: |
+          npm ci
+          npm install --no-save --package-lock=false playwright@1.55.0
+          npx playwright install --with-deps chromium
+
+      - name: Inject isolated M1 visual harness
+        working-directory: frontend
+        run: |
+          cat > mobile-m1-before.html <<'EOF'
+          <!doctype html>
+          <html lang="fr">
+            <head>
+              <meta charset="UTF-8" />
+              <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+              <title>Digital Crown Mobile M1 BEFORE</title>
+            </head>
+            <body>
+              <div id="root"></div>
+              <script type="module" src="/src/mobile-m1-before.tsx"></script>
+            </body>
+          </html>
+          EOF
+
+          cat > src/mobile-m1-before.tsx <<'EOF'
+          import React from 'react';
+          import { createRoot } from 'react-dom/client';
+          import { MemoryRouter } from 'react-router-dom';
+          import './index.css';
+          import { MobileStorage } from './services/zka/MobileStorage';
+          import { OnboardingScanner } from './features/mobile/Onboarding/OnboardingScanner';
+          import { MobileDashboard } from './features/mobile/Dashboard/MobileDashboard';
+          import { DentistsView } from './features/mobile/Dashboard/views/DentistsView';
+          import { MobileSuperAdminView } from './features/mobile/Dashboard/views/MobileSuperAdminView';
+
+          const params = new URLSearchParams(window.location.search);
+          const view = params.get('view') || 'agenda';
+
+          await MobileStorage.clearAll();
+          if (view !== 'onboarding') {
+            await MobileStorage.saveCredentials({
+              publicId: '0123456789abcdef',
+              masterKey: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+              access_token: 'm1-audit-token',
+              api_base_url: 'http://127.0.0.1:8005',
+            });
+          }
+
+          let node: React.ReactNode;
+          if (view === 'onboarding') node = <OnboardingScanner />;
+          else if (view === 'dentists') node = <DentistsView />;
+          else if (view === 'superadmin') node = <MobileSuperAdminView />;
+          else node = <MobileDashboard />;
+
+          createRoot(document.getElementById('root')!).render(
+            <React.StrictMode>
+              <MemoryRouter initialEntries={[`/mobile/${view}`]}>
+                {node}
+              </MemoryRouter>
+            </React.StrictMode>,
+          );
+          EOF
+
+          cat > mobile-m1-before.mjs <<'EOF'
+          import { chromium } from 'playwright';
+          import { createServer } from 'vite';
+          import fs from 'node:fs/promises';
+
+          const output = 'mobile-m1-before-artifacts';
+          await fs.mkdir(output, { recursive: true });
+
+          const weekly = [
+            ['2026-08-17', 4200], ['2026-08-18', 6100], ['2026-08-19', 5300],
+            ['2026-08-20', 7800], ['2026-08-21', 6900], ['2026-08-22', 3100], ['2026-08-23', 5700],
+          ].map(([date, amount]) => ({ date, amount }));
+
+          const appointments = [
+            { id: 201, patient_id: 101, time: '09:00', patient_name: 'Sara El Amrani', phone: '0612345678', motif: 'Consultation', status: 'TERMINE', duration_minutes: 30 },
+            { id: 202, patient_id: 102, time: '10:30', patient_name: 'Youssef Benali', phone: '0623456789', motif: 'Contrôle', status: 'EN_COURS', duration_minutes: 45 },
+            { id: 203, patient_id: 103, time: '14:00', patient_name: 'Meryem Tazi', phone: '0634567890', motif: 'Détartrage', status: 'PLANIFIE', duration_minutes: 40 },
+          ];
+
+          const baseSnapshot = {
+            generated_at: '2026-08-23T01:18:00',
+            role: 'DENTISTE',
+            is_superadmin: false,
+            appointments,
+            finance: {
+              today_revenue: 5700,
+              month_revenue: 48600,
+              month_variation: 8.4,
+              appointments_count: appointments.length,
+              weekly_revenue: weekly,
+              total_patients: 184,
+              total_debt: 9300,
+            },
+            debtors: [
+              { id: 401, name: 'Nadia Alaoui', phone: '0645678901', amount: 5800 },
+              { id: 402, name: 'Omar Idrissi', phone: '0656789012', amount: 3500 },
+            ],
+          };
+
+          const patients = {
+            data: [
+              { id: 101, name: 'Sara El Amrani', phone: '0612345678' },
+              { id: 102, name: 'Youssef Benali', phone: '0623456789' },
+              { id: 103, name: 'Meryem Tazi', phone: '0634567890' },
+            ],
+          };
+
+          const labJobs = [
+            {
+              id: 501, patient_id: 101, act_id: 1, material: 'Zircone', shade: 'A2',
+              type: 'Couronne', tooth_number: '16', notes: 'Contact proximal',
+              deadline: '2026-08-27T12:00:00', status: 'PRESCRIPTION', is_remake: false,
+              is_late: false, created_at: '2026-08-22T10:00:00', updated_at: '2026-08-22T10:00:00',
+            },
+            {
+              id: 502, patient_id: 102, act_id: 2, material: 'E.max', shade: 'B1',
+              type: 'Facette', tooth_number: '11', notes: '', deadline: '2026-08-29T12:00:00',
+              status: 'PRESCRIPTION', is_remake: false, is_late: false,
+              created_at: '2026-08-22T11:00:00', updated_at: '2026-08-22T11:00:00',
+            },
+          ];
+
+          const dentists = {
+            dentists: [
+              { id: 1, name: 'Dr Achraf Benmoussa', email: 'cabinet@digitalcrown.local', today_appointments: 3 },
+              { id: 2, name: 'Dr Salma Idrissi', email: 'salma@digitalcrown.local', today_appointments: 0 },
+            ],
+          };
+
+          const superadminClients = [
+            {
+              id: 1, nom_complet: 'Dr Amine Alaoui', email: 'amine@example.test', cabinet_name: 'Cabinet Alaoui',
+              is_licensed: true, license_expires_at: '2026-11-30T00:00:00', is_archived: false,
+              is_suspended: false, subscription_plan: 'ELITE',
+              stats: { total_patients: 215, total_ia_panoramique: 18, total_ia_cephalo: 7 },
+            },
+            {
+              id: 2, nom_complet: 'Dr Lina Bennis', email: 'lina@example.test', cabinet_name: 'Smile Bennis',
+              is_licensed: true, license_expires_at: '2026-09-05T00:00:00', is_archived: false,
+              is_suspended: false, subscription_plan: 'PREMIUM',
+              stats: { total_patients: 96, total_ia_panoramique: 9, total_ia_cephalo: 2 },
+            },
+          ];
+
+          const server = await createServer({
+            server: { host: '127.0.0.1', port: 4177, strictPort: true },
+            clearScreen: false,
+          });
+          await server.listen();
+
+          const browser = await chromium.launch();
+          const results = [];
+          const viewports = [
+            { width: 390, height: 844, ua: 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_6 like Mac OS X) AppleWebKit/605.1.15 Version/18.6 Mobile/15E148 Safari/604.1' },
+            { width: 430, height: 932, ua: 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_6 like Mac OS X) AppleWebKit/605.1.15 Version/18.6 Mobile/15E148 Safari/604.1' },
+            { width: 768, height: 1024, ua: 'Mozilla/5.0 (iPad; CPU OS 18_6 like Mac OS X) AppleWebKit/605.1.15 Version/18.6 Mobile/15E148 Safari/604.1' },
+          ];
+
+          const scenarios = [
+            { id: 'onboarding', view: 'onboarding', role: 'DENTISTE' },
+            { id: 'agenda', view: 'agenda', role: 'DENTISTE', tab: 'Agenda' },
+            { id: 'finance', view: 'agenda', role: 'DENTISTE', tab: 'Finance' },
+            { id: 'lab', view: 'agenda', role: 'DENTISTE', tab: 'Envois Labo' },
+            { id: 'assistant', view: 'agenda', role: 'DENTISTE', tab: 'Assistant' },
+            { id: 'security', view: 'agenda', role: 'DENTISTE', tab: 'Sécurité' },
+            { id: 'dentists', view: 'dentists', role: 'SECRETAIRE' },
+            { id: 'superadmin', view: 'superadmin', role: 'ADMIN' },
+          ];
+
+          try {
+            for (const vp of viewports) {
+              for (const scenario of scenarios) {
+                const context = await browser.newContext({
+                  viewport: { width: vp.width, height: vp.height },
+                  screen: { width: vp.width, height: vp.height },
+                  userAgent: vp.ua,
+                  isMobile: true,
+                  hasTouch: true,
+                  deviceScaleFactor: 1,
+                  serviceWorkers: 'block',
+                });
+                const page = await context.newPage();
+                const errors = [];
+                page.on('pageerror', error => errors.push(`pageerror: ${error.message}`));
+                page.on('console', message => {
+                  if (message.type() === 'error') errors.push(`console: ${message.text()}`);
+                });
+
+                await page.route('**/*', async route => {
+                  const req = route.request();
+                  const url = new URL(req.url());
+                  if (!url.pathname.startsWith('/api/')) return route.continue();
+
+                  let body = null;
+                  if (url.pathname === '/api/mobile/snapshot') {
+                    body = { ...baseSnapshot, role: scenario.role, is_superadmin: scenario.id === 'superadmin' };
+                  } else if (url.pathname === '/api/mobile/patients') {
+                    body = patients;
+                  } else if (url.pathname === '/api/mobile/dentists') {
+                    body = dentists;
+                  } else if (url.pathname === '/api/superadmin/clients') {
+                    body = superadminClients;
+                  } else if (url.pathname.includes('lab-jobs')) {
+                    body = labJobs;
+                  } else if (url.pathname.includes('/documents')) {
+                    body = { data: [] };
+                  } else {
+                    body = req.method() === 'GET' ? [] : {};
+                  }
+
+                  return route.fulfill({
+                    status: 200,
+                    contentType: 'application/json',
+                    body: JSON.stringify(body),
+                  });
+                });
+
+                await page.goto(`http://127.0.0.1:4177/mobile-m1-before.html?view=${scenario.view}`, {
+                  waitUntil: 'networkidle',
+                });
+
+                if (scenario.id === 'onboarding') {
+                  await page.getByText('Compagnon Mobile').waitFor({ state: 'visible', timeout: 15000 });
+                } else if (scenario.id === 'dentists') {
+                  await page.getByText('Équipe').waitFor({ state: 'visible', timeout: 15000 });
+                  await page.getByText('Dr Achraf Benmoussa').waitFor({ state: 'visible', timeout: 15000 });
+                } else if (scenario.id === 'superadmin') {
+                  await page.getByText('SuperAdmin').waitFor({ state: 'visible', timeout: 15000 });
+                  await page.getByText('Cabinet Alaoui').waitFor({ state: 'visible', timeout: 15000 });
+                } else {
+                  await page.getByText('Sara El Amrani').waitFor({ state: 'visible', timeout: 15000 });
+                  if (scenario.tab && scenario.tab !== 'Agenda') {
+                    await page.getByRole('button', { name: scenario.tab, exact: true }).click();
+                    await page.waitForTimeout(250);
+                  }
+                }
+
+                const overflow = await page.evaluate(() => {
+                  const root = document.documentElement;
+                  const offenders = [...document.querySelectorAll('body *')].flatMap((el) => {
+                    const r = el.getBoundingClientRect();
+                    const style = getComputedStyle(el);
+                    if (style.position === 'fixed' && r.width <= window.innerWidth + 2) return [];
+                    if (r.right > window.innerWidth + 1 || r.left < -1) {
+                      return [{
+                        tag: el.tagName,
+                        cls: String(el.className || '').slice(0, 180),
+                        left: Math.round(r.left),
+                        right: Math.round(r.right),
+                        width: Math.round(r.width),
+                        text: (el.textContent || '').trim().replace(/\s+/g, ' ').slice(0, 120),
+                      }];
+                    }
+                    return [];
+                  }).slice(0, 20);
+                  return {
+                    clientWidth: root.clientWidth,
+                    scrollWidth: root.scrollWidth,
+                    hasHorizontalOverflow: root.scrollWidth > root.clientWidth + 1,
+                    offenders,
+                  };
+                });
+
+                const name = `${scenario.id}-${vp.width}x${vp.height}`;
+                await page.screenshot({
+                  path: `${output}/${name}.png`,
+                  fullPage: true,
+                  animations: 'disabled',
+                });
+                await fs.writeFile(`${output}/${name}.errors.txt`, errors.join('\n'));
+                await fs.writeFile(`${output}/${name}.overflow.json`, JSON.stringify(overflow, null, 2));
+                results.push({ scenario: scenario.id, width: vp.width, height: vp.height, errors, overflow });
+                await context.close();
+              }
+            }
+          } finally {
+            await browser.close();
+            await server.close();
+          }
+
+          await fs.writeFile(`${output}/report.json`, JSON.stringify(results, null, 2));
+          const failures = results.filter(r => r.errors.length || r.overflow.hasHorizontalOverflow);
+          console.log(JSON.stringify({ captures: results.length, failures: failures.length, failuresDetail: failures }, null, 2));
+          if (failures.length) process.exitCode = 1;
+          EOF
+
+      - name: Capture exact-head BEFORE
+        working-directory: frontend
+        run: node mobile-m1-before.mjs
+
+      - name: Record audit metadata
+        if: always()
+        working-directory: frontend
+        run: |
+          mkdir -p mobile-m1-before-artifacts
+          cat > mobile-m1-before-artifacts/metadata.txt <<EOF
+          chantier=Digital Crown Mobile M1
+          goal=BEFORE exact-head visual and runtime baseline, no product changes
+          source_master=a65d14dddddea3d513913f1453b26c259ef9a7fe
+          product_equivalent=98fe4440806b38d33cbdfb32eab6e7bc85e9b573
+          audit_head=${GITHUB_SHA}
+          viewports=390x844,430x932,768x1024
+          scenarios=onboarding,agenda,finance,lab,assistant,security,dentists,superadmin
+          deployment=none
+          EOF
+
+      - name: Upload M1 BEFORE evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mobile-m1-before
+          path: frontend/mobile-m1-before-artifacts/
+          if-no-files-found: error
+          retention-days: 14
