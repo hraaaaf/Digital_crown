@@ -1,0 +1,13 @@
+backend/database.py
+backend/main.py
+backend/models.py
+backend/models_platform.py
+backend/routers/admin_legacy.py
+backend/routers/mobile.py
+backend/routers/mobile_legacy.py
+backend/security.py
+backend/tests/test_mobile_credential_hardening.py
+backend/utils/rate_limit.py
+frontend/src/features/mobile/Onboarding/OnboardingScanner.tsx
+frontend/src/services/api.ts
+frontend/src/services/zka/MobileStorage.ts
