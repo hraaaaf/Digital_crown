@@ -1,0 +1,654 @@
+name: Mobile M6 Stage Final Candidate
+
+on:
+  push:
+    branches: [audit/mobile-m6-generator]
+    paths: [.github/workflows/mobile-m6-stage-final.yml]
+
+permissions:
+  actions: read
+  contents: write
+
+jobs:
+  stage:
+    name: Build exact M6.1 candidate without touching product branch
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: audit/mobile-m6-generator
+          fetch-depth: 0
+
+      - name: Prepare clean current-master worktree and detached candidate
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          git worktree add --detach /tmp/m6-work 40cb22d6dddcbae6dee7340dc23956decaf701d8
+          gh api repos/${{ github.repository }}/actions/artifacts/9485239294/zip > /tmp/m6.zip
+          rm -rf /tmp/m6-artifact && mkdir -p /tmp/m6-artifact
+          unzip -q /tmp/m6.zip -d /tmp/m6-artifact
+          test -f /tmp/m6-artifact/files/backend/routers/mobile.py
+          test -f /tmp/m6-artifact/files/frontend/src/services/api.ts
+          while IFS= read -r path; do
+            [ -z "$path" ] && continue
+            src="/tmp/m6-artifact/files/$path"
+            [ -f "$src" ] || continue
+            mkdir -p "/tmp/m6-work/$(dirname "$path")"
+            cp "$src" "/tmp/m6-work/$path"
+          done < /tmp/m6-artifact/file-list.txt
+
+      - name: Apply final reviewed M6.1 corrections
+        working-directory: /tmp/m6-work
+        shell: python
+        run: |
+          from pathlib import Path
+          import textwrap
+
+          def read(path):
+              return Path(path).read_text(encoding='utf-8')
+
+          def write(path, value):
+              Path(path).parent.mkdir(parents=True, exist_ok=True)
+              Path(path).write_text(value, encoding='utf-8')
+
+          def once(path, old, new):
+              value = read(path)
+              count = value.count(old)
+              if count != 1:
+                  raise SystemExit(f'{path}: expected one match, got {count}: {old[:100]!r}')
+              write(path, value.replace(old, new, 1))
+
+          # Candidate generation had one indentation defect in security.py.
+          once(
+              'backend/security.py',
+              '            db_session.add(RevokedToken(jti=marker, expires_at=expires_at))\n                    invalidated = db_session.query(ZKAPairingToken).filter(',
+              '            db_session.add(RevokedToken(jti=marker, expires_at=expires_at))\n            invalidated = db_session.query(ZKAPairingToken).filter(',
+          )
+
+          # Truthful model comment: QR no longer contains a UUID/6-digit secret.
+          once(
+              'backend/models_platform.py',
+              '# La masterKey ne transite jamais dans une URL. Le QR encode un UUID 5min.',
+              '# La masterKey ne transite jamais dans une URL. Le QR encode un secret haute entropie 5 min.',
+          )
+
+          # Remove stale UUID import from QR generator now using secrets.token_urlsafe.
+          once(
+              'backend/routers/admin_legacy.py',
+              '    import uuid\n    from datetime import timedelta\n',
+              '    from datetime import timedelta\n',
+          )
+
+          # Final reviewed mobile route hardening.
+          path = 'backend/routers/mobile_legacy.py'
+          value = read(path)
+          replacements = [
+              ('from backend import models, database\n', 'from backend import models, database\nfrom backend.models_platform import MobilePairedDevice\n'),
+              (
+                  '        tenant_id = int(payload["tenant_id"])\n        user = db.query(models.User).filter(models.User.id == user_id).first()\n        if not user or not user.is_active or user.get_employer_id() != tenant_id:\n            raise err\n        return user, tenant_id, payload\n',
+                  '        tenant_id = int(payload["tenant_id"])\n        device_id = payload.get("device_id")\n        if not device_id:\n            raise err\n        user = db.query(models.User).filter(models.User.id == user_id).first()\n        if not user or not user.is_active or user.get_employer_id() != tenant_id:\n            raise err\n        device = db.query(MobilePairedDevice).filter(\n            MobilePairedDevice.device_id == device_id,\n            MobilePairedDevice.user_id == user_id,\n            MobilePairedDevice.employer_id == tenant_id,\n            MobilePairedDevice.revoked_at.is_(None),\n        ).first()\n        if not device:\n            raise err\n        return user, tenant_id, payload\n'
+              ),
+              (
+                  'description="Token à usage unique (UUID 5 min). Si client_public_key_hex est fourni, utilise ECDH (secp256r1) pour chiffrer la masterKey.",',
+                  'description="Secret QR haute entropie ou code manuel 6 chiffres, à usage unique 5 min. ECDH (secp256r1) est obligatoire pour transmettre la clé.",'
+              ),
+              ('    db.add(models.MobilePairedDevice(\n', '    db.add(MobilePairedDevice(\n'),
+              ('    current_user: models.User = Depends(require_mobile_permission(["agenda", "patients"])),\n', '    current_user: models.User = Depends(require_mobile_permission("agenda")),\n'),
+              (
+                  '    # ──────────────────────────────────────────────────────────────────────────────────────────────────\n    from backend.services.accounting_service import accounting_service\n    kpis = accounting_service.get_finance_kpis(db, employer_id, today)\n\n    # Nombre total patients \n',
+                  '    # Les agrégats financiers ne sont même pas lus sans permission finance.\n    # Nombre total patients \n'
+              ),
+              (
+                  '    else:\n        finance_data = {\n            "today_revenue": kpis["today_revenue"],\n',
+                  '    else:\n        from backend.services.accounting_service import accounting_service\n        kpis = accounting_service.get_finance_kpis(db, employer_id, today)\n        finance_data = {\n            "today_revenue": kpis["today_revenue"],\n'
+              ),
+          ]
+          for old, new in replacements:
+              count = value.count(old)
+              if count != 1:
+                  raise SystemExit(f'mobile_legacy: expected one match, got {count}: {old[:90]!r}')
+              value = value.replace(old, new, 1)
+          write(path, value)
+
+          # Refresh-token replay revokes the paired device, invalidating its access tokens immediately.
+          path = 'backend/routers/mobile.py'
+          value = read(path)
+          old = '''    device = db.query(models.MobilePairedDevice).filter(
+              models.MobilePairedDevice.device_id == device_id,
+              models.MobilePairedDevice.user_id == user_id,
+              models.MobilePairedDevice.employer_id == tenant_id,
+              models.MobilePairedDevice.revoked_at.is_(None),
+          ).first()
+          user = db.query(models.User).filter(models.User.id == user_id).first()
+          if not device or device.refresh_jti != jti or not user or not user.is_active:
+              raise err
+          if user.get_employer_id() != tenant_id:
+              raise err
+          '''
+          new = '''    device = db.query(models.MobilePairedDevice).filter(
+              models.MobilePairedDevice.device_id == device_id,
+              models.MobilePairedDevice.user_id == user_id,
+              models.MobilePairedDevice.employer_id == tenant_id,
+              models.MobilePairedDevice.revoked_at.is_(None),
+          ).first()
+          user = db.query(models.User).filter(models.User.id == user_id).first()
+          if not device or not user or not user.is_active or user.get_employer_id() != tenant_id:
+              raise err
+          if device.refresh_jti != jti:
+              device.revoked_at = datetime.utcnow()
+              db.commit()
+              raise err
+          '''
+          old = textwrap.dedent(old)
+          new = textwrap.dedent(new)
+          if value.count(old) != 1:
+              raise SystemExit(f'mobile.py replay block count={value.count(old)}')
+          write(path, value.replace(old, new, 1))
+
+          # Standard API auth must enforce the same active paired-device boundary for type=mobile.
+          path = 'backend/routers/auth.py'
+          value = read(path)
+          old = '''        if jti and token_blacklist.is_revoked(jti, db):
+              raise credentials_exception
+
+          if token_type == "mobile":
+              # sub est l'employer_id (int) pour les tokens mobiles
+              user_id = int(payload["sub"])
+              user = db.query(models.User).filter(models.User.id == user_id).first()
+          else:
+              email: str = payload.get("sub")
+              if email is None:
+                  raise credentials_exception
+              user = db.query(models.User).filter(models.User.email == email).first()
+          '''
+          new = '''        if token_type == "mobile":
+              if not jti or token_blacklist.is_revoked(jti, db):
+                  raise credentials_exception
+              user_id = int(payload["sub"])
+              tenant_id = int(payload["tenant_id"])
+              device_id = payload.get("device_id")
+              if not device_id:
+                  raise credentials_exception
+              user = db.query(models.User).filter(models.User.id == user_id).first()
+              if user is None or user.get_employer_id() != tenant_id:
+                  raise credentials_exception
+              device = db.query(models.MobilePairedDevice).filter(
+                  models.MobilePairedDevice.device_id == device_id,
+                  models.MobilePairedDevice.user_id == user_id,
+                  models.MobilePairedDevice.employer_id == tenant_id,
+                  models.MobilePairedDevice.revoked_at.is_(None),
+              ).first()
+              if device is None:
+                  raise credentials_exception
+          else:
+              if jti and token_blacklist.is_revoked(jti, db):
+                  raise credentials_exception
+              email: str = payload.get("sub")
+              if email is None:
+                  raise credentials_exception
+              user = db.query(models.User).filter(models.User.email == email).first()
+          '''
+          old = textwrap.dedent(old)
+          new = textwrap.dedent(new)
+          # Function body has eight spaces before this block after try; restore it.
+          old = '\n'.join(('        ' + line if line else '') for line in old.splitlines())
+          new = '\n'.join(('        ' + line if line else '') for line in new.splitlines())
+          if value.count(old) != 1:
+              raise SystemExit(f'auth.py mobile block count={value.count(old)}')
+          write(path, value.replace(old, new, 1))
+
+          # Durable pairing truth and local token cleanup.
+          path = 'frontend/src/services/zka/MobileStorage.ts'
+          value = read(path)
+          value = value.replace(
+              '  async clearCredentials(): Promise<void> {\n    await localforage.removeItem(STORE_CREDENTIALS_ID);\n  },',
+              "  async clearCredentials(): Promise<void> {\n    await localforage.removeItem(STORE_CREDENTIALS_ID);\n    try { localStorage.removeItem('token'); localStorage.removeItem('refresh_token'); } catch { /* ignore */ }\n  },",
+              1,
+          )
+          value = value.replace(
+              '  async clearAll(): Promise<void> {\n    await localforage.removeItem(STORE_CREDENTIALS_ID);',
+              '  async clearAll(): Promise<void> {\n    await this.clearCredentials();',
+              1,
+          )
+          value = value.replace(
+              '    return !!(creds?.publicId && creds?.masterKey && creds?.access_token);',
+              '    return !!(creds?.publicId && creds?.masterKey && creds?.access_token && creds?.refresh_token && creds?.device_id);',
+              1,
+          )
+          write(path, value)
+
+          write('frontend/src/services/zka/mobileFetch.ts', textwrap.dedent('''\
+          import { MobileStorage, type ZKACredentials } from './MobileStorage';
+
+          let mobileRefreshInFlight: Promise<ZKACredentials | null> | null = null;
+
+          export function resolveMobileApiBase(stored: string): string {
+            const hostname = window.location.hostname;
+            if (hostname === 'localhost' || hostname === '127.0.0.1') return stored.replace(/\\\/$/, '');
+            if (stored.includes('localhost') || stored.includes('127.0.0.1')) {
+              return `${window.location.protocol}//${hostname}:8005`;
+            }
+            return stored.replace(/\\\/$/, '');
+          }
+
+          async function clearRejectedCredentials(): Promise<void> {
+            await MobileStorage.clearCredentials();
+          }
+
+          export async function refreshMobileCredentials(
+            supplied?: ZKACredentials | null,
+          ): Promise<ZKACredentials | null> {
+            if (mobileRefreshInFlight) return mobileRefreshInFlight;
+            mobileRefreshInFlight = (async () => {
+              const creds = supplied ?? await MobileStorage.getCredentials();
+              if (!creds?.refresh_token || !creds.device_id) return null;
+              let response: Response;
+              try {
+                response = await fetch(`${resolveMobileApiBase(creds.api_base_url)}/api/mobile/refresh-token`, {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ refresh_token: creds.refresh_token }),
+                });
+              } catch {
+                return null;
+              }
+              if (!response.ok) {
+                if (response.status === 401 || response.status === 403) await clearRejectedCredentials();
+                return null;
+              }
+              const payload = await response.json();
+              if (!payload.access_token || !payload.refresh_token || !payload.device_id) return null;
+              const next = await MobileStorage.updateTokens(
+                payload.access_token,
+                payload.refresh_token,
+                payload.device_id,
+              );
+              if (next) {
+                try { localStorage.setItem('token', next.access_token); } catch { /* ignore */ }
+              }
+              return next;
+            })().finally(() => { mobileRefreshInFlight = null; });
+            return mobileRefreshInFlight;
+          }
+
+          export async function mobileFetch(
+            input: RequestInfo | URL,
+            init: RequestInit = {},
+            supplied?: ZKACredentials | null,
+          ): Promise<Response> {
+            const creds = supplied ?? await MobileStorage.getCredentials();
+            if (!creds) throw new Error('Mobile credentials unavailable');
+
+            const send = (active: ZKACredentials) => {
+              const headers = new Headers(init.headers);
+              headers.set('Authorization', `Bearer ${active.access_token}`);
+              return fetch(input, { ...init, headers });
+            };
+
+            const first = await send(creds);
+            if (first.status !== 401) return first;
+
+            const refreshed = await refreshMobileCredentials(creds);
+            if (!refreshed) {
+              if (!creds.refresh_token || !creds.device_id) await clearRejectedCredentials();
+              return first;
+            }
+            return send(refreshed);
+          }
+          '''))
+
+          # Normalize the newly inserted mobile branch in the shared axios interceptor.
+          path = 'frontend/src/services/api.ts'
+          value = read(path)
+          old = '''    if (status === 401 && !original._retried && !original.url?.includes('/auth/')) {
+              original._retried = true;
+
+              if (window.location.pathname.startsWith('/mobile')) {
+                const refreshed = await refreshMobileCredentials().catch(() => null);
+                if (refreshed) {
+                  original.headers = original.headers || {};
+                  original.headers['Authorization'] = `Bearer ${refreshed.access_token}`;
+                  return api(original);
+                }
+                return Promise.reject(error);
+              }
+
+              if (!_refreshing) {
+          '''
+          old = textwrap.dedent(old)
+          new = '''    if (status === 401 && !original._retried && !original.url?.includes('/auth/')) {
+              original._retried = true;
+
+              if (window.location.pathname.startsWith('/mobile')) {
+                const refreshed = await refreshMobileCredentials().catch(() => null);
+                if (refreshed) {
+                  original.headers = original.headers || {};
+                  original.headers['Authorization'] = `Bearer ${refreshed.access_token}`;
+                  return api(original);
+                }
+                return Promise.reject(error);
+              }
+
+              if (!_refreshing) {
+          '''
+          new = textwrap.dedent(new)
+          # Dedent candidate accidentally removed two spaces from the inserted body. Re-indent semantically.
+          start = value.index("    if (status === 401 && !original._retried && !original.url?.includes('/auth/')) {")
+          end = value.index('      const ok = await _refreshing;', start)
+          block = value[start:end]
+          lines = block.splitlines()
+          fixed = []
+          for i, line in enumerate(lines):
+              if i == 0:
+                  fixed.append(line)
+              elif line.startswith('    original') or line.startswith('    if (window') or line.startswith('      const refreshed') or line.startswith('      if (refreshed)') or line.startswith('        original') or line.startswith('        return api') or line.startswith('      }') or line.startswith('      return Promise') or line.startswith('    }') or line.startswith('    if (!_refreshing)'):
+                  fixed.append('  ' + line)
+              else:
+                  fixed.append(line)
+          value = value[:start] + '\n'.join(fixed) + '\n' + value[end:]
+          write(path, value)
+
+          # Tests: identity, tenant, device lifecycle, replay, standard auth and finance RBAC.
+          write('backend/tests/test_mobile_identity_security.py', textwrap.dedent('''\
+          from datetime import datetime, timedelta
+          from pathlib import Path
+          import uuid
+
+          import pytest
+          from cryptography.hazmat.primitives import serialization
+          from cryptography.hazmat.primitives.asymmetric import ec
+          from fastapi import HTTPException
+          from jose import jwt
+
+          from backend import models
+          from backend.routers.mobile import _create_mobile_jwt
+          from backend.routers.mobile_legacy import get_mobile_employer_id, get_mobile_role
+          from backend.security import ALGORITHM, SECRET_KEY, get_password_hash, token_blacklist
+          from backend.utils import rate_limit
+
+
+          @pytest.fixture(autouse=True)
+          def _reset_pairing_rate_limit():
+              path = Path(rate_limit._store_path)
+              path.unlink(missing_ok=True)
+              yield
+              path.unlink(missing_ok=True)
+
+
+          def _user(db, *, email, role, employer_id=None, permissions=None):
+              user = models.User(
+                  email=email,
+                  hashed_password=get_password_hash('TestPass123!'),
+                  role=role,
+                  nom_complet='Mobile User',
+                  is_active=True,
+                  is_licensed=True,
+                  employer_id=employer_id,
+                  permissions=permissions or {},
+              )
+              db.add(user)
+              db.commit()
+              db.refresh(user)
+              return user
+
+
+          def _pairing(db, owner, user, *, token=None, manual_code='654321'):
+              row = models.ZKAPairingToken(
+                  token=token or uuid.uuid4().hex,
+                  manual_code=manual_code,
+                  employer_id=owner.id,
+                  user_id=user.id if user else None,
+                  public_id='abcdef1234567890',
+                  master_key='a' * 64,
+                  role='DENTISTE',
+                  expires_at=datetime.utcnow() + timedelta(minutes=5),
+              )
+              db.add(row)
+              db.commit()
+              db.refresh(row)
+              return row
+
+
+          def _client_public_key():
+              private_key = ec.generate_private_key(ec.SECP256R1())
+              return private_key.public_key().public_bytes(
+                  encoding=serialization.Encoding.X962,
+                  format=serialization.PublicFormat.UncompressedPoint,
+              ).hex()
+
+
+          def _claim(client, record, token=None):
+              return client.post('/api/mobile/claim-token', json={
+                  'token': token or record.token,
+                  'client_public_key_hex': _client_public_key(),
+              })
+
+
+          def test_pairing_binds_real_user_tenant_role_and_device(client, db, dentiste):
+              secretary = _user(
+                  db,
+                  email='secretary-mobile@cabinet.ma',
+                  role=models.UserRole.SECRETAIRE,
+                  employer_id=dentiste.id,
+                  permissions={'agenda': True, 'patients': True, 'accounting': False, 'payments': False},
+              )
+              response = _claim(client, _pairing(db, dentiste, secretary))
+              assert response.status_code == 200, response.text
+              body = response.json()
+              payload = jwt.decode(body['access_token'], SECRET_KEY, algorithms=[ALGORITHM])
+              assert payload['sub'] == str(secretary.id)
+              assert payload['tenant_id'] == dentiste.id
+              assert payload['role'] == 'SECRETAIRE'
+              assert payload['device_id'] == body['device_id']
+              assert body['user_id'] == secretary.id
+              device = db.query(models.MobilePairedDevice).filter(
+                  models.MobilePairedDevice.device_id == body['device_id']
+              ).one()
+              assert device.user_id == secretary.id
+              assert device.employer_id == dentiste.id
+
+
+          def test_manual_code_is_separate_and_claimable(client, db, dentiste):
+              record = _pairing(db, dentiste, dentiste, manual_code='123456')
+              assert record.token != record.manual_code
+              response = _claim(client, record, token='123456')
+              assert response.status_code == 200, response.text
+
+
+          def test_legacy_pairing_without_user_id_fails_closed(client, db, dentiste):
+              record = _pairing(db, dentiste, None)
+              response = _claim(client, record)
+              assert response.status_code == 409
+              db.refresh(record)
+              assert record.used_at is None
+
+
+          def test_role_and_tenant_are_reloaded_from_db(db, dentiste):
+              secretary = _user(
+                  db,
+                  email='role-mobile@cabinet.ma',
+                  role=models.UserRole.SECRETAIRE,
+                  employer_id=dentiste.id,
+              )
+              device = models.MobilePairedDevice(
+                  device_id=str(uuid.uuid4()),
+                  user_id=secretary.id,
+                  employer_id=dentiste.id,
+                  client_public_key_hex=_client_public_key(),
+                  refresh_jti='refresh-test',
+              )
+              db.add(device); db.commit()
+              token = _create_mobile_jwt(secretary.id, 'DENTISTE', dentiste.id, device.device_id)
+              auth = f'Bearer {token}'
+              assert get_mobile_employer_id(auth, db) == dentiste.id
+              assert get_mobile_role(auth, db) == 'SECRETAIRE'
+
+
+          def test_refresh_replay_revokes_device_and_new_chain(client, db, dentiste):
+              claim = _claim(client, _pairing(db, dentiste, dentiste))
+              assert claim.status_code == 200, claim.text
+              device_id = claim.json()['device_id']
+              old_refresh = claim.json()['refresh_token']
+              refreshed = client.post('/api/mobile/refresh-token', json={'refresh_token': old_refresh})
+              assert refreshed.status_code == 200, refreshed.text
+              new_refresh = refreshed.json()['refresh_token']
+              reused = client.post('/api/mobile/refresh-token', json={'refresh_token': old_refresh})
+              assert reused.status_code == 401
+              db.expire_all()
+              device = db.query(models.MobilePairedDevice).filter(models.MobilePairedDevice.device_id == device_id).one()
+              assert device.revoked_at is not None
+              assert client.post('/api/mobile/refresh-token', json={'refresh_token': new_refresh}).status_code == 401
+
+
+          def test_standard_auth_rejects_revoked_mobile_device(client, db, dentiste):
+              claim = _claim(client, _pairing(db, dentiste, dentiste))
+              assert claim.status_code == 200, claim.text
+              body = claim.json()
+              headers = {'Authorization': f"Bearer {body['access_token']}"}
+              assert client.get('/api/auth/me', headers=headers).status_code == 200
+              device = db.query(models.MobilePairedDevice).filter(models.MobilePairedDevice.device_id == body['device_id']).one()
+              device.revoked_at = datetime.utcnow(); db.commit()
+              assert client.get('/api/auth/me', headers=headers).status_code == 401
+
+
+          def test_finance_export_is_backend_permission_guarded(client, db, dentiste):
+              secretary = _user(
+                  db,
+                  email='finance-denied-mobile@cabinet.ma',
+                  role=models.UserRole.SECRETAIRE,
+                  employer_id=dentiste.id,
+                  permissions={'agenda': True, 'patients': True, 'accounting': False, 'payments': False},
+              )
+              claim = _claim(client, _pairing(db, dentiste, secretary))
+              assert claim.status_code == 200, claim.text
+              response = client.get(
+                  '/api/mobile/accounting/export-pdf?year=2026&month=8',
+                  headers={'Authorization': f"Bearer {claim.json()['access_token']}"},
+              )
+              assert response.status_code == 403
+
+
+          def test_cabinet_revocation_invalidates_device_and_refresh(client, db, dentiste):
+              claim = _claim(client, _pairing(db, dentiste, dentiste))
+              body = claim.json()
+              token_blacklist.revoke_mobile_access(dentiste.id, db)
+              denied = client.post('/api/mobile/refresh-token', json={'refresh_token': body['refresh_token']})
+              assert denied.status_code == 401
+              db.expire_all()
+              device = db.query(models.MobilePairedDevice).filter(models.MobilePairedDevice.device_id == body['device_id']).one()
+              assert device.revoked_at is not None
+          '''))
+
+          write('frontend/src/services/zka/mobileFetch.test.ts', textwrap.dedent('''\
+          import { beforeEach, describe, expect, it, vi } from 'vitest';
+
+          vi.mock('./MobileStorage', () => ({
+            MobileStorage: {
+              getCredentials: vi.fn(),
+              updateTokens: vi.fn(),
+              clearCredentials: vi.fn(),
+            },
+          }));
+
+          import { MobileStorage } from './MobileStorage';
+          import { mobileFetch } from './mobileFetch';
+
+          const creds = {
+            publicId: 'abcdef1234567890',
+            masterKey: 'a'.repeat(64),
+            access_token: 'old-access',
+            refresh_token: 'old-refresh',
+            device_id: 'device-1',
+            api_base_url: 'http://127.0.0.1:8005',
+          };
+
+          const response = (status: number, body: Record<string, unknown> = {}) => ({
+            status,
+            ok: status >= 200 && status < 300,
+            json: vi.fn().mockResolvedValue(body),
+          }) as unknown as Response;
+
+          describe('mobileFetch', () => {
+            beforeEach(() => {
+              vi.clearAllMocks();
+              localStorage.clear();
+              vi.mocked(MobileStorage.getCredentials).mockResolvedValue(creds);
+              vi.mocked(MobileStorage.updateTokens).mockImplementation(async (access, refresh, device) => ({
+                ...creds,
+                access_token: access,
+                refresh_token: refresh,
+                device_id: device,
+              }));
+            });
+
+            it('rotates refresh credentials and retries one 401', async () => {
+              const fetchMock = vi.fn()
+                .mockResolvedValueOnce(response(401))
+                .mockResolvedValueOnce(response(200, { access_token: 'new-access', refresh_token: 'new-refresh', device_id: 'device-1' }))
+                .mockResolvedValueOnce(response(200));
+              vi.stubGlobal('fetch', fetchMock);
+              const result = await mobileFetch('http://127.0.0.1:8005/api/mobile/snapshot');
+              expect(result.status).toBe(200);
+              expect(fetchMock).toHaveBeenCalledTimes(3);
+              expect((fetchMock.mock.calls[0][1].headers as Headers).get('Authorization')).toBe('Bearer old-access');
+              expect((fetchMock.mock.calls[2][1].headers as Headers).get('Authorization')).toBe('Bearer new-access');
+              expect(MobileStorage.updateTokens).toHaveBeenCalledWith('new-access', 'new-refresh', 'device-1');
+            });
+
+            it('clears rejected credentials after refresh rejection', async () => {
+              const fetchMock = vi.fn()
+                .mockResolvedValueOnce(response(401))
+                .mockResolvedValueOnce(response(401));
+              vi.stubGlobal('fetch', fetchMock);
+              await mobileFetch('http://127.0.0.1:8005/api/mobile/snapshot');
+              expect(MobileStorage.clearCredentials).toHaveBeenCalledTimes(1);
+            });
+          });
+          '''))
+
+      - name: Static validation before materialization
+        working-directory: /tmp/m6-work
+        run: |
+          python -m py_compile \
+            backend/models_platform.py \
+            backend/database.py \
+            backend/main.py \
+            backend/security.py \
+            backend/utils/rate_limit.py \
+            backend/routers/auth.py \
+            backend/routers/admin_legacy.py \
+            backend/routers/mobile_legacy.py \
+            backend/routers/mobile.py \
+            backend/tests/test_mobile_credential_hardening.py \
+            backend/tests/test_mobile_identity_security.py
+          git diff --check
+          python - <<'PY'
+          from pathlib import Path
+          auth = Path('backend/routers/auth.py').read_text()
+          mobile = Path('backend/routers/mobile.py').read_text()
+          legacy = Path('backend/routers/mobile_legacy.py').read_text()
+          storage = Path('frontend/src/services/zka/MobileStorage.ts').read_text()
+          assert 'MobilePairedDevice.revoked_at.is_(None)' in auth
+          assert 'device.refresh_jti != jti' in mobile
+          assert 'require_mobile_permission("agenda")' in legacy
+          assert 'creds?.refresh_token && creds?.device_id' in storage
+          PY
+
+      - name: Materialize exact final candidate in audit namespace
+        run: |
+          rm -rf m6-final
+          cd /tmp/m6-work
+          git diff --name-only 40cb22d6dddcbae6dee7340dc23956decaf701d8 > /tmp/m6-final-files.txt
+          cd "$GITHUB_WORKSPACE"
+          while IFS= read -r path; do
+            [ -z "$path" ] && continue
+            mkdir -p "m6-final/$(dirname "$path")"
+            cp "/tmp/m6-work/$path" "m6-final/$path"
+          done < /tmp/m6-final-files.txt
+          cp /tmp/m6-final-files.txt m6-final/file-list.txt
+          printf 'base=40cb22d6dddcbae6dee7340dc23956decaf701d8\n' > m6-final/metadata.txt
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -- m6-final
+          git commit -m "chore(mobile): stage reviewed M6.1 candidate"
+          git push origin HEAD:audit/mobile-m6-generator
