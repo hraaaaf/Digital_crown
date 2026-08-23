@@ -42,24 +42,32 @@ jobs:
           def extract(step_name: str, destination: str):
               marker = f'      - name: {step_name}'
               start = lines.index(marker)
-              run_idx = next(i for i in range(start + 1, len(lines)) if lines[i].startswith('        run: |'))
-              out = []
-              for line in lines[run_idx + 1:]:
-                  if line.startswith('      - name: '):
-                      break
-                  if line.startswith('          '):
-                      out.append(line[10:])
-                  elif not line.strip():
-                      out.append('')
-                  else:
-                      raise RuntimeError(f'Unexpected harness indentation: {line!r}')
-              Path(destination).write_text('\n'.join(out) + '\n')
+              run_idx = next(
+                  i for i in range(start + 1, len(lines))
+                  if lines[i].startswith('        run:')
+              )
+              run_line = lines[run_idx]
+              if run_line.startswith('        run: |'):
+                  out = []
+                  for line in lines[run_idx + 1:]:
+                      if line.startswith('      - name: '):
+                          break
+                      if line.startswith('          '):
+                          out.append(line[10:])
+                      elif not line.strip():
+                          out.append('')
+                      else:
+                          raise RuntimeError(f'Unexpected harness indentation: {line!r}')
+                  script = '\n'.join(out) + '\n'
+              else:
+                  script = run_line.split('run:', 1)[1].strip() + '\n'
+              Path(destination).write_text(script)
 
           extract('Inject isolated M1 visual harness', '/tmp/m1-inject.sh')
           extract('Capture exact-head BEFORE', '/tmp/m1-capture.sh')
           PY
+          grep -q 'mobile-m1-before.mjs' /tmp/m1-capture.sh
           test -s /tmp/m1-inject.sh
-          test -s /tmp/m1-capture.sh
 
       - name: Inject isolated visual harness
         working-directory: frontend
