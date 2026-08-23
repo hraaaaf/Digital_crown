@@ -11,6 +11,7 @@ from . import patient_financial_p6 as patient_financial_p6
 from . import ia as ia
 from . import imaging_lifecycle_p4 as imaging_lifecycle_p4
 from . import clinics as clinics
+from . import license_portability_p4 as license_portability_p4
 from . import clinic_identity_p4 as clinic_identity_p4
 from . import clinic_profile_p4 as clinic_profile_p4
 from . import clinic_setup_p4 as clinic_setup_p4
@@ -72,6 +73,18 @@ ia.router.routes = [
     )
 ]
 ia.router.include_router(imaging_lifecycle_p4.router)
+
+# Portability P4 replaces the legacy env-based licence recheck. The stable public URL
+# remains unchanged, but identity now comes from the authenticated CabinetConfig.
+clinics.router.routes = [
+    route
+    for route in clinics.router.routes
+    if not (
+        getattr(route, "path", None) == "/recheck-license"
+        and "POST" in (getattr(route, "methods", set()) or set())
+    )
+]
+clinics.router.include_router(license_portability_p4.router)
 
 # P4B keeps a targeted practitioner contract for direct identity operations.
 clinics.router.include_router(clinic_identity_p4.router)

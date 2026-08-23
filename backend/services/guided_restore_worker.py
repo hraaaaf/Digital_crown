@@ -140,6 +140,29 @@ class GuidedRestoreWorker:
         shutil.rmtree(failed, ignore_errors=True)
 
     @staticmethod
+    def _rescue_license_vault(vault_path: Path, rescue_vault: Path) -> bool:
+        rescue_vault.parent.mkdir(parents=True, exist_ok=True)
+        rescue_vault.unlink(missing_ok=True)
+        if not vault_path.exists():
+            return False
+        shutil.copy2(vault_path, rescue_vault)
+        return True
+
+    @staticmethod
+    def _restore_license_vault(
+        vault_path: Path,
+        rescue_vault: Path,
+        existed_before_restore: bool,
+    ) -> None:
+        vault_path.unlink(missing_ok=True)
+        if not existed_before_restore:
+            return
+        if not rescue_vault.exists():
+            raise RuntimeError("Secours du coffre licence introuvable")
+        vault_path.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(rescue_vault, vault_path)
+
+    @staticmethod
     def _launch_app(executable: str):
         env = os.environ.copy()
         env["DIGITALCROWN_RESTORE_RESTART"] = "1"
@@ -172,8 +195,12 @@ class GuidedRestoreWorker:
         rescue_dir = job_dir / "rescue"
         rescue_db = rescue_dir / "db"
         rescue_media = rescue_dir / "media-live"
+        rescue_vault = rescue_dir / "license_vault.bin"
         target_db = cls._db_target(job)
         media_root = get_media_root()
+        vault_path = AppPaths.get_user_data_dir() / "license_vault.bin"
+        portable_bundle = str(job.get("original_name") or "").lower().endswith(".dcbundle")
+        vault_existed_before_restore = False
         relaunched = None
 
         def update(state: str, result: str = "ok", **extra: Any) -> None:
@@ -191,12 +218,22 @@ class GuidedRestoreWorker:
             rescued = cls._rescue_database(target_db, rescue_db)
             driver = str(job.get("active_driver") or "pysqlite")
             cls._verify_database_rescue(rescue_db, driver)
+            if portable_bundle:
+                vault_existed_before_restore = cls._rescue_license_vault(
+                    vault_path,
+                    rescue_vault,
+                )
             update(
                 "applying",
                 rescue_created_at=_utc_now(),
                 rescue_database_files=rescued,
                 rescue_database_verified=True,
                 rescue_media_atomic=bool(job.get("restore_media") and media_root.exists()),
+                portability_bundle=portable_bundle,
+                rescue_license_vault=(
+                    "present" if portable_bundle and vault_existed_before_restore
+                    else "absent"
+                ),
             )
 
             cls._apply_database(job_dir / "database.enc", target_db, driver)
@@ -208,6 +245,15 @@ class GuidedRestoreWorker:
                     job.get("prepared_media_digest"),
                 )
 
+            if portable_bundle:
+                # The source vault is deliberately excluded from .dcbundle. Remove
+                # any destination cache before rebind so startup must validate the
+                # restored cabinet with destination-owned secrets.
+                vault_path.unlink(missing_ok=True)
+                from backend.services.portability_license_rebind import rebind_portable_restore
+                rebind_result = rebind_portable_restore()
+                update("applying", portability_rebind=rebind_result)
+
             update("restarting")
             relaunched = cls._launch_app(executable)
             if not cls._smoke_check():
@@ -215,6 +261,8 @@ class GuidedRestoreWorker:
 
             if rescue_media.exists():
                 shutil.rmtree(rescue_media, ignore_errors=True)
+            if portable_bundle:
+                rescue_vault.unlink(missing_ok=True)
             update(
                 "success",
                 smoke_check="passed",
@@ -235,6 +283,12 @@ class GuidedRestoreWorker:
                     cls._restore_database_from_rescue(target_db, rescue_db)
                 if job.get("restore_media"):
                     cls._rollback_media(media_root, rescue_media)
+                if portable_bundle:
+                    cls._restore_license_vault(
+                        vault_path,
+                        rescue_vault,
+                        vault_existed_before_restore,
+                    )
                 rollback_process = cls._launch_app(executable)
                 rollback_ok = cls._smoke_check()
                 update(
