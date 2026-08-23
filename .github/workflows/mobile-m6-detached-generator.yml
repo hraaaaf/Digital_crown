@@ -1,0 +1,173 @@
+name: Mobile M6 Detached Generator
+
+on:
+  push:
+    branches: [audit/mobile-m6-generator]
+    paths: [.github/workflows/mobile-m6-detached-generator.yml]
+
+permissions:
+  contents: read
+
+jobs:
+  generate:
+    name: Generate and verify detached M6 delta
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: audit/mobile-m6-generator
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Load prepared transformation and replace brittle matcher
+        shell: python
+        run: |
+          from pathlib import Path
+          import subprocess
+
+          subprocess.run([
+              'git', 'fetch', '--no-tags', 'origin', 'mobile/m6-security-first'
+          ], check=True)
+          raw = subprocess.check_output([
+              'git', 'show',
+              'origin/mobile/m6-security-first:.github/workflows/mobile-m6-security-self-patch.yml'
+          ], text=True)
+          lines = raw.splitlines()
+          marker = '      - name: Apply exact M6 patch'
+          start = lines.index(marker)
+          run_idx = next(i for i in range(start + 1, len(lines)) if lines[i].startswith('        run: |'))
+          body = []
+          for line in lines[run_idx + 1:]:
+              if line.startswith('      - name: '):
+                  break
+              if line.startswith('          '):
+                  body.append(line[10:])
+              elif not line.strip():
+                  body.append('')
+              else:
+                  raise SystemExit(f'Unexpected prepared workflow indentation: {line!r}')
+          code = '\n'.join(body) + '\n'
+
+          func_start = code.index('def replace_once(path, old, new):')
+          func_end = code.index('\n\n# ------------------------------------------------------------------', func_start)
+          tolerant = r'''def replace_once(path, old, new):
+              text = read(path)
+              count = text.count(old)
+              if count == 1:
+                  write(path, text.replace(old, new, 1))
+                  return
+
+              text_lines = text.splitlines()
+              old_lines = old.splitlines()
+              normalized_old = [line.strip() for line in old_lines]
+              matches = []
+              width = len(old_lines)
+              for index in range(0, len(text_lines) - width + 1):
+                  segment = text_lines[index:index + width]
+                  if [line.strip() for line in segment] == normalized_old:
+                      matches.append(index)
+              if len(matches) != 1:
+                  raise SystemExit(
+                      f'{path}: tolerant replacement expected one match, found {len(matches)}; '
+                      f'exact_count={count}; old={old[:100]!r}'
+                  )
+
+              index = matches[0]
+              actual_first = text_lines[index]
+              base_indent = actual_first[:len(actual_first) - len(actual_first.lstrip())]
+              new_lines = new.splitlines()
+              indents = [len(line) - len(line.lstrip()) for line in new_lines if line.strip()]
+              min_indent = min(indents) if indents else 0
+              rendered = [
+                  (base_indent + line[min_indent:]) if line.strip() else ''
+                  for line in new_lines
+              ]
+              text_lines[index:index + width] = rendered
+              result = '\n'.join(text_lines)
+              if text.endswith('\n'):
+                  result += '\n'
+              write(path, result)
+          '''
+          import textwrap
+          tolerant = textwrap.dedent(tolerant)
+          code = code[:func_start] + tolerant + code[func_end:]
+          Path('/tmp/m6_detached_apply.py').write_text(code, encoding='utf-8')
+
+      - name: Generate product delta in detached workspace
+        run: python /tmp/m6_detached_apply.py
+
+      - name: Backend syntax and contract checks
+        run: |
+          python -m py_compile \
+            backend/models_platform.py \
+            backend/database.py \
+            backend/main.py \
+            backend/security.py \
+            backend/utils/rate_limit.py \
+            backend/routers/admin_legacy.py \
+            backend/routers/mobile_legacy.py \
+            backend/routers/mobile.py \
+            backend/tests/test_mobile_identity_security.py
+          python - <<'PY'
+          from pathlib import Path
+          security = Path('backend/security.py').read_text()
+          mobile = Path('backend/routers/mobile.py').read_text()
+          legacy = Path('backend/routers/mobile_legacy.py').read_text()
+          admin = Path('backend/routers/admin_legacy.py').read_text()
+          assert 'MobilePairedDevice' in security
+          assert 'devices_revoked' in security
+          assert '"tenant_id": tenant_id' in mobile
+          assert 'mobile_refresh' in mobile
+          assert 'require_mobile_permission' in legacy
+          assert 'can_view_finance' in legacy
+          assert 'secrets.token_urlsafe(24)' in admin
+          assert 'manual_code=manual_code' in admin
+          assert not Path('frontend/public/sw.js').exists()
+          PY
+
+      - name: Frontend targeted tests and lint
+        working-directory: frontend
+        run: |
+          npm ci
+          npx vitest run src/services/zka/mobileFetch.test.ts src/services/zka/mobileSecurityTruth.test.ts
+          npx eslint \
+            src/services/zka/MobileStorage.ts \
+            src/services/zka/mobileFetch.ts \
+            src/services/api.ts \
+            src/features/mobile/Onboarding/OnboardingScanner.tsx \
+            src/features/mobile/Dashboard/hooks/useMobileDashboard.ts \
+            src/main.tsx
+
+      - name: Package exact changed files
+        if: always()
+        run: |
+          mkdir -p /tmp/m6-artifact/files
+          git diff --check > /tmp/m6-artifact/diff-check.txt || true
+          git diff --name-status > /tmp/m6-artifact/name-status.txt
+          git diff --binary > /tmp/m6-artifact/product.patch
+          git diff --name-only --diff-filter=ACMRT > /tmp/m6-artifact/file-list.txt
+          while IFS= read -r path; do
+            [ -z "$path" ] && continue
+            mkdir -p "/tmp/m6-artifact/files/$(dirname "$path")"
+            cp "$path" "/tmp/m6-artifact/files/$path"
+          done < /tmp/m6-artifact/file-list.txt
+          printf 'base=%s\n' "$(git rev-parse HEAD^)" > /tmp/m6-artifact/metadata.txt
+          printf 'workspace_head=%s\n' "$(git rev-parse HEAD)" >> /tmp/m6-artifact/metadata.txt
+
+      - name: Upload detached M6 candidate
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mobile-m6-detached-candidate
+          path: /tmp/m6-artifact/
+          if-no-files-found: error
+          retention-days: 14
