@@ -1,0 +1,72 @@
+{
+  "metrics": {
+    "viewport": {
+      "width": 430,
+      "height": 932
+    },
+    "scrollWidth": 430,
+    "clientWidth": 430,
+    "hasHorizontalOverflow": false,
+    "offenders": [],
+    "modalRect": {
+      "top": 444,
+      "bottom": 932,
+      "height": 488,
+      "width": 430
+    },
+    "mobileBottomSheet": true,
+    "visibleControls": [
+      {
+        "tag": "BUTTON",
+        "text": "Fermer",
+        "width": 44,
+        "height": 44
+      },
+      {
+        "tag": "BUTTON",
+        "text": "+ Nouveau patient",
+        "width": 162,
+        "height": 44
+      },
+      {
+        "tag": "SELECT",
+        "text": "Sélectionner un patient…Sara EL AMRANIYoussef BENALIMeryem TAZI",
+        "width": 388,
+        "height": 48
+      },
+      {
+        "tag": "SELECT",
+        "text": "ConsultationContrôleDétartrageUrgenceSoinsExtractionOrthodontie--- Prothèse ---ProthèseTailleEmprein",
+        "width": 388,
+        "height": 48
+      },
+      {
+        "tag": "INPUT",
+        "text": "",
+        "width": 188,
+        "height": 48
+      },
+      {
+        "tag": "INPUT",
+        "text": "",
+        "width": 188,
+        "height": 48
+      },
+      {
+        "tag": "BUTTON",
+        "text": "Annuler",
+        "width": 190,
+        "height": 52
+      },
+      {
+        "tag": "BUTTON",
+        "text": "Créer le RDV",
+        "width": 190,
+        "height": 52
+      }
+    ],
+    "controlsBelow44": []
+  },
+  "errors": [],
+  "timelineGate": true
+}

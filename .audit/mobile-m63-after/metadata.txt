@@ -1,0 +1,9 @@
+chantier=Digital Crown Mobile Full Experience
+lot=M6.3 Patient/RDV canonique + Agenda UX
+goal=AFTER exact-head modal tactile >=44px + patient canonical + agenda off-grid visibility
+product_head=30d14b09bc70c78ed6086edbba18777e7c583fb4
+before_source=2b74c1181901e9e381fd543b6eee45fcb825a4cb
+mockup=.audit/mobile-m63-mockup.svg
+states=default,new-patient
+viewports=390x844,430x932,768x1024
+deployment=none

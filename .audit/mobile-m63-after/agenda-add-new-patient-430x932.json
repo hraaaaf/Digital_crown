@@ -1,0 +1,108 @@
+{
+  "metrics": {
+    "viewport": {
+      "width": 430,
+      "height": 932
+    },
+    "scrollWidth": 430,
+    "clientWidth": 430,
+    "hasHorizontalOverflow": false,
+    "offenders": [],
+    "modalRect": {
+      "top": 118,
+      "bottom": 932,
+      "height": 814,
+      "width": 430
+    },
+    "mobileBottomSheet": true,
+    "visibleControls": [
+      {
+        "tag": "BUTTON",
+        "text": "Fermer",
+        "width": 44,
+        "height": 44
+      },
+      {
+        "tag": "BUTTON",
+        "text": "Revenir à la liste",
+        "width": 156,
+        "height": 44
+      },
+      {
+        "tag": "INPUT",
+        "text": "Nom",
+        "width": 177,
+        "height": 48
+      },
+      {
+        "tag": "INPUT",
+        "text": "Prénom",
+        "width": 177,
+        "height": 48
+      },
+      {
+        "tag": "INPUT",
+        "text": "",
+        "width": 362,
+        "height": 48
+      },
+      {
+        "tag": "BUTTON",
+        "text": "Féminin (F)",
+        "width": 177,
+        "height": 48
+      },
+      {
+        "tag": "BUTTON",
+        "text": "Masculin (M)",
+        "width": 177,
+        "height": 48
+      },
+      {
+        "tag": "INPUT",
+        "text": "Téléphone (optionnel)",
+        "width": 362,
+        "height": 48
+      },
+      {
+        "tag": "BUTTON",
+        "text": "Créer et sélectionner ce patient",
+        "width": 362,
+        "height": 52
+      },
+      {
+        "tag": "SELECT",
+        "text": "ConsultationContrôleDétartrageUrgenceSoinsExtractionOrthodontie--- Prothèse ---ProthèseTailleEmprein",
+        "width": 388,
+        "height": 48
+      },
+      {
+        "tag": "INPUT",
+        "text": "",
+        "width": 188,
+        "height": 48
+      },
+      {
+        "tag": "INPUT",
+        "text": "",
+        "width": 188,
+        "height": 48
+      },
+      {
+        "tag": "BUTTON",
+        "text": "Annuler",
+        "width": 190,
+        "height": 52
+      },
+      {
+        "tag": "BUTTON",
+        "text": "Créer le RDV",
+        "width": 190,
+        "height": 52
+      }
+    ],
+    "controlsBelow44": []
+  },
+  "errors": [],
+  "timelineGate": true
+}
