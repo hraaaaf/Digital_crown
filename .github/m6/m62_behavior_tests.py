@@ -1,8 +1,9 @@
 from pathlib import Path
 
-Path('frontend/src/test/mobileM62Behavior.test.ts').write_text(r'''import { beforeEach, describe, expect, it, vi } from 'vitest';
+Path('frontend/src/test/mobileM62Behavior.test.ts').write_text(r'''import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const memory = vi.hoisted(() => ({ store: new Map<string, unknown>() }));
+const FUTURE_EXP = 4102444800; // 2100-01-01 UTC, deterministic and safely in the future.
 
 vi.mock('localforage', () => ({
   default: {
@@ -22,10 +23,7 @@ import { MobileStorage } from '../services/zka/MobileStorage';
 import { mobileFetch } from '../services/zka/mobileFetch';
 
 function token(label: string): string {
-  const payload = Buffer.from(JSON.stringify({
-    exp: Math.floor(Date.now() / 1000) + 3600,
-    label,
-  })).toString('base64url');
+  const payload = Buffer.from(JSON.stringify({ exp: FUTURE_EXP, label })).toString('base64url');
   return `header.${payload}.signature`;
 }
 
@@ -46,6 +44,10 @@ beforeEach(async () => {
   vi.clearAllMocks();
   localStorage.clear();
   await MobileStorage.clearAll();
+});
+
+afterEach(() => {
+  vi.unstubAllGlobals();
 });
 
 describe('Mobile M6.2 behavior', () => {
