@@ -1,0 +1,58 @@
+name: Mobile M6.1 License Fix Stage
+
+on:
+  push:
+    branches: [audit/mobile-m6-generator]
+    paths: [.github/workflows/mobile-m61-license-stage.yml]
+
+permissions:
+  contents: write
+
+jobs:
+  stage:
+    runs-on: ubuntu-latest
+    env:
+      BASE_SHA: 2bf0f639b198b5aacdd1f797f62ea9ac11aa9cff
+      PRODUCT_SHA: 634892172ac8026a74a47d15de794a7f64c46d86
+      PRODUCT_BRANCH: mobile/m6-security-first
+      STAGE_BRANCH: audit/mobile-m61-blob-stage
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: audit/mobile-m6-generator
+          fetch-depth: 0
+
+      - name: Apply reviewed three-file correction
+        run: |
+          set -euo pipefail
+          git fetch origin master "$PRODUCT_BRANCH"
+          test "$(git rev-parse origin/master)" = "$BASE_SHA"
+          test "$(git rev-parse origin/$PRODUCT_BRANCH)" = "$PRODUCT_SHA"
+          git worktree add --detach /tmp/m61-fix "$PRODUCT_SHA"
+          cd /tmp/m61-fix
+          git apply --check "$GITHUB_WORKSPACE/.github/m6/m61-license-device-fix.patch"
+          git apply "$GITHUB_WORKSPACE/.github/m6/m61-license-device-fix.patch"
+          git diff --check
+          python -m py_compile \
+            backend/main.py \
+            backend/tests/test_mobile_identity_security.py \
+            backend/tests/test_mobile_revocation_epoch.py
+          git diff --name-only | sort > /tmp/actual
+          printf '%s\n' \
+            backend/main.py \
+            backend/tests/test_mobile_identity_security.py \
+            backend/tests/test_mobile_revocation_epoch.py | sort > /tmp/expected
+          diff -u /tmp/expected /tmp/actual
+          grep -q '_effective_user_license_status' backend/main.py
+          grep -q "licensed=False" backend/tests/test_mobile_identity_security.py
+          grep -q '_paired_mobile_token' backend/tests/test_mobile_revocation_epoch.py
+
+      - name: Materialize corrected staging tree only
+        working-directory: /tmp/m61-fix
+        run: |
+          set -euo pipefail
+          git config user.name "Digital Crown M6 Audit"
+          git config user.email "123034021+hraaaaf@users.noreply.github.com"
+          git add backend/main.py backend/tests/test_mobile_identity_security.py backend/tests/test_mobile_revocation_epoch.py
+          git commit -m "audit(m6): stage cabinet-license inheritance fix"
+          git push --force origin "HEAD:refs/heads/$STAGE_BRANCH"
