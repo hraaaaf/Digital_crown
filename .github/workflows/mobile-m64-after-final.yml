@@ -28,7 +28,7 @@ jobs:
       - name: Verify exact final product HEAD
         run: |
           PRODUCT_HEAD=$(git -C product rev-parse HEAD)
-          test "$PRODUCT_HEAD" = "5152ba2eadf3854d2949ec6b2369d3b87d1553cb"
+          test "$PRODUCT_HEAD" = "b719ea57a08f0b1eb6133dc78cd3c42baaae2d1c"
           echo "PRODUCT_HEAD=$PRODUCT_HEAD" >> "$GITHUB_ENV"
 
       - name: Setup Node 20
@@ -82,7 +82,7 @@ jobs:
           import json
           from pathlib import Path
           report = json.loads(Path('mobile-m64-after-artifacts/report.json').read_text())
-          assert report['productHead'] == '5152ba2eadf3854d2949ec6b2369d3b87d1553cb'
+          assert report['productHead'] == 'b719ea57a08f0b1eb6133dc78cd3c42baaae2d1c'
           assert report['safePairingBodies'] is True
           assert report['e2eFinance']['count'] == 3
           assert report['e2eFinance']['allVisible'] is True
