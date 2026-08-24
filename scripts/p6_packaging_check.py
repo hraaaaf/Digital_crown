@@ -1,9 +1,10 @@
 from __future__ import annotations
 
 import argparse
+import ast
 import json
 import re
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 
 DEFAULT_ROOT = Path(__file__).resolve().parents[1]
 REQUIRED_SPEC_SNIPPETS = [
@@ -16,12 +17,33 @@ REQUIRED_SPEC_SNIPPETS = [
     "ceph_weights.pth",
     "windows-version-info.txt",
 ]
-FORBIDDEN_SPEC = ['.env', 'firebase_creds.json', "('backend/static', 'backend/static')"]
+FORBIDDEN_SPEC_SNIPPETS = ["('backend/static', 'backend/static')"]
 
 
 def require(cond: bool, message: str) -> None:
     if not cond:
         raise SystemExit(message)
+
+
+def _string_literals(source: str) -> list[str]:
+    tree = ast.parse(source)
+    return [
+        node.value
+        for node in ast.walk(tree)
+        if isinstance(node, ast.Constant) and isinstance(node.value, str)
+    ]
+
+
+def _looks_like_forbidden_packaged_path(value: str) -> str | None:
+    normalized = value.replace('\\', '/').strip()
+    if not normalized or '\n' in normalized:
+        return None
+    name = PurePosixPath(normalized).name.lower()
+    if name == '.env' or name.startswith('.env.'):
+        return '.env'
+    if name == 'firebase_creds.json':
+        return 'firebase_creds.json'
+    return None
 
 
 def static_contract(root: Path) -> None:
@@ -30,8 +52,14 @@ def static_contract(root: Path) -> None:
     spec = (root / 'DigitalCrown.spec').read_text(encoding='utf-8')
     for snippet in REQUIRED_SPEC_SNIPPETS:
         require(snippet in spec, f'missing spec contract: {snippet}')
-    for snippet in FORBIDDEN_SPEC:
+    for snippet in FORBIDDEN_SPEC_SNIPPETS:
         require(snippet not in spec, f'forbidden spec content: {snippet}')
+    forbidden_paths = [
+        (literal, forbidden)
+        for literal in _string_literals(spec)
+        if (forbidden := _looks_like_forbidden_packaged_path(literal)) is not None
+    ]
+    require(not forbidden_paths, f'forbidden packaged path(s): {forbidden_paths}')
     legacy = (root / 'scripts' / 'build_exe.py').read_text(encoding='utf-8')
     require('LEGACY_BUILDER_DISABLED' in legacy, 'legacy builder is not quarantined')
     iss = (root / 'installer' / 'DigitalCrown.iss').read_text(encoding='utf-8')
