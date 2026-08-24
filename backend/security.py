@@ -54,7 +54,7 @@ class TokenBlacklist:
     MOBILE_JTI_PREFIX = "mobile:"
     MOBILE_EPOCH_PREFIX = "mobile-epoch:"
     MOBILE_TOKEN_TTL = timedelta(hours=24)
-    MOBILE_EPOCH_RETENTION = timedelta(hours=25)
+    MOBILE_EPOCH_RETENTION = timedelta(days=31)
 
     def __init__(self):
         self._store: dict[str, datetime] = {}
@@ -162,7 +162,7 @@ class TokenBlacklist:
         once it expires, every token issued before it is already expired anyway.
         """
         from backend.database import SessionLocal
-        from backend.models import RevokedToken, ZKAPairingToken
+        from backend.models import MobilePairedDevice, RevokedToken, ZKAPairingToken
 
         employer_id = int(employer_id)
         now = datetime.now(timezone.utc)
@@ -181,11 +181,16 @@ class TokenBlacklist:
                 ZKAPairingToken.employer_id == employer_id,
                 ZKAPairingToken.used_at.is_(None),
             ).delete(synchronize_session=False)
+            revoked_devices = db_session.query(MobilePairedDevice).filter(
+                MobilePairedDevice.employer_id == employer_id,
+                MobilePairedDevice.revoked_at.is_(None),
+            ).update({MobilePairedDevice.revoked_at: now.replace(tzinfo=None)}, synchronize_session=False)
             db_session.commit()
             self._mobile_cutoffs[employer_id] = cutoff_us
             return {
                 "revoked_at": now.isoformat(),
                 "pairing_tokens_invalidated": int(invalidated or 0),
+                "devices_revoked": int(revoked_devices or 0),
             }
         except Exception:
             db_session.rollback()

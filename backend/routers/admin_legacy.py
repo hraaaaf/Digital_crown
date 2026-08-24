@@ -258,17 +258,36 @@ def export_database(db: Session = Depends(database.get_db), current_user: models
     raise HTTPException(status_code=400, detail="Moteur non supporté")
 
 
+def _resolve_mobile_pairing_user(
+    db: Session,
+    current_user: models.User,
+    target_user_id: Optional[int] = None,
+):
+    """Resolve an admin-selected mobile identity strictly inside the current cabinet."""
+    employer_id = current_user.get_employer_id()
+    target_id = int(target_user_id) if target_user_id is not None else current_user.id
+    target_user = db.query(models.User).filter(models.User.id == target_id).first()
+    if not target_user or target_user.get_employer_id() != employer_id:
+        raise HTTPException(status_code=404, detail="Utilisateur introuvable dans ce cabinet.")
+    if not target_user.is_active or (getattr(target_user, "approval_status", None) or "approved") != "approved":
+        raise HTTPException(status_code=403, detail="Utilisateur inactif ou non approuvé.")
+    return employer_id, target_user
+
+
 @router.get("/zka-key-qr")
-def get_zka_key_qr(db: Session = Depends(database.get_db), current_user: models.User = Depends(require_permission("admin"))):
+def get_zka_key_qr(
+    target_user_id: Optional[int] = None,
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(require_permission("admin")),
+):
     """
     Génère un QR d'appairage mobile ZKA sécurisé.
-    La masterKey NE transite PAS dans l'URL — le QR encode un token éphémère UUID (TTL 5 min).
+    La masterKey NE transite PAS dans l'URL — le QR encode un secret haute entropie (TTL 5 min).
     Le mobile échange ce token contre les credentials via POST /api/mobile/claim-token.
     """
-    import uuid
     from datetime import timedelta
 
-    emp_id = current_user.get_employer_id()
+    emp_id, target_user = _resolve_mobile_pairing_user(db, current_user, target_user_id)
 
     config = db.query(models.CabinetConfig).filter(models.CabinetConfig.owner_id == emp_id).first()
     master_key = os.getenv("CABINET_MASTER_KEY_HEX")
@@ -282,15 +301,32 @@ def get_zka_key_qr(db: Session = Depends(database.get_db), current_user: models.
         models.ZKAPairingToken.expires_at < datetime.utcnow(),
     ).delete()
 
-    # Générer un token éphémère à usage unique (5 min) - Code à 6 chiffres
-    import random
-    pairing_token = f"{random.randint(100000, 999999)}"
+    # Le QR porte un secret haute entropie. Le code à 6 chiffres est un secours
+    # manuel distinct, protégé par le rate-limit de /claim-token.
+    import secrets
+    pairing_token = secrets.token_urlsafe(24)  # 192 bits, <= VARCHAR(36)
+    manual_code = None
+    for _ in range(20):
+        candidate = f"{secrets.randbelow(900000) + 100000:06d}"
+        collision = db.query(models.ZKAPairingToken).filter(
+            models.ZKAPairingToken.manual_code == candidate,
+            models.ZKAPairingToken.used_at.is_(None),
+            models.ZKAPairingToken.expires_at > datetime.utcnow(),
+        ).first()
+        if collision is None:
+            manual_code = candidate
+            break
+    if manual_code is None:
+        raise HTTPException(status_code=503, detail="Impossible de générer un code mobile unique.")
+
     db.add(models.ZKAPairingToken(
         token=pairing_token,
+        manual_code=manual_code,
         employer_id=emp_id,
+        user_id=target_user.id,
         public_id=config.public_id,
         master_key=master_key,
-        role=current_user.role.value if current_user.role else "DENTISTE",
+        role=target_user.role.value if target_user.role else "DENTISTE",
         expires_at=datetime.utcnow() + timedelta(minutes=5),
     ))
     db.commit()
@@ -305,7 +341,7 @@ def get_zka_key_qr(db: Session = Depends(database.get_db), current_user: models.
         resource_type="ZKAPairingToken",
         resource_id=None,
         severity="WARNING",
-        details="Token d'appairage mobile ZKA généré (TTL 5 min).",
+        details=f"Token d'appairage mobile ZKA généré pour user_id={target_user.id} (TTL 5 min).",
     )
 
     # Le QR encode l'URL LAN du serveur avec le token — jamais la clé
@@ -326,7 +362,10 @@ def get_zka_key_qr(db: Session = Depends(database.get_db), current_user: models.
             "qr_code": f"data:image/png;base64,{img_str}",
             "expires_in": 300,
             "lan_url": base_url,
-            "token_code": pairing_token,
+            "token_code": manual_code,
+            "target_user_id": target_user.id,
+            "target_user_name": target_user.nom_complet or target_user.email,
+            "target_role": target_user.role.value if hasattr(target_user.role, "value") else str(target_user.role),
         }
     except Exception as e:
         logger.error(f"Erreur génération QR ZKA: {e}")
@@ -339,11 +378,16 @@ def revoke_mobile_access(db: Session = Depends(database.get_db), current_user: m
     try:
         emp_id = current_user.get_employer_id()
         env_path = current_backend_env_path()
+
+        # 1. Révoquer d'abord les sessions/devices et invalider les pairings en attente.
+        # Fail-closed : si cette étape échoue, ne pas prétendre que l'accès mobile est révoqué.
+        from backend.security import token_blacklist
+        revocation = token_blacklist.revoke_mobile_access(emp_id, db)
+
+        # 2. Rotation de la clé (mémoire + fichier env actif)
+        zka_service.rotate_master_key(env_path)
         
-        # 1. Rotation de la clé (mémoire + fichier env actif)
-        new_key = zka_service.rotate_master_key(env_path)
-        
-        # 2. Force une synchronisation immédiate avec la nouvelle clé
+        # 3. Force une synchronisation immédiate avec la nouvelle clé
         # Cela rendra les anciens snapshots sur Supabase obsolètes ou illisibles avec l'ancienne clé
         sync_manager._perform_sync(emp_id)
 
@@ -358,9 +402,18 @@ def revoke_mobile_access(db: Session = Depends(database.get_db), current_user: m
             resource_type="ZKAMasterKey",
             resource_id=None,
             severity="CRITICAL",
-            details="Rotation de la clé maître ZKA — tous les accès mobiles révoqués.",
+            details=(
+                "Rotation de la clé maître ZKA — tous les accès mobiles révoqués. "
+                f"pairings_invalidated={revocation['pairing_tokens_invalidated']} "
+                f"devices_revoked={revocation['devices_revoked']}"
+            ),
         )
-        return {"status": "success", "message": "Accès mobile révoqué. Scannez le nouveau code pour vous reconnecter."}
+        return {
+            "status": "success",
+            "message": "Accès mobile révoqué. Scannez le nouveau code pour vous reconnecter.",
+            "pairing_tokens_invalidated": revocation["pairing_tokens_invalidated"],
+            "devices_revoked": revocation["devices_revoked"],
+        }
     except Exception as e:
         logger.error(f"Erreur lors de la révocation ZKA: {e}")
         raise HTTPException(status_code=500, detail="Échec de la révocation")
