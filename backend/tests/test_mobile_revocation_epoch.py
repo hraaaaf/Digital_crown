@@ -35,6 +35,21 @@ def _second_cabinet(db):
     return user
 
 
+
+def _paired_mobile_token(db, user):
+    device_id = str(uuid.uuid4())
+    db.add(models.MobilePairedDevice(
+        device_id=device_id,
+        user_id=user.id,
+        employer_id=user.get_employer_id(),
+        client_public_key_hex='04' + ('11' * 64),
+        refresh_jti=f'refresh-{uuid.uuid4().hex}',
+    ))
+    db.commit()
+    role = user.role.value if hasattr(user.role, 'value') else str(user.role)
+    return _create_mobile_jwt(user.id, role, user.get_employer_id(), device_id)
+
+
 def _snapshot(client, token: str):
     return client.get(
         "/api/mobile/snapshot",
@@ -43,7 +58,7 @@ def _snapshot(client, token: str):
 
 
 def test_old_mobile_jwt_is_rejected_after_cabinet_revocation(client, db, dentiste):
-    old_token = _create_mobile_jwt(dentiste.id, "DENTISTE")
+    old_token = _paired_mobile_token(db, dentiste)
     assert _snapshot(client, old_token).status_code == 200
 
     token_blacklist.revoke_mobile_access(dentiste.id, db)
@@ -52,9 +67,9 @@ def test_old_mobile_jwt_is_rejected_after_cabinet_revocation(client, db, dentist
 
 
 def test_new_mobile_jwt_after_revocation_is_accepted(client, db, dentiste):
-    old_token = _create_mobile_jwt(dentiste.id, "DENTISTE")
+    old_token = _paired_mobile_token(db, dentiste)
     token_blacklist.revoke_mobile_access(dentiste.id, db)
-    new_token = _create_mobile_jwt(dentiste.id, "DENTISTE")
+    new_token = _paired_mobile_token(db, dentiste)
 
     assert _snapshot(client, old_token).status_code == 401
     assert _snapshot(client, new_token).status_code == 200
@@ -62,8 +77,8 @@ def test_new_mobile_jwt_after_revocation_is_accepted(client, db, dentiste):
 
 def test_revocation_is_tenant_scoped(client, db, dentiste):
     other = _second_cabinet(db)
-    own_token = _create_mobile_jwt(dentiste.id, "DENTISTE")
-    other_token = _create_mobile_jwt(other.id, "DENTISTE")
+    own_token = _paired_mobile_token(db, dentiste)
+    other_token = _paired_mobile_token(db, other)
 
     token_blacklist.revoke_mobile_access(dentiste.id, db)
 
@@ -90,7 +105,7 @@ def test_admin_revoke_endpoint_rejects_existing_mobile_token(client, db, dentist
     dentiste.permissions = {**(dentiste.permissions or {}), "admin": True}
     db.commit()
 
-    old_token = _create_mobile_jwt(dentiste.id, "DENTISTE")
+    old_token = _paired_mobile_token(db, dentiste)
     _pending_pairing(db, dentiste.id, "route")
 
     with patch("backend.routers.admin._legacy.zka_service.rotate_master_key", return_value="b" * 64):
