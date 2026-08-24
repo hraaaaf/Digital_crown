@@ -12,9 +12,7 @@ jobs:
   stage:
     runs-on: ubuntu-latest
     env:
-      BASE_SHA: 2bf0f639b198b5aacdd1f797f62ea9ac11aa9cff
-      PRODUCT_SHA: 1015cbe9eb22ee7b7b30c0ae9f4430a55db3eead
-      PRODUCT_BRANCH: mobile/m6-security-first
+      BASE_SHA: becffc2314482bb749105aed60e4d1e47c2bb140
       STAGE_BRANCH: audit/mobile-m62-stage
     steps:
       - uses: actions/checkout@v4
@@ -25,14 +23,14 @@ jobs:
       - name: Build and verify M6.2 candidate
         run: |
           set -euo pipefail
-          git fetch origin master "$PRODUCT_BRANCH" "$STAGE_BRANCH"
+          git fetch origin master "$STAGE_BRANCH"
           test "$(git rev-parse origin/master)" = "$BASE_SHA"
-          test "$(git rev-parse origin/$PRODUCT_BRANCH)" = "$PRODUCT_SHA"
-          test "$(git rev-parse origin/$STAGE_BRANCH)" = "$PRODUCT_SHA"
+          test "$(git rev-parse origin/$STAGE_BRANCH)" = "$BASE_SHA"
 
-          git worktree add --detach /tmp/m62 "$PRODUCT_SHA"
+          git worktree add --detach /tmp/m62 "$BASE_SHA"
           cd /tmp/m62
           python "$GITHUB_WORKSPACE/.github/m6/m62_transform.py"
+          python "$GITHUB_WORKSPACE/.github/m6/m62_network_truth_guard.py"
 
           python -m py_compile backend/routers/mobile_legacy.py backend/tests/test_mobile_router.py
           git diff --check
@@ -64,6 +62,8 @@ jobs:
           grep -q 'deviceId' frontend/src/services/zka/MobileStorage.ts
           grep -q 'MobileStorage.refreshCredentials()' frontend/src/services/api.ts
           grep -q 'X-Mobile-Action-Id' frontend/src/features/mobile/Dashboard/hooks/useMobileDashboard.ts
+          grep -q 'isQueueableNetworkError' frontend/src/features/mobile/Dashboard/hooks/useMobileDashboard.ts
+          grep -q "name === 'AbortError' || name === 'TimeoutError'" frontend/src/features/mobile/Dashboard/hooks/useMobileDashboard.ts
           grep -q "already_absent': True" backend/routers/mobile_legacy.py
           grep -q 'mobileM62OfflineTruth' <(find frontend/src/test -maxdepth 1 -type f -printf '%f\n')
 
@@ -88,4 +88,4 @@ jobs:
             frontend/vite.config.ts
           test "$(git diff --cached --name-only | wc -l)" -eq 12
           git commit -m "audit(m6.2): stage offline truth candidate"
-          git push --force-with-lease="refs/heads/$STAGE_BRANCH:$PRODUCT_SHA" origin "HEAD:refs/heads/$STAGE_BRANCH"
+          git push --force-with-lease="refs/heads/$STAGE_BRANCH:$BASE_SHA" origin "HEAD:refs/heads/$STAGE_BRANCH"
