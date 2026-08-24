@@ -15,10 +15,36 @@ from backend.services.agenda_availability import validate_appointment_availabili
 router = APIRouter(tags=["Appointments"])
 
 
+def _naive_datetime(value: datetime) -> datetime:
+    """Normalize API datetimes to the naive local representation used by the agenda DB."""
+    return value.replace(tzinfo=None) if value.tzinfo is not None else value
+
+
+def _is_exact_time(value) -> bool:
+    return getattr(value, "value", value) == "EXACT_TIME"
+
+
+def _conflict_detail(conflicts: list) -> dict:
+    return {
+        "message": "Créneau en conflit avec un autre rendez-vous",
+        "conflicts": [
+            {
+                "id": conflict.id,
+                "patient_id": conflict.patient_id,
+                "patient_name": conflict.patient_name,
+                "datetime_start": conflict.datetime_start.isoformat(),
+                "duration_minutes": conflict.duration_minutes,
+            }
+            for conflict in conflicts
+        ],
+    }
+
+
 def _find_conflicts(db: Session, employer_id: int, datetime_start: datetime, duration_minutes: int, exclude_id: int | None = None) -> list:
-    """Retourne les RDV qui se chevauchent avec le créneau donné."""
+    """Retourne les RDV exacts qui se chevauchent avec le créneau donné."""
+    datetime_start = _naive_datetime(datetime_start)
     end = datetime_start + timedelta(minutes=duration_minutes)
-    # SQL pre-filter : fenêtre large (±4h) pour laisser le filtrage précis à Python
+    # SQL pre-filter : fenêtre large (±4h) pour laisser le filtrage précis à Python.
     window_start = datetime_start - timedelta(hours=4)
     q = db.query(models.Appointment).filter(
         models.Appointment.employer_id == employer_id,
@@ -29,13 +55,14 @@ def _find_conflicts(db: Session, employer_id: int, datetime_start: datetime, dur
     )
     if exclude_id:
         q = q.filter(models.Appointment.id != exclude_id)
-    # Filtrage précis en Python (SQLAlchemy ne supporte pas datetime + timedelta en filtre SQL)
     rows = q.all()
     return [
-        a for a in rows
-        if a.datetime_start + timedelta(minutes=a.duration_minutes) > datetime_start
-        and a.datetime_start < end
+        appointment
+        for appointment in rows
+        if _naive_datetime(appointment.datetime_start) + timedelta(minutes=appointment.duration_minutes) > datetime_start
+        and _naive_datetime(appointment.datetime_start) < end
     ]
+
 
 @router.get("/", response_model=List[schemas.AppointmentOut])
 def get_appointments(
@@ -52,6 +79,7 @@ def get_appointments(
         query = query.filter(models.Appointment.datetime_start <= datetime.fromisoformat(end_date.replace("Z", "+00:00")))
     return query.order_by(models.Appointment.datetime_start.asc()).all()
 
+
 @router.post("/", response_model=schemas.AppointmentOut)
 def create_appointment(
     appt: schemas.AppointmentCreate,
@@ -62,13 +90,25 @@ def create_appointment(
         assert_patient_access(appt.patient_id, current_user, db)
 
     employer_id = current_user.get_employer_id()
+    normalized_start = _naive_datetime(appt.datetime_start)
     availability_error = validate_appointment_availability(
-        db, employer_id, appt.datetime_start, appt.duration_minutes, appt.scheduling_type
+        db, employer_id, normalized_start, appt.duration_minutes, appt.scheduling_type
     )
     if availability_error:
         raise HTTPException(status_code=422, detail=availability_error)
 
+    if _is_exact_time(appt.scheduling_type):
+        conflicts = _find_conflicts(
+            db,
+            employer_id,
+            normalized_start,
+            appt.duration_minutes,
+        )
+        if conflicts:
+            raise HTTPException(status_code=409, detail=_conflict_detail(conflicts))
+
     appt_data = appt.model_dump()
+    appt_data['datetime_start'] = normalized_start
     appt_data['employer_id'] = employer_id
     db_appt = models.Appointment(**appt_data)
     db.add(db_appt)
@@ -76,6 +116,7 @@ def create_appointment(
     db.refresh(db_appt)
     audit_service.log(db=db, user_id=current_user.id, employer_id=current_user.get_employer_id(), action="CREATE", resource_type="Appointment", resource_id=str(db_appt.id), details=f"RDV patient {appt.patient_id}")
     return db_appt
+
 
 @router.put("/{id}", response_model=schemas.AppointmentOut)
 def update_appointment(
@@ -89,11 +130,12 @@ def update_appointment(
         models.Appointment.id == id,
         models.Appointment.employer_id == user_employer_id
     ).first()
-    if not db_appt: raise HTTPException(status_code=404, detail="Rendez-vous introuvable")
+    if not db_appt:
+        raise HTTPException(status_code=404, detail="Rendez-vous introuvable")
 
     update_data = appt_update.model_dump(exclude_unset=True)
     if any(key in update_data for key in ('datetime_start', 'duration_minutes', 'scheduling_type')):
-        effective_start = update_data.get('datetime_start', db_appt.datetime_start)
+        effective_start = _naive_datetime(update_data.get('datetime_start', db_appt.datetime_start))
         effective_duration = update_data.get('duration_minutes', db_appt.duration_minutes)
         effective_type = update_data.get('scheduling_type', db_appt.scheduling_type)
         availability_error = validate_appointment_availability(
@@ -102,6 +144,20 @@ def update_appointment(
         if availability_error:
             raise HTTPException(status_code=422, detail=availability_error)
 
+        if _is_exact_time(effective_type):
+            conflicts = _find_conflicts(
+                db,
+                user_employer_id,
+                effective_start,
+                effective_duration,
+                exclude_id=id,
+            )
+            if conflicts:
+                raise HTTPException(status_code=409, detail=_conflict_detail(conflicts))
+
+        if 'datetime_start' in update_data and update_data['datetime_start'] is not None:
+            update_data['datetime_start'] = effective_start
+
     for key, value in update_data.items():
         setattr(db_appt, key, value)
 
@@ -109,6 +165,7 @@ def update_appointment(
     db.refresh(db_appt)
     audit_service.log(db=db, user_id=current_user.id, employer_id=current_user.get_employer_id(), action="UPDATE", resource_type="Appointment", resource_id=str(id), details=f"Champs: {', '.join(update_data.keys())}")
     return db_appt
+
 
 @router.delete("/{id}")
 def delete_appointment(id: int, db: Session = Depends(database.get_db), current_user: models.User = Depends(require_permission("agenda"))):
@@ -122,6 +179,7 @@ def delete_appointment(id: int, db: Session = Depends(database.get_db), current_
     db.commit()
     audit_service.log(db=db, user_id=current_user.id, employer_id=current_user.get_employer_id(), action="DELETE", resource_type="Appointment", resource_id=str(id))
     return {"status": "success"}
+
 
 @router.post("/bulk", response_model=List[schemas.AppointmentOut])
 def create_bulk_appointments(
@@ -164,6 +222,7 @@ def create_bulk_appointments(
 
     return created_appts
 
+
 @router.post("/reminders/send")
 def trigger_reminders(
     db: Session = Depends(database.get_db),
@@ -174,6 +233,7 @@ def trigger_reminders(
     """
     sent_count = notification_service.cron_send_reminders(db)
     return {"status": "success", "reminders_sent": sent_count}
+
 
 @router.get("/suggest/{patient_id}", response_model=schemas.AppointmentSuggestionOut)
 async def suggest_appointment(
@@ -224,6 +284,7 @@ async def suggest_appointment(
         notes="Aucun acte pending – suggestion générique"
     )
 
+
 @router.get("/patient/{patient_id}", response_model=List[schemas.AppointmentOut])
 def get_patient_appointments(
     patient_id: int,
@@ -244,7 +305,7 @@ def check_conflicts(
 ):
     """Vérifie les chevauchements de créneaux avant création/modification."""
     try:
-        dt = datetime.fromisoformat(datetime_start.replace("Z", "+00:00")).replace(tzinfo=None)
+        dt = _naive_datetime(datetime.fromisoformat(datetime_start.replace("Z", "+00:00")))
     except ValueError:
         raise HTTPException(status_code=422, detail="Format datetime invalide")
     conflicts = _find_conflicts(db, current_user.get_employer_id(), dt, duration_minutes, exclude_id)

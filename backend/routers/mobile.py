@@ -66,6 +66,38 @@ _legacy._create_mobile_refresh_jwt = _create_mobile_refresh_jwt
 router = _legacy.router
 
 
+def _remove_legacy_creation_route(path: str) -> None:
+    """Remove only legacy POST creators while preserving mobile GET/status/delete routes."""
+    for route in list(router.routes):
+        methods = getattr(route, "methods", set()) or set()
+        if getattr(route, "path", None) == path and "POST" in methods:
+            router.routes.remove(route)
+
+
+_remove_legacy_creation_route('/appointments')
+_remove_legacy_creation_route('/patients')
+
+
+@router.post('/appointments', include_in_schema=False)
+def legacy_mobile_appointment_create_disabled(
+    _mobile_user: models.User = Depends(require_mobile_permission("agenda")),
+):
+    raise HTTPException(
+        status_code=410,
+        detail="Création RDV mobile legacy désactivée. Utilisez /api/appointments/ avec patient_id.",
+    )
+
+
+@router.post('/patients', include_in_schema=False)
+def legacy_mobile_patient_create_disabled(
+    _mobile_user: models.User = Depends(require_mobile_permission("patients")),
+):
+    raise HTTPException(
+        status_code=410,
+        detail="Création patient mobile legacy désactivée. Utilisez /api/patients/ avec date de naissance et sexe explicite.",
+    )
+
+
 class MobileRefreshRequest(BaseModel):
     refresh_token: str
 
