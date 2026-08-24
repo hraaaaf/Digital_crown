@@ -90,7 +90,6 @@ def run_daily_alerts():
                 db.rollback()
                 continue
             for t in triggers:
-                # Fenêtre de déduplication adaptative — évite le bruit quotidien
                 _financial_types = {"OVERDUE_PAYMENT", "POST_CARE_FOLLOWUP", "HIGH_VALUE_RISK"}
                 _dedup_window = (
                     timedelta(hours=24)
@@ -117,7 +116,6 @@ def run_daily_alerts():
                     new_count += 1
                     new_by_employer[patient.employer_id] = new_by_employer.get(patient.employer_id, 0) + 1
 
-                    # Ghost Brain V2 : Conscience temporelle
                     from backend.services.ghost_memory_service import ghost_memory
                     ghost_memory.add_memory(
                         db=db,
@@ -129,7 +127,6 @@ def run_daily_alerts():
                     )
         db.commit()
 
-        # ── Analyse pression agenda par cabinet (niveau employer) ───────────────
         from backend.services.ghost_memory_service import ghost_memory as _gm
         all_employer_ids = {
             row[0] for row in db.query(models.Patient.employer_id).filter(
@@ -188,36 +185,40 @@ def run_daily_alerts():
 _stop_flag = False
 _current_timer = None
 
+
 def start_daily_scheduler():
     """Lance le scheduler récursif — première exécution après 10s, puis toutes les 24h."""
     global _current_timer, _stop_flag
     _stop_flag = False
-    
+
     def _run_and_reschedule():
         global _current_timer
         if _stop_flag:
             return
-            
+
         try:
-            # 1. Sauvegarde automatique de la DB (V1 Requirement)
+            # 1. Sauvegarde locale quotidienne : point de restauration rapide.
             from backend.services.backup_service import backup_service
             backup_service.run_daily_backup()
 
-            # 2. Relances transactionnelles de licence
+            # 2. DR portable hors répertoire Digital Crown, si configuré.
+            from backend.services.disaster_recovery_service import disaster_recovery_service
+            disaster_recovery_service.run_scheduled_snapshot()
+
+            # 3. Relances transactionnelles de licence.
             send_license_expiry_emails()
-            
-            # 3. Alertes proactives
+
+            # 4. Alertes proactives.
             run_daily_alerts()
         except Exception as e:
             logger.warning("Daily scheduler failed: %s", e)
-            
+
         if not _stop_flag:
             try:
                 _current_timer = threading.Timer(86400, _run_and_reschedule)
                 _current_timer.daemon = True
                 _current_timer.start()
             except RuntimeError:
-                # L'interpréteur Python est en cours d'arrêt (souvent pendant les tests)
                 pass
 
     try:
@@ -227,6 +228,7 @@ def start_daily_scheduler():
         logger.info("Daily scheduler armed (first run in 10s)")
     except RuntimeError:
         pass
+
 
 def stop_daily_scheduler():
     """Arrête proprement le scheduler (utile pour les tests)."""
