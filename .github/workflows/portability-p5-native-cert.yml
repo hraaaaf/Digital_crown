@@ -6,7 +6,11 @@ on:
       - "backend/requirements.txt"
       - "backend/requirements-p5-native.txt"
       - "backend/scientific_assets.json"
+      - "backend/config.py"
+      - "backend/env_loader.py"
       - "backend/services/sota_vision_service.py"
+      - "backend/services/vision_service.py"
+      - "backend/services/panoramic_service.py"
       - "scripts/portability_p5_check.py"
       - ".github/workflows/portability-p5-native-cert.yml"
   workflow_dispatch:
@@ -17,7 +21,7 @@ concurrency:
 
 jobs:
   native-runtime:
-    name: Native runtime (${{ matrix.os }})
+    name: Native runtime + fail-closed (${{ matrix.os }})
     strategy:
       fail-fast: false
       matrix:
@@ -66,11 +70,15 @@ jobs:
         run: >-
           python -m py_compile
           backend/core/paths.py
+          backend/config.py
+          backend/env_loader.py
           backend/services/sota_vision_service.py
+          backend/services/vision_service.py
+          backend/services/panoramic_service.py
           scripts/portability_p5_check.py
 
-      - name: Execute native runtime certification
-        run: python scripts/portability_p5_check.py --runtime
+      - name: Execute native runtime + scientific fail-closed certification
+        run: python scripts/portability_p5_check.py --runtime --fail-closed
 
       - name: Require Apple Silicon on macOS
         if: runner.os == 'macOS'
