@@ -1,0 +1,28 @@
+name: Mobile M6.1 Source Export
+
+on:
+  push:
+    branches: [audit/mobile-m6-generator]
+    paths: [.github/workflows/mobile-m61-source-export.yml]
+
+permissions:
+  contents: read
+
+jobs:
+  export:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: 634892172ac8026a74a47d15de794a7f64c46d86
+      - name: Verify exact source
+        run: test "$(git rev-parse HEAD)" = "634892172ac8026a74a47d15de794a7f64c46d86"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: mobile-m61-license-source
+          path: |
+            backend/main.py
+            backend/tests/test_mobile_identity_security.py
+            backend/tests/test_mobile_revocation_epoch.py
+          if-no-files-found: error
+          retention-days: 2
