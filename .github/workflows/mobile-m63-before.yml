@@ -1,0 +1,217 @@
+name: Mobile M6.3 BEFORE Add Appointment
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  capture:
+    name: Capture M6.3 AddApptModal BEFORE
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout exact pre-M6.3 product head
+        uses: actions/checkout@v4
+        with:
+          ref: 0c2ab389ba67672da5cd9aacb600f258afc5de70
+
+      - name: Setup Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install frontend and Chromium
+        working-directory: frontend
+        run: |
+          npm ci
+          npm install --no-save --package-lock=false playwright@1.55.0
+          npx playwright install --with-deps chromium
+
+      - name: Inject isolated exact-product harness
+        working-directory: frontend
+        run: |
+          cat > mobile-m63-before.html <<'EOF'
+          <!doctype html>
+          <html lang="fr">
+            <head>
+              <meta charset="UTF-8" />
+              <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+              <title>Digital Crown Mobile M6.3 BEFORE</title>
+            </head>
+            <body>
+              <div id="root"></div>
+              <script type="module" src="/src/mobile-m63-before.tsx"></script>
+            </body>
+          </html>
+          EOF
+
+          cat > src/mobile-m63-before.tsx <<'EOF'
+          import React from 'react';
+          import { createRoot } from 'react-dom/client';
+          import { MemoryRouter } from 'react-router-dom';
+          import './index.css';
+          import { MobileStorage } from './services/zka/MobileStorage';
+          import { MobileDashboard } from './features/mobile/Dashboard/MobileDashboard';
+
+          const payload = btoa(JSON.stringify({ exp: 4102444800 })).replace(/=/g, '').replace(/\+/g, '-').replace(/\//g, '_');
+          const auditToken = `header.${payload}.signature`;
+
+          await MobileStorage.clearAll();
+          await MobileStorage.saveCredentials({
+            publicId: '0123456789abcdef',
+            masterKey: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+            access_token: auditToken,
+            refresh_token: 'm63-audit-refresh',
+            device_id: 'm63-audit-device',
+            api_base_url: 'http://127.0.0.1:8005',
+          });
+
+          createRoot(document.getElementById('root')!).render(
+            <React.StrictMode>
+              <MemoryRouter initialEntries={['/mobile/dashboard']}>
+                <MobileDashboard />
+              </MemoryRouter>
+            </React.StrictMode>,
+          );
+          EOF
+
+          cat > mobile-m63-before.mjs <<'EOF'
+          import { chromium } from 'playwright';
+          import { createServer } from 'vite';
+          import fs from 'node:fs/promises';
+
+          const output = 'mobile-m63-before-artifacts';
+          await fs.mkdir(output, { recursive: true });
+
+          const snapshot = {
+            generated_at: '2026-08-24T12:00:00',
+            role: 'DENTISTE',
+            is_superadmin: false,
+            appointments: [
+              { id: 201, patient_id: 101, time: '09:00', date: '2026-08-24', patient_name: 'Sara El Amrani', phone: '0612345678', motif: 'Consultation', status: 'TERMINE', duration_minutes: 30 },
+              { id: 202, patient_id: 102, time: '10:30', date: '2026-08-24', patient_name: 'Youssef Benali', phone: '0623456789', motif: 'Contrôle', status: 'EN_COURS', duration_minutes: 45 },
+              { id: 203, patient_id: 103, time: '14:00', date: '2026-08-24', patient_name: 'Meryem Tazi', phone: '0634567890', motif: 'Détartrage', status: 'PLANIFIE', duration_minutes: 40 },
+            ],
+            finance: null,
+            debtors: [],
+          };
+          const patients = { data: [
+            { id: 101, name: 'Sara El Amrani', phone: '0612345678' },
+            { id: 102, name: 'Youssef Benali', phone: '0623456789' },
+            { id: 103, name: 'Meryem Tazi', phone: '0634567890' },
+          ]};
+
+          const server = await createServer({ server: { host: '127.0.0.1', port: 4178, strictPort: true }, clearScreen: false });
+          await server.listen();
+          const browser = await chromium.launch();
+          const viewports = [
+            { width: 390, height: 844 },
+            { width: 430, height: 932 },
+            { width: 768, height: 1024 },
+          ];
+          const results = [];
+
+          try {
+            for (const vp of viewports) {
+              const context = await browser.newContext({
+                viewport: vp,
+                screen: vp,
+                userAgent: 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_6 like Mac OS X) AppleWebKit/605.1.15 Version/18.6 Mobile/15E148 Safari/604.1',
+                isMobile: true,
+                hasTouch: true,
+                deviceScaleFactor: 1,
+                serviceWorkers: 'block',
+              });
+              const page = await context.newPage();
+              const errors = [];
+              page.on('pageerror', error => errors.push(`pageerror: ${error.message}`));
+              page.on('console', message => { if (message.type() === 'error') errors.push(`console: ${message.text()}`); });
+
+              await page.route('**/*', async route => {
+                const req = route.request();
+                const url = new URL(req.url());
+                if (!url.pathname.startsWith('/api/')) return route.continue();
+                let body = {};
+                if (url.pathname === '/api/mobile/snapshot') body = snapshot;
+                else if (url.pathname === '/api/mobile/patients') body = patients;
+                else if (url.pathname.includes('lab-jobs')) body = [];
+                else if (url.pathname === '/api/mobile/refresh-token') body = { access_token: req.headers()['authorization'] || 'unused', refresh_token: 'm63-audit-refresh', device_id: 'm63-audit-device' };
+                else body = req.method() === 'GET' ? [] : {};
+                await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(body) });
+              });
+
+              await page.goto('http://127.0.0.1:4178/mobile-m63-before.html', { waitUntil: 'networkidle' });
+              await page.getByText('Sara El Amrani').waitFor({ state: 'visible', timeout: 15000 });
+              await page.locator('.fixed.bottom-32.right-6 button').click();
+              await page.getByText('Ajouter un RDV', { exact: true }).waitFor({ state: 'visible', timeout: 10000 });
+              await page.waitForTimeout(200);
+
+              const metrics = await page.evaluate(() => {
+                const root = document.documentElement;
+                const modal = [...document.querySelectorAll('body *')].find(el => el.textContent?.trim().startsWith('Ajouter un RDV'));
+                const offenders = [...document.querySelectorAll('body *')].flatMap((el) => {
+                  const r = el.getBoundingClientRect();
+                  if (r.right > window.innerWidth + 1 || r.left < -1) return [{ tag: el.tagName, cls: String(el.className || '').slice(0, 160), left: Math.round(r.left), right: Math.round(r.right), width: Math.round(r.width) }];
+                  return [];
+                }).slice(0, 20);
+                const controls = [...document.querySelectorAll('button,input,select')].map(el => {
+                  const r = el.getBoundingClientRect();
+                  return { tag: el.tagName, width: Math.round(r.width), height: Math.round(r.height), text: (el.textContent || '').trim().slice(0, 60) };
+                });
+                return {
+                  clientWidth: root.clientWidth,
+                  scrollWidth: root.scrollWidth,
+                  hasHorizontalOverflow: root.scrollWidth > root.clientWidth + 1,
+                  offenders,
+                  controls,
+                  modalFound: !!modal,
+                };
+              });
+
+              const name = `add-appt-modal-before-${vp.width}x${vp.height}`;
+              await page.screenshot({ path: `${output}/${name}.png`, fullPage: true, animations: 'disabled' });
+              await fs.writeFile(`${output}/${name}.errors.txt`, errors.join('\n'));
+              await fs.writeFile(`${output}/${name}.metrics.json`, JSON.stringify(metrics, null, 2));
+              results.push({ ...vp, errors, metrics });
+              await context.close();
+            }
+          } finally {
+            await browser.close();
+            await server.close();
+          }
+
+          await fs.writeFile(`${output}/report.json`, JSON.stringify(results, null, 2));
+          const failures = results.filter(r => r.errors.length || r.metrics.hasHorizontalOverflow || !r.metrics.modalFound);
+          console.log(JSON.stringify({ captures: results.length, failures: failures.length, failuresDetail: failures }, null, 2));
+          if (failures.length) process.exitCode = 1;
+          EOF
+
+      - name: Capture exact-head BEFORE
+        working-directory: frontend
+        run: node mobile-m63-before.mjs
+
+      - name: Record metadata
+        if: always()
+        working-directory: frontend
+        run: |
+          mkdir -p mobile-m63-before-artifacts
+          cat > mobile-m63-before-artifacts/metadata.txt <<'EOF'
+          chantier=Digital Crown Mobile Full Experience
+          lot=M6.3 Patient/RDV canonical + Agenda UX
+          goal=BEFORE exact-product AddApptModal integrated in Agenda
+          product_head=0c2ab389ba67672da5cd9aacb600f258afc5de70
+          viewports=390x844,430x932,768x1024
+          deployment=none
+          EOF
+
+      - name: Upload BEFORE evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mobile-m63-before
+          path: frontend/mobile-m63-before-artifacts/
+          if-no-files-found: error
+          retention-days: 14
