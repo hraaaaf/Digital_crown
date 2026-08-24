@@ -3,8 +3,6 @@ name: Settings Security Visual Certification
 on:
   pull_request:
     paths:
-      - "frontend/src/features/admin/Settings/tabs/SecurityTab.tsx"
-      - "frontend/src/features/admin/Security/MobileSecurity.tsx"
       - ".github/workflows/settings-security-visual-cert.yml"
   workflow_dispatch:
 
@@ -12,122 +10,102 @@ permissions:
   contents: read
 
 jobs:
-  certify:
+  m64-final-e2e:
+    name: M6.4 exact-head visual + E2E
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - name: Checkout audit PR
+        uses: actions/checkout@v4
+
+      - name: Checkout frozen M6.4 scenario source
+        uses: actions/checkout@v4
+        with:
+          ref: audit/mobile-m64-before-20260824
+          path: evidence
+
+      - name: Checkout exact product branch
+        uses: actions/checkout@v4
+        with:
+          ref: mobile/m64-contextual-qr-bridge
+          path: product
+
+      - name: Verify exact product HEAD
+        run: |
+          PRODUCT_HEAD=$(git -C product rev-parse HEAD)
+          test "$PRODUCT_HEAD" = "269f65b6475a0333bb70cf3ddcf1f0753d2eceae"
+          echo "PRODUCT_HEAD=$PRODUCT_HEAD" >> "$GITHUB_ENV"
+
+      - name: Setup Node 20
+        uses: actions/setup-node@v4
         with:
           node-version: "20"
           cache: npm
-          cache-dependency-path: frontend/package-lock.json
+          cache-dependency-path: product/frontend/package-lock.json
 
-      - name: Install frontend and browser
-        working-directory: frontend
+      - name: Install frontend and Chromium
+        working-directory: product/frontend
         run: |
           npm ci
           npm install --no-save --package-lock=false playwright@1.55.0
           npx playwright install --with-deps chromium
 
-      - name: Inject targeted Settings security harness
-        working-directory: frontend
+      - name: Extract frozen M6.4 AFTER scenario
         run: |
-          cat > settings-security-cert.html <<'EOF'
-          <!doctype html><html lang="fr"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/><link rel="icon" href="data:,"/><title>Settings Security</title></head><body><div id="root"></div><script type="module" src="/src/settings-security-cert.tsx"></script></body></html>
+          python - <<'PY'
+          from pathlib import Path
+          import re
+          source = Path('evidence/.github/workflows/mobile-m64-after.yml').read_text()
+          for target in ['mobile-m64-after.html', 'src/mobile-m64-after.tsx', 'mobile-m64-after.mjs']:
+              pattern = rf"cat > {re.escape(target)} <<'EOF'\n(.*?)\n          EOF"
+              match = re.search(pattern, source, re.S)
+              if not match:
+                  raise SystemExit(f'Frozen AFTER block missing: {target}')
+              lines = [line[10:] if line.startswith('          ') else line for line in match.group(1).splitlines()]
+              destination = Path('product/frontend') / target
+              destination.parent.mkdir(parents=True, exist_ok=True)
+              destination.write_text('\n'.join(lines) + '\n')
+          PY
+
+      - name: Capture exact-head AFTER
+        working-directory: product/frontend
+        run: node mobile-m64-after.mjs
+
+      - name: Assert final report gates
+        working-directory: product/frontend
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          report = json.loads(Path('mobile-m64-after-artifacts/report.json').read_text())
+          assert report['productHead'] == '269f65b6475a0333bb70cf3ddcf1f0753d2eceae'
+          assert report['safePairingBodies'] is True
+          assert report['e2eFinance']['count'] == 3
+          assert report['e2eFinance']['allVisible'] is True
+          assert report['e2eFinance']['protocolObserved'] is True
+          assert len(report['captures']) == 13
+          assert all(not item['errors'] for item in report['captures'])
+          assert all(not item['metrics']['hasHorizontalOverflow'] for item in report['captures'])
+          assert all(
+              not item['metrics']['controlsBelow44']
+              for item in report['captures']
+              if item['state'] in {'bridge-default', 'bridge-visible-finance', 'onboarding', 'pairing-success-finance'}
+          )
+          print('M6.4 final exact-head AFTER PASS')
+          PY
+          cat > mobile-m64-after-artifacts/metadata.txt <<EOF
+          chantier=Digital Crown Mobile Full Experience
+          lot=M6.4 Contextual QR Bridge
+          product_head=${PRODUCT_HEAD}
+          product_branch=mobile/m64-contextual-qr-bridge
+          viewports=390x844,430x932,768x1024,1280x900
+          e2e=onboarding->authenticated server destination->finance
+          deployment=none
           EOF
 
-          cat > src/settings-security-cert.tsx <<'EOF'
-          import React from 'react';
-          import { createRoot } from 'react-dom/client';
-          import { MemoryRouter } from 'react-router-dom';
-          import './index.css';
-          import Settings from './pages/Settings';
-          import { useAuthStore } from './stores/useAuthStore';
-
-          useAuthStore.setState({
-            user: ({ id: 1, email: 'admin@security-cert.local', nom_complet: 'Dr Security', role: 'ADMIN', is_superadmin: false, permissions: {} } as any),
-            isAuthenticated: true,
-            isLoading: false,
-            error: null,
-          });
-
-          createRoot(document.getElementById('root')!).render(
-            <MemoryRouter initialEntries={['/settings']}><Settings /></MemoryRouter>,
-          );
-          EOF
-
-          cat > settings-security-cert.mjs <<'EOF'
-          import { chromium } from 'playwright';
-          import { createServer } from 'vite';
-          import fs from 'node:fs/promises';
-
-          const output = 'settings-security-artifacts';
-          await fs.mkdir(output, { recursive: true });
-          const json = body => ({ status: 200, contentType: 'application/json', body: JSON.stringify(body) });
-          const profile = {
-            id: 1, public_id: 'security-cert', nom_cabinet: 'Cabinet Security', nom_praticien: 'Dr Security',
-            footer_address: 'Rabat, Maroc', footer_phones: '05 37 00 00 00', primary_color: '#003380',
-            secondary_color: '#1e40af', accent_color: '#60a5fa', selected_theme: 'elite', font_fr: 'inter',
-            selected_template: 'swiss', header_lines_fr: ['Dr Security'], header_lines_ar: [], specialty_ids: [],
-            contacts_json: {}, margin_top: 3.6, margin_bottom: 3.2, watermark_enabled: false, use_letterhead: false,
-            qr_code_enabled: false, qr_code_type: 'VCARD', qr_code_style: 'dots', show_patient_badges: true,
-            performance_mode: false, clinical_tips_enabled: true, hide_header: true, hide_footer: true, cabinet_type: 'PRIVE',
-          };
-
-          const server = await createServer({ server: { host: '127.0.0.1', port: 4178, strictPort: true }, clearScreen: false });
-          await server.listen();
-          const browser = await chromium.launch();
-          const widths = [1440, 1024, 768, 430, 390];
-          try {
-            for (const width of widths) {
-              const context = await browser.newContext({ viewport: { width, height: 1200 } });
-              const page = await context.newPage();
-              const errors = [];
-              page.on('pageerror', e => errors.push(`pageerror: ${e.message}`));
-              page.on('console', m => { if (m.type() === 'error') errors.push(`console: ${m.text()}`); });
-
-              await page.route('**/*', async route => {
-                const request = route.request();
-                const url = new URL(request.url());
-                if (url.port !== '8005' || !url.pathname.startsWith('/api/')) return route.continue();
-                if (request.method() !== 'GET') return route.fulfill(json({}));
-                if (url.pathname === '/api/clinics/me') return route.fulfill(json(profile));
-                if (url.pathname.includes('/audit-logs')) return route.fulfill(json({ total: 0, logs: [] }));
-                if (url.pathname.includes('/backups')) return route.fulfill(json([]));
-                return route.fulfill(json({}));
-              });
-
-              await page.goto('http://127.0.0.1:4178/settings-security-cert.html', { waitUntil: 'networkidle' });
-              await page.getByRole('heading', { name: 'Paramètres', exact: true }).waitFor({ timeout: 15000 });
-              await page.getByRole('button', { name: 'Sécurité & Backup', exact: true }).click();
-              await page.getByRole('heading', { name: 'Sécurité & Souveraineté', exact: true }).waitFor({ state: 'visible' });
-              await page.getByText('Sauvegarde chiffrée vérifiée', { exact: true }).waitFor({ state: 'visible' });
-              await page.getByText("Afficher le code d'appairage", { exact: true }).waitFor({ state: 'visible' });
-
-              const bodyWidth = await page.evaluate(() => document.documentElement.scrollWidth);
-              if (bodyWidth > width) throw new Error(`Horizontal overflow: document=${bodyWidth}, viewport=${width}`);
-              if (errors.length) throw new Error(errors.join('\n'));
-
-              await page.screenshot({ path: `${output}/admin-securite-${width}x1200.png`, fullPage: true, animations: 'disabled' });
-              await context.close();
-            }
-          } finally {
-            await browser.close();
-            await server.close();
-          }
-          EOF
-
-      - name: Capture and assert Security views
-        working-directory: frontend
-        run: node settings-security-cert.mjs
-
-      - name: Verify proof count
-        working-directory: frontend
-        run: test "$(find settings-security-artifacts -name '*.png' | wc -l)" -eq 5
-
-      - uses: actions/upload-artifact@v4
+      - name: Upload observable AFTER
+        uses: actions/upload-artifact@v4
         with:
-          name: settings-security-visual-cert
-          path: frontend/settings-security-artifacts/
+          name: mobile-m64-final-after
+          path: product/frontend/mobile-m64-after-artifacts/
           if-no-files-found: error
           retention-days: 14
