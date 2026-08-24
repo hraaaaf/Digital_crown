@@ -1,0 +1,80 @@
+name: Mobile M6.1 Create Final Blobs
+
+on:
+  push:
+    branches: [audit/mobile-m6-generator]
+    paths: [.github/workflows/mobile-m61-create-final-blobs.yml]
+
+permissions:
+  contents: write
+
+jobs:
+  blobs:
+    runs-on: ubuntu-latest
+    env:
+      BASE_SHA: 2bf0f639b198b5aacdd1f797f62ea9ac11aa9cff
+      PRODUCT_SHA: 634892172ac8026a74a47d15de794a7f64c46d86
+      PRODUCT_BRANCH: mobile/m6-security-first
+      PATCH_SHA256: 5ac53a1272f6881fac317f4c28380a953f63cea1adc10e9d9bd27e26eae2711f
+      EXPECT_MAIN: eeda7f73b02f7d879d6ee8f71a91816f665f06a8
+      EXPECT_IDENTITY: 1a01028272a54177d9caa6152d8c26f48e98e83d
+      EXPECT_REVOCATION: 870bd51fde885c30c5051fc1d879e22477e31019
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: audit/mobile-m6-generator
+          fetch-depth: 0
+
+      - name: Build exact corrected files locally
+        run: |
+          set -euo pipefail
+          git fetch origin master "$PRODUCT_BRANCH"
+          test "$(git rev-parse origin/master)" = "$BASE_SHA"
+          test "$(git rev-parse origin/$PRODUCT_BRANCH)" = "$PRODUCT_SHA"
+          git worktree add --detach /tmp/m61-final "$PRODUCT_SHA"
+          base64 -d .github/m6/m61-license-device-fix.generated.patch.gz.b64 | gzip -d > /tmp/m61-fix.patch
+          printf '%s  %s\n' "$PATCH_SHA256" /tmp/m61-fix.patch | sha256sum -c -
+          cd /tmp/m61-final
+          git apply --check /tmp/m61-fix.patch
+          git apply /tmp/m61-fix.patch
+          git diff --check
+          python -m py_compile backend/main.py backend/tests/test_mobile_identity_security.py backend/tests/test_mobile_revocation_epoch.py
+          test "$(git hash-object backend/main.py)" = "$EXPECT_MAIN"
+          test "$(git hash-object backend/tests/test_mobile_identity_security.py)" = "$EXPECT_IDENTITY"
+          test "$(git hash-object backend/tests/test_mobile_revocation_epoch.py)" = "$EXPECT_REVOCATION"
+          git diff --name-only | sort > /tmp/actual
+          printf '%s\n' backend/main.py backend/tests/test_mobile_identity_security.py backend/tests/test_mobile_revocation_epoch.py | sort > /tmp/expected
+          diff -u /tmp/expected /tmp/actual
+
+      - name: Create three immutable GitHub blobs
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          cd /tmp/m61-final
+          create_blob() {
+            local path="$1"
+            local expected="$2"
+            local payload
+            payload="$(base64 -w0 "$path")"
+            local sha
+            sha="$(gh api -X POST "repos/${{ github.repository }}/git/blobs" -f encoding=base64 -f content="$payload" --jq .sha)"
+            test "$sha" = "$expected"
+            printf '%s %s\n' "$path" "$sha"
+          }
+          create_blob backend/main.py "$EXPECT_MAIN" > /tmp/final-blobs.txt
+          create_blob backend/tests/test_mobile_identity_security.py "$EXPECT_IDENTITY" >> /tmp/final-blobs.txt
+          create_blob backend/tests/test_mobile_revocation_epoch.py "$EXPECT_REVOCATION" >> /tmp/final-blobs.txt
+          cat /tmp/final-blobs.txt
+
+      - name: Publish blob SHA marker in audit namespace
+        run: |
+          set -euo pipefail
+          git fetch origin audit/mobile-m6-generator
+          git checkout -B audit/mobile-m6-generator origin/audit/mobile-m6-generator
+          cp /tmp/final-blobs.txt .github/m6/m61-license-final-blobs.txt
+          git config user.name "Digital Crown M6 Audit"
+          git config user.email "123034021+hraaaaf@users.noreply.github.com"
+          git add .github/m6/m61-license-final-blobs.txt
+          git commit -m "audit(m6): record immutable license-fix blobs"
+          git push origin HEAD:audit/mobile-m6-generator
