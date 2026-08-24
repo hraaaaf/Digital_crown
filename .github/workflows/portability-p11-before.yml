@@ -1,0 +1,133 @@
+name: Portability P11 Launcher Recovery BEFORE
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/portability-p11-before.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  before:
+    runs-on: ubuntu-latest
+    env:
+      HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+    steps:
+      - name: Checkout exact candidate
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.HEAD_SHA }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install frontend and Chromium
+        working-directory: frontend
+        run: |
+          npm ci
+          npm install --no-save --package-lock=false playwright@1.55.0
+          npx playwright install --with-deps chromium
+
+      - name: Inject P11 BEFORE harness
+        working-directory: frontend
+        run: |
+          cat > p11-before.html <<'EOF'
+          <!doctype html>
+          <html lang="fr"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/><title>P11 BEFORE</title></head><body><div id="root"></div><script type="module" src="/src/p11-before.tsx"></script></body></html>
+          EOF
+
+          cat > src/p11-before.tsx <<'EOF'
+          import React from 'react';
+          import { createRoot } from 'react-dom/client';
+          import './index.css';
+          import { DigitalCrownLoader } from './components/DigitalCrownLoader';
+          import { SecurityTab } from './features/admin/Settings/tabs/SecurityTab';
+
+          const screen = new URLSearchParams(window.location.search).get('screen') || 'startup';
+          const content = screen === 'security'
+            ? <main className="min-h-screen bg-white p-4 sm:p-8 lg:p-12"><SecurityTab /></main>
+            : <DigitalCrownLoader text="Patientez pendant le démarrage de l'IA..." />;
+
+          createRoot(document.getElementById('root')!).render(content);
+          EOF
+
+          cat > p11-before.mjs <<'EOF'
+          import { chromium } from 'playwright';
+          import { createServer } from 'vite';
+          import fs from 'node:fs/promises';
+
+          const output = 'p11-before-artifacts';
+          await fs.mkdir(output, { recursive: true });
+          const server = await createServer({ server: { host: '127.0.0.1', port: 4191, strictPort: true }, clearScreen: false });
+          await server.listen();
+          const browser = await chromium.launch();
+          const widths = [1440, 1024, 768, 430, 390];
+          const screens = ['startup', 'security'];
+          const health = [];
+          const reply = body => ({ status: 200, contentType: 'application/json', body: JSON.stringify(body) });
+
+          try {
+            for (const screen of screens) {
+              for (const width of widths) {
+                const context = await browser.newContext({ viewport: { width, height: 1200 } });
+                const page = await context.newPage();
+                const errors = [];
+                page.on('pageerror', e => errors.push(`pageerror:${e.message}`));
+                page.on('console', m => { if (m.type() === 'error') errors.push(`console:${m.text()}`); });
+                await page.route('**/api/**', async route => {
+                  const url = new URL(route.request().url());
+                  if (url.pathname === '/api/admin/audit-logs') return route.fulfill(reply({ logs: [], total: 0 }));
+                  return route.fulfill(reply({}));
+                });
+                await page.goto(`http://127.0.0.1:4191/p11-before.html?screen=${screen}`, { waitUntil: 'networkidle' });
+                await page.waitForTimeout(150);
+                const layout = await page.evaluate(() => ({ clientWidth: document.documentElement.clientWidth, scrollWidth: document.documentElement.scrollWidth }));
+                if (layout.scrollWidth > layout.clientWidth) throw new Error(`overflow screen=${screen} width=${width} scroll=${layout.scrollWidth}`);
+                if (errors.length) throw new Error(`runtime screen=${screen} width=${width}: ${errors.join(';')}`);
+                await page.screenshot({ path: `${output}/${screen}-${width}x1200.png`, fullPage: true, animations: 'disabled' });
+                health.push({ screen, width, ...layout, errors });
+                await context.close();
+              }
+            }
+            await fs.writeFile(`${output}/health.json`, JSON.stringify(health, null, 2));
+          } finally {
+            await browser.close();
+            await server.close();
+          }
+          EOF
+
+      - name: Capture P11 BEFORE
+        working-directory: frontend
+        run: node p11-before.mjs
+
+      - name: Verify proof cardinality
+        working-directory: frontend
+        run: |
+          test "$(find p11-before-artifacts -name '*.png' | wc -l)" -eq 10
+          grep -q 'Patientez pendant le démarrage de l'\''IA' src/App.tsx
+          grep -q 'Restauration guidée' src/features/admin/Settings/tabs/SecurityTab.tsx
+
+      - name: Record metadata
+        working-directory: frontend
+        run: |
+          cat > p11-before-artifacts/metadata.txt <<EOF
+          head_sha=${HEAD_SHA}
+          goal=P11 BEFORE current startup loader and Guided Restore UX
+          viewports=1440x1200,1024x1200,768x1200,430x1200,390x1200
+          screens=startup,security
+          expected_screenshots=10
+          EOF
+
+      - name: Upload P11 BEFORE proof
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: portability-p11-before
+          path: frontend/p11-before-artifacts/
+          if-no-files-found: error
+          retention-days: 14
