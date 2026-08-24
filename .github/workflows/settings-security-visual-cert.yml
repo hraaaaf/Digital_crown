@@ -1,5 +1,6 @@
 name: Settings Security Visual Certification
 
+# M6.4 audit retrigger after ready-for-review
 on:
   pull_request:
     paths:
