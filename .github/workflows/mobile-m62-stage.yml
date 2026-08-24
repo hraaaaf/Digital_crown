@@ -1,5 +1,5 @@
 name: Mobile M6.2 Offline Truth Stage
-# behavior gate v2
+# behavior gate v3 deterministic
 
 on:
   push:
@@ -74,6 +74,8 @@ jobs:
           grep -q "already_absent': True" backend/routers/mobile_legacy.py
           grep -q 'rotates the mobile refresh token' frontend/src/test/mobileM62Behavior.test.ts
           grep -q 'purges the queue when the paired device changes' frontend/src/test/mobileM62Behavior.test.ts
+          grep -q 'FUTURE_EXP = 4102444800' frontend/src/test/mobileM62Behavior.test.ts
+          grep -q 'vi.unstubAllGlobals' frontend/src/test/mobileM62Behavior.test.ts
 
       - name: Materialize audit staging only
         run: |
