@@ -1,11 +1,11 @@
 # Mobile M6.1 — Security-first pairing & device sessions — CLOSEOUT
 
 Date: 2026-08-24
-Status: CLOSED
+Status: CLOSED — après hotfix shared-auth certifié
 
 ## Goal
 
-Durcir l’expérience mobile avant les travaux offline/UX : l’appairage doit représenter un utilisateur réel du cabinet, chaque session doit être liée à un appareil révocable, les permissions et la licence doivent rester source-of-truth backend, et la rotation/révocation doit échouer fermée.
+Durcir l’expérience mobile avant les travaux offline/UX : l’appairage doit représenter un utilisateur réel du cabinet, chaque session doit être liée à un appareil révocable, les permissions et la licence doivent rester source-of-truth backend, et la rotation/révocation doit échouer fermée sur les routes mobiles dédiées comme sur les routes API partagées.
 
 ## Résultat livré
 
@@ -16,7 +16,8 @@ Durcir l’expérience mobile avant les travaux offline/UX : l’appairage doit 
 - `MobilePairedDevice` persistant et révocable.
 - Access token mobile 24 h et refresh token 30 jours liés au device.
 - Rotation du refresh; replay d’un ancien refresh => révocation du device.
-- Access token refusé si le device a été révoqué.
+- JWT mobile refusé si le device a été révoqué, y compris sur les routes API partagées utilisant `get_current_user()`.
+- Un Bearer mobile explicite ne peut pas être masqué par un cookie desktop valide : un Bearer mobile révoqué reste refusé.
 - Révocation cabinet : pairings en attente + devices mobiles invalidés.
 - Permissions mobile backend appliquées à Agenda / Patients / Finance.
 - Finance snapshot fail-closed : aucune interrogation comptable sans permission.
@@ -26,6 +27,8 @@ Durcir l’expérience mobile avant les travaux offline/UX : l’appairage doit 
 - Création RDV mobile corrigée : aucun champ ORM `datetime_end` inexistant; `patient_id` fourni est validé dans le tenant et réellement persisté; RDV rapide legacy sans ID conservé jusqu’à M6.3.
 
 ## Preuves exactes
+
+### Lot initial — PR #229
 
 - Branche produit : `mobile/m6-security-first`.
 - HEAD produit certifié : `1015cbe9eb22ee7b7b30c0ae9f4430a55db3eead`.
@@ -38,12 +41,31 @@ Durcir l’expérience mobile avant les travaux offline/UX : l’appairage doit 
 - Frontend tests + build : SUCCESS.
 - Garde production négative : SUCCESS.
 - Certifications exact-head complémentaires : Settings Dependency Audit, Settings TemplateEngine Reachability, Portability Runtime, Settings Reachability Audit, Catalog Connected Truth, T2 Runtime Browser et Patient P7 Final — toutes SUCCESS.
-- Merge commit master : `4b58a05b2e3bba7006747befe4d7a9b46f45ef3b`.
+- Merge initial : `4b58a05b2e3bba7006747befe4d7a9b46f45ef3b`.
+
+### Revue post-merge et hotfix — PR #230
+
+La revue post-merge a invalidé le premier statut CLOSED : `backend/routers/auth.py::get_current_user()` acceptait encore un JWT `type=mobile` sur les routes API partagées sans vérifier l’identité device-bound complète. De plus, le comportement cookie-first pouvait masquer un Bearer mobile révoqué lorsqu’un cookie desktop valide coexistait.
+
+Le lot a donc été rouvert et corrigé avant clôture définitive.
+
+- Branche hotfix : `mobile/m6-security-shared-auth-hotfix`.
+- Base exacte : `becffc2314482bb749105aed60e4d1e47c2bb140`.
+- HEAD hotfix certifié : `c6f6f33c276349c9f63221cd5b76ba5c7aa144e6`.
+- Intégrité : ahead 1 / behind 0, 1 commit, exactement 2 fichiers.
+- PR : #230.
+- Tests route-level ajoutés : JWT mobile device valide accepté sur `/api/auth/me`; device révoqué refusé même avec cookie web valide; tenant falsifié refusé; ancien JWT mobile sans `device_id` refusé.
+- CI exact-head : run `32712163881` — SUCCESS.
+- Backend : **2778 passed, 8 skipped, 4 warnings, 0 failed**.
+- Frontend tests + build : SUCCESS.
+- Garde production négative : SUCCESS.
+- Certifications complémentaires exact-head : Patient P7 Final, T2 Runtime Browser, Catalog Connected Truth — SUCCESS.
+- Merge hotfix : `4e2bbac69f5062f376bbde308d8d7a08d8f3394b`.
 - Aucun déploiement Vercel.
 
-## Corrections trouvées pendant certification
+## Corrections trouvées pendant certification et revue post-merge
 
-La certification n’a pas été considérée verte tant que ces défauts n’étaient pas prouvés corrigés :
+La clôture n’est acquise qu’après preuve des défauts suivants :
 
 1. JWT mobile interprété comme email par le middleware licence sur les mutations.
 2. `Permissions-Policy: camera=()` bloquant le scanner QR.
@@ -51,6 +73,7 @@ La certification n’a pas été considérée verte tant que ces défauts n’é
 4. Collaborateurs Team créés `is_licensed=False` alors que la licence est portée par le cabinet owner.
 5. Tests historiques fabriquant des JWT mobiles sans device après passage au contrat device-bound.
 6. Route mobile de création RDV construisant `Appointment(datetime_end=...)` alors que le modèle ne possède pas ce champ.
+7. Routes API partagées acceptant encore les JWT mobiles sans vérifier `tenant_id + device_id + MobilePairedDevice` actif, avec possibilité pour un cookie web valide de masquer un Bearer mobile révoqué.
 
 Aucun de ces défauts n’a été masqué en assouplissant les contrôles de sécurité.
 
@@ -62,7 +85,7 @@ M6.1 ne modifie pas la composition visuelle des écrans mobiles. Les captures BE
 
 - Transport LAN d’appairage encore en HTTP selon la configuration locale actuelle.
 - `master_key` reste stockée en clair dans la ligne de pairing héritée.
-- Deux Service Workers / deux mécanismes offline existent encore au moment du merge M6.1.
+- Deux Service Workers / deux mécanismes offline existent encore au moment de la clôture M6.1.
 - Queue offline historique non tenant/device-scoped.
 - Certaines mutations mobile ne vérifient pas encore correctement `response.ok`.
 - Déplacement RDV mobile reste non canonique jusqu’à M6.3.
@@ -79,6 +102,6 @@ M6.1 ne modifie pas la composition visuelle des écrans mobiles. Les captures BE
 7. Aucun déplacement RDV mis en queue avant M6.3.
 8. Refresh mobile partagé via `/api/mobile/refresh-token`, jamais `/auth/refresh`.
 9. Labo : statut `SENT` uniquement après persistance backend réussie.
-10. Tests ciblés puis certification runtime/visuelle proportionnée aux changements d’état visibles.
+10. Tests comportementaux + certification runtime proportionnée avant clôture M6.2.
 
-M6.1 est fermé sur la base des preuves ci-dessus. M6.2 démarre sur le master post-merge, sans Vercel.
+M6.1 est CLOSED uniquement après la certification et le merge du hotfix PR #230. M6.2 démarre sur le master post-closeout, sans Vercel.
