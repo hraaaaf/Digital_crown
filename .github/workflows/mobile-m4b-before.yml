@@ -1,0 +1,378 @@
+name: Mobile M4-B Panoramic BEFORE
+
+on:
+  push:
+    branches:
+      - audit/mobile-m4b-before-20260824
+    paths-ignore:
+      - '.audit/mobile-m4b-before/**'
+
+permissions:
+  contents: write
+
+jobs:
+  before:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout exact audit head
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Record product head
+        run: echo "PRODUCT_HEAD=$(git rev-parse HEAD)" >> "$GITHUB_ENV"
+
+      - name: Setup Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install frontend and Chromium
+        working-directory: frontend
+        run: |
+          npm ci
+          npx playwright install --with-deps chromium
+
+      - name: Materialize M4-B BEFORE harness
+        working-directory: frontend
+        run: |
+          cat > mobile-m4b-before.html <<'EOF'
+          <!doctype html>
+          <html lang="fr">
+            <head>
+              <meta charset="UTF-8" />
+              <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+              <link rel="icon" href="data:," />
+              <title>Digital Crown M4-B BEFORE</title>
+            </head>
+            <body>
+              <div id="root"></div>
+              <script type="module" src="/src/mobile-m4b-before.tsx"></script>
+            </body>
+          </html>
+          EOF
+
+          cat > src/mobile-m4b-before.tsx <<'EOF'
+          import React from 'react';
+          import { createRoot } from 'react-dom/client';
+          import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
+          import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+          import './index.css';
+          import { PatientDetails } from './features/patients/PatientDetailsInner';
+          import { MobileContext } from './features/mobile/Context/MobileContext';
+          import { MobileStorage } from './services/zka/MobileStorage';
+          import { useAuthStore } from './stores/useAuthStore';
+
+          const params = new URLSearchParams(window.location.search);
+          const view = params.get('view') || 'desktop';
+          const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+
+          useAuthStore.setState({
+            user: ({
+              id: 1,
+              email: 'dentiste@m4b-before.local',
+              nom_complet: 'Dr M4B',
+              role: 'ADMIN',
+              employer_id: null,
+              is_superadmin: false,
+              permissions: {
+                patients: true,
+                agenda: true,
+                clinical: true,
+                panoramic: true,
+                cephalo: true,
+                admin: true,
+              },
+            } as any),
+            isAuthenticated: true,
+            isLoading: false,
+            error: null,
+          });
+
+          const RouteProbe = () => {
+            const location = useLocation();
+            return <div data-testid="m4b-route-probe" data-path={location.pathname} data-search={location.search} className="hidden" />;
+          };
+
+          if (view === 'mobile') {
+            await MobileStorage.clearAll().catch(() => {});
+            await MobileStorage.saveCredentials({
+              publicId: 'abcdef1234567890',
+              masterKey: 'a'.repeat(64),
+              access_token: 'eyJhbGciOiJub25lIiwidHlwIjoiSldUIn0.eyJleHAiOjQxMDI0NDQ4MDB9.',
+              refresh_token: 'm4b-before-refresh',
+              device_id: '11111111-2222-4333-8444-555555555555',
+              api_base_url: 'http://127.0.0.1:8005',
+            });
+            await MobileStorage.saveBridgeContext(({
+              type: 'panoramic',
+              key: 'M4BBeforeOpaqueContextKey',
+              label: 'Radio panoramique',
+              state: 'ready',
+            } as any));
+          }
+
+          const entry = view === 'mobile'
+            ? '/mobile/context'
+            : '/patients/42?tab=radiology&radioTab=panoramic';
+
+          createRoot(document.getElementById('root')!).render(
+            <React.StrictMode>
+              <QueryClientProvider client={queryClient}>
+                <MemoryRouter initialEntries={[entry]}>
+                  <RouteProbe />
+                  <Routes>
+                    <Route path="/patients/:id" element={<PatientDetails />} />
+                    <Route path="/mobile/context" element={<MobileContext />} />
+                    <Route path="/mobile/dashboard" element={<div data-testid="mobile-dashboard-fallback">Dashboard</div>} />
+                  </Routes>
+                </MemoryRouter>
+              </QueryClientProvider>
+            </React.StrictMode>,
+          );
+          EOF
+
+          cat > mobile-m4b-before.mjs <<'EOF'
+          import { chromium } from 'playwright';
+          import { createServer } from 'vite';
+          import fs from 'node:fs/promises';
+
+          const output = 'mobile-m4b-before-artifacts';
+          await fs.rm(output, { recursive: true, force: true });
+          await fs.mkdir(output, { recursive: true });
+
+          const productHead = process.env.PRODUCT_HEAD || 'unknown';
+          const records = [];
+          const patient = {
+            id: 42,
+            numero_dossier: 'DC-0042',
+            nom: 'BENNANI',
+            prenom: 'Sara',
+            date_naissance: '1992-05-18T00:00:00',
+            telephone: '0612345678',
+            email: 'sara.bennani@example.test',
+            assurance: 'MUTUELLE',
+            antecedents_medicaux: 'Allergie pénicilline',
+            motif_consultation: 'Contrôle',
+            dossier: { is_ortho_active: false },
+          };
+          const analysis = {
+            id: 73,
+            patient_id: 42,
+            image_path: 'api/uploads/panoramic/m4b-before.jpg',
+            detections_data: { detections: [] },
+            report_narrative: 'Bilan panoramique enregistré.',
+            created_at: '2026-08-20T10:30:00',
+          };
+
+          const server = await createServer({
+            server: { host: '127.0.0.1', port: 4182, strictPort: true },
+            clearScreen: false,
+          });
+          await server.listen();
+          const browser = await chromium.launch();
+          const json = body => ({ status: 200, contentType: 'application/json', body: JSON.stringify(body) });
+
+          function cleanErrors(errors, state) {
+            if (state !== 'runtime') return errors;
+            return errors.filter(value => !value.includes("Erreur chargement historique panoramique"));
+          }
+
+          async function setup(viewport, state) {
+            const context = await browser.newContext({
+              viewport,
+              screen: viewport,
+              deviceScaleFactor: 1,
+              hasTouch: viewport.width <= 768,
+              isMobile: viewport.width <= 768,
+              serviceWorkers: 'block',
+            });
+            const page = await context.newPage();
+            const errors = [];
+            const network = [];
+            page.on('pageerror', e => errors.push(`pageerror: ${e.message}`));
+            page.on('console', m => { if (m.type() === 'error') errors.push(`console: ${m.text()}`); });
+            await page.route('**/*', async route => {
+              const req = route.request();
+              const url = new URL(req.url());
+              const path = url.pathname;
+              if (!path.startsWith('/api/')) return route.continue();
+
+              network.push(`${req.method()} ${path}`);
+              if (path === '/api/patients/42') return route.fulfill(json(patient));
+              if (path === '/api/intelligence/patient/42/nba') return route.fulfill(json({ nba: null }));
+              if (path === '/api/ia/patients/42/panoramic-comparison') return route.fulfill(json({ available: false, reason: 'Moins de 2 bilans panoramiques disponibles.' }));
+              if (path === '/api/ia/patients/42/panoramic-analyses') return route.fulfill(json([analysis]));
+              if (path === '/api/ia/patients/42/panoramic-trash') {
+                if (state === 'runtime') {
+                  return route.fulfill({ status: 404, contentType: 'application/json', body: JSON.stringify({ detail: 'Not Found' }) });
+                }
+                return route.fulfill(json([]));
+              }
+              if (path === '/api/mobile/refresh-token') return route.fulfill({ status: 401, contentType: 'application/json', body: '{}' });
+              return route.fulfill(json(req.method() === 'GET' ? [] : {}));
+            });
+            return { context, page, errors, network };
+          }
+
+          async function baseMetrics(page) {
+            return page.evaluate(() => {
+              const root = document.documentElement;
+              return {
+                scrollWidth: root.scrollWidth,
+                clientWidth: root.clientWidth,
+                hasHorizontalOverflow: root.scrollWidth > root.clientWidth + 1,
+                routePath: document.querySelector('[data-testid="m4b-route-probe"]')?.getAttribute('data-path') || null,
+                routeSearch: document.querySelector('[data-testid="m4b-route-probe"]')?.getAttribute('data-search') || null,
+              };
+            });
+          }
+
+          async function box(locator) {
+            const b = await locator.boundingBox();
+            return b ? { x: Math.round(b.x), y: Math.round(b.y), width: Math.round(b.width), height: Math.round(b.height) } : null;
+          }
+
+          async function capture(name, page, state, viewport, errors, network, extra = {}) {
+            const metrics = await baseMetrics(page);
+            const clean = cleanErrors(errors, state);
+            await page.screenshot({ path: `${output}/${name}.jpg`, type: 'jpeg', quality: 62, fullPage: false, animations: 'disabled' });
+            const record = { name, state, width: viewport.width, height: viewport.height, metrics, errors: clean, network, ...extra };
+            records.push(record);
+            await fs.writeFile(`${output}/${name}.json`, JSON.stringify(record, null, 2));
+            return record;
+          }
+
+          try {
+            for (const viewport of [{ width: 768, height: 1024 }, { width: 1280, height: 900 }]) {
+              const { context, page, errors, network } = await setup(viewport, 'runtime');
+              await page.goto('http://127.0.0.1:4182/mobile-m4b-before.html?view=desktop', { waitUntil: 'networkidle' });
+              await page.getByText('Studio Panoramique - BENNANI Sara', { exact: true }).waitFor({ state: 'visible', timeout: 15000 });
+              await page.getByRole('button', { name: 'Historique', exact: true }).first().click();
+              await page.getByText("Impossible de charger l'historique", { exact: true }).waitFor({ state: 'visible', timeout: 10000 });
+              await capture(
+                `runtime-history-${viewport.width}x${viewport.height}`,
+                page, 'runtime', viewport, errors, network,
+                {
+                  runtimeErrorVisible: true,
+                  trash404Observed: network.includes('GET /api/ia/patients/42/panoramic-trash'),
+                },
+              );
+              await context.close();
+            }
+
+            for (const viewport of [{ width: 768, height: 1024 }, { width: 1280, height: 900 }]) {
+              const { context, page, errors, network } = await setup(viewport, 'layout');
+              await page.goto('http://127.0.0.1:4182/mobile-m4b-before.html?view=desktop', { waitUntil: 'networkidle' });
+              await page.getByText('Studio Panoramique - BENNANI Sara', { exact: true }).waitFor({ state: 'visible', timeout: 15000 });
+              const modality = page.getByRole('button', { name: 'Panoramique', exact: true });
+              const historyHeader = page.getByRole('button', { name: 'Historique', exact: true }).first();
+              const modalityBox = await box(modality);
+              const historyHeaderBox = await box(historyHeader);
+              await historyHeader.click();
+              await page.getByText('Historique des examens (1)', { exact: true }).waitFor({ state: 'visible', timeout: 10000 });
+              const historyToggle = page.getByRole('button', { name: 'Historique', exact: true }).first();
+              const deleteButton = page.getByRole('button', { name: "Mettre l'examen panoramique à la corbeille", exact: true });
+              const deleteBox = await box(deleteButton);
+              const historyToggleBox = await box(historyToggle);
+              const rowVisible = await page.getByText(/Examen du/).first().isVisible();
+              await capture(
+                `layout-probe-${viewport.width}x${viewport.height}`,
+                page, 'layout', viewport, errors, network,
+                {
+                  modalityBox,
+                  historyHeaderBox,
+                  historyToggleBox,
+                  deleteBox,
+                  rowVisible,
+                  analysisIdInRoute: (await baseMetrics(page)).routePath?.includes('73') || (await baseMetrics(page)).routeSearch?.includes('73'),
+                },
+              );
+              await context.close();
+            }
+
+            for (const viewport of [{ width: 390, height: 844 }, { width: 430, height: 932 }, { width: 768, height: 1024 }]) {
+              const { context, page, errors, network } = await setup(viewport, 'mobile');
+              await page.goto('http://127.0.0.1:4182/mobile-m4b-before.html?view=mobile', { waitUntil: 'networkidle' });
+              await page.getByRole('heading', { name: 'Dossier indisponible', exact: true }).waitFor({ state: 'visible', timeout: 10000 });
+              const messageVisible = await page.getByText("Aucun dossier patient contextuel n’est disponible sur cet appareil.", { exact: true }).isVisible();
+              const retryBox = await box(page.getByRole('button', { name: 'Réessayer', exact: true }));
+              const backBox = await box(page.getByRole('button', { name: 'Retour au mobile', exact: true }));
+              await capture(
+                `mobile-unsupported-${viewport.width}x${viewport.height}`,
+                page, 'mobile', viewport, errors, network,
+                {
+                  unsupportedRadioVisible: messageVisible,
+                  retryBox,
+                  backBox,
+                },
+              );
+              await context.close();
+            }
+
+            const runtime = records.filter(r => r.state === 'runtime');
+            const layout = records.filter(r => r.state === 'layout');
+            const mobile = records.filter(r => r.state === 'mobile');
+            const summary = {
+              productHead,
+              captures: records.length,
+              runtimeCount: runtime.length,
+              layoutCount: layout.length,
+              mobileCount: mobile.length,
+              runtimeHistoryFailsOnTrash404: runtime.every(r => r.runtimeErrorVisible && r.trash404Observed),
+              deleteTargetsBelow44: layout.map(r => r.deleteBox?.height ?? null),
+              modalityHeights: layout.map(r => r.modalityBox?.height ?? null),
+              historyHeights: layout.map(r => r.historyHeaderBox?.height ?? null),
+              analysisIdAbsentFromRoute: layout.every(r => !r.analysisIdInRoute),
+              mobilePanoramicUnsupported: mobile.every(r => r.unsupportedRadioVisible),
+              mobileTouchesAtLeast44: mobile.every(r => (r.retryBox?.height ?? 0) >= 44 && (r.backBox?.height ?? 0) >= 44),
+              noUnexpectedErrors: records.every(r => r.errors.length === 0),
+              noHorizontalOverflow: records.every(r => !r.metrics.hasHorizontalOverflow),
+              records,
+            };
+
+            if (summary.captures !== 7) throw new Error(`Expected 7 captures, got ${summary.captures}`);
+            if (!summary.runtimeHistoryFailsOnTrash404) throw new Error('Runtime truth did not prove panoramic-trash 404 failure.');
+            if (!summary.deleteTargetsBelow44.every(h => h !== null && h < 44)) throw new Error(`Expected delete controls below 44px, got ${summary.deleteTargetsBelow44}`);
+            if (!summary.analysisIdAbsentFromRoute) throw new Error('Analysis id leaked into route during layout probe.');
+            if (!summary.mobilePanoramicUnsupported) throw new Error('Current mobile context did not reject panoramic context as expected.');
+            if (!summary.mobileTouchesAtLeast44) throw new Error('Mobile error-state touch control below 44px.');
+            if (!summary.noUnexpectedErrors) throw new Error('Unexpected browser errors observed.');
+            if (!summary.noHorizontalOverflow) throw new Error('Horizontal overflow observed.');
+
+            await fs.writeFile(`${output}/report.json`, JSON.stringify(summary, null, 2));
+            console.log(JSON.stringify(summary, null, 2));
+          } finally {
+            await browser.close();
+            await server.close();
+          }
+          EOF
+
+      - name: Capture M4-B BEFORE
+        working-directory: frontend
+        env:
+          PRODUCT_HEAD: ${{ env.PRODUCT_HEAD }}
+        run: node mobile-m4b-before.mjs
+
+      - name: Publish audit evidence without retrigger
+        run: |
+          rm -rf .audit/mobile-m4b-before
+          mkdir -p .audit/mobile-m4b-before
+          cp frontend/mobile-m4b-before-artifacts/report.json .audit/mobile-m4b-before/report.json
+          cp frontend/mobile-m4b-before-artifacts/*.jpg .audit/mobile-m4b-before/
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add .audit/mobile-m4b-before
+          git commit -m "audit(m4b): publish panoramic BEFORE evidence"
+          git push origin HEAD:audit/mobile-m4b-before-20260824
+
+      - name: Upload M4-B BEFORE artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: mobile-m4b-panoramic-before
+          path: frontend/mobile-m4b-before-artifacts
+          if-no-files-found: error
+          retention-days: 14
