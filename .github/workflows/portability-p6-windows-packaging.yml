@@ -1,0 +1,178 @@
+name: Portability P6 Windows Packaging Certification
+
+on:
+  pull_request:
+    paths:
+      - "VERSION"
+      - "run.py"
+      - "DigitalCrown.spec"
+      - "installer/**"
+      - "scripts/p6_packaging_check.py"
+      - "scripts/provision_p6_scientific_assets.py"
+      - "scripts/generate_windows_version_info.py"
+      - "scripts/build_exe.py"
+      - "backend/requirements.txt"
+      - "backend/requirements-p6-windows.txt"
+      - "backend/scientific_assets.json"
+      - "backend/templates/**"
+      - "backend/static/assets/**"
+      - "backend/data/**"
+      - "frontend/**"
+      - ".github/workflows/portability-p6-windows-packaging.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: portability-p6-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  PYTHON_VERSION: "3.12"
+  NODE_VERSION: "20"
+  P6_ASSET_REPO: "hraaaaf/Digital_crown"
+  P6_ASSET_TAG: "p6-scientific-assets-v1"
+  P6_ASSET_NAME: "p6-scientific-assets-v1.zip"
+
+jobs:
+  windows-package:
+    runs-on: windows-2025
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Static packaging contract
+        run: python scripts/p6_packaging_check.py --static
+
+      - name: Install frontend dependencies and build
+        shell: pwsh
+        run: |
+          npm --prefix frontend ci
+          npm --prefix frontend run build
+
+      - name: Install Python packaging toolchain
+        run: python -m pip install --no-cache-dir -r backend/requirements-p6-windows.txt
+
+      - name: Download scientific runtime bundle from this repository
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EXPECTED_SHA256: ${{ secrets.P6_SCIENTIFIC_BUNDLE_SHA256 }}
+        run: |
+          if (-not $env:EXPECTED_SHA256) { throw "P6_SCIENTIFIC_BUNDLE_SHA256 secret missing" }
+          New-Item -ItemType Directory -Force .p6-assets | Out-Null
+          gh release download $env:P6_ASSET_TAG --repo $env:P6_ASSET_REPO --pattern $env:P6_ASSET_NAME --dir .p6-assets
+          python scripts/provision_p6_scientific_assets.py ".p6-assets/$env:P6_ASSET_NAME" --sha256 $env:EXPECTED_SHA256
+
+      - name: Generate Windows version metadata
+        run: python scripts/generate_windows_version_info.py --output build/windows-version-info.txt
+
+      - name: Build frozen application
+        run: python -m PyInstaller --noconfirm --clean DigitalCrown.spec
+
+      - name: Frozen package self-test
+        run: .\dist\DigitalCrown\DigitalCrown.exe --package-self-test
+
+      - name: Install Inno Setup 6.7.3
+        shell: pwsh
+        run: |
+          choco install innosetup --version=6.7.3 -y --no-progress
+          $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
+          if (-not (Test-Path $iscc)) { throw "ISCC.exe missing" }
+          $versionOutput = (& $iscc --version 2>&1 | Out-String)
+          if ($versionOutput -notmatch '6\.7\.3') { throw "Unexpected Inno Setup version: $versionOutput" }
+
+      - name: Build installer
+        shell: pwsh
+        run: |
+          $version = (Get-Content VERSION -Raw).Trim()
+          $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
+          & $iscc "/DMyAppVersion=$version" installer\DigitalCrown.iss
+          if ($LASTEXITCODE -ne 0) { throw "Inno Setup compilation failed" }
+
+      - name: Install / runtime / upgrade / uninstall smoke
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          $version = (Get-Content VERSION -Raw).Trim()
+          $setup = Resolve-Path "dist_installer\DigitalCrownSetup-$version.exe"
+          $sandbox = Join-Path $env:RUNNER_TEMP "dc-p6-cabinet"
+          $install = Join-Path $env:RUNNER_TEMP "dc-p6-program"
+          New-Item -ItemType Directory -Force $sandbox,$install | Out-Null
+          & $setup /VERYSILENT /SUPPRESSMSGBOXES /NORESTART /SP- "/DIR=$install"
+          if ($LASTEXITCODE -ne 0) { throw "install failed" }
+          $exe = Join-Path $install "DigitalCrown.exe"
+          & $exe --package-self-test
+          if ($LASTEXITCODE -ne 0) { throw "installed package self-test failed" }
+          $sentinel = Join-Path $sandbox "P6_DATA_SENTINEL.txt"
+          Set-Content -Path $sentinel -Value "preserve-me" -NoNewline
+          $env:DIGITALCROWN_USER_DATA_DIR = $sandbox
+          $env:DIGITALCROWN_CONFIG_DIR = $sandbox
+          $env:DIGITALCROWN_LOG_DIR = (Join-Path $sandbox "logs")
+          $env:DIGITALCROWN_RUNTIME_DIR = (Join-Path $sandbox "runtime")
+          $env:CABINET_PORT = "8765"
+          $env:DIGITALCROWN_RESTORE_RESTART = "1"
+          $proc = Start-Process -FilePath $exe -PassThru
+          try {
+            $ok = $false
+            1..60 | ForEach-Object {
+              if ($ok) { return }
+              Start-Sleep -Seconds 2
+              try {
+                $r = Invoke-RestMethod -Uri "http://127.0.0.1:8765/health" -TimeoutSec 2
+                if ($r.status -eq "ok") { $ok = $true }
+              } catch {}
+            }
+            if (-not $ok) { throw "frozen runtime health failed" }
+          } finally {
+            Stop-Process -Id $proc.Id -Force -ErrorAction SilentlyContinue
+          }
+          & $setup /VERYSILENT /SUPPRESSMSGBOXES /NORESTART /SP- "/DIR=$install"
+          if ($LASTEXITCODE -ne 0) { throw "upgrade reinstall failed" }
+          $uninstaller = Join-Path $install "unins000.exe"
+          & $uninstaller /VERYSILENT /SUPPRESSMSGBOXES /NORESTART
+          if ($LASTEXITCODE -ne 0) { throw "uninstall failed" }
+          if (-not (Test-Path $sentinel)) { throw "cabinet data sentinel was deleted" }
+          Write-Host "P6_WINDOWS_INSTALL_SMOKE=SUCCESS"
+
+      - name: Authenticode status
+        shell: pwsh
+        env:
+          CERT_PFX_B64: ${{ secrets.WINDOWS_CODESIGN_PFX_B64 }}
+          CERT_PASSWORD: ${{ secrets.WINDOWS_CODESIGN_PASSWORD }}
+        run: |
+          $version = (Get-Content VERSION -Raw).Trim()
+          $setup = Resolve-Path "dist_installer\DigitalCrownSetup-$version.exe"
+          if (-not $env:CERT_PFX_B64) {
+            Write-Host "P6_AUTHENTICODE=NOT_CONFIGURED"
+            exit 0
+          }
+          $pfx = Join-Path $env:RUNNER_TEMP "codesign.pfx"
+          [IO.File]::WriteAllBytes($pfx, [Convert]::FromBase64String($env:CERT_PFX_B64))
+          $signtool = (Get-ChildItem "C:\Program Files (x86)\Windows Kits\10\bin" -Recurse -Filter signtool.exe | Sort-Object FullName -Descending | Select-Object -First 1).FullName
+          if (-not $signtool) { throw "signtool.exe missing" }
+          & $signtool sign /fd SHA256 /f $pfx /p $env:CERT_PASSWORD /tr http://timestamp.digicert.com /td SHA256 $setup
+          if ($LASTEXITCODE -ne 0) { throw "Authenticode signing failed" }
+          & $signtool verify /pa /v $setup
+          if ($LASTEXITCODE -ne 0) { throw "Authenticode verification failed" }
+          Remove-Item $pfx -Force
+          Write-Host "P6_AUTHENTICODE=SUCCESS"
+
+      - name: Upload Windows installer proof
+        uses: actions/upload-artifact@v4
+        with:
+          name: digitalcrown-p6-windows-installer
+          path: dist_installer/*.exe
+          if-no-files-found: error
+          retention-days: 7

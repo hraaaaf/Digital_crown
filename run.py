@@ -1,13 +1,51 @@
+import json
 import os
 import sys
+from pathlib import Path
+
+
+def _maybe_run_package_self_test() -> None:
+    if len(sys.argv) < 2 or sys.argv[1] != "--package-self-test":
+        return
+    root = Path(getattr(sys, "_MEIPASS", Path(__file__).resolve().parent))
+    required = [
+        root / "VERSION",
+        root / "frontend" / "dist" / "index.html",
+        root / "backend" / "scientific_assets.json",
+        root / "backend" / "templates" / "bilan_ortho_elite.html",
+        root / "backend" / "static" / "assets" / "fonts" / "Outfit-Regular.ttf",
+        root / "backend" / "static" / "assets" / "fonts" / "Outfit-Bold.ttf",
+        root / "backend" / "data" / "cephalometry" / "measurement_definitions.yaml",
+        root / "backend" / "data" / "cephalometry" / "normative_profiles.yaml",
+        root / "backend" / "ai_models" / "panoramic_model.onnx",
+        root / "backend" / "ai_models" / "cephld_cca" / "ceph_weights.pth",
+    ]
+    missing = [str(path.relative_to(root)) for path in required if not path.exists()]
+    legacy_py = list((root / "backend" / "ai_models" / "cephld_cca").rglob("*.py"))
+    forbidden = [
+        root / ".env",
+        root / "backend" / ".env",
+        root / "backend" / "core" / "firebase_creds.json",
+    ]
+    leaked = [str(path.relative_to(root)) for path in forbidden if path.exists()]
+    if not legacy_py:
+        missing.append("backend/ai_models/cephld_cca/**/*.py")
+    payload = {
+        "status": "ok" if not missing and not leaked else "error",
+        "frozen": bool(getattr(sys, "frozen", False)),
+        "version": (root / "VERSION").read_text(encoding="utf-8").strip() if (root / "VERSION").exists() else None,
+        "missing": missing,
+        "forbidden_present": leaked,
+    }
+    print("P6_PACKAGE_SELF_TEST=" + json.dumps(payload, sort_keys=True))
+    raise SystemExit(0 if payload["status"] == "ok" else 1)
+
+
+_maybe_run_package_self_test()
 
 
 def _first_boot_bootstrap() -> None:
-    """Create the persistent cabinet environment on first packaged launch.
-
-    This runs before importing ``backend.main`` so cabinet secrets exist before
-    settings/database initialization. Development launches remain untouched.
-    """
+    """Create the persistent cabinet environment on first packaged launch."""
     if not getattr(sys, "frozen", False):
         return
 
@@ -46,7 +84,6 @@ def _first_boot_bootstrap() -> None:
 
 
 def _setup_frozen_logging() -> None:
-    """Redirect packaged-app logs to the platform-owned log directory."""
     if not getattr(sys, "frozen", False):
         return
 
@@ -72,7 +109,6 @@ def _setup_frozen_logging() -> None:
 
 
 def _maybe_run_guided_restore_worker() -> None:
-    """Run the restore worker before importing the FastAPI runtime."""
     if len(sys.argv) < 2 or sys.argv[1] != "--guided-restore-worker":
         return
 
@@ -94,12 +130,10 @@ _maybe_run_guided_restore_worker()
 
 import multiprocessing
 import threading
-
 import uvicorn
 
 
 def _load_launcher_environment() -> None:
-    """Load the canonical env before resolving cabinet host/port or acquiring runtime state."""
     from backend.env_loader import load_backend_env
 
     load_backend_env(override=False)
@@ -108,7 +142,6 @@ def _load_launcher_environment() -> None:
 
 
 def _resolve_host_port():
-    """Resolve the listen address according to the application environment."""
     env = os.environ.get("ENVIRONMENT", "development").lower()
     default_host = "0.0.0.0" if env == "cabinet" else "127.0.0.1"
     host = os.environ.get("CABINET_HOST", default_host)

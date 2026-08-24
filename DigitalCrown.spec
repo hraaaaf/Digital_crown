@@ -1,118 +1,82 @@
 # -*- mode: python ; coding: utf-8 -*-
 import os
+from pathlib import Path
 
 block_cipher = None
-
-# Dépôts de recherche/compétition vendored dans backend/ai_models/, vérifiés
-# un par un (grep sur backend/services + backend/routers, jamais un seul
-# `import`/chemin réel ne les référence ; les vrais poids chargés au runtime
-# — best.onnx, best.pt, panoramic_model.onnx/.pt/.pth — vivent tous à la
-# racine de ai_models/, jamais dans ces dossiers) :
-# - CLdetection2023-master : mmpose complet (docs/configs/tests), aucun poids
-#   à l'intérieur. Son arborescence très profonde fait échouer la compilation
-#   Inno Setup ("chemin introuvable", limite de longueur de chemin Windows).
-# - dentex_repo, cephalometric-master, cephmark : aucun fichier de poids
-#   (.onnx/.pt/.pth/.ckpt) à l'intérieur, zéro référence code.
-# - CL-Detection2023 : contient un `.pt` (step5_docker_and_upload/best_model.pt,
-#   27 Mo, 8 mars) mais c'est un artefact de soumission de compétition sans
-#   rapport avec le vrai modèle chargé par l'app (best.pt, 367 Mo, 4 mai) —
-#   tailles et dates incompatibles, jamais référencé par le code réel.
-# Exclus de l'EXE packagé uniquement — ces dossiers restent dans le dépôt,
-# rien n'est supprimé.
-_AI_MODELS_EXCLUDE_DIRNAMES = {
-    'CLdetection2023-master',
-    'dentex_repo',
-    'CL-Detection2023',
-    'cephalometric-master',
-    'cephmark',
-}
-
-# cephld_cca/ EST utilisé au runtime (backend/services/vision_service.py y
-# injecte sys.path pour importer U_Net_w_Cartesian_SE, et charge son unique
-# fichier de poids racine `ceph_weights.pth`, 35 Mo). Mais cephld_cca/model/
-# contient 23 checkpoints d'entraînement intermédiaires (774 Mo, noms du
-# style Best_Network_..._E_139.pth — historique d'époques) : aucun n'est
-# jamais chargé par le code (seul `ceph_weights.pth` à la racine l'est,
-# vérifié ligne par ligne dans vision_service.py). Chemin relatif exact
-# (pas un simple nom de dossier) pour ne jamais exclure un futur dossier
-# "model" ailleurs par erreur.
-_AI_MODELS_EXCLUDE_RELPATHS = {
-    os.path.join('cephld_cca', 'model'),
-}
+ROOT = Path.cwd()
 
 
-def _collect_ai_models_datas():
-    root = os.path.join('backend', 'ai_models')
-    entries = []
-    for dirpath, dirnames, filenames in os.walk(root):
-        dirnames[:] = [d for d in dirnames if d not in _AI_MODELS_EXCLUDE_DIRNAMES]
-        relpath = os.path.relpath(dirpath, root)
-        if any(relpath == p or relpath.startswith(p + os.sep) for p in _AI_MODELS_EXCLUDE_RELPATHS):
-            dirnames[:] = []
+def _required(path: str) -> str:
+    p = ROOT / path
+    if not p.exists():
+        raise SystemExit(f"P6 packaging required asset missing: {path}")
+    return path
+
+
+def _collect_legacy_cephalo_runtime():
+    root = ROOT / 'backend' / 'ai_models' / 'cephld_cca'
+    weight = root / 'ceph_weights.pth'
+    if not weight.is_file():
+        raise SystemExit('P6 packaging required asset missing: backend/ai_models/cephld_cca/ceph_weights.pth')
+    entries = [(str(weight), 'backend/ai_models/cephld_cca')]
+    py_files = []
+    for path in root.rglob('*.py'):
+        rel = path.relative_to(root)
+        if '__pycache__' in rel.parts or 'model' in rel.parts:
             continue
-        for filename in filenames:
-            src = os.path.join(dirpath, filename)
-            entries.append((src, dirpath))
+        py_files.append(path)
+        entries.append((str(path), str(Path('backend/ai_models/cephld_cca') / rel.parent)))
+    if not py_files:
+        raise SystemExit('P6 packaging required asset missing: cephld_cca runtime Python source')
     return entries
 
+
+def _collect_scientific_runtime():
+    pano = ROOT / 'backend' / 'ai_models' / 'panoramic_model.onnx'
+    if not pano.is_file():
+        raise SystemExit('P6 packaging required asset missing: backend/ai_models/panoramic_model.onnx')
+    return [(str(pano), 'backend/ai_models')] + _collect_legacy_cephalo_runtime()
+
+
+datas = [
+    (_required('VERSION'), '.'),
+    (_required('frontend/dist'), 'frontend/dist'),
+    (_required('backend/templates'), 'backend/templates'),
+    (_required('backend/static/assets'), 'backend/static/assets'),
+    (_required('backend/data'), 'backend/data'),
+    (_required('backend/scientific_assets.json'), 'backend'),
+] + _collect_scientific_runtime()
+
+version_file = _required('build/windows-version-info.txt')
 
 a = Analysis(
     ['run.py'],
     pathex=[],
     binaries=[],
-    datas=[
-        ('frontend/dist', 'frontend/dist'),
-        # SÉCURITÉ : ne JAMAIS embarquer de fichier .env dans l'EXE distribué
-        # (risque de secrets figés dans le binaire). La config cabinet est
-        # chargée depuis %APPDATA%/DigitalCrown/.env ou DIGITALCROWN_ENV_FILE
-        # (cf. backend/env_loader.py), posée par la procédure d'installation.
-    ] + _collect_ai_models_datas(),
+    datas=datas,
     hiddenimports=[
         'uvicorn', 'fastapi', 'sqlalchemy', 'sqlite3', 'pydantic', 'sentry_sdk',
         'onnxruntime', 'cv2', 'numpy', 'PIL', 'python-multipart', 'passlib', 'bcrypt', 'jose',
-        # Imports dynamiques ratés par l'analyse statique PyInstaller :
-        # - passlib charge ses handlers par nom au runtime (crash au boot sinon)
-        # - jose charge ses backends paresseusement au premier encode/decode JWT
-        #   (crash au premier login sinon)
+        'sqlcipher3', 'reportlab', 'weasyprint', 'qrcode', 'torch',
         'passlib.handlers', 'passlib.handlers.bcrypt',
         'jose.backends', 'jose.backends.cryptography_backend', 'jose.backends.native',
         'backend.services.sync_manager', 'backend.seed_templates', 'backend.seed_user', 'backend.seed_clinical'
     ],
-    hookspath=[],
-    hooksconfig={},
-    runtime_hooks=[],
-    excludes=[],
-    win_no_prefer_redirects=False,
-    win_private_assemblies=False,
-    cipher=block_cipher,
-    noarchive=False,
+    hookspath=[], hooksconfig={}, runtime_hooks=[], excludes=[],
+    win_no_prefer_redirects=False, win_private_assemblies=False,
+    cipher=block_cipher, noarchive=False,
 )
 pyz = PYZ(a.pure, a.zipped_data, cipher=block_cipher)
 
 exe = EXE(
-    pyz,
-    a.scripts,
-    [],
-    exclude_binaries=True,
-    name='DigitalCrown',
-    debug=False,
-    bootloader_ignore_signals=False,
-    strip=False,
-    upx=True,
-    console=False,
-    disable_windowed_traceback=False,
-    target_arch=None,
-    codesign_identity=None,
-    entitlements_file=None,
+    pyz, a.scripts, [], exclude_binaries=True,
+    name='DigitalCrown', debug=False, bootloader_ignore_signals=False,
+    strip=False, upx=True, console=False, disable_windowed_traceback=False,
+    target_arch=None, codesign_identity=None, entitlements_file=None,
+    version=version_file,
 )
 
 coll = COLLECT(
-    exe,
-    a.binaries,
-    a.zipfiles,
-    a.datas,
-    strip=False,
-    upx=True,
-    upx_exclude=[],
-    name='DigitalCrown',
+    exe, a.binaries, a.zipfiles, a.datas,
+    strip=False, upx=True, upx_exclude=[], name='DigitalCrown',
 )
