@@ -1,0 +1,8 @@
+chantier=Digital Crown Mobile Full Experience
+lot=M6.3 Patient/RDV canonique + Agenda UX
+goal=BEFORE exact product Agenda modal before M6.3 implementation
+product_source=2b74c1181901e9e381fd543b6eee45fcb825a4cb
+audit_head=dd834b3971b0171656b9b30e34e85287601abd7d
+states=default,new-patient
+viewports=390x844,430x932,768x1024
+deployment=none
