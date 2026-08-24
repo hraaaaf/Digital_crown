@@ -114,3 +114,10 @@ clinics.router.routes = [
     )
 ]
 clinics.router.include_router(clinic_setup_p4.router)
+
+# M4-A adds resource-bound mobile context routes without modifying the existing
+# M6.4 destination bridge implementation. Importing here also registers the context
+# table in shared SQLAlchemy metadata before application startup create_all().
+from . import mobile as mobile
+from . import mobile_resource_bridge as mobile_resource_bridge
+mobile.router.include_router(mobile_resource_bridge.router)

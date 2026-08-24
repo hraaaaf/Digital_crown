@@ -44,6 +44,7 @@ const LegalPage        = lazy(() => import('./pages/LegalPage').then(m => ({ def
 // MOBILE PWA
 const OnboardingScanner = lazy(() => import('./features/mobile/Onboarding/OnboardingScanner').then(m => ({ default: m.OnboardingScanner })));
 const MobileDashboard  = lazy(() => import('./features/mobile/Dashboard/MobileDashboard').then(m => ({ default: m.MobileDashboard })));
+const MobileContext    = lazy(() => import('./features/mobile/Context/MobileContext').then(m => ({ default: m.MobileContext })));
 const DentistsView     = lazy(() => import('./features/mobile/Dashboard/views/DentistsView').then(m => ({ default: m.DentistsView })));
 const MobileSuperAdminView = lazy(() => import('./features/mobile/Dashboard/views/MobileSuperAdminView').then(m => ({ default: m.MobileSuperAdminView })));
 
@@ -330,6 +331,11 @@ function App() {
         <Route path="/mobile/dashboard" element={
           <MobileProtectedRoute>
             <Suspense fallback={<PageLoader />}><MobileDashboard /></Suspense>
+          </MobileProtectedRoute>
+        } />
+        <Route path="/mobile/context" element={
+          <MobileProtectedRoute>
+            <Suspense fallback={<PageLoader />}><MobileContext /></Suspense>
           </MobileProtectedRoute>
         } />
         <Route path="/mobile/dentists" element={

@@ -31,6 +31,7 @@ import { PatientJourney } from './components/PatientJourney';
 import { PatientFinances } from './components/PatientFinances';
 import { PatientRvgPanel } from './components/PatientRvgPanel';
 import { QuickPayModal } from './components/QuickPayModal';
+import { PatientMobileBridge } from './components/PatientMobileBridge';
 import { usePatientStore } from '../../stores/usePatientStore';
 import { useAuthStore } from '../../stores/useAuthStore';
 import { EliteGhostLoader } from '../../components/EliteGhostLoader';
@@ -243,6 +244,7 @@ export const PatientDetails = () => {
                   <AssuranceBadge assurance={patient.assurance} size="full" hideWhenNone />
                   {patient.antecedents_medicaux && <span className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-red-50 border border-red-200 text-red-700 text-[10px] font-black uppercase tracking-wide"><AlertTriangle size={12} /> Alerte médicale</span>}
                   <button onClick={() => navigate(`/patients/${id}/edit`)} className="px-2.5 py-1 text-[10px] font-black uppercase tracking-widest rounded-lg border border-primary/15 bg-primary/5 hover:bg-primary/10 transition-colors" style={{ color: 'var(--primary)' }}>Modifier</button>
+                  <PatientMobileBridge patientId={patient.id} patientName={fullName} />
                 </div>
                 <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1.5 text-xs font-bold text-text-muted">
                   <span className="inline-flex items-center gap-1.5"><FileDigit size={13} style={{ color: 'var(--primary)' }} /><span className="font-mono" style={{ color: 'var(--primary)' }}>{patient.numero_dossier || `ID-${patient.id}`}</span></span>
@@ -293,7 +295,6 @@ export const PatientDetails = () => {
             )}
           </div>
         )}
-
 
         <div className={cn('animate-in fade-in slide-in-from-bottom-8 duration-700 h-full', !isDocuments && 'delay-150')}>
           {activeTab === 'radiology' && (
