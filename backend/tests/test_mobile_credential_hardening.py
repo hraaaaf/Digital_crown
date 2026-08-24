@@ -14,6 +14,7 @@ def _pairing_record(db, dentiste):
     record = models.ZKAPairingToken(
         token=str(uuid.uuid4()),
         employer_id=dentiste.id,
+        user_id=dentiste.id,
         public_id="abcdef1234567890",
         master_key="a" * 64,
         role="DENTISTE",
@@ -55,7 +56,16 @@ def test_mobile_token_without_jti_is_rejected(client, dentiste):
 
 
 def test_revoked_mobile_token_is_rejected(client, db, dentiste):
-    token = _create_mobile_jwt(dentiste.id, "DENTISTE")
+    device_id = str(uuid.uuid4())
+    db.add(models.MobilePairedDevice(
+        device_id=device_id,
+        user_id=dentiste.id,
+        employer_id=dentiste.id,
+        client_public_key_hex="04" + "11" * 64,
+        refresh_jti="refresh-test",
+    ))
+    db.commit()
+    token = _create_mobile_jwt(dentiste.id, "DENTISTE", dentiste.id, device_id)
     token_blacklist.revoke(token, db)
     response = client.get(
         "/api/mobile/snapshot",
