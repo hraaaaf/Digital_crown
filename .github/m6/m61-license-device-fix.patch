@@ -1,0 +1,191 @@
+diff --git a/backend/main.py b/backend/main.py
+--- a/backend/main.py
++++ b/backend/main.py
+@@ -75,18 +75,33 @@ from fastapi.concurrency import run_in_threadpool
++def _effective_user_license_status(db, user):
++    """Combine l'état propre du compte avec la licence source-of-truth du cabinet."""
++    if not user:
++        return (False, "USER_NOT_FOUND")
++    if user.email and user.email.lower() == _SUPERADMIN_EMAIL:
++        return (True, "OK")
++    if user.is_suspended:
++        return (False, "SUSPENDED")
++    if user.is_archived:
++        return (False, "ARCHIVED")
++
++    license_owner = user
++    if user.employer_id is not None:
++        license_owner = db.query(models.User).filter(models.User.id == user.employer_id).first()
++        if not license_owner:
++            return (False, "USER_NOT_FOUND")
++        if license_owner.is_suspended:
++            return (False, "SUSPENDED")
++        if license_owner.is_archived:
++            return (False, "ARCHIVED")
++
++    if not license_owner.is_licensed:
++        return (False, "NOT_LICENSED")
++    if license_owner.license_expires_at and datetime.utcnow() > license_owner.license_expires_at:
++        return (False, "LICENSE_EXPIRED")
++    return (True, "OK")
++
++
+ def _get_user_status_sync(email: str):
+     with database.SessionLocal() as db:
+         user = db.query(models.User).filter(models.User.email == email).first()
+-        if not user:
+-            return (False, "USER_NOT_FOUND")
+-        elif user.is_suspended:
+-            return (False, "SUSPENDED")
+-        elif user.is_archived:
+-            return (False, "ARCHIVED")
+-        elif not user.is_licensed:
+-            return (False, "NOT_LICENSED")
+-        elif user.license_expires_at and datetime.utcnow() > user.license_expires_at:
+-            return (False, "LICENSE_EXPIRED")
+-        else:
+-            return (True, "OK")
++        return _effective_user_license_status(db, user)
+@@ -108,18 +123,7 @@ def _get_mobile_user_status_sync(user_id: int):
+     with database.SessionLocal() as db:
+         user = db.query(models.User).filter(models.User.id == int(user_id)).first()
+-        if not user:
+-            return (False, "USER_NOT_FOUND")
+-        if user.email and user.email.lower() == _SUPERADMIN_EMAIL:
+-            return (True, "OK")
+-        if user.is_suspended:
+-            return (False, "SUSPENDED")
+-        if user.is_archived:
+-            return (False, "ARCHIVED")
+-        if not user.is_licensed:
+-            return (False, "NOT_LICENSED")
+-        if user.license_expires_at and datetime.utcnow() > user.license_expires_at:
+-            return (False, "LICENSE_EXPIRED")
+-        return (True, "OK")
++        return _effective_user_license_status(db, user)
+ 
+ 
+ async def get_mobile_user_license_status(user_id: int) -> tuple[bool, str]:
+diff --git a/backend/tests/test_mobile_identity_security.py b/backend/tests/test_mobile_identity_security.py
+--- a/backend/tests/test_mobile_identity_security.py
++++ b/backend/tests/test_mobile_identity_security.py
+@@ -9,6 +9,7 @@ from fastapi import HTTPException
+ from jose import jwt
+ 
+ from backend import models
++import backend.main as backend_main
+ import backend.routers.admin_legacy as admin_legacy
+ from backend.routers.admin_legacy import _resolve_mobile_pairing_user
+@@ -25,7 +26,7 @@ def _reset_pairing_rate_limit():
+     path.unlink(missing_ok=True)
+ 
+ 
+-def _user(db, *, email, role, employer_id=None, permissions=None, active=True, approval='approved'):
++def _user(db, *, email, role, employer_id=None, permissions=None, active=True, approval='approved', licensed=True):
+     user = models.User(
+         email=email,
+         hashed_password=get_password_hash('TestPass123!'),
+@@ -33,7 +34,7 @@ def _user(db, *, email, role, employer_id=None, permissions=None, active=True, approval='approved'):
+         role=role,
+         nom_complet='Mobile User',
+         is_active=active,
+-        is_licensed=True,
++        is_licensed=licensed,
+         employer_id=employer_id,
+         permissions=permissions or {},
+@@ -202,13 +203,29 @@ def test_cabinet_revocation_invalidates_device_and_refresh(client, db, dentiste):
+     assert device.revoked_at is not None
+ 
+ def test_mobile_mutation_uses_numeric_subject_as_user_id(client, db, dentiste):
+-    body = _claim(client, _pairing(db, dentiste, dentiste)).json()
++    secretary = _user(
++        db,
++        email='license-inherited-mobile@cabinet.ma',
++        role=models.UserRole.SECRETAIRE,
++        employer_id=dentiste.id,
++        permissions={'agenda': True, 'patients': True},
++        licensed=False,
++    )
++    body = _claim(client, _pairing(db, dentiste, secretary)).json()
+     response = client.post(
+         '/api/mobile/register-device',
+         json={'fcm_token': f'm6-license-{uuid.uuid4()}', 'platform': 'ios'},
+         headers={'Authorization': f"Bearer {body['access_token']}"},
+     )
+     assert response.status_code == 200, response.text
++
++    dentiste.is_licensed = False
++    db.commit()
++    backend_main._license_cache.clear()
++    denied = client.post(
++        '/api/mobile/register-device',
++        json={'fcm_token': f'm6-license-denied-{uuid.uuid4()}', 'platform': 'ios'},
++        headers={'Authorization': f"Bearer {body['access_token']}"},
++    )
++    assert denied.status_code == 403
++    assert denied.json()['detail'] == 'NOT_LICENSED'
+ 
+ 
+ def test_permissions_policy_allows_same_origin_camera_only(client):
+diff --git a/backend/tests/test_mobile_revocation_epoch.py b/backend/tests/test_mobile_revocation_epoch.py
+--- a/backend/tests/test_mobile_revocation_epoch.py
++++ b/backend/tests/test_mobile_revocation_epoch.py
+@@ -33,6 +33,22 @@ def _second_cabinet(db):
+     return user
+ 
+ 
++def _paired_mobile_token(db, user):
++    device_id = str(uuid.uuid4())
++    db.add(models.MobilePairedDevice(
++        device_id=device_id,
++        user_id=user.id,
++        employer_id=user.get_employer_id(),
++        client_public_key_hex='04' + ('11' * 64),
++        refresh_jti=f'refresh-{uuid.uuid4().hex}',
++    ))
++    db.commit()
++    role = user.role.value if hasattr(user.role, 'value') else str(user.role)
++    return _create_mobile_jwt(
++        user.id, role, user.get_employer_id(), device_id,
++    )
++
++
+ def _snapshot(client, token: str):
+     return client.get(
+@@ -43,7 +59,7 @@ def _snapshot(client, token: str):
+ 
+ 
+ def test_old_mobile_jwt_is_rejected_after_cabinet_revocation(client, db, dentiste):
+-    old_token = _create_mobile_jwt(dentiste.id, "DENTISTE")
++    old_token = _paired_mobile_token(db, dentiste)
+     assert _snapshot(client, old_token).status_code == 200
+ 
+@@ -53,10 +69,10 @@ def test_old_mobile_jwt_is_rejected_after_cabinet_revocation(client, db, dentiste):
+ 
+ 
+ def test_new_mobile_jwt_after_revocation_is_accepted(client, db, dentiste):
+-    old_token = _create_mobile_jwt(dentiste.id, "DENTISTE")
++    old_token = _paired_mobile_token(db, dentiste)
+     token_blacklist.revoke_mobile_access(dentiste.id, db)
+-    new_token = _create_mobile_jwt(dentiste.id, "DENTISTE")
++    new_token = _paired_mobile_token(db, dentiste)
+ 
+     assert _snapshot(client, old_token).status_code == 401
+@@ -65,9 +81,9 @@ def test_new_mobile_jwt_after_revocation_is_accepted(client, db, dentiste):
+ 
+ def test_revocation_is_tenant_scoped(client, db, dentiste):
+     other = _second_cabinet(db)
+-    own_token = _create_mobile_jwt(dentiste.id, "DENTISTE")
+-    other_token = _create_mobile_jwt(other.id, "DENTISTE")
++    own_token = _paired_mobile_token(db, dentiste)
++    other_token = _paired_mobile_token(db, other)
+ 
+     token_blacklist.revoke_mobile_access(dentiste.id, db)
+@@ -94,7 +110,7 @@ def test_admin_revoke_endpoint_rejects_existing_mobile_token(client, db, dentiste, auth_headers):
+     dentiste.permissions = {**(dentiste.permissions or {}), "admin": True}
+     db.commit()
+ 
+-    old_token = _create_mobile_jwt(dentiste.id, "DENTISTE")
++    old_token = _paired_mobile_token(db, dentiste)
+     _pending_pairing(db, dentiste.id, "route")
+ 
