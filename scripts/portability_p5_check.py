@@ -1,18 +1,22 @@
 from __future__ import annotations
 
 import argparse
-import hashlib
 import io
 import json
 import platform
 import re
+import sys
 import tempfile
+import types
 from pathlib import Path
+from unittest.mock import patch
 
 ROOT = Path(__file__).resolve().parents[1]
 REQUIREMENTS = ROOT / "backend" / "requirements.txt"
 ASSET_MANIFEST = ROOT / "backend" / "scientific_assets.json"
 SOTA_SERVICE = ROOT / "backend" / "services" / "sota_vision_service.py"
+VISION_SERVICE = ROOT / "backend" / "services" / "vision_service.py"
+PANORAMIC_SERVICE = ROOT / "backend" / "services" / "panoramic_service.py"
 
 OPENCV_DISTRIBUTIONS = {
     "opencv-python",
@@ -21,7 +25,6 @@ OPENCV_DISTRIBUTIONS = {
     "opencv-contrib-python-headless",
 }
 EXPECTED_OPENCV = "opencv-python-headless==4.13.0.92"
-_SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
 
 
 def _require(condition: bool, message: str) -> None:
@@ -56,12 +59,19 @@ def check_model_path_contract() -> None:
     print("MODEL_PATH_GATE=OK")
 
 
-def _load_manifest() -> dict:
+def check_scientific_scope_contract() -> None:
     data = json.loads(ASSET_MANIFEST.read_text(encoding="utf-8"))
-    _require(data.get("schema_version") == 1, "Unsupported scientific asset manifest schema")
-    _require(data.get("status") in {"unprovisioned", "provisioned"}, "Invalid scientific asset status")
+    _require(data.get("schema_version") == 2, "Unsupported scientific asset manifest schema")
+    _require(
+        data.get("p5_certification_scope") == "native-runtime-and-fail-closed",
+        "P5 certification scope must stay runtime/fail-closed only",
+    )
+    _require(
+        data.get("asset_policy") == "external-not-versioned",
+        "Scientific model assets must remain external to the public source repository",
+    )
     assets = data.get("assets")
-    _require(isinstance(assets, list) and assets, "Scientific asset manifest must contain assets")
+    _require(isinstance(assets, list) and assets, "Scientific asset inventory must contain assets")
     seen: set[str] = set()
     for asset in assets:
         _require(isinstance(asset, dict), "Asset entry must be an object")
@@ -69,36 +79,22 @@ def _load_manifest() -> dict:
         _require(isinstance(asset_id, str) and asset_id, "Asset id is required")
         _require(asset_id not in seen, f"Duplicate asset id: {asset_id}")
         seen.add(asset_id)
-        _require(asset.get("kind") in {"model", "fixture"}, f"Invalid kind for {asset_id}")
-        candidates = asset.get("candidates")
-        _require(isinstance(candidates, list) and candidates, f"Candidates required for {asset_id}")
-        _require(all(isinstance(path, str) and path for path in candidates), f"Invalid candidates for {asset_id}")
-        _require(asset.get("required_for_final") is True, f"Final P5 asset must be required: {asset_id}")
-    return data
+        _require(asset.get("kind") == "model", f"P5 inventory contains non-model asset: {asset_id}")
+        _require(asset.get("p5_required") is False, f"P5 must not require external model bytes: {asset_id}")
+        _require(asset.get("lifecycle") in {"external", "deferred"}, f"Invalid lifecycle for {asset_id}")
+        _require(isinstance(asset.get("next_gate"), str) and asset["next_gate"].strip(), f"next_gate required for {asset_id}")
+    _require("cephalo_sota" in seen and "cephalo_legacy" in seen and "panoramic" in seen, "Scientific inventory incomplete")
+    print("SCIENTIFIC_SCOPE_GATE=OK (external assets not versioned; no numerical parity claim)")
 
 
-def check_asset_gate(require_assets: bool) -> None:
-    data = _load_manifest()
-    status = data["status"]
-    if not require_assets:
-        if status == "unprovisioned":
-            print("ASSET_GATE=UNPROVISIONED (final scientific parity not claimable)")
-        else:
-            print("ASSET_GATE=MANIFEST_PROVISIONED (hash verification requires --require-assets)")
-        return
-
-    _require(status == "provisioned", "Final scientific parity requires status=provisioned")
-    for asset in data["assets"]:
-        asset_id = asset["id"]
-        digest = asset.get("sha256")
-        provenance = asset.get("provenance")
-        _require(isinstance(digest, str) and _SHA256_RE.fullmatch(digest), f"Valid SHA256 required for {asset_id}")
-        _require(isinstance(provenance, str) and provenance.strip(), f"Provenance required for {asset_id}")
-        existing = [ROOT / rel for rel in asset["candidates"] if (ROOT / rel).is_file()]
-        _require(existing, f"Required scientific asset missing: {asset_id}")
-        actual = hashlib.sha256(existing[0].read_bytes()).hexdigest()
-        _require(actual == digest, f"SHA256 mismatch for {asset_id}: {existing[0]}")
-    print("ASSET_GATE=VERIFIED")
+def check_fail_closed_source_contract() -> None:
+    sota = SOTA_SERVICE.read_text(encoding="utf-8")
+    vision = VISION_SERVICE.read_text(encoding="utf-8")
+    pano = PANORAMIC_SERVICE.read_text(encoding="utf-8")
+    _require("model.onnx introuvable. Mode SOTA désactivé" in sota, "SOTA missing-model fail-closed message missing")
+    _require('mode_inference = "FAILED"' in vision and "Placement manuel requis" in vision, "Cephalo manual fallback contract missing")
+    _require("if _is_clinical_environment():" in pano and "raise RuntimeError" in pano, "Panoramic clinical fail-closed contract missing")
+    print("FAIL_CLOSED_SOURCE_GATE=OK")
 
 
 def _smoke_opencv() -> None:
@@ -217,6 +213,69 @@ def run_native_runtime() -> None:
     print(f"NATIVE_RUNTIME_GATE=OK ({platform.system()} {platform.machine()})")
 
 
+def _bootstrap_backend_namespace() -> None:
+    """Load scientific service modules without executing backend/__init__.py.
+
+    P5 certifies native/scientific runtime boundaries. The application package
+    initializer eagerly registers SQLAlchemy models, which is intentionally
+    outside this focused dependency harness. A namespace package keeps imports
+    pointed at the real backend source tree without pulling that unrelated
+    application startup side effect into the certification environment.
+    """
+    if "backend" not in sys.modules:
+        backend_pkg = types.ModuleType("backend")
+        backend_pkg.__path__ = [str(ROOT / "backend")]
+        backend_pkg.__package__ = "backend"
+        sys.modules["backend"] = backend_pkg
+
+    if "backend.services" not in sys.modules:
+        services_pkg = types.ModuleType("backend.services")
+        services_pkg.__path__ = [str(ROOT / "backend" / "services")]
+        services_pkg.__package__ = "backend.services"
+        sys.modules["backend.services"] = services_pkg
+
+
+def run_fail_closed_runtime() -> None:
+    import cv2
+    import numpy as np
+
+    _bootstrap_backend_namespace()
+
+    from backend.services import panoramic_service as panoramic_module
+    from backend.services import sota_vision_service as sota_module
+    from backend.services import vision_service as vision_module
+
+    with tempfile.TemporaryDirectory(prefix="digitalcrown-p5-failclosed-") as temp_dir:
+        tmp = Path(temp_dir)
+        image_path = tmp / "reference.png"
+        _require(cv2.imwrite(str(image_path), np.zeros((64, 64, 3), dtype=np.uint8)), "Failed to write fail-closed fixture")
+
+        with patch.object(sota_module.AppPaths, "get_model_path", side_effect=lambda name: tmp / "missing" / name):
+            sota = sota_module.SOTAVisionEngine()
+        _require(sota.is_ready is False and sota.predict_landmarks(str(image_path)) is None, "SOTA missing-model path must remain disabled")
+
+        with (
+            patch.object(vision_module.sota_vision_engine, "is_ready", False),
+            patch.object(vision_module.vision_engine, "is_ready", False),
+            patch.object(vision_module.vision_engine, "model", None),
+        ):
+            result = vision_module.vision_engine.predict_landmarks(str(image_path))
+        _require(result.get("mode_inference") == "FAILED", "Cephalo missing-model path must return FAILED")
+        _require(result.get("landmarks") == [], "Cephalo missing-model path must not fabricate landmarks")
+        _require("manuel" in str(result.get("warning", "")).lower(), "Cephalo missing-model path must require manual placement")
+
+        pano = panoramic_module.PanoramicEngine()
+        with patch.object(panoramic_module, "_is_clinical_environment", return_value=True):
+            try:
+                pano.predict(str(image_path))
+            except RuntimeError:
+                pass
+            else:
+                raise AssertionError("Panoramic missing-model path must raise in clinical environment")
+
+    print("SCIENTIFIC_FAIL_CLOSED_GATE=OK")
+
+
 def check_apple_silicon() -> None:
     machine = platform.machine().lower()
     _require(platform.system() == "Darwin", "Apple Silicon gate requires macOS")
@@ -227,15 +286,18 @@ def check_apple_silicon() -> None:
 def main() -> int:
     parser = argparse.ArgumentParser(description="Digital Crown Portability P5 native/scientific certification")
     parser.add_argument("--runtime", action="store_true", help="execute real native runtime smoke checks")
-    parser.add_argument("--require-assets", action="store_true", help="require provenance, hashes and files for final P5")
+    parser.add_argument("--fail-closed", action="store_true", help="execute scientific missing-asset fail-closed runtime checks")
     parser.add_argument("--expect-apple-silicon", action="store_true", help="require Darwin arm64/aarch64")
     args = parser.parse_args()
 
     check_dependency_contract()
     check_model_path_contract()
-    check_asset_gate(require_assets=args.require_assets)
+    check_scientific_scope_contract()
+    check_fail_closed_source_contract()
     if args.runtime:
         run_native_runtime()
+    if args.fail_closed:
+        run_fail_closed_runtime()
     if args.expect_apple_silicon:
         check_apple_silicon()
     print("PORTABILITY_P5_CHECK=SUCCESS")

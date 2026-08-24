@@ -10,3 +10,6 @@ sqlcipher3==0.6.2
 torch==2.10.0
 torchvision==0.25.0
 torchaudio==2.10.0
+pydantic==2.6.3
+pydantic-settings==2.2.1
+python-dotenv==1.2.1

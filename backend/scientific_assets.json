@@ -1,57 +1,31 @@
 {
-  "schema_version": 1,
-  "status": "unprovisioned",
+  "schema_version": 2,
+  "p5_certification_scope": "native-runtime-and-fail-closed",
+  "asset_policy": "external-not-versioned",
   "assets": [
     {
       "id": "cephalo_sota",
       "kind": "model",
-      "candidates": [
-        "backend/ai_models/model.onnx",
-        "backend/ai_models/cephalometric_sota/model.onnx"
-      ],
-      "sha256": null,
-      "provenance": null,
-      "required_for_final": true
+      "lifecycle": "deferred",
+      "p5_required": false,
+      "next_gate": "Cephalometry NextGen model benchmark and selection",
+      "note": "Historical CL-Detection/MICCAI-style 38-point ONNX asset is not present in the canonical checkout and is intentionally not reconstructed for Portability P5."
     },
     {
       "id": "cephalo_legacy",
       "kind": "model",
-      "candidates": [
-        "backend/ai_models/cephld_cca/ceph_weights.pth"
-      ],
-      "sha256": null,
-      "provenance": null,
-      "required_for_final": true
+      "lifecycle": "external",
+      "p5_required": false,
+      "next_gate": "P6/P7 scientific asset packaging and clean-machine install certification",
+      "note": "Canonical local CephLD-CCA runtime source/weight remains an external deployment asset; P5 certifies the PyTorch/native runtime and fail-closed behavior, not numerical model equivalence."
     },
     {
       "id": "panoramic",
       "kind": "model",
-      "candidates": [
-        "backend/ai_models/panoramic_model.onnx"
-      ],
-      "sha256": null,
-      "provenance": null,
-      "required_for_final": true
-    },
-    {
-      "id": "cephalo_reference",
-      "kind": "fixture",
-      "candidates": [
-        "tests/fixtures/scientific/cephalo_reference.png"
-      ],
-      "sha256": null,
-      "provenance": null,
-      "required_for_final": true
-    },
-    {
-      "id": "panoramic_reference",
-      "kind": "fixture",
-      "candidates": [
-        "tests/fixtures/scientific/panoramic_reference.png"
-      ],
-      "sha256": null,
-      "provenance": null,
-      "required_for_final": true
+      "lifecycle": "external",
+      "p5_required": false,
+      "next_gate": "P6/P7 scientific asset packaging and clean-machine install certification",
+      "note": "Canonical panoramic ONNX model remains an external deployment asset; P5 certifies ONNX/native runtime and clinical fail-closed behavior when the model is absent."
     }
   ]
 }
