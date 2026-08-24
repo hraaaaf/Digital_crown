@@ -31,10 +31,66 @@ const queryClient = new QueryClient({
 
 import { registerSW } from 'virtual:pwa-register'
 
+const LEGACY_SW_RELOAD_KEY = 'dc_m62_legacy_sw_reload'
+
+function isLegacyMobileWorker(worker: ServiceWorker | null): boolean {
+  if (!worker) return false
+  try {
+    return new URL(worker.scriptURL).pathname === '/sw.js'
+  } catch {
+    return worker.scriptURL.endsWith('/sw.js')
+  }
+}
+
+async function deleteLegacySyncDb(): Promise<void> {
+  if (!('indexedDB' in window)) return
+  await new Promise<void>((resolve) => {
+    const request = indexedDB.deleteDatabase('sync-db')
+    request.onsuccess = () => resolve()
+    request.onerror = () => resolve()
+    // Un ancien worker encore vivant peut garder une connexion ouverte pendant
+    // quelques instants. La suppression reste demandée et se terminera à sa fermeture.
+    request.onblocked = () => resolve()
+  })
+}
+
+async function migrateLegacyMobileOfflineState(): Promise<boolean> {
+  const legacyController = isLegacyMobileWorker(navigator.serviceWorker.controller)
+
+  try {
+    const registrations = await navigator.serviceWorker.getRegistrations()
+    const legacyRegistrations = registrations.filter((registration) =>
+      [registration.installing, registration.waiting, registration.active].some(isLegacyMobileWorker)
+    )
+    await Promise.all(legacyRegistrations.map((registration) => registration.unregister()))
+  } catch { /* best effort: le nouveau Workbox remplacera le scope */ }
+
+  try {
+    if ('caches' in window) await caches.delete('dc-mobile-v10')
+  } catch { /* cache legacy non accessible */ }
+  await deleteLegacySyncDb().catch(() => undefined)
+
+  if (legacyController) {
+    try {
+      if (sessionStorage.getItem(LEGACY_SW_RELOAD_KEY) !== '1') {
+        sessionStorage.setItem(LEGACY_SW_RELOAD_KEY, '1')
+        window.location.reload()
+        return false
+      }
+    } catch { /* sessionStorage indisponible: ne jamais bloquer le nouveau SW */ }
+  }
+
+  try { sessionStorage.removeItem(LEGACY_SW_RELOAD_KEY) } catch { /* ignore */ }
+  return true
+}
+
 if ('serviceWorker' in navigator) {
-  // Enregistre le SW Workbox (cache statique, pwa-sw.js) et le SW mobile custom (sw.js)
-  registerSW({ immediate: true })
-  navigator.serviceWorker.register('/sw.js').catch(() => {/* sw.js absent en dev Vite — normal */})
+  void migrateLegacyMobileOfflineState().then((ready) => {
+    if (!ready) return
+    // Un seul Service Worker Workbox pour le shell statique. Les données métier
+    // et mutations offline restent exclusivement dans MobileStorage.
+    registerSW({ immediate: true })
+  })
 }
 
 ReactDOM.createRoot(document.getElementById('root')!).render(

@@ -1,5 +1,6 @@
 import axios from 'axios';
 import toast from 'react-hot-toast';
+import { MobileStorage } from './zka/MobileStorage';
 
 const defaultApiUrl = typeof window !== 'undefined'
   ? `${window.location.protocol}//${window.location.hostname}:8005`
@@ -118,8 +119,22 @@ api.interceptors.response.use(
       console.groupEnd();
     }
 
-    // Auto-refresh/Sync on 401
-    if (status === 401 && !original._retried && !original.url?.includes('/auth/')) {
+    // Une session mobile a un refresh device-bound distinct du refresh web.
+    if (status === 401 && window.location.pathname.startsWith('/mobile') && !original._mobileRetried) {
+      original._mobileRetried = true;
+      const previousToken = localStorage.getItem('token');
+      const refreshed = await MobileStorage.refreshCredentials();
+      if (refreshed?.access_token && refreshed.access_token !== previousToken) {
+        localStorage.setItem('token', refreshed.access_token);
+        original.headers = original.headers ?? {};
+        original.headers['Authorization'] = `Bearer ${refreshed.access_token}`;
+        return api(original);
+      }
+      return Promise.reject(error);
+    }
+
+    // Auto-refresh/Sync web on 401
+    if (status === 401 && !window.location.pathname.startsWith('/mobile') && !original._retried && !original.url?.includes('/auth/')) {
       original._retried = true;
 
       if (!_refreshing) {

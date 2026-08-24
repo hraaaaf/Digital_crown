@@ -196,13 +196,14 @@ class TestMobileAppointments:
         assert created.patient_name == "Patient rapide"
         assert created.phone == "0600000000"
 
-    def test_delete_nonexistent_appointment(self, client, db, dentiste):
+    def test_delete_nonexistent_appointment_is_idempotent(self, client, db, dentiste):
         token = _make_mobile_jwt(db, dentiste)
         r = client.delete(
             "/api/mobile/appointments/999999",
             headers={"Authorization": f"Bearer {token}"},
         )
-        assert r.status_code == 404
+        assert r.status_code == 200
+        assert r.json() == {"status": "deleted", "already_absent": True}
 
 
 # ── patients ───────────────────────────────────────────────────────────────────
