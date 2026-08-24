@@ -5,7 +5,9 @@ import io
 import json
 import platform
 import re
+import sys
 import tempfile
+import types
 from pathlib import Path
 from unittest.mock import patch
 
@@ -211,9 +213,33 @@ def run_native_runtime() -> None:
     print(f"NATIVE_RUNTIME_GATE=OK ({platform.system()} {platform.machine()})")
 
 
+def _bootstrap_backend_namespace() -> None:
+    """Load scientific service modules without executing backend/__init__.py.
+
+    P5 certifies native/scientific runtime boundaries. The application package
+    initializer eagerly registers SQLAlchemy models, which is intentionally
+    outside this focused dependency harness. A namespace package keeps imports
+    pointed at the real backend source tree without pulling that unrelated
+    application startup side effect into the certification environment.
+    """
+    if "backend" not in sys.modules:
+        backend_pkg = types.ModuleType("backend")
+        backend_pkg.__path__ = [str(ROOT / "backend")]
+        backend_pkg.__package__ = "backend"
+        sys.modules["backend"] = backend_pkg
+
+    if "backend.services" not in sys.modules:
+        services_pkg = types.ModuleType("backend.services")
+        services_pkg.__path__ = [str(ROOT / "backend" / "services")]
+        services_pkg.__package__ = "backend.services"
+        sys.modules["backend.services"] = services_pkg
+
+
 def run_fail_closed_runtime() -> None:
     import cv2
     import numpy as np
+
+    _bootstrap_backend_namespace()
 
     from backend.services import panoramic_service as panoramic_module
     from backend.services import sota_vision_service as sota_module
