@@ -1,6 +1,6 @@
 name: Mobile M6.4 Final Exact-Head AFTER
 
-# retrigger: 2026-08-24 final exact-head capture
+# exact product head: 269f65b6475a0333bb70cf3ddcf1f0753d2eceae
 on:
   push:
     branches:
@@ -29,7 +29,7 @@ jobs:
       - name: Verify exact final product HEAD
         run: |
           PRODUCT_HEAD=$(git -C product rev-parse HEAD)
-          test "$PRODUCT_HEAD" = "362533b231e883a263ba67aa265600da0f1d46e8"
+          test "$PRODUCT_HEAD" = "269f65b6475a0333bb70cf3ddcf1f0753d2eceae"
           echo "PRODUCT_HEAD=$PRODUCT_HEAD" >> "$GITHUB_ENV"
 
       - name: Setup Node 20
@@ -83,7 +83,7 @@ jobs:
           import json
           from pathlib import Path
           report = json.loads(Path('mobile-m64-after-artifacts/report.json').read_text())
-          assert report['productHead'] == '362533b231e883a263ba67aa265600da0f1d46e8'
+          assert report['productHead'] == '269f65b6475a0333bb70cf3ddcf1f0753d2eceae'
           assert report['safePairingBodies'] is True
           assert report['e2eFinance']['count'] == 3
           assert report['e2eFinance']['allVisible'] is True
