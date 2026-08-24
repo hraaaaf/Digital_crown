@@ -6,7 +6,7 @@ on:
     paths: [.github/workflows/mobile-m61-source-export.yml]
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   export:
@@ -26,3 +26,14 @@ jobs:
             backend/tests/test_mobile_revocation_epoch.py
           if-no-files-found: error
           retention-days: 2
+      - name: Publish run marker in audit namespace
+        run: |
+          git fetch origin audit/mobile-m6-generator
+          git checkout -B audit/mobile-m6-generator origin/audit/mobile-m6-generator
+          mkdir -p .github/m6
+          printf '%s\n' "$GITHUB_RUN_ID" > .github/m6/mobile-m61-source-export-run.txt
+          git config user.name "Digital Crown M6 Audit"
+          git config user.email "123034021+hraaaaf@users.noreply.github.com"
+          git add .github/m6/mobile-m61-source-export-run.txt
+          git commit -m "audit(m6): record source export run $GITHUB_RUN_ID"
+          git push origin HEAD:audit/mobile-m6-generator
