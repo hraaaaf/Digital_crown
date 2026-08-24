@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Html5QrcodeScanner, Html5QrcodeSupportedFormats } from 'html5-qrcode';
 import { Shield, Camera, AlertCircle, CheckCircle2, Loader2, Smartphone, Lock, ShieldCheck, ArrowRight, Share, Plus } from 'lucide-react';
-import { MobileStorage } from '../../../services/zka/MobileStorage';
+import { MobileStorage, type MobileBridgeContext } from '../../../services/zka/MobileStorage';
 import { usePWAInstall } from '../../../hooks/usePWAInstall';
 import {
   deriveMasterKey,
@@ -29,6 +29,7 @@ const BRIDGE_ROUTES: Record<string, string> = {
   security: '/mobile/dashboard?tab=securite',
   dentists: '/mobile/dentists',
   superadmin: '/mobile/superadmin',
+  context: '/mobile/context',
 };
 
 const BRIDGE_LABELS: Record<string, string> = {
@@ -39,6 +40,7 @@ const BRIDGE_LABELS: Record<string, string> = {
   security: 'Sécurité',
   dentists: 'Équipe praticiens',
   superadmin: 'SuperAdmin',
+  context: 'Dossier patient',
 };
 
 export function resolveBridgeRoute(destination: unknown): string {
@@ -71,23 +73,37 @@ export const OnboardingScanner = () => {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  async function resolveDestination(credential: string, accessToken: string) {
+  async function resolveDestination(credential: string, accessToken: string): Promise<{ route: string; label: string; context?: MobileBridgeContext }> {
+    const headers = { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` };
+    try {
+      const resourceResponse = await fetch(`${API_BASE}/api/mobile/resource-bridge-destination`, {
+        method: 'POST', headers, body: JSON.stringify({ credential }),
+      });
+      if (resourceResponse.ok) {
+        const payload = await resourceResponse.json();
+        const context = payload.context && typeof payload.context === 'object'
+          ? ({ ...payload.context, label: payload.label || BRIDGE_LABELS.context } as MobileBridgeContext)
+          : undefined;
+        if (!context?.key || !context.type) throw new Error('Contexte mobile incomplet. Régénérez le pont depuis le poste cabinet.');
+        return { route: BRIDGE_ROUTES.context, label: BRIDGE_LABELS.context, context };
+      }
+      if (resourceResponse.status !== 404) {
+        throw new Error('Impossible de résoudre le contexte mobile. Régénérez le pont depuis le poste cabinet.');
+      }
+    } catch (err) {
+      if (credential.startsWith('c.')) throw err;
+      // Un code manuel peut appartenir au bridge historique M6.4 : le resolver
+      // historique reste donc la source de vérité si aucun contexte ressource n'existe.
+    }
+
     try {
       const response = await fetch(`${API_BASE}/api/mobile/bridge-destination`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${accessToken}`,
-        },
-        body: JSON.stringify({ credential }),
+        method: 'POST', headers, body: JSON.stringify({ credential }),
       });
       if (!response.ok) return { route: BRIDGE_ROUTES.agenda, label: BRIDGE_LABELS.agenda };
       const payload = await response.json();
       const destination = typeof payload.destination === 'string' ? payload.destination : 'agenda';
-      return {
-        route: resolveBridgeRoute(destination),
-        label: BRIDGE_LABELS[destination] ?? BRIDGE_LABELS.agenda,
-      };
+      return { route: resolveBridgeRoute(destination), label: BRIDGE_LABELS[destination] ?? BRIDGE_LABELS.agenda };
     } catch {
       return { route: BRIDGE_ROUTES.agenda, label: BRIDGE_LABELS.agenda };
     }
@@ -133,6 +149,16 @@ export const OnboardingScanner = () => {
       await MobileStorage.saveCredentials({ publicId, masterKey, access_token, refresh_token, device_id, api_base_url: API_BASE });
 
       const destination = await resolveDestination(token, access_token);
+      if (destination.context) {
+        try {
+          await MobileStorage.saveBridgeContext(destination.context);
+        } catch {
+          await MobileStorage.clearAll().catch(() => {});
+          throw new Error('Impossible de sécuriser le contexte patient sur cet appareil. Régénérez le pont.');
+        }
+      } else {
+        await MobileStorage.clearBridgeContext().catch(() => {});
+      }
       setDestinationRoute(destination.route);
       setDestinationLabel(destination.label);
       try {

@@ -1,0 +1,340 @@
+# Frozen M4-A exact-head AFTER harness. Not a workflow.
+scenario:
+  materialize: |
+    cat > mobile-m4a-after.html <<'EOF'
+          <!doctype html>
+          <html lang="fr">
+            <head>
+              <meta charset="UTF-8" />
+              <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+              <link rel="icon" href="data:," />
+              <title>Digital Crown M4-A AFTER</title>
+            </head>
+            <body>
+              <div id="root"></div>
+              <script type="module" src="/src/mobile-m4a-after.tsx"></script>
+            </body>
+          </html>
+    EOF
+    cat > src/mobile-m4a-after.tsx <<'EOF'
+          import React from 'react';
+          import { createRoot } from 'react-dom/client';
+          import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
+          import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+          import './index.css';
+          import { PatientDetails } from './features/patients/PatientDetailsInner';
+          import { OnboardingScanner } from './features/mobile/Onboarding/OnboardingScanner';
+          import { MobileContext } from './features/mobile/Context/MobileContext';
+          import { MobileStorage } from './services/zka/MobileStorage';
+          import { useAuthStore } from './stores/useAuthStore';
+          
+          const params = new URLSearchParams(window.location.search);
+          const view = params.get('view') || 'patient';
+          const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+          
+          useAuthStore.setState({
+            user: ({
+              id: 1,
+              email: 'dentiste@m4a-after.local',
+              nom_complet: 'Dr M4A',
+              role: 'ADMIN',
+              employer_id: null,
+              is_superadmin: false,
+              permissions: { patients: true, agenda: true, clinical: true, accounting: true, payments: true, panoramic: true, cephalo: true, admin: true },
+            } as any),
+            isAuthenticated: true,
+            isLoading: false,
+            error: null,
+          });
+          
+          const RouteProbe = () => {
+            const location = useLocation();
+            return <div data-testid="m4a-route-probe" data-path={location.pathname} data-search={location.search} className="hidden" />;
+          };
+          
+          const PairedContext = () => {
+            const [gate, setGate] = React.useState<'loading' | 'allow' | 'redirect'>('loading');
+            React.useEffect(() => {
+              let active = true;
+              MobileStorage.isPaired()
+                .then(paired => { if (active) setGate(paired ? 'allow' : 'redirect'); })
+                .catch(() => { if (active) setGate('redirect'); });
+              return () => { active = false; };
+            }, []);
+            if (gate === 'loading') return <div data-testid="mobile-pairing-gate">Vérification de la session mobile…</div>;
+            if (gate === 'redirect') return <div data-testid="mobile-pairing-rejected">Appairage requis</div>;
+            return <MobileContext />;
+          };
+          
+          const futureJwt = 'eyJhbGciOiJub25lIiwidHlwIjoiSldUIn0.eyJleHAiOjQxMDI0NDQ4MDB9.';
+          if (view === 'context') {
+            await MobileStorage.clearAll().catch(() => {});
+            await MobileStorage.saveCredentials({
+              publicId: 'abcdef1234567890',
+              masterKey: 'a'.repeat(64),
+              access_token: futureJwt,
+              refresh_token: 'm4a-after-refresh',
+              device_id: '11111111-2222-4333-8444-555555555555',
+              api_base_url: 'http://127.0.0.1:8005',
+            });
+            await MobileStorage.saveBridgeContext({ type: 'patient', key: 'M4AContextKeyDirect', label: 'Dossier patient', state: 'ready' });
+          }
+          
+          const entry = view === 'patient'
+            ? '/patients/42'
+            : view === 'e2e'
+              ? '/mobile/onboarding?token=c.M4AAfterSecretTokenForVisual001'
+              : '/mobile/context';
+          
+          const node = view === 'patient' ? (
+            <Routes>
+              <Route path="/patients/:id" element={<PatientDetails />} />
+            </Routes>
+          ) : (
+            <Routes>
+              <Route path="/mobile/onboarding" element={<OnboardingScanner />} />
+              <Route path="/mobile/context" element={<PairedContext />} />
+            </Routes>
+          );
+          
+          createRoot(document.getElementById('root')!).render(
+            <React.StrictMode>
+              <QueryClientProvider client={queryClient}>
+                <MemoryRouter initialEntries={[entry]}>
+                  <RouteProbe />
+                  {node}
+                </MemoryRouter>
+              </QueryClientProvider>
+            </React.StrictMode>,
+          );
+    EOF
+    cat > mobile-m4a-after.mjs <<'EOF'
+          import { chromium } from 'playwright';
+          import { createServer } from 'vite';
+          import fs from 'node:fs/promises';
+          import { randomBytes } from 'node:crypto';
+          import { gcm } from '@noble/ciphers/aes.js';
+          import { p256 } from '@noble/curves/nist.js';
+          import { bytesToHex, hexToBytes } from '@noble/curves/utils.js';
+          import { hkdf } from '@noble/hashes/hkdf.js';
+          import { sha256 } from '@noble/hashes/sha2.js';
+          
+          const output = 'mobile-m4a-after-artifacts';
+          await fs.mkdir(output, { recursive: true });
+          const protocol = [];
+          const resourcePairingBodies = [];
+          const results = [];
+          const patient = {
+            id: 42,
+            numero_dossier: 'DC-0042',
+            nom: 'BENNANI',
+            prenom: 'Sara',
+            date_naissance: '1992-05-18T00:00:00',
+            telephone: '0612345678',
+            email: 'sara.bennani@example.test',
+            adresse: 'Rabat',
+            assurance: 'MUTUELLE',
+            antecedents_medicaux: 'Allergie pénicilline',
+            motif_consultation: 'Contrôle',
+            dossier: { is_ortho_active: false },
+          };
+          const mobilePatient = {
+            id: 42,
+            numero_dossier: 'DC-0042',
+            nom: 'BENNANI',
+            prenom: 'Sara',
+            date_naissance: '1992-05-18T00:00:00',
+            telephone: '0612345678',
+            assurance: 'MUTUELLE',
+            has_medical_alert: true,
+            motif_consultation: 'Contrôle',
+          };
+          const journey = {
+            patient_id: 42,
+            window_months: 12,
+            truncated: false,
+            total_events_available: 0,
+            summary: { active_plan_steps: 0, total_plan_steps: 0, remaining_due: 0, has_billing_data: false, next_appointment: null, last_document_date: null },
+            events: [],
+          };
+          const qrSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="180" height="180" viewBox="0 0 180 180"><rect width="180" height="180" fill="white"/><g fill="#4f46e5"><rect x="12" y="12" width="48" height="48"/><rect x="120" y="12" width="48" height="48"/><rect x="12" y="120" width="48" height="48"/><rect x="76" y="76" width="16" height="16"/><rect x="100" y="76" width="12" height="12"/><rect x="76" y="104" width="12" height="12"/><rect x="106" y="112" width="20" height="20"/><rect x="138" y="92" width="18" height="18"/><rect x="84" y="140" width="16" height="16"/></g></svg>`;
+          const qrData = `data:image/svg+xml;base64,${Buffer.from(qrSvg).toString('base64')}`;
+          
+          function encryptedPairingPayload(clientPublicKeyHex) {
+            const serverPrivate = p256.utils.randomSecretKey();
+            const serverPublic = p256.getPublicKey(serverPrivate, false);
+            const clientPublic = hexToBytes(clientPublicKeyHex);
+            const sharedSecret = p256.getSharedSecret(serverPrivate, clientPublic, true).slice(1);
+            const aesKey = hkdf(sha256, sharedSecret, new Uint8Array(32), new TextEncoder().encode('zka_mobile_bridge'), 32);
+            const nonce = new Uint8Array(randomBytes(12));
+            const encrypted = gcm(aesKey, nonce).encrypt(new TextEncoder().encode('a'.repeat(64)));
+            const envelope = new Uint8Array(nonce.length + encrypted.length);
+            envelope.set(nonce, 0);
+            envelope.set(encrypted, nonce.length);
+            return {
+              publicId: 'abcdef1234567890',
+              access_token: 'eyJhbGciOiJub25lIiwidHlwIjoiSldUIn0.eyJleHAiOjQxMDI0NDQ4MDB9.',
+              refresh_token: 'm4a-after-refresh-token',
+              device_id: '11111111-2222-4333-8444-555555555555',
+              user_id: 1,
+              tenant_id: 1,
+              role: 'ADMIN',
+              server_public_key_hex: bytesToHex(serverPublic),
+              encrypted_master_key_hex: bytesToHex(envelope),
+            };
+          }
+          
+          const server = await createServer({ server: { host: '127.0.0.1', port: 4180, strictPort: true }, clearScreen: false });
+          await server.listen();
+          const browser = await chromium.launch();
+          const json = body => ({ status: 200, contentType: 'application/json', body: JSON.stringify(body) });
+          
+          async function setupContext(viewport) {
+            const context = await browser.newContext({ viewport, screen: viewport, deviceScaleFactor: 1, hasTouch: viewport.width <= 768, isMobile: viewport.width <= 768, serviceWorkers: 'block' });
+            const page = await context.newPage();
+            const errors = [];
+            page.on('pageerror', e => errors.push(`pageerror: ${e.message}`));
+            page.on('console', m => { if (m.type() === 'error') errors.push(`console: ${m.text()}`); });
+            await page.route('**/*', async route => {
+              const req = route.request();
+              const url = new URL(req.url());
+              const path = url.pathname;
+              if (!path.startsWith('/api/')) return route.continue();
+          
+              if (path === '/api/patients/42') return route.fulfill(json(patient));
+              if (path === '/api/patients/42/journey') return route.fulfill(json(journey));
+              if (path === '/api/actes/patient/42') return route.fulfill(json([]));
+              if (path === '/api/patients/42/documents') return route.fulfill(json([]));
+              if (path === '/api/intelligence/patient/42/nba') return route.fulfill(json({ nba: null }));
+              if (path === '/api/mobile/resource-bridge-options') {
+                protocol.push('resource-bridge-options');
+                return route.fulfill(json({
+                  resource_type: 'patient', resource_label: 'Dossier patient', expires_in: 300, contains_patient_data: false,
+                  targets: [{ id: 1, name: 'Dr M4A', email: 'dentiste@m4a-after.local', role: 'ADMIN', is_current_user: true }],
+                }));
+              }
+              if (path === '/api/mobile/resource-bridge-pairing') {
+                const body = req.postDataJSON();
+                resourcePairingBodies.push(body);
+                protocol.push('resource-bridge-pairing');
+                return route.fulfill(json({
+                  qr_code: qrData, expires_in: 300, lan_url: 'http://192.168.1.20:8005', token_code: '427315',
+                  target_user_id: 1, target_user_name: 'Dr M4A', target_role: 'ADMIN', resource_type: 'patient', resource_label: 'Dossier patient', contains_patient_data: false,
+                }));
+              }
+              if (path === '/api/mobile/claim-token') {
+                protocol.push('claim-token');
+                const body = req.postDataJSON();
+                return route.fulfill(json(encryptedPairingPayload(body.client_public_key_hex)));
+              }
+              if (path === '/api/mobile/resource-bridge-destination') {
+                protocol.push('resource-bridge-destination:context');
+                return route.fulfill(json({
+                  destination: 'context', label: 'Dossier patient', fallback: false,
+                  context: { type: 'patient', key: 'M4AContextKeyE2E', state: 'ready', reason: null },
+                }));
+              }
+              if (path === '/api/mobile/resource-context') {
+                protocol.push('resource-context');
+                return route.fulfill(json({ type: 'patient', label: 'Dossier patient', patient: mobilePatient }));
+              }
+              if (path === '/api/mobile/refresh-token') return route.fulfill({ status: 401, contentType: 'application/json', body: '{}' });
+              return route.fulfill(json(req.method() === 'GET' ? [] : {}));
+            });
+            return { context, page, errors };
+          }
+          
+          async function metrics(page) {
+            return page.evaluate(() => {
+              const root = document.documentElement;
+              const touches = [...document.querySelectorAll('[data-m4a-touch]')].map(el => {
+                const r = el.getBoundingClientRect();
+                return { tag: el.tagName, text: (el.textContent || el.getAttribute('aria-label') || '').trim().replace(/\s+/g, ' ').slice(0, 100), width: Math.round(r.width), height: Math.round(r.height) };
+              });
+              return {
+                scrollWidth: root.scrollWidth,
+                clientWidth: root.clientWidth,
+                hasHorizontalOverflow: root.scrollWidth > root.clientWidth + 1,
+                m4aTouchTargets: touches,
+                m4aTouchesBelow44: touches.filter(t => t.height < 44),
+                routePath: document.querySelector('[data-testid="m4a-route-probe"]')?.getAttribute('data-path') || null,
+                routeSearch: document.querySelector('[data-testid="m4a-route-probe"]')?.getAttribute('data-search') || null,
+              };
+            });
+          }
+          
+          async function capture(page, errors, name, state, viewport) {
+            const measured = await metrics(page);
+            await page.screenshot({ path: `${output}/${name}.png`, fullPage: false, animations: 'disabled' });
+            const record = { name, state, ...viewport, metrics: measured, errors: [...errors] };
+            results.push(record);
+            await fs.writeFile(`${output}/${name}.json`, JSON.stringify(record, null, 2));
+          }
+          
+          try {
+            for (const viewport of [{ width: 1280, height: 900 }, { width: 768, height: 1024 }]) {
+              const { context, page, errors } = await setupContext(viewport);
+              await page.goto('http://127.0.0.1:4180/mobile-m4a-after.html?view=patient', { waitUntil: 'networkidle' });
+              await page.getByRole('heading', { name: 'BENNANI Sara', exact: true }).waitFor({ state: 'visible', timeout: 15000 });
+              const bridgeButton = page.getByRole('button', { name: 'Ouvrir ce patient sur mobile', exact: true });
+              await bridgeButton.waitFor({ state: 'visible' });
+              await capture(page, errors, `patient-desktop-${viewport.width}x${viewport.height}`, 'patient-desktop-after', viewport);
+              await bridgeButton.click();
+              await page.getByRole('heading', { name: 'Ouvrir ce dossier sur mobile', exact: true }).waitFor({ state: 'visible' });
+              await page.getByRole('button', { name: 'Générer le QR', exact: true }).click();
+              await page.getByText('427315', { exact: true }).waitFor({ state: 'visible' });
+              await capture(page, errors, `patient-bridge-${viewport.width}x${viewport.height}`, 'patient-bridge-after', viewport);
+              await context.close();
+            }
+          
+            for (const viewport of [{ width: 390, height: 844 }, { width: 430, height: 932 }, { width: 768, height: 1024 }]) {
+              const { context, page, errors } = await setupContext(viewport);
+              await page.goto('http://127.0.0.1:4180/mobile-m4a-after.html?view=context', { waitUntil: 'networkidle' });
+              await page.getByRole('heading', { name: 'BENNANI Sara', exact: true }).waitFor({ state: 'visible', timeout: 15000 });
+              await capture(page, errors, `mobile-context-${viewport.width}x${viewport.height}`, 'mobile-context-after', viewport);
+              await context.close();
+            }
+          
+            for (const viewport of [{ width: 390, height: 844 }, { width: 430, height: 932 }, { width: 768, height: 1024 }]) {
+              const { context, page, errors } = await setupContext(viewport);
+              await page.goto('http://127.0.0.1:4180/mobile-m4a-after.html?view=e2e', { waitUntil: 'networkidle' });
+              await page.getByText('Appairage réussi', { exact: true }).waitFor({ state: 'visible', timeout: 15000 });
+              await capture(page, errors, `pairing-success-${viewport.width}x${viewport.height}`, 'pairing-success-patient', viewport);
+              await page.getByRole('heading', { name: 'BENNANI Sara', exact: true }).waitFor({ state: 'visible', timeout: 10000 });
+              await capture(page, errors, `e2e-patient-${viewport.width}x${viewport.height}`, 'e2e-patient-context', viewport);
+              await context.close();
+            }
+          } finally {
+            await browser.close();
+            await server.close();
+          }
+          
+          const safePairingBodies = resourcePairingBodies.length === 2 && resourcePairingBodies.every(body =>
+            body.resource_type === 'patient' && body.resource_id === 42 && body.target_user_id === 1 &&
+            !('patient_name' in body) && !('patient' in body)
+          );
+          const e2e = results.filter(r => r.state === 'e2e-patient-context');
+          const report = {
+            productHead: process.env.PRODUCT_HEAD,
+            captures: results,
+            safePairingBodies,
+            protocol,
+            e2e: {
+              count: e2e.length,
+              exactPatientVisible: e2e.length === 3,
+              idlessRoute: e2e.every(r => r.metrics.routePath === '/mobile/context' && !r.metrics.routeSearch),
+              protocolObserved: ['claim-token', 'resource-bridge-destination:context', 'resource-context'].every(step => protocol.includes(step)),
+            },
+          };
+          await fs.writeFile(`${output}/report.json`, JSON.stringify(report, null, 2));
+          
+          const failures = results.filter(r => r.errors.length || r.metrics.hasHorizontalOverflow || r.metrics.m4aTouchesBelow44.length);
+          if (
+            results.length !== 13 || failures.length || !safePairingBodies ||
+            report.e2e.count !== 3 || !report.e2e.exactPatientVisible || !report.e2e.idlessRoute || !report.e2e.protocolObserved
+          ) {
+            console.error(JSON.stringify({ captures: results.length, failures, safePairingBodies, e2e: report.e2e, protocol }, null, 2));
+            process.exitCode = 1;
+          }
+          console.log(JSON.stringify({ captures: results.length, failures: failures.length, safePairingBodies, e2e: report.e2e }, null, 2));
+    EOF

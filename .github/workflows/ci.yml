@@ -101,3 +101,91 @@ jobs:
           else
             echo "OK : le garde a bien refusé la config production non durcie."
           fi
+
+  m4a-e2e:
+    if: github.event_name == 'pull_request'
+    name: M4-A Patient contextual bridge AFTER
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout exact PR head
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+
+      - name: Record exact product HEAD
+        run: |
+          PRODUCT_HEAD=$(git rev-parse HEAD)
+          test "$PRODUCT_HEAD" = "${{ github.event.pull_request.head.sha }}"
+          echo "PRODUCT_HEAD=$PRODUCT_HEAD" >> "$GITHUB_ENV"
+
+      - name: Setup Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install frontend and Chromium
+        working-directory: frontend
+        run: |
+          npm ci
+          npm install --no-save --package-lock=false playwright@1.55.0
+          npx playwright install --with-deps chromium
+
+      - name: Materialize versioned M4-A AFTER harness
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import re
+          source = Path('.audit/mobile-m4a-after-scenario.yml').read_text()
+          for target in ['mobile-m4a-after.html', 'src/mobile-m4a-after.tsx', 'mobile-m4a-after.mjs']:
+              pattern = rf"cat > {re.escape(target)} <<'EOF'\n(.*?)\n    EOF"
+              match = re.search(pattern, source, re.S)
+              if not match:
+                  raise SystemExit(f'M4-A AFTER block missing: {target}')
+              lines = [line[10:] if line.startswith('          ') else line for line in match.group(1).splitlines()]
+              destination = Path('frontend') / target
+              destination.parent.mkdir(parents=True, exist_ok=True)
+              destination.write_text('\n'.join(lines) + '\n')
+          print('Versioned M4-A AFTER scenario extracted')
+          PY
+
+      - name: Capture exact-head M4-A AFTER
+        working-directory: frontend
+        run: node mobile-m4a-after.mjs
+
+      - name: Assert M4-A report gates
+        working-directory: frontend
+        run: |
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          report = json.loads(Path('mobile-m4a-after-artifacts/report.json').read_text())
+          assert report['productHead'] == os.environ['PRODUCT_HEAD']
+          assert len(report['captures']) == 13
+          assert report['safePairingBodies'] is True
+          assert report['e2e']['count'] == 3
+          assert report['e2e']['exactPatientVisible'] is True
+          assert report['e2e']['idlessRoute'] is True
+          assert report['e2e']['protocolObserved'] is True
+          assert all(not item['errors'] for item in report['captures'])
+          assert all(not item['metrics']['hasHorizontalOverflow'] for item in report['captures'])
+          assert all(not item['metrics']['m4aTouchesBelow44'] for item in report['captures'])
+          print('M4-A exact-head E2E PASS')
+          PY
+          cat > mobile-m4a-after-artifacts/metadata.txt <<EOF_META
+          chantier=Digital Crown Mobile Full Experience
+          lot=M4-A Patient contextual bridge
+          product_head=${PRODUCT_HEAD}
+          desktop_viewports=768x1024,1280x900
+          mobile_viewports=390x844,430x932,768x1024
+          e2e=desktop-patient->opaque-bridge->pairing->idless-mobile-context->exact-patient
+          deployment=none
+          EOF_META
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: mobile-m4a-patient-after
+          path: frontend/mobile-m4a-after-artifacts/
+          if-no-files-found: error
+          retention-days: 14

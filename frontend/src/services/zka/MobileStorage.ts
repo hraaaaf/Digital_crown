@@ -1,13 +1,10 @@
 import localforage from 'localforage';
 
-/** Mobile ZKA persistence: credentials, last snapshot and the single offline queue. */
+/** Mobile ZKA persistence: credentials, last snapshot, bridge context and the single offline queue. */
 let storageConfigured = false;
 
 function mobileStore() {
   if (!storageConfigured) {
-    // IndexedDB reste obligatoire pour les secrets mobiles. La configuration est
-    // volontairement lazy : importer api.ts ne doit pas initialiser un driver de
-    // stockage dans les contextes qui n'utilisent pas l'app mobile (SSR/tests).
     localforage.config({
       driver: localforage.INDEXEDDB,
       name: 'digital-crown-zka',
@@ -21,6 +18,7 @@ function mobileStore() {
 
 const STORE_CREDENTIALS_ID = 'zka_credentials';
 const STORE_SNAPSHOT_ID = 'zka_last_snapshot';
+const STORE_BRIDGE_CONTEXT_ID = 'zka_bridge_context';
 const STORE_ACTION_QUEUE_ID = 'zka_action_queue_v2';
 const LEGACY_ACTION_QUEUE_ID = 'zka_action_queue';
 
@@ -31,6 +29,16 @@ export interface ZKACredentials {
   refresh_token?: string;
   device_id?: string;
   api_base_url: string;
+}
+
+export interface MobileBridgeContext {
+  type: string;
+  key: string;
+  label?: string;
+  state: 'ready' | 'unavailable';
+  reason?: string | null;
+  cabinetPublicId?: string;
+  deviceId?: string;
 }
 
 export interface QueuedAction {
@@ -76,6 +84,7 @@ async function rawCredentials(): Promise<ZKACredentials | null> {
 async function clearSessionData(): Promise<void> {
   await mobileStore().removeItem(STORE_CREDENTIALS_ID);
   await mobileStore().removeItem(STORE_SNAPSHOT_ID);
+  await mobileStore().removeItem(STORE_BRIDGE_CONTEXT_ID);
   await mobileStore().removeItem(STORE_ACTION_QUEUE_ID);
   await mobileStore().removeItem(LEGACY_ACTION_QUEUE_ID);
   try {
@@ -113,8 +122,6 @@ async function refreshCredentialsInternal(creds: ZKACredentials): Promise<ZKACre
       }
       return MobileStorage.updateTokens(payload.access_token, payload.refresh_token, payload.device_id);
     } catch {
-      // Réseau indisponible : conserver la session locale. Ne jamais transformer
-      // une panne réseau en révocation.
       return creds;
     }
   })().finally(() => { refreshInFlight = null; });
@@ -134,9 +141,9 @@ export const MobileStorage = {
     const scopeChanged = !previous || previous.publicId !== creds.publicId || previous.device_id !== creds.device_id;
     if (scopeChanged) {
       await mobileStore().removeItem(STORE_SNAPSHOT_ID);
+      await mobileStore().removeItem(STORE_BRIDGE_CONTEXT_ID);
       await mobileStore().removeItem(STORE_ACTION_QUEUE_ID);
     }
-    // L'ancienne queue n'est jamais rejouée car elle n'était pas tenant/device-bound.
     await mobileStore().removeItem(LEGACY_ACTION_QUEUE_ID);
 
     await mobileStore().setItem(STORE_CREDENTIALS_ID, creds);
@@ -166,6 +173,33 @@ export const MobileStorage = {
     return entry?.data ?? null;
   },
 
+  async saveBridgeContext(context: MobileBridgeContext): Promise<void> {
+    const creds = await rawCredentials();
+    if (!creds?.device_id) throw new Error('Session mobile non appairée.');
+    if (!context.key || !context.type) throw new Error('Contexte mobile invalide.');
+    await mobileStore().setItem(STORE_BRIDGE_CONTEXT_ID, {
+      ...context,
+      cabinetPublicId: creds.publicId,
+      deviceId: creds.device_id,
+    });
+  },
+
+  async getBridgeContext(): Promise<MobileBridgeContext | null> {
+    const creds = await rawCredentials();
+    if (!creds?.device_id) return null;
+    const context = await mobileStore().getItem<MobileBridgeContext>(STORE_BRIDGE_CONTEXT_ID);
+    if (!context) return null;
+    if (context.cabinetPublicId !== creds.publicId || context.deviceId !== creds.device_id) {
+      await mobileStore().removeItem(STORE_BRIDGE_CONTEXT_ID);
+      return null;
+    }
+    return context;
+  },
+
+  async clearBridgeContext(): Promise<void> {
+    await mobileStore().removeItem(STORE_BRIDGE_CONTEXT_ID);
+  },
+
   async getCredentials(): Promise<ZKACredentials | null> {
     const creds = await rawCredentials();
     if (!creds) return null;
@@ -185,6 +219,7 @@ export const MobileStorage = {
 
   async clearCredentials(): Promise<void> {
     await mobileStore().removeItem(STORE_CREDENTIALS_ID);
+    await mobileStore().removeItem(STORE_BRIDGE_CONTEXT_ID);
     try { localStorage.removeItem('token'); localStorage.removeItem('refresh_token'); } catch { /* ignore */ }
   },
 
