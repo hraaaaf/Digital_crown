@@ -32,11 +32,15 @@ jobs:
           cd /tmp/m62
           python "$GITHUB_WORKSPACE/.github/m6/m62_transform.py"
           python "$GITHUB_WORKSPACE/.github/m6/m62_network_truth_guard.py"
+          python "$GITHUB_WORKSPACE/.github/m6/m62_behavior_tests.py"
 
           python -m py_compile backend/routers/mobile_legacy.py backend/tests/test_mobile_router.py
           git diff --check
 
-          git add -N frontend/src/services/zka/mobileFetch.ts frontend/src/test/mobileM62OfflineTruth.test.ts
+          git add -N \
+            frontend/src/services/zka/mobileFetch.ts \
+            frontend/src/test/mobileM62OfflineTruth.test.ts \
+            frontend/src/test/mobileM62Behavior.test.ts
           git diff --name-only | sort > /tmp/actual-m62-paths
           cat > /tmp/expected-m62-paths <<'EOF'
           backend/routers/mobile_legacy.py
@@ -49,6 +53,7 @@ jobs:
           frontend/src/services/api.ts
           frontend/src/services/zka/MobileStorage.ts
           frontend/src/services/zka/mobileFetch.ts
+          frontend/src/test/mobileM62Behavior.test.ts
           frontend/src/test/mobileM62OfflineTruth.test.ts
           frontend/vite.config.ts
           EOF
@@ -66,7 +71,8 @@ jobs:
           grep -q 'isQueueableNetworkError' frontend/src/features/mobile/Dashboard/hooks/useMobileDashboard.ts
           grep -q "name === 'AbortError' || name === 'TimeoutError'" frontend/src/features/mobile/Dashboard/hooks/useMobileDashboard.ts
           grep -q "already_absent': True" backend/routers/mobile_legacy.py
-          grep -q 'mobileM62OfflineTruth' <(find frontend/src/test -maxdepth 1 -type f -printf '%f\n')
+          grep -q 'rotates the mobile refresh token' frontend/src/test/mobileM62Behavior.test.ts
+          grep -q 'purges the queue when the paired device changes' frontend/src/test/mobileM62Behavior.test.ts
 
       - name: Materialize audit staging only
         run: |
@@ -85,8 +91,9 @@ jobs:
             frontend/src/services/api.ts \
             frontend/src/services/zka/MobileStorage.ts \
             frontend/src/services/zka/mobileFetch.ts \
+            frontend/src/test/mobileM62Behavior.test.ts \
             frontend/src/test/mobileM62OfflineTruth.test.ts \
             frontend/vite.config.ts
-          test "$(git diff --cached --name-only | wc -l)" -eq 12
+          test "$(git diff --cached --name-only | wc -l)" -eq 13
           git commit -m "audit(m6.2): stage offline truth candidate"
           git push --force-with-lease="refs/heads/$STAGE_BRANCH:$BASE_SHA" origin "HEAD:refs/heads/$STAGE_BRANCH"
