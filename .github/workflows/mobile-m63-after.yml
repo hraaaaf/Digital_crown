@@ -1,0 +1,307 @@
+name: Mobile M6.3 Agenda AFTER
+
+on:
+  push:
+    branches:
+      - "audit/mobile-m63-before-20260824"
+    paths:
+      - ".github/workflows/mobile-m63-after.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  capture:
+    if: ${{ github.event_name != 'push' || !contains(github.event.head_commit.message, '[M63 AFTER evidence]') }}
+    name: Capture M6.3 Agenda AFTER
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout audit evidence branch
+        uses: actions/checkout@v4
+        with:
+          ref: audit/mobile-m63-before-20260824
+
+      - name: Checkout exact M6.3 product HEAD
+        uses: actions/checkout@v4
+        with:
+          ref: b1dd50e9a692f7a98da40a6b197123f150f6031c
+          path: product
+
+      - name: Setup Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: product/frontend/package-lock.json
+
+      - name: Install frontend and Chromium
+        working-directory: product/frontend
+        run: |
+          npm ci
+          npm install --no-save --package-lock=false playwright@1.55.0
+          npx playwright install --with-deps chromium
+
+      - name: Inject exact-head AFTER visual harness
+        working-directory: product/frontend
+        run: |
+          cat > mobile-m63-after.html <<'EOF'
+          <!doctype html>
+          <html lang="fr">
+            <head>
+              <meta charset="UTF-8" />
+              <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+              <title>Digital Crown M6.3 AFTER</title>
+            </head>
+            <body>
+              <div id="root"></div>
+              <script type="module" src="/src/mobile-m63-after.tsx"></script>
+            </body>
+          </html>
+          EOF
+
+          cat > src/mobile-m63-after.tsx <<'EOF'
+          import React from 'react';
+          import { createRoot } from 'react-dom/client';
+          import { MemoryRouter } from 'react-router-dom';
+          import './index.css';
+          import { MobileStorage } from './services/zka/MobileStorage';
+          import { MobileDashboard } from './features/mobile/Dashboard/MobileDashboard';
+
+          const accessToken = 'e30.eyJleHAiOjQxMDI0NDQ4MDB9.';
+          await MobileStorage.clearAll();
+          await MobileStorage.saveCredentials({
+            publicId: '0123456789abcdef',
+            masterKey: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+            access_token: accessToken,
+            refresh_token: 'm63-after-refresh-token',
+            device_id: '11111111-2222-4333-8444-555555555555',
+            api_base_url: 'http://127.0.0.1:8005',
+          });
+
+          createRoot(document.getElementById('root')!).render(
+            <React.StrictMode>
+              <MemoryRouter initialEntries={['/mobile/dashboard']}>
+                <MobileDashboard />
+              </MemoryRouter>
+            </React.StrictMode>,
+          );
+          EOF
+
+          cat > mobile-m63-after.mjs <<'EOF'
+          import { chromium } from 'playwright';
+          import { createServer } from 'vite';
+          import fs from 'node:fs/promises';
+
+          const output = 'mobile-m63-after-artifacts';
+          await fs.mkdir(output, { recursive: true });
+
+          const appointments = [
+            { id: 201, patient_id: 101, time: '08:45', patient_name: 'Sara El Amrani', phone: '0612345678', motif: 'Consultation', status: 'TERMINE', duration_minutes: 30 },
+            { id: 202, patient_id: 102, time: '09:15:00', patient_name: 'Youssef Benali', phone: '0623456789', motif: 'Contrôle', status: 'EN_COURS', duration_minutes: 45 },
+            { id: 203, patient_id: 103, time: '19:10', patient_name: 'Meryem Tazi', phone: '0634567890', motif: 'Détartrage', status: 'PLANIFIE', duration_minutes: 40 },
+          ];
+
+          const snapshot = {
+            generated_at: '2026-08-24T12:00:00',
+            role: 'DENTISTE',
+            is_superadmin: false,
+            appointments,
+            finance: {
+              today_revenue: 5700,
+              month_revenue: 48600,
+              month_variation: 8.4,
+              appointments_count: appointments.length,
+              weekly_revenue: [],
+              total_patients: 184,
+              total_debt: 9300,
+            },
+            debtors: [],
+          };
+
+          const mobilePatients = { data: [
+            { id: 101, name: 'Sara El Amrani', phone: '0612345678' },
+            { id: 102, name: 'Youssef Benali', phone: '0623456789' },
+            { id: 103, name: 'Meryem Tazi', phone: '0634567890' },
+          ] };
+
+          const canonicalPatients = [
+            { id: 101, nom: 'EL AMRANI', prenom: 'Sara', telephone: '0612345678', date_naissance: '1990-01-01T00:00:00', sexe: 'F', created_at: '2026-01-01T00:00:00', employer_id: 1 },
+            { id: 102, nom: 'BENALI', prenom: 'Youssef', telephone: '0623456789', date_naissance: '1988-02-02T00:00:00', sexe: 'M', created_at: '2026-01-01T00:00:00', employer_id: 1 },
+            { id: 103, nom: 'TAZI', prenom: 'Meryem', telephone: '0634567890', date_naissance: '1994-03-03T00:00:00', sexe: 'F', created_at: '2026-01-01T00:00:00', employer_id: 1 },
+          ];
+
+          const server = await createServer({
+            server: { host: '127.0.0.1', port: 4177, strictPort: true },
+            clearScreen: false,
+          });
+          await server.listen();
+
+          const browser = await chromium.launch();
+          const viewports = [
+            { width: 390, height: 844 },
+            { width: 430, height: 932 },
+            { width: 768, height: 1024 },
+          ];
+          const results = [];
+
+          try {
+            for (const vp of viewports) {
+              const context = await browser.newContext({
+                viewport: vp,
+                screen: vp,
+                userAgent: vp.width < 700
+                  ? 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_6 like Mac OS X) AppleWebKit/605.1.15 Version/18.6 Mobile/15E148 Safari/604.1'
+                  : 'Mozilla/5.0 (iPad; CPU OS 18_6 like Mac OS X) AppleWebKit/605.1.15 Version/18.6 Mobile/15E148 Safari/604.1',
+                isMobile: true,
+                hasTouch: true,
+                deviceScaleFactor: 1,
+                serviceWorkers: 'block',
+              });
+              const page = await context.newPage();
+              const errors = [];
+              page.on('pageerror', error => errors.push(`pageerror: ${error.message}`));
+              page.on('console', message => {
+                if (message.type() === 'error') errors.push(`console: ${message.text()}`);
+              });
+
+              await page.route('**/*', async route => {
+                const req = route.request();
+                const url = new URL(req.url());
+                if (!url.pathname.startsWith('/api/')) return route.continue();
+                let body = [];
+                if (url.pathname === '/api/mobile/snapshot') body = snapshot;
+                else if (url.pathname === '/api/mobile/patients') body = mobilePatients;
+                else if (url.pathname === '/api/patients/' || url.pathname === '/api/patients') body = canonicalPatients;
+                else if (url.pathname.includes('lab-jobs')) body = [];
+                else if (url.pathname.includes('/documents')) body = { data: [] };
+                else if (req.method() !== 'GET') body = {};
+                return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(body) });
+              });
+
+              await page.goto('http://127.0.0.1:4177/mobile-m63-after.html', { waitUntil: 'networkidle' });
+              await page.getByText('Sara El Amrani').waitFor({ state: 'visible', timeout: 15000 });
+
+              const timelineText = await page.locator('body').innerText();
+              const timelineGate = ['08:45', '09:15', '19:10'].every(time => timelineText.includes(time));
+
+              await page.getByRole('button', { name: 'Ajouter un rendez-vous' }).click();
+              await page.getByText('Nouveau rendez-vous', { exact: true }).waitFor({ state: 'visible' });
+              await page.getByText('Sara EL AMRANI', { exact: true }).waitFor({ state: 'attached' });
+
+              async function auditState(state) {
+                const metrics = await page.evaluate(() => {
+                  const root = document.documentElement;
+                  const heading = [...document.querySelectorAll('h3')].find(el => el.textContent?.includes('Nouveau rendez-vous'));
+                  const modal = heading?.closest('.bg-card');
+                  const controls = modal ? [...modal.querySelectorAll('input, select, button')]
+                    .filter(el => {
+                      const r = el.getBoundingClientRect();
+                      return r.width > 0 && r.height > 0;
+                    })
+                    .map(el => {
+                      const r = el.getBoundingClientRect();
+                      return {
+                        tag: el.tagName,
+                        text: (el.textContent || el.getAttribute('placeholder') || el.getAttribute('aria-label') || '').trim().replace(/\s+/g, ' ').slice(0, 100),
+                        width: Math.round(r.width),
+                        height: Math.round(r.height),
+                      };
+                    }) : [];
+                  const shortControls = controls.filter(control => control.height < 44);
+                  const offenders = [...document.querySelectorAll('body *')].flatMap(el => {
+                    const r = el.getBoundingClientRect();
+                    if (r.right > window.innerWidth + 1 || r.left < -1) {
+                      return [{ tag: el.tagName, left: Math.round(r.left), right: Math.round(r.right), width: Math.round(r.width), text: (el.textContent || '').trim().replace(/\s+/g, ' ').slice(0, 80) }];
+                    }
+                    return [];
+                  }).slice(0, 20);
+                  const modalRect = modal ? (() => {
+                    const r = modal.getBoundingClientRect();
+                    return { top: Math.round(r.top), bottom: Math.round(r.bottom), height: Math.round(r.height), width: Math.round(r.width) };
+                  })() : null;
+                  return {
+                    viewport: { width: window.innerWidth, height: window.innerHeight },
+                    scrollWidth: root.scrollWidth,
+                    clientWidth: root.clientWidth,
+                    hasHorizontalOverflow: root.scrollWidth > root.clientWidth + 1,
+                    offenders,
+                    modalRect,
+                    mobileBottomSheet: window.innerWidth >= 640 || Boolean(modalRect && Math.abs(modalRect.bottom - window.innerHeight) <= 2),
+                    visibleControls: controls,
+                    controlsBelow44: shortControls,
+                  };
+                });
+                const name = `agenda-add-${state}-${vp.width}x${vp.height}`;
+                await page.screenshot({ path: `${output}/${name}.png`, fullPage: true, animations: 'disabled' });
+                await fs.writeFile(`${output}/${name}.json`, JSON.stringify({ metrics, errors, timelineGate }, null, 2));
+                results.push({ state, ...vp, metrics, errors: [...errors], timelineGate });
+              }
+
+              await auditState('default');
+              await page.getByRole('button', { name: '+ Nouveau patient', exact: true }).click();
+              await page.getByPlaceholder('Nom', { exact: true }).waitFor({ state: 'visible' });
+              await auditState('new-patient');
+              await context.close();
+            }
+          } finally {
+            await browser.close();
+            await server.close();
+          }
+
+          await fs.writeFile(`${output}/report.json`, JSON.stringify(results, null, 2));
+          const runtimeFailures = results.filter(result =>
+            result.errors.length ||
+            result.metrics.hasHorizontalOverflow ||
+            result.metrics.controlsBelow44.length ||
+            !result.metrics.mobileBottomSheet ||
+            !result.timelineGate
+          );
+          console.log(JSON.stringify({ captures: results.length, runtimeFailures: runtimeFailures.length }, null, 2));
+          if (runtimeFailures.length) process.exitCode = 1;
+          EOF
+
+      - name: Capture AFTER 390 430 768
+        working-directory: product/frontend
+        run: node mobile-m63-after.mjs
+
+      - name: Record evidence metadata
+        if: always()
+        run: |
+          mkdir -p product/frontend/mobile-m63-after-artifacts
+          cat > product/frontend/mobile-m63-after-artifacts/metadata.txt <<EOF
+          chantier=Digital Crown Mobile Full Experience
+          lot=M6.3 Patient/RDV canonique + Agenda UX
+          goal=AFTER exact-head modal tactile >=44px + patient canonical + agenda off-grid visibility
+          product_head=b1dd50e9a692f7a98da40a6b197123f150f6031c
+          before_source=2b74c1181901e9e381fd543b6eee45fcb825a4cb
+          mockup=.audit/mobile-m63-mockup.svg
+          states=default,new-patient
+          viewports=390x844,430x932,768x1024
+          deployment=none
+          EOF
+
+      - name: Upload M6.3 AFTER evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mobile-m63-after
+          path: product/frontend/mobile-m63-after-artifacts/
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Publish observable AFTER evidence on audit branch
+        if: always()
+        run: |
+          rm -rf .audit/mobile-m63-after
+          mkdir -p .audit/mobile-m63-after
+          cp -a product/frontend/mobile-m63-after-artifacts/. .audit/mobile-m63-after/
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add .audit/mobile-m63-after
+          if git diff --cached --quiet; then
+            echo "No AFTER evidence files to publish"
+            exit 0
+          fi
+          git commit -m "audit(m6.3): publish AFTER evidence [M63 AFTER evidence]"
+          git push origin HEAD:audit/mobile-m63-before-20260824
