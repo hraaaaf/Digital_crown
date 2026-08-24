@@ -1,0 +1,32 @@
+name: Portability P10 Update Engine
+
+on:
+  pull_request:
+    paths:
+      - "backend/services/update_engine.py"
+      - "backend/tests/test_update_engine.py"
+      - "scripts/p10_update_contract_check.py"
+      - "docs/portability/P10_UPDATE_ENGINE.md"
+      - ".github/workflows/portability-p10-update-engine.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  secure-core:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install targeted dependencies
+        run: python -m pip install --disable-pip-version-check pytest cryptography sqlalchemy python-dotenv
+      - name: Compile P10
+        run: python -m py_compile backend/services/update_engine.py backend/tests/test_update_engine.py scripts/p10_update_contract_check.py
+      - name: Static contract
+        run: python scripts/p10_update_contract_check.py
+      - name: Secure-core tests
+        run: python -m pytest backend/tests/test_update_engine.py -q --noconftest
