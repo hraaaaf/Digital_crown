@@ -13,6 +13,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       BASE_SHA: 7774cecf1b33650b5a302eff72e2a8c033438d4c
+      CURRENT_HEAD: b9d0941cc1781c5525226ff1231482a0d24f4447
       PRODUCT_BRANCH: mobile/m6-offline-truth
     steps:
       - uses: actions/checkout@v4
@@ -20,18 +21,20 @@ jobs:
           ref: audit/mobile-m6-generator
           fetch-depth: 0
 
-      - name: Build exact M6.2 product candidate
+      - name: Build and fully verify exact M6.2 candidate
         run: |
           set -euo pipefail
           git fetch origin master "$PRODUCT_BRANCH"
           test "$(git rev-parse origin/master)" = "$BASE_SHA"
-          test "$(git rev-parse origin/$PRODUCT_BRANCH)" = "$BASE_SHA"
+          test "$(git rev-parse origin/$PRODUCT_BRANCH)" = "$CURRENT_HEAD"
 
           git worktree add --detach /tmp/m62-product "$BASE_SHA"
           cd /tmp/m62-product
           python "$GITHUB_WORKSPACE/.github/m6/m62_transform.py"
           python "$GITHUB_WORKSPACE/.github/m6/m62_network_truth_guard.py"
           python "$GITHUB_WORKSPACE/.github/m6/m62_behavior_tests.py"
+          python "$GITHUB_WORKSPACE/.github/m6/m62_legacy_offline_cleanup.py"
+          python "$GITHUB_WORKSPACE/.github/m6/m62_lazy_storage.py"
 
           python -m py_compile backend/routers/mobile_legacy.py backend/tests/test_mobile_router.py
           git diff --check
@@ -62,16 +65,28 @@ jobs:
           test ! -e frontend/public/sw.js
           grep -q "runtimeCaching: \[\]" frontend/vite.config.ts
           ! grep -q "serviceWorker.register('/sw.js')" frontend/src/main.tsx
+          grep -q "indexedDB.deleteDatabase('sync-db')" frontend/src/main.tsx
+          grep -q "caches.delete('dc-mobile-v10')" frontend/src/main.tsx
+          grep -q 'registration.unregister()' frontend/src/main.tsx
+          grep -q 'window.location.reload()' frontend/src/main.tsx
           grep -q 'zka_action_queue_v2' frontend/src/services/zka/MobileStorage.ts
           grep -q 'cabinetPublicId' frontend/src/services/zka/MobileStorage.ts
           grep -q 'deviceId' frontend/src/services/zka/MobileStorage.ts
+          grep -q 'function mobileStore()' frontend/src/services/zka/MobileStorage.ts
+          grep -q 'driver: localforage.INDEXEDDB' frontend/src/services/zka/MobileStorage.ts
+          ! grep -q 'localforage.LOCALSTORAGE' frontend/src/services/zka/MobileStorage.ts
           grep -q 'MobileStorage.refreshCredentials()' frontend/src/services/api.ts
           grep -q 'isQueueableNetworkError' frontend/src/features/mobile/Dashboard/hooks/useMobileDashboard.ts
           grep -q 'X-Mobile-Action-Id' frontend/src/features/mobile/Dashboard/hooks/useMobileDashboard.ts
           grep -q "already_absent': True" backend/routers/mobile_legacy.py
           grep -q 'does not refresh or clear the session for a server 500 response' frontend/src/test/mobileM62Behavior.test.ts
 
-      - name: Publish one exact product commit
+          cd frontend
+          npm ci
+          npm test
+          npm run build
+
+      - name: Publish one exact rewritten product commit
         run: |
           set -euo pipefail
           cd /tmp/m62-product
@@ -92,5 +107,5 @@ jobs:
             frontend/src/test/mobileM62OfflineTruth.test.ts \
             frontend/vite.config.ts
           test "$(git diff --cached --name-only | wc -l)" -eq 13
-          git commit -m "fix(mobile): unify offline truth and device-bound replay"
-          git push --force-with-lease="refs/heads/$PRODUCT_BRANCH:$BASE_SHA" origin "HEAD:refs/heads/$PRODUCT_BRANCH"
+          git commit -m "fix(mobile): unify offline truth and migrate legacy state"
+          git push --force-with-lease="refs/heads/$PRODUCT_BRANCH:$CURRENT_HEAD" origin "HEAD:refs/heads/$PRODUCT_BRANCH"
