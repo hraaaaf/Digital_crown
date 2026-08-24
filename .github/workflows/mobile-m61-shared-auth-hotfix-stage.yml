@@ -1,0 +1,60 @@
+name: Mobile M6.1 Shared Auth Hotfix Stage
+
+on:
+  push:
+    branches: [audit/mobile-m61-shared-auth-hotfix-runner]
+    paths: [.github/workflows/mobile-m61-shared-auth-hotfix-stage.yml]
+
+permissions:
+  contents: write
+
+jobs:
+  materialize:
+    runs-on: ubuntu-latest
+    env:
+      BASE_SHA: becffc2314482bb749105aed60e4d1e47c2bb140
+      PRODUCT_BRANCH: mobile/m6-security-shared-auth-hotfix
+      AUDIT_BRANCH: audit/mobile-m61-shared-auth-hotfix-runner
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.AUDIT_BRANCH }}
+          fetch-depth: 0
+
+      - name: Build exact hotfix candidate
+        run: |
+          set -euo pipefail
+          git fetch origin master "$PRODUCT_BRANCH"
+          test "$(git rev-parse origin/master)" = "$BASE_SHA"
+          test "$(git rev-parse origin/$PRODUCT_BRANCH)" = "$BASE_SHA"
+
+          git worktree add --detach /tmp/m61-hotfix "$BASE_SHA"
+          cd /tmp/m61-hotfix
+          python "$GITHUB_WORKSPACE/.github/m6/m61_shared_auth_hotfix.py"
+
+          python -m py_compile backend/routers/auth.py backend/tests/test_mobile_identity_security.py
+          git diff --check
+
+          git diff --name-only | sort > /tmp/actual-paths
+          printf '%s\n' \
+            backend/routers/auth.py \
+            backend/tests/test_mobile_identity_security.py | sort > /tmp/expected-paths
+          diff -u /tmp/expected-paths /tmp/actual-paths
+
+          grep -q 'mobile_header = False' backend/routers/auth.py
+          grep -q '_decode_mobile_identity' backend/routers/auth.py
+          grep -q 'test_shared_auth_me_accepts_valid_device_bound_mobile_token' backend/tests/test_mobile_identity_security.py
+          grep -q 'test_shared_auth_me_rejects_revoked_mobile_header_even_with_valid_web_cookie' backend/tests/test_mobile_identity_security.py
+          grep -q 'test_shared_auth_me_rejects_mobile_tenant_mismatch' backend/tests/test_mobile_identity_security.py
+          grep -q 'test_shared_auth_me_rejects_legacy_mobile_token_without_device' backend/tests/test_mobile_identity_security.py
+
+      - name: Publish one product commit
+        run: |
+          set -euo pipefail
+          cd /tmp/m61-hotfix
+          git config user.name "Digital Crown M6 Security"
+          git config user.email "123034021+hraaaaf@users.noreply.github.com"
+          git add -- backend/routers/auth.py backend/tests/test_mobile_identity_security.py
+          test "$(git diff --cached --name-only | wc -l)" -eq 2
+          git commit -m "fix(mobile): enforce device revocation on shared auth"
+          git push --force-with-lease="refs/heads/$PRODUCT_BRANCH:$BASE_SHA" origin "HEAD:refs/heads/$PRODUCT_BRANCH"
