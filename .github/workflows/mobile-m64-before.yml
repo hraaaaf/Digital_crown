@@ -1,0 +1,293 @@
+name: Mobile M6.4 Contextual QR BEFORE
+
+on:
+  push:
+    branches:
+      - "audit/mobile-m64-before-20260824"
+    paths:
+      - ".github/workflows/mobile-m64-before.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  capture:
+    if: ${{ github.event_name != 'push' || !contains(github.event.head_commit.message, '[M64 BEFORE evidence]') }}
+    name: Capture M6.4 bridge BEFORE
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout exact audit head
+        uses: actions/checkout@v4
+
+      - name: Setup Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install frontend and Chromium
+        working-directory: frontend
+        run: |
+          npm ci
+          npm install --no-save --package-lock=false playwright@1.55.0
+          npx playwright install --with-deps chromium
+
+      - name: Verify current bridge limitations from source
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          admin = Path('backend/routers/admin_legacy.py').read_text()
+          security = Path('frontend/src/features/admin/Security/MobileSecurity.tsx').read_text()
+          onboarding = Path('frontend/src/features/mobile/Onboarding/OnboardingScanner.tsx').read_text()
+          dashboard = Path('frontend/src/features/mobile/Dashboard/hooks/useMobileDashboard.ts').read_text()
+
+          assert 'qr_payload = f"{base_url}/mobile/onboarding?token={pairing_token}"' in admin
+          assert "api.get('/admin/zka-key-qr')" in security
+          assert "navigate('/mobile/dashboard', { replace: true })" in onboarding
+          assert "useState<Tab>('agenda')" in dashboard
+          assert 'target_user_id' not in security
+          print('M6.4 BEFORE source defects confirmed')
+          PY
+
+      - name: Inject isolated BEFORE visual harness
+        working-directory: frontend
+        run: |
+          cat > mobile-m64-before.html <<'EOF'
+          <!doctype html>
+          <html lang="fr">
+            <head>
+              <meta charset="UTF-8" />
+              <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+              <title>Digital Crown M6.4 BEFORE</title>
+            </head>
+            <body>
+              <div id="root"></div>
+              <script type="module" src="/src/mobile-m64-before.tsx"></script>
+            </body>
+          </html>
+          EOF
+
+          cat > src/mobile-m64-before.tsx <<'EOF'
+          import React from 'react';
+          import { createRoot } from 'react-dom/client';
+          import { MemoryRouter } from 'react-router-dom';
+          import './index.css';
+          import { MobileSecurity } from './features/admin/Security/MobileSecurity';
+          import { OnboardingScanner } from './features/mobile/Onboarding/OnboardingScanner';
+
+          const params = new URLSearchParams(window.location.search);
+          const view = params.get('view') || 'bridge';
+          const node = view === 'onboarding'
+            ? <OnboardingScanner />
+            : (
+              <div className="min-h-screen bg-slate-50 p-6 sm:p-10 font-outfit">
+                <div className="max-w-6xl mx-auto rounded-[32px] bg-white border border-slate-200 p-5 sm:p-8 shadow-sm">
+                  <MobileSecurity />
+                </div>
+              </div>
+            );
+
+          createRoot(document.getElementById('root')!).render(
+            <React.StrictMode>
+              <MemoryRouter initialEntries={[view === 'onboarding' ? '/mobile/onboarding' : '/settings?tab=security']}>
+                {node}
+              </MemoryRouter>
+            </React.StrictMode>,
+          );
+          EOF
+
+          cat > mobile-m64-before.mjs <<'EOF'
+          import { chromium } from 'playwright';
+          import { createServer } from 'vite';
+          import fs from 'node:fs/promises';
+
+          const output = 'mobile-m64-before-artifacts';
+          await fs.mkdir(output, { recursive: true });
+
+          const qrSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="180" height="180" viewBox="0 0 180 180"><rect width="180" height="180" fill="white"/><g fill="#4f46e5"><rect x="12" y="12" width="48" height="48"/><rect x="120" y="12" width="48" height="48"/><rect x="12" y="120" width="48" height="48"/><rect x="76" y="76" width="16" height="16"/><rect x="100" y="76" width="12" height="12"/><rect x="76" y="104" width="12" height="12"/><rect x="106" y="112" width="20" height="20"/><rect x="138" y="92" width="18" height="18"/><rect x="84" y="140" width="16" height="16"/></g></svg>`;
+          const qrData = `data:image/svg+xml;base64,${Buffer.from(qrSvg).toString('base64')}`;
+
+          const server = await createServer({
+            server: { host: '127.0.0.1', port: 4177, strictPort: true },
+            clearScreen: false,
+          });
+          await server.listen();
+
+          const browser = await chromium.launch();
+          const results = [];
+
+          async function setupContext(viewport, userAgent) {
+            const context = await browser.newContext({
+              viewport,
+              screen: viewport,
+              userAgent,
+              isMobile: viewport.width <= 768,
+              hasTouch: viewport.width <= 768,
+              deviceScaleFactor: 1,
+              serviceWorkers: 'block',
+            });
+            const page = await context.newPage();
+            const errors = [];
+            page.on('pageerror', error => errors.push(`pageerror: ${error.message}`));
+            page.on('console', message => {
+              if (message.type() === 'error') errors.push(`console: ${message.text()}`);
+            });
+            await page.route('**/*', async route => {
+              const req = route.request();
+              const url = new URL(req.url());
+              if (url.pathname === '/api/admin/zka-key-qr' || url.pathname === '/admin/zka-key-qr') {
+                return route.fulfill({
+                  status: 200,
+                  contentType: 'application/json',
+                  body: JSON.stringify({
+                    qr_code: qrData,
+                    expires_in: 300,
+                    lan_url: 'http://192.168.1.20:8005',
+                    token_code: '123456',
+                    target_user_id: 1,
+                    target_user_name: 'Dr Cabinet',
+                    target_role: 'ADMIN',
+                  }),
+                });
+              }
+              if (url.pathname.startsWith('/api/')) {
+                return route.fulfill({ status: 200, contentType: 'application/json', body: '{}' });
+              }
+              return route.continue();
+            });
+            return { context, page, errors };
+          }
+
+          async function audit(page, errors, name, state, viewport) {
+            const metrics = await page.evaluate(() => {
+              const root = document.documentElement;
+              const controls = [...document.querySelectorAll('button, input, select, a')]
+                .filter(el => {
+                  const r = el.getBoundingClientRect();
+                  return r.width > 0 && r.height > 0;
+                })
+                .map(el => {
+                  const r = el.getBoundingClientRect();
+                  return {
+                    tag: el.tagName,
+                    text: (el.textContent || el.getAttribute('placeholder') || el.getAttribute('aria-label') || '').trim().replace(/\s+/g, ' ').slice(0, 120),
+                    width: Math.round(r.width),
+                    height: Math.round(r.height),
+                  };
+                });
+              const offenders = [...document.querySelectorAll('body *')].flatMap(el => {
+                const r = el.getBoundingClientRect();
+                if (r.right > window.innerWidth + 1 || r.left < -1) {
+                  return [{ tag: el.tagName, left: Math.round(r.left), right: Math.round(r.right), width: Math.round(r.width), text: (el.textContent || '').trim().replace(/\s+/g, ' ').slice(0, 80) }];
+                }
+                return [];
+              }).slice(0, 20);
+              return {
+                viewport: { width: window.innerWidth, height: window.innerHeight },
+                scrollWidth: root.scrollWidth,
+                clientWidth: root.clientWidth,
+                hasHorizontalOverflow: root.scrollWidth > root.clientWidth + 1,
+                offenders,
+                controls,
+                controlsBelow44: controls.filter(control => control.height < 44),
+              };
+            });
+            await page.screenshot({ path: `${output}/${name}.png`, fullPage: true, animations: 'disabled' });
+            await fs.writeFile(`${output}/${name}.json`, JSON.stringify({ state, viewport, metrics, errors }, null, 2));
+            results.push({ name, state, ...viewport, metrics, errors: [...errors] });
+          }
+
+          try {
+            const desktopViewports = [
+              { width: 768, height: 1024 },
+              { width: 1280, height: 900 },
+            ];
+            for (const viewport of desktopViewports) {
+              const { context, page, errors } = await setupContext(viewport, 'Mozilla/5.0 AppleWebKit/537.36 Chrome/151 Safari/537.36');
+              await page.goto('http://127.0.0.1:4177/mobile-m64-before.html?view=bridge', { waitUntil: 'networkidle' });
+              await page.getByText('Compagnon Mobile', { exact: true }).waitFor({ state: 'visible', timeout: 15000 });
+              await audit(page, errors, `bridge-default-${viewport.width}x${viewport.height}`, 'bridge-default', viewport);
+              await page.getByRole('button', { name: "Afficher le code d'appairage mobile" }).click();
+              await page.getByText('123456', { exact: true }).waitFor({ state: 'visible', timeout: 5000 });
+              await audit(page, errors, `bridge-visible-${viewport.width}x${viewport.height}`, 'bridge-visible', viewport);
+              await context.close();
+            }
+
+            const mobileViewports = [
+              { width: 390, height: 844 },
+              { width: 430, height: 932 },
+              { width: 768, height: 1024 },
+            ];
+            for (const viewport of mobileViewports) {
+              const { context, page, errors } = await setupContext(viewport, 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_6 like Mac OS X) AppleWebKit/605.1.15 Version/18.6 Mobile/15E148 Safari/604.1');
+              await page.goto('http://127.0.0.1:4177/mobile-m64-before.html?view=onboarding', { waitUntil: 'networkidle' });
+              await page.getByText('Compagnon Mobile', { exact: true }).waitFor({ state: 'visible', timeout: 15000 });
+              await audit(page, errors, `onboarding-${viewport.width}x${viewport.height}`, 'onboarding', viewport);
+              await context.close();
+            }
+          } finally {
+            await browser.close();
+            await server.close();
+          }
+
+          const report = {
+            sourceDefects: {
+              qrDestination: 'onboarding-only',
+              targetUserUi: false,
+              postPairDestination: '/mobile/dashboard',
+              dashboardDeepLink: false,
+            },
+            captures: results,
+          };
+          await fs.writeFile(`${output}/report.json`, JSON.stringify(report, null, 2));
+          const failures = results.filter(result => result.errors.length || result.metrics.hasHorizontalOverflow);
+          console.log(JSON.stringify({ captures: results.length, runtimeFailures: failures.length }, null, 2));
+          if (failures.length) process.exitCode = 1;
+          EOF
+
+      - name: Capture BEFORE
+        working-directory: frontend
+        run: node mobile-m64-before.mjs
+
+      - name: Record metadata
+        if: always()
+        run: |
+          mkdir -p frontend/mobile-m64-before-artifacts
+          cat > frontend/mobile-m64-before-artifacts/metadata.txt <<EOF
+          chantier=Digital Crown Mobile Full Experience
+          lot=M6.4 Contextual QR Bridge
+          goal=BEFORE bridge + onboarding baseline, no product change
+          source_master=e4375ac73fd5be409bc52527f20a28659b8cd1a4
+          audit_head=${GITHUB_SHA}
+          bridge_viewports=768x1024,1280x900
+          onboarding_viewports=390x844,430x932,768x1024
+          mockup=.audit/mobile-m64-contextual-qr-mockup.svg
+          deployment=none
+          EOF
+
+      - name: Upload BEFORE artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mobile-m64-before
+          path: frontend/mobile-m64-before-artifacts/
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Publish observable BEFORE evidence
+        if: always()
+        run: |
+          rm -rf .audit/mobile-m64-before
+          mkdir -p .audit/mobile-m64-before
+          cp -a frontend/mobile-m64-before-artifacts/. .audit/mobile-m64-before/
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add .audit/mobile-m64-before
+          if git diff --cached --quiet; then
+            exit 0
+          fi
+          git commit -m "audit(m6.4): publish BEFORE evidence [M64 BEFORE evidence]"
+          git push origin HEAD:audit/mobile-m64-before-20260824
