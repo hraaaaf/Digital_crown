@@ -1,15 +1,18 @@
-import { useState, useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { Calendar, Clock, Plus, WifiOff } from 'lucide-react';
 import { DndContext, TouchSensor, MouseSensor, useSensor, useSensors } from '@dnd-kit/core';
 import type { DragEndEvent } from '@dnd-kit/core';
-import { format, addDays, startOfWeek, startOfMonth, endOfMonth, isSameDay, parseISO } from 'date-fns';
+import { format, addDays, startOfWeek, startOfMonth, endOfMonth, parseISO } from 'date-fns';
 import { fr } from 'date-fns/locale';
+import toast from 'react-hot-toast';
 import type { Snapshot, SyncStatus, ApptStatus, Appointment } from '../types';
 import { Skeleton } from '../components/Skeleton';
 import { DraggableApptCard } from '../components/DraggableApptCard';
 import { DroppableDay } from '../components/DroppableDay';
 import { AddApptModal } from '../components/AddApptModal';
 import { cn } from '../../../../utils/cn';
+import { MobileStorage } from '../../../../services/zka/MobileStorage';
+import { mobileFetch } from '../../../../services/zka/mobileFetch';
 
 type ViewMode = 'jour' | 'semaine' | 'mois';
 
@@ -19,6 +22,24 @@ const TIME_SLOTS = Array.from({ length: 20 }, (_, i) => {
   return `${hour.toString().padStart(2, '0')}:${min}`;
 });
 
+function normalizeAppointmentTime(time: string): string {
+  return time.slice(0, 5);
+}
+
+export function buildTimelineSlots(appointments: Pick<Appointment, 'time'>[]): string[] {
+  const appointmentTimes = appointments
+    .map(appointment => normalizeAppointmentTime(appointment.time))
+    .filter(time => /^\d{2}:\d{2}$/.test(time));
+  return Array.from(new Set([...TIME_SLOTS, ...appointmentTimes])).sort((a, b) => a.localeCompare(b));
+}
+
+function responseMessage(payload: any, fallback: string): string {
+  const detail = payload?.detail;
+  if (typeof detail === 'string') return detail;
+  if (typeof detail?.message === 'string') return detail.message;
+  return fallback;
+}
+
 export function AgendaView({
   snapshot,
   syncStatus,
@@ -26,7 +47,7 @@ export function AgendaView({
   setSelectedDate,
   patients,
   onStatusChange,
-  onRescheduleAppt,
+  onRescheduleAppt: _onRescheduleAppt,
   openApptWhatsApp,
   handleDeleteAppt,
   handleOpenSignature,
@@ -57,6 +78,37 @@ export function AgendaView({
   const termineCount = snapshot?.appointments.filter(a => a.status === 'TERMINE').length ?? 0;
   const totalCount = snapshot?.appointments.length ?? 0;
   const dayAppointments = snapshot?.appointments.filter(a => !a.date || a.date === selectedDate) || [];
+  const timelineSlots = useMemo(() => buildTimelineSlots(dayAppointments), [dayAppointments]);
+
+  const rescheduleCanonical = async (id: number, newDate: string, newTime: string) => {
+    const creds = await MobileStorage.getCredentials();
+    if (!creds) {
+      toast.error('Session mobile indisponible');
+      return false;
+    }
+    try {
+      const res = await mobileFetch(`${creds.api_base_url}/api/appointments/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ datetime_start: `${newDate}T${normalizeAppointmentTime(newTime)}:00` }),
+      });
+      const payload = await res.json().catch(() => ({}));
+      if (res.status === 409) {
+        toast.error('Déplacement refusé : le créneau chevauche déjà un autre rendez-vous');
+        return false;
+      }
+      if (!res.ok) {
+        toast.error(responseMessage(payload, 'Déplacement du rendez-vous refusé'));
+        return false;
+      }
+      onRefresh();
+      toast.success('Rendez-vous déplacé');
+      return true;
+    } catch {
+      toast.error('Déplacement impossible hors ligne');
+      return false;
+    }
+  };
 
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
@@ -64,15 +116,16 @@ export function AgendaView({
 
     const aptId = parseInt(active.id.toString().replace('appt-', ''), 10);
     const targetDate = over.id.toString().replace('day-', '');
-    
+
     if (targetDate === selectedDate) return;
 
     const apt = snapshot?.appointments.find(a => a.id === aptId);
     if (!apt) return;
 
-    if (window.confirm(`Déplacer ce rendez-vous au ${format(parseISO(targetDate), 'dd MMMM', { locale: fr })} à ${apt.time} ?`)) {
-      onRescheduleAppt(aptId, targetDate, apt.time);
-      setSelectedDate(targetDate);
+    if (window.confirm(`Déplacer ce rendez-vous au ${format(parseISO(targetDate), 'dd MMMM', { locale: fr })} à ${normalizeAppointmentTime(apt.time)} ?`)) {
+      void rescheduleCanonical(aptId, targetDate, apt.time).then(moved => {
+        if (moved) setSelectedDate(targetDate);
+      });
     }
   };
 
@@ -102,7 +155,7 @@ export function AgendaView({
   return (
     <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
       <div className="space-y-6">
-        
+
         {/* Toggle Mode */}
         <div className="flex bg-glass-bg border border-glass-border rounded-full p-1 shadow-sm">
           {(['jour', 'semaine', 'mois'] as ViewMode[]).map(mode => (
@@ -110,9 +163,9 @@ export function AgendaView({
               key={mode}
               onClick={() => setViewMode(mode)}
               className={cn(
-                "flex-1 py-2 rounded-full text-xs font-black uppercase tracking-widest transition-all",
-                viewMode === mode 
-                  ? "bg-primary text-white shadow-md scale-[1.02]" 
+                "flex-1 min-h-11 rounded-full text-xs font-black uppercase tracking-widest transition-all",
+                viewMode === mode
+                  ? "bg-primary text-white shadow-md scale-[1.02]"
                   : "text-text-muted hover:text-primary"
               )}
             >
@@ -128,7 +181,7 @@ export function AgendaView({
               const dateStr = format(d, 'yyyy-MM-dd');
               return (
                 <div key={dateStr} className="snap-center min-w-[4rem]">
-                  <DroppableDay 
+                  <DroppableDay
                     date={dateStr}
                     label={format(d, 'd')}
                     sublabel={format(d, 'EEE', { locale: fr })}
@@ -155,7 +208,7 @@ export function AgendaView({
               {monthDays.map(d => {
                 const dateStr = format(d, 'yyyy-MM-dd');
                 return (
-                  <DroppableDay 
+                  <DroppableDay
                     key={dateStr}
                     date={dateStr}
                     label={format(d, 'd')}
@@ -167,7 +220,7 @@ export function AgendaView({
                 );
               })}
             </div>
-            <p className="text-[10px] text-center text-text-muted mt-4 mt-2">
+            <p className="text-[10px] text-center text-text-muted mt-4">
               Glissez-déposez un rendez-vous sur un jour pour le déplacer.
             </p>
           </div>
@@ -216,44 +269,46 @@ export function AgendaView({
           <div className="relative pl-8 pb-10">
             {/* Ligne verticale de la timeline */}
             <div className="absolute left-[15px] top-4 bottom-0 w-0.5 bg-border-main/50 rounded-full" />
-            
+
             {viewMode === 'jour' ? (
               <div className="space-y-6">
-                {TIME_SLOTS.map(time => {
-                  const apts = dayAppointments.filter(a => a.time.startsWith(time.substring(0, 4))); // Match approx
-                  // Find exact matches for this slot
-                  const exactApt = dayAppointments.find(a => a.time === time);
-                  
-                  if (exactApt) {
+                {timelineSlots.map(time => {
+                  const appointmentsAtTime = dayAppointments.filter(appointment => normalizeAppointmentTime(appointment.time) === time);
+
+                  if (appointmentsAtTime.length > 0) {
                     return (
                       <div key={time} className="relative">
                         <div className="absolute -left-10 mt-3 bg-white px-1 text-[10px] font-bold text-slate-500 w-8 text-right z-10">
                           {time}
                         </div>
                         <div className="absolute left-[-19px] top-4 w-2.5 h-2.5 rounded-full border-2 border-primary bg-white z-10" />
-                        <DraggableApptCard
-                          key={exactApt.id}
-                          apt={exactApt}
-                          onStatusChange={onStatusChange}
-                          openApptWhatsApp={openApptWhatsApp}
-                          handleDeleteAppt={handleDeleteAppt}
-                          handleOpenSignature={handleOpenSignature}
-                        />
-                      </div>
-                    );
-                  } else {
-                    return (
-                      <div key={time} className="relative flex items-center group cursor-pointer" onClick={() => setShowAddModal(true)}>
-                        <div className="absolute -left-10 bg-glass-bg px-1 text-[10px] font-medium text-slate-400 w-8 text-right z-10">
-                          {time}
-                        </div>
-                        <div className="absolute left-[-18px] w-2 h-2 rounded-full border border-slate-300 bg-slate-100 z-10 group-hover:border-primary group-hover:bg-primary/20 transition-colors" />
-                        <div className="h-10 flex-1 ml-4 border border-dashed border-slate-200 rounded-[12px] flex items-center px-4 text-[10px] text-slate-400 font-medium group-hover:border-primary/50 group-hover:text-primary transition-colors bg-white/30 backdrop-blur-sm">
-                          <Plus size={12} className="mr-1" /> Créneau libre
+                        <div className="space-y-3">
+                          {appointmentsAtTime.map(appointment => (
+                            <DraggableApptCard
+                              key={appointment.id}
+                              apt={appointment}
+                              onStatusChange={onStatusChange}
+                              openApptWhatsApp={openApptWhatsApp}
+                              handleDeleteAppt={handleDeleteAppt}
+                              handleOpenSignature={handleOpenSignature}
+                            />
+                          ))}
                         </div>
                       </div>
                     );
                   }
+
+                  return (
+                    <div key={time} className="relative flex items-center group cursor-pointer" onClick={() => setShowAddModal(true)}>
+                      <div className="absolute -left-10 bg-glass-bg px-1 text-[10px] font-medium text-slate-400 w-8 text-right z-10">
+                        {time}
+                      </div>
+                      <div className="absolute left-[-18px] w-2 h-2 rounded-full border border-slate-300 bg-slate-100 z-10 group-hover:border-primary group-hover:bg-primary/20 transition-colors" />
+                      <div className="min-h-11 flex-1 ml-4 border border-dashed border-slate-200 rounded-[12px] flex items-center px-4 text-[10px] text-slate-400 font-medium group-hover:border-primary/50 group-hover:text-primary transition-colors bg-white/30 backdrop-blur-sm">
+                        <Plus size={12} className="mr-1" /> Créneau libre
+                      </div>
+                    </div>
+                  );
                 })}
               </div>
             ) : (
@@ -261,7 +316,7 @@ export function AgendaView({
                 {dayAppointments.map(apt => (
                   <div key={apt.id} className="relative">
                     <div className="absolute -left-10 mt-3 bg-white px-1 text-[10px] font-bold text-slate-500 w-8 text-right z-10">
-                      {apt.time}
+                      {normalizeAppointmentTime(apt.time)}
                     </div>
                     <div className="absolute left-[-19px] top-4 w-2.5 h-2.5 rounded-full border-2 border-primary bg-white z-10" />
                     <DraggableApptCard
@@ -280,7 +335,7 @@ export function AgendaView({
 
         {/* Bouton d'ajout de RDV */}
         <div className="fixed bottom-32 right-6 z-40">
-          <button onClick={() => setShowAddModal(true)} className="w-14 h-14 bg-primary text-white rounded-full shadow-[0_8px_30px_rgba(var(--primary-rgb),0.4)] flex items-center justify-center hover:scale-105 active:scale-95 transition-transform border border-white/20">
+          <button onClick={() => setShowAddModal(true)} className="w-14 h-14 bg-primary text-white rounded-full shadow-[0_8px_30px_rgba(var(--primary-rgb),0.4)] flex items-center justify-center hover:scale-105 active:scale-95 transition-transform border border-white/20" aria-label="Ajouter un rendez-vous">
             <Plus size={24} />
           </button>
         </div>
