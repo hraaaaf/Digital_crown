@@ -171,8 +171,30 @@ class TestMobileAppointments:
             },
             headers={"Authorization": f"Bearer {token}"},
         )
-        # Legacy mobile create contract remains M6.3 scope; auth itself must not return 403.
-        assert r.status_code in (200, 201, 422)
+        assert r.status_code in (200, 201)
+        created = db.query(models.Appointment).filter(models.Appointment.id == r.json()["id"]).one()
+        assert created.patient_id == pat.id
+        assert created.patient_name == "Test MOBILEPAT"
+        assert created.duration_minutes == 30
+
+    def test_create_quick_appointment_without_patient_id(self, client, db, dentiste):
+        token = _make_mobile_jwt(db, dentiste)
+        r = client.post(
+            "/api/mobile/appointments",
+            json={
+                "patient_name": "Patient rapide",
+                "phone": "0600000000",
+                "datetime_start": "2026-07-01T11:00:00",
+                "duration_minutes": 20,
+                "motif": "Urgence",
+            },
+            headers={"Authorization": f"Bearer {token}"},
+        )
+        assert r.status_code in (200, 201)
+        created = db.query(models.Appointment).filter(models.Appointment.id == r.json()["id"]).one()
+        assert created.patient_id is None
+        assert created.patient_name == "Patient rapide"
+        assert created.phone == "0600000000"
 
     def test_delete_nonexistent_appointment(self, client, db, dentiste):
         token = _make_mobile_jwt(db, dentiste)

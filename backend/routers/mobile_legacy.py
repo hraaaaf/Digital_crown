@@ -643,6 +643,7 @@ def get_mobile_dentists(
 class MobileAppointmentCreate(BaseModel):
     datetime_start: str
     patient_name: str
+    patient_id: Optional[int] = None
     phone: Optional[str] = None
     motif: str
     duration_minutes: int
@@ -667,7 +668,7 @@ def get_mobile_appointments(
         'datetime_start': a.datetime_start.isoformat(),
         'patient_name': f'{a.patient.prenom} {a.patient.nom}' if a.patient else a.patient_name,
         'patient_id': a.patient_id,
-        'phone': a.patient.telephone if a.patient else None,
+        'phone': a.patient.telephone if a.patient else a.phone,
         'motif': a.motif,
         'status': _to_mobile_status(a.status),
         'duration_minutes': a.duration_minutes
@@ -682,14 +683,27 @@ def create_mobile_appointment(
     db: Session = Depends(database.get_db),
 ):
     dt_start = datetime.fromisoformat(body.datetime_start.replace('Z', ''))
-    dt_end = dt_start + timedelta(minutes=body.duration_minutes)
-    
+    patient = None
+    patient_name = body.patient_name.strip()
+    if body.patient_id is not None:
+        patient = db.query(models.Patient).filter(
+            models.Patient.id == body.patient_id,
+            models.Patient.employer_id == employer_id,
+            models.Patient.deleted_at.is_(None),
+        ).first()
+        if not patient:
+            raise HTTPException(status_code=404, detail='Patient introuvable')
+        patient_name = f'{patient.prenom} {patient.nom}'.strip()
+    if not patient_name:
+        raise HTTPException(status_code=422, detail='Nom patient requis')
+
     new_apt = models.Appointment(
         employer_id=employer_id,
-        patient_name=body.patient_name,
+        patient_id=patient.id if patient else None,
+        patient_name=patient_name,
+        phone=None if patient else body.phone,
         motif=body.motif,
         datetime_start=dt_start,
-        datetime_end=dt_end,
         duration_minutes=body.duration_minutes,
         status=models.AppointmentStatus.PREVU
     )
