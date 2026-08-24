@@ -216,7 +216,7 @@ jobs:
 
               await auditState('default');
               await page.getByRole('button', { name: '+ Nouveau', exact: true }).click();
-              await page.getByPlaceholder('Nom').waitFor({ state: 'visible' });
+              await page.getByPlaceholder('Nom', { exact: true }).waitFor({ state: 'visible' });
               await auditState('new-patient');
               await context.close();
             }
