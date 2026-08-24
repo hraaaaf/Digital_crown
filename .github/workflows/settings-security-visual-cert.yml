@@ -5,6 +5,10 @@ on:
     paths:
       - "frontend/src/features/admin/Settings/tabs/SecurityTab.tsx"
       - "frontend/src/features/admin/Security/MobileSecurity.tsx"
+      - "frontend/src/features/mobile/Dashboard/MobileDashboard.tsx"
+      - "frontend/src/features/mobile/Onboarding/OnboardingScanner.tsx"
+      - "frontend/src/features/mobile/bridge.ts"
+      - ".audit/mobile-m64-after-scenario.yml"
       - ".github/workflows/settings-security-visual-cert.yml"
   workflow_dispatch:
 
@@ -73,6 +77,24 @@ jobs:
             qr_code_enabled: false, qr_code_type: 'VCARD', qr_code_style: 'dots', show_patient_badges: true,
             performance_mode: false, clinical_tips_enabled: true, hide_header: true, hide_footer: true, cabinet_type: 'PRIVE',
           };
+          const bridgeOptions = {
+            targets: [{
+              id: 1,
+              name: 'Dr Security',
+              email: 'admin@security-cert.local',
+              role: 'ADMIN',
+              is_current_user: true,
+              destinations: [
+                { id: 'agenda', label: 'Agenda' },
+                { id: 'finance', label: 'Finance' },
+                { id: 'lab', label: 'Labo' },
+                { id: 'assistant', label: 'Assistant' },
+                { id: 'security', label: 'Sécurité' },
+                { id: 'dentists', label: 'Équipe praticiens' },
+              ],
+            }],
+            expires_in: 300,
+          };
 
           const server = await createServer({ server: { host: '127.0.0.1', port: 4178, strictPort: true }, clearScreen: false });
           await server.listen();
@@ -92,6 +114,7 @@ jobs:
                 if (url.port !== '8005' || !url.pathname.startsWith('/api/')) return route.continue();
                 if (request.method() !== 'GET') return route.fulfill(json({}));
                 if (url.pathname === '/api/clinics/me') return route.fulfill(json(profile));
+                if (url.pathname === '/api/mobile/bridge-options') return route.fulfill(json(bridgeOptions));
                 if (url.pathname.includes('/audit-logs')) return route.fulfill(json({ total: 0, logs: [] }));
                 if (url.pathname.includes('/backups')) return route.fulfill(json([]));
                 return route.fulfill(json({}));
@@ -102,7 +125,22 @@ jobs:
               await page.getByRole('button', { name: 'Sécurité & Backup', exact: true }).click();
               await page.getByRole('heading', { name: 'Sécurité & Souveraineté', exact: true }).waitFor({ state: 'visible' });
               await page.getByText('Sauvegarde chiffrée vérifiée', { exact: true }).waitFor({ state: 'visible' });
-              await page.getByText("Afficher le code d'appairage", { exact: true }).waitFor({ state: 'visible' });
+
+              const userTarget = page.getByLabel('Utilisateur mobile cible');
+              const destinationTarget = page.getByLabel('Destination mobile');
+              const generateTarget = page.getByRole('button', { name: 'Générer le pont mobile', exact: true });
+              await userTarget.waitFor({ state: 'visible' });
+              await destinationTarget.waitFor({ state: 'visible' });
+              await generateTarget.waitFor({ state: 'visible' });
+
+              const bridgeBoxes = await Promise.all([
+                userTarget.boundingBox(),
+                destinationTarget.boundingBox(),
+                generateTarget.boundingBox(),
+              ]);
+              if (bridgeBoxes.some(box => !box || box.height < 44)) {
+                throw new Error(`Bridge touch targets invalid: ${JSON.stringify(bridgeBoxes)}`);
+              }
 
               const bodyWidth = await page.evaluate(() => document.documentElement.scrollWidth);
               if (bodyWidth > width) throw new Error(`Horizontal overflow: document=${bodyWidth}, viewport=${width}`);
@@ -129,5 +167,117 @@ jobs:
         with:
           name: settings-security-visual-cert
           path: frontend/settings-security-artifacts/
+          if-no-files-found: error
+          retention-days: 14
+
+  m64-e2e:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout exact PR head
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+
+      - name: Record exact product HEAD
+        run: |
+          PRODUCT_HEAD=$(git rev-parse HEAD)
+          test "$PRODUCT_HEAD" = "${{ github.event.pull_request.head.sha }}"
+          echo "PRODUCT_HEAD=$PRODUCT_HEAD" >> "$GITHUB_ENV"
+
+      - name: Setup Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install frontend and Chromium
+        working-directory: frontend
+        run: |
+          npm ci
+          npm install --no-save --package-lock=false playwright@1.55.0
+          npx playwright install --with-deps chromium
+
+      - name: Extract versioned M6.4 AFTER scenario
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import re
+          source = Path('.audit/mobile-m64-after-scenario.yml').read_text()
+          for target in ['mobile-m64-after.html', 'src/mobile-m64-after.tsx', 'mobile-m64-after.mjs']:
+              pattern = rf"cat > {re.escape(target)} <<'EOF'\n(.*?)\n          EOF"
+              match = re.search(pattern, source, re.S)
+              if not match:
+                  raise SystemExit(f'Frozen AFTER block missing: {target}')
+              lines = [line[10:] if line.startswith('          ') else line for line in match.group(1).splitlines()]
+              destination = Path('frontend') / target
+              destination.parent.mkdir(parents=True, exist_ok=True)
+              destination.write_text('\n'.join(lines) + '\n')
+          print('Versioned M6.4 AFTER scenario extracted')
+          PY
+
+      - name: Mirror production MobileProtectedRoute pairing gate
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          path = Path('frontend/src/mobile-m64-after.tsx')
+          source = path.read_text()
+          source = source.replace(
+              "import { MobileDashboard } from './features/mobile/Dashboard/MobileDashboard';",
+              "import { MobileDashboard } from './features/mobile/Dashboard/MobileDashboard';\nimport { MobileStorage } from './services/zka/MobileStorage';",
+          )
+          marker = "const params = new URLSearchParams(window.location.search);"
+          gate = """const PairedDashboard = () => {\n  const [gate, setGate] = React.useState<'loading' | 'allow' | 'redirect'>('loading');\n  React.useEffect(() => {\n    let active = true;\n    MobileStorage.isPaired()\n      .then(async paired => {\n        if (!active) return;\n        if (paired) { setGate('allow'); return; }\n        const hasCache = await MobileStorage.hasCachedSnapshot().catch(() => false);\n        if (active) setGate(hasCache ? 'allow' : 'redirect');\n      })\n      .catch(() => { if (active) setGate('redirect'); });\n    return () => { active = false; };\n  }, []);\n  if (gate === 'loading') return <div data-testid=\"mobile-pairing-gate\">Vérification de la session mobile…</div>;\n  if (gate === 'redirect') return <div data-testid=\"mobile-pairing-rejected\">Appairage requis</div>;\n  return <MobileDashboard />;\n};\n\n"""
+          if marker not in source:
+              raise SystemExit('M6.4 harness marker missing')
+          source = source.replace(marker, gate + marker)
+          source = source.replace(
+              '<Route path="/mobile/dashboard" element={<MobileDashboard />} />',
+              '<Route path="/mobile/dashboard" element={<PairedDashboard />} />',
+          )
+          path.write_text(source)
+          print('Production-equivalent mobile pairing gate injected')
+          PY
+
+      - name: Capture exact-head AFTER
+        working-directory: frontend
+        run: node mobile-m64-after.mjs
+
+      - name: Assert M6.4 E2E report gates
+        working-directory: frontend
+        run: |
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          report = json.loads(Path('mobile-m64-after-artifacts/report.json').read_text())
+          assert report['productHead'] == os.environ['PRODUCT_HEAD']
+          assert report['safePairingBodies'] is True
+          assert report['e2eFinance']['count'] == 3
+          assert report['e2eFinance']['allVisible'] is True
+          assert report['e2eFinance']['protocolObserved'] is True
+          assert len(report['captures']) == 13
+          assert all(not item['errors'] for item in report['captures'])
+          assert all(not item['metrics']['hasHorizontalOverflow'] for item in report['captures'])
+          assert all(
+              not item['metrics']['controlsBelow44']
+              for item in report['captures']
+              if item['state'] in {'bridge-default', 'bridge-visible-finance', 'onboarding', 'pairing-success-finance'}
+          )
+          print('M6.4 exact-head E2E PASS')
+          PY
+          cat > mobile-m64-after-artifacts/metadata.txt <<EOF
+          chantier=Digital Crown Mobile Full Experience
+          lot=M6.4 Contextual QR Bridge
+          product_head=${PRODUCT_HEAD}
+          viewports=390x844,430x932,768x1024,1280x900
+          e2e=onboarding->authenticated server destination->finance
+          deployment=none
+          EOF
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: mobile-m64-final-after
+          path: frontend/mobile-m64-after-artifacts/
           if-no-files-found: error
           retention-days: 14
