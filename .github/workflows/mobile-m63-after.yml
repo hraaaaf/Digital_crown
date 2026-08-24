@@ -22,10 +22,10 @@ jobs:
         with:
           ref: audit/mobile-m63-before-20260824
 
-      - name: Checkout exact M6.3 product HEAD
+      - name: Checkout current M6.3 product branch
         uses: actions/checkout@v4
         with:
-          ref: b1dd50e9a692f7a98da40a6b197123f150f6031c
+          ref: mobile/m63-patient-rdv-agenda
           path: product
 
       - name: Setup Node 20
@@ -269,11 +269,12 @@ jobs:
         if: always()
         run: |
           mkdir -p product/frontend/mobile-m63-after-artifacts
+          PRODUCT_HEAD=$(git -C product rev-parse HEAD)
           cat > product/frontend/mobile-m63-after-artifacts/metadata.txt <<EOF
           chantier=Digital Crown Mobile Full Experience
           lot=M6.3 Patient/RDV canonique + Agenda UX
           goal=AFTER exact-head modal tactile >=44px + patient canonical + agenda off-grid visibility
-          product_head=b1dd50e9a692f7a98da40a6b197123f150f6031c
+          product_head=${PRODUCT_HEAD}
           before_source=2b74c1181901e9e381fd543b6eee45fcb825a4cb
           mockup=.audit/mobile-m63-mockup.svg
           states=default,new-patient
