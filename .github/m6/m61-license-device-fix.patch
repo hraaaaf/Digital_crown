@@ -1,7 +1,7 @@
 diff --git a/backend/main.py b/backend/main.py
 --- a/backend/main.py
 +++ b/backend/main.py
-@@ -75,18 +75,33 @@ from fastapi.concurrency import run_in_threadpool
+@@ -75,15 +75,32 @@ from fastapi.concurrency import run_in_threadpool
 +def _effective_user_license_status(db, user):
 +    """Combine l'état propre du compte avec la licence source-of-truth du cabinet."""
 +    if not user:
@@ -46,7 +46,7 @@ diff --git a/backend/main.py b/backend/main.py
 -        else:
 -            return (True, "OK")
 +        return _effective_user_license_status(db, user)
-@@ -108,18 +123,7 @@ def _get_mobile_user_status_sync(user_id: int):
+@@ -108,18 +125,6 @@ def _get_mobile_user_status_sync(user_id: int):
      with database.SessionLocal() as db:
          user = db.query(models.User).filter(models.User.id == int(user_id)).first()
 -        if not user:
@@ -93,7 +93,7 @@ diff --git a/backend/tests/test_mobile_identity_security.py b/backend/tests/test
 +        is_licensed=licensed,
          employer_id=employer_id,
          permissions=permissions or {},
-@@ -202,13 +203,29 @@ def test_cabinet_revocation_invalidates_device_and_refresh(client, db, dentiste):
+@@ -202,13 +203,32 @@ def test_cabinet_revocation_invalidates_device_and_refresh(client, db, dentiste):
      assert device.revoked_at is not None
  
  def test_mobile_mutation_uses_numeric_subject_as_user_id(client, db, dentiste):
@@ -130,7 +130,7 @@ diff --git a/backend/tests/test_mobile_identity_security.py b/backend/tests/test
 diff --git a/backend/tests/test_mobile_revocation_epoch.py b/backend/tests/test_mobile_revocation_epoch.py
 --- a/backend/tests/test_mobile_revocation_epoch.py
 +++ b/backend/tests/test_mobile_revocation_epoch.py
-@@ -33,6 +33,22 @@ def _second_cabinet(db):
+@@ -33,5 +33,22 @@ def _second_cabinet(db):
      return user
  
  
@@ -152,7 +152,7 @@ diff --git a/backend/tests/test_mobile_revocation_epoch.py b/backend/tests/test_
 +
  def _snapshot(client, token: str):
      return client.get(
-@@ -43,7 +59,7 @@ def _snapshot(client, token: str):
+@@ -43,6 +60,6 @@ def _snapshot(client, token: str):
  
  
  def test_old_mobile_jwt_is_rejected_after_cabinet_revocation(client, db, dentiste):
@@ -160,7 +160,7 @@ diff --git a/backend/tests/test_mobile_revocation_epoch.py b/backend/tests/test_
 +    old_token = _paired_mobile_token(db, dentiste)
      assert _snapshot(client, old_token).status_code == 200
  
-@@ -53,10 +69,10 @@ def test_old_mobile_jwt_is_rejected_after_cabinet_revocation(client, db, dentiste):
+@@ -53,8 +70,8 @@ def test_old_mobile_jwt_is_rejected_after_cabinet_revocation(client, db, dentiste):
  
  
  def test_new_mobile_jwt_after_revocation_is_accepted(client, db, dentiste):
@@ -171,7 +171,7 @@ diff --git a/backend/tests/test_mobile_revocation_epoch.py b/backend/tests/test_
 +    new_token = _paired_mobile_token(db, dentiste)
  
      assert _snapshot(client, old_token).status_code == 401
-@@ -65,9 +81,9 @@ def test_new_mobile_jwt_after_revocation_is_accepted(client, db, dentiste):
+@@ -65,7 +82,7 @@ def test_new_mobile_jwt_after_revocation_is_accepted(client, db, dentiste):
  
  def test_revocation_is_tenant_scoped(client, db, dentiste):
      other = _second_cabinet(db)
@@ -181,7 +181,7 @@ diff --git a/backend/tests/test_mobile_revocation_epoch.py b/backend/tests/test_
 +    other_token = _paired_mobile_token(db, other)
  
      token_blacklist.revoke_mobile_access(dentiste.id, db)
-@@ -94,7 +110,7 @@ def test_admin_revoke_endpoint_rejects_existing_mobile_token(client, db, dentiste, auth_headers):
+@@ -94,6 +111,6 @@ def test_admin_revoke_endpoint_rejects_existing_mobile_token(client, db, dentiste, auth_headers):
      dentiste.permissions = {**(dentiste.permissions or {}), "admin": True}
      db.commit()
  
