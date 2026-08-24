@@ -1,0 +1,263 @@
+name: Portability P7 macOS Distribution Certification
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: portability-p7-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  PYTHON_VERSION: "3.12"
+  NODE_VERSION: "20"
+  P7_ASSET_REPO: "hraaaaf/Digital_crown"
+  P7_ASSET_TAG: "p6-scientific-assets-v1"
+  P7_ASSET_NAME: "p6-scientific-assets-v1.zip"
+
+jobs:
+  macos-package:
+    runs-on: macos-15
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Require Apple Silicon runner
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$(uname -m)" == "arm64" ]]
+          echo "P7_RUNNER_ARCH=arm64"
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Static macOS packaging contract
+        run: python scripts/p7_macos_packaging_check.py --static
+
+      - name: Require distribution credentials
+        shell: bash
+        env:
+          CERT_P12_B64: ${{ secrets.MACOS_DEVELOPER_ID_P12_B64 }}
+          CERT_PASSWORD: ${{ secrets.MACOS_DEVELOPER_ID_P12_PASSWORD }}
+          CODESIGN_IDENTITY: ${{ secrets.MACOS_CODESIGN_IDENTITY }}
+          NOTARY_KEY_B64: ${{ secrets.APPLE_NOTARY_KEY_P8_B64 }}
+          NOTARY_KEY_ID: ${{ secrets.APPLE_NOTARY_KEY_ID }}
+          NOTARY_ISSUER_ID: ${{ secrets.APPLE_NOTARY_ISSUER_ID }}
+          EXPECTED_SHA256: ${{ secrets.P6_SCIENTIFIC_BUNDLE_SHA256 }}
+        run: |
+          set -euo pipefail
+          for name in CERT_P12_B64 CERT_PASSWORD CODESIGN_IDENTITY NOTARY_KEY_B64 NOTARY_KEY_ID NOTARY_ISSUER_ID EXPECTED_SHA256; do
+            [[ -n "${!name:-}" ]] || { echo "Missing required secret: $name" >&2; exit 1; }
+          done
+          echo "P7_DISTRIBUTION_CREDENTIALS=READY"
+
+      - name: Build frontend
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm --prefix frontend ci
+          npm --prefix frontend run build
+          rm -rf frontend/node_modules
+          npm cache clean --force || true
+
+      - name: Install Python packaging toolchain
+        run: python -m pip install --no-cache-dir -r backend/requirements-p7-macos.txt
+
+      - name: Download scientific runtime bundle
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EXPECTED_SHA256: ${{ secrets.P6_SCIENTIFIC_BUNDLE_SHA256 }}
+        run: |
+          set -euo pipefail
+          mkdir -p .p7-assets
+          gh release download "$P7_ASSET_TAG" --repo "$P7_ASSET_REPO" --pattern "$P7_ASSET_NAME" --dir .p7-assets
+          python scripts/provision_p6_scientific_assets.py ".p7-assets/$P7_ASSET_NAME" --sha256 "$EXPECTED_SHA256"
+
+      - name: Generate native macOS icon
+        shell: bash
+        run: |
+          set -euo pipefail
+          python scripts/generate_macos_icon.py
+          iconutil -c icns build/macos/DigitalCrown.iconset -o build/macos/DigitalCrown.icns
+          test -s build/macos/DigitalCrown.icns
+
+      - name: Import Developer ID certificate
+        shell: bash
+        env:
+          CERT_P12_B64: ${{ secrets.MACOS_DEVELOPER_ID_P12_B64 }}
+          CERT_PASSWORD: ${{ secrets.MACOS_DEVELOPER_ID_P12_PASSWORD }}
+          CODESIGN_IDENTITY: ${{ secrets.MACOS_CODESIGN_IDENTITY }}
+        run: |
+          set -euo pipefail
+          KEYCHAIN="$RUNNER_TEMP/digitalcrown-signing.keychain-db"
+          KEYCHAIN_PASSWORD="$(openssl rand -hex 24)"
+          CERT_PATH="$RUNNER_TEMP/digitalcrown-developer-id.p12"
+          export CERT_PATH
+          python - <<'PY'
+          import base64, os
+          from pathlib import Path
+          Path(os.environ["CERT_PATH"]).write_bytes(base64.b64decode(os.environ["CERT_P12_B64"]))
+          PY
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN"
+          security import "$CERT_PATH" -k "$KEYCHAIN" -P "$CERT_PASSWORD" -A -t cert -f pkcs12
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN"
+          security default-keychain -s "$KEYCHAIN"
+          security find-identity -v -p codesigning "$KEYCHAIN" | grep -F "$CODESIGN_IDENTITY"
+          echo "DIGITALCROWN_CODESIGN_IDENTITY=$CODESIGN_IDENTITY" >> "$GITHUB_ENV"
+          echo "P7_SIGNING_KEYCHAIN=$KEYCHAIN" >> "$GITHUB_ENV"
+
+      - name: Build Developer ID signed arm64 app
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m PyInstaller --noconfirm --clean DigitalCrown.spec
+          python scripts/p7_macos_packaging_check.py --bundle dist/DigitalCrown.app
+          echo "P7_DEVELOPER_ID_APP=SUCCESS"
+
+      - name: Frozen package self-test
+        shell: bash
+        run: |
+          set -euo pipefail
+          dist/DigitalCrown.app/Contents/MacOS/DigitalCrown --package-self-test
+
+      - name: Build DMG
+        shell: bash
+        run: bash scripts/create_macos_dmg.sh
+
+      - name: Notarize and staple DMG
+        shell: bash
+        env:
+          NOTARY_KEY_B64: ${{ secrets.APPLE_NOTARY_KEY_P8_B64 }}
+          NOTARY_KEY_ID: ${{ secrets.APPLE_NOTARY_KEY_ID }}
+          NOTARY_ISSUER_ID: ${{ secrets.APPLE_NOTARY_ISSUER_ID }}
+        run: |
+          set -euo pipefail
+          VERSION="$(tr -d '[:space:]' < VERSION)"
+          DMG="dist_macos/DigitalCrown-${VERSION}-arm64.dmg"
+          KEY="$RUNNER_TEMP/AuthKey_${NOTARY_KEY_ID}.p8"
+          export KEY
+          python - <<'PY'
+          import base64, os
+          from pathlib import Path
+          Path(os.environ["KEY"]).write_bytes(base64.b64decode(os.environ["NOTARY_KEY_B64"]))
+          PY
+
+          xcrun notarytool submit "$DMG" \
+            --key "$KEY" \
+            --key-id "$NOTARY_KEY_ID" \
+            --issuer "$NOTARY_ISSUER_ID" \
+            --wait \
+            --output-format json > build/macos/notary-result.json
+
+          NOTARY_ID="$(python - <<'PY'
+          import json
+          from pathlib import Path
+          result = json.loads(Path("build/macos/notary-result.json").read_text())
+          if result.get("status") != "Accepted":
+              raise SystemExit(f"Notarization not accepted: {result}")
+          print(result["id"])
+          PY
+          )"
+          echo "P7_NOTARIZATION=ACCEPTED id=$NOTARY_ID"
+
+          xcrun notarytool log "$NOTARY_ID" \
+            --key "$KEY" \
+            --key-id "$NOTARY_KEY_ID" \
+            --issuer "$NOTARY_ISSUER_ID" \
+            build/macos/notary-log.json
+
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          payload = json.loads(Path("build/macos/notary-log.json").read_text())
+          issues = payload.get("issues") or []
+          errors = [x for x in issues if str(x.get("severity", "")).lower() == "error"]
+          if errors:
+              raise SystemExit(f"Notary log contains errors: {errors}")
+          print(f"P7_NOTARY_LOG=SUCCESS issues={len(issues)}")
+          PY
+
+          xcrun stapler staple "$DMG"
+          xcrun stapler validate "$DMG"
+          spctl --assess --type open --context context:primary-signature --verbose=4 "$DMG"
+          echo "P7_STAPLE_GATEKEEPER=SUCCESS"
+
+      - name: Clean install / runtime / upgrade / uninstall smoke
+        shell: bash
+        run: |
+          set -euo pipefail
+          VERSION="$(tr -d '[:space:]' < VERSION)"
+          DMG="$PWD/dist_macos/DigitalCrown-${VERSION}-arm64.dmg"
+          MOUNT="$RUNNER_TEMP/dc-p7-mount"
+          APPS="$RUNNER_TEMP/dc-p7-applications"
+          DATA="$RUNNER_TEMP/dc-p7-cabinet"
+          mkdir -p "$MOUNT" "$APPS" "$DATA"
+          hdiutil attach "$DMG" -mountpoint "$MOUNT" -nobrowse -readonly
+          trap 'hdiutil detach "$MOUNT" -force >/dev/null 2>&1 || true' EXIT
+          ditto "$MOUNT/DigitalCrown.app" "$APPS/DigitalCrown.app"
+          spctl --assess --type execute --verbose=4 "$APPS/DigitalCrown.app"
+          "$APPS/DigitalCrown.app/Contents/MacOS/DigitalCrown" --package-self-test
+
+          echo -n "preserve-me" > "$DATA/P7_DATA_SENTINEL.txt"
+          export DIGITALCROWN_USER_DATA_DIR="$DATA"
+          export DIGITALCROWN_CONFIG_DIR="$DATA"
+          export DIGITALCROWN_LOG_DIR="$DATA/logs"
+          export DIGITALCROWN_RUNTIME_DIR="$DATA/runtime"
+          export CABINET_PORT="8766"
+          export DIGITALCROWN_RESTORE_RESTART="1"
+
+          "$APPS/DigitalCrown.app/Contents/MacOS/DigitalCrown" &
+          PID=$!
+          cleanup_runtime() { kill "$PID" >/dev/null 2>&1 || true; wait "$PID" >/dev/null 2>&1 || true; }
+          trap 'cleanup_runtime; hdiutil detach "$MOUNT" -force >/dev/null 2>&1 || true' EXIT
+
+          ok=0
+          for _ in $(seq 1 60); do
+            if curl -fsS "http://127.0.0.1:8766/health" | python -c 'import json,sys; raise SystemExit(0 if json.load(sys.stdin).get("status")=="ok" else 1)' 2>/dev/null; then
+              ok=1
+              break
+            fi
+            sleep 2
+          done
+          [[ "$ok" == "1" ]] || { echo "frozen runtime health failed" >&2; exit 1; }
+          cleanup_runtime
+
+          rm -rf "$APPS/DigitalCrown.app"
+          ditto "$MOUNT/DigitalCrown.app" "$APPS/DigitalCrown.app"
+          "$APPS/DigitalCrown.app/Contents/MacOS/DigitalCrown" --package-self-test
+
+          rm -rf "$APPS/DigitalCrown.app"
+          [[ -f "$DATA/P7_DATA_SENTINEL.txt" ]] || { echo "cabinet data sentinel was deleted" >&2; exit 1; }
+          echo "P7_MACOS_INSTALL_SMOKE=SUCCESS"
+
+      - name: Upload macOS distribution proof
+        uses: actions/upload-artifact@v4
+        with:
+          name: digitalcrown-p7-macos-arm64-notarized
+          path: |
+            dist_macos/*.dmg
+            build/macos/notary-result.json
+            build/macos/notary-log.json
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Cleanup temporary signing keychain
+        if: always()
+        shell: bash
+        run: |
+          if [[ -n "${P7_SIGNING_KEYCHAIN:-}" ]]; then
+            security delete-keychain "$P7_SIGNING_KEYCHAIN" || true
+          fi
