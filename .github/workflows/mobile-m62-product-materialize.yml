@@ -1,0 +1,96 @@
+name: Mobile M6.2 Product Materialize
+
+on:
+  push:
+    branches: [audit/mobile-m6-generator]
+    paths: [.github/workflows/mobile-m62-product-materialize.yml]
+
+permissions:
+  contents: write
+
+jobs:
+  materialize:
+    runs-on: ubuntu-latest
+    env:
+      BASE_SHA: 7774cecf1b33650b5a302eff72e2a8c033438d4c
+      PRODUCT_BRANCH: mobile/m6-offline-truth
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: audit/mobile-m6-generator
+          fetch-depth: 0
+
+      - name: Build exact M6.2 product candidate
+        run: |
+          set -euo pipefail
+          git fetch origin master "$PRODUCT_BRANCH"
+          test "$(git rev-parse origin/master)" = "$BASE_SHA"
+          test "$(git rev-parse origin/$PRODUCT_BRANCH)" = "$BASE_SHA"
+
+          git worktree add --detach /tmp/m62-product "$BASE_SHA"
+          cd /tmp/m62-product
+          python "$GITHUB_WORKSPACE/.github/m6/m62_transform.py"
+          python "$GITHUB_WORKSPACE/.github/m6/m62_network_truth_guard.py"
+          python "$GITHUB_WORKSPACE/.github/m6/m62_behavior_tests.py"
+
+          python -m py_compile backend/routers/mobile_legacy.py backend/tests/test_mobile_router.py
+          git diff --check
+
+          git add -N \
+            frontend/src/services/zka/mobileFetch.ts \
+            frontend/src/test/mobileM62OfflineTruth.test.ts \
+            frontend/src/test/mobileM62Behavior.test.ts
+          git diff --name-only | sort > /tmp/actual-paths
+          cat > /tmp/expected-paths <<'EOF'
+          backend/routers/mobile_legacy.py
+          backend/tests/test_mobile_router.py
+          frontend/public/sw.js
+          frontend/src/features/mobile/Dashboard/hooks/useMobileDashboard.ts
+          frontend/src/features/mobile/Dashboard/views/DentistsView.tsx
+          frontend/src/features/mobile/Dashboard/views/MobileSuperAdminView.tsx
+          frontend/src/main.tsx
+          frontend/src/services/api.ts
+          frontend/src/services/zka/MobileStorage.ts
+          frontend/src/services/zka/mobileFetch.ts
+          frontend/src/test/mobileM62Behavior.test.ts
+          frontend/src/test/mobileM62OfflineTruth.test.ts
+          frontend/vite.config.ts
+          EOF
+          sed -i 's/^          //' /tmp/expected-paths
+          diff -u /tmp/expected-paths /tmp/actual-paths
+
+          test ! -e frontend/public/sw.js
+          grep -q "runtimeCaching: \[\]" frontend/vite.config.ts
+          ! grep -q "serviceWorker.register('/sw.js')" frontend/src/main.tsx
+          grep -q 'zka_action_queue_v2' frontend/src/services/zka/MobileStorage.ts
+          grep -q 'cabinetPublicId' frontend/src/services/zka/MobileStorage.ts
+          grep -q 'deviceId' frontend/src/services/zka/MobileStorage.ts
+          grep -q 'MobileStorage.refreshCredentials()' frontend/src/services/api.ts
+          grep -q 'isQueueableNetworkError' frontend/src/features/mobile/Dashboard/hooks/useMobileDashboard.ts
+          grep -q 'X-Mobile-Action-Id' frontend/src/features/mobile/Dashboard/hooks/useMobileDashboard.ts
+          grep -q "already_absent': True" backend/routers/mobile_legacy.py
+          grep -q 'does not refresh or clear the session for a server 500 response' frontend/src/test/mobileM62Behavior.test.ts
+
+      - name: Publish one exact product commit
+        run: |
+          set -euo pipefail
+          cd /tmp/m62-product
+          git config user.name "Digital Crown M6 Offline"
+          git config user.email "123034021+hraaaaf@users.noreply.github.com"
+          git add -- \
+            backend/routers/mobile_legacy.py \
+            backend/tests/test_mobile_router.py \
+            frontend/public/sw.js \
+            frontend/src/features/mobile/Dashboard/hooks/useMobileDashboard.ts \
+            frontend/src/features/mobile/Dashboard/views/DentistsView.tsx \
+            frontend/src/features/mobile/Dashboard/views/MobileSuperAdminView.tsx \
+            frontend/src/main.tsx \
+            frontend/src/services/api.ts \
+            frontend/src/services/zka/MobileStorage.ts \
+            frontend/src/services/zka/mobileFetch.ts \
+            frontend/src/test/mobileM62Behavior.test.ts \
+            frontend/src/test/mobileM62OfflineTruth.test.ts \
+            frontend/vite.config.ts
+          test "$(git diff --cached --name-only | wc -l)" -eq 13
+          git commit -m "fix(mobile): unify offline truth and device-bound replay"
+          git push --force-with-lease="refs/heads/$PRODUCT_BRANCH:$BASE_SHA" origin "HEAD:refs/heads/$PRODUCT_BRANCH"
