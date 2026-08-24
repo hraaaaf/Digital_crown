@@ -51,7 +51,7 @@ afterEach(() => {
 });
 
 describe('Mobile M6.2 behavior', () => {
-  it('scopes queued actions to the paired cabinet and device', async () => {
+  it('scopes queued actions to the paired cabinet and device and drops the legacy queue', async () => {
     await MobileStorage.saveCredentials(credentials());
     await MobileStorage.enqueueAction(
       'http://127.0.0.1:8005/api/mobile/appointments/7/status',
@@ -69,7 +69,9 @@ describe('Mobile M6.2 behavior', () => {
       cabinetPublicId: 'ffffffffffffffff',
       deviceId: 'device-other',
     }]);
+    memory.store.set('zka_action_queue', [{ id: 'legacy-unscoped' }]);
     expect(await MobileStorage.getActionQueue()).toEqual([]);
+    expect(memory.store.has('zka_action_queue')).toBe(false);
   });
 
   it('purges the queue when the paired device changes', async () => {
@@ -130,6 +132,17 @@ describe('Mobile M6.2 behavior', () => {
     expect(fetchMock).toHaveBeenCalledTimes(2);
     expect(await MobileStorage.getCredentials()).toBeNull();
     expect(memory.store.has('zka_action_queue_v2')).toBe(false);
+  });
+
+  it('does not refresh or clear the session for a server 500 response', async () => {
+    await MobileStorage.saveCredentials(credentials());
+    const fetchMock = vi.fn().mockResolvedValueOnce({ status: 500, ok: false });
+    vi.stubGlobal('fetch', fetchMock);
+
+    const response = await mobileFetch('http://127.0.0.1:8005/api/mobile/dentists');
+    expect(response.status).toBe(500);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect((await MobileStorage.getCredentials())?.device_id).toBe('device-a');
   });
 });
 ''')
