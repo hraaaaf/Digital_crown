@@ -1,0 +1,122 @@
+name: Mobile M6.4 Final Exact-Head AFTER
+
+on:
+  push:
+    branches:
+      - "audit/mobile-m64-before-20260824"
+    paths:
+      - ".github/workflows/mobile-m64-after-final.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  capture:
+    name: M6.4 final exact-head visual + E2E
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout audit evidence branch
+        uses: actions/checkout@v4
+
+      - name: Checkout exact product branch
+        uses: actions/checkout@v4
+        with:
+          ref: mobile/m64-contextual-qr-bridge
+          path: product
+
+      - name: Verify exact final product HEAD
+        run: |
+          PRODUCT_HEAD=$(git -C product rev-parse HEAD)
+          test "$PRODUCT_HEAD" = "5152ba2eadf3854d2949ec6b2369d3b87d1553cb"
+          echo "PRODUCT_HEAD=$PRODUCT_HEAD" >> "$GITHUB_ENV"
+
+      - name: Setup Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: product/frontend/package-lock.json
+
+      - name: Install frontend and Chromium
+        working-directory: product/frontend
+        run: |
+          npm ci
+          npm install --no-save --package-lock=false playwright@1.55.0
+          npx playwright install --with-deps chromium
+
+      - name: Reuse the frozen M6.4 AFTER scenario
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import re
+
+          source = Path('.github/workflows/mobile-m64-after.yml').read_text()
+          targets = [
+              'mobile-m64-after.html',
+              'src/mobile-m64-after.tsx',
+              'mobile-m64-after.mjs',
+          ]
+          for target in targets:
+              pattern = rf"cat > {re.escape(target)} <<'EOF'\n(.*?)\n          EOF"
+              match = re.search(pattern, source, re.S)
+              if not match:
+                  raise SystemExit(f'Frozen AFTER block missing: {target}')
+              lines = []
+              for line in match.group(1).splitlines():
+                  lines.append(line[10:] if line.startswith('          ') else line)
+              destination = Path('product/frontend') / target
+              destination.parent.mkdir(parents=True, exist_ok=True)
+              destination.write_text('\n'.join(lines) + '\n')
+          print('Frozen M6.4 AFTER scenario extracted')
+          PY
+
+      - name: Capture exact-head AFTER
+        working-directory: product/frontend
+        run: node mobile-m64-after.mjs
+
+      - name: Assert report belongs to final HEAD
+        working-directory: product/frontend
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          report = json.loads(Path('mobile-m64-after-artifacts/report.json').read_text())
+          assert report['productHead'] == '5152ba2eadf3854d2949ec6b2369d3b87d1553cb'
+          assert report['safePairingBodies'] is True
+          assert report['e2eFinance']['count'] == 3
+          assert report['e2eFinance']['allVisible'] is True
+          assert report['e2eFinance']['protocolObserved'] is True
+          assert len(report['captures']) == 13
+          assert all(not item['errors'] for item in report['captures'])
+          assert all(not item['metrics']['hasHorizontalOverflow'] for item in report['captures'])
+          print('M6.4 final AFTER report gates PASS')
+          PY
+          cat > mobile-m64-after-artifacts/metadata.txt <<EOF
+          chantier=Digital Crown Mobile Full Experience
+          lot=M6.4 Contextual QR Bridge
+          product_head=${PRODUCT_HEAD}
+          product_branch=mobile/m64-contextual-qr-bridge
+          viewports=390x844,430x932,768x1024,1280x900
+          e2e=onboarding->authenticated server destination->finance
+          deployment=none
+          EOF
+
+      - name: Upload final AFTER artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: mobile-m64-final-after
+          path: product/frontend/mobile-m64-after-artifacts/
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Publish observable final AFTER evidence
+        run: |
+          rm -rf .audit/mobile-m64-after-final
+          mkdir -p .audit/mobile-m64-after-final
+          cp -a product/frontend/mobile-m64-after-artifacts/. .audit/mobile-m64-after-final/
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add .audit/mobile-m64-after-final
+          git commit -m "audit(m6.4): publish final exact-head AFTER [M64 AFTER final]"
+          git push origin HEAD:audit/mobile-m64-before-20260824
