@@ -1,0 +1,77 @@
+name: Portability P5 Native Dependency Certification
+
+on:
+  pull_request:
+    paths:
+      - "backend/requirements.txt"
+      - "backend/requirements-p5-native.txt"
+      - "backend/scientific_assets.json"
+      - "backend/services/sota_vision_service.py"
+      - "scripts/portability_p5_check.py"
+      - ".github/workflows/portability-p5-native-cert.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: portability-p5-native-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  native-runtime:
+    name: Native runtime (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Provision WeasyPrint native libraries on Windows
+        id: msys2
+        if: runner.os == 'Windows'
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: MINGW64
+          update: true
+          install: mingw-w64-x86_64-pango
+
+      - name: Expose WeasyPrint native libraries on Windows
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $dllDir = "${{ steps.msys2.outputs.msys2-location }}\mingw64\bin"
+          if (-not (Test-Path "$dllDir\libgobject-2.0-0.dll")) {
+            throw "WeasyPrint native DLL missing: $dllDir\libgobject-2.0-0.dll"
+          }
+          "WEASYPRINT_DLL_DIRECTORIES=$dllDir" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+
+      - name: Provision WeasyPrint native libraries on macOS
+        if: runner.os == 'macOS'
+        run: |
+          brew install pango
+          echo "DYLD_FALLBACK_LIBRARY_PATH=/opt/homebrew/lib:${DYLD_FALLBACK_LIBRARY_PATH:-}" >> "$GITHUB_ENV"
+
+      - name: Upgrade pip
+        run: python -m pip install --upgrade pip
+
+      - name: Install native scientific certification dependencies
+        run: python -m pip install -r backend/requirements-p5-native.txt
+
+      - name: Compile P5 runtime boundaries and harness
+        run: >-
+          python -m py_compile
+          backend/core/paths.py
+          backend/services/sota_vision_service.py
+          scripts/portability_p5_check.py
+
+      - name: Execute native runtime certification
+        run: python scripts/portability_p5_check.py --runtime
+
+      - name: Require Apple Silicon on macOS
+        if: runner.os == 'macOS'
+        run: python scripts/portability_p5_check.py --expect-apple-silicon

@@ -1,0 +1,57 @@
+{
+  "schema_version": 1,
+  "status": "unprovisioned",
+  "assets": [
+    {
+      "id": "cephalo_sota",
+      "kind": "model",
+      "candidates": [
+        "backend/ai_models/model.onnx",
+        "backend/ai_models/cephalometric_sota/model.onnx"
+      ],
+      "sha256": null,
+      "provenance": null,
+      "required_for_final": true
+    },
+    {
+      "id": "cephalo_legacy",
+      "kind": "model",
+      "candidates": [
+        "backend/ai_models/cephld_cca/ceph_weights.pth"
+      ],
+      "sha256": null,
+      "provenance": null,
+      "required_for_final": true
+    },
+    {
+      "id": "panoramic",
+      "kind": "model",
+      "candidates": [
+        "backend/ai_models/panoramic_model.onnx"
+      ],
+      "sha256": null,
+      "provenance": null,
+      "required_for_final": true
+    },
+    {
+      "id": "cephalo_reference",
+      "kind": "fixture",
+      "candidates": [
+        "tests/fixtures/scientific/cephalo_reference.png"
+      ],
+      "sha256": null,
+      "provenance": null,
+      "required_for_final": true
+    },
+    {
+      "id": "panoramic_reference",
+      "kind": "fixture",
+      "candidates": [
+        "tests/fixtures/scientific/panoramic_reference.png"
+      ],
+      "sha256": null,
+      "provenance": null,
+      "required_for_final": true
+    }
+  ]
+}
