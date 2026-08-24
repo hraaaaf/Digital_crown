@@ -1,0 +1,120 @@
+name: Mobile M6.4 Final E2E Certification
+
+on:
+  pull_request:
+    branches: [master]
+    paths:
+      - ".github/workflows/mobile-m64-after-pr.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  capture:
+    name: M6.4 exact-head visual + E2E
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout audit PR
+        uses: actions/checkout@v4
+
+      - name: Checkout frozen M6.4 scenario source
+        uses: actions/checkout@v4
+        with:
+          ref: audit/mobile-m64-before-20260824
+          path: evidence
+
+      - name: Checkout exact product branch
+        uses: actions/checkout@v4
+        with:
+          ref: mobile/m64-contextual-qr-bridge
+          path: product
+
+      - name: Verify exact product HEAD
+        run: |
+          PRODUCT_HEAD=$(git -C product rev-parse HEAD)
+          test "$PRODUCT_HEAD" = "269f65b6475a0333bb70cf3ddcf1f0753d2eceae"
+          echo "PRODUCT_HEAD=$PRODUCT_HEAD" >> "$GITHUB_ENV"
+
+      - name: Setup Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: product/frontend/package-lock.json
+
+      - name: Install frontend and Chromium
+        working-directory: product/frontend
+        run: |
+          npm ci
+          npm install --no-save --package-lock=false playwright@1.55.0
+          npx playwright install --with-deps chromium
+
+      - name: Reuse frozen M6.4 AFTER scenario
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import re
+
+          source = Path('evidence/.github/workflows/mobile-m64-after.yml').read_text()
+          targets = [
+              'mobile-m64-after.html',
+              'src/mobile-m64-after.tsx',
+              'mobile-m64-after.mjs',
+          ]
+          for target in targets:
+              pattern = rf"cat > {re.escape(target)} <<'EOF'\n(.*?)\n          EOF"
+              match = re.search(pattern, source, re.S)
+              if not match:
+                  raise SystemExit(f'Frozen AFTER block missing: {target}')
+              lines = []
+              for line in match.group(1).splitlines():
+                  lines.append(line[10:] if line.startswith('          ') else line)
+              destination = Path('product/frontend') / target
+              destination.parent.mkdir(parents=True, exist_ok=True)
+              destination.write_text('\n'.join(lines) + '\n')
+          print('Frozen M6.4 AFTER scenario extracted')
+          PY
+
+      - name: Capture exact-head AFTER
+        working-directory: product/frontend
+        run: node mobile-m64-after.mjs
+
+      - name: Assert final report gates
+        working-directory: product/frontend
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          report = json.loads(Path('mobile-m64-after-artifacts/report.json').read_text())
+          assert report['productHead'] == '269f65b6475a0333bb70cf3ddcf1f0753d2eceae'
+          assert report['safePairingBodies'] is True
+          assert report['e2eFinance']['count'] == 3
+          assert report['e2eFinance']['allVisible'] is True
+          assert report['e2eFinance']['protocolObserved'] is True
+          assert len(report['captures']) == 13
+          assert all(not item['errors'] for item in report['captures'])
+          assert all(not item['metrics']['hasHorizontalOverflow'] for item in report['captures'])
+          assert all(
+              not item['metrics']['controlsBelow44']
+              for item in report['captures']
+              if item['state'] in {'bridge-default', 'bridge-visible-finance', 'onboarding', 'pairing-success-finance'}
+          )
+          print('M6.4 final exact-head AFTER PASS')
+          PY
+          cat > mobile-m64-after-artifacts/metadata.txt <<EOF
+          chantier=Digital Crown Mobile Full Experience
+          lot=M6.4 Contextual QR Bridge
+          product_head=${PRODUCT_HEAD}
+          product_branch=mobile/m64-contextual-qr-bridge
+          viewports=390x844,430x932,768x1024,1280x900
+          e2e=onboarding->authenticated server destination->finance
+          deployment=none
+          EOF
+
+      - name: Upload observable AFTER
+        uses: actions/upload-artifact@v4
+        with:
+          name: mobile-m64-final-after
+          path: product/frontend/mobile-m64-after-artifacts/
+          if-no-files-found: error
+          retention-days: 14
