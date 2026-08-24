@@ -1,0 +1,287 @@
+{
+  "metrics": {
+    "viewport": {
+      "width": 430,
+      "height": 932
+    },
+    "scrollWidth": 430,
+    "clientWidth": 430,
+    "hasHorizontalOverflow": false,
+    "offenders": [],
+    "modalRect": {
+      "top": 287,
+      "bottom": 645,
+      "height": 358,
+      "width": 384
+    },
+    "visibleControls": [
+      {
+        "tag": "BUTTON",
+        "text": "Live",
+        "width": 81,
+        "height": 32
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "width": 20,
+        "height": 20
+      },
+      {
+        "tag": "INPUT",
+        "text": "",
+        "width": 117,
+        "height": 16
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "width": 20,
+        "height": 20
+      },
+      {
+        "tag": "BUTTON",
+        "text": "Comment installer sur iPhone ?",
+        "width": 364,
+        "height": 40
+      },
+      {
+        "tag": "BUTTON",
+        "text": "jour",
+        "width": 126,
+        "height": 33
+      },
+      {
+        "tag": "BUTTON",
+        "text": "semaine",
+        "width": 124,
+        "height": 32
+      },
+      {
+        "tag": "BUTTON",
+        "text": "mois",
+        "width": 124,
+        "height": 32
+      },
+      {
+        "tag": "BUTTON",
+        "text": "09:00Sara El AmraniConsultation · 30min Terminé",
+        "width": 300,
+        "height": 96
+      },
+      {
+        "tag": "BUTTON",
+        "text": "10:30Youssef BenaliContrôle · 45min En cours",
+        "width": 300,
+        "height": 96
+      },
+      {
+        "tag": "BUTTON",
+        "text": "14:00Meryem TaziDétartrage · 40min Planifié",
+        "width": 300,
+        "height": 96
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "width": 56,
+        "height": 56
+      },
+      {
+        "tag": "BUTTON",
+        "text": "+ Nouveau",
+        "width": 72,
+        "height": 15
+      },
+      {
+        "tag": "SELECT",
+        "text": "Sélectionner un patient...Sara El AmraniYoussef BenaliMeryem Tazi",
+        "width": 342,
+        "height": 38
+      },
+      {
+        "tag": "SELECT",
+        "text": "ConsultationContrôleDétartrageUrgenceSoinsExtractionOrthodontie--- Prothèse ---P",
+        "width": 342,
+        "height": 38
+      },
+      {
+        "tag": "INPUT",
+        "text": "",
+        "width": 165,
+        "height": 39
+      },
+      {
+        "tag": "INPUT",
+        "text": "",
+        "width": 165,
+        "height": 38
+      },
+      {
+        "tag": "BUTTON",
+        "text": "Annuler",
+        "width": 168,
+        "height": 38
+      },
+      {
+        "tag": "BUTTON",
+        "text": "Ajouter",
+        "width": 166,
+        "height": 38
+      },
+      {
+        "tag": "BUTTON",
+        "text": "Agenda",
+        "width": 55,
+        "height": 40
+      },
+      {
+        "tag": "BUTTON",
+        "text": "Finance",
+        "width": 51,
+        "height": 39
+      },
+      {
+        "tag": "BUTTON",
+        "text": "Envois Labo",
+        "width": 82,
+        "height": 39
+      },
+      {
+        "tag": "BUTTON",
+        "text": "Assistant",
+        "width": 68,
+        "height": 39
+      },
+      {
+        "tag": "BUTTON",
+        "text": "Sécurité",
+        "width": 59,
+        "height": 39
+      }
+    ],
+    "controlsBelow44": [
+      {
+        "tag": "BUTTON",
+        "text": "Live",
+        "width": 81,
+        "height": 32
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "width": 20,
+        "height": 20
+      },
+      {
+        "tag": "INPUT",
+        "text": "",
+        "width": 117,
+        "height": 16
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "width": 20,
+        "height": 20
+      },
+      {
+        "tag": "BUTTON",
+        "text": "Comment installer sur iPhone ?",
+        "width": 364,
+        "height": 40
+      },
+      {
+        "tag": "BUTTON",
+        "text": "jour",
+        "width": 126,
+        "height": 33
+      },
+      {
+        "tag": "BUTTON",
+        "text": "semaine",
+        "width": 124,
+        "height": 32
+      },
+      {
+        "tag": "BUTTON",
+        "text": "mois",
+        "width": 124,
+        "height": 32
+      },
+      {
+        "tag": "BUTTON",
+        "text": "+ Nouveau",
+        "width": 72,
+        "height": 15
+      },
+      {
+        "tag": "SELECT",
+        "text": "Sélectionner un patient...Sara El AmraniYoussef BenaliMeryem Tazi",
+        "width": 342,
+        "height": 38
+      },
+      {
+        "tag": "SELECT",
+        "text": "ConsultationContrôleDétartrageUrgenceSoinsExtractionOrthodontie--- Prothèse ---P",
+        "width": 342,
+        "height": 38
+      },
+      {
+        "tag": "INPUT",
+        "text": "",
+        "width": 165,
+        "height": 39
+      },
+      {
+        "tag": "INPUT",
+        "text": "",
+        "width": 165,
+        "height": 38
+      },
+      {
+        "tag": "BUTTON",
+        "text": "Annuler",
+        "width": 168,
+        "height": 38
+      },
+      {
+        "tag": "BUTTON",
+        "text": "Ajouter",
+        "width": 166,
+        "height": 38
+      },
+      {
+        "tag": "BUTTON",
+        "text": "Agenda",
+        "width": 55,
+        "height": 40
+      },
+      {
+        "tag": "BUTTON",
+        "text": "Finance",
+        "width": 51,
+        "height": 39
+      },
+      {
+        "tag": "BUTTON",
+        "text": "Envois Labo",
+        "width": 82,
+        "height": 39
+      },
+      {
+        "tag": "BUTTON",
+        "text": "Assistant",
+        "width": 68,
+        "height": 39
+      },
+      {
+        "tag": "BUTTON",
+        "text": "Sécurité",
+        "width": 59,
+        "height": 39
+      }
+    ]
+  },
+  "errors": []
+}

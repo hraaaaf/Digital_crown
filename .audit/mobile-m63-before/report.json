@@ -1,0 +1,1838 @@
+[
+  {
+    "state": "default",
+    "width": 390,
+    "height": 844,
+    "metrics": {
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "scrollWidth": 390,
+      "clientWidth": 390,
+      "hasHorizontalOverflow": false,
+      "offenders": [],
+      "modalRect": {
+        "top": 243,
+        "bottom": 601,
+        "height": 358,
+        "width": 358
+      },
+      "visibleControls": [
+        {
+          "tag": "BUTTON",
+          "text": "Live",
+          "width": 81,
+          "height": 32
+        },
+        {
+          "tag": "BUTTON",
+          "text": "",
+          "width": 20,
+          "height": 20
+        },
+        {
+          "tag": "INPUT",
+          "text": "",
+          "width": 117,
+          "height": 16
+        },
+        {
+          "tag": "BUTTON",
+          "text": "",
+          "width": 20,
+          "height": 20
+        },
+        {
+          "tag": "BUTTON",
+          "text": "Comment installer sur iPhone ?",
+          "width": 324,
+          "height": 40
+        },
+        {
+          "tag": "BUTTON",
+          "text": "jour",
+          "width": 113,
+          "height": 33
+        },
+        {
+          "tag": "BUTTON",
+          "text": "semaine",
+          "width": 111,
+          "height": 32
+        },
+        {
+          "tag": "BUTTON",
+          "text": "mois",
+          "width": 111,
+          "height": 32
+        },
+        {
+          "tag": "BUTTON",
+          "text": "09:00Sara El AmraniConsultation · 30min Terminé",
+          "width": 260,
+          "height": 96
+        },
+        {
+          "tag": "BUTTON",
+          "text": "10:30Youssef BenaliContrôle · 45min En cours",
+          "width": 260,
+          "height": 96
+        },
+        {
+          "tag": "BUTTON",
+          "text": "14:00Meryem TaziDétartrage · 40min Planifié",
+          "width": 260,
+          "height": 96
+        },
+        {
+          "tag": "BUTTON",
+          "text": "",
+          "width": 56,
+          "height": 56
+        },
+        {
+          "tag": "BUTTON",
+          "text": "+ Nouveau",
+          "width": 72,
+          "height": 15
+        },
+        {
+          "tag": "SELECT",
+          "text": "Sélectionner un patient...Sara El AmraniYoussef BenaliMeryem Tazi",
+          "width": 316,
+          "height": 38
+        },
+        {
+          "tag": "SELECT",
+          "text": "ConsultationContrôleDétartrageUrgenceSoinsExtractionOrthodontie--- Prothèse ---P",
+          "width": 316,
+          "height": 38
+        },
+        {
+          "tag": "INPUT",
+          "text": "",
+          "width": 152,
+          "height": 39
+        },
+        {
+          "tag": "INPUT",
+          "text": "",
+          "width": 152,
+          "height": 38
+        },
+        {
+          "tag": "BUTTON",
+          "text": "Annuler",
+          "width": 155,
+          "height": 38
+        },
+        {
+          "tag": "BUTTON",
+          "text": "Ajouter",
+          "width": 153,
+          "height": 38
+        },
+        {
+          "tag": "BUTTON",
+          "text": "Agenda",
+          "width": 55,
+          "height": 40
+        },
+        {
+          "tag": "BUTTON",
+          "text": "Finance",
+          "width": 51,
+          "height": 39
+        },
+        {
+          "tag": "BUTTON",
+          "text": "Envois Labo",
+          "width": 61,
+          "height": 52
+        },
+        {
+          "tag": "BUTTON",
+          "text": "Assistant",
+          "width": 68,
+          "height": 39
+        },
+        {
+          "tag": "BUTTON",
+          "text": "Sécurité",
+          "width": 59,
+          "height": 39
+        }
+      ],
+      "controlsBelow44": [
+        {
+          "tag": "BUTTON",
+          "text": "Live",
+          "width": 81,
+          "height": 32
+        },
+        {
+          "tag": "BUTTON",
+          "text": "",
+          "width": 20,
+          "height": 20
+        },
+        {
+          "tag": "INPUT",
+          "text": "",
+          "width": 117,
+          "height": 16
+        },
+        {
+          "tag": "BUTTON",
+          "text": "",
+          "width": 20,
+          "height": 20
+        },
+        {
+          "tag": "BUTTON",
+          "text": "Comment installer sur iPhone ?",
+          "width": 324,
+          "height": 40
+        },
+        {
+          "tag": "BUTTON",
+          "text": "jour",
+          "width": 113,
+          "height": 33
+        },
+        {
+          "tag": "BUTTON",
+          "text": "semaine",
+          "width": 111,
+          "height": 32
+        },
+        {
+          "tag": "BUTTON",
+          "text": "mois",
+          "width": 111,
+          "height": 32
+        },
+        {
+          "tag": "BUTTON",
+          "text": "+ Nouveau",
+          "width": 72,
+          "height": 15
+        },
+        {
+          "tag": "SELECT",
+          "text": "Sélectionner un patient...Sara El AmraniYoussef BenaliMeryem Tazi",
+          "width": 316,
+          "height": 38
+        },
+        {
+          "tag": "SELECT",
+          "text": "ConsultationContrôleDétartrageUrgenceSoinsExtractionOrthodontie--- Prothèse ---P",
+          "width": 316,
+          "height": 38
+        },
+        {
+          "tag": "INPUT",
+          "text": "",
+          "width": 152,
+          "height": 39
+        },
+        {
+          "tag": "INPUT",
+          "text": "",
+          "width": 152,
+          "height": 38
+        },
+        {
+          "tag": "BUTTON",
+          "text": "Annuler",
+          "width": 155,
+          "height": 38
+        },
+        {
+          "tag": "BUTTON",
+          "text": "Ajouter",
+          "width": 153,
+          "height": 38
+        },
+        {
+          "tag": "BUTTON",
+          "text": "Agenda",
+          "width": 55,
+          "height": 40
+        },
+        {
+          "tag": "BUTTON",
+          "text": "Finance",
+          "width": 51,
+          "height": 39
+        },
+        {
+          "tag": "BUTTON",
+          "text": "Assistant",
+          "width": 68,
+          "height": 39
+        },
+        {
+          "tag": "BUTTON",
+          "text": "Sécurité",
+          "width": 59,
+          "height": 39
+        }
+      ]
+    },
+    "errors": []
+  },
+  {
+    "state": "new-patient",
+    "width": 390,
+    "height": 844,
+    "metrics": {
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "scrollWidth": 390,
+      "clientWidth": 390,
+      "hasHorizontalOverflow": false,
+      "offenders": [],
+      "modalRect": {
+        "top": 172,
+        "bottom": 672,
+        "height": 500,
+        "width": 358
+      },
+      "visibleControls": [
+        {
+          "tag": "BUTTON",
+          "text": "Live",
+          "width": 81,
+          "height": 32
+        },
+        {
+          "tag": "BUTTON",
+          "text": "",
+          "width": 20,
+          "height": 20
+        },
+        {
+          "tag": "INPUT",
+          "text": "",
+          "width": 117,
+          "height": 16
+        },
+        {
+          "tag": "BUTTON",
+          "text": "",
+          "width": 20,
+          "height": 20
+        },
+        {
+          "tag": "BUTTON",
+          "text": "Comment installer sur iPhone ?",
+          "width": 324,
+          "height": 40
+        },
+        {
+          "tag": "BUTTON",
+          "text": "jour",
+          "width": 113,
+          "height": 33
+        },
+        {
+          "tag": "BUTTON",
+          "text": "semaine",
+          "width": 111,
+          "height": 32
+        },
+        {
+          "tag": "BUTTON",
+          "text": "mois",
+          "width": 111,
+          "height": 32
+        },
+        {
+          "tag": "BUTTON",
+          "text": "09:00Sara El AmraniConsultation · 30min Terminé",
+          "width": 260,
+          "height": 96
+        },
+        {
+          "tag": "BUTTON",
+          "text": "10:30Youssef BenaliContrôle · 45min En cours",
+          "width": 260,
+          "height": 96
+        },
+        {
+          "tag": "BUTTON",
+          "text": "14:00Meryem TaziDétartrage · 40min Planifié",
+          "width": 260,
+          "height": 96
+        },
+        {
+          "tag": "BUTTON",
+          "text": "",
+          "width": 56,
+          "height": 56
+        },
+        {
+          "tag": "BUTTON",
+          "text": "Annuler",
+          "width": 61,
+          "height": 15
+        },
+        {
+          "tag": "INPUT",
+          "text": "Nom",
+          "width": 290,
+          "height": 30
+        },
+        {
+          "tag": "INPUT",
+          "text": "Prénom",
+          "width": 290,
+          "height": 30
+        },
+        {
+          "tag": "INPUT",
+          "text": "Téléphone",
+          "width": 290,
+          "height": 30
+        },
+        {
+          "tag": "BUTTON",
+          "text": "Créer le patient",
+          "width": 290,
+          "height": 33
+        },
+        {
+          "tag": "SELECT",
+          "text": "ConsultationContrôleDétartrageUrgenceSoinsExtractionOrthodontie--- Prothèse ---P",
+          "width": 316,
+          "height": 38
+        },
+        {
+          "tag": "INPUT",
+          "text": "",
+          "width": 152,
+          "height": 39
+        },
+        {
+          "tag": "INPUT",
+          "text": "",
+          "width": 152,
+          "height": 38
+        },
+        {
+          "tag": "BUTTON",
+          "text": "Annuler",
+          "width": 155,
+          "height": 38
+        },
+        {
+          "tag": "BUTTON",
+          "text": "Ajouter",
+          "width": 153,
+          "height": 38
+        },
+        {
+          "tag": "BUTTON",
+          "text": "Agenda",
+          "width": 55,
+          "height": 40
+        },
+        {
+          "tag": "BUTTON",
+          "text": "Finance",
+          "width": 51,
+          "height": 39
+        },
+        {
+          "tag": "BUTTON",
+          "text": "Envois Labo",
+          "width": 61,
+          "height": 52
+        },
+        {
+          "tag": "BUTTON",
+          "text": "Assistant",
+          "width": 68,
+          "height": 39
+        },
+        {
+          "tag": "BUTTON",
+          "text": "Sécurité",
+          "width": 59,
+          "height": 39
+        }
+      ],
+      "controlsBelow44": [
+        {
+          "tag": "BUTTON",
+          "text": "Live",
+          "width": 81,
+          "height": 32
+        },
+        {
+          "tag": "BUTTON",
+          "text": "",
+          "width": 20,
+          "height": 20
+        },
+        {
+          "tag": "INPUT",
+          "text": "",
+          "width": 117,
+          "height": 16
+        },
+        {
+          "tag": "BUTTON",
+          "text": "",
+          "width": 20,
+          "height": 20
+        },
+        {
+          "tag": "BUTTON",
+          "text": "Comment installer sur iPhone ?",
+          "width": 324,
+          "height": 40
+        },
+        {
+          "tag": "BUTTON",
+          "text": "jour",
+          "width": 113,
+          "height": 33
+        },
+        {
+          "tag": "BUTTON",
+          "text": "semaine",
+          "width": 111,
+          "height": 32
+        },
+        {
+          "tag": "BUTTON",
+          "text": "mois",
+          "width": 111,
+          "height": 32
+        },
+        {
+          "tag": "BUTTON",
+          "text": "Annuler",
+          "width": 61,
+          "height": 15
+        },
+        {
+          "tag": "INPUT",
+          "text": "Nom",
+          "width": 290,
+          "height": 30
+        },
+        {
+          "tag": "INPUT",
+          "text": "Prénom",
+          "width": 290,
+          "height": 30
+        },
+        {
+          "tag": "INPUT",
+          "text": "Téléphone",
+          "width": 290,
+          "height": 30
+        },
+        {
+          "tag": "BUTTON",
+          "text": "Créer le patient",
+          "width": 290,
+          "height": 33
+        },
+        {
+          "tag": "SELECT",
+          "text": "ConsultationContrôleDétartrageUrgenceSoinsExtractionOrthodontie--- Prothèse ---P",
+          "width": 316,
+          "height": 38
+        },
+        {
+          "tag": "INPUT",
+          "text": "",
+          "width": 152,
+          "height": 39
+        },
+        {
+          "tag": "INPUT",
+          "text": "",
+          "width": 152,
+          "height": 38
+        },
+        {
+          "tag": "BUTTON",
+          "text": "Annuler",
+          "width": 155,
+          "height": 38
+        },
+        {
+          "tag": "BUTTON",
+          "text": "Ajouter",
+          "width": 153,
+          "height": 38
+        },
+        {
+          "tag": "BUTTON",
+          "text": "Agenda",
+          "width": 55,
+          "height": 40
+        },
+        {
+          "tag": "BUTTON",
+          "text": "Finance",
+          "width": 51,
+          "height": 39
+        },
+        {
+          "tag": "BUTTON",
+          "text": "Assistant",
+          "width": 68,
+          "height": 39
+        },
+        {
+          "tag": "BUTTON",
+          "text": "Sécurité",
+          "width": 59,
+          "height": 39
+        }
+      ]
+    },
+    "errors": []
+  },
+  {
+    "state": "default",
+    "width": 430,
+    "height": 932,
+    "metrics": {
+      "viewport": {
+        "width": 430,
+        "height": 932
+      },
+      "scrollWidth": 430,
+      "clientWidth": 430,
+      "hasHorizontalOverflow": false,
+      "offenders": [],
+      "modalRect": {
+        "top": 287,
+        "bottom": 645,
+        "height": 358,
+        "width": 384
+      },
+      "visibleControls": [
+        {
+          "tag": "BUTTON",
+          "text": "Live",
+          "width": 81,
+          "height": 32
+        },
+        {
+          "tag": "BUTTON",
+          "text": "",
+          "width": 20,
+          "height": 20
+        },
+        {
+          "tag": "INPUT",
+          "text": "",
+          "width": 117,
+          "height": 16
+        },
+        {
+          "tag": "BUTTON",
+          "text": "",
+          "width": 20,
+          "height": 20
+        },
+        {
+          "tag": "BUTTON",
+          "text": "Comment installer sur iPhone ?",
+          "width": 364,
+          "height": 40
+        },
+        {
+          "tag": "BUTTON",
+          "text": "jour",
+          "width": 126,
+          "height": 33
+        },
+        {
+          "tag": "BUTTON",
+          "text": "semaine",
+          "width": 124,
+          "height": 32
+        },
+        {
+          "tag": "BUTTON",
+          "text": "mois",
+          "width": 124,
+          "height": 32
+        },
+        {
+          "tag": "BUTTON",
+          "text": "09:00Sara El AmraniConsultation · 30min Terminé",
+          "width": 300,
+          "height": 96
+        },
+        {
+          "tag": "BUTTON",
+          "text": "10:30Youssef BenaliContrôle · 45min En cours",
+          "width": 300,
+          "height": 96
+        },
+        {
+          "tag": "BUTTON",
+          "text": "14:00Meryem TaziDétartrage · 40min Planifié",
+          "width": 300,
+          "height": 96
+        },
+        {
+          "tag": "BUTTON",
+          "text": "",
+          "width": 56,
+          "height": 56
+        },
+        {
+          "tag": "BUTTON",
+          "text": "+ Nouveau",
+          "width": 72,
+          "height": 15
+        },
+        {
+          "tag": "SELECT",
+          "text": "Sélectionner un patient...Sara El AmraniYoussef BenaliMeryem Tazi",
+          "width": 342,
+          "height": 38
+        },
+        {
+          "tag": "SELECT",
+          "text": "ConsultationContrôleDétartrageUrgenceSoinsExtractionOrthodontie--- Prothèse ---P",
+          "width": 342,
+          "height": 38
+        },
+        {
+          "tag": "INPUT",
+          "text": "",
+          "width": 165,
+          "height": 39
+        },
+        {
+          "tag": "INPUT",
+          "text": "",
+          "width": 165,
+          "height": 38
+        },
+        {
+          "tag": "BUTTON",
+          "text": "Annuler",
+          "width": 168,
+          "height": 38
+        },
+        {
+          "tag": "BUTTON",
+          "text": "Ajouter",
+          "width": 166,
+          "height": 38
+        },
+        {
+          "tag": "BUTTON",
+          "text": "Agenda",
+          "width": 55,
+          "height": 40
+        },
+        {
+          "tag": "BUTTON",
+          "text": "Finance",
+          "width": 51,
+          "height": 39
+        },
+        {
+          "tag": "BUTTON",
+          "text": "Envois Labo",
+          "width": 82,
+          "height": 39
+        },
+        {
+          "tag": "BUTTON",
+          "text": "Assistant",
+          "width": 68,
+          "height": 39
+        },
+        {
+          "tag": "BUTTON",
+          "text": "Sécurité",
+          "width": 59,
+          "height": 39
+        }
+      ],
+      "controlsBelow44": [
+        {
+          "tag": "BUTTON",
+          "text": "Live",
+          "width": 81,
+          "height": 32
+        },
+        {
+          "tag": "BUTTON",
+          "text": "",
+          "width": 20,
+          "height": 20
+        },
+        {
+          "tag": "INPUT",
+          "text": "",
+          "width": 117,
+          "height": 16
+        },
+        {
+          "tag": "BUTTON",
+          "text": "",
+          "width": 20,
+          "height": 20
+        },
+        {
+          "tag": "BUTTON",
+          "text": "Comment installer sur iPhone ?",
+          "width": 364,
+          "height": 40
+        },
+        {
+          "tag": "BUTTON",
+          "text": "jour",
+          "width": 126,
+          "height": 33
+        },
+        {
+          "tag": "BUTTON",
+          "text": "semaine",
+          "width": 124,
+          "height": 32
+        },
+        {
+          "tag": "BUTTON",
+          "text": "mois",
+          "width": 124,
+          "height": 32
+        },
+        {
+          "tag": "BUTTON",
+          "text": "+ Nouveau",
+          "width": 72,
+          "height": 15
+        },
+        {
+          "tag": "SELECT",
+          "text": "Sélectionner un patient...Sara El AmraniYoussef BenaliMeryem Tazi",
+          "width": 342,
+          "height": 38
+        },
+        {
+          "tag": "SELECT",
+          "text": "ConsultationContrôleDétartrageUrgenceSoinsExtractionOrthodontie--- Prothèse ---P",
+          "width": 342,
+          "height": 38
+        },
+        {
+          "tag": "INPUT",
+          "text": "",
+          "width": 165,
+          "height": 39
+        },
+        {
+          "tag": "INPUT",
+          "text": "",
+          "width": 165,
+          "height": 38
+        },
+        {
+          "tag": "BUTTON",
+          "text": "Annuler",
+          "width": 168,
+          "height": 38
+        },
+        {
+          "tag": "BUTTON",
+          "text": "Ajouter",
+          "width": 166,
+          "height": 38
+        },
+        {
+          "tag": "BUTTON",
+          "text": "Agenda",
+          "width": 55,
+          "height": 40
+        },
+        {
+          "tag": "BUTTON",
+          "text": "Finance",
+          "width": 51,
+          "height": 39
+        },
+        {
+          "tag": "BUTTON",
+          "text": "Envois Labo",
+          "width": 82,
+          "height": 39
+        },
+        {
+          "tag": "BUTTON",
+          "text": "Assistant",
+          "width": 68,
+          "height": 39
+        },
+        {
+          "tag": "BUTTON",
+          "text": "Sécurité",
+          "width": 59,
+          "height": 39
+        }
+      ]
+    },
+    "errors": []
+  },
+  {
+    "state": "new-patient",
+    "width": 430,
+    "height": 932,
+    "metrics": {
+      "viewport": {
+        "width": 430,
+        "height": 932
+      },
+      "scrollWidth": 430,
+      "clientWidth": 430,
+      "hasHorizontalOverflow": false,
+      "offenders": [],
+      "modalRect": {
+        "top": 216,
+        "bottom": 716,
+        "height": 500,
+        "width": 384
+      },
+      "visibleControls": [
+        {
+          "tag": "BUTTON",
+          "text": "Live",
+          "width": 81,
+          "height": 32
+        },
+        {
+          "tag": "BUTTON",
+          "text": "",
+          "width": 20,
+          "height": 20
+        },
+        {
+          "tag": "INPUT",
+          "text": "",
+          "width": 117,
+          "height": 16
+        },
+        {
+          "tag": "BUTTON",
+          "text": "",
+          "width": 20,
+          "height": 20
+        },
+        {
+          "tag": "BUTTON",
+          "text": "Comment installer sur iPhone ?",
+          "width": 364,
+          "height": 40
+        },
+        {
+          "tag": "BUTTON",
+          "text": "jour",
+          "width": 126,
+          "height": 33
+        },
+        {
+          "tag": "BUTTON",
+          "text": "semaine",
+          "width": 124,
+          "height": 32
+        },
+        {
+          "tag": "BUTTON",
+          "text": "mois",
+          "width": 124,
+          "height": 32
+        },
+        {
+          "tag": "BUTTON",
+          "text": "09:00Sara El AmraniConsultation · 30min Terminé",
+          "width": 300,
+          "height": 96
+        },
+        {
+          "tag": "BUTTON",
+          "text": "10:30Youssef BenaliContrôle · 45min En cours",
+          "width": 300,
+          "height": 96
+        },
+        {
+          "tag": "BUTTON",
+          "text": "14:00Meryem TaziDétartrage · 40min Planifié",
+          "width": 300,
+          "height": 96
+        },
+        {
+          "tag": "BUTTON",
+          "text": "",
+          "width": 56,
+          "height": 56
+        },
+        {
+          "tag": "BUTTON",
+          "text": "Annuler",
+          "width": 61,
+          "height": 15
+        },
+        {
+          "tag": "INPUT",
+          "text": "Nom",
+          "width": 316,
+          "height": 30
+        },
+        {
+          "tag": "INPUT",
+          "text": "Prénom",
+          "width": 316,
+          "height": 30
+        },
+        {
+          "tag": "INPUT",
+          "text": "Téléphone",
+          "width": 316,
+          "height": 30
+        },
+        {
+          "tag": "BUTTON",
+          "text": "Créer le patient",
+          "width": 316,
+          "height": 33
+        },
+        {
+          "tag": "SELECT",
+          "text": "ConsultationContrôleDétartrageUrgenceSoinsExtractionOrthodontie--- Prothèse ---P",
+          "width": 342,
+          "height": 38
+        },
+        {
+          "tag": "INPUT",
+          "text": "",
+          "width": 165,
+          "height": 39
+        },
+        {
+          "tag": "INPUT",
+          "text": "",
+          "width": 165,
+          "height": 38
+        },
+        {
+          "tag": "BUTTON",
+          "text": "Annuler",
+          "width": 168,
+          "height": 38
+        },
+        {
+          "tag": "BUTTON",
+          "text": "Ajouter",
+          "width": 166,
+          "height": 38
+        },
+        {
+          "tag": "BUTTON",
+          "text": "Agenda",
+          "width": 55,
+          "height": 40
+        },
+        {
+          "tag": "BUTTON",
+          "text": "Finance",
+          "width": 51,
+          "height": 39
+        },
+        {
+          "tag": "BUTTON",
+          "text": "Envois Labo",
+          "width": 82,
+          "height": 39
+        },
+        {
+          "tag": "BUTTON",
+          "text": "Assistant",
+          "width": 68,
+          "height": 39
+        },
+        {
+          "tag": "BUTTON",
+          "text": "Sécurité",
+          "width": 59,
+          "height": 39
+        }
+      ],
+      "controlsBelow44": [
+        {
+          "tag": "BUTTON",
+          "text": "Live",
+          "width": 81,
+          "height": 32
+        },
+        {
+          "tag": "BUTTON",
+          "text": "",
+          "width": 20,
+          "height": 20
+        },
+        {
+          "tag": "INPUT",
+          "text": "",
+          "width": 117,
+          "height": 16
+        },
+        {
+          "tag": "BUTTON",
+          "text": "",
+          "width": 20,
+          "height": 20
+        },
+        {
+          "tag": "BUTTON",
+          "text": "Comment installer sur iPhone ?",
+          "width": 364,
+          "height": 40
+        },
+        {
+          "tag": "BUTTON",
+          "text": "jour",
+          "width": 126,
+          "height": 33
+        },
+        {
+          "tag": "BUTTON",
+          "text": "semaine",
+          "width": 124,
+          "height": 32
+        },
+        {
+          "tag": "BUTTON",
+          "text": "mois",
+          "width": 124,
+          "height": 32
+        },
+        {
+          "tag": "BUTTON",
+          "text": "Annuler",
+          "width": 61,
+          "height": 15
+        },
+        {
+          "tag": "INPUT",
+          "text": "Nom",
+          "width": 316,
+          "height": 30
+        },
+        {
+          "tag": "INPUT",
+          "text": "Prénom",
+          "width": 316,
+          "height": 30
+        },
+        {
+          "tag": "INPUT",
+          "text": "Téléphone",
+          "width": 316,
+          "height": 30
+        },
+        {
+          "tag": "BUTTON",
+          "text": "Créer le patient",
+          "width": 316,
+          "height": 33
+        },
+        {
+          "tag": "SELECT",
+          "text": "ConsultationContrôleDétartrageUrgenceSoinsExtractionOrthodontie--- Prothèse ---P",
+          "width": 342,
+          "height": 38
+        },
+        {
+          "tag": "INPUT",
+          "text": "",
+          "width": 165,
+          "height": 39
+        },
+        {
+          "tag": "INPUT",
+          "text": "",
+          "width": 165,
+          "height": 38
+        },
+        {
+          "tag": "BUTTON",
+          "text": "Annuler",
+          "width": 168,
+          "height": 38
+        },
+        {
+          "tag": "BUTTON",
+          "text": "Ajouter",
+          "width": 166,
+          "height": 38
+        },
+        {
+          "tag": "BUTTON",
+          "text": "Agenda",
+          "width": 55,
+          "height": 40
+        },
+        {
+          "tag": "BUTTON",
+          "text": "Finance",
+          "width": 51,
+          "height": 39
+        },
+        {
+          "tag": "BUTTON",
+          "text": "Envois Labo",
+          "width": 82,
+          "height": 39
+        },
+        {
+          "tag": "BUTTON",
+          "text": "Assistant",
+          "width": 68,
+          "height": 39
+        },
+        {
+          "tag": "BUTTON",
+          "text": "Sécurité",
+          "width": 59,
+          "height": 39
+        }
+      ]
+    },
+    "errors": []
+  },
+  {
+    "state": "default",
+    "width": 768,
+    "height": 1024,
+    "metrics": {
+      "viewport": {
+        "width": 768,
+        "height": 1024
+      },
+      "scrollWidth": 768,
+      "clientWidth": 768,
+      "hasHorizontalOverflow": false,
+      "offenders": [],
+      "modalRect": {
+        "top": 333,
+        "bottom": 691,
+        "height": 358,
+        "width": 384
+      },
+      "visibleControls": [
+        {
+          "tag": "BUTTON",
+          "text": "Live",
+          "width": 81,
+          "height": 32
+        },
+        {
+          "tag": "BUTTON",
+          "text": "",
+          "width": 20,
+          "height": 20
+        },
+        {
+          "tag": "INPUT",
+          "text": "",
+          "width": 117,
+          "height": 16
+        },
+        {
+          "tag": "BUTTON",
+          "text": "",
+          "width": 20,
+          "height": 20
+        },
+        {
+          "tag": "BUTTON",
+          "text": "Comment installer sur iPhone ?",
+          "width": 702,
+          "height": 40
+        },
+        {
+          "tag": "BUTTON",
+          "text": "jour",
+          "width": 241,
+          "height": 33
+        },
+        {
+          "tag": "BUTTON",
+          "text": "semaine",
+          "width": 237,
+          "height": 32
+        },
+        {
+          "tag": "BUTTON",
+          "text": "mois",
+          "width": 237,
+          "height": 32
+        },
+        {
+          "tag": "BUTTON",
+          "text": "09:00Sara El AmraniConsultation · 30min Terminé",
+          "width": 638,
+          "height": 96
+        },
+        {
+          "tag": "BUTTON",
+          "text": "10:30Youssef BenaliContrôle · 45min En cours",
+          "width": 638,
+          "height": 96
+        },
+        {
+          "tag": "BUTTON",
+          "text": "14:00Meryem TaziDétartrage · 40min Planifié",
+          "width": 638,
+          "height": 96
+        },
+        {
+          "tag": "BUTTON",
+          "text": "",
+          "width": 56,
+          "height": 56
+        },
+        {
+          "tag": "BUTTON",
+          "text": "+ Nouveau",
+          "width": 72,
+          "height": 15
+        },
+        {
+          "tag": "SELECT",
+          "text": "Sélectionner un patient...Sara El AmraniYoussef BenaliMeryem Tazi",
+          "width": 342,
+          "height": 38
+        },
+        {
+          "tag": "SELECT",
+          "text": "ConsultationContrôleDétartrageUrgenceSoinsExtractionOrthodontie--- Prothèse ---P",
+          "width": 342,
+          "height": 38
+        },
+        {
+          "tag": "INPUT",
+          "text": "",
+          "width": 165,
+          "height": 39
+        },
+        {
+          "tag": "INPUT",
+          "text": "",
+          "width": 165,
+          "height": 38
+        },
+        {
+          "tag": "BUTTON",
+          "text": "Annuler",
+          "width": 168,
+          "height": 38
+        },
+        {
+          "tag": "BUTTON",
+          "text": "Ajouter",
+          "width": 166,
+          "height": 38
+        },
+        {
+          "tag": "BUTTON",
+          "text": "Agenda",
+          "width": 55,
+          "height": 40
+        },
+        {
+          "tag": "BUTTON",
+          "text": "Finance",
+          "width": 51,
+          "height": 39
+        },
+        {
+          "tag": "BUTTON",
+          "text": "Envois Labo",
+          "width": 82,
+          "height": 39
+        },
+        {
+          "tag": "BUTTON",
+          "text": "Assistant",
+          "width": 68,
+          "height": 39
+        },
+        {
+          "tag": "BUTTON",
+          "text": "Sécurité",
+          "width": 59,
+          "height": 39
+        }
+      ],
+      "controlsBelow44": [
+        {
+          "tag": "BUTTON",
+          "text": "Live",
+          "width": 81,
+          "height": 32
+        },
+        {
+          "tag": "BUTTON",
+          "text": "",
+          "width": 20,
+          "height": 20
+        },
+        {
+          "tag": "INPUT",
+          "text": "",
+          "width": 117,
+          "height": 16
+        },
+        {
+          "tag": "BUTTON",
+          "text": "",
+          "width": 20,
+          "height": 20
+        },
+        {
+          "tag": "BUTTON",
+          "text": "Comment installer sur iPhone ?",
+          "width": 702,
+          "height": 40
+        },
+        {
+          "tag": "BUTTON",
+          "text": "jour",
+          "width": 241,
+          "height": 33
+        },
+        {
+          "tag": "BUTTON",
+          "text": "semaine",
+          "width": 237,
+          "height": 32
+        },
+        {
+          "tag": "BUTTON",
+          "text": "mois",
+          "width": 237,
+          "height": 32
+        },
+        {
+          "tag": "BUTTON",
+          "text": "+ Nouveau",
+          "width": 72,
+          "height": 15
+        },
+        {
+          "tag": "SELECT",
+          "text": "Sélectionner un patient...Sara El AmraniYoussef BenaliMeryem Tazi",
+          "width": 342,
+          "height": 38
+        },
+        {
+          "tag": "SELECT",
+          "text": "ConsultationContrôleDétartrageUrgenceSoinsExtractionOrthodontie--- Prothèse ---P",
+          "width": 342,
+          "height": 38
+        },
+        {
+          "tag": "INPUT",
+          "text": "",
+          "width": 165,
+          "height": 39
+        },
+        {
+          "tag": "INPUT",
+          "text": "",
+          "width": 165,
+          "height": 38
+        },
+        {
+          "tag": "BUTTON",
+          "text": "Annuler",
+          "width": 168,
+          "height": 38
+        },
+        {
+          "tag": "BUTTON",
+          "text": "Ajouter",
+          "width": 166,
+          "height": 38
+        },
+        {
+          "tag": "BUTTON",
+          "text": "Agenda",
+          "width": 55,
+          "height": 40
+        },
+        {
+          "tag": "BUTTON",
+          "text": "Finance",
+          "width": 51,
+          "height": 39
+        },
+        {
+          "tag": "BUTTON",
+          "text": "Envois Labo",
+          "width": 82,
+          "height": 39
+        },
+        {
+          "tag": "BUTTON",
+          "text": "Assistant",
+          "width": 68,
+          "height": 39
+        },
+        {
+          "tag": "BUTTON",
+          "text": "Sécurité",
+          "width": 59,
+          "height": 39
+        }
+      ]
+    },
+    "errors": []
+  },
+  {
+    "state": "new-patient",
+    "width": 768,
+    "height": 1024,
+    "metrics": {
+      "viewport": {
+        "width": 768,
+        "height": 1024
+      },
+      "scrollWidth": 768,
+      "clientWidth": 768,
+      "hasHorizontalOverflow": false,
+      "offenders": [],
+      "modalRect": {
+        "top": 262,
+        "bottom": 762,
+        "height": 500,
+        "width": 384
+      },
+      "visibleControls": [
+        {
+          "tag": "BUTTON",
+          "text": "Live",
+          "width": 81,
+          "height": 32
+        },
+        {
+          "tag": "BUTTON",
+          "text": "",
+          "width": 20,
+          "height": 20
+        },
+        {
+          "tag": "INPUT",
+          "text": "",
+          "width": 117,
+          "height": 16
+        },
+        {
+          "tag": "BUTTON",
+          "text": "",
+          "width": 20,
+          "height": 20
+        },
+        {
+          "tag": "BUTTON",
+          "text": "Comment installer sur iPhone ?",
+          "width": 702,
+          "height": 40
+        },
+        {
+          "tag": "BUTTON",
+          "text": "jour",
+          "width": 241,
+          "height": 33
+        },
+        {
+          "tag": "BUTTON",
+          "text": "semaine",
+          "width": 237,
+          "height": 32
+        },
+        {
+          "tag": "BUTTON",
+          "text": "mois",
+          "width": 237,
+          "height": 32
+        },
+        {
+          "tag": "BUTTON",
+          "text": "09:00Sara El AmraniConsultation · 30min Terminé",
+          "width": 638,
+          "height": 96
+        },
+        {
+          "tag": "BUTTON",
+          "text": "10:30Youssef BenaliContrôle · 45min En cours",
+          "width": 638,
+          "height": 96
+        },
+        {
+          "tag": "BUTTON",
+          "text": "14:00Meryem TaziDétartrage · 40min Planifié",
+          "width": 638,
+          "height": 96
+        },
+        {
+          "tag": "BUTTON",
+          "text": "",
+          "width": 56,
+          "height": 56
+        },
+        {
+          "tag": "BUTTON",
+          "text": "Annuler",
+          "width": 61,
+          "height": 15
+        },
+        {
+          "tag": "INPUT",
+          "text": "Nom",
+          "width": 316,
+          "height": 30
+        },
+        {
+          "tag": "INPUT",
+          "text": "Prénom",
+          "width": 316,
+          "height": 30
+        },
+        {
+          "tag": "INPUT",
+          "text": "Téléphone",
+          "width": 316,
+          "height": 30
+        },
+        {
+          "tag": "BUTTON",
+          "text": "Créer le patient",
+          "width": 316,
+          "height": 33
+        },
+        {
+          "tag": "SELECT",
+          "text": "ConsultationContrôleDétartrageUrgenceSoinsExtractionOrthodontie--- Prothèse ---P",
+          "width": 342,
+          "height": 38
+        },
+        {
+          "tag": "INPUT",
+          "text": "",
+          "width": 165,
+          "height": 39
+        },
+        {
+          "tag": "INPUT",
+          "text": "",
+          "width": 165,
+          "height": 38
+        },
+        {
+          "tag": "BUTTON",
+          "text": "Annuler",
+          "width": 168,
+          "height": 38
+        },
+        {
+          "tag": "BUTTON",
+          "text": "Ajouter",
+          "width": 166,
+          "height": 38
+        },
+        {
+          "tag": "BUTTON",
+          "text": "Agenda",
+          "width": 55,
+          "height": 40
+        },
+        {
+          "tag": "BUTTON",
+          "text": "Finance",
+          "width": 51,
+          "height": 39
+        },
+        {
+          "tag": "BUTTON",
+          "text": "Envois Labo",
+          "width": 82,
+          "height": 39
+        },
+        {
+          "tag": "BUTTON",
+          "text": "Assistant",
+          "width": 68,
+          "height": 39
+        },
+        {
+          "tag": "BUTTON",
+          "text": "Sécurité",
+          "width": 59,
+          "height": 39
+        }
+      ],
+      "controlsBelow44": [
+        {
+          "tag": "BUTTON",
+          "text": "Live",
+          "width": 81,
+          "height": 32
+        },
+        {
+          "tag": "BUTTON",
+          "text": "",
+          "width": 20,
+          "height": 20
+        },
+        {
+          "tag": "INPUT",
+          "text": "",
+          "width": 117,
+          "height": 16
+        },
+        {
+          "tag": "BUTTON",
+          "text": "",
+          "width": 20,
+          "height": 20
+        },
+        {
+          "tag": "BUTTON",
+          "text": "Comment installer sur iPhone ?",
+          "width": 702,
+          "height": 40
+        },
+        {
+          "tag": "BUTTON",
+          "text": "jour",
+          "width": 241,
+          "height": 33
+        },
+        {
+          "tag": "BUTTON",
+          "text": "semaine",
+          "width": 237,
+          "height": 32
+        },
+        {
+          "tag": "BUTTON",
+          "text": "mois",
+          "width": 237,
+          "height": 32
+        },
+        {
+          "tag": "BUTTON",
+          "text": "Annuler",
+          "width": 61,
+          "height": 15
+        },
+        {
+          "tag": "INPUT",
+          "text": "Nom",
+          "width": 316,
+          "height": 30
+        },
+        {
+          "tag": "INPUT",
+          "text": "Prénom",
+          "width": 316,
+          "height": 30
+        },
+        {
+          "tag": "INPUT",
+          "text": "Téléphone",
+          "width": 316,
+          "height": 30
+        },
+        {
+          "tag": "BUTTON",
+          "text": "Créer le patient",
+          "width": 316,
+          "height": 33
+        },
+        {
+          "tag": "SELECT",
+          "text": "ConsultationContrôleDétartrageUrgenceSoinsExtractionOrthodontie--- Prothèse ---P",
+          "width": 342,
+          "height": 38
+        },
+        {
+          "tag": "INPUT",
+          "text": "",
+          "width": 165,
+          "height": 39
+        },
+        {
+          "tag": "INPUT",
+          "text": "",
+          "width": 165,
+          "height": 38
+        },
+        {
+          "tag": "BUTTON",
+          "text": "Annuler",
+          "width": 168,
+          "height": 38
+        },
+        {
+          "tag": "BUTTON",
+          "text": "Ajouter",
+          "width": 166,
+          "height": 38
+        },
+        {
+          "tag": "BUTTON",
+          "text": "Agenda",
+          "width": 55,
+          "height": 40
+        },
+        {
+          "tag": "BUTTON",
+          "text": "Finance",
+          "width": 51,
+          "height": 39
+        },
+        {
+          "tag": "BUTTON",
+          "text": "Envois Labo",
+          "width": 82,
+          "height": 39
+        },
+        {
+          "tag": "BUTTON",
+          "text": "Assistant",
+          "width": 68,
+          "height": 39
+        },
+        {
+          "tag": "BUTTON",
+          "text": "Sécurité",
+          "width": 59,
+          "height": 39
+        }
+      ]
+    },
+    "errors": []
+  }
+]
