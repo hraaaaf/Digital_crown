@@ -13,7 +13,8 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "postinstall": "npm install --no-save --package-lock=false --ignore-scripts playwright@1.62.1"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",
