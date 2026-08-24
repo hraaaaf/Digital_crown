@@ -78,8 +78,8 @@ jobs:
           scripts/portability_p5_check.py
 
       - name: Execute native runtime + scientific fail-closed certification
-        run: python scripts/portability_p5_check.py --runtime --fail-closed
+        run: python -m scripts.portability_p5_check --runtime --fail-closed
 
       - name: Require Apple Silicon on macOS
         if: runner.os == 'macOS'
-        run: python scripts/portability_p5_check.py --expect-apple-silicon
+        run: python -m scripts.portability_p5_check --expect-apple-silicon
