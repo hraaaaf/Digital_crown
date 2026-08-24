@@ -14,7 +14,7 @@ import backend.routers.admin_legacy as admin_legacy
 from backend.routers.admin_legacy import _resolve_mobile_pairing_user
 from backend.routers.mobile import _create_mobile_jwt
 from backend.routers.mobile_legacy import get_mobile_employer_id, get_mobile_role
-from backend.security import ALGORITHM, SECRET_KEY, get_password_hash, token_blacklist
+from backend.security import ALGORITHM, SECRET_KEY, create_access_token, get_password_hash, token_blacklist
 from backend.utils import rate_limit
 
 
@@ -246,6 +246,71 @@ def test_permissions_policy_allows_same_origin_camera_only(client):
     assert 'camera=(self)' in policy
     assert 'microphone=()' in policy
     assert 'geolocation=()' in policy
+
+
+def test_shared_auth_me_accepts_valid_device_bound_mobile_token(client, db, dentiste):
+    body = _claim(client, _pairing(db, dentiste, dentiste)).json()
+    response = client.get(
+        '/api/auth/me',
+        headers={'Authorization': f"Bearer {body['access_token']}"},
+    )
+    assert response.status_code == 200, response.text
+    assert response.json()['id'] == dentiste.id
+
+
+def test_shared_auth_me_rejects_revoked_mobile_header_even_with_valid_web_cookie(client, db, dentiste):
+    body = _claim(client, _pairing(db, dentiste, dentiste)).json()
+    device = db.query(models.MobilePairedDevice).filter(
+        models.MobilePairedDevice.device_id == body['device_id']
+    ).one()
+    device.revoked_at = datetime.utcnow()
+    db.commit()
+
+    # Un cookie desktop valide ne doit jamais masquer un Bearer mobile révoqué.
+    client.cookies.set('access_token', create_access_token(data={'sub': dentiste.email}))
+    response = client.get(
+        '/api/auth/me',
+        headers={'Authorization': f"Bearer {body['access_token']}"},
+    )
+    client.cookies.clear()
+    assert response.status_code == 401, response.text
+
+
+def test_shared_auth_me_rejects_mobile_tenant_mismatch(client, db, dentiste):
+    device = models.MobilePairedDevice(
+        device_id=str(uuid.uuid4()),
+        user_id=dentiste.id,
+        employer_id=dentiste.id,
+        client_public_key_hex=_client_public_key(),
+        refresh_jti='refresh-shared-auth-tenant',
+    )
+    db.add(device)
+    db.commit()
+    forged = _create_mobile_jwt(
+        dentiste.id,
+        'DENTISTE',
+        dentiste.id + 99999,
+        device.device_id,
+    )
+    response = client.get('/api/auth/me', headers={'Authorization': f'Bearer {forged}'})
+    assert response.status_code == 401, response.text
+
+
+def test_shared_auth_me_rejects_legacy_mobile_token_without_device(client, dentiste):
+    legacy = jwt.encode(
+        {
+            'sub': str(dentiste.id),
+            'tenant_id': dentiste.id,
+            'type': 'mobile',
+            'role': 'DENTISTE',
+            'jti': str(uuid.uuid4()),
+            'exp': datetime.utcnow() + timedelta(hours=1),
+        },
+        SECRET_KEY,
+        algorithm=ALGORITHM,
+    )
+    response = client.get('/api/auth/me', headers={'Authorization': f'Bearer {legacy}'})
+    assert response.status_code == 401, response.text
 
 def test_admin_revoke_mobile_invalidates_claimed_device_and_refresh(client, db, dentiste, monkeypatch):
     body = _claim(client, _pairing(db, dentiste, dentiste)).json()

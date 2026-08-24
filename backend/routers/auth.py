@@ -71,8 +71,15 @@ async def get_current_user(
         detail="Could not validate credentials",
         headers={"WWW-Authenticate": "Bearer"},
     )
-    # Cookie-first, fallback Authorization header
-    token = request.cookies.get("access_token") or token_header
+    # Desktop reste cookie-first, mais un Bearer explicitement mobile doit
+    # rester device-bound même si un cookie web existe dans le même navigateur.
+    mobile_header = False
+    if token_header:
+        try:
+            mobile_header = jwt.get_unverified_claims(token_header).get("type") == "mobile"
+        except (JWTError, ValueError, TypeError):
+            mobile_header = False
+    token = token_header if mobile_header else (request.cookies.get("access_token") or token_header)
     if not token:
         raise credentials_exception
     try:
@@ -87,16 +94,20 @@ async def get_current_user(
             raise credentials_exception
 
         if token_type == "mobile":
-            # sub est l'employer_id (int) pour les tokens mobiles
-            user_id = int(payload["sub"])
-            user = db.query(models.User).filter(models.User.id == user_id).first()
+            # Une session mobile ne peut jamais devenir un simple access token web.
+            # Réutiliser le validateur mobile canonique garde user/tenant/device et
+            # révocation alignés sur les routes /api/mobile/* et les routes partagées.
+            from backend.routers.mobile_legacy import _decode_mobile_identity
+            user, _tenant_id, _mobile_payload = _decode_mobile_identity(f"Bearer {token}", db)
         else:
             email: str = payload.get("sub")
             if email is None:
                 raise credentials_exception
             user = db.query(models.User).filter(models.User.email == email).first()
 
-    except (JWTError, ValueError, KeyError):
+    except HTTPException:
+        raise credentials_exception
+    except (JWTError, ValueError, KeyError, TypeError):
         raise credentials_exception
 
     if user is None or not user.is_active:
