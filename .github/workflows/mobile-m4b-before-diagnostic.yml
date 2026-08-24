@@ -35,15 +35,13 @@ jobs:
           npm install --no-save --package-lock=false --ignore-scripts playwright@1.62.1
           npx playwright install --with-deps chromium
 
-      - name: Extract frozen harness and disable verdict assertions
+      - name: Extract frozen BEFORE harness
         run: |
           git show origin/audit/mobile-m4b-before-20260824:.github/workflows/mobile-m4b-before.yml > /tmp/m4b-source.yml
           python - <<'PY'
           from pathlib import Path
-          import re, textwrap
-
+          import textwrap
           source = Path('/tmp/m4b-source.yml').read_text()
-
           def extract(marker: str) -> str:
               lines = source.splitlines()
               start = next(i for i, line in enumerate(lines) if marker in line) + 1
@@ -53,21 +51,57 @@ jobs:
                       break
                   block.append(line)
               return textwrap.dedent('\n'.join(block)) + '\n'
-
           Path('frontend/mobile-m4b-before.html').write_text(extract("cat > mobile-m4b-before.html <<'EOF'"))
           Path('frontend/src/mobile-m4b-before.tsx').write_text(extract("cat > src/mobile-m4b-before.tsx <<'EOF'"))
-          script = extract("cat > mobile-m4b-before.mjs <<'EOF'")
-          script = re.sub(r'^\s*if \(summary\..*throw new Error\(.*\);\s*$', '', script, flags=re.MULTILINE)
-          Path('frontend/mobile-m4b-before.mjs').write_text(script)
+          Path('frontend/mobile-m4b-before.mjs').write_text(extract("cat > mobile-m4b-before.mjs <<'EOF'"))
           PY
 
-      - name: Capture truth without verdict filtering
+      - name: Capture truth even when verdict fails
+        continue-on-error: true
         working-directory: frontend
         env:
           PRODUCT_HEAD: c6de4b7a86acc33ecfc2ae09e2b10da452281590
         run: node mobile-m4b-before.mjs
 
+      - name: Rebuild diagnostic report from captured states
+        if: always()
+        working-directory: frontend
+        run: |
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          import path from 'node:path';
+          const dir = 'mobile-m4b-before-artifacts';
+          if (!fs.existsSync(dir)) throw new Error('No BEFORE artifact directory produced.');
+          const files = fs.readdirSync(dir).filter(f => f.endsWith('.json') && f !== 'report.json').sort();
+          const records = files.map(f => JSON.parse(fs.readFileSync(path.join(dir, f), 'utf8')));
+          if (records.length !== 7) throw new Error(`Expected 7 captured states, got ${records.length}`);
+          const runtime = records.filter(r => r.state === 'runtime');
+          const layout = records.filter(r => r.state === 'layout');
+          const mobile = records.filter(r => r.state === 'mobile');
+          const summary = {
+            productHead: 'c6de4b7a86acc33ecfc2ae09e2b10da452281590',
+            captures: records.length,
+            runtimeCount: runtime.length,
+            layoutCount: layout.length,
+            mobileCount: mobile.length,
+            runtimeHistoryFailsOnTrash404: runtime.every(r => r.runtimeErrorVisible && r.trash404Observed),
+            deleteTargetsBelow44: layout.map(r => r.deleteBox?.height ?? null),
+            modalityHeights: layout.map(r => r.modalityBox?.height ?? null),
+            historyHeights: layout.map(r => r.historyHeaderBox?.height ?? null),
+            analysisIdAbsentFromRoute: layout.every(r => !r.analysisIdInRoute),
+            mobilePanoramicUnsupported: mobile.every(r => r.unsupportedRadioVisible),
+            mobileTouchesAtLeast44: mobile.every(r => (r.retryBox?.height ?? 0) >= 44 && (r.backBox?.height ?? 0) >= 44),
+            noHorizontalOverflow: records.every(r => !r.metrics?.hasHorizontalOverflow),
+            errorCount: records.reduce((n, r) => n + (r.errors?.length || 0), 0),
+            errorsByState: records.map(r => ({ name: r.name, errors: r.errors || [] })),
+            records,
+          };
+          fs.writeFileSync(path.join(dir, 'report.json'), JSON.stringify(summary, null, 2));
+          console.log(JSON.stringify(summary, null, 2));
+          NODE
+
       - name: Upload diagnostic BEFORE artifact
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: mobile-m4b-panoramic-before-diagnostic
