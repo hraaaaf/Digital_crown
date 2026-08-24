@@ -1,0 +1,19 @@
+name: Trigger Mobile M6.3 BEFORE
+
+on:
+  push:
+    branches: [audit/mobile-m6-generator]
+    paths: [.github/workflows/mobile-m63-before-trigger.yml]
+
+permissions:
+  actions: write
+  contents: read
+
+jobs:
+  dispatch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Dispatch frozen M6.3 BEFORE capture
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh workflow run mobile-m63-before.yml --repo hraaaaf/Digital_crown --ref audit/mobile-m6-generator
