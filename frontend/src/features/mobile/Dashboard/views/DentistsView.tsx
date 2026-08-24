@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { ArrowLeft, User, Calendar, RefreshCw, Users } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { MobileStorage } from '../../../../services/zka/MobileStorage';
+import { mobileFetch } from '../../../../services/zka/mobileFetch';
 import { Skeleton } from '../components/Skeleton';
 
 interface Dentist {
@@ -32,7 +33,7 @@ export function DentistsView() {
     try {
       const creds = await MobileStorage.getCredentials();
       if (!creds) throw new Error('Non appairé');
-      const res = await fetch(`${resolveApiBaseUrl(creds.api_base_url)}/api/mobile/dentists`, {
+      const res = await mobileFetch(`${resolveApiBaseUrl(creds.api_base_url)}/api/mobile/dentists`, {
         headers: { Authorization: `Bearer ${creds.access_token}` },
         signal: AbortSignal.timeout(8000),
       });

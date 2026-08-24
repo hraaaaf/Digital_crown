@@ -1,10 +1,6 @@
 import localforage from 'localforage';
 
-/**
- * MOBILE-STORAGE (Digital Crown Elite)
- * Gestionnaire de stockage sécurisé utilisant IndexedDB.
- */
-
+/** Mobile ZKA persistence: credentials, last snapshot and the single offline queue. */
 localforage.config({
   driver: localforage.INDEXEDDB,
   name: 'digital-crown-zka',
@@ -14,16 +10,15 @@ localforage.config({
 
 const STORE_CREDENTIALS_ID = 'zka_credentials';
 const STORE_SNAPSHOT_ID = 'zka_last_snapshot';
+const STORE_ACTION_QUEUE_ID = 'zka_action_queue_v2';
+const LEGACY_ACTION_QUEUE_ID = 'zka_action_queue';
 
 export interface ZKACredentials {
   publicId: string;
   masterKey: string;
-  /** JWT mobile court pour /api/mobile/* */
   access_token: string;
-  /** Rotation durable liée à un appareil révoquable. */
   refresh_token?: string;
   device_id?: string;
-  /** URL du backend LAN (ex: http://192.168.1.50:8005) */
   api_base_url: string;
 }
 
@@ -33,6 +28,8 @@ export interface QueuedAction {
   method: string;
   body?: any;
   timestamp: number;
+  cabinetPublicId: string;
+  deviceId: string;
 }
 
 let refreshInFlight: Promise<ZKACredentials | null> | null = null;
@@ -65,6 +62,55 @@ async function rawCredentials(): Promise<ZKACredentials | null> {
   return localforage.getItem<ZKACredentials>(STORE_CREDENTIALS_ID);
 }
 
+async function clearSessionData(): Promise<void> {
+  await localforage.removeItem(STORE_CREDENTIALS_ID);
+  await localforage.removeItem(STORE_SNAPSHOT_ID);
+  await localforage.removeItem(STORE_ACTION_QUEUE_ID);
+  await localforage.removeItem(LEGACY_ACTION_QUEUE_ID);
+  try {
+    localStorage.removeItem('token');
+    localStorage.removeItem('refresh_token');
+  } catch { /* ignore */ }
+}
+
+async function invalidateMobileSession(): Promise<null> {
+  await clearSessionData();
+  if (typeof window !== 'undefined' && window.location.pathname.startsWith('/mobile') && window.location.pathname !== '/mobile/onboarding') {
+    window.location.replace('/mobile/onboarding');
+  }
+  return null;
+}
+
+async function refreshCredentialsInternal(creds: ZKACredentials): Promise<ZKACredentials | null> {
+  if (!creds.refresh_token || !creds.device_id) return null;
+  if (refreshInFlight) return refreshInFlight;
+
+  refreshInFlight = (async () => {
+    try {
+      const response = await fetch(`${resolveApiBaseUrl(creds.api_base_url)}/api/mobile/refresh-token`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ refresh_token: creds.refresh_token }),
+      });
+      if (!response.ok) {
+        if (response.status === 401 || response.status === 403) return invalidateMobileSession();
+        return creds;
+      }
+      const payload = await response.json();
+      if (!payload.access_token || !payload.refresh_token || payload.device_id !== creds.device_id) {
+        return invalidateMobileSession();
+      }
+      return MobileStorage.updateTokens(payload.access_token, payload.refresh_token, payload.device_id);
+    } catch {
+      // Réseau indisponible : conserver la session locale. Ne jamais transformer
+      // une panne réseau en révocation.
+      return creds;
+    }
+  })().finally(() => { refreshInFlight = null; });
+
+  return refreshInFlight;
+}
+
 export const MobileStorage = {
   async saveCredentials(creds: ZKACredentials): Promise<void> {
     if (!/^[0-9a-fA-F]{16}$/.test(creds.publicId)) throw new Error('ID Cabinet invalide.');
@@ -72,6 +118,16 @@ export const MobileStorage = {
     if (!creds.access_token || !creds.refresh_token || !creds.device_id) {
       throw new Error('Session mobile durable incomplète.');
     }
+
+    const previous = await rawCredentials();
+    const scopeChanged = !previous || previous.publicId !== creds.publicId || previous.device_id !== creds.device_id;
+    if (scopeChanged) {
+      await localforage.removeItem(STORE_SNAPSHOT_ID);
+      await localforage.removeItem(STORE_ACTION_QUEUE_ID);
+    }
+    // L'ancienne queue n'est jamais rejouée car elle n'était pas tenant/device-bound.
+    await localforage.removeItem(LEGACY_ACTION_QUEUE_ID);
+
     await localforage.setItem(STORE_CREDENTIALS_ID, creds);
     try { localStorage.setItem('token', creds.access_token); } catch { /* ignore */ }
     try { await navigator.storage?.persist?.(); } catch { /* ignore */ }
@@ -79,7 +135,7 @@ export const MobileStorage = {
 
   async updateTokens(accessToken: string, refreshToken: string, deviceId: string): Promise<ZKACredentials | null> {
     const current = await rawCredentials();
-    if (!current) return null;
+    if (!current || current.device_id !== deviceId) return null;
     const next: ZKACredentials = {
       ...current,
       access_token: accessToken,
@@ -102,36 +158,18 @@ export const MobileStorage = {
   async getCredentials(): Promise<ZKACredentials | null> {
     const creds = await rawCredentials();
     if (!creds) return null;
-    if (!creds.refresh_token || !creds.device_id) return creds; // legacy: isPaired() will fail closed.
+    if (!creds.refresh_token || !creds.device_id) return creds;
 
     const expiry = accessTokenExpiryMs(creds.access_token);
     if (expiry !== null && expiry > Date.now() + 60_000) return creds;
     if (typeof navigator !== 'undefined' && navigator.onLine === false) return creds;
+    return refreshCredentialsInternal(creds);
+  },
 
-    if (refreshInFlight) return refreshInFlight;
-    refreshInFlight = (async () => {
-      try {
-        const response = await fetch(`${resolveApiBaseUrl(creds.api_base_url)}/api/mobile/refresh-token`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ refresh_token: creds.refresh_token }),
-        });
-        if (!response.ok) {
-          if (response.status === 401 || response.status === 403) await this.clearCredentials();
-          return response.status === 401 || response.status === 403 ? null : creds;
-        }
-        const payload = await response.json();
-        if (!payload.access_token || !payload.refresh_token || payload.device_id !== creds.device_id) {
-          await this.clearCredentials();
-          return null;
-        }
-        return this.updateTokens(payload.access_token, payload.refresh_token, payload.device_id);
-      } catch {
-        // Panne réseau : conserver les credentials pour permettre le vrai mode offline.
-        return creds;
-      }
-    })().finally(() => { refreshInFlight = null; });
-    return refreshInFlight;
+  async refreshCredentials(): Promise<ZKACredentials | null> {
+    const creds = await rawCredentials();
+    if (!creds) return null;
+    return refreshCredentialsInternal(creds);
   },
 
   async clearCredentials(): Promise<void> {
@@ -140,8 +178,7 @@ export const MobileStorage = {
   },
 
   async clearAll(): Promise<void> {
-    await this.clearCredentials();
-    await localforage.removeItem(STORE_SNAPSHOT_ID);
+    await clearSessionData();
   },
 
   async isPaired(): Promise<boolean> {
@@ -153,29 +190,41 @@ export const MobileStorage = {
     return (await this.getLastSnapshot()) !== null;
   },
 
-  // --- M3: OFFLINE ACTION QUEUE ---
-  async enqueueAction(url: string, method: string, body?: any): Promise<void> {
+  async enqueueAction(url: string, method: string, body?: any, actionId?: string): Promise<string> {
+    const creds = await rawCredentials();
+    if (!creds?.device_id) throw new Error('Session mobile non appairée.');
+    await localforage.removeItem(LEGACY_ACTION_QUEUE_ID);
     const queue = await this.getActionQueue();
+    const id = actionId || (crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random()}`);
     const action: QueuedAction = {
-      id: crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(),
-      url, method, body, timestamp: Date.now()
+      id,
+      url,
+      method,
+      body,
+      timestamp: Date.now(),
+      cabinetPublicId: creds.publicId,
+      deviceId: creds.device_id,
     };
     queue.push(action);
-    await localforage.setItem('zka_action_queue', queue);
+    await localforage.setItem(STORE_ACTION_QUEUE_ID, queue);
+    return id;
   },
 
   async getActionQueue(): Promise<QueuedAction[]> {
-    const queue = await localforage.getItem<QueuedAction[]>('zka_action_queue');
-    return queue || [];
+    await localforage.removeItem(LEGACY_ACTION_QUEUE_ID);
+    const creds = await rawCredentials();
+    if (!creds?.device_id) return [];
+    const queue = await localforage.getItem<QueuedAction[]>(STORE_ACTION_QUEUE_ID) || [];
+    return queue.filter(a => a.cabinetPublicId === creds.publicId && a.deviceId === creds.device_id);
   },
 
   async clearActionQueue(): Promise<void> {
-    await localforage.removeItem('zka_action_queue');
+    await localforage.removeItem(STORE_ACTION_QUEUE_ID);
+    await localforage.removeItem(LEGACY_ACTION_QUEUE_ID);
   },
 
   async removeActionFromQueue(id: string): Promise<void> {
-    const queue = await this.getActionQueue();
-    const filtered = queue.filter(a => a.id !== id);
-    await localforage.setItem('zka_action_queue', filtered);
-  }
+    const queue = await localforage.getItem<QueuedAction[]>(STORE_ACTION_QUEUE_ID) || [];
+    await localforage.setItem(STORE_ACTION_QUEUE_ID, queue.filter(a => a.id !== id));
+  },
 };

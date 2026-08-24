@@ -32,9 +32,9 @@ const queryClient = new QueryClient({
 import { registerSW } from 'virtual:pwa-register'
 
 if ('serviceWorker' in navigator) {
-  // Enregistre le SW Workbox (cache statique, pwa-sw.js) et le SW mobile custom (sw.js)
+  // Un seul Service Worker Workbox pour le shell statique. Les données métier
+  // et mutations offline restent exclusivement dans MobileStorage.
   registerSW({ immediate: true })
-  navigator.serviceWorker.register('/sw.js').catch(() => {/* sw.js absent en dev Vite — normal */})
 }
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
