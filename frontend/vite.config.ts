@@ -36,24 +36,13 @@ export default defineConfig({
     VitePWA({
       registerType: 'autoUpdate',
       injectRegister: 'auto',
-      filename: 'pwa-sw.js', // Nom distinct pour ne pas écraser public/sw.js (mobile custom SW)
+      filename: 'pwa-sw.js',
       includeAssets: ['logo.svg', 'logo.png'],
       manifest: false, // Utilise public/manifest.json
       workbox: {
         globPatterns: ['**/*.{js,css,html,ico,png,svg}'],
-        // Pas de BackgroundSync Workbox : la file offline est gérée par MobileStorage (localforage)
-        runtimeCaching: [
-          {
-            urlPattern: /^https?:\/\/.*\/api\/mobile\/snapshot.*/i,
-            handler: 'NetworkFirst',
-            method: 'GET',
-            options: {
-              cacheName: 'api-snapshot-cache',
-              expiration: { maxEntries: 10, maxAgeSeconds: 60 * 60 * 24 },
-              cacheableResponse: { statuses: [0, 200] }
-            }
-          }
-        ]
+        // Zéro cache API dans le SW : MobileStorage est la source offline métier unique.
+        runtimeCaching: []
       }
     })
   ],

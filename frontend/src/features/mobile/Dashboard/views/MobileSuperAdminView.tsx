@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import { ArrowLeft, Shield, RefreshCw, Search, CheckCircle2, XCircle, Ban, AlertTriangle, Zap } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { MobileStorage } from '../../../../services/zka/MobileStorage';
+import { mobileFetch } from '../../../../services/zka/mobileFetch';
 import { Skeleton } from '../components/Skeleton';
 import toast from 'react-hot-toast';
 
@@ -49,14 +50,12 @@ export function MobileSuperAdminView() {
   const [search, setSearch] = useState('');
   const [busyId, setBusyId] = useState<number | null>(null);
 
-  // Le JWT mobile (365j, type=mobile) est accepté par get_current_user() au même
-  // titre que le cookie desktop (backend/routers/auth.py) — verify_superadmin()
-  // ne regarde que l'email résolu, donc les endpoints /api/superadmin/* existants
-  // fonctionnent tels quels depuis le mobile, sans nouvelle route backend.
+  // Les endpoints SuperAdmin partagés réutilisent le JWT mobile user/device-bound.
+  // mobileFetch renouvelle ce JWT via /api/mobile/refresh-token, jamais via /auth/refresh.
   const authedFetch = useCallback(async (path: string, init?: RequestInit) => {
     const creds = await MobileStorage.getCredentials();
     if (!creds) throw new Error('Non appairé');
-    const res = await fetch(`${resolveApiBaseUrl(creds.api_base_url)}${path}`, {
+    const res = await mobileFetch(`${resolveApiBaseUrl(creds.api_base_url)}${path}`, {
       ...init,
       headers: {
         Authorization: `Bearer ${creds.access_token}`,

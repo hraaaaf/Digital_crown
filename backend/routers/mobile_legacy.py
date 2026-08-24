@@ -724,10 +724,11 @@ def delete_mobile_appointment(
         models.Appointment.employer_id == employer_id
     ).first()
     if not apt:
-        raise HTTPException(status_code=404, detail='Introuvable')
+        # Idempotent replay: an already-absent tenant-scoped RDV is already deleted.
+        return {'status': 'deleted', 'already_absent': True}
     db.delete(apt)
     db.commit()
-    return {'status': 'deleted'}
+    return {'status': 'deleted', 'already_absent': False}
 
 @router.get('/patients', summary='Liste simplifiée des patients pour le mobile')
 def get_mobile_patients(

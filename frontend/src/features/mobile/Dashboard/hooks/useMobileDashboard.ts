@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import toast from 'react-hot-toast';
 import { MobileStorage } from '../../../../services/zka/MobileStorage';
+import { mobileFetch } from '../../../../services/zka/mobileFetch';
 import { CryptoService } from '../../../../services/zka/CryptoService';
 import { fetchLabJobs, patchLabJobStatus } from '../../../../services/labJobService';
 import type { LabJob } from '../../../../types/labJob';
@@ -15,6 +16,15 @@ function resolveApiBaseUrl(stored: string): string {
     return `${window.location.protocol}//${hostname}:8005`;
   }
   return stored;
+}
+
+
+function isQueueableNetworkError(error: unknown): boolean {
+  if (error instanceof TypeError) return true;
+  const name = error && typeof error === 'object' && 'name' in error
+    ? String((error as { name?: unknown }).name ?? '')
+    : '';
+  return name === 'AbortError' || name === 'TimeoutError';
 }
 
 export function useMobileDashboard() {
@@ -74,11 +84,20 @@ export function useMobileDashboard() {
       // (used by CrownBotChat and other shared components) sends Authorization headers.
       try { localStorage.setItem('token', creds.access_token); } catch { /* ignore */ }
 
-      const res = await fetch(`${resolveApiBaseUrl(creds.api_base_url)}/api/mobile/snapshot?target_date=${selectedDate}`, {
-        headers: { Authorization: `Bearer ${creds.access_token}` },
+      const res = await mobileFetch(`${resolveApiBaseUrl(creds.api_base_url)}/api/mobile/snapshot?target_date=${selectedDate}`, {
         signal: AbortSignal.timeout(8000),
       });
-      if (!res.ok) throw new Error((await res.json().catch(() => ({}))).detail ?? `Erreur ${res.status}`);
+      if (!res.ok) {
+        const detail = (await res.json().catch(() => ({}))).detail ?? `Erreur ${res.status}`;
+        if (res.status === 401 || res.status === 403) {
+          setError('Session mobile expirée ou révoquée');
+          setSyncStatus('error');
+          return;
+        }
+        setError(detail);
+        setSyncStatus('error');
+        return;
+      }
 
       const rawRes = await res.json();
       const data: Snapshot = rawRes.payload 
@@ -92,13 +111,21 @@ export function useMobileDashboard() {
     } catch (err) {
       console.error('[MobileDashboard] fetchSnapshot failed:', err);
       const notPaired = err instanceof Error && err.message === 'Non appairé';
+      if (notPaired) {
+        setError('Session mobile expirée ou révoquée');
+        setSyncStatus('error');
+        return;
+      }
+      if (!isQueueableNetworkError(err)) {
+        setError(err instanceof Error ? err.message : 'Erreur de synchronisation mobile');
+        setSyncStatus('error');
+        return;
+      }
       const cached = await MobileStorage.getLastSnapshot();
       if (cached) {
         setSnapshot(cached);
         setSyncStatus('error');
-        setError(notPaired
-          ? 'Non ré-appairé — dernières données locales (scannez le QR pour synchroniser)'
-          : 'Hors réseau — données en cache');
+        setError('Hors réseau — données en cache');
       } else {
         setError('Impossible de joindre le cabinet');
         setSyncStatus('error');
@@ -110,7 +137,7 @@ export function useMobileDashboard() {
     try {
       const creds = credsRef.current || await MobileStorage.getCredentials();
       if (!creds) return;
-      const res = await fetch(`${resolveApiBaseUrl(creds.api_base_url)}/api/mobile/patients`, {
+      const res = await mobileFetch(`${resolveApiBaseUrl(creds.api_base_url)}/api/mobile/patients`, {
         headers: { Authorization: `Bearer ${creds.access_token}` },
         signal: AbortSignal.timeout(5000),
       });
@@ -140,17 +167,23 @@ export function useMobileDashboard() {
 
     for (const action of queue) {
       try {
-        await fetch(action.url, {
+        const res = await mobileFetch(action.url, {
           method: action.method,
           headers: {
             'Content-Type': 'application/json',
-            Authorization: `Bearer ${creds.access_token}`
+            'X-Mobile-Action-Id': action.id,
           },
-          body: action.body ? JSON.stringify(action.body) : undefined
+          body: action.body ? JSON.stringify(action.body) : undefined,
         });
+        if (!res.ok) {
+          hasError = true;
+          toast.error(`Synchronisation refusée (${res.status})`);
+          break;
+        }
         await MobileStorage.removeActionFromQueue(action.id);
-      } catch (err) {
+      } catch {
         hasError = true;
+        break;
       }
     }
 
@@ -181,21 +214,31 @@ export function useMobileDashboard() {
   const handleStatusChange = async (id: number, status: ApptStatus) => {
     const creds = credsRef.current || await MobileStorage.getCredentials();
     if (!creds) return;
+    const actionId = crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${id}-status`;
     try {
-      await fetch(`${resolveApiBaseUrl(creds.api_base_url)}/api/mobile/appointments/${id}/status`, {
+      const res = await mobileFetch(`${resolveApiBaseUrl(creds.api_base_url)}/api/mobile/appointments/${id}/status`, {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${creds.access_token}` },
+        headers: { 'Content-Type': 'application/json', 'X-Mobile-Action-Id': actionId },
         body: JSON.stringify({ status }),
       });
+      if (!res.ok) {
+        toast.error(`Mise à jour refusée (${res.status})`);
+        return;
+      }
       setSnapshot(prev => prev ? {
         ...prev,
         appointments: prev.appointments.map(a => a.id === id ? { ...a, status } : a),
       } : prev);
-    } catch {
-      await MobileStorage.enqueueAction(`${resolveApiBaseUrl(creds.api_base_url)}/api/mobile/appointments/${id}/status`, 'PATCH', { status });
-      setQueuedActionsCount(prev => prev + 1);
+    } catch (err) {
+      if (!isQueueableNetworkError(err)) {
+        toast.error(err instanceof Error && err.message === 'Non appairé'
+          ? 'Session mobile expirée ou révoquée'
+          : 'Erreur lors de la mise à jour');
+        return;
+      }
+      await MobileStorage.enqueueAction(`${resolveApiBaseUrl(creds.api_base_url)}/api/mobile/appointments/${id}/status`, 'PATCH', { status }, actionId);
+      setQueuedActionsCount((await MobileStorage.getActionQueue()).length);
       toast('Mise à jour mise en attente (hors ligne)', { icon: '🔄' });
-      
       setSnapshot(prev => prev ? {
         ...prev,
         appointments: prev.appointments.map(a => a.id === id ? { ...a, status } : a),
@@ -207,16 +250,27 @@ export function useMobileDashboard() {
     if (!window.confirm("Supprimer ce rendez-vous ?")) return;
     const creds = credsRef.current || await MobileStorage.getCredentials();
     if (!creds) return;
+    const actionId = crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${id}-delete`;
     try {
-      await fetch(`${resolveApiBaseUrl(creds.api_base_url)}/api/mobile/appointments/${id}`, {
+      const res = await mobileFetch(`${resolveApiBaseUrl(creds.api_base_url)}/api/mobile/appointments/${id}`, {
         method: 'DELETE',
-        headers: { Authorization: `Bearer ${creds.access_token}` }
+        headers: { 'X-Mobile-Action-Id': actionId },
       });
+      if (!res.ok) {
+        toast.error(`Suppression refusée (${res.status})`);
+        return;
+      }
       fetchSnapshot();
       toast.success("Rendez-vous supprimé");
     } catch (err) {
-      await MobileStorage.enqueueAction(`${resolveApiBaseUrl(creds.api_base_url)}/api/mobile/appointments/${id}`, 'DELETE');
-      setQueuedActionsCount(prev => prev + 1);
+      if (!isQueueableNetworkError(err)) {
+        toast.error(err instanceof Error && err.message === 'Non appairé'
+          ? 'Session mobile expirée ou révoquée'
+          : 'Erreur lors de la suppression');
+        return;
+      }
+      await MobileStorage.enqueueAction(`${resolveApiBaseUrl(creds.api_base_url)}/api/mobile/appointments/${id}`, 'DELETE', undefined, actionId);
+      setQueuedActionsCount((await MobileStorage.getActionQueue()).length);
       toast('Suppression mise en attente (hors ligne)', { icon: '🔄' });
       setSnapshot(prev => prev ? {
         ...prev,
@@ -229,17 +283,21 @@ export function useMobileDashboard() {
     const creds = credsRef.current || await MobileStorage.getCredentials();
     if (!creds) return;
     try {
-      await fetch(`${resolveApiBaseUrl(creds.api_base_url)}/api/mobile/appointments/${id}`, {
+      const res = await mobileFetch(`${resolveApiBaseUrl(creds.api_base_url)}/api/mobile/appointments/${id}`, {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${creds.access_token}` },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ datetime_start: `${newDate}T${newTime}:00` }),
       });
+      if (!res.ok) {
+        toast.error('Déplacement mobile indisponible — utilisez l’agenda principal.');
+        return;
+      }
       fetchSnapshot();
       toast.success("Rendez-vous déplacé");
-    } catch (err) {
-      await MobileStorage.enqueueAction(`${resolveApiBaseUrl(creds.api_base_url)}/api/mobile/appointments/${id}`, 'PATCH', { datetime_start: `${newDate}T${newTime}:00` });
-      setQueuedActionsCount(prev => prev + 1);
-      toast('Déplacement mis en attente (hors ligne)', { icon: '🔄' });
+    } catch {
+      // La route de déplacement mobile n'est pas encore canonique (M6.3) :
+      // ne jamais mettre en queue une opération que le serveur ne sait pas rejouer.
+      toast.error('Déplacement impossible hors ligne.');
     }
   };
 
@@ -295,11 +353,11 @@ export function useMobileDashboard() {
 
     try {
       window.location.href = whatsappUri;
-    } catch (e) {
-      console.error('Échec de redirection WhatsApp', e);
-    } finally {
+      await patchLabJobStatus(job.id, { status: LabJobStatus.SENT });
       setLabJobs(prev => prev.map(j => j.id === job.id ? { ...j, status: LabJobStatus.SENT } : j));
-      patchLabJobStatus(job.id, { status: LabJobStatus.SENT }).catch((err: any) => console.error('Erreur API:', err));
+    } catch (e) {
+      console.error('Échec WhatsApp ou persistance Labo', e);
+      toast.error('WhatsApp ouvert, mais statut Labo non confirmé.');
     }
   };
 
@@ -308,7 +366,7 @@ export function useMobileDashboard() {
     try {
       const creds = credsRef.current || await MobileStorage.getCredentials();
       if (!creds) return;
-      const res = await fetch(`${resolveApiBaseUrl(creds.api_base_url)}/api/mobile/patients/${patientId}/documents`, {
+      const res = await mobileFetch(`${resolveApiBaseUrl(creds.api_base_url)}/api/mobile/patients/${patientId}/documents`, {
         headers: { Authorization: `Bearer ${creds.access_token}` },
       });
       if (res.ok) {
@@ -347,7 +405,7 @@ export function useMobileDashboard() {
     try {
       const creds = credsRef.current || await MobileStorage.getCredentials();
       if (!creds) return;
-      const res = await fetch(`${resolveApiBaseUrl(creds.api_base_url)}/api/mobile/documents/${selectedDocId}/sign`, {
+      const res = await mobileFetch(`${resolveApiBaseUrl(creds.api_base_url)}/api/mobile/documents/${selectedDocId}/sign`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -379,7 +437,7 @@ export function useMobileDashboard() {
     if (!creds) return;
     try {
       const d = new Date(selectedDate);
-      const res = await fetch(`${resolveApiBaseUrl(creds.api_base_url)}/api/mobile/accounting/export-pdf?year=${d.getFullYear()}&month=${d.getMonth() + 1}`, {
+      const res = await mobileFetch(`${resolveApiBaseUrl(creds.api_base_url)}/api/mobile/accounting/export-pdf?year=${d.getFullYear()}&month=${d.getMonth() + 1}`, {
         headers: { Authorization: `Bearer ${creds.access_token}` },
       });
       if (!res.ok) throw new Error('Erreur export');
