@@ -1,5 +1,6 @@
 name: Mobile M6.4 Final Exact-Head AFTER
 
+# retrigger: 2026-08-24 final exact-head capture
 on:
   push:
     branches:
