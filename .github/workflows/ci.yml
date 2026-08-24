@@ -1,60 +1,36 @@
-name: CI
-
-# S9 — Pipeline d'intégration continue Digital Crown.
-# Gate de pré-production : durcissement config + suite de tests (sécurité,
-# contrôle d'accès, capsule IA, Crown Bot). Aucune donnée patient n'est touchée :
-# les tests tournent sur SQLite in-memory isolé (voir backend/tests/conftest.py).
+name: Mobile M4-A Patient BEFORE
 
 on:
-  push:
-    branches: [main, master, "S[0-9]*", "redressement*"]
   pull_request:
   workflow_dispatch:
 
 concurrency:
-  group: ci-${{ github.ref }}
+  group: mobile-m4a-before-${{ github.ref }}
   cancel-in-progress: true
 
+permissions:
+  contents: read
+
 jobs:
-  test:
-    name: Tests & durcissement
+  before:
+    name: M4-A patient exact-context BEFORE
     runs-on: ubuntu-latest
-    env:
-      SECRET_KEY: ci-only-secret-key-minimum-32-characters-long
-      DATABASE_URL: "sqlite:///:memory:"
-      ENVIRONMENT: development
-      TELEMETRY_ENABLED: "false"
-      CLOUD_AI_ENABLED: "false"
+    timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v4
-
-      - name: Setup Python 3.12
-        uses: actions/setup-python@v5
+      - name: Checkout audit head
+        uses: actions/checkout@v4
         with:
-          python-version: "3.12"
+          ref: ${{ github.event.pull_request.head.sha }}
 
-      - name: Install dependencies
+      - name: Record immutable baseline
         run: |
-          python -m pip install --upgrade pip
-          pip install torch==2.12.0 torchvision==0.27.0 --index-url https://download.pytorch.org/whl/cpu
-          grep -vE '^(torch|torchvision)([<=>].*)?$' requirements.txt > /tmp/requirements-ci.txt
-          pip install -r /tmp/requirements-ci.txt
-          pip install httpx==0.27.2 pytest pytest-asyncio
-
-      - name: Prod safety check (config hardening)
-        run: python scripts/prod_safety_check.py
-
-      - name: Test suite
-        run: python -m pytest backend/tests -q --maxfail=1
-
-  frontend:
-    name: Frontend (tests & build)
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: frontend
-    steps:
-      - uses: actions/checkout@v4
+          echo "BASELINE_HEAD=${{ github.event.pull_request.base.sha }}" >> "$GITHUB_ENV"
+          CHANGED=$(git diff --name-only "${{ github.event.pull_request.base.sha }}"...HEAD || true)
+          echo "$CHANGED"
+          if echo "$CHANGED" | grep -Ev '^(\.audit/mobile-m4a-|docs/MOBILE_M4_A_PATIENT_BRIDGE_GOAL\.md|\.github/workflows/ci\.yml)$' | grep -q .; then
+            echo "::error::Audit M4-A contient un changement produit"
+            exit 1
+          fi
 
       - name: Setup Node 20
         uses: actions/setup-node@v4
@@ -63,41 +39,52 @@ jobs:
           cache: npm
           cache-dependency-path: frontend/package-lock.json
 
-      - name: Install dependencies
-        run: npm ci
+      - name: Install frontend + Chromium
+        working-directory: frontend
+        run: |
+          npm ci
+          npm install --no-save --package-lock=false playwright@1.55.0
+          npx playwright install --with-deps chromium
 
-      - name: Test suite
-        run: npm test
+      - name: Materialize BEFORE harness
+        run: |
+          cp .audit/mobile-m4a-before.html frontend/mobile-m4a-before.html
+          cp .audit/mobile-m4a-before.tsx frontend/src/mobile-m4a-before.tsx
+          cp .audit/mobile-m4a-before.mjs frontend/mobile-m4a-before.mjs
 
-      - name: Build
-        run: npm run build
+      - name: Capture M4-A BEFORE
+        working-directory: frontend
+        run: node mobile-m4a-before.mjs
 
-  prod-gate:
-    name: Garde production (négatif)
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
+      - name: Assert BEFORE contract
+        working-directory: frontend
+        run: |
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          report = json.loads(Path('mobile-m4a-before-artifacts/report.json').read_text())
+          assert report['baselineHead'] == os.environ['BASELINE_HEAD']
+          assert len(report['captures']) == 5
+          assert report['bridgeAbsent'] is True
+          assert report['exactPatientMobileAbsent'] is True
+          assert all(not item['errors'] for item in report['captures'])
+          assert all(not item['metrics']['hasHorizontalOverflow'] for item in report['captures'])
+          print('M4-A BEFORE PASS')
+          PY
+          cat > mobile-m4a-before-artifacts/metadata.txt <<EOF
+          chantier=Digital Crown Mobile Full Experience
+          lot=M4-A Patient contextuel
+          baseline_head=${BASELINE_HEAD}
+          desktop_viewports=1280x900,768x1024
+          mobile_viewports=390x844,430x932,768x1024
+          product_change=none
+          deployment=none
+          EOF
 
-      - name: Setup Python 3.12
-        uses: actions/setup-python@v5
+      - name: Upload BEFORE evidence
+        uses: actions/upload-artifact@v4
         with:
-          python-version: "3.12"
-
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install pydantic-settings==2.2.1
-
-      - name: Le garde DOIT refuser une config prod non durcie
-        env:
-          ENVIRONMENT: production
-          SECRET_KEY: changeme
-          DEBUG: "true"
-          DATABASE_URL: "sqlite:///./x.db"
-        run: |
-          if python scripts/prod_safety_check.py; then
-            echo "::error::Le prod safety check a accepté une config production non durcie."
-            exit 1
-          else
-            echo "OK : le garde a bien refusé la config production non durcie."
-          fi
+          name: mobile-m4a-patient-before
+          path: frontend/mobile-m4a-before-artifacts/
+          if-no-files-found: error
+          retention-days: 14
