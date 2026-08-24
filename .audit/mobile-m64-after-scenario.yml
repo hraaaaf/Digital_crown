@@ -1,0 +1,426 @@
+name: Mobile M6.4 Contextual QR AFTER
+
+on:
+  push:
+    branches:
+      - "audit/mobile-m64-before-20260824"
+    paths:
+      - ".github/workflows/mobile-m64-after.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  capture:
+    if: ${{ github.event_name != 'push' || !contains(github.event.head_commit.message, '[M64 AFTER evidence]') }}
+    name: Capture M6.4 exact-head AFTER
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout audit evidence branch
+        uses: actions/checkout@v4
+
+      - name: Checkout exact product branch
+        uses: actions/checkout@v4
+        with:
+          ref: mobile/m64-contextual-qr-bridge
+          path: product
+
+      - name: Verify exact product HEAD
+        run: |
+          PRODUCT_HEAD=$(git -C product rev-parse HEAD)
+          test "$PRODUCT_HEAD" = "892da29f253080005120db8b7ff4c924d54a1e04"
+          echo "PRODUCT_HEAD=$PRODUCT_HEAD" >> "$GITHUB_ENV"
+
+      - name: Setup Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: product/frontend/package-lock.json
+
+      - name: Install frontend and Chromium
+        working-directory: product/frontend
+        run: |
+          npm ci
+          npm install --no-save --package-lock=false playwright@1.55.0
+          npx playwright install --with-deps chromium
+
+      - name: Inject isolated AFTER harness
+        working-directory: product/frontend
+        run: |
+          cat > mobile-m64-after.html <<'EOF'
+          <!doctype html>
+          <html lang="fr">
+            <head>
+              <meta charset="UTF-8" />
+              <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+              <title>Digital Crown M6.4 AFTER</title>
+            </head>
+            <body>
+              <div id="root"></div>
+              <script type="module" src="/src/mobile-m64-after.tsx"></script>
+            </body>
+          </html>
+          EOF
+
+          cat > src/mobile-m64-after.tsx <<'EOF'
+          import React from 'react';
+          import { createRoot } from 'react-dom/client';
+          import { MemoryRouter, Route, Routes } from 'react-router-dom';
+          import './index.css';
+          import { MobileSecurity } from './features/admin/Security/MobileSecurity';
+          import { OnboardingScanner } from './features/mobile/Onboarding/OnboardingScanner';
+          import { MobileDashboard } from './features/mobile/Dashboard/MobileDashboard';
+
+          const params = new URLSearchParams(window.location.search);
+          const view = params.get('view') || 'bridge';
+          const entry = view === 'e2e'
+            ? '/mobile/onboarding?token=f.M64AfterSecretTokenForVisual001'
+            : '/mobile/onboarding';
+
+          const node = view === 'bridge' ? (
+            <div className="min-h-screen bg-slate-50 p-6 sm:p-10 font-outfit">
+              <div className="max-w-6xl mx-auto rounded-[32px] bg-white border border-slate-200 p-5 sm:p-8 shadow-sm">
+                <MobileSecurity />
+              </div>
+            </div>
+          ) : (
+            <Routes>
+              <Route path="/mobile/onboarding" element={<OnboardingScanner />} />
+              <Route path="/mobile/dashboard" element={<MobileDashboard />} />
+            </Routes>
+          );
+
+          createRoot(document.getElementById('root')!).render(
+            <React.StrictMode>
+              <MemoryRouter initialEntries={[entry]}>{node}</MemoryRouter>
+            </React.StrictMode>,
+          );
+          EOF
+
+          cat > mobile-m64-after.mjs <<'EOF'
+          import { chromium } from 'playwright';
+          import { createServer } from 'vite';
+          import fs from 'node:fs/promises';
+          import { randomBytes } from 'node:crypto';
+          import { gcm } from '@noble/ciphers/aes.js';
+          import { p256 } from '@noble/curves/nist.js';
+          import { bytesToHex, hexToBytes } from '@noble/curves/utils.js';
+          import { hkdf } from '@noble/hashes/hkdf.js';
+          import { sha256 } from '@noble/hashes/sha2.js';
+
+          const output = 'mobile-m64-after-artifacts';
+          await fs.mkdir(output, { recursive: true });
+          const pairingBodies = [];
+          const protocol = [];
+
+          const qrSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="180" height="180" viewBox="0 0 180 180"><rect width="180" height="180" fill="white"/><g fill="#4f46e5"><rect x="12" y="12" width="48" height="48"/><rect x="120" y="12" width="48" height="48"/><rect x="12" y="120" width="48" height="48"/><rect x="76" y="76" width="16" height="16"/><rect x="100" y="76" width="12" height="12"/><rect x="76" y="104" width="12" height="12"/><rect x="106" y="112" width="20" height="20"/><rect x="138" y="92" width="18" height="18"/><rect x="84" y="140" width="16" height="16"/></g></svg>`;
+          const qrData = `data:image/svg+xml;base64,${Buffer.from(qrSvg).toString('base64')}`;
+
+          function encryptedPairingPayload(clientPublicKeyHex) {
+            const serverPrivate = p256.utils.randomSecretKey();
+            const serverPublic = p256.getPublicKey(serverPrivate, false);
+            const clientPublic = hexToBytes(clientPublicKeyHex);
+            const sharedSecret = p256.getSharedSecret(serverPrivate, clientPublic, true).slice(1);
+            const aesKey = hkdf(
+              sha256,
+              sharedSecret,
+              new Uint8Array(32),
+              new TextEncoder().encode('zka_mobile_bridge'),
+              32,
+            );
+            const nonce = new Uint8Array(randomBytes(12));
+            const encrypted = gcm(aesKey, nonce).encrypt(new TextEncoder().encode('a'.repeat(64)));
+            const envelope = new Uint8Array(nonce.length + encrypted.length);
+            envelope.set(nonce, 0);
+            envelope.set(encrypted, nonce.length);
+            return {
+              publicId: 'abcdef1234567890',
+              access_token: 'eyJhbGciOiJub25lIiwidHlwIjoiSldUIn0.eyJleHAiOjQxMDI0NDQ4MDB9.',
+              refresh_token: 'm64-refresh-token',
+              device_id: '11111111-2222-4333-8444-555555555555',
+              user_id: 1,
+              tenant_id: 1,
+              role: 'DENTISTE',
+              server_public_key_hex: bytesToHex(serverPublic),
+              encrypted_master_key_hex: bytesToHex(envelope),
+            };
+          }
+
+          const snapshot = {
+            generated_at: '2026-08-24T15:00:00Z',
+            role: 'DENTISTE',
+            is_superadmin: false,
+            appointments: [],
+            finance: {
+              today_revenue: 1250,
+              month_revenue: 18400,
+              month_variation: 8.2,
+              appointments_count: 0,
+              weekly_revenue: [
+                { date: '2026-08-18', amount: 1800 },
+                { date: '2026-08-19', amount: 2200 },
+                { date: '2026-08-20', amount: 1650 },
+                { date: '2026-08-21', amount: 3100 },
+                { date: '2026-08-22', amount: 2450 },
+                { date: '2026-08-23', amount: 900 },
+                { date: '2026-08-24', amount: 1250 },
+              ],
+              total_patients: 287,
+              total_debt: 3400,
+            },
+            debtors: [],
+          };
+
+          const server = await createServer({
+            server: { host: '127.0.0.1', port: 4178, strictPort: true },
+            clearScreen: false,
+          });
+          await server.listen();
+          const browser = await chromium.launch();
+          const results = [];
+
+          async function setupContext(viewport, userAgent) {
+            const context = await browser.newContext({
+              viewport,
+              screen: viewport,
+              userAgent,
+              isMobile: viewport.width <= 768,
+              hasTouch: viewport.width <= 768,
+              deviceScaleFactor: 1,
+              serviceWorkers: 'block',
+            });
+            const page = await context.newPage();
+            const errors = [];
+            page.on('pageerror', error => errors.push(`pageerror: ${error.message}`));
+            page.on('console', message => {
+              if (message.type() === 'error') errors.push(`console: ${message.text()}`);
+            });
+            await page.route('**/*', async route => {
+              const req = route.request();
+              const url = new URL(req.url());
+              const path = url.pathname;
+
+              if (path.endsWith('/api/mobile/bridge-options')) {
+                protocol.push('bridge-options');
+                return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({
+                  targets: [{
+                    id: 1,
+                    name: 'Dr Salma Idrissi',
+                    email: 'salma@example.test',
+                    role: 'DENTISTE',
+                    is_current_user: true,
+                    destinations: [
+                      { id: 'agenda', label: 'Agenda' },
+                      { id: 'finance', label: 'Finance' },
+                      { id: 'lab', label: 'Labo' },
+                      { id: 'assistant', label: 'Assistant' },
+                      { id: 'security', label: 'Sécurité' },
+                      { id: 'dentists', label: 'Équipe praticiens' },
+                    ],
+                  }],
+                  expires_in: 300,
+                }) });
+              }
+              if (path.endsWith('/api/mobile/bridge-pairing')) {
+                const body = req.postDataJSON();
+                pairingBodies.push(body);
+                protocol.push(`bridge-pairing:${body.destination}`);
+                return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({
+                  qr_code: qrData,
+                  expires_in: 300,
+                  lan_url: 'http://192.168.1.20:8005',
+                  token_code: '123456',
+                  target_user_id: 1,
+                  target_user_name: 'Dr Salma Idrissi',
+                  target_role: 'DENTISTE',
+                  destination: body.destination,
+                  destination_label: body.destination === 'finance' ? 'Finance' : 'Agenda',
+                  contains_patient_data: false,
+                }) });
+              }
+              if (path.endsWith('/api/mobile/claim-token')) {
+                const body = req.postDataJSON();
+                protocol.push('claim-token');
+                return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(encryptedPairingPayload(body.client_public_key_hex)) });
+              }
+              if (path.endsWith('/api/mobile/bridge-destination')) {
+                protocol.push('bridge-destination:finance');
+                return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ destination: 'finance', label: 'Finance', fallback: false }) });
+              }
+              if (path.endsWith('/api/mobile/snapshot')) {
+                return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(snapshot) });
+              }
+              if (path.endsWith('/api/mobile/patients')) {
+                return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ data: [] }) });
+              }
+              if (path.endsWith('/api/lab-jobs/')) {
+                return route.fulfill({ status: 200, contentType: 'application/json', body: '[]' });
+              }
+              if (path.startsWith('/api/')) {
+                return route.fulfill({ status: 200, contentType: 'application/json', body: '{}' });
+              }
+              return route.continue();
+            });
+            return { context, page, errors };
+          }
+
+          async function metrics(page, includeControls = true) {
+            return page.evaluate((measureControls) => {
+              const root = document.documentElement;
+              const controls = measureControls
+                ? [...document.querySelectorAll('button, input, select, a')]
+                    .filter(el => {
+                      const style = window.getComputedStyle(el);
+                      const r = el.getBoundingClientRect();
+                      return style.visibility !== 'hidden' && style.display !== 'none' && r.width > 0 && r.height > 0;
+                    })
+                    .map(el => {
+                      const r = el.getBoundingClientRect();
+                      return {
+                        tag: el.tagName,
+                        text: (el.textContent || el.getAttribute('placeholder') || el.getAttribute('aria-label') || '').trim().replace(/\s+/g, ' ').slice(0, 120),
+                        width: Math.round(r.width),
+                        height: Math.round(r.height),
+                      };
+                    })
+                : [];
+              const offenders = [...document.querySelectorAll('body *')].flatMap(el => {
+                const r = el.getBoundingClientRect();
+                if (r.right > window.innerWidth + 1 || r.left < -1) {
+                  return [{ tag: el.tagName, left: Math.round(r.left), right: Math.round(r.right), width: Math.round(r.width), text: (el.textContent || '').trim().replace(/\s+/g, ' ').slice(0, 80) }];
+                }
+                return [];
+              }).slice(0, 20);
+              return {
+                viewport: { width: window.innerWidth, height: window.innerHeight },
+                scrollWidth: root.scrollWidth,
+                clientWidth: root.clientWidth,
+                hasHorizontalOverflow: root.scrollWidth > root.clientWidth + 1,
+                offenders,
+                controls,
+                controlsBelow44: controls.filter(control => control.height < 44),
+              };
+            }, includeControls);
+          }
+
+          async function capture(page, errors, name, state, viewport, includeControls = true, extra = {}) {
+            const measured = await metrics(page, includeControls);
+            await page.screenshot({ path: `${output}/${name}.png`, fullPage: true, animations: 'disabled' });
+            const record = { name, state, ...viewport, metrics: measured, errors: [...errors], ...extra };
+            await fs.writeFile(`${output}/${name}.json`, JSON.stringify(record, null, 2));
+            results.push(record);
+          }
+
+          try {
+            for (const viewport of [{ width: 768, height: 1024 }, { width: 1280, height: 900 }]) {
+              const { context, page, errors } = await setupContext(viewport, 'Mozilla/5.0 AppleWebKit/537.36 Chrome/151 Safari/537.36');
+              await page.goto('http://127.0.0.1:4178/mobile-m64-after.html?view=bridge', { waitUntil: 'networkidle' });
+              await page.getByLabel('Utilisateur mobile cible').waitFor({ state: 'visible', timeout: 15000 });
+              await capture(page, errors, `bridge-default-${viewport.width}x${viewport.height}`, 'bridge-default', viewport);
+              await page.getByLabel('Destination mobile').selectOption('finance');
+              await page.getByRole('button', { name: 'Générer le pont mobile' }).click();
+              await page.getByText('Dr Salma Idrissi → Finance', { exact: true }).waitFor({ state: 'visible', timeout: 5000 });
+              await capture(page, errors, `bridge-visible-${viewport.width}x${viewport.height}`, 'bridge-visible-finance', viewport);
+              await context.close();
+            }
+
+            for (const viewport of [{ width: 390, height: 844 }, { width: 430, height: 932 }, { width: 768, height: 1024 }]) {
+              const ua = 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_6 like Mac OS X) AppleWebKit/605.1.15 Version/18.6 Mobile/15E148 Safari/604.1';
+              const welcome = await setupContext(viewport, ua);
+              await welcome.page.goto('http://127.0.0.1:4178/mobile-m64-after.html?view=onboarding', { waitUntil: 'networkidle' });
+              await welcome.page.getByText('Compagnon Mobile', { exact: true }).waitFor({ state: 'visible', timeout: 15000 });
+              await capture(welcome.page, welcome.errors, `onboarding-${viewport.width}x${viewport.height}`, 'onboarding', viewport);
+              await welcome.context.close();
+
+              const e2e = await setupContext(viewport, ua);
+              await e2e.page.goto('http://127.0.0.1:4178/mobile-m64-after.html?view=e2e', { waitUntil: 'domcontentloaded' });
+              await e2e.page.getByText('Appairage réussi', { exact: true }).waitFor({ state: 'visible', timeout: 15000 });
+              await e2e.page.getByText('Finance', { exact: true }).waitFor({ state: 'visible', timeout: 5000 });
+              await capture(e2e.page, e2e.errors, `pairing-success-${viewport.width}x${viewport.height}`, 'pairing-success-finance', viewport, true, { destinationLabel: 'Finance' });
+              await e2e.page.getByText('Recettes Jour', { exact: true }).waitFor({ state: 'visible', timeout: 10000 });
+              const financeVisible = await e2e.page.getByText('Recettes Jour', { exact: true }).isVisible();
+              await capture(e2e.page, e2e.errors, `bridge-e2e-finance-${viewport.width}x${viewport.height}`, 'bridge-e2e-finance', viewport, false, { financeVisible });
+              await e2e.context.close();
+            }
+          } finally {
+            await browser.close();
+            await server.close();
+          }
+
+          const safePairingBodies = pairingBodies.every(body => {
+            const keys = Object.keys(body).sort();
+            return JSON.stringify(keys) === JSON.stringify(['destination', 'target_user_id']) && !JSON.stringify(body).toLowerCase().includes('patient');
+          });
+          const e2eResults = results.filter(result => result.state === 'bridge-e2e-finance');
+          const report = {
+            productHead: process.env.PRODUCT_HEAD,
+            pairingBodies,
+            safePairingBodies,
+            protocol,
+            captures: results,
+            e2eFinance: {
+              count: e2eResults.length,
+              allVisible: e2eResults.length === 3 && e2eResults.every(result => result.financeVisible === true),
+              protocolObserved: protocol.includes('claim-token') && protocol.includes('bridge-destination:finance'),
+            },
+          };
+          await fs.writeFile(`${output}/report.json`, JSON.stringify(report, null, 2));
+
+          const failures = results.filter(result =>
+            result.errors.length ||
+            result.metrics.hasHorizontalOverflow ||
+            ((result.state === 'bridge-default' || result.state === 'bridge-visible-finance' || result.state === 'onboarding' || result.state === 'pairing-success-finance') && result.metrics.controlsBelow44.length > 0)
+          );
+          if (!safePairingBodies || !report.e2eFinance.allVisible || !report.e2eFinance.protocolObserved || failures.length) {
+            console.error(JSON.stringify({ safePairingBodies, e2eFinance: report.e2eFinance, failures }, null, 2));
+            process.exitCode = 1;
+          }
+          console.log(JSON.stringify({ captures: results.length, failures: failures.length, safePairingBodies, e2eFinance: report.e2eFinance }, null, 2));
+          EOF
+
+      - name: Capture AFTER
+        working-directory: product/frontend
+        run: node mobile-m64-after.mjs
+
+      - name: Record metadata
+        if: always()
+        run: |
+          mkdir -p product/frontend/mobile-m64-after-artifacts
+          cat > product/frontend/mobile-m64-after-artifacts/metadata.txt <<EOF
+          chantier=Digital Crown Mobile Full Experience
+          lot=M6.4 Contextual QR Bridge
+          product_head=${PRODUCT_HEAD}
+          product_branch=mobile/m64-contextual-qr-bridge
+          before=.audit/mobile-m64-before
+          mockup=.audit/mobile-m64-contextual-qr-mockup.svg
+          bridge_viewports=768x1024,1280x900
+          mobile_viewports=390x844,430x932,768x1024
+          e2e=onboarding->server destination->finance
+          deployment=none
+          EOF
+
+      - name: Upload AFTER artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mobile-m64-after
+          path: product/frontend/mobile-m64-after-artifacts/
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Publish observable AFTER evidence
+        if: always()
+        run: |
+          rm -rf .audit/mobile-m64-after
+          mkdir -p .audit/mobile-m64-after
+          cp -a product/frontend/mobile-m64-after-artifacts/. .audit/mobile-m64-after/
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add .audit/mobile-m64-after
+          if git diff --cached --quiet; then
+            exit 0
+          fi
+          git commit -m "audit(m6.4): publish AFTER evidence [M64 AFTER evidence]"
+          git push origin HEAD:audit/mobile-m64-before-20260824

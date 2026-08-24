@@ -1,5 +1,6 @@
-import { useState } from 'react';
+import { useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useLocation } from 'react-router-dom';
 import { WifiOff } from 'lucide-react';
 import { useMobileDashboard } from './hooks/useMobileDashboard';
 import { MobileHeader } from './components/MobileHeader';
@@ -12,9 +13,17 @@ import { SecuriteView } from './views/SecuriteView';
 import { LabView } from './views/LabView';
 import { BotView } from './views/BotView';
 import { PWAInstallPrompt } from '../../../components/PWAInstallPrompt';
+import { resolveDashboardTab } from '../bridge';
 
 export const MobileDashboard = () => {
+  const location = useLocation();
   const { state, actions, refs: { mainRef } } = useMobileDashboard();
+
+  useEffect(() => {
+    actions.setActiveTab(resolveDashboardTab(location.search));
+  // setActiveTab is the stable React state setter exposed by the dashboard hook.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [location.search]);
 
   const termineCount = state.snapshot?.appointments.filter(a => a.status === 'TERMINE').length ?? 0;
   const totalCount = state.snapshot?.appointments.length ?? 0;
@@ -23,7 +32,7 @@ export const MobileDashboard = () => {
     <div className="min-h-[100dvh] bg-background text-text-main flex flex-col font-outfit pb-28 select-none relative" style={{ backgroundColor: 'var(--bg-medical-pearl)' }}>
       <div className="document-watermark absolute inset-0 z-0 pointer-events-none opacity-50" />
 
-      <MobileHeader 
+      <MobileHeader
         activeTab={state.activeTab}
         syncStatus={state.syncStatus}
         snapshot={state.snapshot}
@@ -57,7 +66,7 @@ export const MobileDashboard = () => {
             className="h-full"
           >
             {state.activeTab === 'agenda' && (
-              <AgendaView 
+              <AgendaView
                 snapshot={state.snapshot}
                 syncStatus={state.syncStatus}
                 selectedDate={state.selectedDate}
@@ -73,13 +82,13 @@ export const MobileDashboard = () => {
               />
             )}
             {state.activeTab === 'lab' && (
-              <LabView 
+              <LabView
                 labJobs={state.labJobs}
                 handleWhatsAppSend={actions.handleWhatsAppSend}
               />
             )}
             {state.activeTab === 'finance' && (
-              <FinanceView 
+              <FinanceView
                 snapshot={state.snapshot}
                 syncStatus={state.syncStatus}
                 selectedDate={state.selectedDate}
@@ -88,21 +97,19 @@ export const MobileDashboard = () => {
               />
             )}
             {state.activeTab === 'securite' && (
-              <SecuriteView 
+              <SecuriteView
                 snapshot={state.snapshot}
                 syncStatus={state.syncStatus}
                 isOnline={state.isOnline}
                 handleLogout={actions.handleLogout}
               />
             )}
-            {state.activeTab === 'bot' && (
-              <BotView />
-            )}
+            {state.activeTab === 'bot' && <BotView />}
           </motion.div>
         </AnimatePresence>
       </main>
 
-      <MobileBottomNav 
+      <MobileBottomNav
         activeTab={state.activeTab}
         setActiveTab={actions.setActiveTab}
         totalCount={totalCount}
@@ -112,7 +119,7 @@ export const MobileDashboard = () => {
       />
 
       {state.whatsappApt && (
-        <WhatsAppModal 
+        <WhatsAppModal
           whatsappTemplate={state.whatsappTemplate}
           setWhatsappTemplate={actions.setWhatsappTemplate}
           customMessage={state.customMessage}
@@ -123,7 +130,7 @@ export const MobileDashboard = () => {
       )}
 
       {state.sigPatientId && (
-        <SignatureModal 
+        <SignatureModal
           sigPatientName={state.sigPatientName}
           isLoadingDocs={state.isLoadingDocs}
           sigDocs={state.sigDocs}
@@ -134,7 +141,6 @@ export const MobileDashboard = () => {
           onCancel={() => actions.setSigPatientId(null)}
         />
       )}
-
     </div>
   );
 };
