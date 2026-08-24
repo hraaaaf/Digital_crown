@@ -1,0 +1,171 @@
+name: Mobile M6.1 Appointment Fix Stage
+
+on:
+  push:
+    branches: [audit/mobile-m6-generator]
+    paths: [.github/workflows/mobile-m61-appointment-stage.yml]
+
+permissions:
+  contents: write
+
+jobs:
+  stage:
+    runs-on: ubuntu-latest
+    env:
+      BASE_SHA: 2bf0f639b198b5aacdd1f797f62ea9ac11aa9cff
+      PRODUCT_SHA: 4284f326e6ed27478a58d01528d621be241f8361
+      PRODUCT_BRANCH: mobile/m6-security-first
+      STAGE_BRANCH: audit/mobile-m61-appointment-stage
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: audit/mobile-m6-generator
+          fetch-depth: 0
+
+      - name: Build exact appointment correction
+        run: |
+          set -euo pipefail
+          git fetch origin master "$PRODUCT_BRANCH" "$STAGE_BRANCH"
+          test "$(git rev-parse origin/master)" = "$BASE_SHA"
+          test "$(git rev-parse origin/$PRODUCT_BRANCH)" = "$PRODUCT_SHA"
+          test "$(git rev-parse origin/$STAGE_BRANCH)" = "$PRODUCT_SHA"
+          git worktree add --detach /tmp/m61-appt "$PRODUCT_SHA"
+          cd /tmp/m61-appt
+          python - <<'PY'
+          from pathlib import Path
+
+          route = Path('backend/routers/mobile_legacy.py')
+          src = route.read_text()
+          start = src.index('class MobileAppointmentCreate(BaseModel):')
+          end = src.index("@router.delete('/appointments/{appointment_id}')", start)
+          replacement = '''class MobileAppointmentCreate(BaseModel):
+              datetime_start: str
+              patient_name: str
+              patient_id: Optional[int] = None
+              phone: Optional[str] = None
+              motif: str
+              duration_minutes: int
+
+          @router.get('/appointments', summary='Recuperer les RDV sur une periode')
+          def get_mobile_appointments(
+              start_date: str,
+              end_date: str,
+              employer_id: int = Depends(get_mobile_employer_id),
+              _mobile_user: models.User = Depends(require_mobile_permission("agenda")),
+              db: Session = Depends(database.get_db),
+          ):
+              start_dt = datetime.strptime(start_date, '%Y-%m-%d')
+              end_dt = datetime.strptime(end_date, '%Y-%m-%d').replace(hour=23, minute=59)
+              apts = db.query(models.Appointment).filter(
+                  models.Appointment.employer_id == employer_id,
+                  models.Appointment.datetime_start >= start_dt,
+                  models.Appointment.datetime_start <= end_dt
+              ).all()
+              data = [{
+                  'id': a.id,
+                  'datetime_start': a.datetime_start.isoformat(),
+                  'patient_name': f'{a.patient.prenom} {a.patient.nom}' if a.patient else a.patient_name,
+                  'patient_id': a.patient_id,
+                  'phone': a.patient.telephone if a.patient else a.phone,
+                  'motif': a.motif,
+                  'status': _to_mobile_status(a.status),
+                  'duration_minutes': a.duration_minutes
+              } for a in apts]
+              return encrypt_payload({"data": data})
+
+          @router.post('/appointments')
+          def create_mobile_appointment(
+              body: MobileAppointmentCreate,
+              employer_id: int = Depends(get_mobile_employer_id),
+              _mobile_user: models.User = Depends(require_mobile_permission("agenda")),
+              db: Session = Depends(database.get_db),
+          ):
+              dt_start = datetime.fromisoformat(body.datetime_start.replace('Z', ''))
+              patient = None
+              patient_name = body.patient_name.strip()
+              if body.patient_id is not None:
+                  patient = db.query(models.Patient).filter(
+                      models.Patient.id == body.patient_id,
+                      models.Patient.employer_id == employer_id,
+                      models.Patient.deleted_at.is_(None),
+                  ).first()
+                  if not patient:
+                      raise HTTPException(status_code=404, detail='Patient introuvable')
+                  patient_name = f'{patient.prenom} {patient.nom}'.strip()
+              if not patient_name:
+                  raise HTTPException(status_code=422, detail='Nom patient requis')
+
+              new_apt = models.Appointment(
+                  employer_id=employer_id,
+                  patient_id=patient.id if patient else None,
+                  patient_name=patient_name,
+                  phone=None if patient else body.phone,
+                  motif=body.motif,
+                  datetime_start=dt_start,
+                  duration_minutes=body.duration_minutes,
+                  status=models.AppointmentStatus.PREVU
+              )
+              db.add(new_apt)
+              db.commit()
+              db.refresh(new_apt)
+              return {'id': new_apt.id, 'status': 'created'}
+
+          '''
+          route.write_text(src[:start] + replacement + src[end:])
+
+          test = Path('backend/tests/test_mobile_router.py')
+          tsrc = test.read_text()
+          old = '''        # Legacy mobile create contract remains M6.3 scope; auth itself must not return 403.
+                  assert r.status_code in (200, 201, 422)
+          '''
+          new = '''        assert r.status_code in (200, 201)
+                  created = db.query(models.Appointment).filter(models.Appointment.id == r.json()["id"]).one()
+                  assert created.patient_id == pat.id
+                  assert created.patient_name == "Test MOBILEPAT"
+                  assert created.duration_minutes == 30
+
+              def test_create_quick_appointment_without_patient_id(self, client, db, dentiste):
+                  token = _make_mobile_jwt(db, dentiste)
+                  r = client.post(
+                      "/api/mobile/appointments",
+                      json={
+                          "patient_name": "Patient rapide",
+                          "phone": "0600000000",
+                          "datetime_start": "2026-07-01T11:00:00",
+                          "duration_minutes": 20,
+                          "motif": "Urgence",
+                      },
+                      headers={"Authorization": f"Bearer {token}"},
+                  )
+                  assert r.status_code in (200, 201)
+                  created = db.query(models.Appointment).filter(models.Appointment.id == r.json()["id"]).one()
+                  assert created.patient_id is None
+                  assert created.patient_name == "Patient rapide"
+                  assert created.phone == "0600000000"
+          '''
+          if tsrc.count(old) != 1:
+              raise SystemExit(f'test marker count={tsrc.count(old)}')
+          test.write_text(tsrc.replace(old, new))
+          PY
+
+          python -m py_compile backend/routers/mobile_legacy.py backend/tests/test_mobile_router.py
+          git diff --check
+          test "$(git diff --name-only | sort | tr '\n' ' ')" = "backend/routers/mobile_legacy.py backend/tests/test_mobile_router.py "
+          python - <<'PY'
+          from pathlib import Path
+          s = Path('backend/routers/mobile_legacy.py').read_text()
+          block = s[s.index("@router.post('/appointments')"):s.index("@router.delete('/appointments/{appointment_id}')")]
+          assert 'datetime_end' not in block
+          assert 'models.Patient.deleted_at.is_(None)' in block
+          assert 'patient_id=patient.id if patient else None' in block
+          PY
+
+      - name: Materialize staging only
+        run: |
+          set -euo pipefail
+          cd /tmp/m61-appt
+          git config user.name "Digital Crown M6 Audit"
+          git config user.email "123034021+hraaaaf@users.noreply.github.com"
+          git add backend/routers/mobile_legacy.py backend/tests/test_mobile_router.py
+          git commit -m "audit(m6.1): stage tenant-safe mobile appointment create"
+          git push --force-with-lease="refs/heads/$STAGE_BRANCH:$PRODUCT_SHA" origin "HEAD:refs/heads/$STAGE_BRANCH"
