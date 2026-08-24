@@ -1,0 +1,10 @@
+chantier=Digital Crown Mobile Full Experience
+lot=M6.4 Contextual QR Bridge
+product_head=892da29f253080005120db8b7ff4c924d54a1e04
+product_branch=mobile/m64-contextual-qr-bridge
+before=.audit/mobile-m64-before
+mockup=.audit/mobile-m64-contextual-qr-mockup.svg
+bridge_viewports=768x1024,1280x900
+mobile_viewports=390x844,430x932,768x1024
+e2e=onboarding->server destination->finance
+deployment=none

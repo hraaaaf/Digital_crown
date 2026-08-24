@@ -1,0 +1,44 @@
+{
+  "name": "onboarding-390x844",
+  "state": "onboarding",
+  "width": 390,
+  "height": 844,
+  "metrics": {
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "scrollWidth": 390,
+    "clientWidth": 390,
+    "hasHorizontalOverflow": false,
+    "offenders": [],
+    "controls": [
+      {
+        "tag": "BUTTON",
+        "text": "Comment installer sur iPhone ?",
+        "width": 189,
+        "height": 44
+      },
+      {
+        "tag": "BUTTON",
+        "text": "Scanner le QR Code",
+        "width": 320,
+        "height": 52
+      },
+      {
+        "tag": "INPUT",
+        "text": "Code à 6 chiffres",
+        "width": 247,
+        "height": 52
+      },
+      {
+        "tag": "BUTTON",
+        "text": "OK",
+        "width": 65,
+        "height": 52
+      }
+    ],
+    "controlsBelow44": []
+  },
+  "errors": []
+}

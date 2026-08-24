@@ -1,0 +1,44 @@
+{
+  "name": "bridge-default-768x1024",
+  "state": "bridge-default",
+  "width": 768,
+  "height": 1024,
+  "metrics": {
+    "viewport": {
+      "width": 768,
+      "height": 1024
+    },
+    "scrollWidth": 768,
+    "clientWidth": 768,
+    "hasHorizontalOverflow": false,
+    "offenders": [],
+    "controls": [
+      {
+        "tag": "SELECT",
+        "text": "Dr Salma Idrissi · DENTISTE",
+        "width": 556,
+        "height": 52
+      },
+      {
+        "tag": "SELECT",
+        "text": "AgendaFinanceLaboAssistantSécuritéÉquipe praticiens",
+        "width": 556,
+        "height": 52
+      },
+      {
+        "tag": "BUTTON",
+        "text": "Générer le pont mobile",
+        "width": 556,
+        "height": 52
+      },
+      {
+        "tag": "BUTTON",
+        "text": "Révoquer tous les accès mobiles",
+        "width": 556,
+        "height": 52
+      }
+    ],
+    "controlsBelow44": []
+  },
+  "errors": []
+}
