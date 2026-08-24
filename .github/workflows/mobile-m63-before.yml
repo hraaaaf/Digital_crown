@@ -7,15 +7,18 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   capture:
+    if: ${{ github.event_name != 'push' || !contains(github.event.head_commit.message, '[M63 evidence]') }}
     name: Capture M6.3 Agenda BEFORE
     runs-on: ubuntu-latest
     steps:
       - name: Checkout audit branch
         uses: actions/checkout@v4
+        with:
+          ref: audit/mobile-m63-before-20260824
 
       - name: Setup Node 20
         uses: actions/setup-node@v4
@@ -256,3 +259,19 @@ jobs:
           path: frontend/mobile-m63-before-artifacts/
           if-no-files-found: error
           retention-days: 14
+
+      - name: Publish observable BEFORE evidence on audit branch
+        if: always()
+        run: |
+          rm -rf .audit/mobile-m63-before
+          mkdir -p .audit/mobile-m63-before
+          cp -a frontend/mobile-m63-before-artifacts/. .audit/mobile-m63-before/
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add .audit/mobile-m63-before
+          if git diff --cached --quiet; then
+            echo "No evidence files to publish"
+            exit 0
+          fi
+          git commit -m "audit(m6.3): publish BEFORE evidence [M63 evidence]"
+          git push origin HEAD:audit/mobile-m63-before-20260824
