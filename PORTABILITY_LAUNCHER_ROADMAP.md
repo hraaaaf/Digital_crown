@@ -1,6 +1,6 @@
 # Portability & Launcher — roadmap canonique
 
-Dernière mise à jour vérifiée : 2026-08-23.
+Dernière mise à jour vérifiée : 2026-08-24.
 
 ## Goal global
 
@@ -156,9 +156,38 @@ Lors d'une migration inter-machine, conserver l'identité et les données du cab
 
 ---
 
-## P5 — Native/scientific dependency parity — NEXT
+## P5 — Native/scientific dependency parity — ACTIVE
 
+### Goal
 Prouver que SQLCipher, moteurs locaux, ONNX/PyTorch et autres dépendances natives nécessaires au produit fonctionnent sur les plateformes/architectures réellement supportées. Aucune équivalence scientifique n'est supposée sur la seule base d'un import réussi.
+
+### P5A — Native runtime & scientific asset gate — CLOSED ✅
+
+Implémentation vérifiée :
+- une seule distribution OpenCV : `opencv-python-headless==4.13.0.92` ;
+- chemin modèle céphalométrique SOTA résolu via `AppPaths`, sans chemin machine/utilisateur hardcodé ;
+- smoke runtime réel pour OpenCV, ONNX Runtime, PyTorch, SQLCipher, ReportLab, WeasyPrint et Pillow/QR ;
+- Pango/GObject provisionnés explicitement pour WeasyPrint sous Windows et macOS ;
+- runner macOS vérifié Apple Silicon `arm64` ;
+- manifeste `backend/scientific_assets.json` avec gate fail-closed `--require-assets` sur provenance, SHA256 et présence réelle.
+
+Preuve :
+- PR `#228` — MERGED ;
+- head candidat : `375aae5432da8531882d791574dd251cf09d32d5` ;
+- merge master : `ae9efc5055e8b1105e058788e0de3386e8880335` ;
+- Portability P5 Native Dependency Certification `32723535974` — SUCCESS ;
+- Windows x64 — SUCCESS ;
+- macOS Apple Silicon — SUCCESS ;
+- CI `32723535895` — SUCCESS ;
+- T2 Runtime Browser Certification `32723535977` — SUCCESS ;
+- Catalog Connected Truth Certification `32723535901` — SUCCESS ;
+- Patient P7 Final Certification `32723535937` — SUCCESS.
+
+Limite bloquante de P5 final :
+- le checkout GitHub ne contient pas les poids canoniques `backend/ai_models/` ;
+- aucune fixture radiographique golden non-PHI n'est versionnée ;
+- provenance + SHA256 des modèles/fixtures restent à établir ;
+- aucune parité d'inférence clinique/scientifique n'est donc encore revendiquée.
 
 ## P6 — Cross-platform packaging & signing — PLANNED
 
@@ -177,8 +206,8 @@ Certification finale sur environnements propres : installation, premier boot, re
 - P2 : CLOSED ✅ — 13 EP ;
 - P3 : CLOSED ✅ — 13 EP ;
 - P4 : CLOSED ✅ — 8 EP ;
-- P5 : NEXT ;
+- P5 : ACTIVE — P5A CLOSED, parité d'inférence scientifique finale non certifiée ;
 - P6→P7 : PLANNED ;
 - progression vérifiée : `52 / 162 EP` = **32.1%** ;
 - aucun EP partiel n'est crédité pour un lot ouvert ;
-- Next exact : P5 Native/scientific dependency parity — verrouiller provenance des modèles/fixtures, dépendances natives et exécution réelle Windows/macOS Apple Silicon avant tout benchmark de parité scientifique.
+- Next exact : P5 — récupérer/identifier les poids canoniques autorisés et des fixtures radiographiques golden non-PHI, enregistrer provenance + SHA256, puis exécuter la vraie inférence Windows/macOS Apple Silicon avec comparaison de sorties avant de créditer P5.
