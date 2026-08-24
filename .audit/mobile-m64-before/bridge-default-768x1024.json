@@ -1,0 +1,33 @@
+{
+  "state": "bridge-default",
+  "viewport": {
+    "width": 768,
+    "height": 1024
+  },
+  "metrics": {
+    "viewport": {
+      "width": 768,
+      "height": 1024
+    },
+    "scrollWidth": 768,
+    "clientWidth": 768,
+    "hasHorizontalOverflow": false,
+    "offenders": [],
+    "controls": [
+      {
+        "tag": "BUTTON",
+        "text": "Afficher le code d'appairage mobile",
+        "width": 56,
+        "height": 56
+      },
+      {
+        "tag": "BUTTON",
+        "text": "Révoquer tous les accès mobiles",
+        "width": 556,
+        "height": 56
+      }
+    ],
+    "controlsBelow44": []
+  },
+  "errors": []
+}

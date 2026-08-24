@@ -1,0 +1,287 @@
+{
+  "sourceDefects": {
+    "qrDestination": "onboarding-only",
+    "targetUserUi": false,
+    "postPairDestination": "/mobile/dashboard",
+    "dashboardDeepLink": false
+  },
+  "captures": [
+    {
+      "name": "bridge-default-768x1024",
+      "state": "bridge-default",
+      "width": 768,
+      "height": 1024,
+      "metrics": {
+        "viewport": {
+          "width": 768,
+          "height": 1024
+        },
+        "scrollWidth": 768,
+        "clientWidth": 768,
+        "hasHorizontalOverflow": false,
+        "offenders": [],
+        "controls": [
+          {
+            "tag": "BUTTON",
+            "text": "Afficher le code d'appairage mobile",
+            "width": 56,
+            "height": 56
+          },
+          {
+            "tag": "BUTTON",
+            "text": "Révoquer tous les accès mobiles",
+            "width": 556,
+            "height": 56
+          }
+        ],
+        "controlsBelow44": []
+      },
+      "errors": []
+    },
+    {
+      "name": "bridge-visible-768x1024",
+      "state": "bridge-visible",
+      "width": 768,
+      "height": 1024,
+      "metrics": {
+        "viewport": {
+          "width": 768,
+          "height": 1024
+        },
+        "scrollWidth": 768,
+        "clientWidth": 768,
+        "hasHorizontalOverflow": false,
+        "offenders": [],
+        "controls": [
+          {
+            "tag": "BUTTON",
+            "text": "Révoquer tous les accès mobiles",
+            "width": 556,
+            "height": 56
+          }
+        ],
+        "controlsBelow44": []
+      },
+      "errors": []
+    },
+    {
+      "name": "bridge-default-1280x900",
+      "state": "bridge-default",
+      "width": 1280,
+      "height": 900,
+      "metrics": {
+        "viewport": {
+          "width": 1280,
+          "height": 900
+        },
+        "scrollWidth": 1280,
+        "clientWidth": 1280,
+        "hasHorizontalOverflow": false,
+        "offenders": [],
+        "controls": [
+          {
+            "tag": "BUTTON",
+            "text": "Afficher le code d'appairage mobile",
+            "width": 56,
+            "height": 56
+          },
+          {
+            "tag": "BUTTON",
+            "text": "Révoquer tous les accès mobiles",
+            "width": 461,
+            "height": 56
+          }
+        ],
+        "controlsBelow44": []
+      },
+      "errors": []
+    },
+    {
+      "name": "bridge-visible-1280x900",
+      "state": "bridge-visible",
+      "width": 1280,
+      "height": 900,
+      "metrics": {
+        "viewport": {
+          "width": 1280,
+          "height": 900
+        },
+        "scrollWidth": 1280,
+        "clientWidth": 1280,
+        "hasHorizontalOverflow": false,
+        "offenders": [],
+        "controls": [
+          {
+            "tag": "BUTTON",
+            "text": "Révoquer tous les accès mobiles",
+            "width": 461,
+            "height": 56
+          }
+        ],
+        "controlsBelow44": []
+      },
+      "errors": []
+    },
+    {
+      "name": "onboarding-390x844",
+      "state": "onboarding",
+      "width": 390,
+      "height": 844,
+      "metrics": {
+        "viewport": {
+          "width": 390,
+          "height": 844
+        },
+        "scrollWidth": 390,
+        "clientWidth": 390,
+        "hasHorizontalOverflow": false,
+        "offenders": [
+          {
+            "tag": "BUTTON",
+            "left": 334,
+            "right": 407,
+            "width": 73,
+            "text": "OK"
+          }
+        ],
+        "controls": [
+          {
+            "tag": "BUTTON",
+            "text": "Comment installer sur iPhone ?",
+            "width": 189,
+            "height": 17
+          },
+          {
+            "tag": "BUTTON",
+            "text": "Scanner le QR Code",
+            "width": 320,
+            "height": 52
+          },
+          {
+            "tag": "INPUT",
+            "text": "Code à 6 chiffres",
+            "width": 291,
+            "height": 54
+          },
+          {
+            "tag": "BUTTON",
+            "text": "OK",
+            "width": 73,
+            "height": 54
+          }
+        ],
+        "controlsBelow44": [
+          {
+            "tag": "BUTTON",
+            "text": "Comment installer sur iPhone ?",
+            "width": 189,
+            "height": 17
+          }
+        ]
+      },
+      "errors": []
+    },
+    {
+      "name": "onboarding-430x932",
+      "state": "onboarding",
+      "width": 430,
+      "height": 932,
+      "metrics": {
+        "viewport": {
+          "width": 430,
+          "height": 932
+        },
+        "scrollWidth": 430,
+        "clientWidth": 430,
+        "hasHorizontalOverflow": false,
+        "offenders": [],
+        "controls": [
+          {
+            "tag": "BUTTON",
+            "text": "Comment installer sur iPhone ?",
+            "width": 189,
+            "height": 17
+          },
+          {
+            "tag": "BUTTON",
+            "text": "Scanner le QR Code",
+            "width": 320,
+            "height": 52
+          },
+          {
+            "tag": "INPUT",
+            "text": "Code à 6 chiffres",
+            "width": 291,
+            "height": 54
+          },
+          {
+            "tag": "BUTTON",
+            "text": "OK",
+            "width": 73,
+            "height": 54
+          }
+        ],
+        "controlsBelow44": [
+          {
+            "tag": "BUTTON",
+            "text": "Comment installer sur iPhone ?",
+            "width": 189,
+            "height": 17
+          }
+        ]
+      },
+      "errors": []
+    },
+    {
+      "name": "onboarding-768x1024",
+      "state": "onboarding",
+      "width": 768,
+      "height": 1024,
+      "metrics": {
+        "viewport": {
+          "width": 768,
+          "height": 1024
+        },
+        "scrollWidth": 768,
+        "clientWidth": 768,
+        "hasHorizontalOverflow": false,
+        "offenders": [],
+        "controls": [
+          {
+            "tag": "BUTTON",
+            "text": "Comment installer sur iPhone ?",
+            "width": 189,
+            "height": 17
+          },
+          {
+            "tag": "BUTTON",
+            "text": "Scanner le QR Code",
+            "width": 320,
+            "height": 52
+          },
+          {
+            "tag": "INPUT",
+            "text": "Code à 6 chiffres",
+            "width": 291,
+            "height": 54
+          },
+          {
+            "tag": "BUTTON",
+            "text": "OK",
+            "width": 73,
+            "height": 54
+          }
+        ],
+        "controlsBelow44": [
+          {
+            "tag": "BUTTON",
+            "text": "Comment installer sur iPhone ?",
+            "width": 189,
+            "height": 17
+          }
+        ]
+      },
+      "errors": []
+    }
+  ]
+}

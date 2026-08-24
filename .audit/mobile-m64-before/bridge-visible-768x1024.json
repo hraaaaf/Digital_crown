@@ -1,0 +1,27 @@
+{
+  "state": "bridge-visible",
+  "viewport": {
+    "width": 768,
+    "height": 1024
+  },
+  "metrics": {
+    "viewport": {
+      "width": 768,
+      "height": 1024
+    },
+    "scrollWidth": 768,
+    "clientWidth": 768,
+    "hasHorizontalOverflow": false,
+    "offenders": [],
+    "controls": [
+      {
+        "tag": "BUTTON",
+        "text": "Révoquer tous les accès mobiles",
+        "width": 556,
+        "height": 56
+      }
+    ],
+    "controlsBelow44": []
+  },
+  "errors": []
+}

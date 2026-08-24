@@ -1,0 +1,60 @@
+{
+  "state": "onboarding",
+  "viewport": {
+    "width": 390,
+    "height": 844
+  },
+  "metrics": {
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "scrollWidth": 390,
+    "clientWidth": 390,
+    "hasHorizontalOverflow": false,
+    "offenders": [
+      {
+        "tag": "BUTTON",
+        "left": 334,
+        "right": 407,
+        "width": 73,
+        "text": "OK"
+      }
+    ],
+    "controls": [
+      {
+        "tag": "BUTTON",
+        "text": "Comment installer sur iPhone ?",
+        "width": 189,
+        "height": 17
+      },
+      {
+        "tag": "BUTTON",
+        "text": "Scanner le QR Code",
+        "width": 320,
+        "height": 52
+      },
+      {
+        "tag": "INPUT",
+        "text": "Code à 6 chiffres",
+        "width": 291,
+        "height": 54
+      },
+      {
+        "tag": "BUTTON",
+        "text": "OK",
+        "width": 73,
+        "height": 54
+      }
+    ],
+    "controlsBelow44": [
+      {
+        "tag": "BUTTON",
+        "text": "Comment installer sur iPhone ?",
+        "width": 189,
+        "height": 17
+      }
+    ]
+  },
+  "errors": []
+}
