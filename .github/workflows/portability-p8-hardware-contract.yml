@@ -1,0 +1,33 @@
+name: Portability P8 Hardware Compatibility Contract
+
+on:
+  pull_request:
+    paths:
+      - "backend/hardware_compatibility.json"
+      - "backend/requirements.txt"
+      - "backend/schemas/rvg.py"
+      - "backend/routers/ia.py"
+      - "frontend/package.json"
+      - "frontend/src/features/patients/components/RvgUploadModal.tsx"
+      - "frontend/src/features/panoramic/PanoramicStudio.tsx"
+      - "frontend/src/features/ortho/components/Step1Cephalo.tsx"
+      - "frontend/src/features/mobile/Onboarding/OnboardingScanner.tsx"
+      - "scripts/p8_hardware_compatibility_check.py"
+      - "docs/portability/P8_HARDWARE_COMPATIBILITY_MATRIX.md"
+      - ".github/workflows/portability-p8-hardware-contract.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  truth-contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Validate P8 hardware truth contract
+        run: python scripts/p8_hardware_compatibility_check.py
