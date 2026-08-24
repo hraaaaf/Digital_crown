@@ -891,6 +891,7 @@ from backend.models_platform import (
     ClinicalDrug,
     ClinicalProtocolDB,
     ZKAPairingToken,
+    MobilePairedDevice,
     GhostMemoryLog,
     MilestoneType,
     JourneyMilestone,

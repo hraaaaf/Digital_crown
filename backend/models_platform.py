@@ -136,7 +136,7 @@ class ClinicalProtocolDB(Base):
 
 # ==============================================================================
 # APPAIRAGE MOBILE ZKA — TOKEN ÉPHÉMÈRE
-# La masterKey ne transite jamais dans une URL. Le QR encode un UUID 5min.
+# La masterKey ne transite jamais dans une URL. Le QR encode un secret haute entropie 5 min.
 # Le mobile échange ce token contre les credentials via POST /api/mobile/claim-token.
 # ==============================================================================
 
@@ -146,13 +146,29 @@ class ZKAPairingToken(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     token: Mapped[str] = mapped_column(String(36), unique=True, index=True, nullable=False)
+    manual_code: Mapped[Optional[str]] = mapped_column(String(6), nullable=True, index=True)
     employer_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id"), nullable=False)
+    user_id: Mapped[Optional[int]] = mapped_column(Integer, ForeignKey("users.id"), nullable=True, index=True)
     public_id: Mapped[str] = mapped_column(String(16), nullable=False)
     master_key: Mapped[str] = mapped_column(String(64), nullable=False)
     role: Mapped[str] = mapped_column(String(50), default="DENTISTE", nullable=False)
     expires_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, index=True)
     used_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=func.now())
+
+
+class MobilePairedDevice(Base):
+    """Appareil mobile appairé, lié à un utilisateur réel et à son cabinet."""
+    __tablename__ = "mobile_paired_devices"
+
+    device_id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    user_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    employer_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    client_public_key_hex: Mapped[str] = mapped_column(String(130), nullable=False)
+    refresh_jti: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=func.now(), nullable=False)
+    last_seen_at: Mapped[datetime] = mapped_column(DateTime, default=func.now(), nullable=False)
+    revoked_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True, index=True)
 
 # ==============================================================================
 # GHOST BRAIN V2 - MEMORY & PROACTIVITY

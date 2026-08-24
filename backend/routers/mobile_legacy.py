@@ -8,7 +8,7 @@ import os
 import re
 from typing import Optional
 from datetime import datetime, date, timedelta, time as dt_time, timezone
-from fastapi import APIRouter, Depends, HTTPException, Header, Body, BackgroundTasks
+from fastapi import APIRouter, Depends, HTTPException, Header, Body, BackgroundTasks, Request
 from sqlalchemy import func, extract
 from sqlalchemy.orm import Session, joinedload
 from pydantic import BaseModel
@@ -23,10 +23,13 @@ router = APIRouter(tags=["Mobile ZKA"])
 
 # â”€â”€ HELPERS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
-def _create_mobile_jwt(employer_id: int, role: str) -> str:
-    """JWT mobile Ã  365 jours â€” type=mobile pour isolation des routes rÃ©guliÃ¨res."""
+def _create_mobile_jwt(user_id: int, role: str, employer_id: int | None = None, device_id: str | None = None) -> str:
+    """Fallback local; backend.routers.mobile remplace ce helper avec le contrat canonique."""
+    tenant_id = int(employer_id if employer_id is not None else user_id)
     payload = {
-        "sub": str(employer_id),
+        "sub": str(user_id),
+        "tenant_id": tenant_id,
+        "device_id": device_id,
         "type": "mobile",
         "role": role,
         "jti": str(uuid.uuid4()),
@@ -35,11 +38,7 @@ def _create_mobile_jwt(employer_id: int, role: str) -> str:
     return jwt.encode(payload, SECRET_KEY, algorithm=ALGORITHM)
 
 
-def get_mobile_employer_id(
-    authorization: str = Header(...), 
-    db: Session = Depends(database.get_db)
-) -> int:
-    """Dépendance : valide le JWT mobile, vérifie la révocation et retourne l'employer_id."""
+def _decode_mobile_identity(authorization: str, db: Session):
     err = HTTPException(status_code=401, detail="Token mobile invalide, expiré ou révoqué.")
     try:
         scheme, token = authorization.split(" ", 1)
@@ -48,48 +47,79 @@ def get_mobile_employer_id(
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         if payload.get("type") != "mobile":
             raise err
-            
         jti = payload.get("jti")
         if not jti:
             raise err
         from backend.security import token_blacklist
         if token_blacklist.is_revoked(jti, db):
             raise err
-
         user_id = int(payload["sub"])
-        user = db.query(models.User).filter(models.User.id == user_id).first()
-        if not user or not user.is_active:
+        tenant_id = int(payload["tenant_id"])
+        device_id = payload.get("device_id")
+        if not device_id:
             raise err
-
-        return user_id
-    except (JWTError, ValueError, KeyError):
+        user = db.query(models.User).filter(models.User.id == user_id).first()
+        if not user or not user.is_active or user.get_employer_id() != tenant_id:
+            raise err
+        device = db.query(models.MobilePairedDevice).filter(
+            models.MobilePairedDevice.device_id == device_id,
+            models.MobilePairedDevice.user_id == user_id,
+            models.MobilePairedDevice.employer_id == tenant_id,
+            models.MobilePairedDevice.revoked_at.is_(None),
+        ).first()
+        if not device:
+            raise err
+        return user, tenant_id, payload
+    except HTTPException:
+        raise
+    except (JWTError, ValueError, KeyError, TypeError):
         raise err
+
+
+def get_mobile_user(
+    authorization: str = Header(...),
+    db: Session = Depends(database.get_db),
+) -> models.User:
+    user, _tenant_id, _payload = _decode_mobile_identity(authorization, db)
+    return user
+
+
+def get_mobile_employer_id(
+    authorization: str = Header(...),
+    db: Session = Depends(database.get_db),
+) -> int:
+    _user, tenant_id, _payload = _decode_mobile_identity(authorization, db)
+    return tenant_id
+
 
 def get_mobile_role(
     authorization: str = Header(...),
-    db: Session = Depends(database.get_db)
+    db: Session = Depends(database.get_db),
 ) -> str:
-    """Dépendance : valide le JWT mobile, vérifie la révocation et retourne le role.
+    user, _tenant_id, _payload = _decode_mobile_identity(authorization, db)
+    return user.role.value if hasattr(user.role, "value") else str(user.role)
 
-    FAIL-CLOSED (S5) : tout token révoqué/invalide/sans claim de rôle est ramené au
-    MOINDRE privilège (SECRETAIRE), jamais à DENTISTE — pour ne jamais exposer les
-    données financières par défaut. (La révocation est de toute façon déjà bloquée
-    en amont par get_mobile_employer_id qui lève 401.)
-    """
-    LEAST_PRIVILEGE = "SECRETAIRE"
-    try:
-        scheme, token = authorization.split(" ", 1)
-        if scheme.lower() == "bearer":
-            payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-            jti = payload.get("jti")
-            if jti:
-                from backend.security import token_blacklist
-                if token_blacklist.is_revoked(jti, db):
-                    return LEAST_PRIVILEGE
-            return payload.get("role", LEAST_PRIVILEGE)
-    except Exception:
-        pass
-    return LEAST_PRIVILEGE
+
+def require_mobile_permission(permission_name):
+    def dependency(
+        authorization: str = Header(...),
+        db: Session = Depends(database.get_db),
+    ) -> models.User:
+        user, _tenant_id, _payload = _decode_mobile_identity(authorization, db)
+        from backend.routers.auth import has_permission
+        if has_permission(user, permission_name):
+            return user
+        raise HTTPException(status_code=403, detail="Accès mobile refusé pour cette fonctionnalité.")
+    return dependency
+
+
+def get_mobile_finance_access(
+    authorization: str = Header(...),
+    db: Session = Depends(database.get_db),
+) -> bool:
+    user, _tenant_id, _payload = _decode_mobile_identity(authorization, db)
+    from backend.routers.auth import has_permission
+    return has_permission(user, ["accounting", "payments"])
 
 
 def _detect_lan_ip() -> str:
@@ -253,16 +283,19 @@ class ClaimTokenRequest(BaseModel):
 @router.post(
     "/claim-token",
     summary="Échanger un token éphémère QR contre un JWT mobile",
-    description="Token à usage unique (UUID 5 min). Si client_public_key_hex est fourni, utilise ECDH (secp256r1) pour chiffrer la masterKey.",
+    description="Secret QR haute entropie ou code manuel 6 chiffres, à usage unique 5 min. ECDH (secp256r1) est obligatoire.",
 )
 def claim_pairing_token(
     body: ClaimTokenRequest,
+    request: Request,
     db: Session = Depends(database.get_db),
 ):
+    from backend.utils.rate_limit import check_rate_limit
+    check_rate_limit(request, scope="mobile-pairing")
     record = (
         db.query(models.ZKAPairingToken)
         .filter(
-            models.ZKAPairingToken.token == body.token,
+            ((models.ZKAPairingToken.token == body.token) | (models.ZKAPairingToken.manual_code == body.token)),
             models.ZKAPairingToken.used_at == None,  # noqa: E711
             models.ZKAPairingToken.expires_at > datetime.utcnow(),
         )
@@ -271,20 +304,51 @@ def claim_pairing_token(
     if not record:
         raise HTTPException(status_code=404, detail="Token invalide, expiré ou déjà utilisé.")
 
-    role = getattr(record, "role", "DENTISTE")
+    user_id = getattr(record, "user_id", None)
+    if not user_id:
+        raise HTTPException(status_code=409, detail="Ancien code d'appairage non compatible. Générez un nouveau QR.")
+    user = db.query(models.User).filter(models.User.id == user_id).first()
+    if not user or not user.is_active or user.get_employer_id() != record.employer_id:
+        raise HTTPException(status_code=403, detail="Utilisateur mobile non autorisé.")
+    role = user.role.value if hasattr(user.role, "value") else str(user.role)
 
-    # ZKA (S5) : l'appairage sécurisé par ECDH est OBLIGATOIRE.
-    # Le token one-shot n'est consommé qu'après validation complète du handshake.
+    # ZKA : le token one-shot n'est consommé qu'après validation complète du handshake.
     if not body.client_public_key_hex:
         raise HTTPException(
             status_code=400,
             detail="Appairage sécurisé requis : clé publique client (ECDH) manquante.",
         )
 
+    device_id = str(uuid.uuid4())
+    access_token = _create_mobile_jwt(
+        user.id,
+        role,
+        employer_id=record.employer_id,
+        device_id=device_id,
+    )
+    refresh_token = _create_mobile_refresh_jwt(
+        user.id,
+        role,
+        employer_id=record.employer_id,
+        device_id=device_id,
+    )
+    refresh_payload = jwt.decode(refresh_token, SECRET_KEY, algorithms=[ALGORITHM])
+    db.add(models.MobilePairedDevice(
+        device_id=device_id,
+        user_id=user.id,
+        employer_id=record.employer_id,
+        client_public_key_hex=body.client_public_key_hex,
+        refresh_jti=refresh_payload["jti"],
+    ))
+
     response_data = {
         "publicId": record.public_id,
         "role": role,
-        "access_token": _create_mobile_jwt(record.employer_id, role),
+        "user_id": user.id,
+        "tenant_id": record.employer_id,
+        "device_id": device_id,
+        "access_token": access_token,
+        "refresh_token": refresh_token,
     }
 
     # ECDH Key Exchange pour sécuriser la transmission de la masterKey
@@ -357,6 +421,8 @@ def claim_pairing_token(
 def get_mobile_snapshot(
     target_date: str = None,
     employer_id: int = Depends(get_mobile_employer_id),
+    current_user: models.User = Depends(require_mobile_permission("agenda")),
+    can_view_finance: bool = Depends(get_mobile_finance_access),
     role: str = Depends(get_mobile_role),
     db: Session = Depends(database.get_db),
 ):
@@ -398,10 +464,7 @@ def get_mobile_snapshot(
         for a in apts
     ]
 
-    # ──────────────────────────────────────────────────────────────────────────────────────────────────
-    from backend.services.accounting_service import accounting_service
-    kpis = accounting_service.get_finance_kpis(db, employer_id, today)
-
+    # Les agrégats financiers ne sont même pas lus sans permission finance.
     # Nombre total patients 
     total_patients = (
         db.query(func.count(models.Patient.id))
@@ -411,10 +474,9 @@ def get_mobile_snapshot(
 
     from backend.config import settings as app_settings
     _superadmin_email = app_settings.SUPERADMIN_EMAIL.lower().strip()
-    user = db.query(models.User).filter(models.User.id == employer_id).first()
-    is_superadmin = bool(_superadmin_email and user and user.email.lower() == _superadmin_email)
+    is_superadmin = bool(_superadmin_email and current_user.email and current_user.email.lower() == _superadmin_email)
 
-    if role == "SECRETAIRE":
+    if not can_view_finance:
         finance_data = {
             "today_revenue": 0.0,
             "month_revenue": 0.0,
@@ -426,6 +488,8 @@ def get_mobile_snapshot(
         }
         debtors_data = []
     else:
+        from backend.services.accounting_service import accounting_service
+        kpis = accounting_service.get_finance_kpis(db, employer_id, today)
         finance_data = {
             "today_revenue": kpis["today_revenue"],
             "month_revenue": kpis["month_revenue"],
@@ -463,6 +527,7 @@ def update_appointment_status(
     appointment_id: int,
     body: AppointmentStatusUpdate,
     employer_id: int = Depends(get_mobile_employer_id),
+    _mobile_user: models.User = Depends(require_mobile_permission("agenda")),
     db: Session = Depends(database.get_db),
 ):
     backend_status = _MOBILE_TO_BACKEND_STATUS.get(body.status)
@@ -513,11 +578,9 @@ from backend.services.generators.report_gen import ReportGenerator
 def export_mobile_accounting_pdf(
     year: int, month: int,
     employer_id: int = Depends(get_mobile_employer_id),
+    current_user: models.User = Depends(require_mobile_permission(["accounting", "payments"])),
     db: Session = Depends(database.get_db)
 ):
-    current_user = db.query(models.User).filter(models.User.id == employer_id).first()
-    if not current_user:
-        raise HTTPException(status_code=404, detail="Utilisateur introuvable.")
     
     data = get_accounting_honoraires(None, None, year, month, db, current_user)
     report_gen = ReportGenerator()
@@ -533,6 +596,7 @@ def export_mobile_accounting_pdf(
 @router.get("/dentists", summary="Liste des praticiens du cabinet — vue secrétaire mobile")
 def get_mobile_dentists(
     employer_id: int = Depends(get_mobile_employer_id),
+    _mobile_user: models.User = Depends(require_mobile_permission("agenda")),
     db: Session = Depends(database.get_db),
 ):
     today = date.today()
@@ -579,6 +643,7 @@ def get_mobile_dentists(
 class MobileAppointmentCreate(BaseModel):
     datetime_start: str
     patient_name: str
+    patient_id: Optional[int] = None
     phone: Optional[str] = None
     motif: str
     duration_minutes: int
@@ -588,6 +653,7 @@ def get_mobile_appointments(
     start_date: str,
     end_date: str,
     employer_id: int = Depends(get_mobile_employer_id),
+    _mobile_user: models.User = Depends(require_mobile_permission("agenda")),
     db: Session = Depends(database.get_db),
 ):
     start_dt = datetime.strptime(start_date, '%Y-%m-%d')
@@ -602,7 +668,7 @@ def get_mobile_appointments(
         'datetime_start': a.datetime_start.isoformat(),
         'patient_name': f'{a.patient.prenom} {a.patient.nom}' if a.patient else a.patient_name,
         'patient_id': a.patient_id,
-        'phone': a.patient.telephone if a.patient else None,
+        'phone': a.patient.telephone if a.patient else a.phone,
         'motif': a.motif,
         'status': _to_mobile_status(a.status),
         'duration_minutes': a.duration_minutes
@@ -613,17 +679,31 @@ def get_mobile_appointments(
 def create_mobile_appointment(
     body: MobileAppointmentCreate,
     employer_id: int = Depends(get_mobile_employer_id),
+    _mobile_user: models.User = Depends(require_mobile_permission("agenda")),
     db: Session = Depends(database.get_db),
 ):
     dt_start = datetime.fromisoformat(body.datetime_start.replace('Z', ''))
-    dt_end = dt_start + timedelta(minutes=body.duration_minutes)
-    
+    patient = None
+    patient_name = body.patient_name.strip()
+    if body.patient_id is not None:
+        patient = db.query(models.Patient).filter(
+            models.Patient.id == body.patient_id,
+            models.Patient.employer_id == employer_id,
+            models.Patient.deleted_at.is_(None),
+        ).first()
+        if not patient:
+            raise HTTPException(status_code=404, detail='Patient introuvable')
+        patient_name = f'{patient.prenom} {patient.nom}'.strip()
+    if not patient_name:
+        raise HTTPException(status_code=422, detail='Nom patient requis')
+
     new_apt = models.Appointment(
         employer_id=employer_id,
-        patient_name=body.patient_name,
+        patient_id=patient.id if patient else None,
+        patient_name=patient_name,
+        phone=None if patient else body.phone,
         motif=body.motif,
         datetime_start=dt_start,
-        datetime_end=dt_end,
         duration_minutes=body.duration_minutes,
         status=models.AppointmentStatus.PREVU
     )
@@ -636,6 +716,7 @@ def create_mobile_appointment(
 def delete_mobile_appointment(
     appointment_id: int,
     employer_id: int = Depends(get_mobile_employer_id),
+    _mobile_user: models.User = Depends(require_mobile_permission("agenda")),
     db: Session = Depends(database.get_db),
 ):
     apt = db.query(models.Appointment).filter(
@@ -651,6 +732,7 @@ def delete_mobile_appointment(
 @router.get('/patients', summary='Liste simplifiée des patients pour le mobile')
 def get_mobile_patients(
     employer_id: int = Depends(get_mobile_employer_id),
+    _mobile_user: models.User = Depends(require_mobile_permission("patients")),
     db: Session = Depends(database.get_db),
 ):
     pts = db.query(models.Patient).filter(models.Patient.employer_id == employer_id).all()
@@ -671,6 +753,7 @@ class MobilePatientCreate(BaseModel):
 def create_mobile_patient(
     pt: MobilePatientCreate,
     employer_id: int = Depends(get_mobile_employer_id),
+    _mobile_user: models.User = Depends(require_mobile_permission("patients")),
     db: Session = Depends(database.get_db)
 ):
     new_pt = models.Patient(
@@ -692,6 +775,7 @@ import base64
 def get_mobile_patient_documents(
     patient_id: int,
     employer_id: int = Depends(get_mobile_employer_id),
+    _mobile_user: models.User = Depends(require_mobile_permission("patients")),
     db: Session = Depends(database.get_db),
 ):
     pt = db.query(models.Patient).filter(
@@ -763,6 +847,7 @@ def sign_mobile_document(
     body: SignatureSubmit,
     background_tasks: BackgroundTasks,
     employer_id: int = Depends(get_mobile_employer_id),
+    _mobile_user: models.User = Depends(require_mobile_permission("patients")),
     db: Session = Depends(database.get_db),
 ):
     doc = db.query(models.DocumentArchive).filter(

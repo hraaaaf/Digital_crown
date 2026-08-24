@@ -18,9 +18,12 @@ const STORE_SNAPSHOT_ID = 'zka_last_snapshot';
 export interface ZKACredentials {
   publicId: string;
   masterKey: string;
-  /** JWT mobile 24 h pour /api/mobile/* (cf. backend/routers/mobile.py::_create_mobile_jwt) */
+  /** JWT mobile court pour /api/mobile/* */
   access_token: string;
-  /** URL du backend LAN (ex: http://192.168.1.50:8000) */
+  /** Rotation durable liée à un appareil révoquable. */
+  refresh_token?: string;
+  device_id?: string;
+  /** URL du backend LAN (ex: http://192.168.1.50:8005) */
   api_base_url: string;
 }
 
@@ -32,19 +35,59 @@ export interface QueuedAction {
   timestamp: number;
 }
 
+let refreshInFlight: Promise<ZKACredentials | null> | null = null;
+
+function resolveApiBaseUrl(stored: string): string {
+  const normalized = stored.endsWith('/') ? stored.slice(0, -1) : stored;
+  if (typeof window === 'undefined') return normalized;
+  const hostname = window.location.hostname;
+  if (hostname === 'localhost' || hostname === '127.0.0.1') return normalized;
+  if (normalized.includes('localhost') || normalized.includes('127.0.0.1')) {
+    return `${window.location.protocol}//${hostname}:8005`;
+  }
+  return normalized;
+}
+
+function accessTokenExpiryMs(token: string): number | null {
+  try {
+    const segment = token.split('.')[1];
+    if (!segment || typeof atob !== 'function') return null;
+    const normalized = segment.replace(/-/g, '+').replace(/_/g, '/');
+    const padded = normalized.padEnd(Math.ceil(normalized.length / 4) * 4, '=');
+    const payload = JSON.parse(atob(padded));
+    return typeof payload.exp === 'number' ? payload.exp * 1000 : null;
+  } catch {
+    return null;
+  }
+}
+
+async function rawCredentials(): Promise<ZKACredentials | null> {
+  return localforage.getItem<ZKACredentials>(STORE_CREDENTIALS_ID);
+}
+
 export const MobileStorage = {
   async saveCredentials(creds: ZKACredentials): Promise<void> {
     if (!/^[0-9a-fA-F]{16}$/.test(creds.publicId)) throw new Error('ID Cabinet invalide.');
     if (!/^[0-9a-fA-F]{64}$/.test(creds.masterKey)) throw new Error('Clé Maître invalide.');
-    if (!creds.access_token) throw new Error('Token mobile manquant.');
+    if (!creds.access_token || !creds.refresh_token || !creds.device_id) {
+      throw new Error('Session mobile durable incomplète.');
+    }
     await localforage.setItem(STORE_CREDENTIALS_ID, creds);
-    // Demande un stockage "persistant" pour réduire le risque d'éviction d'IndexedDB
-    // par le navigateur/OS sous pression de stockage ou après inactivité prolongée
-    // (cause probable de perte d'appairage vue par l'utilisateur comme "déconnexion").
-    // Best-effort : ignoré si l'API n'existe pas ou si le navigateur refuse.
-    try {
-      await navigator.storage?.persist?.();
-    } catch { /* ignore */ }
+    try { localStorage.setItem('token', creds.access_token); } catch { /* ignore */ }
+    try { await navigator.storage?.persist?.(); } catch { /* ignore */ }
+  },
+
+  async updateTokens(accessToken: string, refreshToken: string, deviceId: string): Promise<ZKACredentials | null> {
+    const current = await rawCredentials();
+    if (!current) return null;
+    const next: ZKACredentials = {
+      ...current,
+      access_token: accessToken,
+      refresh_token: refreshToken,
+      device_id: deviceId,
+    };
+    await this.saveCredentials(next);
+    return next;
   },
 
   async saveLastSnapshot(data: any): Promise<void> {
@@ -57,17 +100,53 @@ export const MobileStorage = {
   },
 
   async getCredentials(): Promise<ZKACredentials | null> {
-    return localforage.getItem<ZKACredentials>(STORE_CREDENTIALS_ID);
+    const creds = await rawCredentials();
+    if (!creds) return null;
+    if (!creds.refresh_token || !creds.device_id) return creds; // legacy: isPaired() will fail closed.
+
+    const expiry = accessTokenExpiryMs(creds.access_token);
+    if (expiry !== null && expiry > Date.now() + 60_000) return creds;
+    if (typeof navigator !== 'undefined' && navigator.onLine === false) return creds;
+
+    if (refreshInFlight) return refreshInFlight;
+    refreshInFlight = (async () => {
+      try {
+        const response = await fetch(`${resolveApiBaseUrl(creds.api_base_url)}/api/mobile/refresh-token`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ refresh_token: creds.refresh_token }),
+        });
+        if (!response.ok) {
+          if (response.status === 401 || response.status === 403) await this.clearCredentials();
+          return response.status === 401 || response.status === 403 ? null : creds;
+        }
+        const payload = await response.json();
+        if (!payload.access_token || !payload.refresh_token || payload.device_id !== creds.device_id) {
+          await this.clearCredentials();
+          return null;
+        }
+        return this.updateTokens(payload.access_token, payload.refresh_token, payload.device_id);
+      } catch {
+        // Panne réseau : conserver les credentials pour permettre le vrai mode offline.
+        return creds;
+      }
+    })().finally(() => { refreshInFlight = null; });
+    return refreshInFlight;
+  },
+
+  async clearCredentials(): Promise<void> {
+    await localforage.removeItem(STORE_CREDENTIALS_ID);
+    try { localStorage.removeItem('token'); localStorage.removeItem('refresh_token'); } catch { /* ignore */ }
   },
 
   async clearAll(): Promise<void> {
-    await localforage.removeItem(STORE_CREDENTIALS_ID);
+    await this.clearCredentials();
     await localforage.removeItem(STORE_SNAPSHOT_ID);
   },
 
   async isPaired(): Promise<boolean> {
     const creds = await this.getCredentials();
-    return !!(creds?.publicId && creds?.masterKey && creds?.access_token);
+    return !!(creds?.publicId && creds?.masterKey && creds?.access_token && creds?.refresh_token && creds?.device_id);
   },
 
   async hasCachedSnapshot(): Promise<boolean> {
