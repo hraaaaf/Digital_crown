@@ -78,12 +78,6 @@ css_path.write_text(r'''/*
   backdrop-filter: blur(18px) saturate(142%);
 }
 
-/* Secondary translucent controls get depth without making primary CTAs translucent. */
-[data-dc-mobile-shell] :is(.bg-primary\/5, .bg-primary\/10):not(input):not(textarea):not(select) {
-  -webkit-backdrop-filter: blur(10px) saturate(125%);
-  backdrop-filter: blur(10px) saturate(125%);
-}
-
 /* Clinical accessibility always wins over decorative translucency. */
 [data-theme='high-contrast'] :is(
   [data-dc-mobile-shell],
