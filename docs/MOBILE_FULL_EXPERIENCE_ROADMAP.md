@@ -142,7 +142,8 @@ Exploiter ce que le téléphone peut faire mieux :
 
 - **M6-A — Photo clinique contextuelle : CLOSED** — PR #252, HEAD certifié `24dcdc5543f68fd31b65a4facfa824f4a51cfbd8`, merge `5657ce7dfa529b39aaae2e562399938524bc43bd`, closeout `docs/MOBILE_M6_A_CLINICAL_PHOTO_CLOSEOUT.md`, score visuel 9,7/10. Capture/picker depuis le Patient exact, preview avant confirmation, upload lié au `context_key` sans `patient_id`, archivage `PHOTO_CLINIQUE`, validation réelle du média, limites 12 MiB / 50 MP, EXIF retiré et revalidation tenant/user/device/permission certifiés.
 - **M6-B — Scan de documents contextuel : CLOSED** — PR #253, HEAD certifié `2eccb8710ae511f53282825f631d11ccddfbeb45`, merge `72d96ab2f796748fa5d1c7b4da008047ae7a6b17`, closeout `docs/MOBILE_M6_B_DOCUMENT_SCAN_CLOSEOUT.md`, score visuel 9,7/10. Scan 1–8 pages depuis le Patient exact, preview multipage, upload lié au `context_key` sans `patient_id`, PDF serveur archivé `DocumentArchive/AUTRE`, limites média certifiées et assemblage mémoire-safe page par page avec PyMuPDF.
-- **M6-C — Validation / signature au fauteuil : NEXT (audit).** La fonctionnalité existe déjà ; le prochain lot doit d'abord certifier son contrat patient/document, la sécurité de la signature, l'ergonomie tactile et le rendu canvas avant toute correction produit.
+- **M6-C — Validation / signature au fauteuil : CLOSED** — PR #254, HEAD certifié `a07ed396dae3af26b5a57170b8e0e42a67ccff41`, merge `7c8983d6da48c95de3798c72f7bce130ab3afb51`, closeout `docs/MOBILE_M6_C_CHAIRSIDE_SIGNATURE_CLOSEOUT.md`, score visuel 9,7/10. Targets ≥48 px, canvas responsive DPR, signature vide bloquée UI + serveur, PNG strictement validé et borné, re-signature interdite, devis signés exclus, ownership tenant et permission conservés.
+- **M6-D — Notifications mobiles : NEXT (audit/conception).** Avant implémentation, inventorier précisément les besoins de notification, les événements déclencheurs, le canal PWA/OS approprié, les permissions, la confidentialité et la stratégie locale/offline. Aucun choix natif ne doit être présumé avant preuve.
 
 ## Certification complète finale — pas un « M7 »
 
@@ -161,7 +162,7 @@ Après M6 :
 
 ## Ordre canonique restant
 
-1. Exécuter M6 Mobile-first réel à partir de M6-C Validation / signature au fauteuil, puis les autres capacités de la liste M6 selon dépendances et valeur mobile.
+1. Exécuter M6 Mobile-first réel à partir de M6-D Notifications mobiles, puis les autres capacités de la liste M6 selon dépendances et valeur mobile.
 2. Certification complète finale sur émulation + appareils physiques.
 3. Closeout global Mobile Full Experience.
 
