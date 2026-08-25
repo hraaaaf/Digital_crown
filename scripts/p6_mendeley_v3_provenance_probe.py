@@ -8,18 +8,31 @@ annotations.json without modifying product code or training a model.
 from __future__ import annotations
 
 import argparse
+import collections
 import hashlib
 import json
 import time
 import urllib.parse
 import urllib.request
 from pathlib import Path
-from typing import Any
+from typing import Any, Iterable
 
 DATASET_ID = "73n3kz2k4k"
 VERSION = 3
 API = f"https://data.mendeley.com/public-api/datasets/{DATASET_ID}/files"
-USER_AGENT = "DigitalCrown-P6-Provenance-Probe/1.0"
+USER_AGENT = "DigitalCrown-P6-Provenance-Probe/1.1"
+
+PERMANENT_FDI = {
+    f"{quadrant}{tooth}"
+    for quadrant in range(1, 5)
+    for tooth in range(1, 9)
+}
+PRIMARY_FDI = {
+    f"{quadrant}{tooth}"
+    for quadrant in range(5, 9)
+    for tooth in range(1, 6)
+}
+VALID_FDI = PERMANENT_FDI | PRIMARY_FDI
 
 
 def http_bytes(url: str, attempts: int = 3) -> bytes:
@@ -62,6 +75,36 @@ def download_hash(url: str, capture: bool = False) -> tuple[str, int, bytes | No
     return h.hexdigest(), total, b"".join(chunks) if chunks is not None else None
 
 
+def scalar_tokens(value: Any) -> Iterable[str]:
+    """Yield conservative scalar/category tokens from an arbitrary VIA attribute value."""
+    if value is None:
+        return
+    if isinstance(value, bool):
+        yield str(value).lower()
+        return
+    if isinstance(value, (str, int, float)):
+        token = str(value).strip()
+        if token:
+            yield token
+        return
+    if isinstance(value, list):
+        for item in value:
+            yield from scalar_tokens(item)
+        return
+    if isinstance(value, dict):
+        for key, item in value.items():
+            if item is True or item == 1 or str(item).strip().lower() == "true":
+                token = str(key).strip()
+                if token:
+                    yield token
+            else:
+                yield from scalar_tokens(item)
+        return
+    token = str(value).strip()
+    if token:
+        yield token
+
+
 def annotation_summary(raw: bytes) -> dict[str, Any]:
     doc = json.loads(raw.decode("utf-8"))
     metadata = doc.get("_via_img_metadata", {})
@@ -73,6 +116,12 @@ def annotation_summary(raw: bytes) -> dict[str, Any]:
     nonempty_region_attributes = 0
     shape_counts: dict[str, int] = {}
     total_regions = 0
+    teeth_attribute_regions = 0
+    teeth_raw_values: collections.Counter[str] = collections.Counter()
+    teeth_tokens: collections.Counter[str] = collections.Counter()
+    fdi_code_counts: collections.Counter[str] = collections.Counter()
+    non_fdi_tokens: collections.Counter[str] = collections.Counter()
+    fdi_labeled_regions = 0
 
     for item in metadata.values():
         regions = item.get("regions", []) or []
@@ -87,6 +136,22 @@ def annotation_summary(raw: bytes) -> dict[str, Any]:
                 if attrs:
                     nonempty_region_attributes += 1
                     all_region_attribute_keys.update(str(k) for k in attrs.keys())
+                if "Teeth" in attrs:
+                    teeth_attribute_regions += 1
+                    value = attrs.get("Teeth")
+                    raw_key = json.dumps(value, sort_keys=True, ensure_ascii=False, separators=(",", ":"))
+                    teeth_raw_values[raw_key] += 1
+                    tokens = list(scalar_tokens(value))
+                    region_has_fdi = False
+                    for token in tokens:
+                        teeth_tokens[token] += 1
+                        if token in VALID_FDI:
+                            fdi_code_counts[token] += 1
+                            region_has_fdi = True
+                        else:
+                            non_fdi_tokens[token] += 1
+                    if region_has_fdi:
+                        fdi_labeled_regions += 1
             annotated.append({
                 "filename": item.get("filename"),
                 "region_count": len(regions),
@@ -94,6 +159,10 @@ def annotation_summary(raw: bytes) -> dict[str, Any]:
             })
 
     annotated.sort(key=lambda x: str(x.get("filename")))
+    source_fdi = bool(fdi_code_counts)
+    all_teeth_tokens_are_fdi = bool(teeth_tokens) and not non_fdi_tokens
+    fdi_coverage_complete = total_regions > 0 and fdi_labeled_regions == total_regions
+
     return {
         "metadata_image_count": len(metadata),
         "annotated_image_count": len(annotated),
@@ -102,7 +171,15 @@ def annotation_summary(raw: bytes) -> dict[str, Any]:
         "shape_counts": dict(sorted(shape_counts.items())),
         "nonempty_region_attributes_count": nonempty_region_attributes,
         "region_attribute_keys": sorted(all_region_attribute_keys),
-        "source_fdi_labels_present": bool(nonempty_region_attributes or all_region_attribute_keys),
+        "teeth_attribute_region_count": teeth_attribute_regions,
+        "teeth_raw_value_counts": dict(sorted(teeth_raw_values.items())),
+        "teeth_scalar_token_counts": dict(sorted(teeth_tokens.items())),
+        "fdi_code_counts": dict(sorted(fdi_code_counts.items())),
+        "non_fdi_token_counts": dict(sorted(non_fdi_tokens.items())),
+        "fdi_labeled_region_count": fdi_labeled_regions,
+        "source_fdi_labels_present": source_fdi,
+        "all_teeth_tokens_are_fdi": all_teeth_tokens_are_fdi,
+        "fdi_coverage_complete": fdi_coverage_complete,
     }
 
 
@@ -140,8 +217,14 @@ def main() -> None:
     if annotation is None:
         raise RuntimeError("annotations.json was not found/downloaded")
 
+    direct_fdi_ready = bool(
+        annotation["source_fdi_labels_present"]
+        and annotation["all_teeth_tokens_are_fdi"]
+        and annotation["fdi_coverage_complete"]
+    )
+
     manifest = {
-        "schema_version": 1,
+        "schema_version": 2,
         "dataset": {
             "id": DATASET_ID,
             "version": VERSION,
@@ -156,8 +239,11 @@ def main() -> None:
         "files": files,
         "annotations": annotation,
         "interpretation": {
-            "direct_fdi_ground_truth_ready": bool(annotation["source_fdi_labels_present"]),
-            "note": "This probe reports source annotation content only; it never synthesizes FDI labels.",
+            "direct_fdi_ground_truth_ready": direct_fdi_ready,
+            "note": (
+                "FDI readiness requires explicit source FDI tokens on every annotated region. "
+                "This probe never converts tooth type, centroid order, quadrant position, or other geometry into FDI."
+            ),
         },
     }
 
@@ -167,7 +253,20 @@ def main() -> None:
         "status": "PASS",
         "file_count": manifest["file_count"],
         "total_downloaded_bytes": manifest["total_downloaded_bytes"],
-        "annotations": annotation,
+        "annotations": {
+            "metadata_image_count": annotation["metadata_image_count"],
+            "annotated_image_count": annotation["annotated_image_count"],
+            "total_regions": annotation["total_regions"],
+            "teeth_attribute_region_count": annotation["teeth_attribute_region_count"],
+            "teeth_scalar_token_counts": annotation["teeth_scalar_token_counts"],
+            "fdi_code_counts": annotation["fdi_code_counts"],
+            "non_fdi_token_counts": annotation["non_fdi_token_counts"],
+            "fdi_labeled_region_count": annotation["fdi_labeled_region_count"],
+            "source_fdi_labels_present": annotation["source_fdi_labels_present"],
+            "all_teeth_tokens_are_fdi": annotation["all_teeth_tokens_are_fdi"],
+            "fdi_coverage_complete": annotation["fdi_coverage_complete"],
+        },
+        "direct_fdi_ground_truth_ready": direct_fdi_ready,
     }, indent=2, ensure_ascii=False))
 
 

@@ -31,7 +31,7 @@ jobs:
         with:
           python-version: "3.11"
 
-      - name: Probe exact Mendeley V3 source
+      - name: Probe exact Mendeley V3 source and annotation semantics
         shell: bash
         run: |
           set -euo pipefail
@@ -49,15 +49,24 @@ jobs:
 
           path = Path("p6-mendeley-v3/evidence/manifest.json")
           data = json.loads(path.read_text(encoding="utf-8"))
+          ann = data["annotations"]
 
+          assert data["schema_version"] == 2
           assert data["dataset"]["id"] == "73n3kz2k4k"
           assert data["dataset"]["version"] == 3
           assert data["dataset"]["doi"] == "10.17632/73n3kz2k4k.3"
           assert data["file_count"] == len(data["files"])
           assert data["file_count"] > 0
-          assert data["annotations"]["metadata_image_count"] > 0
-          assert isinstance(data["annotations"]["annotated_images"], list)
-          assert isinstance(data["annotations"]["source_fdi_labels_present"], bool)
+          assert ann["metadata_image_count"] > 0
+          assert isinstance(ann["annotated_images"], list)
+          assert isinstance(ann["teeth_raw_value_counts"], dict)
+          assert isinstance(ann["teeth_scalar_token_counts"], dict)
+          assert isinstance(ann["fdi_code_counts"], dict)
+          assert isinstance(ann["non_fdi_token_counts"], dict)
+          assert isinstance(ann["source_fdi_labels_present"], bool)
+          assert isinstance(ann["all_teeth_tokens_are_fdi"], bool)
+          assert isinstance(ann["fdi_coverage_complete"], bool)
+          assert isinstance(data["interpretation"]["direct_fdi_ground_truth_ready"], bool)
 
           for item in data["files"]:
               assert len(item["sha256"]) == 64
@@ -69,10 +78,17 @@ jobs:
               "status": "PASS",
               "file_count": data["file_count"],
               "total_downloaded_bytes": data["total_downloaded_bytes"],
-              "annotated_image_count": data["annotations"]["annotated_image_count"],
-              "total_regions": data["annotations"]["total_regions"],
-              "source_fdi_labels_present": data["annotations"]["source_fdi_labels_present"],
-              "region_attribute_keys": data["annotations"]["region_attribute_keys"],
+              "annotated_image_count": ann["annotated_image_count"],
+              "total_regions": ann["total_regions"],
+              "teeth_attribute_region_count": ann["teeth_attribute_region_count"],
+              "teeth_scalar_token_counts": ann["teeth_scalar_token_counts"],
+              "fdi_code_counts": ann["fdi_code_counts"],
+              "non_fdi_token_counts": ann["non_fdi_token_counts"],
+              "fdi_labeled_region_count": ann["fdi_labeled_region_count"],
+              "source_fdi_labels_present": ann["source_fdi_labels_present"],
+              "all_teeth_tokens_are_fdi": ann["all_teeth_tokens_are_fdi"],
+              "fdi_coverage_complete": ann["fdi_coverage_complete"],
+              "direct_fdi_ground_truth_ready": data["interpretation"]["direct_fdi_ground_truth_ready"],
           }, indent=2))
           PY
 
