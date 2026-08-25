@@ -78,11 +78,11 @@ Exemples obligatoires :
 - document précis → ce document ;
 - rendez-vous précis → ce rendez-vous.
 
-Le QR ne contient ni nom patient, ni donnée médicale, ni identifiant sensible exploitable. Token court TTL, révocable, éventuellement usage unique, lié user/session, contrôlé backend et journalisé. Cas erreurs : expiré, réseau, non-autorisé, non-pairé, ressource supprimée, backend local inaccessible.
+Le QR ne contient ni nom patient, ni donnée médicale, ni identifiant sensible exploitable. Token court TTL, révocable, usage unique, lié user/session/appareil, contrôlé backend et journalisé. Cas erreurs : expiré, réseau, non-autorisé, non-pairé, ressource supprimée, backend local inaccessible.
 
-**État : IN PROGRESS — les quatre ressources obligatoires sont CLOSED ; seule la matrice finale erreurs / retour / expiration reste à fermer.**
+**État : CLOSED.** Les quatre ressources obligatoires et la matrice finale erreurs / retour / expiration sont certifiées.
 
-Fondation certifiée via PR #234 / merge `ea0f6e41f055b90d8bceabb5e100dbe008230f16` : utilisateur cible + destination serveur autorisée, QR sans PHI, pairing device-bound, destination revalidée, E2E Finance 390/430/768. Cette fondation **ne ferme pas M4**.
+Fondation certifiée via PR #234 / merge `ea0f6e41f055b90d8bceabb5e100dbe008230f16` : utilisateur cible + destination serveur autorisée, QR sans PHI, pairing device-bound, destination revalidée, E2E Finance 390/430/768.
 
 Sous-lots ressource certifiés :
 
@@ -90,11 +90,7 @@ Sous-lots ressource certifiés :
 - **Radio panoramique contextuelle : CLOSED** — PR #243, merge `f0c120868c71948bf835758f472c741179e7b128`, closeout `docs/MOBILE_M4_B_PANORAMIC_CONTEXT_CLOSEOUT.md`, score visuel 9,5/10.
 - **Document contextuel : CLOSED** — PR #244, merge `8a11a452cc7a3b14964a1908a32589700a4cb6f7`, closeout `docs/MOBILE_M4_C_DOCUMENT_CONTEXT_CLOSEOUT.md`, score visuel 9,6/10.
 - **Rendez-vous contextuel exact : CLOSED** — PR #245, HEAD certifié `77e253487af1dc387c79a47a537736db663cc418`, merge `d42a618f3cffe6b81786a5169eefe5663a37423d`, closeout `docs/MOBILE_M4_D_APPOINTMENT_CONTEXT_CLOSEOUT.md`, score visuel 9,6/10.
-
-Restant M4 :
-
-1. matrice finale erreurs / retour / expiration au niveau ressource : expiré, réseau, non-autorisé, non-pairé, ressource supprimée, backend local inaccessible, retour mobile ;
-2. fermer le défaut BEFORE déjà observé où un backend inaccessible expose le message technique brut `Failed to fetch`.
+- **Matrice finale erreurs / retour / expiration : CLOSED** — PR #247, HEAD certifié `03d1150a8071088890bdfd431e845d55e7930f98`, merge `d8561c441987047db4cf67ddb6b764c33a9d72f3`, closeout `docs/MOBILE_M4_FINAL_RESOURCE_MATRIX_CLOSEOUT.md`, score visuel 9,7/10. Expiration sans consommation, usage unique, révocation, suppression, non-pairé, backend local inaccessible et retour Agenda certifiés ; aucune erreur réseau technique brute n'est exposée.
 
 ## M5 — Architecture mobile
 
@@ -115,7 +111,7 @@ Ces lots ont été historiquement nommés M6.1–M6.4, mais ils correspondent au
 - sécurité pairing/session mobile : CLOSED ;
 - offline truth / queue unique : CLOSED ;
 - Patient/RDV canonique + Agenda UX : CLOSED, score 9,6/10 ;
-- bridge destination / onboarding tactile : CLOSED, score 9,5/10 ; fondation de M4 seulement.
+- bridge destination / onboarding tactile : CLOSED, score 9,5/10 ; fondation M4 certifiée.
 
 ## M6 — Mobile-first réel
 
@@ -135,11 +131,13 @@ Exploiter ce que le téléphone peut faire mieux :
 - biométrie ;
 - mode portrait/plein écran imagerie.
 
-**État : à exécuter après fermeture du M4 ressource, en réutilisant les fondations sécurité/offline déjà certifiées.**
+**État : ACTIVE.** M4 est CLOSED ; M6 peut maintenant être audité et exécuté en réutilisant les fondations sécurité/offline/contextuelles certifiées.
+
+Premier lot à auditer : **M6-A — Photo clinique contextuelle**, depuis le contexte Patient exact. Aucun changement produit n'est crédité tant que BEFORE → Goal → mockup → AFTER n'est pas certifié.
 
 ## Certification complète finale — pas un « M7 »
 
-Après M4 + M6 :
+Après M6 :
 
 - 390 / 430 / 768 ;
 - vrai iPhone ;
@@ -154,10 +152,9 @@ Après M4 + M6 :
 
 ## Ordre canonique restant
 
-1. Fermer M4 ressource : matrice finale erreurs / retour / expiration.
-2. Exécuter M6 Mobile-first réel.
-3. Certification complète finale sur émulation + appareils physiques.
-4. Closeout global Mobile Full Experience.
+1. Exécuter M6 Mobile-first réel, en commençant par M6-A Photo clinique contextuelle.
+2. Certification complète finale sur émulation + appareils physiques.
+3. Closeout global Mobile Full Experience.
 
 ## Avancement
 
