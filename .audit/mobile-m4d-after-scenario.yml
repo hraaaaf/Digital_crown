@@ -1,0 +1,172 @@
+# Frozen M4-D AFTER harness template. Copied into the product commit by prep workflow.
+scenario:
+  materialize: |
+    cat > mobile-m4d-after.html <<'EOF'
+          <!doctype html><html lang="fr"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0,viewport-fit=cover"/><link rel="icon" href="data:,"/><title>Digital Crown M4-D AFTER</title></head><body><div id="root"></div><script type="module" src="/src/mobile-m4d-after.tsx"></script></body></html>
+    EOF
+    cat > src/mobile-m4d-after.tsx <<'EOF'
+          import React from 'react';
+          import { createRoot } from 'react-dom/client';
+          import { MemoryRouter } from 'react-router-dom';
+          import './index.css';
+          import { DailyView } from './features/agenda/DailyView';
+          import { WeeklyView } from './features/agenda/WeeklyView';
+          import { MonthlyView } from './features/agenda/MonthlyView';
+          import { MobileContext } from './features/mobile/Context/MobileContext';
+          import { MobileStorage } from './services/zka/MobileStorage';
+          import { useAuthStore } from './stores/useAuthStore';
+
+          const params = new URLSearchParams(window.location.search);
+          const view = params.get('view') || 'day';
+          const selectedDate = new Date('2026-08-25T12:00:00');
+          useAuthStore.setState({ user: ({ id: 1, email: 'dentiste@m4d-after.local', nom_complet: 'Dr M4D', role: 'ADMIN', employer_id: null, is_superadmin: false, permissions: { patients: true, agenda: true, clinical: true, admin: true } } as any), isAuthenticated: true, isLoading: false, error: null });
+
+          if (view === 'mobile') {
+            const futureJwt = 'eyJhbGciOiJub25lIiwidHlwIjoiSldUIn0.eyJleHAiOjQxMDI0NDQ4MDB9.';
+            await MobileStorage.clearAll().catch(() => {});
+            await MobileStorage.saveCredentials({ publicId: 'abcdef1234567890', masterKey: 'a'.repeat(64), access_token: futureJwt, refresh_token: 'm4d-after-refresh', device_id: '11111111-2222-4333-8444-555555555555', api_base_url: 'http://127.0.0.1:8005' });
+            await MobileStorage.saveBridgeContext(({ type: 'appointment', key: 'M4DAfterAppointment', label: 'Rendez-vous', state: 'ready' } as any));
+          }
+
+          const content = view === 'day'
+            ? <DailyView selectedDate={selectedDate} />
+            : view === 'week'
+              ? <WeeklyView selectedDate={selectedDate} />
+              : view === 'month'
+                ? <MonthlyView selectedDate={selectedDate} />
+                : <MobileContext />;
+          createRoot(document.getElementById('root')!).render(<MemoryRouter initialEntries={['/agenda']}>{content}</MemoryRouter>);
+    EOF
+    cat > mobile-m4d-after.mjs <<'EOF'
+          import { chromium } from 'playwright';
+          import { createServer } from 'vite';
+          import fs from 'node:fs/promises';
+
+          const output = 'mobile-m4d-after-artifacts';
+          await fs.rm(output, { recursive: true, force: true });
+          await fs.mkdir(output, { recursive: true });
+          const exactHead = process.env.EXACT_HEAD || 'unknown';
+          const appointment = { id: 77, patient_id: 42, patient_name: 'BENNANI Sara', datetime_start: '2026-08-25T10:30:00', duration_minutes: 60, motif: 'Contrôle implant 36', status: 'CONFIRMÉ', scheduling_type: 'EXACT_TIME', notes: 'RDV M4-D exact' };
+          const captures = [];
+          const network = [];
+          const server = await createServer({ server: { host: '127.0.0.1', port: 4187, strictPort: true }, clearScreen: false });
+          await server.listen();
+          const browser = await chromium.launch();
+          const json = body => ({ status: 200, contentType: 'application/json', body: JSON.stringify(body) });
+          const qr = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Y9Z5J8AAAAASUVORK5CYII=';
+
+          async function setup(viewport) {
+            const context = await browser.newContext({ viewport, screen: viewport, deviceScaleFactor: 1, hasTouch: viewport.width <= 768, isMobile: viewport.width <= 768, serviceWorkers: 'block' });
+            const page = await context.newPage();
+            const errors = [];
+            page.on('pageerror', e => errors.push(`pageerror: ${e.message}`));
+            page.on('console', m => { if (m.type() === 'error') errors.push(`console: ${m.text()}`); });
+            await page.route('**/*', async route => {
+              const req = route.request();
+              const url = new URL(req.url());
+              const path = url.pathname;
+              if (!path.startsWith('/api/')) return route.continue();
+              network.push(`${req.method()} ${path}`);
+              if (req.method() === 'GET' && path === '/api/appointments/') return route.fulfill(json([appointment]));
+              if (req.method() === 'GET' && path === '/api/actes/catalog/search') return route.fulfill(json([]));
+              if (req.method() === 'GET' && path === '/api/catalog/specialties') return route.fulfill(json([]));
+              if (req.method() === 'GET' && path === '/api/mobile/resource-bridge-options') return route.fulfill(json({ resource_type: 'appointment', resource_label: 'Rendez-vous', targets: [{ id: 1, name: 'Dr M4D', email: 'dentiste@m4d-after.local', role: 'ADMIN', is_current_user: true }], expires_in: 300, contains_patient_data: false, contains_resource_data: false }));
+              if (req.method() === 'POST' && path === '/api/mobile/resource-bridge-pairing') return route.fulfill(json({ qr_code: qr, expires_in: 300, token_code: '483921', target_user_id: 1, target_user_name: 'Dr M4D', target_role: 'ADMIN', resource_type: 'appointment', resource_label: 'Rendez-vous', contains_patient_data: false, contains_resource_data: false }));
+              if (req.method() === 'POST' && path === '/api/mobile/resource-context') return route.fulfill(json({ type: 'appointment', label: 'Rendez-vous', appointment: { patient_name: 'BENNANI Sara', datetime_start: '2026-08-25T10:30:00', duration_minutes: 60, motif: 'Contrôle implant 36', status: 'CONFIRMÉ', scheduling_type: 'EXACT_TIME', notes: 'RDV M4-D exact' } }));
+              if (path === '/api/mobile/refresh-token') return route.fulfill({ status: 401, contentType: 'application/json', body: '{}' });
+              return route.fulfill(json(req.method() === 'GET' ? [] : {}));
+            });
+            return { context, page, errors };
+          }
+
+          async function metrics(page, state) {
+            return page.evaluate((captureState) => {
+              const root = document.documentElement;
+              const dialog = document.querySelector('[role="dialog"]');
+              const controls = [...document.querySelectorAll('[data-m4d-touch], [data-m4d-month-appointment]')].filter(el => { const r = el.getBoundingClientRect(); const s = getComputedStyle(el); return r.width > 0 && r.height > 0 && s.visibility !== 'hidden' && s.display !== 'none'; }).map(el => { const r = el.getBoundingClientRect(); return { text: (el.getAttribute('aria-label') || el.textContent || '').trim().replace(/\s+/g, ' ').slice(0, 120), width: Math.round(r.width), height: Math.round(r.height) }; });
+              const html = document.body.innerHTML;
+              return {
+                scrollWidth: root.scrollWidth,
+                clientWidth: root.clientWidth,
+                hasHorizontalOverflow: root.scrollWidth > root.clientWidth + 1,
+                dialogLabel: dialog?.getAttribute('aria-label') || null,
+                exactMotifVisible: html.includes('Contrôle implant 36'),
+                patientVisible: html.includes('BENNANI Sara'),
+                bridgeActionPresent: html.includes('Ouvrir sur mobile'),
+                mobileAppointmentReady: captureState === 'mobile' ? html.includes('Rendez-vous') && html.includes('Contrôle implant 36') && html.includes('CONFIRMÉ') : null,
+                controlsBelow44: controls.filter(b => b.height < 44 || b.width < 44)
+              };
+            }, state);
+          }
+
+          async function capture(page, errors, name, state, viewport) {
+            const measured = await metrics(page, state);
+            await page.screenshot({ path: `${output}/${name}.png`, fullPage: false, animations: 'disabled' });
+            const record = { name, state, ...viewport, metrics: measured, errors: [...errors] };
+            captures.push(record);
+            await fs.writeFile(`${output}/${name}.json`, JSON.stringify(record, null, 2));
+          }
+
+          async function openAgendaState(view, viewport) {
+            const { context, page, errors } = await setup(viewport);
+            await page.goto(`http://127.0.0.1:4187/mobile-m4d-after.html?view=${view}`, { waitUntil: 'networkidle' });
+            if (view === 'month') {
+              const monthAppointment = page.getByRole('button', { name: /Modifier le rendez-vous de BENNANI Sara/ });
+              await monthAppointment.waitFor({ state: 'visible', timeout: 10000 });
+              await monthAppointment.click();
+            } else {
+              const appointmentItem = page.locator('.appointment-item').filter({ hasText: 'BENNANI Sara' }).first();
+              await appointmentItem.waitFor({ state: 'attached', timeout: 10000 });
+              await appointmentItem.scrollIntoViewIfNeeded();
+              await appointmentItem.waitFor({ state: 'visible', timeout: 10000 });
+              await appointmentItem.click();
+            }
+            await page.getByRole('dialog', { name: 'Modifier le Rendez-vous', exact: true }).waitFor({ state: 'visible', timeout: 10000 });
+            await capture(page, errors, `${view}-${viewport.width}x${viewport.height}`, view, viewport);
+            return { context, page, errors };
+          }
+
+          try {
+            const day = await openAgendaState('day', { width: 1280, height: 900 });
+            await day.page.getByRole('button', { name: /Ouvrir le rendez-vous .* sur mobile/ }).click();
+            await day.page.getByRole('dialog', { name: 'Pont mobile rendez-vous' }).waitFor({ state: 'visible', timeout: 10000 });
+            await day.page.getByRole('button', { name: 'Générer le QR' }).click();
+            await day.page.getByAltText('QR de pont mobile rendez-vous').waitFor({ state: 'visible', timeout: 10000 });
+            await capture(day.page, day.errors, 'qr-1280x900', 'qr', { width: 1280, height: 900 });
+            await day.context.close();
+
+            const week = await openAgendaState('week', { width: 1280, height: 900 }); await week.context.close();
+            const monthDesktop = await openAgendaState('month', { width: 1280, height: 900 }); await monthDesktop.context.close();
+            const monthTablet = await openAgendaState('month', { width: 768, height: 1024 }); await monthTablet.context.close();
+
+            for (const viewport of [{ width: 390, height: 844 }, { width: 430, height: 932 }, { width: 768, height: 1024 }]) {
+              const { context, page, errors } = await setup(viewport);
+              await page.goto('http://127.0.0.1:4187/mobile-m4d-after.html?view=mobile', { waitUntil: 'networkidle' });
+              await page.getByRole('heading', { name: 'Rendez-vous', exact: true }).waitFor({ state: 'visible', timeout: 10000 });
+              await capture(page, errors, `mobile-appointment-${viewport.width}x${viewport.height}`, 'mobile', viewport);
+              await context.close();
+            }
+
+            const agenda = captures.filter(x => ['day','week','month'].includes(x.state));
+            const mobile = captures.filter(x => x.state === 'mobile');
+            const qrCapture = captures.find(x => x.state === 'qr');
+            const report = {
+              exactHead,
+              captures,
+              count: captures.length,
+              exactAppointmentEveryAgendaView: agenda.length === 4 && agenda.every(x => x.metrics.dialogLabel === 'Modifier le Rendez-vous' && x.metrics.exactMotifVisible && x.metrics.patientVisible && x.metrics.bridgeActionPresent),
+              qrReady: !!qrCapture && qrCapture.metrics.patientVisible && qrCapture.metrics.exactMotifVisible,
+              mobileAppointmentReady: mobile.length === 3 && mobile.every(x => x.metrics.mobileAppointmentReady === true && x.metrics.patientVisible),
+              noUnexpectedErrors: captures.every(x => x.errors.length === 0),
+              noHorizontalOverflow: captures.every(x => !x.metrics.hasHorizontalOverflow),
+              m4dControlsAtLeast44: captures.every(x => x.metrics.controlsBelow44.length === 0),
+              network
+            };
+            await fs.writeFile(`${output}/report.json`, JSON.stringify(report, null, 2));
+            console.log(JSON.stringify(report, null, 2));
+            if (report.count !== 8 || !report.exactAppointmentEveryAgendaView || !report.qrReady || !report.mobileAppointmentReady || !report.noUnexpectedErrors || !report.noHorizontalOverflow || !report.m4dControlsAtLeast44) throw new Error('M4-D AFTER evidence gate failed.');
+          } finally {
+            await browser.close();
+            await server.close();
+          }
+    EOF

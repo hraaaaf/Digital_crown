@@ -1,0 +1,75 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1440" height="900" viewBox="0 0 1440 900">
+  <rect width="1440" height="900" fill="#eef3f8"/>
+  <text x="60" y="58" font-family="Arial,sans-serif" font-size="26" font-weight="700" fill="#0b2f6b">M4-D — RDV contextuel — cible visuelle</text>
+  <text x="60" y="88" font-family="Arial,sans-serif" font-size="14" fill="#64748b">Référence fonctionnelle avant implémentation · pas un redesign Agenda</text>
+
+  <!-- Desktop edit modal -->
+  <rect x="60" y="125" width="540" height="690" rx="32" fill="#ffffff" stroke="#dbe4ef"/>
+  <rect x="60" y="125" width="540" height="96" rx="32" fill="#f8fafc"/>
+  <rect x="60" y="190" width="540" height="31" fill="#f8fafc"/>
+  <rect x="88" y="151" width="48" height="48" rx="14" fill="#2f80ff"/>
+  <text x="103" y="183" font-family="Arial,sans-serif" font-size="22" fill="#ffffff">◷</text>
+  <text x="154" y="170" font-family="Arial,sans-serif" font-size="22" font-weight="700" fill="#0b2f6b">Modifier le Rendez-vous</text>
+  <text x="154" y="195" font-family="Arial,sans-serif" font-size="13" font-weight="700" fill="#64748b">Planification clinique</text>
+
+  <text x="92" y="257" font-family="Arial,sans-serif" font-size="11" font-weight="700" fill="#8ba0bb">PATIENT</text>
+  <rect x="88" y="274" width="484" height="54" rx="15" fill="#f8fbff" stroke="#2f80ff" stroke-width="2"/>
+  <text x="112" y="307" font-family="Arial,sans-serif" font-size="14" font-weight="700" fill="#0b2f6b">BENNANI Sara</text>
+
+  <text x="92" y="367" font-family="Arial,sans-serif" font-size="11" font-weight="700" fill="#8ba0bb">ACTE / MOTIF</text>
+  <rect x="88" y="384" width="484" height="54" rx="15" fill="#f8fbff" stroke="#e2e8f0"/>
+  <text x="112" y="417" font-family="Arial,sans-serif" font-size="14" font-weight="700" fill="#334155">Contrôle implant 36</text>
+
+  <text x="92" y="477" font-family="Arial,sans-serif" font-size="11" font-weight="700" fill="#8ba0bb">DATE &amp; HEURE</text>
+  <rect x="88" y="494" width="232" height="54" rx="15" fill="#f8fbff" stroke="#e2e8f0"/>
+  <rect x="340" y="494" width="232" height="54" rx="15" fill="#f8fbff" stroke="#e2e8f0"/>
+  <text x="112" y="527" font-family="Arial,sans-serif" font-size="14" font-weight="700" fill="#0b2f6b">25/08/2026 · 10:30</text>
+  <text x="364" y="527" font-family="Arial,sans-serif" font-size="14" font-weight="700" fill="#334155">1 heure · Confirmé</text>
+
+  <rect x="88" y="590" width="484" height="56" rx="17" fill="#0b2f6b"/>
+  <text x="210" y="624" font-family="Arial,sans-serif" font-size="14" font-weight="700" fill="#ffffff">▣  Ouvrir ce RDV sur mobile</text>
+  <text x="92" y="675" font-family="Arial,sans-serif" font-size="12" fill="#64748b">CTA secondaire : bridge exact, sans modifier la logique d’enregistrement.</text>
+  <rect x="88" y="716" width="232" height="54" rx="16" fill="#f1f5f9"/>
+  <rect x="340" y="716" width="232" height="54" rx="16" fill="#2563eb"/>
+  <text x="175" y="749" font-family="Arial,sans-serif" font-size="14" font-weight="700" fill="#64748b">Annuler</text>
+  <text x="414" y="749" font-family="Arial,sans-serif" font-size="14" font-weight="700" fill="#ffffff">Enregistrer</text>
+
+  <!-- QR modal -->
+  <rect x="645" y="125" width="360" height="690" rx="32" fill="#ffffff" stroke="#dbe4ef"/>
+  <text x="680" y="171" font-family="Arial,sans-serif" font-size="20" font-weight="700" fill="#0b2f6b">Ouvrir ce RDV sur mobile</text>
+  <text x="680" y="198" font-family="Arial,sans-serif" font-size="12" font-weight="700" fill="#64748b">25/08 · 10:30 · BENNANI Sara</text>
+  <rect x="680" y="232" width="290" height="76" rx="18" fill="#f8fafc" stroke="#e2e8f0"/>
+  <text x="700" y="258" font-family="Arial,sans-serif" font-size="10" font-weight="700" fill="#94a3b8">UTILISATEUR MOBILE</text>
+  <text x="700" y="287" font-family="Arial,sans-serif" font-size="14" font-weight="700" fill="#0f172a">Dr M4D · ADMIN</text>
+  <rect x="680" y="330" width="290" height="52" rx="16" fill="#2563eb"/>
+  <text x="765" y="362" font-family="Arial,sans-serif" font-size="13" font-weight="700" fill="#ffffff">Générer le QR</text>
+  <rect x="720" y="410" width="210" height="210" rx="20" fill="#ffffff" stroke="#cbd5e1" stroke-width="2"/>
+  <path d="M745 435h52v52h-52zM853 435h52v52h-52zM745 543h52v52h-52z" fill="#0f172a"/>
+  <path d="M814 505h22v22h-22zM853 522h18v40h-18zM817 563h42v18h-42zM883 520h22v22h-22z" fill="#0f172a"/>
+  <text x="765" y="651" font-family="Arial,sans-serif" font-size="12" fill="#64748b">Code manuel : 483 921</text>
+  <rect x="680" y="683" width="290" height="90" rx="18" fill="#ecfdf5" stroke="#a7f3d0"/>
+  <text x="702" y="711" font-family="Arial,sans-serif" font-size="12" font-weight="700" fill="#047857">QR opaque et temporaire</text>
+  <text x="702" y="734" font-family="Arial,sans-serif" font-size="11" fill="#047857">Aucun patient, RDV ou horaire dans le QR.</text>
+  <text x="702" y="754" font-family="Arial,sans-serif" font-size="11" fill="#047857">Résolution serveur après appairage.</text>
+
+  <!-- Mobile context -->
+  <rect x="1050" y="125" width="330" height="690" rx="42" fill="#f8fafc" stroke="#cbd5e1" stroke-width="2"/>
+  <rect x="1072" y="155" width="286" height="632" rx="30" fill="#ffffff"/>
+  <circle cx="1215" cy="198" r="30" fill="#e8f1ff"/>
+  <text x="1204" y="207" font-family="Arial,sans-serif" font-size="24" fill="#2563eb">◷</text>
+  <text x="1134" y="250" font-family="Arial,sans-serif" font-size="21" font-weight="700" fill="#0b2f6b">Rendez-vous</text>
+  <text x="1154" y="278" font-family="Arial,sans-serif" font-size="13" font-weight="700" fill="#64748b">BENNANI Sara</text>
+  <rect x="1098" y="310" width="234" height="92" rx="20" fill="#f8fafc" stroke="#e2e8f0"/>
+  <text x="1118" y="338" font-family="Arial,sans-serif" font-size="10" font-weight="700" fill="#94a3b8">DATE &amp; HEURE</text>
+  <text x="1118" y="365" font-family="Arial,sans-serif" font-size="15" font-weight="700" fill="#0f172a">Mardi 25 août · 10:30</text>
+  <text x="1118" y="387" font-family="Arial,sans-serif" font-size="12" fill="#64748b">1 heure · Heure précise</text>
+  <rect x="1098" y="420" width="234" height="96" rx="20" fill="#f8fafc" stroke="#e2e8f0"/>
+  <text x="1118" y="448" font-family="Arial,sans-serif" font-size="10" font-weight="700" fill="#94a3b8">MOTIF</text>
+  <text x="1118" y="478" font-family="Arial,sans-serif" font-size="15" font-weight="700" fill="#0f172a">Contrôle implant 36</text>
+  <rect x="1098" y="536" width="234" height="56" rx="17" fill="#eff6ff" stroke="#bfdbfe"/>
+  <text x="1118" y="570" font-family="Arial,sans-serif" font-size="13" font-weight="700" fill="#1d4ed8">Statut : Confirmé</text>
+  <rect x="1098" y="638" width="234" height="56" rx="17" fill="#0b2f6b"/>
+  <text x="1153" y="672" font-family="Arial,sans-serif" font-size="13" font-weight="700" fill="#ffffff">Retour au mobile</text>
+  <rect x="1098" y="708" width="234" height="52" rx="17" fill="#ffffff" stroke="#cbd5e1"/>
+  <text x="1144" y="740" font-family="Arial,sans-serif" font-size="12" font-weight="700" fill="#334155">Actualiser le contexte</text>
+</svg>

@@ -85,7 +85,10 @@ export const OnboardingScanner = () => {
           ? ({ ...payload.context, label: payload.label || BRIDGE_LABELS.context } as MobileBridgeContext)
           : undefined;
         if (!context?.key || !context.type) throw new Error('Contexte mobile incomplet. Régénérez le pont depuis le poste cabinet.');
-        return { route: BRIDGE_ROUTES.context, label: BRIDGE_LABELS.context, context };
+        const resourceLabel = typeof payload.label === 'string' && payload.label.trim()
+          ? payload.label.trim()
+          : (context.label || BRIDGE_LABELS.context);
+        return { route: BRIDGE_ROUTES.context, label: resourceLabel, context };
       }
       if (resourceResponse.status !== 404) {
         throw new Error('Impossible de résoudre le contexte mobile. Régénérez le pont depuis le poste cabinet.');

@@ -11,6 +11,7 @@ import { useClinicalRef } from '../clinical-ref/useClinicalRef';
 import { ClinicalRefSidebar } from '../clinical-ref/ClinicalRefSidebar';
 import { useEliteStore } from '../../stores/useEliteStore';
 import { useEscapeKey } from '../../hooks/useEscapeKey';
+import { AppointmentMobileBridge } from './AppointmentMobileBridge';
 
 interface Patient {
   id: number;
@@ -775,6 +776,15 @@ export const AgendaModal: React.FC<AgendaModalProps> = ({ isOpen, onClose, onSav
             </div>
 
           </div>
+
+          {editingAppointment && (
+            <div data-m4d-bridge-slot className="pt-2">
+              <AppointmentMobileBridge
+                appointmentId={Number(editingAppointment.id)}
+                appointmentLabel={`${editingAppointment.patient_name || 'Rendez-vous'} · ${editingAppointment.motif || 'Sans motif'}`}
+              />
+            </div>
+          )}
 
           <div className="pt-6 sm:pt-8 flex flex-col sm:flex-row justify-between items-center gap-4 border-t border-slate-100">
             <div className="flex items-center gap-3 w-full sm:w-auto justify-between sm:justify-start">
