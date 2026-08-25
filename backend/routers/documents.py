@@ -493,9 +493,6 @@ def move_to_trash(document_id: str, db: Session = Depends(database.get_db), curr
         db.commit()
         return {"message": "Mis à la corbeille", "id": document_id}
 
-    if not has_permission(current_user, "patients"):
-        raise HTTPException(status_code=403, detail="Accès refusé. Permission requise : patients.")
-
     if document_id.startswith("doc_"):
         doc_id_int = int(document_id.replace("doc_", ""))
         doc = db.query(models.DocumentArchive).filter(models.DocumentArchive.id == doc_id_int).first()
@@ -509,6 +506,10 @@ def move_to_trash(document_id: str, db: Session = Depends(database.get_db), curr
         except ValueError:
             raise HTTPException(status_code=400, detail="Identifiant de document invalide.")
 
+    require_document_permission(
+        doc.document_type.value if hasattr(doc.document_type, "value") else str(doc.document_type),
+        current_user,
+    )
     assert_patient_access(doc.patient_id, current_user, db)
 
     # Protection des Radios (seul le dentiste / proprio peut supprimer)
@@ -540,8 +541,6 @@ def restore_from_trash(document_id: str, db: Session = Depends(database.get_db),
         db.commit()
         return {"message": "Restauré", "id": document_id}
 
-    if not has_permission(current_user, "patients"):
-        raise HTTPException(status_code=403, detail="Accès refusé. Permission requise : patients.")
     if document_id.startswith("doc_"):
         doc = db.query(models.DocumentArchive).filter(models.DocumentArchive.public_id == document_id).first()
         if not doc: raise HTTPException(status_code=404, detail="Introuvable")
@@ -553,7 +552,11 @@ def restore_from_trash(document_id: str, db: Session = Depends(database.get_db),
             if not doc: raise HTTPException(status_code=404, detail="Introuvable")
         except ValueError:
             raise HTTPException(status_code=400, detail="Identifiant de document invalide.")
-            
+
+    require_document_permission(
+        doc.document_type.value if hasattr(doc.document_type, "value") else str(doc.document_type),
+        current_user,
+    )
     assert_patient_access(doc.patient_id, current_user, db)
     
     archive_service = get_archive_service(db)
@@ -562,8 +565,6 @@ def restore_from_trash(document_id: str, db: Session = Depends(database.get_db),
 
 @router.delete("/{document_id}")
 def permanent_delete(document_id: str, confirm: bool = False, db: Session = Depends(database.get_db), current_user: models.User = Depends(get_current_user)):
-    if not has_permission(current_user, "patients"):
-        raise HTTPException(status_code=403, detail="Accès refusé. Permission requise : patients.")
     if not confirm: raise HTTPException(status_code=400, detail="Confirmation requise")
     
     if document_id.startswith("doc_"):
@@ -577,6 +578,10 @@ def permanent_delete(document_id: str, confirm: bool = False, db: Session = Depe
             raise HTTPException(status_code=400, detail="Identifiant de document invalide.")
     doc = db.query(models.DocumentArchive).filter(models.DocumentArchive.id == doc_id).first()
     if not doc: raise HTTPException(status_code=404, detail="Introuvable")
+    require_document_permission(
+        doc.document_type.value if hasattr(doc.document_type, "value") else str(doc.document_type),
+        current_user,
+    )
     assert_patient_access(doc.patient_id, current_user, db)
     
     archive_service = get_archive_service(db)

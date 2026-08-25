@@ -29,12 +29,13 @@ describe('M4-B panoramic contextual mobile bridge', () => {
     expect(bridgeSource).not.toContain('patient_id:');
   });
 
-  it('loads panoramic metadata and image only through the context key', () => {
-    expect(contextSource).toContain("['patient', 'panoramic'].includes(stored.type)");
+  it('loads panoramic metadata and image only through the context key and rejects non-image media', () => {
+    expect(contextSource).toContain("'panoramic'");
     expect(contextSource).toContain("request('resource-context', creds.access_token)");
     expect(contextSource).toContain("request('resource-context-media', creds.access_token)");
     expect(contextSource).toContain("/api/mobile/${path}");
     expect(contextSource).toContain('context_key: stored.key');
+    expect(contextSource).toContain("stored.type === 'panoramic' && !blob.type.startsWith('image/')");
     expect(contextSource).toContain('URL.createObjectURL(blob)');
     expect(contextSource).not.toContain('/ia/panoramic/${');
   });
