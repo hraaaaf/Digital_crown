@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type ChangeEvent } from 'react';
-import { AlertTriangle, ArrowLeft, Calendar, Camera, CheckCircle2, Download, ExternalLink, FileText, Image as ImageIcon, Loader2, Phone, RefreshCcw, ShieldCheck, X } from 'lucide-react';
+import { AlertTriangle, ArrowLeft, Calendar, Camera, CheckCircle2, Download, ExternalLink, FileText, Image as ImageIcon, Loader2, Phone, Plus, RefreshCcw, ShieldCheck, Trash2, X } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { MobileStorage, type MobileBridgeContext } from '../../../services/zka/MobileStorage';
 
@@ -41,6 +41,12 @@ interface MobileAppointment {
   notes?: string | null;
 }
 
+interface DocumentScanPage {
+  key: string;
+  file: File;
+  previewUrl: string;
+}
+
 function ageFromBirth(value?: string | null): number | null {
   if (!value) return null;
   const birth = new Date(value);
@@ -77,6 +83,12 @@ export const MobileContext = () => {
   const [photoPreviewUrl, setPhotoPreviewUrl] = useState<string | null>(null);
   const [photoPhase, setPhotoPhase] = useState<'idle' | 'preview' | 'uploading' | 'saved'>('idle');
   const [photoError, setPhotoError] = useState('');
+  const scanInputRef = useRef<HTMLInputElement | null>(null);
+  const scanPagesRef = useRef<DocumentScanPage[]>([]);
+  const [scanPages, setScanPages] = useState<DocumentScanPage[]>([]);
+  const [scanActiveIndex, setScanActiveIndex] = useState(0);
+  const [scanPhase, setScanPhase] = useState<'idle' | 'preview' | 'uploading' | 'saved'>('idle');
+  const [scanError, setScanError] = useState('');
 
   const clearMedia = () => {
     if (mediaUrlRef.current) URL.revokeObjectURL(mediaUrlRef.current);
@@ -95,6 +107,21 @@ export const MobileContext = () => {
     if (photoInputRef.current) photoInputRef.current.value = '';
   };
 
+  const setDocumentScanPages = (pages: DocumentScanPage[]) => {
+    scanPagesRef.current = pages;
+    setScanPages(pages);
+  };
+
+  const clearDocumentScan = () => {
+    scanPagesRef.current.forEach(page => URL.revokeObjectURL(page.previewUrl));
+    setDocumentScanPages([]);
+    setScanActiveIndex(0);
+    setScanPhase('idle');
+    setScanError('');
+    if (scanInputRef.current) scanInputRef.current.value = '';
+  };
+
+
   const load = async () => {
     setPhase('loading');
     setError('');
@@ -104,6 +131,7 @@ export const MobileContext = () => {
     setAppointment(null);
     clearMedia();
     clearClinicalPhoto();
+    clearDocumentScan();
     const stored = await MobileStorage.getBridgeContext().catch(() => null);
     setContext(stored);
     if (!stored || !['patient', 'panoramic', 'document', 'appointment'].includes(stored.type)) {
@@ -206,6 +234,7 @@ export const MobileContext = () => {
     return () => {
       if (mediaUrlRef.current) URL.revokeObjectURL(mediaUrlRef.current);
       if (photoPreviewUrlRef.current) URL.revokeObjectURL(photoPreviewUrlRef.current);
+      scanPagesRef.current.forEach(page => URL.revokeObjectURL(page.previewUrl));
     };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -227,6 +256,7 @@ export const MobileContext = () => {
   };
 
   const openClinicalPhotoPicker = () => {
+    clearDocumentScan();
     setPhotoError('');
     photoInputRef.current?.click();
   };
@@ -295,6 +325,117 @@ export const MobileContext = () => {
       setPhotoPhase('preview');
     }
   };
+
+  const startDocumentScan = () => {
+    clearClinicalPhoto();
+    clearDocumentScan();
+    scanInputRef.current?.click();
+  };
+
+  const addDocumentScanPage = () => {
+    setScanError('');
+    if (scanPagesRef.current.length >= 8) {
+      setScanError('Le document est limité à 8 pages.');
+      return;
+    }
+    scanInputRef.current?.click();
+  };
+
+  const handleDocumentScanSelected = (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0] || null;
+    if (!file) return;
+    const allowedTypes = ['image/jpeg', 'image/png', 'image/webp'];
+    if (file.type && !allowedTypes.includes(file.type)) {
+      setScanError('Sélectionnez une page JPEG, PNG ou WebP.');
+      event.target.value = '';
+      return;
+    }
+    if (file.size > 12 * 1024 * 1024) {
+      setScanError('Une page dépasse la limite de 12 MiB.');
+      event.target.value = '';
+      return;
+    }
+    if (scanPagesRef.current.reduce((total, page) => total + page.file.size, 0) + file.size > 48 * 1024 * 1024) {
+      setScanError('Le scan dépasse la limite cumulée de 48 MiB.');
+      event.target.value = '';
+      return;
+    }
+    if (scanPagesRef.current.length >= 8) {
+      setScanError('Le document est limité à 8 pages.');
+      event.target.value = '';
+      return;
+    }
+    const previewUrl = URL.createObjectURL(file);
+    const next = [...scanPagesRef.current, {
+      key: `${Date.now()}-${scanPagesRef.current.length}-${file.name}`,
+      file,
+      previewUrl,
+    }];
+    setDocumentScanPages(next);
+    setScanActiveIndex(next.length - 1);
+    setScanPhase('preview');
+    setScanError('');
+    event.target.value = '';
+  };
+
+  const removeDocumentScanPage = (index: number) => {
+    const current = scanPagesRef.current;
+    const removed = current[index];
+    if (removed) URL.revokeObjectURL(removed.previewUrl);
+    const next = current.filter((_page, pageIndex) => pageIndex !== index);
+    setDocumentScanPages(next);
+    if (!next.length) {
+      setScanActiveIndex(0);
+      setScanPhase('idle');
+      setScanError('');
+      return;
+    }
+    setScanActiveIndex(Math.min(index, next.length - 1));
+    setScanPhase('preview');
+    setScanError('');
+  };
+
+  const uploadDocumentScan = async () => {
+    if (!scanPagesRef.current.length || !context || context.type !== 'patient') return;
+    setScanPhase('uploading');
+    setScanError('');
+    try {
+      let creds = await MobileStorage.getCredentials();
+      if (!creds?.access_token) throw new Error('Session mobile non disponible. Régénérez le pont depuis le poste cabinet.');
+      const request = async (accessToken: string) => {
+        const form = new FormData();
+        form.append('context_key', context.key);
+        scanPagesRef.current.forEach((page, index) => form.append('pages', page.file, page.file.name || `scan-page-${index + 1}.jpg`));
+        return fetch(`${creds!.api_base_url.replace(/\/$/, '')}/api/mobile/resource-context-document-scan`, {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${accessToken}` },
+          body: form,
+        });
+      };
+      let response = await request(creds.access_token);
+      if (response.status === 401) {
+        creds = await MobileStorage.refreshCredentials();
+        if (creds?.access_token) response = await request(creds.access_token);
+      }
+      if (!response.ok) {
+        const payload = await response.json().catch(() => ({}));
+        throw new Error(payload.detail || `Document non enregistré (${response.status}).`);
+      }
+      const payload = await response.json();
+      if (!payload?.success || payload?.document?.document_type !== 'AUTRE' || payload?.pages !== scanPagesRef.current.length) {
+        throw new Error('Réponse d’enregistrement du document invalide.');
+      }
+      setScanPhase('saved');
+    } catch (err: unknown) {
+      setScanError(err instanceof TypeError
+        ? 'Serveur du cabinet inaccessible. Les pages restent en aperçu : vérifiez le poste cabinet puis réessayez.'
+        : err instanceof Error
+          ? err.message
+          : 'Impossible d’enregistrer le document scanné.');
+      setScanPhase('preview');
+    }
+  };
+
 
   if (phase === 'loading') {
     return (
@@ -405,9 +546,49 @@ export const MobileContext = () => {
           <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-white/15"><Camera size={20} /></span>
           <span><span className="block font-black text-sm">Photo clinique</span><span className="mt-0.5 block text-[11px] font-bold text-white/80">Prendre une photo au fauteuil</span></span>
         </button>
+
+        <input ref={scanInputRef} data-m6b-scan-input type="file" accept="image/jpeg,image/png,image/webp" capture="environment" onChange={handleDocumentScanSelected} className="sr-only" tabIndex={-1} aria-hidden="true" />
+        <button data-m6b-scan-action data-m6b-touch type="button" onClick={startDocumentScan} className="mt-3 w-full min-h-[66px] rounded-2xl bg-card-bg border border-primary/25 text-text-main inline-flex items-center justify-start gap-3 px-4 text-left shadow-elite active:scale-[0.99] transition-transform focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:ring-offset-2">
+          <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-primary/10 text-primary"><FileText size={20} /></span>
+          <span><span className="block font-black text-sm">Scanner un document</span><span className="mt-0.5 block text-[11px] font-bold text-text-muted">Créer un PDF dans le dossier</span></span>
+          <span aria-hidden="true" className="ml-auto text-xl font-black text-text-muted/70">›</span>
+        </button>
         <section className="mt-6 rounded-[1.75rem] bg-card-bg border border-border-main p-5 shadow-elite space-y-4"><div><p className="text-[10px] font-black uppercase tracking-widest text-text-muted">Assurance</p><p className="mt-1 font-black text-text-main">{patient!.assurance || 'Non renseignée'}</p></div><div><p className="text-[10px] font-black uppercase tracking-widest text-text-muted">Motif</p><p className="mt-1 font-bold text-text-main">{patient!.motif_consultation || 'Non renseigné'}</p></div><p className="pt-2 border-t border-border-main text-[11px] font-bold text-text-muted">Contexte chargé depuis le serveur · aucun identifiant patient dans l’URL</p></section>
         <button data-m4a-touch type="button" onClick={() => navigate('/mobile/dashboard?tab=agenda', { replace: true })} className="mt-6 w-full min-h-[54px] rounded-2xl bg-card-bg border border-border-main text-text-main font-black text-xs uppercase tracking-widest">Retour au mobile</button>
       </div>
+
+
+      {scanPages.length > 0 && (
+        <div data-m6b-scan-sheet className="fixed inset-0 z-50 flex items-end justify-center bg-slate-950/30 backdrop-blur-sm sm:p-4">
+          <section role="dialog" aria-modal="true" aria-labelledby="m6b-scan-title" className="w-full max-w-md rounded-t-[2rem] sm:rounded-[2rem] bg-card-bg border border-border-main shadow-elite p-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] relative">
+            <div className="mx-auto mb-4 h-1.5 w-12 rounded-full bg-text-muted/20 sm:hidden" />
+            <button data-m6b-touch type="button" aria-label="Annuler le scan" onClick={clearDocumentScan} className="absolute right-4 top-4 min-h-[52px] min-w-[52px] rounded-2xl inline-flex items-center justify-center text-text-muted hover:bg-primary/5"><X size={20} /></button>
+            <p className="text-[10px] font-black uppercase tracking-[0.16em] text-primary">Scan document</p>
+            <h2 id="m6b-scan-title" className="mt-1 pr-14 text-xl font-black text-text-main">{scanPhase === 'saved' ? 'Document enregistré' : `${scanPages.length} page${scanPages.length > 1 ? 's' : ''} prête${scanPages.length > 1 ? 's' : ''}`}</h2>
+            <p className="mt-1 text-xs font-bold text-text-muted">{displayName} · Dossier {patient!.numero_dossier || 'sans numéro'}</p>
+
+            {scanPhase === 'saved' ? (
+              <div data-m6b-scan-success className="mt-5">
+                <div className="min-h-[72px] rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 flex items-center gap-3 text-emerald-800"><CheckCircle2 size={22} className="shrink-0" /><div><p className="text-sm font-black">Document scanné enregistré</p><p className="mt-0.5 text-xs font-bold">{scanPages.length} page{scanPages.length > 1 ? 's' : ''} · PDF dans le dossier</p></div></div>
+                <button data-m6b-touch type="button" onClick={startDocumentScan} className="mt-4 w-full min-h-[54px] rounded-2xl bg-primary text-white inline-flex items-center justify-center gap-2 font-black text-sm"><FileText size={18} /> Scanner un autre document</button>
+              </div>
+            ) : (
+              <>
+                {scanPages[scanActiveIndex] && <img data-m6b-scan-preview src={scanPages[scanActiveIndex].previewUrl} alt={`Page ${scanActiveIndex + 1} du document de ${displayName}`} className="mt-4 block w-full max-h-[36dvh] aspect-[4/3] object-contain rounded-2xl border border-border-main bg-slate-950/5" />}
+                <div className="mt-3 flex items-center justify-between gap-3"><p className="text-xs font-black text-text-main">Page {scanActiveIndex + 1} sur {scanPages.length}</p><p className="text-[10px] font-bold text-text-muted">8 pages max.</p></div>
+                <div data-m6b-scan-thumbnails className="mt-3 flex gap-2 overflow-x-auto pb-1">
+                  {scanPages.map((page, index) => <button data-m6b-touch data-m6b-scan-thumbnail key={page.key} type="button" onClick={() => setScanActiveIndex(index)} aria-label={`Voir la page ${index + 1}`} className={`min-w-[56px] min-h-[56px] w-14 h-14 overflow-hidden rounded-xl border-2 ${scanActiveIndex === index ? 'border-primary' : 'border-border-main'}`}><img src={page.previewUrl} alt="" className="w-full h-full object-cover" /></button>)}
+                  {scanPages.length < 8 && <button data-m6b-touch data-m6b-add-page type="button" onClick={addDocumentScanPage} className="min-w-[56px] min-h-[56px] w-14 h-14 rounded-xl border border-primary/30 bg-primary/5 text-primary inline-flex items-center justify-center" aria-label="Ajouter une page"><Plus size={20} /></button>}
+                </div>
+                <button data-m6b-touch type="button" disabled={scanPhase === 'uploading'} onClick={() => removeDocumentScanPage(scanActiveIndex)} className="mt-3 min-h-[52px] w-full rounded-2xl border border-rose-200 bg-rose-50 text-rose-700 inline-flex items-center justify-center gap-2 font-black text-xs disabled:opacity-50"><Trash2 size={16} /> Supprimer cette page</button>
+                {scanError && <div role="alert" className="mt-3 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-xs font-bold text-rose-700">{scanError}</div>}
+                <button data-m6b-touch type="button" disabled={scanPhase === 'uploading'} onClick={() => void uploadDocumentScan()} className="mt-4 w-full min-h-[56px] rounded-2xl bg-primary text-white inline-flex items-center justify-center gap-2 font-black text-sm disabled:opacity-60">{scanPhase === 'uploading' ? <><Loader2 size={17} className="animate-spin" /> Enregistrement…</> : `Enregistrer le PDF · ${scanPages.length} page${scanPages.length > 1 ? 's' : ''}`}</button>
+                <p className="mt-3 text-center text-[10px] font-bold text-text-muted">Aucune page n’est archivée avant confirmation.</p>
+              </>
+            )}
+          </section>
+        </div>
+      )}
 
       {photoPreviewUrl && photoFile && (
         <div data-m6a-photo-sheet className="fixed inset-0 z-50 flex items-end justify-center bg-slate-950/30 backdrop-blur-sm sm:p-4">

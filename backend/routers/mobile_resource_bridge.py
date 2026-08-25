@@ -357,6 +357,79 @@ def _normalize_clinical_photo(raw: bytes) -> bytes:
         raise HTTPException(status_code=422, detail="Le fichier sélectionné n'est pas une image clinique valide.") from exc
 
 
+_DOCUMENT_SCAN_MAX_PAGES = 8
+_DOCUMENT_SCAN_MAX_PAGE_BYTES = 12 * 1024 * 1024
+_DOCUMENT_SCAN_MAX_TOTAL_BYTES = 48 * 1024 * 1024
+_DOCUMENT_SCAN_MAX_PIXELS = 50_000_000
+_DOCUMENT_SCAN_SOURCE_FORMATS = {'JPEG', 'PNG', 'WEBP'}
+
+
+def _normalize_document_scan_page(raw: bytes) -> bytes:
+    """Validate and rewrite one scan page as a metadata-free JPEG."""
+    if not raw:
+        raise HTTPException(status_code=422, detail="La page scannée est vide.")
+    if len(raw) > _DOCUMENT_SCAN_MAX_PAGE_BYTES:
+        raise HTTPException(status_code=413, detail="Une page scannée dépasse la limite de 12 MiB.")
+
+    try:
+        with Image.open(BytesIO(raw)) as probe:
+            source_format = str(probe.format or '').upper()
+            width, height = probe.size
+            if source_format not in _DOCUMENT_SCAN_SOURCE_FORMATS:
+                raise HTTPException(status_code=422, detail="Format de page non pris en charge. Utilisez JPEG, PNG ou WebP.")
+            if width <= 0 or height <= 0 or width * height > _DOCUMENT_SCAN_MAX_PIXELS:
+                raise HTTPException(status_code=413, detail="La résolution d'une page scannée est trop élevée.")
+            probe.verify()
+
+        with Image.open(BytesIO(raw)) as image:
+            image = ImageOps.exif_transpose(image)
+            image.load()
+            if image.width <= 0 or image.height <= 0 or image.width * image.height > _DOCUMENT_SCAN_MAX_PIXELS:
+                raise HTTPException(status_code=413, detail="La résolution d'une page scannée est trop élevée.")
+            if image.mode in ('RGBA', 'LA') or (image.mode == 'P' and 'transparency' in image.info):
+                rgba = image.convert('RGBA')
+                normalized_image = Image.new('RGB', rgba.size, 'white')
+                normalized_image.paste(rgba, mask=rgba.getchannel('A'))
+            else:
+                normalized_image = image.convert('RGB')
+            output = BytesIO()
+            normalized_image.save(output, format='JPEG', quality=90, optimize=True)
+            normalized = output.getvalue()
+            if not normalized:
+                raise HTTPException(status_code=422, detail="Impossible de normaliser une page scannée.")
+            return normalized
+    except HTTPException:
+        raise
+    except (UnidentifiedImageError, OSError, ValueError, Image.DecompressionBombError) as exc:
+        raise HTTPException(status_code=422, detail="Le fichier sélectionné n'est pas une page de document valide.") from exc
+
+
+def _document_scan_pdf(normalized_pages: list[bytes]) -> bytes:
+    if not normalized_pages:
+        raise HTTPException(status_code=422, detail="Le scan ne contient aucune page.")
+
+    # Keep pages compressed while assembling the PDF. Loading every 50 MP page
+    # as a simultaneous RGB bitmap could otherwise exceed 1 GiB at the 8-page cap.
+    import fitz
+
+    document = fitz.open()
+    try:
+        for raw in normalized_pages:
+            with Image.open(BytesIO(raw)) as image:
+                width_px, height_px = image.size
+            width_pt = max(1.0, width_px * 72.0 / 150.0)
+            height_pt = max(1.0, height_px * 72.0 / 150.0)
+            page = document.new_page(width=width_pt, height=height_pt)
+            page.insert_image(page.rect, stream=raw, keep_proportion=True)
+
+        pdf = document.tobytes(garbage=4, deflate=True)
+        if not pdf.startswith(b'%PDF'):
+            raise HTTPException(status_code=422, detail="Impossible de générer le PDF scanné.")
+        return pdf
+    finally:
+        document.close()
+
+
 @router.get('/resource-bridge-options', summary='Cibles autorisées pour un pont mobile de ressource')
 def get_resource_bridge_options(
     resource_type: str,
@@ -647,6 +720,75 @@ async def upload_resource_context_photo(
             'id': document.id,
             'document_type': models.DocumentType.PHOTO_CLINIQUE.value,
             'title': document.title or 'Photo clinique',
+            'created_at': document.created_at.isoformat() if document.created_at else None,
+        },
+    }
+
+
+@router.post('/resource-context-document-scan', summary='Archiver un scan multi-page depuis le contexte Patient mobile')
+async def upload_resource_context_document_scan(
+    context_key: str = Form(...),
+    pages: list[UploadFile] = File(...),
+    authorization: str = Header(...),
+    db: Session = Depends(database.get_db),
+):
+    mobile_user, context = _validated_mobile_context(db, authorization, context_key)
+    if str(context['resource_type']).lower() != 'patient':
+        raise HTTPException(status_code=422, detail="Le scan de document exige un contexte Patient.")
+    patient = _patient_resource(db, mobile_user, int(context['resource_id']))
+
+    if not pages:
+        raise HTTPException(status_code=422, detail="Ajoutez au moins une page au document.")
+    if len(pages) > _DOCUMENT_SCAN_MAX_PAGES:
+        raise HTTPException(status_code=413, detail="Un document scanné est limité à 8 pages.")
+
+    normalized_pages: list[bytes] = []
+    total_raw_bytes = 0
+    for page in pages:
+        claimed_type = str(page.content_type or '').strip().lower()
+        if claimed_type and not claimed_type.startswith('image/'):
+            await page.close()
+            raise HTTPException(status_code=422, detail="Chaque page doit être une image JPEG, PNG ou WebP.")
+        try:
+            raw = await page.read(_DOCUMENT_SCAN_MAX_PAGE_BYTES + 1)
+        finally:
+            await page.close()
+        total_raw_bytes += len(raw)
+        if total_raw_bytes > _DOCUMENT_SCAN_MAX_TOTAL_BYTES:
+            raise HTTPException(status_code=413, detail="Le scan dépasse la limite cumulée de 48 MiB.")
+        normalized_pages.append(_normalize_document_scan_page(raw))
+
+    pdf = _document_scan_pdf(normalized_pages)
+    filename = f"document-scanne-{datetime.utcnow().strftime('%Y%m%d-%H%M%S')}-{secrets.token_hex(4)}.pdf"
+    archive_service = _documents.get_archive_service(db)
+    document, _ = archive_service.archive_document(
+        patient_id=patient.id,
+        file_content=pdf,
+        filename=filename,
+        doc_type=models.DocumentType.AUTRE,
+        uploaded_by_id=mobile_user.id,
+        title='Document scanné',
+        description=f'Scan mobile contextuel · {len(normalized_pages)} page(s)',
+        tags=['mobile', 'document-scan'],
+        is_accounted=False,
+    )
+    _documents.audit_service.log(
+        db=db,
+        user_id=mobile_user.id,
+        employer_id=mobile_user.get_employer_id(),
+        action='DOCUMENT_SCANNED',
+        resource_type='AUTRE',
+        resource_id=str(document.id),
+        severity='INFO',
+        details=f"Document mobile scanné document_id={document.id} pages={len(normalized_pages)}",
+    )
+    return {
+        'success': True,
+        'pages': len(normalized_pages),
+        'document': {
+            'id': document.id,
+            'document_type': models.DocumentType.AUTRE.value,
+            'title': document.title or 'Document scanné',
             'created_at': document.created_at.isoformat() if document.created_at else None,
         },
     }
