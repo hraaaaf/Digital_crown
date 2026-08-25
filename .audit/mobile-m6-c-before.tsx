@@ -27,7 +27,7 @@ const appointment: Appointment = {
 
 const docs = [
   { id: 66, filename: 'Devis_Implant_36.pdf', document_type: 'DEVIS', created_at: '25/08/2026', signed: false },
-  { id: 67, filename: 'Consentement_implant.pdf', document_type: 'AUTRE', created_at: '24/08/2026', signed: true },
+  { id: 67, filename: 'Devis_Controle_36.pdf', document_type: 'DEVIS', created_at: '24/08/2026', signed: true },
 ];
 
 function AuditApp() {

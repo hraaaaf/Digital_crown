@@ -41,7 +41,7 @@ async function capture(width, height) {
   const entryRect = await signatureEntry.boundingBox();
 
   await signatureEntry.click();
-  await page.getByText('Signature au Fauteuil', { exact: true }).waitFor({ state: 'visible' });
+  await page.getByRole('heading', { name: 'Signature au Fauteuil', exact: true }).waitFor({ state: 'visible' });
   const canvas = page.locator('canvas');
   await canvas.waitFor({ state: 'visible' });
   await snap(page, `signature-blank-${width}x${height}`);
