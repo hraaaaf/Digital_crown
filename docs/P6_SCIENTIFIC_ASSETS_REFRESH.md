@@ -1,6 +1,6 @@
 # P6 Scientific Assets Refresh
 
-Status: **ACTIVE — CEPH TECHNICAL WINNER PROVEN; PRIVATE RETENTION + PANORAMIC TOOTH-ENUMERATION REMAIN OPEN**.
+Status: **ACTIVE — CEPH TECHNICAL WINNER PROVEN; PRIVATE RETENTION + PANORAMIC FDI GROUND TRUTH REMAIN OPEN**.
 
 This is a scientific-assets research sublot. It does **not** replace the canonical Portability P6 (`Industrialized Windows packaging`) and does not earn Portability EP by itself.
 
@@ -35,18 +35,12 @@ Its current clinical contract is **tooth localization / numbering only**, not au
 3. `panoramic_report_engine` states that the model only names teeth and that clinical semiology comes from practitioner-entered `manual_anomalies` and `global_findings`;
 4. pathology reporting is therefore manual/deterministic in the active route.
 
-This distinction is critical: restoring the current product capability does **not** require a four-pathology diagnostic model. The first replacement target is a commercially clean tooth-localization/enumeration model.
+Restoring the current product capability does **not** require a four-pathology diagnostic model. The replacement target is a commercially clean tooth-localization/enumeration model.
 
 #### Legacy scientific debt behind `detect_teeth_only`
 `backend/services/panoramic_service.py::detect_teeth_only()` delegates to `backend/services/sota_panoramic_service.py::analyze()` and then discards pathology semantics, retaining a geometrically inferred FDI number and box.
 
-The delegated engine itself expects a four-class pathology ONNX:
-`[Caries, Deep Caries, Impacted, Periapical Lesion]`.
-
-A second engine loads the same expected file but uses the order:
-`[Carie, Carie Profonde, Lésion Périapicale, Dent Incluse]`.
-
-Therefore semantic IDs 2/3 disagree across the two consumers. The FDI number is also assigned by a fixed panoramic-geometry heuristic rather than by a directly trained tooth-enumeration target. This is legacy plumbing, not the desired replacement contract.
+The delegated engine expects `[Caries, Deep Caries, Impacted, Periapical Lesion]`. A second engine loads the same expected file but reverses semantic IDs 2/3 (`Lésion Périapicale`, `Dent Incluse`). FDI is assigned by a fixed panoramic-geometry heuristic rather than by a directly trained enumeration target.
 
 Both engines expect `backend/ai_models/panoramic_model.onnx`. The `backend/ai_models/` path is absent at the exact research source HEAD. In `cabinet` / `production`, absence of the model fails closed; simulation is development/test-only.
 
@@ -159,7 +153,7 @@ Target paths:
 
 Two materially similar private Actions attempts failed before executing usable steps/logs. The latest verified failed run is `32895166801`; its job exposed `steps=null`. Per execution policy, no further blind private-run retry is authorized.
 
-The exact binary is therefore **not yet claimed as retained privately**. The public ephemeral evidence branch must remain intact until private retention is actually proven. A later branch reset would not constitute cryptographic erasure because Git objects may remain addressable until garbage collection.
+The exact binary is therefore **not yet claimed as retained privately**. The public ephemeral evidence branch remains intact until private retention is actually proven. A later branch reset would not constitute cryptographic erasure because Git objects may remain addressable until garbage collection.
 
 Private provenance HEAD `adf9d99b615274d1ab822bce2e410a36ce4d724c` records the winner while explicitly marking binary retention pending.
 
@@ -167,75 +161,116 @@ Private provenance HEAD `adf9d99b615274d1ab822bce2e410a36ce4d724c` records the w
 
 ## Panoramic research state
 
-### Phase A — restore the product's real automatic capability
-Selected research direction: **direct tooth instance localization + enumeration**, producing the existing `fdi/confidence/bbox` contract without deriving FDI from a pathology detector.
+### Phase A — exact target
+Restore **tooth instance localization + FDI enumeration** matching the existing `fdi/confidence/bbox` API. Clinical semiology stays manual. A pathology model is neither required nor authorized for Phase A.
 
-Leading clean-data candidate:
-**Panoramic Dental Xray Dataset V3**
+### Direct-FDI data audit — 2026-08-25
+No inspected direct-FDI panoramic dataset currently closes all four required gates at once: raw-image provenance, explicit commercial rights, expert/traceable FDI labels, and reproducible files/splits.
+
+#### 1. Panoramic Dental Xray Dataset V3 — useful auxiliary, NOT direct FDI
 - DOI: `10.17632/73n3kz2k4k.3`
-- Mendeley dataset record: **CC BY 4.0**
-- 107 images at 2964×1464 with tooth instance-segmentation annotations
-- 60 images at 1024×512 annotated by tooth type (canine, central/lateral incisor, first/second/third molar, first/second premolar)
-- 54 additional high-resolution panoramics at 2888×1309
-- original 107-image paper reports a directly annotated tooth-identification/instance-segmentation task
-- an independent 2024 review catalogues this dataset as CC BY 4.0 with pixel-level annotation, two annotators and VGG Image Annotator.
+- Mendeley record: **CC BY 4.0**.
+- Dataset description lists 107 high-resolution images for instance segmentation, 60 images annotated by tooth type, and 54 additional high-resolution panoramics.
+- Direct inspection through a public V3 preparation mirror at commit `406e29bf43a4b73a301e493cd64dc9fa68aed65b` shows its `annotations.json` covers only `1.jpg`, `2.jpg`, `4.jpg`; `region_attributes` are empty and contain **no FDI labels**.
+- That mirror's FDI demo assigns numbers from polygon centroid/arch ordering, i.e. synthesized positional numbering rather than source truth.
 
-Decision: **PRIMARY PHASE-A DATA LEAD**, but not yet benchmark-authorized. Exact downloadable annotation files, hashes, subject/image identity, train/validation/test split, FDI semantics and leakage controls must be pinned first.
+Decision: **ELIGIBLE AUXILIARY / IMAGE-SOURCE LEAD**, not a ready FDI benchmark corpus. Exact source ZIP/files/hashes still need a first-party ingestion manifest before any use.
 
-The associated journal article is published under separate Springer publication rights; those article rights must not be confused with the explicit CC BY 4.0 dataset record. Only the dataset files and their own pinned license are candidate training inputs.
+#### 2. Humans in the Loop Teeth Segmentation — strongest permissive-labelled lead, rights chain not yet closed
+- DOI: `10.34740/KAGGLE/DSV/5884500`
+- publisher: Humans in the Loop / Kaggle
+- 598 panoramic images; 15,318 tooth polygons; 32 positional classes
+- publisher explicitly states **CC0 1.0 / public domain**
+- class numbering starts at the upper-left side of the displayed panoramic image and proceeds clockwise; this is not FDI text but is an absolute per-position class system that can be mapped only after orientation semantics are verified.
+- source images are stated to come from López et al. `Panoramic radiography database`, DOI `10.5281/zenodo.4457648`.
+- canonical Zenodo record for `4457648` exposes the image archive and MD5 but no licence value; third-party mirrors disagree on the licence.
 
-### Phase B — automatic pathology capability is separate and remains unapproved
-The legacy four semantics are:
+Decision: **HOLD FOR COMMERCIAL TRAINING** until Humans in the Loop or the upstream rights holder explicitly confirms that the CC0 dedication lawfully covers the redistributed source images, not just new annotations.
+
+#### 3. AKUDENTAL — direct FDI, non-commercial
+Source: `melihoz/AKUDENTAL`.
+- 333 high-resolution OPGs
+- per-tooth polygons/bounding boxes and FDI-oriented numbering
+- source README states intended release under **CC BY-NC-SA 4.0**
+
+Decision: **RESEARCH-ONLY / REJECT FOR PROPRIETARY TRAINING**.
+
+#### 4. Zhou et al. dual-labeled dataset — expert FDI, licence unknown
+Paper: DOI `10.1186/s12903-024-04984-2`.
+- FDI `11–48` plus `91` supernumerary
+- expert annotation workflow with postgraduate/dentist annotation and senior-doctor review
+- public Kaggle page currently exposes 500 images and reports **License: Unknown**
+- article itself is **CC BY-NC-ND 4.0**, which must not be mistaken for a commercial dataset grant
+
+Decision: **HOLD** pending explicit dataset permission from rights holders.
+
+#### 5. TL-pano — expert FDI structure, explicitly non-commercial
+- DOI `10.5281/zenodo.15038971`
+- tooth polygons with quadrant + tooth-type fields sufficient to derive FDI structurally
+- expert annotation / consent provenance described
+- Zenodo description explicitly says **non-commercial research purposes only**
+
+Decision: **RESEARCH-ONLY / REJECT FOR PROPRIETARY TRAINING**.
+
+#### 6. STS-2D / STS-2024 — rights metadata conflict
+- STS-2D contains 4,000 OPGs / 900 binary masks and is useful for tooth-region segmentation.
+- Hugging Face mirrors state CC BY 4.0, but the canonical Zenodo `10.5281/zenodo.10597292` currently exposes a blank licence field in the retrieved record; challenge distributions have separate access agreements.
+- STS-2024 instance-level FDI data are tied to challenge/scientific-use restrictions in the inspected distribution.
+
+Decision: **HOLD** until one authoritative rights grant is pinned for the exact files intended for commercial training.
+
+#### 7. Roboflow Panoramic-Dental-Xray-FDI — explicit page licence, missing provenance
+- 1,577 images, object detection, 32 FDI classes
+- Roboflow page declares **CC BY 4.0**
+- source-image origin and annotation provenance are not documented on the dataset page
+
+Decision: **HOLD**. A platform licence declaration cannot substitute for an auditable upstream image/annotation rights chain.
+
+### Phase-A data decision
+There is currently **no benchmark-authorized direct-FDI training corpus** for proprietary Digital Crown use.
+
+The clean path is therefore:
+1. use only source images whose own commercial rights are explicitly pinned;
+2. create clinician-controlled FDI ground truth under `docs/P6_PANORAMIC_FDI_ANNOTATION_PROTOCOL.md`;
+3. use permissive existing tooth masks/type labels only as annotation aids when their rights chain is also closed;
+4. never promote geometry-based positional guesses to ground truth;
+5. train only after rights + annotation + split + provenance gates are all green.
+
+This is slower than borrowing an anonymous Roboflow dataset and calling it science, but it is the shortest path that survives commercial and clinical scrutiny.
+
+### Phase B — automatic pathology remains separate
+Legacy semantics:
 - `Caries`
 - `Deep Caries`
 - `Impacted`
 - `Periapical Lesion`
 
-They are **not required to restore the active upload/report contract**, because current clinical semiology is manual. Automatic pathology detection would be a separate clinical expansion lot with its own dataset, rights, calibration, acceptance thresholds and practitioner validation.
+They are not required to restore the active upload/report contract. Any future automatic pathology detector is a separate clinical expansion lot with its own dataset, rights, calibration and practitioner validation.
 
 #### Pathology rights/data matrix
-1. **Periapical lesions — Mendeley `kx52tk2ddj`, V3**
-   - DOI: `10.17632/kx52tk2ddj.3`
-   - 3,926 original panoramic radiographs reported; augmented set reported at 17,004 images
-   - Mendeley dataset record declares **CC BY 4.0**
-   - associated Data in Brief article is **CC BY-NC 4.0**
-   - decision: **HOLD** pending explicit resolution of which terms govern the downloadable training files plus exact file/hash/annotation audit.
-
-2. **Caries + impacted — Dental OPG XRAY Dataset V4**
-   - DOI: `10.17632/c4hhrkxytw.4`
-   - 232 original OPG + 604 augmented images
-   - Mendeley and NLM dataset records declare **CC BY 4.0**
-   - associated Data in Brief article is **CC BY-NC 4.0**
-   - classes include caries and impacted teeth, but no separate `Deep Caries`
-   - limitation: source OPGs were photographed using an Android phone camera; native-radiograph domain fidelity cannot be assumed
-   - decision: **HOLD** pending rights clarification and exact data audit.
-
-3. **DENTEX — exact four-class semantic reference**
-   - exact diagnoses include caries, deep caries, periapical lesions and impacted teeth
-   - official GitHub README currently says DENTEX data are **CC BY-SA 4.0**
-   - official Hugging Face dataset card currently declares **CC BY-NC-SA 4.0**
-   - these two first-party distributions conflict materially on commercial permission
-   - decision: **HOLD / benchmark-only under conservative interpretation** until the rights holder resolves the discrepancy in writing or a single authoritative licence is pinned.
+1. **Periapical lesions — Mendeley `kx52tk2ddj`, V3**: dataset page declares CC BY 4.0; associated Data in Brief article is CC BY-NC 4.0. **HOLD** until file-level rights are reconciled.
+2. **Caries + impacted — Mendeley `c4hhrkxytw`, V4**: dataset pages declare CC BY 4.0; associated article is CC BY-NC 4.0; source OPGs were photographed with an Android phone. **HOLD**.
+3. **DENTEX**: exact four diagnoses exist, but inspected first-party distributions disagree between CC BY-SA and CC BY-NC-SA. **HOLD / benchmark-only under conservative interpretation**.
 
 ### Deep Caries bottleneck
-No inspected source with a closed proprietary-commercial rights chain yet supplies a separately annotated `Deep Caries` class matching the legacy semantic contract. Ordinary caries must never be relabelled as deep caries.
+No inspected source with a closed proprietary-commercial rights chain supplies a separately annotated `Deep Caries` class matching the legacy semantic contract. Ordinary caries must never be relabelled as deep caries.
 
-This is no longer a blocker for **Phase A tooth enumeration**, but it remains a hard blocker for any future four-pathology automatic model.
+---
 
-### Panoramic Phase-A benchmark contract
-Before one heavy run:
-1. pin exact V3 files, annotation files, hashes and the CC BY 4.0 licence snapshot;
-2. establish whether annotations encode direct FDI, tooth type only, or instance masks requiring a deterministic FDI derivation layer;
-3. prove unique source-image/patient grouping and split before any augmentation;
-4. seal train/validation/test before model selection;
-5. train from scratch or use only weights with a commercially compatible provenance chain;
-6. output tooth instances with confidence and bounding boxes; map to FDI only from validated annotation semantics, never from a fixed smile-curve heuristic;
-7. export ONNX opset 17;
-8. adapt to the existing `detections_data.detections[]` API without changing manual-semiology truth;
-9. technical gates must include tooth detection/localization and **FDI numbering accuracy**, not pathology mAP;
-10. after a technical winner, certify Linux proxy, Windows x64 and macOS ARM64, then build the clinical golden-set protocol before product wiring.
+## Panoramic Phase-A benchmark contract
+A heavy benchmark is authorized only after:
+1. exact source files + hashes + commercial-rights snapshot are pinned;
+2. direct FDI ground truth passes `P6_PANORAMIC_FDI_ANNOTATION_PROTOCOL.md`;
+3. patient/source/near-duplicate grouping is complete before split;
+4. train/validation/test are sealed before model selection;
+5. architecture/initial weights have a proprietary-compatible provenance chain;
+6. outputs are direct tooth instances with confidence + bbox/mask + validated FDI semantics;
+7. ONNX opset 17 export is defined;
+8. adapter preserves the current `detections_data.detections[]` API and manual-semiology truth;
+9. gates include tooth detection/localization and per-FDI numbering accuracy, not pathology mAP;
+10. winner must later pass Linux proxy, Windows x64, macOS ARM64 and non-PHI clinician golden-set review before product wiring.
 
-No heavy panoramic run is authorized until items 1–4 are proven. Heavy benchmark policy remains: **one complete preparation → one final commit → one run**.
+Heavy benchmark policy: **one complete preparation → one final commit → one run**.
 
 ---
 
@@ -244,21 +279,24 @@ No heavy panoramic run is authorized until items 1–4 are proven. Heavy benchma
 - `Occ_Ant` / `Occ_Post` are not synthesized; Wits stays fail-closed pending separate validation.
 - No cephalometric product wiring occurs before private retention + Windows/macOS portability + clinical validation plan.
 - No clinical claim is inferred from the public Aariz benchmark result.
-- Panoramic Phase A restores **tooth localization/enumeration only**, matching the active route and deterministic/manual report contract.
+- Panoramic Phase A restores **tooth localization/enumeration only**.
 - The current pathology-detector-to-FDI heuristic is legacy debt and is not the target architecture.
-- Automatic panoramic pathology detection is a distinct future clinical lot; it must not silently expand P6 scope.
-- DENTEX licensing is treated as unresolved because its official GitHub and Hugging Face distributions disagree.
-- The two pathology-oriented Mendeley leads remain HOLD under the current conservative commercial-rights standard.
+- No inspected direct-FDI panoramic dataset is yet benchmark-authorized for proprietary commercial training.
+- V3 `73n3kz2k4k.3` is demoted from direct-FDI lead to auxiliary/right-cleared image candidate because its inspected annotations contain no FDI truth.
+- Humans in the Loop CC0 is the strongest permissive-labelled lead but remains HOLD until upstream image rights are confirmed.
+- AKUDENTAL and TL-pano are non-commercial research references only.
+- Zhou dual-labeled dataset and Roboflow FDI remain HOLD until explicit rights/provenance are closed.
+- Automatic pathology detection remains a separate future clinical lot.
 - `Deep Caries` remains unavailable for automatic pathology inference until clean separately annotated data or explicit permission is proven.
 
 ## Next exact
-1. Pin the exact downloadable files/annotations/hashes and FDI semantics of `10.17632/73n3kz2k4k.3`; define patient/image deduplication and a sealed split.
-2. Build a lightweight research-only ingestion/contract test for that dataset; no product tree change.
-3. Prepare exactly one Phase-A tooth-enumeration benchmark only after the data contract passes.
+1. Pin exact downloadable V3 files/hashes and identify which V3 images are independently rights-cleared and non-duplicated for a possible expert-FDI annotation pool.
+2. Seek/record an authoritative source-image rights confirmation for Humans in the Loop `5884500` / upstream López `4457648`; do not train commercially before this gate closes.
+3. Apply `P6_PANORAMIC_FDI_ANNOTATION_PROTOCOL.md` to the first rights-cleared image pool; no heavy run yet.
 4. In parallel, resolve cephalometric private binary retention; do not reset the public winner branch before exact private SHA proof.
 5. After private retention, run Windows x64 + macOS ARM64 inference portability on the exact ceph winner.
 6. Build the non-PHI/golden clinical validation protocol for the 20 direct cephalometric points; keep Wits separate.
-7. Keep pathology research on HOLD until rights and clinical scope are separately closed.
+7. Keep automatic pathology research on HOLD until rights and clinical scope are separately closed.
 
 ## Portability EP accounting
 The canonical `PORTABILITY_LAUNCHER_ROADMAP.md` marks P0–P5 closed and Portability P6 (`Industrialized Windows packaging`) separately. This scientific research sublot is not that packaging lot. **No Portability EP is added by this document.**
