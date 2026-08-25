@@ -1,0 +1,31 @@
+name: Mobile M6-D1 Component Diagnostic
+
+on:
+  push:
+    branches:
+      - audit/mobile-m6-d1-component-diagnostic-20260825
+    paths:
+      - .audit/mobile-m6-d1-component-diagnostic.test.tsx
+      - .github/workflows/mobile-m6-d1-component-diagnostic.yml
+
+permissions:
+  contents: read
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install canonical frontend dependencies
+        working-directory: frontend
+        run: npm ci
+      - name: Materialize diagnostic test only
+        run: cp .audit/mobile-m6-d1-component-diagnostic.test.tsx frontend/src/test/mobile-m6-d1-component-diagnostic.test.tsx
+      - name: Run targeted notification diagnostic
+        working-directory: frontend
+        run: npx vitest run src/test/mobile-m6-d1-component-diagnostic.test.tsx --reporter=verbose
