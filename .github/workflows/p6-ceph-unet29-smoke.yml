@@ -7,8 +7,10 @@ on:
     paths:
       - scripts/p6_ceph_unet29.py
       - scripts/p6_ceph_aariz_mapping.py
+      - scripts/p6_ceph_aariz_data.py
       - tests/test_p6_ceph_unet29.py
       - tests/test_p6_ceph_aariz_mapping.py
+      - tests/test_p6_ceph_aariz_data.py
       - .github/workflows/p6-ceph-unet29-smoke.yml
   workflow_dispatch:
 
@@ -49,11 +51,12 @@ jobs:
             "onnx==1.16.1" \
             "onnxruntime==1.18.0"
 
-      - name: Test loader, architecture and clinical adapter contracts
+      - name: Test loader, geometry, architecture and clinical adapter contracts
         run: >-
           python -m pytest
           tests/test_p6_ceph_unet29.py
           tests/test_p6_ceph_aariz_mapping.py
+          tests/test_p6_ceph_aariz_data.py
           -q
 
       - name: Export and validate static ONNX contract
