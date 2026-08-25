@@ -124,11 +124,16 @@ scenario:
           async function openAgendaState(view, viewport, expectedDialog) {
             const { context, page, errors } = await setup(viewport);
             await page.goto(`http://127.0.0.1:4186/mobile-m4d-before.html?view=${view}`, { waitUntil: 'networkidle' });
-            await page.getByText('BENNANI Sara', { exact: false }).first().waitFor({ state: 'visible', timeout: 10000 });
             if (view === 'month') {
-              await page.getByText(/10:30\s*-\s*BENNANI Sara/).click();
+              const monthAppointment = page.getByText(/10:30\s*-\s*BENNANI Sara/);
+              await monthAppointment.waitFor({ state: 'visible', timeout: 10000 });
+              await monthAppointment.click();
             } else {
-              await page.locator('.appointment-item').filter({ hasText: 'BENNANI Sara' }).first().click();
+              const appointmentItem = page.locator('.appointment-item').filter({ hasText: 'BENNANI Sara' }).first();
+              await appointmentItem.waitFor({ state: 'attached', timeout: 10000 });
+              await appointmentItem.scrollIntoViewIfNeeded();
+              await appointmentItem.waitFor({ state: 'visible', timeout: 10000 });
+              await appointmentItem.click();
             }
             await page.getByRole('dialog', { name: expectedDialog, exact: true }).waitFor({ state: 'visible', timeout: 10000 });
             await capture(page, errors, `${view}-${viewport.width}x${viewport.height}`, view, viewport);
