@@ -14,7 +14,8 @@ Un seul Digital Crown local-first, cœur partagé Windows/macOS, installable, re
 - frontières OS explicites ;
 - données cabinet distinctes des secrets machine ;
 - aucun asset scientifique non autorisé dans le repo produit public ;
-- une dépendance importable n’est pas une preuve clinique ;
+- une dépendance importable ou un benchmark technique n’est pas une preuve clinique ;
+- capacité scientifique non qualifiée = indisponible/fail-closed, jamais simulée ;
 - aucun Vercel sans autorisation explicite.
 
 ## Effort canonique
@@ -57,57 +58,93 @@ Validé avant P6 : **65 EP**.
 
 ## Goal
 
-Produire un artefact Windows déterministe, installable/upgradeable/uninstallable sur machine propre, sans fuite de secrets ni perte de données, avec les assets scientifiques réellement autorisés et fail-closed.
+Produire un artefact Windows déterministe, installable/upgradeable/uninstallable sur machine propre, sans fuite de secrets ni perte de données, tout en laissant les capacités scientifiques non qualifiées explicitement fail-closed.
 
-## Packaging
+## Décision scientifique de packaging
 
-- PR `#242` — OPEN/DRAFT, mergeable ;
-- branche `portability/p6-windows-packaging-resume` ;
-- HEAD publié `90b1262cb13b22172d6d0d2f36aa6eb96d360cdf` ;
-- dernier heavy run `32803814701` — FAILURE après static gate + frontend build verts ;
-- candidat préparé `4501ad8d167c65a64e174d923e6f1d3a36b14399` : `protobuf==5.29.6`, `pip check`, source scientifique privée.
+P6 **n’embarque aucun poids scientifique non qualifié**.
 
-**Ne pas lancer le heavy run maintenant.** `scripts/provision_p6_scientific_assets.py` exige encore les assets legacy `panoramic_model.onnx` et `cephld_cca/ceph_weights.pth`. Le provisioner doit être réconcilié avec le set scientifique final.
+Raison vérifiée :
+- le poids panoramique historique n’a pas de provenance/licence de redistribution fermée ;
+- le gagnant céphalo `DC-Ceph-UNet29Q4 / Aariz v1` est un candidat technique 29 points / 512 grayscale, tandis que le runtime SOTA produit actuel attend 38 points / 1024 couleur ;
+- le substituer silencieusement sous `model.onnx` serait scientifiquement et techniquement faux.
+
+Le package doit donc rester exploitable avec ces capacités indisponibles, et le self-test frozen doit prouver cette vérité.
+
+## Candidat Windows final
+
+Ancienne PR `#242` : **CLOSED — SUPERSEDED**, non mergée.
+
+Certification active :
+- PR `#259` — OPEN/DRAFT ;
+- branche `portability/p6-windows-packaging-final-20260826` ;
+- HEAD final `e8aaa2cfd2b68bc84a777c2e07fa4e8ee7dee5fd` ;
+- run exact-head `32912896028` ;
+- état au dernier contrôle : **QUEUED**.
+
+Contrat du candidat :
+- `DigitalCrown.spec` ne collecte plus `panoramic_model.onnx`, `ceph_weights.pth` ni poids SOTA ;
+- `backend/scientific_assets.json` reste la vérité de lifecycle : `cephalo_sota=deferred`, `cephalo_legacy=external`, `panoramic=external` ;
+- le self-test rejette la présence de poids scientifiques connus non qualifiés ;
+- marqueurs attendus : `P6_SCIENTIFIC_PACKAGE_POLICY=FAIL_CLOSED_NO_WEIGHTS` et `P6_SCIENTIFIC_CAPABILITIES=FAIL_CLOSED` ;
+- `protobuf==5.29.6` ;
+- `python -m pip check` obligatoire ;
+- aucun token inter-repo ni Release scientifique requis pour le build P6 ;
+- aucun Vercel.
+
+### Preuves requises pour fermer P6
+
+1. static packaging contract PASS ;
+2. frontend production build PASS ;
+3. installation Python + `pip check` PASS ;
+4. PyInstaller frozen build + package self-test PASS ;
+5. install propre + runtime health + reinstall/upgrade + uninstall PASS ;
+6. sentinel données cabinet préservé ;
+7. statut Authenticode enregistré honnêtement (`SUCCESS` ou `NOT_CONFIGURED`) ;
+8. installer artifact retenu ;
+9. closeout canonique cohérent avec le HEAD certifié ;
+10. opérations Git prévues terminées avant crédit des 8 EP.
 
 ---
 
 ## Sous-lot P6 Scientific Assets Refresh
 
-Ce sous-lot est un prérequis de P6, pas un lot EP autonome.
+Ce sous-lot est un prérequis/research track de P6, pas un lot EP autonome. Il ne bloque plus le packaging Windows fail-closed.
 
-### Céphalométrie — gagnant technique verrouillé
+### Céphalométrie — technique verrouillée
 
 `DC-Ceph-UNet29Q4 / Aariz v1`
 
-- training scellé `32876308676` — SUCCESS ;
+- training `32876308676` — SUCCESS ;
+- evidence commit `1da113b8776aa2b57e42ac194f12b7a48b01558c` ;
+- dataset Aariz v1, DOI `10.6084/m9.figshare.27986417.v1`, CC BY 4.0 ;
+- dataset SHA256 `d9fa872b36065dac9615cfcad0c7512c450fe2d86a1839cdec4cbe001def33ea` ;
 - ONNX SHA256 `809f1d3d2347d2a34f57d4a3415bb319c29f8a25c325d41160e5f28d4e5dadad` ;
 - taille `7,624,307 bytes` ;
+- contrat `[1,1,512,512] -> [1,29,128,128]`, opset 17 ;
 - direct-20 held-out : MRE `1.232893 mm`, SDR2 `83.1333%`, SDR4 `97.2667%` ;
 - `clinical_claim=false` ;
 - `Occ_Ant` / `Occ_Post` absents ; Wits fail-closed ;
 - protocole clinique : `docs/P6_CEPHALOMETRY_CLINICAL_VALIDATION_PROTOCOL.md`.
 
-### Binaire gagnant — récupération exacte prouvée
+### Récupération binaire exacte
 
-- bridge initial `32911022192` — SUCCESS ;
-- bridge courant sans secret `32911633368` — SUCCESS ;
-- artifact `9586717545`, digest `sha256:3ed73e3d39325d5b880e72264ac2a8a25996aa5eaef7bedd1a14b76d9b03ec55` ;
-- source winner exacte et SHA/size vérifiés avant artifact.
+- bridge `32911633368` — SUCCESS ;
+- artifact `9586717545` ;
+- digest artifact `sha256:3ed73e3d39325d5b880e72264ac2a8a25996aa5eaef7bedd1a14b76d9b03ec55` ;
+- SHA et taille du modèle revalidés avant artifact.
 
-Le binaire est donc récupérable sans réentraînement.
+La récupération exacte est fermée. La **rétention privée** reste un archivage scientifique séparé et non prouvé.
 
-### Rétention privée — NON FERMÉE
+### Rétention privée — OPEN / external GitHub gate
 
-Repo cible : `hraaaaf/DigitalCrown-assets` — PRIVATE.
-Branche cible : `training/p6-ceph-unet29`.
+Repo cible : `hraaaaf/DigitalCrown-assets`, branche `training/p6-ceph-unet29`.
 
-Tentative de transfert privé `32911260037` : FAILURE au premier gate, log exact `P6_ASSET_TOKEN secret missing`; aucune copie privée n’a été exécutée.
+- ancien transfert public `32911260037` : échec avant copie, `P6_ASSET_TOKEN secret missing` ;
+- smoke privé minimal : commit `7022d34608be268c3b364963bd2de833b53ecbad` ;
+- run privé `32911736812` : FAILURE avant toute step, `steps=null`.
 
-Le commit scientifique courant `efb56d3879a658d2db2afc99db09cfa5821a478d` a ensuite transformé `.github/workflows/p6-ceph-winner-private-retention.yml` en **Binary Bridge sans secret**, run `32911633368` SUCCESS. Ce workflow produit l’artifact vérifié mais **ne constitue pas une rétention privée**.
-
-Le prochain transfert privé doit donc utiliser un credential inter-repo explicite. Le chemin déjà prouvé et rerunnable est le run historique `32911260037` après ajout du secret `P6_ASSET_TOKEN` avec accès minimal au repo privé.
-
-Aucune rétention privée n’est créditée avant présence du modèle dans `DigitalCrown-assets` et vérification du SHA exact.
+Conclusion : ne pas relancer aveuglément le workflow privé. Cette rétention peut être faite manuellement puis SHA-vérifiée lorsque le canal privé est utilisable. **Elle ne bloque plus P6 Windows**, qui ne distribue aucun poids non qualifié.
 
 ---
 
@@ -115,40 +152,49 @@ Aucune rétention privée n’est créditée avant présence du modèle dans `Di
 
 Cible : **localisation dentaire + FDI**, pas diagnostic automatique de pathologies.
 
-### Mendeley V3 `10.17632/73n3kz2k4k.3`
+### Mendeley V3 first-party
 
-First-party fermé :
+Dataset `73n3kz2k4k.3`, DOI `10.17632/73n3kz2k4k.3`, record CC BY 4.0.
 
 - inventaire `32910249394` — SUCCESS ;
-- sémantique `32910743873` — SUCCESS ;
+- audit sémantique `32910743873` — SUCCESS ;
 - 111 fichiers / `84,254,649` octets ;
 - 107 images metadata ;
-- 25 images avec régions ;
+- 25 images avec géométrie source ;
 - 772 régions ;
 - 540 attributs `Teeth`, **540 valeurs `""`** ;
 - 0 code FDI / 0 région FDI ;
-- `direct_fdi_ground_truth_ready=false` ;
-- 96 hashes image uniques / 11 doublons exacts.
+- `direct_fdi_ground_truth_ready=false`.
 
-Décision : **auxiliaire image/segmentation, jamais vérité FDI directe**. Le vieux miroir « 3 images » était incomplet ; la conclusion sans FDI est maintenant prouvée first-party.
+Décision : source image/géométrie commercialement exploitable selon le record first-party, mais **jamais vérité FDI directe**.
 
-Preuve : `docs/P6_MENDELEY_V3_PROVENANCE_RESULT.md`.
+### Pack FDI clinicien — READY
+
+- builder `scripts/p6_mendeley_fdi_annotation_pack.py` ;
+- workflow `.github/workflows/p6-mendeley-fdi-annotation-pack.yml` ;
+- HEAD `6f7614f23b793dd6804d6c7d770f62928a3a09f0` ;
+- run `32912109975` — SUCCESS ;
+- artifact `9586914372` ;
+- digest `sha256:a72599acf4b96b3d8519f174614feca3cec011dddce0dcc594f01ac4c656ea09` ;
+- 107 images ; 25 avec propositions géométriques ; 772 propositions ;
+- FDI clinicien attribué `0` ; orientation confirmée `0` ; split attribué `0` ;
+- ledger SHA256 `42950b89eb2856b8b4c9302837ea95a170aec5b11257d15a06ed3ae619122cad` ;
+- source manifest SHA256 `f59fb925d9e33123300fcd984edb6091e6353205e6b9ef5b0a549a4b5ce8cebd`.
+
 Protocole : `docs/P6_PANORAMIC_FDI_ANNOTATION_PROTOCOL.md`.
 
-Tout split futur doit être groupé par SHA/source avant train/validation/test.
+**Human clinical gate réel** : orientation → validation/édition géométrie → FDI → déduplication/splits → double review test → adjudication. Aucun entraînement pano lourd avant ces gates.
 
 ---
 
 ## Next exact P6
 
-1. **Human gate** : créer le secret Actions `P6_ASSET_TOKEN` dans `hraaaaf/Digital_crown`, avec accès minimal nécessaire à `hraaaaf/DigitalCrown-assets`; ne jamais coller le token dans le chat.
-2. Rejouer le run historique `32911260037`; exiger `P6_PRIVATE_RETENTION=OK` + SHA privé exact.
-3. Figer le pool pano rights-cleared + dédupliqué ; produire la vérité FDI clinique.
-4. Benchmark pano Phase A seulement après droits/annotations/split fermés.
-5. Portabilité Windows x64 + macOS ARM64 des assets finaux.
-6. Réconcilier le provisioner P6 avec le set scientifique final.
-7. Avancer PR `#242` puis lancer **un seul heavy Windows run**.
-8. P6 ne ferme qu’après build + frozen smoke + install/upgrade/uninstall + préservation données + statut signing vérifiés.
+1. Ne faire **aucun micro-push** sur `portability/p6-windows-packaging-final-20260826` pendant le run `32912896028`.
+2. Quand son résultat devient nécessaire : inspecter une fois le run exact-head.
+3. Si FAILURE : diagnostic précis → correction ciblée → test → un nouveau run seulement si nécessaire.
+4. Si SUCCESS : vérifier logs/steps + artifact installateur + fail-closed markers + data sentinel + signing status.
+5. Puis closeout P6 : docs canoniques → cohérence → PR #259 → merge selon preuves → post-merge → créditer **8 EP** seulement après fermeture réelle.
+6. En parallèle séparé : annotation clinique du pack pano ; archivage privé céphalo quand le canal privé est utilisable.
 
 ---
 
@@ -168,6 +214,8 @@ Tout split futur doit être groupé par SHA/source avant train/validation/test.
 - P0–P5 CLOSED ✅ ;
 - P6 ACTIVE — 0/8 EP ;
 - P7–P14 PLANNED ;
-- **65/162 EP = 40,1 %** ;
-- aucun Vercel ;
-- blocage réel actuel : rétention privée du gagnant céphalo nécessitant un credential inter-repo.
+- validé : **65/162 EP = 40,1 %** ;
+- PR active P6 : `#259` ;
+- HEAD : `e8aaa2cfd2b68bc84a777c2e07fa4e8ee7dee5fd` ;
+- CI : `32912896028` — QUEUED au dernier contrôle ;
+- aucun Vercel.
