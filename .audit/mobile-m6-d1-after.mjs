@@ -11,30 +11,55 @@ const server = await createServer({ server: { host: '127.0.0.1', port: 4199, str
 await server.listen();
 const browser = await chromium.launch();
 
-const alerts = [
+const initialAlerts = [
   { id: 71, patient_id: 12, patient_name: 'Patient Test', type: 'OVERDUE_PAYMENT', title: 'Paiement à surveiller', message: 'Une action administrative est recommandée.', priority: 1, created_at: '2026-08-25T18:00:00' },
   { id: 72, patient_id: null, patient_name: null, type: 'STOCK_GANTS', title: 'Stock à anticiper', message: 'Le seuil de vigilance du cabinet est atteint.', priority: 2, created_at: '2026-08-25T17:30:00' },
 ];
+
+const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
 
 async function capture(width, height) {
   const context = await browser.newContext({ viewport: { width, height }, screen: { width, height }, deviceScaleFactor: 2, hasTouch: true, isMobile: true, serviceWorkers: 'block' });
   const page = await context.newPage();
   const errors = [];
   const mutations = [];
+  let serverAlerts = initialAlerts.map(alert => ({ ...alert }));
+  let getCount = 0;
+  let staleOpenRequestSeen = false;
+
   page.on('pageerror', error => errors.push(`pageerror: ${error.message}`));
   page.on('console', message => { if (message.type() === 'error') errors.push(`console: ${message.text()}`); });
+
   await page.route('**/api/mobile/notifications**', async route => {
     const request = route.request();
     const url = new URL(request.url());
+
     if (request.method() === 'GET' && url.pathname === '/api/mobile/notifications') {
-      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ total: alerts.length, alerts }) });
+      getCount += 1;
+      if (getCount === 2) {
+        // Reproduit exactement la race découverte par AFTER #1/#2 : la lecture
+        // lancée à l'ouverture du sheet termine après la mutation avec un snapshot obsolète.
+        const staleSnapshot = initialAlerts.map(alert => ({ ...alert }));
+        staleOpenRequestSeen = true;
+        await delay(450);
+        await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ total: staleSnapshot.length, alerts: staleSnapshot }) });
+        return;
+      }
+      const snapshot = serverAlerts.map(alert => ({ ...alert }));
+      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ total: snapshot.length, alerts: snapshot }) });
       return;
     }
-    if (request.method() === 'PATCH' && /\/api\/mobile\/notifications\/\d+\/(read|snooze)$/.test(url.pathname)) {
+
+    const mutationMatch = url.pathname.match(/^\/api\/mobile\/notifications\/(\d+)\/(read|snooze)$/);
+    if (request.method() === 'PATCH' && mutationMatch) {
+      const id = Number(mutationMatch[1]);
+      const action = mutationMatch[2];
       mutations.push(url.pathname);
-      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ status: 'ok', snoozed_until: '2026-08-26T20:20:00' }) });
+      serverAlerts = serverAlerts.filter(alert => alert.id !== id);
+      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ status: 'ok', action, snoozed_until: action === 'snooze' ? '2026-08-26T20:20:00' : null }) });
       return;
     }
+
     await route.fulfill({ status: 404, contentType: 'application/json', body: JSON.stringify({ detail: 'Audit route not mocked' }) });
   });
 
@@ -43,7 +68,6 @@ async function capture(width, height) {
   const bell = page.getByRole('button', { name: /^Notifications/i });
   await bell.waitFor({ state: 'visible' });
   await page.getByText('2 RDV aujourd\'hui', { exact: true }).waitFor({ state: 'visible' });
-  await page.getByText('2', { exact: true }).first().waitFor({ state: 'visible' });
 
   const bellBox = await bell.boundingBox();
   await bell.click();
@@ -60,15 +84,20 @@ async function capture(width, height) {
   await page.screenshot({ path: `${output}/dashboard-notifications-after-${width}x${height}.png`, fullPage: false, animations: 'disabled' });
 
   await read.click();
-  await page.getByText('1 non lue', { exact: true }).waitFor({ state: 'visible' });
+  await page.getByText('1 non lue', { exact: true }).waitFor({ state: 'visible', timeout: 5000 });
+  // Laisser la GET volontairement obsolète terminer : le correctif produit doit l'ignorer.
+  await delay(650);
+  await page.getByText('1 non lue', { exact: true }).waitFor({ state: 'visible', timeout: 2000 });
+
   await page.getByRole('button', { name: '+ 24 h', exact: true }).click();
-  await page.getByText('Rien à traiter', { exact: true }).waitFor({ state: 'visible' });
+  await page.getByText('Rien à traiter', { exact: true }).waitFor({ state: 'visible', timeout: 5000 });
 
   const boxes = [bellBox, closeBox, readBox, snoozeBox];
   const minTargets48 = boxes.every(box => box && box.width >= 48 && box.height >= 48);
   const readMutation = mutations.some(path => path.endsWith('/71/read'));
   const snoozeMutation = mutations.some(path => path.endsWith('/72/snooze'));
-  captures.push({ width, height, minTargets48, readMutation, snoozeMutation, hasHorizontalOverflow: rootMetrics.hasHorizontalOverflow, errors });
+  const serverTruthEmpty = serverAlerts.length === 0;
+  captures.push({ width, height, minTargets48, readMutation, snoozeMutation, staleOpenRequestSeen, serverTruthEmpty, hasHorizontalOverflow: rootMetrics.hasHorizontalOverflow, errors });
   await context.close();
 }
 
@@ -83,12 +112,23 @@ try {
     allTargetsAtLeast48: captures.every(item => item.minTargets48),
     allReadMutationsObserved: captures.every(item => item.readMutation),
     allSnoozeMutationsObserved: captures.every(item => item.snoozeMutation),
+    staleRaceExercisedEverywhere: captures.every(item => item.staleOpenRequestSeen),
+    serverTruthEmptyAfterActions: captures.every(item => item.serverTruthEmpty),
     noHorizontalOverflow: captures.every(item => !item.hasHorizontalOverflow),
     noUnexpectedRuntimeErrors: captures.every(item => item.errors.length === 0),
   };
   await fs.writeFile(`${output}/report.json`, JSON.stringify(report, null, 2));
   console.log(JSON.stringify(report, null, 2));
-  if (report.count !== 3 || !report.allTargetsAtLeast48 || !report.allReadMutationsObserved || !report.allSnoozeMutationsObserved || !report.noHorizontalOverflow || !report.noUnexpectedRuntimeErrors) {
+  if (
+    report.count !== 3 ||
+    !report.allTargetsAtLeast48 ||
+    !report.allReadMutationsObserved ||
+    !report.allSnoozeMutationsObserved ||
+    !report.staleRaceExercisedEverywhere ||
+    !report.serverTruthEmptyAfterActions ||
+    !report.noHorizontalOverflow ||
+    !report.noUnexpectedRuntimeErrors
+  ) {
     throw new Error('M6-D1 AFTER evidence gate failed');
   }
 } finally {
