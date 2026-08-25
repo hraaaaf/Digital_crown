@@ -88,12 +88,12 @@ Sous-lots ressource certifiés :
 
 - **Patient contextuel : CLOSED** — PR #238, merge `4ad243013c2d999f014302252e5e2bb9f2184c29`, closeout `docs/MOBILE_M4_A_PATIENT_CONTEXT_CLOSEOUT.md`, score visuel 9,5/10.
 - **Radio panoramique contextuelle : CLOSED** — PR #243, merge `f0c120868c71948bf835758f472c741179e7b128`, closeout `docs/MOBILE_M4_B_PANORAMIC_CONTEXT_CLOSEOUT.md`, score visuel 9,5/10.
+- **Document contextuel : CLOSED** — PR #244, merge `8a11a452cc7a3b14964a1908a32589700a4cb6f7`, closeout `docs/MOBILE_M4_C_DOCUMENT_CONTEXT_CLOSEOUT.md`, score visuel 9,6/10.
 
 Restant M4 :
 
-1. Document contextuel exact ;
-2. RDV contextuel exact ;
-3. matrice finale erreurs / retour / expiration au niveau ressource.
+1. RDV contextuel exact ;
+2. matrice finale erreurs / retour / expiration au niveau ressource.
 
 ## M5 — Architecture mobile
 
@@ -153,7 +153,7 @@ Après M4 + M6 :
 
 ## Ordre canonique restant
 
-1. Fermer M4 ressource : Document → RDV → erreurs.
+1. Fermer M4 ressource : RDV → erreurs.
 2. Exécuter M6 Mobile-first réel.
 3. Certification complète finale sur émulation + appareils physiques.
 4. Closeout global Mobile Full Experience.
