@@ -131,9 +131,14 @@ Exploiter ce que le téléphone peut faire mieux :
 - biométrie ;
 - mode portrait/plein écran imagerie.
 
-**État : ACTIVE.** M4 est CLOSED ; M6 peut maintenant être audité et exécuté en réutilisant les fondations sécurité/offline/contextuelles certifiées.
+**État : ACTIVE.** M4 est CLOSED ; M6 réutilise désormais les fondations sécurité/offline/contextuelles certifiées.
 
-Premier lot à auditer : **M6-A — Photo clinique contextuelle**, depuis le contexte Patient exact. Aucun changement produit n'est crédité tant que BEFORE → Goal → mockup → AFTER n'est pas certifié.
+### Fondation visuelle M6
+
+- **M6-G0 — Glass system mobile premium : CLOSED** — PR #249, HEAD certifié `d5c13f02233304c809984052ff518b1e78807a6a`, merge `1dd5de04602e3a0e4cdc97c690cabe1d06ea5d66`, closeout `docs/MOBILE_M6_G0_GLASS_SYSTEM_CLOSEOUT.md`, score visuel 9,4/10. Glass structurel sur onboarding/dashboard/contextes, CTA et inputs préservés, high-contrast opaque, reduced transparency et fallback sans backdrop-filter certifiés.
+- **M6-G1 — Motif clinique + bottom navigation premium : ACTIVE.** Goal : remplacer le fond trop générique par un motif clinique propriétaire discret (réseau nodal + courbes d'arcades abstraites) et faire évoluer la navigation basse vers une interaction de capsule active fluide inspirée des meilleures apps de messagerie récentes, sans reproduire une marque ni sacrifier accessibilité/performance.
+
+Après M6-G1, premier lot métier : **M6-A — Photo clinique contextuelle**, depuis le contexte Patient exact. Aucun changement produit n'est crédité tant que BEFORE → Goal → référence visuelle → AFTER n'est pas certifié.
 
 ## Certification complète finale — pas un « M7 »
 
@@ -152,9 +157,10 @@ Après M6 :
 
 ## Ordre canonique restant
 
-1. Exécuter M6 Mobile-first réel, en commençant par M6-A Photo clinique contextuelle.
-2. Certification complète finale sur émulation + appareils physiques.
-3. Closeout global Mobile Full Experience.
+1. Fermer M6-G1 Motif clinique + bottom navigation premium.
+2. Exécuter M6 Mobile-first réel, en commençant par M6-A Photo clinique contextuelle.
+3. Certification complète finale sur émulation + appareils physiques.
+4. Closeout global Mobile Full Experience.
 
 ## Avancement
 
