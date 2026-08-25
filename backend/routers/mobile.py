@@ -351,6 +351,20 @@ def legacy_mobile_patient_create_disabled(
 
 
 
+_FINANCIAL_NOTIFICATION_PREFIXES = (
+    "OVERDUE_PAYMENT",
+    "HIGH_VALUE_RISK",
+    "ORTHO_SEMESTER_",
+)
+
+
+def _mobile_notification_allowed(user: models.User, alert) -> bool:
+    alert_type = str(getattr(alert, "alert_type", "") or "")
+    if alert_type.startswith(_FINANCIAL_NOTIFICATION_PREFIXES):
+        return has_permission(user, ["accounting", "payments"])
+    return True
+
+
 def _serialize_mobile_notification(alert) -> dict:
     patient = getattr(alert, "patient", None)
     priority = getattr(alert, "priority", None)
@@ -377,7 +391,7 @@ def get_mobile_notifications(
 ):
     employer_id = mobile_user.get_employer_id()
     now = datetime.now()
-    alerts = (
+    query = (
         db.query(models.ProactiveAlert)
         .outerjoin(models.Patient, models.ProactiveAlert.patient_id == models.Patient.id)
         .options(contains_eager(models.ProactiveAlert.patient))
@@ -388,6 +402,16 @@ def get_mobile_notifications(
             or_(models.ProactiveAlert.patient_id.is_(None), models.Patient.deleted_at.is_(None)),
             or_(models.ProactiveAlert.snoozed_until.is_(None), models.ProactiveAlert.snoozed_until <= now),
         )
+    )
+    if not has_permission(mobile_user, ["accounting", "payments"]):
+        query = query.filter(
+            ~or_(*[
+                models.ProactiveAlert.alert_type.like(f"{prefix}%")
+                for prefix in _FINANCIAL_NOTIFICATION_PREFIXES
+            ])
+        )
+    alerts = (
+        query
         .order_by(models.ProactiveAlert.priority, models.ProactiveAlert.created_at.desc())
         .limit(20)
         .all()
@@ -409,7 +433,7 @@ def mark_mobile_notification_read(
         models.ProactiveAlert.id == alert_id,
         models.ProactiveAlert.employer_id == employer_id,
     ).first()
-    if not alert:
+    if not alert or not _mobile_notification_allowed(mobile_user, alert):
         raise HTTPException(status_code=404, detail='Notification introuvable')
     alert.is_read = True
     db.commit()
@@ -427,7 +451,7 @@ def snooze_mobile_notification(
         models.ProactiveAlert.id == alert_id,
         models.ProactiveAlert.employer_id == employer_id,
     ).first()
-    if not alert:
+    if not alert or not _mobile_notification_allowed(mobile_user, alert):
         raise HTTPException(status_code=404, detail='Notification introuvable')
     now = datetime.now()
     alert.snoozed_until = now + timedelta(hours=24)

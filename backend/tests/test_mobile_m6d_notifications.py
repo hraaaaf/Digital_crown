@@ -55,3 +55,38 @@ def test_mobile_notification_serializer_is_minimal_and_patient_optional():
         'priority': 1,
         'created_at': '2026-08-25T12:00:00',
     }
+
+
+def test_mobile_financial_notifications_require_finance_permission():
+    financial = SimpleNamespace(alert_type='OVERDUE_PAYMENT_42')
+    ortho_fee = SimpleNamespace(alert_type='ORTHO_SEMESTER_2_REMINDER')
+    clinical = SimpleNamespace(alert_type='ORTHO_GAP')
+    stock = SimpleNamespace(alert_type='STOCK_COMPOSITE')
+
+    patient_only = SimpleNamespace(
+        email='employee@example.test', role='DENTISTE', employer_id=1,
+        permissions={'patients': True, 'accounting': False, 'payments': False},
+    )
+    finance_user = SimpleNamespace(
+        email='finance@example.test', role='DENTISTE', employer_id=1,
+        permissions={'patients': True, 'accounting': True, 'payments': False},
+    )
+
+    assert mobile._mobile_notification_allowed(patient_only, financial) is False
+    assert mobile._mobile_notification_allowed(patient_only, ortho_fee) is False
+    assert mobile._mobile_notification_allowed(patient_only, clinical) is True
+    assert mobile._mobile_notification_allowed(patient_only, stock) is True
+    assert mobile._mobile_notification_allowed(finance_user, financial) is True
+
+
+def test_mobile_listing_filters_financial_types_before_limit_and_mutations_fail_closed():
+    listing = inspect.getsource(mobile.get_mobile_notifications)
+    reading = inspect.getsource(mobile.mark_mobile_notification_read)
+    snoozing = inspect.getsource(mobile.snooze_mobile_notification)
+
+    assert 'if not has_permission(mobile_user, ["accounting", "payments"])' in listing
+    assert 'models.ProactiveAlert.alert_type.like' in listing
+    assert listing.index('models.ProactiveAlert.alert_type.like') < listing.index('.limit(20)')
+    for source in (reading, snoozing):
+        assert 'not _mobile_notification_allowed(mobile_user, alert)' in source
+        assert "status_code=404" in source
