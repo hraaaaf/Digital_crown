@@ -1,0 +1,181 @@
+# Frozen M4-D BEFORE audit harness. Evidence only; not product code.
+scenario:
+  materialize: |
+    cat > mobile-m4d-before.html <<'EOF'
+          <!doctype html><html lang="fr"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0,viewport-fit=cover"/><link rel="icon" href="data:,"/><title>Digital Crown M4-D BEFORE</title></head><body><div id="root"></div><script type="module" src="/src/mobile-m4d-before.tsx"></script></body></html>
+    EOF
+    cat > src/mobile-m4d-before.tsx <<'EOF'
+          import React from 'react';
+          import { createRoot } from 'react-dom/client';
+          import { MemoryRouter } from 'react-router-dom';
+          import './index.css';
+          import { DailyView } from './features/agenda/DailyView';
+          import { WeeklyView } from './features/agenda/WeeklyView';
+          import { MonthlyView } from './features/agenda/MonthlyView';
+          import { MobileContext } from './features/mobile/Context/MobileContext';
+          import { MobileStorage } from './services/zka/MobileStorage';
+          import { useAuthStore } from './stores/useAuthStore';
+
+          const params = new URLSearchParams(window.location.search);
+          const view = params.get('view') || 'day';
+          const selectedDate = new Date('2026-08-25T12:00:00');
+          useAuthStore.setState({ user: ({ id: 1, email: 'dentiste@m4d-before.local', nom_complet: 'Dr M4D', role: 'ADMIN', employer_id: null, is_superadmin: false, permissions: { patients: true, agenda: true, clinical: true, admin: true } } as any), isAuthenticated: true, isLoading: false, error: null });
+
+          if (view === 'mobile') {
+            const futureJwt = 'eyJhbGciOiJub25lIiwidHlwIjoiSldUIn0.eyJleHAiOjQxMDI0NDQ4MDB9.';
+            await MobileStorage.clearAll().catch(() => {});
+            await MobileStorage.saveCredentials({ publicId: 'abcdef1234567890', masterKey: 'a'.repeat(64), access_token: futureJwt, refresh_token: 'm4d-before-refresh', device_id: '11111111-2222-4333-8444-555555555555', api_base_url: 'http://127.0.0.1:8005' });
+            await MobileStorage.saveBridgeContext(({ type: 'appointment', key: 'M4DBeforeUnsupported', label: 'Rendez-vous', state: 'ready' } as any));
+          }
+
+          const content = view === 'day'
+            ? <DailyView selectedDate={selectedDate} />
+            : view === 'week'
+              ? <WeeklyView selectedDate={selectedDate} />
+              : view === 'month'
+                ? <MonthlyView selectedDate={selectedDate} />
+                : <MobileContext />;
+
+          createRoot(document.getElementById('root')!).render(<MemoryRouter initialEntries={['/agenda']}>{content}</MemoryRouter>);
+    EOF
+    cat > mobile-m4d-before.mjs <<'EOF'
+          import { chromium } from 'playwright';
+          import { createServer } from 'vite';
+          import fs from 'node:fs/promises';
+
+          const output = 'mobile-m4d-before-artifacts';
+          await fs.rm(output, { recursive: true, force: true });
+          await fs.mkdir(output, { recursive: true });
+          const productBaseline = process.env.PRODUCT_BASELINE || 'unknown';
+          const canonicalBaseline = process.env.CANONICAL_BASELINE || 'unknown';
+          const appointment = {
+            id: 77,
+            patient_id: 42,
+            patient_name: 'BENNANI Sara',
+            datetime_start: '2026-08-25T10:30:00',
+            duration_minutes: 60,
+            motif: 'Contrôle implant 36',
+            status: 'CONFIRMÉ',
+            scheduling_type: 'EXACT_TIME',
+            notes: 'RDV M4-D exact'
+          };
+          const captures = [];
+          const network = [];
+          const server = await createServer({ server: { host: '127.0.0.1', port: 4186, strictPort: true }, clearScreen: false });
+          await server.listen();
+          const browser = await chromium.launch();
+          const json = body => ({ status: 200, contentType: 'application/json', body: JSON.stringify(body) });
+
+          async function setup(viewport) {
+            const context = await browser.newContext({ viewport, screen: viewport, deviceScaleFactor: 1, hasTouch: viewport.width <= 768, isMobile: viewport.width <= 768, serviceWorkers: 'block' });
+            const page = await context.newPage();
+            const errors = [];
+            page.on('pageerror', e => errors.push(`pageerror: ${e.message}`));
+            page.on('console', m => { if (m.type() === 'error') errors.push(`console: ${m.text()}`); });
+            await page.route('**/*', async route => {
+              const req = route.request();
+              const url = new URL(req.url());
+              const path = url.pathname;
+              if (!path.startsWith('/api/')) return route.continue();
+              network.push(`${req.method()} ${path}`);
+              if (req.method() === 'GET' && path === '/api/appointments/') return route.fulfill(json([appointment]));
+              if (req.method() === 'GET' && path === '/api/actes/catalog/search') return route.fulfill(json([]));
+              if (req.method() === 'GET' && path === '/api/catalog/specialties') return route.fulfill(json([]));
+              if (path === '/api/mobile/refresh-token') return route.fulfill({ status: 401, contentType: 'application/json', body: '{}' });
+              return route.fulfill(json(req.method() === 'GET' ? [] : {}));
+            });
+            return { context, page, errors };
+          }
+
+          async function metrics(page, state) {
+            return page.evaluate((captureState) => {
+              const root = document.documentElement;
+              const dialog = document.querySelector('[role="dialog"]');
+              const buttons = [...document.querySelectorAll('button')].filter(el => {
+                const r = el.getBoundingClientRect(); const s = getComputedStyle(el);
+                return r.width > 0 && r.height > 0 && s.visibility !== 'hidden' && s.display !== 'none';
+              }).map(el => {
+                const r = el.getBoundingClientRect();
+                return { text: (el.getAttribute('aria-label') || el.textContent || el.getAttribute('title') || '').trim().replace(/\s+/g, ' ').slice(0, 100), width: Math.round(r.width), height: Math.round(r.height) };
+              });
+              const html = document.body.innerHTML;
+              return {
+                scrollWidth: root.scrollWidth,
+                clientWidth: root.clientWidth,
+                hasHorizontalOverflow: root.scrollWidth > root.clientWidth + 1,
+                dialogLabel: dialog?.getAttribute('aria-label') || null,
+                exactMotifVisible: html.includes('Contrôle implant 36'),
+                patientVisible: html.includes('BENNANI Sara'),
+                bridgeActionPresent: html.includes('Ouvrir sur mobile'),
+                mobileUnsupported: captureState === 'mobile' ? html.includes('Contexte indisponible') : null,
+                buttonsBelow44: buttons.filter(b => b.height < 44 || b.width < 44)
+              };
+            }, state);
+          }
+
+          async function capture(page, errors, name, state, viewport) {
+            const measured = await metrics(page, state);
+            await page.screenshot({ path: `${output}/${name}.png`, fullPage: false, animations: 'disabled' });
+            const record = { name, state, ...viewport, metrics: measured, errors: [...errors] };
+            captures.push(record);
+            await fs.writeFile(`${output}/${name}.json`, JSON.stringify(record, null, 2));
+          }
+
+          async function openAgendaState(view, viewport, expectedDialog) {
+            const { context, page, errors } = await setup(viewport);
+            await page.goto(`http://127.0.0.1:4186/mobile-m4d-before.html?view=${view}`, { waitUntil: 'networkidle' });
+            await page.getByText('BENNANI Sara', { exact: false }).first().waitFor({ state: 'visible', timeout: 10000 });
+            if (view === 'month') {
+              await page.getByText(/10:30\s*-\s*BENNANI Sara/).click();
+            } else {
+              await page.locator('.appointment-item').filter({ hasText: 'BENNANI Sara' }).first().click();
+            }
+            await page.getByRole('dialog', { name: expectedDialog, exact: true }).waitFor({ state: 'visible', timeout: 10000 });
+            await capture(page, errors, `${view}-${viewport.width}x${viewport.height}`, view, viewport);
+            await context.close();
+          }
+
+          try {
+            await openAgendaState('day', { width: 1280, height: 900 }, 'Modifier le Rendez-vous');
+            await openAgendaState('week', { width: 1280, height: 900 }, 'Modifier le Rendez-vous');
+            await openAgendaState('month', { width: 1280, height: 900 }, 'Nouveau Rendez-vous');
+            await openAgendaState('month', { width: 768, height: 1024 }, 'Nouveau Rendez-vous');
+
+            for (const viewport of [{ width: 390, height: 844 }, { width: 430, height: 932 }, { width: 768, height: 1024 }]) {
+              const { context, page, errors } = await setup(viewport);
+              await page.goto('http://127.0.0.1:4186/mobile-m4d-before.html?view=mobile', { waitUntil: 'networkidle' });
+              await page.getByRole('heading', { name: 'Contexte indisponible', exact: true }).waitFor({ state: 'visible', timeout: 10000 });
+              await capture(page, errors, `mobile-appointment-${viewport.width}x${viewport.height}`, 'mobile', viewport);
+              await context.close();
+            }
+
+            const day = captures.find(x => x.state === 'day');
+            const week = captures.find(x => x.state === 'week');
+            const month = captures.filter(x => x.state === 'month');
+            const mobile = captures.filter(x => x.state === 'mobile');
+            const report = {
+              productBaseline,
+              canonicalBaseline,
+              captures,
+              count: captures.length,
+              exactAppointmentId: appointment.id,
+              daySelectsExact: day?.metrics.dialogLabel === 'Modifier le Rendez-vous' && day?.metrics.exactMotifVisible && day?.metrics.patientVisible,
+              weekSelectsExact: week?.metrics.dialogLabel === 'Modifier le Rendez-vous' && week?.metrics.exactMotifVisible && week?.metrics.patientVisible,
+              monthLosesExactSelection: month.length === 2 && month.every(x => x.metrics.dialogLabel === 'Nouveau Rendez-vous' && !x.metrics.exactMotifVisible),
+              bridgeActionAbsent: captures.filter(x => x.state !== 'mobile').every(x => !x.metrics.bridgeActionPresent),
+              mobileAppointmentUnsupported: mobile.length === 3 && mobile.every(x => x.metrics.mobileUnsupported === true),
+              noUnexpectedErrors: captures.every(x => x.errors.length === 0),
+              noHorizontalOverflow: captures.every(x => !x.metrics.hasHorizontalOverflow),
+              smallControls: captures.map(x => ({ name: x.name, below44: x.metrics.buttonsBelow44 })),
+              network
+            };
+            await fs.writeFile(`${output}/report.json`, JSON.stringify(report, null, 2));
+            console.log(JSON.stringify(report, null, 2));
+            if (report.count !== 7 || !report.daySelectsExact || !report.weekSelectsExact || !report.monthLosesExactSelection || !report.bridgeActionAbsent || !report.mobileAppointmentUnsupported || !report.noUnexpectedErrors || !report.noHorizontalOverflow) {
+              throw new Error('M4-D BEFORE evidence gate failed.');
+            }
+          } finally {
+            await browser.close();
+            await server.close();
+          }
+    EOF

@@ -1,0 +1,62 @@
+name: Mobile M4-D RDV BEFORE
+
+on:
+  push:
+    branches:
+      - audit/mobile-m4d-rdv-before-20260825
+    paths:
+      - '.audit/mobile-m4d-before-scenario.yml'
+      - '.github/workflows/mobile-m4d-before.yml'
+
+jobs:
+  before:
+    name: M4-D RDV contextual BEFORE
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install frontend and Chromium
+        working-directory: frontend
+        run: |
+          npm ci
+          npm install --no-save --package-lock=false --ignore-scripts playwright@1.62.1
+          npx playwright install --with-deps chromium
+
+      - name: Materialize M4-D BEFORE harness
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import re
+          source = Path('.audit/mobile-m4d-before-scenario.yml').read_text()
+          for target in ['mobile-m4d-before.html', 'src/mobile-m4d-before.tsx', 'mobile-m4d-before.mjs']:
+              pattern = rf"cat > {re.escape(target)} <<'EOF'\n(.*?)\n    EOF"
+              match = re.search(pattern, source, re.S)
+              if not match:
+                  raise SystemExit(f'M4-D BEFORE block missing: {target}')
+              lines = [line[10:] if line.startswith('          ') else line for line in match.group(1).splitlines()]
+              destination = Path('frontend') / target
+              destination.parent.mkdir(parents=True, exist_ok=True)
+              destination.write_text('\n'.join(lines) + '\n')
+          PY
+
+      - name: Capture M4-D BEFORE
+        working-directory: frontend
+        env:
+          PRODUCT_BASELINE: 8a11a452cc7a3b14964a1908a32589700a4cb6f7
+          CANONICAL_BASELINE: fa03efb858a27b3cd10e53346486d189ae785b47
+        run: node mobile-m4d-before.mjs
+
+      - name: Upload M4-D BEFORE evidence
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: mobile-m4d-rdv-before
+          path: frontend/mobile-m4d-before-artifacts/
+          if-no-files-found: error
+          retention-days: 14
