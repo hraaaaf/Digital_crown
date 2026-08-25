@@ -38,6 +38,7 @@ Clinical mode remains fail-closed if the required model is unavailable.
 | MonoHaru/CephLD-CCA | Cephalo 19 | GPL-3.0 repo | Existing architectural reference | Partial | REJECT by default for proprietary bundle |
 | szuboy/CL-Detection2023 | Cephalo 38 | Code Apache-2.0; challenge data restricted / annotations CC BY-NC 4.0 | Benchmark PASS; exact PT/ONNX hashes pinned | Tensor fit excellent | TECHNICAL BENCHMARK ONLY pending explicit rights clearance |
 | Aariz dataset v1 | Cephalo 29 | Dataset CC BY 4.0 | Exact Figshare v1 asset pinned; 1000 cephalograms, 7 devices, 29 landmarks | 20/22 Digital Crown canonical points directly covered | PRIMARY CLEAN RETRAIN DATA ROUTE |
+| DC-Ceph-UNet29 | Cephalo 29 | Digital Crown-owned implementation; PyTorch permissive redistribution terms; no third-party pretrained weights | Architecture selected; training pending | Exact all-29 Aariz target | PRIMARY MODEL ARCHITECTURE |
 | emad2001/DeLR-Cephalometric-ConvNeXtV2 | Cephalo 26 on Aariz | No explicit usable repository/checkpoint license pinned | Published card reports MRE 1.073 mm; checkpoint exists | Drops soft-tissue points required by Digital Crown | HOLD; not preferred over all-29 retrain |
 | liodon-ai/dental-panoramic-detector | Pano 3 pathology classes | CC-BY-NC-4.0 | ONNX ~10.6 MB | Caries/deep-caries merged | REJECT commercial |
 | OralGuard | Pano exact 4 classes | Repo/model card MIT, but trained with Ultralytics YOLOv8 and DENTEX | Benchmark PASS; detector-only ONNX exported | Exact 4-class semantic fit | TECHNICAL BENCHMARK ONLY; blocked by Ultralytics/DENTEX commercial gates absent written clearance |
@@ -93,6 +94,29 @@ This pins the authoritative public dataset asset without pretending a SHA256 has
 3. Digital Crown clinically consumes `Pog_soft` and `Sn`; therefore the ready DeLR-26 checkpoint removes at least two points we actively use.
 
 Conclusion: even if its licensing were cleared later, the ready 26-point checkpoint is a worse semantic target than training/exporting **all 29 Aariz landmarks**.
+
+## Selected all-29 architecture — DC-Ceph-UNet29
+
+Architecture decision:
+- implement a Digital Crown-owned U-Net-style heatmap regressor from scratch;
+- input target: grayscale 512×512 for the first training baseline;
+- output contract: `[B, 29, 512, 512]` heatmaps;
+- one heatmap per Aariz landmark, preserving the complete dataset semantics;
+- no third-party pretrained weights or encoder checkpoints;
+- training framework: PyTorch, whose upstream license permits redistribution and modification in source and binary form subject to its notice conditions;
+- export target: static ONNX first, then portability validation on Windows x64 and macOS ARM64;
+- clinical adapter maps only the 20 directly supported Digital Crown canonical points; the two Wits occlusal points stay absent/fail-closed.
+
+Rationale:
+- U-Net's contracting/expanding architecture is specifically designed for precise localization and was introduced with strong augmentation to learn from relatively small annotated datasets.
+- CL-Detection2023 already proves that a 512×512 U-Net heatmap formulation is technically viable for cephalometric landmarks, while our own all-29 implementation removes the restricted CL training-data/weight chain.
+- Starting from random initialization removes the pretrained-weight provenance problem entirely. Accuracy must still be demonstrated on a held-out, non-PHI benchmark before any clinical use.
+
+Reference architecture paper:
+- https://arxiv.org/abs/1505.04597
+
+Framework license source:
+- https://github.com/pytorch/pytorch/blob/main/LICENSE
 
 ## Portability benchmark — PASS
 
@@ -179,7 +203,7 @@ The article's own publication license is separate from the dataset license; the 
 
 ### Cephalometry
 
-1. **Aariz CC-BY all-29 retrain route** — current best path toward a commercially clean proprietary asset. Train a permissively licensed architecture on all 29 landmarks, export ONNX, map the 20 direct clinical points; keep Wits fail-closed until separately validated.
+1. **DC-Ceph-UNet29 on Aariz v1** — selected primary path: all 29 landmarks, no third-party pretrained weights, commercially cleaner provenance, adapter-compatible with 20/22 current clinical points. Accuracy still unproven until training/benchmark.
 2. **CL-Detection2023** — best current technical 38-point benchmark and adapter proof, but not commercially clean under the source-data restrictions without written clearance.
 3. **DeLR Aariz-26 checkpoint** — useful research reference, but lower semantic coverage than all-29 and no explicit usable code/checkpoint license pinned.
 4. **CephLD-CCA** — research/reference only by default because GPL-3.0.
@@ -197,20 +221,21 @@ No inspected ready-to-use weight is currently certified as commercially clean fo
 
 - Do **not** copy CL-Detection2023 or OralGuard weights into `DigitalCrown-assets` as production assets at this stage.
 - Preserve both as technical/research benchmark evidence only.
-- Promote Aariz **all 29 landmarks** to the primary cephalometric commercial-clean training-data route.
+- Select **DC-Ceph-UNet29 trained from scratch on Aariz v1** as the primary cephalometric path.
 - Do not select the current DeLR-26 checkpoint as the default replacement.
 - Do not modify `CephaloEngine` clinical definitions to force compatibility with a candidate model.
 - Adapt the inference layer to the winning model, not the clinical geometry to an arbitrary published landmark count.
 
 ## Next exact
 
-1. Select a permissively licensed all-29 training architecture and pin its source revision/licence before training.
+1. Implement the research-only `DC-Ceph-UNet29` architecture + all-29 dataset loader + deterministic split/augmentation contract.
 2. On first real Aariz ingestion, compute SHA256 for `Aariz.zip` and retain the Figshare v1 manifest + attribution.
 3. Define the 29 -> Digital Crown 20-point adapter contract and tests without changing clinical calculations.
-4. Train/export the all-29 candidate to ONNX and run Windows x64 + macOS ARM64 portability gates after the Linux proxy.
-5. Build a non-PHI cephalometric golden benchmark for the 20 directly supported points and separately gate Wits.
-6. Search/train a panoramic candidate using data and architecture with an explicit commercial-compatible rights chain; keep OralGuard as benchmark only.
-7. After a candidate wins both technical and rights gates, place the pinned artifact + provenance + SHA256 in private `hraaaaf/DigitalCrown-assets` and resume P6 packaging.
+4. Train the all-29 candidate, retain exact training manifest/checkpoint hashes, export ONNX and benchmark against CL-Detection2023.
+5. Run Windows x64 + macOS ARM64 portability gates after the Linux proxy.
+6. Build a non-PHI cephalometric golden benchmark for the 20 directly supported points and separately gate Wits.
+7. Search/train a panoramic candidate using data and architecture with an explicit commercial-compatible rights chain; keep OralGuard as benchmark only.
+8. After a candidate wins both technical and rights gates, place the pinned artifact + provenance + SHA256 in private `hraaaaf/DigitalCrown-assets` and resume P6 packaging.
 
 ## Non-goals
 - No product model replacement during this research branch.
