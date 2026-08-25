@@ -11,6 +11,7 @@ on:
 permissions:
   contents: write
 
+# M6-A preparation is intentionally single-run: full patch -> gates -> one product commit.
 jobs:
   prepare:
     name: Build then create single M6-A product commit
