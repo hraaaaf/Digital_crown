@@ -1,0 +1,86 @@
+name: Mobile M6-G1 Prepare
+
+on:
+  push:
+    branches:
+      - "audit/mobile-m6-g1-before-20260825"
+    paths:
+      - ".github/workflows/mobile-m6-g1-prepare.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  prepare:
+    name: Build then create single M6-G1 product commit
+    runs-on: ubuntu-latest
+    env:
+      BASE_HEAD: 895ab9e7b03aecc60d721c46ba814f1b8770b57f
+      PRODUCT_BRANCH: mobile/m6-g1-clinical-motif-nav
+    steps:
+      - name: Checkout frozen audit inputs
+        uses: actions/checkout@v4
+        with:
+          path: audit
+
+      - name: Checkout exact product baseline
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.BASE_HEAD }}
+          path: product
+          fetch-depth: 0
+
+      - name: Assert exact baseline
+        run: test "$(git -C product rev-parse HEAD)" = "$BASE_HEAD"
+
+      - name: Materialize M6-G1 patch
+        working-directory: product
+        run: python ../audit/.audit/mobile-m6-g1-apply.py
+
+      - name: Assert exact product scope and contract
+        working-directory: product
+        run: |
+          git diff --check
+          test "$(git diff --name-only | sort)" = "$(printf '%s\n' \
+            frontend/src/features/mobile/Dashboard/components/MobileBottomNav.tsx \
+            frontend/src/styles/mobileGlassSystem.css | sort)"
+          grep -q 'data-mobile-nav-active-pill' frontend/src/features/mobile/Dashboard/components/MobileBottomNav.tsx
+          grep -q 'layoutId="mobile-nav-active-pill"' frontend/src/features/mobile/Dashboard/components/MobileBottomNav.tsx
+          grep -q 'min-h-\[52px\]' frontend/src/features/mobile/Dashboard/components/MobileBottomNav.tsx
+          grep -q 'aria-current' frontend/src/features/mobile/Dashboard/components/MobileBottomNav.tsx
+          grep -q -- '--dc-clinical-motif-ready: 1' frontend/src/styles/mobileGlassSystem.css
+          ! grep -q 'background-attachment: fixed' frontend/src/styles/mobileGlassSystem.css
+
+      - name: Setup Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: product/frontend/package-lock.json
+
+      - name: Install frontend
+        working-directory: product/frontend
+        run: npm ci
+
+      - name: Build frontend
+        working-directory: product/frontend
+        run: npm run build
+
+      - name: Create one product commit
+        working-directory: product
+        run: |
+          git config user.name "hraaaaf"
+          git config user.email "123034021+hraaaaf@users.noreply.github.com"
+          git switch -c "$PRODUCT_BRANCH"
+          git add frontend/src/styles/mobileGlassSystem.css \
+                  frontend/src/features/mobile/Dashboard/components/MobileBottomNav.tsx
+          git commit -m "feat(mobile): add clinical motif and fluid bottom nav"
+          test "$(git rev-list --count "$BASE_HEAD"..HEAD)" = "1"
+          git push origin "$PRODUCT_BRANCH"
+          echo "PRODUCT_HEAD=$(git rev-parse HEAD)" >> "$GITHUB_ENV"
+
+      - name: Record proof
+        run: |
+          echo "base=$BASE_HEAD"
+          echo "product_branch=$PRODUCT_BRANCH"
+          echo "product_head=$PRODUCT_HEAD"
