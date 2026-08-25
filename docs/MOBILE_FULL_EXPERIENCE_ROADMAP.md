@@ -80,7 +80,7 @@ Exemples obligatoires :
 
 Le QR ne contient ni nom patient, ni donnée médicale, ni identifiant sensible exploitable. Token court TTL, révocable, éventuellement usage unique, lié user/session, contrôlé backend et journalisé. Cas erreurs : expiré, réseau, non-autorisé, non-pairé, ressource supprimée, backend local inaccessible.
 
-**État : IN PROGRESS.**
+**État : IN PROGRESS — les quatre ressources obligatoires sont CLOSED ; seule la matrice finale erreurs / retour / expiration reste à fermer.**
 
 Fondation certifiée via PR #234 / merge `ea0f6e41f055b90d8bceabb5e100dbe008230f16` : utilisateur cible + destination serveur autorisée, QR sans PHI, pairing device-bound, destination revalidée, E2E Finance 390/430/768. Cette fondation **ne ferme pas M4**.
 
@@ -89,11 +89,12 @@ Sous-lots ressource certifiés :
 - **Patient contextuel : CLOSED** — PR #238, merge `4ad243013c2d999f014302252e5e2bb9f2184c29`, closeout `docs/MOBILE_M4_A_PATIENT_CONTEXT_CLOSEOUT.md`, score visuel 9,5/10.
 - **Radio panoramique contextuelle : CLOSED** — PR #243, merge `f0c120868c71948bf835758f472c741179e7b128`, closeout `docs/MOBILE_M4_B_PANORAMIC_CONTEXT_CLOSEOUT.md`, score visuel 9,5/10.
 - **Document contextuel : CLOSED** — PR #244, merge `8a11a452cc7a3b14964a1908a32589700a4cb6f7`, closeout `docs/MOBILE_M4_C_DOCUMENT_CONTEXT_CLOSEOUT.md`, score visuel 9,6/10.
+- **Rendez-vous contextuel exact : CLOSED** — PR #245, HEAD certifié `77e253487af1dc387c79a47a537736db663cc418`, merge `d42a618f3cffe6b81786a5169eefe5663a37423d`, closeout `docs/MOBILE_M4_D_APPOINTMENT_CONTEXT_CLOSEOUT.md`, score visuel 9,6/10.
 
 Restant M4 :
 
-1. RDV contextuel exact ;
-2. matrice finale erreurs / retour / expiration au niveau ressource.
+1. matrice finale erreurs / retour / expiration au niveau ressource : expiré, réseau, non-autorisé, non-pairé, ressource supprimée, backend local inaccessible, retour mobile ;
+2. fermer le défaut BEFORE déjà observé où un backend inaccessible expose le message technique brut `Failed to fetch`.
 
 ## M5 — Architecture mobile
 
@@ -153,7 +154,7 @@ Après M4 + M6 :
 
 ## Ordre canonique restant
 
-1. Fermer M4 ressource : RDV → erreurs.
+1. Fermer M4 ressource : matrice finale erreurs / retour / expiration.
 2. Exécuter M6 Mobile-first réel.
 3. Certification complète finale sur émulation + appareils physiques.
 4. Closeout global Mobile Full Experience.
