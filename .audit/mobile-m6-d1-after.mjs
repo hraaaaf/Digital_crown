@@ -32,7 +32,7 @@ async function capture(width, height) {
   page.on('pageerror', error => errors.push(`pageerror: ${error.message}`));
   page.on('console', message => { if (message.type() === 'error') errors.push(`console: ${message.text()}`); });
 
-  await page.route('**/api/mobile/notifications**', async route => {
+  await page.route(/\/api\/mobile\/notifications(?:\/[^/?]+\/[^/?]+)?(?:\?.*)?$/, async route => {
     const request = route.request();
     const url = new URL(request.url());
 
@@ -85,10 +85,6 @@ async function capture(width, height) {
 
   await read.click();
   for (let i = 0; i < 20 && !mutations.some(path => path.endsWith('/71/read')); i += 1) await delay(50);
-  await delay(150);
-  const afterReadText = await page.locator('body').innerText();
-  await page.screenshot({ path: `${output}/dashboard-notifications-after-read-${width}x${height}.png`, fullPage: false, animations: 'disabled' });
-  await fs.writeFile(`${output}/debug-after-read-${width}x${height}.json`, JSON.stringify({ productHead, mutations, serverAlerts, getCount, staleOpenRequestSeen, errors, afterReadText }, null, 2));
   await page.getByText('1 non lue', { exact: true }).waitFor({ state: 'visible', timeout: 5000 });
 
   releaseStaleGet();
