@@ -23,7 +23,7 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 45
     env:
-      P6_BENCHMARK_DIR: ${{ runner.temp }}/p6-scientific-assets-benchmark
+      P6_BENCHMARK_DIR: p6-scientific-assets-benchmark
       PYTHONUNBUFFERED: "1"
     steps:
       - name: Checkout research branch
@@ -70,6 +70,6 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: p6-scientific-assets-benchmark
-          path: ${{ runner.temp }}/p6-scientific-assets-benchmark
+          path: p6-scientific-assets-benchmark
           if-no-files-found: ignore
           retention-days: 14
