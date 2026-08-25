@@ -1,0 +1,111 @@
+{
+  "archive": {
+    "elapsed_s": 17.763,
+    "members": 4023,
+    "uncompressed_bytes": 4239068622
+  },
+  "calibration_csv": {
+    "columns": [
+      "cephalogram_id",
+      "machine",
+      "pixel_size",
+      "image_format",
+      "mode"
+    ],
+    "extra_columns": [
+      "machine",
+      "image_format",
+      "mode"
+    ],
+    "pixel_size_mm_per_px": {
+      "max": 0.144,
+      "median": 0.1,
+      "min": 0.089
+    },
+    "rows": 1000
+  },
+  "cpu_training_probe": {
+    "batch_size": 1,
+    "estimated_epoch_minutes_batch1": 7.5,
+    "iterations": 3,
+    "losses": [
+      0.23141681,
+      0.21630304,
+      0.20581214
+    ],
+    "max_rss_mb": 1011.26,
+    "step_seconds": {
+      "max": 0.753,
+      "median": 0.643,
+      "min": 0.63
+    },
+    "threads": 4
+  },
+  "dataset": {
+    "annotation_item_key_shapes": [
+      "landmark_id,symbol,title,value"
+    ],
+    "distinct_symbol_orders": 1,
+    "distinct_title_orders": 1,
+    "splits": {
+      "test": {
+        "annotations": {
+          "Junior Orthodontists": 150,
+          "Senior Orthodontists": 150
+        },
+        "images": 150
+      },
+      "train": {
+        "annotations": {
+          "Junior Orthodontists": 700,
+          "Senior Orthodontists": 700
+        },
+        "images": 700
+      },
+      "valid": {
+        "annotations": {
+          "Junior Orthodontists": 150,
+          "Senior Orthodontists": 150
+        },
+        "images": 150
+      }
+    },
+    "symbol_field_present": true,
+    "title_field_present": true,
+    "unique_image_ids": 1000
+  },
+  "dataset_root_name": "Aariz",
+  "elapsed_s": 25.86,
+  "figshare": {
+    "article_id": 27986417,
+    "file_id": 51041642,
+    "file_name": "Aariz.zip",
+    "license": "CC BY 4.0",
+    "md5": "e0bd645bca6759abdae4f199d841bda6",
+    "sha256": "d9fa872b36065dac9615cfcad0c7512c450fe2d86a1839cdec4cbe001def33ea",
+    "size_bytes": 2098209792
+  },
+  "loader": {
+    "coords_shape": [
+      29,
+      2
+    ],
+    "first_image_id": "cks2ip8fq29yq0yufc4scftj8",
+    "image_shape": [
+      1,
+      512,
+      512
+    ],
+    "landmarks": 29,
+    "pixel_size_mm": 0.1,
+    "samples": 700
+  },
+  "machine": {
+    "logical_cpu_count": 4,
+    "platform": "Linux-6.17.0-1022-azure-x86_64-with-glibc2.39",
+    "python": "3.11.16",
+    "torch": "2.3.0+cpu"
+  },
+  "result": "PASS",
+  "status": "RESEARCH_DATA_PROBE_ONLY"
+}

@@ -1,0 +1,430 @@
+{
+  "artifacts": {
+    "onnx": {
+      "cold_load_ms": 22.86,
+      "cpu_inference_ms": {
+        "iterations": 8,
+        "max": 116.11,
+        "mean": 115.27,
+        "median": 115.28,
+        "min": 114.55
+      },
+      "input_shape": [
+        1,
+        1,
+        512,
+        512
+      ],
+      "opset": 17,
+      "output_shape": [
+        1,
+        29,
+        128,
+        128
+      ],
+      "sha256": "809f1d3d2347d2a34f57d4a3415bb319c29f8a25c325d41160e5f28d4e5dadad",
+      "size_bytes": 7624307
+    },
+    "state_sha256": "da456c85b659f9bcfec0893e5d02988dfec099716d3644986c121333adf06421"
+  },
+  "beats_official_reference": true,
+  "clinical_claim": false,
+  "config": {
+    "batch_size": 4,
+    "max_epochs": 30,
+    "model": "DC-Ceph-UNet29Q4",
+    "parameters": 1899117,
+    "patience": 6,
+    "seed": 20260825
+  },
+  "dataset": {
+    "doi": "10.6084/m9.figshare.27986417.v1",
+    "license": "CC BY 4.0",
+    "name": "Aariz v1",
+    "sha256": "d9fa872b36065dac9615cfcad0c7512c450fe2d86a1839cdec4cbe001def33ea"
+  },
+  "history": [
+    {
+      "epoch": 1,
+      "lr": 0.001,
+      "train_objective_mean": 6.3326954,
+      "valid_all29_mre_mm": 4.241775,
+      "valid_all29_sdr2_percent": 45.5862,
+      "valid_dc20_mre_mm": 4.192329
+    },
+    {
+      "epoch": 2,
+      "lr": 0.001,
+      "train_objective_mean": 4.6333255,
+      "valid_all29_mre_mm": 1.959978,
+      "valid_all29_sdr2_percent": 63.1034,
+      "valid_dc20_mre_mm": 1.899271
+    },
+    {
+      "epoch": 3,
+      "lr": 0.001,
+      "train_objective_mean": 4.5051612,
+      "valid_all29_mre_mm": 1.810453,
+      "valid_all29_sdr2_percent": 67.908,
+      "valid_dc20_mre_mm": 1.73114
+    },
+    {
+      "epoch": 4,
+      "lr": 0.001,
+      "train_objective_mean": 4.4557512,
+      "valid_all29_mre_mm": 1.702561,
+      "valid_all29_sdr2_percent": 70.3678,
+      "valid_dc20_mre_mm": 1.597751
+    },
+    {
+      "epoch": 5,
+      "lr": 0.001,
+      "train_objective_mean": 4.4384465,
+      "valid_all29_mre_mm": 1.692518,
+      "valid_all29_sdr2_percent": 71.3103,
+      "valid_dc20_mre_mm": 1.525558
+    },
+    {
+      "epoch": 6,
+      "lr": 0.001,
+      "train_objective_mean": 4.4159689,
+      "valid_all29_mre_mm": 1.694664,
+      "valid_all29_sdr2_percent": 70.9195,
+      "valid_dc20_mre_mm": 1.532495
+    },
+    {
+      "epoch": 7,
+      "lr": 0.001,
+      "train_objective_mean": 4.4102233,
+      "valid_all29_mre_mm": 1.595233,
+      "valid_all29_sdr2_percent": 74.069,
+      "valid_dc20_mre_mm": 1.463309
+    },
+    {
+      "epoch": 8,
+      "lr": 0.001,
+      "train_objective_mean": 4.3883003,
+      "valid_all29_mre_mm": 1.547256,
+      "valid_all29_sdr2_percent": 75.0805,
+      "valid_dc20_mre_mm": 1.448637
+    },
+    {
+      "epoch": 9,
+      "lr": 0.001,
+      "train_objective_mean": 4.3864124,
+      "valid_all29_mre_mm": 1.52749,
+      "valid_all29_sdr2_percent": 75.2414,
+      "valid_dc20_mre_mm": 1.424185
+    },
+    {
+      "epoch": 10,
+      "lr": 0.001,
+      "train_objective_mean": 4.3700534,
+      "valid_all29_mre_mm": 1.477835,
+      "valid_all29_sdr2_percent": 77.1034,
+      "valid_dc20_mre_mm": 1.38069
+    },
+    {
+      "epoch": 11,
+      "lr": 0.001,
+      "train_objective_mean": 4.3620864,
+      "valid_all29_mre_mm": 1.510704,
+      "valid_all29_sdr2_percent": 75.6552,
+      "valid_dc20_mre_mm": 1.378748
+    },
+    {
+      "epoch": 12,
+      "lr": 0.001,
+      "train_objective_mean": 4.357924,
+      "valid_all29_mre_mm": 1.477395,
+      "valid_all29_sdr2_percent": 77.8161,
+      "valid_dc20_mre_mm": 1.340542
+    },
+    {
+      "epoch": 13,
+      "lr": 0.001,
+      "train_objective_mean": 4.3483291,
+      "valid_all29_mre_mm": 1.426352,
+      "valid_all29_sdr2_percent": 78.1379,
+      "valid_dc20_mre_mm": 1.334324
+    },
+    {
+      "epoch": 14,
+      "lr": 0.001,
+      "train_objective_mean": 4.34299,
+      "valid_all29_mre_mm": 1.480042,
+      "valid_all29_sdr2_percent": 77.2874,
+      "valid_dc20_mre_mm": 1.364608
+    },
+    {
+      "epoch": 15,
+      "lr": 0.001,
+      "train_objective_mean": 4.3608133,
+      "valid_all29_mre_mm": 1.424065,
+      "valid_all29_sdr2_percent": 78.6667,
+      "valid_dc20_mre_mm": 1.298968
+    },
+    {
+      "epoch": 16,
+      "lr": 0.001,
+      "train_objective_mean": 4.3320011,
+      "valid_all29_mre_mm": 1.417577,
+      "valid_all29_sdr2_percent": 78.5517,
+      "valid_dc20_mre_mm": 1.300828
+    },
+    {
+      "epoch": 17,
+      "lr": 0.001,
+      "train_objective_mean": 4.3245848,
+      "valid_all29_mre_mm": 1.399358,
+      "valid_all29_sdr2_percent": 79.5172,
+      "valid_dc20_mre_mm": 1.286201
+    },
+    {
+      "epoch": 18,
+      "lr": 0.001,
+      "train_objective_mean": 4.321885,
+      "valid_all29_mre_mm": 1.361864,
+      "valid_all29_sdr2_percent": 81.1264,
+      "valid_dc20_mre_mm": 1.250087
+    },
+    {
+      "epoch": 19,
+      "lr": 0.001,
+      "train_objective_mean": 4.3132082,
+      "valid_all29_mre_mm": 1.389155,
+      "valid_all29_sdr2_percent": 80.1149,
+      "valid_dc20_mre_mm": 1.284155
+    },
+    {
+      "epoch": 20,
+      "lr": 0.001,
+      "train_objective_mean": 4.3136023,
+      "valid_all29_mre_mm": 1.417103,
+      "valid_all29_sdr2_percent": 79.6322,
+      "valid_dc20_mre_mm": 1.277893
+    },
+    {
+      "epoch": 21,
+      "lr": 0.0005,
+      "train_objective_mean": 4.3065364,
+      "valid_all29_mre_mm": 1.4057,
+      "valid_all29_sdr2_percent": 79.5172,
+      "valid_dc20_mre_mm": 1.272691
+    },
+    {
+      "epoch": 22,
+      "lr": 0.0005,
+      "train_objective_mean": 4.2881058,
+      "valid_all29_mre_mm": 1.350118,
+      "valid_all29_sdr2_percent": 81.4023,
+      "valid_dc20_mre_mm": 1.226088
+    },
+    {
+      "epoch": 23,
+      "lr": 0.0005,
+      "train_objective_mean": 4.2817525,
+      "valid_all29_mre_mm": 1.363931,
+      "valid_all29_sdr2_percent": 80.5057,
+      "valid_dc20_mre_mm": 1.255719
+    },
+    {
+      "epoch": 24,
+      "lr": 0.0005,
+      "train_objective_mean": 4.2784502,
+      "valid_all29_mre_mm": 1.325857,
+      "valid_all29_sdr2_percent": 81.7931,
+      "valid_dc20_mre_mm": 1.204227
+    },
+    {
+      "epoch": 25,
+      "lr": 0.0005,
+      "train_objective_mean": 4.274163,
+      "valid_all29_mre_mm": 1.35584,
+      "valid_all29_sdr2_percent": 81.1264,
+      "valid_dc20_mre_mm": 1.240603
+    },
+    {
+      "epoch": 26,
+      "lr": 0.0005,
+      "train_objective_mean": 4.2727191,
+      "valid_all29_mre_mm": 1.370463,
+      "valid_all29_sdr2_percent": 80.7816,
+      "valid_dc20_mre_mm": 1.238117
+    },
+    {
+      "epoch": 27,
+      "lr": 0.00025,
+      "train_objective_mean": 4.2715605,
+      "valid_all29_mre_mm": 1.352763,
+      "valid_all29_sdr2_percent": 80.8966,
+      "valid_dc20_mre_mm": 1.240125
+    },
+    {
+      "epoch": 28,
+      "lr": 0.00025,
+      "train_objective_mean": 4.2624351,
+      "valid_all29_mre_mm": 1.32845,
+      "valid_all29_sdr2_percent": 81.3333,
+      "valid_dc20_mre_mm": 1.203006
+    },
+    {
+      "epoch": 29,
+      "lr": 0.00025,
+      "train_objective_mean": 4.2585827,
+      "valid_all29_mre_mm": 1.343128,
+      "valid_all29_sdr2_percent": 80.9425,
+      "valid_dc20_mre_mm": 1.209102
+    },
+    {
+      "epoch": 30,
+      "lr": 0.000125,
+      "train_objective_mean": 4.256723,
+      "valid_all29_mre_mm": 1.34938,
+      "valid_all29_sdr2_percent": 81.0115,
+      "valid_dc20_mre_mm": 1.221393
+    }
+  ],
+  "official_reference": {
+    "mre_mm": 1.789,
+    "sdr_2mm_percent": 78.44,
+    "sdr_4mm_percent": 94.44
+  },
+  "result": "PASS",
+  "runtime": {
+    "elapsed_s": 10216.21,
+    "machine": "Linux-6.17.0-1022-azure-x86_64-with-glibc2.39",
+    "max_rss_mb": 1681.27,
+    "onnxruntime": "1.18.0",
+    "python": "3.11.16",
+    "threads": 4,
+    "torch": "2.3.0+cpu"
+  },
+  "selection": {
+    "best_epoch": 24,
+    "best_validation": {
+      "all29": {
+        "mre_mm": 1.325857,
+        "sdr_percent": {
+          "2.0": 81.7931,
+          "2.5": 88.3448,
+          "3.0": 92.2759,
+          "4.0": 96.1839
+        },
+        "std_mm": 1.283888
+      },
+      "beats_official_reference": true,
+      "dc20": {
+        "mre_mm": 1.204227,
+        "sdr_percent": {
+          "2.0": 85.1333,
+          "2.5": 90.8667,
+          "3.0": 94.1333,
+          "4.0": 97.3333
+        },
+        "std_mm": 1.164925
+      },
+      "official_reference": {
+        "mre_mm": 1.789,
+        "sdr_2mm_percent": 78.44
+      },
+      "per_landmark_mre_mm": {
+        "A-point": 1.119276,
+        "Anterior Nasal Spine": 1.537675,
+        "Articulare": 1.648597,
+        "B-point": 0.998791,
+        "Condylion": 2.115727,
+        "Gnathion": 0.740602,
+        "Gonion": 1.69983,
+        "Labrale inferius": 0.95766,
+        "Labrale superius": 0.780408,
+        "Lower 2nd PM Cusp Tip": 1.573479,
+        "Lower Incisor Apex": 1.44701,
+        "Lower Incisor Tip": 1.074384,
+        "Lower Molar Cusp Tip": 1.636243,
+        "Menton": 0.647428,
+        "Nasion": 1.240125,
+        "Orbitale": 1.487482,
+        "Pogonion": 0.945545,
+        "Porion": 1.998911,
+        "Posterior Nasal Spine": 1.781554,
+        "Pronasale": 0.83216,
+        "Ramus": 2.098275,
+        "Sella": 0.932112,
+        "Soft Tissue Nasion": 1.021163,
+        "Soft Tissue Pogonion": 1.093529,
+        "Subnasale": 0.871326,
+        "Upper 2nd PM Cusp Tip": 1.688104,
+        "Upper Incisor Apex": 1.514573,
+        "Upper Incisor Tip": 0.995535,
+        "Upper Molar Cusp Tip": 1.972343
+      }
+    },
+    "pretest_gate": {
+      "max_mre_mm": 2.5,
+      "min_sdr_2mm_percent": 60.0
+    },
+    "pretest_pass": true,
+    "test_loaded_once": true
+  },
+  "source_head": "c505cf0e3815049dbb6e7eb930c62f7bc4a2b293",
+  "status": "PUBLIC_REFERENCE_PASS_NOT_CLINICAL",
+  "test": {
+    "all29": {
+      "mre_mm": 1.369337,
+      "sdr_percent": {
+        "2.0": 80.1839,
+        "2.5": 87.1264,
+        "3.0": 90.9655,
+        "4.0": 95.6782
+      },
+      "std_mm": 1.460186
+    },
+    "beats_official_reference": true,
+    "dc20": {
+      "mre_mm": 1.232893,
+      "sdr_percent": {
+        "2.0": 83.1333,
+        "2.5": 89.3,
+        "3.0": 92.8667,
+        "4.0": 97.2667
+      },
+      "std_mm": 1.263758
+    },
+    "official_reference": {
+      "mre_mm": 1.789,
+      "sdr_2mm_percent": 78.44
+    },
+    "per_landmark_mre_mm": {
+      "A-point": 1.159497,
+      "Anterior Nasal Spine": 1.465763,
+      "Articulare": 1.913405,
+      "B-point": 1.07521,
+      "Condylion": 2.175758,
+      "Gnathion": 0.689236,
+      "Gonion": 1.760758,
+      "Labrale inferius": 1.127611,
+      "Labrale superius": 0.893105,
+      "Lower 2nd PM Cusp Tip": 1.794986,
+      "Lower Incisor Apex": 1.526459,
+      "Lower Incisor Tip": 1.004766,
+      "Lower Molar Cusp Tip": 1.538076,
+      "Menton": 0.632619,
+      "Nasion": 1.201299,
+      "Orbitale": 1.607633,
+      "Pogonion": 0.776279,
+      "Porion": 2.107578,
+      "Posterior Nasal Spine": 1.77386,
+      "Pronasale": 0.763678,
+      "Ramus": 2.56982,
+      "Sella": 0.86302,
+      "Soft Tissue Nasion": 1.176891,
+      "Soft Tissue Pogonion": 1.207205,
+      "Subnasale": 0.864315,
+      "Upper 2nd PM Cusp Tip": 1.81081,
+      "Upper Incisor Apex": 1.40815,
+      "Upper Incisor Tip": 1.124197,
+      "Upper Molar Cusp Tip": 1.698776
+    }
+  }
+}
