@@ -101,3 +101,88 @@
     background-color: var(--card-bg) !important;
   }
 }
+
+/* M6-G1 — Proprietary clinical motif: abstract nodal network + dental-arch curves. */
+:is(
+  [data-dc-mobile-shell],
+  [data-mobile-context],
+  [data-m4a-context],
+  [data-m4b-context],
+  [data-m4c-context],
+  [data-m4d-context]
+) {
+  position: relative;
+  isolation: isolate;
+}
+
+:is(
+  [data-dc-mobile-shell],
+  [data-mobile-context],
+  [data-m4a-context],
+  [data-m4b-context],
+  [data-m4c-context],
+  [data-m4d-context]
+)::before {
+  --dc-clinical-motif-ready: 1;
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  opacity: 0.34;
+  background-image:
+    radial-gradient(circle at 7px 7px, color-mix(in srgb, var(--primary) 28%, transparent) 1.15px, transparent 1.5px),
+    linear-gradient(32deg, transparent 49.7%, color-mix(in srgb, var(--primary) 8%, transparent) 49.9%, color-mix(in srgb, var(--primary) 8%, transparent) 50.1%, transparent 50.3%),
+    linear-gradient(148deg, transparent 49.7%, color-mix(in srgb, var(--accent) 7%, transparent) 49.9%, color-mix(in srgb, var(--accent) 7%, transparent) 50.1%, transparent 50.3%),
+    radial-gradient(ellipse 74% 34% at 50% -5%, transparent 76%, color-mix(in srgb, var(--primary) 12%, transparent) 76.5%, transparent 77.3%),
+    radial-gradient(ellipse 70% 31% at 50% 104%, transparent 76%, color-mix(in srgb, var(--accent) 10%, transparent) 76.5%, transparent 77.3%);
+  background-size:
+    52px 52px,
+    104px 90px,
+    104px 90px,
+    100% 58%,
+    100% 58%;
+  background-position:
+    0 0,
+    0 0,
+    52px 0,
+    center top,
+    center bottom;
+  background-repeat: repeat, repeat, repeat, no-repeat, no-repeat;
+  -webkit-mask-image: linear-gradient(to bottom, rgba(0, 0, 0, 0.72), rgba(0, 0, 0, 0.32) 72%, rgba(0, 0, 0, 0.12));
+  mask-image: linear-gradient(to bottom, rgba(0, 0, 0, 0.72), rgba(0, 0, 0, 0.32) 72%, rgba(0, 0, 0, 0.12));
+}
+
+:is(
+  [data-mobile-context],
+  [data-m4a-context],
+  [data-m4b-context],
+  [data-m4c-context],
+  [data-m4d-context]
+)::before {
+  opacity: 0.20;
+}
+
+[data-theme='high-contrast'] :is(
+  [data-dc-mobile-shell],
+  [data-mobile-context],
+  [data-m4a-context],
+  [data-m4b-context],
+  [data-m4c-context],
+  [data-m4d-context]
+)::before {
+  display: none !important;
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  :is(
+    [data-dc-mobile-shell],
+    [data-mobile-context],
+    [data-m4a-context],
+    [data-m4b-context],
+    [data-m4c-context],
+    [data-m4d-context]
+  )::before {
+    opacity: 0.18;
+  }
+}
