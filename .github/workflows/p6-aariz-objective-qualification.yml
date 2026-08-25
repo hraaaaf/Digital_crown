@@ -1,0 +1,94 @@
+name: P6 Aariz Objective Qualification
+
+on:
+  push:
+    branches:
+      - portability/p6-scientific-assets-refresh
+    paths:
+      - scripts/p6_aariz_objective_qualification.py
+      - tests/test_p6_aariz_objective.py
+      - .github/workflows/p6-aariz-objective-qualification.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: p6-aariz-objective-qualification
+  cancel-in-progress: false
+
+jobs:
+  tiny-overfit-localization-objective:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - name: Checkout exact research HEAD
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install pinned CPU qualification stack
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pip install --upgrade pip
+          python -m pip install \
+            --index-url https://download.pytorch.org/whl/cpu \
+            "torch==2.3.0+cpu"
+          python -m pip install \
+            "numpy==1.26.4" \
+            "Pillow==10.4.0" \
+            "pytest==8.3.2"
+
+      - name: Unit-test objective before dataset download
+        run: python -m pytest tests/test_p6_aariz_objective.py tests/test_p6_ceph_aariz_data.py tests/test_p6_ceph_train_contract.py -q
+
+      - name: Download and hash exact Aariz v1
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p p6-aariz-objective/work p6-aariz-objective/evidence
+          curl --fail --location --retry 3 --retry-delay 5 \
+            --output p6-aariz-objective/work/Aariz.zip \
+            https://figshare.com/ndownloader/files/51041642
+          echo "d9fa872b36065dac9615cfcad0c7512c450fe2d86a1839cdec4cbe001def33ea  p6-aariz-objective/work/Aariz.zip" | sha256sum -c -
+
+      - name: Safely extract and verify real schema
+        run: >-
+          python scripts/p6_aariz_ingestion_probe.py
+          --zip p6-aariz-objective/work/Aariz.zip
+          --extract-dir p6-aariz-objective/work/extracted
+          --output p6-aariz-objective/evidence/ingestion_manifest.json
+
+      - name: Run eight-image tiny-overfit gate
+        run: >-
+          python scripts/p6_aariz_objective_qualification.py
+          --extracted-dir p6-aariz-objective/work/extracted
+          --output p6-aariz-objective/evidence/objective_qualification.json
+          --samples 8
+          --epochs 20
+
+      - name: Prove product tree stayed untouched
+        shell: bash
+        run: |
+          set -euo pipefail
+          git diff --exit-code -- backend frontend
+          git status --short
+
+      - name: Remove all source radiographs and annotations
+        if: always()
+        run: rm -rf p6-aariz-objective/work
+
+      - name: Upload compact evidence only
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: p6-aariz-objective-qualification
+          path: p6-aariz-objective/evidence
+          if-no-files-found: warn
+          retention-days: 14
