@@ -32,13 +32,24 @@ jobs:
 
       - name: Assert frozen product baseline
         run: |
-          test "$(git rev-parse HEAD^)" = "$PRODUCT_HEAD"
-          test "$(git diff --name-only "$PRODUCT_HEAD"..HEAD | sort)" = "$(printf '%s\n' \
-            .audit/mobile-m4-final-before.html \
-            .audit/mobile-m4-final-before.mjs \
-            .audit/mobile-m4-final-before.tsx \
-            .github/workflows/mobile-m4-final-before.yml \
-            backend/tests/test_mobile_m4_final_matrix_audit.py | sort)"
+          test "$(git merge-base "$PRODUCT_HEAD" HEAD)" = "$PRODUCT_HEAD"
+          python - <<'PY'
+          import os, subprocess
+          product = os.environ['PRODUCT_HEAD']
+          expected = {
+              '.audit/mobile-m4-final-before.html',
+              '.audit/mobile-m4-final-before.mjs',
+              '.audit/mobile-m4-final-before.tsx',
+              '.audit/mobile-m4-final-goal.md',
+              '.audit/mobile-m4-final-mockup.svg',
+              '.github/workflows/mobile-m4-final-before.yml',
+              'backend/tests/test_mobile_m4_final_matrix_audit.py',
+          }
+          changed = set(subprocess.check_output(['git', 'diff', '--name-only', f'{product}..HEAD'], text=True).splitlines())
+          if changed != expected:
+              raise SystemExit(f'Unexpected final-M4 audit scope: {sorted(changed ^ expected)}')
+          print('Frozen M4 product baseline + exact audit scope PASS')
+          PY
 
       - uses: actions/setup-node@v4
         with:
@@ -88,6 +99,7 @@ jobs:
       - name: Record evidence metadata
         if: always()
         run: |
+          mkdir -p frontend/mobile-m4-final-before-artifacts
           cat > frontend/mobile-m4-final-before-artifacts/metadata.txt <<EOF_META
           chantier=Digital Crown Mobile Full Experience
           lot=M4 final resource error-return-expiry matrix BEFORE
