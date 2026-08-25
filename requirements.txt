@@ -24,6 +24,9 @@ cryptography
 httpx
 sentry-sdk[fastapi]
 
+# --- Local mobile Web Push ---
+pywebpush==2.4.0
+
 # --- Config & Registry ---
 PyYAML==6.0.3
 markdown

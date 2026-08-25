@@ -121,3 +121,9 @@ clinics.router.include_router(clinic_setup_p4.router)
 from . import mobile as mobile
 from . import mobile_resource_bridge as mobile_resource_bridge
 mobile.router.include_router(mobile_resource_bridge.router)
+
+# M6-D2 registers the device/user-bound Web Push table before create_all(), mounts the
+# push API under /api/mobile and keeps LAN URLs aligned with the selected HTTPS runtime.
+from . import mobile_push as mobile_push
+mobile_push.install_secure_lan_url_overrides()
+mobile.router.include_router(mobile_push.router)
