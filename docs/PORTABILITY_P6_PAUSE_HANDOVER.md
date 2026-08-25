@@ -52,5 +52,16 @@ Success criteria:
 4. Prefer ONNX Runtime CPU-compatible assets when scientific quality is equivalent or superior, because this avoids shipping the full PyTorch runtime.
 5. Produce a recommended minimal asset set for P6 and a separate Cephalometry NextGen benchmark set.
 
+## Research checkpoint
+Canonical matrix and decisions: `docs/P6_SCIENTIFIC_ASSET_REFRESH.md`.
+
+Current result:
+- CephLD-CCA legacy is not accepted as the default shipped P6 path: GPL-3.0 code, PyTorch footprint, 19-landmark scope, and a source-level `cuda:0` hard-code create material distribution/portability risk.
+- Official `szuboy/CL-Detection2023` Apache-2.0 38-landmark UNet is the primary cephalometry benchmark candidate for a research-only ONNX export/parity test; it is not yet a certified clinical replacement.
+- The official CL pretrained weight is linked externally by upstream. A public GitHub mirror inspected during this research contains the code but no `.pt` checkpoint, so it is not used as an unverified weight source.
+- No researched panoramic candidate currently clears all gates at once: permissive/commercially usable terms, dedicated tooth/FDI semantics, compact CPU runtime, retrievable weights, and adequate evidence.
+- Current `panoramic_model.onnx` provenance remains unresolved and must not be rehosted until provenance/redistribution rights are established.
+- No scientific weight has been uploaded during this checkpoint and no product inference code has changed.
+
 ## Exact resume sequence
-Scientific-assets research -> choose/recover asset set -> store only in `hraaaaf/DigitalCrown-assets` private -> record SHA256/provenance/license -> update P6 manifest/workflow if needed -> move PR #242 to the fully prepared candidate -> one heavy Windows packaging run -> installer artifact + smoke + signing status -> P6 closeout only if all observable gates pass.
+Scientific-assets research -> qualify/recover asset set -> store only assets whose redistribution is established in `hraaaaf/DigitalCrown-assets` private -> record SHA256/provenance/license -> update P6 manifest/workflow if needed -> move PR #242 to the fully prepared candidate -> one heavy Windows packaging run -> installer artifact + smoke + signing status -> P6 closeout only if all observable gates pass.
