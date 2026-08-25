@@ -20,17 +20,17 @@ let getCount = 0;
 let resolveStaleGet: ((response: Response) => void) | null = null;
 const mobileFetchMock = vi.fn();
 
-vi.mock('../src/services/zka/MobileStorage', () => ({
+vi.mock('../services/zka/MobileStorage', () => ({
   MobileStorage: {
     getCredentials: vi.fn(async () => creds),
   },
 }));
 
-vi.mock('../src/services/zka/mobileFetch', () => ({
+vi.mock('../services/zka/mobileFetch', () => ({
   mobileFetch: (...args: unknown[]) => mobileFetchMock(...args),
 }));
 
-import { MobileNotificationCenter } from '../src/features/mobile/Dashboard/components/MobileNotificationCenter';
+import { MobileNotificationCenter } from '../features/mobile/Dashboard/components/MobileNotificationCenter';
 
 function jsonResponse(payload: unknown): Response {
   return new Response(JSON.stringify(payload), {
@@ -75,7 +75,7 @@ describe('M6-D1 notification center diagnostic', () => {
     await user.click(bell);
     expect(resolveStaleGet).not.toBeNull();
 
-    await user.click(await screen.findAllByRole('button', { name: 'Lu' }).then(items => items[0]));
+    await user.click((await screen.findAllByRole('button', { name: 'Lu' }))[0]);
     await screen.findByText('1 non lue');
 
     resolveStaleGet?.(jsonResponse({ total: 2, alerts: initialAlerts }));
