@@ -63,6 +63,7 @@ jobs:
           grep -q 'prefers-reduced-transparency' frontend/src/styles/mobileGlassSystem.css
           grep -q "data-theme='high-contrast'" frontend/src/styles/mobileGlassSystem.css
           ! grep -q 'bg-primary\\/' frontend/src/styles/mobileGlassSystem.css
+          ! grep -q 'background-attachment' frontend/src/styles/mobileGlassSystem.css
 
       - name: Setup Node 20
         uses: actions/setup-node@v4
