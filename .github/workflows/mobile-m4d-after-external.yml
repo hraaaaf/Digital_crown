@@ -1,0 +1,109 @@
+name: Mobile M4-D RDV AFTER External
+
+on:
+  push:
+    branches:
+      - audit/mobile-m4d-rdv-before-20260825
+    paths:
+      - '.audit/mobile-m4d-after-trigger.txt'
+
+permissions:
+  contents: read
+
+jobs:
+  after:
+    name: M4-D RDV exact-head AFTER external
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout exact product branch
+        uses: actions/checkout@v4
+        with:
+          ref: mobile/m4d-rdv-context
+          path: product
+
+      - name: Record exact product HEAD
+        working-directory: product
+        run: |
+          PRODUCT_HEAD=$(git rev-parse HEAD)
+          echo "PRODUCT_HEAD=$PRODUCT_HEAD" >> "$GITHUB_ENV"
+          test "$(git rev-list --count origin/master..HEAD)" = "1"
+
+      - name: Checkout audit evidence source
+        uses: actions/checkout@v4
+        with:
+          ref: audit/mobile-m4d-rdv-before-20260825
+          path: audit
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: product/frontend/package-lock.json
+
+      - name: Install frontend and Chromium
+        working-directory: product/frontend
+        run: |
+          npm ci
+          npm install --no-save --package-lock=false --ignore-scripts playwright@1.62.1
+          npx playwright install --with-deps chromium
+
+      - name: Materialize M4-D AFTER harness
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import re
+          source = Path('audit/.audit/mobile-m4d-after-scenario.yml').read_text()
+          for target in ['mobile-m4d-after.html', 'src/mobile-m4d-after.tsx', 'mobile-m4d-after.mjs']:
+              pattern = rf"cat > {re.escape(target)} <<'EOF'\n(.*?)\n    EOF"
+              match = re.search(pattern, source, re.S)
+              if not match:
+                  raise SystemExit(f'M4-D AFTER block missing: {target}')
+              lines = [line[10:] if line.startswith('          ') else line for line in match.group(1).splitlines()]
+              destination = Path('product/frontend') / target
+              destination.parent.mkdir(parents=True, exist_ok=True)
+              destination.write_text('\n'.join(lines) + '\n')
+          PY
+
+      - name: Capture exact-head M4-D AFTER
+        working-directory: product/frontend
+        run: EXACT_HEAD="$PRODUCT_HEAD" node mobile-m4d-after.mjs
+
+      - name: Assert exact-head and onboarding truth
+        working-directory: product
+        run: |
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          report = json.loads(Path('frontend/mobile-m4d-after-artifacts/report.json').read_text())
+          assert report['exactHead'] == os.environ['PRODUCT_HEAD']
+          assert report['count'] == 8
+          assert report['exactAppointmentEveryAgendaView'] is True
+          assert report['qrReady'] is True
+          assert report['mobileAppointmentReady'] is True
+          assert report['noUnexpectedErrors'] is True
+          assert report['noHorizontalOverflow'] is True
+          assert report['m4dControlsAtLeast44'] is True
+          source = Path('frontend/src/features/mobile/Onboarding/OnboardingScanner.tsx').read_text()
+          assert "return { route: BRIDGE_ROUTES.context, label: BRIDGE_LABELS.context, context };" not in source
+          assert "payload.label.trim()" in source and "label: resourceLabel" in source
+          print('M4-D exact-head AFTER + onboarding label truth PASS')
+          PY
+          cat > frontend/mobile-m4d-after-artifacts/metadata.txt <<EOF_META
+          chantier=Digital Crown Mobile Full Experience
+          lot=M4-D Rendez-vous contextual bridge
+          product_head=${PRODUCT_HEAD}
+          desktop_viewports=1280x900
+          tablet_viewport=768x1024
+          mobile_viewports=390x844,430x932,768x1024
+          e2e=agenda-exact-rdv->opaque-bridge->exact-mobile-rdv
+          onboarding_label=dynamic-resource-label
+          deployment=none
+          EOF_META
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: mobile-m4d-rdv-after
+          path: product/frontend/mobile-m4d-after-artifacts/
+          if-no-files-found: error
+          retention-days: 14

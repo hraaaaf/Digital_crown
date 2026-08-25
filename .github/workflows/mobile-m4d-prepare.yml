@@ -1,14 +1,13 @@
 name: Prepare M4-D RDV Product
 
-# The workflow now exists on this branch; this commit is the single explicit trigger.
 on:
   push:
     branches:
       - audit/mobile-m4d-rdv-before-20260825
     paths:
       - '.audit/mobile-m4d-apply.py'
+      - '.audit/mobile-m4d-onboarding-fix.py'
       - '.audit/mobile-m4d-after-scenario.yml'
-      - '.audit/mobile-m4d-after-workflow.yml'
       - '.github/workflows/mobile-m4d-prepare.yml'
 
 permissions:
@@ -40,11 +39,11 @@ jobs:
       - name: Materialize exact M4-D product patch
         run: |
           python audit/.audit/mobile-m4d-apply.py product
-          mkdir -p product/.audit product/.github/workflows
+          python audit/.audit/mobile-m4d-onboarding-fix.py product
+          mkdir -p product/.audit
           cp audit/.audit/mobile-m4d-goal.md product/.audit/mobile-m4d-goal.md
           cp audit/.audit/mobile-m4d-mockup.svg product/.audit/mobile-m4d-mockup.svg
           cp audit/.audit/mobile-m4d-after-scenario.yml product/.audit/mobile-m4d-after-scenario.yml
-          cp audit/.audit/mobile-m4d-after-workflow.yml product/.github/workflows/mobile-m4d-after.yml
           sed -i 's/[[:space:]]\+$//' product/frontend/src/features/agenda/MonthlyView.tsx
 
       - name: Assert product diff scope before tests
@@ -58,19 +57,23 @@ jobs:
               '.audit/mobile-m4d-after-scenario.yml',
               '.audit/mobile-m4d-goal.md',
               '.audit/mobile-m4d-mockup.svg',
-              '.github/workflows/mobile-m4d-after.yml',
               'backend/routers/mobile_resource_bridge.py',
               'backend/tests/test_mobile_m4d_appointment_context.py',
               'frontend/src/features/agenda/AgendaModal.tsx',
               'frontend/src/features/agenda/AppointmentMobileBridge.tsx',
               'frontend/src/features/agenda/MonthlyView.tsx',
               'frontend/src/features/mobile/Context/MobileContext.tsx',
+              'frontend/src/features/mobile/Onboarding/OnboardingScanner.tsx',
           }
           changed = set(subprocess.check_output(['git','status','--short'], text=True).splitlines())
           paths = {line[3:] for line in changed}
           if paths != expected:
               raise SystemExit(f'Unexpected M4-D scope: {sorted(paths ^ expected)}')
           print('M4-D scope exact:', len(paths), 'files')
+          source = open('frontend/src/features/mobile/Onboarding/OnboardingScanner.tsx', encoding='utf-8').read()
+          assert "return { route: BRIDGE_ROUTES.context, label: BRIDGE_LABELS.context, context };" not in source
+          assert "payload.label.trim()" in source and "label: resourceLabel" in source
+          print('M4-D onboarding resource label truth PASS')
           PY
 
       - name: Setup Python 3.12
@@ -120,13 +123,13 @@ jobs:
             .audit/mobile-m4d-after-scenario.yml \
             .audit/mobile-m4d-goal.md \
             .audit/mobile-m4d-mockup.svg \
-            .github/workflows/mobile-m4d-after.yml \
             backend/routers/mobile_resource_bridge.py \
             backend/tests/test_mobile_m4d_appointment_context.py \
             frontend/src/features/agenda/AgendaModal.tsx \
             frontend/src/features/agenda/AppointmentMobileBridge.tsx \
             frontend/src/features/agenda/MonthlyView.tsx \
-            frontend/src/features/mobile/Context/MobileContext.tsx
+            frontend/src/features/mobile/Context/MobileContext.tsx \
+            frontend/src/features/mobile/Onboarding/OnboardingScanner.tsx
           git commit -m 'feat(mobile): add exact appointment contextual bridge'
           test "$(git rev-list --count master..HEAD)" = "1"
           git push origin HEAD:refs/heads/mobile/m4d-rdv-context
