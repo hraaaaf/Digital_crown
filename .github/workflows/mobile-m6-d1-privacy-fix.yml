@@ -68,15 +68,17 @@ jobs:
           python-version: "3.12"
           cache: pip
           cache-dependency-path: product/requirements.txt
-      - name: Install targeted backend dependencies
+      - name: Install explicit test environment
         working-directory: product
-        run: pip install -r requirements.txt
+        run: |
+          pip install -r requirements.txt
+          pip install pytest
       - name: Run M6-D1 backend tests
         working-directory: product
         env:
           ENVIRONMENT: test
           SECRET_KEY: test-secret-key-for-ci-only
-        run: pytest -q backend/tests/test_mobile_m6d_notifications.py
+        run: python -m pytest -q backend/tests/test_mobile_m6d_notifications.py
       - name: Setup Node 20
         uses: actions/setup-node@v4
         with:
@@ -87,7 +89,7 @@ jobs:
         working-directory: product/frontend
         run: |
           npm ci
-          npm test -- --run src/test/mobileM6D1Notifications.test.tsx
+          npx vitest run src/test/mobileM6D1Notifications.test.tsx
           npm run build
       - name: Verify exact scope
         working-directory: product
