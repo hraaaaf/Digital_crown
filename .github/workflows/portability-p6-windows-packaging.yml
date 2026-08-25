@@ -51,6 +51,12 @@ jobs:
       - name: Static packaging contract
         run: python scripts/p6_packaging_check.py --static
 
+      - name: Record scientific packaging policy
+        shell: pwsh
+        run: |
+          Write-Host "P6_SCIENTIFIC_PACKAGE_POLICY=FAIL_CLOSED_NO_WEIGHTS"
+          Write-Host "P6_UNQUALIFIED_SCIENTIFIC_WEIGHTS=FORBIDDEN"
+
       - name: Install frontend dependencies and build
         shell: pwsh
         run: |
