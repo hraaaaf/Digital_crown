@@ -65,7 +65,7 @@ jobs:
 
       - name: Train once with sealed test gate
         run: >-
-          python scripts/p6_ceph_unet29_public_train.py
+          python -m scripts.p6_ceph_unet29_public_train
           --source-head "$SOURCE_HEAD"
           --extracted-dir p6-training-work/extracted
           --output-dir "$OUT_DIR"
