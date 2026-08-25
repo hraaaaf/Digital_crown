@@ -52,7 +52,8 @@ describe('M4-A patient contextual mobile bridge', () => {
   });
 
   it('loads the patient only from the server-held context key', () => {
-    expect(contextSource).toContain('/api/mobile/resource-context');
+    expect(contextSource).toContain("request('resource-context', creds.access_token)");
+    expect(contextSource).toContain("/api/mobile/${path}");
     expect(contextSource).toContain('context_key: stored.key');
     expect(contextSource).not.toContain('/patients/${');
     expect(contextSource).toContain('has_medical_alert');

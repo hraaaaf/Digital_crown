@@ -189,3 +189,92 @@ jobs:
           path: frontend/mobile-m4a-after-artifacts/
           if-no-files-found: error
           retention-days: 14
+
+  m4b-e2e:
+    if: github.event_name == 'pull_request'
+    name: M4-B Panoramic contextual bridge AFTER
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout exact PR head
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+
+      - name: Record exact product HEAD
+        run: |
+          PRODUCT_HEAD=$(git rev-parse HEAD)
+          test "$PRODUCT_HEAD" = "${{ github.event.pull_request.head.sha }}"
+          echo "PRODUCT_HEAD=$PRODUCT_HEAD" >> "$GITHUB_ENV"
+
+      - name: Setup Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install frontend and Chromium
+        working-directory: frontend
+        run: |
+          npm ci
+          npm install --no-save --package-lock=false --ignore-scripts playwright@1.62.1
+          npx playwright install --with-deps chromium
+
+      - name: Materialize versioned M4-B AFTER harness
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import re
+          source = Path('.audit/mobile-m4b-after-scenario.yml').read_text()
+          for target in ['mobile-m4b-after.html', 'src/mobile-m4b-after.tsx', 'mobile-m4b-after.mjs']:
+              pattern = rf"cat > {re.escape(target)} <<'EOF'\n(.*?)\n    EOF"
+              match = re.search(pattern, source, re.S)
+              if not match:
+                  raise SystemExit(f'M4-B AFTER block missing: {target}')
+              lines = [line[10:] if line.startswith('          ') else line for line in match.group(1).splitlines()]
+              destination = Path('frontend') / target
+              destination.parent.mkdir(parents=True, exist_ok=True)
+              destination.write_text('\n'.join(lines) + '\n')
+          print('Versioned M4-B AFTER scenario extracted')
+          PY
+
+      - name: Capture exact-head M4-B AFTER
+        working-directory: frontend
+        env:
+          PRODUCT_HEAD: ${{ env.PRODUCT_HEAD }}
+        run: node mobile-m4b-after.mjs
+
+      - name: Assert M4-B report gates
+        working-directory: frontend
+        run: |
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          report = json.loads(Path('mobile-m4b-after-artifacts/report.json').read_text())
+          assert report['productHead'] == os.environ['PRODUCT_HEAD']
+          assert report['count'] == 7
+          assert report['safePairingBodies'] is True
+          assert report['trashEndpointAbsent'] is True
+          assert report['mobileContextCount'] == 3
+          assert report['idlessMobileRoute'] is True
+          assert report['noUnexpectedErrors'] is True
+          assert report['noHorizontalOverflow'] is True
+          assert report['noM4BTouchBelow44'] is True
+          print('M4-B exact-head visual PASS')
+          PY
+          cat > mobile-m4b-after-artifacts/metadata.txt <<EOF_META
+          chantier=Digital Crown Mobile Full Experience
+          lot=M4-B Panoramic contextual bridge
+          product_head=${PRODUCT_HEAD}
+          desktop_viewports=768x1024,1280x900
+          mobile_viewports=390x844,430x932,768x1024
+          flow=exact-panoramic-row->opaque-bridge->idless-mobile-context->protected-media
+          deployment=none
+          EOF_META
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: mobile-m4b-panoramic-after
+          path: frontend/mobile-m4b-after-artifacts/
+          if-no-files-found: error
+          retention-days: 14
