@@ -1,0 +1,69 @@
+name: Mobile M6-D2a Schema Audit
+
+on:
+  push:
+    branches:
+      - "audit/mobile-m6-d2a-schema-audit-20260825"
+    paths:
+      - ".github/workflows/mobile-m6-d2a-schema-audit.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Resolve Alembic graph and push schema truth
+        run: |
+          python - <<'PY'
+          import ast
+          from pathlib import Path
+
+          versions = Path('alembic/versions')
+          nodes = {}
+          paths = {}
+          for p in sorted(versions.glob('*.py')):
+              tree = ast.parse(p.read_text(encoding='utf-8'))
+              revision = None
+              down = None
+              for node in tree.body:
+                  if isinstance(node, (ast.Assign, ast.AnnAssign)):
+                      targets = node.targets if isinstance(node, ast.Assign) else [node.target]
+                      for target in targets:
+                          if isinstance(target, ast.Name) and target.id in {'revision', 'down_revision'}:
+                              try:
+                                  value = ast.literal_eval(node.value)
+                              except Exception:
+                                  value = None
+                              if target.id == 'revision': revision = value
+                              else: down = value
+              if revision:
+                  nodes[revision] = down
+                  paths[revision] = str(p)
+          referenced = set()
+          for down in nodes.values():
+              if isinstance(down, str): referenced.add(down)
+              elif isinstance(down, (list, tuple)): referenced.update(x for x in down if isinstance(x, str))
+          heads = sorted(set(nodes) - referenced)
+          print('ALEMBIC_HEADS=', heads)
+          for h in heads:
+              print('HEAD_FILE=', h, paths[h], 'DOWN=', nodes[h])
+          print('REVISION_COUNT=', len(nodes))
+
+          migration_hits = []
+          for p in sorted(versions.glob('*.py')):
+              text = p.read_text(encoding='utf-8')
+              if 'device_tokens' in text or 'mobile_paired_devices' in text or 'zka_pairing_tokens' in text:
+                  migration_hits.append(str(p))
+          print('PUSH_MIGRATION_HITS=', migration_hits)
+
+          for file in ['backend/models_platform.py','backend/routers/mobile_legacy.py','backend/services/push_service.py','backend/services/daily_scheduler.py']:
+              text = Path(file).read_text(encoding='utf-8')
+              print('FILE=', file,
+                    'DeviceToken=', 'DeviceToken' in text,
+                    'MobilePairedDevice=', 'MobilePairedDevice' in text,
+                    'send_push_to_employer=', 'send_push_to_employer' in text,
+                    'register-device=', 'register-device' in text)
+          PY
