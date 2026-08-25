@@ -138,7 +138,10 @@ Exploiter ce que le téléphone peut faire mieux :
 - **M6-G0 — Glass system mobile premium : CLOSED** — PR #249, HEAD certifié `d5c13f02233304c809984052ff518b1e78807a6a`, merge `1dd5de04602e3a0e4cdc97c690cabe1d06ea5d66`, closeout `docs/MOBILE_M6_G0_GLASS_SYSTEM_CLOSEOUT.md`, score visuel 9,4/10. Glass structurel sur onboarding/dashboard/contextes, CTA et inputs préservés, high-contrast opaque, reduced transparency et fallback sans backdrop-filter certifiés.
 - **M6-G1 — Motif clinique + bottom navigation premium : CLOSED** — PR #251, HEAD certifié `feb8bfc33b6385ed14dae9d1d5e56cb5edd53ae4`, merge `7544da907781de063037661b31b06f102370d5db`, closeout `docs/MOBILE_M6_G1_CLINICAL_MOTIF_NAV_CLOSEOUT.md`, score visuel 9,7/10. Motif nodal + courbes d'arcades abstraites, capsule active fluide, targets 52 px, `aria-current`, high-contrast et reduced-motion certifiés.
 
-Premier lot métier actif : **M6-A — Photo clinique contextuelle**, depuis le contexte Patient exact. Aucun changement produit n'est crédité tant que BEFORE → Goal → référence visuelle → AFTER n'est pas certifié.
+### Lots métier M6
+
+- **M6-A — Photo clinique contextuelle : CLOSED** — PR #252, HEAD certifié `24dcdc5543f68fd31b65a4facfa824f4a51cfbd8`, merge `5657ce7dfa529b39aaae2e562399938524bc43bd`, closeout `docs/MOBILE_M6_A_CLINICAL_PHOTO_CLOSEOUT.md`, score visuel 9,7/10. Capture/picker depuis le Patient exact, preview avant confirmation, upload lié au `context_key` sans `patient_id`, archivage `PHOTO_CLINIQUE`, validation réelle du média, limites 12 MiB / 50 MP, EXIF retiré et revalidation tenant/user/device/permission certifiés.
+- **M6-B — Scan de documents contextuel : ACTIVE (audit / BEFORE).** Direction de pré-audit : réutiliser `DocumentArchive` et le contexte Patient exact ; aucun Goal visuel ni changement produit n'est crédité avant les captures BEFORE obligatoires.
 
 ## Certification complète finale — pas un « M7 »
 
@@ -157,7 +160,7 @@ Après M6 :
 
 ## Ordre canonique restant
 
-1. Exécuter M6 Mobile-first réel, en commençant par M6-A Photo clinique contextuelle.
+1. Exécuter M6 Mobile-first réel à partir de M6-B Scan de documents contextuel, puis les autres capacités de la liste M6 selon dépendances et valeur mobile.
 2. Certification complète finale sur émulation + appareils physiques.
 3. Closeout global Mobile Full Experience.
 
