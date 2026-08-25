@@ -254,7 +254,7 @@ export const OnboardingScanner = () => {
 
   if (phase === 'welcome') {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center p-6 sm:p-8 font-outfit relative overflow-hidden" style={{ backgroundColor: '#f8fafc', color: '#0f172a' }}>
+      <div data-dc-mobile-shell className="min-h-screen flex flex-col items-center justify-center p-6 sm:p-8 font-outfit relative overflow-hidden" style={{ backgroundColor: '#f8fafc', color: '#0f172a' }}>
         <div className="document-watermark absolute inset-0 z-0 pointer-events-none" />
 
         <div className="z-10 w-full max-w-xs flex flex-col items-center">
@@ -363,7 +363,7 @@ export const OnboardingScanner = () => {
 
   if (phase === 'claiming') {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center gap-6 font-outfit relative" style={{ backgroundColor: '#f8fafc', color: '#0f172a' }}>
+      <div data-dc-mobile-shell className="min-h-screen flex flex-col items-center justify-center gap-6 font-outfit relative" style={{ backgroundColor: '#f8fafc', color: '#0f172a' }}>
         <div className="document-watermark absolute inset-0 z-0 pointer-events-none" />
         <Loader2 size={48} className="text-primary animate-spin z-10" />
         <p className="font-black text-text-muted text-sm uppercase tracking-widest z-10">Vérification en cours…</p>
@@ -373,7 +373,7 @@ export const OnboardingScanner = () => {
 
   if (phase === 'success') {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center gap-5 p-6 text-center font-outfit animate-in fade-in duration-500 relative" style={{ backgroundColor: 'var(--bg-medical-pearl)', color: 'var(--primary)' }}>
+      <div data-dc-mobile-shell className="min-h-screen flex flex-col items-center justify-center gap-5 p-6 text-center font-outfit animate-in fade-in duration-500 relative" style={{ backgroundColor: 'var(--bg-medical-pearl)', color: 'var(--primary)' }}>
         <div className="document-watermark absolute inset-0 z-0 pointer-events-none opacity-20" />
         <CheckCircle2 size={72} className="text-emerald-500 z-10" />
         <p className="font-black text-2xl tracking-tight z-10 text-emerald-600">Appairage réussi</p>
@@ -393,7 +393,7 @@ export const OnboardingScanner = () => {
     };
 
     return (
-      <div className="min-h-screen flex flex-col p-6 font-outfit relative" style={{ backgroundColor: '#f8fafc', color: '#0f172a' }}>
+      <div data-dc-mobile-shell className="min-h-screen flex flex-col p-6 font-outfit relative" style={{ backgroundColor: '#f8fafc', color: '#0f172a' }}>
         <div className="document-watermark absolute inset-0 z-0 pointer-events-none" />
         <div className="z-10 flex-1 flex flex-col max-w-xs mx-auto w-full justify-center">
           <div className="flex flex-col items-center mb-8">
@@ -444,7 +444,7 @@ export const OnboardingScanner = () => {
 
   if (phase === 'error') {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center p-8 gap-8 font-outfit relative" style={{ backgroundColor: '#f8fafc', color: '#0f172a' }}>
+      <div data-dc-mobile-shell className="min-h-screen flex flex-col items-center justify-center p-8 gap-8 font-outfit relative" style={{ backgroundColor: '#f8fafc', color: '#0f172a' }}>
         <div className="document-watermark absolute inset-0 z-0 pointer-events-none" />
         <div className="z-10 flex flex-col items-center">
           <div className="w-20 h-20 rounded-3xl bg-rose-500/10 border border-rose-500/20 flex items-center justify-center mb-6">
@@ -467,7 +467,7 @@ export const OnboardingScanner = () => {
 
   if (phase === 'denied') {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center p-8 gap-8 font-outfit relative" style={{ backgroundColor: '#f8fafc', color: '#0f172a' }}>
+      <div data-dc-mobile-shell className="min-h-screen flex flex-col items-center justify-center p-8 gap-8 font-outfit relative" style={{ backgroundColor: '#f8fafc', color: '#0f172a' }}>
         <div className="document-watermark absolute inset-0 z-0 pointer-events-none" />
         <div className="z-10 flex flex-col items-center">
           <Camera size={48} className="text-rose-500 mb-6" />
@@ -489,7 +489,7 @@ export const OnboardingScanner = () => {
   }
 
   return (
-    <div className="min-h-screen p-6 flex flex-col font-outfit relative" style={{ backgroundColor: '#f8fafc', color: '#0f172a' }}>
+    <div data-dc-mobile-shell className="min-h-screen p-6 flex flex-col font-outfit relative" style={{ backgroundColor: '#f8fafc', color: '#0f172a' }}>
       <div className="document-watermark absolute inset-0 z-0 pointer-events-none" />
       <div className="z-10 flex-1 flex flex-col">
         <div className="flex items-center justify-center gap-3 mb-10 mt-4">
