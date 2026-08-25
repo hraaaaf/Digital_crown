@@ -37,8 +37,8 @@ Clinical mode remains fail-closed if the required model is unavailable.
 |---|---|---|---|---|---|
 | MonoHaru/CephLD-CCA | Cephalo 19 | GPL-3.0 repo | Existing architectural reference | Partial | REJECT by default for proprietary bundle |
 | szuboy/CL-Detection2023 | Cephalo 38 | Code Apache-2.0; challenge data restricted / annotations CC BY-NC 4.0 | Benchmark PASS; exact PT/ONNX hashes pinned | Tensor fit excellent | TECHNICAL BENCHMARK ONLY pending explicit rights clearance |
-| Aariz dataset | Cephalo 29 | Dataset CC BY 4.0 | 1000 cephalograms, 7 devices, 29 landmarks | 20/22 Digital Crown canonical points directly covered | PRIMARY CLEAN RETRAIN DATA ROUTE |
-| emad2001/DeLR-Cephalometric-ConvNeXtV2 | Cephalo 26 on Aariz | Pretrained checkpoint exists; model/checkpoint license provenance not yet sufficiently explicit | Published card reports MRE 1.073 mm | Potentially high | HOLD until code + checkpoint licensing is pinned |
+| Aariz dataset v1 | Cephalo 29 | Dataset CC BY 4.0 | Exact Figshare v1 asset pinned; 1000 cephalograms, 7 devices, 29 landmarks | 20/22 Digital Crown canonical points directly covered | PRIMARY CLEAN RETRAIN DATA ROUTE |
+| emad2001/DeLR-Cephalometric-ConvNeXtV2 | Cephalo 26 on Aariz | No explicit usable repository/checkpoint license pinned | Published card reports MRE 1.073 mm; checkpoint exists | Drops soft-tissue points required by Digital Crown | HOLD; not preferred over all-29 retrain |
 | liodon-ai/dental-panoramic-detector | Pano 3 pathology classes | CC-BY-NC-4.0 | ONNX ~10.6 MB | Caries/deep-caries merged | REJECT commercial |
 | OralGuard | Pano exact 4 classes | Repo/model card MIT, but trained with Ultralytics YOLOv8 and DENTEX | Benchmark PASS; detector-only ONNX exported | Exact 4-class semantic fit | TECHNICAL BENCHMARK ONLY; blocked by Ultralytics/DENTEX commercial gates absent written clearance |
 | abdubakr77/dental-xray-ai | Pano multi-stage | MIT repo but depends on Ultralytics | Not yet benchmarked | Strong semantic fit | NOT a clean escape from Ultralytics license gate |
@@ -54,6 +54,8 @@ Aariz provides 29 landmarks: 15 skeletal, 8 dental and 6 soft-tissue. Its datase
 - Dental: `U1i <- UIT`, `U1a <- UIA`, `L1i <- LIT`, `L1a <- LIA`
 - Soft tissue: `Prn <- Pn`, `Pog_soft <- Pog'`, `Sn`, `Ls`, `Li`
 
+Coverage: `20/22 = 90.9%` of the current canonical clinical points directly.
+
 ### Not directly provided — 2/22
 
 - `Occ_Ant`
@@ -67,6 +69,30 @@ Therefore:
 - No clinical-engine redesign is required for the 20 directly mapped points.
 - Automated Wits must remain unavailable/manual/fail-closed until an occlusal-plane derivation is separately defined and clinically validated.
 - This is not an automatic regression versus the current SOTA 38 mapping: the existing `SOTA_LANDMARKS_MAPPING` also does not emit `Occ_Ant` or `Occ_Post`.
+
+## Aariz dataset asset pin
+
+Official Figshare record:
+- Article ID: `27986417`
+- DOI/version: `10.6084/m9.figshare.27986417.v1`
+- Version: `1`
+- License: `CC BY 4.0`
+- File ID: `51041642`
+- File name: `Aariz.zip`
+- File size: `2,098,209,792 bytes`
+- Publisher-supplied/computed MD5: `e0bd645bca6759abdae4f199d841bda6`
+
+This pins the authoritative public dataset asset without pretending a SHA256 has already been independently computed. A local SHA256 remains a provenance gate when the dataset is actually ingested for training.
+
+## DeLR Aariz-26 checkpoint audit
+
+`emad2001/DeLR-Cephalometric-ConvNeXtV2` publishes a pretrained `checkpoints/Aariz_26/best_model.pt` and reports a reference MRE of 1.073 mm. It is **not promoted** for production use because:
+
+1. The current repository root exposes no clear `LICENSE` file, and its README license section does not establish a usable code/checkpoint redistribution license.
+2. The implementation explicitly selects the first 26 Aariz annotations and documents that it drops three soft-tissue landmarks: soft-tissue Nasion, soft-tissue Pogonion and Subnasale.
+3. Digital Crown clinically consumes `Pog_soft` and `Sn`; therefore the ready DeLR-26 checkpoint removes at least two points we actively use.
+
+Conclusion: even if its licensing were cleared later, the ready 26-point checkpoint is a worse semantic target than training/exporting **all 29 Aariz landmarks**.
 
 ## Portability benchmark — PASS
 
@@ -139,7 +165,7 @@ References:
 ### Aariz
 
 The data route is materially cleaner:
-- Figshare: `CC BY 4.0`
+- Figshare v1: `CC BY 4.0`, exact asset pinned above
 - Scientific Data paper: consent for open publication under CC-BY; dataset publicly available under CC-BY
 - 1000 cephalograms from 7 devices, 29 landmarks
 
@@ -153,9 +179,9 @@ The article's own publication license is separate from the dataset license; the 
 
 ### Cephalometry
 
-1. **Aariz CC-BY retrain route** — current best path toward a commercially clean proprietary asset. Train a permissively licensed architecture on the 29-point dataset, export ONNX, map 20 direct clinical points; keep Wits fail-closed until separately validated.
-2. **DeLR Aariz-26 checkpoint** — technically attractive ready-weight lead, but HOLD until the architecture/code/checkpoint license chain is explicit and compatible.
-3. **CL-Detection2023** — best current technical 38-point benchmark and adapter proof, but not commercially clean under the source-data restrictions without written clearance.
+1. **Aariz CC-BY all-29 retrain route** — current best path toward a commercially clean proprietary asset. Train a permissively licensed architecture on all 29 landmarks, export ONNX, map the 20 direct clinical points; keep Wits fail-closed until separately validated.
+2. **CL-Detection2023** — best current technical 38-point benchmark and adapter proof, but not commercially clean under the source-data restrictions without written clearance.
+3. **DeLR Aariz-26 checkpoint** — useful research reference, but lower semantic coverage than all-29 and no explicit usable code/checkpoint license pinned.
 4. **CephLD-CCA** — research/reference only by default because GPL-3.0.
 
 ### Panoramic
@@ -171,18 +197,20 @@ No inspected ready-to-use weight is currently certified as commercially clean fo
 
 - Do **not** copy CL-Detection2023 or OralGuard weights into `DigitalCrown-assets` as production assets at this stage.
 - Preserve both as technical/research benchmark evidence only.
-- Promote Aariz to the primary cephalometric **commercial-clean training-data route**.
+- Promote Aariz **all 29 landmarks** to the primary cephalometric commercial-clean training-data route.
+- Do not select the current DeLR-26 checkpoint as the default replacement.
 - Do not modify `CephaloEngine` clinical definitions to force compatibility with a candidate model.
 - Adapt the inference layer to the winning model, not the clinical geometry to an arbitrary published landmark count.
 
 ## Next exact
 
-1. Pin the exact Aariz dataset version, file manifest and hashes.
-2. Audit the Aariz/DeLR implementation license chain; if DeLR is not clean, choose a permissive architecture and train our own 29-point model.
+1. Select a permissively licensed all-29 training architecture and pin its source revision/licence before training.
+2. On first real Aariz ingestion, compute SHA256 for `Aariz.zip` and retain the Figshare v1 manifest + attribution.
 3. Define the 29 -> Digital Crown 20-point adapter contract and tests without changing clinical calculations.
-4. Build a non-PHI cephalometric golden benchmark for the 20 directly supported points and separately gate Wits.
-5. Search/train a panoramic candidate using data and architecture with an explicit commercial-compatible rights chain; keep OralGuard as benchmark only.
-6. After a candidate wins both technical and rights gates, place the pinned artifact + provenance + SHA256 in private `hraaaaf/DigitalCrown-assets` and resume P6 packaging.
+4. Train/export the all-29 candidate to ONNX and run Windows x64 + macOS ARM64 portability gates after the Linux proxy.
+5. Build a non-PHI cephalometric golden benchmark for the 20 directly supported points and separately gate Wits.
+6. Search/train a panoramic candidate using data and architecture with an explicit commercial-compatible rights chain; keep OralGuard as benchmark only.
+7. After a candidate wins both technical and rights gates, place the pinned artifact + provenance + SHA256 in private `hraaaaf/DigitalCrown-assets` and resume P6 packaging.
 
 ## Non-goals
 - No product model replacement during this research branch.
