@@ -45,7 +45,7 @@ jobs:
             "Pillow==10.4.0" \
             "pytest==8.3.2"
 
-      - name: Unit-test objective before dataset download
+      - name: Unit-test Q4 objective before dataset download
         run: python -m pytest tests/test_p6_aariz_objective.py tests/test_p6_ceph_aariz_data.py tests/test_p6_ceph_train_contract.py -q
 
       - name: Download and hash exact Aariz v1
@@ -65,13 +65,13 @@ jobs:
           --extract-dir p6-aariz-objective/work/extracted
           --output p6-aariz-objective/evidence/ingestion_manifest.json
 
-      - name: Run eight-image tiny-overfit gate
+      - name: Run Q4 eight-image tiny-overfit gate
         run: >-
           python scripts/p6_aariz_objective_qualification.py
           --extracted-dir p6-aariz-objective/work/extracted
           --output p6-aariz-objective/evidence/objective_qualification.json
           --samples 8
-          --epochs 20
+          --epochs 25
 
       - name: Prove product tree stayed untouched
         shell: bash
