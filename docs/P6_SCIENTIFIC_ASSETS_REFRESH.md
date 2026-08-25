@@ -1,210 +1,100 @@
 # P6 Scientific Assets Refresh
 
-Status: **ACTIVE — CEPH WINNER TECHNIQUE PROUVÉ; MENDELEY V3 FIRST-PARTY FERMÉ; RÉTENTION PRIVÉE BLOQUÉE PAR SECRET MANQUANT; FDI CLINIQUE PANO ENCORE OUVERT**.
+Status: **ACTIVE — CEPH TECHNIQUE FERMÉ; MENDELEY V3 FIRST-PARTY FERMÉ; RÉTENTION PRIVÉE ET FDI CLINIQUE PANO OUVERTS**.
 
-Ce sous-lot scientifique est un prérequis de Portability P6 (`Industrialized Windows packaging`). Il ne remplace pas P6 et ne crédite aucun EP Portability à lui seul.
+Ce sous-lot ne remplace pas Portability P6 et ne crédite aucun EP.
 
 ## Goal
 
-Remplacer les assets scientifiques historiques par des candidats dont provenance, droits, métriques, contrats runtime et comportement fail-closed sont démontrés, puis fournir à P6 un set réellement autorisé à packager.
+Fournir à P6 des assets scientifiques reproductibles, légalement utilisables, techniquement qualifiés, portables et fail-closed, sans transformer un benchmark en claim clinique.
 
-## Succès
+## Céphalométrie
 
-1. provenance + hashes exacts ;
-2. benchmark technique scellé ;
-3. contrat produit explicite et fail-closed ;
-4. chaîne de droits compatible avec un produit propriétaire commercial ;
-5. binaire gagnant retenu dans le repo privé ;
-6. portabilité Windows x64 + macOS ARM64 ;
-7. validation clinique séparée des métriques de benchmark ;
-8. aucune vérité FDI synthétisée géométriquement.
+Candidat sélectionné : `DC-Ceph-UNet29Q4 / Aariz v1`.
 
----
+- training `32876308676` — SUCCESS ;
+- evidence commit `1da113b8776aa2b57e42ac194f12b7a48b01558c` ;
+- dataset Aariz v1, DOI `10.6084/m9.figshare.27986417.v1`, CC BY 4.0 ;
+- dataset SHA256 `d9fa872b36065dac9615cfcad0c7512c450fe2d86a1839cdec4cbe001def33ea` ;
+- ONNX SHA256 `809f1d3d2347d2a34f57d4a3415bb319c29f8a25c325d41160e5f28d4e5dadad` ;
+- taille `7,624,307 bytes` ;
+- direct-20 held-out : MRE `1.232893 mm`, SDR2 `83.1333%`, SDR4 `97.2667%` ;
+- `clinical_claim=false` ;
+- `Occ_Ant`/`Occ_Post` non synthétisés ; Wits fail-closed.
 
-## Céphalométrie — candidat sélectionné
+Protocole clinique préparé : `docs/P6_CEPHALOMETRY_CLINICAL_VALIDATION_PROTOCOL.md`. Il n’est pas exécuté et ne constitue pas une certification clinique.
 
-### DC-Ceph-UNet29Q4 / Aariz v1
+## Binaire céphalo
 
-- dataset : Aariz v1, DOI `10.6084/m9.figshare.27986417.v1`, CC BY 4.0 ;
-- dataset SHA256 : `d9fa872b36065dac9615cfcad0c7512c450fe2d86a1839cdec4cbe001def33ea` ;
-- training run : `32876308676` — **SUCCESS** ;
-- evidence commit : `1da113b8776aa2b57e42ac194f12b7a48b01558c` ;
-- meilleur epoch : `24` ;
-- modèle entraîné from scratch par Digital Crown ;
-- ONNX opset 17 ; input `[1,1,512,512]` ; output `[1,29,128,128]` ;
-- ONNX SHA256 : `809f1d3d2347d2a34f57d4a3415bb319c29f8a25c325d41160e5f28d4e5dadad` ;
-- taille : `7,624,307 bytes` ;
-- Linux ORT CPU median : `115.28 ms` ;
-- `clinical_claim=false`.
+La récupération exacte est prouvée sans réentraînement :
 
-### Held-out test
+- bridge `32911022192` — SUCCESS ;
+- bridge courant `32911633368` — SUCCESS ;
+- artifact `9586717545` ;
+- digest artifact `sha256:3ed73e3d39325d5b880e72264ac2a8a25996aa5eaef7bedd1a14b76d9b03ec55` ;
+- SHA et taille du modèle vérifiés avant upload.
 
-All-29 :
-- MRE `1.369337 mm` ;
-- SDR2 `80.1839%` ;
-- SDR4 `95.6782%`.
+## Rétention privée — OPEN / HUMAN GATE
 
-Digital Crown direct-20 :
-- MRE `1.232893 mm` ;
-- SDR2 `83.1333%` ;
-- SDR4 `97.2667%`.
+Cible : `hraaaaf/DigitalCrown-assets`, branche `training/p6-ceph-unet29`.
 
-Référence Aariz publiée utilisée comme benchmark : MRE `1.789 mm`, SDR2 `78.44%`, SDR4 `94.44%`.
+Run de transfert privé `32911260037` : FAILURE au premier gate avec `P6_ASSET_TOKEN secret missing`; aucune étape de transfert n’a exécuté de copie.
 
-### Contrat Digital Crown
+Le commit `efb56d3879a658d2db2afc99db09cfa5821a478d` a ensuite repurposé `.github/workflows/p6-ceph-winner-private-retention.yml` en bridge binaire sans secret. Son run `32911633368` est vert, mais il ne pousse rien dans le repo privé.
 
-`CephaloEngine` consomme 22 points canoniques :
-`S, N, Po, Or, A, B, Go, Me, U1i, U1a, L1i, L1a, Prn, Pog_soft, Sn, Ls, Li, Co, Gn, ANS, Occ_Ant, Occ_Post`.
+La rétention reste donc non prouvée. Après création de `P6_ASSET_TOKEN`, le run historique `32911260037` peut être rejoué et doit produire `P6_PRIVATE_RETENTION=OK` ainsi que le SHA privé exact.
 
-Aariz couvre directement 20/22. `Occ_Ant` et `Occ_Post` ne sont pas synthétisés. Wits reste manuel/fail-closed tant qu’une définition clinique séparée du plan occlusal n’est pas validée.
+## Panoramique — contrat Phase A
 
-Protocole clinique préparé : `docs/P6_CEPHALOMETRY_CLINICAL_VALIDATION_PROTOCOL.md`.
+Le produit doit automatiser **tooth localization + FDI enumeration**. La pathologie automatique reste hors scope Phase A ; la sémiologie clinique est praticien/déterministe.
 
----
+## Mendeley V3 — first-party truth
 
-## Récupération du binaire gagnant — PROUVÉE
+Dataset `73n3kz2k4k.3`, DOI `10.17632/73n3kz2k4k.3`, record CC BY 4.0.
 
-Le blob Git public existe mais le connecteur GitHub ne peut pas transférer ce binaire directement. La stratégie a donc été changée vers un bridge Actions public contrôlé.
-
-- workflow : `.github/workflows/p6-ceph-winner-transfer-bridge.yml` ;
-- run : `32911022192` — **SUCCESS** ;
-- le runner a checkout le commit gagnant exact ;
-- taille vérifiée : `7,624,307 bytes` ;
-- SHA256 vérifié : `809f1d3d2347d2a34f57d4a3415bb319c29f8a25c325d41160e5f28d4e5dadad` ;
-- handoff artifact temporaire : `9586526569`.
-
-Conclusion : le binaire exact est récupérable sans réentraînement.
-
----
-
-## Rétention privée — BLOQUÉE HUMAIN
-
-Repo cible : `hraaaaf/DigitalCrown-assets` — PRIVATE.
-Branche cible : `training/p6-ceph-unet29`.
-
-Workflow prêt : `.github/workflows/p6-ceph-winner-private-retention.yml`.
-
-Run `32911260037` : **FAILURE** au premier gate uniquement.
-
-Preuve exacte du log :
-
-`P6_ASSET_TOKEN secret missing`
-
-`GH_TOKEN` était vide. Toutes les étapes de checkout/clone/copie/commit privé ont été skipped.
-
-Le blocage n’est donc plus scientifique ni lié au binaire. Il manque le secret Actions `P6_ASSET_TOKEN` dans `hraaaaf/Digital_crown`, avec accès minimal au repo privé `hraaaaf/DigitalCrown-assets`.
-
-Aucune rétention privée n’est créditée avant un run montrant `P6_PRIVATE_RETENTION=OK` et le SHA privé exact.
-
----
-
-## Panoramique — contrat produit
-
-La route produit active doit restaurer **tooth localization + FDI enumeration**. La sémiologie/pathologie automatique n’est pas requise pour Phase A ; les findings cliniques restent praticien/déterministes.
-
-Le legacy `detect_teeth_only()` s’appuie sur un modèle de pathologies puis infère FDI géométriquement. Cette architecture est dette technique et ne constitue pas la cible scientifique.
-
----
-
-## Mendeley V3 `73n3kz2k4k.3` — FIRST-PARTY FERMÉ
-
-DOI : `10.17632/73n3kz2k4k.3`.
-Record : CC BY 4.0.
-
-### Probe exact
-
-- inventaire run `32910249394` — SUCCESS ;
-- sémantique run `32910743873` — SUCCESS ;
-- 111 fichiers ;
-- `84,254,649` octets téléchargés ;
-- 107 entrées image dans `annotations.json` ;
-- 25 images avec régions ;
-- 772 régions ;
-- polygons 676 ; polylines 96 ;
-- `annotations.json` SHA256 `b6de2c396cb76758227562798141a00fb5d769f9d8f9eb3919470f4ff23578bd`.
-
-### Vérité `Teeth`
-
-- 540 régions possèdent l’attribut `Teeth` ;
-- les **540 valeurs exactes sont `""`** ;
-- 0 token dentaire ;
-- 0 code FDI ;
-- 0 région FDI ;
-- `source_fdi_labels_present=false` ;
+- inventaire `32910249394` — SUCCESS ;
+- sémantique `32910743873` — SUCCESS ;
+- 111 fichiers / `84,254,649` octets ;
+- 107 images metadata ; 25 annotées ; 772 régions ;
+- `annotations.json` SHA256 `b6de2c396cb76758227562798141a00fb5d769f9d8f9eb3919470f4ff23578bd` ;
+- 540 régions ont une clé `Teeth`; les 540 valeurs sont `""` ;
+- 0 code FDI ; 0 région FDI ;
 - `direct_fdi_ground_truth_ready=false`.
 
-L’ancien miroir public n’exposait que 3 images annotées : il était incomplet. La conclusion FDI reste toutefois confirmée, désormais par la source first-party exhaustive : **aucune vérité FDI source**.
+Le miroir ancien limité à trois images était incomplet. La source first-party confirme cependant plus fortement la même conclusion : **pas de vérité FDI source**.
 
-Preuve dédiée : `docs/P6_MENDELEY_V3_PROVENANCE_RESULT.md`.
+Les 107 images représentent **96 hashes uniques**, donc 11 doublons exacts. Les splits futurs doivent être groupés par SHA/source.
 
-### Déduplication
+Preuve : `docs/P6_MENDELEY_V3_PROVENANCE_RESULT.md`.
 
-Les 107 images représentent seulement **96 SHA256 uniques** : **11 doublons exacts**.
+Décision : Mendeley V3 est un candidat auxiliaire image/segmentation, pas un corpus direct-FDI.
 
-Tout futur split train/validation/test doit être groupé par SHA/source avant séparation afin d’éviter toute fuite inter-split.
+## Autres leads pano
 
-### Décision V3
+- Humans in the Loop : HOLD tant que droits upstream images non fermés.
+- AKUDENTAL : recherche-only, non-commercial.
+- Zhou dual-labeled : HOLD licence.
+- TL-pano : recherche-only non-commercial.
+- STS : HOLD droits.
+- Roboflow FDI : HOLD provenance.
 
-**ELIGIBLE AUXILIARY / IMAGE + SEGMENTATION SOURCE; NOT DIRECT-FDI GROUND TRUTH.**
+Aucun corpus direct-FDI n’est actuellement autorisé pour un entraînement commercial Digital Crown.
 
-Le dataset peut servir de pool d’images/segmentation sous ses droits, mais le FDI doit venir d’une annotation clinique traçable selon `docs/P6_PANORAMIC_FDI_ANNOTATION_PROTOCOL.md`.
+## Packaging P6
 
----
+PR `#242`, branche `portability/p6-windows-packaging-resume`, HEAD `90b1262cb13b22172d6d0d2f36aa6eb96d360cdf`.
+Candidat préparé `4501ad8d167c65a64e174d923e6f1d3a36b14399`.
 
-## Autres leads panoramiques
-
-- Humans in the Loop `5884500` : annotations CC0 prometteuses, mais chaîne de droits upstream images López `4457648` non suffisamment fermée → HOLD commercial.
-- AKUDENTAL : direct FDI mais CC BY-NC-SA 4.0 → recherche uniquement.
-- Zhou dual-labeled : FDI expert, licence dataset non fermée → HOLD.
-- TL-pano : non-commercial explicite → recherche uniquement.
-- STS-2D / STS-2024 : conflit/ambiguïté de droits → HOLD.
-- Roboflow Panoramic-Dental-Xray-FDI : page CC BY 4.0 mais provenance amont insuffisante → HOLD.
-
-Aucun de ces datasets n’est actuellement benchmark-authorized pour entraîner commercialement le modèle FDI Digital Crown.
-
----
-
-## Packaging P6 — dépendance scientifique encore ouverte
-
-PR packaging : `#242` — OPEN/DRAFT, mergeable.
-Branche : `portability/p6-windows-packaging-resume`.
-HEAD publié : `90b1262cb13b22172d6d0d2f36aa6eb96d360cdf`.
-Candidat préparé : `4501ad8d167c65a64e174d923e6f1d3a36b14399`.
-
-Le candidat corrige notamment `protobuf==5.29.6`, ajoute `pip check` et exige un repo scientifique privé.
-
-Mais `scripts/provision_p6_scientific_assets.py` exige encore le set legacy :
-- `backend/ai_models/panoramic_model.onnx` ;
-- `backend/ai_models/cephld_cca/ceph_weights.pth` ;
-- sources CephLD.
-
-Ce provisioner n’est donc **pas encore compatible avec le set scientifique final**. Le pousser et lancer le benchmark Windows maintenant serait prématuré et risquerait de réintroduire des poids legacy non qualifiés.
-
----
-
-## Décisions verrouillées
-
-- DC-Ceph-UNet29Q4 / Aariz v1 = gagnant technique céphalo.
-- Pas de claim clinique depuis le benchmark public.
-- Pas de synthèse `Occ_Ant`/`Occ_Post`; Wits fail-closed.
-- Binaire céphalo exact récupérable et vérifié.
-- Rétention privée bloquée uniquement par `P6_ASSET_TOKEN` absent.
-- Mendeley V3 = aucune vérité FDI source ; 25 images annotées/772 régions, pas 3.
-- 107 images V3 = 96 hashes uniques / 11 doublons exacts ; split futur groupé par SHA.
-- Panoramique Phase A = localisation/FDI uniquement.
-- Pas de modèle legacy réinjecté pour faire passer packaging.
-- Aucun heavy pano benchmark avant droits + annotations FDI + dedup/splits fermés.
-- Aucun Vercel.
+Ne pas lancer le heavy run : `provision_p6_scientific_assets.py` attend encore `panoramic_model.onnx` + `cephld_cca/ceph_weights.pth` legacy. Le provisioner doit être aligné sur le set final plutôt que nourri avec des poids historiques non prouvés.
 
 ## Next exact
 
-1. Human gate : ajouter le secret GitHub Actions `P6_ASSET_TOKEN` au repo produit, limité à `hraaaaf/DigitalCrown-assets` avec droits nécessaires au push privé.
-2. Rejouer le run de rétention et exiger `P6_PRIVATE_RETENTION=OK` + SHA privé exact.
-3. Figer le pool pano rights-cleared + dédupliqué et appliquer le protocole FDI clinique.
-4. Ensuite seulement : benchmark Phase A pano → portabilité Windows/macOS.
-5. Réconcilier le provisioner P6 avec les assets finaux.
-6. Lancer un seul heavy Windows packaging run lorsque toutes les gates sont réellement vertes.
+1. Créer `P6_ASSET_TOKEN` dans Actions secrets du repo produit, limité au repo privé assets ; ne pas le coller dans le chat.
+2. Rejouer `32911260037` et prouver rétention + SHA privé.
+3. Pool pano rights-cleared/dédupliqué → annotation FDI clinique selon `docs/P6_PANORAMIC_FDI_ANNOTATION_PROTOCOL.md`.
+4. Benchmark Phase A pano après droits/labels/splits fermés.
+5. Portabilité des assets finaux Windows/macOS.
+6. Réconcilier le provisioner.
+7. Un seul heavy Windows packaging run.
 
-## Portability EP
-
-P0–P5 = `65 EP` validés. P6 reste `0/8 EP`. Avancement canonique : **65/162 = 40,1 %**.
+Portability : **65/162 = 40,1 %**, P6 = **0/8 EP**. Aucun Vercel.
