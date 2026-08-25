@@ -8,7 +8,6 @@ on:
       - "DigitalCrown.spec"
       - "installer/**"
       - "scripts/p6_packaging_check.py"
-      - "scripts/provision_p6_scientific_assets.py"
       - "scripts/generate_windows_version_info.py"
       - "scripts/build_exe.py"
       - "backend/requirements.txt"
@@ -31,9 +30,6 @@ concurrency:
 env:
   PYTHON_VERSION: "3.12"
   NODE_VERSION: "20"
-  P6_ASSET_REPO: "hraaaaf/Digital_crown"
-  P6_ASSET_TAG: "p6-scientific-assets-v1"
-  P6_ASSET_NAME: "p6-scientific-assets-v1.zip"
 
 jobs:
   windows-package:
@@ -62,18 +58,10 @@ jobs:
           npm --prefix frontend run build
 
       - name: Install Python packaging toolchain
-        run: python -m pip install --no-cache-dir -r backend/requirements-p6-windows.txt
-
-      - name: Download scientific runtime bundle from this repository
         shell: pwsh
-        env:
-          GH_TOKEN: ${{ github.token }}
-          EXPECTED_SHA256: ${{ secrets.P6_SCIENTIFIC_BUNDLE_SHA256 }}
         run: |
-          if (-not $env:EXPECTED_SHA256) { throw "P6_SCIENTIFIC_BUNDLE_SHA256 secret missing" }
-          New-Item -ItemType Directory -Force .p6-assets | Out-Null
-          gh release download $env:P6_ASSET_TAG --repo $env:P6_ASSET_REPO --pattern $env:P6_ASSET_NAME --dir .p6-assets
-          python scripts/provision_p6_scientific_assets.py ".p6-assets/$env:P6_ASSET_NAME" --sha256 $env:EXPECTED_SHA256
+          python -m pip install --no-cache-dir -r backend/requirements-p6-windows.txt
+          python -m pip check
 
       - name: Generate Windows version metadata
         run: python scripts/generate_windows_version_info.py --output build/windows-version-info.txt

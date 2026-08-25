@@ -17,26 +17,50 @@ def _maybe_run_package_self_test() -> None:
         root / "backend" / "static" / "assets" / "fonts" / "Outfit-Bold.ttf",
         root / "backend" / "data" / "cephalometry" / "measurement_definitions.yaml",
         root / "backend" / "data" / "cephalometry" / "normative_profiles.yaml",
-        root / "backend" / "ai_models" / "panoramic_model.onnx",
-        root / "backend" / "ai_models" / "cephld_cca" / "ceph_weights.pth",
     ]
     missing = [str(path.relative_to(root)) for path in required if not path.exists()]
-    legacy_py = list((root / "backend" / "ai_models" / "cephld_cca").rglob("*.py"))
     forbidden = [
         root / ".env",
         root / "backend" / ".env",
         root / "backend" / "core" / "firebase_creds.json",
     ]
     leaked = [str(path.relative_to(root)) for path in forbidden if path.exists()]
-    if not legacy_py:
-        missing.append("backend/ai_models/cephld_cca/**/*.py")
+    unqualified_scientific_weights = [
+        root / "backend" / "ai_models" / "panoramic_model.onnx",
+        root / "backend" / "ai_models" / "cephld_cca" / "ceph_weights.pth",
+        root / "backend" / "ai_models" / "model.onnx",
+        root / "backend" / "ai_models" / "cephalometric_sota" / "model.onnx",
+    ]
+    scientific_weights_present = [
+        str(path.relative_to(root)) for path in unqualified_scientific_weights if path.exists()
+    ]
+
+    scientific_policy_ok = False
+    manifest_path = root / "backend" / "scientific_assets.json"
+    if manifest_path.exists():
+        try:
+            manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+            assets = {item["id"]: item for item in manifest["assets"]}
+            scientific_policy_ok = (
+                assets["cephalo_sota"]["lifecycle"] == "deferred"
+                and assets["cephalo_legacy"]["lifecycle"] == "external"
+                and assets["panoramic"]["lifecycle"] == "external"
+            )
+        except (KeyError, TypeError, ValueError, json.JSONDecodeError):
+            scientific_policy_ok = False
+
+    status_ok = not missing and not leaked and not scientific_weights_present and scientific_policy_ok
     payload = {
-        "status": "ok" if not missing and not leaked else "error",
+        "status": "ok" if status_ok else "error",
         "frozen": bool(getattr(sys, "frozen", False)),
         "version": (root / "VERSION").read_text(encoding="utf-8").strip() if (root / "VERSION").exists() else None,
         "missing": missing,
         "forbidden_present": leaked,
+        "unqualified_scientific_weights_present": scientific_weights_present,
+        "scientific_manifest_policy_ok": scientific_policy_ok,
+        "scientific_capabilities": "FAIL_CLOSED_NO_WEIGHTS",
     }
+    print("P6_SCIENTIFIC_CAPABILITIES=FAIL_CLOSED")
     print("P6_PACKAGE_SELF_TEST=" + json.dumps(payload, sort_keys=True))
     raise SystemExit(0 if payload["status"] == "ok" else 1)
 
