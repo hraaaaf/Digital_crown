@@ -12,6 +12,7 @@ import importlib.util
 import json
 import os
 import platform
+import re
 import resource
 import statistics
 import subprocess
@@ -66,13 +67,23 @@ def cpu_name() -> str:
     return platform.processor() or "unknown"
 
 
+def normalize_class_name(value: str) -> str:
+    """Normalize harmless label separators without weakening class semantics."""
+    return re.sub(r"\s+", " ", value.strip().lower().replace("_", " ").replace("-", " "))
+
+
+def write_json(path: Path, payload: dict[str, Any]) -> None:
+    path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+
+
+def save_progress(report: dict[str, Any]) -> None:
+    write_json(RESULT_DIR / "benchmark.partial.json", report)
+
+
 def download_url(url: str, path: Path) -> None:
     req = urllib.request.Request(url, headers={"User-Agent": "DigitalCrown-P6-benchmark/1.0"})
     with urllib.request.urlopen(req, timeout=120) as response, path.open("wb") as out:
-        while True:
-            chunk = response.read(1024 * 1024)
-            if not chunk:
-                break
+        for chunk in iter(lambda: response.read(1024 * 1024), b""):
             out.write(chunk)
 
 
@@ -81,10 +92,10 @@ def hf_revision(repo_id: str) -> str:
     req = urllib.request.Request(url, headers={"User-Agent": "DigitalCrown-P6-benchmark/1.0"})
     with urllib.request.urlopen(req, timeout=60) as response:
         payload = json.load(response)
-    rev = payload.get("sha")
-    if not isinstance(rev, str) or len(rev) < 12:
+    revision = payload.get("sha")
+    if not isinstance(revision, str) or len(revision) < 12:
         raise RuntimeError(f"Hugging Face revision unavailable for {repo_id}")
-    return rev
+    return revision
 
 
 def clone_pinned(url: str, sha: str, dest: Path) -> None:
@@ -95,29 +106,36 @@ def clone_pinned(url: str, sha: str, dest: Path) -> None:
         raise RuntimeError(f"Git pin mismatch: expected {sha}, got {actual}")
 
 
-def benchmark_ort(path: Path, input_shape: list[int], iterations: int = 10, warmups: int = 3) -> dict[str, Any]:
-    opts = ort.SessionOptions()
-    opts.graph_optimization_level = ort.GraphOptimizationLevel.ORT_ENABLE_ALL
+def benchmark_ort(
+    path: Path,
+    input_shape: list[int],
+    iterations: int = 10,
+    warmups: int = 3,
+) -> dict[str, Any]:
+    options = ort.SessionOptions()
+    options.graph_optimization_level = ort.GraphOptimizationLevel.ORT_ENABLE_ALL
 
-    t0 = time.perf_counter()
-    session = ort.InferenceSession(str(path), sess_options=opts, providers=["CPUExecutionProvider"])
-    cold_load_ms = (time.perf_counter() - t0) * 1000.0
-
+    started = time.perf_counter()
+    session = ort.InferenceSession(
+        str(path),
+        sess_options=options,
+        providers=["CPUExecutionProvider"],
+    )
+    cold_load_ms = (time.perf_counter() - started) * 1000.0
     if session.get_providers() != ["CPUExecutionProvider"]:
         raise RuntimeError(f"Unexpected ORT providers: {session.get_providers()}")
 
     input_meta = session.get_inputs()[0]
-    x = np.random.default_rng(20260825).random(input_shape, dtype=np.float32)
-
+    tensor = np.random.default_rng(20260825).random(input_shape, dtype=np.float32)
     for _ in range(warmups):
-        session.run(None, {input_meta.name: x})
+        session.run(None, {input_meta.name: tensor})
 
-    times_ms = []
-    outputs = None
+    times_ms: list[float] = []
+    outputs: list[np.ndarray] = []
     for _ in range(iterations):
-        t = time.perf_counter()
-        outputs = session.run(None, {input_meta.name: x})
-        times_ms.append((time.perf_counter() - t) * 1000.0)
+        started = time.perf_counter()
+        outputs = session.run(None, {input_meta.name: tensor})
+        times_ms.append((time.perf_counter() - started) * 1000.0)
 
     return {
         "provider": session.get_providers(),
@@ -129,16 +147,12 @@ def benchmark_ort(path: Path, input_shape: list[int], iterations: int = 10, warm
             "min": round(min(times_ms), 2),
             "max": round(max(times_ms), 2),
         },
-        "input": {
-            "name": input_meta.name,
-            "shape": input_meta.shape,
-            "type": input_meta.type,
-        },
+        "input": {"name": input_meta.name, "shape": input_meta.shape, "type": input_meta.type},
         "outputs": [
             {"name": meta.name, "shape": meta.shape, "type": meta.type}
             for meta in session.get_outputs()
         ],
-        "runtime_output_shapes": [list(np.asarray(out).shape) for out in (outputs or [])],
+        "runtime_output_shapes": [list(np.asarray(output).shape) for output in outputs],
     }
 
 
@@ -159,9 +173,7 @@ def load_cl_model(repo: Path, weight: Path) -> torch.nn.Module:
 
     final_weight = state.get("out_tr.final_conv.weight")
     if final_weight is None or tuple(final_weight.shape[:1]) != (38,):
-        raise RuntimeError(
-            "CL checkpoint does not prove the expected 38-channel final layer"
-        )
+        raise RuntimeError("CL checkpoint does not prove the expected 38-channel final layer")
     return model
 
 
@@ -169,8 +181,8 @@ def onnx_opsets(path: Path) -> list[dict[str, Any]]:
     model = onnx.load(str(path))
     onnx.checker.check_model(model)
     return [
-        {"domain": imp.domain or "ai.onnx", "version": int(imp.version)}
-        for imp in model.opset_import
+        {"domain": item.domain or "ai.onnx", "version": int(item.version)}
+        for item in model.opset_import
     ]
 
 
@@ -204,8 +216,9 @@ def main() -> None:
             },
         },
     }
+    save_progress(report)
 
-    # CL-Detection2023: exact official artifact + SHA + 38-channel contract + ONNX CPU proxy.
+    # CL-Detection2023: official artifact + SHA + 38-channel contract + ORT CPU proxy.
     cl_repo = WORK_DIR / "CL-Detection2023"
     clone_pinned(CEPH_REPO, CEPH_REPO_SHA, cl_repo)
     cl_pt = WORK_DIR / "cl_detection_best_model.pt"
@@ -215,10 +228,9 @@ def main() -> None:
 
     cl_model = load_cl_model(cl_repo, cl_pt)
     cl_onnx = WORK_DIR / "cl_detection_38_landmarks.onnx"
-    dummy_cl = torch.zeros((1, 3, 512, 512), dtype=torch.float32)
     torch.onnx.export(
         cl_model,
-        dummy_cl,
+        torch.zeros((1, 3, 512, 512), dtype=torch.float32),
         str(cl_onnx),
         export_params=True,
         opset_version=17,
@@ -229,9 +241,7 @@ def main() -> None:
     )
     cl_bench = benchmark_ort(cl_onnx, [1, 3, 512, 512])
     if cl_bench["runtime_output_shapes"] != [[1, 38, 512, 512]]:
-        raise RuntimeError(
-            f"CL ONNX output contract mismatch: {cl_bench['runtime_output_shapes']}"
-        )
+        raise RuntimeError(f"CL ONNX output contract mismatch: {cl_bench['runtime_output_shapes']}")
     report["cl_detection"] = {
         "pt": {"size_mb": size_mb(cl_pt), "sha256": sha256(cl_pt)},
         "onnx": {
@@ -242,8 +252,9 @@ def main() -> None:
         "contract": {"input": [1, 3, 512, 512], "output": [1, 38, 512, 512]},
         "cpu": cl_bench,
     }
+    save_progress(report)
 
-    # OralGuard: pin HF revision first, then detector-only PT -> ONNX.
+    # OralGuard: pin HF revision, validate semantic classes, then detector-only PT -> ONNX.
     oral_repo = WORK_DIR / "Oral_guard"
     clone_pinned(ORALGUARD_REPO, ORALGUARD_REPO_SHA, oral_repo)
     oral_hf_sha = hf_revision(ORALGUARD_HF_REPO)
@@ -258,14 +269,24 @@ def main() -> None:
     yolo = YOLO(str(oral_pt))
     names_obj = yolo.names
     if isinstance(names_obj, dict):
-        names = [str(names_obj[i]) for i in sorted(names_obj)]
+        names = [str(names_obj[index]) for index in sorted(names_obj)]
     else:
-        names = [str(x) for x in names_obj]
-    normalized = {name.strip().lower() for name in names}
-    if normalized != EXPECTED_PANO_CLASSES:
+        names = [str(item) for item in names_obj]
+    normalized_names = [normalize_class_name(name) for name in names]
+    normalized_set = set(normalized_names)
+    if normalized_set != EXPECTED_PANO_CLASSES:
         raise RuntimeError(
-            f"OralGuard classes do not exactly match Digital Crown contract: {names}"
+            "OralGuard classes do not exactly match Digital Crown semantics: "
+            f"raw={names}, normalized={normalized_names}"
         )
+
+    report["oralguard_source"] = {
+        "hf_revision": oral_hf_sha,
+        "classes_raw": names,
+        "classes_normalized": normalized_names,
+        "pt": {"size_mb": size_mb(oral_pt), "sha256": sha256(oral_pt)},
+    }
+    save_progress(report)
 
     exported = yolo.export(
         format="onnx",
@@ -293,15 +314,18 @@ def main() -> None:
     oral_shapes = oral_bench["runtime_output_shapes"]
     if not any(len(shape) == 3 and 8 in (shape[1], shape[2]) for shape in oral_shapes):
         raise RuntimeError(
-            f"OralGuard ONNX raw output does not expose 4 box + 4 class channels: {oral_shapes}"
+            "OralGuard ONNX raw output does not expose 4 box + 4 class channels: "
+            f"{oral_shapes}"
         )
+
     report["oralguard"] = {
         "hf_revision": oral_hf_sha,
         "classes": names,
-        "class_index_map": {str(i): name for i, name in enumerate(names)},
+        "classes_normalized": normalized_names,
+        "class_index_map": {str(index): name for index, name in enumerate(names)},
         "digital_crown_label_map": {
-            name: PANO_CLASS_TO_DIGITAL_CROWN[name.strip().lower()]
-            for name in names
+            raw: PANO_CLASS_TO_DIGITAL_CROWN[normalized]
+            for raw, normalized in zip(names, normalized_names, strict=True)
         },
         "pt": {"size_mb": size_mb(oral_pt), "sha256": sha256(oral_pt)},
         "onnx": {
@@ -315,12 +339,13 @@ def main() -> None:
         },
         "cpu": oral_bench,
     }
-
-    report["machine"]["max_rss_mb"] = round(resource.getrusage(resource.RUSAGE_SELF).ru_maxrss / 1024.0, 2)
+    report["machine"]["max_rss_mb"] = round(
+        resource.getrusage(resource.RUSAGE_SELF).ru_maxrss / 1024.0,
+        2,
+    )
     report["result"] = "PASS"
-
-    json_path = RESULT_DIR / "benchmark.json"
-    json_path.write_text(json.dumps(report, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    write_json(RESULT_DIR / "benchmark.json", report)
+    save_progress(report)
 
     lines = [
         "# P6 Scientific Assets Benchmark",
@@ -359,9 +384,6 @@ if __name__ == "__main__":
             "message": str(exc),
             "traceback": traceback.format_exc(),
         }
-        (RESULT_DIR / "failure.json").write_text(
-            json.dumps(failure, indent=2, sort_keys=True) + "\n",
-            encoding="utf-8",
-        )
+        write_json(RESULT_DIR / "failure.json", failure)
         print(json.dumps(failure, indent=2, sort_keys=True), file=sys.stderr)
         raise
