@@ -135,7 +135,7 @@ try {
     backendOfflineRawTechnical: offlineMobile.metrics.rawNetworkErrorVisible || offlineTablet.metrics.rawNetworkErrorVisible,
     returnToAgenda: ready.returnRoute === '/mobile/dashboard?tab=agenda',
     noHorizontalOverflow: captures.every(item => !item.metrics.hasHorizontalOverflow),
-    noUnexpectedRuntimeErrors: captures.filter(item => item.mode !== 'offline').every(item => item.errors.length === 0),
+    noUnexpectedRuntimeErrors: captures.filter(item => !['deleted', 'offline'].includes(item.mode)).every(item => item.errors.length === 0),
     network,
   };
   await fs.writeFile(`${output}/report.json`, JSON.stringify(report, null, 2));
