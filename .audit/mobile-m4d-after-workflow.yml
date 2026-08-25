@@ -1,0 +1,66 @@
+name: Mobile M4-D RDV AFTER
+
+on:
+  pull_request:
+    branches: [master]
+    paths:
+      - 'backend/routers/mobile_resource_bridge.py'
+      - 'backend/tests/test_mobile_m4d_appointment_context.py'
+      - 'frontend/src/features/agenda/AgendaModal.tsx'
+      - 'frontend/src/features/agenda/AppointmentMobileBridge.tsx'
+      - 'frontend/src/features/agenda/MonthlyView.tsx'
+      - 'frontend/src/features/mobile/Context/MobileContext.tsx'
+      - '.audit/mobile-m4d-after-scenario.yml'
+      - '.github/workflows/mobile-m4d-after.yml'
+
+jobs:
+  after:
+    name: M4-D RDV contextual AFTER
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install frontend and Chromium
+        working-directory: frontend
+        run: |
+          npm ci
+          npm install --no-save --package-lock=false --ignore-scripts playwright@1.62.1
+          npx playwright install --with-deps chromium
+
+      - name: Materialize M4-D AFTER harness
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import re
+          source = Path('.audit/mobile-m4d-after-scenario.yml').read_text()
+          for target in ['mobile-m4d-after.html', 'src/mobile-m4d-after.tsx', 'mobile-m4d-after.mjs']:
+              pattern = rf"cat > {re.escape(target)} <<'EOF'\n(.*?)\n    EOF"
+              match = re.search(pattern, source, re.S)
+              if not match:
+                  raise SystemExit(f'M4-D AFTER block missing: {target}')
+              lines = [line[10:] if line.startswith('          ') else line for line in match.group(1).splitlines()]
+              destination = Path('frontend') / target
+              destination.parent.mkdir(parents=True, exist_ok=True)
+              destination.write_text('\n'.join(lines) + '\n')
+          PY
+
+      - name: Capture M4-D AFTER
+        working-directory: frontend
+        env:
+          EXACT_HEAD: ${{ github.event.pull_request.head.sha }}
+        run: node mobile-m4d-after.mjs
+
+      - name: Upload M4-D AFTER evidence
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: mobile-m4d-rdv-after
+          path: frontend/mobile-m4d-after-artifacts/
+          if-no-files-found: error
+          retention-days: 14
