@@ -45,6 +45,7 @@ jobs:
           cp audit/.audit/mobile-m4d-mockup.svg product/.audit/mobile-m4d-mockup.svg
           cp audit/.audit/mobile-m4d-after-scenario.yml product/.audit/mobile-m4d-after-scenario.yml
           cp audit/.audit/mobile-m4d-after-workflow.yml product/.github/workflows/mobile-m4d-after.yml
+          sed -i 's/[[:space:]]\+$//' product/frontend/src/features/agenda/MonthlyView.tsx
 
       - name: Assert product diff scope before tests
         working-directory: product
