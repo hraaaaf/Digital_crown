@@ -141,7 +141,8 @@ Exploiter ce que le téléphone peut faire mieux :
 ### Lots métier M6
 
 - **M6-A — Photo clinique contextuelle : CLOSED** — PR #252, HEAD certifié `24dcdc5543f68fd31b65a4facfa824f4a51cfbd8`, merge `5657ce7dfa529b39aaae2e562399938524bc43bd`, closeout `docs/MOBILE_M6_A_CLINICAL_PHOTO_CLOSEOUT.md`, score visuel 9,7/10. Capture/picker depuis le Patient exact, preview avant confirmation, upload lié au `context_key` sans `patient_id`, archivage `PHOTO_CLINIQUE`, validation réelle du média, limites 12 MiB / 50 MP, EXIF retiré et revalidation tenant/user/device/permission certifiés.
-- **M6-B — Scan de documents contextuel : ACTIVE (audit / BEFORE).** Direction de pré-audit : réutiliser `DocumentArchive` et le contexte Patient exact ; aucun Goal visuel ni changement produit n'est crédité avant les captures BEFORE obligatoires.
+- **M6-B — Scan de documents contextuel : CLOSED** — PR #253, HEAD certifié `2eccb8710ae511f53282825f631d11ccddfbeb45`, merge `72d96ab2f796748fa5d1c7b4da008047ae7a6b17`, closeout `docs/MOBILE_M6_B_DOCUMENT_SCAN_CLOSEOUT.md`, score visuel 9,7/10. Scan 1–8 pages depuis le Patient exact, preview multipage, upload lié au `context_key` sans `patient_id`, PDF serveur archivé `DocumentArchive/AUTRE`, limites média certifiées et assemblage mémoire-safe page par page avec PyMuPDF.
+- **M6-C — Validation / signature au fauteuil : NEXT (audit).** La fonctionnalité existe déjà ; le prochain lot doit d'abord certifier son contrat patient/document, la sécurité de la signature, l'ergonomie tactile et le rendu canvas avant toute correction produit.
 
 ## Certification complète finale — pas un « M7 »
 
@@ -160,7 +161,7 @@ Après M6 :
 
 ## Ordre canonique restant
 
-1. Exécuter M6 Mobile-first réel à partir de M6-B Scan de documents contextuel, puis les autres capacités de la liste M6 selon dépendances et valeur mobile.
+1. Exécuter M6 Mobile-first réel à partir de M6-C Validation / signature au fauteuil, puis les autres capacités de la liste M6 selon dépendances et valeur mobile.
 2. Certification complète finale sur émulation + appareils physiques.
 3. Closeout global Mobile Full Experience.
 
