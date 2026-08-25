@@ -1,0 +1,76 @@
+name: P6 Mendeley FDI Clinician Annotation Pack
+
+on:
+  push:
+    branches:
+      - portability/p6-scientific-assets-refresh
+    paths:
+      - scripts/p6_mendeley_fdi_annotation_pack.py
+      - .github/workflows/p6-mendeley-fdi-annotation-pack.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: p6-mendeley-fdi-annotation-pack
+  cancel-in-progress: false
+
+jobs:
+  build-clinician-pack:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Checkout exact research HEAD
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Build rights-pinned clinician annotation pack
+        shell: bash
+        run: |
+          set -euo pipefail
+          python scripts/p6_mendeley_fdi_annotation_pack.py --out-dir p6-fdi-annotation-pack
+
+      - name: Validate fail-closed FDI boundary
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          summary = json.loads(Path('p6-fdi-annotation-pack/PACK_SUMMARY.json').read_text())
+          ledger = json.loads(Path('p6-fdi-annotation-pack/annotation_ledger.json').read_text())
+          assert summary['status'] == 'PASS_READY_FOR_CLINICIAN_ANNOTATION'
+          assert summary['source_image_count'] == 107
+          assert summary['source_geometry_image_count'] == 25
+          assert summary['source_geometry_region_count'] == 772
+          assert summary['clinician_fdi_assigned_count'] == 0
+          assert summary['orientation_confirmed_count'] == 0
+          assert ledger['contract']['source_geometry_is_ground_truth'] is False
+          assert ledger['contract']['source_fdi_labels_present'] is False
+          assert ledger['contract']['geometry_to_fdi_inference_allowed'] is False
+          assert all(image['orientation'] is None for image in ledger['images'])
+          assert all(not image['clinician_instances'] for image in ledger['images'])
+          print('P6_FDI_CLINICIAN_PACK_GATE=OK')
+          PY
+
+      - name: Prove product tree stayed untouched
+        shell: bash
+        run: |
+          set -euo pipefail
+          git diff --exit-code -- backend frontend
+          git status --short
+
+      - name: Upload clinician annotation pack
+        uses: actions/upload-artifact@v4
+        with:
+          name: p6-mendeley-v3-fdi-clinician-pack
+          path: p6-fdi-annotation-pack
+          if-no-files-found: error
+          retention-days: 14
