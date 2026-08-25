@@ -1,0 +1,111 @@
+name: P6 Ephemeral DC-Ceph-UNet29Q4 Training
+
+on:
+  push:
+    branches:
+      - p6/ephemeral-ceph-train-20260825
+    paths:
+      - scripts/p6_ceph_unet29_public_train.py
+      - .github/workflows/p6-ceph-unet29-ephemeral-train.yml
+
+permissions:
+  contents: write
+
+concurrency:
+  group: p6-ephemeral-ceph-unet29-training
+  cancel-in-progress: false
+
+jobs:
+  train:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 240
+    env:
+      SOURCE_HEAD: c505cf0e3815049dbb6e7eb930c62f7bc4a2b293
+      AARIZ_SHA256: d9fa872b36065dac9615cfcad0c7512c450fe2d86a1839cdec4cbe001def33ea
+      OUT_DIR: p6-ephemeral-output
+    steps:
+      - name: Checkout exact ephemeral branch
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Assert exact preparation HEAD ancestry
+        shell: bash
+        run: |
+          set -euo pipefail
+          git merge-base --is-ancestor "$SOURCE_HEAD" HEAD
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install pinned CPU training stack
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pip install --upgrade pip
+          python -m pip install --index-url https://download.pytorch.org/whl/cpu "torch==2.3.0+cpu"
+          python -m pip install "numpy==1.26.4" "Pillow==10.4.0" "onnx==1.16.1" "onnxruntime==1.18.0"
+
+      - name: Download exact Aariz v1 once
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p p6-training-work/extracted "$OUT_DIR"
+          curl --fail --location --retry 3 --retry-delay 5 --output p6-training-work/Aariz.zip https://figshare.com/ndownloader/files/51041642
+          echo "$AARIZ_SHA256  p6-training-work/Aariz.zip" | sha256sum -c -
+
+      - name: Re-probe real dataset before training
+        run: >-
+          python scripts/p6_aariz_ingestion_probe.py
+          --zip p6-training-work/Aariz.zip
+          --extract-dir p6-training-work/extracted
+          --output "$OUT_DIR/aariz_v1_ingestion_manifest.json"
+
+      - name: Train once with sealed test gate
+        run: >-
+          python scripts/p6_ceph_unet29_public_train.py
+          --source-head "$SOURCE_HEAD"
+          --extracted-dir p6-training-work/extracted
+          --output-dir "$OUT_DIR"
+          --max-epochs 30
+          --patience 6
+          --batch-size 4
+
+      - name: Prove product tree stayed untouched
+        shell: bash
+        run: |
+          set -euo pipefail
+          git diff --exit-code -- backend frontend
+
+      - name: Retain only compact evidence and winning ONNX
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf p6-training-work
+          rm -f "$OUT_DIR/model_state.pt"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -- "$OUT_DIR/training_report.json" "$OUT_DIR/aariz_v1_ingestion_manifest.json"
+          if test -f "$OUT_DIR/model.onnx"; then
+            git add -- "$OUT_DIR/model.onnx"
+          fi
+          git commit -m "evidence(p6): retain ephemeral ceph training result"
+          git push origin HEAD:p6/ephemeral-ceph-train-20260825
+
+      - name: Summarize gate
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          report = json.loads(Path("p6-ephemeral-output/training_report.json").read_text())
+          print(json.dumps({
+              "status": report["status"],
+              "best_epoch": report["selection"]["best_epoch"],
+              "pretest_pass": report["selection"]["pretest_pass"],
+              "test_loaded_once": report["selection"]["test_loaded_once"],
+              "beats_official_reference": report["beats_official_reference"],
+          }, indent=2))
+          PY
