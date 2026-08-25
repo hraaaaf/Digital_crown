@@ -54,7 +54,6 @@ css_path.write_text(r'''/*
     radial-gradient(circle at 10% 8%, color-mix(in srgb, var(--accent) 14%, transparent) 0, transparent 34rem),
     radial-gradient(circle at 92% 18%, color-mix(in srgb, var(--primary) 9%, transparent) 0, transparent 30rem),
     linear-gradient(155deg, var(--bg-gradient-start), var(--bg-gradient-end));
-  background-attachment: fixed;
 }
 
 :is(
@@ -79,6 +78,17 @@ css_path.write_text(r'''/*
 }
 
 /* Clinical accessibility always wins over decorative translucency. */
+[data-theme='high-contrast'] :is(
+  [data-dc-mobile-shell],
+  [data-mobile-context],
+  [data-m4a-context],
+  [data-m4b-context],
+  [data-m4c-context],
+  [data-m4d-context]
+) {
+  background-image: none !important;
+}
+
 [data-theme='high-contrast'] :is(
   [data-dc-mobile-shell],
   [data-mobile-context],
