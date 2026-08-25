@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { AlertTriangle, Bell, BellOff, Check, Clock3, RefreshCw, X } from 'lucide-react';
 import { MobileStorage } from '../../../../services/zka/MobileStorage';
 import { mobileFetch } from '../../../../services/zka/mobileFetch';
@@ -39,6 +39,7 @@ export function MobileNotificationCenter() {
   const [error, setError] = useState('');
   const [open, setOpen] = useState(false);
   const [mutatingId, setMutatingId] = useState<number | null>(null);
+  const loadGenerationRef = useRef(0);
 
   const syncAppBadge = useCallback((count: number) => {
     if (typeof navigator === 'undefined') return;
@@ -53,6 +54,7 @@ export function MobileNotificationCenter() {
   }, []);
 
   const load = useCallback(async () => {
+    const generation = ++loadGenerationRef.current;
     try {
       setStatus('loading');
       setError('');
@@ -66,11 +68,13 @@ export function MobileNotificationCenter() {
         throw new Error(payload.detail || `Notifications indisponibles (${response.status}).`);
       }
       const payload = await response.json();
+      if (generation !== loadGenerationRef.current) return;
       const next = Array.isArray(payload.alerts) ? payload.alerts : [];
       setAlerts(next);
       syncAppBadge(next.length);
       setStatus('success');
     } catch (err) {
+      if (generation !== loadGenerationRef.current) return;
       setStatus('error');
       setError(err instanceof TypeError
         ? 'Serveur du cabinet inaccessible.'
@@ -91,6 +95,7 @@ export function MobileNotificationCenter() {
   }, [load]);
 
   const mutate = async (id: number, action: 'read' | 'snooze') => {
+    loadGenerationRef.current += 1;
     setMutatingId(id);
     try {
       const creds = await MobileStorage.getCredentials();
