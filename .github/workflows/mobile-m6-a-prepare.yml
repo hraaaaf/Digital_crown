@@ -1,0 +1,95 @@
+name: Mobile M6-A Prepare
+
+on:
+  push:
+    branches:
+      - "audit/mobile-m6-a-before-20260825"
+    paths:
+      - ".audit/mobile-m6-a-apply.py"
+      - ".github/workflows/mobile-m6-a-prepare.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  prepare:
+    name: Build then create single M6-A product commit
+    runs-on: ubuntu-latest
+    env:
+      BASE_HEAD: 432955745da8a39fcf63277859ff4ec973722c9c
+      PRODUCT_BRANCH: mobile/m6-a-clinical-photo
+    steps:
+      - name: Checkout frozen audit inputs
+        uses: actions/checkout@v4
+        with:
+          path: audit
+
+      - name: Checkout exact product baseline
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.BASE_HEAD }}
+          path: product
+          fetch-depth: 0
+
+      - name: Assert exact baseline and unused product branch
+        run: |
+          test "$(git -C product rev-parse HEAD)" = "$BASE_HEAD"
+          if git -C product ls-remote --exit-code --heads origin "refs/heads/$PRODUCT_BRANCH" >/dev/null 2>&1; then
+            echo "::error::Product branch already exists: $PRODUCT_BRANCH"
+            exit 1
+          fi
+
+      - name: Materialize complete M6-A patch
+        working-directory: product
+        run: python ../audit/.audit/mobile-m6-a-apply.py
+
+      - name: Assert exact scope and security contract
+        working-directory: product
+        run: |
+          git add -N backend/tests/test_mobile_m6a_clinical_photo.py
+          git diff --check
+          test "$(git diff --name-only | sort)" = "$(printf '%s\n' \
+            backend/routers/mobile_resource_bridge.py \
+            backend/tests/test_mobile_m6a_clinical_photo.py \
+            frontend/src/features/mobile/Context/MobileContext.tsx | sort)"
+          grep -q "resource-context-photo" backend/routers/mobile_resource_bridge.py
+          grep -q "DocumentType.PHOTO_CLINIQUE" backend/routers/mobile_resource_bridge.py
+          grep -q "_normalize_clinical_photo" backend/routers/mobile_resource_bridge.py
+          grep -q "capture=\"environment\"" frontend/src/features/mobile/Context/MobileContext.tsx
+          grep -q "data-m6a-photo-action" frontend/src/features/mobile/Context/MobileContext.tsx
+          grep -q "data-m6a-photo-sheet" frontend/src/features/mobile/Context/MobileContext.tsx
+          ! grep -q "form.append('patient_id'" frontend/src/features/mobile/Context/MobileContext.tsx
+          python -m py_compile backend/routers/mobile_resource_bridge.py backend/tests/test_mobile_m6a_clinical_photo.py
+
+      - name: Setup Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: product/frontend/package-lock.json
+
+      - name: Install frontend
+        working-directory: product/frontend
+        run: npm ci
+
+      - name: Build frontend
+        working-directory: product/frontend
+        run: npm run build
+
+      - name: Create exactly one product commit
+        working-directory: product
+        run: |
+          git config user.name "hraaaaf"
+          git config user.email "123034021+hraaaaf@users.noreply.github.com"
+          git add backend/routers/mobile_resource_bridge.py backend/tests/test_mobile_m6a_clinical_photo.py frontend/src/features/mobile/Context/MobileContext.tsx
+          git diff --cached --check
+          git commit -m "feat(mobile): add context-bound clinical photo capture"
+          test "$(git rev-list --count "$BASE_HEAD"..HEAD)" = "1"
+          git push origin "HEAD:refs/heads/$PRODUCT_BRANCH"
+
+      - name: Record proof
+        working-directory: product
+        run: |
+          echo "PRODUCT_HEAD=$(git rev-parse HEAD)"
+          echo "BASE_HEAD=$BASE_HEAD"
+          echo "FILES=$(git diff --name-only "$BASE_HEAD"..HEAD | wc -l)"
