@@ -15,7 +15,7 @@ jobs:
     name: Exact-head document scan evidence
     runs-on: ubuntu-latest
     env:
-      PRODUCT_HEAD: fd45d97004774ff3261aede51ae6c5c726c2d2c4
+      PRODUCT_HEAD: 2eccb8710ae511f53282825f631d11ccddfbeb45
     steps:
       - name: Checkout AFTER harness
         uses: actions/checkout@v4
