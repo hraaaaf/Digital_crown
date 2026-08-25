@@ -54,17 +54,17 @@ describe('P4 unified imaging truth boundary', () => {
   });
 });
 
-describe('P4 recoverable imaging history UI', () => {
-  it('uses trash and restore for panoramic history and excludes trash from active history', () => {
-    expect(panoHistory).toContain('/panoramic-trash');
-    expect(panoHistory).toContain('/panoramic/${analysis.id}/restore');
-    expect(panoHistory).toContain('Mettre à la corbeille');
-    expect(panoHistory).toContain('Restaurer');
-    expect(panoHistory).toContain('const trashedIds = new Set<number>');
-    expect(panoHistory).toContain('filter(item => !trashedIds.has(item.id))');
+describe('P4 imaging history lifecycle truth', () => {
+  it('matches the actual hard-delete panoramic backend and does not invent trash/restore routes', () => {
+    expect(panoHistory).toContain('/panoramic-analyses');
+    expect(panoHistory).toContain(`/ia/panoramic/`);
+    expect(panoHistory).toContain('Supprimer définitivement');
+    expect(panoHistory).not.toContain('/panoramic-trash');
+    expect(panoHistory).not.toContain('/restore');
+    expect(panoHistory).not.toContain('Mettre à la corbeille');
   });
 
-  it('uses trash and restore for cephalometric history and excludes trash from active history', () => {
+  it('uses trash and restore for cephalometric history where that lifecycle actually exists', () => {
     expect(cephHistory).toContain('/cephalo-trash');
     expect(cephHistory).toContain('/cephalo/${analysis.id}/restore');
     expect(cephHistory).toContain('Mettre à la corbeille');
@@ -73,8 +73,7 @@ describe('P4 recoverable imaging history UI', () => {
     expect(cephHistory).toContain('filter(item => !trashedIds.has(item.id))');
   });
 
-  it('does not expose permanent deletion from either history surface', () => {
-    expect(panoHistory).not.toContain('suppression permanente');
+  it('does not invent permanent deletion for the cephalometric recoverable history', () => {
     expect(cephHistory).not.toContain('suppression permanente');
   });
 });
