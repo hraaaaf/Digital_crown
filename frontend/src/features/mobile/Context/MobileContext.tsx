@@ -174,8 +174,12 @@ export const MobileContext = () => {
       }
 
       throw new Error('Réponse de contexte mobile invalide.');
-    } catch (err: any) {
-      setError(err?.message || 'Impossible de charger le contexte clinique.');
+    } catch (err: unknown) {
+      setError(err instanceof TypeError
+        ? 'Serveur du cabinet inaccessible. Vérifiez que le poste cabinet est démarré et accessible sur ce réseau, puis réessayez.'
+        : err instanceof Error
+          ? err.message
+          : 'Impossible de charger le contexte clinique.');
       setPhase('error');
     }
   };
