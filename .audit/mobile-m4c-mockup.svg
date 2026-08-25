@@ -1,0 +1,60 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1400" height="900" viewBox="0 0 1400 900">
+  <rect width="1400" height="900" fill="#f6f8fb"/>
+  <text x="60" y="55" font-family="Inter,Arial" font-size="28" font-weight="800" fill="#111827">M4-C Document contextuel — cible visuelle</text>
+  <text x="60" y="88" font-family="Inter,Arial" font-size="15" fill="#64748b">Digital Crown — identité conservée · bridge uniquement sur DocumentArchive canonique</text>
+
+  <rect x="50" y="125" width="830" height="710" rx="28" fill="#ffffff" stroke="#dbe3ee"/>
+  <text x="85" y="170" font-family="Inter,Arial" font-size="20" font-weight="800" fill="#111827">Bibliothèque Documents — desktop</text>
+  <rect x="85" y="198" width="540" height="52" rx="16" fill="#f8fafc" stroke="#e2e8f0"/>
+  <text x="110" y="230" font-family="Inter,Arial" font-size="14" fill="#94a3b8">Rechercher dans l’historique…</text>
+  <rect x="650" y="198" width="170" height="52" rx="16" fill="#eef2ff" stroke="#c7d2fe"/>
+  <text x="684" y="230" font-family="Inter,Arial" font-size="13" font-weight="800" fill="#4f46e5">3 DOCUMENTS</text>
+
+  <rect x="85" y="285" width="350" height="420" rx="30" fill="#fff" stroke="#dbe3ee"/>
+  <rect x="112" y="315" width="56" height="56" rx="16" fill="#eef2ff"/>
+  <text x="130" y="350" font-family="Arial" font-size="24" fill="#4f46e5">▤</text>
+  <rect x="282" y="318" width="112" height="34" rx="12" fill="#eef2ff"/>
+  <text x="304" y="340" font-family="Inter,Arial" font-size="11" font-weight="800" fill="#4f46e5">ORDONNANCE</text>
+  <rect x="330" y="363" width="64" height="44" rx="14" fill="#f8fafc" stroke="#dbe3ee"/>
+  <text x="353" y="392" font-family="Arial" font-size="22" fill="#475569">⋯</text>
+  <text x="112" y="438" font-family="Inter,Arial" font-size="18" font-weight="800" fill="#111827">Ordonnance_August_2026.pdf</text>
+  <text x="112" y="470" font-family="Inter,Arial" font-size="13" fill="#64748b">Généré le 24/08/2026</text>
+  <rect x="112" y="515" width="136" height="52" rx="16" fill="#f8fafc" stroke="#e2e8f0"/>
+  <text x="154" y="547" font-family="Inter,Arial" font-size="12" font-weight="800" fill="#475569">VOIR</text>
+  <rect x="266" y="515" width="136" height="52" rx="16" fill="#4f46e5"/>
+  <text x="302" y="547" font-family="Inter,Arial" font-size="12" font-weight="800" fill="#fff">FICHIER</text>
+  <rect x="112" y="585" width="290" height="58" rx="18" fill="#111827"/>
+  <text x="175" y="621" font-family="Inter,Arial" font-size="13" font-weight="800" fill="#fff">▣ OUVRIR SUR MOBILE</text>
+  <text x="112" y="675" font-family="Inter,Arial" font-size="11" fill="#94a3b8">Menu ⋯ : Modifier · Mettre à la corbeille</text>
+
+  <rect x="465" y="285" width="350" height="420" rx="30" fill="#fff" stroke="#dbe3ee"/>
+  <rect x="492" y="315" width="56" height="56" rx="16" fill="#f1f5f9"/>
+  <text x="510" y="350" font-family="Arial" font-size="24" fill="#64748b">▤</text>
+  <rect x="660" y="318" width="116" height="34" rx="12" fill="#f1f5f9"/>
+  <text x="683" y="340" font-family="Inter,Arial" font-size="11" font-weight="800" fill="#64748b">LEGACY</text>
+  <text x="492" y="438" font-family="Inter,Arial" font-size="18" font-weight="800" fill="#111827">ancien_certificat.pdf</text>
+  <text x="492" y="470" font-family="Inter,Arial" font-size="13" fill="#64748b">Ancien format · desktop uniquement</text>
+  <rect x="492" y="515" width="136" height="52" rx="16" fill="#f8fafc" stroke="#e2e8f0"/>
+  <text x="534" y="547" font-family="Inter,Arial" font-size="12" font-weight="800" fill="#475569">VOIR</text>
+  <rect x="646" y="515" width="136" height="52" rx="16" fill="#4f46e5"/>
+  <text x="682" y="547" font-family="Inter,Arial" font-size="12" font-weight="800" fill="#fff">FICHIER</text>
+  <rect x="492" y="585" width="290" height="58" rx="18" fill="#f8fafc" stroke="#e2e8f0"/>
+  <text x="548" y="621" font-family="Inter,Arial" font-size="12" font-weight="700" fill="#94a3b8">NON PORTABLE SUR MOBILE</text>
+
+  <rect x="920" y="125" width="430" height="710" rx="36" fill="#f8fafc" stroke="#dbe3ee"/>
+  <text x="960" y="170" font-family="Inter,Arial" font-size="20" font-weight="800" fill="#111827">Mobile /mobile/context</text>
+  <text x="960" y="210" font-family="Inter,Arial" font-size="13" font-weight="800" fill="#4f46e5">✓ CONTEXTE CABINET VÉRIFIÉ</text>
+  <text x="960" y="258" font-family="Inter,Arial" font-size="32" font-weight="900" fill="#111827">Document</text>
+  <text x="960" y="292" font-family="Inter,Arial" font-size="18" font-weight="800" fill="#111827">BENNANI Sara</text>
+  <text x="960" y="321" font-family="Inter,Arial" font-size="14" fill="#64748b">Ordonnance · 24 août 2026</text>
+  <rect x="960" y="355" width="350" height="250" rx="26" fill="#fff" stroke="#dbe3ee"/>
+  <text x="1095" y="445" font-family="Arial" font-size="72" fill="#4f46e5">▤</text>
+  <text x="1010" y="520" font-family="Inter,Arial" font-size="15" font-weight="800" fill="#111827">Ordonnance_August_2026.pdf</text>
+  <text x="1032" y="548" font-family="Inter,Arial" font-size="12" fill="#64748b">chargé depuis le serveur sécurisé</text>
+  <rect x="960" y="635" width="168" height="58" rx="18" fill="#fff" stroke="#dbe3ee"/>
+  <text x="996" y="671" font-family="Inter,Arial" font-size="12" font-weight="800" fill="#475569">OUVRIR</text>
+  <rect x="1142" y="635" width="168" height="58" rx="18" fill="#4f46e5"/>
+  <text x="1171" y="671" font-family="Inter,Arial" font-size="12" font-weight="800" fill="#fff">TÉLÉCHARGER</text>
+  <rect x="960" y="720" width="350" height="58" rx="18" fill="#fff" stroke="#dbe3ee"/>
+  <text x="1062" y="756" font-family="Inter,Arial" font-size="12" font-weight="800" fill="#475569">RETOUR AU MOBILE</text>
+</svg>
