@@ -1,67 +1,90 @@
 # Portability P6 — Pause / Scientific Assets Refresh
 
-Status: PAUSED, not closed, 0 EP credited.
+Status: **ACTIVE / HUMAN GATE — P6 Windows packaging 0/8 EP**.
 
 ## Goal P6
-Produce a deterministic Windows installer with exact scientific runtime assets, frozen runtime self-test, install/upgrade/uninstall smoke, data preservation, and explicit signing status.
 
-## Verified P6 state at pause
-- Integration base: `portability/p10-update-engine`
-- P6 PR: #242, OPEN/DRAFT
-- Published P6 head: `90b1262cb13b22172d6d0d2f36aa6eb96d360cdf`
-- Prepared but intentionally unpushed candidate object: `4501ad8d167c65a64e174d923e6f1d3a36b14399`
-- Last dedicated P6 run: `32803814701` — FAILURE
-- Static packaging contract: PASS
-- Frontend production build: PASS
-- Failure cause #1 fixed: requirements include path resolved as `backend/backend/requirements.txt`
-- Failure cause #2 found: invalid global pin `protobuf==6.2.3`; prepared candidate pins `protobuf==5.29.6` and adds `pip check`
-- No Vercel deployment.
+Produire un installateur Windows déterministe avec les assets scientifiques exacts et autorisés, self-test frozen, install/upgrade/uninstall, conservation des données et statut de signature explicite.
 
-## Scientific asset security
-- `hraaaaf/Digital_crown` remains public during this work.
-- Scientific weights must not be uploaded to this public repo or a public Release.
-- Dedicated asset repo exists: `hraaaaf/DigitalCrown-assets`, verified PRIVATE and accessible by the connected GitHub app.
+## Roadmap
 
-## Current runtime scientific contracts
-### Cephalometry legacy
-- Runtime: PyTorch `U_Net_w_Cartesian_SE`, 19 heatmaps, target 512x512.
-- Expected weight path: `backend/ai_models/cephld_cca/ceph_weights.pth`.
-- Source integration identifies the research family as `CephLD-CCA`.
+Source de vérité : `/PORTABILITY_LAUNCHER_ROADMAP.md`.
 
-### Cephalometry SOTA
-- Runtime: ONNX Runtime, 38 heatmaps, target 1024x1024.
-- Expected model name: `model.onnx`.
-- Code states CL-Detection 38-point nomenclature.
-- This SOTA model was already deferred from P5 to the separate Cephalometry NextGen benchmark; do not silently substitute a different model without scientific qualification.
+Portability validé : **65/162 EP = 40,1 %**. Le sous-lot Scientific Assets Refresh ne gagne aucun EP séparé.
 
-### Panoramic
-- Runtime: ONNX Runtime.
-- Expected model: `backend/ai_models/panoramic_model.onnx`.
-- Current parser assumes YOLO-style output, 1280x1280 input, classes exactly: `Caries`, `Deep Caries`, `Impacted`, `Periapical Lesion`.
-- Current code labels inference mode `LOCAL_SOTA_YOLO11x`.
+## Packaging P6
 
-## Parenthesis workstream
-Branch: `portability/p6-scientific-assets-refresh`
+- PR `#242` — OPEN/DRAFT, mergeable ;
+- branche `portability/p6-windows-packaging-resume` ;
+- HEAD publié `90b1262cb13b22172d6d0d2f36aa6eb96d360cdf` ;
+- dernier heavy run `32803814701` — FAILURE après static gate + frontend build verts ;
+- candidat préparé `4501ad8d167c65a64e174d923e6f1d3a36b14399` ;
+- correction préparée : `protobuf==5.29.6`, `pip check`, source assets privée obligatoire.
 
-Goal: recover original GitHub weight sources where possible and evaluate lighter/more portable alternatives before resuming P6.
+**Ne pas lancer ce candidat lourd maintenant.** Le provisioner exige encore `panoramic_model.onnx` + `cephld_cca/ceph_weights.pth` legacy et doit être réconcilié avec le set scientifique final.
 
-Success criteria:
-1. Identify provenance for every weight used in P6, or explicitly mark provenance unresolved.
-2. For each replacement candidate, record architecture/runtime, model size, required dependencies, Windows x64/macOS arm64 portability, license, downloadable weights, input/output contract, and scientific scope.
-3. No candidate may replace a clinical model solely because it is smaller/faster.
-4. Prefer ONNX Runtime CPU-compatible assets when scientific quality is equivalent or superior, because this avoids shipping the full PyTorch runtime.
-5. Produce a recommended minimal asset set for P6 and a separate Cephalometry NextGen benchmark set.
+## Céphalométrie
 
-## Research checkpoint
-Canonical matrix and decisions: `docs/P6_SCIENTIFIC_ASSET_REFRESH.md`.
+Candidat sélectionné : `DC-Ceph-UNet29Q4 / Aariz v1`.
 
-Current result:
-- CephLD-CCA legacy is not accepted as the default shipped P6 path: GPL-3.0 code, PyTorch footprint, 19-landmark scope, and a source-level `cuda:0` hard-code create material distribution/portability risk.
-- Official `szuboy/CL-Detection2023` Apache-2.0 38-landmark UNet is the primary cephalometry benchmark candidate for a research-only ONNX export/parity test; it is not yet a certified clinical replacement.
-- The official CL pretrained weight is linked externally by upstream. A public GitHub mirror inspected during this research contains the code but no `.pt` checkpoint, so it is not used as an unverified weight source.
-- No researched panoramic candidate currently clears all gates at once: permissive/commercially usable terms, dedicated tooth/FDI semantics, compact CPU runtime, retrievable weights, and adequate evidence.
-- Current `panoramic_model.onnx` provenance remains unresolved and must not be rehosted until provenance/redistribution rights are established.
-- No scientific weight has been uploaded during this checkpoint and no product inference code has changed.
+- training `32876308676` — SUCCESS ;
+- ONNX SHA256 `809f1d3d2347d2a34f57d4a3415bb319c29f8a25c325d41160e5f28d4e5dadad` ;
+- taille `7,624,307 bytes` ;
+- direct-20 held-out : MRE `1.232893 mm`, SDR2 `83.1333%`, SDR4 `97.2667%` ;
+- clinical claim : false ;
+- `Occ_Ant`/`Occ_Post` absents ; Wits fail-closed.
 
-## Exact resume sequence
-Scientific-assets research -> qualify/recover asset set -> store only assets whose redistribution is established in `hraaaaf/DigitalCrown-assets` private -> record SHA256/provenance/license -> update P6 manifest/workflow if needed -> move PR #242 to the fully prepared candidate -> one heavy Windows packaging run -> installer artifact + smoke + signing status -> P6 closeout only if all observable gates pass.
+Bridge exact du binaire : run `32911022192` — SUCCESS.
+
+Protocole clinique : `docs/P6_CEPHALOMETRY_CLINICAL_VALIDATION_PROTOCOL.md`.
+
+## Rétention privée — HUMAN GATE
+
+Repo : `hraaaaf/DigitalCrown-assets` — PRIVATE.
+Branche : `training/p6-ceph-unet29`.
+
+Workflow : `.github/workflows/p6-ceph-winner-private-retention.yml`.
+Run : `32911260037` — FAILURE.
+
+Cause exacte :
+
+`P6_ASSET_TOKEN secret missing`
+
+Le runner public fonctionne et le binaire exact est récupérable. Le seul blocage de transfert est l’absence du secret Actions `P6_ASSET_TOKEN` sur `hraaaaf/Digital_crown`.
+
+Après ajout du secret, rejouer ce run et exiger `P6_PRIVATE_RETENTION=OK` + SHA privé exact avant toute suppression/réinitialisation de la branche publique gagnante.
+
+## Panoramique Phase A
+
+Cible : **tooth localization + FDI enumeration**, pas diagnostic automatique de pathologies.
+
+### Mendeley V3 first-party
+
+Dataset `73n3kz2k4k.3`, CC BY 4.0.
+
+- inventaire `32910249394` — SUCCESS ;
+- sémantique `32910743873` — SUCCESS ;
+- 111 fichiers / `84,254,649` octets ;
+- 107 images metadata ;
+- 25 images avec régions ;
+- 772 régions ;
+- 540 attributs `Teeth` et les 540 valeurs sont `""` ;
+- 0 FDI source ;
+- `direct_fdi_ground_truth_ready=false` ;
+- 96 hashes image uniques / 11 doublons exacts.
+
+Preuve : `docs/P6_MENDELEY_V3_PROVENANCE_RESULT.md`.
+
+Décision : auxiliaire/image+segmentation uniquement. FDI doit être annoté cliniquement selon `docs/P6_PANORAMIC_FDI_ANNOTATION_PROTOCOL.md`, avec split groupé par SHA/source.
+
+## Next exact
+
+1. Ajouter `P6_ASSET_TOKEN` comme repository Actions secret du repo produit, avec accès minimal au repo privé assets.
+2. Rejouer `32911260037` ; vérifier rétention + SHA privé.
+3. Figer/dédupliquer le pool pano rights-cleared ; annotation FDI clinique.
+4. Benchmark pano seulement après annotation/split/provenance fermés.
+5. Portabilité Windows/macOS des assets finaux.
+6. Réconcilier `provision_p6_scientific_assets.py` avec le set final.
+7. Avancer PR `#242` et lancer **un seul** heavy Windows run.
+
+Aucun Vercel.
