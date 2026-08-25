@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { AlertTriangle, ArrowLeft, Calendar, FileText, Image as ImageIcon, Loader2, Phone, RefreshCcw, ShieldCheck } from 'lucide-react';
+import { AlertTriangle, ArrowLeft, Calendar, Download, ExternalLink, FileText, Image as ImageIcon, Loader2, Phone, RefreshCcw, ShieldCheck } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { MobileStorage, type MobileBridgeContext } from '../../../services/zka/MobileStorage';
 
@@ -20,6 +20,15 @@ interface MobilePanoramic {
   created_at?: string | null;
   landmarks_count: number;
   report_saved: boolean;
+}
+
+interface MobileDocument {
+  patient_name: string;
+  document_type: string;
+  name: string;
+  filename: string;
+  created_at?: string | null;
+  mime_type?: string | null;
 }
 
 function ageFromBirth(value?: string | null): number | null {
@@ -45,15 +54,18 @@ export const MobileContext = () => {
   const [context, setContext] = useState<MobileBridgeContext | null>(null);
   const [patient, setPatient] = useState<MobilePatient | null>(null);
   const [panoramic, setPanoramic] = useState<MobilePanoramic | null>(null);
-  const [imageUrl, setImageUrl] = useState<string | null>(null);
-  const imageUrlRef = useRef<string | null>(null);
+  const [documentData, setDocumentData] = useState<MobileDocument | null>(null);
+  const [mediaUrl, setMediaUrl] = useState<string | null>(null);
+  const [mediaType, setMediaType] = useState<string>('');
+  const mediaUrlRef = useRef<string | null>(null);
   const [phase, setPhase] = useState<'loading' | 'ready' | 'error'>('loading');
   const [error, setError] = useState('');
 
-  const clearImage = () => {
-    if (imageUrlRef.current) URL.revokeObjectURL(imageUrlRef.current);
-    imageUrlRef.current = null;
-    setImageUrl(null);
+  const clearMedia = () => {
+    if (mediaUrlRef.current) URL.revokeObjectURL(mediaUrlRef.current);
+    mediaUrlRef.current = null;
+    setMediaUrl(null);
+    setMediaType('');
   };
 
   const load = async () => {
@@ -61,10 +73,11 @@ export const MobileContext = () => {
     setError('');
     setPatient(null);
     setPanoramic(null);
-    clearImage();
+    setDocumentData(null);
+    clearMedia();
     const stored = await MobileStorage.getBridgeContext().catch(() => null);
     setContext(stored);
-    if (!stored || !['patient', 'panoramic'].includes(stored.type)) {
+    if (!stored || !['patient', 'panoramic', 'document'].includes(stored.type)) {
       setError('Aucun contexte clinique compatible n’est disponible sur cet appareil.');
       setPhase('error');
       return;
@@ -88,6 +101,28 @@ export const MobileContext = () => {
       body: JSON.stringify({ context_key: stored.key }),
     });
 
+    const loadMedia = async () => {
+      if (!creds?.access_token) throw new Error('Session mobile expirée.');
+      let mediaResponse = await request('resource-context-media', creds.access_token);
+      if (mediaResponse.status === 401) {
+        creds = await MobileStorage.refreshCredentials();
+        if (creds?.access_token) mediaResponse = await request('resource-context-media', creds.access_token);
+      }
+      if (!mediaResponse.ok) {
+        const mediaError = await mediaResponse.json().catch(() => ({}));
+        throw new Error(mediaError.detail || `Média indisponible (${mediaResponse.status}).`);
+      }
+      const blob = await mediaResponse.blob();
+      if (!blob.size) throw new Error('Le média reçu est vide.');
+      if (stored.type === 'panoramic' && !blob.type.startsWith('image/')) {
+        throw new Error('Média panoramique invalide.');
+      }
+      const nextUrl = URL.createObjectURL(blob);
+      mediaUrlRef.current = nextUrl;
+      setMediaUrl(nextUrl);
+      setMediaType(blob.type || 'application/octet-stream');
+    };
+
     try {
       let response = await request('resource-context', creds.access_token);
       if (response.status === 401) {
@@ -107,22 +142,15 @@ export const MobileContext = () => {
       }
 
       if (payload.type === 'panoramic' && payload.panoramic && stored.type === 'panoramic') {
-        if (!creds?.access_token) throw new Error('Session mobile expirée.');
-        let mediaResponse = await request('resource-context-media', creds.access_token);
-        if (mediaResponse.status === 401) {
-          creds = await MobileStorage.refreshCredentials();
-          if (creds?.access_token) mediaResponse = await request('resource-context-media', creds.access_token);
-        }
-        if (!mediaResponse.ok) {
-          const mediaError = await mediaResponse.json().catch(() => ({}));
-          throw new Error(mediaError.detail || `Image indisponible (${mediaResponse.status}).`);
-        }
-        const blob = await mediaResponse.blob();
-        if (!blob.type.startsWith('image/')) throw new Error('Le média panoramique reçu n’est pas une image valide.');
-        const nextUrl = URL.createObjectURL(blob);
-        imageUrlRef.current = nextUrl;
-        setImageUrl(nextUrl);
+        await loadMedia();
         setPanoramic(payload.panoramic as MobilePanoramic);
+        setPhase('ready');
+        return;
+      }
+
+      if (payload.type === 'document' && payload.document && stored.type === 'document') {
+        await loadMedia();
+        setDocumentData(payload.document as MobileDocument);
         setPhase('ready');
         return;
       }
@@ -137,11 +165,26 @@ export const MobileContext = () => {
   useEffect(() => {
     void load();
     return () => {
-      if (imageUrlRef.current) URL.revokeObjectURL(imageUrlRef.current);
+      if (mediaUrlRef.current) URL.revokeObjectURL(mediaUrlRef.current);
     };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const age = useMemo(() => ageFromBirth(patient?.date_naissance), [patient?.date_naissance]);
+
+  const openDocument = () => {
+    if (!mediaUrl) return;
+    window.open(mediaUrl, '_blank', 'noopener,noreferrer');
+  };
+
+  const downloadDocument = () => {
+    if (!mediaUrl || !documentData) return;
+    const anchor = document.createElement('a');
+    anchor.href = mediaUrl;
+    anchor.download = documentData.filename || documentData.name || 'document';
+    document.body.appendChild(anchor);
+    anchor.click();
+    anchor.remove();
+  };
 
   if (phase === 'loading') {
     return (
@@ -152,19 +195,42 @@ export const MobileContext = () => {
     );
   }
 
-  if (phase === 'error' || (!patient && !panoramic)) {
+  if (phase === 'error' || (!patient && !panoramic && !documentData)) {
     return (
       <div data-mobile-context className="min-h-[100dvh] bg-background text-text-main p-5 font-outfit flex items-center justify-center relative" style={{ backgroundColor: 'var(--bg-medical-pearl)' }}><div className="document-watermark absolute inset-0 pointer-events-none opacity-40" />
         <div className="w-full max-w-md bg-card-bg border border-rose-200 rounded-[2rem] p-6 shadow-elite text-center relative z-10">
           <AlertTriangle className="mx-auto text-rose-500" size={42} />
           <h1 className="mt-4 text-xl font-black text-text-main">Contexte indisponible</h1>
           <p className="mt-2 text-sm font-bold leading-relaxed text-text-muted">{error || context?.reason}</p>
-          <button data-m4b-touch type="button" onClick={() => void load()} className="mt-5 w-full min-h-[52px] rounded-2xl border border-border-main bg-card-bg font-black text-xs uppercase tracking-widest text-text-main inline-flex items-center justify-center gap-2">
-            <RefreshCcw size={16} /> Réessayer
-          </button>
-          <button data-m4b-touch type="button" onClick={() => navigate('/mobile/dashboard?tab=agenda', { replace: true })} className="mt-3 w-full min-h-[52px] rounded-2xl bg-primary text-white font-black text-xs uppercase tracking-widest">
-            Retour au mobile
-          </button>
+          <button data-m4-touch type="button" onClick={() => void load()} className="mt-5 w-full min-h-[52px] rounded-2xl border border-border-main bg-card-bg font-black text-xs uppercase tracking-widest text-text-main inline-flex items-center justify-center gap-2"><RefreshCcw size={16} /> Réessayer</button>
+          <button data-m4-touch type="button" onClick={() => navigate('/mobile/dashboard?tab=agenda', { replace: true })} className="mt-3 w-full min-h-[52px] rounded-2xl bg-primary text-white font-black text-xs uppercase tracking-widest">Retour au mobile</button>
+        </div>
+      </div>
+    );
+  }
+
+  if (documentData) {
+    const isImage = mediaType.startsWith('image/');
+    return (
+      <div data-m4c-context className="min-h-[100dvh] bg-background text-text-main font-outfit relative px-5 pt-[max(1.25rem,env(safe-area-inset-top))] pb-[max(1.5rem,env(safe-area-inset-bottom))]" style={{ backgroundColor: 'var(--bg-medical-pearl)' }}>
+        <div className="document-watermark absolute inset-0 pointer-events-none opacity-40" />
+        <div className="max-w-md mx-auto relative z-10">
+          <button data-m4c-touch type="button" onClick={() => navigate('/mobile/dashboard?tab=agenda')} className="min-h-11 inline-flex items-center gap-2 text-sm font-black text-text-muted"><ArrowLeft size={17} /> Retour</button>
+          <div className="mt-4 flex items-center gap-2 text-primary"><ShieldCheck size={18} /><p className="text-[10px] font-black uppercase tracking-[0.18em]">Contexte cabinet vérifié</p></div>
+          <h1 className="mt-2 text-3xl font-black tracking-tight text-text-main">Document</h1>
+          <p className="mt-1 text-base font-black text-text-main">{documentData.patient_name}</p>
+          <p className="mt-1 text-sm font-bold text-text-muted">{documentData.document_type} · {formatDate(documentData.created_at)}</p>
+
+          <section className="mt-5 rounded-[1.75rem] bg-card-bg border border-border-main p-5 shadow-elite">
+            {isImage && mediaUrl ? <img src={mediaUrl} alt="Document contextuel" className="block w-full max-h-[48dvh] object-contain rounded-2xl border border-border-main bg-white" /> : <div className="min-h-[230px] rounded-2xl border border-border-main bg-background/60 flex flex-col items-center justify-center text-center p-5"><FileText size={64} className="text-primary"/><p className="mt-5 font-black text-text-main break-all">{documentData.name}</p><p className="mt-2 text-xs font-bold text-text-muted">Document chargé depuis le serveur sécurisé</p></div>}
+          </section>
+
+          <div className="mt-4 grid grid-cols-2 gap-3">
+            <button data-m4c-touch type="button" onClick={openDocument} disabled={!mediaUrl} className="min-h-[54px] rounded-2xl bg-card-bg border border-border-main text-text-main inline-flex items-center justify-center gap-2 font-black text-sm disabled:opacity-40"><ExternalLink size={18}/> Ouvrir</button>
+            <button data-m4c-touch type="button" onClick={downloadDocument} disabled={!mediaUrl} className="min-h-[54px] rounded-2xl bg-primary text-white inline-flex items-center justify-center gap-2 font-black text-sm disabled:opacity-40"><Download size={18}/> Télécharger</button>
+          </div>
+          <p className="mt-4 text-[11px] font-bold text-text-muted text-center">Média chargé par contexte serveur · aucun identifiant document dans l’URL</p>
+          <button data-m4c-touch type="button" onClick={() => navigate('/mobile/dashboard?tab=agenda', { replace: true })} className="mt-6 w-full min-h-[54px] rounded-2xl bg-card-bg border border-border-main text-text-main font-black text-xs uppercase tracking-widest">Retour au mobile</button>
         </div>
       </div>
     );
@@ -175,40 +241,16 @@ export const MobileContext = () => {
       <div data-m4b-context className="min-h-[100dvh] bg-background text-text-main font-outfit relative px-5 pt-[max(1.25rem,env(safe-area-inset-top))] pb-[max(1.5rem,env(safe-area-inset-bottom))]" style={{ backgroundColor: 'var(--bg-medical-pearl)' }}>
         <div className="document-watermark absolute inset-0 pointer-events-none opacity-40" />
         <div className="max-w-md mx-auto relative z-10">
-          <button data-m4b-touch type="button" onClick={() => navigate('/mobile/dashboard?tab=agenda')} className="min-h-11 inline-flex items-center gap-2 text-sm font-black text-text-muted">
-            <ArrowLeft size={17} /> Retour
-          </button>
-
-          <div className="mt-4 flex items-center gap-2 text-primary">
-            <ShieldCheck size={18} />
-            <p className="text-[10px] font-black uppercase tracking-[0.18em]">Contexte cabinet vérifié</p>
-          </div>
+          <button data-m4b-touch type="button" onClick={() => navigate('/mobile/dashboard?tab=agenda')} className="min-h-11 inline-flex items-center gap-2 text-sm font-black text-text-muted"><ArrowLeft size={17} /> Retour</button>
+          <div className="mt-4 flex items-center gap-2 text-primary"><ShieldCheck size={18} /><p className="text-[10px] font-black uppercase tracking-[0.18em]">Contexte cabinet vérifié</p></div>
           <h1 className="mt-2 text-3xl font-black tracking-tight text-text-main">Radio panoramique</h1>
           <p className="mt-1 text-base font-black text-text-main">{panoramic.patient_name}</p>
           <p className="mt-1 text-sm font-bold text-text-muted">{formatDate(panoramic.created_at)}</p>
-
           <section className="mt-5 rounded-[1.75rem] overflow-hidden bg-slate-950 border border-slate-800 shadow-elite min-h-[230px] flex items-center justify-center">
-            {imageUrl ? (
-              <img src={imageUrl} alt="Radio panoramique contextuelle" className="block w-full max-h-[52dvh] object-contain bg-black" />
-            ) : (
-              <div className="text-slate-400 flex items-center gap-2 text-sm font-bold"><ImageIcon size={18} /> Image indisponible</div>
-            )}
+            {mediaUrl ? <img src={mediaUrl} alt="Radio panoramique contextuelle" className="block w-full max-h-[52dvh] object-contain bg-black" /> : <div className="text-slate-400 flex items-center gap-2 text-sm font-bold"><ImageIcon size={18} /> Image indisponible</div>}
           </section>
-
-          <section className="mt-4 rounded-[1.5rem] bg-card-bg border border-border-main p-4 shadow-elite">
-            <div className="flex items-center justify-between gap-4">
-              <div>
-                <p className="text-[10px] font-black uppercase tracking-widest text-text-muted">Statut</p>
-                <p className="mt-1 font-black text-text-main">{panoramic.report_saved ? 'Rapport enregistré' : 'Rapport non finalisé'}</p>
-              </div>
-              <FileText size={20} className="text-primary" />
-            </div>
-            <p className="mt-3 pt-3 border-t border-border-main text-[11px] font-bold text-text-muted">{panoramic.landmarks_count} repère{panoramic.landmarks_count > 1 ? 's' : ''} dentaire{panoramic.landmarks_count > 1 ? 's' : ''} · média chargé depuis le serveur sans identifiant dans l’URL</p>
-          </section>
-
-          <button data-m4b-touch type="button" onClick={() => navigate('/mobile/dashboard?tab=agenda', { replace: true })} className="mt-6 w-full min-h-[54px] rounded-2xl bg-card-bg border border-border-main text-text-main font-black text-xs uppercase tracking-widest">
-            Retour au mobile
-          </button>
+          <section className="mt-4 rounded-[1.5rem] bg-card-bg border border-border-main p-4 shadow-elite"><div className="flex items-center justify-between gap-4"><div><p className="text-[10px] font-black uppercase tracking-widest text-text-muted">Statut</p><p className="mt-1 font-black text-text-main">{panoramic.report_saved ? 'Rapport enregistré' : 'Rapport non finalisé'}</p></div><FileText size={20} className="text-primary" /></div><p className="mt-3 pt-3 border-t border-border-main text-[11px] font-bold text-text-muted">{panoramic.landmarks_count} repère{panoramic.landmarks_count > 1 ? 's' : ''} dentaire{panoramic.landmarks_count > 1 ? 's' : ''} · média chargé depuis le serveur sans identifiant dans l’URL</p></section>
+          <button data-m4b-touch type="button" onClick={() => navigate('/mobile/dashboard?tab=agenda', { replace: true })} className="mt-6 w-full min-h-[54px] rounded-2xl bg-card-bg border border-border-main text-text-main font-black text-xs uppercase tracking-widest">Retour au mobile</button>
         </div>
       </div>
     );
@@ -219,55 +261,14 @@ export const MobileContext = () => {
     <div data-m4a-context className="min-h-[100dvh] bg-background text-text-main font-outfit relative px-5 pt-[max(1.25rem,env(safe-area-inset-top))] pb-[max(1.5rem,env(safe-area-inset-bottom))]" style={{ backgroundColor: 'var(--bg-medical-pearl)' }}>
       <div className="document-watermark absolute inset-0 pointer-events-none opacity-40" />
       <div className="max-w-md mx-auto relative z-10">
-        <button data-m4a-touch type="button" onClick={() => navigate('/mobile/dashboard?tab=agenda')} className="min-h-11 inline-flex items-center gap-2 text-sm font-black text-text-muted">
-          <ArrowLeft size={17} /> Retour
-        </button>
-
-        <div className="mt-4 flex items-center gap-2 text-primary">
-          <ShieldCheck size={18} />
-          <p className="text-[10px] font-black uppercase tracking-[0.18em]">Contexte cabinet vérifié</p>
-        </div>
+        <button data-m4a-touch type="button" onClick={() => navigate('/mobile/dashboard?tab=agenda')} className="min-h-11 inline-flex items-center gap-2 text-sm font-black text-text-muted"><ArrowLeft size={17} /> Retour</button>
+        <div className="mt-4 flex items-center gap-2 text-primary"><ShieldCheck size={18} /><p className="text-[10px] font-black uppercase tracking-[0.18em]">Contexte cabinet vérifié</p></div>
         <h1 className="mt-2 text-3xl font-black tracking-tight text-text-main">Dossier patient</h1>
-
-        <section className="mt-5 rounded-[1.75rem] bg-card-bg border border-border-main p-5 shadow-elite">
-          <h2 className="text-2xl font-black tracking-tight text-text-main">{displayName}</h2>
-          <p className="mt-1 text-sm font-bold text-text-muted">Dossier {patient!.numero_dossier || 'sans numéro'}</p>
-          <div className="mt-3 flex flex-wrap gap-x-4 gap-y-2 text-sm font-bold text-text-muted">
-            {age !== null && <span>{age} ans</span>}
-            {patient!.telephone && <span>{patient!.telephone}</span>}
-          </div>
-          {patient!.has_medical_alert && (
-            <div className="mt-4 inline-flex min-h-11 items-center gap-2 px-3 rounded-xl border border-rose-200 bg-rose-50 text-rose-700 text-xs font-black uppercase tracking-wide">
-              <AlertTriangle size={15} /> Alerte médicale
-            </div>
-          )}
-        </section>
-
+        <section className="mt-5 rounded-[1.75rem] bg-card-bg border border-border-main p-5 shadow-elite"><h2 className="text-2xl font-black tracking-tight text-text-main">{displayName}</h2><p className="mt-1 text-sm font-bold text-text-muted">Dossier {patient!.numero_dossier || 'sans numéro'}</p><div className="mt-3 flex flex-wrap gap-x-4 gap-y-2 text-sm font-bold text-text-muted">{age !== null && <span>{age} ans</span>}{patient!.telephone && <span>{patient!.telephone}</span>}</div>{patient!.has_medical_alert && <div className="mt-4 inline-flex min-h-11 items-center gap-2 px-3 rounded-xl border border-rose-200 bg-rose-50 text-rose-700 text-xs font-black uppercase tracking-wide"><AlertTriangle size={15} /> Alerte médicale</div>}</section>
         <p className="mt-7 mb-3 text-sm font-black text-text-main">Actions rapides</p>
-        <div className="grid grid-cols-2 gap-3">
-          <a data-m4a-touch href={patient!.telephone ? `tel:${patient!.telephone}` : undefined} aria-disabled={!patient!.telephone} className="min-h-[54px] rounded-2xl bg-card-bg border border-border-main inline-flex items-center justify-center gap-2 font-black text-sm text-text-main aria-disabled:opacity-40">
-            <Phone size={18} /> Appeler
-          </a>
-          <button data-m4a-touch type="button" onClick={() => navigate('/mobile/dashboard?tab=agenda')} className="min-h-[54px] rounded-2xl bg-primary text-white inline-flex items-center justify-center gap-2 font-black text-sm">
-            <Calendar size={18} /> Agenda
-          </button>
-        </div>
-
-        <section className="mt-6 rounded-[1.75rem] bg-card-bg border border-border-main p-5 shadow-elite space-y-4">
-          <div>
-            <p className="text-[10px] font-black uppercase tracking-widest text-text-muted">Assurance</p>
-            <p className="mt-1 font-black text-text-main">{patient!.assurance || 'Non renseignée'}</p>
-          </div>
-          <div>
-            <p className="text-[10px] font-black uppercase tracking-widest text-text-muted">Motif</p>
-            <p className="mt-1 font-bold text-text-main">{patient!.motif_consultation || 'Non renseigné'}</p>
-          </div>
-          <p className="pt-2 border-t border-border-main text-[11px] font-bold text-text-muted">Contexte chargé depuis le serveur · aucun identifiant patient dans l’URL</p>
-        </section>
-
-        <button data-m4a-touch type="button" onClick={() => navigate('/mobile/dashboard?tab=agenda', { replace: true })} className="mt-6 w-full min-h-[54px] rounded-2xl bg-card-bg border border-border-main text-text-main font-black text-xs uppercase tracking-widest">
-          Retour au mobile
-        </button>
+        <div className="grid grid-cols-2 gap-3"><a data-m4a-touch href={patient!.telephone ? `tel:${patient!.telephone}` : undefined} aria-disabled={!patient!.telephone} className="min-h-[54px] rounded-2xl bg-card-bg border border-border-main inline-flex items-center justify-center gap-2 font-black text-sm text-text-main aria-disabled:opacity-40"><Phone size={18} /> Appeler</a><button data-m4a-touch type="button" onClick={() => navigate('/mobile/dashboard?tab=agenda')} className="min-h-[54px] rounded-2xl bg-primary text-white inline-flex items-center justify-center gap-2 font-black text-sm"><Calendar size={18} /> Agenda</button></div>
+        <section className="mt-6 rounded-[1.75rem] bg-card-bg border border-border-main p-5 shadow-elite space-y-4"><div><p className="text-[10px] font-black uppercase tracking-widest text-text-muted">Assurance</p><p className="mt-1 font-black text-text-main">{patient!.assurance || 'Non renseignée'}</p></div><div><p className="text-[10px] font-black uppercase tracking-widest text-text-muted">Motif</p><p className="mt-1 font-bold text-text-main">{patient!.motif_consultation || 'Non renseigné'}</p></div><p className="pt-2 border-t border-border-main text-[11px] font-bold text-text-muted">Contexte chargé depuis le serveur · aucun identifiant patient dans l’URL</p></section>
+        <button data-m4a-touch type="button" onClick={() => navigate('/mobile/dashboard?tab=agenda', { replace: true })} className="mt-6 w-full min-h-[54px] rounded-2xl bg-card-bg border border-border-main text-text-main font-black text-xs uppercase tracking-widest">Retour au mobile</button>
       </div>
     </div>
   );

@@ -1,0 +1,105 @@
+# Frozen M4-C exact-head AFTER harness. Not a workflow.
+scenario:
+  materialize: |
+    cat > mobile-m4c-after.html <<'EOF'
+          <!doctype html><html lang="fr"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0,viewport-fit=cover"/><link rel="icon" href="data:,"/><title>Digital Crown M4-C AFTER</title></head><body><div id="root"></div><script type="module" src="/src/mobile-m4c-after.tsx"></script></body></html>
+    EOF
+    cat > src/mobile-m4c-after.tsx <<'EOF'
+          import React from 'react';
+          import { createRoot } from 'react-dom/client';
+          import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
+          import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+          import './index.css';
+          import { PatientDocuments } from './features/patients/PatientDocuments';
+          import { MobileContext } from './features/mobile/Context/MobileContext';
+          import { MobileStorage } from './services/zka/MobileStorage';
+          import { useAuthStore } from './stores/useAuthStore';
+
+          const params = new URLSearchParams(window.location.search);
+          const view = params.get('view') || 'documents';
+          const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+          useAuthStore.setState({ user: ({ id: 1, email: 'dentiste@m4c-after.local', nom_complet: 'Dr M4C', role: 'ADMIN', employer_id: null, is_superadmin: false, permissions: { patients: true, prescriptions: true, accounting: true, clinical: true, cephalo: true, admin: true } } as any), isAuthenticated: true, isLoading: false, error: null });
+
+          const RouteProbe = () => { const location = useLocation(); return <div data-testid="m4c-route-probe" data-path={location.pathname} data-search={location.search} className="hidden"/>; };
+          const futureJwt = 'eyJhbGciOiJub25lIiwidHlwIjoiSldUIn0.eyJleHAiOjQxMDI0NDQ4MDB9.';
+          if (view === 'mobile') {
+            await MobileStorage.clearAll().catch(() => {});
+            await MobileStorage.saveCredentials({ publicId: 'abcdef1234567890', masterKey: 'a'.repeat(64), access_token: futureJwt, refresh_token: 'm4c-after-refresh', device_id: '11111111-2222-4333-8444-555555555555', api_base_url: 'http://127.0.0.1:8005' });
+            await MobileStorage.saveBridgeContext({ type: 'document', key: 'M4CContextKeyExact', label: 'Document', state: 'ready' });
+          }
+          const entry = view === 'mobile' ? '/mobile/context' : '/patients/42/documents';
+          createRoot(document.getElementById('root')!).render(<QueryClientProvider client={queryClient}><MemoryRouter initialEntries={[entry]}><RouteProbe/><Routes><Route path="/patients/:id/documents" element={<PatientDocuments/>}/><Route path="/mobile/context" element={<MobileContext/>}/><Route path="/mobile/dashboard" element={<div>Dashboard mobile</div>}/></Routes></MemoryRouter></QueryClientProvider>);
+    EOF
+    cat > mobile-m4c-after.mjs <<'EOF'
+          import { chromium } from 'playwright';
+          import { createServer } from 'vite';
+          import fs from 'node:fs/promises';
+
+          const output = 'mobile-m4c-after-artifacts';
+          await fs.rm(output, { recursive: true, force: true }); await fs.mkdir(output, { recursive: true });
+          const productHead = process.env.PRODUCT_HEAD || 'unknown';
+          const captures = []; const network = []; const pairingBodies = [];
+          const documents = [
+            { id: '88', name: 'Ordonnance_August_2026.pdf', type: 'ORDONNANCE', date: '24/08/2026', url: 'static/archives/42/Ordonnance_August_2026.pdf', file_exists: true, clinical_data: { items: [{ nom: 'AMOXICILLINE' }] } },
+            { id: '91', name: 'Devis_Implant_2026.pdf', type: 'DEVIS', date: '23/08/2026', url: 'static/archives/42/Devis_Implant_2026.pdf', file_exists: true, clinical_data: { items: [{ acte: 'Implant', dent: '36' }] } },
+            { id: 'legacy:42:ancien_certificat.pdf', name: 'ancien_certificat.pdf', type: 'LEGACY', date: 'Ancien', url: 'static/patients/42_BENNANI_Sara/Documents/ancien_certificat.pdf', file_exists: true }
+          ];
+          const qrSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="180" height="180"><rect width="180" height="180" fill="white"/><g fill="#4f46e5"><rect x="12" y="12" width="48" height="48"/><rect x="120" y="12" width="48" height="48"/><rect x="12" y="120" width="48" height="48"/><rect x="78" y="78" width="20" height="20"/><rect x="112" y="102" width="28" height="28"/></g></svg>`;
+          const qrData = `data:image/svg+xml;base64,${Buffer.from(qrSvg).toString('base64')}`;
+          const server = await createServer({ server: { host: '127.0.0.1', port: 4185, strictPort: true }, clearScreen: false }); await server.listen();
+          const browser = await chromium.launch();
+          const json = body => ({ status: 200, contentType: 'application/json', body: JSON.stringify(body) });
+
+          async function setup(viewport) {
+            const context = await browser.newContext({ viewport, screen: viewport, deviceScaleFactor: 1, hasTouch: viewport.width <= 768, isMobile: viewport.width <= 768, serviceWorkers: 'block' });
+            const page = await context.newPage(); const errors = [];
+            page.on('pageerror', e => errors.push(`pageerror: ${e.message}`));
+            page.on('console', m => { if (m.type() === 'error') errors.push(`console: ${m.text()}`); });
+            await page.route('**/*', async route => {
+              const req = route.request(); const url = new URL(req.url()); const path = url.pathname;
+              if (!path.startsWith('/api/')) return route.continue();
+              network.push(`${req.method()} ${path}`);
+              if (path === '/api/patients/42/documents') return route.fulfill(json(documents));
+              if (path === '/api/mobile/resource-bridge-options') return route.fulfill(json({ resource_type: 'document', resource_label: 'Document', expires_in: 300, contains_patient_data: false, contains_resource_data: false, targets: [{ id: 1, name: 'Dr M4C', email: 'dentiste@m4c-after.local', role: 'ADMIN', is_current_user: true }] }));
+              if (path === '/api/mobile/resource-bridge-pairing') { pairingBodies.push(req.postDataJSON()); return route.fulfill(json({ qr_code: qrData, expires_in: 300, lan_url: 'http://192.168.1.20:8005', token_code: '583214', target_user_id: 1, target_user_name: 'Dr M4C', target_role: 'ADMIN', resource_type: 'document', resource_label: 'Document', contains_patient_data: false, contains_resource_data: false })); }
+              if (path === '/api/mobile/resource-context') return route.fulfill(json({ type: 'document', label: 'Document', document: { patient_name: 'BENNANI Sara', document_type: 'ORDONNANCE', name: 'Ordonnance_August_2026.pdf', filename: 'Ordonnance_August_2026.pdf', created_at: '2026-08-24T10:30:00', mime_type: 'application/pdf' } }));
+              if (path === '/api/mobile/resource-context-media') return route.fulfill({ status: 200, contentType: 'application/pdf', body: '%PDF-1.4\nM4C-AFTER-DOCUMENT\n%%EOF' });
+              if (path === '/api/mobile/refresh-token') return route.fulfill({ status: 401, contentType: 'application/json', body: '{}' });
+              return route.fulfill(json(req.method() === 'GET' ? [] : {}));
+            });
+            return { context, page, errors };
+          }
+
+          async function metrics(page) { return page.evaluate(() => {
+            const root = document.documentElement;
+            const touches = [...document.querySelectorAll('[data-m4c-touch]')].filter(el => { const r = el.getBoundingClientRect(); const s = getComputedStyle(el); return r.width > 0 && r.height > 0 && s.visibility !== 'hidden' && s.display !== 'none'; }).map(el => { const r = el.getBoundingClientRect(); return { text: (el.textContent || el.getAttribute('aria-label') || '').trim().replace(/\s+/g, ' ').slice(0, 90), width: Math.round(r.width), height: Math.round(r.height) }; });
+            const html = document.body.innerHTML;
+            return { scrollWidth: root.scrollWidth, clientWidth: root.clientWidth, hasHorizontalOverflow: root.scrollWidth > root.clientWidth + 1, touchesBelow44: touches.filter(t => t.height < 44 || t.width < 44), canonicalBridgePresent: html.includes('Ouvrir sur mobile'), legacyDesktopOnly: html.includes('Ancien format · desktop uniquement') && html.includes('Non portable sur mobile'), exactDocumentVisible: html.includes('Ordonnance_August_2026.pdf'), patientVisible: html.includes('BENNANI Sara'), routePath: document.querySelector('[data-testid="m4c-route-probe"]')?.getAttribute('data-path') || null, routeSearch: document.querySelector('[data-testid="m4c-route-probe"]')?.getAttribute('data-search') || null };
+          }); }
+          async function capture(page, errors, name, state, viewport) { const measured = await metrics(page); await page.screenshot({ path: `${output}/${name}.png`, fullPage: false, animations: 'disabled' }); const record = { name, state, ...viewport, metrics: measured, errors: [...errors] }; captures.push(record); await fs.writeFile(`${output}/${name}.json`, JSON.stringify(record, null, 2)); }
+
+          try {
+            for (const viewport of [{ width: 1280, height: 900 }, { width: 768, height: 1024 }, { width: 430, height: 932 }, { width: 390, height: 844 }]) {
+              const { context, page, errors } = await setup(viewport); await page.goto('http://127.0.0.1:4185/mobile-m4c-after.html?view=documents', { waitUntil: 'networkidle' });
+              await page.getByText('Ordonnance_August_2026.pdf', { exact: true }).waitFor({ state: 'visible', timeout: 10000 }); await page.getByText('ancien_certificat.pdf', { exact: true }).waitFor({ state: 'visible' }); await page.getByText('Ancien format · desktop uniquement', { exact: true }).waitFor({ state: 'visible' });
+              await capture(page, errors, `documents-${viewport.width}x${viewport.height}`, 'documents', viewport);
+              if (viewport.width === 1280) {
+                await page.getByRole('button', { name: 'Ouvrir le document Ordonnance_August_2026.pdf sur mobile', exact: true }).click();
+                await page.getByRole('button', { name: 'Générer le QR', exact: true }).click();
+                await page.getByText('583214', { exact: true }).waitFor({ state: 'visible' });
+                await capture(page, errors, 'bridge-1280x900', 'desktop-bridge', viewport);
+              }
+              await context.close();
+            }
+            for (const viewport of [{ width: 390, height: 844 }, { width: 430, height: 932 }, { width: 768, height: 1024 }]) {
+              const { context, page, errors } = await setup(viewport); await page.goto('http://127.0.0.1:4185/mobile-m4c-after.html?view=mobile', { waitUntil: 'networkidle' });
+              await page.getByRole('heading', { name: 'Document', exact: true }).waitFor({ state: 'visible', timeout: 10000 }); await page.getByText('BENNANI Sara', { exact: true }).waitFor({ state: 'visible' }); await page.getByText('Ordonnance_August_2026.pdf', { exact: true }).waitFor({ state: 'visible' });
+              await capture(page, errors, `mobile-document-${viewport.width}x${viewport.height}`, 'mobile-context', viewport); await context.close();
+            }
+            const docCaptures = captures.filter(item => item.state === 'documents'); const mobileCaptures = captures.filter(item => item.state === 'mobile-context');
+            const safePairingBodies = pairingBodies.length === 1 && pairingBodies.every(body => body.resource_type === 'document' && body.resource_id === 88 && !('patient_id' in body) && !('file_path' in body));
+            const report = { productHead, captures, count: captures.length, safePairingBodies, canonicalBridgePresent: docCaptures.every(item => item.metrics.canonicalBridgePresent), legacyDesktopOnly: docCaptures.every(item => item.metrics.legacyDesktopOnly), mobileContextCount: mobileCaptures.length, exactDocumentVisible: mobileCaptures.every(item => item.metrics.exactDocumentVisible && item.metrics.patientVisible), idlessMobileRoute: mobileCaptures.every(item => item.metrics.routePath === '/mobile/context' && !item.metrics.routeSearch), mediaContextObserved: network.filter(item => item === 'POST /api/mobile/resource-context-media').length === 3, noLegacyTrashRequest: !network.some(item => item.includes('legacy:') && item.includes('/trash')), noUnexpectedErrors: captures.every(item => item.errors.length === 0), noHorizontalOverflow: captures.every(item => !item.metrics.hasHorizontalOverflow), noM4CTouchBelow44: captures.every(item => item.metrics.touchesBelow44.length === 0), network };
+            await fs.writeFile(`${output}/report.json`, JSON.stringify(report, null, 2)); console.log(JSON.stringify(report, null, 2));
+            if (report.count !== 8 || !report.safePairingBodies || !report.canonicalBridgePresent || !report.legacyDesktopOnly || report.mobileContextCount !== 3 || !report.exactDocumentVisible || !report.idlessMobileRoute || !report.mediaContextObserved || !report.noLegacyTrashRequest || !report.noUnexpectedErrors || !report.noHorizontalOverflow || !report.noM4CTouchBelow44) throw new Error('M4-C AFTER gate failed.');
+          } finally { await browser.close(); await server.close(); }
+    EOF
