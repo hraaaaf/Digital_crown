@@ -3,14 +3,15 @@ name: Mobile M6-B Prepare
 on:
   push:
     branches:
-      - audit/mobile-m6-b-before-20260825
+      - "audit/mobile-m6-b-before-20260825"
     paths:
-      - '.audit/mobile-m6b-apply.py'
-      - '.github/workflows/mobile-m6-b-prepare.yml'
+      - ".audit/mobile-m6b-apply.py"
+      - ".github/workflows/mobile-m6-b-prepare.yml"
 
 permissions:
   contents: write
 
+# M6-B preparation is intentionally single-run: full patch -> targeted tests -> build -> one product commit.
 jobs:
   prepare:
     name: Test then create single M6-B product commit
@@ -19,10 +20,10 @@ jobs:
       PRODUCT_BASE: 0a577f05f55a772a1b3f6d2980b18ef4e1a643fb
       PRODUCT_BRANCH: mobile/m6-b-document-scan
       SECRET_KEY: ci-only-secret-key-minimum-32-characters-long
-      DATABASE_URL: sqlite:///:memory:
+      DATABASE_URL: "sqlite:///:memory:"
       ENVIRONMENT: development
-      TELEMETRY_ENABLED: 'false'
-      CLOUD_AI_ENABLED: 'false'
+      TELEMETRY_ENABLED: "false"
+      CLOUD_AI_ENABLED: "false"
     steps:
       - name: Checkout frozen audit inputs
         uses: actions/checkout@v4
@@ -34,53 +35,45 @@ jobs:
         with:
           ref: ${{ env.PRODUCT_BASE }}
           path: product
-          fetch-depth: 1
+          fetch-depth: 0
 
       - name: Assert baseline and unused product branch
-        working-directory: product
-        shell: bash
         run: |
-          set -euo pipefail
-          test "$(git rev-parse HEAD)" = "$PRODUCT_BASE"
-          if git ls-remote --exit-code --heads origin "$PRODUCT_BRANCH" >/dev/null 2>&1; then
-            echo "Product branch already exists: $PRODUCT_BRANCH" >&2
+          test "$(git -C product rev-parse HEAD)" = "$PRODUCT_BASE"
+          if git -C product ls-remote --exit-code --heads origin "refs/heads/$PRODUCT_BRANCH" >/dev/null 2>&1; then
+            echo "::error::Product branch already exists: $PRODUCT_BRANCH"
             exit 1
           fi
 
       - name: Materialize complete M6-B patch
-        shell: bash
-        run: |
-          set -euo pipefail
-          mkdir -p product/.audit
-          cp audit/.audit/mobile-m6b-apply.py product/.audit/mobile-m6b-apply.py
-          cd product
-          python .audit/mobile-m6b-apply.py
-          rm .audit/mobile-m6b-apply.py
+        working-directory: product
+        run: python ../audit/.audit/mobile-m6b-apply.py
 
       - name: Assert exact product scope
         working-directory: product
-        shell: bash
         run: |
-          set -euo pipefail
+          git add -N backend/tests/test_mobile_m6b_document_scan.py
           git diff --check
-          ACTUAL="$(git status --short | sed -E 's/^.. //' | sort)"
-          EXPECTED="$(printf '%s\n' \
-            'backend/routers/mobile_resource_bridge.py' \
-            'backend/tests/test_mobile_m6b_document_scan.py' \
-            'frontend/src/features/mobile/Context/MobileContext.tsx' | sort)"
-          test "$ACTUAL" = "$EXPECTED" || { echo "Unexpected scope:"; printf '%s\n' "$ACTUAL"; exit 1; }
+          test "$(git diff --name-only | sort)" = "$(printf '%s\n' \
+            backend/routers/mobile_resource_bridge.py \
+            backend/tests/test_mobile_m6b_document_scan.py \
+            frontend/src/features/mobile/Context/MobileContext.tsx | sort)"
+          grep -q "resource-context-document-scan" backend/routers/mobile_resource_bridge.py
+          grep -q "DocumentType.AUTRE" backend/routers/mobile_resource_bridge.py
+          grep -q "_document_scan_pdf" backend/routers/mobile_resource_bridge.py
+          grep -q "data-m6b-scan-action" frontend/src/features/mobile/Context/MobileContext.tsx
+          grep -q "data-m6b-scan-sheet" frontend/src/features/mobile/Context/MobileContext.tsx
+          ! grep -q "form.append('patient_id'" frontend/src/features/mobile/Context/MobileContext.tsx
           python -m py_compile backend/routers/mobile_resource_bridge.py backend/tests/test_mobile_m6b_document_scan.py
 
       - name: Setup Python 3.12
         uses: actions/setup-python@v5
         with:
-          python-version: '3.12'
+          python-version: "3.12"
 
       - name: Install backend test dependencies
         working-directory: product
-        shell: bash
         run: |
-          set -euo pipefail
           python -m pip install --upgrade pip
           pip install torch==2.12.0 torchvision==0.27.0 --index-url https://download.pytorch.org/whl/cpu
           grep -vE '^(torch|torchvision)([<=>].*)?$' requirements.txt > /tmp/requirements-m6b.txt
@@ -89,9 +82,7 @@ jobs:
 
       - name: Run M6-B and M6-A backend tests
         working-directory: product
-        shell: bash
         run: |
-          set -euo pipefail
           python -m pytest \
             backend/tests/test_mobile_m6b_document_scan.py \
             backend/tests/test_mobile_m6a_clinical_photo.py \
@@ -100,7 +91,7 @@ jobs:
       - name: Setup Node 20
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: "20"
           cache: npm
           cache-dependency-path: product/frontend/package-lock.json
 
@@ -114,23 +105,18 @@ jobs:
 
       - name: Create exactly one product commit
         working-directory: product
-        shell: bash
         run: |
-          set -euo pipefail
-          git config user.name 'hraaaaf'
-          git config user.email '123034021+hraaaaf@users.noreply.github.com'
-          git checkout -b "$PRODUCT_BRANCH"
-          git add -- \
-            backend/routers/mobile_resource_bridge.py \
-            backend/tests/test_mobile_m6b_document_scan.py \
-            frontend/src/features/mobile/Context/MobileContext.tsx
-          test "$(git diff --cached --name-only | wc -l)" -eq 3
-          git commit -m 'feat(mobile): add context-bound document scanning'
-          git push origin "HEAD:$PRODUCT_BRANCH"
-          echo "PRODUCT_HEAD=$(git rev-parse HEAD)" >> "$GITHUB_ENV"
+          git config user.name "hraaaaf"
+          git config user.email "123034021+hraaaaf@users.noreply.github.com"
+          git add backend/routers/mobile_resource_bridge.py backend/tests/test_mobile_m6b_document_scan.py frontend/src/features/mobile/Context/MobileContext.tsx
+          git diff --cached --check
+          git commit -m "feat(mobile): add context-bound document scanning"
+          test "$(git rev-list --count "$PRODUCT_BASE"..HEAD)" = "1"
+          git push origin "HEAD:refs/heads/$PRODUCT_BRANCH"
 
       - name: Record proof
-        shell: bash
+        working-directory: product
         run: |
-          printf 'M6-B product HEAD: %s\n' "$PRODUCT_HEAD"
-          git -C product show --stat --oneline --decorate --no-renames HEAD
+          echo "PRODUCT_HEAD=$(git rev-parse HEAD)"
+          echo "PRODUCT_BASE=$PRODUCT_BASE"
+          echo "FILES=$(git diff --name-only "$PRODUCT_BASE"..HEAD | wc -l)"
