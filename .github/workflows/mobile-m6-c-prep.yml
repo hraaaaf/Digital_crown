@@ -72,14 +72,16 @@ jobs:
 
       - name: Install backend dependencies
         shell: bash
-        run: pip install -r product/requirements.txt
+        run: |
+          python -m pip install -r product/requirements.txt
+          python -m pip install pytest
 
       - name: Backend targeted proof
         shell: bash
         run: |
           cd product
           python -m py_compile backend/routers/mobile_legacy.py
-          pytest -q backend/tests/test_mobile_m6c_signature_hardening.py backend/tests/test_mobile_m6a_clinical_photo.py backend/tests/test_mobile_m6b_document_scan.py
+          python -m pytest -q backend/tests/test_mobile_m6c_signature_hardening.py backend/tests/test_mobile_m6a_clinical_photo.py backend/tests/test_mobile_m6b_document_scan.py
 
       - name: Setup Node
         uses: actions/setup-node@v4
