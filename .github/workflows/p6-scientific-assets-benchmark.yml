@@ -1,0 +1,75 @@
+name: P6 Scientific Assets Portability Benchmark
+
+on:
+  push:
+    branches:
+      - portability/p6-scientific-assets-refresh
+    paths:
+      - .github/workflows/p6-scientific-assets-benchmark.yml
+      - scripts/p6_scientific_assets_benchmark.py
+      - docs/P6_SCIENTIFIC_ASSETS_REFRESH.md
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: p6-scientific-assets-portability
+  cancel-in-progress: false
+
+jobs:
+  benchmark:
+    name: Pin, export and benchmark
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    env:
+      P6_BENCHMARK_DIR: ${{ runner.temp }}/p6-scientific-assets-benchmark
+      PYTHONUNBUFFERED: "1"
+    steps:
+      - name: Checkout research branch
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install pinned CPU benchmark stack
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pip install --upgrade pip
+          python -m pip install \
+            --index-url https://download.pytorch.org/whl/cpu \
+            "torch==2.3.0+cpu" \
+            "torchvision==0.18.0+cpu"
+          python -m pip install \
+            "numpy==1.26.4" \
+            "ultralytics==8.2.0" \
+            "onnx==1.16.1" \
+            "onnxruntime==1.18.0" \
+            "gdown==5.2.0"
+          mkdir -p "$P6_BENCHMARK_DIR"
+          python -m pip freeze > "$P6_BENCHMARK_DIR/pip-freeze.txt"
+
+      - name: Run isolated scientific asset benchmark
+        run: python scripts/p6_scientific_assets_benchmark.py
+
+      - name: Prove product tree stayed untouched
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          git diff --exit-code -- backend frontend
+          git status --short
+
+      - name: Upload benchmark evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: p6-scientific-assets-benchmark
+          path: ${{ runner.temp }}/p6-scientific-assets-benchmark
+          if-no-files-found: ignore
+          retention-days: 14
