@@ -1,0 +1,56 @@
+name: P6 Ceph Winner Transfer Bridge
+
+on:
+  push:
+    branches:
+      - portability/p6-scientific-assets-refresh
+    paths:
+      - .github/workflows/p6-ceph-winner-transfer-bridge.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: p6-ceph-winner-transfer-bridge
+  cancel-in-progress: false
+
+jobs:
+  export-existing-winner:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    env:
+      WINNER_COMMIT: 1da113b8776aa2b57e42ac194f12b7a48b01558c
+      MODEL_SHA256: 809f1d3d2347d2a34f57d4a3415bb319c29f8a25c325d41160e5f28d4e5dadad
+    steps:
+      - name: Checkout bridge HEAD
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          path: bridge
+
+      - name: Checkout exact existing winner commit
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          ref: ${{ env.WINNER_COMMIT }}
+          path: winner
+
+      - name: Verify exact ONNX before transfer
+        shell: bash
+        run: |
+          set -euo pipefail
+          model="winner/p6-ephemeral-output/model.onnx"
+          test -f "$model"
+          test "$(stat -c '%s' "$model")" = "7624307"
+          echo "$MODEL_SHA256  $model" | sha256sum -c -
+          mkdir -p transfer
+          cp "$model" transfer/model.onnx
+
+      - name: Upload exact winner for private handoff
+        uses: actions/upload-artifact@v4
+        with:
+          name: p6-ceph-winner-private-handoff
+          path: transfer/model.onnx
+          if-no-files-found: error
+          retention-days: 1
