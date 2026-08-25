@@ -1,0 +1,59 @@
+name: Mobile M6-D1 BEFORE
+
+on:
+  push:
+    branches:
+      - "audit/mobile-m6-d1-before-20260825"
+    paths:
+      - ".github/workflows/mobile-m6-d1-before.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  before:
+    name: Exact-master notifications baseline
+    runs-on: ubuntu-latest
+    env:
+      PRODUCT_HEAD: 4d58c080569d0177e887deda6948d65026fe3887
+    steps:
+      - name: Checkout audit harness
+        uses: actions/checkout@v4
+        with:
+          path: audit
+      - name: Checkout exact product HEAD
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.PRODUCT_HEAD }}
+          path: product
+      - name: Assert exact product HEAD
+        run: test "$(git -C product rev-parse HEAD)" = "$PRODUCT_HEAD"
+      - name: Setup Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: product/frontend/package-lock.json
+      - name: Install frontend and Chromium
+        working-directory: product/frontend
+        run: |
+          npm ci
+          npm install --no-save --package-lock=false playwright@1.55.0
+          npx playwright install --with-deps chromium
+      - name: Materialize BEFORE harness outside product commit
+        run: |
+          cp audit/.audit/mobile-m6-d1-before.html product/frontend/mobile-m6-d1-before.html
+          cp audit/.audit/mobile-m6-d1-before.tsx product/frontend/src/mobile-m6-d1-before.tsx
+          cp audit/.audit/mobile-m6-d1-before.mjs product/frontend/mobile-m6-d1-before.mjs
+      - name: Capture M6-D1 BEFORE
+        working-directory: product/frontend
+        run: node mobile-m6-d1-before.mjs
+      - name: Upload BEFORE evidence and reference
+        uses: actions/upload-artifact@v4
+        with:
+          name: mobile-m6-d1-before
+          path: |
+            product/frontend/mobile-m6-d1-before-artifacts
+            audit/.audit/mobile-m6-d1-goal.md
+            audit/.audit/mobile-m6-d1-mockup.svg
+          retention-days: 14

@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="390" height="844" viewBox="0 0 390 844">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#eef5ff"/><stop offset="1" stop-color="#fbfdff"/></linearGradient>
+    <filter id="glass"><feGaussianBlur stdDeviation="0.2"/></filter>
+  </defs>
+  <rect width="390" height="844" fill="url(#bg)"/>
+  <text x="24" y="68" font-family="Arial" font-size="20" font-weight="700" fill="#334155">Digital Crown</text>
+  <rect x="278" y="38" width="48" height="48" rx="16" fill="#ffffffcc" stroke="#cbd5e1"/>
+  <path d="M302 53c-6 0-9 4-9 10v6l-3 4h24l-3-4v-6c0-6-3-10-9-10z" fill="none" stroke="#4f46e5" stroke-width="2"/>
+  <circle cx="315" cy="48" r="9" fill="#e11d48"/><text x="312" y="52" font-family="Arial" font-size="10" font-weight="700" fill="white">3</text>
+  <rect x="332" y="38" width="42" height="48" rx="16" fill="#ffffffcc" stroke="#cbd5e1"/>
+  <text x="342" y="67" font-family="Arial" font-size="10" font-weight="700" fill="#64748b">LIVE</text>
+  <text x="24" y="132" font-family="Arial" font-size="38" font-weight="800" fill="#4f46e5">Bonsoir,</text>
+  <rect x="18" y="166" width="354" height="610" rx="30" fill="#ffffffec" stroke="#dbe3f0"/>
+  <text x="42" y="208" font-family="Arial" font-size="12" font-weight="700" fill="#4f46e5">NOTIFICATIONS</text>
+  <text x="42" y="238" font-family="Arial" font-size="23" font-weight="800" fill="#0f172a">À traiter</text>
+  <rect x="42" y="262" width="306" height="132" rx="20" fill="#fff" stroke="#fecdd3"/>
+  <circle cx="66" cy="292" r="12" fill="#fff1f2"/><text x="61" y="297" font-family="Arial" font-size="14" fill="#e11d48">!</text>
+  <text x="88" y="290" font-family="Arial" font-size="13" font-weight="700" fill="#0f172a">Action prioritaire</text>
+  <text x="88" y="312" font-family="Arial" font-size="11" fill="#64748b">Un suivi du cabinet demande votre attention.</text>
+  <rect x="88" y="336" width="92" height="42" rx="14" fill="#4f46e5"/><text x="109" y="362" font-family="Arial" font-size="11" font-weight="700" fill="white">Ouvrir</text>
+  <rect x="188" y="336" width="104" height="42" rx="14" fill="#f8fafc" stroke="#cbd5e1"/><text x="207" y="362" font-family="Arial" font-size="11" font-weight="700" fill="#475569">+ 24 h</text>
+  <rect x="42" y="410" width="306" height="116" rx="20" fill="#fff" stroke="#e2e8f0"/>
+  <text x="64" y="445" font-family="Arial" font-size="13" font-weight="700" fill="#0f172a">Stock à surveiller</text>
+  <text x="64" y="468" font-family="Arial" font-size="11" fill="#64748b">Alerte cabinet générée par le moteur existant.</text>
+  <text x="64" y="500" font-family="Arial" font-size="11" font-weight="700" fill="#4f46e5">Marquer comme lu</text>
+  <text x="42" y="574" font-family="Arial" font-size="11" fill="#64748b">Les détails sensibles restent dans l'app après authentification.</text>
+</svg>
