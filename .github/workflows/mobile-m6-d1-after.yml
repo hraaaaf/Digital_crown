@@ -18,7 +18,7 @@ jobs:
     name: Exact-head notifications certification
     runs-on: ubuntu-latest
     env:
-      PRODUCT_HEAD: e0b684e5b8962b4914fb8aedcb9f7fe47dcc8ab5
+      PRODUCT_HEAD: cdac655b20b54e3a3cb7262fd1b5a634c9a30ede
     steps:
       - name: Checkout audit harness
         uses: actions/checkout@v4
