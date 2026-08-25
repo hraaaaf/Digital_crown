@@ -31,6 +31,16 @@ interface MobileDocument {
   mime_type?: string | null;
 }
 
+interface MobileAppointment {
+  patient_name: string;
+  datetime_start?: string | null;
+  duration_minutes: number;
+  motif: string;
+  status: string;
+  scheduling_type: string;
+  notes?: string | null;
+}
+
 function ageFromBirth(value?: string | null): number | null {
   if (!value) return null;
   const birth = new Date(value);
@@ -55,6 +65,7 @@ export const MobileContext = () => {
   const [patient, setPatient] = useState<MobilePatient | null>(null);
   const [panoramic, setPanoramic] = useState<MobilePanoramic | null>(null);
   const [documentData, setDocumentData] = useState<MobileDocument | null>(null);
+  const [appointment, setAppointment] = useState<MobileAppointment | null>(null);
   const [mediaUrl, setMediaUrl] = useState<string | null>(null);
   const [mediaType, setMediaType] = useState<string>('');
   const mediaUrlRef = useRef<string | null>(null);
@@ -74,10 +85,11 @@ export const MobileContext = () => {
     setPatient(null);
     setPanoramic(null);
     setDocumentData(null);
+    setAppointment(null);
     clearMedia();
     const stored = await MobileStorage.getBridgeContext().catch(() => null);
     setContext(stored);
-    if (!stored || !['patient', 'panoramic', 'document'].includes(stored.type)) {
+    if (!stored || !['patient', 'panoramic', 'document', 'appointment'].includes(stored.type)) {
       setError('Aucun contexte clinique compatible n’est disponible sur cet appareil.');
       setPhase('error');
       return;
@@ -155,6 +167,12 @@ export const MobileContext = () => {
         return;
       }
 
+      if (payload.type === 'appointment' && payload.appointment && stored.type === 'appointment') {
+        setAppointment(payload.appointment as MobileAppointment);
+        setPhase('ready');
+        return;
+      }
+
       throw new Error('Réponse de contexte mobile invalide.');
     } catch (err: any) {
       setError(err?.message || 'Impossible de charger le contexte clinique.');
@@ -195,7 +213,7 @@ export const MobileContext = () => {
     );
   }
 
-  if (phase === 'error' || (!patient && !panoramic && !documentData)) {
+  if (phase === 'error' || (!patient && !panoramic && !documentData && !appointment)) {
     return (
       <div data-mobile-context className="min-h-[100dvh] bg-background text-text-main p-5 font-outfit flex items-center justify-center relative" style={{ backgroundColor: 'var(--bg-medical-pearl)' }}><div className="document-watermark absolute inset-0 pointer-events-none opacity-40" />
         <div className="w-full max-w-md bg-card-bg border border-rose-200 rounded-[2rem] p-6 shadow-elite text-center relative z-10">
@@ -204,6 +222,29 @@ export const MobileContext = () => {
           <p className="mt-2 text-sm font-bold leading-relaxed text-text-muted">{error || context?.reason}</p>
           <button data-m4-touch type="button" onClick={() => void load()} className="mt-5 w-full min-h-[52px] rounded-2xl border border-border-main bg-card-bg font-black text-xs uppercase tracking-widest text-text-main inline-flex items-center justify-center gap-2"><RefreshCcw size={16} /> Réessayer</button>
           <button data-m4-touch type="button" onClick={() => navigate('/mobile/dashboard?tab=agenda', { replace: true })} className="mt-3 w-full min-h-[52px] rounded-2xl bg-primary text-white font-black text-xs uppercase tracking-widest">Retour au mobile</button>
+        </div>
+      </div>
+    );
+  }
+
+  if (appointment) {
+    const schedulingLabels: Record<string, string> = { EXACT_TIME: 'Heure précise', MORNING: 'Matin', AFTERNOON: 'Après-midi', FULL_DAY: 'Toute la journée' };
+    return (
+      <div data-m4d-context className="min-h-[100dvh] bg-background text-text-main font-outfit relative px-5 pt-[max(1.25rem,env(safe-area-inset-top))] pb-[max(1.5rem,env(safe-area-inset-bottom))]" style={{ backgroundColor: 'var(--bg-medical-pearl)' }}>
+        <div className="document-watermark absolute inset-0 pointer-events-none opacity-40" />
+        <div className="max-w-md mx-auto relative z-10">
+          <button data-m4d-touch type="button" onClick={() => navigate('/mobile/dashboard?tab=agenda')} className="min-h-11 inline-flex items-center gap-2 text-sm font-black text-text-muted"><ArrowLeft size={17} /> Retour</button>
+          <div className="mt-4 flex items-center gap-2 text-primary"><ShieldCheck size={18} /><p className="text-[10px] font-black uppercase tracking-[0.18em]">Contexte cabinet vérifié</p></div>
+          <h1 className="mt-2 text-3xl font-black tracking-tight text-text-main">Rendez-vous</h1>
+          <p className="mt-1 text-lg font-black text-text-main">{appointment.patient_name}</p>
+          <section className="mt-5 rounded-[1.75rem] bg-card-bg border border-border-main p-5 shadow-elite space-y-5">
+            <div><p className="text-[10px] font-black uppercase tracking-widest text-text-muted">Date & heure</p><p className="mt-1 text-lg font-black text-text-main">{formatDate(appointment.datetime_start)}</p><p className="mt-1 text-sm font-bold text-text-muted">{appointment.duration_minutes} min · {schedulingLabels[appointment.scheduling_type] || appointment.scheduling_type}</p></div>
+            <div className="pt-4 border-t border-border-main"><p className="text-[10px] font-black uppercase tracking-widest text-text-muted">Motif</p><p className="mt-1 text-base font-black text-text-main">{appointment.motif || 'Non renseigné'}</p></div>
+            <div className="pt-4 border-t border-border-main"><p className="text-[10px] font-black uppercase tracking-widest text-text-muted">Statut</p><p className="mt-1 inline-flex min-h-11 items-center rounded-xl bg-primary/10 px-3 text-sm font-black text-primary">{appointment.status}</p></div>
+            {appointment.notes && <div className="pt-4 border-t border-border-main"><p className="text-[10px] font-black uppercase tracking-widest text-text-muted">Notes</p><p className="mt-1 text-sm font-bold text-text-main whitespace-pre-wrap">{appointment.notes}</p></div>}
+          </section>
+          <p className="mt-4 text-[11px] font-bold text-text-muted text-center">Contexte résolu côté serveur · aucun identifiant rendez-vous dans l’URL</p>
+          <button data-m4d-touch type="button" onClick={() => navigate('/mobile/dashboard?tab=agenda', { replace: true })} className="mt-6 w-full min-h-[54px] rounded-2xl bg-primary text-white font-black text-xs uppercase tracking-widest">Retour au mobile</button>
         </div>
       </div>
     );

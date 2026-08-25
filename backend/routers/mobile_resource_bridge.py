@@ -1,4 +1,4 @@
-"""Contextual mobile resource bridge: patient, panoramic and document resources."""
+"""Contextual mobile resource bridge: patient, panoramic, document and appointment resources."""
 from datetime import datetime, timedelta
 from pathlib import Path
 import base64
@@ -44,6 +44,7 @@ _RESOURCE_SPECS = {
     "patient": {"permission": "patients", "label": "Dossier patient"},
     "panoramic": {"permission": "panoramic", "label": "Radio panoramique"},
     "document": {"permission": None, "label": "Document"},
+    "appointment": {"permission": "agenda", "label": "Rendez-vous"},
 }
 
 
@@ -148,6 +149,27 @@ def _document_resource(db: Session, user: models.User, resource_id: int) -> mode
     return document
 
 
+def _appointment_resource(db: Session, user: models.User, resource_id: int) -> models.Appointment:
+    if not has_permission(user, "agenda"):
+        raise HTTPException(status_code=403, detail="Accès rendez-vous mobile refusé.")
+    appointment = db.query(models.Appointment).filter(
+        models.Appointment.id == int(resource_id),
+        models.Appointment.employer_id == user.get_employer_id(),
+    ).first()
+    if not appointment:
+        raise HTTPException(status_code=404, detail="Rendez-vous introuvable dans ce cabinet.")
+    if appointment.patient_id:
+        assert_patient_access(appointment.patient_id, user, db)
+        patient = db.query(models.Patient.id).filter(
+            models.Patient.id == appointment.patient_id,
+            models.Patient.employer_id == user.get_employer_id(),
+            models.Patient.deleted_at.is_(None),
+        ).first()
+        if not patient:
+            raise HTTPException(status_code=404, detail="Patient du rendez-vous indisponible.")
+    return appointment
+
+
 def _resource_entity(db: Session, user: models.User, resource_type: str, resource_id: int):
     resource_type = _resource_type(resource_type)
     if resource_type == "patient":
@@ -156,6 +178,8 @@ def _resource_entity(db: Session, user: models.User, resource_type: str, resourc
         return _panoramic_resource(db, user, resource_id)
     if resource_type == "document":
         return _document_resource(db, user, resource_id)
+    if resource_type == "appointment":
+        return _appointment_resource(db, user, resource_id)
     raise HTTPException(status_code=422, detail="Type de ressource mobile non pris en charge.")
 
 
@@ -489,6 +513,34 @@ def get_resource_context(
                 "filename": document.original_filename or document.filename,
                 "created_at": document.created_at.isoformat() if document.created_at else None,
                 "mime_type": mimetypes.guess_type(document.original_filename or document.filename or "")[0] or "application/octet-stream",
+            },
+        }
+
+    if resource_type == "appointment":
+        appointment = _appointment_resource(db, mobile_user, int(context["resource_id"]))
+        patient_name = appointment.patient_name or "Patient externe"
+        if appointment.patient_id:
+            patient = db.query(models.Patient).filter(
+                models.Patient.id == appointment.patient_id,
+                models.Patient.employer_id == mobile_user.get_employer_id(),
+                models.Patient.deleted_at.is_(None),
+            ).first()
+            if not patient:
+                raise HTTPException(status_code=404, detail="Patient du rendez-vous indisponible.")
+            patient_name = f"{patient.nom.upper()} {patient.prenom}"
+        status_value = getattr(appointment.status, "value", appointment.status)
+        scheduling_value = getattr(appointment.scheduling_type, "value", appointment.scheduling_type)
+        return {
+            "type": "appointment",
+            "label": "Rendez-vous",
+            "appointment": {
+                "patient_name": patient_name,
+                "datetime_start": appointment.datetime_start.isoformat() if appointment.datetime_start else None,
+                "duration_minutes": appointment.duration_minutes,
+                "motif": appointment.motif or "",
+                "status": str(status_value),
+                "scheduling_type": str(scheduling_value),
+                "notes": appointment.notes,
             },
         }
 

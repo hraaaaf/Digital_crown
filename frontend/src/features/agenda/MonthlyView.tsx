@@ -14,9 +14,18 @@ export const MonthlyView: React.FC<MonthlyViewProps> = ({ selectedDate }) => {
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [modalDate, setModalDate] = useState<Date | null>(null);
+  const [editingAppointment, setEditingAppointment] = useState<Appointment | null>(null);
 
   const handleDayClick = (day: Date) => {
+    setEditingAppointment(null);
     setModalDate(day);
+    setIsModalOpen(true);
+  };
+
+  const handleAppointmentClick = (event: React.MouseEvent, appointment: Appointment) => {
+    event.stopPropagation();
+    setEditingAppointment(appointment);
+    setModalDate(new Date(appointment.datetime_start));
     setIsModalOpen(true);
   };
 
@@ -25,12 +34,12 @@ export const MonthlyView: React.FC<MonthlyViewProps> = ({ selectedDate }) => {
     const year = date.getFullYear();
     const month = date.getMonth();
     const firstDayOfMonth = new Date(year, month, 1);
-    
+
     // Debut de la grille (lundi de la semaine du 1er)
     const startOffset = (firstDayOfMonth.getDay() + 6) % 7;
     const startDate = new Date(firstDayOfMonth);
     startDate.setDate(firstDayOfMonth.getDate() - startOffset);
-    
+
     return Array.from({ length: 42 }).map((_, i) => {
       const d = new Date(startDate);
       d.setDate(startDate.getDate() + i);
@@ -73,7 +82,7 @@ export const MonthlyView: React.FC<MonthlyViewProps> = ({ selectedDate }) => {
         <button onClick={fetchAppointments} className="p-3 bg-white/50 border border-white hover:bg-white text-slate-500 rounded-2xl transition-all shadow-sm">
           <RefreshCw size={18} className={cn(loading && "animate-spin text-blue-500")} />
         </button>
-        <button onClick={() => setIsModalOpen(true)} className="px-6 py-3 bg-[#003380] text-white font-bold rounded-2xl shadow-xl shadow-blue-900/10 hover:bg-blue-900 transition-all flex items-center gap-2">
+        <button onClick={() => { setEditingAppointment(null); setModalDate(selectedDate); setIsModalOpen(true); }} className="px-6 py-3 bg-[#003380] text-white font-bold rounded-2xl shadow-xl shadow-blue-900/10 hover:bg-blue-900 transition-all flex items-center gap-2">
           <Plus size={18} /> Nouveau RV
         </button>
       </div>
@@ -90,10 +99,10 @@ export const MonthlyView: React.FC<MonthlyViewProps> = ({ selectedDate }) => {
             const isToday = day.toDateString() === new Date().toDateString();
             const isCurrentMonth = day.getMonth() === selectedDate.getMonth();
             const dayAppts = appointments.filter(a => new Date(a.datetime_start).toDateString() === day.toDateString());
-            
+
             return (
-              <div 
-                key={i} 
+              <div
+                key={i}
                 onClick={() => handleDayClick(day)}
                 className={cn(
                   "min-h-[120px] p-2 border-r border-b border-slate-100/60 last:border-r-0 transition-all cursor-pointer",
@@ -110,7 +119,7 @@ export const MonthlyView: React.FC<MonthlyViewProps> = ({ selectedDate }) => {
                   </span>
                   {dayAppts.length > 0 && <span className="text-[10px] font-bold text-blue-500 bg-blue-100 px-1.5 py-0.5 rounded-md">{dayAppts.length} RDV</span>}
                 </div>
-                
+
                 <div className="space-y-1 overflow-hidden">
                   {dayAppts.slice(0, 3).map(a => {
                     let timeLabel = new Date(a.datetime_start).toLocaleTimeString('fr-FR', {hour:'2-digit', minute:'2-digit'});
@@ -118,9 +127,16 @@ export const MonthlyView: React.FC<MonthlyViewProps> = ({ selectedDate }) => {
                     if (a.scheduling_type === 'MORNING') timeLabel = 'MATIN';
                     if (a.scheduling_type === 'AFTERNOON') timeLabel = 'APREM';
                     return (
-                      <div key={a.id} className="text-[9px] font-bold bg-white border border-slate-100 p-1 rounded-md text-slate-700 truncate shadow-sm">
+                      <button
+                        key={a.id}
+                        type="button"
+                        data-m4d-month-appointment
+                        onClick={(event) => handleAppointmentClick(event, a)}
+                        className="w-full min-h-11 text-left text-[9px] font-bold bg-white border border-slate-100 px-2 py-1 rounded-md text-slate-700 truncate shadow-sm hover:border-blue-300 hover:bg-blue-50 focus:outline-none focus:ring-2 focus:ring-blue-400/40"
+                        aria-label={`Modifier le rendez-vous de ${a.patient_name || 'patient'} à ${timeLabel}`}
+                      >
                         {timeLabel} - {a.patient_name}
-                      </div>
+                      </button>
                     );
                   })}
                   {dayAppts.length > 3 && <div className="text-[9px] font-bold text-slate-400 pl-1">+{dayAppts.length - 3} autres...</div>}
@@ -131,11 +147,12 @@ export const MonthlyView: React.FC<MonthlyViewProps> = ({ selectedDate }) => {
         </div>
       </div>
 
-      <AgendaModal 
-        isOpen={isModalOpen} 
-        onClose={() => setIsModalOpen(false)} 
-        onSaved={fetchAppointments} 
-        selectedDate={modalDate || selectedDate} 
+      <AgendaModal
+        isOpen={isModalOpen}
+        onClose={() => { setIsModalOpen(false); setEditingAppointment(null); }}
+        onSaved={fetchAppointments}
+        selectedDate={modalDate || selectedDate}
+        editingAppointment={editingAppointment}
       />
     </div>
   );
