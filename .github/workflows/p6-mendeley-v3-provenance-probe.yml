@@ -1,0 +1,93 @@
+name: P6 Mendeley V3 Provenance Probe
+
+on:
+  push:
+    branches:
+      - portability/p6-scientific-assets-refresh
+    paths:
+      - scripts/p6_mendeley_v3_provenance_probe.py
+      - .github/workflows/p6-mendeley-v3-provenance-probe.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: p6-mendeley-v3-provenance-probe
+  cancel-in-progress: false
+
+jobs:
+  source-files-and-annotations:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    steps:
+      - name: Checkout exact research HEAD
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Probe exact Mendeley V3 source
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p p6-mendeley-v3/evidence
+          python scripts/p6_mendeley_v3_provenance_probe.py \
+            --out p6-mendeley-v3/evidence/manifest.json
+
+      - name: Validate compact provenance evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          path = Path("p6-mendeley-v3/evidence/manifest.json")
+          data = json.loads(path.read_text(encoding="utf-8"))
+
+          assert data["dataset"]["id"] == "73n3kz2k4k"
+          assert data["dataset"]["version"] == 3
+          assert data["dataset"]["doi"] == "10.17632/73n3kz2k4k.3"
+          assert data["file_count"] == len(data["files"])
+          assert data["file_count"] > 0
+          assert data["annotations"]["metadata_image_count"] > 0
+          assert isinstance(data["annotations"]["annotated_images"], list)
+          assert isinstance(data["annotations"]["source_fdi_labels_present"], bool)
+
+          for item in data["files"]:
+              assert len(item["sha256"]) == 64
+              assert item["size_bytes"] > 0
+              if item["declared_size_bytes"] is not None:
+                  assert int(item["declared_size_bytes"]) == int(item["size_bytes"])
+
+          print(json.dumps({
+              "status": "PASS",
+              "file_count": data["file_count"],
+              "total_downloaded_bytes": data["total_downloaded_bytes"],
+              "annotated_image_count": data["annotations"]["annotated_image_count"],
+              "total_regions": data["annotations"]["total_regions"],
+              "source_fdi_labels_present": data["annotations"]["source_fdi_labels_present"],
+              "region_attribute_keys": data["annotations"]["region_attribute_keys"],
+          }, indent=2))
+          PY
+
+      - name: Prove product tree stayed untouched
+        shell: bash
+        run: |
+          set -euo pipefail
+          git diff --exit-code -- backend frontend
+          git status --short
+
+      - name: Upload compact evidence only
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: p6-mendeley-v3-provenance
+          path: p6-mendeley-v3/evidence
+          if-no-files-found: warn
+          retention-days: 14

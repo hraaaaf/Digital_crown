@@ -1,6 +1,6 @@
 # Portability & Launcher — roadmap canonique
 
-Dernière mise à jour vérifiée : 2026-08-24.
+Dernière mise à jour vérifiée : 2026-08-26.
 
 > **Source de vérité unique du chantier.** L’ancienne roadmap `docs/PORTABILITY_LAUNCHER_ROADMAP.md` est dépréciée et renvoie vers ce fichier.
 
@@ -39,7 +39,7 @@ Digital Crown doit offrir **un seul produit local-first**, issu d’un cœur par
 | P3 — Cabinet data portability | 13 EP | CLOSED ✅ |
 | P4 — Licence, secrets & machine identity | 8 EP | CLOSED ✅ |
 | P5 — Scientific/native runtime portability | 13 EP | CLOSED ✅ |
-| P6 — Industrialized Windows packaging | 8 EP | NEXT |
+| P6 — Industrialized Windows packaging | 8 EP | ACTIVE — 0/8 EP |
 | P7 — Native macOS packaging | 13 EP | PLANNED |
 | P8 — Hardware & peripherals | 21 EP | PLANNED |
 | P9 — Backup / Recovery / DR | 8 EP | PLANNED |
@@ -205,10 +205,25 @@ Le cœur partagé et les dépendances natives certifiées s’exécutent sur Win
 
 ---
 
-## P6 — Industrialized Windows packaging — NEXT — 8 EP
+## P6 — Industrialized Windows packaging — ACTIVE — 8 EP
 
 ### Goal
 Rendre la distribution Windows déterministe, reproductible et installable en préservant explicitement les données cabinet.
+
+### État d’exécution au 26 août 2026
+P6 est **ouvert mais 0/8 EP sont crédités**. Le packaging est temporairement en pause sur un prérequis scientifique explicite, sans fermer ni renuméroter P6.
+
+Sous-lot actif : **P6 Scientific Assets Refresh** (`portability/p6-scientific-assets-refresh`).
+
+- ce sous-lot de recherche ne remplace pas P6 et ne gagne aucun EP Portability à lui seul ;
+- céphalométrie : `DC-Ceph-UNet29Q4 / Aariz v1` est le gagnant technique du benchmark scellé, run `32876308676` — SUCCESS ; aucune revendication d’équivalence clinique ;
+- ONNX gagnant attendu : SHA256 `809f1d3d2347d2a34f57d4a3415bb319c29f8a25c325d41160e5f28d4e5dadad`, `7,624,307 bytes` ;
+- rétention privée exacte du binaire gagnant : **OPEN**, aucune rétention privée n’est créditée tant qu’elle n’est pas prouvée ;
+- panoramique : cible Phase A = localisation dentaire + numérotation FDI ; aucune pathologie automatique n’est requise pour restaurer le contrat produit actif ;
+- aucun corpus direct-FDI inspecté ne ferme encore simultanément provenance, droits commerciaux, labels FDI traçables et reproductibilité ;
+- protocole clinique d’annotation FDI : `docs/P6_PANORAMIC_FDI_ANNOTATION_PROTOCOL.md` ;
+- matrice scientifique canonique : `docs/P6_SCIENTIFIC_ASSETS_REFRESH.md` ;
+- handover packaging : `docs/PORTABILITY_P6_PAUSE_HANDOVER.md`.
 
 ### Scope canonique
 - un seul builder autoritaire, basé sur `DigitalCrown.spec`/PyInstaller ou successeur explicitement validé ;
@@ -234,6 +249,13 @@ Un artefact Windows exact peut être reconstruit, installé, mis à niveau et d�
 
 ### Preuve requise
 Build reproducible + smoke frozen + install/upgrade/uninstall propre + signature vérifiée selon le gate de certificat retenu.
+
+### Next exact scientifique avant reprise packaging
+1. exécuter **un seul probe reproductible Mendeley V3** sur `10.17632/73n3kz2k4k.3` ;
+2. figer hashes + inventaire + contenu réel de `annotations.json`, sans synthèse FDI ;
+3. mettre à jour la matrice scientifique selon la preuve obtenue ;
+4. fermer la rétention privée exacte du gagnant céphalo et son protocole clinique ;
+5. reprendre le candidat packaging P6 préparé puis lancer **un seul run Windows lourd** lorsque les assets requis sont réellement fermés.
 
 ---
 
@@ -298,10 +320,11 @@ Puis : P9 → P10 → P11 → P12 → P13 → P14.
 ## État courant
 
 - P0–P5 : **CLOSED ✅** ;
-- P6 : **NEXT** ;
+- P6 : **ACTIVE — 0/8 EP crédité** ;
+- sous-lot actif : **P6 Scientific Assets Refresh** ;
 - P7–P14 : **PLANNED** ;
 - validé : **65 / 162 EP = 40,1 %** ;
 - aucun EP partiel n’est crédité pour un lot ouvert ;
-- Cephalometry NextGen est un chantier scientifique séparé et n’est pas compté dans les 162 EP ;
+- Cephalometry NextGen / Scientific Assets Refresh reste non crédité séparément dans les 162 EP ;
 - aucun Vercel ;
-- Next exact : **P6 Industrialized Windows packaging** — figer le builder canonique, supprimer les chemins legacy dangereux, pinner le toolchain/version/assets, puis construire et certifier un installateur Windows exact sur environnement propre.
+- Next exact : **probe Mendeley V3 → hashes/annotations → mise à jour scientifique → rétention privée céphalo → reprise P6 Industrialized Windows packaging**.
