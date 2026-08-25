@@ -161,24 +161,28 @@ Private provenance HEAD `adf9d99b615274d1ab822bce2e410a36ce4d724c` records the w
 ### Code contract and class-order gate
 Current code evidence on this branch proves that both panoramic engines target the same `panoramic_model.onnx` but disagree on class IDs 2/3. The replacement route must eliminate that ambiguity with a single canonical semantic mapping and contract tests before any product wiring.
 
-### Rights/data matrix — verified leads
+### Rights/data matrix — verified but not commercially closed
 1. **Periapical lesions — Mendeley `kx52tk2ddj`, V3**
    - DOI: `10.17632/kx52tk2ddj.3`
-   - 3,926 panoramic radiographs reported, with original/augmentation/annotation folders
-   - dataset record license: **CC BY 4.0**
-   - primary record: https://data.mendeley.com/datasets/kx52tk2ddj/3
-   - independent catalogue cross-check: https://datasetcatalog.nlm.nih.gov/dataset?q=0001393599
-   - role: clean rights lead for `Periapical Lesion`; exact original-image count, patient-level grouping and annotation schema still need ingestion verification before training.
+   - 3,926 original panoramic radiographs reported; augmentation expands the article dataset to 17,004 images
+   - raw JPG; XML annotations; 4.15 GB reported in the associated Data in Brief article
+   - Mendeley dataset record declares **CC BY 4.0**
+   - associated Data in Brief article is published **CC BY-NC 4.0**
+   - primary dataset: https://data.mendeley.com/datasets/kx52tk2ddj/3
+   - associated article: https://pmc.ncbi.nlm.nih.gov/articles/PMC11103410/
+   - decision: **HOLD — rights clarification required** before proprietary commercial training/bundling; exact file hashes, patient/image grouping and annotation schema also remain to be ingested.
 
 2. **Caries + impacted — Dental OPG XRAY Dataset V4**
    - DOI: `10.17632/c4hhrkxytw.4`
    - 232 original OPG images + 604 augmented images
    - classes include caries and impacted teeth; no separate `Deep Caries`
-   - dataset record license: **CC BY 4.0**, independently reproduced by the NLM dataset catalogue
-   - primary record: https://data.mendeley.com/datasets/c4hhrkxytw/4
-   - independent catalogue: https://datasetcatalog.nlm.nih.gov/dataset?q=0001449999
-   - associated Data in Brief article: https://doi.org/10.1016/j.dib.2024.110970
-   - limitation: source OPGs were photographed with a high-resolution Android phone camera, so domain fidelity to native Digital Crown radiographs must be benchmarked rather than assumed.
+   - Mendeley dataset record and NLM catalogue declare **CC BY 4.0**
+   - associated Data in Brief article is published **CC BY-NC 4.0**
+   - primary dataset: https://data.mendeley.com/datasets/c4hhrkxytw/4
+   - NLM catalogue: https://datasetcatalog.nlm.nih.gov/dataset?q=0001449999
+   - associated article DOI: `10.1016/j.dib.2024.110970`
+   - limitation: source OPGs were photographed using a high-resolution Android phone camera, so domain fidelity to native Digital Crown radiographs must be benchmarked rather than assumed.
+   - decision: **HOLD — rights clarification required** before proprietary commercial training/bundling.
 
 3. **Exact four-class semantics — DENTEX**
    - exact diagnoses: caries, deep caries, periapical lesions, impacted teeth
@@ -189,11 +193,11 @@ Current code evidence on this branch proves that both panoramic engines target t
    - decision: technical benchmark only; **not a clean proprietary commercial training/bundling route** without explicit commercial permission.
 
 ### Deep Caries bottleneck
-No inspected source with a commercially clean rights chain yet supplies a separately annotated `Deep Caries` class matching the Digital Crown contract. The two clean CC-BY leads above can cover `Caries`, `Impacted` and `Periapical Lesion` only after ingestion/quality gates; they do not justify relabeling ordinary caries as deep caries.
+No inspected source with a commercially closed rights chain yet supplies a separately annotated `Deep Caries` class matching the Digital Crown contract. The two Mendeley leads above are semantically useful but remain on HOLD because their dataset-record license and associated-article license do not align cleanly for our commercial-risk standard. They also do not justify relabeling ordinary caries as deep caries.
 
 Therefore `Deep Caries` remains **UNAVAILABLE / fail-closed** for a clean replacement until either:
 - a separately annotated commercial-compatible source is pinned and verified, or
-- the rights holder grants explicit commercial permission for a dataset such as DENTEX.
+- the relevant rights holder grants explicit commercial permission.
 
 ### Ready-weight candidates
 - **OralGuard**: exact four-class semantic fit and ONNX technical benchmark proven; not accepted for proprietary commercial bundling because current DENTEX rights are non-commercial and the Ultralytics training/license chain is not cleared.
@@ -203,16 +207,17 @@ Therefore `Deep Caries` remains **UNAVAILABLE / fail-closed** for a clean replac
 ### Panoramic replacement contract
 Before any heavy panoramic benchmark:
 1. pin exact data files, hashes, license snapshots and attribution;
-2. split original patients/images before augmentation to prevent leakage;
-3. preserve exact canonical four-class semantics;
-4. make class-id mapping explicit by name, not duplicated positional arrays;
-5. represent unavailable class capability as unavailable, never as a negative diagnosis;
-6. seal the test split before model selection;
-7. export ONNX opset 17 and aggregate into the existing `pathology/confidence/tooth/bbox` result contract;
-8. certify Linux proxy, Windows x64 and macOS ARM64;
-9. keep product fail-closed behavior unchanged until the candidate wins technical + rights + clinical gates.
+2. resolve any dataset-record vs associated-publication rights mismatch explicitly;
+3. split original patients/images before augmentation to prevent leakage;
+4. preserve exact canonical four-class semantics;
+5. make class-id mapping explicit by name, not duplicated positional arrays;
+6. represent unavailable class capability as unavailable, never as a negative diagnosis;
+7. seal the test split before model selection;
+8. export ONNX opset 17 and aggregate into the existing `pathology/confidence/tooth/bbox` result contract;
+9. certify Linux proxy, Windows x64 and macOS ARM64;
+10. keep product fail-closed behavior unchanged until the candidate wins technical + rights + clinical gates.
 
-No heavy panoramic training run is authorized until exact files/hashes, patient/image deduplication, annotation semantics and the `Deep Caries` decision are sealed.
+No heavy panoramic training run is authorized until exact files/hashes, rights, patient/image deduplication, annotation semantics and the `Deep Caries` decision are sealed.
 
 ---
 
@@ -225,6 +230,7 @@ No heavy panoramic training run is authorized until exact files/hashes, patient/
 - No clinical claim is inferred from the public Aariz benchmark result.
 - Panoramic class-order provenance is an explicit gate and must replace duplicated positional class arrays.
 - DENTEX remains benchmark-only under the currently declared CC BY-NC-SA 4.0 rights; no commercial bundle use without explicit permission.
+- Both promising Mendeley panoramic leads remain HOLD until the dataset-record CC BY 4.0 versus associated-article CC BY-NC 4.0 mismatch is resolved.
 - `Deep Caries` remains fail-closed until a clean separately annotated source or explicit commercial permission is proven.
 
 ## Next exact
@@ -232,7 +238,7 @@ No heavy panoramic training run is authorized until exact files/hashes, patient/
 2. Only after that proof, reset the public ephemeral training branch to the canonical research base; do not claim cryptographic erasure.
 3. Run Windows x64 + macOS ARM64 inference portability on the retained exact ceph winner.
 4. Build the non-PHI/golden clinical validation protocol for the 20 direct cephalometric points; keep Wits separate.
-5. For panoramic, ingest and hash the two CC-BY leads without heavy training; prove original-image/patient deduplication and exact annotation semantics.
+5. Resolve panoramic rights ambiguity before downloading/training the Mendeley leads; then pin exact files/hashes and prove original-image/patient deduplication and annotation semantics.
 6. Resolve `Deep Caries` by clean data or explicit rights; otherwise retain a 3-capability + unavailable-class architecture rather than inventing labels.
 7. Only then authorize one prepared panoramic benchmark and later evaluate product wiring in a separate controlled lot.
 
