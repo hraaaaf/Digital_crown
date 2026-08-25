@@ -102,7 +102,7 @@ export function ApptCard({
             {apt.patient_id && onSign && (
               <button
                 onClick={() => onSign(apt.patient_id!, apt.patient_name)}
-                className="w-full flex items-center justify-center gap-1.5 py-2.5 bg-indigo-500/10 border border-indigo-500/20 text-indigo-600 rounded-[16px] text-[10px] font-black uppercase tracking-widest transition-all active:scale-95"
+                className="w-full min-h-12 flex items-center justify-center gap-1.5 bg-indigo-500/10 border border-indigo-500/20 text-indigo-600 rounded-[16px] text-[10px] font-black uppercase tracking-widest transition-all active:scale-95"
               >
                 <FileText size={12} /> Signature au Fauteuil
               </button>
