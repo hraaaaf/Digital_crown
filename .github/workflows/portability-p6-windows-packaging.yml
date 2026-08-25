@@ -1,6 +1,9 @@
 name: Portability P6 Windows Packaging Certification
 
 on:
+  push:
+    branches:
+      - portability/p6-windows-packaging-final-20260826
   pull_request:
     paths:
       - "VERSION"
