@@ -1,5 +1,6 @@
 name: Prepare M4-D RDV Product
 
+# The workflow now exists on this branch; this commit is the single explicit trigger.
 on:
   push:
     branches:
