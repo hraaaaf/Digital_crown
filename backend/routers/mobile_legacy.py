@@ -771,6 +771,8 @@ def create_mobile_patient(
 
 
 import base64
+import binascii
+import io
 
 @router.get('/patients/{patient_id}/documents', summary='Liste des documents à signer pour un patient')
 def get_mobile_patient_documents(
@@ -796,6 +798,8 @@ def get_mobile_patient_documents(
     for d in docs:
         cdata = d.clinical_data or {}
         signed = cdata.get("signed", False)
+        if signed:
+            continue
         res.append({
             "id": d.id,
             "filename": d.original_filename or d.filename,
@@ -809,6 +813,69 @@ def get_mobile_patient_documents(
 
 class SignatureSubmit(BaseModel):
     signature_base64: str
+
+_MOBILE_SIGNATURE_MAX_BYTES = 2 * 1024 * 1024
+_MOBILE_SIGNATURE_MAX_PIXELS = 8_000_000
+_MOBILE_SIGNATURE_MIN_INK_PIXELS = 24
+_MOBILE_SIGNATURE_PREFIX = "data:image/png;base64,"
+
+
+def _validated_mobile_signature_png(signature_base64: str) -> bytes:
+    from PIL import Image, UnidentifiedImageError
+
+    if not isinstance(signature_base64, str) or not signature_base64.startswith(_MOBILE_SIGNATURE_PREFIX):
+        raise HTTPException(status_code=422, detail="Signature PNG invalide")
+
+    encoded = signature_base64[len(_MOBILE_SIGNATURE_PREFIX):].strip()
+    if not encoded:
+        raise HTTPException(status_code=422, detail="Signature vide")
+
+    encoded_limit = ((_MOBILE_SIGNATURE_MAX_BYTES + 2) // 3) * 4 + 32
+    if len(encoded) > encoded_limit:
+        raise HTTPException(status_code=413, detail="Signature trop volumineuse")
+
+    try:
+        raw = base64.b64decode(encoded, validate=True)
+    except (binascii.Error, ValueError):
+        raise HTTPException(status_code=422, detail="Signature invalide")
+
+    if not raw:
+        raise HTTPException(status_code=422, detail="Signature vide")
+    if len(raw) > _MOBILE_SIGNATURE_MAX_BYTES:
+        raise HTTPException(status_code=413, detail="Signature trop volumineuse")
+
+    try:
+        with Image.open(io.BytesIO(raw)) as probe:
+            if probe.format != "PNG":
+                raise HTTPException(status_code=422, detail="Signature PNG invalide")
+            width, height = probe.size
+            if width < 32 or height < 32:
+                raise HTTPException(status_code=422, detail="Dimensions de signature invalides")
+            if width * height > _MOBILE_SIGNATURE_MAX_PIXELS:
+                raise HTTPException(status_code=413, detail="Signature trop grande")
+            probe.load()
+            rgba = probe.convert("RGBA")
+    except HTTPException:
+        raise
+    except (UnidentifiedImageError, OSError, ValueError):
+        raise HTTPException(status_code=422, detail="Image de signature invalide")
+
+    ink_pixels = 0
+    for red, green, blue, alpha in rgba.getdata():
+        if alpha >= 16 and (red < 245 or green < 245 or blue < 245):
+            ink_pixels += 1
+            if ink_pixels >= _MOBILE_SIGNATURE_MIN_INK_PIXELS:
+                break
+    if ink_pixels < _MOBILE_SIGNATURE_MIN_INK_PIXELS:
+        raise HTTPException(status_code=422, detail="Signature vide")
+
+    output = io.BytesIO()
+    rgba.save(output, format="PNG", optimize=True)
+    normalized = output.getvalue()
+    if len(normalized) > _MOBILE_SIGNATURE_MAX_BYTES:
+        raise HTTPException(status_code=413, detail="Signature trop volumineuse")
+    return normalized
+
 
 def background_regenerate_pdf(document_id: int, pt_id: int, cdata: dict, employer_id: int, old_file_path: str):
     from backend.database import SessionLocal
@@ -853,8 +920,9 @@ def sign_mobile_document(
 ):
     doc = db.query(models.DocumentArchive).filter(
         models.DocumentArchive.id == document_id,
-        models.DocumentArchive.status == models.DocumentStatus.ACTIF
-    ).first()
+        models.DocumentArchive.status == models.DocumentStatus.ACTIF,
+        models.DocumentArchive.document_type == models.DocumentType.DEVIS,
+    ).with_for_update().first()
     if not doc:
         raise HTTPException(status_code=404, detail="Document introuvable")
 
@@ -865,14 +933,11 @@ def sign_mobile_document(
     if not pt:
         raise HTTPException(status_code=403, detail="Non autorisé")
 
-    sig_data = body.signature_base64
-    if "," in sig_data:
-        sig_data = sig_data.split(",")[1]
+    cdata = dict(doc.clinical_data or {})
+    if cdata.get("signed", False):
+        raise HTTPException(status_code=409, detail="Document déjà signé")
 
-    try:
-        sig_bytes = base64.b64decode(sig_data)
-    except Exception:
-        raise HTTPException(status_code=400, detail="Signature invalide")
+    sig_bytes = _validated_mobile_signature_png(body.signature_base64)
 
     sig_dir = "static/uploads/signatures"
     os.makedirs(sig_dir, exist_ok=True)
@@ -882,7 +947,6 @@ def sign_mobile_document(
     with open(sig_path, "wb") as f:
         f.write(sig_bytes)
 
-    cdata = dict(doc.clinical_data or {})
     cdata["signed"] = True
     cdata["signature_path"] = sig_path.replace("\\", "/")
     cdata["signature_date"] = datetime.utcnow().isoformat()
