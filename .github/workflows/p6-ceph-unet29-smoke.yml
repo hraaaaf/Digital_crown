@@ -1,0 +1,69 @@
+name: P6 DC-Ceph-UNet29 Smoke
+
+on:
+  push:
+    branches:
+      - portability/p6-scientific-assets-refresh
+    paths:
+      - scripts/p6_ceph_unet29.py
+      - tests/test_p6_ceph_unet29.py
+      - .github/workflows/p6-ceph-unet29-smoke.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: p6-dc-ceph-unet29-smoke
+  cancel-in-progress: false
+
+jobs:
+  smoke:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - name: Checkout research branch
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install pinned CPU smoke stack
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pip install --upgrade pip
+          python -m pip install \
+            --index-url https://download.pytorch.org/whl/cpu \
+            "torch==2.3.0+cpu"
+          python -m pip install \
+            "numpy==1.26.4" \
+            "Pillow==10.4.0" \
+            "pytest==8.3.2" \
+            "onnx==1.16.1" \
+            "onnxruntime==1.18.0"
+
+      - name: Test loader and architecture contracts
+        run: python -m pytest tests/test_p6_ceph_unet29.py -q
+
+      - name: Export and validate static ONNX contract
+        run: python scripts/p6_ceph_unet29.py --smoke --output p6-ceph-unet29-smoke
+
+      - name: Prove product tree stayed untouched
+        shell: bash
+        run: |
+          set -euo pipefail
+          git diff --exit-code -- backend frontend
+          git status --short
+
+      - name: Upload smoke evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: p6-ceph-unet29-smoke
+          path: p6-ceph-unet29-smoke
+          if-no-files-found: error
+          retention-days: 14
