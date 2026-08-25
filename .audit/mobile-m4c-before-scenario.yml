@@ -1,0 +1,89 @@
+# Frozen M4-C BEFORE audit harness. Not a workflow and not product code.
+scenario:
+  materialize: |
+    cat > mobile-m4c-before.html <<'EOF'
+          <!doctype html><html lang="fr"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0,viewport-fit=cover"/><link rel="icon" href="data:,"/><title>Digital Crown M4-C BEFORE</title></head><body><div id="root"></div><script type="module" src="/src/mobile-m4c-before.tsx"></script></body></html>
+    EOF
+    cat > src/mobile-m4c-before.tsx <<'EOF'
+          import React from 'react';
+          import { createRoot } from 'react-dom/client';
+          import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
+          import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+          import './index.css';
+          import { PatientDocuments } from './features/patients/PatientDocuments';
+          import { MobileContext } from './features/mobile/Context/MobileContext';
+          import { MobileStorage } from './services/zka/MobileStorage';
+          import { useAuthStore } from './stores/useAuthStore';
+
+          const params = new URLSearchParams(window.location.search);
+          const view = params.get('view') || 'documents';
+          const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+          useAuthStore.setState({ user: ({ id: 1, email: 'dentiste@m4c-before.local', nom_complet: 'Dr M4C', role: 'ADMIN', employer_id: null, is_superadmin: false, permissions: { patients: true, prescriptions: true, accounting: true, clinical: true, cephalo: true, admin: true } } as any), isAuthenticated: true, isLoading: false, error: null });
+
+          const RouteProbe = () => { const location = useLocation(); return <div data-testid="m4c-route-probe" data-path={location.pathname} data-search={location.search} className="hidden"/>; };
+          const futureJwt = 'eyJhbGciOiJub25lIiwidHlwIjoiSldUIn0.eyJleHAiOjQxMDI0NDQ4MDB9.';
+          if (view === 'mobile') {
+            await MobileStorage.clearAll().catch(() => {});
+            await MobileStorage.saveCredentials({ publicId: 'abcdef1234567890', masterKey: 'a'.repeat(64), access_token: futureJwt, refresh_token: 'm4c-before-refresh', device_id: '11111111-2222-4333-8444-555555555555', api_base_url: 'http://127.0.0.1:8005' });
+            await MobileStorage.saveBridgeContext(({ type: 'document', key: 'M4CBeforeUnsupported', label: 'Ordonnance', state: 'ready' } as any));
+          }
+          const entry = view === 'mobile' ? '/mobile/context' : '/patients/42/documents';
+          createRoot(document.getElementById('root')!).render(<React.StrictMode><QueryClientProvider client={queryClient}><MemoryRouter initialEntries={[entry]}><RouteProbe/><Routes><Route path="/patients/:id/documents" element={<PatientDocuments/>}/><Route path="/mobile/context" element={<MobileContext/>}/><Route path="/mobile/dashboard" element={<div>Dashboard mobile</div>}/></Routes></MemoryRouter></QueryClientProvider></React.StrictMode>);
+    EOF
+    cat > mobile-m4c-before.mjs <<'EOF'
+          import { chromium } from 'playwright';
+          import { createServer } from 'vite';
+          import fs from 'node:fs/promises';
+
+          const output = 'mobile-m4c-before-artifacts';
+          await fs.rm(output, { recursive: true, force: true }); await fs.mkdir(output, { recursive: true });
+          const baselineHead = process.env.BASELINE_HEAD || 'unknown';
+          const captures = []; const network = [];
+          const documents = [
+            { id: '88', name: 'Ordonnance_August_2026.pdf', type: 'ORDONNANCE', date: '24/08/2026', url: 'static/archives/42/Ordonnance_August_2026.pdf', file_exists: true, clinical_data: { items: [{ nom: 'AMOXICILLINE' }] } },
+            { id: '91', name: 'Devis_Implant_2026.pdf', type: 'DEVIS', date: '23/08/2026', url: 'static/archives/42/Devis_Implant_2026.pdf', file_exists: true, clinical_data: { items: [{ acte: 'Implant', dent: '36' }] } },
+            { id: 'legacy:42:ancien_certificat.pdf', name: 'ancien_certificat.pdf', type: 'LEGACY', date: 'Ancien', url: 'static/patients/42_BENNANI_Sara/Documents/ancien_certificat.pdf', file_exists: true }
+          ];
+          const server = await createServer({ server: { host: '127.0.0.1', port: 4184, strictPort: true }, clearScreen: false }); await server.listen();
+          const browser = await chromium.launch();
+          const json = body => ({ status: 200, contentType: 'application/json', body: JSON.stringify(body) });
+
+          async function setup(viewport) {
+            const context = await browser.newContext({ viewport, screen: viewport, deviceScaleFactor: 1, hasTouch: viewport.width <= 768, isMobile: viewport.width <= 768, serviceWorkers: 'block' });
+            const page = await context.newPage(); const errors = [];
+            page.on('pageerror', e => errors.push(`pageerror: ${e.message}`)); page.on('console', m => { if (m.type() === 'error') errors.push(`console: ${m.text()}`); });
+            await page.route('**/*', async route => {
+              const req = route.request(); const url = new URL(req.url()); const path = url.pathname;
+              if (!path.startsWith('/api/')) return route.continue(); network.push(`${req.method()} ${path}`);
+              if (path === '/api/patients/42/documents') return route.fulfill(json(documents));
+              if (path === '/api/mobile/refresh-token') return route.fulfill({ status: 401, contentType: 'application/json', body: '{}' });
+              return route.fulfill(json(req.method() === 'GET' ? [] : {}));
+            });
+            return { context, page, errors };
+          }
+
+          async function metrics(page, state) { return page.evaluate((captureState) => {
+            const root = document.documentElement;
+            const visibleButtons = [...document.querySelectorAll('button')].filter(el => { const r = el.getBoundingClientRect(); const s = getComputedStyle(el); return r.width > 0 && r.height > 0 && s.visibility !== 'hidden' && s.display !== 'none'; }).map(el => { const r = el.getBoundingClientRect(); return { text: (el.textContent || el.getAttribute('aria-label') || el.getAttribute('title') || '').trim().replace(/\s+/g, ' ').slice(0, 90), width: Math.round(r.width), height: Math.round(r.height), iconOnly: Boolean(el.querySelector('svg')) && !(el.textContent || '').trim() }; });
+            const html = document.body.innerHTML;
+            return { scrollWidth: root.scrollWidth, clientWidth: root.clientWidth, hasHorizontalOverflow: root.scrollWidth > root.clientWidth + 1, buttonsBelow44: visibleButtons.filter(t => t.height < 44), iconButtonsBelow44: visibleButtons.filter(t => t.iconOnly && t.height < 44), bridgeActionPresent: html.includes('Ouvrir sur mobile'), canonicalDocumentPresent: html.includes('Ordonnance_August_2026.pdf'), legacyDocumentPresent: html.includes('ancien_certificat.pdf'), mobileUnsupported: captureState === 'mobile' ? html.includes('Contexte indisponible') : null, routePath: document.querySelector('[data-testid="m4c-route-probe"]')?.getAttribute('data-path') || null, routeSearch: document.querySelector('[data-testid="m4c-route-probe"]')?.getAttribute('data-search') || null };
+          }, state); }
+          async function capture(page, errors, name, state, viewport) { const measured = await metrics(page, state); await page.screenshot({ path: `${output}/${name}.png`, fullPage: false, animations: 'disabled' }); const record = { name, state, ...viewport, metrics: measured, errors: [...errors] }; captures.push(record); await fs.writeFile(`${output}/${name}.json`, JSON.stringify(record, null, 2)); }
+
+          try {
+            for (const viewport of [{ width: 1280, height: 900 }, { width: 768, height: 1024 }, { width: 430, height: 932 }, { width: 390, height: 844 }]) {
+              const { context, page, errors } = await setup(viewport); await page.goto('http://127.0.0.1:4184/mobile-m4c-before.html?view=documents', { waitUntil: 'networkidle' });
+              await page.getByText('Ordonnance_August_2026.pdf', { exact: true }).waitFor({ state: 'visible', timeout: 10000 }); await page.getByText('ancien_certificat.pdf', { exact: true }).waitFor({ state: 'visible' });
+              await capture(page, errors, `documents-${viewport.width}x${viewport.height}`, 'documents', viewport); await context.close();
+            }
+            for (const viewport of [{ width: 390, height: 844 }, { width: 430, height: 932 }, { width: 768, height: 1024 }]) {
+              const { context, page, errors } = await setup(viewport); await page.goto('http://127.0.0.1:4184/mobile-m4c-before.html?view=mobile', { waitUntil: 'networkidle' });
+              await page.getByRole('heading', { name: 'Contexte indisponible', exact: true }).waitFor({ state: 'visible', timeout: 10000 });
+              await capture(page, errors, `mobile-document-${viewport.width}x${viewport.height}`, 'mobile', viewport); await context.close();
+            }
+            const docCaptures = captures.filter(item => item.state === 'documents'); const mobileCaptures = captures.filter(item => item.state === 'mobile');
+            const report = { baselineHead, captures, count: captures.length, canonicalDocumentPresent: docCaptures.every(item => item.metrics.canonicalDocumentPresent), legacyDocumentPresent: docCaptures.every(item => item.metrics.legacyDocumentPresent), bridgeActionAbsent: docCaptures.every(item => !item.metrics.bridgeActionPresent), smallDocumentControlsObserved: docCaptures.some(item => item.metrics.iconButtonsBelow44.length > 0), mobileDocumentUnsupported: mobileCaptures.every(item => item.metrics.mobileUnsupported === true), idlessMobileRoute: mobileCaptures.every(item => item.metrics.routePath === '/mobile/context' && !item.metrics.routeSearch), noUnexpectedErrors: captures.every(item => item.errors.length === 0), noHorizontalOverflow: captures.every(item => !item.metrics.hasHorizontalOverflow), network };
+            await fs.writeFile(`${output}/report.json`, JSON.stringify(report, null, 2)); console.log(JSON.stringify(report, null, 2));
+            if (report.count !== 7 || !report.canonicalDocumentPresent || !report.legacyDocumentPresent || !report.bridgeActionAbsent || !report.smallDocumentControlsObserved || !report.mobileDocumentUnsupported || !report.idlessMobileRoute || !report.noUnexpectedErrors || !report.noHorizontalOverflow) throw new Error('M4-C BEFORE evidence gate failed.');
+          } finally { await browser.close(); await server.close(); }
+    EOF
