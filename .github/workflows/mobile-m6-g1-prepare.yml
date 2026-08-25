@@ -35,7 +35,13 @@ jobs:
 
       - name: Materialize M6-G1 patch
         working-directory: product
-        run: python ../audit/.audit/mobile-m6-g1-apply.py
+        run: |
+          python ../audit/.audit/mobile-m6-g1-apply.py
+          python - <<'PY'
+          from pathlib import Path
+          path = Path('frontend/src/styles/mobileGlassSystem.css')
+          path.write_text(path.read_text(encoding='utf-8').rstrip() + '\n', encoding='utf-8')
+          PY
 
       - name: Assert exact product scope and contract
         working-directory: product
