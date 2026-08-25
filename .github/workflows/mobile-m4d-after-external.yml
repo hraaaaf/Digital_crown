@@ -19,6 +19,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           ref: mobile/m4d-rdv-context
+          fetch-depth: 0
           path: product
 
       - name: Record exact product HEAD
@@ -26,6 +27,7 @@ jobs:
         run: |
           PRODUCT_HEAD=$(git rev-parse HEAD)
           echo "PRODUCT_HEAD=$PRODUCT_HEAD" >> "$GITHUB_ENV"
+          test "$PRODUCT_HEAD" = "77e253487af1dc387c79a47a537736db663cc418"
           test "$(git rev-list --count origin/master..HEAD)" = "1"
 
       - name: Checkout audit evidence source
