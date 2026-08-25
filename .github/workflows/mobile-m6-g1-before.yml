@@ -1,0 +1,64 @@
+name: Mobile M6-G1 BEFORE
+
+on:
+  push:
+    branches:
+      - "audit/mobile-m6-g1-before-20260825"
+    paths:
+      - ".github/workflows/mobile-m6-g1-before.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  before:
+    name: M6-G1 nav and motif BEFORE
+    runs-on: ubuntu-latest
+    env:
+      PRODUCT_HEAD: 895ab9e7b03aecc60d721c46ba814f1b8770b57f
+    steps:
+      - name: Checkout audit evidence
+        uses: actions/checkout@v4
+        with:
+          path: audit
+
+      - name: Checkout exact product baseline
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.PRODUCT_HEAD }}
+          path: product
+
+      - name: Assert exact product baseline
+        run: test "$(git -C product rev-parse HEAD)" = "$PRODUCT_HEAD"
+
+      - name: Setup Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: product/frontend/package-lock.json
+
+      - name: Install frontend and Chromium
+        working-directory: product/frontend
+        run: |
+          npm ci
+          npm install --no-save --package-lock=false --ignore-scripts playwright@1.62.1
+          npx playwright install --with-deps chromium
+
+      - name: Materialize BEFORE harness
+        run: |
+          cp audit/.audit/mobile-m6-g1-before.html product/frontend/mobile-m6-g1-before.html
+          cp audit/.audit/mobile-m6-g1-before.tsx product/frontend/src/mobile-m6-g1-before.tsx
+          cp audit/.audit/mobile-m6-g1-before.mjs product/frontend/mobile-m6-g1-before.mjs
+
+      - name: Capture and assert BEFORE
+        working-directory: product/frontend
+        run: PRODUCT_HEAD="$PRODUCT_HEAD" node mobile-m6-g1-before.mjs
+
+      - name: Upload BEFORE artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: mobile-m6-g1-before
+          path: product/frontend/mobile-m6-g1-before-artifacts/
+          if-no-files-found: error
+          retention-days: 14
