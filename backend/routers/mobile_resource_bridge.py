@@ -1,15 +1,17 @@
 """Contextual mobile resource bridge: patient, panoramic, document and appointment resources."""
 from datetime import datetime, timedelta
 from pathlib import Path
+from io import BytesIO
 import base64
 import logging
 import mimetypes
 import os
 import secrets
 
-from fastapi import APIRouter, Depends, Header, HTTPException
+from fastapi import APIRouter, Depends, File, Form, Header, HTTPException, UploadFile
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
+from PIL import Image, ImageOps, UnidentifiedImageError
 from sqlalchemy import Column, DateTime, ForeignKey, Integer, String, Table, delete, insert, or_, select
 from sqlalchemy.orm import Session
 
@@ -308,6 +310,53 @@ def _document_file(document: models.DocumentArchive) -> Path:
     return candidate
 
 
+_CLINICAL_PHOTO_MAX_BYTES = 12 * 1024 * 1024
+_CLINICAL_PHOTO_MAX_PIXELS = 50_000_000
+_CLINICAL_PHOTO_SOURCE_FORMATS = {'JPEG', 'PNG', 'WEBP'}
+
+
+def _normalize_clinical_photo(raw: bytes) -> bytes:
+    """Validate, orient and rewrite a clinical image as metadata-free JPEG."""
+    if not raw:
+        raise HTTPException(status_code=422, detail="La photo clinique est vide.")
+    if len(raw) > _CLINICAL_PHOTO_MAX_BYTES:
+        raise HTTPException(status_code=413, detail="La photo clinique dépasse la limite de 12 MiB.")
+
+    try:
+        with Image.open(BytesIO(raw)) as probe:
+            source_format = str(probe.format or '').upper()
+            width, height = probe.size
+            if source_format not in _CLINICAL_PHOTO_SOURCE_FORMATS:
+                raise HTTPException(status_code=422, detail="Format de photo non pris en charge. Utilisez JPEG, PNG ou WebP.")
+            if width <= 0 or height <= 0 or width * height > _CLINICAL_PHOTO_MAX_PIXELS:
+                raise HTTPException(status_code=413, detail="La résolution de la photo clinique est trop élevée.")
+            probe.verify()
+
+        with Image.open(BytesIO(raw)) as image:
+            image = ImageOps.exif_transpose(image)
+            image.load()
+            if image.width <= 0 or image.height <= 0 or image.width * image.height > _CLINICAL_PHOTO_MAX_PIXELS:
+                raise HTTPException(status_code=413, detail="La résolution de la photo clinique est trop élevée.")
+
+            if image.mode in ('RGBA', 'LA') or (image.mode == 'P' and 'transparency' in image.info):
+                rgba = image.convert('RGBA')
+                normalized_image = Image.new('RGB', rgba.size, 'white')
+                normalized_image.paste(rgba, mask=rgba.getchannel('A'))
+            else:
+                normalized_image = image.convert('RGB')
+
+            output = BytesIO()
+            normalized_image.save(output, format='JPEG', quality=95, optimize=True)
+            normalized = output.getvalue()
+            if not normalized:
+                raise HTTPException(status_code=422, detail="Impossible de normaliser la photo clinique.")
+            return normalized
+    except HTTPException:
+        raise
+    except (UnidentifiedImageError, OSError, ValueError, Image.DecompressionBombError) as exc:
+        raise HTTPException(status_code=422, detail="Le fichier sélectionné n'est pas une image clinique valide.") from exc
+
+
 @router.get('/resource-bridge-options', summary='Cibles autorisées pour un pont mobile de ressource')
 def get_resource_bridge_options(
     resource_type: str,
@@ -545,6 +594,62 @@ def get_resource_context(
         }
 
     raise HTTPException(status_code=422, detail="Type de ressource mobile non pris en charge.")
+
+
+@router.post('/resource-context-photo', summary='Archiver une photo clinique depuis le contexte Patient mobile')
+async def upload_resource_context_photo(
+    context_key: str = Form(...),
+    file: UploadFile = File(...),
+    authorization: str = Header(...),
+    db: Session = Depends(database.get_db),
+):
+    mobile_user, context = _validated_mobile_context(db, authorization, context_key)
+    if str(context['resource_type']).lower() != 'patient':
+        raise HTTPException(status_code=422, detail="La photo clinique exige un contexte Patient.")
+
+    patient = _patient_resource(db, mobile_user, int(context['resource_id']))
+    claimed_type = str(file.content_type or '').strip().lower()
+    if claimed_type and not claimed_type.startswith('image/'):
+        raise HTTPException(status_code=422, detail="Le fichier sélectionné n'est pas une image.")
+
+    try:
+        raw = await file.read(_CLINICAL_PHOTO_MAX_BYTES + 1)
+    finally:
+        await file.close()
+    normalized = _normalize_clinical_photo(raw)
+
+    filename = f"photo-clinique-{datetime.utcnow().strftime('%Y%m%d-%H%M%S')}-{secrets.token_hex(4)}.jpg"
+    archive_service = _documents.get_archive_service(db)
+    document, _ = archive_service.archive_document(
+        patient_id=patient.id,
+        file_content=normalized,
+        filename=filename,
+        doc_type=models.DocumentType.PHOTO_CLINIQUE,
+        uploaded_by_id=mobile_user.id,
+        title='Photo clinique',
+        description='Capture mobile contextuelle',
+        tags=['mobile', 'photo-clinique'],
+        is_accounted=False,
+    )
+    _documents.audit_service.log(
+        db=db,
+        user_id=mobile_user.id,
+        employer_id=mobile_user.get_employer_id(),
+        action='CLINICAL_PHOTO_CAPTURED',
+        resource_type='PHOTO_CLINIQUE',
+        resource_id=str(document.id),
+        severity='INFO',
+        details=f"Photo clinique mobile archivée document_id={document.id}",
+    )
+    return {
+        'success': True,
+        'document': {
+            'id': document.id,
+            'document_type': models.DocumentType.PHOTO_CLINIQUE.value,
+            'title': document.title or 'Photo clinique',
+            'created_at': document.created_at.isoformat() if document.created_at else None,
+        },
+    }
 
 
 @router.post('/resource-context-media', summary='Charger le média protégé du contexte mobile')

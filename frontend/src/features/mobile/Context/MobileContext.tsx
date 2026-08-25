@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { AlertTriangle, ArrowLeft, Calendar, Download, ExternalLink, FileText, Image as ImageIcon, Loader2, Phone, RefreshCcw, ShieldCheck } from 'lucide-react';
+import { useEffect, useMemo, useRef, useState, type ChangeEvent } from 'react';
+import { AlertTriangle, ArrowLeft, Calendar, Camera, CheckCircle2, Download, ExternalLink, FileText, Image as ImageIcon, Loader2, Phone, RefreshCcw, ShieldCheck, X } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { MobileStorage, type MobileBridgeContext } from '../../../services/zka/MobileStorage';
 
@@ -71,12 +71,28 @@ export const MobileContext = () => {
   const mediaUrlRef = useRef<string | null>(null);
   const [phase, setPhase] = useState<'loading' | 'ready' | 'error'>('loading');
   const [error, setError] = useState('');
+  const photoInputRef = useRef<HTMLInputElement | null>(null);
+  const photoPreviewUrlRef = useRef<string | null>(null);
+  const [photoFile, setPhotoFile] = useState<File | null>(null);
+  const [photoPreviewUrl, setPhotoPreviewUrl] = useState<string | null>(null);
+  const [photoPhase, setPhotoPhase] = useState<'idle' | 'preview' | 'uploading' | 'saved'>('idle');
+  const [photoError, setPhotoError] = useState('');
 
   const clearMedia = () => {
     if (mediaUrlRef.current) URL.revokeObjectURL(mediaUrlRef.current);
     mediaUrlRef.current = null;
     setMediaUrl(null);
     setMediaType('');
+  };
+
+  const clearClinicalPhoto = () => {
+    if (photoPreviewUrlRef.current) URL.revokeObjectURL(photoPreviewUrlRef.current);
+    photoPreviewUrlRef.current = null;
+    setPhotoPreviewUrl(null);
+    setPhotoFile(null);
+    setPhotoPhase('idle');
+    setPhotoError('');
+    if (photoInputRef.current) photoInputRef.current.value = '';
   };
 
   const load = async () => {
@@ -87,6 +103,7 @@ export const MobileContext = () => {
     setDocumentData(null);
     setAppointment(null);
     clearMedia();
+    clearClinicalPhoto();
     const stored = await MobileStorage.getBridgeContext().catch(() => null);
     setContext(stored);
     if (!stored || !['patient', 'panoramic', 'document', 'appointment'].includes(stored.type)) {
@@ -188,6 +205,7 @@ export const MobileContext = () => {
     void load();
     return () => {
       if (mediaUrlRef.current) URL.revokeObjectURL(mediaUrlRef.current);
+      if (photoPreviewUrlRef.current) URL.revokeObjectURL(photoPreviewUrlRef.current);
     };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -206,6 +224,76 @@ export const MobileContext = () => {
     document.body.appendChild(anchor);
     anchor.click();
     anchor.remove();
+  };
+
+  const openClinicalPhotoPicker = () => {
+    setPhotoError('');
+    photoInputRef.current?.click();
+  };
+
+  const handleClinicalPhotoSelected = (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0] || null;
+    if (!file) return;
+    if (file.type && !file.type.startsWith('image/')) {
+      setPhotoError('Sélectionnez une image JPEG, PNG ou WebP.');
+      event.target.value = '';
+      return;
+    }
+    if (file.size > 12 * 1024 * 1024) {
+      setPhotoError('La photo dépasse la limite de 12 MiB.');
+      event.target.value = '';
+      return;
+    }
+    if (photoPreviewUrlRef.current) URL.revokeObjectURL(photoPreviewUrlRef.current);
+    const nextUrl = URL.createObjectURL(file);
+    photoPreviewUrlRef.current = nextUrl;
+    setPhotoFile(file);
+    setPhotoPreviewUrl(nextUrl);
+    setPhotoError('');
+    setPhotoPhase('preview');
+  };
+
+  const uploadClinicalPhoto = async () => {
+    if (!photoFile || !context || context.type !== 'patient') return;
+    setPhotoPhase('uploading');
+    setPhotoError('');
+    try {
+      let creds = await MobileStorage.getCredentials();
+      if (!creds?.access_token) throw new Error('Session mobile non disponible. Régénérez le pont depuis le poste cabinet.');
+
+      const request = async (accessToken: string) => {
+        const form = new FormData();
+        form.append('context_key', context.key);
+        form.append('file', photoFile, photoFile.name || 'photo-clinique.jpg');
+        return fetch(`${creds!.api_base_url.replace(/\/$/, '')}/api/mobile/resource-context-photo`, {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${accessToken}` },
+          body: form,
+        });
+      };
+
+      let response = await request(creds.access_token);
+      if (response.status === 401) {
+        creds = await MobileStorage.refreshCredentials();
+        if (creds?.access_token) response = await request(creds.access_token);
+      }
+      if (!response.ok) {
+        const payload = await response.json().catch(() => ({}));
+        throw new Error(payload.detail || `Photo clinique non enregistrée (${response.status}).`);
+      }
+      const payload = await response.json();
+      if (!payload?.success || payload?.document?.document_type !== 'PHOTO_CLINIQUE') {
+        throw new Error('Réponse d’enregistrement de photo invalide.');
+      }
+      setPhotoPhase('saved');
+    } catch (err: unknown) {
+      setPhotoError(err instanceof TypeError
+        ? 'Serveur du cabinet inaccessible. La photo reste en aperçu : vérifiez le poste cabinet puis réessayez.'
+        : err instanceof Error
+          ? err.message
+          : 'Impossible d’enregistrer la photo clinique.');
+      setPhotoPhase('preview');
+    }
   };
 
   if (phase === 'loading') {
@@ -312,9 +400,43 @@ export const MobileContext = () => {
         <section className="mt-5 rounded-[1.75rem] bg-card-bg border border-border-main p-5 shadow-elite"><h2 className="text-2xl font-black tracking-tight text-text-main">{displayName}</h2><p className="mt-1 text-sm font-bold text-text-muted">Dossier {patient!.numero_dossier || 'sans numéro'}</p><div className="mt-3 flex flex-wrap gap-x-4 gap-y-2 text-sm font-bold text-text-muted">{age !== null && <span>{age} ans</span>}{patient!.telephone && <span>{patient!.telephone}</span>}</div>{patient!.has_medical_alert && <div className="mt-4 inline-flex min-h-11 items-center gap-2 px-3 rounded-xl border border-rose-200 bg-rose-50 text-rose-700 text-xs font-black uppercase tracking-wide"><AlertTriangle size={15} /> Alerte médicale</div>}</section>
         <p className="mt-7 mb-3 text-sm font-black text-text-main">Actions rapides</p>
         <div className="grid grid-cols-2 gap-3"><a data-m4a-touch href={patient!.telephone ? `tel:${patient!.telephone}` : undefined} aria-disabled={!patient!.telephone} className="min-h-[54px] rounded-2xl bg-card-bg border border-border-main inline-flex items-center justify-center gap-2 font-black text-sm text-text-main aria-disabled:opacity-40"><Phone size={18} /> Appeler</a><button data-m4a-touch type="button" onClick={() => navigate('/mobile/dashboard?tab=agenda')} className="min-h-[54px] rounded-2xl bg-primary text-white inline-flex items-center justify-center gap-2 font-black text-sm"><Calendar size={18} /> Agenda</button></div>
+        <input ref={photoInputRef} data-m6a-photo-input type="file" accept="image/jpeg,image/png,image/webp" capture="environment" onChange={handleClinicalPhotoSelected} className="sr-only" tabIndex={-1} aria-hidden="true" />
+        <button data-m6a-photo-action data-m6a-touch type="button" onClick={openClinicalPhotoPicker} className="mt-3 w-full min-h-[66px] rounded-2xl bg-primary text-white inline-flex items-center justify-start gap-3 px-4 text-left shadow-elite active:scale-[0.99] transition-transform focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:ring-offset-2">
+          <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-white/15"><Camera size={20} /></span>
+          <span><span className="block font-black text-sm">Photo clinique</span><span className="mt-0.5 block text-[11px] font-bold text-white/80">Prendre une photo au fauteuil</span></span>
+        </button>
         <section className="mt-6 rounded-[1.75rem] bg-card-bg border border-border-main p-5 shadow-elite space-y-4"><div><p className="text-[10px] font-black uppercase tracking-widest text-text-muted">Assurance</p><p className="mt-1 font-black text-text-main">{patient!.assurance || 'Non renseignée'}</p></div><div><p className="text-[10px] font-black uppercase tracking-widest text-text-muted">Motif</p><p className="mt-1 font-bold text-text-main">{patient!.motif_consultation || 'Non renseigné'}</p></div><p className="pt-2 border-t border-border-main text-[11px] font-bold text-text-muted">Contexte chargé depuis le serveur · aucun identifiant patient dans l’URL</p></section>
         <button data-m4a-touch type="button" onClick={() => navigate('/mobile/dashboard?tab=agenda', { replace: true })} className="mt-6 w-full min-h-[54px] rounded-2xl bg-card-bg border border-border-main text-text-main font-black text-xs uppercase tracking-widest">Retour au mobile</button>
       </div>
+
+      {photoPreviewUrl && photoFile && (
+        <div data-m6a-photo-sheet className="fixed inset-0 z-50 flex items-end justify-center bg-slate-950/30 backdrop-blur-sm sm:p-4">
+          <section role="dialog" aria-modal="true" aria-labelledby="m6a-photo-title" className="w-full max-w-md rounded-t-[2rem] sm:rounded-[2rem] bg-card-bg border border-border-main shadow-elite p-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] relative">
+            <div className="mx-auto mb-4 h-1.5 w-12 rounded-full bg-text-muted/20 sm:hidden" />
+            <button data-m6a-touch type="button" aria-label="Fermer la photo clinique" onClick={clearClinicalPhoto} className="absolute right-4 top-4 min-h-[52px] min-w-[52px] rounded-2xl inline-flex items-center justify-center text-text-muted hover:bg-primary/5"><X size={20} /></button>
+            <p className="text-[10px] font-black uppercase tracking-[0.16em] text-primary">Photo clinique</p>
+            <h2 id="m6a-photo-title" className="mt-1 pr-14 text-xl font-black text-text-main">{photoPhase === 'saved' ? 'Photo enregistrée' : 'Nouvelle photo clinique'}</h2>
+            <p className="mt-1 text-xs font-bold text-text-muted">{displayName} · Dossier {patient!.numero_dossier || 'sans numéro'}</p>
+            <img data-m6a-photo-preview src={photoPreviewUrl} alt={`Aperçu de la photo clinique de ${displayName}`} className="mt-4 block w-full max-h-[42dvh] aspect-[4/3] object-contain rounded-2xl border border-border-main bg-slate-950/5" />
+
+            {photoPhase === 'saved' ? (
+              <div data-m6a-photo-success className="mt-4">
+                <div className="min-h-[52px] rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 flex items-center gap-3 text-emerald-800"><CheckCircle2 size={20} className="shrink-0" /><p className="text-sm font-black">Photo clinique enregistrée dans le dossier</p></div>
+                <button data-m6a-touch type="button" onClick={() => { clearClinicalPhoto(); setTimeout(() => photoInputRef.current?.click(), 0); }} className="mt-3 w-full min-h-[54px] rounded-2xl bg-primary text-white inline-flex items-center justify-center gap-2 font-black text-sm"><Camera size={18} /> Prendre une autre photo</button>
+              </div>
+            ) : (
+              <>
+                <p className="mt-3 text-[11px] font-bold text-text-muted">La photo n’est pas enregistrée avant votre confirmation.</p>
+                {photoError && <div role="alert" className="mt-3 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-xs font-bold text-rose-700">{photoError}</div>}
+                <div className="mt-4 grid grid-cols-2 gap-3">
+                  <button data-m6a-touch type="button" disabled={photoPhase === 'uploading'} onClick={openClinicalPhotoPicker} className="min-h-[54px] rounded-2xl bg-card-bg border border-border-main text-text-main inline-flex items-center justify-center gap-2 font-black text-sm disabled:opacity-50"><RefreshCcw size={17} /> Reprendre</button>
+                  <button data-m6a-touch type="button" disabled={photoPhase === 'uploading'} onClick={() => void uploadClinicalPhoto()} className="min-h-[54px] rounded-2xl bg-primary text-white inline-flex items-center justify-center gap-2 font-black text-sm disabled:opacity-60">{photoPhase === 'uploading' ? <><Loader2 size={17} className="animate-spin" /> Enregistrement…</> : 'Enregistrer'}</button>
+                </div>
+              </>
+            )}
+          </section>
+        </div>
+      )}
     </div>
   );
 };
