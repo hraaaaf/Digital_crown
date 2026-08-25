@@ -1,0 +1,80 @@
+name: Mobile M6-C AFTER
+
+on:
+  push:
+    branches:
+      - "audit/mobile-m6-c-after-20260825"
+    paths:
+      - ".github/workflows/mobile-m6-c-after.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  after:
+    name: Exact-head chairside signature evidence
+    runs-on: ubuntu-latest
+    env:
+      PRODUCT_HEAD: a07ed396dae3af26b5a57170b8e0e42a67ccff41
+    steps:
+      - name: Checkout AFTER harness
+        uses: actions/checkout@v4
+        with:
+          path: audit
+
+      - name: Checkout exact product HEAD
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.PRODUCT_HEAD }}
+          path: product
+
+      - name: Assert exact product HEAD
+        run: test "$(git -C product rev-parse HEAD)" = "$PRODUCT_HEAD"
+
+      - name: Setup Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: product/frontend/package-lock.json
+
+      - name: Install frontend and Chromium
+        working-directory: product/frontend
+        run: |
+          npm ci
+          npm install --no-save --package-lock=false playwright@1.55.0
+          npx playwright install --with-deps chromium
+
+      - name: Materialize AFTER harness outside product commit
+        run: |
+          cp audit/.audit/mobile-m6-c-after.html product/frontend/mobile-m6-c-after.html
+          cp audit/.audit/mobile-m6-c-after.tsx product/frontend/src/mobile-m6-c-after.tsx
+          cp audit/.audit/mobile-m6-c-after.mjs product/frontend/mobile-m6-c-after.mjs
+
+      - name: Capture M6-C AFTER
+        working-directory: product/frontend
+        run: node mobile-m6-c-after.mjs
+
+      - name: Assert report gates
+        working-directory: product/frontend
+        run: |
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          report = json.loads(Path('mobile-m6-c-after-artifacts/report.json').read_text())
+          assert report['productHead'] == os.environ['PRODUCT_HEAD']
+          assert report['count'] == 9
+          assert report['minRelevantTouchHeight'] >= 48
+          assert report['blankSaveBlockedEveryViewport'] is True
+          assert report['inkEnablesSaveEveryViewport'] is True
+          assert report['canvasDprExact'] is True
+          assert report['noHorizontalOverflow'] is True
+          assert report['noUnexpectedRuntimeErrors'] is True
+          PY
+
+      - name: Upload AFTER evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: mobile-m6-c-after
+          path: product/frontend/mobile-m6-c-after-artifacts
+          retention-days: 14
