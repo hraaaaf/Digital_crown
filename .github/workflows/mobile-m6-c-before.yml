@@ -1,0 +1,82 @@
+name: Mobile M6-C Signature BEFORE
+
+on:
+  push:
+    branches:
+      - "audit/mobile-m6-c-signature-before-20260825"
+
+permissions:
+  contents: read
+
+jobs:
+  before:
+    name: Exact-head signature baseline
+    runs-on: ubuntu-latest
+    env:
+      PRODUCT_HEAD: 5f7325b58abd9c81e437d3c4e776e61f3a0bd0b0
+    steps:
+      - name: Checkout audit harness
+        uses: actions/checkout@v4
+        with:
+          path: audit
+
+      - name: Checkout exact product HEAD
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.PRODUCT_HEAD }}
+          path: product
+
+      - name: Assert exact product HEAD
+        run: test "$(git -C product rev-parse HEAD)" = "$PRODUCT_HEAD"
+
+      - name: Setup Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: product/frontend/package-lock.json
+
+      - name: Install frontend and Chromium
+        working-directory: product/frontend
+        run: |
+          npm ci
+          npm install --no-save --package-lock=false playwright@1.55.0
+          npx playwright install --with-deps chromium
+
+      - name: Materialize BEFORE harness outside product commit
+        run: |
+          cp audit/.audit/mobile-m6-c-before.html product/frontend/mobile-m6-c-before.html
+          cp audit/.audit/mobile-m6-c-before.tsx product/frontend/src/mobile-m6-c-before.tsx
+          cp audit/.audit/mobile-m6-c-before.mjs product/frontend/mobile-m6-c-before.mjs
+
+      - name: Capture M6-C BEFORE
+        working-directory: product/frontend
+        run: node mobile-m6-c-before.mjs
+
+      - name: Audit signature source contract
+        run: |
+          python3 audit/.audit/mobile-m6-c-backend-audit.py product
+          cp product/mobile-m6-c-backend-audit.json product/frontend/mobile-m6-c-before-artifacts/backend-audit.json
+
+      - name: Assert evidence integrity
+        working-directory: product/frontend
+        run: |
+          python3 - <<'PY'
+          import json, os
+          from pathlib import Path
+          report = json.loads(Path('mobile-m6-c-before-artifacts/report.json').read_text())
+          backend = json.loads(Path('mobile-m6-c-before-artifacts/backend-audit.json').read_text())
+          assert report['productHead'] == os.environ['PRODUCT_HEAD']
+          assert report['count'] == 9
+          assert report['noHorizontalOverflow'] is True
+          assert report['noUnexpectedRuntimeErrors'] is True
+          assert backend['signRouteFound'] is True
+          assert backend['patientsPermissionRequired'] is True
+          PY
+
+      - name: Upload BEFORE evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: mobile-m6-c-signature-before
+          path: product/frontend/mobile-m6-c-before-artifacts
+          retention-days: 14
