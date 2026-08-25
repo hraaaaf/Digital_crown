@@ -46,6 +46,24 @@ def _looks_like_forbidden_packaged_path(value: str) -> str | None:
     return None
 
 
+def _validate_requirement_includes(requirements_path: Path) -> None:
+    for raw_line in requirements_path.read_text(encoding='utf-8').splitlines():
+        line = raw_line.strip()
+        if not line or line.startswith('#'):
+            continue
+        target = None
+        if line.startswith('-r '):
+            target = line[3:].strip()
+        elif line.startswith('--requirement '):
+            target = line[len('--requirement '):].strip()
+        if target:
+            include_path = (requirements_path.parent / target).resolve()
+            require(
+                include_path.is_file(),
+                f'unresolved requirement include from {requirements_path.name}: {target}',
+            )
+
+
 def static_contract(root: Path) -> None:
     version = (root / 'VERSION').read_text(encoding='utf-8').strip()
     require(re.fullmatch(r'(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)', version) is not None, 'invalid VERSION')
@@ -60,6 +78,7 @@ def static_contract(root: Path) -> None:
         if (forbidden := _looks_like_forbidden_packaged_path(literal)) is not None
     ]
     require(not forbidden_paths, f'forbidden packaged path(s): {forbidden_paths}')
+    _validate_requirement_includes(root / 'backend' / 'requirements-p6-windows.txt')
     legacy = (root / 'scripts' / 'build_exe.py').read_text(encoding='utf-8')
     require('LEGACY_BUILDER_DISABLED' in legacy, 'legacy builder is not quarantined')
     iss = (root / 'installer' / 'DigitalCrown.iss').read_text(encoding='utf-8')
