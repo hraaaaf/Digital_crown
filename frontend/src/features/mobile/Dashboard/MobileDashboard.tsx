@@ -29,7 +29,7 @@ export const MobileDashboard = () => {
   const totalCount = state.snapshot?.appointments.length ?? 0;
 
   return (
-    <div className="min-h-[100dvh] bg-background text-text-main flex flex-col font-outfit pb-28 select-none relative" style={{ backgroundColor: 'var(--bg-medical-pearl)' }}>
+    <div data-dc-mobile-shell className="min-h-[100dvh] bg-background text-text-main flex flex-col font-outfit pb-28 select-none relative" style={{ backgroundColor: 'var(--bg-medical-pearl)' }}>
       <div className="document-watermark absolute inset-0 z-0 pointer-events-none opacity-50" />
 
       <MobileHeader
