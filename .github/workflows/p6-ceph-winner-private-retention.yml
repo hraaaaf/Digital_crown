@@ -1,0 +1,123 @@
+name: P6 Ceph Winner Private Retention
+
+on:
+  push:
+    branches:
+      - portability/p6-scientific-assets-refresh
+    paths:
+      - .github/workflows/p6-ceph-winner-private-retention.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: p6-ceph-winner-private-retention
+  cancel-in-progress: false
+
+jobs:
+  retain-exact-winner:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      PRIVATE_REPO: hraaaaf/DigitalCrown-assets
+      PRIVATE_BRANCH: training/p6-ceph-unet29
+      WINNER_COMMIT: 1da113b8776aa2b57e42ac194f12b7a48b01558c
+      WINNER_RUN: "32876308676"
+      MODEL_SHA256: 809f1d3d2347d2a34f57d4a3415bb319c29f8a25c325d41160e5f28d4e5dadad
+      MODEL_SIZE: "7624307"
+      ASSET_DIR: models/cephalometry/dc_ceph_unet29_q4/aariz_v1
+      PROVENANCE_DIR: provenance/dc_ceph_unet29_q4_aariz_v1
+    steps:
+      - name: Require dedicated private-repo token
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.P6_ASSET_TOKEN }}
+        run: |
+          set -euo pipefail
+          test -n "${GH_TOKEN:-}" || { echo "P6_ASSET_TOKEN secret missing"; exit 2; }
+          visibility="$(gh repo view "$PRIVATE_REPO" --json visibility --jq '.visibility')"
+          test "$visibility" = "PRIVATE" || { echo "asset repository is not PRIVATE: $visibility"; exit 3; }
+          echo "P6_PRIVATE_REPO_GATE=OK"
+
+      - name: Checkout exact public winner commit
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          ref: ${{ env.WINNER_COMMIT }}
+          path: winner
+
+      - name: Verify public winner before transfer
+        shell: bash
+        run: |
+          set -euo pipefail
+          model="winner/p6-ephemeral-output/model.onnx"
+          report="winner/p6-ephemeral-output/training_report.json"
+          manifest="winner/p6-ephemeral-output/aariz_v1_ingestion_manifest.json"
+          test -f "$model" && test -f "$report" && test -f "$manifest"
+          test "$(stat -c '%s' "$model")" = "$MODEL_SIZE"
+          echo "$MODEL_SHA256  $model" | sha256sum -c -
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          report = json.loads(Path("winner/p6-ephemeral-output/training_report.json").read_text(encoding="utf-8"))
+          assert report["artifacts"]["onnx"]["sha256"] == os.environ["MODEL_SHA256"]
+          assert report["artifacts"]["onnx"]["size_bytes"] == int(os.environ["MODEL_SIZE"])
+          assert report["result"] == "PASS"
+          assert report["clinical_claim"] is False
+          assert report["selection"]["best_epoch"] == 24
+          assert report["selection"]["test_loaded_once"] is True
+          PY
+
+      - name: Clone private asset branch and retain exact files
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.P6_ASSET_TOKEN }}
+        run: |
+          set -euo pipefail
+          gh auth setup-git
+          gh repo clone "$PRIVATE_REPO" private-assets -- --branch "$PRIVATE_BRANCH" --single-branch
+          mkdir -p "private-assets/$ASSET_DIR" "private-assets/$PROVENANCE_DIR"
+          cp winner/p6-ephemeral-output/model.onnx "private-assets/$ASSET_DIR/model.onnx"
+          cp winner/p6-ephemeral-output/training_report.json "private-assets/$ASSET_DIR/training_report.json"
+          cp winner/p6-ephemeral-output/aariz_v1_ingestion_manifest.json "private-assets/$PROVENANCE_DIR/aariz_v1_ingestion_manifest.json"
+          cat > "private-assets/$PROVENANCE_DIR/PROVENANCE.md" <<EOF
+          # DC-Ceph-UNet29Q4 / Aariz v1 provenance
+
+          Status: **PRIVATE RETENTION VERIFIED — TECHNICAL RESEARCH WINNER, NOT A CLINICAL CERTIFICATION**
+
+          - Public source repo: `hraaaaf/Digital_crown`
+          - Public winner commit: `$WINNER_COMMIT`
+          - Training run: `$WINNER_RUN`
+          - Dataset: Aariz v1 / `10.6084/m9.figshare.27986417.v1` / `CC BY 4.0`
+          - Dataset SHA256: `d9fa872b36065dac9615cfcad0c7512c450fe2d86a1839cdec4cbe001def33ea`
+          - Model: `DC-Ceph-UNet29Q4`
+          - Best epoch: `24`
+          - ONNX SHA256: `$MODEL_SHA256`
+          - ONNX size: `$MODEL_SIZE` bytes
+          - ONNX contract: input `[1,1,512,512]` -> output `[1,29,128,128]`, opset `17`
+          - Clinical claim: `false`
+
+          `Occ_Ant` and `Occ_Post` remain unsupported by the Aariz direct mapping; automated Wits remains fail-closed pending separate clinical validation.
+          EOF
+          echo "$MODEL_SHA256  private-assets/$ASSET_DIR/model.onnx" | sha256sum -c -
+
+      - name: Commit private retention exactly once
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.P6_ASSET_TOKEN }}
+        run: |
+          set -euo pipefail
+          cd private-assets
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -- "$ASSET_DIR/model.onnx" "$ASSET_DIR/training_report.json" "$PROVENANCE_DIR/aariz_v1_ingestion_manifest.json" "$PROVENANCE_DIR/PROVENANCE.md"
+          if git diff --cached --quiet; then
+            echo "P6_PRIVATE_RETENTION_ALREADY_PRESENT=OK"
+          else
+            git commit -m "assets(cephalo): retain verified Aariz Q4 winner"
+            git push origin "HEAD:$PRIVATE_BRANCH"
+          fi
+          echo "$MODEL_SHA256  $ASSET_DIR/model.onnx" | sha256sum -c -
+          echo "P6_PRIVATE_RETENTION=OK"
+          git rev-parse HEAD
