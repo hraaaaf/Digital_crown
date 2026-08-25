@@ -5,9 +5,7 @@ on:
     branches:
       - portability/p6-scientific-assets-refresh
     paths:
-      - .github/workflows/p6-scientific-assets-benchmark.yml
       - scripts/p6_scientific_assets_benchmark.py
-      - docs/P6_SCIENTIFIC_ASSETS_REFRESH.md
   workflow_dispatch:
 
 permissions:
@@ -58,18 +56,12 @@ jobs:
         run: python scripts/p6_scientific_assets_benchmark.py
 
       - name: Prove product tree stayed untouched
-        if: always()
-        shell: bash
-        run: |
-          set -euo pipefail
-          git diff --exit-code -- backend frontend
-          git status --short
+        run: git diff --exit-code -- backend frontend
 
       - name: Upload benchmark evidence
-        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: p6-scientific-assets-benchmark
           path: p6-scientific-assets-benchmark
-          if-no-files-found: ignore
+          if-no-files-found: error
           retention-days: 14
