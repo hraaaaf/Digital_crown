@@ -1,0 +1,72 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="780" viewBox="0 0 1200 780">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#eef6ff"/>
+      <stop offset="1" stop-color="#f8fbff"/>
+    </linearGradient>
+    <filter id="shadow" x="-30%" y="-30%" width="160%" height="160%">
+      <feDropShadow dx="0" dy="14" stdDeviation="18" flood-color="#15315f" flood-opacity="0.16"/>
+    </filter>
+    <pattern id="nodes" width="52" height="52" patternUnits="userSpaceOnUse">
+      <circle cx="8" cy="8" r="1.8" fill="#3267a8" opacity="0.22"/>
+      <circle cx="34" cy="30" r="1.4" fill="#5f9fe8" opacity="0.18"/>
+      <path d="M8 8 L34 30 L52 10" fill="none" stroke="#4f82bd" stroke-opacity="0.10" stroke-width="1"/>
+    </pattern>
+  </defs>
+  <rect width="1200" height="780" rx="32" fill="#f5f9ff"/>
+  <text x="60" y="64" font-family="Arial, sans-serif" font-size="28" font-weight="700" fill="#0b3d86">M6-G1 — Référence visuelle verrouillée</text>
+  <text x="60" y="94" font-family="Arial, sans-serif" font-size="16" fill="#60748f">Motif clinique abstrait + capsule active glissante. Structure métier inchangée.</text>
+
+  <!-- phone A -->
+  <g transform="translate(80 130)" filter="url(#shadow)">
+    <rect width="440" height="590" rx="42" fill="url(#bg)" stroke="#c9d8ec"/>
+    <rect x="0" y="0" width="440" height="590" rx="42" fill="url(#nodes)" opacity="0.9"/>
+    <path d="M-20 165 Q220 55 460 165" fill="none" stroke="#0e57a7" stroke-opacity="0.08" stroke-width="5"/>
+    <path d="M-10 220 Q220 105 450 220" fill="none" stroke="#5aa0e9" stroke-opacity="0.08" stroke-width="3"/>
+    <text x="28" y="70" font-family="Arial" font-size="34" font-weight="800" fill="#083f8f">Bon après-midi,</text>
+    <rect x="28" y="98" width="384" height="86" rx="24" fill="#ffffff" fill-opacity="0.70" stroke="#ffffff"/>
+    <rect x="28" y="208" width="384" height="165" rx="24" fill="#ffffff" fill-opacity="0.68" stroke="#ffffff"/>
+    <rect x="28" y="400" width="384" height="74" rx="24" fill="#ffffff" fill-opacity="0.72" stroke="#ffffff"/>
+
+    <rect x="24" y="500" width="392" height="68" rx="34" fill="#ffffff" fill-opacity="0.82" stroke="#d9e4f1"/>
+    <g transform="translate(34 507)">
+      <g transform="translate(0 0)">
+        <rect data-mobile-nav-active-pill="true" x="2" y="2" width="70" height="34" rx="17" fill="#0d4a99" fill-opacity="0.12" stroke="#0d4a99" stroke-opacity="0.15"/>
+        <circle cx="37" cy="19" r="7" fill="#0b4c9b"/>
+        <text x="37" y="50" text-anchor="middle" font-family="Arial" font-size="9" font-weight="700" fill="#0b4c9b">AGENDA</text>
+      </g>
+      <g transform="translate(76 0)"><circle cx="37" cy="19" r="7" fill="#8193a9"/><text x="37" y="50" text-anchor="middle" font-family="Arial" font-size="9" font-weight="700" fill="#8193a9">FINANCE</text></g>
+      <g transform="translate(152 0)"><circle cx="37" cy="19" r="7" fill="#8193a9"/><text x="37" y="50" text-anchor="middle" font-family="Arial" font-size="9" font-weight="700" fill="#8193a9">LABO</text></g>
+      <g transform="translate(228 0)"><circle cx="37" cy="19" r="7" fill="#8193a9"/><text x="37" y="50" text-anchor="middle" font-family="Arial" font-size="9" font-weight="700" fill="#8193a9">ASSIST.</text></g>
+      <g transform="translate(304 0)"><circle cx="37" cy="19" r="7" fill="#8193a9"/><text x="37" y="50" text-anchor="middle" font-family="Arial" font-size="9" font-weight="700" fill="#8193a9">SÉCUR.</text></g>
+    </g>
+  </g>
+
+  <!-- phone B -->
+  <g transform="translate(680 130)" filter="url(#shadow)">
+    <rect width="440" height="590" rx="42" fill="url(#bg)" stroke="#c9d8ec"/>
+    <rect x="0" y="0" width="440" height="590" rx="42" fill="url(#nodes)" opacity="0.9"/>
+    <path d="M-20 165 Q220 55 460 165" fill="none" stroke="#0e57a7" stroke-opacity="0.08" stroke-width="5"/>
+    <path d="M-10 220 Q220 105 450 220" fill="none" stroke="#5aa0e9" stroke-opacity="0.08" stroke-width="3"/>
+    <text x="28" y="70" font-family="Arial" font-size="34" font-weight="800" fill="#083f8f">Finances</text>
+    <rect x="28" y="98" width="184" height="120" rx="24" fill="#0b4c9b" fill-opacity="0.92"/>
+    <rect x="228" y="98" width="184" height="120" rx="24" fill="#ffffff" fill-opacity="0.72" stroke="#ffffff"/>
+    <rect x="28" y="236" width="384" height="236" rx="24" fill="#ffffff" fill-opacity="0.68" stroke="#ffffff"/>
+
+    <rect x="24" y="500" width="392" height="68" rx="34" fill="#ffffff" fill-opacity="0.82" stroke="#d9e4f1"/>
+    <g transform="translate(34 507)">
+      <g transform="translate(0 0)"><circle cx="37" cy="19" r="7" fill="#8193a9"/><text x="37" y="50" text-anchor="middle" font-family="Arial" font-size="9" font-weight="700" fill="#8193a9">AGENDA</text></g>
+      <g transform="translate(76 0)">
+        <rect data-mobile-nav-active-pill="true" x="2" y="2" width="70" height="34" rx="17" fill="#0d4a99" fill-opacity="0.12" stroke="#0d4a99" stroke-opacity="0.15"/>
+        <circle cx="37" cy="19" r="7" fill="#0b4c9b"/>
+        <text x="37" y="50" text-anchor="middle" font-family="Arial" font-size="9" font-weight="700" fill="#0b4c9b">FINANCE</text>
+      </g>
+      <g transform="translate(152 0)"><circle cx="37" cy="19" r="7" fill="#8193a9"/><text x="37" y="50" text-anchor="middle" font-family="Arial" font-size="9" font-weight="700" fill="#8193a9">LABO</text></g>
+      <g transform="translate(228 0)"><circle cx="37" cy="19" r="7" fill="#8193a9"/><text x="37" y="50" text-anchor="middle" font-family="Arial" font-size="9" font-weight="700" fill="#8193a9">ASSIST.</text></g>
+      <g transform="translate(304 0)"><circle cx="37" cy="19" r="7" fill="#8193a9"/><text x="37" y="50" text-anchor="middle" font-family="Arial" font-size="9" font-weight="700" fill="#8193a9">SÉCUR.</text></g>
+    </g>
+  </g>
+
+  <path d="M510 635 C565 600 615 600 680 635" fill="none" stroke="#0d4a99" stroke-width="3" stroke-dasharray="7 8" opacity="0.5"/>
+  <text x="600" y="680" text-anchor="middle" font-family="Arial" font-size="14" font-weight="700" fill="#0d4a99">capsule active partagée → déplacement fluide</text>
+</svg>
