@@ -1,0 +1,60 @@
+name: Mobile M6-A BEFORE
+
+on:
+  push:
+    branches:
+      - "audit/mobile-m6-a-before-20260825"
+    paths:
+      - ".audit/mobile-m6-a-before.html"
+      - ".audit/mobile-m6-a-before.tsx"
+      - ".audit/mobile-m6-a-before.mjs"
+      - ".github/workflows/mobile-m6-a-before.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  before:
+    name: M6-A patient context BEFORE
+    runs-on: ubuntu-latest
+    env:
+      PRODUCT_HEAD: 432955745da8a39fcf63277859ff4ec973722c9c
+    steps:
+      - name: Checkout audit harness
+        uses: actions/checkout@v4
+        with:
+          path: audit
+      - name: Checkout exact product HEAD
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.PRODUCT_HEAD }}
+          path: product
+      - name: Assert exact product HEAD
+        run: test "$(git -C product rev-parse HEAD)" = "$PRODUCT_HEAD"
+      - name: Setup Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: product/frontend/package-lock.json
+      - name: Install frontend and Chromium
+        working-directory: product/frontend
+        run: |
+          npm ci
+          npm install --no-save --package-lock=false --ignore-scripts playwright@1.62.1
+          npx playwright install --with-deps chromium
+      - name: Materialize BEFORE harness
+        run: |
+          cp audit/.audit/mobile-m6-a-before.html product/frontend/mobile-m6-a-before.html
+          cp audit/.audit/mobile-m6-a-before.tsx product/frontend/src/mobile-m6-a-before.tsx
+          cp audit/.audit/mobile-m6-a-before.mjs product/frontend/mobile-m6-a-before.mjs
+      - name: Capture and assert BEFORE
+        working-directory: product/frontend
+        run: PRODUCT_HEAD="$PRODUCT_HEAD" node mobile-m6-a-before.mjs
+      - name: Upload BEFORE artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: mobile-m6-a-before
+          path: product/frontend/mobile-m6-a-before-artifacts/
+          if-no-files-found: error
+          retention-days: 14
