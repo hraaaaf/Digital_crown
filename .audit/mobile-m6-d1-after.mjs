@@ -26,6 +26,8 @@ async function capture(width, height) {
   let serverAlerts = initialAlerts.map(alert => ({ ...alert }));
   let getCount = 0;
   let staleOpenRequestSeen = false;
+  let releaseStaleGet;
+  const staleGate = new Promise(resolve => { releaseStaleGet = resolve; });
 
   page.on('pageerror', error => errors.push(`pageerror: ${error.message}`));
   page.on('console', message => { if (message.type() === 'error') errors.push(`console: ${message.text()}`); });
@@ -37,11 +39,9 @@ async function capture(width, height) {
     if (request.method() === 'GET' && url.pathname === '/api/mobile/notifications') {
       getCount += 1;
       if (getCount === 2) {
-        // Reproduit exactement la race découverte par AFTER #1/#2 : la lecture
-        // lancée à l'ouverture du sheet termine après la mutation avec un snapshot obsolète.
         const staleSnapshot = initialAlerts.map(alert => ({ ...alert }));
         staleOpenRequestSeen = true;
-        await delay(450);
+        await staleGate;
         await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ total: staleSnapshot.length, alerts: staleSnapshot }) });
         return;
       }
@@ -84,9 +84,15 @@ async function capture(width, height) {
   await page.screenshot({ path: `${output}/dashboard-notifications-after-${width}x${height}.png`, fullPage: false, animations: 'disabled' });
 
   await read.click();
+  for (let i = 0; i < 20 && !mutations.some(path => path.endsWith('/71/read')); i += 1) await delay(50);
+  await delay(150);
+  const afterReadText = await page.locator('body').innerText();
+  await page.screenshot({ path: `${output}/dashboard-notifications-after-read-${width}x${height}.png`, fullPage: false, animations: 'disabled' });
+  await fs.writeFile(`${output}/debug-after-read-${width}x${height}.json`, JSON.stringify({ productHead, mutations, serverAlerts, getCount, staleOpenRequestSeen, errors, afterReadText }, null, 2));
   await page.getByText('1 non lue', { exact: true }).waitFor({ state: 'visible', timeout: 5000 });
-  // Laisser la GET volontairement obsolète terminer : le correctif produit doit l'ignorer.
-  await delay(650);
+
+  releaseStaleGet();
+  await delay(250);
   await page.getByText('1 non lue', { exact: true }).waitFor({ state: 'visible', timeout: 2000 });
 
   await page.getByRole('button', { name: '+ 24 h', exact: true }).click();
