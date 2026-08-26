@@ -115,16 +115,45 @@ jobs:
         shell: pwsh
         run: |
           $ErrorActionPreference = "Stop"
+
+          function Invoke-P6Installer {
+            param(
+              [Parameter(Mandatory=$true)][string]$FilePath,
+              [Parameter(Mandatory=$true)][string]$ArgumentLine,
+              [Parameter(Mandatory=$true)][string]$LogPath,
+              [Parameter(Mandatory=$true)][string]$Phase
+            )
+            $proc = Start-Process -FilePath $FilePath -ArgumentList $ArgumentLine -Wait -PassThru
+            Write-Host "P6_INSTALLER_PHASE=$Phase exit_code=$($proc.ExitCode) log=$LogPath"
+            if ($proc.ExitCode -ne 0) {
+              if (Test-Path $LogPath) {
+                Write-Host "::group::Inno Setup $Phase log tail"
+                Get-Content -Path $LogPath -Tail 250 | ForEach-Object { Write-Host $_ }
+                Write-Host "::endgroup::"
+              } else {
+                Write-Host "::warning::Inno Setup did not create $LogPath"
+              }
+              throw "$Phase failed: $($proc.ExitCode)"
+            }
+          }
+
           $version = (Get-Content VERSION -Raw).Trim()
-          $setup = Resolve-Path "dist_installer\DigitalCrownSetup-$version.exe"
+          $setup = (Resolve-Path "dist_installer\DigitalCrownSetup-$version.exe").Path
           $sandbox = Join-Path $env:RUNNER_TEMP "dc-p6-cabinet"
           $install = Join-Path $env:RUNNER_TEMP "dc-p6-program"
+          $installLog = Join-Path $env:RUNNER_TEMP "dc-p6-install.log"
+          $upgradeLog = Join-Path $env:RUNNER_TEMP "dc-p6-upgrade.log"
+          $uninstallLog = Join-Path $env:RUNNER_TEMP "dc-p6-uninstall.log"
           New-Item -ItemType Directory -Force $sandbox,$install | Out-Null
-          & $setup /VERYSILENT /SUPPRESSMSGBOXES /NORESTART /SP- "/DIR=$install"
-          if ($LASTEXITCODE -ne 0) { throw "install failed" }
+
+          $installArgs = "/VERYSILENT /SUPPRESSMSGBOXES /NORESTART /SP- /DIR=`"$install`" /LOG=`"$installLog`""
+          Invoke-P6Installer -FilePath $setup -ArgumentLine $installArgs -LogPath $installLog -Phase "install"
+
           $exe = Join-Path $install "DigitalCrown.exe"
-          & $exe --package-self-test
-          if ($LASTEXITCODE -ne 0) { throw "installed package self-test failed" }
+          if (-not (Test-Path $exe)) { throw "installed executable missing: $exe" }
+          $selfTest = Start-Process -FilePath $exe -ArgumentList "--package-self-test" -Wait -PassThru
+          if ($selfTest.ExitCode -ne 0) { throw "installed package self-test failed: $($selfTest.ExitCode)" }
+
           $sentinel = Join-Path $sandbox "P6_DATA_SENTINEL.txt"
           Set-Content -Path $sentinel -Value "preserve-me" -NoNewline
           $env:DIGITALCROWN_USER_DATA_DIR = $sandbox
@@ -148,13 +177,29 @@ jobs:
           } finally {
             Stop-Process -Id $proc.Id -Force -ErrorAction SilentlyContinue
           }
-          & $setup /VERYSILENT /SUPPRESSMSGBOXES /NORESTART /SP- "/DIR=$install"
-          if ($LASTEXITCODE -ne 0) { throw "upgrade reinstall failed" }
+
+          $upgradeArgs = "/VERYSILENT /SUPPRESSMSGBOXES /NORESTART /SP- /DIR=`"$install`" /LOG=`"$upgradeLog`""
+          Invoke-P6Installer -FilePath $setup -ArgumentLine $upgradeArgs -LogPath $upgradeLog -Phase "upgrade-reinstall"
+
           $uninstaller = Join-Path $install "unins000.exe"
-          & $uninstaller /VERYSILENT /SUPPRESSMSGBOXES /NORESTART
-          if ($LASTEXITCODE -ne 0) { throw "uninstall failed" }
+          if (-not (Test-Path $uninstaller)) { throw "uninstaller missing: $uninstaller" }
+          $uninstallArgs = "/VERYSILENT /SUPPRESSMSGBOXES /NORESTART /LOG=`"$uninstallLog`""
+          Invoke-P6Installer -FilePath $uninstaller -ArgumentLine $uninstallArgs -LogPath $uninstallLog -Phase "uninstall"
+
           if (-not (Test-Path $sentinel)) { throw "cabinet data sentinel was deleted" }
           Write-Host "P6_WINDOWS_INSTALL_SMOKE=SUCCESS"
+
+      - name: Upload installer lifecycle diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: digitalcrown-p6-installer-lifecycle-logs
+          path: |
+            ${{ runner.temp }}\dc-p6-install.log
+            ${{ runner.temp }}\dc-p6-upgrade.log
+            ${{ runner.temp }}\dc-p6-uninstall.log
+          if-no-files-found: ignore
+          retention-days: 7
 
       - name: Authenticode status
         shell: pwsh
