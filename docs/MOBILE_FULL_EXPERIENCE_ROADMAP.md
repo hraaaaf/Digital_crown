@@ -147,6 +147,14 @@ Exploiter ce que le téléphone peut faire mieux :
 - **M6-D2 — Push PWA/OS device-bound : CLOSED** — PR #258, HEAD certifié `23c402bbac770f6dd1deacaf88c48bdb3f1710ea`, merge `bad5a21f7729001e54f36ed69876ff0f91030c77`, closeout `docs/MOBILE_M6_D2_PUSH_PWA_OS_CLOSEOUT.md`, score visuel 9,7/10. Web Push standard device/user/tenant-bound, révocation fail-closed, RBAC conservé, payload OS sans PHI, VAPID privé persistant, HTTPS LAN et AFTER 390/430/768 certifiés. La réception OS réelle sur vrai iPhone/Android reste un gate de la certification finale globale.
 - **M6-E — Communication patient mobile (appel + WhatsApp) : CLOSED** — PR #261, HEAD certifié `3c1ae523c7ced679f3b14a614d6b1ab1cfd58819`, merge `3dc875f1816244fc567b58197f9cee23afc2199b`, closeout `docs/MOBILE_M6_E_PATIENT_COMMUNICATION_CLOSEOUT.md`, score visuel 9,8/10. Appel `tel:` conservé sans inventer d'indicatif, WhatsApp uniquement avec numéro international explicite, aucune donnée patient/clinique préremplie, cibles 64 px et AFTER 390/430/768 certifiés.
 - **M6-F — Partage mobile contextuel sûr : CLOSED** — PR #263, HEAD certifié `b5b349606fecb805fd5902189298bf30c238a2a0`, merge `731e1efc1b22c823cb6763d28dc551c974b1301d`, closeout `docs/MOBILE_M6_F_CONTEXTUAL_SHARE_CLOSEOUT.md`, score visuel 9,8/10. Partage natif limité au fichier Document déjà autorisé, `ShareData` file-only, nom générique, aucun URL/token/`context_key`/texte/titre ajouté par l’application, fallback Télécharger et AFTER 390/430/768 certifiés. Le document lui-même peut contenir des données patient ; sa destination reste choisie explicitement dans le share sheet OS.
+- **M6-H — Imagerie panoramique mobile plein écran : CLOSED** — PR #265, HEAD certifié `da5c30c34f263e97cf65f6d741eb5869d8d6a717`, merge `9ed2694a327e65ca823f63e4a161a98168d27856`, closeout `docs/MOBILE_M6_H_PANORAMIC_VIEWER_CLOSEOUT.md`, score visuel 9,7/10. Viewer in-app 100dvh, zoom 1×–4×, pan, pinch, contrôles mono-pointeur ≥52 px, `inert`, Escape/focus restore et aucune requête réseau supplémentaire ; AFTER 390/430/768 certifié via M4-B exact-head.
+
+### Audit des capacités M6 restantes
+
+- **Consultation rapide dossier patient : couverte par les lots certifiés existants.** Le contexte Patient exact M4-A, les actions M6-A/M6-B et la communication M6-E fournissent déjà la surface rapide prévue ; aucun nouveau lot produit n’est justifié avant la certification finale.
+- **Actions rapides au fauteuil : couvertes par les lots certifiés existants.** Agenda, appel/WhatsApp, photo, scan et signature sont déjà présents et certifiés ; aucun lot supplémentaire n’est créé artificiellement.
+- **Mode portrait / plein écran imagerie : CLOSED via M6-H.**
+- **Biométrie : NEXT.** Aucun WebAuthn/passkey n’existe actuellement dans le produit ; la prochaine étape doit être un lot sécurité dédié, sans transformer la biométrie en authentification locale qui contourne l’identité/revocation backend.
 
 ## Certification complète finale — pas un « M7 »
 
@@ -165,7 +173,7 @@ Après M6 :
 
 ## Ordre canonique restant
 
-1. Auditer les capacités M6 encore non certifiées — consultation rapide dossier patient, actions rapides au fauteuil, biométrie, mode portrait/plein écran imagerie — puis exécuter la capacité à plus forte valeur mobile selon les preuves du produit réel.
+1. Exécuter le lot biométrie/passkey M6 suivant sur une architecture device-bound compatible avec la révocation backend.
 2. Certification complète finale sur émulation + appareils physiques, incluant réception Push réelle iPhone/Android.
 3. Closeout global Mobile Full Experience.
 
