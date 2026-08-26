@@ -1,9 +1,6 @@
 name: Portability P6 Windows Packaging Certification
 
 on:
-  push:
-    branches:
-      - portability/p6-windows-packaging-final-20260826
   pull_request:
     types: [opened, synchronize]
     paths:
@@ -83,7 +80,25 @@ jobs:
         run: python -m PyInstaller --noconfirm --clean DigitalCrown.spec
 
       - name: Frozen package self-test
-        run: .\dist\DigitalCrown\DigitalCrown.exe --package-self-test
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          $exe = (Resolve-Path ".\dist\DigitalCrown\DigitalCrown.exe").Path
+          $workingDir = Split-Path $exe -Parent
+          $report = Join-Path $env:RUNNER_TEMP "dc-p6-frozen-self-test.json"
+          $env:DIGITALCROWN_PACKAGE_SELF_TEST_REPORT = $report
+          try {
+            $selfTest = Start-Process -FilePath $exe -ArgumentList "--package-self-test" -WorkingDirectory $workingDir -Wait -PassThru
+          } finally {
+            Remove-Item Env:DIGITALCROWN_PACKAGE_SELF_TEST_REPORT -ErrorAction SilentlyContinue
+          }
+          if (-not (Test-Path $report -PathType Leaf)) {
+            throw "frozen package self-test report missing: $report"
+          }
+          Write-Host "P6_FROZEN_SELF_TEST_REPORT=$(Get-Content $report -Raw)"
+          if ($selfTest.ExitCode -ne 0) {
+            throw "frozen package self-test failed: $($selfTest.ExitCode)"
+          }
 
       - name: Install exact Inno Setup 6.7.3
         shell: pwsh
@@ -144,14 +159,24 @@ jobs:
           $installLog = Join-Path $env:RUNNER_TEMP "dc-p6-install.log"
           $upgradeLog = Join-Path $env:RUNNER_TEMP "dc-p6-upgrade.log"
           $uninstallLog = Join-Path $env:RUNNER_TEMP "dc-p6-uninstall.log"
+          $installedSelfTestReport = Join-Path $env:RUNNER_TEMP "dc-p6-installed-self-test.json"
           New-Item -ItemType Directory -Force $sandbox,$install | Out-Null
 
           $installArgs = "/VERYSILENT /SUPPRESSMSGBOXES /NORESTART /SP- /DIR=`"$install`" /LOG=`"$installLog`""
           Invoke-P6Installer -FilePath $setup -ArgumentLine $installArgs -LogPath $installLog -Phase "install"
 
           $exe = Join-Path $install "DigitalCrown.exe"
-          if (-not (Test-Path $exe)) { throw "installed executable missing: $exe" }
-          $selfTest = Start-Process -FilePath $exe -ArgumentList "--package-self-test" -Wait -PassThru
+          if (-not (Test-Path $exe -PathType Leaf)) { throw "installed executable missing: $exe" }
+          $env:DIGITALCROWN_PACKAGE_SELF_TEST_REPORT = $installedSelfTestReport
+          try {
+            $selfTest = Start-Process -FilePath $exe -ArgumentList "--package-self-test" -WorkingDirectory $install -Wait -PassThru
+          } finally {
+            Remove-Item Env:DIGITALCROWN_PACKAGE_SELF_TEST_REPORT -ErrorAction SilentlyContinue
+          }
+          if (-not (Test-Path $installedSelfTestReport -PathType Leaf)) {
+            throw "installed package self-test report missing: $installedSelfTestReport"
+          }
+          Write-Host "P6_INSTALLED_SELF_TEST_REPORT=$(Get-Content $installedSelfTestReport -Raw)"
           if ($selfTest.ExitCode -ne 0) { throw "installed package self-test failed: $($selfTest.ExitCode)" }
 
           $sentinel = Join-Path $sandbox "P6_DATA_SENTINEL.txt"
@@ -162,7 +187,7 @@ jobs:
           $env:DIGITALCROWN_RUNTIME_DIR = (Join-Path $sandbox "runtime")
           $env:CABINET_PORT = "8765"
           $env:DIGITALCROWN_RESTORE_RESTART = "1"
-          $proc = Start-Process -FilePath $exe -PassThru
+          $proc = Start-Process -FilePath $exe -WorkingDirectory $install -PassThru
           try {
             $ok = $false
             1..60 | ForEach-Object {
@@ -182,7 +207,7 @@ jobs:
           Invoke-P6Installer -FilePath $setup -ArgumentLine $upgradeArgs -LogPath $upgradeLog -Phase "upgrade-reinstall"
 
           $uninstaller = Join-Path $install "unins000.exe"
-          if (-not (Test-Path $uninstaller)) { throw "uninstaller missing: $uninstaller" }
+          if (-not (Test-Path $uninstaller -PathType Leaf)) { throw "uninstaller missing: $uninstaller" }
           $uninstallArgs = "/VERYSILENT /SUPPRESSMSGBOXES /NORESTART /LOG=`"$uninstallLog`""
           Invoke-P6Installer -FilePath $uninstaller -ArgumentLine $uninstallArgs -LogPath $uninstallLog -Phase "uninstall"
 
@@ -195,6 +220,8 @@ jobs:
         with:
           name: digitalcrown-p6-installer-lifecycle-logs
           path: |
+            ${{ runner.temp }}\dc-p6-frozen-self-test.json
+            ${{ runner.temp }}\dc-p6-installed-self-test.json
             ${{ runner.temp }}\dc-p6-install.log
             ${{ runner.temp }}\dc-p6-upgrade.log
             ${{ runner.temp }}\dc-p6-uninstall.log

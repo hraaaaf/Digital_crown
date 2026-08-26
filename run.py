@@ -54,12 +54,19 @@ def _maybe_run_package_self_test() -> None:
         "status": "ok" if status_ok else "error",
         "frozen": bool(getattr(sys, "frozen", False)),
         "version": (root / "VERSION").read_text(encoding="utf-8").strip() if (root / "VERSION").exists() else None,
+        "bundle_root": str(root),
+        "executable": sys.executable,
         "missing": missing,
         "forbidden_present": leaked,
         "unqualified_scientific_weights_present": scientific_weights_present,
         "scientific_manifest_policy_ok": scientific_policy_ok,
         "scientific_capabilities": "FAIL_CLOSED_NO_WEIGHTS",
     }
+    report_path = os.environ.get("DIGITALCROWN_PACKAGE_SELF_TEST_REPORT")
+    if report_path:
+        report = Path(report_path)
+        report.parent.mkdir(parents=True, exist_ok=True)
+        report.write_text(json.dumps(payload, sort_keys=True), encoding="utf-8")
     print("P6_SCIENTIFIC_CAPABILITIES=FAIL_CLOSED")
     print("P6_PACKAGE_SELF_TEST=" + json.dumps(payload, sort_keys=True))
     raise SystemExit(0 if payload["status"] == "ok" else 1)
