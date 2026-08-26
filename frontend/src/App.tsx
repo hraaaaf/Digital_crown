@@ -49,6 +49,7 @@ const DentistsView     = lazy(() => import('./features/mobile/Dashboard/views/De
 const MobileSuperAdminView = lazy(() => import('./features/mobile/Dashboard/views/MobileSuperAdminView').then(m => ({ default: m.MobileSuperAdminView })));
 
 import { MobileStorage } from './services/zka/MobileStorage';
+import { MobileBiometricGate } from './features/mobile/Security/MobileBiometricGate';
 
 import { DigitalCrownLoader } from './components/DigitalCrownLoader';
 import { ComingSoon } from './components/ComingSoon';
@@ -174,7 +175,7 @@ const MobileProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   if (gate === 'loading') return <PageLoader />;
   if (gate === 'redirect') return <Navigate to="/mobile/onboarding" replace />;
 
-  return <>{children}</>;
+  return <MobileBiometricGate>{children}</MobileBiometricGate>;
 };
 
 

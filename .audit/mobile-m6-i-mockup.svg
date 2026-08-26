@@ -1,0 +1,42 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="430" height="932" viewBox="0 0 430 932">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#F7FAFF"/><stop offset="1" stop-color="#EAF1FB"/></linearGradient>
+    <linearGradient id="hero" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#12489B"/><stop offset="1" stop-color="#5C7AD9"/></linearGradient>
+    <linearGradient id="shine" x1="0" y1="0" x2="1" y2="0"><stop stop-color="#fff" stop-opacity="0"/><stop offset=".5" stop-color="#fff" stop-opacity=".92"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></linearGradient>
+    <filter id="shadow" x="-30%" y="-30%" width="160%" height="170%"><feDropShadow dx="0" dy="12" stdDeviation="16" flood-color="#0F172A" flood-opacity=".09"/></filter>
+    <filter id="blur"><feGaussianBlur stdDeviation="14"/></filter>
+  </defs>
+  <rect width="430" height="932" rx="36" fill="url(#bg)"/>
+  <circle cx="354" cy="98" r="102" fill="#B9CAF0" opacity=".2" filter="url(#blur)"/>
+  <text x="28" y="72" font-family="Arial, sans-serif" font-size="30" font-weight="800" fill="#123C83">Sécurité</text>
+  <g filter="url(#shadow)">
+    <rect x="24" y="102" width="382" height="194" rx="30" fill="url(#hero)"/>
+    <rect x="55" y="126" width="70" height="70" rx="22" fill="#fff" fill-opacity=".18" stroke="#fff" stroke-opacity=".36"/>
+    <circle cx="90" cy="161" r="17" fill="none" stroke="#fff" stroke-width="3"/><path d="M82 162l6 6 12-15" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round"/>
+    <text x="145" y="154" font-family="Arial" font-size="20" font-weight="800" fill="#fff">Terminal Appairé</text>
+    <text x="145" y="179" font-family="Arial" font-size="11" font-weight="600" fill="#fff" opacity=".74">Accès direct au cabinet via réseau local.</text>
+    <rect x="54" y="226" width="322" height="40" rx="14" fill="#fff" fill-opacity=".12" stroke="#fff" stroke-opacity=".2"/>
+    <text x="108" y="251" font-family="Arial" font-size="10" font-weight="800" fill="#fff" letter-spacing="1.5">ZERO-KNOWLEDGE · AES-256</text>
+    <rect x="58" y="102" width="300" height="1" fill="url(#shine)" opacity=".9"/>
+  </g>
+  <g filter="url(#shadow)">
+    <rect x="24" y="318" width="184" height="116" rx="22" fill="#fff" fill-opacity=".72" stroke="#D9E4F2"/>
+    <rect x="222" y="318" width="184" height="116" rx="22" fill="#fff" fill-opacity=".72" stroke="#D9E4F2"/>
+    <rect x="48" y="318" width="130" height="1" fill="url(#shine)"/><rect x="246" y="318" width="130" height="1" fill="url(#shine)"/>
+    <text x="48" y="352" font-family="Arial" font-size="10" font-weight="800" fill="#6B7C96" letter-spacing="1.2">RÉSEAU</text><text x="48" y="384" font-family="Arial" font-size="15" font-weight="800" fill="#16966C">En ligne</text><text x="48" y="405" font-family="Arial" font-size="10" font-weight="700" fill="#7E8DA5">Temps réel</text>
+    <text x="246" y="352" font-family="Arial" font-size="10" font-weight="800" fill="#6B7C96" letter-spacing="1.2">SYNC</text><text x="246" y="384" font-family="Arial" font-size="15" font-weight="800" fill="#101A32">À jour</text><text x="246" y="405" font-family="Arial" font-size="10" font-weight="700" fill="#7E8DA5">09:41</text>
+  </g>
+  <g filter="url(#shadow)">
+    <rect x="24" y="456" width="382" height="78" rx="22" fill="#fff" fill-opacity=".72" stroke="#D9E4F2"/><rect x="54" y="456" width="300" height="1" fill="url(#shine)"/>
+    <circle cx="52" cy="495" r="5" fill="#1BB77E"/><text x="72" y="487" font-family="Arial" font-size="10" font-weight="800" fill="#6B7C96" letter-spacing="1.1">STATUS SYSTÈME</text><text x="72" y="510" font-family="Arial" font-size="15" font-weight="800" fill="#101A32">Serveur local opérationnel</text>
+  </g>
+  <g filter="url(#shadow)">
+    <rect x="24" y="556" width="382" height="222" rx="26" fill="#fff" fill-opacity=".76" stroke="#D9E4F2"/><rect x="54" y="556" width="300" height="1" fill="url(#shine)"/>
+    <circle cx="66" cy="606" r="24" fill="#164796" opacity=".08"/><path d="M60 598h12v16H60z M58 604h16" fill="none" stroke="#164796" stroke-width="2.5" stroke-linecap="round"/>
+    <text x="105" y="600" font-family="Arial" font-size="18" font-weight="800" fill="#101A32">Verrouillage biométrique</text><text x="105" y="624" font-family="Arial" font-size="11" font-weight="600" fill="#708098">Second verrou local, sans remplacer le QR</text><text x="105" y="641" font-family="Arial" font-size="11" font-weight="600" fill="#708098">d’appairage ni la révocation du cabinet.</text>
+    <rect x="48" y="668" width="334" height="58" rx="18" fill="#12489B"/><rect x="86" y="668" width="250" height="1" fill="url(#shine)" opacity=".74"/><text x="111" y="704" font-family="Arial" font-size="14" font-weight="800" fill="#fff">Activer Face ID / biométrie</text><text x="48" y="754" font-family="Arial" font-size="9" font-weight="700" fill="#7E8DA5">digitalcrown.local · aucune donnée biométrique reçue</text>
+  </g>
+  <g filter="url(#shadow)">
+    <rect x="24" y="804" width="382" height="84" rx="24" fill="#FFF7F8" fill-opacity=".88" stroke="#F7C9D0"/><rect x="54" y="804" width="300" height="1" fill="url(#shine)"/><text x="48" y="838" font-family="Arial" font-size="15" font-weight="800" fill="#D8445F">Délier ce téléphone</text><text x="48" y="861" font-family="Arial" font-size="10" font-weight="600" fill="#8E6B74">Révoque les clés locales de cet appareil.</text>
+  </g>
+</svg>

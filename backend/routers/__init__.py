@@ -127,3 +127,12 @@ mobile.router.include_router(mobile_resource_bridge.router)
 from . import mobile_push as mobile_push
 mobile_push.install_secure_lan_url_overrides()
 mobile.router.include_router(mobile_push.router)
+
+# M6-I registers WebAuthn tables before create_all(), moves secure LAN discovery to
+# the stable mDNS RP hostname and gates all canonical mobile identities after enable.
+from . import mobile_legacy as mobile_legacy
+from . import mobile_passkey as mobile_passkey
+from backend.services.mobile_biometric import install_mobile_biometric_identity_gate
+mobile_passkey.install_stable_lan_url_overrides()
+install_mobile_biometric_identity_gate(mobile_legacy)
+mobile.router.include_router(mobile_passkey.router)
