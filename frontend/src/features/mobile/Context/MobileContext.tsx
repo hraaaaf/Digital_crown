@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useRef, useState, type ChangeEvent } from 'react';
-import { AlertTriangle, ArrowLeft, Calendar, Camera, CheckCircle2, Download, ExternalLink, FileText, Image as ImageIcon, Loader2, Phone, Plus, RefreshCcw, ShieldCheck, Trash2, X } from 'lucide-react';
+import { AlertTriangle, ArrowLeft, Calendar, Camera, CheckCircle2, Download, ExternalLink, FileText, Image as ImageIcon, Loader2, MessageCircle, Phone, Plus, RefreshCcw, ShieldCheck, Trash2, X } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { MobileStorage, type MobileBridgeContext } from '../../../services/zka/MobileStorage';
+import { buildTelHref, buildWhatsAppHref } from './mobilePatientContact';
 
 interface MobilePatient {
   id: number;
@@ -239,6 +240,13 @@ export const MobileContext = () => {
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const age = useMemo(() => ageFromBirth(patient?.date_naissance), [patient?.date_naissance]);
+  const callHref = buildTelHref(patient?.telephone);
+  const whatsappHref = buildWhatsAppHref(patient?.telephone);
+  const whatsappHint = !patient?.telephone
+    ? 'WhatsApp indisponible : aucun numéro patient.'
+    : !whatsappHref
+      ? 'WhatsApp : indicatif international requis.'
+      : null;
 
   const openDocument = () => {
     if (!mediaUrl) return;
@@ -540,7 +548,12 @@ export const MobileContext = () => {
         <h1 className="mt-2 text-3xl font-black tracking-tight text-text-main">Dossier patient</h1>
         <section className="mt-5 rounded-[1.75rem] bg-card-bg border border-border-main p-5 shadow-elite"><h2 className="text-2xl font-black tracking-tight text-text-main">{displayName}</h2><p className="mt-1 text-sm font-bold text-text-muted">Dossier {patient!.numero_dossier || 'sans numéro'}</p><div className="mt-3 flex flex-wrap gap-x-4 gap-y-2 text-sm font-bold text-text-muted">{age !== null && <span>{age} ans</span>}{patient!.telephone && <span>{patient!.telephone}</span>}</div>{patient!.has_medical_alert && <div className="mt-4 inline-flex min-h-11 items-center gap-2 px-3 rounded-xl border border-rose-200 bg-rose-50 text-rose-700 text-xs font-black uppercase tracking-wide"><AlertTriangle size={15} /> Alerte médicale</div>}</section>
         <p className="mt-7 mb-3 text-sm font-black text-text-main">Actions rapides</p>
-        <div className="grid grid-cols-2 gap-3"><a data-m4a-touch href={patient!.telephone ? `tel:${patient!.telephone}` : undefined} aria-disabled={!patient!.telephone} className="min-h-[54px] rounded-2xl bg-card-bg border border-border-main inline-flex items-center justify-center gap-2 font-black text-sm text-text-main aria-disabled:opacity-40"><Phone size={18} /> Appeler</a><button data-m4a-touch type="button" onClick={() => navigate('/mobile/dashboard?tab=agenda')} className="min-h-[54px] rounded-2xl bg-primary text-white inline-flex items-center justify-center gap-2 font-black text-sm"><Calendar size={18} /> Agenda</button></div>
+        <div data-m6e-actions className="grid grid-cols-3 gap-2">
+          {callHref ? <a data-m4a-touch data-m6e-touch data-m6e-contact data-m6e-call href={callHref} className="min-h-[64px] rounded-2xl bg-card-bg border border-border-main inline-flex flex-col items-center justify-center gap-1 font-black text-xs text-text-main"><Phone size={18} /> Appeler</a> : <button data-m4a-touch data-m6e-touch data-m6e-contact data-m6e-call type="button" disabled className="min-h-[64px] rounded-2xl bg-card-bg border border-border-main inline-flex flex-col items-center justify-center gap-1 font-black text-xs text-text-main opacity-40"><Phone size={18} /> Appeler</button>}
+          {whatsappHref ? <a data-m4a-touch data-m6e-touch data-m6e-contact data-m6e-whatsapp href={whatsappHref} target="_blank" rel="noopener noreferrer" className="min-h-[64px] rounded-2xl bg-card-bg border border-primary/20 inline-flex flex-col items-center justify-center gap-1 font-black text-xs text-text-main"><MessageCircle size={18} className="text-primary" /> WhatsApp</a> : <button data-m4a-touch data-m6e-touch data-m6e-contact data-m6e-whatsapp type="button" disabled className="min-h-[64px] rounded-2xl bg-card-bg border border-border-main inline-flex flex-col items-center justify-center gap-1 font-black text-xs text-text-main opacity-40"><MessageCircle size={18} /> WhatsApp</button>}
+          <button data-m4a-touch data-m6e-touch data-m6e-contact type="button" onClick={() => navigate('/mobile/dashboard?tab=agenda')} className="min-h-[64px] rounded-2xl bg-primary text-white inline-flex flex-col items-center justify-center gap-1 font-black text-xs"><Calendar size={18} /> Agenda</button>
+        </div>
+        {whatsappHint && <p data-m6e-whatsapp-hint className="mt-2 text-center text-[10px] font-bold text-text-muted">{whatsappHint}</p>}
         <input ref={photoInputRef} data-m6a-photo-input type="file" accept="image/jpeg,image/png,image/webp" capture="environment" onChange={handleClinicalPhotoSelected} className="sr-only" tabIndex={-1} aria-hidden="true" />
         <button data-m6a-photo-action data-m6a-touch type="button" onClick={openClinicalPhotoPicker} className="mt-3 w-full min-h-[66px] rounded-2xl bg-primary text-white inline-flex items-center justify-start gap-3 px-4 text-left shadow-elite active:scale-[0.99] transition-transform focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:ring-offset-2">
           <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-white/15"><Camera size={20} /></span>
