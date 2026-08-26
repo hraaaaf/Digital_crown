@@ -146,7 +146,7 @@ Exploiter ce que le téléphone peut faire mieux :
 - **M6-D1 — Centre de notifications mobile : CLOSED** — PR #256, HEAD certifié `cdac655b20b54e3a3cb7262fd1b5a634c9a30ede`, merge `101a6059919739bd508cd5e9fd26b5e33c9ca529`, closeout `docs/MOBILE_M6_D1_NOTIFICATION_CENTER_CLOSEOUT.md`, score visuel 9,6/10. Vérité `ProactiveAlert`, badge + bottom sheet, actions `Lu` / `+24 h`, stale-race fail-safe, filtrage RBAC des alertes financières et AFTER 390/430/768 certifiés.
 - **M6-D2 — Push PWA/OS device-bound : CLOSED** — PR #258, HEAD certifié `23c402bbac770f6dd1deacaf88c48bdb3f1710ea`, merge `bad5a21f7729001e54f36ed69876ff0f91030c77`, closeout `docs/MOBILE_M6_D2_PUSH_PWA_OS_CLOSEOUT.md`, score visuel 9,7/10. Web Push standard device/user/tenant-bound, révocation fail-closed, RBAC conservé, payload OS sans PHI, VAPID privé persistant, HTTPS LAN et AFTER 390/430/768 certifiés. La réception OS réelle sur vrai iPhone/Android reste un gate de la certification finale globale.
 - **M6-E — Communication patient mobile (appel + WhatsApp) : CLOSED** — PR #261, HEAD certifié `3c1ae523c7ced679f3b14a614d6b1ab1cfd58819`, merge `3dc875f1816244fc567b58197f9cee23afc2199b`, closeout `docs/MOBILE_M6_E_PATIENT_COMMUNICATION_CLOSEOUT.md`, score visuel 9,8/10. Appel `tel:` conservé sans inventer d'indicatif, WhatsApp uniquement avec numéro international explicite, aucune donnée patient/clinique préremplie, cibles 64 px et AFTER 390/430/768 certifiés.
-- **M6-F — Partage mobile contextuel : NEXT.** Auditer les surfaces partageables et concevoir un partage mobile-first avec `navigator.share` seulement lorsqu'il apporte une valeur sûre, avec fallback explicite et sans exposition accidentelle de PHI ou d'URL/token sensible.
+- **M6-F — Partage mobile contextuel sûr : CLOSED** — PR #263, HEAD certifié `b5b349606fecb805fd5902189298bf30c238a2a0`, merge `731e1efc1b22c823cb6763d28dc551c974b1301d`, closeout `docs/MOBILE_M6_F_CONTEXTUAL_SHARE_CLOSEOUT.md`, score visuel 9,8/10. Partage natif limité au fichier Document déjà autorisé, `ShareData` file-only, nom générique, aucun URL/token/`context_key`/texte/titre ajouté par l’application, fallback Télécharger et AFTER 390/430/768 certifiés. Le document lui-même peut contenir des données patient ; sa destination reste choisie explicitement dans le share sheet OS.
 
 ## Certification complète finale — pas un « M7 »
 
@@ -165,7 +165,7 @@ Après M6 :
 
 ## Ordre canonique restant
 
-1. Exécuter M6-F Partage mobile contextuel, puis les autres capacités M6 encore non certifiées selon dépendances et valeur mobile.
+1. Auditer les capacités M6 encore non certifiées — consultation rapide dossier patient, actions rapides au fauteuil, biométrie, mode portrait/plein écran imagerie — puis exécuter la capacité à plus forte valeur mobile selon les preuves du produit réel.
 2. Certification complète finale sur émulation + appareils physiques, incluant réception Push réelle iPhone/Android.
 3. Closeout global Mobile Full Experience.
 
