@@ -19,7 +19,7 @@ const initialAlerts = [
 const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
 
 async function capture(width, height) {
-  const context = await browser.newContext({ viewport: { width, height }, screen: { width, height }, deviceScaleFactor: 2, hasTouch: true, isMobile: true, serviceWorkers: 'block' });
+  const context = await browser.newContext({ viewport: { width, height }, screen: { width, height }, deviceScaleFactor: 2, hasTouch: true, isMobile: true });
   const page = await context.newPage();
   const errors = [];
   const mutations = [];
