@@ -38,7 +38,7 @@ scenario:
           const output = 'mobile-m4c-after-artifacts';
           await fs.rm(output, { recursive: true, force: true }); await fs.mkdir(output, { recursive: true });
           const productHead = process.env.PRODUCT_HEAD || 'unknown';
-          const captures = []; const network = []; const pairingBodies = [];
+          const captures = []; const network = []; const pairingBodies = []; const shareCalls = [];
           const documents = [
             { id: '88', name: 'Ordonnance_August_2026.pdf', type: 'ORDONNANCE', date: '24/08/2026', url: 'static/archives/42/Ordonnance_August_2026.pdf', file_exists: true, clinical_data: { items: [{ nom: 'AMOXICILLINE' }] } },
             { id: '91', name: 'Devis_Implant_2026.pdf', type: 'DEVIS', date: '23/08/2026', url: 'static/archives/42/Devis_Implant_2026.pdf', file_exists: true, clinical_data: { items: [{ acte: 'Implant', dent: '36' }] } },
@@ -50,9 +50,14 @@ scenario:
           const browser = await chromium.launch();
           const json = body => ({ status: 200, contentType: 'application/json', body: JSON.stringify(body) });
 
-          async function setup(viewport) {
+          async function setup(viewport, shareSupported = true) {
             const context = await browser.newContext({ viewport, screen: viewport, deviceScaleFactor: 1, hasTouch: viewport.width <= 768, isMobile: viewport.width <= 768, serviceWorkers: 'block' });
             const page = await context.newPage(); const errors = [];
+            await page.addInitScript(({ supported }) => {
+              window.__m6fShareCalls = [];
+              Object.defineProperty(Navigator.prototype, 'canShare', { configurable: true, value(data) { return supported && Array.isArray(data?.files) && data.files.length === 1; } });
+              Object.defineProperty(Navigator.prototype, 'share', { configurable: true, value(data) { window.__m6fShareCalls.push({ keys: Object.keys(data || {}).sort(), files: Array.from(data?.files || []).map(file => ({ name: file.name, type: file.type, size: file.size })) }); return Promise.resolve(); } });
+            }, { supported: shareSupported });
             page.on('pageerror', e => errors.push(`pageerror: ${e.message}`));
             page.on('console', m => { if (m.type() === 'error') errors.push(`console: ${m.text()}`); });
             await page.route('**/*', async route => {
@@ -73,8 +78,9 @@ scenario:
           async function metrics(page) { return page.evaluate(() => {
             const root = document.documentElement;
             const touches = [...document.querySelectorAll('[data-m4c-touch]')].filter(el => { const r = el.getBoundingClientRect(); const s = getComputedStyle(el); return r.width > 0 && r.height > 0 && s.visibility !== 'hidden' && s.display !== 'none'; }).map(el => { const r = el.getBoundingClientRect(); return { text: (el.textContent || el.getAttribute('aria-label') || '').trim().replace(/\s+/g, ' ').slice(0, 90), width: Math.round(r.width), height: Math.round(r.height) }; });
+            const m6fTouches = [...document.querySelectorAll('[data-m6f-touch]')].map(el => { const r = el.getBoundingClientRect(); return { text: (el.textContent || '').trim().replace(/\s+/g, ' ').slice(0, 90), width: Math.round(r.width), height: Math.round(r.height) }; });
             const html = document.body.innerHTML;
-            return { scrollWidth: root.scrollWidth, clientWidth: root.clientWidth, hasHorizontalOverflow: root.scrollWidth > root.clientWidth + 1, touchesBelow44: touches.filter(t => t.height < 44 || t.width < 44), canonicalBridgePresent: html.includes('Ouvrir sur mobile'), legacyDesktopOnly: html.includes('Ancien format · desktop uniquement') && html.includes('Non portable sur mobile'), exactDocumentVisible: html.includes('Ordonnance_August_2026.pdf'), patientVisible: html.includes('BENNANI Sara'), routePath: document.querySelector('[data-testid="m4c-route-probe"]')?.getAttribute('data-path') || null, routeSearch: document.querySelector('[data-testid="m4c-route-probe"]')?.getAttribute('data-search') || null };
+            return { scrollWidth: root.scrollWidth, clientWidth: root.clientWidth, hasHorizontalOverflow: root.scrollWidth > root.clientWidth + 1, touchesBelow44: touches.filter(t => t.height < 44 || t.width < 44), m6fTouchesBelow48: m6fTouches.filter(t => t.height < 48 || t.width < 48), m6fShareVisible: !!document.querySelector('[data-m6f-share]'), m6fPrivacyVisible: html.includes('Fichier uniquement · aucun lien ou token partagé'), canonicalBridgePresent: html.includes('Ouvrir sur mobile'), legacyDesktopOnly: html.includes('Ancien format · desktop uniquement') && html.includes('Non portable sur mobile'), exactDocumentVisible: html.includes('Ordonnance_August_2026.pdf'), patientVisible: html.includes('BENNANI Sara'), routePath: document.querySelector('[data-testid="m4c-route-probe"]')?.getAttribute('data-path') || null, routeSearch: document.querySelector('[data-testid="m4c-route-probe"]')?.getAttribute('data-search') || null };
           }); }
           async function capture(page, errors, name, state, viewport) { const measured = await metrics(page); await page.screenshot({ path: `${output}/${name}.png`, fullPage: false, animations: 'disabled' }); const record = { name, state, ...viewport, metrics: measured, errors: [...errors] }; captures.push(record); await fs.writeFile(`${output}/${name}.json`, JSON.stringify(record, null, 2)); }
 
@@ -92,14 +98,26 @@ scenario:
               await context.close();
             }
             for (const viewport of [{ width: 390, height: 844 }, { width: 430, height: 932 }, { width: 768, height: 1024 }]) {
-              const { context, page, errors } = await setup(viewport); await page.goto('http://127.0.0.1:4185/mobile-m4c-after.html?view=mobile', { waitUntil: 'networkidle' });
-              await page.getByRole('heading', { name: 'Document', exact: true }).waitFor({ state: 'visible', timeout: 10000 }); await page.getByText('BENNANI Sara', { exact: true }).waitFor({ state: 'visible' }); await page.getByText('Ordonnance_August_2026.pdf', { exact: true }).waitFor({ state: 'visible' });
-              await capture(page, errors, `mobile-document-${viewport.width}x${viewport.height}`, 'mobile-context', viewport); await context.close();
+              const { context, page, errors } = await setup(viewport, true); await page.goto('http://127.0.0.1:4185/mobile-m4c-after.html?view=mobile', { waitUntil: 'networkidle' });
+              await page.getByRole('heading', { name: 'Document', exact: true }).waitFor({ state: 'visible', timeout: 10000 }); await page.getByText('BENNANI Sara', { exact: true }).waitFor({ state: 'visible' }); await page.getByText('Ordonnance_August_2026.pdf', { exact: true }).waitFor({ state: 'visible' }); await page.getByRole('button', { name: 'Partager le document', exact: true }).waitFor({ state: 'visible' });
+              await capture(page, errors, `mobile-document-${viewport.width}x${viewport.height}`, 'mobile-context', viewport);
+              await page.getByRole('button', { name: 'Partager le document', exact: true }).click();
+              const calls = await page.evaluate(() => window.__m6fShareCalls || []); shareCalls.push(...calls);
+              await context.close();
+            }
+            let m6fFallbackObserved = false;
+            {
+              const viewport = { width: 390, height: 844 }; const { context, page } = await setup(viewport, false); await page.goto('http://127.0.0.1:4185/mobile-m4c-after.html?view=mobile', { waitUntil: 'networkidle' });
+              await page.getByText('Partage système indisponible · Télécharger reste disponible.', { exact: true }).waitFor({ state: 'visible', timeout: 10000 });
+              m6fFallbackObserved = await page.getByRole('button', { name: 'Partager le document', exact: true }).count() === 0 && await page.getByRole('button', { name: 'Télécharger', exact: true }).count() === 1;
+              await context.close();
             }
             const docCaptures = captures.filter(item => item.state === 'documents'); const mobileCaptures = captures.filter(item => item.state === 'mobile-context');
             const safePairingBodies = pairingBodies.length === 1 && pairingBodies.every(body => body.resource_type === 'document' && body.resource_id === 88 && !('patient_id' in body) && !('file_path' in body));
-            const report = { productHead, captures, count: captures.length, safePairingBodies, canonicalBridgePresent: docCaptures.every(item => item.metrics.canonicalBridgePresent), legacyDesktopOnly: docCaptures.every(item => item.metrics.legacyDesktopOnly), mobileContextCount: mobileCaptures.length, exactDocumentVisible: mobileCaptures.every(item => item.metrics.exactDocumentVisible && item.metrics.patientVisible), idlessMobileRoute: mobileCaptures.every(item => item.metrics.routePath === '/mobile/context' && !item.metrics.routeSearch), mediaContextObserved: network.filter(item => item === 'POST /api/mobile/resource-context-media').length === 3, noLegacyTrashRequest: !network.some(item => item.includes('legacy:') && item.includes('/trash')), noUnexpectedErrors: captures.every(item => item.errors.length === 0), noHorizontalOverflow: captures.every(item => !item.metrics.hasHorizontalOverflow), noM4CTouchBelow44: captures.every(item => item.metrics.touchesBelow44.length === 0), network };
+            const m6fShareFileOnly = shareCalls.length === 3 && shareCalls.every(call => JSON.stringify(call.keys) === JSON.stringify(['files']) && call.files?.length === 1 && call.files[0].name === 'document-digital-crown.pdf' && call.files[0].type === 'application/pdf' && !call.files[0].name.includes('BENNANI') && !call.files[0].name.includes('Ordonnance'));
+            const m6fShareUi = mobileCaptures.every(item => item.metrics.m6fShareVisible && item.metrics.m6fPrivacyVisible && item.metrics.m6fTouchesBelow48.length === 0);
+            const report = { productHead, captures, count: captures.length, safePairingBodies, canonicalBridgePresent: docCaptures.every(item => item.metrics.canonicalBridgePresent), legacyDesktopOnly: docCaptures.every(item => item.metrics.legacyDesktopOnly), mobileContextCount: mobileCaptures.length, exactDocumentVisible: mobileCaptures.every(item => item.metrics.exactDocumentVisible && item.metrics.patientVisible), idlessMobileRoute: mobileCaptures.every(item => item.metrics.routePath === '/mobile/context' && !item.metrics.routeSearch), mediaContextObserved: network.filter(item => item === 'POST /api/mobile/resource-context-media').length >= 3, noLegacyTrashRequest: !network.some(item => item.includes('legacy:') && item.includes('/trash')), noUnexpectedErrors: captures.every(item => item.errors.length === 0), noHorizontalOverflow: captures.every(item => !item.metrics.hasHorizontalOverflow), noM4CTouchBelow44: captures.every(item => item.metrics.touchesBelow44.length === 0), m6fShareFileOnly, m6fShareUi, m6fFallbackObserved, shareCalls, network };
             await fs.writeFile(`${output}/report.json`, JSON.stringify(report, null, 2)); console.log(JSON.stringify(report, null, 2));
-            if (report.count !== 8 || !report.safePairingBodies || !report.canonicalBridgePresent || !report.legacyDesktopOnly || report.mobileContextCount !== 3 || !report.exactDocumentVisible || !report.idlessMobileRoute || !report.mediaContextObserved || !report.noLegacyTrashRequest || !report.noUnexpectedErrors || !report.noHorizontalOverflow || !report.noM4CTouchBelow44) throw new Error('M4-C AFTER gate failed.');
+            if (report.count !== 8 || !report.safePairingBodies || !report.canonicalBridgePresent || !report.legacyDesktopOnly || report.mobileContextCount !== 3 || !report.exactDocumentVisible || !report.idlessMobileRoute || !report.mediaContextObserved || !report.noLegacyTrashRequest || !report.noUnexpectedErrors || !report.noHorizontalOverflow || !report.noM4CTouchBelow44 || !report.m6fShareFileOnly || !report.m6fShareUi || !report.m6fFallbackObserved) throw new Error('M4-C / M6-F AFTER gate failed.');
           } finally { await browser.close(); await server.close(); }
     EOF
