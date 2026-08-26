@@ -1,9 +1,13 @@
+from datetime import datetime
 from pathlib import Path
 import json
 from types import SimpleNamespace
 
+from fastapi import HTTPException
 import pytest
 
+from backend import models
+from backend.models_mobile_push import MobilePushSubscription
 from backend.routers import mobile as mobile_router
 from backend.routers import mobile_push
 from backend.services import mobile_push_service
@@ -19,6 +23,48 @@ def _user(*, permissions):
         employer_id=42,
         permissions=permissions,
         email="employee@example.test",
+    )
+
+
+def _db_user(db, email: str, *, employer_id: int | None = None):
+    user = models.User(
+        email=email,
+        hashed_password="test-only-hash",
+        role=models.UserRole.DENTISTE,
+        nom_complet=email,
+        is_active=True,
+        is_licensed=True,
+        is_suspended=False,
+        is_archived=False,
+        employer_id=employer_id,
+        approval_status="approved",
+        permissions={"patients": True, "accounting": False, "payments": False},
+    )
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+    return user
+
+
+def _paired_device(db, *, device_id: str, user_id: int, employer_id: int, revoked_at=None):
+    device = models.MobilePairedDevice(
+        device_id=device_id,
+        user_id=user_id,
+        employer_id=employer_id,
+        client_public_key_hex="04" + "11" * 64,
+        refresh_jti=f"refresh-{device_id}",
+        revoked_at=revoked_at,
+    )
+    db.add(device)
+    db.commit()
+    return device
+
+
+def _subscription_body(endpoint: str) -> mobile_push.PushSubscriptionRequest:
+    return mobile_push.PushSubscriptionRequest(
+        endpoint=endpoint,
+        keys={"p256dh": "A" * 43, "auth": "B" * 22},
+        platform="web",
     )
 
 
@@ -115,3 +161,98 @@ def test_scheduler_passes_types_not_patient_content_to_push():
     assert "send_push_for_alert_types(db, emp_id, alert_types)" in source
     assert "title=f\"Digital Crown" not in source
     assert "body=\"Consultez votre tableau" not in source
+
+
+def test_subscription_endpoint_cannot_cross_active_devices_but_transfers_after_revocation(db, monkeypatch):
+    owner = _db_user(db, "push-owner@example.test")
+    employee = _db_user(db, "push-employee@example.test", employer_id=owner.id)
+    device_a = _paired_device(
+        db,
+        device_id="11111111-1111-4111-8111-111111111111",
+        user_id=owner.id,
+        employer_id=owner.id,
+    )
+    device_b = _paired_device(
+        db,
+        device_id="22222222-2222-4222-8222-222222222222",
+        user_id=employee.id,
+        employer_id=owner.id,
+    )
+    monkeypatch.setattr(mobile_push, "get_or_create_vapid_keypair", lambda: ("private", "public-key"))
+
+    endpoint = "https://push.example.test/subscription/shared"
+    body = _subscription_body(endpoint)
+    identity_a = mobile_push.MobilePushIdentity(user=owner, tenant_id=owner.id, device_id=device_a.device_id)
+    identity_b = mobile_push.MobilePushIdentity(user=employee, tenant_id=owner.id, device_id=device_b.device_id)
+
+    result = mobile_push.register_mobile_push_subscription(body, identity=identity_a, db=db)
+    assert result["status"] == "registered"
+
+    with pytest.raises(HTTPException) as conflict:
+        mobile_push.register_mobile_push_subscription(body, identity=identity_b, db=db)
+    assert conflict.value.status_code == 409
+
+    device_a.revoked_at = datetime.utcnow()
+    db.commit()
+
+    result = mobile_push.register_mobile_push_subscription(body, identity=identity_b, db=db)
+    assert result["status"] == "registered"
+    rows = db.query(MobilePushSubscription).filter(MobilePushSubscription.endpoint == endpoint).all()
+    assert len(rows) == 1
+    assert rows[0].device_id == device_b.device_id
+    assert rows[0].user_id == employee.id
+    assert rows[0].employer_id == owner.id
+
+
+def test_push_delivery_excludes_revoked_device_and_targets_active_authorized_user(db, monkeypatch):
+    owner = _db_user(db, "delivery-owner@example.test")
+    employee = _db_user(db, "delivery-employee@example.test", employer_id=owner.id)
+    revoked_device = _paired_device(
+        db,
+        device_id="33333333-3333-4333-8333-333333333333",
+        user_id=owner.id,
+        employer_id=owner.id,
+        revoked_at=datetime.utcnow(),
+    )
+    active_device = _paired_device(
+        db,
+        device_id="44444444-4444-4444-8444-444444444444",
+        user_id=employee.id,
+        employer_id=owner.id,
+    )
+    db.add_all([
+        MobilePushSubscription(
+            device_id=revoked_device.device_id,
+            user_id=owner.id,
+            employer_id=owner.id,
+            endpoint="https://push.example.test/subscription/revoked",
+            p256dh="A" * 43,
+            auth="B" * 22,
+            platform="web",
+            vapid_public_key="public-key",
+        ),
+        MobilePushSubscription(
+            device_id=active_device.device_id,
+            user_id=employee.id,
+            employer_id=owner.id,
+            endpoint="https://push.example.test/subscription/active",
+            p256dh="C" * 43,
+            auth="D" * 22,
+            platform="web",
+            vapid_public_key="public-key",
+        ),
+    ])
+    db.commit()
+
+    delivered = []
+    monkeypatch.setattr(mobile_push_service, "get_or_create_vapid_keypair", lambda: ("private", "public-key"))
+    monkeypatch.setattr(mobile_push_service, "_is_public_push_endpoint", lambda endpoint: True)
+    monkeypatch.setattr(
+        mobile_push_service,
+        "webpush",
+        lambda **kwargs: delivered.append(kwargs["subscription_info"]["endpoint"]),
+    )
+
+    sent = mobile_push_service.send_push_for_alert_types(db, owner.id, ["STOCK_GANTS"])
+    assert sent == 1
+    assert delivered == ["https://push.example.test/subscription/active"]
