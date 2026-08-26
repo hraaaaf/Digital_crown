@@ -93,14 +93,18 @@ function resolveApiBaseUrl(stored: string): string {
   return normalized;
 }
 
-export function urlBase64ToUint8Array(value: string): Uint8Array {
+export function urlBase64ToUint8Array(value: string): Uint8Array<ArrayBuffer> {
   const padding = '='.repeat((4 - (value.length % 4)) % 4);
   const normalized = (value + padding).replace(/-/g, '+').replace(/_/g, '/');
   const raw = atob(normalized);
-  return Uint8Array.from(raw, char => char.charCodeAt(0));
+  const bytes = new Uint8Array(new ArrayBuffer(raw.length));
+  for (let index = 0; index < raw.length; index += 1) {
+    bytes[index] = raw.charCodeAt(index);
+  }
+  return bytes;
 }
 
-function sameApplicationServerKey(current: ArrayBuffer | null, expected: Uint8Array): boolean {
+function sameApplicationServerKey(current: ArrayBuffer | null, expected: Uint8Array<ArrayBuffer>): boolean {
   if (!current) return false;
   const actual = new Uint8Array(current);
   return actual.length === expected.length && actual.every((value, index) => value === expected[index]);
