@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useRef, useState, type ChangeEvent } from 'react';
-import { AlertTriangle, ArrowLeft, Calendar, Camera, CheckCircle2, Download, ExternalLink, FileText, Image as ImageIcon, Loader2, MessageCircle, Phone, Plus, RefreshCcw, ShieldCheck, Trash2, X } from 'lucide-react';
+import { AlertTriangle, ArrowLeft, Calendar, Camera, CheckCircle2, Download, ExternalLink, FileText, Image as ImageIcon, Loader2, MessageCircle, Phone, Plus, RefreshCcw, Share2, ShieldCheck, Trash2, X } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { MobileStorage, type MobileBridgeContext } from '../../../services/zka/MobileStorage';
 import { buildTelHref, buildWhatsAppHref } from './mobilePatientContact';
+import { buildDocumentShareData, canNativeShareDocument, isShareAbortError } from './mobileDocumentShare';
 
 interface MobilePatient {
   id: number;
@@ -75,6 +76,8 @@ export const MobileContext = () => {
   const [appointment, setAppointment] = useState<MobileAppointment | null>(null);
   const [mediaUrl, setMediaUrl] = useState<string | null>(null);
   const [mediaType, setMediaType] = useState<string>('');
+  const [mediaBlob, setMediaBlob] = useState<Blob | null>(null);
+  const [shareError, setShareError] = useState('');
   const mediaUrlRef = useRef<string | null>(null);
   const [phase, setPhase] = useState<'loading' | 'ready' | 'error'>('loading');
   const [error, setError] = useState('');
@@ -96,6 +99,8 @@ export const MobileContext = () => {
     mediaUrlRef.current = null;
     setMediaUrl(null);
     setMediaType('');
+    setMediaBlob(null);
+    setShareError('');
   };
 
   const clearClinicalPhoto = () => {
@@ -179,6 +184,7 @@ export const MobileContext = () => {
       mediaUrlRef.current = nextUrl;
       setMediaUrl(nextUrl);
       setMediaType(blob.type || 'application/octet-stream');
+      setMediaBlob(blob);
     };
 
     try {
@@ -261,6 +267,20 @@ export const MobileContext = () => {
     document.body.appendChild(anchor);
     anchor.click();
     anchor.remove();
+  };
+
+  const shareDocument = () => {
+    setShareError('');
+    if (!mediaBlob || !documentData) return;
+    const shareData = buildDocumentShareData(mediaBlob, documentData.mime_type || mediaType);
+    if (!canNativeShareDocument(navigator, shareData)) {
+      setShareError('Partage système indisponible. Utilisez Télécharger.');
+      return;
+    }
+    const sharePromise = navigator.share(shareData);
+    void sharePromise.catch((shareFailure: unknown) => {
+      if (!isShareAbortError(shareFailure)) setShareError('Le partage système n’a pas pu s’ouvrir. Utilisez Télécharger.');
+    });
   };
 
   const openClinicalPhotoPicker = () => {
@@ -493,6 +513,8 @@ export const MobileContext = () => {
 
   if (documentData) {
     const isImage = mediaType.startsWith('image/');
+    const shareData = mediaBlob ? buildDocumentShareData(mediaBlob, documentData.mime_type || mediaType) : null;
+    const shareSupported = !!shareData && canNativeShareDocument(navigator, shareData);
     return (
       <div data-m4c-context className="min-h-[100dvh] bg-background text-text-main font-outfit relative px-5 pt-[max(1.25rem,env(safe-area-inset-top))] pb-[max(1.5rem,env(safe-area-inset-bottom))]" style={{ backgroundColor: 'var(--bg-medical-pearl)' }}>
         <div className="document-watermark absolute inset-0 pointer-events-none opacity-40" />
@@ -509,8 +531,11 @@ export const MobileContext = () => {
 
           <div className="mt-4 grid grid-cols-2 gap-3">
             <button data-m4c-touch type="button" onClick={openDocument} disabled={!mediaUrl} className="min-h-[54px] rounded-2xl bg-card-bg border border-border-main text-text-main inline-flex items-center justify-center gap-2 font-black text-sm disabled:opacity-40"><ExternalLink size={18}/> Ouvrir</button>
-            <button data-m4c-touch type="button" onClick={downloadDocument} disabled={!mediaUrl} className="min-h-[54px] rounded-2xl bg-primary text-white inline-flex items-center justify-center gap-2 font-black text-sm disabled:opacity-40"><Download size={18}/> Télécharger</button>
+            <button data-m4c-touch type="button" onClick={downloadDocument} disabled={!mediaUrl} className="min-h-[54px] rounded-2xl bg-card-bg border border-border-main text-text-main inline-flex items-center justify-center gap-2 font-black text-sm disabled:opacity-40"><Download size={18}/> Télécharger</button>
           </div>
+          {shareSupported ? <button data-m4c-touch data-m6f-touch data-m6f-share type="button" onClick={shareDocument} className="mt-3 w-full min-h-[58px] rounded-2xl bg-primary text-white inline-flex items-center justify-center gap-2 font-black text-sm"><Share2 size={19}/> Partager le document</button> : <p data-m6f-share-fallback className="mt-3 text-center text-[11px] font-bold text-text-muted">Partage système indisponible · Télécharger reste disponible.</p>}
+          {shareSupported && <p data-m6f-share-privacy className="mt-3 text-center text-[11px] font-bold text-text-muted">Fichier uniquement · aucun lien ou token partagé</p>}
+          {shareError && <p data-m6f-share-error role="alert" className="mt-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-center text-xs font-bold text-amber-800">{shareError}</p>}
           <p className="mt-4 text-[11px] font-bold text-text-muted text-center">Média chargé par contexte serveur · aucun identifiant document dans l’URL</p>
           <button data-m4c-touch type="button" onClick={() => navigate('/mobile/dashboard?tab=agenda', { replace: true })} className="mt-6 w-full min-h-[54px] rounded-2xl bg-card-bg border border-border-main text-text-main font-black text-xs uppercase tracking-widest">Retour au mobile</button>
         </div>
