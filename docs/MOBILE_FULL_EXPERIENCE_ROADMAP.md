@@ -145,7 +145,8 @@ Exploiter ce que le téléphone peut faire mieux :
 - **M6-C — Validation / signature au fauteuil : CLOSED** — PR #254, HEAD certifié `a07ed396dae3af26b5a57170b8e0e42a67ccff41`, merge `7c8983d6da48c95de3798c72f7bce130ab3afb51`, closeout `docs/MOBILE_M6_C_CHAIRSIDE_SIGNATURE_CLOSEOUT.md`, score visuel 9,7/10. Targets ≥48 px, canvas responsive DPR, signature vide bloquée UI + serveur, PNG strictement validé et borné, re-signature interdite, devis signés exclus, ownership tenant et permission conservés.
 - **M6-D1 — Centre de notifications mobile : CLOSED** — PR #256, HEAD certifié `cdac655b20b54e3a3cb7262fd1b5a634c9a30ede`, merge `101a6059919739bd508cd5e9fd26b5e33c9ca529`, closeout `docs/MOBILE_M6_D1_NOTIFICATION_CENTER_CLOSEOUT.md`, score visuel 9,6/10. Vérité `ProactiveAlert`, badge + bottom sheet, actions `Lu` / `+24 h`, stale-race fail-safe, filtrage RBAC des alertes financières et AFTER 390/430/768 certifiés.
 - **M6-D2 — Push PWA/OS device-bound : CLOSED** — PR #258, HEAD certifié `23c402bbac770f6dd1deacaf88c48bdb3f1710ea`, merge `bad5a21f7729001e54f36ed69876ff0f91030c77`, closeout `docs/MOBILE_M6_D2_PUSH_PWA_OS_CLOSEOUT.md`, score visuel 9,7/10. Web Push standard device/user/tenant-bound, révocation fail-closed, RBAC conservé, payload OS sans PHI, VAPID privé persistant, HTTPS LAN et AFTER 390/430/768 certifiés. La réception OS réelle sur vrai iPhone/Android reste un gate de la certification finale globale.
-- **M6-E — Communication patient mobile (appel + WhatsApp) : NEXT.** L'appel `tel:` existe déjà dans le contexte Patient avec cible tactile 54 px ; aucun lien WhatsApp n'est présent. Le lot doit conserver l'appel, fiabiliser le numéro utilisable côté mobile et ajouter WhatsApp seulement si cela apporte une vraie valeur, sans préremplir de donnée patient ou clinique sensible.
+- **M6-E — Communication patient mobile (appel + WhatsApp) : CLOSED** — PR #261, HEAD certifié `3c1ae523c7ced679f3b14a614d6b1ab1cfd58819`, merge `3dc875f1816244fc567b58197f9cee23afc2199b`, closeout `docs/MOBILE_M6_E_PATIENT_COMMUNICATION_CLOSEOUT.md`, score visuel 9,8/10. Appel `tel:` conservé sans inventer d'indicatif, WhatsApp uniquement avec numéro international explicite, aucune donnée patient/clinique préremplie, cibles 64 px et AFTER 390/430/768 certifiés.
+- **M6-F — Partage mobile contextuel : NEXT.** Auditer les surfaces partageables et concevoir un partage mobile-first avec `navigator.share` seulement lorsqu'il apporte une valeur sûre, avec fallback explicite et sans exposition accidentelle de PHI ou d'URL/token sensible.
 
 ## Certification complète finale — pas un « M7 »
 
@@ -164,7 +165,7 @@ Après M6 :
 
 ## Ordre canonique restant
 
-1. Exécuter M6-E Communication patient mobile (appel + WhatsApp), puis les autres capacités M6 encore non certifiées selon dépendances et valeur mobile.
+1. Exécuter M6-F Partage mobile contextuel, puis les autres capacités M6 encore non certifiées selon dépendances et valeur mobile.
 2. Certification complète finale sur émulation + appareils physiques, incluant réception Push réelle iPhone/Android.
 3. Closeout global Mobile Full Experience.
 
