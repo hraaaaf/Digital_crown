@@ -7,6 +7,9 @@ import re
 from pathlib import Path, PurePosixPath
 
 DEFAULT_ROOT = Path(__file__).resolve().parents[1]
+INNO_URL = "https://github.com/jrsoftware/issrc/releases/download/is-6_7_3/innosetup-6.7.3.exe"
+INNO_SHA256 = "9c73c3bae7ed48d44112a0f48e66742c00090bdb5bef71d9d3c056c66e97b732"
+
 REQUIRED_SPEC_SNIPPETS = [
     "_required('frontend/dist')",
     "_required('backend/templates')",
@@ -83,6 +86,15 @@ def _validate_fail_closed_scientific_packaging(root: Path) -> None:
     )
 
 
+def _validate_inno_toolchain(root: Path) -> None:
+    workflow = (root / '.github' / 'workflows' / 'portability-p6-windows-packaging.yml').read_text(encoding='utf-8')
+    require('choco install innosetup' not in workflow, 'P6 must not rely on unpinned Chocolatey Inno Setup availability')
+    require(INNO_URL in workflow, 'P6 exact Inno Setup 6.7.3 official URL missing')
+    require(INNO_SHA256 in workflow, 'P6 exact Inno Setup 6.7.3 SHA256 missing')
+    require('P6_ISCC' in workflow, 'P6 deterministic ISCC path missing')
+    require('Get-FileHash' in workflow, 'P6 Inno Setup hash verification missing')
+
+
 def static_contract(root: Path) -> None:
     version = (root / 'VERSION').read_text(encoding='utf-8').strip()
     require(re.fullmatch(r'(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)', version) is not None, 'invalid VERSION')
@@ -99,6 +111,7 @@ def static_contract(root: Path) -> None:
     require(not forbidden_paths, f'forbidden packaged path(s): {forbidden_paths}')
     _validate_requirement_includes(root / 'backend' / 'requirements-p6-windows.txt')
     _validate_fail_closed_scientific_packaging(root)
+    _validate_inno_toolchain(root)
 
     legacy = (root / 'scripts' / 'build_exe.py').read_text(encoding='utf-8')
     require('LEGACY_BUILDER_DISABLED' in legacy, 'legacy builder is not quarantined')
@@ -112,7 +125,7 @@ def static_contract(root: Path) -> None:
     require(ids['cephalo_sota']['lifecycle'] == 'deferred', 'SOTA must stay deferred in P6')
     require(ids['cephalo_legacy']['lifecycle'] == 'external', 'legacy cephalo must stay external')
     require(ids['panoramic']['lifecycle'] == 'external', 'panoramic must stay external')
-    print(f'P6_PACKAGING_CONTRACT=SUCCESS version={version} scientific=FAIL_CLOSED_NO_WEIGHTS')
+    print(f'P6_PACKAGING_CONTRACT=SUCCESS version={version} scientific=FAIL_CLOSED_NO_WEIGHTS inno=6.7.3')
 
 
 def main() -> None:
