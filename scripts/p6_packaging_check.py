@@ -7,6 +7,7 @@ import re
 from pathlib import Path, PurePosixPath
 
 DEFAULT_ROOT = Path(__file__).resolve().parents[1]
+INNO_RELEASE = "is-6_7_3"
 INNO_URL = "https://github.com/jrsoftware/issrc/releases/download/is-6_7_3/innosetup-6.7.3.exe"
 INNO_SHA256 = "9c73c3bae7ed48d44112a0f48e66742c00090bdb5bef71d9d3c056c66e97b732"
 
@@ -89,10 +90,14 @@ def _validate_fail_closed_scientific_packaging(root: Path) -> None:
 def _validate_inno_toolchain(root: Path) -> None:
     workflow = (root / '.github' / 'workflows' / 'portability-p6-windows-packaging.yml').read_text(encoding='utf-8')
     require('choco install innosetup' not in workflow, 'P6 must not rely on unpinned Chocolatey Inno Setup availability')
+    require(INNO_RELEASE in workflow, 'P6 exact Inno Setup release tag missing')
     require(INNO_URL in workflow, 'P6 exact Inno Setup 6.7.3 official URL missing')
     require(INNO_SHA256 in workflow, 'P6 exact Inno Setup 6.7.3 SHA256 missing')
     require('P6_ISCC' in workflow, 'P6 deterministic ISCC path missing')
     require('Get-FileHash' in workflow, 'P6 Inno Setup hash verification missing')
+    require('Get-AuthenticodeSignature' in workflow, 'P6 Inno Setup Authenticode verification missing')
+    require('ProductVersion' not in workflow, 'P6 must not use unreliable ISCC ProductVersion as release identity')
+    require('types: [opened, synchronize]' in workflow, 'P6 PR trigger must avoid duplicate run on PR reopen')
 
 
 def static_contract(root: Path) -> None:

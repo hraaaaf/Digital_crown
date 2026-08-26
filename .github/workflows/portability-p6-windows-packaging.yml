@@ -5,6 +5,7 @@ on:
     branches:
       - portability/p6-windows-packaging-final-20260826
   pull_request:
+    types: [opened, synchronize]
     paths:
       - "VERSION"
       - "run.py"
@@ -33,6 +34,7 @@ concurrency:
 env:
   PYTHON_VERSION: "3.12"
   NODE_VERSION: "20"
+  INNO_SETUP_RELEASE: "is-6_7_3"
   INNO_SETUP_URL: "https://github.com/jrsoftware/issrc/releases/download/is-6_7_3/innosetup-6.7.3.exe"
   INNO_SETUP_SHA256: "9c73c3bae7ed48d44112a0f48e66742c00090bdb5bef71d9d3c056c66e97b732"
 
@@ -98,10 +100,8 @@ jobs:
           if ($proc.ExitCode -ne 0) { throw "Inno Setup install failed: $($proc.ExitCode)" }
           $iscc = Join-Path $innoDir "ISCC.exe"
           if (-not (Test-Path $iscc)) { throw "ISCC.exe missing after exact install" }
-          $productVersion = (Get-Item $iscc).VersionInfo.ProductVersion
-          if ($productVersion -notmatch '^6\.7\.3(?:\D|$)') { throw "Unexpected ISCC ProductVersion: $productVersion" }
           "P6_ISCC=$iscc" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
-          Write-Host "P6_INNO_SETUP=SUCCESS version=$productVersion sha256=$actual"
+          Write-Host "P6_INNO_SETUP=SUCCESS release=$env:INNO_SETUP_RELEASE sha256=$actual authenticode=$($signature.Status)"
 
       - name: Build installer
         shell: pwsh
