@@ -1,0 +1,26 @@
+name: Portability P12 Certification Matrix Prep
+
+on:
+  pull_request:
+    paths:
+      - "docs/portability/P12_CERTIFICATION_MATRIX.md"
+      - "scripts/p12_certification_matrix_check.py"
+      - ".github/workflows/portability-p12-certification-matrix.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  matrix-contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Compile checker
+        run: python -m py_compile scripts/p12_certification_matrix_check.py
+      - name: Validate P12 truth matrix
+        run: python scripts/p12_certification_matrix_check.py
