@@ -209,7 +209,15 @@ def main() -> int:
     try:
         from backend.main import app
 
-        uvicorn.run(app, host=host, port=port, log_level="info")
+        uvicorn.run(
+            app,
+            host=host,
+            port=port,
+            log_level="info",
+            # PyInstaller windowed exposes no stdout/stderr. In frozen mode,
+            # keep Digital Crown's existing file logging instead of Uvicorn's console handlers.
+            log_config=None if getattr(sys, "frozen", False) else uvicorn.config.LOGGING_CONFIG,
+        )
         return 0
     except Exception:
         import logging
