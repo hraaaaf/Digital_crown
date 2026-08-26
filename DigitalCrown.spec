@@ -17,31 +17,8 @@ def _required(path: str) -> str:
     return path
 
 
-def _collect_legacy_cephalo_runtime():
-    root = ROOT / 'backend' / 'ai_models' / 'cephld_cca'
-    weight = root / 'ceph_weights.pth'
-    if not weight.is_file():
-        raise SystemExit('Packaging required asset missing: backend/ai_models/cephld_cca/ceph_weights.pth')
-    entries = [(str(weight), 'backend/ai_models/cephld_cca')]
-    py_files = []
-    for path in root.rglob('*.py'):
-        rel = path.relative_to(root)
-        if '__pycache__' in rel.parts or 'model' in rel.parts:
-            continue
-        py_files.append(path)
-        entries.append((str(path), str(Path('backend/ai_models/cephld_cca') / rel.parent)))
-    if not py_files:
-        raise SystemExit('Packaging required asset missing: cephld_cca runtime Python source')
-    return entries
-
-
-def _collect_scientific_runtime():
-    pano = ROOT / 'backend' / 'ai_models' / 'panoramic_model.onnx'
-    if not pano.is_file():
-        raise SystemExit('Packaging required asset missing: backend/ai_models/panoramic_model.onnx')
-    return [(str(pano), 'backend/ai_models')] + _collect_legacy_cephalo_runtime()
-
-
+# Scientific weights are intentionally absent until separately qualified.
+# P6/P7 package only authorized shared resources; runtime remains fail-closed.
 datas = [
     (_required('VERSION'), '.'),
     (_required('frontend/dist'), 'frontend/dist'),
@@ -49,7 +26,7 @@ datas = [
     (_required('backend/static/assets'), 'backend/static/assets'),
     (_required('backend/data'), 'backend/data'),
     (_required('backend/scientific_assets.json'), 'backend'),
-] + _collect_scientific_runtime()
+]
 
 version_file = _required('build/windows-version-info.txt') if IS_WINDOWS else None
 codesign_identity = (os.environ.get('DIGITALCROWN_CODESIGN_IDENTITY') or '').strip() or None

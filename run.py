@@ -17,26 +17,57 @@ def _maybe_run_package_self_test() -> None:
         root / "backend" / "static" / "assets" / "fonts" / "Outfit-Bold.ttf",
         root / "backend" / "data" / "cephalometry" / "measurement_definitions.yaml",
         root / "backend" / "data" / "cephalometry" / "normative_profiles.yaml",
-        root / "backend" / "ai_models" / "panoramic_model.onnx",
-        root / "backend" / "ai_models" / "cephld_cca" / "ceph_weights.pth",
     ]
     missing = [str(path.relative_to(root)) for path in required if not path.exists()]
-    legacy_py = list((root / "backend" / "ai_models" / "cephld_cca").rglob("*.py"))
     forbidden = [
         root / ".env",
         root / "backend" / ".env",
         root / "backend" / "core" / "firebase_creds.json",
     ]
     leaked = [str(path.relative_to(root)) for path in forbidden if path.exists()]
-    if not legacy_py:
-        missing.append("backend/ai_models/cephld_cca/**/*.py")
+    unqualified_scientific_weights = [
+        root / "backend" / "ai_models" / "panoramic_model.onnx",
+        root / "backend" / "ai_models" / "cephld_cca" / "ceph_weights.pth",
+        root / "backend" / "ai_models" / "model.onnx",
+        root / "backend" / "ai_models" / "cephalometric_sota" / "model.onnx",
+    ]
+    scientific_weights_present = [
+        str(path.relative_to(root)) for path in unqualified_scientific_weights if path.exists()
+    ]
+
+    scientific_policy_ok = False
+    manifest_path = root / "backend" / "scientific_assets.json"
+    if manifest_path.exists():
+        try:
+            manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+            assets = {item["id"]: item for item in manifest["assets"]}
+            scientific_policy_ok = (
+                assets["cephalo_sota"]["lifecycle"] == "deferred"
+                and assets["cephalo_legacy"]["lifecycle"] == "external"
+                and assets["panoramic"]["lifecycle"] == "external"
+            )
+        except (KeyError, TypeError, ValueError, json.JSONDecodeError):
+            scientific_policy_ok = False
+
+    status_ok = not missing and not leaked and not scientific_weights_present and scientific_policy_ok
     payload = {
-        "status": "ok" if not missing and not leaked else "error",
+        "status": "ok" if status_ok else "error",
         "frozen": bool(getattr(sys, "frozen", False)),
         "version": (root / "VERSION").read_text(encoding="utf-8").strip() if (root / "VERSION").exists() else None,
+        "bundle_root": str(root),
+        "executable": sys.executable,
         "missing": missing,
         "forbidden_present": leaked,
+        "unqualified_scientific_weights_present": scientific_weights_present,
+        "scientific_manifest_policy_ok": scientific_policy_ok,
+        "scientific_capabilities": "FAIL_CLOSED_NO_WEIGHTS",
     }
+    report_path = os.environ.get("DIGITALCROWN_PACKAGE_SELF_TEST_REPORT")
+    if report_path:
+        report = Path(report_path)
+        report.parent.mkdir(parents=True, exist_ok=True)
+        report.write_text(json.dumps(payload, sort_keys=True), encoding="utf-8")
+    print("P6_SCIENTIFIC_CAPABILITIES=FAIL_CLOSED")
     print("P6_PACKAGE_SELF_TEST=" + json.dumps(payload, sort_keys=True))
     raise SystemExit(0 if payload["status"] == "ok" else 1)
 
@@ -124,8 +155,8 @@ def _maybe_run_guided_restore_worker() -> None:
     raise SystemExit(GuidedRestoreWorker.run(args.restore_id, args.parent_pid, sys.executable))
 
 
-_first_boot_bootstrap()
 _setup_frozen_logging()
+_first_boot_bootstrap()
 _maybe_run_guided_restore_worker()
 
 import multiprocessing
@@ -178,9 +209,20 @@ def main() -> int:
     try:
         from backend.main import app
 
-        uvicorn.run(app, host=host, port=port, log_level="info")
+        uvicorn.run(
+            app,
+            host=host,
+            port=port,
+            log_level="info",
+            # PyInstaller windowed exposes no stdout/stderr. In frozen mode,
+            # keep Digital Crown's existing file logging instead of Uvicorn's console handlers.
+            log_config=None if getattr(sys, "frozen", False) else uvicorn.config.LOGGING_CONFIG,
+        )
         return 0
     except Exception:
+        import logging
+
+        logging.getLogger("digitalcrown.launcher").exception("Runtime startup failed")
         if supervisor is not None:
             supervisor.open_recovery_page("RUNTIME_START_FAILED")
         return 1
