@@ -93,14 +93,27 @@ try {
     await page.screenshot({ path: path.join(outDir, baseName), fullPage: false });
     captures.push({ phase, kind: 'security', viewport, file: baseName, errors, metrics });
 
-    const anchor = phase === 'after'
-      ? page.locator('[data-m6i-biometric]').first()
-      : page.getByText('Status Système', { exact: true }).first();
-    if (await anchor.count()) {
-      await anchor.scrollIntoViewIfNeeded();
-      const contextName = `${phase}-context-${viewport.width}x${viewport.height}.png`;
-      await page.screenshot({ path: path.join(outDir, contextName), fullPage: false });
-      captures.push({ phase, kind: 'context', viewport, file: contextName, errors: [...errors], metrics });
+    // BEFORE already has the required same-viewport security capture. For AFTER,
+    // take a second viewport capture centered on the new card using a fresh DOM
+    // lookup inside the page. This avoids holding a Locator across React remounts.
+    if (phase === 'after') {
+      const centered = await page.evaluate(() => {
+        const element = document.querySelector('[data-m6i-biometric]');
+        if (!element) return false;
+        element.scrollIntoView({ block: 'center', inline: 'nearest' });
+        return true;
+      });
+      if (centered) {
+        await page.waitForFunction(() => {
+          const element = document.querySelector('[data-m6i-biometric]');
+          if (!element) return false;
+          const rect = element.getBoundingClientRect();
+          return rect.bottom > 0 && rect.top < window.innerHeight;
+        });
+        const contextName = `${phase}-context-${viewport.width}x${viewport.height}.png`;
+        await page.screenshot({ path: path.join(outDir, contextName), fullPage: false });
+        captures.push({ phase, kind: 'context', viewport, file: contextName, errors: [...errors], metrics });
+      }
     }
     await context.close();
   }
