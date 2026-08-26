@@ -130,7 +130,7 @@ scenario:
             nom: 'BENNANI',
             prenom: 'Sara',
             date_naissance: '1992-05-18T00:00:00',
-            telephone: '0612345678',
+            telephone: '+212 612 345 678',
             email: 'sara.bennani@example.test',
             adresse: 'Rabat',
             assurance: 'MUTUELLE',
@@ -144,7 +144,7 @@ scenario:
             nom: 'BENNANI',
             prenom: 'Sara',
             date_naissance: '1992-05-18T00:00:00',
-            telephone: '0612345678',
+            telephone: '+212 612 345 678',
             assurance: 'MUTUELLE',
             has_medical_alert: true,
             motif_consultation: 'Contrôle',
@@ -251,12 +251,21 @@ scenario:
                 const r = el.getBoundingClientRect();
                 return { tag: el.tagName, text: (el.textContent || el.getAttribute('aria-label') || '').trim().replace(/\s+/g, ' ').slice(0, 100), width: Math.round(r.width), height: Math.round(r.height) };
               });
+              const m6eTouches = [...document.querySelectorAll('[data-m6e-touch]')].map(el => {
+                const r = el.getBoundingClientRect();
+                return { tag: el.tagName, text: (el.textContent || '').trim().replace(/\s+/g, ' '), width: Math.round(r.width), height: Math.round(r.height), href: el.getAttribute('href') };
+              });
+              const whatsapp = document.querySelector('[data-m6e-whatsapp]');
               return {
                 scrollWidth: root.scrollWidth,
                 clientWidth: root.clientWidth,
                 hasHorizontalOverflow: root.scrollWidth > root.clientWidth + 1,
                 m4aTouchTargets: touches,
                 m4aTouchesBelow44: touches.filter(t => t.height < 44),
+                m6eTouchTargets: m6eTouches,
+                m6eTouchesBelow48: m6eTouches.filter(t => t.height < 48),
+                m6eWhatsAppHref: whatsapp?.getAttribute('href') || null,
+                m6eWhatsAppDisabled: whatsapp?.hasAttribute('disabled') || false,
                 routePath: document.querySelector('[data-testid="m4a-route-probe"]')?.getAttribute('data-path') || null,
                 routeSearch: document.querySelector('[data-testid="m4a-route-probe"]')?.getAttribute('data-search') || null,
               };
@@ -291,6 +300,7 @@ scenario:
               const { context, page, errors } = await setupContext(viewport);
               await page.goto('http://127.0.0.1:4180/mobile-m4a-after.html?view=context', { waitUntil: 'networkidle' });
               await page.getByRole('heading', { name: 'BENNANI Sara', exact: true }).waitFor({ state: 'visible', timeout: 15000 });
+              await page.getByText('WhatsApp', { exact: true }).waitFor({ state: 'visible' });
               await capture(page, errors, `mobile-context-${viewport.width}x${viewport.height}`, 'mobile-context-after', viewport);
               await context.close();
             }
@@ -301,6 +311,7 @@ scenario:
               await page.getByText('Appairage réussi', { exact: true }).waitFor({ state: 'visible', timeout: 15000 });
               await capture(page, errors, `pairing-success-${viewport.width}x${viewport.height}`, 'pairing-success-patient', viewport);
               await page.getByRole('heading', { name: 'BENNANI Sara', exact: true }).waitFor({ state: 'visible', timeout: 10000 });
+              await page.getByText('WhatsApp', { exact: true }).waitFor({ state: 'visible' });
               await capture(page, errors, `e2e-patient-${viewport.width}x${viewport.height}`, 'e2e-patient-context', viewport);
               await context.close();
             }
@@ -314,6 +325,7 @@ scenario:
             !('patient_name' in body) && !('patient' in body)
           );
           const e2e = results.filter(r => r.state === 'e2e-patient-context');
+          const m6eContexts = results.filter(r => ['mobile-context-after', 'e2e-patient-context'].includes(r.state));
           const report = {
             productHead: process.env.PRODUCT_HEAD,
             captures: results,
@@ -325,16 +337,23 @@ scenario:
               idlessRoute: e2e.every(r => r.metrics.routePath === '/mobile/context' && !r.metrics.routeSearch),
               protocolObserved: ['claim-token', 'resource-bridge-destination:context', 'resource-context'].every(step => protocol.includes(step)),
             },
+            m6e: {
+              count: m6eContexts.length,
+              threeQuickActions: m6eContexts.every(r => r.metrics.m6eTouchTargets.length === 3 && ['Appeler', 'WhatsApp', 'Agenda'].every(label => r.metrics.m6eTouchTargets.some(t => t.text === label))),
+              noSub48Targets: m6eContexts.every(r => r.metrics.m6eTouchesBelow48.length === 0),
+              whatsappInternationalSafe: m6eContexts.every(r => r.metrics.m6eWhatsAppHref === 'https://wa.me/212612345678' && r.metrics.m6eWhatsAppDisabled === false && !r.metrics.m6eWhatsAppHref.includes('?')),
+            },
           };
           await fs.writeFile(`${output}/report.json`, JSON.stringify(report, null, 2));
           
-          const failures = results.filter(r => r.errors.length || r.metrics.hasHorizontalOverflow || r.metrics.m4aTouchesBelow44.length);
+          const failures = results.filter(r => r.errors.length || r.metrics.hasHorizontalOverflow || r.metrics.m4aTouchesBelow44.length || r.metrics.m6eTouchesBelow48.length);
           if (
             results.length !== 13 || failures.length || !safePairingBodies ||
-            report.e2e.count !== 3 || !report.e2e.exactPatientVisible || !report.e2e.idlessRoute || !report.e2e.protocolObserved
+            report.e2e.count !== 3 || !report.e2e.exactPatientVisible || !report.e2e.idlessRoute || !report.e2e.protocolObserved ||
+            report.m6e.count !== 6 || !report.m6e.threeQuickActions || !report.m6e.noSub48Targets || !report.m6e.whatsappInternationalSafe
           ) {
-            console.error(JSON.stringify({ captures: results.length, failures, safePairingBodies, e2e: report.e2e, protocol }, null, 2));
+            console.error(JSON.stringify({ captures: results.length, failures, safePairingBodies, e2e: report.e2e, m6e: report.m6e, protocol }, null, 2));
             process.exitCode = 1;
           }
-          console.log(JSON.stringify({ captures: results.length, failures: failures.length, safePairingBodies, e2e: report.e2e }, null, 2));
+          console.log(JSON.stringify({ captures: results.length, failures: failures.length, safePairingBodies, e2e: report.e2e, m6e: report.m6e }, null, 2));
     EOF
