@@ -51,6 +51,29 @@ export function resetAuthState() {
   _authFailed = false;
 }
 
+/**
+ * Token d'autorisation courant. Sur les routes mobiles, un step-up biométrique
+ * doit rester mémoire-only mais primer sur le JWT durable pour TOUS les clients
+ * partagés (Axios, SSE, WebSocket). Desktop conserve exactement le contrat web.
+ */
+export function getRuntimeAuthToken(): string | null {
+  if (typeof window !== 'undefined' && window.location.pathname.startsWith('/mobile')) {
+    const uvToken = MobileStorage.getBiometricAccessToken();
+    if (uvToken) return uvToken;
+  }
+  try {
+    return localStorage.getItem('token') || sessionStorage.getItem('token');
+  } catch {
+    return null;
+  }
+}
+
+function propagateMobileBiometricLock(): void {
+  if (typeof window === 'undefined' || !window.location.pathname.startsWith('/mobile')) return;
+  MobileStorage.lockBiometricVault();
+  window.dispatchEvent(new CustomEvent('digitalcrown:mobile-biometric-locked'));
+}
+
 // Request interceptor — annule toute requête si la session est terminée
 api.interceptors.request.use((config) => {
   if (_authFailed) {
@@ -82,10 +105,8 @@ api.interceptors.request.use((config) => {
     };
   }
 
-  try {
-    const token = localStorage.getItem('token') || sessionStorage.getItem('token');
-    if (token) config.headers.Authorization = `Bearer ${token}`;
-  } catch { /* ignore */ }
+  const token = getRuntimeAuthToken();
+  if (token) config.headers.Authorization = `Bearer ${token}`;
   return config;
 });
 
@@ -119,9 +140,29 @@ api.interceptors.response.use(
       console.groupEnd();
     }
 
+    if (status === 423 && typeof window !== 'undefined' && window.location.pathname.startsWith('/mobile')) {
+      propagateMobileBiometricLock();
+      return Promise.reject(error);
+    }
+
+    // Certaines routes partagées historiques normalisent le verrou mobile en 401.
+    // Après UNE tentative de refresh device-bound, un second 401 avec coffre
+    // biométrique présent signifie que la session UV n'est plus valable : relock.
+    // Une vraie révocation n'arrive pas ici : le refresh 401/403 invalide d'abord
+    // la session et renvoie vers l'onboarding.
+    if (status === 401 && typeof window !== 'undefined' && window.location.pathname.startsWith('/mobile') && original?._mobileRetried) {
+      const vault = await MobileStorage.getBiometricVaultEnvelope().catch(() => null);
+      if (vault) propagateMobileBiometricLock();
+      return Promise.reject(error);
+    }
+
     // Une session mobile a un refresh device-bound distinct du refresh web.
     if (status === 401 && window.location.pathname.startsWith('/mobile') && !original._mobileRetried) {
       original._mobileRetried = true;
+      // Un JWT UV de 5 min peut simplement avoir expiré. Il ne faut surtout pas
+      // le réutiliser après refresh : la requête durable suivante doit être refusée
+      // par le gate biométrique puis reverrouiller l'interface.
+      if (MobileStorage.getBiometricAccessToken()) MobileStorage.clearBiometricAccessToken();
       const previousToken = localStorage.getItem('token');
       const refreshed = await MobileStorage.refreshCredentials();
       if (refreshed?.access_token && refreshed.access_token !== previousToken) {

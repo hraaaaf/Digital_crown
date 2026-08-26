@@ -1,3 +1,4 @@
+from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from backend.env_loader import BASE_DIR
@@ -10,10 +11,10 @@ class Settings(BaseSettings):
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30            # 30 minutes (rotation via refresh token)
     REFRESH_TOKEN_EXPIRE_DAYS: int = 30             # 30 jours
-    
+
     # Database
     DATABASE_URL: str = "sqlite:///./digital_crown.db"
-    
+
     # Environment
     ENVIRONMENT: str = "development"
     APP_PUBLIC_URL: str = "http://localhost:5173"
@@ -24,16 +25,25 @@ class Settings(BaseSettings):
     ALLOWED_ORIGINS: str = "http://localhost:5173,http://127.0.0.1:5173,https://localhost:5173,https://127.0.0.1:5173"
     RATE_LIMIT_LOGIN: str = "10/minute"
 
-    # TÃ©lÃ©mÃ©trie / remontÃ©e cloud (P0.1) â€” OFF par dÃ©faut, opt-in EXPLICITE.
+    @field_validator("ALLOWED_ORIGINS", mode="after")
+    @classmethod
+    def include_stable_mobile_origin(cls, value: str) -> str:
+        """M6-I: a legacy .env must not silently omit the stable WebAuthn origin."""
+        stable = "https://digitalcrown.local:5173"
+        origins = [item.strip() for item in str(value).split(",") if item.strip()]
+        if stable not in origins:
+            origins.append(stable)
+        return ",".join(origins)
+
+    # Télémétrie / remontée cloud (P0.1) — OFF par défaut, opt-in EXPLICITE.
     # Tant que ce flag est False, AUCUNE statistique ne quitte le cabinet.
     TELEMETRY_ENABLED: bool = False
-    
-    
+
     # Storage
     MAX_UPLOAD_SIZE: int = 10 * 1024 * 1024 # 10 Mo
-    
+
     # Firebase
-    # Les clÃ©s Firebase sont gÃ©rÃ©es par le fichier firebase_creds.json
+    # Les clés Firebase sont gérées par le fichier firebase_creds.json
 
     # Google OAuth
     GOOGLE_CLIENT_ID: str = ""
@@ -50,7 +60,6 @@ class Settings(BaseSettings):
     SMTP_USE_TLS: bool = True
     ADMIN_NOTIFICATION_EMAIL: str = ""
 
-    
     model_config = SettingsConfigDict(
         env_file=(str(BASE_DIR / ".env.local"), str(BASE_DIR / ".env")),
         env_file_encoding="utf-8",
