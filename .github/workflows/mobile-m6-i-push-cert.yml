@@ -1,0 +1,125 @@
+name: M6-I Final Exact-Head Push Certification
+
+on:
+  push:
+    branches:
+      - S9-m6-i-final-cert
+
+concurrency:
+  group: m6-i-final-exact-push
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  exact-before-after:
+    name: M6-I exact candidate BEFORE / AFTER
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      BASE_HEAD: 4ac6fb670e3f50bd4f47b47130211f1a0a3ba37f
+      PRODUCT_HEAD: 52357569dacd82604d77318fd933502368969b9f
+    steps:
+      - name: Checkout certification trigger
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Prove trigger changes workflow only and preserve exact harness
+        run: |
+          test "$(git rev-parse HEAD^)" = "$PRODUCT_HEAD"
+          test "$(git diff --name-only "$PRODUCT_HEAD" HEAD)" = ".github/workflows/mobile-m6-i-push-cert.yml"
+          mkdir -p /tmp/m6i-audit
+          git show "$PRODUCT_HEAD:.audit/mobile-m6-i-visual.tsx" > /tmp/m6i-audit/mobile-m6-i-visual.tsx
+          git show "$PRODUCT_HEAD:.audit/mobile-m6-i-lock.tsx" > /tmp/m6i-audit/mobile-m6-i-lock.tsx
+          git show "$PRODUCT_HEAD:.audit/mobile-m6-i-passkey-visual-stub.ts" > /tmp/m6i-audit/mobile-m6-i-passkey-visual-stub.ts
+          git show "$PRODUCT_HEAD:.audit/mobile-m6-i-storage-lock-stub.ts" > /tmp/m6i-audit/mobile-m6-i-storage-lock-stub.ts
+          git show "$PRODUCT_HEAD:.audit/mobile-m6-i-visual.html" > /tmp/m6i-audit/mobile-m6-i-visual.html
+          git show "$PRODUCT_HEAD:.audit/mobile-m6-i-lock.html" > /tmp/m6i-audit/mobile-m6-i-lock.html
+          git show "$PRODUCT_HEAD:.audit/mobile-m6-i-capture.mjs" > /tmp/m6i-audit/mobile-m6-i-capture.mjs
+
+      - name: Setup Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install frontend and Chromium once
+        working-directory: frontend
+        run: |
+          npm ci
+          npm install --no-save --package-lock=false --ignore-scripts playwright@1.62.1
+          npx playwright install --with-deps chromium
+
+      - name: Capture exact BASE BEFORE
+        run: |
+          git checkout --force "$BASE_HEAD"
+          test "$(git rev-parse HEAD)" = "$BASE_HEAD"
+          cp /tmp/m6i-audit/mobile-m6-i-visual.tsx frontend/src/mobile-m6-i-visual.tsx
+          cp /tmp/m6i-audit/mobile-m6-i-visual.html frontend/mobile-m6-i-visual.html
+          cp /tmp/m6i-audit/mobile-m6-i-capture.mjs frontend/mobile-m6-i-capture.mjs
+          cd frontend
+          node mobile-m6-i-capture.mjs before "$BASE_HEAD"
+
+      - name: Capture exact PRODUCT AFTER and locked boundary
+        run: |
+          git checkout --force "$PRODUCT_HEAD"
+          test "$(git rev-parse HEAD)" = "$PRODUCT_HEAD"
+          cp /tmp/m6i-audit/mobile-m6-i-visual.tsx frontend/src/mobile-m6-i-visual.tsx
+          cp /tmp/m6i-audit/mobile-m6-i-lock.tsx frontend/src/mobile-m6-i-lock.tsx
+          cp /tmp/m6i-audit/mobile-m6-i-visual.html frontend/mobile-m6-i-visual.html
+          cp /tmp/m6i-audit/mobile-m6-i-lock.html frontend/mobile-m6-i-lock.html
+          cp /tmp/m6i-audit/mobile-m6-i-capture.mjs frontend/mobile-m6-i-capture.mjs
+          cp /tmp/m6i-audit/mobile-m6-i-passkey-visual-stub.ts frontend/src/services/zka/mobilePasskey.ts
+          cp /tmp/m6i-audit/mobile-m6-i-storage-lock-stub.ts frontend/src/services/zka/MobileStorage.ts
+          cd frontend
+          node mobile-m6-i-capture.mjs after "$PRODUCT_HEAD"
+
+      - name: Assert exact visual gates
+        working-directory: frontend
+        run: |
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          report = json.loads(Path('mobile-m6-i-artifacts/report.json').read_text())
+          assert report['baseHead'] == os.environ['BASE_HEAD']
+          assert report['productHead'] == os.environ['PRODUCT_HEAD']
+          captures = report['captures']
+          before = [x for x in captures if x['phase'] == 'before' and x['kind'] == 'security']
+          after = [x for x in captures if x['phase'] == 'after' and x['kind'] == 'security']
+          contexts = [x for x in captures if x['phase'] == 'after' and x['kind'] == 'context']
+          locks = [x for x in captures if x['phase'] == 'after' and x['kind'] == 'lock']
+          assert len(before) == 3, len(before)
+          assert len(after) == 3, len(after)
+          assert len(contexts) == 3, len(contexts)
+          assert len(locks) == 3, len(locks)
+          assert all(not x['errors'] for x in captures), captures
+          assert all(not x['metrics']['hasHorizontalOverflow'] for x in captures)
+          assert all(x['metrics']['biometricVisible'] is False for x in before)
+          assert all(x['metrics']['biometricVisible'] is True for x in after)
+          assert all(x['metrics']['glassReflectionCount'] >= 5 for x in after)
+          assert all(x['metrics']['activationHeight'] >= 52 for x in after)
+          assert all(x['metrics']['protectedContentVisible'] is False for x in locks)
+          assert all(x['metrics']['unlockHeight'] >= 56 for x in locks)
+          print('M6-I FINAL EXACT CANDIDATE VISUAL PASS')
+          PY
+          cat > mobile-m6-i-artifacts/metadata.txt <<EOF
+          chantier=Digital Crown Mobile Full Experience
+          lot=M6-I Biometric passkey
+          base_head=${BASE_HEAD}
+          product_head=${PRODUCT_HEAD}
+          trigger_head=${GITHUB_SHA}
+          trigger_delta=workflow-only
+          viewports=390x844,430x932,768x1024
+          deployment=none
+          EOF
+
+      - name: Upload exact evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: mobile-m6-i-final-exact-candidate
+          path: frontend/mobile-m6-i-artifacts/
+          if-no-files-found: error
+          retention-days: 14
