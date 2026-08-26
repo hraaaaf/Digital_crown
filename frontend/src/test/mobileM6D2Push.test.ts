@@ -1,4 +1,5 @@
 import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { evaluatePushCapability, urlBase64ToUint8Array } from '../services/zka/mobilePush';
 
@@ -49,7 +50,7 @@ describe('M6-D2 Web Push capability gates', () => {
 
 describe('M6-D2 service worker privacy boundary', () => {
   it('renders fixed generic OS copy instead of server-supplied title/body', () => {
-    const source = readFileSync(new URL('../../public/push-sw.js', import.meta.url), 'utf8');
+    const source = readFileSync(resolve(process.cwd(), 'public/push-sw.js'), 'utf8');
     expect(source).toContain("const title = 'Digital Crown'");
     expect(source).toContain("const body = 'De nouvelles alertes sont disponibles");
     expect(source).not.toContain('payload.title');
