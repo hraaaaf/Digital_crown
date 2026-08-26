@@ -152,6 +152,17 @@ jobs:
             }
           }
 
+          function Show-P6RuntimeLog {
+            param([Parameter(Mandatory=$true)][string]$LogPath)
+            if (Test-Path $LogPath -PathType Leaf) {
+              Write-Host "::group::Digital Crown runtime log tail"
+              Get-Content -Path $LogPath -Tail 250 | ForEach-Object { Write-Host $_ }
+              Write-Host "::endgroup::"
+            } else {
+              Write-Host "::warning::Digital Crown runtime log missing: $LogPath"
+            }
+          }
+
           $version = (Get-Content VERSION -Raw).Trim()
           $setup = (Resolve-Path "dist_installer\DigitalCrownSetup-$version.exe").Path
           $sandbox = Join-Path $env:RUNNER_TEMP "dc-p6-cabinet"
@@ -160,6 +171,7 @@ jobs:
           $upgradeLog = Join-Path $env:RUNNER_TEMP "dc-p6-upgrade.log"
           $uninstallLog = Join-Path $env:RUNNER_TEMP "dc-p6-uninstall.log"
           $installedSelfTestReport = Join-Path $env:RUNNER_TEMP "dc-p6-installed-self-test.json"
+          $runtimeLog = Join-Path $sandbox "logs\digitalcrown.log"
           New-Item -ItemType Directory -Force $sandbox,$install | Out-Null
 
           $installArgs = "/VERYSILENT /SUPPRESSMSGBOXES /NORESTART /SP- /DIR=`"$install`" /LOG=`"$installLog`""
@@ -193,12 +205,20 @@ jobs:
             1..60 | ForEach-Object {
               if ($ok) { return }
               Start-Sleep -Seconds 2
+              if ($proc.HasExited) {
+                $exitCode = $proc.ExitCode
+                Show-P6RuntimeLog -LogPath $runtimeLog
+                throw "frozen runtime exited before health: $exitCode"
+              }
               try {
                 $r = Invoke-RestMethod -Uri "http://127.0.0.1:8765/health" -TimeoutSec 2
                 if ($r.status -eq "ok") { $ok = $true }
               } catch {}
             }
-            if (-not $ok) { throw "frozen runtime health failed" }
+            if (-not $ok) {
+              Show-P6RuntimeLog -LogPath $runtimeLog
+              throw "frozen runtime health failed"
+            }
           } finally {
             Stop-Process -Id $proc.Id -Force -ErrorAction SilentlyContinue
           }
@@ -225,6 +245,7 @@ jobs:
             ${{ runner.temp }}\dc-p6-install.log
             ${{ runner.temp }}\dc-p6-upgrade.log
             ${{ runner.temp }}\dc-p6-uninstall.log
+            ${{ runner.temp }}\dc-p6-cabinet\logs\digitalcrown.log
           if-no-files-found: ignore
           retention-days: 7
 

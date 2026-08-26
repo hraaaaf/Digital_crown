@@ -155,8 +155,8 @@ def _maybe_run_guided_restore_worker() -> None:
     raise SystemExit(GuidedRestoreWorker.run(args.restore_id, args.parent_pid, sys.executable))
 
 
-_first_boot_bootstrap()
 _setup_frozen_logging()
+_first_boot_bootstrap()
 _maybe_run_guided_restore_worker()
 
 import multiprocessing
@@ -212,6 +212,9 @@ def main() -> int:
         uvicorn.run(app, host=host, port=port, log_level="info")
         return 0
     except Exception:
+        import logging
+
+        logging.getLogger("digitalcrown.launcher").exception("Runtime startup failed")
         if supervisor is not None:
             supervisor.open_recovery_page("RUNTIME_START_FAILED")
         return 1

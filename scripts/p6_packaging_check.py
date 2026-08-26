@@ -10,6 +10,7 @@ DEFAULT_ROOT = Path(__file__).resolve().parents[1]
 INNO_RELEASE = "is-6_7_3"
 INNO_URL = "https://github.com/jrsoftware/issrc/releases/download/is-6_7_3/innosetup-6.7.3.exe"
 INNO_SHA256 = "9c73c3bae7ed48d44112a0f48e66742c00090bdb5bef71d9d3c056c66e97b732"
+FIREBASE_ADMIN_REQUIREMENT = "firebase-admin==7.5.0"
 
 REQUIRED_SPEC_SNIPPETS = [
     "_required('frontend/dist')",
@@ -72,6 +73,24 @@ def _validate_requirement_includes(requirements_path: Path) -> None:
             )
 
 
+def _validate_runtime_boot_contract(root: Path) -> None:
+    requirements = (root / 'backend' / 'requirements.txt').read_text(encoding='utf-8')
+    require(
+        FIREBASE_ADMIN_REQUIREMENT in requirements.splitlines(),
+        f'packaged runtime dependency missing: {FIREBASE_ADMIN_REQUIREMENT}',
+    )
+
+    workflow = (root / '.github' / 'workflows' / 'portability-p6-windows-packaging.yml').read_text(encoding='utf-8')
+    require('$proc.HasExited' in workflow, 'P6 runtime smoke must fail fast when the frozen process exits')
+    require('digitalcrown.log' in workflow, 'P6 runtime diagnostics must retain the frozen startup log')
+
+    run_source = (root / 'run.py').read_text(encoding='utf-8')
+    require(
+        'logging.getLogger("digitalcrown.launcher").exception("Runtime startup failed")' in run_source,
+        'frozen launcher must persist the startup exception before returning exit 1',
+    )
+
+
 def _validate_fail_closed_scientific_packaging(root: Path) -> None:
     workflow = (root / '.github' / 'workflows' / 'portability-p6-windows-packaging.yml').read_text(encoding='utf-8')
     require('P6_ASSET_TOKEN' not in workflow, 'P6 packaging must not depend on an unavailable cross-repo asset token')
@@ -115,6 +134,7 @@ def static_contract(root: Path) -> None:
     ]
     require(not forbidden_paths, f'forbidden packaged path(s): {forbidden_paths}')
     _validate_requirement_includes(root / 'backend' / 'requirements-p6-windows.txt')
+    _validate_runtime_boot_contract(root)
     _validate_fail_closed_scientific_packaging(root)
     _validate_inno_toolchain(root)
 
