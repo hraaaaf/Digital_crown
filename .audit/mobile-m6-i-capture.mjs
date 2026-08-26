@@ -12,13 +12,38 @@ const baseUrl = `http://127.0.0.1:${PORT}`;
 const outDir = path.resolve('mobile-m6-i-artifacts');
 await mkdir(outDir, { recursive: true });
 
-const vite = spawn(process.platform === 'win32' ? 'npx.cmd' : 'npx', ['vite', '--host', '127.0.0.1', '--port', String(PORT), '--strictPort'], {
+const isWindows = process.platform === 'win32';
+const vite = spawn(isWindows ? 'npx.cmd' : 'npx', ['vite', '--host', '127.0.0.1', '--port', String(PORT), '--strictPort'], {
   stdio: ['ignore', 'pipe', 'pipe'],
   env: { ...process.env, BROWSER: 'none' },
+  detached: !isWindows,
 });
 let viteLog = '';
 vite.stdout.on('data', chunk => { viteLog += chunk.toString(); });
 vite.stderr.on('data', chunk => { viteLog += chunk.toString(); });
+
+async function stopVite() {
+  if (vite.exitCode !== null) return;
+  if (isWindows) {
+    await new Promise(resolve => {
+      const killer = spawn('taskkill', ['/pid', String(vite.pid), '/t', '/f'], { stdio: 'ignore' });
+      killer.once('exit', resolve);
+      killer.once('error', resolve);
+    });
+  } else if (vite.pid) {
+    try { process.kill(-vite.pid, 'SIGTERM'); } catch {}
+    await Promise.race([
+      new Promise(resolve => vite.once('exit', resolve)),
+      new Promise(resolve => setTimeout(resolve, 2000)),
+    ]);
+    if (vite.exitCode === null) {
+      try { process.kill(-vite.pid, 'SIGKILL'); } catch {}
+    }
+  }
+  vite.stdout?.destroy();
+  vite.stderr?.destroy();
+  vite.unref();
+}
 
 async function waitForVite() {
   let lastError;
@@ -106,7 +131,7 @@ try {
   }
 } finally {
   if (browser) await browser.close();
-  vite.kill('SIGTERM');
+  await stopVite();
 }
 
 const reportPath = path.join(outDir, 'report.json');
