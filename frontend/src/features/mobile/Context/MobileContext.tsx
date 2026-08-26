@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { MobileStorage, type MobileBridgeContext } from '../../../services/zka/MobileStorage';
 import { buildTelHref, buildWhatsAppHref } from './mobilePatientContact';
 import { buildDocumentShareData, canNativeShareDocument, isShareAbortError } from './mobileDocumentShare';
+import { MobilePanoramicViewer } from './MobilePanoramicViewer';
 
 interface MobilePatient {
   id: number;
@@ -554,8 +555,9 @@ export const MobileContext = () => {
           <p className="mt-1 text-base font-black text-text-main">{panoramic.patient_name}</p>
           <p className="mt-1 text-sm font-bold text-text-muted">{formatDate(panoramic.created_at)}</p>
           <section className="mt-5 rounded-[1.75rem] overflow-hidden bg-slate-950 border border-slate-800 shadow-elite min-h-[230px] flex items-center justify-center">
-            {mediaUrl ? <img src={mediaUrl} alt="Radio panoramique contextuelle" className="block w-full max-h-[52dvh] object-contain bg-black" /> : <div className="text-slate-400 flex items-center gap-2 text-sm font-bold"><ImageIcon size={18} /> Image indisponible</div>}
+            {mediaUrl ? <MobilePanoramicViewer src={mediaUrl} alt="Radio panoramique contextuelle" /> : <div className="text-slate-400 flex items-center gap-2 text-sm font-bold"><ImageIcon size={18} /> Image indisponible</div>}
           </section>
+          {mediaUrl && <p data-m6h-hint className="mt-3 text-center text-[10px] font-black uppercase tracking-[0.12em] text-text-muted">Agrandir pour examiner · zoom 1×–4×</p>}
           <section className="mt-4 rounded-[1.5rem] bg-card-bg border border-border-main p-4 shadow-elite"><div className="flex items-center justify-between gap-4"><div><p className="text-[10px] font-black uppercase tracking-widest text-text-muted">Statut</p><p className="mt-1 font-black text-text-main">{panoramic.report_saved ? 'Rapport enregistré' : 'Rapport non finalisé'}</p></div><FileText size={20} className="text-primary" /></div><p className="mt-3 pt-3 border-t border-border-main text-[11px] font-bold text-text-muted">{panoramic.landmarks_count} repère{panoramic.landmarks_count > 1 ? 's' : ''} dentaire{panoramic.landmarks_count > 1 ? 's' : ''} · média chargé depuis le serveur sans identifiant dans l’URL</p></section>
           <button data-m4b-touch type="button" onClick={() => navigate('/mobile/dashboard?tab=agenda', { replace: true })} className="mt-6 w-full min-h-[54px] rounded-2xl bg-card-bg border border-border-main text-text-main font-black text-xs uppercase tracking-widest">Retour au mobile</button>
         </div>
