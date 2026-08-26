@@ -29,6 +29,28 @@ async function capture(width, height) {
   let releaseStaleGet;
   const staleGate = new Promise(resolve => { releaseStaleGet = resolve; });
 
+  // Headless Chromium does not consistently expose the mobile Web Push globals.
+  // The AFTER visual gate explicitly models a capable installed-browser state;
+  // capability fail-closed behavior itself is covered by product unit tests.
+  await page.addInitScript(() => {
+    if (!('PushManager' in window)) {
+      Object.defineProperty(window, 'PushManager', { configurable: true, value: class PushManager {} });
+    }
+    if (!('serviceWorker' in navigator)) {
+      Object.defineProperty(navigator, 'serviceWorker', { configurable: true, value: {} });
+    }
+    if (typeof Notification === 'undefined') {
+      Object.defineProperty(window, 'Notification', {
+        configurable: true,
+        value: { permission: 'default', requestPermission: async () => 'default' },
+      });
+    } else {
+      try {
+        Object.defineProperty(Notification, 'permission', { configurable: true, get: () => 'default' });
+      } catch { /* browser-specific read-only descriptor */ }
+    }
+  });
+
   page.on('pageerror', error => errors.push(`pageerror: ${error.message}`));
   page.on('console', message => { if (message.type() === 'error') errors.push(`console: ${message.text()}`); });
 
