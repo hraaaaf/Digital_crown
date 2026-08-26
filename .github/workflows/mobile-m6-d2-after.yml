@@ -18,7 +18,7 @@ jobs:
     name: Exact-head device-bound push certification
     runs-on: ubuntu-latest
     env:
-      PRODUCT_HEAD: 39f219a9094a72b19fc4d8a26a0c65db9791444f
+      PRODUCT_HEAD: ec7e1b54b1a08a02fc67e0bf87a5e30954c8b3d9
     steps:
       - name: Checkout audit harness
         uses: actions/checkout@v4
