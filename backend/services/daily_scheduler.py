@@ -4,7 +4,7 @@ from datetime import datetime, timedelta
 
 from backend import models, database
 from backend.services.habits_engine import habits_engine as _engine
-from backend.services.push_service import send_push_to_employer
+from backend.services.mobile_push_service import send_push_for_alert_types
 
 logger = logging.getLogger(__name__)
 
@@ -78,7 +78,7 @@ def run_daily_alerts():
         ).delete(synchronize_session=False)
 
         new_count = 0
-        new_by_employer: dict[int, int] = {}
+        new_types_by_employer: dict[int, list[str]] = {}
         for patient_id in all_ids:
             patient = db.query(models.Patient).filter(models.Patient.id == patient_id).first()
             if not patient:
@@ -115,7 +115,7 @@ def run_daily_alerts():
                         expires_at=datetime.now() + timedelta(days=7)
                     ))
                     new_count += 1
-                    new_by_employer[patient.employer_id] = new_by_employer.get(patient.employer_id, 0) + 1
+                    new_types_by_employer.setdefault(patient.employer_id, []).append(t["type"])
 
                     # Ghost Brain V2 : Conscience temporelle
                     from backend.services.ghost_memory_service import ghost_memory
@@ -170,34 +170,31 @@ def run_daily_alerts():
                         ),
                         context_data=f"{stock_type}_{emp_id}_{datetime.now().strftime('%Y-%W')}",
                     )
-                    new_by_employer[emp_id] = new_by_employer.get(emp_id, 0) + 1
+                    new_types_by_employer.setdefault(emp_id, []).append(stock_type)
         db.commit()
 
         logger.info("Daily alerts: %d new alerts for %d active patients", new_count, len(all_ids))
 
-        for emp_id, count in new_by_employer.items():
-            sent = send_push_to_employer(
-                db, emp_id,
-                title=f"Digital Crown — {count} alerte(s) aujourd'hui",
-                body="Consultez votre tableau de bord pour les actions prioritaires."
-            )
+        for emp_id, alert_types in new_types_by_employer.items():
+            sent = send_push_for_alert_types(db, emp_id, alert_types)
             if sent:
-                logger.info("Push sent to employer %s: %d device(s)", emp_id, sent)
+                logger.info("Generic mobile push sent to employer %s: %d authorized device(s)", emp_id, sent)
 
 
 _stop_flag = False
 _current_timer = None
 
+
 def start_daily_scheduler():
     """Lance le scheduler récursif — première exécution après 10s, puis toutes les 24h."""
     global _current_timer, _stop_flag
     _stop_flag = False
-    
+
     def _run_and_reschedule():
         global _current_timer
         if _stop_flag:
             return
-            
+
         try:
             # 1. Sauvegarde automatique de la DB (V1 Requirement)
             from backend.services.backup_service import backup_service
@@ -205,12 +202,12 @@ def start_daily_scheduler():
 
             # 2. Relances transactionnelles de licence
             send_license_expiry_emails()
-            
+
             # 3. Alertes proactives
             run_daily_alerts()
         except Exception as e:
             logger.warning("Daily scheduler failed: %s", e)
-            
+
         if not _stop_flag:
             try:
                 _current_timer = threading.Timer(86400, _run_and_reschedule)
@@ -227,6 +224,7 @@ def start_daily_scheduler():
         logger.info("Daily scheduler armed (first run in 10s)")
     except RuntimeError:
         pass
+
 
 def stop_daily_scheduler():
     """Arrête proprement le scheduler (utile pour les tests)."""

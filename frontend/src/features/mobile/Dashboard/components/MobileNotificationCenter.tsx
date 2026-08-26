@@ -1,8 +1,14 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { AlertTriangle, Bell, BellOff, Check, Clock3, RefreshCw, X } from 'lucide-react';
+import { AlertTriangle, Bell, BellOff, Check, Clock3, RefreshCw, ShieldCheck, X } from 'lucide-react';
 import { MobileStorage } from '../../../../services/zka/MobileStorage';
 import { mobileFetch } from '../../../../services/zka/mobileFetch';
+import {
+  disableMobilePush,
+  enableMobilePush,
+  getMobilePushState,
+  type MobilePushState,
+} from '../../../../services/zka/mobilePush';
 
 interface MobileNotification {
   id: number;
@@ -40,6 +46,9 @@ export function MobileNotificationCenter() {
   const [error, setError] = useState('');
   const [open, setOpen] = useState(false);
   const [mutatingId, setMutatingId] = useState<number | null>(null);
+  const [pushState, setPushState] = useState<MobilePushState | null>(null);
+  const [pushBusy, setPushBusy] = useState(false);
+  const [pushError, setPushError] = useState('');
   const loadGenerationRef = useRef(0);
 
   const syncAppBadge = useCallback((count: number) => {
@@ -52,6 +61,16 @@ export function MobileNotificationCenter() {
       ? badgeNavigator.setAppBadge?.(count)
       : badgeNavigator.clearAppBadge?.();
     void operation?.catch(() => undefined);
+  }, []);
+
+  const refreshPushState = useCallback(async () => {
+    try {
+      const next = await getMobilePushState();
+      setPushState(next);
+      setPushError('');
+    } catch (err) {
+      setPushError(err instanceof Error ? err.message : 'État Push indisponible.');
+    }
   }, []);
 
   const load = useCallback(async () => {
@@ -85,15 +104,16 @@ export function MobileNotificationCenter() {
 
   useEffect(() => {
     void load();
-    const onOnline = () => { void load(); };
-    const onFocus = () => { void load(); };
+    void refreshPushState();
+    const onOnline = () => { void load(); void refreshPushState(); };
+    const onFocus = () => { void load(); void refreshPushState(); };
     window.addEventListener('online', onOnline);
     window.addEventListener('focus', onFocus);
     return () => {
       window.removeEventListener('online', onOnline);
       window.removeEventListener('focus', onFocus);
     };
-  }, [load]);
+  }, [load, refreshPushState]);
 
   const mutate = async (id: number, action: 'read' | 'snooze') => {
     loadGenerationRef.current += 1;
@@ -123,7 +143,24 @@ export function MobileNotificationCenter() {
     }
   };
 
+  const togglePush = async () => {
+    setPushBusy(true);
+    setPushError('');
+    try {
+      const next = pushState?.kind === 'enabled'
+        ? await disableMobilePush()
+        : await enableMobilePush();
+      setPushState(next);
+    } catch (err) {
+      setPushError(err instanceof Error ? err.message : 'Action Push impossible.');
+      await refreshPushState();
+    } finally {
+      setPushBusy(false);
+    }
+  };
+
   const unreadLabel = alerts.length > 9 ? '9+' : String(alerts.length);
+  const canTogglePush = pushState?.kind === 'prompt' || pushState?.kind === 'disabled' || pushState?.kind === 'enabled';
   const notificationLayer = open && typeof document !== 'undefined'
     ? createPortal(
       <>
@@ -157,6 +194,35 @@ export function MobileNotificationCenter() {
             >
               <X size={18} aria-hidden="true" />
             </button>
+          </div>
+
+          <div className="px-4 pt-4">
+            <div className={`rounded-[22px] border p-4 ${pushState?.kind === 'enabled' ? 'border-emerald-200 bg-emerald-500/5' : 'border-border-main bg-white/60'}`}>
+              <div className="flex items-start gap-3">
+                <div className={`h-10 w-10 shrink-0 rounded-2xl flex items-center justify-center ${pushState?.kind === 'enabled' ? 'bg-emerald-100 text-emerald-600' : 'bg-primary/10 text-primary'}`}>
+                  {pushState?.kind === 'enabled' ? <ShieldCheck size={18} aria-hidden="true" /> : <Bell size={18} aria-hidden="true" />}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-[10px] font-black uppercase tracking-[0.16em] text-primary">Push OS</p>
+                  <p className="mt-1 text-xs font-black text-text-main">{pushState?.title ?? 'Vérification…'}</p>
+                  <p className="mt-1 text-[10px] font-bold leading-relaxed text-text-muted">
+                    {pushState?.detail ?? 'Vérification des capacités de cet appareil.'}
+                  </p>
+                  <p className="mt-2 text-[9px] font-black text-emerald-700">Aucune donnée patient dans la notification OS.</p>
+                </div>
+              </div>
+              {canTogglePush && (
+                <button
+                  type="button"
+                  disabled={pushBusy}
+                  onClick={() => void togglePush()}
+                  className={`mt-3 min-h-12 w-full rounded-xl text-xs font-black active:scale-[0.98] transition-transform disabled:opacity-50 ${pushState?.kind === 'enabled' ? 'border border-border-main bg-white/80 text-text-main' : 'bg-primary text-white'}`}
+                >
+                  {pushBusy ? 'Synchronisation…' : pushState?.kind === 'enabled' ? 'Désactiver sur cet appareil' : 'Activer les notifications OS'}
+                </button>
+              )}
+              {pushError && <p className="mt-2 text-[10px] font-bold text-rose-600">{pushError}</p>}
+            </div>
           </div>
 
           <div className="overflow-y-auto px-4 py-4 space-y-3">
@@ -235,7 +301,7 @@ export function MobileNotificationCenter() {
     <>
       <button
         type="button"
-        onClick={() => { setOpen(true); void load(); }}
+        onClick={() => { setOpen(true); void load(); void refreshPushState(); }}
         aria-label={alerts.length ? `Notifications, ${alerts.length} non lues` : 'Notifications'}
         aria-haspopup="dialog"
         aria-expanded={open}

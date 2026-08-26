@@ -1,6 +1,7 @@
 {
   "name": "Digital Crown",
   "short_name": "Digital Crown",
+  "id": "/",
   "description": "Gestion de cabinet dentaire — Compagnon Mobile",
   "start_url": "/?source=pwa",
   "display": "standalone",

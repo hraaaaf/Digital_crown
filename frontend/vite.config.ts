@@ -39,8 +39,13 @@ export default defineConfig({
       filename: 'pwa-sw.js',
       includeAssets: ['logo.svg', 'logo.png'],
       manifest: false, // Utilise public/manifest.json
+      devOptions: {
+        enabled: true,
+        type: 'classic',
+      },
       workbox: {
         globPatterns: ['**/*.{js,css,html,ico,png,svg}'],
+        importScripts: ['push-sw.js'],
         // Zéro cache API dans le SW : MobileStorage est la source offline métier unique.
         runtimeCaching: []
       }

@@ -1,0 +1,38 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="390" height="844" viewBox="0 0 390 844">
+  <rect width="390" height="844" fill="#f8fafc"/>
+  <rect x="12" y="82" width="366" height="746" rx="30" fill="#ffffff" stroke="#dbe3ef"/>
+  <text x="28" y="116" font-family="Arial" font-size="10" font-weight="700" fill="#2456a6">NOTIFICATIONS</text>
+  <text x="28" y="144" font-family="Arial" font-size="22" font-weight="700" fill="#0f172a">À traiter</text>
+  <text x="28" y="164" font-family="Arial" font-size="11" font-weight="700" fill="#64748b">2 non lues</text>
+  <rect x="314" y="102" width="48" height="48" rx="16" fill="#f8fafc" stroke="#dbe3ef"/>
+  <text x="332" y="132" font-family="Arial" font-size="18" fill="#64748b">×</text>
+
+  <rect x="28" y="184" width="334" height="164" rx="22" fill="#f8fbff" stroke="#dbe3ef"/>
+  <circle cx="58" cy="218" r="20" fill="#e8f0ff"/>
+  <text x="51" y="225" font-family="Arial" font-size="20" fill="#2456a6">●</text>
+  <text x="88" y="207" font-family="Arial" font-size="10" font-weight="700" fill="#2456a6">PUSH OS</text>
+  <text x="88" y="228" font-family="Arial" font-size="13" font-weight="700" fill="#0f172a">Alertes hors écran</text>
+  <text x="88" y="247" font-family="Arial" font-size="10" fill="#64748b">Signal générique quand Digital Crown est fermé.</text>
+  <text x="88" y="265" font-family="Arial" font-size="9" font-weight="700" fill="#15803d">Aucune donnée patient dans la notification OS.</text>
+  <rect x="44" y="284" width="302" height="48" rx="12" fill="#2456a6"/>
+  <text x="195" y="313" text-anchor="middle" font-family="Arial" font-size="12" font-weight="700" fill="#ffffff">Activer les notifications OS</text>
+
+  <rect x="28" y="364" width="334" height="188" rx="22" fill="#fff7f7" stroke="#fecdd3"/>
+  <text x="48" y="398" font-family="Arial" font-size="13" font-weight="700" fill="#0f172a">Paiement à surveiller</text>
+  <text x="48" y="420" font-family="Arial" font-size="10" font-weight="700" fill="#2456a6">Patient Test</text>
+  <text x="48" y="444" font-family="Arial" font-size="10" fill="#64748b">Une action administrative est recommandée.</text>
+  <rect x="48" y="476" width="142" height="48" rx="12" fill="#2456a6"/>
+  <rect x="200" y="476" width="142" height="48" rx="12" fill="#ffffff" stroke="#dbe3ef"/>
+  <text x="119" y="505" text-anchor="middle" font-family="Arial" font-size="12" font-weight="700" fill="#ffffff">Lu</text>
+  <text x="271" y="505" text-anchor="middle" font-family="Arial" font-size="12" font-weight="700" fill="#0f172a">+ 24 h</text>
+
+  <rect x="28" y="568" width="334" height="166" rx="22" fill="#ffffff" stroke="#dbe3ef"/>
+  <text x="48" y="604" font-family="Arial" font-size="13" font-weight="700" fill="#0f172a">Stock à anticiper</text>
+  <text x="48" y="630" font-family="Arial" font-size="10" fill="#64748b">Le seuil de vigilance du cabinet est atteint.</text>
+  <rect x="48" y="658" width="142" height="48" rx="12" fill="#2456a6"/>
+  <rect x="200" y="658" width="142" height="48" rx="12" fill="#ffffff" stroke="#dbe3ef"/>
+  <text x="119" y="687" text-anchor="middle" font-family="Arial" font-size="12" font-weight="700" fill="#ffffff">Lu</text>
+  <text x="271" y="687" text-anchor="middle" font-family="Arial" font-size="12" font-weight="700" fill="#0f172a">+ 24 h</text>
+
+  <text x="195" y="782" text-anchor="middle" font-family="Arial" font-size="10" fill="#64748b">Les détails restent dans Digital Crown après authentification.</text>
+</svg>
