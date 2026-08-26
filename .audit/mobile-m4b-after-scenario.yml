@@ -1,8 +1,8 @@
-# Frozen M4-B exact-head AFTER harness. Not a workflow.
+# Frozen M4-B exact-head AFTER harness, extended by M6-H viewer certification. Not a workflow.
 scenario:
   materialize: |
     cat > mobile-m4b-after.html <<'EOF'
-          <!doctype html><html lang="fr"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0,viewport-fit=cover"/><link rel="icon" href="data:,"/><title>Digital Crown M4-B AFTER</title></head><body><div id="root"></div><script type="module" src="/src/mobile-m4b-after.tsx"></script></body></html>
+          <!doctype html><html lang="fr"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0,viewport-fit=cover"/><link rel="icon" href="data:,"/><title>Digital Crown M4-B / M6-H AFTER</title></head><body><div id="root"></div><script type="module" src="/src/mobile-m4b-after.tsx"></script></body></html>
     EOF
     cat > src/mobile-m4b-after.tsx <<'EOF'
           import React from 'react';
@@ -38,10 +38,10 @@ scenario:
           const output = 'mobile-m4b-after-artifacts';
           await fs.rm(output, { recursive: true, force: true }); await fs.mkdir(output, { recursive: true });
           const productHead = process.env.PRODUCT_HEAD || 'unknown';
-          const captures = []; const pairingBodies = []; const network = [];
+          const captures = []; const pairingBodies = []; const network = []; const m6h = [];
           const patient = { id: 42, numero_dossier: 'DC-0042', nom: 'BENNANI', prenom: 'Sara', date_naissance: '1992-05-18T00:00:00', telephone: '0612345678', email: 'sara.bennani@example.test', assurance: 'MUTUELLE', antecedents_medicaux: 'Allergie pénicilline', motif_consultation: 'Contrôle', dossier: { is_ortho_active: false } };
           const analysis = { id: 73, patient_id: 42, image_path: 'api/static/uploads/panoramic/m4b-after.jpg', detections_data: { detections: [] }, report_narrative: 'Bilan panoramique enregistré.', created_at: '2026-08-20T10:30:00' };
-          const radioSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="900" height="520" viewBox="0 0 900 520"><rect width="900" height="520" fill="#05070c"/><path d="M115 260 C210 95 365 110 450 225 C535 110 690 95 785 260 C715 435 185 435 115 260Z" fill="none" stroke="#e5e7eb" stroke-width="28" opacity=".82"/><path d="M190 260 C300 205 390 205 450 275 C510 205 600 205 710 260" fill="none" stroke="#9ca3af" stroke-width="20"/><text x="35" y="480" fill="#94a3b8" font-family="Arial" font-size="22">PANORAMIQUE M4-B · BENNANI SARA</text></svg>`;
+          const radioSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="600" viewBox="0 0 1200 600"><rect width="1200" height="600" fill="#05070c"/><path d="M140 300 C270 105 475 125 600 250 C725 125 930 105 1060 300 C960 510 240 510 140 300Z" fill="none" stroke="#e5e7eb" stroke-width="34" opacity=".82"/><path d="M250 300 C390 225 510 225 600 320 C690 225 810 225 950 300" fill="none" stroke="#9ca3af" stroke-width="24"/><text x="42" y="552" fill="#94a3b8" font-family="Arial" font-size="26">PANORAMIQUE M6-H · BENNANI SARA</text></svg>`;
           const qrSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="180" height="180"><rect width="180" height="180" fill="white"/><g fill="#4f46e5"><rect x="12" y="12" width="48" height="48"/><rect x="120" y="12" width="48" height="48"/><rect x="12" y="120" width="48" height="48"/><rect x="78" y="78" width="20" height="20"/><rect x="112" y="102" width="28" height="28"/></g></svg>`;
           const qrData = `data:image/svg+xml;base64,${Buffer.from(qrSvg).toString('base64')}`;
           const server = await createServer({ server: { host: '127.0.0.1', port: 4183, strictPort: true }, clearScreen: false }); await server.listen();
@@ -71,6 +71,7 @@ scenario:
 
           async function metrics(page) { return page.evaluate(() => { const root = document.documentElement; const touches = [...document.querySelectorAll('[data-m4b-touch]')].map(el => { const r = el.getBoundingClientRect(); return { text: (el.textContent || el.getAttribute('aria-label') || '').trim().replace(/\s+/g, ' ').slice(0, 80), width: Math.round(r.width), height: Math.round(r.height) }; }); return { scrollWidth: root.scrollWidth, clientWidth: root.clientWidth, hasHorizontalOverflow: root.scrollWidth > root.clientWidth + 1, touchesBelow44: touches.filter(t => t.height < 44), routePath: document.querySelector('[data-testid="m4b-route-probe"]')?.getAttribute('data-path') || null, routeSearch: document.querySelector('[data-testid="m4b-route-probe"]')?.getAttribute('data-search') || null }; }); }
           async function capture(page, errors, name, state, viewport) { const measured = await metrics(page); await page.screenshot({ path: `${output}/${name}.png`, fullPage: false, animations: 'disabled' }); const record = { name, state, ...viewport, metrics: measured, errors: [...errors] }; captures.push(record); await fs.writeFile(`${output}/${name}.json`, JSON.stringify(record, null, 2)); }
+          async function viewerMetrics(page) { return page.evaluate(() => { const viewer = document.querySelector('[data-m6h-viewer]'); const root = document.getElementById('root'); const scale = document.querySelector('[data-m6h-scale]')?.textContent?.trim() || ''; const image = document.querySelector('[data-m6h-image]'); const touches = [...document.querySelectorAll('[data-m6h-viewer] [data-m6h-touch]')].map(el => { const r = el.getBoundingClientRect(); return { label: el.getAttribute('aria-label') || el.textContent?.trim() || '', width: Math.round(r.width), height: Math.round(r.height) }; }); return { viewerVisible: !!viewer, rootInert: root?.hasAttribute('inert') ?? false, bodyOverflow: document.body.style.overflow, scale, imageTransform: image?.getAttribute('style') || '', touches, touchesBelow48: touches.filter(t => t.width < 48 || t.height < 48), overflow: document.documentElement.scrollWidth > document.documentElement.clientWidth + 1 }; }); }
 
           try {
             for (const viewport of [{ width: 1280, height: 900 }, { width: 768, height: 1024 }]) {
@@ -83,11 +84,47 @@ scenario:
             for (const viewport of [{ width: 390, height: 844 }, { width: 430, height: 932 }, { width: 768, height: 1024 }]) {
               const { context, page, errors } = await setup(viewport); await page.goto('http://127.0.0.1:4183/mobile-m4b-after.html?view=mobile', { waitUntil: 'networkidle' });
               await page.getByRole('heading', { name: 'Radio panoramique', exact: true }).waitFor({ state: 'visible', timeout: 10000 }); await page.getByText('BENNANI Sara', { exact: true }).waitFor({ state: 'visible' });
-              await capture(page, errors, `mobile-radio-${viewport.width}x${viewport.height}`, 'mobile-context', viewport); await context.close();
+              await capture(page, errors, `mobile-radio-${viewport.width}x${viewport.height}`, 'mobile-context', viewport);
+
+              const networkBeforeViewer = network.length;
+              const openButton = page.getByRole('button', { name: 'Agrandir la radio panoramique', exact: true });
+              const openBox = await openButton.boundingBox();
+              await openButton.click();
+              await page.locator('[data-m6h-viewer]').waitFor({ state: 'visible' });
+              await page.waitForFunction(() => document.getElementById('root')?.hasAttribute('inert') === true);
+              const initial = await viewerMetrics(page);
+              await page.screenshot({ path: `${output}/m6h-viewer-${viewport.width}x${viewport.height}.png`, fullPage: false, animations: 'disabled' });
+
+              await page.getByRole('button', { name: 'Augmenter le zoom', exact: true }).click();
+              await page.getByRole('button', { name: 'Augmenter le zoom', exact: true }).click();
+              const viewportBox = await page.locator('[data-m6h-viewport]').boundingBox();
+              if (!viewportBox) throw new Error('M6-H viewport geometry unavailable');
+              await page.mouse.move(viewportBox.x + viewportBox.width / 2, viewportBox.y + viewportBox.height / 2);
+              await page.mouse.down(); await page.mouse.move(viewportBox.x + viewportBox.width / 2 + 70, viewportBox.y + viewportBox.height / 2, { steps: 4 }); await page.mouse.up();
+              const panTransform = await page.locator('[data-m6h-image]').getAttribute('style');
+
+              const surface = page.locator('[data-m6h-viewport]');
+              const cx = viewportBox.x + viewportBox.width / 2, cy = viewportBox.y + viewportBox.height / 2;
+              await surface.dispatchEvent('pointerdown', { pointerId: 11, pointerType: 'touch', isPrimary: true, clientX: cx - 60, clientY: cy });
+              await surface.dispatchEvent('pointerdown', { pointerId: 12, pointerType: 'touch', isPrimary: false, clientX: cx + 60, clientY: cy });
+              await surface.dispatchEvent('pointermove', { pointerId: 11, pointerType: 'touch', isPrimary: true, clientX: cx - 90, clientY: cy });
+              await surface.dispatchEvent('pointermove', { pointerId: 12, pointerType: 'touch', isPrimary: false, clientX: cx + 90, clientY: cy });
+              await surface.dispatchEvent('pointerup', { pointerId: 11, pointerType: 'touch', isPrimary: true, clientX: cx - 90, clientY: cy });
+              await surface.dispatchEvent('pointerup', { pointerId: 12, pointerType: 'touch', isPrimary: false, clientX: cx + 90, clientY: cy });
+              const zoomed = await viewerMetrics(page);
+              await page.screenshot({ path: `${output}/m6h-zoom-${viewport.width}x${viewport.height}.png`, fullPage: false, animations: 'disabled' });
+
+              await page.keyboard.press('Escape');
+              await page.locator('[data-m6h-viewer]').waitFor({ state: 'detached' });
+              await page.waitForFunction(() => document.activeElement?.getAttribute('aria-label') === 'Agrandir la radio panoramique');
+              const closed = await page.evaluate(() => ({ rootInert: document.getElementById('root')?.hasAttribute('inert') ?? false, bodyOverflow: document.body.style.overflow, activeLabel: document.activeElement?.getAttribute('aria-label') || '' }));
+              m6h.push({ viewport, openButton: openBox, initial, panTransform, zoomed, closed, noAdditionalNetwork: network.length === networkBeforeViewer, errors: [...errors] });
+              await context.close();
             }
             const safePairingBodies = pairingBodies.length === 2 && pairingBodies.every(body => body.resource_type === 'panoramic' && body.resource_id === 73 && !('patient_id' in body) && !('image_path' in body));
-            const report = { productHead, captures, count: captures.length, safePairingBodies, trashEndpointAbsent: !network.some(item => item.includes('panoramic-trash')), mobileContextCount: captures.filter(item => item.state === 'mobile-context').length, idlessMobileRoute: captures.filter(item => item.state === 'mobile-context').every(item => item.metrics.routePath === '/mobile/context' && !item.metrics.routeSearch), noUnexpectedErrors: captures.every(item => item.errors.length === 0), noHorizontalOverflow: captures.every(item => !item.metrics.hasHorizontalOverflow), noM4BTouchBelow44: captures.every(item => item.metrics.touchesBelow44.length === 0) };
+            const m6hPass = m6h.length === 3 && m6h.every(item => item.openButton && item.openButton.width >= 48 && item.openButton.height >= 48 && item.initial.viewerVisible && item.initial.rootInert && item.initial.bodyOverflow === 'hidden' && item.initial.scale === '1×' && item.initial.touchesBelow48.length === 0 && !item.initial.overflow && /translate3d\([^)]*[1-9]/.test(item.panTransform || '') && item.zoomed.scale !== '1×' && item.zoomed.touchesBelow48.length === 0 && item.noAdditionalNetwork && !item.closed.rootInert && item.closed.bodyOverflow !== 'hidden' && item.closed.activeLabel === 'Agrandir la radio panoramique' && item.errors.length === 0);
+            const report = { productHead, captures, count: captures.length, safePairingBodies, trashEndpointAbsent: !network.some(item => item.includes('panoramic-trash')), mobileContextCount: captures.filter(item => item.state === 'mobile-context').length, idlessMobileRoute: captures.filter(item => item.state === 'mobile-context').every(item => item.metrics.routePath === '/mobile/context' && !item.metrics.routeSearch), noUnexpectedErrors: captures.every(item => item.errors.length === 0), noHorizontalOverflow: captures.every(item => !item.metrics.hasHorizontalOverflow), noM4BTouchBelow44: captures.every(item => item.metrics.touchesBelow44.length === 0), m6h, m6hPass };
             await fs.writeFile(`${output}/report.json`, JSON.stringify(report, null, 2)); console.log(JSON.stringify(report, null, 2));
-            if (report.count !== 7 || !report.safePairingBodies || !report.trashEndpointAbsent || report.mobileContextCount !== 3 || !report.idlessMobileRoute || !report.noUnexpectedErrors || !report.noHorizontalOverflow || !report.noM4BTouchBelow44) throw new Error('M4-B AFTER gate failed.');
+            if (report.count !== 7 || !report.safePairingBodies || !report.trashEndpointAbsent || report.mobileContextCount !== 3 || !report.idlessMobileRoute || !report.noUnexpectedErrors || !report.noHorizontalOverflow || !report.noM4BTouchBelow44 || !report.m6hPass) throw new Error('M4-B / M6-H AFTER gate failed.');
           } finally { await browser.close(); await server.close(); }
     EOF
