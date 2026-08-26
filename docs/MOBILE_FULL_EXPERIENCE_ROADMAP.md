@@ -1,7 +1,7 @@
 # Digital Crown — Mobile Full Experience — Roadmap canonique
 
 Date de réalignement : 2026-08-24
-Dernière mise à jour vérifiée : 2026-08-25
+Dernière mise à jour vérifiée : 2026-08-26
 Source : roadmap originale retrouvée par le produit/utilisateur. Ce document remplace les reconstructions ultérieures qui avaient artificiellement introduit un « M7 ».
 
 ## Goal
@@ -144,7 +144,8 @@ Exploiter ce que le téléphone peut faire mieux :
 - **M6-B — Scan de documents contextuel : CLOSED** — PR #253, HEAD certifié `2eccb8710ae511f53282825f631d11ccddfbeb45`, merge `72d96ab2f796748fa5d1c7b4da008047ae7a6b17`, closeout `docs/MOBILE_M6_B_DOCUMENT_SCAN_CLOSEOUT.md`, score visuel 9,7/10. Scan 1–8 pages depuis le Patient exact, preview multipage, upload lié au `context_key` sans `patient_id`, PDF serveur archivé `DocumentArchive/AUTRE`, limites média certifiées et assemblage mémoire-safe page par page avec PyMuPDF.
 - **M6-C — Validation / signature au fauteuil : CLOSED** — PR #254, HEAD certifié `a07ed396dae3af26b5a57170b8e0e42a67ccff41`, merge `7c8983d6da48c95de3798c72f7bce130ab3afb51`, closeout `docs/MOBILE_M6_C_CHAIRSIDE_SIGNATURE_CLOSEOUT.md`, score visuel 9,7/10. Targets ≥48 px, canvas responsive DPR, signature vide bloquée UI + serveur, PNG strictement validé et borné, re-signature interdite, devis signés exclus, ownership tenant et permission conservés.
 - **M6-D1 — Centre de notifications mobile : CLOSED** — PR #256, HEAD certifié `cdac655b20b54e3a3cb7262fd1b5a634c9a30ede`, merge `101a6059919739bd508cd5e9fd26b5e33c9ca529`, closeout `docs/MOBILE_M6_D1_NOTIFICATION_CENTER_CLOSEOUT.md`, score visuel 9,6/10. Vérité `ProactiveAlert`, badge + bottom sheet, actions `Lu` / `+24 h`, stale-race fail-safe, filtrage RBAC des alertes financières et AFTER 390/430/768 certifiés.
-- **M6-D2 — Push PWA/OS device-bound : NEXT.** Compléter la chaîne push réelle en liant chaque abonnement/token à l’appareil mobile appairé et à l’utilisateur autorisé, exclure les appareils révoqués, conserver un payload OS générique sans donnée patient et certifier les permissions PWA/iOS/Android avant tout choix natif.
+- **M6-D2 — Push PWA/OS device-bound : CLOSED** — PR #258, HEAD certifié `23c402bbac770f6dd1deacaf88c48bdb3f1710ea`, merge `bad5a21f7729001e54f36ed69876ff0f91030c77`, closeout `docs/MOBILE_M6_D2_PUSH_PWA_OS_CLOSEOUT.md`, score visuel 9,7/10. Web Push standard device/user/tenant-bound, révocation fail-closed, RBAC conservé, payload OS sans PHI, VAPID privé persistant, HTTPS LAN et AFTER 390/430/768 certifiés. La réception OS réelle sur vrai iPhone/Android reste un gate de la certification finale globale.
+- **M6-E — Communication patient mobile (appel + WhatsApp) : NEXT.** L'appel `tel:` existe déjà dans le contexte Patient avec cible tactile 54 px ; aucun lien WhatsApp n'est présent. Le lot doit conserver l'appel, fiabiliser le numéro utilisable côté mobile et ajouter WhatsApp seulement si cela apporte une vraie valeur, sans préremplir de donnée patient ou clinique sensible.
 
 ## Certification complète finale — pas un « M7 »
 
@@ -163,8 +164,8 @@ Après M6 :
 
 ## Ordre canonique restant
 
-1. Exécuter M6 Mobile-first réel à partir de M6-D2 Push PWA/OS device-bound, puis les autres capacités de la liste M6 selon dépendances et valeur mobile.
-2. Certification complète finale sur émulation + appareils physiques.
+1. Exécuter M6-E Communication patient mobile (appel + WhatsApp), puis les autres capacités M6 encore non certifiées selon dépendances et valeur mobile.
+2. Certification complète finale sur émulation + appareils physiques, incluant réception Push réelle iPhone/Android.
 3. Closeout global Mobile Full Experience.
 
 ## Avancement
