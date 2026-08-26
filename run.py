@@ -178,13 +178,18 @@ def main() -> int:
     _load_launcher_environment()
     host, port = _resolve_host_port()
     instance_lock = None
+    supervisor = None
 
     if getattr(sys, "frozen", False):
         from backend.core.runtime_supervisor import RuntimeSupervisor
 
         supervisor = RuntimeSupervisor(port)
         suppress_browser = os.environ.get("DIGITALCROWN_RESTORE_RESTART") == "1"
-        instance_lock = supervisor.claim_or_focus_existing(open_existing=not suppress_browser)
+        try:
+            instance_lock = supervisor.claim_or_focus_existing(open_existing=not suppress_browser)
+        except RuntimeError:
+            # RuntimeSupervisor already opened the local, non-destructive recovery surface.
+            return 1
         if instance_lock is None:
             return 0
         if not suppress_browser:
@@ -194,11 +199,15 @@ def main() -> int:
                 daemon=True,
             ).start()
 
-    from backend.main import app
-
     try:
+        from backend.main import app
+
         uvicorn.run(app, host=host, port=port, log_level="info")
         return 0
+    except Exception:
+        if supervisor is not None:
+            supervisor.open_recovery_page("RUNTIME_START_FAILED")
+        return 1
     finally:
         if instance_lock is not None:
             instance_lock.release()

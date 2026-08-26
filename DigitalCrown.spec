@@ -1,20 +1,24 @@
 # -*- mode: python ; coding: utf-8 -*-
+import os
+import sys
 from pathlib import Path
 
 block_cipher = None
 ROOT = Path.cwd()
+IS_WINDOWS = os.name == 'nt'
+IS_MACOS = sys.platform == 'darwin'
+APP_VERSION = (ROOT / 'VERSION').read_text(encoding='utf-8').strip()
 
 
 def _required(path: str) -> str:
     p = ROOT / path
     if not p.exists():
-        raise SystemExit(f"P6 packaging required asset missing: {path}")
+        raise SystemExit(f"Packaging required asset missing: {path}")
     return path
 
 
-# P6 packages only the product/runtime resources that are currently authorized.
-# Scientific weights remain external/deferred and their absence is the expected
-# fail-closed state until their separate scientific/product gates are complete.
+# Scientific weights are intentionally absent until separately qualified.
+# P6/P7 package only authorized shared resources; runtime remains fail-closed.
 datas = [
     (_required('VERSION'), '.'),
     (_required('frontend/dist'), 'frontend/dist'),
@@ -24,7 +28,11 @@ datas = [
     (_required('backend/scientific_assets.json'), 'backend'),
 ]
 
-version_file = _required('build/windows-version-info.txt')
+version_file = _required('build/windows-version-info.txt') if IS_WINDOWS else None
+codesign_identity = (os.environ.get('DIGITALCROWN_CODESIGN_IDENTITY') or '').strip() or None
+entitlements_file = None
+if IS_MACOS and codesign_identity:
+    entitlements_file = _required('macos/DigitalCrown.entitlements')
 
 a = Analysis(
     ['run.py'],
@@ -48,12 +56,31 @@ pyz = PYZ(a.pure, a.zipped_data, cipher=block_cipher)
 exe = EXE(
     pyz, a.scripts, [], exclude_binaries=True,
     name='DigitalCrown', debug=False, bootloader_ignore_signals=False,
-    strip=False, upx=True, console=False, disable_windowed_traceback=False,
-    target_arch=None, codesign_identity=None, entitlements_file=None,
+    strip=False, upx=not IS_MACOS, console=False, disable_windowed_traceback=False,
+    target_arch='arm64' if IS_MACOS else None,
+    codesign_identity=codesign_identity if IS_MACOS else None,
+    entitlements_file=entitlements_file,
     version=version_file,
 )
 
 coll = COLLECT(
     exe, a.binaries, a.zipfiles, a.datas,
-    strip=False, upx=True, upx_exclude=[], name='DigitalCrown',
+    strip=False, upx=not IS_MACOS, upx_exclude=[], name='DigitalCrown',
 )
+
+if IS_MACOS:
+    app = BUNDLE(
+        coll,
+        name='DigitalCrown.app',
+        icon=_required('build/macos/DigitalCrown.icns'),
+        bundle_identifier='com.saninova.digitalcrown',
+        version=APP_VERSION,
+        info_plist={
+            'CFBundleDisplayName': 'Digital Crown',
+            'CFBundleName': 'Digital Crown',
+            'CFBundleShortVersionString': APP_VERSION,
+            'CFBundleVersion': APP_VERSION,
+            'NSHighResolutionCapable': True,
+            'NSAppleScriptEnabled': False,
+        },
+    )

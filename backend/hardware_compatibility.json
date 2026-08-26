@@ -1,0 +1,115 @@
+{
+  "schema": 1,
+  "status": "active-baseline",
+  "ep_credited": 0,
+  "status_vocabulary": ["SUPPORTED", "LIMITED", "FILE-IMPORT", "UNSUPPORTED"],
+  "policy": {
+    "supported_requires": ["direct Digital Crown integration", "real-device test on each claimed OS"],
+    "manufacturer_compatibility_alone_is_not_product_compatibility": true,
+    "unknown_direct_devices_default": "UNSUPPORTED"
+  },
+  "surfaces": [
+    {
+      "id": "rvg_intraoral",
+      "label": "RVG / intra-oral radiographs",
+      "windows": "FILE-IMPORT",
+      "macos": "FILE-IMPORT",
+      "direct_acquisition": "UNSUPPORTED",
+      "formats": ["JPEG", "PNG", "WebP", "PDF"],
+      "evidence": ["frontend/src/features/patients/components/RvgUploadModal.tsx", "frontend/src/services/rvgService.ts", "backend/routers/documents.py", "backend/schemas/rvg.py"],
+      "real_device_test_evidence": []
+    },
+    {
+      "id": "panoramic_opg",
+      "label": "Panoramic / OPG",
+      "windows": "FILE-IMPORT",
+      "macos": "FILE-IMPORT",
+      "direct_acquisition": "UNSUPPORTED",
+      "formats": ["browser image/*; must be OpenCV-decodable at runtime"],
+      "evidence": ["frontend/src/features/panoramic/PanoramicStudio.tsx", "backend/routers/ia.py", "backend/services/panoramic_service.py"],
+      "real_device_test_evidence": []
+    },
+    {
+      "id": "cephalometric_radiograph",
+      "label": "Cephalometric radiograph",
+      "windows": "FILE-IMPORT",
+      "macos": "FILE-IMPORT",
+      "direct_acquisition": "UNSUPPORTED",
+      "formats": ["browser image/*; UI message specifies JPEG/PNG"],
+      "evidence": ["frontend/src/features/ortho/components/Step1Cephalo.tsx", "backend/routers/ia.py", "backend/services/vision_service.py", "backend/services/calibration_service.py"],
+      "real_device_test_evidence": []
+    },
+    {
+      "id": "dicom",
+      "label": "DICOM .dcm / PACS",
+      "windows": "UNSUPPORTED",
+      "macos": "UNSUPPORTED",
+      "direct_acquisition": "UNSUPPORTED",
+      "formats": [],
+      "evidence": ["backend/requirements.txt"],
+      "real_device_test_evidence": []
+    },
+    {
+      "id": "twain_wia_ica",
+      "label": "TWAIN / WIA / Image Capture device acquisition",
+      "windows": "UNSUPPORTED",
+      "macos": "UNSUPPORTED",
+      "direct_acquisition": "UNSUPPORTED",
+      "formats": [],
+      "evidence": ["backend/requirements.txt", "frontend/package.json"],
+      "real_device_test_evidence": []
+    },
+    {
+      "id": "usb_serial_vendor_sdk",
+      "label": "USB / serial / vendor SDK",
+      "windows": "UNSUPPORTED",
+      "macos": "UNSUPPORTED",
+      "direct_acquisition": "UNSUPPORTED",
+      "formats": [],
+      "evidence": ["backend/requirements.txt", "frontend/package.json"],
+      "real_device_test_evidence": []
+    },
+    {
+      "id": "mobile_zka_qr_camera",
+      "label": "Mobile/browser camera for ZKA pairing",
+      "windows": "LIMITED",
+      "macos": "LIMITED",
+      "direct_acquisition": "QR_PAIRING_ONLY",
+      "formats": ["QR Code"],
+      "evidence": ["frontend/src/features/mobile/Onboarding/OnboardingScanner.tsx", "frontend/package.json"],
+      "real_device_test_evidence": [],
+      "limitations": ["browser camera only", "secure context required outside localhost", "manual code fallback exists", "not clinical imaging"]
+    },
+    {
+      "id": "clinical_intraoral_camera",
+      "label": "Clinical intra-oral camera",
+      "windows": "FILE-IMPORT",
+      "macos": "FILE-IMPORT",
+      "direct_acquisition": "UNSUPPORTED",
+      "formats": ["resulting image file only"],
+      "evidence": ["backend/routers/documents.py"],
+      "real_device_test_evidence": []
+    },
+    {
+      "id": "standard_printer",
+      "label": "Standard printer",
+      "windows": "LIMITED",
+      "macos": "LIMITED",
+      "direct_acquisition": "OS_MEDIATED_ONLY",
+      "formats": ["PDF output"],
+      "evidence": ["backend/routers/documents.py"],
+      "real_device_test_evidence": [],
+      "limitations": ["no printer-driver/device-management contract"]
+    },
+    {
+      "id": "optical_scanner_stl_ply",
+      "label": "Optical dental scanner / STL / PLY",
+      "windows": "UNSUPPORTED",
+      "macos": "UNSUPPORTED",
+      "direct_acquisition": "UNSUPPORTED",
+      "formats": [],
+      "evidence": ["backend/requirements.txt", "frontend/package.json"],
+      "real_device_test_evidence": []
+    }
+  ]
+}
