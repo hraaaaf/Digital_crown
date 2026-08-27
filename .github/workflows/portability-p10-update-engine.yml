@@ -3,8 +3,10 @@ name: Portability P10 Update Engine
 on:
   pull_request:
     paths:
+      - "backend/core/platform.py"
       - "backend/services/update_engine.py"
       - "backend/services/update_apply.py"
+      - "backend/services/update_finalize.py"
       - "backend/services/update_post_install.py"
       - "backend/services/update_db_rollback.py"
       - "backend/routers/update_portability_p10.py"
@@ -21,6 +23,7 @@ on:
       - "scripts/p10_windows_worker_ci.ps1"
       - "scripts/p10_windows_db_rollback_ci.ps1"
       - "scripts/p10_windows_packaged_lifecycle_ci.py"
+      - "scripts/p10_windows_packaged_finalization_ci.py"
       - "docs/portability/P10_UPDATE_ENGINE.md"
       - ".github/workflows/portability-p10-update-engine.yml"
   workflow_dispatch:
@@ -40,10 +43,10 @@ jobs:
       - name: Install targeted dependencies
         run: python -m pip install --disable-pip-version-check pytest cryptography sqlalchemy python-dotenv
       - name: Compile P10
-        run: python -m py_compile run.py backend/services/update_engine.py backend/services/update_apply.py backend/services/update_post_install.py backend/services/update_db_rollback.py backend/routers/update_portability_p10.py backend/tests/test_update_engine.py backend/tests/test_update_apply.py backend/tests/test_update_post_install.py backend/tests/test_update_db_rollback.py scripts/p10_update_contract_check.py scripts/p10_windows_packaged_lifecycle_ci.py
+        run: python -m py_compile run.py backend/core/platform.py backend/services/update_engine.py backend/services/update_apply.py backend/services/update_finalize.py backend/services/update_post_install.py backend/services/update_db_rollback.py backend/routers/update_portability_p10.py backend/tests/test_update_engine.py backend/tests/test_update_apply.py backend/tests/test_update_post_install.py backend/tests/test_update_db_rollback.py scripts/p10_update_contract_check.py scripts/p10_windows_packaged_lifecycle_ci.py scripts/p10_windows_packaged_finalization_ci.py
       - name: Static contract
         run: python scripts/p10_update_contract_check.py
-      - name: Secure-core, production wiring, post-install and DB rollback tests
+      - name: Secure-core, production wiring, finalization, post-install and DB rollback tests
         run: python -m pytest backend/tests/test_update_engine.py backend/tests/test_update_apply.py backend/tests/test_update_post_install.py backend/tests/test_update_db_rollback.py -q --noconftest
 
   windows-worker:
@@ -216,7 +219,7 @@ jobs:
           "P10_TARGET_INSTALLER=$targetCopy" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
           Write-Host "P10_PACKAGED_PAIR=READY current=$baselineVersion target=1.0.1"
 
-      - name: Real packaged current to next and DB rollback lifecycle
+      - name: Real packaged current to next, finalization and DB rollback lifecycle
         shell: pwsh
         run: |
           $nativePs = "$env:SystemRoot\System32\WindowsPowerShell\v1.0\powershell.exe"
@@ -236,7 +239,7 @@ jobs:
 
           $workRoot = Join-Path $env:RUNNER_TEMP "dc-p10-packaged"
           $report = Join-Path $workRoot "proof.json"
-          python scripts/p10_windows_packaged_lifecycle_ci.py `
+          python scripts/p10_windows_packaged_finalization_ci.py `
             --baseline "$env:P10_BASELINE_INSTALLER" `
             --target "$env:P10_TARGET_INSTALLER" `
             --work-root "$workRoot" `
@@ -258,6 +261,8 @@ jobs:
             ${{ runner.temp }}\dc-p10-packaged\**\worker-stderr.log
             ${{ runner.temp }}\dc-p10-packaged\**\windows-update-worker.log
             ${{ runner.temp }}\dc-p10-packaged\**\installer-apply.log
+            ${{ runner.temp }}\dc-p10-packaged\**\update-finalize-report.json
+            ${{ runner.temp }}\dc-p10-packaged\**\trusted_state.json
             ${{ runner.temp }}\dc-p10-packaged\**\*-install.log
             ${{ runner.temp }}\dc-p10-packaged\**\*-uninstall.log
             ${{ runner.temp }}\dc-p10-packaged\**\*-self-test.json
