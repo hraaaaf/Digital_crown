@@ -14,12 +14,12 @@ Global Mobile closeout additionally requires the physical-only human gates liste
 
 ### Backend contracts
 
-- M6-A native notification contract: `backend/tests/test_mobile_native_notifications.py`
-- M6-B refusal/delta contract: `backend/tests/test_mobile_refus_delta.py`
+- M6-A clinical photo: `backend/tests/test_mobile_m6a_clinical_photo.py`
+- M6-B document scan: `backend/tests/test_mobile_m6b_document_scan.py`
 - M6-C chairside signature hardening: `backend/tests/test_mobile_m6c_signature_hardening.py`
 - M6-D1 in-app notifications + RBAC: `backend/tests/test_mobile_m6d_notifications.py`
 - M6-D2 device-bound Web Push: `backend/tests/test_mobile_m6d2_push.py`
-- M6-I passkey/biometric backend contract: `backend/tests/test_mobile_passkey.py`
+- M6-I passkey/biometric backend contract: `backend/tests/test_mobile_m6i_passkey.py`
 
 ### Frontend and transverse contracts
 

@@ -46,12 +46,12 @@ jobs:
       - name: Replay M6 backend contracts
         run: |
           python -m pytest -q --maxfail=1 \
-            backend/tests/test_mobile_native_notifications.py \
-            backend/tests/test_mobile_refus_delta.py \
+            backend/tests/test_mobile_m6a_clinical_photo.py \
+            backend/tests/test_mobile_m6b_document_scan.py \
             backend/tests/test_mobile_m6c_signature_hardening.py \
             backend/tests/test_mobile_m6d_notifications.py \
             backend/tests/test_mobile_m6d2_push.py \
-            backend/tests/test_mobile_passkey.py
+            backend/tests/test_mobile_m6i_passkey.py
 
   frontend-mobile-contracts:
     name: Frontend mobile foundations and M6
