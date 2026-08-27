@@ -45,13 +45,59 @@ jobs:
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: "8.0.x"
-      - name: Windows external worker contract
+      - name: Windows PowerShell 5.1 external worker contract
         shell: pwsh
         run: |
+          $nativePs = "$env:SystemRoot\System32\WindowsPowerShell\v1.0\powershell.exe"
+          if (-not (Test-Path -LiteralPath $nativePs -PathType Leaf)) {
+            throw "Windows PowerShell 5.1 missing on Windows runner"
+          }
+          $nativeVersion = (& $nativePs -NoProfile -Command '$PSVersionTable.PSVersion.ToString()').Trim()
+          if (-not $nativeVersion.StartsWith('5.1')) {
+            throw "Expected Windows PowerShell 5.1, got $nativeVersion"
+          }
+
+          # pwsh on the hosted runner can inject a PowerShell 7-centric PSModulePath.
+          # Restore the Windows PowerShell module roots before spawning native 5.1
+          # children so the contract matches a clean Windows cabinet environment.
+          $nativeModuleRoot = "$env:SystemRoot\System32\WindowsPowerShell\v1.0\Modules"
+          if (-not (Test-Path -LiteralPath $nativeModuleRoot -PathType Container)) {
+            throw "Windows PowerShell native module root missing: $nativeModuleRoot"
+          }
+          $moduleRoots = @($nativeModuleRoot)
+          $programFilesModules = Join-Path $env:ProgramFiles 'WindowsPowerShell\Modules'
+          if (Test-Path -LiteralPath $programFilesModules -PathType Container) {
+            $moduleRoots += $programFilesModules
+          }
+          if ($env:PSModulePath) {
+            $moduleRoots += $env:PSModulePath
+          }
+          $env:PSModulePath = ($moduleRoots -join ';')
+          $fileHashCommand = (& $nativePs -NoProfile -Command '(Get-Command Get-FileHash -ErrorAction Stop).Name').Trim()
+          if ($fileHashCommand -ne 'Get-FileHash') {
+            throw "Windows PowerShell 5.1 Get-FileHash unavailable"
+          }
+
+          # The existing deterministic harness invokes a command named `pwsh` for
+          # child workers. Put a shim first on PATH so every child worker actually
+          # executes with the native Windows PowerShell 5.1 binary, without changing
+          # the test scenarios themselves.
+          $shimDir = Join-Path $env:RUNNER_TEMP 'dc-p10-ps51-shim'
+          New-Item -ItemType Directory -Force $shimDir | Out-Null
+          $shim = Join-Path $shimDir 'pwsh.cmd'
+          '@echo off' + "`r`n" + '"%SystemRoot%\System32\WindowsPowerShell\v1.0\powershell.exe" %*' + "`r`n" |
+            Set-Content -LiteralPath $shim -Encoding ascii
+          $env:PATH = "$shimDir;$env:PATH"
+          $resolved = (Get-Command pwsh -CommandType Application).Source
+          if (-not $resolved.StartsWith($shimDir, [StringComparison]::OrdinalIgnoreCase)) {
+            throw "PowerShell 5.1 shim is not first on PATH: $resolved"
+          }
+
           ./scripts/p10_windows_worker_ci.ps1
           # The rollback drill intentionally launches a child worker that exits 2.
           # GitHub's pwsh wrapper propagates stale LASTEXITCODE even when the harness
           # has verified that exit code as expected, so normalize only after the
           # harness returns normally. Any terminating harness error stops before here.
           $global:LASTEXITCODE = 0
+          Write-Host "P10_WINDOWS_POWERSHELL=5.1"
           exit 0
