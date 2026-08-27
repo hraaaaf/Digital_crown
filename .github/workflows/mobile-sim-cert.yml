@@ -1,0 +1,298 @@
+name: Mobile OS Simulation Certification
+
+on:
+  push:
+    branches:
+      - mobile/sim-cert
+  workflow_dispatch:
+
+concurrency:
+  group: mobile-sim-cert-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  webauthn-virtual:
+    name: WebAuthn exact-origin virtual authenticator
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout exact candidate
+        uses: actions/checkout@v4
+
+      - name: Record exact HEAD
+        run: |
+          HEAD=$(git rev-parse HEAD)
+          test "$HEAD" = "${{ github.sha }}"
+          echo "SIM_CERT_HEAD=$HEAD" >> "$GITHUB_ENV"
+
+      - name: Setup Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install frontend and Chromium
+        working-directory: frontend
+        run: |
+          npm ci
+          npm install --no-save playwright@1.55.0
+          npx playwright install chromium
+
+      - name: Generate ephemeral exact-origin certificate
+        run: |
+          mkdir -p certs artifacts/mobile-sim-cert
+          openssl req -x509 -newkey rsa:2048 -nodes \
+            -keyout certs/key.pem -out certs/cert.pem -days 1 \
+            -subj "/CN=digitalcrown.local" \
+            -addext "subjectAltName=DNS:digitalcrown.local,DNS:localhost,IP:127.0.0.1"
+
+      - name: Start exact-origin HTTPS frontend
+        working-directory: frontend
+        env:
+          VITE_ENABLE_HTTPS: "true"
+        run: |
+          npm run dev -- --host 0.0.0.0 --port 5173 > /tmp/mobile-sim-vite.log 2>&1 &
+          echo $! > /tmp/mobile-sim-vite.pid
+          for i in {1..60}; do
+            if curl -kfsS https://127.0.0.1:5173 >/dev/null; then exit 0; fi
+            sleep 1
+          done
+          cat /tmp/mobile-sim-vite.log
+          exit 1
+
+      - name: Replay M6-I browser contract
+        working-directory: frontend
+        run: npx vitest run src/test/mobileM6IPasskey.test.ts
+
+      - name: Exercise virtual platform authenticator on exact origin
+        working-directory: frontend
+        run: node scripts/certify-mobile-webauthn-virtual.mjs
+
+      - name: Upload WebAuthn evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mobile-sim-webauthn
+          path: artifacts/mobile-sim-cert
+          if-no-files-found: error
+          retention-days: 14
+
+  ios-simulator:
+    name: iOS Simulator / Safari / biometric channel
+    runs-on: macos-latest
+    timeout-minutes: 25
+    steps:
+      - name: Checkout exact candidate
+        uses: actions/checkout@v4
+
+      - name: Record exact HEAD
+        run: |
+          HEAD=$(git rev-parse HEAD)
+          test "$HEAD" = "${{ github.sha }}"
+          echo "SIM_CERT_HEAD=$HEAD" >> "$GITHUB_ENV"
+
+      - name: Setup Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install frontend
+        working-directory: frontend
+        run: npm ci
+
+      - name: Prepare HTTPS origin
+        run: |
+          mkdir -p certs artifacts/mobile-sim-cert/ios
+          openssl req -x509 -newkey rsa:2048 -nodes \
+            -keyout certs/key.pem -out certs/cert.pem -days 1 \
+            -subj "/CN=digitalcrown.local" \
+            -addext "subjectAltName=DNS:digitalcrown.local,DNS:localhost,IP:127.0.0.1"
+          echo "127.0.0.1 digitalcrown.local" | sudo tee -a /etc/hosts
+
+      - name: Start HTTPS frontend
+        working-directory: frontend
+        env:
+          VITE_ENABLE_HTTPS: "true"
+        run: |
+          npm run dev -- --host 0.0.0.0 --port 5173 > /tmp/mobile-ios-vite.log 2>&1 &
+          echo $! > /tmp/mobile-ios-vite.pid
+          for i in {1..60}; do
+            if curl -kfsS https://digitalcrown.local:5173 >/dev/null; then exit 0; fi
+            sleep 1
+          done
+          cat /tmp/mobile-ios-vite.log
+          exit 1
+
+      - name: Boot available iPhone simulator
+        run: |
+          UDID=$(python3 - <<'PY'
+          import json, subprocess, sys
+          data = json.loads(subprocess.check_output(["xcrun", "simctl", "list", "devices", "available", "-j"]))
+          for runtime, devices in data.get("devices", {}).items():
+              if "iOS-" not in runtime:
+                  continue
+              for device in devices:
+                  if device.get("isAvailable") and device.get("name", "").startswith("iPhone"):
+                      print(device["udid"])
+                      sys.exit(0)
+          sys.exit(1)
+          PY
+          )
+          test -n "$UDID"
+          echo "IOS_SIM_UDID=$UDID" >> "$GITHUB_ENV"
+          xcrun simctl boot "$UDID" || true
+          xcrun simctl bootstatus "$UDID" -b
+          xcrun simctl list devices | tee artifacts/mobile-sim-cert/ios/devices.txt
+
+      - name: Trust exact-origin CA in simulator
+        run: |
+          xcrun simctl help keychain | tee artifacts/mobile-sim-cert/ios/keychain-help.txt
+          xcrun simctl keychain "$IOS_SIM_UDID" add-root-cert "$GITHUB_WORKSPACE/certs/cert.pem"
+
+      - name: Open Digital Crown in MobileSafari
+        run: |
+          xcrun simctl openurl "$IOS_SIM_UDID" "https://digitalcrown.local:5173/mobile/onboarding"
+          sleep 5
+          xcrun simctl io "$IOS_SIM_UDID" screenshot artifacts/mobile-sim-cert/ios/onboarding.png
+          test -s artifacts/mobile-sim-cert/ios/onboarding.png
+
+      - name: Exercise simulator biometric success and refusal channels
+        run: |
+          xcrun simctl help biometric | tee artifacts/mobile-sim-cert/ios/biometric-help.txt
+          xcrun simctl biometric "$IOS_SIM_UDID" enroll
+          (xcrun simctl biometric "$IOS_SIM_UDID" match face || xcrun simctl biometric "$IOS_SIM_UDID" match) \
+            | tee artifacts/mobile-sim-cert/ios/biometric-match.txt
+          (xcrun simctl biometric "$IOS_SIM_UDID" fail face || xcrun simctl biometric "$IOS_SIM_UDID" fail) \
+            | tee artifacts/mobile-sim-cert/ios/biometric-fail.txt
+
+      - name: Record iOS simulator evidence
+        if: always()
+        run: |
+          {
+            echo "head=${{ github.sha }}"
+            echo "udid=${IOS_SIM_UDID:-unavailable}"
+            echo "scope=SIMULATED_OS_NOT_PHYSICAL_FACE_ID"
+          } > artifacts/mobile-sim-cert/ios/result.txt
+          cp /tmp/mobile-ios-vite.log artifacts/mobile-sim-cert/ios/vite.log 2>/dev/null || true
+
+      - name: Upload iOS Simulator evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mobile-sim-ios
+          path: artifacts/mobile-sim-cert/ios
+          if-no-files-found: error
+          retention-days: 14
+
+  android-emulator:
+    name: Android Emulator / browser / fingerprint channel
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - name: Checkout exact candidate
+        uses: actions/checkout@v4
+
+      - name: Record exact HEAD
+        run: |
+          HEAD=$(git rev-parse HEAD)
+          test "$HEAD" = "${{ github.sha }}"
+          echo "SIM_CERT_HEAD=$HEAD" >> "$GITHUB_ENV"
+
+      - name: Setup Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install frontend
+        working-directory: frontend
+        run: npm ci
+
+      - name: Start frontend for Android host bridge
+        working-directory: frontend
+        run: |
+          npm run dev -- --host 0.0.0.0 --port 5173 > /tmp/mobile-android-vite.log 2>&1 &
+          echo $! > /tmp/mobile-android-vite.pid
+          for i in {1..60}; do
+            if curl -fsS http://127.0.0.1:5173 >/dev/null; then exit 0; fi
+            sleep 1
+          done
+          cat /tmp/mobile-android-vite.log
+          exit 1
+
+      - name: Enable KVM access
+        run: |
+          if [ -e /dev/kvm ]; then sudo chmod 666 /dev/kvm; fi
+
+      - name: Run Android emulator probe
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 35
+          target: google_apis
+          arch: x86_64
+          profile: pixel_7
+          disable-animations: true
+          emulator-options: -no-snapshot -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim
+          script: |
+            mkdir -p artifacts/mobile-sim-cert/android
+            adb shell getprop ro.product.model | tr -d '\r' | tee artifacts/mobile-sim-cert/android/model.txt
+            adb shell getprop ro.build.version.release | tr -d '\r' | tee artifacts/mobile-sim-cert/android/os.txt
+            adb shell getprop ro.build.version.sdk | tr -d '\r' | tee artifacts/mobile-sim-cert/android/api.txt
+            adb shell cmd package resolve-activity --brief -a android.intent.action.VIEW -d http://example.com | tee artifacts/mobile-sim-cert/android/browser-handler.txt
+            adb shell am start -a android.intent.action.VIEW -d "http://10.0.2.2:5173/mobile/onboarding" | tee artifacts/mobile-sim-cert/android/openurl.txt
+            sleep 5
+            adb shell dumpsys window | grep -m1 -E 'mCurrentFocus|mFocusedApp' | tee artifacts/mobile-sim-cert/android/focus.txt || true
+            adb exec-out screencap -p > artifacts/mobile-sim-cert/android/onboarding.png
+            test -s artifacts/mobile-sim-cert/android/onboarding.png
+            adb emu finger touch 1 | tee artifacts/mobile-sim-cert/android/fingerprint-touch.txt
+            {
+              echo "head=${{ github.sha }}"
+              echo "scope=SIMULATED_OS_NOT_PHYSICAL_FINGERPRINT"
+            } > artifacts/mobile-sim-cert/android/result.txt
+
+      - name: Record Android runtime log
+        if: always()
+        run: |
+          cp /tmp/mobile-android-vite.log artifacts/mobile-sim-cert/android/vite.log 2>/dev/null || true
+
+      - name: Upload Android Emulator evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mobile-sim-android
+          path: artifacts/mobile-sim-cert/android
+          if-no-files-found: error
+          retention-days: 14
+
+  sim-cert-gate:
+    name: Mobile SIM-CERT aggregate gate
+    needs:
+      - webauthn-virtual
+      - ios-simulator
+      - android-emulator
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Enforce simulated certification matrix
+        env:
+          WEBAUTHN_RESULT: ${{ needs.webauthn-virtual.result }}
+          IOS_RESULT: ${{ needs.ios-simulator.result }}
+          ANDROID_RESULT: ${{ needs.android-emulator.result }}
+        run: |
+          test "$WEBAUTHN_RESULT" = "success"
+          test "$IOS_RESULT" = "success"
+          test "$ANDROID_RESULT" = "success"
+          {
+            echo "## Mobile OS Simulation Certification"
+            echo
+            echo "- Candidate: `${{ github.sha }}`"
+            echo "- Exact-origin virtual WebAuthn: $WEBAUTHN_RESULT"
+            echo "- iOS Simulator / Safari / biometric channel: $IOS_RESULT"
+            echo "- Android Emulator / browser / fingerprint channel: $ANDROID_RESULT"
+            echo "- This gate is simulated evidence only. It does NOT certify physical Face ID, Touch ID, fingerprint hardware, or real-device Push reception."
+            echo "- Deployment: none"
+          } >> "$GITHUB_STEP_SUMMARY"
