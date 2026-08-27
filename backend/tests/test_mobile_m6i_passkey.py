@@ -262,3 +262,18 @@ def test_m6i_runtime_contract_files_are_pinned_and_stable_origin_is_certified():
     assert "digitalcrown.local $lanIP" in setup_https
     assert "https://digitalcrown.local:5173" in config
     assert "install_mobile_biometric_identity_gate" in router_init
+
+
+def test_secure_pairing_qr_origin_matches_webauthn_origin(monkeypatch):
+    original_base = mobile_legacy.get_lan_base_url
+    original_frontend = mobile_legacy.get_lan_frontend_url
+    try:
+        monkeypatch.setenv("DIGITALCROWN_ENABLE_HTTPS", "true")
+        mobile_passkey.install_stable_lan_url_overrides()
+        assert mobile_legacy.get_lan_base_url() == WEBAUTHN_ORIGIN
+        assert mobile_legacy.get_lan_frontend_url() == WEBAUTHN_ORIGIN
+        bridge_source = Path("backend/routers/mobile.py").read_text(encoding="utf-8")
+        assert "base_url = _legacy.get_lan_base_url()" in bridge_source
+    finally:
+        mobile_legacy.get_lan_base_url = original_base
+        mobile_legacy.get_lan_frontend_url = original_frontend

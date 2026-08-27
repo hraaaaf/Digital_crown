@@ -82,14 +82,13 @@ def _options_payload(options, *, challenge_id: str) -> dict[str, Any]:
 
 
 def install_stable_lan_url_overrides() -> None:
-    """Use the stable mDNS hostname for new QR/API discovery whenever HTTPS is active."""
+    """Route new pairing QR discovery through the exact stable WebAuthn frontend origin."""
     import os
 
     secure = os.getenv("DIGITALCROWN_ENABLE_HTTPS", "false").strip().lower() in {"1", "true", "yes", "on"}
     if not secure:
         return
-    backend_port = os.getenv("PORT", "8005")
-    _legacy.get_lan_base_url = lambda: f"https://{WEBAUTHN_RP_ID}:{backend_port}"
+    _legacy.get_lan_base_url = lambda: WEBAUTHN_ORIGIN
     _legacy.get_lan_frontend_url = lambda: WEBAUTHN_ORIGIN
 
 
