@@ -1,6 +1,6 @@
 # Portability & Launcher — roadmap canonique
 
-Dernière mise à jour vérifiée : 2026-08-26.
+Dernière mise à jour vérifiée : 2026-08-27.
 
 > **Source de vérité unique du chantier.** L’ancienne roadmap `docs/PORTABILITY_LAUNCHER_ROADMAP.md` est dépréciée et renvoie vers ce fichier.
 
@@ -41,11 +41,11 @@ Digital Crown doit offrir **un seul produit local-first**, issu d’un cœur par
 | P5 — Scientific/native runtime portability | 13 EP | CLOSED ✅ |
 | P6 — Industrialized Windows packaging | 8 EP | CLOSED ✅ |
 | P7 — Native macOS packaging | 13 EP | NEXT |
-| P8 — Hardware & peripherals | 21 EP | PLANNED |
+| P8 — Hardware & peripherals | 21 EP | CLOSED ✅ |
 | P9 — Backup / Recovery / DR | 8 EP | PLANNED |
 | P10 — Cross-platform Update Engine | 13 EP | PLANNED |
 | P11 — Launcher & Recovery UX | 8 EP | CLOSED ✅ |
-| P12 — CI & certification matrix | 13 EP | PLANNED |
+| P12 — CI & certification matrix | 13 EP | PREPARED — 0 EP |
 | P13 — Real cabinet certification | 13 EP | PLANNED |
 | P14 — Closeout | 5 EP | PLANNED |
 | **TOTAL** | **162 EP** | |
@@ -182,15 +182,39 @@ Livrer une application macOS normale, signée/notarisée, sans Terminal ni conto
 ### Scope
 `.app` Apple Silicon arm64, ressources/assets, bundle metadata/icône, chemins natifs, permissions, DMG/PKG selon besoin, Developer ID, Hardened Runtime/entitlements, notarisation, stapling, Gatekeeper, clean install/upgrade/uninstall.
 
-### Contrainte vérifiée
-PyInstaller n’est pas cross-compiler : le build macOS doit être produit sur macOS. Le spec Windows courant n’est pas une preuve de bundle/signing/notarisation macOS.
+### Candidat préparé
+- PR `#274` ; HEAD `53563b1b22ddb6905a54c16ca8486412130c3921` ; 1 commit / 3 fichiers ;
+- politique scientifique `FAIL_CLOSED_NO_WEIGHTS` ; ancien provisioning de poids supprimé ;
+- requirements macOS corrigé vers `-r requirements.txt` ;
+- checker Developer ID + Hardened Runtime + secure timestamp ;
+- workflow de distribution exige Developer ID, notarisation, stapling et Gatekeeper.
+
+### Gate restant
+Le workflow `Portability P7 macOS Distribution Certification` reste `workflow_dispatch` et requiert les credentials Apple. Les checks PR automatiques ne remplacent pas ce run de distribution signé/notarisé.
 
 ---
 
-## P8 — Hardware & peripheral compatibility — PLANNED — 21 EP
+## P8 — Hardware & peripheral compatibility — CLOSED ✅ — 21 EP
 
 ### Goal
 Classer explicitement chaque périphérique clinique par OS : `SUPPORTED`, `LIMITED`, `FILE-IMPORT` ou `UNSUPPORTED`, sur test réel ou preuve fabricant clairement distinguée.
+
+### Résultat certifié
+P8 ferme la **frontière de compatibilité actuelle**, sans inventer de support natif. Aucun périphérique dentaire direct n’est déclaré `SUPPORTED` sans intégration Digital Crown et test device réel.
+
+- 10 surfaces obligatoires classées Windows/macOS ;
+- RVG, panoramique, céphalo et caméra intra-orale clinique : `FILE-IMPORT` ;
+- QR pairing et imprimante standard : `LIMITED` avec limites explicites ;
+- DICOM/PACS, TWAIN/WIA/Image Capture, USB/serial/vendor SDK et scanner STL/PLY : `UNSUPPORTED` en acquisition/intégration directe ;
+- tout futur passage à `SUPPORTED` exige modèle/firmware/driver, preuve fabricant, adapter Digital Crown, tests acquisition/reconnexion/erreurs et preuve device réelle sur chaque OS revendiqué.
+
+### Preuve exacte
+- candidat `5c583761f204c6c0de7cd9c2c60976c7dcf7e23b` ; 1 commit / 5 fichiers ;
+- PR `#275` — MERGED ; merge `b5e1ea41fa039cc174da5d1690f6d9bd3332728b` ;
+- Portability P8 Hardware Compatibility Contract `33057900937`, job `98469174459` — SUCCESS exact-head ;
+- P12 Certification Matrix Prep `33057900997` — SUCCESS exact-head ;
+- closeout : `docs/portability/P8_HARDWARE_COMPATIBILITY_MATRIX.md` ;
+- aucun Vercel.
 
 ---
 
@@ -198,6 +222,12 @@ Classer explicitement chaque périphérique clinique par OS : `SUPPORTED`, `LIMI
 
 ### Goal
 Faire en sorte que la perte d’un ordinateur n’implique jamais la perte du cabinet : backup, intégrité, chiffrement, restore, interruptions, disque insuffisant, corruption et récupération inter-OS.
+
+### État préparé
+Le moteur déterministe est déjà présent : `.dcbundle.partial` → vérification → promotion atomique, SHA-256 sidecar, rétention des générations vérifiées, Guided Restore, comportements disque plein/interruption/destination indisponible et fail-closed PostgreSQL portable non supporté.
+
+### Gate restant
+P9 ne ferme qu’après destination externe réelle + restauration sur cible packagée propre + preuve inter-OS applicable. Cette dernière preuve dépend du package macOS P7.
 
 ---
 
@@ -207,6 +237,9 @@ Faire en sorte que la perte d’un ordinateur n’implique jamais la perte du ca
 Updates authentifiées avec checksum/signature, rescue point, migration, health post-update et rollback automatique sur Windows/macOS.
 
 > La branche `portability/p10-update-engine` sert actuellement aussi de base d’intégration. Cela ne crédite ni ne ferme P10.
+
+### État préparé
+Le secure-core vérifie manifestes Ed25519, séquence anti-rollback/replay, expiration/temps de confiance, cible OS/architecture, HTTPS, taille + SHA-256 et rescue point immuable. L’apply reste volontairement `apply_certified=false` jusqu’aux installateurs certifiés P6/P7.
 
 ---
 
@@ -225,10 +258,17 @@ Exposer des états de lifecycle/récupération vrais et actionnables sans consol
 
 ---
 
-## P12 — CI & certification matrix — PLANNED — 13 EP
+## P12 — CI & certification matrix — PREPARED — 13 EP — 0 EP crédité
 
 ### Goal
 Certifier les artefacts Windows/macOS et empêcher les régressions plateforme : runtime, frozen build, models/assets, backup/restore, packaging, update et tests raisonnables.
+
+### Préparation vérifiée
+- candidat `00b837c52be3a7fc332661c05d2689fd05b0b199` ; PR `#270` ; merge `8e1d0d6d9c676b39d40f75a18fc0db168dcc5257` ;
+- P12 Certification Matrix Prep `33020917211`, job `98350792934` — SUCCESS ;
+- exact-head T2 `33020917126`, Patient P7 `33020917151`, Catalog `33020917139`, CI `33020917134` — SUCCESS ;
+- matrice préparatoire : `docs/portability/P12_CERTIFICATION_MATRIX.md` ;
+- P12 reste ouvert et 0 EP sont crédités tant que P7/P9/P10 et la matrice finale cross-platform ne sont pas certifiés.
 
 ---
 
@@ -250,17 +290,19 @@ Fermer le chantier avec docs, matrices OS/hardware, guides d’installation, rec
 
 Ordre produit cible : P0 → P1 → P2 → P3 → P4 → P5 → P6 → P7 → P8 → P9 → P10 → P11 → P12 → P13 → P14.
 
-P11 a été fermé hors ordre. Après fermeture de P6, le Next canonique est désormais **P7**.
+P11 et P8 ont été fermés hors ordre sans contourner leurs critères. Le Next canonique reste **P7**, qui débloque les preuves finales P9/P10/P12/P13.
 
 ## État courant
 
 - P0–P6 : **CLOSED ✅** ;
-- P7 : **NEXT** ;
-- P8–P10 : **PLANNED** ;
+- P7 : **NEXT / candidat préparé** ;
+- P8 : **CLOSED ✅** ;
+- P9–P10 : **PLANNED / moteurs préparés, gates finales dépendantes de P7** ;
 - P11 : **CLOSED ✅** ;
-- P12–P14 : **PLANNED** ;
-- validé : **81 / 162 EP = 50,0 %** ;
+- P12 : **PREPARED — 0 EP crédité** ;
+- P13–P14 : **PLANNED** ;
+- validé : **102 / 162 EP = 63,0 %** ;
 - aucun EP partiel n’est crédité pour un lot ouvert ;
 - Cephalometry NextGen est un chantier scientifique séparé et n’est pas compté dans les 162 EP ;
 - aucun Vercel ;
-- Next exact : **P7 Native macOS packaging** — auditer le dossier `macos/`, figer le bundle `.app` Apple Silicon et la toolchain, intégrer Developer ID/Hardened Runtime/notarisation de façon fail-closed, puis certifier clean install/upgrade/uninstall sur macOS réel.
+- Next exact : **P7 Native macOS packaging** — obtenir le run de distribution macOS signé/notarisé sur `53563b1b22ddb6905a54c16ca8486412130c3921`, inspecter artifacts/signing/notarisation/lifecycle, puis enchaîner P9 → P10 → P12 → P13.
