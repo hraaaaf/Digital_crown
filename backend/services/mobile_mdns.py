@@ -1,6 +1,7 @@
 """Advertise the stable Digital Crown WebAuthn hostname on the cabinet LAN via mDNS."""
 from __future__ import annotations
 
+import atexit
 import logging
 import os
 import socket
@@ -81,3 +82,8 @@ def start_mdns_if_secure() -> None:
                     zc.close()
                 except Exception:
                     pass
+
+
+# The secure LAN responder is process-scoped. Normal launcher/EXE shutdown must
+# release multicast resources even though publication itself is best-effort.
+atexit.register(stop_mdns)

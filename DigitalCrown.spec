@@ -74,8 +74,10 @@ a = Analysis(
         # - passlib charge ses handlers par nom au runtime (crash au boot sinon)
         # - jose charge ses backends paresseusement au premier encode/decode JWT
         #   (crash au premier login sinon)
+        # - mobile_mdns charge zeroconf uniquement quand HTTPS LAN est actif
         'passlib.handlers', 'passlib.handlers.bcrypt',
         'jose.backends', 'jose.backends.cryptography_backend', 'jose.backends.native',
+        'zeroconf',
         'backend.services.sync_manager', 'backend.seed_templates', 'backend.seed_user', 'backend.seed_clinical'
     ],
     hookspath=[],

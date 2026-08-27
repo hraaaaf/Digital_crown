@@ -133,6 +133,8 @@ mobile.router.include_router(mobile_push.router)
 from . import mobile_legacy as mobile_legacy
 from . import mobile_passkey as mobile_passkey
 from backend.services.mobile_biometric import install_mobile_biometric_identity_gate
+from backend.services.mobile_mdns import start_mdns_if_secure
 mobile_passkey.install_stable_lan_url_overrides()
 install_mobile_biometric_identity_gate(mobile_legacy)
+start_mdns_if_secure()
 mobile.router.include_router(mobile_passkey.router)
