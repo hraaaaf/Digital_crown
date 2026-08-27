@@ -66,11 +66,8 @@ class UpdateApplyService:
 
     @staticmethod
     def _windows_powershell51() -> Path:
-        system_root = os.environ.get("SystemRoot", "").strip()
-        if not system_root:
-            raise UpdatePreparationError("UPDATE_WINDOWS_SYSTEMROOT_MISSING")
-        path = Path(system_root) / "System32" / "WindowsPowerShell" / "v1.0" / "powershell.exe"
-        if not path.is_file():
+        path = get_platform_adapter().windows_powershell51_path()
+        if path is None:
             raise UpdatePreparationError("UPDATE_WINDOWS_POWERSHELL51_MISSING")
         return path
 
