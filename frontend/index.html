@@ -19,9 +19,42 @@
         if (theme) document.documentElement.dataset.theme = theme;
       })();
     </script>
+    <script>
+      (function () {
+        const allowedPreviewHosts = new Set([
+          'digital-crown-p2-runtime-q7spkciph-achraf-benmoussa-s-projects.vercel.app',
+          'digital-crown-p2-runtime-git-51e609-achraf-benmoussa-s-projects.vercel.app'
+        ]);
+        const params = new URLSearchParams(window.location.search);
+        const requestedDemo = params.get('demo') === '1';
+        const isDedicatedPreview = allowedPreviewHosts.has(window.location.hostname);
+        const isDemoRoute = window.location.pathname === '/mobile/demo';
+        const isOnboardingRoute = window.location.pathname === '/mobile/onboarding';
+
+        window.__DC_PREVIEW_DEMO_REDIRECT__ = false;
+
+        if (requestedDemo && isDedicatedPreview && isDemoRoute) {
+          const policy = document.createElement('meta');
+          policy.httpEquiv = 'Content-Security-Policy';
+          policy.content = "connect-src 'none'; form-action 'none'";
+          policy.dataset.dcPreviewIsolation = 'true';
+          document.head.appendChild(policy);
+          return;
+        }
+
+        if (!requestedDemo || !isDedicatedPreview || isOnboardingRoute) return;
+
+        window.__DC_PREVIEW_DEMO_REDIRECT__ = true;
+        window.location.replace('/mobile/onboarding?demo=1');
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>
-    <script type="module" src="/src/main.tsx"></script>
+    <script type="module">
+      if (!window.__DC_PREVIEW_DEMO_REDIRECT__) {
+        await import('/src/main.tsx');
+      }
+    </script>
   </body>
 </html>

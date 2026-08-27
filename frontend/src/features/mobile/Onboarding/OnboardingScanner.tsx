@@ -11,6 +11,11 @@ import {
 } from '../../../services/zka/ecdhPairing';
 import Logo from '../../../assets/logo.png';
 
+const PREVIEW_DEMO_HOSTS = new Set([
+  'digital-crown-p2-runtime-q7spkciph-achraf-benmoussa-s-projects.vercel.app',
+  'digital-crown-p2-runtime-git-51e609-achraf-benmoussa-s-projects.vercel.app',
+]);
+
 function resolveApiBase(): string {
   const hostname = window.location.hostname;
   if (hostname === 'localhost' || hostname === '127.0.0.1') {
@@ -60,6 +65,7 @@ export const OnboardingScanner = () => {
   const [destinationRoute, setDestinationRoute] = useState('/mobile/dashboard?tab=agenda');
   const [destinationLabel, setDestinationLabel] = useState('Agenda');
   const { isIOS, isInstalled } = usePWAInstall();
+  const isPreviewDemo = PREVIEW_DEMO_HOSTS.has(window.location.hostname) && searchParams.get('demo') === '1';
 
   useEffect(() => {
     document.documentElement.dataset.theme = '';
@@ -269,6 +275,26 @@ export const OnboardingScanner = () => {
             Synchronisez votre cabinet sur ce téléphone en scannant le pont QR affiché dans la section{' '}
             <span className="text-primary font-black">Sécurité Mobile</span> de votre PC.
           </p>
+
+          {isPreviewDemo && (
+            <div
+              data-dc-preview-entry
+              className="w-full mt-6 p-5 rounded-3xl shadow-elite"
+              style={{ backgroundColor: 'var(--glass-bg)', borderColor: 'var(--glass-border)', borderWidth: '1px' }}
+            >
+              <p className="text-[10px] font-black text-primary uppercase tracking-widest mb-2">MODE DÉMO — PREVIEW VERCEL</p>
+              <h2 className="text-base font-black tracking-tight text-text-main mb-2">Explorer Digital Crown sans connecter le cabinet</h2>
+              <p className="text-[11px] text-text-muted leading-relaxed font-bold mb-4">Aucune donnée cabinet • aucune session réelle</p>
+              <button
+                type="button"
+                onClick={() => window.location.assign('/mobile/demo?demo=1')}
+                className="w-full min-h-[52px] px-4 bg-primary hover:opacity-90 active:scale-95 rounded-2xl font-black text-sm text-white transition-all shadow-elite-hover flex items-center justify-center gap-2"
+              >
+                Entrer dans Digital Crown
+                <ArrowRight size={16} />
+              </button>
+            </div>
+          )}
 
           {isIOS && !isInstalled && (
             <div className="w-full mt-6 p-5 rounded-3xl shadow-elite" style={{ backgroundColor: 'var(--glass-bg)', borderColor: 'var(--glass-border)', borderWidth: '1px' }}>

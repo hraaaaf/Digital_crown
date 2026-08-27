@@ -1,12 +1,32 @@
 import React from 'react'
 import ReactDOM from 'react-dom/client'
-import App from './App.tsx'
+import { BrowserRouter } from 'react-router-dom'
 import { ErrorBoundary } from './components/ErrorBoundary.tsx'
-import './index.css' // <--- VERIFIE BIEN CETTE LIGNE
+import { MobilePreviewDashboard } from './features/mobile/Dashboard/MobilePreviewDashboard.tsx'
+import './index.css'
 import './styles/mobileGlassSystem.css'
-import * as Sentry from "@sentry/react";
+import * as Sentry from '@sentry/react'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { registerSW } from 'virtual:pwa-register'
 
-if (import.meta.env.VITE_SENTRY_DSN) {
+const PREVIEW_HOSTS = new Set([
+  'digital-crown-p2-runtime-q7spkciph-achraf-benmoussa-s-projects.vercel.app',
+  'digital-crown-p2-runtime-git-51e609-achraf-benmoussa-s-projects.vercel.app',
+])
+const previewParams = new URLSearchParams(window.location.search)
+const isPreviewDemo = PREVIEW_HOSTS.has(window.location.hostname)
+  && window.location.pathname === '/mobile/demo'
+  && previewParams.get('demo') === '1'
+
+if (isPreviewDemo) {
+  const policy = document.createElement('meta')
+  policy.httpEquiv = 'Content-Security-Policy'
+  policy.content = "connect-src 'none'; form-action 'none'"
+  policy.dataset.dcPreviewIsolation = 'true'
+  document.head.appendChild(policy)
+}
+
+if (!isPreviewDemo && import.meta.env.VITE_SENTRY_DSN) {
   Sentry.init({
     dsn: import.meta.env.VITE_SENTRY_DSN,
     integrations: [
@@ -16,9 +36,8 @@ if (import.meta.env.VITE_SENTRY_DSN) {
     tracesSampleRate: 1.0,
     replaysSessionSampleRate: 0.1,
     replaysOnErrorSampleRate: 1.0,
-  });
+  })
 }
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -29,8 +48,6 @@ const queryClient = new QueryClient({
     },
   },
 })
-
-import { registerSW } from 'virtual:pwa-register'
 
 const LEGACY_SW_RELOAD_KEY = 'dc_m62_legacy_sw_reload'
 
@@ -49,8 +66,6 @@ async function deleteLegacySyncDb(): Promise<void> {
     const request = indexedDB.deleteDatabase('sync-db')
     request.onsuccess = () => resolve()
     request.onerror = () => resolve()
-    // Un ancien worker encore vivant peut garder une connexion ouverte pendant
-    // quelques instants. La suppression reste demandée et se terminera à sa fermeture.
     request.onblocked = () => resolve()
   })
 }
@@ -85,21 +100,33 @@ async function migrateLegacyMobileOfflineState(): Promise<boolean> {
   return true
 }
 
-if ('serviceWorker' in navigator) {
+if (!isPreviewDemo && 'serviceWorker' in navigator) {
   void migrateLegacyMobileOfflineState().then((ready) => {
     if (!ready) return
-    // Un seul Service Worker Workbox pour le shell statique. Les données métier
-    // et mutations offline restent exclusivement dans MobileStorage.
     registerSW({ immediate: true })
   })
 }
 
-ReactDOM.createRoot(document.getElementById('root')!).render(
-  <React.StrictMode>
-    <ErrorBoundary>
-      <QueryClientProvider client={queryClient}>
-        <App />
-      </QueryClientProvider>
-    </ErrorBoundary>
-  </React.StrictMode>,
-)
+async function resolveApplication(): Promise<React.ReactNode> {
+  if (isPreviewDemo) {
+    return <BrowserRouter><MobilePreviewDashboard /></BrowserRouter>
+  }
+
+  const { default: App } = await import('./App.tsx')
+  return <App />
+}
+
+async function bootstrap() {
+  const application = await resolveApplication()
+  ReactDOM.createRoot(document.getElementById('root')!).render(
+    <React.StrictMode>
+      <ErrorBoundary>
+        <QueryClientProvider client={queryClient}>
+          {application}
+        </QueryClientProvider>
+      </ErrorBoundary>
+    </React.StrictMode>,
+  )
+}
+
+void bootstrap()
