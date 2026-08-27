@@ -1,7 +1,7 @@
 # Digital Crown — Mobile Full Experience — Roadmap canonique
 
 Date de réalignement : 2026-08-24
-Dernière mise à jour vérifiée : 2026-08-26
+Dernière mise à jour vérifiée : 2026-08-27
 Source : roadmap originale retrouvée par le produit/utilisateur. Ce document remplace les reconstructions ultérieures qui avaient artificiellement introduit un « M7 ».
 
 ## Goal
@@ -131,7 +131,7 @@ Exploiter ce que le téléphone peut faire mieux :
 - biométrie ;
 - mode portrait/plein écran imagerie.
 
-**État : ACTIVE.** M4 est CLOSED ; M6 réutilise désormais les fondations sécurité/offline/contextuelles certifiées.
+**État : CLOSED côté produit/logiciel.** Tous les lots M6 prévus sont intégrés et les contrats logiciels agrégés sont certifiés. La certification globale Mobile reste ouverte uniquement sur les preuves terrain/appareils physiques décrites plus bas.
 
 ### Fondation visuelle M6
 
@@ -148,13 +148,14 @@ Exploiter ce que le téléphone peut faire mieux :
 - **M6-E — Communication patient mobile (appel + WhatsApp) : CLOSED** — PR #261, HEAD certifié `3c1ae523c7ced679f3b14a614d6b1ab1cfd58819`, merge `3dc875f1816244fc567b58197f9cee23afc2199b`, closeout `docs/MOBILE_M6_E_PATIENT_COMMUNICATION_CLOSEOUT.md`, score visuel 9,8/10. Appel `tel:` conservé sans inventer d'indicatif, WhatsApp uniquement avec numéro international explicite, aucune donnée patient/clinique préremplie, cibles 64 px et AFTER 390/430/768 certifiés.
 - **M6-F — Partage mobile contextuel sûr : CLOSED** — PR #263, HEAD certifié `b5b349606fecb805fd5902189298bf30c238a2a0`, merge `731e1efc1b22c823cb6763d28dc551c974b1301d`, closeout `docs/MOBILE_M6_F_CONTEXTUAL_SHARE_CLOSEOUT.md`, score visuel 9,8/10. Partage natif limité au fichier Document déjà autorisé, `ShareData` file-only, nom générique, aucun URL/token/`context_key`/texte/titre ajouté par l’application, fallback Télécharger et AFTER 390/430/768 certifiés. Le document lui-même peut contenir des données patient ; sa destination reste choisie explicitement dans le share sheet OS.
 - **M6-H — Imagerie panoramique mobile plein écran : CLOSED** — PR #265, HEAD certifié `da5c30c34f263e97cf65f6d741eb5869d8d6a717`, merge `9ed2694a327e65ca823f63e4a161a98168d27856`, closeout `docs/MOBILE_M6_H_PANORAMIC_VIEWER_CLOSEOUT.md`, score visuel 9,7/10. Viewer in-app 100dvh, zoom 1×–4×, pan, pinch, contrôles mono-pointeur ≥52 px, `inert`, Escape/focus restore et aucune requête réseau supplémentaire ; AFTER 390/430/768 certifié via M4-B exact-head.
+- **M6-I — Biométrie / Passkey : CLOSED** — PR #272, HEAD produit/harness certifié `52357569dacd82604d77318fd933502368969b9f`, merge `41c1a4f894801a8ee5a1635b7ff1f457f9f852bd`, closeout `docs/MOBILE_M6_I_BIOMETRIC_PASSKEY_CLOSEOUT.md`, score visuel 9,7/10. WebAuthn/passkey user+tenant+device-bound, `userVerification: required`, challenge one-shot, session UV courte memory-only, coffre PRF + AES-GCM et révocation backend autoritaire ; AFTER 390/430/768 et frontière verrouillée certifiés. Face ID/Touch ID/biométrie Android réels restent des preuves terrain globales.
 
 ### Audit des capacités M6 restantes
 
-- **Consultation rapide dossier patient : couverte par les lots certifiés existants.** Le contexte Patient exact M4-A, les actions M6-A/M6-B et la communication M6-E fournissent déjà la surface rapide prévue ; aucun nouveau lot produit n’est justifié avant la certification finale.
+- **Consultation rapide dossier patient : couverte par les lots certifiés existants.** Le contexte Patient exact M4-A, les actions M6-A/M6-B et la communication M6-E fournissent déjà la surface rapide prévue ; aucun nouveau lot produit n’est justifié.
 - **Actions rapides au fauteuil : couvertes par les lots certifiés existants.** Agenda, appel/WhatsApp, photo, scan et signature sont déjà présents et certifiés ; aucun lot supplémentaire n’est créé artificiellement.
 - **Mode portrait / plein écran imagerie : CLOSED via M6-H.**
-- **Biométrie : NEXT.** Aucun WebAuthn/passkey n’existe actuellement dans le produit ; la prochaine étape doit être un lot sécurité dédié, sans transformer la biométrie en authentification locale qui contourne l’identité/revocation backend.
+- **Biométrie : CLOSED via M6-I.** Les contrats WebAuthn/passkey et la frontière logicielle sont certifiés ; la présentation biométrique réelle reste un gate terrain de la certification complète.
 
 ## Certification complète finale — pas un « M7 »
 
@@ -171,14 +172,17 @@ Après M6 :
 - BEFORE → cible → AFTER pour chaque lot visuel ;
 - score global Mobile Digital Crown seulement quand la couverture est suffisante.
 
+**État : certification logicielle obtenue, certification terrain ouverte.** Le candidat `5c1a505c94cb6e168c4c272914530616aa60cabe` a passé le run `33056672222` : backend mobile ✅, frontend fondations + M6 ✅, build ✅, gate agrégé ✅. La CI générale post-merge M6-I #1917 est également verte. Le checkpoint détaillé est `docs/MOBILE_FULL_EXPERIENCE_SOFTWARE_CERTIFICATION.md`.
+
+Cette preuve ne simule pas Face ID, Touch ID, biométrie Android ni réception Push réelle sur appareil ; elle ne ferme donc pas la certification globale.
+
 ## Ordre canonique restant
 
-1. Exécuter le lot biométrie/passkey M6 suivant sur une architecture device-bound compatible avec la révocation backend.
-2. Certification complète finale sur émulation + appareils physiques, incluant réception Push réelle iPhone/Android.
-3. Closeout global Mobile Full Experience.
+1. Certification terrain sur vrai iPhone + Android, incluant biométrie réelle, réception Push réelle et parcours critiques finaux.
+2. Closeout global Mobile Full Experience seulement après validation de ces gates.
 
 ## Avancement
 
-Aucun pourcentage global n'est publié ici : la roadmap originale ne définit pas de dénominateur pondéré permettant un % honnête. L'état est suivi lot par lot jusqu'à définition d'un système de gates explicite.
+Aucun pourcentage global n'est publié ici : la roadmap originale ne définit pas de dénominateur pondéré permettant un % honnête. L'état est suivi par gates explicites.
 
 Aucun Vercel sans autorisation explicite.
