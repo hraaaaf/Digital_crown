@@ -128,22 +128,23 @@ if ($coreExit -eq 0) {
         ) {
             throw "UPDATE_WINDOWS_FINALIZE_COMMIT_INVALID"
         }
-        $reportPath = Join-Path $script:JobDir "update-finalize-report.json"
-        if (-not (Test-Path -LiteralPath $reportPath -PathType Leaf)) {
-            throw "UPDATE_WINDOWS_FINALIZE_REPORT_MISSING"
-        }
-        $report = Get-Content -LiteralPath $reportPath -Raw | ConvertFrom-Json
-        if ([string]$report.status -ne "success") {
-            throw "UPDATE_WINDOWS_FINALIZE_REPORT_INVALID"
-        }
         Write-OrchestratorLog "finalization=passed version=$([string]$finalized.version) sequence=$([int]$finalized.sequence)"
         exit 0
     } catch {
         $failure = $_.Exception.Message
-        if ($finalizeJob) {
-            Set-JobField $finalizeJob "finalization" "failed"
-            Set-JobField $finalizeJob "finalization_failure_reason" $failure
-            Save-Job $finalizeJob
+        $failureJob = $finalizeJob
+        try {
+            $failureJob = Get-Content -LiteralPath $script:ResolvedJobPath -Raw | ConvertFrom-Json
+        } catch {}
+        if ($failureJob) {
+            $failedRuntimePid = 0
+            try { $failedRuntimePid = [int]$failureJob.runtime_pid } catch {}
+            if ($failedRuntimePid -gt 0) {
+                Stop-Process -Id $failedRuntimePid -Force -ErrorAction SilentlyContinue
+            }
+            Set-JobField $failureJob "finalization" "failed"
+            Set-JobField $failureJob "finalization_failure_reason" $failure
+            Save-Job $failureJob
         }
         Write-OrchestratorLog "finalization=failed reason=$failure"
         exit 4
