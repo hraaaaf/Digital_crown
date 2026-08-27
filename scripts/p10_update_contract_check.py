@@ -112,6 +112,7 @@ def main() -> None:
         "UPDATE_FINALIZE_JOB_TRUTH_INVALID",
         "UPDATE_FINALIZE_COMMIT_INVALID",
         "update-finalize-report.json",
+        "atomic_write_text",
     ):
         require(marker in finalize_service, f"P10 installed-truth finalizer missing marker: {marker}")
 
@@ -229,9 +230,9 @@ def main() -> None:
         "UPDATE_WINDOWS_DB_ROLLBACK_RUNTIME_HEALTH_FAILED",
         "DigitalCrown.exe",
         '"--update-finalize-worker"',
-        "update-finalize-report.json",
         'finalization=passed',
         'status -ne "healthy"',
+        "Stop-Process -Id $failedRuntimePid",
     ):
         require(marker in orchestrator, f"P10 Windows orchestrator missing marker: {marker}")
     require("Fernet" not in orchestrator, "P10 PowerShell orchestrator must never decrypt cabinet backups")
