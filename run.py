@@ -157,6 +157,24 @@ def _maybe_run_update_db_rollback_worker() -> None:
     raise SystemExit(UpdateDatabaseRollback.run(Path(args.job_path)))
 
 
+def _maybe_run_update_finalize_worker() -> None:
+    if len(sys.argv) < 2 or sys.argv[1] != "--update-finalize-worker":
+        return
+
+    import argparse
+
+    parser = argparse.ArgumentParser(add_help=False)
+    parser.add_argument("--update-finalize-worker", dest="job_path", required=True)
+    args = parser.parse_args(sys.argv[1:])
+
+    from backend.env_loader import load_backend_env
+
+    load_backend_env(override=False)
+    from backend.services.update_finalize import UpdateFinalizeService
+
+    raise SystemExit(UpdateFinalizeService.run(Path(args.job_path)))
+
+
 def _maybe_run_guided_restore_worker() -> None:
     if len(sys.argv) < 2 or sys.argv[1] != "--guided-restore-worker":
         return
@@ -175,6 +193,7 @@ def _maybe_run_guided_restore_worker() -> None:
 
 _setup_frozen_logging()
 _maybe_run_update_db_rollback_worker()
+_maybe_run_update_finalize_worker()
 _first_boot_bootstrap()
 _maybe_run_guided_restore_worker()
 
