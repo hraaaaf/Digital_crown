@@ -1,4 +1,4 @@
-#requires -Version 7.0
+#requires -Version 5.1
 [CmdletBinding()]
 param(
     [Parameter(Mandatory = $true)]
@@ -222,12 +222,44 @@ function Get-TreeManifest {
     )
 }
 
+function Expand-ManifestRows {
+    param($Manifest)
+    foreach ($candidate in @($Manifest)) {
+        if ($candidate -is [System.Array]) {
+            foreach ($nested in $candidate) {
+                if ($null -ne $nested) {
+                    $nested
+                }
+            }
+        } elseif ($null -ne $candidate) {
+            $candidate
+        }
+    }
+}
+
 function Assert-ManifestsEqual {
     param($Expected, $Actual, [string]$ErrorCode)
-    $expectedJson = @($Expected) | ConvertTo-Json -Depth 6 -Compress
-    $actualJson = @($Actual) | ConvertTo-Json -Depth 6 -Compress
-    if ($expectedJson -ne $actualJson) {
-        throw $ErrorCode
+    $expectedRows = @(Expand-ManifestRows $Expected | Sort-Object -Property path)
+    $actualRows = @(Expand-ManifestRows $Actual | Sort-Object -Property path)
+    if ($expectedRows.Count -ne $actualRows.Count) {
+        throw "$ErrorCode`:COUNT:$($expectedRows.Count):$($actualRows.Count)"
+    }
+    for ($index = 0; $index -lt $expectedRows.Count; $index++) {
+        $expectedRow = $expectedRows[$index]
+        $actualRow = $actualRows[$index]
+        $expectedPath = [string]$expectedRow.path
+        $actualPath = [string]$actualRow.path
+        $expectedLength = [int64]$expectedRow.length
+        $actualLength = [int64]$actualRow.length
+        $expectedSha = ([string]$expectedRow.sha256).ToLowerInvariant()
+        $actualSha = ([string]$actualRow.sha256).ToLowerInvariant()
+        if (
+            $expectedPath -cne $actualPath -or
+            $expectedLength -ne $actualLength -or
+            $expectedSha -cne $actualSha
+        ) {
+            throw "$ErrorCode`:ENTRY:$expectedPath`:$actualPath`:$expectedLength`:$actualLength`:$expectedSha`:$actualSha"
+        }
     }
 }
 
@@ -286,7 +318,10 @@ function Restore-Program {
     ) {
         throw "UPDATE_WINDOWS_PROGRAM_RESCUE_MISSING"
     }
-    $expected = @(Get-Content -LiteralPath $manifestPath -Raw | ConvertFrom-Json)
+    $parsed = Get-Content -LiteralPath $manifestPath -Raw | ConvertFrom-Json
+    $expected = @(Expand-ManifestRows $parsed)
+    $snapshotManifest = Get-TreeManifest $snapshot
+    Assert-ManifestsEqual $expected $snapshotManifest "UPDATE_WINDOWS_PROGRAM_RESCUE_INTEGRITY_FAILED"
     if (Test-Path -LiteralPath $InstallDir) {
         Remove-Item -LiteralPath $InstallDir -Recurse -Force
     }
@@ -461,7 +496,7 @@ function Validate-Job {
     }
 
     $installDir = Normalize-Path ([string]$job.install_dir)
-    if (-not [IO.Path]::IsPathFullyQualified($installDir)) {
+    if (-not [IO.Path]::IsPathRooted($installDir)) {
         throw "UPDATE_WINDOWS_INSTALL_DIR_INVALID"
     }
     Assert-NoPathOverlap $installDir $script:JobDir
