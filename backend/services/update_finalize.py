@@ -23,6 +23,13 @@ class UpdateFinalizeService:
             return Path(str(frozen_root)).resolve()
         return Path(__file__).resolve().parents[2]
 
+    @staticmethod
+    def _write_report(path: Path, payload: dict[str, Any]) -> None:
+        get_platform_adapter().atomic_write_text(
+            path,
+            json.dumps(payload, indent=2, sort_keys=True),
+        )
+
     @classmethod
     def _current_version(cls) -> str:
         path = cls._bundle_root() / "VERSION"
@@ -98,35 +105,27 @@ class UpdateFinalizeService:
                 raise UpdatePreparationError("UPDATE_FINALIZE_JOB_PATH_INVALID")
             report_path = resolved.parent / FINALIZE_REPORT_NAME
             finalized = cls.finalize_job(job_id)
-            report_path.write_text(
-                json.dumps(
-                    {
-                        "schema": 1,
-                        "status": "success",
-                        "job_id": job_id,
-                        "version": finalized["version"],
-                        "sequence": finalized["sequence"],
-                    },
-                    indent=2,
-                    sort_keys=True,
-                ),
-                encoding="utf-8",
+            cls._write_report(
+                report_path,
+                {
+                    "schema": 1,
+                    "status": "success",
+                    "job_id": job_id,
+                    "version": finalized["version"],
+                    "sequence": finalized["sequence"],
+                },
             )
             return 0
         except Exception as exc:
             if report_path is not None:
                 try:
-                    report_path.write_text(
-                        json.dumps(
-                            {
-                                "schema": 1,
-                                "status": "failed",
-                                "error_code": str(exc),
-                            },
-                            indent=2,
-                            sort_keys=True,
-                        ),
-                        encoding="utf-8",
+                    cls._write_report(
+                        report_path,
+                        {
+                            "schema": 1,
+                            "status": "failed",
+                            "error_code": str(exc),
+                        },
                     )
                 except Exception:
                     pass
