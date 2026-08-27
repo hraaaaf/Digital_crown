@@ -93,6 +93,64 @@ if (-not (Test-Path -LiteralPath $nativePs -PathType Leaf)) {
 
 & $nativePs -NoProfile -ExecutionPolicy Bypass -File $core -JobPath $script:ResolvedJobPath -ParentPid $ParentPid
 $coreExit = $LASTEXITCODE
+
+if ($coreExit -eq 0) {
+    $finalizeJob = $null
+    try {
+        $finalizeJob = Get-Content -LiteralPath $script:ResolvedJobPath -Raw | ConvertFrom-Json
+        if (
+            [string]$finalizeJob.status -ne "health_pending" -or
+            [string]$finalizeJob.worker_result -ne "install_verified" -or
+            [string]$finalizeJob.package_self_test -ne "passed" -or
+            [string]$finalizeJob.runtime_health -ne "passed" -or
+            [string]$finalizeJob.rollback -ne "not_needed"
+        ) {
+            throw "UPDATE_WINDOWS_FINALIZE_JOB_TRUTH_INVALID"
+        }
+        $installDir = [IO.Path]::GetFullPath([string]$finalizeJob.install_dir)
+        $executable = Join-Path $installDir "DigitalCrown.exe"
+        if (-not (Test-Path -LiteralPath $executable -PathType Leaf)) {
+            throw "UPDATE_WINDOWS_FINALIZE_EXECUTABLE_MISSING"
+        }
+        $finalizeArgs = @(
+            "--update-finalize-worker",
+            ('"{0}"' -f $script:ResolvedJobPath)
+        )
+        $finalizer = Start-Process -FilePath $executable -ArgumentList $finalizeArgs -WorkingDirectory $installDir -Wait -PassThru
+        if ($finalizer.ExitCode -ne 0) {
+            throw "UPDATE_WINDOWS_FINALIZE_WORKER_FAILED:$($finalizer.ExitCode)"
+        }
+        $finalized = Get-Content -LiteralPath $script:ResolvedJobPath -Raw | ConvertFrom-Json
+        if (
+            [string]$finalized.status -ne "healthy" -or
+            [string]$finalized.version -ne [string]$finalizeJob.version -or
+            [int]$finalized.sequence -ne [int]$finalizeJob.sequence
+        ) {
+            throw "UPDATE_WINDOWS_FINALIZE_COMMIT_INVALID"
+        }
+        Write-OrchestratorLog "finalization=passed version=$([string]$finalized.version) sequence=$([int]$finalized.sequence)"
+        exit 0
+    } catch {
+        $failure = $_.Exception.Message
+        $failureJob = $finalizeJob
+        try {
+            $failureJob = Get-Content -LiteralPath $script:ResolvedJobPath -Raw | ConvertFrom-Json
+        } catch {}
+        if ($failureJob) {
+            $failedRuntimePid = 0
+            try { $failedRuntimePid = [int]$failureJob.runtime_pid } catch {}
+            if ($failedRuntimePid -gt 0) {
+                Stop-Process -Id $failedRuntimePid -Force -ErrorAction SilentlyContinue
+            }
+            Set-JobField $failureJob "finalization" "failed"
+            Set-JobField $failureJob "finalization_failure_reason" $failure
+            Save-Job $failureJob
+        }
+        Write-OrchestratorLog "finalization=failed reason=$failure"
+        exit 4
+    }
+}
+
 if ($coreExit -ne 3) {
     exit $coreExit
 }

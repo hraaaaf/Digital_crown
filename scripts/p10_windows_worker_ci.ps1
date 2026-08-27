@@ -71,6 +71,8 @@ using System.IO;
 using System.Net;
 using System.Net.Sockets;
 using System.Text;
+using System.Text.Json;
+using System.Text.Json.Nodes;
 
 public static class Program
 {
@@ -87,6 +89,22 @@ public static class Program
                 "\",\"missing\":[],\"forbidden_present\":[],\"unqualified_scientific_weights_present\":[]," +
                 "\"scientific_manifest_policy_ok\":true,\"scientific_capabilities\":\"FAIL_CLOSED_NO_WEIGHTS\"}";
             File.WriteAllText(report, json, new UTF8Encoding(false));
+            return 0;
+        }
+
+        if (args.Length == 2 && args[0] == "--update-finalize-worker")
+        {
+            var jobPath = args[1].Trim('"');
+            var parsed = JsonNode.Parse(File.ReadAllText(jobPath));
+            if (parsed == null) return 12;
+            var job = parsed.AsObject();
+            if (job["status"] == null || job["status"].ToString() != "health_pending") return 13;
+            job["status"] = "healthy";
+            File.WriteAllText(
+                jobPath,
+                job.ToJsonString(new JsonSerializerOptions { WriteIndented = true }),
+                new UTF8Encoding(false)
+            );
             return 0;
         }
 
@@ -301,8 +319,8 @@ try {
     $env:CABINET_PORT = "18761"
     $job1 = New-TestJob -CaseRoot $case1 -InstallDir $install1 -InstallerDir $installerDir -Port 18761 -ApplyCertified $true
     $success = Invoke-WorkerCase -JobPath $job1 -ExpectedExitCode 0
-    if ($success.status -ne "health_pending" -or $success.worker_result -ne "install_verified") {
-        throw "success drill did not reach health_pending"
+    if ($success.status -ne "healthy" -or $success.worker_result -ne "install_verified") {
+        throw "success drill did not finalize healthy"
     }
     if ($success.package_self_test -ne "passed" -or $success.runtime_health -ne "passed") {
         throw "success drill missing post-install truth"
@@ -341,7 +359,7 @@ try {
     }
     Stop-Process -Id ([int]$rollback.runtime_pid) -Force -ErrorAction SilentlyContinue
 
-    Write-Host "P10_WINDOWS_WORKER_CONTRACT=SUCCESS gate=FAIL_CLOSED success=HEALTH_PENDING rollback=PASSED db_restore=NOT_NEEDED"
+    Write-Host "P10_WINDOWS_WORKER_CONTRACT=SUCCESS gate=FAIL_CLOSED success=HEALTHY rollback=PASSED db_restore=NOT_NEEDED"
 }
 finally {
     Remove-TestRegistry

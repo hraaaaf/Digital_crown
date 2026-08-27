@@ -1,8 +1,10 @@
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
+PLATFORM = ROOT / "backend" / "core" / "platform.py"
 SERVICE = ROOT / "backend" / "services" / "update_engine.py"
 APPLY_SERVICE = ROOT / "backend" / "services" / "update_apply.py"
+FINALIZE_SERVICE = ROOT / "backend" / "services" / "update_finalize.py"
 POST_INSTALL = ROOT / "backend" / "services" / "update_post_install.py"
 DB_ROLLBACK = ROOT / "backend" / "services" / "update_db_rollback.py"
 UPDATE_ROUTER = ROOT / "backend" / "routers" / "update_portability_p10.py"
@@ -11,6 +13,7 @@ WINDOWS_ORCHESTRATOR = ROOT / "scripts" / "windows_update_worker.ps1"
 WINDOWS_WORKER_CORE = ROOT / "scripts" / "windows_update_worker_core.ps1"
 WINDOWS_WORKER_CI = ROOT / "scripts" / "p10_windows_worker_ci.ps1"
 WINDOWS_DB_ROLLBACK_CI = ROOT / "scripts" / "p10_windows_db_rollback_ci.ps1"
+WINDOWS_PACKAGED_FINALIZATION_CI = ROOT / "scripts" / "p10_windows_packaged_finalization_ci.py"
 WORKFLOW = ROOT / ".github" / "workflows" / "portability-p10-update-engine.yml"
 RUN = ROOT / "run.py"
 SPEC = ROOT / "DigitalCrown.spec"
@@ -23,8 +26,10 @@ def require(condition: bool, message: str) -> None:
 
 
 def main() -> None:
+    platform = PLATFORM.read_text(encoding="utf-8")
     service = SERVICE.read_text(encoding="utf-8")
     apply_service = APPLY_SERVICE.read_text(encoding="utf-8")
+    finalize_service = FINALIZE_SERVICE.read_text(encoding="utf-8")
     post_install = POST_INSTALL.read_text(encoding="utf-8")
     db_rollback = DB_ROLLBACK.read_text(encoding="utf-8")
     update_router = UPDATE_ROUTER.read_text(encoding="utf-8")
@@ -33,6 +38,7 @@ def main() -> None:
     worker_core = WINDOWS_WORKER_CORE.read_text(encoding="utf-8")
     worker_ci = WINDOWS_WORKER_CI.read_text(encoding="utf-8")
     db_rollback_ci = WINDOWS_DB_ROLLBACK_CI.read_text(encoding="utf-8")
+    packaged_finalization_ci = WINDOWS_PACKAGED_FINALIZATION_CI.read_text(encoding="utf-8")
     workflow = WORKFLOW.read_text(encoding="utf-8")
     run = RUN.read_text(encoding="utf-8")
     spec = SPEC.read_text(encoding="utf-8")
@@ -52,14 +58,25 @@ def main() -> None:
         "UPDATE_PLATFORM_APPLY_NOT_CERTIFIED",
         "highest_sequence",
         "last_trusted_time",
+        "installed_sequence",
+        "installed_version",
+        "mark_installed_healthy",
     ):
         require(marker in service, f"P10 update engine missing marker: {marker}")
+
+    for marker in (
+        "windows_powershell51_path",
+        "WindowsPowerShell",
+        "powershell.exe",
+    ):
+        require(marker in platform, f"P10/P1 platform boundary missing marker: {marker}")
 
     for marker in (
         'CONFIRMATION_TOKEN = "METTRE_A_JOUR"',
         "bool(getattr(sys, \"frozen\", False))",
         'os.environ.get("ENVIRONMENT", "").strip().lower() == "cabinet"',
         "adapter.is_windows",
+        "windows_powershell51_path",
         "windows-inno-v1",
         "windows_update_worker.ps1",
         "windows_update_worker_core.ps1",
@@ -79,8 +96,25 @@ def main() -> None:
         "os._exit(0)",
     ):
         require(marker in apply_service, f"P10 production apply wiring missing marker: {marker}")
+    require("powershell.exe" not in apply_service, "P10 apply service must use the P1 OS boundary for PowerShell")
     require("backup.key" not in apply_service, "P10 apply launcher must not pass backup secrets")
     require("Fernet" not in apply_service, "P10 apply launcher must not decrypt cabinet backups")
+
+    for marker in (
+        "health_pending",
+        "apply_certified",
+        "install_verified",
+        "package_self_test",
+        "runtime_health",
+        "not_needed",
+        "windows-inno-v1",
+        "mark_installed_healthy",
+        "UPDATE_FINALIZE_JOB_TRUTH_INVALID",
+        "UPDATE_FINALIZE_COMMIT_INVALID",
+        "update-finalize-report.json",
+        "atomic_write_text",
+    ):
+        require(marker in finalize_service, f"P10 installed-truth finalizer missing marker: {marker}")
 
     for marker in (
         '@router.post("/update/{job_id}/apply")',
@@ -102,11 +136,13 @@ def main() -> None:
         '"scientific_capabilities": "FAIL_CLOSED_NO_WEIGHTS"',
         "--update-db-rollback-worker",
         "UpdateDatabaseRollback.run",
+        "--update-finalize-worker",
+        "UpdateFinalizeService.run",
     ):
         require(marker in run, f"P10 packaged runtime dependency missing: {marker}")
     require(
-        "_setup_frozen_logging()\n_maybe_run_update_db_rollback_worker()\n_first_boot_bootstrap()" in run,
-        "P10 DB rollback worker must run before first-boot secret generation",
+        "_setup_frozen_logging()\n_maybe_run_update_db_rollback_worker()\n_maybe_run_update_finalize_worker()\n_first_boot_bootstrap()" in run,
+        "P10 rollback/finalize workers must run before first-boot secret generation",
     )
     require("(_required('VERSION'), '.')" in spec, "P10 requires bundled canonical VERSION")
     require("(_required('scripts/windows_update_worker.ps1'), 'scripts')" in spec, "P10 Windows package must bundle update orchestrator")
@@ -193,8 +229,12 @@ def main() -> None:
         '"database_rollback" "failed"',
         "UPDATE_WINDOWS_DB_ROLLBACK_RUNTIME_HEALTH_FAILED",
         "DigitalCrown.exe",
+        '"--update-finalize-worker"',
+        'finalization=passed',
+        'status -ne "healthy"',
+        "Stop-Process -Id $failedRuntimePid",
     ):
-        require(marker in orchestrator, f"P10 Windows DB rollback orchestrator missing marker: {marker}")
+        require(marker in orchestrator, f"P10 Windows orchestrator missing marker: {marker}")
     require("Fernet" not in orchestrator, "P10 PowerShell orchestrator must never decrypt cabinet backups")
 
     for marker in (
@@ -221,14 +261,27 @@ def main() -> None:
         require(marker in db_rollback_ci, f"P10 Windows DB rollback CI missing drill: {marker}")
 
     for marker in (
+        'job.get("status") != "healthy"',
+        "installed_version",
+        "installed_sequence",
+        "update-finalize-report.json",
+        '"finalization": "passed"',
+    ):
+        require(marker in packaged_finalization_ci, f"P10 packaged finalization CI missing marker: {marker}")
+
+    for marker in (
         "Windows PowerShell 5.1 external worker contract",
         "WindowsPowerShell\\v1.0\\powershell.exe",
         "P10_WINDOWS_POWERSHELL=5.1",
         "p10_windows_db_rollback_ci.ps1",
+        "p10_windows_packaged_finalization_ci.py",
+        "backend/services/update_finalize.py",
         "test_update_db_rollback.py",
         "test_update_apply.py",
         "backend/services/update_apply.py",
         "backend/routers/update_portability_p10.py",
+        "update-finalize-report.json",
+        "trusted_state.json",
     ):
         require(marker in workflow, f"P10 workflow missing marker: {marker}")
 
@@ -242,7 +295,7 @@ def main() -> None:
     require("Windows PowerShell 5.1" in doc, "P10 doc must state native Windows PowerShell 5.1 runtime")
     require("old packaged executable" in doc.lower(), "P10 doc must state old-package DB rollback ownership")
     require("PostgreSQL" in doc, "P10 doc must state PostgreSQL DB rollback boundary")
-    print("P10_UPDATE_CONTRACT=SUCCESS post_install_truth=READY windows_worker=PS51_DB_ROLLBACK_READY production_wiring=FAIL_CLOSED")
+    print("P10_UPDATE_CONTRACT=SUCCESS installed_truth=FINALIZER_READY windows_worker=PS51_DB_ROLLBACK_READY production_wiring=FAIL_CLOSED")
 
 
 if __name__ == "__main__":
