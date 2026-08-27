@@ -1,4 +1,5 @@
 import hashlib
+import json
 from pathlib import Path
 
 import pytest
@@ -7,6 +8,7 @@ from backend.core.paths import AppPaths
 from backend.services.backup_service import BackupService
 from backend.services.update_apply import CONFIRMATION_TOKEN, UpdateApplyService
 from backend.services.update_engine import UpdateEngine, UpdatePreparationError
+from backend.services.update_finalize import UpdateFinalizeService
 
 
 def _patch_data(monkeypatch, tmp_path):
@@ -54,6 +56,21 @@ def _prepared_windows_job(monkeypatch, tmp_path):
         ),
     )
     return UpdateEngine.prepare_update(verified, artifact_path=artifact), data
+
+
+def _health_pending_job(job_id):
+    job = UpdateEngine.get_job(job_id)
+    job.update(
+        status="health_pending",
+        apply_certified=True,
+        worker_contract="windows-inno-v1",
+        worker_result="install_verified",
+        package_self_test="passed",
+        runtime_health="passed",
+        rollback="not_needed",
+    )
+    UpdateEngine._write_job(job)
+    return job
 
 
 def test_production_wiring_refuses_unsigned_then_schedules_signed_job(monkeypatch, tmp_path):
@@ -134,3 +151,51 @@ def test_production_wiring_requires_exact_confirmation_and_runtime_gate(monkeypa
     monkeypatch.setattr(UpdateApplyService, "runtime_apply_supported", staticmethod(lambda: False))
     with pytest.raises(UpdatePreparationError, match="RUNTIME_APPLY_UNSUPPORTED"):
         UpdateApplyService.request_apply(job["job_id"], CONFIRMATION_TOKEN)
+
+
+def test_health_pending_update_finalizes_installed_trust(monkeypatch, tmp_path):
+    job, data = _prepared_windows_job(monkeypatch, tmp_path)
+    _health_pending_job(job["job_id"])
+
+    finalized = UpdateFinalizeService.finalize_job(
+        job["job_id"],
+        current_version="1.0.1",
+        platform_kind="windows",
+    )
+
+    assert finalized["status"] == "healthy"
+    trust = json.loads((data / "updates" / "trusted_state.json").read_text(encoding="utf-8"))
+    assert trust["installed_version"] == "1.0.1"
+    assert trust["installed_sequence"] == 2
+
+
+def test_update_finalizer_rejects_wrong_packaged_version(monkeypatch, tmp_path):
+    job, data = _prepared_windows_job(monkeypatch, tmp_path)
+    _health_pending_job(job["job_id"])
+
+    with pytest.raises(UpdatePreparationError, match="FINALIZE_JOB_TRUTH_INVALID"):
+        UpdateFinalizeService.finalize_job(
+            job["job_id"],
+            current_version="1.0.2",
+            platform_kind="windows",
+        )
+
+    assert UpdateEngine.get_job(job["job_id"])["status"] == "health_pending"
+    assert not (data / "updates" / "trusted_state.json").exists()
+
+
+def test_update_finalizer_requires_worker_health_truth(monkeypatch, tmp_path):
+    job, data = _prepared_windows_job(monkeypatch, tmp_path)
+    pending = _health_pending_job(job["job_id"])
+    pending["runtime_health"] = "failed"
+    UpdateEngine._write_job(pending)
+
+    with pytest.raises(UpdatePreparationError, match="FINALIZE_JOB_TRUTH_INVALID"):
+        UpdateFinalizeService.finalize_job(
+            job["job_id"],
+            current_version="1.0.1",
+            platform_kind="windows",
+        )
+
+    assert UpdateEngine.get_job(job["job_id"])["status"] == "health_pending"
+    assert not (data / "updates" / "trusted_state.json").exists()
