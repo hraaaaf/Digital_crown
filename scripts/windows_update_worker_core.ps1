@@ -339,7 +339,15 @@ function Get-UninstallRegistryMatch {
     $matches = @()
     foreach ($key in Get-ChildItem $root -ErrorAction Stop) {
         $props = Get-ItemProperty -LiteralPath $key.PSPath -ErrorAction SilentlyContinue
-        if (-not $props -or [string]$props.DisplayName -ne "DigitalCrown") {
+        if (-not $props) {
+            continue
+        }
+        $displayName = [string]$props.DisplayName
+        $displayNameMatches = (
+            $displayName -eq "DigitalCrown" -or
+            $displayName.StartsWith("DigitalCrown ", [StringComparison]::OrdinalIgnoreCase)
+        )
+        if (-not $displayNameMatches) {
             continue
         }
         $locationMatches = $false
