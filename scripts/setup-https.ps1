@@ -37,12 +37,12 @@ if (-not $lanIP) {
 
 Write-Host "[2/3] IP LAN détectée : $lanIP" -ForegroundColor Green
 
-# 4. Générer le certificat
+# 4. Générer le certificat. Le hostname .local reste stable quand le DHCP change l'IP.
 $certsDir = Join-Path $ROOT "certs"
 New-Item -ItemType Directory -Force -Path $certsDir | Out-Null
 
 Push-Location $certsDir
-& mkcert -cert-file cert.pem -key-file key.pem localhost 127.0.0.1 $lanIP
+& mkcert -cert-file cert.pem -key-file key.pem localhost 127.0.0.1 digitalcrown.local $lanIP
 Pop-Location
 
 Write-Host "[3/3] Certificats générés dans certs/" -ForegroundColor Green
@@ -66,6 +66,7 @@ Write-Host "     > Activer 'mkcert ...'"
 Write-Host ""
 Write-Host "  4. Relancer Digital Crown puis re-scanner le QR Code"
 Write-Host ""
-Write-Host "  Acces mobile : https://$($lanIP):5173" -ForegroundColor Green
+Write-Host "  Acces mobile stable : https://digitalcrown.local:5173" -ForegroundColor Green
+Write-Host "  IP LAN actuelle     : https://$($lanIP):5173" -ForegroundColor DarkGray
 Write-Host ""
 Write-Host "Terminé ! Relancez Start_DigitalCrown.bat" -ForegroundColor Green

@@ -27,6 +27,10 @@ sentry-sdk[fastapi]
 # --- Local mobile Web Push ---
 pywebpush==2.4.0
 
+# --- Local mobile Passkey / mDNS ---
+webauthn==3.0.0
+zeroconf==0.150.0
+
 # --- Config & Registry ---
 PyYAML==6.0.3
 markdown

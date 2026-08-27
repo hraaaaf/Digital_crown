@@ -5,7 +5,7 @@ import {
 } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import { useLocation, useNavigate, Link } from 'react-router-dom';
-import { api, API_BASE } from '../../services/api';
+import { api, API_BASE, getRuntimeAuthToken } from '../../services/api';
 import { useAuthStore } from '../../stores/useAuthStore';
 import { cn } from '../../utils/cn';
 
@@ -38,7 +38,7 @@ type Tab = 'chat' | 'brain';
 
 const buildGhostBrainWsUrl = (employerId: number | string) => {
   const baseUrl = `${API_BASE.replace(/^http/, 'ws')}/api/ai/ws/ghost-insights/${employerId}`;
-  const token = localStorage.getItem('token') || sessionStorage.getItem('token');
+  const token = getRuntimeAuthToken();
   return token ? `${baseUrl}?token=${encodeURIComponent(token)}` : baseUrl;
 };
 
@@ -379,7 +379,7 @@ export function CrownBotChat({
     const patientId = patientMatch ? Number(patientMatch[1]) : undefined;
 
     try {
-      const token = localStorage.getItem('token') || sessionStorage.getItem('token');
+      const token = getRuntimeAuthToken();
       const res = await fetch(`${API_BASE}/api/bot/chat/stream`, {
         method: 'POST',
         headers: {
