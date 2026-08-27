@@ -79,7 +79,7 @@ jobs:
           retention-days: 14
 
   ios-simulator:
-    name: iOS Simulator / Safari / biometric channel
+    name: iOS Simulator / MobileSafari OS channel
     runs-on: macos-26
     timeout-minutes: 25
     steps:
@@ -168,31 +168,19 @@ jobs:
           test -s artifacts/mobile-sim-cert/ios/onboarding.png
           printf 'url=%s\nscope=IOS_SIMULATOR_HOST_BRIDGE_NOT_WEBAUTHN_ORIGIN\n' "$URL" > artifacts/mobile-sim-cert/ios/browser.txt
 
-      - name: Exercise simulator biometric success and refusal channels
+      - name: Record supported simulator capabilities
         run: |
-          xcrun simctl help biometric | tee artifacts/mobile-sim-cert/ios/biometric-help.txt
-          xcrun simctl biometric "$IOS_SIM_UDID" enroll
-          if xcrun simctl biometric "$IOS_SIM_UDID" match face > artifacts/mobile-sim-cert/ios/biometric-match.txt 2>&1; then
-            :
-          elif xcrun simctl biometric "$IOS_SIM_UDID" match > artifacts/mobile-sim-cert/ios/biometric-match.txt 2>&1; then
-            :
+          xcrun simctl help | tee artifacts/mobile-sim-cert/ios/simctl-help.txt
+          if xcrun simctl help | grep -q biometric; then
+            echo "biometric_cli=available" > artifacts/mobile-sim-cert/ios/biometric-cli.txt
           else
-            cat artifacts/mobile-sim-cert/ios/biometric-match.txt
-            exit 1
-          fi
-          if xcrun simctl biometric "$IOS_SIM_UDID" fail face > artifacts/mobile-sim-cert/ios/biometric-fail.txt 2>&1; then
-            :
-          elif xcrun simctl biometric "$IOS_SIM_UDID" fail > artifacts/mobile-sim-cert/ios/biometric-fail.txt 2>&1; then
-            :
-          else
-            cat artifacts/mobile-sim-cert/ios/biometric-fail.txt
-            exit 1
+            echo "biometric_cli=unavailable_on_runner" > artifacts/mobile-sim-cert/ios/biometric-cli.txt
           fi
 
       - name: Record iOS simulator evidence
         if: always()
         run: |
-          printf 'head=%s\nudid=%s\nscope=SIMULATED_OS_NOT_PHYSICAL_FACE_ID\n' \
+          printf 'head=%s\nudid=%s\nscope=SIMULATED_IOS_SAFARI_OS_NOT_PHYSICAL_FACE_ID\n' \
             "${{ github.sha }}" "${IOS_SIM_UDID:-unavailable}" > artifacts/mobile-sim-cert/ios/result.txt
           cp /tmp/mobile-ios-vite.log artifacts/mobile-sim-cert/ios/vite.log 2>/dev/null || true
           cp /tmp/mobile-safari-launch.txt artifacts/mobile-sim-cert/ios/safari-launch.txt 2>/dev/null || true
@@ -207,7 +195,7 @@ jobs:
           retention-days: 14
 
   android-emulator:
-    name: Android Emulator / browser / fingerprint channel
+    name: Android Emulator / Chrome / fingerprint channel
     runs-on: ubuntu-latest
     timeout-minutes: 35
     steps:
@@ -269,12 +257,11 @@ jobs:
             adb shell 'echo "chrome --disable-fre --no-default-browser-check" > /data/local/tmp/chrome-command-line' || true
             adb shell am start -W -a android.intent.action.VIEW -d "http://10.0.2.2:5173/mobile/onboarding" com.android.chrome | tee artifacts/mobile-sim-cert/android/openurl.txt
             sleep 8
-            FOCUS=$(adb shell dumpsys window | grep -m1 -E 'mCurrentFocus|mFocusedApp' | tr -d '\r')
-            printf '%s\n' "$FOCUS" | tee artifacts/mobile-sim-cert/android/focus.txt
-            printf '%s\n' "$FOCUS" | grep -q 'com.android.chrome'
+            adb shell dumpsys activity activities | grep -m1 'mResumedActivity' | tee artifacts/mobile-sim-cert/android/focus.txt | grep -q 'com.android.chrome'
             adb exec-out screencap -p > artifacts/mobile-sim-cert/android/onboarding.png
             test -s artifacts/mobile-sim-cert/android/onboarding.png
             adb emu finger touch 1 | tee artifacts/mobile-sim-cert/android/fingerprint-touch.txt
+            grep -q '^OK' artifacts/mobile-sim-cert/android/fingerprint-touch.txt
             printf 'head=%s\nscope=SIMULATED_OS_NOT_PHYSICAL_FINGERPRINT\n' '${{ github.sha }}' > artifacts/mobile-sim-cert/android/result.txt
 
       - name: Record Android runtime log
@@ -314,9 +301,10 @@ jobs:
             echo
             echo "- Candidate: `${{ github.sha }}`"
             echo "- Exact-origin virtual WebAuthn: $WEBAUTHN_RESULT"
-            echo "- iOS Simulator / Safari / biometric channel: $IOS_RESULT"
-            echo "- Android Emulator / browser / fingerprint channel: $ANDROID_RESULT"
+            echo "- iOS Simulator / MobileSafari OS channel: $IOS_RESULT"
+            echo "- Android Emulator / Chrome / fingerprint channel: $ANDROID_RESULT"
             echo "- Safari/Android browser OS probes use runner host bridges; WebAuthn exact-origin is certified separately above."
-            echo "- This gate is simulated evidence only. It does NOT certify physical Face ID, Touch ID, fingerprint hardware, or real-device Push reception."
+            echo "- iOS Face ID/Touch ID is not credited by this headless workflow because current runner simctl exposes no biometric subcommand."
+            echo "- This gate does NOT certify physical Face ID, Touch ID, fingerprint hardware, or real-device Push reception."
             echo "- Deployment: none"
           } >> "$GITHUB_STEP_SUMMARY"
