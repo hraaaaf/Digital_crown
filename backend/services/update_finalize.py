@@ -105,17 +105,6 @@ class UpdateFinalizeService:
                 raise UpdatePreparationError("UPDATE_FINALIZE_JOB_PATH_INVALID")
             report_path = resolved.parent / FINALIZE_REPORT_NAME
             finalized = cls.finalize_job(job_id)
-            cls._write_report(
-                report_path,
-                {
-                    "schema": 1,
-                    "status": "success",
-                    "job_id": job_id,
-                    "version": finalized["version"],
-                    "sequence": finalized["sequence"],
-                },
-            )
-            return 0
         except Exception as exc:
             if report_path is not None:
                 try:
@@ -130,3 +119,20 @@ class UpdateFinalizeService:
                 except Exception:
                     pass
             return 4
+
+        # The canonical transaction is already committed in job.json + trusted_state.json.
+        # This report is audit evidence only and must never downgrade a healthy update.
+        try:
+            cls._write_report(
+                report_path,
+                {
+                    "schema": 1,
+                    "status": "success",
+                    "job_id": job_id,
+                    "version": finalized["version"],
+                    "sequence": finalized["sequence"],
+                },
+            )
+        except Exception:
+            pass
+        return 0
