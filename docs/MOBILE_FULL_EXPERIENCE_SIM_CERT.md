@@ -16,6 +16,31 @@ Le gate SIM-CERT est vert uniquement si le même HEAD obtient :
 4. le contrat frontend M6-I rejoué sur le même candidat ;
 5. un aggregate gate qui refuse tout résultat partiel.
 
+## Certification obtenue — 2026-08-27
+
+**État : SIM-CERT ACQUISE dans son périmètre simulé.**
+
+Candidat exact certifié : `1cf26729223b6ecee5ce886d218ef33550e9a6fc`.
+
+Workflow `Mobile OS Simulation Certification` : run #4 `33110537395` ✅ SUCCESS.
+
+Matrice certifiée sur le même HEAD :
+
+- WebAuthn exact-origin virtual authenticator ✅ SUCCESS ;
+- iOS Simulator / MobileSafari OS channel ✅ SUCCESS ;
+- Android Emulator / Chrome / fingerprint channel ✅ SUCCESS ;
+- Mobile SIM-CERT aggregate gate ✅ SUCCESS.
+
+Preuves inspectées :
+
+- `mobile-sim-webauthn` : origin `https://digitalcrown.local:5173`, `secureContext=true`, création puis assertion `public-key` sur le même credential ;
+- `mobile-sim-ios` : iPhone Simulator booté, CA host-bridge approuvée, MobileSafari lancé et Digital Crown réellement rendu ; la capture contient uniquement un coachmark Safari de premier lancement, sans défaut produit ;
+- `mobile-sim-android` : Android 15/API 35, Chrome confirmé au premier plan par `dumpsys` (`state: cur=TOP`, `top-activity`), URL Digital Crown ouverte et `adb emu finger touch 1` → `OK` ; la capture contient un popup Chrome de premier lancement et n'est donc créditée que comme preuve OS/browser, pas comme certification visuelle produit.
+
+Intégration : PR #284 ✅ squash-merged vers `master@222beb22f3be983655c5209386a2a9b787914c13`.
+
+Aucun code produit/UI existant n'a été modifié par ce lot ; seuls le workflow SIM-CERT, son script WebAuthn virtuel et cette documentation ont été ajoutés. Aucun Vercel.
+
 ## Preuves attendues
 
 Artifacts GitHub Actions :
@@ -68,12 +93,15 @@ Ces points restent des gates physiques et doivent être testés sur les appareil
 ## Relation avec la certification logicielle
 
 Le produit mobile certifié avant SIM-CERT est `2f9393548e3451d4d9228ab1dc8e034c4045a74c`.
-Le `master` de préparation SIM-CERT est `fbce07965932a06671e9460b696a55583cee7cd8`, qui ne diffère du produit certifié que par le closeout documentaire PR #282.
 
-Preuves déjà acquises :
+Preuves logicielles déjà acquises :
 
 - Mobile Full Experience Final Certification #3 / `33097867532` : SUCCESS sur `2f939354...` ;
-- CI générale produit #1944 / `33099278506` : SUCCESS sur `2f939354...`.
+- CI générale produit #1944 / `33099278506` : SUCCESS sur `2f939354...` ;
+- closeout documentaire terrain PR #282 : merge `fbce07965932a06671e9460b696a55583cee7cd8` ;
+- CI post-merge docs #1946 / `33100809075` : SUCCESS.
+
+SIM-CERT a ensuite été certifiée sur le candidat `1cf267292...` puis intégrée via PR #284 sur `master@222beb22...`.
 
 ## Règle de conclusion
 

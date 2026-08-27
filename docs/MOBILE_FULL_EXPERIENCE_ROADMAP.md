@@ -172,14 +172,32 @@ Après M6 :
 - BEFORE → cible → AFTER pour chaque lot visuel ;
 - score global Mobile Digital Crown seulement quand la couverture est suffisante.
 
-**État : certification logicielle obtenue, certification terrain ouverte.** Le candidat `5c1a505c94cb6e168c4c272914530616aa60cabe` a passé le run `33056672222` : backend mobile ✅, frontend fondations + M6 ✅, build ✅, gate agrégé ✅. La CI générale post-merge M6-I #1917 est également verte. Le checkpoint détaillé est `docs/MOBILE_FULL_EXPERIENCE_SOFTWARE_CERTIFICATION.md`.
+**État : certification logicielle + SIM-CERT obtenues, certification terrain physique ouverte.**
 
-Cette preuve ne simule pas Face ID, Touch ID, biométrie Android ni réception Push réelle sur appareil ; elle ne ferme donc pas la certification globale.
+Preuves logicielles canoniques :
+
+- produit mobile certifié `2f9393548e3451d4d9228ab1dc8e034c4045a74c` ;
+- Mobile Full Experience Final Certification #3 / run `33097867532` ✅ SUCCESS ;
+- CI générale post-intégration produit #1944 / run `33099278506` ✅ SUCCESS ;
+- checkpoint détaillé : `docs/MOBILE_FULL_EXPERIENCE_SOFTWARE_CERTIFICATION.md`.
+
+Preuve simulée complémentaire :
+
+- SIM-CERT candidat `1cf26729223b6ecee5ce886d218ef33550e9a6fc` ;
+- Mobile OS Simulation Certification #4 / run `33110537395` ✅ SUCCESS ;
+- WebAuthn exact-origin `https://digitalcrown.local:5173` ✅ ;
+- iOS Simulator / MobileSafari ✅ ;
+- Android Emulator / Chrome / fingerprint channel ✅ ;
+- aggregate gate ✅ ;
+- intégration PR #284 → `master@222beb22f3be983655c5209386a2a9b787914c13` ;
+- détail : `docs/MOBILE_FULL_EXPERIENCE_SIM_CERT.md`.
+
+Ces preuves ne certifient pas Face ID, Touch ID, biométrie Android physique ni réception Push réelle sur appareil verrouillé/fermé. Elles ne ferment donc pas la certification globale.
 
 ## Ordre canonique restant
 
-1. Certification terrain sur vrai iPhone + Android, incluant biométrie réelle, réception Push réelle et parcours critiques finaux.
-2. Closeout global Mobile Full Experience seulement après validation de ces gates.
+1. Certification terrain sur vrai iPhone + Android, incluant biométrie réelle, réception Push réelle, offline/reconnect, révocation et parcours critiques finaux.
+2. Closeout global Mobile Full Experience seulement après validation de ces gates, absence de P0/P1 et cohérence documentaire finale.
 
 ## Avancement
 
