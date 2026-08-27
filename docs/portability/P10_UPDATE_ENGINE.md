@@ -43,6 +43,10 @@ The HTTP health gate is restricted to loopback. Git metadata, installer display 
 
 The Windows candidate uses an external PowerShell worker contract, intentionally outside the installed program directory. It is still **not wired into production apply**.
 
+### Native shell requirement
+
+The worker targets **Windows PowerShell 5.1 (`powershell.exe`)**, the Windows-integrated shell, and does not require separately installed PowerShell 7 (`pwsh.exe`). The worker source is constrained to the Windows PowerShell 5.1/.NET Framework-compatible surface. CI routes the unchanged three child-worker drills through the native `powershell.exe`, asserts the reported runtime is 5.1, and rejects a regression back to `#requires -Version 7.0` or `Path.IsPathFullyQualified`.
+
 Before the installer can mutate anything, the worker must:
 
 1. require `platform=windows`, `worker_contract=windows-inno-v1`, `status=scheduled` and `apply_certified=true`;

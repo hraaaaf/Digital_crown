@@ -1,4 +1,4 @@
-#requires -Version 7.0
+#requires -Version 5.1
 [CmdletBinding()]
 param(
     [Parameter(Mandatory = $true)]
@@ -461,7 +461,7 @@ function Validate-Job {
     }
 
     $installDir = Normalize-Path ([string]$job.install_dir)
-    if (-not [IO.Path]::IsPathFullyQualified($installDir)) {
+    if (-not [IO.Path]::IsPathRooted($installDir)) {
         throw "UPDATE_WINDOWS_INSTALL_DIR_INVALID"
     }
     Assert-NoPathOverlap $installDir $script:JobDir
