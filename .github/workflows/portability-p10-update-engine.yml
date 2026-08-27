@@ -5,13 +5,17 @@ on:
     paths:
       - "backend/services/update_engine.py"
       - "backend/services/update_post_install.py"
+      - "backend/services/update_db_rollback.py"
       - "backend/tests/test_update_engine.py"
       - "backend/tests/test_update_post_install.py"
+      - "backend/tests/test_update_db_rollback.py"
       - "run.py"
       - "DigitalCrown.spec"
       - "scripts/p10_update_contract_check.py"
       - "scripts/windows_update_worker.ps1"
+      - "scripts/windows_update_worker_core.ps1"
       - "scripts/p10_windows_worker_ci.ps1"
+      - "scripts/p10_windows_db_rollback_ci.ps1"
       - "docs/portability/P10_UPDATE_ENGINE.md"
       - ".github/workflows/portability-p10-update-engine.yml"
   workflow_dispatch:
@@ -31,11 +35,11 @@ jobs:
       - name: Install targeted dependencies
         run: python -m pip install --disable-pip-version-check pytest cryptography sqlalchemy python-dotenv
       - name: Compile P10
-        run: python -m py_compile backend/services/update_engine.py backend/services/update_post_install.py backend/tests/test_update_engine.py backend/tests/test_update_post_install.py scripts/p10_update_contract_check.py
+        run: python -m py_compile run.py backend/services/update_engine.py backend/services/update_post_install.py backend/services/update_db_rollback.py backend/tests/test_update_engine.py backend/tests/test_update_post_install.py backend/tests/test_update_db_rollback.py scripts/p10_update_contract_check.py
       - name: Static contract
         run: python scripts/p10_update_contract_check.py
-      - name: Secure-core and post-install truth tests
-        run: python -m pytest backend/tests/test_update_engine.py backend/tests/test_update_post_install.py -q --noconftest
+      - name: Secure-core, post-install and DB rollback tests
+        run: python -m pytest backend/tests/test_update_engine.py backend/tests/test_update_post_install.py backend/tests/test_update_db_rollback.py -q --noconftest
 
   windows-worker:
     runs-on: windows-2025
@@ -78,10 +82,9 @@ jobs:
             throw "Windows PowerShell 5.1 Get-FileHash unavailable"
           }
 
-          # The existing deterministic harness invokes a command named `pwsh` for
-          # child workers. Put a shim first on PATH so every child worker actually
-          # executes with the native Windows PowerShell 5.1 binary, without changing
-          # the test scenarios themselves.
+          # The deterministic core harness invokes a command named `pwsh` for child
+          # workers. Keep its scenarios unchanged while routing the public
+          # orchestrator through native Windows PowerShell 5.1.
           $shimDir = Join-Path $env:RUNNER_TEMP 'dc-p10-ps51-shim'
           New-Item -ItemType Directory -Force $shimDir | Out-Null
           $shim = Join-Path $shimDir 'pwsh.cmd'
@@ -94,10 +97,13 @@ jobs:
           }
 
           ./scripts/p10_windows_worker_ci.ps1
-          # The rollback drill intentionally launches a child worker that exits 2.
-          # GitHub's pwsh wrapper propagates stale LASTEXITCODE even when the harness
-          # has verified that exit code as expected, so normalize only after the
-          # harness returns normally. Any terminating harness error stops before here.
+          if ($LASTEXITCODE -notin @(0, 2)) {
+            throw "Windows worker core harness failed: $LASTEXITCODE"
+          }
+          ./scripts/p10_windows_db_rollback_ci.ps1
+          if ($LASTEXITCODE -ne 0) {
+            throw "Windows DB rollback bridge harness failed: $LASTEXITCODE"
+          }
           $global:LASTEXITCODE = 0
           Write-Host "P10_WINDOWS_POWERSHELL=5.1"
           exit 0

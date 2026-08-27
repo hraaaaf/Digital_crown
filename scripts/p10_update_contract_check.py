@@ -3,8 +3,11 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 SERVICE = ROOT / "backend" / "services" / "update_engine.py"
 POST_INSTALL = ROOT / "backend" / "services" / "update_post_install.py"
-WINDOWS_WORKER = ROOT / "scripts" / "windows_update_worker.ps1"
+DB_ROLLBACK = ROOT / "backend" / "services" / "update_db_rollback.py"
+WINDOWS_ORCHESTRATOR = ROOT / "scripts" / "windows_update_worker.ps1"
+WINDOWS_WORKER_CORE = ROOT / "scripts" / "windows_update_worker_core.ps1"
 WINDOWS_WORKER_CI = ROOT / "scripts" / "p10_windows_worker_ci.ps1"
+WINDOWS_DB_ROLLBACK_CI = ROOT / "scripts" / "p10_windows_db_rollback_ci.ps1"
 WORKFLOW = ROOT / ".github" / "workflows" / "portability-p10-update-engine.yml"
 RUN = ROOT / "run.py"
 SPEC = ROOT / "DigitalCrown.spec"
@@ -19,8 +22,11 @@ def require(condition: bool, message: str) -> None:
 def main() -> None:
     service = SERVICE.read_text(encoding="utf-8")
     post_install = POST_INSTALL.read_text(encoding="utf-8")
-    worker = WINDOWS_WORKER.read_text(encoding="utf-8")
+    db_rollback = DB_ROLLBACK.read_text(encoding="utf-8")
+    orchestrator = WINDOWS_ORCHESTRATOR.read_text(encoding="utf-8")
+    worker_core = WINDOWS_WORKER_CORE.read_text(encoding="utf-8")
     worker_ci = WINDOWS_WORKER_CI.read_text(encoding="utf-8")
+    db_rollback_ci = WINDOWS_DB_ROLLBACK_CI.read_text(encoding="utf-8")
     workflow = WORKFLOW.read_text(encoding="utf-8")
     run = RUN.read_text(encoding="utf-8")
     spec = SPEC.read_text(encoding="utf-8")
@@ -48,8 +54,14 @@ def main() -> None:
         "DIGITALCROWN_PACKAGE_SELF_TEST_REPORT",
         '"version":',
         '"scientific_capabilities": "FAIL_CLOSED_NO_WEIGHTS"',
+        "--update-db-rollback-worker",
+        "UpdateDatabaseRollback.run",
     ):
-        require(marker in run, f"P10 packaged self-test dependency missing: {marker}")
+        require(marker in run, f"P10 packaged runtime dependency missing: {marker}")
+    require(
+        "_setup_frozen_logging()\n_maybe_run_update_db_rollback_worker()\n_first_boot_bootstrap()" in run,
+        "P10 DB rollback worker must run before first-boot secret generation",
+    )
     require("(_required('VERSION'), '.')" in spec, "P10 requires bundled canonical VERSION")
 
     for marker in (
@@ -64,6 +76,33 @@ def main() -> None:
         "verify_post_install",
     ):
         require(marker in post_install, f"P10 post-install truth missing marker: {marker}")
+
+    for marker in (
+        "UPDATE_DB_ROLLBACK_NOT_AUTHORIZED",
+        'str(job.get("platform") or "").lower() != "windows"',
+        'str(job.get("worker_contract") or "") != "windows-inno-v1"',
+        'job.get("apply_certified") is not True',
+        'str(job.get("status") or "") != "database_rolling_back"',
+        'str(job.get("rollback_failure_reason") or "")',
+        '!= "UPDATE_WINDOWS_PACKAGE_ROLLBACK_HEALTH_FAILED"',
+        'str(job.get("database_rollback") or "") != "running"',
+        "UPDATE_DB_ROLLBACK_POSTGRES_UNSUPPORTED",
+        "UPDATE_DB_ROLLBACK_BACKUP_KEY_MISSING",
+        "UPDATE_DB_ROLLBACK_SQLCIPHER_KEY_MISSING",
+        "UPDATE_DB_ROLLBACK_RESCUE_SHA256_MISMATCH",
+        ".db.enc",
+        'user_data / "backup.key"',
+        "BackupService._verify_sqlcipher_file(temp, passphrase)",
+        "BackupService._verify_sqlcipher_file(target, passphrase)",
+        'job_dir / "rescue" / "pre-db-rollback"',
+        "os.replace(temp, target)",
+        "UPDATE_DB_ROLLBACK_RESTORED_DB_INVALID",
+        "UPDATE_DB_ROLLBACK_ORIGINAL_RESTORE_VERIFY_FAILED",
+        "UPDATE_DB_ROLLBACK_ORIGINAL_RESTORE_INVALID",
+        '"db-rollback-report.json"',
+    ):
+        require(marker in db_rollback, f"P10 DB rollback bridge missing marker: {marker}")
+    require("_get_or_create_key" not in db_rollback, "P10 DB rollback must never create a replacement backup key")
 
     for marker in (
         "windows-inno-v1",
@@ -91,10 +130,24 @@ def main() -> None:
         '$ErrorCode`:COUNT:',
         '$ErrorCode`:ENTRY:',
     ):
-        require(marker in worker, f"P10 Windows worker missing marker: {marker}")
-    require("param([int]$Pid" not in worker, "P10 Windows worker must not shadow PowerShell automatic $PID")
-    require("#requires -Version 7.0" not in worker, "P10 Windows worker must not require PowerShell 7")
-    require("IsPathFullyQualified" not in worker, "P10 Windows worker must stay compatible with Windows PowerShell 5.1")
+        require(marker in worker_core, f"P10 Windows worker core missing marker: {marker}")
+    require("param([int]$Pid" not in worker_core, "P10 Windows worker core must not shadow PowerShell automatic $PID")
+    require("#requires -Version 7.0" not in worker_core, "P10 Windows worker core must not require PowerShell 7")
+    require("IsPathFullyQualified" not in worker_core, "P10 Windows worker core must stay compatible with Windows PowerShell 5.1")
+
+    for marker in (
+        "windows_update_worker_core.ps1",
+        "UPDATE_WINDOWS_PACKAGE_ROLLBACK_HEALTH_FAILED",
+        'database_rollback -eq "required_but_not_wired"',
+        '"database_rolling_back"',
+        '"--update-db-rollback-worker"',
+        '"database_rollback" "passed"',
+        '"database_rollback" "failed"',
+        "UPDATE_WINDOWS_DB_ROLLBACK_RUNTIME_HEALTH_FAILED",
+        "DigitalCrown.exe",
+    ):
+        require(marker in orchestrator, f"P10 Windows DB rollback orchestrator missing marker: {marker}")
+    require("Fernet" not in orchestrator, "P10 PowerShell orchestrator must never decrypt cabinet backups")
 
     for marker in (
         "P10_WINDOWS_WORKER_CONTRACT=SUCCESS",
@@ -108,12 +161,25 @@ def main() -> None:
         require(marker in worker_ci, f"P10 Windows worker CI missing drill: {marker}")
 
     for marker in (
+        "P10_WINDOWS_DB_ROLLBACK_BRIDGE=SUCCESS",
+        "UPDATE_WINDOWS_PACKAGE_ROLLBACK_HEALTH_FAILED",
+        "UPDATE_WINDOWS_UNINSTALL_REGISTRY_IMPORT_FAILED",
+        'ExpectedExitCode 2',
+        'ExpectedExitCode 3',
+        'database_rollback -ne "passed"',
+        'database_rollback -ne "failed"',
+        "db-cli-invoked",
+    ):
+        require(marker in db_rollback_ci, f"P10 Windows DB rollback CI missing drill: {marker}")
+
+    for marker in (
         "Windows PowerShell 5.1 external worker contract",
         "WindowsPowerShell\\v1.0\\powershell.exe",
         "P10_WINDOWS_POWERSHELL=5.1",
-        "dc-p10-ps51-shim",
+        "p10_windows_db_rollback_ci.ps1",
+        "test_update_db_rollback.py",
     ):
-        require(marker in workflow, f"P10 Windows PowerShell 5.1 workflow missing marker: {marker}")
+        require(marker in workflow, f"P10 workflow missing marker: {marker}")
 
     require("private key" in doc.lower(), "P10 doc must state private-key handling")
     require("0 EP" in doc, "P10 remains open until packaged apply/rollback certification")
@@ -122,9 +188,10 @@ def main() -> None:
     require("/health" in doc, "P10 doc must state runtime health proof")
     require("program snapshot" in doc.lower(), "P10 doc must state Windows program rollback")
     require("uninstall registry" in doc.lower(), "P10 doc must state Windows uninstall metadata rollback")
-    require("required_but_not_wired" in doc, "P10 doc must state DB rollback boundary")
     require("Windows PowerShell 5.1" in doc, "P10 doc must state native Windows PowerShell 5.1 runtime")
-    print("P10_UPDATE_CONTRACT=SUCCESS post_install_truth=READY windows_worker=PS51_CONTRACT_READY apply=BLOCKED")
+    require("old packaged executable" in doc.lower(), "P10 doc must state old-package DB rollback ownership")
+    require("PostgreSQL" in doc, "P10 doc must state PostgreSQL DB rollback boundary")
+    print("P10_UPDATE_CONTRACT=SUCCESS post_install_truth=READY windows_worker=PS51_DB_ROLLBACK_READY apply=BLOCKED")
 
 
 if __name__ == "__main__":

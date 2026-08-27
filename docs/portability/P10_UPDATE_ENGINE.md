@@ -1,6 +1,6 @@
 # P10 — Cross-platform Update Engine
 
-**Status:** ACTIVE — secure-core + post-install truth + Windows worker contract candidate. **0 EP credited.**
+**Status:** ACTIVE — secure-core + post-install truth + Windows worker + last-resort DB rollback candidate. **0 EP credited.**
 
 ## Goal
 
@@ -45,9 +45,11 @@ The Windows candidate uses an external PowerShell worker contract, intentionally
 
 ### Native shell requirement
 
-The worker targets **Windows PowerShell 5.1 (`powershell.exe`)**, the Windows-integrated shell, and does not require separately installed PowerShell 7 (`pwsh.exe`). The worker source is constrained to the Windows PowerShell 5.1/.NET Framework-compatible surface. CI routes the unchanged three child-worker drills through the native `powershell.exe`, asserts the reported runtime is 5.1, and rejects a regression back to `#requires -Version 7.0` or `Path.IsPathFullyQualified`.
+The worker targets **Windows PowerShell 5.1 (`powershell.exe`)**, the Windows-integrated shell, and does not require separately installed PowerShell 7 (`pwsh.exe`). The worker source is constrained to the Windows PowerShell 5.1/.NET Framework-compatible surface. CI routes the three core child-worker drills through the native `powershell.exe`, asserts the reported runtime is 5.1, and rejects a regression back to `#requires -Version 7.0` or `Path.IsPathFullyQualified`.
 
-Before the installer can mutate anything, the worker must:
+The already-certified mutation/rollback implementation is preserved byte-for-byte as `windows_update_worker_core.ps1`. The public `windows_update_worker.ps1` is a narrow orchestrator around that core. Normal success, pre-apply failure and successful package rollback retain the core exit codes and behavior unchanged.
+
+Before the installer can mutate anything, the core must:
 
 1. require `platform=windows`, `worker_contract=windows-inno-v1`, `status=scheduled` and `apply_certified=true`;
 2. verify the signed installer's exact staged size + SHA-256;
@@ -55,7 +57,7 @@ Before the installer can mutate anything, the worker must:
 4. wait for the parent Digital Crown process to exit;
 5. run the current packaged `--package-self-test` against the exact current version;
 6. reject install trees containing reparse points;
-7. create a verified **program snapshot** with a per-file SHA-256 manifest;
+7. create a verified **program snapshot** with file/directory integrity manifests;
 8. export the matching per-user **uninstall registry** metadata and verify its current `DisplayVersion`.
 
 Only then may it run the silent Inno installer into the already-attested install directory.
@@ -66,21 +68,43 @@ After install it requires:
 - uninstall metadata `DisplayVersion` equal to the target version;
 - a loopback `/health` response with both runtime and DB `ok`.
 
-On post-apply failure, the worker stops the failed runtime, restores the exact program snapshot, imports the previous uninstall registry metadata, proves the old package version again, relaunches it and accepts rollback only if `/health` is healthy. A successful package rollback explicitly records `database_rollback=not_needed`.
+On post-apply failure, the core stops the failed runtime, restores the exact program snapshot, imports the previous uninstall registry metadata, proves the old package version again, relaunches it and accepts rollback only if `/health` is healthy. A successful package rollback explicitly records `database_rollback=not_needed`.
 
-If the old package cannot become healthy again, the worker records `rollback_failed` and `database_rollback=required_but_not_wired`. It does **not** silently decrypt or overwrite the cabinet DB from PowerShell. The database-restore bridge remains a separate P10 gate and will only be invoked when migration rollback genuinely requires it.
+## Last-resort database rollback bridge
 
-The Windows CI contract drills three paths without a full heavyweight package build:
+Database restore is deliberately **not** a generic response to rollback failure. The orchestrator may cross this boundary only when the core has already restored the exact old program and uninstall metadata, but the old runtime still fails health with the exact reason `UPDATE_WINDOWS_PACKAGE_ROLLBACK_HEALTH_FAILED`.
 
-- uncertified apply → blocked before mutation;
-- healthy target → `health_pending`;
-- unhealthy target runtime → exact old program + uninstall metadata restored, old health recovered, DB untouched.
+Only in that state:
+
+1. the orchestrator marks `database_rollback=running`;
+2. it invokes the restored **old packaged executable** with `--update-db-rollback-worker <job.json>`;
+3. PowerShell never receives the backup key and never decrypts cabinet data;
+4. the old executable loads the existing cabinet environment before any first-boot secret generation;
+5. the bridge accepts only the staged `.db.enc` rescue whose SHA-256 matches the immutable job;
+6. the existing `backup.key` is mandatory and is never generated by rollback;
+7. PostgreSQL / `.sql.enc` restores fail closed because local file replacement is not a substitute for `pg_restore` semantics;
+8. the decrypted rescue remains a SQLCipher database and must pass SQLCipher `integrity_check` before replacement;
+9. the current DB/WAL/SHM family is copied and hash-verified into the private job rescue quarantine;
+10. the canonical `clinical_vault.db` is replaced atomically, stale WAL/SHM sidecars are removed, and the restored DB must pass SQLCipher verification again;
+11. if post-replacement verification fails, the pre-rollback DB family is restored;
+12. only after the bridge exits successfully does the orchestrator relaunch the old package and require loopback `/health` with runtime and DB both `ok`.
+
+A registry failure, program snapshot failure, old package self-test failure, missing key, checksum mismatch, PostgreSQL database, invalid SQLCipher rescue or DB-worker failure never broadens the fallback. Those paths remain `rollback_failed` and fail closed.
+
+The Windows CI contract now drills two layers without a heavyweight package build:
+
+- core: uncertified apply → blocked before mutation;
+- core: healthy target → `health_pending`;
+- core: unhealthy target runtime → exact old program + uninstall metadata restored, old health recovered, DB untouched;
+- orchestrator: exact old-package health failure → old binary DB bridge invoked, old health recovered;
+- orchestrator: any non-health rollback failure → DB bridge not invoked;
+- orchestrator: DB bridge failure → rollback remains failed.
 
 ## Packaging boundary
 
 P6/P7 own the exact signed installers/packages and their platform installation semantics. Until those artifacts and the worker integration are certified:
 
-- P10 can authenticate metadata, download/verify an artifact, create a rescue-backed immutable update job, verify an installed package/runtime candidate and exercise the Windows external worker contract;
+- P10 can authenticate metadata, download/verify an artifact, create a rescue-backed immutable update job, verify an installed package/runtime candidate, exercise the Windows external worker and last-resort DB rollback contracts;
 - normal update jobs remain `apply_certified=false`;
 - any attempt to cross the platform-apply boundary fails closed as `UPDATE_PLATFORM_APPLY_NOT_CERTIFIED`.
 
@@ -89,12 +113,13 @@ This is deliberate. A secure updater must not turn an uncertified installer into
 ## Remaining gates before P10 closure
 
 - wire the P6 exact Windows installer to the external worker and certify a real current → next lifecycle;
-- add the DB rollback bridge only for the case where exact package rollback cannot recover old runtime health;
 - P7 exact signed/notarized macOS package certified and wired to update apply;
 - install current → update next → package self-test exact `VERSION` + runtime `/health`;
-- migration failure and application-start failure drills;
+- migration failure and application-start failure drills against real packaged artifacts;
 - interrupted download/apply recovery;
 - production public-key pinning plus signing-key rotation/revocation procedure;
 - Windows + macOS clean-machine certification.
+
+The first real package used as an auto-update source must already contain the DB rollback worker CLI, so its restored old executable owns rescue decryption and SQLCipher validation.
 
 No Vercel.
