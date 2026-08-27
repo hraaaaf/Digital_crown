@@ -2,8 +2,11 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 SERVICE = ROOT / "backend" / "services" / "update_engine.py"
+APPLY_SERVICE = ROOT / "backend" / "services" / "update_apply.py"
 POST_INSTALL = ROOT / "backend" / "services" / "update_post_install.py"
 DB_ROLLBACK = ROOT / "backend" / "services" / "update_db_rollback.py"
+UPDATE_ROUTER = ROOT / "backend" / "routers" / "update_portability_p10.py"
+ROUTERS_INIT = ROOT / "backend" / "routers" / "__init__.py"
 WINDOWS_ORCHESTRATOR = ROOT / "scripts" / "windows_update_worker.ps1"
 WINDOWS_WORKER_CORE = ROOT / "scripts" / "windows_update_worker_core.ps1"
 WINDOWS_WORKER_CI = ROOT / "scripts" / "p10_windows_worker_ci.ps1"
@@ -21,8 +24,11 @@ def require(condition: bool, message: str) -> None:
 
 def main() -> None:
     service = SERVICE.read_text(encoding="utf-8")
+    apply_service = APPLY_SERVICE.read_text(encoding="utf-8")
     post_install = POST_INSTALL.read_text(encoding="utf-8")
     db_rollback = DB_ROLLBACK.read_text(encoding="utf-8")
+    update_router = UPDATE_ROUTER.read_text(encoding="utf-8")
+    routers_init = ROUTERS_INIT.read_text(encoding="utf-8")
     orchestrator = WINDOWS_ORCHESTRATOR.read_text(encoding="utf-8")
     worker_core = WINDOWS_WORKER_CORE.read_text(encoding="utf-8")
     worker_ci = WINDOWS_WORKER_CI.read_text(encoding="utf-8")
@@ -50,6 +56,46 @@ def main() -> None:
         require(marker in service, f"P10 update engine missing marker: {marker}")
 
     for marker in (
+        'CONFIRMATION_TOKEN = "METTRE_A_JOUR"',
+        "bool(getattr(sys, \"frozen\", False))",
+        'os.environ.get("ENVIRONMENT", "").strip().lower() == "cabinet"',
+        "adapter.is_windows",
+        "windows-inno-v1",
+        "windows_update_worker.ps1",
+        "windows_update_worker_core.ps1",
+        "_stage_windows_workers",
+        "_verify_staged_workers",
+        "Get-AuthenticodeSignature",
+        "TimeStamperCertificate",
+        'status != "Valid"',
+        "UPDATE_WINDOWS_AUTHENTICODE_TIMESTAMP_REQUIRED",
+        "apply_certified=True",
+        'job["status"] = "scheduled"',
+        "_launch_detached_worker",
+        '"-JobPath"',
+        '"-ParentPid"',
+        "detached_process_kwargs",
+        "_terminate_parent_after_response",
+        "os._exit(0)",
+    ):
+        require(marker in apply_service, f"P10 production apply wiring missing marker: {marker}")
+    require("backup.key" not in apply_service, "P10 apply launcher must not pass backup secrets")
+    require("Fernet" not in apply_service, "P10 apply launcher must not decrypt cabinet backups")
+
+    for marker in (
+        '@router.post("/update/{job_id}/apply")',
+        '@router.get("/update/{job_id}/status")',
+        "require_permission(\"admin\")",
+        "UPDATE_APPLY_REQUESTED",
+        "JSONResponse(status_code=202",
+    ):
+        require(marker in update_router, f"P10 update API missing marker: {marker}")
+    require(
+        "admin.router.include_router(update_portability_p10.router)" in routers_init,
+        "P10 update API must be mounted on the authenticated admin router",
+    )
+
+    for marker in (
         "--package-self-test",
         "DIGITALCROWN_PACKAGE_SELF_TEST_REPORT",
         '"version":',
@@ -63,6 +109,8 @@ def main() -> None:
         "P10 DB rollback worker must run before first-boot secret generation",
     )
     require("(_required('VERSION'), '.')" in spec, "P10 requires bundled canonical VERSION")
+    require("(_required('scripts/windows_update_worker.ps1'), 'scripts')" in spec, "P10 Windows package must bundle update orchestrator")
+    require("(_required('scripts/windows_update_worker_core.ps1'), 'scripts')" in spec, "P10 Windows package must bundle update worker core")
 
     for marker in (
         "verify_package_self_test",
@@ -178,6 +226,9 @@ def main() -> None:
         "P10_WINDOWS_POWERSHELL=5.1",
         "p10_windows_db_rollback_ci.ps1",
         "test_update_db_rollback.py",
+        "test_update_apply.py",
+        "backend/services/update_apply.py",
+        "backend/routers/update_portability_p10.py",
     ):
         require(marker in workflow, f"P10 workflow missing marker: {marker}")
 
@@ -191,7 +242,7 @@ def main() -> None:
     require("Windows PowerShell 5.1" in doc, "P10 doc must state native Windows PowerShell 5.1 runtime")
     require("old packaged executable" in doc.lower(), "P10 doc must state old-package DB rollback ownership")
     require("PostgreSQL" in doc, "P10 doc must state PostgreSQL DB rollback boundary")
-    print("P10_UPDATE_CONTRACT=SUCCESS post_install_truth=READY windows_worker=PS51_DB_ROLLBACK_READY apply=BLOCKED")
+    print("P10_UPDATE_CONTRACT=SUCCESS post_install_truth=READY windows_worker=PS51_DB_ROLLBACK_READY production_wiring=FAIL_CLOSED")
 
 
 if __name__ == "__main__":
