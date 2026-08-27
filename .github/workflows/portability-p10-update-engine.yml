@@ -10,6 +10,8 @@ on:
       - "run.py"
       - "DigitalCrown.spec"
       - "scripts/p10_update_contract_check.py"
+      - "scripts/windows_update_worker.ps1"
+      - "scripts/p10_windows_worker_ci.ps1"
       - "docs/portability/P10_UPDATE_ENGINE.md"
       - ".github/workflows/portability-p10-update-engine.yml"
   workflow_dispatch:
@@ -34,3 +36,22 @@ jobs:
         run: python scripts/p10_update_contract_check.py
       - name: Secure-core and post-install truth tests
         run: python -m pytest backend/tests/test_update_engine.py backend/tests/test_update_post_install.py -q --noconftest
+
+  windows-worker:
+    runs-on: windows-2025
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "8.0.x"
+      - name: Windows external worker contract
+        shell: pwsh
+        run: |
+          ./scripts/p10_windows_worker_ci.ps1
+          # The rollback drill intentionally launches a child worker that exits 2.
+          # GitHub's pwsh wrapper propagates stale LASTEXITCODE even when the harness
+          # has verified that exit code as expected, so normalize only after the
+          # harness returns normally. Any terminating harness error stops before here.
+          $global:LASTEXITCODE = 0
+          exit 0
