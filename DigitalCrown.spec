@@ -26,6 +26,8 @@ datas = [
     (_required('backend/static/assets'), 'backend/static/assets'),
     (_required('backend/data'), 'backend/data'),
     (_required('backend/scientific_assets.json'), 'backend'),
+    (_required('scripts/windows_update_worker.ps1'), 'scripts'),
+    (_required('scripts/windows_update_worker_core.ps1'), 'scripts'),
 ]
 
 version_file = _required('build/windows-version-info.txt') if IS_WINDOWS else None
@@ -45,7 +47,8 @@ a = Analysis(
         'sqlcipher3', 'reportlab', 'weasyprint', 'qrcode', 'torch',
         'passlib.handlers', 'passlib.handlers.bcrypt',
         'jose.backends', 'jose.backends.cryptography_backend', 'jose.backends.native',
-        'backend.services.sync_manager', 'backend.seed_templates', 'backend.seed_user', 'backend.seed_clinical'
+        'backend.services.sync_manager', 'backend.services.update_windows_apply',
+        'backend.seed_templates', 'backend.seed_user', 'backend.seed_clinical'
     ],
     hookspath=[], hooksconfig={}, runtime_hooks=[], excludes=[],
     win_no_prefer_redirects=False, win_private_assemblies=False,

@@ -139,6 +139,12 @@ def _setup_frozen_logging() -> None:
     sys.excepthook = _log_uncaught_exception
 
 
+def _load_update_worker_environment() -> None:
+    from backend.env_loader import load_backend_env
+
+    load_backend_env(override=False)
+
+
 def _maybe_run_update_db_rollback_worker() -> None:
     if len(sys.argv) < 2 or sys.argv[1] != "--update-db-rollback-worker":
         return
@@ -149,12 +155,66 @@ def _maybe_run_update_db_rollback_worker() -> None:
     parser.add_argument("--update-db-rollback-worker", dest="job_path", required=True)
     args = parser.parse_args(sys.argv[1:])
 
-    from backend.env_loader import load_backend_env
-
-    load_backend_env(override=False)
+    _load_update_worker_environment()
     from backend.services.update_db_rollback import UpdateDatabaseRollback
 
     raise SystemExit(UpdateDatabaseRollback.run(Path(args.job_path)))
+
+
+def _write_cli_report(env_name: str, payload: dict) -> None:
+    report_path = os.environ.get(env_name)
+    if not report_path:
+        return
+    report = Path(report_path)
+    report.parent.mkdir(parents=True, exist_ok=True)
+    report.write_text(json.dumps(payload, sort_keys=True), encoding="utf-8")
+
+
+def _maybe_prepare_signed_windows_update() -> None:
+    if len(sys.argv) < 2 or sys.argv[1] != "--prepare-signed-windows-update":
+        return
+
+    import argparse
+
+    parser = argparse.ArgumentParser(add_help=False)
+    parser.add_argument("--prepare-signed-windows-update", dest="manifest_path", required=True)
+    parser.add_argument("--artifact", dest="artifact_path", required=True)
+    args = parser.parse_args(sys.argv[1:])
+
+    _load_update_worker_environment()
+    from backend.services.update_windows_apply import UpdateWindowsApply
+
+    job = UpdateWindowsApply.prepare_signed(Path(args.manifest_path), Path(args.artifact_path))
+    payload = {"status": "ok", "job_id": job["job_id"], "version": job["version"]}
+    _write_cli_report("DIGITALCROWN_UPDATE_PREPARE_REPORT", payload)
+    print("P10_WINDOWS_PREPARE=" + json.dumps(payload, sort_keys=True))
+    raise SystemExit(0)
+
+
+def _maybe_schedule_windows_update() -> None:
+    if len(sys.argv) < 2 or sys.argv[1] != "--schedule-windows-update":
+        return
+
+    import argparse
+
+    parser = argparse.ArgumentParser(add_help=False)
+    parser.add_argument("--schedule-windows-update", dest="job_id", required=True)
+    parser.add_argument("--parent-pid", dest="parent_pid", type=int, required=True)
+    args = parser.parse_args(sys.argv[1:])
+
+    _load_update_worker_environment()
+    from backend.services.update_windows_apply import UpdateWindowsApply
+
+    scheduled = UpdateWindowsApply.schedule(args.job_id, args.parent_pid)
+    payload = {
+        "status": "scheduled",
+        "job_id": scheduled["job_id"],
+        "version": scheduled["version"],
+        "worker_pid": scheduled["worker_pid"],
+    }
+    _write_cli_report("DIGITALCROWN_UPDATE_SCHEDULE_REPORT", payload)
+    print("P10_WINDOWS_SCHEDULE=" + json.dumps(payload, sort_keys=True))
+    raise SystemExit(0)
 
 
 def _maybe_run_guided_restore_worker() -> None:
@@ -175,6 +235,8 @@ def _maybe_run_guided_restore_worker() -> None:
 
 _setup_frozen_logging()
 _maybe_run_update_db_rollback_worker()
+_maybe_prepare_signed_windows_update()
+_maybe_schedule_windows_update()
 _first_boot_bootstrap()
 _maybe_run_guided_restore_worker()
 

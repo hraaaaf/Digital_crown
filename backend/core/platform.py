@@ -7,7 +7,7 @@ import tempfile
 import webbrowser
 from collections.abc import Mapping
 from pathlib import Path
-from typing import Any, BinaryIO
+from typing import Any, BinaryIO, Sequence
 
 
 APP_NAME = "DigitalCrown"
@@ -185,6 +185,22 @@ class PlatformAdapter:
         else:
             kwargs["start_new_session"] = True
         return kwargs
+
+    def windows_powershell_executable(self) -> Path:
+        """Resolve native Windows PowerShell 5.1 inside the OS integration boundary."""
+        if not self.is_windows:
+            raise RuntimeError("WINDOWS_POWERSHELL_PLATFORM_REQUIRED")
+        windows_root = self._override_path("WINDIR") or Path("C:/Windows")
+        executable = windows_root / "System32" / "WindowsPowerShell" / "v1.0" / "powershell.exe"
+        if not executable.is_file():
+            raise FileNotFoundError("WINDOWS_POWERSHELL_51_MISSING")
+        return executable
+
+    def launch_detached(self, command: Sequence[str]) -> subprocess.Popen[Any]:
+        """Launch an OS-detached child through the canonical process boundary."""
+        if not command:
+            raise ValueError("DETACHED_COMMAND_REQUIRED")
+        return subprocess.Popen(list(command), **self.detached_process_kwargs())
 
     def try_acquire_process_lock(self, path: str | Path) -> PlatformFileLock | None:
         """Acquire a non-blocking process lock, returning None when already held."""
