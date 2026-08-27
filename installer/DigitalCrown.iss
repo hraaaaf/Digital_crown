@@ -22,6 +22,7 @@ OutputBaseFilename=DigitalCrownSetup-{#MyAppVersion}
 Compression=zip
 SolidCompression=no
 WizardStyle=modern
+UninstallDisplayName={#MyAppName}
 UninstallDisplayIcon={app}\{#MyAppExeName}
 CloseApplications=yes
 RestartApplications=no

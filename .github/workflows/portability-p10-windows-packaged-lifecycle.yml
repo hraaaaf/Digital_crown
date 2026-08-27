@@ -1,0 +1,167 @@
+name: Portability P10 Windows Packaged Lifecycle
+
+on:
+  pull_request:
+    types: [opened, synchronize]
+    paths:
+      - "VERSION"
+      - "run.py"
+      - "DigitalCrown.spec"
+      - "backend/core/platform.py"
+      - "backend/services/update_engine.py"
+      - "backend/services/update_windows_apply.py"
+      - "backend/services/update_db_rollback.py"
+      - "backend/services/backup_service.py"
+      - "backend/tests/test_update_windows_apply.py"
+      - "scripts/windows_update_worker.ps1"
+      - "scripts/windows_update_worker_core.ps1"
+      - "scripts/p10_windows_packaged_lifecycle_check.py"
+      - "scripts/p10_windows_packaged_lifecycle_ci.ps1"
+      - "installer/DigitalCrown.iss"
+      - "backend/requirements.txt"
+      - "backend/requirements-p6-windows.txt"
+      - "frontend/**"
+      - "docs/portability/P10_WINDOWS_PACKAGED_LIFECYCLE.md"
+      - ".github/workflows/portability-p10-windows-packaged-lifecycle.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: portability-p10-packaged-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  PYTHON_VERSION: "3.12"
+  NODE_VERSION: "20"
+  INNO_SETUP_RELEASE: "is-6_7_3"
+  INNO_SETUP_URL: "https://github.com/jrsoftware/issrc/releases/download/is-6_7_3/innosetup-6.7.3.exe"
+  INNO_SETUP_SHA256: "9c73c3bae7ed48d44112a0f48e66742c00090bdb5bef71d9d3c056c66e97b732"
+
+jobs:
+  windows-packaged-lifecycle:
+    runs-on: windows-2025
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Static packaged lifecycle contract
+        run: python scripts/p10_windows_packaged_lifecycle_check.py
+
+      - name: Install frontend dependencies and build once
+        shell: pwsh
+        run: |
+          npm --prefix frontend ci
+          npm --prefix frontend run build
+
+      - name: Install Python packaging toolchain
+        shell: pwsh
+        run: |
+          python -m pip install --no-cache-dir -r backend/requirements-p6-windows.txt
+          python -m pip install --disable-pip-version-check pytest cryptography
+          python -m pip check
+
+      - name: Targeted scheduler tests
+        run: python -m pytest backend/tests/test_update_windows_apply.py -q --noconftest
+
+      - name: Install exact Inno Setup 6.7.3
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          $installer = Join-Path $env:RUNNER_TEMP "innosetup-6.7.3.exe"
+          $innoDir = Join-Path $env:RUNNER_TEMP "InnoSetup-6.7.3"
+          Invoke-WebRequest -Uri $env:INNO_SETUP_URL -OutFile $installer
+          $actual = (Get-FileHash -Algorithm SHA256 $installer).Hash.ToLowerInvariant()
+          if ($actual -ne $env:INNO_SETUP_SHA256) { throw "Inno Setup SHA256 mismatch: $actual" }
+          $signature = Get-AuthenticodeSignature $installer
+          if ($signature.Status -ne 'Valid') { throw "Inno Setup Authenticode invalid: $($signature.Status)" }
+          $proc = Start-Process -FilePath $installer -ArgumentList @('/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART','/SP-',"/DIR=$innoDir") -Wait -PassThru
+          if ($proc.ExitCode -ne 0) { throw "Inno Setup install failed: $($proc.ExitCode)" }
+          $iscc = Join-Path $innoDir "ISCC.exe"
+          if (-not (Test-Path $iscc)) { throw "ISCC.exe missing" }
+          "P10_ISCC=$iscc" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          Write-Host "P10_INNO_SETUP=SUCCESS release=$env:INNO_SETUP_RELEASE sha256=$actual"
+
+      - name: Build current packaged installer
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          $current = (Get-Content VERSION -Raw).Trim()
+          "P10_CURRENT_VERSION=$current" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          python scripts/generate_windows_version_info.py --output build/windows-version-info.txt
+          python -m PyInstaller --noconfirm --clean DigitalCrown.spec
+          if ($LASTEXITCODE -ne 0) { throw "current PyInstaller failed" }
+
+          $selfReport = Join-Path $env:RUNNER_TEMP "p10-current-build-self-test.json"
+          $env:DIGITALCROWN_PACKAGE_SELF_TEST_REPORT = $selfReport
+          $self = Start-Process -FilePath ".\dist\DigitalCrown\DigitalCrown.exe" -ArgumentList "--package-self-test" -WorkingDirectory ".\dist\DigitalCrown" -Wait -PassThru
+          Remove-Item Env:DIGITALCROWN_PACKAGE_SELF_TEST_REPORT -ErrorAction SilentlyContinue
+          if ($self.ExitCode -ne 0) { throw "current package self-test failed" }
+
+          & $env:P10_ISCC "/DMyAppVersion=$current" installer\DigitalCrown.iss
+          if ($LASTEXITCODE -ne 0) { throw "current Inno build failed" }
+          $setup = Resolve-Path "dist_installer\DigitalCrownSetup-$current.exe"
+          $dest = Join-Path $env:RUNNER_TEMP "p10-current-installer.exe"
+          Copy-Item $setup $dest -Force
+          "P10_CURRENT_INSTALLER=$dest" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+
+      - name: Build next packaged installer
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          $parts = $env:P10_CURRENT_VERSION.Split('.')
+          if ($parts.Count -ne 3) { throw "current version is not semver" }
+          $next = "{0}.{1}.{2}" -f [int]$parts[0],[int]$parts[1],([int]$parts[2] + 1)
+          "P10_NEXT_VERSION=$next" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          Set-Content -LiteralPath VERSION -Value $next -NoNewline
+
+          Remove-Item -Recurse -Force dist,dist_installer,build\DigitalCrown -ErrorAction SilentlyContinue
+          python scripts/generate_windows_version_info.py --output build/windows-version-info.txt
+          python -m PyInstaller --noconfirm --clean DigitalCrown.spec
+          if ($LASTEXITCODE -ne 0) { throw "next PyInstaller failed" }
+
+          $selfReport = Join-Path $env:RUNNER_TEMP "p10-next-build-self-test.json"
+          $env:DIGITALCROWN_PACKAGE_SELF_TEST_REPORT = $selfReport
+          $self = Start-Process -FilePath ".\dist\DigitalCrown\DigitalCrown.exe" -ArgumentList "--package-self-test" -WorkingDirectory ".\dist\DigitalCrown" -Wait -PassThru
+          Remove-Item Env:DIGITALCROWN_PACKAGE_SELF_TEST_REPORT -ErrorAction SilentlyContinue
+          if ($self.ExitCode -ne 0) { throw "next package self-test failed" }
+
+          & $env:P10_ISCC "/DMyAppVersion=$next" installer\DigitalCrown.iss
+          if ($LASTEXITCODE -ne 0) { throw "next Inno build failed" }
+          $setup = Resolve-Path "dist_installer\DigitalCrownSetup-$next.exe"
+          $dest = Join-Path $env:RUNNER_TEMP "p10-next-installer.exe"
+          Copy-Item $setup $dest -Force
+          "P10_NEXT_INSTALLER=$dest" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+
+          Set-Content -LiteralPath VERSION -Value $env:P10_CURRENT_VERSION -NoNewline
+
+      - name: Real current to next packaged lifecycle
+        shell: pwsh
+        run: |
+          $proof = Join-Path $PWD "build\p10-packaged-proof"
+          $env:P10_PACKAGED_PROOF_DIR = $proof
+          ./scripts/p10_windows_packaged_lifecycle_ci.ps1 `
+            -CurrentInstaller $env:P10_CURRENT_INSTALLER `
+            -NextInstaller $env:P10_NEXT_INSTALLER `
+            -CurrentVersion $env:P10_CURRENT_VERSION `
+            -NextVersion $env:P10_NEXT_VERSION
+          if ($LASTEXITCODE -ne 0) { throw "P10 packaged lifecycle failed: $LASTEXITCODE" }
+
+      - name: Upload packaged lifecycle proof
+        uses: actions/upload-artifact@v4
+        with:
+          name: digitalcrown-p10-windows-packaged-lifecycle
+          path: build/p10-packaged-proof/**
+          if-no-files-found: error
+          retention-days: 7
