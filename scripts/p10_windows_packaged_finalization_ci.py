@@ -5,7 +5,7 @@ import subprocess
 from pathlib import Path
 from typing import Any
 
-from scripts import p10_windows_packaged_lifecycle_ci as lifecycle
+import p10_windows_packaged_lifecycle_ci as lifecycle
 
 
 def positive_case(
