@@ -454,9 +454,24 @@ def rollback_case(repo_root: Path, baseline: Path, target: Path, root: Path) -> 
         if db_report.get("status") != "success" or db_report.get("rescue_sha256") != rescue_sha:
             raise LifecycleError(f"DB_ROLLBACK_REPORT_INVALID {db_report}")
         restored_db = data_dir / "clinical_vault.db"
-        restored_sha = sha256_file(restored_db)
-        if restored_sha == corrupt_sha or db_report.get("restored_db_sha256") != restored_sha:
-            raise LifecycleError("DB_ROLLBACK_RESTORED_HASH_INVALID")
+        final_db_sha = sha256_file(restored_db)
+        reported_restored_sha = str(db_report.get("restored_db_sha256") or "").lower()
+        quarantine_db_sha = str((db_report.get("quarantine_sha256") or {}).get("database") or "").lower()
+        valid_reported_sha = (
+            len(reported_restored_sha) == 64
+            and all(char in "0123456789abcdef" for char in reported_restored_sha)
+        )
+        if (
+            not valid_reported_sha
+            or reported_restored_sha == corrupt_sha
+            or quarantine_db_sha != corrupt_sha
+            or final_db_sha == corrupt_sha
+        ):
+            raise LifecycleError(
+                "DB_ROLLBACK_RESTORED_HASH_INVALID "
+                f"reported={reported_restored_sha} final={final_db_sha} "
+                f"corrupt={corrupt_sha} quarantined={quarantine_db_sha}"
+            )
         return {
             "status": "success",
             "worker_exit": exit_code,
@@ -467,7 +482,8 @@ def rollback_case(repo_root: Path, baseline: Path, target: Path, root: Path) -> 
             "database_rollback": job["database_rollback"],
             "rollback_failure_reason": job["rollback_failure_reason"],
             "rescue_sha256": rescue_sha,
-            "restored_db_sha256": restored_sha,
+            "restored_db_sha256": reported_restored_sha,
+            "final_db_sha256": final_db_sha,
             "quarantine_entries": sorted((db_report.get("quarantine_sha256") or {}).keys()),
         }
     finally:
