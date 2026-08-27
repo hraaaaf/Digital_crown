@@ -11,8 +11,8 @@ Ajouter une couche de certification mobile simulée plus proche du terrain avant
 Le gate SIM-CERT est vert uniquement si le même HEAD obtient :
 
 1. un WebAuthn platform authenticator virtuel fonctionnel sur l'origin exact `https://digitalcrown.local:5173` ;
-2. un vrai iOS Simulator démarré, MobileSafari ouvert sur Digital Crown en HTTPS, certificat de test approuvé dans le simulateur, screenshot produit et canaux biométriques simulator `match` + `fail` exécutables ;
-3. un vrai Android Emulator démarré, navigateur système ouvert sur Digital Crown, screenshot produit et commande d'injection fingerprint disponible ;
+2. un vrai iOS Simulator démarré, MobileSafari ouvert sur Digital Crown via le host bridge HTTPS, certificat de test approuvé dans le simulateur et screenshot produit ;
+3. un vrai Android Emulator démarré, Chrome réellement au premier plan sur Digital Crown, screenshot produit et commande d'injection fingerprint `adb emu finger touch` réussie ;
 4. le contrat frontend M6-I rejoué sur le même candidat ;
 5. un aggregate gate qui refuse tout résultat partiel.
 
@@ -26,22 +26,31 @@ Artifacts GitHub Actions :
 - `mobile-sim-ios`
   - modèle/runtime simulator ;
   - screenshot MobileSafari ;
-  - aide `simctl biometric` ;
-  - résultat des canaux `match` et `fail` ;
+  - certificat host bridge approuvé ;
+  - `simctl help` et état de disponibilité du canal biométrique CLI ;
 - `mobile-sim-android`
   - modèle/API Android ;
   - browser handler ;
+  - Chrome repris au premier plan ;
   - screenshot ;
   - résultat `adb emu finger touch`.
 
 ## Ce que SIM-CERT peut créditer
 
 - démarrage d'un OS mobile simulé ;
-- ouverture réelle de la surface web dans le navigateur mobile du simulateur/émulateur ;
-- comportement mobile à 390 px et environnement tactile ;
+- ouverture réelle de la surface web dans MobileSafari et Chrome sur simulateur/émulateur ;
+- comportement mobile et environnement tactile simulé ;
 - exact-origin HTTPS + WebAuthn avec authenticator plateforme virtuel ;
-- disponibilité des canaux biométriques simulés succès/refus ;
+- disponibilité du canal fingerprint Android emulator ;
 - preuve complémentaire avant terrain.
+
+## Limitation iOS biométrique
+
+Le runner macOS/Xcode 26 utilisé par GitHub Actions expose `simctl` mais **pas** de sous-commande `biometric`.
+
+La simulation Face ID/Touch ID reste disponible via les contrôles interactifs du Simulator, mais elle n'est pas créditée par ce workflow headless. Le gate ne remplace donc pas IOS-01/IOS-02 sur un appareil réel.
+
+Cette limitation est volontairement fail-honest : aucune API privée ou commande non documentée n'est utilisée pour fabriquer une preuve biométrique iOS.
 
 ## Ce que SIM-CERT ne peut jamais créditer
 
@@ -68,7 +77,7 @@ Preuves déjà acquises :
 
 ## Règle de conclusion
 
-- SIM-CERT vert = **certification simulée acquise**.
+- SIM-CERT vert = **certification simulée acquise** dans le périmètre ci-dessus.
 - SIM-CERT vert ne ferme pas Mobile Full Experience.
 - Mobile Full Experience ne peut être CLOSED qu'après les gates physiques iPhone + Android applicables, Push réel, offline/reconnect et révocation fail-closed, sans P0/P1 ouvert.
 
