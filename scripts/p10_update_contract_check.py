@@ -5,6 +5,8 @@ SERVICE = ROOT / "backend" / "services" / "update_engine.py"
 POST_INSTALL = ROOT / "backend" / "services" / "update_post_install.py"
 RUN = ROOT / "run.py"
 SPEC = ROOT / "DigitalCrown.spec"
+WINDOWS_WORKER = ROOT / "scripts" / "windows_update_worker.ps1"
+WINDOWS_WORKER_CI = ROOT / "scripts" / "p10_windows_worker_ci.ps1"
 DOC = ROOT / "docs" / "portability" / "P10_UPDATE_ENGINE.md"
 
 
@@ -18,7 +20,10 @@ def main() -> None:
     post_install = POST_INSTALL.read_text(encoding="utf-8")
     run = RUN.read_text(encoding="utf-8")
     spec = SPEC.read_text(encoding="utf-8")
+    worker = WINDOWS_WORKER.read_text(encoding="utf-8")
+    worker_ci = WINDOWS_WORKER_CI.read_text(encoding="utf-8")
     doc = DOC.read_text(encoding="utf-8")
+
     for marker in (
         "Ed25519PublicKey",
         "UPDATE_ROLLBACK_BLOCKED",
@@ -58,12 +63,49 @@ def main() -> None:
     ):
         require(marker in post_install, f"P10 post-install truth missing marker: {marker}")
 
+    for marker in (
+        "windows-inno-v1",
+        "UPDATE_PLATFORM_APPLY_NOT_CERTIFIED",
+        "UPDATE_WINDOWS_ARTIFACT_SHA256_MISMATCH",
+        "UPDATE_WINDOWS_RESCUE_BACKUP_SHA256_MISMATCH",
+        "Snapshot-Program",
+        "program-manifest.json",
+        "Export-UninstallRegistry",
+        "Assert-UninstallRegistryVersion",
+        "Invoke-PackageSelfTest",
+        "Wait-RuntimeHealth",
+        "Restore-Program",
+        "Restore-UninstallRegistry",
+        '"health_pending"',
+        '"rolled_back"',
+        '"rollback_failed"',
+        '"required_but_not_wired"',
+        "param([int]$ProcessId",
+        "Wait-ParentExit -ProcessId $ParentPid",
+    ):
+        require(marker in worker, f"P10 Windows worker missing marker: {marker}")
+    require("param([int]$Pid" not in worker, "P10 Windows worker must not shadow PowerShell automatic $PID")
+
+    for marker in (
+        "P10_WINDOWS_WORKER_CONTRACT=SUCCESS",
+        "ApplyCertified $false",
+        "ExpectedExitCode 1",
+        "ExpectedExitCode 0",
+        "ExpectedExitCode 2",
+        'rollback.database_rollback -ne "not_needed"',
+        "rollback registry not restored",
+    ):
+        require(marker in worker_ci, f"P10 Windows worker CI missing drill: {marker}")
+
     require("private key" in doc.lower(), "P10 doc must state private-key handling")
     require("0 EP" in doc, "P10 remains open until packaged apply/rollback certification")
     require("P6/P7" in doc, "P10 doc must state packaging dependency")
     require("package self-test" in doc.lower(), "P10 doc must state exact packaged VERSION proof")
     require("/health" in doc, "P10 doc must state runtime health proof")
-    print("P10_UPDATE_CONTRACT=SUCCESS post_install_truth=READY apply=BLOCKED")
+    require("program snapshot" in doc.lower(), "P10 doc must state Windows program rollback")
+    require("uninstall registry" in doc.lower(), "P10 doc must state Windows uninstall metadata rollback")
+    require("required_but_not_wired" in doc, "P10 doc must state DB rollback boundary")
+    print("P10_UPDATE_CONTRACT=SUCCESS post_install_truth=READY windows_worker=CONTRACT_READY apply=BLOCKED")
 
 
 if __name__ == "__main__":
