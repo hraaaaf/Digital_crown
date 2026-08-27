@@ -5,6 +5,7 @@ from pathlib import Path
 import pytest
 
 from backend.core.paths import AppPaths
+from backend.core.platform import PlatformAdapter
 from backend.services.backup_service import BackupService
 from backend.services.update_apply import CONFIRMATION_TOKEN, UpdateApplyService
 from backend.services.update_engine import UpdateEngine, UpdatePreparationError
@@ -71,6 +72,21 @@ def _health_pending_job(job_id):
     )
     UpdateEngine._write_job(job)
     return job
+
+
+def test_windows_powershell_resolution_stays_in_platform_boundary(tmp_path):
+    system_root = tmp_path / "Windows"
+    powershell = system_root / "System32" / "WindowsPowerShell" / "v1.0" / "powershell.exe"
+    powershell.parent.mkdir(parents=True)
+    powershell.write_bytes(b"placeholder")
+
+    adapter = PlatformAdapter(
+        system_name="Windows",
+        environ={"SystemRoot": str(system_root)},
+        home=tmp_path,
+    )
+    assert adapter.windows_powershell51_path() == powershell
+    assert PlatformAdapter(system_name="Linux", environ={}, home=tmp_path).windows_powershell51_path() is None
 
 
 def test_production_wiring_refuses_unsigned_then_schedules_signed_job(monkeypatch, tmp_path):
@@ -199,3 +215,21 @@ def test_update_finalizer_requires_worker_health_truth(monkeypatch, tmp_path):
 
     assert UpdateEngine.get_job(job["job_id"])["status"] == "health_pending"
     assert not (data / "updates" / "trusted_state.json").exists()
+
+
+def test_finalize_report_failure_cannot_downgrade_healthy_truth(monkeypatch, tmp_path):
+    job, data = _prepared_windows_job(monkeypatch, tmp_path)
+    _health_pending_job(job["job_id"])
+    monkeypatch.setattr(UpdateFinalizeService, "_current_version", classmethod(lambda cls: "1.0.1"))
+    monkeypatch.setattr(
+        UpdateFinalizeService,
+        "_write_report",
+        staticmethod(lambda path, payload: (_ for _ in ()).throw(OSError("disk-full-proof"))),
+    )
+
+    job_path = data / "updates" / "jobs" / job["job_id"] / "job.json"
+    assert UpdateFinalizeService.run(job_path) == 0
+    assert UpdateEngine.get_job(job["job_id"])["status"] == "healthy"
+    trust = json.loads((data / "updates" / "trusted_state.json").read_text(encoding="utf-8"))
+    assert trust["installed_version"] == "1.0.1"
+    assert trust["installed_sequence"] == 2
