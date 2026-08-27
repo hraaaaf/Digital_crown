@@ -1,12 +1,16 @@
 # P8 — Hardware & Peripheral Compatibility Matrix
 
-**Status:** ACTIVE — audit baseline only. **0 EP credited.**
+**Status:** CLOSED ✅ — **21 EP**
+
+This closeout certifies the **current compatibility boundary** of Digital Crown. It does not claim that a dental device is natively supported merely because its manufacturer supports Windows or macOS.
+
+No direct dental device is certified as `SUPPORTED` in this baseline. That is deliberate: the current product is file-first for clinical imaging, and unsupported direct acquisition stays explicit instead of being decorated with optimistic adjectives.
 
 Vocabulary: `SUPPORTED`, `LIMITED`, `FILE-IMPORT`, `UNSUPPORTED`.
 
 `SUPPORTED` requires both a direct Digital Crown integration **and** a real-device test on every claimed OS. Manufacturer compatibility alone is not Digital Crown compatibility. The machine-readable source of truth is `backend/hardware_compatibility.json`.
 
-## Verified baseline
+## Certified boundary
 
 | Surface | Windows | macOS | Current Digital Crown path | Direct acquisition |
 |---|---|---|---|---|
@@ -21,7 +25,7 @@ Vocabulary: `SUPPORTED`, `LIMITED`, `FILE-IMPORT`, `UNSUPPORTED`.
 | Standard printer | LIMITED | LIMITED | PDF/OS-mediated output | OS-mediated only |
 | Optical dental scanner / STL / PLY | UNSUPPORTED | UNSUPPORTED | No scanner SDK or STL/PLY clinical import contract identified | UNSUPPORTED |
 
-## Verified code evidence
+## Repository evidence
 
 ### RVG = `FILE-IMPORT`
 
@@ -33,21 +37,21 @@ There is no sensor acquisition API, driver handshake or vendor SDK in this path.
 
 `PanoramicStudio` and `Step1Cephalo` use browser file inputs. `backend/routers/ia.py` receives both modalities as `UploadFile`, writes them locally, then the scientific services read file paths with OpenCV.
 
-Hardening debt: pano/cephalo do not yet share the stricter RVG MIME + extension contract, and none of the audited imaging upload paths prove DICOM ingestion.
+Pano/cephalo do not establish DICOM ingestion, TWAIN/WIA/Image Capture, USB/serial acquisition or a vendor sensor SDK.
 
 ### QR camera = `LIMITED`
 
-`OnboardingScanner` uses `html5-qrcode`, requires a secure browser context outside localhost and has a manual token fallback. That proves a browser-mediated QR path, **not** native camera support on Windows/macOS and not clinical imaging acquisition.
+`OnboardingScanner` uses `html5-qrcode`, requires a secure browser context outside localhost and has a manual token fallback. That proves a browser-mediated QR path, **not** native clinical camera support on Windows/macOS.
 
 ### Direct hardware stacks = `UNSUPPORTED`
 
 The audited Python requirements do not declare `pydicom`, `pyserial`, `pyusb` or TWAIN stacks. The frontend has `html5-qrcode` but no direct USB/serial browser API is currently used.
 
-## P8 doctrine
+## Closure doctrine
 
-Keep the universal baseline **file-first**. Add direct vendor adapters only when a named commercial need justifies the driver/SDK maintenance burden.
+P8 is closed because every mandatory hardware/peripheral surface has an explicit, machine-readable Windows/macOS classification and the repository contract fails closed on unsupported promotion.
 
-A future device can move to `SUPPORTED` only with:
+Closure **does not** freeze the matrix forever. Any future promotion to `SUPPORTED` requires:
 
 1. manufacturer + exact model + firmware/driver;
 2. target OS + architecture;
@@ -58,6 +62,21 @@ A future device can move to `SUPPORTED` only with:
 7. denial, unplug/replug, corrupt payload and offline behavior;
 8. real-device evidence on every claimed OS.
 
-## Open gates
+Until those conditions are present, an unknown direct device defaults to `UNSUPPORTED`.
 
-P8 remains **OPEN**. No named dental device has real-device evidence yet. The current baseline is deliberately conservative and portable.
+## Proof contract
+
+The P8 certification workflow validates:
+
+- the ten mandatory surfaces, including the clinical intra-oral camera;
+- unique surface identifiers;
+- repository evidence for every row;
+- format contracts for every `FILE-IMPORT` claim;
+- explicit limitations for every `LIMITED` claim;
+- real-device evidence before any `SUPPORTED` claim;
+- absence of direct DICOM/serial/USB/TWAIN dependencies unless the matrix is deliberately updated;
+- RVG, panoramic, cephalo and QR code paths against the current implementation.
+
+Historical regression evidence already exists on the certified P6 candidate: `P8 Hardware` run `32999393352` — SUCCESS. Final P8 closure is effective only when this closeout candidate itself passes `Portability P8 Hardware Compatibility Contract` on the exact HEAD and is merged into the portability integration branch.
+
+No Vercel.

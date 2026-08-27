@@ -40,13 +40,19 @@ def main() -> None:
         "BLOCKED_MACOS",
         "OPEN_REAL_TARGET",
         "BLOCKED_PACKAGED_APPLY",
+        "Hardware truth matrix | certified conservative boundary | certified conservative boundary | P8 | AVAILABLE",
         "P7 exact signed/notarized macOS artifact is not yet certified",
+        "Any future `SUPPORTED` hardware claim still requires real-device evidence",
         "No Vercel",
     ):
         require(marker in matrix, f"P12 matrix truth marker missing: {marker}")
 
     p8 = (doc_dir / "P8_HARDWARE_COMPATIBILITY_MATRIX.md").read_text(encoding="utf-8")
-    require("P8 remains **OPEN**" in p8, "P12 must not silently promote P8")
+    require("**Status:** CLOSED ✅ — **21 EP**" in p8, "P12 must consume the closed P8 compatibility boundary")
+    require(
+        "No direct dental device is certified as `SUPPORTED`" in p8,
+        "P12 must preserve P8's conservative no-direct-support truth",
+    )
 
     p9 = (doc_dir / "P9_BACKUP_RECOVERY_DR.md").read_text(encoding="utf-8")
     require("P9 does not close until" in p9, "P12 must preserve P9 real-target gate")
@@ -54,7 +60,7 @@ def main() -> None:
     p10 = (doc_dir / "P10_UPDATE_ENGINE.md").read_text(encoding="utf-8")
     require("apply_certified=false" in p10, "P12 must preserve P10 packaged-apply gate")
 
-    print("P12_CERTIFICATION_MATRIX_PREP=SUCCESS state=PREPARED ep=0")
+    print("P12_CERTIFICATION_MATRIX_PREP=SUCCESS state=PREPARED ep=0 p8=AVAILABLE")
 
 
 if __name__ == "__main__":

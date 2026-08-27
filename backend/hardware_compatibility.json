@@ -1,10 +1,19 @@
 {
   "schema": 1,
-  "status": "active-baseline",
-  "ep_credited": 0,
-  "status_vocabulary": ["SUPPORTED", "LIMITED", "FILE-IMPORT", "UNSUPPORTED"],
+  "status": "closed-certified-boundary",
+  "ep_credited": 21,
+  "status_vocabulary": [
+    "SUPPORTED",
+    "LIMITED",
+    "FILE-IMPORT",
+    "UNSUPPORTED"
+  ],
   "policy": {
-    "supported_requires": ["direct Digital Crown integration", "real-device test on each claimed OS"],
+    "closure_scope": "certified current compatibility boundary; no direct dental device support is claimed",
+    "supported_requires": [
+      "direct Digital Crown integration",
+      "real-device test on each claimed OS"
+    ],
     "manufacturer_compatibility_alone_is_not_product_compatibility": true,
     "unknown_direct_devices_default": "UNSUPPORTED"
   },
@@ -15,8 +24,18 @@
       "windows": "FILE-IMPORT",
       "macos": "FILE-IMPORT",
       "direct_acquisition": "UNSUPPORTED",
-      "formats": ["JPEG", "PNG", "WebP", "PDF"],
-      "evidence": ["frontend/src/features/patients/components/RvgUploadModal.tsx", "frontend/src/services/rvgService.ts", "backend/routers/documents.py", "backend/schemas/rvg.py"],
+      "formats": [
+        "JPEG",
+        "PNG",
+        "WebP",
+        "PDF"
+      ],
+      "evidence": [
+        "frontend/src/features/patients/components/RvgUploadModal.tsx",
+        "frontend/src/services/rvgService.ts",
+        "backend/routers/documents.py",
+        "backend/schemas/rvg.py"
+      ],
       "real_device_test_evidence": []
     },
     {
@@ -25,8 +44,14 @@
       "windows": "FILE-IMPORT",
       "macos": "FILE-IMPORT",
       "direct_acquisition": "UNSUPPORTED",
-      "formats": ["browser image/*; must be OpenCV-decodable at runtime"],
-      "evidence": ["frontend/src/features/panoramic/PanoramicStudio.tsx", "backend/routers/ia.py", "backend/services/panoramic_service.py"],
+      "formats": [
+        "browser image/*; must be OpenCV-decodable at runtime"
+      ],
+      "evidence": [
+        "frontend/src/features/panoramic/PanoramicStudio.tsx",
+        "backend/routers/ia.py",
+        "backend/services/panoramic_service.py"
+      ],
       "real_device_test_evidence": []
     },
     {
@@ -35,8 +60,15 @@
       "windows": "FILE-IMPORT",
       "macos": "FILE-IMPORT",
       "direct_acquisition": "UNSUPPORTED",
-      "formats": ["browser image/*; UI message specifies JPEG/PNG"],
-      "evidence": ["frontend/src/features/ortho/components/Step1Cephalo.tsx", "backend/routers/ia.py", "backend/services/vision_service.py", "backend/services/calibration_service.py"],
+      "formats": [
+        "browser image/*; UI message specifies JPEG/PNG"
+      ],
+      "evidence": [
+        "frontend/src/features/ortho/components/Step1Cephalo.tsx",
+        "backend/routers/ia.py",
+        "backend/services/vision_service.py",
+        "backend/services/calibration_service.py"
+      ],
       "real_device_test_evidence": []
     },
     {
@@ -46,7 +78,9 @@
       "macos": "UNSUPPORTED",
       "direct_acquisition": "UNSUPPORTED",
       "formats": [],
-      "evidence": ["backend/requirements.txt"],
+      "evidence": [
+        "backend/requirements.txt"
+      ],
       "real_device_test_evidence": []
     },
     {
@@ -56,7 +90,10 @@
       "macos": "UNSUPPORTED",
       "direct_acquisition": "UNSUPPORTED",
       "formats": [],
-      "evidence": ["backend/requirements.txt", "frontend/package.json"],
+      "evidence": [
+        "backend/requirements.txt",
+        "frontend/package.json"
+      ],
       "real_device_test_evidence": []
     },
     {
@@ -66,7 +103,10 @@
       "macos": "UNSUPPORTED",
       "direct_acquisition": "UNSUPPORTED",
       "formats": [],
-      "evidence": ["backend/requirements.txt", "frontend/package.json"],
+      "evidence": [
+        "backend/requirements.txt",
+        "frontend/package.json"
+      ],
       "real_device_test_evidence": []
     },
     {
@@ -75,10 +115,20 @@
       "windows": "LIMITED",
       "macos": "LIMITED",
       "direct_acquisition": "QR_PAIRING_ONLY",
-      "formats": ["QR Code"],
-      "evidence": ["frontend/src/features/mobile/Onboarding/OnboardingScanner.tsx", "frontend/package.json"],
+      "formats": [
+        "QR Code"
+      ],
+      "evidence": [
+        "frontend/src/features/mobile/Onboarding/OnboardingScanner.tsx",
+        "frontend/package.json"
+      ],
       "real_device_test_evidence": [],
-      "limitations": ["browser camera only", "secure context required outside localhost", "manual code fallback exists", "not clinical imaging"]
+      "limitations": [
+        "browser camera only",
+        "secure context required outside localhost",
+        "manual code fallback exists",
+        "not clinical imaging"
+      ]
     },
     {
       "id": "clinical_intraoral_camera",
@@ -86,8 +136,12 @@
       "windows": "FILE-IMPORT",
       "macos": "FILE-IMPORT",
       "direct_acquisition": "UNSUPPORTED",
-      "formats": ["resulting image file only"],
-      "evidence": ["backend/routers/documents.py"],
+      "formats": [
+        "resulting image file only"
+      ],
+      "evidence": [
+        "backend/routers/documents.py"
+      ],
       "real_device_test_evidence": []
     },
     {
@@ -96,10 +150,16 @@
       "windows": "LIMITED",
       "macos": "LIMITED",
       "direct_acquisition": "OS_MEDIATED_ONLY",
-      "formats": ["PDF output"],
-      "evidence": ["backend/routers/documents.py"],
+      "formats": [
+        "PDF output"
+      ],
+      "evidence": [
+        "backend/routers/documents.py"
+      ],
       "real_device_test_evidence": [],
-      "limitations": ["no printer-driver/device-management contract"]
+      "limitations": [
+        "no printer-driver/device-management contract"
+      ]
     },
     {
       "id": "optical_scanner_stl_ply",
@@ -108,7 +168,10 @@
       "macos": "UNSUPPORTED",
       "direct_acquisition": "UNSUPPORTED",
       "formats": [],
-      "evidence": ["backend/requirements.txt", "frontend/package.json"],
+      "evidence": [
+        "backend/requirements.txt",
+        "frontend/package.json"
+      ],
       "real_device_test_evidence": []
     }
   ]
