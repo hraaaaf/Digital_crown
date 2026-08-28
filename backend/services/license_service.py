@@ -98,7 +98,13 @@ class LicenseService:
             logger.error(f"Failed to read/decrypt local license vault: {e}")
             return {}
 
-    def _write_local_vault(self, data: dict) -> None:
+    def _write_local_vault(self, data: dict) -> bool:
+        """Atomically persist the local signed-licence vault.
+
+        Existing callers may ignore the boolean, but activation/install paths use
+        it as a hard gate so local commercial state is never committed when the
+        cryptographic proof could not actually be persisted.
+        """
         vault_path = self._vault_path()
         temp_path: Path | None = None
         platform_adapter = get_platform_adapter()
@@ -120,8 +126,10 @@ class LicenseService:
             os.replace(temp_path, vault_path)
             if not platform_adapter.is_windows:
                 vault_path.chmod(0o600)
+            return True
         except Exception as e:
             logger.error(f"Failed to write/encrypt local license vault: {e}")
+            return False
         finally:
             if temp_path is not None:
                 try:
@@ -177,6 +185,39 @@ class LicenseService:
             "license_id": verified.license_id,
             "key_id": verified.key_id,
         }
+
+    def install_signed_license(self, clinic_id: str, signed_license: str) -> dict:
+        """Verify a control-plane token and install it into the local cabinet vault.
+
+        This is the cabinet-safe activation boundary: no Firebase service account
+        or signing key is required. The token must verify against an embedded
+        trusted public key and the exact local cabinet id before any local mirror
+        may be marked licensed.
+        """
+        now = datetime.datetime.now(datetime.timezone.utc)
+        verified = self._verify_signed_license(signed_license, str(clinic_id), now)
+        if verified.status != "ACTIVE":
+            raise LicenseSecurityError("license is not active")
+
+        vault = {
+            "clinic_id": str(clinic_id),
+            "signed_license": signed_license,
+            "last_validated": now.isoformat(),
+            "max_seen_time": now.isoformat(),
+        }
+        if not self._write_local_vault(vault):
+            raise RuntimeError("signed licence could not be persisted locally")
+
+        # Read-back is part of the install transaction. A write that cannot be
+        # decrypted/parsed immediately is not accepted as installed.
+        read_back = self._read_local_vault()
+        if (
+            read_back.get("clinic_id") != str(clinic_id)
+            or read_back.get("signed_license") != signed_license
+        ):
+            self._clear_local_vault()
+            raise RuntimeError("signed licence local persistence verification failed")
+        return self._verified_result(verified, "activation")
 
     def _validate_offline_vault(
         self,
