@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import base64
 import datetime
 import importlib.util
 import json
@@ -11,6 +12,9 @@ import tempfile
 import types
 import zipfile
 from pathlib import Path
+
+from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
+from cryptography.hazmat.primitives.serialization import Encoding, NoEncryption, PrivateFormat, PublicFormat
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -51,6 +55,38 @@ def _install_firebase_stub() -> None:
     sys.modules["firebase_admin"] = firebase_admin
 
 
+def _b64url(data: bytes) -> str:
+    return base64.urlsafe_b64encode(data).rstrip(b"=").decode("ascii")
+
+
+def _ephemeral_signing_material() -> tuple[str, str]:
+    private = Ed25519PrivateKey.generate()
+    private_raw = private.private_bytes(Encoding.Raw, PrivateFormat.Raw, NoEncryption())
+    public_raw = private.public_key().public_bytes(Encoding.Raw, PublicFormat.Raw)
+    return _b64url(private_raw), _b64url(public_raw)
+
+
+def _signed_license(security_module, private_key: str, now: datetime.datetime, expiry: datetime.datetime) -> str:
+    claims = {
+        "schema_version": 1,
+        "issuer": "digital-crown",
+        "audience": "digital-crown-desktop",
+        "license_id": "p4-cert-license",
+        "cabinet_id": "cabinet-p4",
+        "license_type": "PAID",
+        "status": "ACTIVE",
+        "issued_at": (now - datetime.timedelta(minutes=1)).isoformat(),
+        "not_before": (now - datetime.timedelta(minutes=1)).isoformat(),
+        "expires_at": expiry.isoformat(),
+        "release_channel": "stable",
+        "feature_set": "GOLD",
+        "max_devices": 1,
+        "policy_version": "p4-cert",
+        "created_by_user_id": 7,
+    }
+    return security_module.sign_license(claims, private_key, "p4-cert-kid")
+
+
 class _FakeDoc:
     def __init__(self, exists: bool, data: dict | None = None):
         self.exists = exists
@@ -84,7 +120,7 @@ class _FakeFirestore:
         return _FakeCollection(self._doc)
 
 
-async def _exercise_license_policy(LicenseService, root: Path) -> None:
+async def _exercise_license_policy(LicenseService, security_module, license_module, root: Path) -> None:
     os.environ["DIGITALCROWN_USER_DATA_DIR"] = str(root / "appdata")
     os.environ.pop("CABINET_MASTER_KEY_HEX", None)
     os.environ.pop("SECRET_KEY", None)
@@ -113,10 +149,15 @@ async def _exercise_license_policy(LicenseService, root: Path) -> None:
     os.environ["SECRET_KEY"] = "p4-cert-secret-" + ("x" * 32)
     now = datetime.datetime.now(datetime.timezone.utc)
     expiry = now + datetime.timedelta(days=10)
+    private_key, public_key = _ephemeral_signing_material()
+    license_module.TRUSTED_LICENSE_PUBLIC_KEYS.clear()
+    license_module.TRUSTED_LICENSE_PUBLIC_KEYS["p4-cert-kid"] = public_key
+    token = _signed_license(security_module, private_key, now, expiry)
+
     proof = {
         "clinic_id": "cabinet-p4",
+        "signed_license": token,
         "last_validated": (now - datetime.timedelta(hours=1)).isoformat(),
-        "expiration_date": expiry.isoformat(),
         "max_seen_time": (now - datetime.timedelta(minutes=1)).isoformat(),
     }
     service._write_local_vault(proof)
@@ -144,17 +185,36 @@ async def _exercise_license_policy(LicenseService, root: Path) -> None:
     })
     assert await service.validate_license("cabinet-p4") is False
 
+    # A mutable Firebase flag without a signed token is no longer licence truth.
     service._write_local_vault(proof)
-    service._db = _FakeFirestore(_FakeDoc(True, {"active": False}))
+    service._db = _FakeFirestore(_FakeDoc(True, {"active": True}))
     result = await service.validate_license_with_expiry("cabinet-p4")
     assert result["active"] is False and result["source"] == "firebase"
+    assert result["reason"] == "unsigned_license"
     assert not service._vault_path().exists()
 
-    service._db = _FakeFirestore(_FakeDoc(True, {"active": True, "expiration_date": expiry}))
+    # A valid signed Firebase entitlement is accepted and mirrored to the vault.
+    service._db = _FakeFirestore(_FakeDoc(True, {"active": True, "signed_license": token}))
     result = await service.validate_license_with_expiry("cabinet-p4")
     assert result["active"] is True and result["source"] == "firebase"
-    assert service._read_local_vault()["clinic_id"] == "cabinet-p4"
+    assert result["license_type"] == "PAID"
+    assert result["feature_set"] == "GOLD"
+    assert service._read_local_vault()["signed_license"] == token
 
+    # A signed token cannot be made valid by mutating its payload bytes.
+    header, payload, signature = token.split(".")
+    payload_bytes = base64.urlsafe_b64decode(payload + "=" * (-len(payload) % 4))
+    claims = json.loads(payload_bytes.decode("utf-8"))
+    claims["feature_set"] = "ELITE"
+    forged_payload = _b64url(json.dumps(claims, sort_keys=True, separators=(",", ":")).encode("utf-8"))
+    forged = f"{header}.{forged_payload}.{signature}"
+    service._db = _FakeFirestore(_FakeDoc(True, {"active": True, "signed_license": forged}))
+    forged_result = await service.validate_license_with_expiry("cabinet-p4")
+    assert forged_result["active"] is False
+    assert forged_result["reason"] == "invalid_signature_or_claims"
+
+    # Portable restore cannot reuse an encrypted vault on a destination with a
+    # different destination-local secret.
     source_dir = root / "source-machine"
     destination_dir = root / "destination-machine"
     os.environ["DIGITALCROWN_USER_DATA_DIR"] = str(source_dir)
@@ -299,6 +359,7 @@ def _assert_source_contracts() -> None:
     security = (ROOT / "backend/security.py").read_text(encoding="utf-8")
     worker = (ROOT / "backend/services/guided_restore_worker.py").read_text(encoding="utf-8")
     bundle = (ROOT / "backend/services/cabinet_bundle.py").read_text(encoding="utf-8")
+    license_service = (ROOT / "backend/services/license_service.py").read_text(encoding="utf-8")
 
     assert 'os.getenv("CLINIC_ID"' not in route
     assert "current_user.get_employer_id()" in route
@@ -310,6 +371,9 @@ def _assert_source_contracts() -> None:
     assert 'getattr(route, "path", None) == "/recheck-license"' in routers
     assert "clinics.router.include_router(license_portability_p4.router)" in routers
 
+    assert "signed_license" in license_service
+    assert "verify_license(" in license_service
+    assert "Unsigned license writes are disabled" in license_service
     assert "token_blacklist.revoke_mobile_access(owner.id, db)" in rebind
     assert "finally:" in rebind and "database.engine.dispose()" in rebind
     assert "def revoke_mobile_access" in security
@@ -333,6 +397,7 @@ def main() -> None:
     _install_firebase_stub()
     _load("backend.core.platform", ROOT / "backend/core/platform.py")
     _load("backend.core.paths", ROOT / "backend/core/paths.py")
+    security_module = _load("backend.license_security", ROOT / "backend/license_security.py")
     license_module = _load("backend.services.license_service", ROOT / "backend/services/license_service.py")
     rebind_module = _load(
         "backend.services.portability_license_rebind",
@@ -341,12 +406,12 @@ def main() -> None:
 
     with tempfile.TemporaryDirectory(prefix="digitalcrown-p4-cert-") as temp_name:
         root = Path(temp_name)
-        asyncio.run(_exercise_license_policy(license_module.LicenseService, root))
+        asyncio.run(_exercise_license_policy(license_module.LicenseService, security_module, license_module, root))
         _exercise_content_marker(rebind_module, root)
 
     _exercise_rebind_runtime(rebind_module)
     _assert_source_contracts()
-    print("PORTABILITY_P4_OK")
+    print("PORTABILITY_P4_OK_SIGNED_LICENSE")
 
 
 if __name__ == "__main__":
