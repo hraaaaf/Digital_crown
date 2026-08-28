@@ -27,6 +27,8 @@ Two real Ed25519 keypairs were generated offline: operational `primary` and cold
 - target-start/runtime-bind failure: `UPDATE_WINDOWS_RUNTIME_HEALTH_FAILED` -> worker exit 2 -> restore `1.0.0` -> healthy rollback; DB rollback not required in this scenario;
 - the old packaged executable owns last-resort DB rescue; PostgreSQL restore remains fail-closed/unsupported by the local-file bridge.
 
+Packaging dependency remains **P6/P7**. The Windows external worker contract targets native **Windows PowerShell 5.1**. After exact package self-test, runtime truth is the loopback **`/health`** endpoint with runtime and DB both healthy.
+
 ## Distribution gates
 ### Windows Authenticode — DigiCert KeyLocker selected
 Production mutation remains `apply_certified=false` until the exact installer has a valid Authenticode signature and timestamp certificate.
