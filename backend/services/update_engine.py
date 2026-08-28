@@ -29,12 +29,20 @@ MAX_ARTIFACT_BYTES = 8 * 1024**3
 TRUST_KEY_ACTIVE = "active"
 TRUST_KEY_REVOKED = "revoked"
 
-# Production update trust is immutable at runtime. Add real public keys only after
-# the corresponding signing ceremony/gate; never inject them via environment.
-# Multiple active keys permit controlled rotation. Revoked keys stay listed so
-# old manifests fail with an explicit revocation reason rather than becoming
-# indistinguishable from unknown keys.
-PINNED_UPDATE_KEYS: dict[str, dict[str, str]] = {}
+# Production update trust is immutable at runtime. Public keys are admitted only
+# after the offline signing ceremony; private keys never enter the repository.
+# Multiple active keys permit controlled rotation/recovery. Revoked keys stay
+# listed so old manifests fail with an explicit revocation reason.
+PINNED_UPDATE_KEYS: dict[str, dict[str, str]] = {
+    "77b4db9273df41c7c0757fe72e22e72e4db5047dc9e93b4a7727057721c6327d": {
+        "public_key_b64": "b/G7b36fLA+hHzsZSZgHZW+/KciLo6TtTigKZrR2i3I=",
+        "status": TRUST_KEY_ACTIVE,
+    },
+    "197844cf7453ce0f1d2a36f14c699deafbbc6e05d2dae22b753e50ad3c3877bc": {
+        "public_key_b64": "E1RFOhXrP58VFolAYvNFaMCgv7+8othjnID3On9cTnE=",
+        "status": TRUST_KEY_ACTIVE,
+    },
+}
 
 
 class UpdateSecurityError(RuntimeError):
