@@ -1,6 +1,7 @@
 import hashlib
 import json
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
@@ -89,6 +90,45 @@ def test_windows_powershell_resolution_stays_in_platform_boundary(tmp_path):
     assert PlatformAdapter(system_name="Linux", environ={}, home=tmp_path).windows_powershell51_path() is None
 
 
+def test_windows_authenticode_requires_private_publisher_and_machine_trust(monkeypatch, tmp_path):
+    artifact = tmp_path / "DigitalCrownSetup-1.0.1.exe"
+    artifact.write_bytes(b"candidate")
+    powershell = tmp_path / "powershell.exe"
+    powershell.write_bytes(b"placeholder")
+    monkeypatch.setattr(UpdateApplyService, "_windows_powershell51", staticmethod(lambda: powershell))
+
+    payload = {
+        "status": "Valid",
+        "signer_thumbprint": "A1B2",
+        "signer_subject": "CN=Other Publisher",
+        "timestamp_thumbprint": "C3D4",
+        "publisher_trusted": True,
+        "root_trusted": True,
+    }
+    seen = {}
+
+    def fake_run(args, **kwargs):
+        seen["args"] = args
+        return SimpleNamespace(returncode=0, stdout=json.dumps(payload), stderr="")
+
+    monkeypatch.setattr("backend.services.update_apply.subprocess.run", fake_run)
+    with pytest.raises(UpdatePreparationError, match="SIGNER_NOT_DIGITALCROWN"):
+        UpdateApplyService._verify_windows_authenticode(artifact)
+
+    payload["signer_subject"] = "CN=Digital Crown Private Publisher"
+    payload["publisher_trusted"] = False
+    with pytest.raises(UpdatePreparationError, match="PRIVATE_PUBLISHER_TRUST_REQUIRED"):
+        UpdateApplyService._verify_windows_authenticode(artifact)
+
+    payload["publisher_trusted"] = True
+    verified = UpdateApplyService._verify_windows_authenticode(artifact)
+    assert verified["status"] == "Valid"
+    assert verified["signer_subject"] == "CN=Digital Crown Private Publisher"
+    command = seen["args"][4]
+    assert r"Cert:\LocalMachine\TrustedPublisher" in command
+    assert r"Cert:\LocalMachine\Root" in command
+
+
 def test_production_wiring_refuses_unsigned_then_schedules_signed_job(monkeypatch, tmp_path):
     job, data = _prepared_windows_job(monkeypatch, tmp_path)
     install_dir = tmp_path / "installed"
@@ -129,6 +169,7 @@ def test_production_wiring_refuses_unsigned_then_schedules_signed_job(monkeypatc
             lambda cls, artifact: {
                 "status": "Valid",
                 "signer_thumbprint": "A1B2",
+                "signer_subject": "CN=Digital Crown Private Publisher",
                 "timestamp_thumbprint": "C3D4",
             }
         ),
@@ -141,6 +182,7 @@ def test_production_wiring_refuses_unsigned_then_schedules_signed_job(monkeypatc
     assert stored["apply_certified"] is True
     assert stored["authenticode_status"] == "Valid"
     assert stored["authenticode_signer_thumbprint"] == "A1B2"
+    assert stored["authenticode_signer_subject"] == "CN=Digital Crown Private Publisher"
     assert stored["authenticode_timestamp_thumbprint"] == "C3D4"
     assert stored["worker_contract"] == "windows-inno-v1"
     assert stored["recovery_contract"] == "windows-interruption-v1"
