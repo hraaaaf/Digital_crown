@@ -59,16 +59,20 @@ class WindowsDPAPIProtector:
     def _crypt32():
         if os.name != "nt":
             raise DeviceIdentityError("Windows DPAPI is unavailable on this platform")
-        return ctypes.windll.crypt32, ctypes.windll.kernel32
+        crypt32 = ctypes.windll.crypt32
+        kernel32 = ctypes.windll.kernel32
+        crypt32.CryptProtectData.restype = ctypes.c_bool
+        crypt32.CryptUnprotectData.restype = ctypes.c_bool
+        kernel32.LocalFree.restype = ctypes.c_void_p
+        return crypt32, kernel32
 
     def protect(self, plaintext: bytes) -> bytes:
         crypt32, kernel32 = self._crypt32()
         input_blob, input_buffer = self._blob(plaintext)
         output_blob = _DATA_BLOB()
-        description = "Digital Crown device identity"
         ok = crypt32.CryptProtectData(
             ctypes.byref(input_blob),
-            description,
+            "Digital Crown device identity",
             None,
             None,
             None,
@@ -88,10 +92,11 @@ class WindowsDPAPIProtector:
         crypt32, kernel32 = self._crypt32()
         input_blob, input_buffer = self._blob(protected)
         output_blob = _DATA_BLOB()
-        description = ctypes.c_wchar_p()
+        # Description output is deliberately omitted. Passing NULL avoids an
+        # extra LocalAlloc-owned string and the easy-to-get-wrong free path.
         ok = crypt32.CryptUnprotectData(
             ctypes.byref(input_blob),
-            ctypes.byref(description),
+            None,
             None,
             None,
             None,
@@ -106,8 +111,6 @@ class WindowsDPAPIProtector:
         finally:
             if output_blob.pbData:
                 kernel32.LocalFree(output_blob.pbData)
-            if description:
-                kernel32.LocalFree(description)
 
 
 class DeviceIdentityService:
