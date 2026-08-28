@@ -35,16 +35,16 @@ Last verified: 2026-08-28.
 - digest `sha256:5af1d77b184f0a744bf51dd57f1171c2ddb6b29b26b44c26a4280b6312cfb1d5`;
 - workflow artifact HEAD `e4d16ffdbf4bf91cf9315c00ab1ba611dbf654ed`;
 - PR merge proof `05d4ec176e39768521bbfba45746d5c7e38ca67d`, exact merge of `e4d16ffd...` into P9 base `24965613a02f148d50bcdaee985d34c32373561b`;
-- production trust root now contains two real Ed25519 public keys created by the offline ceremony: operational `primary` + cold `recovery`, both active;
+- production trust root contains two real Ed25519 public keys created by the offline ceremony: operational `primary` + cold `recovery`, both active;
 - only public material is committed; runtime re-derives SHA-256 key IDs; environment cannot replace the trust root; unknown/revoked/malformed keys fail closed;
 - packaged proof remains green with the production keyring: positive `1.0.0 -> 1.0.1`, exact package self-test, runtime health/finalization, package rollback + DB rescue, interruption recovery, and target application-start/runtime-bind failure rollback;
 - target-start drill: `UPDATE_WINDOWS_RUNTIME_HEALTH_FAILED` -> worker exit `2` -> package restored `1.0.0` -> rollback health passed -> DB rollback not needed for that scenario;
 - P10 remains OPEN and **0/13 EP credited** because platform distribution and clean-machine gates remain unsatisfied.
 
 ## Documentation closeout above product proof
-- all commits after certified product HEAD `e4d16ffd...` are documentation-only;
-- files touched: `PORTABILITY_LAUNCHER_ROADMAP.md`, `docs/portability/P10_UPDATE_ENGINE.md`, `docs/portability/P10_UPDATE_SIGNING_KEY_CEREMONY.md`, `docs/portability/PORTABILITY_CURRENT_STATUS.md`;
-- product/runtime proof remains #49 on `e4d16ffd...`.
+- commits after certified product HEAD `e4d16ffd...` are documentation-only;
+- product/runtime proof remains #49 on `e4d16ffd...`;
+- canonical roadmap, P10 contract, key ceremony and current status reflect the certified trust gate and remaining external gates.
 
 ## Prepared / active
 - P7 — Native macOS packaging — candidate `53563b1b22ddb6905a54c16ca8486412130c3921`, PR `#274`; signed/notarized workflow still required.
