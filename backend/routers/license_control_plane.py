@@ -9,7 +9,12 @@ from sqlalchemy.orm import Session
 
 from backend import database, models, schemas
 from backend.config import settings
-from backend.license_issuer import LicenseIssuerUnavailable, issue_license
+from backend.device_security import DeviceSecurityError
+from backend.license_issuer import (
+    LicenseIssuerUnavailable,
+    issue_device_certificate,
+    issue_license,
+)
 from backend.license_security import LicenseSecurityError
 from backend.services.license_service import LicenseService
 from backend.utils.rate_limit import check_rate_limit
@@ -22,11 +27,13 @@ class TrialControlPlaneActivation(BaseModel):
     code: str
     email: EmailStr
     cabinet_id: str
+    device_id: str
+    device_public_key: str
+    platform: str
 
 
 def _require_control_plane() -> None:
     if not settings.PLATFORM_CONTROL_PLANE_ENABLED:
-        # Do not expose a dormant administration/signing surface on cabinet installs.
         raise HTTPException(status_code=404, detail="Not found")
 
 
@@ -48,21 +55,37 @@ def _redemption_id(code_value: str) -> str:
     return hashlib.sha256(code_value.strip().upper().encode("utf-8")).hexdigest()
 
 
+def _device_binding_id(license_id: str, device_id: str) -> str:
+    material = f"{license_id}|{device_id}".encode("utf-8")
+    return hashlib.sha256(material).hexdigest()
+
+
 def _redemption_payload(data: dict) -> dict:
     return {
         "signed_license": data["signed_license"],
+        "signed_device_certificate": data["signed_device_certificate"],
+        "device_id": data["device_id"],
         "expires_at": data["expires_at"],
         "feature_set": data["feature_set"],
         "license_type": data["license_type"],
     }
 
 
-def _is_same_redemption(data: dict, *, email: str, cabinet_id: str) -> bool:
+def _is_same_redemption(
+    data: dict,
+    *,
+    email: str,
+    cabinet_id: str,
+    device_id: str,
+) -> bool:
     return bool(
         data.get("email") == email
         and data.get("cabinet_id") == cabinet_id
+        and data.get("device_id") == device_id
         and isinstance(data.get("signed_license"), str)
         and data.get("signed_license")
+        and isinstance(data.get("signed_device_certificate"), str)
+        and data.get("signed_device_certificate")
     )
 
 
@@ -78,12 +101,21 @@ def _existing_redemption_or_conflict(
     snapshot,
     email: str,
     cabinet_id: str,
+    device_id: str,
     trial_code: models.TrialActivationCode,
     db: Session,
 ) -> dict:
     data = snapshot.to_dict() or {}
-    if not _is_same_redemption(data, email=email, cabinet_id=cabinet_id):
-        raise HTTPException(status_code=400, detail="Ce code d'activation a déjà été utilisé.")
+    if not _is_same_redemption(
+        data,
+        email=email,
+        cabinet_id=cabinet_id,
+        device_id=device_id,
+    ):
+        raise HTTPException(
+            status_code=400,
+            detail="Ce code d'activation est déjà lié à une autre installation.",
+        )
     _consume_trial_marker(db, trial_code)
     return _redemption_payload(data)
 
@@ -112,7 +144,7 @@ def preview_trial_code(
     )
 
 
-@router.post("/activate-trial", summary="Émettre une Trial signée depuis le control-plane")
+@router.post("/activate-trial", summary="Émettre une Trial signée liée à une machine")
 async def activate_trial(
     payload: TrialControlPlaneActivation,
     request: Request,
@@ -124,8 +156,11 @@ async def activate_trial(
     normalized_code = payload.code.strip().upper()
     normalized_email = payload.email.lower().strip()
     cabinet_id = payload.cabinet_id.strip()
-    if not cabinet_id:
-        raise HTTPException(status_code=400, detail="Identifiant cabinet manquant.")
+    device_id = payload.device_id.strip()
+    device_public_key = payload.device_public_key.strip()
+    platform = payload.platform.strip().lower()
+    if not cabinet_id or not device_id or not device_public_key:
+        raise HTTPException(status_code=400, detail="Identité cabinet/machine incomplète.")
 
     trial_code = _get_trial_code(db, normalized_code)
     if normalized_email != trial_code.email.lower().strip():
@@ -152,13 +187,12 @@ async def activate_trial(
             snapshot=existing,
             email=normalized_email,
             cabinet_id=cabinet_id,
+            device_id=device_id,
             trial_code=trial_code,
             db=db,
         )
 
     if trial_code.consumed_at:
-        # Fail closed if the SQL mirror says consumed but no authoritative
-        # redemption record can be recovered.
         raise HTTPException(status_code=400, detail="Ce code d'activation a déjà été utilisé.")
 
     now_utc = datetime.now(timezone.utc)
@@ -181,10 +215,21 @@ async def activate_trial(
             now_utc,
             allow_inactive=True,
         )
-    except (LicenseIssuerUnavailable, LicenseSecurityError) as exc:
+        signed_device_certificate = issue_device_certificate(
+            cabinet_id=cabinet_id,
+            license_id=verified.license_id,
+            device_id=device_id,
+            device_public_key=device_public_key,
+            platform=platform,
+            created_by_user_id=trial_code.created_by_admin_id,
+            expires_at=expiry_utc,
+            issued_at=now_utc,
+            not_before=now_utc,
+        )
+    except (LicenseIssuerUnavailable, LicenseSecurityError, DeviceSecurityError) as exc:
         raise HTTPException(
             status_code=503,
-            detail="Service de signature de licence non provisionné.",
+            detail="Service de signature licence/machine non provisionné ou identité machine invalide.",
         ) from exc
 
     if verified.status != "ACTIVE" or verified.license_type != "TRIAL":
@@ -193,7 +238,11 @@ async def activate_trial(
     redemption = {
         "email": normalized_email,
         "cabinet_id": cabinet_id,
+        "device_id": device_id,
+        "device_public_key": device_public_key,
+        "platform": platform,
         "signed_license": signed_license,
+        "signed_device_certificate": signed_device_certificate,
         "expires_at": expiry_utc.isoformat(),
         "feature_set": models.SubscriptionPlan.GOLD.value,
         "license_type": "TRIAL",
@@ -209,20 +258,33 @@ async def activate_trial(
         "release_channel": verified.claims.get("release_channel"),
         "license_id": verified.license_id,
         "key_id": verified.key_id,
+        "max_devices": 1,
+    }
+    device_document = {
+        "cabinet_id": cabinet_id,
+        "license_id": verified.license_id,
+        "device_id": device_id,
+        "device_public_key": device_public_key,
+        "platform": platform,
+        "status": "ACTIVE",
+        "signed_device_certificate": signed_device_certificate,
+        "activated_at": now_utc.isoformat(),
     }
 
-    # Firestore batch is the authoritative transaction boundary. `create` on the
-    # redemption record prevents two concurrent requests from both winning.
+    # One atomic authority boundary: commercial license, first allowed device and
+    # one-time redemption either all exist or none exists. `create` on both
+    # one-time records also makes concurrent double activation fail closed.
     license_ref = service._db.collection("licenses").document(cabinet_id)
+    device_ref = service._db.collection("license_devices").document(
+        _device_binding_id(verified.license_id, device_id)
+    )
     batch = service._db.batch()
     batch.set(license_ref, license_document, merge=True)
+    batch.create(device_ref, device_document)
     batch.create(redemption_ref, redemption)
     try:
         batch.commit()
     except Exception as exc:
-        # Covers both a genuine conflict and the classic "commit succeeded but
-        # response was lost" case. Re-read once and accept only the exact same
-        # redemption; otherwise fail closed.
         try:
             recovered = redemption_ref.get()
         except Exception as read_exc:
@@ -235,12 +297,13 @@ async def activate_trial(
                 snapshot=recovered,
                 email=normalized_email,
                 cabinet_id=cabinet_id,
+                device_id=device_id,
                 trial_code=trial_code,
                 db=db,
             )
         raise HTTPException(
             status_code=503,
-            detail="Persistance atomique de la licence Trial impossible.",
+            detail="Persistance atomique licence/machine impossible.",
         ) from exc
 
     _consume_trial_marker(db, trial_code)
