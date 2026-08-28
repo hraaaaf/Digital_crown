@@ -91,9 +91,17 @@ jobs:
           test "$(git hash-object frontend/src/features/patients/components/ClinicalHubCore.tsx)" = "45d0c00031f7078dc260263b7c8c9a86615e56b9"
           test "$(git hash-object backend/routers/prescriptions_core.py)" = "2d092b55b937d639af95536299ba0b95674fa020"
 
-      - name: Targeted backend truth tests
-        run: |
-          pytest -q backend/tests/test_catalog_connected_truth.py backend/tests/test_patient_p3_master_plan_revisions.py backend/tests/test_prescriptions_router.py::TestCatalogQuickAdd
+      - name: Backend truth — catalog connected
+        if: ${{ !cancelled() }}
+        run: pytest -q backend/tests/test_catalog_connected_truth.py
+
+      - name: Backend truth — patient P3 master-plan revisions
+        if: ${{ !cancelled() }}
+        run: pytest -q backend/tests/test_patient_p3_master_plan_revisions.py
+
+      - name: Backend truth — prescription catalog quick-add
+        if: ${{ !cancelled() }}
+        run: pytest -q backend/tests/test_prescriptions_router.py::TestCatalogQuickAdd
 
       - name: Targeted frontend truth tests and build
         working-directory: frontend
