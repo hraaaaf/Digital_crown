@@ -24,6 +24,15 @@ PLATFORM_LICENSE_PERMISSIONS = frozenset(
 )
 
 
+def platform_control_plane_enabled() -> bool:
+    """Return True only when the dedicated platform control plane is provisioned.
+
+    Cabinet installations ship with this disabled. A local database edit must
+    never be enough to expose platform administration rights.
+    """
+    return bool(getattr(settings, "PLATFORM_CONTROL_PLANE_ENABLED", False))
+
+
 def _user_is_enabled(user: Any) -> bool:
     return bool(
         user is not None
@@ -34,10 +43,15 @@ def _user_is_enabled(user: Any) -> bool:
 
 
 def is_platform_superadmin(user: Any) -> bool:
-    """Return True only for the immutable configured platform owner id.
+    """Return True only for the immutable configured owner on the control plane.
 
-    Email/username/role strings are deliberately not a root of trust.
+    Email/username/role strings are deliberately not a root of trust. The
+    dedicated control-plane switch is also required so cabinet installs fail
+    closed even if a local user id is manipulated.
     """
+    if not platform_control_plane_enabled():
+        return False
+
     configured_id = int(getattr(settings, "SUPERADMIN_USER_ID", 0) or 0)
     if configured_id <= 0 or not _user_is_enabled(user):
         return False
@@ -49,6 +63,8 @@ def is_platform_superadmin(user: Any) -> bool:
 
 def has_platform_permission(user: Any, permission: str) -> bool:
     """Check explicit platform permission without inheriting cabinet ADMIN rights."""
+    if not platform_control_plane_enabled():
+        return False
     if permission not in PLATFORM_LICENSE_PERMISSIONS or not _user_is_enabled(user):
         return False
     if is_platform_superadmin(user):
