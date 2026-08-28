@@ -44,7 +44,7 @@ class LicenseControlPlaneClient:
         try:
             async with httpx.AsyncClient(timeout=10.0) as client:
                 response = await client.get(
-                    self._url(f"/api/license-control/trial-code/{code.strip().upper()}"),
+                    self._url(f"/api/public/license-control/trial-code/{code.strip().upper()}"),
                 )
         except (httpx.HTTPError, LicenseControlPlaneError) as exc:
             if isinstance(exc, LicenseControlPlaneError):
@@ -63,7 +63,7 @@ class LicenseControlPlaneClient:
         try:
             async with httpx.AsyncClient(timeout=15.0) as client:
                 response = await client.post(
-                    self._url("/api/license-control/activate-trial"),
+                    self._url("/api/public/license-control/activate-trial"),
                     json={
                         "code": code.strip().upper(),
                         "email": email.strip().lower(),
