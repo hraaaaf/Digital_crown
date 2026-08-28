@@ -30,23 +30,31 @@ Two real Ed25519 keypairs were generated offline: operational `primary` and cold
 Packaging dependency remains **P6/P7**. The Windows external worker contract targets native **Windows PowerShell 5.1**. After exact package self-test, runtime truth is the loopback **`/health`** endpoint with runtime and DB both healthy.
 
 ## Distribution gates
-### Windows Authenticode — DigiCert KeyLocker selected
+### Windows Authenticode — private Digital Crown PKI, zero-cost
 Production mutation remains `apply_certified=false` until the exact installer has a valid Authenticode signature and timestamp certificate.
 
-The public code-signing private key must remain inside DigiCert KeyLocker/HSM. GitHub receives only CI authentication material:
+Digital Crown uses a private code-signing certificate generated offline. This is a private trust model for known clinic machines, not public Microsoft/SmartScreen publisher reputation.
 
-Repository secrets:
-- `DIGICERT_SM_API_KEY`
-- `DIGICERT_SM_CLIENT_CERT_FILE_B64`
-- `DIGICERT_SM_CLIENT_CERT_PASSWORD`
+GitHub Actions repository secrets:
+- `WINDOWS_CODESIGN_PFX_B64`
+- `WINDOWS_CODESIGN_PASSWORD`
 
-Repository variables:
-- `DIGICERT_SM_HOST`
-- `DIGICERT_KEYPAIR_ALIAS`
+Repository variable:
+- `WINDOWS_CODESIGN_CERT_SHA256`
 
-`DIGICERT_SM_CLIENT_CERT_FILE_B64` is a DigiCert ONE client-authentication certificate, not the code-signing private key. The signing private key is never exported to GitHub Actions.
+The workflow:
+1. fails closed on partial configuration;
+2. imports the PFX only into the ephemeral runner;
+3. requires Code Signing EKU `1.3.6.1.5.5.7.3.3`;
+4. exports the public certificate and verifies its exact SHA-256 pin;
+5. trusts that public certificate only inside the ephemeral runner for verification;
+6. signs with SignTool using SHA-256 and timestamping;
+7. requires `Get-AuthenticodeSignature` status `Valid` and a timestamp certificate;
+8. removes PFX, CER and temporary certificate-store entries from the runner.
 
-Current evidence remains `P6_AUTHENTICODE=NOT_CONFIGURED`. The selected workflow path is DigiCert Binary Signing / KeyLocker, SHA-256, timestamp required, followed by local Authenticode verification.
+On each clinic Windows machine, the public `.cer` must be installed once in LocalMachine `Root` and `TrustedPublisher` before the private signature is considered trusted. The private PFX/password are never installed on clinic machines.
+
+Current evidence remains `P6_AUTHENTICODE=NOT_CONFIGURED` until the private certificate ceremony and GitHub secret provisioning are complete.
 
 ### macOS P7
 Required secrets:
@@ -61,10 +69,10 @@ Required secrets:
 Required proof: Apple Silicon, Developer ID, notarization accepted/no errors, stapling, Gatekeeper, install/runtime/upgrade/uninstall smoke and real update lifecycle.
 
 ## Remaining gates
-1. DigiCert KeyLocker account/certificate provisioned; exact Windows artifact signed + timestamped and real certified P10 apply.
-2. macOS signed/notarized/stapled/Gatekeeper lifecycle/update.
-3. clean-machine Windows + macOS.
-4. final evidence closeout.
+1. Generate the private Windows code-signing certificate offline; pin its public SHA-256; provision GitHub secrets; certify signed + timestamped Windows artifact and real P10 apply.
+2. Install the public signing certificate on clean Windows clinic test machine and certify trust + lifecycle.
+3. macOS signed/notarized/stapled/Gatekeeper lifecycle/update.
+4. clean-machine macOS and final evidence closeout.
 
 Ceremony/custody: `docs/portability/P10_UPDATE_SIGNING_KEY_CEREMONY.md`.
 
