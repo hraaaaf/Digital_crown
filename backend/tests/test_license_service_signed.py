@@ -63,6 +63,11 @@ def _trust(monkeypatch, public_key: str) -> None:
     )
 
 
+def _prepare_local_vault(monkeypatch, tmp_path) -> None:
+    monkeypatch.setenv("DIGITALCROWN_USER_DATA_DIR", str(tmp_path))
+    monkeypatch.setenv("CABINET_MASTER_KEY_HEX", "ab" * 32)
+
+
 def test_owner_service_verification_requires_configured_subject(monkeypatch, keypair, now):
     private, public = keypair
     _trust(monkeypatch, public)
@@ -146,3 +151,78 @@ def test_revoked_token_can_be_authenticated_for_storage_but_not_activation(monke
     )
 
     assert verified.status == "REVOKED"
+
+
+def test_install_signed_license_verifies_then_persists_and_reads_back(monkeypatch, tmp_path, keypair):
+    private, public = keypair
+    _trust(monkeypatch, public)
+    _prepare_local_vault(monkeypatch, tmp_path)
+    current = datetime.now(timezone.utc)
+    token = sign_license(
+        _claims(
+            current - timedelta(seconds=1),
+            cabinet_id="cab-install",
+            license_type="TRIAL",
+            feature_set="GOLD",
+            expires_at=(current + timedelta(days=30)).isoformat(),
+        ),
+        private,
+        "k1",
+    )
+
+    service = LicenseService()
+    installed = service.install_signed_license("cab-install", token)
+
+    assert installed["active"] is True
+    assert installed["source"] == "activation"
+    assert installed["license_type"] == "TRIAL"
+    assert installed["feature_set"] == "GOLD"
+    vault = service._read_local_vault()
+    assert vault["clinic_id"] == "cab-install"
+    assert vault["signed_license"] == token
+
+
+def test_install_signed_license_rejects_wrong_cabinet_without_local_activation(monkeypatch, tmp_path, keypair):
+    private, public = keypair
+    _trust(monkeypatch, public)
+    _prepare_local_vault(monkeypatch, tmp_path)
+    current = datetime.now(timezone.utc)
+    token = sign_license(
+        _claims(
+            current - timedelta(seconds=1),
+            cabinet_id="other-cabinet",
+            license_type="TRIAL",
+            feature_set="GOLD",
+            expires_at=(current + timedelta(days=30)).isoformat(),
+        ),
+        private,
+        "k1",
+    )
+
+    service = LicenseService()
+    with pytest.raises(LicenseSecurityError, match="cabinet"):
+        service.install_signed_license("cab-install", token)
+
+    assert service._read_local_vault() == {}
+
+
+def test_install_signed_license_fails_closed_when_vault_write_fails(monkeypatch, keypair):
+    private, public = keypair
+    _trust(monkeypatch, public)
+    current = datetime.now(timezone.utc)
+    token = sign_license(
+        _claims(
+            current - timedelta(seconds=1),
+            cabinet_id="cab-install",
+            license_type="TRIAL",
+            feature_set="GOLD",
+            expires_at=(current + timedelta(days=30)).isoformat(),
+        ),
+        private,
+        "k1",
+    )
+
+    service = LicenseService()
+    monkeypatch.setattr(service, "_write_local_vault", lambda _data: False)
+    with pytest.raises(RuntimeError, match="persisted"):
+        service.install_signed_license("cab-install", token)
