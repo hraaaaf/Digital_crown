@@ -1,6 +1,6 @@
 # P10 — Cross-platform Update Engine
 
-**Status:** ACTIVE — Windows update/rollback/recovery and production trust root certified; distribution/macOS/clean-machine gates remain. **0/13 EP.**
+**Status:** ACTIVE — Windows update/rollback/recovery and production trust root certified; distribution/macOS/clean-machine gates remain. **0 EP credited (0/13 EP).**
 
 ## Goal
 Install only an authentic, fresh, strictly newer Digital Crown release with verified rescue, exact package/runtime health and automatic rollback.
@@ -22,16 +22,29 @@ Two real Ed25519 keypairs were generated offline: operational `primary` and cold
 - exact package self-test;
 - runtime health and finalization;
 - package rollback + SQLCipher DB rescue;
-- interruption recovery;
-- target-start/runtime-bind failure: `UPDATE_WINDOWS_RUNTIME_HEALTH_FAILED` -> worker exit 2 -> restore `1.0.0` -> healthy rollback; DB rollback not required in this scenario.
+- interrupted apply recovery;
+- program snapshot + uninstall registry restoration;
+- target-start/runtime-bind failure: `UPDATE_WINDOWS_RUNTIME_HEALTH_FAILED` -> worker exit 2 -> restore `1.0.0` -> healthy rollback; DB rollback not required in this scenario;
+- the old packaged executable owns last-resort DB rescue; PostgreSQL restore remains fail-closed/unsupported by the local-file bridge.
 
 ## Distribution gates
-### Windows Authenticode
-Required GitHub Actions repository secrets:
-- `WINDOWS_CODESIGN_PFX_B64`
-- `WINDOWS_CODESIGN_PASSWORD`
+### Windows Authenticode — DigiCert KeyLocker selected
+Production mutation remains `apply_certified=false` until the exact installer has a valid Authenticode signature and timestamp certificate.
 
-Current evidence remains `P6_AUTHENTICODE=NOT_CONFIGURED`. When configured, workflow signs SHA-256, timestamps via DigiCert and verifies Authenticode.
+The public code-signing private key must remain inside DigiCert KeyLocker/HSM. GitHub receives only CI authentication material:
+
+Repository secrets:
+- `DIGICERT_SM_API_KEY`
+- `DIGICERT_SM_CLIENT_CERT_FILE_B64`
+- `DIGICERT_SM_CLIENT_CERT_PASSWORD`
+
+Repository variables:
+- `DIGICERT_SM_HOST`
+- `DIGICERT_KEYPAIR_ALIAS`
+
+`DIGICERT_SM_CLIENT_CERT_FILE_B64` is a DigiCert ONE client-authentication certificate, not the code-signing private key. The signing private key is never exported to GitHub Actions.
+
+Current evidence remains `P6_AUTHENTICODE=NOT_CONFIGURED`. The selected workflow path is DigiCert Binary Signing / KeyLocker, SHA-256, timestamp required, followed by local Authenticode verification.
 
 ### macOS P7
 Required secrets:
@@ -46,7 +59,7 @@ Required secrets:
 Required proof: Apple Silicon, Developer ID, notarization accepted/no errors, stapling, Gatekeeper, install/runtime/upgrade/uninstall smoke and real update lifecycle.
 
 ## Remaining gates
-1. Windows signed + timestamped production artifact and real certified P10 apply.
+1. DigiCert KeyLocker account/certificate provisioned; exact Windows artifact signed + timestamped and real certified P10 apply.
 2. macOS signed/notarized/stapled/Gatekeeper lifecycle/update.
 3. clean-machine Windows + macOS.
 4. final evidence closeout.
