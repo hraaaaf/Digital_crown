@@ -19,8 +19,11 @@ class Settings(BaseSettings):
     ENVIRONMENT: str = "development"
     APP_PUBLIC_URL: str = "http://localhost:5173"
     SUPPORT_EMAIL: str = "support@digitalcrown.local"
-    # Display/bootstrap identity only. It is NEVER an authorization root.
-    SUPERADMIN_EMAIL: str = "benmoussa.achraf@gmail.com"
+    # Legacy compatibility only. Authorization by email is deliberately disabled.
+    # Existing code that still reads this setting therefore fails closed.
+    SUPERADMIN_EMAIL: str = ""
+    # Optional display/bootstrap contact. Never use as an authorization root.
+    SUPERADMIN_DISPLAY_EMAIL: str = "benmoussa.achraf@gmail.com"
     # Immutable server-side identity used for platform SuperAdmin authorization.
     # 0 means "not provisioned" and therefore fails closed.
     SUPERADMIN_USER_ID: int = 0
@@ -28,6 +31,12 @@ class Settings(BaseSettings):
     # Security
     ALLOWED_ORIGINS: str = "http://localhost:5173,http://127.0.0.1:5173,https://localhost:5173,https://127.0.0.1:5173"
     RATE_LIMIT_LOGIN: str = "10/minute"
+
+    @field_validator("SUPERADMIN_EMAIL", mode="before")
+    @classmethod
+    def disable_legacy_superadmin_email_authority(cls, _value: str) -> str:
+        """SEC-1: legacy env values cannot reactivate email-based SuperAdmin authority."""
+        return ""
 
     @field_validator("ALLOWED_ORIGINS", mode="after")
     @classmethod
