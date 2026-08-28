@@ -58,6 +58,8 @@ def client(db):
     TestClient FastAPI :
       - get_db overridé sur la session SQLite de test
       - lifespan patché (pas de chargement ML, pas de seed prod)
+      - le garde licence runtime est mocké explicitement ; ses tests SEC-1 dédiés
+        couvrent séparément les chemins signed/fail-closed
       - rate limiter désactivé
     """
     from backend.main import app
@@ -78,6 +80,8 @@ def client(db):
          patch("backend.main.seed_admin_user", return_value=None), \
          patch("backend.main.sync_manager.start_listening", return_value=None), \
          patch("backend.main._sync_all_licenses_from_firebase", new_callable=AsyncMock), \
+         patch("backend.main.get_user_license_status", new_callable=AsyncMock, return_value=(True, "OK")), \
+         patch("backend.main.get_mobile_user_license_status", new_callable=AsyncMock, return_value=(True, "OK")), \
          patch("backend.services.daily_scheduler.start_daily_scheduler", return_value=None), \
          patch("backend.routers.auth.check_rate_limit", return_value=None):
         with TestClient(app, raise_server_exceptions=True) as c:
