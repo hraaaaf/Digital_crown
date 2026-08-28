@@ -1,6 +1,6 @@
 from types import SimpleNamespace
 
-from backend.config import settings
+from backend.config import Settings, settings
 from backend.platform_access import has_platform_permission, is_platform_superadmin
 
 
@@ -25,16 +25,23 @@ def test_superadmin_authority_uses_immutable_user_id_not_email(monkeypatch):
     monkeypatch.setattr(settings, "SUPERADMIN_USER_ID", 42)
 
     owner = _user(user_id=42, email="renamed@example.com")
-    imposter = _user(user_id=99, email=settings.SUPERADMIN_EMAIL)
+    imposter = _user(user_id=99, email=settings.SUPERADMIN_DISPLAY_EMAIL)
 
     assert is_platform_superadmin(owner) is True
     assert is_platform_superadmin(imposter) is False
 
 
+def test_legacy_superadmin_email_setting_cannot_reenable_authority():
+    cfg = Settings(SUPERADMIN_EMAIL="attacker@example.com")
+
+    assert cfg.SUPERADMIN_EMAIL == ""
+    assert cfg.SUPERADMIN_DISPLAY_EMAIL == "benmoussa.achraf@gmail.com"
+
+
 def test_unprovisioned_superadmin_fails_closed(monkeypatch):
     monkeypatch.setattr(settings, "SUPERADMIN_USER_ID", 0)
 
-    candidate = _user(user_id=42, email=settings.SUPERADMIN_EMAIL)
+    candidate = _user(user_id=42, email=settings.SUPERADMIN_DISPLAY_EMAIL)
 
     assert is_platform_superadmin(candidate) is False
 
