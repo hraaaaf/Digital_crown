@@ -1,5 +1,5 @@
 import secrets
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import List
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query
@@ -7,7 +7,10 @@ from sqlalchemy.orm import Session
 
 from backend import database, models
 from backend.config import settings
+from backend.license_issuer import LicenseIssuerUnavailable, issue_license
+from backend.license_security import LicenseSecurityError
 from backend.main import invalidate_license_cache
+from backend.platform_access import has_platform_permission, is_platform_superadmin
 from backend.routers.auth import get_current_user
 from backend.schemas.superadmin import (
     ClientBaseStats,
@@ -23,14 +26,22 @@ from backend.services.notification_service import notification_service
 
 router = APIRouter(tags=["SuperAdmin"])
 
-_SUPERADMIN_EMAIL = settings.SUPERADMIN_EMAIL.lower().strip()
-
 
 def verify_superadmin(current_user: models.User = Depends(get_current_user)):
-    current_email = current_user.email.lower().strip()
-    if _SUPERADMIN_EMAIL and current_email == _SUPERADMIN_EMAIL:
+    if is_platform_superadmin(current_user):
         return current_user
     raise HTTPException(status_code=403, detail="Accès refusé. Réservé au SuperAdmin.")
+
+
+def require_platform_permission(permission: str):
+    def dependency(current_user: models.User = Depends(get_current_user)):
+        if has_platform_permission(current_user, permission):
+            return current_user
+        raise HTTPException(
+            status_code=403,
+            detail="Accès refusé. Permission plateforme insuffisante.",
+        )
+    return dependency
 
 
 def add_license_history(db: Session, user_id: int, admin_id: int, action: str, duration: int = None):
@@ -74,6 +85,52 @@ def _generate_trial_code() -> str:
     return f"DC-{chunks[0]}-{chunks[1]}-{chunks[2]}"
 
 
+def _license_identifier(cabinet: models.CabinetConfig) -> str:
+    return str(cabinet.clinic_id or cabinet.public_id)
+
+
+async def _issue_and_store_signed_license(
+    *,
+    cabinet: models.CabinetConfig,
+    license_type: str,
+    created_by_user_id: int,
+    expires_at: datetime | None,
+    status: str = "ACTIVE",
+    max_devices: int | None = 1,
+    subject_user_id: int | None = None,
+    feature_set: str = "full",
+) -> str:
+    clinic_id = _license_identifier(cabinet)
+    try:
+        signed_license = issue_license(
+            cabinet_id=clinic_id,
+            license_type=license_type,
+            created_by_user_id=created_by_user_id,
+            expires_at=expires_at,
+            release_channel="stable",
+            feature_set=feature_set,
+            max_devices=max_devices,
+            status=status,
+            subject_user_id=subject_user_id,
+        )
+    except (LicenseIssuerUnavailable, LicenseSecurityError) as exc:
+        raise HTTPException(
+            status_code=503,
+            detail="Émission de licence indisponible. Clé de signature non provisionnée.",
+        ) from exc
+
+    stored = await LicenseService().write_signed_license(
+        public_id=clinic_id,
+        signed_license=signed_license,
+    )
+    if not stored:
+        raise HTTPException(
+            status_code=503,
+            detail="Licence signée générée mais non persistée. Aucune activation appliquée.",
+        )
+    return signed_license
+
+
 @router.get("/clients", response_model=List[ClientOut])
 def get_clients(db: Session = Depends(database.get_db), admin: models.User = Depends(verify_superadmin)):
     clients = db.query(models.User).filter(
@@ -99,7 +156,7 @@ def get_clients(db: Session = Depends(database.get_db), admin: models.User = Dep
 
 
 @router.post("/clients/{user_id}/validate")
-def validate_client(
+async def validate_client(
     user_id: int,
     background_tasks: BackgroundTasks,
     db: Session = Depends(database.get_db),
@@ -109,23 +166,31 @@ def validate_client(
     if not user:
         raise HTTPException(status_code=404, detail="Utilisateur introuvable.")
 
-    user.is_active = True
-    now = datetime.utcnow()
-    user.is_licensed = True
-    user.license_expires_at = now + timedelta(days=30)
+    cabinet = db.query(models.CabinetConfig).filter(models.CabinetConfig.owner_id == user.id).first()
+    if not cabinet:
+        raise HTTPException(
+            status_code=409,
+            detail="Cabinet non configuré : impossible d'émettre une licence signée.",
+        )
 
+    now_utc = datetime.now(timezone.utc)
+    expiry_utc = now_utc + timedelta(days=30)
+    await _issue_and_store_signed_license(
+        cabinet=cabinet,
+        license_type="TRIAL",
+        created_by_user_id=admin.id,
+        expires_at=expiry_utc,
+        max_devices=1,
+        feature_set=user.subscription_plan or models.SubscriptionPlan.GOLD.value,
+    )
+
+    user.is_active = True
+    user.is_licensed = True
+    user.license_expires_at = expiry_utc.replace(tzinfo=None)
     add_license_history(db, user_id, admin.id, "COMPTE_VALIDE_ESSAI_30J", 30)
     db.commit()
 
     invalidate_license_cache(user.email)
-    cabinet = db.query(models.CabinetConfig).filter(models.CabinetConfig.owner_id == user.id).first()
-    if cabinet:
-        background_tasks.add_task(
-            LicenseService().write_license,
-            public_id=cabinet.public_id,
-            active=True,
-            expiration_date=user.license_expires_at,
-        )
 
     try:
         from backend.services.email_service import email_service
@@ -147,7 +212,7 @@ def validate_client(
 @router.get("/trial-codes", response_model=List[TrialActivationCodeOut])
 def list_trial_codes(
     db: Session = Depends(database.get_db),
-    admin: models.User = Depends(verify_superadmin),
+    admin: models.User = Depends(require_platform_permission("license.read")),
 ):
     codes = (
         db.query(models.TrialActivationCode)
@@ -161,7 +226,7 @@ def list_trial_codes(
 def create_trial_code(
     payload: TrialActivationCodeCreate,
     db: Session = Depends(database.get_db),
-    admin: models.User = Depends(verify_superadmin),
+    admin: models.User = Depends(require_platform_permission("license.create_trial")),
 ):
     expires_in_days = max(1, min(payload.expires_in_days, 60))
     trial_days = max(1, min(payload.trial_days, 90))
@@ -186,7 +251,7 @@ def create_trial_code(
 def revoke_trial_code(
     code_id: int,
     db: Session = Depends(database.get_db),
-    admin: models.User = Depends(verify_superadmin),
+    admin: models.User = Depends(require_platform_permission("license.revoke")),
 ):
     code = db.query(models.TrialActivationCode).filter(models.TrialActivationCode.id == code_id).first()
     if not code:
@@ -201,9 +266,8 @@ def revoke_trial_code(
 
 
 @router.post("/clients/{user_id}/grant-license")
-def grant_license(
+async def grant_license(
     user_id: int,
-    background_tasks: BackgroundTasks,
     action: str = Query(...),
     db: Session = Depends(database.get_db),
     admin: models.User = Depends(verify_superadmin),
@@ -212,51 +276,67 @@ def grant_license(
     if not user:
         raise HTTPException(status_code=404, detail="Utilisateur introuvable.")
 
-    now = datetime.utcnow()
-    current_expiry = user.license_expires_at if user.license_expires_at and user.license_expires_at > now else now
+    cabinet = db.query(models.CabinetConfig).filter(models.CabinetConfig.owner_id == user.id).first()
+    if not cabinet:
+        raise HTTPException(
+            status_code=409,
+            detail="Cabinet non configuré : impossible d'émettre une licence signée.",
+        )
 
-    if action == "1m":
-        duration = 30
-    elif action == "3m":
-        duration = 90
-    elif action == "6m":
-        duration = 180
-    elif action == "1y":
-        duration = 365
-    elif action == "revoke":
-        user.license_expires_at = now - timedelta(days=1)
+    now_utc = datetime.now(timezone.utc)
+    now_db = now_utc.replace(tzinfo=None)
+    current_expiry_db = (
+        user.license_expires_at
+        if user.license_expires_at and user.license_expires_at > now_db
+        else now_db
+    )
+
+    durations = {"1m": 30, "3m": 90, "6m": 180, "1y": 365}
+    if action == "revoke":
+        previous_expiry = user.license_expires_at
+        expiry_utc = (
+            previous_expiry.replace(tzinfo=timezone.utc)
+            if previous_expiry
+            else now_utc
+        )
+        await _issue_and_store_signed_license(
+            cabinet=cabinet,
+            license_type="PAID",
+            created_by_user_id=admin.id,
+            expires_at=expiry_utc,
+            status="REVOKED",
+            max_devices=1,
+            feature_set=user.subscription_plan or models.SubscriptionPlan.GOLD.value,
+        )
+
+        user.license_expires_at = now_db - timedelta(days=1)
         user.is_licensed = False
         add_license_history(db, user_id, admin.id, "revoke")
         db.commit()
-
         invalidate_license_cache(user.email)
-        cabinet = db.query(models.CabinetConfig).filter(models.CabinetConfig.owner_id == user.id).first()
-        if cabinet:
-            background_tasks.add_task(
-                LicenseService().write_license,
-                public_id=cabinet.public_id,
-                active=False,
-                expiration_date=user.license_expires_at,
-            )
         return {"status": "success", "license_expires_at": user.license_expires_at}
-    else:
+
+    duration = durations.get(action)
+    if duration is None:
         raise HTTPException(status_code=400, detail="Action non valide.")
 
-    user.license_expires_at = current_expiry + timedelta(days=duration)
+    new_expiry_db = current_expiry_db + timedelta(days=duration)
+    new_expiry_utc = new_expiry_db.replace(tzinfo=timezone.utc)
+    await _issue_and_store_signed_license(
+        cabinet=cabinet,
+        license_type="PAID",
+        created_by_user_id=admin.id,
+        expires_at=new_expiry_utc,
+        max_devices=1,
+        feature_set=user.subscription_plan or models.SubscriptionPlan.GOLD.value,
+    )
+
+    user.license_expires_at = new_expiry_db
     user.is_licensed = True
     add_license_history(db, user_id, admin.id, "grant", duration)
     db.commit()
 
     invalidate_license_cache(user.email)
-    cabinet = db.query(models.CabinetConfig).filter(models.CabinetConfig.owner_id == user.id).first()
-    if cabinet:
-        background_tasks.add_task(
-            LicenseService().write_license,
-            public_id=cabinet.public_id,
-            active=True,
-            expiration_date=user.license_expires_at,
-        )
-
     return {"status": "success", "license_expires_at": user.license_expires_at}
 
 
