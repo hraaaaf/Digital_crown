@@ -4,6 +4,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 SPEC = ROOT / "DigitalCrown.spec"
+BUILD_SCRIPT = ROOT / "scripts" / "build_exe.py"
 PRIVATE_KEY_ASSIGNMENT = re.compile(
     r"DIGITALCROWN_LICENSE_SIGNING_PRIVATE_KEY_B64URL\s*=\s*['\"][A-Za-z0-9_-]{20,}['\"]"
 )
@@ -28,11 +29,18 @@ def _iter_distributed_source_files():
 
 def test_pyinstaller_does_not_bundle_env_or_control_plane_credentials():
     spec = SPEC.read_text(encoding="utf-8")
+    build_script = BUILD_SCRIPT.read_text(encoding="utf-8")
 
     # Comments mentioning .env are fine; a datas tuple that includes it is not.
     assert re.search(r"\(\s*['\"]\.env(?:\.local)?['\"]\s*,", spec) is None
     assert "firebase_creds.json" not in spec
     assert "DIGITALCROWN_LICENSE_SIGNING_PRIVATE_KEY_B64URL" not in spec
+
+    # The legacy helper is also a valid build entrypoint. It must obey the same
+    # boundary instead of conditionally copying a local Firebase service account.
+    assert "firebase_creds.json" not in build_script
+    assert "DIGITALCROWN_LICENSE_SIGNING_PRIVATE_KEY_B64URL" not in build_script
+    assert "--add-data" in build_script
 
 
 def test_firebase_service_account_is_not_tracked_in_client_tree():
