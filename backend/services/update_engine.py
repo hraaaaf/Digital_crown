@@ -20,13 +20,21 @@ from backend.core.platform import get_platform_adapter
 from backend.services.backup_service import BackupService
 
 MANIFEST_SCHEMA = 1
-UPDATE_PUBLIC_KEY_ENV = "DIGITALCROWN_UPDATE_PUBLIC_KEY_B64"
 UPDATE_ROOT_NAME = "updates"
 TRUST_STATE_NAME = "trusted_state.json"
 VERSION_PATTERN = re.compile(r"^[0-9]+\.[0-9]+\.[0-9]+$")
 SHA256_PATTERN = re.compile(r"^[0-9a-f]{64}$")
 MAX_MANIFEST_BYTES = 256 * 1024
 MAX_ARTIFACT_BYTES = 8 * 1024**3
+TRUST_KEY_ACTIVE = "active"
+TRUST_KEY_REVOKED = "revoked"
+
+# Production update trust is immutable at runtime. Add real public keys only after
+# the corresponding signing ceremony/gate; never inject them via environment.
+# Multiple active keys permit controlled rotation. Revoked keys stay listed so
+# old manifests fail with an explicit revocation reason rather than becoming
+# indistinguishable from unknown keys.
+PINNED_UPDATE_KEYS: dict[str, dict[str, str]] = {}
 
 
 class UpdateSecurityError(RuntimeError):
@@ -155,12 +163,9 @@ class UpdateEngine:
         )
 
     @staticmethod
-    def _public_key(raw_b64: str | None = None) -> tuple[Ed25519PublicKey, str]:
-        encoded = str(raw_b64 or os.getenv(UPDATE_PUBLIC_KEY_ENV, "")).strip()
-        if not encoded:
-            raise UpdateSecurityError("UPDATE_PUBLIC_KEY_REQUIRED")
+    def _decode_public_key(encoded: str) -> tuple[Ed25519PublicKey, str]:
         try:
-            raw = base64.b64decode(encoded, validate=True)
+            raw = base64.b64decode(str(encoded or "").strip(), validate=True)
         except Exception as exc:
             raise UpdateSecurityError("UPDATE_PUBLIC_KEY_INVALID") from exc
         if len(raw) != 32:
@@ -170,6 +175,39 @@ class UpdateEngine:
             return Ed25519PublicKey.from_public_bytes(raw), key_id
         except ValueError as exc:
             raise UpdateSecurityError("UPDATE_PUBLIC_KEY_INVALID") from exc
+
+    @classmethod
+    def _public_key(
+        cls,
+        key_id: str,
+        *,
+        raw_b64: str | None = None,
+    ) -> Ed25519PublicKey:
+        requested = str(key_id or "").strip().lower()
+        if not SHA256_PATTERN.fullmatch(requested):
+            raise UpdateSecurityError("UPDATE_MANIFEST_KEYID_INVALID")
+
+        # Explicit key injection exists only for deterministic tests/certification
+        # callers. Production callers omit it and are restricted to the embedded
+        # keyring below.
+        if raw_b64 is not None:
+            key, derived = cls._decode_public_key(raw_b64)
+            if derived != requested:
+                raise UpdateSecurityError("UPDATE_MANIFEST_KEYID_MISMATCH")
+            return key
+
+        record = PINNED_UPDATE_KEYS.get(requested)
+        if record is None:
+            raise UpdateSecurityError("UPDATE_SIGNING_KEY_UNKNOWN")
+        status = str(record.get("status") or "").strip().lower()
+        if status == TRUST_KEY_REVOKED:
+            raise UpdateSecurityError("UPDATE_SIGNING_KEY_REVOKED")
+        if status != TRUST_KEY_ACTIVE:
+            raise UpdateSecurityError("UPDATE_SIGNING_KEY_STATUS_INVALID")
+        key, derived = cls._decode_public_key(str(record.get("public_key_b64") or ""))
+        if derived != requested:
+            raise UpdateSecurityError("UPDATE_PINNED_KEY_ID_INVALID")
+        return key
 
     @classmethod
     def verify_manifest(
@@ -197,9 +235,8 @@ class UpdateEngine:
         if int(signed.get("schema", 0)) != MANIFEST_SCHEMA:
             raise UpdateSecurityError("UPDATE_MANIFEST_SCHEMA_UNSUPPORTED")
 
-        public_key, expected_key_id = cls._public_key(public_key_b64)
-        if str(signature.get("keyid") or "") != expected_key_id:
-            raise UpdateSecurityError("UPDATE_MANIFEST_KEYID_MISMATCH")
+        signature_key_id = str(signature.get("keyid") or "").strip().lower()
+        public_key = cls._public_key(signature_key_id, raw_b64=public_key_b64)
         if str(signature.get("algorithm") or "") != "ed25519":
             raise UpdateSecurityError("UPDATE_MANIFEST_ALGORITHM_UNSUPPORTED")
         try:
