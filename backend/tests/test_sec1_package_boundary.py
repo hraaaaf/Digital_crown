@@ -18,6 +18,10 @@ def _iter_distributed_source_files():
         if not base.exists():
             continue
         for path in base.rglob("*"):
+            # backend/tests are not imported by the packaged runtime. Excluding
+            # them also prevents the detector from flagging its own test markers.
+            if "tests" in path.relative_to(ROOT).parts:
+                continue
             if path.is_file() and path.suffix.lower() in {".py", ".ts", ".tsx", ".js", ".json"}:
                 yield path
 
