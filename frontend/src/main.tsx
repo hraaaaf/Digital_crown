@@ -9,12 +9,10 @@ import * as Sentry from '@sentry/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { registerSW } from 'virtual:pwa-register'
 
-const PREVIEW_HOSTS = new Set([
-  'digital-crown-p2-runtime-q7spkciph-achraf-benmoussa-s-projects.vercel.app',
-  'digital-crown-p2-runtime-git-51e609-achraf-benmoussa-s-projects.vercel.app',
-])
 const previewParams = new URLSearchParams(window.location.search)
-const isPreviewDemo = PREVIEW_HOSTS.has(window.location.hostname)
+const isDedicatedPreviewBuild = import.meta.env.VITE_DC_PREVIEW_DEMO === '1'
+const isPreviewDemo = isDedicatedPreviewBuild
+  && window.location.hostname.endsWith('.vercel.app')
   && window.location.pathname === '/mobile/demo'
   && previewParams.get('demo') === '1'
 

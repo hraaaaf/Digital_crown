@@ -21,13 +21,11 @@
     </script>
     <script>
       (function () {
-        const allowedPreviewHosts = new Set([
-          'digital-crown-p2-runtime-q7spkciph-achraf-benmoussa-s-projects.vercel.app',
-          'digital-crown-p2-runtime-git-51e609-achraf-benmoussa-s-projects.vercel.app'
-        ]);
+        const dedicatedPreviewBuild = '%VITE_DC_PREVIEW_DEMO%' === '1';
+        const isVercelHost = window.location.hostname.endsWith('.vercel.app');
         const params = new URLSearchParams(window.location.search);
         const requestedDemo = params.get('demo') === '1';
-        const isDedicatedPreview = allowedPreviewHosts.has(window.location.hostname);
+        const isDedicatedPreview = dedicatedPreviewBuild && isVercelHost;
         const isDemoRoute = window.location.pathname === '/mobile/demo';
         const isOnboardingRoute = window.location.pathname === '/mobile/onboarding';
 
