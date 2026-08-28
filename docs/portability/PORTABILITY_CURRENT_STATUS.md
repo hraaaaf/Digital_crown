@@ -42,8 +42,7 @@ Last verified: 2026-08-28.
 - P10 remains OPEN and **0/13 EP credited** because platform distribution and clean-machine gates remain unsatisfied.
 
 ## Documentation closeout above product proof
-- current branch HEAD: `794472df8a1502aa04a3ea59aedff7ebad829d6e`;
-- commits after certified product HEAD `e4d16ffd...`: documentation only;
+- all commits after certified product HEAD `e4d16ffd...` are documentation-only;
 - files touched: `PORTABILITY_LAUNCHER_ROADMAP.md`, `docs/portability/P10_UPDATE_ENGINE.md`, `docs/portability/P10_UPDATE_SIGNING_KEY_CEREMONY.md`, `docs/portability/PORTABILITY_CURRENT_STATUS.md`;
 - product/runtime proof remains #49 on `e4d16ffd...`.
 
