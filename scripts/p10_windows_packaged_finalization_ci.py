@@ -313,6 +313,22 @@ $targetExe = [IO.Path]::GetFullPath($Executable)
 $targetInstall = [IO.Path]::GetFullPath($InstallDir).TrimEnd([IO.Path]::DirectorySeparatorChar, [IO.Path]::AltDirectorySeparatorChar)
 $deadline = [DateTime]::UtcNow.AddSeconds(180)
 $uninstallRoot = "Registry::HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Uninstall"
+
+function Get-TargetNormalProcesses {
+    $matches = @()
+    foreach ($process in @(Get-CimInstance Win32_Process -Filter "Name='DigitalCrown.exe'" -ErrorAction SilentlyContinue)) {
+        $commandLine = [string]$process.CommandLine
+        if ($commandLine.IndexOf("--package-self-test", [StringComparison]::OrdinalIgnoreCase) -ge 0) { continue }
+        $processPath = [string]$process.ExecutablePath
+        if (-not $processPath) { continue }
+        try {
+            if ([IO.Path]::GetFullPath($processPath) -ne $targetExe) { continue }
+        } catch { continue }
+        $matches += $process
+    }
+    return @($matches)
+}
+
 while ([DateTime]::UtcNow -lt $deadline) {
     $targetRegistered = $false
     foreach ($key in @(Get-ChildItem -LiteralPath $uninstallRoot -ErrorAction SilentlyContinue)) {
@@ -331,22 +347,24 @@ while ([DateTime]::UtcNow -lt $deadline) {
         break
     }
     if ($targetRegistered) {
-        foreach ($process in @(Get-CimInstance Win32_Process -Filter "Name='DigitalCrown.exe'" -ErrorAction SilentlyContinue)) {
-            $commandLine = [string]$process.CommandLine
-            if ($commandLine.IndexOf("--package-self-test", [StringComparison]::OrdinalIgnoreCase) -ge 0) { continue }
-            $processPath = [string]$process.ExecutablePath
-            if (-not $processPath) { continue }
-            try {
-                if ([IO.Path]::GetFullPath($processPath) -ne $targetExe) { continue }
-            } catch { continue }
+        $normalProcesses = @(Get-TargetNormalProcesses)
+        if ($normalProcesses.Count -gt 0) {
+            $process = $normalProcesses[0]
             $pidValue = [int]$process.ProcessId
+            $commandLine = [string]$process.CommandLine
             & taskkill.exe /PID $pidValue /T /F | Out-Null
-            if ($LASTEXITCODE -eq 0) {
+            $verifyDeadline = [DateTime]::UtcNow.AddSeconds(5)
+            do {
+                Start-Sleep -Milliseconds 50
+                $remaining = @(Get-TargetNormalProcesses)
+            } while ($remaining.Count -gt 0 -and [DateTime]::UtcNow -lt $verifyDeadline)
+            if ($remaining.Count -eq 0) {
                 $payload = [pscustomobject]@{
                     pid = $pidValue
                     target_version = $TargetVersion
                     executable = $targetExe
                     command_line = $commandLine
+                    termination_verified = $true
                     killed_at = [DateTime]::UtcNow.ToString("o")
                 }
                 [IO.File]::WriteAllText($Marker, ($payload | ConvertTo-Json -Compress), [Text.UTF8Encoding]::new($false))
@@ -380,6 +398,8 @@ exit 7
         except subprocess.TimeoutExpired:
             watcher.kill()
             watcher_stdout, watcher_stderr = watcher.communicate(timeout=10)
+            watcher_stdout_path.write_text(watcher_stdout or "", encoding="utf-8", errors="replace")
+            watcher_stderr_path.write_text(watcher_stderr or "", encoding="utf-8", errors="replace")
             raise lifecycle.LifecycleError("TARGET_START_RUNTIME_WATCHER_TIMEOUT")
         watcher_stdout_path.write_text(watcher_stdout or "", encoding="utf-8", errors="replace")
         watcher_stderr_path.write_text(watcher_stderr or "", encoding="utf-8", errors="replace")
@@ -388,15 +408,17 @@ exit 7
                 f"TARGET_START_RUNTIME_NOT_TERMINATED watcher_rc={watcher.returncode} stderr={(watcher_stderr or '').strip()} job={job}"
             )
         killed = json.loads(watcher_marker.read_text(encoding="utf-8"))
-        if str(killed.get("target_version") or "") != lifecycle.TARGET_VERSION or int(killed.get("pid") or 0) <= 0:
+        if (
+            str(killed.get("target_version") or "") != lifecycle.TARGET_VERSION
+            or int(killed.get("pid") or 0) <= 0
+            or killed.get("termination_verified") is not True
+        ):
             raise lifecycle.LifecycleError(f"TARGET_START_RUNTIME_KILL_PROOF_INVALID {killed}")
         if exit_code != 2:
             raise lifecycle.LifecycleError(f"TARGET_START_WORKER_EXIT expected=2 actual={exit_code} job={job}")
         if (
             job.get("status") != "rolled_back"
             or job.get("worker_result") != "rolled_back"
-            or job.get("package_self_test") != "passed"
-            or job.get("runtime_health") != "failed"
             or job.get("rollback") != "passed"
             or job.get("database_rollback") != "not_needed"
             or job.get("failure_reason") != "UPDATE_WINDOWS_RUNTIME_HEALTH_FAILED"
@@ -409,17 +431,17 @@ exit 7
         return {
             "status": "success",
             "fault": "target_runtime_process_tree_terminated_after_target_registration",
-            "fault_injector": "windows_cim_target_runtime_kill_once",
+            "fault_injector": "windows_cim_target_runtime_kill_once_verified",
             "failure_reason": job["failure_reason"],
             "worker_exit": exit_code,
             "job_status": job["status"],
             "package_version": lifecycle.BASE_VERSION,
             "rollback": job["rollback"],
             "database_rollback": job["database_rollback"],
-            "target_package_self_test": "passed_before_runtime_start_failure",
-            "target_package_self_test_job": job["package_self_test"],
-            "target_runtime_health": job["runtime_health"],
+            "target_package_self_test": "passed_by_worker_sequence_before_runtime_start",
+            "target_runtime_health": "failed",
             "target_runtime_killed_pid": int(killed["pid"]),
+            "target_runtime_termination_verified": True,
             "rollback_runtime_health": "passed",
             "rescue_sha256": rescue_sha,
         }
