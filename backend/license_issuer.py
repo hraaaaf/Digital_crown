@@ -5,6 +5,7 @@ import uuid
 from datetime import datetime, timezone
 from typing import Any
 
+from backend.config import settings
 from backend.license_security import (
     LICENSE_AUDIENCE,
     LICENSE_ISSUER,
@@ -19,10 +20,15 @@ SIGNING_KEY_ID_ENV = "DIGITALCROWN_LICENSE_SIGNING_KEY_ID"
 
 
 class LicenseIssuerUnavailable(RuntimeError):
-    """The control plane has no usable signing key configured."""
+    """The control plane has no usable signing capability configured."""
 
 
 def _signing_material() -> tuple[str, str]:
+    if not bool(getattr(settings, "PLATFORM_CONTROL_PLANE_ENABLED", False)):
+        raise LicenseIssuerUnavailable(
+            "License signing is disabled outside the dedicated platform control plane."
+        )
+
     private_key = os.getenv(SIGNING_PRIVATE_KEY_ENV, "").strip()
     key_id = os.getenv(SIGNING_KEY_ID_ENV, "").strip()
     if not private_key or not key_id:
