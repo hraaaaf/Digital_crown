@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import json
-import socket
 import subprocess
 import sys
 import threading
@@ -220,10 +219,22 @@ def target_application_start_failure_case(repo_root: Path, baseline: Path, targe
     env = lifecycle.make_case_env(data_dir, port)
     runtime: subprocess.Popen[bytes] | None = None
     rollback_runtime_pid: int | None = None
-    blocker = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    blocker: subprocess.Popen[str] | None = None
     stop_monitor = threading.Event()
     rollback_observed = threading.Event()
     release_thread: threading.Thread | None = None
+
+    def stop_blocker() -> None:
+        nonlocal blocker
+        if blocker is None or blocker.poll() is not None:
+            return
+        blocker.terminate()
+        try:
+            blocker.wait(timeout=5)
+        except subprocess.TimeoutExpired:
+            blocker.kill()
+            blocker.wait(timeout=5)
+
     try:
         lifecycle.install_inno(baseline, install_dir, root / "baseline-install.log", env)
         executable = install_dir / "DigitalCrown.exe"
@@ -241,8 +252,26 @@ def target_application_start_failure_case(repo_root: Path, baseline: Path, targe
         job_payload["health_timeout_seconds"] = 3
         job_path.write_text(json.dumps(job_payload, indent=2, sort_keys=True), encoding="utf-8")
 
-        blocker.bind(("127.0.0.1", port))
-        blocker.listen(1)
+        blocker_code = (
+            "import socket,time\n"
+            "s=socket.socket(socket.AF_INET,socket.SOCK_STREAM)\n"
+            f"s.bind(('127.0.0.1',{port}))\n"
+            "s.listen(1)\n"
+            "print('READY', flush=True)\n"
+            "time.sleep(300)\n"
+        )
+        blocker = subprocess.Popen(
+            [sys.executable, "-c", blocker_code],
+            stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, errors="replace",
+        )
+        if blocker.stdout is None:
+            raise lifecycle.LifecycleError("TARGET_START_BLOCKER_STDOUT_MISSING")
+        ready = blocker.stdout.readline().strip()
+        if ready != "READY":
+            stderr = blocker.stderr.read() if blocker.stderr is not None else ""
+            raise lifecycle.LifecycleError(
+                f"TARGET_START_BLOCKER_NOT_READY rc={blocker.poll()} stderr={stderr.strip()}"
+            )
 
         def release_port_on_rollback() -> None:
             deadline = time.monotonic() + 180
@@ -250,14 +279,18 @@ def target_application_start_failure_case(repo_root: Path, baseline: Path, targe
                 try:
                     current = json.loads(job_path.read_text(encoding="utf-8"))
                     if current.get("status") == "rolling_back":
+                        stop_blocker()
                         rollback_observed.set()
-                        blocker.close()
                         return
                 except (OSError, ValueError):
                     pass
-                time.sleep(0.05)
+                time.sleep(0.02)
 
-        release_thread = threading.Thread(target=release_port_on_rollback, name="p10-target-start-port-release", daemon=True)
+        release_thread = threading.Thread(
+            target=release_port_on_rollback,
+            name="p10-target-start-port-release",
+            daemon=True,
+        )
         release_thread.start()
 
         exit_code, job = invoke_entry_worker(repo_root, job_path, env, root)
@@ -265,11 +298,15 @@ def target_application_start_failure_case(repo_root: Path, baseline: Path, targe
             release_thread.join(timeout=10)
         if not rollback_observed.is_set():
             raise lifecycle.LifecycleError(f"TARGET_START_ROLLBACK_STATE_NOT_OBSERVED job={job}")
+        if blocker is not None and blocker.poll() is None:
+            raise lifecycle.LifecycleError("TARGET_START_BLOCKER_NOT_RELEASED")
         if exit_code != 2:
             raise lifecycle.LifecycleError(f"TARGET_START_WORKER_EXIT expected=2 actual={exit_code} job={job}")
         if (
             job.get("status") != "rolled_back"
             or job.get("worker_result") != "rolled_back"
+            or job.get("package_self_test") != "passed"
+            or job.get("runtime_health") != "failed"
             or job.get("rollback") != "passed"
             or job.get("database_rollback") != "not_needed"
             or job.get("failure_reason") != "UPDATE_WINDOWS_RUNTIME_HEALTH_FAILED"
@@ -282,6 +319,7 @@ def target_application_start_failure_case(repo_root: Path, baseline: Path, targe
         return {
             "status": "success",
             "fault": "occupied_loopback_port_blocks_target_runtime_bind",
+            "fault_injector": "isolated_subprocess",
             "failure_reason": job["failure_reason"],
             "worker_exit": exit_code,
             "job_status": job["status"],
@@ -289,15 +327,15 @@ def target_application_start_failure_case(repo_root: Path, baseline: Path, targe
             "rollback": job["rollback"],
             "database_rollback": job["database_rollback"],
             "target_package_self_test": "passed_before_runtime_start_failure",
+            "target_package_self_test_job": job["package_self_test"],
+            "target_runtime_health": job["runtime_health"],
             "rollback_runtime_health": "passed",
+            "blocker_release": "process_terminated_before_rollback_runtime_health",
             "rescue_sha256": rescue_sha,
         }
     finally:
         stop_monitor.set()
-        try:
-            blocker.close()
-        except OSError:
-            pass
+        stop_blocker()
         if release_thread is not None and release_thread.is_alive():
             release_thread.join(timeout=5)
         if runtime is not None:
