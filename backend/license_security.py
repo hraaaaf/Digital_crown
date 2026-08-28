@@ -261,7 +261,7 @@ def verify_license(
     else:
         if expires_at is None:
             raise LicenseSecurityError("expiring license requires expires_at")
-        if expires_at <= current:
+        if status == "ACTIVE" and expires_at <= current:
             raise LicenseSecurityError("license expired")
         if claims.get("subject_user_id") is not None:
             _require_int(claims, "subject_user_id")
