@@ -126,6 +126,9 @@ def _validate_authenticode_distribution_gate(root: Path) -> None:
         'P6_PRIVATE_CODESIGN_NOT_CONFIGURED': 'P6 signing must fail closed when credentials are absent',
         'P6_PRIVATE_CODESIGN_PARTIAL_CONFIGURATION': 'P6 signing must fail closed on partial credential configuration',
         'P6_PRIVATE_CODESIGN_CERT_SHA256_MISMATCH': 'P6 signing certificate SHA-256 pin check missing',
+        'Cert:\\LocalMachine\\Root': 'P6 signing must trust the private publisher in LocalMachine Root',
+        'Cert:\\LocalMachine\\TrustedPublisher': 'P6 signing must trust the private publisher in LocalMachine TrustedPublisher',
+        'P6_PRIVATE_CODESIGN_TRUST_IMPORT_FAILED': 'P6 signing must prove LocalMachine trust import',
         'Start-Process -FilePath $signtool': 'P6 bounded Authenticode signing process missing',
         "'sign', '/fd', 'SHA256'": 'P6 Authenticode SHA-256 signing arguments missing',
         "'/tr', 'http://timestamp.digicert.com', '/td', 'SHA256'": 'P6 RFC3161 SHA-256 timestamp arguments missing',
@@ -189,4 +192,3 @@ def main() -> None:
 
 if __name__ == '__main__':
     main()
-

@@ -161,16 +161,11 @@ jobs:
           Write-Host "P6_CODESIGN_PHASE=CERTIFICATE_VALIDATION_SUCCESS"
 
           Write-Host "P6_CODESIGN_PHASE=EPHEMERAL_TRUST_START"
+          Import-Certificate -FilePath $cer -CertStoreLocation Cert:\LocalMachine\Root -Confirm:$false | Out-Null
+          Import-Certificate -FilePath $cer -CertStoreLocation Cert:\LocalMachine\TrustedPublisher -Confirm:$false | Out-Null
           foreach ($storeName in @('Root', 'TrustedPublisher')) {
-            $store = [Security.Cryptography.X509Certificates.X509Store]::new(
-              $storeName,
-              [Security.Cryptography.X509Certificates.StoreLocation]::CurrentUser
-            )
-            try {
-              $store.Open([Security.Cryptography.X509Certificates.OpenFlags]::ReadWrite)
-              $store.Add($cert)
-            } finally {
-              $store.Close()
+            if (-not (Test-Path -LiteralPath "Cert:\LocalMachine\$storeName\$($cert.Thumbprint)")) {
+              throw "P6_PRIVATE_CODESIGN_TRUST_IMPORT_FAILED store=$storeName"
             }
           }
           Write-Host "P6_CODESIGN_PHASE=EPHEMERAL_TRUST_SUCCESS"
@@ -237,8 +232,9 @@ jobs:
           Remove-Item -LiteralPath (Join-Path $env:RUNNER_TEMP "digitalcrown-private-codesign.pfx") -Force -ErrorAction SilentlyContinue
           Remove-Item -LiteralPath (Join-Path $env:RUNNER_TEMP "digitalcrown-private-codesign.cer") -Force -ErrorAction SilentlyContinue
           if ($env:SIGNER_THUMBPRINT) {
-            foreach ($store in @('My','Root','TrustedPublisher')) {
-              Remove-Item -LiteralPath "Cert:\CurrentUser\$store\$env:SIGNER_THUMBPRINT" -Force -ErrorAction SilentlyContinue
+            Remove-Item -LiteralPath "Cert:\CurrentUser\My\$env:SIGNER_THUMBPRINT" -Force -ErrorAction SilentlyContinue
+            foreach ($store in @('Root','TrustedPublisher')) {
+              Remove-Item -LiteralPath "Cert:\LocalMachine\$store\$env:SIGNER_THUMBPRINT" -Force -ErrorAction SilentlyContinue
             }
           }
 
@@ -347,4 +343,3 @@ jobs:
             ${{ runner.temp }}\dc-p6-signtool-verify.txt
           if-no-files-found: error
           retention-days: 7
-
