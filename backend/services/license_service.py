@@ -6,10 +6,14 @@ import datetime
 import logging
 import tempfile
 from pathlib import Path
+
 from cryptography.fernet import Fernet
 from firebase_admin import firestore, credentials, initialize_app
+
 from backend.core.paths import AppPaths
 from backend.core.platform import get_platform_adapter
+from backend.license_security import LicenseSecurityError, VerifiedLicense, verify_license
+from backend.license_trust import TRUSTED_LICENSE_PUBLIC_KEYS
 
 logger = logging.getLogger("license_service")
 
@@ -41,8 +45,8 @@ class LicenseService:
                     cls._db = firestore.client()
                 else:
                     logger.warning(
-                        "Firebase credentials missing. Local database decryption and "
-                        "offline verification will be enforced."
+                        "Firebase credentials missing. Local signed-license "
+                        "verification and offline grace will be enforced."
                     )
             except Exception as e:
                 logger.error(f"Failed to init Firebase: {e}")
@@ -87,7 +91,8 @@ class LicenseService:
             return {}
         try:
             decrypted_data = self._get_fernet().decrypt(vault_path.read_bytes())
-            return json.loads(decrypted_data.decode())
+            value = json.loads(decrypted_data.decode())
+            return value if isinstance(value, dict) else {}
         except Exception as e:
             logger.error(f"Failed to read/decrypt local license vault: {e}")
             return {}
@@ -129,42 +134,66 @@ class LicenseService:
         except Exception as e:
             logger.error(f"Failed to clear local license vault: {e}")
 
+    @staticmethod
+    def _verify_signed_license(
+        signed_license: str,
+        clinic_id: str,
+        now: datetime.datetime,
+    ) -> VerifiedLicense:
+        return verify_license(
+            signed_license,
+            TRUSTED_LICENSE_PUBLIC_KEYS,
+            expected_cabinet_id=clinic_id,
+            now=now,
+        )
+
     def _validate_offline_vault(
         self,
         clinic_id: str,
         now: datetime.datetime,
     ) -> dict:
-        logger.warning("🔌 Mode hors-ligne détecté. Analyse du délai de grâce local...")
+        logger.warning("Mode hors-ligne détecté. Vérification de la preuve signée locale...")
         local_data = self._read_local_vault()
         if not local_data:
-            logger.warning("⚠️ Aucune preuve de licence locale trouvée.")
+            logger.warning("Aucune preuve de licence locale trouvée.")
             return {"active": False, "expiration_date": None, "source": "offline"}
         if local_data.get("clinic_id") != clinic_id:
-            logger.error("❌ Conflit d'identifiant de cabinet dans le coffre-fort local.")
+            logger.error("Conflit d'identifiant de cabinet dans le coffre-fort local.")
             return {"active": False, "expiration_date": None, "source": "offline"}
+
+        signed_license = local_data.get("signed_license")
+        if not isinstance(signed_license, str) or not signed_license:
+            logger.error("Coffre local legacy/non signé refusé.")
+            return {"active": False, "expiration_date": None, "source": "offline"}
+
         try:
+            verified = self._verify_signed_license(signed_license, clinic_id, now)
             last_validated = self._as_utc(datetime.datetime.fromisoformat(local_data["last_validated"]))
             max_seen_time = self._as_utc(datetime.datetime.fromisoformat(local_data["max_seen_time"]))
-            expiration_str = local_data.get("expiration_date")
-            expiration = self._as_utc(datetime.datetime.fromisoformat(expiration_str)) if expiration_str else None
-        except Exception as e:
-            logger.error(f"❌ Données de licence locales corrompues : {e}")
+        except (LicenseSecurityError, KeyError, TypeError, ValueError) as e:
+            logger.error(f"Preuve de licence locale invalide : {e}")
             return {"active": False, "expiration_date": None, "source": "offline"}
+
+        expiration = verified.expires_at
         if now < last_validated or now < max_seen_time:
-            logger.critical("🚨 Horloge système reculée : preuve de licence locale refusée.")
+            logger.critical("Horloge système reculée : preuve de licence locale refusée.")
             return {"active": False, "expiration_date": expiration, "source": "offline"}
-        if expiration and now > expiration:
-            logger.error(f"❌ La licence a expiré le {expiration}.")
-            return {"active": False, "expiration_date": expiration, "source": "offline"}
+
         grace_limit = last_validated + datetime.timedelta(hours=self.OFFLINE_GRACE_HOURS)
         if now > grace_limit:
-            logger.error("❌ Délai de grâce de 72 heures expiré.")
+            logger.error(f"Délai de grâce de {self.OFFLINE_GRACE_HOURS} heures expiré.")
             return {"active": False, "expiration_date": expiration, "source": "offline"}
+
         local_data["max_seen_time"] = now.isoformat()
         self._write_local_vault(local_data)
         remaining_hours = int((grace_limit - now).total_seconds() / 3600)
-        logger.warning(f"🛡️ Mode dégradé hors-ligne actif. Temps restant : {remaining_hours} heures.")
-        return {"active": True, "expiration_date": expiration, "source": "offline"}
+        logger.warning(f"Mode dégradé hors-ligne actif. Temps restant : {remaining_hours} heures.")
+        return {
+            "active": True,
+            "expiration_date": expiration,
+            "source": "offline",
+            "license_type": verified.license_type,
+        }
 
     async def validate_license(self, clinic_id: str) -> bool:
         result = await self.validate_license_with_expiry(clinic_id)
@@ -176,49 +205,98 @@ class LicenseService:
         return bool(result.get("active"))
 
     async def validate_license_with_expiry(self, clinic_id: str) -> dict:
-        """Read Firebase truth without destroying local state when Firebase is unavailable."""
+        """Validate Firebase truth cryptographically, preserving offline state on outages."""
         now = datetime.datetime.now(datetime.timezone.utc)
         if not self._db:
             return {"active": None, "expiration_date": None, "source": "unavailable"}
+
         try:
             doc = self._db.collection("licenses").document(clinic_id).get()
-            if not doc.exists:
-                self._clear_local_vault()
-                logger.warning(f"⚠️ Aucun document de licence trouvé pour le cabinet '{clinic_id}'.")
-                return {"active": False, "expiration_date": None, "source": "firebase"}
-            data = doc.to_dict()
-            is_active = bool(data.get("active", False))
-            expiration = self._as_utc(data.get("expiration_date"))
-            if not is_active:
-                self._clear_local_vault()
-                logger.error(f"❌ La licence du cabinet '{clinic_id}' a été désactivée.")
-                return {"active": False, "expiration_date": expiration, "source": "firebase"}
-            if expiration and now > expiration:
-                self._clear_local_vault()
-                logger.error(f"❌ La licence du cabinet '{clinic_id}' a expiré le {expiration}.")
-                return {"active": False, "expiration_date": expiration, "source": "firebase"}
-            self._write_local_vault({
-                "clinic_id": clinic_id,
-                "last_validated": now.isoformat(),
-                "expiration_date": expiration.isoformat() if expiration else None,
-                "max_seen_time": now.isoformat(),
-            })
-            logger.info("✅ Licence validée en ligne avec succès. Coffre-fort local mis à jour.")
-            return {"active": True, "expiration_date": expiration, "source": "firebase"}
         except Exception as e:
-            logger.error(f"❌ Échec de la vérification de licence en ligne : {e}. État local conservé.")
+            logger.error(
+                f"Échec de lecture Firebase pour '{clinic_id}': {e}. État local conservé."
+            )
             return {"active": None, "expiration_date": None, "source": "unavailable"}
 
-    async def write_license(self, public_id: str, active: bool, expiration_date=None) -> bool:
+        if not doc.exists:
+            self._clear_local_vault()
+            logger.warning(f"Aucun document de licence trouvé pour le cabinet '{clinic_id}'.")
+            return {"active": False, "expiration_date": None, "source": "firebase"}
+
+        data = doc.to_dict() or {}
+        signed_license = data.get("signed_license")
+        if not isinstance(signed_license, str) or not signed_license:
+            self._clear_local_vault()
+            logger.error(f"Licence legacy/non signée refusée pour le cabinet '{clinic_id}'.")
+            return {
+                "active": False,
+                "expiration_date": None,
+                "source": "firebase",
+                "reason": "unsigned_license",
+            }
+
+        try:
+            verified = self._verify_signed_license(signed_license, clinic_id, now)
+        except LicenseSecurityError as e:
+            self._clear_local_vault()
+            logger.error(f"Licence signée invalide pour '{clinic_id}': {e}")
+            return {
+                "active": False,
+                "expiration_date": None,
+                "source": "firebase",
+                "reason": "invalid_signature_or_claims",
+            }
+
+        expiration = verified.expires_at
+        self._write_local_vault(
+            {
+                "clinic_id": clinic_id,
+                "signed_license": signed_license,
+                "last_validated": now.isoformat(),
+                "max_seen_time": now.isoformat(),
+            }
+        )
+        logger.info("Licence signée validée en ligne. Coffre local mis à jour.")
+        return {
+            "active": True,
+            "expiration_date": expiration,
+            "source": "firebase",
+            "license_type": verified.license_type,
+        }
+
+    async def write_signed_license(self, public_id: str, signed_license: str) -> bool:
+        """Write only a license that already verifies against the client trust root."""
         if not self._db:
             return False
+
+        now = datetime.datetime.now(datetime.timezone.utc)
+        try:
+            verified = self._verify_signed_license(signed_license, public_id, now)
+        except LicenseSecurityError as e:
+            logger.error(f"Refus d'écriture d'une licence invalide pour {public_id}: {e}")
+            return False
+
         try:
             doc_ref = self._db.collection("licenses").document(public_id)
-            data = {"active": active}
-            if expiration_date:
-                data["expiration_date"] = expiration_date
-            doc_ref.set(data, merge=True)
+            doc_ref.set(
+                {
+                    "signed_license": signed_license,
+                    # Informational mirrors only. Client authority remains the signed token.
+                    "active": verified.status == "ACTIVE",
+                    "expiration_date": verified.expires_at,
+                    "license_type": verified.license_type,
+                    "license_id": verified.license_id,
+                    "key_id": verified.key_id,
+                },
+                merge=True,
+            )
             return True
         except Exception as e:
             logger.error(f"Erreur écriture Firebase pour {public_id}: {e}")
             return False
+
+    async def write_license(self, public_id: str, active: bool, expiration_date=None) -> bool:
+        """Legacy unsigned writer intentionally disabled by SEC-1."""
+        raise RuntimeError(
+            "Unsigned license writes are disabled. Issue and store a signed license instead."
+        )
