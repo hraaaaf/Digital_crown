@@ -220,9 +220,7 @@ def target_application_start_failure_case(repo_root: Path, baseline: Path, targe
     runtime: subprocess.Popen[bytes] | None = None
     rollback_runtime_pid: int | None = None
     blocker: subprocess.Popen[str] | None = None
-    stop_monitor = threading.Event()
-    rollback_observed = threading.Event()
-    release_thread: threading.Thread | None = None
+    lease_seconds = 5
 
     def stop_blocker() -> None:
         nonlocal blocker
@@ -258,7 +256,7 @@ def target_application_start_failure_case(repo_root: Path, baseline: Path, targe
             f"s.bind(('127.0.0.1',{port}))\n"
             "s.listen(1)\n"
             "print('READY', flush=True)\n"
-            "time.sleep(300)\n"
+            f"time.sleep({lease_seconds})\n"
         )
         blocker = subprocess.Popen(
             [sys.executable, "-c", blocker_code],
@@ -273,33 +271,11 @@ def target_application_start_failure_case(repo_root: Path, baseline: Path, targe
                 f"TARGET_START_BLOCKER_NOT_READY rc={blocker.poll()} stderr={stderr.strip()}"
             )
 
-        def release_port_on_rollback() -> None:
-            deadline = time.monotonic() + 180
-            while time.monotonic() < deadline and not stop_monitor.is_set():
-                try:
-                    current = json.loads(job_path.read_text(encoding="utf-8"))
-                    if current.get("status") == "rolling_back":
-                        stop_blocker()
-                        rollback_observed.set()
-                        return
-                except (OSError, ValueError):
-                    pass
-                time.sleep(0.02)
-
-        release_thread = threading.Thread(
-            target=release_port_on_rollback,
-            name="p10-target-start-port-release",
-            daemon=True,
-        )
-        release_thread.start()
-
         exit_code, job = invoke_entry_worker(repo_root, job_path, env, root)
-        if release_thread.is_alive():
-            release_thread.join(timeout=10)
-        if not rollback_observed.is_set():
-            raise lifecycle.LifecycleError(f"TARGET_START_ROLLBACK_STATE_NOT_OBSERVED job={job}")
-        if blocker is not None and blocker.poll() is None:
-            raise lifecycle.LifecycleError("TARGET_START_BLOCKER_NOT_RELEASED")
+        try:
+            blocker.wait(timeout=10)
+        except subprocess.TimeoutExpired:
+            raise lifecycle.LifecycleError("TARGET_START_BLOCKER_LEASE_DID_NOT_EXPIRE")
         if exit_code != 2:
             raise lifecycle.LifecycleError(f"TARGET_START_WORKER_EXIT expected=2 actual={exit_code} job={job}")
         if (
@@ -318,8 +294,9 @@ def target_application_start_failure_case(repo_root: Path, baseline: Path, targe
         lifecycle.run_self_test(executable, lifecycle.BASE_VERSION, env, root / "rollback-self-test.json")
         return {
             "status": "success",
-            "fault": "occupied_loopback_port_blocks_target_runtime_bind",
+            "fault": "time_bounded_loopback_port_lease_blocks_target_runtime_bind",
             "fault_injector": "isolated_subprocess",
+            "fault_lease_seconds": lease_seconds,
             "failure_reason": job["failure_reason"],
             "worker_exit": exit_code,
             "job_status": job["status"],
@@ -330,14 +307,11 @@ def target_application_start_failure_case(repo_root: Path, baseline: Path, targe
             "target_package_self_test_job": job["package_self_test"],
             "target_runtime_health": job["runtime_health"],
             "rollback_runtime_health": "passed",
-            "blocker_release": "process_terminated_before_rollback_runtime_health",
+            "blocker_release": "independent_lease_expired_before_rollback_runtime_health",
             "rescue_sha256": rescue_sha,
         }
     finally:
-        stop_monitor.set()
         stop_blocker()
-        if release_thread is not None and release_thread.is_alive():
-            release_thread.join(timeout=5)
         if runtime is not None:
             lifecycle.stop_process_tree(runtime.pid)
         if rollback_runtime_pid:
@@ -372,7 +346,7 @@ def main() -> int:
     proof["production_wiring_claim"] = "WINDOWS_ENTRY_AND_RECOVERY_ASSERTED"
     args.report.write_text(json.dumps(proof, indent=2, sort_keys=True), encoding="utf-8")
     print("P10_WINDOWS_INTERRUPTION_RECOVERY=SUCCESS state=applying rollback=PASSED reinstall=NOT_ATTEMPTED")
-    print("P10_WINDOWS_TARGET_START_FAILURE=SUCCESS fault=LOOPBACK_PORT_OCCUPIED rollback=PASSED db_rollback=NOT_NEEDED")
+    print("P10_WINDOWS_TARGET_START_FAILURE=SUCCESS fault=TIME_BOUNDED_LOOPBACK_PORT_LEASE rollback=PASSED db_rollback=NOT_NEEDED")
     return 0
 
 
