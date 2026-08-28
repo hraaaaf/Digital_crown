@@ -19,7 +19,11 @@ class Settings(BaseSettings):
     ENVIRONMENT: str = "development"
     APP_PUBLIC_URL: str = "http://localhost:5173"
     SUPPORT_EMAIL: str = "support@digitalcrown.local"
+    # Display/bootstrap identity only. It is NEVER an authorization root.
     SUPERADMIN_EMAIL: str = "benmoussa.achraf@gmail.com"
+    # Immutable server-side identity used for platform SuperAdmin authorization.
+    # 0 means "not provisioned" and therefore fails closed.
+    SUPERADMIN_USER_ID: int = 0
 
     # Security
     ALLOWED_ORIGINS: str = "http://localhost:5173,http://127.0.0.1:5173,https://localhost:5173,https://127.0.0.1:5173"
