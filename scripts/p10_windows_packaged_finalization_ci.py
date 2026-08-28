@@ -331,7 +331,7 @@ def main() -> int:
     proof["target_application_start_failure"] = target_application_start_failure_case(
         args.repo_root.resolve(), args.baseline.resolve(), args.target.resolve(), args.work_root.resolve() / "target-start"
     )
-    proof["production_wiring_claim"] = "WINDOWS_ENTRY_RECOVERY_AND_TARGET_START_ROLLBACK_ASSERTED"
+    proof["production_wiring_claim"] = "WINDOWS_ENTRY_AND_RECOVERY_ASSERTED"
     args.report.write_text(json.dumps(proof, indent=2, sort_keys=True), encoding="utf-8")
     print("P10_WINDOWS_INTERRUPTION_RECOVERY=SUCCESS state=applying rollback=PASSED reinstall=NOT_ATTEMPTED")
     print("P10_WINDOWS_TARGET_START_FAILURE=SUCCESS fault=LOOPBACK_PORT_OCCUPIED rollback=PASSED db_rollback=NOT_NEEDED")
