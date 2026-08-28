@@ -11,6 +11,7 @@ from cryptography.hazmat.primitives.serialization import (
     PublicFormat,
 )
 
+from backend.config import settings
 from backend.license_issuer import (
     LicenseIssuerUnavailable,
     issue_license,
@@ -270,7 +271,25 @@ def test_owner_requires_matching_immutable_subject(keypair, now):
         )
 
 
+def test_issuer_fails_closed_outside_control_plane_even_with_private_key(monkeypatch, keypair, now):
+    private, _public = keypair
+    monkeypatch.setattr(settings, "PLATFORM_CONTROL_PLANE_ENABLED", False)
+    monkeypatch.setenv("DIGITALCROWN_LICENSE_SIGNING_PRIVATE_KEY_B64URL", private)
+    monkeypatch.setenv("DIGITALCROWN_LICENSE_SIGNING_KEY_ID", "k1")
+
+    with pytest.raises(LicenseIssuerUnavailable, match="outside"):
+        issue_license(
+            cabinet_id="cab-001",
+            license_type="TRIAL",
+            created_by_user_id=7,
+            expires_at=now + timedelta(days=30),
+            issued_at=now,
+            not_before=now,
+        )
+
+
 def test_issuer_fails_closed_without_private_key(monkeypatch):
+    monkeypatch.setattr(settings, "PLATFORM_CONTROL_PLANE_ENABLED", True)
     monkeypatch.delenv("DIGITALCROWN_LICENSE_SIGNING_PRIVATE_KEY_B64URL", raising=False)
     monkeypatch.delenv("DIGITALCROWN_LICENSE_SIGNING_KEY_ID", raising=False)
 
@@ -285,6 +304,7 @@ def test_issuer_fails_closed_without_private_key(monkeypatch):
 
 def test_issuer_uses_control_plane_key_only(monkeypatch, keypair, now):
     private, public = keypair
+    monkeypatch.setattr(settings, "PLATFORM_CONTROL_PLANE_ENABLED", True)
     monkeypatch.setenv("DIGITALCROWN_LICENSE_SIGNING_PRIVATE_KEY_B64URL", private)
     monkeypatch.setenv("DIGITALCROWN_LICENSE_SIGNING_KEY_ID", "k1")
 
