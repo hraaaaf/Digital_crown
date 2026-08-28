@@ -22,6 +22,7 @@ from backend.schemas import TokenData, SupabaseSyncRequest
 from backend.utils.rate_limit import check_rate_limit
 from backend.config import settings
 from backend.platform_access import is_platform_superadmin
+from backend.services.license_service import LicenseService
 import httpx
 from urllib.parse import urlencode
 
@@ -30,6 +31,17 @@ router = APIRouter(tags=["Authentication"])
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="api/auth/login", auto_error=False)
 
 get_db = database.get_db
+
+_MUTATING_METHODS = {"POST", "PUT", "PATCH", "DELETE"}
+_SIGNED_LICENSE_BYPASS_PREFIXES = (
+    "/api/auth",
+    # Platform administration is governed by platform RBAC and signs/licenses
+    # cabinets. Requiring a cabinet license here would create a bootstrap loop.
+    "/api/superadmin",
+    "/api/clinics/recheck-license",
+    "/api/clinics/license-status",
+    "/api/clinics/init-status",
+)
 
 
 def is_superadmin_user(user: models.User | None) -> bool:
@@ -58,6 +70,58 @@ def _set_auth_cookies(response: Response, access_token: str, refresh_token: str)
         max_age=settings.REFRESH_TOKEN_EXPIRE_DAYS * 86400,
         **cookie_kwargs,
     )
+
+
+def _resolve_license_owner_and_clinic(db: Session, user: models.User):
+    owner = user
+    if user.employer_id is not None:
+        owner = db.query(models.User).filter(models.User.id == user.employer_id).first()
+        if owner is None:
+            return None, None
+
+    cabinet = db.query(models.CabinetConfig).filter(
+        models.CabinetConfig.owner_id == owner.id
+    ).first()
+    return owner, cabinet
+
+
+async def _get_signed_license_state(db: Session, user: models.User) -> dict:
+    owner, cabinet = _resolve_license_owner_and_clinic(db, user)
+    if owner is None or cabinet is None:
+        return {"active": False, "reason": "SIGNED_LICENSE_NOT_CONFIGURED"}
+    if owner.is_suspended:
+        return {"active": False, "reason": "SUSPENDED"}
+    if owner.is_archived:
+        return {"active": False, "reason": "ARCHIVED"}
+
+    clinic_id = str(cabinet.clinic_id or cabinet.public_id)
+    return await LicenseService().get_effective_license(clinic_id)
+
+
+async def _enforce_signed_license_for_mutation(
+    request: Request,
+    db: Session,
+    user: models.User,
+) -> None:
+    """SEC-1 runtime gate: mutable SQLite flags can never authorize a cabinet write."""
+    env = str(getattr(settings, "ENVIRONMENT", "development")).lower()
+    if env in {"development", "local", "test"}:
+        return
+    if request.method.upper() not in _MUTATING_METHODS:
+        return
+    if request.url.path.startswith(_SIGNED_LICENSE_BYPASS_PREFIXES):
+        return
+    # The initial cabinet shell may be created before commercial activation.
+    # This exception grants no clinical mutation; all later writes require a signed license.
+    if request.url.path.rstrip("/") == "/api/clinics":
+        return
+
+    license_state = await _get_signed_license_state(db, user)
+    if not license_state.get("active"):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=license_state.get("reason") or "SIGNED_LICENSE_REQUIRED",
+        )
 
 
 async def get_current_user(
@@ -111,6 +175,8 @@ async def get_current_user(
 
     if user is None or not user.is_active:
         raise credentials_exception
+
+    await _enforce_signed_license_for_mutation(request, db, user)
     return user
 
 
@@ -201,23 +267,27 @@ def require_superadmin(current_user: models.User = Depends(get_current_user)):
     )
 
 
-def require_elite_license(
+async def require_elite_license(
     current_user: models.User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    """Dépendance FastAPI pour valider que le cabinet possède une licence Elite active."""
-    # SEC-1: platform authority must not bypass commercial license entitlement.
-    license_owner = current_user
-    if current_user.employer_id:
-        license_owner = db.query(models.User).filter(models.User.id == current_user.employer_id).first() or current_user
-
-    if not license_owner.is_licensed:
+    """Require the signed ELITE entitlement; mutable SQLite plan flags are non-authoritative."""
+    license_state = await _get_signed_license_state(db, current_user)
+    if not license_state.get("active"):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Accès refusé. Cette fonctionnalité requiert une licence active."
+            detail="Accès refusé. Cette fonctionnalité requiert une licence active.",
+        )
+
+    if license_state.get("license_type") == "OWNER":
+        return current_user
+
+    if license_state.get("feature_set") != models.SubscriptionPlan.ELITE.value:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Accès refusé. Cette fonctionnalité requiert le plan ELITE.",
         )
     return current_user
-
 
 
 from backend.services.audit_service import audit_service
