@@ -203,6 +203,7 @@ def test_snapshot_does_not_query_finance_when_permission_denied(client, db, dent
     )
     assert response.status_code == 200, response.text
 
+
 def test_cabinet_revocation_invalidates_device_and_refresh(client, db, dentiste):
     body = _claim(client, _pairing(db, dentiste, dentiste)).json()
     token_blacklist.revoke_mobile_access(dentiste.id, db)
@@ -212,7 +213,7 @@ def test_cabinet_revocation_invalidates_device_and_refresh(client, db, dentiste)
     assert device.revoked_at is not None
 
 
-def test_mobile_mutation_uses_numeric_subject_as_user_id(client, db, dentiste):
+def test_mobile_mutation_uses_numeric_subject_as_user_id(client, db, dentiste, monkeypatch):
     secretary = _user(
         db,
         email='license-inherited-mobile@cabinet.ma',
@@ -229,8 +230,15 @@ def test_mobile_mutation_uses_numeric_subject_as_user_id(client, db, dentiste):
     )
     assert response.status_code == 200, response.text
 
-    dentiste.is_licensed = False
-    db.commit()
+    async def deny_signed_license(user_id: int):
+        assert user_id == secretary.id
+        return False, 'SIGNED_LICENSE_REQUIRED'
+
+    monkeypatch.setattr(
+        backend_main,
+        'get_mobile_user_license_status',
+        deny_signed_license,
+    )
     backend_main._license_cache.clear()
     denied = client.post(
         '/api/mobile/register-device',
@@ -238,7 +246,8 @@ def test_mobile_mutation_uses_numeric_subject_as_user_id(client, db, dentiste):
         headers={'Authorization': f"Bearer {body['access_token']}"},
     )
     assert denied.status_code == 403
-    assert denied.json()['detail'] == 'NOT_LICENSED'
+    assert denied.json()['detail'] == 'SIGNED_LICENSE_REQUIRED'
+
 
 def test_permissions_policy_allows_same_origin_camera_only(client):
     response = client.get('/health')
@@ -311,6 +320,7 @@ def test_shared_auth_me_rejects_legacy_mobile_token_without_device(client, denti
     )
     response = client.get('/api/auth/me', headers={'Authorization': f'Bearer {legacy}'})
     assert response.status_code == 401, response.text
+
 
 def test_admin_revoke_mobile_invalidates_claimed_device_and_refresh(client, db, dentiste, monkeypatch):
     body = _claim(client, _pairing(db, dentiste, dentiste)).json()
