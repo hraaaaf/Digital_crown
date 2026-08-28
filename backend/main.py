@@ -54,101 +54,107 @@ STATIC_DIR = os.path.join(BASE_DIR, "static")
 os.makedirs(STATIC_DIR, exist_ok=True)
 
 # --- CACHE LICENCES PER-USER ---
-# Structure : {email: (is_ok: bool, reason: str, cached_at: float)}
-# TTL = 60s — après expiration, SQLite est re-consulté
+# Structure : {identity: (is_ok: bool, reason: str, cached_at: float)}
+# TTL court uniquement pour éviter de revalider la même preuve signée à chaque requête.
 _license_cache: dict[str, tuple[bool, str, float]] = {}
 _CACHE_TTL = 60  # secondes
-_SUPERADMIN_EMAIL = app_settings.SUPERADMIN_EMAIL.lower().strip()
-if not _SUPERADMIN_EMAIL:
-    logger.warning(
-        "SUPERADMIN_EMAIL non défini. Les vérifications superadmin seront désactivées. "
-        "Définissez SUPERADMIN_EMAIL dans votre fichier .env."
-    )
 
 
-def invalidate_license_cache(email: str) -> None:
-    """Supprime l'entrée du cache pour forcer une re-vérification immédiate."""
-    _license_cache.pop(email, None)
+def invalidate_license_cache(_identity: str = "") -> None:
+    """Toute mutation de licence invalide le cache web + mobile du cabinet."""
+    _license_cache.clear()
 
 
 from fastapi.concurrency import run_in_threadpool
 
 
-def _effective_user_license_status(db, user):
-    """Combine l'état propre du compte avec la licence source-of-truth du cabinet."""
+def _resolve_license_context(db, user):
+    """Résout le cabinet licencié sans jamais utiliser is_licensed comme autorité."""
     if not user:
-        return (False, "USER_NOT_FOUND")
-    if user.email and user.email.lower() == _SUPERADMIN_EMAIL:
-        return (True, "OK")
+        return (None, "USER_NOT_FOUND")
     if user.is_suspended:
-        return (False, "SUSPENDED")
+        return (None, "SUSPENDED")
     if user.is_archived:
-        return (False, "ARCHIVED")
+        return (None, "ARCHIVED")
 
     license_owner = user
     if user.employer_id is not None:
         license_owner = db.query(models.User).filter(models.User.id == user.employer_id).first()
         if not license_owner:
-            return (False, "USER_NOT_FOUND")
+            return (None, "USER_NOT_FOUND")
         if license_owner.is_suspended:
-            return (False, "SUSPENDED")
+            return (None, "SUSPENDED")
         if license_owner.is_archived:
-            return (False, "ARCHIVED")
+            return (None, "ARCHIVED")
 
-    if not license_owner.is_licensed:
-        return (False, "NOT_LICENSED")
-    if license_owner.license_expires_at and datetime.utcnow() > license_owner.license_expires_at:
-        return (False, "LICENSE_EXPIRED")
-    return (True, "OK")
+    cabinet = db.query(models.CabinetConfig).filter(
+        models.CabinetConfig.owner_id == license_owner.id
+    ).first()
+    if not cabinet:
+        return (None, "SIGNED_LICENSE_NOT_CONFIGURED")
+
+    clinic_id = str(cabinet.clinic_id or cabinet.public_id)
+    if not clinic_id:
+        return (None, "SIGNED_LICENSE_NOT_CONFIGURED")
+    return (clinic_id, None)
 
 
-def _get_user_status_sync(email: str):
+def _get_user_license_context_sync(email: str):
     with database.SessionLocal() as db:
         user = db.query(models.User).filter(models.User.email == email).first()
-        return _effective_user_license_status(db, user)
-
-async def get_user_license_status(email: str) -> tuple[bool, str]:
-    """Vérifie la licence d'un utilisateur depuis SQLite avec cache TTL 60s.
-    Retourne (is_ok, reason). Une panne DB ne peut jamais accorder implicitement
-    une licence : elle passe en lecture seule avec LICENSE_STATUS_UNAVAILABLE.
-    """
-    now = time.time()
-    cached = _license_cache.get(email)
-    if cached and (now - cached[2]) < _CACHE_TTL:
-        return cached[0], cached[1]
-
-    try:
-        result = await run_in_threadpool(_get_user_status_sync, email)
-    except Exception as e:
-        logger.error(f"Erreur vérification licence pour {email}: {e}")
-        # Fail-closed : une panne de la source locale de vérité ne doit jamais
-        # transformer une licence inconnue en licence valide.
-        result = (False, "LICENSE_STATUS_UNAVAILABLE")
-
-    _license_cache[email] = (*result, now)
-    return result
+        return _resolve_license_context(db, user)
 
 
-
-def _get_mobile_user_status_sync(user_id: int):
+def _get_mobile_license_context_sync(user_id: int):
     with database.SessionLocal() as db:
         user = db.query(models.User).filter(models.User.id == int(user_id)).first()
-        return _effective_user_license_status(db, user)
+        return _resolve_license_context(db, user)
 
-async def get_mobile_user_license_status(user_id: int) -> tuple[bool, str]:
-    """Résout un JWT mobile par user_id sans confondre son sub numérique avec un email."""
-    cache_key = f"mobile-user:{int(user_id)}"
+
+async def _get_signed_license_status(identity: str, context_loader, identity_value) -> tuple[bool, str]:
     now = time.time()
-    cached = _license_cache.get(cache_key)
+    cached = _license_cache.get(identity)
     if cached and (now - cached[2]) < _CACHE_TTL:
         return cached[0], cached[1]
+
     try:
-        result = await run_in_threadpool(_get_mobile_user_status_sync, int(user_id))
+        clinic_id, context_error = await run_in_threadpool(context_loader, identity_value)
+        if context_error:
+            result = (False, context_error)
+        else:
+            entitlement = await LicenseService().get_effective_license(clinic_id)
+            if entitlement.get("active"):
+                result = (True, "OK")
+            else:
+                result = (
+                    False,
+                    str(entitlement.get("reason") or "SIGNED_LICENSE_REQUIRED"),
+                )
     except Exception as e:
-        logger.error("Erreur vérification licence mobile user_id=%s: %s", user_id, e)
+        logger.error("Erreur vérification licence signée pour %s: %s", identity, e)
         result = (False, "LICENSE_STATUS_UNAVAILABLE")
-    _license_cache[cache_key] = (*result, now)
+
+    _license_cache[identity] = (*result, now)
     return result
+
+
+async def get_user_license_status(email: str) -> tuple[bool, str]:
+    """Vérifie la preuve signée effective du cabinet d'un utilisateur web."""
+    return await _get_signed_license_status(
+        f"web:{email.lower()}",
+        _get_user_license_context_sync,
+        email,
+    )
+
+
+async def get_mobile_user_license_status(user_id: int) -> tuple[bool, str]:
+    """Vérifie la même preuve signée pour un JWT mobile lié au cabinet."""
+    return await _get_signed_license_status(
+        f"mobile-user:{int(user_id)}",
+        _get_mobile_license_context_sync,
+        int(user_id),
+    )
+
 
 def validate_environment_invariants(cfg) -> list[str]:
     """Invariants de démarrage par environnement — retourne la liste des erreurs bloquantes.
@@ -221,7 +227,7 @@ async def lifespan(app: FastAPI):
             from backend.seed_catalog import seed_catalog
             seed_catalog(db)
 
-        # S'assure que l'admin par defaut existe
+        # Bootstrap plateforme uniquement si le control-plane dédié est activé.
         seed_admin_user()
 
         # 2. Vérification des licences Firebase (par cabinet via public_id)
@@ -262,9 +268,7 @@ async def lifespan(app: FastAPI):
 
 
 async def _sync_all_licenses_from_firebase() -> None:
-    """Vérifie Firebase pour chaque CabinetConfig et met à jour users.is_licensed.
-    CLINIC_ID = cabinet_config.public_id (UUID hex 16 chars, unique par cabinet).
-    """
+    """Vérifie les licences signées et ne garde SQLite que comme miroir d'affichage."""
     license_service = LicenseService()
     try:
         with database.SessionLocal() as db:
@@ -275,46 +279,32 @@ async def _sync_all_licenses_from_firebase() -> None:
 
             for config in configs:
                 public_id = config.public_id
-                clinic_id = config.clinic_id if config.clinic_id else public_id
+                clinic_id = str(config.clinic_id or public_id)
                 owner = db.query(models.User).filter(models.User.id == config.owner_id).first()
                 if not owner:
                     continue
 
-                # SuperAdmin : toujours licencié, jamais bloqué
-                if owner.email == _SUPERADMIN_EMAIL:
-                    if not owner.is_licensed:
-                        owner.is_licensed = True
-                        owner.license_expires_at = None
-                        db.commit()
-                    continue
-
-                # Vérification Firebase avec le clinic_id
                 firebase_result = await license_service.validate_license_with_expiry(clinic_id)
                 license_ok = firebase_result["active"]
                 expiry = firebase_result.get("expiration_date")
 
-                # active=None → Firebase injoignable : on CONSERVE l'état local.
-                # La grace period 72h (coffre local, validate_license) reste le
-                # mécanisme hors-ligne ; ce sync ne doit jamais écraser l'état
-                # connu quand la source de vérité n'a pas répondu.
+                # active=None → Firebase injoignable : on CONSERVE le miroir local.
+                # L'autorité runtime reste la preuve signée du coffre hors-ligne.
                 if license_ok is None:
                     logger.warning(
                         f"Licence cabinet '{clinic_id}' (user: {owner.email}) : "
-                        "Firebase injoignable — état local conservé."
+                        "Firebase injoignable — miroir local conservé."
                     )
                     continue
 
-                # Mise à jour SQLite depuis Firebase
-                owner.is_licensed = license_ok
-                if expiry:
-                    owner.license_expires_at = expiry
+                owner.is_licensed = bool(license_ok)
+                owner.license_expires_at = expiry
                 db.commit()
 
-                # Invalider le cache pour forcer re-vérification
                 invalidate_license_cache(owner.email)
 
                 status = "✅ ACTIVE" if license_ok else "❌ EXPIRÉE/INVALIDE"
-                logger.info(f"Licence cabinet '{clinic_id}' (public_id: {public_id}, user: {owner.email}) : {status}")
+                logger.info(f"Licence signée cabinet '{clinic_id}' (public_id: {public_id}, user: {owner.email}) : {status}")
 
     except Exception as e:
         logger.error(f"Erreur sync licences Firebase : {e}")
@@ -358,7 +348,6 @@ async def request_logging_middleware(request: Request, call_next):
     duration_ms = round((time.time() - start) * 1000)
     # Ne pas logger les assets statiques pour éviter le bruit
     if not request.url.path.startswith(("/static", "/api/static")):
-        user_agent = request.headers.get("user-agent", "")[:40]
         logger.info(
             f"{request.method} {request.url.path} → {response.status_code} ({duration_ms}ms)"
         )
@@ -366,14 +355,19 @@ async def request_logging_middleware(request: Request, call_next):
 
 @app.middleware("http")
 async def license_check_middleware(request: Request, call_next):
-    # Routes toujours autorisées (Statique, Auth, Setup Wizard)
+    # Routes qui ne doivent pas créer une boucle bootstrap/licence.
     allowed_prefixes = (
         "/static", "/api/static", "/assets",
-        "/api/auth", "/api/clinics/recheck-license", "/api/clinics/license-status",
-        "/api/clinics/init-status",  # Route publique : vérif setup wizard
+        "/api/auth",
+        "/api/superadmin",  # protégé séparément par control-plane + RBAC
+        "/api/clinics/recheck-license", "/api/clinics/license-status",
+        "/api/clinics/init-status",
         "/health"
     )
     if request.url.path.startswith(allowed_prefixes) or request.method == "OPTIONS":
+        return await call_next(request)
+    if request.method == "POST" and request.url.path.rstrip("/") == "/api/clinics":
+        # Création initiale du shell cabinet avant activation commerciale.
         return await call_next(request)
 
     # Extraire et décoder le JWT (cookie-first, fallback Authorization header)
@@ -381,17 +375,17 @@ async def license_check_middleware(request: Request, call_next):
     if not token:
         auth_header = request.headers.get("Authorization", "")
         if auth_header.startswith("Bearer "):
-            token = auth_header.split(" ")[1]
+            token = auth_header.split(" ", 1)[1]
 
     if not token:
-        # Pas de token → laisser FastAPI gérer l'auth (il renverra 401)
+        # Pas de token → laisser FastAPI gérer l'auth/publicité de la route.
         return await call_next(request)
     try:
         from jose import jwt
         from backend.security import SECRET_KEY, ALGORITHM
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         token_type = payload.get("type")
-        subject: str = payload.get("sub", "")
+        subject = payload.get("sub", "")
     except Exception as e:
         err_str = str(e).lower()
         if "expired" in err_str or "signature" in err_str:
@@ -404,8 +398,7 @@ async def license_check_middleware(request: Request, call_next):
         logger.error(f"JWT Decode error in middleware: {e}")
         return await call_next(request)
 
-    # Le JWT mobile porte un user_id numérique dans sub ; les JWT web portent un email.
-    # Ne jamais interpréter l'un comme l'autre : cela bloquerait toutes les mutations mobiles.
+    # SEC-1 : web et mobile consultent exactement la même preuve signée.
     if token_type == "mobile":
         try:
             mobile_user_id = int(subject)
@@ -413,29 +406,29 @@ async def license_check_middleware(request: Request, call_next):
             return JSONResponse(status_code=401, content={"detail": "TOKEN_INVALID"})
         is_ok, reason = await get_mobile_user_license_status(mobile_user_id)
     else:
-        email = subject
-        # SuperAdmin : bypass total, jamais bloqué
-        if email.lower() == _SUPERADMIN_EMAIL:
-            return await call_next(request)
+        email = str(subject)
         is_ok, reason = await get_user_license_status(email)
-    if not is_ok:
-        if request.method in ["POST", "PUT", "PATCH", "DELETE"]:
-            messages = {
-                "NOT_LICENSED": "Mode lecture seule : Votre cabinet n'a pas de licence active.",
-                "LICENSE_EXPIRED": "Mode lecture seule : Votre licence a expiré.",
-                "SUSPENDED": "Votre accès a été suspendu.",
-                "ARCHIVED": "Ce compte est archivé.",
-                "USER_NOT_FOUND": "Compte introuvable. Veuillez vous reconnecter.",
-                "LICENSE_STATUS_UNAVAILABLE": "Mode lecture seule : état de licence indisponible temporairement.",
+
+    if not is_ok and request.method in ["POST", "PUT", "PATCH", "DELETE"]:
+        messages = {
+            "NOT_LICENSED": "Mode lecture seule : Votre cabinet n'a pas de licence active.",
+            "LICENSE_EXPIRED": "Mode lecture seule : Votre licence a expiré.",
+            "SUSPENDED": "Votre accès a été suspendu.",
+            "ARCHIVED": "Ce compte est archivé.",
+            "USER_NOT_FOUND": "Compte introuvable. Veuillez vous reconnecter.",
+            "SIGNED_LICENSE_NOT_CONFIGURED": "Mode lecture seule : licence signée non configurée.",
+            "SIGNED_LICENSE_REQUIRED": "Mode lecture seule : aucune preuve de licence signée valide.",
+            "unsigned_license": "Mode lecture seule : licence legacy non signée refusée.",
+            "invalid_signature_or_claims": "Mode lecture seule : preuve de licence invalide.",
+            "LICENSE_STATUS_UNAVAILABLE": "Mode lecture seule : état de licence indisponible temporairement.",
+        }
+        return JSONResponse(
+            status_code=403,
+            content={
+                "detail": reason,
+                "message": messages.get(reason, "Accès refusé. Vérifiez votre licence signée.")
             }
-            # Utilise 403 au lieu de 402 pour éviter le Hard-Lock global de l'UI
-            return JSONResponse(
-                status_code=403,
-                content={
-                    "detail": reason,
-                    "message": messages.get(reason, "Accès refusé. Vérifiez votre licence.")
-                }
-            )
+        )
 
     return await call_next(request)
 
@@ -704,7 +697,6 @@ async def serve_acte_attachment(
         raise HTTPException(status_code=403, detail="Chemin non autorisé")
 
     # Retrouver le patient propriétaire via la table Acte
-    url_fragment = f"/actes/{safe}"
     from sqlalchemy import cast, String
     acte = (
         db.query(models.Acte)
