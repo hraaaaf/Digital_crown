@@ -1,10 +1,10 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "git": {
-    "deploymentEnabled": true
+    "deploymentEnabled": false
   },
   "installCommand": "cd frontend && npm ci",
-  "buildCommand": "cd frontend && echo \"[dc-preview] isolated demo build=1\" && VITE_DC_PREVIEW_DEMO=1 npm run build",
+  "buildCommand": "cd frontend && npm run build",
   "outputDirectory": "frontend/dist",
   "rewrites": [
     {
