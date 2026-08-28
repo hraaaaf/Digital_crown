@@ -3,6 +3,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from backend.env_loader import BASE_DIR
 
+
 class Settings(BaseSettings):
     # App Settings
     APP_NAME: str = "Digital Crown API"
@@ -30,6 +31,9 @@ class Settings(BaseSettings):
     # Platform administration/signing surfaces are absent logically from cabinet
     # installs unless this control-plane switch is explicitly provisioned server-side.
     PLATFORM_CONTROL_PLANE_ENABLED: bool = False
+    # Cabinet runtimes call this HTTPS endpoint to preview/redeem Trial codes and
+    # receive a signed licence. It contains no shared signing secret.
+    LICENSE_CONTROL_PLANE_URL: str = ""
 
     # Security
     ALLOWED_ORIGINS: str = "http://localhost:5173,http://127.0.0.1:5173,https://localhost:5173,https://127.0.0.1:5173"
@@ -42,12 +46,19 @@ class Settings(BaseSettings):
         return ""
 
     @model_validator(mode="after")
-    def reject_platform_control_plane_on_cabinet(self):
-        """SEC-1: a distributed cabinet runtime can never become the platform control plane."""
-        if str(self.ENVIRONMENT).lower() == "cabinet" and self.PLATFORM_CONTROL_PLANE_ENABLED:
+    def validate_security_topology(self):
+        """SEC-1: cabinet and control-plane roles are mutually exclusive and HTTPS-bound."""
+        env = str(self.ENVIRONMENT).lower()
+        if env == "cabinet" and self.PLATFORM_CONTROL_PLANE_ENABLED:
             raise ValueError(
                 "PLATFORM_CONTROL_PLANE_ENABLED interdit en environnement cabinet."
             )
+        if env == "cabinet" and self.LICENSE_CONTROL_PLANE_URL:
+            normalized = self.LICENSE_CONTROL_PLANE_URL.strip().lower()
+            if not normalized.startswith("https://"):
+                raise ValueError(
+                    "LICENSE_CONTROL_PLANE_URL doit utiliser HTTPS en environnement cabinet."
+                )
         return self
 
     @field_validator("ALLOWED_ORIGINS", mode="after")
@@ -68,7 +79,8 @@ class Settings(BaseSettings):
     MAX_UPLOAD_SIZE: int = 10 * 1024 * 1024 # 10 Mo
 
     # Firebase
-    # Les clés Firebase sont gérées par le fichier firebase_creds.json
+    # Les credentials de service appartiennent uniquement au control-plane et ne
+    # doivent jamais être embarqués dans le package cabinet.
 
     # Google OAuth
     GOOGLE_CLIENT_ID: str = ""
@@ -90,5 +102,6 @@ class Settings(BaseSettings):
         env_file_encoding="utf-8",
         extra="ignore"
     )
+
 
 settings = Settings()
