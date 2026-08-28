@@ -1,7 +1,7 @@
 # Digital Crown — Mobile Full Experience — Roadmap canonique
 
 Date de réalignement : 2026-08-24
-Dernière mise à jour vérifiée : 2026-08-27
+Dernière mise à jour vérifiée : 2026-08-28
 Source : roadmap originale retrouvée par le produit/utilisateur. Ce document remplace les reconstructions ultérieures qui avaient artificiellement introduit un « M7 ».
 
 ## Goal
@@ -198,60 +198,41 @@ Ces preuves ne certifient pas Face ID, Touch ID, biométrie Android physique ni 
 
 Autorisation explicite accordée le 2026-08-27 pour créer un **Preview Vercel uniquement**, afin d'essayer la surface mobile sur iPhone sans déployer la production.
 
-Preuves vérifiées :
+Preuves historiques :
 
 - projet Vercel : `digital-crown-p2-runtime` ;
 - branche dédiée : `mobile/vercel-preview` ;
-- candidat Preview : `caeb18d556389bf1252cc8752ac1ffe2ba43864f` ;
-- comparaison avec `master@6781cebd8accf273e1c42b19b411060a27e5ae2d` : 1 commit ahead, 0 behind, uniquement `vercel.json` ;
-- deployment : `dpl_9rxadfwjZb7Wn8k1GfUzSPodjwYv` ✅ READY ;
-- build Vercel frontend-only : `frontend`, `npm ci`, `npm run build`, output `dist`, rewrite SPA vers `index.html` ;
-- `/` vérifié HTTP 200 ;
-- le blocage historique Vercel Python 3.14 / `onnxruntime==1.17.1` est **contourné pour ce Preview frontend-only**, pas corrigé pour un éventuel déploiement full-stack ;
-- la production Vercel n'a pas été touchée ; le `master` canonique conserve `git.deploymentEnabled: false`.
+- production Vercel non touchée ;
+- `git.deploymentEnabled: false` rétabli après chaque Preview one-shot.
 
-### BEFORE terrain Preview
+### Preview Demo Isolation — CLOSED
 
-Un vrai iPhone a ouvert le Preview et affiché correctement l'écran **Compagnon Mobile**. La capture fournie le 2026-08-27 à 22:01 constitue le BEFORE visuel du prochain lot.
+**État : CLOSED le 2026-08-28.** Ce lot reste hors crédit de certification terrain ; il sert uniquement à parcourir l'UX mobile à distance avec des fixtures fictives.
 
-Observation : l'entrée réelle reste volontairement bloquée par l'appairage QR / code 6 chiffres et le backend cabinet. Ce comportement est conforme à la sécurité du produit ; ce n'est pas un défaut de l'appairage.
+Preuves vérifiées :
 
-### Prochain lot opérationnel — Preview Demo Isolation
-
-**État : À FAIRE.** Ce lot n'est ni une nouvelle phase M7 ni une certification de sécurité. Il sert uniquement à parcourir l'UX mobile à distance avec des données fictives.
-
-Goal : permettre, sur le Preview Vercel dédié uniquement, d'entrer dans une surface mobile démo sans QR, sans backend cabinet et sans créer de credentials réels.
-
-Succès :
-
-- activation possible uniquement sur le Preview explicitement dédié ;
-- aucune activation possible sur `digitalcrown.local`, `localhost`, une build réelle cabinet ou le `master` canonique ;
-- aucune fausse paire `MobileStorage`, aucun JWT fictif présenté comme session réelle, aucune écriture serveur ;
-- uniquement des fixtures de démonstration sans PHI ;
-- aucun appel réseau vers le backend cabinet requis pour afficher le dashboard démo ;
-- sortie du mode démo efface son état local/session ;
-- les routes et guards d'appairage réels restent inchangés ou explicitement séparés du chemin démo ;
-- l'UI distingue sans ambiguïté **MODE DÉMO — PREVIEW VERCEL** du Compagnon Mobile réel.
-
-Goal visuel retenu avant implémentation :
-
-1. conserver l'identité visuelle actuelle du Compagnon Mobile ;
-2. ajouter une carte clairement labellisée `MODE DÉMO — PREVIEW VERCEL` ;
-3. CTA principal démo : `Entrer dans Digital Crown` ;
-4. texte explicite : `Aucune donnée cabinet • aucune session réelle` ;
-5. QR/code réel conservés en dessous, visuellement secondaires dans le contexte Preview ;
-6. cible tactile CTA ≥52 px, aucun overflow à 390 px.
-
-Preuves exigées avant crédit du lot : BEFORE iPhone actuel → mockup ci-dessus → AFTER même viewport, build vert, contrôles host/build anti-prod, zéro PHI/credential réel, zéro overflow/runtime error et score visuel.
+- PR #287 mergée → `8afbfd87864ffef5059aefd825950050a31d1429` ;
+- closeout canonique : `docs/MOBILE_PREVIEW_DEMO_ISOLATION_CLOSEOUT.md` ;
+- CI #1983 / run `33171988852` ✅ SUCCESS, dont frontend tests + build et garde production ;
+- Preview exact-head `0843552005f2c1a68e8ad591d08b6e10f3aaa6c0` READY ;
+- build log Vercel : `[dc-preview] isolated demo build=1` ;
+- AFTER réel iPhone : onboarding + dashboard démontrés ;
+- identité visuelle Digital Crown conservée, QR/code réel maintenus sous le CTA démo ;
+- fixtures sans PHI/numéro réel, aucune fausse session/credential ;
+- `connect-src 'none'` sur le dashboard démo ;
+- aucune troncature problématique/overflow horizontal visible sur l'iPhone final ;
+- score visuel final : **9,6/10** ;
+- auto-déploiement Vercel refermé et production non touchée.
 
 ## Ordre canonique restant
 
-0. **Preview Demo Isolation** pour l'essai distant iPhone, sans crédit de certification terrain et sans affaiblir les guards réels.
-1. Certification terrain sur vrai iPhone + Android, incluant biométrie réelle, réception Push réelle, offline/reconnect, révocation et parcours critiques finaux.
-2. Closeout global Mobile Full Experience seulement après validation de ces gates, absence de P0/P1 et cohérence documentaire finale.
+1. **Certification terrain sur vrai iPhone + Android**, incluant pairing réel, biométrie réelle, réception Push réelle, offline/reconnect, révocation/expiration/permissions et parcours critiques finaux.
+2. **Closeout global Mobile Full Experience** seulement après validation de ces gates, absence de P0/P1 et cohérence documentaire finale.
+
+Runbook terrain : `docs/MOBILE_TERRAIN_CERTIFICATION_RUNBOOK.md`.
 
 ## Avancement
 
 Aucun pourcentage global n'est publié ici : la roadmap originale ne définit pas de dénominateur pondéré permettant un % honnête. L'état est suivi par gates explicites.
 
-Vercel : l'autorisation actuelle est limitée au **Preview frontend-only** décrit ci-dessus. Aucun déploiement Vercel production sans nouvelle autorisation explicite.
+Vercel : l'autorisation actuelle était limitée au **Preview frontend-only** décrit ci-dessus. Aucun déploiement Vercel production sans nouvelle autorisation explicite.
