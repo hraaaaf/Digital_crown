@@ -21,8 +21,25 @@ def _user(
     )
 
 
-def test_superadmin_authority_uses_immutable_user_id_not_email(monkeypatch):
+def _enable_control_plane(monkeypatch, *, owner_id: int = 42):
+    monkeypatch.setattr(settings, "PLATFORM_CONTROL_PLANE_ENABLED", True)
+    monkeypatch.setattr(settings, "SUPERADMIN_USER_ID", owner_id)
+
+
+def test_cabinet_install_fails_closed_even_when_local_user_id_matches(monkeypatch):
+    monkeypatch.setattr(settings, "PLATFORM_CONTROL_PLANE_ENABLED", False)
     monkeypatch.setattr(settings, "SUPERADMIN_USER_ID", 42)
+    forged_local_owner = _user(
+        user_id=42,
+        permissions={"license.create_trial": True},
+    )
+
+    assert is_platform_superadmin(forged_local_owner) is False
+    assert has_platform_permission(forged_local_owner, "license.create_trial") is False
+
+
+def test_superadmin_authority_uses_immutable_user_id_not_email(monkeypatch):
+    _enable_control_plane(monkeypatch)
 
     owner = _user(user_id=42, email="renamed@example.com")
     imposter = _user(user_id=99, email=settings.SUPERADMIN_DISPLAY_EMAIL)
@@ -38,7 +55,7 @@ def test_legacy_superadmin_email_setting_cannot_reenable_authority():
 
 
 def test_unprovisioned_superadmin_fails_closed(monkeypatch):
-    monkeypatch.setattr(settings, "SUPERADMIN_USER_ID", 0)
+    _enable_control_plane(monkeypatch, owner_id=0)
 
     candidate = _user(user_id=42, email=settings.SUPERADMIN_DISPLAY_EMAIL)
 
@@ -46,13 +63,13 @@ def test_unprovisioned_superadmin_fails_closed(monkeypatch):
 
 
 def test_disabled_owner_is_not_superadmin(monkeypatch):
-    monkeypatch.setattr(settings, "SUPERADMIN_USER_ID", 42)
+    _enable_control_plane(monkeypatch)
 
     assert is_platform_superadmin(_user(user_id=42, active=False)) is False
 
 
 def test_sales_admin_needs_explicit_trial_permission(monkeypatch):
-    monkeypatch.setattr(settings, "SUPERADMIN_USER_ID", 42)
+    _enable_control_plane(monkeypatch)
 
     sales = _user(user_id=7, permissions={"license.create_trial": True})
     generic_admin = _user(user_id=8, permissions={})
@@ -63,7 +80,7 @@ def test_sales_admin_needs_explicit_trial_permission(monkeypatch):
 
 
 def test_superadmin_inherits_all_known_platform_permissions(monkeypatch):
-    monkeypatch.setattr(settings, "SUPERADMIN_USER_ID", 42)
+    _enable_control_plane(monkeypatch)
     owner = _user(user_id=42)
 
     assert has_platform_permission(owner, "license.create_trial") is True
@@ -71,7 +88,7 @@ def test_superadmin_inherits_all_known_platform_permissions(monkeypatch):
 
 
 def test_unknown_permission_fails_closed(monkeypatch):
-    monkeypatch.setattr(settings, "SUPERADMIN_USER_ID", 42)
+    _enable_control_plane(monkeypatch)
     owner = _user(user_id=42)
 
     assert has_platform_permission(owner, "platform.root.everything") is False
