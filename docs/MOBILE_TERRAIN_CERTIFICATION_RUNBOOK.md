@@ -1,6 +1,7 @@
 # Digital Crown — Mobile Full Experience — Certification terrain
 
 Date de préparation : 2026-08-28
+Dernière mise à jour vérifiée : 2026-08-28
 
 ## Goal
 
@@ -67,3 +68,19 @@ Le chantier Mobile Full Experience ne peut être déclaré globalement CLOSED qu
 ## Point de départ vérifié
 
 Preview Demo Isolation est fermé via PR #287, merge `8afbfd87864ffef5059aefd825950050a31d1429`, closeout `docs/MOBILE_PREVIEW_DEMO_ISOLATION_CLOSEOUT.md`. La Preview reste hors crédit terrain.
+
+Roadmap canonique réalignée le 2026-08-28 sur `master` : Preview Demo Isolation CLOSED et certification terrain devenue le premier gate restant.
+
+## État courant — terrain iPhone
+
+Gate actif : **1. Pairing sécurisé réel**.
+
+Chemin produit vérifié dans `OnboardingScanner.tsx` :
+
+1. ouvrir **Sécurité Mobile** sur le poste cabinet réel et générer le pont QR ;
+2. ouvrir le **Compagnon Mobile installé** sur l'iPhone ;
+3. scanner le QR depuis l'app installée ; le code 6 chiffres reste le fallback ;
+4. le client génère une paire ECDH, appelle `/api/mobile/claim-token`, refuse toute réponse contenant un `masterKey` en clair et exige `server_public_key_hex`, `encrypted_master_key_hex`, `access_token`, `refresh_token` et `device_id` ;
+5. après succès, vérifier l'ouverture de la destination mobile exacte puis conserver une capture de l'état appairé.
+
+Preuve physique encore requise : exécution réelle de ce parcours sur l'iPhone cabinet. Aucun résultat terrain n'est crédité avant cette preuve.
