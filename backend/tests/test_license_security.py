@@ -22,12 +22,16 @@ def _b64url(data: bytes) -> str:
     return base64.urlsafe_b64encode(data).rstrip(b"=").decode("ascii")
 
 
-@pytest.fixture
-def keypair():
+def _new_keypair() -> tuple[str, str]:
     private = Ed25519PrivateKey.generate()
     private_raw = private.private_bytes(Encoding.Raw, PrivateFormat.Raw, NoEncryption())
     public_raw = private.public_key().public_bytes(Encoding.Raw, PublicFormat.Raw)
     return _b64url(private_raw), _b64url(public_raw)
+
+
+@pytest.fixture
+def keypair():
+    return _new_keypair()
 
 
 @pytest.fixture
@@ -57,15 +61,29 @@ def _claims(now: datetime, **overrides):
     return claims
 
 
+def _decode_segment(segment: str) -> dict:
+    padding = "=" * (-len(segment) % 4)
+    return json.loads(base64.urlsafe_b64decode((segment + padding).encode()).decode())
+
+
 def _tamper_payload(token: str, **changes) -> str:
     header, payload, signature = token.split(".")
-    padding = "=" * (-len(payload) % 4)
-    value = json.loads(base64.urlsafe_b64decode((payload + padding).encode()).decode())
+    value = _decode_segment(payload)
     value.update(changes)
     changed = _b64url(
         json.dumps(value, sort_keys=True, separators=(",", ":")).encode()
     )
     return f"{header}.{changed}.{signature}"
+
+
+def _tamper_header(token: str, **changes) -> str:
+    header, payload, signature = token.split(".")
+    value = _decode_segment(header)
+    value.update(changes)
+    changed = _b64url(
+        json.dumps(value, sort_keys=True, separators=(",", ":")).encode()
+    )
+    return f"{changed}.{payload}.{signature}"
 
 
 def test_valid_trial_is_accepted(keypair, now):
@@ -83,16 +101,45 @@ def test_valid_trial_is_accepted(keypair, now):
     assert verified.license_id == "lic-001"
 
 
-def test_payload_tampering_is_rejected(keypair, now):
+def test_valid_paid_is_accepted(keypair, now):
+    private, public = keypair
+    token = sign_license(_claims(now, license_type="PAID"), private, "k1")
+
+    verified = verify_license(
+        token,
+        {"k1": public},
+        expected_cabinet_id="cab-001",
+        now=now + timedelta(seconds=1),
+    )
+
+    assert verified.license_type == "PAID"
+
+
+@pytest.mark.parametrize(
+    "changes",
+    [
+        {"expires_at": "2036-08-28T12:00:00+00:00"},
+        {"cabinet_id": "attacker-cabinet"},
+        {"feature_set": "ELITE"},
+    ],
+)
+def test_signed_payload_tampering_is_rejected(keypair, now, changes):
     private, public = keypair
     token = sign_license(_claims(now), private, "k1")
-    tampered = _tamper_payload(
-        token,
-        expires_at=(now + timedelta(days=3650)).isoformat(),
-    )
+    tampered = _tamper_payload(token, **changes)
 
     with pytest.raises(LicenseSecurityError, match="signature"):
         verify_license(tampered, {"k1": public}, now=now + timedelta(seconds=1))
+
+
+def test_random_signature_is_rejected(keypair, now):
+    private, public = keypair
+    token = sign_license(_claims(now), private, "k1")
+    header, payload, _signature = token.split(".")
+    forged = f"{header}.{payload}.{_b64url(b'not-a-valid-ed25519-signature'.ljust(64, b'0'))}"
+
+    with pytest.raises(LicenseSecurityError, match="signature"):
+        verify_license(forged, {"k1": public}, now=now + timedelta(seconds=1))
 
 
 def test_wrong_cabinet_is_rejected(keypair, now):
@@ -108,6 +155,31 @@ def test_wrong_cabinet_is_rejected(keypair, now):
         )
 
 
+def test_wrong_issuer_is_rejected_even_with_valid_signature(keypair, now):
+    private, public = keypair
+    token = sign_license(_claims(now, issuer="attacker"), private, "k1")
+
+    with pytest.raises(LicenseSecurityError, match="issuer"):
+        verify_license(token, {"k1": public}, now=now + timedelta(seconds=1))
+
+
+def test_wrong_audience_is_rejected_even_with_valid_signature(keypair, now):
+    private, public = keypair
+    token = sign_license(_claims(now, audience="other-product"), private, "k1")
+
+    with pytest.raises(LicenseSecurityError, match="audience"):
+        verify_license(token, {"k1": public}, now=now + timedelta(seconds=1))
+
+
+def test_wrong_algorithm_is_rejected(keypair, now):
+    private, public = keypair
+    token = sign_license(_claims(now), private, "k1")
+    tampered = _tamper_header(token, alg="none")
+
+    with pytest.raises(LicenseSecurityError, match="algorithm"):
+        verify_license(tampered, {"k1": public}, now=now + timedelta(seconds=1))
+
+
 def test_expired_license_is_rejected(keypair, now):
     private, public = keypair
     token = sign_license(
@@ -118,6 +190,22 @@ def test_expired_license_is_rejected(keypair, now):
 
     with pytest.raises(LicenseSecurityError, match="expired"):
         verify_license(token, {"k1": public}, now=now + timedelta(minutes=2))
+
+
+def test_not_yet_valid_license_is_rejected(keypair, now):
+    private, public = keypair
+    token = sign_license(
+        _claims(
+            now,
+            not_before=(now + timedelta(hours=1)).isoformat(),
+            expires_at=(now + timedelta(days=1)).isoformat(),
+        ),
+        private,
+        "k1",
+    )
+
+    with pytest.raises(LicenseSecurityError, match="not yet valid"):
+        verify_license(token, {"k1": public}, now=now + timedelta(seconds=1))
 
 
 def test_revoked_license_is_rejected(keypair, now):
@@ -134,6 +222,21 @@ def test_untrusted_key_id_is_rejected(keypair, now):
 
     with pytest.raises(LicenseSecurityError, match="untrusted"):
         verify_license(token, {}, now=now + timedelta(seconds=1))
+
+
+def test_old_trusted_key_remains_valid_during_rotation(now):
+    old_private, old_public = _new_keypair()
+    _new_private, new_public = _new_keypair()
+    token = sign_license(_claims(now), old_private, "old-kid")
+
+    verified = verify_license(
+        token,
+        {"old-kid": old_public, "new-kid": new_public},
+        expected_cabinet_id="cab-001",
+        now=now + timedelta(seconds=1),
+    )
+
+    assert verified.key_id == "old-kid"
 
 
 def test_owner_requires_matching_immutable_subject(keypair, now):
