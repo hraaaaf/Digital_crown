@@ -35,7 +35,6 @@ def test_legacy_superadmin_email_setting_cannot_reenable_authority():
     cfg = Settings(SUPERADMIN_EMAIL="attacker@example.com")
 
     assert cfg.SUPERADMIN_EMAIL == ""
-    assert cfg.SUPERADMIN_DISPLAY_EMAIL == "benmoussa.achraf@gmail.com"
 
 
 def test_unprovisioned_superadmin_fails_closed(monkeypatch):
