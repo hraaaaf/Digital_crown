@@ -9,7 +9,7 @@ Last verified: 2026-08-28.
 - P3 — 13 EP — CLOSED; merge `98fe4440806b38d33cbdfb32eab6e7bc85e9b573`
 - P4 — 8 EP — CLOSED; merge `40cb22d6dddcbae6dee7340dc23956decaf701d8`
 - P5 — 13 EP — CLOSED; candidate `3ee3447e1cd3d92575e3b930abeef8e31061bfb8`
-- P6 — 8 EP — CLOSED; packaging certified, production Authenticode distribution gate remains
+- P6 — 8 EP — CLOSED; packaging certified, private Authenticode distribution gate remains
 - P8 — 21 EP — CLOSED; merge `b5e1ea41fa039cc174da5d1690f6d9bd3332728b`
 - P11 — 8 EP — CLOSED; merge `455e7603c78b0139c0b39e217bed768bfe1186e7`
 
@@ -26,12 +26,21 @@ Last verified: 2026-08-28.
 - P10 remains OPEN, **0/13 EP**.
 
 ## Distribution gates
-### Windows
+### Windows — zero-cost private PKI selected
 Repository secrets required:
 - `WINDOWS_CODESIGN_PFX_B64`
 - `WINDOWS_CODESIGN_PASSWORD`
 
-Existing evidence: `P6_AUTHENTICODE=NOT_CONFIGURED`. Workflow signs SHA-256, timestamps via DigiCert and verifies Authenticode when configured.
+Repository variable:
+- `WINDOWS_CODESIGN_CERT_SHA256`
+
+The signing certificate is generated offline and privately controlled by Digital Crown. CI validates the public certificate SHA-256 pin, requires Code Signing EKU, signs with SHA-256 + timestamp, verifies Authenticode and deletes temporary private material from the runner.
+
+Each known clinic Windows machine receives only the public `.cer`, installed once into LocalMachine `Root` + `TrustedPublisher`. This is private trust, not public SmartScreen reputation.
+
+Existing evidence remains `P6_AUTHENTICODE=NOT_CONFIGURED` until certificate ceremony and GitHub provisioning are completed.
+
+Ceremony: `docs/portability/P6_PRIVATE_WINDOWS_CODESIGN_CEREMONY.md`.
 
 ### macOS
 P7 candidate `53563b1b22ddb6905a54c16ca8486412130c3921`, PR `#274`.
@@ -47,10 +56,10 @@ Required repository secrets:
 P7 gate: Apple Silicon + Developer ID + notarization accepted/no notary errors + stapling + Gatekeeper + install/runtime/upgrade/uninstall smoke.
 
 ## Remaining
-1. Authenticode Windows production + timestamp + real P10 signed apply proof.
-2. P7 signed/notarized/stapled/Gatekeeper macOS + lifecycle/update proof.
-3. Windows + macOS clean-machine certification.
-4. P9/P10/P12/P13 final evidence consistency/closeout.
+1. Generate private Windows code-signing certificate offline + provision GitHub secrets/variable + certify signed/timestamped P6 artifact.
+2. Install public `.cer` on clean Windows clinic machine + certify private trust and real P10 signed apply.
+3. P7 signed/notarized/stapled/Gatekeeper macOS + lifecycle/update proof.
+4. Windows + macOS clean-machine certification and P9/P10/P12/P13 final closeout.
 
 ## Progress
 - total 162 EP
@@ -63,4 +72,5 @@ P7 gate: Apple Silicon + Developer ID + notarization accepted/no notary errors +
 ## Canonical files
 - roadmap: `PORTABILITY_LAUNCHER_ROADMAP.md`
 - P10: `docs/portability/P10_UPDATE_ENGINE.md`
-- key ceremony: `docs/portability/P10_UPDATE_SIGNING_KEY_CEREMONY.md`
+- update trust ceremony: `docs/portability/P10_UPDATE_SIGNING_KEY_CEREMONY.md`
+- Windows private signing ceremony: `docs/portability/P6_PRIVATE_WINDOWS_CODESIGN_CEREMONY.md`
