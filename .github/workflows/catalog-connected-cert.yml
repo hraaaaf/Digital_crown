@@ -93,15 +93,21 @@ jobs:
 
       - name: Backend truth — catalog connected
         if: ${{ !cancelled() }}
-        run: pytest -q backend/tests/test_catalog_connected_truth.py
+        run: |
+          mkdir -p artifacts/catalog-connected/pytest
+          pytest -q backend/tests/test_catalog_connected_truth.py 2>&1 | tee artifacts/catalog-connected/pytest/catalog-connected.log
 
       - name: Backend truth — patient P3 master-plan revisions
         if: ${{ !cancelled() }}
-        run: pytest -q backend/tests/test_patient_p3_master_plan_revisions.py
+        run: |
+          mkdir -p artifacts/catalog-connected/pytest
+          pytest -q backend/tests/test_patient_p3_master_plan_revisions.py 2>&1 | tee artifacts/catalog-connected/pytest/patient-p3.log
 
       - name: Backend truth — prescription catalog quick-add
         if: ${{ !cancelled() }}
-        run: pytest -q backend/tests/test_prescriptions_router.py::TestCatalogQuickAdd
+        run: |
+          mkdir -p artifacts/catalog-connected/pytest
+          pytest -q backend/tests/test_prescriptions_router.py::TestCatalogQuickAdd 2>&1 | tee artifacts/catalog-connected/pytest/prescriptions.log
 
       - name: Targeted frontend truth tests and build
         working-directory: frontend
