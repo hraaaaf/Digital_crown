@@ -165,6 +165,19 @@ class LicenseService:
 
         return verified
 
+    @staticmethod
+    def _verified_result(verified: VerifiedLicense, source: str) -> dict:
+        return {
+            "active": verified.status == "ACTIVE",
+            "expiration_date": verified.expires_at,
+            "source": source,
+            "license_type": verified.license_type,
+            "feature_set": verified.claims.get("feature_set"),
+            "release_channel": verified.claims.get("release_channel"),
+            "license_id": verified.license_id,
+            "key_id": verified.key_id,
+        }
+
     def _validate_offline_vault(
         self,
         clinic_id: str,
@@ -206,20 +219,20 @@ class LicenseService:
         self._write_local_vault(local_data)
         remaining_hours = int((grace_limit - now).total_seconds() / 3600)
         logger.warning(f"Mode dégradé hors-ligne actif. Temps restant : {remaining_hours} heures.")
-        return {
-            "active": True,
-            "expiration_date": expiration,
-            "source": "offline",
-            "license_type": verified.license_type,
-        }
+        return self._verified_result(verified, "offline")
 
-    async def validate_license(self, clinic_id: str) -> bool:
+    async def get_effective_license(self, clinic_id: str) -> dict:
+        """Return the effective signed entitlement, falling back to the signed offline vault."""
         result = await self.validate_license_with_expiry(clinic_id)
         if result.get("active") is None:
             result = self._validate_offline_vault(
                 clinic_id,
                 datetime.datetime.now(datetime.timezone.utc),
             )
+        return result
+
+    async def validate_license(self, clinic_id: str) -> bool:
+        result = await self.get_effective_license(clinic_id)
         return bool(result.get("active"))
 
     async def validate_license_with_expiry(self, clinic_id: str) -> dict:
@@ -265,7 +278,6 @@ class LicenseService:
                 "reason": "invalid_signature_or_claims",
             }
 
-        expiration = verified.expires_at
         self._write_local_vault(
             {
                 "clinic_id": clinic_id,
@@ -275,12 +287,7 @@ class LicenseService:
             }
         )
         logger.info("Licence signée validée en ligne. Coffre local mis à jour.")
-        return {
-            "active": True,
-            "expiration_date": expiration,
-            "source": "firebase",
-            "license_type": verified.license_type,
-        }
+        return self._verified_result(verified, "firebase")
 
     async def write_signed_license(self, public_id: str, signed_license: str) -> bool:
         """Write only a cryptographically authentic license, including REVOKED tombstones."""
@@ -308,6 +315,8 @@ class LicenseService:
                     "active": verified.status == "ACTIVE",
                     "expiration_date": verified.expires_at,
                     "license_type": verified.license_type,
+                    "feature_set": verified.claims.get("feature_set"),
+                    "release_channel": verified.claims.get("release_channel"),
                     "license_id": verified.license_id,
                     "key_id": verified.key_id,
                 },
