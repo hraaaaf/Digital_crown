@@ -3,7 +3,7 @@ from __future__ import annotations
 import hashlib
 from datetime import datetime, timedelta, timezone
 
-from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, EmailStr
 from sqlalchemy.orm import Session
 
@@ -55,6 +55,37 @@ def _redemption_payload(data: dict) -> dict:
         "feature_set": data["feature_set"],
         "license_type": data["license_type"],
     }
+
+
+def _is_same_redemption(data: dict, *, email: str, cabinet_id: str) -> bool:
+    return bool(
+        data.get("email") == email
+        and data.get("cabinet_id") == cabinet_id
+        and isinstance(data.get("signed_license"), str)
+        and data.get("signed_license")
+    )
+
+
+def _consume_trial_marker(db: Session, trial_code: models.TrialActivationCode) -> None:
+    """Best-effort SQL mirror after the authoritative Firestore redemption exists."""
+    if trial_code.consumed_at is None:
+        trial_code.consumed_at = datetime.utcnow()
+        db.commit()
+
+
+def _existing_redemption_or_conflict(
+    *,
+    snapshot,
+    email: str,
+    cabinet_id: str,
+    trial_code: models.TrialActivationCode,
+    db: Session,
+) -> dict:
+    data = snapshot.to_dict() or {}
+    if not _is_same_redemption(data, email=email, cabinet_id=cabinet_id):
+        raise HTTPException(status_code=400, detail="Ce code d'activation a déjà été utilisé.")
+    _consume_trial_marker(db, trial_code)
+    return _redemption_payload(data)
 
 
 @router.get(
@@ -117,21 +148,17 @@ async def activate_trial(
     )
     existing = redemption_ref.get()
     if existing.exists:
-        data = existing.to_dict() or {}
-        same_redemption = (
-            data.get("email") == normalized_email
-            and data.get("cabinet_id") == cabinet_id
-            and isinstance(data.get("signed_license"), str)
-            and data.get("signed_license")
+        return _existing_redemption_or_conflict(
+            snapshot=existing,
+            email=normalized_email,
+            cabinet_id=cabinet_id,
+            trial_code=trial_code,
+            db=db,
         )
-        if not same_redemption:
-            raise HTTPException(status_code=400, detail="Ce code d'activation a déjà été utilisé.")
-        if trial_code.consumed_at is None:
-            trial_code.consumed_at = datetime.utcnow()
-            db.commit()
-        return _redemption_payload(data)
 
     if trial_code.consumed_at:
+        # Fail closed if the SQL mirror says consumed but no authoritative
+        # redemption record can be recovered.
         raise HTTPException(status_code=400, detail="Ce code d'activation a déjà été utilisé.")
 
     now_utc = datetime.now(timezone.utc)
@@ -148,21 +175,20 @@ async def activate_trial(
             issued_at=now_utc,
             not_before=now_utc,
         )
+        verified = service._verify_signed_license(
+            signed_license,
+            cabinet_id,
+            now_utc,
+            allow_inactive=True,
+        )
     except (LicenseIssuerUnavailable, LicenseSecurityError) as exc:
         raise HTTPException(
             status_code=503,
             detail="Service de signature de licence non provisionné.",
         ) from exc
 
-    stored = await service.write_signed_license(
-        public_id=cabinet_id,
-        signed_license=signed_license,
-    )
-    if not stored:
-        raise HTTPException(
-            status_code=503,
-            detail="Licence signée générée mais non persistée.",
-        )
+    if verified.status != "ACTIVE" or verified.license_type != "TRIAL":
+        raise HTTPException(status_code=503, detail="Entitlement Trial émis invalide.")
 
     redemption = {
         "email": normalized_email,
@@ -174,14 +200,48 @@ async def activate_trial(
         "redeemed_at": now_utc.isoformat(),
         "created_by_user_id": trial_code.created_by_admin_id,
     }
+    license_document = {
+        "signed_license": signed_license,
+        "active": True,
+        "expiration_date": verified.expires_at,
+        "license_type": verified.license_type,
+        "feature_set": verified.claims.get("feature_set"),
+        "release_channel": verified.claims.get("release_channel"),
+        "license_id": verified.license_id,
+        "key_id": verified.key_id,
+    }
+
+    # Firestore batch is the authoritative transaction boundary. `create` on the
+    # redemption record prevents two concurrent requests from both winning.
+    license_ref = service._db.collection("licenses").document(cabinet_id)
+    batch = service._db.batch()
+    batch.set(license_ref, license_document, merge=True)
+    batch.create(redemption_ref, redemption)
     try:
-        redemption_ref.set(redemption)
+        batch.commit()
     except Exception as exc:
+        # Covers both a genuine conflict and the classic "commit succeeded but
+        # response was lost" case. Re-read once and accept only the exact same
+        # redemption; otherwise fail closed.
+        try:
+            recovered = redemption_ref.get()
+        except Exception as read_exc:
+            raise HTTPException(
+                status_code=503,
+                detail="Journal d'activation control-plane indisponible.",
+            ) from read_exc
+        if recovered.exists:
+            return _existing_redemption_or_conflict(
+                snapshot=recovered,
+                email=normalized_email,
+                cabinet_id=cabinet_id,
+                trial_code=trial_code,
+                db=db,
+            )
         raise HTTPException(
             status_code=503,
-            detail="Journal d'activation control-plane indisponible.",
+            detail="Persistance atomique de la licence Trial impossible.",
         ) from exc
 
-    trial_code.consumed_at = datetime.utcnow()
-    db.commit()
+    _consume_trial_marker(db, trial_code)
     return _redemption_payload(redemption)
