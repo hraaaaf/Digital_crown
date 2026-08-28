@@ -1,4 +1,4 @@
-import { Calendar, ChevronLeft, ChevronRight, RefreshCw, Shield, Users } from 'lucide-react';
+import { Bell, Calendar, ChevronLeft, ChevronRight, RefreshCw, Shield, Users } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { cn } from '../../../../utils/cn';
 import Logo from '../../../../assets/logo.png';
@@ -16,6 +16,7 @@ export function MobileHeader({
   totalCount,
   termineCount,
   queuedActionsCount,
+  previewMode = false,
 }: {
   activeTab: Tab;
   syncStatus: SyncStatus;
@@ -26,6 +27,7 @@ export function MobileHeader({
   totalCount: number;
   termineCount: number;
   queuedActionsCount: number;
+  previewMode?: boolean;
 }) {
   const navigate = useNavigate();
   return (
@@ -34,7 +36,19 @@ export function MobileHeader({
         <img src={Logo} alt="Digital Crown" className="w-32 sm:w-36 h-auto object-contain drop-shadow-sm origin-left min-w-0" />
 
         <div className="flex items-center gap-2 shrink-0">
-          <MobileNotificationCenter />
+          {previewMode ? (
+            <button
+              type="button"
+              disabled
+              aria-label="Notifications désactivées dans la Preview"
+              className="relative h-12 w-12 shrink-0 rounded-[16px] border border-glass-border bg-card shadow-elite backdrop-blur-md flex items-center justify-center text-primary"
+              style={{ backgroundColor: 'var(--glass-bg)' }}
+            >
+              <Bell size={18} aria-hidden="true" />
+            </button>
+          ) : (
+            <MobileNotificationCenter />
+          )}
           <button
             type="button"
             aria-label="Synchroniser les données mobiles"
