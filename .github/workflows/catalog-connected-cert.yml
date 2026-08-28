@@ -86,6 +86,11 @@ jobs:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
           clean: false
 
+      - name: Install AFTER backend dependencies
+        run: |
+          grep -vE '^(torch|torchvision)([<=>].*)?$' requirements.txt > /tmp/requirements-catalog-connected-after.txt
+          pip install -r /tmp/requirements-catalog-connected-after.txt
+
       - name: Prove certified cores are byte-identical
         run: |
           test "$(git hash-object frontend/src/features/patients/components/ClinicalHubCore.tsx)" = "45d0c00031f7078dc260263b7c8c9a86615e56b9"
@@ -94,18 +99,21 @@ jobs:
       - name: Backend truth — catalog connected
         if: ${{ !cancelled() }}
         run: |
+          set -o pipefail
           mkdir -p artifacts/catalog-connected/pytest
           pytest -q backend/tests/test_catalog_connected_truth.py 2>&1 | tee artifacts/catalog-connected/pytest/catalog-connected.log
 
       - name: Backend truth — patient P3 master-plan revisions
         if: ${{ !cancelled() }}
         run: |
+          set -o pipefail
           mkdir -p artifacts/catalog-connected/pytest
           pytest -q backend/tests/test_patient_p3_master_plan_revisions.py 2>&1 | tee artifacts/catalog-connected/pytest/patient-p3.log
 
       - name: Backend truth — prescription catalog quick-add
         if: ${{ !cancelled() }}
         run: |
+          set -o pipefail
           mkdir -p artifacts/catalog-connected/pytest
           pytest -q backend/tests/test_prescriptions_router.py::TestCatalogQuickAdd 2>&1 | tee artifacts/catalog-connected/pytest/prescriptions.log
 
