@@ -126,8 +126,11 @@ def _validate_authenticode_distribution_gate(root: Path) -> None:
         'P6_PRIVATE_CODESIGN_NOT_CONFIGURED': 'P6 signing must fail closed when credentials are absent',
         'P6_PRIVATE_CODESIGN_PARTIAL_CONFIGURATION': 'P6 signing must fail closed on partial credential configuration',
         'P6_PRIVATE_CODESIGN_CERT_SHA256_MISMATCH': 'P6 signing certificate SHA-256 pin check missing',
-        '& $signtool sign /fd SHA256': 'P6 Authenticode SHA-256 signing command missing',
-        '/tr http://timestamp.digicert.com /td SHA256': 'P6 RFC3161 SHA-256 timestamp command missing',
+        'Start-Process -FilePath $signtool': 'P6 bounded Authenticode signing process missing',
+        "'sign', '/fd', 'SHA256'": 'P6 Authenticode SHA-256 signing arguments missing',
+        "'/tr', 'http://timestamp.digicert.com', '/td', 'SHA256'": 'P6 RFC3161 SHA-256 timestamp arguments missing',
+        'WaitForExit(180000)': 'P6 Authenticode signing timeout missing',
+        'P6_PRIVATE_AUTHENTICODE_SIGN_TIMEOUT': 'P6 Authenticode signing timeout gate missing',
         '& $signtool verify /pa /v $setup': 'P6 signtool verification gate missing',
         'P6_PRIVATE_AUTHENTICODE_TIMESTAMP_MISSING': 'P6 timestamp certificate gate missing',
         'P6_PRIVATE_AUTHENTICODE_SIGNER_MISMATCH': 'P6 signer identity gate missing',
@@ -186,3 +189,4 @@ def main() -> None:
 
 if __name__ == '__main__':
     main()
+
