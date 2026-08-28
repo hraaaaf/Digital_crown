@@ -11,6 +11,10 @@ from backend.routers import license_control_plane as control_plane
 from backend.security import get_password_hash
 
 
+DEVICE_ID = "a" * 64
+DEVICE_PUBLIC_KEY = "device-public-key-test"
+
+
 class _Snapshot:
     def __init__(self, data):
         self._data = data
@@ -62,8 +66,6 @@ class _Batch:
             self.db.fail_before_apply = False
             raise RuntimeError("forced atomic commit failure")
 
-        # Firestore create() is a precondition: no operation is applied if any
-        # create target already exists.
         for op, ref, _data, _merge in self.operations:
             if op == "create" and ref.key in ref.store:
                 raise RuntimeError("document already exists")
@@ -139,33 +141,49 @@ def _trial(db, *, code="DC-TEST-0001", email="prospect@example.com"):
     return trial
 
 
-def _activate(db, trial, cabinet_id="cab-stable-001"):
+def _activation_payload(trial, *, cabinet_id="cab-stable-001", device_id=DEVICE_ID):
+    return control_plane.TrialControlPlaneActivation(
+        code=trial.code,
+        email=trial.email,
+        cabinet_id=cabinet_id,
+        device_id=device_id,
+        device_public_key=DEVICE_PUBLIC_KEY,
+        platform="windows",
+    )
+
+
+def _activate(db, trial, *, cabinet_id="cab-stable-001", device_id=DEVICE_ID):
     return asyncio.run(
         control_plane.activate_trial(
-            control_plane.TrialControlPlaneActivation(
-                code=trial.code,
-                email=trial.email,
-                cabinet_id=cabinet_id,
-            ),
+            _activation_payload(trial, cabinet_id=cabinet_id, device_id=device_id),
             request=None,
             db=db,
         )
     )
 
 
+def _patch_issuers(monkeypatch, issued):
+    def fake_issue_license(**kwargs):
+        issued.append(("license", dict(kwargs)))
+        return "signed-trial-token"
+
+    def fake_issue_device_certificate(**kwargs):
+        issued.append(("device", dict(kwargs)))
+        return "signed-device-certificate"
+
+    monkeypatch.setattr(control_plane, "issue_license", fake_issue_license)
+    monkeypatch.setattr(control_plane, "issue_device_certificate", fake_issue_device_certificate)
+
+
 def test_control_plane_route_is_absent_when_disabled(db, monkeypatch):
-    _trial(db)
+    trial = _trial(db)
     monkeypatch.setattr(settings, "PLATFORM_CONTROL_PLANE_ENABLED", False)
     monkeypatch.setattr(control_plane, "check_rate_limit", lambda *_args, **_kwargs: None)
 
     with pytest.raises(HTTPException) as exc:
         asyncio.run(
             control_plane.activate_trial(
-                control_plane.TrialControlPlaneActivation(
-                    code="DC-TEST-0001",
-                    email="prospect@example.com",
-                    cabinet_id="cab-001",
-                ),
+                _activation_payload(trial),
                 request=None,
                 db=db,
             )
@@ -173,7 +191,7 @@ def test_control_plane_route_is_absent_when_disabled(db, monkeypatch):
     assert exc.value.status_code == 404
 
 
-def test_same_trial_redemption_is_idempotent_and_different_cabinet_is_rejected(db, monkeypatch):
+def test_same_trial_redemption_is_idempotent_and_other_device_or_cabinet_is_rejected(db, monkeypatch):
     trial = _trial(db)
     service = _LicenseService()
     issued = []
@@ -181,83 +199,82 @@ def test_same_trial_redemption_is_idempotent_and_different_cabinet_is_rejected(d
     monkeypatch.setattr(settings, "PLATFORM_CONTROL_PLANE_ENABLED", True)
     monkeypatch.setattr(control_plane, "check_rate_limit", lambda *_args, **_kwargs: None)
     monkeypatch.setattr(control_plane, "LicenseService", lambda: service)
-
-    def fake_issue_license(**kwargs):
-        issued.append(dict(kwargs))
-        return "signed-trial-token"
-
-    monkeypatch.setattr(control_plane, "issue_license", fake_issue_license)
+    _patch_issuers(monkeypatch, issued)
 
     first = _activate(db, trial)
     second = _activate(db, trial)
 
     assert first == second
     assert first["signed_license"] == "signed-trial-token"
+    assert first["signed_device_certificate"] == "signed-device-certificate"
+    assert first["device_id"] == DEVICE_ID
     assert first["license_type"] == "TRIAL"
     assert first["feature_set"] == models.SubscriptionPlan.GOLD.value
-    assert len(issued) == 1
+    assert [kind for kind, _ in issued] == ["license", "device"]
     assert service._db.batch_commits == 1
     assert service._db.collections["licenses"]["cab-stable-001"]["signed_license"] == "signed-trial-token"
     assert len(service._db.collections["trial_redemptions"]) == 1
+    assert len(service._db.collections["license_devices"]) == 1
+    device_doc = next(iter(service._db.collections["license_devices"].values()))
+    assert device_doc["device_id"] == DEVICE_ID
+    assert device_doc["license_id"] == "lic-test-001"
     db.refresh(trial)
     assert trial.consumed_at is not None
 
     with pytest.raises(HTTPException) as exc:
         _activate(db, trial, cabinet_id="cab-attacker-002")
     assert exc.value.status_code == 400
-    assert len(issued) == 1
+
+    with pytest.raises(HTTPException) as exc:
+        _activate(db, trial, device_id="b" * 64)
+    assert exc.value.status_code == 400
+    assert len(issued) == 2
     assert service._db.batch_commits == 1
 
 
 def test_trial_code_is_bound_to_email_before_signing(db, monkeypatch):
-    _trial(db)
+    trial = _trial(db)
     service = _LicenseService()
-    calls = []
+    issued = []
 
     monkeypatch.setattr(settings, "PLATFORM_CONTROL_PLANE_ENABLED", True)
     monkeypatch.setattr(control_plane, "check_rate_limit", lambda *_args, **_kwargs: None)
     monkeypatch.setattr(control_plane, "LicenseService", lambda: service)
-    monkeypatch.setattr(control_plane, "issue_license", lambda **kwargs: calls.append(kwargs) or "token")
+    _patch_issuers(monkeypatch, issued)
 
+    bad = _activation_payload(trial)
+    bad.email = "attacker@example.com"
     with pytest.raises(HTTPException) as exc:
-        asyncio.run(
-            control_plane.activate_trial(
-                control_plane.TrialControlPlaneActivation(
-                    code="DC-TEST-0001",
-                    email="attacker@example.com",
-                    cabinet_id="cab-001",
-                ),
-                request=None,
-                db=db,
-            )
-        )
+        asyncio.run(control_plane.activate_trial(bad, request=None, db=db))
 
     assert exc.value.status_code == 400
-    assert calls == []
+    assert issued == []
     assert service._db.batch_commits == 0
 
 
-def test_atomic_commit_failure_leaves_no_license_or_redemption(db, monkeypatch):
+def test_atomic_commit_failure_leaves_no_license_device_or_redemption(db, monkeypatch):
     trial = _trial(db)
     service = _LicenseService()
     service._db.fail_before_apply = True
+    issued = []
 
     monkeypatch.setattr(settings, "PLATFORM_CONTROL_PLANE_ENABLED", True)
     monkeypatch.setattr(control_plane, "check_rate_limit", lambda *_args, **_kwargs: None)
     monkeypatch.setattr(control_plane, "LicenseService", lambda: service)
-    monkeypatch.setattr(control_plane, "issue_license", lambda **_kwargs: "signed-trial-token")
+    _patch_issuers(monkeypatch, issued)
 
     with pytest.raises(HTTPException) as exc:
         _activate(db, trial)
 
     assert exc.value.status_code == 503
     assert service._db.collections.get("licenses", {}) == {}
+    assert service._db.collections.get("license_devices", {}) == {}
     assert service._db.collections.get("trial_redemptions", {}) == {}
     db.refresh(trial)
     assert trial.consumed_at is None
 
 
-def test_lost_commit_ack_recovers_same_redemption_without_reissuing(db, monkeypatch):
+def test_lost_commit_ack_recovers_same_device_redemption_without_reissuing(db, monkeypatch):
     trial = _trial(db)
     service = _LicenseService()
     service._db.raise_after_apply = True
@@ -266,19 +283,16 @@ def test_lost_commit_ack_recovers_same_redemption_without_reissuing(db, monkeypa
     monkeypatch.setattr(settings, "PLATFORM_CONTROL_PLANE_ENABLED", True)
     monkeypatch.setattr(control_plane, "check_rate_limit", lambda *_args, **_kwargs: None)
     monkeypatch.setattr(control_plane, "LicenseService", lambda: service)
-    monkeypatch.setattr(
-        control_plane,
-        "issue_license",
-        lambda **kwargs: issued.append(dict(kwargs)) or "signed-trial-token",
-    )
+    _patch_issuers(monkeypatch, issued)
 
     first = _activate(db, trial)
     second = _activate(db, trial)
 
     assert first == second
-    assert len(issued) == 1
+    assert len(issued) == 2
     assert service._db.batch_commits == 1
     assert len(service._db.collections["trial_redemptions"]) == 1
+    assert len(service._db.collections["license_devices"]) == 1
     assert service._db.collections["licenses"]["cab-stable-001"]["signed_license"] == "signed-trial-token"
     db.refresh(trial)
     assert trial.consumed_at is not None
