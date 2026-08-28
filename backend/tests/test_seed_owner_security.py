@@ -46,7 +46,23 @@ class _FakeDB:
         self.closed = True
 
 
+def _enable_control_plane(monkeypatch):
+    monkeypatch.setattr(settings, "PLATFORM_CONTROL_PLANE_ENABLED", True)
+
+
+def test_cabinet_install_never_attempts_owner_bootstrap(monkeypatch):
+    monkeypatch.setattr(settings, "PLATFORM_CONTROL_PLANE_ENABLED", False)
+
+    def _must_not_open_db():
+        raise AssertionError("cabinet install must not open owner bootstrap DB")
+
+    monkeypatch.setattr(seed_user, "SessionLocal", _must_not_open_db)
+
+    assert seed_user.seed_admin_user() is None
+
+
 def test_seed_requires_explicit_password_and_never_generates_one(monkeypatch, capsys):
+    _enable_control_plane(monkeypatch)
     db = _FakeDB()
     monkeypatch.setattr(seed_user, "SessionLocal", lambda: db)
     monkeypatch.setattr(settings, "SUPERADMIN_DISPLAY_EMAIL", "owner@example.com")
@@ -64,6 +80,7 @@ def test_seed_requires_explicit_password_and_never_generates_one(monkeypatch, ca
 
 
 def test_seed_bootstrap_email_does_not_grant_platform_authority(monkeypatch, capsys):
+    _enable_control_plane(monkeypatch)
     db = _FakeDB(assigned_id=17)
     monkeypatch.setattr(seed_user, "SessionLocal", lambda: db)
     monkeypatch.setattr(settings, "SUPERADMIN_DISPLAY_EMAIL", "owner@example.com")
@@ -86,6 +103,7 @@ def test_seed_bootstrap_email_does_not_grant_platform_authority(monkeypatch, cap
 
 
 def test_seed_rejects_existing_owner_id_mismatch(monkeypatch, capsys):
+    _enable_control_plane(monkeypatch)
     existing = models.User(
         id=17,
         email="owner@example.com",
