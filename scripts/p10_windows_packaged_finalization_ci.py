@@ -3,7 +3,6 @@ from __future__ import annotations
 import json
 import subprocess
 import sys
-import threading
 import time
 from pathlib import Path
 from typing import Any
@@ -45,15 +44,20 @@ def invoke_entry_worker(repo_root: Path, job_path: Path, env: dict[str, str], ca
     try:
         time.sleep(1.0)
         parent.terminate()
-        try: parent.wait(timeout=10)
+        try:
+            parent.wait(timeout=10)
         except subprocess.TimeoutExpired:
-            parent.kill(); parent.wait(timeout=10)
+            parent.kill()
+            parent.wait(timeout=10)
         stdout, stderr = worker.communicate(timeout=420)
     except Exception:
-        lifecycle.stop_process_tree(worker.pid); worker.wait(timeout=20); raise
+        lifecycle.stop_process_tree(worker.pid)
+        worker.wait(timeout=20)
+        raise
     finally:
         if parent.poll() is None:
-            parent.kill(); parent.wait(timeout=10)
+            parent.kill()
+            parent.wait(timeout=10)
     case_root.mkdir(parents=True, exist_ok=True)
     (case_root / "worker-stdout.log").write_text(stdout or "", encoding="utf-8", errors="replace")
     (case_root / "worker-stderr.log").write_text(stderr or "", encoding="utf-8", errors="replace")
@@ -72,7 +76,9 @@ def positive_case(repo_root: Path, baseline: Path, target: Path, root: Path) -> 
         lifecycle.run_self_test(executable, lifecycle.BASE_VERSION, env, root / "baseline-self-test.json")
         runtime = lifecycle.start_runtime(executable, env)
         lifecycle.wait_health(lifecycle.BASE_PORT, process=runtime, timeout=120)
-        lifecycle.stop_process_tree(runtime.pid); runtime.wait(timeout=30); runtime = None
+        lifecycle.stop_process_tree(runtime.pid)
+        runtime.wait(timeout=30)
+        runtime = None
         rescue, rescue_sha = lifecycle.create_real_rescue(repo_root, data_dir, env)
         job_path = prepare_job_with_recovery_contract(
             repo_root=repo_root, data_dir=data_dir, target_installer=target, rescue=rescue,
@@ -82,36 +88,56 @@ def positive_case(repo_root: Path, baseline: Path, target: Path, root: Path) -> 
         if exit_code != 0:
             raise lifecycle.LifecycleError(f"POSITIVE_WORKER_EXIT expected=0 actual={exit_code} job={job}")
         if (
-            job.get("status") != "healthy" or job.get("worker_result") != "install_verified"
-            or job.get("package_self_test") != "passed" or job.get("runtime_health") != "passed"
-            or job.get("rollback") != "not_needed" or job.get("recovery_contract") != RECOVERY_CONTRACT
+            job.get("status") != "healthy"
+            or job.get("worker_result") != "install_verified"
+            or job.get("package_self_test") != "passed"
+            or job.get("runtime_health") != "passed"
+            or job.get("rollback") != "not_needed"
+            or job.get("recovery_contract") != RECOVERY_CONTRACT
         ):
             raise lifecycle.LifecycleError(f"POSITIVE_JOB_TRUTH_FAILED {job}")
         worker_runtime_pid = int(job.get("runtime_pid") or 0)
         lifecycle.wait_health(lifecycle.BASE_PORT, timeout=30)
         lifecycle.run_self_test(executable, lifecycle.TARGET_VERSION, env, root / "target-self-test.json")
         trust_path = data_dir / "updates" / "trusted_state.json"
-        if not trust_path.is_file(): raise lifecycle.LifecycleError("POSITIVE_TRUST_STATE_MISSING")
+        if not trust_path.is_file():
+            raise lifecycle.LifecycleError("POSITIVE_TRUST_STATE_MISSING")
         trust = json.loads(trust_path.read_text(encoding="utf-8"))
         if trust.get("installed_version") != lifecycle.TARGET_VERSION or int(trust.get("installed_sequence") or 0) != 1:
             raise lifecycle.LifecycleError(f"POSITIVE_TRUST_STATE_INVALID {trust}")
         finalize_report_path = job_path.parent / "update-finalize-report.json"
-        if not finalize_report_path.is_file(): raise lifecycle.LifecycleError("POSITIVE_FINALIZE_REPORT_MISSING")
+        if not finalize_report_path.is_file():
+            raise lifecycle.LifecycleError("POSITIVE_FINALIZE_REPORT_MISSING")
         finalize_report = json.loads(finalize_report_path.read_text(encoding="utf-8"))
-        if finalize_report.get("status") != "success" or finalize_report.get("version") != lifecycle.TARGET_VERSION or int(finalize_report.get("sequence") or 0) != 1:
+        if (
+            finalize_report.get("status") != "success"
+            or finalize_report.get("version") != lifecycle.TARGET_VERSION
+            or int(finalize_report.get("sequence") or 0) != 1
+        ):
             raise lifecycle.LifecycleError(f"POSITIVE_FINALIZE_REPORT_INVALID {finalize_report}")
         return {
-            "status": "success", "worker_exit": exit_code, "job_status": job["status"],
-            "worker_result": job["worker_result"], "package_version": lifecycle.TARGET_VERSION,
-            "runtime_health": job["runtime_health"], "rollback": job["rollback"],
-            "rescue_sha256": rescue_sha, "installed_version": trust["installed_version"],
-            "installed_sequence": trust["installed_sequence"], "finalization": "passed", "entry_lock": "exercised",
+            "status": "success",
+            "worker_exit": exit_code,
+            "job_status": job["status"],
+            "worker_result": job["worker_result"],
+            "package_version": lifecycle.TARGET_VERSION,
+            "runtime_health": job["runtime_health"],
+            "rollback": job["rollback"],
+            "rescue_sha256": rescue_sha,
+            "installed_version": trust["installed_version"],
+            "installed_sequence": trust["installed_sequence"],
+            "finalization": "passed",
+            "entry_lock": "exercised",
         }
     finally:
-        if runtime is not None: lifecycle.stop_process_tree(runtime.pid)
-        if worker_runtime_pid: lifecycle.stop_process_tree(worker_runtime_pid)
-        try: lifecycle.uninstall_inno(install_dir, root / "positive-uninstall.log", env)
-        except Exception as exc: print(f"::warning::positive cleanup uninstall failed: {exc}")
+        if runtime is not None:
+            lifecycle.stop_process_tree(runtime.pid)
+        if worker_runtime_pid:
+            lifecycle.stop_process_tree(worker_runtime_pid)
+        try:
+            lifecycle.uninstall_inno(install_dir, root / "positive-uninstall.log", env)
+        except Exception as exc:
+            print(f"::warning::positive cleanup uninstall failed: {exc}")
 
 
 def _interrupt_at_applying(repo_root: Path, job_path: Path, env: dict[str, str], root: Path) -> dict[str, Any]:
@@ -124,25 +150,36 @@ def _interrupt_at_applying(repo_root: Path, job_path: Path, env: dict[str, str],
         "-JobPath", str(job_path), "-ParentPid", str(parent.pid),
     ], cwd=str(repo_root), env=env, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     try:
-        time.sleep(0.8); parent.terminate()
-        try: parent.wait(timeout=10)
+        time.sleep(0.8)
+        parent.terminate()
+        try:
+            parent.wait(timeout=10)
         except subprocess.TimeoutExpired:
-            parent.kill(); parent.wait(timeout=10)
+            parent.kill()
+            parent.wait(timeout=10)
         deadline = time.monotonic() + 90
         observed = None
         while time.monotonic() < deadline:
-            if worker.poll() is not None: break
+            if worker.poll() is not None:
+                break
             try:
-                payload = json.loads(job_path.read_text(encoding="utf-8")); observed = str(payload.get("status") or "")
-            except (OSError, ValueError): observed = None
+                payload = json.loads(job_path.read_text(encoding="utf-8"))
+                observed = str(payload.get("status") or "")
+            except (OSError, ValueError):
+                observed = None
             if observed == "applying":
-                lifecycle.stop_process_tree(worker.pid); worker.wait(timeout=30)
+                lifecycle.stop_process_tree(worker.pid)
+                worker.wait(timeout=30)
                 return {"interrupted_state": observed, "worker_pid": worker.pid}
             time.sleep(0.05)
         raise lifecycle.LifecycleError(f"INTERRUPTION_WINDOW_MISSED state={observed} worker_rc={worker.poll()}")
     finally:
-        if parent.poll() is None: parent.kill(); parent.wait(timeout=10)
-        if worker.poll() is None: lifecycle.stop_process_tree(worker.pid); worker.wait(timeout=30)
+        if parent.poll() is None:
+            parent.kill()
+            parent.wait(timeout=10)
+        if worker.poll() is None:
+            lifecycle.stop_process_tree(worker.pid)
+            worker.wait(timeout=30)
 
 
 def _invoke_recovery(repo_root: Path, job_path: Path, env: dict[str, str], root: Path) -> tuple[int, dict[str, Any]]:
@@ -155,14 +192,21 @@ def _invoke_recovery(repo_root: Path, job_path: Path, env: dict[str, str], root:
         "-JobPath", str(job_path), "-ParentPid", str(parent.pid),
     ], cwd=str(repo_root), env=env, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, errors="replace")
     try:
-        time.sleep(0.8); parent.terminate()
-        try: parent.wait(timeout=10)
+        time.sleep(0.8)
+        parent.terminate()
+        try:
+            parent.wait(timeout=10)
         except subprocess.TimeoutExpired:
-            parent.kill(); parent.wait(timeout=10)
+            parent.kill()
+            parent.wait(timeout=10)
         stdout, stderr = proc.communicate(timeout=360)
     finally:
-        if parent.poll() is None: parent.kill(); parent.wait(timeout=10)
-        if proc.poll() is None: lifecycle.stop_process_tree(proc.pid); proc.wait(timeout=20)
+        if parent.poll() is None:
+            parent.kill()
+            parent.wait(timeout=10)
+        if proc.poll() is None:
+            lifecycle.stop_process_tree(proc.pid)
+            proc.wait(timeout=20)
     root.mkdir(parents=True, exist_ok=True)
     (root / "recovery-stdout.log").write_text(stdout or "", encoding="utf-8", errors="replace")
     (root / "recovery-stderr.log").write_text(stderr or "", encoding="utf-8", errors="replace")
@@ -181,7 +225,8 @@ def interruption_case(repo_root: Path, baseline: Path, target: Path, root: Path)
         lifecycle.run_self_test(executable, lifecycle.BASE_VERSION, env, root / "baseline-self-test.json")
         runtime = lifecycle.start_runtime(executable, env)
         lifecycle.wait_health(port, process=runtime, timeout=120)
-        lifecycle.stop_process_tree(runtime.pid); runtime.wait(timeout=30)
+        lifecycle.stop_process_tree(runtime.pid)
+        runtime.wait(timeout=30)
         rescue, rescue_sha = lifecycle.create_real_rescue(repo_root, data_dir, env)
         job_path = prepare_job_with_recovery_contract(
             repo_root=repo_root, data_dir=data_dir, target_installer=target, rescue=rescue,
@@ -195,21 +240,32 @@ def interruption_case(repo_root: Path, baseline: Path, target: Path, root: Path)
         recovery_exit, recovered = _invoke_recovery(repo_root, job_path, env, root)
         if recovery_exit != 2:
             raise lifecycle.LifecycleError(f"INTERRUPTION_RECOVERY_EXIT expected=2 actual={recovery_exit} job={recovered}")
-        if recovered.get("status") != "rolled_back" or recovered.get("rollback") != "passed" or recovered.get("database_rollback") != "not_needed":
+        if (
+            recovered.get("status") != "rolled_back"
+            or recovered.get("rollback") != "passed"
+            or recovered.get("database_rollback") != "not_needed"
+        ):
             raise lifecycle.LifecycleError(f"INTERRUPTION_RECOVERY_TRUTH_FAILED {recovered}")
         recovery_runtime_pid = int(recovered.get("runtime_pid") or 0)
         lifecycle.wait_health(port, timeout=45)
         lifecycle.run_self_test(executable, lifecycle.BASE_VERSION, env, root / "recovered-self-test.json")
         return {
-            "status": "success", "interrupted_state": interruption["interrupted_state"],
-            "recovery_exit": recovery_exit, "job_status": recovered["status"],
-            "package_version": lifecycle.BASE_VERSION, "rollback": recovered["rollback"],
-            "database_rollback": recovered["database_rollback"], "reinstall_attempted": False,
+            "status": "success",
+            "interrupted_state": interruption["interrupted_state"],
+            "recovery_exit": recovery_exit,
+            "job_status": recovered["status"],
+            "package_version": lifecycle.BASE_VERSION,
+            "rollback": recovered["rollback"],
+            "database_rollback": recovered["database_rollback"],
+            "reinstall_attempted": False,
         }
     finally:
-        if recovery_runtime_pid: lifecycle.stop_process_tree(recovery_runtime_pid)
-        try: lifecycle.uninstall_inno(install_dir, root / "interruption-uninstall.log", env)
-        except Exception as exc: print(f"::warning::interruption cleanup uninstall failed: {exc}")
+        if recovery_runtime_pid:
+            lifecycle.stop_process_tree(recovery_runtime_pid)
+        try:
+            lifecycle.uninstall_inno(install_dir, root / "interruption-uninstall.log", env)
+        except Exception as exc:
+            print(f"::warning::interruption cleanup uninstall failed: {exc}")
 
 
 def target_application_start_failure_case(repo_root: Path, baseline: Path, target: Path, root: Path) -> dict[str, Any]:
@@ -219,19 +275,10 @@ def target_application_start_failure_case(repo_root: Path, baseline: Path, targe
     env = lifecycle.make_case_env(data_dir, port)
     runtime: subprocess.Popen[bytes] | None = None
     rollback_runtime_pid: int | None = None
-    blocker: subprocess.Popen[str] | None = None
-    lease_seconds = 5
-
-    def stop_blocker() -> None:
-        nonlocal blocker
-        if blocker is None or blocker.poll() is not None:
-            return
-        blocker.terminate()
-        try:
-            blocker.wait(timeout=5)
-        except subprocess.TimeoutExpired:
-            blocker.kill()
-            blocker.wait(timeout=5)
+    watcher: subprocess.Popen[str] | None = None
+    watcher_marker = root / "target-runtime-killed.json"
+    watcher_stdout_path = root / "target-runtime-watcher-stdout.log"
+    watcher_stderr_path = root / "target-runtime-watcher-stderr.log"
 
     try:
         lifecycle.install_inno(baseline, install_dir, root / "baseline-install.log", env)
@@ -239,43 +286,110 @@ def target_application_start_failure_case(repo_root: Path, baseline: Path, targe
         lifecycle.run_self_test(executable, lifecycle.BASE_VERSION, env, root / "baseline-self-test.json")
         runtime = lifecycle.start_runtime(executable, env)
         lifecycle.wait_health(port, process=runtime, timeout=120)
-        lifecycle.stop_process_tree(runtime.pid); runtime.wait(timeout=30); runtime = None
+        lifecycle.stop_process_tree(runtime.pid)
+        runtime.wait(timeout=30)
+        runtime = None
 
         rescue, rescue_sha = lifecycle.create_real_rescue(repo_root, data_dir, env)
         job_path = prepare_job_with_recovery_contract(
             repo_root=repo_root, data_dir=data_dir, target_installer=target, rescue=rescue,
             rescue_sha=rescue_sha, install_dir=install_dir, port=port, sequence=4,
         )
-        job_payload = json.loads(job_path.read_text(encoding="utf-8"))
-        job_payload["health_timeout_seconds"] = 3
-        job_path.write_text(json.dumps(job_payload, indent=2, sort_keys=True), encoding="utf-8")
 
-        blocker_code = (
-            "import socket,time\n"
-            "s=socket.socket(socket.AF_INET,socket.SOCK_STREAM)\n"
-            f"s.bind(('127.0.0.1',{port}))\n"
-            "s.listen(1)\n"
-            "print('READY', flush=True)\n"
-            f"time.sleep({lease_seconds})\n"
+        root.mkdir(parents=True, exist_ok=True)
+        watcher_script = root / "kill-target-runtime.ps1"
+        watcher_script.write_text(
+            r'''#requires -Version 5.1
+[CmdletBinding()]
+param(
+    [Parameter(Mandatory = $true)][string]$Executable,
+    [Parameter(Mandatory = $true)][string]$InstallDir,
+    [Parameter(Mandatory = $true)][string]$TargetVersion,
+    [Parameter(Mandatory = $true)][string]$Marker
+)
+Set-StrictMode -Version Latest
+$ErrorActionPreference = "SilentlyContinue"
+$targetExe = [IO.Path]::GetFullPath($Executable)
+$targetInstall = [IO.Path]::GetFullPath($InstallDir).TrimEnd([IO.Path]::DirectorySeparatorChar, [IO.Path]::AltDirectorySeparatorChar)
+$deadline = [DateTime]::UtcNow.AddSeconds(180)
+$uninstallRoot = "Registry::HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Uninstall"
+while ([DateTime]::UtcNow -lt $deadline) {
+    $targetRegistered = $false
+    foreach ($key in @(Get-ChildItem -LiteralPath $uninstallRoot -ErrorAction SilentlyContinue)) {
+        $props = Get-ItemProperty -LiteralPath $key.PSPath -ErrorAction SilentlyContinue
+        if (-not $props) { continue }
+        $displayName = [string]$props.DisplayName
+        if ($displayName -ne "DigitalCrown" -and -not $displayName.StartsWith("DigitalCrown ", [StringComparison]::OrdinalIgnoreCase)) { continue }
+        if ([string]$props.DisplayVersion -ne $TargetVersion) { continue }
+        if ($props.InstallLocation) {
+            try {
+                $registeredInstall = [IO.Path]::GetFullPath([string]$props.InstallLocation).TrimEnd([IO.Path]::DirectorySeparatorChar, [IO.Path]::AltDirectorySeparatorChar)
+                if ($registeredInstall -ne $targetInstall) { continue }
+            } catch { continue }
+        }
+        $targetRegistered = $true
+        break
+    }
+    if ($targetRegistered) {
+        foreach ($process in @(Get-CimInstance Win32_Process -Filter "Name='DigitalCrown.exe'" -ErrorAction SilentlyContinue)) {
+            $commandLine = [string]$process.CommandLine
+            if ($commandLine.IndexOf("--package-self-test", [StringComparison]::OrdinalIgnoreCase) -ge 0) { continue }
+            $processPath = [string]$process.ExecutablePath
+            if (-not $processPath) { continue }
+            try {
+                if ([IO.Path]::GetFullPath($processPath) -ne $targetExe) { continue }
+            } catch { continue }
+            $pidValue = [int]$process.ProcessId
+            & taskkill.exe /PID $pidValue /T /F | Out-Null
+            if ($LASTEXITCODE -eq 0) {
+                $payload = [pscustomobject]@{
+                    pid = $pidValue
+                    target_version = $TargetVersion
+                    executable = $targetExe
+                    command_line = $commandLine
+                    killed_at = [DateTime]::UtcNow.ToString("o")
+                }
+                [IO.File]::WriteAllText($Marker, ($payload | ConvertTo-Json -Compress), [Text.UTF8Encoding]::new($false))
+                exit 0
+            }
+        }
+    }
+    Start-Sleep -Milliseconds 50
+}
+exit 7
+''',
+            encoding="utf-8",
         )
-        blocker = subprocess.Popen(
-            [sys.executable, "-c", blocker_code],
-            stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, errors="replace",
+        system_root = Path(env.get("SystemRoot", r"C:\Windows"))
+        native_ps = system_root / "System32" / "WindowsPowerShell" / "v1.0" / "powershell.exe"
+        if not native_ps.is_file():
+            raise lifecycle.LifecycleError("TARGET_START_NATIVE_POWERSHELL_MISSING")
+        watcher = subprocess.Popen(
+            [
+                str(native_ps), "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", str(watcher_script),
+                "-Executable", str(executable), "-InstallDir", str(install_dir),
+                "-TargetVersion", lifecycle.TARGET_VERSION, "-Marker", str(watcher_marker),
+            ],
+            cwd=str(repo_root), env=env, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+            text=True, errors="replace",
         )
-        if blocker.stdout is None:
-            raise lifecycle.LifecycleError("TARGET_START_BLOCKER_STDOUT_MISSING")
-        ready = blocker.stdout.readline().strip()
-        if ready != "READY":
-            stderr = blocker.stderr.read() if blocker.stderr is not None else ""
-            raise lifecycle.LifecycleError(
-                f"TARGET_START_BLOCKER_NOT_READY rc={blocker.poll()} stderr={stderr.strip()}"
-            )
 
         exit_code, job = invoke_entry_worker(repo_root, job_path, env, root)
         try:
-            blocker.wait(timeout=10)
+            watcher_stdout, watcher_stderr = watcher.communicate(timeout=10)
         except subprocess.TimeoutExpired:
-            raise lifecycle.LifecycleError("TARGET_START_BLOCKER_LEASE_DID_NOT_EXPIRE")
+            watcher.kill()
+            watcher_stdout, watcher_stderr = watcher.communicate(timeout=10)
+            raise lifecycle.LifecycleError("TARGET_START_RUNTIME_WATCHER_TIMEOUT")
+        watcher_stdout_path.write_text(watcher_stdout or "", encoding="utf-8", errors="replace")
+        watcher_stderr_path.write_text(watcher_stderr or "", encoding="utf-8", errors="replace")
+        if watcher.returncode != 0 or not watcher_marker.is_file():
+            raise lifecycle.LifecycleError(
+                f"TARGET_START_RUNTIME_NOT_TERMINATED watcher_rc={watcher.returncode} stderr={(watcher_stderr or '').strip()} job={job}"
+            )
+        killed = json.loads(watcher_marker.read_text(encoding="utf-8"))
+        if str(killed.get("target_version") or "") != lifecycle.TARGET_VERSION or int(killed.get("pid") or 0) <= 0:
+            raise lifecycle.LifecycleError(f"TARGET_START_RUNTIME_KILL_PROOF_INVALID {killed}")
         if exit_code != 2:
             raise lifecycle.LifecycleError(f"TARGET_START_WORKER_EXIT expected=2 actual={exit_code} job={job}")
         if (
@@ -294,9 +408,8 @@ def target_application_start_failure_case(repo_root: Path, baseline: Path, targe
         lifecycle.run_self_test(executable, lifecycle.BASE_VERSION, env, root / "rollback-self-test.json")
         return {
             "status": "success",
-            "fault": "time_bounded_loopback_port_lease_blocks_target_runtime_bind",
-            "fault_injector": "isolated_subprocess",
-            "fault_lease_seconds": lease_seconds,
+            "fault": "target_runtime_process_tree_terminated_after_target_registration",
+            "fault_injector": "windows_cim_target_runtime_kill_once",
             "failure_reason": job["failure_reason"],
             "worker_exit": exit_code,
             "job_status": job["status"],
@@ -306,29 +419,37 @@ def target_application_start_failure_case(repo_root: Path, baseline: Path, targe
             "target_package_self_test": "passed_before_runtime_start_failure",
             "target_package_self_test_job": job["package_self_test"],
             "target_runtime_health": job["runtime_health"],
+            "target_runtime_killed_pid": int(killed["pid"]),
             "rollback_runtime_health": "passed",
-            "blocker_release": "independent_lease_expired_before_rollback_runtime_health",
             "rescue_sha256": rescue_sha,
         }
     finally:
-        stop_blocker()
+        if watcher is not None and watcher.poll() is None:
+            watcher.kill()
+            watcher.wait(timeout=10)
         if runtime is not None:
             lifecycle.stop_process_tree(runtime.pid)
         if rollback_runtime_pid:
             lifecycle.stop_process_tree(rollback_runtime_pid)
-        try: lifecycle.uninstall_inno(install_dir, root / "target-start-uninstall.log", env)
-        except Exception as exc: print(f"::warning::target-start cleanup uninstall failed: {exc}")
+        try:
+            lifecycle.uninstall_inno(install_dir, root / "target-start-uninstall.log", env)
+        except Exception as exc:
+            print(f"::warning::target-start cleanup uninstall failed: {exc}")
 
 
 def main() -> int:
     def patched_prepare_job(**kwargs):
         return prepare_job_with_recovery_contract(repo_root=Path(__file__).resolve().parents[1], **kwargs)
+
     lifecycle.prepare_job = patched_prepare_job
     lifecycle.invoke_worker = invoke_entry_worker
     lifecycle.positive_case = positive_case
     rc = lifecycle.main()
-    if rc != 0: return rc
+    if rc != 0:
+        return rc
+
     import argparse
+
     parser = argparse.ArgumentParser(add_help=False)
     parser.add_argument("--baseline", required=True, type=Path)
     parser.add_argument("--target", required=True, type=Path)
@@ -346,7 +467,7 @@ def main() -> int:
     proof["production_wiring_claim"] = "WINDOWS_ENTRY_AND_RECOVERY_ASSERTED"
     args.report.write_text(json.dumps(proof, indent=2, sort_keys=True), encoding="utf-8")
     print("P10_WINDOWS_INTERRUPTION_RECOVERY=SUCCESS state=applying rollback=PASSED reinstall=NOT_ATTEMPTED")
-    print("P10_WINDOWS_TARGET_START_FAILURE=SUCCESS fault=TIME_BOUNDED_LOOPBACK_PORT_LEASE rollback=PASSED db_rollback=NOT_NEEDED")
+    print("P10_WINDOWS_TARGET_START_FAILURE=SUCCESS fault=TARGET_RUNTIME_TERMINATED rollback=PASSED db_rollback=NOT_NEEDED")
     return 0
 
 
