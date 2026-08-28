@@ -3,20 +3,18 @@ import ReactDOM from 'react-dom/client'
 import { BrowserRouter } from 'react-router-dom'
 import { ErrorBoundary } from './components/ErrorBoundary.tsx'
 import { MobilePreviewDashboard } from './features/mobile/Dashboard/MobilePreviewDashboard.tsx'
+import { MobilePreviewOnboarding } from './features/mobile/Onboarding/MobilePreviewOnboarding.tsx'
+import { isDcPreviewDemoRequested } from './features/mobile/previewDemo.ts'
 import './index.css'
 import './styles/mobileGlassSystem.css'
 import * as Sentry from '@sentry/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { registerSW } from 'virtual:pwa-register'
 
-const previewParams = new URLSearchParams(window.location.search)
-const isDedicatedPreviewBuild = import.meta.env.VITE_DC_PREVIEW_DEMO === '1'
-const isPreviewDemo = isDedicatedPreviewBuild
-  && window.location.hostname.endsWith('.vercel.app')
-  && window.location.pathname === '/mobile/demo'
-  && previewParams.get('demo') === '1'
+const isPreviewRequest = isDcPreviewDemoRequested()
+const previewPath = window.location.pathname
 
-if (isPreviewDemo) {
+if (isPreviewRequest && previewPath === '/mobile/demo') {
   const policy = document.createElement('meta')
   policy.httpEquiv = 'Content-Security-Policy'
   policy.content = "connect-src 'none'; form-action 'none'"
@@ -24,7 +22,7 @@ if (isPreviewDemo) {
   document.head.appendChild(policy)
 }
 
-if (!isPreviewDemo && import.meta.env.VITE_SENTRY_DSN) {
+if (!isPreviewRequest && import.meta.env.VITE_SENTRY_DSN) {
   Sentry.init({
     dsn: import.meta.env.VITE_SENTRY_DSN,
     integrations: [
@@ -98,7 +96,7 @@ async function migrateLegacyMobileOfflineState(): Promise<boolean> {
   return true
 }
 
-if (!isPreviewDemo && 'serviceWorker' in navigator) {
+if (!isPreviewRequest && 'serviceWorker' in navigator) {
   void migrateLegacyMobileOfflineState().then((ready) => {
     if (!ready) return
     registerSW({ immediate: true })
@@ -106,8 +104,15 @@ if (!isPreviewDemo && 'serviceWorker' in navigator) {
 }
 
 async function resolveApplication(): Promise<React.ReactNode> {
-  if (isPreviewDemo) {
-    return <BrowserRouter><MobilePreviewDashboard /></BrowserRouter>
+  if (isPreviewRequest) {
+    if (previewPath === '/mobile/demo') {
+      return <BrowserRouter><MobilePreviewDashboard /></BrowserRouter>
+    }
+    if (previewPath === '/mobile/onboarding') {
+      return <BrowserRouter><MobilePreviewOnboarding /></BrowserRouter>
+    }
+    window.location.replace('/mobile/onboarding?demo=1')
+    return null
   }
 
   const { default: App } = await import('./App.tsx')
@@ -116,6 +121,7 @@ async function resolveApplication(): Promise<React.ReactNode> {
 
 async function bootstrap() {
   const application = await resolveApplication()
+  if (!application) return
   ReactDOM.createRoot(document.getElementById('root')!).render(
     <React.StrictMode>
       <ErrorBoundary>
