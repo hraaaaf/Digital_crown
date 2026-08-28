@@ -8,6 +8,7 @@ import pytest
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 
+import backend.services.update_engine as update_engine_module
 from backend.core.paths import AppPaths
 from backend.services.backup_service import BackupService
 from backend.services.update_engine import (
@@ -57,6 +58,74 @@ def _patch_data(monkeypatch, tmp_path):
     data.mkdir()
     monkeypatch.setattr(AppPaths, "get_user_data_dir", staticmethod(lambda: data))
     return data
+
+
+def test_environment_cannot_replace_production_trust_root(monkeypatch, tmp_path):
+    _patch_data(monkeypatch, tmp_path)
+    private, pub, keyid = _keys()
+    raw, now = _envelope(private, keyid)
+    monkeypatch.setenv("DIGITALCROWN_UPDATE_PUBLIC_KEY_B64", pub)
+    monkeypatch.setattr(update_engine_module, "PINNED_UPDATE_KEYS", {})
+    with pytest.raises(UpdateSecurityError, match="SIGNING_KEY_UNKNOWN"):
+        UpdateEngine.verify_manifest(
+            raw,
+            now=now,
+            platform_kind="windows",
+            architecture="amd64",
+            current_version="1.0.0",
+        )
+
+
+def test_pinned_key_rotation_overlap_accepts_old_and_new(monkeypatch, tmp_path):
+    _patch_data(monkeypatch, tmp_path)
+    private_old, pub_old, keyid_old = _keys()
+    private_new, pub_new, keyid_new = _keys()
+    monkeypatch.setattr(
+        update_engine_module,
+        "PINNED_UPDATE_KEYS",
+        {
+            keyid_old: {"public_key_b64": pub_old, "status": "active"},
+            keyid_new: {"public_key_b64": pub_new, "status": "active"},
+        },
+    )
+
+    old_raw, now = _envelope(private_old, keyid_old, sequence=1, version="1.0.1")
+    new_raw, _ = _envelope(private_new, keyid_new, sequence=2, version="1.0.2")
+    old_result = UpdateEngine.verify_manifest(
+        old_raw,
+        now=now,
+        platform_kind="windows",
+        architecture="amd64",
+        current_version="1.0.0",
+    )
+    new_result = UpdateEngine.verify_manifest(
+        new_raw,
+        now=now,
+        platform_kind="windows",
+        architecture="amd64",
+        current_version="1.0.1",
+    )
+    assert old_result["sequence"] == 1
+    assert new_result["sequence"] == 2
+
+
+def test_revoked_pinned_key_fails_closed(monkeypatch, tmp_path):
+    _patch_data(monkeypatch, tmp_path)
+    private, pub, keyid = _keys()
+    raw, now = _envelope(private, keyid)
+    monkeypatch.setattr(
+        update_engine_module,
+        "PINNED_UPDATE_KEYS",
+        {keyid: {"public_key_b64": pub, "status": "revoked"}},
+    )
+    with pytest.raises(UpdateSecurityError, match="SIGNING_KEY_REVOKED"):
+        UpdateEngine.verify_manifest(
+            raw,
+            now=now,
+            platform_kind="windows",
+            architecture="amd64",
+            current_version="1.0.0",
+        )
 
 
 def test_valid_manifest_and_exact_target(monkeypatch, tmp_path):
