@@ -77,11 +77,18 @@ def client(db):
         directement et les scénarios API de plateforme séparément
       - rate limiter désactivé
     """
+    from backend import models
     from backend.main import app
     from backend.routers import (
         auth, patients, clinics, documents,
         appointments, prescriptions, accounting, team,
     )
+
+    # backend.main charge tous les routers, y compris ceux qui déclarent directement
+    # des tables SQLAlchemy (ex. mobile_resource_bridge). Resynchroniser ici rend le
+    # schéma de test fidèle à la metadata réellement chargée au lieu de maintenir une
+    # liste manuelle fragile de tables tardives.
+    models.Base.metadata.create_all(bind=_engine)
 
     def _override_get_db():
         yield db
