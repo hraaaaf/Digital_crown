@@ -119,6 +119,27 @@ def _validate_inno_toolchain(root: Path) -> None:
     require('types: [opened, synchronize]' in workflow, 'P6 PR trigger must avoid duplicate run on PR reopen')
 
 
+def _validate_authenticode_distribution_gate(root: Path) -> None:
+    workflow = (root / '.github' / 'workflows' / 'portability-p6-windows-packaging.yml').read_text(encoding='utf-8')
+    required = {
+        'P6_PRIVATE_CODESIGN_NOT_CONFIGURED': 'P6 signing must fail closed when credentials are absent',
+        'P6_PRIVATE_CODESIGN_PARTIAL_CONFIGURATION': 'P6 signing must fail closed on partial credential configuration',
+        'P6_PRIVATE_CODESIGN_CERT_SHA256_MISMATCH': 'P6 signing certificate SHA-256 pin check missing',
+        '& $signtool sign /fd SHA256': 'P6 Authenticode SHA-256 signing command missing',
+        '/tr http://timestamp.digicert.com /td SHA256': 'P6 RFC3161 SHA-256 timestamp command missing',
+        '& $signtool verify /pa /v $setup': 'P6 signtool verification gate missing',
+        'P6_PRIVATE_AUTHENTICODE_TIMESTAMP_MISSING': 'P6 timestamp certificate gate missing',
+        'P6_PRIVATE_AUTHENTICODE_SIGNER_MISMATCH': 'P6 signer identity gate missing',
+        'dc-p6-authenticode-proof.json': 'P6 retained Authenticode JSON proof missing',
+        'dc-p6-signtool-verify.txt': 'P6 retained signtool verification log missing',
+        'P6_SIGNED_INSTALLER_MUTATED': 'P6 signed-installer immutability gate missing',
+    }
+    for snippet, message in required.items():
+        require(snippet in workflow, message)
+    require('P6_AUTHENTICODE=NOT_CONFIGURED' not in workflow, 'P6 signing workflow must not green-pass an unsigned distribution')
+    require('"ready=false"' not in workflow, 'P6 signing workflow must not expose a non-failing unsigned ready=false path')
+
+
 def static_contract(root: Path) -> None:
     version = (root / 'VERSION').read_text(encoding='utf-8').strip()
     require(re.fullmatch(r'(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)', version) is not None, 'invalid VERSION')
@@ -137,6 +158,7 @@ def static_contract(root: Path) -> None:
     _validate_runtime_boot_contract(root)
     _validate_fail_closed_scientific_packaging(root)
     _validate_inno_toolchain(root)
+    _validate_authenticode_distribution_gate(root)
 
     legacy = (root / 'scripts' / 'build_exe.py').read_text(encoding='utf-8')
     require('LEGACY_BUILDER_DISABLED' in legacy, 'legacy builder is not quarantined')
@@ -150,7 +172,7 @@ def static_contract(root: Path) -> None:
     require(ids['cephalo_sota']['lifecycle'] == 'deferred', 'SOTA must stay deferred in P6')
     require(ids['cephalo_legacy']['lifecycle'] == 'external', 'legacy cephalo must stay external')
     require(ids['panoramic']['lifecycle'] == 'external', 'panoramic must stay external')
-    print(f'P6_PACKAGING_CONTRACT=SUCCESS version={version} scientific=FAIL_CLOSED_NO_WEIGHTS inno=6.7.3')
+    print(f'P6_PACKAGING_CONTRACT=SUCCESS version={version} scientific=FAIL_CLOSED_NO_WEIGHTS inno=6.7.3 authenticode=FAIL_CLOSED')
 
 
 def main() -> None:
