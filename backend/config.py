@@ -1,4 +1,4 @@
-from pydantic import field_validator
+from pydantic import field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from backend.env_loader import BASE_DIR
@@ -40,6 +40,15 @@ class Settings(BaseSettings):
     def disable_legacy_superadmin_email_authority(cls, _value: str) -> str:
         """SEC-1: legacy env values cannot reactivate email-based SuperAdmin authority."""
         return ""
+
+    @model_validator(mode="after")
+    def reject_platform_control_plane_on_cabinet(self):
+        """SEC-1: a distributed cabinet runtime can never become the platform control plane."""
+        if str(self.ENVIRONMENT).lower() == "cabinet" and self.PLATFORM_CONTROL_PLANE_ENABLED:
+            raise ValueError(
+                "PLATFORM_CONTROL_PLANE_ENABLED interdit en environnement cabinet."
+            )
+        return self
 
     @field_validator("ALLOWED_ORIGINS", mode="after")
     @classmethod
