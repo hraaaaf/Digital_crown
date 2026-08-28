@@ -81,6 +81,7 @@ def _validate_runtime_boot_contract(root: Path) -> None:
     )
 
     workflow = (root / '.github' / 'workflows' / 'portability-p6-windows-packaging.yml').read_text(encoding='utf-8')
+    require('backend/**/*.py' in workflow, 'P6 trigger must rebuild when packaged backend Python changes')
     require('$proc.HasExited' in workflow, 'P6 runtime smoke must fail fast when the frozen process exits')
     require('digitalcrown.log' in workflow, 'P6 runtime diagnostics must retain the frozen startup log')
 
