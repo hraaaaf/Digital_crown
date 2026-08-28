@@ -29,6 +29,18 @@ _SessionLocal = sessionmaker(bind=_engine, autocommit=False, autoflush=False)
 def _create_tables():
     """Crée toutes les tables SQLAlchemy une seule fois pour la session de tests."""
     from backend import models, database
+    # Les modèles modulaires partagent models.Base mais ne sont pas tous importés
+    # par backend.models. Ils doivent être enregistrés avant create_all(), sinon un
+    # import ultérieur de backend.main ajoute de la metadata sans créer les tables.
+    from backend import (  # noqa: F401
+        models_catalog_plan,
+        models_clinical_p3,
+        models_identity_p4,
+        models_imaging_p4,
+        models_mobile_passkey,
+        models_mobile_push,
+        models_platform,
+    )
     database.engine = _engine
     database.SessionLocal = _SessionLocal
     models.Base.metadata.create_all(bind=_engine)
