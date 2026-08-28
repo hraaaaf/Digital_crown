@@ -11,14 +11,18 @@ from backend.security import get_password_hash
 
 
 def seed_admin_user():
-    """Bootstrap the owner account without granting authority by email.
+    """Bootstrap the platform owner only on the dedicated control plane.
 
     SEC-1 rules:
+    - cabinet installs never create/provision the platform owner;
     - SUPERADMIN_DISPLAY_EMAIL is only a bootstrap locator/display value;
     - SUPERADMIN_USER_ID is the sole platform authority root;
     - no password is generated or printed;
     - a configured immutable id mismatch fails closed.
     """
+    if not bool(getattr(settings, "PLATFORM_CONTROL_PLANE_ENABLED", False)):
+        return None
+
     db = SessionLocal()
     try:
         bootstrap_email = settings.SUPERADMIN_DISPLAY_EMAIL.strip().lower()
