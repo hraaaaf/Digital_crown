@@ -19,6 +19,7 @@ from backend.services.update_engine import UpdateEngine, UpdatePreparationError
 CONFIRMATION_TOKEN = "METTRE_A_JOUR"
 WINDOWS_WORKER_CONTRACT = "windows-inno-v1"
 WINDOWS_RECOVERY_CONTRACT = "windows-interruption-v1"
+WINDOWS_PRIVATE_PUBLISHER_SUBJECT = "CN=Digital Crown Private Publisher"
 WINDOWS_ENTRY_FILE = "windows_update_worker_entry.ps1"
 WINDOWS_WORKER_FILES = (
     "windows_update_worker.ps1",
@@ -209,9 +210,11 @@ class UpdateApplyService:
         powershell = cls._windows_powershell51()
         command = (
             "$s=Get-AuthenticodeSignature -LiteralPath $args[0];"
-            "$signer='';if($s.SignerCertificate){$signer=[string]$s.SignerCertificate.Thumbprint};"
+            "$signer='';$subject='';if($s.SignerCertificate){$signer=[string]$s.SignerCertificate.Thumbprint;$subject=[string]$s.SignerCertificate.Subject};"
             "$timestamp='';if($s.TimeStamperCertificate){$timestamp=[string]$s.TimeStamperCertificate.Thumbprint};"
-            "$o=[ordered]@{status=[string]$s.Status;signer_thumbprint=$signer;timestamp_thumbprint=$timestamp};"
+            r"$publisherTrusted=$false;if($signer){$publisherTrusted=[bool](Get-ChildItem Cert:\LocalMachine\TrustedPublisher | Where-Object {$_.Thumbprint -eq $signer} | Select-Object -First 1)};"
+            r"$rootTrusted=$false;if($signer){$rootTrusted=[bool](Get-ChildItem Cert:\LocalMachine\Root | Where-Object {$_.Thumbprint -eq $signer} | Select-Object -First 1)};"
+            "$o=[ordered]@{status=[string]$s.Status;signer_thumbprint=$signer;signer_subject=$subject;timestamp_thumbprint=$timestamp;publisher_trusted=$publisherTrusted;root_trusted=$rootTrusted};"
             "$o|ConvertTo-Json -Compress"
         )
         try:
@@ -233,14 +236,22 @@ class UpdateApplyService:
             raise UpdatePreparationError("UPDATE_WINDOWS_AUTHENTICODE_CHECK_INVALID") from exc
         status = str(payload.get("status") or "")
         signer = str(payload.get("signer_thumbprint") or "").strip().upper()
+        subject = str(payload.get("signer_subject") or "").strip()
         timestamp = str(payload.get("timestamp_thumbprint") or "").strip().upper()
+        publisher_trusted = payload.get("publisher_trusted") is True
+        root_trusted = payload.get("root_trusted") is True
         if status != "Valid" or not signer:
             raise UpdatePreparationError("UPDATE_WINDOWS_AUTHENTICODE_INVALID")
+        if subject != WINDOWS_PRIVATE_PUBLISHER_SUBJECT:
+            raise UpdatePreparationError("UPDATE_WINDOWS_AUTHENTICODE_SIGNER_NOT_DIGITALCROWN")
+        if not publisher_trusted or not root_trusted:
+            raise UpdatePreparationError("UPDATE_WINDOWS_PRIVATE_PUBLISHER_TRUST_REQUIRED")
         if not timestamp:
             raise UpdatePreparationError("UPDATE_WINDOWS_AUTHENTICODE_TIMESTAMP_REQUIRED")
         return {
             "status": status,
             "signer_thumbprint": signer,
+            "signer_subject": subject,
             "timestamp_thumbprint": timestamp,
         }
 
@@ -270,6 +281,7 @@ class UpdateApplyService:
             apply_blocker=None,
             authenticode_status=signature["status"],
             authenticode_signer_thumbprint=signature["signer_thumbprint"],
+            authenticode_signer_subject=signature["signer_subject"],
             authenticode_timestamp_thumbprint=signature["timestamp_thumbprint"],
             certification_checked_at=_utc_now(),
         )
@@ -356,6 +368,7 @@ class UpdateApplyService:
             "apply_certified",
             "apply_blocker",
             "authenticode_status",
+            "authenticode_signer_subject",
             "certification_checked_at",
             "worker_contract",
             "recovery_contract",
