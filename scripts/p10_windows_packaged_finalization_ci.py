@@ -1,8 +1,10 @@
 from __future__ import annotations
 
 import json
+import socket
 import subprocess
 import sys
+import threading
 import time
 from pathlib import Path
 from typing import Any
@@ -211,6 +213,101 @@ def interruption_case(repo_root: Path, baseline: Path, target: Path, root: Path)
         except Exception as exc: print(f"::warning::interruption cleanup uninstall failed: {exc}")
 
 
+def target_application_start_failure_case(repo_root: Path, baseline: Path, target: Path, root: Path) -> dict[str, Any]:
+    port = lifecycle.BASE_PORT + 3
+    install_dir = root / "program"
+    data_dir = root / "cabinet"
+    env = lifecycle.make_case_env(data_dir, port)
+    runtime: subprocess.Popen[bytes] | None = None
+    rollback_runtime_pid: int | None = None
+    blocker = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    stop_monitor = threading.Event()
+    rollback_observed = threading.Event()
+    release_thread: threading.Thread | None = None
+    try:
+        lifecycle.install_inno(baseline, install_dir, root / "baseline-install.log", env)
+        executable = install_dir / "DigitalCrown.exe"
+        lifecycle.run_self_test(executable, lifecycle.BASE_VERSION, env, root / "baseline-self-test.json")
+        runtime = lifecycle.start_runtime(executable, env)
+        lifecycle.wait_health(port, process=runtime, timeout=120)
+        lifecycle.stop_process_tree(runtime.pid); runtime.wait(timeout=30); runtime = None
+
+        rescue, rescue_sha = lifecycle.create_real_rescue(repo_root, data_dir, env)
+        job_path = prepare_job_with_recovery_contract(
+            repo_root=repo_root, data_dir=data_dir, target_installer=target, rescue=rescue,
+            rescue_sha=rescue_sha, install_dir=install_dir, port=port, sequence=4,
+        )
+        job_payload = json.loads(job_path.read_text(encoding="utf-8"))
+        job_payload["health_timeout_seconds"] = 3
+        job_path.write_text(json.dumps(job_payload, indent=2, sort_keys=True), encoding="utf-8")
+
+        blocker.bind(("127.0.0.1", port))
+        blocker.listen(1)
+
+        def release_port_on_rollback() -> None:
+            deadline = time.monotonic() + 180
+            while time.monotonic() < deadline and not stop_monitor.is_set():
+                try:
+                    current = json.loads(job_path.read_text(encoding="utf-8"))
+                    if current.get("status") == "rolling_back":
+                        rollback_observed.set()
+                        blocker.close()
+                        return
+                except (OSError, ValueError):
+                    pass
+                time.sleep(0.05)
+
+        release_thread = threading.Thread(target=release_port_on_rollback, name="p10-target-start-port-release", daemon=True)
+        release_thread.start()
+
+        exit_code, job = invoke_entry_worker(repo_root, job_path, env, root)
+        if release_thread.is_alive():
+            release_thread.join(timeout=10)
+        if not rollback_observed.is_set():
+            raise lifecycle.LifecycleError(f"TARGET_START_ROLLBACK_STATE_NOT_OBSERVED job={job}")
+        if exit_code != 2:
+            raise lifecycle.LifecycleError(f"TARGET_START_WORKER_EXIT expected=2 actual={exit_code} job={job}")
+        if (
+            job.get("status") != "rolled_back"
+            or job.get("worker_result") != "rolled_back"
+            or job.get("rollback") != "passed"
+            or job.get("database_rollback") != "not_needed"
+            or job.get("failure_reason") != "UPDATE_WINDOWS_RUNTIME_HEALTH_FAILED"
+        ):
+            raise lifecycle.LifecycleError(f"TARGET_START_ROLLBACK_TRUTH_FAILED {job}")
+
+        rollback_runtime_pid = int(job.get("runtime_pid") or 0)
+        lifecycle.wait_health(port, timeout=45)
+        lifecycle.run_self_test(executable, lifecycle.BASE_VERSION, env, root / "rollback-self-test.json")
+        return {
+            "status": "success",
+            "fault": "occupied_loopback_port_blocks_target_runtime_bind",
+            "failure_reason": job["failure_reason"],
+            "worker_exit": exit_code,
+            "job_status": job["status"],
+            "package_version": lifecycle.BASE_VERSION,
+            "rollback": job["rollback"],
+            "database_rollback": job["database_rollback"],
+            "target_package_self_test": "passed_before_runtime_start_failure",
+            "rollback_runtime_health": "passed",
+            "rescue_sha256": rescue_sha,
+        }
+    finally:
+        stop_monitor.set()
+        try:
+            blocker.close()
+        except OSError:
+            pass
+        if release_thread is not None and release_thread.is_alive():
+            release_thread.join(timeout=5)
+        if runtime is not None:
+            lifecycle.stop_process_tree(runtime.pid)
+        if rollback_runtime_pid:
+            lifecycle.stop_process_tree(rollback_runtime_pid)
+        try: lifecycle.uninstall_inno(install_dir, root / "target-start-uninstall.log", env)
+        except Exception as exc: print(f"::warning::target-start cleanup uninstall failed: {exc}")
+
+
 def main() -> int:
     def patched_prepare_job(**kwargs):
         return prepare_job_with_recovery_contract(repo_root=Path(__file__).resolve().parents[1], **kwargs)
@@ -231,9 +328,13 @@ def main() -> int:
     proof["interruption_recovery"] = interruption_case(
         args.repo_root.resolve(), args.baseline.resolve(), args.target.resolve(), args.work_root.resolve() / "interruption"
     )
-    proof["production_wiring_claim"] = "WINDOWS_ENTRY_AND_RECOVERY_ASSERTED"
+    proof["target_application_start_failure"] = target_application_start_failure_case(
+        args.repo_root.resolve(), args.baseline.resolve(), args.target.resolve(), args.work_root.resolve() / "target-start"
+    )
+    proof["production_wiring_claim"] = "WINDOWS_ENTRY_RECOVERY_AND_TARGET_START_ROLLBACK_ASSERTED"
     args.report.write_text(json.dumps(proof, indent=2, sort_keys=True), encoding="utf-8")
     print("P10_WINDOWS_INTERRUPTION_RECOVERY=SUCCESS state=applying rollback=PASSED reinstall=NOT_ATTEMPTED")
+    print("P10_WINDOWS_TARGET_START_FAILURE=SUCCESS fault=LOOPBACK_PORT_OCCUPIED rollback=PASSED db_rollback=NOT_NEEDED")
     return 0
 
 
