@@ -161,10 +161,18 @@ jobs:
           Write-Host "P6_CODESIGN_PHASE=CERTIFICATE_VALIDATION_SUCCESS"
 
           Write-Host "P6_CODESIGN_PHASE=EPHEMERAL_TRUST_START"
-          & certutil.exe -user -f -addstore Root $cer | ForEach-Object { Write-Host $_ }
-          if ($LASTEXITCODE -ne 0) { throw "P6_PRIVATE_CODESIGN_ROOT_IMPORT_FAILED" }
-          & certutil.exe -user -f -addstore TrustedPublisher $cer | ForEach-Object { Write-Host $_ }
-          if ($LASTEXITCODE -ne 0) { throw "P6_PRIVATE_CODESIGN_PUBLISHER_IMPORT_FAILED" }
+          foreach ($storeName in @('Root', 'TrustedPublisher')) {
+            $store = [Security.Cryptography.X509Certificates.X509Store]::new(
+              $storeName,
+              [Security.Cryptography.X509Certificates.StoreLocation]::CurrentUser
+            )
+            try {
+              $store.Open([Security.Cryptography.X509Certificates.OpenFlags]::ReadWrite)
+              $store.Add($cert)
+            } finally {
+              $store.Close()
+            }
+          }
           Write-Host "P6_CODESIGN_PHASE=EPHEMERAL_TRUST_SUCCESS"
 
           $signtool = (Get-ChildItem "C:\Program Files (x86)\Windows Kits\10\bin" -Recurse -Filter signtool.exe | Sort-Object FullName -Descending | Select-Object -First 1).FullName
