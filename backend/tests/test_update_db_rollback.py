@@ -65,6 +65,7 @@ def test_db_rollback_restores_verified_sqlcipher_and_quarantines_active_family(t
     report = UpdateDatabaseRollback.execute(job_path)
 
     assert report["status"] == "success"
+    assert report["replay_safe"] is True
     assert target.read_bytes() == b"valid-sqlcipher"
     assert not Path(str(target) + "-wal").exists()
     assert not Path(str(target) + "-shm").exists()
@@ -72,8 +73,36 @@ def test_db_rollback_restores_verified_sqlcipher_and_quarantines_active_family(t
     assert (quarantine / "clinical_vault.db").read_bytes() == b"old-db"
     assert (quarantine / "clinical_vault.db-wal").read_bytes() == b"old-wal"
     assert (quarantine / "clinical_vault.db-shm").read_bytes() == b"old-shm"
+    state = json.loads((job_dir / "rescue" / "db-rollback-state.json").read_text(encoding="utf-8"))
+    assert state["phase"] == "restored"
+    assert state["quarantine_sha256"]["database"] == hashlib.sha256(b"old-db").hexdigest()
     persisted = json.loads((job_dir / "db-rollback-report.json").read_text(encoding="utf-8"))
     assert persisted["status"] == "success"
+
+
+def test_db_rollback_replay_preserves_original_quarantine(tmp_path, monkeypatch):
+    user_data, job_dir, job_path, _ = _make_case(tmp_path, monkeypatch)
+    target = user_data / "clinical_vault.db"
+    target.write_bytes(b"original-before-crash")
+    Path(str(target) + "-wal").write_bytes(b"original-wal")
+    monkeypatch.setattr(BackupService, "_verify_sqlcipher_file", staticmethod(_fake_verify))
+
+    first = UpdateDatabaseRollback.execute(job_path)
+    quarantine = job_dir / "rescue" / "pre-db-rollback"
+    first_db = (quarantine / "clinical_vault.db").read_bytes()
+    first_wal = (quarantine / "clinical_vault.db-wal").read_bytes()
+    first_hashes = dict(first["quarantine_sha256"])
+
+    # Simulate a crash after replacement/report, followed by runtime mutation before retry.
+    target.write_bytes(b"valid-sqlcipher")
+    second = UpdateDatabaseRollback.execute(job_path)
+
+    assert second["status"] == "success"
+    assert second["replay_safe"] is True
+    assert second["quarantine_sha256"] == first_hashes
+    assert (quarantine / "clinical_vault.db").read_bytes() == first_db == b"original-before-crash"
+    assert (quarantine / "clinical_vault.db-wal").read_bytes() == first_wal == b"original-wal"
+    assert target.read_bytes() == b"valid-sqlcipher"
 
 
 def test_db_rollback_refuses_direct_cli_without_orchestrator_authorization(tmp_path, monkeypatch):

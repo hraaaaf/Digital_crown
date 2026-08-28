@@ -14,6 +14,7 @@ from backend.services.backup_service import BackupService
 
 SHA256_PATTERN = re.compile(r"^[0-9a-f]{64}$")
 JOB_ID_PATTERN = re.compile(r"^[0-9a-f]{32}$")
+ROLLBACK_STATE_NAME = "db-rollback-state.json"
 
 
 class UpdateDatabaseRollbackError(RuntimeError):
@@ -140,6 +141,78 @@ class UpdateDatabaseRollback:
         return value
 
     @classmethod
+    def _prepare_or_verify_quarantine(
+        cls,
+        job_dir: Path,
+        job: dict,
+        target: Path,
+    ) -> tuple[dict[str, Path], dict[str, str], bool, Path, dict]:
+        quarantine_root = job_dir / "rescue" / "pre-db-rollback"
+        state_path = job_dir / "rescue" / ROLLBACK_STATE_NAME
+        state: dict
+
+        if state_path.is_file():
+            try:
+                state = json.loads(state_path.read_text(encoding="utf-8"))
+            except (OSError, ValueError, TypeError) as exc:
+                raise UpdateDatabaseRollbackError("UPDATE_DB_ROLLBACK_STATE_INVALID") from exc
+            if (
+                int(state.get("schema") or 0) != 1
+                or str(state.get("job_id") or "") != str(job.get("job_id") or "")
+                or str(state.get("phase") or "") not in {"quarantined", "restored"}
+                or not isinstance(state.get("quarantine_sha256"), dict)
+            ):
+                raise UpdateDatabaseRollbackError("UPDATE_DB_ROLLBACK_STATE_INVALID")
+            hashes = {str(k): str(v).lower() for k, v in state["quarantine_sha256"].items()}
+            quarantine: dict[str, Path] = {}
+            names = {
+                "database": target.name,
+                "wal": target.name + "-wal",
+                "shm": target.name + "-shm",
+            }
+            for label, expected in hashes.items():
+                if label not in names or not SHA256_PATTERN.fullmatch(expected):
+                    raise UpdateDatabaseRollbackError("UPDATE_DB_ROLLBACK_STATE_INVALID")
+                candidate = quarantine_root / names[label]
+                if not candidate.is_file() or _sha256_file(candidate) != expected:
+                    raise UpdateDatabaseRollbackError("UPDATE_DB_ROLLBACK_QUARANTINE_VERIFY_FAILED")
+                quarantine[label] = candidate
+            original_existed = bool(state.get("original_existed"))
+            if original_existed and "database" not in quarantine:
+                raise UpdateDatabaseRollbackError("UPDATE_DB_ROLLBACK_STATE_INVALID")
+            return quarantine, hashes, original_existed, state_path, state
+
+        # No durable quarantine state means replacement has not been authorized yet.
+        # Partial quarantine files from a crash before the state commit may be rebuilt safely.
+        if quarantine_root.exists():
+            shutil.rmtree(quarantine_root)
+        quarantine_root.mkdir(parents=True, exist_ok=True)
+        quarantine = {}
+        hashes: dict[str, str] = {}
+        sources = (
+            ("database", target),
+            ("wal", Path(str(target) + "-wal")),
+            ("shm", Path(str(target) + "-shm")),
+        )
+        original_existed = target.is_file()
+        for label, source in sources:
+            if source.is_file():
+                destination = quarantine_root / source.name
+                quarantine[label] = destination
+                hashes[label] = _copy_verified(source, destination)
+        if original_existed and "database" not in quarantine:
+            raise UpdateDatabaseRollbackError("UPDATE_DB_ROLLBACK_QUARANTINE_VERIFY_FAILED")
+        state = {
+            "schema": 1,
+            "job_id": str(job["job_id"]),
+            "phase": "quarantined",
+            "original_existed": original_existed,
+            "quarantine_sha256": hashes,
+        }
+        _atomic_json(state_path, state)
+        return quarantine, hashes, original_existed, state_path, state
+
+    @classmethod
     def _restore_original_after_failure(
         cls,
         target: Path,
@@ -179,8 +252,6 @@ class UpdateDatabaseRollback:
         cipher = cls._existing_backup_cipher(user_data)
         passphrase = cls._sqlcipher_passphrase()
         temp = user_data / f".p10-db-rollback-{uuid.uuid4().hex}.db"
-        quarantine_root = job_dir / "rescue" / "pre-db-rollback"
-        quarantine_root.mkdir(parents=True, exist_ok=True)
         quarantine: dict[str, Path] = {}
         original_existed = target.is_file()
         replaced = False
@@ -198,17 +269,9 @@ class UpdateDatabaseRollback:
                 os.fsync(handle.fileno())
             BackupService._verify_sqlcipher_file(temp, passphrase)
 
-            sources = (
-                ("database", target),
-                ("wal", Path(str(target) + "-wal")),
-                ("shm", Path(str(target) + "-shm")),
+            quarantine, quarantine_hashes, original_existed, state_path, state = cls._prepare_or_verify_quarantine(
+                job_dir, job, target
             )
-            quarantine_hashes: dict[str, str] = {}
-            for label, source in sources:
-                if source.is_file():
-                    destination = quarantine_root / source.name
-                    quarantine[label] = destination
-                    quarantine_hashes[label] = _copy_verified(source, destination)
 
             Path(str(target) + "-wal").unlink(missing_ok=True)
             Path(str(target) + "-shm").unlink(missing_ok=True)
@@ -226,6 +289,10 @@ class UpdateDatabaseRollback:
                         raise UpdateDatabaseRollbackError("UPDATE_DB_ROLLBACK_ORIGINAL_RESTORE_INVALID") from original_exc
                 raise UpdateDatabaseRollbackError("UPDATE_DB_ROLLBACK_RESTORED_DB_INVALID") from exc
 
+            state["phase"] = "restored"
+            state["restored_db_sha256"] = _sha256_file(target)
+            _atomic_json(state_path, state)
+
             report = {
                 "schema": 1,
                 "status": "success",
@@ -233,6 +300,7 @@ class UpdateDatabaseRollback:
                 "rescue_sha256": _sha256_file(rescue),
                 "restored_db_sha256": _sha256_file(target),
                 "quarantine_sha256": quarantine_hashes,
+                "replay_safe": True,
             }
             _atomic_json(job_dir / "db-rollback-report.json", report)
             return report

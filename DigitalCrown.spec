@@ -31,8 +31,10 @@ if IS_WINDOWS:
     # P10 production apply must copy its external workers from the frozen package,
     # never from a mutable checkout or download location.
     datas.extend([
+        (_required('scripts/windows_update_worker_entry.ps1'), 'scripts'),
         (_required('scripts/windows_update_worker.ps1'), 'scripts'),
         (_required('scripts/windows_update_worker_core.ps1'), 'scripts'),
+        (_required('scripts/windows_update_recovery.ps1'), 'scripts'),
     ])
 
 version_file = _required('build/windows-version-info.txt') if IS_WINDOWS else None

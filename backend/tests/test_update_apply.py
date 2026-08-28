@@ -143,18 +143,24 @@ def test_production_wiring_refuses_unsigned_then_schedules_signed_job(monkeypatc
     assert stored["authenticode_signer_thumbprint"] == "A1B2"
     assert stored["authenticode_timestamp_thumbprint"] == "C3D4"
     assert stored["worker_contract"] == "windows-inno-v1"
+    assert stored["recovery_contract"] == "windows-interruption-v1"
     assert stored["current_version"] == "1.0.0"
     assert stored["install_dir"] == str(install_dir)
     assert stored["health_url"] == "http://127.0.0.1:8005/health"
 
     job_dir = data / "updates" / "jobs" / job["job_id"]
-    worker = job_dir / stored["worker_filename"]
-    worker_core = job_dir / stored["worker_core_filename"]
-    assert worker.is_file() and worker_core.is_file()
-    assert hashlib.sha256(worker.read_bytes()).hexdigest() == stored["windows_update_worker.ps1_sha256"]
-    assert hashlib.sha256(worker_core.read_bytes()).hexdigest() == stored["windows_update_worker_core.ps1_sha256"]
+    entry = job_dir / stored["worker_filename"]
+    wrapper = job_dir / stored["worker_wrapper_filename"]
+    core = job_dir / stored["worker_core_filename"]
+    recovery = job_dir / stored["worker_recovery_filename"]
+    assert entry.is_file() and wrapper.is_file() and core.is_file() and recovery.is_file()
+    assert hashlib.sha256(entry.read_bytes()).hexdigest() == stored["windows_update_worker_entry.ps1_sha256"]
+    assert hashlib.sha256(wrapper.read_bytes()).hexdigest() == stored["windows_update_worker.ps1_sha256"]
+    assert hashlib.sha256(core.read_bytes()).hexdigest() == stored["windows_update_worker_core.ps1_sha256"]
+    assert hashlib.sha256(recovery.read_bytes()).hexdigest() == stored["windows_update_recovery.ps1_sha256"]
+    assert "Invoke-InnoInstaller" not in recovery.read_text(encoding="utf-8")
     assert len(launched) == 1
-    assert launched[0][0] == worker
+    assert launched[0][0] == entry
     assert launched[0][1] == job_dir / "job.json"
     assert isinstance(launched[0][2], int) and launched[0][2] > 0
 

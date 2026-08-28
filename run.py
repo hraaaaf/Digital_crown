@@ -224,6 +224,7 @@ def main() -> int:
     host, port = _resolve_host_port()
     instance_lock = None
     supervisor = None
+    update_recovery_scheduled = False
 
     if getattr(sys, "frozen", False):
         from backend.core.runtime_supervisor import RuntimeSupervisor
@@ -237,7 +238,24 @@ def main() -> int:
             return 1
         if instance_lock is None:
             return 0
+
         if not suppress_browser:
+            try:
+                from backend.services.update_recovery import UpdateRecoveryService
+
+                update_recovery_scheduled = bool(
+                    UpdateRecoveryService.schedule_startup_recovery(os.getpid())
+                )
+            except Exception:
+                import logging
+
+                logging.getLogger("digitalcrown.launcher").exception("Update recovery scheduling failed")
+                supervisor.open_recovery_page("RUNTIME_START_FAILED")
+                if instance_lock is not None:
+                    instance_lock.release()
+                return 1
+
+        if not suppress_browser and not update_recovery_scheduled:
             threading.Thread(
                 target=supervisor.open_ui_when_ready,
                 kwargs={"timeout": 120.0},
@@ -245,6 +263,9 @@ def main() -> int:
             ).start()
 
     try:
+        if update_recovery_scheduled:
+            return 0
+
         from backend.main import app
 
         uvicorn.run(

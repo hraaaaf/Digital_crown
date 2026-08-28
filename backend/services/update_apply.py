@@ -18,10 +18,13 @@ from backend.services.update_engine import UpdateEngine, UpdatePreparationError
 
 CONFIRMATION_TOKEN = "METTRE_A_JOUR"
 WINDOWS_WORKER_CONTRACT = "windows-inno-v1"
+WINDOWS_RECOVERY_CONTRACT = "windows-interruption-v1"
+WINDOWS_ENTRY_FILE = "windows_update_worker_entry.ps1"
 WINDOWS_WORKER_FILES = (
     "windows_update_worker.ps1",
     "windows_update_worker_core.ps1",
 )
+WINDOWS_RECOVERY_FILE = "windows_update_recovery.ps1"
 
 
 def _utc_now() -> str:
@@ -128,49 +131,78 @@ class UpdateApplyService:
             raise UpdatePreparationError("UPDATE_RESCUE_BACKUP_SHA256_MISMATCH")
         return artifact, rescue
 
+    @staticmethod
+    def _stage_script(source: Path, target: Path, expected: str) -> None:
+        partial = target.with_name(target.name + ".partial")
+        try:
+            shutil.copy2(source, partial)
+            if _sha256(partial) != expected:
+                raise UpdatePreparationError("UPDATE_WINDOWS_WORKER_COPY_VERIFY_FAILED")
+            os.replace(partial, target)
+        finally:
+            partial.unlink(missing_ok=True)
+
     @classmethod
     def _stage_windows_workers(cls, job: dict[str, Any]) -> None:
         job_dir = UpdateEngine._job_dir(str(job["job_id"]))
         source_dir = cls._bundle_root() / "scripts"
         target_dir = get_platform_adapter().ensure_private_directory(job_dir / "worker")
+        entry_source = source_dir / WINDOWS_ENTRY_FILE
+        if not entry_source.is_file():
+            raise UpdatePreparationError("UPDATE_WINDOWS_WORKER_SOURCE_MISSING")
+        entry_sha = _sha256(entry_source)
+        cls._stage_script(entry_source, target_dir / WINDOWS_ENTRY_FILE, entry_sha)
+        job[f"{WINDOWS_ENTRY_FILE}_sha256"] = entry_sha
+
         for filename in WINDOWS_WORKER_FILES:
             source = source_dir / filename
             if not source.is_file():
                 raise UpdatePreparationError("UPDATE_WINDOWS_WORKER_SOURCE_MISSING")
             expected = _sha256(source)
             target = target_dir / filename
-            partial = target.with_name(target.name + ".partial")
-            try:
-                shutil.copy2(source, partial)
-                if _sha256(partial) != expected:
-                    raise UpdatePreparationError("UPDATE_WINDOWS_WORKER_COPY_VERIFY_FAILED")
-                os.replace(partial, target)
-            finally:
-                partial.unlink(missing_ok=True)
+            cls._stage_script(source, target, expected)
             job[f"{filename}_sha256"] = expected
-        job["worker_filename"] = f"worker/{WINDOWS_WORKER_FILES[0]}"
+
+        recovery_source = source_dir / WINDOWS_RECOVERY_FILE
+        if not recovery_source.is_file():
+            raise UpdatePreparationError("UPDATE_RECOVERY_WORKER_SOURCE_MISSING")
+        recovery_sha = _sha256(recovery_source)
+        recovery_target = target_dir / WINDOWS_RECOVERY_FILE
+        cls._stage_script(recovery_source, recovery_target, recovery_sha)
+        job[f"{WINDOWS_RECOVERY_FILE}_sha256"] = recovery_sha
+
+        job["worker_filename"] = f"worker/{WINDOWS_ENTRY_FILE}"
+        job["worker_wrapper_filename"] = f"worker/{WINDOWS_WORKER_FILES[0]}"
         job["worker_core_filename"] = f"worker/{WINDOWS_WORKER_FILES[1]}"
+        job["worker_recovery_filename"] = f"worker/{WINDOWS_RECOVERY_FILE}"
         job["worker_contract"] = WINDOWS_WORKER_CONTRACT
+        job["recovery_contract"] = WINDOWS_RECOVERY_CONTRACT
 
     @classmethod
     def _verify_staged_workers(cls, job: dict[str, Any]) -> tuple[Path, Path]:
         job_dir = UpdateEngine._job_dir(str(job["job_id"]))
-        resolved: list[Path] = []
-        for index, filename in enumerate(WINDOWS_WORKER_FILES):
-            field = "worker_filename" if index == 0 else "worker_core_filename"
+
+        def resolve(field: str, filename: str, error_code: str) -> Path:
             rel = Path(str(job.get(field) or ""))
             if rel.is_absolute() or ".." in rel.parts:
-                raise UpdatePreparationError("UPDATE_WINDOWS_WORKER_PATH_INVALID")
+                raise UpdatePreparationError(error_code)
             path = (job_dir / rel).resolve()
             try:
                 path.relative_to(job_dir.resolve())
             except ValueError as exc:
-                raise UpdatePreparationError("UPDATE_WINDOWS_WORKER_PATH_INVALID") from exc
+                raise UpdatePreparationError(error_code) from exc
             expected = str(job.get(f"{filename}_sha256") or "").lower()
             if not path.is_file() or len(expected) != 64 or _sha256(path) != expected:
                 raise UpdatePreparationError("UPDATE_WINDOWS_WORKER_SHA256_MISMATCH")
-            resolved.append(path)
-        return resolved[0], resolved[1]
+            return path
+
+        entry = resolve("worker_filename", WINDOWS_ENTRY_FILE, "UPDATE_WINDOWS_WORKER_PATH_INVALID")
+        resolve("worker_wrapper_filename", WINDOWS_WORKER_FILES[0], "UPDATE_WINDOWS_WORKER_PATH_INVALID")
+        core = resolve("worker_core_filename", WINDOWS_WORKER_FILES[1], "UPDATE_WINDOWS_WORKER_PATH_INVALID")
+        recovery = resolve("worker_recovery_filename", WINDOWS_RECOVERY_FILE, "UPDATE_RECOVERY_WORKER_PATH_INVALID")
+        if str(job.get("recovery_contract") or "") != WINDOWS_RECOVERY_CONTRACT or not recovery.is_file():
+            raise UpdatePreparationError("UPDATE_RECOVERY_WORKER_SHA256_MISMATCH")
+        return entry, core
 
     @classmethod
     def _verify_windows_authenticode(cls, artifact: Path) -> dict[str, str]:
@@ -326,6 +358,7 @@ class UpdateApplyService:
             "authenticode_status",
             "certification_checked_at",
             "worker_contract",
+            "recovery_contract",
             "worker_result",
             "package_self_test",
             "runtime_health",
@@ -333,6 +366,9 @@ class UpdateApplyService:
             "database_rollback",
             "failure_reason",
             "rollback_failure_reason",
+            "recovery_scheduled_at",
+            "recovery_started_at",
+            "recovery_failure_reason",
         }
         return {key: value for key, value in job.items() if key in allowed}
 
