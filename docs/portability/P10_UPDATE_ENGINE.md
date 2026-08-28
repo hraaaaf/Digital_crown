@@ -1,10 +1,10 @@
 # P10 — Cross-platform Update Engine
 
-**Status:** ACTIVE — secure-core + post-install truth + Windows worker + last-resort DB rollback candidate. **0 EP credited.**
+**Status:** ACTIVE — secure-core + Windows production wiring + real packaged lifecycle candidate + interruption recovery under certification. **0 EP credited.**
 
 ## Goal
 
-Install only an authentic, fresh, strictly newer Digital Crown release, with a verified rescue point before mutation and automatic post-update health/rollback once the P6/P7 installers are certified.
+Install only an authentic, fresh, strictly newer Digital Crown release, with a verified rescue point before mutation and automatic post-update health/rollback once the P6/P7 distribution artifacts are certified.
 
 ## Secure-core contract
 
@@ -30,7 +30,7 @@ The production **private key is never committed, bundled, downloaded by the clie
 
 ## Post-install truth contract
 
-P10 has a platform-independent verification boundary for the package after an installer has run, without pretending the platform apply itself is already certified.
+P10 has a platform-independent verification boundary for the package after an installer has run.
 
 The verifier cross-checks two independent truths:
 
@@ -39,15 +39,17 @@ The verifier cross-checks two independent truths:
 
 The HTTP health gate is restricted to loopback. Git metadata, installer display labels and remote HTTP endpoints are not accepted as the installed-version source of truth.
 
-## Windows external worker contract
+## Windows production apply + external worker contract
 
-The Windows candidate uses an external PowerShell worker contract, intentionally outside the installed program directory. It is still **not wired into production apply**.
+The Windows candidate is wired into production apply, but only behind a fail-closed boundary: frozen `cabinet` runtime, Windows platform, exact admin confirmation, staged worker hash verification and a real Authenticode `Valid` signature with timestamp certificate. `apply_certified=true` is written only after these checks.
+
+The current P6 distribution evidence remains `P6_AUTHENTICODE=NOT_CONFIGURED`. Therefore the existing unsigned P6 artifact cannot cross this production mutation gate. Wiring exists; production signed distribution certification does not yet exist.
 
 ### Native shell requirement
 
-The worker targets **Windows PowerShell 5.1 (`powershell.exe`)**, the Windows-integrated shell, and does not require separately installed PowerShell 7 (`pwsh.exe`). The worker source is constrained to the Windows PowerShell 5.1/.NET Framework-compatible surface. CI routes the three core child-worker drills through the native `powershell.exe`, asserts the reported runtime is 5.1, and rejects a regression back to `#requires -Version 7.0` or `Path.IsPathFullyQualified`.
+The worker targets **Windows PowerShell 5.1 (`powershell.exe`)**, the Windows-integrated shell, and does not require separately installed PowerShell 7 (`pwsh.exe`). The worker source is constrained to the Windows PowerShell 5.1/.NET Framework-compatible surface. CI routes the core child-worker drills through the native `powershell.exe`, asserts the reported runtime is 5.1, and rejects a regression back to `#requires -Version 7.0` or `Path.IsPathFullyQualified`.
 
-The already-certified mutation/rollback implementation is preserved byte-for-byte as `windows_update_worker_core.ps1`. The public `windows_update_worker.ps1` is a narrow orchestrator around that core. Normal success, pre-apply failure and successful package rollback retain the core exit codes and behavior unchanged.
+The benchmark-validated mutation/rollback implementation remains isolated in `windows_update_worker_core.ps1`. The public `windows_update_worker.ps1` is a narrow orchestrator around that core, while `windows_update_worker_entry.ps1` owns detached execution and direct-wrapper process waiting.
 
 Before the installer can mutate anything, the core must:
 
@@ -70,6 +72,18 @@ After install it requires:
 
 On post-apply failure, the core stops the failed runtime, restores the exact program snapshot, imports the previous uninstall registry metadata, proves the old package version again, relaunches it and accepts rollback only if `/health` is healthy. A successful package rollback explicitly records `database_rollback=not_needed`.
 
+## Interrupted apply recovery
+
+A frozen cabinet startup inspects only recoverable update states and may launch the staged `windows_update_recovery.ps1` worker after verifying its SHA-256. Recovery never performs a blind installer re-apply.
+
+- `scheduled` before mutation is reset to `prepared` and certification is cleared;
+- `health_pending` rechecks exact target package truth + `/health` before finalization, otherwise rolls back;
+- `applying` / `rolling_back` restore the old package from the verified program snapshot + uninstall registry;
+- `database_rolling_back` or the exact package-rollback health failure may resume the old-package DB rescue path;
+- worker ownership is serialized by `worker.lock`.
+
+The real packaged interruption drill remains a closure gate until it completes green with inspected artifact proof. P10 #37 exposed a Windows PowerShell path-separator type bug in this recovery worker after the ordinary current→next and rollback paths had already produced valid proof; that defect must be re-certified by a subsequent real packaged run before any closure claim.
+
 ## Last-resort database rollback bridge
 
 Database restore is deliberately **not** a generic response to rollback failure. The orchestrator may cross this boundary only when the core has already restored the exact old program and uninstall metadata, but the old runtime still fails health with the exact reason `UPDATE_WINDOWS_PACKAGE_ROLLBACK_HEALTH_FAILED`.
@@ -91,32 +105,26 @@ Only in that state:
 
 A registry failure, program snapshot failure, old package self-test failure, missing key, checksum mismatch, PostgreSQL database, invalid SQLCipher rescue or DB-worker failure never broadens the fallback. Those paths remain `rollback_failed` and fail closed.
 
-The Windows CI contract now drills two layers without a heavyweight package build:
+## Verified Windows evidence to date
 
-- core: uncertified apply → blocked before mutation;
-- core: healthy target → `health_pending`;
-- core: unhealthy target runtime → exact old program + uninstall metadata restored, old health recovered, DB untouched;
-- orchestrator: exact old-package health failure → old binary DB bridge invoked, old health recovered;
-- orchestrator: any non-health rollback failure → DB bridge not invoked;
-- orchestrator: DB bridge failure → rollback remains failed.
+The targeted Windows contracts already prove uncertified apply rejection, healthy target transition to `health_pending`, exact package rollback, DB fallback ownership by the old executable and finalization truth. Real packaged benchmarks have also demonstrated current `1.0.0` → target `1.0.1`, target package self-test + `/health`, package rollback and SQLCipher DB rescue. The interruption-recovery path is not credited until its corrected real packaged drill and artifact are green.
 
 ## Packaging boundary
 
-P6/P7 own the exact signed installers/packages and their platform installation semantics. Until those artifacts and the worker integration are certified:
+P6/P7 own the exact signed installers/packages and their platform distribution semantics.
 
-- P10 can authenticate metadata, download/verify an artifact, create a rescue-backed immutable update job, verify an installed package/runtime candidate, exercise the Windows external worker and last-resort DB rollback contracts;
-- normal update jobs remain `apply_certified=false`;
-- any attempt to cross the platform-apply boundary fails closed as `UPDATE_PLATFORM_APPLY_NOT_CERTIFIED`.
+- Windows production wiring is implemented and fail-closed.
+- `UpdateApplyService` can set `apply_certified=true` only after the real Windows Authenticode signature is `Valid` and a timestamp certificate is present.
+- The current P6 artifact is unsigned, so automatic production apply remains blocked despite the wiring and benchmark harness.
+- P7 signed/notarized macOS packaging remains required before a real macOS update lifecycle can be certified.
 
-This is deliberate. A secure updater must not turn an uncertified installer into an automatic production mutation.
+A secure updater must not turn an uncertified distribution artifact into an automatic production mutation.
 
 ## Remaining gates before P10 closure
 
-- wire the P6 exact Windows installer to the external worker and certify a real current → next lifecycle;
+- corrected real packaged Windows interruption recovery drill green + inspected artifact proof;
+- signed/timestamped P6 Windows production artifact and real production apply current → next proof;
 - P7 exact signed/notarized macOS package certified and wired to update apply;
-- install current → update next → package self-test exact `VERSION` + runtime `/health`;
-- migration failure and application-start failure drills against real packaged artifacts;
-- interrupted download/apply recovery;
 - production public-key pinning plus signing-key rotation/revocation procedure;
 - Windows + macOS clean-machine certification.
 

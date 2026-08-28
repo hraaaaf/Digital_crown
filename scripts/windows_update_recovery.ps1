@@ -41,7 +41,7 @@ function Get-Sha256 {
 
 function Normalize-Path {
     param([string]$Path)
-    return [IO.Path]::GetFullPath($Path).TrimEnd('\\', '/')
+    return [IO.Path]::GetFullPath($Path).TrimEnd([IO.Path]::DirectorySeparatorChar, [IO.Path]::AltDirectorySeparatorChar)
 }
 
 function Wait-ParentExit {
@@ -128,8 +128,8 @@ function Get-TreeManifest {
     $files = Get-ChildItem -LiteralPath $rootNorm -Recurse -File -Force | Sort-Object FullName
     return @(
         foreach ($file in $files) {
-            $relative = $file.FullName.Substring($rootNorm.Length).TrimStart('\\', '/')
-            [pscustomobject]@{ path = $relative.Replace('\\', '/'); length = [int64]$file.Length; sha256 = Get-Sha256 $file.FullName }
+            $relative = $file.FullName.Substring($rootNorm.Length).TrimStart([IO.Path]::DirectorySeparatorChar, [IO.Path]::AltDirectorySeparatorChar)
+            [pscustomobject]@{ path = $relative.Replace([IO.Path]::DirectorySeparatorChar, [IO.Path]::AltDirectorySeparatorChar); length = [int64]$file.Length; sha256 = Get-Sha256 $file.FullName }
         }
     )
 }

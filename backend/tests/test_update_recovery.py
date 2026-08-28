@@ -169,3 +169,15 @@ def test_windows_entry_waits_only_for_direct_wrapper_process():
 
     assert "$child.WaitForExit()" in source
     assert " -Wait" not in source
+
+
+def test_windows_recovery_path_separators_are_char_safe():
+    recovery = Path(__file__).resolve().parents[2] / "scripts" / "windows_update_recovery.ps1"
+    source = recovery.read_text(encoding="utf-8")
+
+    assert ".TrimEnd([IO.Path]::DirectorySeparatorChar, [IO.Path]::AltDirectorySeparatorChar)" in source
+    assert ".TrimStart([IO.Path]::DirectorySeparatorChar, [IO.Path]::AltDirectorySeparatorChar)" in source
+    assert ".Replace([IO.Path]::DirectorySeparatorChar, [IO.Path]::AltDirectorySeparatorChar)" in source
+    assert r"TrimEnd('\\', '/')" not in source
+    assert r"TrimStart('\\', '/')" not in source
+    assert r"Replace('\\', '/')" not in source
