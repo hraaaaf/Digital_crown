@@ -239,6 +239,7 @@ function New-TestJob {
 
     $job = [ordered]@{
         schema = 1
+        sequence = 1
         job_id = $jobId
         status = "scheduled"
         platform = "windows"
