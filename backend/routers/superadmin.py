@@ -367,18 +367,17 @@ def suspend_client(user_id: int, db: Session = Depends(database.get_db), admin: 
 
 
 @router.patch("/clients/{user_id}/plan")
-def set_client_plan(
+async def set_client_plan(
     user_id: int,
     plan: str = Query(...),
     db: Session = Depends(database.get_db),
     admin: models.User = Depends(verify_superadmin),
 ):
-    """Change le pack d'abonnement (GOLD/PREMIUM/ELITE) d'un client.
+    """Change the commercial plan and keep the signed entitlement authoritative.
 
-    Séparé de grant-license (qui gère uniquement la durée) — les essais via
-    code d'activation démarrent tous en GOLD (voir activate_trial_code), le
-    SuperAdmin change ici le pack au cas par cas quand un client en discute
-    après son essai.
+    For an active signed licence, the replacement token is issued and persisted
+    before the SQLite display mirror changes. If signing/persistence fails, the
+    plan change fails closed and the previous entitlement remains authoritative.
     """
     user = db.query(models.User).filter(models.User.id == user_id).first()
     if not user:
@@ -387,6 +386,44 @@ def set_client_plan(
     valid_plans = {p.value for p in models.SubscriptionPlan}
     if plan not in valid_plans:
         raise HTTPException(status_code=400, detail=f"Pack invalide. Valeurs autorisées : {sorted(valid_plans)}")
+
+    cabinet = db.query(models.CabinetConfig).filter(models.CabinetConfig.owner_id == user.id).first()
+    if user.is_licensed:
+        if not cabinet:
+            raise HTTPException(
+                status_code=409,
+                detail="Cabinet non configuré : impossible de réaligner la licence signée.",
+            )
+
+        clinic_id = _license_identifier(cabinet)
+        effective = await LicenseService().get_effective_license(clinic_id)
+        if not effective.get("active"):
+            raise HTTPException(
+                status_code=409,
+                detail="Licence signée active introuvable : changement de pack refusé.",
+            )
+
+        license_type = str(effective.get("license_type") or "PAID")
+        if license_type == "OWNER":
+            raise HTTPException(
+                status_code=400,
+                detail="Le plan commercial OWNER ne peut pas être modifié via un client.",
+            )
+
+        expiry = effective.get("expiration_date")
+        if isinstance(expiry, str):
+            expiry = datetime.fromisoformat(expiry.replace("Z", "+00:00"))
+        if isinstance(expiry, datetime) and expiry.tzinfo is None:
+            expiry = expiry.replace(tzinfo=timezone.utc)
+
+        await _issue_and_store_signed_license(
+            cabinet=cabinet,
+            license_type=license_type,
+            created_by_user_id=admin.id,
+            expires_at=expiry,
+            max_devices=1,
+            feature_set=plan,
+        )
 
     user.subscription_plan = plan
     add_license_history(db, user_id, admin.id, f"SET_PLAN_{plan}")
