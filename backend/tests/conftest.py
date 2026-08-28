@@ -58,9 +58,9 @@ def client(db):
     TestClient FastAPI :
       - get_db overridé sur la session SQLite de test
       - lifespan patché (pas de chargement ML, pas de seed prod)
-      - ENVIRONMENT=test laisse les routes métier génériques indépendantes du
-        contrôle de licence runtime ; les tests SEC-1 dédiés couvrent séparément
-        les chemins signed/fail-closed avec un environnement de production
+      - le garde ELITE signé est overridé uniquement pour les suites métier
+        génériques ; les tests SEC-1 dédiés couvrent séparément signed/fail-closed
+      - ENVIRONMENT=test désactive le garde mutation global dans ces suites métier
       - rate limiter désactivé
     """
     from backend.main import app
@@ -72,9 +72,17 @@ def client(db):
     def _override_get_db():
         yield db
 
+    async def _override_elite_license():
+        return True
+
     for module in (auth, patients, clinics, documents, appointments, prescriptions, accounting, team):
         if hasattr(module, "get_db"):
             app.dependency_overrides[module.get_db] = _override_get_db
+
+    # Existing business/router tests are intentionally license-agnostic. The signed
+    # entitlement contract has its own SEC-1 tests, so this override prevents the
+    # generic suite from depending on a real control-plane key/trust anchor.
+    app.dependency_overrides[auth.require_elite_license] = _override_elite_license
 
     with patch("backend.main.panoramic_engine.initialize", new_callable=AsyncMock), \
          patch("backend.main.run_full_seed", return_value=None), \
