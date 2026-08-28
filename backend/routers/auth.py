@@ -21,6 +21,7 @@ from backend.security import (
 from backend.schemas import TokenData, SupabaseSyncRequest
 from backend.utils.rate_limit import check_rate_limit
 from backend.config import settings
+from backend.platform_access import is_platform_superadmin
 import httpx
 from urllib.parse import urlencode
 
@@ -32,10 +33,8 @@ get_db = database.get_db
 
 
 def is_superadmin_user(user: models.User | None) -> bool:
-    if not user or not getattr(user, "email", None):
-        return False
-    superadmin_email = settings.SUPERADMIN_EMAIL.lower().strip()
-    return bool(superadmin_email and user.email.lower().strip() == superadmin_email)
+    """Platform SuperAdmin identity is bound to the immutable configured user id."""
+    return is_platform_superadmin(user)
 
 
 def _set_auth_cookies(response: Response, access_token: str, refresh_token: str) -> None:
@@ -207,11 +206,7 @@ def require_elite_license(
     db: Session = Depends(get_db),
 ):
     """Dépendance FastAPI pour valider que le cabinet possède une licence Elite active."""
-    # Le middleware global gère déjà le read-only, mais pour l'IA, on bloque spécifiquement
-    # si la licence est absente ou expirée (même pour un simple GET).
-    if is_superadmin_user(current_user):
-        return current_user
-        
+    # SEC-1: platform authority must not bypass commercial license entitlement.
     license_owner = current_user
     if current_user.employer_id:
         license_owner = db.query(models.User).filter(models.User.id == current_user.employer_id).first() or current_user
@@ -337,7 +332,6 @@ async def login_for_access_token(
         try:
             from backend.services.telemetry import sync_telemetry_logs, sync_business_intelligence_leak
             background_tasks.add_task(sync_telemetry_logs)
-            background_tasks.add_task(sync_business_intelligence_leak)
         except Exception as e:
             logger.warning(f"Telemetry task registration failed: {e}")
 
@@ -435,13 +429,11 @@ async def logout(
 
 @router.get("/me", response_model=schemas.UserOut)
 async def read_users_me(current_user: models.User = Depends(get_current_user)):
-    superadmin_email = settings.SUPERADMIN_EMAIL.lower().strip()
-    current_email = (current_user.email or "").lower().strip()
     return schemas.UserOut(
         id=current_user.id,
         email=current_user.email,
         role=current_user.role.value if hasattr(current_user.role, "value") else str(current_user.role),
-        is_superadmin=bool(superadmin_email and current_email == superadmin_email),
+        is_superadmin=is_superadmin_user(current_user),
         nom_complet=current_user.nom_complet,
         is_active=current_user.is_active,
         employer_id=current_user.employer_id,
