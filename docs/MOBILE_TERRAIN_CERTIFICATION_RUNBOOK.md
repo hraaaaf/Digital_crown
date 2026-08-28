@@ -3,6 +3,14 @@
 Date de préparation : 2026-08-28
 Dernière mise à jour vérifiée : 2026-08-28
 
+## État du chantier
+
+**STANDBY — attente certification terrain physique.**
+
+Aucun lot produit/code restant n'est identifié par la roadmap canonique. Le chantier n'est pas CLOSED : sa fermeture dépend exclusivement des preuves physiques sur vrai iPhone + Android listées ci-dessous, puis du closeout global.
+
+Condition de reprise : accès au poste cabinet réel + iPhone réel + Android réel pour exécuter la matrice terrain.
+
 ## Goal
 
 Fermer les preuves physiques restantes de Mobile Full Experience sur vrai iPhone et Android sans confondre simulation, Preview Vercel et comportement cabinet réel.
@@ -71,9 +79,9 @@ Preview Demo Isolation est fermé via PR #287, merge `8afbfd87864ffef5059aefd825
 
 Roadmap canonique réalignée le 2026-08-28 sur `master` : Preview Demo Isolation CLOSED et certification terrain devenue le premier gate restant.
 
-## État courant — terrain iPhone
+## Reprise exacte — terrain iPhone
 
-Gate actif : **1. Pairing sécurisé réel**.
+Premier gate à exécuter à la reprise : **1. Pairing sécurisé réel**.
 
 Chemin produit vérifié dans `OnboardingScanner.tsx` :
 
