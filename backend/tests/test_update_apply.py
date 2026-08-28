@@ -222,6 +222,10 @@ def test_finalize_report_failure_cannot_downgrade_healthy_truth(monkeypatch, tmp
     _health_pending_job(job["job_id"])
     monkeypatch.setattr(UpdateFinalizeService, "_current_version", classmethod(lambda cls: "1.0.1"))
     monkeypatch.setattr(
+        "backend.services.update_finalize.get_platform_adapter",
+        lambda: PlatformAdapter(system_name="Windows", environ={}, home=tmp_path),
+    )
+    monkeypatch.setattr(
         UpdateFinalizeService,
         "_write_report",
         staticmethod(lambda path, payload: (_ for _ in ()).throw(OSError("disk-full-proof"))),
