@@ -1,7 +1,7 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "git": {
-    "deploymentEnabled": true
+    "deploymentEnabled": false
   },
   "installCommand": "cd frontend && npm ci",
   "buildCommand": "cd frontend && if [ \"$VERCEL_ENV\" = \"preview\" ] && [ \"$VERCEL_GIT_COMMIT_REF\" = \"mobile/vercel-preview\" ]; then VITE_DC_PREVIEW_DEMO=1 npm run build; else VITE_DC_PREVIEW_DEMO=0 npm run build; fi",
