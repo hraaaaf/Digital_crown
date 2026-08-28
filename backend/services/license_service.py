@@ -10,6 +10,7 @@ from pathlib import Path
 from cryptography.fernet import Fernet
 from firebase_admin import firestore, credentials, initialize_app
 
+from backend.config import settings
 from backend.core.paths import AppPaths
 from backend.core.platform import get_platform_adapter
 from backend.license_security import LicenseSecurityError, VerifiedLicense, verify_license
@@ -139,13 +140,30 @@ class LicenseService:
         signed_license: str,
         clinic_id: str,
         now: datetime.datetime,
+        *,
+        allow_inactive: bool = False,
     ) -> VerifiedLicense:
-        return verify_license(
+        verified = verify_license(
             signed_license,
             TRUSTED_LICENSE_PUBLIC_KEYS,
             expected_cabinet_id=clinic_id,
             now=now,
+            allow_inactive=allow_inactive,
         )
+
+        # OWNER is the sole commercial exemption and must be cryptographically
+        # tied to the immutable platform owner id. A copied OWNER token cannot
+        # become valid merely by editing an email, role or local user record.
+        if verified.license_type == "OWNER":
+            configured_owner_id = int(getattr(settings, "SUPERADMIN_USER_ID", 0) or 0)
+            if configured_owner_id <= 0:
+                raise LicenseSecurityError(
+                    "OWNER license cannot be trusted before SUPERADMIN_USER_ID is provisioned"
+                )
+            if verified.subject_user_id != configured_owner_id:
+                raise LicenseSecurityError("OWNER subject mismatch")
+
+        return verified
 
     def _validate_offline_vault(
         self,
@@ -265,13 +283,18 @@ class LicenseService:
         }
 
     async def write_signed_license(self, public_id: str, signed_license: str) -> bool:
-        """Write only a license that already verifies against the client trust root."""
+        """Write only a cryptographically authentic license, including REVOKED tombstones."""
         if not self._db:
             return False
 
         now = datetime.datetime.now(datetime.timezone.utc)
         try:
-            verified = self._verify_signed_license(signed_license, public_id, now)
+            verified = self._verify_signed_license(
+                signed_license,
+                public_id,
+                now,
+                allow_inactive=True,
+            )
         except LicenseSecurityError as e:
             logger.error(f"Refus d'écriture d'une licence invalide pour {public_id}: {e}")
             return False
