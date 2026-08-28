@@ -1,0 +1,157 @@
+name: Portability P6 Final Signing Probe
+
+on:
+  pull_request:
+    types: [opened, synchronize]
+    paths:
+      - ".github/workflows/portability-p6-final-signing-probe.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  final-signing-probe:
+    runs-on: windows-2025
+    timeout-minutes: 12
+    steps:
+      - name: Prepare signer and LocalMachine trust
+        shell: pwsh
+        timeout-minutes: 3
+        env:
+          CERT_PFX_B64: ${{ secrets.WINDOWS_CODESIGN_PFX_B64 }}
+          CERT_PASSWORD: ${{ secrets.WINDOWS_CODESIGN_PASSWORD }}
+          EXPECTED_CERT_SHA256: ${{ vars.WINDOWS_CODESIGN_CERT_SHA256 }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $values = @($env:CERT_PFX_B64, $env:CERT_PASSWORD, $env:EXPECTED_CERT_SHA256)
+          $present = @($values | Where-Object { -not [string]::IsNullOrWhiteSpace([string]$_) })
+          if ($present.Count -eq 0) { throw 'P6_PRIVATE_CODESIGN_NOT_CONFIGURED' }
+          if ($present.Count -ne 3) { throw 'P6_PRIVATE_CODESIGN_PARTIAL_CONFIGURATION' }
+          if ($env:EXPECTED_CERT_SHA256 -notmatch '^[0-9a-fA-F]{64}$') { throw 'P6_PRIVATE_CODESIGN_CERT_SHA256_INVALID' }
+          $pfx = Join-Path $env:RUNNER_TEMP 'dc-p6-final.pfx'
+          [IO.File]::WriteAllBytes($pfx, [Convert]::FromBase64String($env:CERT_PFX_B64))
+          $securePassword = ConvertTo-SecureString $env:CERT_PASSWORD -AsPlainText -Force
+          $cert = Import-PfxCertificate -FilePath $pfx -CertStoreLocation Cert:\CurrentUser\My -Password $securePassword -Exportable:$false
+          if ($null -eq $cert -or -not $cert.HasPrivateKey) { throw 'P6_PRIVATE_CODESIGN_PRIVATE_KEY_MISSING' }
+          $eku = @($cert.EnhancedKeyUsageList | ForEach-Object { [string]$_.ObjectId })
+          if ($eku -notcontains '1.3.6.1.5.5.7.3.3') { throw 'P6_PRIVATE_CODESIGN_EKU_MISSING' }
+          if ($cert.Subject -ne 'CN=Digital Crown Private Publisher') { throw "P6_PRIVATE_CODESIGN_SUBJECT_MISMATCH subject=$($cert.Subject)" }
+          $cer = Join-Path $env:RUNNER_TEMP 'dc-p6-final.cer'
+          Export-Certificate -Cert $cert -FilePath $cer -Type CERT | Out-Null
+          $actual = (Get-FileHash -Algorithm SHA256 $cer).Hash.ToLowerInvariant()
+          if ($actual -ne $env:EXPECTED_CERT_SHA256.ToLowerInvariant()) { throw "P6_PRIVATE_CODESIGN_CERT_SHA256_MISMATCH actual=$actual" }
+          Import-Certificate -FilePath $cer -CertStoreLocation Cert:\LocalMachine\Root -Confirm:$false | Out-Null
+          Import-Certificate -FilePath $cer -CertStoreLocation Cert:\LocalMachine\TrustedPublisher -Confirm:$false | Out-Null
+          foreach ($store in @('Root','TrustedPublisher')) {
+            if (-not (Test-Path -LiteralPath "Cert:\LocalMachine\$store\$($cert.Thumbprint)")) { throw "P6_LOCALMACHINE_TRUST_IMPORT_MISSING store=$store" }
+          }
+          "P6_FINAL_THUMBPRINT=$($cert.Thumbprint)" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          Write-Host "P6_FINAL_PHASE=TRUST_READY cert_sha256=$actual subject=$($cert.Subject)"
+
+      - name: Build unsigned PE probe
+        shell: pwsh
+        timeout-minutes: 2
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $candidates = @(
+            (Join-Path $env:WINDIR 'Microsoft.NET\Framework64\v4.0.30319\csc.exe'),
+            (Join-Path $env:WINDIR 'Microsoft.NET\Framework\v4.0.30319\csc.exe')
+          )
+          $csc = $candidates | Where-Object { Test-Path -LiteralPath $_ -PathType Leaf } | Select-Object -First 1
+          if (-not $csc) { throw 'P6_FINAL_CSC_MISSING' }
+          $source = Join-Path $env:RUNNER_TEMP 'dc-p6-final-probe.cs'
+          $probe = Join-Path $env:RUNNER_TEMP 'dc-p6-final-probe.exe'
+          'public static class Program { public static void Main() { } }' | Set-Content -LiteralPath $source -Encoding ascii
+          & $csc /nologo /target:exe "/out:$probe" $source
+          if ($LASTEXITCODE -ne 0 -or -not (Test-Path -LiteralPath $probe -PathType Leaf)) { throw "P6_FINAL_PE_BUILD_FAILED exit_code=$LASTEXITCODE" }
+          $before = Get-AuthenticodeSignature -FilePath $probe
+          if ($before.Status -ne 'NotSigned') { throw "P6_FINAL_PROBE_NOT_UNSIGNED status=$($before.Status)" }
+          Write-Host 'P6_FINAL_PHASE=UNSIGNED_PE_READY'
+
+      - name: Sign unsigned PE with RFC3161 timestamp
+        shell: pwsh
+        timeout-minutes: 4
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $signtool = (Get-ChildItem 'C:\Program Files (x86)\Windows Kits\10\bin' -Recurse -Filter signtool.exe | Sort-Object FullName -Descending | Select-Object -First 1).FullName
+          if (-not $signtool) { throw 'P6_PRIVATE_CODESIGN_SIGNTOOL_MISSING' }
+          $probe = Join-Path $env:RUNNER_TEMP 'dc-p6-final-probe.exe'
+          $stdout = Join-Path $env:RUNNER_TEMP 'dc-p6-final-sign.stdout.txt'
+          $stderr = Join-Path $env:RUNNER_TEMP 'dc-p6-final-sign.stderr.txt'
+          $proc = Start-Process -FilePath $signtool -ArgumentList @('sign','/fd','SHA256','/sha1',$env:P6_FINAL_THUMBPRINT,'/s','My','/tr','http://timestamp.digicert.com','/td','SHA256',$probe) -PassThru -NoNewWindow -RedirectStandardOutput $stdout -RedirectStandardError $stderr
+          if (-not $proc.WaitForExit(180000)) {
+            Stop-Process -Id $proc.Id -Force -ErrorAction SilentlyContinue
+            throw 'P6_PRIVATE_AUTHENTICODE_SIGN_TIMEOUT'
+          }
+          $proc.WaitForExit()
+          if (Test-Path $stdout) { Get-Content $stdout | ForEach-Object { Write-Host $_ } }
+          if (Test-Path $stderr) { Get-Content $stderr | ForEach-Object { Write-Host $_ } }
+          if ($proc.ExitCode -ne 0) { throw "P6_PRIVATE_AUTHENTICODE_SIGN_FAILED exit_code=$($proc.ExitCode)" }
+          Write-Host 'P6_FINAL_PHASE=SIGN_SUCCESS'
+
+      - name: Verify signature and PowerShell metadata
+        shell: pwsh
+        timeout-minutes: 2
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $signtool = (Get-ChildItem 'C:\Program Files (x86)\Windows Kits\10\bin' -Recurse -Filter signtool.exe | Sort-Object FullName -Descending | Select-Object -First 1).FullName
+          $probe = Join-Path $env:RUNNER_TEMP 'dc-p6-final-probe.exe'
+          $verifyLog = Join-Path $env:RUNNER_TEMP 'dc-p6-final-verify.txt'
+          $stdout = Join-Path $env:RUNNER_TEMP 'dc-p6-final-verify.stdout.txt'
+          $stderr = Join-Path $env:RUNNER_TEMP 'dc-p6-final-verify.stderr.txt'
+          $proc = Start-Process -FilePath $signtool -ArgumentList @('verify','/pa','/v',$probe) -PassThru -NoNewWindow -RedirectStandardOutput $stdout -RedirectStandardError $stderr
+          if (-not $proc.WaitForExit(60000)) {
+            Stop-Process -Id $proc.Id -Force -ErrorAction SilentlyContinue
+            throw 'P6_PRIVATE_AUTHENTICODE_VERIFY_TIMEOUT'
+          }
+          $proc.WaitForExit()
+          $verifyText = if (Test-Path $stdout) { Get-Content $stdout -Raw } else { '' }
+          $verifyErr = if (Test-Path $stderr) { Get-Content $stderr -Raw } else { '' }
+          ($verifyText + $verifyErr) | Set-Content -LiteralPath $verifyLog -Encoding utf8
+          Write-Host $verifyText
+          if ($verifyErr) { Write-Host $verifyErr }
+          if ($proc.ExitCode -ne 0) { throw "P6_PRIVATE_AUTHENTICODE_VERIFY_FAILED exit_code=$($proc.ExitCode)" }
+          $signature = Get-AuthenticodeSignature -FilePath $probe
+          $payload = [ordered]@{
+            status = [string]$signature.Status
+            status_message = [string]$signature.StatusMessage
+            signer_subject = if ($signature.SignerCertificate) { $signature.SignerCertificate.Subject } else { $null }
+            signer_thumbprint = if ($signature.SignerCertificate) { $signature.SignerCertificate.Thumbprint } else { $null }
+            expected_thumbprint = $env:P6_FINAL_THUMBPRINT
+            signer_match = [bool]($signature.SignerCertificate -and $signature.SignerCertificate.Thumbprint -eq $env:P6_FINAL_THUMBPRINT)
+            timestamper_present = [bool]($null -ne $signature.TimeStamperCertificate)
+            timestamper_subject = if ($signature.TimeStamperCertificate) { $signature.TimeStamperCertificate.Subject } else { $null }
+          }
+          $payload | ConvertTo-Json -Depth 3 | Set-Content -LiteralPath (Join-Path $env:RUNNER_TEMP 'dc-p6-final-authenticode.json') -Encoding utf8
+          if ($payload.status -ne 'Valid') { throw "P6_PRIVATE_AUTHENTICODE_INVALID status=$($payload.status)" }
+          if (-not $payload.timestamper_present) { throw 'P6_PRIVATE_AUTHENTICODE_TIMESTAMP_MISSING' }
+          if (-not $payload.signer_match) { throw 'P6_PRIVATE_AUTHENTICODE_SIGNER_MISMATCH' }
+          Write-Host "P6_FINAL_SIGNING_PROBE=SUCCESS signer=$($payload.signer_subject) timestamp=$($payload.timestamper_subject)"
+
+      - name: Upload final signing proof
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: digitalcrown-p6-final-signing-probe
+          path: |
+            ${{ runner.temp }}\dc-p6-final-authenticode.json
+            ${{ runner.temp }}\dc-p6-final-verify.txt
+            ${{ runner.temp }}\dc-p6-final-sign.stdout.txt
+            ${{ runner.temp }}\dc-p6-final-sign.stderr.txt
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Cleanup signing material
+        if: always()
+        shell: pwsh
+        run: |
+          foreach ($path in @('dc-p6-final.pfx','dc-p6-final.cer','dc-p6-final-probe.cs','dc-p6-final-probe.exe')) {
+            Remove-Item -LiteralPath (Join-Path $env:RUNNER_TEMP $path) -Force -ErrorAction SilentlyContinue
+          }
+          if ($env:P6_FINAL_THUMBPRINT) {
+            Remove-Item -LiteralPath "Cert:\CurrentUser\My\$env:P6_FINAL_THUMBPRINT" -Force -ErrorAction SilentlyContinue
+            foreach ($store in @('Root','TrustedPublisher')) {
+              Remove-Item -LiteralPath "Cert:\LocalMachine\$store\$env:P6_FINAL_THUMBPRINT" -Force -ErrorAction SilentlyContinue
+            }
+          }
