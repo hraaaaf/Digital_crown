@@ -11,10 +11,10 @@ import { LabJobStatus, type LabJob } from '../../../types/labJob';
 import type { Appointment, Snapshot, Tab } from './types';
 
 const DEMO_PATIENTS = [
-  { id: 101, name: 'Patient Démo 01', phone: null },
-  { id: 102, name: 'Patient Démo 02', phone: null },
-  { id: 103, name: 'Patient Démo 03', phone: null },
-  { id: 104, name: 'Patient Démo 04', phone: null },
+  { id: 101, name: 'Patient 01', phone: null },
+  { id: 102, name: 'Patient 02', phone: null },
+  { id: 103, name: 'Patient 03', phone: null },
+  { id: 104, name: 'Patient 04', phone: null },
 ];
 
 function isoDay(offset: number): string {
@@ -29,10 +29,10 @@ function buildSnapshot(selectedDate: string): Snapshot {
     role: 'DENTISTE',
     is_superadmin: false,
     appointments: [
-      { id: 9101, patient_id: 101, time: '09:00', date: selectedDate, patient_name: 'Patient Démo 01', phone: null, motif: 'Contrôle orthodontique', status: 'TERMINE', duration_minutes: 30 },
-      { id: 9102, patient_id: 102, time: '10:15', date: selectedDate, patient_name: 'Patient Démo 02', phone: null, motif: 'Endodontie 16', status: 'EN_COURS', duration_minutes: 45 },
-      { id: 9103, patient_id: 103, time: '11:30', date: selectedDate, patient_name: 'Patient Démo 03', phone: null, motif: 'Empreinte numérique', status: 'PLANIFIE', duration_minutes: 30 },
-      { id: 9104, patient_id: 104, time: '14:00', date: selectedDate, patient_name: 'Patient Démo 04', phone: null, motif: 'Pose couronne 26', status: 'PLANIFIE', duration_minutes: 45 },
+      { id: 9101, patient_id: 101, time: '09:00', date: selectedDate, patient_name: 'Patient 01', phone: null, motif: 'Contrôle ortho', status: 'TERMINE', duration_minutes: 30 },
+      { id: 9102, patient_id: 102, time: '10:15', date: selectedDate, patient_name: 'Patient 02', phone: null, motif: 'Endodontie 16', status: 'EN_COURS', duration_minutes: 45 },
+      { id: 9103, patient_id: 103, time: '11:30', date: selectedDate, patient_name: 'Patient 03', phone: null, motif: 'Empreinte', status: 'PLANIFIE', duration_minutes: 30 },
+      { id: 9104, patient_id: 104, time: '14:00', date: selectedDate, patient_name: 'Patient 04', phone: null, motif: 'Couronne 26', status: 'PLANIFIE', duration_minutes: 45 },
     ],
     finance: {
       today_revenue: 7850,
