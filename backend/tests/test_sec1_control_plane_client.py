@@ -60,11 +60,13 @@ def test_cabinet_control_plane_url_must_be_https():
     assert cfg.LICENSE_CONTROL_PLANE_URL.startswith("https://")
 
 
-def test_trial_redemption_sends_only_code_email_and_cabinet_id(monkeypatch):
+def test_trial_redemption_sends_only_code_email_cabinet_and_public_device_identity(monkeypatch):
     monkeypatch.setattr(client_module.httpx, "AsyncClient", _AsyncClient)
     _AsyncClient.response = _Response(
         payload={
             "signed_license": "header.payload.signature",
+            "signed_device_certificate": "device.header.payload.signature",
+            "device_id": "a" * 64,
             "expires_at": "2026-09-27T12:00:00+00:00",
             "feature_set": "GOLD",
             "license_type": "TRIAL",
@@ -76,10 +78,15 @@ def test_trial_redemption_sends_only_code_email_and_cabinet_id(monkeypatch):
             code="dc-abcd-1234-ffff",
             email="Dentist@Example.com",
             cabinet_id="cab-123",
+            device_id="a" * 64,
+            device_public_key="public-device-key",
+            platform="windows",
         )
     )
 
     assert result.license_type == "TRIAL"
+    assert result.device_id == "a" * 64
+    assert result.signed_device_certificate == "device.header.payload.signature"
     assert len(_AsyncClient.calls) == 1
     method, url, kwargs = _AsyncClient.calls[0]
     assert method == "POST"
@@ -88,10 +95,41 @@ def test_trial_redemption_sends_only_code_email_and_cabinet_id(monkeypatch):
         "code": "DC-ABCD-1234-FFFF",
         "email": "dentist@example.com",
         "cabinet_id": "cab-123",
+        "device_id": "a" * 64,
+        "device_public_key": "public-device-key",
+        "platform": "windows",
     }
+    serialized = str(kwargs).lower()
     assert "password" not in kwargs["json"]
-    assert "signing" not in str(kwargs).lower()
-    assert "firebase" not in str(kwargs).lower()
+    assert "private" not in serialized
+    assert "signing" not in serialized
+    assert "firebase" not in serialized
+
+
+def test_trial_redemption_rejects_response_for_another_device(monkeypatch):
+    monkeypatch.setattr(client_module.httpx, "AsyncClient", _AsyncClient)
+    _AsyncClient.response = _Response(
+        payload={
+            "signed_license": "header.payload.signature",
+            "signed_device_certificate": "device.header.payload.signature",
+            "device_id": "b" * 64,
+            "expires_at": "2026-09-27T12:00:00+00:00",
+            "feature_set": "GOLD",
+            "license_type": "TRIAL",
+        }
+    )
+
+    with pytest.raises(Exception, match="autre machine"):
+        asyncio.run(
+            LicenseControlPlaneClient("https://licenses.example.test").redeem_trial(
+                code="dc-abcd-1234-ffff",
+                email="dentist@example.com",
+                cabinet_id="cab-123",
+                device_id="a" * 64,
+                device_public_key="public-device-key",
+                platform="windows",
+            )
+        )
 
 
 def test_trial_preview_uses_public_control_plane_surface(monkeypatch):
