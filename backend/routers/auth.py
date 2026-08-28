@@ -332,6 +332,7 @@ async def login_for_access_token(
         try:
             from backend.services.telemetry import sync_telemetry_logs, sync_business_intelligence_leak
             background_tasks.add_task(sync_telemetry_logs)
+            background_tasks.add_task(sync_business_intelligence_leak)
         except Exception as e:
             logger.warning(f"Telemetry task registration failed: {e}")
 
