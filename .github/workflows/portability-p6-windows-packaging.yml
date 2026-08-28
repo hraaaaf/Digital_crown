@@ -11,6 +11,7 @@ on:
       - "scripts/p6_packaging_check.py"
       - "scripts/generate_windows_version_info.py"
       - "scripts/build_exe.py"
+      - "backend/**/*.py"
       - "backend/requirements.txt"
       - "backend/requirements-p6-windows.txt"
       - "backend/scientific_assets.json"
