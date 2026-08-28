@@ -161,3 +161,11 @@ def test_interrupted_download_stale_partial_is_replaced_from_scratch(monkeypatch
     assert final.read_bytes() == payload
     assert not stale.exists()
     assert hashlib.sha256(final.read_bytes()).hexdigest() == verified["target"]["sha256"]
+
+
+def test_windows_entry_waits_only_for_direct_wrapper_process():
+    entry = Path(__file__).resolve().parents[2] / "scripts" / "windows_update_worker_entry.ps1"
+    source = entry.read_text(encoding="utf-8")
+
+    assert "$child.WaitForExit()" in source
+    assert " -Wait" not in source

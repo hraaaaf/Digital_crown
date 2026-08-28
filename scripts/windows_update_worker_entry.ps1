@@ -13,6 +13,7 @@ $jobDir = Split-Path -Parent $resolvedJob
 $lockPath = Join-Path $jobDir "worker.lock"
 $logPath = Join-Path $jobDir "windows-update-worker.log"
 $lock = $null
+$child = $null
 
 function Write-EntryLog {
     param([string]$Message)
@@ -83,13 +84,18 @@ try {
     $child = Start-Process -FilePath $nativePs -ArgumentList @(
         "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-File",
         ('"{0}"' -f $wrapper), "-JobPath", ('"{0}"' -f $resolvedJob), "-ParentPid", $ParentPid
-    ) -Wait -PassThru
-    Write-EntryLog "wrapper_exit=$($child.ExitCode)"
-    exit $child.ExitCode
+    ) -PassThru
+    $child.WaitForExit()
+    $childExitCode = [int]$child.ExitCode
+    Write-EntryLog "wrapper_exit=$childExitCode"
+    exit $childExitCode
 } catch {
     Write-EntryLog "failure=$($_.Exception.Message)"
     exit 1
 } finally {
+    if ($child) {
+        $child.Dispose()
+    }
     if ($lock) {
         try { $lock.Unlock(0, 1) } catch {}
         $lock.Dispose()
