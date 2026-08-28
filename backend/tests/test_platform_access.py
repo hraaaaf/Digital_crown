@@ -1,5 +1,8 @@
 from types import SimpleNamespace
 
+import pytest
+from pydantic import ValidationError
+
 from backend.config import Settings, settings
 from backend.platform_access import has_platform_permission, is_platform_superadmin
 
@@ -24,6 +27,14 @@ def _user(
 def _enable_control_plane(monkeypatch, *, owner_id: int = 42):
     monkeypatch.setattr(settings, "PLATFORM_CONTROL_PLANE_ENABLED", True)
     monkeypatch.setattr(settings, "SUPERADMIN_USER_ID", owner_id)
+
+
+def test_cabinet_environment_rejects_platform_control_plane():
+    with pytest.raises(ValidationError, match="interdit en environnement cabinet"):
+        Settings(
+            ENVIRONMENT="cabinet",
+            PLATFORM_CONTROL_PLANE_ENABLED=True,
+        )
 
 
 def test_cabinet_install_fails_closed_even_when_local_user_id_matches(monkeypatch):
