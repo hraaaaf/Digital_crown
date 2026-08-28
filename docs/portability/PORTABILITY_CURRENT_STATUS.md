@@ -41,6 +41,12 @@ Last verified: 2026-08-28.
 - target-start drill: `UPDATE_WINDOWS_RUNTIME_HEALTH_FAILED` -> worker exit `2` -> package restored `1.0.0` -> rollback health passed -> DB rollback not needed for that scenario;
 - P10 remains OPEN and **0/13 EP credited** because platform distribution and clean-machine gates remain unsatisfied.
 
+## Documentation closeout above product proof
+- current branch HEAD: `794472df8a1502aa04a3ea59aedff7ebad829d6e`;
+- commits after certified product HEAD `e4d16ffd...`: documentation only;
+- files touched: `PORTABILITY_LAUNCHER_ROADMAP.md`, `docs/portability/P10_UPDATE_ENGINE.md`, `docs/portability/P10_UPDATE_SIGNING_KEY_CEREMONY.md`, `docs/portability/PORTABILITY_CURRENT_STATUS.md`;
+- product/runtime proof remains #49 on `e4d16ffd...`.
+
 ## Prepared / active
 - P7 — Native macOS packaging — candidate `53563b1b22ddb6905a54c16ca8486412130c3921`, PR `#274`; signed/notarized workflow still required.
 - P9 — DR engine prepared; real external target + clean packaged restore + applicable inter-OS proof required.
