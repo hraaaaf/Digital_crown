@@ -243,7 +243,7 @@ jobs:
           if (-not (Test-Path $exe -PathType Leaf)) { throw "installed executable missing: $exe" }
           $env:DIGITALCROWN_PACKAGE_SELF_TEST_REPORT = $installedSelfTestReport
           try { $selfTest = Start-Process -FilePath $exe -ArgumentList "--package-self-test" -WorkingDirectory $install -Wait -PassThru }
-          finally { Remove-Item Env:DIGITALCROWN_PACKAGE_SELF_TEST_TEST_REPORT -ErrorAction SilentlyContinue }
+          finally { Remove-Item Env:DIGITALCROWN_PACKAGE_SELF_TEST_REPORT -ErrorAction SilentlyContinue }
           if (-not (Test-Path $installedSelfTestReport -PathType Leaf)) { throw "installed package self-test report missing: $installedSelfTestReport" }
           Write-Host "P6_INSTALLED_SELF_TEST_REPORT=$(Get-Content $installedSelfTestReport -Raw)"
           if ($selfTest.ExitCode -ne 0) { throw "installed package self-test failed: $($selfTest.ExitCode)" }
