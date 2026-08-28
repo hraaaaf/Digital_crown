@@ -27,6 +27,9 @@ class Settings(BaseSettings):
     # Immutable server-side identity used for platform SuperAdmin authorization.
     # 0 means "not provisioned" and therefore fails closed.
     SUPERADMIN_USER_ID: int = 0
+    # Platform administration/signing surfaces are absent logically from cabinet
+    # installs unless this control-plane switch is explicitly provisioned server-side.
+    PLATFORM_CONTROL_PLANE_ENABLED: bool = False
 
     # Security
     ALLOWED_ORIGINS: str = "http://localhost:5173,http://127.0.0.1:5173,https://localhost:5173,https://127.0.0.1:5173"
