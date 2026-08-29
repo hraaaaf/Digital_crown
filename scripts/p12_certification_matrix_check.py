@@ -37,11 +37,10 @@ def main() -> None:
     matrix = (doc_dir / "P12_CERTIFICATION_MATRIX.md").read_text(encoding="utf-8")
     for marker in (
         "0 EP credited",
-        "BLOCKED_MACOS",
         "OPEN_REAL_TARGET",
-        "BLOCKED_PACKAGED_APPLY",
         "Hardware truth matrix | certified conservative boundary | certified conservative boundary | P8 | AVAILABLE",
-        "P7 exact signed/notarized macOS artifact is not yet certified",
+        "Frozen/package lifecycle | proved by P6 | proved by P7 private distribution | P6/P7 | AVAILABLE",
+        "Update secure core | certified signed lifecycle | certified private lifecycle | P10 | AVAILABLE",
         "Any future `SUPPORTED` hardware claim still requires real-device evidence",
         "No Vercel",
     ):
@@ -58,9 +57,22 @@ def main() -> None:
     require("P9 does not close until" in p9, "P12 must preserve P9 real-target gate")
 
     p10 = (doc_dir / "P10_UPDATE_ENGINE.md").read_text(encoding="utf-8")
-    require("apply_certified=false" in p10, "P12 must preserve P10 packaged-apply gate")
+    for marker in (
+        "P6/P7",
+        "package self-test",
+        "/health",
+        "program snapshot",
+        "uninstall registry",
+        "Windows PowerShell 5.1",
+        "old packaged executable",
+        "PostgreSQL",
+        "interrupted",
+        "private key",
+        "Clean Hosted",
+    ):
+        require(marker.lower() in p10.lower(), f"P12 must preserve certified P10 truth marker: {marker}")
 
-    print("P12_CERTIFICATION_MATRIX_PREP=SUCCESS state=PREPARED ep=0 p8=AVAILABLE")
+    print("P12_CERTIFICATION_MATRIX_PREP=SUCCESS state=PREPARED ep=0 p7=AVAILABLE p10=AVAILABLE p9=OPEN_REAL_TARGET")
 
 
 if __name__ == "__main__":
