@@ -76,7 +76,7 @@ jobs:
           exit 1
       - name: Enable KVM
         run: if [ -e /dev/kvm ]; then sudo chmod 666 /dev/kvm; fi
-      - name: Capture after dismissing browser prompts
+      - name: Capture and diagnose Android Chrome
         uses: reactivecircus/android-emulator-runner@v2
         with:
           api-level: 35
@@ -89,17 +89,24 @@ jobs:
             mkdir -p artifacts/mobile-clean/android
             adb wait-for-device
             sleep 12
+            adb logcat -c || true
             adb shell am force-stop com.android.chrome || true
-            adb shell 'echo "chrome --disable-fre --no-default-browser-check" > /data/local/tmp/chrome-command-line' || true
+            adb shell 'echo "chrome --disable-fre --no-default-browser-check --enable-logging=stderr --v=1" > /data/local/tmp/chrome-command-line' || true
             adb shell am start -W -a android.intent.action.VIEW -d "http://10.0.2.2:5173/mobile/onboarding" com.android.chrome
-            sleep 5
+            sleep 7
             adb exec-out screencap -p > artifacts/mobile-clean/android/before.png
+            adb forward tcp:9222 localabstract:chrome_devtools_remote || true
+            curl -fsS http://127.0.0.1:9222/json/version > artifacts/mobile-clean/android/devtools-version.json || true
+            curl -fsS http://127.0.0.1:9222/json/list > artifacts/mobile-clean/android/devtools-pages.json || true
+            adb logcat -d > artifacts/mobile-clean/android/logcat.txt || true
+            grep -Eai 'chromium|console|uncaught|typeerror|referenceerror|syntaxerror|failed to load|ERR_' artifacts/mobile-clean/android/logcat.txt > artifacts/mobile-clean/android/chrome-errors.txt || true
             adb shell input tap 455 1790 || true
             sleep 3
             adb shell input keyevent 4 || true
             sleep 2
             adb exec-out screencap -p > artifacts/mobile-clean/android/onboarding-clean.png
             printf 'head=%s\nurl=http://10.0.2.2:5173/mobile/onboarding\n' '${{ github.sha }}' > artifacts/mobile-clean/android/result.txt
+            cp /tmp/vite-android.log artifacts/mobile-clean/android/vite.log
       - uses: actions/upload-artifact@v4
         if: always()
         with:
