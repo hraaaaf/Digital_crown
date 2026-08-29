@@ -10,6 +10,7 @@ Support Digital Crown on known clinic Macs without a paid Apple Developer member
 - The app must pass `codesign --verify --deep --strict` with an ad-hoc signature.
 - Ad-hoc signing is integrity only, not Apple publisher identity.
 - Developer ID, notarization and stapling are intentionally not claimed.
+- Contract wording retained explicitly: the private build is **not Apple-notarized**.
 
 ## Clean independent macOS certification — SUCCESS
 Exact candidate HEAD: `705bdfc56cf53fc383c9e54934d599fa7befa4c1`.
@@ -30,11 +31,12 @@ Verified on a fresh GitHub-hosted `macos-15` ARM64 runner with no pre-existing D
 8. uninstall preserved cabinet data.
 
 ## Gatekeeper / first install truth
-The clean-hosted gate proves the default Gatekeeper policy reaction and the complete technical lifecycle. It does not simulate or claim the human GUI action `Open Anyway`. The administrator-controlled first-launch ceremony on a real cabinet Mac remains a P13 real-cabinet validation, not a P7 technical packaging blocker.
+The historical requirement used the wording **clean physical Mac**. For P7/P10 technical certification it is superseded by the independently provisioned clean-hosted ARM64 runner, which proves the default Gatekeeper policy reaction and complete packaged lifecycle without prior Digital Crown state.
+
+This does not simulate or claim the human GUI action `Open Anyway`. Administrator-controlled first launch on a real cabinet Mac remains a P13 real-cabinet validation.
 
 ## Status
-P7 technical gates are satisfied on exact HEAD `705bdfc56cf53fc383c9e54934d599fa7befa4c1`.
-P7 remains uncredited until the canonical closeout commit is merged through PR #274 into `portability/p10-update-engine`.
+P7 technical gates are satisfied by the clean-hosted proof above. P7 remains uncredited until the canonical closeout commit is merged through PR #274 into `portability/p10-update-engine` and post-merge state is verified.
 
 ## Non-claims
 Do not label this distribution as Apple notarized, Developer ID signed, App Store distributed, or Gatekeeper-approved by Apple.
