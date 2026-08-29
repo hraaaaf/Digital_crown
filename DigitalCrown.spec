@@ -43,6 +43,10 @@ entitlements_file = None
 if IS_MACOS and codesign_identity:
     entitlements_file = _required('macos/DigitalCrown.entitlements')
 
+runtime_hooks = []
+if IS_MACOS:
+    runtime_hooks.append(_required('backend/macos_private_trust_runtime_hook.py'))
+
 a = Analysis(
     ['run.py'],
     pathex=[],
@@ -54,9 +58,10 @@ a = Analysis(
         'sqlcipher3', 'reportlab', 'weasyprint', 'qrcode', 'torch',
         'passlib.handlers', 'passlib.handlers.bcrypt',
         'jose.backends', 'jose.backends.cryptography_backend', 'jose.backends.native',
-        'backend.services.sync_manager', 'backend.seed_templates', 'backend.seed_user', 'backend.seed_clinical'
+        'backend.services.sync_manager', 'backend.seed_templates', 'backend.seed_user', 'backend.seed_clinical',
+        'backend.services.macos_private_trust'
     ],
-    hookspath=[], hooksconfig={}, runtime_hooks=[], excludes=[],
+    hookspath=[], hooksconfig={}, runtime_hooks=runtime_hooks, excludes=[],
     win_no_prefer_redirects=False, win_private_assemblies=False,
     cipher=block_cipher, noarchive=False,
 )
