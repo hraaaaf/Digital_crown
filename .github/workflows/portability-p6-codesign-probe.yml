@@ -71,15 +71,25 @@ jobs:
           }
           Write-Host 'P6_PROBE_PHASE=EPHEMERAL_TRUST_SUCCESS'
 
-      - name: Sign timestamped probe executable
+      - name: Build probe executable with Windows PowerShell 5.1
         shell: powershell
+        timeout-minutes: 2
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $probe = Join-Path $env:RUNNER_TEMP 'dc-p6-codesign-probe.exe'
+          Add-Type -TypeDefinition 'public static class Program { public static void Main() { } }' -Language CSharp -OutputAssembly $probe -OutputType ConsoleApplication
+          if (-not (Test-Path -LiteralPath $probe -PathType Leaf)) { throw 'P6_PRIVATE_CODESIGN_PROBE_BUILD_FAILED' }
+          Write-Host 'P6_PROBE_PHASE=PROBE_BUILD_SUCCESS'
+
+      - name: Sign timestamped probe executable
+        shell: pwsh
         timeout-minutes: 4
         run: |
           $ErrorActionPreference = 'Stop'
           $signtool = (Get-ChildItem 'C:\Program Files (x86)\Windows Kits\10\bin' -Recurse -Filter signtool.exe | Sort-Object FullName -Descending | Select-Object -First 1).FullName
           if (-not $signtool) { throw 'P6_PRIVATE_CODESIGN_SIGNTOOL_MISSING' }
           $probe = Join-Path $env:RUNNER_TEMP 'dc-p6-codesign-probe.exe'
-          Add-Type -TypeDefinition 'public static class Program { public static void Main() { } }' -Language CSharp -OutputAssembly $probe -OutputType ConsoleApplication
+          if (-not (Test-Path -LiteralPath $probe -PathType Leaf)) { throw 'P6_PRIVATE_CODESIGN_PROBE_MISSING' }
           $stdout = Join-Path $env:RUNNER_TEMP 'dc-p6-probe-sign.stdout.txt'
           $stderr = Join-Path $env:RUNNER_TEMP 'dc-p6-probe-sign.stderr.txt'
           $proc = Start-Process -FilePath $signtool -ArgumentList @('sign','/fd','SHA256','/sha1',$env:P6_PROBE_THUMBPRINT,'/s','My','/tr','http://timestamp.digicert.com','/td','SHA256',$probe) -PassThru -NoNewWindow -RedirectStandardOutput $stdout -RedirectStandardError $stderr
