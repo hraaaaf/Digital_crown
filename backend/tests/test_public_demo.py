@@ -1,7 +1,6 @@
 """Tests landing page — POST /api/public/demo-request."""
 import json
-import os
-from unittest.mock import patch, mock_open
+from unittest.mock import patch
 
 
 VALID_PAYLOAD = {
@@ -84,24 +83,24 @@ class TestDemoRequest:
         assert r.status_code == 200
         assert demo_file.exists()
 
-    def test_list_requires_secret(self, client, tmp_path, monkeypatch):
+    def test_list_requires_authentication(self, client, tmp_path, monkeypatch):
+        """SEC-1 removed the legacy query-secret surface; unauthenticated access is 401."""
         demo_file = tmp_path / "demo_requests.json"
         monkeypatch.setattr(
             "backend.routers.public._DEMO_REQUESTS_FILE", str(demo_file)
         )
         r = client.get("/api/public/demo-requests")
-        assert r.status_code == 403
+        assert r.status_code == 401
 
-    def test_list_with_correct_secret(self, client, tmp_path, monkeypatch):
+    def test_query_secret_cannot_bypass_authentication(self, client, tmp_path, monkeypatch):
+        """A legacy SUPERADMIN_SECRET query parameter must grant no authority."""
         demo_file = tmp_path / "demo_requests.json"
         monkeypatch.setattr(
             "backend.routers.public._DEMO_REQUESTS_FILE", str(demo_file)
         )
         monkeypatch.setenv("SUPERADMIN_SECRET", "mysecret")
-        # Save a request first
         demo_file.write_text(
             json.dumps([{"nom": "Test", "email": "t@t.dz"}]), encoding="utf-8"
         )
         r = client.get("/api/public/demo-requests", params={"secret": "mysecret"})
-        assert r.status_code == 200
-        assert len(r.json()) == 1
+        assert r.status_code == 401
