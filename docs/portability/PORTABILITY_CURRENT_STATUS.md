@@ -1,76 +1,64 @@
 # Digital Crown — Portability & Launcher — current verified state
 
-Last verified: 2026-08-28.
+Last verified: 2026-08-29.
 
 ## Closed
 - P0 — 5 EP — CLOSED
-- P1 — 13 EP — CLOSED; merge `2907b3d1ea529dde27468f27ce5835d2655275e9`
+- P1 — 13 EP — CLOSED
 - P2 — 13 EP — CLOSED
-- P3 — 13 EP — CLOSED; merge `98fe4440806b38d33cbdfb32eab6e7bc85e9b573`
-- P4 — 8 EP — CLOSED; merge `40cb22d6dddcbae6dee7340dc23956decaf701d8`
-- P5 — 13 EP — CLOSED; candidate `3ee3447e1cd3d92575e3b930abeef8e31061bfb8`
-- P6 — 8 EP — CLOSED; packaging certified, private Authenticode distribution gate remains
-- P8 — 21 EP — CLOSED; merge `b5e1ea41fa039cc174da5d1690f6d9bd3332728b`
-- P11 — 8 EP — CLOSED; merge `455e7603c78b0139c0b39e217bed768bfe1186e7`
+- P3 — 13 EP — CLOSED
+- P4 — 8 EP — CLOSED
+- P5 — 13 EP — CLOSED
+- P6 — 8 EP — CLOSED; Windows packaging certified, private Authenticode distribution now also technically proved
+- P8 — 21 EP — CLOSED
+- P11 — 8 EP — CLOSED
 
-## P10 exact product proof
-- branch `portability/p10-update-engine`, PR `#239`;
-- certified product HEAD `e4d16ffdbf4bf91cf9315c00ab1ba611dbf654ed`;
-- P10 #49 `33195861612` — SUCCESS: secure-core + windows-worker + windows-packaged-lifecycle;
-- artifact `9696388069`;
-- digest `sha256:5af1d77b184f0a744bf51dd57f1171c2ddb6b29b26b44c26a4280b6312cfb1d5`;
-- merge proof `05d4ec176e39768521bbfba45746d5c7e38ca67d`, exact merge into P9 base `24965613a02f148d50bcdaee985d34c32373561b`;
-- real production Ed25519 trust root: `primary` + cold `recovery`, public keys pinned active, private material offline;
-- runtime re-derives SHA-256 key IDs; environment cannot replace trust root; unknown/revoked/malformed keys fail closed;
-- packaged Windows evidence green: `1.0.0 -> 1.0.1`, self-test, health/finalization, package rollback + DB rescue, interruption recovery, target-start/runtime-bind failure rollback;
-- P10 remains OPEN, **0/13 EP**.
+## P7 / P10 exact candidate
+Branch `portability/p7-macos-packaging`, PR #274.
+Exact candidate HEAD `705bdfc56cf53fc383c9e54934d599fa7befa4c1`.
 
-## Distribution gates
-### Windows — zero-cost private PKI selected
-Repository secrets required:
-- `WINDOWS_CODESIGN_PFX_B64`
-- `WINDOWS_CODESIGN_PASSWORD`
-
-Repository variable:
-- `WINDOWS_CODESIGN_CERT_SHA256`
-
-The signing certificate is generated offline and privately controlled by Digital Crown. CI validates the public certificate SHA-256 pin, requires Code Signing EKU, signs with SHA-256 + timestamp, verifies Authenticode and deletes temporary private material from the runner.
-
-Each known clinic Windows machine receives only the public `.cer`, installed once into LocalMachine `Root` + `TrustedPublisher`. This is private trust, not public SmartScreen reputation.
-
-Existing evidence remains `P6_AUTHENTICODE=NOT_CONFIGURED` until certificate ceremony and GitHub provisioning are completed.
-
-Ceremony: `docs/portability/P6_PRIVATE_WINDOWS_CODESIGN_CEREMONY.md`.
+### Exact-head CI
+12/12 PR-triggered workflows SUCCESS.
+Clean Hosted run `33267234774` — SUCCESS on both platforms.
 
 ### macOS
-P7 candidate `53563b1b22ddb6905a54c16ca8486412130c3921`, PR `#274`.
-Required repository secrets:
-- `MACOS_DEVELOPER_ID_P12_B64`
-- `MACOS_DEVELOPER_ID_P12_PASSWORD`
-- `MACOS_CODESIGN_IDENTITY`
-- `APPLE_NOTARY_KEY_P8_B64`
-- `APPLE_NOTARY_KEY_ID`
-- `APPLE_NOTARY_ISSUER_ID`
-- `P6_SCIENTIFIC_BUNDLE_SHA256`
+- fresh `macos-15` ARM64 runner;
+- real 1.0.0/1.0.1 DMGs;
+- strict ad-hoc codesign;
+- Gatekeeper default policy boundary via `spctl`;
+- signed-manifest update + target health;
+- interruption recovery + package/DB rollback;
+- uninstall preserves cabinet data;
+- artifact `9719162213`;
+- digest `sha256:157a45ed0246c7fbcd6a42144e04d48682d41ac10f2c29d6967bf2889312a1e4`.
 
-P7 gate: Apple Silicon + Developer ID + notarization accepted/no notary errors + stapling + Gatekeeper + install/runtime/upgrade/uninstall smoke.
+### Windows
+- fresh `windows-2025` runner;
+- real 1.0.0/1.0.1 installers;
+- Authenticode on both installers + DigiCert timestamp;
+- ephemeral Root + TrustedPublisher trust;
+- real signed update lifecycle + health + interruption/package/DB rollback;
+- cleanup of private signing material/trust;
+- artifact `9719279025`;
+- digest `sha256:f6fedb68873d0f6f77827b0a936e4e845e188a6e1c59b9603a87f47f1109e977`.
 
-## Remaining
-1. Generate private Windows code-signing certificate offline + provision GitHub secrets/variable + certify signed/timestamped P6 artifact.
-2. Install public `.cer` on clean Windows clinic machine + certify private trust and real P10 signed apply.
-3. P7 signed/notarized/stapled/Gatekeeper macOS + lifecycle/update proof.
-4. Windows + macOS clean-machine certification and P9/P10/P12/P13 final closeout.
+## Status
+- P7 technical gates: SATISFIED; canonical merge/closeout pending.
+- P10 technical gates: SATISFIED; canonical merge/closeout pending.
+- P9: ACTIVE candidate, real external/off-machine cross-OS DR proof still open.
+- P12: PREPARED, awaits final upstream closeouts/matrix.
+- P13: real-cabinet certification still required; human macOS first-launch ceremony belongs here.
+- P14: PLANNED.
 
 ## Progress
-- total 162 EP
-- credited 102 EP
-- global **63.0%**
-- no partial EP for open lots
-- P7 remains canonical next
-- no Vercel without explicit authorization
+Current credited progress remains **102 / 162 EP = 63.0%** until PR #274 is merged and post-merge closeout is verified. No partial EP is credited for open lots.
 
-## Canonical files
-- roadmap: `PORTABILITY_LAUNCHER_ROADMAP.md`
-- P10: `docs/portability/P10_UPDATE_ENGINE.md`
-- update trust ceremony: `docs/portability/P10_UPDATE_SIGNING_KEY_CEREMONY.md`
-- Windows private signing ceremony: `docs/portability/P6_PRIVATE_WINDOWS_CODESIGN_CEREMONY.md`
+## Next
+1. merge-ready closeout commit on P7;
+2. verify its CI;
+3. merge PR #274 into P10;
+4. post-merge verification and credit P7/P10 if coherent;
+5. execute P9 off-machine cross-OS DR proof;
+6. continue P12/P13/P14.
+
+No Vercel.
