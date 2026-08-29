@@ -1,6 +1,6 @@
 # P13 — Real Cabinet Certification
 
-**Status:** PREPARED — real-hardware execution required. **0 EP credited.**
+**Status:** ACTIVE — real-hardware execution required. **0 EP credited.**
 
 ## Goal
 Prove the critical Digital Crown cabinet flow on real physical Windows and macOS machines, including first launch, cabinet continuity, off-machine recovery and controlled failures, without re-labelling CI simulation as cabinet evidence.
@@ -12,98 +12,80 @@ P13 closes only when the same release candidate is proved on:
 2. one physical Apple Silicon Mac;
 3. real installation from the release package for each OS;
 4. first launch and subsequent normal launch;
-5. one synthetic cabinet flow with no real patient data;
-6. real off-machine backup destination (USB/removable storage, NAS mount, or independently administered equivalent);
-7. restore/migration across Windows ↔ macOS where the portable SQLite/SQLCipher contract applies;
-8. authenticated update and recovery behavior on the installed systems;
-9. controlled failure cases with fail-closed behavior;
-10. evidence bundle containing machine, package, runtime, data and recovery proofs.
+5. one deterministic synthetic cabinet, never real patient data;
+6. a real off-machine backup destination: USB/removable storage, NAS mount, or independently administered equivalent;
+7. Windows ↔ macOS recovery where the portable SQLite/SQLCipher contract applies;
+8. authenticated update and rollback on the installed systems;
+9. controlled fail-closed cases;
+10. one evidence bundle per machine plus a validated Windows/macOS pair.
 
 No partial EP is credited.
 
-## P12 evidence that must NOT be repeated as fake “real cabinet” proof
-P12 already owns technical CI evidence for runtime/single-instance, frozen packaging, scientific fail-closed behavior, clean hosted runners, DR, update/rollback, launcher recovery and the conservative hardware matrix.
+## Boundary inherited from P12
+P12 already owns CI evidence for runtime/single-instance, frozen packaging, scientific fail-closed behavior, clean hosted runners, DR, update/rollback, launcher recovery and the conservative hardware matrix.
 
-P13 consumes that evidence. It only adds what CI cannot honestly prove: physical machine behavior, human first-launch ceremony and an operational off-machine backup medium.
+P13 consumes that evidence. It adds only what CI cannot honestly prove: physical machine behavior, human first-launch ceremony, operational off-machine media and installed-cabinet continuity.
+
+P13 does not claim Microsoft SmartScreen reputation, Developer ID, notarization, stapling, Apple approval, or direct dental-device support beyond P8.
 
 ## Physical targets
 
 ### Windows
-Record:
-- machine model;
-- CPU/architecture;
-- Windows edition + exact build;
-- free disk before install;
-- package filename + SHA-256;
-- Digital Crown public signing certificate fingerprint/trust state used for this known machine.
-
-P13 does not claim Microsoft SmartScreen reputation.
+Record machine model, CPU/architecture, Windows edition/build, free disk, package filename/SHA-256 and the Digital Crown signer certificate thumbprint/trust state.
 
 ### macOS
-Record:
-- Mac model;
-- Apple Silicon family;
-- macOS exact version/build;
-- free disk before install;
-- DMG filename + SHA-256;
-- bundle ID/version after install.
+Record Mac model, Apple Silicon family, macOS exact version/build, free disk, DMG filename/SHA-256 and installed bundle ID/version.
 
-Expected private-distribution truth:
+Private-distribution truth remains:
 - strict ad-hoc codesign integrity must verify;
 - default Gatekeeper rejection may occur;
-- administrator-controlled first launch / `Open Anyway` must be performed and evidenced once;
-- subsequent normal launch must succeed.
-
-P13 does not claim Developer ID, notarization, stapling or Apple approval.
+- administrator-controlled first launch / `Open Anyway` is performed once and evidenced;
+- subsequent normal launch succeeds.
 
 ## Synthetic cabinet fixture
-Never use real patient data for certification.
-
 Create one deterministic synthetic cabinet containing:
 - one owner/admin;
 - one synthetic patient;
-- one synthetic treatment/note or equivalent persisted clinical record;
-- one deterministic media/document sentinel with recorded SHA-256;
-- one deterministic DB marker/value that can be checked after migration/restore.
+- one persisted synthetic clinical record;
+- one deterministic media/document sentinel with SHA-256;
+- one deterministic DB marker/value checked after migration/restore.
 
-Record the pre-migration values and hashes.
+Never use real patient data.
 
 ## Certification sequence
 
 ### A. Clean install and first launch — each OS
-1. start from a machine with no Digital Crown user-data directory;
-2. record machine/OS identity;
-3. verify package SHA-256 against the signed release manifest;
-4. install package;
-5. complete the platform-specific first-launch ceremony;
-6. verify the real frozen application reaches loopback `/health` with `status=ok` and `db=ok`;
-7. close and relaunch normally;
-8. launch a second instance and verify the existing healthy instance is reused/focused rather than creating a second cabinet runtime;
-9. create/verify the synthetic cabinet fixture.
+1. Start with no Digital Crown user-data directory.
+2. Record machine/OS identity.
+3. Verify package SHA-256 against the signed release manifest.
+4. Install the package.
+5. Complete the platform-specific first-launch ceremony.
+6. Verify the frozen application reaches loopback `/health` with `status=ok` and `db=ok`.
+7. Close and relaunch normally.
+8. Launch a second instance and verify the healthy existing instance is reused/focused.
+9. Create and verify the synthetic cabinet fixture.
 
 ### B. Real off-machine DR
-For the first source machine:
-1. connect/mount the real off-machine destination;
-2. record destination type and mount/path identity without secrets;
-3. create the production `.dcbundle` + `.sha256` sidecar;
-4. verify bundle SHA-256 and sidecar;
-5. physically disconnect/unmount or otherwise remove source-machine access to the destination after snapshot completion;
-6. retain the recovery secret independently from the source workstation.
+1. Connect/mount the real off-machine destination.
+2. Record destination type and non-secret mount/path identity.
+3. Create the production `.dcbundle` + `.sha256` sidecar.
+4. Verify bundle SHA-256 and sidecar.
+5. Disconnect/unmount or otherwise remove source-machine access after snapshot completion.
+6. Keep the recovery secret independently from the source workstation.
 
 A second directory on the source internal disk is not acceptable evidence.
 
 ### C. Cross-OS recovery
-1. move/access the independently stored bundle from the opposite OS machine;
-2. verify the exact SHA-256 before conversion;
-3. convert through the production portable → Guided Restore path;
-4. execute the restore through the installed/frozen Digital Crown runtime;
-5. verify post-restore `/health`;
-6. verify DB marker/value;
-7. verify media/document sentinel SHA-256;
-8. verify source machine secrets were not transported and destination-local identity/secrets remain valid;
-9. repeat in the reverse OS direction if the same candidate and operational setup allow it.
+1. Access the independently stored bundle from the opposite OS machine.
+2. Verify exact SHA-256 before conversion.
+3. Convert through the production portable → Guided Restore path.
+4. Restore through the installed/frozen Digital Crown runtime.
+5. Verify post-restore `/health`.
+6. Verify DB marker/value and media sentinel SHA-256.
+7. Verify source-machine secrets were not transported and destination-local identity/secrets remain valid.
+8. Repeat in the reverse OS direction when the same candidate and setup allow it.
 
-### D. Update / recovery on installed systems
+### D. Update / recovery
 For each OS:
 1. install/current baseline;
 2. apply the authenticated next-version package through the certified update path;
@@ -111,56 +93,93 @@ For each OS:
 4. execute one controlled interrupted/failing update drill;
 5. verify package/data rollback returns to a healthy cabinet state.
 
-Do not provision new public-trust claims solely for P13.
-
 ### E. Controlled failures
-Must demonstrate, without risking production data:
+Demonstrate without production data:
 - wrong migration secret rejected;
 - tampered bundle rejected;
-- unavailable/offline DR destination reported fail-closed;
-- insufficient-space simulation or safely bounded equivalent if practical on the physical target;
-- unready second instance opens/reaches the recovery path instead of silently creating another runtime;
-- interrupted restore/update leaves a recoverable, truthful state.
+- unavailable/offline DR destination fail-closed;
+- unready second instance reaches recovery instead of creating another runtime;
+- insufficient-space simulation or safely bounded equivalent when practical;
+- interrupted restore/update leaves a recoverable truthful state.
 
-If a physical destructive simulation is unsafe, record the reason and use the already-certified CI failure proof instead; do not pretend the physical scenario was executed.
+If a destructive physical simulation is unsafe, use status `CI_SUBSTITUTED` only for the failure gates permitted by the evidence tool and record the exact upstream CI proof. Core physical gates can never be substituted by CI.
 
-## Hardware boundary
-P8 remains authoritative. P13 does not promote RVG, pano, cephalo, DICOM, TWAIN/WIA/Image Capture, USB/serial, scanners or cameras to `SUPPORTED` unless an actual Digital Crown integration and real-device test exist for every claimed OS.
+## Operator evidence tool
+Canonical tool: `scripts/p13_real_cabinet_evidence.py`.
 
-File-import paths may be exercised with synthetic files. That is not direct-device certification.
+It automatically records machine/OS facts, package SHA-256, free disk, `/health`, Windows Authenticode truth or macOS codesign/Gatekeeper truth, DR bundle/sidecar SHA-256 and media sentinel SHA-256. It never accepts recovery secrets, private keys or PFX passwords as evidence fields.
+
+### 1. Collect on Windows
+
+```text
+python scripts/p13_real_cabinet_evidence.py collect --operator <initials> --release-id <candidate> --package <installer.exe> --health-url <loopback-health-url> --data-path <cabinet-data-path> --dr-bundle <snapshot.dcbundle> --dr-sidecar <snapshot.dcbundle.sha256> --media-sentinel <synthetic-media-file> --output p13-windows.json
+```
+
+### 2. Collect on macOS
+
+```text
+python3 scripts/p13_real_cabinet_evidence.py collect --operator <initials> --release-id <same-candidate> --package <image.dmg> --app-path <Digital Crown.app> --health-url <loopback-health-url> --data-path <cabinet-data-path> --dr-bundle <snapshot.dcbundle> --dr-sidecar <snapshot.dcbundle.sha256> --media-sentinel <synthetic-media-file> --output p13-macos.json
+```
+
+### 3. Record each observed gate
+
+```text
+python scripts/p13_real_cabinet_evidence.py set-gate --file <evidence.json> --gate <gate> --status PASS --note <observable-proof>
+```
+
+Allowed statuses: `PENDING`, `PASS`, `FAIL`, `NOT_APPLICABLE`, `CI_SUBSTITUTED`.
+
+`CI_SUBSTITUTED` is restricted to controlled failure gates and requires an exact evidence note. It cannot replace clean install, first launch, normal relaunch, single-instance, synthetic fixture, off-machine DR, cross-OS restore, authenticated update or rollback.
+
+### 4. Validate each machine
+
+```text
+python scripts/p13_real_cabinet_evidence.py validate --file <evidence.json> --require-pass
+```
+
+### 5. Validate the physical pair
+
+```text
+python scripts/p13_real_cabinet_evidence.py validate-pair --first p13-windows.json --second p13-macos.json
+```
+
+Pair validation requires exactly one Windows file and one macOS file, the same non-empty `release_id`, healthy `/health`, required package trust/integrity evidence, matching DR sidecar, hashed media sentinel and acceptable gate states.
+
+`PASS_ATTESTED` means evidence completeness is machine-validated and the physical observations are operator-attested. It does **not** turn a human observation into CI proof.
 
 ## Evidence bundle
-For each machine/direction retain:
-- timestamp;
-- OS/model/architecture;
-- package filename, version, SHA-256;
-- signing/integrity truth appropriate to platform;
-- first-launch result;
-- `/health` result before and after migration/update;
+Retain for each machine/direction:
+- timestamp, OS/model/architecture;
+- package filename/version/SHA-256;
+- platform signing/integrity truth;
+- first-launch and relaunch result;
+- `/health` before/after migration/update;
 - single-instance result;
 - synthetic DB marker before/after;
 - media sentinel SHA-256 before/after;
-- DR bundle filename/SHA-256/sidecar result;
-- destination type and non-secret path/mount description;
-- restore/update job result;
+- DR bundle SHA-256 + sidecar match;
+- destination type and non-secret mount description;
+- restore/update/rollback result;
 - controlled failure results;
-- screenshots/log excerpts only where they add observable proof;
-- operator name/initials and explicit PASS/FAIL per gate.
+- operator initials and explicit status per gate;
+- screenshots/log excerpts only where they add observable proof.
 
-Never include recovery secrets, private signing keys, PFX passwords or real patient data in the evidence bundle.
+Never include recovery secrets, private signing keys, PFX passwords or real patient data.
 
 ## Closure gate
 P13 is CLOSED only when:
 - Windows physical evidence = PASS;
 - macOS physical evidence = PASS;
-- real off-machine DR evidence = PASS;
+- real off-machine DR = PASS;
 - cross-OS cabinet continuity = PASS where applicable;
+- authenticated update/rollback on installed targets = PASS;
 - no unsupported platform/hardware claim was introduced;
-- all evidence references are committed to the canonical closeout without secrets.
+- the evidence pair validates;
+- all non-secret evidence references are committed to the canonical closeout.
 
 Until then: **P13 = 0 EP**.
 
 ## Human gate
-The remaining work cannot be completed by GitHub-hosted CI alone. It requires access to the two physical target machines and the real off-machine storage medium, plus the administrator action needed for private macOS first launch.
+The remaining execution requires the two physical targets, a real off-machine storage medium and the administrator action needed for private macOS first launch. GitHub-hosted CI cannot substitute for those gates.
 
 No Vercel.
