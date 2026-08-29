@@ -37,14 +37,24 @@ def _canonical_json(value: Any) -> bytes:
 
 
 def _load_private_key(path: Path) -> Ed25519PrivateKey:
-    data = path.expanduser().resolve().read_bytes()
+    try:
+        data = path.expanduser().resolve().read_bytes()
+    except OSError as exc:
+        raise OfflineSigningError("PRIVATE_KEY_LOAD_FAILED") from exc
+
     try:
         key = serialization.load_pem_private_key(data, password=None)
     except TypeError:
         password = getpass.getpass("Private key passphrase: ").encode("utf-8")
-        key = serialization.load_pem_private_key(data, password=password)
-    except (ValueError, OSError) as exc:
+        try:
+            key = serialization.load_pem_private_key(data, password=password)
+        except (TypeError, ValueError) as exc:
+            raise OfflineSigningError("PRIVATE_KEY_LOAD_FAILED") from exc
+        finally:
+            password = b""
+    except ValueError as exc:
         raise OfflineSigningError("PRIVATE_KEY_LOAD_FAILED") from exc
+
     if not isinstance(key, Ed25519PrivateKey):
         raise OfflineSigningError("PRIVATE_KEY_NOT_ED25519")
     return key
@@ -53,7 +63,8 @@ def _load_private_key(path: Path) -> Ed25519PrivateKey:
 def _validate_payload(payload: Any) -> dict[str, Any]:
     if not isinstance(payload, dict):
         raise OfflineSigningError("MANIFEST_PAYLOAD_MUST_BE_OBJECT")
-    if int(payload.get("schema", 0)) != 1:
+    schema = payload.get("schema")
+    if not isinstance(schema, int) or isinstance(schema, bool) or schema != 1:
         raise OfflineSigningError("MANIFEST_SCHEMA_UNSUPPORTED")
     sequence = payload.get("sequence")
     if not isinstance(sequence, int) or isinstance(sequence, bool) or sequence <= 0:
@@ -87,7 +98,11 @@ def sign_payload(
     pinned_b64 = PINNED_UPDATE_PUBLIC_KEYS.get(derived_key_id)
     if pinned_b64 is None:
         raise OfflineSigningError("PRIVATE_KEY_NOT_PINNED")
-    if base64.b64decode(pinned_b64, validate=True) != raw_public:
+    try:
+        pinned_raw = base64.b64decode(pinned_b64, validate=True)
+    except ValueError as exc:
+        raise OfflineSigningError("PINNED_PUBLIC_KEY_INVALID") from exc
+    if pinned_raw != raw_public:
         raise OfflineSigningError("PINNED_PUBLIC_KEY_MISMATCH")
 
     signed = _validate_payload(payload)
@@ -119,7 +134,11 @@ def main() -> int:
     parser.add_argument("--output", required=True, type=Path)
     args = parser.parse_args()
 
-    payload = json.loads(args.payload.expanduser().resolve().read_text(encoding="utf-8"))
+    try:
+        payload = json.loads(args.payload.expanduser().resolve().read_text(encoding="utf-8"))
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError) as exc:
+        raise OfflineSigningError("MANIFEST_PAYLOAD_LOAD_FAILED") from exc
+
     key = _load_private_key(args.private_key)
     envelope = sign_payload(payload, key, expected_key_id=args.expected_key_id)
 
