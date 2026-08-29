@@ -37,7 +37,25 @@ def static_contract(root: Path) -> None:
 
     requirements = (root / "backend" / "requirements-p7-macos.txt").read_text(encoding="utf-8")
     require("pyinstaller==6.16.0" in requirements, "PyInstaller version is not pinned for P7")
-    require("-r backend/requirements.txt" in requirements, "P7 must use canonical backend requirements")
+    require("-r requirements.txt" in requirements, "P7 must use canonical backend requirements")
+    require("-r backend/requirements.txt" not in requirements, "P7 requirements path must be relative to backend/")
+
+    workflow = (root / ".github" / "workflows" / "portability-p7-macos-packaging.yml").read_text(encoding="utf-8")
+    for snippet in (
+        "P7_SCIENTIFIC_PACKAGE_POLICY=FAIL_CLOSED_NO_WEIGHTS",
+        "P7_UNQUALIFIED_SCIENTIFIC_WEIGHTS=FORBIDDEN",
+    ):
+        require(snippet in workflow, f"missing P7 fail-closed policy marker: {snippet}")
+    for snippet in (
+        "P7_ASSET_REPO",
+        "P7_ASSET_TAG",
+        "P7_ASSET_NAME",
+        "P6_SCIENTIFIC_BUNDLE_SHA256",
+        "provision_p6_scientific_assets.py",
+        "Download scientific runtime bundle",
+        "gh release download",
+    ):
+        require(snippet not in workflow, f"legacy scientific provisioning must stay absent from P7: {snippet}")
 
     dmg = (root / "scripts" / "create_macos_dmg.sh").read_text(encoding="utf-8")
     require('ditto "$APP" "$STAGE/DigitalCrown.app"' in dmg, "DMG builder must preserve signed app via ditto")
@@ -84,6 +102,7 @@ def bundle_contract(root: Path, bundle: Path) -> None:
     details = _codesign_details(bundle)
     require("Authority=Developer ID Application" in details, "bundle is not Developer ID signed")
     require(re.search(r"flags=0x[0-9a-fA-F]+\(runtime\)", details) is not None, "Hardened Runtime flag missing")
+    require(re.search(r"^Timestamp=", details, re.MULTILINE) is not None, "secure timestamp missing")
 
     forbidden_names = {".env", "firebase_creds.json"}
     leaked = [str(p.relative_to(bundle)) for p in bundle.rglob("*") if p.is_file() and p.name in forbidden_names]
@@ -96,6 +115,7 @@ def bundle_contract(root: Path, bundle: Path) -> None:
         "archs": archs,
         "developer_id": True,
         "hardened_runtime": True,
+        "secure_timestamp": True,
         "codesign_verified": True,
     }
     print("P7_MACOS_BUNDLE_CHECK=" + json.dumps(payload, sort_keys=True))

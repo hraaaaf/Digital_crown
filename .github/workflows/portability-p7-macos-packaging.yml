@@ -13,9 +13,6 @@ concurrency:
 env:
   PYTHON_VERSION: "3.12"
   NODE_VERSION: "20"
-  P7_ASSET_REPO: "hraaaaf/Digital_crown"
-  P7_ASSET_TAG: "p6-scientific-assets-v1"
-  P7_ASSET_NAME: "p6-scientific-assets-v1.zip"
 
 jobs:
   macos-package:
@@ -44,6 +41,13 @@ jobs:
       - name: Static macOS packaging contract
         run: python scripts/p7_macos_packaging_check.py --static
 
+      - name: Record scientific packaging policy
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "P7_SCIENTIFIC_PACKAGE_POLICY=FAIL_CLOSED_NO_WEIGHTS"
+          echo "P7_UNQUALIFIED_SCIENTIFIC_WEIGHTS=FORBIDDEN"
+
       - name: Require distribution credentials
         shell: bash
         env:
@@ -53,10 +57,9 @@ jobs:
           NOTARY_KEY_B64: ${{ secrets.APPLE_NOTARY_KEY_P8_B64 }}
           NOTARY_KEY_ID: ${{ secrets.APPLE_NOTARY_KEY_ID }}
           NOTARY_ISSUER_ID: ${{ secrets.APPLE_NOTARY_ISSUER_ID }}
-          EXPECTED_SHA256: ${{ secrets.P6_SCIENTIFIC_BUNDLE_SHA256 }}
         run: |
           set -euo pipefail
-          for name in CERT_P12_B64 CERT_PASSWORD CODESIGN_IDENTITY NOTARY_KEY_B64 NOTARY_KEY_ID NOTARY_ISSUER_ID EXPECTED_SHA256; do
+          for name in CERT_P12_B64 CERT_PASSWORD CODESIGN_IDENTITY NOTARY_KEY_B64 NOTARY_KEY_ID NOTARY_ISSUER_ID; do
             [[ -n "${!name:-}" ]] || { echo "Missing required secret: $name" >&2; exit 1; }
           done
           echo "P7_DISTRIBUTION_CREDENTIALS=READY"
@@ -72,17 +75,6 @@ jobs:
 
       - name: Install Python packaging toolchain
         run: python -m pip install --no-cache-dir -r backend/requirements-p7-macos.txt
-
-      - name: Download scientific runtime bundle
-        shell: bash
-        env:
-          GH_TOKEN: ${{ github.token }}
-          EXPECTED_SHA256: ${{ secrets.P6_SCIENTIFIC_BUNDLE_SHA256 }}
-        run: |
-          set -euo pipefail
-          mkdir -p .p7-assets
-          gh release download "$P7_ASSET_TAG" --repo "$P7_ASSET_REPO" --pattern "$P7_ASSET_NAME" --dir .p7-assets
-          python scripts/provision_p6_scientific_assets.py ".p7-assets/$P7_ASSET_NAME" --sha256 "$EXPECTED_SHA256"
 
       - name: Generate native macOS icon
         shell: bash
