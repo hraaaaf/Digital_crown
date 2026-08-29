@@ -32,13 +32,16 @@ Windows → macOS:
 
 Both directions used distinct fresh target runners, real frozen packages, Guided Restore, `/health`, SQLCipher DB truth and media verification; wrong secret and tamper paths failed closed.
 
+## Canonical EP arithmetic correction
+The canonical effort table contains **167 EP** when its 15 lot values are summed. The earlier `162 EP` total was an arithmetic inconsistency introduced with the effort table itself on 2026-08-24. No lot value has been reduced to preserve that stale denominator.
+
 ## Active / remaining
 - P12: PREPARED, 0 EP; P7/P9/P10 are AVAILABLE inputs, final matrix still open.
 - P13: PLANNED; real-cabinet certification including human macOS first launch and physical/off-machine backup ceremony.
 - P14: PLANNED.
 
 ## Progress
-Credited progress: **136 / 162 EP = 84.0%**.
+Credited progress: **136 / 167 EP = 81.4%**.
 No partial EP is credited for open lots.
 
 ## Next

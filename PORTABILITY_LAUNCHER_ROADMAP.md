@@ -25,9 +25,12 @@ Digital Crown doit offrir un seul produit local-first, issu d’un cœur partag�
 | P12 — CI & certification matrix | 13 EP | PREPARED — 0 EP |
 | P13 — Real cabinet certification | 13 EP | PLANNED |
 | P14 — Closeout | 5 EP | PLANNED |
-| **TOTAL** | **162 EP** | |
+| **TOTAL** | **167 EP** | |
 
 Aucun EP partiel n’est crédité pour un lot ouvert.
+
+### Correction arithmétique canonique
+Le tableau d’effort introduit le 2026-08-24 listait déjà ces mêmes 15 valeurs mais affichait `TOTAL 162 EP`. Leur somme vérifiée est **167 EP**. Aucun lot n’est réduit artificiellement pour conserver l’ancien dénominateur. Les pourcentages canoniques sont donc calculés sur 167 EP à partir de cette correction.
 
 ## Closed evidence
 - P0: `docs/portability/PORTABILITY_P0_BASELINE.md`.
@@ -49,7 +52,7 @@ P9 proves machine-loss-style technical recovery for the portable SQLite/SQLCiphe
 This certification does not turn GitHub Actions into the cabinet backup provider and does not certify a physical USB/NAS. Actual operational media/NAS setup and human recovery ceremony remain P13.
 
 ## P12 — CI & certification matrix — PREPARED
-P7/P9/P10 are now AVAILABLE upstream inputs. P12 remains 0 EP until its own final matrix closes. Remaining analysis centers on the scientific-assets row and clean-machine E2E row without stealing P13's real-cabinet scope.
+P7/P9/P10 are now AVAILABLE upstream inputs. P12 remains 0 EP until its own final matrix closes. Remaining analysis centers on aggregating the already verified scientific/native, clean-machine, runtime, packaging, DR, update, launcher and hardware evidence without stealing P13's real-cabinet scope.
 
 ## P13 — Real cabinet certification — PLANNED
 Real-cabinet validation remains distinct from technical CI. It includes administrator first-launch behavior on an actual cabinet Mac, physical/off-machine backup setup and critical cabinet workflows on real installed systems.
@@ -61,7 +64,7 @@ Final docs, matrices, guides, troubleshooting, governance and evidence consisten
 P12 → P13 → P14.
 
 ## État courant
-- credited: **136 / 162 EP = 84,0 %**;
+- credited: **136 / 167 EP = 81,4 %**;
 - P9: CLOSED — 8 EP;
 - P12: PREPARED — 0 EP;
 - no Vercel;
