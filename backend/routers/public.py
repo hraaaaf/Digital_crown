@@ -310,11 +310,13 @@ async def activate_trial_code(
                 trial_code=trial_code,
                 expiry=expiry_db,
             )
-            # On a control-plane runtime, Firebase is the signed source of truth.
+            # The issuer timestamps at signing time, which is necessarily after
+            # the request timestamp captured above. Verify against a fresh UTC
+            # instant so a newly issued token cannot be rejected as "future".
             installed = LicenseService._verify_signed_license(
                 signed_license,
                 clinic_id,
-                now_utc,
+                datetime.now(timezone.utc),
             )
             license_type = installed.license_type
             feature_set = installed.claims.get("feature_set")
