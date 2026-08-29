@@ -98,6 +98,66 @@ jobs:
             adb forward tcp:9222 localabstract:chrome_devtools_remote || true
             curl -fsS http://127.0.0.1:9222/json/version > artifacts/mobile-clean/android/devtools-version.json || true
             curl -fsS http://127.0.0.1:9222/json/list > artifacts/mobile-clean/android/devtools-pages.json || true
+            cat > /tmp/android-cdp.mjs <<'EOF'
+            import fs from 'node:fs';
+            const pages = JSON.parse(fs.readFileSync('artifacts/mobile-clean/android/devtools-pages.json', 'utf8'));
+            const wsUrl = pages?.[0]?.webSocketDebuggerUrl;
+            if (!wsUrl) throw new Error('No Chrome DevTools websocket');
+            const ws = new WebSocket(wsUrl);
+            let nextId = 1;
+            const pending = new Map();
+            const events = [];
+            ws.addEventListener('message', (event) => {
+              const msg = JSON.parse(event.data);
+              if (msg.id && pending.has(msg.id)) {
+                const { resolve } = pending.get(msg.id);
+                pending.delete(msg.id);
+                resolve(msg);
+              } else if (msg.method === 'Runtime.exceptionThrown' || msg.method === 'Runtime.consoleAPICalled' || msg.method === 'Log.entryAdded') {
+                events.push(msg);
+              }
+            });
+            await new Promise((resolve, reject) => {
+              ws.addEventListener('open', resolve, { once: true });
+              ws.addEventListener('error', reject, { once: true });
+            });
+            const send = (method, params = {}) => new Promise((resolve) => {
+              const id = nextId++;
+              pending.set(id, { resolve });
+              ws.send(JSON.stringify({ id, method, params }));
+            });
+            await send('Runtime.enable');
+            await send('Log.enable');
+            const expression = `(() => {
+              const root = document.getElementById('root');
+              return {
+                href: location.href,
+                readyState: document.readyState,
+                title: document.title,
+                isSecureContext: window.isSecureContext,
+                rootExists: !!root,
+                rootChildCount: root?.childElementCount ?? null,
+                rootHtml: root?.innerHTML?.slice(0, 4000) ?? null,
+                shellExists: !!document.querySelector('[data-dc-mobile-shell]'),
+                bodyText: document.body?.innerText?.slice(0, 4000) ?? null,
+                bodyHtml: document.body?.innerHTML?.slice(0, 6000) ?? null,
+                bodyBg: getComputedStyle(document.body).backgroundColor,
+                rootDisplay: root ? getComputedStyle(root).display : null,
+                userAgent: navigator.userAgent,
+                resources: performance.getEntriesByType('resource').slice(-30).map((entry) => entry.name),
+              };
+            })()`;
+            const snapshot = async (name) => {
+              const response = await send('Runtime.evaluate', { expression, returnByValue: true, awaitPromise: true });
+              fs.writeFileSync(`artifacts/mobile-clean/android/${name}.json`, JSON.stringify(response, null, 2));
+            };
+            await snapshot('dom-at-7s');
+            await new Promise((resolve) => setTimeout(resolve, 18000));
+            await snapshot('dom-at-25s');
+            fs.writeFileSync('artifacts/mobile-clean/android/cdp-events.json', JSON.stringify(events, null, 2));
+            ws.close();
+            EOF
+            node --experimental-websocket /tmp/android-cdp.mjs || true
             adb logcat -d > artifacts/mobile-clean/android/logcat.txt || true
             grep -Eai 'chromium|console|uncaught|typeerror|referenceerror|syntaxerror|failed to load|ERR_' artifacts/mobile-clean/android/logcat.txt > artifacts/mobile-clean/android/chrome-errors.txt || true
             adb shell input tap 455 1790 || true
