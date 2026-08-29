@@ -1,0 +1,172 @@
+name: SEC-1 Windows Package Certification
+
+on:
+  pull_request:
+    paths:
+      - "run.py"
+      - "DigitalCrown.spec"
+      - "requirements.txt"
+      - "frontend/**"
+      - "backend/license_security.py"
+      - "backend/license_trust.py"
+      - "backend/services/license_service.py"
+      - ".github/workflows/sec1-windows-package-cert.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: sec1-windows-package-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  windows-package:
+    name: Real Windows package + tamper rejection
+    runs-on: windows-latest
+    timeout-minutes: 120
+    steps:
+      - name: Checkout exact PR head
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+
+      - name: Setup Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Setup Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Build frontend
+        working-directory: frontend
+        run: |
+          npm ci
+          npm run build
+
+      - name: Install packaged runtime dependencies
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          python -m pip install --upgrade pip
+          python -m pip install torch --index-url https://download.pytorch.org/whl/cpu
+          python -m pip install -r requirements.txt
+          python -m pip install pyinstaller
+          python -m pip freeze | Out-File -FilePath sec1-package-pip-freeze.txt -Encoding utf8
+
+      - name: Build real Windows PyInstaller package
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          python -m PyInstaller --noconfirm --clean DigitalCrown.spec
+          if (-not (Test-Path "dist\DigitalCrown\DigitalCrown.exe")) {
+            throw "DigitalCrown.exe was not produced"
+          }
+
+      - name: Execute frozen signed-license tamper proof
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          New-Item -ItemType Directory -Force -Path "artifacts\sec1-windows-package" | Out-Null
+          $report = Join-Path $PWD "artifacts\sec1-windows-package\self-test.json"
+          & ".\dist\DigitalCrown\DigitalCrown.exe" "--sec1-package-self-test=$report"
+          if ($LASTEXITCODE -ne 0) {
+            throw "Frozen SEC-1 self-test failed with exit code $LASTEXITCODE"
+          }
+          if (-not (Test-Path $report)) {
+            throw "Frozen SEC-1 self-test did not produce evidence"
+          }
+
+      - name: Inspect real package boundary and write manifest
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          @'
+          import hashlib
+          import json
+          import subprocess
+          from pathlib import Path
+
+          root = Path("dist/DigitalCrown")
+          exe = root / "DigitalCrown.exe"
+          evidence = Path("artifacts/sec1-windows-package")
+          evidence.mkdir(parents=True, exist_ok=True)
+
+          if not exe.is_file():
+              raise SystemExit("DigitalCrown.exe missing")
+
+          forbidden = []
+          private_markers = (
+              b"-----BEGIN PRIVATE KEY-----",
+              b"-----BEGIN RSA PRIVATE KEY-----",
+              b"-----BEGIN ED25519 PRIVATE KEY-----",
+          )
+          text_suffixes = {".json", ".txt", ".pem", ".key", ".env", ".ini", ".cfg", ".yaml", ".yml"}
+          files = [p for p in root.rglob("*") if p.is_file()]
+
+          for path in files:
+              rel = path.relative_to(root).as_posix()
+              lower_name = path.name.lower()
+              if lower_name in {".env", ".env.local", "firebase_creds.json"}:
+                  forbidden.append({"path": rel, "reason": "forbidden credential filename"})
+                  continue
+
+              if path.suffix.lower() == ".json":
+                  try:
+                      value = json.loads(path.read_text(encoding="utf-8"))
+                  except Exception:
+                      value = None
+                  if isinstance(value, dict) and value.get("type") == "service_account" and value.get("private_key"):
+                      forbidden.append({"path": rel, "reason": "Google service-account private key"})
+
+              if path.suffix.lower() in text_suffixes:
+                  try:
+                      data = path.read_bytes()
+                  except OSError:
+                      continue
+                  if any(marker in data for marker in private_markers):
+                      forbidden.append({"path": rel, "reason": "PEM private key material"})
+
+          self_test = json.loads((evidence / "self-test.json").read_text(encoding="utf-8"))
+          if self_test != {
+              "frozen_executable": True,
+              "key_material": "ephemeral-memory-only",
+              "tampered_payload_rejected": True,
+              "valid_signature_accepted": True,
+          }:
+              raise SystemExit(f"Unexpected frozen self-test evidence: {self_test!r}")
+
+          sha256 = hashlib.sha256(exe.read_bytes()).hexdigest()
+          head = subprocess.check_output(["git", "rev-parse", "HEAD"], text=True).strip()
+          manifest = {
+              "head": head,
+              "exe": "dist/DigitalCrown/DigitalCrown.exe",
+              "exe_sha256": sha256,
+              "package_file_count": len(files),
+              "package_total_bytes": sum(p.stat().st_size for p in files),
+              "forbidden_material": forbidden,
+              "frozen_self_test": self_test,
+          }
+          (evidence / "package-inspection.json").write_text(
+              json.dumps(manifest, sort_keys=True, indent=2), encoding="utf-8"
+          )
+          if forbidden:
+              raise SystemExit(f"Forbidden material found in packaged artifact: {forbidden!r}")
+          print(json.dumps(manifest, sort_keys=True))
+          '@ | python -
+
+      - name: Preserve certification evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sec1-windows-package-evidence
+          path: |
+            artifacts/sec1-windows-package
+            sec1-package-pip-freeze.txt
+          if-no-files-found: error
+          retention-days: 30
