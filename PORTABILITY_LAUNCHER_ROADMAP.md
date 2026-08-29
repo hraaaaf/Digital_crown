@@ -23,7 +23,7 @@ Digital Crown doit offrir un seul produit local-first, issu d’un cœur partag�
 | P10 — Cross-platform Update Engine | 13 EP | CLOSED ✅ |
 | P11 — Launcher & Recovery UX | 8 EP | CLOSED ✅ |
 | P12 — CI & certification matrix | 13 EP | CLOSED ✅ |
-| P13 — Real cabinet certification | 13 EP | PLANNED |
+| P13 — Real cabinet certification | 13 EP | ACTIVE — 0 EP |
 | P14 — Closeout | 5 EP | PLANNED |
 | **TOTAL** | **167 EP** | |
 
@@ -42,18 +42,22 @@ Le tableau d’effort introduit le 2026-08-24 listait déjà ces mêmes 15 valeu
 - P6: PR #259, candidate `6eea148ceede740ea4646023e5f3aa58ea1ee8d1`; Windows Packaging `32999393374` SUCCESS.
 - P7: PR #274, merge `04d286041fe85743920d633aea4f6a24f3ceae3f`; P7 #27 `33274684146` SUCCESS.
 - P8: PR #275, merge `b5e1ea41fa039cc174da5d1690f6d9bd3332728b`.
-- P9: candidate `4590e2975e71ca89fc404e96e717646155b8fc14`; P9 #11 `33276520623`, 5/5 SUCCESS.
+- P9: candidate `4590e2975e71ca89fc404e96e717646155b8fc14`; P9 #11 `33276520623` and closeout repeat #12 `33277838848`, both 5/5 SUCCESS.
 - P10: PR #239 merge `aec7f27cbc075e3eb9e53aa651f19c4cdac64a13`; P10 #141 `33274684115`, macOS #59 `33274684087`, Clean Hosted #9 `33274684081` SUCCESS.
 - P11: PR #241, merge `455e7603c78b0139c0b39e217bed768bfe1186e7`; current regression #119 `33274684098` SUCCESS.
-- P12: final matrix aggregates the independently verified P2/P5/P6/P7/P8/P9/P10/P11 evidence and preserves the P13 physical/human boundary.
+- P12: exact closeout HEAD `c70f1b4eef7a0246e2a899e8789a440fe5b44e3b` passed P12 #75, P9 #14, CI #2191, T2 #1308, Patient #607 and Catalog #581; PR #298 merged as `34a8f4247a883754a1aa4a59c17fe12796103333`.
 
 ## P12 certified technical boundary
 P12 certifies the current Windows x64 and macOS ARM64 technical matrix: runtime/single-instance, frozen packaging, scientific fail-closed policy, conservative hardware truth, cross-OS DR, authenticated update/rollback, launcher recovery and clean-machine technical execution.
 
 P12 does not certify human first launch on a physical Mac, operational USB/NAS handling or direct dental hardware beyond P8's conservative classifications. Those remain P13/product-distribution boundaries.
 
-## P13 — Real cabinet certification — PLANNED
-Real-cabinet validation includes administrator first-launch behavior on actual cabinet hardware, physical/off-machine backup setup, operator recovery ceremony and critical cabinet workflows on real installed systems.
+## P13 — Real cabinet certification — ACTIVE — 0 EP
+Protocol: `docs/portability/P13_REAL_CABINET_CERTIFICATION.md`.
+
+P13 requires physical Windows x64 and Apple Silicon cabinet-class machines, real installation packages, administrator-controlled macOS first launch, a synthetic cabinet fixture, a real independently stored off-machine backup medium, cross-OS recovery and controlled failure evidence. GitHub-hosted CI cannot close this lot.
+
+No P13 EP is credited before both physical targets and the operational off-machine recovery boundary pass the protocol.
 
 ## P14 — Closeout — PLANNED
 Final docs, matrices, guides, troubleshooting, governance and evidence consistency.
@@ -63,7 +67,9 @@ P13 → P14.
 
 ## État courant
 - credited: **149 / 167 EP = 89,2 %**;
+- P9: CLOSED — 8 EP;
 - P12: CLOSED — 13 EP;
-- P13: PLANNED — 13 EP;
+- PR #298: MERGED as `34a8f4247a883754a1aa4a59c17fe12796103333`;
+- P13: ACTIVE — 0/13 EP;
 - no Vercel;
-- Next exact: define and execute the P13 real-cabinet certification protocol without duplicating CI-only proofs.
+- Next exact: execute the P13 physical real-cabinet protocol on one Windows x64 machine, one Apple Silicon Mac and a real off-machine storage medium.
