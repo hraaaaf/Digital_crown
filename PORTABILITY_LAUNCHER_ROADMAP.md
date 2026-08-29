@@ -17,10 +17,10 @@ Digital Crown doit offrir un seul produit local-first, issu d’un cœur partag�
 | P4 — Licence, secrets & machine identity | 8 EP | CLOSED ✅ |
 | P5 — Scientific/native runtime portability | 13 EP | CLOSED ✅ |
 | P6 — Industrialized Windows packaging | 8 EP | CLOSED ✅ |
-| P7 — Native macOS packaging | 13 EP | TECHNICALLY CERTIFIED — merge/closeout pending |
+| P7 — Native macOS packaging | 13 EP | CLOSED ✅ |
 | P8 — Hardware & peripherals | 21 EP | CLOSED ✅ |
 | P9 — Backup / Recovery / DR | 8 EP | ACTIVE |
-| P10 — Cross-platform Update Engine | 13 EP | TECHNICALLY CERTIFIED — merge/closeout pending |
+| P10 — Cross-platform Update Engine | 13 EP | CLOSED ✅ |
 | P11 — Launcher & Recovery UX | 8 EP | CLOSED ✅ |
 | P12 — CI & certification matrix | 13 EP | PREPARED — 0 EP |
 | P13 — Real cabinet certification | 13 EP | PLANNED |
@@ -37,44 +37,21 @@ Aucun EP partiel n’est crédité pour un lot ouvert.
 - P4: PR #224, merge `40cb22d6dddcbae6dee7340dc23956decaf701d8`.
 - P5: candidate `3ee3447e1cd3d92575e3b930abeef8e31061bfb8`.
 - P6: PR #259, candidate `6eea148ceede740ea4646023e5f3aa58ea1ee8d1`.
+- P7: PR #274, merge `04d286041fe85743920d633aea4f6a24f3ceae3f`; post-merge P7 #25 `33272768846` SUCCESS + Clean Hosted #7 `33272768876` SUCCESS.
 - P8: PR #275, merge `b5e1ea41fa039cc174da5d1690f6d9bd3332728b`.
+- P10: post-merge exact HEAD `3bc4f781e9ad496b86c72b4cade56da9241555c7`; P10 #139 `33272768851` SUCCESS, P10 macOS #57 `33272768868` SUCCESS, Clean Hosted #7 SUCCESS.
 - P11: PR #241, merge `455e7603c78b0139c0b39e217bed768bfe1186e7`.
 
-## P7 / P10 exact technical certification
-Candidate HEAD: `705bdfc56cf53fc383c9e54934d599fa7befa4c1` on PR #274.
-Exact-head: 12/12 PR-triggered workflows SUCCESS.
+## P7 / P10 certified boundary
+P7 private macOS distribution uses signed-manifest authenticity + exact DMG SHA/size + strict ad-hoc codesign integrity. Gatekeeper default rejection is explicitly proved; no Developer ID, notarization, stapling or Apple approval is claimed. Human first-launch remains P13.
 
-Clean Hosted run `33267234774` — SUCCESS:
-- macOS artifact `9719162213`, digest `sha256:157a45ed0246c7fbcd6a42144e04d48682d41ac10f2c29d6967bf2889312a1e4`;
-- Windows artifact `9719279025`, digest `sha256:f6fedb68873d0f6f77827b0a936e4e845e188a6e1c59b9603a87f47f1109e977`.
-
-### P7 proved
-- fresh Apple Silicon runner;
-- real DMGs 1.0.0/1.0.1;
-- exact bundle identity/version + strict ad-hoc codesign;
-- Gatekeeper default policy rejection via `spctl`, as expected for private ad-hoc distribution;
-- signed-manifest/exact-SHA update;
-- package self-test + runtime health;
-- interruption recovery;
-- package + encrypted DB rollback;
-- uninstall preserves cabinet data.
-
-No Developer ID, notarization, stapling or Apple Gatekeeper approval is claimed. Human first-launch ceremony remains P13 real-cabinet validation.
-
-### P10 proved
-- signed Ed25519 manifest trust root;
-- Windows Authenticode private PKI on both 1.0.0/1.0.1 installers + DigiCert timestamp;
-- clean Windows signed update lifecycle;
-- clean macOS private update lifecycle;
-- target health/self-test;
-- interruption recovery;
-- package + DB rollback on both platforms.
+P10 authenticates updates with the signed Ed25519 manifest, exact package identity/hash/size, target package self-test + `/health`, interruption recovery and package/DB rollback. Windows installers are private-PKI Authenticode signed with RFC3161 timestamp; private signing material is ephemeral and removed after use.
 
 ## P9 — Backup / Recovery / DR — ACTIVE
-Remaining real gate: off-machine destination plus restore on an independent clean packaged target and Windows ↔ macOS recovery evidence where applicable. GitHub artifact transfer between independent fresh OS runners is the planned zero-cost certification path; it must still be executed and proved.
+Remaining real gate: off-machine independently persisted destination plus restore on an independent clean packaged target and Windows ↔ macOS recovery evidence where applicable. The certification must prove the storage boundary rather than treating a same-run temp directory as external DR.
 
 ## P12 — CI & certification matrix — PREPARED
-Final matrix waits for merged P7/P10 closeouts plus P9 evidence. P12 remains 0 EP until its own matrix closes.
+P7/P10 are now AVAILABLE upstream inputs. Final matrix waits primarily for P9 evidence. P12 remains 0 EP until its own matrix closes.
 
 ## P13 — Real cabinet certification — PLANNED
 Real-cabinet validation remains distinct from technical CI. It includes administrator first-launch behavior on an actual cabinet Mac and critical cabinet workflows on real installed systems.
@@ -83,10 +60,12 @@ Real-cabinet validation remains distinct from technical CI. It includes administ
 Final docs, matrices, guides, troubleshooting, governance and evidence consistency.
 
 ## Ordre canonique restant
-P7 merge/closeout → P10 post-merge closeout → P9 → P12 → P13 → P14.
+P9 → P12 → P13 → P14.
 
 ## État courant
-- credited: **102 / 162 EP = 63,0 %**;
-- P7/P10 technical evidence: green but not yet credited before merge/post-merge verification;
+- credited: **128 / 162 EP = 79,0 %**;
+- P7: CLOSED — 13 EP;
+- P10: CLOSED — 13 EP;
+- P9: ACTIVE;
 - no Vercel;
-- Next exact: commit closeout docs → verify CI → merge PR #274 → post-merge verify/credit.
+- Next exact: execute P9 off-machine independent clean packaged restore + cross-OS DR certification.
