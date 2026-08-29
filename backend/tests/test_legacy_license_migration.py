@@ -102,6 +102,56 @@ def test_dry_run_refuses_ambiguous_legacy_records_before_any_write(db, monkeypat
     assert reasons["orphan"] == "local_cabinet_owner_not_unique_or_missing"
 
 
+def test_invalid_legacy_active_type_is_never_coerced_true(db, monkeypatch):
+    issuer = _create_user_and_cabinet(db, clinic_id="issuer-clinic")
+    _create_user_and_cabinet(db, clinic_id="legacy-string-active")
+    monkeypatch.setattr(settings, "SUPERADMIN_USER_ID", issuer.id)
+    monkeypatch.setattr(settings, "PLATFORM_CONTROL_PLANE_ENABLED", True)
+    monkeypatch.setattr(
+        migration,
+        "_fetch_license_documents",
+        lambda _service: [
+            (
+                "legacy-string-active",
+                {
+                    "active": "false",
+                    "expiration_date": datetime.now(timezone.utc) + timedelta(days=30),
+                },
+            )
+        ],
+    )
+
+    async def must_not_write(*_args, **_kwargs):
+        raise AssertionError("malformed active value must prevent all writes")
+
+    monkeypatch.setattr(LicenseService, "write_signed_license", must_not_write)
+
+    report = asyncio.run(
+        migrate_legacy_licenses(
+            db,
+            issuer_user_id=issuer.id,
+            apply=True,
+            manifest={
+                "legacy-string-active": {
+                    "license_type": "PAID",
+                    "feature_set": "GOLD",
+                    "max_devices": 1,
+                }
+            },
+        )
+    )
+
+    assert report["ok"] is False
+    assert report["applied"] is False
+    assert report["planned"] == []
+    assert report["manual"] == [
+        {
+            "cabinet_id": "legacy-string-active",
+            "reason": "legacy_active_missing_or_invalid",
+        }
+    ]
+
+
 def test_apply_migrates_active_and_revoked_records_with_explicit_manifest(db, monkeypatch):
     issuer = _create_user_and_cabinet(db, clinic_id="issuer-clinic")
     _create_user_and_cabinet(

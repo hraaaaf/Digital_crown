@@ -182,6 +182,14 @@ async def migrate_legacy_licenses(
             continue
         owner, _cabinet = local
 
+        active_raw = data.get("active")
+        if not isinstance(active_raw, bool):
+            report["manual"].append(
+                {"cabinet_id": cabinet_id, "reason": "legacy_active_missing_or_invalid"}
+            )
+            continue
+        active = active_raw
+
         try:
             expiration = _as_utc(data.get("expiration_date"))
         except LegacyLicenseMigrationError:
@@ -190,7 +198,6 @@ async def migrate_legacy_licenses(
             )
             continue
 
-        active = bool(data.get("active", False))
         if active and expiration is None:
             report["manual"].append(
                 {"cabinet_id": cabinet_id, "reason": "active_legacy_license_has_no_expiration"}
