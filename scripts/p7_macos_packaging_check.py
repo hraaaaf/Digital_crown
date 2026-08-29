@@ -9,6 +9,7 @@ from pathlib import Path
 
 DEFAULT_ROOT = Path(__file__).resolve().parents[1]
 BUNDLE_ID = "com.saninova.digitalcrown"
+PRIVATE_TRUST_MODE = "signed-manifest+adhoc-codesign-v1"
 
 
 def require(cond: bool, message: str) -> None:
@@ -26,23 +27,52 @@ def static_contract(root: Path) -> None:
         "BUNDLE(",
         "bundle_identifier='com.saninova.digitalcrown'",
         "_required('build/macos/DigitalCrown.icns')",
-        "macos/DigitalCrown.entitlements",
+        "backend/macos_private_trust_runtime_hook.py",
+        "backend.services.macos_private_trust",
     ):
-        require(snippet in spec, f"missing macOS spec contract: {snippet}")
+        require(snippet in spec, f"missing private macOS spec contract: {snippet}")
     for snippet in ("firebase_creds.json", "('.env',", '(\".env\",', "backend/.env"):
         require(snippet not in spec, f"forbidden spec content: {snippet}")
 
-    entitlements = plistlib.loads((root / "macos" / "DigitalCrown.entitlements").read_bytes())
-    require(entitlements == {}, "P7 entitlements must start least-privilege/empty")
-
     requirements = (root / "backend" / "requirements-p7-macos.txt").read_text(encoding="utf-8")
     require("pyinstaller==6.16.0" in requirements, "PyInstaller version is not pinned for P7")
-    require("-r backend/requirements.txt" in requirements, "P7 must use canonical backend requirements")
+    require("-r requirements.txt" in requirements, "P7 must use canonical backend requirements")
+
+    private = (root / "backend" / "services" / "macos_private_trust.py").read_text(encoding="utf-8")
+    for snippet in (
+        PRIVATE_TRUST_MODE,
+        "UPDATE_MACOS_PRIVATE_CODESIGN_VERIFY_FAILED",
+        "UPDATE_MACOS_PRIVATE_ADHOC_SIGNATURE_REQUIRED",
+        '"Signature=adhoc"',
+        'notarization="not_required_private_distribution"',
+        'gatekeeper="manual_first_launch_required"',
+        "install_private_macos_trust_policy()",
+    ):
+        require(snippet in private, f"missing private macOS trust contract: {snippet}")
+    for forbidden in (
+        "Developer ID Application" + ": required",
+        "xcrun notarytool submit",
+        "xcrun stapler staple",
+    ):
+        require(forbidden not in private, f"paid Apple dependency leaked into private trust module: {forbidden}")
+
+    hook = (root / "backend" / "macos_private_trust_runtime_hook.py").read_text(encoding="utf-8")
+    require("backend.services.macos_private_trust" in hook, "private trust runtime hook missing")
+
+    docs = (root / "docs" / "portability" / "P7_PRIVATE_MACOS_TRUST.md").read_text(encoding="utf-8")
+    for snippet in (
+        "signed update manifest",
+        "exact DMG SHA-256",
+        "ad-hoc",
+        "not Apple-notarized",
+        "clean physical Mac",
+    ):
+        require(snippet in docs, f"missing private trust documentation contract: {snippet}")
 
     dmg = (root / "scripts" / "create_macos_dmg.sh").read_text(encoding="utf-8")
-    require('ditto "$APP" "$STAGE/DigitalCrown.app"' in dmg, "DMG builder must preserve signed app via ditto")
+    require('ditto "$APP" "$STAGE/DigitalCrown.app"' in dmg, "DMG builder must preserve app via ditto")
 
-    print(f"P7_MACOS_PACKAGING_CONTRACT=SUCCESS version={version}")
+    print(f"P7_MACOS_PRIVATE_PACKAGING_CONTRACT=SUCCESS version={version} trust={PRIVATE_TRUST_MODE}")
 
 
 def _codesign_details(bundle: Path) -> str:
@@ -79,11 +109,11 @@ def bundle_contract(root: Path, bundle: Path) -> None:
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,
     )
-    require(verify.returncode == 0, "codesign verification failed:\n" + verify.stdout)
+    require(verify.returncode == 0, "private codesign verification failed:\n" + verify.stdout)
 
     details = _codesign_details(bundle)
-    require("Authority=Developer ID Application" in details, "bundle is not Developer ID signed")
-    require(re.search(r"flags=0x[0-9a-fA-F]+\(runtime\)", details) is not None, "Hardened Runtime flag missing")
+    require("Signature=adhoc" in details, "bundle must use zero-cost ad-hoc signature")
+    require("Authority=Developer ID Application" not in details, "private build must not claim Developer ID")
 
     forbidden_names = {".env", "firebase_creds.json"}
     leaked = [str(p.relative_to(bundle)) for p in bundle.rglob("*") if p.is_file() and p.name in forbidden_names]
@@ -94,11 +124,12 @@ def bundle_contract(root: Path, bundle: Path) -> None:
         "bundle_identifier": info.get("CFBundleIdentifier"),
         "version": version,
         "archs": archs,
-        "developer_id": True,
-        "hardened_runtime": True,
-        "codesign_verified": True,
+        "trust_mode": PRIVATE_TRUST_MODE,
+        "developer_id": False,
+        "notarized": False,
+        "adhoc_codesign_verified": True,
     }
-    print("P7_MACOS_BUNDLE_CHECK=" + json.dumps(payload, sort_keys=True))
+    print("P7_MACOS_PRIVATE_BUNDLE_CHECK=" + json.dumps(payload, sort_keys=True))
 
 
 def main() -> None:
