@@ -1,0 +1,125 @@
+name: Mobile Clean Visual Evidence
+
+on:
+  push:
+    branches: [mobile/sim-cert]
+  workflow_dispatch:
+
+concurrency:
+  group: mobile-clean-visual-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  ios-clean:
+    name: iOS MobileSafari clean visual evidence
+    runs-on: macos-26
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install frontend
+        working-directory: frontend
+        run: npm ci
+      - name: Start HTTPS frontend
+        run: |
+          mkdir -p certs artifacts/mobile-clean/ios
+          openssl req -x509 -newkey rsa:2048 -nodes -keyout certs/key.pem -out certs/cert.pem -days 1 -subj "/CN=localhost" -addext "subjectAltName=DNS:localhost,IP:127.0.0.1"
+          cd frontend
+          VITE_ENABLE_HTTPS=true npm run dev -- --host 0.0.0.0 --port 5173 >/tmp/vite-ios.log 2>&1 &
+          for i in {1..60}; do curl -kfsS https://localhost:5173 >/dev/null && exit 0; sleep 1; done
+          cat /tmp/vite-ios.log; exit 1
+      - name: Boot iPhone and capture product
+        run: |
+          UDID=$(python3 - <<'PY'
+          import json, subprocess, sys
+          d=json.loads(subprocess.check_output(['xcrun','simctl','list','devices','available','-j']))
+          for r in sorted((x for x in d['devices'] if 'iOS-' in x), reverse=True):
+            for dev in d['devices'][r]:
+              if dev.get('isAvailable') and dev.get('name','').startswith('iPhone'):
+                print(dev['udid']); sys.exit(0)
+          sys.exit(1)
+          PY
+          )
+          xcrun simctl boot "$UDID" || true
+          xcrun simctl bootstatus "$UDID" -b
+          xcrun simctl keychain "$UDID" add-root-cert "$GITHUB_WORKSPACE/certs/cert.pem"
+          xcrun simctl launch "$UDID" com.apple.mobilesafari || true
+          xcrun simctl openurl "$UDID" "https://localhost:5173/mobile/onboarding"
+          sleep 15
+          xcrun simctl io "$UDID" screenshot artifacts/mobile-clean/ios/onboarding-after-15s.png
+          xcrun simctl spawn "$UDID" log show --last 2m --style compact --predicate 'process == "MobileSafari" OR process == "com.apple.WebKit.WebContent"' > artifacts/mobile-clean/ios/webkit.log 2>&1 || true
+          printf 'head=%s\nudid=%s\nurl=https://localhost:5173/mobile/onboarding\n' '${{ github.sha }}' "$UDID" > artifacts/mobile-clean/ios/result.txt
+          cp /tmp/vite-ios.log artifacts/mobile-clean/ios/vite.log
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: mobile-clean-ios
+          path: artifacts/mobile-clean/ios
+          if-no-files-found: error
+          retention-days: 14
+
+  android-clean:
+    name: Android Chrome clean visual evidence
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install and start frontend
+        working-directory: frontend
+        run: |
+          npm ci
+          npm run dev -- --host 0.0.0.0 --port 5173 >/tmp/vite-android.log 2>&1 &
+          for i in {1..60}; do curl -fsS http://127.0.0.1:5173 >/dev/null && exit 0; sleep 1; done
+          cat /tmp/vite-android.log; exit 1
+      - name: Enable KVM
+        run: if [ -e /dev/kvm ]; then sudo chmod 666 /dev/kvm; fi
+      - name: Capture after dismissing browser prompts
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 35
+          target: google_apis
+          arch: x86_64
+          profile: pixel_7
+          disable-animations: true
+          emulator-options: -no-snapshot -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -no-metrics
+          script: |
+            mkdir -p artifacts/mobile-clean/android
+            adb wait-for-device
+            sleep 12
+            adb shell am force-stop com.android.chrome || true
+            adb shell 'echo "chrome --disable-fre --no-default-browser-check" > /data/local/tmp/chrome-command-line' || true
+            adb shell am start -W -a android.intent.action.VIEW -d "http://10.0.2.2:5173/mobile/onboarding" com.android.chrome
+            sleep 5
+            adb shell uiautomator dump /sdcard/window.xml >/dev/null 2>&1 || true
+            adb pull /sdcard/window.xml artifacts/mobile-clean/android/window-before.xml >/dev/null 2>&1 || true
+            python3 - <<'PY'
+          import re, subprocess
+          xml=subprocess.run(['adb','shell','cat','/sdcard/window.xml'],capture_output=True,text=True).stdout
+          for label in ('No thanks','Non merci'):
+            m=re.search(r'text="'+re.escape(label)+r'"[^>]*bounds="\[(\d+),(\d+)\]\[(\d+),(\d+)\]"',xml)
+            if m:
+              x1,y1,x2,y2=map(int,m.groups()); subprocess.run(['adb','shell','input','tap',str((x1+x2)//2),str((y1+y2)//2)]); break
+          PY
+            sleep 3
+            adb shell input keyevent 4 || true
+            sleep 2
+            adb exec-out screencap -p > artifacts/mobile-clean/android/onboarding-clean.png
+            adb shell uiautomator dump /sdcard/window-after.xml >/dev/null 2>&1 || true
+            adb pull /sdcard/window-after.xml artifacts/mobile-clean/android/window-after.xml >/dev/null 2>&1 || true
+            printf 'head=%s\nurl=http://10.0.2.2:5173/mobile/onboarding\n' '${{ github.sha }}' > artifacts/mobile-clean/android/result.txt
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: mobile-clean-android
+          path: artifacts/mobile-clean/android
+          if-no-files-found: error
+          retention-days: 14
