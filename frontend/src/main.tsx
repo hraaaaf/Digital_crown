@@ -2,8 +2,6 @@ import React from 'react'
 import ReactDOM from 'react-dom/client'
 import { BrowserRouter } from 'react-router-dom'
 import { ErrorBoundary } from './components/ErrorBoundary.tsx'
-import { MobilePreviewDashboard } from './features/mobile/Dashboard/MobilePreviewDashboard.tsx'
-import { MobilePreviewOnboarding } from './features/mobile/Onboarding/MobilePreviewOnboarding.tsx'
 import { isDcPreviewDemoRequested } from './features/mobile/previewDemo.ts'
 import './index.css'
 import './styles/mobileGlassSystem.css'
@@ -106,9 +104,11 @@ if (!isPreviewRequest && 'serviceWorker' in navigator) {
 async function resolveApplication(): Promise<React.ReactNode> {
   if (isPreviewRequest) {
     if (previewPath === '/mobile/demo') {
+      const { MobilePreviewDashboard } = await import('./features/mobile/Dashboard/MobilePreviewDashboard.tsx')
       return <BrowserRouter><MobilePreviewDashboard /></BrowserRouter>
     }
     if (previewPath === '/mobile/onboarding') {
+      const { MobilePreviewOnboarding } = await import('./features/mobile/Onboarding/MobilePreviewOnboarding.tsx')
       return <BrowserRouter><MobilePreviewOnboarding /></BrowserRouter>
     }
     window.location.replace('/mobile/onboarding?demo=1')
