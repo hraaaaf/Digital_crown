@@ -2,9 +2,8 @@
 
 Only Ed25519 PUBLIC keys belong here. Private signing keys must never be
 committed or shipped with the desktop application.
-
-SEC-1 deliberately fails closed while this mapping is empty. Production key
-provisioning is a release gate, not something generated into source code.
 """
 
-TRUSTED_LICENSE_PUBLIC_KEYS: dict[str, str] = {}
+TRUSTED_LICENSE_PUBLIC_KEYS: dict[str, str] = {
+    "dc-prod-1dc019b73b23c7d3": "pTsKHE_SrROLwY4tQ3QFaNmKceTqCEbLfRhMI7BMC18",
+}
