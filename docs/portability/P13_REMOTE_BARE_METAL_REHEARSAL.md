@@ -31,6 +31,26 @@ Use an x86 `.metal` host for the rehearsal. Windows Server can be useful here to
 
 Windows 10/11 BYOL may be used where licensing permits, but P13 final closure still requires the local cabinet gate below.
 
+## Verified AWS provisioning baseline — 2026-08-29
+Primary AWS documentation was rechecked before provisioning guidance was frozen.
+
+For Europe (Frankfurt), `eu-central-1` currently lists the `Mac2-m2`, `Mac-m4` and `M6i` instance families. The EC2 instance-type specification defines `mac2-m2.metal`, `mac-m4.metal` and `m6i.metal`; `M6i` is x86_64, supports Windows and supports Dedicated Hosts.
+
+Recommended simplest rehearsal pair:
+- macOS: `mac-m4.metal` when capacity is available; `mac2-m2.metal` is the fallback;
+- Windows rehearsal: `m6i.metal` with an AWS Windows Server AMI;
+- Region: `eu-central-1` unless actual quota/AZ capacity requires another supported Region.
+
+This deliberately avoids Windows 11 BYOL for P13-R. AWS documents Windows 11 desktop BYOL as requiring qualifying Microsoft VDA E3/E5 user licensing plus dedicated infrastructure. Because the final Windows 11 proof remains local anyway, importing a desktop BYOL image into AWS adds licensing work without closing any additional P13 gate.
+
+EC2 Mac runs through a Dedicated Host and AWS enforces a minimum 24-hour host allocation/billing period. Region support does not guarantee capacity in every Availability Zone, so quota and host capacity must be checked immediately before allocation.
+
+Sources of truth for this baseline:
+- AWS EC2 instance types by Region;
+- AWS EC2 general-purpose instance specifications;
+- AWS EC2 Mac Instances / EC2 Mac FAQs;
+- AWS Prescriptive Guidance — Microsoft licensing on AWS.
+
 ## Storage boundary
 A second directory or second volume presented as source-machine internal storage is not sufficient.
 
@@ -61,7 +81,7 @@ Create a non-secret JSON file such as `p13-context.json`:
   "macos": {
     "execution_context": "remote_bare_metal_rehearsal",
     "provider": "aws",
-    "instance_type": "mac2-m2.metal",
+    "instance_type": "mac-m4.metal",
     "operator_attested": true,
     "dr_destination": {
       "kind": "independent_network_storage",
