@@ -11,6 +11,9 @@ on:
       - "backend/routers/update_portability_p10.py"
       - "backend/tests/test_macos_update_apply.py"
       - "backend/tests/test_macos_update_dispatch.py"
+      - "scripts/p10_macos_signed_lifecycle_ci.py"
+      - "scripts/p7_macos_packaging_check.py"
+      - ".github/workflows/portability-p7-p10-macos-signed-lifecycle.yml"
       - "run.py"
       - ".github/workflows/portability-p10-macos-update.yml"
   workflow_dispatch:
@@ -38,9 +41,12 @@ jobs:
           backend/services/update_dispatch.py
           backend/services/update_recovery.py
           backend/routers/update_portability_p10.py
+          scripts/p10_macos_signed_lifecycle_ci.py
           run.py
-      - name: Existing P10 static contract
-        run: python scripts/p10_update_contract_check.py
+      - name: P7 and P10 static contracts
+        run: |
+          python scripts/p7_macos_packaging_check.py --static
+          python scripts/p10_update_contract_check.py
       - name: macOS routing recovery and DB rollback tests
         run: >-
           python -m pytest
@@ -66,7 +72,8 @@ jobs:
           [[ "$(uname -m)" == "arm64" ]]
       - name: Install targeted dependencies
         run: python -m pip install --disable-pip-version-check pytest cryptography sqlalchemy python-dotenv
-      - name: Compile and run macOS-specific contract tests
+      - name: Compile signed lifecycle harness and run macOS contract tests
         run: |
-          python -m py_compile backend/services/macos_update_apply.py backend/services/macos_update_worker.py backend/services/macos_update_db_rollback.py backend/services/update_dispatch.py
+          python -m py_compile backend/services/macos_update_apply.py backend/services/macos_update_worker.py backend/services/macos_update_db_rollback.py backend/services/update_dispatch.py scripts/p10_macos_signed_lifecycle_ci.py
+          python scripts/p7_macos_packaging_check.py --static
           python -m pytest backend/tests/test_macos_update_apply.py backend/tests/test_macos_update_dispatch.py -q --noconftest

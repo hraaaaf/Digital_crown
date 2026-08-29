@@ -46,7 +46,7 @@ def static_contract(root: Path) -> None:
         "P7_UNQUALIFIED_SCIENTIFIC_WEIGHTS=FORBIDDEN",
     ):
         require(snippet in workflow, f"missing P7 fail-closed policy marker: {snippet}")
-    for snippet in (
+    legacy_scientific_markers = (
         "P7_ASSET_REPO",
         "P7_ASSET_TAG",
         "P7_ASSET_NAME",
@@ -54,8 +54,55 @@ def static_contract(root: Path) -> None:
         "provision_p6_scientific_assets.py",
         "Download scientific runtime bundle",
         "gh release download",
-    ):
+    )
+    for snippet in legacy_scientific_markers:
         require(snippet not in workflow, f"legacy scientific provisioning must stay absent from P7: {snippet}")
+
+    signed_workflow = (
+        root / ".github" / "workflows" / "portability-p7-p10-macos-signed-lifecycle.yml"
+    ).read_text(encoding="utf-8")
+    for snippet in (
+        "Portability P7 P10 macOS Signed Lifecycle Certification",
+        "workflow_call:",
+        "candidate_ref:",
+        "ref: ${{ inputs.candidate_ref }}",
+        "P10_MACOS_CANDIDATE_SHA",
+        "runs-on: macos-15",
+        "scripts/p10_macos_signed_lifecycle_ci.py",
+        'build_version "1.0.0"',
+        'build_version "1.0.1"',
+        "xcrun notarytool submit",
+        "xcrun stapler staple",
+        "xcrun stapler validate",
+        "P7_P10_SIGNED_LIFECYCLE=SUCCESS",
+        "digitalcrown-p7-p10-macos-signed-lifecycle",
+    ):
+        require(snippet in signed_workflow, f"missing signed P7/P10 lifecycle contract: {snippet}")
+    for secret in (
+        "MACOS_DEVELOPER_ID_P12_B64",
+        "MACOS_DEVELOPER_ID_P12_PASSWORD",
+        "MACOS_CODESIGN_IDENTITY",
+        "APPLE_NOTARY_KEY_P8_B64",
+        "APPLE_NOTARY_KEY_ID",
+        "APPLE_NOTARY_ISSUER_ID",
+    ):
+        require(secret in signed_workflow, f"missing signed P7/P10 credential gate: {secret}")
+    for snippet in legacy_scientific_markers:
+        require(snippet not in signed_workflow, f"legacy scientific provisioning must stay absent from signed P7/P10: {snippet}")
+
+    harness = (root / "scripts" / "p10_macos_signed_lifecycle_ci.py").read_text(encoding="utf-8")
+    for snippet in (
+        'BASE_VERSION = "1.0.0"',
+        'TARGET_VERSION = "1.0.1"',
+        'WORKER_CONTRACT = "macos-dmg-v1"',
+        'RECOVERY_CONTRACT = "macos-interruption-v1"',
+        "verify_distribution(",
+        "positive_case(",
+        "interruption_case(",
+        "db_rollback_case(",
+        'proof["status"] = "success"',
+    ):
+        require(snippet in harness, f"missing signed macOS lifecycle harness contract: {snippet}")
 
     dmg = (root / "scripts" / "create_macos_dmg.sh").read_text(encoding="utf-8")
     require('ditto "$APP" "$STAGE/DigitalCrown.app"' in dmg, "DMG builder must preserve signed app via ditto")
