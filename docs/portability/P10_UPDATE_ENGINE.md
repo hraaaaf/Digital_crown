@@ -45,6 +45,8 @@ On HEAD `705bdfc56cf53fc383c9e54934d599fa7befa4c1`, 12/12 PR-triggered workflows
 ### Windows
 Private Digital Crown PKI is used for known clinic machines. This is not Microsoft SmartScreen reputation. Clinic machines receive only the public `.cer`; private PFX/password never leave controlled signing custody.
 
+The **private key** remains outside the repository and outside clinic machines. It exists only in controlled signing custody; CI imports the encrypted PFX ephemerally, signs, verifies, then removes the PFX and temporary trust material before the runner is destroyed.
+
 ### macOS
 Private distribution uses signed-manifest authenticity + exact SHA + ad-hoc codesign integrity. No Developer ID, notarization, stapling or Apple Gatekeeper approval is claimed. Human first-launch ceremony remains a P13 real-cabinet check.
 
