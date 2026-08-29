@@ -10,37 +10,48 @@ Last verified: 2026-08-29.
 - P4 — 8 EP — CLOSED
 - P5 — 13 EP — CLOSED
 - P6 — 8 EP — CLOSED
-- P7 — 13 EP — CLOSED; private macOS packaging and lifecycle certified
+- P7 — 13 EP — CLOSED
 - P8 — 21 EP — CLOSED
+- P9 — 8 EP — CLOSED; off-runner cross-OS frozen DR certified
 - P10 — 13 EP — CLOSED; authenticated cross-platform update lifecycle certified
 - P11 — 8 EP — CLOSED
+- P12 — 13 EP — CLOSED candidate; technical Windows/macOS evidence matrix complete
 
-## P7 / P10 closeout proof
-PR #274 merged into `portability/p10-update-engine` as `04d286041fe85743920d633aea4f6a24f3ceae3f`.
-Post-merge exact HEAD `3bc4f781e9ad496b86c72b4cade56da9241555c7` verified with 18/19 PR-triggered workflows SUCCESS and 0 failures; the only non-completed workflow is redundant P6 Windows Packaging #149, still pending, while P6 Authenticode #16, P10 #139, P10 macOS #57, P7 #25, Clean Hosted #7, P12 #69 and general CI #2183 are all SUCCESS.
+## P9 proof
+Final technical candidate `4590e2975e71ca89fc404e96e717646155b8fc14`; P9 #11 `33276520623`: **5/5 SUCCESS**.
+- macOS → Windows proof artifact `9721759555`, digest `sha256:18d897632b8ee9381b9eec4ca865cdf419164b1950cf83294f06c86075f0830f`.
+- Windows → macOS proof artifact `9721742568`, digest `sha256:d62d1e0e6d69fbff7b5e3e58d877e932fd53ea2b5ee04c42d05cd98199ddfc09`.
 
-Clean Hosted #7 `33272768876` — SUCCESS on both fresh platforms.
-P7 macOS #25 `33272768846` — SUCCESS.
-P10 #139 `33272768851` — SUCCESS.
-P10 macOS #57 `33272768868` — SUCCESS.
-P12 Prep #69 `33272768866` — SUCCESS.
-CI #2183 `33272768872` — SUCCESS.
+## P12 evidence matrix
+All ten technical requirements have an independently verified upstream proof:
+1. runtime/readiness/single-instance — P2 + Runtime regression;
+2. frozen package self-test / forbidden content — P6/P7/P9;
+3. native scientific fail-closed — P5 + frozen self-tests;
+4. install/upgrade/uninstall/data preservation — P6/P7;
+5. cross-OS DR + failure paths — P9;
+6. authenticated update + rollback — P10;
+7. launcher/recovery — P11;
+8. artifact identity/checksum/platform trust truth — P6/P7/P10;
+9. clean-machine technical execution — P6/P7/P9/P10;
+10. conservative hardware support truth — P8.
+
+P13 remains separate for physical cabinet machines, human macOS first launch, operational USB/NAS setup and real-device evidence where required.
+
+## Canonical EP arithmetic
+The 15 listed lots total **167 EP**, not 162. The stale 162 denominator was introduced with the effort table itself on 2026-08-24. No lot value was reduced to preserve it.
 
 ## Active / remaining
-- P9: ACTIVE; off-machine independently persisted DR proof + clean packaged restore + cross-OS evidence where applicable remain open.
-- P12: PREPARED, 0 EP until final matrix closes after P9.
-- P13: PLANNED; real-cabinet certification including human macOS first launch.
-- P14: PLANNED.
+- P13: PLANNED — 13 EP, real-cabinet certification.
+- P14: PLANNED — 5 EP, final closeout.
 
 ## Progress
-Credited progress: **128 / 162 EP = 79.0%**.
-No partial EP is credited for open lots.
+Candidate credited progress after P12 exact-head validation: **149 / 167 EP = 89.2%**.
+Until the P12 closeout candidate passes its own exact-head checks, the last fully validated credited state remains P9-level **136 / 167 EP = 81.4%**.
 
 ## Next
-1. execute P9 off-machine independent clean packaged restore proof;
-2. close P9 if its real gates pass;
-3. finalize P12 matrix;
-4. execute P13 real-cabinet certification;
-5. P14 closeout.
+1. exact-head validate P9/P12 closeout candidate;
+2. merge PR #298 if green;
+3. define and execute P13 real-cabinet certification;
+4. P14 closeout.
 
 No Vercel.

@@ -35,28 +35,26 @@ def main() -> None:
     require(not missing_docs, f"P12 upstream evidence doc missing: {missing_docs}")
 
     matrix = (doc_dir / "P12_CERTIFICATION_MATRIX.md").read_text(encoding="utf-8")
-    for marker in (
-        "0 EP credited",
-        "OPEN_REAL_TARGET",
-        "Hardware truth matrix | certified conservative boundary | certified conservative boundary | P8 | AVAILABLE",
-        "Frozen/package lifecycle | proved by P6 | proved by P7 private distribution | P6/P7 | AVAILABLE",
-        "Update secure core | certified signed lifecycle | certified private lifecycle | P10 | AVAILABLE",
-        "Any future `SUPPORTED` hardware claim still requires real-device evidence",
-        "No Vercel",
-    ):
-        require(marker in matrix, f"P12 matrix truth marker missing: {marker}")
-
     p8 = (doc_dir / "P8_HARDWARE_COMPATIBILITY_MATRIX.md").read_text(encoding="utf-8")
-    require("**Status:** CLOSED ✅ — **21 EP**" in p8, "P12 must consume the closed P8 compatibility boundary")
+    p9 = (doc_dir / "P9_BACKUP_RECOVERY_DR.md").read_text(encoding="utf-8")
+    p10 = (doc_dir / "P10_UPDATE_ENGINE.md").read_text(encoding="utf-8")
+    p11 = (doc_dir / "P11_LAUNCHER_RECOVERY_UX.md").read_text(encoding="utf-8")
+    p6 = (doc_dir / "PORTABILITY_P6_CLOSEOUT.md").read_text(encoding="utf-8")
+
+    require("**Status:** CLOSED ✅ — **21 EP**" in p8, "P12 must consume closed P8")
     require(
         "No direct dental device is certified as `SUPPORTED`" in p8,
-        "P12 must preserve P8's conservative no-direct-support truth",
+        "P12 must preserve P8 conservative hardware truth",
     )
+    require("**Status:** CLOSED" in p9 and "8 EP credited" in p9, "P12 requires P9 CLOSED")
+    for marker in (
+        "4590e2975e71ca89fc404e96e717646155b8fc14",
+        "33276520623",
+        "9721759555",
+        "9721742568",
+    ):
+        require(marker in p9, f"P12 missing P9 evidence: {marker}")
 
-    p9 = (doc_dir / "P9_BACKUP_RECOVERY_DR.md").read_text(encoding="utf-8")
-    require("P9 does not close until" in p9, "P12 must preserve P9 real-target gate")
-
-    p10 = (doc_dir / "P10_UPDATE_ENGINE.md").read_text(encoding="utf-8")
     for marker in (
         "P6/P7",
         "package self-test",
@@ -70,9 +68,55 @@ def main() -> None:
         "private key",
         "Clean Hosted",
     ):
-        require(marker.lower() in p10.lower(), f"P12 must preserve certified P10 truth marker: {marker}")
+        require(marker.lower() in p10.lower(), f"P12 must preserve P10 truth: {marker}")
 
-    print("P12_CERTIFICATION_MATRIX_PREP=SUCCESS state=PREPARED ep=0 p7=AVAILABLE p10=AVAILABLE p9=OPEN_REAL_TARGET")
+    require("**Status:** CLOSED" in p11, "P12 requires P11 CLOSED")
+    require("Status: **CLOSED / VERIFIED**" in p6, "P12 requires P6 CLOSED")
+    require("FAIL_CLOSED_NO_WEIGHTS" in p6, "P12 requires P6 frozen scientific truth")
+
+    closed = "**Status:** CLOSED" in matrix
+    if closed:
+        for marker in (
+            "13 EP credited",
+            "Core/runtime + single-instance | certified | certified | P2/P5 | CERTIFIED",
+            "Frozen/package lifecycle | certified P6/private-PKI successor | certified P7 private distribution | P6/P7/P10 | CERTIFIED",
+            "Scientific assets/runtime policy | native fail-closed + frozen `FAIL_CLOSED_NO_WEIGHTS` | native fail-closed + frozen `FAIL_CLOSED_NO_WEIGHTS` | P5/P6/P9 | CERTIFIED",
+            "Hardware truth matrix | conservative boundary certified | conservative boundary certified | P8 | CERTIFIED",
+            "Disaster recovery | certified macOS → Windows frozen restore | certified Windows → macOS frozen restore | P9 | CERTIFIED",
+            "Authenticated update | certified signed current → next + rollback | certified private current → next + rollback | P10 | CERTIFIED",
+            "Launcher/recovery UX | certified | certified shared UX | P11 | CERTIFIED",
+            "Clean-machine technical E2E | certified on fresh Windows runners | certified on fresh Apple Silicon runners | P6/P7/P9/P10 | CERTIFIED",
+            "32601811079",
+            "32999393374",
+            "33274684195",
+            "33276520623",
+            "33274684115",
+            "33274684087",
+            "33274684081",
+            "32783305559",
+            "P13 boundary retained",
+            "No Vercel",
+        ):
+            require(marker in matrix, f"P12 CLOSED evidence missing: {marker}")
+        print(
+            "P12_CERTIFICATION_MATRIX=SUCCESS state=CLOSED ep=13 "
+            "windows=CERTIFIED macos=CERTIFIED p9=AVAILABLE p13=SEPARATE_REAL_CABINET"
+        )
+        return
+
+    for marker in (
+        "0 EP credited",
+        "Hardware truth matrix | certified conservative boundary | certified conservative boundary | P8 | AVAILABLE",
+        "Frozen/package lifecycle | proved by P6 | proved by P7 private distribution | P6/P7 | AVAILABLE",
+        "Update secure core | certified signed lifecycle | certified private lifecycle | P10 | AVAILABLE",
+        "Any future `SUPPORTED` hardware claim still requires real-device evidence",
+        "No Vercel",
+    ):
+        require(marker in matrix, f"P12 PREPARED truth marker missing: {marker}")
+    print(
+        "P12_CERTIFICATION_MATRIX_PREP=SUCCESS state=PREPARED ep=0 "
+        "p7=AVAILABLE p10=AVAILABLE p9=AVAILABLE"
+    )
 
 
 if __name__ == "__main__":
