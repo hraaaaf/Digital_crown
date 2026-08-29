@@ -31,19 +31,12 @@ jobs:
           cd frontend
           VITE_ENABLE_HTTPS=true npm run dev -- --host 0.0.0.0 --port 5173 >/tmp/vite-ios.log 2>&1 &
           for i in {1..60}; do curl -kfsS https://localhost:5173 >/dev/null && exit 0; sleep 1; done
-          cat /tmp/vite-ios.log; exit 1
+          cat /tmp/vite-ios.log
+          exit 1
       - name: Boot iPhone and capture product
         run: |
-          UDID=$(python3 - <<'PY'
-          import json, subprocess, sys
-          d=json.loads(subprocess.check_output(['xcrun','simctl','list','devices','available','-j']))
-          for r in sorted((x for x in d['devices'] if 'iOS-' in x), reverse=True):
-            for dev in d['devices'][r]:
-              if dev.get('isAvailable') and dev.get('name','').startswith('iPhone'):
-                print(dev['udid']); sys.exit(0)
-          sys.exit(1)
-          PY
-          )
+          UDID=$(xcrun simctl list devices available | grep 'iPhone' | head -1 | sed -E 's/.*\(([0-9A-F-]{36})\).*/\1/')
+          test -n "$UDID"
           xcrun simctl boot "$UDID" || true
           xcrun simctl bootstatus "$UDID" -b
           xcrun simctl keychain "$UDID" add-root-cert "$GITHUB_WORKSPACE/certs/cert.pem"
@@ -79,7 +72,8 @@ jobs:
           npm ci
           npm run dev -- --host 0.0.0.0 --port 5173 >/tmp/vite-android.log 2>&1 &
           for i in {1..60}; do curl -fsS http://127.0.0.1:5173 >/dev/null && exit 0; sleep 1; done
-          cat /tmp/vite-android.log; exit 1
+          cat /tmp/vite-android.log
+          exit 1
       - name: Enable KVM
         run: if [ -e /dev/kvm ]; then sudo chmod 666 /dev/kvm; fi
       - name: Capture after dismissing browser prompts
@@ -99,22 +93,12 @@ jobs:
             adb shell 'echo "chrome --disable-fre --no-default-browser-check" > /data/local/tmp/chrome-command-line' || true
             adb shell am start -W -a android.intent.action.VIEW -d "http://10.0.2.2:5173/mobile/onboarding" com.android.chrome
             sleep 5
-            adb shell uiautomator dump /sdcard/window.xml >/dev/null 2>&1 || true
-            adb pull /sdcard/window.xml artifacts/mobile-clean/android/window-before.xml >/dev/null 2>&1 || true
-            python3 - <<'PY'
-          import re, subprocess
-          xml=subprocess.run(['adb','shell','cat','/sdcard/window.xml'],capture_output=True,text=True).stdout
-          for label in ('No thanks','Non merci'):
-            m=re.search(r'text="'+re.escape(label)+r'"[^>]*bounds="\[(\d+),(\d+)\]\[(\d+),(\d+)\]"',xml)
-            if m:
-              x1,y1,x2,y2=map(int,m.groups()); subprocess.run(['adb','shell','input','tap',str((x1+x2)//2),str((y1+y2)//2)]); break
-          PY
+            adb exec-out screencap -p > artifacts/mobile-clean/android/before.png
+            adb shell input tap 455 1790 || true
             sleep 3
             adb shell input keyevent 4 || true
             sleep 2
             adb exec-out screencap -p > artifacts/mobile-clean/android/onboarding-clean.png
-            adb shell uiautomator dump /sdcard/window-after.xml >/dev/null 2>&1 || true
-            adb pull /sdcard/window-after.xml artifacts/mobile-clean/android/window-after.xml >/dev/null 2>&1 || true
             printf 'head=%s\nurl=http://10.0.2.2:5173/mobile/onboarding\n' '${{ github.sha }}' > artifacts/mobile-clean/android/result.txt
       - uses: actions/upload-artifact@v4
         if: always()
