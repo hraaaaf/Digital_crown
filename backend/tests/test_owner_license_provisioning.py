@@ -204,7 +204,9 @@ def test_owner_apply_refuses_mismatched_firebase_readback_without_sqlite_mutatio
     monkeypatch.setattr(settings, "PLATFORM_CONTROL_PLANE_ENABLED", True)
     _patch_issuer_and_verifier(monkeypatch, owner.id, cabinet.clinic_id)
 
-    async def fake_write(_self, _public_id, _signed_license):
+    async def fake_write(_self, public_id, signed_license):
+        assert public_id == cabinet.clinic_id
+        assert signed_license == "signed.owner.token"
         return True
 
     calls = {"read": 0}
