@@ -1,0 +1,413 @@
+name: Portability P7/P10 Clean Hosted Certification
+
+on:
+  pull_request:
+    paths:
+      - "DigitalCrown.spec"
+      - "VERSION"
+      - "backend/services/macos_private_trust.py"
+      - "backend/macos_private_trust_runtime_hook.py"
+      - "backend/services/update_*.py"
+      - "backend/tests/test_macos_private_trust.py"
+      - "installer/**"
+      - "scripts/p7_macos_packaging_check.py"
+      - "scripts/p10_macos_private_lifecycle_ci.py"
+      - "scripts/p10_windows_packaged_lifecycle_ci.py"
+      - "scripts/p10_windows_packaged_finalization_ci.py"
+      - ".github/workflows/portability-p7-p10-clean-hosted.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: portability-clean-hosted-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  PYTHON_VERSION: "3.12"
+  NODE_VERSION: "20"
+
+jobs:
+  macos-clean-private-lifecycle:
+    name: clean-macos-private-lifecycle
+    runs-on: macos-15
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Prove fresh independent macOS runner
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$(uname -m)" == "arm64" ]]
+          for path in "/Applications/DigitalCrown.app" "$HOME/Applications/DigitalCrown.app" "$HOME/Library/Application Support/DigitalCrown"; do
+            if [[ -e "$path" ]]; then
+              echo "Unexpected pre-existing Digital Crown state: $path" >&2
+              exit 1
+            fi
+          done
+          echo "P7_CLEAN_HOSTED_BASELINE=SUCCESS arch=arm64"
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Static private macOS contract
+        run: |
+          python scripts/p7_macos_packaging_check.py --static
+          python -m py_compile backend/services/macos_private_trust.py backend/macos_private_trust_runtime_hook.py scripts/p10_macos_private_lifecycle_ci.py
+
+      - name: Private trust unit tests
+        run: |
+          python -m pip install --disable-pip-version-check pytest cryptography sqlalchemy python-dotenv
+          python -m pytest backend/tests/test_macos_private_trust.py backend/tests/test_macos_update_apply.py backend/tests/test_macos_update_dispatch.py -q --noconftest
+
+      - name: Build frontend once
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm --prefix frontend ci
+          npm --prefix frontend run build
+          rm -rf frontend/node_modules
+          npm cache clean --force || true
+
+      - name: Install exact macOS packaging toolchain
+        run: python -m pip install --no-cache-dir -r backend/requirements-p7-macos.txt
+
+      - name: Generate native macOS icon
+        shell: bash
+        run: |
+          set -euo pipefail
+          python scripts/generate_macos_icon.py
+          iconutil -c icns build/macos/DigitalCrown.iconset -o build/macos/DigitalCrown.icns
+          test -s build/macos/DigitalCrown.icns
+
+      - name: Build private 1.0.0 and 1.0.1 DMGs
+        shell: bash
+        run: |
+          set -euo pipefail
+          ORIGINAL_VERSION="$(cat VERSION)"
+          cleanup() { printf '%s\n' "$ORIGINAL_VERSION" > VERSION; }
+          trap cleanup EXIT
+
+          build_version() {
+            local version="$1"
+            printf '%s\n' "$version" > VERSION
+            rm -rf build/DigitalCrown dist/DigitalCrown dist/DigitalCrown.app dist_macos
+            python -m PyInstaller --noconfirm --clean DigitalCrown.spec
+            codesign --force --deep --sign - dist/DigitalCrown.app
+            python scripts/p7_macos_packaging_check.py --bundle dist/DigitalCrown.app
+            DIGITALCROWN_PACKAGE_SELF_TEST_REPORT="$RUNNER_TEMP/self-test-${version}.json" dist/DigitalCrown.app/Contents/MacOS/DigitalCrown --package-self-test
+            bash scripts/create_macos_dmg.sh
+            mkdir -p "$RUNNER_TEMP/private-dmgs"
+            cp "dist_macos/DigitalCrown-${version}-arm64.dmg" "$RUNNER_TEMP/private-dmgs/"
+          }
+
+          build_version "1.0.0"
+          build_version "1.0.1"
+          cleanup
+          trap - EXIT
+          echo "P7_CLEAN_HOSTED_DMG_PAIR=SUCCESS"
+
+      - name: Prove Gatekeeper default policy boundary
+        shell: bash
+        run: |
+          set -euo pipefail
+          MOUNT="$RUNNER_TEMP/gatekeeper-mount"
+          mkdir -p "$MOUNT"
+          hdiutil attach "$RUNNER_TEMP/private-dmgs/DigitalCrown-1.0.0-arm64.dmg" -mountpoint "$MOUNT" -nobrowse -readonly
+          APP="$MOUNT/DigitalCrown.app"
+          codesign --verify --deep --strict --verbose=4 "$APP"
+          set +e
+          SPCTL_OUTPUT="$(spctl --assess --type execute --verbose=4 "$APP" 2>&1)"
+          SPCTL_EXIT=$?
+          set -e
+          printf '%s\n' "$SPCTL_OUTPUT" | tee "$RUNNER_TEMP/p7-spctl.txt"
+          if [[ "$SPCTL_EXIT" -eq 0 ]]; then
+            echo "Private ad-hoc app was unexpectedly Gatekeeper-approved" >&2
+            hdiutil detach "$MOUNT" -force || true
+            exit 1
+          fi
+          printf '{"format":"digitalcrown-p7-clean-hosted-gatekeeper-v1","head_sha":"%s","arch":"%s","codesign":"valid_adhoc","gatekeeper_default":"rejected_as_expected","spctl_exit":%s}\n' \
+            "$GITHUB_SHA" "$(uname -m)" "$SPCTL_EXIT" > "$RUNNER_TEMP/p7-clean-hosted-gatekeeper.json"
+          hdiutil detach "$MOUNT" -force
+          echo "P7_GATEKEEPER_DEFAULT=REJECTED_AS_EXPECTED"
+
+      - name: Real private packaged update lifecycle on clean runner
+        shell: bash
+        run: |
+          set -euo pipefail
+          python scripts/p10_macos_private_lifecycle_ci.py \
+            --baseline-dmg "$RUNNER_TEMP/private-dmgs/DigitalCrown-1.0.0-arm64.dmg" \
+            --target-dmg "$RUNNER_TEMP/private-dmgs/DigitalCrown-1.0.1-arm64.dmg" \
+            --work-root "$RUNNER_TEMP/p10-private-lifecycle" \
+            --report "$RUNNER_TEMP/p10-private-lifecycle-proof.json" \
+            --repo-root "$GITHUB_WORKSPACE"
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          proof = json.loads((Path(os.environ["RUNNER_TEMP"]) / "p10-private-lifecycle-proof.json").read_text())
+          assert proof["status"] == "success"
+          assert proof["trust_mode"] == "signed_manifest_sha256+adhoc_codesign"
+          assert proof["apple_developer_id_claim"] is False
+          assert proof["apple_notarization_claim"] is False
+          assert proof["rescue_preflight_self_test"] == "passed_all_cases"
+          assert proof["positive"]["installed_version"] == "1.0.1"
+          assert proof["interruption_recovery"]["status"] == "success"
+          assert proof["interruption_recovery"]["job_status"] == "rolled_back"
+          assert proof["database_rollback"]["database_rollback"] == "passed"
+          print("P7_P10_CLEAN_HOSTED_MACOS_LIFECYCLE=SUCCESS")
+          PY
+
+      - name: Uninstall preserves cabinet data on clean runner
+        shell: bash
+        run: |
+          set -euo pipefail
+          DATA="$RUNNER_TEMP/private-uninstall-data"
+          APP="$RUNNER_TEMP/private-uninstall-app/DigitalCrown.app"
+          mkdir -p "$DATA" "$(dirname "$APP")"
+          echo -n "preserve-me" > "$DATA/P7_DATA_SENTINEL.txt"
+          MOUNT="$RUNNER_TEMP/private-uninstall-mount"
+          mkdir -p "$MOUNT"
+          hdiutil attach "$RUNNER_TEMP/private-dmgs/DigitalCrown-1.0.1-arm64.dmg" -mountpoint "$MOUNT" -nobrowse -readonly
+          ditto "$MOUNT/DigitalCrown.app" "$APP"
+          hdiutil detach "$MOUNT" -force
+          rm -rf "$APP"
+          test -f "$DATA/P7_DATA_SENTINEL.txt"
+          echo "P7_CLEAN_HOSTED_UNINSTALL_DATA=SUCCESS"
+
+      - name: Upload compact clean macOS proof
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: digitalcrown-clean-hosted-macos-proof
+          path: |
+            ${{ runner.temp }}/p7-clean-hosted-gatekeeper.json
+            ${{ runner.temp }}/p7-spctl.txt
+            ${{ runner.temp }}/p10-private-lifecycle-proof.json
+            ${{ runner.temp }}/self-test-*.json
+          if-no-files-found: error
+          retention-days: 7
+
+  windows-clean-signed-lifecycle:
+    name: clean-windows-signed-lifecycle
+    runs-on: windows-2025
+    timeout-minutes: 120
+    env:
+      INNO_SETUP_RELEASE: "is-6_7_3"
+      INNO_SETUP_URL: "https://github.com/jrsoftware/issrc/releases/download/is-6_7_3/innosetup-6.7.3.exe"
+      INNO_SETUP_SHA256: "9c73c3bae7ed48d44112a0f48e66742c00090bdb5bef71d9d3c056c66e97b732"
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Prove fresh independent Windows runner
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          foreach ($path in @(
+            'C:\Program Files\Digital Crown',
+            'C:\Program Files\DigitalCrown',
+            (Join-Path $env:LOCALAPPDATA 'DigitalCrown'),
+            (Join-Path $env:APPDATA 'DigitalCrown')
+          )) {
+            if (Test-Path -LiteralPath $path) { throw "Unexpected pre-existing Digital Crown state: $path" }
+          }
+          Write-Host 'P10_WINDOWS_CLEAN_HOSTED_BASELINE=SUCCESS'
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Build frontend once
+        shell: pwsh
+        run: npm --prefix frontend ci; if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }; npm --prefix frontend run build; if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Install exact Windows packaging toolchain
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          python -m pip install --no-cache-dir -r backend/requirements-p6-windows.txt
+          if ($LASTEXITCODE -ne 0) { throw 'pip install failed' }
+          python -m pip check
+          if ($LASTEXITCODE -ne 0) { throw 'pip check failed' }
+          $installer = Join-Path $env:RUNNER_TEMP 'innosetup-6.7.3.exe'
+          $innoDir = Join-Path $env:RUNNER_TEMP 'InnoSetup-6.7.3'
+          Invoke-WebRequest -Uri $env:INNO_SETUP_URL -OutFile $installer
+          $actual = (Get-FileHash -Algorithm SHA256 $installer).Hash.ToLowerInvariant()
+          if ($actual -ne $env:INNO_SETUP_SHA256) { throw "Inno Setup SHA256 mismatch: $actual" }
+          $signature = Get-AuthenticodeSignature $installer
+          if ($signature.Status -ne 'Valid') { throw "Inno Setup Authenticode invalid: $($signature.Status)" }
+          $proc = Start-Process -FilePath $installer -ArgumentList @('/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART','/SP-',"/DIR=$innoDir") -Wait -PassThru
+          if ($proc.ExitCode -ne 0) { throw "Inno Setup install failed: $($proc.ExitCode)" }
+          $iscc = Join-Path $innoDir 'ISCC.exe'
+          if (-not (Test-Path -LiteralPath $iscc -PathType Leaf)) { throw 'ISCC.exe missing' }
+          "P10_ISCC=$iscc" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+
+      - name: Build real current and next installers
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $baselineVersion = (Get-Content VERSION -Raw).Trim()
+          if ($baselineVersion -ne '1.0.0') { throw "Expected VERSION=1.0.0, got $baselineVersion" }
+          $packages = Join-Path $env:RUNNER_TEMP 'dc-p10-signed-packages'
+          New-Item -ItemType Directory -Path $packages -Force | Out-Null
+          python scripts/generate_windows_version_info.py --output build/windows-version-info.txt
+          python -m PyInstaller --noconfirm --clean DigitalCrown.spec
+          if ($LASTEXITCODE -ne 0) { throw 'baseline PyInstaller failed' }
+          & $env:P10_ISCC "/DMyAppVersion=$baselineVersion" installer\DigitalCrown.iss
+          if ($LASTEXITCODE -ne 0) { throw 'baseline Inno build failed' }
+          $baseline = (Resolve-Path "dist_installer\DigitalCrownSetup-$baselineVersion.exe").Path
+          $baselineCopy = Join-Path $packages "DigitalCrownSetup-$baselineVersion.exe"
+          Copy-Item -LiteralPath $baseline -Destination $baselineCopy -Force
+          try {
+            Set-Content -LiteralPath VERSION -Value '1.0.1' -NoNewline -Encoding ascii
+            python scripts/generate_windows_version_info.py --output build/windows-version-info.txt
+            python -m PyInstaller --noconfirm --clean DigitalCrown.spec
+            if ($LASTEXITCODE -ne 0) { throw 'target PyInstaller failed' }
+            & $env:P10_ISCC '/DMyAppVersion=1.0.1' installer\DigitalCrown.iss
+            if ($LASTEXITCODE -ne 0) { throw 'target Inno build failed' }
+            $target = (Resolve-Path 'dist_installer\DigitalCrownSetup-1.0.1.exe').Path
+            $targetCopy = Join-Path $packages 'DigitalCrownSetup-1.0.1.exe'
+            Copy-Item -LiteralPath $target -Destination $targetCopy -Force
+          } finally {
+            Set-Content -LiteralPath VERSION -Value $baselineVersion -NoNewline -Encoding ascii
+          }
+          "P10_BASELINE_INSTALLER=$baselineCopy" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          "P10_TARGET_INSTALLER=$targetCopy" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          Write-Host 'P10_CLEAN_HOSTED_UNSIGNED_PAIR=READY'
+
+      - name: Sign, timestamp, trust and verify both installers
+        id: signedpair
+        shell: pwsh
+        timeout-minutes: 10
+        env:
+          CERT_PFX_B64: ${{ secrets.WINDOWS_CODESIGN_PFX_B64 }}
+          CERT_PASSWORD: ${{ secrets.WINDOWS_CODESIGN_PASSWORD }}
+          EXPECTED_CERT_SHA256: ${{ vars.WINDOWS_CODESIGN_CERT_SHA256 }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $values = @($env:CERT_PFX_B64, $env:CERT_PASSWORD, $env:EXPECTED_CERT_SHA256)
+          if (@($values | Where-Object { -not [string]::IsNullOrWhiteSpace([string]$_) }).Count -ne 3) { throw 'P10_PRIVATE_CODESIGN_CONFIGURATION_MISSING' }
+          if ($env:EXPECTED_CERT_SHA256 -notmatch '^[0-9a-fA-F]{64}$') { throw 'P10_PRIVATE_CODESIGN_CERT_SHA256_INVALID' }
+
+          $pfx = Join-Path $env:RUNNER_TEMP 'digitalcrown-private-codesign.pfx'
+          [IO.File]::WriteAllBytes($pfx, [Convert]::FromBase64String($env:CERT_PFX_B64))
+          $securePassword = ConvertTo-SecureString $env:CERT_PASSWORD -AsPlainText -Force
+          $cert = Import-PfxCertificate -FilePath $pfx -CertStoreLocation Cert:\CurrentUser\My -Password $securePassword -Exportable:$false
+          if ($null -eq $cert -or -not $cert.HasPrivateKey) { throw 'P10_PRIVATE_CODESIGN_PRIVATE_KEY_MISSING' }
+          if (@($cert.EnhancedKeyUsageList | ForEach-Object { [string]$_.ObjectId }) -notcontains '1.3.6.1.5.5.7.3.3') { throw 'P10_PRIVATE_CODESIGN_EKU_MISSING' }
+          "thumbprint=$($cert.Thumbprint)" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+
+          $cer = Join-Path $env:RUNNER_TEMP 'digitalcrown-private-codesign.cer'
+          Export-Certificate -Cert $cert -FilePath $cer -Type CERT | Out-Null
+          $actualCertSha256 = (Get-FileHash -Algorithm SHA256 $cer).Hash.ToLowerInvariant()
+          if ($actualCertSha256 -ne $env:EXPECTED_CERT_SHA256.ToLowerInvariant()) { throw "P10_PRIVATE_CODESIGN_CERT_SHA256_MISMATCH actual=$actualCertSha256" }
+          Import-Certificate -FilePath $cer -CertStoreLocation Cert:\LocalMachine\Root -Confirm:$false | Out-Null
+          Import-Certificate -FilePath $cer -CertStoreLocation Cert:\LocalMachine\TrustedPublisher -Confirm:$false | Out-Null
+          foreach ($storeName in @('Root','TrustedPublisher')) {
+            if (-not (Test-Path -LiteralPath "Cert:\LocalMachine\$storeName\$($cert.Thumbprint)")) { throw "P10_PRIVATE_TRUST_IMPORT_FAILED store=$storeName" }
+          }
+
+          $signtool = (Get-ChildItem 'C:\Program Files (x86)\Windows Kits\10\bin' -Recurse -Filter signtool.exe | Sort-Object FullName -Descending | Select-Object -First 1).FullName
+          if (-not $signtool) { throw 'signtool.exe missing' }
+          $proof = [ordered]@{
+            format = 'digitalcrown-p10-clean-hosted-signed-pair-v1'
+            head_sha = '${{ github.sha }}'
+            certificate_sha256 = $actualCertSha256
+            signer_thumbprint_sha1 = $cert.Thumbprint.ToLowerInvariant()
+            installers = @()
+          }
+          foreach ($setup in @($env:P10_BASELINE_INSTALLER, $env:P10_TARGET_INSTALLER)) {
+            if (-not (Test-Path -LiteralPath $setup -PathType Leaf)) { throw "installer missing: $setup" }
+            & $signtool sign /fd SHA256 /sha1 $cert.Thumbprint /s My /tr http://timestamp.digicert.com /td SHA256 $setup
+            if ($LASTEXITCODE -ne 0) { throw "P10_PRIVATE_AUTHENTICODE_SIGN_FAILED file=$setup exit=$LASTEXITCODE" }
+            & $signtool verify /pa /v $setup
+            if ($LASTEXITCODE -ne 0) { throw "P10_PRIVATE_AUTHENTICODE_VERIFY_FAILED file=$setup exit=$LASTEXITCODE" }
+            $signature = Get-AuthenticodeSignature -FilePath $setup
+            if ($signature.Status -ne 'Valid') { throw "P10_PRIVATE_AUTHENTICODE_INVALID file=$setup status=$($signature.Status)" }
+            if ($null -eq $signature.TimeStamperCertificate) { throw "P10_PRIVATE_AUTHENTICODE_TIMESTAMP_MISSING file=$setup" }
+            if ($signature.SignerCertificate.Thumbprint -ne $cert.Thumbprint) { throw "P10_PRIVATE_AUTHENTICODE_SIGNER_MISMATCH file=$setup" }
+            $proof.installers += [ordered]@{
+              name = [IO.Path]::GetFileName($setup)
+              sha256 = (Get-FileHash -Algorithm SHA256 $setup).Hash.ToLowerInvariant()
+              signature_status = [string]$signature.Status
+              timestamp_present = $true
+              timestamper_subject = $signature.TimeStamperCertificate.Subject
+            }
+          }
+          $proof | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath (Join-Path $env:RUNNER_TEMP 'p10-clean-hosted-signed-pair.json') -Encoding utf8
+          Write-Host 'P10_CLEAN_HOSTED_SIGNED_PAIR=SUCCESS'
+
+      - name: Real signed current-to-next lifecycle on clean runner
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          foreach ($setup in @($env:P10_BASELINE_INSTALLER, $env:P10_TARGET_INSTALLER)) {
+            $signature = Get-AuthenticodeSignature -FilePath $setup
+            if ($signature.Status -ne 'Valid') { throw "signature lost before lifecycle: $setup" }
+          }
+          $nativePs = "$env:SystemRoot\System32\WindowsPowerShell\v1.0\powershell.exe"
+          if (-not (Test-Path -LiteralPath $nativePs -PathType Leaf)) { throw 'Windows PowerShell 5.1 missing' }
+          $nativeModuleRoot = "$env:SystemRoot\System32\WindowsPowerShell\v1.0\Modules"
+          $programFilesModules = Join-Path $env:ProgramFiles 'WindowsPowerShell\Modules'
+          $moduleRoots = @($nativeModuleRoot)
+          if (Test-Path -LiteralPath $programFilesModules -PathType Container) { $moduleRoots += $programFilesModules }
+          if ($env:PSModulePath) { $moduleRoots += $env:PSModulePath }
+          $env:PSModulePath = ($moduleRoots -join ';')
+          $workRoot = Join-Path $env:RUNNER_TEMP 'dc-p10-clean-hosted'
+          $report = Join-Path $workRoot 'proof.json'
+          python scripts/p10_windows_packaged_finalization_ci.py `
+            --baseline "$env:P10_BASELINE_INSTALLER" `
+            --target "$env:P10_TARGET_INSTALLER" `
+            --work-root "$workRoot" `
+            --report "$report" `
+            --repo-root "$env:GITHUB_WORKSPACE"
+          if ($LASTEXITCODE -ne 0) { throw "P10 signed clean lifecycle failed: $LASTEXITCODE" }
+          if (-not (Test-Path -LiteralPath $report -PathType Leaf)) { throw 'P10 signed clean lifecycle proof missing' }
+          Write-Host "P10_CLEAN_HOSTED_WINDOWS_LIFECYCLE_PROOF=$(Get-Content -LiteralPath $report -Raw)"
+
+      - name: Upload compact clean Windows proof
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: digitalcrown-clean-hosted-windows-proof
+          path: |
+            ${{ runner.temp }}\p10-clean-hosted-signed-pair.json
+            ${{ runner.temp }}\dc-p10-clean-hosted\proof.json
+            ${{ runner.temp }}\dc-p10-clean-hosted\**\worker-stdout.log
+            ${{ runner.temp }}\dc-p10-clean-hosted\**\worker-stderr.log
+            ${{ runner.temp }}\dc-p10-clean-hosted\**\windows-update-worker.log
+            ${{ runner.temp }}\dc-p10-clean-hosted\**\windows-update-recovery.log
+            ${{ runner.temp }}\dc-p10-clean-hosted\**\installer-apply.log
+            ${{ runner.temp }}\dc-p10-clean-hosted\**\db-rollback-report.json
+          if-no-files-found: warn
+          retention-days: 7
+
+      - name: Cleanup private signing material and trust
+        if: always()
+        shell: pwsh
+        env:
+          SIGNER_THUMBPRINT: ${{ steps.signedpair.outputs.thumbprint }}
+        run: |
+          Remove-Item -LiteralPath (Join-Path $env:RUNNER_TEMP 'digitalcrown-private-codesign.pfx') -Force -ErrorAction SilentlyContinue
+          Remove-Item -LiteralPath (Join-Path $env:RUNNER_TEMP 'digitalcrown-private-codesign.cer') -Force -ErrorAction SilentlyContinue
+          if ($env:SIGNER_THUMBPRINT) {
+            Remove-Item -LiteralPath "Cert:\CurrentUser\My\$env:SIGNER_THUMBPRINT" -Force -ErrorAction SilentlyContinue
+            foreach ($store in @('Root','TrustedPublisher')) {
+              Remove-Item -LiteralPath "Cert:\LocalMachine\$store\$env:SIGNER_THUMBPRINT" -Force -ErrorAction SilentlyContinue
+            }
+          }
+          Write-Host 'P10_CLEAN_HOSTED_SIGNING_CLEANUP=COMPLETE'
