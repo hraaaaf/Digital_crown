@@ -470,7 +470,8 @@ from backend.routers import (
     auth, clinics, patients, ia, documents, stats, admin,
     appointments, templates, prescriptions, accounting, team,
     intelligence, clinical_data, mobile, installments, lab_jobs, stock,
-    bot, catalog, verification, analytics, agenda_settings, medications, frontdesk, partner_orders, partner_catalog
+    bot, catalog, verification, analytics, agenda_settings, medications, frontdesk,
+    partner_orders, partner_catalog, update_portability_p10
 )
 from backend.routers import ai_feedback as ai_feedback_router
 
@@ -503,6 +504,7 @@ app.include_router(partner_catalog.router, prefix="/api/partner-catalog", tags=[
 app.include_router(bot.router, prefix="/api/bot", tags=["Crown Bot"])
 app.include_router(catalog.router, prefix="/api/catalog", tags=["Catalog"])
 app.include_router(medications.router, prefix="/api/medications", tags=["Medications"])
+app.include_router(update_portability_p10.router, prefix="/api", tags=["Update Engine"])
 
 from backend.routers import superadmin
 app.include_router(superadmin.router, prefix="/api/superadmin", tags=["Super Admin"])

@@ -183,12 +183,13 @@ jobs:
           test -f "$DATA/P7_DATA_SENTINEL.txt"
           echo "P7_CLEAN_HOSTED_UNINSTALL_DATA=SUCCESS"
 
-      - name: Upload compact clean macOS proof
+      - name: Upload P13-ready clean macOS proof and packages
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: digitalcrown-clean-hosted-macos-proof
           path: |
+            ${{ runner.temp }}/private-dmgs/*.dmg
             ${{ runner.temp }}/p7-clean-hosted-gatekeeper.json
             ${{ runner.temp }}/p7-spctl.txt
             ${{ runner.temp }}/p10-private-lifecycle-proof.json
@@ -379,12 +380,14 @@ jobs:
           if (-not (Test-Path -LiteralPath $report -PathType Leaf)) { throw 'P10 signed clean lifecycle proof missing' }
           Write-Host "P10_CLEAN_HOSTED_WINDOWS_LIFECYCLE_PROOF=$(Get-Content -LiteralPath $report -Raw)"
 
-      - name: Upload compact clean Windows proof
+      - name: Upload P13-ready clean Windows proof and packages
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: digitalcrown-clean-hosted-windows-proof
           path: |
+            ${{ runner.temp }}\dc-p10-signed-packages\*.exe
+            ${{ runner.temp }}\digitalcrown-private-codesign.cer
             ${{ runner.temp }}\p10-clean-hosted-signed-pair.json
             ${{ runner.temp }}\dc-p10-clean-hosted\proof.json
             ${{ runner.temp }}\dc-p10-clean-hosted\**\worker-stdout.log
