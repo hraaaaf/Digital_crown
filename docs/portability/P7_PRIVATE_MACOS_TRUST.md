@@ -4,31 +4,37 @@
 Support Digital Crown on known clinic Macs without a paid Apple Developer membership while preserving fail-closed update authenticity, package integrity, rollback and recovery.
 
 ## Trust boundary
-- Update authenticity remains anchored in Digital Crown's signed update manifest.
-- The manifest pins the exact DMG SHA-256 and size before apply.
-- The app bundle must have the exact bundle ID `com.saninova.digitalcrown` and exact target version.
-- The app bundle must pass `codesign --verify --deep --strict` with an ad-hoc signature.
-- Ad-hoc signing is an integrity mechanism only. It is **not** an Apple publisher identity and must never be represented as Developer ID or notarization.
-- Developer ID, Apple notarization, stapling and standard Gatekeeper approval are intentionally not claimed.
+- Update authenticity is anchored in Digital Crown's signed update manifest.
+- The manifest pins exact DMG SHA-256 and size before apply.
+- Bundle ID must be `com.saninova.digitalcrown` and version must equal the target version.
+- The app must pass `codesign --verify --deep --strict` with an ad-hoc signature.
+- Ad-hoc signing is integrity only, not Apple publisher identity.
+- Developer ID, notarization and stapling are intentionally not claimed.
 
-## Worker fail-closed diagnostics
-A private macOS update worker that fails before package mutation records its failure stage and reason in the canonical update job before returning a non-zero exit code. Diagnostic persistence never converts a failed apply into success and does not weaken rollback or recovery state.
+## Clean independent macOS certification — SUCCESS
+Exact candidate HEAD: `705bdfc56cf53fc383c9e54934d599fa7befa4c1`.
+Workflow: `Portability P7/P10 Clean Hosted Certification`.
+Run: `33267234774`.
+Job: `clean-macos-private-lifecycle` — SUCCESS.
+Artifact: `9719162213`.
+Digest: `sha256:157a45ed0246c7fbcd6a42144e04d48682d41ac10f2c29d6967bf2889312a1e4`.
 
-## First install / Gatekeeper
-The first installation on a known clinic Mac is an administrator-controlled ceremony. macOS may require the administrator to explicitly allow/open Digital Crown because the package is not Apple-notarized.
+Verified on a fresh GitHub-hosted `macos-15` ARM64 runner with no pre-existing Digital Crown state:
+1. real DMGs `1.0.0` and `1.0.1` built;
+2. exact bundle ID/version + strict ad-hoc codesign verified;
+3. Gatekeeper policy boundary checked with `spctl`: the ad-hoc app is rejected by default as expected;
+4. signed-manifest + exact-SHA update `1.0.0 -> 1.0.1` succeeded;
+5. target package self-test and runtime health succeeded;
+6. interruption recovery succeeded and rolled back;
+7. package + encrypted DB rollback succeeded;
+8. uninstall preserved cabinet data.
 
-## Updates
-After bootstrap, Digital Crown only accepts an update artifact whose exact bytes match the already-verified signed manifest. P10 then keeps the existing self-test, runtime health, rescue snapshot, interruption recovery, package rollback and encrypted DB rollback gates.
+## Gatekeeper / first install truth
+The clean-hosted gate proves the default Gatekeeper policy reaction and the complete technical lifecycle. It does not simulate or claim the human GUI action `Open Anyway`. The administrator-controlled first-launch ceremony on a real cabinet Mac remains a P13 real-cabinet validation, not a P7 technical packaging blocker.
 
-## Required clean-Mac proof
-P7 is not complete until a clean physical Mac proves:
-1. administrator-controlled first install;
-2. app launches and `/health` is healthy;
-3. signed-manifest + exact-SHA update `1.0.0 -> 1.0.1`;
-4. target package self-test and runtime health;
-5. interruption recovery;
-6. package + DB rollback on injected failure;
-7. uninstall does not delete cabinet data.
+## Status
+P7 technical gates are satisfied on exact HEAD `705bdfc56cf53fc383c9e54934d599fa7befa4c1`.
+P7 remains uncredited until the canonical closeout commit is merged through PR #274 into `portability/p10-update-engine`.
 
 ## Non-claims
 Do not label this distribution as Apple notarized, Developer ID signed, App Store distributed, or Gatekeeper-approved by Apple.
