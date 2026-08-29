@@ -72,7 +72,7 @@ jobs:
           Write-Host 'P6_PROBE_PHASE=EPHEMERAL_TRUST_SUCCESS'
 
       - name: Sign timestamped probe executable
-        shell: pwsh
+        shell: powershell
         timeout-minutes: 4
         run: |
           $ErrorActionPreference = 'Stop'
