@@ -28,6 +28,13 @@ P13 consumes that evidence. It adds only what CI cannot honestly prove: physical
 
 P13 does not claim Microsoft SmartScreen reputation, Developer ID, notarization, stapling, Apple approval, or direct dental-device support beyond P8.
 
+## P13-R remote bare-metal rehearsal
+A remote bare-metal rehearsal may be used to reduce the remaining physical risk before the final cabinet gate. Canonical runbook: `docs/portability/P13_REMOTE_BARE_METAL_REHEARSAL.md`.
+
+P13-R can exercise real Apple Silicon bare metal and x86 `.metal` hardware, but it never credits P13 EP by itself. In particular, a remote Windows `.metal` host or Windows Server is not accepted as the final cabinet workstation proof.
+
+Final closure is additionally guarded by `scripts/p13_real_cabinet_closure_guard.py`, which requires the final Windows evidence to come from a local Windows 11 cabinet context with USB/removable/NAS off-machine storage. A genuine remote Apple Silicon `.metal` Mac may remain part of the final pair when all required physical observations are actually attested.
+
 ## Physical targets
 
 ### Windows
@@ -147,6 +154,15 @@ Pair validation requires exactly one Windows file and one macOS file, the same n
 
 `PASS_ATTESTED` means evidence completeness is machine-validated and the physical observations are operator-attested. It does **not** turn a human observation into CI proof.
 
+### 6. Enforce rehearsal versus closure context
+
+```text
+python scripts/p13_real_cabinet_closure_guard.py validate-rehearsal --first p13-windows.json --second p13-macos.json --context p13-context.json
+python scripts/p13_real_cabinet_closure_guard.py validate-closure --first p13-windows.json --second p13-macos.json --context p13-context.json
+```
+
+`validate-rehearsal` proves only that the remote bare-metal evidence is structurally acceptable. `validate-closure` additionally requires the Windows 11 local cabinet and real USB/removable/NAS boundary.
+
 ## Evidence bundle
 Retain for each machine/direction:
 - timestamp, OS/model/architecture;
@@ -173,13 +189,15 @@ P13 is CLOSED only when:
 - real off-machine DR = PASS;
 - cross-OS cabinet continuity = PASS where applicable;
 - authenticated update/rollback on installed targets = PASS;
+- final Windows evidence is a local Windows 11 cabinet target with USB/removable/NAS off-machine storage;
 - no unsupported platform/hardware claim was introduced;
 - the evidence pair validates;
+- the closure guard validates;
 - all non-secret evidence references are committed to the canonical closeout.
 
 Until then: **P13 = 0 EP**.
 
 ## Human gate
-The remaining execution requires the two physical targets, a real off-machine storage medium and the administrator action needed for private macOS first launch. GitHub-hosted CI cannot substitute for those gates.
+The remaining execution requires the physical targets, a real off-machine storage medium and the administrator action needed for private macOS first launch. GitHub-hosted CI cannot substitute for those gates. Remote bare metal reduces risk but does not remove the final Windows 11 cabinet gate.
 
 No Vercel.
