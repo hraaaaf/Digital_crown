@@ -6,12 +6,16 @@
 Install only an authentic, fresh, strictly newer Digital Crown release with verified rescue, exact package/runtime health and automatic rollback.
 
 ## Certified foundations
+- P10 depends on the certified **P6/P7** packaging outputs before any update lifecycle can be credited;
 - signed update manifest with pinned Ed25519 trust root (`primary` + cold `recovery`);
 - exact package SHA-256/size validation;
 - fail-closed worker/recovery/finalization paths;
 - package self-test + loopback `/health` runtime truth;
-- package rollback + encrypted DB rescue;
-- interruption recovery.
+- Windows program snapshot + uninstall registry rollback;
+- package rollback + encrypted DB rescue owned by the old packaged executable;
+- PostgreSQL DB rollback remains outside the certified portable SQLite path;
+- Windows PowerShell 5.1 worker runtime;
+- interrupted update recovery.
 
 ## Exact clean-hosted cross-platform certification
 Candidate HEAD: `705bdfc56cf53fc383c9e54934d599fa7befa4c1`.
@@ -22,7 +26,7 @@ Run: `33267234774` — SUCCESS.
 Job `clean-macos-private-lifecycle`.
 Artifact `9719162213`.
 Digest `sha256:157a45ed0246c7fbcd6a42144e04d48682d41ac10f2c29d6967bf2889312a1e4`.
-Verified: clean baseline, real 1.0.0/1.0.1 DMGs, strict ad-hoc codesign, Gatekeeper default rejection via `spctl`, signed-manifest update, target self-test, runtime health, interruption recovery, package rollback, encrypted DB rollback, uninstall data preservation.
+Verified: clean baseline, real 1.0.0/1.0.1 DMGs, strict ad-hoc codesign, Gatekeeper default rejection via `spctl`, signed-manifest update, target package self-test, runtime `/health`, interrupted update recovery, package rollback, encrypted DB rollback, uninstall data preservation.
 
 ### Windows x64 — SUCCESS
 Job `clean-windows-signed-lifecycle`.
@@ -35,7 +39,7 @@ Verified on a fresh `windows-2025` runner:
 - public certificate trusted only ephemerally in LocalMachine `Root` + `TrustedPublisher`;
 - both signatures verified valid;
 - real signed `1.0.0 -> 1.0.1` lifecycle succeeded;
-- target self-test/runtime health, interruption recovery, package rollback and DB rollback succeeded;
+- target package self-test/runtime `/health`, interrupted update recovery, Windows program snapshot rollback, uninstall registry rollback and DB rollback succeeded;
 - private PFX and temporary trust removed after the run.
 
 ## Exact-head regression proof
@@ -51,7 +55,7 @@ The **private key** remains outside the repository and outside clinic machines. 
 Private distribution uses signed-manifest authenticity + exact SHA + ad-hoc codesign integrity. No Developer ID, notarization, stapling or Apple Gatekeeper approval is claimed. Human first-launch ceremony remains a P13 real-cabinet check.
 
 ## Remaining canonical action
-The technical P10 gates are satisfied. P10 remains uncredited until:
+The technical P10 gates are satisfied. P10 remains **0 EP** until:
 1. this closeout evidence is committed coherently;
 2. PR #274 merges P7 into `portability/p10-update-engine`;
 3. post-merge exact state is verified.
