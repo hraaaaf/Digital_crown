@@ -8,7 +8,7 @@ from datetime import datetime, timedelta
 
 @pytest.fixture
 def superadmin_headers(client, dentiste):
-    """Auth headers for the dentiste fixture (used as superadmin when env is patched)."""
+    """Auth headers for the dentiste fixture (used as superadmin when id is patched)."""
     r = client.post(
         "/api/auth/login",
         data={"username": dentiste.email, "password": "TestPass123!"},
@@ -19,8 +19,10 @@ def superadmin_headers(client, dentiste):
 
 @pytest.fixture
 def with_superadmin_env(dentiste):
-    """Patch the module-level _SUPERADMIN_EMAIL to match the dentiste fixture."""
-    with patch("backend.routers.superadmin._SUPERADMIN_EMAIL", dentiste.email.lower()):
+    """Enable the control plane and bind immutable SuperAdmin authority to dentiste.id."""
+    with patch("backend.platform_access.settings.PLATFORM_CONTROL_PLANE_ENABLED", True), patch(
+        "backend.platform_access.settings.SUPERADMIN_USER_ID", dentiste.id
+    ):
         yield
 
 
