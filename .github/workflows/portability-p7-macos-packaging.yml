@@ -1,13 +1,22 @@
-name: Portability P7 macOS Distribution Certification
+name: Portability P7 macOS Private Distribution Certification
 
 on:
+  pull_request:
+    paths:
+      - "DigitalCrown.spec"
+      - "backend/services/macos_private_trust.py"
+      - "backend/macos_private_trust_runtime_hook.py"
+      - "backend/tests/test_macos_private_trust.py"
+      - "scripts/p7_macos_packaging_check.py"
+      - "scripts/p10_macos_private_lifecycle_ci.py"
+      - ".github/workflows/portability-p7-macos-packaging.yml"
   workflow_dispatch:
 
 permissions:
   contents: read
 
 concurrency:
-  group: portability-p7-${{ github.ref }}
+  group: portability-p7-private-${{ github.ref }}
   cancel-in-progress: false
 
 env:
@@ -15,7 +24,7 @@ env:
   NODE_VERSION: "20"
 
 jobs:
-  macos-package:
+  macos-private-lifecycle:
     runs-on: macos-15
     timeout-minutes: 120
     steps:
@@ -38,33 +47,17 @@ jobs:
           cache: npm
           cache-dependency-path: frontend/package-lock.json
 
-      - name: Static macOS packaging contract
-        run: python scripts/p7_macos_packaging_check.py --static
-
-      - name: Record scientific packaging policy
-        shell: bash
+      - name: Static private macOS contract
         run: |
-          set -euo pipefail
-          echo "P7_SCIENTIFIC_PACKAGE_POLICY=FAIL_CLOSED_NO_WEIGHTS"
-          echo "P7_UNQUALIFIED_SCIENTIFIC_WEIGHTS=FORBIDDEN"
+          python scripts/p7_macos_packaging_check.py --static
+          python -m py_compile backend/services/macos_private_trust.py backend/macos_private_trust_runtime_hook.py scripts/p10_macos_private_lifecycle_ci.py
 
-      - name: Require distribution credentials
-        shell: bash
-        env:
-          CERT_P12_B64: ${{ secrets.MACOS_DEVELOPER_ID_P12_B64 }}
-          CERT_PASSWORD: ${{ secrets.MACOS_DEVELOPER_ID_P12_PASSWORD }}
-          CODESIGN_IDENTITY: ${{ secrets.MACOS_CODESIGN_IDENTITY }}
-          NOTARY_KEY_B64: ${{ secrets.APPLE_NOTARY_KEY_P8_B64 }}
-          NOTARY_KEY_ID: ${{ secrets.APPLE_NOTARY_KEY_ID }}
-          NOTARY_ISSUER_ID: ${{ secrets.APPLE_NOTARY_ISSUER_ID }}
+      - name: Private trust unit tests
         run: |
-          set -euo pipefail
-          for name in CERT_P12_B64 CERT_PASSWORD CODESIGN_IDENTITY NOTARY_KEY_B64 NOTARY_KEY_ID NOTARY_ISSUER_ID; do
-            [[ -n "${!name:-}" ]] || { echo "Missing required secret: $name" >&2; exit 1; }
-          done
-          echo "P7_DISTRIBUTION_CREDENTIALS=READY"
+          python -m pip install --disable-pip-version-check pytest cryptography sqlalchemy python-dotenv
+          python -m pytest backend/tests/test_macos_private_trust.py backend/tests/test_macos_update_apply.py backend/tests/test_macos_update_dispatch.py -q --noconftest
 
-      - name: Build frontend
+      - name: Build frontend once
         shell: bash
         run: |
           set -euo pipefail
@@ -73,7 +66,7 @@ jobs:
           rm -rf frontend/node_modules
           npm cache clean --force || true
 
-      - name: Install Python packaging toolchain
+      - name: Install exact macOS packaging toolchain
         run: python -m pip install --no-cache-dir -r backend/requirements-p7-macos.txt
 
       - name: Generate native macOS icon
@@ -84,172 +77,84 @@ jobs:
           iconutil -c icns build/macos/DigitalCrown.iconset -o build/macos/DigitalCrown.icns
           test -s build/macos/DigitalCrown.icns
 
-      - name: Import Developer ID certificate
-        shell: bash
-        env:
-          CERT_P12_B64: ${{ secrets.MACOS_DEVELOPER_ID_P12_B64 }}
-          CERT_PASSWORD: ${{ secrets.MACOS_DEVELOPER_ID_P12_PASSWORD }}
-          CODESIGN_IDENTITY: ${{ secrets.MACOS_CODESIGN_IDENTITY }}
-        run: |
-          set -euo pipefail
-          KEYCHAIN="$RUNNER_TEMP/digitalcrown-signing.keychain-db"
-          KEYCHAIN_PASSWORD="$(openssl rand -hex 24)"
-          CERT_PATH="$RUNNER_TEMP/digitalcrown-developer-id.p12"
-          export CERT_PATH
-          python - <<'PY'
-          import base64, os
-          from pathlib import Path
-          Path(os.environ["CERT_PATH"]).write_bytes(base64.b64decode(os.environ["CERT_P12_B64"]))
-          PY
-          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN"
-          security set-keychain-settings -lut 21600 "$KEYCHAIN"
-          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN"
-          security import "$CERT_PATH" -k "$KEYCHAIN" -P "$CERT_PASSWORD" -A -t cert -f pkcs12
-          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN"
-          security default-keychain -s "$KEYCHAIN"
-          security find-identity -v -p codesigning "$KEYCHAIN" | grep -F "$CODESIGN_IDENTITY"
-          echo "DIGITALCROWN_CODESIGN_IDENTITY=$CODESIGN_IDENTITY" >> "$GITHUB_ENV"
-          echo "P7_SIGNING_KEYCHAIN=$KEYCHAIN" >> "$GITHUB_ENV"
-
-      - name: Build Developer ID signed arm64 app
+      - name: Build private 1.0.0 and 1.0.1 DMGs
         shell: bash
         run: |
           set -euo pipefail
-          python -m PyInstaller --noconfirm --clean DigitalCrown.spec
-          python scripts/p7_macos_packaging_check.py --bundle dist/DigitalCrown.app
-          echo "P7_DEVELOPER_ID_APP=SUCCESS"
+          ORIGINAL_VERSION="$(cat VERSION)"
+          cleanup() { printf '%s\n' "$ORIGINAL_VERSION" > VERSION; }
+          trap cleanup EXIT
 
-      - name: Frozen package self-test
+          build_version() {
+            local version="$1"
+            printf '%s\n' "$version" > VERSION
+            rm -rf build/DigitalCrown dist/DigitalCrown dist/DigitalCrown.app dist_macos
+            python -m PyInstaller --noconfirm --clean DigitalCrown.spec
+            codesign --force --deep --sign - dist/DigitalCrown.app
+            python scripts/p7_macos_packaging_check.py --bundle dist/DigitalCrown.app
+            DIGITALCROWN_PACKAGE_SELF_TEST_REPORT="$RUNNER_TEMP/self-test-${version}.json" dist/DigitalCrown.app/Contents/MacOS/DigitalCrown --package-self-test
+            bash scripts/create_macos_dmg.sh
+            mkdir -p "$RUNNER_TEMP/private-dmgs"
+            cp "dist_macos/DigitalCrown-${version}-arm64.dmg" "$RUNNER_TEMP/private-dmgs/"
+          }
+
+          build_version "1.0.0"
+          build_version "1.0.1"
+          cleanup
+          trap - EXIT
+          echo "P7_PRIVATE_DMG_PAIR=SUCCESS"
+
+      - name: Real private packaged update lifecycle
         shell: bash
         run: |
           set -euo pipefail
-          dist/DigitalCrown.app/Contents/MacOS/DigitalCrown --package-self-test
-
-      - name: Build DMG
-        shell: bash
-        run: bash scripts/create_macos_dmg.sh
-
-      - name: Notarize and staple DMG
-        shell: bash
-        env:
-          NOTARY_KEY_B64: ${{ secrets.APPLE_NOTARY_KEY_P8_B64 }}
-          NOTARY_KEY_ID: ${{ secrets.APPLE_NOTARY_KEY_ID }}
-          NOTARY_ISSUER_ID: ${{ secrets.APPLE_NOTARY_ISSUER_ID }}
-        run: |
-          set -euo pipefail
-          VERSION="$(tr -d '[:space:]' < VERSION)"
-          DMG="dist_macos/DigitalCrown-${VERSION}-arm64.dmg"
-          KEY="$RUNNER_TEMP/AuthKey_${NOTARY_KEY_ID}.p8"
-          export KEY
-          python - <<'PY'
-          import base64, os
-          from pathlib import Path
-          Path(os.environ["KEY"]).write_bytes(base64.b64decode(os.environ["NOTARY_KEY_B64"]))
-          PY
-
-          xcrun notarytool submit "$DMG" \
-            --key "$KEY" \
-            --key-id "$NOTARY_KEY_ID" \
-            --issuer "$NOTARY_ISSUER_ID" \
-            --wait \
-            --output-format json > build/macos/notary-result.json
-
-          NOTARY_ID="$(python - <<'PY'
-          import json
-          from pathlib import Path
-          result = json.loads(Path("build/macos/notary-result.json").read_text())
-          if result.get("status") != "Accepted":
-              raise SystemExit(f"Notarization not accepted: {result}")
-          print(result["id"])
-          PY
-          )"
-          echo "P7_NOTARIZATION=ACCEPTED id=$NOTARY_ID"
-
-          xcrun notarytool log "$NOTARY_ID" \
-            --key "$KEY" \
-            --key-id "$NOTARY_KEY_ID" \
-            --issuer "$NOTARY_ISSUER_ID" \
-            build/macos/notary-log.json
+          python scripts/p10_macos_private_lifecycle_ci.py \
+            --baseline-dmg "$RUNNER_TEMP/private-dmgs/DigitalCrown-1.0.0-arm64.dmg" \
+            --target-dmg "$RUNNER_TEMP/private-dmgs/DigitalCrown-1.0.1-arm64.dmg" \
+            --work-root "$RUNNER_TEMP/p10-private-lifecycle" \
+            --report "$RUNNER_TEMP/p10-private-lifecycle-proof.json" \
+            --repo-root "$GITHUB_WORKSPACE"
 
           python - <<'PY'
-          import json
+          import json, os
           from pathlib import Path
-          payload = json.loads(Path("build/macos/notary-log.json").read_text())
-          issues = payload.get("issues") or []
-          errors = [x for x in issues if str(x.get("severity", "")).lower() == "error"]
-          if errors:
-              raise SystemExit(f"Notary log contains errors: {errors}")
-          print(f"P7_NOTARY_LOG=SUCCESS issues={len(issues)}")
+          proof = json.loads((Path(os.environ["RUNNER_TEMP"]) / "p10-private-lifecycle-proof.json").read_text())
+          assert proof["status"] == "success"
+          assert proof["trust_mode"] == "signed_manifest_sha256+adhoc_codesign"
+          assert proof["apple_developer_id_claim"] is False
+          assert proof["apple_notarization_claim"] is False
+          assert proof["rescue_preflight_self_test"] == "passed_all_cases"
+          assert proof["positive"]["installed_version"] == "1.0.1"
+          assert proof["interruption_recovery"]["status"] == "success"
+          assert proof["interruption_recovery"]["job_status"] == "rolled_back"
+          assert proof["database_rollback"]["database_rollback"] == "passed"
+          print("P7_P10_PRIVATE_LIFECYCLE_PROOF=SUCCESS")
           PY
 
-          xcrun stapler staple "$DMG"
-          xcrun stapler validate "$DMG"
-          spctl --assess --type open --context context:primary-signature --verbose=4 "$DMG"
-          echo "P7_STAPLE_GATEKEEPER=SUCCESS"
-
-      - name: Clean install / runtime / upgrade / uninstall smoke
+      - name: Uninstall preserves cabinet data
         shell: bash
         run: |
           set -euo pipefail
-          VERSION="$(tr -d '[:space:]' < VERSION)"
-          DMG="$PWD/dist_macos/DigitalCrown-${VERSION}-arm64.dmg"
-          MOUNT="$RUNNER_TEMP/dc-p7-mount"
-          APPS="$RUNNER_TEMP/dc-p7-applications"
-          DATA="$RUNNER_TEMP/dc-p7-cabinet"
-          mkdir -p "$MOUNT" "$APPS" "$DATA"
-          hdiutil attach "$DMG" -mountpoint "$MOUNT" -nobrowse -readonly
-          trap 'hdiutil detach "$MOUNT" -force >/dev/null 2>&1 || true' EXIT
-          ditto "$MOUNT/DigitalCrown.app" "$APPS/DigitalCrown.app"
-          spctl --assess --type execute --verbose=4 "$APPS/DigitalCrown.app"
-          "$APPS/DigitalCrown.app/Contents/MacOS/DigitalCrown" --package-self-test
-
+          DATA="$RUNNER_TEMP/private-uninstall-data"
+          APP="$RUNNER_TEMP/private-uninstall-app/DigitalCrown.app"
+          mkdir -p "$DATA" "$(dirname "$APP")"
           echo -n "preserve-me" > "$DATA/P7_DATA_SENTINEL.txt"
-          export DIGITALCROWN_USER_DATA_DIR="$DATA"
-          export DIGITALCROWN_CONFIG_DIR="$DATA"
-          export DIGITALCROWN_LOG_DIR="$DATA/logs"
-          export DIGITALCROWN_RUNTIME_DIR="$DATA/runtime"
-          export CABINET_PORT="8766"
-          export DIGITALCROWN_RESTORE_RESTART="1"
+          MOUNT="$RUNNER_TEMP/private-uninstall-mount"
+          mkdir -p "$MOUNT"
+          hdiutil attach "$RUNNER_TEMP/private-dmgs/DigitalCrown-1.0.1-arm64.dmg" -mountpoint "$MOUNT" -nobrowse -readonly
+          ditto "$MOUNT/DigitalCrown.app" "$APP"
+          hdiutil detach "$MOUNT" -force
+          rm -rf "$APP"
+          test -f "$DATA/P7_DATA_SENTINEL.txt"
+          echo "P7_PRIVATE_UNINSTALL_DATA=SUCCESS"
 
-          "$APPS/DigitalCrown.app/Contents/MacOS/DigitalCrown" &
-          PID=$!
-          cleanup_runtime() { kill "$PID" >/dev/null 2>&1 || true; wait "$PID" >/dev/null 2>&1 || true; }
-          trap 'cleanup_runtime; hdiutil detach "$MOUNT" -force >/dev/null 2>&1 || true' EXIT
-
-          ok=0
-          for _ in $(seq 1 60); do
-            if curl -fsS "http://127.0.0.1:8766/health" | python -c 'import json,sys; raise SystemExit(0 if json.load(sys.stdin).get("status")=="ok" else 1)' 2>/dev/null; then
-              ok=1
-              break
-            fi
-            sleep 2
-          done
-          [[ "$ok" == "1" ]] || { echo "frozen runtime health failed" >&2; exit 1; }
-          cleanup_runtime
-
-          rm -rf "$APPS/DigitalCrown.app"
-          ditto "$MOUNT/DigitalCrown.app" "$APPS/DigitalCrown.app"
-          "$APPS/DigitalCrown.app/Contents/MacOS/DigitalCrown" --package-self-test
-
-          rm -rf "$APPS/DigitalCrown.app"
-          [[ -f "$DATA/P7_DATA_SENTINEL.txt" ]] || { echo "cabinet data sentinel was deleted" >&2; exit 1; }
-          echo "P7_MACOS_INSTALL_SMOKE=SUCCESS"
-
-      - name: Upload macOS distribution proof
+      - name: Upload private macOS proof
         uses: actions/upload-artifact@v4
         with:
-          name: digitalcrown-p7-macos-arm64-notarized
+          name: digitalcrown-p7-p10-macos-private-lifecycle
           path: |
-            dist_macos/*.dmg
-            build/macos/notary-result.json
-            build/macos/notary-log.json
+            ${{ runner.temp }}/private-dmgs/*.dmg
+            ${{ runner.temp }}/p10-private-lifecycle-proof.json
+            ${{ runner.temp }}/self-test-*.json
           if-no-files-found: error
           retention-days: 7
-
-      - name: Cleanup temporary signing keychain
-        if: always()
-        shell: bash
-        run: |
-          if [[ -n "${P7_SIGNING_KEYCHAIN:-}" ]]; then
-            security delete-keychain "$P7_SIGNING_KEYCHAIN" || true
-          fi
