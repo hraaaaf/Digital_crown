@@ -1,0 +1,72 @@
+name: Portability P10 macOS Update Engine
+
+on:
+  pull_request:
+    paths:
+      - "backend/services/macos_update_apply.py"
+      - "backend/services/macos_update_worker.py"
+      - "backend/services/macos_update_db_rollback.py"
+      - "backend/services/update_dispatch.py"
+      - "backend/services/update_recovery.py"
+      - "backend/routers/update_portability_p10.py"
+      - "backend/tests/test_macos_update_apply.py"
+      - "backend/tests/test_macos_update_dispatch.py"
+      - "run.py"
+      - ".github/workflows/portability-p10-macos-update.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  secure-core:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install targeted dependencies
+        run: python -m pip install --disable-pip-version-check pytest cryptography sqlalchemy python-dotenv
+      - name: Compile macOS update path
+        run: >-
+          python -m py_compile
+          backend/services/macos_update_apply.py
+          backend/services/macos_update_worker.py
+          backend/services/macos_update_db_rollback.py
+          backend/services/update_dispatch.py
+          backend/services/update_recovery.py
+          backend/routers/update_portability_p10.py
+          run.py
+      - name: Existing P10 static contract
+        run: python scripts/p10_update_contract_check.py
+      - name: macOS routing recovery and DB rollback tests
+        run: >-
+          python -m pytest
+          backend/tests/test_macos_update_apply.py
+          backend/tests/test_macos_update_dispatch.py
+          backend/tests/test_update_apply.py
+          backend/tests/test_update_recovery.py
+          backend/tests/test_update_db_rollback.py
+          -q --noconftest
+
+  macos-contract:
+    runs-on: macos-15
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Require Apple Silicon
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$(uname -m)" == "arm64" ]]
+      - name: Install targeted dependencies
+        run: python -m pip install --disable-pip-version-check pytest cryptography sqlalchemy python-dotenv
+      - name: Compile and run macOS-specific contract tests
+        run: |
+          python -m py_compile backend/services/macos_update_apply.py backend/services/macos_update_worker.py backend/services/macos_update_db_rollback.py backend/services/update_dispatch.py
+          python -m pytest backend/tests/test_macos_update_apply.py backend/tests/test_macos_update_dispatch.py -q --noconftest

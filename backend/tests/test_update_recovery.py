@@ -64,10 +64,12 @@ def test_startup_recovery_schedules_only_recovery_worker(monkeypatch, tmp_path):
     assert result == {"job_id": JOB_ID, "status": "applying", "recovery": "scheduled"}
     assert len(launched) == 1
     args = launched[0][0]
+    kwargs = launched[0][1]
     assert str(recovery) in args
     assert str(job_path) in args
     assert "4321" in args
     assert all("DigitalCrownSetup" not in str(value) for value in args)
+    assert "env" not in kwargs
     # Scheduling itself must not mutate job.json without worker.lock. The
     # PowerShell recovery worker records ownership only after it acquires the lock.
     persisted = json.loads(job_path.read_text(encoding="utf-8"))
