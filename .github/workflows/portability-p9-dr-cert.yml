@@ -30,6 +30,7 @@ concurrency:
 env:
   PYTHON_VERSION: "3.12"
   NODE_VERSION: "20"
+  PYTHONPATH: ${{ github.workspace }}
   P9_MIGRATION_SECRET: "DigitalCrown-P9-CI-Migration-Secret-2026"
 
 jobs:
