@@ -20,18 +20,21 @@ A platform row may become `CERTIFIED` only when every mandatory upstream artifac
 | Frozen/package lifecycle | proved by P6 | proved by P7 private distribution | P6/P7 | AVAILABLE |
 | Scientific assets policy | FAIL_CLOSED_NO_WEIGHTS | FAIL_CLOSED_NO_WEIGHTS required | P5/P6/P7 | PARTIAL |
 | Hardware truth matrix | certified conservative boundary | certified conservative boundary | P8 | AVAILABLE |
-| Disaster recovery | deterministic candidate | deterministic candidate | P9 | OPEN_REAL_TARGET |
+| Disaster recovery | certified macOS → Windows frozen restore | certified Windows → macOS frozen restore | P9 | AVAILABLE |
 | Update secure core | certified signed lifecycle | certified private lifecycle | P10 | AVAILABLE |
 | Launcher/recovery UX | proved by P11 | shared UX proved by P11 | P11 | AVAILABLE |
 | Clean-machine E2E | not P12-closed | not P12-closed | P12/P13 | OPEN |
 
-## P7 / P10 upstream evidence now available
+## P7 / P9 / P10 upstream evidence now available
 
-P7 and P10 are no longer blockers for matrix preparation. Their technical evidence is available from the clean-hosted cross-platform certification and exact-head regression runs. This does not close P12 by itself.
+P7, P9 and P10 are no longer blockers for matrix preparation. This does not close P12 by itself.
 
-- Windows: real signed 1.0.0 → 1.0.1 lifecycle, package self-test, runtime health, interruption recovery, package rollback and DB rollback.
-- macOS: real private 1.0.0 → 1.0.1 DMG lifecycle, Gatekeeper default-boundary proof, package self-test, runtime health, interruption recovery, package rollback and DB rollback.
-- Human first-launch behavior on an actual cabinet Mac remains P13, not a hidden P7/P10 claim.
+- Windows package lifecycle: real signed 1.0.0 → 1.0.1 lifecycle, package self-test, runtime health, interruption recovery, package rollback and DB rollback.
+- macOS package lifecycle: real private 1.0.0 → 1.0.1 DMG lifecycle, Gatekeeper default-boundary proof, package self-test, runtime health, interruption recovery, package rollback and DB rollback.
+- P9 final candidate `4590e2975e71ca89fc404e96e717646155b8fc14`, run `33276520623`: 5/5 jobs SUCCESS.
+- P9 macOS → Windows proof artifact `9721759555`; Windows → macOS proof artifact `9721742568`.
+- Both P9 directions used an independently persisted off-runner artifact boundary, a distinct fresh opposite-OS target, a real frozen packaged executable, Guided Restore, `/health`, SQLCipher integrity, DB marker/user_version and media verification.
+- Human first-launch behavior and physical USB/NAS operational ceremony on an actual cabinet remain P13, not hidden P7/P9/P10 claims.
 
 ## Required final matrix
 
@@ -50,8 +53,8 @@ P12 closure requires exact evidence for both `windows-amd64` and `macos-arm64`:
 
 ## Current blockers
 
-- P9 real external/off-machine destination + independent clean packaged restore proof remains open (`OPEN_REAL_TARGET`).
-- P12 still needs its own final exact matrix closeout after P9 evidence is integrated.
+- P9 is now an AVAILABLE upstream input; its technical DR gate is closed.
+- P12 still needs its own final exact matrix closeout, especially the scientific-assets row and clean-machine E2E row.
 - P13 remains the real-cabinet certification layer after P12.
 
 P8 is an available upstream contract: it certifies the current conservative boundary, not native dental-device support. Any future `SUPPORTED` hardware claim still requires real-device evidence on every claimed OS.

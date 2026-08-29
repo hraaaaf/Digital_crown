@@ -37,7 +37,6 @@ def main() -> None:
     matrix = (doc_dir / "P12_CERTIFICATION_MATRIX.md").read_text(encoding="utf-8")
     for marker in (
         "0 EP credited",
-        "OPEN_REAL_TARGET",
         "Hardware truth matrix | certified conservative boundary | certified conservative boundary | P8 | AVAILABLE",
         "Frozen/package lifecycle | proved by P6 | proved by P7 private distribution | P6/P7 | AVAILABLE",
         "Update secure core | certified signed lifecycle | certified private lifecycle | P10 | AVAILABLE",
@@ -54,7 +53,24 @@ def main() -> None:
     )
 
     p9 = (doc_dir / "P9_BACKUP_RECOVERY_DR.md").read_text(encoding="utf-8")
-    require("P9 does not close until" in p9, "P12 must preserve P9 real-target gate")
+    p9_closed = "**Status:** CLOSED" in p9
+    if p9_closed:
+        for marker in (
+            "8 EP credited",
+            "4590e2975e71ca89fc404e96e717646155b8fc14",
+            "33276520623",
+            "9721759555",
+            "9721742568",
+        ):
+            require(marker in p9, f"P12 must consume P9 CLOSED evidence: {marker}")
+        require(
+            "Disaster recovery | certified macOS → Windows frozen restore | certified Windows → macOS frozen restore | P9 | AVAILABLE" in matrix,
+            "P12 matrix must expose closed P9 as AVAILABLE",
+        )
+        p9_state = "AVAILABLE"
+    else:
+        require("OPEN_REAL_TARGET" in matrix, "Open P9 must remain OPEN_REAL_TARGET in P12")
+        p9_state = "OPEN_REAL_TARGET"
 
     p10 = (doc_dir / "P10_UPDATE_ENGINE.md").read_text(encoding="utf-8")
     for marker in (
@@ -72,7 +88,10 @@ def main() -> None:
     ):
         require(marker.lower() in p10.lower(), f"P12 must preserve certified P10 truth marker: {marker}")
 
-    print("P12_CERTIFICATION_MATRIX_PREP=SUCCESS state=PREPARED ep=0 p7=AVAILABLE p10=AVAILABLE p9=OPEN_REAL_TARGET")
+    print(
+        "P12_CERTIFICATION_MATRIX_PREP=SUCCESS state=PREPARED ep=0 "
+        f"p7=AVAILABLE p10=AVAILABLE p9={p9_state}"
+    )
 
 
 if __name__ == "__main__":

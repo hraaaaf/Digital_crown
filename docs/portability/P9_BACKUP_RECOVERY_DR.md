@@ -1,12 +1,12 @@
 # P9 — Backup, Recovery & Disaster Recovery
 
-**Status:** ACTIVE — cross-OS off-machine certification prepared. **0 EP credited.**
+**Status:** CLOSED ✅ — **8 EP credited.**
 
 ## Goal
 
 A complete loss of the workstation must not imply loss of the cabinet.
 
-## Success criterion
+## Success criterion — PROVED
 
 P9 technical closure requires all of the following on the same candidate:
 
@@ -21,7 +21,7 @@ P9 technical closure requires all of the following on the same candidate:
 9. wrong migration secret and tampered ciphertext rejected fail-closed;
 10. existing interruption, unavailable destination, disk-full and retention tests remain green.
 
-No partial EP is credited.
+All ten gates are proved by the final candidate below.
 
 ## Existing verified foundation
 
@@ -57,7 +57,7 @@ Each scheduled cycle:
 
 `DIGITALCROWN_DR_DESTINATION` may be a removable disk, NAS mount or independently synchronized filesystem. A path outside Digital Crown user-data is necessary but does not alone prove off-machine redundancy.
 
-## Technical off-machine storage boundary
+## Technical off-machine storage boundary — CERTIFIED
 
 The deterministic CI certification uses an **independently persisted off-runner artifact boundary**:
 
@@ -74,30 +74,42 @@ It does **not** certify GitHub Actions as the cabinet's operational backup provi
 
 This replaces the earlier device-specific wording that required CI itself to attach a “real removable disk/NAS”. The security goal is preserved: **independent persistence outside the failed workstation**, not a particular storage vendor or connector.
 
-## Cross-OS packaged certification design
+## Final certification evidence
 
-Workflow: `Portability P9 Backup Recovery DR`.
+Final candidate HEAD: `4590e2975e71ca89fc404e96e717646155b8fc14`.
+Workflow: `Portability P9 Backup Recovery DR` #11, run `33276520623` — **5/5 jobs SUCCESS**.
 
-### Windows → macOS
+### macOS source → Windows target
 
-1. fresh Windows source runner creates a real SQLCipher cabinet fixture with `users`, `patients`, a valid owner + `CabinetConfig`, deterministic P9 probe table and media sentinel;
-2. production `DisasterRecoveryService.create_verified_snapshot()` creates and verifies the `.dcbundle`;
-3. exact bundle SHA + sidecar are persisted off-runner and the local transfer copy is removed;
-4. a fresh Apple Silicon target runner downloads those bytes;
-5. the target builds the real PyInstaller macOS package and applies ad-hoc codesign integrity;
-6. package self-test must report `frozen=true`;
-7. the package starts a clean target cabinet and passes `/health`;
-8. wrong secret + tampered bundle are rejected;
-9. production portable conversion + Guided Restore preflight/prepare run with destination-local keys;
-10. the **frozen packaged executable** runs `--guided-restore-worker`;
-11. worker smoke check and an independent `/health` pass;
-12. restored SQLCipher DB marker/user_version and media hash match the Windows source.
+- fresh macOS 15 ARM64 source snapshot: SUCCESS;
+- bundle SHA-256: `b1ec767990c3dba5dbd36ecf86fc31610cee7e6b3248e5413070a19d3de9374b`;
+- source artifact `9721663479`, ZIP digest `sha256:ba53eca01ef063407cb1315daf129fba065ff3cc420ea6aa383a4ed41c0ef024`;
+- source transfer copy deletion asserted;
+- fresh Windows Server 2025 target downloaded the persisted artifact;
+- real Windows PyInstaller frozen target built;
+- package self-test proved frozen runtime and fail-closed scientific policy;
+- wrong migration secret and tampered ciphertext rejected;
+- production portable → Guided Restore conversion succeeded;
+- frozen packaged executable ran the restore worker;
+- final log: `P9_OFFMACHINE_PACKAGED_RESTORE=SUCCESS source=macos target=windows`;
+- target proof artifact `9721759555`, digest `sha256:18d897632b8ee9381b9eec4ca865cdf419164b1950cf83294f06c86075f0830f`;
+- restored `/health`, SQLCipher integrity, marker, `PRAGMA user_version` and media hash verified.
 
-### macOS → Windows
+### Windows source → macOS target
 
-The same proof is repeated from a fresh Apple Silicon source to a fresh `windows-2025` target and the restore worker is executed by `dist/DigitalCrown/DigitalCrown.exe`.
-
-P6/P7 own distribution signing/notarization truth. P9 reuses the certified packaging boundary and does not make a new SmartScreen, Developer ID or notarization claim.
+- fresh Windows Server 2025 source snapshot: SUCCESS;
+- bundle SHA-256: `65394c59e3a77e5ea76f36a82c0fe7bb319cc072cc666f9894307ba286e17a58`;
+- source artifact `9721671848`, ZIP digest `sha256:1faab98bd6d785f2d5b07fd69620b5ea865e02d51217a92fbfcc49bc8a5aae1c`;
+- source transfer copy deletion asserted;
+- fresh macOS 15 ARM64 target downloaded the persisted artifact;
+- real macOS PyInstaller frozen target built and strict ad-hoc codesign integrity verified;
+- package self-test proved frozen runtime and fail-closed scientific policy;
+- wrong migration secret and tampered ciphertext rejected;
+- production portable → Guided Restore conversion succeeded;
+- frozen packaged executable ran the restore worker;
+- final log: `P9_OFFMACHINE_PACKAGED_RESTORE=SUCCESS source=windows target=macos`;
+- target proof artifact `9721742568`, digest `sha256:d62d1e0e6d69fbff7b5e3e58d877e932fd53ea2b5ee04c42d05cd98199ddfc09`;
+- restored `/health`, SQLCipher integrity, marker, `PRAGMA user_version` and media hash verified.
 
 ## Engine truth
 
@@ -106,7 +118,7 @@ P6/P7 own distribution signing/notarization truth. P9 reuses the certified packa
 - If the active runtime is PostgreSQL, P9 returns `DR_PORTABLE_ENGINE_UNSUPPORTED`.
 - PostgreSQL portable DR is not silently claimed.
 
-## Failure behavior
+## Failure behavior retained
 
 - no destination/secret → `CONFIGURATION_REQUIRED`, no snapshot;
 - invalid/local destination → `DR_CONFIGURATION_INVALID`;
@@ -117,12 +129,6 @@ P6/P7 own distribution signing/notarization truth. P9 reuses the certified packa
 - corruption/tampering → snapshot or restore rejected;
 - wrong migration secret → restore conversion rejected;
 - retention metadata is updated only after a verified snapshot exists.
-
-## Evidence before final run
-
-Existing P9 targeted tests cover configuration, unavailable destination, disk full, corruption cleanup, sidecar, retention, bundle round-trip, wrong secret/tamper and Guided Restore rollback.
-
-The new cross-OS workflow adds the missing independently persisted storage boundary and frozen clean-target restore proof. **It is not credited until both cross-OS target jobs complete SUCCESS on the final candidate.**
 
 ## Explicit non-claims
 

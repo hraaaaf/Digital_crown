@@ -119,13 +119,35 @@ def main() -> None:
         "Windows → macOS",
         "macOS → Windows",
         "P13",
-        "0 EP",
         "No Vercel",
     ):
         require(marker in doc, f"P9 documentation missing certification truth: {marker}")
 
+    closed = "**Status:** CLOSED" in doc
+    if closed:
+        for marker in (
+            "8 EP credited",
+            "4590e2975e71ca89fc404e96e717646155b8fc14",
+            "33276520623",
+            "9721663479",
+            "9721671848",
+            "9721759555",
+            "9721742568",
+            "P9_OFFMACHINE_PACKAGED_RESTORE=SUCCESS source=macos target=windows",
+            "P9_OFFMACHINE_PACKAGED_RESTORE=SUCCESS source=windows target=macos",
+            "5/5 jobs SUCCESS",
+        ):
+            require(marker in doc, f"P9 CLOSED evidence missing: {marker}")
+        print(
+            "P9_DR_CONTRACT=SUCCESS state=CLOSED "
+            "off_runner_boundary=CERTIFIED cross_os=CERTIFIED "
+            "frozen_restore=CERTIFIED ep=8"
+        )
+        return
+
+    require("0 EP" in doc, "Open P9 must remain at 0 EP")
     print(
-        "P9_DR_CONTRACT=SUCCESS "
+        "P9_DR_CONTRACT=SUCCESS state=ACTIVE "
         "off_runner_boundary=PREPARED cross_os=PREPARED frozen_restore=REQUIRED ep=0"
     )
 

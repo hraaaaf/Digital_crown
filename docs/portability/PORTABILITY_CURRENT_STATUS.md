@@ -12,35 +12,39 @@ Last verified: 2026-08-29.
 - P6 — 8 EP — CLOSED
 - P7 — 13 EP — CLOSED; private macOS packaging and lifecycle certified
 - P8 — 21 EP — CLOSED
+- P9 — 8 EP — CLOSED; off-runner cross-OS frozen disaster recovery certified
 - P10 — 13 EP — CLOSED; authenticated cross-platform update lifecycle certified
 - P11 — 8 EP — CLOSED
 
-## P7 / P10 closeout proof
-PR #274 merged into `portability/p10-update-engine` as `04d286041fe85743920d633aea4f6a24f3ceae3f`.
-Post-merge exact HEAD `3bc4f781e9ad496b86c72b4cade56da9241555c7` verified with 18/19 PR-triggered workflows SUCCESS and 0 failures; the only non-completed workflow is redundant P6 Windows Packaging #149, still pending, while P6 Authenticode #16, P10 #139, P10 macOS #57, P7 #25, Clean Hosted #7, P12 #69 and general CI #2183 are all SUCCESS.
+## P9 closeout proof
+Final technical candidate: `4590e2975e71ca89fc404e96e717646155b8fc14`.
+P9 Backup Recovery DR #11 / run `33276520623`: **5/5 jobs SUCCESS**.
 
-Clean Hosted #7 `33272768876` — SUCCESS on both fresh platforms.
-P7 macOS #25 `33272768846` — SUCCESS.
-P10 #139 `33272768851` — SUCCESS.
-P10 macOS #57 `33272768868` — SUCCESS.
-P12 Prep #69 `33272768866` — SUCCESS.
-CI #2183 `33272768872` — SUCCESS.
+macOS → Windows:
+- source bundle SHA `b1ec767990c3dba5dbd36ecf86fc31610cee7e6b3248e5413070a19d3de9374b`;
+- source artifact `9721663479`;
+- target proof artifact `9721759555`, digest `sha256:18d897632b8ee9381b9eec4ca865cdf419164b1950cf83294f06c86075f0830f`.
+
+Windows → macOS:
+- source bundle SHA `65394c59e3a77e5ea76f36a82c0fe7bb319cc072cc666f9894307ba286e17a58`;
+- source artifact `9721671848`;
+- target proof artifact `9721742568`, digest `sha256:d62d1e0e6d69fbff7b5e3e58d877e932fd53ea2b5ee04c42d05cd98199ddfc09`.
+
+Both directions used distinct fresh target runners, real frozen packages, Guided Restore, `/health`, SQLCipher DB truth and media verification; wrong secret and tamper paths failed closed.
 
 ## Active / remaining
-- P9: ACTIVE; off-machine independently persisted DR proof + clean packaged restore + cross-OS evidence where applicable remain open.
-- P12: PREPARED, 0 EP until final matrix closes after P9.
-- P13: PLANNED; real-cabinet certification including human macOS first launch.
+- P12: PREPARED, 0 EP; P7/P9/P10 are AVAILABLE inputs, final matrix still open.
+- P13: PLANNED; real-cabinet certification including human macOS first launch and physical/off-machine backup ceremony.
 - P14: PLANNED.
 
 ## Progress
-Credited progress: **128 / 162 EP = 79.0%**.
+Credited progress: **136 / 162 EP = 84.0%**.
 No partial EP is credited for open lots.
 
 ## Next
-1. execute P9 off-machine independent clean packaged restore proof;
-2. close P9 if its real gates pass;
-3. finalize P12 matrix;
-4. execute P13 real-cabinet certification;
-5. P14 closeout.
+1. finalize P12 exact matrix using closed upstream evidence;
+2. close P12 only if all technical matrix rows are independently proved;
+3. execute P13 real-cabinet certification;
+4. P14 closeout.
 
 No Vercel.

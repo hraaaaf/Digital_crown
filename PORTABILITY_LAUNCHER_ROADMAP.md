@@ -19,7 +19,7 @@ Digital Crown doit offrir un seul produit local-first, issu d’un cœur partag�
 | P6 — Industrialized Windows packaging | 8 EP | CLOSED ✅ |
 | P7 — Native macOS packaging | 13 EP | CLOSED ✅ |
 | P8 — Hardware & peripherals | 21 EP | CLOSED ✅ |
-| P9 — Backup / Recovery / DR | 8 EP | ACTIVE |
+| P9 — Backup / Recovery / DR | 8 EP | CLOSED ✅ |
 | P10 — Cross-platform Update Engine | 13 EP | CLOSED ✅ |
 | P11 — Launcher & Recovery UX | 8 EP | CLOSED ✅ |
 | P12 — CI & certification matrix | 13 EP | PREPARED — 0 EP |
@@ -37,35 +37,32 @@ Aucun EP partiel n’est crédité pour un lot ouvert.
 - P4: PR #224, merge `40cb22d6dddcbae6dee7340dc23956decaf701d8`.
 - P5: candidate `3ee3447e1cd3d92575e3b930abeef8e31061bfb8`.
 - P6: PR #259, candidate `6eea148ceede740ea4646023e5f3aa58ea1ee8d1`.
-- P7: PR #274, merge `04d286041fe85743920d633aea4f6a24f3ceae3f`; post-merge P7 #25 `33272768846` SUCCESS + Clean Hosted #7 `33272768876` SUCCESS.
+- P7: PR #274, merge `04d286041fe85743920d633aea4f6a24f3ceae3f`; exact-head P7/P10 closeout `a30bec961a6e5fb51f46fd7a5f4b2ed36d7f196e`, 19/19 workflows SUCCESS.
 - P8: PR #275, merge `b5e1ea41fa039cc174da5d1690f6d9bd3332728b`.
-- P10: post-merge exact HEAD `3bc4f781e9ad496b86c72b4cade56da9241555c7`; P10 #139 `33272768851` SUCCESS, P10 macOS #57 `33272768868` SUCCESS, Clean Hosted #7 SUCCESS.
+- P9: candidate `4590e2975e71ca89fc404e96e717646155b8fc14`; P9 #11 run `33276520623`, 5/5 jobs SUCCESS with independently persisted off-runner cross-OS frozen restores.
+- P10: PR #239 merged into P9 branch as `aec7f27cbc075e3eb9e53aa651f19c4cdac64a13`; exact-head pre-merge CI 19/19 SUCCESS.
 - P11: PR #241, merge `455e7603c78b0139c0b39e217bed768bfe1186e7`.
 
-## P7 / P10 certified boundary
-P7 private macOS distribution uses signed-manifest authenticity + exact DMG SHA/size + strict ad-hoc codesign integrity. Gatekeeper default rejection is explicitly proved; no Developer ID, notarization, stapling or Apple approval is claimed. Human first-launch remains P13.
+## P9 certified boundary
+P9 proves machine-loss-style technical recovery for the portable SQLite/SQLCipher cabinet path in both directions: macOS → Windows and Windows → macOS. Each direction uses an independently persisted off-runner artifact, a distinct fresh target runner, a real frozen packaged executable, Guided Restore, `/health`, SQLCipher integrity, DB truth and media-byte verification. Wrong migration secrets and tampered bundles fail closed.
 
-P10 authenticates updates with the signed Ed25519 manifest, exact package identity/hash/size, target package self-test + `/health`, interruption recovery and package/DB rollback. Windows installers are private-PKI Authenticode signed with RFC3161 timestamp; private signing material is ephemeral and removed after use.
-
-## P9 — Backup / Recovery / DR — ACTIVE
-Remaining real gate: off-machine independently persisted destination plus restore on an independent clean packaged target and Windows ↔ macOS recovery evidence where applicable. The certification must prove the storage boundary rather than treating a same-run temp directory as external DR.
+This certification does not turn GitHub Actions into the cabinet backup provider and does not certify a physical USB/NAS. Actual operational media/NAS setup and human recovery ceremony remain P13.
 
 ## P12 — CI & certification matrix — PREPARED
-P7/P10 are now AVAILABLE upstream inputs. Final matrix waits primarily for P9 evidence. P12 remains 0 EP until its own matrix closes.
+P7/P9/P10 are now AVAILABLE upstream inputs. P12 remains 0 EP until its own final matrix closes. Remaining analysis centers on the scientific-assets row and clean-machine E2E row without stealing P13's real-cabinet scope.
 
 ## P13 — Real cabinet certification — PLANNED
-Real-cabinet validation remains distinct from technical CI. It includes administrator first-launch behavior on an actual cabinet Mac and critical cabinet workflows on real installed systems.
+Real-cabinet validation remains distinct from technical CI. It includes administrator first-launch behavior on an actual cabinet Mac, physical/off-machine backup setup and critical cabinet workflows on real installed systems.
 
 ## P14 — Closeout — PLANNED
 Final docs, matrices, guides, troubleshooting, governance and evidence consistency.
 
 ## Ordre canonique restant
-P9 → P12 → P13 → P14.
+P12 → P13 → P14.
 
 ## État courant
-- credited: **128 / 162 EP = 79,0 %**;
-- P7: CLOSED — 13 EP;
-- P10: CLOSED — 13 EP;
-- P9: ACTIVE;
+- credited: **136 / 162 EP = 84,0 %**;
+- P9: CLOSED — 8 EP;
+- P12: PREPARED — 0 EP;
 - no Vercel;
-- Next exact: execute P9 off-machine independent clean packaged restore + cross-OS DR certification.
+- Next exact: finalize P12 exact certification matrix from all closed upstream evidence.
