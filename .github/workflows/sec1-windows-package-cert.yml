@@ -74,9 +74,13 @@ jobs:
           $ErrorActionPreference = "Stop"
           New-Item -ItemType Directory -Force -Path "artifacts\sec1-windows-package" | Out-Null
           $report = Join-Path $PWD "artifacts\sec1-windows-package\self-test.json"
-          & ".\dist\DigitalCrown\DigitalCrown.exe" "--sec1-package-self-test=$report"
-          if ($LASTEXITCODE -ne 0) {
-            throw "Frozen SEC-1 self-test failed with exit code $LASTEXITCODE"
+          $process = Start-Process `
+            -FilePath ".\dist\DigitalCrown\DigitalCrown.exe" `
+            -ArgumentList @("--sec1-package-self-test=$report") `
+            -Wait `
+            -PassThru
+          if ($process.ExitCode -ne 0) {
+            throw "Frozen SEC-1 self-test failed with exit code $($process.ExitCode)"
           }
           if (-not (Test-Path $report)) {
             throw "Frozen SEC-1 self-test did not produce evidence"
