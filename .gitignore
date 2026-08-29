@@ -8,6 +8,7 @@ backend/.env
 backend/.env.local
 frontend/.env
 frontend/.env.local
+firebase_creds*.json
 
 # ========================================
 # CERTIFICATS SSL (générés par mkcert)
