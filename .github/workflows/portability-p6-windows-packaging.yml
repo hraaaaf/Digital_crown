@@ -2,15 +2,16 @@ name: Portability P6 Windows Packaging Certification
 
 on:
   pull_request:
+    types: [opened, synchronize]
     paths:
       - "VERSION"
       - "run.py"
       - "DigitalCrown.spec"
       - "installer/**"
       - "scripts/p6_packaging_check.py"
-      - "scripts/provision_p6_scientific_assets.py"
       - "scripts/generate_windows_version_info.py"
       - "scripts/build_exe.py"
+      - "backend/**/*.py"
       - "backend/requirements.txt"
       - "backend/requirements-p6-windows.txt"
       - "backend/scientific_assets.json"
@@ -31,9 +32,9 @@ concurrency:
 env:
   PYTHON_VERSION: "3.12"
   NODE_VERSION: "20"
-  P6_ASSET_REPO: "hraaaaf/Digital_crown"
-  P6_ASSET_TAG: "p6-scientific-assets-v1"
-  P6_ASSET_NAME: "p6-scientific-assets-v1.zip"
+  INNO_SETUP_RELEASE: "is-6_7_3"
+  INNO_SETUP_URL: "https://github.com/jrsoftware/issrc/releases/download/is-6_7_3/innosetup-6.7.3.exe"
+  INNO_SETUP_SHA256: "9c73c3bae7ed48d44112a0f48e66742c00090bdb5bef71d9d3c056c66e97b732"
 
 jobs:
   windows-package:
@@ -55,6 +56,12 @@ jobs:
       - name: Static packaging contract
         run: python scripts/p6_packaging_check.py --static
 
+      - name: Record scientific packaging policy
+        shell: pwsh
+        run: |
+          Write-Host "P6_SCIENTIFIC_PACKAGE_POLICY=FAIL_CLOSED_NO_WEIGHTS"
+          Write-Host "P6_UNQUALIFIED_SCIENTIFIC_WEIGHTS=FORBIDDEN"
+
       - name: Install frontend dependencies and build
         shell: pwsh
         run: |
@@ -62,18 +69,10 @@ jobs:
           npm --prefix frontend run build
 
       - name: Install Python packaging toolchain
-        run: python -m pip install --no-cache-dir -r backend/requirements-p6-windows.txt
-
-      - name: Download scientific runtime bundle from this repository
         shell: pwsh
-        env:
-          GH_TOKEN: ${{ github.token }}
-          EXPECTED_SHA256: ${{ secrets.P6_SCIENTIFIC_BUNDLE_SHA256 }}
         run: |
-          if (-not $env:EXPECTED_SHA256) { throw "P6_SCIENTIFIC_BUNDLE_SHA256 secret missing" }
-          New-Item -ItemType Directory -Force .p6-assets | Out-Null
-          gh release download $env:P6_ASSET_TAG --repo $env:P6_ASSET_REPO --pattern $env:P6_ASSET_NAME --dir .p6-assets
-          python scripts/provision_p6_scientific_assets.py ".p6-assets/$env:P6_ASSET_NAME" --sha256 $env:EXPECTED_SHA256
+          python -m pip install --no-cache-dir -r backend/requirements-p6-windows.txt
+          python -m pip check
 
       - name: Generate Windows version metadata
         run: python scripts/generate_windows_version_info.py --output build/windows-version-info.txt
@@ -82,39 +81,200 @@ jobs:
         run: python -m PyInstaller --noconfirm --clean DigitalCrown.spec
 
       - name: Frozen package self-test
-        run: .\dist\DigitalCrown\DigitalCrown.exe --package-self-test
-
-      - name: Install Inno Setup 6.7.3
         shell: pwsh
         run: |
-          choco install innosetup --version=6.7.3 -y --no-progress
-          $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
-          if (-not (Test-Path $iscc)) { throw "ISCC.exe missing" }
-          $versionOutput = (& $iscc --version 2>&1 | Out-String)
-          if ($versionOutput -notmatch '6\.7\.3') { throw "Unexpected Inno Setup version: $versionOutput" }
+          $ErrorActionPreference = "Stop"
+          $exe = (Resolve-Path ".\dist\DigitalCrown\DigitalCrown.exe").Path
+          $workingDir = Split-Path $exe -Parent
+          $report = Join-Path $env:RUNNER_TEMP "dc-p6-frozen-self-test.json"
+          $env:DIGITALCROWN_PACKAGE_SELF_TEST_REPORT = $report
+          try {
+            $selfTest = Start-Process -FilePath $exe -ArgumentList "--package-self-test" -WorkingDirectory $workingDir -Wait -PassThru
+          } finally {
+            Remove-Item Env:DIGITALCROWN_PACKAGE_SELF_TEST_REPORT -ErrorAction SilentlyContinue
+          }
+          if (-not (Test-Path $report -PathType Leaf)) { throw "frozen package self-test report missing: $report" }
+          Write-Host "P6_FROZEN_SELF_TEST_REPORT=$(Get-Content $report -Raw)"
+          if ($selfTest.ExitCode -ne 0) { throw "frozen package self-test failed: $($selfTest.ExitCode)" }
+
+      - name: Install exact Inno Setup 6.7.3
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          $installer = Join-Path $env:RUNNER_TEMP "innosetup-6.7.3.exe"
+          $innoDir = Join-Path $env:RUNNER_TEMP "InnoSetup-6.7.3"
+          Invoke-WebRequest -Uri $env:INNO_SETUP_URL -OutFile $installer
+          $actual = (Get-FileHash -Algorithm SHA256 $installer).Hash.ToLowerInvariant()
+          if ($actual -ne $env:INNO_SETUP_SHA256) { throw "Inno Setup SHA256 mismatch: $actual" }
+          $signature = Get-AuthenticodeSignature $installer
+          if ($signature.Status -ne 'Valid') { throw "Inno Setup Authenticode invalid: $($signature.Status)" }
+          $proc = Start-Process -FilePath $installer -ArgumentList @('/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART','/SP-',"/DIR=$innoDir") -Wait -PassThru
+          if ($proc.ExitCode -ne 0) { throw "Inno Setup install failed: $($proc.ExitCode)" }
+          $iscc = Join-Path $innoDir "ISCC.exe"
+          if (-not (Test-Path $iscc)) { throw "ISCC.exe missing after exact install" }
+          "P6_ISCC=$iscc" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          Write-Host "P6_INNO_SETUP=SUCCESS release=$env:INNO_SETUP_RELEASE sha256=$actual authenticode=$($signature.Status)"
 
       - name: Build installer
         shell: pwsh
         run: |
           $version = (Get-Content VERSION -Raw).Trim()
-          $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
-          & $iscc "/DMyAppVersion=$version" installer\DigitalCrown.iss
+          if (-not $env:P6_ISCC -or -not (Test-Path $env:P6_ISCC)) { throw "P6_ISCC missing" }
+          & $env:P6_ISCC "/DMyAppVersion=$version" installer\DigitalCrown.iss
           if ($LASTEXITCODE -ne 0) { throw "Inno Setup compilation failed" }
+
+      - name: Private Authenticode signing gate
+        id: codesign
+        shell: pwsh
+        timeout-minutes: 10
+        env:
+          CERT_PFX_B64: ${{ secrets.WINDOWS_CODESIGN_PFX_B64 }}
+          CERT_PASSWORD: ${{ secrets.WINDOWS_CODESIGN_PASSWORD }}
+          EXPECTED_CERT_SHA256: ${{ vars.WINDOWS_CODESIGN_CERT_SHA256 }}
+        run: |
+          $ErrorActionPreference = "Stop"
+          $values = @($env:CERT_PFX_B64, $env:CERT_PASSWORD, $env:EXPECTED_CERT_SHA256)
+          $present = @($values | Where-Object { -not [string]::IsNullOrWhiteSpace([string]$_) })
+          if ($present.Count -eq 0) { throw "P6_PRIVATE_CODESIGN_NOT_CONFIGURED" }
+          if ($present.Count -ne 3) { throw "P6_PRIVATE_CODESIGN_PARTIAL_CONFIGURATION" }
+          if ($env:EXPECTED_CERT_SHA256 -notmatch '^[0-9a-fA-F]{64}$') { throw "P6_PRIVATE_CODESIGN_CERT_SHA256_INVALID" }
+
+          $pfx = Join-Path $env:RUNNER_TEMP "digitalcrown-private-codesign.pfx"
+          try { [IO.File]::WriteAllBytes($pfx, [Convert]::FromBase64String($env:CERT_PFX_B64)) }
+          catch { throw "P6_PRIVATE_CODESIGN_PFX_BASE64_INVALID" }
+
+          $securePassword = ConvertTo-SecureString $env:CERT_PASSWORD -AsPlainText -Force
+          Write-Host "P6_CODESIGN_PHASE=PFX_IMPORT_START"
+          $cert = Import-PfxCertificate -FilePath $pfx -CertStoreLocation Cert:\CurrentUser\My -Password $securePassword -Exportable:$false
+          if ($null -eq $cert -or -not $cert.HasPrivateKey) { throw "P6_PRIVATE_CODESIGN_PRIVATE_KEY_MISSING" }
+          "thumbprint=$($cert.Thumbprint)" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+          Write-Host "P6_CODESIGN_PHASE=PFX_IMPORT_SUCCESS"
+          $ekuObjectIds = @($cert.EnhancedKeyUsageList | ForEach-Object { [string]$_.ObjectId })
+          if ($ekuObjectIds -notcontains '1.3.6.1.5.5.7.3.3') { throw "P6_PRIVATE_CODESIGN_EKU_MISSING" }
+
+          $cer = Join-Path $env:RUNNER_TEMP "digitalcrown-private-codesign.cer"
+          Export-Certificate -Cert $cert -FilePath $cer -Type CERT | Out-Null
+          $actualCertSha256 = (Get-FileHash -Algorithm SHA256 $cer).Hash.ToLowerInvariant()
+          if ($actualCertSha256 -ne $env:EXPECTED_CERT_SHA256.ToLowerInvariant()) {
+            throw "P6_PRIVATE_CODESIGN_CERT_SHA256_MISMATCH actual=$actualCertSha256"
+          }
+          Write-Host "P6_CODESIGN_PHASE=CERTIFICATE_VALIDATION_SUCCESS"
+
+          Write-Host "P6_CODESIGN_PHASE=EPHEMERAL_TRUST_START"
+          Import-Certificate -FilePath $cer -CertStoreLocation Cert:\LocalMachine\Root -Confirm:$false | Out-Null
+          Import-Certificate -FilePath $cer -CertStoreLocation Cert:\LocalMachine\TrustedPublisher -Confirm:$false | Out-Null
+          foreach ($storeName in @('Root', 'TrustedPublisher')) {
+            if (-not (Test-Path -LiteralPath "Cert:\LocalMachine\$storeName\$($cert.Thumbprint)")) {
+              throw "P6_PRIVATE_CODESIGN_TRUST_IMPORT_FAILED store=$storeName"
+            }
+          }
+          Write-Host "P6_CODESIGN_PHASE=EPHEMERAL_TRUST_SUCCESS"
+
+          $signtool = (Get-ChildItem "C:\Program Files (x86)\Windows Kits\10\bin" -Recurse -Filter signtool.exe | Sort-Object FullName -Descending | Select-Object -First 1).FullName
+          if (-not $signtool) { throw "signtool.exe missing" }
+          $version = (Get-Content VERSION -Raw).Trim()
+          $setup = (Resolve-Path "dist_installer\DigitalCrownSetup-$version.exe").Path
+          $signStdout = Join-Path $env:RUNNER_TEMP "dc-p6-signtool-sign.stdout.txt"
+          $signStderr = Join-Path $env:RUNNER_TEMP "dc-p6-signtool-sign.stderr.txt"
+          Write-Host "P6_CODESIGN_PHASE=SIGN_AND_TIMESTAMP_START provider=digicert timeout_seconds=180"
+          $signProcess = Start-Process -FilePath $signtool -ArgumentList @(
+            'sign', '/fd', 'SHA256', '/sha1', $cert.Thumbprint, '/s', 'My',
+            '/tr', 'http://timestamp.digicert.com', '/td', 'SHA256', $setup
+          ) -PassThru -NoNewWindow -RedirectStandardOutput $signStdout -RedirectStandardError $signStderr
+          if (-not $signProcess.WaitForExit(180000)) {
+            Stop-Process -Id $signProcess.Id -Force -ErrorAction SilentlyContinue
+            throw "P6_PRIVATE_AUTHENTICODE_SIGN_TIMEOUT"
+          }
+          $signProcess.WaitForExit()
+          if (Test-Path $signStdout) { Get-Content $signStdout | ForEach-Object { Write-Host $_ } }
+          if (Test-Path $signStderr) { Get-Content $signStderr | ForEach-Object { Write-Host $_ } }
+          if ($signProcess.ExitCode -ne 0) { throw "P6_PRIVATE_AUTHENTICODE_SIGN_FAILED exit_code=$($signProcess.ExitCode)" }
+          Write-Host "P6_CODESIGN_PHASE=SIGN_AND_TIMESTAMP_SUCCESS"
+
+          $verifyLog = Join-Path $env:RUNNER_TEMP "dc-p6-signtool-verify.txt"
+          $verifyOutput = & $signtool verify /pa /v $setup 2>&1
+          $verifyExitCode = $LASTEXITCODE
+          $verifyOutput | Tee-Object -FilePath $verifyLog | ForEach-Object { Write-Host $_ }
+          if ($verifyExitCode -ne 0) { throw "P6_PRIVATE_AUTHENTICODE_VERIFY_FAILED" }
+
+          $signature = Get-AuthenticodeSignature -FilePath $setup
+          if ($signature.Status -ne 'Valid') { throw "P6_PRIVATE_AUTHENTICODE_INVALID status=$($signature.Status)" }
+          if ($null -eq $signature.TimeStamperCertificate) { throw "P6_PRIVATE_AUTHENTICODE_TIMESTAMP_MISSING" }
+          if ($signature.SignerCertificate.Thumbprint -ne $cert.Thumbprint) { throw "P6_PRIVATE_AUTHENTICODE_SIGNER_MISMATCH" }
+
+          $setupSha256 = (Get-FileHash -Algorithm SHA256 $setup).Hash.ToLowerInvariant()
+          $proofPath = Join-Path $env:RUNNER_TEMP "dc-p6-authenticode-proof.json"
+          [ordered]@{
+            format = "digitalcrown-p6-authenticode-proof-v1"
+            head_sha = "${{ github.sha }}"
+            installer = [IO.Path]::GetFileName($setup)
+            installer_sha256 = $setupSha256
+            certificate_sha256 = $actualCertSha256
+            signer_thumbprint_sha1 = $cert.Thumbprint.ToLowerInvariant()
+            signer_subject = $signature.SignerCertificate.Subject
+            signature_status = [string]$signature.Status
+            timestamper_subject = $signature.TimeStamperCertificate.Subject
+            timestamper_thumbprint_sha1 = $signature.TimeStamperCertificate.Thumbprint.ToLowerInvariant()
+            timestamp_present = $true
+            signtool_verify_exit_code = $verifyExitCode
+          } | ConvertTo-Json -Depth 3 | Set-Content -Path $proofPath -Encoding utf8
+
+          "setup_sha256=$setupSha256" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+          "ready=true" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+          Write-Host "P6_AUTHENTICODE=SUCCESS provider=digitalcrown-private-pki cert_sha256=$actualCertSha256 setup_sha256=$setupSha256 timestamp=present signer=$($signature.SignerCertificate.Subject)"
+
+      - name: Cleanup private signing material from runner
+        if: always()
+        shell: pwsh
+        env:
+          SIGNER_THUMBPRINT: ${{ steps.codesign.outputs.thumbprint }}
+        run: |
+          Remove-Item -LiteralPath (Join-Path $env:RUNNER_TEMP "digitalcrown-private-codesign.pfx") -Force -ErrorAction SilentlyContinue
+          Remove-Item -LiteralPath (Join-Path $env:RUNNER_TEMP "digitalcrown-private-codesign.cer") -Force -ErrorAction SilentlyContinue
+          if ($env:SIGNER_THUMBPRINT) {
+            Remove-Item -LiteralPath "Cert:\CurrentUser\My\$env:SIGNER_THUMBPRINT" -Force -ErrorAction SilentlyContinue
+            foreach ($store in @('Root','TrustedPublisher')) {
+              Remove-Item -LiteralPath "Cert:\LocalMachine\$store\$env:SIGNER_THUMBPRINT" -Force -ErrorAction SilentlyContinue
+            }
+          }
 
       - name: Install / runtime / upgrade / uninstall smoke
         shell: pwsh
         run: |
           $ErrorActionPreference = "Stop"
+          function Invoke-P6Installer {
+            param([Parameter(Mandatory=$true)][string]$FilePath,[Parameter(Mandatory=$true)][string]$ArgumentLine,[Parameter(Mandatory=$true)][string]$LogPath,[Parameter(Mandatory=$true)][string]$Phase)
+            $proc = Start-Process -FilePath $FilePath -ArgumentList $ArgumentLine -Wait -PassThru
+            Write-Host "P6_INSTALLER_PHASE=$Phase exit_code=$($proc.ExitCode) log=$LogPath"
+            if ($proc.ExitCode -ne 0) {
+              if (Test-Path $LogPath) { Get-Content -Path $LogPath -Tail 250 | ForEach-Object { Write-Host $_ } }
+              throw "$Phase failed: $($proc.ExitCode)"
+            }
+          }
+          function Show-P6RuntimeLog {
+            param([Parameter(Mandatory=$true)][string]$LogPath)
+            if (Test-Path $LogPath -PathType Leaf) { Get-Content -Path $LogPath -Tail 250 | ForEach-Object { Write-Host $_ } }
+          }
           $version = (Get-Content VERSION -Raw).Trim()
-          $setup = Resolve-Path "dist_installer\DigitalCrownSetup-$version.exe"
+          $setup = (Resolve-Path "dist_installer\DigitalCrownSetup-$version.exe").Path
           $sandbox = Join-Path $env:RUNNER_TEMP "dc-p6-cabinet"
           $install = Join-Path $env:RUNNER_TEMP "dc-p6-program"
+          $installLog = Join-Path $env:RUNNER_TEMP "dc-p6-install.log"
+          $upgradeLog = Join-Path $env:RUNNER_TEMP "dc-p6-upgrade.log"
+          $uninstallLog = Join-Path $env:RUNNER_TEMP "dc-p6-uninstall.log"
+          $installedSelfTestReport = Join-Path $env:RUNNER_TEMP "dc-p6-installed-self-test.json"
+          $runtimeLog = Join-Path $sandbox "logs\digitalcrown.log"
           New-Item -ItemType Directory -Force $sandbox,$install | Out-Null
-          & $setup /VERYSILENT /SUPPRESSMSGBOXES /NORESTART /SP- "/DIR=$install"
-          if ($LASTEXITCODE -ne 0) { throw "install failed" }
+          $installArgs = "/VERYSILENT /SUPPRESSMSGBOXES /NORESTART /SP- /DIR=`"$install`" /LOG=`"$installLog`""
+          Invoke-P6Installer -FilePath $setup -ArgumentLine $installArgs -LogPath $installLog -Phase "install"
           $exe = Join-Path $install "DigitalCrown.exe"
-          & $exe --package-self-test
-          if ($LASTEXITCODE -ne 0) { throw "installed package self-test failed" }
+          if (-not (Test-Path $exe -PathType Leaf)) { throw "installed executable missing: $exe" }
+          $env:DIGITALCROWN_PACKAGE_SELF_TEST_REPORT = $installedSelfTestReport
+          try { $selfTest = Start-Process -FilePath $exe -ArgumentList "--package-self-test" -WorkingDirectory $install -Wait -PassThru }
+          finally { Remove-Item Env:DIGITALCROWN_PACKAGE_SELF_TEST_REPORT -ErrorAction SilentlyContinue }
+          if (-not (Test-Path $installedSelfTestReport -PathType Leaf)) { throw "installed package self-test report missing: $installedSelfTestReport" }
+          Write-Host "P6_INSTALLED_SELF_TEST_REPORT=$(Get-Content $installedSelfTestReport -Raw)"
+          if ($selfTest.ExitCode -ne 0) { throw "installed package self-test failed: $($selfTest.ExitCode)" }
           $sentinel = Join-Path $sandbox "P6_DATA_SENTINEL.txt"
           Set-Content -Path $sentinel -Value "preserve-me" -NoNewline
           $env:DIGITALCROWN_USER_DATA_DIR = $sandbox
@@ -123,56 +283,63 @@ jobs:
           $env:DIGITALCROWN_RUNTIME_DIR = (Join-Path $sandbox "runtime")
           $env:CABINET_PORT = "8765"
           $env:DIGITALCROWN_RESTORE_RESTART = "1"
-          $proc = Start-Process -FilePath $exe -PassThru
+          $proc = Start-Process -FilePath $exe -WorkingDirectory $install -PassThru
           try {
             $ok = $false
             1..60 | ForEach-Object {
               if ($ok) { return }
               Start-Sleep -Seconds 2
-              try {
-                $r = Invoke-RestMethod -Uri "http://127.0.0.1:8765/health" -TimeoutSec 2
-                if ($r.status -eq "ok") { $ok = $true }
-              } catch {}
+              if ($proc.HasExited) { $exitCode = $proc.ExitCode; Show-P6RuntimeLog -LogPath $runtimeLog; throw "frozen runtime exited before health: $exitCode" }
+              try { $r = Invoke-RestMethod -Uri "http://127.0.0.1:8765/health" -TimeoutSec 2; if ($r.status -eq "ok") { $ok = $true } } catch {}
             }
-            if (-not $ok) { throw "frozen runtime health failed" }
-          } finally {
-            Stop-Process -Id $proc.Id -Force -ErrorAction SilentlyContinue
-          }
-          & $setup /VERYSILENT /SUPPRESSMSGBOXES /NORESTART /SP- "/DIR=$install"
-          if ($LASTEXITCODE -ne 0) { throw "upgrade reinstall failed" }
+            if (-not $ok) { Show-P6RuntimeLog -LogPath $runtimeLog; throw "frozen runtime health failed" }
+          } finally { Stop-Process -Id $proc.Id -Force -ErrorAction SilentlyContinue }
+          $upgradeArgs = "/VERYSILENT /SUPPRESSMSGBOXES /NORESTART /SP- /DIR=`"$install`" /LOG=`"$upgradeLog`""
+          Invoke-P6Installer -FilePath $setup -ArgumentLine $upgradeArgs -LogPath $upgradeLog -Phase "upgrade-reinstall"
           $uninstaller = Join-Path $install "unins000.exe"
-          & $uninstaller /VERYSILENT /SUPPRESSMSGBOXES /NORESTART
-          if ($LASTEXITCODE -ne 0) { throw "uninstall failed" }
+          if (-not (Test-Path $uninstaller -PathType Leaf)) { throw "uninstaller missing: $uninstaller" }
+          $uninstallArgs = "/VERYSILENT /SUPPRESSMSGBOXES /NORESTART /LOG=`"$uninstallLog`""
+          Invoke-P6Installer -FilePath $uninstaller -ArgumentLine $uninstallArgs -LogPath $uninstallLog -Phase "uninstall"
           if (-not (Test-Path $sentinel)) { throw "cabinet data sentinel was deleted" }
           Write-Host "P6_WINDOWS_INSTALL_SMOKE=SUCCESS"
 
-      - name: Authenticode status
+      - name: Verify signed installer stayed immutable
         shell: pwsh
         env:
-          CERT_PFX_B64: ${{ secrets.WINDOWS_CODESIGN_PFX_B64 }}
-          CERT_PASSWORD: ${{ secrets.WINDOWS_CODESIGN_PASSWORD }}
+          EXPECTED_SETUP_SHA256: ${{ steps.codesign.outputs.setup_sha256 }}
         run: |
+          $ErrorActionPreference = "Stop"
+          if ($env:EXPECTED_SETUP_SHA256 -notmatch '^[0-9a-fA-F]{64}$') { throw "P6_SIGNED_INSTALLER_HASH_OUTPUT_MISSING" }
           $version = (Get-Content VERSION -Raw).Trim()
-          $setup = Resolve-Path "dist_installer\DigitalCrownSetup-$version.exe"
-          if (-not $env:CERT_PFX_B64) {
-            Write-Host "P6_AUTHENTICODE=NOT_CONFIGURED"
-            exit 0
-          }
-          $pfx = Join-Path $env:RUNNER_TEMP "codesign.pfx"
-          [IO.File]::WriteAllBytes($pfx, [Convert]::FromBase64String($env:CERT_PFX_B64))
-          $signtool = (Get-ChildItem "C:\Program Files (x86)\Windows Kits\10\bin" -Recurse -Filter signtool.exe | Sort-Object FullName -Descending | Select-Object -First 1).FullName
-          if (-not $signtool) { throw "signtool.exe missing" }
-          & $signtool sign /fd SHA256 /f $pfx /p $env:CERT_PASSWORD /tr http://timestamp.digicert.com /td SHA256 $setup
-          if ($LASTEXITCODE -ne 0) { throw "Authenticode signing failed" }
-          & $signtool verify /pa /v $setup
-          if ($LASTEXITCODE -ne 0) { throw "Authenticode verification failed" }
-          Remove-Item $pfx -Force
-          Write-Host "P6_AUTHENTICODE=SUCCESS"
+          $setup = (Resolve-Path "dist_installer\DigitalCrownSetup-$version.exe").Path
+          $actual = (Get-FileHash -Algorithm SHA256 $setup).Hash.ToLowerInvariant()
+          if ($actual -ne $env:EXPECTED_SETUP_SHA256.ToLowerInvariant()) { throw "P6_SIGNED_INSTALLER_MUTATED expected=$env:EXPECTED_SETUP_SHA256 actual=$actual" }
+          Write-Host "P6_SIGNED_INSTALLER_IMMUTABLE=SUCCESS sha256=$actual"
+
+      - name: Upload installer lifecycle diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: digitalcrown-p6-installer-lifecycle-logs
+          path: |
+            ${{ runner.temp }}\dc-p6-frozen-self-test.json
+            ${{ runner.temp }}\dc-p6-installed-self-test.json
+            ${{ runner.temp }}\dc-p6-install.log
+            ${{ runner.temp }}\dc-p6-upgrade.log
+            ${{ runner.temp }}\dc-p6-uninstall.log
+            ${{ runner.temp }}\dc-p6-cabinet\logs\digitalcrown.log
+            ${{ runner.temp }}\dc-p6-authenticode-proof.json
+            ${{ runner.temp }}\dc-p6-signtool-verify.txt
+          if-no-files-found: ignore
+          retention-days: 7
 
       - name: Upload Windows installer proof
         uses: actions/upload-artifact@v4
         with:
           name: digitalcrown-p6-windows-installer
-          path: dist_installer/*.exe
+          path: |
+            dist_installer/*.exe
+            ${{ runner.temp }}\dc-p6-authenticode-proof.json
+            ${{ runner.temp }}\dc-p6-signtool-verify.txt
           if-no-files-found: error
           retention-days: 7

@@ -1,0 +1,313 @@
+name: Portability P9 Backup Recovery DR
+
+on:
+  pull_request:
+    paths:
+      - "backend/services/disaster_recovery_service.py"
+      - "backend/services/cabinet_bundle.py"
+      - "backend/services/backup_service.py"
+      - "backend/services/guided_restore.py"
+      - "backend/services/guided_restore_archive.py"
+      - "backend/services/guided_restore_worker.py"
+      - "backend/services/daily_scheduler.py"
+      - "backend/tests/test_disaster_recovery.py"
+      - "backend/tests/test_disaster_recovery_interruption.py"
+      - "backend/tests/test_cabinet_bundle.py"
+      - "backend/tests/test_guided_restore.py"
+      - "scripts/p9_dr_contract_check.py"
+      - "scripts/p9_offmachine_cross_os_ci.py"
+      - "docs/portability/P9_BACKUP_RECOVERY_DR.md"
+      - ".github/workflows/portability-p9-dr-cert.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: portability-p9-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  PYTHON_VERSION: "3.12"
+  NODE_VERSION: "20"
+  PYTHONPATH: ${{ github.workspace }}
+  P9_MIGRATION_SECRET: "DigitalCrown-P9-CI-Migration-Secret-2026"
+
+jobs:
+  dr-contract:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install targeted DR dependencies
+        run: python -m pip install --disable-pip-version-check pytest cryptography sqlalchemy python-dotenv
+
+      - name: Compile DR entrypoints
+        run: >-
+          python -m py_compile
+          backend/services/disaster_recovery_service.py
+          backend/services/daily_scheduler.py
+          scripts/p9_dr_contract_check.py
+          scripts/p9_offmachine_cross_os_ci.py
+
+      - name: Verify DR static contract
+        run: python scripts/p9_dr_contract_check.py
+
+      - name: Run P9 DR targeted tests
+        run: >-
+          python -m pytest
+          backend/tests/test_disaster_recovery.py
+          backend/tests/test_disaster_recovery_interruption.py
+          backend/tests/test_cabinet_bundle.py
+          backend/tests/test_guided_restore.py
+          -q --noconftest
+
+  source-windows:
+    needs: dr-contract
+    runs-on: windows-2025
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install source DR runtime
+        shell: pwsh
+        run: >-
+          python -m pip install --disable-pip-version-check
+          cryptography==46.0.5
+          SQLAlchemy==2.0.28
+          python-dotenv==1.2.1
+          passlib==1.7.4
+          bcrypt==3.2.2
+          sqlcipher3==0.6.2
+
+      - name: Create verified Windows DR source snapshot
+        shell: pwsh
+        run: |
+          $transfer = Join-Path $env:RUNNER_TEMP "p9-transfer-out"
+          $work = Join-Path $env:RUNNER_TEMP "p9-source-work"
+          if (Test-Path $transfer) { throw "P9_SOURCE_TRANSFER_MUST_START_ABSENT" }
+          python scripts/p9_offmachine_cross_os_ci.py source `
+            --transfer-dir $transfer `
+            --work-root $work `
+            --migration-secret $env:P9_MIGRATION_SECRET `
+            --source-label windows `
+            --port 18910
+
+      - name: Persist Windows source off-runner
+        uses: actions/upload-artifact@v4
+        with:
+          name: p9-dr-source-windows
+          path: ${{ runner.temp }}/p9-transfer-out/*
+          if-no-files-found: error
+          retention-days: 2
+
+      - name: Remove Windows source transfer from runner
+        if: always()
+        shell: pwsh
+        run: |
+          $transfer = Join-Path $env:RUNNER_TEMP "p9-transfer-out"
+          Remove-Item -Recurse -Force $transfer -ErrorAction SilentlyContinue
+          if (Test-Path $transfer) { throw "P9_SOURCE_LOCAL_DELETE_FAILED" }
+          Write-Host "P9_SOURCE_LOCAL_DELETE=SUCCESS os=windows"
+
+  source-macos:
+    needs: dr-contract
+    runs-on: macos-15
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Require Apple Silicon source runner
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$(uname -m)" == "arm64" ]]
+          echo "P9_SOURCE_ARCH=arm64"
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install source DR runtime
+        run: >-
+          python -m pip install --disable-pip-version-check
+          cryptography==46.0.5
+          SQLAlchemy==2.0.28
+          python-dotenv==1.2.1
+          passlib==1.7.4
+          bcrypt==3.2.2
+          sqlcipher3==0.6.2
+
+      - name: Create verified macOS DR source snapshot
+        shell: bash
+        run: |
+          set -euo pipefail
+          transfer="$RUNNER_TEMP/p9-transfer-out"
+          work="$RUNNER_TEMP/p9-source-work"
+          test ! -e "$transfer"
+          python scripts/p9_offmachine_cross_os_ci.py source \
+            --transfer-dir "$transfer" \
+            --work-root "$work" \
+            --migration-secret "$P9_MIGRATION_SECRET" \
+            --source-label macos \
+            --port 18911
+
+      - name: Persist macOS source off-runner
+        uses: actions/upload-artifact@v4
+        with:
+          name: p9-dr-source-macos
+          path: ${{ runner.temp }}/p9-transfer-out/*
+          if-no-files-found: error
+          retention-days: 2
+
+      - name: Remove macOS source transfer from runner
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          transfer="$RUNNER_TEMP/p9-transfer-out"
+          rm -rf "$transfer"
+          test ! -e "$transfer"
+          echo "P9_SOURCE_LOCAL_DELETE=SUCCESS os=macos"
+
+  target-macos-from-windows:
+    needs: source-windows
+    runs-on: macos-15
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Require fresh Apple Silicon target runner
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$(uname -m)" == "arm64" ]]
+          test ! -e "$RUNNER_TEMP/p9-transfer-in"
+          echo "P9_TARGET_FRESH_BOUNDARY=SUCCESS os=macos"
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Retrieve Windows snapshot from persisted artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: p9-dr-source-windows
+          path: ${{ runner.temp }}/p9-transfer-in
+
+      - name: Build real macOS frozen target
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm --prefix frontend ci
+          npm --prefix frontend run build
+          rm -rf frontend/node_modules
+          npm cache clean --force || true
+          python -m pip install --no-cache-dir -r backend/requirements-p7-macos.txt
+          python scripts/generate_macos_icon.py
+          iconutil -c icns build/macos/DigitalCrown.iconset -o build/macos/DigitalCrown.icns
+          python -m PyInstaller --noconfirm --clean DigitalCrown.spec
+          codesign --force --deep --sign - dist/DigitalCrown.app
+          codesign --verify --deep --strict dist/DigitalCrown.app
+
+      - name: Restore Windows snapshot on frozen macOS target
+        shell: bash
+        run: |
+          set -euo pipefail
+          python scripts/p9_offmachine_cross_os_ci.py target \
+            --transfer-dir "$RUNNER_TEMP/p9-transfer-in" \
+            --work-root "$RUNNER_TEMP/p9-target-macos" \
+            --migration-secret "$P9_MIGRATION_SECRET" \
+            --executable "$GITHUB_WORKSPACE/dist/DigitalCrown.app/Contents/MacOS/DigitalCrown" \
+            --report "$RUNNER_TEMP/p9-windows-to-macos-proof.json" \
+            --port 18921
+
+      - name: Upload compact Windows to macOS DR proof
+        uses: actions/upload-artifact@v4
+        with:
+          name: p9-dr-proof-windows-to-macos
+          path: ${{ runner.temp }}/p9-windows-to-macos-proof.json
+          if-no-files-found: error
+          retention-days: 7
+
+  target-windows-from-macos:
+    needs: source-macos
+    runs-on: windows-2025
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Require fresh Windows target runner
+        shell: pwsh
+        run: |
+          $incoming = Join-Path $env:RUNNER_TEMP "p9-transfer-in"
+          if (Test-Path $incoming) { throw "P9_TARGET_TRANSFER_MUST_START_ABSENT" }
+          Write-Host "P9_TARGET_FRESH_BOUNDARY=SUCCESS os=windows"
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Retrieve macOS snapshot from persisted artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: p9-dr-source-macos
+          path: ${{ runner.temp }}/p9-transfer-in
+
+      - name: Build real Windows frozen target
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          npm --prefix frontend ci
+          npm --prefix frontend run build
+          python -m pip install --no-cache-dir -r backend/requirements-p6-windows.txt
+          python -m pip check
+          python scripts/generate_windows_version_info.py --output build/windows-version-info.txt
+          python -m PyInstaller --noconfirm --clean DigitalCrown.spec
+          $exe = Resolve-Path ".\dist\DigitalCrown\DigitalCrown.exe"
+          if (-not (Test-Path $exe -PathType Leaf)) { throw "P9_WINDOWS_FROZEN_TARGET_MISSING" }
+
+      - name: Restore macOS snapshot on frozen Windows target
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          $transfer = Join-Path $env:RUNNER_TEMP "p9-transfer-in"
+          $work = Join-Path $env:RUNNER_TEMP "p9-target-windows"
+          $exe = (Resolve-Path ".\dist\DigitalCrown\DigitalCrown.exe").Path
+          $report = Join-Path $env:RUNNER_TEMP "p9-macos-to-windows-proof.json"
+          python scripts/p9_offmachine_cross_os_ci.py target `
+            --transfer-dir "$transfer" `
+            --work-root "$work" `
+            --migration-secret $env:P9_MIGRATION_SECRET `
+            --executable "$exe" `
+            --report "$report" `
+            --port 18922
+
+      - name: Upload compact macOS to Windows DR proof
+        uses: actions/upload-artifact@v4
+        with:
+          name: p9-dr-proof-macos-to-windows
+          path: ${{ runner.temp }}/p9-macos-to-windows-proof.json
+          if-no-files-found: error
+          retention-days: 7

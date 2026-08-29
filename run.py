@@ -17,26 +17,57 @@ def _maybe_run_package_self_test() -> None:
         root / "backend" / "static" / "assets" / "fonts" / "Outfit-Bold.ttf",
         root / "backend" / "data" / "cephalometry" / "measurement_definitions.yaml",
         root / "backend" / "data" / "cephalometry" / "normative_profiles.yaml",
-        root / "backend" / "ai_models" / "panoramic_model.onnx",
-        root / "backend" / "ai_models" / "cephld_cca" / "ceph_weights.pth",
     ]
     missing = [str(path.relative_to(root)) for path in required if not path.exists()]
-    legacy_py = list((root / "backend" / "ai_models" / "cephld_cca").rglob("*.py"))
     forbidden = [
         root / ".env",
         root / "backend" / ".env",
         root / "backend" / "core" / "firebase_creds.json",
     ]
     leaked = [str(path.relative_to(root)) for path in forbidden if path.exists()]
-    if not legacy_py:
-        missing.append("backend/ai_models/cephld_cca/**/*.py")
+    unqualified_scientific_weights = [
+        root / "backend" / "ai_models" / "panoramic_model.onnx",
+        root / "backend" / "ai_models" / "cephld_cca" / "ceph_weights.pth",
+        root / "backend" / "ai_models" / "model.onnx",
+        root / "backend" / "ai_models" / "cephalometric_sota" / "model.onnx",
+    ]
+    scientific_weights_present = [
+        str(path.relative_to(root)) for path in unqualified_scientific_weights if path.exists()
+    ]
+
+    scientific_policy_ok = False
+    manifest_path = root / "backend" / "scientific_assets.json"
+    if manifest_path.exists():
+        try:
+            manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+            assets = {item["id"]: item for item in manifest["assets"]}
+            scientific_policy_ok = (
+                assets["cephalo_sota"]["lifecycle"] == "deferred"
+                and assets["cephalo_legacy"]["lifecycle"] == "external"
+                and assets["panoramic"]["lifecycle"] == "external"
+            )
+        except (KeyError, TypeError, ValueError, json.JSONDecodeError):
+            scientific_policy_ok = False
+
+    status_ok = not missing and not leaked and not scientific_weights_present and scientific_policy_ok
     payload = {
-        "status": "ok" if not missing and not leaked else "error",
+        "status": "ok" if status_ok else "error",
         "frozen": bool(getattr(sys, "frozen", False)),
         "version": (root / "VERSION").read_text(encoding="utf-8").strip() if (root / "VERSION").exists() else None,
+        "bundle_root": str(root),
+        "executable": sys.executable,
         "missing": missing,
         "forbidden_present": leaked,
+        "unqualified_scientific_weights_present": scientific_weights_present,
+        "scientific_manifest_policy_ok": scientific_policy_ok,
+        "scientific_capabilities": "FAIL_CLOSED_NO_WEIGHTS",
     }
+    report_path = os.environ.get("DIGITALCROWN_PACKAGE_SELF_TEST_REPORT")
+    if report_path:
+        report = Path(report_path)
+        report.parent.mkdir(parents=True, exist_ok=True)
+        report.write_text(json.dumps(payload, sort_keys=True), encoding="utf-8")
+    print("P6_SCIENTIFIC_CAPABILITIES=FAIL_CLOSED")
     print("P6_PACKAGE_SELF_TEST=" + json.dumps(payload, sort_keys=True))
     raise SystemExit(0 if payload["status"] == "ok" else 1)
 
@@ -108,6 +139,86 @@ def _setup_frozen_logging() -> None:
     sys.excepthook = _log_uncaught_exception
 
 
+def _maybe_run_update_db_rollback_worker() -> None:
+    if len(sys.argv) < 2 or sys.argv[1] != "--update-db-rollback-worker":
+        return
+
+    import argparse
+
+    parser = argparse.ArgumentParser(add_help=False)
+    parser.add_argument("--update-db-rollback-worker", dest="job_path", required=True)
+    args = parser.parse_args(sys.argv[1:])
+
+    from backend.env_loader import load_backend_env
+
+    load_backend_env(override=False)
+    from backend.services.update_db_rollback import UpdateDatabaseRollback
+
+    raise SystemExit(UpdateDatabaseRollback.run(Path(args.job_path)))
+
+
+def _maybe_run_update_finalize_worker() -> None:
+    if len(sys.argv) < 2 or sys.argv[1] != "--update-finalize-worker":
+        return
+
+    import argparse
+
+    parser = argparse.ArgumentParser(add_help=False)
+    parser.add_argument("--update-finalize-worker", dest="job_path", required=True)
+    args = parser.parse_args(sys.argv[1:])
+
+    from backend.env_loader import load_backend_env
+
+    load_backend_env(override=False)
+    from backend.services.update_finalize import UpdateFinalizeService
+
+    raise SystemExit(UpdateFinalizeService.run(Path(args.job_path)))
+
+
+def _maybe_run_macos_update_db_rollback_worker() -> None:
+    if len(sys.argv) < 2 or sys.argv[1] != "--macos-update-db-rollback-worker":
+        return
+
+    import argparse
+
+    parser = argparse.ArgumentParser(add_help=False)
+    parser.add_argument("--macos-update-db-rollback-worker", dest="job_path", required=True)
+    args = parser.parse_args(sys.argv[1:])
+
+    from backend.env_loader import load_backend_env
+
+    load_backend_env(override=False)
+    from backend.services.macos_update_db_rollback import MacOSUpdateDatabaseRollback
+
+    raise SystemExit(MacOSUpdateDatabaseRollback.run(Path(args.job_path)))
+
+
+def _maybe_run_macos_update_worker() -> None:
+    if len(sys.argv) < 2 or sys.argv[1] not in {"--macos-update-worker", "--macos-update-recovery"}:
+        return
+
+    import argparse
+
+    mode = sys.argv[1]
+    parser = argparse.ArgumentParser(add_help=False)
+    parser.add_argument(mode, dest="job_path", required=True)
+    parser.add_argument("--parent-pid", dest="parent_pid", type=int, required=True)
+    args = parser.parse_args(sys.argv[1:])
+
+    from backend.env_loader import load_backend_env
+
+    load_backend_env(override=False)
+    from backend.services.macos_update_worker import MacOSUpdateWorker
+
+    raise SystemExit(
+        MacOSUpdateWorker.run(
+            Path(args.job_path),
+            args.parent_pid,
+            recovery=mode == "--macos-update-recovery",
+        )
+    )
+
+
 def _maybe_run_guided_restore_worker() -> None:
     if len(sys.argv) < 2 or sys.argv[1] != "--guided-restore-worker":
         return
@@ -124,8 +235,12 @@ def _maybe_run_guided_restore_worker() -> None:
     raise SystemExit(GuidedRestoreWorker.run(args.restore_id, args.parent_pid, sys.executable))
 
 
-_first_boot_bootstrap()
 _setup_frozen_logging()
+_maybe_run_update_db_rollback_worker()
+_maybe_run_update_finalize_worker()
+_first_boot_bootstrap()
+_maybe_run_macos_update_db_rollback_worker()
+_maybe_run_macos_update_worker()
 _maybe_run_guided_restore_worker()
 
 import multiprocessing
@@ -154,27 +269,68 @@ def main() -> int:
     _load_launcher_environment()
     host, port = _resolve_host_port()
     instance_lock = None
+    supervisor = None
+    update_recovery_scheduled = False
 
     if getattr(sys, "frozen", False):
         from backend.core.runtime_supervisor import RuntimeSupervisor
 
         supervisor = RuntimeSupervisor(port)
         suppress_browser = os.environ.get("DIGITALCROWN_RESTORE_RESTART") == "1"
-        instance_lock = supervisor.claim_or_focus_existing(open_existing=not suppress_browser)
+        try:
+            instance_lock = supervisor.claim_or_focus_existing(open_existing=not suppress_browser)
+        except RuntimeError:
+            # RuntimeSupervisor already opened the local, non-destructive recovery surface.
+            return 1
         if instance_lock is None:
             return 0
+
         if not suppress_browser:
+            try:
+                from backend.services.update_recovery import UpdateRecoveryService
+
+                update_recovery_scheduled = bool(
+                    UpdateRecoveryService.schedule_startup_recovery(os.getpid())
+                )
+            except Exception:
+                import logging
+
+                logging.getLogger("digitalcrown.launcher").exception("Update recovery scheduling failed")
+                supervisor.open_recovery_page("RUNTIME_START_FAILED")
+                if instance_lock is not None:
+                    instance_lock.release()
+                return 1
+
+        if not suppress_browser and not update_recovery_scheduled:
             threading.Thread(
                 target=supervisor.open_ui_when_ready,
                 kwargs={"timeout": 120.0},
                 daemon=True,
             ).start()
 
-    from backend.main import app
-
     try:
-        uvicorn.run(app, host=host, port=port, log_level="info")
+        if update_recovery_scheduled:
+            return 0
+
+        from backend.main import app
+
+        uvicorn.run(
+            app,
+            host=host,
+            port=port,
+            log_level="info",
+            # PyInstaller windowed exposes no stdout/stderr. In frozen mode,
+            # keep Digital Crown's existing file logging instead of Uvicorn's console handlers.
+            log_config=None if getattr(sys, "frozen", False) else uvicorn.config.LOGGING_CONFIG,
+        )
         return 0
+    except Exception:
+        import logging
+
+        logging.getLogger("digitalcrown.launcher").exception("Runtime startup failed")
+        if supervisor is not None:
+            supervisor.open_recovery_page("RUNTIME_START_FAILED")
+        return 1
     finally:
         if instance_lock is not None:
             instance_lock.release()

@@ -114,3 +114,10 @@ clinics.router.routes = [
     )
 ]
 clinics.router.include_router(clinic_setup_p4.router)
+
+# P10 production update wiring is mounted onto the existing admin router. The public
+# surface remains /api/admin/* and inherits the same authenticated cabinet boundary.
+from . import admin as admin
+from . import update_portability_p10 as update_portability_p10
+
+admin.router.include_router(update_portability_p10.router)

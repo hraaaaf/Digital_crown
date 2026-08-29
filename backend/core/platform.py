@@ -134,6 +134,16 @@ class PlatformAdapter:
     def cabinet_env_path(self, app_name: str = APP_NAME) -> Path:
         return self.config_dir(app_name) / ".env"
 
+    def windows_powershell51_path(self) -> Path | None:
+        """Resolve the native Windows PowerShell 5.1 executable inside the OS boundary."""
+        if not self.is_windows:
+            return None
+        system_root = str(self._environ.get("SystemRoot", "")).strip()
+        if not system_root:
+            return None
+        path = Path(system_root) / "System32" / "WindowsPowerShell" / "v1.0" / "powershell.exe"
+        return path if path.is_file() else None
+
     def ensure_private_directory(self, path: str | Path) -> Path:
         directory = Path(path)
         directory.mkdir(parents=True, exist_ok=True)
