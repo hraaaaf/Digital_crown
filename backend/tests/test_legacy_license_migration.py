@@ -104,15 +104,15 @@ def test_dry_run_refuses_ambiguous_legacy_records_before_any_write(db, monkeypat
 
 def test_apply_migrates_active_and_revoked_records_with_explicit_manifest(db, monkeypatch):
     issuer = _create_user_and_cabinet(db, clinic_id="issuer-clinic")
-    active_user = _create_user_and_cabinet(
+    _create_user_and_cabinet(
         db,
         clinic_id="legacy-active",
-        plan=models.SubscriptionPlan.PREMIUM.value,
+        plan=models.SubscriptionPlan.ELITE.value,
     )
-    revoked_user = _create_user_and_cabinet(
+    _create_user_and_cabinet(
         db,
         clinic_id="legacy-revoked",
-        plan=models.SubscriptionPlan.GOLD.value,
+        plan=models.SubscriptionPlan.PREMIUM.value,
     )
     monkeypatch.setattr(settings, "SUPERADMIN_USER_ID", issuer.id)
     monkeypatch.setattr(settings, "PLATFORM_CONTROL_PLANE_ENABLED", True)
@@ -162,8 +162,16 @@ def test_apply_migrates_active_and_revoked_records_with_explicit_manifest(db, mo
             issuer_user_id=issuer.id,
             apply=True,
             manifest={
-                "legacy-active": {"license_type": "PAID", "max_devices": 2},
-                "legacy-revoked": {"license_type": "TRIAL", "max_devices": 1},
+                "legacy-active": {
+                    "license_type": "PAID",
+                    "feature_set": "GOLD",
+                    "max_devices": 2,
+                },
+                "legacy-revoked": {
+                    "license_type": "TRIAL",
+                    "feature_set": "PREMIUM",
+                    "max_devices": 1,
+                },
             },
         )
     )
@@ -176,14 +184,53 @@ def test_apply_migrates_active_and_revoked_records_with_explicit_manifest(db, mo
     active = by_id["legacy-active"]
     assert active["license_type"] == "PAID"
     assert active["status"] == "ACTIVE"
-    assert active["feature_set"] == active_user.subscription_plan
+    assert active["feature_set"] == "GOLD"
     assert active["max_devices"] == 2
 
     revoked = by_id["legacy-revoked"]
     assert revoked["license_type"] == "TRIAL"
     assert revoked["status"] == "REVOKED"
-    assert revoked["feature_set"] == revoked_user.subscription_plan
+    assert revoked["feature_set"] == "PREMIUM"
     assert revoked["max_devices"] == 1
+
+
+def test_manifest_feature_set_is_required_and_never_inferred_from_sqlite(db, monkeypatch):
+    issuer = _create_user_and_cabinet(db, clinic_id="issuer-clinic")
+    _create_user_and_cabinet(
+        db,
+        clinic_id="legacy-local-elite",
+        plan=models.SubscriptionPlan.ELITE.value,
+    )
+    monkeypatch.setattr(settings, "SUPERADMIN_USER_ID", issuer.id)
+    monkeypatch.setattr(settings, "PLATFORM_CONTROL_PLANE_ENABLED", True)
+    monkeypatch.setattr(
+        migration,
+        "_fetch_license_documents",
+        lambda _service: [
+            (
+                "legacy-local-elite",
+                {
+                    "active": True,
+                    "expiration_date": datetime.now(timezone.utc) + timedelta(days=30),
+                },
+            )
+        ],
+    )
+
+    report = asyncio.run(
+        migrate_legacy_licenses(
+            db,
+            issuer_user_id=issuer.id,
+            apply=False,
+            manifest={
+                "legacy-local-elite": {"license_type": "PAID", "max_devices": 1}
+            },
+        )
+    )
+
+    assert report["ok"] is False
+    assert report["planned"] == []
+    assert "requires feature_set" in report["manual"][0]["reason"]
 
 
 def test_owner_type_is_forbidden_in_legacy_manifest(db, monkeypatch):
@@ -211,7 +258,11 @@ def test_owner_type_is_forbidden_in_legacy_manifest(db, monkeypatch):
             issuer_user_id=issuer.id,
             apply=False,
             manifest={
-                "legacy-owner-guess": {"license_type": "OWNER", "max_devices": 1}
+                "legacy-owner-guess": {
+                    "license_type": "OWNER",
+                    "feature_set": "ELITE",
+                    "max_devices": 1,
+                }
             },
         )
     )

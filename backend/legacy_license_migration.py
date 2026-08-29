@@ -83,7 +83,7 @@ def _read_license_document(service: LicenseService, cabinet_id: str) -> dict[str
 def _manifest_entry(
     manifest: Mapping[str, Any],
     cabinet_id: str,
-) -> tuple[str, int] | None:
+) -> tuple[str, str, int] | None:
     raw = manifest.get(cabinet_id)
     if raw is None:
         return None
@@ -96,12 +96,18 @@ def _manifest_entry(
         raise LegacyLicenseMigrationError(
             f"Manifest entry for {cabinet_id} must use TRIAL or PAID; OWNER is provisioned separately."
         )
+    feature_set = str(raw.get("feature_set") or "").upper()
+    valid_feature_sets = {plan.value for plan in models.SubscriptionPlan}
+    if feature_set not in valid_feature_sets:
+        raise LegacyLicenseMigrationError(
+            f"Manifest entry for {cabinet_id} requires feature_set GOLD, PREMIUM or ELITE."
+        )
     max_devices = raw.get("max_devices")
     if isinstance(max_devices, bool) or not isinstance(max_devices, int) or max_devices < 1:
         raise LegacyLicenseMigrationError(
             f"Manifest entry for {cabinet_id} requires max_devices >= 1."
         )
-    return license_type, max_devices
+    return license_type, feature_set, max_devices
 
 
 def _find_local_owner(
@@ -137,9 +143,10 @@ async def migrate_legacy_licenses(
     """Replace unsigned Firebase licence records with signed SEC-1 entitlements.
 
     The old schema only carried `active` and `expiration_date`; it did not carry
-    licence type or device policy. Those missing security decisions are never
-    guessed. `manifest` must explicitly provide TRIAL/PAID and max_devices for
-    each unsigned record before `apply=True` can write anything.
+    licence type, feature entitlement or device policy. Those missing security
+    decisions are never inferred from mutable SQLite. `manifest` must explicitly
+    provide TRIAL/PAID, feature_set and max_devices for every unsigned record
+    before `apply=True` can write anything.
 
     OWNER is intentionally excluded and must be provisioned through the separate
     immutable OWNER workflow.
@@ -175,14 +182,6 @@ async def migrate_legacy_licenses(
             continue
         owner, _cabinet = local
 
-        feature_set = owner.subscription_plan
-        valid_plans = {plan.value for plan in models.SubscriptionPlan}
-        if feature_set not in valid_plans:
-            report["manual"].append(
-                {"cabinet_id": cabinet_id, "reason": "local_feature_set_missing_or_invalid"}
-            )
-            continue
-
         try:
             expiration = _as_utc(data.get("expiration_date"))
         except LegacyLicenseMigrationError:
@@ -211,7 +210,7 @@ async def migrate_legacy_licenses(
             )
             continue
 
-        license_type, max_devices = policy
+        license_type, feature_set, max_devices = policy
         status = "ACTIVE" if active and expiration and expiration > now else "REVOKED"
         signed_expiration = expiration or now
         plan = {
@@ -322,7 +321,7 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--issuer-user-id", type=int, required=True)
     parser.add_argument(
         "--manifest",
-        help='JSON map: {"cabinet-id": {"license_type": "PAID|TRIAL", "max_devices": 1}}',
+        help='JSON map: {"cabinet-id": {"license_type": "PAID|TRIAL", "feature_set": "GOLD|PREMIUM|ELITE", "max_devices": 1}}',
     )
     parser.add_argument(
         "--apply",
