@@ -10,44 +10,48 @@ Last verified: 2026-08-29.
 - P4 — 8 EP — CLOSED
 - P5 — 13 EP — CLOSED
 - P6 — 8 EP — CLOSED
-- P7 — 13 EP — CLOSED; private macOS packaging and lifecycle certified
+- P7 — 13 EP — CLOSED
 - P8 — 21 EP — CLOSED
-- P9 — 8 EP — CLOSED; off-runner cross-OS frozen disaster recovery certified
+- P9 — 8 EP — CLOSED; off-runner cross-OS frozen DR certified
 - P10 — 13 EP — CLOSED; authenticated cross-platform update lifecycle certified
 - P11 — 8 EP — CLOSED
+- P12 — 13 EP — CLOSED candidate; technical Windows/macOS evidence matrix complete
 
-## P9 closeout proof
-Final technical candidate: `4590e2975e71ca89fc404e96e717646155b8fc14`.
-P9 Backup Recovery DR #11 / run `33276520623`: **5/5 jobs SUCCESS**.
+## P9 proof
+Final technical candidate `4590e2975e71ca89fc404e96e717646155b8fc14`; P9 #11 `33276520623`: **5/5 SUCCESS**.
+- macOS → Windows proof artifact `9721759555`, digest `sha256:18d897632b8ee9381b9eec4ca865cdf419164b1950cf83294f06c86075f0830f`.
+- Windows → macOS proof artifact `9721742568`, digest `sha256:d62d1e0e6d69fbff7b5e3e58d877e932fd53ea2b5ee04c42d05cd98199ddfc09`.
 
-macOS → Windows:
-- source bundle SHA `b1ec767990c3dba5dbd36ecf86fc31610cee7e6b3248e5413070a19d3de9374b`;
-- source artifact `9721663479`;
-- target proof artifact `9721759555`, digest `sha256:18d897632b8ee9381b9eec4ca865cdf419164b1950cf83294f06c86075f0830f`.
+## P12 evidence matrix
+All ten technical requirements have an independently verified upstream proof:
+1. runtime/readiness/single-instance — P2 + Runtime regression;
+2. frozen package self-test / forbidden content — P6/P7/P9;
+3. native scientific fail-closed — P5 + frozen self-tests;
+4. install/upgrade/uninstall/data preservation — P6/P7;
+5. cross-OS DR + failure paths — P9;
+6. authenticated update + rollback — P10;
+7. launcher/recovery — P11;
+8. artifact identity/checksum/platform trust truth — P6/P7/P10;
+9. clean-machine technical execution — P6/P7/P9/P10;
+10. conservative hardware support truth — P8.
 
-Windows → macOS:
-- source bundle SHA `65394c59e3a77e5ea76f36a82c0fe7bb319cc072cc666f9894307ba286e17a58`;
-- source artifact `9721671848`;
-- target proof artifact `9721742568`, digest `sha256:d62d1e0e6d69fbff7b5e3e58d877e932fd53ea2b5ee04c42d05cd98199ddfc09`.
+P13 remains separate for physical cabinet machines, human macOS first launch, operational USB/NAS setup and real-device evidence where required.
 
-Both directions used distinct fresh target runners, real frozen packages, Guided Restore, `/health`, SQLCipher DB truth and media verification; wrong secret and tamper paths failed closed.
-
-## Canonical EP arithmetic correction
-The canonical effort table contains **167 EP** when its 15 lot values are summed. The earlier `162 EP` total was an arithmetic inconsistency introduced with the effort table itself on 2026-08-24. No lot value has been reduced to preserve that stale denominator.
+## Canonical EP arithmetic
+The 15 listed lots total **167 EP**, not 162. The stale 162 denominator was introduced with the effort table itself on 2026-08-24. No lot value was reduced to preserve it.
 
 ## Active / remaining
-- P12: PREPARED, 0 EP; P7/P9/P10 are AVAILABLE inputs, final matrix still open.
-- P13: PLANNED; real-cabinet certification including human macOS first launch and physical/off-machine backup ceremony.
-- P14: PLANNED.
+- P13: PLANNED — 13 EP, real-cabinet certification.
+- P14: PLANNED — 5 EP, final closeout.
 
 ## Progress
-Credited progress: **136 / 167 EP = 81.4%**.
-No partial EP is credited for open lots.
+Candidate credited progress after P12 exact-head validation: **149 / 167 EP = 89.2%**.
+Until the P12 closeout candidate passes its own exact-head checks, the last fully validated credited state remains P9-level **136 / 167 EP = 81.4%**.
 
 ## Next
-1. finalize P12 exact matrix using closed upstream evidence;
-2. close P12 only if all technical matrix rows are independently proved;
-3. execute P13 real-cabinet certification;
+1. exact-head validate P9/P12 closeout candidate;
+2. merge PR #298 if green;
+3. define and execute P13 real-cabinet certification;
 4. P14 closeout.
 
 No Vercel.
