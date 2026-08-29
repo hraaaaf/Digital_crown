@@ -55,15 +55,24 @@ P12 does not certify human first launch on a physical Mac, operational USB/NAS h
 ## P13 — Real cabinet certification — ACTIVE — 0 EP
 Protocol: `docs/portability/P13_REAL_CABINET_CERTIFICATION.md`.
 
-P13 requires physical Windows x64 and Apple Silicon cabinet-class machines, real installation packages, administrator-controlled macOS first launch, a synthetic cabinet fixture, a real independently stored off-machine backup medium, cross-OS recovery and controlled failure evidence. GitHub-hosted CI cannot close this lot.
+P13 requires real physical Windows x64 and Apple Silicon execution, real installation packages, administrator-controlled macOS first launch, a synthetic cabinet fixture, a real independently stored off-machine backup medium, cross-OS recovery and controlled failure evidence. GitHub-hosted CI cannot close this lot.
 
-No P13 EP is credited before both physical targets and the operational off-machine recovery boundary pass the protocol.
+### P13-R — remote bare-metal rehearsal
+Runbook: `docs/portability/P13_REMOTE_BARE_METAL_REHEARSAL.md`.
+
+P13-R is an explicitly non-crediting rehearsal on rented physical hardware. Its purpose is to retire most remaining Mac/Windows physical risk before the local cabinet gate without repeating P12 on ordinary VMs.
+
+The rehearsal guard requires remote instance types to identify bare metal (`.metal`). Remote Windows, including Windows Server, never satisfies the final cabinet workstation gate. Final P13 closure additionally requires a **local Windows 11 cabinet target** with a real **USB/removable/NAS** off-machine destination. A genuine remote Apple Silicon `.metal` Mac may remain part of the final evidence pair when all mandatory physical observations are actually attested.
+
+Guard: `scripts/p13_real_cabinet_closure_guard.py`.
+
+No P13 EP is credited before the final closure guard and all mandatory physical/human gates pass.
 
 ## P14 — Closeout — PLANNED
 Final docs, matrices, guides, troubleshooting, governance and evidence consistency.
 
 ## Ordre canonique restant
-P13 → P14.
+P13-R rehearsal → final local Windows 11 cabinet gate → P13 closeout → P14.
 
 ## État courant
 - credited: **149 / 167 EP = 89,2 %**;
@@ -71,5 +80,7 @@ P13 → P14.
 - P12: CLOSED — 13 EP;
 - PR #298: MERGED as `34a8f4247a883754a1aa4a59c17fe12796103333`;
 - P13: ACTIVE — 0/13 EP;
+- P13-R: PREPARED — 0 EP credited;
+- PR #299: draft, physical evidence tooling and rehearsal/closure guard in progress;
 - no Vercel;
-- Next exact: execute the P13 physical real-cabinet protocol on one Windows x64 machine, one Apple Silicon Mac and a real off-machine storage medium.
+- Next exact: provision real bare-metal Mac + x86 host, execute P13-R on one release candidate, validate rehearsal evidence, then perform the remaining local Windows 11 + USB/removable/NAS cabinet gate.

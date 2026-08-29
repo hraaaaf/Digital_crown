@@ -49,20 +49,26 @@ The P12 matrix covers:
 The 15 listed lots total **167 EP**, not 162. The stale 162 denominator was introduced with the effort table itself on 2026-08-24. No lot value was reduced to preserve it.
 
 ## Active / remaining
-- P13: ACTIVE — **0/13 EP**; protocol prepared in `docs/portability/P13_REAL_CABINET_CERTIFICATION.md`.
+- P13: ACTIVE — **0/13 EP**; canonical protocol `docs/portability/P13_REAL_CABINET_CERTIFICATION.md`.
+- P13-R: PREPARED — remote bare-metal rehearsal only; **0 EP credited**; runbook `docs/portability/P13_REMOTE_BARE_METAL_REHEARSAL.md`.
 - P14: PLANNED — 5 EP, final closeout.
 
-P13 is deliberately outside the GitHub-hosted technical certification boundary. It requires one physical Windows x64 target, one physical Apple Silicon Mac, administrator-controlled macOS first launch, synthetic cabinet continuity and a real independently stored off-machine recovery medium. CI evidence cannot substitute for those physical/human gates.
+P13 remains outside the GitHub-hosted technical certification boundary. It requires real physical execution, synthetic cabinet continuity and a real independently stored off-machine recovery boundary.
+
+P13-R may reduce physical risk using real rented bare metal. Remote Windows `.metal`, including Windows Server, is rehearsal evidence only. Final P13 closure additionally requires the Windows evidence to come from a local Windows 11 cabinet target with USB/removable/NAS off-machine storage. A genuine remote Apple Silicon `.metal` Mac may remain in the final pair if all mandatory physical first-launch/runtime/DR/update observations are actually attested.
+
+The boundary is enforced by `scripts/p13_real_cabinet_closure_guard.py`; its dedicated regression tests were added on PR #299. At this status update, the new HEAD CI has started but has not yet been credited as proof.
 
 ## Progress
 Verified credited progress: **149 / 167 EP = 89.2%**.
-No partial EP is credited for P13.
+No partial EP is credited for P13 or P13-R.
 
 ## Next
-1. execute the P13 protocol on both physical cabinet targets;
-2. prove real off-machine backup + cross-OS recovery without real patient data;
-3. record first-launch, health, single-instance, update/rollback and controlled failure evidence;
-4. close P13 only if every mandatory physical gate passes;
-5. P14 final closeout.
+1. obtain/provision real bare-metal targets for P13-R: Apple Silicon Mac `.metal` plus x86 Windows-capable `.metal`;
+2. execute the same release candidate through install → first launch → `/health` → single instance → synthetic fixture → update/rollback → DR → cross-OS restore → controlled failures;
+3. validate the remote evidence with `p13_real_cabinet_evidence.py` and `p13_real_cabinet_closure_guard.py validate-rehearsal`;
+4. execute the remaining local Windows 11 cabinet + USB/removable/NAS gate;
+5. run `validate-closure` and close P13 only if every mandatory physical gate passes;
+6. P14 final closeout.
 
 No Vercel.
