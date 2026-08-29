@@ -2,6 +2,8 @@
 
 **Status:** CLOSED ✅ — **13 EP credited.**
 
+Historical pre-closeout state: P10 carried **0 EP** until PR #274 merge and post-merge exact-head gates were green. That state is superseded by the CLOSED 13 EP status above.
+
 ## Goal
 Install only an authentic, fresh, strictly newer Digital Crown release with verified rescue, exact package/runtime health and automatic rollback.
 
