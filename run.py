@@ -175,6 +175,50 @@ def _maybe_run_update_finalize_worker() -> None:
     raise SystemExit(UpdateFinalizeService.run(Path(args.job_path)))
 
 
+def _maybe_run_macos_update_db_rollback_worker() -> None:
+    if len(sys.argv) < 2 or sys.argv[1] != "--macos-update-db-rollback-worker":
+        return
+
+    import argparse
+
+    parser = argparse.ArgumentParser(add_help=False)
+    parser.add_argument("--macos-update-db-rollback-worker", dest="job_path", required=True)
+    args = parser.parse_args(sys.argv[1:])
+
+    from backend.env_loader import load_backend_env
+
+    load_backend_env(override=False)
+    from backend.services.macos_update_db_rollback import MacOSUpdateDatabaseRollback
+
+    raise SystemExit(MacOSUpdateDatabaseRollback.run(Path(args.job_path)))
+
+
+def _maybe_run_macos_update_worker() -> None:
+    if len(sys.argv) < 2 or sys.argv[1] not in {"--macos-update-worker", "--macos-update-recovery"}:
+        return
+
+    import argparse
+
+    mode = sys.argv[1]
+    parser = argparse.ArgumentParser(add_help=False)
+    parser.add_argument(mode, dest="job_path", required=True)
+    parser.add_argument("--parent-pid", dest="parent_pid", type=int, required=True)
+    args = parser.parse_args(sys.argv[1:])
+
+    from backend.env_loader import load_backend_env
+
+    load_backend_env(override=False)
+    from backend.services.macos_update_worker import MacOSUpdateWorker
+
+    raise SystemExit(
+        MacOSUpdateWorker.run(
+            Path(args.job_path),
+            args.parent_pid,
+            recovery=mode == "--macos-update-recovery",
+        )
+    )
+
+
 def _maybe_run_guided_restore_worker() -> None:
     if len(sys.argv) < 2 or sys.argv[1] != "--guided-restore-worker":
         return
@@ -195,6 +239,8 @@ _setup_frozen_logging()
 _maybe_run_update_db_rollback_worker()
 _maybe_run_update_finalize_worker()
 _first_boot_bootstrap()
+_maybe_run_macos_update_db_rollback_worker()
+_maybe_run_macos_update_worker()
 _maybe_run_guided_restore_worker()
 
 import multiprocessing

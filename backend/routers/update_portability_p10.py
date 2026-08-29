@@ -7,7 +7,7 @@ from pydantic import BaseModel
 from backend import database
 from backend.routers.auth import require_permission
 from backend.services.audit_service import audit_service
-from backend.services.update_apply import UpdateApplyService
+from backend.services.update_dispatch import UpdateApplyDispatchService
 from backend.services.update_engine import UpdatePreparationError, UpdateSecurityError
 
 
@@ -24,7 +24,7 @@ def update_status(
     current_user=Depends(require_permission("admin")),
 ):
     try:
-        return UpdateApplyService.get_public_job(job_id)
+        return UpdateApplyDispatchService.get_public_job(job_id)
     except FileNotFoundError as exc:
         raise HTTPException(status_code=404, detail="Mise à jour introuvable.") from exc
     except (UpdatePreparationError, UpdateSecurityError) as exc:
@@ -48,11 +48,11 @@ def update_apply(
             resource_id=job_id,
             severity="CRITICAL",
             details=(
-                "Apply update explicitement confirmé; artifact/rescue/workers revalidés, "
-                "Authenticode + timestamp requis, mutation hors-processus et rollback obligatoires."
+                "Apply update explicitement confirmé; artifact/rescue revalidés, "
+                "signature de distribution plateforme requise, mutation hors-processus et rollback obligatoires."
             ),
         )
-        result = UpdateApplyService.request_apply(job_id, payload.confirmation)
+        result = UpdateApplyDispatchService.request_apply(job_id, payload.confirmation)
         return JSONResponse(status_code=202, content=result)
     except FileNotFoundError as exc:
         raise HTTPException(status_code=404, detail="Mise à jour introuvable.") from exc
