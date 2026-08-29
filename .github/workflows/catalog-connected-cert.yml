@@ -139,11 +139,10 @@ jobs:
       - name: Dump runtime logs on failure
         if: failure()
         run: |
-          mkdir -p artifacts/catalog-connected/runtime-logs
-          for log in catalog-before-backend catalog-before-frontend catalog-after-backend catalog-after-frontend; do
-            cat "/tmp/${log}.log" || true
-            cp "/tmp/${log}.log" "artifacts/catalog-connected/runtime-logs/${log}.log" || true
-          done
+          cat /tmp/catalog-before-backend.log || true
+          cat /tmp/catalog-before-frontend.log || true
+          cat /tmp/catalog-after-backend.log || true
+          cat /tmp/catalog-after-frontend.log || true
 
       - name: Upload BEFORE-AFTER evidence
         if: always()
