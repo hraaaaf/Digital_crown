@@ -1,5 +1,7 @@
 """Entry-flow truth: trial activation must not create new practitioner copies in CabinetConfig."""
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
+from types import SimpleNamespace
+from unittest.mock import AsyncMock
 
 from backend import models
 from backend.security import get_password_hash
@@ -32,13 +34,31 @@ def _payload(email: str, code: str, cabinet_name: str = "Cabinet Trial"):
     }
 
 
+def _mock_signed_control_plane(monkeypatch):
+    """Keep identity tests on the signed SEC-1 path without requiring real key material."""
+    expiry = datetime.now(timezone.utc) + timedelta(days=30)
+    monkeypatch.setattr("backend.routers.public.settings.PLATFORM_CONTROL_PLANE_ENABLED", True)
+    monkeypatch.setattr(
+        "backend.routers.public._sign_and_store_trial_license",
+        AsyncMock(return_value="signed-test-license"),
+    )
+    monkeypatch.setattr(
+        "backend.services.license_service.LicenseService._verify_signed_license",
+        lambda *_, **__: SimpleNamespace(
+            license_type="TRIAL",
+            claims={"feature_set": models.SubscriptionPlan.GOLD.value},
+            expires_at=expiry,
+        ),
+    )
+
+
 def test_new_trial_stores_practitioner_on_user_not_cabinet(client, db, monkeypatch):
     email = "trial-entry-new@test.ma"
     code = "TRIAL-ENTRY-NEW"
     _trial_code(db, email=email, code=code)
 
     monkeypatch.setattr("backend.routers.public.invalidate_license_cache", lambda *_: None)
-    monkeypatch.setattr("backend.services.license_service.LicenseService.write_license", lambda *_, **__: None)
+    _mock_signed_control_plane(monkeypatch)
 
     response = client.post("/api/public/activate-trial", json=_payload(email, code))
     assert response.status_code == 200, response.text
@@ -77,7 +97,7 @@ def test_existing_trial_does_not_overwrite_legacy_practitioner_copy(client, db, 
     db.commit()
 
     monkeypatch.setattr("backend.routers.public.invalidate_license_cache", lambda *_: None)
-    monkeypatch.setattr("backend.services.license_service.LicenseService.write_license", lambda *_, **__: None)
+    _mock_signed_control_plane(monkeypatch)
 
     response = client.post("/api/public/activate-trial", json=_payload(email, code, "Cabinet Updated"))
     assert response.status_code == 200, response.text
