@@ -4,6 +4,7 @@ L'env var DATABASE_URL est forcée AVANT tout import backend.
 """
 import os
 import uuid
+from contextlib import nullcontext
 
 # Doit être fait avant tout import backend (database.py lit l'env au chargement)
 os.environ["DATABASE_URL"] = "sqlite:///:memory:"
@@ -65,7 +66,7 @@ def db():
 
 
 @pytest.fixture()
-def client(db):
+def client(db, request):
     """
     TestClient FastAPI :
       - get_db overridé sur la session SQLite de test
@@ -75,6 +76,8 @@ def client(db):
       - les routes métier historiques ne dépendent pas d'une vraie licence signée
         dans ce fixture générique ; les tests SEC-1 testent require_elite_license
         directement et les scénarios API de plateforme séparément
+      - le step-up Superadmin est mocké pour les tests métier génériques, sauf dans
+        test_superadmin_session_boundary.py qui exerce le vrai garde de sécurité
       - rate limiter désactivé
     """
     from backend import models
@@ -105,6 +108,13 @@ def client(db):
     # generic suite from depending on a real control-plane key/trust anchor.
     app.dependency_overrides[auth.require_elite_license] = _override_elite_license
 
+    is_step_up_boundary_test = request.node.path.name == "test_superadmin_session_boundary.py"
+    step_up_context = (
+        nullcontext()
+        if is_step_up_boundary_test
+        else patch("backend.routers.superadmin.enforce_platform_step_up_for_mutation", return_value=None)
+    )
+
     with patch("backend.main.panoramic_engine.initialize", new_callable=AsyncMock), \
          patch("backend.main.run_full_seed", return_value=None), \
          patch("backend.main.seed_admin_user", return_value=None), \
@@ -113,7 +123,8 @@ def client(db):
          patch("backend.main.get_user_license_status", new_callable=AsyncMock, return_value=(True, "OK")), \
          patch("backend.main.get_mobile_user_license_status", new_callable=AsyncMock, return_value=(True, "OK")), \
          patch("backend.services.daily_scheduler.start_daily_scheduler", return_value=None), \
-         patch("backend.routers.auth.check_rate_limit", return_value=None):
+         patch("backend.routers.auth.check_rate_limit", return_value=None), \
+         step_up_context:
         with TestClient(app, raise_server_exceptions=True) as c:
             yield c
 
