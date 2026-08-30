@@ -2,7 +2,7 @@ import secrets
 from datetime import datetime, timedelta, timezone
 from typing import List
 
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, Request
 from sqlalchemy.orm import Session
 
 from backend import database, models
@@ -11,6 +11,7 @@ from backend.license_issuer import LicenseIssuerUnavailable, issue_license
 from backend.license_security import LicenseSecurityError
 from backend.main import invalidate_license_cache
 from backend.platform_access import has_platform_permission, is_platform_superadmin
+from backend.platform_step_up import enforce_platform_step_up_for_mutation
 from backend.routers.auth import get_current_user
 from backend.schemas.superadmin import (
     ClientBaseStats,
@@ -27,20 +28,30 @@ from backend.services.notification_service import notification_service
 router = APIRouter(tags=["SuperAdmin"])
 
 
-def verify_superadmin(current_user: models.User = Depends(get_current_user)):
-    if is_platform_superadmin(current_user):
-        return current_user
-    raise HTTPException(status_code=403, detail="Accès refusé. Réservé au SuperAdmin.")
+def verify_superadmin(
+    request: Request,
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    if not is_platform_superadmin(current_user):
+        raise HTTPException(status_code=403, detail="Accès refusé. Réservé au SuperAdmin.")
+    enforce_platform_step_up_for_mutation(request, current_user=current_user, db=db)
+    return current_user
 
 
 def require_platform_permission(permission: str):
-    def dependency(current_user: models.User = Depends(get_current_user)):
-        if has_platform_permission(current_user, permission):
-            return current_user
-        raise HTTPException(
-            status_code=403,
-            detail="Accès refusé. Permission plateforme insuffisante.",
-        )
+    def dependency(
+        request: Request,
+        db: Session = Depends(database.get_db),
+        current_user: models.User = Depends(get_current_user),
+    ):
+        if not has_platform_permission(current_user, permission):
+            raise HTTPException(
+                status_code=403,
+                detail="Accès refusé. Permission plateforme insuffisante.",
+            )
+        enforce_platform_step_up_for_mutation(request, current_user=current_user, db=db)
+        return current_user
     return dependency
 
 
