@@ -254,16 +254,16 @@ export const PartnerMarketplacePage: React.FC = () => {
   };
 
   return (
-    <div className="mx-auto max-w-7xl space-y-5 p-4 pb-24 sm:p-6 sm:pb-24 xl:pb-6">
-      <header className="rounded-elite-lg border border-border-main bg-card-bg p-4 shadow-elite sm:p-5">
-        <div className="flex items-start justify-between gap-4">
+    <div className="mx-auto max-w-7xl space-y-3 p-2 pb-24 sm:space-y-5 sm:p-6 sm:pb-24 xl:pb-6">
+      <header className="rounded-elite-lg border border-border-main bg-card-bg p-3 shadow-elite sm:p-5">
+        <div className="flex items-start justify-between gap-3 sm:gap-4">
           <div className="min-w-0">
-            <p className="text-[10px] font-black uppercase tracking-[0.24em] text-text-muted">Approvisionnement</p>
-            <h1 className="mt-1 font-outfit text-3xl font-black leading-tight text-text-main sm:text-4xl">
+            <p className="text-[9px] font-black uppercase tracking-[0.18em] text-text-muted sm:text-[10px] sm:tracking-[0.24em]">Approvisionnement</p>
+            <h1 className="mt-0.5 font-outfit text-2xl font-black leading-tight text-text-main sm:mt-1 sm:text-4xl">
               Acheter pour le cabinet
             </h1>
-            <p className="mt-2 max-w-2xl text-sm font-medium leading-relaxed text-text-muted">
-              Recherchez une référence, ajoutez les quantités utiles et enregistrez la commande dans DigitalCrown.
+            <p className="mt-2 hidden max-w-2xl text-sm font-medium leading-relaxed text-text-muted sm:block">
+              Recherchez une référence, ajustez les quantités et enregistrez une commande DRAFT dans DigitalCrown.
             </p>
           </div>
           <a
@@ -272,11 +272,11 @@ export const PartnerMarketplacePage: React.FC = () => {
             style={{ backgroundColor: 'var(--primary)' }}
             aria-label={`Ouvrir le panier, ${totalUnits} unité${totalUnits > 1 ? 's' : ''}`}
           >
-            <span className="inline-flex items-center gap-2"><ShoppingCart size={16} /> {totalUnits}</span>
+            <span className="inline-flex items-center gap-1.5 sm:gap-2"><ShoppingCart size={16} /> {totalUnits}</span>
           </a>
         </div>
 
-        <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-2 border-t border-border-main pt-3 text-xs font-semibold text-text-muted">
+        <div className="mt-4 hidden flex-wrap items-center gap-x-4 gap-y-2 border-t border-border-main pt-3 text-xs font-semibold text-text-muted sm:flex">
           <span>{catalogProducts.length} référence(s)</span>
           <span>{activeSuppliers.length} fournisseur(s) actif(s)</span>
           {activeSuppliers[0] && (
@@ -295,27 +295,27 @@ export const PartnerMarketplacePage: React.FC = () => {
         </div>
       </header>
 
-      <section aria-label="Recherche et filtres" className="rounded-elite-lg border border-border-main bg-card-bg p-4 shadow-elite">
+      <section aria-label="Recherche et filtres" className="rounded-elite-lg border border-border-main bg-card-bg p-2 shadow-elite sm:p-4">
         <label htmlFor="marketplace-search" className="sr-only">Rechercher dans le catalogue</label>
         <div className="relative">
-          <Search size={17} className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-text-muted" />
+          <Search size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-text-muted sm:left-4 sm:h-[17px] sm:w-[17px]" />
           <input
             id="marketplace-search"
             type="search"
             value={search}
             onChange={(event) => setSearch(event.target.value)}
-            placeholder="Rechercher produit, SKU, catégorie ou spécialité…"
-            className="w-full rounded-elite border border-border-main bg-input-field py-3 pl-11 pr-4 text-sm font-semibold text-text-main outline-none transition focus:border-border-hover focus:ring-2 focus:ring-primary/10"
+            placeholder="Rechercher produit ou SKU…"
+            className="w-full rounded-elite border border-border-main bg-input-field py-2.5 pl-9 pr-3 text-sm font-semibold text-text-main outline-none transition focus:border-border-hover focus:ring-2 focus:ring-primary/10 sm:py-3 sm:pl-11 sm:pr-4"
           />
         </div>
-        <div className="mt-3 flex gap-2 overflow-x-auto pb-1" aria-label="Filtrer par catégorie">
+        <div className="mt-2 flex gap-1.5 overflow-x-auto pb-0.5 sm:mt-3 sm:gap-2 sm:pb-1" aria-label="Filtrer par catégorie">
           {categoryOptions.map((item) => (
             <button
               key={item}
               type="button"
               onClick={() => setCategory(item)}
               className={cn(
-                'shrink-0 rounded-full border px-3 py-2 text-xs font-black transition focus:outline-none focus:ring-2 focus:ring-primary/20',
+                'shrink-0 rounded-full border px-2.5 py-1.5 text-[11px] font-black transition focus:outline-none focus:ring-2 focus:ring-primary/20 sm:px-3 sm:py-2 sm:text-xs',
                 category === item
                   ? 'border-transparent text-white'
                   : 'border-border-main bg-card-bg text-text-muted hover:border-border-hover hover:text-text-main'
@@ -329,14 +329,14 @@ export const PartnerMarketplacePage: React.FC = () => {
         </div>
       </section>
 
-      <div className="grid grid-cols-1 items-start gap-5 xl:grid-cols-[minmax(0,1fr)_360px]">
-        <main className="min-w-0 space-y-4">
-          <div className="flex items-end justify-between gap-3">
+      <div className="grid grid-cols-1 items-start gap-4 sm:gap-5 xl:grid-cols-[minmax(0,1fr)_360px]">
+        <main className="min-w-0 space-y-2.5 sm:space-y-4">
+          <div className="flex items-center justify-between gap-3 px-0.5 sm:items-end">
             <div>
-              <p className="text-[10px] font-black uppercase tracking-[0.24em] text-text-muted">Catalogue</p>
-              <h2 className="mt-1 font-outfit text-2xl font-black text-text-main">Produits disponibles</h2>
+              <p className="hidden text-[10px] font-black uppercase tracking-[0.24em] text-text-muted sm:block">Catalogue</p>
+              <h2 className="font-outfit text-lg font-black text-text-main sm:mt-1 sm:text-2xl">Produits disponibles</h2>
             </div>
-            <p className="shrink-0 text-sm font-semibold text-text-muted">{filteredProducts.length} affiché(s)</p>
+            <p className="shrink-0 text-xs font-semibold text-text-muted sm:text-sm">{filteredProducts.length} affiché(s)</p>
           </div>
 
           {catalogLoading ? (
@@ -361,7 +361,7 @@ export const PartnerMarketplacePage: React.FC = () => {
               }}
             />
           ) : (
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+            <div className="grid grid-cols-1 gap-3 sm:gap-4 md:grid-cols-2">
               {filteredProducts.map((product) => (
                 <ProductCard key={product.id} product={product} quantity={cart[product.id] ?? 0} onAdjust={adjustQty} />
               ))}
@@ -387,7 +387,7 @@ export const PartnerMarketplacePage: React.FC = () => {
       {totalUnits > 0 && (
         <a
           href="#marketplace-cart"
-          className="fixed bottom-4 left-4 right-4 z-30 flex items-center justify-between rounded-elite-lg px-4 py-4 text-sm font-black text-white shadow-2xl xl:hidden"
+          className="fixed bottom-4 left-4 right-4 z-30 flex items-center justify-between rounded-elite-lg px-4 py-3 text-sm font-black text-white shadow-2xl xl:hidden"
           style={{ backgroundColor: 'var(--primary)' }}
           aria-label={`Voir le panier, ${totalUnits} unité${totalUnits > 1 ? 's' : ''}, total ${formatMoney(estimatedTotal)}`}
         >
@@ -410,50 +410,50 @@ const ProductCard = ({
 }) => {
   const disabled = product.availability === 'Discontinué';
   return (
-    <article className="rounded-elite-lg border border-border-main bg-card-bg p-4 shadow-elite transition hover:shadow-elite-hover sm:p-5">
-      <div className="flex gap-4">
-        <div className="flex h-20 w-20 shrink-0 items-center justify-center rounded-elite bg-input-field text-text-muted sm:h-24 sm:w-24">
-          <Package size={30} aria-hidden="true" />
+    <article className="rounded-elite-lg border border-border-main bg-card-bg p-3 shadow-elite transition hover:shadow-elite-hover sm:p-5">
+      <div className="flex gap-3 sm:gap-4">
+        <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-elite bg-input-field text-text-muted sm:h-24 sm:w-24">
+          <Package size={24} aria-hidden="true" className="sm:h-[30px] sm:w-[30px]" />
         </div>
         <div className="min-w-0 flex-1">
-          <div className="flex flex-wrap items-start justify-between gap-2">
-            <p className="text-[10px] font-black uppercase tracking-[0.18em] text-text-muted">{product.category}</p>
-            <span className={cn('rounded-full border px-2 py-1 text-[10px] font-black', availabilityBadgeClass(product.availability))}>
+          <div className="flex flex-wrap items-start justify-between gap-1.5 sm:gap-2">
+            <p className="text-[9px] font-black uppercase tracking-[0.14em] text-text-muted sm:text-[10px] sm:tracking-[0.18em]">{product.category}</p>
+            <span className={cn('rounded-full border px-2 py-0.5 text-[9px] font-black sm:py-1 sm:text-[10px]', availabilityBadgeClass(product.availability))}>
               {product.availability}
             </span>
           </div>
-          <Link to={`/approvisionnement/produits/${product.id}`} className="mt-2 block font-outfit text-lg font-black leading-tight text-text-main hover:opacity-80">
+          <Link to={`/approvisionnement/produits/${product.id}`} className="mt-1 block font-outfit text-base font-black leading-tight text-text-main hover:opacity-80 sm:mt-2 sm:text-lg">
             {product.name}
           </Link>
-          <p className="mt-1 text-xs font-semibold text-text-muted">{product.sku}{product.specialty ? ` · ${product.specialty}` : ''}</p>
+          <p className="mt-0.5 text-[11px] font-semibold text-text-muted sm:mt-1 sm:text-xs">{product.sku}{product.specialty ? ` · ${product.specialty}` : ''}</p>
         </div>
       </div>
 
-      <p className="mt-4 line-clamp-2 text-sm font-medium leading-relaxed text-text-muted">{product.description}</p>
+      <p className="mt-3 hidden line-clamp-2 text-sm font-medium leading-relaxed text-text-muted sm:block">{product.description}</p>
 
-      <div className="mt-4 flex items-end justify-between gap-4 border-t border-border-main pt-4">
+      <div className="mt-3 flex items-end justify-between gap-3 border-t border-border-main pt-3 sm:mt-4 sm:gap-4 sm:pt-4">
         <div>
-          <p className="text-xl font-black text-text-main">{formatMoney(product.price)}</p>
-          <p className="mt-1 text-xs font-semibold text-text-muted">par {product.unit}</p>
+          <p className="text-lg font-black text-text-main sm:text-xl">{formatMoney(product.price)}</p>
+          <p className="text-[11px] font-semibold text-text-muted sm:mt-1 sm:text-xs">par {product.unit}</p>
         </div>
         {disabled ? (
           <span className="text-xs font-black text-text-muted">Indisponible</span>
         ) : (
-          <div className="flex items-center gap-2" aria-label={`Quantité de ${product.name}`}>
+          <div className="flex items-center gap-1.5 sm:gap-2" aria-label={`Quantité de ${product.name}`}>
             <button
               type="button"
               onClick={() => onAdjust(product, -1)}
               disabled={quantity === 0}
-              className="flex h-10 w-10 items-center justify-center rounded-elite border border-border-main text-text-main transition hover:bg-input-field disabled:cursor-not-allowed disabled:opacity-40 focus:outline-none focus:ring-2 focus:ring-primary/20"
+              className="flex h-9 w-9 items-center justify-center rounded-elite border border-border-main text-text-main transition hover:bg-input-field disabled:cursor-not-allowed disabled:opacity-40 focus:outline-none focus:ring-2 focus:ring-primary/20 sm:h-10 sm:w-10"
               aria-label={`Retirer une unité de ${product.name}`}
             >
               <Minus size={15} />
             </button>
-            <span className="w-7 text-center font-black text-text-main" aria-live="polite">{quantity}</span>
+            <span className="w-6 text-center text-sm font-black text-text-main sm:w-7" aria-live="polite">{quantity}</span>
             <button
               type="button"
               onClick={() => onAdjust(product, 1)}
-              className="flex h-10 w-10 items-center justify-center rounded-elite text-white transition hover:brightness-110 focus:outline-none focus:ring-2 focus:ring-offset-2"
+              className="flex h-9 w-9 items-center justify-center rounded-elite text-white transition hover:brightness-110 focus:outline-none focus:ring-2 focus:ring-offset-2 sm:h-10 sm:w-10"
               style={{ backgroundColor: 'var(--primary)' }}
               aria-label={`Ajouter une unité de ${product.name}`}
             >
@@ -487,7 +487,7 @@ const CartPanel = ({
   onCustomerChange: (field: keyof CustomerForm, value: string) => void;
   onSubmit: (event: React.FormEvent) => void;
 }) => (
-  <div className="rounded-elite-lg border border-border-main bg-card-bg p-5 shadow-elite">
+  <div className="rounded-elite-lg border border-border-main bg-card-bg p-4 shadow-elite sm:p-5">
     <div className="flex items-center gap-3">
       <div className="flex h-10 w-10 items-center justify-center rounded-elite text-white" style={{ backgroundColor: 'var(--primary)' }}>
         <ShoppingCart size={18} />
