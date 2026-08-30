@@ -4,7 +4,7 @@ L'env var DATABASE_URL est forcée AVANT tout import backend.
 """
 import os
 import uuid
-from contextlib import nullcontext
+from contextlib import ExitStack, nullcontext
 
 # Doit être fait avant tout import backend (database.py lit l'env au chargement)
 os.environ["DATABASE_URL"] = "sqlite:///:memory:"
@@ -113,11 +113,16 @@ def client(db, request):
         "test_superadmin_session_boundary.py",
         "test_superadmin_platform_passkey.py",
     }
-    step_up_context = (
-        nullcontext()
-        if request.node.path.name in real_step_up_tests
-        else patch("backend.routers.superadmin.enforce_platform_step_up_for_mutation", return_value=None)
-    )
+    if request.node.path.name in real_step_up_tests:
+        step_up_context = nullcontext()
+    else:
+        step_up_context = ExitStack()
+        step_up_context.enter_context(
+            patch("backend.routers.superadmin.enforce_platform_step_up_for_mutation", return_value=None)
+        )
+        step_up_context.enter_context(
+            patch("backend.routers.superadmin_admins.enforce_platform_step_up_for_mutation", return_value=None)
+        )
 
     with patch("backend.main.panoramic_engine.initialize", new_callable=AsyncMock), \
          patch("backend.main.run_full_seed", return_value=None), \
