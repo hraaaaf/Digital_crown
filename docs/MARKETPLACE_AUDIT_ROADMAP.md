@@ -44,9 +44,10 @@ Potentiel produit séparé : **9.0/10**.
 - **P0 : 8/8 CLOSED** — PR #301 mergée.
 - **P1 : 14/14 CLOSED** — PR #302 mergée sur `master` à `9900aaddebffc593afcd436b5ecceefaf9814f48`.
 - **P2 : 12/12 CLOSED** — PR #306 mergée sur `master` à `cbffb626d099af98f6536a2694930753d637522c`.
-- **P3 : 0/8 ACTIVE** — PR #304, HEAD `a04f15cdc05fcd172ab038f27d3399dfe41728c7`, gates en cours.
+- **P3 : 8/8 CERTIFIED / MERGE READY** — PR #304 ; HEAD runtime certifié `a7c26947d1ebcfde0bc95149237d1058245eee1a`.
 - **P4 : 0/8 DRAFT** — PR #305, implémentation non visuelle déjà préparée, réalignement post-P3 requis avant certification.
-- **Global crédité : 34/100 = 34 %.**
+- **Global CLOSED : 34/100 = 34 %.**
+- **Global certifié incluant P3 : 42/100 = 42 %.**
 
 ## P1 — Trust & sécurité — CLOSED
 
@@ -98,7 +99,7 @@ HEAD certifié avant merge : `fa7fba4ad518d0e04c7367156415a56687aed907`.
 ### Gate
 **CLOSED — 12/12 EP crédités.**
 
-## P3 — Multi-fournisseurs — ACTIVE
+## P3 — Multi-fournisseurs — CERTIFIED / MERGE READY
 
 ### Goal
 Un panier contenant plusieurs fournisseurs produit exactement une commande canonique par fournisseur, de façon atomique et déterministe.
@@ -110,7 +111,8 @@ Un panier contenant plusieurs fournisseurs produit exactement une commande canon
 4. commit DB unique pour le lot ; rollback intégral en cas d'erreur ;
 5. `batchId` commun dans l'audit trail ;
 6. compatibilité mono-fournisseur conservée ;
-7. invariant P1 conservé : un builder de commande unitaire reste mono-fournisseur.
+7. invariant P1 conservé : un builder de commande unitaire reste mono-fournisseur ;
+8. gate Catalog historique corrigé pour resynchroniser les dépendances du HEAD après le checkout AFTER, sans supprimer ni affaiblir ses tests.
 
 ### Tests P3
 - HTTP réel : 2 fournisseurs → 2 commandes ;
@@ -119,8 +121,18 @@ Un panier contenant plusieurs fournisseurs produit exactement une commande canon
 - ligne invalide → 0 commande / 0 événement ;
 - ordre fournisseurs/lignes déterministe.
 
+### Preuve runtime finale
+HEAD produit certifié `a7c26947d1ebcfde0bc95149237d1058245eee1a` :
+- CI #2310 : **SUCCESS** ;
+- Catalog Connected #696 : **SUCCESS**, y compris sync deps, tests backend/frontend, build, runtime BEFORE/AFTER et snapshot mutation proof ;
+- T2 Runtime #1423 : **SUCCESS** ;
+- Patient P7 #722 : **SUCCESS** ;
+- M6-I #223 : **SKIPPED** par périmètre.
+
+Le commit documentaire de closeout suivant ne modifie pas le runtime ; P3 devient **CLOSED** seulement après merge #304 et vérification de `master`.
+
 ### Gate
-CI backend/frontend + T2/Patient sur le HEAD final P3. Aucun EP avant preuve verte.
+**CERTIFIED — 8/8 EP prouvés ; merge closeout restant.**
 
 ## P4 — Catalogue & produits — DRAFT
 
@@ -141,12 +153,12 @@ Le réordonnancement visible des cartes reste P5 pour respecter le protocole UI/
 Split fournisseur (10/10 valeur), réassort consommation/min-max (10/10), réception-stock (10/10), lots/péremptions (10/10), historique prix/MOQ/délai (9/10), rapprochement facture (9/10).
 
 ## Règles
-Backend = vérité financière/statuts. Frontend jamais autorité sécurité. Scoping obligatoire. Aucun Vercel sans autorisation. CI pending n'arrête pas le travail indépendant. Aucun EP sans preuve.
+Backend = vérité financière/statuts. Frontend jamais autorité sécurité. Scoping obligatoire. Aucun Vercel sans autorisation. CI pending n'arrête pas le travail indépendant. Aucun EP CLOSED sans closeout complet.
 
 ## Reprise
-`P0 CLOSED → P1 CLOSED → P2 CLOSED → P3 ACTIVE → P4 DRAFT → P5 → P6 → P7 → P8 → P9 → P10 → P11`
+`P0 CLOSED → P1 CLOSED → P2 CLOSED → P3 CERTIFIED/MERGE READY → P4 DRAFT → P5 → P6 → P7 → P8 → P9 → P10 → P11`
 
-**PR #304 — branche `marketplace/p3-multi-supplier` — P3 ACTIVE.**  
+**PR #304 — branche `marketplace/p3-multi-supplier` — P3 CERTIFIED / MERGE READY.**  
 **PR #305 — branche `marketplace/p4-catalog-products` — P4 DRAFT.**  
-**Crédit global : 34/100 EP.**  
-**Next exact :** certifier P3 ; si vert → merger #304, vérifier master, réaligner #305 sur master puis certifier P4 ; si rouge → diagnostiquer/corriger sans attendre les autres workflows.
+**Crédit CLOSED : 34/100 EP ; certifié : 42/100 EP.**  
+**Next exact :** merger #304, vérifier `master`, réaligner P4 sur le master post-P3 puis certifier P4.
