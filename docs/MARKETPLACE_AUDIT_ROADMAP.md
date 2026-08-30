@@ -3,7 +3,7 @@
 **Statut canonique : ACTIF**  
 **Date de baseline : 2026-08-30**  
 **Repo :** `hraaaaf/Digital_crown`  
-**Branche active :** `marketplace/p2-order-engine`  
+**Branche active :** `marketplace/p3-multi-supplier`  
 **Déploiement Vercel :** aucun sans autorisation explicite.
 
 ## Goal chantier
@@ -40,11 +40,14 @@ Potentiel produit séparé : **9.0/10**.
 | **P11 — Certification finale** | **5** | E2E, sécurité, performance, accessibilité, closeout | tous gates verts |
 | **Total** | **100** |  |  |
 
-### Avancement vérifié
+## Avancement vérifié
 - **P0 : 8/8 CLOSED** — PR #301 mergée.
 - **P1 : 14/14 CLOSED** — PR #302 mergée sur `master` à `9900aaddebffc593afcd436b5ecceefaf9814f48`.
-- **P2 : 0/12 EN COURS** — PR #303 draft.
-- **Global : 22/100 = 22 %.**
+- **P2 : 12/12 CLOSED** — PR #306 mergée sur `master` à `cbffb626d099af98f6536a2694930753d637522c`.
+- **P3 : 8/8 CERTIFIED / MERGE READY** — PR #304 ; HEAD runtime certifié `a7c26947d1ebcfde0bc95149237d1058245eee1a`.
+- **P4 : 0/8 DRAFT** — PR #305, implémentation non visuelle déjà préparée, réalignement post-P3 requis avant certification.
+- **Global CLOSED : 34/100 = 34 %.**
+- **Global certifié incluant P3 : 42/100 = 42 %.**
 
 ## P1 — Trust & sécurité — CLOSED
 
@@ -55,75 +58,107 @@ Un client modifié ne peut pas falsifier prix, total, fournisseur ou stratégie 
 1. fournisseur, noms, SKU, prix et totaux reconstruits serveur ;
 2. stratégies limitées aux presets serveur ;
 3. fournisseur inactif, produit discontinué, produit cross-cabinet et doublon rejetés ;
-4. mélange fournisseurs rejeté jusqu'au split P3 ;
-5. GET commandes et PATCH commercial réservés Superadmin ; POST conservé au cabinet autorisé ;
-6. storefront cabinet masque fournisseur inactif + produits associés, Superadmin les conserve en administration ;
-7. panier local isolé par `employer + user` ; ancienne clé globale ignorée sans migration.
+4. GET commandes et PATCH commercial réservés Superadmin ; POST conservé au cabinet autorisé ;
+5. storefront cabinet masque fournisseur inactif + produits associés ;
+6. panier local isolé par `employer + user` ; ancienne clé globale ignorée.
 
-### Tests ciblés
-- `backend/tests/test_partner_orders_integrity.py` : 9
-- `backend/tests/test_partner_catalog_visibility.py` : 2
-- `frontend/src/features/partnerMarketplace/data.test.ts` : 4
-- **Total : 15**
+### Preuve finale
+HEAD certifié `e8380bd895fc37759fe783fa854d4fcbb39a2932` : CI #2246 SUCCESS, T2 #1361 SUCCESS, Patient P7 #660 SUCCESS. PR #302 mergée puis `master` vérifié.
 
-### Preuve finale P1
-HEAD certifié avant merge : `e8380bd895fc37759fe783fa854d4fcbb39a2932`.
-- CI #2246 : **SUCCESS** — suite backend complète, frontend tests + build, garde prod, M4-A/B/C ;
-- T2 #1361 : **SUCCESS** ;
-- Patient P7 #660 : **SUCCESS** ;
-- PR #302 mergée en squash sur `master` : `9900aaddebffc593afcd436b5ecceefaf9814f48` ;
-- post-merge `master` vérifié sur ce SHA.
-
-Catalog Connected Truth reste un rouge préexistant : PR #301 docs-only avait déjà le même échec à l'étape 14 tandis que CI/T2/Patient étaient verts. Il n'est pas attribué à P1.
-
-### Gate P1
+### Gate
 **CLOSED — 14/14 EP crédités.**
 
-## P2 — Order Engine — ACTIVE
+## P2 — Order Engine — CLOSED
 
 ### Goal
 Une commande ne peut suivre que des transitions serveur autorisées ; le total fournisseur modifié reste la vérité financière jusqu'au fulfillment ; annulation et changements sont auditables.
 
-### Implémenté sur #303 draft
+### Implémenté
 1. graphe serveur explicite `DRAFT → SENT_TO_PARTNER → MODIFIED_AFTER_SEND/CONFIRMED → FULFILLED/CANCELLED` ;
 2. `FULFILLED` et `CANCELLED` terminaux ;
-3. `currentTotal` ne peut changer que via `MODIFIED_AFTER_SEND` ;
+3. `currentTotal` modifiable uniquement via `MODIFIED_AFTER_SEND` ;
 4. snapshot `sentTotal` conservé ;
 5. `currentTotal` fournisseur conservé après confirmation/fulfillment ;
 6. annulation remet le revenu reconnu à zéro avec delta ;
-7. transitions exposées dans l'API et journalisées.
+7. transitions exposées dans l'API et journalisées ;
+8. frontend checkout/CTA volontairement reporté à P5 ; transport fournisseur réel reporté à P6.
 
-### Tests ciblés P2
-- `backend/tests/test_partner_order_engine.py` : **9** invariants.
+### Tests ciblés
+- `backend/tests/test_partner_order_engine.py` : **9 invariants**.
 
-### Frontend volontairement hors P2
-Le checkout/formulaire et le CTA actuel « Envoyer la commande au partenaire » sont des changements de flow/UI. Ils sont rattachés à **P5**, qui impose le protocole BEFORE → Goal → mockup/référence → AFTER mêmes viewports → comparaison/tests/score. Le POST actuel crée toujours un `DRAFT` ; aucun transport fournisseur réel n'est revendiqué avant P6.
+### Preuve finale
+HEAD certifié avant merge : `fa7fba4ad518d0e04c7367156415a56687aed907`.
+- CI #2260 : **SUCCESS** ;
+- T2 #1374 : **SUCCESS** ;
+- Patient P7 #673 : **SUCCESS** ;
+- draft #303 fermé uniquement car l'action connecteur Ready-for-review était cassée ;
+- PR #306 recréée non-draft sur le même HEAD certifié puis mergée ;
+- merge `master` : `cbffb626d099af98f6536a2694930753d637522c` ;
+- post-merge `master` vérifié sur ce SHA.
 
-## Restant
-- P2 : certifier machine d'état/revenus/audit trail ;
-- P3 : vrai multi-fournisseurs ;
-- P4 : TTL, merchandising, pagination ;
-- P5 : formulaire/CTA, accessibilité/densité, visuels, reload, responsive certifié ;
-- P6 : transport/réception ;
-- P7 : stock/réassort ;
-- P8 : finance ;
-- P9 : sync fournisseur ;
-- P10 : admin complet ;
-- P11 : certification.
+### Gate
+**CLOSED — 12/12 EP crédités.**
+
+## P3 — Multi-fournisseurs — CERTIFIED / MERGE READY
+
+### Goal
+Un panier contenant plusieurs fournisseurs produit exactement une commande canonique par fournisseur, de façon atomique et déterministe.
+
+### Implémenté sur #304
+1. validation complète de toutes les lignes avant création ;
+2. groupement serveur par fournisseur dans l'ordre d'apparition ;
+3. une commande canonique par fournisseur ;
+4. commit DB unique pour le lot ; rollback intégral en cas d'erreur ;
+5. `batchId` commun dans l'audit trail ;
+6. compatibilité mono-fournisseur conservée ;
+7. invariant P1 conservé : un builder de commande unitaire reste mono-fournisseur ;
+8. gate Catalog historique corrigé pour resynchroniser les dépendances du HEAD après le checkout AFTER, sans supprimer ni affaiblir ses tests.
+
+### Tests P3
+- HTTP réel : 2 fournisseurs → 2 commandes ;
+- prix/SKU/fournisseur reconstruits serveur ;
+- même `batchId` dans les événements ;
+- ligne invalide → 0 commande / 0 événement ;
+- ordre fournisseurs/lignes déterministe.
+
+### Preuve runtime finale
+HEAD produit certifié `a7c26947d1ebcfde0bc95149237d1058245eee1a` :
+- CI #2310 : **SUCCESS** ;
+- Catalog Connected #696 : **SUCCESS**, y compris sync deps, tests backend/frontend, build, runtime BEFORE/AFTER et snapshot mutation proof ;
+- T2 Runtime #1423 : **SUCCESS** ;
+- Patient P7 #722 : **SUCCESS** ;
+- M6-I #223 : **SKIPPED** par périmètre.
+
+Le commit documentaire de closeout suivant ne modifie pas le runtime ; P3 devient **CLOSED** seulement après merge #304 et vérification de `master`.
+
+### Gate
+**CERTIFIED — 8/8 EP prouvés ; merge closeout restant.**
+
+## P4 — Catalogue & produits — DRAFT
+
+Implémentation déjà préparée sur #305, sans changement visuel :
+- cache Marketplace TTL 15 min ;
+- contrôle du scope embarqué et purge du cache périmé/invalide ;
+- `isFeatured` / `sortOrder` conservés dans le modèle frontend ;
+- recherche backend étendue au descriptif long ;
+- pagination optionnelle `offset/limit` produits/fournisseurs ;
+- tests cache frontend + filtres/recherche/pagination HTTP.
+
+Le réordonnancement visible des cartes reste P5 pour respecter le protocole UI/UX.
+
+## P5 — UI/UX obligatoire
+`BEFORE 390/430/768/1280 → Goal → mockup/référence → implémentation → AFTER mêmes viewports → comparaison → accessibilité/E2E → score visuel`.
 
 ## Idées prioritaires
 Split fournisseur (10/10 valeur), réassort consommation/min-max (10/10), réception-stock (10/10), lots/péremptions (10/10), historique prix/MOQ/délai (9/10), rapprochement facture (9/10).
 
-## P5 UI/UX obligatoire
-`BEFORE 390/430/768/1280 → Goal → mockup/référence → implémentation → AFTER mêmes viewports → comparaison → accessibilité/E2E → score visuel`.
-
 ## Règles
-Backend = vérité financière/statuts. Frontend jamais autorité sécurité. Scoping obligatoire. Aucun Vercel sans autorisation. CI pending n'arrête pas travail indépendant. Aucun EP sans preuve.
+Backend = vérité financière/statuts. Frontend jamais autorité sécurité. Scoping obligatoire. Aucun Vercel sans autorisation. CI pending n'arrête pas le travail indépendant. Aucun EP CLOSED sans closeout complet.
 
 ## Reprise
-`P0 CLOSED → P1 CLOSED → P2 ACTIVE → P3 → P4 → P5 → P6 → P7 → P8 → P9 → P10 → P11`
+`P0 CLOSED → P1 CLOSED → P2 CLOSED → P3 CERTIFIED/MERGE READY → P4 DRAFT → P5 → P6 → P7 → P8 → P9 → P10 → P11`
 
-**PR #302 — MERGED — P1 14/14 EP.**  
-**PR #303 draft — branche `marketplace/p2-order-engine` — aucun crédit P2 avant gate.**  
-**Crédit global : 22/100 EP.**  
-**Next exact :** certifier le HEAD final de #303 ; rouge → corriger ; vert → créditer P2, merger #303, vérifier master, démarrer P3.
+**PR #304 — branche `marketplace/p3-multi-supplier` — P3 CERTIFIED / MERGE READY.**  
+**PR #305 — branche `marketplace/p4-catalog-products` — P4 DRAFT.**  
+**Crédit CLOSED : 34/100 EP ; certifié : 42/100 EP.**  
+**Next exact :** merger #304, vérifier `master`, réaligner P4 sur le master post-P3 puis certifier P4.
