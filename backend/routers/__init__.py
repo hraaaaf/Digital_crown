@@ -152,6 +152,7 @@ from . import partner_receipts as partner_receipts
 from . import partner_stock as partner_stock
 from . import partner_receipts_p7 as partner_receipts_p7
 from . import partner_stock_safety as partner_stock_safety
+from . import partner_finance as partner_finance
 partner_orders.router.routes = [
     route
     for route in partner_orders.router.routes
@@ -175,6 +176,7 @@ partner_orders.router.include_router(partner_dispatch.router)
 partner_orders.router.include_router(partner_procurement.router)
 partner_orders.router.include_router(partner_receipts_p7.router)
 partner_orders.router.include_router(partner_receipts.router)
+partner_orders.router.include_router(partner_finance.router)
 
 # Marketplace P7 keeps the existing StockItem CRUD as the aggregate source of truth,
 # registers mapping/ledger/lot tables, then mounts the bridge under /api/stock/marketplace.
