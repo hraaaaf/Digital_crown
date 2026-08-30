@@ -102,29 +102,36 @@ def _require_device_capacity(db: Session, employer_id: int, max_devices: int | N
     return active_count
 
 
-def _build_ecdh_response(master_key: str, client_public_key_hex: str) -> tuple[str, str]:
+def _parse_client_public_key(client_public_key_hex: str) -> ec.EllipticCurvePublicKey:
+    """Validate the client ECDH key before any entitlement or capacity decision."""
     try:
         client_pub_bytes = bytes.fromhex(client_public_key_hex)
-        client_public_key = ec.EllipticCurvePublicKey.from_encoded_point(
+        return ec.EllipticCurvePublicKey.from_encoded_point(
             ec.SECP256R1(), client_pub_bytes
         )
-        server_private_key = ec.generate_private_key(ec.SECP256R1())
-        server_public_key = server_private_key.public_key().public_bytes(
-            encoding=serialization.Encoding.X962,
-            format=serialization.PublicFormat.UncompressedPoint,
-        )
-        shared_key = server_private_key.exchange(ec.ECDH(), client_public_key)
-        derived_key = HKDF(
-            algorithm=hashes.SHA256(),
-            length=32,
-            salt=None,
-            info=b"zka_mobile_bridge",
-        ).derive(shared_key)
-        nonce = os.urandom(12)
-        encrypted_master_key = AESGCM(derived_key).encrypt(nonce, master_key.encode(), None)
-        return server_public_key.hex(), (nonce + encrypted_master_key).hex()
     except (ValueError, TypeError) as exc:
         raise HTTPException(status_code=400, detail="Clé publique client invalide.") from exc
+
+
+def _build_ecdh_response(
+    master_key: str,
+    client_public_key: ec.EllipticCurvePublicKey,
+) -> tuple[str, str]:
+    server_private_key = ec.generate_private_key(ec.SECP256R1())
+    server_public_key = server_private_key.public_key().public_bytes(
+        encoding=serialization.Encoding.X962,
+        format=serialization.PublicFormat.UncompressedPoint,
+    )
+    shared_key = server_private_key.exchange(ec.ECDH(), client_public_key)
+    derived_key = HKDF(
+        algorithm=hashes.SHA256(),
+        length=32,
+        salt=None,
+        info=b"zka_mobile_bridge",
+    ).derive(shared_key)
+    nonce = os.urandom(12)
+    encrypted_master_key = AESGCM(derived_key).encrypt(nonce, master_key.encode(), None)
+    return server_public_key.hex(), (nonce + encrypted_master_key).hex()
 
 
 @router.post(
@@ -165,6 +172,11 @@ async def claim_pairing_token_secure(
             status_code=400,
             detail="Appairage sécurisé requis : clé publique client (ECDH) manquante.",
         )
+
+    # Input validity is independent from commercial entitlement. Reject malformed
+    # ECDH material deterministically before cabinet/license lookups, and without
+    # consuming the one-shot pairing token.
+    client_public_key = _parse_client_public_key(body.client_public_key_hex)
 
     employer_id = int(preliminary.employer_id)
     clinic_id = _license_identifier_for_employer(db, employer_id)
@@ -215,7 +227,7 @@ async def claim_pairing_token_secure(
     refresh_payload = jwt.decode(refresh_token, SECRET_KEY, algorithms=[ALGORITHM])
     server_public_key_hex, encrypted_master_key_hex = _build_ecdh_response(
         record.master_key,
-        body.client_public_key_hex,
+        client_public_key,
     )
 
     db.add(
