@@ -140,3 +140,9 @@ mobile.get_lan_base_url = mobile_legacy.get_lan_base_url
 mobile.get_lan_frontend_url = mobile_legacy.get_lan_frontend_url
 install_mobile_biometric_identity_gate(mobile_legacy)
 mobile.router.include_router(mobile_passkey.router)
+
+# Marketplace P6 registers the receipt table before create_all() and mounts the
+# local receipt lifecycle under the canonical /api/partner-orders router.
+from . import partner_orders as partner_orders
+from . import partner_receipts as partner_receipts
+partner_orders.router.include_router(partner_receipts.router)
