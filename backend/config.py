@@ -39,6 +39,18 @@ class Settings(BaseSettings):
     ALLOWED_ORIGINS: str = "http://localhost:5173,http://127.0.0.1:5173,https://localhost:5173,https://127.0.0.1:5173"
     RATE_LIMIT_LOGIN: str = "10/minute"
 
+    @field_validator("ENVIRONMENT", mode="before")
+    @classmethod
+    def normalize_and_validate_environment(cls, value: str) -> str:
+        """Unknown deployment modes must not silently inherit development security."""
+        normalized = str(value or "").strip().lower()
+        allowed = {"development", "local", "test", "cabinet", "production"}
+        if normalized not in allowed:
+            raise ValueError(
+                f"ENVIRONMENT invalide: {normalized!r}. Valeurs autorisées: {sorted(allowed)}"
+            )
+        return normalized
+
     @field_validator("SUPERADMIN_EMAIL", mode="before")
     @classmethod
     def disable_legacy_superadmin_email_authority(cls, _value: str) -> str:
@@ -48,7 +60,7 @@ class Settings(BaseSettings):
     @model_validator(mode="after")
     def validate_security_topology(self):
         """SEC-1: cabinet and control-plane roles are mutually exclusive and HTTPS-bound."""
-        env = str(self.ENVIRONMENT).lower()
+        env = self.ENVIRONMENT
         if env == "cabinet" and self.PLATFORM_CONTROL_PLANE_ENABLED:
             raise ValueError(
                 "PLATFORM_CONTROL_PLANE_ENABLED interdit en environnement cabinet."
