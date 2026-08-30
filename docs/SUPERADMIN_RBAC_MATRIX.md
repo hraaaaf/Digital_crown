@@ -10,17 +10,17 @@ Source d'autorité : `backend/platform_access.py`.
 | `license.create_trial` | POST `/trial-codes` | CÂBLÉ | permission explicite + step-up mutation |
 | `license.create_paid` | POST `/clients/{id}/grant-license?action=1m|3m|6m|1y` si entitlement signé non-PAID | CÂBLÉ | choix basé sur `get_effective_license()`, pas `is_licensed`; tests de sélection/deny |
 | `license.extend` | même endpoint si entitlement signé PAID actif | CÂBLÉ | choix basé sur vérité signée; tests de sélection/deny |
-| `license.suspend` | PATCH `/clients/{id}/suspend` | CÂBLÉ | permission explicite + step-up + audit; tests positif/négatif |
+| `license.suspend` | PATCH `/clients/{id}/suspend` | IMPLÉMENTÉ — CI À PROUVER | permission explicite + step-up + audit; tests positif/négatif ajoutés |
 | `license.revoke` | POST `/trial-codes/{id}/revoke` + `grant-license?action=revoke` | CÂBLÉ | permission contrôlée avant lookup cible + step-up; OWNER refusé par flow client |
 | `license.manage_devices` | aucune surface Superadmin | BLOQUÉ PAR RUNTIME | `max_devices` est signé/vérifié mais le flow `/api/mobile/claim-token` crée `MobilePairedDevice` sans lire la limite ni compter les devices actifs; exposer une mutation serait trompeur tant que l'enforcement manque |
 | `license.change_release_channel` | aucune surface Superadmin vérifiée | MANQUANT | claim signé et allow-list `stable/beta` existent; réémission doit préserver tous les autres claims, dont `max_devices` |
-| `admin.read` | aucune surface opérateurs plateforme | MANQUANT | pas de liste dédiée des administrateurs plateforme |
-| `admin.create` | aucune surface opérateurs plateforme | MANQUANT | création d'opérateur non implémentée |
-| `admin.update_permissions` | aucune surface opérateurs plateforme | MANQUANT | mutation `User.permissions` non exposée au control-plane |
-| `admin.disable` | aucune surface opérateurs plateforme | MANQUANT | désactivation d'opérateur non implémentée |
+| `admin.read` | GET `/platform-admins` | IMPLÉMENTÉ — CI À PROUVER | liste owner + opérateurs explicites uniquement |
+| `admin.create` | POST `/platform-admins/{user_id}` | IMPLÉMENTÉ — CI À PROUVER | promeut seulement un compte plateforme-only existant; aucun mot de passe temporaire; non-escalation |
+| `admin.update_permissions` | PATCH `/platform-admins/{user_id}/permissions` | IMPLÉMENTÉ — CI À PROUVER | allow-list stricte, owner immuable, un opérateur ne délègue pas une permission qu'il ne possède pas |
+| `admin.disable` | PATCH `/platform-admins/{user_id}/enabled` | IMPLÉMENTÉ — CI À PROUVER | owner immuable; mutation step-up + audit |
 | `audit.read` | GET `/audit` | CÂBLÉ | lecture bornée 1..100, pagination offset, filtre strict `SUPERADMIN_%`; tests positif/négatif |
 
-## Règles de délégation vérifiées
+## Règles de délégation
 
 - L'identité `SUPERADMIN_USER_ID` conserve toutes les permissions de la liste fermée.
 - Un utilisateur plateforme non-SuperAdmin doit avoir la permission exacte à `true` dans `User.permissions`.
@@ -28,8 +28,11 @@ Source d'autorité : `backend/platform_access.py`.
 - Toute mutation sous `/api/superadmin` conserve le step-up WebAuthn plateforme de cinq minutes.
 - Création/extension PAID est choisie depuis l'entitlement signé effectif : PAID actif → `license.extend`; TRIAL/inactif → `license.create_paid`.
 - Un entitlement OWNER ne peut pas être remplacé/révoqué via le flow licence client.
-- La suspension client est maintenant délégable uniquement via `license.suspend`.
-- Les fonctions sans permission métier claire restent volontairement SuperAdmin immuable uniquement au lieu d'être ouvertes par approximation.
+- La suspension client est délégable uniquement via `license.suspend`.
+- La délégation `admin.*` ne crée aucun credential : elle transforme seulement un compte plateforme-only existant en opérateur explicite.
+- Un compte lié à un cabinet (`employer_id` ou `CabinetConfig.owner_id`) est refusé comme opérateur plateforme.
+- L'owner immuable ne peut être modifié/désactivé par les routes opérateurs.
+- Un opérateur non-owner ne peut déléguer que les permissions qu'il possède déjà.
 
 ## Dette P1 — limite appareils non appliquée
 
@@ -39,4 +42,4 @@ Conséquence : `license.manage_devices` ne doit pas être exposée comme fonctio
 
 ## Next exact
 
-Appliquer `max_devices` au runtime d'appairage mobile de façon fail-closed et résistante aux claims concurrents, puis seulement exposer la gestion des appareils côté Superadmin. Ensuite traiter `license.change_release_channel` en préservant l'intégralité des claims signés.
+Valider la CI du lot RBAC/opérateurs. En parallèle, concevoir puis appliquer `max_devices` au runtime d'appairage mobile de façon fail-closed et résistante aux claims concurrents. Seulement ensuite exposer `license.manage_devices`. Puis traiter `license.change_release_channel` en préservant l'intégralité des claims signés.
