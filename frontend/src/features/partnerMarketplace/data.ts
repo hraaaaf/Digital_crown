@@ -96,6 +96,7 @@ export type PartnerCatalogProduct = {
 
 export const STORAGE_CART_KEY = 'digitalcrown_partner_cart_v1';
 const STORAGE_MARKETPLACE_CACHE_PREFIX = 'digitalcrown_partner_marketplace_cache_v1';
+const AUTH_STORAGE_KEY = 'auth-storage';
 
 export type CartState = Record<string, number>;
 export type PartnerMarketplaceStrategyPreset = {
@@ -281,6 +282,29 @@ export const getMarketplaceScopeKey = (user?: Pick<AppUser, 'employer_id' | 'id'
 const getMarketplaceCacheStorageKey = (user?: Pick<AppUser, 'employer_id' | 'id'> | null) =>
   `${STORAGE_MARKETPLACE_CACHE_PREFIX}:${getMarketplaceScopeKey(user)}`;
 
+const getPersistedAuthUser = (): Pick<AppUser, 'employer_id' | 'id'> | null => {
+  if (typeof window === 'undefined') return null;
+  try {
+    const raw = window.localStorage.getItem(AUTH_STORAGE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as { state?: { user?: AppUser | null; isAuthenticated?: boolean } };
+    if (!parsed?.state?.isAuthenticated || !parsed.state.user?.id) return null;
+    return parsed.state.user;
+  } catch {
+    return null;
+  }
+};
+
+export const getMarketplaceCartScopeKey = (user?: Pick<AppUser, 'employer_id' | 'id'> | null) => {
+  const resolved = user ?? getPersistedAuthUser();
+  if (!resolved?.id) return 'anonymous';
+  if (resolved.employer_id) return `employer:${resolved.employer_id}:user:${resolved.id}`;
+  return `user:${resolved.id}`;
+};
+
+export const getMarketplaceCartStorageKey = (user?: Pick<AppUser, 'employer_id' | 'id'> | null) =>
+  `${STORAGE_CART_KEY}:${getMarketplaceCartScopeKey(user)}`;
+
 export const readMarketplaceCache = (user?: Pick<AppUser, 'employer_id' | 'id'> | null): PartnerMarketplaceCache | null => {
   if (typeof window === 'undefined') return null;
   try {
@@ -308,17 +332,17 @@ export const writeMarketplaceCache = (
   window.localStorage.setItem(getMarketplaceCacheStorageKey(user), JSON.stringify(snapshot));
 };
 
-export const readStoredCart = (): CartState => {
+export const readStoredCart = (user?: Pick<AppUser, 'employer_id' | 'id'> | null): CartState => {
   if (typeof window === 'undefined') return {};
   try {
-    const raw = window.localStorage.getItem(STORAGE_CART_KEY);
+    const raw = window.localStorage.getItem(getMarketplaceCartStorageKey(user));
     return raw ? (JSON.parse(raw) as CartState) : {};
   } catch {
     return {};
   }
 };
 
-export const writeStoredCart = (cart: CartState) => {
+export const writeStoredCart = (cart: CartState, user?: Pick<AppUser, 'employer_id' | 'id'> | null) => {
   if (typeof window === 'undefined') return;
-  window.localStorage.setItem(STORAGE_CART_KEY, JSON.stringify(cart));
+  window.localStorage.setItem(getMarketplaceCartStorageKey(user), JSON.stringify(cart));
 };
