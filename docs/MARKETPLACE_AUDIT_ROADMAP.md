@@ -3,7 +3,7 @@
 **Statut canonique : ACTIF**  
 **Date de baseline : 2026-08-30**  
 **Repo :** `hraaaaf/Digital_crown`  
-**Branche active :** `marketplace/p4-catalog-products-v3` — P4 closeout  
+**Branche active :** `marketplace/p5-ui-v2` — P5 UX/UI  
 **Déploiement Vercel :** aucun sans autorisation explicite.
 
 ## Goal chantier
@@ -45,9 +45,9 @@ Potentiel produit séparé : **9.0/10**.
 - **P1 : 14/14 CLOSED** — PR #302 ; merge `master` `9900aaddebffc593afcd436b5ecceefaf9814f48`.
 - **P2 : 12/12 CLOSED** — PR #306 ; merge `master` `cbffb626d099af98f6536a2694930753d637522c`.
 - **P3 : 8/8 CLOSED** — PR #309 ; merge `master` `5f773491a58bc552c35aeb7dddd078a058f3c417` ; closeout `bab82326f7d40e6639f5a1407cf54a9b72807d8c`.
-- **P4 : 8/8 CERTIFIED / MERGE READY** — PR #311 ; HEAD runtime `ccb09ed2908f62e50fdd185e5081a61d1145063d`.
-- **Global CLOSED : 42/100 = 42 %.**
-- **Global certifié incluant P4 : 50/100 = 50 %.**
+- **P4 : 8/8 CLOSED** — PR #311 ; merge `master` `5ccbf52fd87b59f5c3fbf6f128933a3e651f7cb1`.
+- **P5 : 0/14 EN COURS** — BEFORE certifié ; Goal + référence figés ; implémentation/AFTER en cours sur #312.
+- **Global CLOSED : 50/100 = 50 %.**
 
 ## P1 — Trust & sécurité — CLOSED
 
@@ -69,7 +69,7 @@ PR #309 squash-mergée ; `master` vérifié à `5f773491a58bc552c35aeb7dddd078a0
 ### Gate
 **CLOSED — 8/8 EP crédités.**
 
-## P4 — Catalogue & produits — CERTIFIED / MERGE READY
+## P4 — Catalogue & produits — CLOSED
 
 ### Goal
 Le catalogue ne sert pas de données périmées ou d'un autre scope ; recherche et pagination sont déterministes ; le merchandising backend est conservé sans modifier visuellement P5 avant son protocole.
@@ -83,21 +83,15 @@ Le catalogue ne sert pas de données périmées ou d'un autre scope ; recherche 
 6. bornes de pagination invalides rejetées ;
 7. aucun réordonnancement visible avant P5.
 
-### Diff certifié
-PR #311 reconstruite directement sur `master` post-P3 closeout `bab82326f7d40e6639f5a1407cf54a9b72807d8c` : **1 commit, 4 fichiers, +311/-9**, sans changement UI.
-
-### Preuve runtime
-HEAD `ccb09ed2908f62e50fdd185e5081a61d1145063d` :
-- CI #2333 : **SUCCESS** ;
-- Catalog Connected Truth #717 : **SUCCESS** ;
-- T2 Runtime #1444 : **SUCCESS** ;
-- Patient P7 #743 : **SUCCESS** ;
-- M6-I #244 : **SKIPPED** par périmètre.
+### Preuve finale
+HEAD runtime `ccb09ed2908f62e50fdd185e5081a61d1145063d` : CI #2333 SUCCESS, Catalog #717 SUCCESS, T2 #1444 SUCCESS, Patient #743 SUCCESS.  
+HEAD closeout `bacbef138dc0fb1e50d7fc933a1b384ef09c4cef` : CI #2334 SUCCESS, Catalog #718 SUCCESS, T2 #1445 SUCCESS, Patient #744 SUCCESS.  
+PR #311 squash-mergée ; `master` vérifié à `5ccbf52fd87b59f5c3fbf6f128933a3e651f7cb1`.
 
 ### Gate
-**CERTIFIED — 8/8 EP prouvés ; merge #311 + vérification master restent requis avant crédit CLOSED.**
+**CLOSED — 8/8 EP crédités.**
 
-## P5 — UX/UI Marketplace — BEFORE CERTIFIED
+## P5 — UX/UI Marketplace — EN COURS
 
 ### Protocole obligatoire
 `BEFORE 390/430/768/1280 → Goal écrit → mockup/référence → implémentation → AFTER mêmes viewports → comparaison → accessibilité/E2E → score visuel`.
@@ -107,22 +101,30 @@ Run **Marketplace P5 BEFORE #5** : **SUCCESS**, HEAD `4aece82bee3b7285b1df0dbdee
 Artefact : 4 captures 390×844, 430×932, 768×1024, 1280×800 + rapport runtime.
 Constats vérifiés : aucun page error ; aucun overflow document détecté ; **H1 visuellement rogné à 390 px malgré la métrique overflow** ; hero trop dominant sur le premier écran mobile.
 
-### Goal P5
+### Goal
 Prioriser l'achat réel plutôt que le marketing : recherche/catalogue/panier visibles plus tôt, hero compact, titre non rogné, CTA conforme au vrai statut DRAFT, checkout cohérent avec le contrat serveur, interaction sans reload, contrôles accessibles.
+
+### Référence figée avant code
+Branche #312 :
+- `docs/marketplace/P5_UI_REFERENCE.md` ;
+- `docs/marketplace/P5_UI_REFERENCE.svg`.
 
 ### Critères observables
 - H1 entièrement visible à 390/430/768/1280 ;
-- recherche + premier produit accessibles dans le premier écran ou immédiatement sous un hero compact ;
+- recherche visible dans le premier écran aux 4 viewports ;
+- au moins une carte produit visible dans le premier écran à 390/430 ;
 - aucun overflow horizontal ;
 - aucun `window.location.reload()` après ajout panier ;
 - boutons quantité nommés pour lecteur d'écran ;
-- CTA ne prétend pas envoyer au fournisseur si seule une commande locale est créée ;
-- AFTER sur les 4 viewports, mêmes données/harness, sans page/console errors.
+- aucune donnée commerciale interne dans le parcours acheteur ;
+- CTA `Enregistrer la commande` + disclosure DRAFT ;
+- AFTER sur les 4 viewports, mêmes données, sans page/console errors.
 
-Le **mockup/référence reste à figer avant toute modification UI produit**.
+### État
+Implémentation procurement-first et workflow AFTER préparés sur PR #312 draft. **0/14 EP tant que AFTER + tests + comparaison + score + merge ne sont pas prouvés.**
 
 ## P6 — Procurement — préparation parallèle, 0/8 crédité
-Travail non crédité tant que rebase/certification absents : réception partielle idempotente, réconciliation, accusé fournisseur/ETA/backorder, transport HTTP fournisseur avec preuve/idempotence et blocage du faux `DRAFT → SENT` manuel. Aucun envoi externe réel n'est revendiqué sans test/CI.
+Travail non crédité tant que reconstruction/certification sur master propre absents : réception partielle idempotente, réconciliation, accusé fournisseur/ETA/backorder, transport HTTP fournisseur avec preuve/idempotence et blocage du faux `DRAFT → SENT` manuel. Le rouge Catalog #716 provient d'un ancien contexte de base PR #308 ; le test signalé n'existe ni sur P6 HEAD ni sur master actuel. Reconstruction post-P4 requise avant conclusion.
 
 ## Idées prioritaires
 Split fournisseur (10/10 valeur), réassort consommation/min-max (10/10), réception-stock (10/10), lots/péremptions (10/10), historique prix/MOQ/délai (9/10), rapprochement facture (9/10).
@@ -131,7 +133,7 @@ Split fournisseur (10/10 valeur), réassort consommation/min-max (10/10), récep
 Backend = vérité financière/statuts. Frontend jamais autorité sécurité. Scoping obligatoire. Aucun Vercel sans autorisation. CI pending n'arrête pas le travail indépendant. Aucun EP CLOSED sans closeout complet.
 
 ## Reprise
-`P0 CLOSED → P1 CLOSED → P2 CLOSED → P3 CLOSED → P4 CERTIFIED/MERGE READY → P5 BEFORE CERTIFIED → P6 → P7 → P8 → P9 → P10 → P11`
+`P0 CLOSED → P1 CLOSED → P2 CLOSED → P3 CLOSED → P4 CLOSED → P5 EN COURS → P6 → P7 → P8 → P9 → P10 → P11`
 
-**Crédit CLOSED : 42/100 EP ; certifié : 50/100 EP.**  
-**Next exact :** merger #311 après closeout CI, vérifier `master`, créditer P4 ; figer le mockup/référence P5 puis seulement implémenter l'AFTER ; certifier P6 en parallèle.
+**Crédit CLOSED : 50/100 EP.**  
+**Next exact :** reconstruire P5 sur `master` post-P4, certifier AFTER puis comparer visuellement ; reconstruire P6 sur le même master propre en parallèle.
