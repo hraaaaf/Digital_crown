@@ -1,6 +1,7 @@
 import axios from 'axios';
 import toast from 'react-hot-toast';
 import { MobileStorage } from './zka/MobileStorage';
+import { ensurePlatformStepUp } from './platformPasskey';
 
 const defaultApiUrl = typeof window !== 'undefined'
   ? `${window.location.protocol}//${window.location.hostname}:8005`
@@ -74,8 +75,16 @@ function propagateMobileBiometricLock(): void {
   window.dispatchEvent(new CustomEvent('digitalcrown:mobile-biometric-locked'));
 }
 
+function isSuperAdminMutation(url: unknown, method: unknown): boolean {
+  if (typeof url !== 'string') return false;
+  const normalizedMethod = String(method || 'get').toLowerCase();
+  return url.startsWith('/superadmin/')
+    && !url.startsWith('/superadmin/passkey/')
+    && ['post', 'put', 'patch', 'delete'].includes(normalizedMethod);
+}
+
 // Request interceptor — annule toute requête si la session est terminée
-api.interceptors.request.use((config) => {
+api.interceptors.request.use(async (config) => {
   if (_authFailed) {
     return Promise.reject(new axios.Cancel('Session expirée — requête annulée.'));
   }
@@ -103,6 +112,13 @@ api.interceptors.request.use((config) => {
         request: null,
       };
     };
+  }
+
+  // SEC-1 : toute mutation SuperAdmin passe d'abord par une cérémonie WebAuthn
+  // dédiée. La preuve reste un cookie HttpOnly de 5 minutes, jamais un JWT
+  // primaire ni une valeur stockée par le frontend.
+  if (isSuperAdminMutation(config.url, config.method)) {
+    await ensurePlatformStepUp(API_BASE);
   }
 
   const token = getRuntimeAuthToken();
