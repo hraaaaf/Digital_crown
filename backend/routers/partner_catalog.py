@@ -5,7 +5,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from backend import database, models
-from backend.routers.auth import require_permission, require_superadmin
+from backend.routers.auth import is_superadmin_user, require_permission, require_superadmin
 
 router = APIRouter()
 
@@ -156,6 +156,16 @@ def _get_product_or_404(db: Session, employer_id: int, product_id: int) -> model
     return product
 
 
+def _ensure_supplier_visible(supplier: models.PartnerSupplier, current_user: models.User) -> None:
+    if not supplier.is_active and not is_superadmin_user(current_user):
+        raise HTTPException(status_code=404, detail="Fournisseur partenaire introuvable")
+
+
+def _ensure_product_visible(product: models.PartnerCatalogProduct, current_user: models.User) -> None:
+    if product.supplier and not product.supplier.is_active and not is_superadmin_user(current_user):
+        raise HTTPException(status_code=404, detail="Produit partenaire introuvable")
+
+
 @router.get("/meta")
 def get_partner_catalog_meta(current_user: models.User = Depends(require_permission("patients"))):
     return {
@@ -171,12 +181,10 @@ def list_suppliers(
     current_user: models.User = Depends(require_permission("patients"))
 ):
     employer_id = current_user.get_employer_id()
-    suppliers = (
-        db.query(models.PartnerSupplier)
-        .filter(models.PartnerSupplier.employer_id == employer_id)
-        .order_by(models.PartnerSupplier.name.asc())
-        .all()
-    )
+    query = db.query(models.PartnerSupplier).filter(models.PartnerSupplier.employer_id == employer_id)
+    if not is_superadmin_user(current_user):
+        query = query.filter(models.PartnerSupplier.is_active.is_(True))
+    suppliers = query.order_by(models.PartnerSupplier.name.asc()).all()
     return [_serialize_supplier(supplier) for supplier in suppliers]
 
 
@@ -188,6 +196,7 @@ def get_supplier(
 ):
     employer_id = current_user.get_employer_id()
     supplier = _get_supplier_or_404(db, employer_id, supplier_id)
+    _ensure_supplier_visible(supplier, current_user)
     return _serialize_supplier(supplier)
 
 
@@ -269,6 +278,8 @@ def list_products(
         .filter(models.PartnerCatalogProduct.employer_id == employer_id)
         .join(models.PartnerSupplier)
     )
+    if not is_superadmin_user(current_user):
+        query = query.filter(models.PartnerSupplier.is_active.is_(True))
     if supplier_id:
         query = query.filter(models.PartnerCatalogProduct.supplier_id == supplier_id)
     if category:
@@ -299,6 +310,7 @@ def get_product(
 ):
     employer_id = current_user.get_employer_id()
     product = _get_product_or_404(db, employer_id, product_id)
+    _ensure_product_visible(product, current_user)
     return _serialize_product(product)
 
 
