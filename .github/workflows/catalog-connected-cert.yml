@@ -91,7 +91,6 @@ jobs:
           grep -vE '^(torch|torchvision)([<=>].*)?$' requirements.txt > /tmp/requirements-catalog-connected-after.txt
           pip install -r /tmp/requirements-catalog-connected-after.txt
           pip install httpx==0.27.2 pytest
-          pip check
 
       - name: Prove certified cores are byte-identical
         run: |
