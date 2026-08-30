@@ -8,7 +8,7 @@ from backend.models_base import Base
 
 
 class PartnerOrderDispatch(Base):
-    """Preuve minimale d'une tentative d'expédition externe d'une commande partenaire."""
+    """Preuve minimale et idempotente d'expédition externe d'une commande partenaire."""
 
     __tablename__ = "partner_order_dispatches"
     __table_args__ = (
@@ -35,6 +35,7 @@ class PartnerOrderDispatch(Base):
     endpoint: Mapped[str] = mapped_column(String(700), nullable=False)
     request_sha256: Mapped[str] = mapped_column(String(64), nullable=False)
     outcome: Mapped[str] = mapped_column(String(30), nullable=False, index=True)
+    attempt_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     response_status: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     supplier_reference: Mapped[Optional[str]] = mapped_column(String(120), nullable=True)
     error_code: Mapped[Optional[str]] = mapped_column(String(80), nullable=True)
