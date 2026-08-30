@@ -105,8 +105,8 @@ Faire du serveur l'autorité unique des commandes et limiter lecture/mutation au
 - **P1.2 Anti-tampering** : ignorer/rejeter prix, totaux, noms, fournisseur et conditions commerciales falsifiés côté client.
 - **P1.3 Isolation cabinet** : aucun produit/fournisseur/ordre d'un autre cabinet utilisable.
 - **P1.4 Fournisseur/produit achetable** : fournisseur actif ; produit non discontinué.
-- **P1.5 RBAC commandes** : séparer création acheteur des opérations commerciales/admin de lecture globale et mutation.
-- **P1.6 Tests** : tampering, multi-tenant, fournisseur inactif, produit retiré, lignes dupliquées, rôles négatifs.
+- **P1.5 RBAC commandes** : création autorisée au cabinet ; liste commerciale globale et mutation réservées au Superadmin.
+- **P1.6 Tests** : tampering, multi-tenant, fournisseur inactif, produit retiré, lignes dupliquées, rôles négatifs/positifs.
 
 ### État P1 vérifié au 2026-08-30
 PR active **#302** — branche `marketplace/p0-trust-integrity`.
@@ -119,9 +119,12 @@ Implémenté mais non encore crédité :
 - rejet produit discontinué ;
 - rejet produit hors cabinet ;
 - rejet ligne produit dupliquée ;
-- 7 tests ciblés ajoutés.
+- GET `/partner-orders` réservé Superadmin ;
+- PATCH `/partner-orders/{id}` réservé Superadmin ;
+- POST de création conserve la permission cabinet `patients` ;
+- **9 tests ciblés** couvrent intégrité et RBAC.
 
-**Preuve manquante avant crédit :** exécution tests/CI + RBAC commandes fermé.
+**Preuve manquante avant crédit :** exécution tests/CI verte et revue finale du comportement.
 
 ---
 
@@ -364,4 +367,4 @@ Les opérations sensibles sont réservées au Superadmin et testées négativeme
 **PR active : #302**  
 **Branche : `marketplace/p0-trust-integrity`**  
 **Avancement vérifié : 8/100 EP = 8 %**  
-**Next exact :** fermer RBAC commandes, exécuter/inspecter les tests P1, corriger si nécessaire, merger si vert, mettre à jour ce fichier, puis démarrer P2.
+**Next exact :** inspecter l'exécution des 9 tests P1 et la CI ; corriger si nécessaire ; merger si vert ; créditer P1 uniquement si tous ses gates sont prouvés ; puis démarrer P2.
