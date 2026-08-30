@@ -36,6 +36,8 @@ jobs:
           npm ci
           npm install --no-save --package-lock=false --ignore-scripts playwright@1.62.1
           npx playwright install --with-deps chromium
+          test ! -e ../node_modules
+          ln -s "$PWD/node_modules" ../node_modules
 
       - name: Capture Marketplace BEFORE
         working-directory: frontend
