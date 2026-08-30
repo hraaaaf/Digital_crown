@@ -2,6 +2,7 @@ from datetime import datetime, timedelta
 from io import BytesIO
 from pathlib import Path
 from urllib.parse import parse_qs, urlsplit
+from unittest.mock import AsyncMock
 
 import pytest
 from cryptography.hazmat.primitives import serialization
@@ -21,11 +22,6 @@ def _isolate_mobile_runtime_state(tmp_path, monkeypatch):
     from backend.services import archive_service
     from backend.routers import documents
 
-    # M4-C exercises a real archived binary. Keep the filesystem side of the
-    # test as isolated as the SQLite fixture: every test gets one private media
-    # root shared by the archive writer, desktop document router and mobile
-    # context resolver. This prevents order-dependent leakage from earlier
-    # tests and never touches the runner/user media directory.
     media_root = tmp_path / 'm4c-media'
     archive_root = media_root / 'archives'
     legacy_root = media_root / 'documents'
@@ -34,6 +30,15 @@ def _isolate_mobile_runtime_state(tmp_path, monkeypatch):
 
     _license_cache.clear()
     monkeypatch.setattr(rate_limit, '_store_path', str(tmp_path / 'm4c-rate-limit.json'))
+    monkeypatch.setattr(
+        'backend.routers.mobile_pairing_secure.LicenseService.get_effective_license',
+        AsyncMock(return_value={
+            'active': True,
+            'license_type': 'PAID',
+            'max_devices': 10,
+            'release_channel': 'stable',
+        }),
+    )
     monkeypatch.setattr(archive_service, 'MEDIA_DIR', media_root)
     monkeypatch.setattr(archive_service, 'ARCHIVE_BASE_DIR', archive_root)
     monkeypatch.setattr(archive_service, 'LEGACY_DOCS_DIR', legacy_root)
