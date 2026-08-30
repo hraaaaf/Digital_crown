@@ -182,6 +182,7 @@ class LicenseService:
             "license_type": verified.license_type,
             "feature_set": verified.claims.get("feature_set"),
             "release_channel": verified.claims.get("release_channel"),
+            "max_devices": verified.claims.get("max_devices"),
             "license_id": verified.license_id,
             "key_id": verified.key_id,
         }
@@ -358,6 +359,7 @@ class LicenseService:
                     "license_type": verified.license_type,
                     "feature_set": verified.claims.get("feature_set"),
                     "release_channel": verified.claims.get("release_channel"),
+                    "max_devices": verified.claims.get("max_devices"),
                     "license_id": verified.license_id,
                     "key_id": verified.key_id,
                 },
