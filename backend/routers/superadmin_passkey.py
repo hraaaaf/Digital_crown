@@ -15,6 +15,7 @@ from sqlalchemy.orm import Session
 from backend import database, models
 from backend.models_platform_passkey import PlatformPasskeyCredential, PlatformWebAuthnChallenge
 from backend.platform_access import is_platform_superadmin
+from backend.platform_step_up import verify_platform_step_up
 from backend.routers.auth import get_current_user
 from backend.security import ALGORITHM, SECRET_KEY
 from backend.services.mobile_biometric import (
@@ -129,6 +130,14 @@ def _set_step_up_cookie(response: Response, request: Request, user_id: int) -> i
     return expires_in
 
 
+def _step_up_valid(request: Request, admin: models.User, db: Session) -> bool:
+    try:
+        verify_platform_step_up(request, current_user=admin, db=db)
+        return True
+    except HTTPException:
+        return False
+
+
 def _audit_registration(db: Session, user_id: int, credential_id: str) -> None:
     db.add(
         models.AuditLog(
@@ -158,6 +167,7 @@ def passkey_status(
         "expected_origin": WEBAUTHN_ORIGIN,
         "origin_ready": origin == WEBAUTHN_ORIGIN.lower(),
         "user_verification": "required",
+        "step_up_valid": _step_up_valid(request, admin, db),
     }
 
 
