@@ -71,6 +71,8 @@ def test_platform_passkey_enrollment_sets_httponly_proof_and_unlocks_mutation(
     set_cookie = verified.headers.get("set-cookie", "").lower()
     assert "platform_step_up=" in set_cookie
     assert "httponly" in set_cookie
+    assert "secure" in set_cookie
+    assert "samesite=strict" in set_cookie
     assert "path=/api/superadmin" in set_cookie
 
     credential = db.query(PlatformPasskeyCredential).filter(
@@ -85,11 +87,17 @@ def test_platform_passkey_enrollment_sets_httponly_proof_and_unlocks_mutation(
     assert audit.employer_id is None
     assert audit.severity == "CRITICAL"
 
-    # The TestClient keeps the scoped HttpOnly cookie. 404 proves the real
-    # SuperAdmin step-up dependency accepted it and the mutation reached its route.
+    # The test transport is HTTP, so a correctly Secure cookie is deliberately
+    # not replayed automatically by the cookie jar. Inject the exact server-issued
+    # proof to exercise the real dependency without weakening production flags.
+    step_up = verified.cookies.get("platform_step_up")
+    assert step_up
     mutation = client.post(
         "/api/superadmin/clients/999999/validate",
-        headers={"Authorization": headers["Authorization"]},
+        headers={
+            "Authorization": headers["Authorization"],
+            "Cookie": f"platform_step_up={step_up}",
+        },
     )
     assert mutation.status_code == 404
 
