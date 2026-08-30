@@ -46,6 +46,8 @@ export type PartnerProduct = {
   audience?: string;
   imageUrl?: string;
   gallery?: string[];
+  isFeatured?: boolean;
+  sortOrder?: number;
 };
 
 export type PartnerProfile = {
@@ -95,7 +97,8 @@ export type PartnerCatalogProduct = {
 };
 
 export const STORAGE_CART_KEY = 'digitalcrown_partner_cart_v1';
-const STORAGE_MARKETPLACE_CACHE_PREFIX = 'digitalcrown_partner_marketplace_cache_v1';
+export const STORAGE_MARKETPLACE_CACHE_PREFIX = 'digitalcrown_partner_marketplace_cache_v1';
+export const MARKETPLACE_CACHE_TTL_MS = 15 * 60 * 1000;
 const AUTH_STORAGE_KEY = 'auth-storage';
 
 export type CartState = Record<string, number>;
@@ -183,6 +186,8 @@ export const normalizePartnerProduct = (product: PartnerCatalogProduct): Partner
   audience: product.dentalSpecialty || 'Cabinet dentaire',
   imageUrl: undefined,
   gallery: [],
+  isFeatured: product.isFeatured,
+  sortOrder: product.sortOrder,
 });
 
 export const buildPartnerProfile = (supplier?: PartnerCatalogSupplier | null): PartnerProfile => {
@@ -279,7 +284,7 @@ export const getMarketplaceScopeKey = (user?: Pick<AppUser, 'employer_id' | 'id'
   return 'anonymous';
 };
 
-const getMarketplaceCacheStorageKey = (user?: Pick<AppUser, 'employer_id' | 'id'> | null) =>
+export const getMarketplaceCacheStorageKey = (user?: Pick<AppUser, 'employer_id' | 'id'> | null) =>
   `${STORAGE_MARKETPLACE_CACHE_PREFIX}:${getMarketplaceScopeKey(user)}`;
 
 const getPersistedAuthUser = (): Pick<AppUser, 'employer_id' | 'id'> | null => {
@@ -307,13 +312,26 @@ export const getMarketplaceCartStorageKey = (user?: Pick<AppUser, 'employer_id' 
 
 export const readMarketplaceCache = (user?: Pick<AppUser, 'employer_id' | 'id'> | null): PartnerMarketplaceCache | null => {
   if (typeof window === 'undefined') return null;
+  const storageKey = getMarketplaceCacheStorageKey(user);
   try {
-    const raw = window.localStorage.getItem(getMarketplaceCacheStorageKey(user));
+    const raw = window.localStorage.getItem(storageKey);
     if (!raw) return null;
     const parsed = JSON.parse(raw) as PartnerMarketplaceCache;
-    if (!parsed || parsed.version !== 1) return null;
+    const expectedScope = getMarketplaceScopeKey(user);
+    const syncedAtMs = Date.parse(parsed?.syncedAt || '');
+    if (
+      !parsed ||
+      parsed.version !== 1 ||
+      parsed.scopeKey !== expectedScope ||
+      !Number.isFinite(syncedAtMs) ||
+      Date.now() - syncedAtMs > MARKETPLACE_CACHE_TTL_MS
+    ) {
+      window.localStorage.removeItem(storageKey);
+      return null;
+    }
     return parsed;
   } catch {
+    window.localStorage.removeItem(storageKey);
     return null;
   }
 };
