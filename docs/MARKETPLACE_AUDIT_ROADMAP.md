@@ -3,7 +3,7 @@
 **Statut canonique : ACTIF**  
 **Baseline : 2026-08-30**  
 **Repo :** `hraaaaf/Digital_crown`  
-**Chantiers actifs :** P5 UX/UI + P7 Stock Intelligence  
+**Lot actif :** P8 — Finance & monétisation  
 **Déploiement Vercel :** aucun sans autorisation explicite.
 
 ## Goal chantier
@@ -24,122 +24,82 @@ Potentiel produit séparé : **9.0/10**.
 
 ## Roadmap P0 → P11 — 100 EP
 
-| Phase | EP | Résultat | Gate |
+| Phase | EP | État | Gate |
 |---|---:|---|---|
-| **P0 — Baseline & audit** | **8** | audit, score, risques, canonique | mergé/relu sur master |
-| **P1 — Trust & sécurité** | **14** | autorité serveur, isolation, RBAC, anti-falsification | tests ciblés + CI |
-| **P2 — Order Engine** | **12** | machine d'état, vérité financière, audit trail | graphe/revenus/événements testés |
-| **P3 — Multi-fournisseurs** | **8** | split/routage par fournisseur | 2 fournisseurs → 2 commandes atomiques |
-| **P4 — Catalogue & produits** | **8** | cache/TTL, recherche, merchandising, pagination | fraîcheur/filtres/pagination testés |
-| **P5 — UX/UI Marketplace** | **14** | navigation, panier, checkout, CTA, a11y, responsive | BEFORE/AFTER + E2E + score |
-| **P6 — Procurement** | **8** | transport réel, suivi, réception | création → transport → réception |
-| **P7 — Stock Intelligence** | **8** | réception-stock, lots/péremptions, min/max, réassort | stock sans double saisie |
-| **P8 — Finance & monétisation** | **6** | commissions/remises/revente, rapprochement/reporting | scénarios financiers serveur |
-| **P9 — Automatisation fournisseur** | **5** | imports/API, sync prix/dispo, retries | idempotence/retry/sync |
-| **P10 — Superadmin Marketplace** | **4** | CRUD complet, supervision, gouvernance | RBAC + audit trail |
-| **P11 — Certification finale** | **5** | E2E, sécurité, performance, accessibilité, closeout | tous gates verts |
+| P0 — Baseline & audit | 8 | CLOSED | audit/canonique mergé |
+| P1 — Trust & sécurité | 14 | CLOSED | autorité serveur + RBAC + tests |
+| P2 — Order Engine | 12 | CLOSED | machine d'état/revenus/audit |
+| P3 — Multi-fournisseurs | 8 | CLOSED | 2 fournisseurs → 2 commandes atomiques |
+| P4 — Catalogue & produits | 8 | CLOSED | cache/recherche/pagination |
+| P5 — UX/UI Marketplace | 14 | CLOSED | BEFORE/AFTER + E2E + score visuel |
+| P6 — Procurement | 8 | CLOSED | transport → suivi → réception |
+| P7 — Stock Intelligence | 8 | CLOSED | réception → stock sans double saisie |
+| **P8 — Finance & monétisation** | **6** | **EN COURS** | scénarios financiers serveur |
+| P9 — Automatisation fournisseur | 5 | À FAIRE | idempotence/retry/sync |
+| P10 — Superadmin Marketplace | 4 | À FAIRE | RBAC + audit trail global |
+| P11 — Certification finale | 5 | À FAIRE | tous gates verts |
 | **Total** | **100** |  |  |
 
 ## Avancement vérifié
-- **P0 : 8/8 CLOSED** — PR #301.
-- **P1 : 14/14 CLOSED** — PR #302 ; merge `9900aaddebffc593afcd436b5ecceefaf9814f48`.
-- **P2 : 12/12 CLOSED** — PR #306 ; merge `cbffb626d099af98f6536a2694930753d637522c`.
-- **P3 : 8/8 CLOSED** — PR #309 ; merge `5f773491a58bc552c35aeb7dddd078a058f3c417`.
-- **P4 : 8/8 CLOSED** — PR #311 ; merge `5ccbf52fd87b59f5c3fbf6f128933a3e651f7cb1`.
-- **P5 : 0/14 EN COURS** — PR #313 ; AFTER #5 SUCCESS, CI générale encore requise + comparaison visuelle/score.
-- **P6 : 8/8 CLOSED** — PR #316 ; merge `1cee3f30168845602a2f8fdfb2a5bbf1694e9c71`.
-- **P7 : 0/8 EN COURS** — reconstruction propre post-P6 requise avant crédit.
-- **Global CLOSED : 58/100 = 58 %.**
+- P0 : 8/8 CLOSED — PR #301.
+- P1 : 14/14 CLOSED — PR #302.
+- P2 : 12/12 CLOSED — PR #306.
+- P3 : 8/8 CLOSED — PR #309.
+- P4 : 8/8 CLOSED — PR #311.
+- P5 : 14/14 CLOSED — PR #319 ; merge `5dec8add36c6ae839155f36697672f5e5fb1228b`.
+- P6 : 8/8 CLOSED — PR #316 ; merge `1cee3f30168845602a2f8fdfb2a5bbf1694e9c71`.
+- P7 : 8/8 CLOSED — PR #318 ; merge `7b7aeb4569d31e1fb26460d032523344a7f21d21`.
+- **Global CLOSED : 80/100 = 80 %.**
 
-## P1 — Trust & sécurité — CLOSED
-HEAD `e8380bd895fc37759fe783fa854d4fcbb39a2932` : CI #2246 SUCCESS, T2 #1361 SUCCESS, Patient #660 SUCCESS.
-
-## P2 — Order Engine — CLOSED
-HEAD `fa7fba4ad518d0e04c7367156415a56687aed907` : CI #2260 SUCCESS, T2 #1374 SUCCESS, Patient #673 SUCCESS.
-
-## P3 — Multi-fournisseurs — CLOSED
-HEAD produit `a7c26947d1ebcfde0bc95149237d1058245eee1a` : CI #2310 SUCCESS, Catalog #696 SUCCESS, T2 #1423 SUCCESS, Patient #722 SUCCESS.  
-HEAD closeout `b2c18bc458a953e8d470f0dc9231a616e2602d8f` : CI #2317 SUCCESS, Catalog #703 SUCCESS, T2 #1430 SUCCESS, Patient #729 SUCCESS.
-
-## P4 — Catalogue & produits — CLOSED
-HEAD runtime `ccb09ed2908f62e50fdd185e5081a61d1145063d` : CI #2333 SUCCESS, Catalog #717 SUCCESS, T2 #1444 SUCCESS, Patient #743 SUCCESS.  
-HEAD closeout `bacbef138dc0fb1e50d7fc933a1b384ef09c4cef` : CI #2334 SUCCESS, Catalog #718 SUCCESS, T2 #1445 SUCCESS, Patient #744 SUCCESS.
-
-## P5 — UX/UI Marketplace — EN COURS
+## P5 — UX/UI Marketplace — CLOSED
 
 ### BEFORE
-Marketplace P5 BEFORE #5 : **SUCCESS** sur 390×844 / 430×932 / 768×1024 / 1280×800.  
-Constats : H1 rogné à 390 px ; hero trop dominant ; recherche/catalogue trop bas.
+Marketplace P5 BEFORE #5 : SUCCESS sur 390×844 / 430×932 / 768×1024 / 1280×800.  
+Défauts : H1 rogné à 390 px, hero trop dominant, catalogue trop bas.
 
-### Goal
-Achat réel prioritaire : recherche/catalogue/panier plus tôt, hero compact, titre entier, CTA DRAFT exact, checkout cohérent, aucun reload, contrôles accessibles.
+### Goal / référence
+Procurement-first ; recherche/catalogue/panier prioritaires ; CTA DRAFT exact ; aucune donnée commerciale interne ; contrôles quantité accessibles ; aucun reload.  
+Référence figée avant code : `docs/marketplace/P5_UI_REFERENCE.md` + SVG.
 
-### Référence figée avant code
-- `docs/marketplace/P5_UI_REFERENCE.md`
-- `docs/marketplace/P5_UI_REFERENCE.svg`
-
-### AFTER
-AFTER #2 : FAILURE sur densité mobile ; aucun overflow/error/fuite commerciale. Le gate mesurait aussi par erreur le second produit comme « premier produit » ; le test a été corrigé sans affaiblir le critère.  
-HEAD actuel `f7210d35499c1947eb47208a2360ea856ea11de2` : **Marketplace P5 AFTER #5 SUCCESS**, Catalog #728 SUCCESS, T2 #1455 SUCCESS, Patient #754 SUCCESS ; CI #2346 restait en cours au dernier contrôle.  
-Le gate #5 vérifie aussi le parcours réel ajout panier → formulaire → POST → succès DRAFT sans reload.
-
-### Gate
-**0/14 EP** tant que CI générale + lecture des captures AFTER + comparaison BEFORE/AFTER + score visuel + merge ne sont pas prouvés.
+### AFTER / preuve
+HEAD `65ff91d4d4e841a5886051ddacdabc935c49cc43` : AFTER #6 SUCCESS, CI #2363 SUCCESS, Catalog #742 SUCCESS, T2 #1469 SUCCESS, Patient #768 SUCCESS.  
+E2E : ajout panier → formulaire → POST → succès DRAFT sans reload.  
+Inspection visuelle réelle des 4 captures : objectif atteint ; **score visuel 9.2/10**.  
+PR #319 squash-mergée ; master vérifié à `5dec8add36c6ae839155f36697672f5e5fb1228b`.
 
 ## P6 — Procurement — CLOSED
 
-### Goal
-Une commande ne devient envoyée qu'avec preuve de transport fournisseur ; suivi et réceptions sont tenant-scoped, idempotents et réconciliés avec la commande canonique.
+Transport HTTP fournisseur avec HTTPS public + garde SSRF ; idempotence/hash canonique ; succès seulement 2xx + référence ; blocage du faux DRAFT→SENT manuel ; référence/ETA/backorders ; réceptions partielles/complètes idempotentes ; réconciliation ; audit trail.  
+HEAD closeout `3ab5863d79adc0f11e09052fe6c59789ecd1edbf` : CI #2342, Catalog #724, T2 #1451, Patient #750, Portability #336, Onboarding #143 SUCCESS.  
+PR #316 mergée ; master `1cee3f30168845602a2f8fdfb2a5bbf1694e9c71`.
 
-### Implémenté
-- dispatch HTTP fournisseur HTTPS public + garde SSRF ;
-- clé d'idempotence + hash canonique ;
-- succès uniquement 2xx + référence fournisseur ;
-- échec enregistré sans faux `SENT_TO_PARTNER` ;
-- PATCH manuel DRAFT→SENT bloqué ;
-- référence fournisseur, ETA, backorders ;
-- réceptions partielles/complètes idempotentes ;
-- lot/péremption dans les lignes ;
-- réconciliation quantités ;
-- `CONFIRMED → FULFILLED` seulement à réception complète ;
-- audit trail.
+## P7 — Stock Intelligence — CLOSED
 
-### Preuve finale
-HEAD produit `6d52cd53ba38f1c08e70d615ea30e22d22d311ba` : CI #2340, Catalog #722, T2 #1449, Patient #748, Portability #334, Onboarding #141 **SUCCESS**.  
-HEAD closeout `3ab5863d79adc0f11e09052fe6c59789ecd1edbf` : CI #2342, Catalog #724, T2 #1451, Patient #750, Portability #336, Onboarding #143 **SUCCESS**.  
-PR #316 squash-mergée ; `master` vérifié à `1cee3f30168845602a2f8fdfb2a5bbf1694e9c71`.
+`StockItem` reste l'agrégat canonique ; mapping produit→stock explicite ; facteur d'unité/min/cible ; ledger append-only/idempotent ; réception→stock automatique ; `PENDING_MAPPING` sans stock partiel ; replay sans double incrément ; lots/péremptions ; lots expirés exclus du stock utilisable ; consommation FEFO ; suggestions de réassort ; tenant scoping.  
+HEAD `77da0418d10548d279ce0dbdbf2d460b2362e492` : CI #2359, Catalog #739, T2 #1466, Patient #765, Portability #348, Onboarding #155 SUCCESS.  
+PR #318 mergée ; master `7b7aeb4569d31e1fb26460d032523344a7f21d21`.
 
-### Limite explicite
-L'idempotence externe dépend du respect de `Idempotency-Key` par l'API fournisseur ; Digital Crown conserve sa preuve et réutilise la même clé.
-
-### Gate
-**CLOSED — 8/8 EP crédités.**
-
-## P7 — Stock Intelligence — EN COURS
+## P8 — Finance & monétisation — EN COURS — 0/6
 
 ### Goal
-Une réception Marketplace alimente automatiquement le `StockItem` existant sans double saisie ni double incrément, avec traçabilité produit/lot/péremption ; consommation et seuils produisent un réassort déterministe.
+Avoir une vérité financière serveur par commande, cohérente avec annulations/réceptions, permettant reporting et rapprochement sans calcul financier autoritaire côté frontend.
 
-### Architecture retenue
-- `StockItem` existant reste l'agrégat canonique ;
-- mapping explicite `PartnerCatalogProduct → StockItem` avec facteur d'unité, min et cible ;
-- ledger append-only/idempotent ;
-- lots/péremptions ;
-- application réception→stock automatique si mapping complet ;
-- mapping absent : réception conservée `PENDING_MAPPING`, aucun stock partiel ;
-- replay de la même réception applique le stock après mapping sans dupliquer la réception ;
-- endpoint d'application explicite conservé pour rattrapage ;
-- consommation idempotente avec allocation FEFO ;
-- suggestions min→cible ;
-- tenant scoping.
+### Succès observable
+1. modèles commission / remise / revente / frais fixes calculés côté serveur ;
+2. revenu reconnu et reversal d'annulation déterministes ;
+3. rapprochement commande ↔ réception ↔ montant financier ;
+4. reporting cabinet interne agrégé ;
+5. tenant scoping + RBAC ;
+6. scénarios ciblés + CI verts.
 
-PR de travail #315 est encore empilée sur l'ancien P6 ; reconstruction directe sur `master` post-P6 obligatoire avant certification.
+### Preuve attendue
+Tests backend couvrant les modèles financiers, transitions, annulations, réception/rapprochement et isolation cabinet ; closeout + merge vérifié avant crédit.
 
 ## Règles
 Backend = vérité financière/statuts. Frontend jamais autorité sécurité. Scoping obligatoire. Aucun Vercel sans autorisation. CI pending n'arrête pas le travail indépendant. Aucun EP CLOSED sans closeout complet.
 
 ## Reprise
-`P0 CLOSED → P1 CLOSED → P2 CLOSED → P3 CLOSED → P4 CLOSED → P5 EN COURS → P6 CLOSED → P7 EN COURS → P8 → P9 → P10 → P11`
+`P0 CLOSED → P1 CLOSED → P2 CLOSED → P3 CLOSED → P4 CLOSED → P5 CLOSED → P6 CLOSED → P7 CLOSED → P8 EN COURS → P9 → P10 → P11`
 
-**Crédit CLOSED : 58/100 EP.**  
-**Next exact :** reconstruire P7 sur `master` post-P6 et certifier ; terminer P5 par CI + comparaison visuelle + score puis merge.
+**Crédit CLOSED : 80/100 EP.**  
+**Next exact :** implémenter P8 sur une branche propre issue de `master` puis certifier les scénarios financiers serveur.
