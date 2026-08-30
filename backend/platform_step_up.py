@@ -1,9 +1,9 @@
 """Short-lived second-factor gate for privileged platform mutations.
 
 The primary control-plane session remains a normal web access token. WebAuthn
-issues a dedicated ``platform_step_up`` JWT which is accepted only through the
-``X-Platform-Step-Up`` header and can never become the primary SuperAdmin
-session.
+issues a dedicated ``platform_step_up`` JWT kept in a scoped HttpOnly cookie.
+A header fallback remains for isolated security tests and non-browser clients.
+The proof can never become the primary SuperAdmin session.
 """
 from __future__ import annotations
 
@@ -17,6 +17,7 @@ from backend import models
 from backend.security import ALGORITHM, SECRET_KEY
 
 PLATFORM_STEP_UP_HEADER = "x-platform-step-up"
+PLATFORM_STEP_UP_COOKIE = "platform_step_up"
 PLATFORM_STEP_UP_TTL = timedelta(minutes=5)
 _CLOCK_SKEW = timedelta(seconds=30)
 
@@ -36,7 +37,11 @@ def verify_platform_step_up(
 ) -> dict:
     """Require a fresh platform WebAuthn proof bound to the current web user."""
     del db  # Signature kept stable for dependency callers; proof is self-contained.
-    token = (request.headers.get(PLATFORM_STEP_UP_HEADER) or "").strip()
+    token = (
+        request.cookies.get(PLATFORM_STEP_UP_COOKIE)
+        or request.headers.get(PLATFORM_STEP_UP_HEADER)
+        or ""
+    ).strip()
     if not token:
         raise _deny(
             "PLATFORM_STEP_UP_REQUIRED",
