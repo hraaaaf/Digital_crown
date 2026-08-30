@@ -123,7 +123,10 @@ const json = (body, status = 200) => ({
 });
 
 function makeToken() {
-  const encode = (value) => Buffer.from(JSON.stringify(value)).toString('base64url');
+  // authService.isTokenExpired() utilise directement atob() sur le payload.
+  // Le harness emploie donc du base64 standard (pas base64url) pour tester
+  // exactement ce contrat frontend sans dépendre d'une signature serveur.
+  const encode = (value) => Buffer.from(JSON.stringify(value)).toString('base64');
   return `${encode({ alg: 'none', typ: 'JWT' })}.${encode({ sub: user.id, exp: Math.floor(Date.now() / 1000) + 7200 })}.baseline`;
 }
 
