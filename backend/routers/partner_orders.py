@@ -183,6 +183,12 @@ def _build_order_number() -> str:
     return f"CMD-PART-{stamp}-{suffix}"
 
 
+def _build_batch_id() -> str:
+    stamp = datetime.utcnow().strftime("%Y%m%d")
+    suffix = uuid.uuid4().hex[:6].upper()
+    return f"LOT-PART-{stamp}-{suffix}"
+
+
 def _coerce_settlement_basis(value: str) -> models.PartnerSettlementBasis:
     try:
         return models.PartnerSettlementBasis(value)
@@ -209,7 +215,6 @@ def _same_money_value(left: float, right: float) -> bool:
 
 
 def _resolve_strategy(payload: PartnerOrderCreateIn) -> dict:
-    """Mappe le contrat client sur un preset autorisé puis retourne la version canonique serveur."""
     for preset in STRATEGY_PRESETS:
         if (
             payload.settlementBasis == preset["settlementBasis"]
@@ -235,12 +240,11 @@ def _parse_product_id(raw_product_id: str) -> int:
     return product_id
 
 
-def _build_canonical_order_lines(
+def _build_canonical_order_groups(
     db: Session,
     employer_id: int,
     requested_lines: List[PartnerOrderLineIn],
-) -> tuple[models.PartnerSupplier, list[dict], float]:
-    """Reconstruit fournisseur, lignes et total depuis le catalogue serveur."""
+) -> list[tuple[models.PartnerSupplier, list[dict], float]]:
     product_ids: list[int] = []
     quantities: dict[int, int] = {}
     for line in requested_lines:
@@ -267,35 +271,48 @@ def _build_canonical_order_lines(
         )
 
     supplier_ids = {product.supplier_id for product in products}
-    if len(supplier_ids) != 1:
-        raise HTTPException(
-            status_code=422,
-            detail="Une commande partenaire ne peut contenir que les produits d'un seul fournisseur.",
-        )
-
-    supplier_id = next(iter(supplier_ids))
-    supplier = (
+    suppliers = (
         db.query(models.PartnerSupplier)
         .filter(
             models.PartnerSupplier.employer_id == employer_id,
-            models.PartnerSupplier.id == supplier_id,
+            models.PartnerSupplier.id.in_(supplier_ids),
         )
-        .first()
+        .all()
     )
-    if not supplier or not supplier.is_active:
-        raise HTTPException(status_code=422, detail="Le fournisseur de cette commande n'est pas actif.")
+    suppliers_by_id = {supplier.id: supplier for supplier in suppliers}
+    missing_supplier_ids = [supplier_id for supplier_id in supplier_ids if supplier_id not in suppliers_by_id]
+    if missing_supplier_ids:
+        raise HTTPException(
+            status_code=422,
+            detail=f"Fournisseur(s) introuvable(s) pour le cabinet: {', '.join(map(str, missing_supplier_ids))}",
+        )
 
-    canonical_lines: list[dict] = []
-    estimated_total = 0.0
+    inactive_suppliers = [supplier.name for supplier in suppliers if not supplier.is_active]
+    if inactive_suppliers:
+        raise HTTPException(
+            status_code=422,
+            detail=f"Fournisseur(s) inactif(s): {', '.join(inactive_suppliers)}",
+        )
+
+    supplier_order: list[int] = []
+    grouped_lines: dict[int, list[dict]] = {}
+    grouped_totals: dict[int, float] = {}
+
     for product_id in product_ids:
         product = products_by_id[product_id]
         if product.availability == models.PartnerProductAvailability.DISCONTINUED:
             raise HTTPException(status_code=422, detail=f"Produit retire du catalogue: {product.name}")
 
+        supplier_id = product.supplier_id
+        if supplier_id not in grouped_lines:
+            supplier_order.append(supplier_id)
+            grouped_lines[supplier_id] = []
+            grouped_totals[supplier_id] = 0.0
+
         quantity = quantities[product_id]
         unit_price = round(float(product.price), 2)
         line_total = round(unit_price * quantity, 2)
-        canonical_lines.append(
+        grouped_lines[supplier_id].append(
             {
                 "productId": str(product.id),
                 "name": product.name,
@@ -305,9 +322,30 @@ def _build_canonical_order_lines(
                 "lineTotal": line_total,
             }
         )
-        estimated_total += line_total
+        grouped_totals[supplier_id] += line_total
 
-    return supplier, canonical_lines, round(estimated_total, 2)
+    return [
+        (
+            suppliers_by_id[supplier_id],
+            grouped_lines[supplier_id],
+            round(grouped_totals[supplier_id], 2),
+        )
+        for supplier_id in supplier_order
+    ]
+
+
+def _build_canonical_order_lines(
+    db: Session,
+    employer_id: int,
+    requested_lines: List[PartnerOrderLineIn],
+) -> tuple[models.PartnerSupplier, list[dict], float]:
+    groups = _build_canonical_order_groups(db, employer_id, requested_lines)
+    if len(groups) != 1:
+        raise HTTPException(
+            status_code=422,
+            detail="Une commande partenaire ne peut contenir que les produits d'un seul fournisseur.",
+        )
+    return groups[0]
 
 
 def _should_recognize(settlement_basis: models.PartnerSettlementBasis, status_value: models.PartnerOrderStatus) -> bool:
@@ -329,9 +367,6 @@ def _compute_revenue(order: models.PartnerOrder) -> tuple[float, float]:
     if not _should_recognize(order.settlement_basis, order.status):
         return 0.0, 0.0
 
-    # current_total starts equal to sent_total and only changes through the
-    # MODIFIED_AFTER_SEND transition. Keep that supplier-adjusted amount
-    # through CONFIRMED/FULFILLED instead of reverting to the initial snapshot.
     base_amount = order.current_total
 
     if order.revenue_model == models.PartnerRevenueModel.COMMISSION_PERCENT:
@@ -401,6 +436,64 @@ def _append_event(
     db.add(event)
 
 
+def _prepare_partner_order(
+    db: Session,
+    *,
+    employer_id: int,
+    supplier: models.PartnerSupplier,
+    canonical_lines: list[dict],
+    estimated_total: float,
+    strategy: dict,
+    payload: PartnerOrderCreateIn,
+    batch_id: str,
+) -> models.PartnerOrder:
+    settlement_basis = _coerce_settlement_basis(strategy["settlementBasis"])
+    revenue_model = _coerce_revenue_model(strategy["revenueModel"])
+    order = models.PartnerOrder(
+        employer_id=employer_id,
+        order_number=_build_order_number(),
+        partner_id=str(supplier.id),
+        partner_name=supplier.name,
+        status=models.PartnerOrderStatus.DRAFT,
+        settlement_basis=settlement_basis,
+        revenue_model=revenue_model,
+        strategy_label=strategy["label"],
+        commission_rate=float(strategy["commissionRate"]),
+        discount_rate=float(strategy["discountRate"]),
+        fixed_fee_amount=float(strategy["fixedFeeAmount"]),
+        customer_full_name=payload.customer.fullName,
+        customer_clinic=payload.customer.clinic,
+        customer_phone=payload.customer.phone,
+        customer_email=payload.customer.email,
+        customer_city=payload.customer.city,
+        customer_note=payload.customer.note,
+        lines_json=canonical_lines,
+        estimated_total=estimated_total,
+        current_total=estimated_total,
+    )
+    db.add(order)
+    db.flush()
+    _append_event(
+        db,
+        order,
+        event_type="ORDER_CREATED",
+        previous_status=None,
+        new_status=order.status.value,
+        previous_total=None,
+        new_total=order.current_total,
+        revenue_before=None,
+        revenue_after=order.recognized_revenue_amount,
+        note="Commande preparee dans DigitalCrown.",
+        payload_json={
+            "batchId": batch_id,
+            "strategyKey": strategy["key"],
+            "pricingAuthority": "SERVER_CATALOG",
+            "supplierId": supplier.id,
+        },
+    )
+    return order
+
+
 @router.get("/meta")
 def get_partner_order_meta(
     current_user: models.User = Depends(require_permission("patients"))
@@ -444,55 +537,45 @@ def create_partner_order(
         raise HTTPException(status_code=422, detail="La commande doit contenir au moins une ligne.")
 
     strategy = _resolve_strategy(payload)
-    supplier, canonical_lines, estimated_total = _build_canonical_order_lines(db, employer_id, payload.lines)
-    settlement_basis = _coerce_settlement_basis(strategy["settlementBasis"])
-    revenue_model = _coerce_revenue_model(strategy["revenueModel"])
+    groups = _build_canonical_order_groups(db, employer_id, payload.lines)
+    batch_id = _build_batch_id()
+    orders: list[models.PartnerOrder] = []
 
-    order = models.PartnerOrder(
-        employer_id=employer_id,
-        order_number=_build_order_number(),
-        partner_id=str(supplier.id),
-        partner_name=supplier.name,
-        status=models.PartnerOrderStatus.DRAFT,
-        settlement_basis=settlement_basis,
-        revenue_model=revenue_model,
-        strategy_label=strategy["label"],
-        commission_rate=float(strategy["commissionRate"]),
-        discount_rate=float(strategy["discountRate"]),
-        fixed_fee_amount=float(strategy["fixedFeeAmount"]),
-        customer_full_name=payload.customer.fullName,
-        customer_clinic=payload.customer.clinic,
-        customer_phone=payload.customer.phone,
-        customer_email=payload.customer.email,
-        customer_city=payload.customer.city,
-        customer_note=payload.customer.note,
-        lines_json=canonical_lines,
-        estimated_total=estimated_total,
-        current_total=estimated_total,
-    )
-    db.add(order)
-    db.commit()
-    db.refresh(order)
-    _append_event(
-        db,
-        order,
-        event_type="ORDER_CREATED",
-        previous_status=None,
-        new_status=order.status.value,
-        previous_total=None,
-        new_total=order.current_total,
-        revenue_before=None,
-        revenue_after=order.recognized_revenue_amount,
-        note="Commande preparee dans DigitalCrown.",
-        payload_json={
-            "strategyKey": strategy["key"],
-            "pricingAuthority": "SERVER_CATALOG",
-            "supplierId": supplier.id,
-        },
-    )
-    db.commit()
-    db.refresh(order)
-    return _serialize(order)
+    try:
+        for supplier, canonical_lines, estimated_total in groups:
+            orders.append(
+                _prepare_partner_order(
+                    db,
+                    employer_id=employer_id,
+                    supplier=supplier,
+                    canonical_lines=canonical_lines,
+                    estimated_total=estimated_total,
+                    strategy=strategy,
+                    payload=payload,
+                    batch_id=batch_id,
+                )
+            )
+        db.commit()
+    except Exception:
+        db.rollback()
+        raise
+
+    for order in orders:
+        db.refresh(order)
+
+    serialized_orders = [_serialize(order) for order in orders]
+    if len(serialized_orders) == 1:
+        return serialized_orders[0]
+
+    return {
+        "batchId": batch_id,
+        "orderNumber": batch_id,
+        "strategyLabel": strategy["label"],
+        "status": models.PartnerOrderStatus.DRAFT.value,
+        "orderCount": len(serialized_orders),
+        "estimatedTotal": round(sum(order["estimatedTotal"] for order in serialized_orders), 2),
+        "orders": serialized_orders,
+    }
 
 
 @router.patch("/{order_id}")

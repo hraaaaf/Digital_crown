@@ -6,7 +6,11 @@ from fastapi import HTTPException
 from backend import models
 from backend.config import settings
 from backend.security import get_password_hash
-from backend.routers.partner_orders import PartnerOrderCreateIn, create_partner_order
+from backend.routers.partner_orders import (
+    PartnerOrderCreateIn,
+    _build_canonical_order_lines,
+    create_partner_order,
+)
 
 
 def _make_user(db, email: str = "marketplace-owner@test.ma", *, password_hash: str = "test-only"):
@@ -153,15 +157,16 @@ def test_create_order_rejects_non_preset_commercial_terms(db):
     assert db.query(models.PartnerOrder).count() == 0
 
 
-def test_create_order_rejects_mixed_suppliers(db):
+def test_single_order_builder_rejects_mixed_suppliers(db):
     user = _make_user(db)
     supplier_a = _make_supplier(db, user, name="Supplier A")
     supplier_b = _make_supplier(db, user, name="Supplier B")
     product_a = _make_product(db, user, supplier_a, name="A", sku="A")
     product_b = _make_product(db, user, supplier_b, name="B", sku="B")
+    payload = _payload(product_a, product_b)
 
     with pytest.raises(HTTPException) as exc:
-        create_partner_order(_payload(product_a, product_b), db=db, current_user=user)
+        _build_canonical_order_lines(db, user.get_employer_id(), payload.lines)
 
     assert exc.value.status_code == 422
     assert "un seul fournisseur" in exc.value.detail
@@ -177,7 +182,7 @@ def test_create_order_rejects_inactive_supplier(db):
         create_partner_order(_payload(product), db=db, current_user=user)
 
     assert exc.value.status_code == 422
-    assert "n'est pas actif" in exc.value.detail
+    assert "inactif" in exc.value.detail
 
 
 def test_create_order_rejects_discontinued_product(db):
