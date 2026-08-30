@@ -36,21 +36,6 @@ def _headers(client, user):
     return {"Authorization": f"Bearer {response.json()['access_token']}"}
 
 
-def _device(db, user, *, revoked=False):
-    device = models.MobilePairedDevice(
-        device_id=str(uuid.uuid4()),
-        user_id=user.id,
-        employer_id=user.id,
-        client_public_key_hex="04" + "00" * 64,
-        refresh_jti=f"mobile:{user.id}:1:{uuid.uuid4().hex}",
-        revoked_at=models.datetime.utcnow() if revoked else None,
-    )
-    db.add(device)
-    db.commit()
-    db.refresh(device)
-    return device
-
-
 def test_manage_devices_lists_only_safe_metadata(client, db, delegated_operator):
     device = models.MobilePairedDevice(
         device_id=str(uuid.uuid4()),
@@ -109,11 +94,12 @@ def test_manage_devices_revoke_is_effective_and_audited(client, db, delegated_op
     assert device.revoked_at is not None
     audit = db.query(models.AuditLog).filter(
         models.AuditLog.action == "SUPERADMIN_DEVICE_REVOKE",
-        models.AuditLog.resource_id == str(delegated_operator.id),
+        models.AuditLog.resource_type == "MobilePairedDevice",
+        models.AuditLog.resource_id == device.device_id,
     ).one()
     assert audit.user_id == delegated_operator.id
     assert audit.severity == "CRITICAL"
-    assert device.device_id in (audit.details or "")
+    assert audit.details == f"client_id={delegated_operator.id}"
 
 
 def test_manage_devices_permission_is_required(client, db, delegated_operator):
