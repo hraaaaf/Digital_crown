@@ -13,6 +13,7 @@ from backend.main import invalidate_license_cache
 from backend.platform_access import has_platform_permission, is_platform_superadmin
 from backend.platform_step_up import enforce_platform_step_up_for_mutation
 from backend.routers.auth import get_current_user
+from backend.routers.superadmin_admins import router as platform_admins_router
 from backend.routers.superadmin_passkey import router as platform_passkey_router
 from backend.schemas.superadmin import (
     ClientBaseStats,
@@ -28,6 +29,7 @@ from backend.services.notification_service import notification_service
 
 router = APIRouter(tags=["SuperAdmin"])
 router.include_router(platform_passkey_router)
+router.include_router(platform_admins_router)
 _LICENSE_DURATIONS = {"1m": 30, "3m": 90, "6m": 180, "1y": 365}
 
 
