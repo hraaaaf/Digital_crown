@@ -86,11 +86,11 @@ jobs:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
           clean: false
 
-      - name: Install AFTER backend dependencies
+      - name: Sync backend dependencies to exact PR head
         run: |
           grep -vE '^(torch|torchvision)([<=>].*)?$' requirements.txt > /tmp/requirements-catalog-connected-after.txt
           pip install -r /tmp/requirements-catalog-connected-after.txt
-          pip install httpx==0.27.2
+          pip install httpx==0.27.2 pytest
 
       - name: Prove certified cores are byte-identical
         run: |
