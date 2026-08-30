@@ -154,3 +154,30 @@ def test_paid_grant_requires_create_or_extend_permission_before_target_lookup(
         headers=_web_headers(client, delegated_platform_user),
     )
     assert response.status_code == 403
+
+
+def test_suspend_permission_allows_delegated_suspension(
+    client, db, delegated_platform_user
+):
+    _set_permissions(db, delegated_platform_user, {"license.suspend": True})
+    response = client.patch(
+        f"/api/superadmin/clients/{delegated_platform_user.id}/suspend",
+        headers=_web_headers(client, delegated_platform_user),
+    )
+    assert response.status_code == 200, response.text
+    assert response.json()["is_suspended"] is True
+    db.refresh(delegated_platform_user)
+    assert delegated_platform_user.is_suspended is True
+
+
+def test_suspend_denies_delegated_user_without_permission(
+    client, db, delegated_platform_user
+):
+    _set_permissions(db, delegated_platform_user, {"license.read": True})
+    response = client.patch(
+        f"/api/superadmin/clients/{delegated_platform_user.id}/suspend",
+        headers=_web_headers(client, delegated_platform_user),
+    )
+    assert response.status_code == 403
+    db.refresh(delegated_platform_user)
+    assert delegated_platform_user.is_suspended is False
