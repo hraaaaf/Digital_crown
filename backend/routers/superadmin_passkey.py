@@ -113,13 +113,16 @@ def _issue_step_up_token(user_id: int) -> tuple[str, int]:
 
 
 def _set_step_up_cookie(response: Response, request: Request, user_id: int) -> int:
+    # The platform control plane is HTTPS-only by configuration. Never infer the
+    # browser transport from request.url.scheme: TLS may terminate at a reverse proxy.
+    del request
     token, expires_in = _issue_step_up_token(user_id)
     response.set_cookie(
         key=STEP_UP_COOKIE,
         value=token,
         max_age=expires_in,
         httponly=True,
-        secure=request.url.scheme == "https",
+        secure=True,
         samesite="strict",
         path="/api/superadmin",
     )
