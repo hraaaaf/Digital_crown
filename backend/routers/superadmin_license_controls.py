@@ -94,8 +94,9 @@ def revoke_client_device(
             db,
             actor_id=actor.id,
             action="SUPERADMIN_DEVICE_REVOKE",
-            target_id=int(user_id),
-            details=f"device_id={device.device_id}",
+            target_id=device.device_id,
+            resource_type="MobilePairedDevice",
+            details=f"client_id={int(user_id)}",
             severity="CRITICAL",
         )
         # Mobile access and refresh decoders both require revoked_at IS NULL.
