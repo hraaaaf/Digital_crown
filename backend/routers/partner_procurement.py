@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 
 from backend import database, models
 from backend.models_marketplace_procurement import PartnerOrderProcurement
+from backend.models_marketplace_receipts import PartnerOrderReceipt
 from backend.routers.auth import require_superadmin
 from backend.routers.partner_orders import _append_event, _serialize
 
@@ -39,39 +40,81 @@ def _scoped_order(db: Session, employer_id: int, order_id: int) -> models.Partne
     return order
 
 
-def _canonical_backorders(order: models.PartnerOrder, requested: List[PartnerBackorderLineIn]) -> list[dict]:
-    order_lines = {str(line.get("productId", "")).strip(): line for line in order.lines_json or []}
-    canonical: list[dict] = []
-    seen: set[str] = set()
+def _received_quantities(db: Session, employer_id: int, order_id: int) -> dict[str, int]:
+    receipts = (
+        db.query(PartnerOrderReceipt)
+        .filter(
+            PartnerOrderReceipt.order_id == order_id,
+            PartnerOrderReceipt.employer_id == employer_id,
+        )
+        .all()
+    )
+    totals: dict[str, int] = {}
+    for receipt in receipts:
+        for line in receipt.lines_json or []:
+            product_id = str(line.get("productId", "")).strip()
+            quantity = int(line.get("quantityReceived", 0))
+            if product_id and quantity > 0:
+                totals[product_id] = totals.get(product_id, 0) + quantity
+    return totals
+
+
+def _canonical_backorders(
+    db: Session,
+    employer_id: int,
+    order: models.PartnerOrder,
+    requested: List[PartnerBackorderLineIn],
+) -> list[dict]:
+    order_lines = {
+        str(line.get("productId", "")).strip(): line
+        for line in order.lines_json or []
+        if str(line.get("productId", "")).strip()
+    }
+    received = _received_quantities(db, employer_id, order.id)
+    requested_by_product: dict[str, int] = {}
 
     for line in requested:
         product_id = str(line.productId).strip()
         if not product_id:
             raise HTTPException(status_code=422, detail="Identifiant produit backorder invalide.")
-        if product_id in seen:
+        if product_id in requested_by_product:
             raise HTTPException(status_code=422, detail=f"Produit backorder duplique: {product_id}")
-        seen.add(product_id)
         order_line = order_lines.get(product_id)
         if not order_line:
             raise HTTPException(status_code=422, detail=f"Produit absent de la commande: {product_id}")
         ordered_quantity = int(order_line.get("quantity", 0))
         if ordered_quantity < 1:
             raise HTTPException(status_code=409, detail=f"Ligne commande incoherente: {product_id}")
-        if line.quantityBackordered > ordered_quantity:
+        received_quantity = received.get(product_id, 0)
+        outstanding_quantity = ordered_quantity - received_quantity
+        if outstanding_quantity < 0:
+            raise HTTPException(status_code=409, detail=f"Historique de sur-reception detecte pour {product_id}.")
+        if line.quantityBackordered > outstanding_quantity:
             raise HTTPException(
                 status_code=422,
                 detail=(
-                    f"Backorder superieur a la quantite commandee pour {product_id}: "
-                    f"commande {ordered_quantity}, backorder {line.quantityBackordered}."
+                    f"Backorder superieur au reliquat pour {product_id}: "
+                    f"reste {outstanding_quantity}, backorder {line.quantityBackordered}."
                 ),
             )
+        requested_by_product[product_id] = line.quantityBackordered
+
+    canonical: list[dict] = []
+    for order_line in order.lines_json or []:
+        product_id = str(order_line.get("productId", "")).strip()
+        if product_id not in requested_by_product:
+            continue
+        ordered_quantity = int(order_line.get("quantity", 0))
+        received_quantity = received.get(product_id, 0)
         canonical.append(
             {
                 "productId": product_id,
                 "name": order_line.get("name"),
                 "sku": order_line.get("sku"),
                 "quantityOrdered": ordered_quantity,
-                "quantityBackordered": line.quantityBackordered,
+                "quantityReceived": received_quantity,
+                "quantityOutstanding": ordered_quantity - received_quantity,
+                "quantityBackordered": requested_by_product[product_id],
             }
         )
     return canonical
@@ -146,7 +189,7 @@ def acknowledge_partner_order_procurement(
     supplier_reference = payload.supplierReference.strip()
     if not supplier_reference:
         raise HTTPException(status_code=422, detail="supplierReference ne peut pas etre vide.")
-    backorders = _canonical_backorders(order, payload.backorderedLines)
+    backorders = _canonical_backorders(db, employer_id, order, payload.backorderedLines)
     state = (
         db.query(PartnerOrderProcurement)
         .filter(
