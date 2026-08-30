@@ -1,0 +1,91 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1400" height="980" viewBox="0 0 1400 980">
+  <rect width="1400" height="980" fill="#f6f7f9"/>
+  <text x="50" y="48" font-family="Arial,sans-serif" font-size="28" font-weight="700" fill="#111827">Marketplace P5 — reference mockup</text>
+  <text x="50" y="78" font-family="Arial,sans-serif" font-size="15" fill="#4b5563">Compact procurement-first layout. No visual styling contract beyond hierarchy, density and placement.</text>
+
+  <!-- Mobile -->
+  <text x="50" y="125" font-family="Arial,sans-serif" font-size="20" font-weight="700" fill="#111827">390×844</text>
+  <rect x="50" y="145" width="390" height="844" rx="28" fill="#ffffff" stroke="#111827" stroke-width="2"/>
+  <rect x="66" y="165" width="358" height="106" rx="18" fill="#e8edf4"/>
+  <text x="82" y="198" font-family="Arial,sans-serif" font-size="13" font-weight="700" fill="#374151">APPROVISIONNEMENT</text>
+  <text x="82" y="229" font-family="Arial,sans-serif" font-size="27" font-weight="700" fill="#111827">Acheter pour le cabinet</text>
+  <rect x="330" y="184" width="74" height="48" rx="14" fill="#111827"/>
+  <text x="345" y="214" font-family="Arial,sans-serif" font-size="13" font-weight="700" fill="#fff">Panier 2</text>
+
+  <rect x="66" y="287" width="358" height="50" rx="14" fill="#ffffff" stroke="#9ca3af"/>
+  <text x="84" y="317" font-family="Arial,sans-serif" font-size="14" fill="#6b7280">Rechercher produit, SKU, spécialité…</text>
+  <rect x="66" y="350" width="78" height="34" rx="17" fill="#111827"/><text x="86" y="372" font-family="Arial" font-size="12" fill="#fff">Toutes</text>
+  <rect x="152" y="350" width="105" height="34" rx="17" fill="#eef2f7"/><text x="169" y="372" font-family="Arial" font-size="12" fill="#374151">Consommables</text>
+  <rect x="265" y="350" width="91" height="34" rx="17" fill="#eef2f7"/><text x="283" y="372" font-family="Arial" font-size="12" fill="#374151">Endodontie</text>
+
+  <text x="66" y="420" font-family="Arial,sans-serif" font-size="18" font-weight="700" fill="#111827">Catalogue</text>
+  <text x="356" y="420" text-anchor="end" font-family="Arial,sans-serif" font-size="12" fill="#6b7280">8 produits</text>
+  <rect x="66" y="438" width="358" height="172" rx="18" fill="#fff" stroke="#d1d5db"/>
+  <rect x="82" y="454" width="92" height="92" rx="14" fill="#e8edf4"/>
+  <text x="190" y="476" font-family="Arial" font-size="11" font-weight="700" fill="#6b7280">CONSOMMABLES</text>
+  <text x="190" y="501" font-family="Arial" font-size="17" font-weight="700" fill="#111827">Gants nitrile premium</text>
+  <text x="190" y="524" font-family="Arial" font-size="12" fill="#4b5563">NIT-PRO-M · Disponible</text>
+  <text x="190" y="553" font-family="Arial" font-size="18" font-weight="700" fill="#111827">78 MAD</text>
+  <rect x="302" y="562" width="36" height="32" rx="10" fill="#eef2f7"/><text x="315" y="583" font-family="Arial" font-size="18">−</text>
+  <text x="353" y="583" font-family="Arial" font-size="14" font-weight="700">1</text>
+  <rect x="374" y="562" width="36" height="32" rx="10" fill="#111827"/><text x="386" y="583" font-family="Arial" font-size="18" fill="#fff">+</text>
+  <rect x="66" y="626" width="358" height="172" rx="18" fill="#fff" stroke="#d1d5db"/>
+  <rect x="82" y="642" width="92" height="92" rx="14" fill="#e8edf4"/>
+  <text x="190" y="664" font-family="Arial" font-size="11" font-weight="700" fill="#6b7280">RESTAURATION</text>
+  <text x="190" y="689" font-family="Arial" font-size="17" font-weight="700" fill="#111827">Composite universel</text>
+  <text x="190" y="712" font-family="Arial" font-size="12" fill="#4b5563">CMP-NH-01 · Disponible</text>
+  <text x="190" y="741" font-family="Arial" font-size="18" font-weight="700" fill="#111827">390 MAD</text>
+  <rect x="66" y="814" width="358" height="60" rx="16" fill="#111827"/>
+  <text x="92" y="850" font-family="Arial" font-size="15" font-weight="700" fill="#fff">Panier · 2 unités · 468 MAD</text>
+  <text x="394" y="850" text-anchor="end" font-family="Arial" font-size="14" font-weight="700" fill="#fff">Voir →</text>
+
+  <!-- Desktop -->
+  <text x="500" y="125" font-family="Arial,sans-serif" font-size="20" font-weight="700" fill="#111827">1280×800</text>
+  <rect x="500" y="145" width="850" height="800" rx="24" fill="#ffffff" stroke="#111827" stroke-width="2"/>
+  <rect x="524" y="169" width="802" height="104" rx="18" fill="#e8edf4"/>
+  <text x="548" y="202" font-family="Arial" font-size="12" font-weight="700" fill="#374151">APPROVISIONNEMENT</text>
+  <text x="548" y="237" font-family="Arial" font-size="29" font-weight="700" fill="#111827">Acheter pour le cabinet</text>
+  <text x="1050" y="210" font-family="Arial" font-size="13" fill="#4b5563">Atlas Dental Supply</text>
+  <rect x="1168" y="190" width="132" height="48" rx="14" fill="#111827"/><text x="1195" y="220" font-family="Arial" font-size="13" font-weight="700" fill="#fff">Panier · 468 MAD</text>
+
+  <rect x="524" y="291" width="520" height="50" rx="14" fill="#fff" stroke="#9ca3af"/>
+  <text x="548" y="322" font-family="Arial" font-size="14" fill="#6b7280">Rechercher produit, SKU, spécialité…</text>
+  <rect x="1058" y="291" width="82" height="50" rx="14" fill="#111827"/><text x="1080" y="322" font-family="Arial" font-size="13" fill="#fff">Toutes</text>
+  <rect x="1148" y="291" width="152" height="50" rx="14" fill="#eef2f7"/><text x="1181" y="322" font-family="Arial" font-size="13" fill="#374151">Consommables</text>
+
+  <text x="524" y="382" font-family="Arial" font-size="20" font-weight="700" fill="#111827">Catalogue</text>
+  <text x="1018" y="382" text-anchor="end" font-family="Arial" font-size="12" fill="#6b7280">8 produits · tri catalogue</text>
+
+  <rect x="524" y="402" width="246" height="220" rx="18" fill="#fff" stroke="#d1d5db"/>
+  <rect x="540" y="418" width="214" height="78" rx="14" fill="#e8edf4"/>
+  <text x="540" y="523" font-family="Arial" font-size="11" font-weight="700" fill="#6b7280">CONSOMMABLES</text>
+  <text x="540" y="548" font-family="Arial" font-size="16" font-weight="700" fill="#111827">Gants nitrile premium</text>
+  <text x="540" y="572" font-family="Arial" font-size="12" fill="#4b5563">NIT-PRO-M · Disponible</text>
+  <text x="540" y="602" font-family="Arial" font-size="18" font-weight="700" fill="#111827">78 MAD</text>
+
+  <rect x="784" y="402" width="246" height="220" rx="18" fill="#fff" stroke="#d1d5db"/>
+  <rect x="800" y="418" width="214" height="78" rx="14" fill="#e8edf4"/>
+  <text x="800" y="523" font-family="Arial" font-size="11" font-weight="700" fill="#6b7280">RESTAURATION</text>
+  <text x="800" y="548" font-family="Arial" font-size="16" font-weight="700" fill="#111827">Composite universel</text>
+  <text x="800" y="572" font-family="Arial" font-size="12" fill="#4b5563">CMP-NH-01 · Disponible</text>
+  <text x="800" y="602" font-family="Arial" font-size="18" font-weight="700" fill="#111827">390 MAD</text>
+
+  <rect x="524" y="638" width="246" height="220" rx="18" fill="#fff" stroke="#d1d5db"/>
+  <rect x="784" y="638" width="246" height="220" rx="18" fill="#fff" stroke="#d1d5db"/>
+
+  <rect x="1056" y="402" width="270" height="456" rx="18" fill="#fff" stroke="#d1d5db"/>
+  <text x="1080" y="438" font-family="Arial" font-size="18" font-weight="700" fill="#111827">Panier</text>
+  <text x="1080" y="466" font-family="Arial" font-size="12" fill="#6b7280">2 produits</text>
+  <line x1="1080" y1="486" x2="1302" y2="486" stroke="#e5e7eb"/>
+  <text x="1080" y="518" font-family="Arial" font-size="13" font-weight="700" fill="#111827">Gants nitrile premium</text>
+  <text x="1302" y="518" text-anchor="end" font-family="Arial" font-size="13" fill="#111827">78 MAD</text>
+  <text x="1080" y="550" font-family="Arial" font-size="13" font-weight="700" fill="#111827">Composite universel</text>
+  <text x="1302" y="550" text-anchor="end" font-family="Arial" font-size="13" fill="#111827">390 MAD</text>
+  <line x1="1080" y1="578" x2="1302" y2="578" stroke="#e5e7eb"/>
+  <text x="1080" y="610" font-family="Arial" font-size="13" fill="#4b5563">Total estimé</text>
+  <text x="1302" y="610" text-anchor="end" font-family="Arial" font-size="17" font-weight="700" fill="#111827">468 MAD</text>
+  <rect x="1080" y="642" width="222" height="50" rx="14" fill="#111827"/>
+  <text x="1122" y="673" font-family="Arial" font-size="13" font-weight="700" fill="#fff">Enregistrer la commande</text>
+  <text x="1080" y="724" font-family="Arial" font-size="11" fill="#6b7280">Création locale DRAFT.</text>
+  <text x="1080" y="744" font-family="Arial" font-size="11" fill="#6b7280">Aucune commission affichée à l'acheteur.</text>
+</svg>
