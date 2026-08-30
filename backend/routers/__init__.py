@@ -141,13 +141,23 @@ mobile.get_lan_frontend_url = mobile_legacy.get_lan_frontend_url
 install_mobile_biometric_identity_gate(mobile_legacy)
 mobile.router.include_router(mobile_passkey.router)
 
-# Marketplace P6 registers dispatch/procurement/receipt tables before create_all() and
-# mounts the supplier transport + acknowledgement + receipt lifecycles under the
-# canonical /api/partner-orders router.
+# Marketplace P6 replaces the legacy manual DRAFT->SENT PATCH by a dispatch-proof gate,
+# registers transport/procurement/receipt tables before create_all(), then mounts all
+# P6 lifecycles under the canonical /api/partner-orders router.
 from . import partner_orders as partner_orders
 from . import partner_dispatch as partner_dispatch
+from . import partner_orders_p6 as partner_orders_p6
 from . import partner_procurement as partner_procurement
 from . import partner_receipts as partner_receipts
+partner_orders.router.routes = [
+    route
+    for route in partner_orders.router.routes
+    if not (
+        getattr(route, "path", None) == "/{order_id}"
+        and "PATCH" in (getattr(route, "methods", set()) or set())
+    )
+]
+partner_orders.router.include_router(partner_orders_p6.router)
 partner_orders.router.include_router(partner_dispatch.router)
 partner_orders.router.include_router(partner_procurement.router)
 partner_orders.router.include_router(partner_receipts.router)
