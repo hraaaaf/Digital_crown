@@ -56,6 +56,30 @@ STRATEGY_PRESETS = [
 ]
 
 
+ORDER_TRANSITIONS = {
+    models.PartnerOrderStatus.DRAFT: (
+        models.PartnerOrderStatus.SENT_TO_PARTNER,
+        models.PartnerOrderStatus.CANCELLED,
+    ),
+    models.PartnerOrderStatus.SENT_TO_PARTNER: (
+        models.PartnerOrderStatus.MODIFIED_AFTER_SEND,
+        models.PartnerOrderStatus.CONFIRMED,
+        models.PartnerOrderStatus.CANCELLED,
+    ),
+    models.PartnerOrderStatus.MODIFIED_AFTER_SEND: (
+        models.PartnerOrderStatus.MODIFIED_AFTER_SEND,
+        models.PartnerOrderStatus.CONFIRMED,
+        models.PartnerOrderStatus.CANCELLED,
+    ),
+    models.PartnerOrderStatus.CONFIRMED: (
+        models.PartnerOrderStatus.FULFILLED,
+        models.PartnerOrderStatus.CANCELLED,
+    ),
+    models.PartnerOrderStatus.FULFILLED: (),
+    models.PartnerOrderStatus.CANCELLED: (),
+}
+
+
 class PartnerOrderLineIn(BaseModel):
     productId: str = Field(..., min_length=1)
     name: str = Field(..., min_length=1)
@@ -95,6 +119,10 @@ class PartnerOrderUpdateIn(BaseModel):
     note: Optional[str] = None
 
 
+def _allowed_transitions(status_value: models.PartnerOrderStatus) -> tuple[models.PartnerOrderStatus, ...]:
+    return ORDER_TRANSITIONS[status_value]
+
+
 def _serialize(order: models.PartnerOrder) -> dict:
     return {
         "id": order.id,
@@ -102,6 +130,7 @@ def _serialize(order: models.PartnerOrder) -> dict:
         "partnerId": order.partner_id,
         "partnerName": order.partner_name,
         "status": order.status.value,
+        "allowedTransitions": [item.value for item in _allowed_transitions(order.status)],
         "strategyLabel": order.strategy_label,
         "settlementBasis": order.settlement_basis.value,
         "revenueModel": order.revenue_model.value,
@@ -300,10 +329,10 @@ def _compute_revenue(order: models.PartnerOrder) -> tuple[float, float]:
     if not _should_recognize(order.settlement_basis, order.status):
         return 0.0, 0.0
 
-    if order.settlement_basis == models.PartnerSettlementBasis.SENT_TO_PARTNER:
-        base_amount = order.current_total if order.status == models.PartnerOrderStatus.MODIFIED_AFTER_SEND else order.sent_total
-    else:
-        base_amount = order.current_total
+    # current_total starts equal to sent_total and only changes through the
+    # MODIFIED_AFTER_SEND transition. Keep that supplier-adjusted amount
+    # through CONFIRMED/FULFILLED instead of reverting to the initial snapshot.
+    base_amount = order.current_total
 
     if order.revenue_model == models.PartnerRevenueModel.COMMISSION_PERCENT:
         revenue = base_amount * (order.commission_rate / 100.0)
@@ -313,6 +342,33 @@ def _compute_revenue(order: models.PartnerOrder) -> tuple[float, float]:
         revenue = order.fixed_fee_amount if base_amount > 0 else 0.0
 
     return round(base_amount, 2), round(revenue, 2)
+
+
+def _validate_order_transition(
+    order: models.PartnerOrder,
+    target_status: models.PartnerOrderStatus,
+    payload: PartnerOrderUpdateIn,
+) -> None:
+    allowed = _allowed_transitions(order.status)
+    if target_status not in allowed:
+        allowed_label = ", ".join(item.value for item in allowed) or "aucune"
+        raise HTTPException(
+            status_code=422,
+            detail=f"Transition partenaire invalide: {order.status.value} -> {target_status.value}. Autorisees: {allowed_label}.",
+        )
+
+    if target_status == models.PartnerOrderStatus.MODIFIED_AFTER_SEND:
+        if order.sent_at is None:
+            raise HTTPException(status_code=422, detail="Impossible de modifier une commande non envoyee.")
+        if payload.currentTotal is None:
+            raise HTTPException(status_code=422, detail="currentTotal est requis pour une modification apres envoi.")
+        if _same_money_value(payload.currentTotal, order.current_total):
+            raise HTTPException(status_code=422, detail="Le total modifie doit differer du total courant.")
+    elif payload.currentTotal is not None and not _same_money_value(payload.currentTotal, order.current_total):
+        raise HTTPException(
+            status_code=422,
+            detail="currentTotal ne peut changer que via le statut MODIFIED_AFTER_SEND.",
+        )
 
 
 def _append_event(
@@ -351,6 +407,10 @@ def get_partner_order_meta(
 ):
     return {
         "supportedStatuses": [status.value for status in models.PartnerOrderStatus],
+        "allowedTransitions": {
+            status.value: [item.value for item in _allowed_transitions(status)]
+            for status in models.PartnerOrderStatus
+        },
         "supportedSettlementBases": [item.value for item in models.PartnerSettlementBasis],
         "supportedRevenueModels": [item.value for item in models.PartnerRevenueModel],
         "strategyPresets": STRATEGY_PRESETS,
@@ -455,19 +515,18 @@ def update_partner_order(
     previous_total = order.current_total
     revenue_before = order.recognized_revenue_amount
     target_status = _coerce_order_status(payload.status)
+    _validate_order_transition(order, target_status, payload)
 
-    if payload.currentTotal is not None:
-        order.current_total = payload.currentTotal
+    if target_status == models.PartnerOrderStatus.MODIFIED_AFTER_SEND and payload.currentTotal is not None:
+        order.current_total = round(payload.currentTotal, 2)
     if payload.partnerReference is not None:
         order.partner_reference = payload.partnerReference
     if payload.note is not None:
         order.status_note = payload.note
 
-    if target_status == models.PartnerOrderStatus.SENT_TO_PARTNER and order.sent_at is None:
+    if target_status == models.PartnerOrderStatus.SENT_TO_PARTNER:
         order.sent_at = datetime.utcnow()
         order.sent_total = order.current_total or order.estimated_total
-    if target_status == models.PartnerOrderStatus.MODIFIED_AFTER_SEND and order.sent_at is None:
-        raise HTTPException(status_code=422, detail="Impossible de marquer modifiee une commande non envoyee.")
 
     order.status = target_status
     order.last_partner_update_at = datetime.utcnow()

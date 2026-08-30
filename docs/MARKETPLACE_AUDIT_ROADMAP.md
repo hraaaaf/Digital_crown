@@ -28,10 +28,10 @@ Potentiel produit séparé : **9.0/10**.
 |---|---:|---|---|
 | **P0 — Baseline & audit** | **8** | audit, score, risques, canonique | mergé/relu sur master |
 | **P1 — Trust & sécurité** | **14** | autorité serveur, isolation, RBAC, anti-falsification | 15 tests ciblés + CI backend/frontend + diff |
-| **P2 — Order Engine** | **12** | contrat client + machine d'état + fulfillment | transitions/contrat testés |
+| **P2 — Order Engine** | **12** | machine d'état serveur, fulfillment, vérité financière, audit trail | transitions/revenus/événements testés |
 | **P3 — Multi-fournisseurs** | **8** | split/routage par fournisseur | 2 fournisseurs → 2 commandes E2E |
 | **P4 — Catalogue & produits** | **8** | sync/cache/TTL, recherche, merchandising, pagination | fraîcheur/filtres/pagination testés |
-| **P5 — UX/UI Marketplace** | **14** | navigation, panier, checkout, accessibilité, responsive | BEFORE/AFTER + E2E + score |
+| **P5 — UX/UI Marketplace** | **14** | navigation, panier, checkout, contrat formulaire/CTA, accessibilité, responsive | BEFORE/AFTER + E2E + score |
 | **P6 — Procurement** | **8** | transport réel, suivi, réception, retours | création → transport → réception |
 | **P7 — Stock Intelligence** | **8** | réception-stock, lots/péremptions, min/max, réassort | stock sans double saisie |
 | **P8 — Finance & monétisation** | **6** | commissions/remises/revente, rapprochement/reporting | scénarios financiers serveur |
@@ -68,16 +68,38 @@ Un client modifié ne peut pas falsifier prix, total, fournisseur ou stratégie 
 ### Preuves intermédiaires
 Sur `f9855bbd7cdb6786ce96d42c0239d2ef46320338` : CI #2235 SUCCESS, T2 #1350 SUCCESS, Patient P7 #649 SUCCESS.
 
-Catalog Connected Truth #623 a échoué à `Targeted backend truth tests`, exécutant uniquement `test_catalog_connected_truth.py`, `test_patient_p3_master_plan_revisions.py` et `TestCatalogQuickAdd`. Aucun de ces fichiers n'est modifié par #302. Cause exacte non attribuée sans preuve.
+Sur le HEAD final P1 `e8380bd895fc37759fe783fa854d4fcbb39a2932` : T2 #1361 SUCCESS et Patient P7 #660 SUCCESS. CI #2246 reste nécessaire avant crédit P1.
+
+Catalog Connected Truth reste un rouge préexistant : PR #301 docs-only avait déjà le même échec à l'étape 14 tandis que CI/T2/Patient étaient verts. Il n'est pas attribué à P1.
 
 ### Gate final P1
 Le dernier HEAD de #302 doit prouver : 11 tests backend Marketplace + 4 tests frontend panier verts, suite backend complète verte, frontend tests/build vert et diff revu. Aucun EP avant cette preuve.
 
+## P2 — Order Engine
+
+### Goal
+Une commande ne peut suivre que des transitions serveur autorisées ; le total fournisseur modifié reste la vérité financière jusqu'au fulfillment ; annulation et changements sont auditables.
+
+### Implémenté sur #303 draft
+1. graphe serveur explicite `DRAFT → SENT_TO_PARTNER → MODIFIED_AFTER_SEND/CONFIRMED → FULFILLED/CANCELLED` ;
+2. `FULFILLED` et `CANCELLED` terminaux ;
+3. `currentTotal` ne peut changer que via `MODIFIED_AFTER_SEND` ;
+4. snapshot `sentTotal` conservé ;
+5. `currentTotal` fournisseur conservé après confirmation/fulfillment ;
+6. annulation remet le revenu reconnu à zéro avec delta ;
+7. transitions exposées dans l'API et journalisées.
+
+### Tests ciblés P2
+- `backend/tests/test_partner_order_engine.py` : **9** invariants.
+
+### Frontend volontairement hors P2
+Le checkout/formulaire et le CTA actuel « Envoyer la commande au partenaire » sont des changements de flow/UI. Ils sont rattachés à **P5**, qui impose le protocole BEFORE → Goal → mockup/référence → AFTER mêmes viewports → comparaison/tests/score. Le POST actuel crée toujours un `DRAFT` ; aucun transport fournisseur réel n'est revendiqué avant P6.
+
 ## Restant après P1
-- P2 : formulaire/contrat, CTA/envoi logique, transitions ;
+- P2 : certifier machine d'état/revenus/audit trail ;
 - P3 : vrai multi-fournisseurs ;
 - P4 : TTL, merchandising, pagination ;
-- P5 : accessibilité/densité, visuels, reload, responsive certifié ;
+- P5 : formulaire/CTA, accessibilité/densité, visuels, reload, responsive certifié ;
 - P6 : transport/réception ;
 - P7 : stock/réassort ;
 - P8 : finance ;
@@ -95,7 +117,8 @@ Split fournisseur (10/10 valeur), réassort consommation/min-max (10/10), récep
 Backend = vérité financière/statuts. Frontend jamais autorité sécurité. Scoping obligatoire. Aucun Vercel sans autorisation. CI pending n'arrête pas travail indépendant. Aucun EP sans preuve.
 
 ## Reprise
-`P0 CLOSED → P1 ACTIVE → P2 → P3 → P4 → P5 → P6 → P7 → P8 → P9 → P10 → P11`
+`P0 CLOSED → P1 ACTIVE → P2 DRAFT → P3 → P4 → P5 → P6 → P7 → P8 → P9 → P10 → P11`
 
 **PR #302 — branche `marketplace/p0-trust-integrity` — crédit 8/100 EP.**  
-**Next exact :** certifier ce HEAD ; rouge → corriger ; vert → créditer P1, merger #302, vérifier master, démarrer P2.
+**PR #303 draft — branche `marketplace/p2-order-engine` — aucun crédit P2 avant gate.**  
+**Next exact :** CI #2246 verte → créditer P1, merger #302, vérifier master, retargeter #303, puis certifier P2.
