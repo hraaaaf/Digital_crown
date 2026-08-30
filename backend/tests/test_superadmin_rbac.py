@@ -1,9 +1,10 @@
-"""Granular platform RBAC tests for delegated SuperAdmin read surfaces."""
+"""Granular platform RBAC tests for delegated Superadmin surfaces."""
 from unittest.mock import patch
 
 import pytest
 
 from backend import models
+from backend.routers.superadmin import _paid_license_permission
 
 
 @pytest.fixture
@@ -122,6 +123,34 @@ def test_audit_read_denies_user_without_permission(
     _set_permissions(db, delegated_platform_user, {"license.read": True})
     response = client.get(
         "/api/superadmin/audit",
+        headers=_web_headers(client, delegated_platform_user),
+    )
+    assert response.status_code == 403
+
+
+def test_paid_permission_uses_signed_entitlement_state():
+    assert _paid_license_permission({"active": False}) == "license.create_paid"
+    assert _paid_license_permission({"active": True, "license_type": "TRIAL"}) == "license.create_paid"
+    assert _paid_license_permission({"active": True, "license_type": "PAID"}) == "license.extend"
+
+
+def test_revoke_requires_revoke_permission_before_target_lookup(
+    client, db, delegated_platform_user
+):
+    _set_permissions(db, delegated_platform_user, {"license.extend": True})
+    response = client.post(
+        "/api/superadmin/clients/999999/grant-license?action=revoke",
+        headers=_web_headers(client, delegated_platform_user),
+    )
+    assert response.status_code == 403
+
+
+def test_paid_grant_requires_create_or_extend_permission_before_target_lookup(
+    client, db, delegated_platform_user
+):
+    _set_permissions(db, delegated_platform_user, {"audit.read": True})
+    response = client.post(
+        "/api/superadmin/clients/999999/grant-license?action=1m",
         headers=_web_headers(client, delegated_platform_user),
     )
     assert response.status_code == 403
