@@ -14,6 +14,7 @@ from jose import JWTError, jwt
 from sqlalchemy.orm import Session
 
 from backend import models
+from backend.config import settings
 from backend.security import ALGORITHM, SECRET_KEY
 
 PLATFORM_STEP_UP_HEADER = "x-platform-step-up"
@@ -27,6 +28,41 @@ def _deny(code: str, message: str) -> HTTPException:
         status_code=403,
         detail={"code": code, "message": message},
     )
+
+
+def _enforce_platform_request_origin(request: Request) -> None:
+    """Protect cookie-authenticated platform mutations from cross-site requests.
+
+    An explicit Bearer token is not ambient browser authority and therefore is not
+    CSRF-prone. Cookie-only sessions are ambient, so they must carry an exact HTTPS
+    Origin from the configured control-plane allowlist.
+    """
+    authorization = str(request.headers.get("authorization") or "").strip()
+    if authorization.lower().startswith("bearer "):
+        return
+
+    origin = str(request.headers.get("origin") or "").strip().rstrip("/").lower()
+    if not origin:
+        raise _deny(
+            "PLATFORM_ORIGIN_REQUIRED",
+            "Origine navigateur requise pour une mutation plateforme par cookie.",
+        )
+    if not origin.startswith("https://"):
+        raise _deny(
+            "PLATFORM_ORIGIN_FORBIDDEN",
+            "Origine non HTTPS refusée pour le control-plane.",
+        )
+
+    allowed = {
+        item.strip().rstrip("/").lower()
+        for item in str(getattr(settings, "ALLOWED_ORIGINS", "")).split(",")
+        if item.strip()
+    }
+    if origin not in allowed:
+        raise _deny(
+            "PLATFORM_ORIGIN_FORBIDDEN",
+            "Origine navigateur non autorisée pour le control-plane.",
+        )
 
 
 def verify_platform_step_up(
@@ -106,9 +142,10 @@ def enforce_platform_step_up_for_mutation(
     current_user: models.User,
     db: Session,
 ) -> None:
-    """Apply step-up only to state-changing SuperAdmin requests."""
+    """Apply origin + step-up only to state-changing SuperAdmin requests."""
     if not request.url.path.startswith("/api/superadmin"):
         return
     if request.method.upper() not in {"POST", "PUT", "PATCH", "DELETE"}:
         return
+    _enforce_platform_request_origin(request)
     verify_platform_step_up(request, current_user=current_user, db=db)
