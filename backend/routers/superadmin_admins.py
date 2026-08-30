@@ -119,16 +119,17 @@ def _audit(
     *,
     actor_id: int,
     action: str,
-    target_id: int,
+    target_id: int | str,
     details: str,
     severity: str = "WARNING",
+    resource_type: str = "PlatformOperator",
 ) -> None:
     db.add(
         models.AuditLog(
             user_id=actor_id,
             employer_id=None,
             action=action,
-            resource_type="PlatformOperator",
+            resource_type=resource_type,
             resource_id=str(target_id),
             severity=severity,
             details=details,
