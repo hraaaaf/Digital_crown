@@ -11,6 +11,7 @@ jobs:
   capture-before:
     name: Marketplace P5 BEFORE 390/430/768/1280
     runs-on: ubuntu-latest
+    timeout-minutes: 12
     steps:
       - name: Checkout exact head
         uses: actions/checkout@v4
@@ -41,6 +42,7 @@ jobs:
 
       - name: Capture Marketplace BEFORE
         working-directory: frontend
+        timeout-minutes: 5
         env:
           PRODUCT_HEAD: ${{ env.PRODUCT_HEAD }}
         run: node ../.audit/marketplace-p5-before.mjs
