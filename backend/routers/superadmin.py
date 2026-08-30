@@ -522,7 +522,7 @@ def archive_client(
 def suspend_client(
     user_id: int,
     db: Session = Depends(database.get_db),
-    admin: models.User = Depends(verify_superadmin),
+    admin: models.User = Depends(require_platform_permission("license.suspend")),
 ):
     user = db.query(models.User).filter(models.User.id == user_id).first()
     if not user:
