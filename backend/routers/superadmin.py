@@ -28,6 +28,7 @@ from backend.services.notification_service import notification_service
 
 router = APIRouter(tags=["SuperAdmin"])
 router.include_router(platform_passkey_router)
+_LICENSE_DURATIONS = {"1m": 30, "3m": 90, "6m": 180, "1y": 365}
 
 
 def verify_superadmin(
@@ -41,20 +42,42 @@ def verify_superadmin(
     return current_user
 
 
+def _assert_platform_permission(
+    permission: str,
+    *,
+    request: Request,
+    db: Session,
+    current_user: models.User,
+) -> None:
+    if not has_platform_permission(current_user, permission):
+        raise HTTPException(
+            status_code=403,
+            detail="Accès refusé. Permission plateforme insuffisante.",
+        )
+    enforce_platform_step_up_for_mutation(request, current_user=current_user, db=db)
+
+
 def require_platform_permission(permission: str):
     def dependency(
         request: Request,
         db: Session = Depends(database.get_db),
         current_user: models.User = Depends(get_current_user),
     ):
-        if not has_platform_permission(current_user, permission):
-            raise HTTPException(
-                status_code=403,
-                detail="Accès refusé. Permission plateforme insuffisante.",
-            )
-        enforce_platform_step_up_for_mutation(request, current_user=current_user, db=db)
+        _assert_platform_permission(
+            permission,
+            request=request,
+            db=db,
+            current_user=current_user,
+        )
         return current_user
     return dependency
+
+
+def _paid_license_permission(effective: dict) -> str:
+    """Choose create-vs-extend authority from signed entitlement truth."""
+    if effective.get("active") and str(effective.get("license_type") or "").upper() == "PAID":
+        return "license.extend"
+    return "license.create_paid"
 
 
 def add_license_history(db: Session, user_id: int, admin_id: int, action: str, duration: int = None):
@@ -361,10 +384,28 @@ def revoke_trial_code(
 @router.post("/clients/{user_id}/grant-license")
 async def grant_license(
     user_id: int,
+    request: Request,
     action: str = Query(...),
     db: Session = Depends(database.get_db),
-    admin: models.User = Depends(verify_superadmin),
+    admin: models.User = Depends(get_current_user),
 ):
+    if action == "revoke":
+        _assert_platform_permission(
+            "license.revoke", request=request, db=db, current_user=admin
+        )
+    elif action in _LICENSE_DURATIONS:
+        if not (
+            has_platform_permission(admin, "license.create_paid")
+            or has_platform_permission(admin, "license.extend")
+        ):
+            raise HTTPException(
+                status_code=403,
+                detail="Accès refusé. Permission plateforme insuffisante.",
+            )
+        enforce_platform_step_up_for_mutation(request, current_user=admin, db=db)
+    else:
+        raise HTTPException(status_code=400, detail="Action non valide.")
+
     user = db.query(models.User).filter(models.User.id == user_id).first()
     if not user:
         raise HTTPException(status_code=404, detail="Utilisateur introuvable.")
@@ -372,6 +413,15 @@ async def grant_license(
     cabinet = db.query(models.CabinetConfig).filter(models.CabinetConfig.owner_id == user.id).first()
     if not cabinet:
         raise HTTPException(status_code=409, detail="Cabinet non configuré : impossible d'émettre une licence signée.")
+
+    clinic_id = _license_identifier(cabinet)
+    effective = await LicenseService().get_effective_license(clinic_id)
+    effective_type = str(effective.get("license_type") or "").upper()
+    if effective.get("active") and effective_type == "OWNER":
+        raise HTTPException(
+            status_code=400,
+            detail="L'entitlement OWNER ne peut pas être modifié via une licence client.",
+        )
 
     now_utc = datetime.now(timezone.utc)
     now_db = now_utc.replace(tzinfo=None)
@@ -381,7 +431,6 @@ async def grant_license(
         else now_db
     )
 
-    durations = {"1m": 30, "3m": 90, "6m": 180, "1y": 365}
     if action == "revoke":
         previous_expiry = user.license_expires_at
         expiry_utc = previous_expiry.replace(tzinfo=timezone.utc) if previous_expiry else now_utc
@@ -409,10 +458,14 @@ async def grant_license(
         invalidate_license_cache(user.email)
         return {"status": "success", "license_expires_at": user.license_expires_at}
 
-    duration = durations.get(action)
-    if duration is None:
-        raise HTTPException(status_code=400, detail="Action non valide.")
+    required_permission = _paid_license_permission(effective)
+    if not has_platform_permission(admin, required_permission):
+        raise HTTPException(
+            status_code=403,
+            detail="Accès refusé. Permission plateforme insuffisante.",
+        )
 
+    duration = _LICENSE_DURATIONS[action]
     new_expiry_db = current_expiry_db + timedelta(days=duration)
     new_expiry_utc = new_expiry_db.replace(tzinfo=timezone.utc)
     await _issue_and_store_signed_license(
@@ -432,7 +485,7 @@ async def grant_license(
         action="SUPERADMIN_LICENSE_GRANT",
         resource_type="User",
         resource_id=user_id,
-        details=f"duration_days={duration}",
+        details=f"duration_days={duration};permission={required_permission}",
         severity="WARNING",
     )
     db.commit()
