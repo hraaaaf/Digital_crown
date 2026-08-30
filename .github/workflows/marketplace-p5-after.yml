@@ -50,6 +50,7 @@ jobs:
         run: node ../.audit/marketplace-p5-after.mjs
 
       - name: Assert AFTER artifact contract
+        if: always()
         working-directory: frontend
         env:
           PRODUCT_HEAD: ${{ env.PRODUCT_HEAD }}
@@ -61,17 +62,23 @@ jobs:
           if (report.beforeRun !== 5) throw new Error('P5 AFTER must compare against BEFORE run #5');
           if (report.captures.length !== 4) throw new Error(`Expected 4 captures, got ${report.captures.length}`);
           if (report.invalidCount !== 0) throw new Error(`P5 AFTER invalid captures: ${report.invalidCount}`);
+          if (report.checkoutInvalid) throw new Error('P5 checkout interaction proof failed');
+          if (!report.checkoutProof?.sameUrlAfterSubmit) throw new Error('P5 checkout reloaded or navigated unexpectedly');
+          if (report.checkoutProof?.postCount !== 1) throw new Error('P5 checkout must emit exactly one POST');
           console.table(report.captures.map(({ viewport, metrics }) => ({
             viewport,
             h1FullyVisible: metrics.h1FullyVisible,
             searchTop: metrics.searchTop,
             firstProductTop: metrics.firstProductTop,
+            firstProductInFirstViewport: metrics.firstProductInFirstViewport,
             overflow: metrics.hasHorizontalOverflow,
             internalCommercialCopy: metrics.hasInternalCommercialCopy,
           })));
+          console.log(report.checkoutProof);
           NODE
 
       - name: Upload Marketplace AFTER artifact
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: marketplace-p5-after
