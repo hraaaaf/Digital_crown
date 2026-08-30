@@ -6,9 +6,9 @@ import {
   writeStoredCart,
 } from './data';
 
-const owner = { id: 10, employer_id: null };
-const teammate = { id: 11, employer_id: 10 };
-const otherTeammate = { id: 12, employer_id: 10 };
+const owner = { id: '10', employer_id: null };
+const teammate = { id: '11', employer_id: 10 };
+const otherTeammate = { id: '12', employer_id: 10 };
 
 describe('partner marketplace cart storage isolation', () => {
   beforeEach(() => {
