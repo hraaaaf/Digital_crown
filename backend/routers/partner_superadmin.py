@@ -217,3 +217,9 @@ def governance_audit(
         "entityType": x.entity_type, "entityId": x.entity_id, "action": x.action,
         "payload": x.payload_json, "createdAt": x.created_at.isoformat() if x.created_at else None,
     } for x in events]
+
+
+# Catalogue global : mêmes modèles métier que le catalogue cabinet, mais employerId explicite,
+# confirmation obligatoire et audit plateforme pour chaque mutation.
+from backend.routers import partner_superadmin_catalog as partner_superadmin_catalog
+router.include_router(partner_superadmin_catalog.router)
