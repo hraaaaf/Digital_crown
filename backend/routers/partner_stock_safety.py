@@ -1,3 +1,4 @@
+import math
 from datetime import datetime
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -107,7 +108,6 @@ def consume_marketplace_stock_safely(
             "lotId": lot.id,
             "lotNumber": lot.lot_number,
             "quantity": taken,
-            "source": "LOT",
         })
 
     if remaining > 0:
@@ -116,9 +116,7 @@ def consume_marketplace_stock_safely(
             "lotId": None,
             "lotNumber": None,
             "quantity": remaining,
-            "source": "UNTRACKED",
         })
-        remaining = 0.0
 
     item.quantite = _as_float(item.quantite - quantity)
     movement = MarketplaceStockMovement(
@@ -178,8 +176,8 @@ def get_marketplace_reorder_suggestions_safely(
         if usable > mapping.min_quantity:
             continue
         deficit = max(0.0, mapping.target_quantity - usable)
-        units = max(1, int(-(-deficit // mapping.stock_units_per_product_unit)))
-        suggestions.append({
+        units = max(1, math.ceil(deficit / mapping.stock_units_per_product_unit))
+        suggestion = {
             "productId": product.id,
             "productName": product.name,
             "sku": product.sku,
@@ -187,12 +185,16 @@ def get_marketplace_reorder_suggestions_safely(
             "availability": product.availability.value,
             "stockItemId": item.id,
             "stockItemName": item.nom,
-            "aggregateQuantity": _as_float(item.quantite),
-            "usableQuantity": usable,
-            "expiredQuantity": availability["expiredTotal"],
+            # Contrat historique conservé : current/projection représentent désormais
+            # le stock réellement utilisable, donc hors lots expirés.
+            "currentQuantity": usable,
             "minQuantity": _as_float(mapping.min_quantity),
             "targetQuantity": _as_float(mapping.target_quantity),
             "suggestedOrderUnits": units,
-            "projectedUsableQuantity": _as_float(usable + units * mapping.stock_units_per_product_unit),
-        })
-    return sorted(suggestions, key=lambda item: (item["usableQuantity"] - item["minQuantity"], item["productName"]))
+            "projectedQuantity": _as_float(usable + units * mapping.stock_units_per_product_unit),
+        }
+        if availability["expiredTotal"] > 0:
+            suggestion["aggregateQuantity"] = _as_float(item.quantite)
+            suggestion["expiredQuantity"] = availability["expiredTotal"]
+        suggestions.append(suggestion)
+    return sorted(suggestions, key=lambda item: (item["currentQuantity"] - item["minQuantity"], item["productName"]))
