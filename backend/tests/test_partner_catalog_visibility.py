@@ -57,6 +57,17 @@ def _make_product(db, user, supplier, *, name: str, sku: str):
     return product
 
 
+def _list_products(db, user):
+    return partner_catalog.list_products(
+        supplier_id=None,
+        category=None,
+        specialty=None,
+        q=None,
+        db=db,
+        current_user=user,
+    )
+
+
 def test_cabinet_storefront_hides_inactive_supplier_and_its_products(db, monkeypatch):
     user = _make_user(db)
     active = _make_supplier(db, user, key="active", name="Active Supplier", active=True)
@@ -66,7 +77,7 @@ def test_cabinet_storefront_hides_inactive_supplier_and_its_products(db, monkeyp
     monkeypatch.setattr(partner_catalog, "is_superadmin_user", lambda _user: False)
 
     suppliers = partner_catalog.list_suppliers(db=db, current_user=user)
-    products = partner_catalog.list_products(db=db, current_user=user)
+    products = _list_products(db, user)
 
     assert [item["id"] for item in suppliers] == [active.id]
     assert [item["id"] for item in products] == [active_product.id]
@@ -89,7 +100,7 @@ def test_superadmin_can_still_manage_inactive_supplier_and_products(db, monkeypa
     monkeypatch.setattr(partner_catalog, "is_superadmin_user", lambda _user: True)
 
     suppliers = partner_catalog.list_suppliers(db=db, current_user=user)
-    products = partner_catalog.list_products(db=db, current_user=user)
+    products = _list_products(db, user)
 
     assert {item["id"] for item in suppliers} == {active.id, inactive.id}
     assert {item["id"] for item in products} == {active_product.id, inactive_product.id}
