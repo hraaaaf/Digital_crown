@@ -17,6 +17,8 @@ type StepUpResult = {
 };
 
 let enrollmentKnown = false;
+let stepUpValidUntil = 0;
+const CLIENT_EXPIRY_SAFETY_MS = 30_000;
 
 function arrayBufferToBase64Url(value: ArrayBuffer): string {
   const bytes = new Uint8Array(value);
@@ -120,16 +122,21 @@ function assertWebAuthnReady(expectedOrigin?: string): void {
   }
 }
 
+function rememberStepUp(expiresIn: number): void {
+  stepUpValidUntil = Date.now() + Math.max(0, expiresIn * 1000 - CLIENT_EXPIRY_SAFETY_MS);
+}
+
 async function registerPlatformPasskey(apiBase: string): Promise<void> {
   const options = await platformFetch<CeremonyOptions>(apiBase, '/registration/options', { method: 'POST' });
   const credential = await navigator.credentials.create({ publicKey: decodeCreationOptions(options) });
   if (!(credential instanceof PublicKeyCredential)) throw new Error('Enrôlement passkey annulé.');
 
-  await platformFetch<StepUpResult>(apiBase, '/registration/verify', {
+  const result = await platformFetch<StepUpResult>(apiBase, '/registration/verify', {
     method: 'POST',
     body: JSON.stringify({ challenge_id: options.challenge_id, credential: serializeCredential(credential) }),
   });
   enrollmentKnown = true;
+  rememberStepUp(result.expires_in);
 }
 
 async function authenticatePlatformPasskey(apiBase: string): Promise<void> {
@@ -137,18 +144,20 @@ async function authenticatePlatformPasskey(apiBase: string): Promise<void> {
   const credential = await navigator.credentials.get({ publicKey: decodeAuthenticationOptions(options) });
   if (!(credential instanceof PublicKeyCredential)) throw new Error('Vérification passkey annulée.');
 
-  await platformFetch<StepUpResult>(apiBase, '/authentication/verify', {
+  const result = await platformFetch<StepUpResult>(apiBase, '/authentication/verify', {
     method: 'POST',
     body: JSON.stringify({ challenge_id: options.challenge_id, credential: serializeCredential(credential) }),
   });
+  rememberStepUp(result.expires_in);
 }
 
 /**
- * Complete one WebAuthn user-verification ceremony before a privileged mutation.
- * The resulting five-minute proof is stored only by the browser as an HttpOnly,
- * path-scoped cookie and is never exposed to frontend JavaScript.
+ * Complete a WebAuthn user-verification ceremony when the current proof window
+ * is absent or close to expiry. The proof itself stays in an HttpOnly cookie;
+ * frontend memory stores only the expiry timestamp.
  */
 export async function ensurePlatformStepUp(apiBase: string): Promise<void> {
+  if (Date.now() < stepUpValidUntil) return;
   assertWebAuthnReady();
 
   if (!enrollmentKnown) {
@@ -166,4 +175,5 @@ export async function ensurePlatformStepUp(apiBase: string): Promise<void> {
 
 export function resetPlatformPasskeyClientState(): void {
   enrollmentKnown = false;
+  stepUpValidUntil = 0;
 }
