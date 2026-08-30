@@ -7,7 +7,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from backend import database, models
-from backend.routers.auth import require_permission
+from backend.routers.auth import require_permission, require_superadmin
 
 router = APIRouter()
 
@@ -361,7 +361,7 @@ def get_partner_order_meta(
 @router.get("", response_model=List[dict])
 def list_partner_orders(
     db: Session = Depends(database.get_db),
-    current_user: models.User = Depends(require_permission("patients"))
+    current_user: models.User = Depends(require_superadmin)
 ):
     employer_id = current_user.get_employer_id()
     orders = (
@@ -440,7 +440,7 @@ def update_partner_order(
     order_id: int,
     payload: PartnerOrderUpdateIn,
     db: Session = Depends(database.get_db),
-    current_user: models.User = Depends(require_permission("patients"))
+    current_user: models.User = Depends(require_superadmin)
 ):
     employer_id = current_user.get_employer_id()
     order = (
