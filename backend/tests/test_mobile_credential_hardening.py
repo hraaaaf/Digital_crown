@@ -1,4 +1,5 @@
 from datetime import datetime, timedelta, timezone
+from unittest.mock import AsyncMock, patch
 import uuid
 
 from jose import jwt
@@ -11,11 +12,27 @@ from backend.security import ALGORITHM, SECRET_KEY, token_blacklist
 
 
 def _pairing_record(db, dentiste):
+    config = (
+        db.query(models.CabinetConfig)
+        .filter(models.CabinetConfig.owner_id == dentiste.id)
+        .first()
+    )
+    if config is None:
+        config = models.CabinetConfig(
+            owner_id=dentiste.id,
+            public_id="abcdef1234567890",
+            clinic_id=f"clinic-{dentiste.id}",
+            nom_cabinet="Cabinet Test",
+            nom_praticien="Dr Test",
+        )
+        db.add(config)
+        db.flush()
+
     record = models.ZKAPairingToken(
         token=str(uuid.uuid4()),
         employer_id=dentiste.id,
         user_id=dentiste.id,
-        public_id="abcdef1234567890",
+        public_id=config.public_id,
         master_key="a" * 64,
         role="DENTISTE",
         expires_at=datetime.utcnow() + timedelta(minutes=5),
@@ -104,10 +121,22 @@ def test_pairing_success_consumes_token_once(client, db, dentiste):
         format=serialization.PublicFormat.UncompressedPoint,
     ).hex()
 
-    first = client.post(
-        "/api/mobile/claim-token",
-        json={"token": record.token, "client_public_key_hex": public_hex},
-    )
+    with patch(
+        "backend.routers.mobile_pairing_secure.LicenseService.get_effective_license",
+        new=AsyncMock(
+            return_value={
+                "active": True,
+                "license_type": "PAID",
+                "max_devices": 1,
+                "release_channel": "stable",
+            }
+        ),
+    ), patch("backend.utils.rate_limit.check_rate_limit", return_value=None):
+        first = client.post(
+            "/api/mobile/claim-token",
+            json={"token": record.token, "client_public_key_hex": public_hex},
+        )
+
     assert first.status_code == 200
     body = first.json()
     assert body.get("access_token")
