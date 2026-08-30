@@ -7,7 +7,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from backend import database, models
-from backend.routers.auth import require_permission
+from backend.routers.auth import require_permission, require_superadmin
 
 router = APIRouter()
 
@@ -56,6 +56,30 @@ STRATEGY_PRESETS = [
 ]
 
 
+ORDER_TRANSITIONS = {
+    models.PartnerOrderStatus.DRAFT: (
+        models.PartnerOrderStatus.SENT_TO_PARTNER,
+        models.PartnerOrderStatus.CANCELLED,
+    ),
+    models.PartnerOrderStatus.SENT_TO_PARTNER: (
+        models.PartnerOrderStatus.MODIFIED_AFTER_SEND,
+        models.PartnerOrderStatus.CONFIRMED,
+        models.PartnerOrderStatus.CANCELLED,
+    ),
+    models.PartnerOrderStatus.MODIFIED_AFTER_SEND: (
+        models.PartnerOrderStatus.MODIFIED_AFTER_SEND,
+        models.PartnerOrderStatus.CONFIRMED,
+        models.PartnerOrderStatus.CANCELLED,
+    ),
+    models.PartnerOrderStatus.CONFIRMED: (
+        models.PartnerOrderStatus.FULFILLED,
+        models.PartnerOrderStatus.CANCELLED,
+    ),
+    models.PartnerOrderStatus.FULFILLED: (),
+    models.PartnerOrderStatus.CANCELLED: (),
+}
+
+
 class PartnerOrderLineIn(BaseModel):
     productId: str = Field(..., min_length=1)
     name: str = Field(..., min_length=1)
@@ -95,6 +119,10 @@ class PartnerOrderUpdateIn(BaseModel):
     note: Optional[str] = None
 
 
+def _allowed_transitions(status_value: models.PartnerOrderStatus) -> tuple[models.PartnerOrderStatus, ...]:
+    return ORDER_TRANSITIONS[status_value]
+
+
 def _serialize(order: models.PartnerOrder) -> dict:
     return {
         "id": order.id,
@@ -102,6 +130,7 @@ def _serialize(order: models.PartnerOrder) -> dict:
         "partnerId": order.partner_id,
         "partnerName": order.partner_name,
         "status": order.status.value,
+        "allowedTransitions": [item.value for item in _allowed_transitions(order.status)],
         "strategyLabel": order.strategy_label,
         "settlementBasis": order.settlement_basis.value,
         "revenueModel": order.revenue_model.value,
@@ -154,6 +183,12 @@ def _build_order_number() -> str:
     return f"CMD-PART-{stamp}-{suffix}"
 
 
+def _build_batch_id() -> str:
+    stamp = datetime.utcnow().strftime("%Y%m%d")
+    suffix = uuid.uuid4().hex[:6].upper()
+    return f"LOT-PART-{stamp}-{suffix}"
+
+
 def _coerce_settlement_basis(value: str) -> models.PartnerSettlementBasis:
     try:
         return models.PartnerSettlementBasis(value)
@@ -175,6 +210,144 @@ def _coerce_order_status(value: str) -> models.PartnerOrderStatus:
         raise HTTPException(status_code=422, detail=f"Statut partenaire invalide: {value}") from error
 
 
+def _same_money_value(left: float, right: float) -> bool:
+    return abs(float(left) - float(right)) < 0.000001
+
+
+def _resolve_strategy(payload: PartnerOrderCreateIn) -> dict:
+    for preset in STRATEGY_PRESETS:
+        if (
+            payload.settlementBasis == preset["settlementBasis"]
+            and payload.revenueModel == preset["revenueModel"]
+            and _same_money_value(payload.commissionRate, preset["commissionRate"])
+            and _same_money_value(payload.discountRate, preset["discountRate"])
+            and _same_money_value(payload.fixedFeeAmount, preset["fixedFeeAmount"])
+        ):
+            return preset
+    raise HTTPException(
+        status_code=422,
+        detail="Strategie commerciale non autorisee. Rechargez les options Marketplace avant de recommander.",
+    )
+
+
+def _parse_product_id(raw_product_id: str) -> int:
+    try:
+        product_id = int(raw_product_id)
+    except (TypeError, ValueError) as error:
+        raise HTTPException(status_code=422, detail=f"Identifiant produit invalide: {raw_product_id}") from error
+    if product_id <= 0:
+        raise HTTPException(status_code=422, detail=f"Identifiant produit invalide: {raw_product_id}")
+    return product_id
+
+
+def _build_canonical_order_groups(
+    db: Session,
+    employer_id: int,
+    requested_lines: List[PartnerOrderLineIn],
+) -> list[tuple[models.PartnerSupplier, list[dict], float]]:
+    product_ids: list[int] = []
+    quantities: dict[int, int] = {}
+    for line in requested_lines:
+        product_id = _parse_product_id(line.productId)
+        if product_id in quantities:
+            raise HTTPException(status_code=422, detail=f"Produit duplique dans la commande: {product_id}")
+        product_ids.append(product_id)
+        quantities[product_id] = line.quantity
+
+    products = (
+        db.query(models.PartnerCatalogProduct)
+        .filter(
+            models.PartnerCatalogProduct.employer_id == employer_id,
+            models.PartnerCatalogProduct.id.in_(product_ids),
+        )
+        .all()
+    )
+    products_by_id = {product.id: product for product in products}
+    missing_ids = [product_id for product_id in product_ids if product_id not in products_by_id]
+    if missing_ids:
+        raise HTTPException(
+            status_code=422,
+            detail=f"Produit(s) indisponible(s) dans le catalogue du cabinet: {', '.join(map(str, missing_ids))}",
+        )
+
+    supplier_ids = {product.supplier_id for product in products}
+    suppliers = (
+        db.query(models.PartnerSupplier)
+        .filter(
+            models.PartnerSupplier.employer_id == employer_id,
+            models.PartnerSupplier.id.in_(supplier_ids),
+        )
+        .all()
+    )
+    suppliers_by_id = {supplier.id: supplier for supplier in suppliers}
+    missing_supplier_ids = [supplier_id for supplier_id in supplier_ids if supplier_id not in suppliers_by_id]
+    if missing_supplier_ids:
+        raise HTTPException(
+            status_code=422,
+            detail=f"Fournisseur(s) introuvable(s) pour le cabinet: {', '.join(map(str, missing_supplier_ids))}",
+        )
+
+    inactive_suppliers = [supplier.name for supplier in suppliers if not supplier.is_active]
+    if inactive_suppliers:
+        raise HTTPException(
+            status_code=422,
+            detail=f"Fournisseur(s) inactif(s): {', '.join(inactive_suppliers)}",
+        )
+
+    supplier_order: list[int] = []
+    grouped_lines: dict[int, list[dict]] = {}
+    grouped_totals: dict[int, float] = {}
+
+    for product_id in product_ids:
+        product = products_by_id[product_id]
+        if product.availability == models.PartnerProductAvailability.DISCONTINUED:
+            raise HTTPException(status_code=422, detail=f"Produit retire du catalogue: {product.name}")
+
+        supplier_id = product.supplier_id
+        if supplier_id not in grouped_lines:
+            supplier_order.append(supplier_id)
+            grouped_lines[supplier_id] = []
+            grouped_totals[supplier_id] = 0.0
+
+        quantity = quantities[product_id]
+        unit_price = round(float(product.price), 2)
+        line_total = round(unit_price * quantity, 2)
+        grouped_lines[supplier_id].append(
+            {
+                "productId": str(product.id),
+                "name": product.name,
+                "sku": product.sku,
+                "quantity": quantity,
+                "unitPrice": unit_price,
+                "lineTotal": line_total,
+            }
+        )
+        grouped_totals[supplier_id] += line_total
+
+    return [
+        (
+            suppliers_by_id[supplier_id],
+            grouped_lines[supplier_id],
+            round(grouped_totals[supplier_id], 2),
+        )
+        for supplier_id in supplier_order
+    ]
+
+
+def _build_canonical_order_lines(
+    db: Session,
+    employer_id: int,
+    requested_lines: List[PartnerOrderLineIn],
+) -> tuple[models.PartnerSupplier, list[dict], float]:
+    groups = _build_canonical_order_groups(db, employer_id, requested_lines)
+    if len(groups) != 1:
+        raise HTTPException(
+            status_code=422,
+            detail="Une commande partenaire ne peut contenir que les produits d'un seul fournisseur.",
+        )
+    return groups[0]
+
+
 def _should_recognize(settlement_basis: models.PartnerSettlementBasis, status_value: models.PartnerOrderStatus) -> bool:
     if status_value == models.PartnerOrderStatus.CANCELLED:
         return False
@@ -194,10 +367,7 @@ def _compute_revenue(order: models.PartnerOrder) -> tuple[float, float]:
     if not _should_recognize(order.settlement_basis, order.status):
         return 0.0, 0.0
 
-    if order.settlement_basis == models.PartnerSettlementBasis.SENT_TO_PARTNER:
-        base_amount = order.current_total if order.status == models.PartnerOrderStatus.MODIFIED_AFTER_SEND else order.sent_total
-    else:
-        base_amount = order.current_total
+    base_amount = order.current_total
 
     if order.revenue_model == models.PartnerRevenueModel.COMMISSION_PERCENT:
         revenue = base_amount * (order.commission_rate / 100.0)
@@ -207,6 +377,33 @@ def _compute_revenue(order: models.PartnerOrder) -> tuple[float, float]:
         revenue = order.fixed_fee_amount if base_amount > 0 else 0.0
 
     return round(base_amount, 2), round(revenue, 2)
+
+
+def _validate_order_transition(
+    order: models.PartnerOrder,
+    target_status: models.PartnerOrderStatus,
+    payload: PartnerOrderUpdateIn,
+) -> None:
+    allowed = _allowed_transitions(order.status)
+    if target_status not in allowed:
+        allowed_label = ", ".join(item.value for item in allowed) or "aucune"
+        raise HTTPException(
+            status_code=422,
+            detail=f"Transition partenaire invalide: {order.status.value} -> {target_status.value}. Autorisees: {allowed_label}.",
+        )
+
+    if target_status == models.PartnerOrderStatus.MODIFIED_AFTER_SEND:
+        if order.sent_at is None:
+            raise HTTPException(status_code=422, detail="Impossible de modifier une commande non envoyee.")
+        if payload.currentTotal is None:
+            raise HTTPException(status_code=422, detail="currentTotal est requis pour une modification apres envoi.")
+        if _same_money_value(payload.currentTotal, order.current_total):
+            raise HTTPException(status_code=422, detail="Le total modifie doit differer du total courant.")
+    elif payload.currentTotal is not None and not _same_money_value(payload.currentTotal, order.current_total):
+        raise HTTPException(
+            status_code=422,
+            detail="currentTotal ne peut changer que via le statut MODIFIED_AFTER_SEND.",
+        )
 
 
 def _append_event(
@@ -239,12 +436,74 @@ def _append_event(
     db.add(event)
 
 
+def _prepare_partner_order(
+    db: Session,
+    *,
+    employer_id: int,
+    supplier: models.PartnerSupplier,
+    canonical_lines: list[dict],
+    estimated_total: float,
+    strategy: dict,
+    payload: PartnerOrderCreateIn,
+    batch_id: str,
+) -> models.PartnerOrder:
+    settlement_basis = _coerce_settlement_basis(strategy["settlementBasis"])
+    revenue_model = _coerce_revenue_model(strategy["revenueModel"])
+    order = models.PartnerOrder(
+        employer_id=employer_id,
+        order_number=_build_order_number(),
+        partner_id=str(supplier.id),
+        partner_name=supplier.name,
+        status=models.PartnerOrderStatus.DRAFT,
+        settlement_basis=settlement_basis,
+        revenue_model=revenue_model,
+        strategy_label=strategy["label"],
+        commission_rate=float(strategy["commissionRate"]),
+        discount_rate=float(strategy["discountRate"]),
+        fixed_fee_amount=float(strategy["fixedFeeAmount"]),
+        customer_full_name=payload.customer.fullName,
+        customer_clinic=payload.customer.clinic,
+        customer_phone=payload.customer.phone,
+        customer_email=payload.customer.email,
+        customer_city=payload.customer.city,
+        customer_note=payload.customer.note,
+        lines_json=canonical_lines,
+        estimated_total=estimated_total,
+        current_total=estimated_total,
+    )
+    db.add(order)
+    db.flush()
+    _append_event(
+        db,
+        order,
+        event_type="ORDER_CREATED",
+        previous_status=None,
+        new_status=order.status.value,
+        previous_total=None,
+        new_total=order.current_total,
+        revenue_before=None,
+        revenue_after=order.recognized_revenue_amount,
+        note="Commande preparee dans DigitalCrown.",
+        payload_json={
+            "batchId": batch_id,
+            "strategyKey": strategy["key"],
+            "pricingAuthority": "SERVER_CATALOG",
+            "supplierId": supplier.id,
+        },
+    )
+    return order
+
+
 @router.get("/meta")
 def get_partner_order_meta(
     current_user: models.User = Depends(require_permission("patients"))
 ):
     return {
         "supportedStatuses": [status.value for status in models.PartnerOrderStatus],
+        "allowedTransitions": {
+            status.value: [item.value for item in _allowed_transitions(status)]
+            for status in models.PartnerOrderStatus
+        },
         "supportedSettlementBases": [item.value for item in models.PartnerSettlementBasis],
         "supportedRevenueModels": [item.value for item in models.PartnerRevenueModel],
         "strategyPresets": STRATEGY_PRESETS,
@@ -255,7 +514,7 @@ def get_partner_order_meta(
 @router.get("", response_model=List[dict])
 def list_partner_orders(
     db: Session = Depends(database.get_db),
-    current_user: models.User = Depends(require_permission("patients"))
+    current_user: models.User = Depends(require_superadmin)
 ):
     employer_id = current_user.get_employer_id()
     orders = (
@@ -277,50 +536,46 @@ def create_partner_order(
     if not payload.lines:
         raise HTTPException(status_code=422, detail="La commande doit contenir au moins une ligne.")
 
-    settlement_basis = _coerce_settlement_basis(payload.settlementBasis)
-    revenue_model = _coerce_revenue_model(payload.revenueModel)
+    strategy = _resolve_strategy(payload)
+    groups = _build_canonical_order_groups(db, employer_id, payload.lines)
+    batch_id = _build_batch_id()
+    orders: list[models.PartnerOrder] = []
 
-    order = models.PartnerOrder(
-        employer_id=employer_id,
-        order_number=_build_order_number(),
-        partner_id=payload.partnerId,
-        partner_name=payload.partnerName,
-        status=models.PartnerOrderStatus.DRAFT,
-        settlement_basis=settlement_basis,
-        revenue_model=revenue_model,
-        strategy_label=payload.strategyLabel,
-        commission_rate=payload.commissionRate,
-        discount_rate=payload.discountRate,
-        fixed_fee_amount=payload.fixedFeeAmount,
-        customer_full_name=payload.customer.fullName,
-        customer_clinic=payload.customer.clinic,
-        customer_phone=payload.customer.phone,
-        customer_email=payload.customer.email,
-        customer_city=payload.customer.city,
-        customer_note=payload.customer.note,
-        lines_json=[line.model_dump() for line in payload.lines],
-        estimated_total=payload.estimatedTotal,
-        current_total=payload.estimatedTotal,
-    )
-    db.add(order)
-    db.commit()
-    db.refresh(order)
-    _append_event(
-        db,
-        order,
-        event_type="ORDER_CREATED",
-        previous_status=None,
-        new_status=order.status.value,
-        previous_total=None,
-        new_total=order.current_total,
-        revenue_before=None,
-        revenue_after=order.recognized_revenue_amount,
-        note="Commande preparee dans DigitalCrown.",
-        payload_json={"strategyLabel": order.strategy_label},
-    )
-    db.commit()
-    db.refresh(order)
-    return _serialize(order)
+    try:
+        for supplier, canonical_lines, estimated_total in groups:
+            orders.append(
+                _prepare_partner_order(
+                    db,
+                    employer_id=employer_id,
+                    supplier=supplier,
+                    canonical_lines=canonical_lines,
+                    estimated_total=estimated_total,
+                    strategy=strategy,
+                    payload=payload,
+                    batch_id=batch_id,
+                )
+            )
+        db.commit()
+    except Exception:
+        db.rollback()
+        raise
+
+    for order in orders:
+        db.refresh(order)
+
+    serialized_orders = [_serialize(order) for order in orders]
+    if len(serialized_orders) == 1:
+        return serialized_orders[0]
+
+    return {
+        "batchId": batch_id,
+        "orderNumber": batch_id,
+        "strategyLabel": strategy["label"],
+        "status": models.PartnerOrderStatus.DRAFT.value,
+        "orderCount": len(serialized_orders),
+        "estimatedTotal": round(sum(order["estimatedTotal"] for order in serialized_orders), 2),
+        "orders": serialized_orders,
+    }
 
 
 @router.patch("/{order_id}")
@@ -328,7 +583,7 @@ def update_partner_order(
     order_id: int,
     payload: PartnerOrderUpdateIn,
     db: Session = Depends(database.get_db),
-    current_user: models.User = Depends(require_permission("patients"))
+    current_user: models.User = Depends(require_superadmin)
 ):
     employer_id = current_user.get_employer_id()
     order = (
@@ -343,19 +598,18 @@ def update_partner_order(
     previous_total = order.current_total
     revenue_before = order.recognized_revenue_amount
     target_status = _coerce_order_status(payload.status)
+    _validate_order_transition(order, target_status, payload)
 
-    if payload.currentTotal is not None:
-        order.current_total = payload.currentTotal
+    if target_status == models.PartnerOrderStatus.MODIFIED_AFTER_SEND and payload.currentTotal is not None:
+        order.current_total = round(payload.currentTotal, 2)
     if payload.partnerReference is not None:
         order.partner_reference = payload.partnerReference
     if payload.note is not None:
         order.status_note = payload.note
 
-    if target_status == models.PartnerOrderStatus.SENT_TO_PARTNER and order.sent_at is None:
+    if target_status == models.PartnerOrderStatus.SENT_TO_PARTNER:
         order.sent_at = datetime.utcnow()
         order.sent_total = order.current_total or order.estimated_total
-    if target_status == models.PartnerOrderStatus.MODIFIED_AFTER_SEND and order.sent_at is None:
-        raise HTTPException(status_code=422, detail="Impossible de marquer modifiee une commande non envoyee.")
 
     order.status = target_status
     order.last_partner_update_at = datetime.utcnow()

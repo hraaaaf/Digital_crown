@@ -1,20 +1,14 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import {
-  ShoppingCart,
-  Search,
-  Package,
-  PackageOpen,
-  Store,
-  ShieldCheck,
-  Truck,
-  Plus,
-  Minus,
+  AlertCircle,
   CheckCircle2,
+  Minus,
+  Package,
+  Plus,
   RefreshCw,
-  Settings2,
-  Sparkles,
-  Tags,
-  ArrowRight,
+  Search,
+  ShoppingCart,
+  Store,
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { cn } from '../utils/cn';
@@ -28,12 +22,11 @@ import {
   type PartnerMarketplaceStrategyPreset,
   type PartnerProduct,
   availabilityBadgeClass,
-  buildPartnerProfile,
   formatMoney,
   getPartnerProductFromList,
-  readMarketplaceCache,
   normalizePartnerProduct,
   partnerCategories,
+  readMarketplaceCache,
   readStoredCart,
   writeMarketplaceCache,
   writeStoredCart,
@@ -43,18 +36,22 @@ type MetaPayload = {
   strategyPresets: PartnerMarketplaceStrategyPreset[];
 };
 
-const heroSurfaceStyle: React.CSSProperties = {
-  background: 'radial-gradient(circle at top right, rgba(255,255,255,0.16), transparent 28%), linear-gradient(135deg, var(--primary) 0%, var(--secondary) 55%, var(--accent) 100%)',
+type CustomerForm = {
+  fullName: string;
+  clinic: string;
+  phone: string;
+  email: string;
+  city: string;
+  note: string;
 };
 
-const buildStrategyPreview = (preset: PartnerMarketplaceStrategyPreset, amount: number) => {
-  if (preset.revenueModel === 'COMMISSION_PERCENT') {
-    return amount * (preset.commissionRate / 100);
-  }
-  if (preset.revenueModel === 'DISCOUNT_RESALE') {
-    return amount * (preset.discountRate / 100);
-  }
-  return amount > 0 ? preset.fixedFeeAmount : 0;
+const EMPTY_CUSTOMER: CustomerForm = {
+  fullName: '',
+  clinic: '',
+  phone: '',
+  email: '',
+  city: '',
+  note: '',
 };
 
 const fallbackCategories = [...partnerCategories];
@@ -65,32 +62,23 @@ export const PartnerMarketplacePage: React.FC = () => {
   const [category, setCategory] = useState('Toutes');
   const [cart, setCart] = useState<CartState>({});
   const [meta, setMeta] = useState<MetaPayload | null>(null);
-  const [selectedStrategyKey, setSelectedStrategyKey] = useState('');
-  const [successMessage, setSuccessMessage] = useState('');
-  const [errorMessage, setErrorMessage] = useState('');
-  const [submitting, setSubmitting] = useState(false);
-  const [catalogLoading, setCatalogLoading] = useState(true);
-  const [catalogError, setCatalogError] = useState(false);
   const [catalogMeta, setCatalogMeta] = useState<PartnerMarketplaceCatalogMeta | null>(null);
   const [suppliers, setSuppliers] = useState<PartnerCatalogSupplier[]>([]);
   const [catalogProducts, setCatalogProducts] = useState<PartnerProduct[]>([]);
-  const [customer, setCustomer] = useState({
-    fullName: '',
-    clinic: '',
-    phone: '',
-    email: '',
-    city: '',
-    note: '',
-  });
+  const [catalogLoading, setCatalogLoading] = useState(true);
+  const [catalogError, setCatalogError] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [successMessage, setSuccessMessage] = useState('');
+  const [errorMessage, setErrorMessage] = useState('');
+  const [customer, setCustomer] = useState<CustomerForm>(EMPTY_CUSTOMER);
 
   useEffect(() => {
-    setCart(readStoredCart());
-  }, []);
+    setCart(readStoredCart(user));
+  }, [user?.employer_id, user?.id]);
 
   useEffect(() => {
-    if (typeof window === 'undefined') return;
-    writeStoredCart(cart);
-  }, [cart]);
+    writeStoredCart(cart, user);
+  }, [cart, user?.employer_id, user?.id]);
 
   const hydrateFromCache = () => {
     const cached = readMarketplaceCache(user);
@@ -99,9 +87,6 @@ export const PartnerMarketplacePage: React.FC = () => {
     setCatalogMeta(cached.catalogMeta);
     setSuppliers(cached.suppliers);
     setCatalogProducts(cached.products);
-    if (cached.strategyPresets.length > 0) {
-      setSelectedStrategyKey((current) => current || cached.strategyPresets[0].key);
-    }
     return true;
   };
 
@@ -110,20 +95,19 @@ export const PartnerMarketplacePage: React.FC = () => {
     setCatalogError(false);
     const hadCache = hydrateFromCache();
     try {
-      const [ordersMetaRes, metaRes, suppliersRes, productsRes] = await Promise.all([
+      const [ordersMetaRes, catalogMetaRes, suppliersRes, productsRes] = await Promise.all([
         api.get('/partner-orders/meta'),
         api.get('/partner-catalog/meta'),
         api.get('/partner-catalog/suppliers'),
         api.get('/partner-catalog/products'),
       ]);
+
       const strategyPresets = (ordersMetaRes.data?.strategyPresets || []) as PartnerMarketplaceStrategyPreset[];
-      setMeta({ strategyPresets });
-      if (strategyPresets.length > 0) {
-        setSelectedStrategyKey((current) => current || strategyPresets[0].key);
-      }
-      const nextCatalogMeta = (metaRes.data || null) as PartnerMarketplaceCatalogMeta | null;
+      const nextCatalogMeta = (catalogMetaRes.data || null) as PartnerMarketplaceCatalogMeta | null;
       const nextSuppliers = (suppliersRes.data || []) as PartnerCatalogSupplier[];
       const nextProducts = ((productsRes.data || []) as PartnerCatalogProduct[]).map(normalizePartnerProduct);
+
+      setMeta({ strategyPresets });
       setCatalogMeta(nextCatalogMeta);
       setSuppliers(nextSuppliers);
       setCatalogProducts(nextProducts);
@@ -135,7 +119,7 @@ export const PartnerMarketplacePage: React.FC = () => {
       });
     } catch {
       if (!hadCache) {
-        setMeta((current) => current ?? { strategyPresets: [] });
+        setMeta({ strategyPresets: [] });
         setCatalogMeta(null);
         setSuppliers([]);
         setCatalogProducts([]);
@@ -150,108 +134,96 @@ export const PartnerMarketplacePage: React.FC = () => {
     let active = true;
     const bootstrap = async () => {
       hydrateFromCache();
-      if (!active) return;
-      await loadCatalog();
+      if (active) await loadCatalog();
     };
-
-    bootstrap();
+    void bootstrap();
     return () => {
       active = false;
     };
   }, [user?.employer_id, user?.id]);
 
-  const activeSupplier = useMemo(() => suppliers.find((supplier) => supplier.isActive) || suppliers[0] || null, [suppliers]);
-  const partnerProfile = useMemo(() => buildPartnerProfile(activeSupplier), [activeSupplier]);
-
+  const activeSuppliers = useMemo(() => suppliers.filter((supplier) => supplier.isActive), [suppliers]);
   const categoryOptions = useMemo(() => {
-    const liveCategories = catalogMeta?.categories?.length ? catalogMeta.categories : fallbackCategories.slice(1);
-    return ['Toutes', ...liveCategories];
+    const live = catalogMeta?.categories?.length ? catalogMeta.categories : fallbackCategories.slice(1);
+    return ['Toutes', ...live];
   }, [catalogMeta]);
 
-  const specialtyOptions = useMemo(() => {
-    const liveSpecialties = catalogMeta?.specialties?.length
-      ? catalogMeta.specialties
-      : Array.from(new Set(catalogProducts.map((product) => product.specialty).filter(Boolean) as string[]));
-    return liveSpecialties.slice(0, 5);
-  }, [catalogMeta, catalogProducts]);
-
-  const featuredProducts = useMemo(() => [...catalogProducts].sort((a, b) => b.price - a.price).slice(0, 4), [catalogProducts]);
+  const orderedProducts = useMemo(() => {
+    return [...catalogProducts].sort((a, b) => {
+      if (Boolean(a.isFeatured) !== Boolean(b.isFeatured)) return a.isFeatured ? -1 : 1;
+      const sortDelta = (a.sortOrder ?? 0) - (b.sortOrder ?? 0);
+      if (sortDelta !== 0) return sortDelta;
+      return a.name.localeCompare(b.name, 'fr');
+    });
+  }, [catalogProducts]);
 
   const filteredProducts = useMemo(() => {
     const query = search.trim().toLowerCase();
-    return catalogProducts.filter((product) => {
+    return orderedProducts.filter((product) => {
       const matchCategory = category === 'Toutes' || product.category === category;
-      const haystack = `${product.name} ${product.category} ${product.sku} ${product.description} ${product.specialty || ''}`.toLowerCase();
-      const matchSearch = !query || haystack.includes(query);
-      return matchCategory && matchSearch;
+      const haystack = `${product.name} ${product.sku} ${product.category} ${product.specialty || ''} ${product.description} ${product.longDescription}`.toLowerCase();
+      return matchCategory && (!query || haystack.includes(query));
     });
-  }, [search, category, catalogProducts]);
+  }, [orderedProducts, search, category]);
 
   const cartLines = useMemo(() => {
     return Object.entries(cart)
       .filter(([, quantity]) => quantity > 0)
       .map(([productId, quantity]) => {
         const product = getPartnerProductFromList(catalogProducts, productId);
-        if (!product) return null;
-        return {
-          ...product,
-          quantity,
-          lineTotal: product.price * quantity,
-        };
+        return product ? { ...product, quantity, lineTotal: product.price * quantity } : null;
       })
       .filter(Boolean) as Array<PartnerProduct & { quantity: number; lineTotal: number }>;
   }, [cart, catalogProducts]);
 
-  const estimatedTotal = cartLines.reduce((sum, line) => sum + line.lineTotal, 0);
   const totalUnits = cartLines.reduce((sum, line) => sum + line.quantity, 0);
-  const selectedStrategy = meta?.strategyPresets.find((preset) => preset.key === selectedStrategyKey) ?? null;
-  const previewRevenue = selectedStrategy ? buildStrategyPreview(selectedStrategy, estimatedTotal) : 0;
-  const categoryCounts = useMemo(() => {
-    return categoryOptions.slice(1, 5).map((item) => ({
-      label: item,
-      count: catalogProducts.filter((product) => product.category === item).length,
-    }));
-  }, [categoryOptions, catalogProducts]);
+  const estimatedTotal = cartLines.reduce((sum, line) => sum + line.lineTotal, 0);
+  const checkoutStrategy = meta?.strategyPresets?.[0] ?? null;
+  const showNoResults = !catalogLoading && !catalogError && catalogProducts.length > 0 && filteredProducts.length === 0;
+  const showNoCatalog = !catalogLoading && !catalogError && catalogProducts.length === 0;
 
-  const adjustQty = (productId: string, delta: number) => {
+  const adjustQty = (product: PartnerProduct, delta: number) => {
+    if (product.availability === 'Discontinué') return;
     setSuccessMessage('');
     setCart((current) => {
       const next = { ...current };
-      const currentQty = next[productId] ?? 0;
-      const target = Math.max(0, currentQty + delta);
-      if (target === 0) {
-        delete next[productId];
-      } else {
-        next[productId] = target;
-      }
+      const target = Math.max(0, (next[product.id] ?? 0) + delta);
+      if (target === 0) delete next[product.id];
+      else next[product.id] = target;
       return next;
     });
   };
 
+  const updateCustomer = (field: keyof CustomerForm, value: string) => {
+    setCustomer((current) => ({ ...current, [field]: value }));
+  };
+
   const submitOrder = async (event: React.FormEvent) => {
     event.preventDefault();
-    setErrorMessage('');
     setSuccessMessage('');
+    setErrorMessage('');
+
     if (!cartLines.length) {
-      setSuccessMessage('Ajoutez au moins un produit avant de préparer la commande.');
+      setErrorMessage('Ajoutez au moins un produit au panier.');
       return;
     }
-    if (!selectedStrategy) {
-      setErrorMessage('Choisissez une stratégie de rémunération avant d’enregistrer la commande.');
+    if (!checkoutStrategy) {
+      setErrorMessage('La configuration commerciale du Marketplace est indisponible.');
       return;
     }
 
     setSubmitting(true);
     try {
-      const payload = {
-        partnerId: activeSupplier ? String(activeSupplier.id) : partnerProfile.id,
-        partnerName: activeSupplier?.name || partnerProfile.name,
-        strategyLabel: selectedStrategy.label,
-        settlementBasis: selectedStrategy.settlementBasis,
-        revenueModel: selectedStrategy.revenueModel,
-        commissionRate: selectedStrategy.commissionRate,
-        discountRate: selectedStrategy.discountRate,
-        fixedFeeAmount: selectedStrategy.fixedFeeAmount,
+      const fallbackSupplier = activeSuppliers[0];
+      const response = await api.post('/partner-orders', {
+        partnerId: fallbackSupplier ? String(fallbackSupplier.id) : 'server-resolved',
+        partnerName: fallbackSupplier?.name || 'Server resolved',
+        strategyLabel: checkoutStrategy.label,
+        settlementBasis: checkoutStrategy.settlementBasis,
+        revenueModel: checkoutStrategy.revenueModel,
+        commissionRate: checkoutStrategy.commissionRate,
+        discountRate: checkoutStrategy.discountRate,
+        fixedFeeAmount: checkoutStrategy.fixedFeeAmount,
         customer,
         lines: cartLines.map((line) => ({
           productId: line.id,
@@ -262,482 +234,230 @@ export const PartnerMarketplacePage: React.FC = () => {
           lineTotal: line.lineTotal,
         })),
         estimatedTotal,
-      };
+      });
 
-      const response = await api.post('/partner-orders', payload);
-      const order = response.data;
-      if (!order?.orderNumber) {
-        throw new Error("La commande n'a pas pu être enregistrée correctement.");
-      }
+      const result = response.data;
+      if (!result?.orderNumber) throw new Error("La commande n'a pas été enregistrée correctement.");
 
       setCart({});
-      setCustomer({ fullName: '', clinic: '', phone: '', email: '', city: '', note: '' });
-      setSuccessMessage(`Commande ${order.orderNumber} enregistrée avec la stratégie "${order.strategyLabel}".`);
+      setCustomer(EMPTY_CUSTOMER);
+      setSuccessMessage(
+        result.orderCount && result.orderCount > 1
+          ? `${result.orderCount} commandes DRAFT ont été enregistrées pour les fournisseurs concernés.`
+          : `Commande ${result.orderNumber} enregistrée en DRAFT.`
+      );
     } catch (error: any) {
-      setErrorMessage(error?.response?.data?.detail || error?.message || 'Impossible d’enregistrer la commande partenaire.');
+      setErrorMessage(error?.response?.data?.detail || error?.message || 'Impossible d’enregistrer la commande.');
     } finally {
       setSubmitting(false);
     }
   };
 
-  const hasSupplier = Boolean(activeSupplier);
-  const showNoCatalogState = !catalogLoading && !catalogError && catalogProducts.length === 0;
-  const showNoResultsState = !catalogLoading && !catalogError && catalogProducts.length > 0 && filteredProducts.length === 0;
-  const heroProduct = featuredProducts[0] || filteredProducts[0] || null;
-
   return (
-    <div className="p-6 max-w-7xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-      <section className="rounded-elite-lg border border-border-main overflow-hidden shadow-elite" style={heroSurfaceStyle}>
-        <div className="p-8 lg:p-10 xl:p-12 grid grid-cols-1 xl:grid-cols-[1.08fr_0.92fr] gap-8 text-white">
-          <div className="space-y-6">
-            <div className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-4 py-2 text-[11px] font-black uppercase tracking-[0.25em]">
-              <Sparkles size={14} />
-              Marketplace clinique premium
-            </div>
-            <div className="space-y-4 max-w-3xl">
-              <h1 className="font-outfit text-4xl md:text-5xl xl:text-6xl font-black tracking-tight leading-[0.95]">
-                Une vraie vitrine d’achat dentaire, intégrée au thème vivant de DigitalCrown.
-              </h1>
-              <p className="max-w-2xl text-white/82 text-base md:text-lg font-medium leading-relaxed">
-                Inspirée des grands catalogues du secteur, cette landing met en avant les familles de soins, les produits stars,
-                le parcours fournisseur et un tunnel de commande propre, sans quitter l’application.
-              </p>
-            </div>
-            <div className="flex flex-wrap gap-3">
-              <Link to={`/approvisionnement/partenaire/${partnerProfile.id}`} className="inline-flex items-center gap-2 rounded-elite border border-white/15 bg-white/10 px-5 py-3 text-sm font-black hover:bg-white/15 transition-colors">
-                <Store size={16} />
-                Explorer le fournisseur
-              </Link>
-              {user?.is_superadmin && (
-                <Link to="/approvisionnement/admin" className="inline-flex items-center gap-2 rounded-elite border border-white/15 bg-white/10 px-5 py-3 text-sm font-black hover:bg-white/15 transition-colors">
-                  <Settings2 size={16} />
-                  Gérer le catalogue
-                </Link>
-              )}
-              <button type="button" onClick={loadCatalog} className="inline-flex items-center gap-2 rounded-elite border border-white/15 bg-white px-5 py-3 text-sm font-black hover:brightness-95 transition-all" style={{ color: 'var(--primary)' }}>
-                <RefreshCw size={16} />
-                Actualiser la vue
-              </button>
-            </div>
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-              <HeroMetric label="Références" value={String(catalogProducts.length)} />
-              <HeroMetric label="Catégories" value={String(Math.max(0, categoryOptions.length - 1))} />
-              <HeroMetric label="Spécialités" value={String(specialtyOptions.length)} />
-              <HeroMetric label="Panier" value={String(totalUnits)} />
-            </div>
+    <div className="mx-auto max-w-7xl space-y-3 p-2 pb-24 sm:space-y-5 sm:p-6 sm:pb-24 xl:pb-6">
+      <header className="rounded-elite-lg border border-border-main bg-card-bg p-3 shadow-elite sm:p-5">
+        <div className="flex items-start justify-between gap-3 sm:gap-4">
+          <div className="min-w-0">
+            <p className="text-[9px] font-black uppercase tracking-[0.18em] text-text-muted sm:text-[10px] sm:tracking-[0.24em]">Approvisionnement</p>
+            <h1 className="mt-0.5 font-outfit text-2xl font-black leading-tight text-text-main sm:mt-1 sm:text-4xl">
+              Acheter pour le cabinet
+            </h1>
+            <p className="mt-2 hidden max-w-2xl text-sm font-medium leading-relaxed text-text-muted sm:block">
+              Recherchez une référence, ajustez les quantités et enregistrez une commande DRAFT dans DigitalCrown.
+            </p>
           </div>
+          <a
+            href="#marketplace-cart"
+            className="shrink-0 rounded-elite px-3 py-2 text-xs font-black text-white focus:outline-none focus:ring-2 focus:ring-offset-2 sm:px-4 sm:py-3 sm:text-sm"
+            style={{ backgroundColor: 'var(--primary)' }}
+            aria-label={`Ouvrir le panier, ${totalUnits} unité${totalUnits > 1 ? 's' : ''}`}
+          >
+            <span className="inline-flex items-center gap-1.5 sm:gap-2"><ShoppingCart size={16} /> {totalUnits}</span>
+          </a>
+        </div>
 
-          <div className="grid gap-4 lg:grid-cols-[1.1fr_0.9fr] items-stretch">
-            <div className="rounded-elite-lg border border-white/15 bg-white/10 p-5 backdrop-blur-md">
-              <MarketplaceArtwork
-                eyebrow={partnerProfile.badge}
-                title={heroProduct?.name || partnerProfile.name}
-                subtitle={heroProduct?.category || 'Catalogue partenaire'}
-                caption={heroProduct?.description || partnerProfile.promise}
-                badge={heroProduct?.sku || 'Sélection active'}
-                compact={false}
-              />
-            </div>
-            <div className="space-y-4">
-              <GlassCard title="Pourquoi cette vitrine marche">
-                <InfoRow icon={<ShieldCheck size={16} />} text="Les surfaces suivent les tokens du thème, sans casser l’identité de l’application." />
-                <InfoRow icon={<Package size={16} />} text="Le modèle prépare déjà la future alimentation automatique par API fournisseur." />
-                <InfoRow icon={<Truck size={16} />} text="La commande reste pilotée côté DigitalCrown, avec suivi commercial conservé." />
-              </GlassCard>
-              {selectedStrategy && (
-                <GlassCard title="Stratégie active">
-                  <p className="font-outfit text-2xl font-black leading-tight">{selectedStrategy.label}</p>
-                  <p className="text-sm text-white/78 mt-2 leading-relaxed">{selectedStrategy.description}</p>
-                </GlassCard>
+        <div className="mt-4 hidden flex-wrap items-center gap-x-4 gap-y-2 border-t border-border-main pt-3 text-xs font-semibold text-text-muted sm:flex">
+          <span>{catalogProducts.length} référence(s)</span>
+          <span>{activeSuppliers.length} fournisseur(s) actif(s)</span>
+          {activeSuppliers[0] && (
+            <Link to={`/approvisionnement/partenaire/${activeSuppliers[0].id}`} className="inline-flex items-center gap-1 font-black" style={{ color: 'var(--primary)' }}>
+              <Store size={13} /> {activeSuppliers[0].name}
+            </Link>
+          )}
+          <button
+            type="button"
+            onClick={loadCatalog}
+            className="ml-auto inline-flex items-center gap-1 rounded-elite px-2 py-1 font-black focus:outline-none focus:ring-2 focus:ring-primary/20"
+            aria-label="Actualiser le catalogue"
+          >
+            <RefreshCw size={13} /> Actualiser
+          </button>
+        </div>
+      </header>
+
+      <section aria-label="Recherche et filtres" className="rounded-elite-lg border border-border-main bg-card-bg p-2 shadow-elite sm:p-4">
+        <label htmlFor="marketplace-search" className="sr-only">Rechercher dans le catalogue</label>
+        <div className="relative">
+          <Search size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-text-muted sm:left-4 sm:h-[17px] sm:w-[17px]" />
+          <input
+            id="marketplace-search"
+            type="search"
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+            placeholder="Rechercher produit ou SKU…"
+            className="w-full rounded-elite border border-border-main bg-input-field py-2.5 pl-9 pr-3 text-sm font-semibold text-text-main outline-none transition focus:border-border-hover focus:ring-2 focus:ring-primary/10 sm:py-3 sm:pl-11 sm:pr-4"
+          />
+        </div>
+        <div className="mt-2 flex gap-1.5 overflow-x-auto pb-0.5 sm:mt-3 sm:gap-2 sm:pb-1" aria-label="Filtrer par catégorie">
+          {categoryOptions.map((item) => (
+            <button
+              key={item}
+              type="button"
+              onClick={() => setCategory(item)}
+              className={cn(
+                'shrink-0 rounded-full border px-2.5 py-1.5 text-[11px] font-black transition focus:outline-none focus:ring-2 focus:ring-primary/20 sm:px-3 sm:py-2 sm:text-xs',
+                category === item
+                  ? 'border-transparent text-white'
+                  : 'border-border-main bg-card-bg text-text-muted hover:border-border-hover hover:text-text-main'
               )}
-            </div>
-          </div>
+              style={category === item ? { backgroundColor: 'var(--primary)' } : undefined}
+              aria-pressed={category === item}
+            >
+              {item}
+            </button>
+          ))}
         </div>
       </section>
 
-      <section className="grid grid-cols-1 lg:grid-cols-4 gap-4">
-        {categoryCounts.map((item) => (
-          <button
-            key={item.label}
-            type="button"
-            onClick={() => setCategory(item.label)}
-            className="rounded-elite-lg border border-border-main bg-card-bg p-5 text-left shadow-elite transition-all hover:-translate-y-1 hover:shadow-elite-hover"
-          >
-            <p className="text-[10px] uppercase tracking-[0.28em] font-black text-text-muted">Collection</p>
-            <h3 className="font-outfit text-2xl font-black text-text-main mt-2">{item.label}</h3>
-            <p className="text-sm text-text-muted mt-2">{item.count} référence(s) disponibles dans ce rayon clinique.</p>
-            <div className="mt-4 inline-flex items-center gap-2 text-sm font-black" style={{ color: 'var(--primary)' }}>
-              Ouvrir ce rayon
-              <ArrowRight size={15} />
-            </div>
-          </button>
-        ))}
-      </section>
-
-      {!catalogLoading && !catalogError && featuredProducts.length > 0 && (
-        <section className="space-y-4">
-          <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
+      <div className="grid grid-cols-1 items-start gap-4 sm:gap-5 xl:grid-cols-[minmax(0,1fr)_360px]">
+        <main className="min-w-0 space-y-2.5 sm:space-y-4">
+          <div className="flex items-center justify-between gap-3 px-0.5 sm:items-end">
             <div>
-              <p className="text-[10px] uppercase tracking-[0.32em] font-black text-text-muted">Sélection éditoriale</p>
-              <h2 className="font-outfit text-3xl font-black text-text-main mt-2">Des produits mis en avant comme sur une vraie marketplace</h2>
+              <p className="hidden text-[10px] font-black uppercase tracking-[0.24em] text-text-muted sm:block">Catalogue</p>
+              <h2 className="font-outfit text-lg font-black text-text-main sm:mt-1 sm:text-2xl">Produits disponibles</h2>
             </div>
-            <p className="text-sm text-text-muted max-w-md lg:text-right">Grandes cartes, hiérarchie visuelle claire et lecture immédiate du produit, du bénéfice et du prix.</p>
-          </div>
-          <div className="grid grid-cols-1 xl:grid-cols-[1.1fr_0.9fr] gap-4">
-            <FeatureProductCard product={featuredProducts[0]} large onAdd={adjustQty} quantity={cart[featuredProducts[0].id] ?? 0} />
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {featuredProducts.slice(1, 4).map((product) => (
-                <FeatureProductCard key={product.id} product={product} onAdd={adjustQty} quantity={cart[product.id] ?? 0} />
-              ))}
-            </div>
-          </div>
-        </section>
-      )}
-
-      <div className="grid grid-cols-1 xl:grid-cols-[0.9fr_1.45fr_0.8fr] gap-6 items-start">
-        <aside className="space-y-4 xl:sticky xl:top-6">
-          <div className="rounded-elite-lg border border-border-main bg-card-bg p-5 shadow-elite space-y-5">
-            <div>
-              <p className="text-[10px] uppercase tracking-[0.28em] font-black text-text-muted mb-2">Recherche catalogue</p>
-              <div className="relative">
-                <Search size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-text-muted" />
-                <input
-                  type="text"
-                  value={search}
-                  onChange={(event) => setSearch(event.target.value)}
-                  placeholder="Référence, catégorie, spécialité"
-                  className="w-full rounded-elite border border-border-main bg-input-field pl-11 pr-4 py-3 text-sm font-medium outline-none focus:ring-2 focus:ring-primary/10"
-                />
-              </div>
-            </div>
-            <div>
-              <p className="text-[10px] uppercase tracking-[0.28em] font-black text-text-muted mb-3">Rayons</p>
-              <div className="flex flex-wrap gap-2">
-                {categoryOptions.map((item) => (
-                  <button
-                    key={item}
-                    type="button"
-                    onClick={() => setCategory(item)}
-                    className={cn(
-                      'rounded-full border px-3 py-2 text-[11px] font-black uppercase tracking-[0.22em] transition-all',
-                      category === item
-                        ? 'text-white shadow-lg'
-                        : 'bg-card-bg text-text-muted border-border-main hover:border-border-hover'
-                    )}
-                    style={category === item ? { backgroundColor: 'var(--primary)', borderColor: 'var(--primary)' } : undefined}
-                  >
-                    {item}
-                  </button>
-                ))}
-              </div>
-            </div>
-            {specialtyOptions.length > 0 && (
-              <div>
-                <p className="text-[10px] uppercase tracking-[0.28em] font-black text-text-muted mb-3">Spécialités visibles</p>
-                <div className="space-y-2">
-                  {specialtyOptions.map((item) => (
-                    <div key={item} className="flex items-center gap-3 rounded-elite border border-border-main bg-[var(--glass-bg)] px-4 py-3 text-sm font-semibold text-text-main">
-                      <Tags size={15} style={{ color: 'var(--primary)' }} />
-                      <span>{item}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-            <div className="rounded-elite border border-border-main p-4" style={{ background: 'linear-gradient(180deg, var(--glass-bg), var(--card-bg))' }}>
-              <p className="text-[10px] uppercase tracking-[0.28em] font-black text-text-muted mb-2">Promesse fournisseur</p>
-              <p className="text-sm font-semibold text-text-main leading-relaxed">{partnerProfile.promise}</p>
-            </div>
-          </div>
-        </aside>
-
-        <section className="space-y-4">
-          <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
-            <div>
-              <p className="text-[10px] uppercase tracking-[0.32em] font-black text-text-muted">Catalogue</p>
-              <h2 className="font-outfit text-3xl font-black text-text-main mt-2">Une grille produit plus éditoriale et plus dense</h2>
-            </div>
-            <div className="text-left lg:text-right">
-              <p className="text-sm text-text-muted">{filteredProducts.length} produit(s) affiché(s)</p>
-              <p className="text-sm text-text-muted">{hasSupplier ? partnerProfile.name : 'Fournisseur à configurer'}</p>
-            </div>
+            <p className="shrink-0 text-xs font-semibold text-text-muted sm:text-sm">{filteredProducts.length} affiché(s)</p>
           </div>
 
           {catalogLoading ? (
-            <StateCard title="Chargement du catalogue partenaire..." description="Nous récupérons les produits du fournisseur et le cache local-first." />
+            <StateCard title="Chargement du catalogue…" description="Synchronisation des références disponibles." />
           ) : catalogError ? (
-            <StateCard title="Impossible de charger le catalogue" description="Le service catalogue n'est pas joignable pour le moment. Réessayez dans un instant." actionLabel="Réessayer" onAction={loadCatalog} />
-          ) : showNoCatalogState ? (
             <StateCard
-              title={hasSupplier ? 'Catalogue en cours de mise en place' : 'Aucun fournisseur configuré'}
-              description={hasSupplier ? `${partnerProfile.name} n'a pas encore de produits publiés dans DigitalCrown.` : "Aucun fournisseur partenaire n'est encore actif pour ce cabinet."}
-              actionLabel={user?.is_superadmin ? (hasSupplier ? 'Ajouter des produits' : 'Configurer un fournisseur') : undefined}
-              actionHref={user?.is_superadmin ? '/approvisionnement/admin' : undefined}
+              title="Catalogue indisponible"
+              description="Les données en cache ont été conservées lorsqu'elles étaient encore valides."
+              actionLabel="Réessayer"
+              onAction={loadCatalog}
             />
-          ) : showNoResultsState ? (
+          ) : showNoCatalog ? (
+            <StateCard title="Aucun produit publié" description="Le catalogue partenaire ne contient encore aucune référence active." />
+          ) : showNoResults ? (
             <StateCard
-              title="Aucun produit ne correspond à ces filtres"
-              description="Essayez une autre catégorie ou modifiez votre recherche pour élargir la sélection."
-              actionLabel="Réinitialiser les filtres"
+              title="Aucun résultat"
+              description="Modifiez la recherche ou réinitialisez la catégorie."
+              actionLabel="Réinitialiser"
               onAction={() => {
                 setSearch('');
                 setCategory('Toutes');
               }}
             />
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {filteredProducts.map((product) => {
-                const isDiscontinued = product.availability === 'Discontinué';
-                return (
-                  <article key={product.id} className="rounded-elite-lg border border-border-main bg-card-bg p-5 shadow-elite transition-all hover:-translate-y-1 hover:shadow-elite-hover">
-                    <MarketplaceArtwork
-                      eyebrow={product.category}
-                      title={product.name}
-                      subtitle={product.specialty || 'Omnipratique'}
-                      caption={product.description}
-                      badge={product.sku}
-                      compact
-                    />
-                    <div className="mt-4 flex items-start justify-between gap-4">
-                      <div>
-                        <Link to={`/approvisionnement/produits/${product.id}`} className="font-outfit text-xl font-black text-text-main hover:opacity-80 transition-opacity">
-                          {product.name}
-                        </Link>
-                        <p className="mt-2 text-xs font-black uppercase tracking-[0.24em] text-text-muted">{product.sku}</p>
-                      </div>
-                      <span className={cn('px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-[0.24em] border whitespace-nowrap', availabilityBadgeClass(product.availability))}>
-                        {product.availability}
-                      </span>
-                    </div>
-                    <p className="mt-4 text-sm text-text-muted leading-relaxed min-h-[44px]">{product.longDescription}</p>
-                    <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
-                      <SpecChip label="Pour" value={product.audience || product.specialty || 'Cabinet dentaire'} />
-                      <SpecChip label="Conditionnement" value={product.unit} />
-                    </div>
-                    <div className="mt-5 flex items-end justify-between gap-4">
-                      <div>
-                        <p className="text-2xl font-black text-text-main">{formatMoney(product.price)}</p>
-                        <p className="mt-1 text-xs font-black uppercase tracking-[0.24em] text-text-muted">Prix indicatif</p>
-                      </div>
-                      {isDiscontinued ? (
-                        <p className="text-xs font-black uppercase tracking-[0.24em] text-text-muted">Retiré du catalogue</p>
-                      ) : (
-                        <div className="flex items-center gap-2">
-                          <button type="button" onClick={() => adjustQty(product.id, -1)} className="w-9 h-9 rounded-elite border border-border-main text-text-main flex items-center justify-center hover:bg-input-field transition-colors">
-                            <Minus size={14} />
-                          </button>
-                          <div className="w-10 text-center font-black text-text-main">{cart[product.id] ?? 0}</div>
-                          <button type="button" onClick={() => adjustQty(product.id, 1)} className="w-9 h-9 rounded-elite text-white flex items-center justify-center transition-all hover:brightness-110" style={{ backgroundColor: 'var(--primary)' }}>
-                            <Plus size={14} />
-                          </button>
-                        </div>
-                      )}
-                    </div>
-                    <Link to={`/approvisionnement/produits/${product.id}`} className="mt-4 inline-flex items-center gap-2 text-sm font-black" style={{ color: 'var(--primary)' }}>
-                      Voir la fiche produit
-                      <ArrowRight size={15} />
-                    </Link>
-                  </article>
-                );
-              })}
+            <div className="grid grid-cols-1 gap-3 sm:gap-4 md:grid-cols-2">
+              {filteredProducts.map((product) => (
+                <ProductCard key={product.id} product={product} quantity={cart[product.id] ?? 0} onAdjust={adjustQty} />
+              ))}
             </div>
           )}
-        </section>
+        </main>
 
-        <aside className="space-y-4 xl:sticky xl:top-6">
-          <div className="rounded-elite-lg border border-border-main bg-card-bg p-6 shadow-elite">
-            <div className="flex items-center gap-3 mb-5">
-              <div className="w-11 h-11 rounded-elite flex items-center justify-center text-white" style={{ backgroundColor: 'var(--primary)' }}>
-                <ShoppingCart size={20} />
-              </div>
-              <div>
-                <h2 className="font-outfit text-xl font-black text-text-main">Commande partenaire</h2>
-                <p className="text-xs font-black uppercase tracking-[0.24em] text-text-muted">Panier, contact, stratégie</p>
-              </div>
-            </div>
-
-            <div className="rounded-elite border border-border-main p-4 mb-5" style={{ background: 'linear-gradient(180deg, var(--glass-bg), var(--card-bg))' }}>
-              <p className="text-sm font-semibold text-text-main leading-relaxed">La commande est préparée dans DigitalCrown, puis envoyée au partenaire selon la stratégie active.</p>
-            </div>
-
-            <div className="space-y-3 mb-5">
-              {cartLines.length === 0 ? (
-                <div className="rounded-elite border border-border-main bg-input-field p-4 text-sm text-text-muted">
-                  Aucun produit sélectionné pour le moment.
-                </div>
-              ) : (
-                cartLines.map((line) => (
-                  <div key={line.id} className="rounded-elite border border-border-main p-4">
-                    <div className="flex items-start justify-between gap-3">
-                      <div>
-                        <p className="font-black text-text-main">{line.name}</p>
-                        <p className="mt-1 text-[10px] font-black uppercase tracking-[0.24em] text-text-muted">{line.sku}</p>
-                      </div>
-                      <p className="font-black text-text-main">{formatMoney(line.lineTotal)}</p>
-                    </div>
-                    <div className="mt-3 flex items-center justify-between text-sm text-text-muted">
-                      <span>{line.quantity} x {formatMoney(line.price)}</span>
-                      <span>{line.unit}</span>
-                    </div>
-                  </div>
-                ))
-              )}
-            </div>
-
-            <div className="space-y-2 border-b border-border-main pb-5">
-              <SummaryRow label="Lignes" value={String(cartLines.length)} />
-              <SummaryRow label="Unités" value={String(totalUnits)} />
-              <SummaryRow label="Total estimé" value={formatMoney(estimatedTotal)} strong />
-              {selectedStrategy && <SummaryRow label="Revenu simulé" value={formatMoney(previewRevenue)} />}
-            </div>
-
-            <form onSubmit={submitOrder} className="mt-5 space-y-4">
-              <div>
-                <label className="text-[10px] uppercase tracking-[0.28em] font-black text-text-muted">Stratégie active</label>
-                <div className="mt-2 rounded-elite border border-border-main bg-input-field px-4 py-3 text-sm font-semibold text-text-main">
-                  {selectedStrategy?.label || 'Aucune stratégie disponible'}
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                <OrderField label="Nom complet" value={customer.fullName} onChange={(value) => setCustomer((current) => ({ ...current, fullName: value }))} required />
-                <OrderField label="Cabinet" value={customer.clinic} onChange={(value) => setCustomer((current) => ({ ...current, clinic: value }))} />
-                <OrderField label="Téléphone" value={customer.phone} onChange={(value) => setCustomer((current) => ({ ...current, phone: value }))} required />
-                <OrderField label="Email" type="email" value={customer.email} onChange={(value) => setCustomer((current) => ({ ...current, email: value }))} />
-              </div>
-
-              <OrderField label="Ville" value={customer.city} onChange={(value) => setCustomer((current) => ({ ...current, city: value }))} />
-              <OrderTextArea label="Note de commande" value={customer.note} onChange={(value) => setCustomer((current) => ({ ...current, note: value }))} />
-
-              {successMessage && (
-                <div className="rounded-elite border border-emerald-200 bg-emerald-50 p-4 text-sm font-semibold text-emerald-800">{successMessage}</div>
-              )}
-              {errorMessage && (
-                <div className="rounded-elite border border-rose-200 bg-rose-50 p-4 text-sm font-semibold text-rose-700">{errorMessage}</div>
-              )}
-
-              <button
-                type="submit"
-                disabled={submitting || !selectedStrategy}
-                className="w-full rounded-elite px-5 py-4 text-sm font-black uppercase tracking-[0.28em] text-white transition-all disabled:cursor-not-allowed disabled:opacity-60 hover:brightness-110"
-                style={{ backgroundColor: 'var(--primary)' }}
-              >
-                {submitting ? 'Envoi en cours...' : 'Envoyer la commande au partenaire'}
-              </button>
-            </form>
-          </div>
+        <aside id="marketplace-cart" className="scroll-mt-6 xl:sticky xl:top-6">
+          <CartPanel
+            cartLines={cartLines}
+            totalUnits={totalUnits}
+            estimatedTotal={estimatedTotal}
+            customer={customer}
+            submitting={submitting}
+            successMessage={successMessage}
+            errorMessage={errorMessage}
+            onCustomerChange={updateCustomer}
+            onSubmit={submitOrder}
+          />
         </aside>
       </div>
+
+      {totalUnits > 0 && (
+        <a
+          href="#marketplace-cart"
+          className="fixed bottom-4 left-4 right-4 z-30 flex items-center justify-between rounded-elite-lg px-4 py-3 text-sm font-black text-white shadow-2xl xl:hidden"
+          style={{ backgroundColor: 'var(--primary)' }}
+          aria-label={`Voir le panier, ${totalUnits} unité${totalUnits > 1 ? 's' : ''}, total ${formatMoney(estimatedTotal)}`}
+        >
+          <span className="inline-flex items-center gap-2"><ShoppingCart size={18} /> Panier · {totalUnits}</span>
+          <span>{formatMoney(estimatedTotal)} →</span>
+        </a>
+      )}
     </div>
   );
 };
 
-const HeroMetric: React.FC<{ label: string; value: string }> = ({ label, value }) => (
-  <div className="rounded-elite border border-white/15 bg-white/10 px-4 py-4 backdrop-blur-md">
-    <p className="text-[10px] uppercase tracking-[0.26em] font-black text-white/60">{label}</p>
-    <p className="mt-2 font-outfit text-3xl font-black text-white">{value}</p>
-  </div>
-);
-
-const GlassCard: React.FC<{ title: string; children: React.ReactNode }> = ({ title, children }) => (
-  <div className="rounded-elite-lg border border-white/15 bg-white/10 p-5 backdrop-blur-md">
-    <p className="text-[10px] uppercase tracking-[0.3em] font-black text-white/60 mb-3">{title}</p>
-    <div className="space-y-3 text-white">{children}</div>
-  </div>
-);
-
-const MarketplaceArtwork: React.FC<{
-  eyebrow: string;
-  title: string;
-  subtitle: string;
-  caption: string;
-  badge: string;
-  compact?: boolean;
-}> = ({ eyebrow, title, subtitle, caption, badge, compact = false }) => (
-  <div
-    className={cn('relative overflow-hidden rounded-elite-lg border border-white/10 text-white', compact ? 'p-5 min-h-[220px]' : 'p-6 min-h-[360px]')}
-    style={heroSurfaceStyle}
-  >
-    <div className="absolute inset-0 opacity-35" style={{ background: 'radial-gradient(circle at bottom left, rgba(255,255,255,0.16), transparent 32%)' }} />
-    <div className="relative flex h-full flex-col justify-between gap-6">
-      <div className="flex items-center justify-between gap-3">
-        <span className="inline-flex w-fit items-center gap-2 rounded-full border border-white/15 bg-white/10 px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.25em]">
-          {eyebrow}
-        </span>
-        <span className="rounded-full border border-white/15 bg-white/10 px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.25em]">
-          {badge}
-        </span>
-      </div>
-      <div className="space-y-3">
-        <p className="text-sm font-black uppercase tracking-[0.28em] text-white/70">{subtitle}</p>
-        <h3 className={cn('font-outfit font-black leading-[0.95]', compact ? 'text-3xl' : 'text-4xl md:text-5xl')}>{title}</h3>
-        <p className={cn('max-w-xl text-white/80 leading-relaxed', compact ? 'text-sm' : 'text-base')}>{caption}</p>
-      </div>
-      <div className="grid grid-cols-3 gap-3">
-        <VisualChip label="Catalogue" value="Premium" />
-        <VisualChip label="Commande" value="Directe" />
-        <VisualChip label="Base" value="API-ready" />
-      </div>
-    </div>
-  </div>
-);
-
-const VisualChip: React.FC<{ label: string; value: string }> = ({ label, value }) => (
-  <div className="rounded-elite border border-white/15 bg-white/10 px-3 py-3 backdrop-blur-md">
-    <p className="text-[10px] uppercase tracking-[0.24em] font-black text-white/60">{label}</p>
-    <p className="mt-1 text-sm font-black text-white">{value}</p>
-  </div>
-);
-
-const InfoRow: React.FC<{ icon: React.ReactNode; text: string }> = ({ icon, text }) => (
-  <div className="flex items-start gap-3 text-sm leading-relaxed text-white/82">
-    <div className="mt-0.5 shrink-0">{icon}</div>
-    <span>{text}</span>
-  </div>
-);
-
-const FeatureProductCard: React.FC<{
+const ProductCard = ({
+  product,
+  quantity,
+  onAdjust,
+}: {
   product: PartnerProduct;
   quantity: number;
-  onAdd: (productId: string, delta: number) => void;
-  large?: boolean;
-}> = ({ product, quantity, onAdd, large = false }) => {
-  const isDiscontinued = product.availability === 'Discontinué';
-
+  onAdjust: (product: PartnerProduct, delta: number) => void;
+}) => {
+  const disabled = product.availability === 'Discontinué';
   return (
-    <article className="rounded-elite-lg border border-border-main bg-card-bg p-5 shadow-elite transition-all hover:-translate-y-1 hover:shadow-elite-hover">
-      <MarketplaceArtwork
-        eyebrow={large ? 'Produit star' : product.category}
-        title={product.name}
-        subtitle={product.specialty || 'Omnipratique'}
-        caption={product.description}
-        badge={product.sku}
-        compact={!large}
-      />
-      <div className="mt-5 flex items-start justify-between gap-4">
-        <div>
-          <p className="text-sm font-black uppercase tracking-[0.24em] text-text-muted">{product.category}</p>
-          <p className="mt-2 text-2xl font-black text-text-main">{formatMoney(product.price)}</p>
+    <article className="rounded-elite-lg border border-border-main bg-card-bg p-3 shadow-elite transition hover:shadow-elite-hover sm:p-5">
+      <div className="flex gap-3 sm:gap-4">
+        <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-elite bg-input-field text-text-muted sm:h-24 sm:w-24">
+          <Package size={24} aria-hidden="true" className="sm:h-[30px] sm:w-[30px]" />
         </div>
-        <span className={cn('px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-[0.24em] border whitespace-nowrap', availabilityBadgeClass(product.availability))}>
-          {product.availability}
-        </span>
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-start justify-between gap-1.5 sm:gap-2">
+            <p className="text-[9px] font-black uppercase tracking-[0.14em] text-text-muted sm:text-[10px] sm:tracking-[0.18em]">{product.category}</p>
+            <span className={cn('rounded-full border px-2 py-0.5 text-[9px] font-black sm:py-1 sm:text-[10px]', availabilityBadgeClass(product.availability))}>
+              {product.availability}
+            </span>
+          </div>
+          <Link to={`/approvisionnement/produits/${product.id}`} className="mt-1 block font-outfit text-base font-black leading-tight text-text-main hover:opacity-80 sm:mt-2 sm:text-lg">
+            {product.name}
+          </Link>
+          <p className="mt-0.5 text-[11px] font-semibold text-text-muted sm:mt-1 sm:text-xs">{product.sku}{product.specialty ? ` · ${product.specialty}` : ''}</p>
+        </div>
       </div>
-      <div className="mt-4 flex items-center justify-between gap-3">
-        <Link to={`/approvisionnement/produits/${product.id}`} className="inline-flex items-center gap-2 text-sm font-black" style={{ color: 'var(--primary)' }}>
-          Voir la fiche
-          <ArrowRight size={15} />
-        </Link>
-        {isDiscontinued ? (
-          <span className="text-xs font-black uppercase tracking-[0.24em] text-text-muted">Indisponible</span>
+
+      <p className="mt-3 hidden line-clamp-2 text-sm font-medium leading-relaxed text-text-muted sm:block">{product.description}</p>
+
+      <div className="mt-3 flex items-end justify-between gap-3 border-t border-border-main pt-3 sm:mt-4 sm:gap-4 sm:pt-4">
+        <div>
+          <p className="text-lg font-black text-text-main sm:text-xl">{formatMoney(product.price)}</p>
+          <p className="text-[11px] font-semibold text-text-muted sm:mt-1 sm:text-xs">par {product.unit}</p>
+        </div>
+        {disabled ? (
+          <span className="text-xs font-black text-text-muted">Indisponible</span>
         ) : (
-          <div className="flex items-center gap-2">
-            <button type="button" onClick={() => onAdd(product.id, -1)} className="w-9 h-9 rounded-elite border border-border-main text-text-main flex items-center justify-center hover:bg-input-field transition-colors">
-              <Minus size={14} />
+          <div className="flex items-center gap-1.5 sm:gap-2" aria-label={`Quantité de ${product.name}`}>
+            <button
+              type="button"
+              onClick={() => onAdjust(product, -1)}
+              disabled={quantity === 0}
+              className="flex h-9 w-9 items-center justify-center rounded-elite border border-border-main text-text-main transition hover:bg-input-field disabled:cursor-not-allowed disabled:opacity-40 focus:outline-none focus:ring-2 focus:ring-primary/20 sm:h-10 sm:w-10"
+              aria-label={`Retirer une unité de ${product.name}`}
+            >
+              <Minus size={15} />
             </button>
-            <div className="w-10 text-center font-black text-text-main">{quantity}</div>
-            <button type="button" onClick={() => onAdd(product.id, 1)} className="w-9 h-9 rounded-elite text-white flex items-center justify-center hover:brightness-110 transition-all" style={{ backgroundColor: 'var(--primary)' }}>
-              <Plus size={14} />
+            <span className="w-6 text-center text-sm font-black text-text-main sm:w-7" aria-live="polite">{quantity}</span>
+            <button
+              type="button"
+              onClick={() => onAdjust(product, 1)}
+              className="flex h-9 w-9 items-center justify-center rounded-elite text-white transition hover:brightness-110 focus:outline-none focus:ring-2 focus:ring-offset-2 sm:h-10 sm:w-10"
+              style={{ backgroundColor: 'var(--primary)' }}
+              aria-label={`Ajouter une unité de ${product.name}`}
+            >
+              <Plus size={15} />
             </button>
           </div>
         )}
@@ -746,76 +466,156 @@ const FeatureProductCard: React.FC<{
   );
 };
 
-const SpecChip: React.FC<{ label: string; value: string }> = ({ label, value }) => (
-  <div className="rounded-elite border border-border-main bg-input-field px-4 py-3">
-    <p className="text-[10px] uppercase tracking-[0.24em] font-black text-text-muted">{label}</p>
-    <p className="mt-1 text-sm font-semibold text-text-main leading-relaxed">{value}</p>
-  </div>
-);
+const CartPanel = ({
+  cartLines,
+  totalUnits,
+  estimatedTotal,
+  customer,
+  submitting,
+  successMessage,
+  errorMessage,
+  onCustomerChange,
+  onSubmit,
+}: {
+  cartLines: Array<PartnerProduct & { quantity: number; lineTotal: number }>;
+  totalUnits: number;
+  estimatedTotal: number;
+  customer: CustomerForm;
+  submitting: boolean;
+  successMessage: string;
+  errorMessage: string;
+  onCustomerChange: (field: keyof CustomerForm, value: string) => void;
+  onSubmit: (event: React.FormEvent) => void;
+}) => (
+  <div className="rounded-elite-lg border border-border-main bg-card-bg p-4 shadow-elite sm:p-5">
+    <div className="flex items-center gap-3">
+      <div className="flex h-10 w-10 items-center justify-center rounded-elite text-white" style={{ backgroundColor: 'var(--primary)' }}>
+        <ShoppingCart size={18} />
+      </div>
+      <div>
+        <h2 className="font-outfit text-xl font-black text-text-main">Panier</h2>
+        <p className="text-xs font-semibold text-text-muted">{totalUnits} unité(s)</p>
+      </div>
+    </div>
 
-const StateCard: React.FC<{
-  title: string;
-  description: string;
-  actionLabel?: string;
-  actionHref?: string;
-  onAction?: () => void;
-}> = ({ title, description, actionLabel, actionHref, onAction }) => (
-  <div className="rounded-elite-lg border border-dashed border-border-main bg-card-bg px-6 py-12 text-center shadow-elite space-y-4">
-    <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-elite text-white" style={{ backgroundColor: 'var(--primary)' }}>
-      <PackageOpen size={22} />
+    <div className="mt-4 space-y-2">
+      {cartLines.length === 0 ? (
+        <p className="rounded-elite bg-input-field p-4 text-sm font-medium text-text-muted">Ajoutez des produits pour préparer la commande.</p>
+      ) : (
+        cartLines.map((line) => (
+          <div key={line.id} className="flex items-start justify-between gap-3 rounded-elite border border-border-main p-3">
+            <div className="min-w-0">
+              <p className="truncate text-sm font-black text-text-main">{line.name}</p>
+              <p className="mt-1 text-xs font-semibold text-text-muted">{line.quantity} × {formatMoney(line.price)}</p>
+            </div>
+            <p className="shrink-0 text-sm font-black text-text-main">{formatMoney(line.lineTotal)}</p>
+          </div>
+        ))
+      )}
     </div>
-    <div>
-      <p className="font-outfit text-2xl font-black text-text-main">{title}</p>
-      <p className="mt-2 max-w-xl mx-auto text-sm leading-relaxed text-text-muted">{description}</p>
+
+    <div className="mt-4 flex items-center justify-between border-y border-border-main py-4">
+      <span className="text-sm font-semibold text-text-muted">Total estimé</span>
+      <span className="text-xl font-black text-text-main">{formatMoney(estimatedTotal)}</span>
     </div>
-    {actionLabel && actionHref ? (
-      <Link to={actionHref} className="inline-flex items-center gap-2 rounded-elite px-4 py-3 text-sm font-black text-white transition-all hover:brightness-110" style={{ backgroundColor: 'var(--primary)' }}>
-        {actionLabel}
-      </Link>
-    ) : actionLabel && onAction ? (
-      <button type="button" onClick={onAction} className="inline-flex items-center gap-2 rounded-elite px-4 py-3 text-sm font-black text-white transition-all hover:brightness-110" style={{ backgroundColor: 'var(--primary)' }}>
-        {actionLabel}
+
+    <form onSubmit={onSubmit} className="mt-4 space-y-3">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-1">
+        <Field label="Nom complet" value={customer.fullName} onChange={(value) => onCustomerChange('fullName', value)} required />
+        <Field label="Cabinet" value={customer.clinic} onChange={(value) => onCustomerChange('clinic', value)} required />
+        <Field label="Téléphone" value={customer.phone} onChange={(value) => onCustomerChange('phone', value)} required inputMode="tel" />
+        <Field label="Email" value={customer.email} onChange={(value) => onCustomerChange('email', value)} required type="email" />
+        <Field label="Ville" value={customer.city} onChange={(value) => onCustomerChange('city', value)} required />
+      </div>
+      <label className="block">
+        <span className="text-xs font-black text-text-muted">Note</span>
+        <textarea
+          value={customer.note}
+          onChange={(event) => onCustomerChange('note', event.target.value)}
+          rows={2}
+          className="mt-1 w-full rounded-elite border border-border-main bg-input-field px-3 py-2 text-sm font-semibold text-text-main outline-none focus:ring-2 focus:ring-primary/10"
+          placeholder="Précision facultative"
+        />
+      </label>
+
+      {successMessage && (
+        <div className="flex gap-2 rounded-elite border border-emerald-200 bg-emerald-50 p-3 text-sm font-semibold text-emerald-800" role="status">
+          <CheckCircle2 size={17} className="mt-0.5 shrink-0" /> {successMessage}
+        </div>
+      )}
+      {errorMessage && (
+        <div className="flex gap-2 rounded-elite border border-red-200 bg-red-50 p-3 text-sm font-semibold text-red-800" role="alert">
+          <AlertCircle size={17} className="mt-0.5 shrink-0" /> {errorMessage}
+        </div>
+      )}
+
+      <button
+        type="submit"
+        disabled={submitting || cartLines.length === 0}
+        className="w-full rounded-elite px-4 py-3 text-sm font-black text-white transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-offset-2"
+        style={{ backgroundColor: 'var(--primary)' }}
+      >
+        {submitting ? 'Enregistrement…' : 'Enregistrer la commande'}
       </button>
-    ) : null}
+      <p className="text-center text-[11px] font-semibold leading-relaxed text-text-muted">
+        Cette action crée une commande DRAFT dans DigitalCrown. Elle n'est pas encore transmise au fournisseur.
+      </p>
+    </form>
   </div>
 );
 
-const SummaryRow: React.FC<{ label: string; value: string; strong?: boolean }> = ({ label, value, strong = false }) => (
-  <div className="flex items-center justify-between text-sm">
-    <span className="text-text-muted">{label}</span>
-    <span className={cn('text-text-main', strong ? 'font-black text-base' : 'font-semibold')}>{value}</span>
-  </div>
-);
-
-const OrderField: React.FC<{
+const Field = ({
+  label,
+  value,
+  onChange,
+  required = false,
+  type = 'text',
+  inputMode,
+}: {
   label: string;
   value: string;
   onChange: (value: string) => void;
   required?: boolean;
-  type?: string;
-}> = ({ label, value, onChange, required = false, type = 'text' }) => (
-  <div>
-    <label className="text-[10px] uppercase tracking-[0.28em] font-black text-text-muted">{label}</label>
+  type?: React.HTMLInputTypeAttribute;
+  inputMode?: React.HTMLAttributes<HTMLInputElement>['inputMode'];
+}) => (
+  <label className="block">
+    <span className="text-xs font-black text-text-muted">{label}</span>
     <input
       type={type}
+      inputMode={inputMode}
+      value={value}
+      onChange={(event) => onChange(event.target.value)}
       required={required}
-      value={value}
-      onChange={(event) => onChange(event.target.value)}
-      className="mt-2 w-full rounded-elite border border-border-main bg-input-field px-4 py-3 text-sm font-medium text-text-main outline-none focus:ring-2 focus:ring-primary/10"
+      className="mt-1 w-full rounded-elite border border-border-main bg-input-field px-3 py-2 text-sm font-semibold text-text-main outline-none focus:ring-2 focus:ring-primary/10"
     />
-  </div>
+  </label>
 );
 
-const OrderTextArea: React.FC<{ label: string; value: string; onChange: (value: string) => void }> = ({ label, value, onChange }) => (
-  <div>
-    <label className="text-[10px] uppercase tracking-[0.28em] font-black text-text-muted">{label}</label>
-    <textarea
-      rows={4}
-      value={value}
-      onChange={(event) => onChange(event.target.value)}
-      className="mt-2 w-full rounded-elite border border-border-main bg-input-field px-4 py-3 text-sm font-medium text-text-main outline-none focus:ring-2 focus:ring-primary/10"
-    />
+const StateCard = ({
+  title,
+  description,
+  actionLabel,
+  onAction,
+}: {
+  title: string;
+  description: string;
+  actionLabel?: string;
+  onAction?: () => void;
+}) => (
+  <div className="rounded-elite-lg border border-border-main bg-card-bg p-8 text-center shadow-elite">
+    <Package size={28} className="mx-auto text-text-muted" />
+    <h3 className="mt-3 font-outfit text-xl font-black text-text-main">{title}</h3>
+    <p className="mx-auto mt-2 max-w-lg text-sm font-medium leading-relaxed text-text-muted">{description}</p>
+    {actionLabel && onAction && (
+      <button
+        type="button"
+        onClick={onAction}
+        className="mt-4 rounded-elite px-4 py-2 text-sm font-black text-white focus:outline-none focus:ring-2 focus:ring-offset-2"
+        style={{ backgroundColor: 'var(--primary)' }}
+      >
+        {actionLabel}
+      </button>
+    )}
   </div>
 );
-
-export default PartnerMarketplacePage;

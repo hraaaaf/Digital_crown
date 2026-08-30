@@ -5,7 +5,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from backend import database, models
-from backend.routers.auth import require_permission, require_superadmin
+from backend.routers.auth import is_superadmin_user, require_permission, require_superadmin
 
 router = APIRouter()
 
@@ -134,6 +134,13 @@ def _coerce_availability(value: str) -> models.PartnerProductAvailability:
         raise HTTPException(status_code=422, detail=f"Disponibilite invalide: {value}") from error
 
 
+def _validate_pagination(offset: int, limit: Optional[int], *, max_limit: int) -> None:
+    if offset < 0:
+        raise HTTPException(status_code=422, detail="offset doit etre positif ou nul.")
+    if limit is not None and (limit < 1 or limit > max_limit):
+        raise HTTPException(status_code=422, detail=f"limit doit etre compris entre 1 et {max_limit}.")
+
+
 def _get_supplier_or_404(db: Session, employer_id: int, supplier_id: int) -> models.PartnerSupplier:
     supplier = (
         db.query(models.PartnerSupplier)
@@ -156,6 +163,16 @@ def _get_product_or_404(db: Session, employer_id: int, product_id: int) -> model
     return product
 
 
+def _ensure_supplier_visible(supplier: models.PartnerSupplier, current_user: models.User) -> None:
+    if not supplier.is_active and not is_superadmin_user(current_user):
+        raise HTTPException(status_code=404, detail="Fournisseur partenaire introuvable")
+
+
+def _ensure_product_visible(product: models.PartnerCatalogProduct, current_user: models.User) -> None:
+    if product.supplier and not product.supplier.is_active and not is_superadmin_user(current_user):
+        raise HTTPException(status_code=404, detail="Produit partenaire introuvable")
+
+
 @router.get("/meta")
 def get_partner_catalog_meta(current_user: models.User = Depends(require_permission("patients"))):
     return {
@@ -167,16 +184,20 @@ def get_partner_catalog_meta(current_user: models.User = Depends(require_permiss
 
 @router.get("/suppliers")
 def list_suppliers(
+    offset: int = 0,
+    limit: Optional[int] = None,
     db: Session = Depends(database.get_db),
     current_user: models.User = Depends(require_permission("patients"))
 ):
+    _validate_pagination(offset, limit, max_limit=200)
     employer_id = current_user.get_employer_id()
-    suppliers = (
-        db.query(models.PartnerSupplier)
-        .filter(models.PartnerSupplier.employer_id == employer_id)
-        .order_by(models.PartnerSupplier.name.asc())
-        .all()
-    )
+    query = db.query(models.PartnerSupplier).filter(models.PartnerSupplier.employer_id == employer_id)
+    if not is_superadmin_user(current_user):
+        query = query.filter(models.PartnerSupplier.is_active.is_(True))
+    query = query.order_by(models.PartnerSupplier.name.asc()).offset(offset)
+    if limit is not None:
+        query = query.limit(limit)
+    suppliers = query.all()
     return [_serialize_supplier(supplier) for supplier in suppliers]
 
 
@@ -188,6 +209,7 @@ def get_supplier(
 ):
     employer_id = current_user.get_employer_id()
     supplier = _get_supplier_or_404(db, employer_id, supplier_id)
+    _ensure_supplier_visible(supplier, current_user)
     return _serialize_supplier(supplier)
 
 
@@ -260,34 +282,43 @@ def list_products(
     category: Optional[str] = Query(default=None),
     specialty: Optional[str] = Query(default=None),
     q: Optional[str] = Query(default=None),
+    offset: int = 0,
+    limit: Optional[int] = None,
     db: Session = Depends(database.get_db),
     current_user: models.User = Depends(require_permission("patients"))
 ):
+    _validate_pagination(offset, limit, max_limit=500)
     employer_id = current_user.get_employer_id()
     query = (
         db.query(models.PartnerCatalogProduct)
         .filter(models.PartnerCatalogProduct.employer_id == employer_id)
         .join(models.PartnerSupplier)
     )
+    if not is_superadmin_user(current_user):
+        query = query.filter(models.PartnerSupplier.is_active.is_(True))
     if supplier_id:
         query = query.filter(models.PartnerCatalogProduct.supplier_id == supplier_id)
     if category:
         query = query.filter(models.PartnerCatalogProduct.dental_category == category)
     if specialty:
         query = query.filter(models.PartnerCatalogProduct.dental_specialty == specialty)
-    if q:
+    if q and q.strip():
         pattern = f"%{q.strip()}%"
         query = query.filter(
             models.PartnerCatalogProduct.name.ilike(pattern) |
             models.PartnerCatalogProduct.sku.ilike(pattern) |
-            models.PartnerCatalogProduct.short_description.ilike(pattern)
+            models.PartnerCatalogProduct.short_description.ilike(pattern) |
+            models.PartnerCatalogProduct.long_description.ilike(pattern)
         )
-    products = query.order_by(
+    query = query.order_by(
         models.PartnerCatalogProduct.dental_category.asc(),
         models.PartnerCatalogProduct.dental_specialty.asc(),
         models.PartnerCatalogProduct.sort_order.asc(),
         models.PartnerCatalogProduct.name.asc(),
-    ).all()
+    ).offset(offset)
+    if limit is not None:
+        query = query.limit(limit)
+    products = query.all()
     return [_serialize_product(product) for product in products]
 
 
@@ -299,6 +330,7 @@ def get_product(
 ):
     employer_id = current_user.get_employer_id()
     product = _get_product_or_404(db, employer_id, product_id)
+    _ensure_product_visible(product, current_user)
     return _serialize_product(product)
 
 

@@ -1,0 +1,161 @@
+name: Mobile Clean Visual Evidence
+
+on:
+  push:
+    branches: [mobile/sim-cert]
+  workflow_dispatch:
+
+concurrency:
+  group: mobile-clean-visual-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  ios-clean:
+    name: iOS MobileSafari clean visual evidence
+    runs-on: macos-26
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install frontend
+        working-directory: frontend
+        run: npm ci
+      - name: Start HTTPS frontend
+        run: |
+          mkdir -p certs artifacts/mobile-clean/ios
+          openssl req -x509 -newkey rsa:2048 -nodes -keyout certs/key.pem -out certs/cert.pem -days 1 -subj "/CN=localhost" -addext "subjectAltName=DNS:localhost,IP:127.0.0.1"
+          cd frontend
+          VITE_ENABLE_HTTPS=true npm run dev -- --host 0.0.0.0 --port 5173 >/tmp/vite-ios.log 2>&1 &
+          for i in {1..60}; do curl -kfsS https://localhost:5173 >/dev/null && exit 0; sleep 1; done
+          cat /tmp/vite-ios.log
+          exit 1
+      - name: Boot iPhone and capture product
+        run: |
+          UDID=$(xcrun simctl list devices available | grep 'iPhone' | head -1 | sed -E 's/.*\(([0-9A-F-]{36})\).*/\1/')
+          test -n "$UDID"
+          xcrun simctl boot "$UDID" || true
+          xcrun simctl bootstatus "$UDID" -b
+          xcrun simctl keychain "$UDID" add-root-cert "$GITHUB_WORKSPACE/certs/cert.pem"
+          xcrun simctl launch "$UDID" com.apple.mobilesafari || true
+          xcrun simctl openurl "$UDID" "https://localhost:5173/mobile/onboarding"
+          sleep 15
+          xcrun simctl io "$UDID" screenshot artifacts/mobile-clean/ios/onboarding-after-15s.png
+          xcrun simctl spawn "$UDID" log show --last 2m --style compact --predicate 'process == "MobileSafari" OR process == "com.apple.WebKit.WebContent"' > artifacts/mobile-clean/ios/webkit.log 2>&1 || true
+          printf 'head=%s\nudid=%s\nurl=https://localhost:5173/mobile/onboarding\n' '${{ github.sha }}' "$UDID" > artifacts/mobile-clean/ios/result.txt
+          cp /tmp/vite-ios.log artifacts/mobile-clean/ios/vite.log
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: mobile-clean-ios
+          path: artifacts/mobile-clean/ios
+          if-no-files-found: error
+          retention-days: 14
+
+  android-clean:
+    name: Android Chrome clean visual evidence
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install and start frontend
+        working-directory: frontend
+        run: |
+          npm ci
+          npm run dev -- --host 0.0.0.0 --port 5173 >/tmp/vite-android.log 2>&1 &
+          for i in {1..60}; do curl -fsS http://127.0.0.1:5173 >/dev/null && exit 0; sleep 1; done
+          cat /tmp/vite-android.log
+          exit 1
+      - name: Prepare Android CDP diagnostic
+        run: |
+          cat > /tmp/android-cdp.mjs <<'EOF'
+          import fs from 'node:fs';
+          const pages = JSON.parse(fs.readFileSync('artifacts/mobile-clean/android/devtools-pages.json', 'utf8'));
+          const page = pages.find((item) => item.type === 'page') ?? pages[0];
+          const wsUrl = page?.webSocketDebuggerUrl;
+          if (!wsUrl) throw new Error('No Chrome DevTools websocket');
+          const ws = new WebSocket(wsUrl);
+          let nextId = 1;
+          const pending = new Map();
+          const events = [];
+          ws.addEventListener('message', (event) => {
+            const msg = JSON.parse(event.data);
+            if (msg.id && pending.has(msg.id)) {
+              const resolve = pending.get(msg.id);
+              pending.delete(msg.id);
+              resolve(msg);
+            } else if (['Runtime.exceptionThrown','Runtime.consoleAPICalled','Log.entryAdded'].includes(msg.method)) {
+              events.push(msg);
+            }
+          });
+          await new Promise((resolve, reject) => {
+            ws.addEventListener('open', resolve, { once: true });
+            ws.addEventListener('error', reject, { once: true });
+          });
+          const send = (method, params = {}) => new Promise((resolve) => {
+            const id = nextId++;
+            pending.set(id, resolve);
+            ws.send(JSON.stringify({ id, method, params }));
+          });
+          await send('Runtime.enable');
+          await send('Log.enable');
+          const expression = `(() => { const root = document.getElementById('root'); return { href: location.href, readyState: document.readyState, title: document.title, isSecureContext: window.isSecureContext, rootExists: !!root, rootChildCount: root?.childElementCount ?? null, rootHtml: root?.innerHTML?.slice(0,4000) ?? null, shellExists: !!document.querySelector('[data-dc-mobile-shell]'), bodyText: document.body?.innerText?.slice(0,4000) ?? null, bodyHtml: document.body?.innerHTML?.slice(0,6000) ?? null, bodyBg: getComputedStyle(document.body).backgroundColor, rootDisplay: root ? getComputedStyle(root).display : null, userAgent: navigator.userAgent, resources: performance.getEntriesByType('resource').slice(-30).map((entry) => entry.name) }; })()`;
+          const snapshot = async (name) => {
+            const response = await send('Runtime.evaluate', { expression, returnByValue: true, awaitPromise: true });
+            fs.writeFileSync(`artifacts/mobile-clean/android/${name}.json`, JSON.stringify(response, null, 2));
+          };
+          await snapshot('dom-at-7s');
+          await new Promise((resolve) => setTimeout(resolve, 18000));
+          await snapshot('dom-at-25s');
+          fs.writeFileSync('artifacts/mobile-clean/android/cdp-events.json', JSON.stringify(events, null, 2));
+          ws.close();
+          EOF
+      - name: Enable KVM
+        run: if [ -e /dev/kvm ]; then sudo chmod 666 /dev/kvm; fi
+      - name: Capture and diagnose Android Chrome
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 35
+          target: google_apis
+          arch: x86_64
+          profile: pixel_7
+          disable-animations: true
+          emulator-options: -no-snapshot -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -no-metrics
+          script: |
+            mkdir -p artifacts/mobile-clean/android
+            adb wait-for-device
+            sleep 12
+            adb logcat -c || true
+            adb shell am force-stop com.android.chrome || true
+            adb shell 'echo "chrome --disable-fre --no-default-browser-check --enable-logging=stderr --v=1 --remote-debugging-port=9222" > /data/local/tmp/chrome-command-line' || true
+            adb shell am start -W -a android.intent.action.VIEW -d "http://10.0.2.2:5173/mobile/onboarding" com.android.chrome
+            sleep 7
+            adb exec-out screencap -p > artifacts/mobile-clean/android/before.png
+            adb forward tcp:9222 localabstract:chrome_devtools_remote || true
+            for i in $(seq 1 15); do curl -fsS http://127.0.0.1:9222/json/version > artifacts/mobile-clean/android/devtools-version.json && break || sleep 1; done
+            for i in $(seq 1 15); do curl -fsS http://127.0.0.1:9222/json/list > artifacts/mobile-clean/android/devtools-pages.json && test -s artifacts/mobile-clean/android/devtools-pages.json && break || sleep 1; done
+            node --experimental-websocket /tmp/android-cdp.mjs || true
+            adb logcat -d > artifacts/mobile-clean/android/logcat.txt || true
+            grep -Eai 'chromium|console|uncaught|typeerror|referenceerror|syntaxerror|failed to load|ERR_' artifacts/mobile-clean/android/logcat.txt > artifacts/mobile-clean/android/chrome-errors.txt || true
+            adb shell input tap 455 1790 || true
+            sleep 3
+            adb shell input keyevent 4 || true
+            sleep 2
+            adb exec-out screencap -p > artifacts/mobile-clean/android/onboarding-clean.png
+            printf 'head=%s\nurl=http://10.0.2.2:5173/mobile/onboarding\n' '${{ github.sha }}' > artifacts/mobile-clean/android/result.txt
+            cp /tmp/vite-android.log artifacts/mobile-clean/android/vite.log
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: mobile-clean-android
+          path: artifacts/mobile-clean/android
+          if-no-files-found: error
+          retention-days: 14
