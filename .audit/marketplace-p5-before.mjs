@@ -123,9 +123,6 @@ const json = (body, status = 200) => ({
 });
 
 function makeToken() {
-  // authService.isTokenExpired() utilise directement atob() sur le payload.
-  // Le harness emploie donc du base64 standard (pas base64url) pour tester
-  // exactement ce contrat frontend sans dépendre d'une signature serveur.
   const encode = (value) => Buffer.from(JSON.stringify(value)).toString('base64');
   return `${encode({ alg: 'none', typ: 'JWT' })}.${encode({ sub: user.id, exp: Math.floor(Date.now() / 1000) + 7200 })}.baseline`;
 }
@@ -178,9 +175,10 @@ async function installApiMocks(page) {
 await rm(OUTPUT_DIR, { recursive: true, force: true });
 await mkdir(OUTPUT_DIR, { recursive: true });
 
+const viteEntrypoint = path.join(FRONTEND_DIR, 'node_modules', 'vite', 'bin', 'vite.js');
 const server = spawn(
-  process.platform === 'win32' ? 'npm.cmd' : 'npm',
-  ['run', 'dev', '--', '--host', '127.0.0.1', '--port', '5178'],
+  process.execPath,
+  [viteEntrypoint, '--host', '127.0.0.1', '--port', '5178'],
   {
     cwd: FRONTEND_DIR,
     env: { ...process.env, BROWSER: 'none' },
@@ -269,7 +267,16 @@ try {
   }
 } finally {
   if (browser) await browser.close();
-  server.kill('SIGTERM');
+  if (server.exitCode === null) {
+    server.kill('SIGTERM');
+    await Promise.race([
+      new Promise((resolve) => server.once('exit', resolve)),
+      new Promise((resolve) => setTimeout(resolve, 3000)),
+    ]);
+  }
+  if (server.exitCode === null) server.kill('SIGKILL');
+  server.stdout.destroy();
+  server.stderr.destroy();
   await writeFile(path.join(OUTPUT_DIR, 'vite.log'), serverLog, 'utf8');
 }
 
