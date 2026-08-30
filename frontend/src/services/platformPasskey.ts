@@ -10,6 +10,7 @@ type PlatformPasskeyStatus = {
   expected_origin: string;
   origin_ready: boolean;
   user_verification: 'required';
+  step_up_valid: boolean;
 };
 
 type StepUpResult = {
@@ -151,19 +152,31 @@ async function authenticatePlatformPasskey(apiBase: string): Promise<void> {
   rememberStepUp(result.expires_in);
 }
 
+async function fetchPlatformStatus(apiBase: string): Promise<PlatformPasskeyStatus> {
+  const status = await platformFetch<PlatformPasskeyStatus>(apiBase, '/status');
+  assertWebAuthnReady(status.expected_origin);
+  enrollmentKnown = status.enrolled;
+  return status;
+}
+
 /**
  * Complete a WebAuthn user-verification ceremony when the current proof window
  * is absent or close to expiry. The proof itself stays in an HttpOnly cookie;
- * frontend memory stores only the expiry timestamp.
+ * frontend memory stores only the expiry timestamp. Cached client time is never
+ * sufficient by itself: the backend confirms that the scoped cookie still exists
+ * and verifies before any privileged mutation reuses it.
  */
 export async function ensurePlatformStepUp(apiBase: string): Promise<void> {
-  if (Date.now() < stepUpValidUntil) return;
   assertWebAuthnReady();
 
+  if (Date.now() < stepUpValidUntil) {
+    const status = await fetchPlatformStatus(apiBase);
+    if (status.step_up_valid) return;
+    stepUpValidUntil = 0;
+  }
+
   if (!enrollmentKnown) {
-    const status = await platformFetch<PlatformPasskeyStatus>(apiBase, '/status');
-    assertWebAuthnReady(status.expected_origin);
-    enrollmentKnown = status.enrolled;
+    await fetchPlatformStatus(apiBase);
   }
 
   if (enrollmentKnown) {
