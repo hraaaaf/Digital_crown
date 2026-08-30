@@ -1,0 +1,80 @@
+name: Marketplace P5 AFTER Certification
+
+on:
+  pull_request:
+    paths:
+      - 'frontend/src/pages/PartnerMarketplacePage.tsx'
+      - '.audit/marketplace-p5-after.mjs'
+      - '.github/workflows/marketplace-p5-after.yml'
+      - 'docs/marketplace/P5_UI_REFERENCE.md'
+      - 'docs/marketplace/P5_UI_REFERENCE.svg'
+  workflow_dispatch:
+
+jobs:
+  capture-after:
+    name: Marketplace P5 AFTER 390/430/768/1280
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout exact head
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+
+      - name: Record product HEAD
+        run: |
+          PRODUCT_HEAD=$(git rev-parse HEAD)
+          echo "PRODUCT_HEAD=$PRODUCT_HEAD" >> "$GITHUB_ENV"
+          test "$PRODUCT_HEAD" = "${{ github.event.pull_request.head.sha || github.sha }}"
+
+      - name: Setup Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install frontend and Chromium
+        working-directory: frontend
+        run: |
+          npm ci
+          npm install --no-save --package-lock=false --ignore-scripts playwright@1.62.1
+          npx playwright install --with-deps chromium
+          test ! -e ../node_modules
+          ln -s "$PWD/node_modules" ../node_modules
+
+      - name: Capture Marketplace AFTER
+        working-directory: frontend
+        env:
+          PRODUCT_HEAD: ${{ env.PRODUCT_HEAD }}
+        run: node ../.audit/marketplace-p5-after.mjs
+
+      - name: Assert AFTER artifact contract
+        working-directory: frontend
+        env:
+          PRODUCT_HEAD: ${{ env.PRODUCT_HEAD }}
+        run: |
+          node --input-type=module <<'NODE'
+          import { readFileSync } from 'node:fs';
+          const report = JSON.parse(readFileSync('marketplace-p5-after-artifacts/report.json', 'utf8'));
+          if (report.productHead !== process.env.PRODUCT_HEAD) throw new Error('P5 AFTER product HEAD mismatch');
+          if (report.beforeRun !== 5) throw new Error('P5 AFTER must compare against BEFORE run #5');
+          if (report.captures.length !== 4) throw new Error(`Expected 4 captures, got ${report.captures.length}`);
+          if (report.invalidCount !== 0) throw new Error(`P5 AFTER invalid captures: ${report.invalidCount}`);
+          console.table(report.captures.map(({ viewport, metrics }) => ({
+            viewport,
+            h1FullyVisible: metrics.h1FullyVisible,
+            searchTop: metrics.searchTop,
+            firstProductTop: metrics.firstProductTop,
+            overflow: metrics.hasHorizontalOverflow,
+            internalCommercialCopy: metrics.hasInternalCommercialCopy,
+          })));
+          NODE
+
+      - name: Upload Marketplace AFTER artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: marketplace-p5-after
+          path: frontend/marketplace-p5-after-artifacts/
+          if-no-files-found: error
+          retention-days: 30
