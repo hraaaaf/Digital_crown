@@ -176,6 +176,15 @@ async def get_current_user(
     if user is None or not user.is_active:
         raise credentials_exception
 
+    # Platform administration must never inherit authority from a mobile session.
+    # A paired cabinet device is intentionally a different trust boundary from the
+    # dedicated control-plane web session, even when both resolve to the same user id.
+    if request.url.path.startswith("/api/superadmin") and token_type != "access":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Accès plateforme réservé à une session web privilégiée.",
+        )
+
     await _enforce_signed_license_for_mutation(request, db, user)
     return user
 
