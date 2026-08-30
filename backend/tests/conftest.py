@@ -41,6 +41,7 @@ def _create_tables():
         models_mobile_passkey,
         models_mobile_push,
         models_platform,
+        models_platform_passkey,
     )
     database.engine = _engine
     database.SessionLocal = _SessionLocal
@@ -77,7 +78,7 @@ def client(db, request):
         dans ce fixture générique ; les tests SEC-1 testent require_elite_license
         directement et les scénarios API de plateforme séparément
       - le step-up Superadmin est mocké pour les tests métier génériques, sauf dans
-        test_superadmin_session_boundary.py qui exerce le vrai garde de sécurité
+        les tests Superadmin de frontière/intégration qui exercent le vrai garde
       - rate limiter désactivé
     """
     from backend import models
@@ -108,10 +109,13 @@ def client(db, request):
     # generic suite from depending on a real control-plane key/trust anchor.
     app.dependency_overrides[auth.require_elite_license] = _override_elite_license
 
-    is_step_up_boundary_test = request.node.path.name == "test_superadmin_session_boundary.py"
+    real_step_up_tests = {
+        "test_superadmin_session_boundary.py",
+        "test_superadmin_platform_passkey.py",
+    }
     step_up_context = (
         nullcontext()
-        if is_step_up_boundary_test
+        if request.node.path.name in real_step_up_tests
         else patch("backend.routers.superadmin.enforce_platform_step_up_for_mutation", return_value=None)
     )
 
