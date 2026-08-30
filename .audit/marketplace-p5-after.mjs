@@ -43,8 +43,18 @@ const products = [
   { id: 202, supplierId: 12, supplierName: 'Medident Pro', externalProductId: 'MDP-202', name: 'Localisateur d’apex compact', sku: 'APEX-C1', dentalCategory: 'Endodontie', dentalSpecialty: 'Endodontie', unit: 'unité', price: 2450, availability: 'ON_REQUEST', shortDescription: 'Localisateur d’apex compact pour endodontie quotidienne.', longDescription: 'Écran lisible et protocole de mesure simple.', benefits: ['Compact', 'Lecture rapide'], isFeatured: true, sortOrder: 2 },
   { id: 203, supplierId: 12, supplierName: 'Medident Pro', externalProductId: 'MDP-203', name: 'Kit instrumentation parodontale', sku: 'PARO-KIT', dentalCategory: 'Instrumentation', dentalSpecialty: 'Parodontie', unit: 'kit', price: 690, availability: 'AVAILABLE', shortDescription: 'Kit de curettes et sondes pour maintenance parodontale.', longDescription: 'Instrumentation inox organisée par indication.', benefits: ['Inox', 'Kit complet'], isFeatured: false, sortOrder: 3 },
 ];
-const catalogMeta = { categories: ['Consommables', 'Restauration', 'Endodontie', 'Instrumentation'], specialties: ['Omnipratique', 'Endodontie', 'Dentisterie pédiatrique', 'Chirurgie orale', 'Parodontie'], availability: ['AVAILABLE', 'ON_REQUEST', 'DISCONTINUED'] };
-const clinicProfile = { nom_praticien: 'Dr Baseline', nom_cabinet: 'Cabinet Atlas', selected_theme: 'elite', selected_template: 'swiss', font_fr: 'inter', primary_color: '#003380', secondary_color: '#1e40af', accent_color: '#60a5fa', show_patient_badges: true, performance_mode: false, clinical_tips_enabled: true, header_lines_fr: ['Dr Baseline', 'Chirurgien Dentiste'], specialty_ids: [] };
+
+const catalogMeta = {
+  categories: ['Consommables', 'Restauration', 'Endodontie', 'Instrumentation'],
+  specialties: ['Omnipratique', 'Endodontie', 'Dentisterie pédiatrique', 'Chirurgie orale', 'Parodontie'],
+  availability: ['AVAILABLE', 'ON_REQUEST', 'DISCONTINUED'],
+};
+const clinicProfile = {
+  nom_praticien: 'Dr Baseline', nom_cabinet: 'Cabinet Atlas', selected_theme: 'elite', selected_template: 'swiss',
+  font_fr: 'inter', primary_color: '#003380', secondary_color: '#1e40af', accent_color: '#60a5fa',
+  show_patient_badges: true, performance_mode: false, clinical_tips_enabled: true,
+  header_lines_fr: ['Dr Baseline', 'Chirurgien Dentiste'], specialty_ids: [],
+};
 const json = (body, status = 200) => ({ status, contentType: 'application/json', body: JSON.stringify(body) });
 const encode = (value) => Buffer.from(JSON.stringify(value)).toString('base64');
 const token = `${encode({ alg: 'none', typ: 'JWT' })}.${encode({ sub: user.id, exp: Math.floor(Date.now() / 1000) + 7200 })}.after`;
@@ -52,13 +62,16 @@ const token = `${encode({ alg: 'none', typ: 'JWT' })}.${encode({ sub: user.id, e
 async function waitForServer(url, timeoutMs = 30000) {
   const startedAt = Date.now();
   while (Date.now() - startedAt < timeoutMs) {
-    try { const response = await fetch(url); if (response.ok) return; } catch {}
+    try {
+      const response = await fetch(url);
+      if (response.ok) return;
+    } catch {}
     await new Promise((resolve) => setTimeout(resolve, 250));
   }
   throw new Error(`Vite server unavailable at ${url}`);
 }
 
-async function installApiMocks(page) {
+async function installApiMocks(page, orderPosts) {
   await page.route(/https?:\/\/[^/]+:8005\/.*/, async (route) => {
     const request = route.request();
     const pathname = new URL(request.url()).pathname.replace(/\/$/, '');
@@ -70,7 +83,10 @@ async function installApiMocks(page) {
     if (pathname === '/api/partner-catalog/meta') return route.fulfill(json(catalogMeta));
     if (pathname === '/api/partner-catalog/suppliers') return route.fulfill(json(suppliers));
     if (pathname === '/api/partner-catalog/products') return route.fulfill(json(products));
-    if (pathname === '/api/partner-orders' && request.method() === 'POST') return route.fulfill(json({ orderNumber: 'LOT-P5-AFTER', strategyLabel: strategyPresets[0].label }, 201));
+    if (pathname === '/api/partner-orders' && request.method() === 'POST') {
+      orderPosts.push(request.postDataJSON());
+      return route.fulfill(json({ orderNumber: 'LOT-P5-AFTER', strategyLabel: strategyPresets[0].label }, 201));
+    }
     return route.fulfill(json({}));
   });
 }
@@ -78,43 +94,66 @@ async function installApiMocks(page) {
 await rm(OUTPUT_DIR, { recursive: true, force: true });
 await mkdir(OUTPUT_DIR, { recursive: true });
 const viteBin = path.join(FRONTEND_DIR, 'node_modules', '.bin', process.platform === 'win32' ? 'vite.cmd' : 'vite');
-const server = spawn(viteBin, ['--host', '127.0.0.1', '--port', '5178'], { cwd: FRONTEND_DIR, env: { ...process.env, BROWSER: 'none' }, stdio: ['ignore', 'pipe', 'pipe'] });
+const server = spawn(viteBin, ['--host', '127.0.0.1', '--port', '5178'], {
+  cwd: FRONTEND_DIR,
+  env: { ...process.env, BROWSER: 'none' },
+  stdio: ['ignore', 'pipe', 'pipe'],
+});
 let serverLog = '';
 server.stdout.on('data', (chunk) => { serverLog += chunk.toString(); });
 server.stderr.on('data', (chunk) => { serverLog += chunk.toString(); });
 let browser;
 const captures = [];
+let checkoutProof = null;
 
 try {
   await waitForServer('http://127.0.0.1:5178');
   browser = await chromium.launch({ headless: true });
+
   for (const viewport of viewports) {
-    const context = await browser.newContext({ viewport: { width: viewport.width, height: viewport.height }, deviceScaleFactor: 1, reducedMotion: 'reduce', locale: 'fr-FR' });
+    const context = await browser.newContext({
+      viewport: { width: viewport.width, height: viewport.height },
+      deviceScaleFactor: 1,
+      reducedMotion: 'reduce',
+      locale: 'fr-FR',
+    });
     await context.addInitScript(({ authToken, baselineUser }) => {
-      localStorage.clear(); sessionStorage.clear();
+      localStorage.clear();
+      sessionStorage.clear();
       localStorage.setItem('token', authToken);
       localStorage.setItem('appMode', 'prod');
       localStorage.setItem('auth-storage', JSON.stringify({ state: { user: baselineUser, isAuthenticated: true }, version: 0 }));
       localStorage.setItem('app_background_animated', 'false');
     }, { authToken: token, baselineUser: user });
+
     const page = await context.newPage();
-    const pageErrors = []; const consoleErrors = [];
+    const pageErrors = [];
+    const consoleErrors = [];
+    const orderPosts = [];
     page.on('pageerror', (error) => pageErrors.push(error.message));
-    page.on('console', (message) => { if (message.type() === 'error') consoleErrors.push(message.text()); });
-    await installApiMocks(page);
+    page.on('console', (message) => {
+      if (message.type() === 'error') consoleErrors.push(message.text());
+    });
+    await installApiMocks(page, orderPosts);
+
     const response = await page.goto(APP_URL, { waitUntil: 'domcontentloaded', timeout: 30000 });
     await page.getByRole('heading', { name: 'Acheter pour le cabinet' }).waitFor({ state: 'visible', timeout: 30000 });
     await page.getByRole('searchbox', { name: 'Rechercher dans le catalogue' }).waitFor({ state: 'visible', timeout: 30000 });
-    await page.getByText('Gants nitrile premium').first().waitFor({ state: 'visible', timeout: 30000 });
+    await page.locator('main article').first().waitFor({ state: 'visible', timeout: 30000 });
+
     const metrics = await page.evaluate(() => {
-      const doc = document.documentElement; const body = document.body;
+      const doc = document.documentElement;
+      const body = document.body;
       const h1 = document.querySelector('h1');
       const search = document.querySelector('#marketplace-search');
-      const firstProduct = Array.from(document.querySelectorAll('article')).find((node) => node.textContent?.includes('Gants nitrile premium')) || document.querySelector('article');
-      const h1Rect = h1?.getBoundingClientRect(); const searchRect = search?.getBoundingClientRect(); const productRect = firstProduct?.getBoundingClientRect();
+      const firstProduct = document.querySelector('main article');
+      const h1Rect = h1?.getBoundingClientRect();
+      const searchRect = search?.getBoundingClientRect();
+      const productRect = firstProduct?.getBoundingClientRect();
       const text = body.innerText;
       return {
-        innerWidth: window.innerWidth, innerHeight: window.innerHeight,
+        innerWidth: window.innerWidth,
+        innerHeight: window.innerHeight,
         scrollWidth: Math.max(doc.scrollWidth, body.scrollWidth),
         hasHorizontalOverflow: Math.max(doc.scrollWidth, body.scrollWidth) > window.innerWidth + 1,
         h1FullyVisible: Boolean(h1Rect && h1Rect.left >= 0 && h1Rect.right <= window.innerWidth && h1Rect.top >= 0 && h1Rect.bottom <= window.innerHeight),
@@ -123,13 +162,47 @@ try {
         searchInFirstViewport: Boolean(searchRect && searchRect.top < window.innerHeight),
         firstProductInFirstViewport: Boolean(productRect && productRect.top < window.innerHeight),
         hasInternalCommercialCopy: /revenu simulé|stratégie active|commission sur commande|discount|remise fournisseur/i.test(text),
-        hasDraftDisclosure: text.includes("Cette action crée une commande DRAFT"),
+        hasDraftDisclosure: text.includes('Cette action crée une commande DRAFT'),
         hasCorrectCta: text.includes('Enregistrer la commande'),
       };
     });
+
     const screenshot = `after-${viewport.name}.png`;
     await page.screenshot({ path: path.join(OUTPUT_DIR, screenshot), fullPage: false });
-    captures.push({ viewport: viewport.name, screenshot, httpStatus: response?.status() ?? null, pageErrors, consoleErrors, metrics });
+
+    if (viewport.name === '1280x800') {
+      const urlBefore = page.url();
+      await page.getByRole('button', { name: 'Ajouter une unité de Composite universel nano-hybride' }).click();
+      await page.getByLabel('Nom complet').fill('Dr Test Marketplace');
+      await page.getByLabel('Cabinet').fill('Cabinet Test');
+      await page.getByLabel('Téléphone').fill('0600000000');
+      await page.getByLabel('Email').fill('marketplace@example.test');
+      await page.getByLabel('Ville').fill('Rabat');
+      await page.getByRole('button', { name: 'Enregistrer la commande' }).click();
+      const success = page.getByRole('status');
+      await success.waitFor({ state: 'visible', timeout: 10000 });
+      const successText = await success.innerText();
+      const posted = orderPosts[0];
+      checkoutProof = {
+        postCount: orderPosts.length,
+        sameUrlAfterSubmit: page.url() === urlBefore,
+        successText,
+        lineCount: Array.isArray(posted?.lines) ? posted.lines.length : 0,
+        firstProductId: posted?.lines?.[0]?.productId ?? null,
+        firstQuantity: posted?.lines?.[0]?.quantity ?? null,
+        customerFullName: posted?.customer?.fullName ?? null,
+        draftCopyConfirmed: /DRAFT/.test(successText),
+      };
+    }
+
+    captures.push({
+      viewport: viewport.name,
+      screenshot,
+      httpStatus: response?.status() ?? null,
+      pageErrors,
+      consoleErrors,
+      metrics,
+    });
     await context.close();
   }
 } finally {
@@ -141,16 +214,47 @@ try {
 }
 
 const invalid = captures.filter((capture) =>
-  capture.pageErrors.length > 0 || capture.consoleErrors.length > 0 || capture.metrics.hasHorizontalOverflow ||
-  !capture.metrics.h1FullyVisible || !capture.metrics.searchInFirstViewport || capture.metrics.hasInternalCommercialCopy ||
-  !capture.metrics.hasDraftDisclosure || !capture.metrics.hasCorrectCta ||
+  capture.pageErrors.length > 0 ||
+  capture.consoleErrors.length > 0 ||
+  capture.metrics.hasHorizontalOverflow ||
+  !capture.metrics.h1FullyVisible ||
+  !capture.metrics.searchInFirstViewport ||
+  capture.metrics.hasInternalCommercialCopy ||
+  !capture.metrics.hasDraftDisclosure ||
+  !capture.metrics.hasCorrectCta ||
   (['390x844', '430x932'].includes(capture.viewport) && !capture.metrics.firstProductInFirstViewport)
 );
-const report = { chantier: 'Digital Crown Marketplace', lot: 'P5 UX/UI AFTER', productHead: PRODUCT_HEAD, route: '/approvisionnement', beforeRun: 5, viewports, captures, invalidCount: invalid.length };
+
+const checkoutInvalid = !checkoutProof ||
+  checkoutProof.postCount !== 1 ||
+  !checkoutProof.sameUrlAfterSubmit ||
+  checkoutProof.lineCount !== 1 ||
+  String(checkoutProof.firstProductId) !== '101' ||
+  checkoutProof.firstQuantity !== 1 ||
+  checkoutProof.customerFullName !== 'Dr Test Marketplace' ||
+  !checkoutProof.draftCopyConfirmed;
+
+const report = {
+  chantier: 'Digital Crown Marketplace',
+  lot: 'P5 UX/UI AFTER',
+  productHead: PRODUCT_HEAD,
+  route: '/approvisionnement',
+  beforeRun: 5,
+  viewports,
+  captures,
+  invalidCount: invalid.length,
+  checkoutProof,
+  checkoutInvalid,
+};
 await writeFile(path.join(OUTPUT_DIR, 'report.json'), JSON.stringify(report, null, 2), 'utf8');
-await writeFile(path.join(OUTPUT_DIR, 'metadata.txt'), `product_head=${PRODUCT_HEAD}\nbefore_run=5\nviewports=${viewports.map((v) => v.name).join(',')}\ndeployment=none\n`, 'utf8');
-if (invalid.length) {
-  console.error(JSON.stringify({ invalid }, null, 2));
+await writeFile(
+  path.join(OUTPUT_DIR, 'metadata.txt'),
+  `product_head=${PRODUCT_HEAD}\nbefore_run=5\nviewports=${viewports.map((v) => v.name).join(',')}\ndeployment=none\n`,
+  'utf8',
+);
+
+if (invalid.length || checkoutInvalid) {
+  console.error(JSON.stringify({ invalid, checkoutProof, checkoutInvalid }, null, 2));
   process.exitCode = 1;
 } else {
   console.log(JSON.stringify(report, null, 2));
