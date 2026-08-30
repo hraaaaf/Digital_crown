@@ -41,6 +41,24 @@ Intégration : PR #284 ✅ squash-merged vers `master@222beb22f3be983655c5209386
 
 Aucun code produit/UI existant n'a été modifié par ce lot ; seuls le workflow SIM-CERT, son script WebAuthn virtuel et cette documentation ont été ajoutés. Aucun Vercel.
 
+## Re-certification visuelle — 2026-08-30
+
+**État vérifié : iOS + Android rendent réellement l'onboarding sur le même candidat `0cfd0ebc4fdfd6792701a8cb2226d73ae7402d1d`.**
+
+Preuves :
+
+- `Mobile Clean Visual Evidence` run #7 `33282038508` ✅ SUCCESS ;
+- artifact Android `mobile-clean-android` id `9723318497`, digest `sha256:51a88aff4b48363e00e31195f2070f6c0f59fd92212593c04671d6b606ab334d` ;
+- artifact iOS `mobile-clean-ios` id `9723325886`, digest `sha256:69ee880054aaa0d54fcb28ef94e6c00648c41e54508b64ecb16ecde9873bcbab` ;
+- Android CDP à 7 s : `document.readyState=complete`, `#root` présent avec 1 enfant, `[data-dc-mobile-shell]` présent, texte `Compagnon Mobile` présent, aucune exception runtime capturée ;
+- Android CDP à 25 s : état produit toujours monté ;
+- capture Android finale : logo Digital Crown, `Compagnon Mobile`, bloc Zero-Knowledge, bouton `Scanner le QR Code` et saisie du code 6 chiffres visibles ;
+- iOS Clean Visual sur le même HEAD : job ✅ SUCCESS et artifact produit.
+
+Conclusion de ce diagnostic : le blanc observé auparavant sur Android n'est plus reproductible avec le harness corrigé. La preuve DOM + la capture finale démontrent que React est monté et que l'UI est peinte. Aucun correctif produit Android supplémentaire n'est justifié par cette anomalie ; les derniers changements `6bf473e…` → `0cfd0eb…` concernent le harness de diagnostic.
+
+Re-certification SIM sur le même HEAD : workflow `Mobile OS Simulation Certification` run #12 `33282038513`, artifacts WebAuthn/iOS/Android générés sur `0cfd0ebc4fdfd6792701a8cb2226d73ae7402d1d`.
+
 ## Preuves attendues
 
 Artifacts GitHub Actions :
