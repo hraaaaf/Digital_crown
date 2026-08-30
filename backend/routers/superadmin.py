@@ -31,6 +31,7 @@ router = APIRouter(tags=["SuperAdmin"])
 router.include_router(platform_passkey_router)
 router.include_router(platform_admins_router)
 _LICENSE_DURATIONS = {"1m": 30, "3m": 90, "6m": 180, "1y": 365}
+_ALLOWED_RELEASE_CHANNELS = {"stable", "beta"}
 
 
 def verify_superadmin(
@@ -80,6 +81,28 @@ def _paid_license_permission(effective: dict) -> str:
     if effective.get("active") and str(effective.get("license_type") or "").upper() == "PAID":
         return "license.extend"
     return "license.create_paid"
+
+
+def _preserved_max_devices(effective: dict, default: int = 1) -> int:
+    value = effective.get("max_devices")
+    if isinstance(value, bool) or not isinstance(value, int) or value < 1:
+        return default
+    return value
+
+
+def _preserved_release_channel(effective: dict) -> str:
+    value = str(effective.get("release_channel") or "").lower()
+    return value if value in _ALLOWED_RELEASE_CHANNELS else "stable"
+
+
+def _as_utc_datetime(value) -> datetime | None:
+    if value is None:
+        return None
+    if isinstance(value, str):
+        value = datetime.fromisoformat(value.replace("Z", "+00:00"))
+    if isinstance(value, datetime):
+        return value.replace(tzinfo=timezone.utc) if value.tzinfo is None else value.astimezone(timezone.utc)
+    raise HTTPException(status_code=409, detail="Expiration de licence signée invalide.")
 
 
 def add_license_history(db: Session, user_id: int, admin_id: int, action: str, duration: int = None):
@@ -160,7 +183,8 @@ async def _issue_and_store_signed_license(
     status: str = "ACTIVE",
     max_devices: int | None = 1,
     subject_user_id: int | None = None,
-    feature_set: str = "full",
+    feature_set: str | list[str] = "full",
+    release_channel: str = "stable",
 ) -> str:
     clinic_id = _license_identifier(cabinet)
     try:
@@ -169,7 +193,7 @@ async def _issue_and_store_signed_license(
             license_type=license_type,
             created_by_user_id=created_by_user_id,
             expires_at=expires_at,
-            release_channel="stable",
+            release_channel=release_channel,
             feature_set=feature_set,
             max_devices=max_devices,
             status=status,
@@ -425,6 +449,10 @@ async def grant_license(
             detail="L'entitlement OWNER ne peut pas être modifié via une licence client.",
         )
 
+    preserved_max_devices = _preserved_max_devices(effective)
+    preserved_release_channel = _preserved_release_channel(effective)
+    preserved_feature_set = effective.get("feature_set") or user.subscription_plan or models.SubscriptionPlan.GOLD.value
+
     now_utc = datetime.now(timezone.utc)
     now_db = now_utc.replace(tzinfo=None)
     current_expiry_db = (
@@ -442,8 +470,9 @@ async def grant_license(
             created_by_user_id=admin.id,
             expires_at=expiry_utc,
             status="REVOKED",
-            max_devices=1,
-            feature_set=user.subscription_plan or models.SubscriptionPlan.GOLD.value,
+            max_devices=preserved_max_devices,
+            feature_set=preserved_feature_set,
+            release_channel=preserved_release_channel,
         )
         user.license_expires_at = now_db - timedelta(days=1)
         user.is_licensed = False
@@ -475,8 +504,9 @@ async def grant_license(
         license_type="PAID",
         created_by_user_id=admin.id,
         expires_at=new_expiry_utc,
-        max_devices=1,
-        feature_set=user.subscription_plan or models.SubscriptionPlan.GOLD.value,
+        max_devices=preserved_max_devices,
+        feature_set=preserved_feature_set,
+        release_channel=preserved_release_channel,
     )
     user.license_expires_at = new_expiry_db
     user.is_licensed = True
@@ -493,6 +523,58 @@ async def grant_license(
     db.commit()
     invalidate_license_cache(user.email)
     return {"status": "success", "license_expires_at": user.license_expires_at}
+
+
+@router.patch("/clients/{user_id}/release-channel")
+async def set_client_release_channel(
+    user_id: int,
+    channel: str = Query(...),
+    db: Session = Depends(database.get_db),
+    admin: models.User = Depends(require_platform_permission("license.change_release_channel")),
+):
+    channel = channel.strip().lower()
+    if channel not in _ALLOWED_RELEASE_CHANNELS:
+        raise HTTPException(status_code=400, detail="Canal invalide. Valeurs autorisées : stable, beta.")
+
+    user = db.query(models.User).filter(models.User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="Utilisateur introuvable.")
+    cabinet = db.query(models.CabinetConfig).filter(models.CabinetConfig.owner_id == user.id).first()
+    if not cabinet:
+        raise HTTPException(status_code=409, detail="Cabinet non configuré : canal non modifiable.")
+
+    effective = await LicenseService().get_effective_license(_license_identifier(cabinet))
+    if effective.get("active") is not True:
+        raise HTTPException(status_code=409, detail="Licence signée active introuvable : canal non modifiable.")
+    license_type = str(effective.get("license_type") or "").upper()
+    if license_type == "OWNER":
+        raise HTTPException(status_code=400, detail="Le canal OWNER ne peut pas être modifié via un client.")
+
+    previous = _preserved_release_channel(effective)
+    if previous == channel:
+        return {"status": "success", "release_channel": channel, "changed": False}
+
+    await _issue_and_store_signed_license(
+        cabinet=cabinet,
+        license_type=license_type,
+        created_by_user_id=admin.id,
+        expires_at=_as_utc_datetime(effective.get("expiration_date")),
+        max_devices=_preserved_max_devices(effective),
+        feature_set=effective.get("feature_set") or user.subscription_plan or models.SubscriptionPlan.GOLD.value,
+        release_channel=channel,
+    )
+    add_platform_audit(
+        db,
+        admin_id=admin.id,
+        action="SUPERADMIN_RELEASE_CHANNEL_CHANGE",
+        resource_type="User",
+        resource_id=user_id,
+        details=f"from={previous};to={channel}",
+        severity="WARNING",
+    )
+    db.commit()
+    invalidate_license_cache(user.email)
+    return {"status": "success", "release_channel": channel, "changed": True}
 
 
 @router.patch("/clients/{user_id}/archive")
@@ -562,33 +644,26 @@ async def set_client_plan(
 
     previous_plan = user.subscription_plan
     cabinet = db.query(models.CabinetConfig).filter(models.CabinetConfig.owner_id == user.id).first()
-    if user.is_licensed:
-        if not cabinet:
-            raise HTTPException(status_code=409, detail="Cabinet non configuré : impossible de réaligner la licence signée.")
+    effective = None
+    if cabinet:
+        effective = await LicenseService().get_effective_license(_license_identifier(cabinet))
 
-        clinic_id = _license_identifier(cabinet)
-        effective = await LicenseService().get_effective_license(clinic_id)
-        if not effective.get("active"):
-            raise HTTPException(status_code=409, detail="Licence signée active introuvable : changement de pack refusé.")
-
-        license_type = str(effective.get("license_type") or "PAID")
+    if effective and effective.get("active") is True:
+        license_type = str(effective.get("license_type") or "PAID").upper()
         if license_type == "OWNER":
             raise HTTPException(status_code=400, detail="Le plan commercial OWNER ne peut pas être modifié via un client.")
-
-        expiry = effective.get("expiration_date")
-        if isinstance(expiry, str):
-            expiry = datetime.fromisoformat(expiry.replace("Z", "+00:00"))
-        if isinstance(expiry, datetime) and expiry.tzinfo is None:
-            expiry = expiry.replace(tzinfo=timezone.utc)
 
         await _issue_and_store_signed_license(
             cabinet=cabinet,
             license_type=license_type,
             created_by_user_id=admin.id,
-            expires_at=expiry,
-            max_devices=1,
+            expires_at=_as_utc_datetime(effective.get("expiration_date")),
+            max_devices=_preserved_max_devices(effective),
             feature_set=plan,
+            release_channel=_preserved_release_channel(effective),
         )
+    elif user.is_licensed:
+        raise HTTPException(status_code=409, detail="Licence signée active introuvable : changement de pack refusé.")
 
     user.subscription_plan = plan
     add_license_history(db, user_id, admin.id, f"SET_PLAN_{plan}")
