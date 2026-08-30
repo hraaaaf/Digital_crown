@@ -4,8 +4,8 @@ Dernière mise à jour : 2026-08-30
 Repo : `hraaaaf/Digital_crown`
 Branche : `security/sec1-signed-licenses`
 PR : #288 — SEC-1
-HEAD de départ audité : `7c902592ab9f091c1a970289771417499aea67d5`
-Statut : EN COURS — non certifié
+HEAD vérifié avant cette mise à jour documentaire : `edd979614d29f1d05ba2843a02cc1ee562040540`
+Statut : EN COURS — backend/frontière de sécurité fortement durcie, audit fonctionnel non clos
 
 ## Goal
 
@@ -15,114 +15,134 @@ Obtenir un Superadmin Digital Crown réellement sûr, cloisonné du cabinet, exp
 
 Le lot est clos uniquement si :
 
-1. l'identité Superadmin est immuable et fail-closed ;
-2. le control plane est impossible à activer sur un runtime cabinet ;
-3. une licence cabinet expirée/révoquée ne bloque pas l'autorité plateforme légitime ;
-4. une session mobile/cabinet ordinaire ne peut pas devenir une session plateforme privilégiée ;
-5. les permissions plateforme sont explicites et séparées des permissions cabinet ;
-6. les mutations critiques exigent une assurance renforcée proportionnée au risque ;
-7. toute mutation Superadmin est attribuable à un acteur exact et historisée ;
-8. suppression/purge cabinet est protégée contre l'erreur et la compromission ;
-9. reset password utilise un mécanisme court, révocable et one-shot ;
-10. métriques et états de licence affichés correspondent à la vérité métier ;
-11. tests négatifs et positifs couvrent les frontières d'autorisation ;
-12. la surface UI Superadmin est auditée séparément avec BEFORE/AFTER si elle est modifiée.
+1. identité Superadmin immuable et fail-closed ;
+2. control plane impossible à activer sur runtime cabinet ;
+3. licence cabinet expirée/révoquée sans effet sur l'autorité plateforme légitime ;
+4. session mobile/cabinet incapable de devenir session plateforme ;
+5. permissions plateforme explicites et séparées du cabinet ;
+6. mutations Superadmin protégées par step-up récent ;
+7. mutations Superadmin attribuables et historisées ;
+8. environnement sécurité fail-closed ;
+9. surface fonctionnelle/RBAC cohérente avec les permissions déclarées ;
+10. frontend Superadmin compatible avec le step-up sans stocker la preuve sensible ;
+11. tests positifs/négatifs + CI verte ;
+12. UI auditée séparément si modification visuelle.
 
-## Preuves déjà vérifiées
+## Preuves vérifiées
 
 ### Autorité plateforme
 
 - `SUPERADMIN_USER_ID` est l'identité immuable serveur ; `0` fail-closed.
-- `SUPERADMIN_EMAIL` est neutralisé par validator et ne peut pas redevenir une racine d'autorité.
+- `SUPERADMIN_EMAIL` est neutralisé et ne constitue plus une autorité.
 - `PLATFORM_CONTROL_PLANE_ENABLED` est OFF par défaut.
-- `ENVIRONMENT=cabinet` + control plane activé est rejeté par validation de configuration.
-- `is_platform_superadmin()` exige : control plane actif + user actif/non archivé/non suspendu + id exact.
-- les permissions plateforme sont une allow-list distincte des permissions cabinet.
-- le Superadmin configuré reçoit les permissions plateforme via son identité immuable ; les autres utilisateurs doivent posséder une permission explicite.
+- `ENVIRONMENT=cabinet` + control plane activé est rejeté.
+- `is_platform_superadmin()` exige control plane actif + utilisateur actif/non archivé/non suspendu + id exact.
+- permissions plateforme explicitement séparées des permissions cabinet.
 
-### Chaîne d'auth actuelle
+### Frontière web/mobile
 
-`/api/superadmin/*` utilise `get_current_user()` puis `is_platform_superadmin()` ou `has_platform_permission()`.
+- `/api/superadmin/*` exige désormais une session web `access` pour l'autorité primaire.
+- un JWT `mobile`, même associé au `SUPERADMIN_USER_ID`, est rejeté sur la surface Superadmin.
+- destination Superadmin supprimée du bridge mobile backend.
+- route frontend historique `/mobile/superadmin` ne mène plus à une console mobile privilégiée.
+- le composant `MobileSuperAdminView` historique n'est plus une voie d'accès autorisée au control-plane.
 
-`get_current_user()` :
-- accepte JWT `access` et `mobile` ;
-- vérifie signature, type, JTI blacklist et utilisateur actif ;
-- applique le runtime signed-license gate sur les mutations ordinaires ;
-- exclut explicitement `/api/superadmin` du signed-license gate afin d'éviter une boucle de bootstrap licence.
+### Step-up WebAuthn plateforme
 
-Conséquence vérifiée : le risque précédemment suspecté « Superadmin dépend d'une licence cabinet valide » n'est PAS présent sur le HEAD audité.
+- nouveau modèle dédié : `backend/models_platform_passkey.py`.
+- nouveau routeur dédié : `backend/routers/superadmin_passkey.py`.
+- passkey plateforme distincte de la passkey mobile et liée au SuperAdmin web.
+- WebAuthn exige `user_verification=required` et l'origine stable HTTPS `https://digitalcrown.local:5173`.
+- challenges one-shot avec TTL court.
+- après vérification, backend émet une preuve JWT `type=platform_step_up`, TTL 5 minutes.
+- preuve transportée en cookie HttpOnly dédié, scoped `/api/superadmin`, jamais utilisée comme Authorization primaire.
+- le frontend ne persiste pas la preuve ; il ne conserve qu'une expiration non sensible en mémoire pour éviter de redemander WebAuthn à chaque clic pendant la fenêtre active.
+- toutes les mutations POST/PUT/PATCH/DELETE `/api/superadmin/*` exigent ce step-up.
 
-### Tokens
+### Audit trail
 
-- access token : 30 minutes par défaut ;
-- refresh token : 30 jours par défaut ;
-- cookies HttpOnly, SameSite=Lax ; Secure seulement si `ENVIRONMENT=production`.
+Les mutations actuelles ajoutent des `AuditLog` transactionnels dans la même transaction DB que la mutation locale :
 
-### Recherche MFA
+- validation client ;
+- création/révocation Trial ;
+- grant/revoke licence ;
+- archive/unarchive ;
+- suspend/unsuspend ;
+- changement de plan ;
+- mise à jour notes ;
+- demande de relance ;
+- enregistrement passkey plateforme.
 
-Aucune implémentation trouvée via recherche repo pour `mfa`, `totp`, `2fa`, `passkey`, `webauthn` associée au Superadmin. Absence à confirmer par inspection des flows d'auth complets avant conclusion finale.
+Les événements enregistrent acteur, action, cible, sévérité et détails minimisés. Le contenu des notes internes et le code Trial ne sont pas copiés dans l'audit.
 
-## Risques ouverts
+Limite actuelle du schéma : pas de `request_id`/`result` structurés dans `AuditLog`. Ce point reste une amélioration d'observabilité, pas une absence d'audit.
 
-### P1 — session privilégiée insuffisamment distinguée
+### Environnement
 
-`get_current_user()` accepte les tokens `access` ET `mobile`, et les dépendances Superadmin se basent ensuite sur l'identité utilisateur.
+- `ENVIRONMENT` est désormais validé sur une allow-list explicite (`development`, `local`, `test`, `cabinet`, `production`) : une typo ne peut plus faire tomber silencieusement les invariants production.
+- les invariants production/cabinet restent appliqués au démarrage.
 
-Risque à confirmer : un token mobile appartenant au `SUPERADMIN_USER_ID` pourrait satisfaire les guards plateforme. Une session mobile ne doit jamais devenir automatiquement une session Superadmin.
+### Tests / CI
 
-**Goal :** seuls des tokens/sessions explicitement autorisés pour le control plane peuvent appeler les routes Superadmin.
+Tests dédiés ajoutés/migrés :
 
-**Preuve attendue :** tests négatifs token mobile → Superadmin 401/403 ; access token plateforme légitime → succès.
+- `backend/tests/test_superadmin_session_boundary.py`
+- `backend/tests/test_superadmin_audit_trail.py`
+- `backend/tests/test_superadmin_platform_passkey.py`
+- test frontend du service passkey plateforme.
 
-### P1 — step-up / MFA opérations critiques
+Preuve actuelle :
+- HEAD code vérifié : `edd979614d29f1d05ba2843a02cc1ee562040540`
+- CI #2225 — run `33309963668` : SUCCESS.
+- SEC-1 Windows Package Certification #40 — run `33309963712` : SUCCESS.
 
-Aucune preuve actuelle d'un MFA ou d'une réauthentification récente spécifique aux mutations Superadmin critiques.
+## Corrections d'hypothèses anciennes
 
-**Goal :** compromission d'un simple access token ne suffit pas pour une purge cabinet, révocation massive, reset sensible ou changement d'autorité.
+Les risques suivants étaient basés sur une surface plus ancienne et ne sont pas présents dans le routeur Superadmin actuel :
 
-**Preuve attendue :** contrôle backend + tests négatifs/positifs.
+- suppression/purge cabinet directe : aucune route Superadmin actuelle vérifiée ;
+- reset password Superadmin : aucune route actuelle vérifiée ;
+- ancienne route `/stats` Superadmin : non présente dans le routeur actuel.
 
-### P1 — suppression cabinet
+Ils ne doivent donc plus être traités comme défauts actifs sans nouvelle preuve.
 
-La suppression complète d'un client est une opération potentiellement irréversible.
+## Gaps fonctionnels / RBAC encore ouverts
 
-**Goal :** permission dédiée, confirmation structurée, raison obligatoire, audit exact et stratégie restore/soft-delete ou purge en deux phases.
+`PLATFORM_LICENSE_PERMISSIONS` déclare notamment :
 
-### P2 — reset password
+- `license.create_paid`
+- `license.extend`
+- `license.suspend`
+- `license.manage_devices`
+- `license.change_release_channel`
+- `admin.read`
+- `admin.create`
+- `admin.update_permissions`
+- `admin.disable`
+- `audit.read`
 
-Le flux Superadmin doit être vérifié pour TTL, usage unique, invalidation et changement obligatoire.
+Le routeur Superadmin actuel expose principalement clients/licences/Trial/historique/notes et n'expose pas encore de surface vérifiée pour plusieurs permissions déclarées ci-dessus, notamment gestion d'administrateurs plateforme, viewer d'audit, gestion devices et release channel.
 
-### P2 — audit trail
+=> Risque principal restant : **écart entre RBAC déclaré et fonctionnalités réellement exposées/testées**.
 
-Toute mutation doit conserver au minimum : `actor_user_id`, `action`, `target_type`, `target_id`, `reason`, `timestamp`, `request_id`, `result`.
+## UX/UI
 
-### P2 — métriques
-
-Vérifier que `active_subscriptions`, états licence/trial/revoked/expired et statistiques dashboard reposent sur la vérité métier et non un proxy approximatif.
-
-### P2 — environnement/cookies
-
-Le cookie `Secure` dépend de `ENVIRONMENT == production`. Vérifier les valeurs réellement autorisées et fail-closed en cas de typo ou environnement control-plane dédié.
+Aucune refonte visuelle Superadmin n'a été appliquée dans ce lot. Le wiring step-up utilise le prompt WebAuthn natif du navigateur ; il n'ajoute pas de nouvelle modal custom. Pas de claim de score visuel sans captures BEFORE/AFTER.
 
 ## Séquence restante
 
-1. P1 Auth Superadmin : isoler token plateforme des tokens mobile/cabinet.
-2. Ajouter/adapter tests d'autorisation négatifs et positifs.
-3. P1 Step-up/MFA pour mutations critiques.
-4. P1 suppression cabinet sûre.
-5. P2 audit trail exact.
-6. P2 reset password one-shot.
-7. P2 métriques et états métier.
-8. Audit frontend Superadmin + baseline UI si surface existante.
-9. Tests backend/frontend ciblés.
-10. CI SEC-1.
-11. Mise à jour du présent fichier avec preuves et HEAD.
-12. Closeout seulement si tous les gates sont prouvés.
+1. établir la matrice exacte `permission -> route -> test -> UI` ;
+2. décider/implémenter les fonctionnalités plateforme manquantes réellement nécessaires : admins plateforme, audit viewer, device/release management ;
+3. vérifier la protection d'accès frontend `/super-admin` côté routing pour éviter une simple exposition visuelle aux non-SuperAdmin ;
+4. compléter les tests frontend ciblés sur retry step-up/403 ;
+5. revalider CI sur HEAD final ;
+6. mettre à jour ce canonique avec la matrice et les preuves finales ;
+7. fermer seulement les gates réellement satisfaits.
 
 ## Next exact
 
-Inspecter la création/validation des sessions mobile et web, prouver si un token mobile du `SUPERADMIN_USER_ID` peut atteindre `/api/superadmin/*`, puis corriger fail-closed et ajouter les tests correspondants si le risque est réel.
+Construire la matrice RBAC/fonctionnalités réelle du control-plane, puis implémenter le premier gap critique prouvé plutôt que d'ajouter des permissions fantômes.
 
 ## Avancement
 
-Non chiffré : audit initial effectué, correction P1 auth pas encore prouvée. Ne pas convertir en pourcentage sans critères pondérés explicites.
+Non chiffré. Le socle sécurité auth/mobile/step-up/audit est prouvé par CI, mais le périmètre fonctionnel Superadmin complet n'est pas encore certifié.
