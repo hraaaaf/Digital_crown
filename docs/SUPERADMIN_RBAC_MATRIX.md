@@ -10,10 +10,10 @@ Source d'autorité : `backend/platform_access.py`.
 | `license.create_trial` | POST `/trial-codes` | CÂBLÉ | permission explicite + step-up mutation |
 | `license.create_paid` | POST `/clients/{id}/grant-license?action=1m|3m|6m|1y` si entitlement signé non-PAID | CÂBLÉ | choix basé sur `get_effective_license()`, pas `is_licensed`; tests de sélection/deny |
 | `license.extend` | même endpoint si entitlement signé PAID actif | CÂBLÉ | choix basé sur vérité signée; tests de sélection/deny |
-| `license.suspend` | aucune route déléguée | MANQUANT | `/clients/{id}/suspend` reste SuperAdmin immuable uniquement |
+| `license.suspend` | PATCH `/clients/{id}/suspend` | CÂBLÉ | permission explicite + step-up + audit; tests positif/négatif |
 | `license.revoke` | POST `/trial-codes/{id}/revoke` + `grant-license?action=revoke` | CÂBLÉ | permission contrôlée avant lookup cible + step-up; OWNER refusé par flow client |
-| `license.manage_devices` | aucune surface Superadmin vérifiée | MANQUANT | à concevoir contre la vérité device/signature |
-| `license.change_release_channel` | aucune surface Superadmin vérifiée | MANQUANT | à concevoir sans affaiblir l'entitlement signé |
+| `license.manage_devices` | aucune surface Superadmin | BLOQUÉ PAR RUNTIME | `max_devices` est signé/vérifié mais le flow `/api/mobile/claim-token` crée `MobilePairedDevice` sans lire la limite ni compter les devices actifs; exposer une mutation serait trompeur tant que l'enforcement manque |
+| `license.change_release_channel` | aucune surface Superadmin vérifiée | MANQUANT | claim signé et allow-list `stable/beta` existent; réémission doit préserver tous les autres claims, dont `max_devices` |
 | `admin.read` | aucune surface opérateurs plateforme | MANQUANT | pas de liste dédiée des administrateurs plateforme |
 | `admin.create` | aucune surface opérateurs plateforme | MANQUANT | création d'opérateur non implémentée |
 | `admin.update_permissions` | aucune surface opérateurs plateforme | MANQUANT | mutation `User.permissions` non exposée au control-plane |
@@ -28,8 +28,15 @@ Source d'autorité : `backend/platform_access.py`.
 - Toute mutation sous `/api/superadmin` conserve le step-up WebAuthn plateforme de cinq minutes.
 - Création/extension PAID est choisie depuis l'entitlement signé effectif : PAID actif → `license.extend`; TRIAL/inactif → `license.create_paid`.
 - Un entitlement OWNER ne peut pas être remplacé/révoqué via le flow licence client.
+- La suspension client est maintenant délégable uniquement via `license.suspend`.
 - Les fonctions sans permission métier claire restent volontairement SuperAdmin immuable uniquement au lieu d'être ouvertes par approximation.
+
+## Dette P1 — limite appareils non appliquée
+
+Preuve actuelle : `backend/license_security.py` valide le claim signé `max_devices`, mais `backend/routers/mobile_legacy.py::claim_pairing_token()` ajoute directement un `MobilePairedDevice` après le handshake sans consulter l'entitlement et sans vérifier le nombre d'appareils actifs.
+
+Conséquence : `license.manage_devices` ne doit pas être exposée comme fonctionnalité Superadmin tant que la limite signée n'est pas réellement appliquée au runtime d'appairage.
 
 ## Next exact
 
-Câbler `license.suspend` sur la suspension client avec tests négatifs/positifs, puis auditer `license.manage_devices` et `license.change_release_channel` contre les claims signés existants avant d'exposer une mutation.
+Appliquer `max_devices` au runtime d'appairage mobile de façon fail-closed et résistante aux claims concurrents, puis seulement exposer la gestion des appareils côté Superadmin. Ensuite traiter `license.change_release_channel` en préservant l'intégralité des claims signés.
