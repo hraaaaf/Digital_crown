@@ -65,6 +65,35 @@ def add_license_history(db: Session, user_id: int, admin_id: int, action: str, d
     db.add(history)
 
 
+def add_platform_audit(
+    db: Session,
+    *,
+    admin_id: int,
+    action: str,
+    resource_type: str,
+    resource_id: int | str | None = None,
+    details: str | None = None,
+    severity: str = "INFO",
+) -> None:
+    """Stage a privileged audit event in the caller's transaction.
+
+    No commit occurs here. For local state mutations, the audit row and the state
+    change therefore succeed or roll back together instead of relying on the
+    generic audit service's independent commit.
+    """
+    db.add(
+        models.AuditLog(
+            user_id=admin_id,
+            employer_id=None,
+            action=action,
+            resource_type=resource_type,
+            resource_id=str(resource_id) if resource_id is not None else None,
+            severity=severity,
+            details=details,
+        )
+    )
+
+
 def _build_activation_url(code: str) -> str:
     base_url = settings.APP_PUBLIC_URL.rstrip("/")
     return f"{base_url}/activate?code={code}"
@@ -199,6 +228,15 @@ async def validate_client(
     user.is_licensed = True
     user.license_expires_at = expiry_utc.replace(tzinfo=None)
     add_license_history(db, user_id, admin.id, "COMPTE_VALIDE_ESSAI_30J", 30)
+    add_platform_audit(
+        db,
+        admin_id=admin.id,
+        action="SUPERADMIN_CLIENT_VALIDATE",
+        resource_type="User",
+        resource_id=user_id,
+        details="trial_days=30",
+        severity="WARNING",
+    )
     db.commit()
 
     invalidate_license_cache(user.email)
@@ -253,6 +291,16 @@ def create_trial_code(
         created_by_admin_id=admin.id,
     )
     db.add(code)
+    db.flush()
+    add_platform_audit(
+        db,
+        admin_id=admin.id,
+        action="SUPERADMIN_TRIAL_CREATE",
+        resource_type="TrialActivationCode",
+        resource_id=code.id,
+        details=f"trial_days={trial_days};expires_in_days={expires_in_days}",
+        severity="WARNING",
+    )
     db.commit()
     db.refresh(code)
     return _serialize_trial_code(code)
@@ -271,6 +319,14 @@ def revoke_trial_code(
         raise HTTPException(status_code=400, detail="Ce code a déjà été consommé.")
 
     code.revoked_at = datetime.utcnow()
+    add_platform_audit(
+        db,
+        admin_id=admin.id,
+        action="SUPERADMIN_TRIAL_REVOKE",
+        resource_type="TrialActivationCode",
+        resource_id=code_id,
+        severity="WARNING",
+    )
     db.commit()
     db.refresh(code)
     return _serialize_trial_code(code)
@@ -323,6 +379,14 @@ async def grant_license(
         user.license_expires_at = now_db - timedelta(days=1)
         user.is_licensed = False
         add_license_history(db, user_id, admin.id, "revoke")
+        add_platform_audit(
+            db,
+            admin_id=admin.id,
+            action="SUPERADMIN_LICENSE_REVOKE",
+            resource_type="User",
+            resource_id=user_id,
+            severity="CRITICAL",
+        )
         db.commit()
         invalidate_license_cache(user.email)
         return {"status": "success", "license_expires_at": user.license_expires_at}
@@ -345,6 +409,15 @@ async def grant_license(
     user.license_expires_at = new_expiry_db
     user.is_licensed = True
     add_license_history(db, user_id, admin.id, "grant", duration)
+    add_platform_audit(
+        db,
+        admin_id=admin.id,
+        action="SUPERADMIN_LICENSE_GRANT",
+        resource_type="User",
+        resource_id=user_id,
+        details=f"duration_days={duration}",
+        severity="WARNING",
+    )
     db.commit()
 
     invalidate_license_cache(user.email)
@@ -358,7 +431,16 @@ def archive_client(user_id: int, db: Session = Depends(database.get_db), admin: 
         raise HTTPException(status_code=404, detail="Utilisateur introuvable.")
 
     user.is_archived = not user.is_archived
+    action = "SUPERADMIN_CLIENT_ARCHIVE" if user.is_archived else "SUPERADMIN_CLIENT_UNARCHIVE"
     add_license_history(db, user_id, admin.id, "archive" if user.is_archived else "unarchive")
+    add_platform_audit(
+        db,
+        admin_id=admin.id,
+        action=action,
+        resource_type="User",
+        resource_id=user_id,
+        severity="WARNING",
+    )
     db.commit()
     invalidate_license_cache(user.email)
     return {"status": "success", "is_archived": user.is_archived}
@@ -371,7 +453,16 @@ def suspend_client(user_id: int, db: Session = Depends(database.get_db), admin: 
         raise HTTPException(status_code=404, detail="Utilisateur introuvable.")
 
     user.is_suspended = not user.is_suspended
+    action = "SUPERADMIN_CLIENT_SUSPEND" if user.is_suspended else "SUPERADMIN_CLIENT_UNSUSPEND"
     add_license_history(db, user_id, admin.id, "suspend" if user.is_suspended else "unsuspend")
+    add_platform_audit(
+        db,
+        admin_id=admin.id,
+        action=action,
+        resource_type="User",
+        resource_id=user_id,
+        severity="CRITICAL" if user.is_suspended else "WARNING",
+    )
     db.commit()
     invalidate_license_cache(user.email)
     return {"status": "success", "is_suspended": user.is_suspended}
@@ -398,6 +489,7 @@ async def set_client_plan(
     if plan not in valid_plans:
         raise HTTPException(status_code=400, detail=f"Pack invalide. Valeurs autorisées : {sorted(valid_plans)}")
 
+    previous_plan = user.subscription_plan
     cabinet = db.query(models.CabinetConfig).filter(models.CabinetConfig.owner_id == user.id).first()
     if user.is_licensed:
         if not cabinet:
@@ -438,6 +530,15 @@ async def set_client_plan(
 
     user.subscription_plan = plan
     add_license_history(db, user_id, admin.id, f"SET_PLAN_{plan}")
+    add_platform_audit(
+        db,
+        admin_id=admin.id,
+        action="SUPERADMIN_PLAN_CHANGE",
+        resource_type="User",
+        resource_id=user_id,
+        details=f"from={previous_plan or 'NONE'};to={plan}",
+        severity="WARNING",
+    )
     db.commit()
     invalidate_license_cache(user.email)
     return {"status": "success", "subscription_plan": user.subscription_plan}
@@ -450,6 +551,14 @@ def update_client_notes(user_id: int, data: UpdateClientNotes, db: Session = Dep
         raise HTTPException(status_code=404, detail="Utilisateur introuvable.")
 
     user.internal_notes = data.internal_notes
+    add_platform_audit(
+        db,
+        admin_id=admin.id,
+        action="SUPERADMIN_CLIENT_NOTES_UPDATE",
+        resource_type="User",
+        resource_id=user_id,
+        details="internal_notes_updated=true",
+    )
     db.commit()
     return {"status": "success", "internal_notes": user.internal_notes}
 
@@ -467,6 +576,17 @@ def send_renewal_email(user_id: int, data: SendRenewalEmailRequest, db: Session 
         raise HTTPException(status_code=404, detail="Utilisateur introuvable.")
 
     phone = user.telephone_mobile or user.telephone_fixe
+    add_platform_audit(
+        db,
+        admin_id=admin.id,
+        action="SUPERADMIN_RENEWAL_REQUESTED",
+        resource_type="User",
+        resource_id=user_id,
+        details="channel=whatsapp" if phone else "channel=whatsapp;not_sent=no_phone",
+    )
+    add_license_history(db, user_id, admin.id, "renewal_whatsapp_requested")
+    db.commit()
+
     if phone:
         msg = f"Bonjour Dr. {user.nom_complet}, votre licence Digital Crown expire bientôt. {data.message}"
         notification_service.send_whatsapp_via_whatsmate(phone, msg)
@@ -474,6 +594,4 @@ def send_renewal_email(user_id: int, data: SendRenewalEmailRequest, db: Session 
     else:
         message_status = "Aucun numéro de téléphone trouvé pour l'envoi WhatsApp."
 
-    add_license_history(db, user_id, admin.id, "renewal_whatsapp_sent")
-    db.commit()
     return {"status": "success", "message": message_status}
