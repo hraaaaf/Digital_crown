@@ -4,27 +4,12 @@
 **Date de baseline : 2026-08-30**  
 **Repo :** `hraaaaf/Digital_crown`  
 **Branche active :** `marketplace/p0-trust-integrity`  
-**Référence code auditée initiale :** `master @ f19df12739fc262adb2238db1842813b4a820619`  
-**Déploiement Vercel :** aucun, non requis sans autorisation explicite.
+**Déploiement Vercel :** aucun sans autorisation explicite.
 
----
+## Goal chantier
+Marketplace d'approvisionnement fiable : produit → panier → commande → fournisseur → réception → stock → réassort, avec autorité serveur, UX claire et preuves automatisées.
 
-## 1. Goal / Succès / Preuve
-
-### Goal
-Transformer le Marketplace Digital Crown en module d'approvisionnement fiable, rapide et cohérent : découverte produit → panier → commande → fournisseur → réception → stock → réassort, avec une UX claire et un contrat engineering sûr.
-
-### Succès
-Autorité serveur financière, RBAC Marketplace explicite, multi-fournisseurs déterministe, cycle commande traçable jusqu'à réception, UI certifiée BEFORE/AFTER, tests backend/frontend/E2E, réception-stock cohérente et tous gates finaux verts.
-
-### Preuve
-Code + tests automatisés + runtime observé + captures UI quand la phase est visuelle + CI + canonique cohérent. Aucun score visuel certifié sans captures runtime.
-
----
-
-## 2. Baseline et score
-
-Capacités vérifiées au baseline : catalogue fournisseurs/produits, recherche/filtres, pages fournisseur/produit, panier local, commande serveur, stratégies commerciales, superadmin catalogue/rapprochement, CRUD catalogue et événements/revenu.
+## Baseline
 
 | Axe | Poids | Baseline |
 |---|---:|---:|
@@ -35,117 +20,82 @@ Capacités vérifiées au baseline : catalogue fournisseurs/produits, recherche/
 | Sécurité / fiabilité | 15 % | 5.2/10 |
 | **Pondéré** | **100 %** | **6.5/10** (`6.48` arrondi) |
 
-**Potentiel produit : 9.0/10**, distinct du score courant.
+Potentiel produit séparé : **9.0/10**.
 
----
+## Roadmap P0 → P11 — 100 EP
 
-## 3. Roadmap canonique P0 → P11 — 100 EP
-
-| Phase | EP | Ce qu'elle fait | Gate principal |
+| Phase | EP | Résultat | Gate |
 |---|---:|---|---|
-| **P0 — Baseline & audit** | **8** | audit, score, risques, roadmap | canonique mergé/relu sur master |
-| **P1 — Trust & sécurité** | **14** | autorité serveur, isolation, RBAC, fournisseurs actifs, anti-falsification | 15 tests ciblés + CI backend/frontend verts + diff revu |
-| **P2 — Order Engine** | **12** | contrat client, transitions, envoi logique, confirmation, modification, annulation, fulfillment | machine d'état + tests transitions/contrat |
-| **P3 — Multi-fournisseurs** | **8** | panier multi-fournisseurs et split/routage | 2 fournisseurs → 2 commandes correctes E2E |
-| **P4 — Catalogue & produits** | **8** | sync/cache/TTL, recherche, merchandising, disponibilité, pagination | fraîcheur + filtres + pagination + tests |
-| **P5 — UX/UI Marketplace** | **14** | navigation, panier, checkout, accessibilité, responsive | BEFORE/AFTER 390/430/768/1280 + E2E + score |
-| **P6 — Procurement** | **8** | transport fournisseur, suivi, réception, retours/backorders | création → transport → réception prouvés |
-| **P7 — Stock Intelligence** | **8** | réception-stock, lots/péremptions, min/max, réassort | stock alimenté sans double saisie + tests |
-| **P8 — Finance & monétisation** | **6** | commissions/remises/revente, rapprochement, annulations/reporting | scénarios financiers serveur testés |
-| **P9 — Automatisation fournisseur** | **5** | imports/API, sync prix/dispo, retries | panne/retry/idempotence + preuve sync |
-| **P10 — Superadmin Marketplace** | **4** | CRUD complet, supervision, métriques, gouvernance | RBAC + audit trail + actions testées |
-| **P11 — Certification finale** | **5** | E2E réel, sécurité, multi-cabinet, performance, accessibilité, closeout | tous gates verts + canonique cohérent |
+| **P0 — Baseline & audit** | **8** | audit, score, risques, canonique | mergé/relu sur master |
+| **P1 — Trust & sécurité** | **14** | autorité serveur, isolation, RBAC, anti-falsification | 15 tests ciblés + CI backend/frontend + diff |
+| **P2 — Order Engine** | **12** | contrat client + machine d'état + fulfillment | transitions/contrat testés |
+| **P3 — Multi-fournisseurs** | **8** | split/routage par fournisseur | 2 fournisseurs → 2 commandes E2E |
+| **P4 — Catalogue & produits** | **8** | sync/cache/TTL, recherche, merchandising, pagination | fraîcheur/filtres/pagination testés |
+| **P5 — UX/UI Marketplace** | **14** | navigation, panier, checkout, accessibilité, responsive | BEFORE/AFTER + E2E + score |
+| **P6 — Procurement** | **8** | transport réel, suivi, réception, retours | création → transport → réception |
+| **P7 — Stock Intelligence** | **8** | réception-stock, lots/péremptions, min/max, réassort | stock sans double saisie |
+| **P8 — Finance & monétisation** | **6** | commissions/remises/revente, rapprochement/reporting | scénarios financiers serveur |
+| **P9 — Automatisation fournisseur** | **5** | imports/API, sync prix/dispo, retries | idempotence/retry/sync |
+| **P10 — Superadmin Marketplace** | **4** | CRUD complet, supervision, gouvernance | RBAC + audit trail |
+| **P11 — Certification finale** | **5** | E2E, sécurité, performance, accessibilité, closeout | tous gates verts |
 | **Total** | **100** |  |  |
 
 ### Avancement vérifié
-- **P0 : 8/8 — CLOSED**, PR #301 mergée.
-- **P1 : 0/14 — EN COURS**, PR #302.
+- **P0 : 8/8 CLOSED** — PR #301 mergée.
+- **P1 : 0/14 EN COURS** — PR #302.
 - **Global : 8/100 = 8 %.**
 
----
-
-## 4. P1 — Trust & sécurité
+## P1 — Trust & sécurité
 
 ### Goal
-Empêcher un client modifié de falsifier une commande financière et empêcher un utilisateur non autorisé d'exposer/modifier les données commerciales d'administration, tout en isolant panier et fournisseurs inactifs.
+Un client modifié ne peut pas falsifier prix, total, fournisseur ou stratégie commerciale ; les données commerciales administratives sont protégées ; panier et visibilité fournisseur sont isolés.
 
-### Implémenté sur PR #302
-1. fournisseur résolu serveur ;
-2. nom/SKU/prix/line total reconstruits serveur ;
-3. total recalculé serveur ;
-4. stratégie limitée aux presets serveur ;
-5. fournisseur inactif refusé à la commande ;
-6. produit discontinué, cross-cabinet et doublon refusés ;
-7. mélange fournisseurs rejeté jusqu'au split P3 ;
-8. GET commandes et PATCH commercial réservés Superadmin ;
-9. POST commande conservé au cabinet autorisé ;
-10. storefront cabinet masque fournisseurs inactifs et produits associés ;
-11. Superadmin conserve leur visibilité d'administration ;
-12. panier isolé par `employer + user`, ancienne clé globale ignorée sans migration.
+### Implémenté sur #302
+1. fournisseur, noms, SKU, prix et totaux reconstruits serveur ;
+2. stratégies limitées aux presets serveur ;
+3. fournisseur inactif, produit discontinué, produit cross-cabinet et doublon rejetés ;
+4. mélange fournisseurs rejeté jusqu'au split P3 ;
+5. GET commandes et PATCH commercial réservés Superadmin ; POST conservé au cabinet autorisé ;
+6. storefront cabinet masque fournisseur inactif + produits associés, Superadmin les conserve en administration ;
+7. panier local isolé par `employer + user` ; ancienne clé globale ignorée sans migration.
 
-### Tests ciblés P1
-- `backend/tests/test_partner_orders_integrity.py` : **9**
-- `backend/tests/test_partner_catalog_visibility.py` : **2**
-- `frontend/src/features/partnerMarketplace/data.test.ts` : **4**
+### Tests ciblés
+- `backend/tests/test_partner_orders_integrity.py` : 9
+- `backend/tests/test_partner_catalog_visibility.py` : 2
+- `frontend/src/features/partnerMarketplace/data.test.ts` : 4
 - **Total : 15**
 
 ### Preuves intermédiaires
-Sur `f9855bbd7cdb6786ce96d42c0239d2ef46320338` :
-- CI #2235 : **SUCCESS**, backend suite + frontend tests/build + durcissement verts ;
-- T2 Runtime #1350 : **SUCCESS** ;
-- Patient P7 #649 : **SUCCESS** ;
-- Catalog Connected Truth #623 : **FAILURE** à `Targeted backend truth tests`, qui exécute `test_catalog_connected_truth.py`, `test_patient_p3_master_plan_revisions.py` et `TestCatalogQuickAdd`. Aucun de ces fichiers n'est modifié par #302 ; cause exacte non attribuée sans preuve.
+Sur `f9855bbd7cdb6786ce96d42c0239d2ef46320338` : CI #2235 SUCCESS, T2 #1350 SUCCESS, Patient P7 #649 SUCCESS.
+
+Catalog Connected Truth #623 a échoué à `Targeted backend truth tests`, exécutant uniquement `test_catalog_connected_truth.py`, `test_patient_p3_master_plan_revisions.py` et `TestCatalogQuickAdd`. Aucun de ces fichiers n'est modifié par #302. Cause exacte non attribuée sans preuve.
 
 ### Gate final P1
-Le **HEAD final de #302** doit avoir : 11 tests backend Marketplace + 4 tests frontend panier verts, CI backend complète verte, CI frontend tests/build verte, diff final revu. Le workflow Catalog Connected Truth doit rester documenté séparément tant que sa cause n'est pas prouvée.
+Le dernier HEAD de #302 doit prouver : 11 tests backend Marketplace + 4 tests frontend panier verts, suite backend complète verte, frontend tests/build vert et diff revu. Aucun EP avant cette preuve.
 
----
+## Restant après P1
+- P2 : formulaire/contrat, CTA/envoi logique, transitions ;
+- P3 : vrai multi-fournisseurs ;
+- P4 : TTL, merchandising, pagination ;
+- P5 : accessibilité/densité, visuels, reload, responsive certifié ;
+- P6 : transport/réception ;
+- P7 : stock/réassort ;
+- P8 : finance ;
+- P9 : sync fournisseur ;
+- P10 : admin complet ;
+- P11 : certification.
 
-## 5. Findings restant après P1
+## Idées prioritaires
+Split fournisseur (10/10 valeur), réassort consommation/min-max (10/10), réception-stock (10/10), lots/péremptions (10/10), historique prix/MOQ/délai (9/10), rapprochement facture (9/10).
 
-- **P2/P5** : contrat formulaire frontend/backend ;
-- **P2/P6** : CTA d'envoi sans transport réel ;
-- **P2** : machine d'état trop permissive ;
-- **P4** : cache TTL, merchandising `isFeatured`/`sortOrder`, pagination ;
-- **P5** : accessibilité/densité, visuels produits, reload fiche produit ;
-- **P8/P10** : séparation des données commerciales ;
-- **P10** : administration édition complète.
+## P5 UI/UX obligatoire
+`BEFORE 390/430/768/1280 → Goal → mockup/référence → implémentation → AFTER mêmes viewports → comparaison → accessibilité/E2E → score visuel`.
 
----
+## Règles
+Backend = vérité financière/statuts. Frontend jamais autorité sécurité. Scoping obligatoire. Aucun Vercel sans autorisation. CI pending n'arrête pas travail indépendant. Aucun EP sans preuve.
 
-## 6. Idées prioritaires
-
-| Idée | Valeur | Effort | Phase |
-|---|---:|---:|---|
-| Split automatique fournisseur | 10 | 3 | P3 |
-| Réassort selon consommation/min-max | 10 | 4 | P7 |
-| Réception → stock | 10 | 4 | P7 |
-| Lots + péremptions | 10 | 4 | P7 |
-| Réassort 1 clic | 9 | 2 | P7 |
-| Historique prix/MOQ/délai | 9 | 3 | P4/P6 |
-| Facture/rapprochement | 9 | 4 | P8 |
-| RFQ comparaison fournisseurs | 8 | 4 | P6 |
-| Score SLA fournisseur | 8 | 3 | P7 |
-
----
-
-## 7. Protocole P5 UI/UX
-
-`BEFORE 390/430/768/1280 → Goal écrit → mockup/référence → implémentation → AFTER mêmes viewports → comparaison → accessibilité/E2E → score visuel`.
-
----
-
-## 8. Règles engineering
-
-Backend source de vérité financière/statuts. Frontend jamais autorité sécurité. Scoping obligatoire. Actions sensibles auditables. Aucun Vercel sans autorisation explicite. CI en cours ne bloque pas le travail indépendant. Aucun EP sans preuve.
-
----
-
-## 9. Ordre critique / reprise
-
+## Reprise
 `P0 CLOSED → P1 ACTIVE → P2 → P3 → P4 → P5 → P6 → P7 → P8 → P9 → P10 → P11`
 
-**PR active : #302**  
-**Branche : `marketplace/p0-trust-integrity`**  
-**Avancement crédité : 8/100 EP**  
-**Next exact :** certifier le HEAD final P1 ; rouge → corriger ; vert → créditer P1, merger #302, vérifier master puis ouvrir P2.
+**PR #302 — branche `marketplace/p0-trust-integrity` — crédit 8/100 EP.**  
+**Next exact :** certifier ce HEAD ; rouge → corriger ; vert → créditer P1, merger #302, vérifier master, démarrer P2.
