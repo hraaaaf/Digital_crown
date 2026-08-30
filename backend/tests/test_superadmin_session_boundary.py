@@ -7,6 +7,7 @@ import pytest
 from jose import jwt
 
 from backend.security import ALGORITHM, SECRET_KEY
+from backend.services.mobile_biometric import WEBAUTHN_ORIGIN
 
 
 @pytest.fixture
@@ -25,6 +26,15 @@ def _web_headers(client, user) -> dict[str, str]:
     )
     assert login.status_code == 200
     return {"Authorization": f"Bearer {login.json()['access_token']}"}
+
+
+def _login_cookie_session(client, user) -> None:
+    login = client.post(
+        "/api/auth/login",
+        data={"username": user.email, "password": "TestPass123!"},
+    )
+    assert login.status_code == 200
+    assert client.cookies.get("access_token")
 
 
 def _mobile_token_for(user) -> str:
@@ -135,6 +145,45 @@ def test_superadmin_step_up_cookie_is_accepted(client, dentiste, with_superadmin
     response = client.post(
         "/api/superadmin/clients/999999/validate",
         headers=headers,
+    )
+
+    assert response.status_code == 404
+
+
+def test_cookie_only_superadmin_mutation_requires_origin(client, dentiste, with_superadmin_env):
+    _login_cookie_session(client, dentiste)
+    client.cookies.set("platform_step_up", _platform_step_up_token(dentiste.id), path="/api/superadmin")
+
+    response = client.post("/api/superadmin/clients/999999/validate")
+
+    assert response.status_code == 403
+    assert response.json()["detail"]["code"] == "PLATFORM_ORIGIN_REQUIRED"
+
+
+def test_cookie_only_superadmin_mutation_rejects_non_https_origin(
+    client, dentiste, with_superadmin_env
+):
+    _login_cookie_session(client, dentiste)
+    client.cookies.set("platform_step_up", _platform_step_up_token(dentiste.id), path="/api/superadmin")
+
+    response = client.post(
+        "/api/superadmin/clients/999999/validate",
+        headers={"Origin": "http://digitalcrown.local:5173"},
+    )
+
+    assert response.status_code == 403
+    assert response.json()["detail"]["code"] == "PLATFORM_ORIGIN_FORBIDDEN"
+
+
+def test_cookie_only_superadmin_mutation_accepts_exact_https_origin(
+    client, dentiste, with_superadmin_env
+):
+    _login_cookie_session(client, dentiste)
+    client.cookies.set("platform_step_up", _platform_step_up_token(dentiste.id), path="/api/superadmin")
+
+    response = client.post(
+        "/api/superadmin/clients/999999/validate",
+        headers={"Origin": WEBAUTHN_ORIGIN},
     )
 
     assert response.status_code == 404
