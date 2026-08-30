@@ -40,6 +40,7 @@ def test_platform_passkey_enrollment_sets_httponly_proof_and_unlocks_mutation(
     status = client.get("/api/superadmin/passkey/status", headers=headers)
     assert status.status_code == 200
     assert status.json()["enrolled"] is False
+    assert status.json()["step_up_valid"] is False
 
     options = client.post("/api/superadmin/passkey/registration/options", headers=headers)
     assert options.status_code == 200
@@ -92,6 +93,18 @@ def test_platform_passkey_enrollment_sets_httponly_proof_and_unlocks_mutation(
     # proof to exercise the real dependency without weakening production flags.
     step_up = verified.cookies.get("platform_step_up")
     assert step_up
+
+    status_with_proof = client.get(
+        "/api/superadmin/passkey/status",
+        headers={
+            **headers,
+            "Cookie": f"platform_step_up={step_up}",
+        },
+    )
+    assert status_with_proof.status_code == 200
+    assert status_with_proof.json()["enrolled"] is True
+    assert status_with_proof.json()["step_up_valid"] is True
+
     mutation = client.post(
         "/api/superadmin/clients/999999/validate",
         headers={
