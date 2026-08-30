@@ -1,5 +1,6 @@
 from datetime import datetime, timedelta
 from pathlib import Path
+from unittest.mock import AsyncMock
 import uuid
 
 import pytest
@@ -19,9 +20,18 @@ from backend.utils import rate_limit
 
 
 @pytest.fixture(autouse=True)
-def _reset_pairing_rate_limit():
+def _reset_pairing_rate_limit(monkeypatch):
     path = Path(rate_limit._store_path)
     path.unlink(missing_ok=True)
+    monkeypatch.setattr(
+        'backend.routers.mobile_pairing_secure.LicenseService.get_effective_license',
+        AsyncMock(return_value={
+            'active': True,
+            'license_type': 'PAID',
+            'max_devices': 10,
+            'release_channel': 'stable',
+        }),
+    )
     yield
     path.unlink(missing_ok=True)
 
@@ -43,12 +53,24 @@ def _user(db, *, email, role, employer_id=None, permissions=None, active=True, a
 
 
 def _pairing(db, owner, user, *, token=None, manual_code='654321'):
+    config = db.query(models.CabinetConfig).filter(models.CabinetConfig.owner_id == owner.id).first()
+    if config is None:
+        config = models.CabinetConfig(
+            owner_id=owner.id,
+            public_id=f'cab{owner.id:013d}'[-16:],
+            clinic_id=f'clinic-{owner.id}',
+            nom_cabinet='Cabinet Mobile Identity Test',
+            nom_praticien='Dr Mobile Identity',
+        )
+        db.add(config)
+        db.flush()
+
     row = models.ZKAPairingToken(
         token=token or uuid.uuid4().hex,
         manual_code=manual_code,
         employer_id=owner.id,
         user_id=user.id if user else None,
-        public_id='abcdef1234567890',
+        public_id=config.public_id,
         master_key='a' * 64,
         role='DENTISTE',
         expires_at=datetime.utcnow() + timedelta(minutes=5),
