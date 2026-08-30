@@ -1,5 +1,6 @@
 """Security boundary tests for privileged Superadmin sessions."""
 from datetime import datetime, timedelta, timezone
+from types import SimpleNamespace
 from unittest.mock import patch
 import uuid
 
@@ -16,6 +17,15 @@ def with_superadmin_env(dentiste):
         "backend.platform_access.settings.SUPERADMIN_USER_ID", dentiste.id
     ):
         yield
+
+
+def _web_headers(client, user) -> dict[str, str]:
+    login = client.post(
+        "/api/auth/login",
+        data={"username": user.email, "password": "TestPass123!"},
+    )
+    assert login.status_code == 200
+    return {"Authorization": f"Bearer {login.json()['access_token']}"}
 
 
 def _mobile_token_for(user) -> str:
@@ -38,19 +48,24 @@ def _mobile_token_for(user) -> str:
     )
 
 
-def test_superadmin_web_access_token_remains_authorized(client, dentiste, with_superadmin_env):
-    login = client.post(
-        "/api/auth/login",
-        data={"username": dentiste.email, "password": "TestPass123!"},
-    )
-    assert login.status_code == 200
+def _uv_payload(user, *, issued_at: datetime | None = None, biometric_uv: bool = True) -> dict:
+    now = issued_at or datetime.now(timezone.utc)
+    return {
+        "sub": str(user.id),
+        "tenant_id": int(user.get_employer_id()),
+        "device_id": "superadmin-passkey-device",
+        "type": "mobile",
+        "biometric_uv": biometric_uv,
+        "iat": now.timestamp(),
+        "exp": (now + timedelta(minutes=5)).timestamp(),
+    }
 
-    token = login.json()["access_token"]
+
+def test_superadmin_web_access_token_remains_authorized(client, dentiste, with_superadmin_env):
     response = client.get(
         "/api/superadmin/clients",
-        headers={"Authorization": f"Bearer {token}"},
+        headers=_web_headers(client, dentiste),
     )
-
     assert response.status_code == 200
 
 
@@ -76,3 +91,88 @@ def test_superadmin_mobile_token_is_rejected_even_for_owner_identity(
 
     assert response.status_code == 403
     assert response.json()["detail"] == "Accès plateforme réservé à une session web privilégiée."
+
+
+def test_superadmin_mutation_requires_step_up(client, dentiste, with_superadmin_env):
+    response = client.post(
+        "/api/superadmin/clients/999999/validate",
+        headers=_web_headers(client, dentiste),
+    )
+
+    assert response.status_code == 403
+    assert response.json()["detail"]["code"] == "PLATFORM_STEP_UP_REQUIRED"
+
+
+def test_superadmin_valid_recent_uv_step_up_allows_mutation_to_reach_route(
+    client,
+    dentiste,
+    with_superadmin_env,
+):
+    headers = _web_headers(client, dentiste)
+    headers["X-Platform-Step-Up"] = "server-issued-uv-proof"
+    payload = _uv_payload(dentiste)
+
+    with patch(
+        "backend.platform_step_up._decode_mobile_identity",
+        return_value=(dentiste, dentiste.get_employer_id(), payload),
+    ):
+        response = client.post(
+            "/api/superadmin/clients/999999/validate",
+            headers=headers,
+        )
+
+    # 404 proves the security dependency passed and the request reached the route.
+    assert response.status_code == 404
+
+
+def test_superadmin_step_up_must_match_web_identity(client, dentiste, with_superadmin_env):
+    headers = _web_headers(client, dentiste)
+    headers["X-Platform-Step-Up"] = "server-issued-uv-proof"
+    other_user = SimpleNamespace(id=dentiste.id + 1000)
+
+    with patch(
+        "backend.platform_step_up._decode_mobile_identity",
+        return_value=(other_user, dentiste.get_employer_id(), _uv_payload(dentiste)),
+    ):
+        response = client.post(
+            "/api/superadmin/clients/999999/validate",
+            headers=headers,
+        )
+
+    assert response.status_code == 403
+    assert response.json()["detail"]["code"] == "PLATFORM_STEP_UP_IDENTITY_MISMATCH"
+
+
+def test_superadmin_step_up_requires_biometric_uv(client, dentiste, with_superadmin_env):
+    headers = _web_headers(client, dentiste)
+    headers["X-Platform-Step-Up"] = "server-issued-non-uv-proof"
+
+    with patch(
+        "backend.platform_step_up._decode_mobile_identity",
+        return_value=(dentiste, dentiste.get_employer_id(), _uv_payload(dentiste, biometric_uv=False)),
+    ):
+        response = client.post(
+            "/api/superadmin/clients/999999/validate",
+            headers=headers,
+        )
+
+    assert response.status_code == 403
+    assert response.json()["detail"]["code"] == "PLATFORM_STEP_UP_UV_REQUIRED"
+
+
+def test_superadmin_step_up_rejects_stale_uv(client, dentiste, with_superadmin_env):
+    headers = _web_headers(client, dentiste)
+    headers["X-Platform-Step-Up"] = "server-issued-stale-uv-proof"
+    payload = _uv_payload(dentiste, issued_at=datetime.now(timezone.utc) - timedelta(minutes=6))
+
+    with patch(
+        "backend.platform_step_up._decode_mobile_identity",
+        return_value=(dentiste, dentiste.get_employer_id(), payload),
+    ):
+        response = client.post(
+            "/api/superadmin/clients/999999/validate",
+            headers=headers,
+        )
+
+    assert response.status_code == 403
+    assert response.json()["detail"]["code"] == "PLATFORM_STEP_UP_EXPIRED"
