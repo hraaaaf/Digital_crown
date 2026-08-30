@@ -4,8 +4,8 @@ Dernière mise à jour : 2026-08-30
 Repo : `hraaaaf/Digital_crown`
 Branche : `security/sec1-signed-licenses`
 PR : #288 — SEC-1 — draft
-HEAD documentaire : sera remplacé par le commit de cette mise à jour
-Statut : EN COURS — code control-plane fortement durci ; CI finale et gates production encore à prouver
+HEAD code sécurité vérifié avant closeout documentaire : `be97d883004ffd03844bff84c398c59b94af2dd1`
+Statut : EN COURS — backend/control-plane fortement durci ; CI finale, UI défensive et gates production encore à prouver
 
 ## Goal
 
@@ -91,12 +91,14 @@ Données sensibles minimisées : code Trial, note interne, clé publique device 
 
 Dette d'observabilité restante : `AuditLog` n'a pas encore de `request_id`/résultat structuré. L'attribution acteur/action/cible existe néanmoins.
 
-### `max_devices` réellement appliqué
+### `max_devices` réellement appliqué et fail-closed
 
 Le défaut historique est corrigé :
 
 - `LicenseService._verified_result()` conserve `max_devices` ;
 - TRIAL/PAID signés exigent cryptographiquement `max_devices >= 1` ;
+- absence de `max_devices` sur TRIAL/PAID : rejet par `verify_license()` ;
+- régression explicite ajoutée pour TRIAL et PAID : `test_expiring_license_without_max_devices_is_rejected` ;
 - `/api/mobile/claim-token` lit l'entitlement signé effectif ;
 - appairage refusé si capacité atteinte ;
 - appareil révoqué libère un slot ;
@@ -104,7 +106,12 @@ Le défaut historique est corrigé :
 - SQLite : `BEGIN IMMEDIATE` sérialise le comptage + insertion + consommation du token ;
 - DB serveur : verrou tenant `FOR UPDATE`.
 
-Preuve ciblée : `backend/tests/test_mobile_device_entitlement.py`.
+Preuves ciblées :
+
+- `backend/tests/test_license_security.py` ;
+- `backend/tests/test_mobile_device_entitlement.py`.
+
+Le test de régression a été ajouté au commit `be97d883004ffd03844bff84c398c59b94af2dd1`. Son exécution reste à attribuer à une CI verte du HEAD final ; aucune réussite locale n'est revendiquée.
 
 ### Device management plateforme
 
@@ -129,7 +136,7 @@ Réémissions :
 - changement de canal préserve type, expiration, capacité et feature set ;
 - OWNER ne passe pas par les flows client.
 
-`verify_license()` impose déjà les invariants de claims sur toute licence active réellement acceptée.
+`verify_license()` impose les invariants de claims sur toute licence active réellement acceptée.
 
 Preuve ciblée : `backend/tests/test_superadmin_license_claim_preservation.py`.
 
@@ -177,18 +184,25 @@ Ils restent protégés par step-up sur mutation.
 
 Aucune nouvelle surface visuelle n'a été ajoutée dans ce lot, donc aucun faux score visuel n'est déclaré.
 
-Vérifié :
+Vérifié par lecture source :
 
 - dashboard actuel expose clients/Trial/licences/pack/archive/suspension/notes/historique/relance ;
 - opérateurs, viewer audit, devices et release channel sont backend-only pour l'instant ;
-- `/super-admin` est dans le routeur frontend authentifié sans garde UI `is_superadmin`. Le backend refuse néanmoins données/actions non autorisées.
+- `/super-admin` est dans le routeur frontend authentifié sans garde d'autorité plateforme ;
+- après un 403 de `/superadmin/clients`, `SuperAdminDashboard` termine son loading puis rend encore le shell SuperAdmin vide ;
+- le refus de `/superadmin/trial-codes` n'établit pas non plus d'état de refus UI.
 
-Cette dernière exposition de shell est une dette UX/defense-in-depth, **pas une élévation de privilège**. Sa correction est un changement de flow visuel et devra respecter BEFORE → Goal → référence/mockup → implémentation → AFTER mêmes viewports → comparaison/tests → score visuel.
+Le backend refuse néanmoins les données/actions non autorisées : dette UX/defense-in-depth, **pas une élévation de privilège**.
+
+Une garde naïve `user.is_superadmin` n'est pas acceptable : elle bloquerait les opérateurs plateforme délégués pourtant autorisés par le RBAC backend. La future correction devra dériver l'accès de l'autorité plateforme réelle et respecter BEFORE → Goal → référence/mockup → implémentation → AFTER mêmes viewports → comparaison/tests → score visuel.
+
+Baseline visuelle BEFORE : non capturée dans ce runtime. Le clone local est bloqué par l'absence de résolution réseau vers GitHub ; aucun patch visuel ne doit être appliqué tant qu'une page exécutable n'est pas disponible pour respecter le protocole.
 
 ## Tests / CI
 
 Tests ciblés présents :
 
+- `test_license_security.py`
 - `test_platform_access.py`
 - `test_superadmin_session_boundary.py`
 - `test_superadmin_platform_passkey.py`
@@ -213,17 +227,17 @@ La clé privée de signature control-plane et son identité Ed25519 ont déjà u
 
 ## Séquence restante
 
-1. laisser la CI du HEAD final s'exécuter sans attente passive ;
+1. revalider la CI du HEAD documentaire final ;
 2. diagnostiquer/corriger tout rouge ;
-3. si vert, mettre la PR #288 à jour avec le HEAD/preuves réels ;
-4. effectuer le lot UI Superadmin séparé seulement avec baseline visuelle disponible ;
+3. si vert, mettre la PR #288 à jour avec le HEAD et les preuves réels ;
+4. obtenir une baseline visuelle exécutable de `/super-admin`, puis faire le lot UI défensif selon le protocole obligatoire ;
 5. exécuter les trois gates production ci-dessus ;
 6. seulement ensuite décider draft → ready/merge.
 
 ## Next exact
 
-Revalider la CI du HEAD final après ces commits documentaires. Si rouge : diagnostiquer et corriger. Si vert : mettre à jour la PR puis s'arrêter uniquement sur les gates production/UI qui nécessitent un environnement/provisionnement réel.
+Revalider la CI du HEAD documentaire final. Si rouge : diagnostiquer et corriger. Si vert : mettre à jour la PR #288, puis traiter uniquement les gates qui disposent d'une preuve exécutable réelle.
 
 ## Avancement
 
-Non chiffré : aucune pondération canonique n'a été définie. Le backend sécurité/fonctionnalités est largement couvert, mais CI finale, UI spécifique et provisioning production ne sont pas encore certifiés.
+Non chiffré : aucune pondération canonique n'a été définie. Le backend sécurité/fonctionnalités est largement couvert, mais CI finale, UI défensive et provisioning production ne sont pas encore certifiés.
