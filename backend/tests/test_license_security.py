@@ -116,6 +116,17 @@ def test_valid_paid_is_accepted(keypair, now):
     assert verified.license_type == "PAID"
 
 
+@pytest.mark.parametrize("license_type", ["TRIAL", "PAID"])
+def test_expiring_license_without_max_devices_is_rejected(keypair, now, license_type):
+    private, public = keypair
+    claims = _claims(now, license_type=license_type)
+    claims.pop("max_devices")
+    token = sign_license(claims, private, "k1")
+
+    with pytest.raises(LicenseSecurityError, match="max_devices"):
+        verify_license(token, {"k1": public}, now=now + timedelta(seconds=1))
+
+
 @pytest.mark.parametrize(
     "changes",
     [
