@@ -149,6 +149,9 @@ from . import partner_dispatch as partner_dispatch
 from . import partner_orders_p6 as partner_orders_p6
 from . import partner_procurement as partner_procurement
 from . import partner_receipts as partner_receipts
+from . import partner_stock as partner_stock
+from . import partner_receipts_p7 as partner_receipts_p7
+from . import partner_stock_safety as partner_stock_safety
 partner_orders.router.routes = [
     route
     for route in partner_orders.router.routes
@@ -157,7 +160,40 @@ partner_orders.router.routes = [
         and "PATCH" in (getattr(route, "methods", set()) or set())
     )
 ]
+# P7 replaces only the receipt POST facade. The P6 implementation remains callable
+# internally and all GET receipt/progress routes remain unchanged.
+partner_receipts.router.routes = [
+    route
+    for route in partner_receipts.router.routes
+    if not (
+        getattr(route, "path", None) == "/{order_id}/receipt"
+        and "POST" in (getattr(route, "methods", set()) or set())
+    )
+]
 partner_orders.router.include_router(partner_orders_p6.router)
 partner_orders.router.include_router(partner_dispatch.router)
 partner_orders.router.include_router(partner_procurement.router)
+partner_orders.router.include_router(partner_receipts_p7.router)
 partner_orders.router.include_router(partner_receipts.router)
+
+# Marketplace P7 keeps the existing StockItem CRUD as the aggregate source of truth,
+# registers mapping/ledger/lot tables, then mounts the bridge under /api/stock/marketplace.
+# Consumption/reorder routes are replaced by expiry-aware variants so expired lots are
+# never treated as usable stock.
+partner_stock.router.routes = [
+    route
+    for route in partner_stock.router.routes
+    if not (
+        (
+            getattr(route, "path", None) == "/marketplace/items/{stock_item_id}/consume"
+            and "POST" in (getattr(route, "methods", set()) or set())
+        )
+        or (
+            getattr(route, "path", None) == "/marketplace/reorder-suggestions"
+            and "GET" in (getattr(route, "methods", set()) or set())
+        )
+    )
+]
+from . import stock as stock
+stock.router.include_router(partner_stock.router)
+stock.router.include_router(partner_stock_safety.router)
