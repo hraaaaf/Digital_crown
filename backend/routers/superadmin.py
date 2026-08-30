@@ -77,12 +77,7 @@ def add_platform_audit(
     details: str | None = None,
     severity: str = "INFO",
 ) -> None:
-    """Stage a privileged audit event in the caller's transaction.
-
-    No commit occurs here. For local state mutations, the audit row and the state
-    change therefore succeed or roll back together instead of relying on the
-    generic audit service's independent commit.
-    """
+    """Stage a privileged audit event in the caller's transaction."""
     db.add(
         models.AuditLog(
             user_id=admin_id,
@@ -174,7 +169,10 @@ async def _issue_and_store_signed_license(
 
 
 @router.get("/clients", response_model=List[ClientOut])
-def get_clients(db: Session = Depends(database.get_db), admin: models.User = Depends(verify_superadmin)):
+def get_clients(
+    db: Session = Depends(database.get_db),
+    admin: models.User = Depends(require_platform_permission("license.read")),
+):
     clients = db.query(models.User).filter(
         models.User.role.in_([models.UserRole.ADMIN, models.UserRole.DENTISTE]),
         models.User.employer_id == None,
@@ -195,6 +193,36 @@ def get_clients(db: Session = Depends(database.get_db), admin: models.User = Dep
         )
         result.append(c_dict)
     return result
+
+
+@router.get("/audit")
+def get_platform_audit(
+    limit: int = Query(50, ge=1, le=100),
+    offset: int = Query(0, ge=0),
+    db: Session = Depends(database.get_db),
+    admin: models.User = Depends(require_platform_permission("audit.read")),
+):
+    rows = (
+        db.query(models.AuditLog)
+        .filter(models.AuditLog.action.like("SUPERADMIN_%"))
+        .order_by(models.AuditLog.timestamp.desc(), models.AuditLog.id.desc())
+        .offset(offset)
+        .limit(limit)
+        .all()
+    )
+    return [
+        {
+            "id": row.id,
+            "timestamp": row.timestamp,
+            "user_id": row.user_id,
+            "action": row.action,
+            "resource_type": row.resource_type,
+            "resource_id": row.resource_id,
+            "severity": row.severity,
+            "details": row.details,
+        }
+        for row in rows
+    ]
 
 
 @router.post("/clients/{user_id}/validate")
@@ -240,12 +268,10 @@ async def validate_client(
         severity="WARNING",
     )
     db.commit()
-
     invalidate_license_cache(user.email)
 
     try:
         from backend.services.email_service import email_service
-
         background_tasks.add_task(
             email_service.send_account_activated,
             user.email,
@@ -254,7 +280,6 @@ async def validate_client(
         )
     except Exception as e:
         import logging
-
         logging.getLogger(__name__).warning("Email activation non programme pour %s: %s", user.email, e)
 
     return {"status": "success", "message": f"Compte de {user.email} activé avec 30 jours d'essai."}
@@ -281,7 +306,6 @@ def create_trial_code(
 ):
     expires_in_days = max(1, min(payload.expires_in_days, 60))
     trial_days = max(1, min(payload.trial_days, 90))
-
     code = models.TrialActivationCode(
         code=_generate_trial_code(),
         email=payload.email.lower().strip(),
@@ -347,10 +371,7 @@ async def grant_license(
 
     cabinet = db.query(models.CabinetConfig).filter(models.CabinetConfig.owner_id == user.id).first()
     if not cabinet:
-        raise HTTPException(
-            status_code=409,
-            detail="Cabinet non configuré : impossible d'émettre une licence signée.",
-        )
+        raise HTTPException(status_code=409, detail="Cabinet non configuré : impossible d'émettre une licence signée.")
 
     now_utc = datetime.now(timezone.utc)
     now_db = now_utc.replace(tzinfo=None)
@@ -363,11 +384,7 @@ async def grant_license(
     durations = {"1m": 30, "3m": 90, "6m": 180, "1y": 365}
     if action == "revoke":
         previous_expiry = user.license_expires_at
-        expiry_utc = (
-            previous_expiry.replace(tzinfo=timezone.utc)
-            if previous_expiry
-            else now_utc
-        )
+        expiry_utc = previous_expiry.replace(tzinfo=timezone.utc) if previous_expiry else now_utc
         await _issue_and_store_signed_license(
             cabinet=cabinet,
             license_type="PAID",
@@ -377,7 +394,6 @@ async def grant_license(
             max_devices=1,
             feature_set=user.subscription_plan or models.SubscriptionPlan.GOLD.value,
         )
-
         user.license_expires_at = now_db - timedelta(days=1)
         user.is_licensed = False
         add_license_history(db, user_id, admin.id, "revoke")
@@ -407,7 +423,6 @@ async def grant_license(
         max_devices=1,
         feature_set=user.subscription_plan or models.SubscriptionPlan.GOLD.value,
     )
-
     user.license_expires_at = new_expiry_db
     user.is_licensed = True
     add_license_history(db, user_id, admin.id, "grant", duration)
@@ -421,17 +436,19 @@ async def grant_license(
         severity="WARNING",
     )
     db.commit()
-
     invalidate_license_cache(user.email)
     return {"status": "success", "license_expires_at": user.license_expires_at}
 
 
 @router.patch("/clients/{user_id}/archive")
-def archive_client(user_id: int, db: Session = Depends(database.get_db), admin: models.User = Depends(verify_superadmin)):
+def archive_client(
+    user_id: int,
+    db: Session = Depends(database.get_db),
+    admin: models.User = Depends(verify_superadmin),
+):
     user = db.query(models.User).filter(models.User.id == user_id).first()
     if not user:
         raise HTTPException(status_code=404, detail="Utilisateur introuvable.")
-
     user.is_archived = not user.is_archived
     action = "SUPERADMIN_CLIENT_ARCHIVE" if user.is_archived else "SUPERADMIN_CLIENT_UNARCHIVE"
     add_license_history(db, user_id, admin.id, "archive" if user.is_archived else "unarchive")
@@ -449,11 +466,14 @@ def archive_client(user_id: int, db: Session = Depends(database.get_db), admin: 
 
 
 @router.patch("/clients/{user_id}/suspend")
-def suspend_client(user_id: int, db: Session = Depends(database.get_db), admin: models.User = Depends(verify_superadmin)):
+def suspend_client(
+    user_id: int,
+    db: Session = Depends(database.get_db),
+    admin: models.User = Depends(verify_superadmin),
+):
     user = db.query(models.User).filter(models.User.id == user_id).first()
     if not user:
         raise HTTPException(status_code=404, detail="Utilisateur introuvable.")
-
     user.is_suspended = not user.is_suspended
     action = "SUPERADMIN_CLIENT_SUSPEND" if user.is_suspended else "SUPERADMIN_CLIENT_UNSUSPEND"
     add_license_history(db, user_id, admin.id, "suspend" if user.is_suspended else "unsuspend")
@@ -477,12 +497,6 @@ async def set_client_plan(
     db: Session = Depends(database.get_db),
     admin: models.User = Depends(verify_superadmin),
 ):
-    """Change the commercial plan and keep the signed entitlement authoritative.
-
-    For an active signed licence, the replacement token is issued and persisted
-    before the SQLite display mirror changes. If signing/persistence fails, the
-    plan change fails closed and the previous entitlement remains authoritative.
-    """
     user = db.query(models.User).filter(models.User.id == user_id).first()
     if not user:
         raise HTTPException(status_code=404, detail="Utilisateur introuvable.")
@@ -495,25 +509,16 @@ async def set_client_plan(
     cabinet = db.query(models.CabinetConfig).filter(models.CabinetConfig.owner_id == user.id).first()
     if user.is_licensed:
         if not cabinet:
-            raise HTTPException(
-                status_code=409,
-                detail="Cabinet non configuré : impossible de réaligner la licence signée.",
-            )
+            raise HTTPException(status_code=409, detail="Cabinet non configuré : impossible de réaligner la licence signée.")
 
         clinic_id = _license_identifier(cabinet)
         effective = await LicenseService().get_effective_license(clinic_id)
         if not effective.get("active"):
-            raise HTTPException(
-                status_code=409,
-                detail="Licence signée active introuvable : changement de pack refusé.",
-            )
+            raise HTTPException(status_code=409, detail="Licence signée active introuvable : changement de pack refusé.")
 
         license_type = str(effective.get("license_type") or "PAID")
         if license_type == "OWNER":
-            raise HTTPException(
-                status_code=400,
-                detail="Le plan commercial OWNER ne peut pas être modifié via un client.",
-            )
+            raise HTTPException(status_code=400, detail="Le plan commercial OWNER ne peut pas être modifié via un client.")
 
         expiry = effective.get("expiration_date")
         if isinstance(expiry, str):
@@ -547,11 +552,15 @@ async def set_client_plan(
 
 
 @router.patch("/clients/{user_id}/notes")
-def update_client_notes(user_id: int, data: UpdateClientNotes, db: Session = Depends(database.get_db), admin: models.User = Depends(verify_superadmin)):
+def update_client_notes(
+    user_id: int,
+    data: UpdateClientNotes,
+    db: Session = Depends(database.get_db),
+    admin: models.User = Depends(verify_superadmin),
+):
     user = db.query(models.User).filter(models.User.id == user_id).first()
     if not user:
         raise HTTPException(status_code=404, detail="Utilisateur introuvable.")
-
     user.internal_notes = data.internal_notes
     add_platform_audit(
         db,
@@ -566,13 +575,26 @@ def update_client_notes(user_id: int, data: UpdateClientNotes, db: Session = Dep
 
 
 @router.get("/clients/{user_id}/license-history", response_model=List[LicenseHistoryOut])
-def get_license_history(user_id: int, db: Session = Depends(database.get_db), admin: models.User = Depends(verify_superadmin)):
-    history = db.query(models.LicenseHistory).filter(models.LicenseHistory.user_id == user_id).order_by(models.LicenseHistory.timestamp.desc()).all()
-    return history
+def get_license_history(
+    user_id: int,
+    db: Session = Depends(database.get_db),
+    admin: models.User = Depends(require_platform_permission("license.read")),
+):
+    return (
+        db.query(models.LicenseHistory)
+        .filter(models.LicenseHistory.user_id == user_id)
+        .order_by(models.LicenseHistory.timestamp.desc())
+        .all()
+    )
 
 
 @router.post("/clients/{user_id}/send-renewal-email")
-def send_renewal_email(user_id: int, data: SendRenewalEmailRequest, db: Session = Depends(database.get_db), admin: models.User = Depends(verify_superadmin)):
+def send_renewal_email(
+    user_id: int,
+    data: SendRenewalEmailRequest,
+    db: Session = Depends(database.get_db),
+    admin: models.User = Depends(verify_superadmin),
+):
     user = db.query(models.User).filter(models.User.id == user_id).first()
     if not user:
         raise HTTPException(status_code=404, detail="Utilisateur introuvable.")
