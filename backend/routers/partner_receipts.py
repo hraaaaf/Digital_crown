@@ -94,11 +94,17 @@ def _received_quantities(receipts: list[PartnerOrderReceipt]) -> dict[str, int]:
 def _receipt_progress(order: models.PartnerOrder, receipts: list[PartnerOrderReceipt]) -> dict:
     ordered = _ordered_quantities(order)
     received = _received_quantities(receipts)
+    unexpected_products = set(received) - set(ordered)
+    if unexpected_products:
+        raise HTTPException(status_code=409, detail="Historique de reception incoherent avec la commande.")
+
     lines = []
     for order_line in order.lines_json or []:
         product_id = str(order_line["productId"])
         quantity_ordered = ordered[product_id]
         quantity_received = received.get(product_id, 0)
+        if quantity_received > quantity_ordered:
+            raise HTTPException(status_code=409, detail=f"Historique de sur-reception detecte pour {product_id}.")
         lines.append(
             {
                 "productId": product_id,
@@ -106,7 +112,7 @@ def _receipt_progress(order: models.PartnerOrder, receipts: list[PartnerOrderRec
                 "sku": order_line.get("sku"),
                 "quantityOrdered": quantity_ordered,
                 "quantityReceived": quantity_received,
-                "quantityOutstanding": max(0, quantity_ordered - quantity_received),
+                "quantityOutstanding": quantity_ordered - quantity_received,
             }
         )
     return {
@@ -133,6 +139,8 @@ def _canonical_receipt_lines(
             raise HTTPException(status_code=422, detail=f"Produit absent de la commande: {product_id}")
         previous = already_received.get(product_id, 0)
         remaining = ordered[product_id] - previous
+        if remaining < 0:
+            raise HTTPException(status_code=409, detail=f"Historique de sur-reception detecte pour {product_id}.")
         if line.quantityReceived > remaining:
             raise HTTPException(
                 status_code=422,
@@ -165,6 +173,10 @@ def _canonical_receipt_lines(
 
 
 def _idempotent_payload_matches(receipt: PartnerOrderReceipt, payload: PartnerReceiptCreateIn) -> bool:
+    requested_ids = [str(line.productId).strip() for line in payload.lines]
+    if any(not product_id for product_id in requested_ids) or len(set(requested_ids)) != len(requested_ids):
+        return False
+
     stored = {
         str(line.get("productId")): (
             int(line.get("quantityReceived", 0)),
@@ -210,6 +222,8 @@ def create_partner_order_receipt(
     employer_id = current_user.get_employer_id()
     order = _get_scoped_order(db, employer_id, order_id)
     receipt_key = payload.idempotencyKey.strip()
+    if len(receipt_key) < 8:
+        raise HTTPException(status_code=422, detail="idempotencyKey doit contenir au moins 8 caracteres utiles.")
 
     existing = (
         db.query(PartnerOrderReceipt)
