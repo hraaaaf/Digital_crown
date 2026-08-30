@@ -47,8 +47,7 @@ patients.router.routes = [
     for route in patients.router.routes
     if not (
         getattr(route, "path", None) == "/{patient_id}/financial-snapshot"
-        and "GET" in (getattr(route, "methods", set()) or set())
-    )
+        and "GET" in (getattr(route, "methods", set()) or set()))
 ]
 
 patients.router.include_router(patient_odontogram.router)
@@ -69,8 +68,7 @@ ia.router.routes = [
     for route in ia.router.routes
     if not (
         getattr(route, "path", None) in _HARD_DELETE_PATHS
-        and "DELETE" in (getattr(route, "methods", set()) or set())
-    )
+        and "DELETE" in (getattr(route, "methods", set()) or set()))
 ]
 ia.router.include_router(imaging_lifecycle_p4.router)
 
@@ -81,8 +79,7 @@ clinics.router.routes = [
     for route in clinics.router.routes
     if not (
         getattr(route, "path", None) == "/recheck-license"
-        and "POST" in (getattr(route, "methods", set()) or set())
-    )
+        and "POST" in (getattr(route, "methods", set()) or set()))
 ]
 clinics.router.include_router(license_portability_p4.router)
 
@@ -98,7 +95,6 @@ clinics.router.routes = [
     if not (
         getattr(route, "path", None) == "/me"
         and ({"GET", "PUT"} & (getattr(route, "methods", set()) or set()))
-    )
 ]
 clinics.router.include_router(clinic_profile_p4.router)
 
@@ -110,8 +106,7 @@ clinics.router.routes = [
     for route in clinics.router.routes
     if not (
         getattr(route, "path", None) == "/"
-        and "POST" in (getattr(route, "methods", set()) or set())
-    )
+        and "POST" in (getattr(route, "methods", set()) or set()))
 ]
 clinics.router.include_router(clinic_setup_p4.router)
 
@@ -158,8 +153,7 @@ partner_orders.router.routes = [
     for route in partner_orders.router.routes
     if not (
         getattr(route, "path", None) == "/{order_id}"
-        and "PATCH" in (getattr(route, "methods", set()) or set())
-    )
+        and "PATCH" in (getattr(route, "methods", set()) or set()))
 ]
 # P7 replaces only the receipt POST facade. The P6 implementation remains callable
 # internally and all GET receipt/progress routes remain unchanged.
@@ -168,8 +162,7 @@ partner_receipts.router.routes = [
     for route in partner_receipts.router.routes
     if not (
         getattr(route, "path", None) == "/{order_id}/receipt"
-        and "POST" in (getattr(route, "methods", set()) or set())
-    )
+        and "POST" in (getattr(route, "methods", set()) or set()))
 ]
 partner_orders.router.include_router(partner_orders_p6.router)
 partner_orders.router.include_router(partner_dispatch.router)
@@ -188,12 +181,10 @@ partner_stock.router.routes = [
     if not (
         (
             getattr(route, "path", None) == "/marketplace/items/{stock_item_id}/consume"
-            and "POST" in (getattr(route, "methods", set()) or set())
-        )
+            and "POST" in (getattr(route, "methods", set()) or set()))
         or (
             getattr(route, "path", None) == "/marketplace/reorder-suggestions"
-            and "GET" in (getattr(route, "methods", set()) or set())
-        )
+            and "GET" in (getattr(route, "methods", set()) or set()))
     )
 ]
 from . import stock as stock
@@ -205,3 +196,8 @@ stock.router.include_router(partner_stock_safety.router)
 from . import partner_catalog as partner_catalog
 from . import partner_sync as partner_sync
 partner_catalog.router.include_router(partner_sync.router)
+
+# Marketplace P10 adds global, cross-cabinet governance under /api/superadmin/marketplace.
+from . import superadmin as superadmin
+from . import partner_superadmin as partner_superadmin
+superadmin.router.include_router(partner_superadmin.router)
