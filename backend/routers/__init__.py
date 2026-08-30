@@ -199,3 +199,9 @@ partner_stock.router.routes = [
 from . import stock as stock
 stock.router.include_router(partner_stock.router)
 stock.router.include_router(partner_stock_safety.router)
+
+# Marketplace P9 registers supplier sync state before create_all() and mounts API
+# synchronization under the existing canonical partner-catalog router.
+from . import partner_catalog as partner_catalog
+from . import partner_sync as partner_sync
+partner_catalog.router.include_router(partner_sync.router)
