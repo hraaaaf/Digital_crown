@@ -255,3 +255,9 @@ def set_platform_operator_enabled(
     db.commit()
     db.refresh(target)
     return _serialize(target)
+
+
+# License/device controls share this router's authorization boundary so delegated
+# operators keep one closed permission model and one platform step-up implementation.
+from backend.routers.superadmin_license_controls import router as license_controls_router
+router.include_router(license_controls_router)
