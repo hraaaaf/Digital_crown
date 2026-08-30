@@ -52,15 +52,19 @@ Elles restent soumises au step-up WebAuthn pour toute mutation.
 Le claim `max_devices` :
 
 1. est obligatoire et validé cryptographiquement pour TRIAL/PAID ;
-2. est conservé par `LicenseService._verified_result()` ;
-3. est lu à l'appairage `/api/mobile/claim-token` ;
-4. borne le nombre de `MobilePairedDevice` actifs ;
-5. ignore correctement les appareils révoqués ;
-6. est réservé transactionnellement avant création du device.
+2. son absence explicite sur TRIAL/PAID est couverte par `test_expiring_license_without_max_devices_is_rejected` ;
+3. est conservé par `LicenseService._verified_result()` ;
+4. est lu à l'appairage `/api/mobile/claim-token` ;
+5. borne le nombre de `MobilePairedDevice` actifs ;
+6. ignore correctement les appareils révoqués ;
+7. est réservé transactionnellement avant création du device.
 
 SQLite, runtime cabinet canonique, utilise `BEGIN IMMEDIATE` avant le comptage + insertion + consommation du token. Deux claims concurrents ne peuvent donc pas réserver le même dernier slot. Les bases serveur utilisent un verrou tenant `FOR UPDATE`.
 
-Preuve ciblée : `backend/tests/test_mobile_device_entitlement.py`.
+Preuves ciblées :
+
+- `backend/tests/test_license_security.py` ;
+- `backend/tests/test_mobile_device_entitlement.py`.
 
 ## Réémission de licence — invariants
 
@@ -87,8 +91,10 @@ Restent backend-only à ce stade :
 
 Aucune modification visuelle de ces surfaces n'est appliquée sans le protocole UI obligatoire BEFORE → Goal → référence/mockup → implémentation → AFTER mêmes viewports → comparaison/tests → score visuel.
 
-La route frontend `/super-admin` reste montée dans le routeur authentifié sans garde visuel `is_superadmin`; le backend refuse néanmoins toute donnée/action non autorisée. C'est une dette UX/defense-in-depth, pas une élévation d'autorité.
+La route frontend `/super-admin` reste montée dans le routeur authentifié sans garde d'autorité plateforme. Plus précisément, `SuperAdminDashboard` passe `loading=false` après un 403 sur `/superadmin/clients` et rend ensuite son shell complet vide ; `/superadmin/trial-codes` ne crée pas non plus d'état de refus. Le backend refuse néanmoins les données/actions non autorisées. C'est une dette UX/defense-in-depth, pas une élévation d'autorité.
+
+Une simple garde `user.is_superadmin` serait incorrecte pour les opérateurs plateforme délégués autorisés par RBAC ; la correction UI doit respecter l'autorité backend réelle.
 
 ## Validation courante
 
-Les tests ciblés sont présents dans le repo. La CI du HEAD documentaire final doit encore être revalidée avant de déclarer le lot code clos.
+Le test de régression `max_devices` absent a été ajouté au commit code `be97d883004ffd03844bff84c398c59b94af2dd1`. Son exécution doit être prouvée par la CI du HEAD final ; aucune réussite locale n'est revendiquée.
