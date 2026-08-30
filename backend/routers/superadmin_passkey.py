@@ -7,7 +7,7 @@ import uuid
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from jose import jwt
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy.orm import Session
@@ -29,6 +29,7 @@ from backend.services.mobile_biometric import (
 router = APIRouter(prefix="/passkey", tags=["SuperAdmin Passkey"])
 CHALLENGE_TTL = timedelta(minutes=3)
 STEP_UP_TTL = timedelta(minutes=5)
+STEP_UP_COOKIE = "platform_step_up"
 
 
 class CeremonyResponse(BaseModel):
@@ -111,6 +112,20 @@ def _issue_step_up_token(user_id: int) -> tuple[str, int]:
     return token, int(STEP_UP_TTL.total_seconds())
 
 
+def _set_step_up_cookie(response: Response, request: Request, user_id: int) -> int:
+    token, expires_in = _issue_step_up_token(user_id)
+    response.set_cookie(
+        key=STEP_UP_COOKIE,
+        value=token,
+        max_age=expires_in,
+        httponly=True,
+        secure=request.url.scheme == "https",
+        samesite="strict",
+        path="/api/superadmin",
+    )
+    return expires_in
+
+
 def _audit_registration(db: Session, user_id: int, credential_id: str) -> None:
     db.add(
         models.AuditLog(
@@ -181,6 +196,7 @@ def registration_options(
 @router.post("/registration/verify")
 def registration_verify(
     request: Request,
+    response: Response,
     body: CeremonyResponse,
     db: Session = Depends(database.get_db),
     admin: models.User = Depends(_platform_admin),
@@ -212,8 +228,8 @@ def registration_verify(
         raise HTTPException(status_code=400, detail="Enrôlement WebAuthn plateforme impossible.") from exc
 
     credential_id = b64url_encode(verification.credential_id)
-    response = body.credential.get("response") if isinstance(body.credential, dict) else None
-    transports = response.get("transports", []) if isinstance(response, dict) else []
+    response_data = body.credential.get("response") if isinstance(body.credential, dict) else None
+    transports = response_data.get("transports", []) if isinstance(response_data, dict) else []
     transports = [str(value)[:32] for value in transports[:8] if isinstance(value, str)]
     db.add(
         PlatformPasskeyCredential(
@@ -228,12 +244,11 @@ def registration_verify(
     )
     _audit_registration(db, admin.id, credential_id)
     db.commit()
-    token, expires_in = _issue_step_up_token(admin.id)
+    expires_in = _set_step_up_cookie(response, request, admin.id)
     return {
         "enrolled": True,
         "credential_id": credential_id,
         "user_verified": True,
-        "access_token": token,
         "expires_in": expires_in,
     }
 
@@ -270,6 +285,7 @@ def authentication_options(
 @router.post("/authentication/verify")
 def authentication_verify(
     request: Request,
+    response: Response,
     body: CeremonyResponse,
     db: Session = Depends(database.get_db),
     admin: models.User = Depends(_platform_admin),
@@ -311,9 +327,8 @@ def authentication_verify(
     credential.credential_backed_up = bool(verification.credential_backed_up)
     db.commit()
 
-    token, expires_in = _issue_step_up_token(admin.id)
+    expires_in = _set_step_up_cookie(response, request, admin.id)
     return {
-        "access_token": token,
         "expires_in": expires_in,
         "credential_id": credential.credential_id,
         "user_verified": bool(verification.user_verified),
