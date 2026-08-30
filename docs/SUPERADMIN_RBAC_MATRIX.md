@@ -4,42 +4,91 @@ Dernière mise à jour : 2026-08-30
 
 Source d'autorité : `backend/platform_access.py`.
 
-| Permission | Surface actuelle | État | Preuve / dette |
-|---|---|---|---|
-| `license.read` | GET `/clients`, GET `/trial-codes`, GET `/clients/{id}/license-history` | CÂBLÉ | permission explicite; tests délégués dédiés |
-| `license.create_trial` | POST `/trial-codes` | CÂBLÉ | permission explicite + step-up mutation |
-| `license.create_paid` | POST `/clients/{id}/grant-license?action=1m|3m|6m|1y` si entitlement signé non-PAID | CÂBLÉ | choix basé sur `get_effective_license()`, pas `is_licensed`; tests de sélection/deny |
-| `license.extend` | même endpoint si entitlement signé PAID actif | CÂBLÉ | choix basé sur vérité signée; tests de sélection/deny |
-| `license.suspend` | PATCH `/clients/{id}/suspend` | IMPLÉMENTÉ — CI À PROUVER | permission explicite + step-up + audit; tests positif/négatif ajoutés |
-| `license.revoke` | POST `/trial-codes/{id}/revoke` + `grant-license?action=revoke` | CÂBLÉ | permission contrôlée avant lookup cible + step-up; OWNER refusé par flow client |
-| `license.manage_devices` | aucune surface Superadmin | BLOQUÉ PAR RUNTIME | `max_devices` est signé/vérifié mais le flow `/api/mobile/claim-token` crée `MobilePairedDevice` sans lire la limite ni compter les devices actifs; exposer une mutation serait trompeur tant que l'enforcement manque |
-| `license.change_release_channel` | aucune surface Superadmin vérifiée | MANQUANT | claim signé et allow-list `stable/beta` existent; réémission doit préserver tous les autres claims, dont `max_devices` |
-| `admin.read` | GET `/platform-admins` | IMPLÉMENTÉ — CI À PROUVER | liste owner + opérateurs explicites uniquement |
-| `admin.create` | POST `/platform-admins/{user_id}` | IMPLÉMENTÉ — CI À PROUVER | promeut seulement un compte plateforme-only existant; aucun mot de passe temporaire; non-escalation |
-| `admin.update_permissions` | PATCH `/platform-admins/{user_id}/permissions` | IMPLÉMENTÉ — CI À PROUVER | allow-list stricte, owner immuable, un opérateur ne délègue pas une permission qu'il ne possède pas |
-| `admin.disable` | PATCH `/platform-admins/{user_id}/enabled` | IMPLÉMENTÉ — CI À PROUVER | owner immuable; mutation step-up + audit |
-| `audit.read` | GET `/audit` | CÂBLÉ | lecture bornée 1..100, pagination offset, filtre strict `SUPERADMIN_%`; tests positif/négatif |
+## Matrice permission → backend → preuve
 
-## Règles de délégation
+| Permission | Surface backend actuelle | État code | Preuve ciblée | UI actuelle |
+|---|---|---|---|---|
+| `license.read` | GET `/clients`, GET `/trial-codes`, GET `/clients/{id}/license-history` | CÂBLÉ | `test_superadmin_rbac.py` | clients/Trial/historique présents |
+| `license.create_trial` | POST `/trial-codes` | CÂBLÉ | RBAC + step-up + audit | présente |
+| `license.create_paid` | POST `/clients/{id}/grant-license?action=1m|3m|6m|1y` si entitlement signé non-PAID | CÂBLÉ | `test_superadmin_rbac.py`, `test_superadmin_license_claim_preservation.py` | présente |
+| `license.extend` | même endpoint si entitlement signé PAID actif | CÂBLÉ | sélection depuis vérité signée + préservation claims | présente |
+| `license.suspend` | PATCH `/clients/{id}/suspend` | CÂBLÉ | positif/négatif RBAC + audit | présente |
+| `license.revoke` | POST `/trial-codes/{id}/revoke`, `grant-license?action=revoke` | CÂBLÉ | permission avant mutation + OWNER refusé | présente |
+| `license.manage_devices` | GET `/platform-admins/clients/{id}/devices`, POST `/platform-admins/clients/{id}/devices/{device_id}/revoke` | CÂBLÉ | `test_superadmin_device_controls.py` + `test_mobile_device_entitlement.py` | NON CÂBLÉE |
+| `license.change_release_channel` | PATCH `/clients/{id}/release-channel?channel=stable|beta` | CÂBLÉ | `test_superadmin_license_claim_preservation.py` | NON CÂBLÉE |
+| `admin.read` | GET `/platform-admins` | CÂBLÉ | `test_superadmin_rbac.py` | NON CÂBLÉE |
+| `admin.create` | POST `/platform-admins/{user_id}` | CÂBLÉ | plateforme-only + anti-escalation | NON CÂBLÉE |
+| `admin.update_permissions` | PATCH `/platform-admins/{user_id}/permissions` | CÂBLÉ | allow-list stricte + owner immuable + anti-escalation | NON CÂBLÉE |
+| `admin.disable` | PATCH `/platform-admins/{user_id}/enabled` | CÂBLÉ | owner immuable + audit | NON CÂBLÉE |
+| `audit.read` | GET `/audit?limit=&offset=` | CÂBLÉ | `test_superadmin_rbac.py`, filtre `SUPERADMIN_%` | NON CÂBLÉE |
+
+## Opérations volontairement owner-only
+
+Ces actions utilisent l'identité immuable `SUPERADMIN_USER_ID` plutôt qu'une permission délégable :
+
+- POST `/clients/{id}/validate` ;
+- PATCH `/clients/{id}/archive` ;
+- PATCH `/clients/{id}/plan` ;
+- PATCH `/clients/{id}/notes` ;
+- POST `/clients/{id}/send-renewal-email`.
+
+Elles restent soumises au step-up WebAuthn pour toute mutation.
+
+## Invariants de sécurité
 
 - L'identité `SUPERADMIN_USER_ID` conserve toutes les permissions de la liste fermée.
-- Un utilisateur plateforme non-SuperAdmin doit avoir la permission exacte à `true` dans `User.permissions`.
-- Un rôle cabinet `ADMIN` ou `DENTISTE` ne donne aucune permission plateforme par lui-même.
-- Toute mutation sous `/api/superadmin` conserve le step-up WebAuthn plateforme de cinq minutes.
-- Création/extension PAID est choisie depuis l'entitlement signé effectif : PAID actif → `license.extend`; TRIAL/inactif → `license.create_paid`.
-- Un entitlement OWNER ne peut pas être remplacé/révoqué via le flow licence client.
-- La suspension client est délégable uniquement via `license.suspend`.
-- La délégation `admin.*` ne crée aucun credential : elle transforme seulement un compte plateforme-only existant en opérateur explicite.
-- Un compte lié à un cabinet (`employer_id` ou `CabinetConfig.owner_id`) est refusé comme opérateur plateforme.
-- L'owner immuable ne peut être modifié/désactivé par les routes opérateurs.
-- Un opérateur non-owner ne peut déléguer que les permissions qu'il possède déjà.
+- Un opérateur plateforme non-owner doit avoir la permission exacte à `true` dans `User.permissions`.
+- Les rôles cabinet `ADMIN`/`DENTISTE` n'accordent aucune permission plateforme par eux-mêmes.
+- Un compte rattaché à un cabinet ne peut pas devenir opérateur plateforme.
+- L'owner immuable ne peut pas être modifié/désactivé via les routes opérateurs.
+- Un opérateur non-owner ne peut déléguer que des permissions qu'il possède déjà.
+- Toute mutation `/api/superadmin/*` exige un step-up WebAuthn plateforme récent.
+- Le step-up est un JWT séparé `type=platform_step_up`, lié à l'utilisateur web, TTL 5 minutes, cookie HttpOnly + Secure + SameSite=Strict + scope `/api/superadmin`.
+- Une mutation Superadmin utilisant l'autorité ambiante des cookies exige une Origin HTTPS exacte de l'allow-list control-plane. Un Bearer explicite reste possible pour les clients non-CSRF.
+- Le frontend ne stocke jamais la preuve step-up ; son timer mémoire est désormais recroisé avec `/passkey/status.step_up_valid` avant réutilisation.
 
-## Dette P1 — limite appareils non appliquée
+## `max_devices` — runtime réellement appliqué
 
-Preuve actuelle : `backend/license_security.py` valide le claim signé `max_devices`, mais `backend/routers/mobile_legacy.py::claim_pairing_token()` ajoute directement un `MobilePairedDevice` après le handshake sans consulter l'entitlement et sans vérifier le nombre d'appareils actifs.
+Le claim `max_devices` :
 
-Conséquence : `license.manage_devices` ne doit pas être exposée comme fonctionnalité Superadmin tant que la limite signée n'est pas réellement appliquée au runtime d'appairage.
+1. est obligatoire et validé cryptographiquement pour TRIAL/PAID ;
+2. est conservé par `LicenseService._verified_result()` ;
+3. est lu à l'appairage `/api/mobile/claim-token` ;
+4. borne le nombre de `MobilePairedDevice` actifs ;
+5. ignore correctement les appareils révoqués ;
+6. est réservé transactionnellement avant création du device.
 
-## Next exact
+SQLite, runtime cabinet canonique, utilise `BEGIN IMMEDIATE` avant le comptage + insertion + consommation du token. Deux claims concurrents ne peuvent donc pas réserver le même dernier slot. Les bases serveur utilisent un verrou tenant `FOR UPDATE`.
 
-Valider la CI du lot RBAC/opérateurs. En parallèle, concevoir puis appliquer `max_devices` au runtime d'appairage mobile de façon fail-closed et résistante aux claims concurrents. Seulement ensuite exposer `license.manage_devices`. Puis traiter `license.change_release_channel` en préservant l'intégralité des claims signés.
+Preuve ciblée : `backend/tests/test_mobile_device_entitlement.py`.
+
+## Réémission de licence — invariants
+
+Une réémission modifie uniquement le claim demandé :
+
+- extension/révocation préservent `max_devices`, `release_channel`, `feature_set` ;
+- changement de plan préserve `max_devices` et `release_channel` ;
+- changement de release channel préserve capacité, feature set, type et expiration.
+
+Pour une licence active réellement vérifiée, `verify_license()` exige déjà `max_devices >= 1` (hors OWNER) et `release_channel ∈ {stable,beta}` ; une preuve active corrompue est donc refusée avant ces flows.
+
+Preuve ciblée : `backend/tests/test_superadmin_license_claim_preservation.py`.
+
+## État UI
+
+Le dashboard existant câble clients, Trial, grant/revoke, pack, archive, suspension, notes, historique et relance.
+
+Restent backend-only à ce stade :
+
+- opérateurs plateforme ;
+- viewer audit ;
+- gestion des appareils ;
+- release channel.
+
+Aucune modification visuelle de ces surfaces n'est appliquée sans le protocole UI obligatoire BEFORE → Goal → référence/mockup → implémentation → AFTER mêmes viewports → comparaison/tests → score visuel.
+
+La route frontend `/super-admin` reste montée dans le routeur authentifié sans garde visuel `is_superadmin`; le backend refuse néanmoins toute donnée/action non autorisée. C'est une dette UX/defense-in-depth, pas une élévation d'autorité.
+
+## Validation courante
+
+Les tests ciblés sont présents dans le repo. La CI du HEAD documentaire final doit encore être revalidée avant de déclarer le lot code clos.
