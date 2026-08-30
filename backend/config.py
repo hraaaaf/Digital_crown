@@ -71,6 +71,29 @@ class Settings(BaseSettings):
                 raise ValueError(
                     "LICENSE_CONTROL_PLANE_URL doit utiliser HTTPS en environnement cabinet."
                 )
+
+        if self.PLATFORM_CONTROL_PLANE_ENABLED:
+            if env != "production":
+                raise ValueError(
+                    "PLATFORM_CONTROL_PLANE_ENABLED exige ENVIRONMENT=production."
+                )
+            if not self.APP_PUBLIC_URL.strip().lower().startswith("https://"):
+                raise ValueError(
+                    "APP_PUBLIC_URL doit utiliser HTTPS sur le control-plane."
+                )
+            if not self.FRONTEND_URL.strip().lower().startswith("https://"):
+                raise ValueError(
+                    "FRONTEND_URL doit utiliser HTTPS sur le control-plane."
+                )
+            origins = [
+                origin.strip().lower()
+                for origin in self.ALLOWED_ORIGINS.split(",")
+                if origin.strip()
+            ]
+            if not origins or any(not origin.startswith("https://") for origin in origins):
+                raise ValueError(
+                    "ALLOWED_ORIGINS doit contenir uniquement des origines HTTPS sur le control-plane."
+                )
         return self
 
     @field_validator("ALLOWED_ORIGINS", mode="after")
