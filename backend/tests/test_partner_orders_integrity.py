@@ -1,16 +1,18 @@
-"""Marketplace P0 — intégrité serveur des commandes partenaire."""
+"""Marketplace P1 — intégrité serveur et RBAC des commandes partenaire."""
 
 import pytest
 from fastapi import HTTPException
 
 from backend import models
+from backend.config import settings
+from backend.security import get_password_hash
 from backend.routers.partner_orders import PartnerOrderCreateIn, create_partner_order
 
 
-def _make_user(db, email: str = "marketplace-owner@test.ma"):
+def _make_user(db, email: str = "marketplace-owner@test.ma", *, password_hash: str = "test-only"):
     user = models.User(
         email=email,
-        hashed_password="test-only",
+        hashed_password=password_hash,
         role=models.UserRole.DENTISTE,
         nom_complet="Dr Marketplace",
         is_active=True,
@@ -20,6 +22,19 @@ def _make_user(db, email: str = "marketplace-owner@test.ma"):
     db.commit()
     db.refresh(user)
     return user
+
+
+def _make_http_user(db, email: str):
+    return _make_user(db, email, password_hash=get_password_hash("TestPass123!"))
+
+
+def _headers(client, email: str):
+    response = client.post(
+        "/api/auth/login",
+        data={"username": email, "password": "TestPass123!"},
+    )
+    assert response.status_code == 200, response.text
+    return {"Authorization": f"Bearer {response.json()['access_token']}"}
 
 
 def _make_supplier(db, user, *, name: str = "Supplier A", active: bool = True):
@@ -206,3 +221,44 @@ def test_create_order_rejects_duplicate_product_lines(db):
 
     assert exc.value.status_code == 422
     assert "duplique" in exc.value.detail
+
+
+def test_regular_cabinet_user_cannot_list_or_patch_commercial_orders(client, db, monkeypatch):
+    monkeypatch.setattr(settings, "SUPERADMIN_EMAIL", "superadmin-marketplace@test.ma")
+    regular = _make_http_user(db, "regular-marketplace@test.ma")
+    supplier = _make_supplier(db, regular)
+    product = _make_product(db, regular, supplier)
+    order = create_partner_order(_payload(product), db=db, current_user=regular)
+    headers = _headers(client, regular.email)
+
+    list_response = client.get("/api/partner-orders", headers=headers)
+    patch_response = client.patch(
+        f"/api/partner-orders/{order['id']}",
+        json={"status": "CANCELLED", "note": "forbidden"},
+        headers=headers,
+    )
+
+    assert list_response.status_code == 403
+    assert patch_response.status_code == 403
+
+
+def test_superadmin_can_list_and_patch_own_marketplace_orders(client, db, monkeypatch):
+    superadmin_email = "superadmin-marketplace@test.ma"
+    monkeypatch.setattr(settings, "SUPERADMIN_EMAIL", superadmin_email)
+    superadmin = _make_http_user(db, superadmin_email)
+    supplier = _make_supplier(db, superadmin, name="Supplier Superadmin")
+    product = _make_product(db, superadmin, supplier, price=200.0)
+    order = create_partner_order(_payload(product), db=db, current_user=superadmin)
+    headers = _headers(client, superadmin.email)
+
+    list_response = client.get("/api/partner-orders", headers=headers)
+    patch_response = client.patch(
+        f"/api/partner-orders/{order['id']}",
+        json={"status": "CANCELLED", "note": "admin correction"},
+        headers=headers,
+    )
+
+    assert list_response.status_code == 200, list_response.text
+    assert any(item["id"] == order["id"] for item in list_response.json())
+    assert patch_response.status_code == 200, patch_response.text
+    assert patch_response.json()["status"] == "CANCELLED"
