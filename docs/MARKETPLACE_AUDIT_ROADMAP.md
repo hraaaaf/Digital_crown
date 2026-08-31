@@ -1,9 +1,9 @@
 # Digital Crown — Marketplace Audit & Roadmap
 
-**Statut canonique : ACTIF**  
+**Statut canonique : CLOSED**  
 **Baseline : 2026-08-30**  
 **Repo :** `hraaaaf/Digital_crown`  
-**Lot actif :** P11 — Certification finale  
+**Lot actif :** aucun — chantier Marketplace clôturé  
 **Déploiement Vercel :** aucun sans autorisation explicite.
 
 ## Goal chantier
@@ -36,8 +36,8 @@ Potentiel produit séparé : **9.0/10**.
 | P7 — Stock Intelligence | 8 | CLOSED | réception → stock sans double saisie |
 | P8 — Finance & monétisation | 6 | CLOSED | scénarios financiers serveur + merge vérifié |
 | P9 — Automatisation fournisseur | 5 | CLOSED | idempotence/retry/sync + audit + merge vérifié |
-| **P10 — Superadmin Marketplace** | **4** | **CLOSED** | RBAC + audit trail global + merge vérifié |
-| **P11 — Certification finale** | **5** | **ACTIF** | tous gates finaux verts sur HEAD exact + merge |
+| P10 — Superadmin Marketplace | 4 | CLOSED | RBAC + audit trail global + merge vérifié |
+| **P11 — Certification finale** | **5** | **CLOSED** | tous gates finaux verts sur HEAD exact + merge vérifié |
 | **Total** | **100** |  |  |
 
 ## Avancement vérifié
@@ -52,7 +52,8 @@ Potentiel produit séparé : **9.0/10**.
 - P8 : 6/6 CLOSED — PR #320 ; merge `538ce138987cbe6b147770c210bf3df2f19782db`.
 - P9 : 5/5 CLOSED — PR #321 ; squash merge `ff661156e3edb4181b895765d17bbd5e23825298`.
 - P10 : 4/4 CLOSED — PR #322 ; squash merge `7ec007ce677fdb342d9cd304d41997babab1f7f2`.
-- **Global CLOSED : 95/100 = 95 %.**
+- P11 : 5/5 CLOSED — PR #323 ; squash merge `dbb35b524282d85e0fa881ce5f2ba1ad56e64e03`.
+- **Global CLOSED : 100/100 = 100 %.**
 
 ## P5 — UX/UI Marketplace — CLOSED
 Marketplace P5 BEFORE #5 : SUCCESS sur 390×844 / 430×932 / 768×1024 / 1280×800. Défauts : H1 rogné à 390 px, hero trop dominant, catalogue trop bas.  
@@ -123,7 +124,7 @@ Supervision Marketplace globale cross-cabinet avec RBAC Superadmin, métriques, 
 - validation des dates d’accord sur l’état final persisté ;
 - routes exactes sous `/api/superadmin/marketplace` ;
 - boundary web-only : sessions mobiles refusées ; mutations cookie protégées par Origin ;
-- cycle d’import supprimé par montage depuis le router Superadmin canonique.
+- cycle d'import supprimé par montage depuis le router Superadmin canonique.
 
 ### Preuve
 HEAD certifié `10d48268c6fd8daa5441527571a326321607c963` :
@@ -138,15 +139,35 @@ PR #322 squash-mergée ; master `7ec007ce677fdb342d9cd304d41997babab1f7f2`.
 ### Gate
 **CLOSED — 4/4 EP crédités après certification du HEAD et merge vérifié.**
 
-## P11 — Certification finale — ACTIF
-Goal : reconstruire et exécuter sur master post-P10 un gate final Marketplace qui couvre les preuves backend, frontend et visuelles réellement encore pertinentes, sans ressusciter des contrats historiques obsolètes.  
-Aucun crédit avant HEAD final exact entièrement vert, merge vérifié et closeout canonique.
+## P11 — Certification finale — CLOSED
+
+### Goal
+Reconstruire et exécuter sur master post-P10 un gate final Marketplace qui couvre les preuves backend, frontend et visuelles réellement encore pertinentes, sans ressusciter des contrats historiques obsolètes.
+
+### Preuve
+HEAD candidat certifié `dee60c11cce9d268bdcb315a2a0f826162ecf2c9` :
+- Marketplace Final Certification #7 SUCCESS ;
+- backend Marketplace P1-P10 : **105/105 tests** ;
+- frontend Marketplace : **8/8 tests** + build production SUCCESS ;
+- visuel : 390×844 / 430×932 / 768×1024 / 1280×800, 4/4 HTTP 200, aucun overflow horizontal, H1 visible, aucun page/console error, `invalidCount=0` ;
+- checkout : exactement 1 POST, même URL après submit, commande DRAFT confirmée ;
+- artefact `marketplace-p11-final-visual` : 416131 octets, digest `sha256:b92f3e7e9cff2a836508d12f373da01c08b5e6a92d3ddfbb9d9c327636c77568` ;
+- CI #2421 SUCCESS ;
+- Catalog #792 SUCCESS ;
+- T2 #1519 SUCCESS ;
+- Patient #818 SUCCESS ;
+- M6-I #319 skipped par périmètre.
+
+PR #323 squash-mergée ; master `dbb35b524282d85e0fa881ce5f2ba1ad56e64e03`.
+
+### Gate
+**CLOSED — 5/5 EP crédités après certification du HEAD exact et merge vérifié.**
 
 ## Règles
 Backend = vérité financière/statuts. Frontend jamais autorité sécurité. Scoping obligatoire. Aucun Vercel sans autorisation. CI pending n'arrête pas le travail indépendant. Aucun EP CLOSED sans closeout complet.
 
 ## Reprise
-`P0 CLOSED → P1 CLOSED → P2 CLOSED → P3 CLOSED → P4 CLOSED → P5 CLOSED → P6 CLOSED → P7 CLOSED → P8 CLOSED → P9 CLOSED → P10 CLOSED → P11 ACTIF`
+`P0 CLOSED → P1 CLOSED → P2 CLOSED → P3 CLOSED → P4 CLOSED → P5 CLOSED → P6 CLOSED → P7 CLOSED → P8 CLOSED → P9 CLOSED → P10 CLOSED → P11 CLOSED`
 
-**Crédit CLOSED : 95/100 EP.**  
-**Next exact :** reconstruire P11 sur master post-P10, exécuter la certification finale, corriger tout rouge réel puis merger et clôturer le chantier.
+**Crédit CLOSED : 100/100 EP.**  
+**Next exact :** aucun pour ce chantier ; ouvrir un nouveau lot uniquement sur un nouveau Goal explicite.
