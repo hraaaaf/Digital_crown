@@ -47,7 +47,7 @@ Pop-Location
 
 Write-Host "[3/3] Certificats générés dans certs/" -ForegroundColor Green
 
-# 5. Afficher les instructions iPhone
+# 5. Afficher les instructions de confiance mobile
 $caRoot = & mkcert -CAROOT
 Write-Host ""
 Write-Host "=======================================" -ForegroundColor Yellow
@@ -64,7 +64,29 @@ Write-Host "  3. Sur iPhone : Reglages > General > A propos"
 Write-Host "     > Certificats racines de confiance"
 Write-Host "     > Activer 'mkcert ...'"
 Write-Host ""
-Write-Host "  4. Relancer Digital Crown puis re-scanner le QR Code"
+Write-Host "  4. Ouvrir Safari sur https://digitalcrown.local:5173"
+Write-Host "     et verifier qu'il n'y a aucun avertissement certificat."
+Write-Host ""
+Write-Host "=======================================" -ForegroundColor Yellow
+Write-Host "  IMPORTANT : Installation sur Android" -ForegroundColor Yellow
+Write-Host "=======================================" -ForegroundColor Yellow
+Write-Host ""
+Write-Host "  1. Copier uniquement ce certificat racine public sur Android :"
+Write-Host "     $caRoot\rootCA.pem" -ForegroundColor Cyan
+Write-Host "     Ne JAMAIS copier rootCA-key.pem." -ForegroundColor Red
+Write-Host ""
+Write-Host "  2. Android : Parametres > Securite et confidentialite"
+Write-Host "     > Autres parametres de securite > Chiffrement et identifiants"
+Write-Host "     > Installer un certificat > Certificat CA (libelles selon appareil)."
+Write-Host ""
+Write-Host "  3. Ouvrir Chrome sur https://digitalcrown.local:5173"
+Write-Host "     et verifier qu'il n'y a aucun avertissement certificat."
+Write-Host "     Sur un appareil gere qui refuse les CA utilisateur, ne pas contourner"
+Write-Host "     l'avertissement : le gate HTTPS doit rester FAIL jusqu'a resolution."
+Write-Host ""
+Write-Host "  4. Ajouter ensuite Digital Crown a l'ecran d'accueil pour tester la PWA."
+Write-Host ""
+Write-Host "  Relancer Digital Crown puis re-scanner le QR Code sur l'appareil teste."
 Write-Host ""
 Write-Host "  Acces mobile stable : https://digitalcrown.local:5173" -ForegroundColor Green
 Write-Host "  IP LAN actuelle     : https://$($lanIP):5173" -ForegroundColor DarkGray

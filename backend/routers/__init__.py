@@ -133,12 +133,14 @@ mobile.router.include_router(mobile_push.router)
 from . import mobile_legacy as mobile_legacy
 from . import mobile_passkey as mobile_passkey
 from backend.services.mobile_biometric import install_mobile_biometric_identity_gate
+from backend.services.mobile_mdns import start_mdns_if_secure
 mobile_passkey.install_stable_lan_url_overrides()
 # Keep the compatibility re-export used by the legacy admin pairing endpoint aligned
 # with the same stable frontend origin selected above.
 mobile.get_lan_base_url = mobile_legacy.get_lan_base_url
 mobile.get_lan_frontend_url = mobile_legacy.get_lan_frontend_url
 install_mobile_biometric_identity_gate(mobile_legacy)
+start_mdns_if_secure()
 mobile.router.include_router(mobile_passkey.router)
 
 # Marketplace P6 replaces the legacy manual DRAFT->SENT PATCH by a dispatch-proof gate,
