@@ -3,7 +3,7 @@
 **Statut canonique : ACTIF**  
 **Baseline : 2026-08-30**  
 **Repo :** `hraaaaf/Digital_crown`  
-**Lot actif :** P8 — Finance & monétisation — CERTIFIED / MERGE READY  
+**Lot actif :** P9 — Automatisation fournisseur  
 **Déploiement Vercel :** aucun sans autorisation explicite.
 
 ## Goal chantier
@@ -34,8 +34,8 @@ Potentiel produit séparé : **9.0/10**.
 | P5 — UX/UI Marketplace | 14 | CLOSED | BEFORE/AFTER + E2E + score visuel |
 | P6 — Procurement | 8 | CLOSED | transport → suivi → réception |
 | P7 — Stock Intelligence | 8 | CLOSED | réception → stock sans double saisie |
-| **P8 — Finance & monétisation** | **6** | **CERTIFIED / MERGE READY** | scénarios financiers serveur |
-| P9 — Automatisation fournisseur | 5 | PRÉPARATION | idempotence/retry/sync |
+| **P8 — Finance & monétisation** | **6** | **CLOSED** | scénarios financiers serveur + merge vérifié |
+| **P9 — Automatisation fournisseur** | **5** | **ACTIF** | idempotence/retry/sync |
 | P10 — Superadmin Marketplace | 4 | PRÉPARATION | RBAC + audit trail global |
 | P11 — Certification finale | 5 | À FAIRE | tous gates verts |
 | **Total** | **100** |  |  |
@@ -49,9 +49,8 @@ Potentiel produit séparé : **9.0/10**.
 - P5 : 14/14 CLOSED — PR #319 ; merge `5dec8add36c6ae839155f36697672f5e5fb1228b`.
 - P6 : 8/8 CLOSED — PR #316 ; merge `1cee3f30168845602a2f8fdfb2a5bbf1694e9c71`.
 - P7 : 8/8 CLOSED — PR #318 ; merge `7b7aeb4569d31e1fb26460d032523344a7f21d21`.
-- P8 : 6/6 CERTIFIED / MERGE READY — PR #320 ; produit `315b7c54511409bff392cc2afab9278e3985eb4c`.
-- **Global CLOSED : 80/100 = 80 %.**
-- **Global certifié incluant P8 : 86/100 = 86 %.**
+- P8 : 6/6 CLOSED — PR #320 ; merge `538ce138987cbe6b147770c210bf3df2f19782db`.
+- **Global CLOSED : 86/100 = 86 %.**
 
 ## P5 — UX/UI Marketplace — CLOSED
 Marketplace P5 BEFORE #5 : SUCCESS sur 390×844 / 430×932 / 768×1024 / 1280×800. Défauts : H1 rogné à 390 px, hero trop dominant, catalogue trop bas.  
@@ -67,7 +66,7 @@ HEAD closeout `3ab5863d79adc0f11e09052fe6c59789ecd1edbf` : CI #2342, Catalog #72
 `StockItem` canonique ; mapping produit→stock ; facteur/min/cible ; ledger idempotent ; réception→stock ; PENDING_MAPPING sans stock partiel ; replay sans double incrément ; lots/péremptions ; lots expirés exclus ; FEFO ; réassort ; tenant scoping.  
 HEAD `77da0418d10548d279ce0dbdbf2d460b2362e492` : CI #2359, Catalog #739, T2 #1466, Patient #765, Portability #348, Onboarding #155 SUCCESS. PR #318 mergée.
 
-## P8 — Finance & monétisation — CERTIFIED / MERGE READY
+## P8 — Finance & monétisation — CLOSED
 
 ### Goal
 Conserver P2 comme seule autorité de reconnaissance de revenu et ajouter un rapprochement serveur commande ↔ réception ↔ facture fournisseur, avec reporting interne tenant-scoped.
@@ -83,22 +82,24 @@ Conserver P2 comme seule autorité de reconnaissance de revenu et ajouter un rap
 - Superadmin-only + employer scoping.
 
 ### Preuve produit
-HEAD `315b7c54511409bff392cc2afab9278e3985eb4c` :
-- CI #2366 SUCCESS ;
-- Catalog #743 SUCCESS ;
-- T2 #1470 SUCCESS ;
-- Patient #769 SUCCESS ;
-- Portability #351 SUCCESS ;
-- Onboarding #158 SUCCESS ;
+HEAD mergé `538ce138987cbe6b147770c210bf3df2f19782db` :
+- CI #2368 SUCCESS ;
+- Catalog #745 SUCCESS ;
+- T2 #1472 SUCCESS ;
+- Patient #771 SUCCESS ;
+- Portability #353 SUCCESS ;
+- Onboarding #160 SUCCESS ;
 - M6-I skipped par périmètre.
 
-Tests ciblés P8 : modèles financiers, matching facture/réception, réception partielle, mismatch, annulation, idempotence/conflits, devise, reporting/isolation et RBAC HTTP.
+Tests ciblés P8 : 9 scénarios couvrant modèles financiers, matching facture/réception, réception partielle, mismatch, annulation, idempotence/conflits, devise, reporting/isolation et RBAC HTTP.
 
 ### Gate
-**CERTIFIED — 6/6 EP prouvés ; closeout CI + merge #320 + vérification master requis avant crédit CLOSED.**
+**CLOSED — 6/6 EP crédités après certification du HEAD, merge #320 et vérification `merged=true` sur master.**
 
-## P9 — Automatisation fournisseur — PRÉPARATION
-Moteur API `/catalog` préparé : snapshot canonique, upsert prix/disponibilité, préservation merchandising local, hash idempotent, fraîcheur, degraded mode, backoff exponentiel, retry forcé Superadmin, garde SSRF P6, protection contre identités locales SKU/externalProductId ambiguës. Aucune EP créditée avant reconstruction post-P8 et CI.
+## P9 — Automatisation fournisseur — ACTIF
+Goal : automatiser la synchronisation fournisseur sans corruption locale ni duplication : snapshot canonique, upsert prix/disponibilité, idempotence, retry/backoff, degraded mode, audit et isolation tenant.
+
+Préparation existante à reconstruire/vérifier sur master post-P8 : moteur API `/catalog`, préservation merchandising local, hash idempotent, fraîcheur, retry forcé Superadmin, garde SSRF P6, protection contre identités locales SKU/externalProductId ambiguës. **0/5 EP avant implémentation vérifiée + CI + merge.**
 
 ## P10 — Superadmin Marketplace — PRÉPARATION
 Supervision globale cross-cabinet, accords fournisseur, incidents sync, métriques, mutation avec confirmation explicite et audit append-only préparés. Aucune EP créditée avant reconstruction post-P9 et CI.
@@ -107,7 +108,7 @@ Supervision globale cross-cabinet, accords fournisseur, incidents sync, métriqu
 Backend = vérité financière/statuts. Frontend jamais autorité sécurité. Scoping obligatoire. Aucun Vercel sans autorisation. CI pending n'arrête pas le travail indépendant. Aucun EP CLOSED sans closeout complet.
 
 ## Reprise
-`P0 CLOSED → P1 CLOSED → P2 CLOSED → P3 CLOSED → P4 CLOSED → P5 CLOSED → P6 CLOSED → P7 CLOSED → P8 CERTIFIED/MERGE READY → P9 PREP → P10 PREP → P11`
+`P0 CLOSED → P1 CLOSED → P2 CLOSED → P3 CLOSED → P4 CLOSED → P5 CLOSED → P6 CLOSED → P7 CLOSED → P8 CLOSED → P9 ACTIF → P10 PREP → P11`
 
-**Crédit CLOSED : 80/100 EP ; certifié : 86/100 EP.**  
-**Next exact :** certifier le commit de closeout P8 puis merge ; reconstruire P9 directement sur master post-P8 et certifier.
+**Crédit CLOSED : 86/100 EP.**  
+**Next exact :** créer/reconstruire P9 depuis master post-P8, auditer les préparations existantes, combler les gaps, tester puis certifier avant merge.
