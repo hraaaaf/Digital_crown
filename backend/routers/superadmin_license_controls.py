@@ -67,6 +67,7 @@ async def list_client_devices(
             "license_type": effective.get("license_type"),
             "max_devices": effective.get("max_devices"),
             "active_devices": active_count,
+            "release_channel": effective.get("release_channel"),
         },
         "devices": [_serialize_device(device) for device in devices],
     }
