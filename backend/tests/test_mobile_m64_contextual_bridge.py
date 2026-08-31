@@ -72,6 +72,14 @@ def _pairing(db, owner, user, *, destination='agenda', manual_code='654321'):
     owner.is_licensed = True
     owner.license_expires_at = datetime.utcnow() + timedelta(days=30)
     db.add(owner)
+
+    cabinet = (
+        db.query(models.CabinetConfig)
+        .filter(models.CabinetConfig.owner_id == owner.id)
+        .first()
+    )
+    if cabinet is None:
+        db.add(models.CabinetConfig(owner_id=owner.id, public_id='abcdef1234567890'))
     db.commit()
 
     token = _create_bridge_token(destination)
