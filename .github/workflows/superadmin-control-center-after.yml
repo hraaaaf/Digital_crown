@@ -1,0 +1,401 @@
+name: Superadmin Control Center AFTER
+
+on:
+  pull_request:
+    branches:
+      - master
+    paths:
+      - 'frontend/src/features/superadmin/**'
+      - 'frontend/src/test/superAdminAccessBoundary.test.tsx'
+      - 'frontend/src/test/superAdminControlCenter.test.tsx'
+      - 'backend/routers/superadmin.py'
+      - 'backend/routers/superadmin_admins.py'
+      - 'backend/routers/superadmin_license_controls.py'
+      - 'backend/routers/superadmin_passkey.py'
+      - 'backend/platform_access.py'
+      - 'backend/platform_step_up.py'
+      - 'backend/tests/test_superadmin_license_controls.py'
+      - 'backend/tests/test_superadmin_platform_actor_passkey.py'
+      - '.github/workflows/superadmin-control-center-after.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: superadmin-control-center-after-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  capture-after:
+    name: Superadmin AFTER 390/430/768/1280
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - name: Checkout exact head
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+
+      - name: Record product HEAD
+        run: |
+          PRODUCT_HEAD=$(git rev-parse HEAD)
+          echo "PRODUCT_HEAD=$PRODUCT_HEAD" >> "$GITHUB_ENV"
+          test "$PRODUCT_HEAD" = "${{ github.event.pull_request.head.sha || github.sha }}"
+
+      - name: Setup Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install frontend and Chromium
+        working-directory: frontend
+        run: |
+          npm ci
+          npm install --no-save --package-lock=false --ignore-scripts playwright@1.62.1
+          npx playwright install --with-deps chromium
+
+      - name: Targeted Superadmin frontend tests
+        working-directory: frontend
+        run: npm test -- src/test/superAdminAccessBoundary.test.tsx src/test/superAdminControlCenter.test.tsx
+
+      - name: Materialize AFTER harness
+        working-directory: frontend
+        run: |
+          cat > superadmin-control-after.html <<'EOF'
+          <!doctype html>
+          <html lang="fr">
+            <head>
+              <meta charset="UTF-8" />
+              <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+              <title>Superadmin control center AFTER</title>
+            </head>
+            <body>
+              <div id="root"></div>
+              <script type="module" src="/src/superadmin-control-after.tsx"></script>
+            </body>
+          </html>
+          EOF
+
+          cat > src/superadmin-control-after.tsx <<'EOF'
+          import React from 'react';
+          import { createRoot } from 'react-dom/client';
+          import { MemoryRouter } from 'react-router-dom';
+          import { Toaster } from 'react-hot-toast';
+          import './index.css';
+          import { SuperAdminAccessBoundary } from './features/superadmin/SuperAdminAccessBoundary';
+
+          createRoot(document.getElementById('root')!).render(
+            <MemoryRouter initialEntries={['/super-admin']}>
+              <SuperAdminAccessBoundary />
+              <Toaster />
+            </MemoryRouter>,
+          );
+          EOF
+
+          cat > superadmin-control-after.mjs <<'EOF'
+          import { chromium } from 'playwright';
+          import { createServer } from 'vite';
+          import fs from 'node:fs/promises';
+
+          const productHead = process.env.PRODUCT_HEAD || '';
+          const beforeAuthorizedRun = 33377233900;
+          const output = '../artifacts/superadmin-control-center-after';
+          await fs.mkdir(output, { recursive: true });
+
+          const viewports = [
+            { width: 390, height: 844 },
+            { width: 430, height: 932 },
+            { width: 768, height: 1024 },
+            { width: 1280, height: 800 },
+          ];
+
+          const client = {
+            id: 42,
+            email: 'cabinet.atlas@example.test',
+            role: 'ADMIN',
+            nom_complet: 'Cabinet Atlas',
+            is_active: true,
+            is_licensed: true,
+            license_expires_at: '2027-08-31T10:00:00Z',
+            is_archived: false,
+            is_suspended: false,
+            internal_notes: null,
+            last_login_at: '2026-08-31T09:00:00Z',
+            created_at: '2026-01-15T10:00:00Z',
+            subscription_plan: 'GOLD',
+            stats: { total_patients: 84, total_ia_panoramique: 19, total_ia_cephalo: 12 },
+          };
+
+          const operators = [
+            {
+              id: 1,
+              email: 'owner@platform.test',
+              nom_complet: 'Owner plateforme',
+              is_active: true,
+              is_suspended: false,
+              is_owner: true,
+              permissions: {
+                'license.read': true,
+                'license.manage_devices': true,
+                'license.change_release_channel': true,
+                'admin.read': true,
+                'admin.update_permissions': true,
+                'audit.read': true,
+              },
+            },
+            {
+              id: 8,
+              email: 'operator@platform.test',
+              nom_complet: 'Opérateur plateforme',
+              is_active: true,
+              is_suspended: false,
+              is_owner: false,
+              permissions: { 'license.read': true, 'audit.read': true },
+            },
+          ];
+
+          const audit = [
+            {
+              id: 501,
+              timestamp: '2026-08-31T09:00:00Z',
+              user_id: 1,
+              action: 'SUPERADMIN_RELEASE_CHANNEL_CHANGE',
+              resource_type: 'User',
+              resource_id: '42',
+              severity: 'WARNING',
+              details: 'from=stable;to=beta',
+            },
+            {
+              id: 500,
+              timestamp: '2026-08-31T08:55:00Z',
+              user_id: 1,
+              action: 'SUPERADMIN_DEVICE_REVOKE',
+              resource_type: 'MobilePairedDevice',
+              resource_id: 'legacy-device',
+              severity: 'CRITICAL',
+              details: 'client_id=42',
+            },
+          ];
+
+          const devices = {
+            client_id: 42,
+            license: {
+              active: true,
+              license_type: 'PAID',
+              max_devices: 3,
+              active_devices: 2,
+              release_channel: 'beta',
+            },
+            devices: [
+              {
+                device_id: 'mobile-atlas-01',
+                user_id: 42,
+                created_at: '2026-08-20T09:00:00Z',
+                last_seen_at: '2026-08-31T09:50:00Z',
+                revoked_at: null,
+                active: true,
+              },
+              {
+                device_id: 'mobile-atlas-02',
+                user_id: 42,
+                created_at: '2026-08-25T09:00:00Z',
+                last_seen_at: '2026-08-31T09:45:00Z',
+                revoked_at: null,
+                active: true,
+              },
+            ],
+          };
+
+          const server = await createServer({
+            server: { host: '127.0.0.1', port: 4177, strictPort: true },
+            clearScreen: false,
+          });
+          await server.listen();
+
+          const browser = await chromium.launch({ headless: true });
+          const captures = [];
+          try {
+            for (const viewport of viewports) {
+              const context = await browser.newContext({ viewport, colorScheme: 'light' });
+              const page = await context.newPage();
+              const responses = [];
+              const pageErrors = [];
+              page.on('pageerror', error => pageErrors.push(String(error)));
+
+              await page.route('**/*', async route => {
+                const request = route.request();
+                const url = new URL(request.url());
+                if (url.port !== '8005' || !url.pathname.startsWith('/api/superadmin/')) {
+                  return route.continue();
+                }
+
+                const fulfill = async (status, body) => {
+                  responses.push({ method: request.method(), path: url.pathname, status });
+                  await route.fulfill({
+                    status,
+                    contentType: 'application/json',
+                    body: JSON.stringify(body),
+                  });
+                };
+
+                if (request.method() === 'GET' && url.pathname === '/api/superadmin/passkey/status') {
+                  return fulfill(200, {
+                    enrolled: true,
+                    credential_id: 'cred-platform-owner',
+                    rp_id: 'digitalcrown.local',
+                    expected_origin: 'https://digitalcrown.local',
+                    origin_ready: true,
+                    user_verification: 'required',
+                    step_up_valid: true,
+                  });
+                }
+                if (request.method() === 'GET' && url.pathname === '/api/superadmin/clients') {
+                  return fulfill(200, [client]);
+                }
+                if (request.method() === 'GET' && url.pathname === '/api/superadmin/trial-codes') {
+                  return fulfill(200, []);
+                }
+                if (request.method() === 'GET' && url.pathname === '/api/superadmin/platform-admins/clients/42/devices') {
+                  return fulfill(200, devices);
+                }
+                if (request.method() === 'GET' && url.pathname === '/api/superadmin/platform-admins') {
+                  return fulfill(200, operators);
+                }
+                if (request.method() === 'GET' && url.pathname === '/api/superadmin/audit') {
+                  return fulfill(200, audit);
+                }
+                return fulfill(404, { detail: `Unexpected visual-cert request ${request.method()} ${url.pathname}` });
+              });
+
+              await page.goto('http://127.0.0.1:4177/superadmin-control-after.html', {
+                waitUntil: 'networkidle',
+                timeout: 60000,
+              });
+
+              const controlTab = page.getByRole('button', { name: 'Contrôle plateforme' });
+              await controlTab.waitFor({ state: 'visible', timeout: 30000 });
+              await controlTab.click();
+
+              await page.getByRole('heading', { name: 'Contrôle plateforme', level: 1 }).waitFor({ state: 'visible' });
+              await page.getByTestId('superadmin-passkey-panel').waitFor({ state: 'visible' });
+              await page.getByTestId('superadmin-devices-panel').waitFor({ state: 'visible' });
+              await page.getByTestId('superadmin-operators-panel').waitFor({ state: 'visible' });
+              await page.getByTestId('superadmin-audit-panel').waitFor({ state: 'visible' });
+              await page.getByText('mobile-atlas-01', { exact: true }).waitFor({ state: 'visible' });
+              await page.getByText('owner@platform.test', { exact: true }).waitFor({ state: 'visible' });
+              await page.getByText('SUPERADMIN_RELEASE_CHANNEL_CHANGE', { exact: true }).waitFor({ state: 'visible' });
+
+              const metrics = {
+                controlHeading: await page.getByRole('heading', { name: 'Contrôle plateforme', level: 1 }).count(),
+                legacyTab: await page.getByRole('button', { name: 'Clients & licences' }).count(),
+                passkeyPanel: await page.getByTestId('superadmin-passkey-panel').count(),
+                devicesPanel: await page.getByTestId('superadmin-devices-panel').count(),
+                operatorsPanel: await page.getByTestId('superadmin-operators-panel').count(),
+                auditPanel: await page.getByTestId('superadmin-audit-panel').count(),
+                deniedCard: await page.getByText('Accès Superadmin non autorisé', { exact: true }).count(),
+                releaseBeta: await page.getByText('beta', { exact: true }).count(),
+                deviceRow: await page.getByText('mobile-atlas-01', { exact: true }).count(),
+                operatorRow: await page.getByText('owner@platform.test', { exact: true }).count(),
+                auditRow: await page.getByText('SUPERADMIN_RELEASE_CHANNEL_CHANGE', { exact: true }).count(),
+                hasHorizontalOverflow: await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth + 2),
+              };
+
+              const expectedPaths = [
+                '/api/superadmin/passkey/status',
+                '/api/superadmin/clients',
+                '/api/superadmin/platform-admins/clients/42/devices',
+                '/api/superadmin/platform-admins',
+                '/api/superadmin/audit',
+              ];
+              const missingPaths = expectedPaths.filter(path => !responses.some(response => response.path === path && response.status === 200));
+              const screenshot = `after-authorized-${viewport.width}x${viewport.height}.png`;
+              await page.screenshot({ path: `${output}/${screenshot}`, fullPage: true, animations: 'disabled' });
+
+              const invalid =
+                metrics.controlHeading !== 1 ||
+                metrics.legacyTab < 1 ||
+                metrics.passkeyPanel !== 1 ||
+                metrics.devicesPanel !== 1 ||
+                metrics.operatorsPanel !== 1 ||
+                metrics.auditPanel !== 1 ||
+                metrics.deniedCard !== 0 ||
+                metrics.releaseBeta < 1 ||
+                metrics.deviceRow < 1 ||
+                metrics.operatorRow < 1 ||
+                metrics.auditRow < 1 ||
+                metrics.hasHorizontalOverflow ||
+                pageErrors.length > 0 ||
+                missingPaths.length > 0;
+
+              captures.push({ viewport, screenshot, metrics, responses, missingPaths, pageErrors, invalid });
+              await context.close();
+            }
+          } finally {
+            await browser.close();
+            await server.close();
+          }
+
+          const invalidCount = captures.filter(capture => capture.invalid).length;
+          const report = {
+            schema: 'digital-crown.superadmin-control-center-after.v1',
+            phase: 'AFTER',
+            productHead,
+            beforeAuthorizedRun,
+            goal: 'Authorized platform actor gets a separate operational control center without losing the legacy client dashboard.',
+            viewports,
+            captures,
+            invalidCount,
+          };
+          await fs.writeFile(`${output}/report.json`, JSON.stringify(report, null, 2));
+          await fs.writeFile(`${output}/metadata.txt`, [
+            'phase=AFTER',
+            `product_head=${productHead}`,
+            `before_authorized_run=${beforeAuthorizedRun}`,
+            'surface=SuperAdminAccessBoundary -> SuperAdminWorkspace -> SuperAdminControlCenter',
+            'scenario=authorized platform actor; real Superadmin API contract shapes mocked at transport boundary',
+            'viewports=390x844,430x932,768x1024,1280x800',
+          ].join('\n'));
+
+          if (invalidCount !== 0) process.exit(1);
+          EOF
+
+      - name: Capture exact authorized AFTER
+        working-directory: frontend
+        env:
+          PRODUCT_HEAD: ${{ env.PRODUCT_HEAD }}
+        run: node superadmin-control-after.mjs
+
+      - name: Assert AFTER artifact contract
+        if: always()
+        run: |
+          node --input-type=module <<'NODE'
+          import { readFileSync } from 'node:fs';
+          const report = JSON.parse(readFileSync('artifacts/superadmin-control-center-after/report.json', 'utf8'));
+          if (report.productHead !== process.env.PRODUCT_HEAD) throw new Error('Superadmin AFTER product HEAD mismatch');
+          if (report.beforeAuthorizedRun !== 33377233900) throw new Error('Authorized BEFORE run mismatch');
+          if (report.captures.length !== 4) throw new Error(`Expected 4 captures, got ${report.captures.length}`);
+          if (report.invalidCount !== 0) throw new Error(`Invalid AFTER captures: ${report.invalidCount}`);
+          console.table(report.captures.map(({ viewport, metrics, pageErrors }) => ({
+            viewport: `${viewport.width}x${viewport.height}`,
+            controlHeading: metrics.controlHeading,
+            devices: metrics.devicesPanel,
+            operators: metrics.operatorsPanel,
+            audit: metrics.auditPanel,
+            overflow: metrics.hasHorizontalOverflow,
+            pageErrors: pageErrors.length,
+          })));
+          NODE
+        env:
+          PRODUCT_HEAD: ${{ env.PRODUCT_HEAD }}
+
+      - name: Upload Superadmin AFTER evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: superadmin-control-center-after
+          path: artifacts/superadmin-control-center-after
+          if-no-files-found: error
+          retention-days: 30
