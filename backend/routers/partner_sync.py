@@ -425,6 +425,10 @@ def _apply_snapshot(
     return changes
 
 
+def _has_catalog_mutation(changes: dict) -> bool:
+    return any(int(changes.get(key, 0) or 0) > 0 for key in ("created", "updated", "discontinued"))
+
+
 @router.get("/{supplier_id}/sync-status")
 def get_supplier_sync_status(
     supplier_id: int,
@@ -468,42 +472,23 @@ def sync_supplier_catalog(
         endpoint = _catalog_endpoint(supplier.api_base_url or "")
         payload = _fetch_supplier_catalog(endpoint)
         version, products, payload_sha256 = _canonical_snapshot(payload)
-    except HTTPException:
+    except HTTPException as error:
+        sync_error = SupplierSyncError(
+            "INVALID_ENDPOINT",
+            str(error.detail),
+            http_status=error.status_code,
+        )
+        _record_failure(db, state, sync_error, actor_user_id=actor_user_id)
         raise
     except SupplierSyncError as error:
         _record_failure(db, state, error, actor_user_id=actor_user_id)
         raise HTTPException(status_code=error.http_status, detail=error.detail) from error
 
-    if state.last_outcome == "SUCCESS" and state.last_payload_sha256 == payload_sha256:
-        state.last_attempt_at = now
-        state.last_success_at = now
-        state.last_outcome = "SUCCESS"
-        state.last_error_code = None
-        state.last_error_detail = None
-        state.consecutive_failures = 0
-        state.next_retry_at = None
-        state.last_catalog_version = version
-        state.last_product_count = len(products)
-        changes = {"created": 0, "updated": 0, "received": len(products)}
-        _append_audit(
-            db,
-            state=state,
-            actor_user_id=actor_user_id,
-            event_type="SUPPLIER_SYNC_NO_CHANGE",
-            outcome="SUCCESS",
-            payload_sha256=payload_sha256,
-            product_count=len(products),
-            changes=changes,
-        )
-        db.commit()
-        return {
-            "idempotentReplay": True,
-            "changes": changes,
-            "sync": _state_payload(state),
-        }
-
+    same_payload = bool(state.last_payload_sha256 and state.last_payload_sha256 == payload_sha256)
     try:
         changes = _apply_snapshot(db, supplier, products)
+        replay_without_drift = same_payload and not _has_catalog_mutation(changes)
+
         state.last_attempt_at = now
         state.last_success_at = now
         state.last_outcome = "SUCCESS"
@@ -518,7 +503,7 @@ def sync_supplier_catalog(
             db,
             state=state,
             actor_user_id=actor_user_id,
-            event_type="SUPPLIER_SYNC_APPLIED",
+            event_type="SUPPLIER_SYNC_NO_CHANGE" if replay_without_drift else "SUPPLIER_SYNC_APPLIED",
             outcome="SUCCESS",
             payload_sha256=payload_sha256,
             product_count=len(products),
@@ -552,7 +537,7 @@ def sync_supplier_catalog(
         raise HTTPException(status_code=500, detail=error.detail)
 
     return {
-        "idempotentReplay": False,
+        "idempotentReplay": replay_without_drift,
         "changes": changes,
         "sync": _state_payload(state),
     }
