@@ -319,9 +319,7 @@ function App() {
           </MobileProtectedRoute>
         } />
         <Route path="/mobile/superadmin" element={
-          <MobileProtectedRoute>
-            <Suspense fallback={<PageLoader />}><MobileSuperAdminView /></Suspense>
-          </MobileProtectedRoute>
+          <Suspense fallback={<PageLoader />}><MobileSuperAdminView /></Suspense>
         } />
 
         <Route path="/landing" element={<LandingPage />} />

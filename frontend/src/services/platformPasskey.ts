@@ -20,6 +20,30 @@ type StepUpResult = {
 let enrollmentKnown = false;
 let stepUpValidUntil = 0;
 const CLIENT_EXPIRY_SAFETY_MS = 30_000;
+const MOBILE_PLATFORM_TOKEN_KEY = 'dc_mobile_platform_access_token';
+
+/**
+ * Select the primary platform identity for WebAuthn ceremonies.
+ * In the mobile control tower we must fail closed if the dedicated platform
+ * session is absent: a cabinet/mobile JWT or unrelated web token can never be
+ * substituted to authorize /api/superadmin/passkey/*.
+ */
+export function getPlatformPrimaryAccessToken(): string | null {
+  if (typeof window === 'undefined') return null;
+  const isMobileControlTower = window.location.pathname.startsWith('/mobile/superadmin');
+  if (isMobileControlTower) {
+    try {
+      return sessionStorage.getItem(MOBILE_PLATFORM_TOKEN_KEY);
+    } catch {
+      return null;
+    }
+  }
+  try {
+    return localStorage.getItem('token') || sessionStorage.getItem('token');
+  } catch {
+    return null;
+  }
+}
 
 function arrayBufferToBase64Url(value: ArrayBuffer): string {
   const bytes = new Uint8Array(value);
@@ -95,8 +119,8 @@ function decodeAuthenticationOptions(payload: CeremonyOptions): PublicKeyCredent
 
 async function platformFetch<T>(apiBase: string, path: string, init: RequestInit = {}): Promise<T> {
   const headers = new Headers(init.headers || {});
-  const webToken = localStorage.getItem('token') || sessionStorage.getItem('token');
-  if (webToken) headers.set('Authorization', `Bearer ${webToken}`);
+  const platformToken = getPlatformPrimaryAccessToken();
+  if (platformToken) headers.set('Authorization', `Bearer ${platformToken}`);
   if (init.body && !headers.has('Content-Type')) headers.set('Content-Type', 'application/json');
 
   const response = await fetch(`${apiBase}/api/superadmin/passkey${path}`, {

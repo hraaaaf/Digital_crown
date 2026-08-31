@@ -8,12 +8,49 @@ const defaultApiUrl = typeof window !== 'undefined'
   : 'http://127.0.0.1:8005';
 const viteEnv = (import.meta as ImportMeta & { env?: Record<string, string | undefined> }).env;
 export const API_BASE = (viteEnv?.VITE_API_URL ?? defaultApiUrl).replace(/\/$/, '');
+export const PLATFORM_API_BASE = (viteEnv?.VITE_PLATFORM_API_URL ?? API_BASE).replace(/\/$/, '');
 
 export const api = axios.create({
   baseURL: `${API_BASE}/api`,
   timeout: 30000,
   withCredentials: true,  // Envoie les cookies HttpOnly automatiquement
 });
+
+const MOBILE_PLATFORM_TOKEN_KEY = 'dc_mobile_platform_access_token';
+
+export function getMobilePlatformAccessToken(): string | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    return window.sessionStorage.getItem(MOBILE_PLATFORM_TOKEN_KEY);
+  } catch {
+    return null;
+  }
+}
+
+export function setMobilePlatformAccessToken(token: string): void {
+  if (typeof window === 'undefined') return;
+  const normalized = token.trim();
+  if (!normalized) throw new Error('Platform access token is empty.');
+  window.sessionStorage.setItem(MOBILE_PLATFORM_TOKEN_KEY, normalized);
+}
+
+export function clearMobilePlatformAccessToken(): void {
+  if (typeof window === 'undefined') return;
+  try {
+    window.sessionStorage.removeItem(MOBILE_PLATFORM_TOKEN_KEY);
+  } catch {
+    // sessionStorage can be unavailable in hardened/private browser contexts.
+  }
+}
+
+function isMobilePlatformRequest(requestUrl?: unknown): boolean {
+  return (
+    typeof window !== 'undefined' &&
+    window.location.pathname.startsWith('/mobile/superadmin') &&
+    typeof requestUrl === 'string' &&
+    requestUrl.startsWith('/superadmin/')
+  );
+}
 
 // Synchronisation du token entre onglets (BroadcastChannel)
 const _authChannel = typeof BroadcastChannel !== 'undefined'
@@ -53,11 +90,15 @@ export function resetAuthState() {
 }
 
 /**
- * Token d'autorisation courant. Sur les routes mobiles, un step-up biométrique
- * doit rester mémoire-only mais primer sur le JWT durable pour TOUS les clients
- * partagés (Axios, SSE, WebSocket). Desktop conserve exactement le contrat web.
+ * Token d'autorisation courant. Sur les routes mobiles cabinet, un step-up
+ * biométrique mémoire-only prime sur le JWT durable. La Tour de contrôle mobile
+ * utilise une session plateforme séparée, sessionStorage-only, et ne retombe
+ * JAMAIS sur le JWT cabinet pour /superadmin/*.
  */
-export function getRuntimeAuthToken(): string | null {
+export function getRuntimeAuthToken(requestUrl?: unknown): string | null {
+  if (isMobilePlatformRequest(requestUrl)) {
+    return getMobilePlatformAccessToken();
+  }
   if (typeof window !== 'undefined' && window.location.pathname.startsWith('/mobile')) {
     const uvToken = MobileStorage.getBiometricAccessToken();
     if (uvToken) return uvToken;
@@ -114,14 +155,21 @@ api.interceptors.request.use(async (config) => {
     };
   }
 
+  const mobilePlatformRequest = isMobilePlatformRequest(config.url);
+  if (mobilePlatformRequest) {
+    // The phone is only a remote UI. Platform calls may target a dedicated HTTPS
+    // control-plane host and must never inherit the cabinet API origin implicitly.
+    config.baseURL = `${PLATFORM_API_BASE}/api`;
+  }
+
   // SEC-1 : toute mutation SuperAdmin passe d'abord par une cérémonie WebAuthn
   // dédiée. La preuve reste un cookie HttpOnly de 5 minutes, jamais un JWT
   // primaire ni une valeur stockée par le frontend.
   if (isSuperAdminMutation(config.url, config.method)) {
-    await ensurePlatformStepUp(API_BASE);
+    await ensurePlatformStepUp(mobilePlatformRequest ? PLATFORM_API_BASE : API_BASE);
   }
 
-  const token = getRuntimeAuthToken();
+  const token = getRuntimeAuthToken(config.url);
   if (token) config.headers.Authorization = `Bearer ${token}`;
   return config;
 });
@@ -158,6 +206,15 @@ api.interceptors.response.use(
 
     if (status === 423 && typeof window !== 'undefined' && window.location.pathname.startsWith('/mobile')) {
       propagateMobileBiometricLock();
+      return Promise.reject(error);
+    }
+
+    // Une session plateforme mobile expirée ne doit jamais tomber dans le refresh
+    // device-bound du cabinet. On ferme seulement la Tour de contrôle et on force
+    // une nouvelle authentification plateforme.
+    if (status === 401 && isMobilePlatformRequest(original?.url)) {
+      clearMobilePlatformAccessToken();
+      window.dispatchEvent(new CustomEvent('digitalcrown:mobile-platform-session-expired'));
       return Promise.reject(error);
     }
 

@@ -28,6 +28,15 @@ describe('SuperAdminAccessBoundary', () => {
     expect(apiGet).toHaveBeenCalledWith('/superadmin/passkey/status');
   });
 
+  it('fails closed when the control-plane cannot be verified', async () => {
+    apiGet.mockRejectedValueOnce(new Error('network down'));
+
+    render(<SuperAdminAccessBoundary />);
+
+    expect(await screen.findByText('Control-plane indisponible')).toBeInTheDocument();
+    expect(screen.queryByTestId('authorized-workspace')).not.toBeInTheDocument();
+  });
+
   it('admits an explicitly authorized platform actor without requiring license.read', async () => {
     apiGet.mockResolvedValueOnce({ data: { enrolled: true, step_up_valid: false } });
 
