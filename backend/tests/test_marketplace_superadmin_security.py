@@ -10,7 +10,6 @@ from backend.security import get_password_hash
 
 def _superadmin(db, monkeypatch):
     email = "p10-control-plane@test.ma"
-    monkeypatch.setattr(settings, "SUPERADMIN_EMAIL", email)
     user = db.query(models.User).filter(models.User.email == email).first()
     if user is None:
         user = models.User(
@@ -29,6 +28,8 @@ def _superadmin(db, monkeypatch):
         user.employer_id = None
     db.commit()
     db.refresh(user)
+    monkeypatch.setattr(settings, "PLATFORM_CONTROL_PLANE_ENABLED", True)
+    monkeypatch.setattr(settings, "SUPERADMIN_USER_ID", user.id)
     return user
 
 

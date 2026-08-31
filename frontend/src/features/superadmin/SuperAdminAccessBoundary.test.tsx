@@ -11,8 +11,8 @@ vi.mock('../../services/api', () => ({
   api: { get: mocks.get },
 }));
 
-vi.mock('./SuperAdminDashboard', () => ({
-  SuperAdminDashboard: () => <div>AUTHORIZED_SUPERADMIN_DASHBOARD</div>,
+vi.mock('./SuperAdminWorkspace', () => ({
+  SuperAdminWorkspace: () => <div>AUTHORIZED_SUPERADMIN_WORKSPACE</div>,
 }));
 
 vi.mock('../../components/DigitalCrownLoader', () => ({
@@ -31,16 +31,18 @@ describe('SuperAdminAccessBoundary', () => {
 
     expect(await screen.findByText('Accès Superadmin non autorisé')).toBeInTheDocument();
     expect(screen.getByText('Votre session ne dispose pas d’une autorisation plateforme.')).toBeInTheDocument();
-    expect(screen.queryByText('AUTHORIZED_SUPERADMIN_DASHBOARD')).not.toBeInTheDocument();
+    expect(screen.queryByText('AUTHORIZED_SUPERADMIN_WORKSPACE')).not.toBeInTheDocument();
+    expect(mocks.get).toHaveBeenCalledWith('/superadmin/passkey/status');
   });
 
-  it('keeps an authorized backend session on the Superadmin dashboard', async () => {
-    mocks.get.mockResolvedValue({ data: [] });
+  it('keeps an authorized backend session on the Superadmin workspace', async () => {
+    mocks.get.mockResolvedValue({ data: { enrolled: true, step_up_valid: false } });
 
     render(<SuperAdminAccessBoundary />);
 
-    await waitFor(() => expect(mocks.get).toHaveBeenCalledTimes(2));
-    expect(await screen.findByText('AUTHORIZED_SUPERADMIN_DASHBOARD')).toBeInTheDocument();
+    await waitFor(() => expect(mocks.get).toHaveBeenCalledTimes(1));
+    expect(await screen.findByText('AUTHORIZED_SUPERADMIN_WORKSPACE')).toBeInTheDocument();
     expect(screen.queryByText('Accès Superadmin non autorisé')).not.toBeInTheDocument();
+    expect(mocks.get).toHaveBeenCalledWith('/superadmin/passkey/status');
   });
 });
