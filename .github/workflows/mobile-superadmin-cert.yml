@@ -68,6 +68,8 @@ jobs:
 
       - name: Materialize immutable BEFORE source
         run: |
+          git fetch --no-tags --depth=1 origin "$BEFORE_HEAD"
+          git cat-file -e "$BEFORE_HEAD^{commit}"
           git show "$BEFORE_HEAD:frontend/src/features/mobile/Dashboard/views/MobileSuperAdminView.tsx" > frontend/src/features/mobile/Dashboard/views/MobileSuperAdminView.before.tsx
           grep -F 'Navigate to="/mobile/dashboard" replace' frontend/src/features/mobile/Dashboard/views/MobileSuperAdminView.before.tsx
 
@@ -128,12 +130,16 @@ jobs:
               const pageErrors=[];
               const requests=[];
               page.on('pageerror', error => pageErrors.push(String(error)));
+              page.on('request', request => {
+                const url=new URL(request.url());
+                if (!url.pathname.startsWith('/api/')) return;
+                requests.push({method:request.method(),path:url.pathname,auth:request.headers().authorization || '',port:url.port});
+              });
               await page.route('**/*', async route => {
                 const request=route.request();
                 const url=new URL(request.url());
                 if (url.port !== '4178' || !url.pathname.startsWith('/api/')) return route.continue();
                 const ok=(body)=>route.fulfill({status:200,contentType:'application/json',body:JSON.stringify(body)});
-                requests.push({method:request.method(),path:url.pathname,auth:request.headers().authorization || ''});
                 if (request.method()==='POST' && url.pathname==='/api/auth/login') return ok({access_token:'platform-visual-token',refresh_token:'discard-me',token_type:'bearer'});
                 if (request.method()==='GET' && url.pathname==='/api/superadmin/passkey/status') return ok({enrolled:true,origin_ready:true,step_up_valid:true,rp_id:'127.0.0.1',expected_origin:'http://127.0.0.1:4178'});
                 if (request.method()==='GET' && url.pathname==='/api/superadmin/clients') return ok([{id:42,email:'cabinet.atlas@example.test',role:'ADMIN',nom_complet:'Cabinet Atlas',is_active:true,is_licensed:true,license_expires_at:'2027-08-31T10:00:00Z',is_archived:false,is_suspended:false,internal_notes:null,last_login_at:'2026-08-31T09:00:00Z',created_at:'2026-01-15T10:00:00Z',subscription_plan:'GOLD',stats:{total_patients:84,total_ia_panoramique:19,total_ia_cephalo:12}}]);
@@ -156,10 +162,10 @@ jobs:
                 clientsTab:await page.getByRole('button',{name:'Clients & licences'}).count(),
                 controlTab:await page.getByRole('button',{name:'Contrôle plateforme'}).count(),
                 hasHorizontalOverflow:await page.evaluate(()=>document.documentElement.scrollWidth>document.documentElement.clientWidth+2),
-                platformAuthRequests:requests.filter(r=>r.path.startsWith('/api/superadmin/') && r.auth==='Bearer platform-visual-token').length,
-                cabinetApiRequests:requests.filter(r=>r.path.startsWith('/api/') && new URL('http://127.0.0.1:8999').port==='8999').length,
+                platformAuthRequests:requests.filter(r=>r.port==='4178' && r.path.startsWith('/api/superadmin/') && r.auth==='Bearer platform-visual-token').length,
+                cabinetApiRequests:requests.filter(r=>r.port==='8999').length,
               };
-              const checks=[metrics.authorized===1,metrics.controlHeading===1,metrics.clientsTab===1,metrics.controlTab===1,!metrics.hasHorizontalOverflow,metrics.platformAuthRequests>=2,pageErrors.length===0];
+              const checks=[metrics.authorized===1,metrics.controlHeading===1,metrics.clientsTab===1,metrics.controlTab===1,!metrics.hasHorizontalOverflow,metrics.platformAuthRequests>=2,metrics.cabinetApiRequests===0,pageErrors.length===0];
               const visualScore=Math.round((checks.filter(Boolean).length/checks.length)*100)/10;
               const afterShot=`after-${viewport.width}x${viewport.height}.png`;
               await page.screenshot({path:`${output}/${afterShot}`,fullPage:true,animations:'disabled'});
@@ -193,7 +199,7 @@ jobs:
           for (const capture of report.captures) {
             if (capture.visualScore < 9.5) throw new Error(`Visual score ${capture.visualScore} < 9.5`);
           }
-          console.table(report.captures.map(c=>({viewport:`${c.viewport.width}x${c.viewport.height}`,score:c.visualScore,overflow:c.metrics.hasHorizontalOverflow,platformAuth:c.metrics.platformAuthRequests})));
+          console.table(report.captures.map(c=>({viewport:`${c.viewport.width}x${c.viewport.height}`,score:c.visualScore,overflow:c.metrics.hasHorizontalOverflow,platformAuth:c.metrics.platformAuthRequests,cabinetApi:c.metrics.cabinetApiRequests})));
           NODE
 
       - name: Upload evidence

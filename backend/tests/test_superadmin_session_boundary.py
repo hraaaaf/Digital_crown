@@ -181,10 +181,11 @@ def test_cookie_only_superadmin_mutation_accepts_exact_https_origin(
     _login_cookie_session(client, dentiste)
     client.cookies.set("platform_step_up", _platform_step_up_token(dentiste.id), path="/api/superadmin")
 
-    response = client.post(
-        "/api/superadmin/clients/999999/validate",
-        headers={"Origin": WEBAUTHN_ORIGIN},
-    )
+    with patch("backend.platform_step_up.settings.ALLOWED_ORIGINS", WEBAUTHN_ORIGIN):
+        response = client.post(
+            "/api/superadmin/clients/999999/validate",
+            headers={"Origin": WEBAUTHN_ORIGIN},
+        )
 
     assert response.status_code == 404
 
