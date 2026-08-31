@@ -1,15 +1,15 @@
 name: Superadmin Denied BEFORE
 
 on:
-  pull_request:
-    branches:
-      - master
-    paths:
-      - '.github/workflows/superadmin-denied-before.yml'
+  workflow_dispatch:
 
 permissions:
   contents: read
 
+# Immutable historical baseline only. The denied-state BEFORE proof was captured
+# successfully against product HEAD 6e2280214ff6cefc8512b1978179bfe9d0209049.
+# Keep this workflow manual so the historical harness cannot become a recurring
+# PR gate after the product has moved to the AFTER state.
 jobs:
   before:
     runs-on: ubuntu-latest
