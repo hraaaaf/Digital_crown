@@ -7,11 +7,13 @@ on:
       - 'frontend/src/App.tsx'
       - 'frontend/src/services/api.ts'
       - 'frontend/src/services/platformPasskey.ts'
+      - 'frontend/src/services/platformTopology.ts'
       - 'frontend/src/features/mobile/Dashboard/MobileDashboard.tsx'
       - 'frontend/src/features/mobile/Dashboard/views/MobileSuperAdminView.tsx'
       - 'frontend/src/features/superadmin/**'
       - 'frontend/src/test/mobileSuperAdminView.test.tsx'
       - 'frontend/src/test/mobilePlatformAuthBoundary.test.ts'
+      - 'frontend/src/test/platformTopology.test.ts'
       - 'frontend/src/test/superAdminAccessBoundary.test.tsx'
       - '.github/workflows/mobile-superadmin-cert.yml'
   workflow_dispatch:
@@ -58,7 +60,7 @@ jobs:
 
       - name: Targeted security tests
         working-directory: frontend
-        run: npm test -- src/test/mobileSuperAdminView.test.tsx src/test/mobilePlatformAuthBoundary.test.ts src/test/superAdminAccessBoundary.test.tsx src/test/superAdminControlCenter.test.tsx src/test/superAdminWorkspace.test.tsx
+        run: npm test -- src/test/mobileSuperAdminView.test.tsx src/test/mobilePlatformAuthBoundary.test.ts src/test/platformTopology.test.ts src/test/superAdminAccessBoundary.test.tsx src/test/superAdminControlCenter.test.tsx src/test/superAdminWorkspace.test.tsx
 
       - name: Build frontend
         working-directory: frontend
@@ -85,9 +87,7 @@ jobs:
           import { MobileSuperAdminView as AfterView } from './features/mobile/Dashboard/views/MobileSuperAdminView';
 
           const phase = new URLSearchParams(window.location.search).get('phase') || 'after';
-          if (phase === 'after') {
-            window.history.replaceState({}, '', '/mobile/superadmin');
-          }
+          if (phase === 'after') window.history.replaceState({}, '', '/mobile/superadmin');
           createRoot(document.getElementById('root')!).render(
             phase === 'before' ? (
               <MemoryRouter initialEntries={['/mobile/superadmin']}>
@@ -131,11 +131,11 @@ jobs:
               await page.route('**/*', async route => {
                 const request=route.request();
                 const url=new URL(request.url());
-                if (url.port !== '8005' || !url.pathname.startsWith('/api/')) return route.continue();
+                if (url.port !== '4178' || !url.pathname.startsWith('/api/')) return route.continue();
                 const ok=(body)=>route.fulfill({status:200,contentType:'application/json',body:JSON.stringify(body)});
                 requests.push({method:request.method(),path:url.pathname,auth:request.headers().authorization || ''});
                 if (request.method()==='POST' && url.pathname==='/api/auth/login') return ok({access_token:'platform-visual-token',refresh_token:'discard-me',token_type:'bearer'});
-                if (request.method()==='GET' && url.pathname==='/api/superadmin/passkey/status') return ok({enrolled:true,origin_ready:true,step_up_valid:true,rp_id:'digitalcrown.local',expected_origin:'https://digitalcrown.local'});
+                if (request.method()==='GET' && url.pathname==='/api/superadmin/passkey/status') return ok({enrolled:true,origin_ready:true,step_up_valid:true,rp_id:'127.0.0.1',expected_origin:'http://127.0.0.1:4178'});
                 if (request.method()==='GET' && url.pathname==='/api/superadmin/clients') return ok([{id:42,email:'cabinet.atlas@example.test',role:'ADMIN',nom_complet:'Cabinet Atlas',is_active:true,is_licensed:true,license_expires_at:'2027-08-31T10:00:00Z',is_archived:false,is_suspended:false,internal_notes:null,last_login_at:'2026-08-31T09:00:00Z',created_at:'2026-01-15T10:00:00Z',subscription_plan:'GOLD',stats:{total_patients:84,total_ia_panoramique:19,total_ia_cephalo:12}}]);
                 if (request.method()==='GET' && url.pathname==='/api/superadmin/trial-codes') return ok([]);
                 if (request.method()==='GET' && url.pathname==='/api/superadmin/platform-admins/clients/42/devices') return ok({client_id:42,license:{active:true,license_type:'PAID',max_devices:3,active_devices:1,release_channel:'stable'},devices:[{device_id:'mobile-atlas-01',user_id:42,created_at:'2026-08-20T09:00:00Z',last_seen_at:'2026-08-31T09:50:00Z',revoked_at:null,active:true}]});
@@ -157,6 +157,7 @@ jobs:
                 controlTab:await page.getByRole('button',{name:'Contrôle plateforme'}).count(),
                 hasHorizontalOverflow:await page.evaluate(()=>document.documentElement.scrollWidth>document.documentElement.clientWidth+2),
                 platformAuthRequests:requests.filter(r=>r.path.startsWith('/api/superadmin/') && r.auth==='Bearer platform-visual-token').length,
+                cabinetApiRequests:requests.filter(r=>r.path.startsWith('/api/') && new URL('http://127.0.0.1:8999').port==='8999').length,
               };
               const checks=[metrics.authorized===1,metrics.controlHeading===1,metrics.clientsTab===1,metrics.controlTab===1,!metrics.hasHorizontalOverflow,metrics.platformAuthRequests>=2,pageErrors.length===0];
               const visualScore=Math.round((checks.filter(Boolean).length/checks.length)*100)/10;
@@ -166,7 +167,7 @@ jobs:
               await context.close();
             }
           } finally { await browser.close(); await server.close(); }
-          const report={schema:'digital-crown.mobile-superadmin-cert.v1',productHead:process.env.PRODUCT_HEAD,beforeHead:process.env.BEFORE_HEAD,goal:'Tour de contrôle réellement accessible dans la PWA mobile sans jamais promouvoir la session cabinet.',reference:'Mobile Security glass shell + existing responsive SuperAdminWorkspace; separate platform login then WebAuthn step-up; cabinet API deliberately isolated from platform API.',viewports,captures,valid:captures.every(c=>c.valid && c.visualScore>=9.5)};
+          const report={schema:'digital-crown.mobile-superadmin-cert.v2',productHead:process.env.PRODUCT_HEAD,beforeHead:process.env.BEFORE_HEAD,goal:'Tour de contrôle mobile réellement accessible sans promouvoir la session cabinet et avec frontend/API plateforme sur la même origine.',reference:'Mobile Security glass shell + responsive SuperAdminWorkspace; cabinet handoff vers origine plateforme dédiée; WebAuthn SameSite=Strict préservé.',viewports,captures,valid:captures.every(c=>c.valid && c.visualScore>=9.5)};
           await fs.writeFile(`${output}/report.json`,JSON.stringify(report,null,2));
           if (!report.valid) process.exit(1);
           EOF
@@ -177,7 +178,8 @@ jobs:
           PRODUCT_HEAD: ${{ env.PRODUCT_HEAD }}
           BEFORE_HEAD: ${{ env.BEFORE_HEAD }}
           VITE_API_URL: http://127.0.0.1:8999
-          VITE_PLATFORM_API_URL: http://127.0.0.1:8005
+          VITE_PLATFORM_APP_URL: http://127.0.0.1:4178
+          VITE_PLATFORM_API_URL: http://127.0.0.1:4178
         run: node mobile-superadmin-cert.mjs
 
       - name: Assert visual contract

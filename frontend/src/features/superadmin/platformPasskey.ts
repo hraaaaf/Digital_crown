@@ -1,105 +1,5 @@
-import { api } from '../../services/api';
-
-const decodeBase64Url = (value: string): ArrayBuffer => {
-  const normalized = value.replace(/-/g, '+').replace(/_/g, '/');
-  const padded = normalized + '='.repeat((4 - (normalized.length % 4)) % 4);
-  const binary = window.atob(padded);
-  const buffer = new ArrayBuffer(binary.length);
-  const bytes = new Uint8Array(buffer);
-  for (let index = 0; index < binary.length; index += 1) {
-    bytes[index] = binary.charCodeAt(index);
-  }
-  return buffer;
-};
-
-const encodeBase64Url = (value: ArrayBuffer): string => {
-  const bytes = new Uint8Array(value);
-  let binary = '';
-  bytes.forEach((byte) => {
-    binary += String.fromCharCode(byte);
-  });
-  return window.btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '');
-};
-
-type PublicKeyCredentialDescriptorJSON = Omit<PublicKeyCredentialDescriptor, 'id'> & {
-  id: string;
-};
-
-type PublicKeyCredentialUserEntityJSON = Omit<PublicKeyCredentialUserEntity, 'id'> & {
-  id: string;
-};
-
-type RegistrationOptionsJSON = Omit<
-  PublicKeyCredentialCreationOptions,
-  'challenge' | 'user' | 'excludeCredentials'
-> & {
-  challenge: string;
-  user: PublicKeyCredentialUserEntityJSON;
-  excludeCredentials?: PublicKeyCredentialDescriptorJSON[];
-};
-
-type AuthenticationOptionsJSON = Omit<
-  PublicKeyCredentialRequestOptions,
-  'challenge' | 'allowCredentials'
-> & {
-  challenge: string;
-  allowCredentials?: PublicKeyCredentialDescriptorJSON[];
-};
-
-const registrationOptions = (raw: Record<string, any>): PublicKeyCredentialCreationOptions => {
-  const options = raw as RegistrationOptionsJSON;
-  return {
-    ...options,
-    challenge: decodeBase64Url(options.challenge),
-    user: {
-      ...options.user,
-      id: decodeBase64Url(options.user.id),
-    },
-    excludeCredentials: (options.excludeCredentials || []).map((credential) => ({
-      ...credential,
-      id: decodeBase64Url(credential.id),
-    })),
-  };
-};
-
-const authenticationOptions = (raw: Record<string, any>): PublicKeyCredentialRequestOptions => {
-  const options = raw as AuthenticationOptionsJSON;
-  return {
-    ...options,
-    challenge: decodeBase64Url(options.challenge),
-    allowCredentials: (options.allowCredentials || []).map((credential) => ({
-      ...credential,
-      id: decodeBase64Url(credential.id),
-    })),
-  };
-};
-
-const serializeCredential = (credential: PublicKeyCredential): Record<string, any> => {
-  const response = credential.response;
-  const serializedResponse: Record<string, any> = {
-    clientDataJSON: encodeBase64Url(response.clientDataJSON),
-  };
-
-  if (response instanceof AuthenticatorAttestationResponse) {
-    serializedResponse.attestationObject = encodeBase64Url(response.attestationObject);
-    if (typeof response.getTransports === 'function') {
-      serializedResponse.transports = response.getTransports();
-    }
-  } else if (response instanceof AuthenticatorAssertionResponse) {
-    serializedResponse.authenticatorData = encodeBase64Url(response.authenticatorData);
-    serializedResponse.signature = encodeBase64Url(response.signature);
-    serializedResponse.userHandle = response.userHandle ? encodeBase64Url(response.userHandle) : null;
-  }
-
-  return {
-    id: credential.id,
-    rawId: encodeBase64Url(credential.rawId),
-    type: credential.type,
-    authenticatorAttachment: credential.authenticatorAttachment,
-    clientExtensionResults: credential.getClientExtensionResults(),
-    response: serializedResponse,
-  };
-};
+import { api, API_BASE, PLATFORM_API_BASE } from '../../services/api';
+import { ensurePlatformStepUp } from '../../services/platformPasskey';
 
 export type PlatformPasskeyStatus = {
   enrolled: boolean;
@@ -109,30 +9,20 @@ export type PlatformPasskeyStatus = {
   expected_origin: string;
 };
 
+function platformApiBase(): string {
+  return typeof window !== 'undefined' && window.location.pathname.startsWith('/mobile/superadmin')
+    ? PLATFORM_API_BASE
+    : API_BASE;
+}
+
 export const fetchPlatformPasskeyStatus = async (): Promise<PlatformPasskeyStatus> => {
   const response = await api.get('/superadmin/passkey/status');
   return response.data as PlatformPasskeyStatus;
 };
 
-export const establishPlatformStepUp = async (enrolled: boolean): Promise<void> => {
-  if (!window.PublicKeyCredential || !navigator.credentials) {
-    throw new Error('WebAuthn indisponible sur ce navigateur.');
-  }
-
-  const purpose = enrolled ? 'authentication' : 'registration';
-  const optionsResponse = await api.post(`/superadmin/passkey/${purpose}/options`);
-  const { challenge_id: challengeId, ...rawOptions } = optionsResponse.data as Record<string, any>;
-
-  const credential = enrolled
-    ? await navigator.credentials.get({ publicKey: authenticationOptions(rawOptions) })
-    : await navigator.credentials.create({ publicKey: registrationOptions(rawOptions) });
-
-  if (!(credential instanceof PublicKeyCredential)) {
-    throw new Error('Vérification WebAuthn interrompue.');
-  }
-
-  await api.post(`/superadmin/passkey/${purpose}/verify`, {
-    challenge_id: challengeId,
-    credential: serializeCredential(credential),
-  });
+export const establishPlatformStepUp = async (_enrolled: boolean): Promise<void> => {
+  // Canonical ceremony implementation lives in services/platformPasskey.ts so
+  // the control-center button and the mutation interceptor share one 5-minute
+  // proof window instead of prompting WebAuthn twice.
+  await ensurePlatformStepUp(platformApiBase());
 };

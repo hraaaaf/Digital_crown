@@ -17,8 +17,8 @@ vi.mock('axios', () => ({
 }));
 
 vi.mock('../services/api', () => ({
-  API_BASE: 'https://digitalcrown.local:8005',
-  PLATFORM_API_BASE: 'https://control.digitalcrown.test',
+  API_BASE: window.location.origin,
+  PLATFORM_API_BASE: window.location.origin,
   getMobilePlatformAccessToken: () => getPlatformToken(),
   setMobilePlatformAccessToken: (token: string) => setPlatformToken(token),
   clearMobilePlatformAccessToken: () => clearPlatformToken(),
@@ -37,13 +37,21 @@ beforeEach(() => {
   setPlatformToken.mockReset();
   clearPlatformToken.mockReset();
   getPlatformToken.mockReturnValue(null);
+  window.history.replaceState({}, '', '/mobile/superadmin');
 });
 
 describe('MobileSuperAdminView', () => {
-  it('requires a separate platform login before exposing the workspace', async () => {
+  it('requires a separate same-origin platform login before exposing the workspace', async () => {
     const user = userEvent.setup();
     axiosPost.mockResolvedValueOnce({ data: { access_token: 'platform-access', refresh_token: 'discarded' } });
-    axiosGet.mockResolvedValueOnce({ data: { enrolled: true, step_up_valid: false } });
+    axiosGet.mockResolvedValueOnce({
+      data: {
+        enrolled: true,
+        step_up_valid: false,
+        origin_ready: true,
+        expected_origin: window.location.origin,
+      },
+    });
 
     render(<MemoryRouter><MobileSuperAdminView /></MemoryRouter>);
 
@@ -57,17 +65,17 @@ describe('MobileSuperAdminView', () => {
     expect(await screen.findByTestId('platform-workspace')).toBeInTheDocument();
     expect(setPlatformToken).toHaveBeenCalledWith('platform-access');
     expect(axiosPost).toHaveBeenCalledWith(
-      'https://control.digitalcrown.test/api/auth/login',
+      `${window.location.origin}/api/auth/login`,
       expect.any(URLSearchParams),
-      expect.objectContaining({ withCredentials: false }),
+      expect.objectContaining({ withCredentials: true }),
     );
     expect(axiosGet).toHaveBeenCalledWith(
-      'https://control.digitalcrown.test/api/superadmin/passkey/status',
-      expect.objectContaining({ headers: { Authorization: 'Bearer platform-access' }, withCredentials: false }),
+      `${window.location.origin}/api/superadmin/passkey/status`,
+      expect.objectContaining({ headers: { Authorization: 'Bearer platform-access' }, withCredentials: true }),
     );
   });
 
-  it('never persists a valid cabinet account that lacks platform authority', async () => {
+  it('never persists a valid account that lacks platform authority', async () => {
     const user = userEvent.setup();
     axiosPost.mockResolvedValueOnce({ data: { access_token: 'ordinary-access' } });
     axiosGet.mockRejectedValueOnce({ response: { status: 403, data: { detail: 'denied' } } });
@@ -82,7 +90,29 @@ describe('MobileSuperAdminView', () => {
     expect(screen.queryByTestId('platform-workspace')).not.toBeInTheDocument();
   });
 
-  it('restores only an existing dedicated platform session', () => {
+  it('rejects a WebAuthn origin mismatch before persisting the platform session', async () => {
+    const user = userEvent.setup();
+    axiosPost.mockResolvedValueOnce({ data: { access_token: 'platform-access' } });
+    axiosGet.mockResolvedValueOnce({
+      data: {
+        enrolled: true,
+        step_up_valid: false,
+        origin_ready: false,
+        expected_origin: 'https://other-control.example.test',
+      },
+    });
+
+    render(<MemoryRouter><MobileSuperAdminView /></MemoryRouter>);
+    await user.type(screen.getByLabelText('Email plateforme'), 'owner@example.test');
+    await user.type(screen.getByLabelText('Mot de passe'), 'password');
+    await user.click(screen.getByRole('button', { name: 'Ouvrir la Tour de contrôle' }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('https://other-control.example.test');
+    expect(setPlatformToken).not.toHaveBeenCalled();
+    expect(screen.queryByTestId('platform-workspace')).not.toBeInTheDocument();
+  });
+
+  it('restores only an existing dedicated platform session on the correct origin', () => {
     getPlatformToken.mockReturnValue('existing-platform-token');
     render(<MemoryRouter><MobileSuperAdminView /></MemoryRouter>);
     expect(screen.getByTestId('platform-workspace')).toBeInTheDocument();
