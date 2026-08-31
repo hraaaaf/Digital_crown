@@ -1,8 +1,8 @@
 #Requires -RunAsAdministrator
 <#
 .SYNOPSIS
-    Configure HTTPS local pour DigitalCrown (Vite + FastAPI).
-    A relancer si vous changez de réseau WiFi.
+    Configure HTTPS local pour le runtime cabinet immuable Digital Crown.
+    Le hostname mDNS digitalcrown.local reste stable même si l'adresse DHCP change.
 #>
 
 $ErrorActionPreference = "Stop"
@@ -54,19 +54,20 @@ Write-Host "=======================================" -ForegroundColor Yellow
 Write-Host "  IMPORTANT : Installation sur iPhone" -ForegroundColor Yellow
 Write-Host "=======================================" -ForegroundColor Yellow
 Write-Host ""
-Write-Host "  1. Envoyer ce fichier par mail ou AirDrop a l'iPhone :"
+Write-Host "  1. Envoyer ce certificat racine à l'iPhone :"
 Write-Host "     $caRoot\rootCA.pem" -ForegroundColor Cyan
 Write-Host ""
-Write-Host "  2. Sur iPhone : Reglages > General > VPN et gestion"
-Write-Host "     > Installer le profil (rootCA.pem)"
+Write-Host "  2. Sur iPhone : Réglages > Général > VPN et gestion de l'appareil"
+Write-Host "     > Installer le profil/certificat"
 Write-Host ""
-Write-Host "  3. Sur iPhone : Reglages > General > A propos"
-Write-Host "     > Certificats racines de confiance"
-Write-Host "     > Activer 'mkcert ...'"
+Write-Host "  3. Sur iPhone : Réglages > Général > Informations"
+Write-Host "     > Réglages de confiance des certificats"
+Write-Host "     > Activer la confiance pour la CA mkcert"
 Write-Host ""
-Write-Host "  4. Relancer Digital Crown puis re-scanner le QR Code"
+Write-Host "  4. Relancer le runtime cabinet immuable puis re-scanner le QR Code"
 Write-Host ""
-Write-Host "  Acces mobile stable : https://digitalcrown.local:5173" -ForegroundColor Green
-Write-Host "  IP LAN actuelle     : https://$($lanIP):5173" -ForegroundColor DarkGray
+Write-Host "  Accès mobile stable : https://digitalcrown.local:8005" -ForegroundColor Green
+Write-Host "  Diagnostic IP TLS   : https://$($lanIP):8005" -ForegroundColor DarkGray
 Write-Host ""
-Write-Host "Terminé ! Relancez Start_DigitalCrown.bat" -ForegroundColor Green
+Write-Host "IMPORTANT : ne pas utiliser Start_DigitalCrown.bat pour le cabinet réel." -ForegroundColor Yellow
+Write-Host "Relancez via backend\scripts\run_real_backend.ps1 avec une release immuable." -ForegroundColor Green
