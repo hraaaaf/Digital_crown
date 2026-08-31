@@ -19,7 +19,7 @@ from backend.security import ALGORITHM, SECRET_KEY
 
 WEBAUTHN_RP_ID = os.getenv("DIGITALCROWN_WEBAUTHN_RP_ID", "digitalcrown.local").strip().lower()
 WEBAUTHN_ORIGIN = os.getenv(
-    "DIGITALCROWN_WEBAUTHN_ORIGIN", f"https://{WEBAUTHN_RP_ID}:5173"
+    "DIGITALCROWN_WEBAUTHN_ORIGIN", f"https://{WEBAUTHN_RP_ID}:8005"
 ).strip().rstrip("/")
 WEBAUTHN_RP_NAME = "Digital Crown"
 CHALLENGE_TTL = timedelta(minutes=3)

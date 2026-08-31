@@ -4,6 +4,7 @@
 # - Only starts an immutable release produced by create_release.ps1 (never the working
 #   repo directly).
 # - Refuses anything that looks like rehearsal.
+# - Enables HTTPS on the immutable runtime when the cabinet cert/key pair exists.
 # - Requires explicit confirmation.
 #
 # Usage:
@@ -19,13 +20,15 @@ param(
     [string]$RealEnvFile = "C:\Users\lenovo\Documents\Cabinet\DigitalCrown\backend\.env.local",
     [int]$Port = 8005,
     [string]$VenvPython = "C:\Users\lenovo\Documents\Cabinet\DigitalCrown\venv\Scripts\python.exe",
-    [string]$BindHost = "0.0.0.0"
+    [string]$BindHost = "0.0.0.0",
+    [string]$TlsCertFile = "",
+    [string]$TlsKeyFile = ""
 )
 
 # Defense in depth : meme avec le binding positionnel desactive, on revalide explicitement
 # que rien parmi les valeurs recues ne contient "--reload" (ceinture + bretelles - la
-# commande uvicorn elle-meme est de toute facon hardcodee plus bas, sans passthrough).
-foreach ($v in @($ReleaseId, $ConfirmRealActivation, $RuntimeRoot, $RealEnvFile, $Port, $BindHost, $args)) {
+# commande uvicorn elle-meme est de toute facon construite plus bas sans passthrough).
+foreach ($v in @($ReleaseId, $ConfirmRealActivation, $RuntimeRoot, $RealEnvFile, $Port, $BindHost, $TlsCertFile, $TlsKeyFile, $args)) {
     if ("$v" -like "*--reload*") {
         Write-Host "ERROR: a provided value contains --reload and is refused: $v" -ForegroundColor Red
         exit 1
@@ -72,7 +75,7 @@ if (-not (Test-Path $backendPath)) {
     exit 1
 }
 
-# 4. Verify the real env file - never rehearsal, never printed in clear
+# 3. Verify the real env file - never rehearsal, never printed in clear
 if (-not (Test-Path $RealEnvFile)) {
     Write-Host "ERROR: real environment file not found: $RealEnvFile" -ForegroundColor Red
     exit 1
@@ -107,6 +110,40 @@ if (-not (Test-Path $VenvPython)) {
     exit 1
 }
 
+# 4. Resolve the cabinet TLS pair from the real repo, never from the immutable release.
+$realBackendDir = Split-Path $RealEnvFile -Parent
+$realRepoRoot = Split-Path $realBackendDir -Parent
+if ([string]::IsNullOrWhiteSpace($TlsCertFile)) {
+    $TlsCertFile = Join-Path $realRepoRoot "certs\cert.pem"
+}
+if ([string]::IsNullOrWhiteSpace($TlsKeyFile)) {
+    $TlsKeyFile = Join-Path $realRepoRoot "certs\key.pem"
+}
+
+$certExists = Test-Path $TlsCertFile
+$keyExists = Test-Path $TlsKeyFile
+if ($certExists -xor $keyExists) {
+    Write-Host "ERROR: incomplete TLS configuration: cert/key must either both exist or both be absent." -ForegroundColor Red
+    exit 1
+}
+$httpsEnabled = $certExists -and $keyExists
+if ($httpsEnabled -and $Port -ne 8005) {
+    Write-Host "ERROR: HTTPS mobile/WebAuthn contract requires the real runtime on port 8005." -ForegroundColor Red
+    exit 1
+}
+
+$env:PORT = "$Port"
+$env:DIGITALCROWN_HTTPS_PORT = "$Port"
+if ($httpsEnabled) {
+    $env:DIGITALCROWN_ENABLE_HTTPS = "true"
+    $env:DIGITALCROWN_WEBAUTHN_RP_ID = "digitalcrown.local"
+    $env:DIGITALCROWN_WEBAUTHN_ORIGIN = "https://digitalcrown.local:$Port"
+} else {
+    $env:DIGITALCROWN_ENABLE_HTTPS = "false"
+}
+
+$runtimeOrigin = if ($httpsEnabled) { "https://digitalcrown.local:$Port" } else { "http://127.0.0.1:$Port" }
+
 Write-Host "OK - checks passed." -ForegroundColor Green
 Write-Host "Release     : $ReleaseId"
 Write-Host "Backend     : $backendPath"
@@ -116,25 +153,34 @@ Write-Host "ENVIRONMENT : $envValue"
 Write-Host "Port        : $Port"
 Write-Host "Bind host   : $BindHost"
 Write-Host "Reload      : DISABLED (never used by this launcher)"
+Write-Host "HTTPS       : $httpsEnabled"
+Write-Host "Origin      : $runtimeOrigin"
 Write-Host ""
 
 # 5. Runtime manifest (before startup)
 $runtimeManifest = [ordered]@{
-    release_id   = $ReleaseId
-    port         = $Port
-    bind_host    = $BindHost
-    reload       = $false
-    activated_at = (Get-Date).ToString("o")
-    backend_path = $backendPath
+    release_id    = $ReleaseId
+    port          = $Port
+    bind_host     = $BindHost
+    reload        = $false
+    https_enabled = [bool]$httpsEnabled
+    origin        = $runtimeOrigin
+    activated_at  = (Get-Date).ToString("o")
+    backend_path  = $backendPath
 }
 $runtimeManifest | ConvertTo-Json -Depth 4 | Set-Content -Path (Join-Path $releaseDir "runtime-activation.json") -Encoding utf8
 
-# 6. Startup - cwd = release folder (never the working repo), no --reload
+# 6. Startup - cwd = release folder (never the working repo), no --reload.
+$uvicornArgs = @("-m", "uvicorn", "backend.main:app", "--host", $BindHost, "--port", "$Port")
+if ($httpsEnabled) {
+    $uvicornArgs += @("--ssl-certfile", $TlsCertFile, "--ssl-keyfile", $TlsKeyFile)
+}
+
 Write-Host "Starting (cwd = $releaseDir, no --reload)..." -ForegroundColor Cyan
 $env:DIGITALCROWN_ENV_FILE = $RealEnvFile
 Push-Location $releaseDir
 try {
-    & $VenvPython -m uvicorn backend.main:app --host $BindHost --port $Port
+    & $VenvPython @uvicornArgs
 } finally {
     Pop-Location
 }
