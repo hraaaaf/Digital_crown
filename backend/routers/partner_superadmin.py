@@ -269,4 +269,7 @@ def governance_audit(
 
 
 from backend.routers import partner_superadmin_catalog as partner_superadmin_catalog
-router.include_router(partner_superadmin_catalog.router)
+router.include_router(
+    partner_superadmin_catalog.router,
+    dependencies=[Depends(require_marketplace_superadmin)],
+)
