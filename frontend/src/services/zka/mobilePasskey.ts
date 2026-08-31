@@ -132,7 +132,7 @@ async function jsonOrError(response: Response): Promise<any> {
   throw error;
 }
 
-export function isStablePasskeyOrigin(expectedOrigin = 'https://digitalcrown.local:5173'): boolean {
+export function isStablePasskeyOrigin(expectedOrigin = 'https://digitalcrown.local:8005'): boolean {
   return typeof window !== 'undefined'
     && window.isSecureContext === true
     && window.location.origin.toLowerCase() === expectedOrigin.toLowerCase();
@@ -260,7 +260,7 @@ export async function activateMobilePasskey(): Promise<MobilePasskeyStatus> {
 export async function unlockMobilePasskey(): Promise<MobilePasskeyStatus> {
   const vault = await MobileStorage.getBiometricVaultEnvelope();
   if (!vault) throw new Error('Coffre biométrique local introuvable.');
-  const expectedOrigin = 'https://digitalcrown.local:5173';
+  const expectedOrigin = 'https://digitalcrown.local:8005';
   if (!isStablePasskeyOrigin(expectedOrigin)) {
     throw new Error(`Ouvrez Digital Crown depuis ${expectedOrigin} pour déverrouiller.`);
   }

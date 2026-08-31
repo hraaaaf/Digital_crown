@@ -57,6 +57,20 @@ async function waitForVite() {
   throw new Error(`Vite readiness failed: ${lastError || viteLog}`);
 }
 
+async function capturePng(page, filePath) {
+  const session = await page.context().newCDPSession(page);
+  try {
+    const { data } = await session.send('Page.captureScreenshot', {
+      format: 'png',
+      fromSurface: true,
+      captureBeyondViewport: false,
+    });
+    await writeFile(filePath, Buffer.from(data, 'base64'));
+  } finally {
+    await session.detach();
+  }
+}
+
 const viewports = [
   { width: 390, height: 844 },
   { width: 430, height: 932 },
@@ -90,12 +104,9 @@ try {
     });
 
     const baseName = `${phase}-security-${viewport.width}x${viewport.height}.png`;
-    await page.screenshot({ path: path.join(outDir, baseName), fullPage: false });
+    await capturePng(page, path.join(outDir, baseName));
     captures.push({ phase, kind: 'security', viewport, file: baseName, errors, metrics });
 
-    // BEFORE already has the required same-viewport security capture. For AFTER,
-    // take a second viewport capture centered on the new card using a fresh DOM
-    // lookup inside the page. This avoids holding a Locator across React remounts.
     if (phase === 'after') {
       const centered = await page.evaluate(() => {
         const element = document.querySelector('[data-m6i-biometric]');
@@ -111,7 +122,7 @@ try {
           return rect.bottom > 0 && rect.top < window.innerHeight;
         });
         const contextName = `${phase}-context-${viewport.width}x${viewport.height}.png`;
-        await page.screenshot({ path: path.join(outDir, contextName), fullPage: false });
+        await capturePng(page, path.join(outDir, contextName));
         captures.push({ phase, kind: 'context', viewport, file: contextName, errors: [...errors], metrics });
       }
     }
@@ -137,7 +148,7 @@ try {
         };
       });
       const file = `after-lock-${viewport.width}x${viewport.height}.png`;
-      await page.screenshot({ path: path.join(outDir, file), fullPage: false });
+      await capturePng(page, path.join(outDir, file));
       captures.push({ phase, kind: 'lock', viewport, file, errors, metrics });
       await context.close();
     }

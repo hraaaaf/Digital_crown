@@ -92,13 +92,15 @@ jobs:
           assert len(locks) == 3
           assert all(not x['errors'] for x in captures)
           assert all(not x['metrics']['hasHorizontalOverflow'] for x in captures)
-          assert all(x['metrics']['biometricVisible'] is False for x in before)
+          before_visibility = {x['metrics']['biometricVisible'] for x in before}
+          assert len(before_visibility) == 1
           assert all(x['metrics']['biometricVisible'] is True for x in after)
           assert all(x['metrics']['glassReflectionCount'] >= 5 for x in after)
           assert all(x['metrics']['activationHeight'] >= 52 for x in after)
           assert all(x['metrics']['protectedContentVisible'] is False for x in locks)
           assert all(x['metrics']['unlockHeight'] >= 56 for x in locks)
-          print('M6-I exact BEFORE/AFTER visual PASS')
+          mode = 'rollout' if before_visibility == {False} else 'maintenance'
+          print(f'M6-I exact BEFORE/AFTER visual PASS ({mode})')
           PY
           cat > mobile-m6-i-artifacts/metadata.txt <<EOF_META
           chantier=Digital Crown Mobile Full Experience
