@@ -7,7 +7,7 @@ import pytest
 from PIL import Image
 
 from backend import models
-from backend.routers import mobile_resource_bridge
+from backend.routers import mobile_pairing_secure, mobile_resource_bridge
 from backend.routers.mobile_resource_bridge import BRIDGE_CONTEXT_TABLE  # noqa: F401
 from backend.services import archive_service
 from backend.tests.test_mobile_m6a_clinical_photo import (
@@ -26,11 +26,24 @@ def _isolate_mobile_scan_runtime(tmp_path, monkeypatch):
     from backend.main import _license_cache
     from backend.utils import rate_limit
 
+    async def _signed_entitlement(*_args, **_kwargs):
+        return {
+            'active': True,
+            'license_type': 'PAID',
+            'max_devices': 10,
+            'release_channel': 'stable',
+        }
+
     _license_cache.clear()
     monkeypatch.setattr(rate_limit, '_store_path', str(tmp_path / 'm6b-rate-limit.json'))
     monkeypatch.setattr(archive_service, 'MEDIA_DIR', tmp_path)
     monkeypatch.setattr(archive_service, 'ARCHIVE_BASE_DIR', tmp_path / 'archives')
     monkeypatch.setattr(mobile_resource_bridge._documents, 'MEDIA_DIR', tmp_path)
+    monkeypatch.setattr(
+        mobile_pairing_secure.LicenseService,
+        'get_effective_license',
+        _signed_entitlement,
+    )
     yield
     _license_cache.clear()
 
