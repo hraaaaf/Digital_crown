@@ -167,6 +167,7 @@ from . import partner_receipts as partner_receipts
 from . import partner_stock as partner_stock
 from . import partner_receipts_p7 as partner_receipts_p7
 from . import partner_stock_safety as partner_stock_safety
+from . import partner_finance as partner_finance
 partner_orders.router.routes = [
     route
     for route in partner_orders.router.routes
@@ -190,6 +191,7 @@ partner_orders.router.include_router(partner_dispatch.router)
 partner_orders.router.include_router(partner_procurement.router)
 partner_orders.router.include_router(partner_receipts_p7.router)
 partner_orders.router.include_router(partner_receipts.router)
+partner_orders.router.include_router(partner_finance.router)
 
 # Marketplace P7 keeps the existing StockItem CRUD as the aggregate source of truth,
 # registers mapping/ledger/lot tables, then mounts the bridge under /api/stock/marketplace.
@@ -212,3 +214,13 @@ partner_stock.router.routes = [
 from . import stock as stock
 stock.router.include_router(partner_stock.router)
 stock.router.include_router(partner_stock_safety.router)
+
+# Marketplace P9 registers supplier sync/audit state before create_all() and mounts
+# API synchronization under the existing canonical partner-catalog router. The
+# identity guard rejects ambiguous pre-existing local SKU/externalProductId instead
+# of choosing an arbitrary row during an automated sync.
+from . import partner_catalog as partner_catalog
+from . import partner_sync as partner_sync
+from . import partner_sync_safety as partner_sync_safety
+partner_sync_safety.install_partner_sync_identity_guard(partner_sync)
+partner_catalog.router.include_router(partner_sync.router)
