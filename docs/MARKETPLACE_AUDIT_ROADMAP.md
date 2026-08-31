@@ -3,7 +3,7 @@
 **Statut canonique : ACTIF**  
 **Baseline : 2026-08-30**  
 **Repo :** `hraaaaf/Digital_crown`  
-**Lot actif :** P9 — Automatisation fournisseur  
+**Lot actif :** P10 — Superadmin Marketplace  
 **Déploiement Vercel :** aucun sans autorisation explicite.
 
 ## Goal chantier
@@ -34,9 +34,9 @@ Potentiel produit séparé : **9.0/10**.
 | P5 — UX/UI Marketplace | 14 | CLOSED | BEFORE/AFTER + E2E + score visuel |
 | P6 — Procurement | 8 | CLOSED | transport → suivi → réception |
 | P7 — Stock Intelligence | 8 | CLOSED | réception → stock sans double saisie |
-| **P8 — Finance & monétisation** | **6** | **CLOSED** | scénarios financiers serveur + merge vérifié |
-| **P9 — Automatisation fournisseur** | **5** | **ACTIF** | idempotence/retry/sync |
-| P10 — Superadmin Marketplace | 4 | PRÉPARATION | RBAC + audit trail global |
+| P8 — Finance & monétisation | 6 | CLOSED | scénarios financiers serveur + merge vérifié |
+| **P9 — Automatisation fournisseur** | **5** | **CLOSED** | idempotence/retry/sync + audit + merge vérifié |
+| **P10 — Superadmin Marketplace** | **4** | **ACTIF** | RBAC + audit trail global |
 | P11 — Certification finale | 5 | À FAIRE | tous gates verts |
 | **Total** | **100** |  |  |
 
@@ -50,7 +50,8 @@ Potentiel produit séparé : **9.0/10**.
 - P6 : 8/8 CLOSED — PR #316 ; merge `1cee3f30168845602a2f8fdfb2a5bbf1694e9c71`.
 - P7 : 8/8 CLOSED — PR #318 ; merge `7b7aeb4569d31e1fb26460d032523344a7f21d21`.
 - P8 : 6/6 CLOSED — PR #320 ; merge `538ce138987cbe6b147770c210bf3df2f19782db`.
-- **Global CLOSED : 86/100 = 86 %.**
+- P9 : 5/5 CLOSED — PR #321 ; squash merge `ff661156e3edb4181b895765d17bbd5e23825298`.
+- **Global CLOSED : 91/100 = 91 %.**
 
 ## P5 — UX/UI Marketplace — CLOSED
 Marketplace P5 BEFORE #5 : SUCCESS sur 390×844 / 430×932 / 768×1024 / 1280×800. Défauts : H1 rogné à 390 px, hero trop dominant, catalogue trop bas.  
@@ -67,48 +68,52 @@ HEAD closeout `3ab5863d79adc0f11e09052fe6c59789ecd1edbf` : CI #2342, Catalog #72
 HEAD `77da0418d10548d279ce0dbdbf2d460b2362e492` : CI #2359, Catalog #739, T2 #1466, Patient #765, Portability #348, Onboarding #155 SUCCESS. PR #318 mergée.
 
 ## P8 — Finance & monétisation — CLOSED
+Conserve P2 comme seule autorité de reconnaissance de revenu ; facture fournisseur idempotente ; coût attendu déterministe ; rapprochement commande ↔ réception ↔ facture ; audit ; reporting tenant-scoped ; Superadmin-only.  
+HEAD mergé `538ce138987cbe6b147770c210bf3df2f19782db` : CI #2368, Catalog #745, T2 #1472, Patient #771, Portability #353, Onboarding #160 SUCCESS. Tests ciblés : 9 scénarios.  
+**Gate : CLOSED — 6/6 EP.**
+
+## P9 — Automatisation fournisseur — CLOSED
 
 ### Goal
-Conserver P2 comme seule autorité de reconnaissance de revenu et ajouter un rapprochement serveur commande ↔ réception ↔ facture fournisseur, avec reporting interne tenant-scoped.
+Synchroniser un catalogue fournisseur API sans duplication, corruption locale ni perte de baseline exploitable.
 
 ### Implémenté
-- `PartnerOrder.recognized_*` reste la vérité P2 ; aucun second moteur de revenu ;
-- facture fournisseur idempotente par commande ;
-- coût fournisseur attendu déterministe selon commission / remise-revente / frais fixes ;
-- statuts de rapprochement `WAITING_INVOICE`, `WAITING_RECEIPT`, `AMOUNT_MISMATCH`, `MATCHED`, `CANCELLED` ;
-- audit `SUPPLIER_INVOICE_RECORDED` ;
-- reporting financier agrégé cabinet ;
-- rapprochement MAD uniquement ;
-- Superadmin-only + employer scoping.
+- endpoint fournisseur `/catalog` avec garde HTTPS/SSRF héritée de P6 ;
+- snapshot canonique + hash déterministe ;
+- upsert prix/disponibilité en préservant merchandising local ;
+- produits précédemment gérés par la sync et absents du snapshot → `DISCONTINUED`, jamais supprimés ;
+- produits manuels non gérés par la sync préservés ;
+- même payload = `NO_CHANGE` seulement si l'état local est déjà conforme ; sinon réparation du drift ;
+- retry/backoff exponentiel + force retry Superadmin ;
+- freshness `FRESH/STALE/DEGRADED/NEVER_SYNCED` ;
+- protection contre identités locales SKU/externalProductId ambiguës ;
+- audit append-only `SUPPLIER_SYNC_APPLIED`, `SUPPLIER_SYNC_NO_CHANGE`, `SUPPLIER_SYNC_FAILED` ;
+- tenant/supplier scoping et RBAC.
 
-### Preuve produit
-HEAD mergé `538ce138987cbe6b147770c210bf3df2f19782db` :
-- CI #2368 SUCCESS ;
-- Catalog #745 SUCCESS ;
-- T2 #1472 SUCCESS ;
-- Patient #771 SUCCESS ;
-- Portability #353 SUCCESS ;
-- Onboarding #160 SUCCESS ;
-- M6-I skipped par périmètre.
+### Preuve
+HEAD certifié `65d502d15faf05be88a9abec91649af4de6967ea` :
+- CI #2388 SUCCESS ;
+- Catalog #763 SUCCESS ;
+- T2 #1490 SUCCESS ;
+- Patient #789 SUCCESS ;
+- Portability #371 SUCCESS ;
+- Onboarding #178 SUCCESS ;
+- M6-I #290 skipped par périmètre.
 
-Tests ciblés P8 : 9 scénarios couvrant modèles financiers, matching facture/réception, réception partielle, mismatch, annulation, idempotence/conflits, devise, reporting/isolation et RBAC HTTP.
+PR #321 squash-mergée ; master `ff661156e3edb4181b895765d17bbd5e23825298`.
 
 ### Gate
-**CLOSED — 6/6 EP crédités après certification du HEAD, merge #320 et vérification `merged=true` sur master.**
+**CLOSED — 5/5 EP crédités après certification du HEAD et merge vérifié.**
 
-## P9 — Automatisation fournisseur — ACTIF
-Goal : automatiser la synchronisation fournisseur sans corruption locale ni duplication : snapshot canonique, upsert prix/disponibilité, idempotence, retry/backoff, degraded mode, audit et isolation tenant.
-
-Préparation existante à reconstruire/vérifier sur master post-P8 : moteur API `/catalog`, préservation merchandising local, hash idempotent, fraîcheur, retry forcé Superadmin, garde SSRF P6, protection contre identités locales SKU/externalProductId ambiguës. **0/5 EP avant implémentation vérifiée + CI + merge.**
-
-## P10 — Superadmin Marketplace — PRÉPARATION
-Supervision globale cross-cabinet, accords fournisseur, incidents sync, métriques, mutation avec confirmation explicite et audit append-only préparés. Aucune EP créditée avant reconstruction post-P9 et CI.
+## P10 — Superadmin Marketplace — ACTIF
+Goal : supervision Marketplace globale cross-cabinet avec RBAC Superadmin, métriques, incidents sync, gouvernance/accords fournisseur, catalogue global et audit append-only.  
+Préparation historique à reconstruire sur master post-P9 ; aucun crédit avant correction des invariants, tests, CI complète et merge.
 
 ## Règles
 Backend = vérité financière/statuts. Frontend jamais autorité sécurité. Scoping obligatoire. Aucun Vercel sans autorisation. CI pending n'arrête pas le travail indépendant. Aucun EP CLOSED sans closeout complet.
 
 ## Reprise
-`P0 CLOSED → P1 CLOSED → P2 CLOSED → P3 CLOSED → P4 CLOSED → P5 CLOSED → P6 CLOSED → P7 CLOSED → P8 CLOSED → P9 ACTIF → P10 PREP → P11`
+`P0 CLOSED → P1 CLOSED → P2 CLOSED → P3 CLOSED → P4 CLOSED → P5 CLOSED → P6 CLOSED → P7 CLOSED → P8 CLOSED → P9 CLOSED → P10 ACTIF → P11`
 
-**Crédit CLOSED : 86/100 EP.**  
-**Next exact :** créer/reconstruire P9 depuis master post-P8, auditer les préparations existantes, combler les gaps, tester puis certifier avant merge.
+**Crédit CLOSED : 91/100 EP.**  
+**Next exact :** reconstruire P10 depuis master post-P9, corriger les gaps de préparation, tester puis certifier avant merge.
