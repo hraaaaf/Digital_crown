@@ -53,7 +53,7 @@ def test_mobile_superadmin_session_is_rejected_from_marketplace_control_plane(cl
     )
 
     assert response.status_code == 403, response.text
-    assert response.json()["detail"]["code"] == "MARKETPLACE_SUPERADMIN_WEB_REQUIRED"
+    assert response.json()["detail"] == "Accès plateforme réservé à une session web privilégiée."
 
 
 def test_cookie_marketplace_mutation_requires_origin(client, db, monkeypatch):
