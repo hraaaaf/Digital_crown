@@ -24,6 +24,7 @@ patients.router.routes = [
     if not (
         getattr(route, "path", None) == "/{patient_id}/master-plan"
         and ({"GET", "PUT"} & (getattr(route, "methods", set()) or set()))
+    )
 ]
 
 # Replace only the P2 Journey GET handler. Milestone create/delete routes remain on the
@@ -183,7 +184,6 @@ partner_stock.router.routes = [
         or (
             getattr(route, "path", None) == "/marketplace/reorder-suggestions"
             and "GET" in (getattr(route, "methods", set()) or set()))
-    )
 ]
 from . import stock as stock
 stock.router.include_router(partner_stock.router)
