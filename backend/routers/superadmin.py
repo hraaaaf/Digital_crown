@@ -349,3 +349,10 @@ def send_renewal_email(user_id: int, data: SendRenewalEmailRequest, db: Session 
     add_license_history(db, user_id, admin.id, "renewal_whatsapp_sent")
     db.commit()
     return {"status": "success", "message": message_status}
+
+
+# Marketplace P10 mounts only after the legacy SuperAdmin module itself is loaded,
+# avoiding backend.routers package-initializer cycles while still registering the
+# governance models before application lifespan create_all().
+from backend.routers import partner_superadmin as partner_superadmin
+router.include_router(partner_superadmin.router)
