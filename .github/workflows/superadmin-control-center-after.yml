@@ -8,6 +8,7 @@ on:
       - 'frontend/src/features/superadmin/**'
       - 'frontend/src/test/superAdminAccessBoundary.test.tsx'
       - 'frontend/src/test/superAdminControlCenter.test.tsx'
+      - 'frontend/src/test/superAdminWorkspace.test.tsx'
       - 'backend/routers/superadmin.py'
       - 'backend/routers/superadmin_admins.py'
       - 'backend/routers/superadmin_license_controls.py'
@@ -59,7 +60,7 @@ jobs:
 
       - name: Targeted Superadmin frontend tests
         working-directory: frontend
-        run: npm test -- src/test/superAdminAccessBoundary.test.tsx src/test/superAdminControlCenter.test.tsx
+        run: npm test -- src/test/superAdminAccessBoundary.test.tsx src/test/superAdminControlCenter.test.tsx src/test/superAdminWorkspace.test.tsx
 
       - name: Materialize AFTER harness
         working-directory: frontend
@@ -277,8 +278,6 @@ jobs:
 
               const controlTab = page.getByRole('button', { name: 'Contrôle plateforme' });
               await controlTab.waitFor({ state: 'visible', timeout: 30000 });
-              await controlTab.click();
-
               await page.getByRole('heading', { name: 'Contrôle plateforme', level: 1 }).waitFor({ state: 'visible' });
               await page.getByTestId('superadmin-passkey-panel').waitFor({ state: 'visible' });
               await page.getByTestId('superadmin-devices-panel').waitFor({ state: 'visible' });
@@ -290,6 +289,7 @@ jobs:
 
               const metrics = {
                 controlHeading: await page.getByRole('heading', { name: 'Contrôle plateforme', level: 1 }).count(),
+                controlTabCurrent: await controlTab.getAttribute('aria-current'),
                 legacyTab: await page.getByRole('button', { name: 'Clients & licences' }).count(),
                 passkeyPanel: await page.getByTestId('superadmin-passkey-panel').count(),
                 devicesPanel: await page.getByTestId('superadmin-devices-panel').count(),
@@ -316,6 +316,7 @@ jobs:
 
               const invalid =
                 metrics.controlHeading !== 1 ||
+                metrics.controlTabCurrent !== 'page' ||
                 metrics.legacyTab < 1 ||
                 metrics.passkeyPanel !== 1 ||
                 metrics.devicesPanel !== 1 ||
@@ -344,7 +345,7 @@ jobs:
             phase: 'AFTER',
             productHead,
             beforeAuthorizedRun,
-            goal: 'Authorized platform actor gets a separate operational control center without losing the legacy client dashboard.',
+            goal: 'Authorized platform actor lands on a separate operational control center while keeping the legacy client dashboard available.',
             viewports,
             captures,
             invalidCount,
@@ -355,7 +356,7 @@ jobs:
             `product_head=${productHead}`,
             `before_authorized_run=${beforeAuthorizedRun}`,
             'surface=SuperAdminAccessBoundary -> SuperAdminWorkspace -> SuperAdminControlCenter',
-            'scenario=authorized platform actor; real Superadmin API contract shapes mocked at transport boundary',
+            'scenario=authorized platform actor; control center is default; real Superadmin API contract shapes mocked at transport boundary',
             'viewports=390x844,430x932,768x1024,1280x800',
           ].join('\n'));
 
@@ -381,6 +382,7 @@ jobs:
           console.table(report.captures.map(({ viewport, metrics, pageErrors }) => ({
             viewport: `${viewport.width}x${viewport.height}`,
             controlHeading: metrics.controlHeading,
+            controlTabCurrent: metrics.controlTabCurrent,
             devices: metrics.devicesPanel,
             operators: metrics.operatorsPanel,
             audit: metrics.auditPanel,
