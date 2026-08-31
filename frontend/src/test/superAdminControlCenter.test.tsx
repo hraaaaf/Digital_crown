@@ -86,7 +86,7 @@ describe('SuperAdminControlCenter', () => {
 
     expect(await screen.findByTestId('superadmin-devices-panel')).toBeInTheDocument();
     expect(await screen.findByText('1/3')).toBeInTheDocument();
-    expect(screen.getByText('beta')).toBeInTheDocument();
+    expect(screen.getByText('beta', { selector: 'p' })).toBeInTheDocument();
     expect(screen.getByText('device-7')).toBeInTheDocument();
 
     expect(await screen.findByTestId('superadmin-operators-panel')).toBeInTheDocument();

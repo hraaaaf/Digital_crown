@@ -21,27 +21,58 @@ const encodeBase64Url = (value: ArrayBuffer): string => {
   return window.btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '');
 };
 
-const registrationOptions = (raw: Record<string, any>): PublicKeyCredentialCreationOptions => ({
-  ...raw,
-  challenge: decodeBase64Url(raw.challenge),
-  user: {
-    ...raw.user,
-    id: decodeBase64Url(raw.user.id),
-  },
-  excludeCredentials: (raw.excludeCredentials || []).map((credential: any) => ({
-    ...credential,
-    id: decodeBase64Url(credential.id),
-  })),
-});
+type PublicKeyCredentialDescriptorJSON = Omit<PublicKeyCredentialDescriptor, 'id'> & {
+  id: string;
+};
 
-const authenticationOptions = (raw: Record<string, any>): PublicKeyCredentialRequestOptions => ({
-  ...raw,
-  challenge: decodeBase64Url(raw.challenge),
-  allowCredentials: (raw.allowCredentials || []).map((credential: any) => ({
-    ...credential,
-    id: decodeBase64Url(credential.id),
-  })),
-});
+type PublicKeyCredentialUserEntityJSON = Omit<PublicKeyCredentialUserEntity, 'id'> & {
+  id: string;
+};
+
+type RegistrationOptionsJSON = Omit<
+  PublicKeyCredentialCreationOptions,
+  'challenge' | 'user' | 'excludeCredentials'
+> & {
+  challenge: string;
+  user: PublicKeyCredentialUserEntityJSON;
+  excludeCredentials?: PublicKeyCredentialDescriptorJSON[];
+};
+
+type AuthenticationOptionsJSON = Omit<
+  PublicKeyCredentialRequestOptions,
+  'challenge' | 'allowCredentials'
+> & {
+  challenge: string;
+  allowCredentials?: PublicKeyCredentialDescriptorJSON[];
+};
+
+const registrationOptions = (raw: Record<string, any>): PublicKeyCredentialCreationOptions => {
+  const options = raw as RegistrationOptionsJSON;
+  return {
+    ...options,
+    challenge: decodeBase64Url(options.challenge),
+    user: {
+      ...options.user,
+      id: decodeBase64Url(options.user.id),
+    },
+    excludeCredentials: (options.excludeCredentials || []).map((credential) => ({
+      ...credential,
+      id: decodeBase64Url(credential.id),
+    })),
+  };
+};
+
+const authenticationOptions = (raw: Record<string, any>): PublicKeyCredentialRequestOptions => {
+  const options = raw as AuthenticationOptionsJSON;
+  return {
+    ...options,
+    challenge: decodeBase64Url(options.challenge),
+    allowCredentials: (options.allowCredentials || []).map((credential) => ({
+      ...credential,
+      id: decodeBase64Url(credential.id),
+    })),
+  };
+};
 
 const serializeCredential = (credential: PublicKeyCredential): Record<string, any> => {
   const response = credential.response;
