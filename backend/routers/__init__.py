@@ -199,3 +199,13 @@ partner_stock.router.routes = [
 from . import stock as stock
 stock.router.include_router(partner_stock.router)
 stock.router.include_router(partner_stock_safety.router)
+
+# Marketplace P9 registers supplier sync/audit state before create_all() and mounts
+# API synchronization under the existing canonical partner-catalog router. The
+# identity guard rejects ambiguous pre-existing local SKU/externalProductId instead
+# of choosing an arbitrary row during an automated sync.
+from . import partner_catalog as partner_catalog
+from . import partner_sync as partner_sync
+from . import partner_sync_safety as partner_sync_safety
+partner_sync_safety.install_partner_sync_identity_guard(partner_sync)
+partner_catalog.router.include_router(partner_sync.router)
