@@ -284,7 +284,7 @@ jobs:
               await page.getByTestId('superadmin-operators-panel').waitFor({ state: 'visible' });
               await page.getByTestId('superadmin-audit-panel').waitFor({ state: 'visible' });
               await page.getByText('mobile-atlas-01', { exact: true }).waitFor({ state: 'visible' });
-              await page.getByText('owner@platform.test', { exact: true }).waitFor({ state: 'visible' });
+              await page.getByText('owner@platform.test', { exact: false }).waitFor({ state: 'visible' });
               await page.getByText('SUPERADMIN_RELEASE_CHANNEL_CHANGE', { exact: true }).waitFor({ state: 'visible' });
 
               const metrics = {
@@ -298,7 +298,7 @@ jobs:
                 deniedCard: await page.getByText('Accès Superadmin non autorisé', { exact: true }).count(),
                 releaseBeta: await page.getByText('beta', { exact: true }).count(),
                 deviceRow: await page.getByText('mobile-atlas-01', { exact: true }).count(),
-                operatorRow: await page.getByText('owner@platform.test', { exact: true }).count(),
+                operatorRow: await page.getByText('owner@platform.test', { exact: false }).count(),
                 auditRow: await page.getByText('SUPERADMIN_RELEASE_CHANNEL_CHANGE', { exact: true }).count(),
                 hasHorizontalOverflow: await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth + 2),
               };

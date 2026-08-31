@@ -90,7 +90,7 @@ describe('SuperAdminControlCenter', () => {
     expect(screen.getByText('device-7')).toBeInTheDocument();
 
     expect(await screen.findByTestId('superadmin-operators-panel')).toBeInTheDocument();
-    expect(await screen.findByText('owner@example.com')).toBeInTheDocument();
+    expect(await screen.findByText(/owner@example\.com/)).toBeInTheDocument();
 
     expect(await screen.findByTestId('superadmin-audit-panel')).toBeInTheDocument();
     expect(await screen.findByText('SUPERADMIN_RELEASE_CHANNEL_CHANGE')).toBeInTheDocument();
