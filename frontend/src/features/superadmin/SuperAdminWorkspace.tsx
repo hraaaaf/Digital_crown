@@ -1,12 +1,40 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Settings2, Users } from 'lucide-react';
+import { api } from '../../services/api';
+import { establishPlatformStepUp, fetchPlatformPasskeyStatus } from './platformPasskey';
 import { SuperAdminControlCenter } from './SuperAdminControlCenter';
 import { SuperAdminDashboard } from './SuperAdminDashboard';
 
 type WorkspaceTab = 'clients' | 'control';
 
+const requiresPlatformStepUp = (method?: string, url?: string): boolean => {
+  const normalizedMethod = String(method || 'get').toLowerCase();
+  const normalizedUrl = String(url || '');
+  return (
+    ['post', 'put', 'patch', 'delete'].includes(normalizedMethod) &&
+    normalizedUrl.startsWith('/superadmin/') &&
+    !normalizedUrl.startsWith('/superadmin/passkey/')
+  );
+};
+
 export const SuperAdminWorkspace: React.FC = () => {
-  const [tab, setTab] = useState<WorkspaceTab>('clients');
+  const [tab, setTab] = useState<WorkspaceTab>('control');
+
+  useEffect(() => {
+    const interceptorId = api.interceptors.request.use(async (config) => {
+      if (!requiresPlatformStepUp(config.method, config.url)) return config;
+
+      const status = await fetchPlatformPasskeyStatus();
+      if (!status.step_up_valid) {
+        await establishPlatformStepUp(status.enrolled);
+      }
+      return config;
+    });
+
+    return () => {
+      api.interceptors.request.eject(interceptorId);
+    };
+  }, []);
 
   return (
     <div data-testid="superadmin-workspace">
