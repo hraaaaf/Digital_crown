@@ -3,10 +3,12 @@ import { render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { SuperAdminAccessBoundary } from './SuperAdminAccessBoundary';
 
-const get = vi.fn();
+const mocks = vi.hoisted(() => ({
+  get: vi.fn(),
+}));
 
 vi.mock('../../services/api', () => ({
-  api: { get },
+  api: { get: mocks.get },
 }));
 
 vi.mock('./SuperAdminDashboard', () => ({
@@ -19,11 +21,11 @@ vi.mock('../../components/DigitalCrownLoader', () => ({
 
 describe('SuperAdminAccessBoundary', () => {
   beforeEach(() => {
-    get.mockReset();
+    mocks.get.mockReset();
   });
 
   it('renders only the neutral denied state after an authoritative 403', async () => {
-    get.mockRejectedValue({ response: { status: 403 } });
+    mocks.get.mockRejectedValue({ response: { status: 403 } });
 
     render(<SuperAdminAccessBoundary />);
 
@@ -33,11 +35,11 @@ describe('SuperAdminAccessBoundary', () => {
   });
 
   it('keeps an authorized backend session on the Superadmin dashboard', async () => {
-    get.mockResolvedValue({ data: [] });
+    mocks.get.mockResolvedValue({ data: [] });
 
     render(<SuperAdminAccessBoundary />);
 
-    await waitFor(() => expect(get).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(mocks.get).toHaveBeenCalledTimes(2));
     expect(await screen.findByText('AUTHORIZED_SUPERADMIN_DASHBOARD')).toBeInTheDocument();
     expect(screen.queryByText('Accès Superadmin non autorisé')).not.toBeInTheDocument();
   });
