@@ -9,7 +9,7 @@ from backend import database, models
 from backend.models_marketplace_finance import PartnerSupplierInvoice
 from backend.models_marketplace_governance import MarketplaceGovernanceEvent, PartnerSupplierAgreement
 from backend.models_marketplace_sync import PartnerSupplierSyncState
-from backend.routers.auth import require_superadmin
+from backend.routers.partner_superadmin_security import require_marketplace_superadmin
 from backend.routers.partner_sync import _freshness
 
 router = APIRouter(prefix="/marketplace")
@@ -82,7 +82,10 @@ def _audit(db, admin, supplier, before, after):
 
 
 @router.get("/overview")
-def overview(db: Session = Depends(database.get_db), admin: models.User = Depends(require_superadmin)):
+def overview(
+    db: Session = Depends(database.get_db),
+    admin: models.User = Depends(require_marketplace_superadmin),
+):
     suppliers = db.query(models.PartnerSupplier).all()
     orders = db.query(models.PartnerOrder).all()
     sync_states = db.query(PartnerSupplierSyncState).all()
@@ -114,7 +117,7 @@ def global_orders(
     status: Optional[str] = Query(None),
     limit: int = Query(100, ge=1, le=500),
     db: Session = Depends(database.get_db),
-    admin: models.User = Depends(require_superadmin),
+    admin: models.User = Depends(require_marketplace_superadmin),
 ):
     query = db.query(models.PartnerOrder)
     if employerId is not None:
@@ -139,7 +142,10 @@ def global_orders(
 
 
 @router.get("/sync-incidents")
-def sync_incidents(db: Session = Depends(database.get_db), admin: models.User = Depends(require_superadmin)):
+def sync_incidents(
+    db: Session = Depends(database.get_db),
+    admin: models.User = Depends(require_marketplace_superadmin),
+):
     states = db.query(PartnerSupplierSyncState).order_by(PartnerSupplierSyncState.id.desc()).all()
     result = []
     for state in states:
@@ -164,7 +170,7 @@ def sync_incidents(db: Session = Depends(database.get_db), admin: models.User = 
 def get_governance(
     supplier_id: int,
     db: Session = Depends(database.get_db),
-    admin: models.User = Depends(require_superadmin),
+    admin: models.User = Depends(require_marketplace_superadmin),
 ):
     supplier = _supplier(db, supplier_id)
     return {
@@ -182,7 +188,7 @@ def update_governance(
     supplier_id: int,
     payload: SupplierGovernanceIn,
     db: Session = Depends(database.get_db),
-    admin: models.User = Depends(require_superadmin),
+    admin: models.User = Depends(require_marketplace_superadmin),
 ):
     if payload.confirm is not True:
         raise HTTPException(status_code=409, detail="Confirmation explicite requise pour une mutation Marketplace globale.")
@@ -244,7 +250,7 @@ def governance_audit(
     employerId: Optional[int] = Query(None),
     limit: int = Query(100, ge=1, le=500),
     db: Session = Depends(database.get_db),
-    admin: models.User = Depends(require_superadmin),
+    admin: models.User = Depends(require_marketplace_superadmin),
 ):
     query = db.query(MarketplaceGovernanceEvent)
     if employerId is not None:
