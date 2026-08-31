@@ -209,3 +209,9 @@ from . import partner_sync as partner_sync
 from . import partner_sync_safety as partner_sync_safety
 partner_sync_safety.install_partner_sync_identity_guard(partner_sync)
 partner_catalog.router.include_router(partner_sync.router)
+
+# Marketplace P10 registers governance tables before create_all() and mounts the
+# cross-cabinet control plane under the canonical /api/superadmin prefix.
+from . import superadmin as superadmin
+from . import partner_superadmin as partner_superadmin
+superadmin.router.include_router(partner_superadmin.router)
