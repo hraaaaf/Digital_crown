@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { ShieldAlert } from 'lucide-react';
 import { api } from '../../services/api';
 import { DigitalCrownLoader } from '../../components/DigitalCrownLoader';
-import { SuperAdminDashboard } from './SuperAdminDashboard';
+import { SuperAdminWorkspace } from './SuperAdminWorkspace';
 
 type AccessState = 'checking' | 'allowed' | 'denied';
 
@@ -19,10 +19,9 @@ export const SuperAdminAccessBoundary: React.FC = () => {
 
     const checkAccess = async () => {
       try {
-        await Promise.all([
-          api.get('/superadmin/clients'),
-          api.get('/superadmin/trial-codes'),
-        ]);
+        // This endpoint is intentionally available to the immutable owner and to
+        // explicitly delegated platform operators. Panel permissions remain granular.
+        await api.get('/superadmin/passkey/status');
         if (!cancelled) setAccessState('allowed');
       } catch (error) {
         if (cancelled) return;
@@ -56,5 +55,5 @@ export const SuperAdminAccessBoundary: React.FC = () => {
     );
   }
 
-  return <SuperAdminDashboard />;
+  return <SuperAdminWorkspace />;
 };
