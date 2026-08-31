@@ -14,8 +14,8 @@ on:
       - 'backend/routers/superadmin_passkey.py'
       - 'backend/platform_access.py'
       - 'backend/platform_step_up.py'
-      - 'backend/tests/test_superadmin_license_controls.py'
-      - 'backend/tests/test_superadmin_platform_actor_passkey.py'
+      - 'backend/tests/test_superadmin_license_controls_projection.py'
+      - 'backend/tests/test_superadmin_passkey_actor.py'
       - '.github/workflows/superadmin-control-center-after.yml'
   workflow_dispatch:
 
