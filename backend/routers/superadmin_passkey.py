@@ -14,7 +14,7 @@ from sqlalchemy.orm import Session
 
 from backend import database, models
 from backend.models_platform_passkey import PlatformPasskeyCredential, PlatformWebAuthnChallenge
-from backend.platform_access import is_platform_superadmin
+from backend.platform_access import PLATFORM_LICENSE_PERMISSIONS, has_platform_permission, is_platform_superadmin
 from backend.platform_step_up import verify_platform_step_up
 from backend.routers.auth import get_current_user
 from backend.security import ALGORITHM, SECRET_KEY
@@ -39,10 +39,16 @@ class CeremonyResponse(BaseModel):
     credential: dict[str, Any]
 
 
-def _platform_admin(current_user: models.User = Depends(get_current_user)) -> models.User:
-    if not is_platform_superadmin(current_user):
-        raise HTTPException(status_code=403, detail="Accès refusé. Réservé au SuperAdmin.")
-    return current_user
+def _platform_actor(current_user: models.User = Depends(get_current_user)) -> models.User:
+    if is_platform_superadmin(current_user) or any(
+        has_platform_permission(current_user, permission)
+        for permission in PLATFORM_LICENSE_PERMISSIONS
+    ):
+        return current_user
+    raise HTTPException(
+        status_code=403,
+        detail="Accès refusé. Autorité plateforme requise.",
+    )
 
 
 def _origin(request: Request) -> str | None:
@@ -156,7 +162,7 @@ def _audit_registration(db: Session, user_id: int, credential_id: str) -> None:
 def passkey_status(
     request: Request,
     db: Session = Depends(database.get_db),
-    admin: models.User = Depends(_platform_admin),
+    admin: models.User = Depends(_platform_actor),
 ):
     credential = _credential(db, admin.id)
     origin = (_origin(request) or "").rstrip("/").lower()
@@ -175,7 +181,7 @@ def passkey_status(
 def registration_options(
     request: Request,
     db: Session = Depends(database.get_db),
-    admin: models.User = Depends(_platform_admin),
+    admin: models.User = Depends(_platform_actor),
 ):
     assert_stable_webauthn_origin(_origin(request))
     if _credential(db, admin.id) is not None:
@@ -212,7 +218,7 @@ def registration_verify(
     response: Response,
     body: CeremonyResponse,
     db: Session = Depends(database.get_db),
-    admin: models.User = Depends(_platform_admin),
+    admin: models.User = Depends(_platform_actor),
 ):
     assert_stable_webauthn_origin(_origin(request))
     if _credential(db, admin.id) is not None:
@@ -270,7 +276,7 @@ def registration_verify(
 def authentication_options(
     request: Request,
     db: Session = Depends(database.get_db),
-    admin: models.User = Depends(_platform_admin),
+    admin: models.User = Depends(_platform_actor),
 ):
     assert_stable_webauthn_origin(_origin(request))
     credential = _credential(db, admin.id)
@@ -301,7 +307,7 @@ def authentication_verify(
     response: Response,
     body: CeremonyResponse,
     db: Session = Depends(database.get_db),
-    admin: models.User = Depends(_platform_admin),
+    admin: models.User = Depends(_platform_actor),
 ):
     assert_stable_webauthn_origin(_origin(request))
     credential = _credential(db, admin.id)
