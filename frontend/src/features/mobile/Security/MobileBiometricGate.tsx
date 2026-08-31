@@ -51,10 +51,10 @@ export function MobileBiometricGate({ children }: Props) {
       setState('locked');
     } catch (error) {
       const vault = await MobileStorage.getBiometricVaultEnvelope().catch(() => null);
-      if (vault && isStablePasskeyOrigin('https://digitalcrown.local:5173')) {
+      if (vault && isStablePasskeyOrigin('https://digitalcrown.local:8005')) {
         setStatus({
           state: 'enabled', credential_id: vault.credential_id, rp_id: 'digitalcrown.local',
-          expected_origin: 'https://digitalcrown.local:5173', origin_ready: true,
+          expected_origin: 'https://digitalcrown.local:8005', origin_ready: true,
           user_verification: 'required', server_gate: true,
         });
         setState('locked');
