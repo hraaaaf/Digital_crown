@@ -8,7 +8,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
 from backend import database, models
-from backend.models_marketplace_sync import PartnerSupplierSyncState
+from backend.models_marketplace_sync import PartnerSupplierSyncAudit, PartnerSupplierSyncState
 from backend.routers.auth import require_superadmin
 from backend.routers.partner_dispatch import SupplierDispatchError, _assert_public_resolution, _build_supplier_endpoint
 
@@ -16,6 +16,7 @@ router = APIRouter(prefix="/suppliers")
 
 FRESH_SECONDS = 15 * 60
 MAX_PRODUCTS = 5000
+SYNC_SOURCE_KEY = "marketplaceSupplierSync"
 
 
 class SupplierSyncError(Exception):
@@ -58,6 +59,34 @@ def _sync_state(db: Session, employer_id: int, supplier_id: int) -> PartnerSuppl
         db.add(state)
         db.flush()
     return state
+
+
+def _append_audit(
+    db: Session,
+    *,
+    state: PartnerSupplierSyncState,
+    actor_user_id: int | None,
+    event_type: str,
+    outcome: str,
+    payload_sha256: str | None = None,
+    product_count: int = 0,
+    changes: dict | None = None,
+    error: SupplierSyncError | None = None,
+) -> None:
+    db.add(
+        PartnerSupplierSyncAudit(
+            employer_id=state.employer_id,
+            supplier_id=state.supplier_id,
+            actor_user_id=actor_user_id,
+            event_type=event_type,
+            outcome=outcome,
+            payload_sha256=payload_sha256,
+            product_count=product_count,
+            changes_json=dict(changes) if changes is not None else None,
+            error_code=error.code if error else None,
+            error_detail=error.detail[:500] if error else None,
+        )
+    )
 
 
 def _catalog_endpoint(api_base_url: str) -> str:
@@ -220,7 +249,15 @@ def _state_payload(state: PartnerSupplierSyncState) -> dict:
     }
 
 
-def _record_failure(db: Session, state: PartnerSupplierSyncState, error: SupplierSyncError) -> None:
+def _record_failure(
+    db: Session,
+    state: PartnerSupplierSyncState,
+    error: SupplierSyncError,
+    *,
+    actor_user_id: int | None = None,
+    payload_sha256: str | None = None,
+    product_count: int = 0,
+) -> None:
     now = _utcnow()
     failures = int(state.consecutive_failures or 0) + 1
     delay_seconds = min(60 * (2 ** (failures - 1)), 3600)
@@ -230,7 +267,34 @@ def _record_failure(db: Session, state: PartnerSupplierSyncState, error: Supplie
     state.last_error_detail = error.detail[:500]
     state.consecutive_failures = failures
     state.next_retry_at = now + timedelta(seconds=delay_seconds)
+    _append_audit(
+        db,
+        state=state,
+        actor_user_id=actor_user_id,
+        event_type="SUPPLIER_SYNC_FAILED",
+        outcome="FAILED",
+        payload_sha256=payload_sha256,
+        product_count=product_count,
+        error=error,
+    )
     db.commit()
+
+
+def _sync_source_json(source_json: Any, supplier_id: int) -> dict:
+    source = dict(source_json) if isinstance(source_json, dict) else {}
+    source[SYNC_SOURCE_KEY] = {"managed": True, "supplierId": supplier_id}
+    return source
+
+
+def _is_sync_managed(product: models.PartnerCatalogProduct, supplier_id: int) -> bool:
+    if not isinstance(product.source_json, dict):
+        return False
+    marker = product.source_json.get(SYNC_SOURCE_KEY)
+    return bool(
+        isinstance(marker, dict)
+        and marker.get("managed") is True
+        and marker.get("supplierId") == supplier_id
+    )
 
 
 def _apply_snapshot(
@@ -267,12 +331,17 @@ def _apply_snapshot(
         target = ext_match or sku_match
         if target is not None:
             if target.id in seen_existing:
-                raise SupplierSyncError("IDENTITY_CONFLICT", f"Produit local cible plusieurs fois: {product['sku']}.", http_status=409)
+                raise SupplierSyncError(
+                    "IDENTITY_CONFLICT",
+                    f"Produit local cible plusieurs fois: {product['sku']}.",
+                    http_status=409,
+                )
             seen_existing.add(target.id)
         plan.append((target, product))
 
     created = 0
     updated = 0
+    touched_existing: set[int] = set()
     for target, product in plan:
         availability = models.PartnerProductAvailability(product["availability"])
         if target is None:
@@ -292,11 +361,13 @@ def _apply_snapshot(
                 benefits_json=product["benefits"],
                 is_featured=False,
                 sort_order=0,
+                source_json=_sync_source_json(None, supplier.id),
             )
             db.add(target)
             created += 1
             continue
 
+        touched_existing.add(target.id)
         before = (
             target.external_product_id,
             target.name,
@@ -309,6 +380,7 @@ def _apply_snapshot(
             target.short_description,
             target.long_description,
             target.benefits_json or [],
+            target.source_json,
         )
         target.external_product_id = product["externalProductId"] or target.external_product_id
         target.name = product["name"]
@@ -321,6 +393,7 @@ def _apply_snapshot(
         target.short_description = product["shortDescription"]
         target.long_description = product["longDescription"]
         target.benefits_json = product["benefits"]
+        target.source_json = _sync_source_json(target.source_json, supplier.id)
         after = (
             target.external_product_id,
             target.name,
@@ -333,11 +406,23 @@ def _apply_snapshot(
             target.short_description,
             target.long_description,
             target.benefits_json or [],
+            target.source_json,
         )
         if before != after:
             updated += 1
 
-    return {"created": created, "updated": updated, "received": len(products)}
+    discontinued = 0
+    for target in existing:
+        if target.id in touched_existing or not _is_sync_managed(target, supplier.id):
+            continue
+        if target.availability != models.PartnerProductAvailability.DISCONTINUED:
+            target.availability = models.PartnerProductAvailability.DISCONTINUED
+            discontinued += 1
+
+    changes = {"created": created, "updated": updated, "received": len(products)}
+    if discontinued:
+        changes["discontinued"] = discontinued
+    return changes
 
 
 @router.get("/{supplier_id}/sync-status")
@@ -361,6 +446,7 @@ def sync_supplier_catalog(
     current_user: models.User = Depends(require_superadmin),
 ):
     employer_id = current_user.get_employer_id()
+    actor_user_id = getattr(current_user, "id", None)
     supplier = _scoped_supplier(db, employer_id, supplier_id)
     if not supplier.is_active:
         raise HTTPException(status_code=422, detail="Synchronisation interdite pour un fournisseur inactif.")
@@ -385,7 +471,7 @@ def sync_supplier_catalog(
     except HTTPException:
         raise
     except SupplierSyncError as error:
-        _record_failure(db, state, error)
+        _record_failure(db, state, error, actor_user_id=actor_user_id)
         raise HTTPException(status_code=error.http_status, detail=error.detail) from error
 
     if state.last_outcome == "SUCCESS" and state.last_payload_sha256 == payload_sha256:
@@ -398,10 +484,21 @@ def sync_supplier_catalog(
         state.next_retry_at = None
         state.last_catalog_version = version
         state.last_product_count = len(products)
+        changes = {"created": 0, "updated": 0, "received": len(products)}
+        _append_audit(
+            db,
+            state=state,
+            actor_user_id=actor_user_id,
+            event_type="SUPPLIER_SYNC_NO_CHANGE",
+            outcome="SUCCESS",
+            payload_sha256=payload_sha256,
+            product_count=len(products),
+            changes=changes,
+        )
         db.commit()
         return {
             "idempotentReplay": True,
-            "changes": {"created": 0, "updated": 0, "received": len(products)},
+            "changes": changes,
             "sync": _state_payload(state),
         }
 
@@ -417,17 +514,41 @@ def sync_supplier_catalog(
         state.last_payload_sha256 = payload_sha256
         state.last_catalog_version = version
         state.last_product_count = len(products)
+        _append_audit(
+            db,
+            state=state,
+            actor_user_id=actor_user_id,
+            event_type="SUPPLIER_SYNC_APPLIED",
+            outcome="SUCCESS",
+            payload_sha256=payload_sha256,
+            product_count=len(products),
+            changes=changes,
+        )
         db.commit()
     except SupplierSyncError as error:
         db.rollback()
         state = _sync_state(db, employer_id, supplier.id)
-        _record_failure(db, state, error)
+        _record_failure(
+            db,
+            state,
+            error,
+            actor_user_id=actor_user_id,
+            payload_sha256=payload_sha256,
+            product_count=len(products),
+        )
         raise HTTPException(status_code=error.http_status, detail=error.detail) from error
     except Exception:
         db.rollback()
         state = _sync_state(db, employer_id, supplier.id)
         error = SupplierSyncError("SYNC_WRITE_FAILED", "Echec d'ecriture du catalogue fournisseur.")
-        _record_failure(db, state, error)
+        _record_failure(
+            db,
+            state,
+            error,
+            actor_user_id=actor_user_id,
+            payload_sha256=payload_sha256,
+            product_count=len(products),
+        )
         raise HTTPException(status_code=500, detail=error.detail)
 
     return {
