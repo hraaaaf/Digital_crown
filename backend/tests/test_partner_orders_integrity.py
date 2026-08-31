@@ -229,8 +229,9 @@ def test_create_order_rejects_duplicate_product_lines(db):
 
 
 def test_regular_cabinet_user_cannot_list_or_patch_commercial_orders(client, db, monkeypatch):
-    monkeypatch.setattr(settings, "SUPERADMIN_EMAIL", "superadmin-marketplace@test.ma")
     regular = _make_http_user(db, "regular-marketplace@test.ma")
+    monkeypatch.setattr(settings, "PLATFORM_CONTROL_PLANE_ENABLED", True)
+    monkeypatch.setattr(settings, "SUPERADMIN_USER_ID", regular.id + 999999)
     supplier = _make_supplier(db, regular)
     product = _make_product(db, regular, supplier)
     order = create_partner_order(_payload(product), db=db, current_user=regular)
@@ -249,8 +250,9 @@ def test_regular_cabinet_user_cannot_list_or_patch_commercial_orders(client, db,
 
 def test_superadmin_can_list_and_patch_own_marketplace_orders(client, db, monkeypatch):
     superadmin_email = "superadmin-marketplace@test.ma"
-    monkeypatch.setattr(settings, "SUPERADMIN_EMAIL", superadmin_email)
     superadmin = _make_http_user(db, superadmin_email)
+    monkeypatch.setattr(settings, "PLATFORM_CONTROL_PLANE_ENABLED", True)
+    monkeypatch.setattr(settings, "SUPERADMIN_USER_ID", superadmin.id)
     supplier = _make_supplier(db, superadmin, name="Supplier Superadmin")
     product = _make_product(db, superadmin, supplier, price=200.0)
     order = create_partner_order(_payload(product), db=db, current_user=superadmin)
