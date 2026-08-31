@@ -23,12 +23,18 @@ def _make_user(db, email: str):
     return user
 
 
-def _make_supplier(db, user, key: str):
+def _make_supplier(
+    db,
+    user,
+    key: str,
+    *,
+    api_url: str = "https://supplier.example.test/api",
+):
     supplier = models.PartnerSupplier(
         employer_id=user.get_employer_id(),
         supplier_key=key,
         name="Supplier Audit",
-        api_base_url="https://supplier.example.test/api",
+        api_base_url=api_url,
         sync_mode="api",
         is_active=True,
     )
@@ -113,6 +119,42 @@ def test_sync_persists_applied_and_no_change_audits(db, monkeypatch):
     assert audits[0].changes_json == {"created": 1, "updated": 0, "received": 1}
 
 
+def test_same_supplier_payload_repairs_local_supplier_field_drift(db, monkeypatch):
+    user = _make_user(db, "sync-drift-repair@test.ma")
+    supplier = _make_supplier(db, user, "sync-drift-repair")
+    payload = {"version": "v1", "products": [_product_payload()]}
+    monkeypatch.setattr(partner_sync, "_fetch_supplier_catalog", lambda endpoint: payload)
+
+    first = partner_sync.sync_supplier_catalog(supplier.id, force=False, db=db, current_user=user)
+    product = (
+        db.query(models.PartnerCatalogProduct)
+        .filter(models.PartnerCatalogProduct.supplier_id == supplier.id)
+        .one()
+    )
+    product.price = 999.0
+    product.availability = models.PartnerProductAvailability.DISCONTINUED
+    db.commit()
+
+    second = partner_sync.sync_supplier_catalog(supplier.id, force=False, db=db, current_user=user)
+
+    assert first["idempotentReplay"] is False
+    assert second["idempotentReplay"] is False
+    assert second["changes"] == {"created": 0, "updated": 1, "received": 1}
+    db.refresh(product)
+    assert product.price == 123.0
+    assert product.availability == models.PartnerProductAvailability.AVAILABLE
+    audits = (
+        db.query(PartnerSupplierSyncAudit)
+        .filter(PartnerSupplierSyncAudit.supplier_id == supplier.id)
+        .order_by(PartnerSupplierSyncAudit.id.asc())
+        .all()
+    )
+    assert [audit.event_type for audit in audits] == [
+        "SUPPLIER_SYNC_APPLIED",
+        "SUPPLIER_SYNC_APPLIED",
+    ]
+
+
 def test_failed_sync_persists_failure_audit(db, monkeypatch):
     user = _make_user(db, "sync-audit-failure@test.ma")
     supplier = _make_supplier(db, user, "sync-audit-failure")
@@ -136,6 +178,29 @@ def test_failed_sync_persists_failure_audit(db, monkeypatch):
     assert audit.actor_user_id == user.id
     assert audit.error_code == "TIMEOUT"
     assert audit.error_detail == "Fournisseur indisponible"
+
+
+def test_rejected_private_supplier_endpoint_is_audited(db):
+    user = _make_user(db, "sync-private-endpoint@test.ma")
+    supplier = _make_supplier(
+        db,
+        user,
+        "sync-private-endpoint",
+        api_url="https://127.0.0.1/api",
+    )
+
+    with pytest.raises(HTTPException) as exc:
+        partner_sync.sync_supplier_catalog(supplier.id, force=False, db=db, current_user=user)
+    assert exc.value.status_code == 422
+
+    audit = (
+        db.query(PartnerSupplierSyncAudit)
+        .filter(PartnerSupplierSyncAudit.supplier_id == supplier.id)
+        .one()
+    )
+    assert audit.event_type == "SUPPLIER_SYNC_FAILED"
+    assert audit.error_code == "INVALID_ENDPOINT"
+    assert "non publique" in audit.error_detail
 
 
 def test_snapshot_discontinues_only_missing_sync_managed_products(db, monkeypatch):
