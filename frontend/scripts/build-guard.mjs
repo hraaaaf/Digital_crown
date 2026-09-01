@@ -89,7 +89,18 @@ async function main() {
   console.log(`[build-guard] OK — build autorisé vers ${outDir}`);
 
   execSync('tsc -b', { stdio: 'inherit', cwd: ROOT });
-  execSync(`vite build --outDir ${outDir}`, { stdio: 'inherit', cwd: ROOT });
+
+  // Un .env local sert au développement mais ne doit jamais figer une origine HTTP
+  // dans le bundle réel. Une valeur process vide a priorité sur .env dans Vite ;
+  // apiBase.ts dérive alors l'origine depuis window.location au runtime.
+  const buildEnv = MODE === 'real'
+    ? { ...process.env, VITE_API_URL: '' }
+    : process.env;
+  if (MODE === 'real') {
+    console.log('[build-guard] VITE_API_URL neutralisée pour le build réel (origine runtime HTTPS).');
+  }
+
+  execSync(`vite build --outDir ${outDir}`, { stdio: 'inherit', cwd: ROOT, env: buildEnv });
 
   writeManifest(outDir, MODE);
 }
