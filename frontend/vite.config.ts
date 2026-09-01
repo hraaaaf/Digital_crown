@@ -46,6 +46,9 @@ export default defineConfig({
       workbox: {
         globPatterns: ['**/*.{js,css,html,ico,png,svg}'],
         importScripts: ['push-sw.js'],
+        // Les navigations API doivent toujours atteindre FastAPI. Sans cette denylist,
+        // Workbox peut servir index.html pour /api/auth/google/authorize et court-circuiter OAuth.
+        navigateFallbackDenylist: [/^\/api\//],
         // Zéro cache API dans le SW : MobileStorage est la source offline métier unique.
         runtimeCaching: []
       }
