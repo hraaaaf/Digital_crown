@@ -1,26 +1,26 @@
 # Digital Crown — Superadmin RBAC Matrix
 
-Dernière mise à jour : 2026-08-30
-
+Dernière mise à jour : 2026-09-01
 Source d'autorité : `backend/platform_access.py`.
+HEAD produit/certification de référence : `89d86dcce8bc572826f2e8bd34d08a950f56cd21`.
 
-## Matrice permission → backend → preuve
+## Matrice permission → backend → preuve → UI
 
-| Permission | Surface backend actuelle | État code | Preuve ciblée | UI actuelle |
+| Permission | Surface backend | État | Preuve ciblée | UI |
 |---|---|---|---|---|
-| `license.read` | GET `/clients`, GET `/trial-codes`, GET `/clients/{id}/license-history` | CÂBLÉ | `test_superadmin_rbac.py` | clients/Trial/historique présents |
-| `license.create_trial` | POST `/trial-codes` | CÂBLÉ | RBAC + step-up + audit | présente |
-| `license.create_paid` | POST `/clients/{id}/grant-license?action=1m|3m|6m|1y` si entitlement signé non-PAID | CÂBLÉ | `test_superadmin_rbac.py`, `test_superadmin_license_claim_preservation.py` | présente |
-| `license.extend` | même endpoint si entitlement signé PAID actif | CÂBLÉ | sélection depuis vérité signée + préservation claims | présente |
-| `license.suspend` | PATCH `/clients/{id}/suspend` | CÂBLÉ | positif/négatif RBAC + audit | présente |
-| `license.revoke` | POST `/trial-codes/{id}/revoke`, `grant-license?action=revoke` | CÂBLÉ | permission avant mutation + OWNER refusé | présente |
-| `license.manage_devices` | GET `/platform-admins/clients/{id}/devices`, POST `/platform-admins/clients/{id}/devices/{device_id}/revoke` | CÂBLÉ | `test_superadmin_device_controls.py` + `test_mobile_device_entitlement.py` | NON CÂBLÉE |
-| `license.change_release_channel` | PATCH `/clients/{id}/release-channel?channel=stable|beta` | CÂBLÉ | `test_superadmin_license_claim_preservation.py` | NON CÂBLÉE |
-| `admin.read` | GET `/platform-admins` | CÂBLÉ | `test_superadmin_rbac.py` | NON CÂBLÉE |
-| `admin.create` | POST `/platform-admins/{user_id}` | CÂBLÉ | plateforme-only + anti-escalation | NON CÂBLÉE |
-| `admin.update_permissions` | PATCH `/platform-admins/{user_id}/permissions` | CÂBLÉ | allow-list stricte + owner immuable + anti-escalation | NON CÂBLÉE |
-| `admin.disable` | PATCH `/platform-admins/{user_id}/enabled` | CÂBLÉ | owner immuable + audit | NON CÂBLÉE |
-| `audit.read` | GET `/audit?limit=&offset=` | CÂBLÉ | `test_superadmin_rbac.py`, filtre `SUPERADMIN_%` | NON CÂBLÉE |
+| `license.read` | GET `/clients`, `/trial-codes`, `/clients/{id}/license-history` | CÂBLÉ | `test_superadmin_rbac.py` | CÂBLÉE |
+| `license.create_trial` | POST `/trial-codes` | CÂBLÉ | RBAC + step-up + audit | CÂBLÉE |
+| `license.create_paid` | POST `/clients/{id}/grant-license?action=1m|3m|6m|1y` | CÂBLÉ | RBAC + claim preservation | CÂBLÉE |
+| `license.extend` | même endpoint sur PAID actif signé | CÂBLÉ | vérité signée + claim preservation | CÂBLÉE |
+| `license.suspend` | PATCH `/clients/{id}/suspend` | CÂBLÉ | RBAC positif/négatif + audit | CÂBLÉE |
+| `license.revoke` | revoke trial / `grant-license?action=revoke` | CÂBLÉ | permission avant mutation + OWNER refusé | CÂBLÉE |
+| `license.manage_devices` | GET devices + POST revoke ciblé | CÂBLÉ | `test_superadmin_device_controls.py`, `test_mobile_device_entitlement.py` | CÂBLÉE — devices/quota/révocation |
+| `license.change_release_channel` | PATCH `/clients/{id}/release-channel?channel=stable|beta` | CÂBLÉ | `test_superadmin_license_claim_preservation.py` | CÂBLÉE — stable/beta |
+| `admin.read` | GET `/platform-admins` | CÂBLÉ | `test_superadmin_rbac.py` | CÂBLÉE — opérateurs |
+| `admin.create` | POST `/platform-admins/{user_id}` | CÂBLÉ | plateforme-only + anti-escalation | CÂBLÉE |
+| `admin.update_permissions` | PATCH `/platform-admins/{user_id}/permissions` | CÂBLÉ | allow-list + owner immuable + anti-escalation | CÂBLÉE — matrice RBAC |
+| `admin.disable` | PATCH `/platform-admins/{user_id}/enabled` | CÂBLÉ | owner immuable + audit | CÂBLÉE |
+| `audit.read` | GET `/audit?limit=&offset=` | CÂBLÉ | `test_superadmin_rbac.py`, filtre `SUPERADMIN_%` | CÂBLÉE — viewer audit |
 
 ## Opérations volontairement owner-only
 
@@ -32,39 +32,45 @@ Ces actions utilisent l'identité immuable `SUPERADMIN_USER_ID` plutôt qu'une p
 - PATCH `/clients/{id}/notes` ;
 - POST `/clients/{id}/send-renewal-email`.
 
-Elles restent soumises au step-up WebAuthn pour toute mutation.
+Toutes les mutations restent soumises au step-up WebAuthn plateforme récent.
 
 ## Invariants de sécurité
 
-- L'identité `SUPERADMIN_USER_ID` conserve toutes les permissions de la liste fermée.
-- Un opérateur plateforme non-owner doit avoir la permission exacte à `true` dans `User.permissions`.
-- Les rôles cabinet `ADMIN`/`DENTISTE` n'accordent aucune permission plateforme par eux-mêmes.
-- Un compte rattaché à un cabinet ne peut pas devenir opérateur plateforme.
-- L'owner immuable ne peut pas être modifié/désactivé via les routes opérateurs.
-- Un opérateur non-owner ne peut déléguer que des permissions qu'il possède déjà.
-- Toute mutation `/api/superadmin/*` exige un step-up WebAuthn plateforme récent.
-- Le step-up est un JWT séparé `type=platform_step_up`, lié à l'utilisateur web, TTL 5 minutes, cookie HttpOnly + Secure + SameSite=Strict + scope `/api/superadmin`.
-- Une mutation Superadmin utilisant l'autorité ambiante des cookies exige une Origin HTTPS exacte de l'allow-list control-plane. Un Bearer explicite reste possible pour les clients non-CSRF.
-- Le frontend ne stocke jamais la preuve step-up ; son timer mémoire est désormais recroisé avec `/passkey/status.step_up_valid` avant réutilisation.
+- `SUPERADMIN_USER_ID` conserve la liste fermée des permissions owner ;
+- un opérateur non-owner doit posséder explicitement la permission demandée ;
+- les rôles cabinet `ADMIN` / `DENTISTE` ne donnent aucune permission plateforme ;
+- un compte rattaché à un cabinet ne peut pas devenir opérateur plateforme ;
+- l'owner immuable ne peut pas être désactivé/modifié via les routes opérateurs ;
+- un non-owner ne peut déléguer que des permissions qu'il possède ;
+- un JWT mobile/cabinet est refusé comme session primaire `/api/superadmin/*` ;
+- `/mobile/superadmin` exige une connexion plateforme séparée avant d'exposer le workspace ;
+- la Tour mobile exige frontend/API plateforme same-origin et refuse une API plateforme cross-origin ;
+- un control-plane HTTP distant est refusé ; `localhost`/`127.0.0.1` sont réservés au dev/cert ;
+- toute mutation exige un step-up WebAuthn récent ;
+- le step-up est séparé (`type=platform_step_up`), TTL 5 min, cookie HttpOnly + Secure + SameSite=Strict + path `/api/superadmin` ;
+- les mutations cookie-only exigent une Origin HTTPS exacte de l'allow-list ;
+- le frontend ne persiste jamais la preuve step-up ;
+- la clé privée Ed25519 n'est présente ni dans le frontend mobile, ni dans le package cabinet.
 
-## `max_devices` — runtime réellement appliqué
+## `max_devices` — runtime appliqué
 
 Le claim `max_devices` :
 
-1. est obligatoire et validé cryptographiquement pour TRIAL/PAID ;
-2. son absence explicite sur TRIAL/PAID est couverte par `test_expiring_license_without_max_devices_is_rejected` ;
-3. est conservé par `LicenseService._verified_result()` ;
-4. est lu à l'appairage `/api/mobile/claim-token` ;
-5. borne le nombre de `MobilePairedDevice` actifs ;
-6. ignore correctement les appareils révoqués ;
+1. est obligatoire et vérifié cryptographiquement pour TRIAL/PAID ;
+2. est conservé par `LicenseService._verified_result()` ;
+3. est lu lors de l'appairage mobile ;
+4. borne les `MobilePairedDevice` actifs ;
+5. ignore les appareils révoqués ;
+6. libère le slot après révocation ;
 7. est réservé transactionnellement avant création du device.
 
-SQLite, runtime cabinet canonique, utilise `BEGIN IMMEDIATE` avant le comptage + insertion + consommation du token. Deux claims concurrents ne peuvent donc pas réserver le même dernier slot. Les bases serveur utilisent un verrou tenant `FOR UPDATE`.
+SQLite utilise `BEGIN IMMEDIATE` avant comptage + insertion + consommation du token. Les bases serveur utilisent un verrou tenant `FOR UPDATE`.
 
-Preuves ciblées :
+Preuves :
 
 - `backend/tests/test_license_security.py` ;
-- `backend/tests/test_mobile_device_entitlement.py`.
+- `backend/tests/test_mobile_device_entitlement.py` ;
+- `backend/tests/test_superadmin_device_controls.py`.
 
 ## Réémission de licence — invariants
 
@@ -74,27 +80,43 @@ Une réémission modifie uniquement le claim demandé :
 - changement de plan préserve `max_devices` et `release_channel` ;
 - changement de release channel préserve capacité, feature set, type et expiration.
 
-Pour une licence active réellement vérifiée, `verify_license()` exige déjà `max_devices >= 1` (hors OWNER) et `release_channel ∈ {stable,beta}` ; une preuve active corrompue est donc refusée avant ces flows.
+Une preuve active corrompue est refusée avant ces flows.
 
-Preuve ciblée : `backend/tests/test_superadmin_license_claim_preservation.py`.
+Preuve : `backend/tests/test_superadmin_license_claim_preservation.py`.
 
-## État UI
+## État UI actuel
 
-Le dashboard existant câble clients, Trial, grant/revoke, pack, archive, suspension, notes, historique et relance.
+Le Control Center câble désormais :
 
-Restent backend-only à ce stade :
-
+- clients / Trial / grant / revoke / pack / archive / suspension / notes / historique / relance ;
+- devices, quota et révocation ciblée ;
+- release channel stable/beta ;
 - opérateurs plateforme ;
+- création/activation/désactivation opérateur ;
+- matrice permissions RBAC ;
 - viewer audit ;
-- gestion des appareils ;
-- release channel.
+- état et step-up passkey plateforme.
 
-Aucune modification visuelle de ces surfaces n'est appliquée sans le protocole UI obligatoire BEFORE → Goal → référence/mockup → implémentation → AFTER mêmes viewports → comparaison/tests → score visuel.
+Il n'existe plus, pour les permissions listées dans cette matrice, de surface volontairement backend-only.
 
-La route frontend `/super-admin` reste montée dans le routeur authentifié sans garde d'autorité plateforme. Plus précisément, `SuperAdminDashboard` passe `loading=false` après un 403 sur `/superadmin/clients` et rend ensuite son shell complet vide ; `/superadmin/trial-codes` ne crée pas non plus d'état de refus. Le backend refuse néanmoins les données/actions non autorisées. C'est une dette UX/defense-in-depth, pas une élévation d'autorité.
+La route desktop `/super-admin` utilise une frontière d'autorité plateforme dédiée (`SuperAdminAccessBoundary`) : un refus backend n'ouvre plus un shell Superadmin vide comme mécanisme d'accès.
 
-Une simple garde `user.is_superadmin` serait incorrecte pour les opérateurs plateforme délégués autorisés par RBAC ; la correction UI doit respecter l'autorité backend réelle.
+La route `/mobile/superadmin` utilise la même autorité backend mais une session plateforme mobile distincte du JWT cabinet. La PWA cabinet effectue un handoff explicite vers l'origine plateforme si elle est différente.
 
-## Validation courante
+Dette UX restante : la matrice opérateurs est longue verticalement sur 390/430 px. Elle reste fonctionnelle, sans overflow horizontal ni défaut RBAC.
 
-Le test de régression `max_devices` absent a été ajouté au commit code `be97d883004ffd03844bff84c398c59b94af2dd1`. Son exécution doit être prouvée par la CI du HEAD final ; aucune réussite locale n'est revendiquée.
+## Validation exacte
+
+HEAD produit/certification : `89d86dcce8bc572826f2e8bd34d08a950f56cd21`.
+
+- CI #2491 / run `33439854797` — SUCCESS ;
+- Mobile Superadmin #39 / run `33439854639` — SUCCESS ;
+- targeted mobile/Superadmin tests : 6 fichiers, 16 tests PASS ;
+- visual contract : 10/10 automatisé à 390x844 et 430x932 ;
+- 0 overflow horizontal ; 0 page error ;
+- 7 requêtes plateforme authentifiées et 0 requête API cabinet par viewport ;
+- Superadmin Control Center AFTER #58 — SUCCESS ;
+- Superadmin Denied AFTER #76 — SUCCESS ;
+- Windows Package #171 / run `33439854745` — SUCCESS.
+
+Sur le HEAD de référence, 19 workflows sont SUCCESS et le seul skip observé est M6-I contextuel à cette branche SEC-1.

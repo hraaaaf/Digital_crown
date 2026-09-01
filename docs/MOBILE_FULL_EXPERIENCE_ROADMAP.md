@@ -1,7 +1,7 @@
 # Digital Crown — Mobile Full Experience — Roadmap canonique
 
 Date de réalignement : 2026-08-24
-Dernière mise à jour vérifiée : 2026-08-28
+Dernière mise à jour vérifiée : 2026-09-01
 Source : roadmap originale retrouvée par le produit/utilisateur. Ce document remplace les reconstructions ultérieures qui avaient artificiellement introduit un « M7 ».
 
 ## Goal
@@ -156,6 +156,42 @@ Exploiter ce que le téléphone peut faire mieux :
 - **Actions rapides au fauteuil : couvertes par les lots certifiés existants.** Agenda, appel/WhatsApp, photo, scan et signature sont déjà présents et certifiés ; aucun lot supplémentaire n’est créé artificiellement.
 - **Mode portrait / plein écran imagerie : CLOSED via M6-H.**
 - **Biométrie : CLOSED via M6-I.** Les contrats WebAuthn/passkey et la frontière logicielle sont certifiés ; la présentation biométrique réelle reste un gate terrain de la certification complète.
+
+## Extension SEC-1 — Tour de contrôle mobile
+
+Cette extension est rattachée au chantier mobile sans créer de faux « M7 ». Elle appartient au control-plane SEC-1, mais sa surface d'usage est mobile.
+
+**État : CLOSED côté produit + certification navigateur sur le candidat SEC-1 ; non mergé et non activé en production tant que les gates SEC-1 réels restent ouverts.**
+
+Goal : permettre l'administration plateforme depuis un téléphone sans promouvoir la session cabinet ni déplacer la clé privée de signature sur le mobile.
+
+Preuves exactes :
+
+- PR SEC-1 : #288 ;
+- BEFORE : `1937169b7d28b361cc0b946026fd9c6402e46e7f`, route mobile Superadmin redirect-only ;
+- AFTER certifié : `89d86dcce8bc572826f2e8bd34d08a950f56cd21` ;
+- Mobile Superadmin Certification #39 / run `33439854639` ✅ SUCCESS ;
+- 390x844 + 430x932 ;
+- 6 fichiers / 16 tests ciblés ✅ ;
+- score contractuel automatisé : 10/10 sur les deux viewports ;
+- 0 overflow horizontal, 0 page error ;
+- 7 requêtes Superadmin authentifiées vers l'API plateforme et 0 requête vers l'API cabinet par viewport ;
+- artefact `9775861037`, digest `sha256:e2fe364b99c089d7f058e2d684e76feef3818eb7cd06756fe0e69e76e9cd0cc8`.
+
+Frontière certifiée :
+
+- connexion plateforme distincte du JWT cabinet ;
+- handoff cabinet → origine plateforme ;
+- frontend + API plateforme same-origin ;
+- HTTPS obligatoire hors localhost/127.0.0.1 ;
+- cross-origin/HTTP distant fail-closed ;
+- mutations sous step-up WebAuthn plateforme ;
+- preuve step-up non persistée en JavaScript ;
+- aucune clé privée de signature sur le téléphone.
+
+Dette visuelle : matrice opérateurs longue verticalement, sans overflow horizontal ni défaut d'autorisation.
+
+Cette preuve ne remplace pas la certification physique finale iPhone/Android ci-dessous. Face ID/Touch ID/biométrie Android et Push OS réels restent des gates terrain globaux.
 
 ## Certification complète finale — pas un « M7 »
 
