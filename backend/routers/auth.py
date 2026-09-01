@@ -1,4 +1,5 @@
 import logging
+import os
 from typing import Union, List
 from datetime import timedelta
 
@@ -600,7 +601,6 @@ async def signup_client(
         
     return new_user
 
-
 # ---------------------------------------------------------------------------
 # Google OAuth 2.0 — Authorization Code Flow
 # ---------------------------------------------------------------------------
@@ -608,11 +608,20 @@ async def signup_client(
 _GOOGLE_AUTH_URL = "https://accounts.google.com/o/oauth2/v2/auth"
 _GOOGLE_TOKEN_URL = "https://oauth2.googleapis.com/token"
 _GOOGLE_USERINFO_URL = "https://www.googleapis.com/oauth2/v2/userinfo"
+_GOOGLE_LOCAL_HTTPS_ORIGIN = "https://127.0.0.1:8005"
+_GOOGLE_LOCAL_HTTP_ORIGIN = "http://127.0.0.1:8005"
+
+
+def _cabinet_https_enabled() -> bool:
+    return os.getenv("DIGITALCROWN_ENABLE_HTTPS", "false").strip().lower() in {"1", "true", "yes", "on"}
+
+
+def _google_local_origin() -> str:
+    return _GOOGLE_LOCAL_HTTPS_ORIGIN if _cabinet_https_enabled() else _GOOGLE_LOCAL_HTTP_ORIGIN
+
 
 def _google_redirect_uri() -> str:
-    # Toujours 127.0.0.1 — fonctionne sur tous les postes clients sans config
-    # À enregistrer dans Google Cloud Console : http://127.0.0.1:8005/api/auth/google/callback
-    return "http://127.0.0.1:8005/api/auth/google/callback"
+    return f"{_google_local_origin()}/api/auth/google/callback"
 
 
 @router.get("/google/authorize", summary="Démarrer la connexion Google")
@@ -640,13 +649,15 @@ async def google_callback(
 ):
     from fastapi.responses import RedirectResponse
     from backend.routers.mobile import resolve_frontend_url
-    # Auto-détection LAN si FRONTEND_URL est localhost / IP LAN périmée (DHCP).
-    frontend_url = resolve_frontend_url(settings.FRONTEND_URL)
+
+    if _cabinet_https_enabled():
+        frontend_url = _GOOGLE_LOCAL_HTTPS_ORIGIN
+    else:
+        frontend_url = resolve_frontend_url(settings.FRONTEND_URL)
 
     if error or not code:
         return RedirectResponse(url=f"{frontend_url}/login?error=google_cancelled")
 
-    # Exchange code for tokens
     async with httpx.AsyncClient() as client:
         token_res = await client.post(_GOOGLE_TOKEN_URL, data={
             "code": code,
@@ -676,7 +687,6 @@ async def google_callback(
     if not email:
         return RedirectResponse(url=f"{frontend_url}/login?error=google_no_email")
 
-    # Find user. New accounts must pass through /register to collect legal consent.
     user = db.query(models.User).filter(models.User.email == email).first()
     if not user:
         params = urlencode({"email": email, "full_name": nom_complet, "google_signup": "true"})

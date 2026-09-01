@@ -25,10 +25,12 @@ if (-not (Get-Command mkcert -ErrorAction SilentlyContinue)) {
 Write-Host "[1/3] Installation de la CA locale mkcert..." -ForegroundColor Green
 & mkcert -install
 
-# 3. Détecter l'IP LAN
-$lanIP = (Get-NetIPAddress -AddressFamily IPv4 |
-    Where-Object { $_.IPAddress -notlike "127.*" -and $_.IPAddress -notlike "169.*" -and $_.PrefixOrigin -ne "WellKnown" } |
-    Select-Object -First 1).IPAddress
+# 3. Détecter l'IP LAN sur l'interface réellement routée vers le réseau local.
+# Préférer l'interface avec passerelle par défaut évite de sélectionner une IPv4 WSL/VPN/Hyper-V.
+$lanConfig = Get-NetIPConfiguration |
+    Where-Object { $_.IPv4DefaultGateway -and $_.IPv4Address } |
+    Select-Object -First 1
+$lanIP = if ($lanConfig) { $lanConfig.IPv4Address.IPAddress } else { $null }
 
 if (-not $lanIP) {
     Write-Host "[!] Impossible de détecter l'IP LAN. Utilisation de localhost uniquement." -ForegroundColor Yellow

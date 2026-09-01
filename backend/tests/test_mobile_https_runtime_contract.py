@@ -53,6 +53,38 @@ def test_secure_pairing_url_override_and_mdns_share_origin() -> None:
     assert "port=STABLE_HTTPS_PORT" in source
 
 
+def test_mdns_registration_runs_off_application_event_loop(monkeypatch) -> None:
+    started = {}
+
+    class FakeThread:
+        def __init__(self, *, target, args, name, daemon):
+            started.update(target=target, args=args, name=name, daemon=daemon, started=False)
+
+        def start(self):
+            started["started"] = True
+
+    monkeypatch.setenv("DIGITALCROWN_ENABLE_HTTPS", "true")
+    monkeypatch.setattr(mobile_mdns, "install_stable_lan_url_overrides", lambda: None)
+    monkeypatch.setattr(mobile_mdns, "_detect_lan_ip", lambda: "192.168.11.128")
+    monkeypatch.setattr(mobile_mdns.threading, "Thread", FakeThread)
+
+    mobile_mdns._zeroconf = None
+    mobile_mdns._service_info = None
+    mobile_mdns._starting = False
+    try:
+        mobile_mdns.start_mdns_if_secure()
+        assert started["target"] is mobile_mdns._start_mdns_sync
+        assert started["args"] == ("192.168.11.128",)
+        assert started["name"] == "digitalcrown-mdns-start"
+        assert started["daemon"] is True
+        assert started["started"] is True
+        assert mobile_mdns._starting is True
+    finally:
+        mobile_mdns._zeroconf = None
+        mobile_mdns._service_info = None
+        mobile_mdns._starting = False
+
+
 def test_zeroconf_runtime_dependency_is_declared() -> None:
     requirements = _read("backend/requirements.txt")
     assert "zeroconf>=0.131.0,<1.0" in requirements.splitlines()
