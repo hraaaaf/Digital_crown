@@ -9,11 +9,10 @@ PR : #288 — draft
 
 HEAD produit/certification final : `f2eba90a0f99aa3cdeca299092f99b7d3800c49c`
 Base `master` intégrée : `a8dde5b8bd233fe2c8e0b2c914b63aeeffac445c`
-PR : mergeable au dernier contrôle.
 
-Tous les commits de branche postérieurs à `f2eba90a...` ne modifient que `docs/SUPERADMIN_CURRENT_STATUS.md`; le produit certifié n'a pas changé.
+Le graphe Git vérifié place la branche à 0 commit derrière `master@a8dde5b8...`. Les commits postérieurs à `f2eba90a...` sont documentaires uniquement ; le produit certifié n'a pas changé.
 
-Statut : **EN COURS — produit, CI, package Windows et Tour de contrôle mobile certifiés. Les seuls gates SEC-1 non prouvés sont les trois mutations production déjà autorisées, bloquées par l'absence d'accès vérifié au runtime control-plane réel.**
+Statut : **EN COURS — produit, CI, package Windows et Tour de contrôle mobile certifiés. Les seuls gates SEC-1 non prouvés sont les trois mutations production déjà autorisées, bloquées par l'absence vérifiée de credentials/runtime production accessibles depuis les outils disponibles.**
 
 ## Goal
 
@@ -89,7 +88,7 @@ Recertification finale : Mobile Superadmin #44 — SUCCESS.
 - validation indépendante identité `33267814429` — preuve historique SUCCESS ;
 - production kid `dc-prod-1dc019b73b23c7d3` ;
 - public trust key `pTsKHE_SrROLwY4tQ3QFaNmKceTqCEbLfRhMI7BMC18` ;
-- clé privée control-plane provisionnée hors repo/client.
+- clé privée control-plane historiquement provisionnée hors repo/client.
 
 ## Gates production encore ouverts — autorisation acquise
 
@@ -101,16 +100,32 @@ Restent non exécutés/non prouvés :
 2. émettre puis vérifier l'entitlement OWNER réel ;
 3. inventorier puis migrer/remplacer les licences legacy non signées.
 
+### Probe d'accès production — preuve actuelle
+
+Probe GitHub Actions isolé : `SEC-1 Production Secret Probe` run `33523651514` — **SUCCESS**.
+
+Le probe n'a imprimé aucune valeur ; il a vérifié uniquement présence/absence. Résultat : **MISSING** pour toutes les briques testées au niveau repo :
+
+- secret `DATABASE_URL` ;
+- secret `DIGITALCROWN_LICENSE_SIGNING_PRIVATE_KEY_B64URL` ;
+- secret `DIGITALCROWN_LICENSE_SIGNING_KEY_ID` ;
+- secret `SUPERADMIN_USER_ID` ;
+- secrets Firebase usuels `FIREBASE_CREDENTIALS_JSON`, `FIREBASE_CREDS_JSON`, `GOOGLE_APPLICATION_CREDENTIALS_JSON` ;
+- secret `SECRET_KEY` ;
+- vars `DATABASE_URL`, `DIGITALCROWN_LICENSE_SIGNING_KEY_ID`, `SUPERADMIN_USER_ID`, `APP_PUBLIC_URL`, `FRONTEND_URL`, `ALLOWED_ORIGINS`, `PLATFORM_CONTROL_PLANE_ENABLED`.
+
+Les branches temporaires de probe ont ensuite été repointées sur le checkpoint SEC-1 ; aucun workflow de probe ne reste actif à leur HEAD.
+
 ### Blocage réel
 
 `BLOQUÉ EXTERNE — ACCÈS CONTROL-PLANE PRODUCTION ABSENT`
 
-Aucun outil disponible n'expose actuellement un shell/SSH vers le runtime production, ni Firebase/Firestore direct, ni un workflow GitHub vérifié de provisioning/migration production.
+Aucun outil disponible n'expose actuellement un shell/SSH vers le runtime production, Firebase/Firestore direct, ni des secrets/vars GitHub repo permettant de reconstruire ce runtime.
 
-L'exécution exige :
+L'exécution exige encore :
 
 - DB/control-plane production ;
-- `backend/core/firebase_creds.json` ;
+- `backend/core/firebase_creds.json` ou équivalent service-account vérifié ;
 - clé privée Ed25519 de signature ;
 - configuration environnement production ;
 - identité owner réelle et inventaire legacy vérifiés.
@@ -145,7 +160,7 @@ Aucun déploiement Vercel requis ni autorisé.
 
 ## Next exact
 
-Obtenir un accès vérifié au runtime control-plane production, puis exécuter la séquence des trois mutations déjà autorisées.
+Fournir un accès vérifié au runtime control-plane production ou injecter les credentials nécessaires dans un canal sécurisé exploitable ; ensuite exécuter immédiatement owner read-only → OWNER dry-run/apply/read-back → inventaire legacy → migration dry-run/apply/read-back.
 
 ## Avancement
 
