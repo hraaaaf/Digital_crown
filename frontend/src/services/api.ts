@@ -1,12 +1,13 @@
 import axios from 'axios';
 import toast from 'react-hot-toast';
 import { MobileStorage } from './zka/MobileStorage';
+import { resolveApiBase } from './apiBase';
 
-const defaultApiUrl = typeof window !== 'undefined'
-  ? `${window.location.protocol}//${window.location.hostname}:8005`
-  : 'http://127.0.0.1:8005';
 const viteEnv = (import.meta as ImportMeta & { env?: Record<string, string | undefined> }).env;
-export const API_BASE = (viteEnv?.VITE_API_URL ?? defaultApiUrl).replace(/\/$/, '');
+export const API_BASE = resolveApiBase(
+  viteEnv?.VITE_API_URL,
+  typeof window !== 'undefined' ? window.location : undefined,
+);
 
 export const api = axios.create({
   baseURL: `${API_BASE}/api`,
