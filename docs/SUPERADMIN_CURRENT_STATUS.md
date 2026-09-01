@@ -5,8 +5,10 @@ Repo : `hraaaaf/Digital_crown`
 Branche : `security/sec1-signed-licenses`
 PR : #288 — SEC-1 — draft
 HEAD produit/certification certifié : `89d86dcce8bc572826f2e8bd34d08a950f56cd21`
-Base `master` intégrée : `843bc6d752f865d04cb8b87cd8c3a4b81cad2ca2`
-Statut : EN COURS — code, CI, package Windows et Tour de contrôle mobile certifiés sur `89d86dcc...`; les 3 mutations production SEC-1 sont autorisées mais non exécutées faute d'accès au runtime control-plane réel. Le commit documentaire de closeout doit encore être revalidé avant promotion.
+Closeout documentaire certifié avant dernier sync `master` : `10c2f6cb2eefb59d1bfdcfc94fbb10adbb3a62d5`
+Merge post-sync `master` : `5283154c1c5750c7dcd5d696a3af953f50eebc55`
+Base `master` intégrée : `a8dde5b8bd233fe2c8e0b2c914b63aeeffac445c`
+Statut : EN COURS — produit, Tour de contrôle mobile, package Windows et closeout documentaire ont été certifiés avant le dernier sync `master`. Le drift OAuth/HTTPS de `master` est maintenant intégré par merge déterministe ; la promotion exige une nouvelle vague CI verte sur le HEAD courant de PR. Les 3 mutations production SEC-1 sont autorisées mais non exécutées faute d'accès au runtime control-plane réel.
 
 ## Goal
 
@@ -87,6 +89,21 @@ Pour la Tour de contrôle :
 - devices : capacité signée, liste minimisée, révocation ciblée, slot libéré après révocation, access/refresh révoqués ;
 - données sensibles de pairing non exposées dans les réponses/audits métier.
 
+### Sync OAuth / HTTPS `master`
+
+Le drift `master` jusqu'à `a8dde5b8bd233fe2c8e0b2c914b63aeeffac445c` est intégré.
+
+- 6 fichiers apportés par `master`, dont `backend/routers/auth.py` en conflit avec SEC-1 ;
+- 5 fichiers non modifiés par SEC-1 repris tels quels ;
+- `auth.py` résolu en conservant les gardes SEC-1 et en intégrant le contrat Google OAuth HTTPS de `master` ;
+- assertions de merge : identité immuable, enforcement licence signée, refus JWT mobile sur `/api/superadmin`, loopback OAuth HTTPS/HTTP et callback same-origin présents ;
+- `python -m py_compile backend/routers/auth.py` passé pendant le sync ;
+- workflow de sync #2 / run `33518369216` : SUCCESS ;
+- merge résultant : `5283154c1c5750c7dcd5d696a3af953f50eebc55`, parents `53ef839a...` + `a8dde5b8...` ;
+- workflow temporaire de sync supprimé du tree final.
+
+Cette preuve valide la résolution de conflit. Elle ne remplace pas la CI complète du HEAD courant de PR.
+
 ## Preuve UI / UX
 
 ### Control Center desktop / responsive historique
@@ -114,7 +131,9 @@ Pour la Tour de contrôle :
 - digest : `sha256:e2fe364b99c089d7f058e2d684e76feef3818eb7cd06756fe0e69e76e9cd0cc8` ;
 - inspection visuelle : interface propre et exploitable ; dette restante limitée à la longueur verticale de la matrice opérateurs.
 
-## CI / package exact HEAD `89d86dcc...`
+## CI / package certifiés avant dernier sync `master`
+
+### Produit `89d86dcc...`
 
 Vague PR attachée au commit :
 
@@ -126,15 +145,8 @@ Vague PR attachée au commit :
 Preuves principales :
 
 - CI #2491 / run `33439854797` — SUCCESS ;
-  - `Tests & durcissement` ✅
-  - `Frontend (tests & build)` ✅
-  - `Garde production (négatif)` ✅
-  - M4-A / M4-B / M4-C ✅
 - Mobile Superadmin Certification #39 / run `33439854639` — SUCCESS ;
 - SEC-1 Windows Package Certification #171 / run `33439854745` — SUCCESS ;
-  - real Windows PyInstaller package ✅
-  - frozen signed-license tamper rejection ✅
-  - package boundary evidence ✅
 - Superadmin Control Center AFTER #58 ✅ ;
 - Superadmin Denied AFTER #76 ✅ ;
 - T2 Runtime Browser #1585 ✅ ;
@@ -142,7 +154,18 @@ Preuves principales :
 - Portability P5 Native Dependency #337 ✅ ;
 - Catalog #858 ✅ ; Patient P7 #884 ✅ ; Marketplace #66 ✅.
 
-Le skip M6-I n'est pas un gate SEC-1 de cette branche. La preuve biométrique mobile canonique existe déjà dans le chantier Mobile ; la certification physique Face ID/Touch ID/Android reste un gate terrain global distinct.
+### Closeout documentaire `10c2f6cb...`
+
+- CI #2499 / run `33515135413` — SUCCESS ;
+- SEC-1 Windows Package Certification #172 / run `33515135337` — SUCCESS ;
+- Superadmin Control Center AFTER #59 / run `33515135317` — SUCCESS ;
+- Mobile Superadmin Certification #40 / run `33515135245` — SUCCESS après retry ciblé du seul job flaky ;
+- premier essai Mobile #40 : 16 tests ciblés + build verts, timeout harness BEFORE uniquement ;
+- retry job `99885175934` : SUCCESS ;
+- M6-I : skip contextuel attendu ;
+- aucun défaut produit démontré par le premier timeout.
+
+Le contrôle final avant promotion est la vague CI attachée au HEAD courant de PR après intégration de `master`. Ne pas merger si cette vague n'est pas verte.
 
 ## Production signing déjà prouvé
 
@@ -196,7 +219,7 @@ PR #288 reste draft tant que les trois gates production ne sont pas prouvés.
 
 Avant merge :
 
-1. CI verte du HEAD documentaire final ;
+1. CI verte du HEAD courant après dernier sync `master` ;
 2. trois gates production prouvés ;
 3. PR mise à jour ;
 4. drift `master` recontrôlé ;
@@ -208,12 +231,12 @@ Aucun déploiement Vercel n'est requis ni autorisé pour SEC-1.
 
 ## Next exact
 
-1. revalider la CI du commit documentaire de closeout ;
-2. mettre la PR #288 en cohérence avec ce HEAD et les preuves si la CI est verte ;
+1. vérifier la vague CI du HEAD courant déclenchée après ce checkpoint documentaire ;
+2. si verte, mettre la PR #288 en cohérence avec ce HEAD et les preuves ;
 3. obtenir un accès vérifié au runtime control-plane production ;
 4. exécuter la séquence des trois mutations déjà autorisées ;
 5. closeout → ready → drift → merge → post-merge.
 
 ## Avancement
 
-Aucun pourcentage SEC-1 n'est publié : aucune pondération canonique n'est définie. Le produit, la Tour mobile, la CI et le package sont certifiés sur `89d86dcc...`; le chantier reste ouvert sur la CI du HEAD documentaire puis les trois mutations production.
+Aucun pourcentage SEC-1 n'est publié : aucune pondération canonique n'est définie. Le produit, la Tour mobile, le package et le closeout documentaire ont des preuves vertes avant le dernier sync `master`; le drift OAuth/HTTPS est intégré, et le chantier reste ouvert sur la revalidation du HEAD courant puis les trois mutations production.
