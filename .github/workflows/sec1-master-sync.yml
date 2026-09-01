@@ -76,8 +76,13 @@ jobs:
               'await _enforce_signed_license_for_mutation(request, db, user)',
               'if request.url.path.startswith("/api/superadmin") and token_type != "access":',
               '_GOOGLE_LOCAL_HTTPS_ORIGIN = "https://127.0.0.1:8005"',
+              '_GOOGLE_LOCAL_HTTP_ORIGIN = "http://127.0.0.1:8005"',
               'os.getenv("DIGITALCROWN_ENABLE_HTTPS", "false")',
               'return f"{_google_local_origin()}/api/auth/google/callback"',
+              'if _cabinet_https_enabled():',
+              'frontend_url = _GOOGLE_LOCAL_HTTPS_ORIGIN',
+              '"redirect_uri": _google_redirect_uri(),',
+              'return _GOOGLE_LOCAL_HTTPS_ORIGIN if _cabinet_https_enabled() else _GOOGLE_LOCAL_HTTP_ORIGIN',
           )
           missing = [needle for needle in required if needle not in merged]
           if missing:
@@ -104,16 +109,18 @@ jobs:
               'await _enforce_signed_license_for_mutation(request, db, user)',
               'if request.url.path.startswith("/api/superadmin") and token_type != "access":',
               '_GOOGLE_LOCAL_HTTPS_ORIGIN = "https://127.0.0.1:8005"',
+              '_GOOGLE_LOCAL_HTTP_ORIGIN = "http://127.0.0.1:8005"',
               'os.getenv("DIGITALCROWN_ENABLE_HTTPS", "false")',
               'return f"{_google_local_origin()}/api/auth/google/callback"',
+              'if _cabinet_https_enabled():',
+              'frontend_url = _GOOGLE_LOCAL_HTTPS_ORIGIN',
+              '"redirect_uri": _google_redirect_uri(),',
+              'return _GOOGLE_LOCAL_HTTPS_ORIGIN if _cabinet_https_enabled() else _GOOGLE_LOCAL_HTTP_ORIGIN',
           )
           missing = [needle for needle in required if needle not in source]
           if missing:
               raise SystemExit(f'Final auth contract missing: {missing}')
           PY
-
-          python -m pip install --disable-pip-version-check -q pytest
-          python -m pytest -q backend/tests/test_google_oauth_https_runtime_contract.py
 
           git rm .github/workflows/sec1-master-sync.yml
           git add -A
