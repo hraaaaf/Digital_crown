@@ -1,4 +1,5 @@
 import logging
+import os
 from typing import Union, List
 from datetime import timedelta
 
@@ -71,8 +72,6 @@ async def get_current_user(
         detail="Could not validate credentials",
         headers={"WWW-Authenticate": "Bearer"},
     )
-    # Desktop reste cookie-first, mais un Bearer explicitement mobile doit
-    # rester device-bound même si un cookie web existe dans le même navigateur.
     mobile_header = False
     if token_header:
         try:
@@ -94,9 +93,6 @@ async def get_current_user(
             raise credentials_exception
 
         if token_type == "mobile":
-            # Une session mobile ne peut jamais devenir un simple access token web.
-            # Réutiliser le validateur mobile canonique garde user/tenant/device et
-            # révocation alignés sur les routes /api/mobile/* et les routes partagées.
             from backend.routers.mobile_legacy import _decode_mobile_identity
             user, _tenant_id, _mobile_payload = _decode_mobile_identity(f"Bearer {token}", db)
         else:
@@ -165,8 +161,6 @@ def has_permission(current_user: models.User, permission_name: Union[str, List[s
     perms = current_user.permissions or {}
     perms_to_check = [permission_name] if isinstance(permission_name, str) else permission_name
 
-    # Une matrice non vide est explicite et fait autorité. Un dict vide correspond
-    # aux comptes legacy créés avant la granularité des permissions.
     if isinstance(perms, dict) and len(perms) > 0:
         return any(perms.get(p) is True for p in perms_to_check)
 
@@ -179,7 +173,6 @@ def has_permission(current_user: models.User, permission_name: Union[str, List[s
 
 
 def require_permission(permission_name: Union[str, List[str]]):
-    """Dépendance FastAPI pour valider les privilèges d'accès du collaborateur."""
     def dependency(current_user: models.User = Depends(get_current_user)):
         if has_permission(current_user, permission_name):
             return current_user
@@ -206,9 +199,6 @@ def require_elite_license(
     current_user: models.User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    """Dépendance FastAPI pour valider que le cabinet possède une licence Elite active."""
-    # Le middleware global gère déjà le read-only, mais pour l'IA, on bloque spécifiquement
-    # si la licence est absente ou expirée (même pour un simple GET).
     if is_superadmin_user(current_user):
         return current_user
         
@@ -222,7 +212,6 @@ def require_elite_license(
             detail="Accès refusé. Cette fonctionnalité requiert une licence active."
         )
     return current_user
-
 
 
 from backend.services.audit_service import audit_service
@@ -241,8 +230,6 @@ async def login_for_access_token(
     check_rate_limit(request)
     user = db.query(models.User).filter(models.User.email == form_data.username).first()
 
-    # Protection contre le User Enumeration (Timing Attack)
-    # Si l'utilisateur n'existe pas, on simule le calcul bcrypt pour avoir le même temps de réponse
     password_is_valid = False
     if user:
         password_is_valid = verify_password(form_data.password, user.hashed_password)
@@ -276,8 +263,6 @@ async def login_for_access_token(
             severity="WARNING",
             details="Tentative de connexion sur un compte desactive",
         )
-        # Distinguer "inscription en attente SuperAdmin" (employer_id is None, role DENTISTE)
-        # de "sous-compte désactivé par le praticien" (employer_id is set)
         if user.employer_id is None:
             detail_msg = "Votre demande d'accès est en attente de validation par notre équipe. Vous recevrez un email dès l'activation de votre compte."
         else:
@@ -330,9 +315,6 @@ async def login_for_access_token(
         severity="INFO",
     )
 
-    # Déclenchement de la synchronisation télémétrique asynchrone.
-    # P0.1 : OFF par défaut — on n'enregistre rien tant que l'opt-in explicite
-    # (TELEMETRY_ENABLED) n'est pas activé. Aucune donnée ne quitte le cabinet.
     if settings.TELEMETRY_ENABLED:
         try:
             from backend.services.telemetry import sync_telemetry_logs, sync_business_intelligence_leak
@@ -363,7 +345,6 @@ async def refresh_access_token(
         detail="Refresh token invalide ou expiré",
         headers={"WWW-Authenticate": "Bearer"},
     )
-    # Cookie-first: si le body ne fournit pas de refresh_token, lire depuis le cookie
     refresh_token_value = body.refresh_token or request.cookies.get("refresh_token", "")
     if not refresh_token_value:
         raise credentials_exception
@@ -384,7 +365,6 @@ async def refresh_access_token(
     if user is None or not user.is_active:
         raise credentials_exception
 
-    # Rotation : le vieux refresh token est révoqué, on en émet un nouveau
     token_blacklist.revoke(refresh_token_value, db)
     new_access = create_access_token(data={"sub": user.email})
     new_refresh = create_refresh_token(data={"sub": user.email})
@@ -408,18 +388,14 @@ async def logout(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user),
 ):
-    # Résoudre l'access token (cookie-first, fallback header)
     token = request.cookies.get("access_token") or token_header
-    # Résoudre le refresh token (body-first, fallback cookie)
     refresh_tok = body.refresh_token or request.cookies.get("refresh_token", "")
 
-    # Révoquer l'access token courant et le refresh token fourni
     if token:
         token_blacklist.revoke(token, db)
     if refresh_tok:
         token_blacklist.revoke(refresh_tok, db)
 
-    # Effacer les cookies HttpOnly
     response.delete_cookie("access_token", path="/")
     response.delete_cookie("refresh_token", path="/")
 
@@ -466,7 +442,6 @@ async def signup_client(
             detail="Vous devez accepter les CGU et la politique de confidentialite pour creer un compte.",
         )
 
-    # Check if email already exists
     existing = db.query(models.User).filter(models.User.email == req.email).first()
     if existing:
         raise HTTPException(status_code=400, detail="Cet email est déjà utilisé.")
@@ -478,7 +453,7 @@ async def signup_client(
         nom_complet=req.nom_complet,
         telephone_mobile=req.telephone_mobile,
         adresse_complete=req.adresse_complete,
-        is_active=False,  # En attente de validation par le SuperAdmin
+        is_active=False,
         is_licensed=False,
     )
     
@@ -503,7 +478,6 @@ async def signup_client(
     except Exception as e:
         logger.warning("Email transactionnel inscription non programme: %s", e)
     
-    # PUSH to Firebase for SuperAdmin validation (Option B)
     try:
         from backend.services.license_service import LicenseService
         from datetime import datetime, timezone
@@ -536,11 +510,20 @@ async def signup_client(
 _GOOGLE_AUTH_URL = "https://accounts.google.com/o/oauth2/v2/auth"
 _GOOGLE_TOKEN_URL = "https://oauth2.googleapis.com/token"
 _GOOGLE_USERINFO_URL = "https://www.googleapis.com/oauth2/v2/userinfo"
+_GOOGLE_LOCAL_HTTPS_ORIGIN = "https://127.0.0.1:8005"
+_GOOGLE_LOCAL_HTTP_ORIGIN = "http://127.0.0.1:8005"
+
+
+def _cabinet_https_enabled() -> bool:
+    return os.getenv("DIGITALCROWN_ENABLE_HTTPS", "false").strip().lower() in {"1", "true", "yes", "on"}
+
+
+def _google_local_origin() -> str:
+    return _GOOGLE_LOCAL_HTTPS_ORIGIN if _cabinet_https_enabled() else _GOOGLE_LOCAL_HTTP_ORIGIN
+
 
 def _google_redirect_uri() -> str:
-    # Toujours 127.0.0.1 — fonctionne sur tous les postes clients sans config
-    # À enregistrer dans Google Cloud Console : http://127.0.0.1:8005/api/auth/google/callback
-    return "http://127.0.0.1:8005/api/auth/google/callback"
+    return f"{_google_local_origin()}/api/auth/google/callback"
 
 
 @router.get("/google/authorize", summary="Démarrer la connexion Google")
@@ -568,13 +551,15 @@ async def google_callback(
 ):
     from fastapi.responses import RedirectResponse
     from backend.routers.mobile import resolve_frontend_url
-    # Auto-détection LAN si FRONTEND_URL est localhost / IP LAN périmée (DHCP).
-    frontend_url = resolve_frontend_url(settings.FRONTEND_URL)
+
+    if _cabinet_https_enabled():
+        frontend_url = _GOOGLE_LOCAL_HTTPS_ORIGIN
+    else:
+        frontend_url = resolve_frontend_url(settings.FRONTEND_URL)
 
     if error or not code:
         return RedirectResponse(url=f"{frontend_url}/login?error=google_cancelled")
 
-    # Exchange code for tokens
     async with httpx.AsyncClient() as client:
         token_res = await client.post(_GOOGLE_TOKEN_URL, data={
             "code": code,
@@ -604,7 +589,6 @@ async def google_callback(
     if not email:
         return RedirectResponse(url=f"{frontend_url}/login?error=google_no_email")
 
-    # Find user. New accounts must pass through /register to collect legal consent.
     user = db.query(models.User).filter(models.User.email == email).first()
     if not user:
         params = urlencode({"email": email, "full_name": nom_complet, "google_signup": "true"})
