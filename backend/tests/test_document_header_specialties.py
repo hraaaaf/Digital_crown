@@ -5,7 +5,7 @@ from reportlab.lib.pagesizes import A5
 from reportlab.lib.units import cm
 
 from backend.schemas.cabinet import CabinetConfigUpdate
-from backend.services.premium_document_headers import _fr_block, draw_swiss
+from backend.services.premium_document_headers import _fr_block, draw_heritage, draw_swiss
 
 
 class _Base:
@@ -22,6 +22,7 @@ class _Canvas:
     def __init__(self):
         self.text = []
         self.lines = []
+        self.alignments = []
 
     def saveState(self):
         pass
@@ -43,12 +44,15 @@ class _Canvas:
 
     def drawString(self, x, y, text):
         self.text.append((x, y, text))
+        self.alignments.append("left")
 
     def drawCentredString(self, x, y, text):
         self.text.append((x, y, text))
+        self.alignments.append("center")
 
     def drawRightString(self, x, y, text):
         self.text.append((x, y, text))
+        self.alignments.append("right")
 
     def line(self, x1, y1, x2, y2):
         self.lines.append((x1, y1, x2, y2))
@@ -109,6 +113,33 @@ def test_swiss_separator_moves_below_long_specialty_block():
     last_text_y = canvas.text[-1][1]
     assert separator_y < last_text_y
     assert separator_y < height - 2.72 * cm
+
+
+def test_dense_heritage_switches_to_compact_left_column():
+    canvas = _Canvas()
+    configured = _max_current_header_lines()
+    width, height = A5
+
+    draw_heritage(
+        _Base(),
+        canvas,
+        {},
+        None,
+        colors.black,
+        colors.grey,
+        colors.blue,
+        width,
+        height,
+        configured,
+        [],
+        1.0,
+    )
+
+    assert [item[2] for item in canvas.text] == configured
+    assert canvas.alignments == ["left"] * len(configured)
+    assert len(canvas.lines) == 2
+    last_text_y = canvas.text[-1][1]
+    assert canvas.lines[0][1] < last_text_y
 
 
 def test_cabinet_config_accepts_full_current_specialty_header():
