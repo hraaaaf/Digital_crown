@@ -17,6 +17,11 @@ ImageReader = _core.ImageReader
 class BaseTemplate(_BaseTemplateCore):
     """Base template with truthful document QR destinations."""
 
+    @staticmethod
+    def scale_elements(elements, factor):
+        """Scale a disposable list so ReportLab retries never consume the source list."""
+        return _BaseTemplateCore.scale_elements(list(elements), factor)
+
     def _draw_qr_code(self, canvas, doc, config, user, p_color):
         qr_enabled = self._get_val(config, 'qr_code_enabled', False)
         if not qr_enabled:
