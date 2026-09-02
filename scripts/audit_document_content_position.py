@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Render the real AccountingGenerator at three vertical body positions."""
+"""Render the real AccountingGenerator at three dedicated vertical body offsets."""
 
 from __future__ import annotations
 
@@ -22,9 +22,9 @@ PDF_DIR.mkdir(parents=True, exist_ok=True)
 PNG_DIR.mkdir(parents=True, exist_ok=True)
 
 POSITIONS = [
-    ("higher", 2.8, "Plus haut (-8 mm demandé)"),
-    ("neutral", 3.6, "Neutre (0)"),
-    ("lower", 5.1, "Plus bas (+15 mm)"),
+    ("higher", -0.8, "Plus haut (-8 mm demandé)"),
+    ("neutral", 0.0, "Neutre (0)"),
+    ("lower", 1.5, "Plus bas (+15 mm)"),
 ]
 
 
@@ -70,9 +70,10 @@ def main() -> None:
 
     rendered = []
     metrics = {}
-    for key, margin_top, label in POSITIONS:
+    for key, offset_y, label in POSITIONS:
         config = _config("swiss", logo)
-        config.margin_top = margin_top
+        config.margin_top = 3.6
+        config.content_offset_y = offset_y
         config.header_lines_fr = HEADER_FR
         config.header_lines_ar = HEADER_AR
         generator = AccountingGenerator(str(PDF_DIR / key / "generated"))
@@ -94,10 +95,10 @@ def main() -> None:
         png = PNG_DIR / f"swiss-{key}.png"
         pix.save(png)
         doc.close()
-        metrics[key] = {"requested_margin_top_cm": margin_top, "title_y_points": title_y}
+        metrics[key] = {"content_offset_y_cm": offset_y, "title_y_points": title_y}
         rendered.append((f"{label} | titre y={title_y} pt", png))
 
-    # PDF coordinates returned by PyMuPDF use top-left origin for bbox y: larger y means lower on page.
+    # PyMuPDF bbox y uses a top-left origin: larger y means lower on page.
     assert metrics["higher"]["title_y_points"] <= metrics["neutral"]["title_y_points"]
     assert metrics["neutral"]["title_y_points"] < metrics["lower"]["title_y_points"]
     assert metrics["lower"]["title_y_points"] - metrics["neutral"]["title_y_points"] >= 20.0
