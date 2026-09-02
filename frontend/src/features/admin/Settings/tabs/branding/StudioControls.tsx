@@ -215,9 +215,9 @@ const QrTruthControls: React.FC<StudioControlsProps> = ({ profile, updateProfile
 export const StudioControls: React.FC<StudioControlsProps> = (props) => (
   <div className="flex flex-col gap-5">
     <ContentPositionControl {...props} />
-    {/* Le dernier bloc du core est l’ancien contrôle QR. Il reste byte-for-byte
-        pour préserver l’historique, mais n’est plus présenté à l’utilisateur. */}
-    <div className="[&>div>div:last-child]:hidden">
+    {/* Le core conserve les contrôles historiques. On masque ici l'ancienne
+        marge supérieure devenue redondante et l'ancien bloc QR. */}
+    <div className="[&>div>div:last-child]:hidden [&>div>div:nth-child(4)>div:nth-of-type(2)>div:first-child]:hidden">
       <StudioControlsCore {...props} />
     </div>
     <QrTruthControls {...props} />
