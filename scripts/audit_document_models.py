@@ -1,9 +1,11 @@
 #!/usr/bin/env python3
 """Generate real Digital Crown A5 accounting documents for visual certification.
 
-This harness deliberately uses the repository's AccountingGenerator and
-BaseTemplate. Arabic is therefore shaped by arabic_reshaper/python-bidi and
-painted as vector text by ReportLab, exactly like the product renderer.
+The harness calls the repository AccountingGenerator and BaseTemplate directly.
+Arabic is shaped by the product _prepare_arabic path and painted as vector text
+by ReportLab. PDF text extraction is intentionally not used as the Arabic
+oracle because shaped/subset TrueType glyphs do not always round-trip to
+Unicode through PDF extractors.
 """
 
 from __future__ import annotations
@@ -20,7 +22,6 @@ from PIL import Image, ImageDraw, ImageFont, ImageOps
 
 from backend.services.generators.accounting_gen import AccountingGenerator
 
-
 ROOT = Path("document-models-audit")
 PDF_DIR = ROOT / "pdf"
 PNG_DIR = ROOT / "png"
@@ -28,14 +29,13 @@ PDF_DIR.mkdir(parents=True, exist_ok=True)
 PNG_DIR.mkdir(parents=True, exist_ok=True)
 
 TEMPLATES = ["swiss", "royal", "clinical", "modern", "heritage"]
-TEMPLATE_LABELS = {
+LABELS = {
     "swiss": "Swiss Clinic",
     "royal": "Royal Elite",
     "clinical": "Clinical Grid",
     "modern": "Modern Flush",
     "heritage": "L'Héritage",
 }
-
 HEADER_FR = [
     "Dr. Achraf Benmoussa",
     "Chirurgien Dentiste",
@@ -54,7 +54,6 @@ HEADER_AR = [
     "زراعة الأسنان - تبييض الأسنان",
     "تجميل الأسنان - تخصص مخصص",
 ]
-
 ACTS = [
     ("Consultation et bilan clinique complet", [11, 12], "Carte", 350.00),
     ("Détartrage ultrasonique des deux arcades", [16, 26, 36, 46], "Carte", 600.00),
@@ -67,7 +66,7 @@ ACTS = [
     ("Blanchiment ambulatoire avec gouttières", [], "Carte", 2200.00),
     ("Contrôle post-opératoire et ajustement occlusal", [36, 46], "Espèces", 300.00),
 ]
-EXPECTED_TOTAL = sum(item[3] for item in ACTS)
+EXPECTED_TOTAL = sum(row[3] for row in ACTS)
 
 
 class FakeQuery:
@@ -90,25 +89,28 @@ class FakeDB:
         return FakeQuery(self.config if model.__name__ == "CabinetConfig" else self.user)
 
 
-def _make_audit_logo() -> str:
+def _make_logo() -> str:
     upload_dir = Path("backend/static/uploads")
     upload_dir.mkdir(parents=True, exist_ok=True)
     filename = "document-audit-logo.png"
     target = upload_dir / filename
-    logo = Image.new("RGBA", (400, 400), (255, 255, 255, 0))
-    draw = ImageDraw.Draw(logo)
+    image = Image.new("RGBA", (400, 400), (255, 255, 255, 0))
+    draw = ImageDraw.Draw(image)
     draw.ellipse((14, 14, 386, 386), fill="#003380")
     font_path = Path("backend/static/assets/fonts/Outfit-Bold.ttf")
     font = ImageFont.truetype(str(font_path), 145) if font_path.exists() else ImageFont.load_default()
     bbox = draw.textbbox((0, 0), "DC", font=font)
-    x = (400 - (bbox[2] - bbox[0])) / 2
-    y = (400 - (bbox[3] - bbox[1])) / 2 - bbox[1]
-    draw.text((x, y), "DC", fill="white", font=font)
-    logo.save(target)
+    draw.text(
+        ((400 - (bbox[2] - bbox[0])) / 2, (400 - (bbox[3] - bbox[1])) / 2 - bbox[1]),
+        "DC",
+        fill="white",
+        font=font,
+    )
+    image.save(target)
     return filename
 
 
-def _config(template: str, logo_filename: str):
+def _config(template: str, logo: str):
     return SimpleNamespace(
         primary_color="#003380",
         secondary_color="#1e40af",
@@ -130,7 +132,7 @@ def _config(template: str, logo_filename: str):
         hide_footer=False,
         use_letterhead=False,
         letterhead_path=None,
-        logo_path=logo_filename,
+        logo_path=logo,
         header_lines_fr=HEADER_FR,
         header_lines_ar=HEADER_AR,
         footer_address="Rabat, Maroc",
@@ -164,6 +166,22 @@ def _normalize(value: str) -> str:
     return re.sub(r"\s+", " ", value.replace("\u00a0", " ")).strip()
 
 
+def _token(value: str) -> str:
+    return re.sub(r"[^a-z0-9]", "", value.lower()).replace("regular", "")
+
+
+def _embedded_arabic_font(doc: fitz.Document, font_path: str) -> tuple[bool, list[str]]:
+    expected = _token(Path(font_path).stem)
+    resources = []
+    for page in doc:
+        for item in page.get_fonts(full=True):
+            # PyMuPDF tuple: xref, ext, type, basefont, name, encoding, referencer.
+            resources.append(str(item[3] or ""))
+    normalized = [_token(name.split("+")[-1]) for name in resources]
+    found = any(expected and (expected in name or name in expected) for name in normalized)
+    return found, resources
+
+
 def _span_metrics(doc: fitz.Document) -> dict:
     spans = []
     for page_no, page in enumerate(doc):
@@ -181,7 +199,7 @@ def _span_metrics(doc: fitz.Document) -> dict:
                                 "bbox": [round(float(v), 2) for v in span.get("bbox", ())],
                             }
                         )
-    sizes = [item["size"] for item in spans if item["size"] > 0]
+    sizes = [span["size"] for span in spans if span["size"] > 0]
     return {
         "minimum_span_size": min(sizes) if sizes else None,
         "maximum_span_size": max(sizes) if sizes else None,
@@ -193,21 +211,20 @@ def _contact_sheet(images: list[tuple[str, Path]], output: Path) -> None:
     thumb_w, thumb_h, label_h, gap = 520, 735, 52, 20
     sheet = Image.new("RGB", (2 * thumb_w + 3 * gap, 3 * (thumb_h + label_h) + 4 * gap), "white")
     draw = ImageDraw.Draw(sheet)
-    for idx, (template, path) in enumerate(images):
-        image = Image.open(path).convert("RGB")
-        image = ImageOps.contain(image, (thumb_w, thumb_h))
+    for index, (template, path) in enumerate(images):
+        image = ImageOps.contain(Image.open(path).convert("RGB"), (thumb_w, thumb_h))
         panel = Image.new("RGB", (thumb_w, thumb_h), "white")
         panel.paste(image, ((thumb_w - image.width) // 2, (thumb_h - image.height) // 2))
-        row, col = divmod(idx, 2)
+        row, col = divmod(index, 2)
         x = gap + col * (thumb_w + gap)
         y = gap + row * (thumb_h + label_h + gap)
-        draw.text((x + 8, y + 16), TEMPLATE_LABELS[template], fill="black")
+        draw.text((x + 8, y + 16), LABELS[template], fill="black")
         sheet.paste(panel, (x, y + label_h))
     sheet.save(output)
 
 
 def main() -> None:
-    logo_filename = _make_audit_logo()
+    logo = _make_logo()
     patient = SimpleNamespace(nom="ALAMI", prenom="Sara", date_naissance=dt.date(1990, 4, 12))
     payments = [
         SimpleNamespace(acte=act, dents=dents, dent=(dents[0] if dents else "-"), mode_reglement=mode, montant=amount)
@@ -221,7 +238,6 @@ def main() -> None:
         is_global_note=False,
     )
     user = SimpleNamespace(id=1, nom="Benmoussa", prenom="Achraf", email="audit@digitalcrown.local")
-
     rendered = []
     manifest = {
         "generator": "backend.services.generators.accounting_gen.AccountingGenerator",
@@ -230,24 +246,35 @@ def main() -> None:
     }
 
     for template in TEMPLATES:
-        config = _config(template, logo_filename)
-        db = FakeDB(config, user)
+        config = _config(template, logo)
         generator = AccountingGenerator(str(PDF_DIR / template / "generated"))
         assert generator.base_template.arabic_font == "ArabicFont"
-        assert Path(generator.base_template.arabic_font_path).exists()
+        arabic_font_path = generator.base_template.arabic_font_path
+        assert Path(arabic_font_path).exists()
 
+        shape_calls = []
+        original_prepare = generator.base_template._prepare_arabic
+
+        def tracked_prepare(text, _original=original_prepare, _calls=shape_calls):
+            prepared = _original(text)
+            if any("\u0600" <= char <= "\u06ff" for char in str(text)):
+                _calls.append({"source": str(text), "prepared": str(prepared)})
+            return prepared
+
+        generator.base_template._prepare_arabic = tracked_prepare
         generated = Path(
             generator.generate_note(
                 patient,
                 data,
                 facture_number="F-2026-0010",
-                db=db,
+                db=FakeDB(config, user),
                 user_id=1,
             )
         )
+        assert len(shape_calls) >= len(HEADER_AR), (template, len(shape_calls))
+
         target_pdf = PDF_DIR / f"{template}.pdf"
         shutil.copy2(generated, target_pdf)
-
         doc = fitz.open(target_pdf)
         assert doc.page_count >= 1
         width, height = doc[0].rect.width, doc[0].rect.height
@@ -260,8 +287,9 @@ def main() -> None:
             assert _normalize(act) in extracted, f"{template}: missing act {act!r}"
         assert "TOTAL GÉNÉRAL" in extracted
         assert "18100.00" in extracted
-        has_arabic = any("\u0600" <= char <= "\u06ff" for char in extracted)
-        assert has_arabic, f"{template}: no Arabic text extracted from vector PDF"
+
+        font_found, font_resources = _embedded_arabic_font(doc, arabic_font_path)
+        assert font_found, (template, arabic_font_path, font_resources)
 
         page_pngs = []
         for page_no, page in enumerate(doc):
@@ -277,12 +305,18 @@ def main() -> None:
             "page_count": len(page_pngs),
             "page_size_points": [round(width, 3), round(height, 3)],
             "arabic_font": generator.base_template.arabic_font,
-            "arabic_font_path": generator.base_template.arabic_font_path,
+            "arabic_font_path": arabic_font_path,
+            "arabic_shape_calls": len(shape_calls),
+            "arabic_font_resource_found": font_found,
+            "font_resources": font_resources,
             "minimum_span_size": metrics["minimum_span_size"],
             "maximum_span_size": metrics["maximum_span_size"],
             "pdf": str(target_pdf),
             "pngs": page_pngs,
         }
+        (ROOT / f"{template}-arabic-shaping.json").write_text(
+            json.dumps(shape_calls, ensure_ascii=False, indent=2), encoding="utf-8"
+        )
         (ROOT / f"{template}-spans.json").write_text(
             json.dumps(metrics, ensure_ascii=False, indent=2), encoding="utf-8"
         )
