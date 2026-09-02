@@ -1,5 +1,7 @@
 from pathlib import Path
 
+import pytest
+from reportlab.lib import colors
 from reportlab.lib.units import cm
 from reportlab.pdfbase import pdfmetrics
 
@@ -14,10 +16,35 @@ class _FakeBase:
         self.premium_bold = "Helvetica-Bold"
         self.header_font = "Helvetica"
         self.header_bold = "Helvetica-Bold"
+        self.arabic_font = "Helvetica"
 
     @staticmethod
     def _get_val(config, key, default=None):
         return (config or {}).get(key, default)
+
+    @staticmethod
+    def _prepare_arabic(text):
+        return text
+
+
+class _FontCaptureCanvas:
+    def __init__(self):
+        self.fonts = []
+
+    def setFillColor(self, _color):
+        pass
+
+    def setFont(self, font, size):
+        self.fonts.append((font, size))
+
+    def drawString(self, *_args):
+        pass
+
+    def drawCentredString(self, *_args):
+        pass
+
+    def drawRightString(self, *_args):
+        pass
 
 
 def test_document_font_ids_map_to_real_pdf_fonts():
@@ -58,6 +85,26 @@ def test_arabic_fallback_candidates_cover_local_desktop_and_linux():
 
     assert any("amiri-regular.ttf" in path for path in candidates)
     assert any("dejavusans.ttf" in path for path in candidates)
+
+
+def test_arabic_block_applies_optical_compensation_without_changing_rhythm():
+    canvas = _FontCaptureCanvas()
+    base = _FakeBase()
+
+    premium._ar_block(
+        base,
+        canvas,
+        ["العنوان", "سطر"],
+        100,
+        200,
+        title_size=10.0,
+        sub_size=7.0,
+        color=colors.black,
+    )
+
+    assert premium.ARABIC_OPTICAL_SCALE == pytest.approx(1.11)
+    assert canvas.fonts[0][1] == pytest.approx(11.1)
+    assert canvas.fonts[1][1] == pytest.approx(7.77)
 
 
 def test_five_premium_header_drawers_are_explicit():
