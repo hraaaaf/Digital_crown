@@ -8,6 +8,7 @@ on:
       - "backend/services/base_template_core.py"
       - "backend/services/premium_document_headers.py"
       - "backend/services/generators/ordonnance_gen.py"
+      - "backend/services/generators/accounting_gen.py"
       - "backend/tests/test_document_header_specialties.py"
       - "backend/tests/test_premium_document_headers.py"
       - "frontend/src/features/admin/constants.ts"
@@ -22,6 +23,10 @@ permissions:
 jobs:
   audit:
     runs-on: ubuntu-latest
+    env:
+      SECRET_KEY: audit-only-secret-key-minimum-32-characters-long
+      DATABASE_URL: sqlite:///:memory:
+      ENVIRONMENT: development
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -30,7 +35,7 @@ jobs:
       - name: Install audit dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install reportlab arabic-reshaper python-bidi svglib pillow qrcode pymupdf
+          pip install reportlab arabic-reshaper python-bidi svglib pillow qrcode pymupdf sqlalchemy pydantic pydantic-settings python-jose passlib bcrypt
       - name: Contract check premium font mappings
         run: |
           python - <<'PY'
@@ -194,6 +199,101 @@ jobs:
           shutil.copy2(logo_path, out / logo_filename)
           assert len(list(pdf_dir.glob('*.pdf'))) == 5
           assert len(list(png_dir.glob('*.png'))) == 5
+          PY
+      - name: Generate five real ten-line accounting models
+        run: |
+          python - <<'PY'
+          import datetime
+          import shutil
+          from pathlib import Path
+          from types import SimpleNamespace
+          import fitz
+
+          from backend.services.generators.accounting_gen import AccountingGenerator
+
+          out = Path('settings-document-models-audit') / 'accounting-10-lines'
+          pdf_dir = out / 'pdf'
+          png_dir = out / 'png'
+          pdf_dir.mkdir(parents=True, exist_ok=True)
+          png_dir.mkdir(parents=True, exist_ok=True)
+
+          patient = SimpleNamespace(nom='ALAMI', prenom='Sara', date_naissance=datetime.date(1990, 4, 12))
+          acts = [
+              ('Consultation et bilan clinique complet', [11, 12], 'Carte', 350.00),
+              ('Détartrage ultrasonique des deux arcades', [16, 26, 36, 46], 'Carte', 600.00),
+              ('Traitement endodontique molaire', [36], 'Espèces', 1800.00),
+              ('Reconstitution coronaire composite postérieure', [36], 'Espèces', 750.00),
+              ('Couronne céramo-céramique sur molaire', [36], 'Virement', 3200.00),
+              ('Extraction chirurgicale dent de sagesse incluse', [48], 'Carte', 1500.00),
+              ('Implant dentaire ostéointégré', [46], 'Virement', 6500.00),
+              ('Couronne provisoire implanto-portée', [46], 'Virement', 900.00),
+              ('Blanchiment ambulatoire avec gouttières', [], 'Carte', 2200.00),
+              ('Contrôle post-opératoire et ajustement occlusal', [36, 46], 'Espèces', 300.00),
+          ]
+          payments = [
+              SimpleNamespace(acte=a, dents=d, dent=(d[0] if d else '-'), mode_reglement=m, montant=v)
+              for a, d, m, v in acts
+          ]
+          data = SimpleNamespace(id='AUDIT-FACT-10', doc_date=datetime.date(2026, 9, 2), payments=payments, installments=[], is_global_note=False)
+
+          header_fr = [
+              'Dr. Achraf Benmoussa', 'Chirurgien Dentiste', 'Soins - Endodontie',
+              'Parodontologie - Orthodontie', 'Prothèse - Chirurgie',
+              'Implantologie - Blanchiment', 'Esthétique - Spécialité personnalisée',
+          ]
+          header_ar = [
+              'د. أشرف بنموسى', 'طبيب جراح للأسنان', 'علاج - علاج العصب',
+              'أمراض اللثة - تقويم الأسنان', 'تعويض الأسنان - جراحة',
+              'زراعة الأسنان - تبييض الأسنان', 'تجميل الأسنان - تخصص مخصص',
+          ]
+
+          class FakeQuery:
+              def __init__(self, value): self.value = value
+              def filter(self, *args, **kwargs): return self
+              def first(self): return self.value
+          class FakeDB:
+              def __init__(self, config, user): self.config, self.user = config, user
+              def query(self, model): return FakeQuery(self.config if model.__name__ == 'CabinetConfig' else self.user)
+
+          templates = ['swiss', 'royal', 'clinical', 'modern', 'heritage']
+          for template in templates:
+              config = SimpleNamespace(
+                  primary_color='#003380', secondary_color='#1e40af', accent_color='#60a5fa',
+                  selected_template=template, font_fr='inter', header_font_scale=1.0,
+                  header_logo_scale=1.0, header_line_height=1.0, header_scale=1.0,
+                  header_logo_offset_x=0.0, header_logo_offset_y=0.0,
+                  footer_font_scale=1.0, footer_qr_scale=1.0, footer_line_height=1.0,
+                  qr_code_enabled=False, watermark_enabled=False, hide_header=False,
+                  hide_footer=False, use_letterhead=False, letterhead_path=None,
+                  logo_path=None, header_lines_fr=header_fr, header_lines_ar=header_ar,
+                  footer_address='Rabat, Maroc', footer_phones='05 37 00 00 00',
+                  adresse='Rabat, Maroc', telephone='05 37 00 00 00',
+                  nom_cabinet='Cabinet Dentaire Digital Crown', nom_praticien='Dr. Achraf Benmoussa',
+                  nom_praticien_ar='د. أشرف بنموسى', nom='Achraf Benmoussa',
+                  inpe='', inpe_etablissement='', ice='', if_='', contacts_json={},
+                  qr_code_type='VCARD', qr_code_value=None, qr_code_color=None, qr_code_label=None,
+                  qr_code_style='dots', qr_code_offset_x=0.0, qr_code_offset_y=0.0,
+                  cloture_note_template='Arrêtée la présente note à la somme de {total_words} TTC.',
+                  margin_top=3.6, margin_bottom=3.2,
+              )
+              user = SimpleNamespace(id=1, nom='Benmoussa', prenom='Achraf', email='audit@digitalcrown.local')
+              db = FakeDB(config, user)
+              generator = AccountingGenerator(str(pdf_dir / template))
+              generated = Path(generator.generate_note(patient, data, facture_number='F-2026-0010', db=db, user_id=1))
+              target = pdf_dir / f'{template}.pdf'
+              shutil.copy2(generated, target)
+
+              doc = fitz.open(target)
+              text = '\n'.join(page.get_text() for page in doc)
+              assert 'F-2026-0010' in text, f'{template}: invoice number missing'
+              for act, *_ in acts:
+                  assert act in text, f'{template}: missing row {act!r}'
+              assert 'TOTAL GÉNÉRAL' in text, f'{template}: total missing'
+              (out / f'{template}-pages.txt').write_text(str(doc.page_count), encoding='utf-8')
+              for page_no, page in enumerate(doc):
+                  pix = page.get_pixmap(matrix=fitz.Matrix(2.2, 2.2), alpha=False)
+                  pix.save(png_dir / f'{template}-p{page_no + 1}.png')
+              doc.close()
           PY
       - name: Upload five-model audit
         uses: actions/upload-artifact@v4
