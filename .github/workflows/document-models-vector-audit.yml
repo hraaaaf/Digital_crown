@@ -8,15 +8,24 @@ on:
       - "scripts/audit_document_models.py"
       - "scripts/audit_document_content_position.py"
       - "backend/tests/test_document_content_position.py"
+      - "backend/schemas/cabinet.py"
+      - "backend/models.py"
+      - "backend/database.py"
       - "backend/services/premium_document_headers.py"
       - "backend/services/base_template.py"
       - "backend/services/base_template_core.py"
       - "backend/services/generators/accounting_gen.py"
+      - "frontend/src/features/admin/Settings/tabs/branding/StudioControls.tsx"
+      - "frontend/src/features/admin/Settings/tabs/branding/StudioControls.contentPosition.test.tsx"
       - ".github/workflows/document-models-vector-audit.yml"
   workflow_dispatch:
 
 permissions:
   contents: read
+
+concurrency:
+  group: document-models-vector-a5-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   audit:
@@ -55,18 +64,19 @@ jobs:
           ar = ["د.", "طبيب", "علاج", "لثة", "تعويض", "زراعة", "تجميل"]
           base = BaseTemplate()
           for template in ["swiss", "royal", "clinical", "modern", "heritage"]:
-              def cfg(top):
+              def cfg(offset):
                   return SimpleNamespace(
-                      selected_template=template, margin_top=top, margin_bottom=3.2,
+                      selected_template=template, margin_top=3.6, margin_bottom=3.2,
+                      content_offset_y=offset,
                       header_scale=1.0, header_font_scale=1.0, header_line_height=1.0,
                       header_lines_fr=fr, header_lines_ar=ar,
                       letterhead_path=None, use_letterhead=False,
                   )
-              up, *_ = base.get_document_margins(cfg(2.8), A5[0])
-              neutral, *_ = base.get_document_margins(cfg(3.6), A5[0])
-              down, *_ = base.get_document_margins(cfg(5.1), A5[0])
-              assert up <= neutral <= down
-              assert down - up >= 0.2 * cm
+              up, *_ = base.get_document_margins(cfg(-0.8), A5[0])
+              neutral, *_ = base.get_document_margins(cfg(0.0), A5[0])
+              down, *_ = base.get_document_margins(cfg(1.5), A5[0])
+              assert up <= neutral < down
+              assert down - neutral >= 1.4 * cm
               assert up >= 3.0 * cm
 
           style = ParagraphStyle("cloture-audit", fontName="Helvetica", fontSize=9, leading=12)
