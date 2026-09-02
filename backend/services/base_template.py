@@ -22,6 +22,74 @@ class BaseTemplate(_BaseTemplateCore):
         """Scale a disposable list so ReportLab retries never consume the source list."""
         return _BaseTemplateCore.scale_elements(list(elements), factor)
 
+    def get_document_margins(self, config, p_width):
+        """Reserve the footprint of the active premium renderer, not the legacy 27/16 pt header.
+
+        The premium five-template renderer uses compact baselines around 6-12 pt.
+        The core legacy estimator still assumes 27/16 pt FR and 29/18 pt AR,
+        which can reserve roughly twice the real header height and push A5 content
+        into a second page. Keep letterhead behavior untouched, but derive the
+        ordinary top margin from the same baselines and line gaps used by
+        premium_document_headers.py.
+        """
+        if self.has_active_letterhead(config):
+            return _BaseTemplateCore.get_document_margins(self, config, p_width)
+
+        selected = self._get_val(config, "selected_template", "swiss")
+        line_scale = float(self._get_val(config, "header_line_height", 1.0))
+        font_scale = float(self._get_val(config, "header_font_scale", 1.0)) * float(
+            self._get_val(config, "header_scale", 1.0)
+        )
+        fr_lines = [line for line in (self._get_val(config, "header_lines_fr", []) or []) if str(line).strip()]
+        ar_lines = [line for line in (self._get_val(config, "header_lines_ar", []) or []) if str(line).strip()]
+        n_fr = max(len(fr_lines), 1)
+        n_ar = max(len(ar_lines), 1)
+        n_lines = max(n_fr, n_ar)
+
+        # Distances from the top edge to the first text baseline in the real drawers.
+        baseline_cm = {
+            "swiss": 1.20,
+            "royal": 2.05,
+            "clinical": 1.17,
+            "modern": 1.14,
+        }
+        safety_cm = 0.28 + max(0.0, font_scale - 1.0) * 0.40
+
+        if selected == "heritage":
+            dense = n_lines > 4
+            if dense:
+                first = 1.76
+                gap = 0.34 * 0.76 * line_scale
+                separator = max(3.22, first + (n_lines - 1) * gap + 0.34)
+            else:
+                fr_gap = 0.34 * 0.82 * line_scale
+                fr_bottom = 1.76 + (n_fr - 1) * fr_gap
+                ar_start = max(2.64, fr_bottom + 0.42)
+                ar_bottom = ar_start + (n_ar - 1) * fr_gap
+                separator = max(3.22, fr_bottom + 0.40, ar_bottom + 0.40)
+            required_top = (separator + safety_cm) * _core.cm
+        else:
+            first = baseline_cm.get(selected, 1.20)
+            gap = 0.34 * line_scale
+            separator_gap = 0.36
+            separator = first + (n_lines - 1) * gap + separator_gap
+            required_top = (separator + safety_cm) * _core.cm
+
+        configured_top = self._get_val(config, "margin_top")
+        default_top = 2.8 if selected in {"swiss", "modern"} else 3.1
+        user_top = float(configured_top if configured_top is not None else default_top) * _core.cm
+        m_top = max(user_top, required_top)
+
+        configured_bottom = self._get_val(config, "margin_bottom")
+        user_bottom = float(configured_bottom if configured_bottom is not None else 2.5) * _core.cm
+        m_bottom = max(user_bottom, 2.8 * _core.cm)
+
+        if selected == "royal":
+            m_left = m_right = 2.0 * _core.cm
+        else:
+            m_left = m_right = 1.5 * _core.cm
+        return m_top, m_bottom, m_left, m_right
+
     def _draw_qr_code(self, canvas, doc, config, user, p_color):
         qr_enabled = self._get_val(config, 'qr_code_enabled', False)
         if not qr_enabled:
