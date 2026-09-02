@@ -39,24 +39,29 @@ def _register_ttf(name: str, path: str | os.PathLike[str] | None) -> bool:
 
 
 def _arabic_font_candidates(font_dir: Path) -> Iterable[Path]:
+    """Prefer sans-serif Arabic faces so FR/AR headers keep the same visual voice."""
     explicit = os.getenv("DIGITAL_CROWN_ARABIC_FONT")
     if explicit:
         yield Path(explicit)
 
-    yield font_dir / "Amiri-Regular.ttf"
+    yield font_dir / "NotoSansArabic-Regular.ttf"
+    yield Path("/usr/share/fonts/truetype/noto/NotoSansArabic-Regular.ttf")
+    yield Path("/usr/share/fonts/opentype/noto/NotoSansArabic-Regular.ttf")
+    yield Path("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf")
 
     windir = os.getenv("WINDIR") or os.getenv("SystemRoot")
     if windir:
         fonts = Path(windir) / "Fonts"
         yield fonts / "tahoma.ttf"
         yield fonts / "arial.ttf"
-        yield fonts / "times.ttf"
 
-    yield Path("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf")
+    yield font_dir / "Amiri-Regular.ttf"
     yield Path("/usr/share/fonts/truetype/noto/NotoNaskhArabic-Regular.ttf")
     yield Path("/usr/share/fonts/opentype/noto/NotoNaskhArabic-Regular.ttf")
     yield Path("/usr/share/fonts/truetype/freefont/FreeSerif.ttf")
 
+    if windir:
+        yield Path(windir) / "Fonts" / "times.ttf"
     yield Path("/System/Library/Fonts/Supplemental/Arial.ttf")
     yield Path("/System/Library/Fonts/Supplemental/Times New Roman.ttf")
 
@@ -176,15 +181,16 @@ def _ar_block(
     y,
     *,
     align="right",
-    title_size=10.5,
-    sub_size=7.5,
+    title_size=11.5,
+    sub_size=7.2,
     color=None,
     line_scale=1.0,
 ):
+    """Render Arabic with the same point-size hierarchy and rhythm as Latin."""
     clean_lines = _clean_lines(lines)
     if not clean_lines or not base.arabic_font:
         return None
-    line_gap = 0.36 * cm * line_scale
+    line_gap = 0.34 * cm * line_scale
     last_y = y
     for idx, text in enumerate(clean_lines):
         prepared = base._prepare_arabic(text)
@@ -218,13 +224,14 @@ def draw_swiss(base, canvas, config, logo_path, p_color, s_color, a_color, p_wid
         _logo(base, canvas, config, logo_path, margin, top - logo_size + 0.08 * cm, logo_size)
         text_x = margin + 1.75 * cm
 
+    title_size, sub_size = 11.6 * fs, 7.1 * fs
     fr_bottom = _fr_block(
         base, canvas, fr_lines, text_x, top - 0.15 * cm,
-        title_size=11.6 * fs, sub_size=7.1 * fs, color=p_color, line_scale=line_scale,
+        title_size=title_size, sub_size=sub_size, color=p_color, line_scale=line_scale,
     )
     ar_bottom = _ar_block(
-        base, canvas, ar_lines, p_width - margin, top - 0.12 * cm,
-        title_size=10.4 * fs, sub_size=7.4 * fs, color=s_color, line_scale=line_scale,
+        base, canvas, ar_lines, p_width - margin, top - 0.15 * cm,
+        title_size=title_size, sub_size=sub_size, color=s_color, line_scale=line_scale,
     )
 
     line_y = _separator_y(p_height - 2.72 * cm, fr_bottom, ar_bottom)
@@ -245,13 +252,14 @@ def draw_royal(base, canvas, config, logo_path, p_color, s_color, a_color, p_wid
         _logo(base, canvas, config, logo_path, center - logo_size / 2, p_height - 1.45 * cm, logo_size)
 
     identity_y = p_height - 2.05 * cm
+    title_size, sub_size = 9.6 * fs, 6.8 * fs
     fr_bottom = _fr_block(
         base, canvas, fr_lines, margin, identity_y,
-        title_size=9.6 * fs, sub_size=6.8 * fs, color=p_color, line_scale=line_scale,
+        title_size=title_size, sub_size=sub_size, color=p_color, line_scale=line_scale,
     )
     ar_bottom = _ar_block(
         base, canvas, ar_lines, p_width - margin, identity_y,
-        title_size=9.5 * fs, sub_size=7.0 * fs, color=s_color, line_scale=line_scale,
+        title_size=title_size, sub_size=sub_size, color=s_color, line_scale=line_scale,
     )
 
     line_y = _separator_y(p_height - 2.78 * cm, fr_bottom, ar_bottom)
@@ -274,13 +282,14 @@ def draw_clinical(base, canvas, config, logo_path, p_color, s_color, a_color, p_
         text_x = margin + 1.62 * cm
 
     divider_x = p_width * 0.56
+    title_size, sub_size = 10.8 * fs, 7.0 * fs
     fr_bottom = _fr_block(
         base, canvas, fr_lines, text_x, top - 0.12 * cm,
-        title_size=10.8 * fs, sub_size=7.0 * fs, color=p_color, line_scale=line_scale,
+        title_size=title_size, sub_size=sub_size, color=p_color, line_scale=line_scale,
     )
     ar_bottom = _ar_block(
         base, canvas, ar_lines, p_width - margin, top - 0.12 * cm,
-        title_size=10.0 * fs, sub_size=7.2 * fs, color=s_color, line_scale=line_scale,
+        title_size=title_size, sub_size=sub_size, color=s_color, line_scale=line_scale,
     )
 
     bottom = _separator_y(p_height - 2.76 * cm, fr_bottom, ar_bottom)
@@ -304,13 +313,14 @@ def draw_modern(base, canvas, config, logo_path, p_color, s_color, a_color, p_wi
         _logo(base, canvas, config, logo_path, content_x, top - logo_size + 0.04 * cm, logo_size)
         content_x += 1.38 * cm
 
+    title_size, sub_size = 11.2 * fs, 7.0 * fs
     fr_bottom = _fr_block(
         base, canvas, fr_lines, content_x, top - 0.12 * cm,
-        title_size=11.2 * fs, sub_size=7.0 * fs, color=p_color, line_scale=line_scale,
+        title_size=title_size, sub_size=sub_size, color=p_color, line_scale=line_scale,
     )
     ar_bottom = _ar_block(
         base, canvas, ar_lines, p_width - margin, top - 0.12 * cm,
-        title_size=10.1 * fs, sub_size=7.2 * fs, color=s_color, line_scale=line_scale,
+        title_size=title_size, sub_size=sub_size, color=s_color, line_scale=line_scale,
     )
     bottom = _separator_y(p_height - 2.78 * cm, fr_bottom, ar_bottom)
 
@@ -336,28 +346,30 @@ def draw_heritage(base, canvas, config, logo_path, p_color, s_color, a_color, p_
 
     if dense:
         identity_y = p_height - 1.76 * cm
+        title_size, sub_size = 9.4 * fs, 6.35 * fs
         fr_bottom = _fr_block(
             base, canvas, clean_fr, margin, identity_y, align="left",
-            title_size=9.4 * fs, sub_size=6.35 * fs,
+            title_size=title_size, sub_size=sub_size,
             font="Times-Roman", bold="Times-Bold", color=p_color, line_scale=line_scale * 0.76,
         )
         ar_bottom = _ar_block(
             base, canvas, clean_ar, p_width - margin, identity_y, align="right",
-            title_size=8.8 * fs, sub_size=6.15 * fs, color=s_color, line_scale=line_scale * 0.76,
+            title_size=title_size, sub_size=sub_size, color=s_color, line_scale=line_scale * 0.76,
         )
         line_y = _separator_y(p_height - 3.22 * cm, fr_bottom, ar_bottom, gap=0.34 * cm)
     else:
         fr_y = p_height - 1.76 * cm
+        title_size, sub_size = 10.6 * fs, 6.7 * fs
         fr_bottom = _fr_block(
             base, canvas, clean_fr, center, fr_y, align="center",
-            title_size=10.6 * fs, sub_size=6.7 * fs,
+            title_size=title_size, sub_size=sub_size,
             font="Times-Roman", bold="Times-Bold", color=p_color, line_scale=line_scale * 0.82,
         )
         default_ar_y = p_height - 2.64 * cm
         ar_y = min(default_ar_y, (fr_bottom - 0.42 * cm) if fr_bottom is not None else default_ar_y)
         ar_bottom = _ar_block(
             base, canvas, clean_ar, center, ar_y, align="center",
-            title_size=8.2 * fs, sub_size=6.4 * fs, color=s_color, line_scale=line_scale * 0.82,
+            title_size=title_size, sub_size=sub_size, color=s_color, line_scale=line_scale * 0.82,
         )
         line_y = _separator_y(p_height - 3.22 * cm, fr_bottom, ar_bottom, gap=0.4 * cm)
 

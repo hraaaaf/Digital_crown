@@ -5,7 +5,14 @@ from reportlab.lib.pagesizes import A5
 from reportlab.lib.units import cm
 
 from backend.schemas.cabinet import CabinetConfigUpdate
-from backend.services.premium_document_headers import _fr_block, draw_heritage, draw_swiss
+from backend.services.premium_document_headers import (
+    _fr_block,
+    draw_clinical,
+    draw_heritage,
+    draw_modern,
+    draw_royal,
+    draw_swiss,
+)
 
 
 class _Base:
@@ -18,11 +25,20 @@ class _Base:
         return config.get(key, default)
 
 
+class _ArabicBase(_Base):
+    arabic_font = "Helvetica"
+
+    @staticmethod
+    def _prepare_arabic(text):
+        return text
+
+
 class _Canvas:
     def __init__(self):
         self.text = []
         self.lines = []
         self.alignments = []
+        self.font_sizes = []
 
     def saveState(self):
         pass
@@ -33,8 +49,8 @@ class _Canvas:
     def setFillColor(self, _color):
         pass
 
-    def setFont(self, _font, _size):
-        pass
+    def setFont(self, _font, size):
+        self.font_sizes.append(size)
 
     def setStrokeColor(self, _color):
         pass
@@ -140,6 +156,34 @@ def test_dense_heritage_switches_to_compact_left_column():
     assert len(canvas.lines) == 2
     last_text_y = canvas.text[-1][1]
     assert canvas.lines[0][1] < last_text_y
+
+
+@pytest.mark.parametrize(
+    "drawer",
+    [draw_swiss, draw_royal, draw_clinical, draw_modern, draw_heritage],
+)
+def test_bilingual_templates_use_same_fr_ar_point_size_hierarchy(drawer):
+    canvas = _Canvas()
+    configured = _max_current_header_lines()
+    width, height = A5
+
+    drawer(
+        _ArabicBase(),
+        canvas,
+        {},
+        None,
+        colors.black,
+        colors.grey,
+        colors.blue,
+        width,
+        height,
+        configured,
+        configured,
+        1.0,
+    )
+
+    count = len(configured)
+    assert canvas.font_sizes[:count] == canvas.font_sizes[count:count * 2]
 
 
 def test_cabinet_config_accepts_full_current_specialty_header():
