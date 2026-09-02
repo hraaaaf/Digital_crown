@@ -1,0 +1,43 @@
+name: Document Models Vector A5 Audit
+
+on:
+  push:
+    branches:
+      - fix/document-header-all-specialties
+    paths:
+      - "scripts/audit_document_models.py"
+      - "backend/services/premium_document_headers.py"
+      - "backend/services/base_template.py"
+      - "backend/services/base_template_core.py"
+      - "backend/services/generators/accounting_gen.py"
+      - ".github/workflows/document-models-vector-audit.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    env:
+      SECRET_KEY: audit-only-secret-key-minimum-32-characters-long
+      DATABASE_URL: "sqlite:///:memory:"
+      ENVIRONMENT: development
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install vector audit dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install reportlab arabic-reshaper python-bidi svglib pillow qrcode pymupdf sqlalchemy pydantic pydantic-settings python-jose passlib bcrypt
+      - name: Generate five real A5 documents
+        run: python scripts/audit_document_models.py
+      - name: Upload exact renderer evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: document-models-vector-a5-audit
+          path: document-models-audit/
+          if-no-files-found: error
+          retention-days: 14
