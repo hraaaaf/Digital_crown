@@ -44,12 +44,10 @@ if SQLALCHEMY_DATABASE_URL.startswith("sqlite"):
             is_plaintext = False
             conn_test = None
             try:
-                # Test d'ouverture en standard (sans clé)
                 conn_test = sqlite3.connect(db_file_path)
                 conn_test.execute("SELECT name FROM sqlite_master WHERE type='table'")
                 is_plaintext = True
             except sqlite3.DatabaseError:
-                # La base est chiffrée ou corrompue
                 is_plaintext = False
             except Exception:
                 is_plaintext = False
@@ -60,7 +58,6 @@ if SQLALCHEMY_DATABASE_URL.startswith("sqlite"):
                     except Exception as e:
                         logger.debug(f"Could not close test connection: {e}")
 
-            # Si elle est lisible en clair, on effectue la migration vers SQLCipher
             if is_plaintext:
                 logger.warning(f"⚠️ Détection d'une base locale non chiffrée : {db_file_path}")
                 logger.warning("🚀 Lancement de la migration transparente à chaud vers SQLCipher AES-256...")
@@ -71,26 +68,19 @@ if SQLALCHEMY_DATABASE_URL.startswith("sqlite"):
                         os.remove(temp_unencrypted)
                     os.rename(db_file_path, temp_unencrypted)
 
-                    # Créer la base chiffrée avec SQLCipher
                     from sqlcipher3 import dbapi2 as sqlcipher
                     enc_conn = sqlcipher.connect(db_file_path)
-                    # Escape single quotes to prevent SQL injection in PRAGMA statements
                     safe_passphrase = passphrase.replace("'", "''")
                     safe_temp_path = temp_unencrypted.replace("'", "''")
                     enc_conn.execute(f"PRAGMA key = '{safe_passphrase}'")
-
-                    # Attacher et copier
                     enc_conn.execute(f"ATTACH DATABASE '{safe_temp_path}' AS plaintext KEY ''")
                     enc_conn.execute("SELECT sqlcipher_export('main', 'plaintext')")
                     enc_conn.execute("DETACH DATABASE plaintext")
                     enc_conn.close()
-
-                    # Supprimer le fichier en clair temporaire
                     os.remove(temp_unencrypted)
                     logger.info("✅ Migration transparente vers SQLCipher terminée avec succès.")
                 except Exception as e:
                     logger.error(f"❌ Échec de la migration transparente vers SQLCipher : {e}")
-                    # En cas d'erreur fatale, restaurer le fichier d'origine
                     if os.path.exists(temp_unencrypted) and not os.path.exists(db_file_path):
                         os.rename(temp_unencrypted, db_file_path)
                     if SQLCIPHER_REQUIRED:
@@ -99,12 +89,10 @@ if SQLALCHEMY_DATABASE_URL.startswith("sqlite"):
                             "Démarrage refusé pour éviter l'ouverture d'une base non chiffrée."
                         ) from e
 
-    # Injecter sqlcipher3 dans sys.modules pour que SQLAlchemy l'utilise comme pysqlcipher3
     try:
         import sqlcipher3
         sys.modules["pysqlcipher3"] = sqlcipher3
 
-        # Mettre à jour la chaîne de connexion SQLAlchemy pour utiliser sqlite+pysqlcipher
         if ":memory:" in SQLALCHEMY_DATABASE_URL:
             SQLALCHEMY_DATABASE_URL = f"sqlite+pysqlcipher://:{passphrase}@/:memory:"
         else:
@@ -121,11 +109,10 @@ if SQLALCHEMY_DATABASE_URL.startswith("sqlite"):
             ) from e
 
 # --- INITIALISATION DU MOTEUR ---
-# Si SQLite, on utilise le dialecte pysqlcipher sécurisé
 if "pysqlcipher" in SQLALCHEMY_DATABASE_URL or SQLALCHEMY_DATABASE_URL.startswith("sqlite"):
     engine = create_engine(
         SQLALCHEMY_DATABASE_URL,
-        connect_args={"check_same_thread": False}  # Requis pour FastAPI
+        connect_args={"check_same_thread": False}
     )
 
     from sqlalchemy import event
@@ -179,8 +166,7 @@ def migrate_appointment_columns():
 
 
 def migrate_actes_columns():
-    """Ajoute les colonnes additives de la table actes si absentes (ALTER TABLE,
-    SQLite ou PostgreSQL)."""
+    """Ajoute les colonnes additives de la table actes si absentes (ALTER TABLE, SQLite ou PostgreSQL)."""
     from sqlalchemy import text
     datetime_type = "TIMESTAMP" if engine.dialect.name == "postgresql" else "DATETIME"
     try:
@@ -253,6 +239,7 @@ def migrate_cabinet_config_columns():
         ("header_logo_offset_y", "FLOAT"),
         ("qr_code_offset_x", "FLOAT"),
         ("qr_code_offset_y", "FLOAT"),
+        ("content_offset_y", "FLOAT DEFAULT 0.0"),
         ("custom_specialty_fr", "VARCHAR(255)"),
         ("custom_specialty_ar", "VARCHAR(255)"),
         ("header_customized", "BOOLEAN DEFAULT FALSE"),
@@ -270,9 +257,6 @@ def migrate_cabinet_config_columns():
     except Exception as e:
         logger.warning(f"Migration warning (cabinet_configs): {e}")
 
-    # P4E: existing installations must receive the canonical practitioner/organization
-    # identity columns on the same startup migration path already called by main.lifespan.
-    # The helper is idempotent and deliberately performs no legacy value backfill.
     from backend.models_identity_p4 import migrate_identity_columns
     migrate_identity_columns(engine)
 
