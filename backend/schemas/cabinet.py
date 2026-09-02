@@ -126,6 +126,7 @@ class CabinetConfigBase(BaseModel):
     selected_template: str = Field(default="swiss", max_length=20)
     margin_top: float = Field(default=3.6, ge=0.0, le=15.0)
     margin_bottom: float = Field(default=3.2, ge=0.0, le=15.0)
+    content_offset_y: float = Field(default=0.0, ge=-0.8, le=1.5)
     header_scale: float = Field(default=1.0, ge=0.5, le=2.0)
     header_font_scale: float = Field(default=1.0, ge=0.5, le=2.0)
     header_logo_scale: float = Field(default=1.0, ge=0.5, le=2.0)
