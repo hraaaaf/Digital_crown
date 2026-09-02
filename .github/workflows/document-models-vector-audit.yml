@@ -32,10 +32,13 @@ jobs:
       - name: Install vector audit dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install reportlab arabic-reshaper python-bidi svglib pillow qrcode pymupdf sqlalchemy pydantic pydantic-settings python-jose passlib bcrypt
+          pip install reportlab arabic-reshaper python-bidi svglib pillow qrcode pymupdf sqlalchemy pydantic pydantic-settings python-jose passlib bcrypt pytest
+      - name: Verify retry safety regression
+        run: PYTHONPATH=. pytest -q backend/tests/test_base_template_retry_safety.py
       - name: Generate five real A5 documents
         run: PYTHONPATH=. python scripts/audit_document_models.py
       - name: Upload exact renderer evidence
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: document-models-vector-a5-audit
