@@ -10,6 +10,7 @@ on:
       - "backend/tests/test_document_content_position.py"
       - "backend/schemas/cabinet.py"
       - "backend/models.py"
+      - "backend/models_document_layout.py"
       - "backend/database.py"
       - "backend/services/premium_document_headers.py"
       - "backend/services/base_template.py"
@@ -44,7 +45,7 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install reportlab arabic-reshaper python-bidi svglib pillow qrcode pymupdf sqlalchemy pydantic pydantic-settings python-jose passlib bcrypt
-      - name: Verify retry and body-position safety
+      - name: Verify persistence, retry and body-position safety
         run: |
           PYTHONPATH=. python - <<'PY'
           from types import SimpleNamespace
@@ -52,7 +53,16 @@ jobs:
           from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
           from reportlab.lib.units import cm
           from reportlab.platypus import Paragraph
+          from backend.database import engine
+          from backend.models import CabinetConfig
+          from backend.schemas.cabinet import CabinetConfigUpdate
           from backend.services.base_template import BaseTemplate, PinnedCloture
+
+          assert "content_offset_y" in CabinetConfig.__table__.c
+          assert CabinetConfig.__mapper__.has_property("content_offset_y")
+          assert CabinetConfigUpdate(content_offset_y=-0.8).content_offset_y == -0.8
+          assert CabinetConfigUpdate(content_offset_y=1.5).content_offset_y == 1.5
+          assert engine is not None
 
           source = [Paragraph("Page one", getSampleStyleSheet()["Normal"])]
           disposable = BaseTemplate.scale_elements(source, 1.0)
