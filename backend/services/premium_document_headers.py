@@ -321,7 +321,7 @@ def draw_modern(base, canvas, config, logo_path, p_color, s_color, a_color, p_wi
 
 
 def draw_heritage(base, canvas, config, logo_path, p_color, s_color, a_color, p_width, p_height, fr_lines, ar_lines, h_scale):
-    """L'Héritage: centered stationery with dynamically stacked bilingual identity."""
+    """L'Héritage: classical stationery that stays compact with dense bilingual headers."""
     canvas.saveState()
     fs, ls, line_scale = _scale(base, config, h_scale)
     margin = 1.5 * cm
@@ -330,21 +330,37 @@ def draw_heritage(base, canvas, config, logo_path, p_color, s_color, a_color, p_
     if logo_path:
         _logo(base, canvas, config, logo_path, center - logo_size / 2, p_height - 1.38 * cm, logo_size)
 
-    fr_y = p_height - 1.76 * cm
-    fr_bottom = _fr_block(
-        base, canvas, fr_lines, center, fr_y, align="center",
-        title_size=10.6 * fs, sub_size=6.7 * fs,
-        font="Times-Roman", bold="Times-Bold", color=p_color, line_scale=line_scale * 0.82,
-    )
+    clean_fr = _clean_lines(fr_lines)
+    clean_ar = _clean_lines(ar_lines)
+    dense = max(len(clean_fr), len(clean_ar)) > 4
 
-    default_ar_y = p_height - 2.64 * cm
-    ar_y = min(default_ar_y, (fr_bottom - 0.42 * cm) if fr_bottom is not None else default_ar_y)
-    ar_bottom = _ar_block(
-        base, canvas, ar_lines, center, ar_y, align="center",
-        title_size=8.2 * fs, sub_size=6.4 * fs, color=s_color, line_scale=line_scale * 0.82,
-    )
+    if dense:
+        identity_y = p_height - 1.76 * cm
+        fr_bottom = _fr_block(
+            base, canvas, clean_fr, margin, identity_y, align="left",
+            title_size=9.4 * fs, sub_size=6.35 * fs,
+            font="Times-Roman", bold="Times-Bold", color=p_color, line_scale=line_scale * 0.76,
+        )
+        ar_bottom = _ar_block(
+            base, canvas, clean_ar, p_width - margin, identity_y, align="right",
+            title_size=8.8 * fs, sub_size=6.15 * fs, color=s_color, line_scale=line_scale * 0.76,
+        )
+        line_y = _separator_y(p_height - 3.22 * cm, fr_bottom, ar_bottom, gap=0.34 * cm)
+    else:
+        fr_y = p_height - 1.76 * cm
+        fr_bottom = _fr_block(
+            base, canvas, clean_fr, center, fr_y, align="center",
+            title_size=10.6 * fs, sub_size=6.7 * fs,
+            font="Times-Roman", bold="Times-Bold", color=p_color, line_scale=line_scale * 0.82,
+        )
+        default_ar_y = p_height - 2.64 * cm
+        ar_y = min(default_ar_y, (fr_bottom - 0.42 * cm) if fr_bottom is not None else default_ar_y)
+        ar_bottom = _ar_block(
+            base, canvas, clean_ar, center, ar_y, align="center",
+            title_size=8.2 * fs, sub_size=6.4 * fs, color=s_color, line_scale=line_scale * 0.82,
+        )
+        line_y = _separator_y(p_height - 3.22 * cm, fr_bottom, ar_bottom, gap=0.4 * cm)
 
-    line_y = _separator_y(p_height - 3.22 * cm, fr_bottom, ar_bottom, gap=0.4 * cm)
     canvas.setStrokeColor(s_color)
     canvas.setLineWidth(0.35)
     canvas.line(margin, line_y, p_width - margin, line_y)
