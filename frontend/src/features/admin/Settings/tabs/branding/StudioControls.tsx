@@ -1,5 +1,5 @@
 import React from 'react';
-import { UserCircle, Link, Instagram, MessageCircle, MapPin, Shield, CreditCard } from 'lucide-react';
+import { UserCircle, Link, Instagram, MessageCircle, MapPin, Shield, CreditCard, RotateCcw } from 'lucide-react';
 import { cn } from '../../../../../utils/cn';
 import { StudioControls as StudioControlsCore } from './StudioControlsCore';
 
@@ -70,6 +70,61 @@ const INPUT_COPY: Partial<Record<QrKind, { label: string; placeholder: string; h
     placeholder: '+212 6 00 00 00 00',
     help: 'Numéro destiné aux demandes de rendez-vous.',
   },
+};
+
+const DEFAULT_CONTENT_TOP_CM = 3.6;
+const CONTENT_TOP_MIN_CM = 2.8;
+const CONTENT_TOP_MAX_CM = 5.1;
+
+const ContentPositionControl: React.FC<StudioControlsProps> = ({ profile, updateProfile }) => {
+  const top = Number.isFinite(Number(profile.margin_top)) ? Number(profile.margin_top) : DEFAULT_CONTENT_TOP_CM;
+  const offsetMm = Math.round((top - DEFAULT_CONTENT_TOP_CM) * 10);
+  const positionLabel = offsetMm === 0 ? 'Neutre' : offsetMm < 0 ? `${Math.abs(offsetMm)} mm plus haut` : `${offsetMm} mm plus bas`;
+
+  return (
+    <div className="bg-[var(--card-bg)] border border-[var(--border-color)] rounded-2xl p-6 transition-shadow hover:shadow-[0_8px_24px_-16px_rgba(11,15,23,0.18)] hover:-translate-y-[2px]">
+      <div className="flex items-start justify-between gap-4 mb-5">
+        <div>
+          <h3 className="font-bold text-[11px] text-[var(--text-muted)] tracking-[0.12em] uppercase">
+            Position du contenu
+          </h3>
+          <p className="mt-1 text-[11px] leading-relaxed text-[var(--text-muted)]">
+            Déplace verticalement le titre, les informations patient et le tableau. L’en-tête et le pied de page restent fixes.
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={() => updateProfile({ margin_top: DEFAULT_CONTENT_TOP_CM })}
+          className="shrink-0 flex items-center gap-1.5 rounded-lg border border-[var(--border-color)] px-2.5 py-1.5 text-[11px] font-medium text-[var(--text-muted)] hover:border-[var(--text-muted)] hover:text-[var(--text-main)] transition-colors"
+          aria-label="Réinitialiser la position verticale du contenu"
+        >
+          <RotateCcw size={12} />
+          0
+        </button>
+      </div>
+
+      <div className="flex items-center justify-between mb-2 text-[11px] text-[var(--text-muted)]">
+        <span>Plus haut</span>
+        <span className="font-semibold text-[var(--text-main)]">{positionLabel}</span>
+        <span>Plus bas</span>
+      </div>
+      <input
+        aria-label="Position verticale du contenu"
+        type="range"
+        min={CONTENT_TOP_MIN_CM}
+        max={CONTENT_TOP_MAX_CM}
+        step="0.1"
+        value={top}
+        onChange={(event) => updateProfile({ margin_top: parseFloat(event.target.value) })}
+        className="w-full h-1.5 bg-[var(--border-color)] rounded-full appearance-none outline-none accent-[var(--text-main)]"
+      />
+      <div className="mt-2 flex justify-between text-[10px] text-[var(--text-muted)]">
+        <span>-8 mm</span>
+        <span>Le moteur bloque automatiquement toute remontée qui chevaucherait l’en-tête.</span>
+        <span>+15 mm</span>
+      </div>
+    </div>
+  );
 };
 
 const QrTruthControls: React.FC<StudioControlsProps> = ({ profile, updateProfile }) => {
@@ -159,6 +214,7 @@ const QrTruthControls: React.FC<StudioControlsProps> = ({ profile, updateProfile
 
 export const StudioControls: React.FC<StudioControlsProps> = (props) => (
   <div className="flex flex-col gap-5">
+    <ContentPositionControl {...props} />
     {/* Le dernier bloc du core est l’ancien contrôle QR. Il reste byte-for-byte
         pour préserver l’historique, mais n’est plus présenté à l’utilisateur. */}
     <div className="[&>div>div:last-child]:hidden">
