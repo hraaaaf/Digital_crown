@@ -55,14 +55,15 @@ class _Canvas:
 
 
 def _max_current_header_lines():
+    """Exact maximum produced by ProfileTab: 9 built-ins + 1 custom, paired by two."""
     return [
         "Dr. Achraf Benmoussa",
-        "Chirurgien-Dentiste",
-        "Orthodontie · Parodontologie",
-        "Endodontie · Implantologie",
-        "Pédodontie · Chirurgie orale",
-        "Dentisterie esthétique · Prothèse",
-        "Occlusodontie · Spécialité personnalisée",
+        "Chirurgien Dentiste",
+        "Soins - Endodontie",
+        "Parodontologie - Orthodontie",
+        "Prothèse - Chirurgie",
+        "Implantologie - Blanchiment",
+        "Esthétique - Spécialité personnalisée",
     ]
 
 
