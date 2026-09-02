@@ -17,6 +17,7 @@ from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
 
 logger = logging.getLogger(__name__)
+ARABIC_OPTICAL_SCALE = 1.11
 
 
 def _register_ttf(name: str, path: str | os.PathLike[str] | None) -> bool:
@@ -186,7 +187,7 @@ def _ar_block(
     color=None,
     line_scale=1.0,
 ):
-    """Render Arabic with the same point-size hierarchy and rhythm as Latin."""
+    """Render Arabic with optical compensation while preserving Latin rhythm."""
     clean_lines = _clean_lines(lines)
     if not clean_lines or not base.arabic_font:
         return None
@@ -195,7 +196,8 @@ def _ar_block(
     for idx, text in enumerate(clean_lines):
         prepared = base._prepare_arabic(text)
         canvas.setFillColor(color)
-        canvas.setFont(base.arabic_font, title_size if idx == 0 else sub_size)
+        nominal_size = title_size if idx == 0 else sub_size
+        canvas.setFont(base.arabic_font, nominal_size * ARABIC_OPTICAL_SCALE)
         yy = y - idx * line_gap
         last_y = yy
         if align == "center":
@@ -225,14 +227,8 @@ def draw_swiss(base, canvas, config, logo_path, p_color, s_color, a_color, p_wid
         text_x = margin + 1.75 * cm
 
     title_size, sub_size = 11.6 * fs, 7.1 * fs
-    fr_bottom = _fr_block(
-        base, canvas, fr_lines, text_x, top - 0.15 * cm,
-        title_size=title_size, sub_size=sub_size, color=p_color, line_scale=line_scale,
-    )
-    ar_bottom = _ar_block(
-        base, canvas, ar_lines, p_width - margin, top - 0.15 * cm,
-        title_size=title_size, sub_size=sub_size, color=s_color, line_scale=line_scale,
-    )
+    fr_bottom = _fr_block(base, canvas, fr_lines, text_x, top - 0.15 * cm, title_size=title_size, sub_size=sub_size, color=p_color, line_scale=line_scale)
+    ar_bottom = _ar_block(base, canvas, ar_lines, p_width - margin, top - 0.15 * cm, title_size=title_size, sub_size=sub_size, color=s_color, line_scale=line_scale)
 
     line_y = _separator_y(p_height - 2.72 * cm, fr_bottom, ar_bottom)
     canvas.setStrokeColor(a_color)
@@ -253,14 +249,8 @@ def draw_royal(base, canvas, config, logo_path, p_color, s_color, a_color, p_wid
 
     identity_y = p_height - 2.05 * cm
     title_size, sub_size = 9.6 * fs, 6.8 * fs
-    fr_bottom = _fr_block(
-        base, canvas, fr_lines, margin, identity_y,
-        title_size=title_size, sub_size=sub_size, color=p_color, line_scale=line_scale,
-    )
-    ar_bottom = _ar_block(
-        base, canvas, ar_lines, p_width - margin, identity_y,
-        title_size=title_size, sub_size=sub_size, color=s_color, line_scale=line_scale,
-    )
+    fr_bottom = _fr_block(base, canvas, fr_lines, margin, identity_y, title_size=title_size, sub_size=sub_size, color=p_color, line_scale=line_scale)
+    ar_bottom = _ar_block(base, canvas, ar_lines, p_width - margin, identity_y, title_size=title_size, sub_size=sub_size, color=s_color, line_scale=line_scale)
 
     line_y = _separator_y(p_height - 2.78 * cm, fr_bottom, ar_bottom)
     canvas.setStrokeColor(a_color)
@@ -283,14 +273,8 @@ def draw_clinical(base, canvas, config, logo_path, p_color, s_color, a_color, p_
 
     divider_x = p_width * 0.56
     title_size, sub_size = 10.8 * fs, 7.0 * fs
-    fr_bottom = _fr_block(
-        base, canvas, fr_lines, text_x, top - 0.12 * cm,
-        title_size=title_size, sub_size=sub_size, color=p_color, line_scale=line_scale,
-    )
-    ar_bottom = _ar_block(
-        base, canvas, ar_lines, p_width - margin, top - 0.12 * cm,
-        title_size=title_size, sub_size=sub_size, color=s_color, line_scale=line_scale,
-    )
+    fr_bottom = _fr_block(base, canvas, fr_lines, text_x, top - 0.12 * cm, title_size=title_size, sub_size=sub_size, color=p_color, line_scale=line_scale)
+    ar_bottom = _ar_block(base, canvas, ar_lines, p_width - margin, top - 0.12 * cm, title_size=title_size, sub_size=sub_size, color=s_color, line_scale=line_scale)
 
     bottom = _separator_y(p_height - 2.76 * cm, fr_bottom, ar_bottom)
     canvas.setStrokeColor(a_color)
@@ -314,14 +298,8 @@ def draw_modern(base, canvas, config, logo_path, p_color, s_color, a_color, p_wi
         content_x += 1.38 * cm
 
     title_size, sub_size = 11.2 * fs, 7.0 * fs
-    fr_bottom = _fr_block(
-        base, canvas, fr_lines, content_x, top - 0.12 * cm,
-        title_size=title_size, sub_size=sub_size, color=p_color, line_scale=line_scale,
-    )
-    ar_bottom = _ar_block(
-        base, canvas, ar_lines, p_width - margin, top - 0.12 * cm,
-        title_size=title_size, sub_size=sub_size, color=s_color, line_scale=line_scale,
-    )
+    fr_bottom = _fr_block(base, canvas, fr_lines, content_x, top - 0.12 * cm, title_size=title_size, sub_size=sub_size, color=p_color, line_scale=line_scale)
+    ar_bottom = _ar_block(base, canvas, ar_lines, p_width - margin, top - 0.12 * cm, title_size=title_size, sub_size=sub_size, color=s_color, line_scale=line_scale)
     bottom = _separator_y(p_height - 2.78 * cm, fr_bottom, ar_bottom)
 
     canvas.setStrokeColor(a_color)
@@ -347,30 +325,16 @@ def draw_heritage(base, canvas, config, logo_path, p_color, s_color, a_color, p_
     if dense:
         identity_y = p_height - 1.76 * cm
         title_size, sub_size = 9.4 * fs, 6.35 * fs
-        fr_bottom = _fr_block(
-            base, canvas, clean_fr, margin, identity_y, align="left",
-            title_size=title_size, sub_size=sub_size,
-            font="Times-Roman", bold="Times-Bold", color=p_color, line_scale=line_scale * 0.76,
-        )
-        ar_bottom = _ar_block(
-            base, canvas, clean_ar, p_width - margin, identity_y, align="right",
-            title_size=title_size, sub_size=sub_size, color=s_color, line_scale=line_scale * 0.76,
-        )
+        fr_bottom = _fr_block(base, canvas, clean_fr, margin, identity_y, align="left", title_size=title_size, sub_size=sub_size, font="Times-Roman", bold="Times-Bold", color=p_color, line_scale=line_scale * 0.76)
+        ar_bottom = _ar_block(base, canvas, clean_ar, p_width - margin, identity_y, align="right", title_size=title_size, sub_size=sub_size, color=s_color, line_scale=line_scale * 0.76)
         line_y = _separator_y(p_height - 3.22 * cm, fr_bottom, ar_bottom, gap=0.34 * cm)
     else:
         fr_y = p_height - 1.76 * cm
         title_size, sub_size = 10.6 * fs, 6.7 * fs
-        fr_bottom = _fr_block(
-            base, canvas, clean_fr, center, fr_y, align="center",
-            title_size=title_size, sub_size=sub_size,
-            font="Times-Roman", bold="Times-Bold", color=p_color, line_scale=line_scale * 0.82,
-        )
+        fr_bottom = _fr_block(base, canvas, clean_fr, center, fr_y, align="center", title_size=title_size, sub_size=sub_size, font="Times-Roman", bold="Times-Bold", color=p_color, line_scale=line_scale * 0.82)
         default_ar_y = p_height - 2.64 * cm
         ar_y = min(default_ar_y, (fr_bottom - 0.42 * cm) if fr_bottom is not None else default_ar_y)
-        ar_bottom = _ar_block(
-            base, canvas, clean_ar, center, ar_y, align="center",
-            title_size=title_size, sub_size=sub_size, color=s_color, line_scale=line_scale * 0.82,
-        )
+        ar_bottom = _ar_block(base, canvas, clean_ar, center, ar_y, align="center", title_size=title_size, sub_size=sub_size, color=s_color, line_scale=line_scale * 0.82)
         line_y = _separator_y(p_height - 3.22 * cm, fr_bottom, ar_bottom, gap=0.4 * cm)
 
     canvas.setStrokeColor(s_color)
