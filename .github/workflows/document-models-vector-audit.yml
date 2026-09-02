@@ -33,7 +33,7 @@ jobs:
           python -m pip install --upgrade pip
           pip install reportlab arabic-reshaper python-bidi svglib pillow qrcode pymupdf sqlalchemy pydantic pydantic-settings python-jose passlib bcrypt
       - name: Generate five real A5 documents
-        run: python scripts/audit_document_models.py
+        run: PYTHONPATH=. python scripts/audit_document_models.py
       - name: Upload exact renderer evidence
         uses: actions/upload-artifact@v4
         with:
