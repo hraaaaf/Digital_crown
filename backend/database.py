@@ -32,10 +32,8 @@ SQLCIPHER_REQUIRED = (
 
 # --- CONFIGURATION & ENCRYPTION SQLCIPHER POUR SQLITE ---
 if SQLALCHEMY_DATABASE_URL.startswith("sqlite"):
-    # Récupérer la clé principale Cabinet (ZKA) ou dériver depuis SECRET_KEY
     passphrase = os.getenv("CABINET_MASTER_KEY_HEX", os.getenv("SECRET_KEY", "default-dc-fallback-key"))
 
-    # Si base sur disque (pas de :memory:), vérifier et migrer la base existante si elle est en clair
     if ":memory:" not in SQLALCHEMY_DATABASE_URL:
         db_file_path = SQLALCHEMY_DATABASE_URL.replace("sqlite:///", "")
         db_file_path = os.path.abspath(db_file_path)
@@ -61,13 +59,11 @@ if SQLALCHEMY_DATABASE_URL.startswith("sqlite"):
             if is_plaintext:
                 logger.warning(f"⚠️ Détection d'une base locale non chiffrée : {db_file_path}")
                 logger.warning("🚀 Lancement de la migration transparente à chaud vers SQLCipher AES-256...")
-
                 temp_unencrypted = db_file_path + ".unencrypted.tmp"
                 try:
                     if os.path.exists(temp_unencrypted):
                         os.remove(temp_unencrypted)
                     os.rename(db_file_path, temp_unencrypted)
-
                     from sqlcipher3 import dbapi2 as sqlcipher
                     enc_conn = sqlcipher.connect(db_file_path)
                     safe_passphrase = passphrase.replace("'", "''")
@@ -92,7 +88,6 @@ if SQLALCHEMY_DATABASE_URL.startswith("sqlite"):
     try:
         import sqlcipher3
         sys.modules["pysqlcipher3"] = sqlcipher3
-
         if ":memory:" in SQLALCHEMY_DATABASE_URL:
             SQLALCHEMY_DATABASE_URL = f"sqlite+pysqlcipher://:{passphrase}@/:memory:"
         else:
@@ -132,6 +127,10 @@ else:
         pool_recycle=1800,
         pool_pre_ping=True,
     )
+
+# Additive layout fields are attached once before routers create/query CabinetConfig.
+from backend.models_document_layout import attach_document_layout_columns
+attach_document_layout_columns()
 
 SessionLocal = sessionmaker(
     autocommit=False,
