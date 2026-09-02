@@ -1,5 +1,6 @@
 from pathlib import Path
 
+from reportlab.lib.units import cm
 from reportlab.pdfbase import pdfmetrics
 
 from backend.services import premium_document_headers as premium
@@ -63,3 +64,13 @@ def test_five_premium_header_drawers_are_explicit():
     for name in ("swiss", "royal", "clinical", "modern", "heritage"):
         drawer = getattr(premium, f"draw_{name}")
         assert callable(drawer)
+
+
+def test_dense_header_separator_moves_below_deepest_identity_block():
+    default_y = 20 * cm
+    fr_bottom = 18.5 * cm
+    ar_bottom = 17.8 * cm
+
+    result = premium._separator_y(default_y, fr_bottom, ar_bottom, gap=0.34 * cm)
+
+    assert result == ar_bottom - 0.34 * cm
