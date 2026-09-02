@@ -38,14 +38,12 @@ class BaseTemplate(_BaseTemplateCore):
         return _BaseTemplateCore.scale_elements(list(elements), factor)
 
     def get_document_margins(self, config, p_width):
-        """Reserve the footprint of the active premium renderer, not the legacy 27/16 pt header.
+        """Reserve the real premium header footprint, then apply a body-only Y offset.
 
-        The premium five-template renderer uses compact baselines around 6-12 pt.
-        The core legacy estimator still assumes 27/16 pt FR and 29/18 pt AR,
-        which can reserve roughly twice the real header height and push A5 content
-        into a second page. Keep letterhead behavior untouched, but derive the
-        ordinary top margin from the same baselines and line gaps used by
-        premium_document_headers.py.
+        ``margin_top`` remains the structural/safety margin. ``content_offset_y`` is
+        the user-facing visual control in centimetres: negative moves title/patient/
+        table upward, positive moves them downward. Upward movement is clamped by
+        the calculated premium-header footprint so content can never cross it.
         """
         if self.has_active_letterhead(config):
             return _BaseTemplateCore.get_document_margins(self, config, p_width)
@@ -61,7 +59,6 @@ class BaseTemplate(_BaseTemplateCore):
         n_ar = max(len(ar_lines), 1)
         n_lines = max(n_fr, n_ar)
 
-        # Distances from the top edge to the first text baseline in the real drawers.
         baseline_cm = {
             "swiss": 1.20,
             "royal": 2.05,
@@ -86,17 +83,18 @@ class BaseTemplate(_BaseTemplateCore):
         else:
             first = baseline_cm.get(selected, 1.20)
             gap = 0.34 * line_scale
-            separator_gap = 0.36
-            separator = first + (n_lines - 1) * gap + separator_gap
+            separator = first + (n_lines - 1) * gap + 0.36
             required_top = (separator + safety_cm) * _core.cm
 
-        # margin_top is intentionally the persisted body-position setting. The
-        # renderer treats the calculated header footprint as a hard collision
-        # guard, so moving the control upward can never cross the header.
         configured_top = self._get_val(config, "margin_top")
         default_top = 2.8 if selected in {"swiss", "modern"} else 3.1
-        requested_top = float(configured_top if configured_top is not None else default_top) * _core.cm
-        m_top = max(requested_top, required_top)
+        structural_top = float(configured_top if configured_top is not None else default_top) * _core.cm
+        neutral_top = max(structural_top, required_top)
+
+        raw_offset = float(self._get_val(config, "content_offset_y", 0.0) or 0.0)
+        offset_cm = max(-0.8, min(1.5, raw_offset))
+        requested_body_top = neutral_top + offset_cm * _core.cm
+        m_top = max(required_top, requested_body_top)
 
         configured_bottom = self._get_val(config, "margin_bottom")
         user_bottom = float(configured_bottom if configured_bottom is not None else 2.5) * _core.cm
@@ -152,7 +150,7 @@ class BaseTemplate(_BaseTemplateCore):
                 phone = self._get_val(config, 'footer_phones') or self._get_val(user, 'telephone_mobile') or ""
             if "/" in phone:
                 phone = phone.split("/")[0].strip()
-            msg = "Bonjour Dr, je souhaite prendre rendez-vous. / السلام عليكم دكتور، أود حجز moعد."
+            msg = "Bonjour Dr, je souhaite prendre rendez-vous. / السلام عليكم دكتور، أود حجز موعد."
             qr_data = _core.QRService.generate_whatsapp_url(phone, msg)
         elif qr_type == 'LOCATION':
             address = self._get_val(config, 'footer_address') or self._get_val(user, 'adresse_complete', '')
