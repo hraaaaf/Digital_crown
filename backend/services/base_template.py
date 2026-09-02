@@ -4,6 +4,8 @@ making documentary QR destinations match the mounted FastAPI routes.
 
 import logging
 
+from reportlab.platypus import Paragraph
+
 from backend.services.base_template_core import *  # noqa: F401,F403
 from backend.services.base_template_core import BaseTemplate as _BaseTemplateCore
 from backend.services import base_template_core as _core
@@ -12,6 +14,19 @@ from backend.services.qr_document_routes import build_document_qr_url
 # Compatibility alias intentionally kept on the façade module: historical tests and
 # callers patch backend.services.base_template.ImageReader directly.
 ImageReader = _core.ImageReader
+
+
+class PinnedCloture(_core.PinnedCloture):
+    """Pinned closing sentence that also reserves its physical footer-adjacent space."""
+
+    def wrap(self, availWidth, availHeight):
+        paragraph = Paragraph(self.text, self.style)
+        _, paragraph_height = paragraph.wrap(11.8 * _core.cm, 10 * _core.cm)
+        # drawOn() in the historical implementation paints the sentence around
+        # 4.4 cm from the page bottom while the content frame stops at ~2.8 cm.
+        # Reserve that band so the accounting table can never run underneath it.
+        reserved = max(1.6 * _core.cm, paragraph_height + 0.2 * _core.cm)
+        return availWidth, reserved
 
 
 class BaseTemplate(_BaseTemplateCore):
@@ -75,10 +90,13 @@ class BaseTemplate(_BaseTemplateCore):
             separator = first + (n_lines - 1) * gap + separator_gap
             required_top = (separator + safety_cm) * _core.cm
 
+        # margin_top is intentionally the persisted body-position setting. The
+        # renderer treats the calculated header footprint as a hard collision
+        # guard, so moving the control upward can never cross the header.
         configured_top = self._get_val(config, "margin_top")
         default_top = 2.8 if selected in {"swiss", "modern"} else 3.1
-        user_top = float(configured_top if configured_top is not None else default_top) * _core.cm
-        m_top = max(user_top, required_top)
+        requested_top = float(configured_top if configured_top is not None else default_top) * _core.cm
+        m_top = max(requested_top, required_top)
 
         configured_bottom = self._get_val(config, "margin_bottom")
         user_bottom = float(configured_bottom if configured_bottom is not None else 2.5) * _core.cm
