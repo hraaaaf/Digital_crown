@@ -1,7 +1,10 @@
+import pytest
+from pydantic import ValidationError
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import A5
 from reportlab.lib.units import cm
 
+from backend.schemas.cabinet import CabinetConfigUpdate
 from backend.services.premium_document_headers import _fr_block, draw_swiss
 
 
@@ -51,17 +54,21 @@ class _Canvas:
         self.lines.append((x1, y1, x2, y2))
 
 
+def _max_current_header_lines():
+    return [
+        "Dr. Achraf Benmoussa",
+        "Chirurgien-Dentiste",
+        "Orthodontie · Parodontologie",
+        "Endodontie · Implantologie",
+        "Pédodontie · Chirurgie orale",
+        "Dentisterie esthétique · Prothèse",
+        "Occlusodontie · Spécialité personnalisée",
+    ]
+
+
 def test_fr_block_renders_every_configured_specialty():
     canvas = _Canvas()
-    configured = [
-        "Dr. Achraf Benmoussa",
-        "Chirurgie dentaire",
-        "Implantologie",
-        "Parodontologie",
-        "Endodontie",
-        "Orthodontie",
-        "Dentisterie esthétique",
-    ]
+    configured = _max_current_header_lines()
 
     _fr_block(
         _Base(),
@@ -77,15 +84,7 @@ def test_fr_block_renders_every_configured_specialty():
 
 def test_swiss_separator_moves_below_long_specialty_block():
     canvas = _Canvas()
-    configured = [
-        "Dr. Achraf Benmoussa",
-        "Chirurgie dentaire",
-        "Implantologie",
-        "Parodontologie",
-        "Endodontie",
-        "Orthodontie",
-        "Dentisterie esthétique",
-    ]
+    configured = _max_current_header_lines()
     width, height = A5
 
     draw_swiss(
@@ -109,3 +108,19 @@ def test_swiss_separator_moves_below_long_specialty_block():
     last_text_y = canvas.text[-1][1]
     assert separator_y < last_text_y
     assert separator_y < height - 2.72 * cm
+
+
+def test_cabinet_config_accepts_full_current_specialty_header():
+    lines = _max_current_header_lines()
+
+    payload = CabinetConfigUpdate(header_lines_fr=lines, header_lines_ar=lines)
+
+    assert payload.header_lines_fr == lines
+    assert payload.header_lines_ar == lines
+
+
+def test_cabinet_config_rejects_header_beyond_current_ui_contract():
+    lines = _max_current_header_lines() + ["Ligne surnuméraire"]
+
+    with pytest.raises(ValidationError):
+        CabinetConfigUpdate(header_lines_fr=lines)
