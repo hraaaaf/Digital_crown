@@ -38,12 +38,13 @@ class BaseTemplate(_BaseTemplateCore):
         return _BaseTemplateCore.scale_elements(list(elements), factor)
 
     def get_document_margins(self, config, p_width):
-        """Reserve the real premium header footprint, then apply a body-only Y offset.
+        """Reserve the premium header and expose a real body-only Y travel range.
 
-        ``margin_top`` remains the structural/safety margin. ``content_offset_y`` is
-        the user-facing visual control in centimetres: negative moves title/patient/
-        table upward, positive moves them downward. Upward movement is clamped by
-        the calculated premium-header footprint so content can never cross it.
+        ``margin_top`` remains structural. ``content_offset_y`` is the visual body
+        control in centimetres. The neutral position deliberately keeps 8 mm of
+        safe headroom above the body so the supported -8 mm value always produces
+        real upward movement without crossing the calculated premium-header guard.
+        Positive offsets move the title/patient/table down without moving the header.
         """
         if self.has_active_letterhead(config):
             return _BaseTemplateCore.get_document_margins(self, config, p_width)
@@ -89,10 +90,14 @@ class BaseTemplate(_BaseTemplateCore):
         configured_top = self._get_val(config, "margin_top")
         default_top = 2.8 if selected in {"swiss", "modern"} else 3.1
         structural_top = float(configured_top if configured_top is not None else default_top) * _core.cm
-        neutral_top = max(structural_top, required_top)
+
+        min_offset_cm = -0.8
+        max_offset_cm = 1.5
+        upward_travel = abs(min_offset_cm) * _core.cm
+        neutral_top = max(structural_top, required_top + upward_travel)
 
         raw_offset = float(self._get_val(config, "content_offset_y", 0.0) or 0.0)
-        offset_cm = max(-0.8, min(1.5, raw_offset))
+        offset_cm = max(min_offset_cm, min(max_offset_cm, raw_offset))
         requested_body_top = neutral_top + offset_cm * _core.cm
         m_top = max(required_top, requested_body_top)
 
