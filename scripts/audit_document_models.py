@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import datetime as dt
 import json
+import math
 import re
 import shutil
 from pathlib import Path
@@ -159,6 +160,7 @@ def _config(template: str, logo: str):
         cloture_note_template="Arrêtée la présente note d'honoraires à la somme de {total_words} TTC.",
         margin_top=3.6,
         margin_bottom=3.2,
+        content_offset_y=0.0,
     )
 
 
@@ -175,7 +177,6 @@ def _embedded_arabic_font(doc: fitz.Document, font_path: str) -> tuple[bool, lis
     resources = []
     for page in doc:
         for item in page.get_fonts(full=True):
-            # PyMuPDF tuple: xref, ext, type, basefont, name, encoding, referencer.
             resources.append(str(item[3] or ""))
     normalized = [_token(name.split("+")[-1]) for name in resources]
     found = any(expected and (expected in name or name in expected) for name in normalized)
@@ -209,16 +210,22 @@ def _span_metrics(doc: fitz.Document) -> dict:
 
 def _contact_sheet(images: list[tuple[str, Path]], output: Path) -> None:
     thumb_w, thumb_h, label_h, gap = 520, 735, 52, 20
-    sheet = Image.new("RGB", (2 * thumb_w + 3 * gap, 3 * (thumb_h + label_h) + 4 * gap), "white")
+    cols = 2
+    rows = max(1, math.ceil(len(images) / cols))
+    sheet = Image.new(
+        "RGB",
+        (cols * thumb_w + (cols + 1) * gap, rows * (thumb_h + label_h) + (rows + 1) * gap),
+        "white",
+    )
     draw = ImageDraw.Draw(sheet)
-    for index, (template, path) in enumerate(images):
+    for index, (label, path) in enumerate(images):
         image = ImageOps.contain(Image.open(path).convert("RGB"), (thumb_w, thumb_h))
         panel = Image.new("RGB", (thumb_w, thumb_h), "white")
         panel.paste(image, ((thumb_w - image.width) // 2, (thumb_h - image.height) // 2))
-        row, col = divmod(index, 2)
+        row, col = divmod(index, cols)
         x = gap + col * (thumb_w + gap)
         y = gap + row * (thumb_h + label_h + gap)
-        draw.text((x + 8, y + 16), LABELS[template], fill="black")
+        draw.text((x + 8, y + 16), label, fill="black")
         sheet.paste(panel, (x, y + label_h))
     sheet.save(output)
 
@@ -281,12 +288,21 @@ def main() -> None:
         assert abs(width - 419.5276) < 0.8, (template, width)
         assert abs(height - 595.2756) < 0.8, (template, height)
 
-        extracted = _normalize(" ".join(page.get_text() for page in doc))
+        page_texts = [_normalize(page.get_text()) for page in doc]
+        extracted = _normalize(" ".join(page_texts))
         assert "F-2026-0010" in extracted
         for act, *_ in ACTS:
             assert _normalize(act) in extracted, f"{template}: missing act {act!r}"
         assert "TOTAL GÉNÉRAL" in extracted
         assert "18100.00" in extracted
+
+        # A second page is acceptable only when real table content continues there.
+        # An otherwise empty page carrying just the repeated header/footer and closing
+        # sentence is a layout regression, not useful pagination.
+        if len(page_texts) > 1:
+            for page_no, page_text in enumerate(page_texts[1:], start=2):
+                acts_on_page = [act for act, *_ in ACTS if _normalize(act) in page_text]
+                assert acts_on_page, f"{template}: orphan page {page_no} without accounting rows"
 
         font_found, font_resources = _embedded_arabic_font(doc, arabic_font_path)
         assert font_found, (template, arabic_font_path, font_resources)
@@ -297,10 +313,10 @@ def main() -> None:
             png = PNG_DIR / f"{template}-p{page_no + 1}.png"
             pix.save(png)
             page_pngs.append(str(png))
+            rendered.append((f"{LABELS[template]} · page {page_no + 1}", png))
         metrics = _span_metrics(doc)
         doc.close()
 
-        rendered.append((template, Path(page_pngs[0])))
         manifest["templates"][template] = {
             "page_count": len(page_pngs),
             "page_size_points": [round(width, 3), round(height, 3)],
