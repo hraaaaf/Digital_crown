@@ -11,7 +11,6 @@ on:
       - "backend/schemas/cabinet.py"
       - "backend/models.py"
       - "backend/models_document_layout.py"
-      - "backend/database.py"
       - "backend/services/premium_document_headers.py"
       - "backend/services/base_template.py"
       - "backend/services/base_template_core.py"
@@ -41,28 +40,53 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - name: Install vector audit dependencies
+      - name: Install focused vector audit dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install reportlab arabic-reshaper python-bidi svglib pillow qrcode pymupdf sqlalchemy pydantic pydantic-settings email-validator python-jose passlib bcrypt
+          pip install reportlab==4.4.3 arabic-reshaper python-bidi pillow qrcode==7.4.2 pymupdf sqlalchemy==2.0.28
       - name: Verify persistence, retry and body-position safety
         run: |
           PYTHONPATH=. python - <<'PY'
+          import ast
+          from pathlib import Path
           from types import SimpleNamespace
           from reportlab.lib.pagesizes import A5
           from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
           from reportlab.lib.units import cm
           from reportlab.platypus import Paragraph
-          from backend.database import engine
           from backend.models import CabinetConfig
-          from backend.schemas.cabinet import CabinetConfigUpdate
           from backend.services.base_template import BaseTemplate, PinnedCloture
 
           assert "content_offset_y" in CabinetConfig.__table__.c
           assert CabinetConfig.__mapper__.has_property("content_offset_y")
-          assert CabinetConfigUpdate(content_offset_y=-0.8).content_offset_y == -0.8
-          assert CabinetConfigUpdate(content_offset_y=1.5).content_offset_y == 1.5
-          assert engine is not None
+
+          # Validate the persisted API schema contract without importing
+          # backend.schemas.__init__, which intentionally aggregates unrelated
+          # FastAPI schemas and would bloat this focused visual audit.
+          schema_tree = ast.parse(Path("backend/schemas/cabinet.py").read_text(encoding="utf-8"))
+          cabinet_base = next(
+              node for node in schema_tree.body
+              if isinstance(node, ast.ClassDef) and node.name == "CabinetConfigBase"
+          )
+          offset_field = next(
+              node for node in cabinet_base.body
+              if isinstance(node, ast.AnnAssign)
+              and isinstance(node.target, ast.Name)
+              and node.target.id == "content_offset_y"
+          )
+          assert isinstance(offset_field.value, ast.Call)
+          kwargs = {kw.arg: kw.value for kw in offset_field.value.keywords}
+
+          def numeric(node):
+              if isinstance(node, ast.Constant):
+                  return float(node.value)
+              if isinstance(node, ast.UnaryOp) and isinstance(node.op, ast.USub) and isinstance(node.operand, ast.Constant):
+                  return -float(node.operand.value)
+              raise AssertionError(ast.dump(node))
+
+          assert numeric(kwargs["default"]) == 0.0
+          assert numeric(kwargs["ge"]) == -0.8
+          assert numeric(kwargs["le"]) == 1.5
 
           source = [Paragraph("Page one", getSampleStyleSheet()["Normal"])]
           disposable = BaseTemplate.scale_elements(source, 1.0)
