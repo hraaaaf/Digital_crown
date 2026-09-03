@@ -4,7 +4,7 @@ making documentary QR destinations match the mounted FastAPI routes.
 
 import logging
 
-from reportlab.platypus import Paragraph
+from reportlab.platypus import Paragraph, Table
 
 from backend.services.base_template_core import *  # noqa: F401,F403
 from backend.services.base_template_core import BaseTemplate as _BaseTemplateCore
@@ -79,11 +79,21 @@ class BaseTemplate(_BaseTemplateCore):
 
     @staticmethod
     def scale_elements(elements, factor):
-        """Return a disposable story and mark only a final closure as footer-pinned."""
+        """Return a disposable story, pin the final closure, and avoid orphan totals."""
         source = list(elements)
         for element in source:
             if isinstance(element, PinnedCloture):
                 element._pin_to_footer = False
+            elif isinstance(element, Table) and getattr(element, "repeatRows", 0):
+                rows = getattr(element, "_cellvalues", None) or []
+                if len(rows) >= 3 and rows[-1]:
+                    summary = rows[-1][0]
+                    summary_text = getattr(summary, "text", str(summary))
+                    if "TOTAL GÉNÉRAL" in summary_text:
+                        # Never let ReportLab split immediately before the summary row.
+                        # If the total no longer fits, carry the preceding accounting row
+                        # with it so a continuation page always contains real table data.
+                        element._rowSplitRange = (1, -2)
         if source and isinstance(source[-1], PinnedCloture):
             source[-1]._pin_to_footer = True
         return _BaseTemplateCore.scale_elements(source, factor)
