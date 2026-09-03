@@ -17,16 +17,45 @@ ImageReader = _core.ImageReader
 
 
 class PinnedCloture(_core.PinnedCloture):
-    """Pinned closing sentence that also reserves its physical footer-adjacent space."""
+    """Keep the closing sentence on the current page when it physically fits.
+
+    The historical implementation painted at a fixed 4.4 cm from the page bottom.
+    Reserving that absolute band as normal flow height pushed an otherwise complete
+    A5 note onto a second page containing only the closing sentence.  This façade
+    instead consumes the *remaining* frame height and draws at its bottom.  The
+    preceding table therefore cannot overlap the sentence, short notes keep the
+    sentence visually pinned near the footer, and a page break still occurs when
+    the actual paragraph itself cannot fit.
+    """
 
     def wrap(self, availWidth, availHeight):
+        usable_width = min(availWidth, 11.8 * _core.cm)
         paragraph = Paragraph(self.text, self.style)
-        _, paragraph_height = paragraph.wrap(11.8 * _core.cm, 10 * _core.cm)
-        # drawOn() in the historical implementation paints the sentence around
-        # 4.4 cm from the page bottom while the content frame stops at ~2.8 cm.
-        # Reserve that band so the accounting table can never run underneath it.
-        reserved = max(1.6 * _core.cm, paragraph_height + 0.2 * _core.cm)
-        return availWidth, reserved
+        _, paragraph_height = paragraph.wrap(usable_width, max(availHeight, 10 * _core.cm))
+        self._cloture_paragraph = paragraph
+        self._cloture_width = usable_width
+        self._cloture_height = paragraph_height
+        self._cloture_bottom_padding = 0.15 * _core.cm
+        minimum_height = paragraph_height + self._cloture_bottom_padding
+
+        # If the sentence fits, consume every remaining point so drawOn receives
+        # the bottom of the frame and the sentence is naturally footer-adjacent.
+        # Otherwise report the real minimum height; ReportLab will move the
+        # unsplittable flowable to the next page instead of overlapping content.
+        if availHeight >= minimum_height:
+            return availWidth, availHeight
+        return availWidth, minimum_height
+
+    def drawOn(self, canvas, x, y, _debug=0, **kwargs):
+        if not self.text:
+            return
+        paragraph = getattr(self, "_cloture_paragraph", None)
+        if paragraph is None:
+            paragraph = Paragraph(self.text, self.style)
+            paragraph.wrap(11.8 * _core.cm, 10 * _core.cm)
+        canvas.saveState()
+        paragraph.drawOn(canvas, x, y + getattr(self, "_cloture_bottom_padding", 0.15 * _core.cm))
+        canvas.restoreState()
 
 
 class BaseTemplate(_BaseTemplateCore):
