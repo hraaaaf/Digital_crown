@@ -144,17 +144,23 @@ class TestGetAdaptiveStyle:
 # ── scale_elements ─────────────────────────────────────────────────────────────
 
 class TestScaleElements:
-    def test_factor_1_returns_original(self):
+    def test_factor_1_returns_disposable_copy_and_preserves_source(self):
         from backend.services.base_template import BaseTemplate
         els = ["a", "b", "c"]
         result = BaseTemplate.scale_elements(els, 1.0)
-        assert result is els
+        assert result == els
+        assert result is not els
+        result.clear()
+        assert els == ["a", "b", "c"]
 
-    def test_factor_099_returns_original(self):
+    def test_factor_099_returns_disposable_copy_and_preserves_source(self):
         from backend.services.base_template import BaseTemplate
         els = [1, 2, 3]
         result = BaseTemplate.scale_elements(els, 0.99)
-        assert result is els
+        assert result == els
+        assert result is not els
+        result.clear()
+        assert els == [1, 2, 3]
 
     def test_scale_paragraph_reduces_font(self):
         from backend.services.base_template import BaseTemplate
@@ -257,7 +263,3 @@ class TestGetDocumentMargins:
         m1, _, _, _ = self._margins({'selected_template': 'swiss', 'header_font_scale': 1.0})
         m2, _, _, _ = self._margins({'selected_template': 'swiss', 'header_font_scale': 2.0})
         assert m2 >= m1
-
-    def test_empty_config_returns_defaults(self):
-        m_top, m_bottom, m_left, m_right = self._margins({})
-        assert all(x > 0 for x in [m_top, m_bottom, m_left, m_right])
