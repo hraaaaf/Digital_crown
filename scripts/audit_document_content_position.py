@@ -11,6 +11,7 @@ from types import SimpleNamespace
 
 import fitz
 from PIL import Image, ImageDraw, ImageOps
+from reportlab.lib.units import cm
 
 from backend.services.generators.accounting_gen import AccountingGenerator
 from scripts.audit_document_models import ACTS, HEADER_AR, HEADER_FR, FakeDB, _config, _make_logo, _normalize
@@ -22,20 +23,21 @@ PDF_DIR.mkdir(parents=True, exist_ok=True)
 PNG_DIR.mkdir(parents=True, exist_ok=True)
 
 POSITIONS = [
-    ("higher", -0.8, "Plus haut (-8 mm demandé)"),
+    ("higher", -0.8, "Plus haut (-8 mm)"),
     ("neutral", 0.0, "Neutre (0)"),
     ("lower", 1.5, "Plus bas (+15 mm)"),
 ]
 
 
-def _title_y(doc: fitz.Document) -> float:
+def _line_y(doc: fitz.Document, needle: str) -> float:
+    expected = _normalize(needle).casefold()
     for page in doc:
         for block in page.get_text("dict").get("blocks", []):
             for line in block.get("lines", []):
                 text = _normalize("".join(span.get("text", "") for span in line.get("spans", [])))
-                if "NOTE D'HONORAIRES" in text:
+                if expected in text.casefold():
                     return round(float(line["bbox"][1]), 2)
-    raise AssertionError("title bbox not found")
+    raise AssertionError(f"bbox not found for {needle!r}")
 
 
 def _sheet(items: list[tuple[str, Path]], output: Path) -> None:
@@ -89,19 +91,38 @@ def main() -> None:
         target = PDF_DIR / f"swiss-{key}.pdf"
         shutil.copy2(generated, target)
         doc = fitz.open(target)
-        assert doc.page_count >= 1
-        title_y = _title_y(doc)
+        assert 1 <= doc.page_count <= 2
+
+        title_y = _line_y(doc, "NOTE D'HONORAIRES")
+        header_y = _line_y(doc, "Dr. Achraf Benmoussa")
+        full_text = _normalize("\n".join(page.get_text("text") for page in doc))
+        for act, *_ in ACTS:
+            assert _normalize(act) in full_text
+        assert "18100.00" in full_text
+
         pix = doc[0].get_pixmap(matrix=fitz.Matrix(2.2, 2.2), alpha=False)
         png = PNG_DIR / f"swiss-{key}.png"
         pix.save(png)
+        page_count = doc.page_count
         doc.close()
-        metrics[key] = {"content_offset_y_cm": offset_y, "title_y_points": title_y}
+
+        metrics[key] = {
+            "content_offset_y_cm": offset_y,
+            "title_y_points": title_y,
+            "header_y_points": header_y,
+            "page_count": page_count,
+        }
         rendered.append((f"{label} | titre y={title_y} pt", png))
 
     # PyMuPDF bbox y uses a top-left origin: larger y means lower on page.
-    assert metrics["higher"]["title_y_points"] <= metrics["neutral"]["title_y_points"]
-    assert metrics["neutral"]["title_y_points"] < metrics["lower"]["title_y_points"]
-    assert metrics["lower"]["title_y_points"] - metrics["neutral"]["title_y_points"] >= 20.0
+    up_delta = metrics["neutral"]["title_y_points"] - metrics["higher"]["title_y_points"]
+    down_delta = metrics["lower"]["title_y_points"] - metrics["neutral"]["title_y_points"]
+    assert abs(up_delta - 0.8 * cm) <= 1.0
+    assert abs(down_delta - 1.5 * cm) <= 1.0
+
+    # Header must not move when only the body offset changes.
+    header_positions = [metrics[key]["header_y_points"] for key, *_ in POSITIONS]
+    assert max(header_positions) - min(header_positions) <= 0.1
 
     _sheet(rendered, ROOT / "position-comparison.png")
     (ROOT / "manifest.json").write_text(json.dumps(metrics, indent=2), encoding="utf-8")
