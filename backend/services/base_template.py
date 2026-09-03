@@ -9,6 +9,7 @@ from reportlab.platypus import Paragraph, Table
 from backend.services.base_template_core import *  # noqa: F401,F403
 from backend.services.base_template_core import BaseTemplate as _BaseTemplateCore
 from backend.services import base_template_core as _core
+from backend.services.document_header_profile import resolve_header_lines
 from backend.services.qr_document_routes import build_document_qr_url
 
 # Compatibility alias intentionally kept on the façade module: historical tests and
@@ -76,6 +77,19 @@ class PinnedCloture(_core.PinnedCloture):
 
 class BaseTemplate(_BaseTemplateCore):
     """Base template with truthful document QR destinations."""
+
+    def _get_val(self, obj, key, default=None):
+        """Resolve automatic header lines from canonical specialty selections.
+
+        Older cabinet rows can contain current ``specialty_ids`` alongside stale
+        materialized ``header_lines_*``.  Resolve those two header fields at read
+        time so every document path and the margin safety calculation see the same
+        effective lines.  Explicitly customized headers remain untouched.
+        """
+        stored = _BaseTemplateCore._get_val(self, obj, key, default)
+        if key in {"header_lines_fr", "header_lines_ar"}:
+            return resolve_header_lines(obj, key, stored)
+        return stored
 
     @staticmethod
     def scale_elements(elements, factor):
