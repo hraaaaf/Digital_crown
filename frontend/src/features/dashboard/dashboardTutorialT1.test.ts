@@ -3,7 +3,9 @@ import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 const dashboardPath = path.resolve(__dirname, '../../pages/Dashboard.tsx');
+const sidebarPath = path.resolve(__dirname, '../../components/Sidebar.tsx');
 const dayOneTourPath = path.resolve(__dirname, '../../components/DayOneTour.tsx');
+const guideTowerPath = path.resolve(__dirname, '../../components/GuidedTour/GuideTower.tsx');
 const retiredGuidedTourFiles = [
   path.resolve(__dirname, '../../components/GuidedTour/GuidedTour.tsx'),
   path.resolve(__dirname, '../../components/GuidedTour/TourLauncher.tsx'),
@@ -12,6 +14,7 @@ const retiredGuidedTourFiles = [
 const sourceRoot = path.resolve(__dirname, '../..');
 const thisTestPath = path.resolve(__dirname, 'dashboardTutorialT1.test.ts');
 const dashboardSource = fs.readFileSync(dashboardPath, 'utf8');
+const sidebarSource = fs.readFileSync(sidebarPath, 'utf8');
 
 const collectSourceFiles = (dir: string): string[] => fs.readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
   const entryPath = path.join(dir, entry.name);
@@ -23,6 +26,13 @@ const retiredAutoTourMarkers = [
   'Tour' + 'Launcher',
   'digitalcrown_' + 'tour_completed',
   'TOUR_' + 'STORAGE_KEY',
+];
+
+const retiredAutomaticTipMarkers = [
+  'setTimeout(' + 'triggerTip',
+  'setInterval(' + 'triggerTip',
+  '<Clinical' + 'TipBubble',
+  'animate-tooth-' + 'slingshot',
 ];
 
 describe('Dashboard tutorial cleanup', () => {
@@ -43,6 +53,13 @@ describe('Dashboard tutorial cleanup', () => {
       for (const marker of retiredAutoTourMarkers) {
         expect(source, `${marker} found in ${path.relative(sourceRoot, file)}`).not.toContain(marker);
       }
+    }
+  });
+
+  it('keeps contextual help voluntary instead of scheduling clinical-tip interruptions', () => {
+    expect(fs.existsSync(guideTowerPath)).toBe(false);
+    for (const marker of retiredAutomaticTipMarkers) {
+      expect(sidebarSource, `${marker} found in Sidebar.tsx`).not.toContain(marker);
     }
   });
 });
