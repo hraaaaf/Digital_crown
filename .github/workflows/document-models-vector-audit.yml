@@ -1,0 +1,161 @@
+name: Document Models Vector A5 Audit
+
+on:
+  push:
+    branches:
+      - fix/document-header-all-specialties
+    paths:
+      - "scripts/audit_document_models.py"
+      - "scripts/audit_document_content_position.py"
+      - "backend/tests/test_document_content_position.py"
+      - "backend/tests/test_services_unit23.py"
+      - "backend/schemas/cabinet.py"
+      - "backend/models.py"
+      - "backend/models_document_layout.py"
+      - "backend/services/premium_document_headers.py"
+      - "backend/services/base_template.py"
+      - "backend/services/base_template_core.py"
+      - "backend/services/generators/accounting_gen.py"
+      - "frontend/src/features/admin/Settings/tabs/branding/StudioControls.tsx"
+      - "frontend/src/features/admin/Settings/tabs/branding/StudioControls.contentPosition.test.tsx"
+      - ".github/workflows/document-models-vector-audit.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: document-models-vector-a5-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      SECRET_KEY: audit-only-secret-key-minimum-32-characters-long
+      DATABASE_URL: "sqlite:///:memory:"
+      ENVIRONMENT: development
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install focused vector audit dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install reportlab==4.4.3 arabic-reshaper python-bidi pillow qrcode==7.4.2 pymupdf sqlalchemy==2.0.28
+      - name: Verify persistence, retry and body-position safety
+        run: |
+          PYTHONPATH=. python - <<'PY'
+          import ast
+          from pathlib import Path
+          from types import SimpleNamespace
+          from reportlab.lib.pagesizes import A5
+          from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
+          from reportlab.lib.units import cm
+          from reportlab.platypus import Paragraph
+          from backend.models import CabinetConfig
+          from backend.models_document_layout import attach_document_layout_columns
+          from backend.services.base_template import BaseTemplate, PinnedCloture
+
+          # Reproduce the real startup contract from backend.database before
+          # asserting the dynamically attached additive layout column.
+          attach_document_layout_columns()
+          assert "content_offset_y" in CabinetConfig.__table__.c
+          assert CabinetConfig.__mapper__.has_property("content_offset_y")
+
+          # Validate the persisted API schema contract without importing
+          # backend.schemas.__init__, which intentionally aggregates unrelated
+          # FastAPI schemas and would bloat this focused visual audit.
+          schema_tree = ast.parse(Path("backend/schemas/cabinet.py").read_text(encoding="utf-8"))
+          cabinet_base = next(
+              node for node in schema_tree.body
+              if isinstance(node, ast.ClassDef) and node.name == "CabinetConfigBase"
+          )
+          offset_field = next(
+              node for node in cabinet_base.body
+              if isinstance(node, ast.AnnAssign)
+              and isinstance(node.target, ast.Name)
+              and node.target.id == "content_offset_y"
+          )
+          assert isinstance(offset_field.value, ast.Call)
+          kwargs = {kw.arg: kw.value for kw in offset_field.value.keywords}
+
+          def numeric(node):
+              if isinstance(node, ast.Constant):
+                  return float(node.value)
+              if isinstance(node, ast.UnaryOp) and isinstance(node.op, ast.USub) and isinstance(node.operand, ast.Constant):
+                  return -float(node.operand.value)
+              raise AssertionError(ast.dump(node))
+
+          assert numeric(kwargs["default"]) == 0.0
+          assert numeric(kwargs["ge"]) == -0.8
+          assert numeric(kwargs["le"]) == 1.5
+
+          source = [Paragraph("Page one", getSampleStyleSheet()["Normal"])]
+          disposable = BaseTemplate.scale_elements(source, 1.0)
+          assert disposable is not source
+          disposable.clear()
+          assert len(source) == 1
+
+          fr = ["Dr.", "Dentiste", "Soins", "Paro", "Prothèse", "Implant", "Esthétique"]
+          ar = ["د.", "طبيب", "علاج", "لثة", "تعويض", "زراعة", "تجميل"]
+          base = BaseTemplate()
+          for template in ["swiss", "royal", "clinical", "modern", "heritage"]:
+              def cfg(offset):
+                  return SimpleNamespace(
+                      selected_template=template, margin_top=3.6, margin_bottom=3.2,
+                      content_offset_y=offset,
+                      header_scale=1.0, header_font_scale=1.0, header_line_height=1.0,
+                      header_lines_fr=fr, header_lines_ar=ar,
+                      letterhead_path=None, use_letterhead=False,
+                  )
+              up, *_ = base.get_document_margins(cfg(-0.8), A5[0])
+              neutral, *_ = base.get_document_margins(cfg(0.0), A5[0])
+              down, *_ = base.get_document_margins(cfg(1.5), A5[0])
+              assert up <= neutral < down
+              assert neutral - up <= 0.8 * cm + 0.01
+              assert abs((down - neutral) - 1.5 * cm) <= 0.01
+              assert up >= 3.0 * cm
+
+          style = ParagraphStyle("cloture-audit", fontName="Helvetica", fontSize=9, leading=12)
+          text = "Arrêtée la présente note d'honoraires à la somme de DIX-HUIT MILLE CENT DIRHAMS TTC."
+
+          final = PinnedCloture(text, style)
+          BaseTemplate.scale_elements([final], 1.0)
+          assert final._pin_to_footer is True
+          final._frame = SimpleNamespace(_y=4.0 * cm)
+          available = 0.5 * cm
+          _, reserved = final.wrap(11.8 * cm, available)
+          assert reserved == 0
+          assert final._cloture_draw_y >= 2.65 * cm
+
+          tight_final = PinnedCloture(text, style)
+          BaseTemplate.scale_elements([tight_final], 1.0)
+          tight_final._frame = SimpleNamespace(_y=3.2 * cm)
+          tight = 0.2 * cm
+          _, required = tight_final.wrap(11.8 * cm, tight)
+          assert required > tight
+
+          non_final = PinnedCloture(text, style)
+          trailing = Paragraph("Signature", getSampleStyleSheet()["Normal"])
+          BaseTemplate.scale_elements([non_final, trailing], 1.0)
+          assert non_final._pin_to_footer is False
+          _, normal_height = non_final.wrap(11.8 * cm, 10 * cm)
+          assert normal_height > 0
+          PY
+      - name: Generate five real A5 documents
+        run: PYTHONPATH=. python scripts/audit_document_models.py
+      - name: Generate real vertical-position comparison
+        run: PYTHONPATH=. python scripts/audit_document_content_position.py
+      - name: Upload exact renderer evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: document-models-vector-a5-audit
+          path: |
+            document-models-audit/
+            document-content-position-audit/
+          if-no-files-found: error
+          retention-days: 14

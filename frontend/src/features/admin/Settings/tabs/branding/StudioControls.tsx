@@ -1,5 +1,5 @@
 import React from 'react';
-import { UserCircle, Link, Instagram, MessageCircle, MapPin, Shield, CreditCard } from 'lucide-react';
+import { UserCircle, Link, Instagram, MessageCircle, MapPin, Shield, CreditCard, RotateCcw } from 'lucide-react';
 import { cn } from '../../../../../utils/cn';
 import { StudioControls as StudioControlsCore } from './StudioControlsCore';
 
@@ -21,55 +21,71 @@ const QR_TYPES: Array<{ id: QrKind; label: string; icon: React.ReactNode }> = [
 ];
 
 const QR_HELP: Record<QrKind, { title: string; text: string; destination?: string }> = {
-  VCARD: {
-    title: 'Contact',
-    text: 'Le QR crée une carte de contact à partir du profil du cabinet.',
-  },
-  WEBSITE: {
-    title: 'Site Web',
-    text: 'Le QR ouvre l’adresse Web saisie ci-dessous.',
-  },
-  INSTAGRAM: {
-    title: 'Instagram',
-    text: 'Le QR ouvre le profil Instagram indiqué ci-dessous.',
-  },
-  WHATSAPP: {
-    title: 'WhatsApp',
-    text: 'Le QR ouvre une conversation WhatsApp avec le numéro indiqué.',
-  },
-  LOCATION: {
-    title: 'Maps',
-    text: 'Le QR ouvre Google Maps à partir de l’adresse du cabinet enregistrée dans le profil.',
-    destination: 'Source : adresse du cabinet',
-  },
-  VALIDATION: {
-    title: 'Vérification du document',
-    text: 'Le QR ouvre la page de vérification du document généré.',
-    destination: '/api/documents/verify/<document>',
-  },
-  PAYMENT: {
-    title: 'Suivi du paiement',
-    text: 'Le QR ouvre l’état de paiement du document. Aucun paiement n’est encaissé ici.',
-    destination: '/api/documents/track/<document>',
-  },
+  VCARD: { title: 'Contact', text: 'Le QR crée une carte de contact à partir du profil du cabinet.' },
+  WEBSITE: { title: 'Site Web', text: 'Le QR ouvre l’adresse Web saisie ci-dessous.' },
+  INSTAGRAM: { title: 'Instagram', text: 'Le QR ouvre le profil Instagram indiqué ci-dessous.' },
+  WHATSAPP: { title: 'WhatsApp', text: 'Le QR ouvre une conversation WhatsApp avec le numéro indiqué.' },
+  LOCATION: { title: 'Maps', text: 'Le QR ouvre Google Maps à partir de l’adresse du cabinet enregistrée dans le profil.', destination: 'Source : adresse du cabinet' },
+  VALIDATION: { title: 'Vérification du document', text: 'Le QR ouvre la page de vérification du document généré.', destination: '/api/documents/verify/<document>' },
+  PAYMENT: { title: 'Suivi du paiement', text: 'Le QR ouvre l’état de paiement du document. Aucun paiement n’est encaissé ici.', destination: '/api/documents/track/<document>' },
 };
 
 const INPUT_COPY: Partial<Record<QrKind, { label: string; placeholder: string; help: string }>> = {
-  WEBSITE: {
-    label: 'Adresse du site Web',
-    placeholder: 'https://cabinet.ma',
-    help: 'Adresse complète ou domaine du site.',
-  },
-  INSTAGRAM: {
-    label: 'Profil Instagram',
-    placeholder: '@cabinet ou https://instagram.com/cabinet',
-    help: 'Identifiant @cabinet ou URL complète.',
-  },
-  WHATSAPP: {
-    label: 'Numéro WhatsApp',
-    placeholder: '+212 6 00 00 00 00',
-    help: 'Numéro destiné aux demandes de rendez-vous.',
-  },
+  WEBSITE: { label: 'Adresse du site Web', placeholder: 'https://cabinet.ma', help: 'Adresse complète ou domaine du site.' },
+  INSTAGRAM: { label: 'Profil Instagram', placeholder: '@cabinet ou https://instagram.com/cabinet', help: 'Identifiant @cabinet ou URL complète.' },
+  WHATSAPP: { label: 'Numéro WhatsApp', placeholder: '+212 6 00 00 00 00', help: 'Numéro destiné aux demandes de rendez-vous.' },
+};
+
+const CONTENT_OFFSET_MIN_CM = -0.8;
+const CONTENT_OFFSET_MAX_CM = 1.5;
+
+const ContentPositionControl: React.FC<StudioControlsProps> = ({ profile, updateProfile }) => {
+  const offset = Number.isFinite(Number(profile.content_offset_y)) ? Number(profile.content_offset_y) : 0;
+  const offsetMm = Math.round(offset * 10);
+  const positionLabel = offsetMm === 0 ? 'Neutre' : offsetMm < 0 ? `${Math.abs(offsetMm)} mm plus haut` : `${offsetMm} mm plus bas`;
+
+  return (
+    <div className="bg-[var(--card-bg)] border border-[var(--border-color)] rounded-2xl p-6 transition-shadow hover:shadow-[0_8px_24px_-16px_rgba(11,15,23,0.18)] hover:-translate-y-[2px]">
+      <div className="flex items-start justify-between gap-4 mb-5">
+        <div>
+          <h3 className="font-bold text-[11px] text-[var(--text-muted)] tracking-[0.12em] uppercase">Position du contenu</h3>
+          <p className="mt-1 text-[11px] leading-relaxed text-[var(--text-muted)]">
+            Déplace le titre, les informations patient et le tableau. L’en-tête, sa marge de sécurité et le pied de page restent indépendants.
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={() => updateProfile({ content_offset_y: 0 })}
+          className="shrink-0 flex items-center gap-1.5 rounded-lg border border-[var(--border-color)] px-2.5 py-1.5 text-[11px] font-medium text-[var(--text-muted)] hover:border-[var(--text-muted)] hover:text-[var(--text-main)] transition-colors"
+          aria-label="Réinitialiser la position verticale du contenu"
+        >
+          <RotateCcw size={12} />
+          0
+        </button>
+      </div>
+
+      <div className="flex items-center justify-between mb-2 text-[11px] text-[var(--text-muted)]">
+        <span>Plus haut</span>
+        <span className="font-semibold text-[var(--text-main)]">{positionLabel}</span>
+        <span>Plus bas</span>
+      </div>
+      <input
+        aria-label="Position verticale du contenu"
+        type="range"
+        min={CONTENT_OFFSET_MIN_CM}
+        max={CONTENT_OFFSET_MAX_CM}
+        step="0.1"
+        value={offset}
+        onChange={(event) => updateProfile({ content_offset_y: parseFloat(event.target.value) })}
+        className="w-full h-1.5 bg-[var(--border-color)] rounded-full appearance-none outline-none accent-[var(--text-main)]"
+      />
+      <div className="mt-2 flex justify-between text-[10px] text-[var(--text-muted)]">
+        <span>-8 mm</span>
+        <span>La remontée est automatiquement arrêtée avant l’en-tête.</span>
+        <span>+15 mm</span>
+      </div>
+    </div>
+  );
 };
 
 const QrTruthControls: React.FC<StudioControlsProps> = ({ profile, updateProfile }) => {
@@ -121,9 +137,7 @@ const QrTruthControls: React.FC<StudioControlsProps> = ({ profile, updateProfile
           <div className="mt-5 rounded-xl border border-[var(--border-color)] bg-[var(--bg-medical-pearl)] px-4 py-3">
             <p className="text-[12px] font-bold text-[var(--text-main)]">{help.title}</p>
             <p className="mt-1 text-[11px] leading-relaxed text-[var(--text-muted)]">{help.text}</p>
-            {help.destination && (
-              <p className="mt-2 break-all font-mono text-[10px] text-[var(--text-muted)]">Destination : {help.destination}</p>
-            )}
+            {help.destination && <p className="mt-2 break-all font-mono text-[10px] text-[var(--text-muted)]">Destination : {help.destination}</p>}
           </div>
 
           {inputCopy && (
@@ -159,9 +173,10 @@ const QrTruthControls: React.FC<StudioControlsProps> = ({ profile, updateProfile
 
 export const StudioControls: React.FC<StudioControlsProps> = (props) => (
   <div className="flex flex-col gap-5">
-    {/* Le dernier bloc du core est l’ancien contrôle QR. Il reste byte-for-byte
-        pour préserver l’historique, mais n’est plus présenté à l’utilisateur. */}
-    <div className="[&>div>div:last-child]:hidden">
+    <ContentPositionControl {...props} />
+    {/* Le core conserve les contrôles historiques. L'ancienne marge supérieure
+        reste masquée ici : elle est une contrainte structurelle, pas la manette visuelle. */}
+    <div className="[&>div>div:last-child]:hidden [&>div>div:nth-child(4)>div:nth-of-type(2)>div:first-child]:hidden">
       <StudioControlsCore {...props} />
     </div>
     <QrTruthControls {...props} />

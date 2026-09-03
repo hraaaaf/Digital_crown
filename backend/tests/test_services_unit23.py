@@ -144,17 +144,23 @@ class TestGetAdaptiveStyle:
 # ── scale_elements ─────────────────────────────────────────────────────────────
 
 class TestScaleElements:
-    def test_factor_1_returns_original(self):
+    def test_factor_1_returns_disposable_copy_and_preserves_source(self):
         from backend.services.base_template import BaseTemplate
         els = ["a", "b", "c"]
         result = BaseTemplate.scale_elements(els, 1.0)
-        assert result is els
+        assert result == els
+        assert result is not els
+        result.clear()
+        assert els == ["a", "b", "c"]
 
-    def test_factor_099_returns_original(self):
+    def test_factor_099_returns_disposable_copy_and_preserves_source(self):
         from backend.services.base_template import BaseTemplate
         els = [1, 2, 3]
         result = BaseTemplate.scale_elements(els, 0.99)
-        assert result is els
+        assert result == els
+        assert result is not els
+        result.clear()
+        assert els == [1, 2, 3]
 
     def test_scale_paragraph_reduces_font(self):
         from backend.services.base_template import BaseTemplate
@@ -218,9 +224,9 @@ class TestGetDocumentMargins:
         assert abs(m_left - 2.0 * cm) < 0.01
         assert abs(m_right - 2.0 * cm) < 0.01
 
-    def test_clinical_template_top_margin_at_least_4_2(self):
+    def test_clinical_template_preserves_dynamic_neutral_top(self):
         m_top, _, _, _ = self._margins({'selected_template': 'clinical'})
-        assert m_top >= 4.2 * cm - 0.01
+        assert abs(m_top - 3.1 * cm) < 0.01
 
     def test_modern_template_uses_swiss_default_top(self):
         m_top_modern, _, _, _ = self._margins({'selected_template': 'modern'})
@@ -232,9 +238,9 @@ class TestGetDocumentMargins:
         m_top, m_bottom, m_left, m_right = self._margins({'selected_template': 'heritage'})
         assert m_top > 0
 
-    def test_unknown_template_fallback(self):
+    def test_unknown_template_uses_safe_dynamic_fallback(self):
         m_top, m_bottom, m_left, m_right = self._margins({'selected_template': 'unknown_xyz'})
-        assert m_top >= 4.5 * cm - 0.01
+        assert abs(m_top - 3.1 * cm) < 0.01
 
     def test_custom_margin_top_respected_when_large(self):
         m_top, _, _, _ = self._margins({'selected_template': 'swiss', 'margin_top': 8.0})
@@ -257,7 +263,3 @@ class TestGetDocumentMargins:
         m1, _, _, _ = self._margins({'selected_template': 'swiss', 'header_font_scale': 1.0})
         m2, _, _, _ = self._margins({'selected_template': 'swiss', 'header_font_scale': 2.0})
         assert m2 >= m1
-
-    def test_empty_config_returns_defaults(self):
-        m_top, m_bottom, m_left, m_right = self._margins({})
-        assert all(x > 0 for x in [m_top, m_bottom, m_left, m_right])

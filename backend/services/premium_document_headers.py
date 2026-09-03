@@ -17,6 +17,7 @@ from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
 
 logger = logging.getLogger(__name__)
+ARABIC_OPTICAL_SCALE = 1.11
 
 
 def _register_ttf(name: str, path: str | os.PathLike[str] | None) -> bool:
@@ -39,28 +40,29 @@ def _register_ttf(name: str, path: str | os.PathLike[str] | None) -> bool:
 
 
 def _arabic_font_candidates(font_dir: Path) -> Iterable[Path]:
+    """Prefer sans-serif Arabic faces so FR/AR headers keep the same visual voice."""
     explicit = os.getenv("DIGITAL_CROWN_ARABIC_FONT")
     if explicit:
         yield Path(explicit)
 
-    # Optional bundled font if a future packaging step provides it.
-    yield font_dir / "Amiri-Regular.ttf"
+    yield font_dir / "NotoSansArabic-Regular.ttf"
+    yield Path("/usr/share/fonts/truetype/noto/NotoSansArabic-Regular.ttf")
+    yield Path("/usr/share/fonts/opentype/noto/NotoSansArabic-Regular.ttf")
+    yield Path("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf")
 
     windir = os.getenv("WINDIR") or os.getenv("SystemRoot")
     if windir:
         fonts = Path(windir) / "Fonts"
-        # Tahoma and Arial both include Arabic glyphs on standard Windows installs.
         yield fonts / "tahoma.ttf"
         yield fonts / "arial.ttf"
-        yield fonts / "times.ttf"
 
-    # Linux distributions / CI runners.
-    yield Path("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf")
+    yield font_dir / "Amiri-Regular.ttf"
     yield Path("/usr/share/fonts/truetype/noto/NotoNaskhArabic-Regular.ttf")
     yield Path("/usr/share/fonts/opentype/noto/NotoNaskhArabic-Regular.ttf")
     yield Path("/usr/share/fonts/truetype/freefont/FreeSerif.ttf")
 
-    # macOS common locations.
+    if windir:
+        yield Path(windir) / "Fonts" / "times.ttf"
     yield Path("/System/Library/Fonts/Supplemental/Arial.ttf")
     yield Path("/System/Library/Fonts/Supplemental/Times New Roman.ttf")
 
@@ -97,11 +99,7 @@ def register_document_fonts(base) -> None:
 
 
 def update_document_fonts(base, config) -> None:
-    """Map persisted font IDs to deterministic PDF fonts.
-
-    Legacy IDs are preserved for backward compatibility, but every mapping here
-    corresponds to a font that is actually available at runtime.
-    """
+    """Map persisted font IDs to deterministic PDF fonts."""
     font_fr = base._get_val(config, "font_fr", "inter")
 
     if font_fr == "outfit":
@@ -111,7 +109,7 @@ def update_document_fonts(base, config) -> None:
         regular, bold = "Times-Roman", "Times-Bold"
     elif font_fr == "mono":
         regular, bold = "Courier", "Courier-Bold"
-    else:  # `inter` legacy ID -> truthful clinical sans fallback.
+    else:
         regular, bold = "Helvetica", "Helvetica-Bold"
 
     base.premium_font = regular
@@ -127,45 +125,88 @@ def _scale(base, config, h_scale: float) -> tuple[float, float, float]:
     return font_scale, logo_scale, line_scale
 
 
-def _fr_block(base, canvas, lines, x, y, *, align="left", title_size=11.5, sub_size=7.2, font=None, bold=None, color=None, line_scale=1.0):
-    if not lines:
-        return
+def _clean_lines(lines) -> list[str]:
+    """Return every configured non-empty header line, preserving user order."""
+    return [str(raw).strip() for raw in (lines or []) if str(raw or "").strip()]
+
+
+def _separator_y(default_y: float, *block_bottoms: float | None, gap: float = 0.36 * cm) -> float:
+    """Keep separators below the deepest rendered block instead of clipping it."""
+    bottoms = [bottom for bottom in block_bottoms if bottom is not None]
+    if not bottoms:
+        return default_y
+    return min(default_y, min(bottoms) - gap)
+
+
+def _fr_block(
+    base,
+    canvas,
+    lines,
+    x,
+    y,
+    *,
+    align="left",
+    title_size=11.5,
+    sub_size=7.2,
+    font=None,
+    bold=None,
+    color=None,
+    line_scale=1.0,
+):
+    clean_lines = _clean_lines(lines)
+    if not clean_lines:
+        return None
     regular = font or base.header_font
     strong = bold or base.header_bold
     line_gap = 0.34 * cm * line_scale
-    for idx, raw in enumerate(lines[:3]):
-        text = str(raw or "").strip()
-        if not text:
-            continue
+    last_y = y
+    for idx, text in enumerate(clean_lines):
         canvas.setFillColor(color)
         canvas.setFont(strong if idx == 0 else regular, title_size if idx == 0 else sub_size)
         yy = y - idx * line_gap
+        last_y = yy
         if align == "center":
             canvas.drawCentredString(x, yy, text)
         elif align == "right":
             canvas.drawRightString(x, yy, text)
         else:
             canvas.drawString(x, yy, text)
+    return last_y
 
 
-def _ar_block(base, canvas, lines, x, y, *, align="right", title_size=10.5, sub_size=7.5, color=None, line_scale=1.0):
-    if not lines or not base.arabic_font:
-        return
-    line_gap = 0.36 * cm * line_scale
-    for idx, raw in enumerate(lines[:3]):
-        text = str(raw or "").strip()
-        if not text:
-            continue
+def _ar_block(
+    base,
+    canvas,
+    lines,
+    x,
+    y,
+    *,
+    align="right",
+    title_size=11.5,
+    sub_size=7.2,
+    color=None,
+    line_scale=1.0,
+):
+    """Render Arabic with optical compensation while preserving Latin rhythm."""
+    clean_lines = _clean_lines(lines)
+    if not clean_lines or not base.arabic_font:
+        return None
+    line_gap = 0.34 * cm * line_scale
+    last_y = y
+    for idx, text in enumerate(clean_lines):
         prepared = base._prepare_arabic(text)
         canvas.setFillColor(color)
-        canvas.setFont(base.arabic_font, title_size if idx == 0 else sub_size)
+        nominal_size = title_size if idx == 0 else sub_size
+        canvas.setFont(base.arabic_font, nominal_size * ARABIC_OPTICAL_SCALE)
         yy = y - idx * line_gap
+        last_y = yy
         if align == "center":
             canvas.drawCentredString(x, yy, prepared)
         elif align == "left":
             canvas.drawString(x, yy, prepared)
         else:
             canvas.drawRightString(x, yy, prepared)
+    return last_y
 
 
 def _logo(base, canvas, config, logo_path, x, y, size):
@@ -185,16 +226,11 @@ def draw_swiss(base, canvas, config, logo_path, p_color, s_color, a_color, p_wid
         _logo(base, canvas, config, logo_path, margin, top - logo_size + 0.08 * cm, logo_size)
         text_x = margin + 1.75 * cm
 
-    _fr_block(
-        base, canvas, fr_lines, text_x, top - 0.15 * cm,
-        title_size=11.6 * fs, sub_size=7.1 * fs, color=p_color, line_scale=line_scale,
-    )
-    _ar_block(
-        base, canvas, ar_lines, p_width - margin, top - 0.12 * cm,
-        title_size=10.4 * fs, sub_size=7.4 * fs, color=s_color, line_scale=line_scale,
-    )
+    title_size, sub_size = 11.6 * fs, 7.1 * fs
+    fr_bottom = _fr_block(base, canvas, fr_lines, text_x, top - 0.15 * cm, title_size=title_size, sub_size=sub_size, color=p_color, line_scale=line_scale)
+    ar_bottom = _ar_block(base, canvas, ar_lines, p_width - margin, top - 0.15 * cm, title_size=title_size, sub_size=sub_size, color=s_color, line_scale=line_scale)
 
-    line_y = p_height - 2.72 * cm
+    line_y = _separator_y(p_height - 2.72 * cm, fr_bottom, ar_bottom)
     canvas.setStrokeColor(a_color)
     canvas.setLineWidth(1.4)
     canvas.line(text_x, line_y, min(text_x + 3.55 * cm, p_width - margin), line_y)
@@ -212,16 +248,11 @@ def draw_royal(base, canvas, config, logo_path, p_color, s_color, a_color, p_wid
         _logo(base, canvas, config, logo_path, center - logo_size / 2, p_height - 1.45 * cm, logo_size)
 
     identity_y = p_height - 2.05 * cm
-    _fr_block(
-        base, canvas, fr_lines, margin, identity_y,
-        title_size=9.6 * fs, sub_size=6.8 * fs, color=p_color, line_scale=line_scale,
-    )
-    _ar_block(
-        base, canvas, ar_lines, p_width - margin, identity_y,
-        title_size=9.5 * fs, sub_size=7.0 * fs, color=s_color, line_scale=line_scale,
-    )
+    title_size, sub_size = 9.6 * fs, 6.8 * fs
+    fr_bottom = _fr_block(base, canvas, fr_lines, margin, identity_y, title_size=title_size, sub_size=sub_size, color=p_color, line_scale=line_scale)
+    ar_bottom = _ar_block(base, canvas, ar_lines, p_width - margin, identity_y, title_size=title_size, sub_size=sub_size, color=s_color, line_scale=line_scale)
 
-    line_y = p_height - 2.78 * cm
+    line_y = _separator_y(p_height - 2.78 * cm, fr_bottom, ar_bottom)
     canvas.setStrokeColor(a_color)
     canvas.setLineWidth(0.65)
     canvas.line(margin, line_y, p_width - margin, line_y)
@@ -241,16 +272,11 @@ def draw_clinical(base, canvas, config, logo_path, p_color, s_color, a_color, p_
         text_x = margin + 1.62 * cm
 
     divider_x = p_width * 0.56
-    _fr_block(
-        base, canvas, fr_lines, text_x, top - 0.12 * cm,
-        title_size=10.8 * fs, sub_size=7.0 * fs, color=p_color, line_scale=line_scale,
-    )
-    _ar_block(
-        base, canvas, ar_lines, p_width - margin, top - 0.12 * cm,
-        title_size=10.0 * fs, sub_size=7.2 * fs, color=s_color, line_scale=line_scale,
-    )
+    title_size, sub_size = 10.8 * fs, 7.0 * fs
+    fr_bottom = _fr_block(base, canvas, fr_lines, text_x, top - 0.12 * cm, title_size=title_size, sub_size=sub_size, color=p_color, line_scale=line_scale)
+    ar_bottom = _ar_block(base, canvas, ar_lines, p_width - margin, top - 0.12 * cm, title_size=title_size, sub_size=sub_size, color=s_color, line_scale=line_scale)
 
-    bottom = p_height - 2.76 * cm
+    bottom = _separator_y(p_height - 2.76 * cm, fr_bottom, ar_bottom)
     canvas.setStrokeColor(a_color)
     canvas.setLineWidth(0.55)
     canvas.line(divider_x, top + 0.1 * cm, divider_x, bottom)
@@ -264,11 +290,6 @@ def draw_modern(base, canvas, config, logo_path, p_color, s_color, a_color, p_wi
     fs, ls, line_scale = _scale(base, config, h_scale)
     margin = 1.5 * cm
     top = p_height - 1.02 * cm
-    bottom = p_height - 2.78 * cm
-
-    canvas.setStrokeColor(a_color)
-    canvas.setLineWidth(2.2)
-    canvas.line(margin, top + 0.08 * cm, margin, bottom)
 
     logo_size = 1.12 * cm * ls
     content_x = margin + 0.42 * cm
@@ -276,19 +297,19 @@ def draw_modern(base, canvas, config, logo_path, p_color, s_color, a_color, p_wi
         _logo(base, canvas, config, logo_path, content_x, top - logo_size + 0.04 * cm, logo_size)
         content_x += 1.38 * cm
 
-    _fr_block(
-        base, canvas, fr_lines, content_x, top - 0.12 * cm,
-        title_size=11.2 * fs, sub_size=7.0 * fs, color=p_color, line_scale=line_scale,
-    )
-    _ar_block(
-        base, canvas, ar_lines, p_width - margin, top - 0.12 * cm,
-        title_size=10.1 * fs, sub_size=7.2 * fs, color=s_color, line_scale=line_scale,
-    )
+    title_size, sub_size = 11.2 * fs, 7.0 * fs
+    fr_bottom = _fr_block(base, canvas, fr_lines, content_x, top - 0.12 * cm, title_size=title_size, sub_size=sub_size, color=p_color, line_scale=line_scale)
+    ar_bottom = _ar_block(base, canvas, ar_lines, p_width - margin, top - 0.12 * cm, title_size=title_size, sub_size=sub_size, color=s_color, line_scale=line_scale)
+    bottom = _separator_y(p_height - 2.78 * cm, fr_bottom, ar_bottom)
+
+    canvas.setStrokeColor(a_color)
+    canvas.setLineWidth(2.2)
+    canvas.line(margin, top + 0.08 * cm, margin, bottom)
     canvas.restoreState()
 
 
 def draw_heritage(base, canvas, config, logo_path, p_color, s_color, a_color, p_width, p_height, fr_lines, ar_lines, h_scale):
-    """L'Héritage: centered stationery, real serif identity, restrained double rule."""
+    """L'Héritage: classical stationery that stays compact with dense bilingual headers."""
     canvas.saveState()
     fs, ls, line_scale = _scale(base, config, h_scale)
     margin = 1.5 * cm
@@ -297,19 +318,25 @@ def draw_heritage(base, canvas, config, logo_path, p_color, s_color, a_color, p_
     if logo_path:
         _logo(base, canvas, config, logo_path, center - logo_size / 2, p_height - 1.38 * cm, logo_size)
 
-    # Compact but non-overlapping stacked identity: 3 FR lines, then 2 AR lines.
-    fr_y = p_height - 1.76 * cm
-    _fr_block(
-        base, canvas, fr_lines, center, fr_y, align="center",
-        title_size=10.6 * fs, sub_size=6.7 * fs,
-        font="Times-Roman", bold="Times-Bold", color=p_color, line_scale=line_scale * 0.82,
-    )
-    _ar_block(
-        base, canvas, ar_lines, center, p_height - 2.64 * cm, align="center",
-        title_size=8.2 * fs, sub_size=6.4 * fs, color=s_color, line_scale=line_scale * 0.82,
-    )
+    clean_fr = _clean_lines(fr_lines)
+    clean_ar = _clean_lines(ar_lines)
+    dense = max(len(clean_fr), len(clean_ar)) > 4
 
-    line_y = p_height - 3.22 * cm
+    if dense:
+        identity_y = p_height - 1.76 * cm
+        title_size, sub_size = 9.4 * fs, 6.35 * fs
+        fr_bottom = _fr_block(base, canvas, clean_fr, margin, identity_y, align="left", title_size=title_size, sub_size=sub_size, font="Times-Roman", bold="Times-Bold", color=p_color, line_scale=line_scale * 0.76)
+        ar_bottom = _ar_block(base, canvas, clean_ar, p_width - margin, identity_y, align="right", title_size=title_size, sub_size=sub_size, color=s_color, line_scale=line_scale * 0.76)
+        line_y = _separator_y(p_height - 3.22 * cm, fr_bottom, ar_bottom, gap=0.34 * cm)
+    else:
+        fr_y = p_height - 1.76 * cm
+        title_size, sub_size = 10.6 * fs, 6.7 * fs
+        fr_bottom = _fr_block(base, canvas, clean_fr, center, fr_y, align="center", title_size=title_size, sub_size=sub_size, font="Times-Roman", bold="Times-Bold", color=p_color, line_scale=line_scale * 0.82)
+        default_ar_y = p_height - 2.64 * cm
+        ar_y = min(default_ar_y, (fr_bottom - 0.42 * cm) if fr_bottom is not None else default_ar_y)
+        ar_bottom = _ar_block(base, canvas, clean_ar, center, ar_y, align="center", title_size=title_size, sub_size=sub_size, color=s_color, line_scale=line_scale * 0.82)
+        line_y = _separator_y(p_height - 3.22 * cm, fr_bottom, ar_bottom, gap=0.4 * cm)
+
     canvas.setStrokeColor(s_color)
     canvas.setLineWidth(0.35)
     canvas.line(margin, line_y, p_width - margin, line_y)
