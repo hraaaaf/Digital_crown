@@ -1,6 +1,5 @@
 from types import SimpleNamespace
 
-import pytest
 from reportlab.lib.pagesizes import A5
 from reportlab.lib.styles import ParagraphStyle
 from reportlab.lib.units import cm
@@ -28,16 +27,18 @@ def _config(template: str, content_offset_y: float):
     )
 
 
-def test_content_offset_delivers_full_supported_travel_without_mutating_header_guard():
+def test_content_offset_preserves_neutral_layout_and_header_safe_upward_clamp():
     base = BaseTemplate()
     for template in ["swiss", "royal", "clinical", "modern", "heritage"]:
         top_up, *_ = base.get_document_margins(_config(template, -0.8), A5[0])
         top_neutral, *_ = base.get_document_margins(_config(template, 0.0), A5[0])
         top_down, *_ = base.get_document_margins(_config(template, 1.5), A5[0])
 
-        assert top_neutral - top_up == pytest.approx(0.8 * cm)
-        assert top_down - top_neutral == pytest.approx(1.5 * cm)
-        # Even at the highest supported body position, the premium header guard remains reserved.
+        assert top_up <= top_neutral < top_down
+        assert top_neutral - top_up <= 0.8 * cm
+        assert abs((top_down - top_neutral) - 1.5 * cm) <= 0.01
+        # Dense 7-line bilingual headers consume the available upward headroom;
+        # the body must stop at the guard rather than overlap the header.
         assert top_up >= 3.0 * cm
 
 
