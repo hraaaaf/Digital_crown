@@ -113,8 +113,8 @@ jobs:
               up, *_ = base.get_document_margins(cfg(-0.8), A5[0])
               neutral, *_ = base.get_document_margins(cfg(0.0), A5[0])
               down, *_ = base.get_document_margins(cfg(1.5), A5[0])
-              assert up <= neutral < down
-              assert down - neutral >= 1.4 * cm
+              assert abs((neutral - up) - 0.8 * cm) <= 0.01
+              assert abs((down - neutral) - 1.5 * cm) <= 0.01
               assert up >= 3.0 * cm
 
           style = ParagraphStyle("cloture-audit", fontName="Helvetica", fontSize=9, leading=12)
