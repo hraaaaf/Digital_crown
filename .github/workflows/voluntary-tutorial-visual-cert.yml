@@ -169,15 +169,13 @@ jobs:
             page.on('console', message => { if (message.type() === 'error') errors.push(`console: ${message.text()}`); });
 
             await page.goto(`http://127.0.0.1:4188/voluntary-tutorial-cert.html?role=${role}`, { waitUntil: 'networkidle' });
-            await page.getByText(/Bonjour,/).first().waitFor({ state: 'visible', timeout: 15000 });
+            const helpEntry = page.locator('[data-guide="help-entry"]');
+            await helpEntry.waitFor({ state: 'visible', timeout: 15000 });
 
-            // Negative proof: persisted progress must never auto-open the guide.
             if (await page.getByLabel('Guide volontaire').count() !== 0) {
               throw new Error('Guide auto-opened despite voluntary-only invariant');
             }
 
-            const helpEntry = page.locator('[data-guide="help-entry"]');
-            await helpEntry.waitFor({ state: 'visible', timeout: 15000 });
             await helpEntry.click();
             await page.getByLabel('Guide volontaire').waitFor({ state: 'visible' });
             await page.screenshot({ path: `${output}/${role}-${width}-panel.png`, fullPage: true, animations: 'disabled' });
