@@ -17,17 +17,19 @@ class LicenseControlPlaneError(RuntimeError):
 @dataclass(frozen=True)
 class TrialRedemption:
     signed_license: str
+    signed_device_certificate: str
+    device_id: str
     expires_at: str
     feature_set: str
     license_type: str
 
 
 class LicenseControlPlaneClient:
-    """Cabinet-side client for public licence issuance operations.
+    """Cabinet-side client for public licence/device issuance operations.
 
-    No signing secret, Firebase credential or SuperAdmin credential is ever sent
-    to or stored by the cabinet. The one-time Trial code is the redemption
-    credential; the returned licence is still verified locally with Ed25519.
+    No signing secret, Firebase credential, SuperAdmin credential or device
+    private key is ever sent to the control plane. Only the public device
+    identity accompanies the one-time Trial redemption.
     """
 
     def __init__(self, base_url: str | None = None):
@@ -59,7 +61,16 @@ class LicenseControlPlaneClient:
             raise LicenseControlPlaneError("Réponse control-plane invalide.")
         return payload
 
-    async def redeem_trial(self, *, code: str, email: str, cabinet_id: str) -> TrialRedemption:
+    async def redeem_trial(
+        self,
+        *,
+        code: str,
+        email: str,
+        cabinet_id: str,
+        device_id: str,
+        device_public_key: str,
+        platform: str,
+    ) -> TrialRedemption:
         try:
             async with httpx.AsyncClient(timeout=15.0) as client:
                 response = await client.post(
@@ -68,6 +79,9 @@ class LicenseControlPlaneClient:
                         "code": code.strip().upper(),
                         "email": email.strip().lower(),
                         "cabinet_id": str(cabinet_id),
+                        "device_id": str(device_id),
+                        "device_public_key": str(device_public_key),
+                        "platform": str(platform),
                     },
                 )
         except (httpx.HTTPError, LicenseControlPlaneError) as exc:
@@ -80,11 +94,22 @@ class LicenseControlPlaneClient:
             raise LicenseControlPlaneError(detail, status_code=response.status_code)
 
         payload = response.json()
-        required = ("signed_license", "expires_at", "feature_set", "license_type")
+        required = (
+            "signed_license",
+            "signed_device_certificate",
+            "device_id",
+            "expires_at",
+            "feature_set",
+            "license_type",
+        )
         if not isinstance(payload, dict) or any(not payload.get(key) for key in required):
             raise LicenseControlPlaneError("Réponse d'activation control-plane invalide.")
+        if str(payload["device_id"]) != str(device_id):
+            raise LicenseControlPlaneError("Réponse control-plane liée à une autre machine.")
         return TrialRedemption(
             signed_license=str(payload["signed_license"]),
+            signed_device_certificate=str(payload["signed_device_certificate"]),
+            device_id=str(payload["device_id"]),
             expires_at=str(payload["expires_at"]),
             feature_set=str(payload["feature_set"]),
             license_type=str(payload["license_type"]),

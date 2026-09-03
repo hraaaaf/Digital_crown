@@ -6,6 +6,14 @@ from datetime import datetime, timezone
 from typing import Any
 
 from backend.config import settings
+from backend.device_security import (
+    DEVICE_CERT_AUDIENCE,
+    DEVICE_CERT_ISSUER,
+    DEVICE_CERT_SCHEMA_VERSION,
+    DeviceSecurityError,
+    derive_device_id,
+    sign_device_certificate,
+)
 from backend.license_security import (
     LICENSE_AUDIENCE,
     LICENSE_ISSUER,
@@ -90,3 +98,44 @@ def issue_license(
         claims["subject_user_id"] = int(subject_user_id)
 
     return sign_license(claims, private_key, key_id)
+
+
+def issue_device_certificate(
+    *,
+    cabinet_id: str,
+    license_id: str,
+    device_id: str,
+    device_public_key: str,
+    platform: str,
+    created_by_user_id: int,
+    expires_at: datetime | None,
+    status: str = "ACTIVE",
+    certificate_id: str | None = None,
+    not_before: datetime | None = None,
+    issued_at: datetime | None = None,
+) -> str:
+    """Issue a signed machine-binding certificate from the control plane."""
+    private_key, key_id = _signing_material()
+    now = issued_at or datetime.now(timezone.utc)
+    starts_at = not_before or now
+
+    if derive_device_id(device_public_key) != str(device_id):
+        raise DeviceSecurityError("device id/public key mismatch")
+
+    claims: dict[str, Any] = {
+        "schema_version": DEVICE_CERT_SCHEMA_VERSION,
+        "issuer": DEVICE_CERT_ISSUER,
+        "audience": DEVICE_CERT_AUDIENCE,
+        "certificate_id": certificate_id or str(uuid.uuid4()),
+        "cabinet_id": str(cabinet_id),
+        "license_id": str(license_id),
+        "device_id": str(device_id),
+        "device_public_key": str(device_public_key),
+        "platform": str(platform),
+        "status": status,
+        "issued_at": _iso_utc(now),
+        "not_before": _iso_utc(starts_at),
+        "expires_at": _iso_utc(expires_at) if expires_at is not None else None,
+        "created_by_user_id": int(created_by_user_id),
+    }
+    return sign_device_certificate(claims, private_key, key_id)
