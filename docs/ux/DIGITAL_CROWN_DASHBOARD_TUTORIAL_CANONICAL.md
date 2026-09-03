@@ -53,25 +53,36 @@ Preuves :
 
 Conclusion T1 : **CLOSED avec preuve**.
 
-### T2 — Nettoyage — NEXT
+### T2 — Nettoyage — CLOSED
 
-Goal : supprimer la dette devenue inutile et décider du sort du second système de visite.
+Goal : supprimer la dette `DayOneTour` devenue inutile et auditer le second système de visite sans supprimer de code non prouvé mort.
 
-Actions :
+Implémentation vérifiée :
 
-1. retirer l’import et le montage résiduel `<DayOneTour />` de `Dashboard.tsx` ;
-2. rechercher toutes les références `DayOneTour` ;
-3. supprimer le composant s’il n’a plus aucun usage ;
-4. auditer les usages réels de `GuidedTour`, `TourLauncher`, `tourConfig` ;
-5. vérifier tous les usages de `react-joyride` avant toute suppression de dépendance ;
-6. vérifier exactitude des sélecteurs DOM, navigation, RBAC, responsive et textes exposés ;
-7. décider sur preuve : conserver manuel simplifié / simplifier fortement / supprimer.
+- import `DayOneTour` supprimé de `Dashboard.tsx` ;
+- montage `<DayOneTour />` supprimé ;
+- `frontend/src/components/DayOneTour.tsx` supprimé ;
+- test de shim obsolète supprimé ;
+- garde de régression mise à jour pour empêcher la réintroduction silencieuse ;
+- `App.tsx`, `MainLayout.tsx`, `Header.tsx` et `Sidebar.tsx` vérifiés : aucun ne monte `TourLauncher` ou `GuidedTour` ;
+- `GuidedTour/` conservé à ce stade car l’absence totale de référence repo-wide n’a pas été prouvée de façon exhaustive ;
+- `react-joyride` conservé tant que son absence d’usage globale n’est pas certifiée.
 
-Succès : aucun code mort injustifié et aucun second auto-launch caché.
+Preuves :
 
-Preuve : recherche repo + tests ciblés + build + CI pertinente.
+- branche : `ux/dashboard-tutorial-t2-cleanup` ;
+- ancienne PR draft : `#342`, fermée non mergée uniquement à cause du bug du connecteur Ready-for-review ;
+- PR de remplacement : `#344` ;
+- HEAD T2 avant merge : `187bf4fed5a681cae6c120ffb5eb58ab22156eb3` ;
+- CI : run `33740817443` → SUCCESS ;
+- Dashboard Visual Certification : run `33740817401` → SUCCESS ;
+- T2 Runtime Browser Certification : run `33740817497` → SUCCESS ;
+- merge squash sur `master` : `0d31328e1749a7dd35ec4d8b248e511a94f379c0` → SUCCESS ;
+- `master` vérifié sur ce commit immédiatement après merge.
 
-### T3 — Aide volontaire
+Conclusion T2 : **CLOSED avec preuve**.
+
+### T3 — Aide volontaire — NEXT
 
 Goal : conserver uniquement une aide qui apporte une valeur claire sans interrompre le travail clinique.
 
@@ -81,9 +92,18 @@ Principes :
 - privilégier micro-aide contextuelle pour fonctions réellement complexes ;
 - réutiliser une zone d’aide existante avant d’ajouter une nouvelle UI ;
 - aucune promesse IA ou fonctionnelle non vérifiée ;
-- respect strict des permissions du rôle courant.
+- respect strict des permissions du rôle courant ;
+- si aucune aide globale n’apporte assez de valeur, ne rien ajouter au Dashboard.
 
-Succès : l’utilisateur peut obtenir de l’aide volontairement sans friction sur le flux normal.
+Actions :
+
+1. auditer les surfaces d’aide déjà existantes (`Header`, `Sidebar`, Settings, éventuelle aide contextuelle) ;
+2. rechercher les points d’entrée réels vers `GuidedTour` / `TourLauncher` ;
+3. décider si le système dormant doit être supprimé, simplifié ou converti en aide manuelle ;
+4. si une UI d’aide est ajoutée ou modifiée : BEFORE → Goal visuel → référence/mockup → implémentation → AFTER mêmes viewports → comparaison ;
+5. tester RBAC, navigation et absence d’auto-launch.
+
+Succès : l’utilisateur peut obtenir de l’aide volontairement si elle est utile, sans aucune friction sur le flux normal.
 
 ### T4 — Certification UX & closeout
 
@@ -128,24 +148,23 @@ Terminé :
 - score UX initial 2/10 ;
 - décision produit ;
 - **T1 Neutralisation CLOSED** ;
-- CI PR verte ;
-- certification visuelle Dashboard verte ;
-- merge T1 effectué sur `master`.
+- **T2 Nettoyage CLOSED** ;
+- CI, visual et runtime T2 verts ;
+- merge T2 effectué et `master` vérifié.
 
 En cours :
 
-- post-merge du commit `99176cb6e48d04a89638c97fc6fbd265e66dc962` à surveiller si des runs master se matérialisent ;
-- aucun déploiement Vercel.
+- aucun déploiement Vercel ;
+- post-merge T2 : aucun run PR n’est attendu sur le merge commit via l’API utilisée ; `master` pointe bien sur `0d31328e…`.
 
 Restant :
 
-1. T2 Nettoyage ;
-2. T3 Aide volontaire ;
-3. T4 Certification UX & closeout.
+1. T3 Aide volontaire ;
+2. T4 Certification UX & closeout.
 
 ## Next exact
 
-**T2 : retirer le montage résiduel `DayOneTour` de `Dashboard.tsx`, rechercher tous les usages `DayOneTour` / `GuidedTour` / `TourLauncher` / `react-joyride`, puis supprimer uniquement la dette prouvée morte et exécuter les tests ciblés.**
+**T3 : auditer les surfaces d’aide existantes et les références réelles à `GuidedTour` / `TourLauncher`, puis choisir la solution minimale : aide manuelle utile ou suppression du système dormant si aucune valeur démontrée.**
 
 ## Handover compact
 
@@ -153,8 +172,8 @@ Restant :
 
 1. lire ce fichier ;
 2. vérifier `master` / HEAD / derniers runs ;
-3. confirmer que T1 est bien présent sur `master` via merge `99176cb6…` ;
+3. confirmer T1 merge `99176cb6…` et T2 merge `0d31328e…` ;
 4. reprendre directement au `Next exact` ;
-5. ne pas refaire l’audit initial sauf contradiction nouvelle.
+5. ne pas refaire les audits T1/T2 sauf contradiction nouvelle.
 
 Aucun déploiement Vercel sans autorisation explicite.
