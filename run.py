@@ -71,6 +71,93 @@ def _setup_frozen_logging() -> None:
     sys.excepthook = _log_uncaught_exception
 
 
+def _maybe_run_sec1_package_self_test() -> None:
+    """Exercise signed-license verification from the frozen executable itself.
+
+    The key pair is generated in memory for this diagnostic invocation only. It
+    is never a production trust anchor and is never written to disk. The command
+    is intentionally side-effect free with respect to cabinet data/config.
+    """
+    prefix = "--sec1-package-self-test="
+    report_arg = next((arg[len(prefix):] for arg in sys.argv[1:] if arg.startswith(prefix)), None)
+    if report_arg is None and "--sec1-package-self-test" not in sys.argv[1:]:
+        return
+    if not getattr(sys, "frozen", False):
+        raise SystemExit(64)
+
+    import base64
+    import json
+    from datetime import datetime, timedelta, timezone
+    from pathlib import Path
+
+    from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
+    from cryptography.hazmat.primitives.serialization import Encoding, NoEncryption, PrivateFormat, PublicFormat
+
+    from backend.license_security import (
+        LICENSE_AUDIENCE,
+        LICENSE_ISSUER,
+        LICENSE_SCHEMA_VERSION,
+        LicenseSecurityError,
+        sign_license,
+        verify_license,
+    )
+
+    def _b64url(data: bytes) -> str:
+        return base64.urlsafe_b64encode(data).rstrip(b"=").decode("ascii")
+
+    now = datetime.now(timezone.utc)
+    private_key = Ed25519PrivateKey.generate()
+    private_raw = private_key.private_bytes(Encoding.Raw, PrivateFormat.Raw, NoEncryption())
+    public_raw = private_key.public_key().public_bytes(Encoding.Raw, PublicFormat.Raw)
+    key_id = "sec1-package-ephemeral"
+    cabinet_id = "sec1-package-self-test-cabinet"
+    claims = {
+        "schema_version": LICENSE_SCHEMA_VERSION,
+        "issuer": LICENSE_ISSUER,
+        "audience": LICENSE_AUDIENCE,
+        "license_id": "sec1-package-self-test",
+        "cabinet_id": cabinet_id,
+        "created_by_user_id": 1,
+        "policy_version": "sec1-package-self-test-v1",
+        "license_type": "PAID",
+        "status": "ACTIVE",
+        "issued_at": (now - timedelta(seconds=1)).isoformat(),
+        "not_before": (now - timedelta(seconds=1)).isoformat(),
+        "expires_at": (now + timedelta(days=1)).isoformat(),
+        "release_channel": "stable",
+        "feature_set": "GOLD",
+        "max_devices": 1,
+    }
+    token = sign_license(claims, _b64url(private_raw), key_id)
+    trusted = {key_id: _b64url(public_raw)}
+    verified = verify_license(token, trusted, expected_cabinet_id=cabinet_id, now=now)
+    valid_signature_accepted = verified.license_id == "sec1-package-self-test"
+
+    encoded_header, encoded_payload, encoded_signature = token.split(".")
+    payload = json.loads(base64.urlsafe_b64decode(encoded_payload + "=" * (-len(encoded_payload) % 4)).decode("utf-8"))
+    payload["feature_set"] = "ELITE"
+    tampered_payload = _b64url(
+        json.dumps(payload, sort_keys=True, separators=(",", ":"), ensure_ascii=False).encode("utf-8")
+    )
+    tampered_token = f"{encoded_header}.{tampered_payload}.{encoded_signature}"
+    tampered_payload_rejected = False
+    try:
+        verify_license(tampered_token, trusted, expected_cabinet_id=cabinet_id, now=now)
+    except LicenseSecurityError:
+        tampered_payload_rejected = True
+
+    report = {
+        "frozen_executable": True,
+        "valid_signature_accepted": valid_signature_accepted,
+        "tampered_payload_rejected": tampered_payload_rejected,
+        "key_material": "ephemeral-memory-only",
+    }
+    report_path = Path(report_arg or os.environ.get("DIGITALCROWN_SEC1_REPORT", "sec1-package-self-test.json"))
+    report_path.parent.mkdir(parents=True, exist_ok=True)
+    report_path.write_text(json.dumps(report, sort_keys=True, indent=2), encoding="utf-8")
+    raise SystemExit(0 if valid_signature_accepted and tampered_payload_rejected else 1)
+
+
 def _maybe_run_guided_restore_worker() -> None:
     """Run the restore worker before importing the FastAPI runtime."""
     if len(sys.argv) < 2 or sys.argv[1] != "--guided-restore-worker":
@@ -88,6 +175,7 @@ def _maybe_run_guided_restore_worker() -> None:
     raise SystemExit(GuidedRestoreWorker.run(args.restore_id, args.parent_pid, sys.executable))
 
 
+_maybe_run_sec1_package_self_test()
 _first_boot_bootstrap()
 _setup_frozen_logging()
 _maybe_run_guided_restore_worker()

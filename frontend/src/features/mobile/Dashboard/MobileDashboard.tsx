@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useLocation } from 'react-router-dom';
-import { WifiOff } from 'lucide-react';
+import { Link, useLocation } from 'react-router-dom';
+import { Crown, WifiOff } from 'lucide-react';
 import { useMobileDashboard } from './hooks/useMobileDashboard';
 import { MobileHeader } from './components/MobileHeader';
 import { MobileBottomNav } from './components/MobileBottomNav';
@@ -13,6 +13,7 @@ import { SecuriteView } from './views/SecuriteView';
 import { LabView } from './views/LabView';
 import { BotView } from './views/BotView';
 import { PWAInstallPrompt } from '../../../components/PWAInstallPrompt';
+import { getPlatformControlUrl, isExternalPlatformControlUrl } from '../../../services/platformTopology';
 import { resolveDashboardTab } from '../bridge';
 
 export const MobileDashboard = () => {
@@ -27,6 +28,22 @@ export const MobileDashboard = () => {
 
   const termineCount = state.snapshot?.appointments.filter(a => a.status === 'TERMINE').length ?? 0;
   const totalCount = state.snapshot?.appointments.length ?? 0;
+  const platformControlUrl = getPlatformControlUrl();
+  const platformControlIsExternal = isExternalPlatformControlUrl(platformControlUrl);
+
+  const platformEntryClass = "flex min-h-[58px] items-center gap-3 rounded-[20px] border border-blue-200/80 bg-blue-50/85 px-4 text-blue-950 shadow-[0_10px_28px_rgba(30,64,175,0.08),inset_0_1px_0_rgba(255,255,255,0.92)] backdrop-blur-xl active:scale-[0.99]";
+  const platformEntryContent = (
+    <>
+      <div className="grid h-10 w-10 shrink-0 place-items-center rounded-[14px] bg-blue-600 text-white shadow-sm">
+        <Crown size={19} aria-hidden="true" />
+      </div>
+      <div className="min-w-0 flex-1">
+        <p className="text-[9px] font-black uppercase tracking-[0.18em] text-blue-500">Administration plateforme</p>
+        <p className="text-sm font-black">Tour de contrôle</p>
+      </div>
+      <span className="text-[10px] font-black uppercase tracking-wider text-blue-500">Ouvrir</span>
+    </>
+  );
 
   return (
     <div data-dc-mobile-shell className="min-h-[100dvh] bg-background text-text-main flex flex-col font-outfit pb-28 select-none relative" style={{ backgroundColor: 'var(--bg-medical-pearl)' }}>
@@ -54,6 +71,28 @@ export const MobileDashboard = () => {
       <div className="relative z-10 mt-2">
         <PWAInstallPrompt />
       </div>
+
+      {state.activeTab === 'securite' && (
+        <div className="relative z-10 px-6 pb-3">
+          {platformControlIsExternal ? (
+            <a
+              href={platformControlUrl}
+              data-testid="mobile-superadmin-entry"
+              className={platformEntryClass}
+            >
+              {platformEntryContent}
+            </a>
+          ) : (
+            <Link
+              to="/mobile/superadmin"
+              data-testid="mobile-superadmin-entry"
+              className={platformEntryClass}
+            >
+              {platformEntryContent}
+            </Link>
+          )}
+        </div>
+      )}
 
       <main ref={mainRef} className="flex-1 px-6 overflow-x-hidden overflow-y-auto">
         <AnimatePresence mode="wait">

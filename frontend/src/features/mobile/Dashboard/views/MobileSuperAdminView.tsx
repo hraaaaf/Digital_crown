@@ -1,250 +1,249 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
-import { ArrowLeft, Shield, RefreshCw, Search, CheckCircle2, XCircle, Ban, AlertTriangle, Zap } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
+import type { FormEvent } from 'react';
+import axios from 'axios';
+import { ArrowLeft, Crown, Fingerprint, LockKeyhole, LogOut, ShieldCheck } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { MobileStorage } from '../../../../services/zka/MobileStorage';
-import { mobileFetch } from '../../../../services/zka/mobileFetch';
-import { Skeleton } from '../components/Skeleton';
-import toast from 'react-hot-toast';
+import {
+  PLATFORM_API_BASE,
+  clearMobilePlatformAccessToken,
+  getMobilePlatformAccessToken,
+  setMobilePlatformAccessToken,
+} from '../../../../services/api';
+import { getPlatformTopology } from '../../../../services/platformTopology';
+import { SuperAdminAccessBoundary } from '../../../superadmin/SuperAdminAccessBoundary';
 
-interface ClientStats {
-  total_patients: number;
-  total_ia_panoramique: number;
-  total_ia_cephalo: number;
-}
+type GateState = 'login' | 'authorized';
 
-interface Client {
-  id: number;
-  nom_complet: string;
-  email: string;
-  cabinet_name: string;
-  is_licensed: boolean;
-  license_expires_at: string | null;
-  is_archived: boolean;
-  is_suspended: boolean;
-  subscription_plan: string | null;
-  stats: ClientStats;
-}
+type PasskeyStatus = {
+  expected_origin?: string;
+  origin_ready?: boolean;
+};
 
-const PLAN_OPTIONS = ['GOLD', 'PREMIUM', 'ELITE'] as const;
-
-function resolveApiBaseUrl(stored: string): string {
-  const hostname = window.location.hostname;
-  if (hostname === 'localhost' || hostname === '127.0.0.1') return stored;
-  if (stored.includes('localhost') || stored.includes('127.0.0.1')) {
-    return `${window.location.protocol}//${hostname}:8005`;
-  }
-  return stored;
-}
-
-function getExpirationStatus(dateString: string | null) {
-  if (!dateString) return { expired: true, daysLeft: 0 };
-  const diffDays = Math.ceil((new Date(dateString).getTime() - Date.now()) / (1000 * 60 * 60 * 24));
-  return { expired: diffDays <= 0, daysLeft: diffDays };
-}
+const errorDetail = (error: unknown): string => {
+  const candidate = error as { response?: { status?: number; data?: { detail?: string } } };
+  const status = candidate?.response?.status;
+  if (status === 401) return 'Email ou mot de passe plateforme incorrect.';
+  if (status === 403) return 'Compte valide, mais autorité plateforme refusée.';
+  if (candidate?.response?.data?.detail) return candidate.response.data.detail;
+  if (error instanceof Error && error.message) return error.message;
+  return 'Control-plane indisponible. Réessayez depuis une connexion sécurisée.';
+};
 
 export function MobileSuperAdminView() {
   const navigate = useNavigate();
-  const [clients, setClients] = useState<Client[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [search, setSearch] = useState('');
-  const [busyId, setBusyId] = useState<number | null>(null);
+  const topology = useMemo(() => getPlatformTopology(PLATFORM_API_BASE), []);
+  const [gate, setGate] = useState<GateState>(() => (
+    topology.ready && getMobilePlatformAccessToken() ? 'authorized' : 'login'
+  ));
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState(() => (
+    topology.ready
+      ? ''
+      : 'Ouvrez la Tour de contrôle depuis son origine HTTPS dédiée. Le frontend et l’API plateforme doivent partager exactement la même origine.'
+  ));
 
-  // Les endpoints SuperAdmin partagés réutilisent le JWT mobile user/device-bound.
-  // mobileFetch renouvelle ce JWT via /api/mobile/refresh-token, jamais via /auth/refresh.
-  const authedFetch = useCallback(async (path: string, init?: RequestInit) => {
-    const creds = await MobileStorage.getCredentials();
-    if (!creds) throw new Error('Non appairé');
-    const res = await mobileFetch(`${resolveApiBaseUrl(creds.api_base_url)}${path}`, {
-      ...init,
-      headers: {
-        Authorization: `Bearer ${creds.access_token}`,
-        'Content-Type': 'application/json',
-        ...(init?.headers ?? {}),
-      },
-      signal: AbortSignal.timeout(8000),
-    });
-    if (!res.ok) {
-      const body = await res.json().catch(() => ({}));
-      throw new Error(body.detail ?? `Erreur ${res.status}`);
+  const goBack = () => {
+    if (window.history.length > 1) {
+      window.history.back();
+      return;
     }
-    return res.status === 204 ? null : res.json();
-  }, []);
-
-  const fetchClients = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const data = await authedFetch('/api/superadmin/clients');
-      setClients(data ?? []);
-    } catch (e: any) {
-      setError(e.message ?? 'Erreur réseau');
-    } finally {
-      setLoading(false);
-    }
-  }, [authedFetch]);
+    navigate('/mobile/dashboard?tab=securite');
+  };
 
   useEffect(() => {
-    fetchClients();
-  }, [fetchClients]);
+    if (!topology.ready) {
+      clearMobilePlatformAccessToken();
+      setGate('login');
+    }
 
-  const runAction = async (id: number, action: () => Promise<any>, successMsg: string) => {
-    setBusyId(id);
+    const expire = () => {
+      clearMobilePlatformAccessToken();
+      setGate('login');
+      setPassword('');
+      setError('Session plateforme expirée. Reconnectez-vous.');
+    };
+    window.addEventListener('digitalcrown:mobile-platform-session-expired', expire);
+    return () => window.removeEventListener('digitalcrown:mobile-platform-session-expired', expire);
+  }, [topology.ready]);
+
+  const login = async (event: FormEvent) => {
+    event.preventDefault();
+    if (!email.trim() || !password) return;
+    if (!topology.ready) {
+      clearMobilePlatformAccessToken();
+      setError('Origine plateforme invalide. Ouvrez la Tour depuis son URL HTTPS dédiée.');
+      return;
+    }
+
+    setBusy(true);
+    setError('');
+    clearMobilePlatformAccessToken();
+
     try {
-      await action();
-      toast.success(successMsg);
-      await fetchClients();
-    } catch (e: any) {
-      toast.error(e.message ?? 'Erreur');
+      const form = new URLSearchParams();
+      form.set('username', email.trim().toLowerCase());
+      form.set('password', password);
+      const loginResponse = await axios.post(`${PLATFORM_API_BASE}/api/auth/login`, form, {
+        withCredentials: true,
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      });
+      const token = String(loginResponse.data?.access_token || '').trim();
+      if (!token) throw new Error('Session plateforme invalide.');
+
+      // Autorisation serveur ET origine WebAuthn exacte AVANT toute persistance
+      // de la session plateforme côté téléphone.
+      const statusResponse = await axios.get(`${PLATFORM_API_BASE}/api/superadmin/passkey/status`, {
+        withCredentials: true,
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const passkeyStatus = statusResponse.data as PasskeyStatus;
+      const expectedOrigin = String(passkeyStatus.expected_origin || '').replace(/\/$/, '').toLowerCase();
+      if (!passkeyStatus.origin_ready || !expectedOrigin || expectedOrigin !== window.location.origin.toLowerCase()) {
+        throw new Error(
+          expectedOrigin
+            ? `Ouvrez la Tour de contrôle depuis ${expectedOrigin}.`
+            : 'Origine WebAuthn plateforme non configurée.'
+        );
+      }
+
+      setMobilePlatformAccessToken(token);
+      setPassword('');
+      setGate('authorized');
+    } catch (caught) {
+      clearMobilePlatformAccessToken();
+      setError(errorDetail(caught));
     } finally {
-      setBusyId(null);
+      setBusy(false);
     }
   };
 
-  const handleSetPlan = (id: number, plan: string) =>
-    runAction(id, () => authedFetch(`/api/superadmin/clients/${id}/plan?plan=${plan}`, { method: 'PATCH' }), `Pack ${plan} attribué.`);
+  const logoutPlatform = async () => {
+    const token = getMobilePlatformAccessToken();
+    clearMobilePlatformAccessToken();
+    setGate('login');
+    setPassword('');
+    setError('');
+    if (!token) return;
+    try {
+      await axios.post(
+        `${PLATFORM_API_BASE}/api/auth/logout`,
+        { refresh_token: '' },
+        {
+          withCredentials: true,
+          headers: { Authorization: `Bearer ${token}` },
+        },
+      );
+    } catch {
+      // La fermeture locale de la session plateforme mobile reste autoritaire.
+    }
+  };
 
-  const handleToggleSuspend = (id: number, currentlySuspended: boolean) =>
-    runAction(id, () => authedFetch(`/api/superadmin/clients/${id}/suspend`, { method: 'PATCH' }), currentlySuspended ? 'Client réactivé.' : 'Client suspendu.');
+  if (gate === 'login') {
+    return (
+      <main data-testid="mobile-superadmin-login" className="min-h-[100dvh] bg-slate-950 px-5 pb-10 pt-[max(20px,env(safe-area-inset-top))] text-white">
+        <div className="mx-auto w-full max-w-md">
+          <button
+            type="button"
+            onClick={goBack}
+            className="mb-8 inline-flex min-h-11 items-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-4 text-sm font-bold text-slate-200"
+          >
+            <ArrowLeft size={17} /> Retour
+          </button>
 
-  const handleGrantLicense = (id: number, action: string, label: string) =>
-    runAction(id, () => authedFetch(`/api/superadmin/clients/${id}/grant-license?action=${action}`, { method: 'POST' }), `Licence prolongée (${label}).`);
+          <section className="overflow-hidden rounded-[32px] border border-white/10 bg-white/[0.07] p-6 shadow-2xl backdrop-blur-2xl">
+            <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-blue-500/15 text-blue-300 ring-1 ring-blue-300/20">
+              <Crown size={28} aria-hidden="true" />
+            </div>
+            <p className="mt-6 text-[11px] font-black uppercase tracking-[0.24em] text-blue-300">Digital Crown</p>
+            <h1 className="mt-2 text-3xl font-black tracking-tight">Tour de contrôle</h1>
+            <p className="mt-3 text-sm font-medium leading-6 text-slate-300">
+              La session cabinet ne donne aucun droit plateforme. Connectez l’identité Superadmin séparément.
+            </p>
 
-  const filteredClients = useMemo(() => {
-    const q = search.trim().toLowerCase();
-    if (!q) return clients;
-    return clients.filter(c => c.nom_complet?.toLowerCase().includes(q) || c.email.toLowerCase().includes(q) || c.cabinet_name?.toLowerCase().includes(q));
-  }, [clients, search]);
+            <div className="mt-5 grid grid-cols-2 gap-3 text-[11px] font-bold text-slate-300">
+              <div className="rounded-2xl border border-white/10 bg-black/10 p-3">
+                <ShieldCheck className="mb-2 text-emerald-300" size={18} /> Session séparée
+              </div>
+              <div className="rounded-2xl border border-white/10 bg-black/10 p-3">
+                <Fingerprint className="mb-2 text-blue-300" size={18} /> Passkey sur mutation
+              </div>
+            </div>
+
+            <form className="mt-7 space-y-4" onSubmit={login}>
+              <label className="block">
+                <span className="mb-2 block text-xs font-black uppercase tracking-wider text-slate-400">Email plateforme</span>
+                <input
+                  value={email}
+                  onChange={(event) => setEmail(event.target.value)}
+                  type="email"
+                  autoComplete="username"
+                  required
+                  disabled={!topology.ready}
+                  className="min-h-14 w-full rounded-2xl border border-white/10 bg-white/10 px-4 text-base font-bold text-white outline-none placeholder:text-slate-500 focus:border-blue-400 disabled:opacity-50"
+                  placeholder="owner@..."
+                />
+              </label>
+              <label className="block">
+                <span className="mb-2 block text-xs font-black uppercase tracking-wider text-slate-400">Mot de passe</span>
+                <input
+                  value={password}
+                  onChange={(event) => setPassword(event.target.value)}
+                  type="password"
+                  autoComplete="current-password"
+                  required
+                  disabled={!topology.ready}
+                  className="min-h-14 w-full rounded-2xl border border-white/10 bg-white/10 px-4 text-base font-bold text-white outline-none placeholder:text-slate-500 focus:border-blue-400 disabled:opacity-50"
+                  placeholder="••••••••••••"
+                />
+              </label>
+              {error && <p role="alert" className="rounded-2xl border border-rose-400/20 bg-rose-400/10 px-4 py-3 text-sm font-bold text-rose-200">{error}</p>}
+              <button
+                type="submit"
+                disabled={busy || !topology.ready || !email.trim() || !password}
+                className="flex min-h-14 w-full items-center justify-center gap-2 rounded-2xl bg-blue-500 px-4 text-sm font-black text-white shadow-lg shadow-blue-950/30 disabled:opacity-50"
+              >
+                <LockKeyhole size={18} /> {busy ? 'Vérification…' : 'Ouvrir la Tour de contrôle'}
+              </button>
+            </form>
+          </section>
+
+          <p className="mt-5 px-2 text-center text-[11px] font-semibold leading-5 text-slate-500">
+            Aucun secret de signature n’est stocké sur ce téléphone. Les actions sensibles exigent une vérification WebAuthn récente.
+          </p>
+        </div>
+      </main>
+    );
+  }
 
   return (
-    <div className="min-h-[100dvh] bg-background text-text-main flex flex-col font-outfit select-none" style={{ backgroundColor: 'var(--bg-medical-pearl)' }}>
-      {/* Header */}
-      <div className="px-6 pt-14 pb-6 relative z-10">
-        <div className="flex items-center gap-3 mb-8">
+    <div data-testid="mobile-superadmin-authorized" className="min-h-[100dvh] bg-slate-50">
+      <header className="border-b border-slate-200 bg-slate-950 px-4 pb-4 pt-[max(14px,env(safe-area-inset-top))] text-white">
+        <div className="mx-auto flex max-w-7xl items-center gap-3">
           <button
-            onClick={() => navigate('/mobile/dashboard')}
-            className="w-10 h-10 bg-card border border-glass-border rounded-[14px] shadow-elite flex items-center justify-center active:scale-90 transition-transform"
+            type="button"
+            aria-label="Retour"
+            onClick={goBack}
+            className="grid h-11 w-11 place-items-center rounded-2xl border border-white/10 bg-white/10"
           >
-            <ArrowLeft size={16} className="text-primary" />
+            <ArrowLeft size={19} />
           </button>
+          <div className="min-w-0 flex-1">
+            <p className="text-[9px] font-black uppercase tracking-[0.22em] text-blue-300">Session plateforme</p>
+            <p className="truncate text-base font-black">Tour de contrôle</p>
+          </div>
           <button
-            onClick={fetchClients}
-            disabled={loading}
-            className="w-10 h-10 bg-card border border-glass-border rounded-[14px] shadow-elite flex items-center justify-center active:scale-90 transition-transform disabled:opacity-40 ml-auto"
+            type="button"
+            aria-label="Fermer la session plateforme"
+            onClick={() => void logoutPlatform()}
+            className="grid h-11 w-11 place-items-center rounded-2xl border border-white/10 bg-white/10 text-rose-200"
           >
-            <RefreshCw size={14} className={`text-text-muted ${loading ? 'animate-spin' : ''}`} />
+            <LogOut size={18} />
           </button>
         </div>
-        <div className="flex items-center gap-3 mb-6">
-          <div className="w-10 h-10 bg-amber-400/20 rounded-[14px] flex items-center justify-center">
-            <Shield size={18} className="text-amber-500" />
-          </div>
-          <div>
-            <h1 className="text-3xl font-black tracking-tight text-primary font-outfit leading-none">SuperAdmin</h1>
-            <p className="text-[10px] font-black text-text-muted uppercase tracking-widest mt-0.5">{clients.length} client{clients.length !== 1 ? 's' : ''}</p>
-          </div>
-        </div>
-
-        <div className="relative">
-          <Search size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-text-muted" />
-          <input
-            type="text"
-            placeholder="Rechercher un client..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="w-full bg-card border border-glass-border rounded-[16px] pl-11 pr-4 py-3 text-sm font-bold outline-none focus:border-primary transition-colors"
-          />
-        </div>
-      </div>
-
-      {/* Content */}
-      <main className="flex-1 px-6 pb-10 space-y-4">
-        {error && (
-          <div className="p-4 bg-rose-500/5 border border-rose-200 rounded-[16px]">
-            <p className="text-xs font-black text-rose-600">{error}</p>
-          </div>
-        )}
-
-        {loading && !clients.length ? (
-          <div className="space-y-3">
-            {[1, 2, 3].map(i => (
-              <Skeleton key={i} className="h-40 w-full rounded-[20px]" />
-            ))}
-          </div>
-        ) : filteredClients.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-20 gap-3">
-            <Shield size={32} className="text-text-muted/30" />
-            <p className="text-sm font-black text-text-muted">Aucun client trouvé</p>
-          </div>
-        ) : (
-          filteredClients.map(client => {
-            const exp = getExpirationStatus(client.license_expires_at);
-            const active = client.is_licensed && !exp.expired && !client.is_suspended && !client.is_archived;
-            const busy = busyId === client.id;
-
-            let badge = { style: 'bg-slate-100 text-slate-500', text: 'Inconnu', Icon: AlertTriangle };
-            if (client.is_archived) badge = { style: 'bg-slate-100 text-slate-500', text: 'Archivé', Icon: AlertTriangle };
-            else if (client.is_suspended) badge = { style: 'bg-orange-100 text-orange-700', text: 'Suspendu', Icon: Ban };
-            else if (exp.expired) badge = { style: 'bg-rose-100 text-rose-700', text: 'Expiré', Icon: XCircle };
-            else if (exp.daysLeft <= 7) badge = { style: 'bg-rose-100 text-rose-700', text: `Expire (${exp.daysLeft}j)`, Icon: XCircle };
-            else if (exp.daysLeft <= 30) badge = { style: 'bg-amber-100 text-amber-700', text: `Expire (${exp.daysLeft}j)`, Icon: AlertTriangle };
-            else badge = { style: 'bg-emerald-100 text-emerald-700', text: 'Actif', Icon: CheckCircle2 };
-
-            return (
-              <div key={client.id} className={`bg-card border border-glass-border rounded-[20px] p-5 shadow-elite ${client.is_archived ? 'opacity-60' : ''}`}>
-                <div className="flex items-start justify-between gap-3 mb-4">
-                  <div className="min-w-0">
-                    <p className="text-sm font-black text-text-main truncate">{client.nom_complet || 'Sans nom'}</p>
-                    <p className="text-[11px] font-bold text-text-muted truncate">{client.cabinet_name || 'Cabinet N/A'}</p>
-                    <p className="text-[10px] text-text-muted/70 truncate">{client.email}</p>
-                  </div>
-                  <div className={`shrink-0 px-2.5 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest flex items-center gap-1 ${badge.style}`}>
-                    <badge.Icon size={11} />
-                    {badge.text}
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-2 mb-3">
-                  <span className="text-[9px] font-black uppercase tracking-widest text-text-muted shrink-0">Pack</span>
-                  <select
-                    value={client.subscription_plan || 'GOLD'}
-                    onChange={(e) => handleSetPlan(client.id, e.target.value)}
-                    disabled={client.is_archived || busy}
-                    className="flex-1 bg-background border border-glass-border rounded-lg px-2 py-1.5 text-[11px] font-black text-text-main outline-none focus:border-primary disabled:opacity-50"
-                  >
-                    {PLAN_OPTIONS.map((p) => (
-                      <option key={p} value={p}>{p}</option>
-                    ))}
-                  </select>
-                </div>
-
-                <div className="grid grid-cols-4 gap-1.5 mb-3">
-                  {[['1m', '+1M'], ['3m', '+3M'], ['6m', '+6M'], ['1y', '+1AN']].map(([action, label]) => (
-                    <button
-                      key={action}
-                      onClick={() => handleGrantLicense(client.id, action, label)}
-                      disabled={client.is_archived || busy}
-                      className="py-2 bg-primary/10 text-primary rounded-lg text-[10px] font-black transition-all disabled:opacity-50 active:scale-95 flex items-center justify-center gap-0.5"
-                    >
-                      {action === '1y' && <Zap size={10} />}
-                      {label}
-                    </button>
-                  ))}
-                </div>
-
-                <button
-                  onClick={() => handleToggleSuspend(client.id, client.is_suspended)}
-                  disabled={busy}
-                  className={`w-full py-2.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all disabled:opacity-50 flex items-center justify-center gap-1.5 ${client.is_suspended ? 'bg-orange-100 text-orange-700' : 'bg-slate-100 text-slate-600'}`}
-                >
-                  <Ban size={12} />
-                  {client.is_suspended ? 'Réactiver' : 'Suspendre'}
-                </button>
-              </div>
-            );
-          })
-        )}
-      </main>
+      </header>
+      <SuperAdminAccessBoundary />
     </div>
   );
 }

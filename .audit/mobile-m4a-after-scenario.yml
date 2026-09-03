@@ -307,7 +307,7 @@ scenario:
           
             for (const viewport of [{ width: 390, height: 844 }, { width: 430, height: 932 }, { width: 768, height: 1024 }]) {
               const { context, page, errors } = await setupContext(viewport);
-              await page.goto('http://127.0.0.1:4180/mobile-m4a-after.html?view=e2e', { waitUntil: 'networkidle' });
+              await page.goto('http://127.0.0.1:4180/mobile-m4a-after.html?view=e2e', { waitUntil: 'domcontentloaded' });
               await page.getByText('Appairage réussi', { exact: true }).waitFor({ state: 'visible', timeout: 15000 });
               await capture(page, errors, `pairing-success-${viewport.width}x${viewport.height}`, 'pairing-success-patient', viewport);
               await page.getByRole('heading', { name: 'BENNANI Sara', exact: true }).waitFor({ state: 'visible', timeout: 10000 });

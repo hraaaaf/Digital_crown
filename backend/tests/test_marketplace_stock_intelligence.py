@@ -14,6 +14,11 @@ def _override_db(db):
     app.dependency_overrides[database.get_db] = _get_db
 
 
+def _enable_platform_owner(monkeypatch, user):
+    monkeypatch.setattr(settings, "PLATFORM_CONTROL_PLANE_ENABLED", True)
+    monkeypatch.setattr(settings, "SUPERADMIN_USER_ID", user.id)
+
+
 def _supplier(db, user, key="p7-supplier"):
     row = models.PartnerSupplier(
         employer_id=user.get_employer_id(),
@@ -118,7 +123,7 @@ def _map(client, headers, product, stock_item, *, factor=1.0, minimum=2.0, targe
 
 def test_receipt_apply_is_atomic_idempotent_and_tracks_lot(client, db, dentiste, auth_headers, monkeypatch):
     _override_db(db)
-    monkeypatch.setattr(settings, "SUPERADMIN_EMAIL", dentiste.email)
+    _enable_platform_owner(monkeypatch, dentiste)
     supplier = _supplier(db, dentiste)
     product = _product(db, dentiste, supplier)
     stock_item = _stock_item(db, dentiste, quantity=2.0)
@@ -167,7 +172,7 @@ def test_receipt_apply_is_atomic_idempotent_and_tracks_lot(client, db, dentiste,
 
 def test_missing_mapping_rejects_whole_receipt_without_stock_mutation(client, db, dentiste, auth_headers, monkeypatch):
     _override_db(db)
-    monkeypatch.setattr(settings, "SUPERADMIN_EMAIL", dentiste.email)
+    _enable_platform_owner(monkeypatch, dentiste)
     supplier = _supplier(db, dentiste, key="p7-atomic")
     product_a = _product(db, dentiste, supplier, sku="P7-A", name="Produit A")
     product_b = _product(db, dentiste, supplier, sku="P7-B", name="Produit B")
@@ -205,7 +210,7 @@ def test_missing_mapping_rejects_whole_receipt_without_stock_mutation(client, db
 
 def test_consumption_uses_fefo_is_idempotent_and_drives_reorder(client, db, dentiste, auth_headers, monkeypatch):
     _override_db(db)
-    monkeypatch.setattr(settings, "SUPERADMIN_EMAIL", dentiste.email)
+    _enable_platform_owner(monkeypatch, dentiste)
     supplier = _supplier(db, dentiste, key="p7-fefo")
     product = _product(db, dentiste, supplier, sku="P7-FEFO", name="Produit FEFO")
     stock_item = _stock_item(db, dentiste, quantity=0.0)

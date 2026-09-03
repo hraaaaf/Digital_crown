@@ -29,10 +29,16 @@ describe('M6.4 contextual QR bridge', () => {
     expect(resolveDashboardTab('?tab=unknown')).toBe('agenda');
     expect(resolveDashboardTab('?tab=superadmin')).toBe('agenda');
     expect(resolveDashboardTab('')).toBe('agenda');
-    expect(dashboardSource).toContain("import { useLocation } from 'react-router-dom'");
     expect(dashboardSource).toContain('const location = useLocation()');
     expect(dashboardSource).toContain('resolveDashboardTab(location.search)');
     expect(dashboardSource).not.toContain('resolveDashboardTab(window.location.search)');
+  });
+
+  it('hands the platform control tower to its dedicated origin when configured', () => {
+    expect(dashboardSource).toContain('const platformControlUrl = getPlatformControlUrl()');
+    expect(dashboardSource).toContain('isExternalPlatformControlUrl(platformControlUrl)');
+    expect(dashboardSource).toContain('href={platformControlUrl}');
+    expect(dashboardSource).toContain('to="/mobile/superadmin"');
   });
 
   it('requires explicit target + destination before generating the desktop bridge', () => {

@@ -1,5 +1,6 @@
 from datetime import datetime, timedelta
 import secrets
+from unittest.mock import AsyncMock
 
 import pytest
 from cryptography.hazmat.primitives import serialization
@@ -15,7 +16,7 @@ from backend.security import get_password_hash
 
 
 @pytest.fixture(autouse=True)
-def _isolate_mobile_license_cache():
+def _isolate_mobile_license_cache(monkeypatch):
     """Avoid cross-test leakage from the 60s global licence cache.
 
     SQLite test rows reuse numeric ids after table cleanup, while the runtime
@@ -25,6 +26,15 @@ def _isolate_mobile_license_cache():
     from backend.main import _license_cache
 
     _license_cache.clear()
+    monkeypatch.setattr(
+        'backend.routers.mobile_pairing_secure.LicenseService.get_effective_license',
+        AsyncMock(return_value={
+            'active': True,
+            'license_type': 'PAID',
+            'max_devices': 10,
+            'release_channel': 'stable',
+        }),
+    )
     yield
     _license_cache.clear()
 
@@ -62,6 +72,14 @@ def _pairing(db, owner, user, *, destination='agenda', manual_code='654321'):
     owner.is_licensed = True
     owner.license_expires_at = datetime.utcnow() + timedelta(days=30)
     db.add(owner)
+
+    cabinet = (
+        db.query(models.CabinetConfig)
+        .filter(models.CabinetConfig.owner_id == owner.id)
+        .first()
+    )
+    if cabinet is None:
+        db.add(models.CabinetConfig(owner_id=owner.id, public_id='abcdef1234567890'))
     db.commit()
 
     token = _create_bridge_token(destination)

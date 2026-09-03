@@ -1,5 +1,6 @@
 from datetime import datetime, timedelta
 from pathlib import Path
+from unittest.mock import AsyncMock
 import uuid
 
 import pytest
@@ -19,9 +20,18 @@ from backend.utils import rate_limit
 
 
 @pytest.fixture(autouse=True)
-def _reset_pairing_rate_limit():
+def _reset_pairing_rate_limit(monkeypatch):
     path = Path(rate_limit._store_path)
     path.unlink(missing_ok=True)
+    monkeypatch.setattr(
+        'backend.routers.mobile_pairing_secure.LicenseService.get_effective_license',
+        AsyncMock(return_value={
+            'active': True,
+            'license_type': 'PAID',
+            'max_devices': 10,
+            'release_channel': 'stable',
+        }),
+    )
     yield
     path.unlink(missing_ok=True)
 
@@ -43,12 +53,24 @@ def _user(db, *, email, role, employer_id=None, permissions=None, active=True, a
 
 
 def _pairing(db, owner, user, *, token=None, manual_code='654321'):
+    config = db.query(models.CabinetConfig).filter(models.CabinetConfig.owner_id == owner.id).first()
+    if config is None:
+        config = models.CabinetConfig(
+            owner_id=owner.id,
+            public_id=f'cab{owner.id:013d}'[-16:],
+            clinic_id=f'clinic-{owner.id}',
+            nom_cabinet='Cabinet Mobile Identity Test',
+            nom_praticien='Dr Mobile Identity',
+        )
+        db.add(config)
+        db.flush()
+
     row = models.ZKAPairingToken(
         token=token or uuid.uuid4().hex,
         manual_code=manual_code,
         employer_id=owner.id,
         user_id=user.id if user else None,
-        public_id='abcdef1234567890',
+        public_id=config.public_id,
         master_key='a' * 64,
         role='DENTISTE',
         expires_at=datetime.utcnow() + timedelta(minutes=5),
@@ -203,6 +225,7 @@ def test_snapshot_does_not_query_finance_when_permission_denied(client, db, dent
     )
     assert response.status_code == 200, response.text
 
+
 def test_cabinet_revocation_invalidates_device_and_refresh(client, db, dentiste):
     body = _claim(client, _pairing(db, dentiste, dentiste)).json()
     token_blacklist.revoke_mobile_access(dentiste.id, db)
@@ -212,7 +235,7 @@ def test_cabinet_revocation_invalidates_device_and_refresh(client, db, dentiste)
     assert device.revoked_at is not None
 
 
-def test_mobile_mutation_uses_numeric_subject_as_user_id(client, db, dentiste):
+def test_mobile_mutation_uses_numeric_subject_as_user_id(client, db, dentiste, monkeypatch):
     secretary = _user(
         db,
         email='license-inherited-mobile@cabinet.ma',
@@ -229,8 +252,15 @@ def test_mobile_mutation_uses_numeric_subject_as_user_id(client, db, dentiste):
     )
     assert response.status_code == 200, response.text
 
-    dentiste.is_licensed = False
-    db.commit()
+    async def deny_signed_license(user_id: int):
+        assert user_id == secretary.id
+        return False, 'SIGNED_LICENSE_REQUIRED'
+
+    monkeypatch.setattr(
+        backend_main,
+        'get_mobile_user_license_status',
+        deny_signed_license,
+    )
     backend_main._license_cache.clear()
     denied = client.post(
         '/api/mobile/register-device',
@@ -238,7 +268,8 @@ def test_mobile_mutation_uses_numeric_subject_as_user_id(client, db, dentiste):
         headers={'Authorization': f"Bearer {body['access_token']}"},
     )
     assert denied.status_code == 403
-    assert denied.json()['detail'] == 'NOT_LICENSED'
+    assert denied.json()['detail'] == 'SIGNED_LICENSE_REQUIRED'
+
 
 def test_permissions_policy_allows_same_origin_camera_only(client):
     response = client.get('/health')
@@ -311,6 +342,7 @@ def test_shared_auth_me_rejects_legacy_mobile_token_without_device(client, denti
     )
     response = client.get('/api/auth/me', headers={'Authorization': f'Bearer {legacy}'})
     assert response.status_code == 401, response.text
+
 
 def test_admin_revoke_mobile_invalidates_claimed_device_and_refresh(client, db, dentiste, monkeypatch):
     body = _claim(client, _pairing(db, dentiste, dentiste)).json()

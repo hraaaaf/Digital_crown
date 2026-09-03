@@ -11,6 +11,11 @@ def _override_db(db):
     app.dependency_overrides[database.get_db] = _get_db
 
 
+def _grant_platform_authority(monkeypatch, user):
+    monkeypatch.setattr(settings, "PLATFORM_CONTROL_PLANE_ENABLED", True)
+    monkeypatch.setattr(settings, "SUPERADMIN_USER_ID", user.id)
+
+
 def _fixture_rows(db, user, *, suffix: str):
     supplier = models.PartnerSupplier(
         employer_id=user.get_employer_id(),
@@ -106,7 +111,7 @@ def _receipt_payload(key: str, product_id: int):
 
 def test_receipt_http_automatically_updates_mapped_stock(client, db, dentiste, auth_headers, monkeypatch):
     _override_db(db)
-    monkeypatch.setattr(settings, "SUPERADMIN_EMAIL", dentiste.email)
+    _grant_platform_authority(monkeypatch, dentiste)
     product, stock_item, order = _fixture_rows(db, dentiste, suffix="AUTO")
     _mapping(client, auth_headers, product, stock_item)
 
@@ -141,7 +146,7 @@ def test_receipt_http_automatically_updates_mapped_stock(client, db, dentiste, a
 
 def test_receipt_survives_missing_mapping_then_replay_repairs_stock(client, db, dentiste, auth_headers, monkeypatch):
     _override_db(db)
-    monkeypatch.setattr(settings, "SUPERADMIN_EMAIL", dentiste.email)
+    _grant_platform_authority(monkeypatch, dentiste)
     product, stock_item, order = _fixture_rows(db, dentiste, suffix="PENDING")
     payload = _receipt_payload("bridge-pending-0001", product.id)
 

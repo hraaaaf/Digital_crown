@@ -13,7 +13,7 @@ from sqlalchemy import or_
 from sqlalchemy.orm import Session, contains_eager
 
 from backend import database, models
-from backend.routers.auth import has_permission, is_superadmin_user, require_permission
+from backend.routers.auth import has_permission, require_permission
 from backend.security import ALGORITHM, SECRET_KEY, token_blacklist
 from . import admin_legacy as _admin_legacy
 from . import mobile_legacy as _legacy
@@ -29,7 +29,6 @@ _BRIDGE_DESTINATION_CODES = {
     "assistant": "b",
     "security": "s",
     "dentists": "d",
-    "superadmin": "x",
 }
 _BRIDGE_CODE_DESTINATIONS = {code: destination for destination, code in _BRIDGE_DESTINATION_CODES.items()}
 _BRIDGE_LABELS = {
@@ -39,7 +38,6 @@ _BRIDGE_LABELS = {
     "assistant": "Assistant",
     "security": "Sécurité",
     "dentists": "Équipe praticiens",
-    "superadmin": "SuperAdmin",
 }
 
 
@@ -116,8 +114,12 @@ def _approval_value(user: models.User) -> str:
 
 
 def _allowed_bridge_destinations(user: models.User) -> list[str]:
-    """Server-side bridge allowlist. UI filtering never grants permissions."""
-    if not has_permission(user, "agenda") and not is_superadmin_user(user):
+    """Server-side bridge allowlist. UI filtering never grants permissions.
+
+    Platform administration is deliberately absent: a paired mobile session may
+    provide WebAuthn step-up proof, but it never becomes a Superadmin console.
+    """
+    if not has_permission(user, "agenda"):
         return []
 
     destinations = ["agenda", "assistant", "security", "dentists"]
@@ -125,8 +127,6 @@ def _allowed_bridge_destinations(user: models.User) -> list[str]:
         destinations.append("finance")
     if has_permission(user, "patients"):
         destinations.append("lab")
-    if is_superadmin_user(user):
-        destinations.append("superadmin")
     return destinations
 
 
@@ -348,7 +348,6 @@ def legacy_mobile_patient_create_disabled(
         status_code=410,
         detail="Création patient mobile legacy désactivée. Utilisez /api/patients/ avec date de naissance et sexe explicite.",
     )
-
 
 
 _FINANCIAL_NOTIFICATION_PREFIXES = (

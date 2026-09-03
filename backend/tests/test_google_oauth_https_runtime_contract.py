@@ -26,3 +26,11 @@ def test_legacy_http_loopback_remains_only_as_non_https_fallback() -> None:
 
     assert '_GOOGLE_LOCAL_HTTP_ORIGIN = "http://127.0.0.1:8005"' in source
     assert 'return _GOOGLE_LOCAL_HTTPS_ORIGIN if _cabinet_https_enabled() else _GOOGLE_LOCAL_HTTP_ORIGIN' in source
+
+
+def test_sec1_auth_guards_survive_oauth_https_sync() -> None:
+    source = AUTH_SOURCE.read_text(encoding="utf-8")
+
+    assert "return is_platform_superadmin(user)" in source
+    assert "await _enforce_signed_license_for_mutation(request, db, user)" in source
+    assert 'if request.url.path.startswith("/api/superadmin") and token_type != "access":' in source

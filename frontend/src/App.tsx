@@ -31,7 +31,7 @@ const Analytics       = lazy(() => import('./pages/Analytics').then(m => ({ defa
 const SetupWizard     = lazy(() => import('./features/admin/SetupWizard').then(m => ({ default: m.SetupWizard })));
 const EliteLibrary    = lazy(() => import('./features/clinical-ref/EliteLibrary').then(m => ({ default: m.EliteLibrary })));
 const EliteScienceHub = lazy(() => import('./features/clinical-ref/EliteScienceHub').then(m => ({ default: m.EliteScienceHub })));
-const SuperAdminDashboard = lazy(() => import('./features/superadmin/SuperAdminDashboard').then(m => ({ default: m.SuperAdminDashboard })));
+const SuperAdminDashboard = lazy(() => import('./features/superadmin/SuperAdminAccessBoundary').then(m => ({ default: m.SuperAdminAccessBoundary })));
 const LabJobsBoard    = lazy(() => import('./components/LabJobsBoard').then(m => ({ default: m.LabJobsBoard })));
 const StockPage        = lazy(() => import('./pages/StockPage').then(m => ({ default: m.StockPage })));
 const PartnerMarketplacePage = lazy(() => import('./pages/PartnerMarketplacePage').then(m => ({ default: m.PartnerMarketplacePage })));
@@ -74,9 +74,8 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
 
   useEffect(() => {
     const checkAuthAndInit = async () => {
-      // 1. Attendre que la base de données / le backend soit complètement chargé
       const waitForBackend = async () => {
-        const MAX_ATTEMPTS = 15; // 15 × 2s = 30s max
+        const MAX_ATTEMPTS = 15;
         for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
           try {
             await axios.get(`${API_BASE}/health`);
@@ -94,15 +93,12 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
 
       try {
         await waitForBackend();
-        
         const authStatus = await authService.isAuthenticated();
         setIsAuthenticated(authStatus);
-        
         if (authStatus && location.pathname !== '/login') {
           await useAuthStore.getState().checkAuth();
           const status = await cabinetApi.checkInitStatus();
           setIsInitialized(status.is_initialized);
-          
           if (status.is_initialized && !safeStorage.get('appMode')) {
             safeStorage.set('appMode', 'prod');
           }
@@ -122,24 +118,20 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
     return <DigitalCrownLoader text="Patientez pendant le démarrage de l'IA..." />;
   }
 
-  // BYPASS AUTH : Si on est sur /login et pas connecté, on laisse passer pour afficher la page
   if (!isAuthenticated) {
     if (['/login', '/register', '/terms', '/privacy'].includes(location.pathname)) return <>{children}</>;
     return <Navigate to="/login" replace />;
   }
 
-  // Force le choix du mode s'il n'existe pas (Mode PROD par défaut désormais)
   const appMode = safeStorage.get('appMode');
   if (!appMode) {
     safeStorage.set('appMode', 'prod');
   }
 
-  // Si le cabinet est déjà initialisé, on empêche l'accès au setup
   if (isInitialized && location.pathname === '/setup') {
     return <Navigate to="/dashboard" replace />;
   }
 
-  // Nouveau cabinet non configuré → forcer le wizard (sauf si déjà sur /setup)
   if (isInitialized === false && location.pathname !== '/setup') {
     return <Navigate to="/setup" replace />;
   }
@@ -155,17 +147,9 @@ const MobileProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const [gate, setGate] = useState<'loading' | 'allow' | 'redirect'>('loading');
 
   useEffect(() => {
-    // Sans .catch(), un rejet (IndexedDB indisponible/bloqué) laissait le gate
-    // bloqué en 'loading' pour toujours → spinner infini au lieu de retomber sur
-    // l'écran d'appairage (perçu par l'utilisateur comme "l'app ne reste pas connectée").
     MobileStorage.isPaired()
       .then(async (paired) => {
         if (paired) { setGate('allow'); return; }
-        // Pas (ou plus) appairé -- mais si un snapshot a déjà été chargé avec succès,
-        // on laisse quand même passer plutôt que de renvoyer sèchement vers le QR :
-        // MobileDashboard sait déjà retomber sur ce cache (useMobileDashboard::fetchSnapshot).
-        // C'est précisément le cas "loin du cabinet / IndexedDB des identifiants évincée
-        // par le navigateur" qui faisait perdre l'accès aux dernières données scannées.
         const hasCache = await MobileStorage.hasCachedSnapshot().catch(() => false);
         setGate(hasCache ? 'allow' : 'redirect');
       })
@@ -177,8 +161,6 @@ const MobileProtectedRoute = ({ children }: { children: React.ReactNode }) => {
 
   return <MobileBiometricGate>{children}</MobileBiometricGate>;
 };
-
-
 
 // =============================================================================
 // ROUTES PROTÉGÉES (avec layout)
@@ -264,7 +246,6 @@ const SmartRootRouter = () => {
   if (isMobile) {
     return <Navigate to="/mobile/dashboard" replace />;
   }
-  // Connecté → dashboard directement ; non-connecté → page marketing publique
   if (authStatus === 'checking') {
     return <PageLoader />;
   }
@@ -283,7 +264,6 @@ import { OfflineQueueViewer } from './components/mobile/OfflineQueueViewer';
 function App() {
   const [animatedBg, setAnimatedBg] = useState(() => safeStorage.get('app_background_animated') === 'true');
 
-  // Application globale du thème (Persistance) et Paramètres IA
   useEffect(() => {
     const savedTheme = localStorage.getItem('digitalcrown_theme');
     if (savedTheme) {
@@ -291,7 +271,6 @@ function App() {
     }
 
     const applySettings = () => {
-      // Mode Performance
       const isPerfMode = safeStorage.get('performanceMode') === 'true';
       if (isPerfMode) {
         document.body.classList.add('performance-mode');
@@ -299,13 +278,10 @@ function App() {
         document.body.classList.remove('performance-mode');
       }
 
-      // Arrière-plan Animé
       setAnimatedBg(safeStorage.get('app_background_animated') === 'true');
     };
 
     applySettings();
-
-    // Permet la mise à jour réactive sans recharger si déclenché manuellement
     window.addEventListener('settings_updated', applySettings);
     return () => window.removeEventListener('settings_updated', applySettings);
   }, []);
@@ -322,10 +298,8 @@ function App() {
         }}
       />
       <Routes>
-        {/* ROUTAGE INTELLIGENT RACINE (PWA Entry Point) */}
         <Route path="/" element={<SmartRootRouter />} />
 
-        {/* ROUTES PWA MOBILE (Accès Direct) */}
         <Route path="/mobile/onboarding" element={
           <Suspense fallback={<PageLoader />}><OnboardingScanner /></Suspense>
         } />
@@ -345,18 +319,14 @@ function App() {
           </MobileProtectedRoute>
         } />
         <Route path="/mobile/superadmin" element={
-          <MobileProtectedRoute>
-            <Suspense fallback={<PageLoader />}><MobileSuperAdminView /></Suspense>
-          </MobileProtectedRoute>
+          <Suspense fallback={<PageLoader />}><MobileSuperAdminView /></Suspense>
         } />
 
-        {/* Page marketing publique (avant connexion) */}
         <Route path="/landing" element={<LandingPage />} />
         <Route path="/download" element={<DownloadPage />} />
         <Route path="/activate" element={<ActivateTrialPage />} />
         <Route path="/welcome" element={<Navigate to="/landing" replace />} />
 
-        {/* Toutes les autres routes passent par le filtre Mode/Init */}
         <Route path="/*" element={
           <ProtectedRoute>
             <Suspense fallback={<PageLoader />}>

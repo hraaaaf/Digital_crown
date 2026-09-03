@@ -119,6 +119,21 @@ clinics.router.include_router(clinic_setup_p4.router)
 # M6.4 destination bridge implementation. Importing here also registers the context
 # table in shared SQLAlchemy metadata before application startup create_all().
 from . import mobile as mobile
+
+# SEC-1 replaces the legacy claim-token writer with an entitlement-aware transaction.
+# The signed max_devices claim is checked inside the same serialized write boundary as
+# device insertion and one-shot token consumption, preventing concurrent over-allocation.
+from . import mobile_pairing_secure as mobile_pairing_secure
+mobile.router.routes = [
+    route
+    for route in mobile.router.routes
+    if not (
+        getattr(route, "path", None) == "/claim-token"
+        and "POST" in (getattr(route, "methods", set()) or set())
+    )
+]
+mobile.router.include_router(mobile_pairing_secure.router)
+
 from . import mobile_resource_bridge as mobile_resource_bridge
 mobile.router.include_router(mobile_resource_bridge.router)
 

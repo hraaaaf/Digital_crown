@@ -2,6 +2,7 @@ from datetime import datetime, timedelta
 from io import BytesIO
 from pathlib import Path
 from urllib.parse import parse_qs, urlsplit
+from unittest.mock import AsyncMock
 import uuid
 
 import pytest
@@ -21,6 +22,15 @@ def _isolate_mobile_runtime_state(tmp_path, monkeypatch):
 
     _license_cache.clear()
     monkeypatch.setattr(rate_limit, '_store_path', str(tmp_path / 'm4b-rate-limit.json'))
+    monkeypatch.setattr(
+        'backend.routers.mobile_pairing_secure.LicenseService.get_effective_license',
+        AsyncMock(return_value={
+            'active': True,
+            'license_type': 'PAID',
+            'max_devices': 10,
+            'release_channel': 'stable',
+        }),
+    )
     yield
     _license_cache.clear()
 

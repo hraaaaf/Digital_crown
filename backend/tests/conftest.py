@@ -4,6 +4,7 @@ L'env var DATABASE_URL est forcée AVANT tout import backend.
 """
 import os
 import uuid
+from contextlib import ExitStack, nullcontext
 
 # Doit être fait avant tout import backend (database.py lit l'env au chargement)
 os.environ["DATABASE_URL"] = "sqlite:///:memory:"
@@ -29,6 +30,19 @@ _SessionLocal = sessionmaker(bind=_engine, autocommit=False, autoflush=False)
 def _create_tables():
     """Crée toutes les tables SQLAlchemy une seule fois pour la session de tests."""
     from backend import models, database
+    # Les modèles modulaires partagent models.Base mais ne sont pas tous importés
+    # par backend.models. Ils doivent être enregistrés avant create_all(), sinon un
+    # import ultérieur de backend.main ajoute de la metadata sans créer les tables.
+    from backend import (  # noqa: F401
+        models_catalog_plan,
+        models_clinical_p3,
+        models_identity_p4,
+        models_imaging_p4,
+        models_mobile_passkey,
+        models_mobile_push,
+        models_platform,
+        models_platform_passkey,
+    )
     database.engine = _engine
     database.SessionLocal = _SessionLocal
     models.Base.metadata.create_all(bind=_engine)
@@ -53,33 +67,73 @@ def db():
 
 
 @pytest.fixture()
-def client(db):
+def client(db, request):
     """
     TestClient FastAPI :
       - get_db overridé sur la session SQLite de test
       - lifespan patché (pas de chargement ML, pas de seed prod)
+      - le garde licence runtime central est mocké explicitement ; ses tests SEC-1
+        dédiés couvrent séparément les chemins signed/fail-closed
+      - les routes métier historiques ne dépendent pas d'une vraie licence signée
+        dans ce fixture générique ; les tests SEC-1 testent require_elite_license
+        directement et les scénarios API de plateforme séparément
+      - le step-up Superadmin est mocké pour les tests métier génériques, sauf dans
+        les tests Superadmin de frontière/intégration qui exercent le vrai garde
       - rate limiter désactivé
     """
+    from backend import models
     from backend.main import app
     from backend.routers import (
         auth, patients, clinics, documents,
         appointments, prescriptions, accounting, team,
     )
 
+    # backend.main charge tous les routers, y compris ceux qui déclarent directement
+    # des tables SQLAlchemy (ex. mobile_resource_bridge). Resynchroniser ici rend le
+    # schéma de test fidèle à la metadata réellement chargée au lieu de maintenir une
+    # liste manuelle fragile de tables tardives.
+    models.Base.metadata.create_all(bind=_engine)
+
     def _override_get_db():
         yield db
+
+    async def _override_elite_license():
+        return True
 
     for module in (auth, patients, clinics, documents, appointments, prescriptions, accounting, team):
         if hasattr(module, "get_db"):
             app.dependency_overrides[module.get_db] = _override_get_db
+
+    # Existing business/router tests are intentionally license-agnostic. The signed
+    # entitlement contract has its own SEC-1 tests, so this override prevents the
+    # generic suite from depending on a real control-plane key/trust anchor.
+    app.dependency_overrides[auth.require_elite_license] = _override_elite_license
+
+    real_step_up_tests = {
+        "test_superadmin_session_boundary.py",
+        "test_superadmin_platform_passkey.py",
+    }
+    if request.node.path.name in real_step_up_tests:
+        step_up_context = nullcontext()
+    else:
+        step_up_context = ExitStack()
+        step_up_context.enter_context(
+            patch("backend.routers.superadmin.enforce_platform_step_up_for_mutation", return_value=None)
+        )
+        step_up_context.enter_context(
+            patch("backend.routers.superadmin_admins.enforce_platform_step_up_for_mutation", return_value=None)
+        )
 
     with patch("backend.main.panoramic_engine.initialize", new_callable=AsyncMock), \
          patch("backend.main.run_full_seed", return_value=None), \
          patch("backend.main.seed_admin_user", return_value=None), \
          patch("backend.main.sync_manager.start_listening", return_value=None), \
          patch("backend.main._sync_all_licenses_from_firebase", new_callable=AsyncMock), \
+         patch("backend.main.get_user_license_status", new_callable=AsyncMock, return_value=(True, "OK")), \
+         patch("backend.main.get_mobile_user_license_status", new_callable=AsyncMock, return_value=(True, "OK")), \
          patch("backend.services.daily_scheduler.start_daily_scheduler", return_value=None), \
-         patch("backend.routers.auth.check_rate_limit", return_value=None):
+         patch("backend.routers.auth.check_rate_limit", return_value=None), \
+         step_up_context:
         with TestClient(app, raise_server_exceptions=True) as c:
             yield c
 

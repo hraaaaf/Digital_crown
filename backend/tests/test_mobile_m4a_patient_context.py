@@ -7,7 +7,7 @@ from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import ec
 
 from backend import models
-from backend.routers import mobile_resource_bridge
+from backend.routers import mobile_pairing_secure, mobile_resource_bridge
 from backend.routers.mobile_resource_bridge import BRIDGE_CONTEXT_TABLE  # noqa: F401 — register Core table before test DB create_all
 from backend.security import get_password_hash
 
@@ -17,8 +17,21 @@ def _isolate_mobile_runtime_state(tmp_path, monkeypatch):
     from backend.main import _license_cache
     from backend.utils import rate_limit
 
+    async def _signed_entitlement(*_args, **_kwargs):
+        return {
+            'active': True,
+            'license_type': 'PAID',
+            'max_devices': 10,
+            'release_channel': 'stable',
+        }
+
     _license_cache.clear()
     monkeypatch.setattr(rate_limit, '_store_path', str(tmp_path / 'm4a-rate-limit.json'))
+    monkeypatch.setattr(
+        mobile_pairing_secure.LicenseService,
+        'get_effective_license',
+        _signed_entitlement,
+    )
     yield
     _license_cache.clear()
 

@@ -1,8 +1,24 @@
-import os
-import pytest
+import base64
 import datetime
-from backend.services.license_service import LicenseService
+import os
+
+import pytest
+from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
+from cryptography.hazmat.primitives.serialization import (
+    Encoding,
+    NoEncryption,
+    PrivateFormat,
+    PublicFormat,
+)
+
 from backend.core.paths import AppPaths
+from backend.license_security import sign_license
+from backend.services import license_service as license_service_module
+from backend.services.license_service import LicenseService
+
+
+def _b64url(data: bytes) -> str:
+    return base64.urlsafe_b64encode(data).rstrip(b"=").decode("ascii")
 
 
 @pytest.fixture(autouse=True)
@@ -31,23 +47,75 @@ async def test_offline_no_vault_fails():
 
 
 @pytest.mark.asyncio
-async def test_online_validation_saves_local_vault():
-    service = LicenseService()
-    service._db = None
-    
+async def test_online_validation_saves_local_vault(monkeypatch, tmp_path):
+    monkeypatch.setenv("DIGITALCROWN_USER_DATA_DIR", str(tmp_path))
+    monkeypatch.setenv("CABINET_MASTER_KEY_HEX", "ab" * 32)
+
+    private_key = Ed25519PrivateKey.generate()
+    private_raw = private_key.private_bytes(Encoding.Raw, PrivateFormat.Raw, NoEncryption())
+    public_raw = private_key.public_key().public_bytes(Encoding.Raw, PublicFormat.Raw)
+    private_b64url = _b64url(private_raw)
+    public_b64url = _b64url(public_raw)
+    monkeypatch.setattr(
+        license_service_module,
+        "TRUSTED_LICENSE_PUBLIC_KEYS",
+        {"k1": public_b64url},
+    )
+
     now = datetime.datetime.now(datetime.timezone.utc)
-    expiration = now + datetime.timedelta(days=30)
-    
-    local_data = {
-        "clinic_id": "test_clinic",
-        "last_validated": now.isoformat(),
-        "expiration_date": expiration.isoformat(),
-        "max_seen_time": now.isoformat()
-    }
-    service._write_local_vault(local_data)
-    
+    token = sign_license(
+        {
+            "schema_version": 1,
+            "issuer": "digital-crown",
+            "audience": "digital-crown-desktop",
+            "license_id": "lic-online-cache-001",
+            "cabinet_id": "test_clinic",
+            "license_type": "PAID",
+            "status": "ACTIVE",
+            "issued_at": (now - datetime.timedelta(seconds=1)).isoformat(),
+            "not_before": (now - datetime.timedelta(seconds=1)).isoformat(),
+            "expires_at": (now + datetime.timedelta(days=30)).isoformat(),
+            "release_channel": "stable",
+            "feature_set": ["catalog"],
+            "max_devices": 1,
+            "policy_version": "1",
+            "created_by_user_id": 7,
+        },
+        private_b64url,
+        "k1",
+    )
+
+    class _Doc:
+        exists = True
+
+        @staticmethod
+        def to_dict():
+            return {"signed_license": token}
+
+    class _DocRef:
+        @staticmethod
+        def get():
+            return _Doc()
+
+    class _Collection:
+        @staticmethod
+        def document(_id):
+            return _DocRef()
+
+    class _Db:
+        @staticmethod
+        def collection(_name):
+            return _Collection()
+
+    service = LicenseService()
+    service._db = _Db()
+
     result = await service.validate_license("test_clinic")
+
     assert result is True
+    vault = service._read_local_vault()
+    assert vault["clinic_id"] == "test_clinic"
+    assert vault["signed_license"] == token
 
 
 @pytest.mark.asyncio

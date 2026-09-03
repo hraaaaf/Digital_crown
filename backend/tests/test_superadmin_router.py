@@ -1,6 +1,6 @@
 """Tests routers/superadmin.py — superadmin guard + client management."""
 import pytest
-from unittest.mock import patch
+from unittest.mock import AsyncMock, patch
 from datetime import datetime, timedelta
 
 
@@ -8,7 +8,7 @@ from datetime import datetime, timedelta
 
 @pytest.fixture
 def superadmin_headers(client, dentiste):
-    """Auth headers for the dentiste fixture (used as superadmin when env is patched)."""
+    """Auth headers for the dentiste fixture (used as superadmin when id is patched)."""
     r = client.post(
         "/api/auth/login",
         data={"username": dentiste.email, "password": "TestPass123!"},
@@ -19,9 +19,35 @@ def superadmin_headers(client, dentiste):
 
 @pytest.fixture
 def with_superadmin_env(dentiste):
-    """Patch the module-level _SUPERADMIN_EMAIL to match the dentiste fixture."""
-    with patch("backend.routers.superadmin._SUPERADMIN_EMAIL", dentiste.email.lower()):
+    """Enable the control plane and bind immutable SuperAdmin authority to dentiste.id."""
+    with patch("backend.platform_access.settings.PLATFORM_CONTROL_PLANE_ENABLED", True), patch(
+        "backend.platform_access.settings.SUPERADMIN_USER_ID", dentiste.id
+    ):
         yield
+
+
+@pytest.fixture
+def signed_license_boundary():
+    """Keep router tests focused on HTTP/DB behavior; SEC-1 signing is tested separately."""
+    with patch(
+        "backend.routers.superadmin._issue_and_store_signed_license",
+        new_callable=AsyncMock,
+        return_value="signed-test-license",
+    ) as mocked:
+        yield mocked
+
+
+def _add_cabinet(db, models, owner):
+    cabinet = models.CabinetConfig(
+        owner_id=owner.id,
+        nom_cabinet="Cabinet Test",
+        nom_praticien=owner.nom_complet or "Dr Test",
+        nom_praticien_ar="",
+    )
+    db.add(cabinet)
+    db.commit()
+    db.refresh(cabinet)
+    return cabinet
 
 
 # ── access guard ──────────────────────────────────────────────────────────────
@@ -32,7 +58,6 @@ class TestSuperadminGuard:
         assert r.status_code == 401
 
     def test_regular_user_gets_403(self, client, auth_headers):
-        # auth_headers user is NOT a superadmin
         r = client.get("/api/superadmin/clients", headers=auth_headers)
         assert r.status_code == 403
 
@@ -69,7 +94,7 @@ class TestSuperadminGuard:
         assert r.status_code == 403
 
 
-# ── superadmin operations ─────────────────────────────────────────────────────
+# ── superadmin operations ──────────────────────────────────────────────────────
 
 class TestSuperadminOperations:
     def test_list_clients_returns_list(
@@ -88,7 +113,7 @@ class TestSuperadminOperations:
         )
         assert r.status_code == 404
 
-    def test_validate_client_success(
+    def test_validate_client_requires_cabinet(
         self, client, db, superadmin_headers, with_superadmin_env
     ):
         from backend import models
@@ -107,8 +132,32 @@ class TestSuperadminOperations:
             f"/api/superadmin/clients/{new_user.id}/validate",
             headers=superadmin_headers,
         )
+        assert r.status_code == 409
+        assert new_user.is_active is False
+
+    def test_validate_client_success(
+        self, client, db, superadmin_headers, with_superadmin_env, signed_license_boundary
+    ):
+        from backend import models
+        new_user = models.User(
+            email="newdentist_signed_sa@cabinet.ma",
+            nom_complet="New Dentist",
+            hashed_password="$2b$12$dummy",
+            role=models.UserRole.DENTISTE,
+            is_active=False,
+        )
+        db.add(new_user)
+        db.commit()
+        db.refresh(new_user)
+        _add_cabinet(db, models, new_user)
+
+        r = client.post(
+            f"/api/superadmin/clients/{new_user.id}/validate",
+            headers=superadmin_headers,
+        )
         assert r.status_code == 200
         assert r.json()["status"] == "success"
+        assert signed_license_boundary.await_count == 1
 
     def test_grant_license_invalid_action_returns_400(
         self, client, db, superadmin_headers, with_superadmin_env
@@ -124,6 +173,7 @@ class TestSuperadminOperations:
         db.add(new_user)
         db.commit()
         db.refresh(new_user)
+        _add_cabinet(db, models, new_user)
 
         r = client.post(
             f"/api/superadmin/clients/{new_user.id}/grant-license?action=invalid",
@@ -132,7 +182,7 @@ class TestSuperadminOperations:
         assert r.status_code == 400
 
     def test_grant_license_1m(
-        self, client, db, superadmin_headers, with_superadmin_env
+        self, client, db, superadmin_headers, with_superadmin_env, signed_license_boundary
     ):
         from backend import models
         new_user = models.User(
@@ -145,6 +195,7 @@ class TestSuperadminOperations:
         db.add(new_user)
         db.commit()
         db.refresh(new_user)
+        _add_cabinet(db, models, new_user)
 
         r = client.post(
             f"/api/superadmin/clients/{new_user.id}/grant-license?action=1m",
@@ -152,9 +203,10 @@ class TestSuperadminOperations:
         )
         assert r.status_code == 200
         assert "license_expires_at" in r.json()
+        assert signed_license_boundary.await_count == 1
 
     def test_grant_license_revoke(
-        self, client, db, superadmin_headers, with_superadmin_env
+        self, client, db, superadmin_headers, with_superadmin_env, signed_license_boundary
     ):
         from backend import models
         new_user = models.User(
@@ -168,12 +220,14 @@ class TestSuperadminOperations:
         db.add(new_user)
         db.commit()
         db.refresh(new_user)
+        _add_cabinet(db, models, new_user)
 
         r = client.post(
             f"/api/superadmin/clients/{new_user.id}/grant-license?action=revoke",
             headers=superadmin_headers,
         )
         assert r.status_code == 200
+        assert signed_license_boundary.await_count == 1
 
     def test_archive_client(
         self, client, db, superadmin_headers, with_superadmin_env
@@ -228,6 +282,7 @@ class TestSuperadminOperations:
             hashed_password="$2b$12$dummy",
             role=models.UserRole.DENTISTE,
             is_active=True,
+            is_licensed=False,
             subscription_plan="GOLD",
         )
         db.add(new_user)

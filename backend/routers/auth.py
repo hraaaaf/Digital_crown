@@ -22,6 +22,8 @@ from backend.security import (
 from backend.schemas import TokenData, SupabaseSyncRequest
 from backend.utils.rate_limit import check_rate_limit
 from backend.config import settings
+from backend.platform_access import is_platform_superadmin
+from backend.services.license_service import LicenseService
 import httpx
 from urllib.parse import urlencode
 
@@ -31,12 +33,21 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl="api/auth/login", auto_error=False
 
 get_db = database.get_db
 
+_MUTATING_METHODS = {"POST", "PUT", "PATCH", "DELETE"}
+_SIGNED_LICENSE_BYPASS_PREFIXES = (
+    "/api/auth",
+    # Platform administration is governed by platform RBAC and signs/licenses
+    # cabinets. Requiring a cabinet license here would create a bootstrap loop.
+    "/api/superadmin",
+    "/api/clinics/recheck-license",
+    "/api/clinics/license-status",
+    "/api/clinics/init-status",
+)
+
 
 def is_superadmin_user(user: models.User | None) -> bool:
-    if not user or not getattr(user, "email", None):
-        return False
-    superadmin_email = settings.SUPERADMIN_EMAIL.lower().strip()
-    return bool(superadmin_email and user.email.lower().strip() == superadmin_email)
+    """Platform SuperAdmin identity is bound to the immutable configured user id."""
+    return is_platform_superadmin(user)
 
 
 def _set_auth_cookies(response: Response, access_token: str, refresh_token: str) -> None:
@@ -62,6 +73,58 @@ def _set_auth_cookies(response: Response, access_token: str, refresh_token: str)
     )
 
 
+def _resolve_license_owner_and_clinic(db: Session, user: models.User):
+    owner = user
+    if user.employer_id is not None:
+        owner = db.query(models.User).filter(models.User.id == user.employer_id).first()
+        if owner is None:
+            return None, None
+
+    cabinet = db.query(models.CabinetConfig).filter(
+        models.CabinetConfig.owner_id == owner.id
+    ).first()
+    return owner, cabinet
+
+
+async def _get_signed_license_state(db: Session, user: models.User) -> dict:
+    owner, cabinet = _resolve_license_owner_and_clinic(db, user)
+    if owner is None or cabinet is None:
+        return {"active": False, "reason": "SIGNED_LICENSE_NOT_CONFIGURED"}
+    if owner.is_suspended:
+        return {"active": False, "reason": "SUSPENDED"}
+    if owner.is_archived:
+        return {"active": False, "reason": "ARCHIVED"}
+
+    clinic_id = str(cabinet.clinic_id or cabinet.public_id)
+    return await LicenseService().get_effective_license(clinic_id)
+
+
+async def _enforce_signed_license_for_mutation(
+    request: Request,
+    db: Session,
+    user: models.User,
+) -> None:
+    """SEC-1 runtime gate: mutable SQLite flags can never authorize a cabinet write."""
+    env = str(getattr(settings, "ENVIRONMENT", "development")).lower()
+    if env in {"development", "local", "test"}:
+        return
+    if request.method.upper() not in _MUTATING_METHODS:
+        return
+    if request.url.path.startswith(_SIGNED_LICENSE_BYPASS_PREFIXES):
+        return
+    # The initial cabinet shell may be created before commercial activation.
+    # This exception grants no clinical mutation; all later writes require a signed license.
+    if request.url.path.rstrip("/") == "/api/clinics":
+        return
+
+    license_state = await _get_signed_license_state(db, user)
+    if not license_state.get("active"):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=license_state.get("reason") or "SIGNED_LICENSE_REQUIRED",
+        )
+
+
 async def get_current_user(
     request: Request,
     token_header: str | None = Depends(oauth2_scheme),
@@ -72,6 +135,8 @@ async def get_current_user(
         detail="Could not validate credentials",
         headers={"WWW-Authenticate": "Bearer"},
     )
+    # Desktop reste cookie-first, mais un Bearer explicitement mobile doit
+    # rester device-bound même si un cookie web existe dans le même navigateur.
     mobile_header = False
     if token_header:
         try:
@@ -93,6 +158,9 @@ async def get_current_user(
             raise credentials_exception
 
         if token_type == "mobile":
+            # Une session mobile ne peut jamais devenir un simple access token web.
+            # Réutiliser le validateur mobile canonique garde user/tenant/device et
+            # révocation alignés sur les routes /api/mobile/* et les routes partagées.
             from backend.routers.mobile_legacy import _decode_mobile_identity
             user, _tenant_id, _mobile_payload = _decode_mobile_identity(f"Bearer {token}", db)
         else:
@@ -108,6 +176,17 @@ async def get_current_user(
 
     if user is None or not user.is_active:
         raise credentials_exception
+
+    # Platform administration must never inherit authority from a mobile session.
+    # A paired cabinet device is intentionally a different trust boundary from the
+    # dedicated control-plane web session, even when both resolve to the same user id.
+    if request.url.path.startswith("/api/superadmin") and token_type != "access":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Accès plateforme réservé à une session web privilégiée.",
+        )
+
+    await _enforce_signed_license_for_mutation(request, db, user)
     return user
 
 
@@ -161,6 +240,8 @@ def has_permission(current_user: models.User, permission_name: Union[str, List[s
     perms = current_user.permissions or {}
     perms_to_check = [permission_name] if isinstance(permission_name, str) else permission_name
 
+    # Une matrice non vide est explicite et fait autorité. Un dict vide correspond
+    # aux comptes legacy créés avant la granularité des permissions.
     if isinstance(perms, dict) and len(perms) > 0:
         return any(perms.get(p) is True for p in perms_to_check)
 
@@ -173,6 +254,7 @@ def has_permission(current_user: models.User, permission_name: Union[str, List[s
 
 
 def require_permission(permission_name: Union[str, List[str]]):
+    """Dépendance FastAPI pour valider les privilèges d'accès du collaborateur."""
     def dependency(current_user: models.User = Depends(get_current_user)):
         if has_permission(current_user, permission_name):
             return current_user
@@ -195,21 +277,25 @@ def require_superadmin(current_user: models.User = Depends(get_current_user)):
     )
 
 
-def require_elite_license(
+async def require_elite_license(
     current_user: models.User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    if is_superadmin_user(current_user):
-        return current_user
-        
-    license_owner = current_user
-    if current_user.employer_id:
-        license_owner = db.query(models.User).filter(models.User.id == current_user.employer_id).first() or current_user
-
-    if not license_owner.is_licensed:
+    """Require the signed ELITE entitlement; mutable SQLite plan flags are non-authoritative."""
+    license_state = await _get_signed_license_state(db, current_user)
+    if not license_state.get("active"):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Accès refusé. Cette fonctionnalité requiert une licence active."
+            detail="Accès refusé. Cette fonctionnalité requiert une licence active.",
+        )
+
+    if license_state.get("license_type") == "OWNER":
+        return current_user
+
+    if license_state.get("feature_set") != models.SubscriptionPlan.ELITE.value:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Accès refusé. Cette fonctionnalité requiert le plan ELITE.",
         )
     return current_user
 
@@ -230,6 +316,8 @@ async def login_for_access_token(
     check_rate_limit(request)
     user = db.query(models.User).filter(models.User.email == form_data.username).first()
 
+    # Protection contre le User Enumeration (Timing Attack)
+    # Si l'utilisateur n'existe pas, on simule le calcul bcrypt pour avoir le même temps de réponse
     password_is_valid = False
     if user:
         password_is_valid = verify_password(form_data.password, user.hashed_password)
@@ -263,6 +351,8 @@ async def login_for_access_token(
             severity="WARNING",
             details="Tentative de connexion sur un compte desactive",
         )
+        # Distinguer "inscription en attente SuperAdmin" (employer_id is None, role DENTISTE)
+        # de "sous-compte désactivé par le praticien" (employer_id is set)
         if user.employer_id is None:
             detail_msg = "Votre demande d'accès est en attente de validation par notre équipe. Vous recevrez un email dès l'activation de votre compte."
         else:
@@ -315,6 +405,9 @@ async def login_for_access_token(
         severity="INFO",
     )
 
+    # Déclenchement de la synchronisation télémétrique asynchrone.
+    # P0.1 : OFF par défaut — on n'enregistre rien tant que l'opt-in explicite
+    # (TELEMETRY_ENABLED) n'est pas activé. Aucune donnée ne quitte le cabinet.
     if settings.TELEMETRY_ENABLED:
         try:
             from backend.services.telemetry import sync_telemetry_logs, sync_business_intelligence_leak
@@ -345,6 +438,7 @@ async def refresh_access_token(
         detail="Refresh token invalide ou expiré",
         headers={"WWW-Authenticate": "Bearer"},
     )
+    # Cookie-first: si le body ne fournit pas de refresh_token, lire depuis le cookie
     refresh_token_value = body.refresh_token or request.cookies.get("refresh_token", "")
     if not refresh_token_value:
         raise credentials_exception
@@ -365,6 +459,7 @@ async def refresh_access_token(
     if user is None or not user.is_active:
         raise credentials_exception
 
+    # Rotation : le vieux refresh token est révoqué, on en émet un nouveau
     token_blacklist.revoke(refresh_token_value, db)
     new_access = create_access_token(data={"sub": user.email})
     new_refresh = create_refresh_token(data={"sub": user.email})
@@ -388,14 +483,18 @@ async def logout(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user),
 ):
+    # Résoudre l'access token (cookie-first, fallback header)
     token = request.cookies.get("access_token") or token_header
+    # Résoudre le refresh token (body-first, fallback cookie)
     refresh_tok = body.refresh_token or request.cookies.get("refresh_token", "")
 
+    # Révoquer l'access token courant et le refresh token fourni
     if token:
         token_blacklist.revoke(token, db)
     if refresh_tok:
         token_blacklist.revoke(refresh_tok, db)
 
+    # Effacer les cookies HttpOnly
     response.delete_cookie("access_token", path="/")
     response.delete_cookie("refresh_token", path="/")
 
@@ -411,13 +510,11 @@ async def logout(
 
 @router.get("/me", response_model=schemas.UserOut)
 async def read_users_me(current_user: models.User = Depends(get_current_user)):
-    superadmin_email = settings.SUPERADMIN_EMAIL.lower().strip()
-    current_email = (current_user.email or "").lower().strip()
     return schemas.UserOut(
         id=current_user.id,
         email=current_user.email,
         role=current_user.role.value if hasattr(current_user.role, "value") else str(current_user.role),
-        is_superadmin=bool(superadmin_email and current_email == superadmin_email),
+        is_superadmin=is_superadmin_user(current_user),
         nom_complet=current_user.nom_complet,
         is_active=current_user.is_active,
         employer_id=current_user.employer_id,
@@ -442,6 +539,7 @@ async def signup_client(
             detail="Vous devez accepter les CGU et la politique de confidentialite pour creer un compte.",
         )
 
+    # Check if email already exists
     existing = db.query(models.User).filter(models.User.email == req.email).first()
     if existing:
         raise HTTPException(status_code=400, detail="Cet email est déjà utilisé.")
@@ -453,7 +551,7 @@ async def signup_client(
         nom_complet=req.nom_complet,
         telephone_mobile=req.telephone_mobile,
         adresse_complete=req.adresse_complete,
-        is_active=False,
+        is_active=False,  # En attente de validation par le SuperAdmin
         is_licensed=False,
     )
     
@@ -478,6 +576,7 @@ async def signup_client(
     except Exception as e:
         logger.warning("Email transactionnel inscription non programme: %s", e)
     
+    # PUSH to Firebase for SuperAdmin validation (Option B)
     try:
         from backend.services.license_service import LicenseService
         from datetime import datetime, timezone
@@ -501,7 +600,6 @@ async def signup_client(
         logging.getLogger(__name__).error(f"Echec push pending_clients vers Firebase : {e}")
         
     return new_user
-
 
 # ---------------------------------------------------------------------------
 # Google OAuth 2.0 — Authorization Code Flow
