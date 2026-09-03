@@ -221,9 +221,9 @@ Donc un refresh / retour Dashboard / nouvelle session peut conserver l'informati
 
 ---
 
-## TUTO-3 — Implémentation — IN PROGRESS
+## TUTO-3 — Implémentation — DONE
 
-### Implémenté au HEAD du lot
+### Implémenté
 
 - `frontend/src/features/tutorial/VoluntaryTutorial.tsx` ;
 - `TutorialHelpButton` monté dans `Header` ;
@@ -239,11 +239,11 @@ Donc un refresh / retour Dashboard / nouvelle session peut conserver l'informati
 - `react-joyride` non utilisé ;
 - aucun timer dans le nouveau système.
 
-### Tests source ajoutés
+### Tests source
 
 `frontend/src/features/tutorial/VoluntaryTutorial.test.ts`
 
-Assertions prévues :
+Assertions :
 
 - fermé par défaut ;
 - ouverture explicite ;
@@ -255,37 +255,48 @@ Assertions prévues :
 - filtrage permissions ;
 - ancres Dashboard présentes.
 
-### État de validation
+### Preuves de validation TUTO-3
 
-Le code est écrit, mais **TUTO-3 n'est pas DONE tant que CI/build/tests/runtime ne sont pas verts**.
+Sur HEAD code `204d30dac80e5893b77d20b95454877cb4678fa9`, puis commits docs/workflow sans modification du code produit :
+
+- CI `33810979054` : job `Frontend (tests & build)` SUCCESS ;
+- étape `Test suite` SUCCESS ;
+- étape `Build` SUCCESS ;
+- Runtime `33810979153` SUCCESS ;
+- Dashboard Visual Certification `33810979051` SUCCESS.
+
+TUTO-3 est donc clôturé au niveau code/build/runtime générique. La preuve visuelle spécifique du guide ouvert relève de TUTO-4.
 
 ---
 
-## TUTO-4 — Certification — PENDING
+## TUTO-4 — Certification — IN PROGRESS
 
 Process obligatoire :
 
 BEFORE → Goal UI → implémentation → AFTER mêmes viewports → comparaison → runtime → tests → score visuel → closeout.
 
-### Matrix minimale
+### Certification dédiée ajoutée
 
-- 1440 ;
-- 1024 ;
-- 768 ;
-- 430 ;
-- 390 si exposé ;
-- rôles pertinents ;
-- open ;
-- close ;
-- Escape ;
-- skip ;
-- pause ;
-- resume explicite ;
-- navigation ;
-- retour route ;
-- refresh ;
-- nouvelle session ;
-- preuve négative d'absence d'auto-launch.
+Workflow : `.github/workflows/voluntary-tutorial-visual-cert.yml`
+
+Commit d'ajout : `ad8b9d10d8be40a586cb92ac7ee2e86fac68582d`.
+
+Matrix prévue :
+
+- rôles `admin` + `secretary` ;
+- viewports `1440`, `1024`, `768`, `430`, `390` ;
+- preuve guide fermé malgré progression persistée ;
+- ouverture explicite via `Aide / Guide` ;
+- capture panneau ouvert ;
+- capture guide Dashboard actif + spotlight ;
+- `Reprendre plus tard` ferme le guide ;
+- refresh après pause ne rouvre pas le guide ;
+- erreurs console/page font échouer le job ;
+- artifacts visuels uploadés par rôle + viewport.
+
+### État exact
+
+Au dernier check après le commit `ad8b9d10`, aucun run n'était encore associé à ce nouveau HEAD. Aucun résultat de cette certification dédiée n'est donc déclaré à ce stade.
 
 ## Dette / garde-fous
 
@@ -296,15 +307,16 @@ BEFORE → Goal UI → implémentation → AFTER mêmes viewports → comparaiso
 
 ## Next exact
 
-1. laisser la CI/runtime/visual du HEAD terminer sans polling passif ;
-2. si CI rouge : diagnostiquer → corriger → tester → relancer ;
-3. si source/build verts : compléter les preuves runtime du comportement volontaire ;
-4. produire les AFTER aux mêmes viewports et comparer au Goal UI ;
-5. score visuel ;
+1. lire le premier run attaché au HEAD `ad8b9d10` ;
+2. si la certification dédiée est rouge : diagnostiquer précisément le job/viewport → corriger → relancer ;
+3. si verte : télécharger/inspecter les artifacts AFTER ;
+4. comparer aux invariants du Goal UI et au BEFORE ;
+5. attribuer le score visuel uniquement sur preuves ;
 6. closeout canonique ;
-7. merge PR #352 si toutes les preuves exigées sont vertes ;
-8. post-merge.
+7. vérifier CI finale ;
+8. merge PR #352 si toutes les preuves exigées sont vertes ;
+9. post-merge.
 
 ## Séquence restante
 
-TUTO-3 validation/corrections → TUTO-4 runtime + responsive + rôles + visuels → comparaison Goal UI → score → canonical closeout → merge → post-merge.
+TUTO-4 run dédié → correction si besoin → inspection AFTER → comparaison Goal UI → score → canonical closeout → CI finale → merge → post-merge.
