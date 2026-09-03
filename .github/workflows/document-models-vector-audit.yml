@@ -121,12 +121,29 @@ jobs:
 
           style = ParagraphStyle("cloture-audit", fontName="Helvetica", fontSize=9, leading=12)
           text = "Arrêtée la présente note d'honoraires à la somme de DIX-HUIT MILLE CENT DIRHAMS TTC."
-          ample = 10 * cm
-          _, reserved = PinnedCloture(text, style).wrap(11.8 * cm, ample)
-          assert abs(reserved - ample) <= 0.01
+
+          final = PinnedCloture(text, style)
+          BaseTemplate.scale_elements([final], 1.0)
+          assert final._pin_to_footer is True
+          final._frame = SimpleNamespace(_y=4.0 * cm)
+          available = 0.5 * cm
+          _, reserved = final.wrap(11.8 * cm, available)
+          assert reserved == 0
+          assert final._cloture_draw_y >= 2.65 * cm
+
+          tight_final = PinnedCloture(text, style)
+          BaseTemplate.scale_elements([tight_final], 1.0)
+          tight_final._frame = SimpleNamespace(_y=3.2 * cm)
           tight = 0.2 * cm
-          _, required = PinnedCloture(text, style).wrap(11.8 * cm, tight)
+          _, required = tight_final.wrap(11.8 * cm, tight)
           assert required > tight
+
+          non_final = PinnedCloture(text, style)
+          trailing = Paragraph("Signature", getSampleStyleSheet()["Normal"])
+          BaseTemplate.scale_elements([non_final, trailing], 1.0)
+          assert non_final._pin_to_footer is False
+          _, normal_height = non_final.wrap(11.8 * cm, 10 * cm)
+          assert normal_height > 0
           PY
       - name: Generate five real A5 documents
         run: PYTHONPATH=. python scripts/audit_document_models.py
