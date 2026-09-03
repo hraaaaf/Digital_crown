@@ -10,7 +10,7 @@ const retiredGuidedTourFiles = [
   path.resolve(__dirname, '../../components/GuidedTour/tourConfig.ts'),
 ];
 const sourceRoot = path.resolve(__dirname, '../..');
-const thisTestPath = path.resolve(__filename);
+const thisTestPath = path.resolve(__dirname, 'dashboardTutorialT1.test.ts');
 const dashboardSource = fs.readFileSync(dashboardPath, 'utf8');
 
 const collectSourceFiles = (dir: string): string[] => fs.readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
