@@ -6,6 +6,7 @@ from reportlab.lib.units import cm
 
 from backend.schemas.cabinet import CabinetConfigUpdate
 from backend.services.premium_document_headers import (
+    ARABIC_OPTICAL_SCALE,
     _fr_block,
     draw_clinical,
     draw_heritage,
@@ -162,7 +163,7 @@ def test_dense_heritage_switches_to_compact_left_column():
     "drawer",
     [draw_swiss, draw_royal, draw_clinical, draw_modern, draw_heritage],
 )
-def test_bilingual_templates_use_same_fr_ar_point_size_hierarchy(drawer):
+def test_bilingual_templates_apply_same_hierarchy_with_arabic_optical_compensation(drawer):
     canvas = _Canvas()
     configured = _max_current_header_lines()
     width, height = A5
@@ -183,7 +184,9 @@ def test_bilingual_templates_use_same_fr_ar_point_size_hierarchy(drawer):
     )
 
     count = len(configured)
-    assert canvas.font_sizes[:count] == canvas.font_sizes[count:count * 2]
+    fr_sizes = canvas.font_sizes[:count]
+    ar_sizes = canvas.font_sizes[count:count * 2]
+    assert ar_sizes == pytest.approx([size * ARABIC_OPTICAL_SCALE for size in fr_sizes])
 
 
 def test_cabinet_config_accepts_full_current_specialty_header():
