@@ -55,8 +55,12 @@ jobs:
           from reportlab.lib.units import cm
           from reportlab.platypus import Paragraph
           from backend.models import CabinetConfig
+          from backend.models_document_layout import attach_document_layout_columns
           from backend.services.base_template import BaseTemplate, PinnedCloture
 
+          # Reproduce the real startup contract from backend.database before
+          # asserting the dynamically attached additive layout column.
+          attach_document_layout_columns()
           assert "content_offset_y" in CabinetConfig.__table__.c
           assert CabinetConfig.__mapper__.has_property("content_offset_y")
 
