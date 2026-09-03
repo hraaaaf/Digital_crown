@@ -15,6 +15,10 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 jobs:
   after:
     runs-on: ubuntu-latest
@@ -88,7 +92,7 @@ jobs:
             qr_code_enabled:true,qr_code_type:'VALIDATION',qr_code_value:'',qr_code_label:'Vérifier le document',qr_code_style:'dots',qr_code_color:'#003380'
           };
           const json=body=>({status:200,contentType:'application/json',body:JSON.stringify(body)});
-          const server=await createServer({server:{host:'127.0.0.1',port:4192,strictPort:true},clearScreen:false}); await server.listen();
+          const server=await createServer({optimizeDeps:{include:['workbox-window']},server:{host:'127.0.0.1',port:4192,strictPort:true},clearScreen:false}); await server.listen();
           const browser=await chromium.launch();
           try {
             for (const width of [1440,1024,768,430,390]) {

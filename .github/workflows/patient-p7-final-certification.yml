@@ -2,6 +2,24 @@ name: Patient P7 Final Certification
 
 on:
   pull_request:
+    paths:
+      - "frontend/src/features/patients/**"
+      - "frontend/src/features/ortho/CephaloWorkspace.tsx"
+      - "frontend/src/features/panoramic/PanoramicStudio.tsx"
+      - "frontend/src/features/admin/DocumentHub.tsx"
+      - "frontend/src/features/admin/DocumentStudio/**"
+      - "frontend/scripts/certify-patient-p7-browser.mjs"
+      - "backend/**/*patient*"
+      - "backend/**/*payment*"
+      - "backend/**/*clinical*"
+      - "backend/**/*odontogram*"
+      - "backend/**/*imaging*"
+      - "backend/**/*master_plan*"
+      - "scripts/t2_runtime_server.py"
+      - "requirements.txt"
+      - "frontend/package.json"
+      - "frontend/package-lock.json"
+      - ".github/workflows/patient-p7-final-certification.yml"
   workflow_dispatch:
 
 concurrency:
