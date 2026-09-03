@@ -66,9 +66,8 @@ jobs:
           import { createRoot } from 'react-dom/client';
           import { MemoryRouter } from 'react-router-dom';
           import './index.css';
-          import { Header } from './components/Header';
           import { Dashboard } from './pages/Dashboard';
-          import { VoluntaryTutorialPanel } from './features/tutorial/VoluntaryTutorial';
+          import { TutorialHelpButton, VoluntaryTutorialPanel } from './features/tutorial/VoluntaryTutorial';
           import { useAuthStore } from './stores/useAuthStore';
 
           const role = new URLSearchParams(window.location.search).get('role') === 'secretary'
@@ -104,7 +103,9 @@ jobs:
             <React.StrictMode>
               <MemoryRouter initialEntries={['/dashboard']}>
                 <div className="min-h-screen bg-medical-pearl">
-                  <Header />
+                  <header className="h-20 bg-transparent flex items-center justify-end gap-6 px-8 shrink-0 relative z-[1000]">
+                    <TutorialHelpButton />
+                  </header>
                   <main className="px-4 sm:px-8 pb-10">
                     <Dashboard />
                   </main>
@@ -177,14 +178,15 @@ jobs:
             }
 
             await helpEntry.click();
-            await page.getByLabel('Guide volontaire').waitFor({ state: 'visible' });
+            const panel = page.getByLabel('Guide volontaire');
+            await panel.waitFor({ state: 'visible' });
             await page.screenshot({ path: `${output}/${role}-${width}-panel.png`, fullPage: true, animations: 'disabled' });
 
-            await page.getByText('Découvrir le dashboard').locator('..').locator('..').getByRole('button').click();
-            await page.getByText('Retrouver un patient').waitFor({ state: 'visible' });
+            await panel.getByRole('button', { name: 'Reprendre', exact: true }).click();
+            await panel.getByText('Retrouver un patient', { exact: true }).waitFor({ state: 'visible' });
             await page.screenshot({ path: `${output}/${role}-${width}-active.png`, fullPage: true, animations: 'disabled' });
 
-            await page.getByRole('button', { name: 'Reprendre plus tard' }).click();
+            await panel.getByRole('button', { name: 'Reprendre plus tard', exact: true }).click();
             if (await page.getByLabel('Guide volontaire').count() !== 0) throw new Error('Pause did not close guide');
 
             await page.reload({ waitUntil: 'networkidle' });
