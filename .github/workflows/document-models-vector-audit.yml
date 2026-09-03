@@ -8,6 +8,7 @@ on:
       - "scripts/audit_document_models.py"
       - "scripts/audit_document_content_position.py"
       - "backend/tests/test_document_content_position.py"
+      - "backend/tests/test_services_unit23.py"
       - "backend/schemas/cabinet.py"
       - "backend/models.py"
       - "backend/models_document_layout.py"
@@ -119,8 +120,13 @@ jobs:
               assert up >= 3.0 * cm
 
           style = ParagraphStyle("cloture-audit", fontName="Helvetica", fontSize=9, leading=12)
-          _, reserved = PinnedCloture("Arrêtée la présente note d'honoraires à la somme de DIX-HUIT MILLE CENT DIRHAMS TTC.", style).wrap(11.8 * cm, 10 * cm)
-          assert reserved >= 1.6 * cm
+          text = "Arrêtée la présente note d'honoraires à la somme de DIX-HUIT MILLE CENT DIRHAMS TTC."
+          ample = 10 * cm
+          _, reserved = PinnedCloture(text, style).wrap(11.8 * cm, ample)
+          assert abs(reserved - ample) <= 0.01
+          tight = 0.2 * cm
+          _, required = PinnedCloture(text, style).wrap(11.8 * cm, tight)
+          assert required > tight
           PY
       - name: Generate five real A5 documents
         run: PYTHONPATH=. python scripts/audit_document_models.py
