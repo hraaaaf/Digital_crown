@@ -9,13 +9,12 @@ import { allowedDocumentStudioTabs } from '../admin/DocumentStudio/DocumentStudi
 
 type GuideId = 'dashboard' | 'create-patient' | 'agenda' | 'documents';
 type GuideStatus = 'paused' | 'completed' | 'dismissed';
-
 type PersistedProgress = Partial<Record<GuideId, { step: number; status: GuideStatus }>>;
 
 interface GuideStep {
   title: string;
   body: string;
-  target?: string;
+  selector?: string;
   route?: string;
   routeMatch?: RegExp;
 }
@@ -39,7 +38,7 @@ const readProgress = (): PersistedProgress => {
   }
 };
 
-const writeProgress = (progress: PersistedProgress) => {
+const persistProgress = (progress: PersistedProgress) => {
   safeStorage.set(STORAGE_KEY, JSON.stringify(progress));
 };
 
@@ -52,12 +51,12 @@ interface TutorialState {
   closePanel: () => void;
   startGuide: (guide: GuideId) => void;
   nextStep: (totalSteps: number) => void;
+  skipStep: (totalSteps: number) => void;
   pause: () => void;
-  dismiss: () => void;
 }
 
 export const useVoluntaryTutorial = create<TutorialState>((set, get) => ({
-  // Non-negotiable: never derive panel visibility from storage. Refresh/new session stays quiet.
+  // Critical invariant: persisted progress never controls visibility.
   open: false,
   activeGuide: null,
   step: 0,
@@ -66,22 +65,39 @@ export const useVoluntaryTutorial = create<TutorialState>((set, get) => ({
   closePanel: () => set({ open: false }),
   startGuide: (guide) => {
     const saved = get().progress[guide];
-    const resumeStep = saved?.status === 'paused' ? saved.step : 0;
-    set({ open: true, activeGuide: guide, step: resumeStep });
+    set({
+      open: true,
+      activeGuide: guide,
+      step: saved?.status === 'paused' ? saved.step : 0,
+    });
   },
   nextStep: (totalSteps) => {
     const state = get();
     if (!state.activeGuide) return;
-    if (state.step >= totalSteps - 1) {
-      const progress = {
-        ...state.progress,
-        [state.activeGuide]: { step: totalSteps - 1, status: 'completed' as const },
-      };
-      writeProgress(progress);
-      set({ activeGuide: null, step: 0, progress });
+    if (state.step < totalSteps - 1) {
+      set({ step: state.step + 1 });
       return;
     }
-    set({ step: state.step + 1 });
+    const progress = {
+      ...state.progress,
+      [state.activeGuide]: { step: totalSteps - 1, status: 'completed' as const },
+    };
+    persistProgress(progress);
+    set({ activeGuide: null, step: 0, progress });
+  },
+  skipStep: (totalSteps) => {
+    const state = get();
+    if (!state.activeGuide) return;
+    if (state.step < totalSteps - 1) {
+      set({ step: state.step + 1 });
+      return;
+    }
+    const progress = {
+      ...state.progress,
+      [state.activeGuide]: { step: totalSteps - 1, status: 'dismissed' as const },
+    };
+    persistProgress(progress);
+    set({ activeGuide: null, step: 0, progress });
   },
   pause: () => {
     const state = get();
@@ -93,18 +109,8 @@ export const useVoluntaryTutorial = create<TutorialState>((set, get) => ({
       ...state.progress,
       [state.activeGuide]: { step: state.step, status: 'paused' as const },
     };
-    writeProgress(progress);
+    persistProgress(progress);
     set({ open: false, activeGuide: null, step: 0, progress });
-  },
-  dismiss: () => {
-    const state = get();
-    if (!state.activeGuide) return;
-    const progress = {
-      ...state.progress,
-      [state.activeGuide]: { step: state.step, status: 'dismissed' as const },
-    };
-    writeProgress(progress);
-    set({ activeGuide: null, step: 0, progress });
   },
 }));
 
@@ -112,43 +118,41 @@ const guideDefinitions: GuideDefinition[] = [
   {
     id: 'dashboard',
     title: 'Découvrir le dashboard',
-    description: 'Une seule étape pour retrouver rapidement un patient.',
-    steps: [
-      {
-        title: 'Retrouver un patient',
-        body: 'La recherche accepte le nom, le prénom ou le numéro de dossier. Ouvrez un résultat pour accéder directement au dossier.',
-        target: 'patient-search',
-        route: '/dashboard',
-      },
-    ],
+    description: 'Retrouver un patient sans apprendre une interface par cœur.',
+    steps: [{
+      title: 'Retrouver un patient',
+      body: 'La recherche accepte le nom, le prénom ou le numéro de dossier. Sélectionnez un résultat pour ouvrir directement le dossier.',
+      selector: 'button[aria-label="Chercher un patient"], input[aria-label="Chercher un patient"]',
+      route: '/dashboard',
+    }],
   },
   {
     id: 'create-patient',
     title: 'Créer un patient',
-    description: 'Du raccourci Dashboard à la vérification anti-doublon.',
+    description: 'Création du dossier et contrôle anti-doublon.',
     steps: [
       {
         title: 'Ouvrir un nouveau dossier',
         body: 'Le raccourci Nouveau Patient démarre la création sans passer par la liste complète.',
-        target: 'quick-action-new-patient',
+        selector: '[data-tour="quick-action-new-patient"]',
         route: '/dashboard',
       },
       {
         title: 'Vérifier le numéro de dossier',
-        body: 'Digital Crown propose un numéro et vérifie sa disponibilité avant création.',
-        target: 'patient-dossier-number',
+        body: 'Digital Crown propose un numéro et vérifie sa disponibilité avant la création.',
+        selector: 'input[name="numero_dossier"]',
         route: '/patients/new',
       },
       {
         title: 'Compléter l’identité',
         body: 'Renseignez les champs requis. Les erreurs restent visibles au niveau du champ concerné.',
-        target: 'patient-identity',
+        selector: 'input[name="nom"]',
         route: '/patients/new',
       },
       {
         title: 'Créer sans doublon',
-        body: 'La validation finale contrôle les doublons. En cas de correspondance, vérifiez le patient existant avant de forcer une création.',
-        target: 'patient-submit',
+        body: 'La validation finale contrôle les doublons. Vérifiez toujours le dossier proposé avant de forcer une nouvelle création.',
+        selector: 'form button[type="submit"]',
         route: '/patients/new',
       },
     ],
@@ -161,25 +165,24 @@ const guideDefinitions: GuideDefinition[] = [
       {
         title: 'Ouvrir l’Agenda',
         body: 'Le raccourci Agenda Clinique ouvre directement le studio de rendez-vous.',
-        target: 'quick-action-agenda',
+        selector: '[data-guide="quick-action-agenda"]',
         route: '/dashboard',
       },
       {
         title: 'Naviguer dans le temps',
         body: 'Utilisez la date et les flèches pour changer la période affichée.',
-        target: 'agenda-header',
+        selector: '[data-tour="agenda-header"]',
         route: '/agenda',
       },
       {
         title: 'Choisir la bonne vue',
-        body: 'Jour, semaine et mois répondent à des besoins différents. La vue multi-praticien reste une fonction avancée.',
-        target: 'agenda-view-switcher',
+        body: 'Jour, semaine et mois répondent à des besoins différents. La vue multi-praticien reste avancée.',
+        selector: '[data-tour="agenda-view-switcher"]',
         route: '/agenda',
       },
       {
-        title: 'Travailler dans le planning',
-        body: 'Sélectionnez un créneau pour créer ou modifier le rendez-vous sans quitter l’Agenda.',
-        target: 'agenda-calendar',
+        title: 'Créer ou modifier un rendez-vous',
+        body: 'Travaillez directement dans le planning. Les demandes, imports et réglages avancés restent hors de ce guide court.',
         route: '/agenda',
       },
     ],
@@ -187,24 +190,23 @@ const guideDefinitions: GuideDefinition[] = [
   {
     id: 'documents',
     title: 'Documents patient',
-    description: 'Choisir, préparer et générer un document depuis le dossier patient.',
+    description: 'Choisir et générer un document depuis un dossier patient.',
     steps: [
       {
         title: 'Ouvrir Documents',
-        body: 'Depuis un dossier patient, utilisez l’action Document ou l’onglet Documents.',
-        target: 'patient-documents-entry',
+        body: 'Depuis le dossier patient, utilisez l’action Document ou l’onglet Documents.',
+        selector: '[data-tour="patient-tabs"]',
         routeMatch: /^\/patients\/\d+/,
       },
       {
         title: 'Choisir le document autorisé',
         body: 'Les onglets proposés dépendent de vos permissions. Le guide ne présente jamais un type inaccessible.',
-        target: 'document-tabs',
+        selector: '[data-tour="document-tabs"]',
         routeMatch: /^\/patients\/\d+/,
       },
       {
         title: 'Préparer puis générer',
         body: 'Complétez les informations du document, contrôlez la prévisualisation si nécessaire, puis générez-le.',
-        target: 'document-generate',
         routeMatch: /^\/patients\/\d+/,
       },
     ],
@@ -245,12 +247,12 @@ export const VoluntaryTutorialPanel = () => {
   const closePanel = useVoluntaryTutorial(state => state.closePanel);
   const startGuide = useVoluntaryTutorial(state => state.startGuide);
   const nextStep = useVoluntaryTutorial(state => state.nextStep);
+  const skipStep = useVoluntaryTutorial(state => state.skipStep);
   const pause = useVoluntaryTutorial(state => state.pause);
-  const dismiss = useVoluntaryTutorial(state => state.dismiss);
   const [spotlight, setSpotlight] = useState<DOMRect | null>(null);
 
   const guides = useMemo(() => guideDefinitions.filter(guide => {
-    if (guide.id === 'create-patient' || guide.id === 'dashboard') return hasAccess(user, 'patients');
+    if (guide.id === 'dashboard' || guide.id === 'create-patient') return hasAccess(user, 'patients');
     if (guide.id === 'agenda') return hasAccess(user, 'agenda');
     if (guide.id === 'documents') return allowedDocumentStudioTabs(user).length > 0;
     return false;
@@ -258,18 +260,26 @@ export const VoluntaryTutorialPanel = () => {
 
   const activeGuide = guides.find(guide => guide.id === activeGuideId) ?? null;
   const activeStep = activeGuide?.steps[stepIndex] ?? null;
+  const routeReady = activeStep ? routeMatches(location.pathname, activeStep) : true;
 
   useEffect(() => {
-    if (!open || !activeStep?.target || !routeMatches(location.pathname, activeStep)) {
+    if (!open) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') closePanel();
+    };
+    document.addEventListener('keydown', onKeyDown);
+    return () => document.removeEventListener('keydown', onKeyDown);
+  }, [closePanel, open]);
+
+  useEffect(() => {
+    if (!open || !activeStep?.selector || !routeReady) {
       setSpotlight(null);
       return;
     }
-
     const update = () => {
-      const element = document.querySelector<HTMLElement>(`[data-guide="${activeStep.target}"]`);
+      const element = document.querySelector<HTMLElement>(activeStep.selector!);
       setSpotlight(element?.getBoundingClientRect() ?? null);
     };
-
     update();
     window.addEventListener('resize', update);
     window.addEventListener('scroll', update, true);
@@ -277,27 +287,21 @@ export const VoluntaryTutorialPanel = () => {
       window.removeEventListener('resize', update);
       window.removeEventListener('scroll', update, true);
     };
-  }, [activeStep, location.pathname, open]);
+  }, [activeStep, open, routeReady]);
 
   if (!open) return null;
 
-  const moveToStepRoute = () => {
+  const goToRequiredRoute = () => {
     if (!activeStep) return;
-    if (activeStep.route) {
-      navigate(activeStep.route);
-      return;
-    }
-    if (activeGuide?.id === 'documents' && !/^\/patients\/\d+/.test(location.pathname)) {
-      navigate('/patients');
-    }
+    if (activeStep.route) navigate(activeStep.route);
+    else if (activeGuide?.id === 'documents') navigate('/patients');
   };
-
-  const stepRouteReady = activeStep ? routeMatches(location.pathname, activeStep) : true;
 
   return (
     <>
       {spotlight && (
         <div
+          aria-hidden="true"
           className="fixed pointer-events-none z-[1100] rounded-3xl border-2 border-primary/60 shadow-[0_0_0_6px_rgba(59,130,246,0.10)] transition-all duration-200"
           style={{
             top: Math.max(4, spotlight.top - 6),
@@ -305,7 +309,6 @@ export const VoluntaryTutorialPanel = () => {
             width: spotlight.width + 12,
             height: spotlight.height + 12,
           }}
-          aria-hidden="true"
         />
       )}
 
@@ -373,10 +376,10 @@ export const VoluntaryTutorialPanel = () => {
               <p className="mt-2 text-sm leading-relaxed text-text-muted">{activeStep.body}</p>
             </div>
 
-            {!stepRouteReady && (
+            {!routeReady && (
               <button
                 type="button"
-                onClick={moveToStepRoute}
+                onClick={goToRequiredRoute}
                 className="mt-4 min-h-11 w-full rounded-xl border border-primary/20 bg-primary/5 px-4 py-2 text-xs font-black text-primary hover:bg-primary/10"
               >
                 {activeGuide.id === 'documents' ? 'Ouvrir les dossiers patients' : 'Aller à cette étape'}
@@ -386,7 +389,7 @@ export const VoluntaryTutorialPanel = () => {
             <div className="mt-5 grid grid-cols-2 gap-3">
               <button
                 type="button"
-                onClick={dismiss}
+                onClick={() => skipStep(activeGuide.steps.length)}
                 className="min-h-11 rounded-xl border border-border-main px-3 py-2 text-xs font-black text-text-muted hover:bg-primary/5"
               >
                 Passer
