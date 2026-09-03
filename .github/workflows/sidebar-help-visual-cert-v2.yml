@@ -1,0 +1,77 @@
+name: Sidebar Help Visual Certification V2
+
+on:
+  pull_request:
+    paths:
+      - "frontend/src/components/Sidebar.tsx"
+      - ".github/workflows/sidebar-help-visual-cert-v2.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  proof:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - label: before
+            ref: a58589c1b8769864a6e3e4162e1c8d06fc8678d5
+          - label: after
+            ref: ${{ github.event.pull_request.head.sha || github.sha }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ matrix.ref }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install
+        working-directory: frontend
+        run: |
+          npm ci
+          npm install --no-save --package-lock=false playwright@1.55.0
+          npx playwright install --with-deps chromium
+      - name: Harness
+        working-directory: frontend
+        run: |
+          cat > sidebar-help-cert.html <<'EOF'
+          <div id="root"></div><script type="module" src="/src/sidebar-help-cert.tsx"></script>
+          EOF
+          cat > src/sidebar-help-cert.tsx <<'EOF'
+          import React from 'react';
+          import { createRoot } from 'react-dom/client';
+          import { MemoryRouter } from 'react-router-dom';
+          import './index.css';
+          import { Sidebar } from './components/Sidebar';
+          import { useAuthStore } from './stores/useAuthStore';
+          import { useSettingsStore } from './features/admin/Settings/hooks/useSettingsStore';
+          localStorage.removeItem('clinical_tips_enabled');
+          useAuthStore.setState({ user: { id: 1, email: 'visual@local', nom_complet: 'Visual', role: 'ADMIN', is_superadmin: false, permissions: {} } as any, isAuthenticated: true, isLoading: false, error: null });
+          useSettingsStore.setState({ activeCabinetId: 'visual', cabinets: [{ id: 'visual', nom: 'Cabinet Visual', specialty: 'Dentiste', primary_color: '#003380', accent_color: '#60a5fa', theme: 'elite', caisse: 0 }] });
+          createRoot(document.getElementById('root')!).render(<MemoryRouter initialEntries={['/dashboard']}><div className="h-screen bg-medical-pearl"><Sidebar /></div></MemoryRouter>);
+          EOF
+          cat > cert.mjs <<'EOF'
+          import { chromium } from 'playwright';
+          import { createServer } from 'vite';
+          import fs from 'node:fs/promises';
+          const label=process.env.LABEL; const out='sidebar-help-proof'; await fs.mkdir(out,{recursive:true});
+          const server=await createServer({server:{host:'127.0.0.1',port:4182,strictPort:true},clearScreen:false}); await server.listen();
+          const browser=await chromium.launch();
+          try { for (const width of [1440,1024]) { const c=await browser.newContext({viewport:{width,height:900}}); const p=await c.newPage(); await p.route('**/api/**',r=>r.fulfill({status:200,contentType:'application/json',body:'{"total":0}'})); await p.goto('http://127.0.0.1:4182/sidebar-help-cert.html',{waitUntil:'domcontentloaded'}); const tip=p.getByText('Elite Clinical Tip'); let visible=false; if(label==='before'){await tip.waitFor({state:'visible',timeout:15000}); visible=true;} else {await p.waitForTimeout(13000); visible=await tip.isVisible().catch(()=>false); if(visible) throw new Error('unsolicited tip visible');} await p.screenshot({path:`${out}/${width}x900.png`,fullPage:true,animations:'disabled'}); await fs.writeFile(`${out}/${width}x900.txt`,`tipVisible=${visible}\n`); await c.close(); } } finally { await browser.close(); await server.close(); }
+          EOF
+      - name: Prove ${{ matrix.label }}
+        working-directory: frontend
+        env:
+          LABEL: ${{ matrix.label }}
+        run: node cert.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: sidebar-help-v2-${{ matrix.label }}
+          path: frontend/sidebar-help-proof/
+          if-no-files-found: error
