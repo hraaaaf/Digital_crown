@@ -2,16 +2,14 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 
-const dayOneTourSource = fs.readFileSync(
-  path.resolve(__dirname, '../../components/DayOneTour.tsx'),
-  'utf8',
-);
+const dashboardPath = path.resolve(__dirname, '../../pages/Dashboard.tsx');
+const dayOneTourPath = path.resolve(__dirname, '../../components/DayOneTour.tsx');
+const dashboardSource = fs.readFileSync(dashboardPath, 'utf8');
 
-describe('Dashboard tutorial T1 neutralization', () => {
-  it('keeps DayOneTour free of automatic runtime side effects', () => {
-    expect(dayOneTourSource).toContain('export const DayOneTour: React.FC = () => null');
-    expect(dayOneTourSource).not.toContain('setTimeout');
-    expect(dayOneTourSource).not.toContain('localStorage');
-    expect(dayOneTourSource).not.toContain('react-joyride');
+describe('Dashboard tutorial cleanup', () => {
+  it('keeps Dashboard free of the retired automatic DayOneTour integration', () => {
+    expect(dashboardSource).not.toContain("../components/DayOneTour");
+    expect(dashboardSource).not.toContain('<DayOneTour />');
+    expect(fs.existsSync(dayOneTourPath)).toBe(false);
   });
 });

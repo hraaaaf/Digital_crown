@@ -8,7 +8,6 @@ import { useSettingsStore } from '../features/admin/Settings/hooks/useSettingsSt
 import { useAuthStore } from '../stores/useAuthStore';
 import { MobileSecurity } from '../features/admin/Security/MobileSecurity';
 import { EliteGhostLoader } from '../components/EliteGhostLoader';
-import { DayOneTour } from '../components/DayOneTour';
 import { getCabinetHealthDisplayState, useCabinetHealth } from '../hooks/useCabinetHealth';
 import { dashboardContainerVariants } from '../features/dashboard/animations';
 import { BusinessInsights } from '../features/dashboard/components/BusinessInsights';
@@ -159,8 +158,6 @@ export const Dashboard: React.FC = () => {
       animate="visible"
       className="max-w-[1600px] mx-auto w-full px-6 py-8 md:px-10 md:py-10 space-y-10"
     >
-      <DayOneTour />
-
       <DashboardHeader
         displayName={displayName}
         dateLabel={dateLabel}
