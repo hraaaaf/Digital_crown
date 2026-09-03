@@ -17,16 +17,19 @@ ImageReader = _core.ImageReader
 
 
 class PinnedCloture(_core.PinnedCloture):
-    """Keep the closing sentence on the current page when it physically fits.
+    """Pin a *final* closing sentence above the static footer without overlap.
 
-    The historical implementation painted at a fixed 4.4 cm from the page bottom.
-    Reserving that absolute band as normal flow height pushed an otherwise complete
-    A5 note onto a second page containing only the closing sentence.  This façade
-    instead consumes the *remaining* frame height and draws at its bottom.  The
-    preceding table therefore cannot overlap the sentence, short notes keep the
-    sentence visually pinned near the footer, and a page break still occurs when
-    the actual paragraph itself cannot fit.
+    The accounting note uses the closing sentence as its final story element.  In
+    that case the sentence may safely use the reserved band above the footer line,
+    provided the preceding body already ends high enough.  Documents that still
+    contain flowables after the closing sentence (for example devis signatures)
+    keep ordinary flow behaviour and are never painted out of band.
     """
+
+    _ZEROSIZE = True
+    _footer_floor = 2.65 * _core.cm
+    _body_gap = 0.12 * _core.cm
+    _normal_padding = 0.15 * _core.cm
 
     def wrap(self, availWidth, availHeight):
         usable_width = min(availWidth, 11.8 * _core.cm)
@@ -35,16 +38,26 @@ class PinnedCloture(_core.PinnedCloture):
         self._cloture_paragraph = paragraph
         self._cloture_width = usable_width
         self._cloture_height = paragraph_height
-        self._cloture_bottom_padding = 0.15 * _core.cm
-        minimum_height = paragraph_height + self._cloture_bottom_padding
 
-        # If the sentence fits, consume every remaining point so drawOn receives
-        # the bottom of the frame and the sentence is naturally footer-adjacent.
-        # Otherwise report the real minimum height; ReportLab will move the
-        # unsplittable flowable to the next page instead of overlapping content.
-        if availHeight >= minimum_height:
-            return availWidth, availHeight
-        return availWidth, minimum_height
+        if not getattr(self, "_pin_to_footer", False):
+            return availWidth, paragraph_height + self._normal_padding
+
+        frame = getattr(self, "_frame", None)
+        current_y = getattr(frame, "_y", None)
+        required_top = self._footer_floor + paragraph_height + self._body_gap
+
+        # ReportLab exposes the frame's current absolute Y while wrapping.  If the
+        # preceding content already intrudes into the footer-safe closing band, force
+        # a real page break.  Otherwise consume zero body height and paint only inside
+        # that reserved band.  This removes the useless closure-only page without
+        # allowing the sentence to overlap the table or the footer separator.
+        if current_y is None:
+            return availWidth, paragraph_height + self._normal_padding
+        if current_y + 1e-6 < required_top:
+            return availWidth, availHeight + 1.0
+
+        self._cloture_draw_y = self._footer_floor
+        return availWidth, 0
 
     def drawOn(self, canvas, x, y, _debug=0, **kwargs):
         if not self.text:
@@ -54,7 +67,10 @@ class PinnedCloture(_core.PinnedCloture):
             paragraph = Paragraph(self.text, self.style)
             paragraph.wrap(11.8 * _core.cm, 10 * _core.cm)
         canvas.saveState()
-        paragraph.drawOn(canvas, x, y + getattr(self, "_cloture_bottom_padding", 0.15 * _core.cm))
+        if getattr(self, "_pin_to_footer", False):
+            paragraph.drawOn(canvas, x, getattr(self, "_cloture_draw_y", self._footer_floor))
+        else:
+            paragraph.drawOn(canvas, x, y + self._normal_padding)
         canvas.restoreState()
 
 
@@ -63,8 +79,14 @@ class BaseTemplate(_BaseTemplateCore):
 
     @staticmethod
     def scale_elements(elements, factor):
-        """Scale a disposable list so ReportLab retries never consume the source list."""
-        return _BaseTemplateCore.scale_elements(list(elements), factor)
+        """Return a disposable story and mark only a final closure as footer-pinned."""
+        source = list(elements)
+        for element in source:
+            if isinstance(element, PinnedCloture):
+                element._pin_to_footer = False
+        if source and isinstance(source[-1], PinnedCloture):
+            source[-1]._pin_to_footer = True
+        return _BaseTemplateCore.scale_elements(source, factor)
 
     def get_document_margins(self, config, p_width):
         """Reserve the real premium header footprint, then apply a body-only Y offset.
