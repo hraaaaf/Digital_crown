@@ -12,14 +12,15 @@ def user(role: str, name: str | None):
     return SimpleNamespace(role=role, nom_complet=name)
 
 
-def test_only_dentist_role_can_be_explicit_certificate_signer():
+def test_dentist_and_admin_roles_can_be_explicit_certificate_signers():
     assert is_authorized_certificate_signer(user('DENTISTE', 'Dr Test')) is True
-    assert is_authorized_certificate_signer(user('ADMIN', 'Administrateur')) is False
+    assert is_authorized_certificate_signer(user('ADMIN', 'Administrateur')) is True
     assert resolve_certificate_signer_name(user('DENTISTE', '  Dr Test  ')) == 'Dr Test'
+    assert resolve_certificate_signer_name(user('ADMIN', '  Administrateur  ')) == 'Administrateur'
 
 
 def test_non_dentist_roles_cannot_be_implicitly_presented_as_doctor():
-    for role, name in [('SECRETAIRE', 'Assistante Test'), ('ADMIN', 'Administrateur')]:
+    for role, name in [('SECRETAIRE', 'Assistante Test')]:
         candidate = user(role, name)
         assert is_authorized_certificate_signer(candidate) is False
         with pytest.raises(ValueError, match='médecin-dentiste autorisé'):
