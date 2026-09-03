@@ -224,9 +224,9 @@ class TestGetDocumentMargins:
         assert abs(m_left - 2.0 * cm) < 0.01
         assert abs(m_right - 2.0 * cm) < 0.01
 
-    def test_clinical_template_top_margin_at_least_4_2(self):
+    def test_clinical_template_preserves_dynamic_neutral_top(self):
         m_top, _, _, _ = self._margins({'selected_template': 'clinical'})
-        assert m_top >= 4.2 * cm - 0.01
+        assert abs(m_top - 3.1 * cm) < 0.01
 
     def test_modern_template_uses_swiss_default_top(self):
         m_top_modern, _, _, _ = self._margins({'selected_template': 'modern'})
@@ -238,9 +238,9 @@ class TestGetDocumentMargins:
         m_top, m_bottom, m_left, m_right = self._margins({'selected_template': 'heritage'})
         assert m_top > 0
 
-    def test_unknown_template_fallback(self):
+    def test_unknown_template_uses_safe_dynamic_fallback(self):
         m_top, m_bottom, m_left, m_right = self._margins({'selected_template': 'unknown_xyz'})
-        assert m_top >= 4.5 * cm - 0.01
+        assert abs(m_top - 3.1 * cm) < 0.01
 
     def test_custom_margin_top_respected_when_large(self):
         m_top, _, _, _ = self._margins({'selected_template': 'swiss', 'margin_top': 8.0})
