@@ -18,6 +18,8 @@ from reportlab.pdfbase.ttfonts import TTFont
 
 logger = logging.getLogger(__name__)
 
+MAX_CONFIGURED_HEADER_LINES = 6
+
 
 def _register_ttf(name: str, path: str | os.PathLike[str] | None) -> bool:
     if not path:
@@ -127,32 +129,64 @@ def _scale(base, config, h_scale: float) -> tuple[float, float, float]:
     return font_scale, logo_scale, line_scale
 
 
-def _fr_block(base, canvas, lines, x, y, *, align="left", title_size=11.5, sub_size=7.2, font=None, bold=None, color=None, line_scale=1.0):
+def _fr_block(
+    base,
+    canvas,
+    lines,
+    x,
+    y,
+    *,
+    align="left",
+    title_size=11.5,
+    sub_size=7.2,
+    font=None,
+    bold=None,
+    color=None,
+    line_scale=1.0,
+    max_lines=MAX_CONFIGURED_HEADER_LINES,
+):
     if not lines:
-        return
+        return None
     regular = font or base.header_font
     strong = bold or base.header_bold
     line_gap = 0.34 * cm * line_scale
-    for idx, raw in enumerate(lines[:3]):
+    bottom_y = None
+    for idx, raw in enumerate(lines[:max_lines]):
         text = str(raw or "").strip()
         if not text:
             continue
         canvas.setFillColor(color)
         canvas.setFont(strong if idx == 0 else regular, title_size if idx == 0 else sub_size)
         yy = y - idx * line_gap
+        bottom_y = yy if bottom_y is None else min(bottom_y, yy)
         if align == "center":
             canvas.drawCentredString(x, yy, text)
         elif align == "right":
             canvas.drawRightString(x, yy, text)
         else:
             canvas.drawString(x, yy, text)
+    return bottom_y
 
 
-def _ar_block(base, canvas, lines, x, y, *, align="right", title_size=10.5, sub_size=7.5, color=None, line_scale=1.0):
+def _ar_block(
+    base,
+    canvas,
+    lines,
+    x,
+    y,
+    *,
+    align="right",
+    title_size=10.5,
+    sub_size=7.5,
+    color=None,
+    line_scale=1.0,
+    max_lines=MAX_CONFIGURED_HEADER_LINES,
+):
     if not lines or not base.arabic_font:
-        return
+        return None
     line_gap = 0.36 * cm * line_scale
-    for idx, raw in enumerate(lines[:3]):
+    bottom_y = None
+    for idx, raw in enumerate(lines[:max_lines]):
         text = str(raw or "").strip()
         if not text:
             continue
@@ -160,12 +194,21 @@ def _ar_block(base, canvas, lines, x, y, *, align="right", title_size=10.5, sub_
         canvas.setFillColor(color)
         canvas.setFont(base.arabic_font, title_size if idx == 0 else sub_size)
         yy = y - idx * line_gap
+        bottom_y = yy if bottom_y is None else min(bottom_y, yy)
         if align == "center":
             canvas.drawCentredString(x, yy, prepared)
         elif align == "left":
             canvas.drawString(x, yy, prepared)
         else:
             canvas.drawRightString(x, yy, prepared)
+    return bottom_y
+
+
+def _safe_rule_y(default_y, *bottom_baselines, gap=0.22 * cm):
+    visible = [value for value in bottom_baselines if value is not None]
+    if not visible:
+        return default_y
+    return min(default_y, min(visible) - gap)
 
 
 def _logo(base, canvas, config, logo_path, x, y, size):
@@ -185,16 +228,16 @@ def draw_swiss(base, canvas, config, logo_path, p_color, s_color, a_color, p_wid
         _logo(base, canvas, config, logo_path, margin, top - logo_size + 0.08 * cm, logo_size)
         text_x = margin + 1.75 * cm
 
-    _fr_block(
+    fr_bottom = _fr_block(
         base, canvas, fr_lines, text_x, top - 0.15 * cm,
         title_size=11.6 * fs, sub_size=7.1 * fs, color=p_color, line_scale=line_scale,
     )
-    _ar_block(
+    ar_bottom = _ar_block(
         base, canvas, ar_lines, p_width - margin, top - 0.12 * cm,
         title_size=10.4 * fs, sub_size=7.4 * fs, color=s_color, line_scale=line_scale,
     )
 
-    line_y = p_height - 2.72 * cm
+    line_y = _safe_rule_y(p_height - 2.72 * cm, fr_bottom, ar_bottom)
     canvas.setStrokeColor(a_color)
     canvas.setLineWidth(1.4)
     canvas.line(text_x, line_y, min(text_x + 3.55 * cm, p_width - margin), line_y)
@@ -212,16 +255,16 @@ def draw_royal(base, canvas, config, logo_path, p_color, s_color, a_color, p_wid
         _logo(base, canvas, config, logo_path, center - logo_size / 2, p_height - 1.45 * cm, logo_size)
 
     identity_y = p_height - 2.05 * cm
-    _fr_block(
+    fr_bottom = _fr_block(
         base, canvas, fr_lines, margin, identity_y,
         title_size=9.6 * fs, sub_size=6.8 * fs, color=p_color, line_scale=line_scale,
     )
-    _ar_block(
+    ar_bottom = _ar_block(
         base, canvas, ar_lines, p_width - margin, identity_y,
         title_size=9.5 * fs, sub_size=7.0 * fs, color=s_color, line_scale=line_scale,
     )
 
-    line_y = p_height - 2.78 * cm
+    line_y = _safe_rule_y(p_height - 2.78 * cm, fr_bottom, ar_bottom)
     canvas.setStrokeColor(a_color)
     canvas.setLineWidth(0.65)
     canvas.line(margin, line_y, p_width - margin, line_y)
@@ -241,16 +284,16 @@ def draw_clinical(base, canvas, config, logo_path, p_color, s_color, a_color, p_
         text_x = margin + 1.62 * cm
 
     divider_x = p_width * 0.56
-    _fr_block(
+    fr_bottom = _fr_block(
         base, canvas, fr_lines, text_x, top - 0.12 * cm,
         title_size=10.8 * fs, sub_size=7.0 * fs, color=p_color, line_scale=line_scale,
     )
-    _ar_block(
+    ar_bottom = _ar_block(
         base, canvas, ar_lines, p_width - margin, top - 0.12 * cm,
         title_size=10.0 * fs, sub_size=7.2 * fs, color=s_color, line_scale=line_scale,
     )
 
-    bottom = p_height - 2.76 * cm
+    bottom = _safe_rule_y(p_height - 2.76 * cm, fr_bottom, ar_bottom)
     canvas.setStrokeColor(a_color)
     canvas.setLineWidth(0.55)
     canvas.line(divider_x, top + 0.1 * cm, divider_x, bottom)
@@ -264,11 +307,6 @@ def draw_modern(base, canvas, config, logo_path, p_color, s_color, a_color, p_wi
     fs, ls, line_scale = _scale(base, config, h_scale)
     margin = 1.5 * cm
     top = p_height - 1.02 * cm
-    bottom = p_height - 2.78 * cm
-
-    canvas.setStrokeColor(a_color)
-    canvas.setLineWidth(2.2)
-    canvas.line(margin, top + 0.08 * cm, margin, bottom)
 
     logo_size = 1.12 * cm * ls
     content_x = margin + 0.42 * cm
@@ -276,14 +314,19 @@ def draw_modern(base, canvas, config, logo_path, p_color, s_color, a_color, p_wi
         _logo(base, canvas, config, logo_path, content_x, top - logo_size + 0.04 * cm, logo_size)
         content_x += 1.38 * cm
 
-    _fr_block(
+    fr_bottom = _fr_block(
         base, canvas, fr_lines, content_x, top - 0.12 * cm,
         title_size=11.2 * fs, sub_size=7.0 * fs, color=p_color, line_scale=line_scale,
     )
-    _ar_block(
+    ar_bottom = _ar_block(
         base, canvas, ar_lines, p_width - margin, top - 0.12 * cm,
         title_size=10.1 * fs, sub_size=7.2 * fs, color=s_color, line_scale=line_scale,
     )
+
+    bottom = _safe_rule_y(p_height - 2.78 * cm, fr_bottom, ar_bottom, gap=0.18 * cm)
+    canvas.setStrokeColor(a_color)
+    canvas.setLineWidth(2.2)
+    canvas.line(margin, top + 0.08 * cm, margin, bottom)
     canvas.restoreState()
 
 
@@ -297,16 +340,19 @@ def draw_heritage(base, canvas, config, logo_path, p_color, s_color, a_color, p_
     if logo_path:
         _logo(base, canvas, config, logo_path, center - logo_size / 2, p_height - 1.38 * cm, logo_size)
 
-    # Compact but non-overlapping stacked identity: 3 FR lines, then 2 AR lines.
+    # Heritage stacks FR above AR in a deliberately compact composition. Keep its
+    # historic three-line cap until that template gets a dedicated tall-header layout.
     fr_y = p_height - 1.76 * cm
     _fr_block(
         base, canvas, fr_lines, center, fr_y, align="center",
         title_size=10.6 * fs, sub_size=6.7 * fs,
         font="Times-Roman", bold="Times-Bold", color=p_color, line_scale=line_scale * 0.82,
+        max_lines=3,
     )
     _ar_block(
         base, canvas, ar_lines, center, p_height - 2.64 * cm, align="center",
         title_size=8.2 * fs, sub_size=6.4 * fs, color=s_color, line_scale=line_scale * 0.82,
+        max_lines=3,
     )
 
     line_y = p_height - 3.22 * cm
