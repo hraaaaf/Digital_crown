@@ -176,7 +176,9 @@ jobs:
               throw new Error('Guide auto-opened despite voluntary-only invariant');
             }
 
-            await page.getByRole('button', { name: 'Ouvrir Aide et Guide' }).click();
+            const helpEntry = page.locator('[data-guide="help-entry"]');
+            await helpEntry.waitFor({ state: 'visible', timeout: 15000 });
+            await helpEntry.click();
             await page.getByLabel('Guide volontaire').waitFor({ state: 'visible' });
             await page.screenshot({ path: `${output}/${role}-${width}-panel.png`, fullPage: true, animations: 'disabled' });
 
