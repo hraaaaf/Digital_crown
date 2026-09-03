@@ -30,7 +30,14 @@ Le mockup généré et validé par l'utilisateur le 3 septembre 2026 est la **r�
 
 Nom de référence : `Voluntary Contextual Tutorial — Dashboard Guide Mockup v1`
 
-Source de travail exportée : `a_clean_modern_saas_dashboard_ui_mockup_wide_des_1.png` — 1448×1086.
+Source originale validée : `a_clean_modern_saas_dashboard_ui_mockup_wide_des_1.png` — 1448×1086.
+SHA-256 de l'original validé : `fbdc815dca91b051a44667db10958493ee225c1bc2b3857b518c82488285cc59`.
+
+Référence visuelle versionnée dans le repo :
+
+![Voluntary Contextual Tutorial — Goal UI](./assets/VOLUNTARY_CONTEXTUAL_TUTORIAL_GOAL.svg)
+
+Le SVG versionné est une transcription vectorielle fidèle des invariants du mockup approuvé. En cas de doute de détail visuel, les invariants ci-dessous + le hash de l'original validé font foi.
 
 ### Invariants visuels à reproduire
 
