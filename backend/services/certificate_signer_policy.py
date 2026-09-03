@@ -2,7 +2,10 @@ from __future__ import annotations
 
 from typing import Any
 
-CERTIFICATE_SIGNER_ROLES = frozenset({'DENTISTE'})
+# Les comptes ADMIN incluent le propriétaire du cabinet et le superadmin
+# (distingué par son email dans la politique d'authentification). Ils peuvent
+# donc signer les certificats au même titre qu'un compte DENTISTE.
+CERTIFICATE_SIGNER_ROLES = frozenset({'DENTISTE', 'ADMIN'})
 
 
 def certificate_signer_role(user: Any) -> str:

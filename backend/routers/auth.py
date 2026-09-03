@@ -529,7 +529,10 @@ def _google_redirect_uri() -> str:
 @router.get("/google/authorize", summary="Démarrer la connexion Google")
 async def google_authorize(response: Response):
     if not settings.GOOGLE_CLIENT_ID:
-        raise HTTPException(status_code=501, detail="Google OAuth non configuré. Ajoutez GOOGLE_CLIENT_ID dans votre fichier .env")
+        raise HTTPException(
+            status_code=501,
+            detail="Google OAuth non configuré. Ajoutez GOOGLE_CLIENT_ID dans backend/.env.local (ou dans le fichier d’environnement actif).",
+        )
 
     params = {
         "client_id": settings.GOOGLE_CLIENT_ID,
