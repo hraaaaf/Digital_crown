@@ -34,18 +34,10 @@ Supprimer toute interruption automatique non sollicitée liée au tutoriel Dashb
 
 Goal : empêcher immédiatement tout auto-déclenchement du tutoriel Dashboard.
 
-Implémentation vérifiée :
-
-- `DayOneTour` ne lance plus Joyride ;
-- suppression de ses effets timer / `localStorage` / auto-run ;
-- garde de régression ajoutée ;
-- certification visuelle Dashboard exécutée.
-
 Preuves :
 
 - branche : `ux/dashboard-tutorial-t1-neutralization` ;
-- ancienne PR draft : `#338`, fermée non mergée uniquement à cause d’un bug du connecteur Ready-for-review ;
-- PR de remplacement : `#341` ;
+- PR : `#341` ;
 - HEAD T1 avant merge : `2904cd224542602b68749d2e32a134a78680c8df` ;
 - CI PR : run `33679414337` → SUCCESS ;
 - Dashboard Visual Certification : run `33679414473` → SUCCESS ;
@@ -53,39 +45,43 @@ Preuves :
 
 Conclusion T1 : **CLOSED avec preuve**.
 
-### T2 — Nettoyage — ACTIVE
+### T2 — Nettoyage — CLOSED
 
 Goal : supprimer toute dette de tutoriel automatique devenue inutile et empêcher sa réintroduction silencieuse.
 
-Première passe mergée :
+Première passe :
 
 - import et montage `DayOneTour` supprimés du Dashboard ;
 - `DayOneTour.tsx` et son test obsolète supprimés ;
-- garde de régression ajouté ;
-- PR `#344` mergée sur `master` via `0d31328e1749a7dd35ec4d8b248e511a94f379c0` ;
+- PR `#344` mergée via `0d31328e1749a7dd35ec4d8b248e511a94f379c0` ;
 - CI `33740817443`, visuel `33740817401` et runtime `33740817497` → SUCCESS.
 
-Audit complémentaire vérifié :
-
-- `TourLauncher.tsx` contenait encore un auto-lancement premier usage après 1500 ms s’il était monté ;
-- `GuidedTour.tsx` implémentait navigation inter-pages, résolution patient, overlays et persistance `localStorage` ;
-- `tourConfig.ts` exposait encore des textes et promesses fonctionnelles non certifiés dans ce chantier ;
-- les racines actives `App.tsx`, `MainLayout.tsx`, `Header.tsx` et `Sidebar.tsx` avaient déjà été vérifiées sans montage de ce second système ;
-- `react-joyride` reste déclaré dans `frontend/package.json` et `frontend/package-lock.json`, mais ce second système custom ne l’utilise pas.
-
-Extension T2 en cours :
+Extension T2 vérifiée :
 
 - branche : `ux/dashboard-tutorial-t2-dormant-cleanup` ;
-- PR : `#348` non draft ;
+- PR : `#348` ;
 - suppression de `GuidedTour.tsx`, `TourLauncher.tsx` et `tourConfig.ts` ;
-- garde de régression renforcé pour scanner tous les fichiers `.ts/.tsx` de `frontend/src` contre les marqueurs du système retiré ;
-- aucun déploiement Vercel.
+- suppression du dernier montage actif `TourLauncher` dans `frontend/src/features/admin/DocumentStudio/EliteDock.tsx` ;
+- garde repo-wide ajouté contre les marqueurs du système automatique retiré ;
+- garde corrigé pour exclure son propre fichier du scan ;
+- `GuideTower.tsx` préservé : aide contextuelle manuelle, ouverte uniquement par action utilisateur ;
+- `react-joyride` reste déclaré dans package/lock comme dette de dépendance morte distincte, sans chemin d’auto-launch démontré.
 
-Succès T2 : code des deux auto-tours retiré, garde repo-wide vert, build/tests pertinents verts, PR #348 mergée et master post-merge vérifié.
+Preuves finales T2 :
 
-Ne pas déclarer T2 CLOSED avant ces preuves.
+- HEAD final PR #348 : `d4a15fe5793e76ef4ad27f8936d9dc9444b4d933` ;
+- CI : run `33776815043` → SUCCESS ;
+- T2 Runtime Browser Certification : run `33776814922` → SUCCESS ;
+- Dashboard Visual Certification : run `33776815018` → SUCCESS ;
+- squash merge PR #348 : `a419fd1dab7e3573b58845578a03735bd33eb48d` ;
+- post-merge `master` vérifié exactement sur `a419fd1dab7e3573b58845578a03735bd33eb48d` ;
+- `GuidedTour.tsx` absent sur `master` ;
+- `TourLauncher.tsx` absent sur `master` ;
+- `GuideTower.tsx` présent sur `master` et sans auto-launch.
 
-### T3 — Aide volontaire — NEXT après T2
+Conclusion T2 : **CLOSED avec preuve**.
+
+### T3 — Aide volontaire — NEXT
 
 Goal : conserver uniquement une aide qui apporte une valeur claire sans interrompre le travail clinique.
 
@@ -100,10 +96,12 @@ Principes :
 
 Actions :
 
-1. auditer les surfaces d’aide déjà existantes (`Header`, `Sidebar`, Settings, éventuelle aide contextuelle) ;
-2. choisir la solution minimale : aide manuelle utile ou aucune nouvelle UI ;
-3. si une UI d’aide est ajoutée ou modifiée : BEFORE → Goal visuel → référence/mockup → implémentation → AFTER mêmes viewports → comparaison ;
-4. tester RBAC, navigation et absence d’auto-launch.
+1. auditer les surfaces d’aide déjà existantes, avec priorité à `GuideTower.tsx` ;
+2. vérifier où cette aide est réellement montée et sa visibilité par rôle ;
+3. auditer chaque texte fonctionnel contre les capacités réellement prouvées ;
+4. choisir la solution minimale : conserver/corriger l’aide manuelle existante ou ne rien ajouter ;
+5. si UI modifiée : BEFORE → Goal visuel → référence/mockup → implémentation → AFTER mêmes viewports → comparaison ;
+6. tester RBAC, navigation et absence d’auto-launch.
 
 Succès : l’utilisateur peut obtenir de l’aide volontairement si elle est utile, sans aucune friction sur le flux normal.
 
@@ -150,32 +148,30 @@ Terminé :
 - score UX initial 2/10 ;
 - décision produit ;
 - **T1 Neutralisation CLOSED** ;
-- première passe T2 mergée via PR #344.
+- **T2 Nettoyage CLOSED** via PR #344 + PR #348 et post-merge vérifié.
 
 En cours :
 
-- **T2 extension dormant cleanup — PR #348** ;
-- suppression du second système d’auto-tour et certification du garde repo-wide ;
+- aucun lot d’implémentation actif au moment de ce closeout ;
 - aucun déploiement Vercel.
 
 Restant :
 
-1. terminer et merger PR #348 avec preuves ;
-2. T3 Aide volontaire ;
-3. T4 Certification UX & closeout.
+1. T3 Aide volontaire ;
+2. T4 Certification UX & closeout.
 
 ## Next exact
 
-**Valider la PR #348 sur son HEAD final : garde repo-wide + frontend tests/build + runtime/visuel pertinents, merger, vérifier master post-merge, puis passer directement à T3.**
+**Auditer `GuideTower.tsx` et ses points de montage/permissions, vérifier ses textes contre les capacités prouvées, puis choisir la solution T3 minimale avant toute modification UI.**
 
 ## Handover compact
 
 À toute reprise :
 
 1. lire ce fichier ;
-2. vérifier `master` / HEAD / PR #348 / derniers runs ;
-3. confirmer T1 merge `99176cb6…` et première passe T2 merge `0d31328e…` ;
+2. vérifier `master` / HEAD / derniers runs ;
+3. confirmer T1 merge `99176cb6…`, T2 première passe `0d31328e…` et T2 final `a419fd1…` ;
 4. reprendre directement au `Next exact` ;
-5. ne pas déclarer T2 CLOSED avant merge et post-merge de #348.
+5. ne pas déclarer le chantier CLOSED avant T3/T4 et preuves finales applicables.
 
 Aucun déploiement Vercel sans autorisation explicite.
