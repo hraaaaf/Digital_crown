@@ -151,7 +151,7 @@ export const Sidebar = ({ isOpen = false, onClose }: SidebarProps) => {
           {hasAccess('accounting') && <NavItem to="/accounting" icon={<Receipt size={20} />} label="Comptabilité" />}
           {hasAccess('patients') && <NavItem to="/patients" icon={<Users size={20} />} label="Dossiers Patients" />}
           <NavItem to="/bibliotheque" icon={<BookOpen size={20} />} label="Bibliothèque Elite" />
-          {hasAccess('patients') && <NavItem to="/approvisionnement" icon={<Store size={20} />} label="Marketplace" />
+          {hasAccess('patients') && <NavItem to="/approvisionnement" icon={<Store size={20} />} label="Marketplace" />}
 
           <div className="text-[10px] font-black text-amber-500 uppercase tracking-widest px-4 mb-3 mt-6 flex items-center gap-1.5">
             <Construction size={12} /> Bientôt disponible
