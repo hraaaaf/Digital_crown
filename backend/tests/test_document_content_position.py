@@ -3,6 +3,7 @@ from types import SimpleNamespace
 from reportlab.lib.pagesizes import A5
 from reportlab.lib.styles import ParagraphStyle
 from reportlab.lib.units import cm
+from reportlab.platypus import Paragraph
 
 from backend.services.base_template import BaseTemplate, PinnedCloture
 
@@ -52,23 +53,49 @@ def test_content_offset_is_clamped_to_supported_range():
     assert top_max == top_supported_max
 
 
-def test_pinned_cloture_consumes_remaining_frame_when_sentence_fits():
+def _cloture():
     style = ParagraphStyle("cloture-test", fontName="Helvetica", fontSize=9, leading=12)
-    flowable = PinnedCloture(
+    return PinnedCloture(
         "Arrêtée la présente note d'honoraires à la somme de DIX-HUIT MILLE CENT DIRHAMS TTC.",
         style,
     )
-    available = 10 * cm
+
+
+def test_only_final_cloture_is_footer_pinned():
+    body = Paragraph("Body", ParagraphStyle("body-test", fontName="Helvetica", fontSize=9))
+    final = _cloture()
+    story = BaseTemplate.scale_elements([body, final], 1.0)
+    assert story[-1] is final
+    assert final._pin_to_footer is True
+
+    non_final = _cloture()
+    trailing = Paragraph("Signature", ParagraphStyle("sig-test", fontName="Helvetica", fontSize=9))
+    BaseTemplate.scale_elements([non_final, trailing], 1.0)
+    assert non_final._pin_to_footer is False
+
+
+def test_final_cloture_uses_footer_band_when_body_ends_high_enough():
+    flowable = _cloture()
+    BaseTemplate.scale_elements([flowable], 1.0)
+    flowable._frame = SimpleNamespace(_y=4.0 * cm)
+    available = 0.5 * cm
     _, reserved_height = flowable.wrap(11.8 * cm, available)
-    assert abs(reserved_height - available) <= 0.01
+    assert reserved_height == 0
+    assert flowable._cloture_draw_y >= 2.65 * cm
 
 
-def test_pinned_cloture_forces_page_break_when_sentence_cannot_fit():
-    style = ParagraphStyle("cloture-tight-test", fontName="Helvetica", fontSize=9, leading=12)
-    flowable = PinnedCloture(
-        "Arrêtée la présente note d'honoraires à la somme de DIX-HUIT MILLE CENT DIRHAMS TTC.",
-        style,
-    )
+def test_final_cloture_forces_page_break_before_overlapping_body():
+    flowable = _cloture()
+    BaseTemplate.scale_elements([flowable], 1.0)
+    flowable._frame = SimpleNamespace(_y=3.2 * cm)
     tight_available = 0.2 * cm
     _, required_height = flowable.wrap(11.8 * cm, tight_available)
     assert required_height > tight_available
+
+
+def test_non_final_cloture_keeps_normal_flow_height():
+    flowable = _cloture()
+    trailing = Paragraph("Signature", ParagraphStyle("sig-flow-test", fontName="Helvetica", fontSize=9))
+    BaseTemplate.scale_elements([flowable, trailing], 1.0)
+    _, required_height = flowable.wrap(11.8 * cm, 10 * cm)
+    assert required_height > 0
