@@ -15,6 +15,10 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 jobs:
   after:
     runs-on: ubuntu-latest
@@ -83,42 +87,25 @@ jobs:
             id:1,public_id:'r5-after',nom_cabinet:'Cabinet QR',nom_praticien:'Dr QR',nom_praticien_ar:'',
             footer_address:'Rabat, Maroc',footer_phones:'05 37 00 00 00',primary_color:'#003380',secondary_color:'#1e40af',accent_color:'#60a5fa',
             selected_theme:'elite',font_fr:'inter',selected_template:'swiss',header_lines_fr:['Dr QR','Chirurgien Dentiste'],header_lines_ar:[],
-            specialty_ids:[],contacts_json:{whatsapp:{enabled:true,value:'212600000000'}},margin_top:3.6,margin_bottom:3.2,content_offset_y:0,
+            specialty_ids:[],contacts_json:{whatsapp:{enabled:true,value:'212600000000'}},margin_top:3.6,margin_bottom:3.2,
             watermark_enabled:true,use_letterhead:false,hide_header:false,hide_footer:false,cabinet_type:'PRIVE',
             qr_code_enabled:true,qr_code_type:'VALIDATION',qr_code_value:'',qr_code_label:'Vérifier le document',qr_code_style:'dots',qr_code_color:'#003380'
           };
           const json=body=>({status:200,contentType:'application/json',body:JSON.stringify(body)});
-          const installRoutes=async page=>page.route('**/api/**',async route=>{const url=new URL(route.request().url()); if(url.pathname.endsWith('/clinics/me'))return route.fulfill(json(profile)); return route.fulfill(json({}));});
-          const openDesign=async page=>{
-            await page.getByRole('heading',{name:'Paramètres',exact:true}).waitFor({timeout:15000});
-            await page.getByRole('button',{name:'Design & Ambiance',exact:true}).click();
-            const heading=page.locator('h3:visible').filter({hasText:/^Code QR$/}).first();
-            await heading.waitFor({timeout:15000});
-            return heading;
-          };
-          const server=await createServer({server:{host:'127.0.0.1',port:4192,strictPort:true},clearScreen:false}); await server.listen();
+          const server=await createServer({optimizeDeps:{include:['workbox-window']},server:{host:'127.0.0.1',port:4192,strictPort:true},clearScreen:false}); await server.listen();
           const browser=await chromium.launch();
           try {
-            // Vite may discover/optimize lazy Settings dependencies on the first navigation
-            // and reload that page. Warm the exact route once before taking evidence so a
-            // dev-server optimization reload cannot invalidate the QR locator mid-screenshot.
-            const warmContext=await browser.newContext({viewport:{width:1440,height:1200}});
-            const warmPage=await warmContext.newPage();
-            await installRoutes(warmPage);
-            await warmPage.goto('http://127.0.0.1:4192/settings-r5-after.html',{waitUntil:'networkidle'});
-            await openDesign(warmPage);
-            await warmPage.getByRole('button',{name:'Vérification du document',exact:true}).waitFor();
-            await warmPage.waitForTimeout(1500);
-            await warmContext.close();
-
             for (const width of [1440,1024,768,430,390]) {
               const context=await browser.newContext({viewport:{width,height:1200}}); const page=await context.newPage(); const errors=[];
               page.on('pageerror',e=>errors.push(`pageerror: ${e.message}`));
               page.on('console',m=>{if(m.type()==='error') errors.push(`console: ${m.text()}`)});
-              await installRoutes(page);
+              await page.route('**/api/**',async route=>{const url=new URL(route.request().url()); if(url.pathname.endsWith('/clinics/me'))return route.fulfill(json(profile)); return route.fulfill(json({}));});
               await page.goto('http://127.0.0.1:4192/settings-r5-after.html',{waitUntil:'networkidle'});
-              await openDesign(page);
+              await page.getByRole('heading',{name:'Paramètres',exact:true}).waitFor({timeout:15000});
+              await page.getByRole('button',{name:'Design & Ambiance',exact:true}).click();
 
+              const qrHeading=page.locator('h3:visible').filter({hasText:/^Code QR$/}).first();
+              await qrHeading.waitFor({timeout:15000});
               const validation=page.getByRole('button',{name:'Vérification du document',exact:true});
               await validation.waitFor();
               await page.getByText('Le QR ouvre la page de vérification du document généré.',{exact:true}).waitFor();
@@ -138,9 +125,8 @@ jobs:
 
               await validation.click();
               await page.getByText('Destination : /api/documents/verify/<document>',{exact:true}).waitFor();
-              const qrHeading=page.locator('h3:visible').filter({hasText:/^Code QR$/}).first();
               const qrCard=qrHeading.locator('xpath=ancestor::div[contains(@class,"rounded-2xl")][1]');
-              await qrCard.scrollIntoViewIfNeeded();
+              await qrCard.scrollIntoViewIfNeeded(); await page.waitForTimeout(100);
               const layout=await page.evaluate(()=>({clientWidth:document.documentElement.clientWidth,scrollWidth:document.documentElement.scrollWidth}));
               if(layout.scrollWidth>layout.clientWidth) throw new Error(`Horizontal overflow: ${layout.scrollWidth}>${layout.clientWidth}`);
               if(errors.length) throw new Error(errors.join('\n'));

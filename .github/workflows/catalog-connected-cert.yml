@@ -2,6 +2,16 @@ name: Catalog Connected Truth Certification
 
 on:
   pull_request:
+    paths:
+      - "backend/**/*catalog*"
+      - "backend/**/*prescription*"
+      - "frontend/**/*catalog*"
+      - "frontend/scripts/certify-catalog-connected-browser.mjs"
+      - "scripts/t2_runtime_server.py"
+      - "requirements.txt"
+      - "frontend/package.json"
+      - "frontend/package-lock.json"
+      - ".github/workflows/catalog-connected-cert.yml"
   workflow_dispatch:
 
 concurrency:

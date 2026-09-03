@@ -3,11 +3,15 @@ name: Marketplace Final Certification
 on:
   pull_request:
     paths:
-      - "backend/**"
-      - "frontend/**"
+      - "backend/**/*marketplace*"
+      - "backend/**/*partner*"
+      - "frontend/src/features/partnerMarketplace/**"
       - ".audit/marketplace-p5-after.mjs"
       - "docs/marketplace/P5_UI_REFERENCE.md"
       - "docs/marketplace/P5_UI_REFERENCE.svg"
+      - "requirements.txt"
+      - "frontend/package.json"
+      - "frontend/package-lock.json"
       - ".github/workflows/marketplace-p5-after.yml"
   workflow_dispatch:
 
