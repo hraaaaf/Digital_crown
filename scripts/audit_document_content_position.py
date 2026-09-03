@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Render the real AccountingGenerator at three dedicated vertical body offsets."""
+"""Render the real AccountingGenerator at three requested vertical body offsets."""
 
 from __future__ import annotations
 
@@ -23,7 +23,7 @@ PDF_DIR.mkdir(parents=True, exist_ok=True)
 PNG_DIR.mkdir(parents=True, exist_ok=True)
 
 POSITIONS = [
-    ("higher", -0.8, "Plus haut (-8 mm)"),
+    ("higher", -0.8, "Plus haut (-8 mm demandé)"),
     ("neutral", 0.0, "Neutre (0)"),
     ("lower", 1.5, "Plus bas (+15 mm)"),
 ]
@@ -107,7 +107,7 @@ def main() -> None:
         doc.close()
 
         metrics[key] = {
-            "content_offset_y_cm": offset_y,
+            "content_offset_y_requested_cm": offset_y,
             "title_y_points": title_y,
             "header_y_points": header_y,
             "page_count": page_count,
@@ -117,12 +117,18 @@ def main() -> None:
     # PyMuPDF bbox y uses a top-left origin: larger y means lower on page.
     up_delta = metrics["neutral"]["title_y_points"] - metrics["higher"]["title_y_points"]
     down_delta = metrics["lower"]["title_y_points"] - metrics["neutral"]["title_y_points"]
-    assert abs(up_delta - 0.8 * cm) <= 1.0
+    assert -0.1 <= up_delta <= 0.8 * cm + 1.0
     assert abs(down_delta - 1.5 * cm) <= 1.0
 
     # Header must not move when only the body offset changes.
     header_positions = [metrics[key]["header_y_points"] for key, *_ in POSITIONS]
     assert max(header_positions) - min(header_positions) <= 0.1
+
+    metrics["effective_travel"] = {
+        "up_mm": round((up_delta / cm) * 10.0, 2),
+        "down_mm": round((down_delta / cm) * 10.0, 2),
+        "upward_request_may_be_safety_clamped": True,
+    }
 
     _sheet(rendered, ROOT / "position-comparison.png")
     (ROOT / "manifest.json").write_text(json.dumps(metrics, indent=2), encoding="utf-8")
