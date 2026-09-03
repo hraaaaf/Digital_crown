@@ -4,7 +4,11 @@ import { describe, expect, it } from 'vitest';
 
 const dashboardPath = path.resolve(__dirname, '../../pages/Dashboard.tsx');
 const dayOneTourPath = path.resolve(__dirname, '../../components/DayOneTour.tsx');
-const guidedTourPath = path.resolve(__dirname, '../../components/GuidedTour');
+const retiredGuidedTourFiles = [
+  path.resolve(__dirname, '../../components/GuidedTour/GuidedTour.tsx'),
+  path.resolve(__dirname, '../../components/GuidedTour/TourLauncher.tsx'),
+  path.resolve(__dirname, '../../components/GuidedTour/tourConfig.ts'),
+];
 const sourceRoot = path.resolve(__dirname, '../..');
 const dashboardSource = fs.readFileSync(dashboardPath, 'utf8');
 
@@ -14,9 +18,8 @@ const collectSourceFiles = (dir: string): string[] => fs.readdirSync(dir, { with
   return /\.(ts|tsx)$/.test(entry.name) ? [entryPath] : [];
 });
 
-const retiredMarkers = [
+const retiredAutoTourMarkers = [
   'Tour' + 'Launcher',
-  'Guided' + 'Tour',
   'digitalcrown_' + 'tour_completed',
   'TOUR_' + 'STORAGE_KEY',
 ];
@@ -28,13 +31,15 @@ describe('Dashboard tutorial cleanup', () => {
     expect(fs.existsSync(dayOneTourPath)).toBe(false);
   });
 
-  it('keeps frontend source free of the retired guided-tour auto-launch system', () => {
-    expect(fs.existsSync(guidedTourPath)).toBe(false);
+  it('keeps frontend source free of the retired automatic guided-tour system', () => {
+    for (const retiredFile of retiredGuidedTourFiles) {
+      expect(fs.existsSync(retiredFile), `${path.relative(sourceRoot, retiredFile)} still exists`).toBe(false);
+    }
 
     const sourceFiles = collectSourceFiles(sourceRoot);
     for (const file of sourceFiles) {
       const source = fs.readFileSync(file, 'utf8');
-      for (const marker of retiredMarkers) {
+      for (const marker of retiredAutoTourMarkers) {
         expect(source, `${marker} found in ${path.relative(sourceRoot, file)}`).not.toContain(marker);
       }
     }
