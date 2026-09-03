@@ -20,8 +20,6 @@ import { cn } from '../utils/cn';
 import { hasAccess as userHasAccess } from '../utils/accessControl';
 import { api } from '../services/api';
 import { authService } from '../services/auth';
-import { ClinicalTipBubble } from '../features/clinical_tips/components/ClinicalTipBubble';
-import { clinicalTips } from '../data/clinical_tips';
 import { useSettingsStore } from '../features/admin/Settings/hooks/useSettingsStore';
 import { useAuthStore } from '../stores/useAuthStore';
 
@@ -56,64 +54,19 @@ export const Sidebar = ({ isOpen = false, onClose }: SidebarProps) => {
   }, [user]);
 
   const [isAiActive, setIsAiActive] = useState(false);
-  const [isFlipping, setIsFlipping] = useState(false);
-  const [showTip, setShowTip] = useState(false);
-  const [currentTip, setCurrentTip] = useState("");
-  const [tipsEnabled, setTipsEnabled] = useState(localStorage.getItem('clinical_tips_enabled') !== 'false');
-  
-  // Cycle tips with Slingshot physics
-  useEffect(() => {
-    const triggerTip = () => {
-      // Respect user preference globally
-      if (localStorage.getItem('clinical_tips_enabled') === 'false') return;
 
-      // 1. Tension / Anticipation
-      setIsFlipping(true); 
-      
-      // 2. Mid-tension (randomize tip)
-      setTimeout(() => {
-        const randomTip = clinicalTips[Math.floor(Math.random() * clinicalTips.length)];
-        setCurrentTip(randomTip);
-      }, 400);
-
-      // 3. THE LAUNCH (Snap forward)
-      setTimeout(() => {
-        setShowTip(true);
-      }, 600);
-
-      // 4. Reset states
-      setTimeout(() => {
-        setIsFlipping(false);
-      }, 1200);
-    };
-
-    // Initial trigger after 10s, then every 2 minutes
-    const initialTimeout = setTimeout(triggerTip, 10000);
-    const interval = setInterval(triggerTip, 120000);
-
-    return () => {
-      clearTimeout(initialTimeout);
-      clearInterval(interval);
-    };
-  }, []);
-  
-  // CTO Rigor: Global event listener for AI animation & Settings changes
   useEffect(() => {
     const handleAiStart = () => setIsAiActive(true);
     const handleAiEnd = () => setIsAiActive(false);
-    const handlePrefChange = () => setTipsEnabled(localStorage.getItem('clinical_tips_enabled') !== 'false');
-    
+
     window.addEventListener('ai-generation-start', handleAiStart);
     window.addEventListener('ai-generation-end', handleAiEnd);
-    window.addEventListener('clinical-tips-changed', handlePrefChange);
-    
+
     return () => {
       window.removeEventListener('ai-generation-start', handleAiStart);
       window.removeEventListener('ai-generation-end', handleAiEnd);
-      window.removeEventListener('clinical-tips-changed', handlePrefChange);
     };
   }, []);
-
 
   const pathParts = location.pathname.split('/');
   const isInPatientDossier = Boolean(pathParts[1] === 'patients' && pathParts[2] && pathParts[2] !== 'new');
@@ -137,15 +90,7 @@ export const Sidebar = ({ isOpen = false, onClose }: SidebarProps) => {
           0%, 100% { transform: scale(1); filter: drop-shadow(0 0 4px var(--primary)); }
           50% { transform: scale(1.02); filter: drop-shadow(0 0 15px var(--primary)); }
         }
-        @keyframes logo-slingshot {
-          0% { transform: translateX(0) scale(1); filter: brightness(1); }
-          30% { transform: translateX(-25px) scale(0.9) skewX(-5deg); filter: brightness(1.1); }
-          50% { transform: translateX(30px) scale(1.1) skewX(10deg); filter: brightness(1.3) drop-shadow(0 0 20px var(--primary)); }
-          70% { transform: translateX(-5px) scale(1.05); }
-          100% { transform: translateX(0) scale(1); filter: brightness(1); }
-        }
         .animate-logo-pulse-light { animation: logo-pulse-light 2s ease-in-out infinite; }
-        .animate-tooth-slingshot { animation: logo-slingshot 1.2s cubic-bezier(0.34, 1.56, 0.64, 1) forwards; }
       `}</style>
       {/* SIDEBAR : Clinical Premium Elite */}
       <aside className={cn(
@@ -164,14 +109,11 @@ export const Sidebar = ({ isOpen = false, onClose }: SidebarProps) => {
               alt="Digital Crown AI" 
               className={cn(
                 "h-auto w-full max-w-[190px] object-contain transition-all duration-700", 
-                (isAiActive && tipsEnabled) && "animate-logo-pulse-light",
-                (isFlipping && tipsEnabled) && "animate-tooth-slingshot"
+                isAiActive && "animate-logo-pulse-light"
               )} 
               style={{ filter: document.body.dataset.theme === 'dark' ? 'brightness(0) invert(1)' : 'none' }}
             />
           </Link>
-          
-          <ClinicalTipBubble show={showTip} tip={currentTip} onClose={() => setShowTip(false)} />
         </div>
 
         {/* CABINET SWITCHER SECTION (Premium Glassmorphic Switcher) */}
@@ -209,7 +151,7 @@ export const Sidebar = ({ isOpen = false, onClose }: SidebarProps) => {
           {hasAccess('accounting') && <NavItem to="/accounting" icon={<Receipt size={20} />} label="Comptabilité" />}
           {hasAccess('patients') && <NavItem to="/patients" icon={<Users size={20} />} label="Dossiers Patients" />}
           <NavItem to="/bibliotheque" icon={<BookOpen size={20} />} label="Bibliothèque Elite" />
-          {hasAccess('patients') && <NavItem to="/approvisionnement" icon={<Store size={20} />} label="Marketplace" />}
+          {hasAccess('patients') && <NavItem to="/approvisionnement" icon={<Store size={20} />} label="Marketplace" />
 
           <div className="text-[10px] font-black text-amber-500 uppercase tracking-widest px-4 mb-3 mt-6 flex items-center gap-1.5">
             <Construction size={12} /> Bientôt disponible
@@ -322,4 +264,3 @@ const NavItem = ({ to, icon, label, forceActive, badge }: { to: string, icon: Re
     }}
   </NavLink>
 );
-
