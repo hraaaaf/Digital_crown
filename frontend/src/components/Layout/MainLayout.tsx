@@ -8,6 +8,7 @@ import { useLocation } from 'react-router-dom';
 import { safeStorage } from '../../hooks/useLocalStorage';
 import { AnimatedBackground } from '../AnimatedBackground';
 import { PREMIUM_FONTS } from '../../features/admin/constants';
+import { VoluntaryTutorialPanel } from '../../features/tutorial/VoluntaryTutorial';
 
 import { motion, AnimatePresence } from 'framer-motion';
 import { useState } from 'react';
@@ -22,7 +23,6 @@ export const MainLayout: React.FC<LayoutProps> = ({ children }) => {
   const { fetchPatientIntelligence } = useEliteStore();
   const location = useLocation();
 
-  // Détection du patient_id dans l'URL pour rafraîchir l'intelligence
   useEffect(() => {
     const match = location.pathname.match(/\/patients\/(\d+)/);
     if (match && match[1]) {
@@ -33,7 +33,6 @@ export const MainLayout: React.FC<LayoutProps> = ({ children }) => {
   const { profile, fetchProfile } = useSettingsStore();
   const [animatedBg, setAnimatedBg] = React.useState(() => safeStorage.get('app_background_animated') === 'true');
 
-  // Rigueur CTO : Chargement du profil et application du thème au montage du layout
   useEffect(() => {
     if (!profile.nom) {
       fetchProfile();
@@ -55,7 +54,6 @@ export const MainLayout: React.FC<LayoutProps> = ({ children }) => {
   const isDocumentStudio = /^\/patients\/\d+$/.test(location.pathname)
     && new URLSearchParams(location.search).get('tab') === 'admin';
 
-  // Close sidebar on route change (mobile nav)
   React.useEffect(() => {
     setIsSidebarOpen(false);
   }, [location.pathname]);
@@ -64,7 +62,6 @@ export const MainLayout: React.FC<LayoutProps> = ({ children }) => {
     <div className={`flex flex-row h-screen overflow-hidden ${fontClass} selection:bg-primary selection:text-white relative bg-medical-pearl`} style={{ color: 'var(--text-main)' }}>
       {animatedBg && <AnimatedBackground />}
 
-      {/* BACKGROUND DYNAMIQUE */}
       <div className="absolute inset-0 z-0 pointer-events-none overflow-hidden">
         <div className="absolute -top-[10%] -left-[10%] w-[40%] h-[40%] rounded-full bg-primary/10 blur-[100px]" />
         <div className="absolute -bottom-[10%] -right-[10%] w-[30%] h-[50%] rounded-full opacity-20 blur-[120px]" style={{ backgroundColor: 'var(--accent)' }} />
@@ -74,7 +71,6 @@ export const MainLayout: React.FC<LayoutProps> = ({ children }) => {
 
       <div className="flex-1 flex flex-col relative z-10 overflow-hidden">
         <LicenseBanner />
-        {/* Hamburger button — visible only on mobile/tablet */}
         <button
           onClick={() => setIsSidebarOpen(true)}
           className="lg:hidden fixed top-5 left-4 z-[9998] p-2 rounded-xl bg-card-bg border border-border-main shadow-elite text-text-main hover:text-primary hover:bg-primary/5 transition-all"
@@ -83,6 +79,7 @@ export const MainLayout: React.FC<LayoutProps> = ({ children }) => {
           <Menu size={22} />
         </button>
         <Header />
+        <VoluntaryTutorialPanel />
 
         <main className={`flex-1 overflow-y-auto overflow-x-hidden pt-0 flex flex-col custom-scrollbar ${isDocumentStudio ? 'p-2 sm:p-4 lg:p-8' : 'p-8'}`}>
           <AnimatePresence mode="wait">
@@ -104,7 +101,6 @@ export const MainLayout: React.FC<LayoutProps> = ({ children }) => {
         </main>
       </div>
 
-      {/* Bouton Flottant Crown Bot (Desktop) */}
       <div className="fixed bottom-8 right-8 z-50">
         <button
           onClick={() => setIsBotOpen(!isBotOpen)}
@@ -119,7 +115,6 @@ export const MainLayout: React.FC<LayoutProps> = ({ children }) => {
         </button>
       </div>
 
-      {/* Overlay / Popover Crown Bot */}
       <AnimatePresence>
         {isBotOpen && (
           <motion.div
