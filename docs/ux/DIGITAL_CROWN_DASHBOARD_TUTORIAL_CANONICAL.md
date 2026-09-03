@@ -5,415 +5,156 @@ Canonical file: `docs/ux/DIGITAL_CROWN_DASHBOARD_TUTORIAL_CANONICAL.md`
 Repo: `hraaaaf/Digital_crown`
 Branch: `master`
 
-## 1. Goal
+## Goal final
 
-Supprimer toute interruption automatique non sollicitée liée au tutoriel lors de l’ouverture de l’application ou du retour vers `/dashboard`, tout en conservant une aide volontaire, utile et contextuelle pour les utilisateurs qui en ont besoin.
+Supprimer toute interruption automatique non sollicitée liée au tutoriel Dashboard, éliminer la dette associée, puis conserver uniquement une aide volontaire et contextuelle si elle apporte une valeur réelle.
 
-### Succès observable
-
-Le comportement suivant doit être vérifié :
+## Succès observable final
 
 1. ouverture de l’application → aucun tutoriel automatique ;
-2. navigation vers une autre page puis retour `/dashboard` → aucun tutoriel automatique ;
-3. refresh du Dashboard → aucun tutoriel automatique ;
-4. nouvelle session utilisateur → aucun tutoriel automatique ;
-5. une aide volontaire reste accessible depuis un emplacement explicite ;
-6. aucune régression sur Dashboard, navigation, permissions ou responsive.
+2. retour vers `/dashboard` → aucun tutoriel automatique ;
+3. refresh Dashboard → aucun tutoriel automatique ;
+4. nouvelle session → aucun tutoriel automatique ;
+5. aucune régression Dashboard / navigation / RBAC / responsive ;
+6. si une aide subsiste, elle est volontaire, exacte et adaptée aux permissions ;
+7. AFTER visuel et score final documentés avant fermeture du chantier.
 
-### Preuve requise
+## État initial vérifié
 
-- inspection code avant/après ;
-- tests automatisés ciblés ;
-- test comportemental navigation + refresh + nouvelle session ;
-- BEFORE / AFTER sur mêmes viewports si impact visuel ;
-- comparaison visuelle et score final ;
-- CI pertinente verte avant closeout.
+- `Dashboard.tsx` montait `DayOneTour` directement ;
+- `DayOneTour` utilisait `react-joyride ^3.1.0`, un timer de 1 s et `localStorage` ;
+- son API contenait encore des props historiques incompatibles avec Joyride v3, notamment `callback` ;
+- un second système existe sous `frontend/src/components/GuidedTour/` ;
+- score UX initial : **2/10** ;
+- décision produit : ne pas améliorer esthétiquement l’auto-tour, le supprimer du flux automatique.
 
----
+## Roadmap en 4 lots
 
-## 2. État vérifié au démarrage du chantier
+### T1 — Neutralisation — CLOSED
 
-### Tutoriel actif sur Dashboard
+Goal : empêcher immédiatement tout auto-déclenchement du tutoriel Dashboard.
 
-`frontend/src/components/DayOneTour.tsx`
+Implémentation vérifiée :
 
-Le composant :
+- `DayOneTour` ne lance plus Joyride ;
+- suppression de ses effets timer / `localStorage` / auto-run ;
+- garde de régression ajoutée ;
+- certification visuelle Dashboard exécutée.
 
-- est monté directement dans `frontend/src/pages/Dashboard.tsx` ;
-- utilise `react-joyride` ;
-- attend 1 seconde avant lancement ;
-- contient 4 étapes ;
-- tente de persister la fin du tour via `localStorage` ;
-- utilise la clé canonique `digitalcrown_tour_completed` ;
-- gère une ancienne clé `digital_crown_tour_completed`.
+Preuves :
 
-### Deuxième système de visite présent dans le repo
+- branche : `ux/dashboard-tutorial-t1-neutralization` ;
+- ancienne PR draft : `#338`, fermée non mergée uniquement à cause d’un bug du connecteur Ready-for-review ;
+- PR de remplacement : `#341` ;
+- HEAD T1 avant merge : `2904cd224542602b68749d2e32a134a78680c8df` ;
+- CI PR : run `33679414337` → SUCCESS ;
+- Dashboard Visual Certification : run `33679414473` → SUCCESS ;
+- merge squash : `99176cb6e48d04a89638c97fc6fbd265e66dc962` → SUCCESS.
 
-`frontend/src/components/GuidedTour/`
+Conclusion T1 : **CLOSED avec preuve**.
 
-Fichiers principaux :
+### T2 — Nettoyage — NEXT
 
-- `GuidedTour.tsx`
-- `TourLauncher.tsx`
-- `tourConfig.ts`
-
-Ce second système contient environ 11 étapes couvrant :
-
-- Bienvenue ;
-- Dashboard ;
-- Agenda ;
-- Dossier Patient ;
-- Documents ;
-- Bibliothèque ;
-- Configuration ;
-- conclusion.
-
-Il effectue également de la navigation inter-pages, du ciblage DOM et des pre-actions.
-
-### Dépendance vérifiée
-
-`frontend/package.json` contient :
-
-`react-joyride: ^3.1.0`
-
-### Cause racine probable du relancement permanent
-
-`DayOneTour.tsx` utilise encore le prop historique :
-
-`callback={handleJoyrideCallback}`
-
-alors que React Joyride v3 utilise l’API événementielle v3 (`onEvent`).
-
-Le composant neutralise en plus le typage avec :
-
-`const Joyride: any = OriginalJoyride;`
-
-Ce contournement empêche TypeScript de signaler l’incompatibilité de l’API.
-
-Conséquence cohérente avec le comportement observé : la fin du tour n’est vraisemblablement pas persistée comme prévu ; à chaque nouveau montage de Dashboard, la clé est absente et le tour repart.
-
-Cette cause doit encore être confirmée par test comportemental avant d’être déclarée définitivement certifiée.
-
----
-
-## 3. Audit UX initial
-
-Score initial retenu : **2/10**.
-
-### Déclenchement — 0/10
-
-Le tutoriel interrompt un utilisateur au retour Dashboard. Pour une application métier cabinet, ce comportement est incompatible avec une navigation fluide.
-
-### Pertinence — 3/10
-
-Les quatre étapes expliquent principalement des éléments déjà visibles :
-
-- créer un patient ;
-- activité récente / agenda ;
-- statistiques ;
-- introduction générale.
-
-La valeur pédagogique est faible par rapport à la friction.
-
-### Contexte — 2/10
-
-Le tutoriel n’est pas réellement contextualisé par rôle, besoin ou niveau d’expérience.
-
-### Copywriting — 3/10
-
-Le contenu contient des formulations marketing et plusieurs promesses fonctionnelles qui doivent être vérifiées avant exposition utilisateur.
-
-### Contrôle utilisateur — 1/10 dans le comportement observé
-
-La fermeture ne produit pas l’effet durable attendu.
-
-### Architecture — 2/10
-
-Deux systèmes de tutoriel coexistent : `DayOneTour` et `GuidedTour`. Cette duplication augmente dette, incohérences et risques de régression.
-
----
-
-## 4. Décision produit retenue
-
-### Décision principale
-
-**Supprimer l’auto-tour `DayOneTour` du Dashboard.**
-
-Ne pas investir dans une refonte esthétique du tutoriel automatique actuel.
-
-### Modèle cible
-
-1. aucun tutoriel forcé au premier lancement ;
-2. aucun tutoriel forcé au retour Dashboard ;
-3. interface Dashboard suffisamment auto-explicative ;
-4. micro-aides contextuelles uniquement sur les fonctions réellement complexes ;
-5. une entrée volontaire du type `Aide` / `Découvrir Digital Crown` peut lancer un guide manuel ;
-6. le second système `GuidedTour` doit être audité avant toute réutilisation.
-
----
-
-## 5. Périmètre du chantier
-
-### Inclus
-
-- suppression de `DayOneTour` du cycle automatique du Dashboard ;
-- nettoyage des imports / dépendances devenues inutiles si prouvé ;
-- audit d’usage de `react-joyride` avant éventuelle suppression du package ;
-- audit du dossier `GuidedTour` ;
-- conservation, simplification ou suppression de `GuidedTour` selon usage réel ;
-- définition d’une aide volontaire minimale si elle existe déjà ou peut être intégrée proprement sans dette ;
-- tests ciblés ;
-- validation visuelle si changement UI visible ;
-- documentation et closeout canonique.
-
-### Hors périmètre sauf nécessité démontrée
-
-- refonte générale du Dashboard ;
-- redesign complet du Help Center ;
-- modification métier Patient / Agenda / Documents ;
-- nouvelles fonctionnalités IA ;
-- déploiement Vercel.
-
----
-
-## 6. Séquence d’exécution canonique
-
-### T1 — Baseline et BEFORE
-
-Goal : figer l’état visuel et comportemental actuel.
+Goal : supprimer la dette devenue inutile et décider du sort du second système de visite.
 
 Actions :
 
-- identifier les viewports représentatifs ;
-- capturer Dashboard avant changement ;
-- reproduire le tutoriel au premier accès ;
-- reproduire le relancement au retour Dashboard ;
-- vérifier comportement après refresh ;
-- noter la clé `localStorage` avant/après fermeture.
+1. retirer l’import et le montage résiduel `<DayOneTour />` de `Dashboard.tsx` ;
+2. rechercher toutes les références `DayOneTour` ;
+3. supprimer le composant s’il n’a plus aucun usage ;
+4. auditer les usages réels de `GuidedTour`, `TourLauncher`, `tourConfig` ;
+5. vérifier tous les usages de `react-joyride` avant toute suppression de dépendance ;
+6. vérifier exactitude des sélecteurs DOM, navigation, RBAC, responsive et textes exposés ;
+7. décider sur preuve : conserver manuel simplifié / simplifier fortement / supprimer.
 
-Succès : comportement actuel documenté et reproductible.
+Succès : aucun code mort injustifié et aucun second auto-launch caché.
 
-Preuve : captures + observations + état localStorage.
+Preuve : recherche repo + tests ciblés + build + CI pertinente.
 
-### T2 — Retirer l’auto-tour
+### T3 — Aide volontaire
 
-Goal : aucun tutoriel automatique sur Dashboard.
+Goal : conserver uniquement une aide qui apporte une valeur claire sans interrompre le travail clinique.
 
-Action principale :
+Principes :
 
-- retirer `<DayOneTour />` de `Dashboard.tsx` ;
-- retirer l’import correspondant ;
-- ne pas modifier d’autres comportements Dashboard sans nécessité.
+- aucun lancement automatique ;
+- privilégier micro-aide contextuelle pour fonctions réellement complexes ;
+- réutiliser une zone d’aide existante avant d’ajouter une nouvelle UI ;
+- aucune promesse IA ou fonctionnelle non vérifiée ;
+- respect strict des permissions du rôle courant.
 
-Succès : Dashboard s’ouvre directement, sans overlay ou popover de visite.
+Succès : l’utilisateur peut obtenir de l’aide volontairement sans friction sur le flux normal.
 
-Preuve : test runtime + tests frontend.
+### T4 — Certification UX & closeout
 
-### T3 — Nettoyer la dette DayOneTour
+Goal : prouver le comportement final et fermer le chantier.
 
-Goal : ne conserver aucun code mort injustifié.
+Preuves requises :
 
-Actions :
+- tests ouverture / retour Dashboard / refresh / nouvelle session ;
+- tests rôles principaux si comportement conditionnel ;
+- build frontend ;
+- AFTER sur mêmes viewports pertinents ;
+- comparaison BEFORE / AFTER ;
+- score UX final ;
+- CI verte ;
+- canonique mis à jour ;
+- merge + post-merge vérifié.
 
-- rechercher toutes les références à `DayOneTour` ;
-- si aucune autre utilisation : supprimer le composant ;
-- rechercher les autres usages de `react-joyride` ;
-- supprimer la dépendance uniquement si aucun usage réel ne subsiste ;
-- supprimer les clés legacy uniquement si cela ne casse aucun mécanisme de migration encore utile.
+Ne pas déclarer CLOSED avant toutes les preuves applicables.
 
-Succès : aucun code mort créé par le changement.
+## Critères de non-régression
 
-Preuve : recherche repo + build.
+Le chantier ne doit pas casser : auth, chargement Dashboard, RBAC, recherche patient, quick actions, agenda, finance, cabinet health, responsive, navigation React Router, performance perceptible.
 
-### T4 — Audit du second GuidedTour
-
-Goal : décider sur preuve s’il mérite d’être conservé.
-
-Vérifier :
-
-- usages réels de `TourLauncher` ;
-- usages réels de `GuidedTour` ;
-- exactitude des 11 étapes ;
-- sélecteurs DOM encore valides ;
-- navigation inter-pages ;
-- comportement si aucun patient n’existe ;
-- permissions / RBAC ;
-- responsive ;
-- textes et promesses fonctionnelles ;
-- références IA obsolètes ou incompatibles avec l’état actuel de Digital Crown.
-
-Décision attendue :
-
-A. conserver en guide volontaire simplifié ;
-B. simplifier fortement ;
-C. supprimer entièrement.
-
-Recommandation actuelle : **B ou C**, jamais auto-lancé.
-
-### T5 — Aide volontaire minimale
-
-Goal : garder un moyen de découvrir l’application sans intrusion.
-
-Solution minimale privilégiée :
-
-- entrée explicite dans une zone d’aide existante si disponible ;
-- ou bouton `Découvrir Digital Crown` dans un emplacement non intrusif ;
-- aucun badge clignotant permanent ;
-- aucun lancement automatique.
-
-Succès : utilisateur peut lancer volontairement l’aide, sans impact sur le flux normal.
-
-### T6 — Tests
-
-Tests minimum :
-
-1. rendu Dashboard sans tour ;
-2. navigation Dashboard → autre page → Dashboard ;
-3. refresh Dashboard ;
-4. nouvelle session ;
-5. utilisateur avec ancien `localStorage` ;
-6. utilisateur sans aucune clé tour ;
-7. rôles principaux si comportement conditionnel ;
-8. build frontend ;
-9. tests unitaires / intégration ciblés ;
-10. lint pertinent.
-
-### T7 — AFTER visuel
-
-Obligatoire si un élément visuel est retiré, déplacé ou ajouté.
-
-Même viewports que BEFORE.
-
-Comparer :
-
-- obstruction du Dashboard ;
-- hiérarchie ;
-- premier écran utile ;
-- navigation ;
-- mobile / desktop ;
-- éventuel accès à l’aide.
-
-Score visuel final uniquement après comparaison.
-
-### T8 — Closeout
-
-Avant fermeture :
-
-- tests verts ;
-- comportement observé conforme ;
-- AFTER validé ;
-- README/docs uniquement si nécessaire ;
-- ce fichier canonique mis à jour ;
-- commit/PR/merge selon flux Git retenu ;
-- validation post-merge si merge effectué.
-
-Ne pas déclarer CLOSED avant preuve.
-
----
-
-## 7. Critères de non-régression
-
-Le chantier ne doit pas casser :
-
-- auth ;
-- chargement Dashboard ;
-- RBAC ;
-- recherche patient ;
-- quick actions ;
-- agenda ;
-- finance ;
-- cabinet health ;
-- responsive ;
-- navigation React Router ;
-- performance perceptible.
-
----
-
-## 8. Règles UX du chantier
+## Règles UX
 
 1. pas d’interruption automatique d’un utilisateur récurrent ;
-2. privilégier apprentissage par usage ;
-3. micro-aide contextualisée > visite générale ;
-4. aide toujours skippable et volontaire ;
-5. ne jamais déplacer automatiquement l’utilisateur entre pages sans action explicite ;
-6. ne jamais annoncer une capacité non vérifiée ;
-7. respecter les permissions du rôle courant ;
-8. pas d’animation décorative persistante destinée uniquement à attirer vers le tutoriel.
+2. apprentissage par usage > visite générale ;
+3. micro-aide contextuelle > tunnel de tutoriel ;
+4. aide volontaire et skippable ;
+5. aucune navigation automatique inter-pages sans action explicite ;
+6. aucune capacité annoncée sans preuve ;
+7. permissions respectées ;
+8. aucune animation décorative persistante destinée seulement à attirer vers l’aide.
 
----
-
-## 9. Risques connus
-
-### R1 — Suppression d’une aide réellement utilisée
-
-Mitigation : conserver une entrée volontaire si un besoin utilisateur est démontré.
-
-### R2 — `GuidedTour` dépend de sélecteurs obsolètes
-
-Mitigation : audit DOM avant réutilisation.
-
-### R3 — Guides qui exposent des modules indisponibles selon rôle
-
-Mitigation : filtrage par permission ou suppression du guide transversal.
-
-### R4 — Textes fonctionnellement faux ou obsolètes
-
-Mitigation : validation contre code et comportement réel avant exposition.
-
-### R5 — package `react-joyride` retiré alors qu’encore utilisé
-
-Mitigation : recherche repo complète avant suppression de dépendance.
-
----
-
-## 10. État actuel
+## État actuel
 
 Chantier : OPEN
 
 Terminé :
 
-- audit code initial ;
-- identification de `DayOneTour` ;
-- identification du second système `GuidedTour` ;
-- identification de `react-joyride ^3.1.0` ;
-- diagnostic probable de l’incompatibilité API v2/v3 ;
+- audit initial ;
 - score UX initial 2/10 ;
-- décision produit : supprimer l’auto-tour.
+- décision produit ;
+- **T1 Neutralisation CLOSED** ;
+- CI PR verte ;
+- certification visuelle Dashboard verte ;
+- merge T1 effectué sur `master`.
 
 En cours :
 
-- aucun changement de code encore appliqué dans ce chantier.
+- post-merge du commit `99176cb6e48d04a89638c97fc6fbd265e66dc962` à surveiller si des runs master se matérialisent ;
+- aucun déploiement Vercel.
 
 Restant :
 
-1. BEFORE comportemental / visuel ;
-2. suppression auto-tour ;
-3. nettoyage dette ;
-4. audit GuidedTour ;
-5. aide volontaire minimale si justifiée ;
-6. tests ;
-7. AFTER ;
-8. score final ;
-9. closeout ;
-10. Git/merge/post-merge selon flux retenu.
+1. T2 Nettoyage ;
+2. T3 Aide volontaire ;
+3. T4 Certification UX & closeout.
 
----
+## Next exact
 
-## 11. Next exact
+**T2 : retirer le montage résiduel `DayOneTour` de `Dashboard.tsx`, rechercher tous les usages `DayOneTour` / `GuidedTour` / `TourLauncher` / `react-joyride`, puis supprimer uniquement la dette prouvée morte et exécuter les tests ciblés.**
 
-**Capturer le BEFORE du Dashboard et reproduire précisément le relancement du tutoriel, puis retirer `DayOneTour` du Dashboard et exécuter les tests ciblés.**
-
----
-
-## 12. Handover compact
+## Handover compact
 
 À toute reprise :
 
 1. lire ce fichier ;
-2. vérifier branche / HEAD ;
-3. vérifier si `DayOneTour` est encore monté dans `Dashboard.tsx` ;
-4. vérifier l’usage réel de `GuidedTour` ;
-5. vérifier les derniers tests / CI ;
-6. reprendre au `Next exact` sans refaire l’audit déjà prouvé.
+2. vérifier `master` / HEAD / derniers runs ;
+3. confirmer que T1 est bien présent sur `master` via merge `99176cb6…` ;
+4. reprendre directement au `Next exact` ;
+5. ne pas refaire l’audit initial sauf contradiction nouvelle.
 
 Aucun déploiement Vercel sans autorisation explicite.
