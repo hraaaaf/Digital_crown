@@ -52,11 +52,23 @@ def test_content_offset_is_clamped_to_supported_range():
     assert top_max == top_supported_max
 
 
-def test_pinned_cloture_reserves_footer_adjacent_band():
+def test_pinned_cloture_consumes_remaining_frame_when_sentence_fits():
     style = ParagraphStyle("cloture-test", fontName="Helvetica", fontSize=9, leading=12)
     flowable = PinnedCloture(
         "Arrêtée la présente note d'honoraires à la somme de DIX-HUIT MILLE CENT DIRHAMS TTC.",
         style,
     )
-    _, reserved_height = flowable.wrap(11.8 * cm, 10 * cm)
-    assert reserved_height >= 1.6 * cm
+    available = 10 * cm
+    _, reserved_height = flowable.wrap(11.8 * cm, available)
+    assert abs(reserved_height - available) <= 0.01
+
+
+def test_pinned_cloture_forces_page_break_when_sentence_cannot_fit():
+    style = ParagraphStyle("cloture-tight-test", fontName="Helvetica", fontSize=9, leading=12)
+    flowable = PinnedCloture(
+        "Arrêtée la présente note d'honoraires à la somme de DIX-HUIT MILLE CENT DIRHAMS TTC.",
+        style,
+    )
+    tight_available = 0.2 * cm
+    _, required_height = flowable.wrap(11.8 * cm, tight_available)
+    assert required_height > tight_available
