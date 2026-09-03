@@ -10,6 +10,7 @@ const retiredGuidedTourFiles = [
   path.resolve(__dirname, '../../components/GuidedTour/tourConfig.ts'),
 ];
 const sourceRoot = path.resolve(__dirname, '../..');
+const thisTestPath = path.resolve(__filename);
 const dashboardSource = fs.readFileSync(dashboardPath, 'utf8');
 
 const collectSourceFiles = (dir: string): string[] => fs.readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
@@ -36,7 +37,7 @@ describe('Dashboard tutorial cleanup', () => {
       expect(fs.existsSync(retiredFile), `${path.relative(sourceRoot, retiredFile)} still exists`).toBe(false);
     }
 
-    const sourceFiles = collectSourceFiles(sourceRoot);
+    const sourceFiles = collectSourceFiles(sourceRoot).filter((file) => path.resolve(file) !== thisTestPath);
     for (const file of sourceFiles) {
       const source = fs.readFileSync(file, 'utf8');
       for (const marker of retiredAutoTourMarkers) {
