@@ -80,7 +80,7 @@ Git : PR `#354` merged ; merge commit `5fd2a06663e941581ad422267d31a5bb69a13d11`
 
 ---
 
-## MOB-3 — Quick Action Hub — IN PROGRESS / VISUAL GATE
+## MOB-3 — Quick Action Hub — IN PROGRESS / CERTIFICATION
 
 Goal : permettre les actions fréquentes sans chercher une page, en **2 gestes maximum**, sans préempter MOB-4.
 
@@ -115,30 +115,50 @@ Décision verrouillée :
 - `Nouveau RDV` réutilise `AddApptModal` ;
 - bottom nav inchangée jusqu'à MOB-4.
 
-### Goal UI
+### Goal UI + validation humaine
 `docs/ux/DIGITAL_CROWN_MOBILE_QUICK_ACTION_HUB_GOAL_UI.md`
 
-État : `AWAITING VISUAL VALIDATION`.
+- V1 : REJECTED — trop reconstruite ;
+- V2 : REJECTED — dashboard encore schématique ;
+- V3 : **VALIDATED — REAL APP COMPOSITE** ;
+- référence : `docs/ux/assets/MOBILE_QUICK_ACTION_HUB_GOAL_V3_OVERLAY.svg` ;
+- validation visuelle humaine explicite reçue le 2026-09-04 ;
+- score de référence pré-code : **9.4 / 10**, non assimilé au score runtime.
 
-### Mockups
-- v1 : REJECTED — trop reconstruit ;
-- v2 : REJECTED après feedback humain — nav alignée mais dashboard schématique ;
-- v3 : **REAL-APP COMPOSITE — AWAITING VISUAL VALIDATION**.
+### Implémentation — WRITTEN / TARGETED CONTRACTS GREEN ON PREVIOUS CANDIDATE
 
-La v3 est construite directement sur `before-390x844.png` de l'artifact `9949854305`. Le vrai logo, header, date, `Bonsoir`, badges, Preview, tabs, progression, timeline, FAB et bottom nav sont conservés. Seuls backdrop + sheet + actions + transformation `+`→`×` sont ajoutés.
-
-### Réutilisation fonctionnelle
+Réutilisation fonctionnelle :
 - Nouveau RDV : `AddApptModal` existant ;
-- Nouveau patient : flow mobile existant ;
-- Photo / Scan : contexte patient sécurisé existant ;
-- Encaisser : `POST /api/accounting/payments`, permissions `accounting/payments`, `assert_patient_access` ; aucun nouveau moteur financier.
+- Nouveau patient : création patient mobile canonique ;
+- Photo / Scan : contexte patient sécurisé opaque existant, intention conservée puis action canonique mise au premier plan ;
+- Encaisser : `POST /api/accounting/payments`, permissions serveur `accounting/payments`, aucun nouveau moteur financier.
 
-### Gate
+Sécurité / RBAC :
+- capabilities d'actions rapides décidées côté serveur ;
+- aucune action non autorisée rendue ;
+- aucune capability connue → aucun FAB ;
+- offline → actions d'écriture fail-closed ;
+- thème et typographie restent pilotés par les tokens Réglages cabinet.
+
+Preuves partielles du run `33925359052` sur `6ed1afd22591b9ba8b8da660ae3f793f72184213` :
+- frontend ciblé : **17 tests passés** ;
+- backend Patient Cockpit / capabilities : **8 tests passés** ;
+- syntaxe backend : passée ;
+- build interrompu uniquement par un défaut de typage de timer dans `mobileQuickIntent.test.ts`, pas par un échec métier/runtime.
+
+Correction du typage poussée sur le candidat `37a9413fd8675717da31b77f43c5f9f2ab76de0c`.
+Certification AFTER correspondante : run `33927174832` en cours lors de cette mise à jour.
+
+### Gate restant
 1. BEFORE réel ✅
 2. Goal UI corrigé ✅
-3. mockup v3 basé sur la vraie app ✅
-4. validation visuelle humaine explicite ⏳
-5. aucun code produit avant gate 4.
+3. mockup v3 sur vraie app ✅
+4. validation visuelle humaine ✅
+5. implémentation ✅
+6. tests ciblés frontend/backend ✅ sur candidat précédent
+7. build + Chromium + AFTER 390/430/768 ⏳
+8. inspection visuelle réelle + comparaison Goal V3 + score ⏳
+9. preuve canonique + PR/merge/post-merge ⏳
 
 ---
 
@@ -196,8 +216,4 @@ Le chantier est CLOSED uniquement si tous les lots retenus sont DONE ou explicit
 
 ## Next exact
 
-Human gate : validation visuelle du **mockup v3 construit sur le BEFORE réel 390×844**.
-
-Si validé : implémentation MOB-3 → tests → AFTER 390/430/768 → comparaison BEFORE/Goal → score visuel → PR/merge/closeout → MOB-4.
-
-Si rejeté : corriger uniquement la v3/Goal UI avant tout code produit.
+Certification du candidat `37a9413fd8675717da31b77f43c5f9f2ab76de0c` → artifact AFTER 390/430/768 → inspection visuelle réelle → score → preuve/canonique → PR/merge/post-merge → MOB-4.
