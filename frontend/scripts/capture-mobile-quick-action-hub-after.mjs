@@ -10,6 +10,15 @@ const viewports = [
   { width: 768, height: 1024 },
 ];
 
+function isExpectedViteIsolationNoise(text) {
+  const normalized = text.toLowerCase();
+  return (
+    (normalized.includes('content security policy') && (normalized.includes('websocket') || normalized.includes('ws://'))) ||
+    (normalized.includes('[vite]') && normalized.includes('websocket')) ||
+    (normalized.includes('failed to connect') && normalized.includes('ws://'))
+  );
+}
+
 await fs.mkdir(outputDir, { recursive: true });
 const browser = await chromium.launch({ headless: true });
 const evidence = [];
@@ -19,9 +28,16 @@ try {
     const context = await browser.newContext({ viewport });
     const page = await context.newPage();
     const runtimeErrors = [];
+    const expectedDevIsolationNoise = [];
     page.on('pageerror', error => runtimeErrors.push(`pageerror:${error.message}`));
     page.on('console', message => {
-      if (message.type() === 'error') runtimeErrors.push(`console:${message.text()}`);
+      if (message.type() !== 'error') return;
+      const text = message.text();
+      if (isExpectedViteIsolationNoise(text)) {
+        expectedDevIsolationNoise.push(text);
+        return;
+      }
+      runtimeErrors.push(`console:${text}`);
     });
 
     await page.goto(baseUrl, { waitUntil: 'networkidle' });
@@ -75,11 +91,11 @@ try {
         throw new Error(`${viewport.width}: missing action ${expected}`);
       }
     }
-    if (runtimeErrors.length) throw new Error(`${viewport.width}: runtime errors: ${runtimeErrors.join(' | ')}`);
+    if (runtimeErrors.length) throw new Error(`${viewport.width}: application runtime errors: ${runtimeErrors.join(' | ')}`);
 
     const name = `after-quick-hub-${viewport.width}x${viewport.height}.png`;
     await page.screenshot({ path: path.join(outputDir, name) });
-    evidence.push({ viewport, ...result, runtimeErrors, screenshot: name });
+    evidence.push({ viewport, ...result, runtimeErrors, expectedDevIsolationNoise, screenshot: name });
     await context.close();
   }
 } finally {
