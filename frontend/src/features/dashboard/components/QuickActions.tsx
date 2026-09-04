@@ -22,6 +22,7 @@ export const QuickActions = ({
           <Link
             to="/patients/new"
             data-tour="quick-action-new-patient"
+            data-guide="quick-action-new-patient"
             className="group block p-8 rounded-elite-lg shadow-elite hover:shadow-elite-hover hover:-translate-y-1 transition-elite relative overflow-hidden h-full border border-white/20 backdrop-blur-xl"
             style={{ backgroundImage: 'linear-gradient(135deg, color-mix(in srgb, var(--primary) 92%, transparent), color-mix(in srgb, var(--secondary, #1e3a8a) 88%, transparent))' }}
           >
@@ -60,6 +61,7 @@ export const QuickActions = ({
         <motion.div variants={dashboardItemVariants}>
           <Link
             to="/agenda"
+            data-guide="quick-action-agenda"
             className="group bg-card-bg/65 backdrop-blur-2xl block p-8 rounded-elite-lg border border-border-main shadow-elite hover:shadow-elite-hover hover:-translate-y-1 transition-elite relative overflow-hidden h-full"
           >
             <div className="absolute inset-0 bg-gradient-to-br from-white/10 via-transparent to-emerald-500/5 pointer-events-none" />

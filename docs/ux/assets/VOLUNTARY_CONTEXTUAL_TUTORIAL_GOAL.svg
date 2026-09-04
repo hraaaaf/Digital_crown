@@ -1,0 +1,52 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1448" height="1086" viewBox="0 0 1448 1086">
+  <rect width="1448" height="1086" fill="#f7faff"/>
+  <style>
+    .t{font-family:Inter,Arial,sans-serif;fill:#102a63}.h{font-size:28px;font-weight:700}.s{font-size:14px}.m{font-size:18px;font-weight:700}.c{fill:#fff;stroke:#dfe7f3;stroke-width:2}.b{fill:#1647c8}.g{fill:#12b981}.mut{fill:#6b7a99}.p{fill:#f4f0ff}.line{stroke:#b9c9e8;stroke-width:2}
+  </style>
+  <text x="40" y="56" class="t h">Bonjour, Dr Visual Cert</text>
+  <rect x="40" y="76" width="180" height="34" rx="17" class="c"/><text x="58" y="98" class="t s">Jeudi 3 septembre 2026</text>
+  <circle cx="815" cy="61" r="22" class="c"/><text x="807" y="68" class="t m">⌕</text>
+  <circle cx="872" cy="61" r="22" class="b"/><text x="865" y="68" fill="#fff" class="m">+</text>
+  <rect x="910" y="39" width="92" height="44" rx="18" class="c"/><text x="936" y="67" class="t s">Mobile</text>
+  <rect x="1015" y="36" width="112" height="50" rx="16" fill="#f7f3ff" stroke="#b3a2ff" stroke-width="2"/><text x="1055" y="67" class="t m">Aide</text>
+  <rect x="1142" y="30" width="250" height="66" rx="20" class="c"/><circle cx="1168" cy="61" r="5" class="g"/><text x="1184" y="57" class="t s">STATUT SYSTÈME</text><text x="1184" y="76" class="t s">SYSTÈME OPÉRATIONNEL</text>
+  <defs><linearGradient id="grad" x1="0" x2="1"><stop stop-color="#1c3f8f"/><stop offset="1" stop-color="#315bd5"/></linearGradient></defs>
+  <rect x="40" y="140" width="350" height="178" rx="26" fill="url(#grad)" stroke="#9bb7ff" stroke-width="4"/>
+  <rect x="62" y="163" width="62" height="62" rx="16" fill="none" stroke="#b9d0ff" stroke-width="2"/><text x="80" y="202" fill="#fff" class="h">＋</text>
+  <text x="62" y="267" fill="#fff" class="h">Nouveau Patient</text><text x="62" y="291" fill="#fff" class="s">Ouvrir un dossier clinique complet</text>
+  <rect x="327" y="292" width="118" height="56" rx="14" fill="#fff" stroke="#aebdff" stroke-width="2"/><text x="344" y="314" class="t s">Étape 1</text><text x="344" y="337" class="t m">Créer un patient</text>
+  <rect x="410" y="150" width="280" height="168" rx="26" class="c"/><text x="435" y="259" class="t m">Dossiers Patients</text><text x="435" y="286" class="mut s">Gestion de la patientèle</text>
+  <rect x="710" y="150" width="280" height="168" rx="26" class="c"/><text x="735" y="259" class="t m">Agenda Clinique</text><text x="735" y="286" class="mut s">Suivi des rendez-vous</text>
+  <text x="48" y="365" class="mut s">FILE D'ATTENTE &amp; ARRIVÉES DU JOUR</text>
+  <rect x="40" y="382" width="575" height="245" rx="22" class="c"/>
+  <text x="64" y="428" class="t m">09:00   AMRANI Sara</text><rect x="338" y="403" width="120" height="34" rx="17" fill="#dff8ef"/><text x="359" y="425" fill="#087f5b" class="s">SALLE D’ATTENTE</text><rect x="470" y="401" width="125" height="38" rx="10" class="b"/><text x="487" y="425" fill="#fff" class="s">INSTALLER</text>
+  <line x1="60" y1="454" x2="595" y2="454" class="line"/>
+  <text x="64" y="492" class="t m">10:30   BENALI Youssef</text><rect x="470" y="468" width="125" height="38" rx="10" fill="#18243a"/><text x="488" y="492" fill="#fff" class="s">TERMINER</text>
+  <line x1="60" y1="516" x2="595" y2="516" class="line"/>
+  <text x="64" y="555" class="t m">14:00   TAZI Meryem</text><rect x="470" y="531" width="125" height="38" rx="10" class="g"/><text x="486" y="555" fill="#fff" class="s">ARRIVÉE</text>
+  <text x="650" y="365" class="mut s">ACTIVITÉ RÉCENTE</text>
+  <rect x="642" y="382" width="348" height="210" rx="22" class="c"/>
+  <text x="670" y="430" class="t m">ELAMRANI Sara</text><text x="670" y="455" class="mut s">Consultation · 09:20</text>
+  <text x="670" y="500" class="t m">BENALI Youssef</text><text x="670" y="525" class="mut s">Contrôle · 10:05</text>
+  <text x="670" y="568" class="t m">TAZI Meryem</text><text x="670" y="590" class="mut s">Détartrage · 11:30</text>
+  <rect x="40" y="648" width="950" height="88" rx="22" class="c"/><text x="62" y="680" class="t m">ALERTES À TRAITER</text><text x="62" y="710" class="mut s">EL AMRANI Sara — Contrôle à planifier</text>
+  <rect x="40" y="752" width="950" height="70" rx="22" class="c"/><text x="64" y="793" class="t m">Pilotage du cabinet</text>
+  <text x="40" y="854" class="mut s">SANTÉ DU CABINET</text>
+  <rect x="40" y="872" width="220" height="105" rx="18" class="c"/><text x="58" y="913" class="mut s">BASE DE DONNÉES</text><text x="58" y="947" fill="#12b981" class="m">Connectée</text>
+  <rect x="278" y="872" width="220" height="105" rx="18" class="c"/><text x="296" y="913" class="mut s">ESPACE DISQUE</text><text x="296" y="947" fill="#12b981" class="m">418,6 Go</text>
+  <rect x="516" y="872" width="220" height="105" rx="18" class="c"/><text x="534" y="913" class="mut s">SAUVEGARDE LOCALE</text><text x="534" y="947" fill="#12b981" class="m">Il y a 3h</text>
+  <rect x="754" y="872" width="236" height="105" rx="18" class="c"/><text x="772" y="913" class="mut s">SAUVEGARDE HORS-SITE</text><text x="772" y="947" fill="#12b981" class="m">À jour</text>
+  <rect x="40" y="998" width="950" height="54" rx="18" class="c"/><text x="64" y="1032" class="t m">Marketplace</text>
+  <rect x="1012" y="128" width="394" height="894" rx="28" class="c"/>
+  <rect x="1042" y="156" width="128" height="26" rx="13" class="p"/><text x="1053" y="174" fill="#5c49e5" class="s">GUIDE VOLONTAIRE</text><text x="1366" y="174" class="t m">×</text>
+  <text x="1042" y="216" class="t h">Découvrir le dashboard</text><text x="1042" y="246" class="mut s">Un guide rapide et interactif pour vous aider</text><text x="1042" y="267" class="mut s">à prendre en main votre espace de travail.</text>
+  <text x="1042" y="322" class="mut s">Étape 1 sur 4</text><circle cx="1170" cy="315" r="7" class="b"/><circle cx="1230" cy="315" r="6" fill="#fff" stroke="#b9c9e8"/><circle cx="1290" cy="315" r="6" fill="#fff" stroke="#b9c9e8"/><circle cx="1350" cy="315" r="6" fill="#fff" stroke="#b9c9e8"/>
+  <rect x="1036" y="350" width="344" height="105" rx="18" fill="#fbfcff" stroke="#aebdff" stroke-width="2"/><circle cx="1074" cy="390" r="21" class="b"/><text x="1068" y="397" fill="#fff" class="m">1</text><text x="1112" y="390" class="t m">Créer un patient</text><text x="1112" y="416" class="mut s">Ajoutez un nouveau patient et ouvrez</text><text x="1112" y="436" class="mut s">son dossier clinique en quelques clics.</text>
+  <rect x="1036" y="470" width="344" height="90" rx="18" class="c"/><text x="1060" y="511" class="t m">2  Retrouver un patient</text><text x="1090" y="536" class="mut s">Accédez rapidement aux dossiers existants.</text>
+  <rect x="1036" y="572" width="344" height="90" rx="18" class="c"/><text x="1060" y="613" class="t m">3  Agenda</text><text x="1090" y="638" class="mut s">Consultez et gérez vos rendez-vous.</text>
+  <rect x="1036" y="674" width="344" height="90" rx="18" class="c"/><text x="1060" y="715" class="t m">4  Documents</text><text x="1090" y="740" class="mut s">Accédez aux documents et historiques.</text>
+  <text x="1042" y="812" class="mut s">✧ Ce guide est volontaire.</text><text x="1042" y="834" class="mut s">Reprenez-le à tout moment depuis Aide.</text>
+  <rect x="1036" y="858" width="344" height="48" rx="12" class="b"/><text x="1187" y="889" fill="#fff" class="m">Commencer</text>
+  <rect x="1036" y="922" width="164" height="46" rx="12" class="c"/><text x="1092" y="951" class="mut s">Passer</text><rect x="1216" y="922" width="164" height="46" rx="12" class="c"/><text x="1246" y="951" class="mut s">Reprendre plus tard</text>
+  <text x="1158" y="995" class="mut s">× Fermer le guide</text>
+</svg>

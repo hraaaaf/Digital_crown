@@ -6,6 +6,7 @@ import { api } from '../services/api';
 import { safeStorage } from '../hooks/useLocalStorage';
 import { useAuthStore } from '../stores/useAuthStore';
 import { authService } from '../services/auth';
+import { TutorialHelpButton } from '../features/tutorial/VoluntaryTutorial';
 
 export const Header = () => {
   const [cabinetName, setCabinetName] = useState('Chargement...');
@@ -29,9 +30,7 @@ export const Header = () => {
   useEffect(() => {
     const activeId = localStorage.getItem('active_cabinet_id') || 'benmoussa';
     if (activeId === 'benmoussa') {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
       setCabinetName('Centre Dentaire Benmoussa');
-       
       setPraticienName('Dr. Benmoussa');
     }
 
@@ -49,7 +48,6 @@ export const Header = () => {
       }
     };
 
-    // Ref pour arrêter le polling depuis l'intérieur du callback
     let intervalId: ReturnType<typeof setInterval> | null = null;
 
     const fetchTreasury = async () => {
@@ -58,12 +56,9 @@ export const Header = () => {
         setTreasuryCount(res.data.pending_count || 0);
       } catch (e: any) {
         const status = e?.response?.status;
-        // 401 (token expiré) ou 402 (licence) → arrêter le polling,
-        // l'intercepteur api.ts gère déjà le refresh/redirect
         if (status === 401 || status === 402) {
           if (intervalId !== null) clearInterval(intervalId);
         }
-        // Autres erreurs (réseau, 500...) : on ignore et on réessaie au prochain tick
       }
     };
 
@@ -87,28 +82,24 @@ export const Header = () => {
   const handleLogout = async () => {
     safeStorage.remove('appMode');
     await authService.logout();
-    window.location.href = '/landing'; 
+    window.location.href = '/landing';
   };
-
 
   return (
     <header className="h-20 bg-transparent flex items-center justify-end gap-6 px-8 shrink-0 relative z-[1000]">
-      
-      {/* SETTINGS, AI, GUIDE & NOTIFS */}
       <div className="flex items-center gap-2">
         {user?.is_superadmin && (
-          <Link 
-            to="/super-admin" 
+          <Link
+            to="/super-admin"
             className="hidden sm:flex items-center gap-2 px-3 py-2 bg-amber-400/10 text-amber-500 hover:bg-amber-400/20 rounded-elite-sm font-black text-xs transition-elite border border-amber-400/20 mr-2"
           >
             Gestion des Dentistes
           </Link>
         )}
-        
-        {/* Mobile SuperAdmin Button (Icon only) */}
+
         {user?.is_superadmin && (
-          <Link 
-            to="/super-admin" 
+          <Link
+            to="/super-admin"
             className="flex sm:hidden p-2.5 text-amber-500 bg-amber-400/10 hover:bg-amber-400/20 rounded-elite-sm transition-elite border border-amber-400/20"
             title="Gestion des Dentistes"
           >
@@ -116,11 +107,13 @@ export const Header = () => {
           </Link>
         )}
 
+        <TutorialHelpButton />
+
         <Link to="/settings" className="p-2.5 text-text-muted hover:text-primary hover:bg-primary/5 rounded-elite-sm transition-elite" title="Réglages">
           <Settings size={20} />
         </Link>
         <div className="relative" ref={notifRef}>
-          <button 
+          <button
             onClick={() => setShowNotifs(!showNotifs)}
             className="p-2.5 text-text-muted hover:text-primary hover:bg-primary/5 rounded-elite-sm transition-elite relative group"
           >
@@ -132,34 +125,33 @@ export const Header = () => {
             )}
           </button>
 
-
           {showNotifs && (
             <div className="absolute top-full right-0 mt-2 w-72 bg-card-bg border border-border-main rounded-3xl shadow-elite p-4 animate-in slide-in-from-top-2 duration-300 z-50 backdrop-blur-xl">
-               <h4 className="text-[10px] font-black text-text-muted uppercase tracking-widest mb-3 px-2">Alertes Ghost Treasury</h4>
-               {treasuryCount > 0 ? (
-                 <Link 
-                   to="/accounting?tab=treasury" 
-                   onClick={() => setShowNotifs(false)}
-                   className="flex items-center gap-4 p-3 hover:bg-primary/5 rounded-2xl transition-all border border-transparent hover:border-primary/10"
-                 >
-                   <div className="w-10 h-10 bg-primary/10 text-primary rounded-xl flex items-center justify-center">
-                     <Calculator size={18} />
-                   </div>
-                   <div>
-                     <p className="text-xs font-black text-main leading-tight" style={{ color: 'var(--text-main)' }}>Relances en attente</p>
-                     <p className="text-[10px] text-primary font-bold mt-0.5">{treasuryCount} dossiers à encaisser</p>
-                   </div>
-                 </Link>
-               ) : (
-                 <div className="text-center py-6">
-                    <p className="text-[10px] font-bold text-text-muted italic">Trésorerie saine. Aucune alerte.</p>
-                 </div>
-               )}
-               <div className="mt-3 pt-3 border-t border-border-main">
-                  <Link to="/accounting" className="block text-center text-[9px] font-black text-text-muted hover:text-primary uppercase tracking-tighter transition-colors">
-                    Voir toute la comptabilité
-                  </Link>
-               </div>
+              <h4 className="text-[10px] font-black text-text-muted uppercase tracking-widest mb-3 px-2">Alertes Ghost Treasury</h4>
+              {treasuryCount > 0 ? (
+                <Link
+                  to="/accounting?tab=treasury"
+                  onClick={() => setShowNotifs(false)}
+                  className="flex items-center gap-4 p-3 hover:bg-primary/5 rounded-2xl transition-all border border-transparent hover:border-primary/10"
+                >
+                  <div className="w-10 h-10 bg-primary/10 text-primary rounded-xl flex items-center justify-center">
+                    <Calculator size={18} />
+                  </div>
+                  <div>
+                    <p className="text-xs font-black text-main leading-tight" style={{ color: 'var(--text-main)' }}>Relances en attente</p>
+                    <p className="text-[10px] text-primary font-bold mt-0.5">{treasuryCount} dossiers à encaisser</p>
+                  </div>
+                </Link>
+              ) : (
+                <div className="text-center py-6">
+                  <p className="text-[10px] font-bold text-text-muted italic">Trésorerie saine. Aucune alerte.</p>
+                </div>
+              )}
+              <div className="mt-3 pt-3 border-t border-border-main">
+                <Link to="/accounting" className="block text-center text-[9px] font-black text-text-muted hover:text-primary uppercase tracking-tighter transition-colors">
+                  Voir toute la comptabilité
+                </Link>
+              </div>
             </div>
           )}
         </div>
@@ -167,7 +159,6 @@ export const Header = () => {
 
       <div className="hidden md:block w-px h-6 bg-border-main mx-2" />
 
-      {/* USER PROFILE */}
       <div className="flex items-center gap-4">
         <div className="text-right hidden lg:block">
           <p className="text-sm font-black text-primary leading-none tracking-tight font-outfit">{cabinetName}</p>
@@ -180,16 +171,14 @@ export const Header = () => {
         </div>
       </div>
 
-      {/* LOGOUT */}
-      <button 
-        onClick={() => setShowLogoutConfirm(true)} 
+      <button
+        onClick={() => setShowLogoutConfirm(true)}
         className="ml-2 p-2.5 text-text-muted hover:text-red-600 hover:bg-red-500/10 rounded-elite-sm transition-elite group"
         title="Déconnexion"
       >
-        <LogOut size={20} className="group-hover:scale-110 transition-elite" /> 
+        <LogOut size={20} className="group-hover:scale-110 transition-elite" />
       </button>
 
-      {/* LOGOUT CONFIRMATION MODAL */}
       {showLogoutConfirm && (
         <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
           <div className="bg-card-bg border border-border-main rounded-3xl p-6 shadow-elite max-w-sm w-full mx-4 animate-in zoom-in-95 duration-200">
@@ -222,7 +211,6 @@ export const Header = () => {
           </div>
         </div>
       )}
-
     </header>
   );
 };
