@@ -108,7 +108,7 @@ export function MobileHeader({
           </div>
         )}
 
-        <h1 className="text-4xl font-black tracking-tight text-primary font-outfit leading-none">
+        <h1 className="text-4xl font-black tracking-tight text-primary leading-none">
           {activeTab === 'agenda' ? `${greeting()},` :
            activeTab === 'finance' ? 'Finances' :
            activeTab === 'securite' ? 'Sécurité' :
