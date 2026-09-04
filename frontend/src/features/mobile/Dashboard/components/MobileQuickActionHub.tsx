@@ -70,19 +70,9 @@ export function MobileQuickActionHub({
             }}
           >
             <div className="mx-auto mb-3 h-1.5 w-16 rounded-full bg-border-main" aria-hidden="true" />
-            <div className="mb-4 flex items-start justify-between gap-4">
-              <div>
-                <h2 id="mobile-quick-action-title" className="text-lg font-black text-text-main">Action rapide</h2>
-                <p className="mt-1 text-[11px] font-bold text-text-muted">Que voulez-vous faire ?</p>
-              </div>
-              <button
-                type="button"
-                onClick={() => setOpen(false)}
-                aria-label="Fermer"
-                className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[15px] border border-glass-border bg-background text-text-muted active:scale-95"
-              >
-                <X size={18} />
-              </button>
+            <div className="mb-4">
+              <h2 id="mobile-quick-action-title" className="text-lg font-black text-text-main">Action rapide</h2>
+              <p className="mt-1 text-[11px] font-bold text-text-muted">Que voulez-vous faire ?</p>
             </div>
 
             {!isOnline && (
