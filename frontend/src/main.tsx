@@ -4,9 +4,11 @@ import { BrowserRouter } from 'react-router-dom'
 import { ErrorBoundary } from './components/ErrorBoundary.tsx'
 import { isDcPreviewDemoRequested } from './features/mobile/previewDemo.ts'
 import { bootstrapMobileRuntimeTheme } from './features/mobile/Dashboard/hooks/useMobileRuntimeTheme.ts'
+import { bootstrapMobileQuickIntent } from './features/mobile/mobileQuickIntent.ts'
 import './index.css'
 import './styles/mobileGlassSystem.css'
 import './features/mobile/mobileRuntimeTheme.css'
+import './features/mobile/mobileQuickIntent.css'
 import * as Sentry from '@sentry/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { registerSW } from 'virtual:pwa-register'
@@ -16,6 +18,7 @@ const previewPath = window.location.pathname
 
 if (previewPath.startsWith('/mobile')) {
   bootstrapMobileRuntimeTheme()
+  bootstrapMobileQuickIntent()
 }
 
 if (isPreviewRequest && previewPath === '/mobile/demo') {
