@@ -112,6 +112,54 @@ def test_finance_is_returned_only_when_permission_allows_it(monkeypatch):
     }
 
 
+def test_quick_action_capabilities_are_server_authoritative(monkeypatch):
+    owner = _user(1, 'a@example.test')
+    monkeypatch.setattr(cockpit, 'encrypt_payload', lambda payload: payload)
+
+    def allowed(_user, permission):
+        if permission == 'patients':
+            return True
+        if permission == 'agenda':
+            return False
+        if permission == ['accounting', 'payments']:
+            return True
+        return False
+
+    monkeypatch.setattr(cockpit, 'has_permission', allowed)
+    result = cockpit.get_mobile_quick_action_capabilities(mobile_user=owner)
+
+    assert result == {
+        'can_create_appointment': False,
+        'can_create_patient': True,
+        'can_open_clinical_context': True,
+        'can_pay': True,
+    }
+
+
+def test_quick_payment_capability_requires_patient_access_too(monkeypatch):
+    owner = _user(1, 'a@example.test')
+    monkeypatch.setattr(cockpit, 'encrypt_payload', lambda payload: payload)
+
+    def allowed(_user, permission):
+        if permission == 'patients':
+            return False
+        if permission == 'agenda':
+            return True
+        if permission == ['accounting', 'payments']:
+            return True
+        return False
+
+    monkeypatch.setattr(cockpit, 'has_permission', allowed)
+    result = cockpit.get_mobile_quick_action_capabilities(mobile_user=owner)
+
+    assert result == {
+        'can_create_appointment': True,
+        'can_create_patient': False,
+        'can_open_clinical_context': False,
+        'can_pay': False,
+    }
+
+
 class _FakeQuery:
     def __init__(self, value):
         self.value = value
