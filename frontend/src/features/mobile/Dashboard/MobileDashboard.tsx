@@ -9,7 +9,7 @@ import { MobileBottomNav } from './components/MobileBottomNav';
 import { WhatsAppModal } from './components/WhatsAppModal';
 import { SignatureModal } from './components/SignatureModal';
 import { AgendaView } from './views/AgendaView';
-import { MobilePatientsView } from './views/MobilePatientsView';
+import { MobilePatientsGate } from './views/MobilePatientsGate';
 import { FinanceView } from './views/FinanceView';
 import { SecuriteView } from './views/SecuriteView';
 import { LabView } from './views/LabView';
@@ -93,7 +93,10 @@ export const MobileDashboard = () => {
               />
             )}
             {state.activeTab === 'patients' && (
-              <MobilePatientsView onClose={() => actions.setActiveTab('agenda')} />
+              <MobilePatientsGate
+                isOnline={state.isOnline}
+                onClose={() => actions.setActiveTab('agenda')}
+              />
             )}
             {state.activeTab === 'lab' && (
               <LabView
