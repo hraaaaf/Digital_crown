@@ -8,6 +8,7 @@ on:
       - frontend/src/features/mobile/**
       - frontend/scripts/capture-mobile-theme-after.mjs
       - backend/routers/clinic_profile_p4.py
+      - backend/routers/mobile_patient_cockpit.py
   workflow_dispatch:
 
 concurrency:
@@ -16,7 +17,7 @@ concurrency:
 
 jobs:
   certify:
-    name: Theme contract + same-viewport AFTER
+    name: Theme contract + Patient Cockpit same-viewport AFTER
     runs-on: ubuntu-latest
     timeout-minutes: 25
     steps:
@@ -37,16 +38,16 @@ jobs:
         working-directory: frontend
         run: npm ci
 
-      - name: Verify runtime theme contract
+      - name: Verify runtime theme and offline contracts
         working-directory: frontend
-        run: npx vitest run src/features/mobile/Dashboard/hooks/useMobileRuntimeTheme.test.ts src/features/mobile/mobileThemeHardcoding.test.ts
+        run: npx vitest run src/features/mobile/Dashboard/hooks/useMobileRuntimeTheme.test.ts src/features/mobile/mobileThemeHardcoding.test.ts src/features/mobile/Dashboard/views/MobilePatientsGate.test.tsx
 
       - name: Verify production frontend build
         working-directory: frontend
         run: npm run build
 
       - name: Verify backend route syntax
-        run: python -m py_compile backend/routers/clinic_profile_p4.py
+        run: python -m py_compile backend/routers/clinic_profile_p4.py backend/routers/mobile_patient_cockpit.py
 
       - name: Install Chromium evidence runner
         working-directory: frontend
@@ -67,7 +68,7 @@ jobs:
           cat /tmp/mobile-theme-vite.log
           exit 1
 
-      - name: Capture AFTER at immutable BEFORE viewports
+      - name: Capture dashboard and Patient Cockpit AFTER at immutable BEFORE viewports
         working-directory: frontend
         env:
           MOBILE_EVIDENCE_URL: http://127.0.0.1:5173/mobile/demo?demo=1
@@ -81,9 +82,12 @@ jobs:
           import struct
 
           expected = {
-              'after-390x844.png': (390, 844),
-              'after-430x932.png': (430, 932),
-              'after-768x1024.png': (768, 1024),
+              'after-dashboard-390x844.png': (390, 844),
+              'after-dashboard-430x932.png': (430, 932),
+              'after-dashboard-768x1024.png': (768, 1024),
+              'after-patient-cockpit-390x844.png': (390, 844),
+              'after-patient-cockpit-430x932.png': (430, 932),
+              'after-patient-cockpit-768x1024.png': (768, 1024),
           }
           root = Path('artifacts/mobile-theme-after')
           for name, dims in expected.items():
@@ -95,7 +99,7 @@ jobs:
                   raise SystemExit(f'{name}: got {(width, height)}, expected {dims}')
               print(f'{name}: {width}x{height} OK')
           PY
-          printf 'head=%s\nbefore_run=33880152997\nbefore_artifact=9939517547\nviewports=390x844,430x932,768x1024\ntheme=elite\nfont=inter\ndeployment=none\n' '${{ github.sha }}' > artifacts/mobile-theme-after/result.txt
+          printf 'head=%s\nbefore_run=33880152997\nbefore_artifact=9939517547\nviewports=390x844,430x932,768x1024\nsurfaces=dashboard,patient-cockpit\ntheme=elite\nfont=inter\noffline_gate=targeted_test\ndeployment=none\n' '${{ github.sha }}' > artifacts/mobile-theme-after/result.txt
           cp /tmp/mobile-theme-vite.log artifacts/mobile-theme-after/vite.log
 
       - uses: actions/upload-artifact@v4
