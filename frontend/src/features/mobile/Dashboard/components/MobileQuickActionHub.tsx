@@ -164,7 +164,7 @@ export function MobileQuickActionHub({
           aria-label={open ? 'Fermer les actions rapides' : 'Ouvrir les actions rapides'}
           aria-expanded={open}
           onClick={() => setOpen(value => !value)}
-          className="flex h-14 w-14 items-center justify-center rounded-full border border-white/20 bg-primary text-white shadow-[0_8px_30px_rgba(var(--primary-rgb),0.4)] transition-transform active:scale-95"
+          className="flex h-14 w-14 items-center justify-center rounded-full border border-white/20 bg-primary text-white shadow-[0_8px_30px_rgba(var(--primary-rgb),0.4)] transition-transform hover:scale-105 active:scale-95"
         >
           {open ? <X size={24} /> : <Plus size={24} />}
         </button>
