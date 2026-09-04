@@ -6,9 +6,11 @@ on:
     paths:
       - .github/workflows/mobile-theme-runtime-cert.yml
       - frontend/src/features/mobile/**
+      - frontend/src/main.tsx
       - frontend/scripts/capture-mobile-theme-after.mjs
       - backend/routers/clinic_profile_p4.py
       - backend/routers/mobile_patient_cockpit.py
+      - backend/tests/test_mobile_patient_cockpit.py
   workflow_dispatch:
 
 concurrency:
@@ -41,6 +43,9 @@ jobs:
       - name: Verify runtime theme and offline contracts
         working-directory: frontend
         run: npx vitest run src/features/mobile/Dashboard/hooks/useMobileRuntimeTheme.test.ts src/features/mobile/mobileThemeHardcoding.test.ts src/features/mobile/Dashboard/views/MobilePatientsGate.test.tsx
+
+      - name: Verify Patient Cockpit tenant and finance gates
+        run: python -m pytest -q backend/tests/test_mobile_patient_cockpit.py
 
       - name: Verify production frontend build
         working-directory: frontend
@@ -99,7 +104,7 @@ jobs:
                   raise SystemExit(f'{name}: got {(width, height)}, expected {dims}')
               print(f'{name}: {width}x{height} OK')
           PY
-          printf 'head=%s\nbefore_run=33880152997\nbefore_artifact=9939517547\nviewports=390x844,430x932,768x1024\nsurfaces=dashboard,patient-cockpit\ntheme=elite\nfont=inter\noffline_gate=targeted_test\ndeployment=none\n' '${{ github.sha }}' > artifacts/mobile-theme-after/result.txt
+          printf 'head=%s\nbefore_run=33880152997\nbefore_artifact=9939517547\nviewports=390x844,430x932,768x1024\nsurfaces=dashboard,patient-cockpit\ntheme=elite\nfont=settings-driven\noffline_gate=targeted_test\ntenant_finance_gates=targeted_pytest\ndeployment=none\n' '${{ github.sha }}' > artifacts/mobile-theme-after/result.txt
           cp /tmp/mobile-theme-vite.log artifacts/mobile-theme-after/vite.log
 
       - uses: actions/upload-artifact@v4
