@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useLocation } from 'react-router-dom';
 import { WifiOff } from 'lucide-react';
@@ -8,6 +8,11 @@ import { MobileHeader } from './components/MobileHeader';
 import { MobileBottomNav } from './components/MobileBottomNav';
 import { WhatsAppModal } from './components/WhatsAppModal';
 import { SignatureModal } from './components/SignatureModal';
+import { AddApptModal } from './components/AddApptModal';
+import { MobileQuickActionHub, type MobileQuickPatientAction } from './components/MobileQuickActionHub';
+import { MobileQuickPatientFlow } from './components/MobileQuickPatientFlow';
+import { MobileQuickNewPatientModal } from './components/MobileQuickNewPatientModal';
+import './components/mobileQuickActionHub.css';
 import { AgendaView } from './views/AgendaView';
 import { MobilePatientsGate } from './views/MobilePatientsGate';
 import { FinanceView } from './views/FinanceView';
@@ -20,6 +25,9 @@ import { resolveDashboardTab } from '../bridge';
 export const MobileDashboard = () => {
   const location = useLocation();
   const { state, actions, refs: { mainRef } } = useMobileDashboard();
+  const [showQuickAppointment, setShowQuickAppointment] = useState(false);
+  const [showQuickNewPatient, setShowQuickNewPatient] = useState(false);
+  const [quickPatientAction, setQuickPatientAction] = useState<MobileQuickPatientAction | null>(null);
   useMobileRuntimeTheme(state.snapshot?.generated_at);
 
   useEffect(() => {
@@ -30,10 +38,19 @@ export const MobileDashboard = () => {
 
   const termineCount = state.snapshot?.appointments.filter(a => a.status === 'TERMINE').length ?? 0;
   const totalCount = state.snapshot?.appointments.length ?? 0;
+  // Mirrors the existing Finance nav visibility. Backend accounting permissions remain
+  // authoritative and fail closed on POST /api/accounting/payments.
+  const canPay = ['DENTISTE', 'ADMIN'].includes(state.snapshot?.role ?? '');
+
+  const refreshAfterPatientMutation = () => {
+    void actions.fetchPatients();
+    void actions.fetchSnapshot();
+  };
 
   return (
     <div
       data-dc-mobile-shell
+      data-mob3-quick-action-shell
       className="min-h-[100dvh] bg-background text-text-main flex flex-col pb-28 select-none relative"
       style={{
         backgroundColor: 'var(--bg-medical-pearl)',
@@ -126,6 +143,14 @@ export const MobileDashboard = () => {
         </AnimatePresence>
       </main>
 
+      <MobileQuickActionHub
+        canPay={canPay}
+        isOnline={state.isOnline}
+        onNewAppointment={() => setShowQuickAppointment(true)}
+        onNewPatient={() => setShowQuickNewPatient(true)}
+        onPatientAction={setQuickPatientAction}
+      />
+
       <MobileBottomNav
         activeTab={state.activeTab}
         setActiveTab={actions.setActiveTab}
@@ -134,6 +159,34 @@ export const MobileDashboard = () => {
         labJobs={state.labJobs}
         snapshot={state.snapshot}
       />
+
+      {showQuickAppointment && (
+        <AddApptModal
+          selectedDate={state.selectedDate}
+          patients={state.patients}
+          onClose={() => setShowQuickAppointment(false)}
+          onSuccess={() => {
+            void actions.fetchSnapshot();
+            setShowQuickAppointment(false);
+          }}
+          onPatientCreated={() => refreshAfterPatientMutation()}
+        />
+      )}
+
+      {showQuickNewPatient && (
+        <MobileQuickNewPatientModal
+          onClose={() => setShowQuickNewPatient(false)}
+          onCreated={refreshAfterPatientMutation}
+        />
+      )}
+
+      {quickPatientAction && (
+        <MobileQuickPatientFlow
+          action={quickPatientAction}
+          onClose={() => setQuickPatientAction(null)}
+          onPaymentRecorded={() => void actions.fetchSnapshot()}
+        />
+      )}
 
       {state.whatsappApt && (
         <WhatsAppModal
