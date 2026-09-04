@@ -3,7 +3,8 @@
 Status: ACTIVE
 Canonical file: `docs/ux/DIGITAL_CROWN_MOBILE_PRODUCT_CANONICAL.md`
 Repo: `hraaaaf/Digital_crown`
-Branch: `ux/mobile-product-canonical`
+Working branch: `ux/mobile-patient-cockpit-mob2`
+Canonical origin branch: `ux/mobile-product-canonical`
 Base master at chantier creation: `7e0289fa030720c8729d77336305facf466266ea`
 Canonical bootstrap commit: `af8c44af145a30deeb4d04337cc70bb679c21a81`
 Deployment: none. No Vercel deployment is authorized by this chantier.
@@ -74,14 +75,14 @@ Les réglages cabinet possèdent déjà une source de vérité pour :
 
 Le système de surfaces mobile consomme déjà largement les tokens CSS du thème (`--primary`, `--secondary`, `--accent`, `--glass-bg`, `--glass-border`, etc.).
 
-Mais l'audit MOB-1 a confirmé quatre incohérences à corriger avant le nouveau Patient Cockpit :
+L'audit MOB-1 avait confirmé quatre incohérences à corriger avant le nouveau Patient Cockpit :
 
-1. `useSettingsStore.applyTheme()` n'applique pas `font_fr` au runtime ;
-2. `useMobileDashboard()` réinitialise actuellement `documentElement.dataset.theme` et `body.dataset.theme` à une chaîne vide au montage ;
-3. `MobileDashboard.tsx` et certains titres de `MobileHeader.tsx` forcent `font-outfit` ;
-4. le snapshot mobile courant ne transporte pas les paramètres de présentation du cabinet.
+1. `useSettingsStore.applyTheme()` n'appliquait pas `font_fr` au runtime mobile ;
+2. `useMobileDashboard()` réinitialisait `documentElement.dataset.theme` et `body.dataset.theme` à une chaîne vide au montage ;
+3. `MobileDashboard.tsx` et certains titres de `MobileHeader.tsx` forçaient `font-outfit` ;
+4. le canal mobile ne transportait pas les paramètres de présentation du cabinet.
 
-Décision verrouillée : **MOB-2 commencera par réconcilier le runtime mobile avec la source de vérité du thème cabinet. Aucun moteur de thème mobile parallèle ne sera créé.**
+Décision verrouillée : **Réglages cabinet reste la source de vérité unique. Aucun moteur de thème mobile parallèle.**
 
 ## Doctrine produit verrouillée
 
@@ -174,7 +175,7 @@ Preuve : fichier créé par `af8c44af145a30deeb4d04337cc70bb679c21a81`, puis rel
 
 ---
 
-## MOB-1 — Goal UI + mockup du Patient Cockpit — IN REVIEW
+## MOB-1 — Goal UI + mockup du Patient Cockpit — DONE
 
 Goal : concevoir l'écran mobile principal de recherche et contexte patient en restant fidèle au langage visuel Digital Crown existant et **100 % dépendant du thème/typographie du cabinet**.
 
@@ -182,21 +183,18 @@ Fichier Goal UI : `docs/ux/DIGITAL_CROWN_MOBILE_PATIENT_COCKPIT_GOAL_UI.md`.
 
 Mockup 390 px : `docs/ux/assets/MOBILE_PATIENT_COCKPIT_GOAL_V1.svg`.
 
-Preuves actuelles :
+Preuves :
 
 - premier mockup conceptuel rejeté car trop générique et hors scope ;
 - baseline réelle réauditée à partir de `MobileHeader`, `MobileBottomNav`, `FinanceView`, `SecuriteView` et des références M6 ;
 - contrat thème / `font_fr` verrouillé ;
 - mockup cible versionné par `b6924f0f57931e0361dc0db45653b63c4de9fb0c` ;
-- Goal UI thémable mis à jour par `7e17f23bd56bfbc3178eee45fd5113b1ea812b79`.
-
-Succès restant : **validation visuelle humaine explicite du mockup cible**.
-
-Aucune implémentation produit MOB-2 ne commence avant ce gate.
+- Goal UI thémable mis à jour par `7e17f23bd56bfbc3178eee45fd5113b1ea812b79` ;
+- validation visuelle humaine explicite reçue le 2026-09-04 avant ouverture de MOB-2.
 
 ---
 
-## MOB-2 — Patient Cockpit — PLANNED
+## MOB-2 — Patient Cockpit — IN PROGRESS
 
 Goal : implémenter le parcours patient mobile cible en moins de 30 secondes.
 
@@ -212,6 +210,34 @@ Ordre interne obligatoire :
 8. pont vers photo / scan / document / panoramique existants ;
 9. comportement online/offline explicite ;
 10. tests source + runtime + AFTER visuel.
+
+État vérifié au 2026-09-04 :
+
+- BEFORE immutable : run `33880152997` ✅ sur `3ecfa47c449d9724d9517003499ec3e3ec4f730d` ; artifact `9939517547` ; digest `sha256:7a3b97a4e7b1b7fe652d40f9496fca88dcf2a441149437ed00f403334e7c226f` ; viewports 390×844 / 430×932 / 768×1024 ;
+- runtime thème cabinet : `3392fd91b3f479241373db81da1172a7a462b40b` ;
+- police cabinet appliquée au shell : `223a0174a1a459a4aabd4a0b726d4488436746f9` ;
+- header débarrassé du `font-outfit` forcé : `206d333d9c97504661df3563c6531b084498ce72` ;
+- paramètres visuels exposés via canal mobile chiffré : `68899556d7f438a7ee981bcf86aca5fbfaf65e92` ;
+- contrat de test thème/police : `11de1b01e258531181e49bd11f394a796f8f2964` ;
+- reset legacy du thème supprimé : `1d9e4389bbfe7009bd8c8c11d3bb72328e0daaba` ;
+- read model Patient Cockpit tenant-scopé / permission-gated / chiffré : `6ba20f1af36b6a8cebb355efac5f8fdff4f01e06` ;
+- router Patient Cockpit monté : `92893c7576624877dd1500a2e5c005d56aed380c` ;
+- vue recherche + synthèse patient : `37cc3ee958be6746fce6889fc27b851fd4b0b238` ;
+- tab `patients` : `22336d3018cfa052378559e59e8a9565a8922540` ;
+- accès rapide depuis le header : `bce1bb7d75e62562055ec637371b5c0255452c79` ;
+- Patient Cockpit monté dans `MobileDashboard` : `eba175ab222e5d847b1ec87e63c01a4a587bc2af` ;
+- workflow de certification thème + build + AFTER ajouté : `121a5df360c350026169d10254226f30db42572a` ; run `33884838745` actuellement queued au dernier contrôle.
+
+Fonctions déjà présentes : recherche patient, identité, alerte médicale, appel, WhatsApp, prochain RDV, synthèse financière filtrée par permission, navigation Agenda/Patients.
+
+Reste connu avant DONE :
+
+- ponts explicites vers photo clinique / scan / document / panoramique existants ;
+- comportement online/offline explicite du Patient Cockpit ;
+- tests ciblés backend Patient Cockpit + non-régression M4/M6 proportionnée ;
+- AFTER 390 / 430 / 768 disponible et comparé au BEFORE + Goal UI ;
+- score visuel documenté ;
+- aucune erreur source/build/runtime restante.
 
 Succès :
 
@@ -294,4 +320,4 @@ Le chantier est CLOSED uniquement si tous les lots retenus sont DONE ou explicit
 
 ## Next exact
 
-Obtenir la **validation visuelle du mockup `docs/ux/assets/MOBILE_PATIENT_COCKPIT_GOAL_V1.svg`**. Si validé : passer MOB-1 DONE puis ouvrir MOB-2 par la réparation du contrat thème / `font_fr` mobile.
+Compléter les ponts Patient Cockpit vers photo / scan / document / panoramique et rendre l'état online/offline explicite pendant que la certification `33884838745` s'exécute ; ensuite exploiter l'AFTER 390 / 430 / 768 et comparer au BEFORE + Goal UI.
