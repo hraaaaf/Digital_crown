@@ -1,0 +1,7 @@
+/* MOB-3 promotes the existing Agenda FAB to the mobile shell. The legacy Agenda
+   button stays mounted for inline Agenda behavior compatibility but is not rendered
+   as a second visible control. */
+[data-mob3-quick-action-shell] button[aria-label='Ajouter un rendez-vous'] {
+  visibility: hidden !important;
+  pointer-events: none !important;
+}
