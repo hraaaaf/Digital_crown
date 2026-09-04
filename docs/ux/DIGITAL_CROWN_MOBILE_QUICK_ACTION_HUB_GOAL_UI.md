@@ -1,6 +1,6 @@
 # Digital Crown — Mobile Quick Action Hub — Goal UI
 
-Status: DRAFT — awaiting visual validation
+Status: AWAITING VISUAL VALIDATION
 Lot: MOB-3
 Branch: `ux/mobile-quick-action-hub-mob3`
 Baseline master: `508a2e1e174887fe44f271cc6a8283eb89e443c7`
@@ -43,7 +43,7 @@ Même logique que Photo clinique : contexte patient obligatoire, puis scanner mo
 
 ### 5. Encaisser
 
-Uniquement si la permission financière canonique l’autorise. Flow rapide seulement : sélectionner patient → saisir montant/moyen si nécessaire → confirmation explicite. Aucune Treasury UI.
+Uniquement si la permission financière canonique l’autorise. Réutiliser le contrat existant `POST /api/accounting/payments` : sélection patient → montant → moyen de paiement → confirmation explicite. Aucune Treasury UI et aucun second moteur financier.
 
 ## Décision UX
 
@@ -68,10 +68,11 @@ Après tap sur `+` :
 - surface `var(--glass-bg)` + `var(--glass-border)` ;
 - ombre premium déjà utilisée par `SecuriteView` ;
 - poignée visuelle discrète ;
+- fermeture par croix ou backdrop ;
 - titre : `Action rapide` ;
 - sous-titre : `Que voulez-vous faire ?` ;
 - grille 2 colonnes sur 390/430 ;
-- 5e action pleine largeur ou centrée sur la dernière ligne ;
+- 5e action pleine largeur ;
 - cibles tactiles ≥ 52 px ;
 - labels courts ;
 - icônes Lucide ;
@@ -118,18 +119,38 @@ Ordre :
 - paramètres cabinet ;
 - Marketplace admin.
 
-## BEFORE
+## BEFORE — VERIFIED
 
 Workflow : `.github/workflows/mobile-quick-action-hub-before.yml`
-Run attendu : capture dashboard réel du harness mobile actuel en 390×844 / 430×932 / 768×1024.
 
-Le BEFORE doit être archivé avant toute modification UI de MOB-3.
+Run `33906860335` ✅
+
+- HEAD exact : `040beb21872e63167d149735b24cc6f48554bb8f`
+- artifact : `9949854305`
+- digest : `sha256:b24cf6ecf919a97be154cfeb45275b54cc3bd2f2f4273fb1ee0f3fa2dee10748`
+- viewports validés : `390×844`, `430×932`, `768×1024`
+- surface : dashboard mobile + bottom nav existante
+- mode : harness déterministe, aucune donnée cabinet
+
+## Mockup cible
+
+Référence canonique à valider :
+
+`docs/ux/assets/MOBILE_QUICK_ACTION_HUB_GOAL_V2.svg`
+
+Notes :
+
+- v1 rejetée en interne avant présentation car la bottom nav y était trop simplifiée ;
+- v2 reprend la géométrie réelle de `MobileBottomNav` : x=12, hauteur 76 px, radius 34, bottom 12 px sur 390×844 ;
+- le fond du dashboard reste volontairement schématique : ce n’est pas un screenshot runtime ;
+- seule la structure du Quick Action Hub est proposée à validation ;
+- le `+` est temporaire MOB-3 et situé hors de la structure de navigation pour ne pas préempter MOB-4.
 
 ## Gate avant code produit
 
-1. BEFORE réel disponible ;
-2. ce Goal UI versionné ;
-3. mockup 390 px fidèle à la shell actuelle ;
-4. validation visuelle humaine explicite.
+1. BEFORE réel disponible ✅ ;
+2. Goal UI versionné ✅ ;
+3. mockup 390 px fidèle à la shell actuelle ✅ ;
+4. validation visuelle humaine explicite ⏳.
 
-Aucun code produit MOB-3 avant ces quatre preuves.
+Aucun code produit MOB-3 avant le quatrième gate.
