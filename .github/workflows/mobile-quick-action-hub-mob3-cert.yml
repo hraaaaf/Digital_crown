@@ -6,6 +6,7 @@ on:
     paths:
       - .github/workflows/mobile-quick-action-hub-mob3-cert.yml
       - frontend/src/features/mobile/**
+      - frontend/src/main.tsx
       - frontend/scripts/capture-mobile-quick-action-hub-after.mjs
       - backend/routers/mobile_patient_cockpit.py
       - backend/tests/test_mobile_patient_cockpit.py
@@ -55,6 +56,8 @@ jobs:
         run: >-
           npx vitest run
           src/features/mobile/Dashboard/components/MobileQuickActionHub.test.tsx
+          src/features/mobile/Dashboard/components/MobileQuickPatientFlow.contract.test.ts
+          src/features/mobile/mobileQuickIntent.test.ts
           src/features/mobile/mobileThemeHardcoding.test.ts
           src/features/mobile/Dashboard/views/MobilePatientsGate.test.tsx
           src/features/mobile/Dashboard/hooks/useMobileRuntimeTheme.test.ts
@@ -123,7 +126,7 @@ jobs:
                   raise SystemExit(f'{name}: got {(width, height)}, expected {dims}')
               print(f'{name}: {width}x{height} OK')
           PY
-          printf 'head=%s\nbefore_run=33906860335\nbefore_artifact=9949854305\nbefore_digest=sha256:b24cf6ecf919a97be154cfeb45275b54cc3bd2f2f4273fb1ee0f3fa2dee10748\nviewports=390x844,430x932,768x1024\nreal_app_background=true\nlegacy_fab_hidden=true\nserver_capabilities=true\nhorizontal_overflow=none-required\nruntime_errors=none-required\ndeployment=none\n' '${{ github.sha }}' > artifacts/mobile-quick-action-hub-after/result.txt
+          printf 'head=%s\nbefore_run=33906860335\nbefore_artifact=9949854305\nbefore_digest=sha256:b24cf6ecf919a97be154cfeb45275b54cc3bd2f2f4273fb1ee0f3fa2dee10748\nviewports=390x844,430x932,768x1024\nreal_app_background=true\nlegacy_fab_hidden=true\nserver_capabilities=true\nclinical_quick_intent=true\nhorizontal_overflow=none-required\nruntime_errors=none-required\ndeployment=none\n' '${{ github.sha }}' > artifacts/mobile-quick-action-hub-after/result.txt
           cp /tmp/mob3-vite.log artifacts/mobile-quick-action-hub-after/vite.log
 
       - uses: actions/upload-artifact@v4
