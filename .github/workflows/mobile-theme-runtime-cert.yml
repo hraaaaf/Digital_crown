@@ -21,7 +21,7 @@ jobs:
   certify:
     name: Theme contract + Patient Cockpit same-viewport AFTER
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
 
@@ -36,9 +36,22 @@ jobs:
           cache: npm
           cache-dependency-path: frontend/package-lock.json
 
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements.txt
+
       - name: Install frontend
         working-directory: frontend
         run: npm ci
+
+      - name: Install backend dependencies like repository CI
+        run: |
+          python -m pip install --upgrade pip
+          pip install --index-url https://download.pytorch.org/whl/cpu torch==2.5.1+cpu torchvision==0.20.1+cpu
+          grep -vE '^(torch|torchvision)==' requirements.txt > /tmp/requirements-ci.txt
+          pip install -r /tmp/requirements-ci.txt
 
       - name: Verify runtime theme and offline contracts
         working-directory: frontend
