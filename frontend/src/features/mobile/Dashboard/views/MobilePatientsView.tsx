@@ -200,6 +200,7 @@ export function MobilePatientsView({
     if (selectedId === null) {
       setCockpit(null);
       setResources({ documents: [], panoramics: [] });
+      setOpeningContext(null);
       return;
     }
     if (previewData) {
@@ -207,15 +208,22 @@ export function MobilePatientsView({
       setResources(previewData.resources ?? { documents: [], panoramics: [] });
       setLoadingPatient(false);
       setLoadingResources(false);
+      setOpeningContext(null);
       setError('');
       return;
     }
+
+    // Fail closed between patient selections. A failed load must never leave the
+    // previous patient's identity or resources visible under the new selection.
+    setCockpit(null);
+    setResources({ documents: [], panoramics: [] });
+    setOpeningContext(null);
+    setError('');
 
     let cancelled = false;
     const load = async () => {
       setLoadingPatient(true);
       setLoadingResources(true);
-      setError('');
       try {
         const creds = await MobileStorage.getCredentials();
         if (!creds) throw new Error('Session mobile indisponible.');
