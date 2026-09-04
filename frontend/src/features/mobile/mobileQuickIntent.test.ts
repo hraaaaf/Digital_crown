@@ -13,6 +13,7 @@ describe('bootstrapMobileQuickIntent', () => {
   it('consumes a photo intent and marks the canonical photo action', () => {
     window.history.replaceState({}, '', '/mobile/context');
     sessionStorage.setItem('dc-mobile-quick-intent', 'photo');
+    vi.spyOn(window, 'setTimeout').mockImplementation(() => 1 as unknown as number);
     const button = document.createElement('button');
     button.dataset.m6aPhotoAction = '';
     button.scrollIntoView = vi.fn();
