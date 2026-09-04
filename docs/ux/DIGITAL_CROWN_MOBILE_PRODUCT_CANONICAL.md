@@ -5,6 +5,7 @@ Canonical file: `docs/ux/DIGITAL_CROWN_MOBILE_PRODUCT_CANONICAL.md`
 Repo: `hraaaaf/Digital_crown`
 Branch: `ux/mobile-product-canonical`
 Base master at chantier creation: `7e0289fa030720c8729d77336305facf466266ea`
+Canonical bootstrap commit: `af8c44af145a30deeb4d04337cc70bb679c21a81`
 Deployment: none. No Vercel deployment is authorized by this chantier.
 
 ## Goal final
@@ -165,7 +166,7 @@ Décision : construire un **Patient Cockpit mobile**, pas reproduire le dossier 
 
 # Roadmap canonique
 
-## MOB-0 — Canonique produit & frontière Desktop/Mobile — IN PROGRESS
+## MOB-0 — Canonique produit & frontière Desktop/Mobile — DONE
 
 Goal : figer la doctrine, le périmètre et l'ordre d'exécution avant tout nouveau changement UI.
 
@@ -177,7 +178,7 @@ Succès :
 - critères de succès et preuves explicités ;
 - aucune implémentation UI engagée avant le mockup du lot suivant.
 
-Preuve attendue : commit GitHub du présent fichier sur la branche du chantier.
+Preuve : fichier créé sur la branche du chantier par le commit `af8c44af145a30deeb4d04337cc70bb679c21a81`, puis relu depuis GitHub avant closeout MOB-0.
 
 ---
 
