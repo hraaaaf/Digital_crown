@@ -202,6 +202,8 @@ def create_mobile_patient_cockpit_context(
         public_id=config.public_id,
         master_key=master_key,
         role=_role_name(mobile_user),
+        # Cleanup horizon for orphaned contexts. Existing M4 context validation does
+        # not promise a user-facing TTL after a context has already been resolved.
         expires_at=now + timedelta(minutes=30),
         used_at=now,
     )
@@ -228,7 +230,6 @@ def create_mobile_patient_cockpit_context(
             'state': 'ready',
         },
         'resource_label': _resource_label(resource_type),
-        'expires_in': 1800,
         'contains_patient_data': False,
         'contains_resource_data': False,
     }
