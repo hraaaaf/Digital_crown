@@ -63,20 +63,20 @@ export function MobileQuickActionHub({
             role="dialog"
             aria-modal="true"
             aria-labelledby="mobile-quick-action-title"
-            className="absolute left-4 right-4 bottom-[178px] mx-auto max-w-[720px] rounded-[30px] border border-glass-border bg-card p-4 shadow-elite-hover"
+            className="absolute left-4 right-4 bottom-[178px] mx-auto max-w-[720px] rounded-[28px] border border-glass-border bg-card p-4 shadow-elite-hover"
             style={{
               backgroundColor: 'var(--glass-bg)',
               fontFamily: 'var(--app-font-family, "Inter", system-ui, sans-serif)',
             }}
           >
-            <div className="mx-auto mb-3 h-1.5 w-16 rounded-full bg-border-main" aria-hidden="true" />
-            <div className="mb-4">
-              <h2 id="mobile-quick-action-title" className="text-lg font-black text-text-main">Action rapide</h2>
-              <p className="mt-1 text-[11px] font-bold text-text-muted">Que voulez-vous faire ?</p>
+            <div className="mx-auto mb-2 h-[5px] w-[68px] rounded-full bg-border-main" aria-hidden="true" />
+            <div className="mb-2.5">
+              <h2 id="mobile-quick-action-title" className="text-[19px] leading-[23px] font-black text-text-main">Action rapide</h2>
+              <p className="mt-1 text-[10px] leading-[15px] font-bold text-text-muted">Que voulez-vous faire ?</p>
             </div>
 
             {!isOnline && (
-              <div className="mb-3 rounded-[16px] border border-amber-500/25 bg-amber-500/5 px-3 py-2 text-[10px] font-black text-amber-600">
+              <div className="mb-2.5 rounded-[16px] border border-amber-500/25 bg-amber-500/5 px-3 py-2 text-[10px] font-black text-amber-600">
                 Connexion cabinet requise pour créer ou enregistrer une action.
               </div>
             )}
@@ -87,10 +87,10 @@ export function MobileQuickActionHub({
                   type="button"
                   disabled={!isOnline}
                   onClick={() => run(onNewAppointment)}
-                  className="min-h-[72px] rounded-[20px] border border-primary/20 bg-primary/10 p-3 text-left text-primary active:scale-[0.98] disabled:opacity-40"
+                  className="min-h-[65px] rounded-[18px] border border-primary/20 bg-primary/10 p-2.5 text-left text-primary active:scale-[0.98] disabled:opacity-40"
                 >
-                  <CalendarPlus size={19} />
-                  <span className="mt-3 block text-xs font-black">Nouveau RDV</span>
+                  <CalendarPlus size={17} />
+                  <span className="mt-2 block text-[10px] leading-[15px] font-black">Nouveau RDV</span>
                 </button>
               )}
               {capabilities.can_create_patient && (
@@ -98,10 +98,10 @@ export function MobileQuickActionHub({
                   type="button"
                   disabled={!isOnline}
                   onClick={() => run(onNewPatient)}
-                  className="min-h-[72px] rounded-[20px] border border-primary/20 bg-primary/10 p-3 text-left text-primary active:scale-[0.98] disabled:opacity-40"
+                  className="min-h-[65px] rounded-[18px] border border-primary/20 bg-primary/10 p-2.5 text-left text-primary active:scale-[0.98] disabled:opacity-40"
                 >
-                  <UserPlus size={19} />
-                  <span className="mt-3 block text-xs font-black">Nouveau patient</span>
+                  <UserPlus size={17} />
+                  <span className="mt-2 block text-[10px] leading-[15px] font-black">Nouveau patient</span>
                 </button>
               )}
               {capabilities.can_open_clinical_context && (
@@ -110,19 +110,19 @@ export function MobileQuickActionHub({
                     type="button"
                     disabled={!isOnline}
                     onClick={() => run(() => onPatientAction('photo'))}
-                    className="min-h-[72px] rounded-[20px] border border-glass-border bg-background p-3 text-left text-text-main active:scale-[0.98] disabled:opacity-40"
+                    className="min-h-[65px] rounded-[18px] border border-glass-border bg-background p-2.5 text-left text-text-main active:scale-[0.98] disabled:opacity-40"
                   >
-                    <Camera size={19} className="text-primary" />
-                    <span className="mt-3 block text-xs font-black">Photo clinique</span>
+                    <Camera size={17} className="text-primary" />
+                    <span className="mt-2 block text-[10px] leading-[15px] font-black">Photo clinique</span>
                   </button>
                   <button
                     type="button"
                     disabled={!isOnline}
                     onClick={() => run(() => onPatientAction('scan'))}
-                    className="min-h-[72px] rounded-[20px] border border-glass-border bg-background p-3 text-left text-text-main active:scale-[0.98] disabled:opacity-40"
+                    className="min-h-[65px] rounded-[18px] border border-glass-border bg-background p-2.5 text-left text-text-main active:scale-[0.98] disabled:opacity-40"
                   >
-                    <ScanLine size={19} className="text-primary" />
-                    <span className="mt-3 block text-xs font-black">Scanner document</span>
+                    <ScanLine size={17} className="text-primary" />
+                    <span className="mt-2 block text-[10px] leading-[15px] font-black">Scanner document</span>
                   </button>
                 </>
               )}
@@ -133,14 +133,14 @@ export function MobileQuickActionHub({
                 type="button"
                 disabled={!isOnline}
                 onClick={() => run(() => onPatientAction('payment'))}
-                className="mt-2.5 flex min-h-[58px] w-full items-center gap-3 rounded-[20px] bg-primary px-4 text-left text-white shadow-sm active:scale-[0.99] disabled:opacity-40"
+                className="mt-2.5 flex min-h-[56px] w-full items-center gap-3 rounded-[18px] bg-primary px-4 text-left text-white shadow-sm active:scale-[0.99] disabled:opacity-40"
               >
-                <span className="flex h-9 w-9 items-center justify-center rounded-[13px] bg-white/10">
-                  <CircleDollarSign size={19} />
+                <span className="flex h-8 w-8 items-center justify-center rounded-full bg-white/10">
+                  <CircleDollarSign size={17} />
                 </span>
                 <span>
-                  <span className="block text-xs font-black">Encaisser rapidement</span>
-                  <span className="mt-0.5 block text-[9px] font-bold text-white/70">Accès financier requis</span>
+                  <span className="block text-[11px] leading-[15px] font-black">Encaisser rapidement</span>
+                  <span className="mt-0.5 block text-[8px] leading-[12px] font-bold text-white/70">Accès financier requis</span>
                 </span>
               </button>
             )}
