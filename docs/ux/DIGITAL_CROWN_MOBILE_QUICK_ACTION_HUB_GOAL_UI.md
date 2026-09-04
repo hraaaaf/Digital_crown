@@ -1,6 +1,6 @@
 # Digital Crown — Mobile Quick Action Hub — Goal UI
 
-Status: AWAITING VISUAL VALIDATION
+Status: VALIDATED — REAL APP
 Lot: MOB-3
 Branch: `ux/mobile-quick-action-hub-mob3`
 Baseline master: `508a2e1e174887fe44f271cc6a8283eb89e443c7`
@@ -41,7 +41,7 @@ Même logique que Photo clinique : contexte patient obligatoire, puis scanner mo
 ### 5. Encaisser
 Uniquement si la permission financière canonique l’autorise. Réutiliser `POST /api/accounting/payments` : sélection patient → montant → moyen de paiement → confirmation explicite. Aucun second moteur financier.
 
-## Décision UX corrigée après inspection du BEFORE réel
+## Décision UX validée après inspection du BEFORE réel
 
 Le BEFORE `390×844` prouve qu’un **FAB `+` existe déjà** dans l’Agenda, positionné `bottom-32 right-6`, taille `56×56`, couleur `primary`, et qu’il ouvre actuellement `AddApptModal`.
 
@@ -50,20 +50,18 @@ MOB-3 ne doit donc **pas ajouter un second bouton `+`**.
 Cible :
 
 - conserver exactement la géométrie et le style du FAB existant ;
-- promouvoir ce FAB du scope `AgendaView` vers la shell mobile afin qu’il soit disponible sur les surfaces autorisées ;
+- promouvoir ce FAB au niveau de la shell mobile afin qu’il soit disponible sur les surfaces autorisées ;
 - tap fermé → ouvre Quick Action Hub ;
 - tap ouvert → le même bouton devient `×` et ferme le hub ;
 - `Nouveau RDV` dans le hub réutilise l’action aujourd’hui portée directement par ce FAB ;
 - la bottom nav reste inchangée jusqu’à MOB-4.
-
-Cette décision est plus fidèle à l’application et évite deux contrôles concurrents.
 
 ## Comportement du hub
 
 Après tap sur le FAB existant :
 
 - le screenshot/app réel reste visible derrière un backdrop léger ;
-- bottom sheet Digital Crown, sans reconstruction du header/dashboard/nav ;
+- bottom sheet Digital Crown ;
 - surface `var(--glass-bg)` + `var(--glass-border)` ;
 - rayon ≈ 28–30 px ;
 - titre `Action rapide` ;
@@ -88,7 +86,6 @@ Après tap sur le FAB existant :
 ## Invariants visuels Digital Crown
 
 - **fond = vrai dashboard courant**, pas une illustration ;
-- vrai logo, vrai header, vraie date, vrai `Bonsoir`, vrais badges, vraie card Preview, vrais tabs Jour/Semaine/Mois, vraie progression, vraie timeline, vraie bottom nav ;
 - FAB = même emplacement / dimension / couleur que l’existant ;
 - surfaces : tokens existants ;
 - typographie : `var(--app-font-family)` ;
@@ -116,23 +113,26 @@ Run `33906860335` ✅
 - viewports : `390×844`, `430×932`, `768×1024`
 - mode : harness déterministe, aucune donnée cabinet
 
-Le screenshot 390×844 du BEFORE est la **base graphique obligatoire** du Goal UI corrigé.
+Le screenshot 390×844 du BEFORE est la **base graphique obligatoire** du Goal UI.
 
 ## Mockups
 
 - v1 : REJECTED — dashboard/nav trop reconstruits ;
-- v2 : REJECTED après feedback humain — nav mieux alignée, mais dashboard encore schématique ;
-- v3 : **REAL-APP COMPOSITE — AWAITING VISUAL VALIDATION**.
+- v2 : REJECTED — dashboard encore schématique ;
+- v3 : **VALIDATED — REAL APP COMPOSITE**.
+
+Référence versionnée : `docs/ux/assets/MOBILE_QUICK_ACTION_HUB_GOAL_V3_OVERLAY.svg`.
 
 V3 est construite directement sur `before-390x844.png` de l’artifact `9949854305`. Seuls sont ajoutés : backdrop, bottom sheet, actions et transformation du FAB existant `+` → `×`.
 
-Aucun autre élément du screenshot réel n’est redessiné ou remplacé.
+Validation visuelle humaine explicite reçue le 2026-09-04.
+Score de référence avant code : **9.4 / 10**. Ce n’est pas un score runtime.
 
 ## Gate avant code produit
 
 1. BEFORE réel ✅ ;
 2. Goal UI corrigé ✅ ;
-3. mockup v3 basé pixel pour pixel sur le BEFORE réel ✅ ;
-4. validation visuelle humaine explicite ⏳.
+3. mockup v3 basé sur le BEFORE réel ✅ ;
+4. validation visuelle humaine explicite ✅.
 
-Aucun code produit MOB-3 avant le quatrième gate.
+**Gate franchi. Implémentation MOB-3 autorisée.**
