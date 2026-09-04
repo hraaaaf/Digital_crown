@@ -21,6 +21,13 @@ const DEMO_PATIENTS = [
   { id: 104, name: 'Patient 04', phone: null },
 ];
 
+const DEMO_QUICK_CAPABILITIES = {
+  can_create_appointment: true,
+  can_create_patient: true,
+  can_open_clinical_context: true,
+  can_pay: true,
+};
+
 function isoDay(offset: number): string {
   const date = new Date();
   date.setDate(date.getDate() + offset);
@@ -268,12 +275,12 @@ export function MobilePreviewDashboard() {
       </main>
 
       <MobileQuickActionHub
-        canPay
+        capabilities={DEMO_QUICK_CAPABILITIES}
         isOnline
         defaultOpen={requestedQuickOpen()}
         onNewAppointment={noop}
         onNewPatient={noop}
-        onPatientAction={noop}
+        onPatientAction={() => undefined}
       />
 
       <MobileBottomNav
