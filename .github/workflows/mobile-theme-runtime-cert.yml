@@ -60,9 +60,9 @@ jobs:
           pip install -r /tmp/requirements-ci.txt
           pip install httpx==0.27.2 pytest pytest-asyncio
 
-      - name: Verify runtime theme and offline contracts
+      - name: Verify runtime theme, offline and patient isolation contracts
         working-directory: frontend
-        run: npx vitest run src/features/mobile/Dashboard/hooks/useMobileRuntimeTheme.test.ts src/features/mobile/mobileThemeHardcoding.test.ts src/features/mobile/Dashboard/views/MobilePatientsGate.test.tsx
+        run: npx vitest run src/features/mobile/Dashboard/hooks/useMobileRuntimeTheme.test.ts src/features/mobile/mobileThemeHardcoding.test.ts src/features/mobile/Dashboard/views/MobilePatientsGate.test.tsx src/features/mobile/Dashboard/views/MobilePatientsIsolation.test.ts
 
       - name: Verify Patient Cockpit tenant, finance and device gates
         run: python -m pytest -q backend/tests/test_mobile_patient_cockpit.py
@@ -124,7 +124,7 @@ jobs:
                   raise SystemExit(f'{name}: got {(width, height)}, expected {dims}')
               print(f'{name}: {width}x{height} OK')
           PY
-          printf 'head=%s\nbefore_run=33880152997\nbefore_artifact=9939517547\nviewports=390x844,430x932,768x1024\nsurfaces=dashboard,patient-cockpit\ntheme=elite\nfont=settings-driven\noffline_gate=targeted_test\ntenant_finance_device_gates=targeted_pytest\nruntime_errors=none-required\nhorizontal_overflow=none-required\ndeployment=none\n' '${{ github.sha }}' > artifacts/mobile-theme-after/result.txt
+          printf 'head=%s\nbefore_run=33880152997\nbefore_artifact=9939517547\nviewports=390x844,430x932,768x1024\nsurfaces=dashboard,patient-cockpit\ntheme=elite\nfont=settings-driven\noffline_gate=targeted_test\ninter_patient_isolation=targeted_test\ntenant_finance_device_gates=targeted_pytest\nruntime_errors=none-required\nhorizontal_overflow=none-required\ndeployment=none\n' '${{ github.sha }}' > artifacts/mobile-theme-after/result.txt
           cp /tmp/mobile-theme-vite.log artifacts/mobile-theme-after/vite.log
 
       - uses: actions/upload-artifact@v4
