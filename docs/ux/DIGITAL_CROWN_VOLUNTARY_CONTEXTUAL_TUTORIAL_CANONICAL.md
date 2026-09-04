@@ -1,12 +1,14 @@
 # Digital Crown — Voluntary Contextual Tutorial — Canonical Roadmap
 
-Status: READY TO MERGE
+Status: CLOSED
 Canonical file: `docs/ux/DIGITAL_CROWN_VOLUNTARY_CONTEXTUAL_TUTORIAL_CANONICAL.md`
 Repo: `hraaaaf/Digital_crown`
 Branch: `ux/voluntary-contextual-tutorial-canonical`
-PR: `#352`
+PR: `#352` — MERGED
 Base master at chantier creation: `84b9c0ea1fc7b4d10ea7182535053869e1a2b17a`
 Certified code HEAD: `a637241fee02dacb1364d303c9a1e730d618bd7f`
+Canonical closeout HEAD: `0eaa87db310b99616d855926d2454435975b07ab`
+Merge commit on master: `34a033ad018ec58e04273489e585b88e7786e4a5`
 
 ## Goal final
 
@@ -25,7 +27,7 @@ Créer un tutoriel Digital Crown utile, contextuel et **100 % volontaire**, capa
 - responsive certifié ;
 - tests source + runtime + visuels ;
 - résultat final aligné aux invariants du Goal UI approuvé ;
-- aucun déploiement Vercel sans autorisation explicite.
+- aucun déploiement Vercel effectué.
 
 ## Goal UI officiel — APPROUVÉ
 
@@ -127,11 +129,18 @@ Workflow : `.github/workflows/voluntary-tutorial-visual-cert.yml`.
 - T2 Runtime Browser Certification `33850825503` : **SUCCESS** ;
 - Dashboard Visual Certification `33850825603` : **SUCCESS**.
 
+### Revalidation du closeout sur `0eaa87db`
+
+- Voluntary Tutorial Visual Certification `33855896535` : **SUCCESS** ;
+- Dashboard Visual Certification `33855896473` : **SUCCESS** ;
+- T2 Runtime Browser Certification `33855896472` : **SUCCESS** ;
+- CI `33855896726` : **SUCCESS**.
+
 Artifacts TUTO-4 présents pour les 10 combinaisons rôle/viewport. Exemples inspectés :
 - `voluntary-tutorial-admin-1440` ;
 - `voluntary-tutorial-secretary-390`.
 
-Assertions certifiées par le workflow :
+Assertions certifiées :
 - progression persistée n'auto-ouvre pas le guide ;
 - ouverture uniquement via `Aide / Guide` ;
 - panneau ouvert capturé ;
@@ -156,10 +165,22 @@ Conforme aux invariants principaux :
 
 Écart assumé : le Dashboard micro-guide reste volontairement mono-étape (`Étape 1 sur 1`) tandis que le mockup illustrait un parcours Dashboard 4 étapes. Cette différence correspond à la décision TUTO-1 de garder `Retrouver un patient` comme micro-guide et les workflows critiques comme guides séparés.
 
-Score visuel certifié après inspection des captures : **8.8/10**.
+Score visuel après inspection des captures : **8.8/10**.
 
 - desktop : très proche de la direction Goal UI, panneau calme et lisible ;
-- mobile : fonctionnel et cohérent, mais naturellement plus dense car le panneau occupe presque toute la largeur.
+- mobile : fonctionnel et cohérent, mais plus dense car le panneau occupe presque toute la largeur.
+
+## Merge / post-merge
+
+PR `#352` : **MERGED** le 4 septembre 2026.
+
+Merge commit : `34a033ad018ec58e04273489e585b88e7786e4a5`.
+
+Vérification post-merge :
+- `master` pointe sur `34a033ad018ec58e04273489e585b88e7786e4a5` ;
+- le merge commit a pour parents `84b9c0ea1fc7b4d10ea7182535053869e1a2b17a` et `0eaa87db310b99616d855926d2454435975b07ab` ;
+- PR #352 est `closed` et `merged: true` ;
+- aucun déploiement Vercel effectué.
 
 ## Dette / garde-fous
 
@@ -170,6 +191,6 @@ Score visuel certifié après inspection des captures : **8.8/10**.
 
 ## Closeout
 
-TUTO-1 DONE → TUTO-2 DONE → TUTO-3 DONE → TUTO-4 DONE.
+TUTO-1 DONE → TUTO-2 DONE → TUTO-3 DONE → TUTO-4 DONE → PR #352 MERGED → post-merge master VERIFIED.
 
-Toutes les preuves requises avant merge sont vertes. PR #352 mergeable au dernier contrôle. Prochaine action : merge de PR #352 avec HEAD attendu, puis vérification post-merge de master. Après cette vérification, le chantier passe CLOSED.
+Le chantier est **CLOSED**.
