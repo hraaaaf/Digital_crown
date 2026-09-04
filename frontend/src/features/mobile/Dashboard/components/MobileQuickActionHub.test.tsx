@@ -34,6 +34,8 @@ describe('MobileQuickActionHub', () => {
     expect(screen.getByText('Photo clinique')).toBeTruthy();
     expect(screen.getByText('Scanner document')).toBeTruthy();
     expect(screen.getByText('Encaisser rapidement')).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Fermer les actions rapides' })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Fermer' })).toBeNull();
 
     fireEvent.click(screen.getByText('Nouveau RDV'));
     expect(onNewAppointment).toHaveBeenCalledTimes(1);
