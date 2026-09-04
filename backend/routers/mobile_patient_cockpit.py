@@ -77,6 +77,20 @@ def _unique_manual_code(db: Session, now: datetime) -> str:
     raise HTTPException(status_code=503, detail="Impossible de générer un contexte mobile unique.")
 
 
+@router.get('/quick-actions/capabilities', summary='Capacités autorisées du Quick Action Hub mobile')
+def get_mobile_quick_action_capabilities(
+    mobile_user: models.User = Depends(_legacy.get_mobile_user),
+):
+    has_patients = has_permission(mobile_user, 'patients')
+    return encrypt_payload({
+        'can_create_appointment': has_permission(mobile_user, 'agenda'),
+        'can_create_patient': has_patients,
+        'can_open_clinical_context': has_patients,
+        # Payment flow requires patient lookup plus the canonical financial permission.
+        'can_pay': has_patients and has_permission(mobile_user, ['accounting', 'payments']),
+    })
+
+
 @router.get('/patient-cockpit/search', summary='Recherche patient rapide pour le cockpit mobile')
 def search_mobile_patient_cockpit(
     q: str = Query(default='', max_length=120),
