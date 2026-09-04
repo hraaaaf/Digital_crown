@@ -1,17 +1,20 @@
 import { useEffect, useState } from 'react';
 import { CalendarPlus, Camera, CircleDollarSign, ScanLine, UserPlus, X, Plus } from 'lucide-react';
+import type { MobileQuickActionCapabilities } from '../hooks/useMobileQuickActionCapabilities';
 
 export type MobileQuickPatientAction = 'photo' | 'scan' | 'payment';
 
 export function MobileQuickActionHub({
-  canPay,
+  capabilities,
+  capabilitiesLoaded = true,
   isOnline,
   defaultOpen = false,
   onNewAppointment,
   onNewPatient,
   onPatientAction,
 }: {
-  canPay: boolean;
+  capabilities: MobileQuickActionCapabilities;
+  capabilitiesLoaded?: boolean;
   isOnline: boolean;
   defaultOpen?: boolean;
   onNewAppointment: () => void;
@@ -19,6 +22,10 @@ export function MobileQuickActionHub({
   onPatientAction: (action: MobileQuickPatientAction) => void;
 }) {
   const [open, setOpen] = useState(defaultOpen);
+  const hasAnyAction = capabilities.can_create_appointment
+    || capabilities.can_create_patient
+    || capabilities.can_open_clinical_context
+    || capabilities.can_pay;
 
   useEffect(() => {
     if (!open) return;
@@ -29,11 +36,17 @@ export function MobileQuickActionHub({
     return () => window.removeEventListener('keydown', onKeyDown);
   }, [open]);
 
+  useEffect(() => {
+    if (capabilitiesLoaded && !hasAnyAction) setOpen(false);
+  }, [capabilitiesLoaded, hasAnyAction]);
+
   const run = (action: () => void) => {
     if (!isOnline) return;
     setOpen(false);
     action();
   };
+
+  if (!capabilitiesLoaded || !hasAnyAction) return null;
 
   return (
     <>
@@ -41,7 +54,7 @@ export function MobileQuickActionHub({
         <div className="fixed inset-0 z-[70]" data-mobile-quick-action-hub>
           <button
             type="button"
-            aria-label="Fermer les actions rapides"
+            aria-label="Fermer le fond des actions rapides"
             className="absolute inset-0 bg-slate-950/20 backdrop-blur-[1px]"
             onClick={() => setOpen(false)}
           />
@@ -79,45 +92,53 @@ export function MobileQuickActionHub({
             )}
 
             <div className="grid grid-cols-2 gap-2.5">
-              <button
-                type="button"
-                disabled={!isOnline}
-                onClick={() => run(onNewAppointment)}
-                className="min-h-[72px] rounded-[20px] border border-primary/20 bg-primary/10 p-3 text-left text-primary active:scale-[0.98] disabled:opacity-40"
-              >
-                <CalendarPlus size={19} />
-                <span className="mt-3 block text-xs font-black">Nouveau RDV</span>
-              </button>
-              <button
-                type="button"
-                disabled={!isOnline}
-                onClick={() => run(onNewPatient)}
-                className="min-h-[72px] rounded-[20px] border border-primary/20 bg-primary/10 p-3 text-left text-primary active:scale-[0.98] disabled:opacity-40"
-              >
-                <UserPlus size={19} />
-                <span className="mt-3 block text-xs font-black">Nouveau patient</span>
-              </button>
-              <button
-                type="button"
-                disabled={!isOnline}
-                onClick={() => run(() => onPatientAction('photo'))}
-                className="min-h-[72px] rounded-[20px] border border-glass-border bg-background p-3 text-left text-text-main active:scale-[0.98] disabled:opacity-40"
-              >
-                <Camera size={19} className="text-primary" />
-                <span className="mt-3 block text-xs font-black">Photo clinique</span>
-              </button>
-              <button
-                type="button"
-                disabled={!isOnline}
-                onClick={() => run(() => onPatientAction('scan'))}
-                className="min-h-[72px] rounded-[20px] border border-glass-border bg-background p-3 text-left text-text-main active:scale-[0.98] disabled:opacity-40"
-              >
-                <ScanLine size={19} className="text-primary" />
-                <span className="mt-3 block text-xs font-black">Scanner document</span>
-              </button>
+              {capabilities.can_create_appointment && (
+                <button
+                  type="button"
+                  disabled={!isOnline}
+                  onClick={() => run(onNewAppointment)}
+                  className="min-h-[72px] rounded-[20px] border border-primary/20 bg-primary/10 p-3 text-left text-primary active:scale-[0.98] disabled:opacity-40"
+                >
+                  <CalendarPlus size={19} />
+                  <span className="mt-3 block text-xs font-black">Nouveau RDV</span>
+                </button>
+              )}
+              {capabilities.can_create_patient && (
+                <button
+                  type="button"
+                  disabled={!isOnline}
+                  onClick={() => run(onNewPatient)}
+                  className="min-h-[72px] rounded-[20px] border border-primary/20 bg-primary/10 p-3 text-left text-primary active:scale-[0.98] disabled:opacity-40"
+                >
+                  <UserPlus size={19} />
+                  <span className="mt-3 block text-xs font-black">Nouveau patient</span>
+                </button>
+              )}
+              {capabilities.can_open_clinical_context && (
+                <>
+                  <button
+                    type="button"
+                    disabled={!isOnline}
+                    onClick={() => run(() => onPatientAction('photo'))}
+                    className="min-h-[72px] rounded-[20px] border border-glass-border bg-background p-3 text-left text-text-main active:scale-[0.98] disabled:opacity-40"
+                  >
+                    <Camera size={19} className="text-primary" />
+                    <span className="mt-3 block text-xs font-black">Photo clinique</span>
+                  </button>
+                  <button
+                    type="button"
+                    disabled={!isOnline}
+                    onClick={() => run(() => onPatientAction('scan'))}
+                    className="min-h-[72px] rounded-[20px] border border-glass-border bg-background p-3 text-left text-text-main active:scale-[0.98] disabled:opacity-40"
+                  >
+                    <ScanLine size={19} className="text-primary" />
+                    <span className="mt-3 block text-xs font-black">Scanner document</span>
+                  </button>
+                </>
+              )}
             </div>
 
-            {canPay && (
+            {capabilities.can_pay && (
               <button
                 type="button"
                 disabled={!isOnline}
