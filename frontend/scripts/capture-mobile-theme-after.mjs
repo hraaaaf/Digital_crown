@@ -23,6 +23,15 @@ function patientUrl() {
   return url.toString();
 }
 
+function observeRuntimeErrors(page) {
+  const errors = [];
+  page.on('pageerror', (error) => errors.push(`pageerror: ${error.message}`));
+  page.on('console', (message) => {
+    if (message.type() === 'error') errors.push(`console.error: ${message.text()}`);
+  });
+  return errors;
+}
+
 async function assertThemeContract(page) {
   const contract = await page.evaluate(() => ({
     theme: document.documentElement.dataset.theme,
@@ -37,6 +46,24 @@ async function assertThemeContract(page) {
   if (!contract.shellFont.includes('Inter')) throw new Error(`Mobile shell does not consume runtime font: ${contract.shellFont}`);
 }
 
+async function assertViewportContract(page, surface, width) {
+  const layout = await page.evaluate(() => ({
+    innerWidth: window.innerWidth,
+    documentScrollWidth: document.documentElement.scrollWidth,
+    bodyScrollWidth: document.body.scrollWidth,
+  }));
+  if (layout.innerWidth !== width) {
+    throw new Error(`${surface}: viewport width ${layout.innerWidth}, expected ${width}`);
+  }
+  if (layout.documentScrollWidth > width || layout.bodyScrollWidth > width) {
+    throw new Error(`${surface}: horizontal overflow detected ${JSON.stringify(layout)}`);
+  }
+}
+
+async function assertCleanRuntime(errors, surface) {
+  if (errors.length) throw new Error(`${surface}: runtime errors: ${errors.join(' | ')}`);
+}
+
 await fs.mkdir(outDir, { recursive: true });
 const browser = await chromium.launch({ headless: true });
 
@@ -48,10 +75,13 @@ try {
     }, fixture);
 
     const dashboard = await context.newPage();
+    const dashboardErrors = observeRuntimeErrors(dashboard);
     await dashboard.goto(baseUrl, { waitUntil: 'networkidle' });
     await dashboard.locator('[data-dc-mobile-shell]').waitFor();
     await dashboard.waitForTimeout(350);
     await assertThemeContract(dashboard);
+    await assertViewportContract(dashboard, `dashboard-${width}x${height}`, width);
+    await assertCleanRuntime(dashboardErrors, `dashboard-${width}x${height}`);
     await dashboard.screenshot({
       path: `${outDir}/after-dashboard-${width}x${height}.png`,
       fullPage: false,
@@ -59,10 +89,13 @@ try {
     await dashboard.close();
 
     const patient = await context.newPage();
+    const patientErrors = observeRuntimeErrors(patient);
     await patient.goto(patientUrl(), { waitUntil: 'networkidle' });
     await patient.locator('[data-mobile-patient-cockpit]').waitFor();
     await patient.waitForTimeout(350);
     await assertThemeContract(patient);
+    await assertViewportContract(patient, `patient-cockpit-${width}x${height}`, width);
+    await assertCleanRuntime(patientErrors, `patient-cockpit-${width}x${height}`);
     await patient.screenshot({
       path: `${outDir}/after-patient-cockpit-${width}x${height}.png`,
       fullPage: false,
