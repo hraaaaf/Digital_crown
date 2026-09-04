@@ -29,6 +29,7 @@ Le chantier est réussi seulement si :
 - aucun écran n'est porté sur mobile uniquement parce qu'il existe déjà sur desktop ;
 - les rôles et permissions restent fail-closed ;
 - l'offline, l'appairage, la biométrie et les contextes mobiles existants ne régressent pas ;
+- les couleurs et polices du mobile suivent les réglages du cabinet, sans thème mobile parallèle ni valeurs de marque codées en dur ;
 - tout changement UI suit obligatoirement BEFORE → Goal UI → mockup/référence → implémentation → AFTER mêmes viewports → comparaison + tests + score visuel ;
 - aucune certification n'est déclarée sans preuve ;
 - aucun déploiement Vercel n'est effectué sans autorisation explicite.
@@ -60,6 +61,27 @@ Routes mobiles dédiées identifiées :
 Les routes desktop ne sont actuellement pas bloquées par type d'appareil : un téléphone peut encore ouvrir directement des routes telles que `/analytics`, `/patients`, `/settings` ou `/bibliotheque` et recevoir le shell desktop responsive.
 
 Cette coexistence est tolérée comme baseline mais ne constitue pas la cible produit finale.
+
+### Thème / typographie mobile — dette vérifiée
+
+Les réglages cabinet possèdent déjà une source de vérité pour :
+
+- `selected_theme` ;
+- `primary_color` ;
+- `secondary_color` ;
+- `accent_color` ;
+- `font_fr`.
+
+Le système de surfaces mobile consomme déjà largement les tokens CSS du thème (`--primary`, `--secondary`, `--accent`, `--glass-bg`, `--glass-border`, etc.).
+
+Mais l'audit MOB-1 a confirmé quatre incohérences à corriger avant le nouveau Patient Cockpit :
+
+1. `useSettingsStore.applyTheme()` n'applique pas `font_fr` au runtime ;
+2. `useMobileDashboard()` réinitialise actuellement `documentElement.dataset.theme` et `body.dataset.theme` à une chaîne vide au montage ;
+3. `MobileDashboard.tsx` et certains titres de `MobileHeader.tsx` forcent `font-outfit` ;
+4. le snapshot mobile courant ne transporte pas les paramètres de présentation du cabinet.
+
+Décision verrouillée : **MOB-2 commencera par réconcilier le runtime mobile avec la source de vérité du thème cabinet. Aucun moteur de thème mobile parallèle ne sera créé.**
 
 ## Doctrine produit verrouillée
 
@@ -114,13 +136,7 @@ Conserver principalement sur desktop :
 
 Mobile actuel : jour / semaine / mois, création, déplacement et gestion rapide des RDV.
 
-Desktop ajoute notamment :
-
-- multi-praticien ;
-- import Google Agenda ;
-- Frontdesk ;
-- demandes RDV en attente ;
-- jours fériés / exceptions.
+Desktop ajoute notamment : multi-praticien, import Google Agenda, Frontdesk, demandes RDV en attente, jours fériés / exceptions.
 
 Décision : ne pas copier l'ensemble. Évaluer seulement Frontdesk / demandes et aperçu multi-praticien après le coeur mobile.
 
@@ -128,29 +144,13 @@ Décision : ne pas copier l'ensemble. Évaluer seulement Frontdesk / demandes et
 
 Mobile actuel : recettes jour/mois, créances, activité 7 jours, débiteurs, WhatsApp, bilan PDF.
 
-Desktop ajoute :
-
-- historique détaillé ;
-- Treasury Hub ;
-- Visual Insights ;
-- impayés avancés ;
-- filtres, édition, exports et opérations détaillées.
+Desktop ajoute notamment historique détaillé, Treasury Hub, Visual Insights, impayés avancés, filtres, édition et exports détaillés.
 
 Décision : conserver la synthèse mobile. Ne pas porter la comptabilité complète.
 
 ### Patient
 
-Desktop contient :
-
-- liste complète ;
-- recherche / tri / import CSV ;
-- ClinicalHub ;
-- RVG ;
-- Panoramique ;
-- Céphalométrie ;
-- Document Studio ;
-- archives ;
-- finances patient.
+Desktop contient liste complète, ClinicalHub, RVG, Panoramique, Céphalométrie, Document Studio, archives et finances détaillées.
 
 Mobile possède déjà des contextes ciblés patient / panoramique / document / rendez-vous, ainsi que photo clinique, scan et partage.
 
@@ -170,48 +170,29 @@ Décision : construire un **Patient Cockpit mobile**, pas reproduire le dossier 
 
 Goal : figer la doctrine, le périmètre et l'ordre d'exécution avant tout nouveau changement UI.
 
-Succès :
-
-- fichier canonique versionné ;
-- frontière Mobile / Desktop documentée ;
-- lots ordonnés ;
-- critères de succès et preuves explicités ;
-- aucune implémentation UI engagée avant le mockup du lot suivant.
-
-Preuve : fichier créé sur la branche du chantier par le commit `af8c44af145a30deeb4d04337cc70bb679c21a81`, puis relu depuis GitHub avant closeout MOB-0.
+Preuve : fichier créé par `af8c44af145a30deeb4d04337cc70bb679c21a81`, puis relu et closeout MOB-0 sur la branche.
 
 ---
 
-## MOB-1 — Goal UI + mockup du Patient Cockpit — PLANNED
+## MOB-1 — Goal UI + mockup du Patient Cockpit — IN REVIEW
 
-Goal : concevoir l'écran mobile principal de recherche et contexte patient, inspiré du langage visuel Digital Crown déjà certifié.
+Goal : concevoir l'écran mobile principal de recherche et contexte patient en restant fidèle au langage visuel Digital Crown existant et **100 % dépendant du thème/typographie du cabinet**.
 
-Le mockup doit couvrir au minimum :
+Fichier Goal UI : `docs/ux/DIGITAL_CROWN_MOBILE_PATIENT_COCKPIT_GOAL_UI.md`.
 
-- recherche patient immédiate ;
-- identité patient ;
-- alerte médicale critique visible sans ambiguïté ;
-- téléphone / WhatsApp ;
-- prochain RDV / prochaine séance ;
-- solde ou statut financier synthétique si permission ;
-- accès photo clinique ;
-- accès scan document ;
-- accès encaissement rapide si permission ;
-- accès au contexte clinique mobile disponible ;
-- navigation retour cohérente avec le shell mobile.
+Mockup 390 px : `docs/ux/assets/MOBILE_PATIENT_COCKPIT_GOAL_V1.svg`.
 
-Contraintes UI :
+Preuves actuelles :
 
-- cohérence avec la PWA existante : surfaces premium, cartes arrondies, hiérarchie forte, tokens Digital Crown ;
-- aucune densité de dossier desktop ;
-- touch targets adaptés ;
-- priorité aux actions à une main ;
-- 390 / 430 / 768 px comme viewports de référence minimum ;
-- états loading / empty / error / offline prévus dès le mockup.
+- premier mockup conceptuel rejeté car trop générique et hors scope ;
+- baseline réelle réauditée à partir de `MobileHeader`, `MobileBottomNav`, `FinanceView`, `SecuriteView` et des références M6 ;
+- contrat thème / `font_fr` verrouillé ;
+- mockup cible versionné par `b6924f0f57931e0361dc0db45653b63c4de9fb0c` ;
+- Goal UI thémable mis à jour par `7e17f23bd56bfbc3178eee45fd5113b1ea812b79`.
 
-Process obligatoire :
+Succès restant : **validation visuelle humaine explicite du mockup cible**.
 
-BEFORE certifié → Goal UI écrit → mockup/référence → validation visuelle → seulement ensuite implémentation.
+Aucune implémentation produit MOB-2 ne commence avant ce gate.
 
 ---
 
@@ -219,25 +200,28 @@ BEFORE certifié → Goal UI écrit → mockup/référence → validation visuel
 
 Goal : implémenter le parcours patient mobile cible en moins de 30 secondes.
 
-Fonctions cibles :
+Ordre interne obligatoire :
 
-- recherche patient ;
-- fiche synthèse ;
-- alertes critiques ;
-- contact téléphone / WhatsApp ;
-- prochain RDV ;
-- contexte financier synthétique selon permissions ;
-- pont vers photo / scan / document / panoramique existants ;
-- navigation cohérente et retour fiable ;
-- comportement online/offline explicite.
+1. réparer le contrat thème / typographie mobile sans moteur parallèle ;
+2. capturer le BEFORE runtime 390 / 430 / 768 ;
+3. implémenter recherche patient + fiche synthèse ;
+4. alertes critiques ;
+5. contact téléphone / WhatsApp ;
+6. prochain RDV ;
+7. contexte financier synthétique selon permissions ;
+8. pont vers photo / scan / document / panoramique existants ;
+9. comportement online/offline explicite ;
+10. tests source + runtime + AFTER visuel.
 
 Succès :
 
+- thème et police des Réglages réellement propagés au mobile ;
+- aucune valeur de marque codée en dur dans le Patient Cockpit ;
 - parcours principal complet sur rôles autorisés ;
 - aucune fuite de données inter-patient ;
 - permissions fail-closed ;
 - aucune régression M4/M6 existante ;
-- tests source + runtime + AFTER visuel.
+- AFTER comparé au Goal UI sur mêmes viewports.
 
 ---
 
@@ -245,17 +229,9 @@ Succès :
 
 Goal : permettre les actions fréquentes sans chercher une page.
 
-Cible produit : bouton d'action central ou mécanisme équivalent donnant accès à :
+Cible produit : Nouveau RDV, Nouveau patient, Photo clinique, Scanner document, Encaisser rapidement si permission.
 
-- Nouveau RDV ;
-- Nouveau patient ;
-- Photo clinique ;
-- Scanner document ;
-- Encaisser rapidement, si permission.
-
-La forme finale n'est pas verrouillée avant le mockup.
-
-Succès : chaque action critique est accessible en quelques gestes, sans introduire une deuxième navigation concurrente.
+La forme finale n'est pas verrouillée avant son propre mockup/validation.
 
 ---
 
@@ -263,121 +239,59 @@ Succès : chaque action critique est accessible en quelques gestes, sans introdu
 
 Goal : simplifier la navigation globale autour des usages réels.
 
-Direction actuelle à tester dans le mockup :
-
-- Aujourd'hui ;
-- Patients ;
-- action centrale ;
-- Assistant ;
-- Plus.
+Direction à tester : `Aujourd'hui / Patients / action centrale / Assistant / Plus`.
 
 `Plus` peut regrouper selon rôle : Finance, Labo, Bibliothèque, Sécurité, Marketplace éventuelle, SuperAdmin.
 
-Cette architecture reste une **hypothèse de design** jusqu'à validation par mockup et comparaison avec la navigation actuelle.
-
-Succès :
-
-- maximum cinq points d'entrée permanents ;
-- aucun doublon de destination ;
-- navigation compréhensible sans apprentissage ;
-- rôles filtrés correctement ;
-- deep links et contextes existants préservés.
+Succès : maximum cinq points d'entrée permanents, aucun doublon, rôles filtrés, deep links et contextes existants préservés.
 
 ---
 
 ## MOB-5 — Mobile secondaire à forte valeur — PLANNED / CONDITIONAL
 
-Ce lot n'est ouvert que si MOB-1 à MOB-4 sont validés.
+Candidats : Bibliothèque clinique, demandes RDV / Frontdesk, aperçu multi-praticien, Marketplace utilisateur.
 
-Candidats :
-
-1. Bibliothèque clinique ;
-2. demandes RDV / Frontdesk ;
-3. aperçu multi-praticien ;
-4. Marketplace utilisateur.
-
-Chaque candidat doit franchir un gate produit :
-
-> Existe-t-il un scénario mobile réel, fréquent et plus efficace sur téléphone que sur desktop ?
-
-Si non : rester desktop-only.
+Gate : existe-t-il un scénario mobile réel, fréquent et plus efficace sur téléphone que sur desktop ? Si non, rester desktop-only.
 
 ---
 
 ## MOB-6 — Canonisation du routage mobile — PLANNED
 
-Goal : supprimer l'ambiguïté entre PWA mobile dédiée et shell desktop responsive.
+Goal : supprimer l'ambiguïté entre PWA mobile dédiée et shell desktop responsive après couverture des parcours essentiels.
 
-À traiter seulement après couverture des parcours mobiles essentiels afin de ne pas bloquer prématurément une fonctionnalité utile.
-
-À auditer :
-
-- accès direct aux routes desktop depuis mobile ;
-- redirects ;
-- deep links ;
-- contextual bridge ;
-- onboarding / appairage ;
-- rôles ;
-- fallback desktop/tablette ;
-- comportement 768 px ;
-- accès support / recovery.
-
-La cible probable est une expérience mobile canonique unique, avec exceptions explicites plutôt qu'un accès accidentel au desktop responsive.
+À auditer : routes desktop directes, redirects, deep links, contextual bridge, onboarding/appairage, rôles, tablette 768 px, fallback support/recovery.
 
 ---
 
 ## MOB-7 — Certification globale Mobile Product — PLANNED
 
-Goal : certifier le produit mobile final sur une candidate immutable.
+Preuves minimales : frontend ciblé, backend ciblé, build, runtime, RBAC, offline/sync/revocation, context bridges, BEFORE/AFTER 390/430/768, zéro overflow horizontal, zéro erreur console/page, comparaison Goal UI, score visuel et gates physiques séparés.
 
-Preuves minimales :
-
-- tests frontend ciblés ;
-- tests backend ciblés ;
-- build gardé ;
-- tests runtime ;
-- RBAC ;
-- offline / sync / revocation ;
-- context bridges ;
-- BEFORE / AFTER sur 390 / 430 / 768 ;
-- absence d'overflow horizontal ;
-- absence d'erreur console/page ;
-- comparaison Goal UI ;
-- score visuel ;
-- réutilisation des certifications M6 existantes lorsqu'elles restent valides ;
-- gates physiques explicitement séparés des preuves navigateur/CI.
-
-Aucun déploiement Vercel ne fait partie de cette certification sans autorisation explicite.
+Aucun Vercel sans autorisation explicite.
 
 ---
 
 ## MOB-8 — Closeout — PLANNED
 
-Ordre obligatoire :
+Ordre obligatoire : validation → canonique → cohérence docs → roadmap/% réel → Git/PR/merge → vérification post-merge → lot suivant ou CLOSED.
 
-validation → mise à jour du canonique → cohérence docs → roadmap/% réel → Git/PR/merge → vérification post-merge → lot suivant ou CLOSED.
-
-Le chantier ne peut être déclaré CLOSED que si :
-
-- tous les lots retenus sont DONE ou explicitement DROPPED avec justification ;
-- preuves finales présentes ;
-- canonique mis à jour ;
-- branche/PR/merge vérifiés ;
-- post-merge vérifié ;
-- aucun déploiement non autorisé n'a été effectué.
+Le chantier est CLOSED uniquement si tous les lots retenus sont DONE ou explicitement DROPPED avec justification et preuves.
 
 ## Garde-fous permanents
 
 - ne jamais transformer le mobile en clone du desktop ;
 - ne jamais porter une page sans scénario mobile démontré ;
+- ne jamais figer couleur de marque ou police dans une feature mobile ;
+- Réglages cabinet = source de vérité unique du thème et de la typographie ;
+- couleurs danger / warning / succès restent sémantiques et doivent conserver le contraste ;
 - ne pas casser les context bridges existants ;
 - ne pas casser l'offline ;
-- ne pas affaiblir la sécurité mobile / biométrie ;
+- ne pas affaiblir sécurité / biométrie ;
 - ne pas exposer de données sans permission ;
-- ne pas mélanger un mockup et une preuve AFTER ;
+- ne pas mélanger mockup et preuve AFTER ;
 - ne jamais annoncer une certification physique depuis une CI navigateur ;
 - ne pas déployer sur Vercel sans autorisation explicite.
 
 ## Next exact
 
-Créer le **Goal UI + mockup du Patient Cockpit mobile** à partir de la baseline actuelle et des invariants de MOB-1, avant toute implémentation.
+Obtenir la **validation visuelle du mockup `docs/ux/assets/MOBILE_PATIENT_COCKPIT_GOAL_V1.svg`**. Si validé : passer MOB-1 DONE puis ouvrir MOB-2 par la réparation du contrat thème / `font_fr` mobile.
