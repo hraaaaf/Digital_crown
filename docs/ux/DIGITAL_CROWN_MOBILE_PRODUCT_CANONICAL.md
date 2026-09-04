@@ -31,58 +31,25 @@ Le chantier est réussi seulement si :
 - les rôles et permissions restent fail-closed ;
 - l'offline, l'appairage, la biométrie et les contextes mobiles existants ne régressent pas ;
 - les couleurs et polices du mobile suivent les réglages du cabinet, sans thème mobile parallèle ni valeurs de marque codées en dur ;
-- tout changement UI suit obligatoirement BEFORE → Goal UI → mockup/référence → implémentation → AFTER mêmes viewports → comparaison + tests + score visuel ;
+- tout changement UI suit obligatoirement BEFORE → Goal UI → mockup/référence → implémentation → AFTER mêmes viewports → comparaison + tests → score visuel ;
 - aucune certification n'est déclarée sans preuve ;
 - aucun déploiement Vercel n'est effectué sans autorisation explicite.
 
-## Baseline vérifiée au lancement
+## Baseline produit
 
-Audit statique effectué sur `master` HEAD `7e0289fa030720c8729d77336305facf466266ea`.
+Audit initial sur `master` HEAD `7e0289fa030720c8729d77336305facf466266ea`.
 
-### Architecture actuelle
+PWA mobile dédiée initiale : Agenda / Finance / Envois Labo / Assistant / Sécurité.
 
-L'entrée `/` détecte le mobile et redirige vers `/mobile/dashboard`.
+Routes mobiles identifiées :
 
-La PWA mobile dédiée expose principalement :
+- `/mobile/onboarding`
+- `/mobile/dashboard`
+- `/mobile/context`
+- `/mobile/dentists`
+- `/mobile/superadmin`
 
-1. Agenda ;
-2. Finance ;
-3. Envois Labo ;
-4. Assistant ;
-5. Sécurité.
-
-Routes mobiles dédiées identifiées :
-
-- `/mobile/onboarding` ;
-- `/mobile/dashboard` ;
-- `/mobile/context` ;
-- `/mobile/dentists` ;
-- `/mobile/superadmin`.
-
-Les routes desktop ne sont actuellement pas bloquées par type d'appareil : un téléphone peut encore ouvrir directement des routes telles que `/analytics`, `/patients`, `/settings` ou `/bibliotheque` et recevoir le shell desktop responsive.
-
-Cette coexistence est tolérée comme baseline mais ne constitue pas la cible produit finale.
-
-### Thème / typographie mobile — dette vérifiée
-
-Les réglages cabinet possèdent déjà une source de vérité pour :
-
-- `selected_theme` ;
-- `primary_color` ;
-- `secondary_color` ;
-- `accent_color` ;
-- `font_fr`.
-
-Le système de surfaces mobile consomme déjà largement les tokens CSS du thème (`--primary`, `--secondary`, `--accent`, `--glass-bg`, `--glass-border`, etc.).
-
-L'audit MOB-1 avait confirmé quatre incohérences à corriger avant le nouveau Patient Cockpit :
-
-1. `useSettingsStore.applyTheme()` n'appliquait pas `font_fr` au runtime mobile ;
-2. `useMobileDashboard()` réinitialisait `documentElement.dataset.theme` et `body.dataset.theme` à une chaîne vide au montage ;
-3. `MobileDashboard.tsx` et certains titres de `MobileHeader.tsx` forçaient `font-outfit` ;
-4. le canal mobile ne transportait pas les paramètres de présentation du cabinet.
-
-Décision verrouillée : **Réglages cabinet reste la source de vérité unique. Aucun moteur de thème mobile parallèle.**
+Les routes desktop restent encore directement accessibles sur téléphone. Cette coexistence est tolérée jusqu'à MOB-6, mais n'est pas la cible finale.
 
 ## Doctrine produit verrouillée
 
@@ -112,7 +79,7 @@ Conserver principalement sur desktop :
 - comptabilité complète / Treasury Hub / Visual Insights ;
 - ClinicalHub / odontogramme / Master Plan ;
 - RVG Studio ;
-- Panoramic Studio complet : upload, validation, annotations, rapports, comparaison T0/T1, évolution ;
+- Panoramic Studio complet ;
 - Céphalométrie ;
 - Document Studio complet ;
 - paramètres cabinet ;
@@ -123,45 +90,14 @@ Conserver principalement sur desktop :
 
 ### Mobile secondaire potentiel
 
-À évaluer seulement après le coeur mobile :
+Évaluer seulement après le coeur mobile :
 
 - Bibliothèque clinique ;
 - demandes RDV / Frontdesk ;
 - aperçu multi-praticien ;
-- Marketplace utilisateur ;
-- fonctions métier réellement utiles en mobilité démontrée.
+- Marketplace utilisateur.
 
-## Écarts desktop/mobile déjà identifiés
-
-### Agenda
-
-Mobile actuel : jour / semaine / mois, création, déplacement et gestion rapide des RDV.
-
-Desktop ajoute notamment : multi-praticien, import Google Agenda, Frontdesk, demandes RDV en attente, jours fériés / exceptions.
-
-Décision : ne pas copier l'ensemble. Évaluer seulement Frontdesk / demandes et aperçu multi-praticien après le coeur mobile.
-
-### Finance
-
-Mobile actuel : recettes jour/mois, créances, activité 7 jours, débiteurs, WhatsApp, bilan PDF.
-
-Desktop ajoute notamment historique détaillé, Treasury Hub, Visual Insights, impayés avancés, filtres, édition et exports détaillés.
-
-Décision : conserver la synthèse mobile. Ne pas porter la comptabilité complète.
-
-### Patient
-
-Desktop contient liste complète, ClinicalHub, RVG, Panoramique, Céphalométrie, Document Studio, archives et finances détaillées.
-
-Mobile possède déjà des contextes ciblés patient / panoramique / document / rendez-vous, ainsi que photo clinique, scan et partage.
-
-Décision : construire un **Patient Cockpit mobile**, pas reproduire le dossier patient desktop.
-
-### Faux desktop-only à ne pas intégrer au scope
-
-- `Stock` : desktop encore `ComingSoon` ;
-- `Salle d'attente` : desktop encore `ComingSoon` ;
-- `Labo` : cas inverse, mobile possède déjà une vraie surface alors que la route desktop est encore `ComingSoon`.
+Gate : il doit exister un scénario mobile réel, fréquent et plus efficace sur téléphone que sur desktop.
 
 ---
 
@@ -169,95 +105,134 @@ Décision : construire un **Patient Cockpit mobile**, pas reproduire le dossier 
 
 ## MOB-0 — Canonique produit & frontière Desktop/Mobile — DONE
 
-Goal : figer la doctrine, le périmètre et l'ordre d'exécution avant tout nouveau changement UI.
+Goal : figer doctrine, périmètre et ordre d'exécution avant changement UI.
 
-Preuve : fichier créé par `af8c44af145a30deeb4d04337cc70bb679c21a81`, puis relu et closeout MOB-0 sur la branche.
+Preuve : bootstrap `af8c44af145a30deeb4d04337cc70bb679c21a81`, puis closeout MOB-0.
 
 ---
 
 ## MOB-1 — Goal UI + mockup du Patient Cockpit — DONE
 
-Goal : concevoir l'écran mobile principal de recherche et contexte patient en restant fidèle au langage visuel Digital Crown existant et **100 % dépendant du thème/typographie du cabinet**.
+Goal : concevoir le Patient Cockpit fidèle au langage Digital Crown et piloté par le thème/typographie du cabinet.
 
-Fichier Goal UI : `docs/ux/DIGITAL_CROWN_MOBILE_PATIENT_COCKPIT_GOAL_UI.md`.
+Références :
 
-Mockup 390 px : `docs/ux/assets/MOBILE_PATIENT_COCKPIT_GOAL_V1.svg`.
+- `docs/ux/DIGITAL_CROWN_MOBILE_PATIENT_COCKPIT_GOAL_UI.md`
+- `docs/ux/assets/MOBILE_PATIENT_COCKPIT_GOAL_V1.svg`
 
 Preuves :
 
-- premier mockup conceptuel rejeté car trop générique et hors scope ;
-- baseline réelle réauditée à partir de `MobileHeader`, `MobileBottomNav`, `FinanceView`, `SecuriteView` et des références M6 ;
-- contrat thème / `font_fr` verrouillé ;
-- mockup cible versionné par `b6924f0f57931e0361dc0db45653b63c4de9fb0c` ;
-- Goal UI thémable mis à jour par `7e17f23bd56bfbc3178eee45fd5113b1ea812b79` ;
-- validation visuelle humaine explicite reçue le 2026-09-04 avant ouverture de MOB-2.
+- mockup cible : `b6924f0f57931e0361dc0db45653b63c4de9fb0c` ;
+- invariant thème + `font_fr` verrouillé ;
+- validation visuelle humaine explicite reçue le 2026-09-04 avant MOB-2.
 
 ---
 
-## MOB-2 — Patient Cockpit — IN PROGRESS
+## MOB-2 — Patient Cockpit — DONE
 
 Goal : implémenter le parcours patient mobile cible en moins de 30 secondes.
 
-Ordre interne obligatoire :
+### Fonctions certifiées
 
-1. réparer le contrat thème / typographie mobile sans moteur parallèle ;
-2. capturer le BEFORE runtime 390 / 430 / 768 ;
-3. implémenter recherche patient + fiche synthèse ;
-4. alertes critiques ;
-5. contact téléphone / WhatsApp ;
-6. prochain RDV ;
-7. contexte financier synthétique selon permissions ;
-8. pont vers photo / scan / document / panoramique existants ;
-9. comportement online/offline explicite ;
-10. tests source + runtime + AFTER visuel.
+- recherche patient ;
+- identité et synthèse ;
+- alerte médicale prioritaire ;
+- appel / WhatsApp ;
+- prochain RDV ;
+- situation financière filtrée par permissions ;
+- photo clinique ;
+- scan document ;
+- dernier document ;
+- dernière panoramique ;
+- ponts contextuels opaques ;
+- état online/offline explicite ;
+- thème et `font_fr` issus des Réglages cabinet ;
+- purge fail-closed entre deux sélections patient.
 
-État vérifié au 2026-09-04 :
+### BEFORE
 
-- BEFORE immutable : run `33880152997` ✅ sur `3ecfa47c449d9724d9517003499ec3e3ec4f730d` ; artifact `9939517547` ; digest `sha256:7a3b97a4e7b1b7fe652d40f9496fca88dcf2a441149437ed00f403334e7c226f` ; viewports 390×844 / 430×932 / 768×1024 ;
-- runtime thème cabinet : `3392fd91b3f479241373db81da1172a7a462b40b` ;
-- police cabinet appliquée au shell : `223a0174a1a459a4aabd4a0b726d4488436746f9` ;
-- header débarrassé du `font-outfit` forcé : `206d333d9c97504661df3563c6531b084498ce72` ;
-- paramètres visuels exposés via canal mobile chiffré : `68899556d7f438a7ee981bcf86aca5fbfaf65e92` ;
-- contrat de test thème/police : `11de1b01e258531181e49bd11f394a796f8f2964` ;
-- reset legacy du thème supprimé : `1d9e4389bbfe7009bd8c8c11d3bb72328e0daaba` ;
-- read model Patient Cockpit tenant-scopé / permission-gated / chiffré : `6ba20f1af36b6a8cebb355efac5f8fdff4f01e06` ;
-- router Patient Cockpit monté : `92893c7576624877dd1500a2e5c005d56aed380c` ;
-- vue recherche + synthèse patient : `37cc3ee958be6746fce6889fc27b851fd4b0b238` ;
-- tab `patients` : `22336d3018cfa052378559e59e8a9565a8922540` ;
-- accès rapide depuis le header : `bce1bb7d75e62562055ec637371b5c0255452c79` ;
-- Patient Cockpit monté dans `MobileDashboard` : `eba175ab222e5d847b1ec87e63c01a4a587bc2af` ;
-- workflow de certification thème + build + AFTER ajouté : `121a5df360c350026169d10254226f30db42572a` ; run `33884838745` actuellement queued au dernier contrôle.
+Run `33880152997` ✅
 
-Fonctions déjà présentes : recherche patient, identité, alerte médicale, appel, WhatsApp, prochain RDV, synthèse financière filtrée par permission, navigation Agenda/Patients.
+- HEAD : `3ecfa47c449d9724d9517003499ec3e3ec4f730d`
+- artifact : `9939517547`
+- digest : `sha256:7a3b97a4e7b1b7fe652d40f9496fca88dcf2a441149437ed00f403334e7c226f`
+- viewports : `390×844`, `430×932`, `768×1024`
 
-Reste connu avant DONE :
+### AFTER certifié
 
-- ponts explicites vers photo clinique / scan / document / panoramique existants ;
-- comportement online/offline explicite du Patient Cockpit ;
-- tests ciblés backend Patient Cockpit + non-régression M4/M6 proportionnée ;
-- AFTER 390 / 430 / 768 disponible et comparé au BEFORE + Goal UI ;
-- score visuel documenté ;
-- aucune erreur source/build/runtime restante.
+Run `33889545163` ✅
 
-Succès :
+- candidat exact : `2a01e58d4bf3e3deff833723a52e3449bb26e4ac`
+- artifact : `9943369750`
+- digest : `sha256:b4d274590a3349cbcab8a71faeb25e880acc3aee4ab818420fab8918813777fd`
+- viewports : `390×844`, `430×932`, `768×1024`
 
-- thème et police des Réglages réellement propagés au mobile ;
-- aucune valeur de marque codée en dur dans le Patient Cockpit ;
-- parcours principal complet sur rôles autorisés ;
-- aucune fuite de données inter-patient ;
-- permissions fail-closed ;
-- aucune régression M4/M6 existante ;
-- AFTER comparé au Goal UI sur mêmes viewports.
+Gates verts sur ce candidat :
+
+- thème / offline / isolation inter-patient ;
+- non-régression frontend M4/M6 proportionnée ;
+- tenant / finance / device backend ;
+- non-régression backend M6 photo/scan ;
+- build production frontend ;
+- syntaxe backend ;
+- runtime Chromium ;
+- captures AFTER et dimensions exactes.
+
+Preuve détaillée : `docs/ux/DIGITAL_CROWN_MOBILE_PATIENT_COCKPIT_MOB2_PROOF.md`.
+
+### Sécurité
+
+- read model tenant-scopé / permission-gated / chiffré ;
+- finance alignée sur le contrat canonique `accounting` / `payments` ;
+- changement de patient purge l'identité et les ressources précédentes avant nouveau fetch ;
+- contextes liés au tenant, utilisateur et appareil ;
+- réponse publique de contexte opaque, sans identifiant patient/ressource ;
+- suppression de la promesse `expires_in=1800` car non directement enforcée par le contrat de contexte résolu.
+
+### Comparaison visuelle
+
+Constats 390 / 430 / 768 :
+
+- langage visuel cohérent avec le shell Digital Crown ;
+- hiérarchie identité forte ;
+- alerte médicale immédiate ;
+- Appeler / WhatsApp prioritaires ;
+- actions cliniques lisibles et tactiles ;
+- 768 reste un cockpit mobile/tablette, pas un desktop réduit ;
+- aucun overflow horizontal ou erreur runtime accepté par la certification.
+
+Écarts connus du mockup MOB-1 :
+
+1. actions cliniques avant le prochain RDV ;
+2. recherche remplacée par `Tous les patients` après sélection ;
+3. navigation cible reportée à MOB-4 ;
+4. `Encaisser` reporté à MOB-3.
+
+**Score visuel MOB-2 : 9.2 / 10.**
+
+Conclusion : Goal MOB-2 atteint et prouvé sur candidat immutable `2a01e58d4bf3e3deff833723a52e3449bb26e4ac`.
 
 ---
 
-## MOB-3 — Quick Action Hub — PLANNED
+## MOB-3 — Quick Action Hub — NEXT
 
 Goal : permettre les actions fréquentes sans chercher une page.
 
-Cible produit : Nouveau RDV, Nouveau patient, Photo clinique, Scanner document, Encaisser rapidement si permission.
+Cible produit :
 
-La forme finale n'est pas verrouillée avant son propre mockup/validation.
+- Nouveau RDV ;
+- Nouveau patient ;
+- Photo clinique ;
+- Scanner document ;
+- Encaisser rapidement si permission.
+
+Process obligatoire avant code :
+
+1. BEFORE réel sur 390 / 430 / 768 ;
+2. Goal UI écrit ;
+3. mockup/référence ;
+4. validation visuelle ;
+5. implémentation seulement après ce gate.
 
 ---
 
@@ -277,7 +252,7 @@ Succès : maximum cinq points d'entrée permanents, aucun doublon, rôles filtr�
 
 Candidats : Bibliothèque clinique, demandes RDV / Frontdesk, aperçu multi-praticien, Marketplace utilisateur.
 
-Gate : existe-t-il un scénario mobile réel, fréquent et plus efficace sur téléphone que sur desktop ? Si non, rester desktop-only.
+Gate : scénario mobile réel, fréquent et plus efficace que desktop.
 
 ---
 
@@ -299,7 +274,7 @@ Aucun Vercel sans autorisation explicite.
 
 ## MOB-8 — Closeout — PLANNED
 
-Ordre obligatoire : validation → canonique → cohérence docs → roadmap/% réel → Git/PR/merge → vérification post-merge → lot suivant ou CLOSED.
+Ordre : validation → canonique → cohérence docs → roadmap/% réel → Git/PR/merge → post-merge → lot suivant ou CLOSED.
 
 Le chantier est CLOSED uniquement si tous les lots retenus sont DONE ou explicitement DROPPED avec justification et preuves.
 
@@ -320,4 +295,4 @@ Le chantier est CLOSED uniquement si tous les lots retenus sont DONE ou explicit
 
 ## Next exact
 
-Compléter les ponts Patient Cockpit vers photo / scan / document / panoramique et rendre l'état online/offline explicite pendant que la certification `33884838745` s'exécute ; ensuite exploiter l'AFTER 390 / 430 / 768 et comparer au BEFORE + Goal UI.
+Ouvrir la PR MOB-2 vers `master`, vérifier ses checks, merger si verts, vérifier le HEAD post-merge, puis ouvrir MOB-3 par son BEFORE réel + Goal UI + mockup avant toute implémentation.
