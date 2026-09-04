@@ -2,6 +2,13 @@ import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { MobileQuickActionHub } from './MobileQuickActionHub';
 
+const ALL_CAPABILITIES = {
+  can_create_appointment: true,
+  can_create_patient: true,
+  can_open_clinical_context: true,
+  can_pay: true,
+};
+
 afterEach(() => cleanup());
 
 describe('MobileQuickActionHub', () => {
@@ -12,7 +19,7 @@ describe('MobileQuickActionHub', () => {
 
     render(
       <MobileQuickActionHub
-        canPay
+        capabilities={ALL_CAPABILITIES}
         isOnline
         onNewAppointment={onNewAppointment}
         onNewPatient={onNewPatient}
@@ -33,10 +40,15 @@ describe('MobileQuickActionHub', () => {
     expect(screen.queryByText('Que voulez-vous faire ?')).toBeNull();
   });
 
-  it('hides payment when financial access is not available', () => {
+  it('hides every action not granted by the server capability contract', () => {
     render(
       <MobileQuickActionHub
-        canPay={false}
+        capabilities={{
+          can_create_appointment: true,
+          can_create_patient: false,
+          can_open_clinical_context: false,
+          can_pay: false,
+        }}
         isOnline
         onNewAppointment={() => undefined}
         onNewPatient={() => undefined}
@@ -44,14 +56,49 @@ describe('MobileQuickActionHub', () => {
       />,
     );
     fireEvent.click(screen.getByRole('button', { name: 'Ouvrir les actions rapides' }));
+    expect(screen.getByText('Nouveau RDV')).toBeTruthy();
+    expect(screen.queryByText('Nouveau patient')).toBeNull();
+    expect(screen.queryByText('Photo clinique')).toBeNull();
+    expect(screen.queryByText('Scanner document')).toBeNull();
     expect(screen.queryByText('Encaisser rapidement')).toBeNull();
+  });
+
+  it('renders no FAB until capabilities are known or when none are granted', () => {
+    const { rerender } = render(
+      <MobileQuickActionHub
+        capabilities={ALL_CAPABILITIES}
+        capabilitiesLoaded={false}
+        isOnline
+        onNewAppointment={() => undefined}
+        onNewPatient={() => undefined}
+        onPatientAction={() => undefined}
+      />,
+    );
+    expect(screen.queryByRole('button', { name: 'Ouvrir les actions rapides' })).toBeNull();
+
+    rerender(
+      <MobileQuickActionHub
+        capabilities={{
+          can_create_appointment: false,
+          can_create_patient: false,
+          can_open_clinical_context: false,
+          can_pay: false,
+        }}
+        capabilitiesLoaded
+        isOnline
+        onNewAppointment={() => undefined}
+        onNewPatient={() => undefined}
+        onPatientAction={() => undefined}
+      />,
+    );
+    expect(screen.queryByRole('button', { name: 'Ouvrir les actions rapides' })).toBeNull();
   });
 
   it('fails closed offline and does not dispatch quick actions', () => {
     const onNewAppointment = vi.fn();
     render(
       <MobileQuickActionHub
-        canPay
+        capabilities={ALL_CAPABILITIES}
         isOnline={false}
         onNewAppointment={onNewAppointment}
         onNewPatient={() => undefined}
