@@ -1,0 +1,6 @@
+html[data-mobile-quick-intent='photo'] [data-m6a-photo-action],
+html[data-mobile-quick-intent='scan'] [data-m6b-scan-action] {
+  outline: 3px solid var(--primary);
+  outline-offset: 3px;
+  box-shadow: 0 0 0 7px color-mix(in srgb, var(--primary) 12%, transparent), var(--shadow-elite);
+}
