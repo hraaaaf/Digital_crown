@@ -5,9 +5,7 @@ on:
     branches: [ux/mobile-patient-cockpit-mob2]
     paths:
       - .github/workflows/mobile-theme-runtime-cert.yml
-      - frontend/src/features/mobile/Dashboard/MobileDashboard.tsx
-      - frontend/src/features/mobile/Dashboard/hooks/useMobileRuntimeTheme.ts
-      - frontend/src/features/mobile/Dashboard/hooks/useMobileRuntimeTheme.test.ts
+      - frontend/src/features/mobile/**
       - frontend/scripts/capture-mobile-theme-after.mjs
       - backend/routers/clinic_profile_p4.py
   workflow_dispatch:
@@ -41,7 +39,7 @@ jobs:
 
       - name: Verify runtime theme contract
         working-directory: frontend
-        run: npx vitest run src/features/mobile/Dashboard/hooks/useMobileRuntimeTheme.test.ts
+        run: npx vitest run src/features/mobile/Dashboard/hooks/useMobileRuntimeTheme.test.ts src/features/mobile/mobileThemeHardcoding.test.ts
 
       - name: Verify production frontend build
         working-directory: frontend
