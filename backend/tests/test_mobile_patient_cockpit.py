@@ -179,12 +179,12 @@ def test_patient_context_is_device_bound_and_public_response_is_opaque(monkeypat
     assert result == {
         'context': {'type': 'patient', 'key': 'opaque-context-key', 'state': 'ready'},
         'resource_label': 'Dossier patient',
-        'expires_in': 1800,
         'contains_patient_data': False,
         'contains_resource_data': False,
     }
     assert 'patient_id' not in result
     assert 'resource_id' not in result
+    assert 'expires_in' not in result
     assert db.committed is True
     assert len(db.executed) == 1
     params = db.executed[0].compile().params
