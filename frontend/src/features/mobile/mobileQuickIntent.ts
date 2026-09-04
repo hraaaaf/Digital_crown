@@ -5,6 +5,14 @@ const SELECTORS: Record<MobileQuickIntent, string> = {
   scan: '[data-m6b-scan-action]',
 };
 
+function scheduleFrame(callback: () => void): void {
+  if (typeof window.requestAnimationFrame === 'function') {
+    window.requestAnimationFrame(callback);
+    return;
+  }
+  window.setTimeout(callback, 0);
+}
+
 export function bootstrapMobileQuickIntent(): void {
   if (window.location.pathname !== '/mobile/context') return;
 
@@ -24,7 +32,7 @@ export function bootstrapMobileQuickIntent(): void {
     const target = document.querySelector(selector);
     if (!(target instanceof HTMLElement)) return false;
     try { sessionStorage.removeItem('dc-mobile-quick-intent'); } catch { /* ignore */ }
-    requestAnimationFrame(() => target.scrollIntoView({ block: 'center', behavior: 'smooth' }));
+    scheduleFrame(() => target.scrollIntoView({ block: 'center', behavior: 'smooth' }));
     window.setTimeout(() => {
       delete document.documentElement.dataset.mobileQuickIntent;
     }, 4500);
