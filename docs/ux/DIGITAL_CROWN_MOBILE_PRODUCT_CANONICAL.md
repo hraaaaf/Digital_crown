@@ -3,8 +3,8 @@
 Status: ACTIVE
 Canonical file: `docs/ux/DIGITAL_CROWN_MOBILE_PRODUCT_CANONICAL.md`
 Repo: `hraaaaf/Digital_crown`
-Current branch: `master`
-Current master HEAD after MOB-2 merge: `5fd2a06663e941581ad422267d31a5bb69a13d11`
+Current branch: `ux/mobile-quick-action-hub-mob3`
+Current master baseline for MOB-3: `508a2e1e174887fe44f271cc6a8283eb89e443c7`
 MOB-2 PR: `#354` — MERGED
 MOB-2 merge commit: `5fd2a06663e941581ad422267d31a5bb69a13d11`
 Deployment: none. No Vercel deployment is authorized by this chantier.
@@ -135,18 +135,18 @@ Preuve détaillée : `docs/ux/DIGITAL_CROWN_MOBILE_PATIENT_COCKPIT_MOB2_PROOF.md
 - checks PR verts : CI, Patient P7, T2 Runtime, Onboarding Settings P2, Settings Security, Portability Runtime ; M6-I correctement `skipped` ;
 - PR mergée le 2026-09-04 ;
 - merge commit : `5fd2a06663e941581ad422267d31a5bb69a13d11` ;
-- `master` vérifié sur ce HEAD après merge ;
+- closeout master : `508a2e1e174887fe44f271cc6a8283eb89e443c7` ;
 - aucun déploiement Vercel.
 
 Conclusion : MOB-2 fermé et intégré à `master` avec preuves.
 
 ---
 
-## MOB-3 — Quick Action Hub — NEXT
+## MOB-3 — Quick Action Hub — IN PROGRESS / VISUAL GATE
 
-Goal : permettre les actions fréquentes sans chercher une page.
+Goal : permettre les actions fréquentes sans chercher une page, en 2 gestes maximum, sans préempter la refonte de navigation MOB-4.
 
-Cible produit :
+Cible produit verrouillée :
 
 - Nouveau RDV ;
 - Nouveau patient ;
@@ -154,13 +154,60 @@ Cible produit :
 - Scanner document ;
 - Encaisser rapidement si permission.
 
-Process obligatoire avant code :
+### Branche
 
-1. BEFORE réel sur 390 / 430 / 768 ;
-2. Goal UI écrit ;
-3. mockup/référence ;
-4. validation visuelle ;
-5. implémentation seulement après ce gate.
+`ux/mobile-quick-action-hub-mob3`
+
+Créée depuis `master@508a2e1e174887fe44f271cc6a8283eb89e443c7`.
+
+### BEFORE — VERIFIED
+
+Run `33906860335` ✅
+
+- HEAD exact : `040beb21872e63167d149735b24cc6f48554bb8f`
+- artifact : `9949854305`
+- digest : `sha256:b24cf6ecf919a97be154cfeb45275b54cc3bd2f2f4273fb1ee0f3fa2dee10748`
+- viewports : `390×844`, `430×932`, `768×1024`
+- surface : dashboard mobile + bottom nav actuelle
+- harness déterministe, aucune donnée cabinet.
+
+### Goal UI
+
+`docs/ux/DIGITAL_CROWN_MOBILE_QUICK_ACTION_HUB_GOAL_UI.md`
+
+Statut : `AWAITING VISUAL VALIDATION`.
+
+### Mockup
+
+Référence à valider :
+
+`docs/ux/assets/MOBILE_QUICK_ACTION_HUB_GOAL_V2.svg`
+
+Décisions verrouillées avant validation :
+
+- bottom nav actuelle conservée structurellement dans MOB-3 ;
+- déclencheur `+` flottant centré au-dessus de la nav ;
+- bottom sheet compacte ;
+- grille 2 colonnes pour RDV / patient / photo / scan ;
+- Encaisser pleine largeur et uniquement si permission ;
+- thème/police pilotés par les Réglages cabinet ;
+- aucune fonction desktop lourde ;
+- v1 rejetée en interne car la nav y était trop simplifiée ; v2 réalignée sur la géométrie réelle de `MobileBottomNav`.
+
+### Réutilisation fonctionnelle auditée
+
+- Nouveau RDV : flow mobile Agenda existant ;
+- Nouveau patient : flow mobile de création patient existant ;
+- Photo / Scan : contexte patient sécurisé existant ;
+- Encaisser : contrat canonique existant `POST /api/accounting/payments`, avec permission `accounting/payments` et `assert_patient_access` ; aucun nouveau moteur financier.
+
+### Gate
+
+1. BEFORE réel ✅ ;
+2. Goal UI ✅ ;
+3. mockup 390 px ✅ ;
+4. validation visuelle humaine explicite ⏳ ;
+5. code produit interdit avant gate 4.
 
 ---
 
@@ -219,4 +266,8 @@ Le chantier est CLOSED uniquement si tous les lots retenus sont DONE ou explicit
 
 ## Next exact
 
-Ouvrir MOB-3 sur une nouvelle branche depuis `master@5fd2a06663e941581ad422267d31a5bb69a13d11`, capturer le BEFORE 390 / 430 / 768 du point d'entrée futur Quick Action Hub, écrire le Goal UI, puis produire le mockup avant toute implémentation.
+Human gate : validation visuelle explicite de `docs/ux/assets/MOBILE_QUICK_ACTION_HUB_GOAL_V2.svg`.
+
+Si validé : implémenter MOB-3 en réutilisant exclusivement les flows existants, puis AFTER 390 / 430 / 768 → comparaison BEFORE/Goal → tests → score visuel → PR/merge/closeout → MOB-4.
+
+Si rejeté : corriger le mockup/Goal UI avant tout code produit.
