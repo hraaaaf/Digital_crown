@@ -4,6 +4,7 @@ import { useLocation } from 'react-router-dom';
 import { WifiOff } from 'lucide-react';
 import { useMobileDashboard } from './hooks/useMobileDashboard';
 import { useMobileRuntimeTheme } from './hooks/useMobileRuntimeTheme';
+import { useMobileQuickActionCapabilities } from './hooks/useMobileQuickActionCapabilities';
 import { MobileHeader } from './components/MobileHeader';
 import { MobileBottomNav } from './components/MobileBottomNav';
 import { WhatsAppModal } from './components/WhatsAppModal';
@@ -25,6 +26,7 @@ import { resolveDashboardTab } from '../bridge';
 export const MobileDashboard = () => {
   const location = useLocation();
   const { state, actions, refs: { mainRef } } = useMobileDashboard();
+  const { capabilities, loaded: capabilitiesLoaded, refresh: refreshCapabilities } = useMobileQuickActionCapabilities();
   const [showQuickAppointment, setShowQuickAppointment] = useState(false);
   const [showQuickNewPatient, setShowQuickNewPatient] = useState(false);
   const [quickPatientAction, setQuickPatientAction] = useState<MobileQuickPatientAction | null>(null);
@@ -38,13 +40,11 @@ export const MobileDashboard = () => {
 
   const termineCount = state.snapshot?.appointments.filter(a => a.status === 'TERMINE').length ?? 0;
   const totalCount = state.snapshot?.appointments.length ?? 0;
-  // Mirrors the existing Finance nav visibility. Backend accounting permissions remain
-  // authoritative and fail closed on POST /api/accounting/payments.
-  const canPay = ['DENTISTE', 'ADMIN'].includes(state.snapshot?.role ?? '');
 
   const refreshAfterPatientMutation = () => {
     void actions.fetchPatients();
     void actions.fetchSnapshot();
+    void refreshCapabilities();
   };
 
   return (
@@ -144,7 +144,8 @@ export const MobileDashboard = () => {
       </main>
 
       <MobileQuickActionHub
-        canPay={canPay}
+        capabilities={capabilities}
+        capabilitiesLoaded={capabilitiesLoaded}
         isOnline={state.isOnline}
         onNewAppointment={() => setShowQuickAppointment(true)}
         onNewPatient={() => setShowQuickNewPatient(true)}
