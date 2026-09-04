@@ -17,7 +17,7 @@ import { mobileFetch } from '../../../../services/zka/mobileFetch';
 import { CryptoService } from '../../../../services/zka/CryptoService';
 import { buildTelHref, buildWhatsAppHref } from '../../Context/mobilePatientContact';
 
-interface PatientSearchResult {
+export interface PatientSearchResult {
   id: number;
   name: string;
   phone?: string | null;
@@ -25,7 +25,7 @@ interface PatientSearchResult {
   has_medical_alert: boolean;
 }
 
-interface PatientCockpit {
+export interface PatientCockpit {
   patient: {
     id: number;
     name: string;
@@ -51,6 +51,12 @@ interface PatientCockpit {
     total_collected: number;
     overdue_count: number;
   } | null;
+}
+
+export interface MobilePatientsPreviewData {
+  results: PatientSearchResult[];
+  cockpit: PatientCockpit;
+  initialSelectedId?: number | null;
 }
 
 function resolveApiBaseUrl(stored: string): string {
@@ -99,17 +105,39 @@ async function decryptMobileResponse<T>(response: Response, masterKey: string): 
   return raw.payload ? CryptoService.decryptPayload(raw.payload, masterKey) : raw;
 }
 
-export function MobilePatientsView({ onClose }: { onClose: () => void }) {
+export function MobilePatientsView({
+  onClose,
+  previewData,
+}: {
+  onClose: () => void;
+  previewData?: MobilePatientsPreviewData;
+}) {
   const [query, setQuery] = useState('');
-  const [results, setResults] = useState<PatientSearchResult[]>([]);
-  const [selectedId, setSelectedId] = useState<number | null>(null);
-  const [cockpit, setCockpit] = useState<PatientCockpit | null>(null);
+  const [results, setResults] = useState<PatientSearchResult[]>(previewData?.results ?? []);
+  const [selectedId, setSelectedId] = useState<number | null>(previewData?.initialSelectedId ?? null);
+  const [cockpit, setCockpit] = useState<PatientCockpit | null>(
+    previewData?.initialSelectedId ? previewData.cockpit : null,
+  );
   const [searching, setSearching] = useState(false);
   const [loadingPatient, setLoadingPatient] = useState(false);
   const [error, setError] = useState('');
 
   useEffect(() => {
     if (selectedId !== null) return;
+    if (previewData) {
+      const normalized = query.trim().toLocaleLowerCase('fr');
+      setResults(
+        normalized
+          ? previewData.results.filter((patient) => [patient.name, patient.phone, patient.numero_dossier]
+              .filter(Boolean)
+              .some((value) => String(value).toLocaleLowerCase('fr').includes(normalized)))
+          : previewData.results,
+      );
+      setSearching(false);
+      setError('');
+      return;
+    }
+
     let cancelled = false;
     const timer = window.setTimeout(async () => {
       setSearching(true);
@@ -142,11 +170,17 @@ export function MobilePatientsView({ onClose }: { onClose: () => void }) {
       cancelled = true;
       window.clearTimeout(timer);
     };
-  }, [query, selectedId]);
+  }, [query, selectedId, previewData]);
 
   useEffect(() => {
     if (selectedId === null) {
       setCockpit(null);
+      return;
+    }
+    if (previewData) {
+      setCockpit(previewData.cockpit);
+      setLoadingPatient(false);
+      setError('');
       return;
     }
 
@@ -174,7 +208,7 @@ export function MobilePatientsView({ onClose }: { onClose: () => void }) {
 
     void load();
     return () => { cancelled = true; };
-  }, [selectedId]);
+  }, [selectedId, previewData]);
 
   const patient = cockpit?.patient;
   const age = useMemo(() => ageFromBirth(patient?.date_naissance), [patient?.date_naissance]);
