@@ -66,7 +66,6 @@ jobs:
           import { createRoot } from 'react-dom/client';
           import { MemoryRouter } from 'react-router-dom';
           import './index.css';
-          import { Dashboard } from './pages/Dashboard';
           import { TutorialHelpButton, VoluntaryTutorialPanel } from './features/tutorial/VoluntaryTutorial';
           import { useAuthStore } from './stores/useAuthStore';
 
@@ -102,12 +101,38 @@ jobs:
           createRoot(document.getElementById('root')!).render(
             <React.StrictMode>
               <MemoryRouter initialEntries={['/dashboard']}>
-                <div className="min-h-screen bg-medical-pearl">
-                  <header className="h-20 bg-transparent flex items-center justify-end gap-6 px-8 shrink-0 relative z-[1000]">
+                <div className="min-h-screen bg-medical-pearl text-main">
+                  <header className="h-20 bg-transparent flex items-center justify-end gap-6 px-4 sm:px-8 shrink-0 relative z-[1000]">
                     <TutorialHelpButton />
                   </header>
-                  <main className="px-4 sm:px-8 pb-10">
-                    <Dashboard />
+                  <main className="max-w-[1600px] mx-auto w-full px-6 py-8 md:px-10 md:py-10 space-y-8">
+                    <section className="flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
+                      <div>
+                        <p className="text-xs font-black uppercase tracking-[0.18em] text-primary">Digital Crown</p>
+                        <h1 className="mt-2 text-3xl font-black">Bonjour, {role === 'ADMIN' ? 'Dr Tutorial' : 'Secrétariat Tutorial'}</h1>
+                        <p className="mt-2 text-sm text-text-muted">Votre activité clinique, sans interruption automatique.</p>
+                      </div>
+                      <button
+                        type="button"
+                        aria-label="Chercher un patient"
+                        className="min-h-11 rounded-2xl border border-border-main bg-card-bg px-4 py-3 text-sm font-bold text-text-muted shadow-elite"
+                      >
+                        Chercher un patient
+                      </button>
+                    </section>
+                    <section className="grid grid-cols-1 gap-4 md:grid-cols-3">
+                      {['Patients', 'Agenda', 'Activité récente'].map(label => (
+                        <div key={label} className="min-h-36 rounded-3xl border border-border-main bg-card-bg/80 p-5 shadow-elite">
+                          <p className="text-xs font-black uppercase tracking-wider text-text-muted">{label}</p>
+                          <div className="mt-5 h-3 w-2/3 rounded-full bg-primary/10" />
+                          <div className="mt-3 h-3 w-1/2 rounded-full bg-primary/10" />
+                        </div>
+                      ))}
+                    </section>
+                    <section className="rounded-3xl border border-border-main bg-card-bg/70 p-6 shadow-elite">
+                      <p className="text-sm font-black">Pilotage du cabinet</p>
+                      <p className="mt-2 text-sm text-text-muted">Surface de référence stable pour la certification du guide volontaire.</p>
+                    </section>
                   </main>
                   <VoluntaryTutorialPanel />
                 </div>
@@ -139,31 +164,8 @@ jobs:
               localStorage.setItem('digitalcrown_voluntary_tutorial_v1', JSON.stringify({
                 dashboard: { step: 0, status: 'paused' },
               }));
-              localStorage.setItem('active_cabinet_id', 'benmoussa');
             });
             const page = await context.newPage();
-
-            await page.route('**/*', async route => {
-              const request = route.request();
-              const url = new URL(request.url());
-              if (url.port !== '8005' || !url.pathname.startsWith('/api/')) return route.continue();
-
-              const fixtures = {
-                '/api/admin/dashboard/stats': { total_patients: 184, total_analyses: 326, in_waiting: 2, weekly_activity: [38,55,47,72,61,84,66], weekly_patient_counts: [4,7,5,9,6,10,8], weekly_patients: 49, recent_patients: [] },
-                '/api/admin/cabinet/me': { nom_cabinet: 'Cabinet Tutorial', header_lines_fr: ['Dr Tutorial'] },
-                '/api/accounting/treasury-hub': { pending_count: 0 },
-                '/api/intelligence/alerts/today': { alerts: [] },
-                '/api/intelligence/forecast-semaine': {},
-                '/api/intelligence/taux-conversion': {},
-                '/api/intelligence/projection-mensuelle': {},
-                '/api/intelligence/latent-cash': { total_opportunites: 0, valeur_totale_latente: 0, opportunites: [] },
-                '/api/stats/financial': { today_revenue: 6200, month_revenue: 48600, total_debt: 9300 },
-                '/api/admin/cabinet-health': { database: { status: 'ok' }, disk: { status: 'ok' }, backup_local: { status: 'ok' }, offsite: { status: 'ok' }, overall_severity: 'ok' },
-                '/api/appointments/': [],
-                '/api/patients/': [],
-              };
-              return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(fixtures[url.pathname] ?? {}) });
-            });
 
             const errors = [];
             page.on('pageerror', error => errors.push(`pageerror: ${error.message}`));
