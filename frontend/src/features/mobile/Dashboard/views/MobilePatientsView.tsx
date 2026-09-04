@@ -3,11 +3,15 @@ import {
   AlertTriangle,
   ArrowLeft,
   Calendar,
+  Camera,
   ChevronRight,
   CircleDollarSign,
+  FileText,
+  Image as ImageIcon,
   Loader2,
   MessageCircle,
   Phone,
+  ScanLine,
   Search,
   ShieldCheck,
   UserRound,
@@ -53,9 +57,24 @@ export interface PatientCockpit {
   } | null;
 }
 
+export interface PatientCockpitResources {
+  documents: Array<{
+    id: number;
+    label: string;
+    document_type?: string | null;
+    created_at?: string | null;
+  }>;
+  panoramics: Array<{
+    id: number;
+    label: string;
+    created_at?: string | null;
+  }>;
+}
+
 export interface MobilePatientsPreviewData {
   results: PatientSearchResult[];
   cockpit: PatientCockpit;
+  resources?: PatientCockpitResources;
   initialSelectedId?: number | null;
 }
 
@@ -118,8 +137,13 @@ export function MobilePatientsView({
   const [cockpit, setCockpit] = useState<PatientCockpit | null>(
     previewData?.initialSelectedId ? previewData.cockpit : null,
   );
+  const [resources, setResources] = useState<PatientCockpitResources>(
+    previewData?.resources ?? { documents: [], panoramics: [] },
+  );
   const [searching, setSearching] = useState(false);
   const [loadingPatient, setLoadingPatient] = useState(false);
+  const [loadingResources, setLoadingResources] = useState(false);
+  const [openingContext, setOpeningContext] = useState<string | null>(null);
   const [error, setError] = useState('');
 
   useEffect(() => {
@@ -175,11 +199,14 @@ export function MobilePatientsView({
   useEffect(() => {
     if (selectedId === null) {
       setCockpit(null);
+      setResources({ documents: [], panoramics: [] });
       return;
     }
     if (previewData) {
       setCockpit(previewData.cockpit);
+      setResources(previewData.resources ?? { documents: [], panoramics: [] });
       setLoadingPatient(false);
+      setLoadingResources(false);
       setError('');
       return;
     }
@@ -187,22 +214,39 @@ export function MobilePatientsView({
     let cancelled = false;
     const load = async () => {
       setLoadingPatient(true);
+      setLoadingResources(true);
       setError('');
       try {
         const creds = await MobileStorage.getCredentials();
         if (!creds) throw new Error('Session mobile indisponible.');
         const baseUrl = resolveApiBaseUrl(creds.api_base_url);
-        const response = await mobileFetch(`${baseUrl}/api/mobile/patient-cockpit/${selectedId}`, {
-          headers: { Authorization: `Bearer ${creds.access_token}` },
-          signal: AbortSignal.timeout(5000),
-        });
-        if (!response.ok) throw new Error(`Dossier indisponible (${response.status}).`);
-        const payload = await decryptMobileResponse<PatientCockpit>(response, creds.masterKey);
-        if (!cancelled) setCockpit(payload);
+        const [cockpitResponse, resourcesResponse] = await Promise.all([
+          mobileFetch(`${baseUrl}/api/mobile/patient-cockpit/${selectedId}`, {
+            headers: { Authorization: `Bearer ${creds.access_token}` },
+            signal: AbortSignal.timeout(5000),
+          }),
+          mobileFetch(`${baseUrl}/api/mobile/patient-cockpit/${selectedId}/resources`, {
+            headers: { Authorization: `Bearer ${creds.access_token}` },
+            signal: AbortSignal.timeout(5000),
+          }),
+        ]);
+        if (!cockpitResponse.ok) throw new Error(`Dossier indisponible (${cockpitResponse.status}).`);
+        if (!resourcesResponse.ok) throw new Error(`Ressources indisponibles (${resourcesResponse.status}).`);
+        const [cockpitPayload, resourcesPayload] = await Promise.all([
+          decryptMobileResponse<PatientCockpit>(cockpitResponse, creds.masterKey),
+          decryptMobileResponse<PatientCockpitResources>(resourcesResponse, creds.masterKey),
+        ]);
+        if (!cancelled) {
+          setCockpit(cockpitPayload);
+          setResources(resourcesPayload);
+        }
       } catch (failure) {
         if (!cancelled) setError(failure instanceof Error ? failure.message : 'Dossier patient indisponible.');
       } finally {
-        if (!cancelled) setLoadingPatient(false);
+        if (!cancelled) {
+          setLoadingPatient(false);
+          setLoadingResources(false);
+        }
       }
     };
 
@@ -210,10 +254,42 @@ export function MobilePatientsView({
     return () => { cancelled = true; };
   }, [selectedId, previewData]);
 
+  const openSecureContext = async (resourceType: 'patient' | 'document' | 'panoramic', resourceId?: number) => {
+    if (!selectedId || previewData) return;
+    const actionKey = `${resourceType}:${resourceId ?? selectedId}`;
+    setOpeningContext(actionKey);
+    setError('');
+    try {
+      const creds = await MobileStorage.getCredentials();
+      if (!creds) throw new Error('Session mobile indisponible.');
+      const baseUrl = resolveApiBaseUrl(creds.api_base_url);
+      const response = await mobileFetch(`${baseUrl}/api/mobile/patient-cockpit/${selectedId}/context`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${creds.access_token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ resource_type: resourceType, resource_id: resourceId ?? null }),
+        signal: AbortSignal.timeout(5000),
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok || !payload?.context?.key || !payload?.context?.type) {
+        throw new Error(payload?.detail || `Contexte indisponible (${response.status}).`);
+      }
+      await MobileStorage.saveBridgeContext(payload.context);
+      window.location.assign('/mobile/context');
+    } catch (failure) {
+      setError(failure instanceof Error ? failure.message : 'Impossible d’ouvrir le contexte clinique.');
+      setOpeningContext(null);
+    }
+  };
+
   const patient = cockpit?.patient;
   const age = useMemo(() => ageFromBirth(patient?.date_naissance), [patient?.date_naissance]);
   const callHref = buildTelHref(patient?.phone);
   const whatsappHref = buildWhatsAppHref(patient?.phone);
+  const latestDocument = resources.documents[0];
+  const latestPanoramic = resources.panoramics[0];
 
   if (selectedId !== null) {
     return (
@@ -296,6 +372,53 @@ export function MobilePatientsView({
                 <p className="text-xs font-bold text-text-main">Aucune alerte médicale renseignée.</p>
               </div>
             )}
+
+            <div className="rounded-[24px] border border-glass-border bg-card p-4 shadow-elite" style={{ backgroundColor: 'var(--glass-bg)' }}>
+              <div className="flex items-center gap-2 mb-3">
+                <Camera size={17} className="text-primary" />
+                <h3 className="text-sm font-black text-text-main">Actions cliniques rapides</h3>
+                {loadingResources && <Loader2 size={14} className="ml-auto animate-spin text-primary" />}
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => void openSecureContext('patient')}
+                  disabled={Boolean(openingContext)}
+                  className="min-h-12 rounded-[16px] border border-primary/20 bg-primary/10 text-primary flex items-center justify-center gap-2 text-xs font-black disabled:opacity-50"
+                >
+                  <Camera size={16} /> Photo clinique
+                </button>
+                <button
+                  type="button"
+                  onClick={() => void openSecureContext('patient')}
+                  disabled={Boolean(openingContext)}
+                  className="min-h-12 rounded-[16px] border border-primary/20 bg-primary/10 text-primary flex items-center justify-center gap-2 text-xs font-black disabled:opacity-50"
+                >
+                  <ScanLine size={16} /> Scanner
+                </button>
+                <button
+                  type="button"
+                  onClick={() => latestDocument && void openSecureContext('document', latestDocument.id)}
+                  disabled={!latestDocument || Boolean(openingContext)}
+                  className="min-h-12 rounded-[16px] border border-glass-border bg-background text-text-main flex items-center justify-center gap-2 text-xs font-black disabled:opacity-40"
+                  title={latestDocument?.label}
+                >
+                  <FileText size={16} /> Dernier document
+                </button>
+                <button
+                  type="button"
+                  onClick={() => latestPanoramic && void openSecureContext('panoramic', latestPanoramic.id)}
+                  disabled={!latestPanoramic || Boolean(openingContext)}
+                  className="min-h-12 rounded-[16px] border border-glass-border bg-background text-text-main flex items-center justify-center gap-2 text-xs font-black disabled:opacity-40"
+                  title={latestPanoramic?.label}
+                >
+                  <ImageIcon size={16} /> Dernière pano
+                </button>
+              </div>
+              <p className="mt-3 text-[10px] font-bold leading-relaxed text-text-muted">
+                Ouverture via contexte serveur opaque lié à cet appareil. Aucun identifiant patient n’est placé dans l’URL.
+              </p>
+            </div>
 
             <div className="rounded-[24px] border border-glass-border bg-card p-4 shadow-elite" style={{ backgroundColor: 'var(--glass-bg)' }}>
               <div className="flex items-center gap-2 mb-3">
