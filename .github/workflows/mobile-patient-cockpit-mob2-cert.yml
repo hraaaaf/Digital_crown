@@ -1,0 +1,107 @@
+name: Mobile Patient Cockpit MOB-2 Cert
+
+on:
+  push:
+    branches: [ux/mobile-patient-cockpit-mob2]
+    paths:
+      - frontend/src/features/mobile/Dashboard/**
+      - backend/routers/clinic_profile_p4.py
+      - .github/workflows/mobile-patient-cockpit-mob2-cert.yml
+  workflow_dispatch:
+
+concurrency:
+  group: mobile-patient-cockpit-mob2-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  theme-contract-and-after:
+    name: Theme contract + AFTER 390/430/768
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install frontend
+        working-directory: frontend
+        run: npm ci
+
+      - name: Lock theme source contract
+        run: |
+          ! grep -R "document\.documentElement\.dataset\.theme = ''" frontend/src/features/mobile/Dashboard/hooks/useMobileDashboard.ts
+          ! grep -R "document\.body\.dataset\.theme = ''" frontend/src/features/mobile/Dashboard/hooks/useMobileDashboard.ts
+          grep -q "useMobileRuntimeTheme" frontend/src/features/mobile/Dashboard/MobileDashboard.tsx
+          grep -q "var(--app-font-family" frontend/src/features/mobile/Dashboard/MobileDashboard.tsx
+          grep -q '"/mobile-theme"' backend/routers/clinic_profile_p4.py
+
+      - name: Test settings-driven theme contract
+        working-directory: frontend
+        run: npm test -- src/features/mobile/Dashboard/hooks/useMobileRuntimeTheme.test.ts
+
+      - name: Guarded frontend build
+        working-directory: frontend
+        run: npm run build
+
+      - name: Compile backend mobile theme route
+        run: python -m py_compile backend/routers/clinic_profile_p4.py
+
+      - name: Start isolated demo harness
+        working-directory: frontend
+        env:
+          VITE_DC_PREVIEW_DEMO: "1"
+        run: |
+          npm run dev -- --host 127.0.0.1 --port 5173 >/tmp/mobile-mob2-vite.log 2>&1 &
+          for i in {1..60}; do
+            curl -fsS 'http://127.0.0.1:5173/mobile/demo?demo=1' >/dev/null && exit 0
+            sleep 1
+          done
+          cat /tmp/mobile-mob2-vite.log
+          exit 1
+
+      - name: Install Chromium evidence runner
+        run: npx --yes playwright@1.55.0 install --with-deps chromium
+
+      - name: Capture AFTER 390 / 430 / 768
+        run: |
+          mkdir -p artifacts/mobile-patient-cockpit-mob2-after
+          URL='http://127.0.0.1:5173/mobile/demo?demo=1'
+          npx --yes playwright@1.55.0 screenshot --browser=chromium --viewport-size='390,844' --wait-for-selector='[data-dc-mobile-shell]' --wait-for-timeout=1200 "$URL" artifacts/mobile-patient-cockpit-mob2-after/after-390x844.png
+          npx --yes playwright@1.55.0 screenshot --browser=chromium --viewport-size='430,932' --wait-for-selector='[data-dc-mobile-shell]' --wait-for-timeout=1200 "$URL" artifacts/mobile-patient-cockpit-mob2-after/after-430x932.png
+          npx --yes playwright@1.55.0 screenshot --browser=chromium --viewport-size='768,1024' --wait-for-selector='[data-dc-mobile-shell]' --wait-for-timeout=1200 "$URL" artifacts/mobile-patient-cockpit-mob2-after/after-768x1024.png
+          printf 'head=%s\nurl=%s\nmode=deterministic-demo-no-cabinet-data\n' '${{ github.sha }}' "$URL" > artifacts/mobile-patient-cockpit-mob2-after/result.txt
+          cp /tmp/mobile-mob2-vite.log artifacts/mobile-patient-cockpit-mob2-after/vite.log
+
+      - name: Verify AFTER dimensions
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import struct
+
+          expected = {
+              'after-390x844.png': (390, 844),
+              'after-430x932.png': (430, 932),
+              'after-768x1024.png': (768, 1024),
+          }
+          root = Path('artifacts/mobile-patient-cockpit-mob2-after')
+          for name, dims in expected.items():
+              data = (root / name).read_bytes()
+              if data[:8] != b'\x89PNG\r\n\x1a\n':
+                  raise SystemExit(f'{name}: not a PNG')
+              width, height = struct.unpack('>II', data[16:24])
+              if (width, height) != dims:
+                  raise SystemExit(f'{name}: got {(width, height)}, expected {dims}')
+              print(f'{name}: {width}x{height} OK')
+          PY
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: mobile-patient-cockpit-mob2-after
+          path: artifacts/mobile-patient-cockpit-mob2-after
+          if-no-files-found: warn
+          retention-days: 30

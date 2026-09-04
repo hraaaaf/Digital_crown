@@ -61,8 +61,6 @@ export function useMobileDashboard() {
   }, [activeTab]);
 
   useEffect(() => {
-    document.documentElement.dataset.theme = '';
-    document.body.dataset.theme = '';
     const t = setInterval(() => setNow(new Date()), 30000);
     // Pré-charger le token mobile dans localStorage pour que l'intercepteur api le retrouve
     MobileStorage.getCredentials().then(creds => {

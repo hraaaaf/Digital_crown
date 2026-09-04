@@ -5,14 +5,16 @@ import { MobileBottomNav } from './components/MobileBottomNav';
 import { AgendaView } from './views/AgendaView';
 import { FinanceView } from './views/FinanceView';
 import { LabView } from './views/LabView';
+import { MobilePatientsView, type MobilePatientsPreviewData } from './views/MobilePatientsView';
 import { MobilePreviewBotView } from './MobilePreviewBotView';
 import { MobilePreviewSecurityView } from './MobilePreviewSecurityView';
+import { applyMobileRuntimeTheme } from './hooks/useMobileRuntimeTheme';
 import { LabJobStatus, type LabJob } from '../../../types/labJob';
 import type { Appointment, Snapshot, Tab } from './types';
 
 const DEMO_PATIENTS = [
-  { id: 101, name: 'Patient 01', phone: null },
-  { id: 102, name: 'Patient 02', phone: null },
+  { id: 101, name: 'Patient 01', phone: '+212600000001' },
+  { id: 102, name: 'Patient 02', phone: '+212600000002' },
   { id: 103, name: 'Patient 03', phone: null },
   { id: 104, name: 'Patient 04', phone: null },
 ];
@@ -58,6 +60,59 @@ function buildSnapshot(selectedDate: string): Snapshot {
   };
 }
 
+const DEMO_PATIENT_COCKPIT: MobilePatientsPreviewData = {
+  initialSelectedId: 101,
+  results: [
+    { id: 101, name: 'Patient Démo A', phone: '+212600000001', numero_dossier: 'P-0101', has_medical_alert: true },
+    { id: 102, name: 'Patient Démo B', phone: '+212600000002', numero_dossier: 'P-0102', has_medical_alert: false },
+    { id: 103, name: 'Patient Démo C', phone: null, numero_dossier: 'P-0103', has_medical_alert: false },
+  ],
+  cockpit: {
+    patient: {
+      id: 101,
+      name: 'Patient Démo A',
+      prenom: 'Patient',
+      nom: 'Démo A',
+      numero_dossier: 'P-0101',
+      date_naissance: '1988-03-18T00:00:00',
+      phone: '+212600000001',
+      assurance: 'CNSS',
+      has_medical_alert: true,
+      medical_alert_summary: 'Allergie médicamenteuse renseignée dans le dossier.',
+    },
+    next_appointment: {
+      id: 9201,
+      datetime_start: `${isoDay(2)}T10:30:00`,
+      duration_minutes: 45,
+      motif: 'Contrôle clinique',
+      status: 'PRÉVU',
+    },
+    finance: {
+      has_billing_data: true,
+      remaining_due: 1250,
+      total_collected: 4100,
+      overdue_count: 1,
+    },
+  },
+  resources: {
+    documents: [
+      {
+        id: 9301,
+        label: 'Consentement implantologie',
+        document_type: 'CONSENTEMENT',
+        created_at: `${isoDay(-3)}T11:20:00`,
+      },
+    ],
+    panoramics: [
+      {
+        id: 9401,
+        label: 'Panoramique #9401',
+        created_at: `${isoDay(-7)}T09:15:00`,
+      },
+    ],
+  },
+};
+
 const DEMO_LAB_JOBS: LabJob[] = [
   {
     id: 7001,
@@ -95,8 +150,13 @@ const DEMO_LAB_JOBS: LabJob[] = [
 
 const noop = () => undefined;
 
+function requestedPreviewTab(): Tab {
+  const tab = new URLSearchParams(window.location.search).get('tab');
+  return tab === 'patients' ? 'patients' : 'agenda';
+}
+
 export function MobilePreviewDashboard() {
-  const [activeTab, setActiveTab] = useState<Tab>('agenda');
+  const [activeTab, setActiveTab] = useState<Tab>(requestedPreviewTab);
   const [selectedDate, setSelectedDate] = useState(() => new Date().toISOString().slice(0, 10));
   const mainRef = useRef<HTMLElement>(null);
   const snapshot = useMemo(() => buildSnapshot(selectedDate), [selectedDate]);
@@ -104,8 +164,14 @@ export function MobilePreviewDashboard() {
   const termineCount = snapshot.appointments.filter(appointment => appointment.status === 'TERMINE').length;
 
   useEffect(() => {
-    document.documentElement.dataset.theme = '';
-    document.body.dataset.theme = '';
+    applyMobileRuntimeTheme({
+      selected_theme: 'elite',
+      primary_color: '#003380',
+      secondary_color: '#1e40af',
+      accent_color: '#60a5fa',
+      app_accent_color: null,
+      font_fr: 'inter',
+    });
   }, []);
 
   useEffect(() => {
@@ -113,7 +179,15 @@ export function MobilePreviewDashboard() {
   }, [activeTab]);
 
   return (
-    <div data-dc-mobile-shell data-dc-preview-demo className="min-h-[100dvh] bg-background text-text-main flex flex-col font-outfit pb-28 select-none relative" style={{ backgroundColor: 'var(--bg-medical-pearl)' }}>
+    <div
+      data-dc-mobile-shell
+      data-dc-preview-demo
+      className="min-h-[100dvh] bg-background text-text-main flex flex-col pb-28 select-none relative"
+      style={{
+        backgroundColor: 'var(--bg-medical-pearl)',
+        fontFamily: 'var(--app-font-family, "Inter", system-ui, sans-serif)',
+      }}
+    >
       <div className="document-watermark absolute inset-0 z-0 pointer-events-none opacity-50" />
 
       <MobileHeader
@@ -130,7 +204,7 @@ export function MobilePreviewDashboard() {
       />
 
       <div className="mx-6 mb-4 px-4 py-3 rounded-[18px] border border-primary/15 bg-primary/5 relative z-10 shadow-sm">
-        <p className="text-[9px] font-black text-primary uppercase tracking-[0.16em]">MODE DÉMO — PREVIEW VERCEL</p>
+        <p className="text-[9px] font-black text-primary uppercase tracking-[0.16em]">MODE DÉMO — PREVIEW LOCALE</p>
         <p className="mt-1 text-[10px] font-bold text-text-muted">Aucune donnée cabinet • aucune session réelle</p>
       </div>
 
@@ -161,6 +235,12 @@ export function MobilePreviewDashboard() {
                   onPatientCreated={noop}
                 />
               </div>
+            )}
+            {activeTab === 'patients' && (
+              <MobilePatientsView
+                onClose={() => setActiveTab('agenda')}
+                previewData={DEMO_PATIENT_COCKPIT}
+              />
             )}
             {activeTab === 'finance' && (
               <FinanceView

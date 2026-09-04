@@ -120,7 +120,9 @@ clinics.router.include_router(clinic_setup_p4.router)
 # table in shared SQLAlchemy metadata before application startup create_all().
 from . import mobile as mobile
 from . import mobile_resource_bridge as mobile_resource_bridge
+from . import mobile_patient_cockpit as mobile_patient_cockpit
 mobile.router.include_router(mobile_resource_bridge.router)
+mobile.router.include_router(mobile_patient_cockpit.router)
 
 # M6-D2 registers the device/user-bound Web Push table before create_all(), mounts the
 # push API under /api/mobile and keeps LAN URLs aligned with the selected HTTPS runtime.

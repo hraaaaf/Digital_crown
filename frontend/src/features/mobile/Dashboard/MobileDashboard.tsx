@@ -3,11 +3,13 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useLocation } from 'react-router-dom';
 import { WifiOff } from 'lucide-react';
 import { useMobileDashboard } from './hooks/useMobileDashboard';
+import { useMobileRuntimeTheme } from './hooks/useMobileRuntimeTheme';
 import { MobileHeader } from './components/MobileHeader';
 import { MobileBottomNav } from './components/MobileBottomNav';
 import { WhatsAppModal } from './components/WhatsAppModal';
 import { SignatureModal } from './components/SignatureModal';
 import { AgendaView } from './views/AgendaView';
+import { MobilePatientsGate } from './views/MobilePatientsGate';
 import { FinanceView } from './views/FinanceView';
 import { SecuriteView } from './views/SecuriteView';
 import { LabView } from './views/LabView';
@@ -18,6 +20,7 @@ import { resolveDashboardTab } from '../bridge';
 export const MobileDashboard = () => {
   const location = useLocation();
   const { state, actions, refs: { mainRef } } = useMobileDashboard();
+  useMobileRuntimeTheme(state.snapshot?.generated_at);
 
   useEffect(() => {
     actions.setActiveTab(resolveDashboardTab(location.search));
@@ -29,7 +32,14 @@ export const MobileDashboard = () => {
   const totalCount = state.snapshot?.appointments.length ?? 0;
 
   return (
-    <div data-dc-mobile-shell className="min-h-[100dvh] bg-background text-text-main flex flex-col font-outfit pb-28 select-none relative" style={{ backgroundColor: 'var(--bg-medical-pearl)' }}>
+    <div
+      data-dc-mobile-shell
+      className="min-h-[100dvh] bg-background text-text-main flex flex-col pb-28 select-none relative"
+      style={{
+        backgroundColor: 'var(--bg-medical-pearl)',
+        fontFamily: 'var(--app-font-family, "Inter", system-ui, sans-serif)',
+      }}
+    >
       <div className="document-watermark absolute inset-0 z-0 pointer-events-none opacity-50" />
 
       <MobileHeader
@@ -42,6 +52,7 @@ export const MobileDashboard = () => {
         totalCount={totalCount}
         termineCount={termineCount}
         queuedActionsCount={state.queuedActionsCount}
+        onOpenPatients={() => actions.setActiveTab('patients')}
       />
 
       {state.error && state.syncStatus === 'error' && (
@@ -79,6 +90,12 @@ export const MobileDashboard = () => {
                 handleOpenSignature={actions.handleOpenSignature}
                 onRefresh={actions.fetchSnapshot}
                 onPatientCreated={() => actions.fetchPatients()}
+              />
+            )}
+            {state.activeTab === 'patients' && (
+              <MobilePatientsGate
+                isOnline={state.isOnline}
+                onClose={() => actions.setActiveTab('agenda')}
               />
             )}
             {state.activeTab === 'lab' && (

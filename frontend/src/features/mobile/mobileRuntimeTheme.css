@@ -1,0 +1,10 @@
+/*
+ * Mobile-only compatibility bridge.
+ * Historic mobile components may still carry Tailwind font utility names.
+ * Once the mobile runtime theme is active, those utilities must resolve to the
+ * cabinet-selected app font instead of owning a font family themselves.
+ */
+html[data-mobile-theme-runtime='true'] body,
+html[data-mobile-theme-runtime='true'] body :is(.font-outfit, .font-sans, .font-serif, .font-mono) {
+  font-family: var(--app-font-family, "Inter", system-ui, sans-serif) !important;
+}

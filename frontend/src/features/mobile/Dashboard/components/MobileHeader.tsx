@@ -1,4 +1,4 @@
-import { Bell, Calendar, ChevronLeft, ChevronRight, RefreshCw, Shield, Users } from 'lucide-react';
+import { Bell, Calendar, ChevronLeft, ChevronRight, RefreshCw, Search, Shield, Users } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { cn } from '../../../../utils/cn';
 import Logo from '../../../../assets/logo.png';
@@ -16,6 +16,7 @@ export function MobileHeader({
   totalCount,
   termineCount,
   queuedActionsCount,
+  onOpenPatients,
   previewMode = false,
 }: {
   activeTab: Tab;
@@ -27,6 +28,7 @@ export function MobileHeader({
   totalCount: number;
   termineCount: number;
   queuedActionsCount: number;
+  onOpenPatients?: () => void;
   previewMode?: boolean;
 }) {
   const navigate = useNavigate();
@@ -36,6 +38,17 @@ export function MobileHeader({
         <img src={Logo} alt="Digital Crown" className="w-32 sm:w-36 h-auto object-contain drop-shadow-sm origin-left min-w-0" />
 
         <div className="flex items-center gap-2 shrink-0">
+          {!previewMode && activeTab !== 'patients' && onOpenPatients && (
+            <button
+              type="button"
+              aria-label="Ouvrir la recherche patients"
+              onClick={onOpenPatients}
+              className="relative h-12 w-12 shrink-0 rounded-[16px] border border-glass-border bg-card shadow-elite backdrop-blur-md flex items-center justify-center text-primary active:scale-95 transition-transform"
+              style={{ backgroundColor: 'var(--glass-bg)' }}
+            >
+              <Search size={18} aria-hidden="true" />
+            </button>
+          )}
           {previewMode ? (
             <button
               type="button"
@@ -108,8 +121,9 @@ export function MobileHeader({
           </div>
         )}
 
-        <h1 className="text-4xl font-black tracking-tight text-primary font-outfit leading-none">
+        <h1 className="text-4xl font-black tracking-tight text-primary leading-none">
           {activeTab === 'agenda' ? `${greeting()},` :
+           activeTab === 'patients' ? 'Patients' :
            activeTab === 'finance' ? 'Finances' :
            activeTab === 'securite' ? 'Sécurité' :
            activeTab === 'lab' ? 'Laboratoire' : ''}

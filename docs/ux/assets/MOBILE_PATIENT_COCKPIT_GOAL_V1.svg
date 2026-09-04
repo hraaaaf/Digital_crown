@@ -1,0 +1,83 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="390" height="844" viewBox="0 0 390 844">
+  <desc>Digital Crown Mobile Patient Cockpit Goal UI v1. The colors and font rendered in this standalone artifact represent one reference theme only. Product implementation MUST consume the runtime clinic settings selected_theme, primary_color, secondary_color, accent_color and font_fr through shared theme tokens. No product brand color or font is contractually hard-coded by this SVG.</desc>
+  <defs>
+    <linearGradient id="hero" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#174A96"/><stop offset="1" stop-color="#687AD3"/></linearGradient>
+    <filter id="soft" x="-30%" y="-30%" width="160%" height="180%"><feDropShadow dx="0" dy="8" stdDeviation="12" flood-color="#0F172A" flood-opacity=".08"/></filter>
+  </defs>
+  <rect width="390" height="844" fill="#F7F9FC"/>
+  <circle cx="330" cy="92" r="94" fill="#D9E5F7" opacity=".30"/>
+  <g font-family="Inter,Arial,sans-serif">
+    <!-- Existing mobile header language -->
+    <path d="M25 45l5-13 7 9 8-9 5 13-12 5z" fill="#123C83"/>
+    <text x="57" y="47" font-size="17" font-weight="900" fill="#123C83">Digital Crown</text>
+    <rect x="280" y="27" width="42" height="42" rx="15" fill="#FFFFFF" fill-opacity=".76" stroke="#D8E3F0"/>
+    <circle cx="301" cy="47" r="7" fill="none" stroke="#123C83" stroke-width="2"/><path d="M294 55h14" stroke="#123C83" stroke-width="2" stroke-linecap="round"/>
+    <rect x="329" y="27" width="45" height="42" rx="15" fill="#FFFFFF" fill-opacity=".76" stroke="#D8E3F0"/>
+    <circle cx="340" cy="47" r="3" fill="#22A06B"/><text x="347" y="50" font-size="8" font-weight="900" fill="#6D7C94">LIVE</text>
+
+    <text x="22" y="104" font-size="33" font-weight="900" fill="#123C83">Patients</text>
+    <text x="22" y="124" font-size="10" font-weight="800" fill="#7A899F" letter-spacing="1.3">COCKPIT CLINIQUE MOBILE</text>
+
+    <!-- Search -->
+    <g filter="url(#soft)">
+      <rect x="20" y="143" width="350" height="52" rx="18" fill="#FFFFFF" fill-opacity=".82" stroke="#D8E3F0"/>
+    </g>
+    <circle cx="43" cy="169" r="7" fill="none" stroke="#607089" stroke-width="2"/><path d="M48 174l5 5" stroke="#607089" stroke-width="2" stroke-linecap="round"/>
+    <text x="62" y="173" font-size="12" font-weight="700" fill="#607089">Rechercher nom, dossier, téléphone…</text>
+
+    <!-- Patient identity -->
+    <g filter="url(#soft)">
+      <rect x="20" y="210" width="350" height="112" rx="26" fill="#FFFFFF" fill-opacity=".80" stroke="#D8E3F0"/>
+    </g>
+    <circle cx="62" cy="251" r="24" fill="#E6EEFB"/><text x="62" y="256" text-anchor="middle" font-size="13" font-weight="900" fill="#123C83">AB</text>
+    <text x="98" y="241" font-size="17" font-weight="900" fill="#111A2E">Ahmed Benali</text>
+    <text x="98" y="260" font-size="10" font-weight="800" fill="#7A899F">#P-2847 · 34 ans · Mutuelle</text>
+    <rect x="98" y="273" width="80" height="24" rx="12" fill="#EAF8F1"/><text x="138" y="289" text-anchor="middle" font-size="9" font-weight="900" fill="#16875F">ACTIF</text>
+    <rect x="188" y="273" width="104" height="24" rx="12" fill="#EEF3FB"/><text x="240" y="289" text-anchor="middle" font-size="9" font-weight="900" fill="#123C83">DOSSIER MOBILE</text>
+
+    <!-- Alert -->
+    <rect x="20" y="338" width="350" height="62" rx="18" fill="#FFF2F4" stroke="#F6C8D0"/>
+    <circle cx="47" cy="369" r="14" fill="#FCE0E5"/><text x="47" y="374" text-anchor="middle" font-size="15" font-weight="900" fill="#D8445F">!</text>
+    <text x="70" y="361" font-size="10" font-weight="900" fill="#D8445F" letter-spacing=".7">ALERTE MÉDICALE</text>
+    <text x="70" y="380" font-size="11" font-weight="800" fill="#5E4550">Allergie pénicilline · Diabète type 2</text>
+
+    <!-- Contact quick actions -->
+    <text x="22" y="428" font-size="12" font-weight="900" fill="#111A2E">Actions rapides</text>
+    <rect x="20" y="442" width="108" height="62" rx="18" fill="#FFFFFF" fill-opacity=".82" stroke="#D8E3F0"/>
+    <text x="74" y="467" text-anchor="middle" font-size="17" fill="#123C83">☎</text><text x="74" y="490" text-anchor="middle" font-size="10" font-weight="900" fill="#111A2E">Appeler</text>
+    <rect x="141" y="442" width="108" height="62" rx="18" fill="#FFFFFF" fill-opacity=".82" stroke="#D8E3F0"/>
+    <text x="195" y="467" text-anchor="middle" font-size="16" fill="#123C83">◌</text><text x="195" y="490" text-anchor="middle" font-size="10" font-weight="900" fill="#111A2E">WhatsApp</text>
+    <rect x="262" y="442" width="108" height="62" rx="18" fill="url(#hero)"/>
+    <text x="316" y="467" text-anchor="middle" font-size="15" fill="#FFFFFF">▣</text><text x="316" y="490" text-anchor="middle" font-size="10" font-weight="900" fill="#FFFFFF">Agenda</text>
+
+    <!-- Next appointment -->
+    <rect x="20" y="519" width="350" height="74" rx="20" fill="#FFFFFF" fill-opacity=".82" stroke="#D8E3F0"/>
+    <text x="40" y="543" font-size="9" font-weight="900" fill="#7A899F" letter-spacing="1.1">PROCHAIN RENDEZ-VOUS</text>
+    <text x="40" y="566" font-size="13" font-weight="900" fill="#111A2E">Lun. 16 déc. · 10:00</text>
+    <text x="40" y="582" font-size="10" font-weight="700" fill="#7A899F">Soin conservateur</text>
+    <text x="338" y="566" text-anchor="end" font-size="9" font-weight="900" fill="#123C83">VOIR</text>
+
+    <!-- Finance + native actions -->
+    <rect x="20" y="607" width="168" height="74" rx="20" fill="#FFFFFF" fill-opacity=".82" stroke="#D8E3F0"/>
+    <text x="38" y="631" font-size="9" font-weight="900" fill="#7A899F" letter-spacing="1">SOLDE PATIENT</text>
+    <text x="38" y="658" font-size="18" font-weight="900" fill="#111A2E">1 200 MAD</text>
+    <rect x="201" y="607" width="169" height="74" rx="20" fill="url(#hero)"/>
+    <text x="221" y="631" font-size="9" font-weight="900" fill="#FFFFFF" fill-opacity=".72" letter-spacing="1">ACTION AUTORISÉE</text>
+    <text x="221" y="658" font-size="14" font-weight="900" fill="#FFFFFF">Encaisser</text>
+
+    <rect x="20" y="694" width="169" height="54" rx="18" fill="#FFFFFF" fill-opacity=".82" stroke="#D8E3F0"/>
+    <text x="45" y="726" font-size="15" fill="#123C83">▣</text><text x="68" y="726" font-size="10" font-weight="900" fill="#111A2E">Photo clinique</text>
+    <rect x="201" y="694" width="169" height="54" rx="18" fill="#FFFFFF" fill-opacity=".82" stroke="#D8E3F0"/>
+    <text x="226" y="726" font-size="15" fill="#123C83">▤</text><text x="249" y="726" font-size="10" font-weight="900" fill="#111A2E">Scanner document</text>
+
+    <!-- Existing floating glass nav language, target IA -->
+    <g filter="url(#soft)"><rect x="12" y="764" width="366" height="68" rx="31" fill="#FFFFFF" fill-opacity=".82" stroke="#D8E3F0"/></g>
+    <text x="48" y="795" text-anchor="middle" font-size="14" fill="#7A899F">▣</text><text x="48" y="815" text-anchor="middle" font-size="7" font-weight="900" fill="#7A899F">AUJOURD'HUI</text>
+    <rect x="82" y="777" width="52" height="38" rx="19" fill="#E9F0FB"/><text x="108" y="796" text-anchor="middle" font-size="15" fill="#123C83">♙</text><text x="108" y="815" text-anchor="middle" font-size="7" font-weight="900" fill="#123C83">PATIENTS</text>
+    <circle cx="195" cy="794" r="25" fill="url(#hero)"/><text x="195" y="802" text-anchor="middle" font-size="27" font-weight="400" fill="#FFFFFF">+</text>
+    <text x="281" y="795" text-anchor="middle" font-size="14" fill="#7A899F">✦</text><text x="281" y="815" text-anchor="middle" font-size="7" font-weight="900" fill="#7A899F">ASSISTANT</text>
+    <text x="343" y="795" text-anchor="middle" font-size="18" fill="#7A899F">•••</text><text x="343" y="815" text-anchor="middle" font-size="7" font-weight="900" fill="#7A899F">PLUS</text>
+
+    <text x="195" y="840" text-anchor="middle" font-size="6" font-weight="700" fill="#8390A4">Référence visuelle Ghost Elite uniquement · implémentation pilotée par thème + font_fr</text>
+  </g>
+</svg>

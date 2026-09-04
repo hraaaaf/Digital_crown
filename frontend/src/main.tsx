@@ -3,14 +3,20 @@ import ReactDOM from 'react-dom/client'
 import { BrowserRouter } from 'react-router-dom'
 import { ErrorBoundary } from './components/ErrorBoundary.tsx'
 import { isDcPreviewDemoRequested } from './features/mobile/previewDemo.ts'
+import { bootstrapMobileRuntimeTheme } from './features/mobile/Dashboard/hooks/useMobileRuntimeTheme.ts'
 import './index.css'
 import './styles/mobileGlassSystem.css'
+import './features/mobile/mobileRuntimeTheme.css'
 import * as Sentry from '@sentry/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { registerSW } from 'virtual:pwa-register'
 
 const isPreviewRequest = isDcPreviewDemoRequested()
 const previewPath = window.location.pathname
+
+if (previewPath.startsWith('/mobile')) {
+  bootstrapMobileRuntimeTheme()
+}
 
 if (isPreviewRequest && previewPath === '/mobile/demo') {
   const policy = document.createElement('meta')
