@@ -9,6 +9,7 @@ import { MobileBottomNav } from './components/MobileBottomNav';
 import { WhatsAppModal } from './components/WhatsAppModal';
 import { SignatureModal } from './components/SignatureModal';
 import { AgendaView } from './views/AgendaView';
+import { MobilePatientsView } from './views/MobilePatientsView';
 import { FinanceView } from './views/FinanceView';
 import { SecuriteView } from './views/SecuriteView';
 import { LabView } from './views/LabView';
@@ -51,6 +52,7 @@ export const MobileDashboard = () => {
         totalCount={totalCount}
         termineCount={termineCount}
         queuedActionsCount={state.queuedActionsCount}
+        onOpenPatients={() => actions.setActiveTab('patients')}
       />
 
       {state.error && state.syncStatus === 'error' && (
@@ -89,6 +91,9 @@ export const MobileDashboard = () => {
                 onRefresh={actions.fetchSnapshot}
                 onPatientCreated={() => actions.fetchPatients()}
               />
+            )}
+            {state.activeTab === 'patients' && (
+              <MobilePatientsView onClose={() => actions.setActiveTab('agenda')} />
             )}
             {state.activeTab === 'lab' && (
               <LabView
