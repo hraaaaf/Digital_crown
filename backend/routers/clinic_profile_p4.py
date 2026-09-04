@@ -13,6 +13,8 @@ from backend import models, schemas
 from backend.database import get_db
 from backend.routers.auth import is_superadmin_user, require_permission
 from backend.routers.clinics import _normalize_clinic_update_dict
+from backend.routers.mobile_legacy import require_mobile_permission
+from backend.services.zka_crypto import encrypt_payload
 
 router = APIRouter()
 
@@ -56,6 +58,23 @@ def get_settings_profile(
 ):
     practitioner, organization = _resolve_profile(db, actor)
     return _profile_payload(practitioner, organization)
+
+
+@router.get("/mobile-theme")
+def get_mobile_theme(
+    db: Session = Depends(get_db),
+    actor: models.User = Depends(require_mobile_permission("agenda")),
+):
+    """Return only non-clinical visual settings through the encrypted mobile channel."""
+    _practitioner, organization = _resolve_profile(db, actor)
+    return encrypt_payload({
+        "selected_theme": organization.selected_theme or "elite",
+        "app_accent_color": organization.app_accent_color,
+        "font_fr": organization.font_fr or "inter",
+        "primary_color": organization.primary_color,
+        "secondary_color": organization.secondary_color,
+        "accent_color": organization.accent_color,
+    })
 
 
 @router.put("/me")
