@@ -1,4 +1,5 @@
 from datetime import datetime
+from types import SimpleNamespace
 
 import pytest
 from fastapi import HTTPException
@@ -109,3 +110,102 @@ def test_finance_is_returned_only_when_permission_allows_it(monkeypatch):
         'total_collected': 4100.0,
         'overdue_count': 1,
     }
+
+
+class _FakeQuery:
+    def __init__(self, value):
+        self.value = value
+
+    def filter(self, *_args, **_kwargs):
+        return self
+
+    def first(self):
+        return self.value
+
+
+class _FakeContextDb:
+    def __init__(self):
+        self.config = SimpleNamespace(public_id='CAB-TEST')
+        self.executed = []
+        self.added = []
+        self.committed = False
+
+    def query(self, *_args, **_kwargs):
+        return _FakeQuery(self.config)
+
+    def add(self, record):
+        record.id = 9001
+        self.added.append(record)
+
+    def flush(self):
+        return None
+
+    def execute(self, statement):
+        self.executed.append(statement)
+        return None
+
+    def commit(self):
+        self.committed = True
+
+
+def _patch_context_dependencies(monkeypatch, mobile_payload):
+    mobile_user = SimpleNamespace(id=7, get_employer_id=lambda: 55)
+    patient = SimpleNamespace(id=101)
+    monkeypatch.setattr(cockpit._legacy, '_decode_mobile_identity', lambda _authorization, _db: (mobile_user, 55, mobile_payload))
+    monkeypatch.setattr(cockpit, 'has_permission', lambda _user, _permission: True)
+    monkeypatch.setattr(cockpit, '_patient_or_404', lambda _db, _employer_id, _patient_id: patient)
+    monkeypatch.setattr(cockpit, '_resource_entity', lambda _db, _user, _resource_type, _resource_id: patient)
+    monkeypatch.setattr(cockpit, '_purge_expired', lambda _db, _employer_id, _now: None)
+    monkeypatch.setattr(cockpit, '_unique_manual_code', lambda _db, _now: '123456')
+    monkeypatch.setattr(cockpit, '_resource_token', lambda: 'opaque-resource-token')
+    monkeypatch.setattr(cockpit, '_role_name', lambda _user: 'DENTISTE')
+    monkeypatch.setattr(cockpit.os, 'getenv', lambda _name: 'test-key-material')
+    monkeypatch.setattr(cockpit.secrets, 'token_urlsafe', lambda _size: 'opaque-context-key')
+    monkeypatch.setattr(cockpit.models, 'ZKAPairingToken', lambda **kwargs: SimpleNamespace(**kwargs))
+    return mobile_user
+
+
+def test_patient_context_is_device_bound_and_public_response_is_opaque(monkeypatch):
+    db = _FakeContextDb()
+    _patch_context_dependencies(monkeypatch, {'device_id': 'device-abc'})
+
+    result = cockpit.create_mobile_patient_cockpit_context(
+        patient_id=101,
+        body=cockpit.PatientCockpitContextRequest(resource_type='patient'),
+        authorization='test-authorization',
+        db=db,
+    )
+
+    assert result == {
+        'context': {'type': 'patient', 'key': 'opaque-context-key', 'state': 'ready'},
+        'resource_label': 'Dossier patient',
+        'expires_in': 1800,
+        'contains_patient_data': False,
+        'contains_resource_data': False,
+    }
+    assert 'patient_id' not in result
+    assert 'resource_id' not in result
+    assert db.committed is True
+    assert len(db.executed) == 1
+    params = db.executed[0].compile().params
+    assert params['employer_id'] == 55
+    assert params['target_user_id'] == 7
+    assert params['device_id'] == 'device-abc'
+    assert params['resource_type'] == 'patient'
+    assert params['resource_id'] == 101
+
+
+def test_patient_context_rejects_session_without_device_binding(monkeypatch):
+    db = _FakeContextDb()
+    _patch_context_dependencies(monkeypatch, {})
+
+    with pytest.raises(HTTPException) as failure:
+        cockpit.create_mobile_patient_cockpit_context(
+            patient_id=101,
+            body=cockpit.PatientCockpitContextRequest(resource_type='patient'),
+            authorization='test-authorization',
+            db=db,
+        )
+
+    assert failure.value.status_code == 401
+    assert db.committed is False
