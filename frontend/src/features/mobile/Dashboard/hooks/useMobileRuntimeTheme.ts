@@ -48,7 +48,13 @@ function textColorForHex(hexColor?: string | null): string | null {
   return yiq >= 128 ? '#0f172a' : '#ffffff';
 }
 
+function enableMobileRuntimeFontRouting() {
+  document.documentElement.dataset.mobileThemeRuntime = 'true';
+}
+
 export function applyMobileRuntimeTheme(theme: MobileRuntimeTheme) {
+  enableMobileRuntimeFontRouting();
+
   const selectedTheme = theme.selected_theme || 'elite';
   const dataTheme = selectedTheme === 'elite' ? '' : selectedTheme;
   document.documentElement.dataset.theme = dataTheme;
@@ -89,10 +95,16 @@ function applyCachedTheme() {
   }
 }
 
+export function bootstrapMobileRuntimeTheme() {
+  enableMobileRuntimeFontRouting();
+  setCssVariable('--app-font-family', FONT_STACKS.inter);
+  applyCachedTheme();
+}
+
 export function useMobileRuntimeTheme(refreshKey?: string) {
   useEffect(() => {
     let cancelled = false;
-    applyCachedTheme();
+    bootstrapMobileRuntimeTheme();
 
     const sync = async () => {
       const creds = await MobileStorage.getCredentials();
