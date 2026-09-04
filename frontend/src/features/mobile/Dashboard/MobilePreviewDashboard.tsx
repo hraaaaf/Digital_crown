@@ -94,6 +94,23 @@ const DEMO_PATIENT_COCKPIT: MobilePatientsPreviewData = {
       overdue_count: 1,
     },
   },
+  resources: {
+    documents: [
+      {
+        id: 9301,
+        label: 'Consentement implantologie',
+        document_type: 'CONSENTEMENT',
+        created_at: `${isoDay(-3)}T11:20:00`,
+      },
+    ],
+    panoramics: [
+      {
+        id: 9401,
+        label: 'Panoramique #9401',
+        created_at: `${isoDay(-7)}T09:15:00`,
+      },
+    ],
+  },
 };
 
 const DEMO_LAB_JOBS: LabJob[] = [
