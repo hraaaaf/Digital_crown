@@ -165,31 +165,31 @@ export function NotificationsView({
                 <span className="shrink-0 text-[9px] font-bold text-text-muted">{relativeTime(alert.created_at)}</span>
               </div>
 
-              <div className="mt-4 grid gap-2 sm:grid-cols-3">
+              <div className={`mt-4 grid gap-2 ${action ? 'grid-cols-3' : 'grid-cols-2'}`}>
                 {action && (
                   <button
                     type="button"
                     onClick={() => onNavigate(action.tab)}
-                    className="min-h-11 rounded-[16px] bg-primary px-3 text-[11px] font-black text-white"
+                    className="min-h-11 rounded-[16px] bg-primary px-2 text-[10px] font-black text-white"
                   >
                     {action.label}
                   </button>
                 )}
                 <button
                   type="button"
-                  disabled={busy || Boolean(previewData)}
+                  disabled={busy}
                   onClick={() => void mutate(alert, 'read')}
-                  className="flex min-h-11 items-center justify-center gap-1.5 rounded-[16px] border border-glass-border bg-background px-3 text-[11px] font-black text-text-main disabled:opacity-50"
+                  className="flex min-h-11 items-center justify-center gap-1 rounded-[16px] border border-glass-border bg-background px-2 text-[10px] font-black text-text-main disabled:opacity-50"
                 >
-                  <Check size={14} /> Lu
+                  <Check size={13} /> Lu
                 </button>
                 <button
                   type="button"
-                  disabled={busy || Boolean(previewData)}
+                  disabled={busy}
                   onClick={() => void mutate(alert, 'snooze')}
-                  className="flex min-h-11 items-center justify-center gap-1.5 rounded-[16px] border border-glass-border bg-background px-3 text-[11px] font-black text-text-main disabled:opacity-50"
+                  className="flex min-h-11 items-center justify-center gap-1 rounded-[16px] border border-glass-border bg-background px-2 text-[10px] font-black text-text-main disabled:opacity-50"
                 >
-                  <Clock3 size={14} /> 24 h
+                  <Clock3 size={13} /> 24 h
                 </button>
               </div>
             </article>
