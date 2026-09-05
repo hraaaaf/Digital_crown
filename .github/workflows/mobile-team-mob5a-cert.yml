@@ -1,8 +1,8 @@
 name: Mobile Team MOB-5A Cert
 
 on:
-  push:
-    branches: [audit/mobile-secondary-value-mob5]
+  pull_request:
+    branches: [master]
     paths:
       - .github/workflows/mobile-team-mob5a-cert.yml
       - frontend/src/features/mobile/**
