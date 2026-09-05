@@ -3,40 +3,26 @@
 Status: ACTIVE
 Canonical file: `docs/ux/DIGITAL_CROWN_MOBILE_PRODUCT_CANONICAL.md`
 Repo: `hraaaaf/Digital_crown`
-Current master baseline: `21a41852182c7e74cc66c335c8d67c93a94d5871` (MOB-5B merge)
+Current master baseline: `8891c771f1d77f0ab9347682609b0460881ae2a8`
 Deployment: none. No Vercel deployment is authorized by this chantier.
 
 ## Goal final
-
-Faire de Digital Crown mobile un **cockpit opérationnel clinique**, et non une copie réduite du desktop. Les actions mobiles doivent viser les usages au fauteuil, entre deux patients ou hors du poste principal, idéalement en moins de 30 secondes. Le desktop reste le système complet pour les workflows lourds, la production clinique détaillée, l'administration et le paramétrage.
+Faire de Digital Crown mobile un **cockpit opérationnel clinique**, pas une copie réduite du desktop. Les actions mobiles doivent viser les usages au fauteuil, entre deux patients ou hors du poste principal, idéalement en moins de 30 secondes. Le desktop reste le système complet pour les workflows lourds, la production clinique détaillée, l’administration et le paramétrage.
 
 ## Doctrine verrouillée
-
-### Mobile = cockpit opérationnel
-Prioriser : agenda rapide, patient rapide, alertes, appel / WhatsApp, prochain RDV, encaissement rapide, photo clinique, scan, signature, partage, notifications, assistant, sécurité / biométrie.
-
-### Desktop = système complet
-Conserver principalement sur desktop : Analytics complet, comptabilité/Treasury, ClinicalHub/odontogramme/Master Plan, RVG Studio, Panoramic Studio complet, Céphalométrie, Document Studio complet, paramètres cabinet, catalogue actes, Setup cabinet et workflows lourds d'administration.
-
-### Invariants UI/UX
-- Réglages cabinet = source de vérité du thème et de la typographie.
-- Aucune couleur de marque ou police locale figée dans les features mobiles.
-- Tout changement UI suit BEFORE → Goal UI → mockup/référence → implémentation → AFTER mêmes viewports → comparaison + tests + score visuel.
-- Mockup d'un écran existant = composition sur capture réelle, pas reconstruction schématique.
-- Ne jamais transformer le mobile en clone du desktop.
+- Mobile = cockpit opérationnel.
+- Desktop = workflows lourds/complets.
+- Source de vérité unique serveur/DB pour desktop + mobile.
+- Thème/typographie pilotés par les réglages cabinet, sans couleurs/polices de marque hardcodées dans les features mobiles.
+- Tout changement UI suit : BEFORE → Goal UI → référence/mockup → implémentation → AFTER mêmes viewports → comparaison + tests + score visuel.
 - Aucun Vercel sans autorisation explicite.
+
+## Navigation mobile canonique
+`Aujourd’hui / Patients / + / Assistant / Plus`
 
 ---
 
 # Lots certifiés
-
-## MOB-0 — Canonique produit & frontière Desktop/Mobile — DONE
-Preuve bootstrap : `af8c44af145a30deeb4d04337cc70bb679c21a81`.
-
-## MOB-1 — Goal UI Patient Cockpit — DONE
-Références :
-- `docs/ux/DIGITAL_CROWN_MOBILE_PATIENT_COCKPIT_GOAL_UI.md`
-- `docs/ux/assets/MOBILE_PATIENT_COCKPIT_GOAL_V1.svg`
 
 ## MOB-2 — Patient Cockpit — DONE / MERGED
 - PR `#354`
@@ -45,7 +31,6 @@ Références :
 - AFTER run `33889545163` ✅
 - artifact `9943369750`
 - digest `sha256:b4d274590a3349cbcab8a71faeb25e880acc3aee4ab818420fab8918813777fd`
-- viewports 390/430/768
 - score visuel **9.2/10**
 - preuve `docs/ux/DIGITAL_CROWN_MOBILE_PATIENT_COCKPIT_MOB2_PROOF.md`
 
@@ -60,14 +45,12 @@ Références :
 - preuve `docs/ux/DIGITAL_CROWN_MOBILE_QUICK_ACTION_HUB_MOB3_PROOF.md`
 
 ## MOB-4 — Navigation mobile canonique — DONE / MERGED
-Cible certifiée : `Aujourd’hui / Patients / + / Assistant / Plus`.
 - PR `#356`
 - merge `28cf8278a31507d96b33c10f03e1635f86223454`
 - closeout master `df48ef3cf1af8e9075828b3bf0b9b1f2c874fcda`
 - AFTER run `33953721202` ✅
 - artifact `9965680255`
 - digest `sha256:99ae384612cdffffbb7226ee088f516d564e854900db1b91ceef47bd06afd9b2`
-- 5 boutons permanents, aucun overflow, aucune erreur runtime ✅
 - score visuel **9.6/10**
 - preuve `docs/ux/DIGITAL_CROWN_MOBILE_CANONICAL_NAVIGATION_MOB4_PROOF.md`
 
@@ -75,20 +58,14 @@ Cible certifiée : `Aujourd’hui / Patients / + / Assistant / Plus`.
 
 # MOB-5 — Mobile secondaire à forte valeur — ACTIVE / SCOPE LOCKED
 
-## Goal
-Porter uniquement les scénarios secondaires à forte valeur sur mobile, avec UX dédiée, DB/permissions partagées et sans dupliquer les workflows lourds du desktop.
-
-## Success
-Chaque sous-lot retenu possède : scénario mobile explicite, Goal UI, preuve BEFORE/AFTER 390/430/768 si visuel, tests ciblés, build, runtime sans erreur, permissions/RBAC vérifiés et cohérence desktop/mobile sur la même donnée métier.
-
 ## Scope produit verrouillé le 2026-09-05
 
 | # | Fonction | Décision | Cible mobile |
 |---|---|---|---|
 | 1 | Salle d’attente | Desktop + Mobile | **Coming Soon** sur les deux surfaces ; ne pas implémenter le métier avant audit dédié |
-| 2 | Équipe / praticiens | Desktop + Mobile | vue praticiens, disponibilité/charge, RDV du jour ; `Plus → Équipe` |
+| 2 | Équipe / praticiens | Desktop + Mobile | praticiens, charge/RDV du jour ; `Plus → Équipe` |
 | 3 | Bibliothèque clinique | Desktop + Mobile | recherche/consultation rapide ; lecture simplifiée |
-| 4 | Science Hub | **Desktop only** | aucun portage mobile prévu |
+| 4 | Science Hub | **Desktop only** | aucun portage mobile |
 | 5 | Frontdesk / demandes RDV | Desktop + Mobile | voir, accepter/refuser, appeler/WhatsApp, suivi rapide |
 | 6 | Marketplace / Approvisionnement | Desktop + Mobile | **refonte dédiée** après benchmark de 3–4 références mobiles dentaires/médicales/B2B |
 | 7 | Stock | Desktop + Mobile | niveaux, alertes, criticité, réassort/mouvements simples |
@@ -101,13 +78,8 @@ Une seule source de vérité serveur/DB. Mobile et desktop consomment le même o
 
 Pour les documents, contrat cible à auditer avant migration : `patient_id + practitioner_id + template_id + payload structuré + version + status + created_at + updated_at`. Brouillon local éventuel uniquement avec queue de sync, versioning et conflit explicite ; aucun écrasement silencieux.
 
----
-
 ## MOB-5A — Équipe / praticiens — DONE / MERGED
-Goal : rendre l’aperçu praticiens accessible depuis la navigation mobile canonique et conforme au thème.
-
-Preuves :
-- PR `#357` merged
+- PR `#357`
 - merge `89098066ef0c943c0e084af4b9cd388d3ab0aa5b`
 - artifact `9968666702`
 - digest `sha256:6a463707a1c7dbe2bb9623db1e3b19b631d267294ad08dc6bb32dcb729929385`
@@ -116,53 +88,49 @@ Preuves :
 - score visuel **9.2/10**
 - preuve `docs/ux/DIGITAL_CROWN_MOBILE_TEAM_MOB5A_PROOF.md`
 
-## MOB-5B — Frontdesk / demandes RDV — DONE / MERGED
-Goal : traiter une demande RDV depuis mobile en quelques gestes avec la même donnée serveur que desktop.
-
-Fonctions certifiées :
-- `Plus → Frontdesk`
-- deep-link `?tab=frontdesk`
-- liste `/appointments/pending`
-- demander confirmation / confirmer / refuser
-- appel / WhatsApp depuis le téléphone métier
-- refus via dialog mobile
-- erreurs inline
-- aucune fausse affirmation d’envoi WhatsApp serveur
-- permission `agenda` et backend tenant-scoped conservés
-
-Preuves :
-- PR `#358` merged
+## MOB-5B — Frontdesk — DONE / MERGED
+- PR `#358`
 - merge `21a41852182c7e74cc66c335c8d67c93a94d5871`
-- final head `8cdf653d173966e77ea598dfcac4998c3c779903`
-- CI `33968295039` ✅
-- T2 `33968295021` ✅
-- Settings `33968295003` ✅
-- MOB-5B cert `33968295005` ✅
+- post-merge master `8891c771f1d77f0ab9347682609b0460881ae2a8`
+- cert `33968295005` ✅
 - artifact `9970008232`
 - digest `sha256:b831122003e2cd71d949c45926fe0f3da6adfa82453a1b09c0111be2f752fe46`
-- 390×844 / 430×932 / 768×1024
-- 5 boutons canoniques, nav 76 px, 0 overflow, 0 erreur runtime ✅
 - score visuel **9.3/10**
 - preuve `docs/ux/DIGITAL_CROWN_MOBILE_FRONTDESK_MOB5B_PROOF.md`
 
-## MOB-5C — Notifications — NEXT / AUDIT STARTED
-Goal : centraliser les alertes actionnables desktop/mobile sans bruit et sans fuite de données patient dans les notifications OS.
+## MOB-5C — Notifications — CERTIFIED / MERGE PENDING
+Goal : cockpit d’alertes actionnables mobile sans bruit, avec RBAC/tenant isolation et push OS sans PHI.
 
-État déjà vérifié :
-- `backend/routers/mobile_push.py` expose configuration, statut, enregistrement et suppression Web Push liés à l’appareil appairé, l’utilisateur et le tenant ;
-- permission minimale actuelle : `patients` ;
-- abonnement Web Push validé HTTPS et device-bound ;
-- `backend/services/mobile_push_service.py` envoie un payload OS générique `{ "kind": "alerts" }`, sans donnée patient, TTL 300 s ;
-- filtrage des destinataires sur appareil non révoqué, utilisateur actif/non suspendu/non archivé et tenant correct ;
-- `backend/services/mobile_notification_policy.py` exige `accounting`/`payments` pour les alertes financières ;
-- les subscriptions obsolètes 404/410 sont purgées.
+Fonctions certifiées :
+- `Plus → Notifications`
+- deep-link `?tab=notifications`
+- `NotificationsView`
+- source in-app unique `/api/mobile/notifications`
+- filtres `Toutes / Prioritaires`
+- actions contextuelles allowlistées
+- marquer lu
+- snooze 24 h
+- états empty/error explicites
+- alertes Labo exclues tant que leur isolation tenant n’est pas prouvée
+- push OS générique sans donnée patient
 
-À auditer avant UI : source persistante des alertes, endpoints list/read/dismiss/snooze, catégories/priorités, frontend/PWA/service worker, click/deep-link, déduplication et fréquence.
+Preuves :
+- PR `#359` draft, mergeable
+- candidat certifié `fc40af1a28cb1a8cdc65bce2a5b0357075d3a0a1`
+- CI `33986784125` ✅
+- T2 `33986784120` ✅
+- Settings `33986784086` ✅
+- MOB-5C cert `33986784147` ✅
+- artifact `9975417271`
+- digest `sha256:4e40891c94abc35a49548220b76e075c3d8884157dd8160255f4956a6325fe3c`
+- 390×844 / 430×932 / 768×1024
+- 5 boutons canoniques, nav 76 px, 0 overflow, 0 erreur runtime ✅
+- score visuel **9.4/10**
+- preuve `docs/ux/DIGITAL_CROWN_MOBILE_NOTIFICATIONS_MOB5C_PROOF.md`
 
-Success : catégories/priorités/RBAC/deep links testés ; aucune notification non autorisée ; push OS sans PHI ; même état lu/non-lu desktop/mobile ; bruit maîtrisé.
-
-## MOB-5D — Stock — PLANNED
+## MOB-5D — Stock — NEXT
 Goal : consulter criticité stock et lancer une action courte de réassort/mouvement.
+Success : données cohérentes desktop/mobile, permissions/RBAC vérifiés, alertes et actions simples certifiées, aucun paramétrage lourd porté sur mobile.
 
 ## MOB-5E — Bibliothèque clinique — PLANNED
 Goal : recherche et consultation clinique rapide sur mobile sans portage brut de `EliteLibrary`.
@@ -192,7 +160,7 @@ Goal actuel : conserver une place produit cohérente desktop/mobile sans fausse 
 ---
 
 ## MOB-6 — Canonisation du routage mobile — PLANNED
-Goal : supprimer l'ambiguïté entre PWA mobile dédiée et shell desktop responsive après couverture des parcours essentiels.
+Goal : supprimer l’ambiguïté entre PWA mobile dédiée et shell desktop responsive après couverture des parcours essentiels.
 
 ## MOB-7 — Certification globale Mobile Product — PLANNED
 Preuves minimales : frontend/backend ciblés, build, runtime, RBAC, offline/sync/revocation, context bridges, BEFORE/AFTER 390/430/768, zéro overflow, zéro erreur console/page, comparaison Goal UI, score visuel et gates physiques séparés.
@@ -203,7 +171,7 @@ Ordre : validation → canonique → cohérence docs → roadmap/% réel → Git
 ## Garde-fous permanents
 - ne jamais porter une page sans scénario mobile démontré ;
 - ne pas casser les context bridges existants ;
-- ne pas casser l'offline ;
+- ne pas casser l’offline ;
 - ne pas affaiblir sécurité / biométrie ;
 - ne pas exposer de données sans permission ;
 - ne pas mélanger mockup et preuve AFTER ;
@@ -211,5 +179,4 @@ Ordre : validation → canonique → cohérence docs → roadmap/% réel → Git
 - ne pas déployer sur Vercel sans autorisation explicite.
 
 ## Next exact
-
-MOB-5C Notifications : terminer l’audit backend + frontend/PWA → verrouiller architecture et catégories → BEFORE 390/430/768 → Goal UI/mockup → implémentation dédiée desktop/mobile → tests/RBAC/build/runtime → AFTER mêmes viewports → closeout.
+MOB-5C : final checks du HEAD documentaire → Ready → merge → post-merge. Puis MOB-5D Stock : audit interne → BEFORE → Goal UI → implémentation → tests/AFTER → closeout.
