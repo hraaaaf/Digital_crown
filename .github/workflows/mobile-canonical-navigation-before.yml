@@ -1,0 +1,85 @@
+name: Mobile Canonical Navigation BEFORE
+
+on:
+  push:
+    branches: [ux/mobile-canonical-navigation-mob4]
+    paths:
+      - .github/workflows/mobile-canonical-navigation-before.yml
+  workflow_dispatch:
+
+concurrency:
+  group: mobile-canonical-navigation-before-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  capture-before:
+    name: Capture immutable MOB-4 navigation BEFORE
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install frontend
+        working-directory: frontend
+        run: npm ci
+
+      - name: Start isolated real mobile demo harness
+        working-directory: frontend
+        env:
+          VITE_DC_PREVIEW_DEMO: "1"
+        run: |
+          npm run dev -- --host 127.0.0.1 --port 5173 >/tmp/mobile-mob4-before-vite.log 2>&1 &
+          for i in {1..60}; do
+            curl -fsS 'http://127.0.0.1:5173/mobile/demo?demo=1' >/dev/null && exit 0
+            sleep 1
+          done
+          cat /tmp/mobile-mob4-before-vite.log
+          exit 1
+
+      - name: Install Chromium evidence runner
+        run: npx --yes playwright@1.55.0 install --with-deps chromium
+
+      - name: Capture navigation BEFORE at immutable viewports
+        run: |
+          mkdir -p artifacts/mobile-canonical-navigation-before
+          URL='http://127.0.0.1:5173/mobile/demo?demo=1'
+          npx --yes playwright@1.55.0 screenshot --browser=chromium --viewport-size='390,844' --wait-for-selector='[data-mobile-bottom-nav]' --wait-for-timeout=1200 "$URL" artifacts/mobile-canonical-navigation-before/before-390x844.png
+          npx --yes playwright@1.55.0 screenshot --browser=chromium --viewport-size='430,932' --wait-for-selector='[data-mobile-bottom-nav]' --wait-for-timeout=1200 "$URL" artifacts/mobile-canonical-navigation-before/before-430x932.png
+          npx --yes playwright@1.55.0 screenshot --browser=chromium --viewport-size='768,1024' --wait-for-selector='[data-mobile-bottom-nav]' --wait-for-timeout=1200 "$URL" artifacts/mobile-canonical-navigation-before/before-768x1024.png
+          printf 'head=%s\nurl=%s\nsurface=mobile-dashboard-bottom-nav\nmode=deterministic-demo-no-cabinet-data\n' '${{ github.sha }}' "$URL" > artifacts/mobile-canonical-navigation-before/result.txt
+          cp /tmp/mobile-mob4-before-vite.log artifacts/mobile-canonical-navigation-before/vite.log
+
+      - name: Verify BEFORE dimensions
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import struct
+
+          expected = {
+              'before-390x844.png': (390, 844),
+              'before-430x932.png': (430, 932),
+              'before-768x1024.png': (768, 1024),
+          }
+          root = Path('artifacts/mobile-canonical-navigation-before')
+          for name, dims in expected.items():
+              data = (root / name).read_bytes()
+              if data[:8] != b'\x89PNG\r\n\x1a\n':
+                  raise SystemExit(f'{name}: not a PNG')
+              width, height = struct.unpack('>II', data[16:24])
+              if (width, height) != dims:
+                  raise SystemExit(f'{name}: got {(width, height)}, expected {dims}')
+              print(f'{name}: {width}x{height} OK')
+          PY
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: mobile-canonical-navigation-before
+          path: artifacts/mobile-canonical-navigation-before
+          if-no-files-found: error
+          retention-days: 30
