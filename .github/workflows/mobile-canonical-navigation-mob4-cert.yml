@@ -1,0 +1,109 @@
+name: Mobile Canonical Navigation MOB-4 Cert
+
+on:
+  push:
+    branches: [ux/mobile-canonical-navigation-mob4]
+    paths:
+      - .github/workflows/mobile-canonical-navigation-mob4-cert.yml
+      - frontend/src/features/mobile/**
+      - frontend/scripts/capture-mobile-canonical-navigation-after.mjs
+      - docs/ux/DIGITAL_CROWN_MOBILE_CANONICAL_NAVIGATION_GOAL_UI.md
+      - docs/ux/assets/MOBILE_CANONICAL_NAVIGATION_MOB4_GOAL_V1_OVERLAY.svg
+  workflow_dispatch:
+
+concurrency:
+  group: mobile-canonical-navigation-mob4-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  certify:
+    name: MOB-4 contracts + build + same-viewport AFTER
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Record exact candidate
+        run: |
+          test "$(git rev-parse HEAD)" = "${{ github.sha }}"
+          echo "candidate=${{ github.sha }}"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install frontend
+        working-directory: frontend
+        run: npm ci
+
+      - name: Verify MOB-4 contracts
+        working-directory: frontend
+        run: >-
+          npx vitest run
+          src/features/mobile/Dashboard/components/MobileBottomNav.test.tsx
+          src/features/mobile/Dashboard/components/MobileQuickActionHub.test.tsx
+          src/features/mobile/bridge.test.ts
+          src/features/mobile/mobileThemeHardcoding.test.ts
+
+      - name: Verify production frontend build
+        working-directory: frontend
+        run: npm run build
+
+      - name: Install Chromium evidence runner
+        working-directory: frontend
+        run: |
+          npm install --no-save playwright@1.55.0
+          npx playwright install --with-deps chromium
+
+      - name: Start isolated real-app preview harness
+        working-directory: frontend
+        env:
+          VITE_DC_PREVIEW_DEMO: "1"
+        run: |
+          npm run dev -- --host 127.0.0.1 --port 5173 >/tmp/mob4-vite.log 2>&1 &
+          for i in {1..60}; do
+            curl -fsS 'http://127.0.0.1:5173/mobile/demo?demo=1' >/dev/null && exit 0
+            sleep 1
+          done
+          cat /tmp/mob4-vite.log
+          exit 1
+
+      - name: Capture and assert MOB-4 AFTER at immutable BEFORE viewports
+        working-directory: frontend
+        env:
+          MOBILE_EVIDENCE_URL: http://127.0.0.1:5173/mobile/demo?demo=1
+          MOBILE_EVIDENCE_DIR: ../artifacts/mobile-canonical-navigation-after
+        run: node scripts/capture-mobile-canonical-navigation-after.mjs
+
+      - name: Verify PNG dimensions and record evidence
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import struct
+
+          expected = {
+              'after-canonical-nav-390x844.png': (390, 844),
+              'after-canonical-nav-430x932.png': (430, 932),
+              'after-canonical-nav-768x1024.png': (768, 1024),
+          }
+          root = Path('artifacts/mobile-canonical-navigation-after')
+          for name, dims in expected.items():
+              data = (root / name).read_bytes()
+              if data[:8] != b'\x89PNG\r\n\x1a\n':
+                  raise SystemExit(f'{name}: not a PNG')
+              width, height = struct.unpack('>II', data[16:24])
+              if (width, height) != dims:
+                  raise SystemExit(f'{name}: got {(width, height)}, expected {dims}')
+              print(f'{name}: {width}x{height} OK')
+          PY
+          printf 'head=%s\nbefore_run=33945615036\nbefore_artifact=9963244367\nbefore_digest=sha256:6c2416c3454270a0dcfe863c1b834fbea75d658437cc060c46741d8013cfb35d\nviewports=390x844,430x932,768x1024\ncanonical_nav=Today,Patients,+,Assistant,Plus\nlegacy_deep_links=preserved\nhorizontal_overflow=none-required\nruntime_errors=none-required\ndeployment=none\n' '${{ github.sha }}' > artifacts/mobile-canonical-navigation-after/result.txt
+          cp /tmp/mob4-vite.log artifacts/mobile-canonical-navigation-after/vite.log
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: mobile-canonical-navigation-after
+          path: artifacts/mobile-canonical-navigation-after
+          if-no-files-found: error
+          retention-days: 30
