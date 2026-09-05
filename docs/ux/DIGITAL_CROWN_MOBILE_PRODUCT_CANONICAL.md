@@ -80,7 +80,7 @@ Git : PR `#354` merged ; merge commit `5fd2a06663e941581ad422267d31a5bb69a13d11`
 
 ---
 
-## MOB-3 — Quick Action Hub — IN PROGRESS / CERTIFICATION
+## MOB-3 — Quick Action Hub — CERTIFIED / READY FOR PR
 
 Goal : permettre les actions fréquentes sans chercher une page, en **2 gestes maximum**, sans préempter MOB-4.
 
@@ -102,63 +102,63 @@ Run `33906860335` ✅
 - viewports `390×844`, `430×932`, `768×1024`
 - dashboard réel du harness, aucune donnée cabinet.
 
-### Correction UX issue du BEFORE réel
-
-Le BEFORE montre qu'un **FAB `+` existe déjà dans `AgendaView`** : `bottom-32 right-6`, `56×56`, `bg-primary`, et ouvre actuellement `AddApptModal`.
-
-Décision verrouillée :
-- **ne pas créer un second `+`** ;
-- conserver la position/taille/style exacts du FAB existant ;
-- promouvoir ce FAB vers la shell mobile pour le rendre disponible sur les surfaces autorisées ;
-- fermé : `+` ouvre le Quick Action Hub ;
-- ouvert : le même FAB devient `×` ;
-- `Nouveau RDV` réutilise `AddApptModal` ;
-- bottom nav inchangée jusqu'à MOB-4.
-
 ### Goal UI + validation humaine
+
 `docs/ux/DIGITAL_CROWN_MOBILE_QUICK_ACTION_HUB_GOAL_UI.md`
 
-- V1 : REJECTED — trop reconstruite ;
-- V2 : REJECTED — dashboard encore schématique ;
+- V1 : REJECTED ;
+- V2 : REJECTED ;
 - V3 : **VALIDATED — REAL APP COMPOSITE** ;
 - référence : `docs/ux/assets/MOBILE_QUICK_ACTION_HUB_GOAL_V3_OVERLAY.svg` ;
 - validation visuelle humaine explicite reçue le 2026-09-04 ;
-- score de référence pré-code : **9.4 / 10**, non assimilé au score runtime.
+- score de référence pré-code : **9.4 / 10**, mockup uniquement.
 
-### Implémentation — WRITTEN / TARGETED CONTRACTS GREEN ON PREVIOUS CANDIDATE
+Décision UX : aucun second FAB. Le FAB Agenda existant est promu launcher du Quick Action Hub et passe de `+` à `×` lorsque le hub est ouvert. Bottom nav inchangée jusqu'à MOB-4.
 
-Réutilisation fonctionnelle :
-- Nouveau RDV : `AddApptModal` existant ;
-- Nouveau patient : création patient mobile canonique ;
-- Photo / Scan : contexte patient sécurisé opaque existant, intention conservée puis action canonique mise au premier plan ;
-- Encaisser : `POST /api/accounting/payments`, permissions serveur `accounting/payments`, aucun nouveau moteur financier.
+### Implémentation certifiée
 
-Sécurité / RBAC :
-- capabilities d'actions rapides décidées côté serveur ;
-- aucune action non autorisée rendue ;
+- Nouveau RDV : réutilise `AddApptModal` ;
+- Nouveau patient : réutilise le flow mobile canonique ;
+- Photo / Scan : réutilisent le contexte patient sécurisé opaque avec intention dédiée ;
+- Encaisser : réutilise `POST /api/accounting/payments`, selon capacités serveur ;
 - aucune capability connue → aucun FAB ;
-- offline → actions d'écriture fail-closed ;
-- thème et typographie restent pilotés par les tokens Réglages cabinet.
+- offline / action d'écriture → fail-closed ;
+- aucun nouveau moteur financier ;
+- aucun backend métier parallèle ;
+- thème et typographie restent pilotés par les Réglages cabinet.
 
-Preuves partielles du run `33925359052` sur `6ed1afd22591b9ba8b8da660ae3f793f72184213` :
-- frontend ciblé : **17 tests passés** ;
-- backend Patient Cockpit / capabilities : **8 tests passés** ;
-- syntaxe backend : passée ;
-- build interrompu uniquement par un défaut de typage de timer dans `mobileQuickIntent.test.ts`, pas par un échec métier/runtime.
+### AFTER — VERIFIED
 
-Correction du typage poussée sur le candidat `37a9413fd8675717da31b77f43c5f9f2ab76de0c`.
-Certification AFTER correspondante : run `33927174832` en cours lors de cette mise à jour.
+Run `33927174832` ✅ SUCCESS
 
-### Gate restant
-1. BEFORE réel ✅
-2. Goal UI corrigé ✅
-3. mockup v3 sur vraie app ✅
-4. validation visuelle humaine ✅
-5. implémentation ✅
-6. tests ciblés frontend/backend ✅ sur candidat précédent
-7. build + Chromium + AFTER 390/430/768 ⏳
-8. inspection visuelle réelle + comparaison Goal V3 + score ⏳
-9. preuve canonique + PR/merge/post-merge ⏳
+- candidat runtime exact : `37a9413fd8675717da31b77f43c5f9f2ab76de0c`
+- artifact : `9957298023`
+- digest : `sha256:eb96f1193345a3d1770b013eb7451e9d87ca7e95afa062612d08b3078640e8a8`
+- viewports : `390×844`, `430×932`, `768×1024`
+- frontend ciblé : **17/17** tests ✅
+- backend ciblé : **8/8** tests ✅
+- build production ✅
+- Chromium evidence ✅
+- mêmes viewports BEFORE/AFTER ✅
+- dimensions PNG ✅
+- aucun overflow horizontal ✅
+- un seul FAB visible ✅
+- aucune croix supplémentaire dans la sheet ✅
+- bottom nav inchangée ✅
+
+Inspection visuelle réelle effectuée sur les trois AFTER contre le BEFORE réel et la V3 validée.
+
+Score visuel runtime : **9.5 / 10**.
+
+Écart mineur non bloquant : sheet visuellement plus large sur `768×1024`, sans overflow ni rupture fonctionnelle.
+
+Preuve détaillée : `docs/ux/DIGITAL_CROWN_MOBILE_QUICK_ACTION_HUB_MOB3_PROOF.md`.
+
+### Verdict
+
+**MOB-3 CERTIFIED — READY FOR PR.**
+
+Aucun déploiement Vercel.
 
 ---
 
@@ -216,4 +216,4 @@ Le chantier est CLOSED uniquement si tous les lots retenus sont DONE ou explicit
 
 ## Next exact
 
-Certification du candidat `37a9413fd8675717da31b77f43c5f9f2ab76de0c` → artifact AFTER 390/430/768 → inspection visuelle réelle → score → preuve/canonique → PR/merge/post-merge → MOB-4.
+Ouvrir la PR MOB-3 → vérifier diff/checks → merge si sûr → vérifier `master` post-merge → closeout MOB-3 → MOB-4.
