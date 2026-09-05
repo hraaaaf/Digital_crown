@@ -114,4 +114,40 @@ describe('MobileQuickActionHub', () => {
     if (rdv) fireEvent.click(rdv);
     expect(onNewAppointment).not.toHaveBeenCalled();
   });
+
+  it('supports a controlled open state without rendering its legacy floating launcher', () => {
+    const onOpenChange = vi.fn();
+    const { rerender } = render(
+      <MobileQuickActionHub
+        capabilities={ALL_CAPABILITIES}
+        isOnline
+        open={false}
+        onOpenChange={onOpenChange}
+        hideLauncher
+        onNewAppointment={() => undefined}
+        onNewPatient={() => undefined}
+        onPatientAction={() => undefined}
+      />,
+    );
+
+    expect(screen.queryByRole('button', { name: 'Ouvrir les actions rapides' })).toBeNull();
+    expect(screen.queryByText('Action rapide')).toBeNull();
+
+    rerender(
+      <MobileQuickActionHub
+        capabilities={ALL_CAPABILITIES}
+        isOnline
+        open
+        onOpenChange={onOpenChange}
+        hideLauncher
+        onNewAppointment={() => undefined}
+        onNewPatient={() => undefined}
+        onPatientAction={() => undefined}
+      />,
+    );
+
+    expect(screen.getByText('Action rapide')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Fermer le fond des actions rapides' }));
+    expect(onOpenChange).toHaveBeenCalledWith(false);
+  });
 });
