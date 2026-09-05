@@ -1,6 +1,6 @@
 import { Clock, PlayCircle, CheckCircle2, XCircle } from 'lucide-react';
 
-export type Tab = 'agenda' | 'patients' | 'finance' | 'bot' | 'lab' | 'securite' | 'dentists';
+export type Tab = 'agenda' | 'patients' | 'finance' | 'bot' | 'lab' | 'securite' | 'dentists' | 'frontdesk';
 export type SyncStatus = 'idle' | 'loading' | 'success' | 'error';
 export type ApptStatus = 'PLANIFIE' | 'EN_COURS' | 'TERMINE' | 'ANNULE';
 
