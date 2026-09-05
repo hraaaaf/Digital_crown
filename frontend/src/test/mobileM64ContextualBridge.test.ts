@@ -16,7 +16,7 @@ describe('M6.4 contextual QR bridge', () => {
     expect(resolveBridgeRoute('lab')).toBe('/mobile/dashboard?tab=lab');
     expect(resolveBridgeRoute('assistant')).toBe('/mobile/dashboard?tab=bot');
     expect(resolveBridgeRoute('security')).toBe('/mobile/dashboard?tab=securite');
-    expect(resolveBridgeRoute('dentists')).toBe('/mobile/dentists');
+    expect(resolveBridgeRoute('dentists')).toBe('/mobile/dashboard?tab=dentists');
     expect(resolveBridgeRoute('superadmin')).toBe('/mobile/superadmin');
     expect(resolveBridgeRoute('https://evil.example')).toBe('/mobile/dashboard?tab=agenda');
     expect(resolveBridgeRoute('../super-admin')).toBe('/mobile/dashboard?tab=agenda');
@@ -26,6 +26,7 @@ describe('M6.4 contextual QR bridge', () => {
     expect(resolveDashboardTab('?tab=finance')).toBe('finance');
     expect(resolveDashboardTab('?tab=bot')).toBe('bot');
     expect(resolveDashboardTab('?tab=securite')).toBe('securite');
+    expect(resolveDashboardTab('?tab=dentists')).toBe('dentists');
     expect(resolveDashboardTab('?tab=unknown')).toBe('agenda');
     expect(resolveDashboardTab('?tab=superadmin')).toBe('agenda');
     expect(resolveDashboardTab('')).toBe('agenda');
