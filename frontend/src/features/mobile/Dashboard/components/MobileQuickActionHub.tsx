@@ -9,6 +9,9 @@ export function MobileQuickActionHub({
   capabilitiesLoaded = true,
   isOnline,
   defaultOpen = false,
+  open: controlledOpen,
+  onOpenChange,
+  hideLauncher = false,
   onNewAppointment,
   onNewPatient,
   onPatientAction,
@@ -17,15 +20,24 @@ export function MobileQuickActionHub({
   capabilitiesLoaded?: boolean;
   isOnline: boolean;
   defaultOpen?: boolean;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+  hideLauncher?: boolean;
   onNewAppointment: () => void;
   onNewPatient: () => void;
   onPatientAction: (action: MobileQuickPatientAction) => void;
 }) {
-  const [open, setOpen] = useState(defaultOpen);
+  const [internalOpen, setInternalOpen] = useState(defaultOpen);
+  const open = controlledOpen ?? internalOpen;
   const hasAnyAction = capabilities.can_create_appointment
     || capabilities.can_create_patient
     || capabilities.can_open_clinical_context
     || capabilities.can_pay;
+
+  const setOpen = (next: boolean) => {
+    if (controlledOpen === undefined) setInternalOpen(next);
+    onOpenChange?.(next);
+  };
 
   useEffect(() => {
     if (!open) return;
@@ -37,8 +49,8 @@ export function MobileQuickActionHub({
   }, [open]);
 
   useEffect(() => {
-    if (capabilitiesLoaded && !hasAnyAction) setOpen(false);
-  }, [capabilitiesLoaded, hasAnyAction]);
+    if (capabilitiesLoaded && !hasAnyAction && open) setOpen(false);
+  }, [capabilitiesLoaded, hasAnyAction, open]);
 
   const run = (action: () => void) => {
     if (!isOnline) return;
@@ -51,7 +63,7 @@ export function MobileQuickActionHub({
   return (
     <>
       {open && (
-        <div className="fixed inset-0 z-[70]" data-mobile-quick-action-hub>
+        <div className="fixed inset-0 z-[60]" data-mobile-quick-action-hub>
           <button
             type="button"
             aria-label="Fermer le fond des actions rapides"
@@ -148,17 +160,19 @@ export function MobileQuickActionHub({
         </div>
       )}
 
-      <div className="fixed bottom-32 right-6 z-[80]">
-        <button
-          type="button"
-          aria-label={open ? 'Fermer les actions rapides' : 'Ouvrir les actions rapides'}
-          aria-expanded={open}
-          onClick={() => setOpen(value => !value)}
-          className="flex h-14 w-14 items-center justify-center rounded-full border border-white/20 bg-primary text-white shadow-[0_8px_30px_rgba(var(--primary-rgb),0.4)] transition-transform hover:scale-105 active:scale-95"
-        >
-          {open ? <X size={24} /> : <Plus size={24} />}
-        </button>
-      </div>
+      {!hideLauncher && (
+        <div className="fixed bottom-32 right-6 z-[80]">
+          <button
+            type="button"
+            aria-label={open ? 'Fermer les actions rapides' : 'Ouvrir les actions rapides'}
+            aria-expanded={open}
+            onClick={() => setOpen(!open)}
+            className="flex h-14 w-14 items-center justify-center rounded-full border border-white/20 bg-primary text-white shadow-[0_8px_30px_rgba(var(--primary-rgb),0.4)] transition-transform hover:scale-105 active:scale-95"
+          >
+            {open ? <X size={24} /> : <Plus size={24} />}
+          </button>
+        </div>
+      )}
     </>
   );
 }

@@ -30,6 +30,7 @@ export const MobileDashboard = () => {
   const [showQuickAppointment, setShowQuickAppointment] = useState(false);
   const [showQuickNewPatient, setShowQuickNewPatient] = useState(false);
   const [quickPatientAction, setQuickPatientAction] = useState<MobileQuickPatientAction | null>(null);
+  const [quickActionsOpen, setQuickActionsOpen] = useState(false);
   useMobileRuntimeTheme(state.snapshot?.generated_at);
 
   useEffect(() => {
@@ -40,11 +41,22 @@ export const MobileDashboard = () => {
 
   const termineCount = state.snapshot?.appointments.filter(a => a.status === 'TERMINE').length ?? 0;
   const totalCount = state.snapshot?.appointments.length ?? 0;
+  const quickActionsAvailable = capabilitiesLoaded && (
+    capabilities.can_create_appointment
+    || capabilities.can_create_patient
+    || capabilities.can_open_clinical_context
+    || capabilities.can_pay
+  );
 
   const refreshAfterPatientMutation = () => {
     void actions.fetchPatients();
     void actions.fetchSnapshot();
     void refreshCapabilities();
+  };
+
+  const selectNavTab = (tab: typeof state.activeTab) => {
+    setQuickActionsOpen(false);
+    actions.setActiveTab(tab);
   };
 
   return (
@@ -69,7 +81,7 @@ export const MobileDashboard = () => {
         totalCount={totalCount}
         termineCount={termineCount}
         queuedActionsCount={state.queuedActionsCount}
-        onOpenPatients={() => actions.setActiveTab('patients')}
+        onOpenPatients={() => selectNavTab('patients')}
       />
 
       {state.error && state.syncStatus === 'error' && (
@@ -112,7 +124,7 @@ export const MobileDashboard = () => {
             {state.activeTab === 'patients' && (
               <MobilePatientsGate
                 isOnline={state.isOnline}
-                onClose={() => actions.setActiveTab('agenda')}
+                onClose={() => selectNavTab('agenda')}
               />
             )}
             {state.activeTab === 'lab' && (
@@ -147,6 +159,9 @@ export const MobileDashboard = () => {
         capabilities={capabilities}
         capabilitiesLoaded={capabilitiesLoaded}
         isOnline={state.isOnline}
+        open={quickActionsOpen}
+        onOpenChange={setQuickActionsOpen}
+        hideLauncher
         onNewAppointment={() => setShowQuickAppointment(true)}
         onNewPatient={() => setShowQuickNewPatient(true)}
         onPatientAction={setQuickPatientAction}
@@ -154,11 +169,14 @@ export const MobileDashboard = () => {
 
       <MobileBottomNav
         activeTab={state.activeTab}
-        setActiveTab={actions.setActiveTab}
+        setActiveTab={selectNavTab}
         totalCount={totalCount}
         termineCount={termineCount}
         labJobs={state.labJobs}
         snapshot={state.snapshot}
+        quickActionsAvailable={quickActionsAvailable}
+        quickActionsOpen={quickActionsOpen}
+        onToggleQuickActions={() => setQuickActionsOpen(value => !value)}
       />
 
       {showQuickAppointment && (

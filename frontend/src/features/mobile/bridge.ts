@@ -2,6 +2,7 @@ import type { Tab } from './Dashboard/types';
 
 export const MOBILE_BRIDGE_ROUTES: Record<string, string> = {
   agenda: '/mobile/dashboard?tab=agenda',
+  patients: '/mobile/dashboard?tab=patients',
   finance: '/mobile/dashboard?tab=finance',
   lab: '/mobile/dashboard?tab=lab',
   assistant: '/mobile/dashboard?tab=bot',
@@ -12,6 +13,7 @@ export const MOBILE_BRIDGE_ROUTES: Record<string, string> = {
 
 export const MOBILE_BRIDGE_LABELS: Record<string, string> = {
   agenda: 'Agenda',
+  patients: 'Patients',
   finance: 'Finance',
   lab: 'Labo',
   assistant: 'Assistant',
@@ -20,7 +22,7 @@ export const MOBILE_BRIDGE_LABELS: Record<string, string> = {
   superadmin: 'SuperAdmin',
 };
 
-const DASHBOARD_TABS = new Set<Tab>(['agenda', 'finance', 'lab', 'bot', 'securite']);
+const DASHBOARD_TABS = new Set<Tab>(['agenda', 'patients', 'finance', 'lab', 'bot', 'securite']);
 
 export function resolveBridgeRoute(destination: unknown): string {
   return typeof destination === 'string' && MOBILE_BRIDGE_ROUTES[destination]

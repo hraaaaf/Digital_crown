@@ -1,0 +1,45 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="390" height="844" viewBox="0 0 390 844">
+  <defs>
+    <style>
+      .label{font:500 9px Inter,Arial,sans-serif;fill:#4d6079;text-anchor:middle}
+      .active{fill:#004191}
+      .icon{fill:none;stroke:#4d6079;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+      .iconActive{fill:none;stroke:#004191;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+    </style>
+  </defs>
+  <g id="mob4-nav-overlay">
+    <rect x="12" y="756" width="366" height="76" rx="34" fill="#fcfdff" stroke="#c6d3e4"/>
+
+    <g transform="translate(49 780)">
+      <rect x="-10" y="-8" width="20" height="17" rx="4" class="iconActive"/>
+      <path d="M-5-11v6M5-11v6M-8-2H8" class="iconActive"/>
+      <text x="0" y="36" class="label active">Aujourd’hui</text>
+    </g>
+
+    <g transform="translate(122 780)">
+      <circle cx="0" cy="-5" r="5" class="icon"/>
+      <path d="M-10 10c2-7 18-7 20 0" class="icon"/>
+      <text x="0" y="36" class="label">Patients</text>
+    </g>
+
+    <g transform="translate(195 770)">
+      <circle cx="0" cy="0" r="30" fill="#004191" stroke="#fff" stroke-width="3"/>
+      <path d="M-9 0H9M0-9V9" stroke="#fff" stroke-width="3" stroke-linecap="round"/>
+    </g>
+
+    <g transform="translate(268 780)">
+      <rect x="-10" y="-8" width="20" height="16" rx="4" class="icon"/>
+      <path d="M0-13v5" class="icon"/>
+      <circle cx="-3" cy="-1" r="1.4" fill="#4d6079"/>
+      <circle cx="3" cy="-1" r="1.4" fill="#4d6079"/>
+      <text x="0" y="36" class="label">Assistant</text>
+    </g>
+
+    <g transform="translate(341 780)">
+      <circle cx="-6" cy="0" r="2" fill="#4d6079"/>
+      <circle cx="0" cy="0" r="2" fill="#4d6079"/>
+      <circle cx="6" cy="0" r="2" fill="#4d6079"/>
+      <text x="0" y="36" class="label">Plus</text>
+    </g>
+  </g>
+</svg>
