@@ -3,8 +3,8 @@
 Status: ACTIVE
 Canonical file: `docs/ux/DIGITAL_CROWN_MOBILE_PRODUCT_CANONICAL.md`
 Repo: `hraaaaf/Digital_crown`
-Current branch: `master`
-Current master: `23e4828729e085a4566cbfdf430025d1019e53fa` after MOB-3 merge
+Current branch: `ux/mobile-canonical-navigation-mob4`
+Current master baseline: `e49907c20c1062e9691fb34c030bcc182289b760`
 MOB-2 PR: `#354` — MERGED
 MOB-3 PR: `#355` — MERGED
 Deployment: none. No Vercel deployment is authorized by this chantier.
@@ -84,60 +84,68 @@ Git : PR `#354` merged ; merge commit `5fd2a06663e941581ad422267d31a5bb69a13d11`
 
 Goal : permettre les actions fréquentes sans chercher une page, en **2 gestes maximum**, sans préempter MOB-4.
 
-Cible :
-- Nouveau RDV ;
-- Nouveau patient ;
-- Photo clinique ;
-- Scanner document ;
-- Encaisser rapidement si permission.
+### BEFORE
+Run `33906860335` ✅ — artifact `9949854305` — digest `sha256:b24cf6ecf919a97be154cfeb45275b54cc3bd2f2f4273fb1ee0f3fa2dee10748` — 390/430/768.
 
-### BEFORE — VERIFIED
-Run `33906860335` ✅
-- HEAD `040beb21872e63167d149735b24cc6f48554bb8f`
-- artifact `9949854305`
-- digest `sha256:b24cf6ecf919a97be154cfeb45275b54cc3bd2f2f4273fb1ee0f3fa2dee10748`
-- viewports `390×844`, `430×932`, `768×1024`.
+### AFTER
+Run `33927174832` ✅ — candidat `37a9413fd8675717da31b77f43c5f9f2ab76de0c` — artifact `9957298023` — digest `sha256:eb96f1193345a3d1770b013eb7451e9d87ca7e95afa062612d08b3078640e8a8` — 390/430/768.
 
-### Goal UI + validation
-
-- Goal UI : `docs/ux/DIGITAL_CROWN_MOBILE_QUICK_ACTION_HUB_GOAL_UI.md`
-- V3 : **VALIDATED — REAL APP COMPOSITE**
-- référence : `docs/ux/assets/MOBILE_QUICK_ACTION_HUB_GOAL_V3_OVERLAY.svg`
-- validation humaine : 2026-09-04
-- score pré-code : **9.4 / 10**.
-
-### AFTER — VERIFIED
-
-Run `33927174832` ✅ SUCCESS
-
-- candidat runtime exact : `37a9413fd8675717da31b77f43c5f9f2ab76de0c`
-- artifact : `9957298023`
-- digest : `sha256:eb96f1193345a3d1770b013eb7451e9d87ca7e95afa062612d08b3078640e8a8`
-- viewports : `390×844`, `430×932`, `768×1024`
-- frontend ciblé : **17/17** ✅
-- backend ciblé : **8/8** ✅
-- build production ✅
-- Chromium evidence ✅
-- aucun overflow horizontal ✅
-- un seul FAB visible ✅
-- bottom nav inchangée ✅
-- score visuel runtime : **9.5 / 10**.
-
-Preuve détaillée : `docs/ux/DIGITAL_CROWN_MOBILE_QUICK_ACTION_HUB_MOB3_PROOF.md`.
-
+Preuve : `docs/ux/DIGITAL_CROWN_MOBILE_QUICK_ACTION_HUB_MOB3_PROOF.md`.
+Score visuel runtime : **9.5 / 10**.
 Git : PR `#355` merged ; merge commit `23e4828729e085a4566cbfdf430025d1019e53fa` ; aucun déploiement.
 
 ---
 
-## MOB-4 — Navigation mobile canonique — PLANNED
+## MOB-4 — Navigation mobile canonique — CERTIFIED / READY FOR PR
 
-Goal : simplifier la navigation globale autour des usages réels.
+Goal : simplifier la navigation globale autour des usages réels avec maximum cinq entrées permanentes.
 
-Direction à tester : `Aujourd'hui / Patients / action centrale / Assistant / Plus`.
+Cible certifiée : `Aujourd’hui / Patients / + / Assistant / Plus`.
 
-`Plus` peut regrouper selon rôle : Finance, Labo, Bibliothèque, Sécurité, Marketplace éventuelle, SuperAdmin.
+### BEFORE
+Run `33945615036` ✅
+- HEAD `6e1c5ffe3314b7621ae22202091e978025f18a23`
+- artifact `9963244367`
+- digest `sha256:6c2416c3454270a0dcfe863c1b834fbea75d658437cc060c46741d8013cfb35d`
+- viewports `390×844`, `430×932`, `768×1024`
+- nav observée : `Agenda / Finance / Envois Labo / Assistant / Sécurité`.
 
-Succès : maximum cinq points d'entrée permanents, aucun doublon, rôles filtrés, deep links et contextes existants préservés.
+### Goal UI
+
+`docs/ux/DIGITAL_CROWN_MOBILE_CANONICAL_NAVIGATION_GOAL_UI.md`
+
+Décisions :
+- Aujourd’hui → `agenda`
+- Patients → `patients`
+- `+` → Quick Action Hub MOB-3 existant
+- Assistant → `bot`
+- Plus → Finance / Labo / Sécurité selon rôle
+- anciens deep links `?tab=agenda|finance|lab|bot|securite` préservés
+- `patients` ajouté au deep link dashboard canonique
+- aucune vue métier supprimée.
+
+### AFTER
+
+Run `33953721202` ✅ SUCCESS
+- candidat runtime exact : `4c04d09bf8102b80fcab25e88d58db5d30e0358f`
+- artifact : `9965680255`
+- digest : `sha256:99ae384612cdffffbb7226ee088f516d564e854900db1b91ceef47bd06afd9b2`
+- viewports : `390×844`, `430×932`, `768×1024`
+- tests MOB-4 ✅
+- build production ✅
+- Chromium evidence ✅
+- 5 boutons permanents exactement ✅
+- aucun overflow horizontal ✅
+- aucune erreur runtime app ✅
+- ancien FAB Agenda neutralisé ✅
+- deep links historiques préservés ✅
+- score visuel runtime : **9.6 / 10**.
+
+Preuve détaillée : `docs/ux/DIGITAL_CROWN_MOBILE_CANONICAL_NAVIGATION_MOB4_PROOF.md`.
+
+Verdict : **MOB-4 CERTIFIED — READY FOR PR.**
+
+Aucun déploiement Vercel.
 
 ---
 
@@ -183,4 +191,4 @@ Le chantier est CLOSED uniquement si tous les lots retenus sont DONE ou explicit
 
 ## Next exact
 
-Créer la branche MOB-4 depuis le master post-closeout → capturer le BEFORE navigation réelle 390/430/768 → écrire le Goal UI → produire le mockup sur capture réelle → validation visuelle humaine avant code produit.
+Ouvrir la PR MOB-4 → vérifier diff/checks/reviews → merge si sûr → vérifier master post-merge → closeout MOB-4 → MOB-5.
