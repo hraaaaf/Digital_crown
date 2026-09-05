@@ -1,4 +1,4 @@
-import { Bell, Calendar, ChevronLeft, ChevronRight, RefreshCw, Search, Shield, Users } from 'lucide-react';
+import { Bell, Calendar, ChevronLeft, ChevronRight, RefreshCw, Search, Shield } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { cn } from '../../../../utils/cn';
 import Logo from '../../../../assets/logo.png';
@@ -126,7 +126,8 @@ export function MobileHeader({
            activeTab === 'patients' ? 'Patients' :
            activeTab === 'finance' ? 'Finances' :
            activeTab === 'securite' ? 'Sécurité' :
-           activeTab === 'lab' ? 'Laboratoire' : ''}
+           activeTab === 'lab' ? 'Laboratoire' :
+           activeTab === 'dentists' ? 'Équipe' : ''}
         </h1>
 
         {snapshot?.is_superadmin && (
@@ -135,15 +136,6 @@ export function MobileHeader({
             className="mt-4 px-4 py-2 bg-amber-400 hover:bg-amber-500 text-amber-950 rounded-full font-black text-xs shadow-md uppercase tracking-widest flex items-center gap-2 transition-all active:scale-95"
           >
             <Shield size={14} /> SuperAdmin
-          </button>
-        )}
-
-        {snapshot?.role === 'SECRETAIRE' && (
-          <button
-            onClick={() => navigate('/mobile/dentists')}
-            className="mt-4 px-4 py-2 bg-primary/10 border border-primary/20 text-primary rounded-full font-black text-xs shadow-sm uppercase tracking-widest flex items-center gap-2 transition-all active:scale-95"
-          >
-            <Users size={13} /> Équipe praticiens
           </button>
         )}
 
