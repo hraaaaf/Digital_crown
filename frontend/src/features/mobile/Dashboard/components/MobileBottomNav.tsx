@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Bot, CalendarDays, FlaskConical, MoreHorizontal, ShieldCheck, TrendingUp, UserRound, X } from 'lucide-react';
+import { Bot, CalendarDays, FlaskConical, MoreHorizontal, ShieldCheck, TrendingUp, UserRound, Users, X } from 'lucide-react';
 import { cn } from '../../../../utils/cn';
 import type { Tab, Snapshot } from '../types';
 import type { LabJob } from '../../../../types/labJob';
@@ -28,6 +28,12 @@ export function MobileBottomNav({
   const [moreOpen, setMoreOpen] = useState(false);
   const role = snapshot?.role ?? 'DENTISTE';
   const secondaryTabs = [
+    {
+      id: 'dentists' as Tab,
+      icon: Users,
+      label: 'Équipe',
+      allowedRoles: ['DENTISTE', 'ADMIN', 'SECRETAIRE'],
+    },
     {
       id: 'finance' as Tab,
       icon: TrendingUp,
