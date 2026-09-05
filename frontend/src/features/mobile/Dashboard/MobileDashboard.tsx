@@ -21,6 +21,7 @@ import { SecuriteView } from './views/SecuriteView';
 import { LabView } from './views/LabView';
 import { BotView } from './views/BotView';
 import { DentistsView } from './views/DentistsView';
+import { FrontdeskView } from './views/FrontdeskView';
 import { PWAInstallPrompt } from '../../../components/PWAInstallPrompt';
 import { resolveDashboardTab } from '../bridge';
 
@@ -152,6 +153,7 @@ export const MobileDashboard = () => {
               />
             )}
             {state.activeTab === 'dentists' && <DentistsView embedded />}
+            {state.activeTab === 'frontdesk' && <FrontdeskView />}
             {state.activeTab === 'bot' && <BotView />}
           </motion.div>
         </AnimatePresence>
