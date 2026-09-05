@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { CalendarClock, Check, Clock3, MessageCircle, Phone, RefreshCw, X } from 'lucide-react';
 import { api } from '../../../../services/api';
 
-interface PendingRequest {
+export interface PendingRequest {
   id: number;
   patient_name: string;
   phone?: string | null;
@@ -23,15 +23,21 @@ const formatDateTime = (value: string) => {
   };
 };
 
-export function FrontdeskView() {
-  const [requests, setRequests] = useState<PendingRequest[]>([]);
-  const [loading, setLoading] = useState(true);
+export function FrontdeskView({ previewData }: { previewData?: PendingRequest[] }) {
+  const [requests, setRequests] = useState<PendingRequest[]>(previewData ?? []);
+  const [loading, setLoading] = useState(!previewData);
   const [mutatingId, setMutatingId] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [rejecting, setRejecting] = useState<PendingRequest | null>(null);
   const [message, setMessage] = useState<string | null>(null);
+  const previewMode = Boolean(previewData);
 
   const load = async () => {
+    if (previewData) {
+      setRequests(previewData);
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     setError(null);
     try {
@@ -46,9 +52,10 @@ export function FrontdeskView() {
 
   useEffect(() => {
     void load();
-  }, []);
+  }, [previewData]);
 
   const mutate = async (request: PendingRequest, action: 'confirm' | 'reject' | 'request-confirmation') => {
+    if (previewMode) return;
     setMutatingId(request.id);
     setError(null);
     setMessage(null);
@@ -88,24 +95,15 @@ export function FrontdeskView() {
           type="button"
           aria-label="Actualiser Frontdesk"
           onClick={() => void load()}
-          disabled={loading}
+          disabled={loading || previewMode}
           className="grid min-h-11 min-w-11 place-items-center rounded-full border border-glass-border bg-card text-text-muted disabled:opacity-50"
         >
           <RefreshCw size={18} className={loading ? 'animate-spin' : ''} />
         </button>
       </div>
 
-      {message && (
-        <div className="mb-3 rounded-[18px] border border-primary/20 bg-primary/5 px-4 py-3 text-[11px] font-bold text-text-main">
-          {message}
-        </div>
-      )}
-
-      {error && (
-        <div className="mb-3 rounded-[18px] border border-rose-500/20 bg-rose-500/5 px-4 py-3 text-[11px] font-bold text-rose-600">
-          {error}
-        </div>
-      )}
+      {message && <div className="mb-3 rounded-[18px] border border-primary/20 bg-primary/5 px-4 py-3 text-[11px] font-bold text-text-main">{message}</div>}
+      {error && <div className="mb-3 rounded-[18px] border border-rose-500/20 bg-rose-500/5 px-4 py-3 text-[11px] font-bold text-rose-600">{error}</div>}
 
       {!loading && sorted.length === 0 && (
         <div className="rounded-[24px] border border-glass-border bg-card px-5 py-8 text-center shadow-sm">
@@ -134,67 +132,25 @@ export function FrontdeskView() {
                 </span>
               </div>
 
-              {request.expires_at && (
-                <div className="mt-3 flex items-center gap-1.5 text-[10px] font-bold text-text-muted">
-                  <Clock3 size={13} />
-                  Expire à {new Date(request.expires_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
-                </div>
-              )}
+              {request.expires_at && <div className="mt-3 flex items-center gap-1.5 text-[10px] font-bold text-text-muted"><Clock3 size={13} />Expire à {new Date(request.expires_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}</div>}
 
               <div className="mt-4 grid grid-cols-2 gap-2">
-                <button
-                  type="button"
-                  onClick={() => void mutate(request, 'confirm')}
-                  disabled={busy}
-                  className="flex min-h-11 items-center justify-center gap-2 rounded-[16px] bg-primary px-3 text-[11px] font-black text-white disabled:opacity-50"
-                >
-                  <Check size={16} /> Confirmer
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setRejecting(request)}
-                  disabled={busy}
-                  className="flex min-h-11 items-center justify-center gap-2 rounded-[16px] border border-rose-500/20 bg-rose-500/5 px-3 text-[11px] font-black text-rose-600 disabled:opacity-50"
-                >
-                  <X size={16} /> Refuser
-                </button>
+                <button type="button" onClick={() => void mutate(request, 'confirm')} disabled={busy || previewMode} className="flex min-h-11 items-center justify-center gap-2 rounded-[16px] bg-primary px-3 text-[11px] font-black text-white disabled:opacity-50"><Check size={16} /> Confirmer</button>
+                <button type="button" onClick={() => setRejecting(request)} disabled={busy || previewMode} className="flex min-h-11 items-center justify-center gap-2 rounded-[16px] border border-rose-500/20 bg-rose-500/5 px-3 text-[11px] font-black text-rose-600 disabled:opacity-50"><X size={16} /> Refuser</button>
               </div>
 
-              {request.status === 'EN_ATTENTE_DEMANDE' && (
-                <button
-                  type="button"
-                  onClick={() => void mutate(request, 'request-confirmation')}
-                  disabled={busy}
-                  className="mt-2 flex min-h-11 w-full items-center justify-center rounded-[16px] border border-glass-border bg-background px-3 text-[11px] font-black text-text-main disabled:opacity-50"
-                >
-                  Demander confirmation
-                </button>
-              )}
+              {request.status === 'EN_ATTENTE_DEMANDE' && <button type="button" onClick={() => void mutate(request, 'request-confirmation')} disabled={busy || previewMode} className="mt-2 flex min-h-11 w-full items-center justify-center rounded-[16px] border border-glass-border bg-background px-3 text-[11px] font-black text-text-main disabled:opacity-50">Demander confirmation</button>}
 
               <div className="mt-2 grid grid-cols-2 gap-2">
-                <a
-                  href={phone ? `tel:${phone}` : undefined}
-                  aria-disabled={!phone}
-                  className={`flex min-h-11 items-center justify-center gap-2 rounded-[16px] border border-glass-border px-3 text-[11px] font-black ${phone ? 'bg-background text-text-main' : 'pointer-events-none opacity-40'}`}
-                >
-                  <Phone size={15} /> Appeler
-                </a>
-                <a
-                  href={whatsapp || undefined}
-                  target={whatsapp ? '_blank' : undefined}
-                  rel={whatsapp ? 'noreferrer' : undefined}
-                  aria-disabled={!whatsapp}
-                  className={`flex min-h-11 items-center justify-center gap-2 rounded-[16px] border border-glass-border px-3 text-[11px] font-black ${whatsapp ? 'bg-background text-text-main' : 'pointer-events-none opacity-40'}`}
-                >
-                  <MessageCircle size={15} /> WhatsApp
-                </a>
+                <a href={phone && !previewMode ? `tel:${phone}` : undefined} aria-disabled={!phone || previewMode} className={`flex min-h-11 items-center justify-center gap-2 rounded-[16px] border border-glass-border px-3 text-[11px] font-black ${phone && !previewMode ? 'bg-background text-text-main' : 'pointer-events-none opacity-40'}`}><Phone size={15} /> Appeler</a>
+                <a href={whatsapp && !previewMode ? whatsapp : undefined} target={whatsapp && !previewMode ? '_blank' : undefined} rel={whatsapp && !previewMode ? 'noreferrer' : undefined} aria-disabled={!whatsapp || previewMode} className={`flex min-h-11 items-center justify-center gap-2 rounded-[16px] border border-glass-border px-3 text-[11px] font-black ${whatsapp && !previewMode ? 'bg-background text-text-main' : 'pointer-events-none opacity-40'}`}><MessageCircle size={15} /> WhatsApp</a>
               </div>
             </article>
           );
         })}
       </div>
 
-      {rejecting && (
+      {rejecting && !previewMode && (
         <div className="fixed inset-0 z-[80] flex items-end justify-center bg-slate-950/25 p-3 backdrop-blur-[1px]">
           <section role="dialog" aria-modal="true" aria-label="Confirmer le refus" className="w-full max-w-[720px] rounded-[28px] border border-glass-border bg-card p-5 shadow-elite-hover">
             <h2 className="text-[17px] font-black text-text-main">Refuser cette demande ?</h2>
