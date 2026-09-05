@@ -1,6 +1,6 @@
 # Digital Crown — Mobile Canonical Navigation — Goal UI
 
-Status: AWAITING VISUAL VALIDATION
+Status: VALIDATED — REAL APP REFERENCE
 Lot: MOB-4
 Branch: `ux/mobile-canonical-navigation-mob4`
 Baseline master: `e49907c20c1062e9691fb34c030bcc182289b760`
@@ -44,20 +44,37 @@ Le type `Tab` contient déjà `patients`, mais cette vue n’est pas exposée da
 
 1. **Aujourd’hui** → `agenda`
 2. **Patients** → `patients`
-3. **+** → Quick Action Hub existant
+3. **+** → Quick Action Hub MOB-3 existant
 4. **Assistant** → `bot`
 5. **Plus** → menu secondaire filtré par rôle
 
 ### Plus
 
-Contenu possible selon rôle/capabilities :
+Contenu selon rôle et destinations déjà supportées :
 - Finance
 - Envois Labo
 - Sécurité
-- Équipe praticiens
+- Équipe praticiens si disponible dans la shell
 - SuperAdmin si applicable
 
 Aucune destination ne doit apparaître si non autorisée.
+
+## Référence visuelle verrouillée
+
+Référence versionnée : `docs/ux/assets/MOBILE_CANONICAL_NAVIGATION_MOB4_GOAL_V1_OVERLAY.svg`.
+
+Le composite de travail est construit directement sur le vrai `before-390x844.png` de l’artifact `9963244367`. Seule la zone de navigation est remplacée.
+
+Cible :
+- conserver le conteneur bottom nav actuel : `left-3 right-3`, hauteur `76px`, rayon ≈ `34px` ;
+- 5 zones équivalentes ;
+- `+` central circulaire ≈ `60px`, centré et légèrement surélevé ;
+- `Aujourd’hui` actif en `primary` ;
+- labels plus courts et lisibles que la nav actuelle ;
+- aucun FAB supplémentaire ;
+- aucune palette locale figée.
+
+Score visuel de référence pré-code : **9.2 / 10**. Ce score décrit le mockup, pas le runtime.
 
 ## Décisions d’architecture
 
@@ -81,6 +98,6 @@ Aucune destination ne doit apparaître si non autorisée.
 
 1. BEFORE réel ✅
 2. Goal UI ✅
-3. mockup sur BEFORE réel ⏳
-4. validation visuelle humaine ⏳
-5. aucun code produit avant gate 4.
+3. mockup sur BEFORE réel ✅
+4. référence visuelle verrouillée ✅
+5. implémentation autorisée ✅
