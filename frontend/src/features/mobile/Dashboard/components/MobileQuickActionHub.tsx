@@ -63,7 +63,7 @@ export function MobileQuickActionHub({
   return (
     <>
       {open && (
-        <div className="fixed inset-0 z-[70]" data-mobile-quick-action-hub>
+        <div className="fixed inset-0 z-[60]" data-mobile-quick-action-hub>
           <button
             type="button"
             aria-label="Fermer le fond des actions rapides"
