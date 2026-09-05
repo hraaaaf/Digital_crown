@@ -105,19 +105,10 @@ const DEMO_PATIENT_COCKPIT: MobilePatientsPreviewData = {
   },
   resources: {
     documents: [
-      {
-        id: 9301,
-        label: 'Consentement implantologie',
-        document_type: 'CONSENTEMENT',
-        created_at: `${isoDay(-3)}T11:20:00`,
-      },
+      { id: 9301, label: 'Consentement implantologie', document_type: 'CONSENTEMENT', created_at: `${isoDay(-3)}T11:20:00` },
     ],
     panoramics: [
-      {
-        id: 9401,
-        label: 'Panoramique #9401',
-        created_at: `${isoDay(-7)}T09:15:00`,
-      },
+      { id: 9401, label: 'Panoramique #9401', created_at: `${isoDay(-7)}T09:15:00` },
     ],
   },
 };
@@ -160,8 +151,8 @@ const DEMO_LAB_JOBS: LabJob[] = [
 const noop = () => undefined;
 
 function requestedPreviewTab(): Tab {
-  const tab = new URLSearchParams(window.location.search).get('tab');
-  return tab === 'patients' ? 'patients' : 'agenda';
+  const tab = new URLSearchParams(window.location.search).get('tab') as Tab | null;
+  return tab && ['agenda', 'patients', 'finance', 'lab', 'bot', 'securite'].includes(tab) ? tab : 'agenda';
 }
 
 function requestedQuickOpen(): boolean {
@@ -170,6 +161,7 @@ function requestedQuickOpen(): boolean {
 
 export function MobilePreviewDashboard() {
   const [activeTab, setActiveTab] = useState<Tab>(requestedPreviewTab);
+  const [quickActionsOpen, setQuickActionsOpen] = useState(requestedQuickOpen);
   const [selectedDate, setSelectedDate] = useState(() => new Date().toISOString().slice(0, 10));
   const mainRef = useRef<HTMLElement>(null);
   const snapshot = useMemo(() => buildSnapshot(selectedDate), [selectedDate]);
@@ -190,6 +182,11 @@ export function MobilePreviewDashboard() {
   useEffect(() => {
     mainRef.current?.scrollTo({ top: 0, behavior: 'instant' as ScrollBehavior });
   }, [activeTab]);
+
+  const selectNavTab = (tab: Tab) => {
+    setQuickActionsOpen(false);
+    setActiveTab(tab);
+  };
 
   return (
     <div
@@ -214,6 +211,7 @@ export function MobilePreviewDashboard() {
         totalCount={totalCount}
         termineCount={termineCount}
         queuedActionsCount={0}
+        onOpenPatients={() => selectNavTab('patients')}
         previewMode
       />
 
@@ -251,10 +249,7 @@ export function MobilePreviewDashboard() {
               </div>
             )}
             {activeTab === 'patients' && (
-              <MobilePatientsView
-                onClose={() => setActiveTab('agenda')}
-                previewData={DEMO_PATIENT_COCKPIT}
-              />
+              <MobilePatientsView onClose={() => selectNavTab('agenda')} previewData={DEMO_PATIENT_COCKPIT} />
             )}
             {activeTab === 'finance' && (
               <FinanceView
@@ -265,9 +260,7 @@ export function MobilePreviewDashboard() {
                 handleExportPDF={noop}
               />
             )}
-            {activeTab === 'lab' && (
-              <LabView labJobs={DEMO_LAB_JOBS} handleWhatsAppSend={noop} />
-            )}
+            {activeTab === 'lab' && <LabView labJobs={DEMO_LAB_JOBS} handleWhatsAppSend={noop} />}
             {activeTab === 'bot' && <MobilePreviewBotView />}
             {activeTab === 'securite' && <MobilePreviewSecurityView />}
           </motion.div>
@@ -277,7 +270,9 @@ export function MobilePreviewDashboard() {
       <MobileQuickActionHub
         capabilities={DEMO_QUICK_CAPABILITIES}
         isOnline
-        defaultOpen={requestedQuickOpen()}
+        open={quickActionsOpen}
+        onOpenChange={setQuickActionsOpen}
+        hideLauncher
         onNewAppointment={noop}
         onNewPatient={noop}
         onPatientAction={() => undefined}
@@ -285,11 +280,14 @@ export function MobilePreviewDashboard() {
 
       <MobileBottomNav
         activeTab={activeTab}
-        setActiveTab={setActiveTab}
+        setActiveTab={selectNavTab}
         totalCount={totalCount}
         termineCount={termineCount}
         labJobs={DEMO_LAB_JOBS}
         snapshot={snapshot}
+        quickActionsAvailable
+        quickActionsOpen={quickActionsOpen}
+        onToggleQuickActions={() => setQuickActionsOpen(value => !value)}
       />
     </div>
   );
