@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Bot, CalendarDays, ClipboardList, FlaskConical, MoreHorizontal, ShieldCheck, TrendingUp, UserRound, Users, X } from 'lucide-react';
+import { Bell, Bot, CalendarDays, ClipboardList, FlaskConical, MoreHorizontal, ShieldCheck, TrendingUp, UserRound, Users, X } from 'lucide-react';
 import { cn } from '../../../../utils/cn';
 import type { Tab, Snapshot } from '../types';
 import type { LabJob } from '../../../../types/labJob';
@@ -28,6 +28,12 @@ export function MobileBottomNav({
   const [moreOpen, setMoreOpen] = useState(false);
   const role = snapshot?.role ?? 'DENTISTE';
   const secondaryTabs = [
+    {
+      id: 'notifications' as Tab,
+      icon: Bell,
+      label: 'Notifications',
+      allowedRoles: ['DENTISTE', 'ADMIN', 'SECRETAIRE'],
+    },
     {
       id: 'dentists' as Tab,
       icon: Users,
@@ -111,7 +117,7 @@ export function MobileBottomNav({
               </button>
             </div>
 
-            <div className="grid gap-2.5">
+            <div className="grid gap-2.5 max-h-[min(60dvh,520px)] overflow-y-auto pr-0.5">
               {secondaryTabs.map(({ id, icon: Icon, label, dot }) => (
                 <button
                   key={id}
