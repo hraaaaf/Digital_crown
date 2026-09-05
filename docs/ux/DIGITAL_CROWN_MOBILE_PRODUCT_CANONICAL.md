@@ -3,10 +3,10 @@
 Status: ACTIVE
 Canonical file: `docs/ux/DIGITAL_CROWN_MOBILE_PRODUCT_CANONICAL.md`
 Repo: `hraaaaf/Digital_crown`
-Current branch: `ux/mobile-quick-action-hub-mob3`
-Current master baseline for MOB-3: `508a2e1e174887fe44f271cc6a8283eb89e443c7`
+Current branch: `master`
+Current master: `23e4828729e085a4566cbfdf430025d1019e53fa` after MOB-3 merge
 MOB-2 PR: `#354` — MERGED
-MOB-2 merge commit: `5fd2a06663e941581ad422267d31a5bb69a13d11`
+MOB-3 PR: `#355` — MERGED
 Deployment: none. No Vercel deployment is authorized by this chantier.
 
 ## Goal final
@@ -80,7 +80,7 @@ Git : PR `#354` merged ; merge commit `5fd2a06663e941581ad422267d31a5bb69a13d11`
 
 ---
 
-## MOB-3 — Quick Action Hub — CERTIFIED / READY FOR PR
+## MOB-3 — Quick Action Hub — DONE / MERGED
 
 Goal : permettre les actions fréquentes sans chercher une page, en **2 gestes maximum**, sans préempter MOB-4.
 
@@ -91,41 +91,20 @@ Cible :
 - Scanner document ;
 - Encaisser rapidement si permission.
 
-### Branche
-`ux/mobile-quick-action-hub-mob3`, créée depuis `master@508a2e1e174887fe44f271cc6a8283eb89e443c7`.
-
 ### BEFORE — VERIFIED
 Run `33906860335` ✅
 - HEAD `040beb21872e63167d149735b24cc6f48554bb8f`
 - artifact `9949854305`
 - digest `sha256:b24cf6ecf919a97be154cfeb45275b54cc3bd2f2f4273fb1ee0f3fa2dee10748`
-- viewports `390×844`, `430×932`, `768×1024`
-- dashboard réel du harness, aucune donnée cabinet.
+- viewports `390×844`, `430×932`, `768×1024`.
 
-### Goal UI + validation humaine
+### Goal UI + validation
 
-`docs/ux/DIGITAL_CROWN_MOBILE_QUICK_ACTION_HUB_GOAL_UI.md`
-
-- V1 : REJECTED ;
-- V2 : REJECTED ;
-- V3 : **VALIDATED — REAL APP COMPOSITE** ;
-- référence : `docs/ux/assets/MOBILE_QUICK_ACTION_HUB_GOAL_V3_OVERLAY.svg` ;
-- validation visuelle humaine explicite reçue le 2026-09-04 ;
-- score de référence pré-code : **9.4 / 10**, mockup uniquement.
-
-Décision UX : aucun second FAB. Le FAB Agenda existant est promu launcher du Quick Action Hub et passe de `+` à `×` lorsque le hub est ouvert. Bottom nav inchangée jusqu'à MOB-4.
-
-### Implémentation certifiée
-
-- Nouveau RDV : réutilise `AddApptModal` ;
-- Nouveau patient : réutilise le flow mobile canonique ;
-- Photo / Scan : réutilisent le contexte patient sécurisé opaque avec intention dédiée ;
-- Encaisser : réutilise `POST /api/accounting/payments`, selon capacités serveur ;
-- aucune capability connue → aucun FAB ;
-- offline / action d'écriture → fail-closed ;
-- aucun nouveau moteur financier ;
-- aucun backend métier parallèle ;
-- thème et typographie restent pilotés par les Réglages cabinet.
+- Goal UI : `docs/ux/DIGITAL_CROWN_MOBILE_QUICK_ACTION_HUB_GOAL_UI.md`
+- V3 : **VALIDATED — REAL APP COMPOSITE**
+- référence : `docs/ux/assets/MOBILE_QUICK_ACTION_HUB_GOAL_V3_OVERLAY.svg`
+- validation humaine : 2026-09-04
+- score pré-code : **9.4 / 10**.
 
 ### AFTER — VERIFIED
 
@@ -135,30 +114,18 @@ Run `33927174832` ✅ SUCCESS
 - artifact : `9957298023`
 - digest : `sha256:eb96f1193345a3d1770b013eb7451e9d87ca7e95afa062612d08b3078640e8a8`
 - viewports : `390×844`, `430×932`, `768×1024`
-- frontend ciblé : **17/17** tests ✅
-- backend ciblé : **8/8** tests ✅
+- frontend ciblé : **17/17** ✅
+- backend ciblé : **8/8** ✅
 - build production ✅
 - Chromium evidence ✅
-- mêmes viewports BEFORE/AFTER ✅
-- dimensions PNG ✅
 - aucun overflow horizontal ✅
 - un seul FAB visible ✅
-- aucune croix supplémentaire dans la sheet ✅
 - bottom nav inchangée ✅
-
-Inspection visuelle réelle effectuée sur les trois AFTER contre le BEFORE réel et la V3 validée.
-
-Score visuel runtime : **9.5 / 10**.
-
-Écart mineur non bloquant : sheet visuellement plus large sur `768×1024`, sans overflow ni rupture fonctionnelle.
+- score visuel runtime : **9.5 / 10**.
 
 Preuve détaillée : `docs/ux/DIGITAL_CROWN_MOBILE_QUICK_ACTION_HUB_MOB3_PROOF.md`.
 
-### Verdict
-
-**MOB-3 CERTIFIED — READY FOR PR.**
-
-Aucun déploiement Vercel.
+Git : PR `#355` merged ; merge commit `23e4828729e085a4566cbfdf430025d1019e53fa` ; aucun déploiement.
 
 ---
 
@@ -216,4 +183,4 @@ Le chantier est CLOSED uniquement si tous les lots retenus sont DONE ou explicit
 
 ## Next exact
 
-Ouvrir la PR MOB-3 → vérifier diff/checks → merge si sûr → vérifier `master` post-merge → closeout MOB-3 → MOB-4.
+Créer la branche MOB-4 depuis le master post-closeout → capturer le BEFORE navigation réelle 390/430/768 → écrire le Goal UI → produire le mockup sur capture réelle → validation visuelle humaine avant code produit.
