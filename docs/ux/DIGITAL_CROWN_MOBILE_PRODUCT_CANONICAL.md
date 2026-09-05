@@ -3,10 +3,11 @@
 Status: ACTIVE
 Canonical file: `docs/ux/DIGITAL_CROWN_MOBILE_PRODUCT_CANONICAL.md`
 Repo: `hraaaaf/Digital_crown`
-Current branch: `ux/mobile-canonical-navigation-mob4`
-Current master baseline: `e49907c20c1062e9691fb34c030bcc182289b760`
+Current branch: `master`
+Current master: `28cf8278a31507d96b33c10f03e1635f86223454`
 MOB-2 PR: `#354` — MERGED
 MOB-3 PR: `#355` — MERGED
+MOB-4 PR: `#356` — MERGED
 Deployment: none. No Vercel deployment is authorized by this chantier.
 
 ## Goal final
@@ -96,7 +97,7 @@ Git : PR `#355` merged ; merge commit `23e4828729e085a4566cbfdf430025d1019e53fa`
 
 ---
 
-## MOB-4 — Navigation mobile canonique — CERTIFIED / READY FOR PR
+## MOB-4 — Navigation mobile canonique — DONE / MERGED
 
 Goal : simplifier la navigation globale autour des usages réels avec maximum cinq entrées permanentes.
 
@@ -110,22 +111,7 @@ Run `33945615036` ✅
 - viewports `390×844`, `430×932`, `768×1024`
 - nav observée : `Agenda / Finance / Envois Labo / Assistant / Sécurité`.
 
-### Goal UI
-
-`docs/ux/DIGITAL_CROWN_MOBILE_CANONICAL_NAVIGATION_GOAL_UI.md`
-
-Décisions :
-- Aujourd’hui → `agenda`
-- Patients → `patients`
-- `+` → Quick Action Hub MOB-3 existant
-- Assistant → `bot`
-- Plus → Finance / Labo / Sécurité selon rôle
-- anciens deep links `?tab=agenda|finance|lab|bot|securite` préservés
-- `patients` ajouté au deep link dashboard canonique
-- aucune vue métier supprimée.
-
 ### AFTER
-
 Run `33953721202` ✅ SUCCESS
 - candidat runtime exact : `4c04d09bf8102b80fcab25e88d58db5d30e0358f`
 - artifact : `9965680255`
@@ -143,9 +129,7 @@ Run `33953721202` ✅ SUCCESS
 
 Preuve détaillée : `docs/ux/DIGITAL_CROWN_MOBILE_CANONICAL_NAVIGATION_MOB4_PROOF.md`.
 
-Verdict : **MOB-4 CERTIFIED — READY FOR PR.**
-
-Aucun déploiement Vercel.
+Git : PR `#356` merged ; merge commit `28cf8278a31507d96b33c10f03e1635f86223454` ; aucun déploiement.
 
 ---
 
@@ -191,4 +175,4 @@ Le chantier est CLOSED uniquement si tous les lots retenus sont DONE ou explicit
 
 ## Next exact
 
-Ouvrir la PR MOB-4 → vérifier diff/checks/reviews → merge si sûr → vérifier master post-merge → closeout MOB-4 → MOB-5.
+Ouvrir MOB-5 comme audit conditionnel de valeur mobile → sélectionner uniquement les scénarios réellement fréquents et plus efficaces que desktop → sinon DROPPED avec justification → MOB-6.
