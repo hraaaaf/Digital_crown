@@ -54,7 +54,7 @@ describe('MobileBottomNav MOB-4', () => {
     expect(setActiveTab).toHaveBeenCalledWith('patients');
   });
 
-  it('moves Finance, Labo and Security behind Plus for dentist/admin roles', () => {
+  it('moves Finance, Labo, Security and Team behind Plus for dentist/admin roles', () => {
     const setActiveTab = vi.fn();
     render(
       <MobileBottomNav
@@ -74,17 +74,19 @@ describe('MobileBottomNav MOB-4', () => {
     expect(screen.getByText('Finance')).toBeTruthy();
     expect(screen.getByText('Envois Labo')).toBeTruthy();
     expect(screen.getByText('Sécurité')).toBeTruthy();
+    expect(screen.getByText('Équipe')).toBeTruthy();
 
     fireEvent.click(screen.getByText('Finance'));
     expect(setActiveTab).toHaveBeenCalledWith('finance');
     expect(screen.queryByText('Accès secondaires')).toBeNull();
   });
 
-  it('fails closed for secondary destinations on secretary role', () => {
+  it('keeps secretary secondary access limited to Team', () => {
+    const setActiveTab = vi.fn();
     render(
       <MobileBottomNav
         activeTab="agenda"
-        setActiveTab={() => undefined}
+        setActiveTab={setActiveTab}
         totalCount={0}
         termineCount={0}
         labJobs={[]}
@@ -100,6 +102,9 @@ describe('MobileBottomNav MOB-4', () => {
     expect(screen.queryByText('Finance')).toBeNull();
     expect(screen.queryByText('Envois Labo')).toBeNull();
     expect(screen.queryByText('Sécurité')).toBeNull();
-    expect(screen.getByText('Aucun accès secondaire disponible pour ce rôle.')).toBeTruthy();
+    expect(screen.getByText('Équipe')).toBeTruthy();
+
+    fireEvent.click(screen.getByText('Équipe'));
+    expect(setActiveTab).toHaveBeenCalledWith('dentists');
   });
 });
