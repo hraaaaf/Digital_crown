@@ -3,7 +3,7 @@ import { Bell, Check, Clock3, RefreshCw } from 'lucide-react';
 import { api } from '../../../../services/api';
 import type { Tab } from '../types';
 
-type MobileAlert = {
+export type MobileAlert = {
   id: number;
   patient_id?: number | null;
   patient_name?: string | null;
@@ -49,14 +49,25 @@ function relativeTime(value?: string | null) {
   return `Il y a ${Math.floor(hours / 24)} j`;
 }
 
-export function NotificationsView({ onNavigate }: { onNavigate: (tab: Tab) => void }) {
-  const [alerts, setAlerts] = useState<MobileAlert[]>([]);
+export function NotificationsView({
+  onNavigate,
+  previewData,
+}: {
+  onNavigate: (tab: Tab) => void;
+  previewData?: MobileAlert[];
+}) {
+  const [alerts, setAlerts] = useState<MobileAlert[]>(previewData ?? []);
   const [filter, setFilter] = useState<Filter>('all');
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(!previewData);
   const [mutatingId, setMutatingId] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const load = async () => {
+    if (previewData) {
+      setAlerts(previewData);
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     setError(null);
     try {
@@ -69,7 +80,7 @@ export function NotificationsView({ onNavigate }: { onNavigate: (tab: Tab) => vo
     }
   };
 
-  useEffect(() => { void load(); }, []);
+  useEffect(() => { void load(); }, [previewData]);
 
   const visible = useMemo(
     () => filter === 'all' ? alerts : alerts.filter(alert => priorityMeta(alert.priority).important),
@@ -77,6 +88,7 @@ export function NotificationsView({ onNavigate }: { onNavigate: (tab: Tab) => vo
   );
 
   const mutate = async (alert: MobileAlert, action: 'read' | 'snooze') => {
+    if (previewData) return;
     setMutatingId(alert.id);
     setError(null);
     try {
@@ -101,7 +113,7 @@ export function NotificationsView({ onNavigate }: { onNavigate: (tab: Tab) => vo
           type="button"
           aria-label="Actualiser les notifications"
           onClick={() => void load()}
-          disabled={loading}
+          disabled={loading || Boolean(previewData)}
           className="grid min-h-11 min-w-11 place-items-center rounded-full border border-glass-border bg-card text-text-muted disabled:opacity-50"
         >
           <RefreshCw size={18} className={loading ? 'animate-spin' : ''} />
@@ -165,7 +177,7 @@ export function NotificationsView({ onNavigate }: { onNavigate: (tab: Tab) => vo
                 )}
                 <button
                   type="button"
-                  disabled={busy}
+                  disabled={busy || Boolean(previewData)}
                   onClick={() => void mutate(alert, 'read')}
                   className="flex min-h-11 items-center justify-center gap-1.5 rounded-[16px] border border-glass-border bg-background px-3 text-[11px] font-black text-text-main disabled:opacity-50"
                 >
@@ -173,7 +185,7 @@ export function NotificationsView({ onNavigate }: { onNavigate: (tab: Tab) => vo
                 </button>
                 <button
                   type="button"
-                  disabled={busy}
+                  disabled={busy || Boolean(previewData)}
                   onClick={() => void mutate(alert, 'snooze')}
                   className="flex min-h-11 items-center justify-center gap-1.5 rounded-[16px] border border-glass-border bg-background px-3 text-[11px] font-black text-text-main disabled:opacity-50"
                 >
