@@ -21,7 +21,95 @@ function resolveApiBaseUrl(stored: string): string {
   return stored;
 }
 
-export function DentistsView() {
+function TeamContent({
+  dentists,
+  loading,
+  error,
+  onRefresh,
+}: {
+  dentists: Dentist[];
+  loading: boolean;
+  error: string | null;
+  onRefresh: () => void;
+}) {
+  return (
+    <section data-mob5a-team className="w-full max-w-[720px] mx-auto pb-6">
+      <div className="flex items-start justify-between gap-4 mb-5">
+        <div className="flex items-center gap-3 min-w-0">
+          <div className="w-10 h-10 bg-primary/10 rounded-[14px] flex items-center justify-center shrink-0">
+            <Users size={18} className="text-primary" />
+          </div>
+          <div className="min-w-0">
+            <h1 className="text-[24px] font-black tracking-tight text-primary leading-none">Équipe</h1>
+            <p className="text-[10px] font-black text-text-muted uppercase tracking-widest mt-1">Praticiens du cabinet</p>
+          </div>
+        </div>
+        <button
+          type="button"
+          onClick={onRefresh}
+          disabled={loading}
+          aria-label="Rafraîchir la liste des praticiens"
+          className="w-11 h-11 bg-card border border-glass-border rounded-[14px] shadow-elite flex items-center justify-center active:scale-95 transition-transform disabled:opacity-40 shrink-0"
+        >
+          <RefreshCw size={15} className={`text-text-muted ${loading ? 'animate-spin' : ''}`} />
+        </button>
+      </div>
+
+      {error && (
+        <div className="p-4 bg-rose-500/5 border border-rose-200 rounded-[16px] mb-4">
+          <p className="text-xs font-black text-rose-600">{error}</p>
+        </div>
+      )}
+
+      {loading && !dentists.length ? (
+        <div className="space-y-3">
+          {[1, 2].map(i => (
+            <Skeleton key={i} className="h-24 w-full rounded-[20px]" />
+          ))}
+        </div>
+      ) : dentists.length === 0 ? (
+        <div className="flex flex-col items-center justify-center py-16 gap-3 rounded-[20px] border border-glass-border bg-card">
+          <Users size={32} className="text-text-muted/30" />
+          <p className="text-sm font-black text-text-muted">Aucun praticien trouvé</p>
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {dentists.map((d, i) => (
+            <article key={d.id} className="bg-card border border-glass-border rounded-[20px] p-4 shadow-elite">
+              <div className="flex items-center gap-3.5">
+                <div
+                  className="w-12 h-12 rounded-[16px] flex items-center justify-center shrink-0"
+                  style={{ background: i === 0 ? 'linear-gradient(135deg, var(--primary), var(--secondary))' : 'color-mix(in srgb, var(--primary) 10%, transparent)' }}
+                >
+                  <User size={20} className={i === 0 ? 'text-white' : 'text-primary'} />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-black text-text-main truncate">{d.name}</p>
+                  <p className="text-[10px] font-bold text-text-muted truncate">{d.email}</p>
+                  {i === 0 && (
+                    <span className="inline-block mt-1 px-2 py-0.5 bg-primary/10 border border-primary/20 rounded-full text-[9px] font-black text-primary uppercase tracking-widest">
+                      Praticien principal
+                    </span>
+                  )}
+                </div>
+                {d.today_appointments > 0 && (
+                  <div className="shrink-0 flex flex-col items-center gap-0.5">
+                    <div className="w-9 h-9 bg-primary/10 rounded-[12px] flex items-center justify-center">
+                      <Calendar size={14} className="text-primary" />
+                    </div>
+                    <span className="text-[9px] font-black text-primary whitespace-nowrap">{d.today_appointments} RDV</span>
+                  </div>
+                )}
+              </div>
+            </article>
+          ))}
+        </div>
+      )}
+    </section>
+  );
+}
+
+export function DentistsView({ embedded = false }: { embedded?: boolean }) {
   const navigate = useNavigate();
   const [dentists, setDentists] = useState<Dentist[]>([]);
   const [loading, setLoading] = useState(true);
@@ -48,91 +136,33 @@ export function DentistsView() {
   }, []);
 
   useEffect(() => {
-    fetchDentists();
+    void fetchDentists();
   }, [fetchDentists]);
 
+  const content = <TeamContent dentists={dentists} loading={loading} error={error} onRefresh={() => void fetchDentists()} />;
+
+  if (embedded) return content;
+
   return (
-    <div className="min-h-[100dvh] bg-background text-text-main flex flex-col font-outfit select-none" style={{ backgroundColor: 'var(--bg-medical-pearl)' }}>
-      {/* Header */}
-      <div className="px-6 pt-14 pb-6 relative z-10">
-        <div className="flex items-center gap-3 mb-8">
-          <button
-            onClick={() => navigate('/mobile/dashboard')}
-            className="w-10 h-10 bg-card border border-glass-border rounded-[14px] shadow-elite flex items-center justify-center active:scale-90 transition-transform"
-          >
-            <ArrowLeft size={16} className="text-primary" />
-          </button>
-          <button
-            onClick={fetchDentists}
-            disabled={loading}
-            className="w-10 h-10 bg-card border border-glass-border rounded-[14px] shadow-elite flex items-center justify-center active:scale-90 transition-transform disabled:opacity-40 ml-auto"
-          >
-            <RefreshCw size={14} className={`text-text-muted ${loading ? 'animate-spin' : ''}`} />
-          </button>
-        </div>
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 bg-primary/10 rounded-[14px] flex items-center justify-center">
-            <Users size={18} className="text-primary" />
-          </div>
-          <div>
-            <h1 className="text-3xl font-black tracking-tight text-primary font-outfit leading-none">Équipe</h1>
-            <p className="text-[10px] font-black text-text-muted uppercase tracking-widest mt-0.5">Praticiens du cabinet</p>
-          </div>
-        </div>
+    <div
+      className="min-h-[100dvh] bg-background text-text-main flex flex-col select-none"
+      style={{
+        backgroundColor: 'var(--bg-medical-pearl)',
+        fontFamily: 'var(--app-font-family, "Inter", system-ui, sans-serif)',
+      }}
+    >
+      <div className="px-6 pt-12 pb-4 max-w-[720px] w-full mx-auto">
+        <button
+          type="button"
+          onClick={() => navigate('/mobile/dashboard?tab=agenda')}
+          aria-label="Retour au tableau de bord mobile"
+          className="w-11 h-11 bg-card border border-glass-border rounded-[14px] shadow-elite flex items-center justify-center active:scale-95 transition-transform"
+        >
+          <ArrowLeft size={16} className="text-primary" />
+        </button>
       </div>
-
-      {/* Content */}
-      <main className="flex-1 px-6 pb-10 space-y-4">
-        {error && (
-          <div className="p-4 bg-rose-500/5 border border-rose-200 rounded-[16px]">
-            <p className="text-xs font-black text-rose-600">{error}</p>
-          </div>
-        )}
-
-        {loading && !dentists.length ? (
-          <div className="space-y-3">
-            {[1, 2].map(i => (
-              <Skeleton key={i} className="h-24 w-full rounded-[20px]" />
-            ))}
-          </div>
-        ) : dentists.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-20 gap-3">
-            <Users size={32} className="text-text-muted/30" />
-            <p className="text-sm font-black text-text-muted">Aucun praticien trouvé</p>
-          </div>
-        ) : (
-          dentists.map((d, i) => (
-            <div
-              key={d.id}
-              className="bg-card border border-glass-border rounded-[20px] p-5 shadow-elite"
-            >
-              <div className="flex items-center gap-4">
-                <div className="w-12 h-12 rounded-[16px] flex items-center justify-center shrink-0"
-                  style={{ background: i === 0 ? 'linear-gradient(135deg, var(--primary), var(--secondary))' : 'var(--primary-10, rgba(0,51,128,0.10))' }}
-                >
-                  <User size={20} className={i === 0 ? 'text-white' : 'text-primary'} />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-black text-text-main truncate">{d.name}</p>
-                  <p className="text-[10px] font-bold text-text-muted truncate">{d.email}</p>
-                  {i === 0 && (
-                    <span className="inline-block mt-1 px-2 py-0.5 bg-primary/10 border border-primary/20 rounded-full text-[9px] font-black text-primary uppercase tracking-widest">
-                      Praticien principal
-                    </span>
-                  )}
-                </div>
-                {d.today_appointments > 0 && (
-                  <div className="shrink-0 flex flex-col items-center gap-0.5">
-                    <div className="w-9 h-9 bg-primary/10 rounded-[12px] flex items-center justify-center">
-                      <Calendar size={14} className="text-primary" />
-                    </div>
-                    <span className="text-[9px] font-black text-primary">{d.today_appointments} RDV</span>
-                  </div>
-                )}
-              </div>
-            </div>
-          ))
-        )}
+      <main className="flex-1 px-6 overflow-x-hidden">
+        {content}
       </main>
     </div>
   );
