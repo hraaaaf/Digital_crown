@@ -17,15 +17,15 @@ Fournir sur mobile un cockpit de notifications actionnables, priorisées, tenant
 - push OS conservé sans PHI.
 
 ## Validation technique
-Candidat certifié : `fc40af1a28cb1a8cdc65bce2a5b0357075d3a0a1`.
+Candidat certifié : `be89b0bd8b9f88fba7d2a587468f62aa66012108`.
 
 Runs :
-- CI `33986784125` ✅
-- T2 Runtime Browser Certification `33986784120` ✅
-- Settings Security Visual Certification `33986784086` ✅
-- Mobile Notifications MOB-5C Cert `33986784147` ✅
+- CI `33988565098` ✅
+- T2 Runtime Browser Certification `33988565094` ✅
+- Settings Security Visual Certification `33988565153` ✅
+- Mobile Notifications MOB-5C Cert `33988565115` ✅
 
-Artifact :
+Artifact visuel de référence :
 - id `9975417271`
 - nom `mobile-notifications-mob5c-after`
 - digest `sha256:4e40891c94abc35a49548220b76e075c3d8884157dd8160255f4956a6325fe3c`
@@ -36,7 +36,7 @@ Viewports certifiés :
 - `430×932`
 - `768×1024`
 
-Assertions runtime observées dans `runtime-evidence.json` :
+Assertions runtime :
 - 5 boutons de navigation permanents sur chaque viewport ;
 - hauteur nav `76 px` ;
 - `horizontalOverflow = false` ;
