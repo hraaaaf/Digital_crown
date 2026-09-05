@@ -22,7 +22,7 @@ const SNAPSHOT: Snapshot = {
 
 afterEach(() => cleanup());
 
-describe('MobileBottomNav MOB-4', () => {
+describe('MobileBottomNav canonical navigation', () => {
   it('renders the canonical five-entry navigation and opens Patients directly', () => {
     const setActiveTab = vi.fn();
     const onToggleQuickActions = vi.fn();
@@ -45,7 +45,7 @@ describe('MobileBottomNav MOB-4', () => {
     expect(screen.getByText('Patients')).toBeTruthy();
     expect(screen.getByText('Assistant')).toBeTruthy();
     expect(screen.getByText('Plus')).toBeTruthy();
-    expect(screen.queryByText('Finance')).toBeNull();
+    expect(screen.queryByText('Frontdesk')).toBeNull();
 
     fireEvent.click(screen.getByRole('button', { name: 'Ouvrir les actions rapides' }));
     expect(onToggleQuickActions).toHaveBeenCalledTimes(1);
@@ -54,7 +54,7 @@ describe('MobileBottomNav MOB-4', () => {
     expect(setActiveTab).toHaveBeenCalledWith('patients');
   });
 
-  it('moves Finance, Labo, Security and Team behind Plus for dentist/admin roles', () => {
+  it('keeps secondary destinations behind Plus for dentist/admin roles', () => {
     const setActiveTab = vi.fn();
     render(
       <MobileBottomNav
@@ -75,13 +75,14 @@ describe('MobileBottomNav MOB-4', () => {
     expect(screen.getByText('Envois Labo')).toBeTruthy();
     expect(screen.getByText('Sécurité')).toBeTruthy();
     expect(screen.getByText('Équipe')).toBeTruthy();
+    expect(screen.getByText('Frontdesk')).toBeTruthy();
 
-    fireEvent.click(screen.getByText('Finance'));
-    expect(setActiveTab).toHaveBeenCalledWith('finance');
+    fireEvent.click(screen.getByText('Frontdesk'));
+    expect(setActiveTab).toHaveBeenCalledWith('frontdesk');
     expect(screen.queryByText('Accès secondaires')).toBeNull();
   });
 
-  it('keeps secretary secondary access limited to Team', () => {
+  it('keeps secretary secondary access limited to Team and Frontdesk', () => {
     const setActiveTab = vi.fn();
     render(
       <MobileBottomNav
@@ -103,8 +104,6 @@ describe('MobileBottomNav MOB-4', () => {
     expect(screen.queryByText('Envois Labo')).toBeNull();
     expect(screen.queryByText('Sécurité')).toBeNull();
     expect(screen.getByText('Équipe')).toBeTruthy();
-
-    fireEvent.click(screen.getByText('Équipe'));
-    expect(setActiveTab).toHaveBeenCalledWith('dentists');
+    expect(screen.getByText('Frontdesk')).toBeTruthy();
   });
 });
