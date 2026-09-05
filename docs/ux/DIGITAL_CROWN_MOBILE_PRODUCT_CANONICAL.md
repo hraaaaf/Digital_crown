@@ -3,8 +3,8 @@
 Status: ACTIVE
 Canonical file: `docs/ux/DIGITAL_CROWN_MOBILE_PRODUCT_CANONICAL.md`
 Repo: `hraaaaf/Digital_crown`
-Current branch: `master`
-Current master HEAD after MOB-2 merge: `5fd2a06663e941581ad422267d31a5bb69a13d11`
+Current branch: `ux/mobile-quick-action-hub-mob3`
+Current master baseline for MOB-3: `508a2e1e174887fe44f271cc6a8283eb89e443c7`
 MOB-2 PR: `#354` — MERGED
 MOB-2 merge commit: `5fd2a06663e941581ad422267d31a5bb69a13d11`
 Deployment: none. No Vercel deployment is authorized by this chantier.
@@ -32,6 +32,7 @@ Conserver principalement sur desktop : Analytics complet, comptabilité/Treasury
 - Réglages cabinet = source de vérité unique du thème et de la typographie ;
 - aucune couleur de marque ou police locale figée dans les features mobiles ;
 - tout changement UI suit BEFORE → Goal UI → mockup/référence → implémentation → AFTER mêmes viewports → comparaison + tests + score visuel ;
+- mockup d'un écran existant = composition sur **capture réelle**, pas reconstruction schématique ;
 - ne jamais transformer le mobile en clone du desktop ;
 - aucun Vercel sans autorisation explicite.
 
@@ -52,15 +53,10 @@ Preuve : bootstrap `af8c44af145a30deeb4d04337cc70bb679c21a81`, puis closeout MOB
 Goal : concevoir le Patient Cockpit fidèle au langage Digital Crown et piloté par le thème/typographie du cabinet.
 
 Références :
-
 - `docs/ux/DIGITAL_CROWN_MOBILE_PATIENT_COCKPIT_GOAL_UI.md`
 - `docs/ux/assets/MOBILE_PATIENT_COCKPIT_GOAL_V1.svg`
 
-Preuves :
-
-- mockup cible : `b6924f0f57931e0361dc0db45653b63c4de9fb0c` ;
-- invariant thème + `font_fr` verrouillé ;
-- validation visuelle humaine explicite reçue le 2026-09-04 avant MOB-2.
+Preuves : mockup cible `b6924f0f57931e0361dc0db45653b63c4de9fb0c`, invariant thème + `font_fr`, validation visuelle humaine reçue le 2026-09-04.
 
 ---
 
@@ -68,99 +64,101 @@ Preuves :
 
 Goal : implémenter le parcours patient mobile cible en moins de 30 secondes.
 
-### Fonctions certifiées
-
-- recherche patient ;
-- identité et synthèse ;
-- alerte médicale prioritaire ;
-- appel / WhatsApp ;
-- prochain RDV ;
-- situation financière filtrée par permissions ;
-- photo clinique ;
-- scan document ;
-- dernier document ;
-- dernière panoramique ;
-- ponts contextuels opaques ;
-- état online/offline explicite ;
-- thème et `font_fr` issus des Réglages cabinet ;
-- purge fail-closed entre deux sélections patient.
+Fonctions certifiées : recherche patient, identité/synthèse, alerte médicale, appel/WhatsApp, prochain RDV, finance selon permissions, photo, scan, dernier document, dernière pano, contextes opaques, offline explicite, thème et `font_fr`, purge fail-closed inter-patient.
 
 ### BEFORE
+Run `33880152997` ✅ — HEAD `3ecfa47c449d9724d9517003499ec3e3ec4f730d` — artifact `9939517547` — digest `sha256:7a3b97a4e7b1b7fe652d40f9496fca88dcf2a441149437ed00f403334e7c226f` — 390/430/768.
 
-Run `33880152997` ✅
-
-- HEAD : `3ecfa47c449d9724d9517003499ec3e3ec4f730d`
-- artifact : `9939517547`
-- digest : `sha256:7a3b97a4e7b1b7fe652d40f9496fca88dcf2a441149437ed00f403334e7c226f`
-- viewports : `390×844`, `430×932`, `768×1024`
-
-### AFTER certifié
-
-Run `33889545163` ✅
-
-- candidat exact : `2a01e58d4bf3e3deff833723a52e3449bb26e4ac`
-- artifact : `9943369750`
-- digest : `sha256:b4d274590a3349cbcab8a71faeb25e880acc3aee4ab818420fab8918813777fd`
-- viewports : `390×844`, `430×932`, `768×1024`
-
-Gates verts : thème/offline/isolation inter-patient, non-régression frontend M4/M6 proportionnée, tenant/finance/device backend, non-régression backend photo/scan, build production frontend, syntaxe backend, runtime Chromium, captures AFTER et dimensions exactes.
+### AFTER
+Run `33889545163` ✅ — candidat `2a01e58d4bf3e3deff833723a52e3449bb26e4ac` — artifact `9943369750` — digest `sha256:b4d274590a3349cbcab8a71faeb25e880acc3aee4ab818420fab8918813777fd` — 390/430/768.
 
 Preuve détaillée : `docs/ux/DIGITAL_CROWN_MOBILE_PATIENT_COCKPIT_MOB2_PROOF.md`.
 
-### Sécurité
+Score visuel : **9.2 / 10**.
 
-- read model tenant-scopé / permission-gated / chiffré ;
-- finance alignée sur le contrat canonique `accounting` / `payments` ;
-- changement de patient purge identité et ressources précédentes avant nouveau fetch ;
-- contextes liés tenant + utilisateur + appareil ;
-- réponse publique de contexte opaque, sans identifiant patient/ressource ;
-- aucune promesse de TTL non enforcée.
-
-### Comparaison visuelle
-
-390 / 430 / 768 : langage visuel cohérent avec Digital Crown, identité forte, alerte médicale immédiate, Appeler / WhatsApp prioritaires, actions cliniques tactiles, tablette 768 maîtrisée, aucun overflow horizontal ni erreur runtime dans la certification.
-
-Écarts connus du mockup MOB-1 :
-
-1. actions cliniques avant le prochain RDV ;
-2. recherche remplacée par `Tous les patients` après sélection ;
-3. navigation cible reportée à MOB-4 ;
-4. `Encaisser` reporté à MOB-3.
-
-**Score visuel MOB-2 : 9.2 / 10.**
-
-### Git / merge
-
-- PR `#354` ;
-- checks PR verts : CI, Patient P7, T2 Runtime, Onboarding Settings P2, Settings Security, Portability Runtime ; M6-I correctement `skipped` ;
-- PR mergée le 2026-09-04 ;
-- merge commit : `5fd2a06663e941581ad422267d31a5bb69a13d11` ;
-- `master` vérifié sur ce HEAD après merge ;
-- aucun déploiement Vercel.
-
-Conclusion : MOB-2 fermé et intégré à `master` avec preuves.
+Git : PR `#354` merged ; merge commit `5fd2a06663e941581ad422267d31a5bb69a13d11` ; closeout master `508a2e1e174887fe44f271cc6a8283eb89e443c7` ; aucun déploiement.
 
 ---
 
-## MOB-3 — Quick Action Hub — NEXT
+## MOB-3 — Quick Action Hub — CERTIFIED / READY FOR PR
 
-Goal : permettre les actions fréquentes sans chercher une page.
+Goal : permettre les actions fréquentes sans chercher une page, en **2 gestes maximum**, sans préempter MOB-4.
 
-Cible produit :
-
+Cible :
 - Nouveau RDV ;
 - Nouveau patient ;
 - Photo clinique ;
 - Scanner document ;
 - Encaisser rapidement si permission.
 
-Process obligatoire avant code :
+### Branche
+`ux/mobile-quick-action-hub-mob3`, créée depuis `master@508a2e1e174887fe44f271cc6a8283eb89e443c7`.
 
-1. BEFORE réel sur 390 / 430 / 768 ;
-2. Goal UI écrit ;
-3. mockup/référence ;
-4. validation visuelle ;
-5. implémentation seulement après ce gate.
+### BEFORE — VERIFIED
+Run `33906860335` ✅
+- HEAD `040beb21872e63167d149735b24cc6f48554bb8f`
+- artifact `9949854305`
+- digest `sha256:b24cf6ecf919a97be154cfeb45275b54cc3bd2f2f4273fb1ee0f3fa2dee10748`
+- viewports `390×844`, `430×932`, `768×1024`
+- dashboard réel du harness, aucune donnée cabinet.
+
+### Goal UI + validation humaine
+
+`docs/ux/DIGITAL_CROWN_MOBILE_QUICK_ACTION_HUB_GOAL_UI.md`
+
+- V1 : REJECTED ;
+- V2 : REJECTED ;
+- V3 : **VALIDATED — REAL APP COMPOSITE** ;
+- référence : `docs/ux/assets/MOBILE_QUICK_ACTION_HUB_GOAL_V3_OVERLAY.svg` ;
+- validation visuelle humaine explicite reçue le 2026-09-04 ;
+- score de référence pré-code : **9.4 / 10**, mockup uniquement.
+
+Décision UX : aucun second FAB. Le FAB Agenda existant est promu launcher du Quick Action Hub et passe de `+` à `×` lorsque le hub est ouvert. Bottom nav inchangée jusqu'à MOB-4.
+
+### Implémentation certifiée
+
+- Nouveau RDV : réutilise `AddApptModal` ;
+- Nouveau patient : réutilise le flow mobile canonique ;
+- Photo / Scan : réutilisent le contexte patient sécurisé opaque avec intention dédiée ;
+- Encaisser : réutilise `POST /api/accounting/payments`, selon capacités serveur ;
+- aucune capability connue → aucun FAB ;
+- offline / action d'écriture → fail-closed ;
+- aucun nouveau moteur financier ;
+- aucun backend métier parallèle ;
+- thème et typographie restent pilotés par les Réglages cabinet.
+
+### AFTER — VERIFIED
+
+Run `33927174832` ✅ SUCCESS
+
+- candidat runtime exact : `37a9413fd8675717da31b77f43c5f9f2ab76de0c`
+- artifact : `9957298023`
+- digest : `sha256:eb96f1193345a3d1770b013eb7451e9d87ca7e95afa062612d08b3078640e8a8`
+- viewports : `390×844`, `430×932`, `768×1024`
+- frontend ciblé : **17/17** tests ✅
+- backend ciblé : **8/8** tests ✅
+- build production ✅
+- Chromium evidence ✅
+- mêmes viewports BEFORE/AFTER ✅
+- dimensions PNG ✅
+- aucun overflow horizontal ✅
+- un seul FAB visible ✅
+- aucune croix supplémentaire dans la sheet ✅
+- bottom nav inchangée ✅
+
+Inspection visuelle réelle effectuée sur les trois AFTER contre le BEFORE réel et la V3 validée.
+
+Score visuel runtime : **9.5 / 10**.
+
+Écart mineur non bloquant : sheet visuellement plus large sur `768×1024`, sans overflow ni rupture fonctionnelle.
+
+Preuve détaillée : `docs/ux/DIGITAL_CROWN_MOBILE_QUICK_ACTION_HUB_MOB3_PROOF.md`.
+
+### Verdict
+
+**MOB-3 CERTIFIED — READY FOR PR.**
+
+Aucun déploiement Vercel.
 
 ---
 
@@ -179,7 +177,6 @@ Succès : maximum cinq points d'entrée permanents, aucun doublon, rôles filtr�
 ## MOB-5 — Mobile secondaire à forte valeur — PLANNED / CONDITIONAL
 
 Candidats : Bibliothèque clinique, demandes RDV / Frontdesk, aperçu multi-praticien, Marketplace utilisateur.
-
 Gate : scénario mobile réel, fréquent et plus efficace que desktop.
 
 ---
@@ -194,7 +191,7 @@ Goal : supprimer l'ambiguïté entre PWA mobile dédiée et shell desktop respon
 
 ## MOB-7 — Certification globale Mobile Product — PLANNED
 
-Preuves minimales : frontend ciblé, backend ciblé, build, runtime, RBAC, offline/sync/revocation, context bridges, BEFORE/AFTER 390/430/768, zéro overflow horizontal, zéro erreur console/page, comparaison Goal UI, score visuel et gates physiques séparés.
+Preuves minimales : frontend/backend ciblés, build, runtime, RBAC, offline/sync/revocation, context bridges, BEFORE/AFTER 390/430/768, zéro overflow, zéro erreur console/page, comparaison Goal UI, score visuel et gates physiques séparés.
 
 Aucun Vercel sans autorisation explicite.
 
@@ -219,4 +216,4 @@ Le chantier est CLOSED uniquement si tous les lots retenus sont DONE ou explicit
 
 ## Next exact
 
-Ouvrir MOB-3 sur une nouvelle branche depuis `master@5fd2a06663e941581ad422267d31a5bb69a13d11`, capturer le BEFORE 390 / 430 / 768 du point d'entrée futur Quick Action Hub, écrire le Goal UI, puis produire le mockup avant toute implémentation.
+Ouvrir la PR MOB-3 → vérifier diff/checks → merge si sûr → vérifier `master` post-merge → closeout MOB-3 → MOB-4.

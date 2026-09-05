@@ -2,6 +2,8 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { MobileHeader } from './components/MobileHeader';
 import { MobileBottomNav } from './components/MobileBottomNav';
+import { MobileQuickActionHub } from './components/MobileQuickActionHub';
+import './components/mobileQuickActionHub.css';
 import { AgendaView } from './views/AgendaView';
 import { FinanceView } from './views/FinanceView';
 import { LabView } from './views/LabView';
@@ -18,6 +20,13 @@ const DEMO_PATIENTS = [
   { id: 103, name: 'Patient 03', phone: null },
   { id: 104, name: 'Patient 04', phone: null },
 ];
+
+const DEMO_QUICK_CAPABILITIES = {
+  can_create_appointment: true,
+  can_create_patient: true,
+  can_open_clinical_context: true,
+  can_pay: true,
+};
 
 function isoDay(offset: number): string {
   const date = new Date();
@@ -155,6 +164,10 @@ function requestedPreviewTab(): Tab {
   return tab === 'patients' ? 'patients' : 'agenda';
 }
 
+function requestedQuickOpen(): boolean {
+  return new URLSearchParams(window.location.search).get('quick') === '1';
+}
+
 export function MobilePreviewDashboard() {
   const [activeTab, setActiveTab] = useState<Tab>(requestedPreviewTab);
   const [selectedDate, setSelectedDate] = useState(() => new Date().toISOString().slice(0, 10));
@@ -182,6 +195,7 @@ export function MobilePreviewDashboard() {
     <div
       data-dc-mobile-shell
       data-dc-preview-demo
+      data-mob3-quick-action-shell
       className="min-h-[100dvh] bg-background text-text-main flex flex-col pb-28 select-none relative"
       style={{
         backgroundColor: 'var(--bg-medical-pearl)',
@@ -259,6 +273,15 @@ export function MobilePreviewDashboard() {
           </motion.div>
         </AnimatePresence>
       </main>
+
+      <MobileQuickActionHub
+        capabilities={DEMO_QUICK_CAPABILITIES}
+        isOnline
+        defaultOpen={requestedQuickOpen()}
+        onNewAppointment={noop}
+        onNewPatient={noop}
+        onPatientAction={() => undefined}
+      />
 
       <MobileBottomNav
         activeTab={activeTab}
