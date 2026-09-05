@@ -3,8 +3,9 @@
 Status: ACTIVE
 Canonical file: `docs/ux/DIGITAL_CROWN_MOBILE_PRODUCT_CANONICAL.md`
 Repo: `hraaaaf/Digital_crown`
-Current branch: `master`
-Current master: `28cf8278a31507d96b33c10f03e1635f86223454`
+Current branch: `audit/mobile-secondary-value-mob5`
+Current MOB-5 baseline: `1e5c8d2b5ed1fd68591abdb185645ab2c7758fce`
+Current master baseline after MOB-4 closeout: `df48ef3cf1af8e9075828b3bf0b9b1f2c874fcda`
 MOB-2 PR: `#354` — MERGED
 MOB-3 PR: `#355` — MERGED
 MOB-4 PR: `#356` — MERGED
@@ -26,7 +27,7 @@ Prioriser : agenda rapide, patient rapide, alertes médicales, appel / WhatsApp,
 
 ### Desktop = système complet
 
-Conserver principalement sur desktop : Analytics complet, comptabilité/Treasury, ClinicalHub/odontogramme/Master Plan, RVG Studio, Panoramic Studio complet, Céphalométrie, Document Studio complet, paramètres cabinet, catalogue actes, administration fournisseurs/Marketplace, Setup cabinet et workflows lourds d'administration.
+Conserver principalement sur desktop : Analytics complet, comptabilité/Treasury, ClinicalHub/odontogramme/Master Plan, RVG Studio, Panoramic Studio complet, Céphalométrie, Document Studio complet, paramètres cabinet, catalogue actes, Setup cabinet et workflows lourds d'administration.
 
 ### Invariants UI/UX
 
@@ -129,14 +130,90 @@ Run `33953721202` ✅ SUCCESS
 
 Preuve détaillée : `docs/ux/DIGITAL_CROWN_MOBILE_CANONICAL_NAVIGATION_MOB4_PROOF.md`.
 
-Git : PR `#356` merged ; merge commit `28cf8278a31507d96b33c10f03e1635f86223454` ; aucun déploiement.
+Git : PR `#356` merged ; merge commit `28cf8278a31507d96b33c10f03e1635f86223454` ; closeout master `df48ef3cf1af8e9075828b3bf0b9b1f2c874fcda` ; aucun déploiement.
 
 ---
 
-## MOB-5 — Mobile secondaire à forte valeur — PLANNED / CONDITIONAL
+## MOB-5 — Mobile secondaire à forte valeur — ACTIVE / SCOPE LOCKED
 
-Candidats : Bibliothèque clinique, demandes RDV / Frontdesk, aperçu multi-praticien, Marketplace utilisateur.
-Gate : scénario mobile réel, fréquent et plus efficace que desktop.
+### Goal
+Porter uniquement les scénarios secondaires à forte valeur sur mobile, avec UX dédiée, DB/permissions partagées et sans dupliquer les workflows lourds du desktop.
+
+### Success
+Chaque sous-lot retenu possède : scénario mobile explicite, Goal UI, preuve BEFORE/AFTER 390/430/768 si visuel, tests ciblés, build, runtime sans erreur, permissions/RBAC vérifiés et cohérence desktop/mobile sur la même donnée métier.
+
+### Scope produit verrouillé le 2026-09-05
+
+| # | Fonction | Décision | Cible mobile |
+|---|---|---|---|
+| 1 | Salle d’attente | Desktop + Mobile | **Coming Soon** sur les deux surfaces pour le moment ; ne pas implémenter le métier avant audit dédié |
+| 2 | Équipe / praticiens | Desktop + Mobile | vue praticiens, disponibilité/charge et RDV du jour ; intégrer proprement dans `Plus` |
+| 3 | Bibliothèque clinique | Desktop + Mobile | recherche/consultation rapide ; lecture simplifiée, pas le gros écran desktop compressé |
+| 4 | Science Hub | **Desktop only** | aucun portage mobile prévu |
+| 5 | Frontdesk / demandes RDV | Desktop + Mobile | voir, accepter/refuser, appeler/WhatsApp, suivi rapide ; administration lourde desktop |
+| 6 | Marketplace / Approvisionnement | Desktop + Mobile | **refonte dédiée** après benchmark de 3–4 références mobiles dentaires/médicales/B2B ; UX mobile distincte |
+| 7 | Stock | Desktop + Mobile | niveau de stock, alertes, produits critiques, réassort/mouvements simples ; paramétrage lourd desktop |
+| 8 | Notifications | Desktop + Mobile | alertes actionnables, priorité/filtrage strict, deep link vers contexte |
+| 9 | SuperAdmin | Desktop + Mobile | supervision/urgence seulement ; opérations lourdes et configuration complète desktop |
+| 10 | Patients / génération de documents | Desktop + Mobile | **Quick Document Studio** mobile : ordonnance, certificat, devis, consentement, consignes postop, courrier/orientation, modèle libre simplifié |
+
+### Invariant données desktop/mobile
+
+Une seule source de vérité serveur/DB. Mobile et desktop consomment le même objet métier et le même historique. Aucun modèle parallèle de données.
+
+Pour les documents : `patient_id + practitioner_id + template_id + payload structuré + version + status + created_at + updated_at` comme contrat cible à auditer avant migration. Brouillon local éventuel autorisé uniquement avec queue de sync, versioning et conflit explicite ; aucun écrasement silencieux.
+
+Le pont documentaire existant doit être conservé comme mécanisme de continuité sécurisé tant que le Quick Document Studio n’est pas certifié.
+
+### Ordre d’exécution MOB-5
+
+#### MOB-5A — Équipe / praticiens — NEXT
+Goal : rendre l’aperçu praticiens réellement accessible depuis la navigation mobile canonique et conforme aux tokens/thème.
+Success : accès via `Plus`, permissions `agenda`, vue 390/430/768 sans overflow, build/runtime/tests verts.
+Preuve attendue : BEFORE → Goal UI → implémentation → AFTER mêmes viewports → score visuel.
+
+#### MOB-5B — Notifications
+Goal : centraliser les alertes actionnables mobile sans bruit.
+Success : catégories/priorités/RBAC/deep links testés ; aucune notification non autorisée.
+
+#### MOB-5C — Frontdesk
+Goal : traiter une demande RDV en quelques gestes depuis mobile.
+Success : voir → accepter/refuser → contact rapide → état partagé avec desktop.
+
+#### MOB-5D — Stock
+Goal : consulter criticité stock et lancer une action courte de réassort/mouvement.
+Success : données cohérentes desktop/mobile, permissions et actions simples certifiées.
+
+#### MOB-5E — Bibliothèque clinique
+Goal : recherche et consultation clinique rapide sur mobile.
+Success : recherche, favoris/récents si disponibles, lecture mobile dédiée, aucun portage brut de `EliteLibrary`.
+
+#### MOB-5F — Patients / Quick Document Studio
+Goal : produire un document courant en idéalement <30 s depuis le dossier patient.
+Success : modèles préremplis, ordonnance simplifiée, aperçu, finalisation, historique commun desktop/mobile, PDF partagé, versioning/audit/RBAC vérifiés.
+Références produit à approfondir : CareStack, Dentrix et autres systèmes dentaires de référence avant Goal UI final.
+
+#### MOB-5G — Marketplace / Approvisionnement — REFONTE
+Goal : refondre l’expérience Marketplace desktop/mobile à partir d’un benchmark externe sérieux.
+Gate obligatoire : audit de 3–4 marketplaces mobiles dentaires/médicales/B2B avant mockup et code.
+Success : architecture IA, recherche, catégories, produit, panier/commande, suivi et réassort adaptés à chaque surface ; même métier, UX distinctes.
+
+#### MOB-5H — SuperAdmin mobile
+Goal : supervision et urgence, pas administration complète.
+Success : états/incidents/utilisateurs visibles selon permissions ; actions critiques explicitement sécurisées.
+
+#### MOB-5I — Salle d’attente — COMING SOON
+Goal : conserver une place produit sur desktop et mobile sans fausse fonctionnalité.
+Success actuel : surfaces cohérentes marquées Coming Soon ; aucun backend/UI métier partiel présenté comme prêt.
+
+### Explicitement hors MOB-5 mobile
+
+- Science Hub : desktop only.
+- Éditeur WYSIWYG complet de documents.
+- Création/paramétrage lourd des templates.
+- Administration Marketplace exhaustive.
+- Paramétrage stock avancé.
+- Configuration SuperAdmin complète.
 
 ---
 
@@ -175,4 +252,4 @@ Le chantier est CLOSED uniquement si tous les lots retenus sont DONE ou explicit
 
 ## Next exact
 
-Ouvrir MOB-5 comme audit conditionnel de valeur mobile → sélectionner uniquement les scénarios réellement fréquents et plus efficaces que desktop → sinon DROPPED avec justification → MOB-6.
+MOB-5A Équipe / praticiens : auditer la vue mobile et la navigation `Plus` existantes → produire BEFORE et Goal UI → corriger conformité thème/typographie et intégration navigation → tester/certifier 390/430/768 → closeout du sous-lot → MOB-5B Notifications.
