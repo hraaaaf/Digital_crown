@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { DEMO_SUPERADMIN } from '../../superadmin/previewData';
@@ -8,6 +8,12 @@ afterEach(() => {
   cleanup();
   vi.unstubAllGlobals();
 });
+
+function sectionButton(name: string) {
+  const header = document.querySelector('header');
+  if (!header) throw new Error('SuperAdmin header unavailable');
+  return within(header).getByRole('button', { name });
+}
 
 describe('MobileSuperAdminView', () => {
   it('exposes the five SuperAdmin domains in isolated preview without network calls', () => {
@@ -24,7 +30,7 @@ describe('MobileSuperAdminView', () => {
     expect(screen.getByText('MODE DÉMO — SUPERADMIN')).toBeTruthy();
     expect(screen.getByText('Clients & licences')).toBeTruthy();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Clients' }));
+    fireEvent.click(sectionButton('Clients'));
     expect(screen.getByText('Cabinet Atlas Démo')).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: /Cabinet Atlas Démo/ }));
     expect(screen.getByRole('dialog', { name: 'Cabinet Atlas Démo' })).toBeTruthy();
@@ -33,17 +39,17 @@ describe('MobileSuperAdminView', () => {
     expect(screen.getByRole('button', { name: /Relance/i })).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: 'Fermer' }));
 
-    fireEvent.click(screen.getByRole('button', { name: 'Essais' }));
+    fireEvent.click(sectionButton('Essais'));
     expect(screen.getByText('DC-DEMO-42A1-8BC2')).toBeTruthy();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Marketplace' }));
+    fireEvent.click(sectionButton('Marketplace'));
     expect(screen.getByText('Dental Supply Demo')).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Catalogue' })).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Incidents' })).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Audit' })).toBeTruthy();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Opérations' }));
-    expect(screen.getByText('CMD-PART-DEMO-7001')).toBeTruthy();
+    fireEvent.click(sectionButton('Opérations'));
+    expect(screen.getAllByText('CMD-PART-DEMO-7001').length).toBeGreaterThanOrEqual(2);
     expect(screen.getByText('Commandes multi-cabinets')).toBeTruthy();
 
     expect(fetchSpy).not.toHaveBeenCalled();
@@ -56,7 +62,7 @@ describe('MobileSuperAdminView', () => {
       </MemoryRouter>,
     );
 
-    fireEvent.click(screen.getByRole('button', { name: 'Opérations' }));
+    fireEvent.click(sectionButton('Opérations'));
     fireEvent.click(screen.getByRole('button', { name: /CMD-PART-DEMO-7001/ }));
 
     expect(await screen.findByRole('dialog', { name: 'CMD-PART-DEMO-7001' })).toBeTruthy();
