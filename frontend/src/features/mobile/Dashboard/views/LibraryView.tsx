@@ -44,7 +44,7 @@ export function LibraryView({ role }: { role?: string }) {
   const [favorites, setFavorites] = useState<string[]>([]);
   const [favoritesOnly, setFavoritesOnly] = useState(false);
 
-  const accessAllowed = !role || role === 'DENTISTE' || role === 'ADMIN';
+  const accessAllowed = role === 'DENTISTE' || role === 'ADMIN';
 
   useEffect(() => {
     setFavorites(readStoredCodes(FAVORITES_KEY));
@@ -76,6 +76,18 @@ export function LibraryView({ role }: { role?: string }) {
     writeStoredCodes(RECENTS_KEY, [protocol.act_code, ...recents.filter(code => code !== protocol.act_code)].slice(0, 8));
     setSelected(protocol);
   };
+
+  if (!role) {
+    return (
+      <section data-mobile-library data-mobile-library-loading className="pb-8 pt-2">
+        <div className="rounded-[24px] border border-glass-border bg-card p-5 shadow-sm">
+          <p className="text-[10px] font-black uppercase tracking-[0.16em] text-text-muted">Bibliothèque clinique</p>
+          <h1 className="mt-2 text-[24px] font-black tracking-tight text-text-main">Vérification des accès…</h1>
+          <p className="mt-2 text-[12px] font-semibold leading-relaxed text-text-muted">Le rôle du cabinet doit être chargé avant d’afficher la référence clinique.</p>
+        </div>
+      </section>
+    );
+  }
 
   if (!accessAllowed) {
     return (
