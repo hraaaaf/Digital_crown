@@ -9,6 +9,7 @@ import { FinanceView } from './views/FinanceView';
 import { LabView } from './views/LabView';
 import { MobilePatientsView, type MobilePatientsPreviewData } from './views/MobilePatientsView';
 import { FrontdeskView, type PendingRequest } from './views/FrontdeskView';
+import { NotificationsView, type MobileAlert } from './views/NotificationsView';
 import { MobilePreviewBotView } from './MobilePreviewBotView';
 import { MobilePreviewSecurityView } from './MobilePreviewSecurityView';
 import { applyMobileRuntimeTheme } from './hooks/useMobileRuntimeTheme';
@@ -70,11 +71,17 @@ const DEMO_FRONTDESK: PendingRequest[] = [
   { id: 8102, patient_name: 'Youssef Amrani', phone: '+212623456789', datetime_start: `${isoDay(1)}T10:00:00`, duration_minutes: 45, motif: 'Contrôle implant', status: 'EN_ATTENTE_CONFIRM', source: 'frontdesk', expires_at: `${isoDay(0)}T17:30:00`, created_at: new Date().toISOString() },
 ];
 
+const DEMO_NOTIFICATIONS: MobileAlert[] = [
+  { id: 8201, patient_id: 101, patient_name: 'Nadia El Mansouri', type: 'OVERDUE_PAYMENT', title: 'Paiement à régulariser', message: 'Un règlement patient nécessite une vérification aujourd’hui.', priority: 'HIGH', created_at: new Date(Date.now() - 12 * 60_000).toISOString() },
+  { id: 8202, patient_id: 102, patient_name: 'Youssef Amrani', type: 'PATIENT_FOLLOWUP', title: 'Suivi clinique', message: 'Le contrôle prévu cette semaine mérite une vérification du dossier.', priority: 'MEDIUM', created_at: new Date(Date.now() - 75 * 60_000).toISOString() },
+  { id: 8203, patient_id: 103, patient_name: 'Salma Idrissi', type: 'PATIENT_INFO', title: 'Information patient', message: 'Une information non urgente est disponible dans le dossier.', priority: 'LOW', created_at: new Date(Date.now() - 26 * 60 * 60_000).toISOString() },
+];
+
 const noop = () => undefined;
 
 function requestedPreviewTab(): Tab {
   const tab = new URLSearchParams(window.location.search).get('tab') as Tab | null;
-  return tab && ['agenda', 'patients', 'finance', 'lab', 'bot', 'securite', 'dentists', 'frontdesk'].includes(tab) ? tab : 'agenda';
+  return tab && ['agenda', 'patients', 'finance', 'lab', 'bot', 'securite', 'dentists', 'frontdesk', 'notifications'].includes(tab) ? tab : 'agenda';
 }
 
 function requestedQuickOpen(): boolean { return new URLSearchParams(window.location.search).get('quick') === '1'; }
@@ -104,6 +111,7 @@ export function MobilePreviewDashboard() {
           {activeTab === 'finance' && <FinanceView snapshot={snapshot} syncStatus="success" selectedDate={selectedDate} openWhatsApp={noop} handleExportPDF={noop} />}
           {activeTab === 'lab' && <LabView labJobs={DEMO_LAB_JOBS} handleWhatsAppSend={noop} />}
           {activeTab === 'frontdesk' && <FrontdeskView previewData={DEMO_FRONTDESK} />}
+          {activeTab === 'notifications' && <NotificationsView onNavigate={selectNavTab} previewData={DEMO_NOTIFICATIONS} />}
           {activeTab === 'bot' && <MobilePreviewBotView />}
           {activeTab === 'securite' && <MobilePreviewSecurityView />}
         </motion.div></AnimatePresence>

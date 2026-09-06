@@ -45,7 +45,7 @@ describe('MobileBottomNav canonical navigation', () => {
     expect(screen.getByText('Patients')).toBeTruthy();
     expect(screen.getByText('Assistant')).toBeTruthy();
     expect(screen.getByText('Plus')).toBeTruthy();
-    expect(screen.queryByText('Frontdesk')).toBeNull();
+    expect(screen.queryByText('Notifications')).toBeNull();
 
     fireEvent.click(screen.getByRole('button', { name: 'Ouvrir les actions rapides' }));
     expect(onToggleQuickActions).toHaveBeenCalledTimes(1);
@@ -54,7 +54,7 @@ describe('MobileBottomNav canonical navigation', () => {
     expect(setActiveTab).toHaveBeenCalledWith('patients');
   });
 
-  it('keeps secondary destinations behind Plus for dentist/admin roles', () => {
+  it('keeps Notifications and other secondary destinations behind Plus', () => {
     const setActiveTab = vi.fn();
     render(
       <MobileBottomNav
@@ -71,18 +71,19 @@ describe('MobileBottomNav canonical navigation', () => {
     );
 
     fireEvent.click(screen.getByText('Plus'));
+    expect(screen.getByText('Notifications')).toBeTruthy();
     expect(screen.getByText('Finance')).toBeTruthy();
     expect(screen.getByText('Envois Labo')).toBeTruthy();
     expect(screen.getByText('Sécurité')).toBeTruthy();
     expect(screen.getByText('Équipe')).toBeTruthy();
     expect(screen.getByText('Frontdesk')).toBeTruthy();
 
-    fireEvent.click(screen.getByText('Frontdesk'));
-    expect(setActiveTab).toHaveBeenCalledWith('frontdesk');
+    fireEvent.click(screen.getByText('Notifications'));
+    expect(setActiveTab).toHaveBeenCalledWith('notifications');
     expect(screen.queryByText('Accès secondaires')).toBeNull();
   });
 
-  it('keeps secretary secondary access limited to Team and Frontdesk', () => {
+  it('keeps secretary secondary access to Notifications, Team and Frontdesk only', () => {
     const setActiveTab = vi.fn();
     render(
       <MobileBottomNav
@@ -103,6 +104,7 @@ describe('MobileBottomNav canonical navigation', () => {
     expect(screen.queryByText('Finance')).toBeNull();
     expect(screen.queryByText('Envois Labo')).toBeNull();
     expect(screen.queryByText('Sécurité')).toBeNull();
+    expect(screen.getByText('Notifications')).toBeTruthy();
     expect(screen.getByText('Équipe')).toBeTruthy();
     expect(screen.getByText('Frontdesk')).toBeTruthy();
   });
