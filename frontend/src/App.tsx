@@ -33,7 +33,7 @@ const EliteLibrary    = lazy(() => import('./features/clinical-ref/EliteLibrary'
 const EliteScienceHub = lazy(() => import('./features/clinical-ref/EliteScienceHub').then(m => ({ default: m.EliteScienceHub })));
 const SuperAdminDashboard = lazy(() => import('./features/superadmin/SuperAdminDashboard').then(m => ({ default: m.SuperAdminDashboard })));
 const LabJobsBoard    = lazy(() => import('./components/LabJobsBoard').then(m => ({ default: m.LabJobsBoard })));
-const StockPage        = lazy(() => import('./pages/StockPage').then(m => ({ default: m.StockPage })));
+const StockPage       = lazy(() => import('./pages/StockPage').then(m => ({ default: m.StockPage })));
 const PartnerMarketplacePage = lazy(() => import('./pages/PartnerMarketplacePage').then(m => ({ default: m.PartnerMarketplacePage })));
 const PartnerCatalogAdminPage = lazy(() => import('./pages/PartnerCatalogAdminPage').then(m => ({ default: m.PartnerCatalogAdminPage })));
 const PartnerSupplierPage = lazy(() => import('./pages/PartnerSupplierPage').then(m => ({ default: m.PartnerSupplierPage })));
@@ -94,15 +94,14 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
 
       try {
         await waitForBackend();
-        
         const authStatus = await authService.isAuthenticated();
         setIsAuthenticated(authStatus);
-        
+
         if (authStatus && location.pathname !== '/login') {
           await useAuthStore.getState().checkAuth();
           const status = await cabinetApi.checkInitStatus();
           setIsInitialized(status.is_initialized);
-          
+
           if (status.is_initialized && !safeStorage.get('appMode')) {
             safeStorage.set('appMode', 'prod');
           }
@@ -205,9 +204,7 @@ const ProtectedRoutes = () => {
           <Route
             path="/labo"
             element={<ComingSoon title="Module Labo" description="Ce module est en construction et sera bientôt disponible dans une prochaine mise à jour." />} />
-          <Route
-            path="/stock"
-            element={<ComingSoon title="Gestion du stock" description="Ce module est en construction et sera bientôt disponible dans une prochaine mise à jour." />} />
+          <Route path="/stock" element={<StockPage />} />
           <Route path="/approvisionnement" element={<PartnerMarketplacePage />} />
           <Route
             path="/approvisionnement/admin"

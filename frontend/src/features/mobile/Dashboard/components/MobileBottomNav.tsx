@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Bell, Bot, CalendarDays, ClipboardList, FlaskConical, MoreHorizontal, ShieldCheck, TrendingUp, UserRound, Users, X } from 'lucide-react';
+import { Bell, Bot, CalendarDays, ClipboardList, FlaskConical, MoreHorizontal, Package, ShieldCheck, TrendingUp, UserRound, Users, X } from 'lucide-react';
 import { cn } from '../../../../utils/cn';
 import type { Tab, Snapshot } from '../types';
 import type { LabJob } from '../../../../types/labJob';
@@ -32,6 +32,12 @@ export function MobileBottomNav({
       id: 'notifications' as Tab,
       icon: Bell,
       label: 'Notifications',
+      allowedRoles: ['DENTISTE', 'ADMIN', 'SECRETAIRE'],
+    },
+    {
+      id: 'stock' as Tab,
+      icon: Package,
+      label: 'Stock',
       allowedRoles: ['DENTISTE', 'ADMIN', 'SECRETAIRE'],
     },
     {

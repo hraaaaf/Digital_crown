@@ -46,6 +46,7 @@ describe('MobileBottomNav canonical navigation', () => {
     expect(screen.getByText('Assistant')).toBeTruthy();
     expect(screen.getByText('Plus')).toBeTruthy();
     expect(screen.queryByText('Notifications')).toBeNull();
+    expect(screen.queryByText('Stock')).toBeNull();
 
     fireEvent.click(screen.getByRole('button', { name: 'Ouvrir les actions rapides' }));
     expect(onToggleQuickActions).toHaveBeenCalledTimes(1);
@@ -54,7 +55,7 @@ describe('MobileBottomNav canonical navigation', () => {
     expect(setActiveTab).toHaveBeenCalledWith('patients');
   });
 
-  it('keeps Notifications and other secondary destinations behind Plus', () => {
+  it('keeps Stock, Notifications and other secondary destinations behind Plus', () => {
     const setActiveTab = vi.fn();
     render(
       <MobileBottomNav
@@ -72,18 +73,19 @@ describe('MobileBottomNav canonical navigation', () => {
 
     fireEvent.click(screen.getByText('Plus'));
     expect(screen.getByText('Notifications')).toBeTruthy();
+    expect(screen.getByText('Stock')).toBeTruthy();
     expect(screen.getByText('Finance')).toBeTruthy();
     expect(screen.getByText('Envois Labo')).toBeTruthy();
     expect(screen.getByText('Sécurité')).toBeTruthy();
     expect(screen.getByText('Équipe')).toBeTruthy();
     expect(screen.getByText('Frontdesk')).toBeTruthy();
 
-    fireEvent.click(screen.getByText('Notifications'));
-    expect(setActiveTab).toHaveBeenCalledWith('notifications');
+    fireEvent.click(screen.getByText('Stock'));
+    expect(setActiveTab).toHaveBeenCalledWith('stock');
     expect(screen.queryByText('Accès secondaires')).toBeNull();
   });
 
-  it('keeps secretary secondary access to Notifications, Team and Frontdesk only', () => {
+  it('keeps secretary secondary access to Notifications, Stock, Team and Frontdesk only', () => {
     const setActiveTab = vi.fn();
     render(
       <MobileBottomNav
@@ -105,6 +107,7 @@ describe('MobileBottomNav canonical navigation', () => {
     expect(screen.queryByText('Envois Labo')).toBeNull();
     expect(screen.queryByText('Sécurité')).toBeNull();
     expect(screen.getByText('Notifications')).toBeTruthy();
+    expect(screen.getByText('Stock')).toBeTruthy();
     expect(screen.getByText('Équipe')).toBeTruthy();
     expect(screen.getByText('Frontdesk')).toBeTruthy();
   });

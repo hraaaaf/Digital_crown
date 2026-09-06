@@ -10,6 +10,7 @@ export const MOBILE_BRIDGE_ROUTES: Record<string, string> = {
   dentists: '/mobile/dashboard?tab=dentists',
   frontdesk: '/mobile/dashboard?tab=frontdesk',
   notifications: '/mobile/dashboard?tab=notifications',
+  stock: '/mobile/dashboard?tab=stock',
   superadmin: '/mobile/superadmin',
 };
 
@@ -23,10 +24,11 @@ export const MOBILE_BRIDGE_LABELS: Record<string, string> = {
   dentists: 'Équipe praticiens',
   frontdesk: 'Frontdesk',
   notifications: 'Notifications',
+  stock: 'Stock',
   superadmin: 'SuperAdmin',
 };
 
-const DASHBOARD_TABS = new Set<Tab>(['agenda', 'patients', 'finance', 'lab', 'bot', 'securite', 'dentists', 'frontdesk', 'notifications']);
+const DASHBOARD_TABS = new Set<Tab>(['agenda', 'patients', 'finance', 'lab', 'bot', 'securite', 'dentists', 'frontdesk', 'notifications', 'stock']);
 
 export function resolveBridgeRoute(destination: unknown): string {
   return typeof destination === 'string' && MOBILE_BRIDGE_ROUTES[destination]
