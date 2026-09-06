@@ -26,7 +26,7 @@ export function MobileBottomNav({
   onToggleQuickActions: () => void;
 }) {
   const [moreOpen, setMoreOpen] = useState(false);
-  const role = snapshot?.role ?? 'DENTISTE';
+  const role = snapshot?.role ?? '';
   const secondaryTabs = [
     {
       id: 'notifications' as Tab,
