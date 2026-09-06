@@ -21,7 +21,7 @@ if (previewPath.startsWith('/mobile')) {
   bootstrapMobileQuickIntent()
 }
 
-if (isPreviewRequest && previewPath === '/mobile/demo') {
+if (isPreviewRequest && (previewPath === '/mobile/demo' || previewPath === '/mobile/superadmin')) {
   const policy = document.createElement('meta')
   policy.httpEquiv = 'Content-Security-Policy'
   policy.content = "connect-src 'none'; form-action 'none'"
@@ -115,6 +115,13 @@ async function resolveApplication(): Promise<React.ReactNode> {
     if (previewPath === '/mobile/demo') {
       const { MobilePreviewDashboard } = await import('./features/mobile/Dashboard/MobilePreviewDashboard.tsx')
       return <BrowserRouter><MobilePreviewDashboard /></BrowserRouter>
+    }
+    if (previewPath === '/mobile/superadmin') {
+      const [{ MobileSuperAdminView }, { DEMO_SUPERADMIN }] = await Promise.all([
+        import('./features/mobile/Dashboard/views/MobileSuperAdminView.tsx'),
+        import('./features/mobile/superadmin/previewData.ts'),
+      ])
+      return <BrowserRouter><MobileSuperAdminView previewData={DEMO_SUPERADMIN} /></BrowserRouter>
     }
     if (previewPath === '/mobile/onboarding') {
       const { MobilePreviewOnboarding } = await import('./features/mobile/Onboarding/MobilePreviewOnboarding.tsx')
