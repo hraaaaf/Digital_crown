@@ -102,7 +102,7 @@ try {
 
     await screenshotState(page, viewport, 'overview');
 
-    await page.getByRole('button', { name: 'Clients' }).click();
+    await page.locator('header').getByRole('button', { name: 'Clients' }).click();
     await page.getByText('Cabinet Atlas Démo').waitFor({ state: 'visible' });
     await page.getByRole('button', { name: /Cabinet Atlas Démo/ }).click();
     await page.getByRole('dialog', { name: 'Cabinet Atlas Démo' }).waitFor({ state: 'visible' });
@@ -116,11 +116,11 @@ try {
     await screenshotState(page, viewport, 'client-detail');
     await page.getByRole('button', { name: 'Fermer' }).click();
 
-    await page.getByRole('button', { name: 'Essais' }).click();
+    await page.locator('header').getByRole('button', { name: 'Essais' }).click();
     await page.getByText('DC-DEMO-42A1-8BC2').waitFor({ state: 'visible' });
     await screenshotState(page, viewport, 'trials');
 
-    await page.getByRole('button', { name: 'Marketplace' }).click();
+    await page.locator('header').getByRole('button', { name: 'Marketplace' }).click();
     await page.getByText('Dental Supply Demo').waitFor({ state: 'visible' });
     const marketplaceCapabilities = {
       suppliers: await page.getByRole('button', { name: 'Fournisseurs' }).isVisible(),
@@ -130,8 +130,8 @@ try {
     };
     await screenshotState(page, viewport, 'marketplace');
 
-    await page.getByRole('button', { name: 'Opérations' }).click();
-    await page.getByText('CMD-PART-DEMO-7001').waitFor({ state: 'visible' });
+    await page.locator('header').getByRole('button', { name: 'Opérations' }).click();
+    await page.getByText('CMD-PART-DEMO-7001').first().waitFor({ state: 'visible' });
     await screenshotState(page, viewport, 'operations');
     await page.getByRole('button', { name: /CMD-PART-DEMO-7001/ }).click();
     await page.getByRole('dialog', { name: 'CMD-PART-DEMO-7001' }).waitFor({ state: 'visible' });
