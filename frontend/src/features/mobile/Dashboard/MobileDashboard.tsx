@@ -25,6 +25,7 @@ import { FrontdeskView } from './views/FrontdeskView';
 import { NotificationsView } from './views/NotificationsView';
 import { StockView } from './views/StockView';
 import { LibraryView } from './views/LibraryView';
+import { MarketplaceView } from './views/MarketplaceView';
 import { PWAInstallPrompt } from '../../../components/PWAInstallPrompt';
 import { resolveDashboardTab } from '../bridge';
 
@@ -132,34 +133,17 @@ export const MobileDashboard = () => {
                 onClose={() => selectNavTab('agenda')}
               />
             )}
-            {state.activeTab === 'lab' && (
-              <LabView
-                labJobs={state.labJobs}
-                handleWhatsAppSend={actions.handleWhatsAppSend}
-              />
-            )}
+            {state.activeTab === 'lab' && <LabView labJobs={state.labJobs} handleWhatsAppSend={actions.handleWhatsAppSend} />}
             {state.activeTab === 'finance' && (
-              <FinanceView
-                snapshot={state.snapshot}
-                syncStatus={state.syncStatus}
-                selectedDate={state.selectedDate}
-                openWhatsApp={actions.openWhatsApp}
-                handleExportPDF={actions.handleExportPDF}
-              />
+              <FinanceView snapshot={state.snapshot} syncStatus={state.syncStatus} selectedDate={state.selectedDate} openWhatsApp={actions.openWhatsApp} handleExportPDF={actions.handleExportPDF} />
             )}
-            {state.activeTab === 'securite' && (
-              <SecuriteView
-                snapshot={state.snapshot}
-                syncStatus={state.syncStatus}
-                isOnline={state.isOnline}
-                handleLogout={actions.handleLogout}
-              />
-            )}
+            {state.activeTab === 'securite' && <SecuriteView snapshot={state.snapshot} syncStatus={state.syncStatus} isOnline={state.isOnline} handleLogout={actions.handleLogout} />}
             {state.activeTab === 'dentists' && <DentistsView embedded />}
             {state.activeTab === 'frontdesk' && <FrontdeskView />}
             {state.activeTab === 'notifications' && <NotificationsView onNavigate={selectNavTab} />}
             {state.activeTab === 'stock' && <StockView />}
             {state.activeTab === 'library' && <LibraryView role={state.snapshot?.role} />}
+            {state.activeTab === 'marketplace' && <MarketplaceView />}
             {state.activeTab === 'bot' && <BotView />}
           </motion.div>
         </AnimatePresence>
@@ -194,28 +178,14 @@ export const MobileDashboard = () => {
           selectedDate={state.selectedDate}
           patients={state.patients}
           onClose={() => setShowQuickAppointment(false)}
-          onSuccess={() => {
-            void actions.fetchSnapshot();
-            setShowQuickAppointment(false);
-          }}
+          onSuccess={() => { void actions.fetchSnapshot(); setShowQuickAppointment(false); }}
           onPatientCreated={() => refreshAfterPatientMutation()}
         />
       )}
 
-      {showQuickNewPatient && (
-        <MobileQuickNewPatientModal
-          onClose={() => setShowQuickNewPatient(false)}
-          onCreated={refreshAfterPatientMutation}
-        />
-      )}
+      {showQuickNewPatient && <MobileQuickNewPatientModal onClose={() => setShowQuickNewPatient(false)} onCreated={refreshAfterPatientMutation} />}
 
-      {quickPatientAction && (
-        <MobileQuickPatientFlow
-          action={quickPatientAction}
-          onClose={() => setQuickPatientAction(null)}
-          onPaymentRecorded={() => void actions.fetchSnapshot()}
-        />
-      )}
+      {quickPatientAction && <MobileQuickPatientFlow action={quickPatientAction} onClose={() => setQuickPatientAction(null)} onPaymentRecorded={() => void actions.fetchSnapshot()} />}
 
       {state.whatsappApt && (
         <WhatsAppModal
