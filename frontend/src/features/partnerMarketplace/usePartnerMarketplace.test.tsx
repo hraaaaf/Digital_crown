@@ -76,6 +76,38 @@ describe('shared Marketplace controller', () => {
     });
   });
 
+  it('keeps preview deterministic and fully isolated from Marketplace APIs', async () => {
+    const previewData = {
+      strategyPresets: [strategy],
+      catalogMeta: { categories: ['Restauration'], specialties: ['Omnipratique'], availability: ['AVAILABLE'] },
+      suppliers: [{ id: 11, supplierKey: 'preview', name: 'Preview Dental', isActive: true, productCount: 1 }],
+      products: [{
+        id: '101', supplierId: '11', supplierName: 'Preview Dental', name: 'Composite universel',
+        category: 'Restauration', specialty: 'Omnipratique', sku: 'CMP-101', unit: 'seringue', price: 390,
+        availability: 'Disponible', description: 'Preview', longDescription: 'Preview', benefits: [], isFeatured: true, sortOrder: 1,
+      }],
+      customer: {
+        fullName: 'Dr Preview', clinic: 'Cabinet Preview', email: 'preview@example.test', phone: '0600000000', city: 'Rabat',
+      },
+    } as const;
+
+    const { result } = renderHook(() => usePartnerMarketplace({ previewData: previewData as never }));
+    await waitFor(() => expect(result.current.catalogLoading).toBe(false));
+
+    expect(result.current.customer).toMatchObject({
+      fullName: 'Dr Preview', clinic: 'Cabinet Preview', email: 'preview@example.test', phone: '0600000000', city: 'Rabat',
+    });
+    expect(api.get).not.toHaveBeenCalled();
+
+    act(() => result.current.adjustQty(result.current.filteredProducts[0], 1));
+    let submitted = false;
+    await act(async () => { submitted = await result.current.submitDraft(); });
+
+    expect(submitted).toBe(true);
+    expect(api.post).not.toHaveBeenCalled();
+    expect(result.current.successMessage).toContain('Aucune donnée réelle');
+  });
+
   it('loads the canonical catalog, searches by SKU and prepares one server DRAFT POST', async () => {
     const { result } = renderHook(() => usePartnerMarketplace());
 
