@@ -1,6 +1,6 @@
 # Digital Crown Mobile — MOB-5E Bibliothèque clinique — Proof
 
-Status: **CERTIFIED / MERGE READY**
+Status: **DONE / MERGED**
 
 ## Goal
 
@@ -28,18 +28,20 @@ Apporter la Bibliothèque clinique existante au cockpit mobile comme surface de 
 ## Références exactes
 
 - Repo : `hraaaaf/Digital_crown`
-- PR : `#361`
+- PR : `#361` — merged
 - branche : `ux/mobile-library-mob5e`
 - master de référence produit : `9cb740bc52efc9bf734c19fefc3c4f07470eba80`
 - master docs avant PR : `e91d9a6146e82b5090513dec6e38d5b7e4ba6382`
 - HEAD produit final : `b345d7153196a8ee5e5e05c128eef8a5a8b2ec41`
-- merge ref certifiée : `2bd084d39b47dd6c79b25df69c83723c642887d8`
+- merge ref produit certifiée : `2bd084d39b47dd6c79b25df69c83723c642887d8`
+- HEAD final synchronisé avec master avant merge : `05cf642937210e70d70172503a142a45016d20f3`
+- merge final : `b850cff2bd03dda667d6e1b6e449230658035d62`
 
 ## Tests
 
 ### MOB-5E ciblés
 
-Run `34042238302` — **SUCCESS**
+Run produit `34042238302` — **SUCCESS**
 
 - 4 fichiers Vitest passés
 - **12/12 tests passés**
@@ -49,9 +51,11 @@ Run `34042238302` — **SUCCESS**
 - garde thème mobile
 - build production Vite : ✅
 
+Run HEAD final `34043911199` — **SUCCESS**
+
 ### CI générale
 
-Run `34042238326` — **SUCCESS**
+Run produit `34042238326` — **SUCCESS**
 
 - Frontend tests & build : ✅
 - Tests & durcissement : ✅
@@ -60,6 +64,11 @@ Run `34042238326` — **SUCCESS**
 - M4-B Panoramic bridge : ✅
 - M4-C Document bridge : ✅
 - backend complet : **2994 passed, 8 skipped, 4 warnings**
+
+Run HEAD final `34043911174` — **SUCCESS**
+
+- T2 Runtime Browser `34043911191` — **SUCCESS**
+- Mobile Library MOB-5E Cert `34043911199` — **SUCCESS**
 
 Les 4 warnings sont les SAWarnings SuperAdmin déjà connus sur la coercition de sous-requêtes ; aucune relation démontrée avec MOB-5E.
 
@@ -143,4 +152,4 @@ Justification : hiérarchie, cohérence, lisibilité et adaptation 390/430/768 s
 
 ## Verdict
 
-**MOB-5E est certifié et merge-ready sur le HEAD produit `b345d7153196a8ee5e5e05c128eef8a5a8b2ec41`, sous réserve que les commits documentaires de closeout restent docs-only et repassent les gates finaux.**
+**MOB-5E est certifié, mergé dans `master` via `b850cff2bd03dda667d6e1b6e449230658035d62`, avec gates finaux du HEAD `05cf642937210e70d70172503a142a45016d20f3` verts.**
