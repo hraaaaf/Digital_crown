@@ -1,4 +1,4 @@
-"""P10 — preuves web-only et CSRF du control-plane Marketplace."""
+"""MOB-5H — preuves WebAuthn mobile UV et CSRF du control-plane Marketplace."""
 
 import uuid
 
@@ -6,6 +6,7 @@ from backend import models
 from backend.config import settings
 from backend.routers.mobile import _create_mobile_jwt
 from backend.security import get_password_hash
+from backend.services.mobile_biometric import issue_biometric_access_token
 
 
 def _superadmin(db, monkeypatch):
@@ -32,18 +33,23 @@ def _superadmin(db, monkeypatch):
     return user
 
 
-def test_mobile_superadmin_session_is_rejected_from_marketplace_control_plane(client, db, monkeypatch):
-    admin = _superadmin(db, monkeypatch)
+def _paired_device(db, admin):
     device_id = str(uuid.uuid4())
     device = models.MobilePairedDevice(
         device_id=device_id,
         user_id=admin.id,
         employer_id=admin.id,
         client_public_key_hex="04" + ("00" * 64),
-        refresh_jti="p10-mobile-security",
+        refresh_jti=f"p10-mobile-security-{uuid.uuid4().hex}",
     )
     db.add(device)
     db.commit()
+    return device_id
+
+
+def test_ordinary_mobile_superadmin_session_is_rejected_from_marketplace_control_plane(client, db, monkeypatch):
+    admin = _superadmin(db, monkeypatch)
+    device_id = _paired_device(db, admin)
     token = _create_mobile_jwt(admin.id, "DENTISTE", admin.id, device_id)
 
     response = client.get(
@@ -52,7 +58,29 @@ def test_mobile_superadmin_session_is_rejected_from_marketplace_control_plane(cl
     )
 
     assert response.status_code == 403, response.text
-    assert response.json()["detail"]["code"] == "MARKETPLACE_SUPERADMIN_WEB_REQUIRED"
+    assert response.json()["detail"]["code"] == "MARKETPLACE_SUPERADMIN_BIOMETRIC_REQUIRED"
+
+
+def test_webauthn_uv_mobile_superadmin_session_reaches_marketplace_control_plane(client, db, monkeypatch):
+    admin = _superadmin(db, monkeypatch)
+    device_id = _paired_device(db, admin)
+    token, expires_in = issue_biometric_access_token(
+        user=admin,
+        employer_id=admin.id,
+        device_id=device_id,
+    )
+
+    assert expires_in == 300
+    response = client.get(
+        "/api/superadmin/marketplace/overview",
+        headers={"Authorization": f"Bearer {token}"},
+    )
+
+    assert response.status_code == 200, response.text
+    payload = response.json()
+    assert "cabinetsCount" in payload
+    assert "ordersCount" in payload
+    assert "syncDegradedCount" in payload
 
 
 def test_cookie_marketplace_mutation_requires_origin(client, db, monkeypatch):
