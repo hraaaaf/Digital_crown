@@ -35,6 +35,9 @@ describe('MobileBottomNav canonical navigation', () => {
     expect(screen.getByText('Patients')).toBeTruthy();
     expect(screen.getByText('Assistant')).toBeTruthy();
     expect(screen.getByText('Plus')).toBeTruthy();
+    expect(screen.queryByText('Notifications')).toBeNull();
+    expect(screen.queryByText('Stock')).toBeNull();
+    expect(screen.queryByText('Bibliothèque')).toBeNull();
     expect(screen.queryByText('Marketplace')).toBeNull();
 
     fireEvent.click(screen.getByRole('button', { name: 'Ouvrir les actions rapides' }));
