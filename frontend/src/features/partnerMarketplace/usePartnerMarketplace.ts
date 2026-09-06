@@ -32,6 +32,7 @@ export type MarketplacePreviewData = {
   catalogMeta: PartnerMarketplaceCatalogMeta | null;
   suppliers: PartnerCatalogSupplier[];
   products: PartnerProduct[];
+  customer?: Partial<MarketplaceCustomer>;
 };
 
 export type MarketplaceCartLine = PartnerProduct & {
@@ -61,6 +62,7 @@ export function usePartnerMarketplace(options?: { previewData?: MarketplacePrevi
   const user = useAuthStore((state) => state.user);
   const previewData = options?.previewData;
   const previewMode = Boolean(previewData);
+  const initialCustomer = previewMode ? { ...buildMarketplaceCustomer(user), ...previewData?.customer } : buildMarketplaceCustomer(user);
 
   const [strategyPresets, setStrategyPresets] = useState<PartnerMarketplaceStrategyPreset[]>(previewData?.strategyPresets || []);
   const [catalogMeta, setCatalogMeta] = useState<PartnerMarketplaceCatalogMeta | null>(previewData?.catalogMeta || null);
@@ -70,7 +72,7 @@ export function usePartnerMarketplace(options?: { previewData?: MarketplacePrevi
   const [search, setSearch] = useState('');
   const [category, setCategory] = useState('Toutes');
   const [availableOnly, setAvailableOnly] = useState(false);
-  const [customer, setCustomer] = useState<MarketplaceCustomer>(() => buildMarketplaceCustomer(user));
+  const [customer, setCustomer] = useState<MarketplaceCustomer>(initialCustomer);
   const [catalogLoading, setCatalogLoading] = useState(!previewMode);
   const [catalogError, setCatalogError] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -90,11 +92,14 @@ export function usePartnerMarketplace(options?: { previewData?: MarketplacePrevi
   useEffect(() => {
     setCustomer((current) => ({
       ...current,
-      fullName: current.fullName || user?.full_name || user?.nom_complet || '',
-      clinic: current.clinic || user?.cabinet_name || '',
-      email: current.email || user?.email || '',
+      fullName: current.fullName || user?.full_name || user?.nom_complet || previewData?.customer?.fullName || '',
+      clinic: current.clinic || user?.cabinet_name || previewData?.customer?.clinic || '',
+      email: current.email || user?.email || previewData?.customer?.email || '',
+      phone: current.phone || previewData?.customer?.phone || '',
+      city: current.city || previewData?.customer?.city || '',
+      note: current.note || previewData?.customer?.note || '',
     }));
-  }, [user?.full_name, user?.nom_complet, user?.cabinet_name, user?.email]);
+  }, [previewData?.customer, user?.full_name, user?.nom_complet, user?.cabinet_name, user?.email]);
 
   const hydrateFromCache = useCallback(() => {
     if (previewMode) return false;
