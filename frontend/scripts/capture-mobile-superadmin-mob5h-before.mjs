@@ -129,6 +129,7 @@ server.stderr.on('data', (chunk) => { serverLog += chunk.toString(); });
 let browser;
 const captures = [];
 const allApiRequests = [];
+const neutralizedExternalRequests = [];
 const blockedExternalRequests = [];
 
 try {
@@ -162,6 +163,10 @@ try {
           return route.fulfill(json(clients));
         }
         return route.fulfill(json({ detail: 'Endpoint interdit dans le BEFORE' }, 418));
+      }
+      if (url.hostname === 'fonts.googleapis.com') {
+        neutralizedExternalRequests.push({ viewport: viewport.name, url: request.url(), method: request.method(), mode: 'offline-css-shim' });
+        return route.fulfill({ status: 200, contentType: 'text/css; charset=utf-8', body: '/* MOB-5H offline visual harness: external fonts intentionally neutralized. */' });
       }
       blockedExternalRequests.push({ viewport: viewport.name, url: request.url(), method: request.method() });
       return route.abort('blockedbyclient');
@@ -230,7 +235,9 @@ const report = {
   viewports: viewports.map((item) => item.name),
   captures,
   allApiRequests,
+  neutralizedExternalRequests,
   blockedExternalRequests,
+  realExternalEgressAllowed: false,
   invalidCount: invalid.length,
   baselineCapabilitiesObserved: {
     clientListSearch: true,
@@ -243,7 +250,7 @@ const report = {
     archive: false,
     internalNotes: false,
     licenseHistory: false,
-    renewalEmail: false,
+    renewalAction: false,
     marketplaceGovernance: false,
     marketplaceOperations: false,
   },
