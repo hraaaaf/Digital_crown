@@ -10,6 +10,7 @@ import { LabView } from './views/LabView';
 import { MobilePatientsView, type MobilePatientsPreviewData } from './views/MobilePatientsView';
 import { FrontdeskView, type PendingRequest } from './views/FrontdeskView';
 import { NotificationsView, type MobileAlert } from './views/NotificationsView';
+import { StockView, type MobileStockItem } from './views/StockView';
 import { MobilePreviewBotView } from './MobilePreviewBotView';
 import { MobilePreviewSecurityView } from './MobilePreviewSecurityView';
 import { applyMobileRuntimeTheme } from './hooks/useMobileRuntimeTheme';
@@ -77,11 +78,18 @@ const DEMO_NOTIFICATIONS: MobileAlert[] = [
   { id: 8203, patient_id: 103, patient_name: 'Salma Idrissi', type: 'PATIENT_INFO', title: 'Information patient', message: 'Une information non urgente est disponible dans le dossier.', priority: 'LOW', created_at: new Date(Date.now() - 26 * 60 * 60_000).toISOString() },
 ];
 
+const DEMO_STOCK: MobileStockItem[] = [
+  { id: 8301, nom: 'Gants nitrile M', categorie: 'CONSOMMABLE', quantite: 0, seuil_alerte: 4, unite: 'boîtes', fournisseur: 'Fournisseur démo', alerte: true },
+  { id: 8302, nom: 'Composite universel', categorie: 'MATERIAU', quantite: 2, seuil_alerte: 3, unite: 'seringues', fournisseur: null, alerte: true },
+  { id: 8303, nom: 'Anesthésique local', categorie: 'MEDICAMENT', quantite: 8, seuil_alerte: 4, unite: 'boîtes', fournisseur: null, alerte: false },
+  { id: 8304, nom: 'Masques chirurgicaux', categorie: 'CONSOMMABLE', quantite: 12, seuil_alerte: 5, unite: 'boîtes', fournisseur: null, alerte: false },
+];
+
 const noop = () => undefined;
 
 function requestedPreviewTab(): Tab {
   const tab = new URLSearchParams(window.location.search).get('tab') as Tab | null;
-  return tab && ['agenda', 'patients', 'finance', 'lab', 'bot', 'securite', 'dentists', 'frontdesk', 'notifications'].includes(tab) ? tab : 'agenda';
+  return tab && ['agenda', 'patients', 'finance', 'lab', 'bot', 'securite', 'dentists', 'frontdesk', 'notifications', 'stock'].includes(tab) ? tab : 'agenda';
 }
 
 function requestedQuickOpen(): boolean { return new URLSearchParams(window.location.search).get('quick') === '1'; }
@@ -112,6 +120,7 @@ export function MobilePreviewDashboard() {
           {activeTab === 'lab' && <LabView labJobs={DEMO_LAB_JOBS} handleWhatsAppSend={noop} />}
           {activeTab === 'frontdesk' && <FrontdeskView previewData={DEMO_FRONTDESK} />}
           {activeTab === 'notifications' && <NotificationsView onNavigate={selectNavTab} previewData={DEMO_NOTIFICATIONS} />}
+          {activeTab === 'stock' && <StockView previewData={DEMO_STOCK} />}
           {activeTab === 'bot' && <MobilePreviewBotView />}
           {activeTab === 'securite' && <MobilePreviewSecurityView />}
         </motion.div></AnimatePresence>
