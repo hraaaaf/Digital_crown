@@ -135,7 +135,7 @@ Ouverture en page/sheet plein écran mobile. Toutes les prérogatives core doive
 - archiver/désarchiver ;
 - consulter/modifier notes internes ;
 - consulter historique licence ;
-- envoyer email de renouvellement.
+- déclencher la relance renouvellement canonique, actuellement WhatsApp si un téléphone est disponible.
 
 ```text
 ┌─ Cabinet Atlas ──────────────────────┐
@@ -164,7 +164,7 @@ Ouverture en page/sheet plein écran mobile. Toutes les prérogatives core doive
 
 - extension de licence : confirmation légère ou action réversible explicitement annoncée ;
 - pack : confirmation si changement ;
-- relance email : confirmation simple ;
+- relance renouvellement : confirmation simple et libellé aligné sur le canal réellement utilisé par le backend ;
 - suspension / archivage : confirmation modale explicite avec nom du client ;
 - révocation licence : confirmation renforcée avec libellé de conséquence, jamais un tap unique.
 
