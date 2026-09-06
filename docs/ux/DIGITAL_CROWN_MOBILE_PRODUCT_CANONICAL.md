@@ -4,6 +4,7 @@ Status: ACTIVE
 Canonical file: `docs/ux/DIGITAL_CROWN_MOBILE_PRODUCT_CANONICAL.md`
 Repo: `hraaaaf/Digital_crown`
 Current merged product baseline: `b850cff2bd03dda667d6e1b6e449230658035d62`
+Current master docs head before MOB-5G merge: `062eadf1afc6ffc241be8420313e065a35f7d95b`
 Deployment: none. No Vercel deployment is authorized by this chantier.
 
 ## Goal final
@@ -199,18 +200,55 @@ Preuves :
 Goal : produire un document courant en idéalement <30 s depuis le dossier patient.
 Gate : audit interne + benchmark externe avant Goal UI final.
 
-## MOB-5G — Marketplace / Approvisionnement — NEXT / REFONTE
-Goal : refondre l’expérience Marketplace desktop/mobile à partir d’un benchmark externe sérieux.
-Gate obligatoire : audit de 3–4 marketplaces mobiles dentaires/médicales/B2B avant mockup et code.
+## MOB-5G — Marketplace / Approvisionnement — CERTIFIED / MERGE PENDING
+Goal : achat cabinet rapide desktop + mobile, sans dupliquer le moteur catalogue/commande existant.
 
-## MOB-5H — SuperAdmin mobile — PLANNED
+Fonctions certifiées :
+- benchmark externe Henry Schein / Patterson / Medline / McKesson effectué avant implémentation ;
+- controller Marketplace frontend partagé desktop/mobile ;
+- desktop refondu Quick Order / SKU-first ;
+- `Plus → Marketplace` ;
+- deep-link `?tab=marketplace` ;
+- DENTISTE / ADMIN uniquement ; SECRETAIRE exclu ; menu fail-closed ;
+- recherche nom / SKU, filtres, quantité, panier, checkout DRAFT ;
+- préremplissage nom / cabinet / email ;
+- preview locale déterministe sans GET/POST Marketplace ;
+- autorité backend conservée pour prix, fournisseurs, split et création DRAFT ;
+- aucun backend métier Marketplace modifié.
+
+Preuves :
+- PR `#362` open / merge pending
+- HEAD produit certifié `e13323772fb432f1b8bcb253361e08ba5e627995`
+- BEFORE baseline `062eadf1afc6ffc241be8420313e065a35f7d95b`
+- BEFORE run `34045330209` ✅
+- BEFORE artifact `9992935589`
+- BEFORE digest `sha256:3e3701efc64a0eb3e3ed94be10b1a43bd5a0bd79cdf38e1c0917dda1220611db`
+- MOB-5G cert `34049639818` ✅
+- Marketplace Final Certification `34049639902` ✅
+- CI `34049639787` ✅
+- T2 `34049639801` ✅
+- targeted Vitest : **18/18** ✅
+- backend Marketplace P1-P10 : **105/105 passed** ✅
+- build production ✅
+- AFTER artifact `9994164037`
+- AFTER digest `sha256:1f6b5426be0514ce398edc37e4671c44d86e168593cc5b2ab2d6899ec269481f`
+- 390×844 / 430×932 / 768×1024 / 1280×800
+- 5 boutons canoniques, nav 76 px, 0 overflow, 0 erreur runtime ✅
+- desktop : exactement 1 POST DRAFT, URL inchangée ✅
+- score visuel **9.4/10**
+- preuve `docs/ux/DIGITAL_CROWN_MOBILE_MARKETPLACE_MOB5G_PROOF.md`
+
+Limite connue non résolue : le job Marketplace signale le conflit de dépendances `httpx==0.27.2` avec `firebase-admin 7.5.0` / `ultralytics-platform`; les tests restent verts. Ne pas déclarer ce conflit corrigé.
+
+## MOB-5H — SuperAdmin mobile — NEXT AFTER MOB-5G MERGE
 Goal : supervision et urgence, pas administration complète.
+Gate : audit exact des capacités SuperAdmin desktop/mobile existantes avant Goal UI ; aucune configuration exhaustive sur mobile.
 
 ## MOB-5I — Salle d’attente — COMING SOON
 Goal actuel : conserver une place produit cohérente desktop/mobile sans fausse fonctionnalité.
 
 ### Séquence restante verrouillée
-Marketplace refonte → SuperAdmin → Documents patients / Quick Document Studio → Salle d’attente.
+SuperAdmin → Documents patients / Quick Document Studio → Salle d’attente.
 
 ### Explicitement hors MOB-5 mobile
 - Science Hub.
@@ -242,4 +280,4 @@ Ordre : validation → canonique → cohérence docs → roadmap/% réel → Git
 - ne pas déployer sur Vercel sans autorisation explicite.
 
 ## Next exact
-MOB-5G Marketplace : formaliser l’audit interne + benchmark externe déjà commencé, verrouiller le BEFORE et le Goal UI/mockup, puis seulement implémenter la refonte desktop/mobile avec les mêmes contrats backend et preuves 390/430/768/1280.
+Valider la vague docs-only finale de PR #362, merger avec verrouillage du HEAD, vérifier master/post-merge, marquer MOB-5G DONE / MERGED avec le SHA exact, puis ouvrir MOB-5H SuperAdmin mobile et commencer par l’audit interne.

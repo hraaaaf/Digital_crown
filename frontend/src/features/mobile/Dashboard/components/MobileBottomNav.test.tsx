@@ -28,17 +28,7 @@ describe('MobileBottomNav canonical navigation', () => {
     const onToggleQuickActions = vi.fn();
 
     render(
-      <MobileBottomNav
-        activeTab="agenda"
-        setActiveTab={setActiveTab}
-        totalCount={4}
-        termineCount={1}
-        labJobs={[]}
-        snapshot={SNAPSHOT}
-        quickActionsAvailable
-        quickActionsOpen={false}
-        onToggleQuickActions={onToggleQuickActions}
-      />,
+      <MobileBottomNav activeTab="agenda" setActiveTab={setActiveTab} totalCount={4} termineCount={1} labJobs={[]} snapshot={SNAPSHOT} quickActionsAvailable quickActionsOpen={false} onToggleQuickActions={onToggleQuickActions} />,
     );
 
     expect(screen.getByText('Aujourd’hui')).toBeTruthy();
@@ -48,6 +38,7 @@ describe('MobileBottomNav canonical navigation', () => {
     expect(screen.queryByText('Notifications')).toBeNull();
     expect(screen.queryByText('Stock')).toBeNull();
     expect(screen.queryByText('Bibliothèque')).toBeNull();
+    expect(screen.queryByText('Marketplace')).toBeNull();
 
     fireEvent.click(screen.getByRole('button', { name: 'Ouvrir les actions rapides' }));
     expect(onToggleQuickActions).toHaveBeenCalledTimes(1);
@@ -56,51 +47,31 @@ describe('MobileBottomNav canonical navigation', () => {
     expect(setActiveTab).toHaveBeenCalledWith('patients');
   });
 
-  it('keeps Library, Stock, Notifications and other secondary destinations behind Plus', () => {
+  it('keeps Marketplace and other secondary destinations behind Plus', () => {
     const setActiveTab = vi.fn();
     render(
-      <MobileBottomNav
-        activeTab="finance"
-        setActiveTab={setActiveTab}
-        totalCount={0}
-        termineCount={0}
-        labJobs={[]}
-        snapshot={SNAPSHOT}
-        quickActionsAvailable
-        quickActionsOpen={false}
-        onToggleQuickActions={() => undefined}
-      />,
+      <MobileBottomNav activeTab="finance" setActiveTab={setActiveTab} totalCount={0} termineCount={0} labJobs={[]} snapshot={SNAPSHOT} quickActionsAvailable quickActionsOpen={false} onToggleQuickActions={() => undefined} />,
     );
 
     fireEvent.click(screen.getByText('Plus'));
     expect(screen.getByText('Notifications')).toBeTruthy();
     expect(screen.getByText('Stock')).toBeTruthy();
     expect(screen.getByText('Bibliothèque')).toBeTruthy();
+    expect(screen.getByText('Marketplace')).toBeTruthy();
     expect(screen.getByText('Finance')).toBeTruthy();
     expect(screen.getByText('Envois Labo')).toBeTruthy();
     expect(screen.getByText('Sécurité')).toBeTruthy();
     expect(screen.getByText('Équipe')).toBeTruthy();
     expect(screen.getByText('Frontdesk')).toBeTruthy();
 
-    fireEvent.click(screen.getByText('Bibliothèque'));
-    expect(setActiveTab).toHaveBeenCalledWith('library');
+    fireEvent.click(screen.getByText('Marketplace'));
+    expect(setActiveTab).toHaveBeenCalledWith('marketplace');
     expect(screen.queryByText('Accès secondaires')).toBeNull();
   });
 
   it('keeps secretary secondary access to Notifications, Stock, Team and Frontdesk only', () => {
-    const setActiveTab = vi.fn();
     render(
-      <MobileBottomNav
-        activeTab="agenda"
-        setActiveTab={setActiveTab}
-        totalCount={0}
-        termineCount={0}
-        labJobs={[]}
-        snapshot={{ ...SNAPSHOT, role: 'SECRETAIRE' }}
-        quickActionsAvailable={false}
-        quickActionsOpen={false}
-        onToggleQuickActions={() => undefined}
-      />,
+      <MobileBottomNav activeTab="agenda" setActiveTab={() => undefined} totalCount={0} termineCount={0} labJobs={[]} snapshot={{ ...SNAPSHOT, role: 'SECRETAIRE' }} quickActionsAvailable={false} quickActionsOpen={false} onToggleQuickActions={() => undefined} />,
     );
 
     expect(screen.getByRole('button', { name: 'Ouvrir les actions rapides' }).hasAttribute('disabled')).toBe(true);
@@ -109,6 +80,7 @@ describe('MobileBottomNav canonical navigation', () => {
     expect(screen.queryByText('Envois Labo')).toBeNull();
     expect(screen.queryByText('Sécurité')).toBeNull();
     expect(screen.queryByText('Bibliothèque')).toBeNull();
+    expect(screen.queryByText('Marketplace')).toBeNull();
     expect(screen.getByText('Notifications')).toBeTruthy();
     expect(screen.getByText('Stock')).toBeTruthy();
     expect(screen.getByText('Équipe')).toBeTruthy();
@@ -117,22 +89,13 @@ describe('MobileBottomNav canonical navigation', () => {
 
   it('fails closed when role is not loaded yet', () => {
     render(
-      <MobileBottomNav
-        activeTab="agenda"
-        setActiveTab={() => undefined}
-        totalCount={0}
-        termineCount={0}
-        labJobs={[]}
-        snapshot={null}
-        quickActionsAvailable={false}
-        quickActionsOpen={false}
-        onToggleQuickActions={() => undefined}
-      />,
+      <MobileBottomNav activeTab="agenda" setActiveTab={() => undefined} totalCount={0} termineCount={0} labJobs={[]} snapshot={null} quickActionsAvailable={false} quickActionsOpen={false} onToggleQuickActions={() => undefined} />,
     );
 
     fireEvent.click(screen.getByText('Plus'));
     expect(screen.getByText('Aucun accès secondaire disponible pour ce rôle.')).toBeTruthy();
     expect(screen.queryByText('Bibliothèque')).toBeNull();
     expect(screen.queryByText('Stock')).toBeNull();
+    expect(screen.queryByText('Marketplace')).toBeNull();
   });
 });

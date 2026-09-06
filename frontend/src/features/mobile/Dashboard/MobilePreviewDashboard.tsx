@@ -12,10 +12,12 @@ import { FrontdeskView, type PendingRequest } from './views/FrontdeskView';
 import { NotificationsView, type MobileAlert } from './views/NotificationsView';
 import { StockView, type MobileStockItem } from './views/StockView';
 import { LibraryView } from './views/LibraryView';
+import { MarketplaceView } from './views/MarketplaceView';
 import { MobilePreviewBotView } from './MobilePreviewBotView';
 import { MobilePreviewSecurityView } from './MobilePreviewSecurityView';
 import { applyMobileRuntimeTheme } from './hooks/useMobileRuntimeTheme';
 import { LabJobStatus, type LabJob } from '../../../types/labJob';
+import type { MarketplacePreviewData } from '../../partnerMarketplace/usePartnerMarketplace';
 import type { Appointment, Snapshot, Tab } from './types';
 
 const DEMO_PATIENTS = [
@@ -86,11 +88,24 @@ const DEMO_STOCK: MobileStockItem[] = [
   { id: 8304, nom: 'Masques chirurgicaux', categorie: 'CONSOMMABLE', quantite: 12, seuil_alerte: 5, unite: 'boîtes', fournisseur: null, alerte: false },
 ];
 
+const DEMO_MARKETPLACE: MarketplacePreviewData = {
+  strategyPresets: [{ key: 'sent_commission_10', label: 'Commission sur commande envoyée', settlementBasis: 'SENT_TO_PARTNER', revenueModel: 'COMMISSION_PERCENT', commissionRate: 10, discountRate: 0, fixedFeeAmount: 0, description: 'Démonstration' }],
+  catalogMeta: { categories: ['Consommables', 'Restauration', 'Endodontie'], specialties: ['Omnipratique', 'Endodontie'], availability: ['AVAILABLE', 'ON_REQUEST', 'DISCONTINUED'] },
+  suppliers: [{ id: 11, supplierKey: 'preview-dental', name: 'Preview Dental Supply', badge: 'Démo', description: 'Catalogue fictif', promise: 'Aucune donnée réelle', apiBaseUrl: null, syncMode: 'manual', isActive: true, productCount: 4 }],
+  products: [
+    { id: '101', supplierId: '11', supplierName: 'Preview Dental Supply', name: 'Composite universel nano-hybride', category: 'Restauration', specialty: 'Omnipratique', sku: 'CMP-NH-01', unit: 'seringue', price: 390, availability: 'Disponible', description: 'Composite universel de démonstration.', longDescription: 'Donnée fictive.', benefits: [], isFeatured: true, sortOrder: 1 },
+    { id: '102', supplierId: '11', supplierName: 'Preview Dental Supply', name: 'Limes rotatives NiTi', category: 'Endodontie', specialty: 'Endodontie', sku: 'ENDO-NITI', unit: 'blister', price: 295, availability: 'Disponible', description: 'Limes de démonstration.', longDescription: 'Donnée fictive.', benefits: [], isFeatured: true, sortOrder: 2 },
+    { id: '103', supplierId: '11', supplierName: 'Preview Dental Supply', name: 'Gants nitrile premium', category: 'Consommables', specialty: 'Omnipratique', sku: 'NIT-PRO-M', unit: 'boîte', price: 78, availability: 'Disponible', description: 'Gants de démonstration.', longDescription: 'Donnée fictive.', benefits: [], isFeatured: false, sortOrder: 3 },
+    { id: '104', supplierId: '11', supplierName: 'Preview Dental Supply', name: 'Ciment verre ionomère', category: 'Restauration', specialty: 'Omnipratique', sku: 'CVI-09', unit: 'kit', price: 520, availability: 'Sur commande', description: 'Kit de démonstration.', longDescription: 'Donnée fictive.', benefits: [], isFeatured: false, sortOrder: 4 },
+  ],
+  customer: { fullName: 'Dr Baseline', clinic: 'Cabinet Atlas', email: 'baseline@digitalcrown.local', phone: '0600000000', city: 'Rabat' },
+};
+
 const noop = () => undefined;
 
 function requestedPreviewTab(): Tab {
   const tab = new URLSearchParams(window.location.search).get('tab') as Tab | null;
-  return tab && ['agenda', 'patients', 'finance', 'lab', 'bot', 'securite', 'dentists', 'frontdesk', 'notifications', 'stock', 'library'].includes(tab) ? tab : 'agenda';
+  return tab && ['agenda', 'patients', 'finance', 'lab', 'bot', 'securite', 'dentists', 'frontdesk', 'notifications', 'stock', 'library', 'marketplace'].includes(tab) ? tab : 'agenda';
 }
 
 function requestedQuickOpen(): boolean { return new URLSearchParams(window.location.search).get('quick') === '1'; }
@@ -123,6 +138,7 @@ export function MobilePreviewDashboard() {
           {activeTab === 'notifications' && <NotificationsView onNavigate={selectNavTab} previewData={DEMO_NOTIFICATIONS} />}
           {activeTab === 'stock' && <StockView previewData={DEMO_STOCK} />}
           {activeTab === 'library' && <LibraryView role="DENTISTE" />}
+          {activeTab === 'marketplace' && <MarketplaceView previewData={DEMO_MARKETPLACE} />}
           {activeTab === 'bot' && <MobilePreviewBotView />}
           {activeTab === 'securite' && <MobilePreviewSecurityView />}
         </motion.div></AnimatePresence>

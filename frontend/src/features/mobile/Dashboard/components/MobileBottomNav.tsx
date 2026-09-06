@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Bell, BookOpen, Bot, CalendarDays, ClipboardList, FlaskConical, MoreHorizontal, Package, ShieldCheck, TrendingUp, UserRound, Users, X } from 'lucide-react';
+import { Bell, BookOpen, Bot, CalendarDays, ClipboardList, FlaskConical, MoreHorizontal, Package, ShieldCheck, ShoppingCart, TrendingUp, UserRound, Users, X } from 'lucide-react';
 import { cn } from '../../../../utils/cn';
 import type { Tab, Snapshot } from '../types';
 import type { LabJob } from '../../../../types/labJob';
@@ -44,6 +44,12 @@ export function MobileBottomNav({
       id: 'library' as Tab,
       icon: BookOpen,
       label: 'Bibliothèque',
+      allowedRoles: ['DENTISTE', 'ADMIN'],
+    },
+    {
+      id: 'marketplace' as Tab,
+      icon: ShoppingCart,
+      label: 'Marketplace',
       allowedRoles: ['DENTISTE', 'ADMIN'],
     },
     {
