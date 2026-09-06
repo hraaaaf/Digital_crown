@@ -47,6 +47,7 @@ describe('MobileBottomNav canonical navigation', () => {
     expect(screen.getByText('Plus')).toBeTruthy();
     expect(screen.queryByText('Notifications')).toBeNull();
     expect(screen.queryByText('Stock')).toBeNull();
+    expect(screen.queryByText('Bibliothèque')).toBeNull();
 
     fireEvent.click(screen.getByRole('button', { name: 'Ouvrir les actions rapides' }));
     expect(onToggleQuickActions).toHaveBeenCalledTimes(1);
@@ -55,7 +56,7 @@ describe('MobileBottomNav canonical navigation', () => {
     expect(setActiveTab).toHaveBeenCalledWith('patients');
   });
 
-  it('keeps Stock, Notifications and other secondary destinations behind Plus', () => {
+  it('keeps Library, Stock, Notifications and other secondary destinations behind Plus', () => {
     const setActiveTab = vi.fn();
     render(
       <MobileBottomNav
@@ -74,14 +75,15 @@ describe('MobileBottomNav canonical navigation', () => {
     fireEvent.click(screen.getByText('Plus'));
     expect(screen.getByText('Notifications')).toBeTruthy();
     expect(screen.getByText('Stock')).toBeTruthy();
+    expect(screen.getByText('Bibliothèque')).toBeTruthy();
     expect(screen.getByText('Finance')).toBeTruthy();
     expect(screen.getByText('Envois Labo')).toBeTruthy();
     expect(screen.getByText('Sécurité')).toBeTruthy();
     expect(screen.getByText('Équipe')).toBeTruthy();
     expect(screen.getByText('Frontdesk')).toBeTruthy();
 
-    fireEvent.click(screen.getByText('Stock'));
-    expect(setActiveTab).toHaveBeenCalledWith('stock');
+    fireEvent.click(screen.getByText('Bibliothèque'));
+    expect(setActiveTab).toHaveBeenCalledWith('library');
     expect(screen.queryByText('Accès secondaires')).toBeNull();
   });
 
@@ -106,6 +108,7 @@ describe('MobileBottomNav canonical navigation', () => {
     expect(screen.queryByText('Finance')).toBeNull();
     expect(screen.queryByText('Envois Labo')).toBeNull();
     expect(screen.queryByText('Sécurité')).toBeNull();
+    expect(screen.queryByText('Bibliothèque')).toBeNull();
     expect(screen.getByText('Notifications')).toBeTruthy();
     expect(screen.getByText('Stock')).toBeTruthy();
     expect(screen.getByText('Équipe')).toBeTruthy();
