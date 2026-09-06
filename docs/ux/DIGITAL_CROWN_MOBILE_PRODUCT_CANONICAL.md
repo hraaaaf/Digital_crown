@@ -3,7 +3,8 @@
 Status: ACTIVE
 Canonical file: `docs/ux/DIGITAL_CROWN_MOBILE_PRODUCT_CANONICAL.md`
 Repo: `hraaaaf/Digital_crown`
-Current master baseline: `aaa28ef97b22df2c5654c4e0da7efc15692787a8`
+Current master HEAD before MOB-5E merge: `e91d9a6146e82b5090513dec6e38d5b7e4ba6382`
+Current product baseline: `9cb740bc52efc9bf734c19fefc3c4f07470eba80`
 Deployment: none. No Vercel deployment is authorized by this chantier.
 
 ## Goal final
@@ -127,7 +128,7 @@ Preuves :
 - score visuel **9.4/10**
 - preuve `docs/ux/DIGITAL_CROWN_MOBILE_NOTIFICATIONS_MOB5C_PROOF.md`
 
-## MOB-5D — Stock — CERTIFIED / MERGE PENDING
+## MOB-5D — Stock — DONE / MERGED
 Goal : consulter criticité stock et lancer une action courte sans dupliquer la logique desktop.
 
 Fonctions certifiées :
@@ -142,11 +143,14 @@ Fonctions certifiées :
 - aucun paramétrage lourd ni suppression porté sur mobile
 
 Preuves :
-- PR `#360` mergeable
-- HEAD produit `9ce48a6c38aaa20ff2e029646a919a5c2ed5c163`
-- CI `34039544113` ✅
+- PR `#360` merged
+- HEAD produit certifié `9ce48a6c38aaa20ff2e029646a919a5c2ed5c163`
+- tête documentaire pré-merge `08651a595389c17fac6e2fb69baeed7bd96014af`
+- merge `9cb740bc52efc9bf734c19fefc3c4f07470eba80`
+- CI pré-merge `34040466943` ✅
+- MOB-5D cert final `34040466967` ✅
+- CI post-merge `34041170446` ✅
 - backend complet : **2994 passed, 8 skipped, 4 warnings**
-- MOB-5D cert `34039544092` ✅
 - targeted Vitest : **11/11** ✅
 - artifact `9991265607`
 - digest `sha256:539b9a1aa6ca55b72b91a4fe1398d5d7c1162a1edd8a26633a9f421a43e8c51f`
@@ -155,14 +159,43 @@ Preuves :
 - score visuel **9.3/10**
 - preuve `docs/ux/DIGITAL_CROWN_MOBILE_STOCK_MOB5D_PROOF.md`
 
-## MOB-5E — Bibliothèque clinique — NEXT
+## MOB-5E — Bibliothèque clinique — CERTIFIED / MERGE PENDING
 Goal : recherche et consultation clinique rapide sur mobile sans portage brut de `EliteLibrary`.
+
+Fonctions certifiées :
+- `Plus → Bibliothèque`
+- deep-link `?tab=library`
+- DENTISTE / ADMIN uniquement
+- RBAC fail-closed pendant le chargement du rôle, menu Plus inclus
+- source unique : **50 protocoles** `CLINICAL_PROTOCOLS`
+- recherche acte / code / discipline
+- cartes nom / catégorie / durée / difficulté
+- détail mobile réutilisant `ClinicalRefContent`
+- favoris `dc_favs` et récents `dc_recents` réutilisés
+- aucune API/DB clinique parallèle
+- Science Hub reste desktop only
+
+Preuves :
+- PR `#361` mergeable
+- HEAD produit certifié `b345d7153196a8ee5e5e05c128eef8a5a8b2ec41`
+- merge ref certifiée `2bd084d39b47dd6c79b25df69c83723c642887d8`
+- CI `34042238326` ✅
+- MOB-5E cert `34042238302` ✅
+- backend complet : **2994 passed, 8 skipped, 4 warnings**
+- targeted Vitest : **12/12** ✅
+- build production ✅
+- artifact `9992080508`
+- digest `sha256:db3b5956c934701dbe6060781cedd87ad0171e52b85fe877095a58190abe671e`
+- 390×844 / 430×932 / 768×1024
+- liste + détail : 5 boutons canoniques, nav 76 px, 0 overflow, 0 erreur runtime ✅
+- score visuel **9.4/10**
+- preuve `docs/ux/DIGITAL_CROWN_MOBILE_LIBRARY_MOB5E_PROOF.md`
 
 ## MOB-5F — Patients / Quick Document Studio — PLANNED
 Goal : produire un document courant en idéalement <30 s depuis le dossier patient.
 Gate : audit interne + benchmark externe avant Goal UI final.
 
-## MOB-5G — Marketplace / Approvisionnement — REFONTE PLANNED
+## MOB-5G — Marketplace / Approvisionnement — NEXT / REFONTE
 Goal : refondre l’expérience Marketplace desktop/mobile à partir d’un benchmark externe sérieux.
 Gate obligatoire : audit de 3–4 marketplaces mobiles dentaires/médicales/B2B avant mockup et code.
 
@@ -171,6 +204,9 @@ Goal : supervision et urgence, pas administration complète.
 
 ## MOB-5I — Salle d’attente — COMING SOON
 Goal actuel : conserver une place produit cohérente desktop/mobile sans fausse fonctionnalité.
+
+### Séquence restante verrouillée
+Marketplace refonte → SuperAdmin → Documents patients / Quick Document Studio → Salle d’attente.
 
 ### Explicitement hors MOB-5 mobile
 - Science Hub.
@@ -202,4 +238,4 @@ Ordre : validation → canonique → cohérence docs → roadmap/% réel → Git
 - ne pas déployer sur Vercel sans autorisation explicite.
 
 ## Next exact
-MOB-5D : merge PR `#360` → vérifier `master` et CI post-merge. Puis MOB-5E Bibliothèque clinique : audit interne → BEFORE → Goal UI → implémentation → tests/AFTER → closeout.
+MOB-5E : vérifier que les commits documentaires de closeout sont docs-only et que CI/cert du HEAD final sont verts → merge PR `#361` → vérifier `master` et CI post-merge → lancer MOB-5G Marketplace par audit interne + benchmark externe avant tout mockup/code.
