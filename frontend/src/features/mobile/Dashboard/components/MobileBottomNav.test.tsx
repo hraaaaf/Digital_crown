@@ -114,4 +114,25 @@ describe('MobileBottomNav canonical navigation', () => {
     expect(screen.getByText('Équipe')).toBeTruthy();
     expect(screen.getByText('Frontdesk')).toBeTruthy();
   });
+
+  it('fails closed when role is not loaded yet', () => {
+    render(
+      <MobileBottomNav
+        activeTab="agenda"
+        setActiveTab={() => undefined}
+        totalCount={0}
+        termineCount={0}
+        labJobs={[]}
+        snapshot={null}
+        quickActionsAvailable={false}
+        quickActionsOpen={false}
+        onToggleQuickActions={() => undefined}
+      />,
+    );
+
+    fireEvent.click(screen.getByText('Plus'));
+    expect(screen.getByText('Aucun accès secondaire disponible pour ce rôle.')).toBeTruthy();
+    expect(screen.queryByText('Bibliothèque')).toBeNull();
+    expect(screen.queryByText('Stock')).toBeNull();
+  });
 });
