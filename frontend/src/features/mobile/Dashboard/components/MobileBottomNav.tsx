@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Bell, Bot, CalendarDays, ClipboardList, FlaskConical, MoreHorizontal, ShieldCheck, TrendingUp, UserRound, Users, X } from 'lucide-react';
+import { Bell, Bot, CalendarDays, ClipboardList, FlaskConical, MoreHorizontal, Package, ShieldCheck, TrendingUp, UserRound, Users, X } from 'lucide-react';
 import { cn } from '../../../../utils/cn';
 import type { Tab, Snapshot } from '../types';
 import type { LabJob } from '../../../../types/labJob';
@@ -32,6 +32,12 @@ export function MobileBottomNav({
       id: 'notifications' as Tab,
       icon: Bell,
       label: 'Notifications',
+      allowedRoles: ['DENTISTE', 'ADMIN', 'SECRETAIRE'],
+    },
+    {
+      id: 'stock' as Tab,
+      icon: Package,
+      label: 'Stock',
       allowedRoles: ['DENTISTE', 'ADMIN', 'SECRETAIRE'],
     },
     {
@@ -153,77 +159,28 @@ export function MobileBottomNav({
         }}
       >
         <div className="grid h-full grid-cols-5 items-center px-1.5">
-          <button
-            type="button"
-            aria-current={activeTab === 'agenda' ? 'page' : undefined}
-            onClick={() => selectTab('agenda')}
-            className={cn(
-              'relative flex min-h-[52px] min-w-0 flex-col items-center justify-center gap-0.5 rounded-[22px] text-[9px] font-bold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40',
-              activeTab === 'agenda' ? 'text-primary' : 'text-text-muted'
-            )}
-          >
-            <span className="relative grid h-8 w-11 place-items-center">
-              <CalendarDays size={20} strokeWidth={activeTab === 'agenda' ? 2.35 : 1.9} />
-              {agendaHasPending && <span className="absolute right-0.5 top-0.5 h-1.5 w-1.5 rounded-full bg-primary ring-2 ring-white/80" />}
-            </span>
+          <button type="button" aria-current={activeTab === 'agenda' ? 'page' : undefined} onClick={() => selectTab('agenda')} className={cn('relative flex min-h-[52px] min-w-0 flex-col items-center justify-center gap-0.5 rounded-[22px] text-[9px] font-bold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40', activeTab === 'agenda' ? 'text-primary' : 'text-text-muted')}>
+            <span className="relative grid h-8 w-11 place-items-center"><CalendarDays size={20} strokeWidth={activeTab === 'agenda' ? 2.35 : 1.9} />{agendaHasPending && <span className="absolute right-0.5 top-0.5 h-1.5 w-1.5 rounded-full bg-primary ring-2 ring-white/80" />}</span>
             <span className="max-w-full truncate">Aujourd’hui</span>
           </button>
 
-          <button
-            type="button"
-            aria-current={activeTab === 'patients' ? 'page' : undefined}
-            onClick={() => selectTab('patients')}
-            className={cn(
-              'flex min-h-[52px] min-w-0 flex-col items-center justify-center gap-0.5 rounded-[22px] text-[9px] font-bold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40',
-              activeTab === 'patients' ? 'text-primary' : 'text-text-muted'
-            )}
-          >
+          <button type="button" aria-current={activeTab === 'patients' ? 'page' : undefined} onClick={() => selectTab('patients')} className={cn('flex min-h-[52px] min-w-0 flex-col items-center justify-center gap-0.5 rounded-[22px] text-[9px] font-bold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40', activeTab === 'patients' ? 'text-primary' : 'text-text-muted')}>
             <span className="grid h-8 w-11 place-items-center"><UserRound size={20} strokeWidth={activeTab === 'patients' ? 2.35 : 1.9} /></span>
             <span className="max-w-full truncate">Patients</span>
           </button>
 
           <div className="relative grid h-full place-items-center">
-            <button
-              type="button"
-              aria-label={quickActionsOpen ? 'Fermer les actions rapides' : 'Ouvrir les actions rapides'}
-              aria-expanded={quickActionsOpen}
-              disabled={!quickActionsAvailable}
-              onClick={() => {
-                setMoreOpen(false);
-                onToggleQuickActions();
-              }}
-              className="absolute -top-4 grid h-[60px] w-[60px] place-items-center rounded-full border-[3px] border-white bg-primary text-white shadow-[0_8px_30px_rgba(var(--primary-rgb),0.4)] transition-transform active:scale-95 disabled:cursor-not-allowed disabled:opacity-35"
-            >
+            <button type="button" aria-label={quickActionsOpen ? 'Fermer les actions rapides' : 'Ouvrir les actions rapides'} aria-expanded={quickActionsOpen} disabled={!quickActionsAvailable} onClick={() => { setMoreOpen(false); onToggleQuickActions(); }} className="absolute -top-4 grid h-[60px] w-[60px] place-items-center rounded-full border-[3px] border-white bg-primary text-white shadow-[0_8px_30px_rgba(var(--primary-rgb),0.4)] transition-transform active:scale-95 disabled:cursor-not-allowed disabled:opacity-35">
               {quickActionsOpen ? <X size={24} /> : <span className="text-[30px] font-light leading-none">+</span>}
             </button>
           </div>
 
-          <button
-            type="button"
-            aria-current={activeTab === 'bot' ? 'page' : undefined}
-            onClick={() => selectTab('bot')}
-            className={cn(
-              'flex min-h-[52px] min-w-0 flex-col items-center justify-center gap-0.5 rounded-[22px] text-[9px] font-bold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40',
-              activeTab === 'bot' ? 'text-primary' : 'text-text-muted'
-            )}
-          >
+          <button type="button" aria-current={activeTab === 'bot' ? 'page' : undefined} onClick={() => selectTab('bot')} className={cn('flex min-h-[52px] min-w-0 flex-col items-center justify-center gap-0.5 rounded-[22px] text-[9px] font-bold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40', activeTab === 'bot' ? 'text-primary' : 'text-text-muted')}>
             <span className="grid h-8 w-11 place-items-center"><Bot size={20} strokeWidth={activeTab === 'bot' ? 2.35 : 1.9} /></span>
             <span className="max-w-full truncate">Assistant</span>
           </button>
 
-          <button
-            type="button"
-            aria-current={isMoreActive ? 'page' : undefined}
-            aria-expanded={moreOpen}
-            onClick={() => {
-              if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(35);
-              setMoreOpen(value => !value);
-            }}
-            className={cn(
-              'flex min-h-[52px] min-w-0 flex-col items-center justify-center gap-0.5 rounded-[22px] text-[9px] font-bold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40',
-              isMoreActive || moreOpen ? 'text-primary' : 'text-text-muted'
-            )}
-          >
+          <button type="button" aria-current={isMoreActive ? 'page' : undefined} aria-expanded={moreOpen} onClick={() => { if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(35); setMoreOpen(value => !value); }} className={cn('flex min-h-[52px] min-w-0 flex-col items-center justify-center gap-0.5 rounded-[22px] text-[9px] font-bold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40', isMoreActive || moreOpen ? 'text-primary' : 'text-text-muted')}>
             <span className="grid h-8 w-11 place-items-center"><MoreHorizontal size={21} strokeWidth={isMoreActive || moreOpen ? 2.35 : 1.9} /></span>
             <span className="max-w-full truncate">Plus</span>
           </button>
