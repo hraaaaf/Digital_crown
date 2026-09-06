@@ -36,8 +36,12 @@ describe('LibraryView MOB-5E', () => {
     expect(JSON.parse(window.localStorage.getItem('dc_favs') || '[]')).toContain('extraction-molaire');
   });
 
-  it('does not expose clinical content to secretary role', () => {
-    render(<LibraryView role="SECRETAIRE" />);
+  it('fails closed while role is loading and does not expose content to secretary', () => {
+    const { rerender } = render(<LibraryView />);
+    expect(screen.getByText('Vérification des accès…')).toBeTruthy();
+    expect(screen.queryByPlaceholderText('Rechercher un acte, code, discipline…')).toBeNull();
+
+    rerender(<LibraryView role="SECRETAIRE" />);
     expect(screen.getByText('Accès réservé')).toBeTruthy();
     expect(screen.queryByPlaceholderText('Rechercher un acte, code, discipline…')).toBeNull();
   });
