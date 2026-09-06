@@ -3,8 +3,7 @@
 Status: ACTIVE
 Canonical file: `docs/ux/DIGITAL_CROWN_MOBILE_PRODUCT_CANONICAL.md`
 Repo: `hraaaaf/Digital_crown`
-Current master HEAD before MOB-5E merge: `e91d9a6146e82b5090513dec6e38d5b7e4ba6382`
-Current product baseline: `9cb740bc52efc9bf734c19fefc3c4f07470eba80`
+Current merged product baseline: `b850cff2bd03dda667d6e1b6e449230658035d62`
 Deployment: none. No Vercel deployment is authorized by this chantier.
 
 ## Goal final
@@ -159,7 +158,7 @@ Preuves :
 - score visuel **9.3/10**
 - preuve `docs/ux/DIGITAL_CROWN_MOBILE_STOCK_MOB5D_PROOF.md`
 
-## MOB-5E — Bibliothèque clinique — CERTIFIED / MERGE PENDING
+## MOB-5E — Bibliothèque clinique — DONE / MERGED
 Goal : recherche et consultation clinique rapide sur mobile sans portage brut de `EliteLibrary`.
 
 Fonctions certifiées :
@@ -176,11 +175,16 @@ Fonctions certifiées :
 - Science Hub reste desktop only
 
 Preuves :
-- PR `#361` mergeable
+- PR `#361` merged
 - HEAD produit certifié `b345d7153196a8ee5e5e05c128eef8a5a8b2ec41`
-- merge ref certifiée `2bd084d39b47dd6c79b25df69c83723c642887d8`
-- CI `34042238326` ✅
-- MOB-5E cert `34042238302` ✅
+- merge ref produit certifiée `2bd084d39b47dd6c79b25df69c83723c642887d8`
+- HEAD final pré-merge `05cf642937210e70d70172503a142a45016d20f3`
+- merge `b850cff2bd03dda667d6e1b6e449230658035d62`
+- CI produit `34042238326` ✅
+- MOB-5E cert produit `34042238302` ✅
+- CI HEAD final `34043911174` ✅
+- MOB-5E cert HEAD final `34043911199` ✅
+- T2 HEAD final `34043911191` ✅
 - backend complet : **2994 passed, 8 skipped, 4 warnings**
 - targeted Vitest : **12/12** ✅
 - build production ✅
@@ -238,4 +242,4 @@ Ordre : validation → canonique → cohérence docs → roadmap/% réel → Git
 - ne pas déployer sur Vercel sans autorisation explicite.
 
 ## Next exact
-MOB-5E : vérifier que les commits documentaires de closeout sont docs-only et que CI/cert du HEAD final sont verts → merge PR `#361` → vérifier `master` et CI post-merge → lancer MOB-5G Marketplace par audit interne + benchmark externe avant tout mockup/code.
+MOB-5G Marketplace : formaliser l’audit interne + benchmark externe déjà commencé, verrouiller le BEFORE et le Goal UI/mockup, puis seulement implémenter la refonte desktop/mobile avec les mêmes contrats backend et preuves 390/430/768/1280.
