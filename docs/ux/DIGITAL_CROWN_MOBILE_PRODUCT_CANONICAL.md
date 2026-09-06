@@ -3,7 +3,7 @@
 Status: ACTIVE
 Canonical file: `docs/ux/DIGITAL_CROWN_MOBILE_PRODUCT_CANONICAL.md`
 Repo: `hraaaaf/Digital_crown`
-Current master baseline: `8891c771f1d77f0ab9347682609b0460881ae2a8`
+Current master baseline: `aaa28ef97b22df2c5654c4e0da7efc15692787a8`
 Deployment: none. No Vercel deployment is authorized by this chantier.
 
 ## Goal final
@@ -98,7 +98,7 @@ Pour les documents, contrat cible à auditer avant migration : `patient_id + pra
 - score visuel **9.3/10**
 - preuve `docs/ux/DIGITAL_CROWN_MOBILE_FRONTDESK_MOB5B_PROOF.md`
 
-## MOB-5C — Notifications — CERTIFIED / MERGE PENDING
+## MOB-5C — Notifications — DONE / MERGED
 Goal : cockpit d’alertes actionnables mobile sans bruit, avec RBAC/tenant isolation et push OS sans PHI.
 
 Fonctions certifiées :
@@ -115,12 +115,11 @@ Fonctions certifiées :
 - push OS générique sans donnée patient
 
 Preuves :
-- PR `#359` draft, mergeable
-- candidat certifié `fc40af1a28cb1a8cdc65bce2a5b0357075d3a0a1`
-- CI `33986784125` ✅
-- T2 `33986784120` ✅
-- Settings `33986784086` ✅
-- MOB-5C cert `33986784147` ✅
+- PR `#359` merged
+- produit certifié `fc40af1a28cb1a8cdc65bce2a5b0357075d3a0a1`
+- tête documentaire finale `9fe0b82571d9c2507e0d4af79358c664084ab4dc`
+- merge `aaa28ef97b22df2c5654c4e0da7efc15692787a8`
+- CI / T2 / Settings / MOB-5C cert ✅
 - artifact `9975417271`
 - digest `sha256:4e40891c94abc35a49548220b76e075c3d8884157dd8160255f4956a6325fe3c`
 - 390×844 / 430×932 / 768×1024
@@ -128,11 +127,35 @@ Preuves :
 - score visuel **9.4/10**
 - preuve `docs/ux/DIGITAL_CROWN_MOBILE_NOTIFICATIONS_MOB5C_PROOF.md`
 
-## MOB-5D — Stock — NEXT
-Goal : consulter criticité stock et lancer une action courte de réassort/mouvement.
-Success : données cohérentes desktop/mobile, permissions/RBAC vérifiés, alertes et actions simples certifiées, aucun paramétrage lourd porté sur mobile.
+## MOB-5D — Stock — CERTIFIED / MERGE PENDING
+Goal : consulter criticité stock et lancer une action courte sans dupliquer la logique desktop.
 
-## MOB-5E — Bibliothèque clinique — PLANNED
+Fonctions certifiées :
+- Desktop `/stock` → `StockPage` existante
+- `Plus → Stock`
+- deep-link `?tab=stock`
+- criticité rupture / alerte / OK
+- recherche + filtre
+- ajustement rapide `-1/+1`
+- ajout rapide
+- même backend `/stock/*`, même DB, même scoping `employer_id`
+- aucun paramétrage lourd ni suppression porté sur mobile
+
+Preuves :
+- PR `#360` mergeable
+- HEAD produit `9ce48a6c38aaa20ff2e029646a919a5c2ed5c163`
+- CI `34039544113` ✅
+- backend complet : **2994 passed, 8 skipped, 4 warnings**
+- MOB-5D cert `34039544092` ✅
+- targeted Vitest : **11/11** ✅
+- artifact `9991265607`
+- digest `sha256:539b9a1aa6ca55b72b91a4fe1398d5d7c1162a1edd8a26633a9f421a43e8c51f`
+- 390×844 / 430×932 / 768×1024
+- 5 boutons canoniques, nav 76 px, 0 overflow, 0 erreur runtime ✅
+- score visuel **9.3/10**
+- preuve `docs/ux/DIGITAL_CROWN_MOBILE_STOCK_MOB5D_PROOF.md`
+
+## MOB-5E — Bibliothèque clinique — NEXT
 Goal : recherche et consultation clinique rapide sur mobile sans portage brut de `EliteLibrary`.
 
 ## MOB-5F — Patients / Quick Document Studio — PLANNED
@@ -179,4 +202,4 @@ Ordre : validation → canonique → cohérence docs → roadmap/% réel → Git
 - ne pas déployer sur Vercel sans autorisation explicite.
 
 ## Next exact
-MOB-5C : final checks du HEAD documentaire → Ready → merge → post-merge. Puis MOB-5D Stock : audit interne → BEFORE → Goal UI → implémentation → tests/AFTER → closeout.
+MOB-5D : merge PR `#360` → vérifier `master` et CI post-merge. Puis MOB-5E Bibliothèque clinique : audit interne → BEFORE → Goal UI → implémentation → tests/AFTER → closeout.
