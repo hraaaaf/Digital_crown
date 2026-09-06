@@ -96,6 +96,7 @@ jobs:
         working-directory: frontend
         env:
           PRODUCT_HEAD: ${{ env.PRODUCT_HEAD }}
+          VITE_DC_PREVIEW_DEMO: "1"
         run: node scripts/capture-mobile-marketplace-mob5g.mjs
 
       - name: Assert artifact contract
