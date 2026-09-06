@@ -63,13 +63,13 @@ def client(db):
     from backend.main import app
     from backend.routers import (
         auth, patients, clinics, documents,
-        appointments, prescriptions, accounting, team,
+        appointments, prescriptions, accounting, team, stock,
     )
 
     def _override_get_db():
         yield db
 
-    for module in (auth, patients, clinics, documents, appointments, prescriptions, accounting, team):
+    for module in (auth, patients, clinics, documents, appointments, prescriptions, accounting, team, stock):
         if hasattr(module, "get_db"):
             app.dependency_overrides[module.get_db] = _override_get_db
 
