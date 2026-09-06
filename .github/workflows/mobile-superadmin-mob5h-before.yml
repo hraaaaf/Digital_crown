@@ -1,0 +1,84 @@
+name: Mobile SuperAdmin MOB-5H BEFORE
+
+on:
+  push:
+    branches:
+      - ux/mobile-superadmin-mob5h
+    paths:
+      - .github/workflows/mobile-superadmin-mob5h-before.yml
+      - frontend/scripts/capture-mobile-superadmin-mob5h-before.mjs
+
+permissions:
+  contents: read
+
+jobs:
+  before-visual:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      BASELINE_HEAD: 6eb93c75f91402031ecc2c8fc1f8858372a97b9b
+    steps:
+      - name: Checkout MOB-5H branch
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Restore exact product baseline
+        shell: bash
+        run: |
+          set -euo pipefail
+          cp frontend/scripts/capture-mobile-superadmin-mob5h-before.mjs /tmp/capture-mobile-superadmin-mob5h-before.mjs
+          git reset --hard "$BASELINE_HEAD"
+          test "$(git rev-parse HEAD)" = "$BASELINE_HEAD"
+          mkdir -p frontend/scripts
+          cp /tmp/capture-mobile-superadmin-mob5h-before.mjs frontend/scripts/capture-mobile-superadmin-mob5h-before.mjs
+          echo "Exact baseline restored: $(git rev-parse HEAD)"
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Install Chromium
+        working-directory: frontend
+        run: npx playwright install --with-deps chromium
+
+      - name: Capture isolated BEFORE
+        working-directory: frontend
+        env:
+          PRODUCT_HEAD: 6eb93c75f91402031ecc2c8fc1f8858372a97b9b
+        run: node scripts/capture-mobile-superadmin-mob5h-before.mjs
+
+      - name: Assert BEFORE contract
+        working-directory: frontend
+        run: |
+          node --input-type=module <<'NODE'
+          import { readFile } from 'node:fs/promises';
+          const report = JSON.parse(await readFile('mobile-superadmin-mob5h-before-artifacts/report.json', 'utf8'));
+          const expected = '6eb93c75f91402031ecc2c8fc1f8858372a97b9b';
+          if (report.baselineProductHead !== expected) throw new Error(`Wrong baseline ${report.baselineProductHead}`);
+          if (report.phase !== 'BEFORE') throw new Error('Wrong phase');
+          if (report.invalidCount !== 0) throw new Error(`Invalid captures: ${report.invalidCount}`);
+          if (report.blockedExternalRequests.length !== 0) throw new Error('External request attempted');
+          if (report.captures.length !== 3) throw new Error('Expected 3 viewports');
+          for (const capture of report.captures) {
+            if (capture.apiRequests.length !== 1 || capture.apiRequests[0] !== 'GET /api/superadmin/clients') {
+              throw new Error(`Unexpected API contract at ${capture.viewport}`);
+            }
+          }
+          console.log('MOB-5H BEFORE contract certified on exact baseline.');
+          NODE
+
+      - name: Upload BEFORE evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: mobile-superadmin-mob5h-before
+          path: frontend/mobile-superadmin-mob5h-before-artifacts/
+          if-no-files-found: error
+          retention-days: 30
