@@ -1,0 +1,82 @@
+name: Mobile Marketplace MOB-5G BEFORE
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/mobile-marketplace-mob5g-before.yml"
+      - "docs/ux/DIGITAL_CROWN_MOBILE_MARKETPLACE_MOB5G_AUDIT.md"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: mobile-marketplace-mob5g-before-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  before:
+    name: Capture exact BEFORE 390/430/768/1280
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      BASELINE_SHA: 062eadf1afc6ffc241be8420313e065a35f7d95b
+    steps:
+      - name: Checkout exact baseline
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.BASELINE_SHA }}
+
+      - name: Prove exact baseline
+        run: test "$(git rev-parse HEAD)" = "$BASELINE_SHA"
+
+      - name: Setup Node 20
+        uses: actions/setup-node@v5
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install frontend and Chromium
+        working-directory: frontend
+        run: |
+          npm ci
+          npm install --no-save --package-lock=false --ignore-scripts playwright@1.62.1
+          npx playwright install --with-deps chromium
+          test ! -e ../node_modules
+          ln -s "$PWD/node_modules" ../node_modules
+
+      - name: Capture current Marketplace as MOB-5G BEFORE
+        working-directory: frontend
+        env:
+          PRODUCT_HEAD: ${{ env.BASELINE_SHA }}
+        run: node ../.audit/marketplace-p5-after.mjs
+
+      - name: Assert BEFORE contract
+        working-directory: frontend
+        env:
+          BASELINE_SHA: ${{ env.BASELINE_SHA }}
+        run: |
+          node --input-type=module <<'NODE'
+          import { readFileSync } from 'node:fs';
+          const report = JSON.parse(readFileSync('marketplace-p5-after-artifacts/report.json', 'utf8'));
+          if (report.productHead !== process.env.BASELINE_SHA) throw new Error('MOB-5G BEFORE baseline mismatch');
+          if (report.captures.length !== 4) throw new Error(`Expected 4 BEFORE captures, got ${report.captures.length}`);
+          if (report.invalidCount !== 0) throw new Error(`Invalid BEFORE captures: ${report.invalidCount}`);
+          if (report.checkoutInvalid) throw new Error('Existing checkout BEFORE contract failed');
+          const expected = ['390x844', '430x932', '768x1024', '1280x800'];
+          if (report.captures.map((item) => item.viewport).join(',') !== expected.join(',')) throw new Error('Unexpected viewport set');
+          NODE
+
+      - name: Mark metadata as MOB-5G BEFORE
+        working-directory: frontend
+        run: |
+          printf '\nsemantic_role=MOB-5G_BEFORE\nsource_script=.audit/marketplace-p5-after.mjs\n' >> marketplace-p5-after-artifacts/metadata.txt
+
+      - name: Upload MOB-5G BEFORE evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: mobile-marketplace-mob5g-before
+          path: frontend/marketplace-p5-after-artifacts/
+          if-no-files-found: error
+          retention-days: 30
