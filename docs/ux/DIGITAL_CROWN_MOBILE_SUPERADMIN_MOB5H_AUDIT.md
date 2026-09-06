@@ -52,80 +52,89 @@ Le composant réutilise le JWT mobile device-bound via `mobileFetch`.
 
 ## 2. Prérogatives core SuperAdmin vérifiées
 
-Source : `backend/routers/superadmin.py` ; toutes protégées par `verify_superadmin`.
+Source : `backend/routers/superadmin.py` ; toutes protégées par `verify_superadmin` et montées sous `/api/superadmin`.
 
 | Domaine | Prérogative | Endpoint | Mobile actuel | MOB-5H |
 |---|---|---|---|---|
-| Clients | Lister/statistiques | `GET /clients` | ✅ | conserver |
-| Clients | Valider/activer + essai 30j | `POST /clients/{id}/validate` | ❌ | ajouter |
-| Codes d'essai | Lister | `GET /trial-codes` | ❌ | ajouter |
-| Codes d'essai | Créer | `POST /trial-codes` | ❌ | ajouter |
-| Codes d'essai | Révoquer | `POST /trial-codes/{id}/revoke` | ❌ | ajouter |
-| Licence | Prolonger 1m/3m/6m/1y | `POST /clients/{id}/grant-license` | ✅ | conserver |
+| Clients | Lister/statistiques | `GET /api/superadmin/clients` | ✅ | conserver |
+| Clients | Valider/activer + essai 30j | `POST /api/superadmin/clients/{id}/validate` | ❌ | ajouter |
+| Codes d'essai | Lister | `GET /api/superadmin/trial-codes` | ❌ | ajouter |
+| Codes d'essai | Créer | `POST /api/superadmin/trial-codes` | ❌ | ajouter |
+| Codes d'essai | Révoquer | `POST /api/superadmin/trial-codes/{id}/revoke` | ❌ | ajouter |
+| Licence | Prolonger 1m/3m/6m/1y | `POST /api/superadmin/clients/{id}/grant-license` | ✅ | conserver |
 | Licence | Révoquer | même endpoint, `action=revoke` | ❌ | ajouter |
-| Compte | Archiver/désarchiver | `PATCH /clients/{id}/archive` | ❌ | ajouter |
-| Compte | Suspendre/réactiver | `PATCH /clients/{id}/suspend` | ✅ | conserver |
-| Abonnement | Changer GOLD/PREMIUM/ELITE | `PATCH /clients/{id}/plan` | ✅ | conserver |
-| CRM interne | Notes internes | `PATCH /clients/{id}/notes` | ❌ | ajouter |
-| Audit licence | Historique | `GET /clients/{id}/license-history` | ❌ | ajouter |
-| Relance | Email renouvellement | `POST /clients/{id}/send-renewal-email` | ❌ | ajouter |
+| Compte | Archiver/désarchiver | `PATCH /api/superadmin/clients/{id}/archive` | ❌ | ajouter |
+| Compte | Suspendre/réactiver | `PATCH /api/superadmin/clients/{id}/suspend` | ✅ | conserver |
+| Abonnement | Changer GOLD/PREMIUM/ELITE | `PATCH /api/superadmin/clients/{id}/plan` | ✅ | conserver |
+| CRM interne | Notes internes | `PATCH /api/superadmin/clients/{id}/notes` | ❌ | ajouter |
+| Audit licence | Historique | `GET /api/superadmin/clients/{id}/license-history` | ❌ | ajouter |
+| Relance | Relance renouvellement, WhatsApp si téléphone disponible | `POST /api/superadmin/clients/{id}/send-renewal-email` | ❌ | ajouter |
 
-Les effets serveur existants restent autoritaires : invalidation cache licence, historique, écriture licence et tâches email lorsque prévues par le backend.
+**Précision vérifiée :** malgré son nom historique `send-renewal-email`, l'implémentation baseline envoie actuellement une relance WhatsApp via le service de notification lorsqu'un téléphone existe, puis journalise `renewal_whatsapp_sent`.
+
+Les effets serveur existants restent autoritaires : invalidation cache licence, historique, écriture licence et tâches de notification lorsque prévues par le backend.
 
 ---
 
 ## 3. Prérogatives Marketplace SuperAdmin vérifiées
 
-### 3.1 Vue globale / gouvernance
+### 3.1 Vue globale / gouvernance P10
 
-Sources : `backend/routers/partner_superadmin.py`, `partner_superadmin_catalog.py`.
+Sources : `backend/routers/superadmin.py`, `partner_superadmin.py`, `partner_superadmin_catalog.py`.
 
-| Domaine | Prérogative | Endpoint/surface | Mobile actuel | MOB-5H |
+Montage vérifié : `superadmin.router` inclut `partner_superadmin.router`, lui-même préfixé `/marketplace`; la surface active est donc sous **`/api/superadmin/marketplace`**. `partner_superadmin.router` inclut aussi le catalogue global.
+
+| Domaine | Prérogative | Endpoint actif | Mobile actuel | MOB-5H |
 |---|---|---|---|---|
-| KPI global | Vue Marketplace multi-cabinets | `/superadmin/partner-marketplace/overview` | ❌ | ajouter |
-| Commandes | Liste globale + filtres | `/superadmin/partner-marketplace/orders` / routes canoniques | ❌ | ajouter |
-| Sync | Incidents fournisseur | `/superadmin/partner-marketplace/supplier-sync/incidents` | ❌ | ajouter |
-| Fournisseurs | Liste globale | `/superadmin/partner-marketplace/suppliers` | ❌ | ajouter |
-| Audit | Journal Marketplace | `/superadmin/partner-marketplace/audit` | ❌ | ajouter |
-| Fournisseurs | Activer/désactiver | `PATCH .../suppliers/{id}/active` | ❌ | ajouter |
-| Fournisseurs | Créer/modifier | `POST/PATCH .../admin/suppliers` | ❌ | ajouter |
-| Produits | Créer/modifier | `POST/PATCH .../admin/products` | ❌ | ajouter |
+| KPI global | Vue Marketplace multi-cabinets | `GET /api/superadmin/marketplace/overview` | ❌ | ajouter |
+| Commandes | Liste globale + filtres | `GET /api/superadmin/marketplace/orders` | ❌ | ajouter |
+| Sync | Incidents fournisseur | `GET /api/superadmin/marketplace/sync-incidents` | ❌ | ajouter |
+| Fournisseurs | Liste globale | `GET /api/superadmin/marketplace/suppliers` | ❌ | ajouter |
+| Gouvernance | Lire accord/activation | `GET /api/superadmin/marketplace/suppliers/{id}/governance` | ❌ | ajouter |
+| Gouvernance | Activer/désactiver + accord | `PATCH /api/superadmin/marketplace/suppliers/{id}/governance` | ❌ | ajouter |
+| Audit | Journal Marketplace | `GET /api/superadmin/marketplace/audit` | ❌ | ajouter |
+| Fournisseurs | Créer/modifier globalement | `POST/PATCH /api/superadmin/marketplace/suppliers...` | ❌ | ajouter |
+| Produits | Lister/créer/modifier globalement | `GET/POST/PATCH /api/superadmin/marketplace/products...` | ❌ | ajouter |
 
-Les mutations catalog/gouvernance conservent les confirmations explicites exigées par le backend.
+Les mutations globales exigent `confirm=true` côté payload et restent protégées par les guards SuperAdmin. Le catalogue tenant-scoped `/api/partner-catalog` conserve par ailleurs ses propres mutations SuperAdmin canoniques ; MOB-5H privilégie la surface globale lorsqu'elle donne le même pouvoir avec sélection explicite du cabinet.
 
 ### 3.2 Commandes / dispatch
 
-Sources : `backend/routers/partner_orders.py`, `partner_dispatch.py`.
+Sources : `backend/routers/__init__.py`, `partner_orders.py`, `partner_dispatch.py`.
+
+Montage vérifié : les extensions P6 sont incluses dans `partner_orders.router`, exposé sous `/api/partner-orders`.
 
 Prérogatives vérifiées :
-- consultation/gestion SuperAdmin des commandes partenaires et transitions autorisées ;
-- modification du statut/montant/référence/note selon le moteur canonique ;
-- `GET /{order_id}/dispatch` ;
-- `POST /{order_id}/dispatch` : envoi fournisseur HTTPS avec garde SSRF, hash payload, idempotence et preuve de transport ;
+- `GET /api/partner-orders` SuperAdmin-only ;
+- `PATCH /api/partner-orders/{order_id}` SuperAdmin-only via la façade P6 active ;
+- transitions statut/montant/référence/note selon moteur canonique ;
+- `GET /api/partner-orders/{order_id}/dispatch` ;
+- `POST /api/partner-orders/{order_id}/dispatch` : envoi fournisseur HTTPS avec garde SSRF, hash payload, idempotence et preuve de transport ;
 - dispatch réservé à `require_superadmin`.
 
 Mobile actuel : ❌.
 
 ### 3.3 Procurement / finance
 
-Sources : `backend/routers/partner_procurement.py`, `partner_finance.py`.
+Sources : `backend/routers/__init__.py`, `partner_procurement.py`, `partner_finance.py`.
+
+Ces routers sont inclus dans `/api/partner-orders` et réservés à `require_superadmin`.
 
 Prérogatives vérifiées :
 - lecture détail procurement d'une commande ;
 - saisie/mise à jour facture/coût fournisseur/paiement/notes avec version/idempotence ;
 - gestion financière des commandes : moyen/statut paiement, timestamps livraison/facture, ajustements/frais, règlement, charge cabinet, payout fournisseur, références ;
-- validations de transitions et ledger serveur ;
-- routes réservées à `require_superadmin`.
+- validations de transitions et ledger serveur.
 
 Mobile actuel : ❌.
 
 ### 3.4 Réceptions
 
-Source : `backend/routers/partner_receipts.py`.
+Sources : `backend/routers/__init__.py`, `partner_receipts.py`, `partner_receipts_p7.py`.
 
-Prérogatives vérifiées :
-- `GET /{order_id}/receipts` ;
-- `POST /{order_id}/receipt` ;
+Prérogatives vérifiées sous `/api/partner-orders` :
+- lecture des réceptions/progression ;
+- enregistrement réception via façade P7 active ;
 - réception partielle/complète, lot, expiration, note, idempotence ;
 - interdiction de sur-réception ;
 - passage à `FULFILLED` lorsque complet ;
@@ -135,11 +144,13 @@ Mobile actuel : ❌.
 
 ### 3.5 Synchronisation catalogue fournisseur
 
-Source : `backend/routers/partner_sync.py`.
+Sources : `backend/routers/__init__.py`, `partner_sync.py`, `partner_sync_safety.py`.
+
+Montage vérifié : `partner_sync.router` est inclus dans `partner_catalog.router`, exposé sous `/api/partner-catalog`.
 
 Prérogatives vérifiées :
-- `GET /suppliers/{supplier_id}/sync-status` ;
-- `POST /suppliers/{supplier_id}/sync` avec option `force` ;
+- `GET /api/partner-catalog/suppliers/{supplier_id}/sync-status` ;
+- `POST /api/partner-catalog/suppliers/{supplier_id}/sync` avec option `force` ;
 - état/fraîcheur, audit, retry/backoff et application canonique du snapshot ;
 - routes réservées à `require_superadmin` ;
 - garde d'identité locale renforcée par `partner_sync_safety.py`.
@@ -163,7 +174,7 @@ Donc aucune affirmation "100 %" ne sera faite avant le sweep final des guards et
 - Aucune nouvelle écriture directe DB/Supabase.
 - Réutiliser `mobileFetch` et le JWT mobile device-bound.
 - Préserver idempotency/version/confirm tokens existants.
-- Confirmation renforcée pour : révocation licence, archivage, suspension, désactivation fournisseur, dispatch réel, finance/procurement, réception et toute mutation externe/destructive.
+- Confirmation renforcée pour : révocation licence, archivage, suspension, désactivation fournisseur/gouvernance, dispatch réel, finance/procurement, réception et toute mutation externe/destructive.
 - Preview : données fictives uniquement, aucune API réelle.
 - Aucun déploiement Vercel dans ce lot sans autorisation explicite.
 
