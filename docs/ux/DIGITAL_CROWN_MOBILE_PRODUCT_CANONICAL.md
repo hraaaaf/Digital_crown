@@ -3,7 +3,7 @@
 Status: ACTIVE
 Canonical file: `docs/ux/DIGITAL_CROWN_MOBILE_PRODUCT_CANONICAL.md`
 Repo: `hraaaaf/Digital_crown`
-Current master baseline: `aaa28ef97b22df2c5654c4e0da7efc15692787a8`
+Current master baseline: `9cb740bc52efc9bf734c19fefc3c4f07470eba80`
 Deployment: none. No Vercel deployment is authorized by this chantier.
 
 ## Goal final
@@ -127,7 +127,7 @@ Preuves :
 - score visuel **9.4/10**
 - preuve `docs/ux/DIGITAL_CROWN_MOBILE_NOTIFICATIONS_MOB5C_PROOF.md`
 
-## MOB-5D — Stock — CERTIFIED / MERGE PENDING
+## MOB-5D — Stock — DONE / MERGED
 Goal : consulter criticité stock et lancer une action courte sans dupliquer la logique desktop.
 
 Fonctions certifiées :
@@ -142,11 +142,14 @@ Fonctions certifiées :
 - aucun paramétrage lourd ni suppression porté sur mobile
 
 Preuves :
-- PR `#360` mergeable
-- HEAD produit `9ce48a6c38aaa20ff2e029646a919a5c2ed5c163`
-- CI `34039544113` ✅
+- PR `#360` merged
+- HEAD produit certifié `9ce48a6c38aaa20ff2e029646a919a5c2ed5c163`
+- tête documentaire pré-merge `08651a595389c17fac6e2fb69baeed7bd96014af`
+- merge `9cb740bc52efc9bf734c19fefc3c4f07470eba80`
+- CI pré-merge `34040466943` ✅
+- MOB-5D cert final `34040466967` ✅
+- CI post-merge `34041170446` ✅
 - backend complet : **2994 passed, 8 skipped, 4 warnings**
-- MOB-5D cert `34039544092` ✅
 - targeted Vitest : **11/11** ✅
 - artifact `9991265607`
 - digest `sha256:539b9a1aa6ca55b72b91a4fe1398d5d7c1162a1edd8a26633a9f421a43e8c51f`
@@ -155,8 +158,17 @@ Preuves :
 - score visuel **9.3/10**
 - preuve `docs/ux/DIGITAL_CROWN_MOBILE_STOCK_MOB5D_PROOF.md`
 
-## MOB-5E — Bibliothèque clinique — NEXT
+## MOB-5E — Bibliothèque clinique — IN PROGRESS
 Goal : recherche et consultation clinique rapide sur mobile sans portage brut de `EliteLibrary`.
+
+État vérifié :
+- branche `ux/mobile-library-mob5e`
+- baseline produit `9cb740bc52efc9bf734c19fefc3c4f07470eba80`
+- audit interne verrouillé
+- Goal UI verrouillé
+- source unique vérifiée : 50 protocoles versionnés dans `frontend/src/data/clinical-protocols/`
+- Science Hub reste desktop only
+- implémentation/test/certification en cours
 
 ## MOB-5F — Patients / Quick Document Studio — PLANNED
 Goal : produire un document courant en idéalement <30 s depuis le dossier patient.
@@ -202,4 +214,4 @@ Ordre : validation → canonique → cohérence docs → roadmap/% réel → Git
 - ne pas déployer sur Vercel sans autorisation explicite.
 
 ## Next exact
-MOB-5D : merge PR `#360` → vérifier `master` et CI post-merge. Puis MOB-5E Bibliothèque clinique : audit interne → BEFORE → Goal UI → implémentation → tests/AFTER → closeout.
+MOB-5E Bibliothèque clinique : terminer implémentation + tests → lancer PR/certification exacte BEFORE/AFTER 390/430/768 → inspecter artifact → score visuel → closeout/merge → Marketplace refonte.
