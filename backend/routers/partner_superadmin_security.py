@@ -12,34 +12,42 @@ def _deny(code: str, message: str) -> HTTPException:
     return HTTPException(status_code=403, detail={"code": code, "message": message})
 
 
-def _explicit_bearer_type(request: Request) -> str | None:
+def _explicit_bearer_claims(request: Request) -> dict:
+    """Return unverified claims only for request-policy classification.
+
+    Authorization has already been cryptographically validated by the
+    ``require_superadmin`` dependency before this policy runs. These claims never
+    establish identity or SuperAdmin authority; they only select the stricter
+    mobile/WebAuthn branch of the control-plane policy.
+    """
     authorization = str(request.headers.get("authorization") or "").strip()
     if not authorization.lower().startswith("bearer "):
-        return None
+        return {}
     token = authorization.split(" ", 1)[1].strip()
     if not token:
-        return None
+        return {}
     try:
-        return str(jwt.get_unverified_claims(token).get("type") or "").strip() or None
+        claims = jwt.get_unverified_claims(token)
+        return claims if isinstance(claims, dict) else {}
     except (JWTError, ValueError, TypeError):
-        return None
+        return {}
 
 
 def _enforce_marketplace_control_plane_request(request: Request) -> None:
-    """Fail closed on mobile SuperAdmin sessions and cookie CSRF for P10.
+    """Fail closed for P10 while allowing only WebAuthn-UV mobile sessions.
 
-    The stronger passkey step-up implementation lives on the separate Superadmin
-    hardening branch and is not present on Marketplace master yet. P10 therefore
-    enforces only guarantees it can actually prove on this branch: web-session-only
-    access plus an exact HTTPS Origin for ambient cookie-authenticated mutations.
-    Explicit web Bearer tokens are not ambient browser authority and do not require
-    Origin for CSRF protection.
+    Identity and SuperAdmin authority are validated by ``require_superadmin``.
+    This additional request policy keeps ordinary durable mobile JWTs out of the
+    global Marketplace control-plane. A mobile token is admitted only when it is
+    the short-lived, device-bound WebAuthn session emitted by Digital Crown with
+    ``biometric_uv=true``. Web Bearer and cookie/Origin behaviour is unchanged.
     """
-    bearer_type = _explicit_bearer_type(request)
-    if bearer_type == "mobile":
+    claims = _explicit_bearer_claims(request)
+    bearer_type = str(claims.get("type") or "").strip() or None
+    if bearer_type == "mobile" and claims.get("biometric_uv") is not True:
         raise _deny(
-            "MARKETPLACE_SUPERADMIN_WEB_REQUIRED",
-            "Le control-plane Marketplace refuse les sessions mobiles.",
+            "MARKETPLACE_SUPERADMIN_BIOMETRIC_REQUIRED",
+            "Le control-plane Marketplace requiert une vérification biométrique récente sur mobile.",
         )
 
     if request.method.upper() not in _MUTATING_METHODS:
