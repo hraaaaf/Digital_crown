@@ -7,8 +7,9 @@ on:
     paths:
       - "backend/routers/partner_superadmin_security.py"
       - "backend/tests/test_marketplace_superadmin_security.py"
+      - "frontend/src/main.tsx"
       - "frontend/src/features/mobile/superadmin/**"
-      - "frontend/src/features/mobile/Dashboard/views/MobileSuperAdminView.tsx"
+      - "frontend/src/features/mobile/Dashboard/views/MobileSuperAdminView*"
       - "frontend/src/features/mobile/Dashboard/MobilePreviewDashboard.tsx"
       - "frontend/src/features/mobile/Dashboard/types.tsx"
       - "frontend/scripts/capture-mobile-superadmin-mob5h-after.mjs"
@@ -17,8 +18,9 @@ on:
     paths:
       - "backend/routers/partner_superadmin_security.py"
       - "backend/tests/test_marketplace_superadmin_security.py"
+      - "frontend/src/main.tsx"
       - "frontend/src/features/mobile/superadmin/**"
-      - "frontend/src/features/mobile/Dashboard/views/MobileSuperAdminView.tsx"
+      - "frontend/src/features/mobile/Dashboard/views/MobileSuperAdminView*"
       - "frontend/src/features/mobile/Dashboard/MobilePreviewDashboard.tsx"
       - "frontend/src/features/mobile/Dashboard/types.tsx"
       - "frontend/scripts/capture-mobile-superadmin-mob5h-after.mjs"
@@ -69,7 +71,7 @@ jobs:
         run: python -m pytest -q --maxfail=1 backend/tests/test_marketplace_superadmin_security.py
 
   frontend-build:
-    name: SuperAdmin frontend build
+    name: SuperAdmin frontend test + build
     runs-on: ubuntu-latest
     timeout-minutes: 15
     defaults:
@@ -93,6 +95,9 @@ jobs:
 
       - name: Install frontend dependencies
         run: npm ci
+
+      - name: Run SuperAdmin mobile parity test
+        run: npm test -- src/features/mobile/Dashboard/views/MobileSuperAdminView.test.tsx
 
       - name: Build frontend
         run: npm run build
