@@ -15,14 +15,15 @@ Le mobile doit rester un cockpit opérationnel : accès rapide, hiérarchie clai
 
 1. Toutes les prérogatives inventoriées dans l'audit sont accessibles depuis la console mobile.
 2. Toute nouvelle route active `verify_superadmin` / `require_superadmin` découverte avant certification entre automatiquement dans le scope.
-3. Les mutations utilisent les endpoints canoniques et gardent leurs règles serveur : validation, transition, version, idempotence, confirmation, audit.
+3. Les mutations utilisent les endpoints canoniques et gardent leurs règles serveur : validation, transition, idempotence, confirmation, audit.
 4. Les actions sensibles ne partent jamais sur un simple tap accidentel.
 5. Le rôle reste fail-closed : aucun utilisateur non SuperAdmin ne voit ni n'utilise la console.
-6. La nav mobile canonique reste exactement `Aujourd’hui / Patients / + / Assistant / Plus`, hauteur 76 px.
-7. Preview entièrement fictive et sans réseau réel.
-8. 390×844, 430×932 et 768×1024 : 0 overflow horizontal, 0 erreur runtime, actions principales accessibles au pouce.
-9. Test dédié `MobileSuperAdminView.test.tsx` + build production + gates backend pertinents verts.
-10. Score visuel cible >= 9,2/10, sans forcer la note : seul le BEFORE/AFTER inspecté décide.
+6. Le control-plane P10 conserve son durcissement : JWT mobile ordinaire refusé ; accès mobile uniquement via session WebAuthn UV courte et device-bound ; protections web/cookie/Origin inchangées.
+7. La nav mobile canonique reste exactement `Aujourd’hui / Patients / + / Assistant / Plus`, hauteur 76 px.
+8. Preview entièrement fictive et sans réseau réel.
+9. 390×844, 430×932 et 768×1024 : 0 overflow horizontal, 0 erreur runtime, actions principales accessibles au pouce.
+10. Test dédié `MobileSuperAdminView.test.tsx` + tests sécurité backend + build production + gates backend pertinents verts.
+11. Score visuel cible >= 9,2/10, sans forcer la note : seul le BEFORE/AFTER inspecté décide.
 
 ## Proof
 
@@ -31,10 +32,11 @@ Le mobile doit rester un cockpit opérationnel : accès rapide, hiérarchie clai
 - tests frontend dédiés ;
 - build production ;
 - tests backend SuperAdmin/Marketplace réellement présents et pertinents ;
+- sécurité P10 : mobile normal 403, mobile UV WebAuthn admis, CSRF web inchangé ;
 - AFTER 390/430/768 + états secondaires critiques ;
 - report runtime : 0 page error, 0 console error, 0 overflow ;
 - preview : 0 appel API réel ;
-- aucune modification des guards backend nécessaire pour la parité ;
+- aucune suppression générale des guards backend ;
 - diff final sans changement Vercel.
 
 ---
@@ -58,7 +60,7 @@ Navigation recommandée : segmented tabs/chips horizontaux sous un header compac
 - `Clients` regroupe identité, licence et CRM interne.
 - `Codes d’essai` est une tâche autonome, fréquente et courte.
 - `Marketplace` regroupe gouvernance catalogue/fournisseurs.
-- `Opérations` regroupe commandes, dispatch, procurement, finance et réceptions, où les mutations ont un risque supérieur.
+- `Opérations` regroupe commandes, dispatch, procurement, finance/rapprochement et réceptions, où les mutations ont un risque supérieur.
 - `Vue globale` permet de diagnostiquer avant d'agir.
 
 ---
@@ -197,21 +199,22 @@ Surface dédiée aux pouvoirs globaux SuperAdmin :
 
 - overview Marketplace ;
 - fournisseurs globaux ;
-- activer/désactiver fournisseur ;
+- gouvernance fournisseur/accord ;
 - créer/modifier fournisseur ;
-- créer/modifier produit ;
+- lister/créer/modifier produit ;
 - audit Marketplace ;
 - incidents de synchronisation ;
 - statut sync fournisseur ;
 - synchronisation et force sync.
+
+**Barrière d'accès :** l'ouverture de cette surface avec une session mobile ordinaire déclenche le step-up WebAuthn existant. Seul le JWT court `biometric_uv=true` peut ensuite appeler le control-plane P10. Une expiration de cette session rebloque les appels et demande un nouveau step-up, sans contour local.
 
 ```text
 ┌─ Marketplace ────────────────────────┐
 │ [Fournisseurs] [Catalogue] [Audit] → │
 │                                      │
 │ MedSupply Maroc                Actif │
-│ API · Sync FRESH                      │
-│ 423 produits                         │
+│ API · Sync FRESH                     │
 │ [Détails] [Synchroniser]             │
 │                                      │
 │ ⚠ 2 incidents sync                   │
@@ -220,16 +223,16 @@ Surface dédiée aux pouvoirs globaux SuperAdmin :
 
 ### Mutations sensibles Marketplace
 
-- désactivation fournisseur : confirmation explicite ;
+- désactivation/gouvernance fournisseur : `confirm=true` + confirmation UI explicite ;
 - force sync : confirmation avec impact possible sur catalogue ;
 - création/modification fournisseur/produit : formulaire validé, pas d'édition inline fragile ;
-- conserver les tokens/confirmations imposés par les endpoints.
+- conserver tous les contrats imposés par les endpoints.
 
 ---
 
 # 7. Opérations Marketplace
 
-Cette section réunit ce qui agit sur de vraies commandes et flux financiers.
+Cette section réunit ce qui agit sur de vraies commandes et flux fournisseur. Les routes tenant-scoped `/api/partner-orders` restent SuperAdmin-only et utilisent le même JWT mobile device-bound ; les actions externes/sensibles exigent également une session biométrique fraîche côté UX.
 
 ## Liste commandes
 
@@ -237,11 +240,11 @@ Filtres : statut / cabinet / fournisseur / besoin d'action selon ce que les endp
 
 ```text
 ┌─ Opérations ─────────────────────────┐
-│ 🔎 Commande, cabinet, fournisseur     │
-│ [DRAFT] [Envoyées] [Confirmées] →    │
-│                                      │
+│ 🔎 Commande, cabinet, fournisseur    │
+│ [DRAFT] [Envoyées] [Confirmées] →   │
+│                                     │
 │ CMD-PART-...                   DRAFT │
-│ Cabinet Atlas · MedSupply            │
+│ Cabinet Atlas · MedSupply           │
 │ 1 240 MAD                       ›    │
 └──────────────────────────────────────┘
 ```
@@ -252,23 +255,31 @@ Doit donner accès aux capacités canoniques réellement autorisées :
 
 - transitions commande et note/référence/montant selon moteur serveur ;
 - consultation du dispatch ;
-- dispatch fournisseur réel ;
-- procurement : facture fournisseur, coût, payé, statut, notes ;
-- finance : paiement, ajustements/frais, règlement, charge cabinet, payout fournisseur, références ;
-- réceptions : historique, partielle/complète, quantité, lot, expiration, note ;
-- audit/événements associés disponibles dans les réponses existantes.
+- dispatch fournisseur réel, seule voie autorisée vers `SENT_TO_PARTNER` ;
+- procurement : référence fournisseur, livraison attendue, backorders, note ;
+- finance : **factures fournisseur + rapprochement + synthèse**, conformément au router baseline ;
+- réceptions : historique, partielle/complète, quantité, lot, expiration, note et statut de synchro stock.
 
 ### Dispatch réel
 
 Le bouton doit afficher avant envoi : fournisseur, commande, montant/destination utile disponible, et rappeler que l'action déclenche un appel externe réel. Confirmation obligatoire.
 
-### Finance / procurement
+### Procurement
 
-Formulaire dédié, jamais mutation inline accidentelle. Les champs `version` / idempotency existants doivent être transmis exactement selon contrat backend.
+Formulaire dédié. Le serveur exige une commande `CONFIRMED` et canonicalise les backorders contre le reliquat. Ne jamais simuler localement un accusé accepté.
+
+### Finance / rapprochement
+
+Le mobile expose uniquement le contrat réellement présent :
+- enregistrer une facture fournisseur avec `invoiceKey` idempotent ;
+- afficher le rapprochement (`WAITING_INVOICE`, `AMOUNT_MISMATCH`, `WAITING_RECEIPT`, `MATCHED`, `CANCELLED`) ;
+- afficher la synthèse finance disponible.
+
+Aucune UI paiement/payout/charge cabinet n'est créée sans endpoint canonique correspondant.
 
 ### Réception
 
-Le mobile doit afficher commandé / déjà reçu / restant. Impossible de proposer une quantité supérieure au restant, même si le backend la refuserait ensuite.
+Le mobile affiche commandé / déjà reçu / restant. Impossible de proposer une quantité supérieure au restant. L'UI montre aussi le `stockSync` renvoyé par la façade P7 : appliqué, mapping manquant ou retry en attente.
 
 ---
 
@@ -277,13 +288,14 @@ Le mobile doit afficher commandé / déjà reçu / restant. Impossible de propos
 Chaque mutation suit le même contrat UX :
 
 1. état initial lisible ;
-2. confirmation si nécessaire ;
-3. bouton désactivé pendant requête ;
-4. succès/erreur explicite ;
-5. refresh de la ressource canonique ;
-6. aucune simulation locale d'un succès serveur.
+2. step-up biométrique frais lorsque requis ;
+3. confirmation si nécessaire ;
+4. bouton désactivé pendant requête ;
+5. succès/erreur explicite ;
+6. refresh de la ressource canonique ;
+7. aucune simulation locale d'un succès serveur.
 
-Pas d'optimistic update sur : licence, suspension, archive, dispatch, finance, procurement, réception, sync forcée.
+Pas d'optimistic update sur : licence, suspension, archive, dispatch, procurement, facture fournisseur, réception, sync forcée ou gouvernance globale.
 
 ---
 
@@ -295,7 +307,7 @@ Preview fictive obligatoire avec au minimum :
 - 2 codes d'essai : actif, révoqué/consommé ;
 - 2 fournisseurs : FRESH et DEGRADED ;
 - 3 commandes : DRAFT, CONFIRMED partiellement reçue, FULFILLED ;
-- données financières fictives ;
+- rapprochement financier fictif ;
 - aucun nom/email/cabinet réel ;
 - aucune requête réseau réelle.
 
@@ -315,8 +327,9 @@ Le BEFORE doit capturer les mêmes viewports disponibles sur le baseline exact. 
 
 # 10. Non-objectifs
 
-- aucune nouvelle prérogative backend inventée ;
-- aucun assouplissement `verify_superadmin` / `require_superadmin` ;
+- aucune nouvelle prérogative métier backend inventée ;
+- aucun assouplissement général `verify_superadmin` / `require_superadmin` ;
+- aucun accès P10 par JWT mobile ordinaire ;
 - aucune écriture directe DB/Supabase ;
 - aucune duplication desktop/mobile de logique métier ;
 - aucune modification de la bottom nav canonique ;
@@ -330,6 +343,8 @@ MOB-5H n'est CERTIFIED que si :
 
 - audit final des guards = aucune prérogative active oubliée ;
 - matrice parité = 100 % couverte ou impossibilité documentée comme vrai blocage externe ;
+- le test historique "mobile normal rejeté" reste vrai et un nouveau test prouve "mobile UV accepté" ;
+- protections cookie/Origin web toujours vertes ;
 - tests/build/runtime verts ;
 - BEFORE/AFTER inspectés ;
 - score visuel mesuré >= 9,2/10 ou, s'il est inférieur, correction poursuivie ;
