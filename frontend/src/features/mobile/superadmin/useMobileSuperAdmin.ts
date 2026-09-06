@@ -163,6 +163,7 @@ export interface OperationDetail {
   dispatch: Record<string, unknown> | null;
   procurement: Record<string, unknown> | null;
   receipts: Array<Record<string, unknown>>;
+  receiptProgress: Record<string, unknown> | null;
   reconciliation: Record<string, unknown> | null;
 }
 
@@ -177,7 +178,7 @@ export interface MobileSuperAdminPreviewData {
   audit: GovernanceAuditEvent[];
   operationalOrders: OperationalOrder[];
   financeSummary: MarketplaceFinanceSummary;
-  operationDetails?: Record<number, OperationDetail>;
+  operationDetails?: Record<number, Omit<OperationDetail, 'receiptProgress'> & { receiptProgress?: Record<string, unknown> | null }>;
 }
 
 export interface TrialCodeCreateInput {
@@ -219,6 +220,24 @@ export interface ProductCreateInput {
   sortOrder?: number;
 }
 
+interface ApiError extends Error {
+  status?: number;
+  code?: string;
+}
+
+interface DispatchEnvelope {
+  dispatch: Record<string, unknown> | null;
+}
+
+interface ProcurementEnvelope {
+  procurement: Record<string, unknown> | null;
+}
+
+interface ReceiptsEnvelope {
+  receipts: Array<Record<string, unknown>>;
+  progress: Record<string, unknown>;
+}
+
 function resolveApiBaseUrl(stored: string): string {
   const hostname = window.location.hostname;
   if (hostname === 'localhost' || hostname === '127.0.0.1') return stored;
@@ -238,6 +257,14 @@ function errorMessage(payload: unknown, status: number): string {
     }
   }
   return `Erreur ${status}`;
+}
+
+function errorCode(payload: unknown): string | undefined {
+  if (!payload || typeof payload !== 'object' || !('detail' in payload)) return undefined;
+  const detail = (payload as { detail?: unknown }).detail;
+  if (!detail || typeof detail !== 'object') return undefined;
+  const code = (detail as { code?: unknown }).code;
+  return typeof code === 'string' ? code : undefined;
 }
 
 export function useMobileSuperAdmin(previewData?: MobileSuperAdminPreviewData) {
@@ -272,11 +299,10 @@ export function useMobileSuperAdmin(previewData?: MobileSuperAdminPreviewData) {
     });
     const payload = response.status === 204 ? null : await response.json().catch(() => ({}));
     if (!response.ok) {
-      const error = new Error(errorMessage(payload, response.status)) as Error & { status?: number; code?: string };
-      error.status = response.status;
-      const detail = (payload as { detail?: { code?: string } })?.detail;
-      error.code = detail?.code;
-      throw error;
+      const typed = new Error(errorMessage(payload, response.status)) as ApiError;
+      typed.status = response.status;
+      typed.code = errorCode(payload);
+      throw typed;
     }
     return payload as T;
   }, [previewData]);
@@ -300,7 +326,10 @@ export function useMobileSuperAdmin(previewData?: MobileSuperAdminPreviewData) {
   }, [previewData, request]);
 
   const loadMarketplace = useCallback(async (stepUp = false) => {
-    if (previewData) { setMarketplaceLocked(false); return true; }
+    if (previewData) {
+      setMarketplaceLocked(false);
+      return true;
+    }
     setLoadingMarketplace(true);
     setError(null);
     try {
@@ -322,9 +351,10 @@ export function useMobileSuperAdmin(previewData?: MobileSuperAdminPreviewData) {
       setMarketplaceLocked(false);
       return true;
     } catch (cause) {
-      const typed = cause as Error & { status?: number; code?: string };
+      const typed = cause as ApiError;
       if (typed.status === 403 && typed.code === 'MARKETPLACE_SUPERADMIN_BIOMETRIC_REQUIRED') {
         setMarketplaceLocked(true);
+        MobileStorage.clearBiometricAccessToken();
       } else {
         setError(typed.message || 'Control-plane Marketplace indisponible.');
       }
@@ -359,21 +389,29 @@ export function useMobileSuperAdmin(previewData?: MobileSuperAdminPreviewData) {
     return true;
   }, []);
 
-  const run = useCallback(async (operation: () => Promise<unknown>, success: string, refresh: 'core' | 'marketplace' | 'operations' | 'none' = 'none') => {
+  const refreshFor = useCallback(async (refresh: 'core' | 'marketplace' | 'operations' | 'none') => {
+    if (refresh === 'core') await loadCore();
+    if (refresh === 'marketplace') await loadMarketplace(false);
+    if (refresh === 'operations') await loadOperations();
+  }, [loadCore, loadMarketplace, loadOperations]);
+
+  const run = useCallback(async (
+    operation: () => Promise<unknown>,
+    success: string,
+    refresh: 'core' | 'marketplace' | 'operations' | 'none' = 'none',
+  ) => {
     if (previewData) return previewSuccess(success);
     setError(null);
     try {
       await operation();
       setLastMessage(success);
-      if (refresh === 'core') await loadCore();
-      if (refresh === 'marketplace') await loadMarketplace(false);
-      if (refresh === 'operations') await loadOperations();
+      await refreshFor(refresh);
       return true;
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'Action SuperAdmin refusée.');
       return false;
     }
-  }, [loadCore, loadMarketplace, loadOperations, previewData, previewSuccess]);
+  }, [previewData, previewSuccess, refreshFor]);
 
   const ensureFreshUv = useCallback(async () => {
     if (previewData) return true;
@@ -387,108 +425,280 @@ export function useMobileSuperAdmin(previewData?: MobileSuperAdminPreviewData) {
     }
   }, [previewData]);
 
+  const runP10 = useCallback(async (
+    operation: () => Promise<unknown>,
+    success: string,
+    refresh: 'marketplace' | 'none' = 'marketplace',
+  ) => {
+    if (previewData) return previewSuccess(success);
+    if (!(await ensureFreshUv())) return false;
+    setError(null);
+    try {
+      await operation();
+      setLastMessage(success);
+      if (refresh === 'marketplace') await loadMarketplace(false);
+      return true;
+    } catch (cause) {
+      const typed = cause as ApiError;
+      if (typed.status === 403 && typed.code === 'MARKETPLACE_SUPERADMIN_BIOMETRIC_REQUIRED') {
+        MobileStorage.clearBiometricAccessToken();
+        setMarketplaceLocked(true);
+        setError('La vérification biométrique SuperAdmin a expiré. Déverrouillez de nouveau le control-plane.');
+      } else {
+        setError(typed.message || 'Action Marketplace SuperAdmin refusée.');
+      }
+      return false;
+    }
+  }, [ensureFreshUv, loadMarketplace, previewData, previewSuccess]);
+
   const coreActions = useMemo(() => ({
-    validateClient: (id: number) => run(() => request(`/api/superadmin/clients/${id}/validate`, { method: 'POST' }), 'Client validé avec essai 30 jours.', 'core'),
-    setPlan: (id: number, plan: string) => run(() => request(`/api/superadmin/clients/${id}/plan?plan=${encodeURIComponent(plan)}`, { method: 'PATCH' }), `Pack ${plan} attribué.`, 'core'),
-    grantLicense: (id: number, action: string) => run(() => request(`/api/superadmin/clients/${id}/grant-license?action=${encodeURIComponent(action)}`, { method: 'POST' }), action === 'revoke' ? 'Licence révoquée.' : 'Licence prolongée.', 'core'),
-    toggleArchive: (id: number) => run(() => request(`/api/superadmin/clients/${id}/archive`, { method: 'PATCH' }), 'Statut d’archivage mis à jour.', 'core'),
-    toggleSuspend: (id: number) => run(() => request(`/api/superadmin/clients/${id}/suspend`, { method: 'PATCH' }), 'Statut de suspension mis à jour.', 'core'),
-    saveNotes: (id: number, internal_notes: string) => run(() => request(`/api/superadmin/clients/${id}/notes`, { method: 'PATCH', body: JSON.stringify({ internal_notes }) }), 'Notes internes enregistrées.', 'core'),
-    getHistory: async (id: number) => previewData ? [{ id: 1, action: 'grant', duration: 30, timestamp: new Date().toISOString() }] : request<Array<Record<string, unknown>>>(`/api/superadmin/clients/${id}/license-history`),
-    sendRenewal: (id: number, message: string) => run(() => request(`/api/superadmin/clients/${id}/send-renewal-email`, { method: 'POST', body: JSON.stringify({ message }) }), 'Relance renouvellement déclenchée.', 'none'),
+    validateClient: (id: number) => run(
+      () => request(`/api/superadmin/clients/${id}/validate`, { method: 'POST' }),
+      'Client validé avec essai 30 jours.',
+      'core',
+    ),
+    setPlan: (id: number, plan: string) => run(
+      () => request(`/api/superadmin/clients/${id}/plan?plan=${encodeURIComponent(plan)}`, { method: 'PATCH' }),
+      `Pack ${plan} attribué.`,
+      'core',
+    ),
+    grantLicense: (id: number, action: string) => run(
+      () => request(`/api/superadmin/clients/${id}/grant-license?action=${encodeURIComponent(action)}`, { method: 'POST' }),
+      action === 'revoke' ? 'Licence révoquée.' : 'Licence prolongée.',
+      'core',
+    ),
+    toggleArchive: (id: number) => run(
+      () => request(`/api/superadmin/clients/${id}/archive`, { method: 'PATCH' }),
+      'Statut d’archivage mis à jour.',
+      'core',
+    ),
+    toggleSuspend: (id: number) => run(
+      () => request(`/api/superadmin/clients/${id}/suspend`, { method: 'PATCH' }),
+      'Statut de suspension mis à jour.',
+      'core',
+    ),
+    saveNotes: (id: number, internal_notes: string) => run(
+      () => request(`/api/superadmin/clients/${id}/notes`, { method: 'PATCH', body: JSON.stringify({ internal_notes }) }),
+      'Notes internes enregistrées.',
+      'core',
+    ),
+    getHistory: async (id: number) => previewData
+      ? [{ id: 1, action: 'grant', duration: 30, timestamp: new Date().toISOString() }]
+      : request<Array<Record<string, unknown>>>(`/api/superadmin/clients/${id}/license-history`),
+    sendRenewal: (id: number, message: string) => run(
+      () => request(`/api/superadmin/clients/${id}/send-renewal-email`, { method: 'POST', body: JSON.stringify({ message }) }),
+      'Relance renouvellement déclenchée.',
+      'none',
+    ),
     createTrial: async (payload: TrialCodeCreateInput) => {
       if (previewData) {
-        const fake: TrialCode = { id: Date.now(), code: 'DC-DEMO-NEW-CODE', email: payload.email, nom_complet: payload.nom_complet ?? null, cabinet_name: payload.cabinet_name ?? null, trial_days: payload.trial_days, notes: payload.notes ?? null, expires_at: new Date(Date.now() + payload.expires_in_days * 86_400_000).toISOString(), consumed_at: null, revoked_at: null, activation_url: 'https://digitalcrown.local/activate?code=DC-DEMO-NEW-CODE' };
+        const fake: TrialCode = {
+          id: Date.now(),
+          code: 'DC-DEMO-NEW-CODE',
+          email: payload.email,
+          nom_complet: payload.nom_complet ?? null,
+          cabinet_name: payload.cabinet_name ?? null,
+          trial_days: payload.trial_days,
+          notes: payload.notes ?? null,
+          expires_at: new Date(Date.now() + payload.expires_in_days * 86_400_000).toISOString(),
+          consumed_at: null,
+          revoked_at: null,
+          activation_url: 'https://digitalcrown.local/activate?code=DC-DEMO-NEW-CODE',
+        };
         setTrialCodes(items => [fake, ...items]);
         return previewSuccess('Code d’essai créé');
       }
-      const next = await request<TrialCode>('/api/superadmin/trial-codes', { method: 'POST', body: JSON.stringify(payload) });
-      setTrialCodes(items => [next, ...items]);
-      setLastMessage('Code d’essai créé.');
-      return true;
+      setError(null);
+      try {
+        const next = await request<TrialCode>('/api/superadmin/trial-codes', { method: 'POST', body: JSON.stringify(payload) });
+        setTrialCodes(items => [next, ...items]);
+        setLastMessage('Code d’essai créé.');
+        return true;
+      } catch (cause) {
+        setError(cause instanceof Error ? cause.message : 'Création du code impossible.');
+        return false;
+      }
     },
-    revokeTrial: (id: number) => run(() => request(`/api/superadmin/trial-codes/${id}/revoke`, { method: 'POST' }), 'Code d’essai révoqué.', 'core'),
+    revokeTrial: (id: number) => run(
+      () => request(`/api/superadmin/trial-codes/${id}/revoke`, { method: 'POST' }),
+      'Code d’essai révoqué.',
+      'core',
+    ),
   }), [previewData, previewSuccess, request, run]);
 
   const marketplaceActions = useMemo(() => ({
     unlock: () => loadMarketplace(true),
     getGovernance: async (supplierId: number) => previewData
-      ? { supplierId, supplierName: suppliers.find(item => item.id === supplierId)?.name ?? 'Fournisseur démo', isActive: true, syncMode: 'api', agreement: { status: 'ACTIVE', storedStatus: 'ACTIVE', reference: 'AGR-DEMO', effectiveAt: null, expiresAt: null, notes: 'Accord fictif' } }
+      ? {
+          supplierId,
+          supplierName: suppliers.find(item => item.id === supplierId)?.name ?? 'Fournisseur démo',
+          isActive: true,
+          syncMode: 'api',
+          agreement: {
+            status: 'ACTIVE',
+            storedStatus: 'ACTIVE',
+            reference: 'AGR-DEMO',
+            effectiveAt: null,
+            expiresAt: null,
+            notes: 'Accord fictif',
+          },
+        }
       : request<Record<string, unknown>>(`/api/superadmin/marketplace/suppliers/${supplierId}/governance`),
-    updateGovernance: async (supplierId: number, payload: Record<string, unknown>) => {
-      if (!(await ensureFreshUv())) return false;
-      return run(() => request(`/api/superadmin/marketplace/suppliers/${supplierId}/governance`, { method: 'PATCH', body: JSON.stringify({ ...payload, confirm: true }) }), 'Gouvernance fournisseur mise à jour.', 'marketplace');
-    },
-    createSupplier: async (payload: SupplierCreateInput) => {
-      if (!(await ensureFreshUv())) return false;
-      return run(() => request('/api/superadmin/marketplace/suppliers', { method: 'POST', body: JSON.stringify({ ...payload, confirm: true }) }), 'Fournisseur créé.', 'marketplace');
-    },
-    updateSupplier: async (id: number, payload: Record<string, unknown>) => {
-      if (!(await ensureFreshUv())) return false;
-      return run(() => request(`/api/superadmin/marketplace/suppliers/${id}`, { method: 'PATCH', body: JSON.stringify({ ...payload, confirm: true }) }), 'Fournisseur mis à jour.', 'marketplace');
-    },
-    createProduct: async (payload: ProductCreateInput) => {
-      if (!(await ensureFreshUv())) return false;
-      return run(() => request('/api/superadmin/marketplace/products', { method: 'POST', body: JSON.stringify({ ...payload, confirm: true }) }), 'Produit créé.', 'marketplace');
-    },
-    updateProduct: async (id: number | string, payload: Record<string, unknown>) => {
-      if (!(await ensureFreshUv())) return false;
-      return run(() => request(`/api/superadmin/marketplace/products/${id}`, { method: 'PATCH', body: JSON.stringify({ ...payload, confirm: true }) }), 'Produit mis à jour.', 'marketplace');
-    },
-    getSyncStatus: async (supplierId: number) => previewData ? { freshness: { status: 'FRESH' }, lastErrorCode: null } : request<Record<string, unknown>>(`/api/partner-catalog/suppliers/${supplierId}/sync-status`),
-    syncSupplier: async (supplierId: number, force = false) => {
-      if (!(await ensureFreshUv())) return false;
-      return run(() => request(`/api/partner-catalog/suppliers/${supplierId}/sync${force ? '?force=true' : ''}`, { method: 'POST' }), force ? 'Synchronisation forcée terminée.' : 'Synchronisation terminée.', 'marketplace');
-    },
-  }), [ensureFreshUv, loadMarketplace, previewData, request, run, suppliers]);
+    updateGovernance: (supplierId: number, payload: Record<string, unknown>) => runP10(
+      () => request(`/api/superadmin/marketplace/suppliers/${supplierId}/governance`, {
+        method: 'PATCH',
+        body: JSON.stringify({ ...payload, confirm: true }),
+      }),
+      'Gouvernance fournisseur mise à jour.',
+    ),
+    createSupplier: (payload: SupplierCreateInput) => runP10(
+      () => request('/api/superadmin/marketplace/suppliers', {
+        method: 'POST',
+        body: JSON.stringify({ ...payload, confirm: true }),
+      }),
+      'Fournisseur créé.',
+    ),
+    updateSupplier: (id: number, payload: Record<string, unknown>) => runP10(
+      () => request(`/api/superadmin/marketplace/suppliers/${id}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ ...payload, confirm: true }),
+      }),
+      'Fournisseur mis à jour.',
+    ),
+    createProduct: (payload: ProductCreateInput) => runP10(
+      () => request('/api/superadmin/marketplace/products', {
+        method: 'POST',
+        body: JSON.stringify({ ...payload, confirm: true }),
+      }),
+      'Produit créé.',
+    ),
+    updateProduct: (id: number | string, payload: Record<string, unknown>) => runP10(
+      () => request(`/api/superadmin/marketplace/products/${id}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ ...payload, confirm: true }),
+      }),
+      'Produit mis à jour.',
+    ),
+    getSyncStatus: async (supplierId: number) => previewData
+      ? { freshness: { status: 'FRESH' }, lastErrorCode: null }
+      : request<Record<string, unknown>>(`/api/partner-catalog/suppliers/${supplierId}/sync-status`),
+    syncSupplier: (supplierId: number, force = false) => run(
+      () => request(`/api/partner-catalog/suppliers/${supplierId}/sync${force ? '?force=true' : ''}`, { method: 'POST' }),
+      force ? 'Synchronisation forcée terminée.' : 'Synchronisation terminée.',
+      'marketplace',
+    ),
+  }), [loadMarketplace, previewData, request, run, runP10, suppliers]);
 
   const operationActions = useMemo(() => ({
     loadDetail: async (id: number): Promise<OperationDetail> => {
-      if (previewData) return previewData.operationDetails?.[id] ?? { dispatch: null, procurement: null, receipts: [], reconciliation: null };
+      if (previewData) {
+        const stored = previewData.operationDetails?.[id];
+        return {
+          dispatch: stored?.dispatch ?? null,
+          procurement: stored?.procurement ?? null,
+          receipts: stored?.receipts ?? [],
+          receiptProgress: stored?.receiptProgress ?? null,
+          reconciliation: stored?.reconciliation ?? null,
+        };
+      }
       const safe = async <T,>(path: string, fallback: T): Promise<T> => {
         try { return await request<T>(path); } catch { return fallback; }
       };
-      const [dispatchResult, procurementResult, receipts, reconciliation] = await Promise.all([
-        safe<Record<string, unknown>>(`/api/partner-orders/${id}/dispatch`, {}),
-        safe<Record<string, unknown>>(`/api/partner-orders/${id}/procurement`, {}),
-        safe<Array<Record<string, unknown>>>(`/api/partner-orders/${id}/receipts`, []),
+      const [dispatchResult, procurementResult, receiptsResult, reconciliation] = await Promise.all([
+        safe<DispatchEnvelope>(`/api/partner-orders/${id}/dispatch`, { dispatch: null }),
+        safe<ProcurementEnvelope>(`/api/partner-orders/${id}/procurement`, { procurement: null }),
+        safe<ReceiptsEnvelope>(`/api/partner-orders/${id}/receipts`, { receipts: [], progress: {} }),
         safe<Record<string, unknown>>(`/api/partner-orders/finance/orders/${id}/reconciliation`, {}),
       ]);
       return {
-        dispatch: (dispatchResult.dispatch as Record<string, unknown> | null) ?? null,
-        procurement: (procurementResult.procurement as Record<string, unknown> | null) ?? null,
-        receipts,
+        dispatch: dispatchResult.dispatch ?? null,
+        procurement: procurementResult.procurement ?? null,
+        receipts: Array.isArray(receiptsResult.receipts) ? receiptsResult.receipts : [],
+        receiptProgress: receiptsResult.progress && typeof receiptsResult.progress === 'object' ? receiptsResult.progress : null,
         reconciliation: Object.keys(reconciliation).length ? reconciliation : null,
       };
     },
-    updateOrder: async (id: number, payload: { status: string; currentTotal?: number; partnerReference?: string; note?: string }) => run(() => request(`/api/partner-orders/${id}`, { method: 'PATCH', body: JSON.stringify(payload) }), 'Commande partenaire mise à jour.', 'operations'),
-    dispatch: async (id: number) => {
-      if (!(await ensureFreshUv())) return false;
-      return run(() => request(`/api/partner-orders/${id}/dispatch`, { method: 'POST' }), 'Commande envoyée au fournisseur avec preuve de transport.', 'operations');
-    },
-    acknowledgeProcurement: async (id: number, payload: { supplierReference: string; expectedDeliveryAt?: string | null; backorderedLines: Array<{ productId: string; quantityBackordered: number }>; note?: string }) => {
-      if (!(await ensureFreshUv())) return false;
-      return run(() => request(`/api/partner-orders/${id}/procurement`, { method: 'PUT', body: JSON.stringify(payload) }), 'Accusé fournisseur enregistré.', 'operations');
-    },
-    recordInvoice: async (id: number, payload: { invoiceReference: string; amountTotal: number; issuedAt?: string | null; note?: string }) => {
-      if (!(await ensureFreshUv())) return false;
+    updateOrder: (id: number, payload: { status: string; currentTotal?: number; partnerReference?: string; note?: string }) => run(
+      () => request(`/api/partner-orders/${id}`, { method: 'PATCH', body: JSON.stringify(payload) }),
+      'Commande partenaire mise à jour.',
+      'operations',
+    ),
+    dispatch: (id: number) => run(
+      () => request(`/api/partner-orders/${id}/dispatch`, { method: 'POST' }),
+      'Commande envoyée au fournisseur avec preuve de transport.',
+      'operations',
+    ),
+    acknowledgeProcurement: (
+      id: number,
+      payload: {
+        supplierReference: string;
+        expectedDeliveryAt?: string | null;
+        backorderedLines: Array<{ productId: string; quantityBackordered: number }>;
+        note?: string;
+      },
+    ) => run(
+      () => request(`/api/partner-orders/${id}/procurement`, { method: 'PUT', body: JSON.stringify(payload) }),
+      'Accusé fournisseur enregistré.',
+      'operations',
+    ),
+    recordInvoice: (
+      id: number,
+      payload: { invoiceReference: string; amountTotal: number; issuedAt?: string | null; note?: string },
+    ) => {
       const invoiceKey = typeof crypto !== 'undefined' && 'randomUUID' in crypto ? crypto.randomUUID() : `mobile-${Date.now()}`;
-      return run(() => request(`/api/partner-orders/finance/orders/${id}/invoices`, { method: 'POST', body: JSON.stringify({ ...payload, invoiceKey, currency: 'MAD' }) }), 'Facture fournisseur enregistrée.', 'operations');
+      return run(
+        () => request(`/api/partner-orders/finance/orders/${id}/invoices`, {
+          method: 'POST',
+          body: JSON.stringify({ ...payload, invoiceKey, currency: 'MAD' }),
+        }),
+        'Facture fournisseur enregistrée.',
+        'operations',
+      );
     },
-    receive: async (id: number, payload: { lines: Array<{ productId: string; quantityReceived: number; lotNumber?: string | null; expiresAt?: string | null }>; note?: string }) => {
-      if (!(await ensureFreshUv())) return false;
+    receive: (
+      id: number,
+      payload: {
+        lines: Array<{ productId: string; quantityReceived: number; lotNumber?: string | null; expiresAt?: string | null }>;
+        note?: string;
+      },
+    ) => {
       const idempotencyKey = typeof crypto !== 'undefined' && 'randomUUID' in crypto ? crypto.randomUUID() : `mobile-${Date.now()}`;
-      return run(() => request(`/api/partner-orders/${id}/receipt`, { method: 'POST', body: JSON.stringify({ ...payload, idempotencyKey }) }), 'Réception fournisseur enregistrée.', 'operations');
+      return run(
+        () => request(`/api/partner-orders/${id}/receipt`, {
+          method: 'POST',
+          body: JSON.stringify({ ...payload, idempotencyKey }),
+        }),
+        'Réception fournisseur enregistrée.',
+        'operations',
+      );
     },
-  }), [ensureFreshUv, previewData, request, run]);
+  }), [previewData, request, run]);
 
   return {
-    clients, trialCodes, overview, globalOrders, suppliers, products, incidents, audit,
-    operationalOrders, financeSummary,
-    loadingCore, loadingMarketplace, loadingOperations, marketplaceLocked,
-    error, setError, lastMessage, setLastMessage,
-    loadCore, loadMarketplace, loadOperations,
-    coreActions, marketplaceActions, operationActions,
+    clients,
+    trialCodes,
+    overview,
+    globalOrders,
+    suppliers,
+    products,
+    incidents,
+    audit,
+    operationalOrders,
+    financeSummary,
+    loadingCore,
+    loadingMarketplace,
+    loadingOperations,
+    marketplaceLocked,
+    error,
+    setError,
+    lastMessage,
+    setLastMessage,
+    loadCore,
+    loadMarketplace,
+    loadOperations,
+    coreActions,
+    marketplaceActions,
+    operationActions,
     previewMode: Boolean(previewData),
   };
 }
