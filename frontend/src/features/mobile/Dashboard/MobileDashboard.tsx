@@ -24,6 +24,7 @@ import { DentistsView } from './views/DentistsView';
 import { FrontdeskView } from './views/FrontdeskView';
 import { NotificationsView } from './views/NotificationsView';
 import { StockView } from './views/StockView';
+import { LibraryView } from './views/LibraryView';
 import { PWAInstallPrompt } from '../../../components/PWAInstallPrompt';
 import { resolveDashboardTab } from '../bridge';
 
@@ -158,6 +159,7 @@ export const MobileDashboard = () => {
             {state.activeTab === 'frontdesk' && <FrontdeskView />}
             {state.activeTab === 'notifications' && <NotificationsView onNavigate={selectNavTab} />}
             {state.activeTab === 'stock' && <StockView />}
+            {state.activeTab === 'library' && <LibraryView role={state.snapshot?.role} />}
             {state.activeTab === 'bot' && <BotView />}
           </motion.div>
         </AnimatePresence>

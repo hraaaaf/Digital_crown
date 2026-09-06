@@ -11,6 +11,7 @@ import { MobilePatientsView, type MobilePatientsPreviewData } from './views/Mobi
 import { FrontdeskView, type PendingRequest } from './views/FrontdeskView';
 import { NotificationsView, type MobileAlert } from './views/NotificationsView';
 import { StockView, type MobileStockItem } from './views/StockView';
+import { LibraryView } from './views/LibraryView';
 import { MobilePreviewBotView } from './MobilePreviewBotView';
 import { MobilePreviewSecurityView } from './MobilePreviewSecurityView';
 import { applyMobileRuntimeTheme } from './hooks/useMobileRuntimeTheme';
@@ -89,7 +90,7 @@ const noop = () => undefined;
 
 function requestedPreviewTab(): Tab {
   const tab = new URLSearchParams(window.location.search).get('tab') as Tab | null;
-  return tab && ['agenda', 'patients', 'finance', 'lab', 'bot', 'securite', 'dentists', 'frontdesk', 'notifications', 'stock'].includes(tab) ? tab : 'agenda';
+  return tab && ['agenda', 'patients', 'finance', 'lab', 'bot', 'securite', 'dentists', 'frontdesk', 'notifications', 'stock', 'library'].includes(tab) ? tab : 'agenda';
 }
 
 function requestedQuickOpen(): boolean { return new URLSearchParams(window.location.search).get('quick') === '1'; }
@@ -121,6 +122,7 @@ export function MobilePreviewDashboard() {
           {activeTab === 'frontdesk' && <FrontdeskView previewData={DEMO_FRONTDESK} />}
           {activeTab === 'notifications' && <NotificationsView onNavigate={selectNavTab} previewData={DEMO_NOTIFICATIONS} />}
           {activeTab === 'stock' && <StockView previewData={DEMO_STOCK} />}
+          {activeTab === 'library' && <LibraryView role="DENTISTE" />}
           {activeTab === 'bot' && <MobilePreviewBotView />}
           {activeTab === 'securite' && <MobilePreviewSecurityView />}
         </motion.div></AnimatePresence>

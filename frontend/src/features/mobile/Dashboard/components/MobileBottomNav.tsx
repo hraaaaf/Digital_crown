@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Bell, Bot, CalendarDays, ClipboardList, FlaskConical, MoreHorizontal, Package, ShieldCheck, TrendingUp, UserRound, Users, X } from 'lucide-react';
+import { Bell, BookOpen, Bot, CalendarDays, ClipboardList, FlaskConical, MoreHorizontal, Package, ShieldCheck, TrendingUp, UserRound, Users, X } from 'lucide-react';
 import { cn } from '../../../../utils/cn';
 import type { Tab, Snapshot } from '../types';
 import type { LabJob } from '../../../../types/labJob';
@@ -26,7 +26,7 @@ export function MobileBottomNav({
   onToggleQuickActions: () => void;
 }) {
   const [moreOpen, setMoreOpen] = useState(false);
-  const role = snapshot?.role ?? 'DENTISTE';
+  const role = snapshot?.role ?? '';
   const secondaryTabs = [
     {
       id: 'notifications' as Tab,
@@ -39,6 +39,12 @@ export function MobileBottomNav({
       icon: Package,
       label: 'Stock',
       allowedRoles: ['DENTISTE', 'ADMIN', 'SECRETAIRE'],
+    },
+    {
+      id: 'library' as Tab,
+      icon: BookOpen,
+      label: 'Bibliothèque',
+      allowedRoles: ['DENTISTE', 'ADMIN'],
     },
     {
       id: 'dentists' as Tab,
