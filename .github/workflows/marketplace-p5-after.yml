@@ -6,9 +6,17 @@ on:
       - "backend/**/*marketplace*"
       - "backend/**/*partner*"
       - "frontend/src/features/partnerMarketplace/**"
-      - ".audit/marketplace-p5-after.mjs"
+      - "frontend/src/features/mobile/Dashboard/views/MarketplaceView*"
+      - "frontend/src/features/mobile/Dashboard/MobileDashboard.tsx"
+      - "frontend/src/features/mobile/Dashboard/MobilePreviewDashboard.tsx"
+      - "frontend/src/features/mobile/Dashboard/components/MobileBottomNav*"
+      - "frontend/src/features/mobile/Dashboard/types.tsx"
+      - "frontend/src/features/mobile/bridge*"
+      - "frontend/src/pages/PartnerMarketplacePage.tsx"
+      - "frontend/scripts/capture-mobile-marketplace-mob5g.mjs"
       - "docs/marketplace/P5_UI_REFERENCE.md"
       - "docs/marketplace/P5_UI_REFERENCE.svg"
+      - "docs/ux/DIGITAL_CROWN_MOBILE_MARKETPLACE_MOB5G_GOAL_UI.md"
       - "requirements.txt"
       - "frontend/package.json"
       - "frontend/package-lock.json"
@@ -96,7 +104,7 @@ jobs:
         run: test "$(git rev-parse HEAD)" = "${{ github.event.pull_request.head.sha || github.sha }}"
 
       - name: Setup Node 20
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
           node-version: "20"
           cache: npm
@@ -105,16 +113,22 @@ jobs:
       - name: Install frontend dependencies
         run: npm ci
 
-      - name: Run Marketplace frontend regression contract
-        run: npm test -- src/features/partnerMarketplace/data.test.ts
+      - name: Run Marketplace frontend regression contracts
+        run: |
+          npm test -- \
+            src/features/partnerMarketplace/data.test.ts \
+            src/features/partnerMarketplace/usePartnerMarketplace.test.tsx \
+            src/features/mobile/Dashboard/views/MarketplaceView.test.tsx \
+            src/features/mobile/Dashboard/components/MobileBottomNav.test.tsx \
+            src/features/mobile/bridge.m5a.test.ts
 
       - name: Build frontend
         run: npm run build
 
   visual-certification:
-    name: Marketplace P5 visual 390/430/768/1280
+    name: Marketplace visual 390/430/768/1280
     runs-on: ubuntu-latest
-    timeout-minutes: 8
+    timeout-minutes: 10
     steps:
       - name: Checkout exact candidate HEAD
         uses: actions/checkout@v4
@@ -128,7 +142,7 @@ jobs:
           echo "PRODUCT_HEAD=$PRODUCT_HEAD" >> "$GITHUB_ENV"
 
       - name: Setup Node 20
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
           node-version: "20"
           cache: npm
@@ -140,31 +154,30 @@ jobs:
           npm ci
           npm install --no-save --package-lock=false --ignore-scripts playwright@1.62.1
           npx playwright install --with-deps chromium
-          test ! -e ../node_modules
-          ln -s "$PWD/node_modules" ../node_modules
 
-      - name: Capture Marketplace final visual evidence
+      - name: Capture Marketplace current visual evidence
         working-directory: frontend
         env:
           PRODUCT_HEAD: ${{ env.PRODUCT_HEAD }}
-        run: node ../.audit/marketplace-p5-after.mjs
+          VITE_DC_PREVIEW_DEMO: "1"
+        run: node scripts/capture-mobile-marketplace-mob5g.mjs
 
       - name: Assert visual artifact contract
-        if: always()
         working-directory: frontend
         env:
           PRODUCT_HEAD: ${{ env.PRODUCT_HEAD }}
         run: |
           node --input-type=module <<'NODE'
           import { readFileSync } from 'node:fs';
-          const report = JSON.parse(readFileSync('marketplace-p5-after-artifacts/report.json', 'utf8'));
-          if (report.productHead !== process.env.PRODUCT_HEAD) throw new Error('P11 visual product HEAD mismatch');
-          if (report.beforeRun !== 5) throw new Error('P11 visual proof must compare against canonical BEFORE run #5');
-          if (report.captures.length !== 4) throw new Error(`Expected 4 captures, got ${report.captures.length}`);
-          if (report.invalidCount !== 0) throw new Error(`Invalid captures: ${report.invalidCount}`);
-          if (report.checkoutInvalid) throw new Error('Checkout interaction proof failed');
-          if (!report.checkoutProof?.sameUrlAfterSubmit) throw new Error('Checkout reloaded or navigated unexpectedly');
-          if (report.checkoutProof?.postCount !== 1) throw new Error('Checkout must emit exactly one POST');
+          const report = JSON.parse(readFileSync('mobile-marketplace-mob5g-artifacts/report.json', 'utf8'));
+          if (report.productHead !== process.env.PRODUCT_HEAD) throw new Error('Marketplace visual product HEAD mismatch');
+          if (report.baselineBefore !== '062eadf1afc6ffc241be8420313e065a35f7d95b') throw new Error('Marketplace BEFORE baseline mismatch');
+          if (report.beforeArtifactId !== 9992935589) throw new Error('Marketplace BEFORE artifact mismatch');
+          if (report.mobile.length !== 3) throw new Error(`Expected 3 mobile captures, got ${report.mobile.length}`);
+          if (report.mobileInvalidCount !== 0) throw new Error(`Invalid mobile captures: ${report.mobileInvalidCount}`);
+          if (report.desktopInvalid) throw new Error('Desktop visual/checkout contract failed');
+          if (report.desktop?.checkout?.postCount !== 1) throw new Error('Checkout must emit exactly one POST');
+          if (!report.desktop?.checkout?.sameUrlAfterSubmit) throw new Error('Checkout reloaded or navigated unexpectedly');
           NODE
 
       - name: Upload final Marketplace visual evidence
@@ -172,6 +185,6 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: marketplace-p11-final-visual
-          path: frontend/marketplace-p5-after-artifacts/
+          path: frontend/mobile-marketplace-mob5g-artifacts/
           if-no-files-found: error
           retention-days: 30
