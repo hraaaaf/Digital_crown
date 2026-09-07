@@ -1,9 +1,12 @@
 # DIGITAL CROWN MOBILE — MOB-5H SUPERADMIN AUDIT
 
-Status: AUDIT FINAL — IMPLEMENTATION COMPLETE, PR PENDING
+Status: AUDIT FINAL — CLOSED / MERGED / POST-MERGE GREEN
 Baseline exact: `6eb93c75f91402031ecc2c8fc1f8858372a97b9b`
-Branch: `ux/mobile-superadmin-mob5h`
-Candidate certifié avant closeout: `307899e74114c3b6c7ed7d1f089f662ff48e9da7`
+Branch produit: `ux/mobile-superadmin-mob5h`
+PR: `#363`
+HEAD final pré-merge: `904c6cd001ff87ab54ec6ad31f7a90e52b3ac23d`
+Merge exact: `e30b858f58686f5f7bef19ca93f1c5dae42929c9`
+Post-merge CI: `34142208046` — SUCCESS
 
 ## Goal
 
@@ -62,12 +65,12 @@ Constat baseline: liste/recherche clients, changement pack, extensions licence e
 
 Les 3 captures BEFORE ont HTTP 200, 0 page error, 0 console error et 0 overflow horizontal.
 
-## AFTER vérifié
+## AFTER final vérifié
 
-Run: `34139199751` — SUCCESS
-Candidate: `307899e74114c3b6c7ed7d1f089f662ff48e9da7`
-Artifact: `10025281786`
-Digest: `sha256:595a430c22dd8f82a3887b30b01192d6061dfc6a8857eb0cd3961694e253793a`
+CI PR finale: `34139811533` — SUCCESS
+HEAD capturé: `904c6cd001ff87ab54ec6ad31f7a90e52b3ac23d`
+Artifact: `10025509035`
+Digest: `sha256:465cf28d3f96138ce9ce3b5281d8718c460c5f1b16e595cf1d366ee0cff9e95b`
 
 Report AFTER:
 - 3/3 viewports valides;
@@ -77,18 +80,26 @@ Report AFTER:
 - 0 requête API inattendue;
 - 0 egress externe réel;
 - sections présentes: Vue globale / Clients / Essais / Marketplace / Opérations;
-- capacités observées dans les captures: revoke/archive/suspend/history/renewal, suppliers/catalogue/incidents/audit, dispatch/procurement/invoice/receipt.
+- capacités observées: revoke/archive/suspend/history/renewal, suppliers/catalogue/incidents/audit, dispatch/procurement/invoice/receipt.
 
-## Tests certifiés
+## Tests / CI certifiés
 
-Run `34139199751`:
-- `SuperAdmin WebAuthn boundary` ✅
-- `SuperAdmin frontend contracts + build` ✅
-- `SuperAdmin AFTER 390 430 768` ✅
-- build frontend production ✅
+Sur le HEAD final pré-merge `904c6cd...`:
+- Mobile SuperAdmin MOB-5H Cert `34139811533` ✅
+- CI `34139811583` ✅
+- Marketplace Final Certification `34139811585` ✅
+- T2 Runtime Browser Certification `34139811647` ✅
+- certifications mobiles connexes MOB-5A/B/C/D/E ✅
+- M6-I Biometric Passkey Certification: skipped attendu, pas un échec.
 
-Tests frontend dédiés vérifient aussi l'isolation preview et les contrôles dispatch/procurement/finance/réception. Le test controller vérifie notamment que le dispatch tenant-scoped n'invente pas un prérequis WebAuthn absent du contrat backend.
+Post-merge master:
+- merge `e30b858f58686f5f7bef19ca93f1c5dae42929c9` ✅
+- CI `34142208046` ✅ SUCCESS
+
+Les tests dédiés couvrent l'isolation preview, les contrôles dispatch/procurement/finance/réception et la frontière WebAuthn. Le controller vérifie notamment que le dispatch tenant-scoped n'invente pas un prérequis WebAuthn absent du contrat backend.
 
 ## Conclusion
 
-La parité fonctionnelle MOB-5H est implémentée et certifiée sur la branche. Le lot n'est pas CLOSED tant que PR, CI de PR, merge et post-merge n'ont pas été vérifiés.
+Goal MOB-5H atteint et prouvé: parité fonctionnelle SuperAdmin mobile, sécurité serveur conservée, UI certifiée sur 390/430/768, PR mergée et post-merge CI verte.
+
+Aucun déploiement Vercel n'a été exécuté.

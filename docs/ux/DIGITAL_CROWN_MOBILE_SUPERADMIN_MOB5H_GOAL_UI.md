@@ -1,8 +1,11 @@
 # DIGITAL CROWN MOBILE — MOB-5H SUPERADMIN GOAL UI
 
-Status: GOAL UI VERIFIED — AFTER CERTIFIED, PR PENDING
+Status: GOAL UI VERIFIED — CLOSED
 Baseline exact: `6eb93c75f91402031ecc2c8fc1f8858372a97b9b`
-Branch: `ux/mobile-superadmin-mob5h`
+Branch produit: `ux/mobile-superadmin-mob5h`
+PR: `#363`
+Merge exact: `e30b858f58686f5f7bef19ca93f1c5dae42929c9`
+Post-merge CI: `34142208046` — SUCCESS
 Audit: `docs/ux/DIGITAL_CROWN_MOBILE_SUPERADMIN_MOB5H_AUDIT.md`
 Proof: `docs/ux/DIGITAL_CROWN_MOBILE_SUPERADMIN_MOB5H_PROOF.md`
 
@@ -37,11 +40,12 @@ Artifact `9997848118`, baseline `6eb93c75...`.
 
 Aux viewports 390×844, 430×932 et 768×1024, le baseline expose essentiellement clients/recherche, pack, prolongation licence et suspend/reactivate. Les autres domaines de parité sont absents.
 
-## AFTER vérifié
+## AFTER final vérifié
 
-Run `34139199751` — SUCCESS.
-Artifact `10025281786`.
-Digest `sha256:595a430c22dd8f82a3887b30b01192d6061dfc6a8857eb0cd3961694e253793a`.
+Run `34139811533` — SUCCESS.
+Artifact `10025509035`.
+Digest `sha256:465cf28d3f96138ce9ce3b5281d8718c460c5f1b16e595cf1d366ee0cff9e95b`.
+HEAD capturé `904c6cd001ff87ab54ec6ad31f7a90e52b3ac23d`.
 
 Aux trois viewports:
 - 0 overflow horizontal;
@@ -53,10 +57,10 @@ Aux trois viewports:
 
 Inspection manuelle réalisée sur la vue globale, le détail client et le détail opération en 390×844.
 
-Score visuel pré-merge: **9,3/10**.
+Score visuel final: **9,3/10**.
 
-## Critère de fermeture
+## Fermeture
 
-La cible UI est atteinte sur la branche et certifiée avant merge. MOB-5H ne passe en CLOSED qu'après PR verte, merge, post-merge CI et closeout du canonique.
+PR `#363` mergée sur `master` au SHA `e30b858f58686f5f7bef19ca93f1c5dae42929c9` et CI post-merge `34142208046` SUCCESS.
 
-Aucun Vercel.
+Le Goal UI est donc atteint et prouvé. Aucun Vercel.
