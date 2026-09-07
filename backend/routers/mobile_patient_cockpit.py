@@ -83,13 +83,13 @@ def get_mobile_quick_action_capabilities(
 ):
     has_patients = has_permission(mobile_user, 'patients')
     has_accounting = has_permission(mobile_user, 'accounting')
-    has_payments = has_permission(mobile_user, 'payments')
     return encrypt_payload({
         'can_create_appointment': has_permission(mobile_user, 'agenda'),
         'can_create_patient': has_patients,
         'can_open_clinical_context': has_patients,
-        # Payment flow requires patient lookup plus the canonical financial permission.
-        'can_pay': has_patients and (has_accounting or has_payments),
+        # Preserve the historical Quick Payment contract exactly: patient scope plus
+        # the canonical combined accounting/payments permission check.
+        'can_pay': has_patients and has_permission(mobile_user, ['accounting', 'payments']),
         # MOB-5F mirrors DOCUMENT_TYPE_PERMISSIONS from /api/documents/generate.
         'can_create_prescription': has_permission(mobile_user, 'prescriptions'),
         'can_create_certificate': has_patients,
