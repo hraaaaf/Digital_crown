@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Bell, BookOpen, Bot, CalendarDays, ClipboardList, FlaskConical, MoreHorizontal, Package, ShieldCheck, ShoppingCart, TrendingUp, UserRound, Users, X } from 'lucide-react';
+import { Bell, BookOpen, Bot, CalendarDays, ClipboardList, FlaskConical, MoreHorizontal, Package, ShieldCheck, ShoppingCart, TrendingUp, UserRound, Users, UsersRound, X } from 'lucide-react';
 import { cn } from '../../../../utils/cn';
 import type { Tab, Snapshot } from '../types';
 import type { LabJob } from '../../../../types/labJob';
@@ -27,7 +27,15 @@ export function MobileBottomNav({
 }) {
   const [moreOpen, setMoreOpen] = useState(false);
   const role = snapshot?.role ?? '';
+  const waitingCount = snapshot?.appointments.filter(appointment => appointment.status === 'EN_ATTENTE').length ?? 0;
   const secondaryTabs = [
+    {
+      id: 'waiting-room' as Tab,
+      icon: UsersRound,
+      label: 'Salle d’attente',
+      allowedRoles: ['DENTISTE', 'ADMIN', 'SECRETAIRE'],
+      badge: waitingCount > 0 ? waitingCount : undefined,
+    },
     {
       id: 'notifications' as Tab,
       icon: Bell,
@@ -136,10 +144,11 @@ export function MobileBottomNav({
             </div>
 
             <div className="grid gap-2.5 max-h-[min(60dvh,520px)] overflow-y-auto pr-0.5">
-              {secondaryTabs.map(({ id, icon: Icon, label, dot }) => (
+              {secondaryTabs.map(({ id, icon: Icon, label, dot, badge }) => (
                 <button
                   key={id}
                   type="button"
+                  data-mobile-more-item={id}
                   onClick={() => selectTab(id)}
                   className="flex min-h-[56px] items-center gap-3 rounded-[18px] border border-glass-border bg-background px-4 text-left text-text-main active:scale-[0.99]"
                 >
@@ -147,7 +156,12 @@ export function MobileBottomNav({
                     <Icon size={18} />
                     {dot && <span className="absolute right-0 top-0 h-2 w-2 rounded-full bg-primary ring-2 ring-white/80" />}
                   </span>
-                  <span className="text-[11px] font-black">{label}</span>
+                  <span className="flex-1 text-[11px] font-black">{label}</span>
+                  {badge != null && (
+                    <span data-mob5i-waiting-badge className="grid min-h-7 min-w-7 place-items-center rounded-full bg-amber-500/10 px-2 text-[10px] font-black text-amber-700">
+                      {badge}
+                    </span>
+                  )}
                 </button>
               ))}
               {secondaryTabs.length === 0 && (
