@@ -36,6 +36,7 @@ import { usePatientStore } from '../../stores/usePatientStore';
 import { useAuthStore } from '../../stores/useAuthStore';
 import { EliteGhostLoader } from '../../components/EliteGhostLoader';
 import { AssuranceBadge } from '../../components/AssuranceBadge';
+import { useFlowHandoff } from '../../hooks/useFlowHandoff';
 
 interface Patient {
   id: number;
@@ -114,6 +115,9 @@ export const PatientDetails = () => {
   const [fetchError, setFetchError] = useState(false);
   const [isPayModalOpen, setIsPayModalOpen] = useState(false);
   const lastEditingDoc = useRef(null);
+  const flowContentRef = useRef<HTMLElement>(null);
+  const flowHandoff = useFlowHandoff();
+  const initialFlowSurface = useRef(true);
 
   useEffect(() => {
     if (requestedRadioTab !== radioTab && activeTab === 'radiology') {
@@ -141,6 +145,14 @@ export const PatientDetails = () => {
     window.addEventListener('perio-create-prescription', handlePrescription);
     return () => window.removeEventListener('perio-create-prescription', handlePrescription);
   }, [setSearchParams]);
+
+  useEffect(() => {
+    if (initialFlowSurface.current) {
+      initialFlowSurface.current = false;
+      return;
+    }
+    flowHandoff(flowContentRef.current);
+  }, [activeTab, flowHandoff]);
 
   const fetchPatient = useCallback(async () => {
     if (!id) return;
@@ -273,7 +285,7 @@ export const PatientDetails = () => {
         </div>
       </header>
 
-      <main className={cn('max-w-[1600px] mx-auto w-full transition-all duration-500', isDocuments ? 'flex-1 min-h-0 px-3 py-3 md:px-6 md:py-4' : 'flex-1 px-4 py-6 md:px-8 md:py-8 space-y-6')}>
+      <main ref={flowContentRef} data-flow-patient-surface={activeTab} className={cn('max-w-[1600px] mx-auto w-full transition-all duration-500', isDocuments ? 'flex-1 min-h-0 px-3 py-3 md:px-6 md:py-4' : 'flex-1 px-4 py-6 md:px-8 md:py-8 space-y-6')}>
         {!isDocuments && (patient.antecedents_medicaux || patient.motif_consultation) && (
           <div className="flex flex-col gap-3 animate-in fade-in slide-in-from-top-4 duration-500">
             {patient.antecedents_medicaux && <div className="p-4 bg-red-50 border border-red-200 rounded-2xl flex items-start gap-3 text-red-700 shadow-sm"><AlertTriangle className="w-5 h-5 shrink-0 mt-0.5" /><div><h4 className="font-black text-sm uppercase tracking-widest mb-1">Antécédents Médicaux</h4><p className="text-sm font-medium whitespace-pre-wrap">{patient.antecedents_medicaux}</p></div></div>}
