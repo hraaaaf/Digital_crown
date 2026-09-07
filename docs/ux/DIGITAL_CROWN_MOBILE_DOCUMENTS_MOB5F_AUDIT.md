@@ -91,10 +91,10 @@ Le serveur expose désormais, dans l'enveloppe mobile chiffrée existante:
 - `can_create_prescription` → `prescriptions`;
 - `can_create_certificate` → `patients`;
 - `can_create_devis` → `accounting`;
-- `can_create_honoraires` → `payments`;
+- `can_create_honoraires` → `accounting`;
 - `can_create_free_document` → `clinical`.
 
-Le sheet filtre les familles avec ces booléens et échoue fermé si les capacités ne peuvent pas être chargées. Le backend revérifie encore la permission lors de `/documents/generate`.
+Ces valeurs reflètent `DOCUMENT_TYPE_PERMISSIONS` du router canonique. Le sheet filtre les familles avec ces booléens et échoue fermé si les capacités ne peuvent pas être chargées. Le backend revérifie encore la permission lors de `/documents/generate`.
 
 ## Contrat preview / archivage
 
@@ -107,6 +107,10 @@ Le mobile ne passe plus directement à l'archive:
 
 La preview démo est locale et ne contacte jamais le cabinet.
 
+## Alerte médicale Ordonnance
+
+Le composant recharge en lecture seule le cockpit du patient en vraie session et réaffiche `medical_alert_summary` dans l'éditeur Ordonnance lorsqu'une alerte existe. En preview isolée, cette donnée peut être injectée sans aucun appel réseau; un test dédié verrouille ce comportement.
+
 ## Validation croisée des payloads
 
 Comparaison effectuée contre `backend/schemas/documents.py`:
@@ -117,7 +121,7 @@ Comparaison effectuée contre `backend/schemas/documents.py`:
 - libre: alias `title/content` acceptés;
 - ordonnance: structure `medications` canonique.
 
-Deux écarts détectés pendant l'audit ont été corrigés avant certification finale: `teeth_data={}` et montant Honoraires à 0.
+Trois écarts détectés pendant l'audit ont été corrigés avant certification finale: `teeth_data={}`, montant Honoraires à 0 et capacité Honoraires initialement reliée à `payments` au lieu du guard canonique `accounting`.
 
 ## Benchmark retenu
 
@@ -131,6 +135,7 @@ Principe retenu: entrée unique depuis le patient, sheet compacte, pas de copie 
 - patient préselectionné et non ambigu;
 - permissions backend restent autoritaires;
 - type list fail-closed;
+- alerte médicale rappelée dans Ordonnance quand elle existe;
 - aucune donnée patient dans une URL de bridge;
 - aucun brouillon ne traverse un changement de patient;
 - preview avant archivage;
