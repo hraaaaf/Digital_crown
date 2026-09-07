@@ -46,12 +46,13 @@ Sheet mobile filtrée par capacités serveur:
 
 Principes appliqués:
 - patient verrouillé par le contexte du cockpit;
+- rappel de l'alerte médicale dans Ordonnance lorsqu'elle existe;
 - champs strictement nécessaires;
 - contrôles financiers bornés comme le backend;
 - CTA primaire unique `Prévisualiser`;
 - aucune création de moteur/template parallèle.
 
-L'alerte médicale reste visible dans le cockpit immédiatement avant l'ouverture du studio. Le support d'un rappel d'alerte à l'intérieur de l'éditeur Ordonnance est prévu par le composant lorsque cette donnée lui est fournie; la preuve finale ne doit pas prétendre ce sous-point atteint si elle ne l'observe pas.
+En vraie session, le sheet relit le cockpit patient de façon tenant-scoped pour récupérer `medical_alert_summary`; cette lecture est non bloquante et n'accorde aucune permission.
 
 ### État 4 — Preview / confirmation
 
@@ -89,11 +90,11 @@ Règles:
 
 L'UI filtre les types à partir des capacités exactes renvoyées par le serveur et échoue fermé si elles ne sont pas disponibles.
 
-Contrats:
+Contrats recoupés avec `DOCUMENT_TYPE_PERMISSIONS`:
 - Ordonnance → `prescriptions`;
 - Certificat → `patients`;
 - Devis → `accounting`;
-- Honoraires → `payments`;
+- Honoraires → `accounting`;
 - Document libre → `clinical`.
 
 Le backend revérifie patient + permission lors de la génération. L'UI n'est jamais une autorité RBAC.
