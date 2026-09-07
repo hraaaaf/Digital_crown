@@ -32,6 +32,14 @@ describe('MobileQuickDocumentSheet', () => {
     expect(mockedFetch).not.toHaveBeenCalled();
   });
 
+  it('keeps the patient medical alert visible inside the prescription flow', () => {
+    render(<MobileQuickDocumentSheet patient={{ id: 101, name: 'Patient Démo', medicalAlert: 'Allergie pénicilline' }} preview onClose={() => undefined} />);
+    fireEvent.click(screen.getByRole('button', { name: /Ordonnance/i }));
+    expect(screen.getByText(/Alerte médicale/i)).toBeTruthy();
+    expect(screen.getByText(/Allergie pénicilline/i)).toBeTruthy();
+    expect(mockedFetch).not.toHaveBeenCalled();
+  });
+
   it('fails closed and exposes only server-authorized document families', async () => {
     mockedCredentials.mockResolvedValue({
       publicId: '0123456789abcdef',
