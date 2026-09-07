@@ -6,6 +6,7 @@ import {
   Camera,
   ChevronRight,
   CircleDollarSign,
+  FilePlus2,
   FileText,
   Image as ImageIcon,
   Loader2,
@@ -20,6 +21,7 @@ import { MobileStorage } from '../../../../services/zka/MobileStorage';
 import { mobileFetch } from '../../../../services/zka/mobileFetch';
 import { CryptoService } from '../../../../services/zka/CryptoService';
 import { buildTelHref, buildWhatsAppHref } from '../../Context/mobilePatientContact';
+import { MobileQuickDocumentSheet } from './MobileQuickDocumentSheet';
 
 export interface PatientSearchResult {
   id: number;
@@ -144,6 +146,7 @@ export function MobilePatientsView({
   const [loadingPatient, setLoadingPatient] = useState(false);
   const [loadingResources, setLoadingResources] = useState(false);
   const [openingContext, setOpeningContext] = useState<string | null>(null);
+  const [quickDocumentOpen, setQuickDocumentOpen] = useState(false);
   const [error, setError] = useState('');
 
   useEffect(() => {
@@ -197,6 +200,7 @@ export function MobilePatientsView({
   }, [query, selectedId, previewData]);
 
   useEffect(() => {
+    setQuickDocumentOpen(false);
     if (selectedId === null) {
       setCockpit(null);
       setResources({ documents: [], panoramics: [] });
@@ -387,6 +391,15 @@ export function MobilePatientsView({
                 <h3 className="text-sm font-black text-text-main">Actions cliniques rapides</h3>
                 {loadingResources && <Loader2 size={14} className="ml-auto animate-spin text-primary" />}
               </div>
+              <button
+                type="button"
+                data-mobile-create-document
+                onClick={() => setQuickDocumentOpen(true)}
+                disabled={Boolean(openingContext)}
+                className="mb-2 w-full min-h-14 rounded-[18px] bg-primary text-primary-foreground flex items-center justify-center gap-2 text-sm font-black active:scale-[0.99] transition-transform disabled:opacity-50"
+              >
+                <FilePlus2 size={18} /> Créer un document
+              </button>
               <div className="grid grid-cols-2 gap-2">
                 <button
                   type="button"
@@ -465,6 +478,14 @@ export function MobilePatientsView({
                   <p className="text-xs font-bold text-text-muted">Solde non calculable : aucune base de facturation enregistrée.</p>
                 )}
               </div>
+            )}
+
+            {quickDocumentOpen && (
+              <MobileQuickDocumentSheet
+                patient={{ id: patient.id, name: patient.name }}
+                preview={Boolean(previewData)}
+                onClose={() => setQuickDocumentOpen(false)}
+              />
             )}
           </>
         )}
