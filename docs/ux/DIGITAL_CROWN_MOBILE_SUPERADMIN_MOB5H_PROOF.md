@@ -1,9 +1,12 @@
 # DIGITAL CROWN MOBILE — MOB-5H SUPERADMIN PROOF
 
-Status: PRE-MERGE CERTIFIED
-Branch: `ux/mobile-superadmin-mob5h`
+Status: CERTIFIED — MERGED / POST-MERGE GREEN
+Branch produit: `ux/mobile-superadmin-mob5h`
+PR: `#363`
 Baseline BEFORE: `6eb93c75f91402031ecc2c8fc1f8858372a97b9b`
-Certified product candidate: `307899e74114c3b6c7ed7d1f089f662ff48e9da7`
+HEAD final pré-merge: `904c6cd001ff87ab54ec6ad31f7a90e52b3ac23d`
+Merge exact: `e30b858f58686f5f7bef19ca93f1c5dae42929c9`
+Post-merge CI: `34142208046` — SUCCESS
 
 ## Goal
 
@@ -40,16 +43,14 @@ Résultat:
 - 0 overflow horizontal
 - capacités observées: clients/recherche, pack, extension licence, suspend/reactivate seulement
 
-### AFTER
+### AFTER final
 
-Run GitHub Actions: `34139199751` — SUCCESS
-Artifact: `10025281786`
-Digest: `sha256:595a430c22dd8f82a3887b30b01192d6061dfc6a8857eb0cd3961694e253793a`
-Product HEAD capturé: `307899e74114c3b6c7ed7d1f089f662ff48e9da7`
+Run GitHub Actions: `34139811533` — SUCCESS
+Artifact: `10025509035`
+Digest: `sha256:465cf28d3f96138ce9ce3b5281d8718c460c5f1b16e595cf1d366ee0cff9e95b`
+Product HEAD capturé: `904c6cd001ff87ab54ec6ad31f7a90e52b3ac23d`
 
-Report `report.json` vérifié:
-- `baselineBefore = 6eb93c75...`
-- `beforeArtifactId = 9997848118`
+Report vérifié:
 - 3 captures valides
 - 390: scrollWidth 390 / innerWidth 390
 - 430: scrollWidth 430 / innerWidth 430
@@ -66,12 +67,19 @@ Capacités observées aux 3 viewports:
 - Marketplace: suppliers, catalogue, incidents, audit
 - opérations: dispatch, procurement, invoice, receipt
 
-### Tests / build
+### Tests / build / CI
 
-Run `34139199751`:
-- job `SuperAdmin WebAuthn boundary` ✅
-- job `SuperAdmin frontend contracts + build` ✅
-- job `SuperAdmin AFTER 390 430 768` ✅
+Sur `904c6cd...`:
+- Mobile SuperAdmin MOB-5H Cert `34139811533` ✅
+- CI `34139811583` ✅
+- Marketplace Final Certification `34139811585` ✅
+- T2 Runtime Browser Certification `34139811647` ✅
+- jobs `SuperAdmin WebAuthn boundary`, `SuperAdmin frontend contracts + build`, `SuperAdmin AFTER 390 430 768` ✅
+
+Post-merge:
+- PR `#363` merged ✅
+- merge exact `e30b858f58686f5f7bef19ca93f1c5dae42929c9` ✅
+- CI master `34142208046` ✅ SUCCESS
 
 Contrats ciblés exécutés:
 - `MobileSuperAdminView.test.tsx`
@@ -98,19 +106,14 @@ AFTER inspecté manuellement sur 390×844 pour la vue globale, le détail client
 Constat:
 - hiérarchie lisible;
 - actions destructives regroupées et séparées;
-- contrôle-plane compact plutôt qu'empilement de boutons;
+- control-plane compact plutôt qu'empilement de boutons;
 - sheets adaptées aux actions denses;
 - aucune collision/overflow observée.
 
-Score visuel pré-merge: **9,3/10**.
+Score visuel final: **9,3/10**.
 
-Le score reste inférieur à un 10 artificiel: les écrans opérationnels sont volontairement denses et privilégient la sécurité/complétude à l'esthétique décorative.
+## Fermeture
 
-## Gate restant
+Tous les gates MOB-5H sont satisfaits: preuve BEFORE/AFTER, tests, CI PR, merge exact et CI post-merge master.
 
-MOB-5H n'est pas CLOSED à ce stade. Reste:
-1. PR;
-2. CI de PR;
-3. merge si vert;
-4. post-merge CI;
-5. mise à jour du canonique.
+Aucun gate produit MOB-5H ne reste ouvert. Aucun déploiement Vercel n'a été exécuté.
