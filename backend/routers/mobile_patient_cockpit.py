@@ -90,12 +90,11 @@ def get_mobile_quick_action_capabilities(
         'can_open_clinical_context': has_patients,
         # Payment flow requires patient lookup plus the canonical financial permission.
         'can_pay': has_patients and (has_accounting or has_payments),
-        # MOB-5F exposes the exact backend document guards so the UI never advertises
-        # a document family that this mobile identity cannot actually generate.
+        # MOB-5F mirrors DOCUMENT_TYPE_PERMISSIONS from /api/documents/generate.
         'can_create_prescription': has_permission(mobile_user, 'prescriptions'),
         'can_create_certificate': has_patients,
         'can_create_devis': has_accounting,
-        'can_create_honoraires': has_payments,
+        'can_create_honoraires': has_accounting,
         'can_create_free_document': has_permission(mobile_user, 'clinical'),
     })
 
