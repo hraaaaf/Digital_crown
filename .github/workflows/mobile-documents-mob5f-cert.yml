@@ -1,0 +1,83 @@
+name: Mobile Documents MOB-5F Cert
+
+on:
+  push:
+    branches: [ux/mobile-documents-mob5f]
+    paths:
+      - frontend/src/features/mobile/Dashboard/views/MobilePatientsView.tsx
+      - frontend/src/features/mobile/Dashboard/views/MobilePatientsView.test.tsx
+      - frontend/src/features/mobile/Dashboard/views/MobileQuickDocumentSheet.tsx
+      - frontend/src/features/mobile/Dashboard/views/MobileQuickDocumentSheet.test.tsx
+      - frontend/scripts/capture-mobile-documents-mob5f-after.mjs
+      - .github/workflows/mobile-documents-mob5f-cert.yml
+  workflow_dispatch:
+
+concurrency:
+  group: mobile-documents-mob5f-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  contracts-build-after:
+    name: Quick Document contracts + build + AFTER 390 430 768
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install frontend
+        working-directory: frontend
+        run: npm ci
+
+      - name: Targeted MOB-5F contracts
+        working-directory: frontend
+        run: npm test -- src/features/mobile/Dashboard/views/MobileQuickDocumentSheet.test.tsx src/features/mobile/Dashboard/views/MobilePatientsView.test.tsx
+
+      - name: Guarded frontend build
+        working-directory: frontend
+        run: npm run build
+
+      - name: Install Playwright runner
+        working-directory: frontend
+        run: npm install --no-save --package-lock=false playwright@1.63.0
+
+      - name: Install Chromium
+        working-directory: frontend
+        run: npx playwright install --with-deps chromium
+
+      - name: Start isolated demo harness
+        working-directory: frontend
+        env:
+          VITE_DC_PREVIEW_DEMO: "1"
+        run: |
+          npm run dev -- --host 127.0.0.1 --port 5173 >/tmp/mobile-documents-mob5f-vite.log 2>&1 &
+          for i in {1..60}; do
+            curl -fsS 'http://127.0.0.1:5173/mobile/demo?demo=1&tab=patients' >/dev/null && exit 0
+            sleep 1
+          done
+          cat /tmp/mobile-documents-mob5f-vite.log
+          exit 1
+
+      - name: Capture and assert AFTER
+        working-directory: frontend
+        run: node scripts/capture-mobile-documents-mob5f-after.mjs
+
+      - name: Preserve vite log
+        if: always()
+        run: |
+          mkdir -p artifacts/mobile-documents-mob5f-after
+          cp /tmp/mobile-documents-mob5f-vite.log artifacts/mobile-documents-mob5f-after/vite.log || true
+          printf 'head=%s\nbaseline=%s\n' '${{ github.sha }}' 'e30b858f58686f5f7bef19ca93f1c5dae42929c9' > artifacts/mobile-documents-mob5f-after/result.txt
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: mobile-documents-mob5f-after
+          path: artifacts/mobile-documents-mob5f-after
+          if-no-files-found: error
+          retention-days: 30
