@@ -45,7 +45,7 @@ jobs:
           s = s.replace(main, main.replace('<main ', '<main ref={flowContentRef} data-flow-patient-surface={activeTab} ', 1), 1)
           p.write_text(s)
 
-          Path('frontend/src/features/patients/PatientDetailsFlowHandoff.test.ts').write_text("import { readFileSync } from 'node:fs';\nimport { describe, expect, it } from 'vitest';\nconst source=readFileSync(new URL('./PatientDetailsInner.tsx',import.meta.url),'utf8');\ndescribe('PatientDetails flow handoff',()=>{it('moves attention with active patient surfaces',()=>{expect(source).toContain(\"useFlowHandoff\");expect(source).toContain('flowHandoff(flowContentRef.current)');expect(source).toContain('data-flow-patient-surface={activeTab}');expect(source).toContain('[activeTab, flowHandoff]');});});\n")
+          Path('frontend/src/features/patients/PatientDetailsFlowHandoff.test.ts').write_text("import { readFileSync } from 'node:fs';\nimport { join } from 'node:path';\nimport { describe, expect, it } from 'vitest';\nconst source=readFileSync(join(process.cwd(),'src/features/patients/PatientDetailsInner.tsx'),'utf8');\ndescribe('PatientDetails flow handoff',()=>{it('moves attention with active patient surfaces',()=>{expect(source).toContain(\"useFlowHandoff\");expect(source).toContain('flowHandoff(flowContentRef.current)');expect(source).toContain('data-flow-patient-surface={activeTab}');expect(source).toContain('[activeTab, flowHandoff]');});});\n")
           PY
       - name: Install frontend
         working-directory: frontend
