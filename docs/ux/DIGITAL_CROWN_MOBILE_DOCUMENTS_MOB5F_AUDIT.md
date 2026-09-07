@@ -1,6 +1,6 @@
 # DIGITAL CROWN — MOB-5F — PATIENTS / QUICK DOCUMENT STUDIO — AUDIT
 
-Status: AUDIT LOCKED — BEFORE PENDING — IMPLEMENTATION NOT STARTED
+Status: IMPLEMENTED — FINAL CERTIFICATION RUNNING — NOT CLOSED
 
 ## Goal
 
@@ -10,40 +10,47 @@ Permettre de produire un document courant depuis le cockpit patient mobile, idé
 
 - product baseline: `e30b858f58686f5f7bef19ca93f1c5dae42929c9`
 - branche lot: `ux/mobile-documents-mob5f`
-- route de preuve prévue: `/mobile/demo?demo=1&tab=patients`
+- route de preuve: `/mobile/demo?demo=1&tab=patients`
 - viewports: 390x844, 430x932, 768x1024
+
+## BEFORE verrouillé
+
+Run: `34143420251` — SUCCESS
+Artifact: `10026785108`
+Digest: `sha256:b827b8b31f7bb604667d1a8df624eda98b1aa794ac25145f8c7acec72af5bdff`
+HEAD capture: `f70498efc7d7f9b56c85bde5be6c3194ec2b3bf6`
+Baseline produit prouvée: `e30b858f58686f5f7bef19ca93f1c5dae42929c9`
+
+Constat:
+- cockpit patient fonctionnel;
+- Photo clinique / Scanner / Dernier document / Dernière pano présents;
+- aucune entrée `Créer un document`;
+- HTTP 200 aux trois viewports;
+- 0 page error;
+- 0 console error;
+- 0 overflow horizontal.
 
 ## État interne vérifié
 
 ### Cockpit patient mobile
 
-`backend/routers/mobile_patient_cockpit.py` est actuellement explicitement read-only.
+`backend/routers/mobile_patient_cockpit.py` garde le patient et ses ressources tenant-scoped et permission-gated.
 
-Capacités existantes:
+Capacités existantes conservées:
 - recherche patient;
 - identité / dossier / assurance / alerte médicale;
 - prochain rendez-vous;
 - snapshot financier si permission;
 - ressources documentaires et panoramiques existantes;
-- création d'un contexte opaque device-bound pour ouvrir `patient`, `document` ou `panoramic`.
+- contexte opaque device-bound pour ouvrir `patient`, `document` ou `panoramic`.
 
-Le mobile sait donc retrouver le patient et ouvrir une ressource existante. Il ne propose pas de création de document.
-
-### UI patient mobile
-
-`MobilePatientsView.tsx` expose aujourd'hui:
-- Photo clinique;
-- Scanner;
-- Dernier document;
-- Dernière pano.
-
-Gap exact: aucune entrée `Créer un document` depuis le patient sélectionné.
+MOB-5F ajoute uniquement l'entrée documentaire et enrichit l'endpoint chiffré `/api/mobile/quick-actions/capabilities` avec les permissions documentaires exactes.
 
 ### Moteur documentaire canonique
 
-`POST /documents/generate` est la source de vérité existante.
+Source de vérité: `POST /api/documents/generate`.
 
-Types supportés par le moteur:
+Types backend disponibles:
 - ordonnance;
 - certificat;
 - devis;
@@ -51,83 +58,100 @@ Types supportés par le moteur:
 - libre / lettre;
 - échéancier.
 
-Contrôles déjà présents:
-- permission par type (`prescriptions`, `patients`, `accounting`, `clinical`);
-- `assert_patient_access`;
-- validation payload côté frontend;
-- preview;
-- archivage;
-- détection de doublons avec résolution explicite;
-- cohérence clinique déterministe;
-- règles comptables spécifiques pour documents financiers.
+MOB-5F réutilise directement ce moteur. Aucun second générateur, aucun modèle DB parallèle, aucun stockage mobile documentaire.
 
-Décision d'architecture: MOB-5F réutilise ces contrats. Aucun second moteur de génération documentaire mobile.
+Contrôles conservés:
+- permission backend par type;
+- accès patient tenant-scoped;
+- validation Pydantic spécialisée (`OrdonnanceData`, `CertificatData`, `DevisData`, `HonorairesData`, `LibreData`);
+- preview serveur;
+- archivage canonique;
+- détection de doublon / cohérence / règles financières existantes.
 
-### Frontend Document Studio existant
+### Auth mobile
 
-Le desktop possède déjà les briques certifiées ou testées pour:
-- Ordonnance;
-- Certificat;
-- Devis;
-- Note Honoraires;
-- Échéancier;
-- Document Libre;
-- traitement des états dirty;
-- patient boundary;
-- preview / archivage / impression.
+`backend/routers/auth.py:get_current_user` accepte les JWT `type=mobile` via `_decode_mobile_identity`, puis `require_permission` reste l'autorité. Aucun adapter d'auth ni bypass RBAC n'a été ajouté.
 
-`patientDocumentBoundary.ts` réinitialise les brouillons lors d'un changement de patient. Cette propriété de sécurité doit être conservée dans tout flux mobile.
+## Périmètre MOB-5F implémenté
 
-## Benchmark externe retenu
-
-Le benchmark produit converge sur une action documentaire directement disponible depuis le contexte patient:
-- CareStack: quick links patient pour prescription/form/letter;
-- Open Dental / ODTouch: actions cliniques et prescriptions depuis le patient sélectionné.
-
-Principe retenu: entrée unique et évidente dans le cockpit patient, puis flow mobile compact. Pas de copie du hub desktop à sept onglets.
-
-## Périmètre recommandé V1 MOB-5F
-
-Priorité au flux courant et <30 s:
+Depuis un CTA unique `Créer un document` dans le cockpit patient:
 1. Ordonnance
 2. Certificat
-3. Document libre
-4. Devis
+3. Devis
+4. Honoraires
+5. Document libre
 
-Les flux Honoraires / Échéancier restent accessibles via les fonctions financières existantes mais ne sont pas inclus d'office dans le Quick Document V1 tant que leur UX mobile spécifique n'est pas auditée. Cette exclusion ne supprime aucune capacité desktop.
+Échéancier n'est pas porté dans le Quick Document Studio: il reste un flux financier dédié et ne doit pas être compressé artificiellement dans ce lot.
+
+Consentement / consignes postop / courrier-orientation ne sont pas inventés comme nouveaux types médico-légaux. Le courrier simple peut utiliser `Document libre`; les modèles dédiés restent à traiter lorsque leur source canonique existe.
+
+## RBAC UI + serveur
+
+Le serveur expose désormais, dans l'enveloppe mobile chiffrée existante:
+- `can_create_prescription` → `prescriptions`;
+- `can_create_certificate` → `patients`;
+- `can_create_devis` → `accounting`;
+- `can_create_honoraires` → `payments`;
+- `can_create_free_document` → `clinical`.
+
+Le sheet filtre les familles avec ces booléens et échoue fermé si les capacités ne peuvent pas être chargées. Le backend revérifie encore la permission lors de `/documents/generate`.
+
+## Contrat preview / archivage
+
+Le mobile ne passe plus directement à l'archive:
+1. formulaire;
+2. `preview=true&archive=false`;
+3. contenu/payload verrouillé pour confirmation;
+4. `Archiver le document` explicite;
+5. `archive=true&preview=false` avec le même payload validé.
+
+La preview démo est locale et ne contacte jamais le cabinet.
+
+## Validation croisée des payloads
+
+Comparaison effectuée contre `backend/schemas/documents.py`:
+- `DocumentRequest` autorise les cinq familles utilisées;
+- devis: `teeth_data` est une liste et `prix_unitaire` est borné 0..1 000 000;
+- honoraires: `montant` est strictement positif et ≤ 1 000 000;
+- certificat: durée d'arrêt 1..365 et contenu requis pour certificat médical;
+- libre: alias `title/content` acceptés;
+- ordonnance: structure `medications` canonique.
+
+Deux écarts détectés pendant l'audit ont été corrigés avant certification finale: `teeth_data={}` et montant Honoraires à 0.
+
+## Benchmark retenu
+
+- CareStack: quick links patient pour prescription/form/letter;
+- Open Dental / ODTouch: actions cliniques/prescriptions depuis le patient sélectionné.
+
+Principe retenu: entrée unique depuis le patient, sheet compacte, pas de copie du hub desktop.
 
 ## Invariants
 
 - patient préselectionné et non ambigu;
-- alerte médicale visible avant une ordonnance;
 - permissions backend restent autoritaires;
+- type list fail-closed;
 - aucune donnée patient dans une URL de bridge;
 - aucun brouillon ne traverse un changement de patient;
-- preview avant archivage pour les documents sensibles;
+- preview avant archivage;
 - archivage via le moteur canonique;
-- preview demo totalement isolée du réseau cabinet;
-- aucune régression sur les actions patient existantes.
+- preview demo isolée du réseau cabinet;
+- aucune régression des actions patient existantes;
+- aucun Vercel.
 
 ## Success
 
-Le lot est réussi seulement si:
-- `Créer un document` est atteignable depuis un patient sélectionné;
-- les types autorisés sont filtrés selon les permissions;
-- au moins Ordonnance / Certificat / Libre / Devis utilisent le moteur canonique;
-- preview puis archivage sont explicites;
-- le patient reste verrouillé pendant le draft;
-- tests RBAC / patient boundary / payload / erreurs passent;
-- AFTER 390/430/768 sans overflow, page error ni console error;
-- comparaison BEFORE/AFTER documentée;
-- score visuel documenté;
-- CI PR puis post-merge vertes.
+Le lot n'est CLOSED que si:
+- CTA `Créer un document` visible depuis le patient;
+- familles filtrées par permissions exactes;
+- 5 familles utilisent le moteur canonique;
+- preview puis confirmation d'archive explicites;
+- tests ciblés + build verts;
+- AFTER 390/430/768 sans overflow, page error, console error ni requête API réelle en preview;
+- un flow Certificat est prouvé jusqu'à `Archiver le document` aux trois viewports;
+- inspection BEFORE/AFTER + score visuel documentés;
+- PR + CI + merge exact + post-merge CI verts.
 
-## Preuve attendue
+## Preuve restante
 
-- artifact BEFORE sur baseline `e30b858f...`;
-- tests frontend ciblés;
-- tests backend ciblés si un adapter mobile est ajouté;
-- build frontend;
-- artifact AFTER 390/430/768;
-- report de capacités / overflow / erreurs;
-- PR + CI + merge exact + post-merge CI.
+Finaliser la certification sur le HEAD produit courant, inspecter l'artifact AFTER, documenter le score, ouvrir/valider/merger la PR puis vérifier le post-merge.
