@@ -123,6 +123,12 @@ def test_quick_action_capabilities_are_server_authoritative(monkeypatch):
             return False
         if permission == ['accounting', 'payments']:
             return True
+        if permission == 'accounting':
+            return True
+        if permission == 'prescriptions':
+            return True
+        if permission == 'clinical':
+            return False
         return False
 
     monkeypatch.setattr(cockpit, 'has_permission', allowed)
@@ -133,6 +139,11 @@ def test_quick_action_capabilities_are_server_authoritative(monkeypatch):
         'can_create_patient': True,
         'can_open_clinical_context': True,
         'can_pay': True,
+        'can_create_prescription': True,
+        'can_create_certificate': True,
+        'can_create_devis': True,
+        'can_create_honoraires': True,
+        'can_create_free_document': False,
     }
 
 
@@ -147,6 +158,10 @@ def test_quick_payment_capability_requires_patient_access_too(monkeypatch):
             return True
         if permission == ['accounting', 'payments']:
             return True
+        if permission == 'accounting':
+            return True
+        if permission == 'clinical':
+            return True
         return False
 
     monkeypatch.setattr(cockpit, 'has_permission', allowed)
@@ -157,6 +172,11 @@ def test_quick_payment_capability_requires_patient_access_too(monkeypatch):
         'can_create_patient': False,
         'can_open_clinical_context': False,
         'can_pay': False,
+        'can_create_prescription': False,
+        'can_create_certificate': False,
+        'can_create_devis': True,
+        'can_create_honoraires': True,
+        'can_create_free_document': True,
     }
 
 
