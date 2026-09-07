@@ -1,0 +1,119 @@
+name: UX Continuity PatientDetails AFTER
+
+on:
+  pull_request:
+    branches: [master]
+    paths:
+      - 'frontend/src/features/patients/PatientDetailsInner.tsx'
+      - 'frontend/src/features/patients/PatientDetailsFlowHandoff.test.ts'
+      - 'frontend/src/hooks/useFlowHandoff.ts'
+      - '.github/workflows/ux-continuity-patientdetails-cert.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  after:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install backend
+        run: |
+          python -m pip install --upgrade pip
+          pip install torch==2.12.0 torchvision==0.27.0 --index-url https://download.pytorch.org/whl/cpu
+          grep -vE '^(torch|torchvision)([<=>].*)?$' requirements.txt > /tmp/requirements-ux-continuity-patientdetails.txt
+          pip install -r /tmp/requirements-ux-continuity-patientdetails.txt
+          pip install httpx==0.27.2
+      - name: Install frontend and Chromium
+        working-directory: frontend
+        run: |
+          npm ci
+          npm install --no-save playwright@1.55.0
+          npx playwright install --with-deps chromium
+      - name: Targeted contract and build
+        working-directory: frontend
+        run: |
+          npx vitest run src/features/patients/PatientDetailsFlowHandoff.test.ts
+          npm run build:test
+      - name: Start isolated runtime
+        run: |
+          rm -f t2-runtime-cert.db
+          python scripts/t2_runtime_server.py > /tmp/ux-patientdetails-backend.log 2>&1 &
+          for i in {1..90}; do if curl -fsS http://127.0.0.1:8005/health >/dev/null; then exit 0; fi; sleep 1; done
+          cat /tmp/ux-patientdetails-backend.log
+          exit 1
+      - name: Start frontend
+        working-directory: frontend
+        run: |
+          npm run dev -- --host 127.0.0.1 --port 5173 > /tmp/ux-patientdetails-front.log 2>&1 &
+          for i in {1..90}; do if curl -fsS http://127.0.0.1:5173 >/dev/null; then exit 0; fi; sleep 1; done
+          cat /tmp/ux-patientdetails-front.log
+          exit 1
+      - name: Assert automatic PatientDetails handoff
+        working-directory: frontend
+        run: |
+          mkdir -p ../artifacts/ux-continuity-patientdetails-after
+          cat > .ux-patientdetails-after.mjs <<'JS'
+          import fs from 'node:fs';
+          import path from 'node:path';
+          import { chromium, request } from 'playwright';
+          const source=fs.readFileSync('../scripts/t2_runtime_server.py','utf8');
+          const user=source.match(/email=\"([^\"]+)\"/)?.[1];
+          const pass=source.match(/get_password_hash\(\"([^\"]+)\"\)/)?.[1];
+          if(!user||!pass) throw new Error('isolated credentials unavailable');
+          const api=await request.newContext({baseURL:'http://127.0.0.1:8005'});
+          const login=await api.post('/api/auth/login',{form:{username:user,password:pass}});
+          if(!login.ok()) throw new Error(`login ${login.status()}`);
+          const tok=await login.json();
+          const ps=await api.get('/api/patients',{headers:{Authorization:`Bearer ${tok.access_token}`}});
+          if(!ps.ok()) throw new Error(`patients ${ps.status()}`);
+          const patients=await ps.json();
+          const patient=patients.find(p=>p.numero_dossier==='T2-0001')||patients[0];
+          if(!patient) throw new Error('no seeded patient');
+          const browser=await chromium.launch({headless:true});
+          const out=path.resolve('../artifacts/ux-continuity-patientdetails-after');
+          const evidence=[];
+          for(const viewport of [{width:390,height:844,label:'390x844'},{width:1366,height:700,label:'1366x700'}]){
+            const ctx=await browser.newContext({viewport,colorScheme:'light'});const page=await ctx.newPage();
+            await page.addInitScript(({a,r})=>{localStorage.setItem('token',a);localStorage.setItem('refresh_token',r||'');localStorage.setItem('appMode','prod');},{a:tok.access_token,r:tok.refresh_token});
+            const errors=[];page.on('pageerror',e=>errors.push(String(e)));
+            await page.goto(`http://127.0.0.1:5173/patients/${patient.id}?tab=tracking`,{waitUntil:'networkidle',timeout:90000});
+            await page.getByRole('button',{name:'Document',exact:true}).waitFor({state:'visible',timeout:30000});
+            const shell=page.locator('main').first();
+            await shell.evaluate(el=>{el.scrollTop=el.scrollHeight;});
+            const beforeScroll=await shell.evaluate(el=>el.scrollTop);
+            await page.evaluate(()=>window.dispatchEvent(new Event('perio-create-prescription')));
+            const surface=page.locator('[data-flow-patient-surface="admin"]');
+            await surface.waitFor({state:'visible',timeout:30000});
+            await page.waitForTimeout(650);
+            const box=await surface.boundingBox();
+            const afterScroll=await shell.evaluate(el=>el.scrollTop);
+            const activeInside=await page.evaluate(()=>!!document.activeElement?.closest('[data-flow-patient-surface="admin"]'));
+            const visible=!!box&&box.y>=60&&box.y<viewport.height;
+            const shot=`after-patientdetails-auto-${viewport.label}.png`;
+            await page.screenshot({path:path.join(out,shot),fullPage:false});
+            const row={viewport,beforeScroll,afterScroll,surfaceBox:box,surfaceVisible:visible,activeInside,errors,shot};evidence.push(row);
+            if(beforeScroll<=0||!visible||!activeInside||errors.length) throw new Error(`PatientDetails handoff failed ${viewport.label}: ${JSON.stringify(row)}`);
+            await ctx.close();
+          }
+          fs.writeFileSync(path.join(out,'evidence.json'),JSON.stringify({head_sha:process.env.GITHUB_SHA||null,evidence},null,2));
+          await browser.close();await api.dispose();
+          JS
+          node .ux-patientdetails-after.mjs
+          rm .ux-patientdetails-after.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ux-continuity-patientdetails-after
+          path: artifacts/ux-continuity-patientdetails-after
+          if-no-files-found: error
+          retention-days: 14
