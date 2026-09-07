@@ -62,9 +62,13 @@ function todayIso(): string {
   return new Date().toISOString().slice(0, 10);
 }
 
-async function decryptCapabilities(response: Response, masterKey: string): Promise<DocumentCapabilities> {
+async function decryptMobileResponse<T>(response: Response, masterKey: string): Promise<T> {
   const raw = await response.json();
-  const payload = raw?.payload ? CryptoService.decryptPayload(raw.payload, masterKey) : raw;
+  return raw?.payload ? CryptoService.decryptPayload(raw.payload, masterKey) : raw;
+}
+
+async function decryptCapabilities(response: Response, masterKey: string): Promise<DocumentCapabilities> {
+  const payload = await decryptMobileResponse<any>(response, masterKey);
   return {
     can_create_prescription: payload?.can_create_prescription === true,
     can_create_certificate: payload?.can_create_certificate === true,
@@ -76,6 +80,7 @@ async function decryptCapabilities(response: Response, masterKey: string): Promi
 
 export function MobileQuickDocumentSheet({ patient, preview = false, onClose }: { patient: PatientIdentity; preview?: boolean; onClose: () => void }) {
   const [capabilities, setCapabilities] = useState<DocumentCapabilities | null>(preview ? ALL_CAPABILITIES : null);
+  const [medicalAlert, setMedicalAlert] = useState<string | null>(patient.medicalAlert ?? null);
   const [type, setType] = useState<MobileQuickDocumentType | null>(null);
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
@@ -120,10 +125,33 @@ export function MobileQuickDocumentSheet({ patient, preview = false, onClose }: 
     return () => { cancelled = true; };
   }, [preview]);
 
-  const availableTypes = useMemo(
-    () => capabilities ? TYPES.filter((entry) => capabilities[entry.capability]) : [],
-    [capabilities],
-  );
+  useEffect(() => {
+    if (preview || patient.medicalAlert) return;
+    let cancelled = false;
+    const loadAlert = async () => {
+      try {
+        const creds = await MobileStorage.getCredentials();
+        if (!creds) return;
+        const baseUrl = resolveApiBaseUrl(creds.api_base_url);
+        const response = await mobileFetch(`${baseUrl}/api/mobile/patient-cockpit/${patient.id}`, {
+          headers: { Authorization: `Bearer ${creds.access_token}` },
+          signal: AbortSignal.timeout(5000),
+        });
+        if (!response.ok) return;
+        const payload = await decryptMobileResponse<any>(response, creds.masterKey);
+        const p = payload?.patient;
+        if (!cancelled && p?.has_medical_alert) {
+          setMedicalAlert(String(p.medical_alert_summary || 'Antécédents médicaux renseignés dans le dossier.'));
+        }
+      } catch {
+        // Non bloquant: le cockpit patient reste la source visible précédente.
+      }
+    };
+    void loadAlert();
+    return () => { cancelled = true; };
+  }, [patient.id, patient.medicalAlert, preview]);
+
+  const availableTypes = useMemo(() => capabilities ? TYPES.filter((entry) => capabilities[entry.capability]) : [], [capabilities]);
   const selected = useMemo(() => TYPES.find((entry) => entry.value === type), [type]);
   const updateLine = (id: number, patch: Partial<DocumentLine>) => setLines((current) => current.map((line) => line.id === id ? { ...line, ...patch } : line));
   const addLine = () => setLines((current) => [...current, { id: Date.now(), label: '', detail: '', amount: '' }]);
@@ -231,7 +259,7 @@ export function MobileQuickDocumentSheet({ patient, preview = false, onClose }: 
         {error && <div className="rounded-[16px] border border-rose-500/20 bg-rose-500/5 p-3 text-xs font-bold text-rose-700">{error}</div>}
         <div className="grid grid-cols-2 gap-2"><button type="button" onClick={() => { setPreviewPayload(null); setPreviewPdfUrl(null); setSuccess(''); setError(''); }} className="min-h-14 rounded-[18px] border border-glass-border bg-background text-xs font-black text-text-main">Modifier</button><button type="button" onClick={() => void archiveDocument()} disabled={busy} className="min-h-14 rounded-[18px] bg-primary text-primary-foreground text-xs font-black flex items-center justify-center gap-2 disabled:opacity-50">{busy ? <Loader2 size={16} className="animate-spin" /> : <CheckCircle2 size={16} />} Archiver le document</button></div>
       </div> : <div className="space-y-4">
-        {type === 'ordonnance' && patient.medicalAlert && <div className="rounded-[18px] border border-rose-500/20 bg-rose-500/5 p-3 flex items-start gap-2"><AlertTriangle size={16} className="mt-0.5 shrink-0 text-rose-600" /><div><p className="text-[10px] font-black uppercase tracking-[0.12em] text-rose-600">Alerte médicale</p><p className="mt-1 text-xs font-bold leading-relaxed text-text-main">{patient.medicalAlert}</p></div></div>}
+        {type === 'ordonnance' && medicalAlert && <div className="rounded-[18px] border border-rose-500/20 bg-rose-500/5 p-3 flex items-start gap-2"><AlertTriangle size={16} className="mt-0.5 shrink-0 text-rose-600" /><div><p className="text-[10px] font-black uppercase tracking-[0.12em] text-rose-600">Alerte médicale</p><p className="mt-1 text-xs font-bold leading-relaxed text-text-main">{medicalAlert}</p></div></div>}
         {type === 'certificat' && <><label className="block"><span className="text-[11px] font-black text-text-muted">Nature</span><select value={certificateType} onChange={(event) => setCertificateType(event.target.value)} className="mt-1 w-full min-h-12 rounded-[16px] border border-glass-border bg-background px-3 text-sm font-bold text-text-main"><option>Certificat de Présence</option><option>Arrêt de travail</option><option>Certificat médical</option></select></label>{certificateType === 'Arrêt de travail' && <label className="block"><span className="text-[11px] font-black text-text-muted">Durée (jours)</span><input inputMode="numeric" value={certificateDays} onChange={(event) => setCertificateDays(event.target.value)} className="mt-1 w-full min-h-12 rounded-[16px] border border-glass-border bg-background px-3 text-sm font-bold text-text-main" /></label>}</>}
         {type === 'libre' && <label className="block"><span className="text-[11px] font-black text-text-muted">Titre</span><input value={title} onChange={(event) => setTitle(event.target.value)} placeholder="Courrier d’orientation" className="mt-1 w-full min-h-12 rounded-[16px] border border-glass-border bg-background px-3 text-sm font-bold text-text-main" /></label>}
         {(type === 'ordonnance' || type === 'devis' || type === 'honoraires') && <div className="space-y-2"><div className="flex items-center justify-between"><span className="text-[11px] font-black text-text-muted">{type === 'ordonnance' ? 'Médicaments' : 'Actes'}</span><button type="button" onClick={addLine} className="min-h-10 px-3 rounded-[13px] bg-primary/10 text-primary text-[11px] font-black flex items-center gap-1.5"><Plus size={14} /> Ajouter</button></div>{lines.map((line) => <div key={line.id} className="rounded-[18px] border border-glass-border bg-background p-3 space-y-2"><input value={line.label} onChange={(event) => updateLine(line.id, { label: event.target.value })} placeholder={type === 'ordonnance' ? 'Médicament' : 'Acte'} className="w-full min-h-11 rounded-[13px] border border-glass-border bg-card px-3 text-sm font-bold text-text-main" /><div className="grid grid-cols-[1fr_auto] gap-2"><input value={line.detail} onChange={(event) => updateLine(line.id, { detail: event.target.value })} placeholder={type === 'ordonnance' ? 'Dosage' : 'Dent (optionnel)'} className="min-w-0 min-h-11 rounded-[13px] border border-glass-border bg-card px-3 text-sm font-bold text-text-main" />{(type === 'devis' || type === 'honoraires') && <input inputMode="decimal" value={line.amount} onChange={(event) => updateLine(line.id, { amount: event.target.value })} placeholder="MAD" className="w-24 min-h-11 rounded-[13px] border border-glass-border bg-card px-3 text-sm font-bold text-text-main" />}{lines.length > 1 && <button type="button" onClick={() => removeLine(line.id)} className="h-11 w-11 rounded-[13px] border border-rose-500/20 text-rose-600 flex items-center justify-center" aria-label="Supprimer la ligne"><Trash2 size={16} /></button>}</div></div>)}</div>}
