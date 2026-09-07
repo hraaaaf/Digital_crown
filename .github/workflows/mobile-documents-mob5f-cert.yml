@@ -39,8 +39,10 @@ jobs:
           grep -q "'can_create_prescription': has_permission(mobile_user, 'prescriptions')" backend/routers/mobile_patient_cockpit.py
           grep -q "'can_create_certificate': has_patients" backend/routers/mobile_patient_cockpit.py
           grep -q "'can_create_devis': has_accounting" backend/routers/mobile_patient_cockpit.py
-          grep -q "'can_create_honoraires': has_payments" backend/routers/mobile_patient_cockpit.py
+          grep -q "'can_create_honoraires': has_accounting" backend/routers/mobile_patient_cockpit.py
           grep -q "'can_create_free_document': has_permission(mobile_user, 'clinical')" backend/routers/mobile_patient_cockpit.py
+          grep -q '"note": "accounting"' backend/routers/documents.py
+          grep -q '"honoraires": "accounting"' backend/routers/documents.py
 
       - name: Install frontend
         working-directory: frontend
