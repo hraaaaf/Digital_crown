@@ -1,6 +1,6 @@
 # DIGITAL CROWN — MOB-5F QUICK DOCUMENT STUDIO — PROOF
 
-Status: PRE-MERGE — FINAL PRODUCT CERTIFICATION PENDING
+Status: PRE-MERGE CERTIFIED — PR / MERGE PENDING
 
 ## Goal
 
@@ -34,21 +34,49 @@ Créer rapidement un document depuis le cockpit patient mobile en réutilisant l
 
 ## Corrections issues de la validation croisée
 
-Avant la certification finale, trois écarts ont été détectés et corrigés:
+Avant certification finale, trois écarts ont été détectés et corrigés:
 1. `teeth_data={}` corrigé en liste conforme à `DevisData`;
 2. Honoraires à 0 refusé côté UI comme le validator backend;
 3. capacité Honoraires corrigée de `payments` vers le guard réel `accounting`.
 
-## Gate final attendu
+## AFTER certifié
 
-La preuve AFTER finale doit être issue du HEAD produit `91688ffc2d5bf97e584844f972a12df717fc74da` ou d'un HEAD produit ultérieur explicitement vérifié, et démontrer aux 3 viewports:
-- CTA présent;
-- cinq familles présentes dans la preview SuperUser;
-- flow Certificat jusqu'à `Aperçu prêt` + `Archiver le document`;
-- 0 API request en preview;
-- 0 page error;
-- 0 console error;
-- 0 overflow horizontal;
-- tests ciblés et build verts.
+- product HEAD: `91688ffc2d5bf97e584844f972a12df717fc74da`
+- run: `34149391346` — SUCCESS
+- artifact: `10028850934`
+- digest: `sha256:8b27d1c8658d0472f663a152d14bf463cfd519a7ac6ca5d65e4af7811c94080e`
+- viewports: 390x844 / 430x932 / 768x1024
+- tests ciblés: SUCCESS
+- build frontend: SUCCESS
+- compile / capability contract backend: SUCCESS
+- CTA `Créer un document`: présent
+- cinq familles: présentes dans la preview SuperUser
+- flow Certificat: prouvé jusqu'à `Aperçu prêt` puis `Archiver le document`
+- requêtes API réelles en preview: 0
+- page errors: 0
+- console errors: 0
+- overflow horizontal: 0
 
-MOB-5F n'est pas CLOSED avant PR verte, merge exact, post-merge CI et closeout canonique.
+## Inspection visuelle
+
+Score visuel: **9.1/10**.
+
+Points conformes:
+- hiérarchie claire entre cockpit, choix du type et confirmation;
+- sheet lisible et tactile aux 3 viewports;
+- confirmation d'archivage sans ambiguïté;
+- aucune table desktop compressée;
+- continuité visuelle avec le cockpit mobile existant.
+
+Réserve documentée:
+- à 390 px, la navigation fixe mord légèrement sur la zone d'actions initiale tant que l'utilisateur n'a pas scrollé; le sheet Quick Document et l'écran de confirmation restent propres et sans collision.
+
+Le score cible >=9/10 est atteint, sans prétendre à une perfection non observée.
+
+## Gate de fermeture
+
+MOB-5F n'est pas CLOSED avant:
+- PR verte;
+- merge exact;
+- post-merge CI verte;
+- closeout canonique mis à jour avec preuves exactes.
