@@ -2,9 +2,9 @@
 name: UX Continuity Integration Patch
 
 on:
-  push:
+  pull_request:
     branches:
-      - ux/continuity-flow-handoff
+      - master
     paths:
       - '.github/workflows/ux-continuity-implement.yml'
 
@@ -155,9 +155,7 @@ jobs:
           addition = marker + '''\n  useEffect(() => {\n    if (initialStepRef.current) {\n      initialStepRef.current = false;\n      return;\n    }\n    flowHandoff(flowTargetRef.current);\n  }, [currentStep, flowHandoff]);\n'''
           s = s.replace(marker, addition, 1)
 
-          old = '<div className={cn("min-w-0 bg-card rounded-[2rem] sm:rounded-[2.5rem] border border-border-main shadow-2xl shadow-primary/5 p-5 sm:p-8 lg:p-12 relative overflow-hidden transition-all duration-500", (currentStep >= 3 && currentStep <= 7) ? "lg:col-span-7" : "")}> '
-          if old not in s:
-              old = '<div className={cn("min-w-0 bg-card rounded-[2rem] sm:rounded-[2.5rem] border border-border-main shadow-2xl shadow-primary/5 p-5 sm:p-8 lg:p-12 relative overflow-hidden transition-all duration-500", (currentStep >= 3 && currentStep <= 7) ? "lg:col-span-7" : "")}>\n'
+          old = '<div className={cn("min-w-0 bg-card rounded-[2rem] sm:rounded-[2.5rem] border border-border-main shadow-2xl shadow-primary/5 p-5 sm:p-8 lg:p-12 relative overflow-hidden transition-all duration-500", (currentStep >= 3 && currentStep <= 7) ? "lg:col-span-7" : "")}>\n'
           assert old in s, 'SetupWizard step-card marker drifted'
           new = old.replace('<div className=', '<div ref={flowTargetRef} data-flow-step={currentStep} className=', 1)
           s = s.replace(old, new, 1)
