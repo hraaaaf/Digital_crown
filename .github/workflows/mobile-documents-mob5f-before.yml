@@ -1,0 +1,70 @@
+name: Mobile Documents MOB-5F BEFORE
+
+on:
+  push:
+    branches: [ux/mobile-documents-mob5f]
+    paths:
+      - .github/workflows/mobile-documents-mob5f-before.yml
+  workflow_dispatch:
+
+concurrency:
+  group: mobile-documents-mob5f-before-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  before:
+    name: BEFORE 390 430 768
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install frontend
+        working-directory: frontend
+        run: npm ci
+
+      - name: Install Playwright runner
+        working-directory: frontend
+        run: npm install --no-save --package-lock=false playwright@1.63.0
+
+      - name: Install Chromium
+        working-directory: frontend
+        run: npx playwright install --with-deps chromium
+
+      - name: Start isolated patient demo
+        working-directory: frontend
+        env:
+          VITE_DC_PREVIEW_DEMO: "1"
+        run: |
+          npm run dev -- --host 127.0.0.1 --port 5173 >/tmp/mobile-documents-mob5f-before-vite.log 2>&1 &
+          for i in {1..60}; do
+            curl -fsS 'http://127.0.0.1:5173/mobile/demo?demo=1&tab=patients' >/dev/null && exit 0
+            sleep 1
+          done
+          cat /tmp/mobile-documents-mob5f-before-vite.log
+          exit 1
+
+      - name: Capture and assert immutable BEFORE
+        working-directory: frontend
+        env:
+          PRODUCT_HEAD: e30b858f58686f5f7bef19ca93f1c5dae42929c9
+          ARTIFACT_DIR: ../artifacts/mobile-documents-mob5f-before
+        run: node scripts/capture-mobile-documents-mob5f-before.mjs
+
+      - name: Preserve harness log
+        if: always()
+        run: cp /tmp/mobile-documents-mob5f-before-vite.log artifacts/mobile-documents-mob5f-before/vite.log || true
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: mobile-documents-mob5f-before
+          path: artifacts/mobile-documents-mob5f-before
+          if-no-files-found: error
+          retention-days: 30
