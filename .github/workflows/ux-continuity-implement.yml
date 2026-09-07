@@ -33,139 +33,99 @@ jobs:
 
           patient = Path('frontend/src/features/patients/PatientList.tsx')
           s = patient.read_text()
-          old = "import { useEscapeKey } from '../../hooks/useEscapeKey';"
-          new = "import { CrownDialog } from '../../components/CrownDialog';"
-          assert old in s, 'PatientList escape import drifted'
-          s = s.replace(old, new, 1)
-          old = "  useEscapeKey(deleteModal.open, () => { setDeleteModal({ ...deleteModal, open: false }); setDeleteConfirmText(''); });\n\n"
-          assert old in s, 'PatientList escape hook drifted'
-          s = s.replace(old, '', 1)
-
-          old = '''      {/* MODALE DE SUPPRESSION PREMIUM */}
-      {deleteModal.open && (
-        <div role="dialog" aria-modal="true" aria-label="Supprimer le dossier" className="fixed inset-0 z-[100] flex items-center justify-center p-6 bg-black/60 backdrop-blur-md animate-in fade-in duration-300 h-screen w-screen">
-          <div className="bg-card-bg rounded-[2.5rem] p-10 max-w-md w-full shadow-2xl border border-border-main relative overflow-hidden">
-            <div className="absolute top-0 right-0 p-6">
-               <button onClick={() => { setDeleteModal({ ...deleteModal, open: false }); setDeleteConfirmText(''); }} className="text-text-muted hover:text-main transition-colors" aria-label="Fermer">
-                 <X size={24} />
-               </button>
-            </div>
-            <div className="w-20 h-20 bg-red-500/10 text-red-500 rounded-3xl flex items-center justify-center mb-6">
-              <AlertTriangle size={40} />
-            </div>
-            <h3 className="text-2xl font-black text-main leading-tight tracking-tight" style={{ color: 'var(--text-main)' }}>Supprimer le dossier ?</h3>
-            <p className="text-text-muted mt-3 font-medium leading-relaxed">
-              Cette action masque le dossier de <span className="font-bold text-main" style={{ color: 'var(--text-main)' }}>{deleteModal.name}</span> de la liste. Les données restent conservées.
-            </p>
-            <p className="text-text-muted mt-4 text-xs font-bold uppercase tracking-widest">
-              Tapez "{deleteModal.name}" pour confirmer
-            </p>
-            <input
-              type="text"
-              value={deleteConfirmText}
-              onChange={(e) => setDeleteConfirmText(e.target.value)}
-              placeholder={deleteModal.name}
-              className="w-full mt-2 border border-border-main rounded-xl p-3 text-sm bg-white/50 focus:outline-none focus:ring-2 focus:ring-red-500/30"
-            />
-            <div className="flex gap-4 mt-10">
-              <button
-                onClick={() => { setDeleteModal({ ...deleteModal, open: false }); setDeleteConfirmText(''); }}
-                className="flex-1 py-4 bg-primary/5 hover:bg-primary/10 text-text-muted rounded-2xl font-bold transition-all active:scale-95"
-              >
-                Annuler
-              </button>
-              <button
-                onClick={confirmDelete}
-                disabled={deleteConfirmText.trim() !== deleteModal.name.trim()}
-                className="flex-1 py-4 bg-red-500 hover:bg-red-600 disabled:bg-red-500/30 disabled:cursor-not-allowed text-white rounded-2xl font-bold shadow-lg shadow-red-500/20 transition-all active:scale-95"
-              >
-                Supprimer
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-'''
-          new = '''      {/* MODALE DE SUPPRESSION — primitive globale viewport-safe */}
-      <CrownDialog
-        open={deleteModal.open}
-        ariaLabel="Supprimer le dossier"
-        onClose={() => { setDeleteModal({ ...deleteModal, open: false }); setDeleteConfirmText(''); }}
-        className="max-w-md"
-      >
-        <div className="bg-card-bg rounded-[2.5rem] p-6 sm:p-10 w-full shadow-2xl border border-border-main relative overflow-hidden">
-          <div className="absolute top-0 right-0 p-4 sm:p-6">
-             <button onClick={() => { setDeleteModal({ ...deleteModal, open: false }); setDeleteConfirmText(''); }} className="text-text-muted hover:text-main transition-colors" aria-label="Fermer">
-               <X size={24} />
-             </button>
-          </div>
-          <div className="w-16 h-16 sm:w-20 sm:h-20 bg-red-500/10 text-red-500 rounded-3xl flex items-center justify-center mb-6">
-            <AlertTriangle size={40} />
-          </div>
-          <h3 className="text-2xl font-black text-main leading-tight tracking-tight" style={{ color: 'var(--text-main)' }}>Supprimer le dossier ?</h3>
-          <p className="text-text-muted mt-3 font-medium leading-relaxed">
-            Cette action masque le dossier de <span className="font-bold text-main" style={{ color: 'var(--text-main)' }}>{deleteModal.name}</span> de la liste. Les données restent conservées.
-          </p>
-          <p className="text-text-muted mt-4 text-xs font-bold uppercase tracking-widest">
-            Tapez "{deleteModal.name}" pour confirmer
-          </p>
-          <input
-            data-dialog-autofocus
-            type="text"
-            value={deleteConfirmText}
-            onChange={(e) => setDeleteConfirmText(e.target.value)}
-            placeholder={deleteModal.name}
-            className="w-full mt-2 border border-border-main rounded-xl p-3 text-sm bg-white/50 focus:outline-none focus:ring-2 focus:ring-red-500/30"
-          />
-          <div className="flex flex-col-reverse sm:flex-row gap-3 sm:gap-4 mt-8 sm:mt-10">
-            <button
-              onClick={() => { setDeleteModal({ ...deleteModal, open: false }); setDeleteConfirmText(''); }}
-              className="flex-1 py-4 bg-primary/5 hover:bg-primary/10 text-text-muted rounded-2xl font-bold transition-all active:scale-95"
-            >
-              Annuler
-            </button>
-            <button
-              onClick={confirmDelete}
-              disabled={deleteConfirmText.trim() !== deleteModal.name.trim()}
-              className="flex-1 py-4 bg-red-500 hover:bg-red-600 disabled:bg-red-500/30 disabled:cursor-not-allowed text-white rounded-2xl font-bold shadow-lg shadow-red-500/20 transition-all active:scale-95"
-            >
-              Supprimer
-            </button>
-          </div>
-        </div>
-      </CrownDialog>
-'''
-          assert old in s, 'PatientList modal block drifted'
-          patient.write_text(s.replace(old, new, 1))
+          old_import = "import { useEscapeKey } from '../../hooks/useEscapeKey';"
+          assert old_import in s, 'PatientList import drifted'
+          s = s.replace(old_import, "import { CrownDialog } from '../../components/CrownDialog';", 1)
+          old_hook = "  useEscapeKey(deleteModal.open, () => { setDeleteModal({ ...deleteModal, open: false }); setDeleteConfirmText(''); });\n\n"
+          assert old_hook in s, 'PatientList escape hook drifted'
+          s = s.replace(old_hook, '', 1)
+          start = s.index('      {/* MODALE DE SUPPRESSION PREMIUM */}')
+          end = s.index('\n\n      <PatientFormModal', start)
+          lines = [
+              '      {/* MODALE DE SUPPRESSION — primitive globale viewport-safe */}',
+              '      <CrownDialog',
+              '        open={deleteModal.open}',
+              '        ariaLabel="Supprimer le dossier"',
+              "        onClose={() => { setDeleteModal({ ...deleteModal, open: false }); setDeleteConfirmText(''); }}",
+              '        className="max-w-md"',
+              '      >',
+              '        <div className="bg-card-bg rounded-[2.5rem] p-6 sm:p-10 w-full shadow-2xl border border-border-main relative overflow-hidden">',
+              '          <div className="absolute top-0 right-0 p-4 sm:p-6">',
+              "             <button onClick={() => { setDeleteModal({ ...deleteModal, open: false }); setDeleteConfirmText(''); }} className=\"text-text-muted hover:text-main transition-colors\" aria-label=\"Fermer\">",
+              '               <X size={24} />',
+              '             </button>',
+              '          </div>',
+              '          <div className="w-16 h-16 sm:w-20 sm:h-20 bg-red-500/10 text-red-500 rounded-3xl flex items-center justify-center mb-6">',
+              '            <AlertTriangle size={40} />',
+              '          </div>',
+              "          <h3 className=\"text-2xl font-black text-main leading-tight tracking-tight\" style={{ color: 'var(--text-main)' }}>Supprimer le dossier ?</h3>",
+              '          <p className="text-text-muted mt-3 font-medium leading-relaxed">',
+              "            Cette action masque le dossier de <span className=\"font-bold text-main\" style={{ color: 'var(--text-main)' }}>{deleteModal.name}</span> de la liste. Les données restent conservées.",
+              '          </p>',
+              '          <p className="text-text-muted mt-4 text-xs font-bold uppercase tracking-widest">',
+              '            Tapez "{deleteModal.name}" pour confirmer',
+              '          </p>',
+              '          <input',
+              '            data-dialog-autofocus',
+              '            type="text"',
+              '            value={deleteConfirmText}',
+              '            onChange={(e) => setDeleteConfirmText(e.target.value)}',
+              '            placeholder={deleteModal.name}',
+              '            className="w-full mt-2 border border-border-main rounded-xl p-3 text-sm bg-white/50 focus:outline-none focus:ring-2 focus:ring-red-500/30"',
+              '          />',
+              '          <div className="flex flex-col-reverse sm:flex-row gap-3 sm:gap-4 mt-8 sm:mt-10">',
+              '            <button',
+              "              onClick={() => { setDeleteModal({ ...deleteModal, open: false }); setDeleteConfirmText(''); }}",
+              '              className="flex-1 py-4 bg-primary/5 hover:bg-primary/10 text-text-muted rounded-2xl font-bold transition-all active:scale-95"',
+              '            >',
+              '              Annuler',
+              '            </button>',
+              '            <button',
+              '              onClick={confirmDelete}',
+              '              disabled={deleteConfirmText.trim() !== deleteModal.name.trim()}',
+              '              className="flex-1 py-4 bg-red-500 hover:bg-red-600 disabled:bg-red-500/30 disabled:cursor-not-allowed text-white rounded-2xl font-bold shadow-lg shadow-red-500/20 transition-all active:scale-95"',
+              '            >',
+              '              Supprimer',
+              '            </button>',
+              '          </div>',
+              '        </div>',
+              '      </CrownDialog>',
+          ]
+          s = s[:start] + '\n'.join(lines) + s[end:]
+          patient.write_text(s)
 
           wizard = Path('frontend/src/features/admin/SetupWizard/SetupWizard.tsx')
           s = wizard.read_text()
           marker = "import { useSetupStore } from './store/useSetupStore';"
-          assert marker in s, 'SetupWizard import marker drifted'
+          assert marker in s, 'SetupWizard import drifted'
           s = s.replace(marker, marker + "\nimport { useFlowHandoff } from '../../../hooks/useFlowHandoff';", 1)
           marker = "  const [showPreview, setShowPreview] = useState(true);"
-          assert marker in s, 'SetupWizard state marker drifted'
+          assert marker in s, 'SetupWizard state drifted'
           s = s.replace(marker, marker + "\n  const flowTargetRef = useRef<HTMLDivElement>(null);\n  const flowHandoff = useFlowHandoff();\n  const initialStepRef = useRef(true);", 1)
           marker = "  const handleBack = () => setCurrentStep(prev => Math.max(prev - 1, 1));\n"
-          assert marker in s, 'SetupWizard handler marker drifted'
-          s = s.replace(marker, marker + '''\n  useEffect(() => {\n    if (initialStepRef.current) { initialStepRef.current = false; return; }\n    flowHandoff(flowTargetRef.current);\n  }, [currentStep, flowHandoff]);\n''', 1)
-          old = '<div className={cn("min-w-0 bg-card rounded-[2rem] sm:rounded-[2.5rem] border border-border-main shadow-2xl shadow-primary/5 p-5 sm:p-8 lg:p-12 relative overflow-hidden transition-all duration-500", (currentStep >= 3 && currentStep <= 7) ? "lg:col-span-7" : "")}>\n'
-          assert old in s, 'SetupWizard step-card marker drifted'
-          s = s.replace(old, old.replace('<div className=', '<div ref={flowTargetRef} data-flow-step={currentStep} className=', 1), 1)
+          assert marker in s, 'SetupWizard handler drifted'
+          effect = "\n  useEffect(() => {\n    if (initialStepRef.current) { initialStepRef.current = false; return; }\n    flowHandoff(flowTargetRef.current);\n  }, [currentStep, flowHandoff]);\n"
+          s = s.replace(marker, marker + effect, 1)
+          card = '<div className={cn("min-w-0 bg-card rounded-[2rem] sm:rounded-[2.5rem] border border-border-main shadow-2xl shadow-primary/5 p-5 sm:p-8 lg:p-12 relative overflow-hidden transition-all duration-500", (currentStep >= 3 && currentStep <= 7) ? "lg:col-span-7" : "")}>\n'
+          assert card in s, 'SetupWizard card drifted'
+          s = s.replace(card, card.replace('<div className=', '<div ref={flowTargetRef} data-flow-step={currentStep} className=', 1), 1)
           wizard.write_text(s)
 
-          Path('frontend/src/UXContinuity.test.ts').write_text('''import { readFileSync } from 'node:fs';\nimport { describe, expect, it } from 'vitest';\nconst read = (path: string) => readFileSync(new URL(path, import.meta.url), 'utf8');\ndescribe('UX continuity contract', () => {\n  it('portals dialogs and locks background scroll', () => { const s=read('./components/CrownDialog.tsx'); expect(s).toContain('createPortal'); expect(s).toContain('document.body'); expect(s).toContain("document.body.style.overflow = 'hidden'"); expect(s).toContain("event.key === 'Tab'"); expect(s).toContain("event.key === 'Escape'"); expect(s).toContain('100dvh'); });\n  it('uses CrownDialog for patient deletion', () => { const s=read('./features/patients/PatientList.tsx'); expect(s).toContain('<CrownDialog'); expect(s).toContain('data-dialog-autofocus'); expect(s).not.toContain('h-screen w-screen'); });\n  it('hands wizard transitions into view', () => { const s=read('./features/admin/SetupWizard/SetupWizard.tsx'); expect(s).toContain('useFlowHandoff'); expect(s).toContain('flowHandoff(flowTargetRef.current)'); expect(s).toContain('data-flow-step={currentStep}'); });\n});\n''')
+          Path('frontend/src/UXContinuity.test.ts').write_text("import { readFileSync } from 'node:fs';\nimport { describe, expect, it } from 'vitest';\nconst read=(p:string)=>readFileSync(new URL(p,import.meta.url),'utf8');\ndescribe('UX continuity contract',()=>{it('portals dialogs',()=>{const s=read('./components/CrownDialog.tsx');expect(s).toContain('createPortal');expect(s).toContain('document.body');expect(s).toContain(\"document.body.style.overflow = 'hidden'\");expect(s).toContain(\"event.key === 'Tab'\");expect(s).toContain(\"event.key === 'Escape'\");expect(s).toContain('100dvh');});it('uses CrownDialog',()=>{const s=read('./features/patients/PatientList.tsx');expect(s).toContain('<CrownDialog');expect(s).toContain('data-dialog-autofocus');expect(s).not.toContain('h-screen w-screen');});it('hands wizard steps into view',()=>{const s=read('./features/admin/SetupWizard/SetupWizard.tsx');expect(s).toContain('useFlowHandoff');expect(s).toContain('flowHandoff(flowTargetRef.current)');expect(s).toContain('data-flow-step={currentStep}');});});\n")
           PY
 
       - name: Install frontend
         working-directory: frontend
         run: npm ci
+
       - name: Targeted UX continuity tests
         working-directory: frontend
         run: npx vitest run src/UXContinuity.test.ts
+
       - name: TypeScript build
         working-directory: frontend
         run: npm run build:test
+
       - name: Commit verified integration
         run: |
           git config user.name "github-actions[bot]"
