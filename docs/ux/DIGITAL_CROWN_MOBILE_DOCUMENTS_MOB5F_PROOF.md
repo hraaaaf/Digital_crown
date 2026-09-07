@@ -1,6 +1,6 @@
 # DIGITAL CROWN — MOB-5F QUICK DOCUMENT STUDIO — PROOF
 
-Status: PRE-MERGE CERTIFIED — PR / MERGE PENDING
+Status: MERGED — POST-MERGE CI RUNNING — NOT CLOSED
 
 ## Goal
 
@@ -39,6 +39,8 @@ Avant certification finale, trois écarts ont été détectés et corrigés:
 2. Honoraires à 0 refusé côté UI comme le validator backend;
 3. capacité Honoraires corrigée de `payments` vers le guard réel `accounting`.
 
+La CI PR a ensuite détecté une régression de contrat historique sur `can_pay` : le check combiné `['accounting', 'payments']` avait été remplacé par des checks séparés incompatibles avec le comportement testé. Le contrat historique a été restauré et le test backend étendu aux neuf capacités renvoyées par le Quick Action Hub. Le HEAD final PR corrigé est `d39c9a207f1bc8b54333a332d7b6ea44a5ef9c58`.
+
 ## AFTER certifié
 
 - product HEAD: `91688ffc2d5bf97e584844f972a12df717fc74da`
@@ -56,6 +58,17 @@ Avant certification finale, trois écarts ont été détectés et corrigés:
 - page errors: 0
 - console errors: 0
 - overflow horizontal: 0
+
+## PR et merge
+
+- PR: `#365` — merged
+- HEAD final PR: `d39c9a207f1bc8b54333a332d7b6ea44a5ef9c58`
+- CI PR finale `34152892582`: SUCCESS
+- T2 `34152892437`: SUCCESS
+- Patient P7 `34152892745`: SUCCESS
+- certs mobiles MOB-5A/B/C/D/E: SUCCESS
+- merge exact: `d9d1c255be6c9878ce6b7127c7f723cfb61e38a0`
+- post-merge CI master: `34163696668` — in progress au dernier contrôle
 
 ## Inspection visuelle
 
@@ -76,7 +89,6 @@ Le score cible >=9/10 est atteint, sans prétendre à une perfection non observ�
 ## Gate de fermeture
 
 MOB-5F n'est pas CLOSED avant:
-- PR verte;
-- merge exact;
-- post-merge CI verte;
-- closeout canonique mis à jour avec preuves exactes.
+- post-merge CI `34163696668` verte;
+- closeout canonique mis à jour avec preuves exactes;
+- PR documentaire de closeout mergée et cohérence master vérifiée.
