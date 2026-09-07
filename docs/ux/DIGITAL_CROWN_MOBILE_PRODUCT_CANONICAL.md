@@ -3,16 +3,18 @@
 Status: ACTIVE
 Canonical file: `docs/ux/DIGITAL_CROWN_MOBILE_PRODUCT_CANONICAL.md`
 Repo: `hraaaaf/Digital_crown`
-Current merged product baseline: `b850cff2bd03dda667d6e1b6e449230658035d62`
-Current master docs head before MOB-5G merge: `062eadf1afc6ffc241be8420313e065a35f7d95b`
+Current merged product baseline: `e30b858f58686f5f7bef19ca93f1c5dae42929c9`
 Deployment: none. No Vercel deployment is authorized by this chantier.
 
 ## Goal final
-Faire de Digital Crown mobile un **cockpit opérationnel clinique**, pas une copie réduite du desktop. Les actions mobiles doivent viser les usages au fauteuil, entre deux patients ou hors du poste principal, idéalement en moins de 30 secondes. Le desktop reste le système complet pour les workflows lourds, la production clinique détaillée, l’administration et le paramétrage.
+Faire de Digital Crown mobile un **cockpit opérationnel clinique**, pas une copie réduite du desktop. Les actions mobiles doivent viser les usages au fauteuil, entre deux patients ou hors du poste principal, idéalement en moins de 30 secondes. Le desktop reste le système complet pour les workflows lourds, la production clinique détaillée et le paramétrage.
+
+Exception fonctionnelle verrouillée — SuperAdmin : le mobile ne réduit **aucune** prérogative SuperAdmin active. L'adaptation porte uniquement sur l'UX mobile, les confirmations et les step-up de sécurité requis par le backend.
 
 ## Doctrine verrouillée
 - Mobile = cockpit opérationnel.
 - Desktop = workflows lourds/complets.
+- SuperAdmin mobile = parité fonctionnelle des prérogatives SuperAdmin actives, sans SuperAdmin lite.
 - Source de vérité unique serveur/DB pour desktop + mobile.
 - Thème/typographie pilotés par les réglages cabinet, sans couleurs/polices de marque hardcodées dans les features mobiles.
 - Tout changement UI suit : BEFORE → Goal UI → référence/mockup → implémentation → AFTER mêmes viewports → comparaison + tests + score visuel.
@@ -68,16 +70,16 @@ Faire de Digital Crown mobile un **cockpit opérationnel clinique**, pas une cop
 | 3 | Bibliothèque clinique | Desktop + Mobile | recherche/consultation rapide ; lecture simplifiée |
 | 4 | Science Hub | **Desktop only** | aucun portage mobile |
 | 5 | Frontdesk / demandes RDV | Desktop + Mobile | voir, accepter/refuser, appeler/WhatsApp, suivi rapide |
-| 6 | Marketplace / Approvisionnement | Desktop + Mobile | **refonte dédiée** après benchmark de 3–4 références mobiles dentaires/médicales/B2B |
+| 6 | Marketplace / Approvisionnement | Desktop + Mobile | refonte dédiée desktop/mobile, moteur catalogue/commande partagé |
 | 7 | Stock | Desktop + Mobile | niveaux, alertes, criticité, réassort/mouvements simples |
 | 8 | Notifications | Desktop + Mobile | alertes actionnables, priorité/filtrage strict, deep links |
-| 9 | SuperAdmin | Desktop + Mobile | supervision/urgence seulement ; configuration complète desktop |
-| 10 | Patients / génération de documents | Desktop + Mobile | **Quick Document Studio** : ordonnance, certificat, devis, consentement, consignes postop, courrier/orientation, modèle libre simplifié |
+| 9 | SuperAdmin | Desktop + Mobile | **parité fonctionnelle complète des prérogatives SuperAdmin actives** ; UX/confirmations/step-up adaptés au mobile |
+| 10 | Patients / génération de documents | Desktop + Mobile | **Quick Document Studio** : flux mobile ciblé réutilisant le moteur Document Studio canonique |
 
 ## Invariant données desktop/mobile
 Une seule source de vérité serveur/DB. Mobile et desktop consomment le même objet métier et le même historique. Aucun modèle parallèle de données.
 
-Pour les documents, contrat cible à auditer avant migration : `patient_id + practitioner_id + template_id + payload structuré + version + status + created_at + updated_at`. Brouillon local éventuel uniquement avec queue de sync, versioning et conflit explicite ; aucun écrasement silencieux.
+Pour les documents, le moteur canonique `/documents/generate`, les permissions par type et `assert_patient_access` restent autoritaires. Aucun moteur de génération documentaire parallèle ne doit être créé pour le mobile.
 
 ## MOB-5A — Équipe / praticiens — DONE / MERGED
 - PR `#357`
@@ -196,11 +198,29 @@ Preuves :
 - score visuel **9.4/10**
 - preuve `docs/ux/DIGITAL_CROWN_MOBILE_LIBRARY_MOB5E_PROOF.md`
 
-## MOB-5F — Patients / Quick Document Studio — PLANNED
-Goal : produire un document courant en idéalement <30 s depuis le dossier patient.
-Gate : audit interne + benchmark externe avant Goal UI final.
+## MOB-5F — Patients / Quick Document Studio — ACTIVE / AUDIT + GOAL UI LOCKED
+Goal : produire un document courant en idéalement <30 s depuis le dossier patient, en réutilisant le moteur documentaire canonique.
 
-## MOB-5G — Marketplace / Approvisionnement — CERTIFIED / MERGE PENDING
+État vérifié au démarrage:
+- cockpit patient mobile déjà capable de rechercher/sélectionner un patient et ouvrir ses ressources existantes via contexte opaque;
+- aucune entrée de création documentaire sur le baseline `e30b858f...`;
+- `/documents/generate` est le moteur canonique existant;
+- token mobile appairé accepté par `get_current_user`, puis permissions documentaires et `assert_patient_access` restent autoritaires;
+- aucun nouveau moteur backend de génération n'est requis.
+
+Périmètre Quick Document V1 verrouillé par l'audit:
+- Ordonnance;
+- Certificat;
+- Document libre;
+- Devis.
+
+Preuves de cadrage:
+- `docs/ux/DIGITAL_CROWN_MOBILE_DOCUMENTS_MOB5F_AUDIT.md`
+- `docs/ux/DIGITAL_CROWN_MOBILE_DOCUMENTS_MOB5F_GOAL_UI.md`
+- branche `ux/mobile-documents-mob5f`
+- BEFORE 390/430/768 lancé sur baseline produit `e30b858f...`; artifact/CI à certifier avant implémentation UI.
+
+## MOB-5G — Marketplace / Approvisionnement — DONE / MERGED
 Goal : achat cabinet rapide desktop + mobile, sans dupliquer le moteur catalogue/commande existant.
 
 Fonctions certifiées :
@@ -217,21 +237,17 @@ Fonctions certifiées :
 - aucun backend métier Marketplace modifié.
 
 Preuves :
-- PR `#362` open / merge pending
-- HEAD produit certifié `e13323772fb432f1b8bcb253361e08ba5e627995`
-- BEFORE baseline `062eadf1afc6ffc241be8420313e065a35f7d95b`
+- PR `#362` merged
+- merge exact `6eb93c75f91402031ecc2c8fc1f8858372a97b9b`
 - BEFORE run `34045330209` ✅
 - BEFORE artifact `9992935589`
-- BEFORE digest `sha256:3e3701efc64a0eb3e3ed94be10b1a43bd5a0bd79cdf38e1c0917dda1220611db`
-- MOB-5G cert `34049639818` ✅
-- Marketplace Final Certification `34049639902` ✅
-- CI `34049639787` ✅
-- T2 `34049639801` ✅
+- MOB-5G certification / tests ciblés ✅
 - targeted Vitest : **18/18** ✅
 - backend Marketplace P1-P10 : **105/105 passed** ✅
 - build production ✅
 - AFTER artifact `9994164037`
 - AFTER digest `sha256:1f6b5426be0514ce398edc37e4671c44d86e168593cc5b2ab2d6899ec269481f`
+- CI post-merge `34054519282` ✅ SUCCESS
 - 390×844 / 430×932 / 768×1024 / 1280×800
 - 5 boutons canoniques, nav 76 px, 0 overflow, 0 erreur runtime ✅
 - desktop : exactement 1 POST DRAFT, URL inchangée ✅
@@ -240,23 +256,50 @@ Preuves :
 
 Limite connue non résolue : le job Marketplace signale le conflit de dépendances `httpx==0.27.2` avec `firebase-admin 7.5.0` / `ultralytics-platform`; les tests restent verts. Ne pas déclarer ce conflit corrigé.
 
-## MOB-5H — SuperAdmin mobile — NEXT AFTER MOB-5G MERGE
-Goal : supervision et urgence, pas administration complète.
-Gate : audit exact des capacités SuperAdmin desktop/mobile existantes avant Goal UI ; aucune configuration exhaustive sur mobile.
+## MOB-5H — SuperAdmin mobile — DONE / MERGED
+Goal : parité fonctionnelle complète des prérogatives SuperAdmin actives sur mobile, sans affaiblir la sécurité backend.
+
+Fonctions certifiées:
+- cinq domaines: Vue globale / Clients / Essais / Marketplace / Opérations;
+- clients: validate, plan, extension/revoke licence, archive, suspend, notes, historique, relance;
+- trial codes: liste, création, revoke;
+- Marketplace global: overview, commandes, incidents, gouvernance, audit, fournisseurs, produits, sync;
+- opérations: commandes, dispatch, procurement, facture, réconciliation, synthèse, réceptions;
+- P10 mobile ordinaire refusé; WebAuthn UV court pour le control-plane qui l'exige;
+- actions tenant-scoped conservent leur contrat backend sans WebAuthn artificiel.
+
+Preuves:
+- PR `#363` merged
+- baseline BEFORE `6eb93c75f91402031ecc2c8fc1f8858372a97b9b`
+- BEFORE artifact `9997848118`
+- HEAD final pré-merge `904c6cd001ff87ab54ec6ad31f7a90e52b3ac23d`
+- Mobile SuperAdmin MOB-5H Cert `34139811533` ✅
+- CI PR `34139811583` ✅
+- Marketplace Final Certification `34139811585` ✅
+- T2 `34139811647` ✅
+- AFTER artifact `10025509035`
+- AFTER digest `sha256:465cf28d3f96138ce9ce3b5281d8718c460c5f1b16e595cf1d366ee0cff9e95b`
+- 390×844 / 430×932 / 768×1024
+- 0 overflow, 0 page error, 0 console error, 0 requête API inattendue, 0 egress externe réel ✅
+- score visuel **9.3/10**
+- merge exact `e30b858f58686f5f7bef19ca93f1c5dae42929c9`
+- CI post-merge master `34142208046` ✅ SUCCESS
+- audit `docs/ux/DIGITAL_CROWN_MOBILE_SUPERADMIN_MOB5H_AUDIT.md`
+- preuve `docs/ux/DIGITAL_CROWN_MOBILE_SUPERADMIN_MOB5H_PROOF.md`
 
 ## MOB-5I — Salle d’attente — COMING SOON
 Goal actuel : conserver une place produit cohérente desktop/mobile sans fausse fonctionnalité.
 
 ### Séquence restante verrouillée
-SuperAdmin → Documents patients / Quick Document Studio → Salle d’attente.
+Quick Document Studio → Salle d’attente.
 
 ### Explicitement hors MOB-5 mobile
 - Science Hub.
 - Éditeur WYSIWYG complet de documents.
 - Création/paramétrage lourd des templates.
-- Administration Marketplace exhaustive.
 - Paramétrage stock avancé.
-- Configuration SuperAdmin complète.
+
+Clarification SuperAdmin: aucune prérogative SuperAdmin active n'est hors scope mobile. Les surfaces Marketplace globales nécessaires à cette parité font partie de MOB-5H.
 
 ---
 
@@ -280,4 +323,4 @@ Ordre : validation → canonique → cohérence docs → roadmap/% réel → Git
 - ne pas déployer sur Vercel sans autorisation explicite.
 
 ## Next exact
-Valider la vague docs-only finale de PR #362, merger avec verrouillage du HEAD, vérifier master/post-merge, marquer MOB-5G DONE / MERGED avec le SHA exact, puis ouvrir MOB-5H SuperAdmin mobile et commencer par l’audit interne.
+Certifier le BEFORE MOB-5F sur 390/430/768, puis implémenter le Quick Document Studio mobile sur le moteur `/documents/generate`, avec permissions documentaires backend inchangées, BEFORE/AFTER et tests ciblés avant PR/merge.
