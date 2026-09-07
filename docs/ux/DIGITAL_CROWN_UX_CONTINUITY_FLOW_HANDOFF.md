@@ -1,232 +1,219 @@
 # DIGITAL CROWN — UX CONTINUITY / FLOW HANDOFF — CANONICAL HANDOVER
 
-Status: AUDIT VERIFIED — IMPLEMENTATION NOT STARTED
+Status: BEFORE RUNNING — GOAL UI LOCKED — IMPLEMENTATION NOT STARTED
 
 ## Goal
 
-Garantir que, après toute action qui exige une interaction suivante, cette prochaine interaction soit immédiatement visible, identifiable et utilisable sans scroll manuel de recherche.
-
-Le chantier couvre en priorité :
-- confirmations / modales critiques ;
-- transitions multi-étapes ;
-- changements automatiques d’onglet / sous-flow ;
-- petits écrans et mobile ;
-- navigation clavier et focus.
+Garantir qu’après toute action exigeant une interaction suivante, cette interaction soit immédiatement visible, identifiable et utilisable sans scroll manuel de recherche.
 
 ## Success
 
-Le lot ne peut être déclaré CLOSED que si les preuves montrent :
-- suppression Patient déclenchée après scroll haut / milieu / bas → confirmation immédiatement visible ;
-- petits laptops et mobiles → CTA de confirmation toujours accessibles ;
-- wizard étape N → N+1 → nouvelle étape immédiatement visible ;
-- changements automatiques d’onglet / surface → cible utile ramenée dans le viewport si nécessaire ;
-- aucun scroll forcé inutile lorsque la cible est déjà visible ;
-- focus initial logique ;
-- Tab contenu dans la modale ;
-- Escape ferme la modale ;
-- focus restauré après fermeture ;
-- pas d’overflow horizontal ni de régression fonctionnelle ;
-- BEFORE / AFTER capturés aux mêmes viewports ;
+Le chantier n’est CLOSED que si les preuves montrent :
+- suppression Patient depuis scroll haut / milieu / bas → confirmation immédiatement visible ;
+- CTA Annuler / Supprimer accessibles sur petits viewports ;
+- fond verrouillé pendant la confirmation ;
+- focus initial logique, Tab contenu dans la modale, Escape fonctionnel, focus restauré ;
+- wizard N → N+1 → nouvelle étape immédiatement visible ;
+- aucun scroll automatique inutile si la cible est déjà visible ;
+- changements automatiques d’onglet / surface → cible utile ramenée dans le viewport ;
+- aucun changement RBAC ou capacité métier ;
+- BEFORE / AFTER mêmes viewports ;
 - tests ciblés + build + CI verts ;
-- closeout documentaire + merge + post-merge verts.
+- score visuel documenté ;
+- PR + merge + post-merge verts.
 
-## Audit vérifié
+## Cause racine vérifiée
 
-### 1. Confirmation de suppression Patient — P1 UX
+### PatientList
 
-Fichier : `frontend/src/features/patients/PatientList.tsx`
+`frontend/src/features/patients/PatientList.tsx`
 
-Constats vérifiés :
-- la confirmation est bien une modale `fixed inset-0` ;
-- elle est rendue directement dans le subtree de `PatientList` ;
-- pas de `createPortal(..., document.body)` ;
-- pas de verrouillage explicite du scroll du document ;
-- pas de focus trap ;
-- pas d’autofocus vers une cible logique ;
-- pas de restauration du focus après fermeture ;
-- utilisation de `h-screen w-screen` plutôt qu’une stratégie `dvh` robuste ;
-- pas de stratégie explicite `max-height + overflow-y-auto` pour viewport court.
+La confirmation Patient est aujourd’hui :
+- `fixed inset-0` ;
+- rendue localement dans le subtree de `PatientList` ;
+- sans portal `document.body` ;
+- sans verrouillage explicite du scroll ;
+- sans focus trap ;
+- sans autofocus logique ;
+- sans restauration du focus ;
+- avec `h-screen w-screen` ;
+- sans stratégie explicite de hauteur maximale + scroll interne.
 
-Conclusion : le défaut n’est pas un simple oubli de `position: fixed`. L’implémentation locale reste fragile selon le contexte CSS et le viewport.
+### MainLayout
 
-Important : aucun facteur unique n’a encore été prouvé comme cause exclusive du déplacement observé. Une reproduction BEFORE est obligatoire avant correction.
+`frontend/src/components/Layout/MainLayout.tsx`
 
-### 2. Flows multi-étapes — défaut confirmé
+`PatientList` est rendu sous un `motion.div` Framer Motion avec animation `y` :
 
-Fichier : `frontend/src/features/admin/SetupWizard/SetupWizard.tsx`
+```tsx
+<motion.div
+  initial={{ opacity: 0, y: 15 }}
+  animate={{ opacity: 1, y: 0 }}
+  exit={{ opacity: 0, y: -15 }}
+>
+  {children}
+</motion.div>
+```
 
-Le passage à l’étape suivante fait essentiellement :
+Une transformation CSS différente de `none` établit un containing block pour les descendants `position: fixed`. La modale locale peut donc être positionnée relativement à cet ancêtre transformé au lieu du viewport.
+
+Conclusion architecturale : le portal vers `document.body` est le correctif racine approprié pour sortir les confirmations critiques du containing block animé.
+
+La reproduction BEFORE reste obligatoire pour mesurer le comportement utilisateur exact avant modification.
+
+## Autres défauts vérifiés
+
+### Setup Wizard
+
+`frontend/src/features/admin/SetupWizard/SetupWizard.tsx`
+
+Le passage suivant effectue essentiellement :
 
 ```ts
 setCurrentStep(prev => Math.min(prev + 1, 7));
 ```
 
-Aucun mécanisme global de :
-- `scrollIntoView` ;
-- repositionnement du viewport ;
-- focus vers la nouvelle étape ;
-- transfert d’attention vers le premier contrôle utile.
+Aucun handoff viewport/focus n’est effectué après rendu de N+1.
 
-### 3. Changements de surfaces / onglets
+### PatientDetails
 
-Fichier : `frontend/src/features/patients/PatientDetailsInner.tsx`
+`frontend/src/features/patients/PatientDetailsInner.tsx`
 
-Plusieurs transitions changent l’onglet ou la surface via `setSearchParams(...)`, sans doctrine globale de transfert du viewport / focus vers le nouveau contenu.
+Plusieurs transitions changent l’onglet / surface via `setSearchParams(...)` sans doctrine globale de transfert d’attention.
 
-### 4. Cause racine architecturale
+## Goal UI / référence
 
-Le produit sait changer d’état, mais ne possède pas encore de doctrine globale pour déplacer l’attention utilisateur vers ce nouvel état.
+Fichier : `docs/ux/DIGITAL_CROWN_UX_CONTINUITY_GOAL_UI.md`
 
-Les overlays / modales sont fragmentés entre implémentations locales. Aucun primitive global `ConfirmDialog` / `Modal` / `Portal` n’a été identifié dans les composants communs pendant l’audit.
+Commit : `82b180d5ac3e41213a3a3c5d53d0db3919d480bc`
 
-## Recommandation d’architecture
+Doctrine :
 
-### A. Primitive globale `CrownDialog` / `CrownConfirmDialog`
+> Le système déplace l’attention vers sa prochaine attente. L’utilisateur ne cherche jamais où continuer.
 
-Contrat attendu :
-- portal vers `document.body` ;
-- couverture viewport fiable avec `100dvh` ;
-- scroll interne de la modale si hauteur insuffisante ;
-- verrouillage du background scroll ;
+Viewports verrouillés :
+- 390×844
+- 430×932
+- 768×1024
+- 1366×700
+- 1440×900
+
+## BEFORE
+
+Workflow : `.github/workflows/ux-continuity-before.yml`
+
+Commit workflow : `41fbb31bc315f98d43059967424bacdfc4586d7f`
+
+Le workflow checkout explicitement le SHA intact :
+`2926c06166e4d765451bb47e04214508ef4b439c`
+
+Il utilise uniquement le runtime SQLite jetable `scripts/t2_runtime_server.py`, sans donnée cabinet réelle.
+
+Couverture :
+- suppression Patient : 5 viewports × 3 positions de scroll = 15 cas ;
+- Setup Wizard : 390×844 + 1366×700 ;
+- captures PNG + mesures JSON.
+
+Run BEFORE : `34170349446`
+
+État au dernier contrôle : `in_progress`.
+
+Dernière étape observée : installation frontend + Chromium en cours ; installation backend terminée avec succès.
+
+Aucune implémentation produit n’est écrite avant cette preuve, conformément à la doctrine UI/UX.
+
+## Architecture retenue après BEFORE
+
+### `CrownDialog`
+
+Minimum requis :
+- `createPortal(..., document.body)` ;
+- couverture `100dvh` ;
+- hauteur interne bornée + `overflow-y-auto` ;
+- verrouillage scroll arrière-plan ;
+- focus initial ;
 - focus trap ;
 - Escape ;
-- focus initial sûr ;
 - restauration du focus ;
-- responsive mobile / petit laptop ;
-- aucune modification des permissions ou capacités métier existantes.
+- API assez petite pour migration progressive, sans refactor massif.
 
-### B. Primitive / hook `useFlowHandoff()`
+### `useFlowHandoff`
 
-À chaque transition N → N+1 ou changement de surface :
-1. déterminer la nouvelle cible utile ;
-2. vérifier si elle est suffisamment visible ;
-3. si non visible, `scrollIntoView` avec comportement contrôlé ;
-4. positionner le focus sur le premier contrôle utile ;
-5. ne pas scroller si la cible est déjà visible.
+Minimum requis :
+1. cible connue après changement d’état ;
+2. mesure visibilité réelle ;
+3. scroll uniquement si nécessaire ;
+4. focus sur premier contrôle utile avec `preventScroll` pour éviter un second saut ;
+5. marge compatible headers sticky.
 
-### C. Longs formulaires
+## Scope produit initial
 
-Évaluer des CTA `Suivant` / `Confirmer` sticky lorsque cela réduit réellement la friction, sans masquer le contenu ni créer une seconde barre d’action concurrente.
+1. `PatientList.tsx` — confirmation suppression.
+2. `SetupWizard.tsx` — transitions N → N+1.
+3. `PatientDetailsInner.tsx` — changements de surfaces / onglets concernés.
 
-## Doctrine UX verrouillée
+Non-objectifs :
+- pas de refactor massif des autres overlays ;
+- pas de backend ;
+- pas de RBAC ;
+- pas de suppression de capacité ;
+- aucun déploiement Vercel.
 
-Principe :
-
-> Après toute action nécessitant une interaction suivante, cette interaction doit être visible immédiatement et identifiable sans recherche manuelle dans la page.
-
-Exceptions acceptables :
-- aucune cible unique n’existe ;
-- le scroll automatique détériorerait clairement le contexte utilisateur ;
-- l’action suivante est volontairement différée.
-
-Dans ces cas, le comportement doit être explicitement documenté et testé.
-
-## Méthode UI/UX obligatoire
-
-Avant tout changement visuel :
-1. BEFORE mêmes viewports ;
-2. Goal écrit ;
-3. mockup / référence de comportement ;
-4. implémentation ;
-5. AFTER mêmes viewports ;
-6. comparaison ;
-7. tests ;
-8. score visuel.
-
-Viewports minimum recommandés pour ce chantier :
-- mobile étroit : 390×844 ;
-- mobile large : 430×932 ;
-- tablette : 768×1024 ;
-- petit laptop : viewport desktop court à définir lors du BEFORE.
-
-## Scope initial
-
-Priorité 1 :
-- `PatientList.tsx` — suppression Patient ;
-- `SetupWizard.tsx` — transitions étape N → N+1 ;
-- `PatientDetailsInner.tsx` — changements d’onglet / surface déclenchés par action.
-
-Priorité 2 :
-- inventaire des autres modales / sheets locales ;
-- migration progressive vers le primitive global uniquement si cela réduit la duplication sans risque de régression.
-
-Interdit : refactor massif non nécessaire avant preuve du comportement.
-
-## État repo vérifié au démarrage
+## Git / PR
 
 Repo : `hraaaaf/Digital_crown`
 
-Branche : `master`
+Base master au démarrage :
+`2926c06166e4d765451bb47e04214508ef4b439c`
 
-HEAD vérifié pendant l’audit :
-`fd19dab006d46f274946fd932927b9ac4821d3ec`
+Branche :
+`ux/continuity-flow-handoff`
 
-Ce HEAD correspond au merge PR #366 :
-`docs(mobile): close MOB-5F Quick Document Studio`
+PR draft : `#368` — `UX: continuity flow handoff`
 
-Aucune PR n’a été créée pour ce chantier UX Continuity au moment de ce handover.
+HEAD au lancement BEFORE :
+`41fbb31bc315f98d43059967424bacdfc4586d7f`
 
-Aucun déploiement Vercel demandé ou autorisé pour ce chantier.
-
-## Preuves audit déjà disponibles
-
-- `frontend/src/features/patients/PatientList.tsx` : confirmation locale + logique de saisie du nom exact + absence des mécanismes de focus / portal listés ci-dessus ;
-- `frontend/src/features/admin/SetupWizard/SetupWizard.tsx` : transition `setCurrentStep(...)` sans handoff viewport/focus ;
-- `frontend/src/features/patients/PatientDetailsInner.tsx` : transitions `setSearchParams(...)` sans handoff global ;
-- arbre `frontend/src/components` : aucun primitive global ConfirmDialog / Modal / Portal identifié pendant l’audit.
+CI observée au même HEAD :
+- UX Continuity BEFORE `34170349446` — in_progress ;
+- T2 Runtime Browser Certification `34170349423` — in_progress ;
+- CI `34170349410` — in_progress au dernier contrôle.
 
 ## Next exact
 
-1. Re-vérifier repo / HEAD / PR / CI avant toute modification.
-2. Capturer un BEFORE reproductible du cas suppression Patient, sur plusieurs positions de scroll.
-3. Capturer un BEFORE du Setup Wizard N → N+1 sur viewport court.
-4. Écrire le Goal UI précis et la référence comportementale.
-5. Implémenter le minimum global fiable : `CrownDialog` + mécanisme `FlowHandoff`.
-6. Migrer d’abord Patient suppression + Setup Wizard + transitions PatientDetails concernées.
-7. Tester focus / clavier / Escape / scroll / petits viewports.
-8. Produire AFTER mêmes viewports et comparaison BEFORE / AFTER.
-9. Lancer tests ciblés + build + CI.
-10. Documenter score visuel et écarts restants.
-11. Ouvrir PR, valider CI, merger si vert, vérifier post-merge.
-12. Mettre à jour ce fichier canonique avec preuves exactes et état final.
+1. Lire le résultat final du run BEFORE `34170349446`.
+2. Si vert : télécharger l’artifact `ux-continuity-before-2926c061`, inspecter `evidence.json` + captures.
+3. Si la mesure actuelle ne matérialise pas le panneau lui-même, renforcer le BEFORE sur le même SHA intact et relancer une seule fois.
+4. Documenter les mesures BEFORE exactes.
+5. Implémenter `CrownDialog` + tests.
+6. Migrer suppression Patient.
+7. Implémenter `useFlowHandoff` + tests.
+8. Migrer Setup Wizard puis PatientDetails.
+9. Créer AFTER avec exactement les mêmes viewports / scénarios.
+10. Comparer BEFORE / AFTER + score visuel.
+11. Tests ciblés + build + CI.
+12. Undraft PR si toutes preuves vertes, merge, post-merge.
+13. Closeout de ce canonique.
 
 ## Séquence restante
 
-`BEFORE reproductible → Goal UI → primitive globale minimale → migration Patient suppression → migration Setup Wizard → migration transitions PatientDetails → tests ciblés → AFTER mêmes viewports → comparaison + score → CI → PR → merge → post-merge → closeout canonique`
+`BEFORE final → inspection artifact → (si nécessaire BEFORE renforcé) → implémentation CrownDialog → PatientList → useFlowHandoff → SetupWizard → PatientDetails → tests → AFTER → comparaison + score → CI → undraft → merge → post-merge → closeout`
 
-## Handover compact
-
-GOAL : supprimer la friction où l’utilisateur doit chercher manuellement la prochaine interaction après une action ou une transition.
-
-ÉTAT VÉRIFIÉ : audit terminé ; problème transversal confirmé dans le code ; aucune implémentation de correction encore commencée.
-
-CAUSE RACINE : absence de doctrine globale de viewport/focus handoff + overlays locaux non unifiés.
-
-PRIORITÉ : P1 UX.
-
-SCOPE PREMIER LOT : suppression Patient, Setup Wizard, transitions PatientDetails.
-
-RÈGLE PRODUIT : aucune prérogative ou capacité métier supprimée ; uniquement comportement UX / focus / viewport / confirmation.
-
-BLOCAGE RÉEL : aucun blocage externe. La seule étape préalable obligatoire est la capture BEFORE conformément à la doctrine UI/UX.
-
-NEXT EXACT : re-vérifier HEAD puis capturer BEFORE suppression Patient et Setup Wizard avant toute modification.
-
-## Repères
+## Repères de reprise
 
 - chantier/lot : Digital Crown — UX Continuity / Flow Handoff
-- Goal : prochaine action visible immédiatement sans scroll manuel de recherche
+- Goal : prochaine interaction visible immédiatement sans recherche manuelle
 - repo : `hraaaaf/Digital_crown`
-- branche : `master`
-- PR : aucune au moment de création du canonique
-- HEAD audit : `fd19dab006d46f274946fd932927b9ac4821d3ec`
-- CI : aucune CI spécifique à ce chantier lancée au moment de création
+- branche : `ux/continuity-flow-handoff`
+- PR : `#368` draft
+- base : `2926c06166e4d765451bb47e04214508ef4b439c`
+- BEFORE run : `34170349446` in_progress au dernier contrôle
 - deployment : aucun Vercel
-- dernière preuve : audit code PatientList / SetupWizard / PatientDetails
-- blocage réel : aucun
-- Next exact : vérifier HEAD courant puis capturer BEFORE
+- dernière preuve : contenant transformé MainLayout + modal fixed locale PatientList ; Goal UI et workflow BEFORE commités
+- blocage réel : BEFORE doit terminer avant la première modification UI
+- Next exact : inspecter le résultat du run BEFORE `34170349446`
 - effort suivant : 🟡 moyen
 
 ---
 
-Ce fichier est le point de reprise canonique du chantier jusqu’à closeout.
+Ce fichier reste le point de reprise canonique jusqu’au closeout.
