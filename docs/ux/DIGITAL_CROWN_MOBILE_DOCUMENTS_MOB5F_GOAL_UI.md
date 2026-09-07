@@ -1,38 +1,30 @@
 # DIGITAL CROWN — MOB-5F — QUICK DOCUMENT STUDIO — GOAL UI
 
-Status: IMPLEMENTED — FINAL AFTER PENDING — NOT CLOSED
+Status: CLOSED — AFTER CERTIFIED — MERGED
 
 ## Goal UI
 
 Depuis le patient déjà sélectionné, lancer un document courant sans quitter le cockpit, avec une interaction mobile courte, sûre et cohérente avec le reste de Digital Crown.
 
-Cible produit: document courant en idéalement <30 s lorsque les données nécessaires sont déjà connues.
+Cible produit: document courant en idéalement <30 s lorsque les données nécessaires sont déjà connues. Aucun test chronométré n'a été réalisé, donc le seuil <30 s reste un objectif produit et non une mesure certifiée.
 
 ## Références retenues
 
 ### Référence interne
-
 - `MobilePatientsView`: cartes compactes, actions cliniques rapides, patient déjà contextualisé.
 - pattern MOB-5H: détail / action complexe dans une sheet plutôt qu'une forêt de boutons inline.
 - moteur desktop Document Studio: source de vérité fonctionnelle, pas référence de layout mobile.
 
 ### Référence externe
-
 - CareStack: actions documentaires en quick links depuis le contexte patient.
 - Open Dental / ODTouch: création clinique/prescription depuis le patient sélectionné.
 
-## Structure cible implémentée
+## Structure implémentée
 
 ### État 1 — Cockpit patient
-
-Dans `Actions cliniques rapides`, un CTA primaire unique:
-
-`Créer un document`
-
-Il ne remplace aucune action existante.
+CTA primaire unique `Créer un document` dans `Actions cliniques rapides`, sans supprimer les actions existantes.
 
 ### État 2 — Choix du type
-
 Sheet mobile filtrée par capacités serveur:
 - Ordonnance;
 - Certificat;
@@ -43,52 +35,28 @@ Sheet mobile filtrée par capacités serveur:
 Échéancier reste hors du Quick Document Studio car il constitue un flux financier dédié.
 
 ### État 3 — Éditeur rapide
-
-Principes appliqués:
 - patient verrouillé par le contexte du cockpit;
 - rappel de l'alerte médicale dans Ordonnance lorsqu'elle existe;
 - champs strictement nécessaires;
 - contrôles financiers bornés comme le backend;
-- CTA primaire unique `Prévisualiser`;
+- CTA primaire `Prévisualiser`;
 - aucune création de moteur/template parallèle.
 
-En vraie session, le sheet relit le cockpit patient de façon tenant-scoped pour récupérer `medical_alert_summary`; cette lecture est non bloquante et n'accorde aucune permission.
-
 ### État 4 — Preview / confirmation
-
-Le flow est explicitement séparé:
 1. `preview=true&archive=false`;
 2. écran `Aperçu prêt`;
 3. payload verrouillé;
 4. `Modifier` ou `Archiver le document`;
 5. archivage avec le même payload validé.
 
-En démo isolée, la preview et l'archivage sont simulés localement sans requête API.
+En démo isolée, preview et archivage sont simulés localement sans requête API.
 
 ### État 5 — Succès
-
-Retour compact:
 - document archivé;
 - ouverture du PDF créé si URL disponible;
 - retour patient conservé.
 
-## Comportement responsive
-
-Viewports de certification:
-- 390x844;
-- 430x932;
-- 768x1024.
-
-Règles:
-- aucun overflow horizontal;
-- zones tactiles adaptées au mobile;
-- CTA final sans ambiguïté;
-- sheet scrollable;
-- pas de tableau desktop compressé.
-
 ## Sécurité / vérité UI
-
-L'UI filtre les types à partir des capacités exactes renvoyées par le serveur et échoue fermé si elles ne sont pas disponibles.
 
 Contrats recoupés avec `DOCUMENT_TYPE_PERMISSIONS`:
 - Ordonnance → `prescriptions`;
@@ -101,27 +69,37 @@ Le backend revérifie patient + permission lors de la génération. L'UI n'est j
 
 ## BEFORE vérifié
 
-Baseline produit exacte: `e30b858f58686f5f7bef19ca93f1c5dae42929c9`.
-Run `34143420251` — SUCCESS.
-Artifact `10026785108`.
-Digest `sha256:b827b8b31f7bb604667d1a8df624eda98b1aa794ac25145f8c7acec72af5bdff`.
+- baseline `e30b858f58686f5f7bef19ca93f1c5dae42929c9`
+- run `34143420251` — SUCCESS
+- artifact `10026785108`
+- digest `sha256:b827b8b31f7bb604667d1a8df624eda98b1aa794ac25145f8c7acec72af5bdff`
+- 390x844 / 430x932 / 768x1024
+- 4 actions cliniques existantes
+- `Créer un document` absent
+- 0 overflow / page error / console error
 
-Constat:
-- patient cockpit fonctionnel;
-- quatre actions cliniques existantes;
-- aucune entrée `Créer un document`;
-- 0 overflow / runtime error sur 390/430/768.
+## AFTER certifié
 
-## AFTER attendu pour fermeture
+- product HEAD `91688ffc2d5bf97e584844f972a12df717fc74da`
+- run `34149391346` — SUCCESS
+- artifact `10028850934`
+- digest `sha256:8b27d1c8658d0472f663a152d14bf463cfd519a7ac6ca5d65e4af7811c94080e`
+- mêmes viewports 390x844 / 430x932 / 768x1024
+- `Créer un document` visible
+- 5 familles lisibles
+- Certificat prouvé jusqu'à `Aperçu prêt` + `Archiver le document`
+- 0 requête API réelle en preview
+- 0 overflow / page error / console error
+- score visuel **9.1/10**
 
-Même patient, mêmes viewports:
-- `Créer un document` visible et priorisé;
-- cinq familles lisibles dans la preview SuperUser;
-- Certificat prouvé jusqu'à l'écran `Aperçu prêt` + bouton `Archiver le document`;
-- aucune régression des actions existantes;
-- 0 requête API en preview;
-- 0 overflow / page error / console error;
-- inspection manuelle BEFORE/AFTER;
-- score visuel >= 9/10 visé, sans le déclarer avant inspection.
+Réserve: à 390 px, la navigation fixe mord légèrement la zone d'actions initiale avant scroll; le sheet et la confirmation restent propres.
 
-Aucun Vercel.
+## Fermeture
+
+- PR `#365` merged
+- HEAD final `d39c9a207f1bc8b54333a332d7b6ea44a5ef9c58`
+- merge exact `d9d1c255be6c9878ce6b7127c7f723cfb61e38a0`
+- CI post-merge `34163696668` — SUCCESS
+- aucun Vercel
+
+Goal UI atteint au niveau prouvé. MOB-5F est CLOSED.
