@@ -101,3 +101,5 @@ jobs:
           path: artifacts/mobile-waiting-room-mob5i-after
           if-no-files-found: error
           retention-days: 30
+
+# Armed after product implementation so this push certifies the exact branch state.
