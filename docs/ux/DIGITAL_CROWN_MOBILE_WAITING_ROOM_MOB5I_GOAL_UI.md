@@ -9,55 +9,41 @@ Rendre la salle d’attente réellement exploitable sur mobile à partir du mod�
 - la vue mobile affiche les patients actuellement en salle d’attente avec leur heure de RDV et `ticket_number` quand présent ;
 - aucune métrique de temps d’attente n’est affichée tant qu’aucun timestamp d’arrivée canonique n’est prouvé ;
 - tenant scope et permission `agenda` restent imposés côté serveur ;
-- aucun nouveau modèle/table n’est créé sans nécessité démontrée ;
+- aucun nouveau modèle/table ;
 - aucun débordement horizontal aux viewports 390×844, 430×932 et 768×1024 ;
-- score visuel cible >= 9/10 après certification AFTER.
+- score visuel >= 9/10.
 
-## Référence UX
+## Référence UX livrée
 Surface mobile clinique compacte, centrée sur l’état opérationnel du patient :
 1. compteur Salle d’attente ;
-2. liste ordonnée des patients présents ;
-3. actions explicites et réversibles selon le contrat métier ;
-4. accès depuis la navigation mobile sans masquer l’Agenda.
+2. liste des patients présents ;
+3. ticket quand disponible ;
+4. action explicite `Au fauteuil` ;
+5. accès secondaire dans `Plus` sans remplacer l’Agenda ni ajouter une sixième destination principale.
 
-La Salle d’attente ne remplace pas l’Agenda. Elle est une vue opérationnelle dérivée des mêmes rendez-vous.
+## Preuves Goal → résultat
+- BEFORE run `34168710412` — SUCCESS ;
+- AFTER/cert run `34169388445` — SUCCESS ;
+- artifact AFTER `10035225974` ;
+- digest `sha256:efa961010bb3c1d189f8447c99a70d5dfaf42c893f49fd8a4db558b5dbccbd50` ;
+- backend contract SUCCESS ;
+- frontend contract SUCCESS ;
+- frontend build SUCCESS ;
+- 390×844 / 430×932 / 768×1024 : HTTP 200, 0 page error, 0 console error, 0 overflow ;
+- Salle d’attente, compteur, patient, ticket `#12`, CTA `Au fauteuil`, entrée `Plus` et badge présents ;
+- score visuel certifié : **9.3/10** ;
+- PR `#367` mergée ;
+- merge exact `e2522a6d8b4794e64253eb4af36500e18cd87b40`.
 
-## BEFORE obligatoire
-Capturer la baseline exacte avant changement produit sur :
-- 390×844 ;
-- 430×932 ;
-- 768×1024.
-
-Le BEFORE doit prouver au minimum :
-- absence de vue mobile Salle d’attente dédiée ;
-- `EN_SALLE_ATTENTE` aplati en `PLANIFIE` par le bridge mobile ;
-- absence de `ticket_number` dans le snapshot mobile ;
-- absence d’overflow horizontal / erreurs page-console sur le harness.
-
-Harness versionné :
-- `.github/workflows/mobile-waiting-room-mob5i-before.yml` ;
-- `frontend/scripts/capture-mobile-waiting-room-mob5i-before.mjs`.
-
-## Périmètre technique minimal
-Backend :
-- étendre le vocabulaire mobile avec `EN_ATTENTE` mappé exactement sur `AppointmentStatus.EN_SALLE_ATTENTE` ;
-- exposer `ticket_number` dans les rendez-vous du snapshot / liste mobile ;
-- autoriser le PATCH de statut vers `EN_ATTENTE` sous permission `agenda` et tenant scope existants.
-
-Frontend :
-- étendre `ApptStatus` et `STATUS_META` ;
-- ajouter une vue Salle d’attente dérivée du snapshot ;
-- ajouter une entrée de navigation adaptée sans retirer de prérogative existante ;
-- préserver Agenda, Patients, quick actions et autres surfaces.
-
-## Hors périmètre tant que non prouvé
+## Hors périmètre maintenu
 - nouvelle table de file d’attente ;
 - estimation du temps d’attente ;
-- timestamp d’arrivée reconstruit à partir de l’heure du RDV ;
+- timestamp d’arrivée reconstruit depuis l’heure du RDV ;
 - notifications patient ;
 - déploiement Vercel.
 
-## Preuve finale attendue
-AFTER aux mêmes viewports + tests backend/frontend + CI générale + preuve de mapping exact statut/ticket + comparaison BEFORE/AFTER + score visuel.
+## Post-merge
+- run master `34170398551` ;
+- état au moment de cette mise à jour : `pending`.
 
-Statut : `GOAL UI LOCKED — BEFORE HARNESS ARMED`.
+Statut : `GOAL DELIVERED — PRODUCT MERGED — POST-MERGE PENDING`.
