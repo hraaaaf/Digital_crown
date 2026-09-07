@@ -40,13 +40,42 @@ for (const viewport of viewports) {
   const typeLabels = await page.locator('[data-mobile-quick-document] button').allTextContents();
   const expected = ['Ordonnance', 'Certificat', 'Devis', 'Honoraires', 'Document libre'];
   const hasAllTypes = expected.every((label) => typeLabels.some((text) => text.includes(label)));
+
+  await page.getByRole('button', { name: /Certificat/i }).click();
+  await page.getByRole('button', { name: /Prévisualiser/i }).click();
+  const archiveButton = page.getByRole('button', { name: /Archiver le document/i });
+  const archiveConfirmationVisible = await archiveButton.isVisible();
+  const previewReadyVisible = await page.getByText(/Aperçu prêt/i).isVisible();
+  await page.screenshot({ path: path.join(outDir, `after-preview-${viewport.width}x${viewport.height}.png`), fullPage: true });
+
   const metrics = await page.evaluate(() => ({ innerWidth: window.innerWidth, scrollWidth: document.documentElement.scrollWidth }));
   const horizontalOverflow = metrics.scrollWidth > metrics.innerWidth;
   const apiRequests = requests.filter((requestUrl) => requestUrl.includes('/api/'));
 
-  const valid = Boolean(response?.ok()) && createDocumentVisible && hasAllTypes && !horizontalOverflow && pageErrors.length === 0 && consoleErrors.length === 0 && apiRequests.length === 0;
+  const valid = Boolean(response?.ok())
+    && createDocumentVisible
+    && hasAllTypes
+    && archiveConfirmationVisible
+    && previewReadyVisible
+    && !horizontalOverflow
+    && pageErrors.length === 0
+    && consoleErrors.length === 0
+    && apiRequests.length === 0;
   if (!valid) report.invalidCount += 1;
-  report.viewports.push({ viewport, httpStatus: response?.status() ?? null, createDocumentVisible, hasAllTypes, typeLabels, horizontalOverflow, ...metrics, pageErrors, consoleErrors, apiRequests });
+  report.viewports.push({
+    viewport,
+    httpStatus: response?.status() ?? null,
+    createDocumentVisible,
+    hasAllTypes,
+    archiveConfirmationVisible,
+    previewReadyVisible,
+    typeLabels,
+    horizontalOverflow,
+    ...metrics,
+    pageErrors,
+    consoleErrors,
+    apiRequests,
+  });
 
   await context.close();
 }
