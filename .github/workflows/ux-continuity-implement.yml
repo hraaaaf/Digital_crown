@@ -18,7 +18,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ux/continuity-flow-handoff
+          ref: ux/continuity-flow-handoff-runner
           fetch-depth: 0
 
       - uses: actions/setup-node@v4
@@ -184,4 +184,4 @@ jobs:
           git add frontend/src/features/patients/PatientList.tsx frontend/src/features/admin/SetupWizard/SetupWizard.tsx frontend/src/UXContinuity.test.ts
           git diff --cached --check
           git commit -m "feat(ux): keep confirmations and next steps in view"
-          git push origin HEAD:ux/continuity-flow-handoff
+          git push origin HEAD:ux/continuity-flow-handoff-runner
