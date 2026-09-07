@@ -1,6 +1,6 @@
 # DIGITAL CROWN — MOB-5F — PATIENTS / QUICK DOCUMENT STUDIO — AUDIT
 
-Status: IMPLEMENTED — FINAL CERTIFICATION RUNNING — NOT CLOSED
+Status: CLOSED — MERGED — POST-MERGE GREEN
 
 ## Goal
 
@@ -96,6 +96,8 @@ Le serveur expose désormais, dans l'enveloppe mobile chiffrée existante:
 
 Ces valeurs reflètent `DOCUMENT_TYPE_PERMISSIONS` du router canonique. Le sheet filtre les familles avec ces booléens et échoue fermé si les capacités ne peuvent pas être chargées. Le backend revérifie encore la permission lors de `/documents/generate`.
 
+Le contrat historique `can_pay` a été restauré à son comportement combiné `['accounting', 'payments']` après détection par la CI PR. Le test backend verrouille désormais les neuf capacités du Quick Action Hub.
+
 ## Contrat preview / archivage
 
 Le mobile ne passe plus directement à l'archive:
@@ -123,40 +125,49 @@ Comparaison effectuée contre `backend/schemas/documents.py`:
 
 Trois écarts détectés pendant l'audit ont été corrigés avant certification finale: `teeth_data={}`, montant Honoraires à 0 et capacité Honoraires initialement reliée à `payments` au lieu du guard canonique `accounting`.
 
-## Benchmark retenu
+## AFTER certifié
 
-- CareStack: quick links patient pour prescription/form/letter;
-- Open Dental / ODTouch: actions cliniques/prescriptions depuis le patient sélectionné.
+- product HEAD: `91688ffc2d5bf97e584844f972a12df717fc74da`
+- run: `34149391346` — SUCCESS
+- artifact: `10028850934`
+- digest: `sha256:8b27d1c8658d0472f663a152d14bf463cfd519a7ac6ca5d65e4af7811c94080e`
+- 390x844 / 430x932 / 768x1024
+- 0 overflow horizontal
+- 0 page error
+- 0 console error
+- 0 requête API réelle en preview
+- 5 familles visibles
+- flow Certificat prouvé jusqu'à `Aperçu prêt` puis `Archiver le document`
+- score visuel: **9.1/10**
 
-Principe retenu: entrée unique depuis le patient, sheet compacte, pas de copie du hub desktop.
+Réserve visuelle connue: à 390 px, la navigation fixe mord légèrement la zone d'actions initiale avant scroll; le sheet et la confirmation restent propres.
 
-## Invariants
+## PR / merge / post-merge
 
-- patient préselectionné et non ambigu;
-- permissions backend restent autoritaires;
-- type list fail-closed;
-- alerte médicale rappelée dans Ordonnance quand elle existe;
-- aucune donnée patient dans une URL de bridge;
-- aucun brouillon ne traverse un changement de patient;
-- preview avant archivage;
-- archivage via le moteur canonique;
-- preview demo isolée du réseau cabinet;
-- aucune régression des actions patient existantes;
-- aucun Vercel.
+- PR `#365` merged
+- HEAD final PR `d39c9a207f1bc8b54333a332d7b6ea44a5ef9c58`
+- CI PR `34152892582` — SUCCESS
+- T2 `34152892437` — SUCCESS
+- Patient P7 `34152892745` — SUCCESS
+- certs mobiles MOB-5A/B/C/D/E — SUCCESS
+- merge exact `d9d1c255be6c9878ce6b7127c7f723cfb61e38a0`
+- CI post-merge master `34163696668` — SUCCESS
+- backend `Tests & durcissement` — SUCCESS
+- frontend tests + build — SUCCESS
+- garde production — SUCCESS
 
 ## Success
 
-Le lot n'est CLOSED que si:
+Tous les critères de fermeture sont maintenant prouvés:
 - CTA `Créer un document` visible depuis le patient;
 - familles filtrées par permissions exactes;
 - 5 familles utilisent le moteur canonique;
 - preview puis confirmation d'archive explicites;
 - tests ciblés + build verts;
 - AFTER 390/430/768 sans overflow, page error, console error ni requête API réelle en preview;
-- un flow Certificat est prouvé jusqu'à `Archiver le document` aux trois viewports;
+- flow Certificat prouvé jusqu'à `Archiver le document`;
 - inspection BEFORE/AFTER + score visuel documentés;
-- PR + CI + merge exact + post-merge CI verts.
+- PR + merge exact + post-merge CI verts;
+- aucun Vercel.
 
-## Preuve restante
-
-Finaliser la certification sur le HEAD produit courant, inspecter l'artifact AFTER, documenter le score, ouvrir/valider/merger la PR puis vérifier le post-merge.
+MOB-5F est CLOSED.
