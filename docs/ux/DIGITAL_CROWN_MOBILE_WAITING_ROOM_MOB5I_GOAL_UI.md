@@ -34,6 +34,10 @@ Le BEFORE doit prouver au minimum :
 - absence de `ticket_number` dans le snapshot mobile ;
 - absence d’overflow horizontal / erreurs page-console sur le harness.
 
+Harness versionné :
+- `.github/workflows/mobile-waiting-room-mob5i-before.yml` ;
+- `frontend/scripts/capture-mobile-waiting-room-mob5i-before.mjs`.
+
 ## Périmètre technique minimal
 Backend :
 - étendre le vocabulaire mobile avec `EN_ATTENTE` mappé exactement sur `AppointmentStatus.EN_SALLE_ATTENTE` ;
@@ -56,4 +60,4 @@ Frontend :
 ## Preuve finale attendue
 AFTER aux mêmes viewports + tests backend/frontend + CI générale + preuve de mapping exact statut/ticket + comparaison BEFORE/AFTER + score visuel.
 
-Statut : `GOAL UI LOCKED — BEFORE PENDING`.
+Statut : `GOAL UI LOCKED — BEFORE HARNESS ARMED`.
