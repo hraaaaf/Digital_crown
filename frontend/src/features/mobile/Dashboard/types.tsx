@@ -1,8 +1,8 @@
-import { Clock, PlayCircle, CheckCircle2, XCircle } from 'lucide-react';
+import { Clock, PlayCircle, CheckCircle2, XCircle, UsersRound } from 'lucide-react';
 
-export type Tab = 'agenda' | 'patients' | 'finance' | 'bot' | 'lab' | 'securite' | 'dentists' | 'frontdesk' | 'notifications' | 'stock' | 'library' | 'marketplace';
+export type Tab = 'agenda' | 'waiting-room' | 'patients' | 'finance' | 'bot' | 'lab' | 'securite' | 'dentists' | 'frontdesk' | 'notifications' | 'stock' | 'library' | 'marketplace';
 export type SyncStatus = 'idle' | 'loading' | 'success' | 'error';
-export type ApptStatus = 'PLANIFIE' | 'EN_COURS' | 'TERMINE' | 'ANNULE';
+export type ApptStatus = 'PLANIFIE' | 'EN_ATTENTE' | 'EN_COURS' | 'TERMINE' | 'ANNULE';
 
 export interface WeekDay { date: string; amount: number }
 export interface Appointment {
@@ -15,6 +15,7 @@ export interface Appointment {
   motif: string;
   status: ApptStatus | null;
   duration_minutes: number;
+  ticket_number?: number | null;
 }
 export interface Snapshot {
   generated_at: string;
@@ -34,6 +35,11 @@ export const STATUS_META: Record<ApptStatus, { label: string; className: string;
     label: 'Planifié',
     className: 'bg-slate-100 text-slate-600 border-slate-200',
     icon: <Clock size={11} />,
+  },
+  EN_ATTENTE: {
+    label: 'En salle d’attente',
+    className: 'bg-amber-500/10 text-amber-700 border-amber-500/20',
+    icon: <UsersRound size={11} />,
   },
   EN_COURS: {
     label: 'En cours',

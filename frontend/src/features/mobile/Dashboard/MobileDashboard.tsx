@@ -15,6 +15,7 @@ import { MobileQuickPatientFlow } from './components/MobileQuickPatientFlow';
 import { MobileQuickNewPatientModal } from './components/MobileQuickNewPatientModal';
 import './components/mobileQuickActionHub.css';
 import { AgendaView } from './views/AgendaView';
+import { WaitingRoomView } from './views/WaitingRoomView';
 import { MobilePatientsGate } from './views/MobilePatientsGate';
 import { FinanceView } from './views/FinanceView';
 import { SecuriteView } from './views/SecuriteView';
@@ -125,6 +126,12 @@ export const MobileDashboard = () => {
                 handleOpenSignature={actions.handleOpenSignature}
                 onRefresh={actions.fetchSnapshot}
                 onPatientCreated={() => actions.fetchPatients()}
+              />
+            )}
+            {state.activeTab === 'waiting-room' && (
+              <WaitingRoomView
+                snapshot={state.snapshot}
+                onStatusChange={actions.handleStatusChange}
               />
             )}
             {state.activeTab === 'patients' && (

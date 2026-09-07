@@ -1,0 +1,110 @@
+name: Mobile Waiting Room MOB-5I Certification
+
+on:
+  push:
+    branches: [ux/mobile-waiting-room-mob5i]
+    paths:
+      - .github/workflows/mobile-waiting-room-mob5i-cert.yml
+      - frontend/scripts/capture-mobile-waiting-room-mob5i-after.mjs
+      - frontend/src/features/mobile/Dashboard/**
+      - backend/routers/mobile_waiting_room.py
+      - backend/routers/__init__.py
+      - backend/tests/test_mobile_waiting_room.py
+      - frontend/src/features/mobile/__tests__/waitingRoomMob5i.test.tsx
+  workflow_dispatch:
+
+concurrency:
+  group: mobile-waiting-room-mob5i-cert-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  contract:
+    name: Backend + frontend contract
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      SECRET_KEY: ci-only-secret-key-minimum-32-characters-long
+      DATABASE_URL: "sqlite:///:memory:"
+      ENVIRONMENT: development
+      TELEMETRY_ENABLED: "false"
+      CLOUD_AI_ENABLED: "false"
+      CABINET_MASTER_KEY_HEX: 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install backend using canonical CI setup
+        run: |
+          python -m pip install --upgrade pip
+          pip install torch==2.12.0 torchvision==0.27.0 --index-url https://download.pytorch.org/whl/cpu
+          grep -vE '^(torch|torchvision)([<=>].*)?$' requirements.txt > /tmp/requirements-ci.txt
+          pip install -r /tmp/requirements-ci.txt
+          pip install httpx==0.27.2 pytest pytest-asyncio
+      - name: Test waiting-room backend contract
+        run: python -m pytest backend/tests/test_mobile_waiting_room.py -q --maxfail=1
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install frontend
+        working-directory: frontend
+        run: npm ci
+      - name: Test waiting-room frontend contract
+        working-directory: frontend
+        run: npx vitest run src/features/mobile/__tests__/waitingRoomMob5i.test.tsx
+      - name: Build frontend
+        working-directory: frontend
+        run: npm run build
+
+  visual:
+    name: AFTER 390 430 768
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install frontend
+        working-directory: frontend
+        run: npm ci
+      - name: Install Playwright runner
+        working-directory: frontend
+        run: npm install --no-save --package-lock=false playwright@1.63.0
+      - name: Install Chromium
+        working-directory: frontend
+        run: npx playwright install --with-deps chromium
+      - name: Start isolated mobile demo
+        working-directory: frontend
+        env:
+          VITE_DC_PREVIEW_DEMO: "1"
+        run: |
+          npm run dev -- --host 127.0.0.1 --port 5173 >/tmp/mobile-waiting-room-mob5i-after-vite.log 2>&1 &
+          for i in {1..60}; do
+            curl -fsS 'http://127.0.0.1:5173/mobile/demo?demo=1&tab=waiting-room' >/dev/null && exit 0
+            sleep 1
+          done
+          cat /tmp/mobile-waiting-room-mob5i-after-vite.log
+          exit 1
+      - name: Capture and assert AFTER
+        working-directory: frontend
+        env:
+          PRODUCT_HEAD: ${{ github.sha }}
+          ARTIFACT_DIR: ../artifacts/mobile-waiting-room-mob5i-after
+        run: node scripts/capture-mobile-waiting-room-mob5i-after.mjs
+      - name: Preserve harness log
+        if: always()
+        run: cp /tmp/mobile-waiting-room-mob5i-after-vite.log artifacts/mobile-waiting-room-mob5i-after/vite.log || true
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: mobile-waiting-room-mob5i-after
+          path: artifacts/mobile-waiting-room-mob5i-after
+          if-no-files-found: error
+          retention-days: 30

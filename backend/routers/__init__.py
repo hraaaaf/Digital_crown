@@ -124,6 +124,20 @@ from . import mobile_patient_cockpit as mobile_patient_cockpit
 mobile.router.include_router(mobile_resource_bridge.router)
 mobile.router.include_router(mobile_patient_cockpit.router)
 
+# MOB-5I restores the fifth canonical appointment state on mobile and enriches the
+# existing encrypted appointment DTOs with the already-persisted ticket_number. Only
+# the two legacy GET facades are replaced; POST/DELETE/PATCH routes remain canonical.
+from . import mobile_waiting_room as mobile_waiting_room
+mobile.router.routes = [
+    route
+    for route in mobile.router.routes
+    if not (
+        getattr(route, "path", None) in {"/snapshot", "/appointments"}
+        and "GET" in (getattr(route, "methods", set()) or set())
+    )
+]
+mobile.router.include_router(mobile_waiting_room.router)
+
 # M6-D2 registers the device/user-bound Web Push table before create_all(), mounts the
 # push API under /api/mobile and keeps LAN URLs aligned with the selected HTTPS runtime.
 from . import mobile_push as mobile_push
@@ -181,7 +195,7 @@ partner_orders.router.include_router(partner_receipts.router)
 partner_orders.router.include_router(partner_finance.router)
 
 # Marketplace P7 keeps the existing StockItem CRUD as the aggregate source of truth,
-# registers mapping/ledger/lot tables, then mounts the bridge under /api/stock/marketplace.
+# registers mapping/ledger/lot tables before create_all(), then mounts the bridge under /api/stock/marketplace.
 # Consumption/reorder routes are replaced by expiry-aware variants so expired lots are
 # never treated as usable stock.
 partner_stock.router.routes = [

@@ -5,6 +5,7 @@ import { MobileBottomNav } from './components/MobileBottomNav';
 import { MobileQuickActionHub } from './components/MobileQuickActionHub';
 import './components/mobileQuickActionHub.css';
 import { AgendaView } from './views/AgendaView';
+import { WaitingRoomView } from './views/WaitingRoomView';
 import { FinanceView } from './views/FinanceView';
 import { LabView } from './views/LabView';
 import { MobilePatientsView, type MobilePatientsPreviewData } from './views/MobilePatientsView';
@@ -46,7 +47,7 @@ function buildSnapshot(selectedDate: string): Snapshot {
     appointments: [
       { id: 9101, patient_id: 101, time: '09:00', date: selectedDate, patient_name: 'Patient 01', phone: null, motif: 'Contrôle ortho', status: 'TERMINE', duration_minutes: 30 },
       { id: 9102, patient_id: 102, time: '10:15', date: selectedDate, patient_name: 'Patient 02', phone: null, motif: 'Endodontie 16', status: 'EN_COURS', duration_minutes: 45 },
-      { id: 9103, patient_id: 103, time: '11:30', date: selectedDate, patient_name: 'Patient 03', phone: null, motif: 'Empreinte', status: 'PLANIFIE', duration_minutes: 30 },
+      { id: 9103, patient_id: 103, time: '11:30', date: selectedDate, patient_name: 'Patient 03', phone: null, motif: 'Empreinte', status: 'EN_ATTENTE', duration_minutes: 30, ticket_number: 12 },
       { id: 9104, patient_id: 104, time: '14:00', date: selectedDate, patient_name: 'Patient 04', phone: null, motif: 'Couronne 26', status: 'PLANIFIE', duration_minutes: 45 },
     ],
     finance: { today_revenue: 7850, month_revenue: 126400, month_variation: 8.2, appointments_count: 84, weekly_revenue: [], total_patients: 642, total_debt: 12750 },
@@ -105,7 +106,7 @@ const noop = () => undefined;
 
 function requestedPreviewTab(): Tab {
   const tab = new URLSearchParams(window.location.search).get('tab') as Tab | null;
-  return tab && ['agenda', 'patients', 'finance', 'lab', 'bot', 'securite', 'dentists', 'frontdesk', 'notifications', 'stock', 'library', 'marketplace'].includes(tab) ? tab : 'agenda';
+  return tab && ['agenda', 'waiting-room', 'patients', 'finance', 'lab', 'bot', 'securite', 'dentists', 'frontdesk', 'notifications', 'stock', 'library', 'marketplace'].includes(tab) ? tab : 'agenda';
 }
 
 function requestedQuickOpen(): boolean { return new URLSearchParams(window.location.search).get('quick') === '1'; }
@@ -131,6 +132,7 @@ export function MobilePreviewDashboard() {
       <main ref={mainRef} className="flex-1 px-6 overflow-x-hidden overflow-y-auto">
         <AnimatePresence mode="wait"><motion.div key={activeTab} initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} transition={{ duration: 0.2, ease: 'easeOut' }} className="h-full">
           {activeTab === 'agenda' && <div className="pointer-events-none" aria-label="Agenda de démonstration en lecture seule"><AgendaView snapshot={snapshot} syncStatus="success" selectedDate={selectedDate} setSelectedDate={setSelectedDate} patients={DEMO_PATIENTS} onStatusChange={noop} onRescheduleAppt={noop} openApptWhatsApp={noop as (appointment: Appointment) => void} handleDeleteAppt={noop} handleOpenSignature={noop} onRefresh={noop} onPatientCreated={noop} /></div>}
+          {activeTab === 'waiting-room' && <WaitingRoomView snapshot={snapshot} onStatusChange={noop} />}
           {activeTab === 'patients' && <MobilePatientsView onClose={() => selectNavTab('agenda')} previewData={DEMO_PATIENT_COCKPIT} />}
           {activeTab === 'finance' && <FinanceView snapshot={snapshot} syncStatus="success" selectedDate={selectedDate} openWhatsApp={noop} handleExportPDF={noop} />}
           {activeTab === 'lab' && <LabView labJobs={DEMO_LAB_JOBS} handleWhatsAppSend={noop} />}
