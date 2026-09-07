@@ -45,6 +45,7 @@ export function CrownDialog({ open, onClose, ariaLabel, children, className }: C
         onClose();
         return;
       }
+      // Contract: event.key === 'Tab' is the only path that enters the focus trap.
       if (event.key !== 'Tab') return;
       const items = focusables();
       if (!items.length) {
