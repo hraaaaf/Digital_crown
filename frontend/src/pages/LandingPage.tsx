@@ -1,12 +1,13 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
-  Calendar, Users, FileText, BarChart3, Shield, Zap,
+  Calendar, Users, FileText, BarChart3, Shield, Activity,
   CheckCircle, ArrowRight, Mail, Phone, Building2, MessageSquare,
-  Loader2, Sparkles, Crown
+  Loader2, Sparkles
 } from 'lucide-react';
 import { api } from '../services/api';
 import toast from 'react-hot-toast';
+import Logo from '../assets/logo.png';
 
 // ── helpers ──────────────────────────────────────────────────────────────────
 
@@ -79,7 +80,7 @@ export const LandingPage: React.FC = () => {
     try {
       await api.post('/public/demo-request', form);
       setSent(true);
-      toast.success('Demande envoyée ! Nous vous contacterons sous 24h.');
+      toast.success('Demande envoyée ! Nous vous recontacterons prochainement.');
     } catch {
       toast.error('Erreur lors de l\'envoi. Réessayez.');
     } finally {
@@ -93,12 +94,9 @@ export const LandingPage: React.FC = () => {
       {/* ── NAVBAR ── */}
       <nav className="sticky top-0 z-50 bg-white/80 backdrop-blur-xl border-b border-slate-100 shadow-sm">
         <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 bg-[#003380] rounded-xl flex items-center justify-center">
-              <Crown size={18} className="text-white" />
-            </div>
-            <span className="font-black text-xl text-[#003380]">DigitalCrown</span>
-          </div>
+          <Link to="/landing" className="flex items-center shrink-0" aria-label="Digital Crown">
+            <img src={Logo} alt="Digital Crown — AI Dental Software" className="h-12 sm:h-14 w-auto object-contain" />
+          </Link>
           <div className="hidden md:flex items-center gap-8 text-sm font-bold text-slate-500">
             <a href="#features" className="hover:text-[#003380] transition-colors">Fonctionnalités</a>
             <a href="#pricing" className="hover:text-[#003380] transition-colors">Tarifs</a>
@@ -108,14 +106,9 @@ export const LandingPage: React.FC = () => {
             <Link to="/login" className="text-sm font-bold text-slate-600 hover:text-[#003380] transition-colors px-4 py-2">
               Connexion
             </Link>
-            <div className="flex items-center gap-3">
-              <Link to="/download" className="bg-[#003380] text-white text-sm font-black px-5 py-2.5 rounded-xl hover:bg-blue-900 transition-colors shadow-lg shadow-[#003380]/20">
-                Télécharger l'app
-              </Link>
-              <a href="#demo" className="text-sm font-bold text-slate-600 hover:text-[#003380] transition-colors px-2 py-2">
-                Démo
-              </a>
-            </div>
+            <Link to="/download" className="bg-[#003380] text-white text-sm font-black px-5 py-2.5 rounded-xl hover:bg-blue-900 transition-colors shadow-lg shadow-[#003380]/20">
+              Télécharger l'app
+            </Link>
           </div>
         </div>
       </nav>
@@ -131,7 +124,7 @@ export const LandingPage: React.FC = () => {
           <span className="text-[#003380]">avec intelligence.</span>
         </h1>
         <p className="text-xl text-slate-500 max-w-2xl mx-auto leading-relaxed mb-10 font-medium">
-          DigitalCrown centralise patients, agenda, facturation et dossiers cliniques dans une interface moderne conçue pour les dentistes algériens.
+          DigitalCrown centralise patients, agenda, facturation et dossiers cliniques dans une interface moderne conçue pour le quotidien des cabinets dentaires.
         </p>
         <div className="flex flex-col sm:flex-row gap-4 justify-center">
           <a
@@ -182,9 +175,9 @@ export const LandingPage: React.FC = () => {
             desc="Chaque cabinet dispose d'un espace isolé. Permissions granulaires par sous-compte (secrétaire, associé)."
           />
           <Feature
-            icon={<Zap size={22} className="text-[#003380]" />}
-            title="IA intégrée"
-            desc="Assistant clinique intelligent, analyse céphalométrique guidée, suggestions de traitement."
+            icon={<Activity size={22} className="text-[#003380]" />}
+            title="Analyse céphalométrique"
+            desc="Importez les clichés, ajustez les repères et exploitez des calculs géométriques locaux avec validation du praticien."
           />
         </div>
       </section>
@@ -230,10 +223,10 @@ export const LandingPage: React.FC = () => {
             secretaries="Secrétaires illimitées"
             features={[
               'Tout Premium, plus…',
-              'IA clinique avancée',
               'Analytics & tableaux de bord',
               'Science Hub orthodontique',
-              'Support dédié 24/7',
+              'Céphalométrie & panoramique',
+              'Support dédié',
             ]}
           />
         </div>
@@ -248,13 +241,13 @@ export const LandingPage: React.FC = () => {
                 <CheckCircle size={32} className="text-emerald-500" />
               </div>
               <h3 className="text-2xl font-black text-slate-800 mb-2">Demande envoyée !</h3>
-              <p className="text-slate-500 font-medium">Notre équipe vous contactera sous 24h pour organiser votre démo personnalisée.</p>
+              <p className="text-slate-500 font-medium">Notre équipe vous recontactera pour organiser votre démo personnalisée.</p>
             </div>
           ) : (
             <>
               <div className="text-center mb-8">
                 <h2 className="text-3xl font-black text-slate-900 mb-2">Demandez votre démo gratuite</h2>
-                <p className="text-slate-500 font-medium">Un de nos experts vous contacte sous 24h.</p>
+                <p className="text-slate-500 font-medium">Laissez vos coordonnées pour organiser une démonstration personnalisée.</p>
               </div>
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -327,10 +320,9 @@ export const LandingPage: React.FC = () => {
       {/* ── FOOTER ── */}
       <footer className="border-t border-slate-100 bg-white/60 backdrop-blur-sm">
         <div className="max-w-7xl mx-auto px-6 py-8 flex flex-col sm:flex-row items-center justify-between gap-4 text-sm text-slate-400">
-          <div className="flex items-center gap-2 font-black text-slate-600">
-            <Crown size={16} className="text-[#003380]" />
-            DigitalCrown — Saninova
-          </div>
+          <Link to="/landing" className="flex items-center" aria-label="Digital Crown">
+            <img src={Logo} alt="Digital Crown — AI Dental Software" className="h-10 sm:h-11 w-auto object-contain" />
+          </Link>
           <div className="flex gap-6">
             <Link to="/terms" className="hover:text-slate-600 transition-colors">Mentions légales</Link>
             <Link to="/privacy" className="hover:text-slate-600 transition-colors">Confidentialité</Link>
