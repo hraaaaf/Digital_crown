@@ -1,0 +1,42 @@
+name: Tablet Theme Visual Cert
+
+on:
+  push:
+    branches: [audit/visual-theme-tablet-2026-09-08]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  capture-tablet:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install frontend and Chromium
+        working-directory: frontend
+        run: |
+          npm ci
+          npm install --no-save --package-lock=false playwright@1.55.0
+          npx playwright install --with-deps chromium
+      - name: Reuse certified harness at 768px
+        working-directory: frontend
+        run: |
+          awk '/cat > full-app-visual-audit.mjs <<'\''EOF'\''/{flag=1;next} flag && /^[[:space:]]*EOF$/{exit} flag{sub(/^          /, ""); print}' ../.github/workflows/full-app-visual-theme-audit.yml > tablet-theme-audit.mjs
+          sed -i 's/const desktopWidths = \[1280\];/const desktopWidths = [768];/' tablet-theme-audit.mjs
+          sed -i 's/const mobileWidths = \[390, 430\];/const mobileWidths = [];/' tablet-theme-audit.mjs
+          node tablet-theme-audit.mjs
+      - name: Upload tablet evidence
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: tablet-theme-visual-cert
+          path: artifacts/full-app-visual-audit
+          retention-days: 14
+          if-no-files-found: error
