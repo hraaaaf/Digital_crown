@@ -4,7 +4,8 @@ from backend import models
 from backend.services.prescription_service import prescription_service
 
 
-def test_antibiotic_crosscheck_no_surgical_act(db, dentiste):
+def test_antibiotic_without_surgical_act_does_not_emit_legacy_coherence_warning(db, dentiste):
+    """Antibiotic appropriateness requires diagnostic/systemic context, not act presence."""
     patient = models.Patient(
         nom="Alami",
         prenom="Omar",
@@ -29,13 +30,12 @@ def test_antibiotic_crosscheck_no_surgical_act(db, dentiste):
 
     warnings = prescription_service.check_safety(db, patient.id, ["Amoxicilline 1g"])
 
-    coherence_warnings = [w for w in warnings if w.get("type") == "coherence"]
-    assert len(coherence_warnings) == 1
-    assert coherence_warnings[0]["drug"] == "antibiotique-injustifie"
-    assert "Incohérence clinique" in coherence_warnings[0]["message"]
+    assert not any(w.get("drug") == "antibiotique-injustifie" for w in warnings)
+    assert not any(w.get("type") == "coherence" for w in warnings)
 
 
-def test_antibiotic_crosscheck_with_surgical_act(db, dentiste):
+def test_antibiotic_with_surgical_act_does_not_emit_legacy_coherence_warning(db, dentiste):
+    """Act presence must not be the switch that decides antibiotic appropriateness."""
     patient = models.Patient(
         nom="El Fassi",
         prenom="Youssef",
@@ -60,8 +60,8 @@ def test_antibiotic_crosscheck_with_surgical_act(db, dentiste):
 
     warnings = prescription_service.check_safety(db, patient.id, ["Amoxicilline 1g"])
 
-    coherence_warnings = [w for w in warnings if w.get("type") == "coherence"]
-    assert len(coherence_warnings) == 0
+    assert not any(w.get("drug") == "antibiotique-injustifie" for w in warnings)
+    assert not any(w.get("type") == "coherence" for w in warnings)
 
 
 def test_medication_safety_does_not_emit_prophylaxis_omission(db, dentiste):
