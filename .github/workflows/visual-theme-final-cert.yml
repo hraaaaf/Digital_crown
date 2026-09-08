@@ -47,7 +47,8 @@ jobs:
           s = s.replace("if (pathname.endsWith('/api/clinics/init-status')) return { is_initialized: true };", "if (pathname.endsWith('/api/clinics/init-status')) return { is_initialized: routePath !== '/setup' };")
 
           clinic_old = "if (pathname.endsWith('/api/clinics/me')) return { id: 1, nom: 'Cabinet Digital Crown', nom_praticien: 'Dr Audit Visuel', city: 'Rabat' };"
-          clinic_new = "if (pathname.endsWith('/api/clinics/me')) return { id: 1, nom: 'Cabinet Digital Crown', nom_cabinet: 'Cabinet Digital Crown', nom_praticien: 'Dr Audit Visuel', city: 'Rabat', selected_theme: theme === 'default' ? 'elite' : 'ocean', primary_color: theme === 'default' ? '#003380' : '#0284c7', secondary_color: theme === 'default' ? '#1e40af' : '#0369a1', accent_color: theme === 'default' ? '#60a5fa' : '#38bdf8' };"
+          clinic_new = """if (pathname.endsWith('/api/clinics/me')) return { id: 1, nom: 'Cabinet Digital Crown', nom_cabinet: 'Cabinet Digital Crown', nom_praticien: 'Dr Audit Visuel', city: 'Rabat', selected_theme: theme === 'default' ? 'elite' : 'ocean', primary_color: theme === 'default' ? '#003380' : '#0284c7', secondary_color: theme === 'default' ? '#1e40af' : '#0369a1', accent_color: theme === 'default' ? '#60a5fa' : '#38bdf8' };
+            if (pathname.endsWith('/api/clinics/mobile-theme')) return { selected_theme: theme === 'default' ? 'elite' : 'ocean', primary_color: theme === 'default' ? '#003380' : '#0284c7', secondary_color: theme === 'default' ? '#1e40af' : '#0369a1', accent_color: theme === 'default' ? '#60a5fa' : '#38bdf8', app_accent_color: theme === 'default' ? '#003380' : '#0284c7', font_fr: 'inter' };"""
           if clinic_old not in s: raise SystemExit('clinic fixture anchor missing')
           s = s.replace(clinic_old, clinic_new, 1)
 
@@ -86,11 +87,14 @@ jobs:
 
           init_head = "await page.addInitScript(({ token, theme }) => {"
           init_token = "localStorage.setItem('token', token);"
+          init_mobile_anchor = "localStorage.setItem('app_background_animated', 'false');"
           init_tail = "}, { token, theme });"
-          if init_head not in s or init_token not in s or init_tail not in s:
+          if init_head not in s or init_token not in s or init_mobile_anchor not in s or init_tail not in s:
               raise SystemExit('init script anchors missing')
           s = s.replace(init_head, "await page.addInitScript(({ token, theme, routePath }) => {", 1)
           s = s.replace(init_token, "if (routePath === '/login') localStorage.removeItem('token'); else localStorage.setItem('token', token);", 1)
+          mobile_cache = "localStorage.setItem('app_background_animated', 'false');\n                    if (routePath.startsWith('/mobile/')) localStorage.setItem('digitalcrown_mobile_theme', JSON.stringify(theme === 'default' ? { selected_theme: 'elite', primary_color: '#003380', secondary_color: '#1e40af', accent_color: '#60a5fa', app_accent_color: '#003380', font_fr: 'inter' } : { selected_theme: 'ocean', primary_color: '#0284c7', secondary_color: '#0369a1', accent_color: '#38bdf8', app_accent_color: '#0284c7', font_fr: 'inter' }));"
+          s = s.replace(init_mobile_anchor, mobile_cache, 1)
           s = s.replace(init_tail, "}, { token, theme, routePath });", 1)
 
           p.write_text(s)
