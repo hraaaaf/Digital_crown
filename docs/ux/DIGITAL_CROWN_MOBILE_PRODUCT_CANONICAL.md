@@ -3,7 +3,7 @@
 Status: ACTIVE
 Canonical file: `docs/ux/DIGITAL_CROWN_MOBILE_PRODUCT_CANONICAL.md`
 Repo: `hraaaaf/Digital_crown`
-Current merged product baseline: `301454a367b8b7952d0fef94e86c40e8e4a248e2`
+Current merged product baseline: `97546777e3b4adbb8a670559553c1079aad4c2e2`
 Deployment: none. No Vercel deployment is authorized by this chantier.
 
 ## Goal final
@@ -213,7 +213,7 @@ Aucun déploiement Vercel.
 
 ---
 
-## MOB-6 — Canonisation du routage mobile — PRE-MERGE CERTIFIED
+## MOB-6 — Canonisation du routage mobile — DONE / MERGED / CLOSED
 
 ### Goal
 Supprimer l'ambiguïté entre PWA mobile dédiée et shell desktop responsive sans casser desktop, onboarding, offline/cache, biométrie, context bridges ni routes publiques.
@@ -234,7 +234,7 @@ Supprimer l'ambiguïté entre PWA mobile dédiée et shell desktop responsive sa
 Les deep-links riches restent desktop tant qu'une destination mobile ne peut pas préserver exactement l'entité ciblée : patient, archives/édition, protocole, partenaire ou produit.
 
 ### Preuves
-- baseline master `301454a367b8b7952d0fef94e86c40e8e4a248e2` ;
+- baseline initiale `301454a367b8b7952d0fef94e86c40e8e4a248e2` ;
 - commit pré-implémentation BEFORE `d5bf9439e8eae60c1d0c8616a92353041fb5ac9a` ;
 - BEFORE final run `34211312980` ✅ ;
 - BEFORE artifact `10049990601` ;
@@ -246,9 +246,15 @@ Les deep-links riches restent desktop tant qu'une destination mobile ne peut pas
 - routing contract ✅ ; frontend build ✅ ; browser 390/430/768 ✅ ;
 - 0 overflow / page error / console error ;
 - score visuel/comportemental **9.4/10** ;
+- PR produit `#372` ;
+- HEAD final PR `8904dae5d82e218d5c73273042d85b966d929f11` ;
+- CI PR `34212226491` ✅ ;
+- T2 `34212226402` ✅ ;
+- merge exact `97546777e3b4adbb8a670559553c1079aad4c2e2` ;
+- post-merge master `34226941958` ✅ SUCCESS ;
 - preuve `docs/ux/DIGITAL_CROWN_MOBILE_ROUTING_MOB6_PROOF.md`.
 
-MOB-6 n’est pas encore `CLOSED` : PR produit, CI PR, merge et post-merge master restent requis.
+Aucun déploiement Vercel.
 
 ## MOB-7 — Certification globale Mobile Product — PLANNED
 Preuves minimales : frontend/backend ciblés, build, runtime, RBAC, offline/sync/revocation, context bridges, BEFORE/AFTER 390/430/768, zéro overflow, zéro erreur console/page, comparaison Goal UI, score visuel et gates physiques séparés.
@@ -267,4 +273,4 @@ Ordre : validation → canonique → cohérence docs → roadmap/% réel → Git
 - ne pas déployer sur Vercel sans autorisation explicite.
 
 ## Next exact
-Ouvrir et certifier la PR produit MOB-6 depuis `ux/mobile-routing-mob6` vers `master`. Si CI PR verte : merge, vérifier la CI post-merge master, puis seulement effectuer le closeout documentaire `CLOSED` avant d’engager MOB-7.
+Engager `MOB-7 — Certification globale Mobile Product` après merge et post-merge vert de cette branche de closeout MOB-6.
