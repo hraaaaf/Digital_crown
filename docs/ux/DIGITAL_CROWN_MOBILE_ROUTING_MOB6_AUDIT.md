@@ -40,7 +40,7 @@ BEFORE final :
 ### Scope certifié
 `/dashboard`, `/agenda`, `/patients`, `/accounting`, `/stock`, `/approvisionnement`, `/bibliotheque`, `/salle-attente`, `/super-admin`.
 
-## Certification finale pré-merge
+## Certification finale
 - AFTER run `34211780896` — SUCCESS ;
 - HEAD certifié `e62217739c14c46747c159d9c3be9f76668c7a30` ;
 - routing contract SUCCESS ; frontend build SUCCESS ; browser 390/430/768 SUCCESS ;
@@ -49,13 +49,13 @@ BEFORE final :
 - digest `sha256:dc1e5a72d02f668cf537ec9fa28341940d34df7388603da6974eeac393d82ec7` ;
 - score visuel/comportemental **9.4/10**.
 
-## PR / merge
+## PR / merge / post-merge
 - PR produit `#372` ;
 - HEAD final PR `8904dae5d82e218d5c73273042d85b966d929f11` ;
 - CI PR `34212226491` — SUCCESS ;
 - T2 `34212226402` — SUCCESS ;
 - merge exact `97546777e3b4adbb8a670559553c1079aad4c2e2` ;
-- post-merge master `34226941958` — **IN PROGRESS au dernier contrôle**.
+- post-merge master `34226941958` — SUCCESS.
 
 ## Risques préservés
 - routes publiques/auth non redirigées ;
@@ -66,4 +66,4 @@ BEFORE final :
 - deep-links riches préservés ;
 - aucun déploiement Vercel.
 
-Statut : `MERGED — POST-MERGE MASTER PENDING — NOT YET CLOSED`.
+Statut : `AUDIT VERIFIED — MERGED — POST-MERGE VERIFIED — CLOSED`.
