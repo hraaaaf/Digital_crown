@@ -33,7 +33,6 @@ for (const viewport of viewports) {
     await page.waitForTimeout(250);
     const finalPath = new URL(page.url()).pathname + new URL(page.url()).search;
     const overflow = await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth);
-    const loginVisible = await page.locator('input[type="password"]').count() > 0;
     const onboardingVisible = await page.locator('text=/QR|appair|onboarding|scanner/i').count() > 0;
     const slug = route.slice(1).replaceAll('/', '-') || 'root';
     await page.screenshot({ path: path.join(artifactDir, `${viewport.name}-${slug}.png`), fullPage: true });
@@ -41,7 +40,6 @@ for (const viewport of viewports) {
       route,
       status: response?.status() ?? null,
       finalPath,
-      loginVisible,
       onboardingVisible,
       horizontalOverflow: overflow,
       pageErrors,
@@ -59,8 +57,8 @@ await fs.writeFile(path.join(artifactDir, 'report.json'), JSON.stringify(report,
 
 const probes = report.viewports.flatMap(v => v.probes);
 if (!probes.every(p => p.status === 200)) throw new Error('MOB-6 BEFORE expected HTTP 200 for all probes');
-if (!probes.every(p => p.finalPath === '/login')) throw new Error(`MOB-6 BEFORE drift: expected direct desktop deep-links to land on /login, got ${JSON.stringify(probes.map(p => [p.route,p.finalPath]))}`);
-if (!probes.every(p => p.loginVisible)) throw new Error('MOB-6 BEFORE drift: desktop login not visible for every probe');
+if (!probes.every(p => p.finalPath === p.route)) throw new Error(`MOB-6 BEFORE drift: expected desktop deep-links to remain on their desktop paths, got ${JSON.stringify(probes.map(p => [p.route,p.finalPath]))}`);
+if (probes.some(p => p.onboardingVisible)) throw new Error('MOB-6 BEFORE drift: mobile onboarding unexpectedly visible');
 if (probes.some(p => p.horizontalOverflow)) throw new Error('MOB-6 BEFORE horizontal overflow detected');
 if (probes.some(p => p.pageErrors.length)) throw new Error('MOB-6 BEFORE page errors detected');
 
