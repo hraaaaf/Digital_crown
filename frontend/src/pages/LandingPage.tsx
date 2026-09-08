@@ -1,53 +1,71 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
-  ArrowRight,
-  Building2,
-  CalendarDays,
-  CheckCircle2,
-  Crown,
-  Download,
-  Files,
-  Loader2,
-  Mail,
-  MessageSquare,
-  MonitorSmartphone,
-  Phone,
-  ScanLine,
-  Sparkles,
-  Users,
-  WalletCards,
+  Calendar, Users, FileText, BarChart3, Shield, Zap,
+  CheckCircle, ArrowRight, Mail, Phone, Building2, MessageSquare,
+  Loader2, Sparkles, Crown
 } from 'lucide-react';
 import { api } from '../services/api';
 import toast from 'react-hot-toast';
 
-const glassStyle: React.CSSProperties = {
-  background: 'var(--glass-bg)',
-  borderColor: 'var(--glass-border)',
-};
+// ── helpers ──────────────────────────────────────────────────────────────────
 
-const FeatureCard: React.FC<{
-  icon: React.ReactNode;
-  title: string;
-  description: string;
-}> = ({ icon, title, description }) => (
-  <article
-    className="rounded-[26px] border p-6 backdrop-blur-xl transition-transform duration-300 hover:-translate-y-1 sm:p-7"
-    style={glassStyle}
-  >
-    <div
-      className="mb-5 flex h-11 w-11 items-center justify-center rounded-2xl"
-      style={{
-        background: 'color-mix(in srgb, var(--primary) 11%, transparent)',
-        color: 'var(--primary)',
-      }}
-    >
+const cn = (...classes: (string | false | undefined)[]) => classes.filter(Boolean).join(' ');
+
+// ── sub-components ────────────────────────────────────────────────────────────
+
+const Feature: React.FC<{ icon: React.ReactNode; title: string; desc: string }> = ({ icon, title, desc }) => (
+  <div className="bg-white/70 backdrop-blur-sm border border-white rounded-3xl p-6 hover:shadow-xl hover:-translate-y-1 transition-all duration-300 group">
+    <div className="w-12 h-12 rounded-2xl bg-[#003380]/10 flex items-center justify-center mb-4 group-hover:bg-[#003380]/20 transition-colors">
       {icon}
     </div>
-    <h3 className="text-lg font-black" style={{ color: 'var(--text-main)' }}>{title}</h3>
-    <p className="mt-2 text-sm font-medium leading-6" style={{ color: 'var(--text-muted)' }}>{description}</p>
-  </article>
+    <h3 className="font-black text-slate-800 mb-2">{title}</h3>
+    <p className="text-slate-500 text-sm leading-relaxed">{desc}</p>
+  </div>
 );
+
+const PlanCard: React.FC<{
+  name: string; price: string; dentists: string; secretaries: string;
+  features: string[]; highlight?: boolean;
+}> = ({ name, price, dentists, secretaries, features, highlight }) => (
+  <div className={cn(
+    "rounded-3xl p-8 border flex flex-col gap-6 transition-all duration-300 hover:-translate-y-1",
+    highlight
+      ? "bg-[#003380] text-white border-[#003380] shadow-2xl shadow-[#003380]/30"
+      : "bg-white/80 text-slate-800 border-white shadow-lg hover:shadow-xl"
+  )}>
+    <div>
+      <p className={cn("text-xs font-black uppercase tracking-widest mb-1", highlight ? "text-blue-200" : "text-[#003380]")}>{name}</p>
+      <p className={cn("text-4xl font-black", highlight ? "text-white" : "text-slate-800")}>{price}</p>
+      <p className={cn("text-sm mt-1", highlight ? "text-blue-200" : "text-slate-400")}>/ an</p>
+    </div>
+    <div className={cn("text-sm space-y-1", highlight ? "text-blue-100" : "text-slate-500")}>
+      <p>{dentists}</p>
+      <p>{secretaries}</p>
+    </div>
+    <ul className="space-y-2 flex-1">
+      {features.map((f, i) => (
+        <li key={i} className="flex items-start gap-2 text-sm">
+          <CheckCircle size={14} className={cn("mt-0.5 shrink-0", highlight ? "text-blue-300" : "text-emerald-500")} />
+          <span className={highlight ? "text-blue-50" : "text-slate-600"}>{f}</span>
+        </li>
+      ))}
+    </ul>
+    <Link
+      to="/register"
+      className={cn(
+        "block text-center py-3 rounded-2xl font-black text-sm transition-all",
+        highlight
+          ? "bg-white text-[#003380] hover:bg-blue-50"
+          : "bg-[#003380] text-white hover:bg-blue-900"
+      )}
+    >
+      Commencer
+    </Link>
+  </div>
+);
+
+// ── main component ─────────────────────────────────────────────────────────
 
 export const LandingPage: React.FC = () => {
   const [form, setForm] = useState({ nom: '', email: '', cabinet: '', telephone: '', message: '' });
@@ -57,239 +75,270 @@ export const LandingPage: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!form.nom || !form.email || !form.cabinet) return;
-
     setSending(true);
     try {
       await api.post('/public/demo-request', form);
       setSent(true);
-      toast.success('Demande envoyée. Nous vous recontactons pour organiser la démo.');
+      toast.success('Demande envoyée ! Nous vous contacterons sous 24h.');
     } catch {
-      toast.error("Erreur lors de l'envoi. Réessayez.");
+      toast.error('Erreur lors de l\'envoi. Réessayez.');
     } finally {
       setSending(false);
     }
   };
 
-  const pillars = [
-    { title: 'Gestion', lines: ['Patients · Agenda', 'Facturation'], icon: <Users size={18} /> },
-    { title: 'Clinique', lines: ['Dossiers · Imagerie', 'Documents'], icon: <ScanLine size={18} /> },
-    { title: 'Mobilité', lines: ['Desktop', 'Companion mobile'], icon: <MonitorSmartphone size={18} /> },
-  ];
-
-  const features = [
-    {
-      title: 'Dossiers patients',
-      description: 'Créez, recherchez et consultez les informations utiles depuis un dossier patient structuré.',
-      icon: <Users size={21} />,
-    },
-    {
-      title: 'Agenda',
-      description: 'Organisez les rendez-vous et gardez une lecture claire de l’activité du cabinet.',
-      icon: <CalendarDays size={21} />,
-    },
-    {
-      title: 'Facturation',
-      description: 'Retrouvez les encaissements et les informations financières dans des vues dédiées.',
-      icon: <WalletCards size={21} />,
-    },
-    {
-      title: 'Dossiers cliniques',
-      description: 'Centralisez documents, imagerie et informations cliniques autour du dossier patient.',
-      icon: <Files size={21} />,
-    },
-  ];
-
   return (
-    <div
-      className="min-h-screen overflow-x-hidden font-sans"
-      style={{
-        background: 'radial-gradient(circle at 15% 8%, rgba(56,189,248,.10), transparent 24%), radial-gradient(circle at 85% 20%, rgba(2,132,199,.07), transparent 24%), var(--bg-medical-pearl)',
-        color: 'var(--text-main)',
-      }}
-    >
-      <nav className="sticky top-0 z-50 border-b backdrop-blur-2xl" style={glassStyle}>
-        <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-3 sm:px-6 lg:px-8">
-          <Link to="/landing" className="flex items-center gap-2.5">
-            <span className="flex h-9 w-9 items-center justify-center rounded-xl text-white shadow-lg" style={{ background: 'var(--primary)' }}>
-              <Crown size={18} />
-            </span>
-            <span className="text-lg font-black tracking-tight" style={{ color: 'var(--text-main)' }}>DigitalCrown</span>
-          </Link>
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-indigo-50/20 font-sans">
 
-          <div className="hidden items-center gap-7 text-sm font-bold md:flex" style={{ color: 'var(--text-muted)' }}>
-            <a href="#features" className="transition-opacity hover:opacity-70">Fonctionnalités</a>
-            <a href="#demo" className="transition-opacity hover:opacity-70">Démo</a>
+      {/* ── NAVBAR ── */}
+      <nav className="sticky top-0 z-50 bg-white/80 backdrop-blur-xl border-b border-slate-100 shadow-sm">
+        <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 bg-[#003380] rounded-xl flex items-center justify-center">
+              <Crown size={18} className="text-white" />
+            </div>
+            <span className="font-black text-xl text-[#003380]">DigitalCrown</span>
           </div>
-
-          <div className="flex items-center gap-2">
-            <Link to="/login" className="hidden rounded-xl px-3 py-2 text-sm font-bold sm:block" style={{ color: 'var(--text-muted)' }}>
+          <div className="hidden md:flex items-center gap-8 text-sm font-bold text-slate-500">
+            <a href="#features" className="hover:text-[#003380] transition-colors">Fonctionnalités</a>
+            <a href="#pricing" className="hover:text-[#003380] transition-colors">Tarifs</a>
+            <a href="#demo" className="hover:text-[#003380] transition-colors">Démo</a>
+          </div>
+          <div className="flex items-center gap-3">
+            <Link to="/login" className="text-sm font-bold text-slate-600 hover:text-[#003380] transition-colors px-4 py-2">
               Connexion
             </Link>
-            <Link
-              to="/download"
-              className="inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-black text-white shadow-lg transition-opacity hover:opacity-90"
-              style={{ background: 'var(--primary)' }}
-            >
-              <Download size={15} />
-              <span className="hidden sm:inline">Télécharger</span>
-            </Link>
+            <div className="flex items-center gap-3">
+              <Link to="/download" className="bg-[#003380] text-white text-sm font-black px-5 py-2.5 rounded-xl hover:bg-blue-900 transition-colors shadow-lg shadow-[#003380]/20">
+                Télécharger l'app
+              </Link>
+              <a href="#demo" className="text-sm font-bold text-slate-600 hover:text-[#003380] transition-colors px-2 py-2">
+                Démo
+              </a>
+            </div>
           </div>
         </div>
       </nav>
 
-      <main>
-        <section className="mx-auto max-w-5xl px-4 pb-20 pt-16 text-center sm:px-6 sm:pb-24 sm:pt-20 lg:pt-24">
-          <div
-            className="mb-6 inline-flex items-center gap-2 rounded-full border px-4 py-2 text-[11px] font-black uppercase tracking-[0.16em] backdrop-blur-xl"
-            style={{ ...glassStyle, color: 'var(--primary)' }}
+      {/* ── HERO ── */}
+      <section className="max-w-7xl mx-auto px-6 pt-24 pb-20 text-center">
+        <div className="inline-flex items-center gap-2 bg-[#003380]/10 text-[#003380] text-xs font-black px-4 py-2 rounded-full mb-8 border border-[#003380]/20">
+          <Sparkles size={12} />
+          Logiciel dentaire nouvelle génération
+        </div>
+        <h1 className="text-5xl md:text-7xl font-black text-slate-900 leading-tight mb-6 tracking-tight">
+          Gérez votre cabinet<br />
+          <span className="text-[#003380]">avec intelligence.</span>
+        </h1>
+        <p className="text-xl text-slate-500 max-w-2xl mx-auto leading-relaxed mb-10 font-medium">
+          DigitalCrown centralise patients, agenda, facturation et dossiers cliniques dans une interface moderne conçue pour les dentistes algériens.
+        </p>
+        <div className="flex flex-col sm:flex-row gap-4 justify-center">
+          <a
+            href="#demo"
+            className="inline-flex items-center gap-2 bg-[#003380] text-white font-black px-8 py-4 rounded-2xl hover:bg-blue-900 transition-all hover:-translate-y-0.5 shadow-2xl shadow-[#003380]/30 text-base"
           >
-            <Sparkles size={13} />
-            Logiciel dentaire nouvelle génération
-          </div>
+            Demander une démo gratuite <ArrowRight size={18} />
+          </a>
+          <Link
+            to="/download"
+            className="inline-flex items-center gap-2 bg-white text-slate-700 font-black px-8 py-4 rounded-2xl hover:bg-slate-50 transition-all border border-slate-200 shadow-sm text-base"
+          >
+            Télécharger l'application
+          </Link>
+        </div>
+      </section>
 
-          <h1 className="mx-auto max-w-4xl text-5xl font-black leading-[0.98] tracking-[-0.045em] sm:text-6xl lg:text-7xl" style={{ color: 'var(--text-main)' }}>
-            Gérez votre cabinet <span style={{ color: 'var(--primary)' }}>avec clarté.</span>
-          </h1>
+      {/* ── FEATURES ── */}
+      <section id="features" className="max-w-7xl mx-auto px-6 py-20">
+        <div className="text-center mb-14">
+          <h2 className="text-4xl font-black text-slate-900 mb-4">Tout ce dont vous avez besoin</h2>
+          <p className="text-slate-500 font-medium max-w-xl mx-auto">Un seul outil pour piloter votre cabinet de A à Z.</p>
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+          <Feature
+            icon={<Users size={22} className="text-[#003380]" />}
+            title="Dossiers patients"
+            desc="Créez, recherchez et gérez tous vos dossiers patients en quelques secondes. Import CSV en masse inclus."
+          />
+          <Feature
+            icon={<Calendar size={22} className="text-[#003380]" />}
+            title="Agenda intelligent"
+            desc="Vue jour / semaine / mois, détection des conflits en temps réel, rappels SMS automatiques."
+          />
+          <Feature
+            icon={<FileText size={22} className="text-[#003380]" />}
+            title="Dossiers cliniques"
+            desc="Céphalométrie, orthodontie, actes — tout en un. Export PDF soigné avec votre en-tête cabinet."
+          />
+          <Feature
+            icon={<BarChart3 size={22} className="text-[#003380]" />}
+            title="Comptabilité & Facturation"
+            desc="Suivi des honoraires, export CSV/PDF, relances automatiques des impayés."
+          />
+          <Feature
+            icon={<Shield size={22} className="text-[#003380]" />}
+            title="Sécurité & Multi-tenant"
+            desc="Chaque cabinet dispose d'un espace isolé. Permissions granulaires par sous-compte (secrétaire, associé)."
+          />
+          <Feature
+            icon={<Zap size={22} className="text-[#003380]" />}
+            title="IA intégrée"
+            desc="Assistant clinique intelligent, analyse céphalométrique guidée, suggestions de traitement."
+          />
+        </div>
+      </section>
 
-          <p className="mx-auto mt-6 max-w-2xl text-base font-medium leading-7 sm:text-lg" style={{ color: 'var(--text-muted)' }}>
-            DigitalCrown centralise les patients, l’agenda, la facturation et les dossiers cliniques dans une interface moderne conçue pour le quotidien du cabinet dentaire.
-          </p>
+      {/* ── PRICING ── */}
+      <section id="pricing" className="max-w-7xl mx-auto px-6 py-20">
+        <div className="text-center mb-14">
+          <h2 className="text-4xl font-black text-slate-900 mb-4">Plans adaptés à chaque cabinet</h2>
+          <p className="text-slate-500 font-medium">Tous les plans incluent les mises à jour et le support.</p>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 items-start">
+          <PlanCard
+            name="Gold"
+            price="4 900 MAD"
+            dentists="1 dentiste"
+            secretaries="2 secrétaires"
+            features={[
+              'Dossiers patients illimités',
+              'Agenda complet',
+              'Facturation & comptabilité',
+              'Dossiers cliniques',
+              'Support email',
+            ]}
+          />
+          <PlanCard
+            name="Premium"
+            price="9 900 MAD"
+            dentists="2 dentistes"
+            secretaries="6 secrétaires"
+            features={[
+              'Tout Gold, plus…',
+              'Vue multi-praticien',
+              'Rappels SMS patients',
+              'Import / Export avancé',
+              'Support prioritaire',
+            ]}
+            highlight
+          />
+          <PlanCard
+            name="Elite"
+            price="17 900 MAD"
+            dentists="Dentistes illimités"
+            secretaries="Secrétaires illimitées"
+            features={[
+              'Tout Premium, plus…',
+              'IA clinique avancée',
+              'Analytics & tableaux de bord',
+              'Science Hub orthodontique',
+              'Support dédié 24/7',
+            ]}
+          />
+        </div>
+      </section>
 
-          <div className="mt-8 flex flex-col justify-center gap-3 sm:flex-row">
-            <a
-              href="#demo"
-              className="inline-flex items-center justify-center gap-2 rounded-2xl px-6 py-3.5 text-sm font-black text-white shadow-xl transition-all hover:-translate-y-0.5 hover:opacity-90"
-              style={{ background: 'var(--primary)' }}
-            >
-              Demander une démo <ArrowRight size={17} />
-            </a>
-            <Link
-              to="/download"
-              className="inline-flex items-center justify-center gap-2 rounded-2xl border px-6 py-3.5 text-sm font-black backdrop-blur-xl transition-all hover:-translate-y-0.5"
-              style={{ ...glassStyle, color: 'var(--text-main)' }}
-            >
-              <Download size={17} /> Télécharger l’application
-            </Link>
-          </div>
-
-          <div className="mx-auto mt-12 grid max-w-3xl divide-y rounded-[26px] border text-left backdrop-blur-xl sm:grid-cols-3 sm:divide-x sm:divide-y-0" style={glassStyle}>
-            {pillars.map(({ title, lines, icon }) => (
-              <div key={title} className="flex min-h-[124px] items-center gap-3 px-5 py-5 sm:flex-col sm:items-start sm:justify-center sm:gap-2 sm:px-6">
-                <div className="flex items-center gap-2">
-                  <span className="flex h-8 w-8 items-center justify-center rounded-xl" style={{ background: 'color-mix(in srgb, var(--primary) 11%, transparent)', color: 'var(--primary)' }}>
-                    {icon}
-                  </span>
-                  <span className="text-[11px] font-black uppercase tracking-[0.16em]" style={{ color: 'var(--primary)' }}>{title}</span>
-                </div>
-                <p className="min-h-10 text-sm font-black leading-5" style={{ color: 'var(--text-main)' }}>
-                  <span className="block whitespace-nowrap">{lines[0]}</span>
-                  <span className="block whitespace-nowrap">{lines[1]}</span>
-                </p>
+      {/* ── DEMO FORM ── */}
+      <section id="demo" className="max-w-3xl mx-auto px-6 py-20">
+        <div className="bg-white/80 backdrop-blur-xl border border-white rounded-[2.5rem] shadow-2xl p-10">
+          {sent ? (
+            <div className="text-center py-10">
+              <div className="w-16 h-16 bg-emerald-100 rounded-3xl flex items-center justify-center mx-auto mb-4">
+                <CheckCircle size={32} className="text-emerald-500" />
               </div>
-            ))}
-          </div>
-        </section>
-
-        <section id="features" className="mx-auto max-w-6xl px-4 py-16 sm:px-6 sm:py-20 lg:px-8">
-          <div className="mx-auto mb-10 max-w-2xl text-center sm:mb-12">
-            <p className="text-[11px] font-black uppercase tracking-[0.2em]" style={{ color: 'var(--primary)' }}>Fonctionnalités</p>
-            <h2 className="mt-3 text-3xl font-black tracking-tight sm:text-4xl" style={{ color: 'var(--text-main)' }}>Tout ce dont vous avez besoin, sans détour.</h2>
-          </div>
-
-          <div className="grid gap-4 sm:grid-cols-2">
-            {features.map(feature => (
-              <FeatureCard key={feature.title} {...feature} />
-            ))}
-          </div>
-        </section>
-
-        <section id="demo" className="mx-auto max-w-4xl px-4 py-16 sm:px-6 sm:py-20 lg:px-8">
-          <div className="overflow-hidden rounded-[34px] border p-6 backdrop-blur-2xl sm:p-9 lg:p-10" style={glassStyle}>
-            <div className="grid gap-8 lg:grid-cols-[0.8fr_1.2fr] lg:items-center lg:gap-12">
-              <div className="text-center lg:text-left">
-                <p className="text-[11px] font-black uppercase tracking-[0.2em]" style={{ color: 'var(--primary)' }}>Découvrir DigitalCrown</p>
-                <h2 className="mt-3 text-3xl font-black tracking-tight sm:text-4xl" style={{ color: 'var(--text-main)' }}>Voyez le produit en action.</h2>
-                <p className="mt-4 text-sm font-medium leading-6 sm:text-base" style={{ color: 'var(--text-muted)' }}>
-                  Demandez une démonstration pour découvrir les principaux flux du cabinet.
-                </p>
-              </div>
-
-              {sent ? (
-                <div className="flex min-h-[260px] flex-col items-center justify-center rounded-[26px] bg-white/80 p-8 text-center">
-                  <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-emerald-100 text-emerald-600">
-                    <CheckCircle2 size={26} />
-                  </div>
-                  <h3 className="mt-5 text-2xl font-black text-slate-800">Demande envoyée</h3>
-                  <p className="mt-2 max-w-sm text-sm font-medium leading-6 text-slate-500">Nous vous recontactons pour organiser la démonstration.</p>
-                </div>
-              ) : (
-                <form onSubmit={handleSubmit} className="rounded-[26px] bg-white/80 p-5 shadow-sm sm:p-6">
-                  <div className="grid gap-3 sm:grid-cols-2">
-                    {[
-                      { icon: <Users size={15} />, placeholder: 'Votre nom *', value: form.nom, key: 'nom', type: 'text', required: true },
-                      { icon: <Mail size={15} />, placeholder: 'Email professionnel *', value: form.email, key: 'email', type: 'email', required: true },
-                      { icon: <Building2 size={15} />, placeholder: 'Nom du cabinet *', value: form.cabinet, key: 'cabinet', type: 'text', required: true },
-                      { icon: <Phone size={15} />, placeholder: 'Téléphone', value: form.telephone, key: 'telephone', type: 'tel', required: false },
-                    ].map(field => (
-                      <label key={field.key} className="relative block">
-                        <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">{field.icon}</span>
-                        <input
-                          required={field.required}
-                          type={field.type}
-                          placeholder={field.placeholder}
-                          value={field.value}
-                          onChange={e => setForm(current => ({ ...current, [field.key]: e.target.value }))}
-                          className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3.5 pl-10 text-sm font-bold text-slate-700 outline-none transition-all focus:border-sky-400 focus:ring-4 focus:ring-sky-100"
-                        />
-                      </label>
-                    ))}
-                  </div>
-
-                  <label className="relative mt-3 block">
-                    <MessageSquare size={15} className="absolute left-4 top-4 text-slate-400" />
-                    <textarea
-                      rows={3}
-                      placeholder="Message (optionnel)"
-                      value={form.message}
-                      onChange={e => setForm(current => ({ ...current, message: e.target.value }))}
-                      className="w-full resize-none rounded-2xl border border-slate-200 bg-white px-4 py-3.5 pl-10 text-sm font-bold text-slate-700 outline-none transition-all focus:border-sky-400 focus:ring-4 focus:ring-sky-100"
-                    />
-                  </label>
-
-                  <button
-                    type="submit"
-                    disabled={sending}
-                    className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-2xl px-5 py-3.5 text-sm font-black text-white shadow-lg transition-opacity hover:opacity-90 disabled:opacity-60"
-                    style={{ background: 'var(--primary)' }}
-                  >
-                    {sending ? <Loader2 size={17} className="animate-spin" /> : <ArrowRight size={17} />}
-                    {sending ? 'Envoi en cours…' : 'Demander ma démo'}
-                  </button>
-                </form>
-              )}
+              <h3 className="text-2xl font-black text-slate-800 mb-2">Demande envoyée !</h3>
+              <p className="text-slate-500 font-medium">Notre équipe vous contactera sous 24h pour organiser votre démo personnalisée.</p>
             </div>
-          </div>
-        </section>
-      </main>
+          ) : (
+            <>
+              <div className="text-center mb-8">
+                <h2 className="text-3xl font-black text-slate-900 mb-2">Demandez votre démo gratuite</h2>
+                <p className="text-slate-500 font-medium">Un de nos experts vous contacte sous 24h.</p>
+              </div>
+              <form onSubmit={handleSubmit} className="space-y-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="relative">
+                    <Users size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
+                    <input
+                      required
+                      placeholder="Votre nom *"
+                      className="w-full pl-10 pr-4 py-3.5 border border-slate-200 rounded-2xl font-bold text-sm outline-none focus:ring-2 focus:ring-[#003380]/20 focus:border-[#003380]/40 transition-all"
+                      value={form.nom}
+                      onChange={e => setForm(f => ({ ...f, nom: e.target.value }))}
+                    />
+                  </div>
+                  <div className="relative">
+                    <Mail size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
+                    <input
+                      required
+                      type="email"
+                      placeholder="Email professionnel *"
+                      className="w-full pl-10 pr-4 py-3.5 border border-slate-200 rounded-2xl font-bold text-sm outline-none focus:ring-2 focus:ring-[#003380]/20 focus:border-[#003380]/40 transition-all"
+                      value={form.email}
+                      onChange={e => setForm(f => ({ ...f, email: e.target.value }))}
+                    />
+                  </div>
+                  <div className="relative">
+                    <Building2 size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
+                    <input
+                      required
+                      placeholder="Nom du cabinet *"
+                      className="w-full pl-10 pr-4 py-3.5 border border-slate-200 rounded-2xl font-bold text-sm outline-none focus:ring-2 focus:ring-[#003380]/20 focus:border-[#003380]/40 transition-all"
+                      value={form.cabinet}
+                      onChange={e => setForm(f => ({ ...f, cabinet: e.target.value }))}
+                    />
+                  </div>
+                  <div className="relative">
+                    <Phone size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
+                    <input
+                      type="tel"
+                      placeholder="Téléphone"
+                      className="w-full pl-10 pr-4 py-3.5 border border-slate-200 rounded-2xl font-bold text-sm outline-none focus:ring-2 focus:ring-[#003380]/20 focus:border-[#003380]/40 transition-all"
+                      value={form.telephone}
+                      onChange={e => setForm(f => ({ ...f, telephone: e.target.value }))}
+                    />
+                  </div>
+                </div>
+                <div className="relative">
+                  <MessageSquare size={16} className="absolute left-4 top-4 text-slate-400" />
+                  <textarea
+                    rows={3}
+                    placeholder="Message (optionnel)"
+                    className="w-full pl-10 pr-4 py-3.5 border border-slate-200 rounded-2xl font-bold text-sm outline-none focus:ring-2 focus:ring-[#003380]/20 focus:border-[#003380]/40 transition-all resize-none"
+                    value={form.message}
+                    onChange={e => setForm(f => ({ ...f, message: e.target.value }))}
+                  />
+                </div>
+                <button
+                  type="submit"
+                  disabled={sending}
+                  className="w-full py-4 bg-[#003380] text-white font-black rounded-2xl hover:bg-blue-900 transition-all hover:-translate-y-0.5 shadow-xl shadow-[#003380]/20 flex items-center justify-center gap-2 disabled:opacity-60"
+                >
+                  {sending ? <Loader2 size={18} className="animate-spin" /> : <ArrowRight size={18} />}
+                  {sending ? 'Envoi en cours…' : 'Envoyer ma demande'}
+                </button>
+              </form>
+            </>
+          )}
+        </div>
+      </section>
 
-      <footer className="border-t backdrop-blur-xl" style={glassStyle}>
-        <div className="mx-auto flex max-w-7xl flex-col gap-4 px-4 py-8 sm:flex-row sm:items-center sm:justify-between sm:px-6 lg:px-8">
-          <div className="flex items-center gap-2.5">
-            <span className="flex h-8 w-8 items-center justify-center rounded-xl text-white" style={{ background: 'var(--primary)' }}>
-              <Crown size={15} />
-            </span>
-            <span className="font-black" style={{ color: 'var(--text-main)' }}>DigitalCrown</span>
+      {/* ── FOOTER ── */}
+      <footer className="border-t border-slate-100 bg-white/60 backdrop-blur-sm">
+        <div className="max-w-7xl mx-auto px-6 py-8 flex flex-col sm:flex-row items-center justify-between gap-4 text-sm text-slate-400">
+          <div className="flex items-center gap-2 font-black text-slate-600">
+            <Crown size={16} className="text-[#003380]" />
+            DigitalCrown — Saninova
           </div>
-
-          <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-sm font-medium" style={{ color: 'var(--text-muted)' }}>
-            <Link to="/download">Télécharger</Link>
-            <Link to="/terms">Conditions</Link>
-            <Link to="/privacy">Confidentialité</Link>
+          <div className="flex gap-6">
+            <Link to="/terms" className="hover:text-slate-600 transition-colors">Mentions légales</Link>
+            <Link to="/privacy" className="hover:text-slate-600 transition-colors">Confidentialité</Link>
           </div>
-
-          <span className="text-xs font-medium" style={{ color: 'var(--text-muted)' }}>© {new Date().getFullYear()} Saninova</span>
+          <p>© {new Date().getFullYear()} Saninova. Tous droits réservés.</p>
         </div>
       </footer>
+
     </div>
   );
 };
