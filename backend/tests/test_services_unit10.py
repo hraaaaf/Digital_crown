@@ -1,5 +1,4 @@
-"""Tenth batch — PanoramicReportEngine pure helpers,
-treatment_plan_engine exception path, zka_service exception path."""
+"""Tenth batch — PanoramicReportEngine pure helpers and zka_service exception path."""
 import pytest
 
 
@@ -181,19 +180,6 @@ class TestGenerateMarkdown:
     def test_singleton_importable(self):
         from backend.services.panoramic_report_engine import panoramic_report_engine
         assert panoramic_report_engine is not None
-
-
-# ── treatment_plan_engine exception path ──────────────────────────────────────
-
-class TestTreatmentPlanEngineExceptionPath:
-    def _engine(self):
-        from backend.services.treatment_plan_engine import TreatmentPlanEngine
-        return TreatmentPlanEngine()
-
-    def test_invalid_detections_returns_error(self):
-        # Pass a string instead of list → iterating will give chars, .get() will fail
-        result = self._engine().generate_plan("invalid_input")
-        assert "error" in result
 
 
 # ── zka_service exception path ────────────────────────────────────────────────

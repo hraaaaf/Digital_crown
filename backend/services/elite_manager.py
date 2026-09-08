@@ -10,7 +10,6 @@ from backend.services.clinical_coherence import coherence_service
 from backend.services.ai_advisor import ai_advisor
 from backend.services.prescription_service import prescription_service
 from backend.services.habits_engine import habits_engine
-from backend.services.treatment_plan_engine import treatment_plan_engine
 from backend.services.rag_context import build_patient_rag_context
 
 logger = logging.getLogger(__name__)

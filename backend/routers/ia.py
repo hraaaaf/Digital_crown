@@ -19,7 +19,6 @@ from backend.services.panoramic_service import panoramic_engine
 
 # Services
 from backend.services.sota_vision_service import sota_vision_engine
-from backend.services.treatment_plan_engine import TreatmentPlanEngine
 
 # Configuration
 from backend.config import settings
