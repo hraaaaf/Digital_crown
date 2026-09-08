@@ -59,7 +59,7 @@ jobs:
                 document.body.dataset.theme = 'ocean';
               });
               await page.waitForTimeout(700);
-              const hero = page.locator('main > section').first();
+              const hero = page.locator('section').first();
               await hero.screenshot({ path: `${out}/ocean__landing-hero__${width}.png`, animations: 'disabled' });
               await page.screenshot({ path: `${out}/ocean__landing-full__${width}.png`, fullPage: true, animations: 'disabled' });
               await fs.writeFile(`${out}/ocean__landing__${width}.errors.txt`, errors.join('\n'));
