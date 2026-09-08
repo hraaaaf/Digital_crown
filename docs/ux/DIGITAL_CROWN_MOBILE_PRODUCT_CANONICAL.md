@@ -3,7 +3,7 @@
 Status: ACTIVE
 Canonical file: `docs/ux/DIGITAL_CROWN_MOBILE_PRODUCT_CANONICAL.md`
 Repo: `hraaaaf/Digital_crown`
-Current merged product baseline: `97546777e3b4adbb8a670559553c1079aad4c2e2`
+Current merged product baseline: `ce2d33d2f6edfd2d6fb99e1ba45b566fc4f3ac37`
 Deployment: none. No Vercel deployment is authorized by this chantier.
 
 ## Goal final
@@ -250,14 +250,43 @@ Les deep-links riches restent desktop tant qu'une destination mobile ne peut pas
 - HEAD final PR `8904dae5d82e218d5c73273042d85b966d929f11` ;
 - CI PR `34212226491` ✅ ;
 - T2 `34212226402` ✅ ;
-- merge exact `97546777e3b4adbb8a670559553c1079aad4c2e2` ;
-- post-merge master `34226941958` ✅ SUCCESS ;
+- merge produit exact `97546777e3b4adbb8a670559553c1079aad4c2e2` ;
+- post-merge produit `34226941958` ✅ ;
+- closeout PR `#373` ✅ ;
+- merge closeout exact `ce2d33d2f6edfd2d6fb99e1ba45b566fc4f3ac37` ;
+- post-merge closeout `34229494805` ✅ SUCCESS ;
 - preuve `docs/ux/DIGITAL_CROWN_MOBILE_ROUTING_MOB6_PROOF.md`.
 
 Aucun déploiement Vercel.
 
-## MOB-7 — Certification globale Mobile Product — PLANNED
-Preuves minimales : frontend/backend ciblés, build, runtime, RBAC, offline/sync/revocation, context bridges, BEFORE/AFTER 390/430/768, zéro overflow, zéro erreur console/page, comparaison Goal UI, score visuel et gates physiques séparés.
+## MOB-7 — Certification globale Mobile Product — IN PROGRESS
+
+### Goal
+Certifier la surface logicielle mobile complète actuelle sur un même commit immuable sans réimplémenter les lots et sans confondre CI navigateur et preuve physique.
+
+### Baseline
+- master de départ : `ce2d33d2f6edfd2d6fb99e1ba45b566fc4f3ac37` ;
+- branche : `cert/mobile-product-mob7` ;
+- audit : `docs/ux/DIGITAL_CROWN_MOBILE_PRODUCT_MOB7_AUDIT.md` ;
+- matrice : `.audit/mobile-final-certification-matrix.md` ;
+- référence : `docs/ux/DIGITAL_CROWN_MOBILE_PRODUCT_MOB7_REFERENCE.md` ;
+- preuve : `docs/ux/DIGITAL_CROWN_MOBILE_PRODUCT_MOB7_PROOF.md`.
+
+### Gate software courant
+- workflow : `.github/workflows/mobile-final-certification.yml` ;
+- candidat software : `f4f59fa9d069ec4301c3665a5428d772772854fa` ;
+- run : `34232326289` ;
+- frontend M4/M6 + MOB-5A→I + MOB-6 + build : ✅ SUCCESS au dernier contrôle ;
+- backend M6 + MOB-5F/H/I : IN PROGRESS au dernier contrôle ;
+- software aggregate gate : non encore déclaré vert.
+
+### Doctrine visuelle
+MOB-7 ne modifie pas l'UI. Les artifacts, digests, viewports et scores certifiés par les lots MOB-2→MOB-6 restent les autorités visuelles. Aucun score global artificiellement recalculé n'est revendiqué.
+
+### Gates physiques séparés
+Non revendiqués par CI : Face ID réel, Touch ID si supporté, biométrie Android réelle, Push réel PWA background/closed.
+
+Aucun déploiement Vercel.
 
 ## MOB-8 — Closeout — PLANNED
 Ordre : validation → canonique → cohérence docs → roadmap/% réel → Git/PR/merge → post-merge → lot suivant ou CLOSED.
@@ -273,4 +302,4 @@ Ordre : validation → canonique → cohérence docs → roadmap/% réel → Git
 - ne pas déployer sur Vercel sans autorisation explicite.
 
 ## Next exact
-Engager `MOB-7 — Certification globale Mobile Product` après merge et post-merge vert de cette branche de closeout MOB-6.
+Terminer le run logiciel MOB-7 `34232326289`. S'il est vert : inscrire le verdict exact dans la preuve et le canonique, ouvrir la PR MOB-7, certifier CI/T2 du HEAD final, merge puis post-merge avant d'engager MOB-8.
