@@ -2,7 +2,7 @@
 import logging
 from typing import List, Dict, Any
 from sqlalchemy.orm import Session
-from backend.models import Patient, Acte, Medication
+from backend.models import Patient, Acte
 
 logger = logging.getLogger(__name__)
 
@@ -27,12 +27,6 @@ class ClinicalCoherenceService:
             logger.info(f"🚨 Clinical Coherence: {len(warnings)} alertes totales pour Patient {patient_id}")
             
         return warnings
-
-    def _calculate_age(self, born):
-        if not born: return 30
-        from datetime import datetime
-        today = datetime.now()
-        return today.year - born.year - ((today.month, today.day) < (born.month, born.day))
 
     def _check_ordonnance_coherence(self, patient_id: int, doc_data: Dict[str, Any], db: Session) -> List[Dict[str, Any]]:
         warnings = []
