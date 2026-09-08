@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
   Calendar, Users, FileText, BarChart3, Shield, Zap,
-  Star, CheckCircle, ArrowRight, Mail, Phone, Building2, MessageSquare,
+  CheckCircle, ArrowRight, Mail, Phone, Building2, MessageSquare,
   Loader2, Sparkles, Crown
 } from 'lucide-react';
 import { api } from '../services/api';
@@ -148,16 +148,19 @@ export const LandingPage: React.FC = () => {
           </Link>
         </div>
 
-        {/* Social proof */}
-        <div className="mt-12 flex flex-col sm:flex-row items-center justify-center gap-8 text-slate-400">
+        {/* Product proof */}
+        <div className="mt-12 grid grid-cols-1 sm:grid-cols-3 gap-3 max-w-3xl mx-auto">
           {[
-            { val: '200+', label: 'Cabinets actifs' },
-            { val: '50k+', label: 'Dossiers patients' },
-            { val: '4.9', label: 'Note moyenne', icon: <Star size={12} className="text-amber-400 inline" /> },
-          ].map(({ val, label, icon }) => (
-            <div key={label} className="text-center">
-              <p className="text-2xl font-black text-slate-700">{val} {icon}</p>
-              <p className="text-xs font-bold uppercase tracking-widest mt-0.5">{label}</p>
+            { title: 'Gestion', label: 'Patients · Agenda · Facturation', icon: <Users size={16} /> },
+            { title: 'Clinique', label: 'Dossiers · Imagerie · Documents', icon: <Shield size={16} /> },
+            { title: 'Mobilité', label: 'Desktop · Companion mobile', icon: <Zap size={16} /> },
+          ].map(({ title, label, icon }) => (
+            <div key={title} className="bg-white/60 backdrop-blur-xl border border-white rounded-2xl px-5 py-4 shadow-sm text-left">
+              <div className="flex items-center gap-2 mb-1.5">
+                <span className="w-8 h-8 rounded-xl bg-[#003380]/10 text-[#003380] flex items-center justify-center shrink-0">{icon}</span>
+                <p className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">{title}</p>
+              </div>
+              <p className="text-sm font-black text-slate-700 leading-snug">{label}</p>
             </div>
           ))}
         </div>
