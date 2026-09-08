@@ -44,6 +44,25 @@ class PrescriptionService(LegacyPrescriptionService):
         result["evaluation"] = context.evaluation_dict()
         return result
 
+    def check_safety(self, db: Session, patient_id: int, drug_names: List[str]) -> List[Dict[str, Any]]:
+        """Expose legacy safety warnings minus known non-evaluable false signals."""
+        warnings = super().check_safety(db, patient_id, drug_names)
+        filtered: List[Dict[str, Any]] = []
+        for warning in warnings:
+            # "allergie" without the allergen is not specific enough to infer
+            # a penicillin-class contraindication. Specific penicillin history
+            # warnings remain untouched.
+            if str(warning.get("antecedent", "")).strip().lower() == "allergie":
+                continue
+
+            # Preventive recall belongs to patient follow-up, not medication
+            # safety. Keep it out of the prescription safety contract.
+            if warning.get("drug") == "omission-prophylaxie":
+                continue
+
+            filtered.append(warning)
+        return filtered
+
     @staticmethod
     def _normalize_preference_act_code(act_code: str) -> str:
         normalized = " ".join((act_code or "").strip().upper().split())
