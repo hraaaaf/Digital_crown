@@ -43,13 +43,13 @@ def test_child_without_weight_does_not_receive_a_calculated_dose():
 def test_child_with_explicit_weight_uses_that_weight_for_calculation():
     result = ClinicalRulesEngine().analyze_case(
         {"age": 10, "poids": 30, "antecedents": ""},
-        ["PULPITE"],
+        ["ABCES_DENTAIRE"],
     )
     by_molecule = _by_molecule(result)
 
     assert result["is_child"] is True
+    assert by_molecule["AMOXICILLINE"]["dosage_defaut"] == "750mg x 2/jour (50mg/kg/j)"
     assert by_molecule["PARACETAMOL"]["dosage_defaut"] == "450mg x 4/jour (60mg/kg/j)"
-    assert by_molecule["IBUPROFENE"]["dosage_defaut"] == "300mg x 3/jour (30mg/kg/j)"
 
 
 def test_adult_without_weight_keeps_adult_standard_dosing_path():
