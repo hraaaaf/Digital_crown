@@ -124,9 +124,69 @@ Constat vérifié :
 
 Classement : `DELETE` pour ces deux fallback locaux uniquement ; audit scientifique du moteur complet toujours requis.
 
+#### Audit scientifique actif — premiers résultats vérifiés
+
+1. **Prophylaxie endocardite avec clindamycine**
+   - code actuel : alternative automatique `Clindamycine 600 mg` en cas d'allergie pénicilline ;
+   - état : `REPLACE` ;
+   - preuve externe : les recommandations AAPD 2026 basées sur les recommandations AHA indiquent explicitement que la clindamycine n'est plus recommandée pour la prophylaxie d'une procédure dentaire ;
+   - conséquence : ne pas conserver cette alternative automatique dans le futur moteur canonique.
+
+2. **Radiographie pendant la grossesse — tablier plombé obligatoire**
+   - code actuel : message `CRITICAL` affirmant que tablier plombé + collerette sont obligatoires ;
+   - état : `REPLACE / CONFLIT DE SOURCES` ;
+   - preuve externe : ADA 2024 recommande de ne plus utiliser systématiquement tablier abdominal/collerette, y compris chez la patiente enceinte ; une publication ACOG plus ancienne mentionne encore le shielding ;
+   - conséquence : retirer toute formulation absolue et reconstruire cette règle sur une source/version clairement choisie, avec réglementation locale si nécessaire.
+
+3. **Probiotique automatique après amoxicilline/Augmentin**
+   - code actuel : ajoute automatiquement `Saccharomyces boulardii` et le présente comme prévention de colite/diarrhée ;
+   - état : `REPLACE / DELETE AUTO-RECOMMENDATION` ;
+   - preuve externe : la page ADA Antibiotic Stewardship rapporte que les données sont insuffisantes pour recommander les probiotiques pour prévenir l'infection à C. difficile ;
+   - conséquence : ne pas faire d'une co-prescription automatique un comportement canonique.
+
+4. **Antibioprophylaxie automatique des implants**
+   - code actuel : protocole implant => Augmentin + message de prophylaxie systématique ;
+   - état : `REPLACE / NON SOURCÉ` ;
+   - preuve externe : l'ADA indique qu'une recommandation dédiée aux patients sains subissant une pose d'implant est encore dans son programme de guideline vivante et attendue pour l'hiver 2026 ;
+   - conséquence : Digital Crown ne doit pas présenter une prophylaxie implant universelle comme vérité établie sans référentiel validé.
+
+5. **Grossesse et AINS**
+   - code actuel : classe tous les AINS/ibuprofène comme contre-indication absolue pour toute grossesse ;
+   - état : `REPLACE` ;
+   - preuve externe : FDA recommande d'éviter les AINS à partir de 20 semaines, de les éviter après 30 semaines, et prévoit des nuances/exceptions ;
+   - conséquence : une règle grossesse doit utiliser l'âge gestationnel et ne pas transformer une règle temporelle en interdiction uniforme.
+
+6. **Antibiotiques pour pathologies pulpaires/périapicales**
+   - code actuel : plusieurs protocoles associent directement diagnostic/acte à molécules ;
+   - état : `REPLACE / REASONING REQUIRED` ;
+   - preuve externe : guideline ADA douleur/infection 2019 recommande le traitement dentaire définitif plutôt que l'antibiothérapie pour la majorité des pathologies pulpaires/périapicales, avec antibiotiques notamment en cas d'atteinte systémique ;
+   - conséquence : le futur moteur doit raisonner sur diagnostic + signes systémiques + traitement étiologique, pas sur un simple mapping mot-clé → médicament.
+
+#### Conclusion du lot ClinicalRulesEngine
+
+Le fichier ne doit pas devenir le noyau scientifique canonique en l'état.
+
+Responsabilités à conserver :
+- moteur déterministe ;
+- détection structurée de contexte ;
+- capacité à produire des alertes explicables.
+
+Responsabilités à reconstruire :
+- règles pharmacologiques ;
+- prophylaxies ;
+- diagnostics ;
+- recommandations thérapeutiques ;
+- sources/versioning ;
+- niveau de certitude ;
+- gestion des données manquantes.
+
+Classement global actuel : `REPLACE / CONSOLIDATE`, pas `DELETE` brutal tant que ses garde-fous utiles ne sont pas couverts ailleurs.
+
 Next :
-- supprimer ces deux variables mortes ;
-- auditer ensuite chaque règle active du moteur et distinguer règle valide, règle trop absolue, règle obsolète et règle sans source.
+- retirer le code mort local ;
+- inventorier ses consommateurs runtime ;
+- identifier les garde-fous uniques à préserver ;
+- isoler les règles obsolètes/trop absolues derrière un futur moteur scientifique versionné.
 
 ### 1.6 Imagerie panoramique
 
@@ -231,10 +291,10 @@ Premières conclusions :
 - `TreatmentPlanEngine` : supprimé et certifié sur PR ;
 - `clinical_coherence.py` : actif, audit/remplacement requis ;
 - prescription/safety legacy : faux signaux déjà réduits, consolidation restante ;
-- `clinical_rules_engine.py` : deux fallback synthétiques identifiés comme variables mortes, suppression requise ;
+- `clinical_rules_engine.py` : classé globalement `REPLACE / CONSOLIDATE`; plusieurs règles actives obsolètes, trop absolues ou non sourcées identifiées ;
 - panoramique/vision : consolidation à auditer ;
 - céphalométrie : audit après nettoyage prioritaire.
 
 ## NEXT EXACT
 
-Supprimer les deux variables mortes `age=30` et `poids=70` dans `clinical_rules_engine.py`, puis auditer exhaustivement les règles actives de ce moteur avant toute reconstruction scientifique.
+Inventorier les consommateurs runtime de `clinical_rules_engine.py`, identifier les garde-fous uniques à préserver, puis isoler/supprimer les règles scientifiquement faibles uniquement après couverture ou remplacement prouvé.
