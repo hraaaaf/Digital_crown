@@ -1,16 +1,10 @@
-import pytest
-from datetime import datetime, timedelta, date
+from datetime import datetime, timedelta
+
 from backend import models
 from backend.services.prescription_service import prescription_service
 
 
 def test_antibiotic_crosscheck_no_surgical_act(db, dentiste):
-    """
-    Si on prescrit un antibiotique (ex: Amoxicilline) mais qu'aucun
-    acte chirurgical ou endodontique n'est prévu ou réalisé aujourd'hui,
-    une alerte de type 'coherence' (antibiotique-injustifie) doit être générée.
-    """
-    # Création du patient
     patient = models.Patient(
         nom="Alami",
         prenom="Omar",
@@ -22,7 +16,6 @@ def test_antibiotic_crosscheck_no_surgical_act(db, dentiste):
     db.commit()
     db.refresh(patient)
 
-    # RDV simple d'aujourd'hui sans mot-clé chirurgical
     appt = models.Appointment(
         patient_id=patient.id,
         datetime_start=datetime.now(),
@@ -34,10 +27,8 @@ def test_antibiotic_crosscheck_no_surgical_act(db, dentiste):
     db.add(appt)
     db.commit()
 
-    # Appel de check_safety
     warnings = prescription_service.check_safety(db, patient.id, ["Amoxicilline 1g"])
-    
-    # On doit retrouver l'alerte d'incohérence
+
     coherence_warnings = [w for w in warnings if w.get("type") == "coherence"]
     assert len(coherence_warnings) == 1
     assert coherence_warnings[0]["drug"] == "antibiotique-injustifie"
@@ -45,11 +36,6 @@ def test_antibiotic_crosscheck_no_surgical_act(db, dentiste):
 
 
 def test_antibiotic_crosscheck_with_surgical_act(db, dentiste):
-    """
-    Si un acte chirurgical (ex: Extraction) est prévu aujourd'hui,
-    l'alerte d'antibiothérapie injustifiée ne doit PAS apparaître.
-    """
-    # Création du patient
     patient = models.Patient(
         nom="El Fassi",
         prenom="Youssef",
@@ -61,7 +47,6 @@ def test_antibiotic_crosscheck_with_surgical_act(db, dentiste):
     db.commit()
     db.refresh(patient)
 
-    # RDV d'aujourd'hui pour une extraction
     appt = models.Appointment(
         patient_id=patient.id,
         datetime_start=datetime.now(),
@@ -73,18 +58,14 @@ def test_antibiotic_crosscheck_with_surgical_act(db, dentiste):
     db.add(appt)
     db.commit()
 
-    # Appel de check_safety
     warnings = prescription_service.check_safety(db, patient.id, ["Amoxicilline 1g"])
-    
+
     coherence_warnings = [w for w in warnings if w.get("type") == "coherence"]
     assert len(coherence_warnings) == 0
 
 
-def test_prophylaxis_omission_no_recent_prophy(db, dentiste):
-    """
-    Si aucun détartrage/prophylaxie n'a été fait dans les 12 derniers mois,
-    une suggestion de type 'omission' (omission-prophylaxie) doit être générée.
-    """
+def test_medication_safety_does_not_emit_prophylaxis_omission(db, dentiste):
+    """Preventive recall belongs outside the medication-safety contract."""
     patient = models.Patient(
         nom="Tazi",
         prenom="Laila",
@@ -96,31 +77,27 @@ def test_prophylaxis_omission_no_recent_prophy(db, dentiste):
     db.commit()
     db.refresh(patient)
 
-    # RDV ancien (plus de 12 mois)
     old_date = datetime.now() - timedelta(days=400)
-    appt = models.Appointment(
-        patient_id=patient.id,
-        datetime_start=old_date,
-        duration_minutes=30,
-        motif="Détartrage",
-        status=models.AppointmentStatus.TERMINE,
-        employer_id=dentiste.id,
+    db.add(
+        models.Appointment(
+            patient_id=patient.id,
+            datetime_start=old_date,
+            duration_minutes=30,
+            motif="Détartrage",
+            status=models.AppointmentStatus.TERMINE,
+            employer_id=dentiste.id,
+        )
     )
-    db.add(appt)
     db.commit()
 
     warnings = prescription_service.check_safety(db, patient.id, ["Doliprane 1g"])
-    
-    omission_warnings = [w for w in warnings if w.get("type") == "omission"]
-    assert len(omission_warnings) == 1
-    assert omission_warnings[0]["drug"] == "omission-prophylaxie"
-    assert "Aucun détartrage" in omission_warnings[0]["message"]
+
+    assert not any(w.get("type") == "omission" for w in warnings)
+    assert not any(w.get("drug") == "omission-prophylaxie" for w in warnings)
 
 
-def test_prophylaxis_omission_with_recent_prophy(db, dentiste):
-    """
-    Si un détartrage a été fait il y a 6 mois, l'omission ne doit pas être générée.
-    """
+def test_medication_safety_ignores_recent_prophylaxis_state(db, dentiste):
+    """A recent prophylaxis must not affect medication safety either way."""
     patient = models.Patient(
         nom="Mernissi",
         prenom="Salma",
@@ -132,20 +109,18 @@ def test_prophylaxis_omission_with_recent_prophy(db, dentiste):
     db.commit()
     db.refresh(patient)
 
-    # Acte de détartrage récent (6 mois)
-    recent_date = datetime.now() - timedelta(days=180)
-    acte = models.Acte(
-        patient_id=patient.id,
-        praticien_id=dentiste.id,
-        type_acte=models.ActeType.SOIN,
-        libelle="Détartrage et polissage",
-        montant=400.0,
-        date_debut=recent_date,
+    db.add(
+        models.Acte(
+            patient_id=patient.id,
+            praticien_id=dentiste.id,
+            type_acte=models.ActeType.SOIN,
+            libelle="Détartrage et polissage",
+            montant=400.0,
+            date_debut=datetime.now() - timedelta(days=180),
+        )
     )
-    db.add(acte)
     db.commit()
 
     warnings = prescription_service.check_safety(db, patient.id, ["Doliprane 1g"])
-    
-    omission_warnings = [w for w in warnings if w.get("type") == "omission"]
-    assert len(omission_warnings) == 0
+
+    assert not any(w.get("type") == "omission" for w in warnings)
