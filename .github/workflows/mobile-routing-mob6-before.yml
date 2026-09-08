@@ -19,7 +19,17 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 25
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout branch harness
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Freeze corrected harness then checkout exact pre-implementation head
+        run: |
+          cp frontend/scripts/capture-mobile-routing-mob6-before.mjs /tmp/capture-mobile-routing-mob6-before.mjs
+          git checkout --detach d5bf9439e8eae60c1d0c8616a92353041fb5ac9a
+          cp /tmp/capture-mobile-routing-mob6-before.mjs frontend/scripts/capture-mobile-routing-mob6-before.mjs
+          test "$(git rev-parse HEAD)" = "d5bf9439e8eae60c1d0c8616a92353041fb5ac9a"
 
       - uses: actions/setup-node@v4
         with:
