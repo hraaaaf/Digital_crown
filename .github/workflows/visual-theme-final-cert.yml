@@ -38,9 +38,13 @@ jobs:
           p = Path('visual-theme-final-cert.mjs')
           s = p.read_text()
 
+          s = s.replace("'/landing', '/download', '/activate', '/login', '/register', '/terms', '/privacy',", "'/landing', '/download', '/activate', '/login', '/register', '/terms', '/privacy', '/setup',")
+          s = s.replace("'/settings', '/analytics', '/labo', '/stock', '/approvisionnement',", "'/settings', '/analytics', '/labo', '/stock', '/approvisionnement', '/approvisionnement/admin',")
+          s = s.replace("'/salle-attente', '/bibliotheque', '/science-hub', '/super-admin',", "'/salle-attente', '/bibliotheque', '/bibliotheque/aligneurs-transparents', '/science-hub', '/super-admin',")
           s = s.replace('const mobileWidths = [390, 430];', 'const mobileWidths = [390, 430, 768];')
-          s = s.replace('function fixture(pathname, method) {', 'function fixture(pathname, method, theme) {')
-          s = s.replace('const body = fixture(u.pathname, req.method());', 'const body = fixture(u.pathname, req.method(), theme);')
+          s = s.replace('function fixture(pathname, method) {', 'function fixture(pathname, method, theme, routePath) {')
+          s = s.replace('const body = fixture(u.pathname, req.method());', 'const body = fixture(u.pathname, req.method(), theme, routePath);')
+          s = s.replace("if (pathname.endsWith('/api/clinics/init-status')) return { is_initialized: true };", "if (pathname.endsWith('/api/clinics/init-status')) return { is_initialized: routePath !== '/setup' };")
 
           clinic_old = "if (pathname.endsWith('/api/clinics/me')) return { id: 1, nom: 'Cabinet Digital Crown', nom_praticien: 'Dr Audit Visuel', city: 'Rabat' };"
           clinic_new = "if (pathname.endsWith('/api/clinics/me')) return { id: 1, nom: 'Cabinet Digital Crown', nom_cabinet: 'Cabinet Digital Crown', nom_praticien: 'Dr Audit Visuel', city: 'Rabat', selected_theme: theme === 'default' ? 'elite' : 'ocean', primary_color: theme === 'default' ? '#003380' : '#0284c7', secondary_color: theme === 'default' ? '#1e40af' : '#0369a1', accent_color: theme === 'default' ? '#60a5fa' : '#38bdf8' };"
@@ -61,8 +65,13 @@ jobs:
           s = s.replace(mobile_anchor, mobile_fixture, 1)
 
           market_anchor = "if (pathname.includes('marketplace') || pathname.includes('catalog') || pathname.includes('partners') || pathname.includes('products')) return [];"
-          market_fixtures = """if (pathname.endsWith('/api/partner-catalog/products/1')) return { id: 1, supplierId: 1, supplierName: 'Dental Partner', externalProductId: 'SKU-001', name: 'Composite Universel', sku: 'SKU-001', dentalCategory: 'Restauration', dentalSpecialty: 'Omnipratique', unit: 'boîte', price: 420, availability: 'AVAILABLE', shortDescription: 'Composite photopolymérisable universel.', longDescription: 'Matériau de restauration polyvalent pour le cabinet.', benefits: ['Manipulation simple', 'Teinte universelle'], isFeatured: true, sortOrder: 1 };
+          market_fixtures = """if (pathname.endsWith('/api/partner-catalog/meta')) return { categories: ['Restauration'], specialties: ['Omnipratique'], availability: ['AVAILABLE', 'ON_ORDER', 'DISCONTINUED'] };
+            if (pathname.endsWith('/api/partner-catalog/products/1')) return { id: 1, supplierId: 1, supplierName: 'Dental Partner', externalProductId: 'SKU-001', name: 'Composite Universel', sku: 'SKU-001', dentalCategory: 'Restauration', dentalSpecialty: 'Omnipratique', unit: 'boîte', price: 420, availability: 'AVAILABLE', shortDescription: 'Composite photopolymérisable universel.', longDescription: 'Matériau de restauration polyvalent pour le cabinet.', benefits: ['Manipulation simple', 'Teinte universelle'], isFeatured: true, sortOrder: 1 };
             if (pathname.endsWith('/api/partner-catalog/suppliers/1')) return { id: 1, supplierKey: 'dental-partner', name: 'Dental Partner', badge: 'Partenaire', description: 'Fournisseur catalogue de démonstration.', promise: 'Livraison et support cabinet.', apiBaseUrl: null, syncMode: 'MANUAL', isActive: true, productCount: 1 };
+            if (pathname.endsWith('/api/partner-catalog/suppliers')) return [{ id: 1, supplierKey: 'dental-partner', name: 'Dental Partner', badge: 'Partenaire', description: 'Fournisseur catalogue de démonstration.', promise: 'Livraison et support cabinet.', apiBaseUrl: null, syncMode: 'MANUAL', isActive: true, productCount: 1 }];
+            if (pathname.endsWith('/api/partner-catalog/products')) return [{ id: 1, supplierId: 1, supplierName: 'Dental Partner', externalProductId: 'SKU-001', name: 'Composite Universel', sku: 'SKU-001', dentalCategory: 'Restauration', dentalSpecialty: 'Omnipratique', unit: 'boîte', price: 420, availability: 'AVAILABLE', shortDescription: 'Composite photopolymérisable universel.', longDescription: 'Matériau de restauration polyvalent pour le cabinet.', benefits: ['Manipulation simple', 'Teinte universelle'], isFeatured: true, sortOrder: 1 }];
+            if (pathname.endsWith('/api/partner-orders')) return [];
+            if (pathname.endsWith('/api/partner-orders/meta')) return { supportedStatuses: ['DRAFT', 'SUBMITTED', 'CONFIRMED'] };
             """ + market_anchor
           if market_anchor not in s: raise SystemExit('market fixture anchor missing')
           s = s.replace(market_anchor, market_fixtures, 1)
