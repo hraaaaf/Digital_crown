@@ -11,7 +11,7 @@ def test_legacy_clinical_coherence_has_no_runtime_consumers():
 
     for path in (ROOT / "backend").rglob("*.py"):
         relative = path.relative_to(ROOT).as_posix()
-        if relative in {TARGET, "backend/tests/test_clinical_coherence_reachability.py"}:
+        if relative == TARGET or relative.startswith("backend/tests/"):
             continue
         source = path.read_text(encoding="utf-8", errors="ignore")
         matched = sorted(token for token in TOKENS if token in source)
