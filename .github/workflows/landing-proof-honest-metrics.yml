@@ -1,0 +1,94 @@
+name: Landing Honest Proof Visual Cert
+
+on:
+  push:
+    branches: [audit/visual-theme-2026-09-08]
+    paths:
+      - 'frontend/src/pages/LandingPage.tsx'
+      - '.github/workflows/landing-proof-honest-metrics.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  capture:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install dependencies
+        working-directory: frontend
+        run: |
+          npm ci
+          npm install --no-save --package-lock=false playwright@1.55.0
+          npx playwright install --with-deps chromium
+      - name: Write landing capture harness
+        working-directory: frontend
+        run: |
+          cat > landing-proof.mjs <<'EOF'
+          import { chromium } from 'playwright';
+          import { createServer } from 'vite';
+          import fs from 'node:fs/promises';
+
+          const label = process.env.CAPTURE_LABEL;
+          const out = `../artifacts/landing-proof/${label}`;
+          await fs.mkdir(out, { recursive: true });
+          const server = await createServer({ server: { host: '127.0.0.1', port: 4177, strictPort: true }, clearScreen: false });
+          await server.listen();
+          const browser = await chromium.launch();
+          try {
+            for (const width of [390, 430, 768, 1280]) {
+              for (const theme of ['default', 'ocean']) {
+                const context = await browser.newContext({ viewport: { width, height: 1000 }, locale: 'fr-FR' });
+                const page = await context.newPage();
+                await page.addInitScript(({ theme }) => {
+                  if (theme === 'ocean') localStorage.setItem('digitalcrown_theme', 'ocean');
+                  else localStorage.removeItem('digitalcrown_theme');
+                }, { theme });
+                await page.goto('http://127.0.0.1:4177/landing', { waitUntil: 'domcontentloaded' });
+                if (theme === 'ocean') {
+                  await page.evaluate(() => {
+                    document.documentElement.dataset.theme = 'ocean';
+                    document.body.dataset.theme = 'ocean';
+                  });
+                }
+                await page.waitForTimeout(1200);
+                const hero = page.locator('section').first();
+                await hero.screenshot({ path: `${out}/${theme}__landing-hero__${width}.png`, animations: 'disabled' });
+                await context.close();
+              }
+            }
+          } finally {
+            await browser.close();
+            await server.close();
+          }
+          EOF
+      - name: Capture BEFORE
+        working-directory: frontend
+        env:
+          CAPTURE_LABEL: before
+        run: |
+          git checkout 0bf34f08ca0bb05f083f535cf48287438786c997
+          node landing-proof.mjs
+      - name: Capture AFTER
+        working-directory: frontend
+        env:
+          CAPTURE_LABEL: after
+        run: |
+          git checkout eeeefb4ff1ae8ea6400953f37d0661531469bc84
+          node landing-proof.mjs
+      - name: Upload evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: landing-honest-proof-before-after
+          path: artifacts/landing-proof
+          retention-days: 14
+          if-no-files-found: error
