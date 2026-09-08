@@ -74,6 +74,9 @@ jobs:
           contract.write_text('''from pathlib import Path\n\n\nROOT = Path(__file__).resolve().parents[2]\n\n\ndef test_dormant_treatment_plan_engine_is_removed():\n    assert not (ROOT / "backend/services/treatment_plan_engine.py").exists()\n\n    for relative in (\n        "backend/services/elite_manager.py",\n        "backend/routers/ia.py",\n    ):\n        source = (ROOT / relative).read_text(encoding="utf-8")\n        assert "treatment_plan_engine" not in source\n        assert "TreatmentPlanEngine" not in source\n\n\ndef test_patient_plan_generation_remains_fail_closed():\n    source = (ROOT / "backend/services/elite_manager.py").read_text(encoding="utf-8")\n    assert "Génération automatique du plan de traitement désactivée" in source\n''', encoding='utf-8')
           PY
 
+      - name: Install minimal test runner
+        run: python -m pip install --disable-pip-version-check -q pytest
+
       - name: Verify purge diff
         run: |
           test ! -e backend/services/treatment_plan_engine.py
