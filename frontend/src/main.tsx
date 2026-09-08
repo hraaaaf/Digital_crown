@@ -7,6 +7,7 @@ import { bootstrapMobileRuntimeTheme } from './features/mobile/Dashboard/hooks/u
 import { bootstrapMobileQuickIntent } from './features/mobile/mobileQuickIntent.ts'
 import { isMobileRuntimeDevice, resolveCanonicalMobileRoute, resolveMobileWildcardFallback } from './features/mobile/mobileRouting.ts'
 import './index.css'
+import './styles/oceanThemeCompat.css'
 import './styles/mobileGlassSystem.css'
 import './features/mobile/mobileRuntimeTheme.css'
 import './features/mobile/mobileQuickIntent.css'
