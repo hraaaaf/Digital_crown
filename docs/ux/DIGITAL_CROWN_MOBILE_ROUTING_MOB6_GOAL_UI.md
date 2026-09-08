@@ -29,28 +29,25 @@ Routes top-level avec équivalent mobile prouvé :
 Les destinations sont résolues via `MOBILE_BRIDGE_ROUTES`, pas via une seconde table d’URLs mobiles.
 
 ## Deep-links volontairement non redirigés
-Exemples :
-- `/patients/:id`
-- `/patients/:id/edit`
-- `/patients/:id/archives`
-- `/bibliotheque/:code`
-- `/approvisionnement/partenaire/:partnerId`
-- `/approvisionnement/produits/:productId`
+Exemples : `/patients/:id`, `/patients/:id/edit`, `/patients/:id/archives`, `/bibliotheque/:code`, `/approvisionnement/partenaire/:partnerId`, `/approvisionnement/produits/:productId`.
 
 Ils restent desktop tant que le mobile ne peut pas préserver le patient, protocole, partenaire ou produit ciblé sans perte de contexte.
 
 ## Garde-fous
-- pas de redirect basé uniquement sur largeur pour les pages publiques/auth ;
-- ne jamais casser les deep links desktop sur desktop ;
-- ne jamais court-circuiter `MobileProtectedRoute` ;
+- pas de redirect des pages publiques/auth ;
+- deep links desktop conservés sur desktop ;
+- `MobileProtectedRoute` non court-circuité ;
 - appairage/cache/biométrie inchangés ;
 - pas de nouvelle architecture de navigation parallèle ;
 - pas de Vercel.
 
-## Preuves disponibles
-- AFTER cert `34210579881` : contrat, build et browser 390/430/768 SUCCESS sur le premier product head certifié `fcbdb8afb590f29c7d923743ca75b7eec017885f` ;
-- artifact AFTER `10049662623`, digest `sha256:aa08739d1f5430588d0c9587f69d7ed36bcef28e00041edabc1e90d5c2298edd` ;
-- recertification requise après refactor vers `MOBILE_BRIDGE_ROUTES` ;
-- BEFORE exact pré-implémentation en recertification.
+## Preuves Goal → résultat
+- BEFORE final `34211312980` ✅ ; artifact `10049990601` ; digest `sha256:c89e86a107100e1596187291f9650c12bf716ffcc95c225efd4e670230b1eef4` ;
+- AFTER final `34211780896` ✅ ; artifact `10050137272` ; digest `sha256:dc1e5a72d02f668cf537ec9fa28341940d34df7388603da6974eeac393d82ec7` ;
+- routing contract ✅ ;
+- frontend build ✅ ;
+- 390×844 / 430×932 / 768×1024 : browser AFTER ✅ ;
+- 0 overflow / page error / console error ;
+- score visuel/comportemental **9.4/10**.
 
-Statut : `GOAL LOCKED — IMPLEMENTED — FINAL RECERTIFICATION PENDING`.
+Statut : `GOAL DELIVERED — PRE-MERGE CERTIFIED`.
