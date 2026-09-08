@@ -213,12 +213,12 @@ Aucun déploiement Vercel.
 
 ---
 
-## MOB-6 — Canonisation du routage mobile — IMPLEMENTED / FINAL CERTIFICATION IN PROGRESS
+## MOB-6 — Canonisation du routage mobile — PRE-MERGE CERTIFIED
 
 ### Goal
 Supprimer l'ambiguïté entre PWA mobile dédiée et shell desktop responsive sans casser desktop, onboarding, offline/cache, biométrie, context bridges ni routes publiques.
 
-### Politique implémentée
+### Politique certifiée
 - canonisation avant auth/rendu dans `main.tsx` ;
 - même règle mobile historique : viewport <= 768 ou user-agent mobile ;
 - destinations mobiles résolues via `MOBILE_BRIDGE_ROUTES` ;
@@ -233,19 +233,22 @@ Supprimer l'ambiguïté entre PWA mobile dédiée et shell desktop responsive sa
 ### Réserve de sécurité
 Les deep-links riches restent desktop tant qu'une destination mobile ne peut pas préserver exactement l'entité ciblée : patient, archives/édition, protocole, partenaire ou produit.
 
-### Preuves disponibles
+### Preuves
 - baseline master `301454a367b8b7952d0fef94e86c40e8e4a248e2` ;
-- commit pré-implémentation BEFORE figé `d5bf9439e8eae60c1d0c8616a92353041fb5ac9a` ;
-- BEFORE initial artifact `10049516548`, digest `sha256:8dd859d17c19c8ca42d2b67645e5f816d7731a749dbff950cba650e03f6ab85c` ;
-- AFTER initial run `34210579881` ✅ ;
-- AFTER initial artifact `10049662623` ;
-- digest `sha256:aa08739d1f5430588d0c9587f69d7ed36bcef28e00041edabc1e90d5c2298edd` ;
-- score visuel/comportemental provisoire **9.4/10** ;
-- recertification BEFORE finale `34211312980` en cours ;
-- certification AFTER finale `34211284167` en cours ;
-- preuve : `docs/ux/DIGITAL_CROWN_MOBILE_ROUTING_MOB6_PROOF.md`.
+- commit pré-implémentation BEFORE `d5bf9439e8eae60c1d0c8616a92353041fb5ac9a` ;
+- BEFORE final run `34211312980` ✅ ;
+- BEFORE artifact `10049990601` ;
+- BEFORE digest `sha256:c89e86a107100e1596187291f9650c12bf716ffcc95c225efd4e670230b1eef4` ;
+- AFTER final run `34211780896` ✅ ;
+- product/test HEAD certifié `e62217739c14c46747c159d9c3be9f76668c7a30` ;
+- AFTER artifact `10050137272` ;
+- AFTER digest `sha256:dc1e5a72d02f668cf537ec9fa28341940d34df7388603da6974eeac393d82ec7` ;
+- routing contract ✅ ; frontend build ✅ ; browser 390/430/768 ✅ ;
+- 0 overflow / page error / console error ;
+- score visuel/comportemental **9.4/10** ;
+- preuve `docs/ux/DIGITAL_CROWN_MOBILE_ROUTING_MOB6_PROOF.md`.
 
-MOB-6 ne devient `PRE-MERGE CERTIFIED` qu'après succès des deux runs finaux.
+MOB-6 n’est pas encore `CLOSED` : PR produit, CI PR, merge et post-merge master restent requis.
 
 ## MOB-7 — Certification globale Mobile Product — PLANNED
 Preuves minimales : frontend/backend ciblés, build, runtime, RBAC, offline/sync/revocation, context bridges, BEFORE/AFTER 390/430/768, zéro overflow, zéro erreur console/page, comparaison Goal UI, score visuel et gates physiques séparés.
@@ -264,4 +267,4 @@ Ordre : validation → canonique → cohérence docs → roadmap/% réel → Git
 - ne pas déployer sur Vercel sans autorisation explicite.
 
 ## Next exact
-Valider les runs finaux MOB-6 `34211312980` (BEFORE exact) et `34211284167` (AFTER final). S'ils sont verts : verrouiller les artifacts/digests finaux, passer MOB-6 en `PRE-MERGE CERTIFIED`, ouvrir la PR produit, puis exécuter CI/merge/post-merge avant toute clôture.
+Ouvrir et certifier la PR produit MOB-6 depuis `ux/mobile-routing-mob6` vers `master`. Si CI PR verte : merge, vérifier la CI post-merge master, puis seulement effectuer le closeout documentaire `CLOSED` avant d’engager MOB-7.
