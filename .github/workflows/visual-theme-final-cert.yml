@@ -75,11 +75,14 @@ jobs:
           if api_anchor not in s: raise SystemExit('api fixture anchor missing')
           s = s.replace(api_anchor, extra_fixtures, 1)
 
-          init_old = "await page.addInitScript(({ token, theme }) => {\n                    localStorage.setItem('token', token);"
-          init_new = "await page.addInitScript(({ token, theme, routePath }) => {\n                    if (routePath === '/login') localStorage.removeItem('token'); else localStorage.setItem('token', token);"
-          if init_old not in s: raise SystemExit('init script anchor missing')
-          s = s.replace(init_old, init_new, 1)
-          s = s.replace("}, { token, theme });", "}, { token, theme, routePath });", 1)
+          init_head = "await page.addInitScript(({ token, theme }) => {"
+          init_token = "localStorage.setItem('token', token);"
+          init_tail = "}, { token, theme });"
+          if init_head not in s or init_token not in s or init_tail not in s:
+              raise SystemExit('init script anchors missing')
+          s = s.replace(init_head, "await page.addInitScript(({ token, theme, routePath }) => {", 1)
+          s = s.replace(init_token, "if (routePath === '/login') localStorage.removeItem('token'); else localStorage.setItem('token', token);", 1)
+          s = s.replace(init_tail, "}, { token, theme, routePath });", 1)
 
           p.write_text(s)
           PY
