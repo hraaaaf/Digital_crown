@@ -58,10 +58,14 @@ def test_patient_plan_generation_remains_fail_closed():
     assert "Génération automatique du plan de traitement désactivée" in source
 
 
+def test_panoramic_delete_candidates_are_removed():
+    for relative in PANORAMIC_DELETE_CANDIDATES:
+        assert not (ROOT / relative).exists(), relative
+
+
 def test_panoramic_delete_candidates_have_no_external_runtime_consumers():
-    """Prove DELETE candidates are not referenced outside their own deletion set."""
-    excluded = set(PANORAMIC_DELETE_CANDIDATES)
-    excluded.add("backend/tests/test_scientific_core_purge_contract.py")
+    """Prove removed wrappers have no references in executable/runtime text."""
+    excluded = {"backend/tests/test_scientific_core_purge_contract.py"}
     forbidden_tokens = {
         token
         for tokens in PANORAMIC_DELETE_CANDIDATES.values()
@@ -82,4 +86,4 @@ def test_panoramic_delete_candidates_have_no_external_runtime_consumers():
         if matched:
             offenders.append((relative, matched))
 
-    assert not offenders, f"Panoramic DELETE candidates still have runtime consumers: {offenders}"
+    assert not offenders, f"Removed panoramic wrappers still have runtime references: {offenders}"
