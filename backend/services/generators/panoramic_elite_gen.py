@@ -1,12 +1,13 @@
 import os
+import re
 import logging
 from typing import Optional, List, Dict
 from datetime import datetime
 from jinja2 import Environment, FileSystemLoader
 import importlib.util
 
-from backend.services.base_template import BaseTemplate, NAVY_BLUE
-from backend import models, schemas, database
+from backend.services.base_template import BaseTemplate
+from backend import models
 from backend.utils.access_control import assert_patient_access
 from sqlalchemy.orm import Session
 
@@ -14,8 +15,14 @@ WEASYPRINT_AVAILABLE = importlib.util.find_spec("weasyprint") is not None
 
 logger = logging.getLogger(__name__)
 
+
 class PanoramicEliteGenerator(BaseTemplate):
-    """Générateur PDF du bilan radiographique Élite."""
+    """Générateur PDF du bilan radiographique Élite.
+
+    Scientific boundary: the PDF is a presentation layer. It must not infer
+    dentition status, cephalometric status, diagnosis, treatment, or clinician
+    specialty when those facts are not explicitly documented upstream.
+    """
 
     def __init__(self, output_dir="static/reports/panoramic"):
         super().__init__()
@@ -53,7 +60,9 @@ class PanoramicEliteGenerator(BaseTemplate):
         from backend.services.qr_service import qr_service
         qr_color = config.qr_code_color if config and config.qr_code_color else p_color
         qr_style = config.qr_code_style if config and config.qr_code_style else 'dots'
-        qr_base64 = qr_service.generate_document_qr_base64("RADIO", str(analysis_id), color=qr_color, qr_style=qr_style)
+        qr_base64 = qr_service.generate_document_qr_base64(
+            "RADIO", str(analysis_id), color=qr_color, qr_style=qr_style
+        )
 
         age = self._calculate_age(patient.date_naissance)
         context = {
@@ -70,11 +79,11 @@ class PanoramicEliteGenerator(BaseTemplate):
             "categories": categories,
             "metrics": metrics,
             "qr_code_base64": qr_base64,
-            "denture_type": "Denture Adulte" if isinstance(age, int) and age > 12 else "Denture Mixte"
+            "denture_type": self._documented_denture_type(analysis),
         }
 
         template = self.jinja_env.get_template("panoramic_elite.html")
-        html_content = template.render(context)
+        html_content = self._sanitize_rendered_html(template.render(context))
         filename = f"RADIO_ELITE_{patient.nom.upper()}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf"
         file_path = os.path.join(self.full_output_dir, filename)
 
@@ -102,7 +111,12 @@ class PanoramicEliteGenerator(BaseTemplate):
             abs_path = os.path.abspath(prod_path)
         if abs_path:
             return f"file:///{abs_path.replace('\\', '/')}"
-        logger.warning(f"Image introuvable pour le PDF: {db_path} (tenté: {dev_path} et {prod_path})")
+        logger.warning(
+            "Image introuvable pour le PDF: %s (tenté: %s et %s)",
+            db_path,
+            dev_path,
+            prod_path,
+        )
         return None
 
     def _calculate_age(self, born):
@@ -111,10 +125,22 @@ class PanoramicEliteGenerator(BaseTemplate):
         today = datetime.now()
         return today.year - born.year - ((today.month, today.day) < (born.month, born.day))
 
+    def _documented_denture_type(self, analysis) -> str:
+        """Return only explicitly persisted dentition information.
+
+        Age is intentionally not used as a proxy. Absence of a finding means the
+        dentition type is not documented by this panoramic analysis.
+        """
+        data = analysis.detections_data if isinstance(analysis.detections_data, dict) else {}
+        findings = data.get("global_findings") or []
+        if "denture_mixte" in findings:
+            return "Denture mixte (documentée)"
+        return "Non documenté"
+
     def _categorize_findings(self, markdown: str) -> List[Dict]:
         categories = []
         if not markdown or len(markdown) < 10:
-            return [{"name": "Observations Générales", "findings": ["Examen en cours d'analyse."]}]
+            return [{"name": "Observations radiographiques", "findings": ["Aucune observation documentée."]}]
         current_cat = None
         lines = markdown.split('\n')
         for line in lines:
@@ -127,23 +153,27 @@ class PanoramicEliteGenerator(BaseTemplate):
                 item = line[2:].replace('**', '').strip()
                 current_cat["findings"].append(item)
         if not categories:
-            items = [l[2:].strip() for l in lines if l.startswith('- ') or l.startswith('* ')]
+            items = [line[2:].strip() for line in lines if line.startswith('- ') or line.startswith('* ')]
             if not items:
                 items = [markdown]
-            return [{"name": "Synthèse Clinique", "findings": items}]
+            return [{"name": "Observations radiographiques", "findings": items}]
         return categories
 
     def _prepare_metrics(self, angles_data: Dict) -> List[Dict]:
+        """Format only complete cephalometric measurements without inventing values/status."""
         metrics = []
         key_metrics = ["SNA", "SNB", "ANB", "Angle_de_Tweed", "IMPA", "I_Francfort", "Situation_A"]
         for name in key_metrics:
             data = angles_data.get(name)
-            if not data:
+            if not isinstance(data, dict):
                 continue
-            val = data.get('valeur', 0)
-            n_min = data.get('norm_min', 0)
-            n_max = data.get('norm_max', 0)
-            status = data.get('status', 'Normal')
+
+            val = data.get('valeur')
+            n_min = data.get('norm_min')
+            n_max = data.get('norm_max')
+            if val is None or n_min is None or n_max is None:
+                continue
+
             n_min_safe = min(n_min, n_max)
             n_max_safe = max(n_min, n_max)
             if n_max_safe != n_min_safe:
@@ -154,12 +184,19 @@ class PanoramicEliteGenerator(BaseTemplate):
             else:
                 percent = 50 if val == n_min_safe else (75 if val > n_min_safe else 25)
             percent = max(5, min(95, percent))
-            status_labels = {
-                "High": "Augmenté",
-                "Low": "Diminué",
-                "Normal": "Harmonieux",
-                "Compensated": "Compensé"
+
+            source_status = data.get('status')
+            status_map = {
+                "High": ("High", "Au-dessus de la plage de référence"),
+                "Low": ("Low", "En dessous de la plage de référence"),
+                "Normal": ("Normal", "Dans la plage de référence"),
+                "Compensated": ("Compensated", "Compensé"),
             }
+            status, status_label = status_map.get(
+                source_status,
+                ("Unverified", "Non évalué"),
+            )
+
             metrics.append({
                 "name": name.replace('_', ' '),
                 "valeur": f"{val:.1f}",
@@ -167,8 +204,38 @@ class PanoramicEliteGenerator(BaseTemplate):
                 "norme": f"[{n_min} - {n_max}]",
                 "visual_percent": int(percent),
                 "status": status,
-                "status_label": status_labels.get(status, status)
+                "status_label": status_label,
             })
         return metrics
+
+    def _sanitize_rendered_html(self, html_content: str) -> str:
+        """Neutralise les assertions de présentation incompatibles avec le contrat fail-closed."""
+        replacements = {
+            "Bilan Radiographique & Clinique": "Bilan radiographique panoramique",
+            "Intelligence Artificielle Loki-Silvres v4.0": "Repérage dentaire assisté",
+            "Analyse IA Multi-Quadrant": "Repérage dentaire assisté",
+            "Analyse Clinique & Diagnostics": "Observations radiographiques documentées",
+            "Spécialiste en Orthodontie": "Praticien",
+        }
+        for source, target in replacements.items():
+            html_content = html_content.replace(source, target)
+
+        disclaimer = (
+            '<div class="confidentiality-note" style="font-style: italic;">'
+            "Le traitement automatique est limité au repérage dentaire. "
+            "Les observations cliniques affichées proviennent des annotations du praticien. "
+            "L'absence d'annotation ne constitue pas une conclusion de normalité. "
+            "Aucun diagnostic ni traitement n'est généré automatiquement."
+            "</div>"
+        )
+        html_content = re.sub(
+            r'<div class="confidentiality-note" style="font-style: italic;">.*?</div>',
+            disclaimer,
+            html_content,
+            count=1,
+            flags=re.DOTALL,
+        )
+        return html_content
+
 
 panoramic_elite_generator = PanoramicEliteGenerator()
