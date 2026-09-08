@@ -5,6 +5,9 @@
  * visual certification and newer callers use `medical-ocean`. Keep both names
  * equivalent, then translate legacy neutral Tailwind utilities onto semantic
  * theme tokens. Status/clinical colours are deliberately left untouched.
+ *
+ * Ocean AA: primary and muted text use #0369a1 (5.93:1 on white,
+ * 5.57:1 on the Ocean pearl background). The lighter cyan remains an accent.
  */
 
 [data-theme='medical-ocean'] {
@@ -12,17 +15,24 @@
   --bg-gradient-start: #f0f9ff;
   --bg-gradient-end: #e0f2fe;
   --glass-bg: rgba(240, 249, 255, 0.9);
-  --glass-border: rgba(2, 132, 199, 0.1);
+  --glass-border: rgba(3, 105, 161, 0.14);
   --card-bg: #ffffff;
   --sidebar-bg: #f0f9ff;
   --text-main: #0c4a6e;
-  --text-muted: #0284c7;
+  --text-muted: #0369a1;
   --border-color: #bae6fd;
   --border-hover: #7dd3fc;
   --input-bg: #f0f9ff;
-  --primary: #0284c7;
-  --secondary: #0369a1;
+  --primary: #0369a1;
+  --secondary: #075985;
   --accent: #38bdf8;
+}
+
+:is([data-theme='ocean'], [data-theme='medical-ocean']) {
+  --primary: #0369a1;
+  --secondary: #075985;
+  --text-muted: #0369a1;
+  --glass-border: rgba(3, 105, 161, 0.14);
 }
 
 :is([data-theme='ocean'], [data-theme='medical-ocean'])
