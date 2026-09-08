@@ -1,0 +1,63 @@
+/*
+ * Ocean theme compatibility layer.
+ *
+ * The application historically exposes the Ocean palette as `ocean`, while
+ * visual certification and newer callers use `medical-ocean`. Keep both names
+ * equivalent, then translate legacy neutral Tailwind utilities onto semantic
+ * theme tokens. Status/clinical colours are deliberately left untouched.
+ */
+
+[data-theme='medical-ocean'] {
+  --bg-medical-pearl: #f0f9ff;
+  --bg-gradient-start: #f0f9ff;
+  --bg-gradient-end: #e0f2fe;
+  --glass-bg: rgba(240, 249, 255, 0.9);
+  --glass-border: rgba(2, 132, 199, 0.1);
+  --card-bg: #ffffff;
+  --sidebar-bg: #f0f9ff;
+  --text-main: #0c4a6e;
+  --text-muted: #0284c7;
+  --border-color: #bae6fd;
+  --border-hover: #7dd3fc;
+  --input-bg: #f0f9ff;
+  --primary: #0284c7;
+  --secondary: #0369a1;
+  --accent: #38bdf8;
+}
+
+:is([data-theme='ocean'], [data-theme='medical-ocean'])
+  :is(.bg-white, .bg-slate-50, .bg-slate-100) {
+  background-color: var(--card-bg) !important;
+}
+
+:is([data-theme='ocean'], [data-theme='medical-ocean'])
+  :is([class*='bg-white/95'], [class*='bg-white/90'], [class*='bg-white/80'], [class*='bg-white/70'], [class*='bg-white/60'], [class*='bg-white/50'], [class*='bg-white/40']) {
+  background-color: var(--glass-bg) !important;
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+}
+
+:is([data-theme='ocean'], [data-theme='medical-ocean'])
+  :is(.text-slate-900, .text-slate-800, .text-slate-700) {
+  color: var(--text-main) !important;
+}
+
+:is([data-theme='ocean'], [data-theme='medical-ocean'])
+  :is(.text-slate-600, .text-slate-500, .text-slate-400, .text-gray-500, .text-gray-600) {
+  color: var(--text-muted) !important;
+}
+
+:is([data-theme='ocean'], [data-theme='medical-ocean'])
+  :is(.border-slate-100, .border-slate-200, .border-slate-300) {
+  border-color: var(--border-color) !important;
+}
+
+:is([data-theme='ocean'], [data-theme='medical-ocean'])
+  :is(.hover\:bg-slate-50:hover, .hover\:bg-slate-100:hover, .hover\:bg-white:hover) {
+  background-color: color-mix(in srgb, var(--primary) 6%, var(--card-bg)) !important;
+}
+
+:is([data-theme='ocean'], [data-theme='medical-ocean'])
+  :is(.focus\:border-blue-500:focus, .focus\:border-indigo-500:focus) {
+  border-color: var(--primary) !important;
+}
