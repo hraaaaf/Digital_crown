@@ -1,0 +1,89 @@
+name: Visual Theme Final Cert
+
+on:
+  push:
+    branches: [audit/visual-theme-final-cert-2026-09-08]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  capture-final:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install frontend and Chromium
+        working-directory: frontend
+        run: |
+          npm ci
+          npm install --no-save --package-lock=false playwright@1.55.0
+          npx playwright install --with-deps chromium
+      - name: Build corrected audit harness
+        working-directory: frontend
+        run: |
+          awk '/cat > full-app-visual-audit.mjs <<'\''EOF'\''/{flag=1;next} flag && /^[[:space:]]*EOF$/{exit} flag{sub(/^          /, ""); print}' ../.github/workflows/full-app-visual-theme-audit.yml > visual-theme-final-cert.mjs
+          python - <<'PY'
+          from pathlib import Path
+          p = Path('visual-theme-final-cert.mjs')
+          s = p.read_text()
+
+          s = s.replace('const mobileWidths = [390, 430];', 'const mobileWidths = [390, 430, 768];')
+          s = s.replace('function fixture(pathname, method) {', 'function fixture(pathname, method, theme) {')
+          s = s.replace('const body = fixture(u.pathname, req.method());', 'const body = fixture(u.pathname, req.method(), theme);')
+
+          clinic_old = "if (pathname.endsWith('/api/clinics/me')) return { id: 1, nom: 'Cabinet Digital Crown', nom_praticien: 'Dr Audit Visuel', city: 'Rabat' };"
+          clinic_new = "if (pathname.endsWith('/api/clinics/me')) return { id: 1, nom: 'Cabinet Digital Crown', nom_cabinet: 'Cabinet Digital Crown', nom_praticien: 'Dr Audit Visuel', city: 'Rabat', selected_theme: theme === 'default' ? 'elite' : 'ocean', primary_color: theme === 'default' ? '#003380' : '#0284c7', secondary_color: theme === 'default' ? '#1e40af' : '#0369a1', accent_color: theme === 'default' ? '#60a5fa' : '#38bdf8' };"
+          if clinic_old not in s: raise SystemExit('clinic fixture anchor missing')
+          s = s.replace(clinic_old, clinic_new, 1)
+
+          patient_anchor = "if (pathname.includes('/api/patients/1')) return patient;"
+          patient_fixtures = """if (pathname.includes('/api/patients/1/journey')) return { patient_id: 1, window_months: 12, truncated: false, total_events_available: 2, summary: { active_plan_steps: 1, total_plan_steps: 2, remaining_due: 1200, has_billing_data: true, next_appointment: '2026-09-15T10:00:00', last_document_date: '2026-09-07' }, events: [{ event_key: 'appointment:1', source: 'appointment', type: 'appointment', ref_id: 1, date: '2026-09-08T09:00:00', title: 'Consultation', status: 'DONE', phase_hint: 'consultation', navigation_target: 'INLINE', related_event_key: null }] };
+            if (pathname.includes('/api/patients/1/documents')) return [{ id: 'doc-1', name: 'Compte-rendu consultation', type: 'COMPTE_RENDU', date: '2026-09-07', url: '/documents/doc-1', file_exists: true }];
+            if (pathname.includes('/api/actes/patient/1')) return [];
+            """ + patient_anchor
+          if patient_anchor not in s: raise SystemExit('patient fixture anchor missing')
+          s = s.replace(patient_anchor, patient_fixtures, 1)
+
+          mobile_anchor = "if (pathname.includes('/api/mobile/')) {"
+          mobile_fixture = "if (pathname.includes('/api/mobile/passkey/status')) return { state: 'disabled', credential_id: null, rp_id: 'digitalcrown.local', expected_origin: 'https://digitalcrown.local:8005', origin_ready: true, user_verification: 'required', server_gate: true };\n            " + mobile_anchor
+          if mobile_anchor not in s: raise SystemExit('mobile fixture anchor missing')
+          s = s.replace(mobile_anchor, mobile_fixture, 1)
+
+          market_anchor = "if (pathname.includes('marketplace') || pathname.includes('catalog') || pathname.includes('partners') || pathname.includes('products')) return [];"
+          market_fixtures = """if (pathname.endsWith('/api/partner-catalog/products/1')) return { id: 1, supplierId: 1, supplierName: 'Dental Partner', externalProductId: 'SKU-001', name: 'Composite Universel', sku: 'SKU-001', dentalCategory: 'Restauration', dentalSpecialty: 'Omnipratique', unit: 'boîte', price: 420, availability: 'AVAILABLE', shortDescription: 'Composite photopolymérisable universel.', longDescription: 'Matériau de restauration polyvalent pour le cabinet.', benefits: ['Manipulation simple', 'Teinte universelle'], isFeatured: true, sortOrder: 1 };
+            if (pathname.endsWith('/api/partner-catalog/suppliers/1')) return { id: 1, supplierKey: 'dental-partner', name: 'Dental Partner', badge: 'Partenaire', description: 'Fournisseur catalogue de démonstration.', promise: 'Livraison et support cabinet.', apiBaseUrl: null, syncMode: 'MANUAL', isActive: true, productCount: 1 };
+            """ + market_anchor
+          if market_anchor not in s: raise SystemExit('market fixture anchor missing')
+          s = s.replace(market_anchor, market_fixtures, 1)
+
+          api_anchor = "if (pathname.startsWith('/api/') || pathname.includes('/api/')) return method === 'GET' ? {} : {};"
+          super_fixtures = """if (pathname.endsWith('/api/superadmin/clients')) return [{ id: 1, nom_complet: 'Dr Sara Benali', email: 'sara@example.test', telephone: '0600000000', cabinet_name: 'Cabinet Agdal', is_licensed: true, license_expires_at: '2027-09-08T00:00:00', created_at: '2026-01-01T00:00:00', is_archived: false, is_suspended: false, internal_notes: null, last_login_at: '2026-09-08T08:00:00', subscription_plan: 'ELITE', stats: { total_patients: 184, total_ia_panoramique: 31, total_ia_cephalo: 18 } }];
+            if (pathname.endsWith('/api/superadmin/trial-codes')) return [{ id: 1, code: 'DC-DEMO-2026', email: 'demo@example.test', nom_complet: 'Dr Demo', cabinet_name: 'Cabinet Demo', trial_days: 30, expires_at: '2026-10-08T00:00:00', consumed_at: null, revoked_at: null, activation_url: 'https://example.test/activate' }];
+            """ + api_anchor
+          if api_anchor not in s: raise SystemExit('api fixture anchor missing')
+          s = s.replace(api_anchor, super_fixtures, 1)
+
+          init_old = "await page.addInitScript(({ token, theme }) => {\n                    localStorage.setItem('token', token);"
+          init_new = "await page.addInitScript(({ token, theme, routePath }) => {\n                    if (routePath === '/login') localStorage.removeItem('token'); else localStorage.setItem('token', token);"
+          if init_old not in s: raise SystemExit('init script anchor missing')
+          s = s.replace(init_old, init_new, 1)
+          s = s.replace("}, { token, theme });", "}, { token, theme, routePath });", 1)
+
+          p.write_text(s)
+          PY
+          node visual-theme-final-cert.mjs
+      - name: Upload final evidence
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: visual-theme-final-cert
+          path: artifacts/full-app-visual-audit
+          retention-days: 14
+          if-no-files-found: error
