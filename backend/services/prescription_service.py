@@ -60,6 +60,13 @@ class PrescriptionService(LegacyPrescriptionService):
             if warning.get("drug") == "omission-prophylaxie":
                 continue
 
+            # Antibiotic appropriateness cannot be inferred from the mere
+            # presence/absence of a recent surgical or endodontic act. It
+            # requires diagnosis + clinical/systemic context, so the legacy
+            # heuristic is excluded until the clinical reasoning engine exists.
+            if warning.get("drug") == "antibiotique-injustifie":
+                continue
+
             filtered.append(warning)
         return filtered
 
