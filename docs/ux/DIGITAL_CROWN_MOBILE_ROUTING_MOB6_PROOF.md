@@ -38,18 +38,18 @@ Supprimer l’ambiguïté entre la PWA mobile dédiée et le shell desktop respo
 - digest `sha256:dc1e5a72d02f668cf537ec9fa28341940d34df7388603da6974eeac393d82ec7` ;
 - score visuel/comportemental **9.4/10**.
 
-## PR / CI / merge
+## PR / CI / merge / post-merge
 - PR produit `#372` ;
 - HEAD final PR `8904dae5d82e218d5c73273042d85b966d929f11` ;
 - CI PR `34212226491` — SUCCESS ;
 - T2 `34212226402` — SUCCESS ;
 - merge exact `97546777e3b4adbb8a670559553c1079aad4c2e2` ;
-- post-merge master `34226941958` — **IN PROGRESS au dernier contrôle**.
+- post-merge master `34226941958` — SUCCESS.
 
 ## Déploiement
 Aucun déploiement Vercel.
 
-## Gate de fermeture
-MOB-6 ne devient `CLOSED` qu’après SUCCESS du post-merge master `34226941958`, mise à jour documentaire finale cohérente, merge du closeout et vérification du master final.
+## Conclusion
+Le Goal est atteint sur le scope certifié. Les deep-links riches restent volontairement desktop tant qu’une équivalence mobile ne peut pas préserver l’entité exacte.
 
-Statut : `MERGED — POST-MERGE MASTER PENDING — NOT YET CLOSED`.
+Statut : `MERGED — POST-MERGE VERIFIED — CLOSED`.
