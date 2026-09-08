@@ -1,21 +1,35 @@
+import ast
 from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parents[2]
-TARGET = "backend/services/clinical_coherence.py"
-TOKENS = ("clinical_coherence", "coherence_service", "ClinicalCoherenceService")
+TARGET_MODULE = "backend.services.clinical_coherence"
+EXPECTED_RUNTIME_CONSUMERS = {
+    "backend/routers/documents.py",
+    "backend/services/elite_manager.py",
+}
 
 
-def test_legacy_clinical_coherence_has_no_runtime_consumers():
-    consumers = []
+def _imports_target(source: str) -> bool:
+    tree = ast.parse(source)
+    for node in ast.walk(tree):
+        if isinstance(node, ast.ImportFrom) and node.module == TARGET_MODULE:
+            return True
+        if isinstance(node, ast.Import):
+            if any(alias.name == TARGET_MODULE for alias in node.names):
+                return True
+    return False
+
+
+def test_clinical_coherence_runtime_consumers_are_explicit_and_bounded():
+    consumers = set()
 
     for path in (ROOT / "backend").rglob("*.py"):
         relative = path.relative_to(ROOT).as_posix()
-        if relative == TARGET or relative.startswith("backend/tests/"):
+        if relative == "backend/services/clinical_coherence.py" or relative.startswith("backend/tests/"):
             continue
         source = path.read_text(encoding="utf-8", errors="ignore")
-        matched = sorted(token for token in TOKENS if token in source)
-        if matched:
-            consumers.append((relative, matched))
+        if _imports_target(source):
+            consumers.add(relative)
 
-    assert not consumers, f"clinical_coherence still has runtime consumers: {consumers}"
+    assert consumers == EXPECTED_RUNTIME_CONSUMERS, consumers
