@@ -11,8 +11,7 @@ MOB-7 est un lot de certification globale, pas un redesign. Aucune nouvelle surf
 - T2/CI PR restent des gates transverses indépendants ;
 - les comportements physiques restent des gates humains séparés.
 
-## Couverture attendue
-### Software courant
+## Couverture certifiée software
 - backend mobile M6 ;
 - MOB-5F capacité documentaire ;
 - MOB-5H sécurité SuperAdmin ;
@@ -27,15 +26,17 @@ MOB-7 est un lot de certification globale, pas un redesign. Aucune nouvelle surf
 - MOB-6 canonical routing ;
 - build production.
 
-### Visuel
+Gate logiciel : run `34232326289` — SUCCESS sur candidat immuable `f4f59fa9d069ec4301c3665a5428d772772854fa`.
+
+## Visuel
 Les artifacts AFTER déjà certifiés dans le canonique restent les références de chaque lot, avec leurs viewports et scores propres. Un changement UI futur rendrait obligatoire une nouvelle séquence BEFORE/AFTER pour le lot modifié, mais MOB-7 n'en introduit aucun.
 
-### Physique
+## Physique
 Non revendiqué par le gate software : Face ID, Touch ID si supporté, biométrie Android et Push réel PWA en arrière-plan/fermée.
 
 ## Succès
-MOB-7 software est certifié uniquement si le gate agrégé est vert sur un seul HEAD et si aucune preuve n'est sur-déclarée au-delà de ce que les tests démontrent.
+La référence software est satisfaite par le gate agrégé vert sur un seul HEAD. MOB-7 reste non CLOSED tant que la PR, CI/T2, merge et post-merge ne sont pas terminés.
 
 Aucun déploiement Vercel.
 
-Statut : `REFERENCE LOCKED — CERTIFICATION RUN IN PROGRESS`.
+Statut : `REFERENCE LOCKED — SOFTWARE CERTIFIED — PRE-MERGE`.
