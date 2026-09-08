@@ -64,7 +64,7 @@ Exception verrouillée — SuperAdmin : le mobile ne réduit **aucune** préroga
 | MOB-5F | Patients / Quick Document Studio | **DONE / MERGED / CLOSED** |
 | MOB-5G | Marketplace / Approvisionnement | DONE / MERGED |
 | MOB-5H | SuperAdmin mobile | DONE / MERGED |
-| MOB-5I | Salle d’attente | **MERGED / POST-MERGE PENDING** |
+| MOB-5I | Salle d’attente | **DONE / MERGED / CLOSED** |
 
 Science Hub reste desktop only.
 
@@ -176,7 +176,7 @@ Limite connue : conflit de dépendances `httpx==0.27.2` avec `firebase-admin 7.5
 - score visuel **9.3/10**
 - parité complète des prérogatives SuperAdmin actives maintenue
 
-## MOB-5I — Salle d’attente — MERGED / POST-MERGE PENDING
+## MOB-5I — Salle d’attente — DONE / MERGED / CLOSED
 
 ### Goal
 Rendre la Salle d’attente exploitable sur mobile à partir du modèle `Appointment` canonique, sans nouvelle table ni métrique inventée.
@@ -204,9 +204,12 @@ Rendre la Salle d’attente exploitable sur mobile à partir du modèle `Appoint
 - PR `#367`
 - HEAD final `d6a234a24fbc3a64a69763688322de31fa38f7ba`
 - merge exact `e2522a6d8b4794e64253eb4af36500e18cd87b40`
-- post-merge master `34170398551` : pending au dernier contrôle
+- post-merge master `34170398551` ✅ SUCCESS
+- closeout PR `#369`
+- closeout CI `34170522549` ✅ SUCCESS
+- T2 closeout `34170522692` ✅ SUCCESS
 
-MOB-5I ne devient `CLOSED` qu'après succès du post-merge master et fusion du closeout documentaire cohérent.
+Aucun déploiement Vercel.
 
 ---
 
@@ -230,4 +233,4 @@ Ordre : validation → canonique → cohérence docs → roadmap/% réel → Git
 - ne pas déployer sur Vercel sans autorisation explicite.
 
 ## Next exact
-Valider le post-merge master `34170398551`. S'il est vert : finaliser MOB-5I en `DONE / MERGED / CLOSED`, fusionner le closeout documentaire, puis seulement ensuite engager le prochain lot explicitement défini dans la roadmap. Aucun `MOB-5J` n'est inventé.
+Engager le prochain lot explicitement défini dans la roadmap : `MOB-6 — Canonisation du routage mobile`. Aucun `MOB-5J` n'est inventé.
