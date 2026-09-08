@@ -27,11 +27,16 @@ jobs:
           python-version: '3.10'
           cache: pip
 
-      - name: Fetch candidate and public challenge sample
+      - name: Fetch candidate, challenge sample and official ground truth
         run: |
           git clone --depth 1 https://github.com/5k5000/CLdetection2023.git srpose
           git clone --depth 1 https://github.com/szuboy/CL-Detection2023.git baseline
+          git clone --depth 1 https://github.com/cwwang1979/CL-detection2023.git organizer
           test -f baseline/step5_docker_and_upload/test/stack1.mha
+          test -f baseline/step5_docker_and_upload/test/expected_output.json
+          test -f organizer/train-gt.json.zip
+          unzip -o organizer/train-gt.json.zip -d organizer/gt
+          test -f organizer/gt/train-gt.json
 
       - name: Install CPU inference dependencies
         run: |
@@ -56,7 +61,7 @@ jobs:
           test -s srpose/MMPose-checkpoints/CLdetection/srpose_s2/demo.pth
           sha256sum srpose/MMPose-checkpoints/CLdetection/srpose_s2/demo.pth | tee srpose38-checkpoint.sha256
 
-      - name: Run 38-landmark inference on real challenge cephalogram
+      - name: Run inference and compare with official image-1 ground truth
         run: |
           cat > /tmp/srpose38_smoke.py <<'PY'
           import json
@@ -74,10 +79,11 @@ jobs:
           config = root / 'srpose/configs/CLdetection2023/srpose_s2.py'
           checkpoint = root / 'srpose/MMPose-checkpoints/CLdetection/srpose_s2/demo.pth'
           mha = root / 'baseline/step5_docker_and_upload/test/stack1.mha'
+          gt_file = root / 'organizer/gt/train-gt.json'
+          baseline_expected_file = root / 'baseline/step5_docker_and_upload/test/expected_output.json'
 
-          assert config.is_file(), config
-          assert checkpoint.is_file(), checkpoint
-          assert mha.is_file(), mha
+          for p in (config, checkpoint, mha, gt_file, baseline_expected_file):
+              assert p.is_file(), p
 
           image_obj = sitk.ReadImage(str(mha))
           stack = sitk.GetArrayFromImage(image_obj)
@@ -116,18 +122,82 @@ jobs:
           ]
           Path('srpose38-coordinates.json').write_text(json.dumps(coords, indent=2), encoding='utf-8')
 
-          overlay = image.copy()
-          for i, (x, y) in enumerate(points, start=1):
-              px, py = int(round(x)), int(round(y))
-              cv2.circle(overlay, (px, py), 6, (0, 255, 0), -1)
-              cv2.putText(overlay, str(i), (px + 8, py - 8), cv2.FONT_HERSHEY_SIMPLEX, 0.55, (0, 0, 255), 1, cv2.LINE_AA)
+          gt_json = json.loads(gt_file.read_text(encoding='utf-8'))
+          gt_items = [p for p in gt_json['points'] if int(round(float(p['point'][2]))) == 1]
+          gt_items.sort(key=lambda p: int(p['name']))
+          if len(gt_items) != 38:
+              raise AssertionError(f'Expected 38 GT points for image 1, got {len(gt_items)}')
+          if [int(p['name']) for p in gt_items] != list(range(1, 39)):
+              raise AssertionError('GT landmark indices for image 1 are not 1..38')
 
-          cv2.imwrite('srpose38-real-ceph-overlay.png', overlay)
+          gt = np.asarray([[float(p['point'][0]), float(p['point'][1])] for p in gt_items], dtype=float)
+          scales = np.asarray([float(p['scale']) for p in gt_items], dtype=float)
+          if not np.allclose(scales, scales[0]):
+              raise AssertionError(f'Per-landmark scales differ unexpectedly: {scales.tolist()}')
+          scale = float(scales[0])
+
+          # Identity guard: the public baseline expected_output for stack1 slice z=1
+          # must match the organizer's image-1 GT closely enough that these are the same case.
+          baseline_json = json.loads(baseline_expected_file.read_text(encoding='utf-8'))
+          baseline_items = [p for p in baseline_json['points'] if int(round(float(p['point'][2]))) == 1]
+          baseline_items.sort(key=lambda p: int(p['name']))
+          if len(baseline_items) != 38:
+              raise AssertionError(f'Expected 38 baseline points for stack1 z=1, got {len(baseline_items)}')
+          baseline_pts = np.asarray([[float(p['point'][0]), float(p['point'][1])] for p in baseline_items], dtype=float)
+          baseline_err_px = np.linalg.norm(baseline_pts - gt, axis=1)
+          baseline_mre_mm = float(np.mean(baseline_err_px * scale))
+          baseline_median_px = float(np.median(baseline_err_px))
+          print(f'IDENTITY_GUARD baseline-vs-GT: MRE={baseline_mre_mm:.3f} mm median={baseline_median_px:.3f} px scale={scale:.6f} mm/px')
+          if baseline_mre_mm >= 10.0 or baseline_median_px >= 50.0:
+              raise AssertionError('stack1 slice 1 identity not supported by organizer image-1 GT')
+
+          err_px = np.linalg.norm(points - gt, axis=1)
+          err_mm = err_px * scale
+          mre = float(np.mean(err_mm))
+          median = float(np.median(err_mm))
+          sdr = {str(t): float(np.mean(err_mm <= t)) for t in (2.0, 2.5, 3.0, 4.0)}
+          per_point = [
+              {
+                  'index': i + 1,
+                  'pred_x': round(float(points[i,0]), 3),
+                  'pred_y': round(float(points[i,1]), 3),
+                  'gt_x': round(float(gt[i,0]), 3),
+                  'gt_y': round(float(gt[i,1]), 3),
+                  'error_px': round(float(err_px[i]), 3),
+                  'error_mm': round(float(err_mm[i]), 3),
+              }
+              for i in range(38)
+          ]
+          metrics = {
+              'sample_identity': 'stack1 slice z=1 matched against organizer training image z=1 via baseline identity guard',
+              'scale_mm_per_pixel': scale,
+              'checkpoint_sha256': 'fb1a781ac1c83149b379cb15724e3b0fae06ba2d567978f35c61e9d06b46fdcc',
+              'mre_mm': round(mre, 4),
+              'median_error_mm': round(median, 4),
+              'sdr': {k: round(v, 6) for k, v in sdr.items()},
+              'worst_landmarks': sorted(per_point, key=lambda x: x['error_mm'], reverse=True)[:10],
+              'per_landmark': per_point,
+              'identity_guard_baseline_mre_mm': round(baseline_mre_mm, 4),
+              'identity_guard_baseline_median_px': round(baseline_median_px, 4),
+          }
+          Path('srpose38-gt-metrics.json').write_text(json.dumps(metrics, indent=2), encoding='utf-8')
+
+          overlay = image.copy()
+          for i, ((x, y), (gx, gy)) in enumerate(zip(points, gt), start=1):
+              px, py = int(round(x)), int(round(y))
+              qx, qy = int(round(gx)), int(round(gy))
+              cv2.line(overlay, (qx, qy), (px, py), (255, 255, 0), 1)
+              cv2.circle(overlay, (qx, qy), 7, (0, 0, 255), 2)
+              cv2.circle(overlay, (px, py), 5, (0, 255, 0), -1)
+              cv2.putText(overlay, str(i), (px + 7, py - 7), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 1, cv2.LINE_AA)
+
+          cv2.imwrite('srpose38-real-ceph-gt-vs-pred.png', overlay)
           cv2.imwrite('srpose38-real-ceph-input.png', image)
-          print('SRPOSE38_SMOKE_OK: 38 finite landmarks produced on a real CL-Detection challenge cephalogram')
+          print(f'SRPOSE38_GT_OK MRE={mre:.4f}mm MEDIAN={median:.4f}mm SDR2={sdr["2.0"]:.4f} SDR2.5={sdr["2.5"]:.4f} SDR3={sdr["3.0"]:.4f} SDR4={sdr["4.0"]:.4f}')
+          print('WORST:', json.dumps(metrics['worst_landmarks']))
           PY
           PYTHONPATH="$PWD/srpose:$PWD/srpose/mmpose_package/mmpose" python /tmp/srpose38_smoke.py | tee srpose38-smoke.log
-          grep -q 'SRPOSE38_SMOKE_OK' srpose38-smoke.log
+          grep -q 'SRPOSE38_GT_OK' srpose38-smoke.log
 
       - name: Upload evidence
         if: always()
@@ -139,5 +209,6 @@ jobs:
             srpose38-checkpoint.sha256
             srpose38-smoke.log
             srpose38-coordinates.json
+            srpose38-gt-metrics.json
             srpose38-real-ceph-input.png
-            srpose38-real-ceph-overlay.png
+            srpose38-real-ceph-gt-vs-pred.png
