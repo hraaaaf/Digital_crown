@@ -1,0 +1,91 @@
+name: Scientific Core Purge Apply
+
+on:
+  push:
+    branches: ["refactor/scientific-core-purge"]
+
+permissions:
+  contents: write
+
+jobs:
+  purge-treatment-plan:
+    if: ${{ !startsWith(github.event.head_commit.message, 'purge:') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: refactor/scientific-core-purge
+          fetch-depth: 0
+
+      - name: Remove dormant treatment plan engine
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          def replace_exact(path_str: str, old: str, new: str = ''):
+              path = Path(path_str)
+              text = path.read_text(encoding='utf-8')
+              if old not in text:
+                  raise SystemExit(f'Expected text missing in {path_str}: {old!r}')
+              path.write_text(text.replace(old, new, 1), encoding='utf-8')
+
+          replace_exact(
+              'backend/services/elite_manager.py',
+              'from backend.services.treatment_plan_engine import treatment_plan_engine\n',
+          )
+          replace_exact(
+              'backend/routers/ia.py',
+              'from backend.services.treatment_plan_engine import TreatmentPlanEngine\n',
+          )
+
+          for obsolete in [
+              Path('backend/services/treatment_plan_engine.py'),
+              Path('backend/tests/test_pure_treatment_plan.py'),
+          ]:
+              if not obsolete.exists():
+                  raise SystemExit(f'Expected obsolete file missing: {obsolete}')
+              obsolete.unlink()
+
+          unit3 = Path('backend/tests/test_services_unit3.py')
+          text = unit3.read_text(encoding='utf-8')
+          start = text.index('# ── treatment_plan_engine')
+          end = text.index('# ── clinical_intelligence._resolve_motifs', start)
+          text = text[:start] + text[end:]
+          text = text.replace(
+              '"""Third batch of pure unit tests — treatment_plan_engine and clinical_intelligence helpers."""',
+              '"""Third batch of pure unit tests — clinical_intelligence helpers."""',
+              1,
+          )
+          unit3.write_text(text, encoding='utf-8')
+
+          unit10 = Path('backend/tests/test_services_unit10.py')
+          text = unit10.read_text(encoding='utf-8')
+          start = text.index('# ── treatment_plan_engine exception path')
+          end = text.index('# ── zka_service exception path', start)
+          text = text[:start] + text[end:]
+          text = text.replace(
+              '"""Tenth batch — PanoramicReportEngine pure helpers,\ntreatment_plan_engine exception path, zka_service exception path."""',
+              '"""Tenth batch — PanoramicReportEngine pure helpers and zka_service exception path."""',
+              1,
+          )
+          unit10.write_text(text, encoding='utf-8')
+
+          contract = Path('backend/tests/test_scientific_core_purge_contract.py')
+          contract.write_text('''from pathlib import Path\n\n\nROOT = Path(__file__).resolve().parents[2]\n\n\ndef test_dormant_treatment_plan_engine_is_removed():\n    assert not (ROOT / "backend/services/treatment_plan_engine.py").exists()\n\n    for relative in (\n        "backend/services/elite_manager.py",\n        "backend/routers/ia.py",\n    ):\n        source = (ROOT / relative).read_text(encoding="utf-8")\n        assert "treatment_plan_engine" not in source\n        assert "TreatmentPlanEngine" not in source\n\n\ndef test_patient_plan_generation_remains_fail_closed():\n    source = (ROOT / "backend/services/elite_manager.py").read_text(encoding="utf-8")\n    assert "Génération automatique du plan de traitement désactivée" in source\n''', encoding='utf-8')
+          PY
+
+      - name: Verify purge diff
+        run: |
+          test ! -e backend/services/treatment_plan_engine.py
+          test ! -e backend/tests/test_pure_treatment_plan.py
+          ! git grep -n -E 'from backend\.services\.treatment_plan_engine|TreatmentPlanEngine' -- backend/services backend/routers
+          python -m pytest backend/tests/test_scientific_core_purge_contract.py backend/tests/test_patient_p0_final_contract.py -q
+
+      - name: Commit purge
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git diff --cached --check
+          git commit -m "purge: remove dormant treatment plan engine"
+          git push origin HEAD:refactor/scientific-core-purge
