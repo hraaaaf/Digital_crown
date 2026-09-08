@@ -259,7 +259,7 @@ Les deep-links riches restent desktop tant qu'une destination mobile ne peut pas
 
 Aucun déploiement Vercel.
 
-## MOB-7 — Certification globale Mobile Product — IN PROGRESS
+## MOB-7 — Certification globale Mobile Product — SOFTWARE CERTIFIED / PRE-MERGE
 
 ### Goal
 Certifier la surface logicielle mobile complète actuelle sur un même commit immuable sans réimplémenter les lots et sans confondre CI navigateur et preuve physique.
@@ -272,19 +272,23 @@ Certifier la surface logicielle mobile complète actuelle sur un même commit im
 - référence : `docs/ux/DIGITAL_CROWN_MOBILE_PRODUCT_MOB7_REFERENCE.md` ;
 - preuve : `docs/ux/DIGITAL_CROWN_MOBILE_PRODUCT_MOB7_PROOF.md`.
 
-### Gate software courant
+### Gate software certifié
 - workflow : `.github/workflows/mobile-final-certification.yml` ;
-- candidat software : `f4f59fa9d069ec4301c3665a5428d772772854fa` ;
+- candidat software immuable : `f4f59fa9d069ec4301c3665a5428d772772854fa` ;
 - run : `34232326289` ;
-- frontend M4/M6 + MOB-5A→I + MOB-6 + build : ✅ SUCCESS au dernier contrôle ;
-- backend M6 + MOB-5F/H/I : IN PROGRESS au dernier contrôle ;
-- software aggregate gate : non encore déclaré vert.
+- backend M6 + MOB-5F/H/I : ✅ SUCCESS ;
+- frontend M4/M6 + MOB-5A→I + MOB-6 + build : ✅ SUCCESS ;
+- aggregate `Mobile software certification gate` : ✅ SUCCESS ;
+- offline/sync/retry/revocation : inclus et verts ;
+- pairing ECDH + RBAC fail-closed : inclus et verts.
 
 ### Doctrine visuelle
 MOB-7 ne modifie pas l'UI. Les artifacts, digests, viewports et scores certifiés par les lots MOB-2→MOB-6 restent les autorités visuelles. Aucun score global artificiellement recalculé n'est revendiqué.
 
 ### Gates physiques séparés
 Non revendiqués par CI : Face ID réel, Touch ID si supporté, biométrie Android réelle, Push réel PWA background/closed.
+
+MOB-7 n'est pas encore `CLOSED` : PR, CI/T2 du HEAD final, merge et post-merge master restent requis.
 
 Aucun déploiement Vercel.
 
@@ -302,4 +306,4 @@ Ordre : validation → canonique → cohérence docs → roadmap/% réel → Git
 - ne pas déployer sur Vercel sans autorisation explicite.
 
 ## Next exact
-Terminer le run logiciel MOB-7 `34232326289`. S'il est vert : inscrire le verdict exact dans la preuve et le canonique, ouvrir la PR MOB-7, certifier CI/T2 du HEAD final, merge puis post-merge avant d'engager MOB-8.
+Ouvrir la PR MOB-7 depuis `cert/mobile-product-mob7` vers `master`. Si CI/T2 du HEAD final sont verts : merge, vérifier le post-merge master, puis engager MOB-8.
