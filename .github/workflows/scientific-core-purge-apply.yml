@@ -81,6 +81,9 @@ jobs:
           ! git grep -n -E 'from backend\.services\.treatment_plan_engine|TreatmentPlanEngine' -- backend/services backend/routers
           python -m pytest backend/tests/test_scientific_core_purge_contract.py backend/tests/test_patient_p0_final_contract.py -q
 
+      - name: Remove temporary purge runner
+        run: rm -f .github/workflows/scientific-core-purge-apply.yml .audit/scientific-core-purge-trigger.txt
+
       - name: Commit purge
         run: |
           git config user.name "github-actions[bot]"
