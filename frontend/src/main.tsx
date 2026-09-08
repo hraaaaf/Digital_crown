@@ -5,6 +5,7 @@ import { ErrorBoundary } from './components/ErrorBoundary.tsx'
 import { isDcPreviewDemoRequested } from './features/mobile/previewDemo.ts'
 import { bootstrapMobileRuntimeTheme } from './features/mobile/Dashboard/hooks/useMobileRuntimeTheme.ts'
 import { bootstrapMobileQuickIntent } from './features/mobile/mobileQuickIntent.ts'
+import { isMobileRuntimeDevice, resolveCanonicalMobileRoute, resolveMobileWildcardFallback } from './features/mobile/mobileRouting.ts'
 import './index.css'
 import './styles/mobileGlassSystem.css'
 import './features/mobile/mobileRuntimeTheme.css'
@@ -14,7 +15,17 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { registerSW } from 'virtual:pwa-register'
 
 const isPreviewRequest = isDcPreviewDemoRequested()
-const previewPath = window.location.pathname
+let previewPath = window.location.pathname
+
+if (!isPreviewRequest && isMobileRuntimeDevice(window.innerWidth, navigator.userAgent)) {
+  const canonicalTarget = resolveCanonicalMobileRoute(previewPath)
+  const wildcardTarget = resolveMobileWildcardFallback(previewPath)
+  const target = canonicalTarget ?? wildcardTarget
+  if (target) {
+    window.history.replaceState(null, '', target)
+    previewPath = window.location.pathname
+  }
+}
 
 if (previewPath.startsWith('/mobile')) {
   bootstrapMobileRuntimeTheme()
