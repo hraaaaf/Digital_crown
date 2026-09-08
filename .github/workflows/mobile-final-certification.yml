@@ -17,7 +17,7 @@ concurrency:
 
 jobs:
   backend-mobile-contracts:
-    name: Backend mobile contracts M6 + MOB-5F/H/I
+    name: Backend mobile contracts M6 + MOB-5A/F/H/I
     runs-on: ubuntu-latest
     env:
       SECRET_KEY: ci-only-secret-key-minimum-32-characters-long
@@ -58,6 +58,7 @@ jobs:
             backend/tests/test_mobile_m6d_notifications.py \
             backend/tests/test_mobile_m6d2_push.py \
             backend/tests/test_mobile_m6i_passkey.py \
+            backend/tests/test_mobile_team_mob5a.py \
             backend/tests/test_marketplace_superadmin_security.py \
             backend/tests/test_mobile_waiting_room.py
 
@@ -119,6 +120,7 @@ jobs:
             src/features/mobile/bridge.m5a.test.ts \
             src/features/mobile/Dashboard/components/MobileBottomNav.test.tsx \
             src/features/mobile/mobileThemeHardcoding.test.ts \
+            src/features/mobile/Dashboard/views/DentistsView.test.tsx \
             src/features/mobile/Dashboard/views/FrontdeskView.test.tsx \
             src/features/mobile/Dashboard/views/NotificationsView.test.tsx \
             src/features/mobile/Dashboard/views/StockView.test.tsx \
@@ -155,7 +157,7 @@ jobs:
             echo "## MOB-7 Mobile Product software gate"
             echo
             echo "- Candidate: `${{ github.sha }}`"
-            echo "- Backend M6 + MOB-5F/H/I contracts: $BACKEND_RESULT"
+            echo "- Backend M6 + MOB-5A/F/H/I contracts: $BACKEND_RESULT"
             echo "- Frontend M4/M6 + MOB-5A-I + MOB-6 routing + build: $FRONTEND_RESULT"
             echo "- Offline/sync/retry/revocation: included in M6.2 contracts"
             echo "- Pairing ECDH + RBAC fail-closed: included"
