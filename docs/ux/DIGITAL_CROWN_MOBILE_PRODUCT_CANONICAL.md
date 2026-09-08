@@ -3,7 +3,7 @@
 Status: ACTIVE
 Canonical file: `docs/ux/DIGITAL_CROWN_MOBILE_PRODUCT_CANONICAL.md`
 Repo: `hraaaaf/Digital_crown`
-Current merged product baseline: `e2522a6d8b4794e64253eb4af36500e18cd87b40`
+Current merged product baseline: `301454a367b8b7952d0fef94e86c40e8e4a248e2`
 Deployment: none. No Vercel deployment is authorized by this chantier.
 
 ## Goal final
@@ -50,7 +50,7 @@ Exception verrouillée — SuperAdmin : le mobile ne réduit **aucune** préroga
 
 ---
 
-# MOB-5 — Mobile secondaire à forte valeur — ACTIVE
+# MOB-5 — Mobile secondaire à forte valeur — CLOSED
 
 ## Scope produit verrouillé
 
@@ -213,8 +213,39 @@ Aucun déploiement Vercel.
 
 ---
 
-## MOB-6 — Canonisation du routage mobile — PLANNED
-Goal : supprimer l’ambiguïté entre PWA mobile dédiée et shell desktop responsive après couverture des parcours essentiels.
+## MOB-6 — Canonisation du routage mobile — IMPLEMENTED / FINAL CERTIFICATION IN PROGRESS
+
+### Goal
+Supprimer l'ambiguïté entre PWA mobile dédiée et shell desktop responsive sans casser desktop, onboarding, offline/cache, biométrie, context bridges ni routes publiques.
+
+### Politique implémentée
+- canonisation avant auth/rendu dans `main.tsx` ;
+- même règle mobile historique : viewport <= 768 ou user-agent mobile ;
+- destinations mobiles résolues via `MOBILE_BRIDGE_ROUTES` ;
+- `waiting-room` ajouté au bridge canonique ;
+- namespace `/mobile/*` inconnu confiné au mobile ;
+- `MobileProtectedRoute`, cache offline et biométrie inchangés ;
+- routes publiques/auth inchangées.
+
+### Scope top-level
+`/dashboard`, `/agenda`, `/patients`, `/accounting`, `/stock`, `/approvisionnement`, `/bibliotheque`, `/salle-attente`, `/super-admin`.
+
+### Réserve de sécurité
+Les deep-links riches restent desktop tant qu'une destination mobile ne peut pas préserver exactement l'entité ciblée : patient, archives/édition, protocole, partenaire ou produit.
+
+### Preuves disponibles
+- baseline master `301454a367b8b7952d0fef94e86c40e8e4a248e2` ;
+- commit pré-implémentation BEFORE figé `d5bf9439e8eae60c1d0c8616a92353041fb5ac9a` ;
+- BEFORE initial artifact `10049516548`, digest `sha256:8dd859d17c19c8ca42d2b67645e5f816d7731a749dbff950cba650e03f6ab85c` ;
+- AFTER initial run `34210579881` ✅ ;
+- AFTER initial artifact `10049662623` ;
+- digest `sha256:aa08739d1f5430588d0c9587f69d7ed36bcef28e00041edabc1e90d5c2298edd` ;
+- score visuel/comportemental provisoire **9.4/10** ;
+- recertification BEFORE finale `34211312980` en cours ;
+- certification AFTER finale `34211284167` en cours ;
+- preuve : `docs/ux/DIGITAL_CROWN_MOBILE_ROUTING_MOB6_PROOF.md`.
+
+MOB-6 ne devient `PRE-MERGE CERTIFIED` qu'après succès des deux runs finaux.
 
 ## MOB-7 — Certification globale Mobile Product — PLANNED
 Preuves minimales : frontend/backend ciblés, build, runtime, RBAC, offline/sync/revocation, context bridges, BEFORE/AFTER 390/430/768, zéro overflow, zéro erreur console/page, comparaison Goal UI, score visuel et gates physiques séparés.
@@ -233,4 +264,4 @@ Ordre : validation → canonique → cohérence docs → roadmap/% réel → Git
 - ne pas déployer sur Vercel sans autorisation explicite.
 
 ## Next exact
-Engager le prochain lot explicitement défini dans la roadmap : `MOB-6 — Canonisation du routage mobile`. Aucun `MOB-5J` n'est inventé.
+Valider les runs finaux MOB-6 `34211312980` (BEFORE exact) et `34211284167` (AFTER final). S'ils sont verts : verrouiller les artifacts/digests finaux, passer MOB-6 en `PRE-MERGE CERTIFIED`, ouvrir la PR produit, puis exécuter CI/merge/post-merge avant toute clôture.
