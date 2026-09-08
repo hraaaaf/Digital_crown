@@ -71,9 +71,9 @@ export const LandingPage: React.FC = () => {
   };
 
   const pillars = [
-    { title: 'Gestion', label: 'Patients · Agenda · Facturation', icon: <Users size={18} /> },
-    { title: 'Clinique', label: 'Dossiers · Imagerie · Documents', icon: <ScanLine size={18} /> },
-    { title: 'Mobilité', label: 'Desktop · Companion mobile', icon: <MonitorSmartphone size={18} /> },
+    { title: 'Gestion', lines: ['Patients · Agenda', 'Facturation'], icon: <Users size={18} /> },
+    { title: 'Clinique', lines: ['Dossiers · Imagerie', 'Documents'], icon: <ScanLine size={18} /> },
+    { title: 'Mobilité', lines: ['Desktop', 'Companion mobile'], icon: <MonitorSmartphone size={18} /> },
   ];
 
   const features = [
@@ -173,15 +173,18 @@ export const LandingPage: React.FC = () => {
           </div>
 
           <div className="mx-auto mt-12 grid max-w-3xl divide-y rounded-[26px] border text-left backdrop-blur-xl sm:grid-cols-3 sm:divide-x sm:divide-y-0" style={glassStyle}>
-            {pillars.map(({ title, label, icon }) => (
-              <div key={title} className="flex min-h-[112px] items-center gap-3 px-5 py-5 sm:flex-col sm:items-start sm:justify-center sm:gap-2 sm:px-6">
+            {pillars.map(({ title, lines, icon }) => (
+              <div key={title} className="flex min-h-[124px] items-center gap-3 px-5 py-5 sm:flex-col sm:items-start sm:justify-center sm:gap-2 sm:px-6">
                 <div className="flex items-center gap-2">
                   <span className="flex h-8 w-8 items-center justify-center rounded-xl" style={{ background: 'color-mix(in srgb, var(--primary) 11%, transparent)', color: 'var(--primary)' }}>
                     {icon}
                   </span>
                   <span className="text-[11px] font-black uppercase tracking-[0.16em]" style={{ color: 'var(--primary)' }}>{title}</span>
                 </div>
-                <p className="text-sm font-black leading-5" style={{ color: 'var(--text-main)' }}>{label}</p>
+                <p className="min-h-10 text-sm font-black leading-5" style={{ color: 'var(--text-main)' }}>
+                  <span className="block whitespace-nowrap">{lines[0]}</span>
+                  <span className="block whitespace-nowrap">{lines[1]}</span>
+                </p>
               </div>
             ))}
           </div>
