@@ -2,7 +2,7 @@
 
 Status: PHASE 1 — NETTOYAGE EN COURS
 
-Canonical file for the scientific-core cleanup, consolidation and rebuild.
+Fichier canonique du chantier de nettoyage, consolidation et reconstruction du noyau scientifique.
 
 ## GOAL FINAL
 
@@ -13,7 +13,7 @@ Obtenir un noyau scientifique Digital Crown :
 - sûr : aucune décision clinique automatique non validée par le praticien ;
 - déterministe et testable quand cela est possible ;
 - traçable : chaque sortie clinique importante doit avoir une source, une règle et un niveau de confiance compréhensibles ;
-- maintenable : les anciennes générations et couches transitoires sont retirées après remplacement prouvé ;
+- maintenable : les couches transitoires sont retirées après remplacement prouvé ;
 - certifié par tests avant intégration dans `master`.
 
 Le but n'est pas de conserver le plus de moteurs possible. Le but est de conserver le moins de moteurs nécessaires, mais de très bonne qualité.
@@ -54,35 +54,30 @@ Preuve:
 
 État: EN COURS.
 
-### 1.2 Supprimer le code réellement mort
+### 1.2 Lot 1 — supprimer le vieux TreatmentPlanEngine
 
-Première cible qualifiée : `backend/services/treatment_plan_engine.py`.
+Cible : `backend/services/treatment_plan_engine.py`.
 
-Constat vérifié au 2026-09-08 :
-- les imports trouvés dans `backend/routers/ia.py` et `backend/services/elite_manager.py` ne correspondent à aucun appel du moteur ;
+Constat vérifié :
+- imports présents dans `backend/routers/ia.py` et `backend/services/elite_manager.py`, sans appel runtime du moteur ;
 - `EliteManager.get_treatment_plan()` est déjà fail-closed et refuse la génération automatique d'un plan clinique ;
-- les usages effectifs restants du vieux moteur sont ses propres tests ;
-- ce moteur propose historiquement des actes et coûts à partir de labels automatiques, responsabilité qui ne doit plus exister sous cette forme.
+- les usages effectifs restants du vieux moteur étaient ses propres tests ;
+- le moteur proposait des actes et coûts à partir de labels automatiques, responsabilité qui ne doit plus exister sous cette forme.
 
-Action:
-- supprimer `treatment_plan_engine.py` ;
-- retirer ses imports morts ;
-- retirer uniquement ses tests dédiés sans supprimer les tests des autres moteurs présents dans les mêmes fichiers ;
-- ajouter un contrat anti-régression si nécessaire ;
-- certifier par CI.
+Application :
+- moteur supprimé ;
+- imports morts supprimés ;
+- tests dédiés supprimés sans retirer les tests des autres moteurs partageant les mêmes fichiers ;
+- contrat anti-régression ajouté dans `backend/tests/test_scientific_core_purge_contract.py` ;
+- workflows temporaires `.github/workflows/scientific-core-purge-apply.yml` et `.github/workflows/scientific-core-purge-audit.yml` supprimés.
 
-État: QUALIFIÉ POUR SUPPRESSION, APPLICATION EN COURS.
+Commit produit : `2eda05e73111cffce65309aef233438180f67e97`.
 
-### 1.3 Nettoyer les outils temporaires du chantier
+Diff net vérifié : 7 fichiers produit/tests/workflows, aucune modification parasite dans `ia.py` ou `elite_manager.py`.
 
-Les workflows temporaires suivants ne doivent pas survivre au lot une fois leur rôle terminé :
+État: APPLIQUÉ — CI STANDARD À CERTIFIER.
 
-- `.github/workflows/scientific-core-purge-apply.yml`
-- `.github/workflows/scientific-core-purge-audit.yml`
-
-État: À RETIRER après récupération des preuves utiles et migration vers les validations normales du repo.
-
-### 1.4 Couche clinical coherence
+### 1.3 Couche clinical coherence
 
 Cible: `backend/services/clinical_coherence.py`.
 
@@ -98,7 +93,7 @@ Next:
 - identifier celles déjà couvertes par prescription/safety ;
 - retirer les règles faibles seulement après remplacement prouvé.
 
-### 1.5 Prescription / safety legacy
+### 1.4 Prescription / safety legacy
 
 Constat initial : certaines règles legacy sont trop larges ou simplistes pour servir de référence scientifique définitive.
 
@@ -110,7 +105,7 @@ Next:
 - conserver fail-closed et validation praticien ;
 - supprimer les doublons seulement après couverture testée.
 
-### 1.6 Imagerie panoramique
+### 1.5 Imagerie panoramique
 
 Goal: éliminer la multiplication historique des moteurs/wrappers panoramiques et vision.
 
@@ -128,7 +123,7 @@ Succès:
 
 État: À AUDITER.
 
-### 1.7 Céphalométrie
+### 1.6 Céphalométrie
 
 Goal: conserver un seul pipeline canonique et retirer les générations obsolètes sans réduire les mesures utiles.
 
@@ -150,9 +145,9 @@ Après le nettoyage :
 - définir les moteurs canoniques par domaine ;
 - fusionner les responsabilités dupliquées ;
 - normaliser les contrats d'entrée/sortie ;
-- isoler règles cliniques, règles documentaires et règles financières ;
-- supprimer les notions de score global qui mélangent des dimensions incompatibles ;
-- documenter les dépendances et les limites.
+- isoler règles cliniques, documentaires et financières ;
+- supprimer les scores globaux mélangeant des dimensions incompatibles ;
+- documenter dépendances et limites.
 
 État: NON COMMENCÉ.
 
@@ -197,17 +192,22 @@ Aucune sortie n'est déclarée certifiée sans preuve.
 
 Aucun déploiement Vercel dans ce chantier sans autorisation explicite.
 
-## ÉTAT VÉRIFIÉ AU DÉMARRAGE
+## REPÈRES VÉRIFIÉS
 
 Repo: `hraaaaf/Digital_crown`
 
 Branche: `refactor/scientific-core-purge`
 
-HEAD vérifié avant création du canonique: `cd084e39bbcecb9e47d8f80ea0acba0c588b1f8a`
+HEAD avant canonique: `cd084e39bbcecb9e47d8f80ea0acba0c588b1f8a`
+
+Canonique créé: `6c2e082c15383091f6c7b5d921ae214d567dc275`
+
+Contrat anti-régression ajouté: `15c7b8d9482ff645c2458c2367b48932eef34693`
+
+Lot 1 appliqué: `2eda05e73111cffce65309aef233438180f67e97`
 
 Premières conclusions :
-
-- `TreatmentPlanEngine` : `DELETE` qualifié ;
+- `TreatmentPlanEngine` : supprimé, CI à certifier ;
 - `clinical_coherence.py` : actif, audit/remplacement requis ;
 - prescription/safety legacy : actif mais à auditer/remplacer ;
 - panoramique/vision : consolidation à auditer ;
@@ -215,4 +215,4 @@ Premières conclusions :
 
 ## NEXT EXACT
 
-Appliquer la suppression atomique de `TreatmentPlanEngine`, nettoyer ses imports/tests dédiés et les runners scientifiques temporaires devenus inutiles, puis vérifier le diff et la CI avant de passer au prochain moteur.
+Lire la CI déclenchée par ce checkpoint, puis auditer exhaustivement `clinical_coherence.py` et ses recouvrements avec les moteurs prescription/safety avant toute nouvelle suppression.
