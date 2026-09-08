@@ -3,7 +3,7 @@
 Status: ACTIVE
 Canonical file: `docs/ux/DIGITAL_CROWN_MOBILE_PRODUCT_CANONICAL.md`
 Repo: `hraaaaf/Digital_crown`
-Current merged product baseline: `d9d1c255be6c9878ce6b7127c7f723cfb61e38a0`
+Current merged product baseline: `e2522a6d8b4794e64253eb4af36500e18cd87b40`
 Deployment: none. No Vercel deployment is authorized by this chantier.
 
 ## Goal final
@@ -64,7 +64,7 @@ Exception verrouillée — SuperAdmin : le mobile ne réduit **aucune** préroga
 | MOB-5F | Patients / Quick Document Studio | **DONE / MERGED / CLOSED** |
 | MOB-5G | Marketplace / Approvisionnement | DONE / MERGED |
 | MOB-5H | SuperAdmin mobile | DONE / MERGED |
-| MOB-5I | Salle d’attente | **NEXT / AUDIT REQUIRED** |
+| MOB-5I | Salle d’attente | **DONE / MERGED / CLOSED** |
 
 Science Hub reste desktop only.
 
@@ -176,18 +176,40 @@ Limite connue : conflit de dépendances `httpx==0.27.2` avec `firebase-admin 7.5
 - score visuel **9.3/10**
 - parité complète des prérogatives SuperAdmin actives maintenue
 
-## MOB-5I — Salle d’attente — NEXT / AUDIT REQUIRED
+## MOB-5I — Salle d’attente — DONE / MERGED / CLOSED
 
-Goal actuel : déterminer d'abord la réalité métier existante desktop/backend avant toute implémentation mobile. La mention historique `Coming Soon` n'autorise pas à inventer une fonctionnalité.
+### Goal
+Rendre la Salle d’attente exploitable sur mobile à partir du modèle `Appointment` canonique, sans nouvelle table ni métrique inventée.
 
-### Gate MOB-5I
-Avant tout changement UI :
-1. auditer routes/composants/API/modèles existants Salle d'attente;
-2. établir le comportement desktop réel;
-3. définir Goal / Success / Proof;
-4. capturer BEFORE desktop + mobile aux viewports pertinents;
-5. produire référence/mockup;
-6. seulement ensuite implémenter.
+### Fonctions certifiées
+- `EN_ATTENTE` ↔ `AppointmentStatus.EN_SALLE_ATTENTE` ;
+- `ticket_number` exposé sous tenant scope ;
+- Agenda : `PLANIFIE → EN_ATTENTE` ;
+- vue `WaitingRoomView` dérivée de `Snapshot.appointments` ;
+- `Au fauteuil` → `EN_COURS` / backend `EN_FAUTEUIL` ;
+- entrée secondaire dans `Plus` avec badge ;
+- bottom-nav principale inchangée ;
+- aucune durée d’attente inventée ;
+- aucune nouvelle table.
+
+### Preuves
+- BEFORE run `34168710412` ✅
+- BEFORE artifact `10035019049`
+- BEFORE digest `sha256:add8126ca80cc347365732da80a766549840fe16cadafc572e424aff0c479873`
+- AFTER run `34169388445` ✅
+- AFTER artifact `10035225974`
+- AFTER digest `sha256:efa961010bb3c1d189f8447c99a70d5dfaf42c893f49fd8a4db558b5dbccbd50`
+- score visuel **9.3/10**
+- CI générale PR `34169598948` ✅
+- PR `#367`
+- HEAD final `d6a234a24fbc3a64a69763688322de31fa38f7ba`
+- merge exact `e2522a6d8b4794e64253eb4af36500e18cd87b40`
+- post-merge master `34170398551` ✅ SUCCESS
+- closeout PR `#369`
+- closeout CI `34170522549` ✅ SUCCESS
+- T2 closeout `34170522692` ✅ SUCCESS
+
+Aucun déploiement Vercel.
 
 ---
 
@@ -211,4 +233,4 @@ Ordre : validation → canonique → cohérence docs → roadmap/% réel → Git
 - ne pas déployer sur Vercel sans autorisation explicite.
 
 ## Next exact
-Auditer MOB-5I Salle d'attente sur le baseline master `d9d1c255be6c9878ce6b7127c7f723cfb61e38a0` avant toute implémentation.
+Engager le prochain lot explicitement défini dans la roadmap : `MOB-6 — Canonisation du routage mobile`. Aucun `MOB-5J` n'est inventé.

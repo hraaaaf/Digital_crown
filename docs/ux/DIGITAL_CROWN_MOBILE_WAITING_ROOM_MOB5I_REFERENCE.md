@@ -1,54 +1,30 @@
 # DIGITAL CROWN — MOB-5I Salle d’attente — Référence UI
 
-## Référence verrouillée
+## Référence livrée et certifiée
 
-### Navigation
-La Salle d’attente reste un accès secondaire dans `Plus` pour ne pas dégrader les 4 accès principaux actuels : Aujourd’hui, Patients, Actions rapides, Assistant.
+Navigation : accès secondaire `Salle d’attente` dans `Plus`, avec badge uniquement si au moins un patient attend. La bottom-nav principale reste `Aujourd’hui / Patients / + / Assistant / Plus`.
 
-Entrée :
-`Salle d’attente` + icône utilisateurs/horloge + badge numérique uniquement si au moins un patient est en attente.
-
-### Vue
-```text
-Salle d’attente                         [3]
-Patients actuellement présents
-
-┌──────────────────────────────────────┐
-│ #12   09:30   Sara El Mansouri      │
-│       Contrôle                      │
-│                         [Au fauteuil]│
-└──────────────────────────────────────┘
-
-┌──────────────────────────────────────┐
-│       10:00   Youssef Amrani        │
-│       Consultation                  │
-│                         [Au fauteuil]│
-└──────────────────────────────────────┘
-```
-
-Règles :
+Vue livrée :
+- compteur Salle d’attente ;
+- liste dérivée de `Snapshot.appointments` ;
 - ordre par heure de rendez-vous ;
-- ticket affiché seulement s’il existe ;
-- aucune durée d’attente inventée ;
-- état vide explicite `Aucun patient en salle d’attente` ;
-- action principale `Au fauteuil` => `EN_COURS` / backend `EN_FAUTEUIL` ;
-- retour vers planifié disponible comme action secondaire uniquement si le composant d’action existant permet une transition claire sans ambiguïté ;
+- ticket seulement s’il existe ;
+- état vide explicite ;
+- CTA `Au fauteuil` → `EN_COURS` / backend `EN_FAUTEUIL` ;
 - touch targets >= 44 px ;
-- aucun menu horizontal.
+- aucune durée d’attente inventée.
 
-### Agenda
-Les cartes Agenda doivent pouvoir afficher le nouvel état `En salle d’attente` et permettre la transition `Planifié → En salle d’attente` via le sélecteur de statut existant.
+Agenda : `Planifié → En salle d’attente` via le statut existant.
 
-### Données
-Source unique : `Snapshot.appointments`.
-Filtre Salle d’attente : `status === 'EN_ATTENTE'`.
-`ticket_number` est purement informatif.
+Anti-patterns évités : aucune collection métier locale, aucun calcul d’attente artificiel, aucune sixième destination principale, aucune action contournant le serveur.
 
-## Anti-patterns refusés
-- dupliquer un rendez-vous dans une collection locale de file d’attente ;
-- calculer `attente = now - datetime_start` ;
-- remplacer l’Agenda par la Salle d’attente ;
-- ajouter une 6e destination dans la bottom-nav ;
-- exposer une action non autorisée côté serveur.
+## Preuves
+- AFTER `34169388445` — SUCCESS ;
+- artifact `10035225974` ;
+- 390×844 / 430×932 / 768×1024 sans overflow ni erreur page/console ;
+- score visuel **9.3/10** ;
+- PR produit `#367` mergée au SHA `e2522a6d8b4794e64253eb4af36500e18cd87b40` ;
+- post-merge master `34170398551` — SUCCESS ;
+- closeout PR `#369` : CI `34170522549` SUCCESS et T2 `34170522692` SUCCESS.
 
-Statut : `REFERENCE LOCKED — BEFORE RUNNING`.
+Statut : `REFERENCE DELIVERED / CERTIFIED / CLOSED`.
