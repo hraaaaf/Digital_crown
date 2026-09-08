@@ -25,12 +25,23 @@ jobs:
           npm ci
           npm install --no-save --package-lock=false playwright@1.55.0
           npx playwright install --with-deps chromium
-      - name: Extract harness and switch to ocean
+      - name: Extract harness and force ocean
         working-directory: frontend
         run: |
           awk '/cat > full-app-visual-audit.mjs <<'"'"'EOF'"'"'/{flag=1;next}/^          EOF$/{flag=0}flag{sub(/^          /,"");print}' ../.github/workflows/full-app-visual-theme-audit.yml > full-app-visual-audit.mjs
           sed -i "s/\['default', 'medical-ocean'\]/['ocean']/" full-app-visual-audit.mjs
+          python - <<'PY'
+          from pathlib import Path
+          p = Path('full-app-visual-audit.mjs')
+          s = p.read_text()
+          needle = "await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 30000 });"
+          inject = needle + "\n                  await page.evaluate(() => { document.documentElement.dataset.theme = 'ocean'; document.body.dataset.theme = 'ocean'; localStorage.setItem('digitalcrown_theme', 'ocean'); });"
+          if needle not in s:
+              raise SystemExit('goto needle not found')
+          p.write_text(s.replace(needle, inject))
+          PY
           grep "const themes" full-app-visual-audit.mjs
+          grep "document.documentElement.dataset.theme" full-app-visual-audit.mjs
       - name: Capture ocean routes
         working-directory: frontend
         run: node full-app-visual-audit.mjs
