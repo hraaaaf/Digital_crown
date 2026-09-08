@@ -1,0 +1,52 @@
+name: Mobile Theme Visual Cert
+
+on:
+  push:
+    branches: [audit/visual-theme-mobile-cert-2026-09-08]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  capture-mobile:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install frontend and Chromium
+        working-directory: frontend
+        run: |
+          npm ci
+          npm install --no-save --package-lock=false playwright@1.55.0
+          npx playwright install --with-deps chromium
+      - name: Reuse harness with mobile passkey disabled fixture
+        working-directory: frontend
+        run: |
+          awk '/cat > full-app-visual-audit.mjs <<'\''EOF'\''/{flag=1;next} flag && /^[[:space:]]*EOF$/{exit} flag{sub(/^          /, ""); print}' ../.github/workflows/full-app-visual-theme-audit.yml > mobile-theme-audit.mjs
+          python - <<'PY'
+          from pathlib import Path
+          p = Path('mobile-theme-audit.mjs')
+          s = p.read_text()
+          s = s.replace('const desktopWidths = [1280];', 'const desktopWidths = [];')
+          needle = "if (pathname.includes('/api/mobile/')) {"
+          replacement = "if (pathname.includes('/api/mobile/passkey/status')) return { state: 'disabled', credential_id: null, rp_id: 'digitalcrown.local', expected_origin: 'https://digitalcrown.local:8005', origin_ready: true, user_verification: 'required', server_gate: true };\n            " + needle
+          if needle not in s:
+              raise SystemExit('mobile fixture anchor not found')
+          s = s.replace(needle, replacement, 1)
+          p.write_text(s)
+          PY
+          node mobile-theme-audit.mjs
+      - name: Upload mobile evidence
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: mobile-theme-visual-cert
+          path: artifacts/full-app-visual-audit
+          retention-days: 14
+          if-no-files-found: error
