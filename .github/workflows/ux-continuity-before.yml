@@ -1,0 +1,161 @@
+name: UX Continuity BEFORE
+
+on:
+  pull_request:
+    branches: [master]
+    paths:
+      - 'docs/ux/DIGITAL_CROWN_UX_CONTINUITY_GOAL_UI.md'
+      - '.github/workflows/ux-continuity-before.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  before:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: 2926c06166e4d765451bb47e04214508ef4b439c
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install backend
+        run: |
+          python -m pip install --upgrade pip
+          pip install torch==2.12.0 torchvision==0.27.0 --index-url https://download.pytorch.org/whl/cpu
+          grep -vE '^(torch|torchvision)([<=>].*)?$' requirements.txt > /tmp/requirements-ux-continuity-before.txt
+          pip install -r /tmp/requirements-ux-continuity-before.txt
+          pip install httpx==0.27.2
+
+      - name: Install frontend and Chromium
+        working-directory: frontend
+        run: |
+          npm ci
+          npm install --no-save playwright@1.55.0
+          npx playwright install --with-deps chromium
+
+      - name: Start isolated runtime
+        run: |
+          rm -f t2-runtime-cert.db
+          python scripts/t2_runtime_server.py > /tmp/ux-continuity-before-backend.log 2>&1 &
+          for i in {1..90}; do if curl -fsS http://127.0.0.1:8005/health >/dev/null; then exit 0; fi; sleep 1; done
+          cat /tmp/ux-continuity-before-backend.log
+          exit 1
+
+      - name: Start frontend
+        working-directory: frontend
+        run: |
+          npm run dev -- --host 127.0.0.1 --port 5173 > /tmp/ux-continuity-before-front.log 2>&1 &
+          for i in {1..90}; do if curl -fsS http://127.0.0.1:5173 >/dev/null; then exit 0; fi; sleep 1; done
+          cat /tmp/ux-continuity-before-front.log
+          exit 1
+
+      - name: Capture exact BEFORE
+        working-directory: frontend
+        run: |
+          mkdir -p ../artifacts/ux-continuity-before
+          cat > .ux-continuity-before.mjs <<'JS'
+          import fs from 'node:fs';
+          import path from 'node:path';
+          import { chromium, request } from 'playwright';
+
+          const source = fs.readFileSync('../scripts/t2_runtime_server.py','utf8');
+          const user = source.match(/email=\"([^\"]+)\"/)?.[1];
+          const pass = source.match(/get_password_hash\(\"([^\"]+)\"\)/)?.[1];
+          if (!user || !pass) throw new Error('Unable to resolve isolated runtime credentials');
+
+          const out = path.resolve('../artifacts/ux-continuity-before');
+          const api = await request.newContext({baseURL:'http://127.0.0.1:8005'});
+          const login = await api.post('/api/auth/login',{form:{username:user,password:pass}});
+          if (!login.ok()) throw new Error(`login ${login.status()}`);
+          const tok = await login.json();
+          const browser = await chromium.launch({headless:true});
+          const evidence = {base_sha:'2926c06166e4d765451bb47e04214508ef4b439c',patientDelete:[],setupWizard:[]};
+
+          const init = async (page) => page.addInitScript(({a,r})=>{
+            localStorage.setItem('token',a);
+            localStorage.setItem('refresh_token',r||'');
+            localStorage.setItem('appMode','prod');
+            localStorage.setItem('patient_list_view_mode','grid');
+          },{a:tok.access_token,r:tok.refresh_token});
+
+          for (const viewport of [
+            {width:390,height:844,label:'390x844'},
+            {width:430,height:932,label:'430x932'},
+            {width:768,height:1024,label:'768x1024'},
+            {width:1366,height:700,label:'1366x700'},
+            {width:1440,height:900,label:'1440x900'},
+          ]) {
+            for (const position of ['top','middle','bottom']) {
+              const ctx = await browser.newContext({viewport,colorScheme:'light'});
+              const page = await ctx.newPage(); await init(page);
+              const errors=[]; page.on('pageerror',e=>errors.push(String(e)));
+              await page.goto('http://127.0.0.1:5173/patients',{waitUntil:'networkidle',timeout:90000});
+              await page.getByRole('heading',{name:'Dossiers Patients',exact:true}).waitFor({state:'visible'});
+              if(position==='middle') await page.evaluate(()=>window.scrollTo(0,Math.floor((document.documentElement.scrollHeight-innerHeight)/2)));
+              if(position==='bottom') await page.evaluate(()=>window.scrollTo(0,document.documentElement.scrollHeight));
+              const buttons=page.locator('button[aria-label^="Supprimer"]');
+              const count=await buttons.count();
+              let target=position==='top'?buttons.first():position==='bottom'?buttons.last():buttons.nth(Math.floor(count/2));
+              await target.scrollIntoViewIfNeeded();
+              const scrollBefore=await page.evaluate(()=>window.scrollY);
+              await target.click();
+              const dialog=page.getByRole('dialog',{name:'Supprimer le dossier'});
+              await dialog.waitFor({state:'visible'});
+              const box=await dialog.boundingBox();
+              const state=await page.evaluate(()=>({scrollY:window.scrollY,bodyOverflow:getComputedStyle(document.body).overflow,htmlOverflow:getComputedStyle(document.documentElement).overflow,activeTag:document.activeElement?.tagName||null}));
+              const fullyVisible=box?box.x>=-1&&box.y>=-1&&box.x+box.width<=viewport.width+1&&box.y+box.height<=viewport.height+1:false;
+              const shot=`before-delete-${viewport.label}-${position}.png`;
+              await page.screenshot({path:path.join(out,shot),fullPage:false});
+              evidence.patientDelete.push({viewport,position,scrollBefore,dialogBox:box,dialogFullyVisible:fullyVisible,...state,errors,shot});
+              await ctx.close();
+            }
+          }
+
+          for (const viewport of [{width:390,height:844,label:'390x844'},{width:1366,height:700,label:'1366x700'}]) {
+            const ctx=await browser.newContext({viewport,colorScheme:'light'});
+            const page=await ctx.newPage(); await init(page);
+            await page.route('**/api/clinics/init-status',route=>route.fulfill({status:200,contentType:'application/json',body:JSON.stringify({is_initialized:false})}));
+            await page.goto('http://127.0.0.1:5173/setup',{waitUntil:'networkidle',timeout:90000});
+            await page.getByRole('heading',{name:'Profil Cabinet',exact:true}).waitFor({state:'visible'});
+            await page.getByPlaceholder(/Cabinet Dentaire|Centre Dentaire/).fill('Cabinet UX Test');
+            await page.getByPlaceholder('Étage, Résidence, Rue, Ville...').fill('1 rue Test, Rabat');
+            await page.getByPlaceholder('Dr. Jean Dupont').fill('Dr UX Test');
+            const next=page.getByRole('button',{name:/Continuer/});
+            await next.scrollIntoViewIfNeeded();
+            const beforeScroll=await page.evaluate(()=>window.scrollY);
+            const beforeShot=`before-wizard-step1-${viewport.label}.png`;
+            await page.screenshot({path:path.join(out,beforeShot),fullPage:false});
+            await next.click(); await page.waitForTimeout(250);
+            const heading=page.locator('h2').first(); const box=await heading.boundingBox();
+            const afterScroll=await page.evaluate(()=>window.scrollY);
+            const afterShot=`before-wizard-step2-${viewport.label}.png`;
+            await page.screenshot({path:path.join(out,afterShot),fullPage:false});
+            evidence.setupWizard.push({viewport,beforeScroll,afterScroll,headingText:await heading.textContent(),headingBox:box,headingVisible:box?box.y>=0&&box.y<viewport.height:false,activeTag:await page.evaluate(()=>document.activeElement?.tagName||null),beforeShot,afterShot});
+            await ctx.close();
+          }
+
+          fs.writeFileSync(path.join(out,'evidence.json'),JSON.stringify(evidence,null,2));
+          await browser.close(); await api.dispose();
+          if(evidence.patientDelete.length!==15||evidence.setupWizard.length!==2) process.exit(1);
+          JS
+          node .ux-continuity-before.mjs
+          rm .ux-continuity-before.mjs
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ux-continuity-before-2926c061
+          path: artifacts/ux-continuity-before
+          if-no-files-found: error
+          retention-days: 14

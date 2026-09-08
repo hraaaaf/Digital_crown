@@ -24,6 +24,7 @@ import { Step5Design } from './steps/Step5Design';
 import { Step6Theme } from './steps/Step6Theme';
 import { Step7Confirmation } from './steps/Step7Confirmation';
 import { useSetupStore } from './store/useSetupStore';
+import { useFlowHandoff } from '../../../hooks/useFlowHandoff';
 
 export const SetupWizard: React.FC = () => {
   const navigate = useNavigate();
@@ -64,6 +65,9 @@ export const SetupWizard: React.FC = () => {
   const [letterheadFile, setLetterheadFile] = useState<File | null>(null);
   const [letterheadPreview, setLetterheadPreview] = useState<string | null>(null);
   const [showPreview, setShowPreview] = useState(true);
+  const flowTargetRef = useRef<HTMLDivElement>(null);
+  const flowHandoff = useFlowHandoff();
+  const initialStepRef = useRef(true);
 
   // Theme/brand changes are preview-only during setup. Persistent theme state is
   // written only after complete-setup succeeds.
@@ -203,6 +207,11 @@ export const SetupWizard: React.FC = () => {
 
   const handleBack = () => setCurrentStep(prev => Math.max(prev - 1, 1));
 
+  useEffect(() => {
+    if (initialStepRef.current) { initialStepRef.current = false; return; }
+    flowHandoff(flowTargetRef.current);
+  }, [currentStep, flowHandoff]);
+
   const specialtyStrings = useMemo(() => {
     const frArr: string[] = [];
     const arArr: string[] = [];
@@ -337,7 +346,7 @@ export const SetupWizard: React.FC = () => {
         </div>
 
         <div className={cn("grid grid-cols-1 gap-8 lg:gap-12 items-start transition-all duration-500", (currentStep >= 3 && currentStep <= 7) ? "lg:grid-cols-12" : "max-w-2xl mx-auto")}>
-          <div className={cn("min-w-0 bg-card rounded-[2rem] sm:rounded-[2.5rem] border border-border-main shadow-2xl shadow-primary/5 p-5 sm:p-8 lg:p-12 relative overflow-hidden transition-all duration-500", (currentStep >= 3 && currentStep <= 7) ? "lg:col-span-7" : "")}>
+          <div ref={flowTargetRef} data-flow-step={currentStep} className={cn("min-w-0 bg-card rounded-[2rem] sm:rounded-[2.5rem] border border-border-main shadow-2xl shadow-primary/5 p-5 sm:p-8 lg:p-12 relative overflow-hidden transition-all duration-500", (currentStep >= 3 && currentStep <= 7) ? "lg:col-span-7" : "")}>
             <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 rounded-bl-[4rem] pointer-events-none" />
 
             {currentStep === 1 && <Step1Identity cabinetType={cabinetType} setCabinetType={setCabinetType} identity={identity} setIdentity={setIdentity} errors={errors} setShowArKeyboard={setShowArKeyboard} />}
