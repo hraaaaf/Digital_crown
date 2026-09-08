@@ -71,11 +71,15 @@ Application :
 - contrat anti-régression ajouté dans `backend/tests/test_scientific_core_purge_contract.py` ;
 - workflows temporaires `.github/workflows/scientific-core-purge-apply.yml` et `.github/workflows/scientific-core-purge-audit.yml` supprimés.
 
-Commit produit : `2eda05e73111cffce65309aef233438180f67e97`.
+État: CERTIFIÉ SUR PR.
 
-Diff net vérifié : 7 fichiers produit/tests/workflows, aucune modification parasite dans `ia.py` ou `elite_manager.py`.
-
-État: APPLIQUÉ — CI STANDARD À CERTIFIER.
+Preuve:
+- CI run `34222898913` : SUCCESS ;
+- Patient Indicators Truth Certification : SUCCESS ;
+- T2 Runtime Browser Certification : SUCCESS ;
+- Catalog Connected Truth Certification : SUCCESS ;
+- Patient P7 Final Certification : SUCCESS ;
+- Settings TemplateEngine Reachability Certification : SUCCESS.
 
 ### 1.3 Couche clinical coherence
 
@@ -95,17 +99,36 @@ Next:
 
 ### 1.4 Prescription / safety legacy
 
-Constat initial : certaines règles legacy sont trop larges ou simplistes pour servir de référence scientifique définitive.
+Constat vérifié : certaines règles legacy étaient trop larges ou hors responsabilité du medication-safety.
 
-Classement actuel: `REPLACE`, sous réserve d'audit exhaustif.
+Nettoyage appliqué :
+- faux signal `allergie` générique ne doit plus devenir automatiquement une alerte pénicilline ;
+- rappel `pas de détartrage depuis 12 mois` retiré du contrat medication-safety ;
+- alertes spécifiques pénicilline et DDI conservées ;
+- tests adaptés au nouveau contrat.
 
-Next:
-- séparer interaction/allergie/contre-indication/posologie ;
-- identifier le moteur canonique pour chaque responsabilité ;
-- conserver fail-closed et validation praticien ;
-- supprimer les doublons seulement après couverture testée.
+Preuve :
+- CI run `34222898913` : SUCCESS.
 
-### 1.5 Imagerie panoramique
+Classement actuel: `REPLACE / CONSOLIDATE` pour le legacy restant.
+
+### 1.5 ClinicalRulesEngine
+
+Cible : `backend/services/clinical_rules_engine.py`.
+
+Constat vérifié :
+- le moteur contient `age = patient_data.get("age", 30)` et `poids = patient_data.get("poids", 70)` ;
+- recherche exhaustive dans le fichier : ces deux variables ne sont jamais relues après leur affectation ;
+- elles ne modifient donc actuellement aucune recommandation ;
+- elles sont néanmoins trompeuses et doivent être supprimées comme code mort.
+
+Classement : `DELETE` pour ces deux fallback locaux uniquement ; audit scientifique du moteur complet toujours requis.
+
+Next :
+- supprimer ces deux variables mortes ;
+- auditer ensuite chaque règle active du moteur et distinguer règle valide, règle trop absolue, règle obsolète et règle sans source.
+
+### 1.6 Imagerie panoramique
 
 Goal: éliminer la multiplication historique des moteurs/wrappers panoramiques et vision.
 
@@ -123,7 +146,7 @@ Succès:
 
 État: À AUDITER.
 
-### 1.6 Céphalométrie
+### 1.7 Céphalométrie
 
 Goal: conserver un seul pipeline canonique et retirer les générations obsolètes sans réduire les mesures utiles.
 
@@ -198,21 +221,20 @@ Repo: `hraaaaf/Digital_crown`
 
 Branche: `refactor/scientific-core-purge`
 
-HEAD avant canonique: `cd084e39bbcecb9e47d8f80ea0acba0c588b1f8a`
+PR: `#371` draft
 
-Canonique créé: `6c2e082c15383091f6c7b5d921ae214d567dc275`
+HEAD certifié safety/nettoyage: `f4a455292d85eae142c9d023c20555929ab123d1`
 
-Contrat anti-régression ajouté: `15c7b8d9482ff645c2458c2367b48932eef34693`
-
-Lot 1 appliqué: `2eda05e73111cffce65309aef233438180f67e97`
+CI certifiée: run `34222898913` — SUCCESS.
 
 Premières conclusions :
-- `TreatmentPlanEngine` : supprimé, CI à certifier ;
+- `TreatmentPlanEngine` : supprimé et certifié sur PR ;
 - `clinical_coherence.py` : actif, audit/remplacement requis ;
-- prescription/safety legacy : actif mais à auditer/remplacer ;
+- prescription/safety legacy : faux signaux déjà réduits, consolidation restante ;
+- `clinical_rules_engine.py` : deux fallback synthétiques identifiés comme variables mortes, suppression requise ;
 - panoramique/vision : consolidation à auditer ;
 - céphalométrie : audit après nettoyage prioritaire.
 
 ## NEXT EXACT
 
-Lire la CI déclenchée par ce checkpoint, puis auditer exhaustivement `clinical_coherence.py` et ses recouvrements avec les moteurs prescription/safety avant toute nouvelle suppression.
+Supprimer les deux variables mortes `age=30` et `poids=70` dans `clinical_rules_engine.py`, puis auditer exhaustivement les règles actives de ce moteur avant toute reconstruction scientifique.
