@@ -47,13 +47,14 @@ Ces gates ne bloquent pas la clôture du chantier software, mais toute affirmati
 ## Déploiement
 Aucun déploiement Vercel autorisé ni effectué.
 
-## Gate post-merge MOB-7
+## Gate post-merge MOB-7 — VERIFIED
 - master run : `34237128357`
 - HEAD : `1316b73c70f5cc298eb1101db557d1d4abee1f85`
 - garde production : SUCCESS
 - frontend tests + build : SUCCESS
-- backend `Tests & durcissement` : IN PROGRESS
+- backend `Tests & durcissement` : SUCCESS
 
-Le closeout final ne passe à `CLOSED` qu'après SUCCESS du backend de ce run, mise à jour du canonique, merge du closeout MOB-8 et validation post-merge master du closeout.
+## Gate restant MOB-8
+Le produit mobile software est certifié et le post-merge MOB-7 est vert. Il reste uniquement le closeout documentaire : PR MOB-8, CI/T2, merge et dernier post-merge master.
 
-Statut : `MOB-8 IN PROGRESS — MOB-7 BACKEND POST-MERGE PENDING`.
+Statut : `MOB-8 READY FOR CLOSEOUT PR`.
