@@ -1,0 +1,99 @@
+name: Landing Simplified Visual Cert
+
+on:
+  push:
+    branches: [feat/landing-ocean-aa-rebuild]
+    paths:
+      - 'frontend/src/pages/LandingPage.tsx'
+      - '.github/workflows/landing-simplified-visual-cert.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  capture:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install dependencies
+        working-directory: frontend
+        run: |
+          npm ci
+          npm install --no-save --package-lock=false playwright@1.55.0
+          npx playwright install --with-deps chromium
+      - name: Write capture harness
+        working-directory: frontend
+        run: |
+          cat > landing-simplified.mjs <<'EOF'
+          import { chromium } from 'playwright';
+          import { createServer } from 'vite';
+          import fs from 'node:fs/promises';
+
+          const label = process.env.CAPTURE_LABEL;
+          const out = `../artifacts/landing-simplified/${label}`;
+          await fs.mkdir(out, { recursive: true });
+          const server = await createServer({ server: { host: '127.0.0.1', port: 4177, strictPort: true }, clearScreen: false });
+          await server.listen();
+          const browser = await chromium.launch();
+          try {
+            for (const width of [390, 430, 768, 1280]) {
+              const height = width < 768 ? 900 : 1000;
+              const context = await browser.newContext({ viewport: { width, height }, locale: 'fr-FR' });
+              const page = await context.newPage();
+              const errors = [];
+              page.on('pageerror', e => errors.push(`pageerror: ${e.message}`));
+              page.on('console', m => { if (m.type() === 'error') errors.push(`console: ${m.text()}`); });
+              await page.addInitScript(() => localStorage.setItem('digitalcrown_theme', 'ocean'));
+              await page.goto('http://127.0.0.1:4177/landing', { waitUntil: 'domcontentloaded' });
+              await page.evaluate(() => {
+                document.documentElement.dataset.theme = 'ocean';
+                document.body.dataset.theme = 'ocean';
+              });
+              await page.waitForTimeout(800);
+              const hero = page.locator('main > section').first();
+              await hero.screenshot({ path: `${out}/ocean__landing-hero__${width}.png`, animations: 'disabled' });
+              await page.screenshot({ path: `${out}/ocean__landing-full__${width}.png`, fullPage: true, animations: 'disabled' });
+              await fs.writeFile(`${out}/ocean__landing__${width}.errors.txt`, errors.join('\n'));
+              await context.close();
+            }
+          } finally {
+            await browser.close();
+            await server.close();
+          }
+          EOF
+      - name: Capture BEFORE
+        working-directory: frontend
+        env:
+          CAPTURE_LABEL: before
+        run: |
+          git checkout 3a6f09417061d57d717f4241a8fdad5af75ed2df
+          node landing-simplified.mjs
+      - name: Capture AFTER
+        working-directory: frontend
+        env:
+          CAPTURE_LABEL: after
+        run: |
+          git checkout a820e310340abecf9bfb36d83faf22d6dc211d86
+          node landing-simplified.mjs
+      - name: Assert clean captures
+        run: |
+          test $(find artifacts/landing-simplified -name '*.png' | wc -l) -eq 16
+          if grep -R -n -E '.+' artifacts/landing-simplified/*.errors.txt artifacts/landing-simplified/*/*.errors.txt 2>/dev/null; then
+            exit 1
+          fi
+      - name: Upload evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: landing-simplified-before-after
+          path: artifacts/landing-simplified
+          retention-days: 14
+          if-no-files-found: error
