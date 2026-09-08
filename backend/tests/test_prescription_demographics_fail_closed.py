@@ -73,3 +73,18 @@ def test_no_synthetic_age_or_weight_defaults_remain_in_prescription_sources():
     assert 'get("age", 30)' not in rules
     assert 'get("poids", 70)' not in rules
     assert '"poids": 70' not in legacy
+
+
+def test_legacy_prescription_service_has_no_unguarded_runtime_consumer():
+    allowed = {"backend/services/prescription_service.py"}
+    consumers = []
+
+    for path in (ROOT / "backend").rglob("*.py"):
+        relative = path.relative_to(ROOT).as_posix()
+        if relative == "backend/services/prescription_service_legacy.py" or relative.startswith("backend/tests/"):
+            continue
+        source = path.read_text(encoding="utf-8", errors="ignore")
+        if "prescription_service_legacy" in source or "LegacyPrescriptionService" in source:
+            consumers.append(relative)
+
+    assert consumers == sorted(allowed), consumers
