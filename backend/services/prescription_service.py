@@ -29,16 +29,6 @@ class PrescriptionService(LegacyPrescriptionService):
         if not context.evaluable:
             return non_evaluable_plan(context, main_act)
 
-        # The legacy child-specific path still owns an internal synthetic
-        # default. Do not enter it until that implementation is replaced.
-        if context.age is not None and context.age < 15:
-            plan = non_evaluable_plan(context, main_act)
-            plan["evaluation"] = {
-                "status": "manual_review_required",
-                "missing_fields": [],
-            }
-            return plan
-
         result = super().resolve_smart_prescription(db, patient_id, acts, doctor_id)
         result["patient_context"] = context.as_dict()
         result["evaluation"] = context.evaluation_dict()
@@ -49,24 +39,12 @@ class PrescriptionService(LegacyPrescriptionService):
         warnings = super().check_safety(db, patient_id, drug_names)
         filtered: List[Dict[str, Any]] = []
         for warning in warnings:
-            # "allergie" without the allergen is not specific enough to infer
-            # a penicillin-class contraindication. Specific penicillin history
-            # warnings remain untouched.
             if str(warning.get("antecedent", "")).strip().lower() == "allergie":
                 continue
-
-            # Preventive recall belongs to patient follow-up, not medication
-            # safety. Keep it out of the prescription safety contract.
             if warning.get("drug") == "omission-prophylaxie":
                 continue
-
-            # Antibiotic appropriateness cannot be inferred from the mere
-            # presence/absence of a recent surgical or endodontic act. It
-            # requires diagnosis + clinical/systemic context, so the legacy
-            # heuristic is excluded until the clinical reasoning engine exists.
             if warning.get("drug") == "antibiotique-injustifie":
                 continue
-
             filtered.append(warning)
         return filtered
 
