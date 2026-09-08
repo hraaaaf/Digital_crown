@@ -153,14 +153,15 @@ class ClinicalRulesEngine:
     def analyze_case(self, patient_data: Dict[str, Any], acts: List[str]) -> Dict[str, Any]:
         """
         Analyse déterministe ELITE du cas patient avec focus Maroc.
+        Les données démographiques manquantes restent inconnues: aucun âge/poids synthétique.
         """
         warnings = []
         recommended_molecules = set()
-        
+
         # 1. Analyse des antécédents et allergies avec synonymes
         antecedents = str(patient_data.get("antecedents", "")).upper()
-        age = patient_data.get("age", 30)
-        poids = patient_data.get("poids", 70)
+        age = patient_data.get("age")
+        poids = patient_data.get("poids")
 
         # Détection résiliente des pathologies critiques (Synonymes)
         detected_conditions = []
@@ -232,7 +233,7 @@ class ClinicalRulesEngine:
                     msg = f"⚠️ Danger Gastro : {mol} est strictement contre-indiqué en cas d'ulcère gastroduodénal actif ou d'antécédents d'hémorragie digestive. Préférer le Paracétamol."
                 elif condition == "ANTICOAGULANT":
                     msg = f"🩸 Danger Anticoagulant : {mol} est formellement contre-indiqué en association avec un traitement anticoagulant ou antiagrégant plaquettaire (risque d'hémorragie sévère). Préférer le Paracétamol."
-                
+
                 warnings.append(RuleWarning(
                     level="CRITICAL",
                     message=msg,
@@ -246,7 +247,6 @@ class ClinicalRulesEngine:
                 message="📸 Radiographie & Grossesse : Les radiographies diagnostiques doivent être limitées au strict minimum. Si une radiographie est indispensable, le port d'un TABLIER DE PLOMB avec collerette thyroïdienne est OBLIGATOIRE pour protéger le fœtus.",
                 code="PREGNANCY_RADIO"
             ))
-            # Si anesthésie requise pour des actes invasifs
             if any(self._normalize_act_name(act) in ["IMPLANT", "EXTRACTION_CHIRURGICALE", "EXTRACTION_SIMPLE", "PULPITE"] for act in acts):
                 warnings.append(RuleWarning(
                     level="WARNING",
@@ -261,7 +261,6 @@ class ClinicalRulesEngine:
                 message="🩸 Vigilance Anticoagulants : Patient sous traitement anticoagulant/antiagrégant. Ne jamais arrêter le traitement de votre propre initiative (risque thromboembolique). Pour toute extraction, assurer une hémostase locale stricte.",
                 code="ANTICOAGULANT_VIGILANCE"
             ))
-            # Si extraction prévue, prescrire d'office de l'Exacyl pour l'hémostase locale
             if any("EXTRACTION" in act.upper() for act in acts):
                 recommended_molecules.add("ACIDE_TRANEXAMIQUE")
                 warnings.append(RuleWarning(
@@ -394,19 +393,17 @@ class ClinicalRulesEngine:
         # 3. Filtrage et Mapping Commercial (Focus Maroc)
         final_molecules = []
         banned_mols = [w.code.replace("CI_", "") for w in warnings]
-        
         selected_mols_for_interactions = []
 
         for mol in recommended_molecules:
             selected_mol = mol
             justif = "Protocole standard pour l'acte."
-            
-            # Gestion des classes (AINS)
+
             is_ains = mol in ["IBUPROFENE", "ACIDE_TIAPROFRENIQUE", "AINS"]
             if is_ains and "AINS" in banned_mols:
-                selected_mol = "PARACETAMOL" # Fallback sécurisé universel
+                selected_mol = "PARACETAMOL"
                 justif = "Substitution AINS -> Paracétamol par sécurité."
-            
+
             if selected_mol == "SACCHAROMYCES_BOULARDII":
                 justif = "🛡️ Prévention de la diarrhée post-antibiotique."
 
@@ -418,20 +415,28 @@ class ClinicalRulesEngine:
                     continue
 
             selected_mols_for_interactions.append(selected_mol)
-
-            # Mapping vers noms commerciaux marocains
             commercial = self.MAROC_PHARMACOPEIA.get(selected_mol, {"noms": [selected_mol], "dosages": ["N/A"], "forme": "N/A"})
-            
-            # Ajustement du dosage par défaut selon le poids/âge
-            dosage_suggere = commercial["dosages"][0]
-            if age < 15:
-                dosage_suggere = self._calculate_pediatric_dosage(selected_mol, poids)
+
+            if age is None:
+                dosage_suggere = "Dosage non calculé (âge requis)"
+            elif age < 15:
+                dosage_suggere = (
+                    self._calculate_pediatric_dosage(selected_mol, poids)
+                    if poids is not None
+                    else "Dosage pédiatrique non calculé (poids requis)"
+                )
+            else:
+                dosage_suggere = commercial["dosages"][0]
+
+            forme_suggeree = commercial["forme"]
+            if age is not None and age < 12:
+                forme_suggeree = "Sirop/Suspension"
 
             final_molecules.append({
                 "molecule": selected_mol,
                 "noms_commerciaux": commercial["noms"],
                 "dosage_defaut": dosage_suggere,
-                "forme": commercial["forme"] if age >= 12 else "Sirop/Suspension",
+                "forme": forme_suggeree,
                 "justification": justif,
                 "priorite": "haute"
             })
@@ -447,16 +452,25 @@ class ClinicalRulesEngine:
                 ))
 
         # 5. Calcul de dose et alertes globales
-        dosage_note = "Posologie adulte standard."
-        if age < 15:
+        if age is None:
+            dosage_note = "⚠️ Âge patient requis pour valider la posologie."
+            is_child = None
+        elif age < 15 and poids is None:
+            dosage_note = "⚠️ Poids patient requis pour calculer une posologie pédiatrique."
+            is_child = True
+        elif age < 15:
             dosage_note = f"⚠️ AJUSTEMENT PÉDIATRIQUE REQUIS ({poids}kg). Ne jamais dépasser les doses par kg/24h."
+            is_child = True
+        else:
+            dosage_note = "Posologie adulte standard."
+            is_child = False
 
         return {
             "risques_identifies": [w.message for w in warnings],
             "recommandations_moleculaires": final_molecules,
             "strategie_globale": strategy,
             "dosage_note": dosage_note,
-            "is_child": age < 15,
+            "is_child": is_child,
             "moteur": "Local Scientist Engine v1.5 (Elite-Secure)"
         }
 
