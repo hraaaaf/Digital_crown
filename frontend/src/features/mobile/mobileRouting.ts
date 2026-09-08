@@ -1,13 +1,15 @@
-export const MOBILE_CANONICAL_ROUTE_MAP: Readonly<Record<string, string>> = Object.freeze({
-  '/dashboard': '/mobile/dashboard?tab=agenda',
-  '/agenda': '/mobile/dashboard?tab=agenda',
-  '/patients': '/mobile/dashboard?tab=patients',
-  '/accounting': '/mobile/dashboard?tab=finance',
-  '/stock': '/mobile/dashboard?tab=stock',
-  '/approvisionnement': '/mobile/dashboard?tab=marketplace',
-  '/bibliotheque': '/mobile/dashboard?tab=library',
-  '/salle-attente': '/mobile/dashboard?tab=waiting-room',
-  '/super-admin': '/mobile/superadmin',
+import { MOBILE_BRIDGE_ROUTES } from './bridge';
+
+const DESKTOP_TO_MOBILE_DESTINATION: Readonly<Record<string, keyof typeof MOBILE_BRIDGE_ROUTES>> = Object.freeze({
+  '/dashboard': 'agenda',
+  '/agenda': 'agenda',
+  '/patients': 'patients',
+  '/accounting': 'finance',
+  '/stock': 'stock',
+  '/approvisionnement': 'marketplace',
+  '/bibliotheque': 'library',
+  '/salle-attente': 'waiting-room',
+  '/super-admin': 'superadmin',
 });
 
 export const KNOWN_MOBILE_PATHS = new Set([
@@ -23,11 +25,12 @@ export function isMobileRuntimeDevice(width: number, userAgent: string): boolean
 }
 
 export function resolveCanonicalMobileRoute(pathname: string): string | null {
-  return MOBILE_CANONICAL_ROUTE_MAP[pathname] ?? null;
+  const destination = DESKTOP_TO_MOBILE_DESTINATION[pathname];
+  return destination ? MOBILE_BRIDGE_ROUTES[destination] : null;
 }
 
 export function resolveMobileWildcardFallback(pathname: string): string | null {
   if (!pathname.startsWith('/mobile/')) return null;
   if (KNOWN_MOBILE_PATHS.has(pathname)) return null;
-  return '/mobile/dashboard';
+  return MOBILE_BRIDGE_ROUTES.agenda;
 }
