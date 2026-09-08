@@ -50,8 +50,10 @@ Aucun déploiement Vercel autorisé ni effectué.
 ## Gate post-merge MOB-7
 - master run : `34237128357`
 - HEAD : `1316b73c70f5cc298eb1101db557d1d4abee1f85`
-- état au moment de création de ce closeout : IN PROGRESS
+- garde production : SUCCESS
+- frontend tests + build : SUCCESS
+- backend `Tests & durcissement` : IN PROGRESS
 
-Le closeout final ne passe à `CLOSED` qu'après SUCCESS de ce run, merge du closeout MOB-8 et validation post-merge master du closeout.
+Le closeout final ne passe à `CLOSED` qu'après SUCCESS du backend de ce run, mise à jour du canonique, merge du closeout MOB-8 et validation post-merge master du closeout.
 
-Statut : `MOB-8 IN PROGRESS — MOB-7 POST-MERGE PENDING`.
+Statut : `MOB-8 IN PROGRESS — MOB-7 BACKEND POST-MERGE PENDING`.
