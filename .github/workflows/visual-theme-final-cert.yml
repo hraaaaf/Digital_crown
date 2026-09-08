@@ -8,6 +8,10 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: visual-theme-final-cert-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   capture-final:
     runs-on: ubuntu-latest
@@ -64,11 +68,12 @@ jobs:
           s = s.replace(market_anchor, market_fixtures, 1)
 
           api_anchor = "if (pathname.startsWith('/api/') || pathname.includes('/api/')) return method === 'GET' ? {} : {};"
-          super_fixtures = """if (pathname.endsWith('/api/superadmin/clients')) return [{ id: 1, nom_complet: 'Dr Sara Benali', email: 'sara@example.test', telephone: '0600000000', cabinet_name: 'Cabinet Agdal', is_licensed: true, license_expires_at: '2027-09-08T00:00:00', created_at: '2026-01-01T00:00:00', is_archived: false, is_suspended: false, internal_notes: null, last_login_at: '2026-09-08T08:00:00', subscription_plan: 'ELITE', stats: { total_patients: 184, total_ia_panoramique: 31, total_ia_cephalo: 18 } }];
+          extra_fixtures = """if (pathname.endsWith('/api/lab-jobs/') || pathname.endsWith('/api/lab-jobs')) return [];
+            if (pathname.endsWith('/api/superadmin/clients')) return [{ id: 1, nom_complet: 'Dr Sara Benali', email: 'sara@example.test', telephone: '0600000000', cabinet_name: 'Cabinet Agdal', is_licensed: true, license_expires_at: '2027-09-08T00:00:00', created_at: '2026-01-01T00:00:00', is_archived: false, is_suspended: false, internal_notes: null, last_login_at: '2026-09-08T08:00:00', subscription_plan: 'ELITE', stats: { total_patients: 184, total_ia_panoramique: 31, total_ia_cephalo: 18 } }];
             if (pathname.endsWith('/api/superadmin/trial-codes')) return [{ id: 1, code: 'DC-DEMO-2026', email: 'demo@example.test', nom_complet: 'Dr Demo', cabinet_name: 'Cabinet Demo', trial_days: 30, expires_at: '2026-10-08T00:00:00', consumed_at: null, revoked_at: null, activation_url: 'https://example.test/activate' }];
             """ + api_anchor
           if api_anchor not in s: raise SystemExit('api fixture anchor missing')
-          s = s.replace(api_anchor, super_fixtures, 1)
+          s = s.replace(api_anchor, extra_fixtures, 1)
 
           init_old = "await page.addInitScript(({ token, theme }) => {\n                    localStorage.setItem('token', token);"
           init_new = "await page.addInitScript(({ token, theme, routePath }) => {\n                    if (routePath === '/login') localStorage.removeItem('token'); else localStorage.setItem('token', token);"
