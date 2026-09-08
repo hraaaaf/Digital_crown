@@ -1,0 +1,94 @@
+name: Scientific Core Purge Audit
+
+on:
+  push:
+    branches: ["refactor/scientific-core-purge"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  dead-code-proof:
+    name: Prove scientific dead-code candidates
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Scan complete repository for consumers
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import json
+
+          root = Path('.')
+          workflow = Path('.github/workflows/scientific-core-purge-audit.yml')
+          candidates = {
+              'backend/services/clinical_coherence.py': [
+                  'backend.services.clinical_coherence',
+                  'clinical_coherence',
+                  'ClinicalCoherenceService',
+                  'coherence_service',
+              ],
+              'backend/services/treatment_plan_engine.py': [
+                  'backend.services.treatment_plan_engine',
+                  'treatment_plan_engine',
+                  'TreatmentPlanEngine',
+              ],
+          }
+
+          ignored_dirs = {'.git', 'node_modules', '.venv', 'venv', '__pycache__', 'dist', 'build'}
+          report = {'candidates': {}, 'verdict': 'PASS'}
+
+          files = []
+          for path in root.rglob('*'):
+              if not path.is_file():
+                  continue
+              if any(part in ignored_dirs for part in path.parts):
+                  continue
+              if path == workflow:
+                  continue
+              try:
+                  if path.stat().st_size > 5_000_000:
+                      continue
+              except OSError:
+                  continue
+              files.append(path)
+
+          for own_path, tokens in candidates.items():
+              own = Path(own_path)
+              refs = []
+              for path in files:
+                  if path == own:
+                      continue
+                  try:
+                      text = path.read_text(encoding='utf-8')
+                  except (UnicodeDecodeError, OSError):
+                      continue
+                  hits = [token for token in tokens if token in text]
+                  if hits:
+                      refs.append({'path': path.as_posix(), 'tokens': hits})
+              exists = own.exists()
+              report['candidates'][own_path] = {
+                  'exists': exists,
+                  'external_reference_count': len(refs),
+                  'external_references': refs,
+              }
+              if not exists or refs:
+                  report['verdict'] = 'FAIL'
+
+          Path('scientific-core-dead-code-audit.json').write_text(
+              json.dumps(report, ensure_ascii=False, indent=2) + '\n',
+              encoding='utf-8',
+          )
+          print(json.dumps(report, ensure_ascii=False, indent=2))
+          if report['verdict'] != 'PASS':
+              raise SystemExit('Scientific dead-code proof failed')
+          PY
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: scientific-core-dead-code-audit
+          path: scientific-core-dead-code-audit.json
+          if-no-files-found: error
+          retention-days: 14
