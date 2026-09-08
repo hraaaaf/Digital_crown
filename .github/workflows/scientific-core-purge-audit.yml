@@ -8,14 +8,18 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: scientific-core-purge-audit
+  cancel-in-progress: true
+
 jobs:
-  dead-code-proof:
-    name: Prove scientific dead-code candidates
+  usage-inventory:
+    name: Scientific usage inventory and dead-code proof
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
-      - name: Scan complete repository for consumers
+      - name: Scan complete repository
         run: |
           python - <<'PY'
           from pathlib import Path
@@ -23,30 +27,52 @@ jobs:
 
           root = Path('.')
           workflow = Path('.github/workflows/scientific-core-purge-audit.yml')
-          candidates = {
-              'backend/services/clinical_coherence.py': [
-                  'backend.services.clinical_coherence',
-                  'clinical_coherence',
-                  'ClinicalCoherenceService',
-                  'coherence_service',
-              ],
-              'backend/services/treatment_plan_engine.py': [
-                  'backend.services.treatment_plan_engine',
-                  'treatment_plan_engine',
-                  'TreatmentPlanEngine',
-              ],
+          service_stems = [
+              'ai_advisor',
+              'bilan_ortho_engine',
+              'calibration_service',
+              'cephalo_consistency_validator',
+              'cephalo_engine',
+              'cephalo_measure_registry',
+              'cephalo_normative_registry',
+              'cephalo_normative_service',
+              'cephalo_service',
+              'clinical_coherence',
+              'clinical_intelligence',
+              'clinical_rules_engine',
+              'cmo_agent_service',
+              'elite_manager',
+              'ghost_memory_service',
+              'habits_engine',
+              'medication_dict',
+              'panoramic_ai_advisor',
+              'panoramic_expert_engine',
+              'panoramic_report_engine',
+              'panoramic_service',
+              'panoramic_vision_service',
+              'prescription_agentic_service',
+              'prescription_context_guard',
+              'prescription_service',
+              'prescription_service_legacy',
+              'rag_context',
+              'sota_panoramic_service',
+              'sota_vision_service',
+              'state_extractor',
+              'temporal_comparator',
+              'treatment_plan_engine',
+              'vision_service',
+          ]
+          hard_dead_candidates = {
+              'clinical_coherence': ['ClinicalCoherenceService', 'coherence_service'],
+              'treatment_plan_engine': ['TreatmentPlanEngine'],
           }
 
           ignored_dirs = {'.git', 'node_modules', '.venv', 'venv', '__pycache__', 'dist', 'build'}
-          report = {'candidates': {}, 'verdict': 'PASS'}
-
           files = []
           for path in root.rglob('*'):
-              if not path.is_file():
+              if not path.is_file() or path == workflow:
                   continue
               if any(part in ignored_dirs for part in path.parts):
-                  continue
-              if path == workflow:
                   continue
               try:
                   if path.stat().st_size > 5_000_000:
@@ -55,8 +81,18 @@ jobs:
                   continue
               files.append(path)
 
-          for own_path, tokens in candidates.items():
-              own = Path(own_path)
+          report = {
+              'head': None,
+              'services': {},
+              'dead_code_proof': {},
+              'verdict': 'PASS',
+          }
+
+          import subprocess
+          report['head'] = subprocess.check_output(['git', 'rev-parse', 'HEAD'], text=True).strip()
+
+          for stem in service_stems:
+              own = Path(f'backend/services/{stem}.py')
               refs = []
               for path in files:
                   if path == own:
@@ -65,30 +101,58 @@ jobs:
                       text = path.read_text(encoding='utf-8')
                   except (UnicodeDecodeError, OSError):
                       continue
-                  hits = [token for token in tokens if token in text]
+                  if stem in text:
+                      refs.append(path.as_posix())
+              runtime_refs = [
+                  p for p in refs
+                  if (p.startswith('backend/') or p.startswith('frontend/'))
+                  and '/tests/' not in p
+                  and not p.endswith('_test.py')
+                  and not p.endswith('.test.ts')
+                  and not p.endswith('.test.tsx')
+              ]
+              report['services'][stem] = {
+                  'exists': own.exists(),
+                  'external_reference_count': len(refs),
+                  'runtime_reference_count': len(runtime_refs),
+                  'external_references': refs,
+                  'runtime_references': runtime_refs,
+              }
+
+          for stem, extra_tokens in hard_dead_candidates.items():
+              own = Path(f'backend/services/{stem}.py')
+              tokens = [stem, f'backend.services.{stem}', *extra_tokens]
+              refs = []
+              for path in files:
+                  if path == own:
+                      continue
+                  try:
+                      text = path.read_text(encoding='utf-8')
+                  except (UnicodeDecodeError, OSError):
+                      continue
+                  hits = sorted({token for token in tokens if token in text})
                   if hits:
                       refs.append({'path': path.as_posix(), 'tokens': hits})
-              exists = own.exists()
-              report['candidates'][own_path] = {
-                  'exists': exists,
+              report['dead_code_proof'][stem] = {
+                  'exists': own.exists(),
                   'external_reference_count': len(refs),
                   'external_references': refs,
               }
-              if not exists or refs:
+              if not own.exists() or refs:
                   report['verdict'] = 'FAIL'
 
-          Path('scientific-core-dead-code-audit.json').write_text(
+          Path('scientific-core-usage-inventory.json').write_text(
               json.dumps(report, ensure_ascii=False, indent=2) + '\n',
               encoding='utf-8',
           )
           print(json.dumps(report, ensure_ascii=False, indent=2))
           if report['verdict'] != 'PASS':
-              raise SystemExit('Scientific dead-code proof failed')
+              raise SystemExit('Hard dead-code candidates still have external references')
           PY
 
       - uses: actions/upload-artifact@v4
         with:
-          name: scientific-core-dead-code-audit
-          path: scientific-core-dead-code-audit.json
+          name: scientific-core-usage-inventory
+          path: scientific-core-usage-inventory.json
           if-no-files-found: error
           retention-days: 14
