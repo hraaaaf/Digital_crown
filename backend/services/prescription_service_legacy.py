@@ -25,7 +25,7 @@ class PrescriptionService:
 
         patient_data = {
             "age": self._calculate_age(patient.date_naissance),
-            "poids": 70, # TODO: Récupérer le poids réel si dispo
+            "poids": getattr(patient, "weight_kg", None) if hasattr(patient, "weight_kg") else getattr(patient, "poids", None),
             "antecedents": patient.antecedents_medicaux or ""
         }
 
@@ -191,7 +191,7 @@ class PrescriptionService:
                     else_=1
                 ),
                 # Priorité 2 : Fréquence globale
-                models.Medication.usage_count.desc()
+                desc("total")
             ).limit(10 - len(meds)).all()
             meds.extend([m[0] for m in global_meds])
             
