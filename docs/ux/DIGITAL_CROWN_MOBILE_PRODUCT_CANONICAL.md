@@ -1,309 +1,122 @@
-# Digital Crown — Mobile Product — Canonical Roadmap
+# Digital Crown — Mobile Product — Canonical Handover
 
-Status: ACTIVE
+Status: CLOSEOUT IN PROGRESS
 Canonical file: `docs/ux/DIGITAL_CROWN_MOBILE_PRODUCT_CANONICAL.md`
 Repo: `hraaaaf/Digital_crown`
-Current merged product baseline: `ce2d33d2f6edfd2d6fb99e1ba45b566fc4f3ac37`
+Current merged product baseline: `1316b73c70f5cc298eb1101db557d1d4abee1f85`
 Deployment: none. No Vercel deployment is authorized by this chantier.
 
 ## Goal final
-Faire de Digital Crown mobile un **cockpit opérationnel clinique**, pas une copie réduite du desktop. Les actions mobiles visent les usages au fauteuil, entre deux patients ou hors du poste principal. Le desktop reste le système complet pour les workflows lourds, la production clinique détaillée et le paramétrage.
-
-Exception verrouillée — SuperAdmin : le mobile ne réduit **aucune** prérogative SuperAdmin active. L'adaptation porte uniquement sur l'UX mobile, les confirmations et les step-up de sécurité requis par le backend.
+Faire de Digital Crown mobile un cockpit opérationnel clinique, distinct du desktop lourd, sans modèle métier parallèle et sans affaiblir RBAC, sécurité, offline, contexte patient ou prérogatives SuperAdmin.
 
 ## Doctrine verrouillée
-- Mobile = cockpit opérationnel.
-- Desktop = workflows lourds/complets.
-- SuperAdmin mobile = parité fonctionnelle complète des prérogatives actives.
-- Source de vérité unique serveur/DB pour desktop + mobile.
+- Mobile = cockpit opérationnel ; desktop = workflows lourds/complets.
+- SuperAdmin mobile = parité complète des prérogatives actives.
+- Source de vérité unique serveur/DB.
 - Aucun modèle métier parallèle mobile.
-- Tout changement UI suit : BEFORE → Goal UI → référence/mockup → implémentation → AFTER mêmes viewports → comparaison + tests + score visuel.
+- Navigation canonique : `Aujourd’hui / Patients / + / Assistant / Plus`.
+- Tout changement UI : BEFORE → Goal UI → référence/mockup → implémentation → AFTER mêmes viewports → comparaison/tests → score.
 - Aucun Vercel sans autorisation explicite.
 
-## Navigation mobile canonique
-`Aujourd’hui / Patients / + / Assistant / Plus`
+## Lots produit certifiés
 
----
-
-# Lots certifiés
-
-## MOB-2 — Patient Cockpit — DONE / MERGED
-- PR `#354`
-- merge `5fd2a06663e941581ad422267d31a5bb69a13d11`
-- AFTER run `33889545163` ✅
-- artifact `9943369750`
-- score visuel **9.2/10**
-
-## MOB-3 — Quick Action Hub — DONE / MERGED
-- PR `#355`
-- merge `23e4828729e085a4566cbfdf430025d1019e53fa`
-- AFTER run `33927174832` ✅
-- artifact `9957298023`
-- score visuel **9.5/10**
-
-## MOB-4 — Navigation mobile canonique — DONE / MERGED
-- PR `#356`
-- merge `28cf8278a31507d96b33c10f03e1635f86223454`
-- AFTER run `33953721202` ✅
-- artifact `9965680255`
-- score visuel **9.6/10**
-
----
-
-# MOB-5 — Mobile secondaire à forte valeur — CLOSED
-
-## Scope produit verrouillé
-
-| Lot | Fonction | État |
+| Lot | État | Preuve structurante |
 |---|---|---|
-| MOB-5A | Équipe / praticiens | DONE / MERGED |
-| MOB-5B | Frontdesk / demandes RDV | DONE / MERGED |
-| MOB-5C | Notifications | DONE / MERGED |
-| MOB-5D | Stock | DONE / MERGED |
-| MOB-5E | Bibliothèque clinique | DONE / MERGED |
-| MOB-5F | Patients / Quick Document Studio | **DONE / MERGED / CLOSED** |
-| MOB-5G | Marketplace / Approvisionnement | DONE / MERGED |
-| MOB-5H | SuperAdmin mobile | DONE / MERGED |
-| MOB-5I | Salle d’attente | **DONE / MERGED / CLOSED** |
+| MOB-2 Patient Cockpit | DONE / MERGED | PR #354, merge `5fd2a06663e941581ad422267d31a5bb69a13d11`, score 9.2 |
+| MOB-3 Quick Action Hub | DONE / MERGED | PR #355, merge `23e4828729e085a4566cbfdf430025d1019e53fa`, score 9.5 |
+| MOB-4 Navigation canonique | DONE / MERGED | PR #356, merge `28cf8278a31507d96b33c10f03e1635f86223454`, score 9.6 |
+| MOB-5A Équipe / praticiens | DONE / MERGED / RECERTIFIED | PR #357, merge `89098066ef0c943c0e084af4b9cd388d3ab0aa5b`, recert run `34234606313`, artifact `10059360520`, digest `sha256:cac6ca025db5f6b172eca67d8aa28e2f573037556a4af7348df65162d78d0659` |
+| MOB-5B Frontdesk | DONE / MERGED | PR #358, merge `21a41852182c7e74cc66c335c8d67c93a94d5871`, score 9.3 |
+| MOB-5C Notifications | DONE / MERGED | PR #359, merge `aaa28ef97b22df2c5654c4e0da7efc15692787a8`, score 9.4 |
+| MOB-5D Stock | DONE / MERGED | PR #360, merge `9cb740bc52efc9bf734c19fefc3c4f07470eba80`, post-merge `34041170446` ✅ |
+| MOB-5E Bibliothèque clinique | DONE / MERGED | PR #361, merge `b850cff2bd03dda667d6e1b6e449230658035d62`, score 9.4 |
+| MOB-5F Quick Document Studio | DONE / MERGED / CLOSED | PR #365, merge `d9d1c255be6c9878ce6b7127c7f723cfb61e38a0`, post-merge `34163696668` ✅, score 9.1 |
+| MOB-5G Marketplace | DONE / MERGED | PR #362, merge `6eb93c75f91402031ecc2c8fc1f8858372a97b9b`, post-merge `34054519282` ✅, score 9.4 |
+| MOB-5H SuperAdmin | DONE / MERGED | PR #363, merge `e30b858f58686f5f7bef19ca93f1c5dae42929c9`, post-merge `34142208046` ✅, score 9.3 |
+| MOB-5I Salle d’attente | DONE / MERGED / CLOSED | PR #367, merge `e2522a6d8b4794e64253eb4af36500e18cd87b40`, post-merge `34170398551` ✅, score 9.3 |
+| MOB-6 Routage mobile canonique | DONE / MERGED / CLOSED | PR #372, merge produit `97546777e3b4adbb8a670559553c1079aad4c2e2`, closeout #373 merge `ce2d33d2f6edfd2d6fb99e1ba45b566fc4f3ac37`, post-merge `34229494805` ✅, score 9.4 |
 
-Science Hub reste desktop only.
+Science Hub reste desktop-only.
 
-## MOB-5A — Équipe / praticiens — DONE / MERGED
-- PR `#357`
-- merge `89098066ef0c943c0e084af4b9cd388d3ab0aa5b`
-- artifact `9968666702`
-- score visuel **9.2/10**
+## MOB-5F — contrats documentaires verrouillés
+- Ordonnance → `prescriptions`.
+- Certificat → `patients`.
+- Devis → `accounting`.
+- Honoraires → `accounting`.
+- Document libre → `clinical`.
+- `can_pay` historique conserve le contrôle combiné `['accounting', 'payments']`.
+- moteur canonique : `/api/documents/generate`.
+- aucune nouvelle DB/générateur parallèle.
 
-## MOB-5B — Frontdesk — DONE / MERGED
-- PR `#358`
-- merge `21a41852182c7e74cc66c335c8d67c93a94d5871`
-- cert `33968295005` ✅
-- artifact `9970008232`
-- score visuel **9.3/10**
+## MOB-6 — politique de routage verrouillée
+Top-level mobile : `/dashboard`, `/agenda`, `/patients`, `/accounting`, `/stock`, `/approvisionnement`, `/bibliotheque`, `/salle-attente`, `/super-admin`.
 
-## MOB-5C — Notifications — DONE / MERGED
-- PR `#359`
-- merge `aaa28ef97b22df2c5654c4e0da7efc15692787a8`
-- artifact `9975417271`
-- score visuel **9.4/10**
-- push OS générique sans donnée patient
-- alertes Labo exclues tant que leur isolation tenant n'est pas prouvée
+Les deep-links riches restent desktop tant qu’une destination mobile ne peut pas préserver exactement l’entité ciblée.
 
-## MOB-5D — Stock — DONE / MERGED
-- PR `#360`
-- merge `9cb740bc52efc9bf734c19fefc3c4f07470eba80`
-- CI post-merge `34041170446` ✅
-- artifact `9991265607`
-- score visuel **9.3/10**
+Preuves :
+- BEFORE `34211312980` / artifact `10049990601` / digest `sha256:c89e86a107100e1596187291f9650c12bf716ffcc95c225efd4e670230b1eef4` ;
+- AFTER `34211780896` / artifact `10050137272` / digest `sha256:dc1e5a72d02f668cf537ec9fa28341940d34df7388603da6974eeac393d82ec7` ;
+- 390/430/768, 0 overflow, 0 page error, 0 console error.
 
-## MOB-5E — Bibliothèque clinique — DONE / MERGED
-- PR `#361`
-- merge `b850cff2bd03dda667d6e1b6e449230658035d62`
-- artifact `9992080508`
-- score visuel **9.4/10**
-- source unique : `CLINICAL_PROTOCOLS`
-- Science Hub non porté
-
-## MOB-5F — Patients / Quick Document Studio — DONE / MERGED / CLOSED
+## MOB-7 — Certification globale Mobile Product — DONE / MERGED / POST-MERGE VERIFIED
 
 ### Goal
-Créer rapidement un document depuis le cockpit patient mobile en réutilisant le moteur documentaire canonique `/api/documents/generate`, sans moteur, modèle DB ou stockage documentaire parallèle.
+Certifier la surface logicielle mobile complète actuelle sur un même candidat immuable, sans confondre preuve CI et comportement physique réel.
 
-### Fonctions certifiées
-- CTA `Créer un document` depuis le patient sélectionné;
-- Ordonnance;
-- Certificat;
-- Devis;
-- Honoraires;
-- Document libre;
-- familles filtrées par capacités serveur chiffrées;
-- preview serveur avant archivage;
-- payload verrouillé après preview;
-- confirmation explicite `Archiver le document`;
-- rappel de l'alerte médicale dans Ordonnance;
-- backend patient/RBAC reste autoritaire;
-- Échéancier volontairement laissé dans son flux financier dédié.
+### Gap détecté puis fermé
+Le double-check a identifié une asymétrie MOB-5A : pas de test dédié de `DentistsView` ni `/mobile/dentists`.
 
-### Contrats verrouillés
-- Ordonnance → `prescriptions`
-- Certificat → `patients`
-- Devis → `accounting`
-- Honoraires → `accounting`
-- Document libre → `clinical`
-- `can_pay` historique conserve son check combiné `['accounting', 'payments']`.
+Correction :
+- `backend/tests/test_mobile_team_mob5a.py` ;
+- `frontend/src/features/mobile/Dashboard/views/DentistsView.test.tsx` ;
+- intégration au workflow global `.github/workflows/mobile-final-certification.yml`.
 
-### Preuves
-- BEFORE baseline `e30b858f58686f5f7bef19ca93f1c5dae42929c9`
-- BEFORE run `34143420251` ✅
-- BEFORE artifact `10026785108`
-- BEFORE digest `sha256:b827b8b31f7bb604667d1a8df624eda98b1aa794ac25145f8c7acec72af5bdff`
-- product HEAD certifié `91688ffc2d5bf97e584844f972a12df717fc74da`
-- AFTER run `34149391346` ✅
-- AFTER artifact `10028850934`
-- AFTER digest `sha256:8b27d1c8658d0472f663a152d14bf463cfd519a7ac6ca5d65e4af7811c94080e`
-- 390×844 / 430×932 / 768×1024
-- 0 overflow / page error / console error / API réelle en preview
-- score visuel **9.1/10**
-- réserve : à 390 px, la navigation fixe mord légèrement la zone d'actions initiale avant scroll; sheet et confirmation propres
-- seuil produit <30 s non chronométré, donc non revendiqué comme mesure certifiée
-- PR `#365` merged
-- HEAD final PR `d39c9a207f1bc8b54333a332d7b6ea44a5ef9c58`
-- CI PR `34152892582` ✅
-- T2 `34152892437` ✅
-- Patient P7 `34152892745` ✅
-- merge exact `d9d1c255be6c9878ce6b7127c7f723cfb61e38a0`
-- CI post-merge master `34163696668` ✅ SUCCESS
-- backend Tests & durcissement ✅
-- frontend tests + build ✅
-- garde production ✅
-- preuve `docs/ux/DIGITAL_CROWN_MOBILE_DOCUMENTS_MOB5F_PROOF.md`
+### Preuves finales MOB-7
+- final PR HEAD : `a406d81b56e1c7b7b9a04a765391a0a32d560556` ;
+- global software run `34234600211` ✅ ;
+- backend M6 + MOB-5A/F/H/I ✅ ;
+- frontend M4/M6 + MOB-5A→I + MOB-6 + build ✅ ;
+- offline/sync/retry/revocation ✅ ;
+- pairing ECDH + RBAC fail-closed ✅ ;
+- T2 `34234606588` ✅ ;
+- CI PR `34234606403` ✅ ;
+- MOB-5A dedicated `34234606313` ✅ ;
+- PR `#374` merged ;
+- merge exact `1316b73c70f5cc298eb1101db557d1d4abee1f85` ;
+- post-merge master `34237128357` ✅ SUCCESS.
 
-## MOB-5G — Marketplace / Approvisionnement — DONE / MERGED
-- PR `#362`
-- merge `6eb93c75f91402031ecc2c8fc1f8858372a97b9b`
-- AFTER artifact `9994164037`
-- CI post-merge `34054519282` ✅
-- score visuel **9.4/10**
+## Preuves visuelles
+MOB-7/MOB-8 ne modifient pas l’UI. Les BEFORE/AFTER, viewports, artifacts, digests et scores des lots restent les autorités visuelles. Aucun score global fictif n’est recalculé.
 
-Limite connue : conflit de dépendances `httpx==0.27.2` avec `firebase-admin 7.5.0` / `ultralytics-platform`; ne pas le déclarer corrigé sans preuve dédiée.
+## Gates physiques séparés
+Non certifiés par CI :
+1. Face ID réel ;
+2. Touch ID réel si supporté ;
+3. biométrie Android réelle ;
+4. Push réel PWA background/closed.
 
-## MOB-5H — SuperAdmin mobile — DONE / MERGED
-- PR `#363`
-- merge exact `e30b858f58686f5f7bef19ca93f1c5dae42929c9`
-- Mobile SuperAdmin cert `34139811533` ✅
-- AFTER artifact `10025509035`
-- CI post-merge `34142208046` ✅
-- score visuel **9.3/10**
-- parité complète des prérogatives SuperAdmin actives maintenue
+Ils ne doivent jamais être présentés comme certifiés sans preuve appareil.
 
-## MOB-5I — Salle d’attente — DONE / MERGED / CLOSED
+## Limites connues non déclarées corrigées
+- conflit de dépendances historique `httpx==0.27.2` avec `firebase-admin 7.5.0` / `ultralytics-platform` : ne pas déclarer corrigé sans preuve dédiée ;
+- seuil MOB-5F <30 s non chronométré : ne pas le présenter comme mesure certifiée ;
+- légère réserve visuelle historique à 390 px sur MOB-5F avant scroll.
 
-### Goal
-Rendre la Salle d’attente exploitable sur mobile à partir du modèle `Appointment` canonique, sans nouvelle table ni métrique inventée.
+## MOB-8 — Final Closeout — IN PROGRESS
+Baseline : `1316b73c70f5cc298eb1101db557d1d4abee1f85`.
 
-### Fonctions certifiées
-- `EN_ATTENTE` ↔ `AppointmentStatus.EN_SALLE_ATTENTE` ;
-- `ticket_number` exposé sous tenant scope ;
-- Agenda : `PLANIFIE → EN_ATTENTE` ;
-- vue `WaitingRoomView` dérivée de `Snapshot.appointments` ;
-- `Au fauteuil` → `EN_COURS` / backend `EN_FAUTEUIL` ;
-- entrée secondaire dans `Plus` avec badge ;
-- bottom-nav principale inchangée ;
-- aucune durée d’attente inventée ;
-- aucune nouvelle table.
+Le produit mobile software est certifié et le post-merge MOB-7 est vert. Il reste uniquement le closeout documentaire MOB-8 : PR docs-only, CI/T2, merge et dernier post-merge master.
 
-### Preuves
-- BEFORE run `34168710412` ✅
-- BEFORE artifact `10035019049`
-- BEFORE digest `sha256:add8126ca80cc347365732da80a766549840fe16cadafc572e424aff0c479873`
-- AFTER run `34169388445` ✅
-- AFTER artifact `10035225974`
-- AFTER digest `sha256:efa961010bb3c1d189f8447c99a70d5dfaf42c893f49fd8a4db558b5dbccbd50`
-- score visuel **9.3/10**
-- CI générale PR `34169598948` ✅
-- PR `#367`
-- HEAD final `d6a234a24fbc3a64a69763688322de31fa38f7ba`
-- merge exact `e2522a6d8b4794e64253eb4af36500e18cd87b40`
-- post-merge master `34170398551` ✅ SUCCESS
-- closeout PR `#369`
-- closeout CI `34170522549` ✅ SUCCESS
-- T2 closeout `34170522692` ✅ SUCCESS
-
-Aucun déploiement Vercel.
-
----
-
-## MOB-6 — Canonisation du routage mobile — DONE / MERGED / CLOSED
-
-### Goal
-Supprimer l'ambiguïté entre PWA mobile dédiée et shell desktop responsive sans casser desktop, onboarding, offline/cache, biométrie, context bridges ni routes publiques.
-
-### Politique certifiée
-- canonisation avant auth/rendu dans `main.tsx` ;
-- même règle mobile historique : viewport <= 768 ou user-agent mobile ;
-- destinations mobiles résolues via `MOBILE_BRIDGE_ROUTES` ;
-- `waiting-room` ajouté au bridge canonique ;
-- namespace `/mobile/*` inconnu confiné au mobile ;
-- `MobileProtectedRoute`, cache offline et biométrie inchangés ;
-- routes publiques/auth inchangées.
-
-### Scope top-level
-`/dashboard`, `/agenda`, `/patients`, `/accounting`, `/stock`, `/approvisionnement`, `/bibliotheque`, `/salle-attente`, `/super-admin`.
-
-### Réserve de sécurité
-Les deep-links riches restent desktop tant qu'une destination mobile ne peut pas préserver exactement l'entité ciblée : patient, archives/édition, protocole, partenaire ou produit.
-
-### Preuves
-- baseline initiale `301454a367b8b7952d0fef94e86c40e8e4a248e2` ;
-- commit pré-implémentation BEFORE `d5bf9439e8eae60c1d0c8616a92353041fb5ac9a` ;
-- BEFORE final run `34211312980` ✅ ;
-- BEFORE artifact `10049990601` ;
-- BEFORE digest `sha256:c89e86a107100e1596187291f9650c12bf716ffcc95c225efd4e670230b1eef4` ;
-- AFTER final run `34211780896` ✅ ;
-- product/test HEAD certifié `e62217739c14c46747c159d9c3be9f76668c7a30` ;
-- AFTER artifact `10050137272` ;
-- AFTER digest `sha256:dc1e5a72d02f668cf537ec9fa28341940d34df7388603da6974eeac393d82ec7` ;
-- routing contract ✅ ; frontend build ✅ ; browser 390/430/768 ✅ ;
-- 0 overflow / page error / console error ;
-- score visuel/comportemental **9.4/10** ;
-- PR produit `#372` ;
-- HEAD final PR `8904dae5d82e218d5c73273042d85b966d929f11` ;
-- CI PR `34212226491` ✅ ;
-- T2 `34212226402` ✅ ;
-- merge produit exact `97546777e3b4adbb8a670559553c1079aad4c2e2` ;
-- post-merge produit `34226941958` ✅ ;
-- closeout PR `#373` ✅ ;
-- merge closeout exact `ce2d33d2f6edfd2d6fb99e1ba45b566fc4f3ac37` ;
-- post-merge closeout `34229494805` ✅ SUCCESS ;
-- preuve `docs/ux/DIGITAL_CROWN_MOBILE_ROUTING_MOB6_PROOF.md`.
-
-Aucun déploiement Vercel.
-
-## MOB-7 — Certification globale Mobile Product — SOFTWARE CERTIFIED / PRE-MERGE
-
-### Goal
-Certifier la surface logicielle mobile complète actuelle sur un même commit immuable sans réimplémenter les lots et sans confondre CI navigateur et preuve physique.
-
-### Baseline
-- master de départ : `ce2d33d2f6edfd2d6fb99e1ba45b566fc4f3ac37` ;
-- branche : `cert/mobile-product-mob7` ;
-- audit : `docs/ux/DIGITAL_CROWN_MOBILE_PRODUCT_MOB7_AUDIT.md` ;
-- matrice : `.audit/mobile-final-certification-matrix.md` ;
-- référence : `docs/ux/DIGITAL_CROWN_MOBILE_PRODUCT_MOB7_REFERENCE.md` ;
-- preuve : `docs/ux/DIGITAL_CROWN_MOBILE_PRODUCT_MOB7_PROOF.md`.
-
-### Gate software certifié
-- workflow : `.github/workflows/mobile-final-certification.yml` ;
-- candidat software immuable : `f4f59fa9d069ec4301c3665a5428d772772854fa` ;
-- run : `34232326289` ;
-- backend M6 + MOB-5F/H/I : ✅ SUCCESS ;
-- frontend M4/M6 + MOB-5A→I + MOB-6 + build : ✅ SUCCESS ;
-- aggregate `Mobile software certification gate` : ✅ SUCCESS ;
-- offline/sync/retry/revocation : inclus et verts ;
-- pairing ECDH + RBAC fail-closed : inclus et verts.
-
-### Doctrine visuelle
-MOB-7 ne modifie pas l'UI. Les artifacts, digests, viewports et scores certifiés par les lots MOB-2→MOB-6 restent les autorités visuelles. Aucun score global artificiellement recalculé n'est revendiqué.
-
-### Gates physiques séparés
-Non revendiqués par CI : Face ID réel, Touch ID si supporté, biométrie Android réelle, Push réel PWA background/closed.
-
-MOB-7 n'est pas encore `CLOSED` : PR, CI/T2 du HEAD final, merge et post-merge master restent requis.
-
-Aucun déploiement Vercel.
-
-## MOB-8 — Closeout — PLANNED
-Ordre : validation → canonique → cohérence docs → roadmap/% réel → Git/PR/merge → post-merge → lot suivant ou CLOSED.
+Preuve dédiée : `docs/ux/DIGITAL_CROWN_MOBILE_PRODUCT_MOB8_CLOSEOUT.md`.
 
 ## Garde-fous permanents
-- ne jamais porter une page sans scénario mobile démontré;
-- ne pas casser les context bridges existants;
-- ne pas casser l'offline;
-- ne pas affaiblir sécurité / biométrie;
-- ne pas exposer de données sans permission;
-- ne pas mélanger mockup et preuve AFTER;
-- ne jamais annoncer une certification physique depuis une CI navigateur;
+- ne pas casser les context bridges ;
+- ne pas casser offline/sync/revocation ;
+- ne pas affaiblir sécurité/biométrie/RBAC ;
+- ne pas exposer de données hors permission/tenant ;
+- ne pas mélanger mockup et preuve AFTER ;
+- ne jamais annoncer une certification physique depuis une CI navigateur ;
 - ne pas déployer sur Vercel sans autorisation explicite.
 
 ## Next exact
-Ouvrir la PR MOB-7 depuis `cert/mobile-product-mob7` vers `master`. Si CI/T2 du HEAD final sont verts : merge, vérifier le post-merge master, puis engager MOB-8.
+Ouvrir la PR MOB-8 depuis `docs/mobile-product-mob8-closeout` vers `master`. Si CI/T2 sont verts : merge, vérifier le dernier post-merge master, puis passer ce fichier et le closeout à `CLOSED` sur le merge final.
