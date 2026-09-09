@@ -9,6 +9,7 @@ from datetime import datetime
 logger = logging.getLogger(__name__)
 _GENERATED_PAYMENT_PREFIX = "Lien Doc ID: "
 _VOIDED_PAYMENT_PREFIX = "ANNULÉ — Lien Doc ID: "
+_TRASHED_PAYMENT_PREFIX = "CORBEILLE — Lien Doc ID: "
 
 
 class AccountingService:
@@ -23,12 +24,17 @@ class AccountingService:
         - paiement manuel : toujours réel, même si l'Acte lié est ensuite masqué ;
         - paiement généré par Document Studio : masqué si l'Acte dérivé est en
           corbeille ;
-        - paiement généré puis annulé par une édition : toujours masqué.
+        - paiement généré puis annulé par une édition : toujours masqué ;
+        - paiement directement lié à un document placé à la corbeille : masqué
+          jusqu'à restauration du document.
         """
         notes = models.Payment.notes
         not_voided = or_(
             notes.is_(None),
-            ~notes.startswith(_VOIDED_PAYMENT_PREFIX),
+            and_(
+                ~notes.startswith(_VOIDED_PAYMENT_PREFIX),
+                ~notes.startswith(_TRASHED_PAYMENT_PREFIX),
+            ),
         )
         not_document_generated = or_(
             notes.is_(None),
