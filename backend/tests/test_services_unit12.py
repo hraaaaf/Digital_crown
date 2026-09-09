@@ -35,13 +35,13 @@ class TestCephaloEngineGeometryOnly:
         assert result["z_score"] is None
 
     def test_empty_landmarks_do_not_invent_context_or_treatment(self):
-        result = self._eng().calculate_metrics({})
-        assert result.analysis_metadata["cohort"] == "Non classé"
-        assert result.t1_projection == {}
-        assert result.t2_projection == {}
-        assert result.ai_narrative == {}
-        assert result.clinical_data["ddm_reelle"] is None
-        assert result.clinical_data["plan_traitement"] == ""
+        payload = self._eng().calculate_metrics({}).model_dump()
+        assert payload["analysis_metadata"]["cohort"] == "Non classé"
+        assert payload["t1_projection"] == {}
+        assert payload["t2_projection"] == {}
+        assert payload["ai_narrative"] == {}
+        assert payload["clinical_data"]["ddm_reelle"] is None
+        assert payload["clinical_data"]["plan_traitement"] == ""
 
 
 # ── rate_limit file-I/O helpers ───────────────────────────────────────────────
