@@ -71,11 +71,14 @@ Reste : suite complète + build, smoke authentifié, PDF cabinet réel, responsi
 
 ## P4 — Note Honoraires
 
-**État : 🟡 audit canonique + durcissement engineering intégrés après P3 sur `agent/p4-p6-after-p3` ; certification runtime/financière ouverte.**
+**État : ✅ engineering + runtime automatisé fermés sur PR #386 ; validations comptable/réglementaire humaine et production réelle séparées.**
 
 Rapports :
 - `docs/audits/DOCUMENT_STUDIO_P4_HONORAIRES_AUDIT.md` ;
-- `docs/audits/DOCUMENT_STUDIO_P4_P6_AFTER_P3_STATUS.md`.
+- `docs/audits/DOCUMENT_STUDIO_P4_P6_AFTER_P3_STATUS.md` ;
+- `docs/audits/DOCUMENT_STUDIO_P4_FINAL_CERTIFICATION_2026-09-09.md`.
+
+HEAD produit certifié : `99c63b1247448805360e949d6da745afa53ba340`.
 
 ### Engineering acquis
 
@@ -92,15 +95,32 @@ Rapports :
 - Devis → Honoraires conserve les actes mais réinitialise statut/mode/plan/échéances ;
 - aucun historique P5 injecté dans le store P3/P4 ;
 - suggestions radio/RDV non contractuelles retirées du parcours financier ;
+- édition remplace l’archive logique au lieu d’ajouter un doublon ;
+- réouverture réhydrate `payment_status` et `is_accounted` ;
+- corbeille/restauration et agrégats financiers actifs durcis ;
 - tests request, pré-PDF, persistance, absence d’inférence clinique et store ajoutés.
 
-### Reste
+### Certification observée
 
-- exécution réelle du harness/full-suite/build sur le stack P3→P6 ;
-- runtime authentifié EN_ATTENTE/PAYE, archive/doublon/impression ;
-- rapprochement `Acte ↔ Payment` dans le dossier patient ;
-- PDF réel et responsive/accessibilité ;
-- certification financière séparée.
+- T2 Runtime Browser run `34413159443` : **success** ;
+- CI principal run `34413159336` : **success** ;
+- invalides P4 422 sans mutation DB : note vide, montant 0, PAYE sans mode, PARTIEL implicite ;
+- EN_ATTENTE : Acte sans Payment ;
+- PAYE : Acte + Payment exact lié à `acte_id` ;
+- multi-actes PAYE : 2 Actes + 2 Payments exacts ;
+- note globale : équilibre exact accepté, déséquilibres refusés ;
+- archive/relecture : statut PAYE et `is_accounted=true` conservés ;
+- navigateur Honoraires vert sur 390/430/768/1280 + dark 1280 ;
+- preview, PDF runtime, impression navigateur et fraîcheur PDF : verts dans T2 ;
+- PR #384/#385 : édition/archives/comptabilité/Historique et dropdown visuel certifiés puis mergés.
+
+### Hors périmètre engineering
+
+- validation comptable/réglementaire humaine si exigée ;
+- inspection esthétique humaine d’un PDF cabinet réel ;
+- certification production sur environnement cabinet réel.
+
+Ces validations externes ne rouvrent pas P4 engineering sauf défaut observé.
 
 ---
 
@@ -260,14 +280,15 @@ Le harness T1 est **préparé mais non exécuté**. Le run T1-C observé (#503 /
 ## Chemin critique courant
 
 1. **P3 PR #77** : fermer full-repo/runtime/visuel/merge dès qu’une exécution réelle redevient possible.
-2. **Stack P4/P5/P6 PR #80** : engineering/documentation fermé sur son head ; CI/runtime/PDF/financier externes ouverts.
-3. **P7 stack #81→#86** : A/B/D/F/G engineering fermé ; exécuter le harness/runtime quand l’infrastructure le permet ; P7-C/E nécessitent architecture dédiée ; P7-H est un gate scientifique humain.
-4. **T1 stack #88→#94** : A→E convergés en engineering ; exécuter le harness T1 puis les checks authentifiés/browser dès qu’une exécution réelle est disponible ; ne pas certifier/merger avant ces preuves.
-5. **T2** : recertification/refonte finale après consolidation des gates précédents.
+2. **P4 Note Honoraires** : engineering/runtime automatisé fermé sur PR #386 ; gates humaines externes séparées.
+3. **P5/P6** : reprendre les certifications runtime/PDF/financières encore ouvertes.
+4. **P7 stack #81→#86** : A/B/D/F/G engineering fermé ; exécuter le harness/runtime quand l’infrastructure le permet ; P7-C/E nécessitent architecture dédiée ; P7-H est un gate scientifique humain.
+5. **T1 stack #88→#94** : A→E convergés en engineering ; exécuter le harness T1 puis les checks authentifiés/browser dès qu’une exécution réelle est disponible ; ne pas certifier/merger avant ces preuves.
+6. **T2** : recertification/refonte finale après consolidation des gates précédents.
 
 ## Infrastructure CI
 
-Sur les heads récents P3/P4/P5/P7/T1, GitHub Actions a pu soit échouer avant exécution des steps, soit ne créer aucun run observable. Ces conditions externes ne justifient ni PASS ni échec applicatif et ne bloquent pas le travail indépendant.
+Les anciennes indisponibilités GitHub Actions restent documentées historiquement, mais P4 dispose désormais de runs réels verts sur son HEAD produit certifié : T2 `34413159443` et CI `34413159336`.
 
 Sur T1-C, le run #503 (`31941504118`) a créé trois jobs avec `runner_id=0` et `steps=[]` : aucun test de dépôt n’a donc été exécuté. Aucun PASS n'est revendiqué.
 
