@@ -50,6 +50,65 @@ def test_safe_engine_quarantines_legacy_normative_authority_and_growth_projectio
     assert 'payload["t2_projection"] = {}' in safe_source
 
 
+def test_safe_engine_behavior_removes_legacy_treatment_norms_and_growth(monkeypatch):
+    import backend.services.cephalo_safe_engine as safe_module
+
+    class FakeResult:
+        def __init__(self, payload):
+            self.payload = payload
+
+        def model_dump(self):
+            import copy
+            return copy.deepcopy(self.payload)
+
+        @classmethod
+        def model_validate(cls, payload):
+            return cls(payload)
+
+    legacy_payload = {
+        "metrics": {
+            "analyse_osseuse": {
+                "SNA": {
+                    "valeur": 83.0,
+                    "norm_mean": 82.0,
+                    "norm_min": 80.0,
+                    "norm_max": 84.0,
+                    "status": "High",
+                    "interpretation": "Prognathie",
+                    "z_score": 1.0,
+                }
+            }
+        },
+        "ai_narrative": {
+            "diagnostic_squelettique": "legacy observation",
+            "strategie_therapeutique": "Twin Block / Damon / chirurgie",
+        },
+        "t1_projection": {"A": [1.0, 2.0]},
+        "t2_projection": {"B": [3.0, 4.0]},
+        "clinical_data": {"plan_traitement": "Plan praticien"},
+    }
+
+    monkeypatch.setattr(
+        safe_module._legacy_cephalo_engine,
+        "calculate_metrics",
+        lambda *args, **kwargs: FakeResult(legacy_payload),
+    )
+
+    result = safe_module.SafeCephaloEngine().calculate_metrics({}).payload
+    measurement = result["metrics"]["analyse_osseuse"]["SNA"]
+
+    assert measurement["valeur"] == 83.0
+    assert measurement["status"] == "N/A"
+    assert measurement["norm_mean"] is None
+    assert measurement["norm_min"] is None
+    assert measurement["norm_max"] is None
+    assert measurement["z_score"] is None
+    assert "strategie_therapeutique" not in result["ai_narrative"]
+    assert result["t1_projection"] == {}
+    assert result["t2_projection"] == {}
+    assert result["clinical_data"]["plan_traitement"] == "Plan praticien"
+
+
 def test_practitioner_payload_is_not_sanitized():
     source = SERVICE.read_text(encoding="utf-8")
     assert 'final_data_dict["ai_diagnostic"] = ai_diagnostic' in source
