@@ -30,6 +30,7 @@ Aucun pourcentage global n'est déclaré sans recalcul vérifié.
 - `bilan_ortho_engine.py` restitue valeurs brutes + données praticien, sans classe/typologie/sévérité/diagnostic/traitement autonome.
 - `backend/routers/ia.py` n'importe plus directement `cephalo_engine` ni `ai_advisor`.
 - `backend/services/clinical_intelligence.py` ne dépend plus de `ai_advisor` ; son chemin céphalo historique restitue désormais les mesures brutes uniquement, sans cohorte âge-dérivée, diagnostic, indication ou stratégie automatique.
+- Les motifs `ORTHODONTIE` de `clinical_intelligence` servent uniquement au routage de spécialité : ils n'alimentent aucun `motif_treatment_hints`.
 - `backend/services/ai_advisor.py` est supprimé.
 
 ### Audit `ai_advisor` corrigé
@@ -47,10 +48,15 @@ Ces runs sont des preuves historiques rouges, pas une certification du HEAD cour
 - `test_cephalo_treatment_boundary.py`
 - `test_cephalo_engine_reachability.py`
 - `test_cephalo_consistency_structural_only.py`
+- `test_cephalo_service_normative_context.py` — contrat d'intégration désormais fail-closed : âge/sexe ne créent aucune autorité normative.
 - `test_bilan_ortho_fail_closed.py`
 - `test_ortho_frontend_fail_closed_contract.py`
-- `test_clinical_intelligence_cephalo_fail_closed.py`
+- `test_clinical_intelligence_cephalo_fail_closed.py` — inclut le verrou `ORTHODONTIE -> motif_treatment_hints == []`.
 - `test_scientific_core_purge_contract.py`
+
+### Dernier défaut CI identifié et corrigé
+
+Le run CI du HEAD précédent a échoué sur `test_cephalo_service_normative_context.py`, qui attendait encore les anciennes cohortes automatiques `Adulte/Enfant`, normes par âge et contexte sexuel normatif. Ce test était incompatible avec le moteur géométrie-seule actuel. Il a été réécrit pour verrouiller le contrat fail-closed réel, sans réintroduire l'ancienne logique clinique.
 
 ## AUTRES LOTS ENCORE OUVERTS
 
@@ -64,4 +70,4 @@ Avant merge : aucun rouge scientifique ; aucun comportement clinique autonome no
 
 ## NEXT EXACT
 
-Vérifier la CI du HEAD créé après correction `clinical_intelligence` + garde dédié + docs. Si rouge : diagnostiquer/corriger. Si verte : vérifier tous les checks, passer la PR ready, merger, puis vérifier le post-merge. Aucun déploiement Vercel.
+Vérifier les checks du HEAD final après mise à jour des preuves canoniques. Si rouge : diagnostiquer/corriger. Si vert : cohérence PR finale → ready → merge → contrôle post-merge. Aucun déploiement Vercel.
