@@ -33,6 +33,8 @@ interface DocumentInfo {
   url: string;
   file_exists?: boolean;
   clinical_data?: any;
+  payment_status?: string;
+  is_accounted?: boolean;
   isDuplicate?: boolean;
 }
 

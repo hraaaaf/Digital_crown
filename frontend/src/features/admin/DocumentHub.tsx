@@ -31,6 +31,8 @@ interface DocumentHubProps {
     type: string;
     clinical_data: Record<string, unknown>;
     id?: number;
+    payment_status?: string;
+    is_accounted?: boolean;
   };
 }
 
@@ -47,7 +49,9 @@ interface GenericClinicalData {
   page_size?: 'A5' | 'A4';
   alignment?: 'left' | 'center' | 'right' | 'justify';
   items?: { acte: string; dent: string; montant?: number; prix_unitaire?: number; dents?: number[] }[];
-  payments?: { acte: string; dent: string; montant?: number; prix_unitaire?: number; dents?: number[] }[];
+  payments?: { acte: string; dent: string; montant?: number; prix_unitaire?: number; dents?: number[]; mode_reglement?: string }[];
+  installments?: { date?: string; dueDate?: string; amount?: number; label?: string }[];
+  is_global_note?: boolean;
   doc_date?: string;
 }
 
@@ -74,7 +78,7 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
     items, setItems,
     paymentMode, setPaymentMode,
     installments, setInstallments,
-    isAccounted,
+    isAccounted, setIsAccounted,
     paymentStatus, setPaymentStatus,
     isGlobalNote, setIsGlobalNote,
   } = useAccountingStore();
@@ -214,9 +218,24 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
         price: i.montant ?? i.prix_unitaire ?? 0,
         toothNumbers: i.dents || [],
       })));
+      if (desiredTab === 'honoraires') {
+        const paymentState = editData.payment_status === 'PAYE' ? 'PAYE' : 'EN_ATTENTE';
+        setPaymentStatus(paymentState);
+        setIsAccounted(editData.is_accounted ?? true);
+        setIsGlobalNote(Boolean(d.is_global_note));
+        setInstallments((d.installments || []).map((inst, idx) => ({
+          id: Date.now() + idx,
+          date: inst.date || inst.dueDate || '',
+          amount: Number(inst.amount || 0),
+          label: inst.label || `Échéance ${idx + 1}`,
+        })));
+        const rawMode = d.payments?.find(item => item.mode_reglement)?.mode_reglement || '';
+        const allowedModes = ['Espèces', 'Chèque', 'TPE', 'Virement'];
+        setPaymentMode(paymentState === 'PAYE' && allowedModes.includes(rawMode) ? rawMode as 'Espèces' | 'Chèque' | 'TPE' | 'Virement' : '');
+      }
     }
     if (d.doc_date) setDocDate(d.doc_date);
-  }, [editData, allowedTabs, setActiveTab, setItems]);
+  }, [editData, allowedTabs, setActiveTab, setItems, setPaymentMode, setPaymentStatus, setIsAccounted, setIsGlobalNote, setInstallments]);
 
   useEffect(() => {
     if (!patientId || activeTab !== 'ordonnance' || !allowedTabs.includes('ordonnance')) {
