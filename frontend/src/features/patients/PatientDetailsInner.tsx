@@ -108,7 +108,7 @@ export const PatientDetails = () => {
     });
   };
 
-  const { editingDoc, patientsCache } = usePatientStore();
+  const { editingDoc, patientsCache, setEditingDoc } = usePatientStore();
   const cachedPatient = patientsCache.find(p => String(p.id) === id);
   const [patient, setPatient] = useState<Patient | null>(cachedPatient ? { ...cachedPatient, assurance: cachedPatient.assurance } : null);
   const [loading, setLoading] = useState(!cachedPatient);
@@ -141,10 +141,13 @@ export const PatientDetails = () => {
   }, [editingDoc, setSearchParams]);
 
   useEffect(() => {
-    const handlePrescription = () => setSearchParams({ tab: 'admin' });
+    const handlePrescription = () => {
+      setEditingDoc(null);
+      setSearchParams({ tab: 'admin' });
+    };
     window.addEventListener('perio-create-prescription', handlePrescription);
     return () => window.removeEventListener('perio-create-prescription', handlePrescription);
-  }, [setSearchParams]);
+  }, [setEditingDoc, setSearchParams]);
 
   useEffect(() => {
     if (initialFlowSurface.current) {
@@ -210,6 +213,10 @@ export const PatientDetails = () => {
   };
 
   const handleTabChange = (tab: TabType) => setSearchParams({ tab });
+  const handleDocumentCreate = () => {
+    setEditingDoc(null);
+    setSearchParams({ tab: 'admin' });
+  };
 
   if (loading) return <EliteGhostLoader text="Ouverture du dossier clinique..." size="medium" />;
 
@@ -270,7 +277,7 @@ export const PatientDetails = () => {
             <div className={cn('grid gap-2 w-full xl:w-auto', canFinance ? 'grid-cols-4' : 'grid-cols-3')} aria-label="Actions rapides patient">
               <QuickAction icon={<Calendar size={18} />} label="RDV" onClick={() => navigate('/agenda', { state: { prefillPatientId: patient.id, prefillPatientNom: patient.nom, prefillPatientPrenom: patient.prenom } })} />
               <QuickAction icon={<Stethoscope size={18} />} label={canClinical ? 'Examen' : 'Suivi'} onClick={() => handleTabChange(canClinical ? 'clinical' : 'tracking')} />
-              <QuickAction icon={<FileText size={18} />} label="Document" onClick={() => handleTabChange('admin')} />
+              <QuickAction icon={<FileText size={18} />} label="Document" onClick={handleDocumentCreate} />
               {canFinance && <QuickAction icon={<Banknote size={18} />} label="Encaisser" onClick={() => setIsPayModalOpen(true)} accent="emerald" />}
             </div>
           </div>
@@ -279,7 +286,7 @@ export const PatientDetails = () => {
             <TabButton active={activeTab === 'tracking'} onClick={() => handleTabChange('tracking')} icon={<Calendar size={17} />} label="Vue d’ensemble" />
             {canClinical && <TabButton active={activeTab === 'clinical'} onClick={() => handleTabChange('clinical')} icon={<Stethoscope size={17} />} label="Clinique" />}
             <TabButton active={activeTab === 'radiology'} onClick={() => handleTabChange('radiology')} icon={<Activity size={17} />} label="Imagerie" />
-            <TabButton active={isDocuments} onClick={() => handleTabChange('admin')} icon={<FileText size={17} />} label="Documents" />
+            <TabButton active={isDocuments} onClick={handleDocumentCreate} icon={<FileText size={17} />} label="Documents" />
             {canFinance && <TabButton active={activeTab === 'finances'} onClick={() => handleTabChange('finances')} icon={<Banknote size={17} />} label="Finances" />}
           </div>
         </div>
@@ -345,7 +352,7 @@ export const PatientDetails = () => {
             <div className="h-full min-h-0 flex flex-col gap-3">
               <div className="shrink-0 flex items-center justify-center">
                 <div className="inline-flex p-1 rounded-xl bg-card-bg border border-border-main shadow-sm">
-                  <button onClick={() => handleTabChange('admin')} className={cn('px-4 py-2 rounded-lg text-xs font-black flex items-center gap-2 transition-all', documentView === 'create' ? 'bg-primary text-white shadow-sm' : 'text-text-muted hover:text-main')}><Plus size={15} /> Créer</button>
+                  <button onClick={handleDocumentCreate} className={cn('px-4 py-2 rounded-lg text-xs font-black flex items-center gap-2 transition-all', documentView === 'create' ? 'bg-primary text-white shadow-sm' : 'text-text-muted hover:text-main')}><Plus size={15} /> Créer</button>
                   <button onClick={() => handleTabChange('archives')} className={cn('px-4 py-2 rounded-lg text-xs font-black flex items-center gap-2 transition-all', documentView === 'history' ? 'bg-primary text-white shadow-sm' : 'text-text-muted hover:text-main')}><History size={15} /> Historique</button>
                 </div>
               </div>
