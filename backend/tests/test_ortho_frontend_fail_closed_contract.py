@@ -11,6 +11,7 @@ EXPERT_SYSTEM = REPO_ROOT / "frontend/src/features/ortho/orthoExpertSystem.ts"
 STEP3 = REPO_ROOT / "frontend/src/features/ortho/components/Step3Clinical.tsx"
 STEP4 = REPO_ROOT / "frontend/src/features/ortho/components/Step4Documents.tsx"
 CEPHALO_UTILS = REPO_ROOT / "frontend/src/features/ortho/cephaloUtils.ts"
+ORTHO_STORE = REPO_ROOT / "frontend/src/features/ortho/stores/useOrthoStore.ts"
 
 
 def _read(path: Path) -> str:
@@ -88,3 +89,14 @@ def test_missing_ddm_is_never_serialized_as_zero():
     assert "ddm_maxillaire: max !== null" in source
     assert "ddm_mandibulaire: mand !== null" in source
     assert "ddm_reelle: real" in source
+
+
+def test_patient_sex_remains_unknown_until_explicitly_documented():
+    source = _read(ORTHO_STORE)
+    assert "sexePatient: 'M' | 'F' | null;" in source
+    assert "setSexePatient: (sexe: 'M' | 'F' | null) => void;" in source
+    assert "sexePatient: null," in source
+    assert "set({ patientId: id, patientName: name, sexePatient: null });" in source
+    assert "parsed.sexePatient === 'M' || parsed.sexePatient === 'F' ? parsed.sexePatient : null" in source
+    assert "sexePatient: 'M'" not in source
+    assert "parsed.sexePatient || 'M'" not in source
