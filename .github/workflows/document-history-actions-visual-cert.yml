@@ -84,12 +84,12 @@ jobs:
             const edit=page.locator('[data-document-action="edit"]');
             const trash=page.locator('[data-document-action="trash"]');
             if(label==='before'){
-              await page.getByRole('button',{name:'Modifier',exact:true}).waitFor({state:'visible',timeout:15000});
+              await page.getByRole('button',{name:'Modifier',exact:true}).last().waitFor({state:'visible',timeout:15000});
             } else {
               await edit.waitFor({state:'visible',timeout:15000});
               await trash.waitFor({state:'visible',timeout:15000});
             }
-            const editTarget=label==='before'?page.getByRole('button',{name:'Modifier',exact:true}):edit;
+            const editTarget=label==='before'?page.getByRole('button',{name:'Modifier',exact:true}).last():edit;
             const trashTarget=label==='before'?page.getByRole('button',{name:'Mettre à la corbeille',exact:true}):trash;
             const eb=await editTarget.boundingBox(); const tb=await trashTarget.boundingBox();
             if(!eb||!tb) throw new Error(`missing action boxes ${label} ${viewport.label}`);
