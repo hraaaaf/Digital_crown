@@ -21,7 +21,7 @@ export interface LocalState {
 }
 
 // --- ÉTAPE 3 : PROTOCOLE COM ---
-export type ClasseAngle = 'I' | 'II' | 'III';
+export type ClasseAngle = 'I' | 'II' | 'III' | '';
 export type DivisionClasseII = '1' | '2' | '' | null;
 export type TypeArcade = 'U' | 'V' | 'CARREE' | '' | null;
 export type PatternVertical = 'hypodivergent' | 'normodivergent' | 'hyperdivergent';
@@ -40,7 +40,6 @@ export interface AnalyseDentaire {
   i_nb_mm?: number | '';
   fmia?: number | '';
 }
-
 
 export interface AnalyseOsseuse {
   angle_tweed: number | '';
@@ -116,4 +115,3 @@ export interface PhotoUpload {
   preview: string | null;
   label: string;
 }
-
