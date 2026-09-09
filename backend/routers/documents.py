@@ -213,17 +213,16 @@ async def generate_document(req: schemas.DocumentRequest, archive: bool = False,
                     validated_by=f"{current_user.nom_complet or 'Utilisateur'} ({current_user.role})",
                 )
 
-                if is_global and installments_data:
-                    from backend.services.installment_reconciliation import reconcile_document_installments
-                    if not actes or actes[0].id is None:
-                        raise ValueError("Impossible de rattacher l'échéancier à la note d'honoraires")
-                    reconcile_document_installments(
-                        db,
-                        patient_id=patient.id,
-                        anchor_acte_id=actes[0].id,
-                        total_amount=total_amount,
-                        installments=installments_data,
-                    )
+                from backend.services.installment_reconciliation import reconcile_document_installments
+                if not actes or actes[0].id is None:
+                    raise ValueError("Impossible de rattacher l'échéancier à la note d'honoraires")
+                reconcile_document_installments(
+                    db,
+                    patient_id=patient.id,
+                    anchor_acte_id=actes[0].id,
+                    total_amount=total_amount,
+                    installments=installments_data if is_global else [],
+                )
 
                 # Commit unique du lot comptable Document Studio.
                 db.commit()
