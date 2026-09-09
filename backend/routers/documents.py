@@ -145,6 +145,45 @@ async def generate_document(req: schemas.DocumentRequest, archive: bool = False,
             raise ValueError(f"Type de document non supporté : {req.type}")
 
     patient = db.query(models.Patient).filter(models.Patient.id == patient_id).first()
+    replacement_file_backups: list[tuple[pathlib.Path, bytes]] = []
+
+    def _backup_financial_edit_files() -> None:
+        if req.type not in ["honoraires", "note"]:
+            return
+        raw_id = req.data.get("_replace_archive_id") if isinstance(req.data, dict) else None
+        if raw_id in (None, ""):
+            return
+        try:
+            archive_id = int(raw_id)
+        except (TypeError, ValueError):
+            return
+        target = db.query(models.DocumentArchive).filter(
+            models.DocumentArchive.id == archive_id,
+            models.DocumentArchive.patient_id == patient_id,
+        ).first()
+        if target is None:
+            return
+        if target.file_path.startswith("static/archives/") or target.file_path.startswith("static/documents/"):
+            canonical = MEDIA_DIR / target.file_path.replace("static/", "", 1)
+        else:
+            canonical = BASE_DIR / target.file_path
+        candidates = [canonical]
+        if target.created_at:
+            candidates.append(
+                MEDIA_DIR / "documents" / str(target.created_at.year) / f"{target.created_at.month:02d}" / canonical.name
+            )
+        seen = set()
+        for candidate in candidates:
+            resolved = candidate.resolve()
+            if resolved in seen or not resolved.exists():
+                continue
+            seen.add(resolved)
+            replacement_file_backups.append((resolved, resolved.read_bytes()))
+
+    def _restore_financial_edit_files() -> None:
+        for path, content in replacement_file_backups:
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_bytes(content)
 
     try:
         pdf_path = await asyncio.to_thread(_generate_pdf_in_thread)
@@ -158,6 +197,7 @@ async def generate_document(req: schemas.DocumentRequest, archive: bool = False,
 
         if should_archive:
             with open(pdf_path, "rb") as f: pdf_content = f.read()
+            _backup_financial_edit_files()
             archive_service = get_archive_service(db)
             
             enum_map = {
@@ -185,6 +225,12 @@ async def generate_document(req: schemas.DocumentRequest, archive: bool = False,
                 commit=req.type not in ["honoraires", "note"],
             )
             pdf_path = doc.file_path
+
+            # Le miroir historique éventuel doit évoluer dans le même lot que le
+            # PDF canonique. En cas d'échec comptable, les deux seront restaurés.
+            if req.type in ["honoraires", "note"]:
+                for backup_path, _ in replacement_file_backups[1:]:
+                    backup_path.write_bytes(pdf_content)
 
             # Étape 2 & 3 : Trésorerie Relationnelle (Ghost Treasury v4.6)
             if req.type in ["honoraires", "note"]:
@@ -267,6 +313,7 @@ async def generate_document(req: schemas.DocumentRequest, archive: bool = False,
         return {"status": "success", "pdf_url": pdf_url, "warnings": warnings, "rdv_suggestion": rdv_suggestion, "suggest_radio": suggest_radio}
     except ValueError as e:
         db.rollback()
+        _restore_financial_edit_files()
         msg = str(e)
         if msg.startswith("DOUBLE_DETECTED:"):
             raise HTTPException(status_code=409, detail={"code": "DOUBLE_DETECTED", "message": msg[len("DOUBLE_DETECTED:"):].strip()})
@@ -274,6 +321,7 @@ async def generate_document(req: schemas.DocumentRequest, archive: bool = False,
         raise HTTPException(status_code=422, detail=msg)
     except Exception as e:
         db.rollback()
+        _restore_financial_edit_files()
         logger.error(f"Erreur Génération : {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
