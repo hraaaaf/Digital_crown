@@ -64,15 +64,26 @@ jobs:
         working-directory: frontend
         run: |
           mkdir -p ../artifacts/document-history-actions-after
-          npm run dev -- --host 127.0.0.1 --port 5173 > /tmp/document-history-after-frontend.log 2>&1 &
+          printf 'visual certification started\n' > ../artifacts/document-history-actions-after/run-started.txt
+          nohup setsid npx vite --host 127.0.0.1 --port 5173 > /tmp/document-history-after-frontend.log 2>&1 </dev/null &
           VITE_PID=$!
           cleanup_frontend() {
-            kill "$VITE_PID" 2>/dev/null || true
+            kill -- -$VITE_PID 2>/dev/null || kill "$VITE_PID" 2>/dev/null || true
           }
-          trap cleanup_frontend EXIT
+          dump_frontend_log() {
+            status=$?
+            if [ "$status" -ne 0 ]; then
+              echo '--- Vite log ---'
+              cat /tmp/document-history-after-frontend.log || true
+            fi
+            cleanup_frontend
+            exit "$status"
+          }
+          trap dump_frontend_log EXIT
           FRONT_READY=0
           for i in {1..60}; do
             if curl -fsS http://127.0.0.1:5173 >/dev/null; then FRONT_READY=1; break; fi
+            if ! kill -0 "$VITE_PID" 2>/dev/null; then break; fi
             sleep 1
           done
           if [ "$FRONT_READY" != "1" ]; then
