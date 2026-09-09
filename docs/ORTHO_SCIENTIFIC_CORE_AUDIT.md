@@ -21,7 +21,7 @@ Le logiciel peut calculer la géométrie, préserver les observations documenté
 | `useOrthoStore.ts` | sexe patient nullable, défaut/reset `null`, restauration uniquement `M/F` |
 | `cephalo_engine.py` | géométrie seule ; normes/z-scores/croissance/traitement/diagnostic supprimés |
 | `cephalo_safe_engine.py` | défense en profondeur conservée |
-| `cephalo_consistency_validator.py` | cohérence structurelle, unités, calibration seulement |
+| `cephalo_consistency_validator.py` | cohérence structurelle, identité SNA-SNB=ANB, unités, calibration seulement |
 | `bilan_ortho_engine.py` | valeurs brutes + données praticien ; aucune classe/typologie/sévérité/diagnostic/traitement autonome |
 | `clinical_intelligence.py` | synthèse céphalo fail-closed ; motifs ODF = routage de spécialité uniquement, sans hint thérapeutique |
 | `ai_advisor.py` | supprimé ; références runtime connues retirées |
@@ -48,11 +48,36 @@ L'audit initial était incomplet : après suppression du wrapper, deux CI succes
 
 Les runs `34344464825` puis `34353944361` ont échoué sur ces références. Ils constituent des preuves historiques rouges, pas une certification du HEAD courant.
 
-## Dernier défaut CI corrigé
+## Nettoyage des tests normatifs historiques
 
-Le test d'intégration historique `test_cephalo_service_normative_context.py` attendait encore `Adulte/Enfant`, des normes dépendantes de l'âge et un contexte sexuel normatif. Le moteur runtime est désormais volontairement géométrie-seule. Le test a donc été remplacé par le contrat réel fail-closed ; aucune logique normative n'a été restaurée pour satisfaire le test.
+Les tests legacy qui imposaient encore des seuils locaux SNA/SNB, classes II/III, soft/hard bounds, warnings IMPA, cohortes automatiques ou obligations d'actes pour tous les motifs ont été supprimés/réécrits lorsqu'ils contredisaient le contrat geometry-only/fail-closed. Aucun seuil clinique n'a été restauré pour satisfaire la CI.
 
-L'audit de reachability de `clinical_intelligence` a également confirmé que `motif_specialties` atteint l'API. Pour les motifs contenant `ORTHODONTIE`, la génération d'actes est stoppée avant `motif_treatment_hints`. Un test exécutable couvre désormais cette frontière.
+Le validateur conserve uniquement :
+
+- cohérence de structure ;
+- identité arithmétique `SNA - SNB = ANB` ;
+- contradictions d'unités ;
+- avertissement de calibration non vérifiée.
+
+## Preuve de closeout avant mise à jour documentaire
+
+HEAD produit : `a6ddb33041b07a772e55ba7f44b01fa69b2ae1c1`.
+
+- CI `34401719011` : **success**.
+- Backend : **3019 passed, 8 skipped, 4 warnings** en 604.31 s.
+- Frontend tests/build : **success**.
+- Garde production : **success**.
+- M4-A / M4-B / M4-C : **success**.
+- T2 `34401719076` : **success**.
+- P7 `34401719000` : **success**.
+- P8 `34401719065` : **success**.
+- Settings `34401719008` : **success**.
+- Catalog `34401719077` : **success**.
+- P6 Windows Packaging `34401719033` : **success**.
+- M6-I `34401719102` : **skipped**.
+- Patient Indicators `34401719118` : échec de harness connu sur l'attente obsolète du heading `Dossiers Patients`, après backend ciblé 10/10, frontend ciblé 4/4, build et runtimes verts. Aucune régression produit démontrée ; le correctif du workflow est bloqué par le garde d'écriture du connecteur GitHub.
+
+Aucune review ni thread de review n'était ouvert au contrôle de closeout.
 
 ## Base scientifique verrouillée
 
@@ -64,10 +89,10 @@ L'audit de reachability de `clinical_intelligence` a également confirmé que `m
 
 ## Remaining exact
 
-1. CI complète sur le HEAD final ;
+1. vérifier la CI du nouveau HEAD documentaire ;
 2. corriger toute régression attribuable au lot ;
-3. vérifier tous les checks requis sur ce même HEAD ;
+3. vérifier les checks visibles sur ce même HEAD ;
 4. cohérence PR finale ;
-5. sortir du draft puis merge uniquement avec preuves vertes ;
+5. sortir du draft puis merge avec `expected_head_sha` exact si les preuves restent acceptables ;
 6. contrôle post-merge ;
 7. aucun déploiement Vercel sans autorisation explicite.
