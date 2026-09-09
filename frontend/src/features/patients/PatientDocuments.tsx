@@ -221,9 +221,10 @@ export const PatientDocuments = () => {
                         <MoreHorizontal size={19} />
                       </button>
                       {actionsOpenFor === doc.id && (
-                        <div id={`document-actions-${doc.id}`} data-document-action-menu role="menu" className="absolute left-0 top-12 z-50 w-52 rounded-2xl border border-border-main bg-card-bg shadow-2xl p-2 space-y-1">
-                          <button data-document-action="edit" data-m4c-touch role="menuitem" type="button" onClick={() => handleEdit(doc)} className="w-full min-h-11 px-3 rounded-xl hover:bg-orange-50 text-orange-700 font-black text-xs inline-flex items-center gap-2"><Edit size={16} /> Modifier</button>
-                          <button data-document-action="trash" data-m4c-touch role="menuitem" type="button" onClick={() => void handleDelete(doc.id)} className="w-full min-h-11 px-3 rounded-xl hover:bg-rose-50 text-rose-700 font-black text-xs inline-flex items-center gap-2"><Trash2 size={16} /> Mettre à la corbeille</button>
+                        <div id={`document-actions-${doc.id}`} data-document-action-menu role="menu" className="absolute left-0 top-12 z-50 w-48 rounded-xl border border-slate-200/80 bg-white/95 shadow-xl backdrop-blur-xl p-1.5">
+                          <button data-document-action="edit" data-m4c-touch role="menuitem" type="button" onClick={() => handleEdit(doc)} className="w-full min-h-11 px-3 rounded-lg hover:bg-slate-50 text-slate-700 font-bold text-xs inline-flex items-center gap-2 transition-colors"><Edit size={16} className="text-amber-600" /> Modifier</button>
+                          <div className="mx-2 h-px bg-slate-100" aria-hidden="true" />
+                          <button data-document-action="trash" data-m4c-touch role="menuitem" type="button" onClick={() => void handleDelete(doc.id)} className="w-full min-h-11 px-3 rounded-lg hover:bg-rose-50/80 text-rose-600 font-bold text-xs inline-flex items-center gap-2 transition-colors"><Trash2 size={16} /> Mettre à la corbeille</button>
                         </div>
                       )}
                     </div>
