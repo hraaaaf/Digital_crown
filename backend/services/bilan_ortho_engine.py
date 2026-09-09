@@ -138,44 +138,35 @@ class BilanOrthoEngine:
         if skeletal_class == "II":
             synthese.append("La Classe II squelettique est le problème sagittal majeur.")
             if ddm is not None and ddm < -4:
-                synthese.append("Elle est aggravée par un encombrement dentaire limitant les compensations.")
+                synthese.append("Elle est associée à un encombrement dentaire documenté.")
             if impa_label == "Proalveolie mandibulaire":
-                synthese.append("Notez une forte proalvéolie mandibulaire (compensation physiologique à gérer).")
+                synthese.append("Une proalvéolie mandibulaire est documentée par le profil normatif autoritatif.")
         elif skeletal_class == "III":
-            synthese.append("Problématique de Classe III squelettique identifiée.")
+            synthese.append("Une Classe III squelettique est documentée par le profil normatif autoritatif.")
             if impa_label == "Retroalveolie mandibulaire":
-                synthese.append("L'incisive inférieure est linguoversée en tentative de compensation naturelle.")
+                synthese.append("Une rétroalvéolie mandibulaire est documentée par le profil normatif autoritatif.")
         elif skeletal_class == "I":
-            synthese.append("Bases osseuses équilibrées sagittalement (Classe I).")
+            synthese.append("Une Classe I squelettique est documentée par le profil normatif autoritatif.")
             if ddm is not None and ddm < -5:
-                synthese.append("L'encombrement dentaire (DDM) constitue le défi thérapeutique principal.")
+                synthese.append("Un encombrement dentaire est également documenté.")
         return " ".join(synthese)
 
     def _generate_plan_traitement(self, cephalo: schemas.CephaloAnalysisResult, clinique: schemas.ClinicalData) -> str:
-        """Legacy non appelé : conservé temporairement pour compatibilité, sans usage dans generate_bilan."""
-        if clinique.plan_traitement and len(clinique.plan_traitement) > 50:
-            return clinique.plan_traitement
+        """Legacy compatibility boundary: never invent a treatment.
 
-        cvm = clinique.cvm or "CS3"
-        ddm = clinique.ddm_reelle
-        denture = clinique.denture_type or "PERMANENTE"
-        tech = clinique.preference_technique or "DAMON"
-        is_interceptive = denture in ["TEMPORAIRE", "MIXTE"] or cvm in ["CS1", "CS2"]
-        plan = []
-        plan.append(f"### 🎯 ORIENTATION : {'TRAITEMENT INTERCEPTIF' if is_interceptive else 'TRAITEMENT GLOBAL'}")
-        if is_interceptive:
-            plan.append(f"Patient en denture {denture.lower()}. Objectif : Correction squelettique et préparation d'arcade.")
-        else:
-            plan.append("Patient en denture permanente. Objectif : Alignement, nivellement et coordination occlusale.")
-        if tech == "DAMON":
-            mechanical_text = "- **Mécanique Passive (Système Damon)** : Expansion physiologique privilégiée. Utilisation de forces légères pour limiter les extractions."
-            if ddm is not None:
-                mechanical_text = f"- **Mécanique Passive (Système Damon)** : Expansion physiologique privilégiée. Utilisation de forces légères pour limiter les extractions malgré une DDM de {ddm} mm."
-            plan.append(mechanical_text)
-        elif tech == "ALIGNEURS":
-            plan.append("- **Système d'Aligneurs (Invisalign)** : Séquençage précis des mouvements. Prévoir stripping (IPR) pour résoudre l'encombrement.")
-        else:
-            plan.append("- **Multi-attaches Conventionnel** : Alignement standard avec contrôle strict de l'ancrage.")
-        return "\n".join(plan)
+        Kept temporarily until branch-wide reachability proves that this private
+        method can be deleted. If a hidden legacy caller still exists, it receives
+        only an explicit practitioner plan or the same fail-closed message as the
+        public generate_bilan() path.
+        """
+        del cephalo
+        if clinique.plan_traitement and clinique.plan_traitement.strip():
+            return clinique.plan_traitement.strip()
+        return (
+            "Aucune stratégie thérapeutique n'est générée automatiquement. "
+            "Le plan de traitement relève exclusivement de la décision du praticien "
+            "après validation clinique et radiographique."
+        )
+
 
 bilan_ortho_engine = BilanOrthoEngine()
