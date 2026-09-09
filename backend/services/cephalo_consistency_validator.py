@@ -1,29 +1,23 @@
-"""
-Validateur de cohérence céphalo — lecture seule, rejouable.
+"""Fail-closed structural validator for cephalometric analysis.
 
-Vérifie trois catégories de problèmes avant de laisser générer un PDF :
-
-  FATAL  → incohérence bloquante (valeur physiologiquement impossible ou
-            contradiction interne grave). Le PDF est refusé.
-  WARNING → valeur hors normes mais plausible, ou contradiction faible.
-            Le PDF peut être généré mais le praticien est averti.
-  OK     → rien à signaler.
-
-Entrée : le dict `angles_data` stocké dans CephaloAnalysis.angles_data.
+This validator may reject structural/data contradictions. It must not act as a
+parallel clinical normative authority. Population/method-dependent clinical
+classification belongs to the normative registry and practitioner workflow.
 """
 from __future__ import annotations
+
 from dataclasses import dataclass, field
 from typing import Any, Optional
 
-# ─── Helpers ──────────────────────────────────────────────────────────────────
+from backend.services.cephalo_measure_registry import is_mm_metric as _is_mm_name
+
 
 def _val(obj: Any, *keys: str) -> Optional[float]:
-    """Descend un dict imbriqué et retourne la valeur numérique ou None."""
     cur = obj
-    for k in keys:
+    for key in keys:
         if not isinstance(cur, dict):
             return None
-        cur = cur.get(k)
+        cur = cur.get(key)
     if cur is None:
         return None
     if isinstance(cur, dict):
@@ -34,11 +28,6 @@ def _val(obj: Any, *keys: str) -> Optional[float]:
         return None
 
 
-from backend.services.cephalo_measure_registry import is_mm_metric as _is_mm_name
-
-
-# ─── Résultat ─────────────────────────────────────────────────────────────────
-
 @dataclass
 class ValidationResult:
     fatals: list[str] = field(default_factory=list)
@@ -46,64 +35,17 @@ class ValidationResult:
 
     @property
     def is_valid(self) -> bool:
-        return len(self.fatals) == 0
+        return not self.fatals
 
     def to_dict(self) -> dict:
-        return {
-            "valid": self.is_valid,
-            "fatals": self.fatals,
-            "warnings": self.warnings,
-        }
+        return {"valid": self.is_valid, "fatals": self.fatals, "warnings": self.warnings}
 
-
-# ─── Validateur ───────────────────────────────────────────────────────────────
 
 class CephaloConsistencyValidator:
-    """
-    Valide les mesures d'une CephaloAnalysis.
-    Appeler .validate(angles_data) et vérifier result.is_valid avant le PDF.
-    """
-
-    # Bornes physiologiques absolues — angles (au-delà = impossible anatomiquement)
-    _HARD_BOUNDS: dict[str, tuple[float, float]] = {
-        "SNA":           (60.0, 105.0),
-        "SNB":           (58.0, 102.0),
-        "ANB":           (-10.0, 15.0),
-        "Inter_Incisif": (80.0, 180.0),
-        "I_Francfort":   (60.0, 155.0),
-        "IMPA":          (60.0, 125.0),
-    }
-
-    # Bornes cliniques normales — angles (hors → warning)
-    _SOFT_BOUNDS: dict[str, tuple[float, float]] = {
-        "SNA":           (76.0, 88.0),
-        "SNB":           (74.0, 86.0),
-        "ANB":           (-2.0, 6.0),
-        "Inter_Incisif": (110.0, 150.0),
-        "I_Francfort":   (93.0, 120.0),
-        "IMPA":          (80.0, 105.0),
-    }
-
-    # Métriques linéaires (mm) : (hard_lo, hard_hi, soft_lo, soft_hi)
-    _MM_METRICS: dict[str, tuple[float, float, float, float]] = {
-        "Wits":         (-15.0, 15.0,  -2.0,  4.0),
-        # Nom réellement émis par cephalo_engine.py (metrics.wits_mcnamara.Wits_Appraisal) —
-        # "Wits" seul ne matchait jamais cette clé (lookup exact), laissant les bornes
-        # physiologiques inactives sur la donnée de production. Mêmes bornes, pas de
-        # renommage : "Wits" reste pour d'éventuelles données historiques.
-        "Wits_Appraisal": (-15.0, 15.0, -2.0,  4.0),
-        "I_NA_mm":      (-5.0,  15.0,   2.0,  6.0),
-        "I_NB_mm":      (-5.0,  15.0,   2.0,  6.0),
-        "Surplomb":     (-10.0, 12.0,   1.0,  4.0),
-        "Recouvrement": (-8.0,  10.0,   1.0,  4.0),
-        "Ligne_E":      (-10.0, 10.0,  -4.0,  2.0),
-    }
-
-    # ── Helpers internes ──────────────────────────────────────────────────────
+    """Validate structure, arithmetic consistency, units and calibration only."""
 
     @staticmethod
     def _iter_metrics(metrics: dict):
-        """Génère (nom, valeur_float, unite_str) pour toutes les métriques de toutes sections."""
         for section in metrics.values():
             if not isinstance(section, dict):
                 continue
@@ -111,58 +53,17 @@ class CephaloConsistencyValidator:
                 if not isinstance(data, dict):
                     continue
                 raw = data.get("valeur")
-                unite = data.get("unite") or ""
+                unit = data.get("unite") or ""
                 try:
-                    yield name, float(raw), unite
+                    yield name, float(raw), unit
                 except (TypeError, ValueError):
                     continue
 
-    # ── Checks supplémentaires ────────────────────────────────────────────────
-
     def _check_unit_contradictions(self, metrics: dict, result: ValidationResult) -> None:
-        """FATAL si une métrique à nom mm est étiquetée '°', ou si valeur hors plage mm."""
-        for name, val, unite in self._iter_metrics(metrics):
-            if not _is_mm_name(name):
-                continue
-            if unite == "°":
+        for name, val, unit in self._iter_metrics(metrics):
+            if _is_mm_name(name) and unit == "°":
                 result.fatals.append(
-                    f"Unité contradictoire : '{name}' = {val:.1f} est étiqueté '°' "
-                    "mais devrait être en mm — corriger l'analyse ou recalculer."
-                )
-            elif abs(val) > 50:
-                # Valeur > 50 mm est physiologiquement impossible pour ces métriques
-                result.warnings.append(
-                    f"'{name}' = {val:.1f} : plage suspecte pour une mesure en mm "
-                    "(degrés stockés à la place ?). Vérifier l'unité et les landmarks."
-                )
-
-    def _check_mm_bounds(self, metrics: dict, result: ValidationResult) -> None:
-        """Bornes physiologiques et cliniques pour les métriques linéaires connues."""
-        flat: dict[str, tuple[float, str]] = {}
-        for section in metrics.values():
-            if isinstance(section, dict):
-                for name, data in section.items():
-                    if isinstance(data, dict):
-                        raw = data.get("valeur")
-                        unite = data.get("unite") or ""
-                        try:
-                            flat[name] = (float(raw), unite)
-                        except (TypeError, ValueError):
-                            pass
-
-        for name, (hard_lo, hard_hi, soft_lo, soft_hi) in self._MM_METRICS.items():
-            entry = flat.get(name)
-            if entry is None:
-                continue
-            val, _ = entry
-            if not (hard_lo <= val <= hard_hi):
-                result.fatals.append(
-                    f"{name} = {val:.1f} mm hors bornes physiologiques "
-                    f"[{hard_lo} mm, {hard_hi} mm] — valeur impossible, vérifier les landmarks."
-                )
-            elif not (soft_lo <= val <= soft_hi):
-                result.warnings.append(
-                    f"{name} = {val:.1f} mm hors norme [{soft_lo} mm–{soft_hi} mm]."
+                    f"Unité contradictoire : '{name}' = {val:.1f} est étiqueté '°' mais devrait être en mm."
                 )
 
     def validate(self, angles_data: dict) -> ValidationResult:
@@ -171,100 +72,34 @@ class CephaloConsistencyValidator:
             result.fatals.append("angles_data manquant ou format invalide.")
             return result
 
-        # angles_data correspond directement aux champs d'AnalysisMetrics
-        # (analyse_osseuse/analyse_dentaire/analyse_esthetique en premier niveau,
-        # sans wrapper "metrics" — cf. AnalysisMetrics(**last_analysis.angles_data)).
         metrics = angles_data.get("metrics", angles_data)
-        osseuse = metrics.get("analyse_osseuse", {})
-        dentaire = metrics.get("analyse_dentaire", {})
+        if not isinstance(metrics, dict):
+            result.fatals.append("metrics manquant ou format invalide.")
+            return result
 
+        osseuse = metrics.get("analyse_osseuse", {})
         sna = _val(osseuse, "SNA", "valeur")
         snb = _val(osseuse, "SNB", "valeur")
         anb = _val(osseuse, "ANB", "valeur")
-        inter = _val(dentaire, "Inter_Incisif", "valeur")
-        i_franc = _val(dentaire, "I_Francfort", "valeur")
-        impa = _val(dentaire, "IMPA", "valeur")
 
-        named = {
-            "SNA": sna, "SNB": snb, "ANB": anb,
-            "Inter_Incisif": inter, "I_Francfort": i_franc,
-            "IMPA": impa,
-        }
-
-        # 1. Bornes physiologiques absolues
-        for name, val in named.items():
-            if val is None:
-                continue
-            lo, hi = self._HARD_BOUNDS[name]
-            if not (lo <= val <= hi):
-                result.fatals.append(
-                    f"{name} = {val:.1f}° hors bornes physiologiques [{lo}°, {hi}°] — "
-                    "valeur impossible, vérifier les landmarks."
-                )
-
-        # 2. Cohérence interne SNA - SNB ≈ ANB
+        # Structural identity: when all three are present, ANB must agree with
+        # the same SNA/SNB geometry. This is arithmetic consistency, not a norm.
         if sna is not None and snb is not None and anb is not None:
             expected_anb = round(sna - snb, 1)
             if abs(expected_anb - anb) > 1.5:
                 result.fatals.append(
-                    f"Incohérence interne : SNA({sna:.1f}°) - SNB({snb:.1f}°) = {expected_anb}° "
-                    f"mais ANB = {anb:.1f}° (écart > 1.5°). Recalculer ou réviser les landmarks."
+                    f"Incohérence interne : SNA({sna:.1f}°) - SNB({snb:.1f}°) = {expected_anb}° mais ANB = {anb:.1f}°."
                 )
 
-        # 3. Contradiction classe squelettique vs ANB
-        if sna is not None and snb is not None and anb is not None:
-            # ANB > 4 → tendance Classe II ; ANB < 0 → tendance Classe III
-            # SNA < SNB → profil inverse → cohérent avec Classe III
-            if anb > 4.0 and sna < snb:
-                result.fatals.append(
-                    f"Contradiction : ANB = {anb:.1f}° (Classe II) mais SNA < SNB "
-                    f"({sna:.1f}° < {snb:.1f}°) → impossible. Vérifier les landmarks S/N/A/B."
-                )
-            if anb < 0.0 and sna > snb + 5:
-                result.warnings.append(
-                    f"Incohérence mineure : ANB négatif ({anb:.1f}°) mais SNA largement > SNB "
-                    f"({sna:.1f}° vs {snb:.1f}°). Confirmer landmarks A et B."
-                )
-
-        # 4. Inter-incisif vs I/Francfort : si I/F > 130° l'inter-incisif devrait être < 130°
-        if i_franc is not None and inter is not None:
-            if i_franc > 130.0 and inter > 140.0:
-                result.warnings.append(
-                    f"I/Francfort ({i_franc:.1f}°) et Inter-incisif ({inter:.1f}°) tous deux élevés "
-                    "→ biprotrusion peu probable, vérifier les landmarks incisifs."
-                )
-            if i_franc < 80.0 and inter < 110.0:
-                result.warnings.append(
-                    f"I/Francfort ({i_franc:.1f}°) et Inter-incisif ({inter:.1f}°) tous deux faibles "
-                    "→ rétro-inclination sévère des deux arcades, confirmer les landmarks."
-                )
-
-        # 5. Bornes normales — angles (warnings seulement)
-        for name, val in named.items():
-            if val is None:
-                continue
-            lo, hi = self._SOFT_BOUNDS[name]
-            hard_lo, hard_hi = self._HARD_BOUNDS[name]
-            # N'émettre le warning que si la valeur est dans les bornes physio (sinon déjà fatal)
-            if (lo <= val <= hi) or not (hard_lo <= val <= hard_hi):
-                continue
-            result.warnings.append(
-                f"{name} = {val:.1f}° hors norme [{lo}°–{hi}°]."
-            )
-
-        # 6. Cohérence unités mm vs ° + bornes physiologiques métriques linéaires
         self._check_unit_contradictions(metrics, result)
-        self._check_mm_bounds(metrics, result)
 
-        # 7. Calibration non vérifiée — WARNING (jamais FATAL, les angles restent valides
-        # indépendamment du ratio mm/px). C'est le garde-fou effectivement branché avant
-        # PDF ; le badge frontend prévu pour ce même signal (CephaloStatsTable) n'est pas
-        # monté dans l'app (composant orphelin, audit 2026-07-12).
+        # No local 'normal', Class II/III, overjet/deep-bite or population-based
+        # thresholds are applied here. The normative registry is the sole future
+        # authority for such interpretation.
+
         if angles_data.get("calibration_status") == "unverified":
             result.warnings.append(
-                "Calibration non vérifiée : les mesures en millimètres (surplomb, "
-                "recouvrement, Wits, ligne E…) sont calculées avec un ratio par défaut "
-                "et ne sont pas fiables. Calibrez manuellement avant d'imprimer."
+                "Calibration non vérifiée : les mesures linéaires en millimètres ne doivent pas être interprétées avant calibration."
             )
 
         return result
