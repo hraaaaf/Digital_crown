@@ -7,7 +7,7 @@ Last verified: 2026-09-09.
 - P1 — OS abstraction layer — 13 EP — CLOSED
 - P2 — Runtime Supervisor / Launcher V2 — 13 EP — CLOSED
 - P3 — Cabinet data portability — 13 EP — CLOSED
-- P4 — Licence & local secrets cross-platform — 8 EP — CLOSED
+- P4 — Licence / secrets / machine identity — 8 EP — CLOSED
 - P5 — Native/scientific runtime portability — 13 EP — CLOSED
 - P6 — Industrialized Windows packaging — 8 EP — CLOSED
 - P7 — Native macOS packaging — 13 EP — CLOSED
@@ -49,13 +49,27 @@ P13 — Real cabinet certification — ACTIVE — **0/13 EP**.
 
 Current branch: `portability/p13-physical-certification`, created from verified master `cd47035c19bb9c87ac0c9272808c171f632a7f1d`.
 
+Draft PR: `#383`.
+
 Execution runbook: `docs/portability/P13_PHYSICAL_EXECUTION_RUNBOOK.md`.
+
+### Locked P13 release candidate
+Release id: `DC-P13-2026-09-09-b149412e`.
+
+Product SHA: `b149412edc0dce605b8b5bcda49145320ee673df`.
+
+This remains product-equivalent to the merged master because the subsequent closeout commits were docs-only.
+
+Preserved certified package artifacts:
+- Windows installer: artifact `10106131530`, `digitalcrown-p6-windows-installer`, digest `sha256:d8bb4e8ef96436779a4387bdc3d16d17685b45509c8c2c984ad329c9fce6dab6`, expires 2026-09-16;
+- Windows lifecycle logs: artifact `10106121928`, digest `sha256:95251cd75ed0d5fd8933074b7afe944fdb4d3bdf541048bd2cd270d4e3f2c511`, expires 2026-09-16;
+- macOS private lifecycle/package proof: artifact `10105864170`, `digitalcrown-p7-p10-macos-private-lifecycle`, digest `sha256:fc2a4a4fcf06ea9fea74d61b404ac88da87a2244a15cde5de484eaad04b2612b`, expires 2026-09-16.
 
 P13 remains a real physical/human gate:
 - real Windows 11 cabinet-local target;
 - genuine off-machine USB/removable/NAS;
 - operator attestation;
-- same release candidate across Windows/macOS;
+- same locked release id across Windows/macOS;
 - real Apple Silicon macOS evidence, with remote `.metal` allowed only under the closure-guard restrictions;
 - final `scripts/p13_real_cabinet_closure_guard.py validate-closure` PASS.
 
@@ -73,9 +87,9 @@ Global technical progress: **89.2%**.
 Physical execution and operator-observed evidence on the required Windows/macOS targets.
 
 ## Next exact
-1. choose one immutable P13 `release_id` and preserve exact Windows/macOS packages;
-2. execute Windows 11 cabinet-local run with a real off-machine destination;
-3. execute macOS Apple Silicon run using the same `release_id`;
+1. download/preserve the locked Windows and macOS artifacts before 2026-09-16;
+2. execute Windows 11 cabinet-local run with release id `DC-P13-2026-09-09-b149412e` and a real off-machine destination;
+3. execute macOS Apple Silicon run using the same release id;
 4. record all 15 gates using `scripts/p13_real_cabinet_evidence.py`;
 5. validate each evidence file and the pair;
 6. run the final closure guard;
