@@ -31,12 +31,12 @@ Règle dure : une couche clinique active `REPLACE` n'est jamais supprimée sans 
 
 Repo : `hraaaaf/Digital_crown`  
 Branche : `refactor/scientific-core-purge`  
-PR : `#371` — draft, ouverte, `mergeable=true` au dernier contrôle  
+PR : `#371` — draft, ouverte, mergeable au dernier contrôle  
 Base : `master`
 
-Dernier HEAD observé avant ce commit documentaire : `61bf1bd918d4483d5053276103da101faa5fbfd5`.  
-CI de ce HEAD : run `34340916184` **pending** au dernier contrôle.  
-Les autres certifications du même HEAD étaient encore pending/in_progress/queued.  
+Dernier HEAD code observé avant ce commit documentaire : `951d13fcbd4c336a3a5741d220eb0dc62c6b7576`.
+Le commit documentaire créé après ce fichier devient le HEAD à revérifier.
+
 Ne jamais qualifier la PR de globalement verte sans revérifier le HEAD courant et tous les checks requis.
 
 ---
@@ -133,8 +133,8 @@ Conserver géométrie, calibration, observations et données praticien ; supprim
 ### Runtime vérifié
 
 - `CephaloService` utilise `cephalo_safe_engine`, pas `cephalo_engine` directement.
-- `backend/tests/test_cephalo_engine_reachability.py` interdit tout import runtime direct du moteur legacy hors adapter.
-- `cephalo_safe_engine` retire stratégie thérapeutique, métadonnées normatives legacy et T1/T2.
+- `backend/tests/test_cephalo_engine_reachability.py` interdit tout import runtime direct du moteur hors adapter.
+- `cephalo_safe_engine` reste une défense en profondeur contre traitement, métadonnées normatives legacy et T1/T2.
 - `cephalo_consistency_validator.py` ne garde que cohérence structurelle, unités et calibration ; aucun seuil clinique local.
 - `CephaloService._calculate_complex_ddm()` ne convertit plus IMPA en espace ; DDM clinique explicite conservée.
 - contenu praticien explicite conservé.
@@ -145,11 +145,12 @@ Conserver géométrie, calibration, observations et données praticien ; supprim
 - `Step4Documents.tsx` : aucune table normative locale ni Damon par défaut.
 - `orthoExpertSystem.ts` : fail-closed ; aucune extraction/appareil/mécanique/imagerie/chirurgie autonome.
 - `cephaloUtils.ts` : CVM âge/sexe, correction DDM par IMPA, apex synthétiques et génération de traitement neutralisés.
-- `useOrthoStore.ts` : `sexePatient` est désormais `'M' | 'F' | null`, initialisé/reset à `null`; seules les valeurs sauvegardées exactement `M`/`F` sont restaurées. Le faux défaut masculin et la fuite inter-patient sont supprimés.
+- `useOrthoStore.ts` : `sexePatient` est `'M' | 'F' | null`, initialisé/reset à `null`; seules les valeurs sauvegardées exactement `M/F` sont restaurées. Le faux défaut masculin et la fuite inter-patient sont supprimés.
+- `backend/tests/test_ortho_frontend_fail_closed_contract.py` verrouille désormais explicitement ce contrat nullable/reset et interdit les fallbacks `'M'`.
 
 ### Purge physique appliquée
 
-`backend/services/cephalo_engine.py` a été réécrit en moteur **géométrie seule** :
+`backend/services/cephalo_engine.py` est un moteur **géométrie seule** :
 - imports/services normatifs supprimés ;
 - constantes/bornes normatives locales supprimées ;
 - z-scores et classifications supprimés ;
@@ -160,32 +161,52 @@ Conserver géométrie, calibration, observations et données praticien ; supprim
 - métadonnées normatives = `None`, `status='N/A'` ;
 - mesures géométriques brutes conservées.
 
-`backend/services/bilan_ortho_engine.py` a également été durci après audit croisé :
-- suppression des classifications Classe I/II/III, typologies Tweed et labels IMPA automatiques ;
-- suppression de la graduation automatique de sévérité DDM ;
+`backend/services/bilan_ortho_engine.py` est fail-closed :
+- aucune classification Classe I/II/III ;
+- aucune typologie Tweed ;
+- aucun label IMPA automatique ;
+- aucune graduation automatique de sévérité DDM ;
 - uniquement reformulation de valeurs brutes et données praticien ;
 - aucune synthèse diagnostique autonome ;
 - plan praticien conservé, sinon message fail-closed.
 
-### Tests ajoutés / adaptés
+### Tests clés
 
-- `backend/tests/test_cephalo_geometry_only.py` : normes nulles, T1/T2 vides, traitement absent, cohorte non inférée, mesures brutes conservées.
-- `backend/tests/test_bilan_ortho_fail_closed.py` : aucune Classe II/III, typologie, sévérité ou pro/rétroalvéolie déduite ; plan praticien seul.
-- `backend/tests/test_bilan_ortho_pdf.py` : validateur aligné sur contrat structurel-only, sans pseudo-borne SNA.
-- tests historiques clés : `test_cephalo_treatment_boundary.py`, `test_cephalo_engine_reachability.py`, `test_cephalo_consistency_structural_only.py`, tests frontend `cephaloUtils.test.ts`, `orthoExpertSystem.test.ts`.
+- `backend/tests/test_cephalo_geometry_only.py`
+- `backend/tests/test_cephalo_treatment_boundary.py`
+- `backend/tests/test_cephalo_engine_reachability.py`
+- `backend/tests/test_cephalo_consistency_structural_only.py`
+- `backend/tests/test_bilan_ortho_fail_closed.py`
+- `backend/tests/test_bilan_ortho_engine.py` aligné sur le contrat raw-measurement-only
+- `backend/tests/test_ortho_frontend_fail_closed_contract.py` avec garde sexe nullable/reset
+- tests frontend `cephaloUtils.test.ts`, `orthoExpertSystem.test.ts`.
+
+### Dernier défaut CI corrigé
+
+Run `34340987448` : backend a atteint `277 passed, 1 skipped` puis a échoué sur un test historique exigeant encore la phrase `référence normative non validée` dans le bilan. Le moteur ne doit plus injecter de sémantique normative du tout ; le test a donc été corrigé pour exiger **mesure brute seulement** et absence du terme `normative`.
+
+### Reachability `ai_advisor`
+
+Audit PR-wide :
+- `cephalo_service.py` n'importe plus `ai_advisor` ;
+- le wrapper lui-même est fail-closed ;
+- ses tests de compatibilité restent ;
+- un import runtime mort demeure dans `elite_manager.py`.
+
+Ne pas supprimer physiquement `ai_advisor.py` avant suppression sûre de cet import.
 
 ### Registre normatif
 
-`cephalo_normative_service.py` peut rester comme infrastructure versionnée/fail-closed pour de futurs profils explicitement validés, mais le moteur géométrique et le bilan fail-closed ne l'utilisent plus pour produire une interprétation autonome.
+`cephalo_normative_service.py` reste une infrastructure versionnée/fail-closed pour de futurs profils explicitement validés. Le moteur géométrique et le bilan fail-closed ne l'utilisent plus pour produire une interprétation autonome.
 
 Aucun profil legacy ne doit être marqué validé uniquement parce qu'il a été migré.
 
 ### Remaining exact
 
-1. obtenir la CI du HEAD courant et corriger toute régression attribuable au lot ;
-2. audit branch-wide des wrappers/imports céphalo legacy restants, notamment `ai_advisor`, puis supprimer ceux prouvés non nécessaires ;
-3. vérifier les consommateurs UI/API sur les nouveaux champs fail-closed ;
-4. refaire CI + certifications scientifiques ;
+1. obtenir la CI du HEAD documentaire final et corriger toute régression attribuable au lot ;
+2. supprimer l'import mort `elite_manager → ai_advisor` quand une modification sûre du fichier est possible ;
+3. si plus aucun consommateur runtime, décider suppression du wrapper + tests de compatibilité ;
+4. vérifier tous les checks requis sur le même HEAD ;
 5. cohérence PR/docs ;
 6. sortir du draft et merger uniquement après preuves vertes ;
 7. vérifier le post-merge.
@@ -212,4 +233,4 @@ Conditions avant merge :
 
 ## NEXT EXACT
 
-Auditer branch-wide les wrappers/imports céphalo legacy restants pendant la CI. Si la CI est rouge, corriger la régression ; si elle est verte, terminer la certification du lot puis closeout PR.
+Vérifier la CI du HEAD créé par ce commit documentaire. Si rouge : diagnostiquer/corriger. Si verte : terminer l'audit `ai_advisor`, vérifier tous les checks requis, mettre la PR en état de closeout et ne merger qu'après preuve complète.

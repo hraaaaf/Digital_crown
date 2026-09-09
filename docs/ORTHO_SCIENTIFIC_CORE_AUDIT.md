@@ -10,7 +10,7 @@ Guarantee the invariant:
 
 `measurement != diagnosis != indication != treatment`
 
-The software may compute geometry, preserve documented observations and expose sourced normative metadata. It must not autonomously select extraction, appliance, mechanics, imaging, surgery or patient-specific growth predictions from local thresholds or unvalidated heuristics.
+The software may compute geometry, preserve documented observations and expose sourced/versioned normative metadata. It must not autonomously select diagnosis, extraction, appliance, mechanics, imaging, surgery or patient-specific growth predictions from local thresholds or unvalidated heuristics.
 
 ## Current verified state
 
@@ -18,28 +18,32 @@ The software may compute geometry, preserve documented observations and expose s
 |---|---|---|
 | `frontend/src/features/ortho/orthoExpertSystem.ts` | Automatic extraction/appliance/mechanics/imaging logic neutralized; descriptive fail-closed output only | KEEP temporarily as compatibility boundary |
 | `frontend/src/features/ortho/components/Step3Clinical.tsx` | Generated-treatment coupling and local diagnostic/severity thresholds removed; practitioner strategy remains editable | FIXED |
-| `frontend/src/features/ortho/components/Step4Documents.tsx` | Duplicate local normative table and Damon default removed; no device stored in `profil` | FIXED |
-| `frontend/src/features/ortho/cephaloUtils.ts` | Age/sex -> CVM disabled; IMPA/I-F -> DDM correction disabled; missing apex fabrication removed; automatic treatment-plan generation disabled | FIXED / compatibility exports retained |
-| `frontend/src/features/ortho/stores/useOrthoStore.ts` | Classe-I / permanent-dentition / Damon defaults removed; missing DDM preserved as missing | PARTIAL: `sexePatient='M'` legacy default remains to replace safely |
-| `backend/services/cephalo_service.py` | Uses safe engine boundary; engine-generated treatment stripped; practitioner-authored plan preserved; no IMPA→space correction | FIXED |
-| `backend/services/cephalo_safe_engine.py` | Quarantines legacy treatment, local normative semantics and T1/T2 growth projections from runtime | KEEP as defense-in-depth until internal legacy purge |
-| `backend/services/cephalo_engine.py` | Legacy hardcoded norms, growth vectors and named treatment strategy still physically present | QUARANTINED / REMOVE after coverage proves safe physical purge |
-| `backend/services/cephalo_consistency_validator.py` | Clinical soft/hard norm tables and ANB Class-II/III inference removed; structural algebra/unit/calibration checks retained | FIXED |
-| `backend/services/cephalo_normative_service.py` | Fail-closed normative authority; no authoritative classification without validated profile/rule | KEEP |
-| `backend/services/bilan_ortho_engine.py` | Legacy treatment generator neutralized fail-closed | KEEP temporarily pending dead-code proof |
-| `backend/services/ai_advisor.py` | Legacy compatibility adapter now descriptive/fail-closed; no autonomous therapeutic selection | KEEP temporarily pending reachability cleanup |
+| `frontend/src/features/ortho/components/Step4Documents.tsx` | Duplicate local normative table and Damon default removed; raw values only | FIXED |
+| `frontend/src/features/ortho/cephaloUtils.ts` | Age/sex→CVM disabled; IMPA/I-F→DDM correction disabled; missing apex fabrication removed; automatic treatment-plan generation disabled | FIXED |
+| `frontend/src/features/ortho/stores/useOrthoStore.ts` | `sexePatient` is nullable, defaults/resets to `null`, restores only explicit `M/F` | FIXED + regression guard |
+| `backend/services/cephalo_service.py` | Uses safe engine boundary; practitioner-authored data preserved; no IMPA→space correction | FIXED |
+| `backend/services/cephalo_safe_engine.py` | Defense-in-depth strips treatment, legacy normative metadata and T1/T2 if ever reintroduced | KEEP |
+| `backend/services/cephalo_engine.py` | Rewritten as geometry-only engine: no local norms/z-scores, no growth projection, no DDM/IMPA empirical correction, no diagnosis/treatment generation | PURGED |
+| `backend/services/cephalo_consistency_validator.py` | Structural algebra/unit/calibration checks only; no clinical ranges or ANB class inference | FIXED |
+| `backend/services/cephalo_normative_service.py` | Fail-closed infrastructure for future explicitly validated profiles | KEEP |
+| `backend/services/bilan_ortho_engine.py` | Raw-measurement restatement + practitioner data only; no class/typology/severity/diagnosis/treatment inference | FIXED / fail-closed |
+| `backend/services/ai_advisor.py` | Legacy compatibility adapter is descriptive/fail-closed | KEEP temporarily; runtime import cleanup remains |
 
 ## Runtime safety boundaries
 
-Verified protections now include:
+Verified protections include:
 
-- `CephaloService` imports `cephalo_safe_engine`, not the legacy engine directly.
-- AST architecture test `backend/tests/test_cephalo_engine_reachability.py` allows only `backend/services/cephalo_safe_engine.py` to import `backend.services.cephalo_engine` at runtime.
-- `backend/tests/test_cephalo_treatment_boundary.py` certifies treatment stripping, practitioner-plan preservation, no IMPA→space conversion, no legacy normative metadata and no T1/T2 projection leakage.
-- `backend/tests/test_cephalo_consistency_structural_only.py` prevents reintroduction of clinical normal ranges or local ANB class inference into the PDF consistency gate.
-- Frontend safety contracts forbid automatic extraction, mechanics, appliance, imaging and treatment-plan generation.
+- `CephaloService` imports `cephalo_safe_engine`, not `cephalo_engine` directly.
+- `backend/tests/test_cephalo_engine_reachability.py` forbids direct runtime imports of the geometry engine outside the adapter boundary.
+- `backend/tests/test_cephalo_geometry_only.py` locks geometry-only behavior: normative metadata absent, T1/T2 empty, no treatment/narrative inference.
+- `backend/tests/test_cephalo_treatment_boundary.py` certifies practitioner-plan preservation and no IMPA→space conversion.
+- `backend/tests/test_cephalo_consistency_structural_only.py` prevents clinical ranges/class inference from returning to the PDF consistency gate.
+- `backend/tests/test_bilan_ortho_fail_closed.py` prevents skeletal class, vertical typology, DDM severity or alveolar diagnosis from being inferred automatically.
+- `backend/tests/test_ortho_frontend_fail_closed_contract.py` now also locks the nullable/reset patient-sex contract and forbids fallback to `M`.
 
-The internal `CephaloEngine` is therefore quarantined, not scientifically validated. Physical removal of its legacy branches remains preferable once coverage is sufficient.
+### Reachability note — `ai_advisor`
+
+PR-wide audit shows no remaining cephalometric runtime consumer. `cephalo_service.py` removed its import. The remaining non-test runtime reference is an unused import in `elite_manager.py`; the wrapper's own compatibility tests remain. Do not delete the module until that import is removed safely.
 
 ## Scientific basis checked
 
@@ -69,23 +73,26 @@ Engineering consequence: no automatic CBCT trigger from a single cephalometric/c
 
 ### Population-specific cephalometric references
 
-- Ousehal L, Lazrak L, Chafii A. *Cephalometric norms for a Moroccan population.* Int Orthod. 2012;10(1):122-134. DOI: 10.1016/j.ortho.2011.12.001. The authors caution against generalizing the sample to the whole Moroccan population without further studies.
+- Ousehal L, Lazrak L, Chafii A. *Cephalometric norms for a Moroccan population.* Int Orthod. 2012;10(1):122-134. DOI: 10.1016/j.ortho.2011.12.001.
 
-Engineering consequence: every authoritative normative profile requires explicit population/applicability/provenance; no silent generic fallback.
+Engineering consequence: authoritative normative profiles require explicit population/applicability/provenance; no silent generic fallback.
 
 ### Growth prediction / T1-T2
 
-- 2025 systematic review of 69 studies on orthodontic growth prediction reports substantial methodological variability and concludes that comprehensive individual prediction remains largely lacking; single-cephalogram prediction is not sufficiently reliable for patient-specific certainty.
-- 2026 systematic review/meta-analysis of AI pubertal-growth-spurt models reports pooled accuracy around 0.83 but substantial heterogeneity, limited external validation and insufficient generalizability for routine clinical implementation.
+The Scientific Core does not present fixed annual displacement vectors as patient-specific growth prediction. Legacy T1/T2 growth vectors have been physically removed from `CephaloEngine`; contractual projection fields remain empty until a separately validated model with applicability and uncertainty exists.
 
-Engineering consequence: fixed annual vectors such as those still present in legacy `_project_t1_growth/_project_t2_growth` cannot be presented as patient-specific predictions. Runtime T1/T2 legacy projections are quarantined until a separately validated prediction model, applicability contract and uncertainty output exist.
+## Verification state before this documentation commit
+
+- Product/code HEAD: `951d13fcbd4c336a3a5741d220eb0dc62c6b7576`.
+- Previous CI `34343612583`: frontend tests/build and contextual bridges were progressing green; backend job had not yet completed at the last useful check.
+- Earlier backend run `34340987448` reached `277 passed, 1 skipped` before failing on one stale assertion requiring the phrase `référence normative non validée`; that test was corrected to the stricter raw-measurement-only contract.
+- Final certification must be performed on the documentation HEAD created after this file update, not on historical runs.
 
 ## Remaining critical sequence
 
-1. Replace the residual synthetic frontend sex default (`sexePatient='M'`) with an explicit unknown state without breaking consumers.
-2. Physically remove/quarantine internal legacy `CephaloEngine` treatment/norm/growth code once branch-wide reachability and tests prove no consumer depends on it.
-3. Prove or remove residual dead imports/compatibility wrappers (`ai_advisor`, private legacy treatment helpers).
-4. Wire only validated normative metadata to UI; absence of validated profile must remain non-authoritative.
-5. Run CI on the current HEAD and fix every regression attributable to this lot.
-6. Update `docs/SCIENTIFIC_CORE_REBUILD_ROADMAP.md` from verified state only.
-7. Close out PR only after scientific tests + CI + docs are coherent; no Vercel deployment without explicit authorization.
+1. obtain CI on the final documentation HEAD and fix every regression attributable to the lot;
+2. remove the dead `elite_manager → ai_advisor` import when a safe file edit is available, then decide whether to delete the compatibility wrapper/tests;
+3. verify all required PR checks on the same HEAD;
+4. update PR status/body consistently;
+5. leave draft/merge untouched until all closeout criteria are proven;
+6. no Vercel deployment without explicit authorization.
