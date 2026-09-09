@@ -4,7 +4,6 @@ from backend.repositories.cephalo_repository import CephaloRepository
 from backend.services.cephalo_engine import cephalo_engine
 from backend.services.vision_service import vision_engine
 from backend.services.bilan_ortho_engine import bilan_ortho_engine
-from backend.services.ai_advisor import ai_advisor
 from backend import schemas, models
 import logging
 
@@ -33,6 +32,28 @@ def _patient_age_and_sex(patient: Optional["models.Patient"]) -> Tuple[Optional[
     if patient is None:
         return None, None
     return _calculate_age(patient.date_naissance), patient.sexe
+
+
+def _remove_autonomous_treatment(payload: Dict[str, Any]) -> Dict[str, Any]:
+    """Fail-closed boundary between geometric/observational cephalo output and care.
+
+    CephaloEngine still contains legacy strategy generation while the scientific
+    core is being rebuilt. Runtime consumers must not receive or persist that
+    autonomous strategy. Practitioner-authored strategy lives in the separate
+    diagnostic payload and is therefore intentionally untouched here.
+    """
+    narrative = payload.get("ai_narrative")
+    if isinstance(narrative, dict):
+        narrative.pop("strategie_therapeutique", None)
+
+    clinical_data = payload.get("clinical_data")
+    if isinstance(clinical_data, dict):
+        # This field belongs to the geometric engine's default payload, not to a
+        # practitioner-authored plan supplied later through ClinicalData.
+        clinical_data.pop("plan_traitement", None)
+
+    return payload
+
 
 class CephaloService:
     """
@@ -84,7 +105,7 @@ class CephaloService:
             logger.error(f"Échec du moteur géométrique: {ce_err}")
             raise ValueError(f"Erreur lors du calcul des angles : {ce_err}")
 
-        final_data_dict = result.model_dump()
+        final_data_dict = _remove_autonomous_treatment(result.model_dump())
         final_data_dict["vision_metadata"] = {
             "mode_inference": vision_result["mode_inference"],
             "warning": vision_result.get("warning"),
@@ -152,12 +173,12 @@ class CephaloService:
         if clinical_data:
             result.clinical_data = self._calculate_complex_ddm(result, clinical_data)
         
-        # 3. Gestion du Diagnostic IA (Moteur Déterministe)
-        final_data_dict = result.model_dump()
+        # 3. Gestion du Diagnostic déterministe
+        final_data_dict = _remove_autonomous_treatment(result.model_dump())
         if ai_diagnostic:
+            # Explicit practitioner-authored diagnostic/strategy is preserved.
             final_data_dict["ai_diagnostic"] = ai_diagnostic
         else:
-            # Génération Local First (sans LLM) avec intégration complète Céphalométrie + Moulages
             final_data_dict["ai_diagnostic"] = bilan_ortho_engine.generate_bilan(
                 result, clinical_data if clinical_data else schemas.ClinicalData(), age=age, sex=sex
             )
