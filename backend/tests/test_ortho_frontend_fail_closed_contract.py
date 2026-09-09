@@ -84,12 +84,13 @@ def test_cephalo_utils_must_not_reintroduce_age_cvm_or_impa_space_conversion():
 
 def test_missing_ddm_is_never_serialized_as_zero():
     source = _read(CEPHALO_UTILS)
-    assert "calcul_ddm: max ?? 0" not in source
-    assert "calcul_ddm: mand ?? 0" not in source
-    assert "ddm_reelle: real ?? 0" not in source
-    assert "ddm_maxillaire: max !== null" in source
-    assert "ddm_mandibulaire: mand !== null" in source
-    assert "ddm_reelle: real" in source
+    compact = source.replace(" ", "")
+    assert "calcul_ddm:max??0" not in compact
+    assert "calcul_ddm:mand??0" not in compact
+    assert "ddm_reelle:real??0" not in compact
+    assert "ddm_maxillaire:max!==null?" in compact
+    assert "ddm_mandibulaire:mand!==null?" in compact
+    assert "ddm_reelle:real" in compact
 
 
 def test_patient_sex_remains_unknown_until_explicitly_documented():
