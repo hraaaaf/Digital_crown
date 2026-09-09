@@ -39,19 +39,12 @@ def _remove_autonomous_treatment(payload: Dict[str, Any]) -> Dict[str, Any]:
 
     CephaloEngine still contains legacy strategy generation while the scientific
     core is being rebuilt. Runtime consumers must not receive or persist that
-    autonomous strategy. Practitioner-authored strategy lives in the separate
-    diagnostic payload and is therefore intentionally untouched here.
+    autonomous strategy. Practitioner-authored clinical data is intentionally
+    untouched here.
     """
     narrative = payload.get("ai_narrative")
     if isinstance(narrative, dict):
         narrative.pop("strategie_therapeutique", None)
-
-    clinical_data = payload.get("clinical_data")
-    if isinstance(clinical_data, dict):
-        # This field belongs to the geometric engine's default payload, not to a
-        # practitioner-authored plan supplied later through ClinicalData.
-        clinical_data.pop("plan_traitement", None)
-
     return payload
 
 
