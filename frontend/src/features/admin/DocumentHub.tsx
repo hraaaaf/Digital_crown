@@ -50,7 +50,7 @@ interface GenericClinicalData {
   alignment?: 'left' | 'center' | 'right' | 'justify';
   items?: { acte: string; dent: string; montant?: number; prix_unitaire?: number; dents?: number[] }[];
   payments?: { acte: string; dent: string; montant?: number; prix_unitaire?: number; dents?: number[]; mode_reglement?: string }[];
-  installments?: { date?: string; dueDate?: string; amount?: number; label?: string }[];
+  installments?: { date?: string; dueDate?: string; amount?: number; label?: string; sendReminder?: boolean }[];
   is_global_note?: boolean;
   doc_date?: string;
 }
@@ -228,6 +228,7 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
           date: inst.date || inst.dueDate || '',
           amount: Number(inst.amount || 0),
           label: inst.label || `Échéance ${idx + 1}`,
+          sendReminder: Boolean(inst.sendReminder),
         })));
         const rawMode = d.payments?.find(item => item.mode_reglement)?.mode_reglement || '';
         const allowedModes = ['Espèces', 'Chèque', 'TPE', 'Virement'];

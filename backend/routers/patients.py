@@ -367,7 +367,7 @@ def get_patient_documents(patient_id: int, db: Session = Depends(database.get_db
             "date": doc.created_at.strftime("%d/%m/%Y"), "url": f"static/{rel_path}",
             "clinical_data": doc.clinical_data, "timestamp": doc.created_at.timestamp(),
             "payment_status": getattr(doc.payment_status, "value", doc.payment_status),
-            "is_accounted": bool(doc.is_accounted),
+            "is_accounted": True if doc.is_accounted is None else bool(doc.is_accounted),
             "file_exists": os.path.isfile(abs_path),
         })
         
