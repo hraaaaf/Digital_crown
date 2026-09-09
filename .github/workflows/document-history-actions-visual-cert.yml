@@ -37,11 +37,11 @@ jobs:
         run: |
           cd /tmp/dc-before/frontend
           npm ci
-          npm install --no-save playwright@1.55.0
+          npm install --no-save --package-lock=false --legacy-peer-deps playwright@1.55.0
           npx playwright install --with-deps chromium
           cd "$GITHUB_WORKSPACE/frontend"
           npm ci
-          npm install --no-save playwright@1.55.0
+          npm install --no-save --package-lock=false --legacy-peer-deps playwright@1.55.0
       - name: Capture BEFORE and AFTER at identical viewports
         env:
           ROOT: ${{ github.workspace }}
@@ -73,106 +73,79 @@ jobs:
 
           const unique=`${label}-${Date.now()}-${Math.random().toString(36).slice(2,8)}`;
           const title=`CERT VISUELLE ${unique}`;
-          const content=`Document de certification visuelle ${unique}`;
-          const payload={type:'libre',patient_id:patient.id,data:{title,content,doc_date:'2026-09-09'},is_accounted:false,payment_status:'EN_ATTENTE'};
-          const gen=await api.post('/api/documents/generate?archive=true',{headers:{...auth,'Content-Type':'application/json'},data:payload});
-          if(!gen.ok()) throw new Error(`generate ${gen.status()} ${await gen.text()}`);
+         ÛÛœİÛÛ[XØİ[Y[HÙ\YšXØ][Ûˆš\İY[H	İ[š\]Y_XÂˆÛÛœİ^[ØY^İ\N‰ÛXœ™IË]Y[ÚYœ]Y[šY]Nİ]KÛÛ[Ø×Ù]N‰ÌŒ‹LKLIßK\×ØXØÛİ[Y™˜[ÙK^[Y[Üİ]\Î‰ÑS—ĞUS•IßNÂˆÛÛœİÙ[X]ØZ]\KœÜİ
+	ËØ\KÙØİ[Y[ËÙÙ[™\˜]OØ\˜Ú]™O]YIËÚXY\œÎË‹‹˜]]	ĞÛÛ[U\IÎ‰Ø\XØ][Û‹ÚœÛÛ‰ßK]Nœ^[ØYJNÂˆYŠYÙ[‹›ÚÊ
+JH›İÈ™]È\œ›ÜŠÙ[™\˜]H	ÙÙ[‹œİ]\Ê
+_H	Ø]ØZ]Ù[‹^
 
-          const docsResponse=await api.get(`/api/patients/${patient.id}/documents`,{headers:auth});
-          if(!docsResponse.ok()) throw new Error(`documents ${docsResponse.status()} ${await docsResponse.text()}`);
-          const docs=await docsResponse.json();
-          const generated=docs.find(d=>d.clinical_data?.content===content || d.clinical_data?.title===title);
-          if(!generated) throw new Error(`generated archive not found; docs=${JSON.stringify(docs.slice(0,5).map(d=>({id:d.id,name:d.name,clinical_data:d.clinical_data})))}`);
-          const actionLabel=`Actions du document ${generated.name}`;
+_X
+NÂ‚ˆÛÛœİØÜÔ™\ÜÛœÙOX]ØZ]\K™Ù]
+Ø\KÜ]Y[ËÉÜ]Y[šYKÙØİ[Y[ØÚXY\œÎ˜]]JNÂˆYŠYØÜÔ™\ÜÛœÙK›ÚÊ
+JH›İÈ™]È\œ›ÜŠØİ[Y[È	ÙØÜÔ™\ÜÛœÙKœİ]\Ê
+_H	Ø]ØZ]ØÜÔ™\ÜÛœÙK^
 
-          const browser=await chromium.launch({headless:true});
-          const evidence=[];
-          for(const viewport of [{width:390,height:844,label:'390x844'},{width:1366,height:700,label:'1366x700'}]){
-            const ctx=await browser.newContext({viewport,colorScheme:'light'});
-            const page=await ctx.newPage();
-            await page.addInitScript(({a,r})=>{
-              localStorage.setItem('token',a);
-              localStorage.setItem('refresh_token',r||'');
-              localStorage.setItem('appMode','prod');
-            },{a:tok.access_token,r:tok.refresh_token});
-            const errors=[];
-            page.on('pageerror',e=>errors.push(String(e)));
+_X
+NÂˆÛÛœİØÜÏX]ØZ]ØÜÔ™\ÜÛœÙKšœÛÛŠ
+NÂˆÛÛœİÙ[™\˜]YYØÜË™š[™
+O™˜Û[šXØ[Ù]OË˜ÛÛ[OOXÛÛ[˜Û[šXØ[Ù]OË]OOO]]JNÂˆYŠYÙ[™\˜]Y
+H›İÈ™]È\œ›ÜŠÙ[™\˜]Y\˜Ú]™H›İ›İ[™ÈØÜÏIÒ”ÓÓ‹œİš[™ÚYJØÜËœÛXÙJJK›X\
+OŠÚY™šY˜[YN™›˜[YKÛ[šXØ[Ù]N™˜Û[šXØ[Ù]_JJJ_X
+NÂˆÛÛœİXİ[Û“X™[XXİ[ÛœÈHØİ[Y[	ÙÙ[™\˜]Y›˜[Y_XÂ‚ˆÛÛœİœ›İÜÙ\X]ØZ]Ú›ÛZ][K›][˜Ú
+ÚXY\ÜÎY_JNÂˆÛÛœİ]šY[˜ÙOV×NÂˆ›ÜŠÛÛœİšY]ÜÜÙˆŞİÚYŒÎLZYÚX™[‰ÌÎL	ßKİÚYŒLÍ‹ZYÚÌX™[‰ÌLÍÌ	ßWJ^ÂˆÛÛœİİX]ØZ]œ›İÜÙ\‹›™]ĞÛÛ^
+İšY]ÜÜÛÛÜ”ØÚ[YN‰ÛYÚ	ßJNÂˆÛÛœİYÙOX]ØZ]İ›™]ÔYÙJ
+NÂˆ]ØZ]YÙK˜Y[š]ØÜš\
 
-            await page.goto(`http://127.0.0.1:5173/patients/${patient.id}?tab=archives`,{waitUntil:'networkidle',timeout:90000});
-            const actions=page.getByRole('button',{name:actionLabel,exact:true});
-            await actions.waitFor({state:'visible',timeout:30000});
-            const card=actions.locator('xpath=ancestor::div[@data-document-kind][1]');
-            await actions.click();
+ØKŸJOOÂˆØØ[İÜ˜YÙKœÙ]][J	İÚÙ[‰ËJNÂˆØØ[İÜ˜YÙKœÙ]][J	Ü™Yœ™\ÚİÚÙ[‰ËŸ	ÉÊNÂˆØØ[İÜ˜YÙKœÙ]][J	Ø\[ÙIË	Ü›Ù	ÊNÂˆKØNÚË˜XØÙ\Ü×İÚÙ[‹ÚËœ™Yœ™\ÚİÚÙ[ŸJNÂˆÛÛœİ\œ›ÜœÏV×NÂˆYÙK›ÛŠ	ÜYÙY\œ›Ü‰ËOO™\œ›ÜœËœ\Ú
+İš[™ÊJJJNÂ‚ˆ]ØZ]YÙK™ÛİÊ‹ËÌLËŒŒŒNLMÌËÜ]Y[ËÉÜ]Y[šYOİXX\˜Ú]™\ØİØZ][[‰Û™]ÛÜšÚYIË[Y[İ]LJNÂˆÛÛœİXİ[ÛœÏ\YÙK™Ù]T›ÛJ	Ø]Û‰ËÛ˜[YN˜Xİ[Û“X™[^XİY_JNÂˆ]ØZ]Xİ[ÛœËØZ]›ÜŠÜİ]N‰İš\ÚX›IË[Y[İ]ŒÌJNÂˆÛÛœİØ\™XXİ[ÛœË›ØØ]ÜŠ	Ş]X[˜Ù\İÜ™]–Ğ]KYØİ[Y[ZÚ[™VÌWIÊNÂˆ]ØZ]Xİ[ÛœË˜ÛXÚÊ
+NÂ‚ˆÛÛœİY]\™Ù][X™[OOIØ™Y›Ü™IÂˆÈØ\™™Ù]T›ÛJ	Ø]Û‰ËÛ˜[YN‰Ó[ÙYšY\‰Ë^XİY_JBˆˆØ\™›ØØ]ÜŠ	ÖÙ]KYØİ[Y[XXİ[ÛH™Y]—IÊNÂˆÛÛœİ˜\Ú\™Ù][X™[OOIØ™Y›Ü™IÂˆÈØ\™™Ù]T›ÛJ	Ø]Û‰ËÛ˜[YN‰ÓY]™H0èHÛÜ˜™Z[IË^XİY_JBˆˆØ\™›ØØ]ÜŠ	ÖÙ]KYØİ[Y[XXİ[ÛH˜\Ú—IÊNÂˆÛÛœİY[U\™Ù][X™[OOIØY\‰ÈÈØ\™›ØØ]ÜŠ	ÖÙ]KYØİ[Y[XXİ[Û‹[Y[WIÊHˆ[Â‚ˆ]ØZ]Y]\™Ù]ØZ]›ÜŠÜİ]N‰İš\ÚX›IË[Y[İ]ŒMLJNÂˆ]ØZ]˜\Ú\™Ù]ØZ]›ÜŠÜİ]N‰İš\ÚX›IË[Y[İ]ŒMLJNÂˆYŠY[U\™Ù]
+H]ØZ]Y[U\™Ù]ØZ]›ÜŠÜİ]N‰İš\ÚX›IË[Y[İ]ŒMLJNÂˆÛÛœİXX]ØZ]Y]\™Ù]˜›İ[™[™Ğ›Ş
 
-            const editTarget=label==='before'
-              ? card.getByRole('button',{name:'Modifier',exact:true})
-              : card.locator('[data-document-action="edit"]');
-            const trashTarget=label==='before'
-              ? card.getByRole('button',{name:'Mettre Ã  la corbeille',exact:true})
-              : card.locator('[data-document-action="trash"]');
+NÂˆÛÛœİX]ØZ]˜\Ú\™Ù]˜›İ[™[™Ğ›Ş
 
-            await editTarget.waitFor({state:'visible',timeout:15000});
-            await trashTarget.waitFor({state:'visible',timeout:15000});
-            const eb=await editTarget.boundingBox();
-            const tb=await trashTarget.boundingBox();
-            if(!eb||!tb) throw new Error(`missing action boxes ${label} ${viewport.label}`);
+NÂˆÛÛœİX[Y[U\™Ù]È]ØZ]Y[U\™Ù]˜›İ[™[™Ğ›Ş
 
-            const gap=tb.y-(eb.y+eb.height);
-            const overlap=Math.max(0,(eb.y+eb.height)-tb.y);
-            const shot=`${label}-document-actions-${viewport.label}.png`;
-            await page.screenshot({path:path.join(root,'artifacts/document-history-actions',shot),fullPage:false});
-            const row={label,archiveId:generated.id,archiveName:generated.name,viewport,editBox:eb,trashBox:tb,gap,overlap,errors,shot};
-            evidence.push(row);
-            if(label==='after' && (overlap>0 || gap<3 || errors.length)) throw new Error(`AFTER visual contract failed: ${JSON.stringify(row)}`);
-            await ctx.close();
-          }
-          fs.writeFileSync(path.join(root,'artifacts/document-history-actions',`${label}-evidence.json`),JSON.stringify(evidence,null,2));
-          await browser.close();
-          await api.dispose();
-          JS
+Hˆ[ÂˆYŠYXŸ]ŠH›İÈ™]È\œ›ÜŠZ\ÜÚ[™ÈXİ[Ûˆ›Ş\È	ÛX™[H	İšY]ÜÜ›X™[X
+NÂˆYŠX™[OOIØY\‰È	‰ˆ[XŠH›İÈ™]È\œ›ÜŠZ\ÜÚ[™ÈY[H›Ş	İšY]ÜÜ›X™[X
+NÂ‚ˆÛÛœİØ\]‹KJX‹JÙX‹šZYÚ
+NÂˆÛÛœİİ™\›\SX]›X^
+
+X‹JÙX‹šZYÚ
+K]‹JNÂˆÛÛœİY[PÛÛZ[™YH[Xˆ
+ˆX‹H	‰‚ˆX‹HH	‰‚ˆX‹
+ÈX‹ÚYHšY]ÜÜÚY	‰‚ˆX‹H
+ÈX‹šZYÚHšY]ÜÜšZYÚˆ
+NÂˆÛÛœİÚİX	ÛX™[KYØİ[Y[XXİ[ÛœËIİšY]ÜÜ›X™[Kœ™ØÂˆ]ØZ]YÙKœØÜ™Y[œÚİ
+Ü]œ]š›Ú[Š›Ûİ	Ø\Y˜XİËÙØİ[Y[Z\İÜKXXİ[ÛœÉËÚİ
+K[YÙN™˜[Ù_JNÂˆÛÛœİ›İÏ^ÛX™[\˜Ú]™RY™Ù[™\˜]YšY\˜Ú]™S˜[YN™Ù[™\˜]Y›˜[YKšY]ÜÜY]›Ş™X‹˜\Ú›Ş‹Y[P›Ş›X‹Y[PÛÛZ[™YØ\İ™\›\\œ›ÜœËÚİNÂˆ]šY[˜ÙKœ\Ú
+›İÊNÂˆYŠX™[OOIØY\‰È	‰ˆ
+İ™\›\ŒØ\È[Y[PÛÛZ[™Y\œ›ÜœË›[™İ
+JH›İÈ™]È\œ›ÜŠQ•Tˆš\İX[ÛÛ˜Xİ˜Z[Yˆ	Ò”ÓÓ‹œİš[™ÚYJ›İÊ_X
+NÂˆ]ØZ]İ˜ÛÜÙJ
+NÂˆBˆœËÜš]Qš[TŞ[˜Ê]š›Ú[Š›Ûİ	Ø\Y˜XİËÙØİ[Y[Z\İÜKXXİ[ÛœÉË	ÛX™[KY]šY[˜ÙKšœÛÛ˜
+K”ÓÓ‹œİš[™ÚYJ]šY[˜ÙK[ŠJNÂˆ]ØZ]œ›İÜÙ\‹˜ÛÜÙJ
+NÂˆ]ØZ]\K™\ÜÜÙJ
+NÂˆ”Â‚ˆ[—İ™YH
 
-          run_tree () {
-            tree="$1"; label="$2"
-            rm -f t2-runtime-cert.db /tmp/dc-before/t2-runtime-cert.db
-            (cd "$tree" && exec setsid python scripts/t2_runtime_server.py > "/tmp/${label}-backend.log" 2>&1) & BPID=$!
-            for i in {1..90}; do curl -fsS http://127.0.0.1:8005/health >/dev/null && break; sleep 1; done
-            (cd "$tree/frontend" && exec setsid npm run dev -- --host 127.0.0.1 --port 5173 > "/tmp/${label}-frontend.log" 2>&1) & FPID=$!
-            for i in {1..90}; do curl -fsS http://127.0.0.1:5173 >/dev/null && break; sleep 1; done
-            node /tmp/capture-doc-history.mjs "$tree" "$label"
-            kill -- -$FPID -$BPID 2>/dev/null || true
-            wait $FPID $BPID 2>/dev/null || true
-            for i in {1..30}; do
-              if ! curl -fsS http://127.0.0.1:5173 >/dev/null 2>&1 && ! curl -fsS http://127.0.0.1:8005/health >/dev/null 2>&1; then break; fi
-              sleep 1
-            done
-          }
-          run_tree /tmp/dc-before before
-          run_tree "$ROOT" after
-      - name: Compare evidence
-        run: |
-          python - <<'PY'
-          import json, pathlib
-          p=pathlib.Path('artifacts/document-history-actions')
-          before=json.loads((p/'before-evidence.json').read_text())
-          after=json.loads((p/'after-evidence.json').read_text())
-          report=[]
-          for b,a in zip(before,after):
-              report.append({
-                  'viewport': a['viewport']['label'],
-                  'before_gap': round(b['gap'],2),
-                  'before_overlap': round(b['overlap'],2),
-                  'after_gap': round(a['gap'],2),
-                  'after_overlap': round(a['overlap'],2),
-                  'pass': a['overlap']==0 and a['gap']>=3 and not a['errors'],
-              })
-          (p/'comparison.json').write_text(json.dumps(report,indent=2))
-          print(json.dumps(report,indent=2))
-          assert all(r['pass'] for r in report)
-          PY
-      - uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: document-history-actions-before-after
-          path: artifacts/document-history-actions
-          if-no-files-found: error
-          retention-days: 14
+HÂˆ™YOH‰HÈX™[H‰ˆ‚ˆ›HYˆ‹\[[YKXÙ\™ˆİ\ÙËX™Y›Ü™Kİ‹\[[YKXÙ\™‚ˆ
+Ù‰™YHˆ	‰ˆ^XÈÙ]ÚY]ÛˆØÜš\Ëİ—Ü[[YWÜÙ\™\‹œHˆ‹İ\ÉÛX™[KX˜XÚÙ[™›ÙÈˆ‰ŒJH	ˆ”QIBˆ›ÜˆH[ˆÌK‹LNÈÈİ\›YœÔÈ‹ËÌLËŒŒŒNKÚX[‹Ù]‹Û[	‰ˆœ™XZÎÈÛY\NÈÛ™Bˆ
+Ù‰™YKÙœ›Û[™ˆ	‰ˆ^XÈÙ]ÚYœH[ˆ]ˆKHKZÜİLËŒŒŒHK\ÜLMÌÈˆ‹İ\ÉÛX™[KYœ›Û[™›ÙÈˆ‰ŒJH	ˆ”QIBˆ›ÜˆH[ˆÌK‹LNÈÈİ\›YœÔÈ‹ËÌLËŒŒŒNLMÌÈ‹Ù]‹Û[	‰ˆœ™XZÎÈÛY\NÈÛ™Bˆ›ÙHİ\ØØ\\™KYØËZ\İÜK›ZœÈ‰™YHˆ‰X™[‚ˆÚ[KHI”QI”Q‹Ù]‹Û[YBˆØZ]	”Q	”Q‹Ù]‹Û[YBˆ›ÜˆH[ˆÌK‹ŒÌNÈÂˆYˆHİ\›YœÔÈ‹ËÌLËŒŒŒNLMÌÈ‹Ù]‹Û[‰ŒH	‰ˆHİ\›YœÔÈ‹ËÌLËŒŒŒNKÚX[‹Ù]‹Û[‰ŒNÈ[ˆœ™XZÎÈšBˆÛY\BˆÛ™BˆBˆ[—İ™YHİ\ÙËX™Y›Ü™H™Y›Ü™Bˆ[—İ™YH‰“ÓÕˆY\‚ˆH˜[YNˆÛÛ\\™H]šY[˜ÙBˆ[ˆˆ]ÛˆH	ÔIÂˆ[\ÜœÛÛ‹]X‚ˆ\]X‹”]
+	Ø\Y˜XİËÙØİ[Y[Z\İÜKXXİ[ÛœÉÊBˆ™Y›Ü™OZœÛÛ‹›ØYÊ
+ÉØ™Y›Ü™KY]šY[˜ÙKšœÛÛ‰ÊKœ™XYİ^
+
+JBˆY\ZœÛÛ‹›ØYÊ
+ÉØY\‹Y]šY[˜ÙKšœÛÛ‰ÊKœ™XYİ^
+
+JBˆ™\ÜV×Bˆ›Üˆ‹H[ˆš\
+™Y›Ü™KY\ŠN‚ˆ™\Ü˜\[™
+Âˆ	İšY]ÜÜ	ÎˆVÉİšY]ÜÜ	×VÉÛX™[	×Kˆ	Ø™Y›Ü™WÙØ\	Îˆ›İ[™
+–ÉÙØ\	×KŠKˆ	Ø™Y›Ü™WÛİ™\›\	Îˆ›İ[™
+–ÉÛİ™\›\	×KŠKˆ	ØY\—ÙØ\	Îˆ›İ[™
+VÉÙØ\	×KŠKˆ	ØY\—Ûİ™\›\	Îˆ›İ[™
+VÉÛİ™\›\	×KŠKˆ	ØY\—ÛY[WØÛÛZ[™Y	Îˆ›ÛÛ
+VÉÛY[PÛÛZ[™Y	×JKˆ	Ü\ÜÉÎˆVÉÛİ™\›\	×OOL[™VÉÙØ\	×OLÈ[™VÉÛY[PÛÛZ[™Y	×H[™›İVÉÙ\œ›ÜœÉ×KˆJBˆ
+ÉØÛÛ\\š\ÛÛ‹šœÛÛ‰ÊKÜš]Wİ^
+œÛÛ‹™[\Ê™\Ü[™[LŠJBˆš[
+œÛÛ‹™[\Ê™\Ü[™[LŠJBˆ\ÜÙ\[
+–ÉÜ\ÜÉ×H›Üˆˆ[ˆ™\Ü
+BˆBˆH\Ù\ÎˆXİ[ÛœËİ\ØYX\Y˜XİˆYˆ[Ø^\Ê
+BˆÚ]‚ˆ˜[YNˆØİ[Y[Z\İÜKXXİ[ÛœËX™Y›Ü™KXY\‚ˆ]ˆ\Y˜XİËÙØİ[Y[Z\İÜKXXİ[ÛœÂˆY‹[›ËYš[\ËY›İ[™ˆ\œ›Ü‚ˆ™][[Û‹Y^\ÎˆM

@@ -219,7 +219,7 @@ export const PatientDocuments = () => {
                         <MoreHorizontal size={19} />
                       </button>
                       {actionsOpenFor === doc.id && (
-                        <div className="absolute right-0 top-12 z-50 w-52 rounded-2xl border border-border-main bg-card-bg shadow-2xl p-2 space-y-1">
+                        <div data-document-action-menu className="absolute left-0 top-12 z-50 w-52 rounded-2xl border border-border-main bg-card-bg shadow-2xl p-2 space-y-1">
                           <button data-document-action="edit" data-m4c-touch type="button" onClick={() => handleEdit(doc)} className="w-full min-h-11 px-3 rounded-xl hover:bg-orange-50 text-orange-700 font-black text-xs inline-flex items-center gap-2"><Edit size={16} /> Modifier</button>
                           <button data-document-action="trash" data-m4c-touch type="button" onClick={() => void handleDelete(doc.id)} className="w-full min-h-11 px-3 rounded-xl hover:bg-rose-50 text-rose-700 font-black text-xs inline-flex items-center gap-2"><Trash2 size={16} /> Mettre à la corbeille</button>
                         </div>
