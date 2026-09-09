@@ -108,11 +108,22 @@ jobs:
               localStorage.setItem('refresh_token',r||'');
               localStorage.setItem('appMode','prod');
             },{a:tok.access_token,r:tok.refresh_token});
-            const errors=[]; const http5xx=[];
+            const errors=[]; const http5xx=[]; const documentResponses=[];
             page.on('pageerror',e=>errors.push(String(e)));
-            page.on('response',r=>{if(r.status()>=500)http5xx.push({url:r.url(),status:r.status()});});
+            page.on('response',r=>{
+              if(r.status()>=500) http5xx.push({url:r.url(),status:r.status()});
+              if(r.url().includes(`/api/patients/${patient.id}/documents`)) documentResponses.push({url:r.url(),status:r.status()});
+            });
             await page.goto(`http://127.0.0.1:5173/patients/${patient.id}?tab=archives`,{waitUntil:'networkidle',timeout:90000});
+            const diagnosticShot=`diagnostic-history-${viewport.label}.png`;
+            await page.screenshot({path:path.join(out,diagnosticShot),fullPage:false});
             const actions=page.getByRole('button',{name:actionLabel,exact:true});
+            if(await actions.count()===0){
+              const diagnostic={viewport,url:page.url(),body:(await page.locator('body').innerText()).slice(0,8000),actionLabel,documentResponses,errors,http5xx,diagnosticShot};
+              fs.writeFileSync(path.join(out,`diagnostic-${viewport.label}.json`),JSON.stringify(diagnostic,null,2));
+              console.log(JSON.stringify(diagnostic,null,2));
+              throw new Error(`document action button not found ${viewport.label}`);
+            }
             await actions.waitFor({state:'visible',timeout:30000});
             const card=actions.locator('xpath=ancestor::div[@data-document-kind][1]');
             await actions.click();
