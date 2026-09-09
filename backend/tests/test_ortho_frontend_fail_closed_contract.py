@@ -100,5 +100,6 @@ def test_patient_sex_remains_unknown_until_explicitly_documented():
     assert "sexePatient: null," in source
     assert "set({ patientId: id, patientName: name, sexePatient: null });" in source
     assert "parsed.sexePatient === 'M' || parsed.sexePatient === 'F' ? parsed.sexePatient : null" in source
-    assert "sexePatient: 'M'" not in source
-    assert "parsed.sexePatient || 'M'" not in source
+    compact = source.replace(" ", "")
+    assert "sexePatient:'M'," not in compact
+    assert "parsed.sexePatient||'M'" not in compact
