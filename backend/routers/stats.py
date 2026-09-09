@@ -6,6 +6,7 @@ from typing import Dict, Any
 
 from backend import models, database
 from backend.routers.auth import get_current_user, require_permission
+from backend.services.accounting_service import accounting_service
 
 router = APIRouter(tags=["Statistiques"])
 
@@ -17,10 +18,12 @@ def get_financial_stats(db: Session = Depends(database.get_db), current_user: mo
     emp_id = current_user.get_employer_id()
     today = datetime.now()
     first_day_of_month = today.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+    visible_payment = accounting_service._visible_payment_filter()
 
-    # Revenus du mois (Actes)
+    # Revenus du mois (Actes actifs uniquement)
     revenus_mois = db.query(func.sum(models.Acte.montant)).join(models.Patient).filter(
         models.Patient.employer_id == emp_id,
+        models.Acte.deleted_at.is_(None),
         models.Acte.date_debut >= first_day_of_month,
         models.Acte.statut_paiement.in_([models.PaiementStatut.PAYE, models.PaiementStatut.PARTIEL])
     ).scalar() or 0.0
@@ -59,10 +62,12 @@ def get_financial_stats(db: Session = Depends(database.get_db), current_user: mo
     today_revenue = float(
         db.query(func.sum(models.Payment.amount))
         .join(models.Patient, models.Payment.patient_id == models.Patient.id)
+        .outerjoin(models.Acte, models.Payment.acte_id == models.Acte.id)
         .filter(
             models.Patient.employer_id == emp_id,
             models.Payment.payment_date >= day_start,
             models.Payment.payment_date <= day_end,
+            visible_payment,
         )
         .scalar() or 0.0
     )
@@ -71,25 +76,34 @@ def get_financial_stats(db: Session = Depends(database.get_db), current_user: mo
     month_revenue = float(
         db.query(func.sum(models.Payment.amount))
         .join(models.Patient, models.Payment.patient_id == models.Patient.id)
+        .outerjoin(models.Acte, models.Payment.acte_id == models.Acte.id)
         .filter(
             models.Patient.employer_id == emp_id,
             extract("year",  models.Payment.payment_date) == today_date.year,
             extract("month", models.Payment.payment_date) == today_date.month,
+            visible_payment,
         )
         .scalar() or 0.0
     )
 
-    # Impayés globaux (total facturé - total encaissé) — 2 queries efficaces, pas de N+1
+    # Impayés globaux (total facturé actif - total encaissé visible)
     total_billed = float(
         db.query(func.sum(models.Acte.montant))
         .join(models.Patient, models.Acte.patient_id == models.Patient.id)
-        .filter(models.Patient.employer_id == emp_id)
+        .filter(
+            models.Patient.employer_id == emp_id,
+            models.Acte.deleted_at.is_(None),
+        )
         .scalar() or 0.0
     )
     total_paid = float(
         db.query(func.sum(models.Payment.amount))
         .join(models.Patient, models.Payment.patient_id == models.Patient.id)
-        .filter(models.Patient.employer_id == emp_id)
+        .outerjoin(models.Acte, models.Payment.acte_id == models.Acte.id)
+        .filter(
+            models.Patient.employer_id == emp_id,
+            visible_payment,
+        )
         .scalar() or 0.0
     )
     total_debt = max(round(total_billed - total_paid, 2), 0.0)
