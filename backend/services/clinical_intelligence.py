@@ -28,7 +28,7 @@ MOTIF_CATALOG: Dict[str, Dict] = {
     "tartre_important":    {"label": "Tartre important",               "urgency": "normal",   "specialties": ["PARODONTOLOGIE"],                   "acts": ["Détartrage & Polissage"]},
     "dents_colorees":      {"label": "Dents colorées / tachées",       "urgency": "planifié", "specialties": ["ESTHETIQUE"],                       "acts": ["Blanchiment dentaire (cabinet)", "Gouttière blanchiment"]},
     "dent_ebrechee":       {"label": "Dent ébréchée",                  "urgency": "normal",   "specialties": ["CONSERVATRICE", "ESTHETIQUE"],      "acts": ["Composite 2 faces", "Reconstitution esthétique"]},
-    "diasteme":            {"label": "Diastème",                        "urgency": "planifié", "specialties": ["ORTHODONTIE", "ESTHETIQUE"],        "acts": ["Facette céramique", "Semestre ODF multibagues"]},
+    "diasteme":            {"label": "Diastème",                        "urgency": "planifié", "specialties": ["ORTHODONTIE", "ESTHETIQUE"]},
     "sourire_gingival":    {"label": "Sourire gingival",               "urgency": "planifié", "specialties": ["PARODONTOLOGIE", "ESTHETIQUE"],     "acts": ["Lambeau parodontal"]},
     "facettes":            {"label": "Demande de facettes",            "urgency": "planifié", "specialties": ["PROTHESE", "ESTHETIQUE"],           "acts": ["Facette céramique"]},
     "carie":               {"label": "Carie dentaire",                  "urgency": "normal",   "specialties": ["CONSERVATRICE"],                    "acts": ["Composite 1 face", "Composite 2 faces"]},
@@ -39,11 +39,11 @@ MOTIF_CATALOG: Dict[str, Dict] = {
     "prothese_amovible":   {"label": "Prothèse amovible inadaptée",    "urgency": "normal",   "specialties": ["PROTHESE"],                         "acts": ["Prothèse adjointe partielle", "Prothèse complète"]},
     "bridge_defectueux":   {"label": "Bridge défectueux",              "urgency": "normal",   "specialties": ["PROTHESE"],                         "acts": ["Bridge 3 éléments", "Inlay core"]},
     "premiere_prothese":   {"label": "Première prothèse",              "urgency": "planifié", "specialties": ["PROTHESE"],                         "acts": ["Prothèse complète"]},
-    "malocclusion":        {"label": "Malocclusion",                    "urgency": "planifié", "specialties": ["ORTHODONTIE"],                      "acts": ["Bilan orthodontique", "Semestre ODF multibagues"]},
-    "decalage_maxillaire": {"label": "Décalage maxillaire",            "urgency": "planifié", "specialties": ["ORTHODONTIE"],                      "acts": ["Bilan orthodontique"]},
-    "encombrement_dentaire":{"label": "Encombrement dentaire",         "urgency": "planifié", "specialties": ["ORTHODONTIE"],                      "acts": ["Semestre ODF multibagues", "Gouttière aligneur (par semestre)"]},
-    "bilan_ortho_enfant":  {"label": "Bilan ortho enfant",             "urgency": "planifié", "specialties": ["ORTHODONTIE"],                      "acts": ["Bilan orthodontique"]},
-    "aligneurs":           {"label": "Demande de gouttières",          "urgency": "planifié", "specialties": ["ORTHODONTIE"],                      "acts": ["Gouttière aligneur (par semestre)"]},
+    "malocclusion":        {"label": "Malocclusion",                    "urgency": "planifié", "specialties": ["ORTHODONTIE"]},
+    "decalage_maxillaire": {"label": "Décalage maxillaire",            "urgency": "planifié", "specialties": ["ORTHODONTIE"]},
+    "encombrement_dentaire":{"label": "Encombrement dentaire",         "urgency": "planifié", "specialties": ["ORTHODONTIE"]},
+    "bilan_ortho_enfant":  {"label": "Bilan ortho enfant",             "urgency": "planifié", "specialties": ["ORTHODONTIE"]},
+    "aligneurs":           {"label": "Demande de gouttières",          "urgency": "planifié", "specialties": ["ORTHODONTIE"]},
     "bilan_implantaire":   {"label": "Bilan implantaire",              "urgency": "planifié", "specialties": ["IMPLANTOLOGIE"],                    "acts": ["Pose implant", "Greffe osseuse"]},
     "implant_douloureux":  {"label": "Implant douloureux",             "urgency": "urgence",  "specialties": ["IMPLANTOLOGIE", "CHIRURGIE"],       "acts": ["Élévation sinusienne"]},
     "eden_complet":        {"label": "Édentement complet",             "urgency": "planifié", "specialties": ["IMPLANTOLOGIE", "PROTHESE"],        "acts": ["Prothèse implanto-portée", "Greffe osseuse"]},
@@ -195,6 +195,10 @@ class ClinicalIntelligenceService:
             for spec in m.get("specialties", []):
                 if spec not in seen_specialties:
                     seen_specialties.add(spec)
+            # Orthodontic motifs are routing metadata only. They must never
+            # become an autonomous treatment/act suggestion.
+            if "ORTHODONTIE" in m.get("specialties", []):
+                continue
             for act in m.get("acts", []):
                 if act not in seen_acts:
                     seen_acts.add(act)
