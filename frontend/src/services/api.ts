@@ -3,6 +3,18 @@ import toast from 'react-hot-toast';
 import { MobileStorage } from './zka/MobileStorage';
 import { resolveApiBase } from './apiBase';
 
+const viteEnv = (import.meta as ImportMeta & { env?: Record<string, string | undefined> }).env;
+export const API_BASE = resolveApiBase(
+  viteEnv?.VITE_API_URL,
+  typeof window !== 'undefined' ? window.location : undefined,
+);
+
+export const api = axios.create({
+  baseURL: `${API_BASE}/api`,
+  timeout: 30000,
+  withCredentials: true,
+});
+
 // Synchronisation du token entre onglets (BroadcastChannel)
 const _authChannel = typeof BroadcastChannel !== 'undefined'
   ? new BroadcastChannel('dc_auth')
