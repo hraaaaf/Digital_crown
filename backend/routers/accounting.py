@@ -3,6 +3,7 @@ from typing import Optional, List, Dict
 from fastapi.responses import FileResponse, StreamingResponse
 import os, csv, io
 from backend.services.generators.report_gen import ReportGenerator
+from backend.services.accounting_service import accounting_service
 from fastapi import APIRouter, Depends, HTTPException, status, Body
 from sqlalchemy.orm import Session
 from typing import List
@@ -14,16 +15,28 @@ from backend.utils.access_control import assert_patient_access
 
 router = APIRouter(tags=["Accounting & Payments"])
 
+
+def _document_business_datetime(doc: models.DocumentArchive) -> datetime:
+    """Date métier courante d'un document, indépendante de sa date de création DB."""
+    raw = (doc.clinical_data or {}).get("doc_date") if isinstance(doc.clinical_data, dict) else None
+    if isinstance(raw, datetime):
+        return raw
+    if raw:
+        try:
+            return datetime.fromisoformat(str(raw).split("T", 1)[0])
+        except (TypeError, ValueError):
+            pass
+    return doc.created_at
+
+
 @router.get("/frequent-acts", response_model=List[dict])
 def get_frequent_acts(db: Session = Depends(database.get_db), current_user: models.User = Depends(require_permission("accounting"))):
     """Récupère les actes les plus fréquents du praticien."""
-    from backend.services.accounting_service import accounting_service
     return accounting_service.get_frequent_acts(db, current_user.id)
 
 @router.post("/record-act")
 def record_act(data: dict, db: Session = Depends(database.get_db), current_user: models.User = Depends(require_permission("accounting"))):
     """Enregistre manuellement l'usage d'un acte pour l'apprentissage."""
-    from backend.services.accounting_service import accounting_service
     accounting_service.record_act_usage(
         db, 
         current_user.id, 
@@ -81,9 +94,15 @@ def record_payment(payment: schemas.PaymentCreate, db: Session = Depends(databas
 
     # Auto-sync statut de l'acte si le paiement est lié à un acte.
     if acte is not None:
-        total_paid = db.query(func.sum(models.Payment.amount)).filter(
-            models.Payment.acte_id == acte.id
-        ).scalar() or 0.0
+        total_paid = (
+            db.query(func.sum(models.Payment.amount))
+            .outerjoin(models.Acte, models.Payment.acte_id == models.Acte.id)
+            .filter(
+                models.Payment.acte_id == acte.id,
+                accounting_service._visible_payment_filter(),
+            )
+            .scalar() or 0.0
+        )
         if total_paid >= acte.montant:
             acte.statut_paiement = models.PaiementStatut.PAYE
             acte.is_collected = True
@@ -97,24 +116,39 @@ def record_payment(payment: schemas.PaymentCreate, db: Session = Depends(databas
 
 @router.get("/payments/patient/{patient_id}", response_model=List[schemas.PaymentOut])
 def get_patient_payments(patient_id: int, db: Session = Depends(database.get_db), current_user: models.User = Depends(require_permission("accounting"))):
-    """Récupère l'historique des encaissements d'un patient."""
+    """Récupère uniquement les encaissements actifs d'un patient."""
     assert_patient_access(patient_id, current_user, db)
-    return db.query(models.Payment).filter(models.Payment.patient_id == patient_id).order_by(models.Payment.payment_date.desc()).all()
+    return (
+        db.query(models.Payment)
+        .outerjoin(models.Acte, models.Payment.acte_id == models.Acte.id)
+        .filter(
+            models.Payment.patient_id == patient_id,
+            accounting_service._visible_payment_filter(),
+        )
+        .order_by(models.Payment.payment_date.desc())
+        .all()
+    )
 
 @router.get("/actes-billing/patient/{patient_id}")
 def get_patient_actes_billing(patient_id: int, db: Session = Depends(database.get_db),
     current_user: models.User = Depends(require_permission("accounting"))):
-    """Retourne tous les actes du patient avec leur solde encaissé par acte (sans N+1)."""
+    """Retourne les actes actifs du patient avec leur solde encaissé visible."""
     assert_patient_access(patient_id, current_user, db)
     actes = (db.query(models.Acte)
-        .filter(models.Acte.patient_id == patient_id)
+        .filter(models.Acte.patient_id == patient_id, models.Acte.deleted_at.is_(None))
         .order_by(models.Acte.date_debut.desc())
         .all())
-    paid_rows = (db.query(models.Payment.acte_id, func.sum(models.Payment.amount))
-        .filter(models.Payment.patient_id == patient_id,
-                models.Payment.acte_id != None)
+    paid_rows = (
+        db.query(models.Payment.acte_id, func.sum(models.Payment.amount))
+        .outerjoin(models.Acte, models.Payment.acte_id == models.Acte.id)
+        .filter(
+            models.Payment.patient_id == patient_id,
+            models.Payment.acte_id != None,
+            accounting_service._visible_payment_filter(),
+        )
         .group_by(models.Payment.acte_id)
-        .all())
+        .all()
+    )
     paid_map = {aid: float(total) for aid, total in paid_rows}
     return [{
         "id":              a.id,
@@ -167,15 +201,19 @@ def get_accounting_honoraires(
     if assurance: 
         doc_query = doc_query.filter(models.Patient.assurance == assurance)
         acte_query = acte_query.filter(models.Patient.assurance == assurance)
-    if year: 
-        doc_query = doc_query.filter(func.extract('year', models.DocumentArchive.created_at) == year)
-        # Pour les actes on utilise date_debut
+    if year:
+        # Les documents sont filtrés plus bas sur doc_date, la date métier éditable.
         acte_query = acte_query.filter(func.extract('year', models.Acte.date_debut) == year)
-    if month: 
-        doc_query = doc_query.filter(func.extract('month', models.DocumentArchive.created_at) == month)
+    if month:
         acte_query = acte_query.filter(func.extract('month', models.Acte.date_debut) == month)
 
     docs = doc_query.all()
+    if year or month:
+        docs = [
+            doc for doc in docs
+            if (year is None or _document_business_datetime(doc).year == year)
+            and (month is None or _document_business_datetime(doc).month == month)
+        ]
     actes = acte_query.all()
 
     items = []
@@ -183,11 +221,7 @@ def get_accounting_honoraires(
     summary_by_title = {}
 
     # UNIFY-ACT-PERSISTENCE-1 : un DocumentArchive dont les lignes Acte ont déjà été
-    # générées (documents.py::generate_document) ne doit plus être compté via
-    # l'extraction JSON de clinical_data, sinon le même travail est compté deux fois
-    # (une fois ici, une fois dans la boucle acte_query ci-dessous). Garde conditionnelle
-    # : en mode "insured_notes_only", acte_query est déjà filtrée à vide (ligne ci-dessus),
-    # donc sauter ces documents les ferait disparaître complètement de cette vue.
+    # générées ne doit plus être compté via son JSON, sinon double comptage.
     doc_ids_with_actes = set()
     if filter_type != "insured_notes_only":
         doc_ids_with_actes = {
@@ -198,10 +232,9 @@ def get_accounting_honoraires(
     # Traitement des documents
     for doc in docs:
         if doc.id in doc_ids_with_actes:
-            continue  # déjà compté via ses Acte liés (boucle acte_query ci-dessous)
+            continue
         amount = extract_amount_from_clinical_data(doc.clinical_data)
         
-        # Extraction du vrai nom d'acte s'il existe dans payments ou items
         display_title = doc.title or "Note d'honoraires"
         if doc.clinical_data and isinstance(doc.clinical_data, dict):
             if 'items' in doc.clinical_data and isinstance(doc.clinical_data['items'], list) and len(doc.clinical_data['items']) > 0:
@@ -214,7 +247,7 @@ def get_accounting_honoraires(
             "patient_id": doc.patient_id, 
             "patient_name": f"{doc.patient.nom} {doc.patient.prenom}", 
             "assurance": doc.patient.assurance or "AUCUNE", 
-            "date": doc.created_at, 
+            "date": _document_business_datetime(doc),
             "title": display_title, 
             "amount": amount, 
             "file_url": f"documents/{doc.id}/download",
@@ -236,7 +269,7 @@ def get_accounting_honoraires(
             "date": acte.date_debut,
             "title": display_title,
             "amount": acte.montant,
-            "file_url": "", # Pas de PDF pour un acte seul
+            "file_url": "",
             "payment_status": acte.statut_paiement or "EN_ATTENTE",
             "validated_by": acte.validated_by,
             "is_collected": acte.is_collected
@@ -244,12 +277,17 @@ def get_accounting_honoraires(
         total_amount += acte.montant
         summary_by_title[display_title] = summary_by_title.get(display_title, 0) + acte.montant
 
-    # Tri par date décroissante
     items.sort(key=lambda x: x["date"], reverse=True)
     
-    # 3. Calcul des encaissements réels (Recettes)
-    payment_query = db.query(func.sum(models.Payment.amount)).join(models.Patient).filter(
-        models.Patient.employer_id == user_employer_id
+    # 3. Calcul des encaissements réels (Recettes), avec la même visibilité partout.
+    payment_query = (
+        db.query(func.sum(models.Payment.amount))
+        .join(models.Patient, models.Payment.patient_id == models.Patient.id)
+        .outerjoin(models.Acte, models.Payment.acte_id == models.Acte.id)
+        .filter(
+            models.Patient.employer_id == user_employer_id,
+            accounting_service._visible_payment_filter(),
+        )
     )
     if filter_type == "insured_notes_only":
         payment_query = payment_query.filter(models.Patient.assurance.isnot(None), models.Patient.assurance != "AUCUNE")
@@ -278,7 +316,6 @@ async def get_treasury_hub(
     db: Session = Depends(database.get_db),
     user: models.User = Depends(require_permission("accounting"))
 ):
-    from backend.services.accounting_service import accounting_service
     return accounting_service.get_treasury_summary(db, user.get_employer_id())
 
 @router.post("/encaisser/{item_id}")
@@ -310,7 +347,6 @@ async def mark_as_paid(
             doc.validated_by = f"{user.nom_complet or 'Utilisateur'} ({user.role})"
             doc.updated_at = now
 
-            # Create corresponding Payment
             payment_obj = models.Payment(
                 patient_id=doc.patient_id,
                 amount=extract_amount_from_clinical_data(doc.clinical_data),
@@ -400,6 +436,15 @@ def update_honoraire_item(
         if not doc:
             raise HTTPException(status_code=404, detail="Document introuvable")
         assert_patient_access(doc.patient_id, current_user, db)
+        linked_actes = db.query(models.Acte).filter(
+            models.Acte.document_archive_id == doc.id,
+            models.Acte.deleted_at.is_(None),
+        ).count()
+        if linked_actes:
+            raise HTTPException(
+                status_code=409,
+                detail="Cette note possède des écritures comptables liées. Modifiez-la depuis l'historique du patient pour garantir une mise à jour atomique.",
+            )
         if new_title is not None:
             doc.title = new_title.strip()
             if isinstance(doc.clinical_data, dict):
@@ -423,6 +468,11 @@ def update_honoraire_item(
         if not acte:
             raise HTTPException(status_code=404, detail="Acte introuvable")
         assert_patient_access(acte.patient_id, current_user, db)
+        if acte.document_archive_id is not None:
+            raise HTTPException(
+                status_code=409,
+                detail="Cet acte provient d'une note d'honoraires. Modifiez la note depuis l'historique du patient pour conserver la cohérence comptable.",
+            )
         if new_title is not None:
             acte.libelle = new_title.strip()
         if new_amount is not None:
@@ -448,6 +498,7 @@ def export_accounting_csv(
     output = io.StringIO()
     writer = csv.writer(output, delimiter=";")
     writer.writerow(["Date", "Patient", "Assurance", "Acte / Note", "Montant (MAD)", "Statut", "Encaissé", "Validé par"])
+
     for item in data["items"]:
         date_str = item["date"].strftime("%d/%m/%Y") if hasattr(item["date"], "strftime") else str(item["date"])[:10]
         writer.writerow([
@@ -531,33 +582,36 @@ def get_overdue_items(
     db: Session = Depends(database.get_db),
     current_user: models.User = Depends(require_permission("accounting"))
 ):
-    """Retourne les notes d'honoraires non réglées depuis plus de `days` jours."""
+    """Retourne les notes d'honoraires actives non réglées depuis plus de `days` jours."""
     emp_id = current_user.get_employer_id()
     cutoff = datetime.now() - timedelta(days=days)
 
-    overdue_docs = (
+    candidate_docs = (
         db.query(models.DocumentArchive)
         .join(models.Patient)
         .filter(
             models.Patient.employer_id == emp_id,
             models.DocumentArchive.document_type == models.DocumentType.NOTE_HONORAIRES,
             models.DocumentArchive.payment_status == models.PaiementStatut.EN_ATTENTE,
-            models.DocumentArchive.created_at <= cutoff,
+            or_(models.DocumentArchive.status == models.DocumentStatus.ACTIF, models.DocumentArchive.status == None),
+            or_(models.DocumentArchive.is_latest_version == True, models.DocumentArchive.is_latest_version == None),
         )
-        .order_by(models.DocumentArchive.created_at.asc())
         .all()
     )
+    overdue_docs = [doc for doc in candidate_docs if _document_business_datetime(doc) <= cutoff]
+    overdue_docs.sort(key=_document_business_datetime)
 
     from backend.utils.accounting_utils import extract_amount_from_clinical_data
     items = []
     for doc in overdue_docs:
-        days_overdue = (datetime.now() - doc.created_at).days
+        business_date = _document_business_datetime(doc)
+        days_overdue = (datetime.now() - business_date).days
         items.append({
             "id": f"doc_{doc.id}",
             "patient_id": doc.patient_id,
             "patient_name": f"{doc.patient.nom} {doc.patient.prenom}",
             "patient_email": doc.patient.email or None,
-            "date": doc.created_at,
+            "date": business_date,
             "amount": extract_amount_from_clinical_data(doc.clinical_data),
             "days_overdue": days_overdue,
         })
@@ -589,7 +643,7 @@ def send_relance(
 
     from backend.utils.accounting_utils import extract_amount_from_clinical_data
     amount = extract_amount_from_clinical_data(doc.clinical_data)
-    date_str = doc.created_at.strftime("%d/%m/%Y")
+    date_str = _document_business_datetime(doc).strftime("%d/%m/%Y")
     cabinet_name = getattr(current_user, "nom_complet", None) or "votre cabinet dentaire"
 
     subject = f"Rappel de paiement — {cabinet_name}"
@@ -619,7 +673,7 @@ def get_patient_debts(
     db: Session = Depends(database.get_db),
     current_user: models.User = Depends(require_permission("accounting"))
 ):
-    """Liste les patients avec solde impayé (total actes − total paiements), triés par montant décroissant."""
+    """Liste les patients avec solde impayé selon les écritures actives uniquement."""
     employer_id = current_user.get_employer_id()
 
     billed_rows = (
@@ -632,7 +686,11 @@ def get_patient_debts(
     paid_rows = (
         db.query(models.Payment.patient_id, func.sum(models.Payment.amount).label("total"))
         .join(models.Patient, models.Payment.patient_id == models.Patient.id)
-        .filter(models.Patient.employer_id == employer_id)
+        .outerjoin(models.Acte, models.Payment.acte_id == models.Acte.id)
+        .filter(
+            models.Patient.employer_id == employer_id,
+            accounting_service._visible_payment_filter(),
+        )
         .group_by(models.Payment.patient_id)
         .all()
     )
