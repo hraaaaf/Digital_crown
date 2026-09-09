@@ -78,7 +78,8 @@ def test_cephalo_utils_must_not_reintroduce_age_cvm_or_impa_space_conversion():
     assert "(impa - 90) / 2.5" not in source
     assert "(valeurActuelle - norme) / 2.5" not in source
     assert "TOOTH_LENGTH" not in source
-    assert "return [...landmarks];" in source
+    assert "export function initializeDefaultApexes" in source
+    assert "return[...landmarks];" in source.replace(" ", "")
 
 
 def test_missing_ddm_is_never_serialized_as_zero():
