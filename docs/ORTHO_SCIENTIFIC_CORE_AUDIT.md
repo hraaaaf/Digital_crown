@@ -23,7 +23,8 @@ Le logiciel peut calculer la géométrie, préserver les observations documenté
 | `cephalo_safe_engine.py` | défense en profondeur conservée |
 | `cephalo_consistency_validator.py` | cohérence structurelle, unités, calibration seulement |
 | `bilan_ortho_engine.py` | valeurs brutes + données praticien ; aucune classe/typologie/sévérité/diagnostic/traitement autonome |
-| `ai_advisor.py` | supprimé après preuve de non-reachability runtime |
+| `clinical_intelligence.py` | synthèse céphalo réécrite fail-closed : mesures brutes uniquement, aucune cohorte/diagnostic/stratégie auto |
+| `ai_advisor.py` | supprimé ; références runtime connues retirées |
 
 ## Frontières de sécurité
 
@@ -33,17 +34,18 @@ Le logiciel peut calculer la géométrie, préserver les observations documenté
 - `test_cephalo_treatment_boundary.py` verrouille absence de conversion IMPA→espace et préservation des données praticien.
 - `test_cephalo_consistency_structural_only.py` interdit le retour des pseudo-normes dans le gate PDF.
 - `test_bilan_ortho_fail_closed.py` interdit classes/typologies/sévérités automatiques.
-- `test_ortho_frontend_fail_closed_contract.py` verrouille aussi sexe nullable/reset et interdit tout fallback masculin.
+- `test_ortho_frontend_fail_closed_contract.py` verrouille sexe nullable/reset et interdit tout fallback masculin.
+- `test_clinical_intelligence_cephalo_fail_closed.py` interdit le retour de `ai_advisor`, d'une cohorte âge-dérivée, d'une synthèse diagnostique ou d'une stratégie thérapeutique céphalo.
+- `test_scientific_core_purge_contract.py` interdit la réapparition du wrapper `ai_advisor` et de références runtime.
 
-## Purge `ai_advisor`
+## Purge `ai_advisor` — audit corrigé
 
-Audit PR-wide avant suppression :
-- `cephalo_service.py` n'importait plus le module ;
-- le seul import runtime restant était un import inutilisé dans `elite_manager.py` ;
-- aucun appel de `ai_advisor` n'existait dans `elite_manager.py` ;
-- les deux tests restants ciblaient uniquement ce wrapper de compatibilité.
+L'audit initial était incomplet : après suppression du wrapper, deux CI successives ont révélé des dépendances runtime résiduelles.
 
-Conséquence : import mort retiré, `backend/services/ai_advisor.py` et ses deux tests dédiés supprimés. Aucun remplacement clinique n'est nécessaire car aucun flux runtime n'en dépendait.
+1. `backend/routers/ia.py` importait encore `ai_advisor` et importait directement `cephalo_engine` ; les deux imports, inutilisés, ont été retirés.
+2. `backend/services/clinical_intelligence.py` importait et appelait réellement `ai_advisor.generate_diagnostic()` pour produire une cohorte enfant/adulte, une synthèse diagnostique et une stratégie thérapeutique céphalo. Ce chemin a été réécrit en sortie fail-closed de mesures brutes uniquement.
+
+Les runs `34344464825` puis `34353944361` ont échoué sur ces références. Ils constituent des preuves historiques rouges, pas une certification du HEAD courant.
 
 ## Base scientifique verrouillée
 
@@ -53,13 +55,9 @@ Conséquence : import mort retiré, `backend/services/ai_advisor.py` et ses deux
 - Normes populationnelles : applicabilité/provenance explicites ; aucune généralisation silencieuse. Ousehal et al., Int Orthod 2012.
 - Croissance T1/T2 : aucun vecteur fixe présenté comme prédiction individuelle ; anciennes projections physiquement retirées.
 
-## Preuve CI historique utile
-
-Run `34340987448` : backend avait atteint `277 passed, 1 skipped` avant un unique échec de test obsolète exigeant encore le texte `référence normative non validée`. Ce test a été aligné sur le contrat plus strict : **mesure brute uniquement, aucune sémantique normative injectée**.
-
 ## Remaining exact
 
-1. CI complète sur le HEAD final de purge ;
+1. CI complète sur le HEAD courant après correction `clinical_intelligence` ;
 2. corriger toute régression attribuable au lot ;
 3. vérifier tous les checks requis sur ce même HEAD ;
 4. mettre PR/docs en cohérence finale ;

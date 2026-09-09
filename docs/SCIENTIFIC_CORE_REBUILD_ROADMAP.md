@@ -1,23 +1,14 @@
 # DIGITAL CROWN — SCIENTIFIC CORE REBUILD — CANONICAL HANDOVER
 
-**Rôle :** fichier canonique de reprise.  
-**Règle :** à chaque reprise, vérifier `repo / branche / PR / HEAD / CI`. Les SHA/runs historiques ne valent jamais état courant.
+**Règle de reprise :** vérifier `repo / branche / PR / HEAD / CI` avant toute conclusion. Les runs historiques ne valent jamais état courant.
 
 ## GOAL FINAL
 
-Reconstruire un noyau scientifique minimal, explicable, sourcé/versionné, patient-specific et fail-closed.
+Noyau scientifique minimal, explicable, sourcé/versionné et fail-closed.
 
 Invariant : `measurement != diagnosis != indication != treatment`.
 
-### Succès observable
-
-1. aucune donnée patient synthétique susceptible d'influencer une décision ;
-2. aucune règle thérapeutique autonome non validée ;
-3. aucune interprétation diagnostique autonome non validée ;
-4. observation, interprétation, safety et décision praticien séparées ;
-5. provenance/applicabilité explicites ;
-6. tests négatifs + CI verts avant merge ;
-7. aucun déploiement Vercel sans autorisation explicite.
+Succès : aucune donnée patient inventée influente ; aucune interprétation ou décision clinique autonome non validée ; séparation observation/interprétation/décision praticien ; tests et CI verts avant merge ; aucun déploiement Vercel sans autorisation explicite.
 
 ## REPO
 
@@ -26,80 +17,51 @@ Branche : `refactor/scientific-core-purge`
 PR : `#371` — draft, ouverte, mergeable au dernier contrôle  
 Base : `master`
 
-Le HEAD final est celui du commit qui supprime le wrapper `ai_advisor`; le vérifier avant toute conclusion.
-
-## ÉTAT GLOBAL
-
-- Phase 1 nettoyage scientifique : **EN COURS**.
-- Panorama/report : purge fermée historiquement.
-- Prescription démographique : fail-closed historiquement certifiée.
-- Céphalométrie/orthodontie : purge code principale terminée ; certification CI finale restante.
-- Prescription/safety globale et `clinical_coherence` : rebuild/consolidation encore restants hors lot ortho.
-- Aucun pourcentage global déclaré sans recalcul vérifié.
+Aucun pourcentage global n'est déclaré sans recalcul vérifié.
 
 ## LOT 7 — CÉPHALOMÉTRIE / ORTHODONTIE
 
-### Goal
+### État vérifié
 
-Conserver géométrie, calibration, observations et données praticien ; supprimer toute conversion autonome `mesure → diagnostic/indication/traitement` non validée et toute donnée patient inventée.
-
-### Frontend vérifié
-
-- `Step3Clinical.tsx` : aucune génération thérapeutique automatique.
-- `Step4Documents.tsx` : aucune norme locale ni Damon par défaut.
-- `orthoExpertSystem.ts` : fail-closed ; aucune extraction/appareil/mécanique/imagerie/chirurgie autonome.
-- `cephaloUtils.ts` : CVM âge/sexe, DDM corrigée par IMPA, apex synthétiques et traitement auto neutralisés.
-- `useOrthoStore.ts` : `sexePatient: 'M' | 'F' | null`, défaut/reset `null`, restauration uniquement si valeur sauvegardée exactement `M/F`.
-- `test_ortho_frontend_fail_closed_contract.py` verrouille ce contrat et interdit `sexePatient='M'` / fallback `'M'`.
-
-### Backend vérifié
-
+- Frontend : aucune génération thérapeutique automatique ; aucune norme locale ; sexe patient nullable/reset `null` ; CVM âge/sexe et DDM par IMPA neutralisés.
 - `CephaloService` utilise `cephalo_safe_engine`.
-- `cephalo_engine.py` est **géométrie seule** : plus de normes locales, z-scores, DDM IMPA/2,5°, T1/T2 croissance, diagnostic ou traitement autonome.
-- `cephalo_safe_engine.py` reste une défense en profondeur.
-- `cephalo_consistency_validator.py` ne garde que contrôles structurels/unités/calibration.
-- `bilan_ortho_engine.py` ne produit plus Classe I/II/III, typologie Tweed, diagnostic IMPA, sévérité DDM ni traitement autonome. Valeurs brutes + données praticien uniquement.
-- `ai_advisor.py` : **supprimé** après audit de reachability. Son seul import runtime résiduel dans `elite_manager.py` était inutilisé et a été retiré ; ses deux tests dédiés ont été supprimés avec lui.
+- `cephalo_engine.py` est géométrie seule : normes locales, z-scores, croissance T1/T2, diagnostic et traitement autonomes supprimés.
+- `cephalo_consistency_validator.py` ne garde que cohérence structurelle, unités et calibration.
+- `bilan_ortho_engine.py` restitue valeurs brutes + données praticien, sans classe/typologie/sévérité/diagnostic/traitement autonome.
+- `backend/routers/ia.py` n'importe plus directement `cephalo_engine` ni `ai_advisor`.
+- `backend/services/clinical_intelligence.py` ne dépend plus de `ai_advisor` ; son chemin céphalo historique restitue désormais les mesures brutes uniquement, sans cohorte âge-dérivée, diagnostic, indication ou stratégie automatique.
+- `backend/services/ai_advisor.py` est supprimé.
+
+### Audit `ai_advisor` corrigé
+
+L'audit initial était incomplet. Deux runs ont révélé des références runtime après suppression du wrapper :
+
+1. CI `34344464825` : référence résiduelle dans `backend/routers/ia.py`, corrigée.
+2. CI `34353944361` et T2 `34353944561` : dépendance active dans `backend/services/clinical_intelligence.py`, corrigée par remplacement fail-closed.
+
+Ces runs sont des preuves historiques rouges, pas une certification du HEAD courant.
 
 ### Tests clés
 
-- `backend/tests/test_cephalo_geometry_only.py`
-- `backend/tests/test_cephalo_treatment_boundary.py`
-- `backend/tests/test_cephalo_engine_reachability.py`
-- `backend/tests/test_cephalo_consistency_structural_only.py`
-- `backend/tests/test_bilan_ortho_fail_closed.py`
-- `backend/tests/test_bilan_ortho_engine.py`
-- `backend/tests/test_ortho_frontend_fail_closed_contract.py`
-- frontend : `cephaloUtils.test.ts`, `orthoExpertSystem.test.ts`
+- `test_cephalo_geometry_only.py`
+- `test_cephalo_treatment_boundary.py`
+- `test_cephalo_engine_reachability.py`
+- `test_cephalo_consistency_structural_only.py`
+- `test_bilan_ortho_fail_closed.py`
+- `test_ortho_frontend_fail_closed_contract.py`
+- `test_clinical_intelligence_cephalo_fail_closed.py`
+- `test_scientific_core_purge_contract.py`
 
-### Dernier défaut CI corrigé
+## AUTRES LOTS ENCORE OUVERTS
 
-Run `34340987448` : `277 passed, 1 skipped`, puis échec unique sur un test historique exigeant encore `référence normative non validée`. Le test a été corrigé pour le contrat actuel : **mesure brute seulement, aucune sémantique normative injectée**.
-
-### Registre normatif
-
-`cephalo_normative_service.py` reste une infrastructure fail-closed/versionnée pour de futurs profils explicitement validés. Aucun profil legacy ne devient autoritatif parce qu'il a été migré.
-
-## AUTRES LOTS SCIENTIFIC CORE ENCORE OUVERTS
-
-- Prescription / medication safety : rebuild restant, notamment gate final save/print à prouver.
-- `clinical_rules_engine.py` : règles médicales à reconstruire avec sources/version/applicabilité.
-- `clinical_coherence.py` : actif runtime, à séparer/consolider.
-
-La fermeture du lot ortho ne signifie donc pas certification scientifique globale.
+Les autres chantiers scientifiques restent distincts du closeout ortho. La fermeture du lot ortho ne vaut pas certification scientifique globale.
 
 ## CLOSEOUT LOT ORTHO
 
 Ordre : `code → tests → comportement observé → docs → CI → cohérence PR → ready → merge → post-merge`.
 
-Conditions avant merge :
-- aucun test scientifique rouge ;
-- aucune donnée patient synthétique active connue ;
-- aucune règle thérapeutique autonome active connue ;
-- aucune interprétation diagnostique autonome non validée connue ;
-- docs cohérentes avec le HEAD ;
-- tous les checks requis du même HEAD verts/acceptables.
+Avant merge : aucun rouge scientifique ; aucun comportement clinique autonome non validé connu dans ce lot ; docs cohérentes ; checks requis du même HEAD verts/acceptables.
 
 ## NEXT EXACT
 
-Vérifier la CI du HEAD final créé avec la suppression `ai_advisor`. Si rouge : diagnostiquer et corriger. Si verte : vérifier tous les checks, mettre la PR en cohérence/ready, merger, puis vérifier le post-merge. Aucun déploiement Vercel.
+Vérifier la CI du HEAD créé après correction `clinical_intelligence` + garde dédié + docs. Si rouge : diagnostiquer/corriger. Si verte : vérifier tous les checks, passer la PR ready, merger, puis vérifier le post-merge. Aucun déploiement Vercel.
