@@ -106,3 +106,29 @@ def test_edit_honoraires_replaces_amount_lines_and_business_date(db, dentiste):
     august = accounting_service.get_finance_kpis(db, dentiste.id, date(2026, 8, 20))
     assert august["today_revenue"] == 0
     assert august["month_revenue"] == 0
+
+    # Ré-agrandir la note ne doit jamais ressusciter la ligne B soft-deleted :
+    # une nouvelle ligne C reçoit une nouvelle identité comptable.
+    _persist(
+        db,
+        patient=patient,
+        dentiste=dentiste,
+        document_id=document_id,
+        items=[
+            {"acte": "Soin A corrigé", "montant": 700, "mode_reglement": "Espèces", "date": "2026-09-03"},
+            {"acte": "Soin C", "montant": 300, "mode_reglement": "Espèces", "date": "2026-09-03"},
+        ],
+    )
+    db.commit()
+
+    active_actes = db.query(models.Acte).filter(models.Acte.deleted_at.is_(None)).order_by(models.Acte.id).all()
+    assert len(active_actes) == 2
+    assert active_actes[0].id == original_acte_ids[0]
+    assert active_actes[1].id != original_acte_ids[1]
+    stale_second = db.query(models.Acte).filter(models.Acte.id == original_acte_ids[1]).one()
+    assert stale_second.deleted_at is not None
+    assert sum(a.montant for a in active_actes) == 1000
+
+    september = accounting_service.get_finance_kpis(db, dentiste.id, date(2026, 9, 3))
+    assert september["today_revenue"] == 1000
+    assert september["month_revenue"] == 1000
