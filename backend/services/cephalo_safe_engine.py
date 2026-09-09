@@ -17,11 +17,11 @@ from backend.services.cephalo_engine import cephalo_engine as _legacy_cephalo_en
 
 def _neutralize_measurement(value: Any, measurement: Dict[str, Any]) -> None:
     """Keep the measured value, remove legacy normative authority in-place."""
-    measurement["norm_mean"] = 0.0
-    measurement["norm_min"] = 0.0
-    measurement["norm_max"] = 0.0
+    measurement["norm_mean"] = None
+    measurement["norm_min"] = None
+    measurement["norm_max"] = None
     measurement["plage_compensation"] = None
-    measurement["z_score"] = 0.0
+    measurement["z_score"] = None
     if value is None:
         measurement["status"] = "Missing"
         measurement["interpretation"] = "Mesure non disponible."
