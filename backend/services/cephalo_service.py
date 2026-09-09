@@ -173,8 +173,8 @@ class CephaloService:
     ) -> schemas.ClinicalData:
         """Preserve practitioner-supplied clinical space discrepancy fail-closed.
 
-        The former implementation converted IMPA deviation from 90° with a
-        universal 2.5°/mm factor and called the result "DDM réelle". That
+        The former implementation converted IMPA deviation with a fixed universal
+        angular-to-space factor and called the result "DDM réelle". That
         patient-specific correction is not validated by the Scientific Core and
         is therefore retired. No cephalometric angle changes clinical space here.
         """
