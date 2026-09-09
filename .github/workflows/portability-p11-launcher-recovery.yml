@@ -1,0 +1,228 @@
+name: Portability P11 Launcher Recovery UX
+
+on:
+  pull_request:
+    paths:
+      - "backend/core/runtime_supervisor.py"
+      - "backend/tests/test_runtime_supervisor.py"
+      - "run.py"
+      - "frontend/src/components/DigitalCrownLoader.tsx"
+      - "frontend/src/features/admin/Settings/tabs/SecurityTab.tsx"
+      - "scripts/p11_launcher_recovery_contract.py"
+      - "docs/portability/P11_LAUNCHER_RECOVERY_UX.md"
+      - ".github/workflows/portability-p11-launcher-recovery.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  certify:
+    runs-on: ubuntu-latest
+    env:
+      HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+    steps:
+      - name: Checkout exact candidate
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.HEAD_SHA }}
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install targeted launcher dependencies
+        run: python -m pip install --disable-pip-version-check pytest sqlalchemy
+
+      - name: Verify P11 product contract
+        run: |
+          python -m py_compile backend/core/runtime_supervisor.py run.py scripts/p11_launcher_recovery_contract.py
+          python scripts/p11_launcher_recovery_contract.py
+          python -m pytest backend/tests/test_runtime_supervisor.py -q --noconftest
+
+      - name: Install frontend and Chromium
+        working-directory: frontend
+        run: |
+          npm ci
+          npm install --no-save --package-lock=false playwright@1.55.0
+          npx playwright install --with-deps chromium
+
+      - name: Build frontend
+        working-directory: frontend
+        run: npm run build
+
+      - name: Generate actual local recovery document
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          from backend.core.platform import PlatformAdapter
+          from backend.core.runtime_supervisor import RuntimeSupervisor
+
+          adapter = PlatformAdapter(
+              system_name="Windows",
+              environ={"APPDATA": "C:/Users/Clinique/AppData/Roaming"},
+              home="C:/Users/Clinique",
+          )
+          supervisor = RuntimeSupervisor(8005, adapter=adapter, runtime_dir=Path("frontend/p11-runtime"))
+          Path("frontend/p11-after-recovery.html").write_text(
+              supervisor._recovery_document("RUNTIME_NOT_READY"), encoding="utf-8"
+          )
+          PY
+
+      - name: Inject P11 AFTER harness
+        working-directory: frontend
+        run: |
+          cat > p11-after.html <<'EOF'
+          <!doctype html>
+          <html lang="fr"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/><title>P11 AFTER</title></head><body><div id="root"></div><script type="module" src="/src/p11-after.tsx"></script></body></html>
+          EOF
+
+          cat > src/p11-after.tsx <<'EOF'
+          import React from 'react';
+          import { createRoot } from 'react-dom/client';
+          import './index.css';
+          import { SecurityTab } from './features/admin/Settings/tabs/SecurityTab';
+          createRoot(document.getElementById('root')!).render(
+            <main className="min-h-screen bg-white p-4 sm:p-8 lg:p-12"><SecurityTab /></main>,
+          );
+          EOF
+
+          cat > p11-after.mjs <<'EOF'
+          import { chromium } from 'playwright';
+          import { createServer } from 'vite';
+          import fs from 'node:fs/promises';
+
+          const output = 'p11-after-artifacts';
+          await fs.mkdir(output, { recursive: true });
+          const widths = [1440, 1024, 768, 430, 390];
+          const server = await createServer({ server: { host: '127.0.0.1', port: 4192, strictPort: true }, clearScreen: false });
+          await server.listen();
+          const browser = await chromium.launch();
+          const health = [];
+
+          const preflight = {
+            restore_id: 'restore-p11', status: 'preflight_ready', original_name: 'cabinet-reference.dcbackup',
+            size_bytes: 5242880, archive_type: 'Archive complète manifestée', backup_created_at: '2026-08-24T18:00:00Z',
+            compatible: true, restore_database: true, restore_media: true, media_file_count: 42,
+            preserved: [], warnings: [], errors: [],
+          };
+          const prepared = { ...preflight, status: 'prepared', prepared_at: '2026-08-24T18:01:00Z' };
+          const reply = body => ({ status: 200, contentType: 'application/json', body: JSON.stringify(body) });
+
+          const watchPage = page => {
+            const errors = [];
+            page.on('pageerror', e => errors.push(`pageerror:${e.message}`));
+            page.on('console', m => { if (m.type() === 'error') errors.push(`console:${m.text()}`); });
+            return errors;
+          };
+
+          const wireApi = async page => {
+            await page.route('**/api/**', async route => {
+              const req = route.request(); const url = new URL(req.url());
+              if (req.method() === 'GET' && url.pathname === '/api/admin/audit-logs') return route.fulfill(reply({ logs: [], total: 0 }));
+              if (req.method() === 'POST' && url.pathname === '/api/admin/restore/preflight') return route.fulfill(reply(preflight));
+              if (req.method() === 'POST' && url.pathname === '/api/admin/restore/restore-p11/prepare') return route.fulfill(reply(prepared));
+              return route.fulfill(reply({}));
+            });
+          };
+
+          const verifyPage = async (page, screen, width, errors) => {
+            const layout = await page.evaluate(() => ({ clientWidth: document.documentElement.clientWidth, scrollWidth: document.documentElement.scrollWidth }));
+            if (layout.scrollWidth > layout.clientWidth) throw new Error(`overflow screen=${screen} width=${width} scroll=${layout.scrollWidth}`);
+            if (errors.length) throw new Error(`runtime screen=${screen} width=${width}: ${errors.join(';')}`);
+            health.push({ screen, width, ...layout, errors: [...errors] });
+          };
+
+          try {
+            for (const width of widths) {
+              const startupContext = await browser.newContext({ viewport: { width, height: 1200 } });
+              const startup = await startupContext.newPage();
+              const startupErrors = watchPage(startup);
+              await startup.goto('http://127.0.0.1:4192/p11-after-recovery.html', { waitUntil: 'networkidle' });
+              await startup.getByText('Digital Crown n’a pas pu démarrer').waitFor();
+              if (width <= 430) {
+                for (const button of await startup.locator('.btn').all()) {
+                  const box = await button.boundingBox();
+                  if (!box || box.height < 44) throw new Error(`startup CTA under 44px at ${width}`);
+                }
+              }
+              await verifyPage(startup, 'startup', width, startupErrors);
+              await startup.screenshot({ path: `${output}/startup-${width}x1200.png`, fullPage: true, animations: 'disabled' });
+              await startupContext.close();
+
+              const securityContext = await browser.newContext({ viewport: { width, height: 1200 } });
+              const security = await securityContext.newPage();
+              const securityErrors = watchPage(security);
+              await wireApi(security);
+              await security.goto('http://127.0.0.1:4192/p11-after.html', { waitUntil: 'networkidle' });
+              await security.getByTestId('restore-lifecycle').waitFor();
+              if (width <= 430) {
+                const analyze = security.getByRole('button', { name: 'Analyser une sauvegarde' });
+                const box = await analyze.boundingBox();
+                if (!box || box.height < 44) throw new Error(`restore CTA under 44px at ${width}`);
+              }
+              await verifyPage(security, 'security', width, securityErrors);
+              await security.screenshot({ path: `${output}/security-${width}x1200.png`, fullPage: true, animations: 'disabled' });
+
+              const input = security.locator('input[type=file]');
+              await input.setInputFiles({ name: 'cabinet-reference.dcbackup', mimeType: 'application/octet-stream', buffer: Buffer.from('p11') });
+              await security.getByText('Analyse validée').first().waitFor();
+              await security.getByRole('button', { name: 'Préparer la restauration' }).click();
+              await security.getByText('Point de secours créé et vérifié').first().waitFor();
+              if (width <= 430) {
+                const apply = security.getByRole('button', { name: 'Redémarrer et restaurer' });
+                const box = await apply.boundingBox();
+                if (!box || box.height < 44) throw new Error(`prepared CTA under 44px at ${width}`);
+              }
+              await verifyPage(security, 'security-prepared', width, securityErrors);
+              await security.screenshot({ path: `${output}/security-prepared-${width}x1200.png`, fullPage: true, animations: 'disabled' });
+              await securityContext.close();
+            }
+            await fs.writeFile(`${output}/health.json`, JSON.stringify(health, null, 2));
+          } finally {
+            await browser.close();
+            await server.close();
+          }
+          EOF
+
+      - name: Capture and verify P11 AFTER
+        working-directory: frontend
+        run: node p11-after.mjs
+
+      - name: Verify P11 proof cardinality
+        working-directory: frontend
+        run: |
+          test "$(find p11-after-artifacts -name 'startup-*.png' | wc -l)" -eq 5
+          test "$(find p11-after-artifacts -name 'security-[0-9]*.png' | wc -l)" -eq 5
+          test "$(find p11-after-artifacts -name 'security-prepared-*.png' | wc -l)" -eq 5
+          grep -q 'RUNTIME_NOT_READY' p11-after-recovery.html
+          grep -q 'Cet écran de récupération ne lance aucune restauration, suppression ni réinitialisation du cabinet.' p11-after-recovery.html
+          ! grep -q 'Vos données cabinet n’ont pas été modifiées' p11-after-recovery.html
+
+      - name: Record P11 metadata
+        working-directory: frontend
+        run: |
+          cat > p11-after-artifacts/metadata.txt <<EOF
+          head_sha=${HEAD_SHA}
+          goal=P11 truthful launcher recovery plus scannable Guided Restore lifecycle
+          matching_viewports=1440x1200,1024x1200,768x1200,430x1200,390x1200
+          matching_surfaces=startup,security
+          matching_screenshots=10
+          extra_state=security-prepared
+          extra_screenshots=5
+          EOF
+
+      - name: Upload P11 AFTER proof
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: portability-p11-after
+          path: frontend/p11-after-artifacts/
+          if-no-files-found: error
+          retention-days: 14
