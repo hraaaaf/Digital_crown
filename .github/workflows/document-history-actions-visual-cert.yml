@@ -134,14 +134,17 @@ jobs:
           run_tree () {
             tree="$1"; label="$2"
             rm -f t2-runtime-cert.db /tmp/dc-before/t2-runtime-cert.db
-            (cd "$tree" && python scripts/t2_runtime_server.py > "/tmp/${label}-backend.log" 2>&1) & BPID=$!
+            (cd "$tree" && exec setsid python scripts/t2_runtime_server.py > "/tmp/${label}-backend.log" 2>&1) & BPID=$!
             for i in {1..90}; do curl -fsS http://127.0.0.1:8005/health >/dev/null && break; sleep 1; done
-            (cd "$tree/frontend" && npm run dev -- --host 127.0.0.1 --port 5173 > "/tmp/${label}-frontend.log" 2>&1) & FPID=$!
+            (cd "$tree/frontend" && exec setsid npm run dev -- --host 127.0.0.1 --port 5173 > "/tmp/${label}-frontend.log" 2>&1) & FPID=$!
             for i in {1..90}; do curl -fsS http://127.0.0.1:5173 >/dev/null && break; sleep 1; done
             node /tmp/capture-doc-history.mjs "$tree" "$label"
-            kill $FPID $BPID 2>/dev/null || true
+            kill -- -$FPID -$BPID 2>/dev/null || true
             wait $FPID $BPID 2>/dev/null || true
-            sleep 1
+            for i in {1..30}; do
+              if ! curl -fsS http://127.0.0.1:5173 >/dev/null 2>&1 && ! curl -fsS http://127.0.0.1:8005/health >/dev/null 2>&1; then break; fi
+              sleep 1
+            done
           }
           run_tree /tmp/dc-before before
           run_tree "$ROOT" after
