@@ -1,363 +1,225 @@
 # DIGITAL CROWN — SCIENTIFIC CORE REBUILD — CANONICAL HANDOVER
 
-**Rôle :** source canonique de reprise du chantier Scientific Core.  
-**Reprise :** lire ce fichier en premier, puis vérifier `repo / branche / PR / HEAD / CI` avant toute modification. Les SHA/runs ci-dessous sont des preuves historiques, jamais une excuse pour ne pas revérifier l'état courant.
+**Rôle :** fichier canonique de reprise du chantier Scientific Core.  
+**Règle de reprise :** vérifier `repo / branche / PR / HEAD / CI` avant toute modification. Les SHA/runs ci-dessous sont des preuves historiques, jamais l'état courant par défaut.
 
 ---
 
 ## 1. GOAL FINAL
 
-Reconstruire le noyau scientifique de Digital Crown pour qu'il soit minimal, explicable, déterministe quand possible, versionné/sourcé, patient-specific, **fail-closed** quand une donnée clinique indispensable manque, sans moteur mort ni donnée patient synthétique, sans diagnostic/recommandation automatique présenté comme vérité, avec praticien décisionnaire et certification complète avant merge.
+Reconstruire le noyau scientifique de Digital Crown pour qu'il soit minimal, explicable, sourcé/versionné, patient-specific et **fail-closed** quand une donnée indispensable manque.
+
+Invariant clinique :
+
+`measurement != diagnosis != indication != treatment`
 
 ### Succès observable
 
-1. un moteur canonique par responsabilité scientifique ;
-2. aucun wrapper/service scientifique dormant ou redondant non justifié ;
-3. aucune règle clinique active non sourcée/versionnée dans le futur moteur ;
-4. aucune valeur patient par défaut susceptible de modifier une décision clinique ;
-5. séparation nette : contexte patient / observation / diagnostic / safety / recommandation ;
-6. provenance et niveau de confiance disponibles lorsque pertinents ;
-7. CI + tests scientifiques verts avant merge ;
-8. revue humaine obligatoire pour les règles médicales sensibles.
+1. aucune valeur patient synthétique susceptible de modifier une décision clinique ;
+2. aucune règle thérapeutique automatique non validée ;
+3. une seule autorité normative céphalométrique ;
+4. observation, interprétation, safety et décision praticien séparées ;
+5. provenance/applicabilité explicites pour les règles scientifiques ;
+6. tests négatifs/non-régression + CI verts avant merge ;
+7. aucun déploiement Vercel sans autorisation explicite.
 
-### Preuve finale attendue
-
-Code consolidé + tests unitaires/golden/négatifs/non-régression + docs canoniques cohérentes + PR certifiée + merge `master` + CI post-merge verte.
-
-**Aucun déploiement Vercel sans autorisation explicite du user.**
+Règle dure : une couche clinique active `REPLACE` n'est jamais supprimée sans couverture/remplacement prouvé.
 
 ---
 
-## 2. CLASSIFICATION
-
-- `KEEP` : actif, utile, responsabilité claire, comportement acceptable.
-- `CONSOLIDATE` : actif/utile mais redondant avec un autre moteur.
-- `REPLACE` : actif mais scientifiquement insuffisant, trop absolu, non sourcé ou dangereux.
-- `DELETE` : mort, obsolète, sans consommateur réel ou responsabilité abandonnée.
-
-Règle dure : **une couche clinique active classée `REPLACE` n'est jamais supprimée sans couverture/remplacement prouvé.**
-
----
-
-## 3. REPO / BRANCHE / PR — DERNIER ÉTAT CODE CERTIFIÉ
+## 2. ÉTAT REPO À REVÉRIFIER À CHAQUE REPRISE
 
 Repo : `hraaaaf/Digital_crown`  
 Branche : `refactor/scientific-core-purge`  
 PR : `#371` — draft, ouverte  
-Base : `master`  
-HEAD code certifié avant ce commit documentaire : `7ace175d2cce54b420effe71011ae941bb61db24`  
-Commit : `test: lock clinical coherence runtime consumers`
+Base : `master`
 
-### CI vérifiée sur ce HEAD
-
-- Digital Crown CI : run `34257536407` — **SUCCESS**.
-- T2 Runtime Browser Certification : run `34257536283` — **SUCCESS**.
-- Catalog Connected Truth Certification : run `34257536425` — **SUCCESS**.
-- Patient P7 Final Certification : run `34257536424` — **SUCCESS**.
-- Settings TemplateEngine Reachability Certification : run `34257536303` — **SUCCESS**.
-- Patient Indicators Truth Certification : run `34257536281` — **FAILURE** ; défaut transverse responsive/race déjà observé, à traiter avant certification globale.
-- M6-I Biometric Passkey Certification : `SKIPPED`.
-
-**Ne pas qualifier la PR de globalement all-green** tant que la certification Patient Indicators reste rouge. Ce commit documentaire crée un nouveau HEAD : ses workflows doivent être vérifiés séparément.
+Dernier HEAD observé avant ce commit documentaire : `519174fe11ca4c0f585befab840886cf2dee8eb6`.  
+PR observée `mergeable=true` sur ce HEAD.  
+CI du HEAD : run `34337218473` **pending** au dernier contrôle.  
+Settings TemplateEngine Certification : **SUCCESS** sur le même cycle.  
+Ne jamais qualifier la PR de globalement verte sans revérifier le HEAD documentaire créé par ce fichier et tous les checks requis.
 
 ---
 
-## 4. ÉTAT GLOBAL
+## 3. ÉTAT GLOBAL
 
-- **Phase 1 — Nettoyage scientifique : EN COURS, lots panorama/report fermés ; prescription démographie certifiée ; céphalo au gate médical.**
-- **Phase 2 — Consolidation : PAS ENCORE COMMENCÉE FORMELLEMENT.**
-- **Phase 3 — Rebuild : PAS ENCORE COMMENCÉE FORMELLEMENT.**
-- **Phase 4 — Certification scientifique globale : PAS ENCORE COMMENCÉE FORMELLEMENT.**
+- **Phase 1 — Nettoyage scientifique : EN COURS.**
+- Panorama/report : purge fermée et certifiée historiquement.
+- Prescription démographique : fail-closed certifiée historiquement.
+- Céphalométrie/orthodontie : sécurité runtime fortement durcie ; purge physique legacy et certification finale restantes.
+- Consolidation globale : non fermée.
+- Certification scientifique globale : non fermée.
+
+Aucun pourcentage global n'est déclaré tant qu'il n'est pas recalculé sur des critères vérifiés.
 
 ---
 
-# PHASE 1 — NETTOYAGE
+# PHASE 1 — LOTS
 
-## LOT 1 — `TreatmentPlanEngine`
+## LOT 1 — TreatmentPlanEngine
 
-**État : SUPPRIMÉ ET CERTIFIÉ SUR PR.**
+**État : SUPPRIMÉ / CERTIFIÉ HISTORIQUEMENT.**
 
-Preuves : moteur dormant supprimé, imports/tests dédiés retirés, contrat anti-régression ajouté, runners temporaires retirés, CI antérieure `34222898913` SUCCESS.  
-Décision : `DELETE` confirmé.
+Moteur dormant supprimé, imports/tests dédiés retirés, contrat anti-régression ajouté.
 
 ---
 
 ## LOT 2 — Prescription / Medication Safety Legacy
 
-**État : NETTOYAGE PARTIEL CERTIFIÉ. REBUILD RESTANT.**
+**État : NETTOYAGE PARTIEL CERTIFIÉ ; REBUILD RESTANT.**
 
 Déjà corrigé :
 - allergie générique ≠ pénicilline automatique ;
 - rappel détartrage retiré du medication-safety ;
-- heuristique `antibiotique sans acte invasif => incohérent` neutralisée sur le chemin moderne ;
-- alertes spécifiques pénicilline/DDI conservées ;
-- valeurs patient synthétiques retirées du chemin de calcul démographique, voir LOT 3.
+- heuristique `antibiotique sans acte invasif => incohérent` neutralisée sur chemin moderne ;
+- alertes spécifiques utiles conservées.
 
-### Gap safety UX prouvé
+Gap restant : safety pending/error/unverified n'est pas encore prouvé comme gate final save/print de bout en bout.
 
-`PrescriptionAgenticStudio.tsx` maintient `safetyStatus`, mais `useDocumentGenerator.ts` ne reçoit pas directement ce statut comme gate final save/print. Un safety-check pending/error/unverified n'est donc pas, à lui seul, un gate final.
-
-Classement : `REPLACE / CONSOLIDATE`.
+Classification : `REPLACE / CONSOLIDATE`.
 
 ---
 
-## LOT 3 — `clinical_rules_engine.py`
+## LOT 3 — clinical_rules_engine.py
 
-**État : ACTIF RUNTIME. SOUS-LOT DÉMOGRAPHIE FAIL-CLOSED IMPLÉMENTÉ ET CERTIFIÉ. MOTEUR GLOBAL `REPLACE / CONSOLIDATE`.**
+**État : ACTIF RUNTIME ; démographie fail-closed certifiée ; moteur global `REPLACE / CONSOLIDATE`.**
 
-### Consommateurs vérifiés
-
-- `prescription_service_legacy.py` appelle `clinical_rules.analyze_case()` ;
-- `prescription_service.py` constitue le wrapper public moderne et applique le guard de contexte ;
-- `prescription_agentic_service.py` passe par le wrapper moderne.
-
-### Politique A validée par le user et implémentée
-
-- `age=30` supprimé ;
-- `poids=70` supprimé du moteur ;
-- injection legacy `poids=70` supprimée ;
-- âge absent => aucune posologie dépendante de l'âge calculée ;
+Politique déjà appliquée :
+- aucun `age=30` ou `poids=70` inventé ;
 - enfant sans poids => aucune dose pédiatrique calculée ;
-- enfant avec poids explicite => calcul utilise ce poids ;
-- adulte connu sans poids => chemin de posologie adulte standard conservé lorsque le poids n'est pas requis ;
-- contrôles indépendants des données démographiques conservés.
+- enfant avec poids explicite => poids réel utilisé ;
+- adulte sans poids => uniquement chemins ne nécessitant pas le poids.
 
-### Limite de modèle patient vérifiée
-
-Le modèle `Patient` actuel ne possède pas de champ poids. Le legacy tente uniquement des attributs réels s'ils existent (`weight_kg` / `poids`) et obtient sinon `None`. Aucun poids de substitution n'est inventé.
-
-### Preuves
-
-- `backend/tests/test_prescription_demographics_fail_closed.py` couvre âge absent, enfant sans poids, enfant avec poids explicite, adulte sans poids, absence de literals synthétiques et reachability du legacy ;
-- `backend/services/clinical_rules_engine.py`, `prescription_service.py`, `prescription_service_legacy.py` modifiés ;
-- contrat de reachability : seul `prescription_service.py` est autorisé à consommer directement le service legacy ;
-- HEAD code certifié `7ace175d2cce54b420effe71011ae941bb61db24` ;
-- CI `34257536407` : **SUCCESS**.
-
-### Règles médicales restant `REPLACE`
-
-Exemples déjà audités : clindamycine 600 mg comme alternative automatique de prophylaxie d'endocardite ; grossesse + shielding obligatoire ; Saccharomyces boulardii automatique après amoxicilline/Augmentin ; implant => prophylaxie antibiotique universelle ; grossesse => AINS interdits uniformément ; mapping mot-clé acte/diagnostic => médicament.
-
-Toute règle finale devra être reliée à une source primaire/professionnelle, version, date d'effet et applicabilité au contexte Maroc.
+Règles médicales restantes à reconstruire avec sources/version/applicabilité : prophylaxie, grossesse/AINS, probiotiques, implants, mappings mot-clé → médicament, etc.
 
 ---
 
-## LOT 4 — `clinical_coherence.py`
+## LOT 4 — clinical_coherence.py
 
-**État : ACTIF RUNTIME PROUVÉ. `REPLACE / CONSOLIDATE`. PAS CANDIDAT DELETE.**
+**État : ACTIF RUNTIME ; `REPLACE / CONSOLIDATE`.**
 
-### Reachability exacte certifiée
+Reachability historiquement verrouillée vers `backend/routers/documents.py` et `backend/services/elite_manager.py`.
 
-Imports runtime autorisés et observés :
-- `backend/routers/documents.py` ;
-- `backend/services/elite_manager.py`.
-
-`backend/tests/test_clinical_coherence_reachability.py` utilise l'AST pour verrouiller exactement ces consommateurs et ignorer commentaires/tests comme faux positifs.
-
-### Architecture à corriger ultérieurement
-
-Le module mélange actuellement :
-- validation/documentation clinique ;
-- règle NSAID/GI basée sur mots-clés ;
-- contrôle comptable ;
-- scoring/fixes.
-
-Cible : validation documentaire hors moteur clinique, comptabilité hors moteur clinique, medication safety consolidée dans le moteur pharmacologique structuré. Les règles médicales ne changent pas sans gate humain.
-
-Preuve CI : `34257536407` — **SUCCESS**.
+Cible : séparer validation documentaire, comptabilité et medication safety.
 
 ---
 
 ## LOT 5 — Imagerie panoramique
 
-**État : SUPPRESSION DES WRAPPERS MORTS CERTIFIÉE. LOT DE PURGE FERMÉ.**
+**État : PURGE FERMÉE / CERTIFIÉE HISTORIQUEMENT.**
 
-Pipeline actif : `backend/routers/ia.py` → `panoramic_service.detect_teeth_only()` → `sota_panoramic_service.py` → `panoramic_report_engine.py` → `PanoramicAnalysis`.
+Pipeline conservé : `ia.py → panoramic_service → sota_panoramic_service → panoramic_report_engine`.
 
-Classification :
-- `panoramic_service.py` : `KEEP / CONSOLIDATE` ;
-- `sota_panoramic_service.py` : `KEEP` ;
-- `panoramic_ai_advisor.py` : `DELETE` confirmé ;
-- `panoramic_expert_engine.py` : `DELETE` confirmé ;
-- `panoramic_vision_service.py` : `DELETE` confirmé ;
-- `panoramic_report_engine.py` : actif, traité LOT 6.
-
-Preuves : commit `b559a3dd681aa35de6bc773288409d087f615fe8`, contrat purge, pipeline actif conservé, CI `34232806194` SUCCESS.
+Wrappers morts supprimés : `panoramic_ai_advisor.py`, `panoramic_expert_engine.py`, `panoramic_vision_service.py`.
 
 ---
 
 ## LOT 6 — Vision / Report panoramique
 
-**État : POLITIQUE FAIL-CLOSED IMPLÉMENTÉE ET CERTIFIÉE. LOT PANORAMA/REPORT FERMÉ.**
+**État : FAIL-CLOSED IMPLÉMENTÉ / CERTIFIÉ HISTORIQUEMENT.**
 
-Politique appliquée :
-- absence/non-saisie => `non documenté / non évalué`, jamais normalité implicite ;
-- observation/anomalie => constat descriptif ;
-- aucune conduite thérapeutique ni CCAM déduite automatiquement du seul label d'imagerie ;
-- décision clinique laissée au praticien ;
-- provenance/limitations conservées.
-
-Preuves : `panoramic_report_engine.py` et générateur PDF durcis, tests fail-closed rapport/PDF, HEAD `8a11ae6ec4c51751854586849cbdf4e3ce330c8f`, CI `34250350231` SUCCESS.
-
-`vision_service.py` et `sota_vision_service.py` sont **céphalo actifs**, pas panorama legacy.
+- absence/non-saisie => `non documenté / non évalué` ;
+- aucune conduite thérapeutique/CCAM déduite automatiquement d'un label d'imagerie ;
+- décision praticien conservée.
 
 ---
 
-## LOT 7 — Céphalométrie
+## LOT 7 — Céphalométrie / Orthodontie
 
-### Pipeline actif vérifié
+### Goal
 
-`upload → ia.py → CephaloService → calibration → VisionEngine ONNX 38 ou fallback PyTorch 19 → CephaloEngine → repository → édition frontend → refine → validator → PDF`.
+Conserver géométrie, calibration, observations et données praticien ; supprimer toute conversion automatique `mesure → diagnostic/indication/traitement` non validée.
 
-Composants :
-- `vision_service.py` : multiplexer landmarks céphalo, actif, `KEEP / CONSOLIDATE` à certifier ;
-- `sota_vision_service.py` : dépendance active, `KEEP / CONSOLIDATE` à certifier ;
-- `cephalo_service.py` : récupère âge/sexe réels du patient, sans invention ;
-- `test_vision_apex_provenance.py` interdit la fabrication silencieuse des apex ;
-- absence de calibration => mesures linéaires mm non évaluables dans le chemin principal ;
-- `Patient` ne possède pas de `population_id`, donc aucun profil populationnel spécifique ne peut être sélectionné aujourd'hui.
+### Runtime actuel vérifié
+
+- `CephaloService` utilise `cephalo_safe_engine`, pas `cephalo_engine` directement.
+- `backend/tests/test_cephalo_engine_reachability.py` interdit tout import runtime direct du moteur legacy hors adapter.
+- `cephalo_safe_engine` retire :
+  - stratégie thérapeutique legacy ;
+  - statuts/interprétations/z-scores normatifs legacy ;
+  - projections T1/T2 de croissance legacy.
+- `MeasureData.norm_mean/norm_min/norm_max/z_score` acceptent désormais `None` pour représenter explicitement l'absence d'autorité normative ; `0.0` n'est plus utilisé comme fausse norme fail-closed.
+- `cephalo_consistency_validator.py` est réduit à des contrôles structurels : cohérence SNA-SNB≈ANB, unités, calibration. Les normes cliniques locales et Classe II/III via ANB ont été retirées du gate PDF.
+- `CephaloService._calculate_complex_ddm()` ne convertit plus IMPA en espace ; DDM clinique explicite conservée.
+- plan praticien conservé ; stratégie générée par le moteur filtrée.
+
+### Frontend actuel vérifié
+
+- `Step3Clinical.tsx` : plus de bouton injectant un traitement auto, plus de sévérité DDM/division diagnostique déduites localement ; stratégie praticien reste éditable.
+- `Step4Documents.tsx` : mesures brutes, aucune table normative locale, aucun Damon par défaut, aucun appareil stocké dans `profil`.
+- `orthoExpertSystem.ts` : adapter descriptif fail-closed ; plus d'extraction, appareil, mécanique, imagerie ou chirurgie automatiques.
+- `cephaloUtils.ts` :
+  - CVM âge/sexe neutralisé ;
+  - IMPA/I-Francfort → DDM neutralisé ;
+  - apex manquants non fabriqués ;
+  - `generateTreatmentPlan()` ne génère aucun plan ;
+  - donnée DDM absente reste absente.
+- `useOrthoStore.ts` : defaults Classe I / denture permanente / Damon retirés. Dette restante : `sexePatient='M'` legacy par défaut, actuellement isolé du pipeline scientifique audité mais à remplacer par un état inconnu.
 
 ### Registre normatif
 
-`cephalo_normative_service.py` est fail-closed :
-- pas de fallback silencieux ;
-- profils `LEGACY_UNVALIDATED` non autoritatifs ;
-- quarantine/ambiguïté bloquent la classification ;
-- classification uniquement via règle explicitement validée pour le profil.
+`cephalo_normative_service.py` reste l'autorité cible : fail-closed, profils legacy non validés non autoritatifs, pas de fallback silencieux.
 
-Les fichiers `normative_profiles.yaml` et `classification_rules.yaml` conservent explicitement les conflits legacy et les marquent non validés/quarantined. Plusieurs docstrings indiquant encore que le registre n'est « pas wired » sont obsolètes et devront être corrigées.
+Aucun profil legacy ne doit être marqué validé uniquement parce qu'il a été migré.
 
-### Risque scientifique principal prouvé : double vérité normative
+### Legacy encore physiquement présent
 
-`CephaloEngine` continue parallèlement à appeler `_evaluate_metric()` avec de nombreuses normes hardcodées legacy et génère `Normal/High/Low/Compensated`, interprétations et z-scores. Exemples : SNA 82±2, SNB 80±2, ANB 2±2, Tweed 26±4, IMPA 90±5, I/Francfort 107±5, Wits 0±1.5.
+`backend/services/cephalo_engine.py` contient encore :
+- `_evaluate_metric()` avec constantes historiques ;
+- `calculate_ddm_reelle()` avec règle IMPA / 2,5° par mm ;
+- vecteurs fixes `_project_t1_growth/_project_t2_growth` ;
+- stratégie nommant Damon, Invisalign, Twin Block, TADs, chirurgie, etc.
 
-Donc le registre externe est fail-closed mais l'ancien moteur continue à produire une seconde sémantique normative. Cible : **une seule autorité normative**.
+**État : QUARANTINÉ, PAS VALIDÉ.** La frontière runtime empêche ces sorties de devenir autoritatives, mais la purge physique reste souhaitable après preuve de couverture suffisante.
 
-### Risque médical principal prouvé : stratégie thérapeutique automatique active
+### Base scientifique documentée
 
-`CephaloEngine.calculate_metrics()` construit encore automatiquement une `strategie_therapeutique` à partir des mesures/classements et peut proposer notamment :
-- Twin Block / activateur / Herbst ;
-- disjonction + masque de Delaire ;
-- TADs / contrôle vertical ;
-- Damon / Invisalign / Forsus ;
-- compensation de Classe III ou chirurgie orthognathique.
+Voir `docs/ORTHO_SCIENTIFIC_CORE_AUDIT.md`.
 
-Cette stratégie est exposée dans `ai_narrative`. Elle est incompatible avec la décision durable `diagnostic ≠ traitement automatique` et nécessite un gate médical explicite avant modification.
+Conclusions d'ingénierie déjà verrouillées :
+- CVM = appréciation morphologique, jamais âge/sexe seuls ;
+- extraction = décision multifactorielle ;
+- CBCT = justification individualisée ;
+- normes céphalo = applicabilité population/méthode explicite ;
+- prédiction individuelle de croissance : méthodes actuelles hétérogènes, validation externe limitée ; vecteurs fixes T1/T2 legacy non autoritatifs.
 
-`bilan_ortho_engine.generate_bilan()` est déjà plus sûr : il utilise le plan praticien s'il existe, sinon indique qu'aucune stratégie thérapeutique n'est générée automatiquement. Sa méthode legacy `_generate_plan_traitement()` reste à prouver dormante avant suppression.
+### Tests clés
 
-`ai_advisor.py` contient également des stratégies thérapeutiques automatiques ; ses imports observés dans `cephalo_service.py` et `elite_manager.py` paraissent inutilisés, mais **DELETE non encore certifié** : reachability de branche à prouver avant suppression.
+- `backend/tests/test_cephalo_treatment_boundary.py`
+- `backend/tests/test_cephalo_engine_reachability.py`
+- `backend/tests/test_cephalo_consistency_structural_only.py`
+- tests frontend `cephaloUtils.test.ts`, `orthoExpertSystem.test.ts`
+- contrats statiques frontend de sécurité du lot
 
-### Hypothèses quantitatives à revalider
+### Remaining exact
 
-- `calculate_ddm_reelle()` applique `(IMPA - 90) / 2.5` comme conversion globale d'espace ; la relation 2,5°/mm existe dans la littérature orthodontique mais sa traduction en espace dépend notamment de géométrie d'arcade et du mouvement. Ce n'est pas une constante patient-specific universelle prouvée dans l'état actuel.
-- `_project_t1_growth()` applique des vecteurs annuels fixes de croissance ; des méthodes de prévision peuvent reproduire des tendances moyennes mais l'erreur individuelle est suffisamment importante pour interdire de présenter cette projection comme vérité patient-specific sans validation.
-- `_project_t2_strategy()` projette des landmarks depuis une stratégie inférée : comportement clinique à retirer/quarantiner si la politique A ci-dessous est validée.
-- `cephalo_consistency_validator.py` possède aussi des bornes hard/soft/mm legacy. Elles doivent devenir plausibility guards sourcés, pas une seconde source de « norme clinique » implicite.
-
-### Goal LOT 7
-
-Un seul pipeline landmarks supporté ; calibration explicite ; prédiction vs correction manuelle distinguées ; mesures géométriques déterministes depuis landmarks validés ; une seule autorité normative ; aucune conclusion/stratégie thérapeutique automatique non sourcée ; validator avant export ; golden cases géométriques et cas limites.
-
-**État : AUDIT TECHNIQUE AVANCÉ. BLOQUÉ AU GATE MÉDICAL POUR LES CHANGEMENTS DE SÉMANTIQUE CLINIQUE.**
-
----
-
-# PHASE 2 — CONSOLIDATION CIBLE
-
-1. `PatientClinicalContext` : âge, poids/BSA lorsque pertinent, allergies, conditions, médicaments actifs, grossesse/âge gestationnel si pertinent, fonction rénale/hépatique, données biologiques utiles, indication.
-2. `MedicationKnowledge` : DCI/ingrédients, classe/ATC, marques, dosage, forme, voie, présentation, disponibilité marché/pays, source/version/date d'effet.
-3. `MedicationSafetyEngine` : allergie/cross-réactivité, interactions, duplications, contre-indications, limites de dose, rénal/hépatique, grossesse/allaitement, données manquantes, sévérité/management.
-4. `DentalClinicalReasoningEngine` : diagnostic, symptômes, signes systémiques, indication, proposition explicable non autoritaire.
-5. `ImagingPipeline` : acquisition, détection/landmarks, mesures, validation, interprétation séparée, rapport.
-6. `CephaloEngine` : landmarks validés, calibration, mesures déterministes, provenance/version modèle, correction humaine traçable, normes séparées de la géométrie.
+1. CI du HEAD courant : corriger toute régression attribuable au lot.
+2. Remplacer le default UI `sexePatient='M'` par inconnu, avec consommateurs typés.
+3. Purger physiquement les branches normatives/croissance/traitement du `CephaloEngine` legacy après preuve branch-wide de non-dépendance.
+4. Prouver/supprimer les wrappers/imports legacy restants (`ai_advisor`, helpers privés) sans perte de couverture.
+5. Vérifier que l'UI ne consomme que mesures brutes + métadonnées normatives validées.
+6. Refaire CI + certifications scientifiques.
 
 ---
 
-# PHASE 3 — MEDICATION INTELLIGENCE TARGET
+# CLOSEOUT
 
-Flow cible : `médicament sélectionné` → résolution marque/DCI/ingrédients → contexte patient → formes/forces disponibles → données indispensables manquantes → checks allergy/DDI/rénal/hépatique/grossesse/duplication/dose → options pertinentes avec raison/source → validation praticien → override explicite/traçable lorsqu'autorisé.
+Ordre obligatoire :
 
-Approche : terminologie/normalisation + labels structurés + catalogue officiel Maroc/AMM + base clinique professionnelle à évaluer + orchestration Digital Crown. Toute règle clinique finale doit revalider source primaire, version et applicabilité Maroc.
+`code → tests → comportement observé → docs → CI → cohérence PR → merge → CI post-merge`
 
----
+Conditions avant merge :
+- aucun test scientifique rouge ;
+- aucune règle thérapeutique autonome active connue ;
+- aucune donnée patient synthétique active connue ;
+- docs cohérentes avec le HEAD ;
+- PR non draft uniquement quand les critères sont prouvés.
 
-# FRONTEND ORDONNANCE — ÉTAT CONNU
-
-Forces : quick entry, DrugRow riche, safety status accessible, validation payload, draft protection, preview/save/print/archive, préservation des formes explicites.
-
-Risques : safety status non relié directement au gate final, surcharge cognitive, couches legacy/R3 superposées, modals/dropdowns locaux fragiles, densité élevée.
-
-**Visual certification ordonnance complète : NON FAITE.** Toute modification UI suit obligatoirement : `BEFORE → Goal visuel → mockup/référence → implémentation → AFTER mêmes viewports → comparaison + tests → score visuel`.
-
----
-
-# DÉCISIONS DURABLES
-
-1. Pas de LLM comme autorité scientifique/pharmacologique.
-2. NLP/LLM éventuel uniquement parsing/explication/résumé, jamais source primaire de dose/interaction/contre-indication.
-3. Aucun patient fictif : pas d'âge, poids, grossesse, fonction rénale, etc. inventés.
-4. Donnée indispensable absente : fail-closed pour la décision concernée.
-5. Détection image ≠ diagnostic.
-6. Diagnostic ≠ traitement automatique.
-7. Absence d'annotation imagerie => `non documenté / non évalué`, jamais normalité implicite.
-8. Label d'imagerie seul => aucune conduite thérapeutique ni CCAM automatique.
-9. Chaque règle clinique sensible doit avoir source/version/provenance.
-10. Conflit de sources : exposer l'incertitude.
-11. Aucune suppression active sans preuve d'usage/remplacement.
-12. Aucun déploiement Vercel sans autorisation explicite.
-13. Ne pas mélanger ce chantier avec d'autres produits/projets.
-14. Une mesure géométrique peut être calculée sans norme ; une classification normative ne peut être produite que par une source/profil explicitement validé.
-15. Une projection de croissance ou de traitement ne doit jamais être présentée comme prédiction patient-specific sans validation adaptée.
+**Pas de déploiement Vercel sans autorisation explicite.**
 
 ---
 
-# PROCÉDURE DE REPRISE
+## NEXT EXACT
 
-1. lire ce fichier ;
-2. vérifier PR `#371`, branche, HEAD et mergeability ;
-3. vérifier les workflows du HEAD courant une fois ;
-4. si CI en cours, avancer sur le travail indépendant ;
-5. comparer tout DELETE candidat aux consommateurs runtime réels de la branche ;
-6. tests négatifs avant changement clinique risqué ;
-7. appliquer le patch minimal ;
-8. CI + comportement observable ;
-9. mettre ce canonique à jour uniquement avec état prouvé ;
-10. closeout complet avant merge.
-
----
-
-# NEXT EXACT
-
-## Human gate suivant — Céphalométrie
-
-### Option A — RECOMMANDÉE
-
-- conserver la géométrie/mesures déterministes ;
-- seule la couche normative explicitement validée peut produire une classification clinique ;
-- neutraliser/quarantiner les `Normal/High/Low/Compensated` legacy lorsqu'aucun profil validé ne les autorise ;
-- supprimer toute stratégie thérapeutique automatique de `CephaloEngine.ai_narrative` ;
-- ne conserver un plan thérapeutique que s'il vient explicitement du praticien ;
-- neutraliser/quarantiner les projections T1/T2 patient-specific non validées ;
-- conserver les valeurs brutes et la provenance pour permettre la validation clinique humaine ;
-- transformer le validator en garde de plausibilité/cohérence, sans norme clinique implicite non sourcée.
-
-### Option B
-
-Conserver les stratégies thérapeutiques et projections automatiques en les étiquetant « expérimental / non validé ». **Non recommandé** : cela maintient une seconde vérité clinique et reste contraire au Goal `diagnostic ≠ traitement automatique`.
-
-Après validation A/B : tests négatifs → patch minimal céphalo → tests géométriques/normatifs/PDF → CI → closeout LOT 7 → consolidation → rebuild → certification scientifique globale → correction du défaut transverse Patient Indicators → closeout PR → merge → CI post-merge.
-
----
-
-## REPÈRES DE REPRISE
-
-- chantier : Scientific Core Rebuild
-- lot courant : LOT 7 Céphalométrie
-- dernier HEAD code certifié avant ce commit documentaire : `7ace175d2cce54b420effe71011ae941bb61db24`
-- CI principale code : `34257536407` SUCCESS
-- PR : `#371`
-- blocage réel : gate médical céphalo A/B
-- déploiement : aucun déploiement Vercel autorisé
-
-**FICHIER CANONIQUE : `docs/SCIENTIFIC_CORE_REBUILD_ROADMAP.md`**
+Vérifier la CI du HEAD créé par ce commit documentaire. Si rouge : diagnostiquer/corriger. Si verte : corriger `sexePatient` puis poursuivre la purge physique contrôlée de `CephaloEngine` et refaire la certification.
