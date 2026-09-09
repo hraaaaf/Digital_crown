@@ -391,9 +391,26 @@ def get_patient_documents(patient_id: int, db: Session = Depends(database.get_db
 @router.get("/{patient_id}/appointment-intel")
 def get_patient_intel(patient_id: int, db: Session = Depends(database.get_db), current_user: models.User = Depends(require_permission("patients"))):
     assert_patient_access(patient_id, current_user, db)
-    devis = db.query(models.DocumentArchive).filter(models.DocumentArchive.patient_id == patient_id, models.DocumentArchive.document_type == models.DocumentType.DEVIS).all()
-    p_acts = db.query(func.sum(models.Acte.montant)).filter(models.Acte.patient_id == patient_id).scalar() or 0.0
-    p_pays = db.query(func.sum(models.Payment.amount)).filter(models.Payment.patient_id == patient_id).scalar() or 0.0
+    devis = db.query(models.DocumentArchive).filter(
+        models.DocumentArchive.patient_id == patient_id,
+        models.DocumentArchive.document_type == models.DocumentType.DEVIS,
+        or_(models.DocumentArchive.status == models.DocumentStatus.ACTIF, models.DocumentArchive.status == None),
+        or_(models.DocumentArchive.is_latest_version == True, models.DocumentArchive.is_latest_version == None),
+    ).all()
+    p_acts = db.query(func.sum(models.Acte.montant)).filter(
+        models.Acte.patient_id == patient_id,
+        models.Acte.deleted_at.is_(None),
+    ).scalar() or 0.0
+    from backend.services.accounting_service import accounting_service
+    p_pays = (
+        db.query(func.sum(models.Payment.amount))
+        .outerjoin(models.Acte, models.Payment.acte_id == models.Acte.id)
+        .filter(
+            models.Payment.patient_id == patient_id,
+            accounting_service._visible_payment_filter(),
+        )
+        .scalar() or 0.0
+    )
     solde_attente = max(float(p_acts) - float(p_pays), 0.0)
     return {
         "suggestion": "Suite de traitement" if devis else "Consultation",
