@@ -1,0 +1,42 @@
+name: Align Patient Appointment Finance Truth
+
+on:
+  push:
+    branches: [fix/document-archive-consistency]
+    paths:
+      - '.github/workflows/patient-intel-finance-consistency.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/document-archive-consistency
+          fetch-depth: 0
+      - name: Patch appointment financial hint
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p=Path('backend/routers/patients.py')
+          text=p.read_text()
+          old='''    devis = db.query(models.DocumentArchive).filter(models.DocumentArchive.patient_id == patient_id, models.DocumentArchive.document_type == models.DocumentType.DEVIS).all()\n    p_acts = db.query(func.sum(models.Acte.montant)).filter(models.Acte.patient_id == patient_id).scalar() or 0.0\n    p_pays = db.query(func.sum(models.Payment.amount)).filter(models.Payment.patient_id == patient_id).scalar() or 0.0\n    solde_attente = max(float(p_acts) - float(p_pays), 0.0)\n'''
+          new='''    devis = db.query(models.DocumentArchive).filter(\n        models.DocumentArchive.patient_id == patient_id,\n        models.DocumentArchive.document_type == models.DocumentType.DEVIS,\n        or_(models.DocumentArchive.status == models.DocumentStatus.ACTIF, models.DocumentArchive.status == None),\n        or_(models.DocumentArchive.is_latest_version == True, models.DocumentArchive.is_latest_version == None),\n    ).all()\n    p_acts = db.query(func.sum(models.Acte.montant)).filter(\n        models.Acte.patient_id == patient_id,\n        models.Acte.deleted_at.is_(None),\n    ).scalar() or 0.0\n    from backend.services.accounting_service import accounting_service\n    p_pays = (\n        db.query(func.sum(models.Payment.amount))\n        .outerjoin(models.Acte, models.Payment.acte_id == models.Acte.id)\n        .filter(\n            models.Payment.patient_id == patient_id,\n            accounting_service._visible_payment_filter(),\n        )\n        .scalar() or 0.0\n    )\n    solde_attente = max(float(p_acts) - float(p_pays), 0.0)\n'''
+          if text.count(old) != 1:
+              raise SystemExit(f'appointment intel block mismatch: {text.count(old)}')
+          p.write_text(text.replace(old,new,1))
+          PY
+          python -m py_compile backend/routers/patients.py
+          grep -q 'accounting_service._visible_payment_filter()' backend/routers/patients.py
+          grep -q 'models.Acte.deleted_at.is_(None)' backend/routers/patients.py
+      - name: Commit and remove one-shot workflow
+        run: |
+          rm .github/workflows/patient-intel-finance-consistency.yml
+          git config user.name 'Digital Crown CI'
+          git config user.email 'actions@users.noreply.github.com'
+          git add backend/routers/patients.py .github/workflows/patient-intel-finance-consistency.yml
+          git commit -m 'Align patient appointment finance with canonical visibility'
+          git push origin HEAD:fix/document-archive-consistency
