@@ -38,6 +38,13 @@ def post_ok(client: httpx.Client, path: str, headers: dict, payload: dict) -> di
     return response.json()
 
 
+def post_rejected(client: httpx.Client, path: str, headers: dict, payload: dict, label: str) -> int:
+    response = client.post(path, headers=headers, json=payload)
+    if response.status_code < 400:
+        fail(f"P4 invalid case accepted: {label}", {"status": response.status_code, "body": response.text[:800]})
+    return response.status_code
+
+
 def counts(patient_id: int) -> dict[str, int]:
     with database.SessionLocal() as db:
         patient = db.query(models.Patient).filter(models.Patient.id == patient_id).first()
@@ -74,6 +81,57 @@ def main() -> None:
         patient_id = int(patient["id"])
 
         baseline = counts(patient_id)
+
+        invalid_base = {
+            "type": "note",
+            "patient_id": patient_id,
+            "data": {
+                "payments": [{
+                    "acte": "T2 Invalid Probe",
+                    "dent": "11",
+                    "dents": [11],
+                    "prix_unitaire": 100.0,
+                    "montant": 100.0,
+                    "date": "2026-08-16",
+                }],
+                "doc_date": "2026-08-16",
+                "teeth_data": [],
+                "installments": [],
+                "is_global_note": False,
+            },
+            "is_accounted": True,
+            "payment_status": "EN_ATTENTE",
+        }
+        invalid_cases = []
+        empty = json.loads(json.dumps(invalid_base))
+        empty["data"]["payments"] = []
+        invalid_cases.append(("empty note", empty))
+
+        zero = json.loads(json.dumps(invalid_base))
+        zero["data"]["payments"][0]["montant"] = 0
+        invalid_cases.append(("zero amount", zero))
+
+        missing_method = json.loads(json.dumps(invalid_base))
+        missing_method["payment_status"] = "PAYE"
+        invalid_cases.append(("PAYE without payment method", missing_method))
+
+        partial = json.loads(json.dumps(invalid_base))
+        partial["payment_status"] = "PARTIEL"
+        invalid_cases.append(("implicit PARTIEL", partial))
+
+        invalid_statuses = {
+            label: post_rejected(
+                client,
+                "/api/documents/generate?archive=true&preview=false&force=true",
+                headers,
+                payload,
+                label,
+            )
+            for label, payload in invalid_cases
+        }
+        after_invalid = counts(patient_id)
+        if after_invalid != baseline:
+            fail("P4 rejected requests mutated persisted state", {"before": baseline, "after": after_invalid})
 
         devis = {
             "type": "devis",
@@ -156,6 +214,9 @@ def main() -> None:
             fail("P4 paid note archive count mismatch", {"before": after_pending, "after": after_paid})
         if after_paid["actes"] != after_pending["actes"] + 1 or after_paid["payments"] != after_pending["payments"] + 1:
             fail("P4 paid note transactional count mismatch", {"before": after_pending, "after": after_paid})
+
+        paid_payment_id = None
+        paid_acte_id = None
         with database.SessionLocal() as db:
             last_payment = (
                 db.query(models.Payment)
@@ -169,6 +230,27 @@ def main() -> None:
                     "amount": getattr(last_payment, "amount", None),
                     "acteId": getattr(last_payment, "acte_id", None),
                 })
+            paid_payment_id = last_payment.id
+            paid_acte_id = last_payment.acte_id
+
+        archived = client.get(f"/api/patients/{patient_id}/documents", headers=headers)
+        if archived.status_code != 200:
+            fail(f"P4 archive reload={archived.status_code}", {"body": archived.text[:800]})
+        paid_doc = next(
+            (
+                doc for doc in archived.json()
+                if doc.get("payment_status") == "PAYE"
+                and any(
+                    isinstance(item, dict) and item.get("acte") == "T2 Honoraires Paid Probe"
+                    for item in (doc.get("clinical_data") or {}).get("payments", [])
+                )
+            ),
+            None,
+        )
+        if not paid_doc:
+            fail("P4 archived PAYE note cannot be rehydrated from patient history")
+        if paid_doc.get("is_accounted") is not True:
+            fail("P4 archived PAYE note lost accounting flag", {"document": paid_doc})
 
         plan_payload = {
             "patient_id": patient_id,
@@ -228,8 +310,17 @@ def main() -> None:
             "status": "PASS",
             "patientId": patient_id,
             "P3_devis": {"baseline": baseline, "after": after_devis},
+            "P4_invalid": {"statuses": invalid_statuses, "after": after_invalid},
             "P4_pending": {"after": after_pending},
-            "P4_paid": {"after": after_paid, "exactPayment": 888.0},
+            "P4_paid": {
+                "after": after_paid,
+                "exactPayment": 888.0,
+                "paymentId": paid_payment_id,
+                "acteId": paid_acte_id,
+                "archiveId": paid_doc.get("id"),
+                "rehydratedPaymentStatus": paid_doc.get("payment_status"),
+                "rehydratedIsAccounted": paid_doc.get("is_accounted"),
+            },
             "P5_installments": {"planId": plan["id"], "total": 1200.0, "rows": [500.0, 700.0], "collected": 500.0},
         }
         OUT_PATH.write_text(json.dumps(result, indent=2, default=str), encoding="utf-8")
