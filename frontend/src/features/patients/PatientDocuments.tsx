@@ -217,13 +217,13 @@ export const PatientDocuments = () => {
                 <div className="flex items-center gap-2 relative">
                   {!isLegacy && (
                     <div className="relative">
-                      <button data-m4c-touch type="button" onClick={() => setActionsOpenFor(current => current === doc.id ? null : doc.id)} aria-label={`Actions du document ${doc.name}`} className="min-w-11 min-h-11 rounded-xl bg-slate-50 text-slate-600 border border-slate-200 hover:bg-slate-100 inline-flex items-center justify-center transition-all shadow-sm">
+                      <button data-m4c-touch type="button" onClick={() => setActionsOpenFor(current => current === doc.id ? null : doc.id)} aria-label={`Actions du document ${doc.name}`} aria-haspopup="menu" aria-expanded={actionsOpenFor === doc.id} aria-controls={`document-actions-${doc.id}`} className="min-w-11 min-h-11 rounded-xl bg-slate-50 text-slate-600 border border-slate-200 hover:bg-slate-100 inline-flex items-center justify-center transition-all shadow-sm">
                         <MoreHorizontal size={19} />
                       </button>
                       {actionsOpenFor === doc.id && (
-                        <div data-document-action-menu className="absolute left-0 top-12 z-50 w-52 rounded-2xl border border-border-main bg-card-bg shadow-2xl p-2 space-y-1">
-                          <button data-document-action="edit" data-m4c-touch type="button" onClick={() => handleEdit(doc)} className="w-full min-h-11 px-3 rounded-xl hover:bg-orange-50 text-orange-700 font-black text-xs inline-flex items-center gap-2"><Edit size={16} /> Modifier</button>
-                          <button data-document-action="trash" data-m4c-touch type="button" onClick={() => void handleDelete(doc.id)} className="w-full min-h-11 px-3 rounded-xl hover:bg-rose-50 text-rose-700 font-black text-xs inline-flex items-center gap-2"><Trash2 size={16} /> Mettre à la corbeille</button>
+                        <div id={`document-actions-${doc.id}`} data-document-action-menu role="menu" className="absolute left-0 top-12 z-50 w-52 rounded-2xl border border-border-main bg-card-bg shadow-2xl p-2 space-y-1">
+                          <button data-document-action="edit" data-m4c-touch role="menuitem" type="button" onClick={() => handleEdit(doc)} className="w-full min-h-11 px-3 rounded-xl hover:bg-orange-50 text-orange-700 font-black text-xs inline-flex items-center gap-2"><Edit size={16} /> Modifier</button>
+                          <button data-document-action="trash" data-m4c-touch role="menuitem" type="button" onClick={() => void handleDelete(doc.id)} className="w-full min-h-11 px-3 rounded-xl hover:bg-rose-50 text-rose-700 font-black text-xs inline-flex items-center gap-2"><Trash2 size={16} /> Mettre à la corbeille</button>
                         </div>
                       )}
                     </div>
