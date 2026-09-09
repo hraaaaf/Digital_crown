@@ -3,50 +3,6 @@ import toast from 'react-hot-toast';
 import { MobileStorage } from './zka/MobileStorage';
 import { resolveApiBase } from './apiBase';
 
-const DOCUMENT_EDIT_ARCHIVE_KEY = 'digitalcrown:document-edit-archive-id';
-
-const viteEnv = (import.meta as ImportMeta & { env?: Record<string, string | undefined> }).env;
-export const API_BASE = resolveApiBase(
-  viteEnv?.VITE_API_URL,
-  typeof window !== 'undefined' ? window.location : undefined,
-);
-
-export const api = axios.create({
-  baseURL: `${API_BASE}/api`,
-  timeout: 30000,
-  withCredentials: true,  // Envoie les cookies HttpOnly automatiquement
-});
-
-const isArchivedDocumentGeneration = (url?: string, method?: string) => {
-  if (!url || method?.toLowerCase() !== 'post' || !url.includes('/documents/generate')) return false;
-  return /(?:\?|&)archive=true(?:&|$)/.test(url) && !/(?:\?|&)preview=true(?:&|$)/.test(url);
-};
-
-const attachDocumentEditArchiveId = (config: any) => {
-  if (typeof window === 'undefined' || !isArchivedDocumentGeneration(config.url, config.method)) return;
-  const rawId = window.sessionStorage.getItem(DOCUMENT_EDIT_ARCHIVE_KEY);
-  if (!rawId || !/^\d+$/.test(rawId)) return;
-  if (!config.data || typeof config.data !== 'object' || !config.data.data || typeof config.data.data !== 'object') return;
-
-  config.data = {
-    ...config.data,
-    data: {
-      ...config.data.data,
-      _replace_archive_id: Number(rawId),
-    },
-  };
-};
-
-const completeDocumentEdit = (response: any) => {
-  if (typeof window === 'undefined') return;
-  if (!isArchivedDocumentGeneration(response?.config?.url, response?.config?.method)) return;
-  if (response?.data?.status !== 'success') return;
-  if (!window.sessionStorage.getItem(DOCUMENT_EDIT_ARCHIVE_KEY)) return;
-
-  window.sessionStorage.removeItem(DOCUMENT_EDIT_ARCHIVE_KEY);
-  window.dispatchEvent(new CustomEvent('digitalcrown:document-edit-complete'));
-};
-
 // Synchronisation du token entre onglets (BroadcastChannel)
 const _authChannel = typeof BroadcastChannel !== 'undefined'
   ? new BroadcastChannel('dc_auth')
@@ -113,8 +69,6 @@ api.interceptors.request.use((config) => {
     return Promise.reject(new axios.Cancel('Session expirée — requête annulée.'));
   }
 
-  attachDocumentEditArchiveId(config);
-
   // Les PDFs fraîchement générés par Document Studio sont déjà exposés sous
   // forme d'URL blob: locale. Axios/XHR ne les traite pas de façon fiable dans
   // tous les navigateurs headless ; un adapter fetch natif garde le même contrat
@@ -147,7 +101,6 @@ api.interceptors.request.use((config) => {
 
 api.interceptors.response.use(
   (response) => {
-    completeDocumentEdit(response);
     return response;
   },
   async (error) => {

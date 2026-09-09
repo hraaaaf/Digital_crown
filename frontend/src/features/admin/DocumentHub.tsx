@@ -118,11 +118,12 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
     libreTitle, libreContent, libreCustomPatient, libreCustomDate,
     libreHideHeader, librePageSize, libreAlignment, docDate, selectedTeethFromOdontogram, smartSuggestion,
     installments, isAccounted, paymentStatus, isGlobalNote,
+    editArchiveId: editData?.id,
     showLegalAnnotations, echeancierPayload,
   }), [
     patientId, patientDetails, activeTab, drugs, certifType, certifDays, certifStartDate, certifCustomMotif,
     items, paymentMode, libreTitle, libreContent, libreCustomPatient, libreCustomDate, libreHideHeader, librePageSize, libreAlignment, docDate, selectedTeethFromOdontogram, smartSuggestion,
-    installments, isAccounted, paymentStatus, isGlobalNote, showLegalAnnotations, echeancierPayload,
+    installments, isAccounted, paymentStatus, isGlobalNote, editData?.id, showLegalAnnotations, echeancierPayload,
   ]);
 
   const generator = useDocumentGenerator(generatorParams);
