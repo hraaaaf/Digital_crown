@@ -47,6 +47,7 @@ interface UseDocumentGeneratorParams {
   selectedTeethFromOdontogram: SelectedSurfaceData[];
   smartSuggestion: any;
   installments: any[];
+  editArchiveId?: number;
   isAccounted?: boolean;
   echeancierPayload?: { patient_id: number; title: string; total_amount: number; items: Array<{ label: string; amount: number; due_date: string; paid: boolean }> } | null;
   paymentStatus?: string;
@@ -440,7 +441,13 @@ export function useDocumentGenerator(params: UseDocumentGeneratorParams) {
 
     try {
       const payload = buildPayload();
+      if (archive && !isPreview && params.editArchiveId) {
+        payload.data = { ...payload.data, _replace_archive_id: params.editArchiveId };
+      }
       const res = await api.post(`/documents/generate?archive=${archive}&preview=${isPreview}&force=${force}`, payload);
+      if (archive && !isPreview && params.editArchiveId && res.data?.status === 'success') {
+        window.dispatchEvent(new CustomEvent('digitalcrown:document-edit-complete'));
+      }
       if (res.data.pdf_url) {
         const cleanPdfPath = res.data.pdf_url.startsWith('/') ? res.data.pdf_url.substring(1) : res.data.pdf_url;
         let finalUrl = '';

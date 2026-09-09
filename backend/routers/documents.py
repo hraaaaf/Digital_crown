@@ -145,6 +145,55 @@ async def generate_document(req: schemas.DocumentRequest, archive: bool = False,
             raise ValueError(f"Type de document non supporté : {req.type}")
 
     patient = db.query(models.Patient).filter(models.Patient.id == patient_id).first()
+    replacement_file_backups: list[tuple[pathlib.Path, Optional[bytes]]] = []
+    financial_edit_committed = False
+
+    def _backup_financial_edit_files() -> None:
+        if req.type not in ["honoraires", "note"]:
+            return
+        raw_id = req.data.get("_replace_archive_id") if isinstance(req.data, dict) else None
+        if raw_id in (None, ""):
+            return
+        try:
+            archive_id = int(raw_id)
+        except (TypeError, ValueError):
+            return
+        target = db.query(models.DocumentArchive).filter(
+            models.DocumentArchive.id == archive_id,
+            models.DocumentArchive.patient_id == patient_id,
+        ).first()
+        if target is None:
+            return
+        if target.file_path.startswith("static/archives/") or target.file_path.startswith("static/documents/"):
+            canonical = MEDIA_DIR / target.file_path.replace("static/", "", 1)
+        else:
+            canonical = BASE_DIR / target.file_path
+        candidates = [canonical]
+        if target.created_at:
+            candidates.append(
+                MEDIA_DIR / "documents" / str(target.created_at.year) / f"{target.created_at.month:02d}" / canonical.name
+            )
+        seen = set()
+        for index, candidate in enumerate(candidates):
+            resolved = candidate.resolve()
+            if resolved in seen:
+                continue
+            seen.add(resolved)
+            if index == 0:
+                replacement_file_backups.append((resolved, resolved.read_bytes() if resolved.exists() else None))
+            elif resolved.exists():
+                replacement_file_backups.append((resolved, resolved.read_bytes()))
+
+    def _restore_financial_edit_files() -> None:
+        if financial_edit_committed:
+            return
+        for path, content in replacement_file_backups:
+            if content is None:
+                if path.exists():
+                    path.unlink()
+                continue
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_bytes(content)
 
     try:
         pdf_path = await asyncio.to_thread(_generate_pdf_in_thread)
@@ -158,6 +207,7 @@ async def generate_document(req: schemas.DocumentRequest, archive: bool = False,
 
         if should_archive:
             with open(pdf_path, "rb") as f: pdf_content = f.read()
+            _backup_financial_edit_files()
             archive_service = get_archive_service(db)
             
             enum_map = {
@@ -181,9 +231,21 @@ async def generate_document(req: schemas.DocumentRequest, archive: bool = False,
                     schemas.ConflictResolution.CREATE_VERSION
                     if force
                     else schemas.ConflictResolution.CANCEL
-                )
+                ),
+                commit=req.type not in ["honoraires", "note"],
             )
             pdf_path = doc.file_path
+
+            # Le miroir historique éventuel doit évoluer dans le même lot que le
+            # PDF canonique. En cas d'échec comptable, les deux seront restaurés.
+            if req.type in ["honoraires", "note"]:
+                if doc.file_path.startswith("static/archives/") or doc.file_path.startswith("static/documents/"):
+                    canonical_after = (MEDIA_DIR / doc.file_path.replace("static/", "", 1)).resolve()
+                else:
+                    canonical_after = (BASE_DIR / doc.file_path).resolve()
+                for backup_path, _ in replacement_file_backups:
+                    if backup_path != canonical_after:
+                        backup_path.write_bytes(pdf_content)
 
             # Étape 2 & 3 : Trésorerie Relationnelle (Ghost Treasury v4.6)
             if req.type in ["honoraires", "note"]:
@@ -200,7 +262,7 @@ async def generate_document(req: schemas.DocumentRequest, archive: bool = False,
                     if (is_global and installments_data)
                     else models.PaiementStatut(p_status)
                 )
-                persist_honoraires_lines(
+                actes, _ = persist_honoraires_lines(
                     db,
                     patient_id=patient.id,
                     practitioner_id=user_id,
@@ -212,37 +274,20 @@ async def generate_document(req: schemas.DocumentRequest, archive: bool = False,
                     validated_by=f"{current_user.nom_complet or 'Utilisateur'} ({current_user.role})",
                 )
 
-                if is_global and installments_data:
-                    # Création d'un plan de paiement
-                    plan = models.InstallmentPlan(
-                        patient_id=patient.id,
-                        title=f"Plan de paiement - {datetime.now().strftime('%d/%m/%Y')}",
-                        total_amount=total_amount
-                    )
-                    db.add(plan)
-                    db.flush() # Pour avoir l'ID du plan
-                    
-                    for inst in installments_data:
-                        # try parsing date or fallback
-                        due_date_str = inst.get('date', datetime.now().strftime('%Y-%m-%d'))
-                        try:
-                            due_date = datetime.strptime(due_date_str, '%Y-%m-%d')
-                        except ValueError:
-                            due_date = datetime.now()
-                            
-                        inst_amount = float(inst.get('amount', 0))
-                        send_rem = inst.get('sendReminder', False)
-                        db.add(models.Installment(
-                            plan_id=plan.id,
-                            label=inst.get('label', 'Échéance'),
-                            amount=inst_amount,
-                            due_date=due_date,
-                            status="EN_ATTENTE",
-                            notes='{"sendReminder": true}' if send_rem else None
-                        ))
+                from backend.services.installment_reconciliation import reconcile_document_installments
+                if not actes or actes[0].id is None:
+                    raise ValueError("Impossible de rattacher l'échéancier à la note d'honoraires")
+                reconcile_document_installments(
+                    db,
+                    patient_id=patient.id,
+                    anchor_acte_id=actes[0].id,
+                    total_amount=total_amount,
+                    installments=installments_data if is_global else [],
+                )
 
                 # Commit unique du lot comptable Document Studio.
                 db.commit()
+                financial_edit_committed = True
 
         # Analyse de cohérence déterministe.
         warnings = await coherence_service.analyze_coherence(patient.id, req.type, req.data, db, doctor_id=user_id)
@@ -283,12 +328,16 @@ async def generate_document(req: schemas.DocumentRequest, archive: bool = False,
             audit_service.log(db=db, user_id=current_user.id, employer_id=current_user.get_employer_id(), action="GENERATE", resource_type="Document", resource_id=str(req.patient_id), details=f"Type: {req.type}, Preview: {preview}, Archive: {should_archive}")
         return {"status": "success", "pdf_url": pdf_url, "warnings": warnings, "rdv_suggestion": rdv_suggestion, "suggest_radio": suggest_radio}
     except ValueError as e:
+        db.rollback()
+        _restore_financial_edit_files()
         msg = str(e)
         if msg.startswith("DOUBLE_DETECTED:"):
             raise HTTPException(status_code=409, detail={"code": "DOUBLE_DETECTED", "message": msg[len("DOUBLE_DETECTED:"):].strip()})
         logger.error(f"Erreur Génération (ValueError) : {e}")
         raise HTTPException(status_code=422, detail=msg)
     except Exception as e:
+        db.rollback()
+        _restore_financial_edit_files()
         logger.error(f"Erreur Génération : {e}")
         raise HTTPException(status_code=500, detail=str(e))
 

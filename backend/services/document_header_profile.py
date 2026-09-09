@@ -48,15 +48,28 @@ def _doctor_fr(config, stored: list[str]) -> str:
     return name if name.startswith(prefixes) else f"Dr. {name}"
 
 
-def _doctor_ar(config, stored: list[str]) -> str:
-    if stored:
-        return stored[0]
-    name = str(_raw(config, "nom_praticien_ar", "") or "").strip()
+def _normalize_doctor_ar(value: str) -> str:
+    """Keep the Arabic doctor title before the practitioner's name.
+
+    Older automatic headers were materialized as ``<name> .د``.  Normalize that
+    legacy form at render time so an existing cabinet is corrected without a data
+    migration.  Explicit already-correct prefixes stay untouched.
+    """
+    name = str(value or "").strip()
     if not name:
         return "د."
-    if name.endswith(" .د") or name.startswith("د."):
+    if name.startswith("د.") or name.startswith("د "):
         return name
-    return f"{name} .د"
+    for suffix in (" .د", " د.", ".د", " د"):
+        if name.endswith(suffix):
+            name = name[:-len(suffix)].strip()
+            break
+    return f"د. {name}" if name else "د."
+
+
+def _doctor_ar(config, stored: list[str]) -> str:
+    source = stored[0] if stored else str(_raw(config, "nom_praticien_ar", "") or "").strip()
+    return _normalize_doctor_ar(source)
 
 
 def _pair(values: list[str], *, reverse: bool = False) -> list[str]:
