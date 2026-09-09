@@ -13,8 +13,6 @@ Succès : aucune donnée patient inventée influente ; aucune interprétation ou
 ## REPO
 
 Repo : `hraaaaf/Digital_crown`  
-Branche : `refactor/scientific-core-purge`  
-PR : `#371` — draft, ouverte, mergeable au dernier contrôle  
 Base : `master`
 
 Aucun pourcentage global n'est déclaré sans recalcul vérifié.
@@ -33,53 +31,38 @@ Aucun pourcentage global n'est déclaré sans recalcul vérifié.
 - Les motifs `ORTHODONTIE` de `clinical_intelligence` servent uniquement au routage de spécialité : ils n'alimentent aucun `motif_treatment_hints`.
 - `backend/services/ai_advisor.py` est supprimé.
 
-### Audit `ai_advisor` corrigé
+### Preuve finale avant merge
 
-L'audit initial était incomplet. Deux runs ont révélé des références runtime après suppression du wrapper :
+Sur le HEAD exact `6622260c2cd14f623499e9f4bee36d9cb60d3b06` :
 
-1. CI `34344464825` : référence résiduelle dans `backend/routers/ia.py`, corrigée.
-2. CI `34353944361` et T2 `34353944561` : dépendance active dans `backend/services/clinical_intelligence.py`, corrigée par remplacement fail-closed.
+- CI `34410144405` : **success** ; backend `Tests & durcissement`, frontend tests/build, garde production et M4-A/B/C verts.
+- Patient Indicators `34410144139` : **success** après correction déterministe du harness.
+- T2 `34410144336` : **success**.
+- P7 `34410144189` : **success**.
+- Catalog `34410144211` : **success**.
+- Portability Runtime `34410144360` : **success**.
+- Settings, Mobile et autres certifications visibles du même HEAD : **success**, hors M6-I **skipped**.
+- Reviews : 0 ; threads : 0.
 
-Ces runs sont des preuves historiques rouges, pas une certification du HEAD courant.
+### Merge vérifié
 
-### Tests clés
-
-- `test_cephalo_geometry_only.py`
-- `test_cephalo_treatment_boundary.py`
-- `test_cephalo_engine_reachability.py`
-- `test_cephalo_consistency_structural_only.py`
-- `test_cephalo_service_normative_context.py` — contrat d'intégration fail-closed : âge/sexe ne créent aucune autorité normative.
-- `test_bilan_ortho_fail_closed.py`
-- `test_ortho_frontend_fail_closed_contract.py`
-- `test_clinical_intelligence_cephalo_fail_closed.py` — inclut le verrou `ORTHODONTIE -> motif_treatment_hints == []`.
-- `test_scientific_core_purge_contract.py`
-
-### Preuve CI de closeout avant mise à jour documentaire
-
-Sur le HEAD produit `a6ddb33041b07a772e55ba7f44b01fa69b2ae1c1` :
-
-- CI `34401719011` : **success** ; backend `3019 passed, 8 skipped, 4 warnings` ; frontend tests/build, garde production et M4-A/B/C verts.
-- T2 `34401719076` : **success**.
-- P7 `34401719000` : **success**.
-- P8 `34401719065` : **success**.
-- Settings `34401719008` : **success**.
-- Catalog `34401719077` : **success**.
-- P6 Windows Packaging `34401719033` : **success**.
-- M6-I `34401719102` : **skipped**.
-- Patient Indicators `34401719118` : **failure de harness connue**, reproduite sur l'attente obsolète du heading `Dossiers Patients` après backend ciblé 10/10, frontend ciblé 4/4, build et runtimes verts ; aucune régression produit démontrée. Le correctif du workflow est bloqué par le garde d'écriture du connecteur GitHub.
-
-Aucun nouveau défaut scientifique ou fonctionnel du lot n'est connu à ce stade.
+- PR `#371` — **merged** le 2026-09-09.
+- Merge commit : `4c4f7e11b29c6a37d3dd4bbd96069b347359227a`.
+- Le lot a absorbé `master@c5b775987a1a3198a9e3fe3cfdf2426ac6de145e` avant merge ; le conflit unique du workflow Patient Indicators a été résolu sans écraser le correctif documents #384.
+- Aucun déploiement Vercel effectué.
 
 ## AUTRES LOTS ENCORE OUVERTS
 
-Les autres chantiers scientifiques restent distincts du closeout ortho. La fermeture du lot ortho ne vaut pas certification scientifique globale.
+Les autres chantiers scientifiques restent distincts du lot ortho. La fermeture du lot ortho ne vaut pas certification scientifique globale.
 
 ## CLOSEOUT LOT ORTHO
 
-Ordre : `code → tests → comportement observé → docs → CI → cohérence PR → ready → merge → post-merge`.
+Statut : **MERGED / CLOSEOUT TECHNIQUE VÉRIFIÉ**.
 
-Avant merge : aucun rouge scientifique ; aucun comportement clinique autonome non validé connu dans ce lot ; docs cohérentes ; checks visibles du même HEAD verts/acceptables. La protection de branche/required checks n'est pas entièrement lisible avec les permissions du connecteur et ne doit pas être surinterprétée.
+Chaîne réalisée : `code → tests → comportement observé → docs → CI → cohérence PR → ready → merge → post-merge`.
+
+La protection de branche/required checks n'est pas entièrement lisible avec les permissions du connecteur et ne doit pas être surinterprétée.
 
 ## NEXT EXACT
 
-Vérifier les checks du nouveau HEAD documentaire. Si le CI scientifique reste vert et qu'aucun nouveau rouge attribuable au lot n'apparaît : cohérence PR finale → ready → merge avec `expected_head_sha` exact → contrôle post-merge. Aucun déploiement Vercel.
+Re-baseliner l'inventaire scientifique restant sur `master@4c4f7e11b29c6a37d3dd4bbd96069b347359227a`, identifier le prochain lot ouvert le plus critique, puis créer son Goal / Succès / Preuve avant toute modification. Aucun déploiement Vercel.
