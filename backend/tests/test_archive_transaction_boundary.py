@@ -1,3 +1,5 @@
+from datetime import datetime
+
 from backend import models
 from backend.services.archive_service import ArchiveService
 
@@ -6,7 +8,7 @@ def test_archive_can_join_caller_transaction_and_roll_back(db, dentiste):
     patient = models.Patient(
         nom='TEST',
         prenom='Transaction',
-        date_naissance='1990-01-01',
+        date_naissance=datetime(1990, 1, 1),
         sexe='M',
         employer_id=dentiste.id,
     )
