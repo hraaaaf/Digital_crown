@@ -1,0 +1,155 @@
+name: Portability P6 Authenticode Probe
+
+on:
+  pull_request:
+    types: [opened, synchronize]
+    paths:
+      - ".github/workflows/portability-p6-codesign-probe.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: portability-p6-codesign-probe-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  codesign-probe:
+    runs-on: windows-2025
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Validate signing material
+        id: cert
+        shell: pwsh
+        timeout-minutes: 3
+        env:
+          CERT_PFX_B64: ${{ secrets.WINDOWS_CODESIGN_PFX_B64 }}
+          CERT_PASSWORD: ${{ secrets.WINDOWS_CODESIGN_PASSWORD }}
+          EXPECTED_CERT_SHA256: ${{ vars.WINDOWS_CODESIGN_CERT_SHA256 }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $values = @($env:CERT_PFX_B64, $env:CERT_PASSWORD, $env:EXPECTED_CERT_SHA256)
+          $present = @($values | Where-Object { -not [string]::IsNullOrWhiteSpace([string]$_) })
+          if ($present.Count -eq 0) { throw 'P6_PRIVATE_CODESIGN_NOT_CONFIGURED' }
+          if ($present.Count -ne 3) { throw 'P6_PRIVATE_CODESIGN_PARTIAL_CONFIGURATION' }
+          if ($env:EXPECTED_CERT_SHA256 -notmatch '^[0-9a-fA-F]{64}$') { throw 'P6_PRIVATE_CODESIGN_CERT_SHA256_INVALID' }
+
+          $pfx = Join-Path $env:RUNNER_TEMP 'digitalcrown-private-codesign.pfx'
+          try { [IO.File]::WriteAllBytes($pfx, [Convert]::FromBase64String($env:CERT_PFX_B64)) }
+          catch { throw 'P6_PRIVATE_CODESIGN_PFX_BASE64_INVALID' }
+
+          $securePassword = ConvertTo-SecureString $env:CERT_PASSWORD -AsPlainText -Force
+          $cert = Import-PfxCertificate -FilePath $pfx -CertStoreLocation Cert:\CurrentUser\My -Password $securePassword -Exportable:$false
+          if ($null -eq $cert -or -not $cert.HasPrivateKey) { throw 'P6_PRIVATE_CODESIGN_PRIVATE_KEY_MISSING' }
+          if ($cert.Subject -ne 'CN=Digital Crown Private Publisher') { throw "P6_PRIVATE_CODESIGN_SUBJECT_MISMATCH subject=$($cert.Subject)" }
+          $ekuObjectIds = @($cert.EnhancedKeyUsageList | ForEach-Object { [string]$_.ObjectId })
+          if ($ekuObjectIds -notcontains '1.3.6.1.5.5.7.3.3') { throw 'P6_PRIVATE_CODESIGN_EKU_MISSING' }
+
+          $cer = Join-Path $env:RUNNER_TEMP 'digitalcrown-private-codesign.cer'
+          Export-Certificate -Cert $cert -FilePath $cer -Type CERT | Out-Null
+          $actual = (Get-FileHash -Algorithm SHA256 $cer).Hash.ToLowerInvariant()
+          if ($actual -ne $env:EXPECTED_CERT_SHA256.ToLowerInvariant()) { throw "P6_PRIVATE_CODESIGN_CERT_SHA256_MISMATCH actual=$actual" }
+          "thumbprint=$($cert.Thumbprint)" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+          "P6_PROBE_THUMBPRINT=$($cert.Thumbprint)" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          Write-Host "P6_PROBE_PHASE=CERTIFICATE_VALIDATION_SUCCESS cert_sha256=$actual subject=$($cert.Subject)"
+
+      - name: Import ephemeral public trust using certified P6 path
+        shell: pwsh
+        timeout-minutes: 3
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $cer = Join-Path $env:RUNNER_TEMP 'digitalcrown-private-codesign.cer'
+          Write-Host 'P6_PROBE_PHASE=EPHEMERAL_TRUST_START'
+          Import-Certificate -FilePath $cer -CertStoreLocation Cert:\LocalMachine\Root -Confirm:$false | Out-Null
+          Import-Certificate -FilePath $cer -CertStoreLocation Cert:\LocalMachine\TrustedPublisher -Confirm:$false | Out-Null
+          foreach ($storeName in @('Root','TrustedPublisher')) {
+            $path = "Cert:\LocalMachine\$storeName\$env:P6_PROBE_THUMBPRINT"
+            if (-not (Test-Path -LiteralPath $path)) { throw "P6_PRIVATE_CODESIGN_TRUST_IMPORT_FAILED store=$storeName" }
+          }
+          Write-Host 'P6_PROBE_PHASE=EPHEMERAL_TRUST_SUCCESS'
+
+      - name: Build probe executable with Windows PowerShell 5.1
+        shell: powershell
+        timeout-minutes: 2
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $probe = Join-Path $env:RUNNER_TEMP 'dc-p6-codesign-probe.exe'
+          Add-Type -TypeDefinition 'public static class Program { public static void Main() { } }' -Language CSharp -OutputAssembly $probe -OutputType ConsoleApplication
+          if (-not (Test-Path -LiteralPath $probe -PathType Leaf)) { throw 'P6_PRIVATE_CODESIGN_PROBE_BUILD_FAILED' }
+          Write-Host 'P6_PROBE_PHASE=PROBE_BUILD_SUCCESS'
+
+      - name: Sign timestamped probe executable
+        shell: pwsh
+        timeout-minutes: 4
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $signtool = (Get-ChildItem 'C:\Program Files (x86)\Windows Kits\10\bin' -Recurse -Filter signtool.exe | Sort-Object FullName -Descending | Select-Object -First 1).FullName
+          if (-not $signtool) { throw 'P6_PRIVATE_CODESIGN_SIGNTOOL_MISSING' }
+          $probe = Join-Path $env:RUNNER_TEMP 'dc-p6-codesign-probe.exe'
+          if (-not (Test-Path -LiteralPath $probe -PathType Leaf)) { throw 'P6_PRIVATE_CODESIGN_PROBE_MISSING' }
+          $stdout = Join-Path $env:RUNNER_TEMP 'dc-p6-probe-sign.stdout.txt'
+          $stderr = Join-Path $env:RUNNER_TEMP 'dc-p6-probe-sign.stderr.txt'
+          $proc = Start-Process -FilePath $signtool -ArgumentList @('sign','/fd','SHA256','/sha1',$env:P6_PROBE_THUMBPRINT,'/s','My','/tr','http://timestamp.digicert.com','/td','SHA256',$probe) -PassThru -NoNewWindow -RedirectStandardOutput $stdout -RedirectStandardError $stderr
+          if (-not $proc.WaitForExit(180000)) {
+            Stop-Process -Id $proc.Id -Force -ErrorAction SilentlyContinue
+            throw 'P6_PRIVATE_AUTHENTICODE_SIGN_TIMEOUT'
+          }
+          $proc.WaitForExit()
+          if (Test-Path $stdout) { Get-Content $stdout | ForEach-Object { Write-Host $_ } }
+          if (Test-Path $stderr) { Get-Content $stderr | ForEach-Object { Write-Host $_ } }
+          if ($proc.ExitCode -ne 0) { throw "P6_PRIVATE_AUTHENTICODE_SIGN_FAILED exit_code=$($proc.ExitCode)" }
+          Write-Host 'P6_PROBE_PHASE=SIGN_SUCCESS'
+
+      - name: Verify timestamped probe executable
+        shell: pwsh
+        timeout-minutes: 2
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $signtool = (Get-ChildItem 'C:\Program Files (x86)\Windows Kits\10\bin' -Recurse -Filter signtool.exe | Sort-Object FullName -Descending | Select-Object -First 1).FullName
+          $probe = Join-Path $env:RUNNER_TEMP 'dc-p6-codesign-probe.exe'
+          $stdout = Join-Path $env:RUNNER_TEMP 'dc-p6-probe-verify.stdout.txt'
+          $stderr = Join-Path $env:RUNNER_TEMP 'dc-p6-probe-verify.stderr.txt'
+          $proc = Start-Process -FilePath $signtool -ArgumentList @('verify','/pa','/v',$probe) -PassThru -NoNewWindow -RedirectStandardOutput $stdout -RedirectStandardError $stderr
+          if (-not $proc.WaitForExit(60000)) {
+            Stop-Process -Id $proc.Id -Force -ErrorAction SilentlyContinue
+            throw 'P6_PRIVATE_AUTHENTICODE_VERIFY_TIMEOUT'
+          }
+          $proc.WaitForExit()
+          if (Test-Path $stdout) { Get-Content $stdout | ForEach-Object { Write-Host $_ } }
+          if (Test-Path $stderr) { Get-Content $stderr | ForEach-Object { Write-Host $_ } }
+          if ($proc.ExitCode -ne 0) { throw "P6_PRIVATE_AUTHENTICODE_VERIFY_FAILED exit_code=$($proc.ExitCode)" }
+          $signature = Get-AuthenticodeSignature -FilePath $probe
+          if ($signature.Status -ne 'Valid') { throw "P6_PRIVATE_AUTHENTICODE_INVALID status=$($signature.Status)" }
+          if ($null -eq $signature.TimeStamperCertificate) { throw 'P6_PRIVATE_AUTHENTICODE_TIMESTAMP_MISSING' }
+          if ($signature.SignerCertificate.Thumbprint -ne $env:P6_PROBE_THUMBPRINT) { throw 'P6_PRIVATE_AUTHENTICODE_SIGNER_MISMATCH' }
+          Write-Host "P6_PROBE=SUCCESS signer=$($signature.SignerCertificate.Subject) timestamp=$($signature.TimeStamperCertificate.Subject)"
+
+      - name: Upload probe diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: digitalcrown-p6-codesign-probe
+          path: |
+            ${{ runner.temp }}\dc-p6-probe-sign.stdout.txt
+            ${{ runner.temp }}\dc-p6-probe-sign.stderr.txt
+            ${{ runner.temp }}\dc-p6-probe-verify.stdout.txt
+            ${{ runner.temp }}\dc-p6-probe-verify.stderr.txt
+          if-no-files-found: ignore
+          retention-days: 7
+
+      - name: Cleanup probe signing material
+        if: always()
+        shell: pwsh
+        run: |
+          foreach ($path in @('digitalcrown-private-codesign.pfx','digitalcrown-private-codesign.cer','dc-p6-codesign-probe.exe')) {
+            Remove-Item -LiteralPath (Join-Path $env:RUNNER_TEMP $path) -Force -ErrorAction SilentlyContinue
+          }
+          if ($env:P6_PROBE_THUMBPRINT) {
+            Remove-Item -LiteralPath "Cert:\CurrentUser\My\$env:P6_PROBE_THUMBPRINT" -Force -ErrorAction SilentlyContinue
+            foreach ($store in @('Root','TrustedPublisher')) {
+              Remove-Item -LiteralPath "Cert:\LocalMachine\$store\$env:P6_PROBE_THUMBPRINT" -Force -ErrorAction SilentlyContinue
+            }
+          }

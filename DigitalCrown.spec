@@ -1,118 +1,100 @@
 # -*- mode: python ; coding: utf-8 -*-
 import os
+import sys
+from pathlib import Path
 
 block_cipher = None
-
-# Dépôts de recherche/compétition vendored dans backend/ai_models/, vérifiés
-# un par un (grep sur backend/services + backend/routers, jamais un seul
-# `import`/chemin réel ne les référence ; les vrais poids chargés au runtime
-# — best.onnx, best.pt, panoramic_model.onnx/.pt/.pth — vivent tous à la
-# racine de ai_models/, jamais dans ces dossiers) :
-# - CLdetection2023-master : mmpose complet (docs/configs/tests), aucun poids
-#   à l'intérieur. Son arborescence très profonde fait échouer la compilation
-#   Inno Setup ("chemin introuvable", limite de longueur de chemin Windows).
-# - dentex_repo, cephalometric-master, cephmark : aucun fichier de poids
-#   (.onnx/.pt/.pth/.ckpt) à l'intérieur, zéro référence code.
-# - CL-Detection2023 : contient un `.pt` (step5_docker_and_upload/best_model.pt,
-#   27 Mo, 8 mars) mais c'est un artefact de soumission de compétition sans
-#   rapport avec le vrai modèle chargé par l'app (best.pt, 367 Mo, 4 mai) —
-#   tailles et dates incompatibles, jamais référencé par le code réel.
-# Exclus de l'EXE packagé uniquement — ces dossiers restent dans le dépôt,
-# rien n'est supprimé.
-_AI_MODELS_EXCLUDE_DIRNAMES = {
-    'CLdetection2023-master',
-    'dentex_repo',
-    'CL-Detection2023',
-    'cephalometric-master',
-    'cephmark',
-}
-
-# cephld_cca/ EST utilisé au runtime (backend/services/vision_service.py y
-# injecte sys.path pour importer U_Net_w_Cartesian_SE, et charge son unique
-# fichier de poids racine `ceph_weights.pth`, 35 Mo). Mais cephld_cca/model/
-# contient 23 checkpoints d'entraînement intermédiaires (774 Mo, noms du
-# style Best_Network_..._E_139.pth — historique d'époques) : aucun n'est
-# jamais chargé par le code (seul `ceph_weights.pth` à la racine l'est,
-# vérifié ligne par ligne dans vision_service.py). Chemin relatif exact
-# (pas un simple nom de dossier) pour ne jamais exclure un futur dossier
-# "model" ailleurs par erreur.
-_AI_MODELS_EXCLUDE_RELPATHS = {
-    os.path.join('cephld_cca', 'model'),
-}
+ROOT = Path.cwd()
+IS_WINDOWS = os.name == 'nt'
+IS_MACOS = sys.platform == 'darwin'
+APP_VERSION = (ROOT / 'VERSION').read_text(encoding='utf-8').strip()
 
 
-def _collect_ai_models_datas():
-    root = os.path.join('backend', 'ai_models')
-    entries = []
-    for dirpath, dirnames, filenames in os.walk(root):
-        dirnames[:] = [d for d in dirnames if d not in _AI_MODELS_EXCLUDE_DIRNAMES]
-        relpath = os.path.relpath(dirpath, root)
-        if any(relpath == p or relpath.startswith(p + os.sep) for p in _AI_MODELS_EXCLUDE_RELPATHS):
-            dirnames[:] = []
-            continue
-        for filename in filenames:
-            src = os.path.join(dirpath, filename)
-            entries.append((src, dirpath))
-    return entries
+def _required(path: str) -> str:
+    p = ROOT / path
+    if not p.exists():
+        raise SystemExit(f"Packaging required asset missing: {path}")
+    return path
 
+
+# Scientific weights are intentionally absent until separately qualified.
+# P6/P7 package only authorized shared resources; runtime remains fail-closed.
+datas = [
+    (_required('VERSION'), '.'),
+    (_required('frontend/dist'), 'frontend/dist'),
+    (_required('backend/templates'), 'backend/templates'),
+    (_required('backend/static/assets'), 'backend/static/assets'),
+    (_required('backend/data'), 'backend/data'),
+    (_required('backend/scientific_assets.json'), 'backend'),
+]
+if IS_WINDOWS:
+    # P10 production apply must copy its external workers from the frozen package,
+    # never from a mutable checkout or download location.
+    datas.extend([
+        (_required('scripts/windows_update_worker_entry.ps1'), 'scripts'),
+        (_required('scripts/windows_update_worker.ps1'), 'scripts'),
+        (_required('scripts/windows_update_worker_core.ps1'), 'scripts'),
+        (_required('scripts/windows_update_recovery.ps1'), 'scripts'),
+    ])
+
+version_file = _required('build/windows-version-info.txt') if IS_WINDOWS else None
+codesign_identity = (os.environ.get('DIGITALCROWN_CODESIGN_IDENTITY') or '').strip() or None
+entitlements_file = None
+if IS_MACOS and codesign_identity:
+    entitlements_file = _required('macos/DigitalCrown.entitlements')
+
+runtime_hooks = []
+if IS_MACOS:
+    runtime_hooks.append(_required('backend/macos_private_trust_runtime_hook.py'))
 
 a = Analysis(
     ['run.py'],
     pathex=[],
     binaries=[],
-    datas=[
-        ('frontend/dist', 'frontend/dist'),
-        # SÉCURITÉ : ne JAMAIS embarquer de fichier .env dans l'EXE distribué
-        # (risque de secrets figés dans le binaire). La config cabinet est
-        # chargée depuis %APPDATA%/DigitalCrown/.env ou DIGITALCROWN_ENV_FILE
-        # (cf. backend/env_loader.py), posée par la procédure d'installation.
-    ] + _collect_ai_models_datas(),
+    datas=datas,
     hiddenimports=[
         'uvicorn', 'fastapi', 'sqlalchemy', 'sqlite3', 'pydantic', 'sentry_sdk',
         'onnxruntime', 'cv2', 'numpy', 'PIL', 'python-multipart', 'passlib', 'bcrypt', 'jose',
-        # Imports dynamiques ratés par l'analyse statique PyInstaller :
-        # - passlib charge ses handlers par nom au runtime (crash au boot sinon)
-        # - jose charge ses backends paresseusement au premier encode/decode JWT
-        #   (crash au premier login sinon)
+        'sqlcipher3', 'reportlab', 'weasyprint', 'qrcode', 'torch',
         'passlib.handlers', 'passlib.handlers.bcrypt',
         'jose.backends', 'jose.backends.cryptography_backend', 'jose.backends.native',
-        'backend.services.sync_manager', 'backend.seed_templates', 'backend.seed_user', 'backend.seed_clinical'
+        'backend.services.sync_manager', 'backend.seed_templates', 'backend.seed_user', 'backend.seed_clinical',
+        'backend.services.macos_private_trust'
     ],
-    hookspath=[],
-    hooksconfig={},
-    runtime_hooks=[],
-    excludes=[],
-    win_no_prefer_redirects=False,
-    win_private_assemblies=False,
-    cipher=block_cipher,
-    noarchive=False,
+    hookspath=[], hooksconfig={}, runtime_hooks=runtime_hooks, excludes=[],
+    win_no_prefer_redirects=False, win_private_assemblies=False,
+    cipher=block_cipher, noarchive=False,
 )
 pyz = PYZ(a.pure, a.zipped_data, cipher=block_cipher)
 
 exe = EXE(
-    pyz,
-    a.scripts,
-    [],
-    exclude_binaries=True,
-    name='DigitalCrown',
-    debug=False,
-    bootloader_ignore_signals=False,
-    strip=False,
-    upx=True,
-    console=False,
-    disable_windowed_traceback=False,
-    target_arch=None,
-    codesign_identity=None,
-    entitlements_file=None,
+    pyz, a.scripts, [], exclude_binaries=True,
+    name='DigitalCrown', debug=False, bootloader_ignore_signals=False,
+    strip=False, upx=not IS_MACOS, console=False, disable_windowed_traceback=False,
+    target_arch='arm64' if IS_MACOS else None,
+    codesign_identity=codesign_identity if IS_MACOS else None,
+    entitlements_file=entitlements_file,
+    version=version_file,
 )
 
 coll = COLLECT(
-    exe,
-    a.binaries,
-    a.zipfiles,
-    a.datas,
-    strip=False,
-    upx=True,
-    upx_exclude=[],
-    name='DigitalCrown',
+    exe, a.binaries, a.zipfiles, a.datas,
+    strip=False, upx=not IS_MACOS, upx_exclude=[], name='DigitalCrown',
 )
+
+if IS_MACOS:
+    app = BUNDLE(
+        coll,
+        name='DigitalCrown.app',
+        icon=_required('build/macos/DigitalCrown.icns'),
+        bundle_identifier='com.saninova.digitalcrown',
+        version=APP_VERSION,
+        info_plist={
+            'CFBundleDisplayName': 'Digital Crown',
+            'CFBundleName': 'Digital Crown',
+            'CFBundleShortVersionString': APP_VERSION,
+            'CFBundleVersion': APP_VERSION,
+            'NSHighResolutionCapable': True,
+            'NSAppleScriptEnabled': False,
+        },
+    )
