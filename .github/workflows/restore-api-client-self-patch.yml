@@ -1,0 +1,43 @@
+name: Restore API Client Guarded Patch
+
+on:
+  push:
+    branches: [fix/document-archive-consistency]
+    paths:
+      - '.github/workflows/restore-api-client-self-patch.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/document-archive-consistency
+          fetch-depth: 0
+      - name: Restore Axios client declarations
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p=Path('frontend/src/services/api.ts')
+          text=p.read_text()
+          marker="import { resolveApiBase } from './apiBase';\n\n"
+          insert="""import { resolveApiBase } from './apiBase';\n\nconst viteEnv = (import.meta as ImportMeta & { env?: Record<string, string | undefined> }).env;\nexport const API_BASE = resolveApiBase(\n  viteEnv?.VITE_API_URL,\n  typeof window !== 'undefined' ? window.location : undefined,\n);\n\nexport const api = axios.create({\n  baseURL: `${API_BASE}/api`,\n  timeout: 30000,\n  withCredentials: true,\n});\n\n"""
+          if text.count(marker) != 1:
+              raise SystemExit(f'api import marker mismatch: {text.count(marker)}')
+          if 'export const API_BASE =' in text or 'export const api = axios.create' in text:
+              raise SystemExit('api declarations unexpectedly already present')
+          p.write_text(text.replace(marker, insert, 1))
+          PY
+          grep -q 'export const API_BASE = resolveApiBase' frontend/src/services/api.ts
+          grep -q 'export const api = axios.create' frontend/src/services/api.ts
+      - name: Commit and remove one-shot workflow
+        run: |
+          rm .github/workflows/restore-api-client-self-patch.yml
+          git config user.name 'Digital Crown CI'
+          git config user.email 'actions@users.noreply.github.com'
+          git add frontend/src/services/api.ts .github/workflows/restore-api-client-self-patch.yml
+          git commit -m 'Restore API client after edit identity cleanup'
+          git push origin HEAD:fix/document-archive-consistency
