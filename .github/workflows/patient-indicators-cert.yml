@@ -166,9 +166,13 @@ jobs:
             page.on('response',r=>{if(r.status()>=500)http5xx.push({url:r.url(),status:r.status()});});
 
             await page.goto('http://127.0.0.1:5173/patients',{waitUntil:'networkidle',timeout:90000});
-            await page.getByRole('heading',{name:'Dossiers Patients',exact:true}).waitFor({state:'visible',timeout:30000});
-            await page.waitForTimeout(1500);
             const dossier=String(patient.numero_dossier||'');
+            if (dossier) {
+              await page.getByText(dossier,{exact:true}).first().waitFor({state:'visible',timeout:30000});
+            } else {
+              await page.locator('tbody tr').first().waitFor({state:'visible',timeout:30000});
+            }
+            await page.waitForTimeout(1500);
             let row=page.locator('tbody tr').first();
             if(dossier){
               const exact=page.getByText(dossier,{exact:true});
