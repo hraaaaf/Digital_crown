@@ -53,6 +53,25 @@ def _validated_honoraires_item(item: dict[str, Any]) -> tuple[str, float]:
     return libelle, amount
 
 
+def _business_datetime(item: dict[str, Any], fallback: datetime) -> datetime:
+    """Return the document business date, preserving fallback time when absent.
+
+    Document Studio writes the selected document date on every Honoraires line.
+    That date is the accounting truth: editing a note from one day/month to
+    another must move the same Acte/Payment rather than create a second entry.
+    """
+    raw = item.get("date")
+    if raw in (None, ""):
+        return fallback
+    if isinstance(raw, datetime):
+        return raw
+    try:
+        parsed = datetime.fromisoformat(str(raw).strip())
+    except (TypeError, ValueError) as exc:
+        raise ValueError("La date de la note d'honoraires est invalide.") from exc
+    return parsed
+
+
 def _generated_payment_note(document_archive_id: int) -> str:
     return f"{_GENERATED_PAYMENT_PREFIX}{document_archive_id}"
 
@@ -84,8 +103,9 @@ def persist_honoraires_lines(
     """Stage or reconcile Acte rows and exact document-generated payments.
 
     The DocumentArchive is canonical. Re-generating the same archive id updates the
-    derived Acte rows instead of duplicating them. Payments created manually through
-    another flow are never deleted or rewritten here.
+    derived Acte rows instead of duplicating them. The selected document date is the
+    accounting date, so changing it moves the same rows between day/month buckets.
+    Payments created manually through another flow are never deleted or rewritten here.
 
     No commit is performed here. The caller owns the transaction.
     """
@@ -109,7 +129,8 @@ def persist_honoraires_lines(
     actes: list[models.Acte] = []
     edit_timestamp = datetime.now()
 
-    for index, ((libelle, amount), _item) in enumerate(validated_items):
+    for index, ((libelle, amount), item) in enumerate(validated_items):
+        business_date = _business_datetime(item, document_created_at)
         if index < len(existing_actes):
             acte = existing_actes[index]
             acte.patient_id = patient_id
@@ -117,7 +138,7 @@ def persist_honoraires_lines(
             acte.type_acte = classify_acte_type(libelle)
             acte.libelle = libelle
             acte.montant = amount
-            acte.date_debut = document_created_at
+            acte.date_debut = business_date
             acte.statut_paiement = payment_status
             acte.is_accounted = is_accounted
             acte.is_collected = payment_status == models.PaiementStatut.PAYE
@@ -131,7 +152,7 @@ def persist_honoraires_lines(
                 type_acte=classify_acte_type(libelle),
                 libelle=libelle,
                 montant=amount,
-                date_debut=document_created_at,
+                date_debut=business_date,
                 statut_paiement=payment_status,
                 is_accounted=is_accounted,
                 is_collected=(payment_status == models.PaiementStatut.PAYE),
@@ -182,7 +203,7 @@ def persist_honoraires_lines(
             generated.patient_id = patient_id
             generated.amount = amount
             generated.payment_method = normalize_document_payment_method(item.get("mode_reglement"))
-            generated.payment_date = document_created_at
+            generated.payment_date = _business_datetime(item, document_created_at)
             generated.acte_id = acte.id
             generated.notes = _generated_payment_note(document_archive_id)
             generated.validated_by = validated_by
