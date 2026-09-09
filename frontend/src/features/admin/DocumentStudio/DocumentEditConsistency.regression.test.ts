@@ -38,6 +38,17 @@ describe('document edit consistency regression', () => {
     expect(patientStore).not.toContain('sessionStorage.setItem');
   });
 
+  it('hydrates the complete honoraires financial state before regeneration', () => {
+    expect(patientDocuments).toContain('payment_status?: string');
+    expect(patientDocuments).toContain('is_accounted?: boolean');
+    expect(documentHub).toContain("const paymentState = editData.payment_status === 'PAYE' ? 'PAYE' : 'EN_ATTENTE'");
+    expect(documentHub).toContain('setIsAccounted(editData.is_accounted ?? true)');
+    expect(documentHub).toContain('setIsGlobalNote(Boolean(d.is_global_note))');
+    expect(documentHub).toContain('setInstallments((d.installments || []).map');
+    expect(documentHub).toContain('sendReminder: Boolean(inst.sendReminder)');
+    expect(documentHub).toContain('setPaymentMode(paymentState === \'PAYE\'');
+  });
+
   it('clears edit state before every explicit new-document entry point', () => {
     expect(patientDetails).toContain('const handleDocumentCreate = () => {');
     expect(patientDetails).toMatch(/handleDocumentCreate[\s\S]*setEditingDoc\(null\)[\s\S]*setSearchParams\(\{ tab: 'admin' \}\)/);
