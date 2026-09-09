@@ -33,6 +33,16 @@ QUARANTINED_MEASUREMENT_IDS = {
     "Decalage_A_B",
 }
 
+# Historical origins intentionally removed from runtime during the Scientific
+# Core purge. The registry keeps their exact former path for provenance; only
+# these exact entry/path pairs may reference a file that no longer exists.
+PURGED_LEGACY_ORIGINS = {
+    ("SITUATION_A_AI_ADVISOR_CHILD_LEGACY_V1", "backend/services/ai_advisor.py"),
+    ("SITUATION_A_AI_ADVISOR_ADULT_LEGACY_V1", "backend/services/ai_advisor.py"),
+    ("SURPLOMB_AI_ADVISOR_RULE_LEGACY_V1", "backend/services/ai_advisor.py"),
+    ("RECOUVREMENT_AI_ADVISOR_RULE_LEGACY_V1", "backend/services/ai_advisor.py"),
+}
+
 # Measurements the master audit found with more than one DISTINCT-VALUE
 # origin (not just a duplicate of the same literal) — the real conflicts
 # that must survive the migration unresolved.
@@ -191,7 +201,7 @@ class TestNoPrematureValidation:
             assert r.validation_status != ValidationStatus.VALIDATED_FOR_PROFILE
 
 
-# --- Traceability: every origin file path actually exists in the repo ---
+# --- Traceability: live origins exist; explicitly purged origins remain exact ---
 
 class TestOriginTraceability:
     def _all_origins(self, registry):
@@ -204,12 +214,29 @@ class TestOriginTraceability:
         for b in registry["bounds"]:
             yield b.bounds_id, b.origin
 
-    def test_every_origin_file_exists_in_the_repo(self, registry):
+    def test_every_live_origin_file_exists_in_the_repo(self, registry):
         missing = []
         for entry_id, origin in self._all_origins(registry):
+            pair = (entry_id, origin.file)
+            if pair in PURGED_LEGACY_ORIGINS:
+                continue
             if not (REPO_ROOT / origin.file).exists():
-                missing.append((entry_id, origin.file))
-        assert not missing, f"Entries with an origin.file that doesn't exist on disk: {missing}"
+                missing.append(pair)
+        assert not missing, f"Entries with an unexpected missing origin.file: {missing}"
+
+    def test_purged_legacy_origins_are_exact_and_absent(self, registry):
+        registered = {(entry_id, origin.file) for entry_id, origin in self._all_origins(registry)}
+        assert PURGED_LEGACY_ORIGINS <= registered, (
+            "Declared purged legacy origins must still be present in the registry "
+            "with their exact historical path."
+        )
+        unexpectedly_present = [
+            pair for pair in PURGED_LEGACY_ORIGINS if (REPO_ROOT / pair[1]).exists()
+        ]
+        assert not unexpectedly_present, (
+            "A source declared as purged exists again; remove it from the purge allowlist "
+            f"or investigate an accidental resurrection: {unexpectedly_present}"
+        )
 
 
 # --- Isolation guard, extended to backend AND frontend for Phase 2 ---
