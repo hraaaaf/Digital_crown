@@ -20,22 +20,12 @@ def _read(path: Path) -> str:
 def test_expert_system_contains_no_autonomous_treatment_rules():
     source = _read(EXPERT_SYSTEM)
     forbidden = (
-        "extrRecommandee",
-        "High Torque",
-        "Low Torque",
-        "bite blocks",
-        "Bite-Block",
-        "élastiques de Classe II",
-        "Distalisation",
-        "CBCT/IRM",
-        "Dents concernées",
-        "EXTRACTIONNEL",
-        "SANS EXTRACTION",
-        "Prescription Autoligaturante",
+        "extrRecommandee", "High Torque", "Low Torque", "bite blocks", "Bite-Block",
+        "élastiques de Classe II", "Distalisation", "CBCT/IRM", "Dents concernées",
+        "EXTRACTIONNEL", "SANS EXTRACTION", "Prescription Autoligaturante",
     )
     for token in forbidden:
         assert token not in source, f"autonomous orthodontic treatment token reintroduced: {token}"
-
     assert "Décision thérapeutique : à documenter et valider par le praticien." in source
     assert "return { rapportMarkdown }" in source
 
@@ -52,26 +42,14 @@ def test_growth_and_class_ii_helpers_fail_closed():
 def test_step3_is_practitioner_controlled_and_contains_no_local_clinical_thresholds():
     source = _read(STEP3)
     forbidden = (
-        "evaluateCase(",
-        "calcDDMReelle(",
-        "deriveDivision(",
-        "deriveDentureFromAge(",
-        "autoSeverite",
-        "autoDivision",
-        "Morphologie Dentaire (Auto-Déduit)",
-        "Bot Expert ODF",
-        "Générer",
-        "handleDiagChange('strategie_therapeutique', expertReport",
-        "> 3.5 ? 'Supraclusie'",
-        "> 4 ? 'Proalvéolie'",
-        "DDM RÉELLE",
-        "normal=",
-        "mean=",
-        "tol=",
+        "evaluateCase(", "calcDDMReelle(", "deriveDivision(", "deriveDentureFromAge(",
+        "autoSeverite", "autoDivision", "Morphologie Dentaire (Auto-Déduit)",
+        "Bot Expert ODF", "Générer", "handleDiagChange('strategie_therapeutique', expertReport",
+        "> 3.5 ? 'Supraclusie'", "> 4 ? 'Proalvéolie'", "DDM RÉELLE",
+        "normal=", "mean=", "tol=",
     )
     for token in forbidden:
         assert token not in source, f"unsafe Step3 semantic reintroduced: {token}"
-
     assert "Plan thérapeutique — décision praticien" in source
     assert "Aucune génération automatique" in source
     assert "Stade CVM — praticien" in source
@@ -81,23 +59,12 @@ def test_step3_is_practitioner_controlled_and_contains_no_local_clinical_thresho
 def test_step4_has_no_local_normative_ranges_or_default_appliance():
     source = _read(STEP4)
     forbidden = (
-        "lo: 76",
-        "hi: 88",
-        "flo:",
-        "fhi:",
-        "getAngleStatus",
-        "norme {card.lo}",
-        "preference_technique || 'DAMON'",
-        "Damon Passive",
-        "d-gainer",
-        "quadhelix",
-        "disjoncteur",
-        "activateur",
-        "perle-tuca",
+        "lo: 76", "hi: 88", "flo:", "fhi:", "getAngleStatus", "norme {card.lo}",
+        "preference_technique || 'DAMON'", "Damon Passive", "d-gainer", "quadhelix",
+        "disjoncteur", "activateur", "perle-tuca",
     )
     for token in forbidden:
         assert token not in source, f"unsafe Step4 semantic reintroduced: {token}"
-
     assert "Valeur brute · aucune norme locale" in source
     assert "Technique choisie par le praticien" in source
     assert "Aucune stratégie n'est générée automatiquement" in source
@@ -111,3 +78,13 @@ def test_cephalo_utils_must_not_reintroduce_age_cvm_or_impa_space_conversion():
     assert "(valeurActuelle - norme) / 2.5" not in source
     assert "TOOTH_LENGTH" not in source
     assert "return [...landmarks];" in source
+
+
+def test_missing_ddm_is_never_serialized_as_zero():
+    source = _read(CEPHALO_UTILS)
+    assert "calcul_ddm: max ?? 0" not in source
+    assert "calcul_ddm: mand ?? 0" not in source
+    assert "ddm_reelle: real ?? 0" not in source
+    assert "ddm_maxillaire: max !== null" in source
+    assert "ddm_mandibulaire: mand !== null" in source
+    assert "ddm_reelle: real" in source
