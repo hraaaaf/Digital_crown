@@ -91,6 +91,7 @@ class ArchiveService:
         is_accounted: bool,
         is_collected: bool,
         payment_status: models.PaiementStatut,
+        commit: bool = True,
     ) -> models.DocumentArchive:
         """Remplace explicitement une archive existante sans créer de version visible."""
         doc = self.db.query(models.DocumentArchive).filter(
@@ -125,8 +126,11 @@ class ArchiveService:
         doc.uploaded_by_id = uploaded_by_id or doc.uploaded_by_id
         doc.is_latest_version = True
         doc.updated_at = datetime.now()
-        self.db.commit()
-        self.db.refresh(doc)
+        if commit:
+            self.db.commit()
+            self.db.refresh(doc)
+        else:
+            self.db.flush()
         return doc
     
     def check_conflicts(self, patient_id: int, file_hash: str, 
@@ -209,7 +213,8 @@ class ArchiveService:
                         force_group_id: Optional[str] = None,
                         is_accounted: bool = True,
                         is_collected: bool = False,
-                        payment_status: models.PaiementStatut = models.PaiementStatut.EN_ATTENTE) -> Tuple[models.DocumentArchive, bool]:
+                        payment_status: models.PaiementStatut = models.PaiementStatut.EN_ATTENTE,
+                        commit: bool = True) -> Tuple[models.DocumentArchive, bool]:
         """
         Archive un document avec gestion intelligente des conflits.
         Retourne: (document, is_new_version)
@@ -247,6 +252,7 @@ class ArchiveService:
                 is_accounted=is_accounted,
                 is_collected=is_collected,
                 payment_status=payment_status,
+                commit=commit,
             )
             return doc, False
         
@@ -292,8 +298,11 @@ class ArchiveService:
                     old_doc.permanent_delete_at = None
                     old_doc.is_latest_version = True
                     old_doc.updated_at = datetime.now()
-                    self.db.commit()
-                    self.db.refresh(old_doc)
+                    if commit:
+                        self.db.commit()
+                        self.db.refresh(old_doc)
+                    else:
+                        self.db.flush()
                     return old_doc, False
                 
             elif on_conflict == ConflictResolution.CREATE_VERSION:
@@ -361,8 +370,11 @@ class ArchiveService:
         )
         
         self.db.add(doc)
-        self.db.commit()
-        self.db.refresh(doc)
+        if commit:
+            self.db.commit()
+            self.db.refresh(doc)
+        else:
+            self.db.flush()
         
         return doc, version_number > 1
     
