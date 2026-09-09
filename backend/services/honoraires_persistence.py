@@ -119,12 +119,15 @@ def persist_honoraires_lines(
         for _, item in validated_items:
             normalize_document_payment_method(item.get("mode_reglement"))
 
-    existing_actes = (
+    all_existing_actes = (
         db.query(models.Acte)
         .filter(models.Acte.document_archive_id == document_archive_id)
         .order_by(models.Acte.id.asc())
         .all()
     )
+    # Une ligne déjà sortie par une édition reste un historique immuable. Elle ne
+    # doit jamais redevenir la nouvelle ligne active lors d'un shrink -> expand.
+    existing_actes = [acte for acte in all_existing_actes if acte.deleted_at is None]
 
     actes: list[models.Acte] = []
     edit_timestamp = datetime.now()
@@ -144,7 +147,6 @@ def persist_honoraires_lines(
             acte.is_collected = payment_status == models.PaiementStatut.PAYE
             acte.validated_by = validated_by
             acte.document_archive_id = document_archive_id
-            acte.deleted_at = None
         else:
             acte = models.Acte(
                 patient_id=patient_id,
@@ -172,7 +174,7 @@ def persist_honoraires_lines(
 
     db.flush()
 
-    all_related_actes = existing_actes + [a for a in actes if a not in existing_actes]
+    all_related_actes = all_existing_actes + [a for a in actes if a not in all_existing_actes]
     acte_ids = [a.id for a in all_related_actes if a.id is not None]
     payments_by_acte: dict[int, list[models.Payment]] = {acte_id: [] for acte_id in acte_ids}
     if acte_ids:
@@ -214,7 +216,7 @@ def persist_honoraires_lines(
     # Toute ligne supprimée par l'édition annule uniquement l'encaissement qui avait
     # été généré par ce document. Un paiement manuel lié au même Acte reste intact.
     active_acte_ids = {acte.id for acte in actes if acte.id is not None}
-    for stale_acte in existing_actes:
+    for stale_acte in all_existing_actes:
         if stale_acte.id in active_acte_ids:
             continue
         for payment in payments_by_acte.get(stale_acte.id, []):
