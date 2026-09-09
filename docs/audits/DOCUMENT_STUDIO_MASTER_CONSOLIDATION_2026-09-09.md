@@ -5,34 +5,40 @@ Rebaseliner Document Studio sur le `master` courant et ne porter que les deltas 
 
 ## Baseline vérifiée
 - repository: `hraaaaf/Digital_crown`
-- master: `6301f737f59e1f5c6c0e1e79402fbd5270637617`
+- master de départ: `6301f737f59e1f5c6c0e1e79402fbd5270637617`
 - branche de consolidation: `refactor/document-studio-master-consolidation`
+- PR de consolidation: `#379`
 
 ## Règle
 Aucune ancienne PR stackée n'est mergée telle quelle. Chaque delta est classé KEEP / SUPERSEDED / REBUILD / DROP après comparaison avec `master`.
 
-## Matrice initiale
+## Matrice courante
 
 ### PR #18 — R2 prescription persistence
-**Verdict: PARTIAL KEEP / PARTIAL SUPERSEDED**
+**Verdict final: SUPERSEDED BY #379 — CLOSED**
 
 Déjà absorbé/supersédé par `master`:
 - save des `DoctorPrescriptionPreference` avec rollback + propagation;
 - delete sur la table correcte et isolation praticien;
 - lecture stable des presets.
 
-Encore utile à porter:
-- `record_medication_usage()` fail-visible au lieu du legacy qui rollback puis masque l'erreur;
-- recherche non vide strictement local-first: `master` délègue encore au service legacy, lequel contient un fallback HTTP vers `medicament.ma`.
+Porté sur #379:
+- `record_medication_usage()` fail-visible avec rollback + propagation;
+- recherche non vide strictement local-first, sans fallback HTTP `medicament.ma`;
+- tests négatifs réseau + échec de commit.
 
 ### PR #77 — P3 Devis
 **Verdict: REBUILD ON MASTER**
 
 La branche historique diverge fortement de `master` et ne doit pas être mergée/rebasée mécaniquement.
-Deltas prouvés encore absents à réévaluer/porter:
+
+Porté sur #379:
 - cohérence `items ↔ teeth_data` côté `DevisData`;
+- tests orphan tooth / orphan treatment / divergence de prix.
+
+Encore à réévaluer:
 - protections de transition/dirty-state accounting;
-- protections odontogramme/source/conversion utiles qui ne sont pas déjà remplacées par le code courant.
+- protections odontogramme/source/conversion qui ne sont pas déjà remplacées par le code courant.
 
 ### PR #90 — P4 Honoraires
 **Verdict: REBUILD ON MASTER**
@@ -55,40 +61,56 @@ PR fermée non mergée. Reprendre uniquement les protections dirty/archive encor
 PR fermée non mergée. Ne porter que la frontière non-prescriptive et les dirty-state prouvés utiles. Toute logique clinique reste sous gate scientifique séparé.
 
 ### PR #101 — T1 transversal
-**Verdict: REBUILD ON MASTER**
+**Verdict: PARTIAL SUPERSEDED / PARTIAL RECONCILE**
 
-La PR est encore ouverte mais stackée sur l'ancienne branche P7, pas sur `master`.
-Delta clairement absent de `master`:
-- `DocumentNavigationPolicy.ts` n'existe pas sur `master`.
-D'autres protections lifecycle/dirty/archive doivent être portées une par une après comparaison.
+La PR historique est stackée sur l'ancienne branche P7 et ne doit pas être mergée.
+
+Déjà superseded par l'architecture courante `master`:
+- navigation clic + URL centralisée via `useDocumentHubNavigation`;
+- dirty-state multi-pages via `DocumentTabNavigationPolicy` + states spécialisés;
+- `DocumentNavigationPolicy.ts` historique n'a donc pas à être recréé.
+
+Encore à réconcilier:
+- lifecycle archive/preview/print/duplicate;
+- ancienne désactivation du flux legacy `echeancier` à confronter au contrat courant, qui possède aujourd'hui un onglet/flux dédié explicite;
+- callbacks/branches mortes éventuels dans les composants partagés.
 
 ### PR #336 — premium header specialties
-**Verdict: SUPERSEDED**
+**Verdict final: SUPERSEDED — CLOSED**
 
 `master` possède déjà une implémentation plus générale:
 - rendu de toutes les lignes configurées;
 - gestion dynamique de la profondeur des blocs;
 - séparateurs repositionnés sous les blocs rendus;
 - gestion Heritage dense.
-Ne pas porter #336.
 
 ### PR #353 — certificate signature caption
-**Verdict: KEEP**
+**Verdict final: SUPERSEDED BY #379 — CLOSED**
 
-`master` affiche encore `Signature manuscrite du praticien` dans le PDF. Le delta de #353 reste nécessaire: conserver la ligne et le nom du praticien, retirer l'instruction imprimée.
+Porté sur #379:
+- ligne de signature conservée;
+- nom praticien conservé;
+- mention imprimée `Signature manuscrite du praticien` retirée;
+- test de régression dédié porté.
+
+## Preuves exactes déjà obtenues
+- branche de consolidation créée depuis le `master` courant;
+- PR #379 ouverte en draft;
+- PR #18 fermée après port des résidus utiles;
+- PR #336 fermée comme superseded;
+- PR #353 fermée après port du correctif;
+- CI exact-head relancée automatiquement après chaque nouveau commit; aucun PASS final n'est revendiqué tant que le HEAD courant n'est pas vert.
 
 ## Chemin critique
-1. porter les petits deltas KEEP prouvés sur cette branche;
-2. ajouter leurs tests de régression;
-3. scanner #77/#90/#95/#96/#97/#101 fichier par fichier contre `master`;
-4. produire une matrice KEEP/DROP finale;
-5. implémenter uniquement les deltas KEEP sur `master`;
-6. exécuter tests ciblés puis full-app/build;
-7. runtime authentifié + PDF + 390/430/768/1280 selon surfaces touchées;
-8. closeout canonique;
-9. merge uniquement après preuves.
+1. scanner #77/#90/#95/#96/#97/#101 fichier par fichier contre `master`;
+2. compléter la matrice KEEP/DROP finale;
+3. implémenter uniquement les deltas KEEP sur #379;
+4. exécuter tests ciblés puis full-app/build exact-head;
+5. runtime authentifié + PDF + 390/430/768/1280 selon surfaces touchées;
+6. closeout canonique;
+7. ready/merge seulement après preuves.
 
 ## État
-**IN PROGRESS — rebaseline master commencé.**
+**IN PROGRESS — rebaseline actif sur #379.**
 
 Aucun pourcentage global n'est déclaré avant la matrice finale et les gates mesurables.
