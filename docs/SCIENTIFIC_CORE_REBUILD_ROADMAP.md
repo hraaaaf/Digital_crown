@@ -17,9 +17,9 @@ Invariant clinique :
 
 1. aucune valeur patient synthétique susceptible de modifier une décision clinique ;
 2. aucune règle thérapeutique automatique non validée ;
-3. une seule autorité normative céphalométrique ;
+3. aucune interprétation diagnostique autonome non validée ;
 4. observation, interprétation, safety et décision praticien séparées ;
-5. provenance/applicabilité explicites pour les règles scientifiques ;
+5. provenance/applicabilité explicites pour les règles scientifiques conservées ;
 6. tests négatifs/non-régression + CI verts avant merge ;
 7. aucun déploiement Vercel sans autorisation explicite.
 
@@ -31,14 +31,13 @@ Règle dure : une couche clinique active `REPLACE` n'est jamais supprimée sans 
 
 Repo : `hraaaaf/Digital_crown`  
 Branche : `refactor/scientific-core-purge`  
-PR : `#371` — draft, ouverte  
+PR : `#371` — draft, ouverte, `mergeable=true` au dernier contrôle  
 Base : `master`
 
-Dernier HEAD observé avant ce commit documentaire : `519174fe11ca4c0f585befab840886cf2dee8eb6`.  
-PR observée `mergeable=true` sur ce HEAD.  
-CI du HEAD : run `34337218473` **pending** au dernier contrôle.  
-Settings TemplateEngine Certification : **SUCCESS** sur le même cycle.  
-Ne jamais qualifier la PR de globalement verte sans revérifier le HEAD documentaire créé par ce fichier et tous les checks requis.
+Dernier HEAD observé avant ce commit documentaire : `61bf1bd918d4483d5053276103da101faa5fbfd5`.  
+CI de ce HEAD : run `34340916184` **pending** au dernier contrôle.  
+Les autres certifications du même HEAD étaient encore pending/in_progress/queued.  
+Ne jamais qualifier la PR de globalement verte sans revérifier le HEAD courant et tous les checks requis.
 
 ---
 
@@ -47,7 +46,7 @@ Ne jamais qualifier la PR de globalement verte sans revérifier le HEAD document
 - **Phase 1 — Nettoyage scientifique : EN COURS.**
 - Panorama/report : purge fermée et certifiée historiquement.
 - Prescription démographique : fail-closed certifiée historiquement.
-- Céphalométrie/orthodontie : sécurité runtime fortement durcie ; purge physique legacy et certification finale restantes.
+- Céphalométrie/orthodontie : purge runtime + purge physique principale appliquées ; certification CI finale restante.
 - Consolidation globale : non fermée.
 - Certification scientifique globale : non fermée.
 
@@ -129,77 +128,67 @@ Wrappers morts supprimés : `panoramic_ai_advisor.py`, `panoramic_expert_engine.
 
 ### Goal
 
-Conserver géométrie, calibration, observations et données praticien ; supprimer toute conversion automatique `mesure → diagnostic/indication/traitement` non validée.
+Conserver géométrie, calibration, observations et données praticien ; supprimer toute conversion automatique `mesure → diagnostic/indication/traitement` non validée et toute donnée patient inventée.
 
-### Runtime actuel vérifié
+### Runtime vérifié
 
 - `CephaloService` utilise `cephalo_safe_engine`, pas `cephalo_engine` directement.
 - `backend/tests/test_cephalo_engine_reachability.py` interdit tout import runtime direct du moteur legacy hors adapter.
-- `cephalo_safe_engine` retire :
-  - stratégie thérapeutique legacy ;
-  - statuts/interprétations/z-scores normatifs legacy ;
-  - projections T1/T2 de croissance legacy.
-- `MeasureData.norm_mean/norm_min/norm_max/z_score` acceptent désormais `None` pour représenter explicitement l'absence d'autorité normative ; `0.0` n'est plus utilisé comme fausse norme fail-closed.
-- `cephalo_consistency_validator.py` est réduit à des contrôles structurels : cohérence SNA-SNB≈ANB, unités, calibration. Les normes cliniques locales et Classe II/III via ANB ont été retirées du gate PDF.
+- `cephalo_safe_engine` retire stratégie thérapeutique, métadonnées normatives legacy et T1/T2.
+- `cephalo_consistency_validator.py` ne garde que cohérence structurelle, unités et calibration ; aucun seuil clinique local.
 - `CephaloService._calculate_complex_ddm()` ne convertit plus IMPA en espace ; DDM clinique explicite conservée.
-- plan praticien conservé ; stratégie générée par le moteur filtrée.
+- contenu praticien explicite conservé.
 
-### Frontend actuel vérifié
+### Frontend vérifié
 
-- `Step3Clinical.tsx` : plus de bouton injectant un traitement auto, plus de sévérité DDM/division diagnostique déduites localement ; stratégie praticien reste éditable.
-- `Step4Documents.tsx` : mesures brutes, aucune table normative locale, aucun Damon par défaut, aucun appareil stocké dans `profil`.
-- `orthoExpertSystem.ts` : adapter descriptif fail-closed ; plus d'extraction, appareil, mécanique, imagerie ou chirurgie automatiques.
-- `cephaloUtils.ts` :
-  - CVM âge/sexe neutralisé ;
-  - IMPA/I-Francfort → DDM neutralisé ;
-  - apex manquants non fabriqués ;
-  - `generateTreatmentPlan()` ne génère aucun plan ;
-  - donnée DDM absente reste absente.
-- `useOrthoStore.ts` : defaults Classe I / denture permanente / Damon retirés. Dette restante : `sexePatient='M'` legacy par défaut, actuellement isolé du pipeline scientifique audité mais à remplacer par un état inconnu.
+- `Step3Clinical.tsx` : aucune génération thérapeutique automatique.
+- `Step4Documents.tsx` : aucune table normative locale ni Damon par défaut.
+- `orthoExpertSystem.ts` : fail-closed ; aucune extraction/appareil/mécanique/imagerie/chirurgie autonome.
+- `cephaloUtils.ts` : CVM âge/sexe, correction DDM par IMPA, apex synthétiques et génération de traitement neutralisés.
+- `useOrthoStore.ts` : `sexePatient` est désormais `'M' | 'F' | null`, initialisé/reset à `null`; seules les valeurs sauvegardées exactement `M`/`F` sont restaurées. Le faux défaut masculin et la fuite inter-patient sont supprimés.
+
+### Purge physique appliquée
+
+`backend/services/cephalo_engine.py` a été réécrit en moteur **géométrie seule** :
+- imports/services normatifs supprimés ;
+- constantes/bornes normatives locales supprimées ;
+- z-scores et classifications supprimés ;
+- règle DDM `IMPA / 2,5° par mm` supprimée ;
+- projections de croissance T1/T2 supprimées, sorties contractuelles vides ;
+- stratégie thérapeutique et narration diagnostique supprimées ;
+- âge/sexe/CVM restent acceptés uniquement pour compatibilité API et ne pilotent aucune inférence ;
+- métadonnées normatives = `None`, `status='N/A'` ;
+- mesures géométriques brutes conservées.
+
+`backend/services/bilan_ortho_engine.py` a également été durci après audit croisé :
+- suppression des classifications Classe I/II/III, typologies Tweed et labels IMPA automatiques ;
+- suppression de la graduation automatique de sévérité DDM ;
+- uniquement reformulation de valeurs brutes et données praticien ;
+- aucune synthèse diagnostique autonome ;
+- plan praticien conservé, sinon message fail-closed.
+
+### Tests ajoutés / adaptés
+
+- `backend/tests/test_cephalo_geometry_only.py` : normes nulles, T1/T2 vides, traitement absent, cohorte non inférée, mesures brutes conservées.
+- `backend/tests/test_bilan_ortho_fail_closed.py` : aucune Classe II/III, typologie, sévérité ou pro/rétroalvéolie déduite ; plan praticien seul.
+- `backend/tests/test_bilan_ortho_pdf.py` : validateur aligné sur contrat structurel-only, sans pseudo-borne SNA.
+- tests historiques clés : `test_cephalo_treatment_boundary.py`, `test_cephalo_engine_reachability.py`, `test_cephalo_consistency_structural_only.py`, tests frontend `cephaloUtils.test.ts`, `orthoExpertSystem.test.ts`.
 
 ### Registre normatif
 
-`cephalo_normative_service.py` reste l'autorité cible : fail-closed, profils legacy non validés non autoritatifs, pas de fallback silencieux.
+`cephalo_normative_service.py` peut rester comme infrastructure versionnée/fail-closed pour de futurs profils explicitement validés, mais le moteur géométrique et le bilan fail-closed ne l'utilisent plus pour produire une interprétation autonome.
 
 Aucun profil legacy ne doit être marqué validé uniquement parce qu'il a été migré.
 
-### Legacy encore physiquement présent
-
-`backend/services/cephalo_engine.py` contient encore :
-- `_evaluate_metric()` avec constantes historiques ;
-- `calculate_ddm_reelle()` avec règle IMPA / 2,5° par mm ;
-- vecteurs fixes `_project_t1_growth/_project_t2_growth` ;
-- stratégie nommant Damon, Invisalign, Twin Block, TADs, chirurgie, etc.
-
-**État : QUARANTINÉ, PAS VALIDÉ.** La frontière runtime empêche ces sorties de devenir autoritatives, mais la purge physique reste souhaitable après preuve de couverture suffisante.
-
-### Base scientifique documentée
-
-Voir `docs/ORTHO_SCIENTIFIC_CORE_AUDIT.md`.
-
-Conclusions d'ingénierie déjà verrouillées :
-- CVM = appréciation morphologique, jamais âge/sexe seuls ;
-- extraction = décision multifactorielle ;
-- CBCT = justification individualisée ;
-- normes céphalo = applicabilité population/méthode explicite ;
-- prédiction individuelle de croissance : méthodes actuelles hétérogènes, validation externe limitée ; vecteurs fixes T1/T2 legacy non autoritatifs.
-
-### Tests clés
-
-- `backend/tests/test_cephalo_treatment_boundary.py`
-- `backend/tests/test_cephalo_engine_reachability.py`
-- `backend/tests/test_cephalo_consistency_structural_only.py`
-- tests frontend `cephaloUtils.test.ts`, `orthoExpertSystem.test.ts`
-- contrats statiques frontend de sécurité du lot
-
 ### Remaining exact
 
-1. CI du HEAD courant : corriger toute régression attribuable au lot.
-2. Remplacer le default UI `sexePatient='M'` par inconnu, avec consommateurs typés.
-3. Purger physiquement les branches normatives/croissance/traitement du `CephaloEngine` legacy après preuve branch-wide de non-dépendance.
-4. Prouver/supprimer les wrappers/imports legacy restants (`ai_advisor`, helpers privés) sans perte de couverture.
-5. Vérifier que l'UI ne consomme que mesures brutes + métadonnées normatives validées.
-6. Refaire CI + certifications scientifiques.
+1. obtenir la CI du HEAD courant et corriger toute régression attribuable au lot ;
+2. audit branch-wide des wrappers/imports céphalo legacy restants, notamment `ai_advisor`, puis supprimer ceux prouvés non nécessaires ;
+3. vérifier les consommateurs UI/API sur les nouveaux champs fail-closed ;
+4. refaire CI + certifications scientifiques ;
+5. cohérence PR/docs ;
+6. sortir du draft et merger uniquement après preuves vertes ;
+7. vérifier le post-merge.
 
 ---
 
@@ -212,6 +201,7 @@ Ordre obligatoire :
 Conditions avant merge :
 - aucun test scientifique rouge ;
 - aucune règle thérapeutique autonome active connue ;
+- aucune interprétation diagnostique autonome non validée connue ;
 - aucune donnée patient synthétique active connue ;
 - docs cohérentes avec le HEAD ;
 - PR non draft uniquement quand les critères sont prouvés.
@@ -222,4 +212,4 @@ Conditions avant merge :
 
 ## NEXT EXACT
 
-Vérifier la CI du HEAD créé par ce commit documentaire. Si rouge : diagnostiquer/corriger. Si verte : corriger `sexePatient` puis poursuivre la purge physique contrôlée de `CephaloEngine` et refaire la certification.
+Auditer branch-wide les wrappers/imports céphalo legacy restants pendant la CI. Si la CI est rouge, corriger la régression ; si elle est verte, terminer la certification du lot puis closeout PR.
