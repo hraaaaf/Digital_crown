@@ -1,7 +1,7 @@
 from typing import Any, Dict, List, Optional
 
 from fastapi import HTTPException
-from sqlalchemy import desc, func
+from sqlalchemy import case, desc, func
 from sqlalchemy.orm import Session
 
 from backend import models
@@ -85,11 +85,98 @@ class PrescriptionService(LegacyPrescriptionService):
             db.rollback()
             raise
 
+    def record_medication_usage(
+        self,
+        db: Session,
+        doctor_id: int,
+        med_name: str,
+        dosage: str = None,
+        posologie: str = None,
+    ) -> None:
+        """Persist medication usage and never mask database failures."""
+        normalized_name = med_name.strip().upper()
+        try:
+            existing = db.query(models.DoctorMedicationHabit).filter(
+                models.DoctorMedicationHabit.doctor_id == doctor_id,
+                models.DoctorMedicationHabit.medication_name == normalized_name,
+                models.DoctorMedicationHabit.dosage == dosage,
+                models.DoctorMedicationHabit.posologie == posologie,
+            ).first()
+
+            if existing:
+                existing.usage_count += 1
+            else:
+                db.add(
+                    models.DoctorMedicationHabit(
+                        doctor_id=doctor_id,
+                        medication_name=normalized_name,
+                        dosage=dosage,
+                        posologie=posologie,
+                    )
+                )
+
+            global_med = db.query(models.Medication).filter(
+                models.Medication.nom == normalized_name
+            ).first()
+            if global_med:
+                global_med.usage_count += 1
+
+            db.commit()
+        except Exception:
+            db.rollback()
+            raise
+
     def get_personalized_suggestions(self, db: Session, doctor_id: int, query: str = "") -> Dict[str, List[str]]:
-        """Keep query search behavior and expose doctor-scoped quick picks when q is empty."""
-        normalized_query = (query or "").strip()
+        """Return doctor-scoped suggestions from the local database only."""
+        normalized_query = (query or "").strip().upper()
         if normalized_query:
-            return super().get_personalized_suggestions(db, doctor_id, normalized_query)
+            med_habits = (
+                db.query(
+                    models.DoctorMedicationHabit.medication_name,
+                    func.sum(models.DoctorMedicationHabit.usage_count).label("total"),
+                )
+                .filter(
+                    models.DoctorMedicationHabit.doctor_id == doctor_id,
+                    models.DoctorMedicationHabit.medication_name.ilike(f"%{normalized_query}%"),
+                )
+                .group_by(models.DoctorMedicationHabit.medication_name)
+                .order_by(
+                    case(
+                        (
+                            models.DoctorMedicationHabit.medication_name.ilike(
+                                f"{normalized_query}%"
+                            ),
+                            0,
+                        ),
+                        else_=1,
+                    ),
+                    desc("total"),
+                )
+                .limit(10)
+                .all()
+            )
+            medications = [row[0] for row in med_habits]
+
+            if len(medications) < 10:
+                global_meds = (
+                    db.query(models.Medication.nom)
+                    .filter(
+                        models.Medication.nom.ilike(f"%{normalized_query}%"),
+                        ~models.Medication.nom.in_(medications),
+                    )
+                    .order_by(
+                        case(
+                            (models.Medication.nom.ilike(f"{normalized_query}%"), 0),
+                            else_=1,
+                        ),
+                        models.Medication.usage_count.desc(),
+                    )
+                    .limit(10 - len(medications))
+                    .all()
+                )
+                medications.extend(row[0] for row in global_meds)
+
+            return {"medications": medications, "dosages": [], "posologies": []}
 
         recent_rows = (
             db.query(
