@@ -4,6 +4,7 @@ from sqlalchemy.orm import Session
 
 from backend import database, models
 from backend.routers.auth import require_permission
+from backend.services.accounting_service import accounting_service
 from backend.utils.access_control import assert_patient_access
 
 
@@ -18,18 +19,24 @@ def get_patient_financial_snapshot_p6(
 ):
     """Patient finance snapshot with an explicit billing-basis contract.
 
-    `has_billing_data` means at least one Acte row exists for the patient. Payments remain
-    factual even when no Acte row exists, but in that situation `total_billed` and
-    `remaining_due` must not be interpreted as proof that nothing is owed.
+    `has_billing_data` means at least one active Acte row exists for the patient.
+    Payments remain factual even when no Acte row exists, but in that situation
+    `total_billed` and `remaining_due` must not be interpreted as proof that nothing
+    is owed. Document-generated voided/trashed payments are excluded everywhere.
     """
     assert_patient_access(patient_id, current_user, db)
 
     from datetime import date as date_type
 
     today = date_type.today()
+    visible_payment = accounting_service._visible_payment_filter()
+
     acte_count = int(
         db.query(func.count(models.Acte.id))
-        .filter(models.Acte.patient_id == patient_id)
+        .filter(
+            models.Acte.patient_id == patient_id,
+            models.Acte.deleted_at.is_(None),
+        )
         .scalar()
         or 0
     )
@@ -37,13 +44,20 @@ def get_patient_financial_snapshot_p6(
 
     total_billed = float(
         db.query(func.sum(models.Acte.montant))
-        .filter(models.Acte.patient_id == patient_id)
+        .filter(
+            models.Acte.patient_id == patient_id,
+            models.Acte.deleted_at.is_(None),
+        )
         .scalar()
         or 0.0
     )
     total_collected = float(
         db.query(func.sum(models.Payment.amount))
-        .filter(models.Payment.patient_id == patient_id)
+        .outerjoin(models.Acte, models.Payment.acte_id == models.Acte.id)
+        .filter(
+            models.Payment.patient_id == patient_id,
+            visible_payment,
+        )
         .scalar()
         or 0.0
     )
@@ -53,6 +67,7 @@ def get_patient_financial_snapshot_p6(
         db.query(models.Acte)
         .filter(
             models.Acte.patient_id == patient_id,
+            models.Acte.deleted_at.is_(None),
             models.Acte.statut_paiement.in_(["EN_ATTENTE", "A_ENCAISSER", "PARTIEL"]),
         )
         .order_by(models.Acte.date_debut.desc())
@@ -98,7 +113,11 @@ def get_patient_financial_snapshot_p6(
 
     recent_payments = (
         db.query(models.Payment)
-        .filter(models.Payment.patient_id == patient_id)
+        .outerjoin(models.Acte, models.Payment.acte_id == models.Acte.id)
+        .filter(
+            models.Payment.patient_id == patient_id,
+            visible_payment,
+        )
         .order_by(models.Payment.payment_date.desc(), models.Payment.id.desc())
         .limit(5)
         .all()
@@ -120,7 +139,11 @@ def get_patient_financial_snapshot_p6(
             func.sum(models.Payment.amount).label("total"),
             func.count(models.Payment.id).label("count"),
         )
-        .filter(models.Payment.patient_id == patient_id)
+        .outerjoin(models.Acte, models.Payment.acte_id == models.Acte.id)
+        .filter(
+            models.Payment.patient_id == patient_id,
+            visible_payment,
+        )
         .group_by(models.Payment.payment_method)
         .all()
     )
