@@ -117,8 +117,6 @@ def test_profondeur_faciale_excluded_from_pdf_metrics():
     """Profondeur_Faciale est exclus des métriques du PDF."""
     from backend.services.generators.bilan_ortho_gen import BilanOrthoPDFGenerator
     gen = BilanOrthoPDFGenerator()
-    # Vérifier que LINEAR_MEASURES_EXCLUDED contient Profondeur_Faciale
-    # (inspection statique du code source)
     import inspect
     source = inspect.getsource(gen._generate_weasyprint)
     assert "Profondeur_Faciale" in source
@@ -144,7 +142,7 @@ def test_validation_result_has_is_valid():
     from backend.services.cephalo_consistency_validator import ValidationResult
     result = ValidationResult()
     assert hasattr(result, 'is_valid')
-    assert result.is_valid is True  # Pas d'erreurs → valide
+    assert result.is_valid is True
 
 
 def test_validation_result_has_fatals_and_warnings():
@@ -155,35 +153,33 @@ def test_validation_result_has_fatals_and_warnings():
     assert result.warnings == ["warning"]
 
 
-def test_validation_sna_hard_bounds():
-    """SNA entre 60 et 105° est acceptable (bornes physiologiques)."""
-    from backend.services.cephalo_consistency_validator import CephaloConsistencyValidator
-    validator = CephaloConsistencyValidator()
-    # SNA = 82 est normal
-    angles_data = {
-        "analyse_osseuse": {
-            "SNA": {"valeur": 82.0, "unite": "°"},
-            "SNB": {"valeur": 80.0, "unite": "°"},
-            "ANB": {"valeur": 2.0, "unite": "°"},
-        }
-    }
-    result = validator.validate(angles_data)
-    # SNA=82 ne doit pas générer d'erreur fatale
-    assert not any("SNA" in f and "fatal" in f.lower() for f in result.fatals)
-
-
-def test_validation_sna_out_of_bounds_fatal():
-    """SNA > 105° ou < 60° génère erreur FATALE."""
+def test_validation_does_not_apply_local_sna_norms():
+    """Une valeur SNA extrême mais arithmétiquement cohérente ne déclenche pas de pseudo-norme locale."""
     from backend.services.cephalo_consistency_validator import CephaloConsistencyValidator
     validator = CephaloConsistencyValidator()
     angles_data = {
         "analyse_osseuse": {
-            "SNA": {"valeur": 110.0, "unite": "°"},  # Hors limites
+            "SNA": {"valeur": 110.0, "unite": "°"},
             "SNB": {"valeur": 80.0, "unite": "°"},
             "ANB": {"valeur": 30.0, "unite": "°"},
         }
     }
     result = validator.validate(angles_data)
-    # Doit avoir au moins une erreur fatale
+    assert result.is_valid
+    assert result.fatals == []
+
+
+def test_validation_sna_snb_anb_structural_inconsistency_is_fatal():
+    """SNA-SNB doit rester arithmétiquement cohérent avec ANB, sans seuil clinique local."""
+    from backend.services.cephalo_consistency_validator import CephaloConsistencyValidator
+    validator = CephaloConsistencyValidator()
+    angles_data = {
+        "analyse_osseuse": {
+            "SNA": {"valeur": 82.0, "unite": "°"},
+            "SNB": {"valeur": 80.0, "unite": "°"},
+            "ANB": {"valeur": 30.0, "unite": "°"},
+        }
+    }
+    result = validator.validate(angles_data)
     assert not result.is_valid
-    assert len(result.fatals) > 0
+    assert any("Incohérence interne" in fatal for fatal in result.fatals)
