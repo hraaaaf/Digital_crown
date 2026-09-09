@@ -68,7 +68,8 @@ jobs:
           const patients=await ps.json();
           const patient=patients.find(p=>p.numero_dossier==='T2-0001')||patients[0];
           if(!patient) throw new Error('no seeded patient');
-          const payload={type:'libre',patient_id:patient.id,data:{title:'CERT VISUELLE',content:'Document de certification visuelle',doc_date:'2026-09-09'},is_accounted:false,payment_status:'EN_ATTENTE'};
+          const unique=`${label}-${Date.now()}-${Math.random().toString(36).slice(2,8)}`;
+          const payload={type:'libre',patient_id:patient.id,data:{title:`CERT VISUELLE ${unique}`,content:`Document de certification visuelle ${unique}`,doc_date:'2026-09-09'},is_accounted:false,payment_status:'EN_ATTENTE'};
           const gen=await api.post('/api/documents/generate?archive=true',{headers:{...auth,'Content-Type':'application/json'},data:payload});
           if(!gen.ok()) throw new Error(`generate ${gen.status()} ${await gen.text()}`);
           const browser=await chromium.launch({headless:true});
