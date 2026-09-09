@@ -50,19 +50,35 @@ jobs:
           npm ci
           npm install --no-save --package-lock=false --legacy-peer-deps playwright@1.55.0
           npx playwright install --with-deps chromium
-      - name: Start isolated runtime
+      - name: Start isolated backend
         run: |
           rm -f t2-runtime-cert.db
           (exec setsid python scripts/t2_runtime_server.py > /tmp/document-history-after-backend.log 2>&1) & echo $! > /tmp/document-history-after-bpid
-          for i in {1..90}; do if curl -fsS http://127.0.0.1:8005/health >/dev/null; then break; fi; sleep 1; done
-          (cd frontend && exec setsid npm run dev -- --host 127.0.0.1 --port 5173 > /tmp/document-history-after-frontend.log 2>&1) & echo $! > /tmp/document-history-after-fpid
-          for i in {1..90}; do if curl -fsS http://127.0.0.1:5173 >/dev/null; then exit 0; fi; sleep 1; done
-          cat /tmp/document-history-after-backend.log /tmp/document-history-after-frontend.log
+          for i in {1..90}; do
+            if curl -fsS http://127.0.0.1:8005/health >/dev/null; then exit 0; fi
+            sleep 1
+          done
+          cat /tmp/document-history-after-backend.log
           exit 1
       - name: Capture AFTER at certified viewports
         working-directory: frontend
         run: |
           mkdir -p ../artifacts/document-history-actions-after
+          npm run dev -- --host 127.0.0.1 --port 5173 > /tmp/document-history-after-frontend.log 2>&1 &
+          VITE_PID=$!
+          cleanup_frontend() {
+            kill "$VITE_PID" 2>/dev/null || true
+          }
+          trap cleanup_frontend EXIT
+          FRONT_READY=0
+          for i in {1..60}; do
+            if curl -fsS http://127.0.0.1:5173 >/dev/null; then FRONT_READY=1; break; fi
+            sleep 1
+          done
+          if [ "$FRONT_READY" != "1" ]; then
+            cat /tmp/document-history-after-frontend.log
+            exit 1
+          fi
           cat > .document-history-after.mjs <<'JS'
           import fs from 'node:fs';
           import path from 'node:path';
@@ -154,12 +170,10 @@ jobs:
           JS
           GITHUB_SHA="$GITHUB_SHA" node .document-history-after.mjs
           rm .document-history-after.mjs
-      - name: Stop isolated runtime
+      - name: Stop isolated backend
         if: always()
         run: |
-          FPID=$(cat /tmp/document-history-after-fpid 2>/dev/null || true)
           BPID=$(cat /tmp/document-history-after-bpid 2>/dev/null || true)
-          [ -n "$FPID" ] && kill -- -$FPID 2>/dev/null || true
           [ -n "$BPID" ] && kill -- -$BPID 2>/dev/null || true
       - uses: actions/upload-artifact@v4
         if: always()
