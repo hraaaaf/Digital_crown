@@ -14,21 +14,31 @@ const patientStore = readFileSync(
   resolve(process.cwd(), 'src/stores/usePatientStore.ts'),
   'utf8',
 );
+const documentHub = readFileSync(
+  resolve(process.cwd(), 'src/features/admin/DocumentHub.tsx'),
+  'utf8',
+);
+const generator = readFileSync(
+  resolve(process.cwd(), 'src/features/admin/DocumentStudio/useDocumentGenerator.ts'),
+  'utf8',
+);
 const apiService = readFileSync(
   resolve(process.cwd(), 'src/services/api.ts'),
   'utf8',
 );
 
 describe('document edit consistency regression', () => {
-  it('keeps the canonical archive id when editing an existing document', () => {
+  it('passes the canonical archive id explicitly from edit state to the generated payload', () => {
     expect(patientDocuments).toContain('setEditingDoc(doc)');
-    expect(patientStore).toContain('DOCUMENT_EDIT_ARCHIVE_KEY');
-    expect(patientStore).toContain('sessionStorage.setItem');
-    expect(apiService).toContain('attachDocumentEditArchiveId');
-    expect(apiService).toContain('_replace_archive_id');
+    expect(documentHub).toContain('editArchiveId: editData?.id');
+    expect(generator).toContain('_replace_archive_id: params.editArchiveId');
+    expect(generator).toContain("digitalcrown:document-edit-complete");
+    expect(apiService).not.toContain('attachDocumentEditArchiveId');
+    expect(apiService).not.toContain('DOCUMENT_EDIT_ARCHIVE_KEY');
+    expect(patientStore).not.toContain('sessionStorage.setItem');
   });
 
-  it('clears a stale edit identity before every explicit new-document entry point', () => {
+  it('clears edit state before every explicit new-document entry point', () => {
     expect(patientDetails).toContain('const handleDocumentCreate = () => {');
     expect(patientDetails).toMatch(/handleDocumentCreate[\s\S]*setEditingDoc\(null\)[\s\S]*setSearchParams\(\{ tab: 'admin' \}\)/);
     expect(patientDetails).toContain('label="Document" onClick={handleDocumentCreate}');
