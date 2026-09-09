@@ -6,20 +6,22 @@ const patientDocuments = readFileSync(
   resolve(process.cwd(), 'src/features/patients/PatientDocuments.tsx'),
   'utf8',
 );
-const documentHub = readFileSync(
-  resolve(process.cwd(), 'src/features/admin/DocumentHub.tsx'),
+const patientStore = readFileSync(
+  resolve(process.cwd(), 'src/stores/usePatientStore.ts'),
   'utf8',
 );
-const generator = readFileSync(
-  resolve(process.cwd(), 'src/features/admin/DocumentStudio/useDocumentGenerator.ts'),
+const apiService = readFileSync(
+  resolve(process.cwd(), 'src/services/api.ts'),
   'utf8',
 );
 
 describe('document edit consistency regression', () => {
   it('keeps the canonical archive id when editing an existing document', () => {
     expect(patientDocuments).toContain('setEditingDoc(doc)');
-    expect(documentHub).toMatch(/editData\?\.id|editingArchiveId/);
-    expect(generator).toContain('replace_archive_id');
+    expect(patientStore).toContain('DOCUMENT_EDIT_ARCHIVE_KEY');
+    expect(patientStore).toContain('sessionStorage.setItem');
+    expect(apiService).toContain('attachDocumentEditArchiveId');
+    expect(apiService).toContain('_replace_archive_id');
   });
 
   it('keeps document actions as two explicit non-overlapping rows', () => {
