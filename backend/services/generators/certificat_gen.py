@@ -26,7 +26,6 @@ _DAYS_WORDS = {
 }
 
 
-SIGNATURE_LABEL = 'Signature manuscrite du praticien'
 CERTIFICATE_REASON_WORK_STOP = 'Arrêt de travail'
 CERTIFICATE_REASON_PRESENCE = 'Certificat de Présence'
 CERTIFICATE_REASON_FREE = 'Certificat médical'
@@ -49,8 +48,8 @@ class CertificateSignatureSpace(Flowable):
 
     def _signature_caption(self) -> str:
         if self.signer_name:
-            return f"Dr {self.signer_name} — {SIGNATURE_LABEL}"
-        return SIGNATURE_LABEL
+            return f"Dr {self.signer_name}"
+        return ''
 
     def wrap(self, availWidth, availHeight):
         self.width = availWidth
