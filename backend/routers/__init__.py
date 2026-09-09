@@ -225,3 +225,8 @@ from . import partner_sync as partner_sync
 from . import partner_sync_safety as partner_sync_safety
 partner_sync_safety.install_partner_sync_identity_guard(partner_sync)
 partner_catalog.router.include_router(partner_sync.router)
+
+# Portability P10 mounts authenticated update operations under the existing admin API.
+from . import admin as admin
+from . import update_portability_p10 as update_portability_p10
+admin.router.include_router(update_portability_p10.router)
