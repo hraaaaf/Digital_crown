@@ -9,6 +9,7 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parents[2]
 EXPERT_SYSTEM = REPO_ROOT / "frontend/src/features/ortho/orthoExpertSystem.ts"
 STEP3 = REPO_ROOT / "frontend/src/features/ortho/components/Step3Clinical.tsx"
+STEP4 = REPO_ROOT / "frontend/src/features/ortho/components/Step4Documents.tsx"
 CEPHALO_UTILS = REPO_ROOT / "frontend/src/features/ortho/cephaloUtils.ts"
 
 
@@ -50,7 +51,6 @@ def test_growth_and_class_ii_helpers_fail_closed():
 
 def test_step3_is_practitioner_controlled_and_contains_no_local_clinical_thresholds():
     source = _read(STEP3)
-
     forbidden = (
         "evaluateCase(",
         "calcDDMReelle(",
@@ -78,11 +78,36 @@ def test_step3_is_practitioner_controlled_and_contains_no_local_clinical_thresho
     assert "Le stade CVM n'est jamais déduit de l'âge ou du sexe" in source
 
 
+def test_step4_has_no_local_normative_ranges_or_default_appliance():
+    source = _read(STEP4)
+    forbidden = (
+        "lo: 76",
+        "hi: 88",
+        "flo:",
+        "fhi:",
+        "getAngleStatus",
+        "norme {card.lo}",
+        "preference_technique || 'DAMON'",
+        "Damon Passive",
+        "d-gainer",
+        "quadhelix",
+        "disjoncteur",
+        "activateur",
+        "perle-tuca",
+    )
+    for token in forbidden:
+        assert token not in source, f"unsafe Step4 semantic reintroduced: {token}"
+
+    assert "Valeur brute · aucune norme locale" in source
+    assert "Technique choisie par le praticien" in source
+    assert "Aucune stratégie n'est générée automatiquement" in source
+
+
 def test_cephalo_utils_must_not_reintroduce_age_cvm_or_impa_space_conversion():
     source = _read(CEPHALO_UTILS)
-
-    # These formulas are specifically quarantined by the scientific-core audit.
     assert "age < 9.5" not in source
     assert "age < 10.5" not in source
     assert "(impa - 90) / 2.5" not in source
     assert "(valeurActuelle - norme) / 2.5" not in source
+    assert "TOOTH_LENGTH" not in source
+    assert "return [...landmarks];" in source
