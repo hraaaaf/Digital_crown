@@ -1,7 +1,7 @@
 from typing import Any, Dict, List, Optional
 
 from fastapi import HTTPException
-from sqlalchemy import case, desc, func
+from sqlalchemy import desc, func
 from sqlalchemy.orm import Session
 
 from backend import models
@@ -29,20 +29,24 @@ class PrescriptionService(LegacyPrescriptionService):
         if not context.evaluable:
             return non_evaluable_plan(context, main_act)
 
-        # The legacy child-specific path still owns an internal synthetic
-        # default. Do not enter it until that implementation is replaced.
-        if context.age is not None and context.age < 15:
-            plan = non_evaluable_plan(context, main_act)
-            plan["evaluation"] = {
-                "status": "manual_review_required",
-                "missing_fields": [],
-            }
-            return plan
-
         result = super().resolve_smart_prescription(db, patient_id, acts, doctor_id)
         result["patient_context"] = context.as_dict()
         result["evaluation"] = context.evaluation_dict()
         return result
+
+    def check_safety(self, db: Session, patient_id: int, drug_names: List[str]) -> List[Dict[str, Any]]:
+        """Expose legacy safety warnings minus known non-evaluable false signals."""
+        warnings = super().check_safety(db, patient_id, drug_names)
+        filtered: List[Dict[str, Any]] = []
+        for warning in warnings:
+            if str(warning.get("antecedent", "")).strip().lower() == "allergie":
+                continue
+            if warning.get("drug") == "omission-prophylaxie":
+                continue
+            if warning.get("drug") == "antibiotique-injustifie":
+                continue
+            filtered.append(warning)
+        return filtered
 
     @staticmethod
     def _normalize_preference_act_code(act_code: str) -> str:
@@ -85,98 +89,11 @@ class PrescriptionService(LegacyPrescriptionService):
             db.rollback()
             raise
 
-    def record_medication_usage(
-        self,
-        db: Session,
-        doctor_id: int,
-        med_name: str,
-        dosage: str = None,
-        posologie: str = None,
-    ) -> None:
-        """Persist medication usage and never mask database failures."""
-        normalized_name = med_name.strip().upper()
-        try:
-            existing = db.query(models.DoctorMedicationHabit).filter(
-                models.DoctorMedicationHabit.doctor_id == doctor_id,
-                models.DoctorMedicationHabit.medication_name == normalized_name,
-                models.DoctorMedicationHabit.dosage == dosage,
-                models.DoctorMedicationHabit.posologie == posologie,
-            ).first()
-
-            if existing:
-                existing.usage_count += 1
-            else:
-                db.add(
-                    models.DoctorMedicationHabit(
-                        doctor_id=doctor_id,
-                        medication_name=normalized_name,
-                        dosage=dosage,
-                        posologie=posologie,
-                    )
-                )
-
-            global_med = db.query(models.Medication).filter(
-                models.Medication.nom == normalized_name
-            ).first()
-            if global_med:
-                global_med.usage_count += 1
-
-            db.commit()
-        except Exception:
-            db.rollback()
-            raise
-
     def get_personalized_suggestions(self, db: Session, doctor_id: int, query: str = "") -> Dict[str, List[str]]:
-        """Return doctor-scoped suggestions from the local database only."""
-        normalized_query = (query or "").strip().upper()
+        """Keep query search behavior and expose doctor-scoped quick picks when q is empty."""
+        normalized_query = (query or "").strip()
         if normalized_query:
-            med_habits = (
-                db.query(
-                    models.DoctorMedicationHabit.medication_name,
-                    func.sum(models.DoctorMedicationHabit.usage_count).label("total"),
-                )
-                .filter(
-                    models.DoctorMedicationHabit.doctor_id == doctor_id,
-                    models.DoctorMedicationHabit.medication_name.ilike(f"%{normalized_query}%"),
-                )
-                .group_by(models.DoctorMedicationHabit.medication_name)
-                .order_by(
-                    case(
-                        (
-                            models.DoctorMedicationHabit.medication_name.ilike(
-                                f"{normalized_query}%"
-                            ),
-                            0,
-                        ),
-                        else_=1,
-                    ),
-                    desc("total"),
-                )
-                .limit(10)
-                .all()
-            )
-            medications = [row[0] for row in med_habits]
-
-            if len(medications) < 10:
-                global_meds = (
-                    db.query(models.Medication.nom)
-                    .filter(
-                        models.Medication.nom.ilike(f"%{normalized_query}%"),
-                        ~models.Medication.nom.in_(medications),
-                    )
-                    .order_by(
-                        case(
-                            (models.Medication.nom.ilike(f"{normalized_query}%"), 0),
-                            else_=1,
-                        ),
-                        models.Medication.usage_count.desc(),
-                    )
-                    .limit(10 - len(medications))
-                    .all()
-                )
-                medications.extend(row[0] for row in global_meds)
-
-            return {"medications": medications, "dosages": [], "posologies": []}
+            return super().get_personalized_suggestions(db, doctor_id, normalized_query)
 
         recent_rows = (
             db.query(

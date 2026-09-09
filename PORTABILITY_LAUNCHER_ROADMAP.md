@@ -1,37 +1,37 @@
 # Portability & Launcher — roadmap canonique
 
-Dernière mise à jour vérifiée : 2026-09-09.
+Dernière mise à jour vérifiée : 2026-08-24.
 
-> **Source de vérité unique du chantier.** `docs/PORTABILITY_LAUNCHER_ROADMAP.md` est déprécié et renvoie vers ce fichier.
+> **Source de vérité unique du chantier.** L’ancienne roadmap `docs/PORTABILITY_LAUNCHER_ROADMAP.md` est dépréciée et renvoie vers ce fichier.
 
 ## Goal global
 
-Digital Crown doit rester un seul produit local-first, issu d’un cœur partagé, installable et exploitable sur Windows et macOS avec runtime, données cabinet, restauration, licence/secrets, packaging, mises à jour, récupération et certification maîtrisés.
+Digital Crown doit offrir **un seul produit local-first**, issu d’un cœur partagé, installable et exploitable sur Windows et macOS avec démarrage, données cabinet, restauration, licence/secrets, packaging, mises à jour, récupération et certification maîtrisés.
 
 ## Succès global
 
 - cœur applicatif commun Windows/macOS, sans fork fonctionnel ;
 - intégrations OS derrière des frontières explicites ;
-- runtime unique avec readiness réelle ;
+- runtime unique et readiness réelle avant ouverture UI ;
 - chemins data/config/log/runtime natifs ;
 - cabinet portable indépendamment des secrets machine ;
-- packaging Windows/macOS certifié ;
+- builds Windows/macOS installables et signés selon leur plateforme ;
 - backup, update et rollback vérifiés ;
-- hardware explicitement classé par OS ;
-- certification finale réelle sur cabinet avant revendication de support complet.
+- matériel explicitement classé par OS ;
+- certification E2E sur machines propres avant toute revendication de support complet.
 
-## Doctrine
+## Doctrine d’architecture
 
-- un cœur commun, pas deux applications ;
-- Frontend React + backend FastAPI partagés ;
-- comportement OS-spécifique derrière adapters/frontières ;
-- données cabinet et secrets machine séparés ;
-- aucune preuve CI ne remplace une gate physique quand celle-ci est explicitement requise ;
-- aucun déploiement Vercel dans ce chantier sans autorisation explicite.
+- **Un cœur commun**, pas deux applications Windows/macOS.
+- Frontend React et backend FastAPI restent partagés.
+- Le comportement OS-spécifique passe par les adapters/frontières dédiés.
+- Données cabinet et identité/secrets machine sont des contrats distincts.
+- Une dépendance native importable n’est pas, à elle seule, une preuve scientifique.
+- Aucun déploiement Vercel n’appartient à ce chantier sans autorisation explicite.
 
-## Effort canonique corrigé
+## Effort canonique
 
-| Lot | Effort | État vérifié |
+| Lot | Effort | État |
 |---|---:|---|
 | P0 — Baseline & portability contract | 5 EP | CLOSED ✅ |
 | P1 — OS abstraction layer | 13 EP | CLOSED ✅ |
@@ -39,128 +39,269 @@ Digital Crown doit rester un seul produit local-first, issu d’un cœur partag�
 | P3 — Cabinet data portability | 13 EP | CLOSED ✅ |
 | P4 — Licence, secrets & machine identity | 8 EP | CLOSED ✅ |
 | P5 — Scientific/native runtime portability | 13 EP | CLOSED ✅ |
-| P6 — Industrialized Windows packaging | 8 EP | CLOSED ✅ |
-| P7 — Native macOS packaging | 13 EP | CLOSED ✅ |
-| P8 — Hardware & peripherals | 21 EP | CLOSED ✅ |
-| P9 — Backup / Recovery / DR | 8 EP | CLOSED ✅ |
-| P10 — Cross-platform Update Engine | 13 EP | CLOSED ✅ |
-| P11 — Launcher & Recovery UX | 8 EP | CLOSED ✅ |
-| P12 — CI & certification matrix | 13 EP | CLOSED ✅ |
-| P13 — Real cabinet certification | 13 EP | ACTIVE — 0/13 |
+| P6 — Industrialized Windows packaging | 8 EP | NEXT |
+| P7 — Native macOS packaging | 13 EP | PLANNED |
+| P8 — Hardware & peripherals | 21 EP | PLANNED |
+| P9 — Backup / Recovery / DR | 8 EP | PLANNED |
+| P10 — Cross-platform Update Engine | 13 EP | PLANNED |
+| P11 — Launcher & Recovery UX | 8 EP | PLANNED |
+| P12 — CI & certification matrix | 13 EP | PLANNED |
+| P13 — Real cabinet certification | 13 EP | PLANNED |
 | P14 — Closeout | 5 EP | PLANNED |
-| **TOTAL** | **167 EP** | |
+| **TOTAL** | **162 EP** | |
 
-Effort Points = complexité relative, pas durée. Le précédent total `162 EP` était une erreur arithmétique ; la somme réelle des lots est `167 EP`.
+Effort Points = complexité relative, pas durée.
 
-## P0 → P5 — fondations historiques
+---
 
-P0–P5 restent CLOSED sur leurs preuves historiques déjà intégrées à `master` : abstraction OS, runtime supervisor, portabilité cabinet, licence/secrets, runtime scientifique/native fail-closed. Les anciennes preuves détaillées restent dans `docs/portability/` et l’historique Git.
-
-## P6 → P12 — consolidation sur master moderne — CLOSED ✅
+## P0 — Baseline & portability contract — CLOSED ✅ — 5 EP
 
 ### Goal
+Rendre explicite la frontière de portabilité avant modification d’architecture.
 
-Réintégrer le stack Portability P6→P12 historiquement certifié sur le `master` moderne sans merger l’ancienne branche divergente et sans écraser Mobile/Marketplace ou les autres évolutions récentes.
+### Preuve
+- baseline/audit canonique : `docs/portability/PORTABILITY_P0_BASELINE.md` ;
+- dépendances OS, chemins, runtime, secrets, natifs/scientifiques et surfaces hardware classés pour les lots ultérieurs.
 
-### Implémentation consolidée
+---
 
-Branche : `refactor/portability-master-consolidation`.
-
-Candidat produit exact avant closeout docs :
-`b149412edc0dce605b8b5bcda49145320ee673df`.
-
-La consolidation :
-- repart du master `272d6b71d5c2a23f3ac8dbc97342c450ca311093` ;
-- porte les modules/workflows/tests/docs P6→P13 isolés ;
-- réconcilie `platform.py`, `runtime_supervisor.py`, `run.py`, `DigitalCrown.spec`, Inno et le builder legacy ;
-- conserve les extensions modernes Mobile/Marketplace ;
-- expose P10 sur `/api/update/*` et `/api/admin/update/*` avec permission admin ;
-- restaure le snapshot DR P9 dans le scheduler moderne ;
-- restaure les dépendances package explicites ;
-- restaure le contrat UX P11 (`Démarrage de Digital Crown...`, lifecycle Analyse → Secours → Restauration → Vérification) ;
-- corrige le harness AFTER pour ignorer uniquement les échecs de fontes externes, sans masquer les erreurs réseau produit.
-
-### Preuves exact-head `b149412e…`
-
-Tous les gates applicables sont SUCCESS :
-- CI #2925 — run `34353472792` ;
-- P5 Native Dependency #354 — `34353472891` ;
-- P6 Windows Packaging #169 — `34353472901` ;
-- P6 Authenticode Probe #31 — `34353472897` ;
-- P7 macOS Private Distribution #40 — `34353472850` ;
-- P7/P10 Clean Hosted #23 — `34353472883` ;
-- P8 Hardware Compatibility #93 — `34353472784` ;
-- P9 Backup Recovery DR #26 — `34353472906` ;
-- P10 Update Engine #155 — `34353472814` ;
-- P10 macOS Update Engine #73 — `34353472811` ;
-- P11 Launcher Recovery UX #132 — `34353472785` ;
-- P12 Certification Matrix Prep #87 — `34353472866` ;
-- Portability Runtime #466 — `34353472932` ;
-- T2 Runtime Browser #1953 — `34353472837` ;
-- Settings Guided Restore AFTER #219 — `34353472913` ;
-- Settings Security #242, RBAC #294, Onboarding P2 #275, R11 #422 — SUCCESS.
-
-M6-I #753 est SKIPPED car path-inapplicable à ce lot.
-
-### Preuve visuelle P11 / Guided Restore
-
-Référence historique BEFORE/AFTER :
-- Startup recovery AFTER historique : 9.3/10 ;
-- Guided Restore AFTER historique : 9.1/10.
-
-Revalidation actuelle :
-- P11 #132 — SUCCESS ;
-- Guided Restore AFTER #219 — SUCCESS ;
-- artifact exact-head `guided-restore-after` id `10104796866` ;
-- digest `sha256:160180829e139e0562da3a75e25c56efcc7cf351108c7d43a50ab2d387da31dd` ;
-- 5 viewports capturés par le gate AFTER, sans overflow/page error/5xx/request failure produit selon le workflow certifié.
-
-Le score visuel historique reste la référence de comparaison ; cette consolidation n’introduit pas de redesign supplémentaire.
-
-## Progression vérifiée
-
-Crédit technique historique et désormais recertifié sur la branche de consolidation actuelle :
-- P0→P12 = **149 / 167 EP = 89.2%** ;
-- P13 = **0 / 13 EP** ;
-- P14 = 0 / 5 EP.
-
-Ce `89.2%` est une progression technique Portability, pas une certification P13 de cabinet réel.
-
-## P13 — Real cabinet certification — ACTIVE — 0/13 EP
+## P1 — OS abstraction layer — CLOSED ✅ — 13 EP
 
 ### Goal
+Retirer du cœur partagé les primitives Windows/macOS directes nécessaires au runtime.
 
-Prouver le flow cabinet critique sur machines réelles Windows/macOS avec vraie redondance off-machine et attestations opérateur.
+### Implémentation vérifiée
+- `backend/core/platform.py` = frontière plateforme ;
+- chemins data/config/log/runtime centralisés ;
+- macOS : `~/Library/Application Support/DigitalCrown` et `~/Library/Logs/DigitalCrown` ;
+- `AppPaths` délègue à la frontière plateforme ;
+- bootstrap env, permissions atomiques, ouverture URI, liveness PID et Guided Restore centralisés ;
+- garde statique contre les dépendances OS non gérées.
 
-### Gate final non substituable par CI
+### Preuve
+- PR `#219` — MERGED ;
+- candidat `31f7c612327c48ead478b18f224875dba6313c61` ;
+- merge master `2907b3d1ea529dde27468f27ce5835d2655275e9` ;
+- Portability P1 `32599659706` — SUCCESS Windows/macOS/Ubuntu ;
+- CI `32599659683` — SUCCESS ; Guided Restore `32599659687` — SUCCESS ; T2 `32599659693` — SUCCESS.
 
-- Windows 11 réel, `execution_context=cabinet_local` ;
-- vraie cible USB/removable/NAS hors machine ;
-- first launch/runtime/restore/update observés ;
-- attestation opérateur ;
-- même release candidate Windows/macOS ;
-- macOS Apple Silicon réel ; un remote `.metal` authentique peut contribuer seulement si toutes les observations physiques obligatoires sont réellement attestées ;
-- `scripts/p13_real_cabinet_closure_guard.py` doit passer.
+---
 
-P13-R remote bare-metal = réduction de risque uniquement, **0 EP**.
+## P2 — Runtime Supervisor / Launcher V2 — CLOSED ✅ — 13 EP
 
-## P14 — Closeout — PLANNED — 5 EP
+### Goal
+Créer une autorité unique et cross-platform du lifecycle local.
 
-P14 ne peut fermer qu’après P13 : documentation install/recovery/update, matrices OS/hardware, troubleshooting, gouvernance et preuve finale cohérents avec le HEAD réellement certifié.
+### Implémentation vérifiée
+- verrou inter-processus derrière `PlatformAdapter` ;
+- `RuntimeSupervisor` stdlib pur, single-instance + readiness ;
+- second lancement : réutilise l’instance existante ;
+- premier lancement : UI seulement après health réel ;
+- `.env` canonique chargé avant résolution host/port ;
+- backend lourd importé après arbitrage single-instance ;
+- `run.py` reste autorité du port/lifecycle ;
+- Guided Restore reste compatible.
+
+### Preuve
+- PR `#220` — MERGED ;
+- candidat `0b6071b663162575efe0de40c411a8ff29763d7a` ;
+- merge master `19bf42b61001c77c219fc2b957d6dadc84f79480` ;
+- Portability Runtime `32601811079` — SUCCESS Windows/macOS/Ubuntu ;
+- CI `32601811065`, Guided Restore `32601811069`, T2 `32601811078`, Catalog `32601811060`, Patient P7 `32601811091` — SUCCESS.
+
+---
+
+## P3 — Cabinet data portability — CLOSED ✅ — 13 EP
+
+### Goal
+Rendre le cabinet portable entre machines/OS sans transporter les secrets liés à la machine source.
+
+### Implémentation vérifiée
+- `.dcbundle` chiffré, manifeste/version/intégrité ;
+- export SQLCipher indépendant de la clé machine source ;
+- médias inclus puis rechiffrés destination ;
+- `.env`, `backup.key`, `license_vault.bin`, locks/logs/caches exclus ;
+- prepare/apply/smoke/rollback via Guided Restore ;
+- certification Windows/macOS/Ubuntu.
+
+### Preuve
+- candidat `89708100838b85f3574674de21882684c98be9f6` ; PR `#222` — MERGED ;
+- merge master `98fe4440806b38d33cbdfb32eab6e7bc85e9b573` ;
+- Runtime `32605929004`, Guided Restore `32605928982`, T2 `32605928994`, Catalog `32605928980`, Patient P7 `32605928983`, CI `32605929015` — SUCCESS.
+
+---
+
+## P4 — Licence & local secrets cross-platform — CLOSED ✅ — 8 EP
+
+### Goal
+Conserver identité et données cabinet lors d’une migration sans faire confiance aux secrets/sessions/coffre de la machine source.
+
+### Implémentation vérifiée
+- secrets destination conservés/régénérés localement ;
+- `license_vault.bin` non portable + revalidation locale ;
+- grâce offline stricte 72 h + anti-clock rollback ;
+- Firebase indisponible non destructif (`active=None`) ;
+- recheck licence lié à l’identité cabinet authentifiée ;
+- restore portable invalide licence locale + pairings/tokens mobiles ;
+- pools SQLAlchemy disposés avant restore ;
+- coffre local fail-closed sur clé faible/prévisible ;
+- Guided Restore rollback-safe.
+
+### Preuve
+- candidat `3bc7426848d544183f235244ae8eab7b255d1341` ; PR `#224` — MERGED ;
+- merge master `40cb22d6dddcbae6dee7340dc23956decaf701d8` ;
+- Runtime `32610745183`, Guided Restore `32610745196`, Settings P2 `32610745220`, T2 `32610745188`, Catalog `32610745249`, Patient P7 `32610745225`, CI `32610745134` — SUCCESS.
+
+---
+
+## P5 — Scientific/native runtime portability — CLOSED ✅ — 13 EP
+
+### Goal amendé et verrouillé le 24 août 2026
+Prouver la **portabilité du runtime natif/scientifique réellement requis** sur Windows x64 et macOS Apple Silicon, ainsi que le comportement fail-closed lorsque les assets scientifiques externes ne sont pas provisionnés.
+
+### Décision de périmètre
+Le modèle céphalométrique historique SOTA 38 points n’a pas pu être retrouvé comme artefact canonique avec poids + provenance + SHA256. Le produit a explicitement décidé de **ne pas reconstruire arbitrairement cet ancien poids pour P5**.
+
+En conséquence :
+- la sélection, qualité, précision numérique/clinique et éventuel remplacement du moteur céphalo sont transférés au chantier séparé **Cephalometry NextGen** (`cephalo/nextgen-research`) ;
+- P5 **ne revendique aucune équivalence clinique ou numérique des modèles** ;
+- les poids céphalo legacy et panoramique restent des assets externes, non versionnés dans le dépôt public ;
+- leur packaging/provisionnement sur installation propre appartient à P6/P7 puis à la certification P12/P13.
+
+### Implémentation vérifiée
+- OpenCV unique : `opencv-python-headless==4.13.0.92` ;
+- ONNX Runtime, PyTorch CPU, SQLCipher, ReportLab, WeasyPrint, Pillow/QR exécutés réellement ;
+- Pango/GObject provisionnés pour WeasyPrint sur Windows/macOS ;
+- Apple Silicon explicitement exigé `arm64` ;
+- `backend/scientific_assets.json` schema v2 : scope `native-runtime-and-fail-closed`, assets `external-not-versioned` ;
+- SOTA absent → moteur désactivé ;
+- céphalo sans SOTA/legacy → `FAILED`, zéro landmark fabriqué, placement manuel requis ;
+- panoramique sans modèle en environnement clinique → `RuntimeError`, aucune simulation acceptée comme preuve ;
+- harness charge les vrais services scientifiques sans exécuter l’initialiseur global `backend/__init__.py`, afin de ne pas transformer un test natif ciblé en bootstrap SQLAlchemy complet.
+
+### Preuve
+P5A :
+- PR `#228` — MERGED ; candidat `375aae5432da8531882d791574dd251cf09d32d5` ; merge produit `ae9efc5055e8b1105e058788e0de3386e8880335` ;
+- Portability P5 Native Dependency Certification `32723535974` — SUCCESS Windows x64 + macOS Apple Silicon ;
+- CI `32723535895`, T2 `32723535977`, Catalog `32723535901`, Patient P7 `32723535937` — SUCCESS.
+
+P5 final :
+- PR `#233` ; candidat final `3ee3447e1cd3d92575e3b930abeef8e31061bfb8` ;
+- Portability P5 Native Dependency Certification `32750343308` — SUCCESS ;
+- Windows : `NATIVE_RUNTIME_GATE=OK (Windows AMD64)` + `SCIENTIFIC_FAIL_CLOSED_GATE=OK` ;
+- macOS : `NATIVE_RUNTIME_GATE=OK (Darwin arm64)` + `SCIENTIFIC_FAIL_CLOSED_GATE=OK` + `APPLE_SILICON_GATE=OK (arm64)` ;
+- CI `32750343210` — SUCCESS ;
+- T2 `32750343211` — SUCCESS ;
+- Patient P7 `32750343288` — SUCCESS ;
+- Catalog `32750343395` — SUCCESS.
+
+### Échecs intermédiaires non crédités
+- `32743721990` : harness lancé par chemin, `backend` absent de `sys.path` ;
+- `32749972672` : mode module corrigé mais `backend/__init__.py` entraînait SQLAlchemy hors scope ;
+- après deux échecs similaires, stratégie changée vers namespace ciblé ; run final vert ci-dessus.
+
+### Gate A — CORE/NATIVE PORTABLE ✅
+Le cœur partagé et les dépendances natives certifiées s’exécutent sur Windows x64 et macOS Apple Silicon selon le contrat P5 amendé. **Cette gate n’est pas une certification de précision clinique des modèles.**
+
+---
+
+## P6 — Industrialized Windows packaging — NEXT — 8 EP
+
+### Goal
+Rendre la distribution Windows déterministe, reproductible et installable en préservant explicitement les données cabinet.
+
+### Scope canonique
+- un seul builder autoritaire, basé sur `DigitalCrown.spec`/PyInstaller ou successeur explicitement validé ;
+- toolchain de build piné/reproductible ;
+- frontend via `npm ci` + build ;
+- ressources/assets contrôlés et build fail-closed si un asset requis manque ;
+- source de version unique ;
+- Inno Setup, install/upgrade/uninstall et conservation des données ;
+- signature Authenticode + timestamp lorsque le certificat de distribution est disponible ;
+- smoke du build frozen puis test installateur sur Windows propre.
+
+### Findings déjà vérifiés avant démarrage
+- `DigitalCrown.spec` est le chemin documenté et utilise `run.py` ;
+- `scripts/build_exe.py` est un builder legacy divergent : `npm install`, `backend/main.py`, collecte complète `ai_models` et possibilité d’embarquer `firebase_creds.json` ; il doit être supprimé du chemin de production ou aligné ;
+- PyInstaller n’est pas piné dans les requirements ;
+- le spec peut collecter zéro modèle silencieusement si `backend/ai_models` est absent d’un checkout propre ;
+- `AppVersion=1.0.0` reste hardcodé dans Inno Setup ;
+- aucun signing Windows n’est encore intégré ;
+- `docs/CABINET_ONPREM_GUIDE.md` contient une contradiction entre « PostgreSQL seul supporté » et le mode cabinet SQLite/SQLCipher confirmé par README/tests.
+
+### Succès
+Un artefact Windows exact peut être reconstruit, installé, mis à niveau et désinstallé sur une machine propre sans fuite de secrets ni perte de données cabinet.
+
+### Preuve requise
+Build reproducible + smoke frozen + install/upgrade/uninstall propre + signature vérifiée selon le gate de certificat retenu.
+
+---
+
+## P7 — Native macOS packaging — PLANNED — 13 EP
+
+### Goal
+Livrer une application macOS normale, signée/notarisée, sans Terminal ni contournement Gatekeeper.
+
+### Scope
+`.app` Apple Silicon arm64, ressources/assets, bundle metadata/icône, chemins natifs, permissions, DMG/PKG selon besoin, Developer ID, Hardened Runtime/entitlements, notarisation, stapling, Gatekeeper, clean install/upgrade/uninstall.
+
+### Contrainte vérifiée
+PyInstaller n’est pas cross-compiler : le build macOS devra être produit sur macOS. Le spec actuel n’a ni `BUNDLE`, ni `codesign_identity`, ni entitlements configurés.
+
+---
+
+## P8 — Hardware & peripheral compatibility — PLANNED — 21 EP
+
+### Goal
+Classer explicitement chaque périphérique clinique par OS : `SUPPORTED`, `LIMITED`, `FILE-IMPORT` ou `UNSUPPORTED`, sur test réel ou preuve fabricant clairement distinguée.
+
+## P9 — Backup, Recovery & Disaster Recovery — PLANNED — 8 EP
+
+### Goal
+Faire en sorte que la perte d’un ordinateur n’implique jamais la perte du cabinet : backup, intégrité, chiffrement, restore, interruptions, disque insuffisant, corruption et récupération inter-OS.
+
+## P10 — Cross-platform Update Engine — PLANNED — 13 EP
+
+### Goal
+Updates authentifiées avec checksum/signature, rescue point, migration, health post-update et rollback automatique sur Windows/macOS.
+
+## P11 — Launcher & Recovery UX — PLANNED — 8 EP
+
+### Goal
+Exposer des états de lifecycle/récupération vrais et actionnables sans console. Tout changement visuel suit BEFORE → Goal → mockup → implémentation → AFTER → score.
+
+## P12 — CI & certification matrix — PLANNED — 13 EP
+
+### Goal
+Certifier les artefacts Windows/macOS et empêcher les régressions plateforme : runtime, frozen build, models/assets, backup/restore, packaging, update et tests raisonnables.
+
+## P13 — Real cabinet certification — PLANNED — 13 EP
+
+### Goal
+Prouver le flow cabinet critique sur machines propres Windows/macOS et la migration croisée, avec scénarios d’échec contrôlés.
+
+## P14 — Closeout & permanent compass — PLANNED — 5 EP
+
+### Goal
+Fermer le chantier avec docs, matrices OS/hardware, guides d’installation, recovery/update, troubleshooting, gouvernance et preuve finale cohérents avec le HEAD certifié.
+
+---
+
+## Ordre canonique
+
+P0 → P1 → P2 → P3 → P4 → P5 → **P6**.
+
+P7 et P8 peuvent ensuite avancer lorsque leurs dépendances/hardware le permettent.
+
+Puis : P9 → P10 → P11 → P12 → P13 → P14.
 
 ## État courant
 
-- P0–P12 : **CLOSED ✅** sur la consolidation actuelle ;
-- P13 : **ACTIVE — 0/13 EP** ;
-- P14 : **PLANNED** ;
-- validé : **149 / 167 EP = 89.2%** ;
-- aucun EP partiel n’est crédité ;
-- aucun Vercel.
-
-## Next exact
-
-1. merger la consolidation actuelle sur `master` après dernier exact-head docs ;
-2. vérifier le nouveau master et fermer les PR historiques superseded `#237` et `#299` sans merge ;
-3. repartir de ce master pour le lot P13 physique ;
-4. créditer P13 uniquement après preuves physiques complètes ;
-5. exécuter P14 après P13.
+- P0–P5 : **CLOSED ✅** ;
+- P6 : **NEXT** ;
+- P7–P14 : **PLANNED** ;
+- validé : **65 / 162 EP = 40,1 %** ;
+- aucun EP partiel n’est crédité pour un lot ouvert ;
+- Cephalometry NextGen est un chantier scientifique séparé et n’est pas compté dans les 162 EP ;
+- aucun Vercel ;
+- Next exact : **P6 Industrialized Windows packaging** — figer le builder canonique, supprimer les chemins legacy dangereux, pinner le toolchain/version/assets, puis construire et certifier un installateur Windows exact sur environnement propre.

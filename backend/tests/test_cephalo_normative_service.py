@@ -487,13 +487,6 @@ class TestRealRegistryBehavior:
 # ============================================================
 
 class TestIsolationGuard:
-    # CEPHALOMETRY-NORMATIVE-BACKEND-WIRING-STEINER-4A intentionally wired
-    # cephalo_engine.py and bilan_ortho_engine.py to the normative service
-    # for SNA/SNB/ANB, and CEPHALOMETRY-NORMATIVE-BACKEND-WIRING-TWEED-IMPA-
-    # FRANCFORT-4C wired ai_advisor.py for Angle_de_Tweed/IMPA/I_Francfort —
-    # all excluded from this "must stay unwired" list on purpose. The
-    # validator and every frontend file are explicitly still forbidden from
-    # referencing it.
     _CONSUMER_FILES = [
         "backend/services/cephalo_consistency_validator.py",
         "frontend/src/features/ortho/cephaloUtils.ts",
@@ -507,24 +500,21 @@ class TestIsolationGuard:
             text = (REPO_ROOT / rel_path).read_text(encoding="utf-8")
             assert "cephalo_normative_service" not in text, (
                 f"{rel_path} references the normative service — "
-                "it must stay unwired (not part of the Steiner SNA/SNB/ANB wiring)."
+                "the current scientific core keeps runtime consumers geometry-only/fail-closed."
             )
 
-    def test_wired_consumers_use_the_service_not_a_reimplementation(self):
-        # Mission §30: consumers must call evaluate_measurement, never
-        # re-derive profile matching/validation/classification themselves.
+    def test_geometry_only_runtime_consumers_stay_unwired_from_normative_service(self):
         for rel_path in [
             "backend/services/cephalo_engine.py",
             "backend/services/bilan_ortho_engine.py",
-            "backend/services/ai_advisor.py",
         ]:
             text = (REPO_ROOT / rel_path).read_text(encoding="utf-8")
-            assert "cephalo_normative_service" in text
-            assert "evaluate_measurement" in text
-            # No local re-derivation of the old ANB/Tweed/IMPA/I_Francfort
-            # cutoffs should remain.
+            assert "cephalo_normative_service" not in text
+            assert "evaluate_measurement" not in text
             assert "anb > 4.5" not in text
             assert "anb < 0" not in text
             assert "tweed_status" not in text
             assert "impa_status" not in text
             assert "if_status" not in text
+
+        assert not (REPO_ROOT / "backend/services/ai_advisor.py").exists()

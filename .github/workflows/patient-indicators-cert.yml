@@ -5,6 +5,7 @@ on:
     branches:
       - master
     paths:
+      - '.github/workflows/patient-indicators-cert.yml'
       - 'backend/services/patient_scoring_service.py'
       - 'backend/services/habits_engine.py'
       - 'backend/services/rag_context.py'
@@ -18,7 +19,6 @@ on:
       - 'frontend/src/features/patients/PatientDetailsInner.tsx'
       - 'frontend/src/features/patients/PatientList.tsx'
       - 'frontend/src/features/patients/PatientIndicatorsExplainable.test.ts'
-      - '.github/workflows/patient-indicators-cert.yml'
 
 permissions:
   contents: read
@@ -160,6 +160,7 @@ jobs:
               localStorage.setItem('token',a);
               localStorage.setItem('refresh_token',r||'');
               localStorage.setItem('appMode','prod');
+              localStorage.setItem('patient_list_view_mode','table');
             },{a:tok.access_token,r:tok.refresh_token});
 
             const errors=[]; const http5xx=[];
@@ -167,14 +168,14 @@ jobs:
             page.on('response',r=>{if(r.status()>=500)http5xx.push({url:r.url(),status:r.status()});});
 
             await page.goto('http://127.0.0.1:5173/patients',{waitUntil:'networkidle',timeout:90000});
-            const dossier=String(patient.numero_dossier||'');
-            const patientMarker=dossier ? page.getByText(dossier,{exact:true}).first() : page.locator('tbody tr').first();
-            await patientMarker.waitFor({state:'visible',timeout:30000});
+            const rows=page.locator('tbody tr[role="button"]');
+            await rows.first().waitFor({state:'visible',timeout:30000});
             await page.waitForTimeout(1500);
-            let row=page.locator('tbody tr').first();
+            const dossier=String(patient.numero_dossier||'');
+            let row=rows.first();
             if(dossier){
-              const exact=page.getByText(dossier,{exact:true});
-              if(await exact.count()) row=exact.first().locator('xpath=ancestor::tr');
+              const dossierRow=rows.filter({hasText:dossier}).first();
+              if(await dossierRow.count()) row=dossierRow;
             }
             const rowText=await row.innerText();
             if (!rowText.includes('RDV')) fail(`Factual RDV marker absent at ${viewport.width}: ${rowText}`);

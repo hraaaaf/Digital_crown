@@ -34,8 +34,11 @@ def test_engine_without_calibration_keeps_angles_and_omits_mm_metrics():
     assert skeletal.Decalage_A_B.valeur is None
     assert esthetic.Ligne_E_Ls.valeur is None
     assert esthetic.Ligne_E_Li.valeur is None
-    assert "millimètres" in result.ai_narrative["diagnostic_squelettique"]
-    assert "A'B': 2.3 mm" not in result.ai_narrative["diagnostic_squelettique"]
+
+    # Geometry-only invariant: missing calibration must not be converted into
+    # an autonomous narrative or inferred millimetric diagnosis.
+    assert "diagnostic_squelettique" not in result.ai_narrative
+    assert "strategie_therapeutique" not in result.ai_narrative
 
 
 def test_engine_with_calibration_still_calculates_mm_metrics():

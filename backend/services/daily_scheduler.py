@@ -200,14 +200,10 @@ def start_daily_scheduler():
             from backend.services.backup_service import backup_service
             backup_service.run_daily_backup()
 
-            # 2. DR portable hors répertoire Digital Crown, si configuré.
-            from backend.services.disaster_recovery_service import disaster_recovery_service
-            disaster_recovery_service.run_scheduled_snapshot()
-
-            # 3. Relances transactionnelles de licence
+            # 2. Relances transactionnelles de licence
             send_license_expiry_emails()
 
-            # 4. Alertes proactives
+            # 3. Alertes proactives
             run_daily_alerts()
         except Exception as e:
             logger.warning("Daily scheduler failed: %s", e)

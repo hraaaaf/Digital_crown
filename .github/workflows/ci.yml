@@ -129,7 +129,7 @@ jobs:
         working-directory: frontend
         run: |
           npm ci
-          npm install --no-save --package-lock=false playwright@1.55.0
+          npm install --no-save --package-lock=false --ignore-scripts --legacy-peer-deps playwright@1.55.0 react-is@19.2.0
           npx playwright install --with-deps chromium
 
       - name: Materialize versioned M4-A AFTER harness
@@ -217,7 +217,7 @@ jobs:
         working-directory: frontend
         run: |
           npm ci
-          npm install --no-save --package-lock=false --ignore-scripts playwright@1.62.1
+          npm install --no-save --package-lock=false --ignore-scripts --legacy-peer-deps playwright@1.62.1 react-is@19.2.0
           npx playwright install --with-deps chromium
 
       - name: Materialize versioned M4-B AFTER harness
@@ -306,7 +306,7 @@ jobs:
         working-directory: frontend
         run: |
           npm ci
-          npm install --no-save --package-lock=false --ignore-scripts playwright@1.62.1
+          npm install --no-save --package-lock=false --ignore-scripts --legacy-peer-deps playwright@1.62.1 react-is@19.2.0
           npx playwright install --with-deps chromium
 
       - name: Materialize versioned M4-C AFTER harness

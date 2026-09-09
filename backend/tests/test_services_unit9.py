@@ -1,4 +1,4 @@
-"""Ninth batch — CephaloConsistencyValidator full coverage,
+"""Ninth batch — CephaloConsistencyValidator structural-only coverage,
 _val helper, ValidationResult dataclass."""
 
 
@@ -30,7 +30,6 @@ class TestValHelper:
         assert result == 80.5
 
     def test_nested_dict_extracts_valeur(self):
-        # If the final object is itself a dict with "valeur"
         result = self._fn({"k": {"valeur": 42.0}}, "k")
         assert result == 42.0
 
@@ -111,10 +110,10 @@ class TestCephaloConsistencyValidatorValidate:
             }
         }
 
-    def test_valid_normal_values(self):
-        v = self._v()
-        result = v.validate(self._make_angles())
+    def test_consistent_values_are_valid(self):
+        result = self._v().validate(self._make_angles())
         assert result.is_valid
+        assert result.fatals == []
 
     def test_returns_validation_result(self):
         from backend.services.cephalo_consistency_validator import ValidationResult
@@ -122,66 +121,48 @@ class TestCephaloConsistencyValidatorValidate:
         assert isinstance(result, ValidationResult)
 
     def test_non_dict_input_produces_fatal(self):
-        v = self._v()
-        result = v.validate("not a dict")
+        result = self._v().validate("not a dict")
         assert not result.is_valid
         assert len(result.fatals) > 0
 
     def test_empty_dict_is_valid(self):
-        v = self._v()
-        result = v.validate({})
+        result = self._v().validate({})
         assert result.is_valid
 
-    def test_sna_out_of_hard_bounds_fatal(self):
-        v = self._v()
-        # SNA hard bounds [60, 105] — 110 is out
-        result = v.validate(self._make_angles(sna=110.0, anb=110.0 - 80.0))
-        assert not result.is_valid
-        assert any("SNA" in f for f in result.fatals)
+    def test_extreme_sna_is_not_clinically_classified(self):
+        result = self._v().validate(self._make_angles(sna=110.0, snb=80.0, anb=30.0))
+        assert result.is_valid
+        assert result.fatals == []
+        assert result.warnings == []
 
-    def test_snb_out_of_hard_bounds_fatal(self):
-        v = self._v()
-        # SNB hard bounds [58, 102] — 55 is out
-        result = v.validate(self._make_angles(snb=55.0, anb=82.0 - 55.0))
-        assert not result.is_valid
-        assert any("SNB" in f for f in result.fatals)
+    def test_extreme_snb_is_not_clinically_classified(self):
+        result = self._v().validate(self._make_angles(sna=82.0, snb=55.0, anb=27.0))
+        assert result.is_valid
+        assert result.fatals == []
+        assert result.warnings == []
 
     def test_anb_inconsistency_fatal(self):
-        v = self._v()
-        # SNA=82, SNB=80 → expected ANB=2, but we give ANB=8 (>1.5° off)
-        result = v.validate(self._make_angles(sna=82.0, snb=80.0, anb=8.0))
+        result = self._v().validate(self._make_angles(sna=82.0, snb=80.0, anb=8.0))
         assert not result.is_valid
         assert any("ANB" in f or "Incohérence" in f for f in result.fatals)
 
-    def test_class_ii_with_sna_less_than_snb_fatal(self):
-        v = self._v()
-        # ANB > 4 (Class II) but SNA < SNB → contradiction
-        result = v.validate(self._make_angles(sna=78.0, snb=80.0, anb=5.0))
-        assert not result.is_valid
-        assert any("Classe II" in f or "Contradiction" in f for f in result.fatals)
-
-    def test_sna_out_of_soft_bounds_warning(self):
-        v = self._v()
-        # SNA soft bounds [76, 88] — 90 is outside soft but inside hard
-        result = v.validate(self._make_angles(sna=90.0, snb=87.0, anb=3.0))
-        assert result.is_valid  # no fatal
-        assert any("SNA" in w for w in result.warnings)
-
-    def test_impa_out_of_soft_bounds_warning(self):
-        v = self._v()
-        # IMPA soft [80, 105] — 110 is outside soft but inside hard [60, 125]
-        result = v.validate(self._make_angles(impa=110.0))
+    def test_no_classification_rule_is_applied(self):
+        result = self._v().validate(self._make_angles(sna=78.0, snb=80.0, anb=-2.0))
         assert result.is_valid
-        assert any("IMPA" in w for w in result.warnings)
+        assert result.fatals == []
+        assert result.warnings == []
 
-    def test_normal_values_no_warnings(self):
-        v = self._v()
-        result = v.validate(self._make_angles(
-            sna=82.0, snb=80.0, anb=2.0,
-            impa=90.0, inter=125.0, i_franc=100.0, nasolab=100.0
-        ))
+    def test_impa_has_no_local_normative_warning(self):
+        result = self._v().validate(self._make_angles(impa=140.0))
         assert result.is_valid
-        assert len(result.fatals) == 0
+        assert result.warnings == []
+
+    def test_unverified_calibration_warns_without_invalidating(self):
+        payload = self._make_angles()
+        payload["calibration_status"] = "unverified"
+        result = self._v().validate(payload)
+        assert result.is_valid
+        assert any("Calibration" in w for w in result.warnings)
 
     def test_singleton_importable(self):
         from backend.services.cephalo_consistency_validator import cephalo_consistency_validator
@@ -209,28 +190,23 @@ class TestIterMetrics:
 
     def test_invalid_value_skipped(self):
         metrics = {"section": {"SNA": {"valeur": "invalid", "unite": "°"}}}
-        results = self._fn(metrics)
-        assert len(results) == 0
+        assert self._fn(metrics) == []
 
     def test_none_value_skipped(self):
         metrics = {"section": {"SNA": {"valeur": None, "unite": "°"}}}
-        results = self._fn(metrics)
-        assert len(results) == 0
+        assert self._fn(metrics) == []
 
     def test_multiple_sections(self):
         metrics = {
             "sec1": {"SNA": {"valeur": 82.0, "unite": "°"}},
             "sec2": {"SNB": {"valeur": 80.0, "unite": "°"}},
         }
-        results = self._fn(metrics)
-        names = [r[0] for r in results]
+        names = [r[0] for r in self._fn(metrics)]
         assert "SNA" in names
         assert "SNB" in names
 
     def test_non_dict_section_skipped(self):
-        metrics = {"section": "not a dict"}
-        results = self._fn(metrics)
-        assert len(results) == 0
+        assert self._fn({"section": "not a dict"}) == []
 
 
 # ── mm metric unit contradiction check ───────────────────────────────────────
@@ -251,16 +227,17 @@ class TestCheckUnitContradictions:
         v, result = self._v()
         metrics = {"section": {"Wits": {"valeur": 2.0, "unite": "mm"}}}
         v._check_unit_contradictions(metrics, result)
-        assert len(result.fatals) == 0
+        assert result.fatals == []
 
     def test_angle_metric_not_affected(self):
         v, result = self._v()
         metrics = {"section": {"SNA": {"valeur": 82.0, "unite": "°"}}}
         v._check_unit_contradictions(metrics, result)
-        assert len(result.fatals) == 0
+        assert result.fatals == []
 
-    def test_very_large_mm_value_triggers_warning(self):
+    def test_large_mm_value_has_no_local_normative_warning(self):
         v, result = self._v()
         metrics = {"section": {"Surplomb": {"valeur": 200.0, "unite": "mm"}}}
         v._check_unit_contradictions(metrics, result)
-        assert len(result.warnings) > 0
+        assert result.fatals == []
+        assert result.warnings == []

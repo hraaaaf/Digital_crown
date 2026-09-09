@@ -17,12 +17,9 @@ const normalizeProfilFacial = (value?: string | null): ProfilFacial | '' => {
 };
 
 interface OrthoState {
-  // Global
   patientId: number | null;
   patientName: string;
   analysisId: number | undefined;
-  
-  // Imagerie & IA
   imageSrc: string | undefined;
   local: LocalState;
   activePointId: string | null;
@@ -36,8 +33,6 @@ interface OrthoState {
   activeMorphing: 'none' | 'T1' | 'T2';
   anglesData: Record<string, any>;
   visionMetadata: any;
-  
-  // Calibration
   isCalibrated: boolean;
   mmPerPixel: number | null;
   showCalibration: boolean;
@@ -45,13 +40,10 @@ interface OrthoState {
   calibrationDistance: string;
   calibrationStep: 'selecting' | 'entering';
   autoCalibMessage: string | null;
-
-  // Données Cliniques
   ddm: DDMState;
   diag: DiagnosticTexts;
   etape2Data: DonneesEtape2;
   etape3Data: DonneesEtape3;
-  // UI Status
   step: StepId;
   completedSteps: Set<number>;
   uploadError: string | null;
@@ -61,18 +53,14 @@ interface OrthoState {
   previewPdfUrl: string | null;
   isPreviewLoading: boolean;
   syncState: SyncState;
-
-  // Photos & Documents
   photos: PhotoUpload[];
   dateConsultation: string;
-  sexePatient: 'M' | 'F';
-
-  // Actions d'état (Setters)
+  sexePatient: 'M' | 'F' | null;
   setStep: (step: StepId) => void;
   setCompletedSteps: (updater: Set<number> | ((prev: Set<number>) => Set<number>)) => void;
   setPhotos: (updater: PhotoUpload[] | ((prev: PhotoUpload[]) => PhotoUpload[])) => void;
   setDateConsultation: (date: string) => void;
-  setSexePatient: (sexe: 'M' | 'F') => void;
+  setSexePatient: (sexe: 'M' | 'F' | null) => void;
   setPatientInfo: (id: number, name: string) => void;
   setAnalysisId: (id: number | undefined) => void;
   setImageSrc: (src: string | undefined) => void;
@@ -88,7 +76,6 @@ interface OrthoState {
   setActiveMorphing: (morphing: 'none' | 'T1' | 'T2') => void;
   setAnglesData: (data: Record<string, any>) => void;
   setVisionMetadata: (meta: any) => void;
-  
   setIsCalibrated: (calibrated: boolean) => void;
   setMmPerPixel: (mm: number | null) => void;
   setShowCalibration: (updater: boolean | ((prev: boolean) => boolean)) => void;
@@ -96,12 +83,10 @@ interface OrthoState {
   setCalibrationDistance: (dist: string | ((prev: string) => string)) => void;
   setCalibrationStep: (step: 'selecting' | 'entering' | ((prev: 'selecting' | 'entering') => 'selecting' | 'entering')) => void;
   setAutoCalibMessage: (msg: string | null) => void;
-
   setDdm: (updater: DDMState | ((prev: DDMState) => DDMState)) => void;
   setDiag: (updater: DiagnosticTexts | ((prev: DiagnosticTexts) => DiagnosticTexts)) => void;
   setEtape2Data: (updater: DonneesEtape2 | ((prev: DonneesEtape2) => DonneesEtape2)) => void;
   setEtape3Data: (updater: DonneesEtape3 | ((prev: DonneesEtape3) => DonneesEtape3)) => void;
-
   setUploadError: (err: string | null) => void;
   setIsUploading: (uploading: boolean) => void;
   setIsSaving: (saving: boolean) => void;
@@ -110,8 +95,6 @@ interface OrthoState {
   setIsPreviewLoading: (loading: boolean) => void;
   setSyncState: (state: SyncState) => void;
   clearSyncTimer: () => void;
-
-  // Actions API & Logique Métier
   runAnalysis: (file: File) => Promise<void>;
   silentSave: (id?: number) => Promise<void>;
   handleSave: () => Promise<void>;
@@ -129,7 +112,6 @@ export const useOrthoStore = create<OrthoState>((set, get) => ({
   patientId: null,
   patientName: '',
   analysisId: undefined,
-  
   imageSrc: undefined,
   local: { landmarks: [], version: 0 },
   activePointId: null,
@@ -139,7 +121,7 @@ export const useOrthoStore = create<OrthoState>((set, get) => ({
   magnifierEnabled: false,
   performanceMode: false,
   isStep1Fullscreen: false,
-  vtoSettings: { 
+  vtoSettings: {
     enabled: false,
     showGhostFace: true,
     showSoftTissue: true,
@@ -150,7 +132,6 @@ export const useOrthoStore = create<OrthoState>((set, get) => ({
   activeMorphing: 'none',
   anglesData: {},
   visionMetadata: {},
-  
   isCalibrated: false,
   mmPerPixel: null,
   showCalibration: false,
@@ -158,7 +139,6 @@ export const useOrthoStore = create<OrthoState>((set, get) => ({
   calibrationDistance: '',
   calibrationStep: 'selecting',
   autoCalibMessage: null,
-
   ddm: { maxillaire: '', mandibulaire: '' },
   diag: {
     analyse_dentaire: '',
@@ -167,8 +147,8 @@ export const useOrthoStore = create<OrthoState>((set, get) => ({
     synthese_diagnostique: '',
     strategie_therapeutique: ''
   },
-  etape2Data: { 
-    occlusal: { molaire_gauche: 'I', molaire_droite: 'I', canine_gauche: 'I', canine_droite: 'I' },
+  etape2Data: {
+    occlusal: { molaire_gauche: '', molaire_droite: '', canine_gauche: '', canine_droite: '' },
     type_arcade: null
   },
   etape3Data: {
@@ -179,7 +159,7 @@ export const useOrthoStore = create<OrthoState>((set, get) => ({
     ddm_clinique: '', ddm_cephalo: '', division: null, classe_squelettique: '',
     pattern_vertical: '', profil: '', severite_ddm: '', subdivision: false, analyse_moulages_auto: '',
     selectedAnalysis: 'COM',
-    denture_type: 'PERMANENTE', preference_technique: 'DAMON'
+    denture_type: '', preference_technique: ''
   },
   step: 1,
   completedSteps: new Set<number>(),
@@ -190,7 +170,6 @@ export const useOrthoStore = create<OrthoState>((set, get) => ({
   previewPdfUrl: null,
   isPreviewLoading: false,
   syncState: 'idle',
-
   photos: [
     { id: 'radio', type: 'radio', file: null, preview: null, label: 'Radiographie Céphalométrique' },
     { id: 'moulage_max', type: 'moulage_max', file: null, preview: null, label: 'Moulage Maxillaire' },
@@ -202,9 +181,7 @@ export const useOrthoStore = create<OrthoState>((set, get) => ({
     { id: 'intra_profile', type: 'intra_profile', file: null, preview: null, label: 'Photo Intra-orale Profil' },
   ],
   dateConsultation: new Date().toISOString().split('T')[0],
-  sexePatient: 'M',
-
-  // Setters
+  sexePatient: null,
   setStep: (step) => set({ step }),
   setCompletedSteps: (updater) => set((state) => ({ completedSteps: typeof updater === 'function' ? updater(state.completedSteps) : updater })),
   setPhotos: (updater) => set((state) => ({ photos: typeof updater === 'function' ? updater(state.photos) : updater })),
@@ -212,7 +189,6 @@ export const useOrthoStore = create<OrthoState>((set, get) => ({
   setSexePatient: (sexe) => set({ sexePatient: sexe }),
   setPatientInfo: (id, name) => {
     const current = get();
-    // Réinitialiser l'imagerie quand on change de patient (évite les fuites de données entre patients)
     if (current.patientId !== null && current.patientId !== id) {
       set({
         imageSrc: undefined,
@@ -225,33 +201,28 @@ export const useOrthoStore = create<OrthoState>((set, get) => ({
         step: 1,
       });
     }
-
     const savedPhotos = localStorage.getItem(`digitalcrown_photos_${id}`);
     const savedMeta = localStorage.getItem(`digitalcrown_etape4_${id}`);
     const savedE2 = localStorage.getItem(`digitalcrown_etape2_${id}`);
     const savedE3 = localStorage.getItem(`digitalcrown_etape3_${id}`);
-
-    set({ patientId: id, patientName: name });
-
+    set({ patientId: id, patientName: name, sexePatient: null });
     if (savedPhotos) {
       try {
         const parsed = JSON.parse(savedPhotos);
-        set(s => ({
-          photos: s.photos.map(p => ({ ...p, preview: parsed[p.id] || null }))
-        }));
+        set(s => ({ photos: s.photos.map(p => ({ ...p, preview: parsed[p.id] || null })) }));
       } catch (err) {
-        console.warn("Failed to parse savedPhotos", err);
+        console.warn('Failed to parse savedPhotos', err);
       }
     }
     if (savedMeta) {
       try {
         const parsed = JSON.parse(savedMeta);
-        set({ 
+        set({
           dateConsultation: parsed.dateConsultation || new Date().toISOString().split('T')[0],
-          sexePatient: parsed.sexePatient || 'M'
+          sexePatient: parsed.sexePatient === 'M' || parsed.sexePatient === 'F' ? parsed.sexePatient : null
         });
       } catch (err) {
-        console.warn("Failed to parse savedMeta", err);
+        console.warn('Failed to parse savedMeta', err);
       }
     }
     if (savedE2) {
@@ -308,7 +279,6 @@ export const useOrthoStore = create<OrthoState>((set, get) => ({
   clearSyncTimer: () => {
     if (syncTimer) { clearTimeout(syncTimer); syncTimer = undefined; }
   },
-
   handlePhotoUpload: (id, file) => {
     const url = URL.createObjectURL(file);
     set(s => {
@@ -320,10 +290,8 @@ export const useOrthoStore = create<OrthoState>((set, get) => ({
       return { photos: next };
     });
   },
-
   goToStep: async (target) => {
     const s = get();
-    // Logique de blocage déjà présente dans CephaloWorkspace, on peut la migrer ici
     if (target >= 2) {
       if (!s.imageSrc) {
         set({ uploadError: 'Veuillez d\'abord uploader une radiographie.' });
@@ -336,13 +304,8 @@ export const useOrthoStore = create<OrthoState>((set, get) => ({
       }
     }
     await s.silentSave();
-    set(prev => ({ 
-      completedSteps: new Set([...prev.completedSteps, prev.step]),
-      step: target 
-    }));
+    set(prev => ({ completedSteps: new Set([...prev.completedSteps, prev.step]), step: target }));
   },
-
-  // Actions API
   runAnalysis: async (file: File) => {
     const state = get();
     if (!state.patientId) return;
@@ -350,13 +313,10 @@ export const useOrthoStore = create<OrthoState>((set, get) => ({
     try {
       const data = await cephaloRepository.uploadRadio(state.patientId, file);
       if (data.analysis_id) set({ analysisId: data.analysis_id });
-      // Toujours ré-ancrer l'URL image sur API_BASE du navigateur pour éviter les erreurs
-      // de port quand BACKEND_URL n'est pas défini côté serveur (défaut 8000 vs port réel 8005).
       if (data.image_path || data.file_url) {
         const raw: string = data.image_path || data.file_url;
         let src: string;
         if (/^https?:\/\//i.test(raw)) {
-          // URL absolue : ré-ancrer sur API_BASE (même chemin, bon host/port)
           try {
             const u = new URL(raw);
             src = `${API_BASE.replace(/\/$/, '')}${u.pathname}`;
@@ -364,21 +324,16 @@ export const useOrthoStore = create<OrthoState>((set, get) => ({
             src = raw;
           }
         } else {
-          // Chemin relatif : construire avec API_BASE
           src = `${API_BASE.replace(/\/$/, '')}/${raw.replace(/^\//, '')}`;
         }
         set({ imageSrc: src });
       }
       if (data.results) {
         set({ anglesData: data.results });
-        
-        // Auto-remplissage de l'Étape 3 avec les métriques IA
         const m = data.results.metrics;
         if (m) {
           set(s => {
-            const e3 = JSON.parse(JSON.stringify(s.etape3Data)); // deep copy
-            
-            // Dentaire
+            const e3 = JSON.parse(JSON.stringify(s.etape3Data));
             if (m.analyse_dentaire) {
               if (m.analyse_dentaire.Surplomb?.valeur !== undefined) e3.dentaire.surplomb = String(m.analyse_dentaire.Surplomb.valeur);
               if (m.analyse_dentaire.Recouvrement?.valeur !== undefined) e3.dentaire.recouvrement = String(m.analyse_dentaire.Recouvrement.valeur);
@@ -386,17 +341,8 @@ export const useOrthoStore = create<OrthoState>((set, get) => ({
               if (m.analyse_dentaire.I_Francfort?.valeur !== undefined) e3.dentaire.i_francfort = String(m.analyse_dentaire.I_Francfort.valeur);
               if (m.analyse_dentaire.Inter_Incisif?.valeur !== undefined) e3.dentaire.inter_incisif = String(m.analyse_dentaire.Inter_Incisif.valeur);
             }
-            
-            // Osseuse
             if (m.analyse_osseuse) {
-              if (m.analyse_osseuse.Angle_de_Tweed?.valeur !== undefined) {
-                e3.osseuse.angle_tweed = String(m.analyse_osseuse.Angle_de_Tweed.valeur);
-                // pattern_vertical ne classifie plus localement lors de la synchronisation
-                // d'une analyse persistée (CEPHALOMETRY-NORMATIVE-BACKEND-WIRING-TWEED-
-                // IMPA-FRANCFORT-4C) — seul le service normatif backend peut produire une
-                // classification autoritative ; le registre actuel n'a aucun profil Tweed
-                // validé. Reste '' (non calculé), aucun seuil (22, 30) réintroduit.
-              }
+              if (m.analyse_osseuse.Angle_de_Tweed?.valeur !== undefined) e3.osseuse.angle_tweed = String(m.analyse_osseuse.Angle_de_Tweed.valeur);
               if (m.analyse_osseuse.Decalage_A_B?.valeur !== undefined) e3.osseuse.decalage_ab = String(m.analyse_osseuse.Decalage_A_B.valeur);
               if (m.analyse_osseuse.Situation_A?.valeur !== undefined) e3.osseuse.situation_a = String(m.analyse_osseuse.Situation_A.valeur);
               if (m.analyse_osseuse.Situation_B?.valeur !== undefined) e3.osseuse.situation_b = String(m.analyse_osseuse.Situation_B.valeur);
@@ -404,30 +350,20 @@ export const useOrthoStore = create<OrthoState>((set, get) => ({
               if (m.analyse_osseuse.SNA?.valeur !== undefined) e3.osseuse.sna = String(m.analyse_osseuse.SNA.valeur);
               if (m.analyse_osseuse.SNB?.valeur !== undefined) e3.osseuse.snb = String(m.analyse_osseuse.SNB.valeur);
               if (m.analyse_osseuse.ANB?.valeur !== undefined) {
-                const anb = m.analyse_osseuse.ANB.valeur;
-                e3.osseuse.anb = String(anb);
-                // ANB ne classifie plus localement lors de la synchronisation d'une analyse
-                // persistée (CEPHALOMETRY-FRONTEND-AUTHORITY-REMOVAL-4B) — seul le service
-                // normatif backend peut produire une classification autoritative ; le
-                // registre actuel n'a aucun profil Steiner validé. Aucun seuil (4, 0) réintroduit.
+                e3.osseuse.anb = String(m.analyse_osseuse.ANB.valeur);
                 e3.classe_squelettique = 'Non classifiable';
-                // Profil is set from backend Ricketts E-line when available (see below); ANB fallback only if missing
               }
             }
-            
-            // Esthétique (Ricketts, etc.)
             if (m.analyse_esthetique) {
               if (m.analyse_esthetique.Ligne_E_Ls?.valeur !== undefined) e3.esthetique.ligne_e_ls = String(m.analyse_esthetique.Ligne_E_Ls.valeur);
               if (m.analyse_esthetique.Ligne_E_Li?.valeur !== undefined) e3.esthetique.ligne_e_li = String(m.analyse_esthetique.Ligne_E_Li.valeur);
               if (m.analyse_esthetique.Angle_Nasolabial?.valeur !== undefined) e3.esthetique.angle_nasolabial = String(m.analyse_esthetique.Angle_Nasolabial.valeur);
             }
-            
             return { etape3Data: e3 };
           });
         }
       }
       if (data.results?.vision_metadata) set({ visionMetadata: data.results.vision_metadata });
-      
       if (data.is_calibrated !== undefined) {
         set({ isCalibrated: data.is_calibrated, mmPerPixel: data.mm_per_pixel || null });
         if (data.is_calibrated && data.mm_per_pixel) {
@@ -435,9 +371,7 @@ export const useOrthoStore = create<OrthoState>((set, get) => ({
           setTimeout(() => set({ autoCalibMessage: null }), 8000);
         }
       }
-      if (data.landmarks) {
-        set({ local: { landmarks: data.landmarks, version: 1 } });
-      }
+      if (data.landmarks) set({ local: { landmarks: data.landmarks, version: 1 } });
       if (data.results?.ai_narrative) {
         const n = data.results.ai_narrative;
         set(s => ({
@@ -446,14 +380,11 @@ export const useOrthoStore = create<OrthoState>((set, get) => ({
             diagnostic_squelettique: s.diag.diagnostic_squelettique || n.diagnostic_squelettique || '',
             analyse_moulages: s.diag.analyse_moulages || n.analyse_moulages || '',
             synthese_diagnostique: s.diag.synthese_diagnostique || n.synthese_diagnostique || '',
-            strategie_therapeutique: s.diag.strategie_therapeutique || n.strategie_therapeutique || ''
+            strategie_therapeutique: s.diag.strategie_therapeutique
           }
         }));
-        // Use backend Ricketts E-line profil (authoritative) instead of ANB-based override
         if (n.profil_cutane) {
-          set(s => ({
-            etape3Data: { ...s.etape3Data, profil: normalizeProfilFacial(n.profil_cutane) }
-          }));
+          set(s => ({ etape3Data: { ...s.etape3Data, profil: normalizeProfilFacial(n.profil_cutane) } }));
         }
       }
       set(s => ({ completedSteps: new Set([...s.completedSteps, 1]) }));
@@ -464,26 +395,22 @@ export const useOrthoStore = create<OrthoState>((set, get) => ({
       set({ isUploading: false });
     }
   },
-
   silentSave: async (id?: number) => {
     const s = get();
     const aid = id ?? s.analysisId;
     if (!aid) return;
-    
     const max = s.ddm.maxillaire === '' ? null : Number(s.ddm.maxillaire);
     const mand = s.ddm.mandibulaire === '' ? null : Number(s.ddm.mandibulaire);
     const impa = computeLocalImpa(s.local.landmarks);
     const ceph = calcDDMCephalo(impa);
-    const real = (mand !== null && ceph !== null) ? mand + ceph : null; 
-
+    const real = (mand !== null && ceph !== null) ? mand + ceph : null;
     try {
       const projections = computeMcNamaraProjections(s.local.landmarks);
       await cephaloRepository.saveAnalysis(aid, buildPayload(s.local.landmarks, max, mand, real, s.diag, projections, s.mmPerPixel, s.etape2Data, s.etape3Data));
     } catch (err) {
-      console.warn("Silent save failed:", err);
+      console.warn('Silent save failed:', err);
     }
   },
-
   handleSave: async () => {
     const s = get();
     if (!s.analysisId) return;
@@ -495,7 +422,6 @@ export const useOrthoStore = create<OrthoState>((set, get) => ({
       const ceph = calcDDMCephalo(impa);
       const real = (mand !== null && ceph !== null) ? mand + ceph : null;
       const projections = computeMcNamaraProjections(s.local.landmarks);
-
       await cephaloRepository.saveAnalysis(s.analysisId, buildPayload(s.local.landmarks, max, mand, real, s.diag, projections, s.mmPerPixel, s.etape2Data, s.etape3Data));
       set({ syncState: 'success' });
       setTimeout(() => set({ syncState: 'idle' }), 1500);
@@ -506,15 +432,12 @@ export const useOrthoStore = create<OrthoState>((set, get) => ({
       set({ isSaving: false });
     }
   },
-
   updateLandmarksOptimistic: (newLms: Landmark[]) => {
     set(s => ({ local: { landmarks: newLms, version: s.local.version + 1 } }));
     const s = get();
     if (!s.analysisId) return;
-    
     if (syncTimer) clearTimeout(syncTimer);
     set({ syncState: 'syncing' });
-    
     syncTimer = setTimeout(async () => {
       const currentS = get();
       const max = currentS.ddm.maxillaire === '' ? null : Number(currentS.ddm.maxillaire);
@@ -522,7 +445,6 @@ export const useOrthoStore = create<OrthoState>((set, get) => ({
       const impa = computeLocalImpa(newLms);
       const ceph = calcDDMCephalo(impa);
       const real = (mand !== null && ceph !== null) ? mand + ceph : null;
-
       try {
         const projections = computeMcNamaraProjections(newLms);
         await cephaloRepository.saveAnalysis(currentS.analysisId!, buildPayload(newLms, max, mand, real, currentS.diag, projections, currentS.mmPerPixel, currentS.etape2Data, currentS.etape3Data));
@@ -534,7 +456,6 @@ export const useOrthoStore = create<OrthoState>((set, get) => ({
       }
     }, 600);
   },
-
   applyCalibration: async () => {
     const s = get();
     if (!s.analysisId || s.calibrationClickPoints.length !== 2 || !s.calibrationDistance) return;
@@ -544,7 +465,6 @@ export const useOrthoStore = create<OrthoState>((set, get) => ({
     const distMm = parseFloat(s.calibrationDistance);
     if (distMm <= 0 || distPixels <= 0) return;
     const ratio = distMm / distPixels;
-    
     try {
       await cephaloRepository.calibrate(s.analysisId, p1, p2, distMm);
       set({
@@ -555,29 +475,23 @@ export const useOrthoStore = create<OrthoState>((set, get) => ({
         calibrationDistance: '',
         calibrationStep: 'selecting'
       });
-      const updatedData = await cephaloRepository.saveAnalysis(s.analysisId, {
-        landmarks: s.local.landmarks,
-        mm_per_pixel: ratio
-      });
+      const updatedData = await cephaloRepository.saveAnalysis(s.analysisId, { landmarks: s.local.landmarks, mm_per_pixel: ratio });
       if (updatedData.results) set({ anglesData: updatedData.results });
     } catch (e) {
       console.error('Erreur calibration:', e);
     }
   },
-
   handlePreview: async () => {
     const s = get();
     if (!s.analysisId || !s.patientId) return;
     set({ isPreviewLoading: true, previewPdfUrl: null });
     await s.silentSave();
-    
     try {
       const max = s.ddm.maxillaire === '' ? null : Number(s.ddm.maxillaire);
       const mand = s.ddm.mandibulaire === '' ? null : Number(s.ddm.mandibulaire);
       const impa = computeLocalImpa(s.local.landmarks);
       const ceph = calcDDMCephalo(impa);
       const real = (mand !== null && ceph !== null) ? mand + ceph : null;
-      
       const data = await cephaloRepository.generatePDF(s.patientId, {
         ai_diagnostic: {
           diagnostic_squelettique: s.diag.diagnostic_squelettique || '',
@@ -586,16 +500,15 @@ export const useOrthoStore = create<OrthoState>((set, get) => ({
           strategie_therapeutique: s.diag.strategie_therapeutique || '',
         },
         clinical_data: {
-          ddm_maxillaire: { espace_disponible: 0, espace_necessaire: 0, calcul_ddm: max ?? 0 },
-          ddm_mandibulaire: { espace_disponible: 0, espace_necessaire: 0, calcul_ddm: mand ?? 0 },
-          ddm_reelle: real ?? 0,
+          ddm_maxillaire: max !== null ? { espace_disponible: 0, espace_necessaire: 0, calcul_ddm: max } : null,
+          ddm_mandibulaire: mand !== null ? { espace_disponible: 0, espace_necessaire: 0, calcul_ddm: mand } : null,
+          ddm_reelle: real,
           plan_traitement: s.diag.strategie_therapeutique || '',
-          denture_type: s.etape3Data.denture_type,
-          preference_technique: s.etape3Data.preference_technique,
+          denture_type: s.etape3Data.denture_type || null,
+          preference_technique: s.etape3Data.preference_technique || null,
         },
         archive: false,
       });
-      
       const blob = new Blob([data], { type: 'application/pdf' });
       const url = URL.createObjectURL(blob);
       set({ previewPdfUrl: url, isPreviewLoading: false });
@@ -604,20 +517,17 @@ export const useOrthoStore = create<OrthoState>((set, get) => ({
       set({ isPreviewLoading: false });
     }
   },
-
   handlePrint: async () => {
     const s = get();
     if (!s.analysisId || !s.patientId) return;
     set({ isPrinting: true });
     await s.silentSave();
-    
     try {
       const max = s.ddm.maxillaire === '' ? null : Number(s.ddm.maxillaire);
       const mand = s.ddm.mandibulaire === '' ? null : Number(s.ddm.mandibulaire);
       const impa = computeLocalImpa(s.local.landmarks);
       const ceph = calcDDMCephalo(impa);
       const real = (mand !== null && ceph !== null) ? mand + ceph : null;
-
       const data = await cephaloRepository.generatePDF(s.patientId, {
         ai_diagnostic: {
           diagnostic_squelettique: s.diag.diagnostic_squelettique || '',
@@ -626,25 +536,22 @@ export const useOrthoStore = create<OrthoState>((set, get) => ({
           strategie_therapeutique: s.diag.strategie_therapeutique || '',
         },
         clinical_data: {
-          ddm_maxillaire: { espace_disponible: 0, espace_necessaire: 0, calcul_ddm: max ?? 0 },
-          ddm_mandibulaire: { espace_disponible: 0, espace_necessaire: 0, calcul_ddm: mand ?? 0 },
-          ddm_reelle: real ?? 0,
+          ddm_maxillaire: max !== null ? { espace_disponible: 0, espace_necessaire: 0, calcul_ddm: max } : null,
+          ddm_mandibulaire: mand !== null ? { espace_disponible: 0, espace_necessaire: 0, calcul_ddm: mand } : null,
+          ddm_reelle: real,
           plan_traitement: s.diag.strategie_therapeutique || '',
-          denture_type: s.etape3Data.denture_type,
-          preference_technique: s.etape3Data.preference_technique,
+          denture_type: s.etape3Data.denture_type || null,
+          preference_technique: s.etape3Data.preference_technique || null,
         },
         archive: true,
       });
-
       const blob = new Blob([data], { type: 'application/pdf' });
       const url = URL.createObjectURL(blob);
-      
       const userChoice = window.confirm(
         'Le PDF a été généré avec succès.\n\n' +
         '• OK = Ouvrir dans un nouvel onglet (pour imprimer)\n' +
         '• Annuler = Télécharger le fichier'
       );
-      
       if (userChoice) {
         window.open(url, '_blank');
       } else {
@@ -661,5 +568,4 @@ export const useOrthoStore = create<OrthoState>((set, get) => ({
       set({ isPrinting: false });
     }
   }
-
 }));

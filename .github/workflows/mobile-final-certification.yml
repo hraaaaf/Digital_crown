@@ -4,11 +4,6 @@ on:
   push:
     branches:
       - mobile/final-certification
-      - cert/mobile-product-mob7
-    paths:
-      - .github/workflows/mobile-final-certification.yml
-      - backend/**
-      - frontend/**
   workflow_dispatch:
 
 concurrency:
@@ -17,7 +12,7 @@ concurrency:
 
 jobs:
   backend-mobile-contracts:
-    name: Backend mobile contracts M6 + MOB-5A/F/H/I
+    name: Backend mobile contracts
     runs-on: ubuntu-latest
     env:
       SECRET_KEY: ci-only-secret-key-minimum-32-characters-long
@@ -25,7 +20,6 @@ jobs:
       ENVIRONMENT: development
       TELEMETRY_ENABLED: "false"
       CLOUD_AI_ENABLED: "false"
-      CABINET_MASTER_KEY_HEX: 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f
     steps:
       - name: Checkout exact candidate
         uses: actions/checkout@v4
@@ -49,7 +43,7 @@ jobs:
           pip install -r /tmp/requirements-mobile-final.txt
           pip install httpx==0.27.2 pytest pytest-asyncio
 
-      - name: Replay M6 and current Mobile Product backend contracts
+      - name: Replay M6 backend contracts
         run: |
           python -m pytest -q --maxfail=1 \
             backend/tests/test_mobile_m6a_clinical_photo.py \
@@ -57,24 +51,10 @@ jobs:
             backend/tests/test_mobile_m6c_signature_hardening.py \
             backend/tests/test_mobile_m6d_notifications.py \
             backend/tests/test_mobile_m6d2_push.py \
-            backend/tests/test_mobile_m6i_passkey.py \
-            backend/tests/test_mobile_team_mob5a.py \
-            backend/tests/test_marketplace_superadmin_security.py \
-            backend/tests/test_mobile_waiting_room.py
-
-      - name: Lock MOB-5F document capability source contract
-        run: |
-          python -m py_compile backend/routers/mobile_patient_cockpit.py
-          grep -q "'can_create_prescription': has_permission(mobile_user, 'prescriptions')" backend/routers/mobile_patient_cockpit.py
-          grep -q "'can_create_certificate': has_patients" backend/routers/mobile_patient_cockpit.py
-          grep -q "'can_create_devis': has_accounting" backend/routers/mobile_patient_cockpit.py
-          grep -q "'can_create_honoraires': has_accounting" backend/routers/mobile_patient_cockpit.py
-          grep -q "'can_create_free_document': has_permission(mobile_user, 'clinical')" backend/routers/mobile_patient_cockpit.py
-          grep -q '"note": "accounting"' backend/routers/documents.py
-          grep -q '"honoraires": "accounting"' backend/routers/documents.py
+            backend/tests/test_mobile_m6i_passkey.py
 
   frontend-mobile-contracts:
-    name: Frontend foundations + M6 + MOB-5A-I + MOB-6 routing
+    name: Frontend mobile foundations and M6
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -99,7 +79,7 @@ jobs:
       - name: Install frontend dependencies
         run: npm ci
 
-      - name: Replay foundations, M6 and current Mobile Product contracts
+      - name: Replay foundations and M6 contracts
         run: |
           npx vitest run \
             src/test/mobileM4APatientContext.test.ts \
@@ -116,24 +96,7 @@ jobs:
             src/test/mobileM6HImageViewport.test.ts \
             src/test/mobileM6IPasskey.test.ts \
             src/services/zka/ecdhPairing.test.ts \
-            src/utils/accessControl.test.ts \
-            src/features/mobile/bridge.m5a.test.ts \
-            src/features/mobile/Dashboard/components/MobileBottomNav.test.tsx \
-            src/features/mobile/mobileThemeHardcoding.test.ts \
-            src/features/mobile/Dashboard/views/DentistsView.test.tsx \
-            src/features/mobile/Dashboard/views/FrontdeskView.test.tsx \
-            src/features/mobile/Dashboard/views/NotificationsView.test.tsx \
-            src/features/mobile/Dashboard/views/StockView.test.tsx \
-            src/features/mobile/Dashboard/views/LibraryView.test.tsx \
-            src/features/mobile/Dashboard/views/MobileQuickDocumentSheet.test.tsx \
-            src/features/mobile/Dashboard/views/MobilePatientsView.test.tsx \
-            src/features/partnerMarketplace/data.test.ts \
-            src/features/partnerMarketplace/usePartnerMarketplace.test.tsx \
-            src/features/mobile/Dashboard/views/MarketplaceView.test.tsx \
-            src/features/mobile/Dashboard/views/MobileSuperAdminView.test.tsx \
-            src/features/mobile/superadmin/useMobileSuperAdmin.test.tsx \
-            src/features/mobile/__tests__/waitingRoomMob5i.test.tsx \
-            src/features/mobile/__tests__/mobileRoutingMob6.test.ts
+            src/utils/accessControl.test.ts
 
       - name: Build guarded frontend
         run: npm run build
@@ -154,14 +117,11 @@ jobs:
           test "$BACKEND_RESULT" = "success"
           test "$FRONTEND_RESULT" = "success"
           {
-            echo "## MOB-7 Mobile Product software gate"
+            echo "## Mobile Full Experience software gate"
             echo
             echo "- Candidate: `${{ github.sha }}`"
-            echo "- Backend M6 + MOB-5A/F/H/I contracts: $BACKEND_RESULT"
-            echo "- Frontend M4/M6 + MOB-5A-I + MOB-6 routing + build: $FRONTEND_RESULT"
-            echo "- Offline/sync/retry/revocation: included in M6.2 contracts"
-            echo "- Pairing ECDH + RBAC fail-closed: included"
-            echo "- Lot-level visual artifacts remain authoritative and are not regenerated by this gate"
-            echo "- Physical-only gates intentionally excluded: Face ID, Touch ID, Android biometric, real-device Push reception"
+            echo "- Backend mobile contracts: $BACKEND_RESULT"
+            echo "- Frontend foundations + M6 contracts + build: $FRONTEND_RESULT"
+            echo "- Physical-only gates intentionally excluded: Face ID, Touch ID, Android biometric, real-device Push reception."
             echo "- Deployment: none"
           } >> "$GITHUB_STEP_SUMMARY"

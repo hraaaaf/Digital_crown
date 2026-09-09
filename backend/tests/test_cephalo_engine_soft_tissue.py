@@ -38,22 +38,17 @@ class TestSotaSoftTissueMapping:
         assert esth.Ligne_E_Li.valeur is not None
         assert esth.Angle_Nasolabial.valeur is None
 
-    def test_narrative_reports_non_evaluable_without_cutaneous_points(self):
-        # Aucun point cutané (Prn/Pog_soft/Ls*/Li*/Sn*) : la synthèse esthétique ne doit
-        # jamais fabriquer un profil "droit" par défaut.
+    def test_missing_cutaneous_points_remain_non_evaluable_without_narrative(self):
+        # Aucun point cutané (Prn/Pog_soft/Ls*/Li*/Sn*) : le moteur geometry-only
+        # doit rester non évaluable et ne jamais fabriquer de diagnostic narratif.
         skeleton_only = {"S": (50.0, 50.0), "N": (60.0, 40.0)}
         result = cephalo_engine.calculate_metrics(skeleton_only, custom_mm_ratio=0.5)
         esth = result.metrics.analyse_esthetique
         assert esth.Ligne_E_Ls.valeur is None
+        assert esth.Ligne_E_Li.valeur is None
         assert esth.Angle_Nasolabial.valeur is None
 
-        diagnostic = result.ai_narrative["diagnostic_squelettique"]
-        esthetic_section = diagnostic.split("ANALYSE ESTHÉTIQUE :")[-1]
-        assert "non évaluable" in esthetic_section
-        assert "102" not in esthetic_section
-        assert "nasolabial" not in esthetic_section.lower()
-        assert "ouvert" not in esthetic_section.lower()
-        assert "fermé" not in esthetic_section.lower()
+        assert "diagnostic_squelettique" not in result.ai_narrative
         assert "profil_cutane" not in result.ai_narrative
 
     def test_legacy_aliases_still_work_non_regression(self):

@@ -11,15 +11,12 @@ import logging
 from backend import models, schemas, database
 from backend.routers.auth import get_current_user, require_permission, require_elite_license
 from backend.utils.access_control import assert_patient_access
-from backend.services.cephalo_engine import cephalo_engine
-from backend.services.ai_advisor import ai_advisor
 from backend.services.cephalo_service import CephaloService
 from backend.services.prescription_service import prescription_service
 from backend.services.panoramic_service import panoramic_engine
 
 # Services
 from backend.services.sota_vision_service import sota_vision_engine
-from backend.services.treatment_plan_engine import TreatmentPlanEngine
 
 # Configuration
 from backend.config import settings

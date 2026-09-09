@@ -7,13 +7,9 @@ from typing import List
 from backend.database import get_db
 from backend import models, schemas
 from backend.routers.auth import get_current_user, has_permission
-from backend.routers.update_portability_p10 import router as update_portability_router
 from backend.services.audit_service import audit_service
 
 router = APIRouter(tags=["frontdesk"])
-# backend.main mounts this router at /api. Reuse that root aggregate for the
-# authenticated update surface while keeping the existing /api/admin/update alias.
-router.include_router(update_portability_router)
 
 
 @router.post("/frontdesk/appointment-request")

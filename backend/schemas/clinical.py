@@ -17,13 +17,16 @@ class DiagnosticSLM(BaseModel):
 
 class MeasureData(BaseModel):
     valeur: Optional[float] = None
-    norm_mean: float = 0.0
-    norm_min: float = 0.0
-    norm_max: float = 0.0
+    # Normative metadata is absent unless a validated authority provides it.
+    # None means "not available / not authoritative"; 0.0 must never masquerade
+    # as a real norm or z-score in a fail-closed clinical payload.
+    norm_mean: Optional[float] = None
+    norm_min: Optional[float] = None
+    norm_max: Optional[float] = None
     plage_compensation: Optional[Tuple[float, float]] = None
     status: str = "N/A"
     interpretation: str = "Non calculé"
-    z_score: float = 0.0
+    z_score: Optional[float] = None
 
 
 class DentalAnalysis(BaseModel):
