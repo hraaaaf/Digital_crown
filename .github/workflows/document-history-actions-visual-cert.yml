@@ -58,56 +58,77 @@ jobs:
           const user=source.match(/email=\"([^\"]+)\"/)?.[1];
           const pass=source.match(/get_password_hash\(\"([^\"]+)\"\)/)?.[1];
           if(!user||!pass) throw new Error('isolated credentials unavailable');
+
           const api=await request.newContext({baseURL:'http://127.0.0.1:8005'});
           const login=await api.post('/api/auth/login',{form:{username:user,password:pass}});
           if(!login.ok()) throw new Error(`login ${login.status()}`);
           const tok=await login.json();
           const auth={Authorization:`Bearer ${tok.access_token}`};
+
           const ps=await api.get('/api/patients',{headers:auth});
           if(!ps.ok()) throw new Error(`patients ${ps.status()}`);
           const patients=await ps.json();
           const patient=patients.find(p=>p.numero_dossier==='T2-0001')||patients[0];
           if(!patient) throw new Error('no seeded patient');
+
           const unique=`${label}-${Date.now()}-${Math.random().toString(36).slice(2,8)}`;
           const title=`CERT VISUELLE ${unique}`;
-          const payload={type:'libre',patient_id:patient.id,data:{title,content:`Document de certification visuelle ${unique}`,doc_date:'2026-09-09'},is_accounted:false,payment_status:'EN_ATTENTE'};
+          const content=`Document de certification visuelle ${unique}`;
+          const payload={type:'libre',patient_id:patient.id,data:{title,content,doc_date:'2026-09-09'},is_accounted:false,payment_status:'EN_ATTENTE'};
           const gen=await api.post('/api/documents/generate?archive=true',{headers:{...auth,'Content-Type':'application/json'},data:payload});
           if(!gen.ok()) throw new Error(`generate ${gen.status()} ${await gen.text()}`);
+
+          const docsResponse=await api.get(`/api/patients/${patient.id}/documents`,{headers:auth});
+          if(!docsResponse.ok()) throw new Error(`documents ${docsResponse.status()} ${await docsResponse.text()}`);
+          const docs=await docsResponse.json();
+          const generated=docs.find(d=>d.clinical_data?.content===content || d.clinical_data?.title===title);
+          if(!generated) throw new Error(`generated archive not found; docs=${JSON.stringify(docs.slice(0,5).map(d=>({id:d.id,name:d.name,clinical_data:d.clinical_data})))}`);
+          const actionLabel=`Actions du document ${generated.name}`;
+
           const browser=await chromium.launch({headless:true});
           const evidence=[];
           for(const viewport of [{width:390,height:844,label:'390x844'},{width:1366,height:700,label:'1366x700'}]){
-            const ctx=await browser.newContext({viewport,colorScheme:'light'}); const page=await ctx.newPage();
-            await page.addInitScript(({a,r})=>{localStorage.setItem('token',a);localStorage.setItem('refresh_token',r||'');localStorage.setItem('appMode','prod');},{a:tok.access_token,r:tok.refresh_token});
-            const errors=[]; page.on('pageerror',e=>errors.push(String(e)));
+            const ctx=await browser.newContext({viewport,colorScheme:'light'});
+            const page=await ctx.newPage();
+            await page.addInitScript(({a,r})=>{
+              localStorage.setItem('token',a);
+              localStorage.setItem('refresh_token',r||'');
+              localStorage.setItem('appMode','prod');
+            },{a:tok.access_token,r:tok.refresh_token});
+            const errors=[];
+            page.on('pageerror',e=>errors.push(String(e)));
+
             await page.goto(`http://127.0.0.1:5173/patients/${patient.id}?tab=archives`,{waitUntil:'networkidle',timeout:90000});
-            const titleNode=page.getByText(title,{exact:false}).first();
-            await titleNode.waitFor({state:'visible',timeout:30000});
-            const card=titleNode.locator('xpath=ancestor::*[.//button[contains(@aria-label,"Actions du document")]][1]');
-            const actions=card.getByRole('button',{name:/Actions du document/}).first();
+            const actions=page.getByRole('button',{name:actionLabel,exact:true});
             await actions.waitFor({state:'visible',timeout:30000});
+            const card=actions.locator('xpath=ancestor::div[@data-document-kind][1]');
             await actions.click();
-            const edit=page.locator('[data-document-action="edit"]');
-            const trash=page.locator('[data-document-action="trash"]');
-            if(label==='before'){
-              await page.getByRole('button',{name:'Modifier',exact:true}).last().waitFor({state:'visible',timeout:15000});
-            } else {
-              await edit.waitFor({state:'visible',timeout:15000});
-              await trash.waitFor({state:'visible',timeout:15000});
-            }
-            const editTarget=label==='before'?page.getByRole('button',{name:'Modifier',exact:true}).last():edit;
-            const trashTarget=label==='before'?page.getByRole('button',{name:'Mettre à la corbeille',exact:true}):trash;
-            const eb=await editTarget.boundingBox(); const tb=await trashTarget.boundingBox();
+
+            const editTarget=label==='before'
+              ? card.getByRole('button',{name:'Modifier',exact:true})
+              : card.locator('[data-document-action="edit"]');
+            const trashTarget=label==='before'
+              ? card.getByRole('button',{name:'Mettre à la corbeille',exact:true})
+              : card.locator('[data-document-action="trash"]');
+
+            await editTarget.waitFor({state:'visible',timeout:15000});
+            await trashTarget.waitFor({state:'visible',timeout:15000});
+            const eb=await editTarget.boundingBox();
+            const tb=await trashTarget.boundingBox();
             if(!eb||!tb) throw new Error(`missing action boxes ${label} ${viewport.label}`);
+
             const gap=tb.y-(eb.y+eb.height);
             const overlap=Math.max(0,(eb.y+eb.height)-tb.y);
             const shot=`${label}-document-actions-${viewport.label}.png`;
             await page.screenshot({path:path.join(root,'artifacts/document-history-actions',shot),fullPage:false});
-            const row={label,viewport,editBox:eb,trashBox:tb,gap,overlap,errors,shot}; evidence.push(row);
+            const row={label,archiveId:generated.id,archiveName:generated.name,viewport,editBox:eb,trashBox:tb,gap,overlap,errors,shot};
+            evidence.push(row);
             if(label==='after' && (overlap>0 || gap<3 || errors.length)) throw new Error(`AFTER visual contract failed: ${JSON.stringify(row)}`);
             await ctx.close();
           }
           fs.writeFileSync(path.join(root,'artifacts/document-history-actions',`${label}-evidence.json`),JSON.stringify(evidence,null,2));
-          await browser.close(); await api.dispose();
+          await browser.close();
+          await api.dispose();
           JS
 
           run_tree () {
