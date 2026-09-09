@@ -6,6 +6,10 @@ const patientDocuments = readFileSync(
   resolve(process.cwd(), 'src/features/patients/PatientDocuments.tsx'),
   'utf8',
 );
+const patientDetails = readFileSync(
+  resolve(process.cwd(), 'src/features/patients/PatientDetailsInner.tsx'),
+  'utf8',
+);
 const patientStore = readFileSync(
   resolve(process.cwd(), 'src/stores/usePatientStore.ts'),
   'utf8',
@@ -22,6 +26,14 @@ describe('document edit consistency regression', () => {
     expect(patientStore).toContain('sessionStorage.setItem');
     expect(apiService).toContain('attachDocumentEditArchiveId');
     expect(apiService).toContain('_replace_archive_id');
+  });
+
+  it('clears a stale edit identity before every explicit new-document entry point', () => {
+    expect(patientDetails).toContain('const handleDocumentCreate = () => {');
+    expect(patientDetails).toMatch(/handleDocumentCreate[\s\S]*setEditingDoc\(null\)[\s\S]*setSearchParams\(\{ tab: 'admin' \}\)/);
+    expect(patientDetails).toContain('label="Document" onClick={handleDocumentCreate}');
+    expect(patientDetails).toContain('label="Documents"');
+    expect(patientDetails).toContain('<button onClick={handleDocumentCreate}');
   });
 
   it('keeps document actions as two explicit non-overlapping rows', () => {
