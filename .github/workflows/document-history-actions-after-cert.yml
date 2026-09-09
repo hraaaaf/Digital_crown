@@ -1,0 +1,155 @@
+name: Document History Actions AFTER Certification
+
+on:
+  push:
+    branches: [fix/document-archive-consistency]
+    paths:
+      - 'frontend/src/features/patients/PatientDocuments.tsx'
+      - '.github/workflows/document-history-actions-after-cert.yml'
+  pull_request:
+    branches: [master]
+    paths:
+      - 'frontend/src/features/patients/PatientDocuments.tsx'
+      - '.github/workflows/document-history-actions-after-cert.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  after-cert:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    env:
+      ENVIRONMENT: test
+      SECRET_KEY: document-history-after-cert-secret-000001
+      DATABASE_URL: sqlite:///./t2-runtime-cert.db
+      TELEMETRY_ENABLED: 'false'
+      CLOUD_AI_ENABLED: 'false'
+      DEBUG: 'false'
+      ALLOWED_ORIGINS: 'http://127.0.0.1:5173,http://localhost:5173'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install backend
+        run: |
+          python -m pip install --upgrade pip
+          pip install torch==2.12.0 torchvision==0.27.0 --index-url https://download.pytorch.org/whl/cpu
+          grep -vE '^(torch|torchvision)([<=>].*)?$' requirements.txt > /tmp/requirements-document-history-after.txt
+          pip install -r /tmp/requirements-document-history-after.txt
+          pip install httpx==0.27.2
+      - name: Install frontend and Chromium
+        working-directory: frontend
+        run: |
+          npm ci
+          npm install --no-save --package-lock=false --legacy-peer-deps playwright@1.55.0
+          npx playwright install --with-deps chromium
+      - name: Start isolated runtime
+        run: |
+          rm -f t2-runtime-cert.db
+          (exec setsid python scripts/t2_runtime_server.py > /tmp/document-history-after-backend.log 2>&1) & echo $! > /tmp/document-history-after-bpid
+          for i in {1..90}; do if curl -fsS http://127.0.0.1:8005/health >/dev/null; then break; fi; sleep 1; done
+          (cd frontend && exec setsid npm run dev -- --host 127.0.0.1 --port 5173 > /tmp/document-history-after-frontend.log 2>&1) & echo $! > /tmp/document-history-after-fpid
+          for i in {1..90}; do if curl -fsS http://127.0.0.1:5173 >/dev/null; then exit 0; fi; sleep 1; done
+          cat /tmp/document-history-after-backend.log /tmp/document-history-after-frontend.log
+          exit 1
+      - name: Capture AFTER at certified viewports
+        working-directory: frontend
+        run: |
+          mkdir -p ../artifacts/document-history-actions-after
+          cat > .document-history-after.mjs <<'JS'
+          import fs from 'node:fs';
+          import path from 'node:path';
+          import { chromium, request } from 'playwright';
+
+          const out=path.resolve('../artifacts/document-history-actions-after');
+          const source=fs.readFileSync(path.resolve('../scripts/t2_runtime_server.py'),'utf8');
+          const user=source.match(/email="([^"]+)"/)?.[1];
+          const pass=source.match(/get_password_hash\("([^"]+)"\)/)?.[1];
+          if(!user||!pass) throw new Error('isolated credentials unavailable');
+
+          const api=await request.newContext({baseURL:'http://127.0.0.1:8005'});
+          const login=await api.post('/api/auth/login',{form:{username:user,password:pass}});
+          if(!login.ok()) throw new Error(`login ${login.status()}`);
+          const tok=await login.json();
+          const auth={Authorization:`Bearer ${tok.access_token}`};
+          const ps=await api.get('/api/patients',{headers:auth});
+          if(!ps.ok()) throw new Error(`patients ${ps.status()}`);
+          const patients=await ps.json();
+          const patient=patients.find(p=>p.numero_dossier==='T2-0001')||patients[0];
+          if(!patient) throw new Error('no seeded patient');
+
+          const unique=`after-${Date.now()}-${Math.random().toString(36).slice(2,8)}`;
+          const title=`CERT VISUELLE ${unique}`;
+          const content=`Document de certification visuelle ${unique}`;
+          const payload={type:'libre',patient_id:patient.id,data:{title,content,doc_date:'2026-09-09'},is_accounted:false,payment_status:'EN_ATTENTE'};
+          const gen=await api.post('/api/documents/generate?archive=true',{headers:{...auth,'Content-Type':'application/json'},data:payload});
+          if(!gen.ok()) throw new Error(`generate ${gen.status()} ${await gen.text()}`);
+          const docsResponse=await api.get(`/api/patients/${patient.id}/documents`,{headers:auth});
+          if(!docsResponse.ok()) throw new Error(`documents ${docsResponse.status()}`);
+          const docs=await docsResponse.json();
+          const generated=docs.find(d=>d.clinical_data?.content===content || d.clinical_data?.title===title);
+          if(!generated) throw new Error('generated archive not found');
+          const actionLabel=`Actions du document ${generated.name}`;
+
+          const browser=await chromium.launch({headless:true});
+          const evidence=[];
+          for(const viewport of [{width:390,height:844,label:'390x844'},{width:1366,height:700,label:'1366x700'}]){
+            const ctx=await browser.newContext({viewport,colorScheme:'light'});
+            const page=await ctx.newPage();
+            await page.addInitScript(({a,r})=>{
+              localStorage.setItem('token',a);
+              localStorage.setItem('refresh_token',r||'');
+              localStorage.setItem('appMode','prod');
+            },{a:tok.access_token,r:tok.refresh_token});
+            const errors=[]; const http5xx=[];
+            page.on('pageerror',e=>errors.push(String(e)));
+            page.on('response',r=>{if(r.status()>=500)http5xx.push({url:r.url(),status:r.status()});});
+            await page.goto(`http://127.0.0.1:5173/patients/${patient.id}?tab=archives`,{waitUntil:'networkidle',timeout:90000});
+            const actions=page.getByRole('button',{name:actionLabel,exact:true});
+            await actions.waitFor({state:'visible',timeout:30000});
+            const card=actions.locator('xpath=ancestor::div[@data-document-kind][1]');
+            await actions.click();
+            const menu=card.locator('[data-document-action-menu]');
+            const edit=card.locator('[data-document-action="edit"]');
+            const trash=card.locator('[data-document-action="trash"]');
+            await menu.waitFor({state:'visible',timeout:15000});
+            await edit.waitFor({state:'visible',timeout:15000});
+            await trash.waitFor({state:'visible',timeout:15000});
+            const mb=await menu.boundingBox(); const eb=await edit.boundingBox(); const tb=await trash.boundingBox();
+            if(!mb||!eb||!tb) throw new Error(`missing boxes ${viewport.label}`);
+            const gap=tb.y-(eb.y+eb.height);
+            const overlap=Math.max(0,(eb.y+eb.height)-tb.y);
+            const contained=mb.x>=-0.5 && mb.y>=-0.5 && mb.x+mb.width<=viewport.width+0.5 && mb.y+mb.height<=viewport.height+0.5;
+            const shot=`after-document-actions-${viewport.label}.png`;
+            await page.screenshot({path:path.join(out,shot),fullPage:false});
+            const row={viewport,archiveId:generated.id,archiveName:generated.name,menuBox:mb,editBox:eb,trashBox:tb,gap,overlap,contained,errors,http5xx,shot};
+            evidence.push(row);
+            if(overlap>0 || gap<3 || !contained || errors.length || http5xx.length) throw new Error(`AFTER visual contract failed: ${JSON.stringify(row)}`);
+            await ctx.close();
+          }
+          fs.writeFileSync(path.join(out,'after-evidence.json'),JSON.stringify(evidence,null,2));
+          await browser.close(); await api.dispose();
+          JS
+          GITHUB_SHA="$GITHUB_SHA" node .document-history-after.mjs
+          rm .document-history-after.mjs
+      - name: Stop isolated runtime
+        if: always()
+        run: |
+          FPID=$(cat /tmp/document-history-after-fpid 2>/dev/null || true)
+          BPID=$(cat /tmp/document-history-after-bpid 2>/dev/null || true)
+          [ -n "$FPID" ] && kill -- -$FPID 2>/dev/null || true
+          [ -n "$BPID" ] && kill -- -$BPID 2>/dev/null || true
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: document-history-actions-after-${{ github.sha }}
+          path: artifacts/document-history-actions-after
+          if-no-files-found: error
+          retention-days: 14
