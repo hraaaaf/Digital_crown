@@ -132,3 +132,35 @@ Chaque ligne Honoraires persistée doit avoir :
 - lecture du dossier financier après archivage.
 
 Aucune fermeture P4 n'est revendiquée avant ces preuves.
+
+---
+
+## 7. Certification ciblée PR #384 — édition / archive / comptabilité / Historique
+
+**Portée certifiée : lot de régression PR #384 uniquement. P4-G complet reste ouvert.**
+
+HEAD produit certifié : `a1bab764e103bbcd826a7513dfc4bef58c7713ec`.
+
+Preuves observées le 2026-09-09 :
+- CI principal run `34404364992` : **success** ;
+- T2 Runtime Browser run `34404365025` : **success** ;
+- Patient P1 Architecture run `34404364942` : **success** ;
+- Patient P7 Final run `34404365014` : **success** ;
+- UX Continuity PatientDetails run `34404365004` : **success** ;
+- visual-cert Historique run `34404364970` : **success** ;
+- viewport 390×844 : overlap `0 px`, gap `4 px`, menu contenu ;
+- viewport 1366×700 : overlap `0 px`, gap `4 px`, menu contenu ;
+- erreurs page `0`, HTTP 5xx `0`, console errors `0`, failed requests `0`.
+
+Contrat couvert par ce lot :
+- édition d'un document avec remplacement de l'identité d'archive au lieu d'un append ;
+- réconciliation des Actes/Payments générés et des échéances lors d'une correction ;
+- conservation de l'historique annulé/corbeille sans le compter dans les agrégats actifs ;
+- hydratation de l'état financier lors de la réouverture d'une note ;
+- normalisation du préfixe arabe du praticien ;
+- menu Historique `Modifier` / `Mettre à la corbeille` sans chevauchement ni clipping aux deux viewports certifiés.
+
+Limites maintenues :
+- cette preuve ne constitue pas une certification financière globale P4 ni une certification production ;
+- la compensation DB/fichier reste une compensation applicative, pas un protocole ACID distribué ;
+- les gates P4 listés en section 6 qui ne sont pas explicitement couverts ci-dessus restent ouverts.

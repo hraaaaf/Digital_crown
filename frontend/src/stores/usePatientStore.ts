@@ -18,3 +18,9 @@ export const usePatientStore = create<PatientState>((set) => ({
   setEditingDoc: (doc) => set({ editingDoc: doc }),
   setPatientsCache: (patients) => set({ patientsCache: patients, patientsCacheLoaded: true, patientsCacheUpdatedAt: Date.now() }),
 }));
+
+if (typeof window !== 'undefined') {
+  window.addEventListener('digitalcrown:document-edit-complete', () => {
+    usePatientStore.getState().setEditingDoc(null);
+  });
+}

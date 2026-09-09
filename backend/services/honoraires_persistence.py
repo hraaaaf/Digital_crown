@@ -20,6 +20,8 @@ _PAYMENT_METHOD_ALIASES = {
     "VIREMENT": "VIREMENT",
 }
 _MAX_HONORAIRES_LINE_AMOUNT = 1_000_000.0
+_GENERATED_PAYMENT_PREFIX = "Lien Doc ID: "
+_VOIDED_PAYMENT_PREFIX = "ANNULÉ — Lien Doc ID: "
 
 
 def normalize_document_payment_method(value: Any) -> str:
@@ -51,6 +53,41 @@ def _validated_honoraires_item(item: dict[str, Any]) -> tuple[str, float]:
     return libelle, amount
 
 
+def _business_datetime(item: dict[str, Any], fallback: datetime) -> datetime:
+    """Return the document business date, preserving fallback time when absent.
+
+    Document Studio writes the selected document date on every Honoraires line.
+    That date is the accounting truth: editing a note from one day/month to
+    another must move the same Acte/Payment rather than create a second entry.
+    """
+    raw = item.get("date")
+    if raw in (None, ""):
+        return fallback
+    if isinstance(raw, datetime):
+        return raw
+    try:
+        parsed = datetime.fromisoformat(str(raw).strip())
+    except (TypeError, ValueError) as exc:
+        raise ValueError("La date de la note d'honoraires est invalide.") from exc
+    return parsed
+
+
+def _generated_payment_note(document_archive_id: int) -> str:
+    return f"{_GENERATED_PAYMENT_PREFIX}{document_archive_id}"
+
+
+def _voided_payment_note(document_archive_id: int) -> str:
+    return f"{_VOIDED_PAYMENT_PREFIX}{document_archive_id}"
+
+
+def _is_document_generated_payment(payment: models.Payment, document_archive_id: int) -> bool:
+    note = str(payment.notes or "")
+    return note in {
+        _generated_payment_note(document_archive_id),
+        _voided_payment_note(document_archive_id),
+    }
+
+
 def persist_honoraires_lines(
     db: Session,
     *,
@@ -63,10 +100,14 @@ def persist_honoraires_lines(
     is_accounted: bool,
     validated_by: str,
 ) -> tuple[list[models.Acte], list[models.Payment]]:
-    """Stage validated Acte rows and exact linked payments in the caller transaction.
+    """Stage or reconcile Acte rows and exact document-generated payments.
 
-    No commit is performed here. The caller owns the transaction and can rollback
-    the complete document/accounting mutation if any line or payment is invalid.
+    The DocumentArchive is canonical. Re-generating the same archive id updates the
+    derived Acte rows instead of duplicating them. The selected document date is the
+    accounting date, so changing it moves the same rows between day/month buckets.
+    Payments created manually through another flow are never deleted or rewritten here.
+
+    No commit is performed here. The caller owns the transaction.
     """
     item_list = list(items)
     if not item_list:
@@ -74,44 +115,112 @@ def persist_honoraires_lines(
 
     validated_items = [(_validated_honoraires_item(item), item) for item in item_list]
 
-    # For a real collection, every persisted line must carry an explicit payment
-    # method before any Acte/Payment row is staged.
     if payment_status == models.PaiementStatut.PAYE:
         for _, item in validated_items:
             normalize_document_payment_method(item.get("mode_reglement"))
 
+    all_existing_actes = (
+        db.query(models.Acte)
+        .filter(models.Acte.document_archive_id == document_archive_id)
+        .order_by(models.Acte.id.asc())
+        .all()
+    )
+    # Une ligne déjà sortie par une édition reste un historique immuable. Elle ne
+    # doit jamais redevenir la nouvelle ligne active lors d'un shrink -> expand.
+    existing_actes = [acte for acte in all_existing_actes if acte.deleted_at is None]
+
     actes: list[models.Acte] = []
-    for (libelle, amount), _item in validated_items:
-        acte = models.Acte(
-            patient_id=patient_id,
-            praticien_id=practitioner_id,
-            type_acte=classify_acte_type(libelle),
-            libelle=libelle,
-            montant=amount,
-            date_debut=document_created_at,
-            statut_paiement=payment_status,
-            is_accounted=is_accounted,
-            is_collected=(payment_status == models.PaiementStatut.PAYE),
-            document_archive_id=document_archive_id,
-        )
-        db.add(acte)
+    edit_timestamp = datetime.now()
+
+    for index, ((libelle, amount), item) in enumerate(validated_items):
+        business_date = _business_datetime(item, document_created_at)
+        if index < len(existing_actes):
+            acte = existing_actes[index]
+            acte.patient_id = patient_id
+            acte.praticien_id = practitioner_id
+            acte.type_acte = classify_acte_type(libelle)
+            acte.libelle = libelle
+            acte.montant = amount
+            acte.date_debut = business_date
+            acte.statut_paiement = payment_status
+            acte.is_accounted = is_accounted
+            acte.is_collected = payment_status == models.PaiementStatut.PAYE
+            acte.validated_by = validated_by
+            acte.document_archive_id = document_archive_id
+        else:
+            acte = models.Acte(
+                patient_id=patient_id,
+                praticien_id=practitioner_id,
+                type_acte=classify_acte_type(libelle),
+                libelle=libelle,
+                montant=amount,
+                date_debut=business_date,
+                statut_paiement=payment_status,
+                is_accounted=is_accounted,
+                is_collected=(payment_status == models.PaiementStatut.PAYE),
+                validated_by=validated_by,
+                document_archive_id=document_archive_id,
+            )
+            db.add(acte)
         actes.append(acte)
+
+    # Les anciennes lignes surnuméraires restent auditables mais sortent de toutes
+    # les vues comptables. Elles ne seront pas restaurées avec une future corbeille
+    # du document car leur timestamp diffère de celui de cette suppression future.
+    for stale_acte in existing_actes[len(validated_items):]:
+        if stale_acte.deleted_at is None:
+            stale_acte.deleted_at = edit_timestamp
+        stale_acte.is_collected = False
 
     db.flush()
 
-    payments: list[models.Payment] = []
-    if payment_status == models.PaiementStatut.PAYE:
-        for ((_, amount), item), acte in zip(validated_items, actes):
-            payment = models.Payment(
-                patient_id=patient_id,
-                amount=amount,
-                payment_method=normalize_document_payment_method(item.get("mode_reglement")),
-                payment_date=document_created_at,
-                acte_id=acte.id,
-                notes=f"Lien Doc ID: {document_archive_id}",
-                validated_by=validated_by,
-            )
-            db.add(payment)
-            payments.append(payment)
+    all_related_actes = all_existing_actes + [a for a in actes if a not in all_existing_actes]
+    acte_ids = [a.id for a in all_related_actes if a.id is not None]
+    payments_by_acte: dict[int, list[models.Payment]] = {acte_id: [] for acte_id in acte_ids}
+    if acte_ids:
+        related_payments = db.query(models.Payment).filter(models.Payment.acte_id.in_(acte_ids)).all()
+        for payment in related_payments:
+            if payment.acte_id is not None:
+                payments_by_acte.setdefault(payment.acte_id, []).append(payment)
 
-    return actes, payments
+    active_generated_payments: list[models.Payment] = []
+
+    for ((_, amount), item), acte in zip(validated_items, actes):
+        generated = next(
+            (
+                payment
+                for payment in payments_by_acte.get(acte.id, [])
+                if _is_document_generated_payment(payment, document_archive_id)
+            ),
+            None,
+        )
+
+        if payment_status == models.PaiementStatut.PAYE:
+            if generated is None:
+                generated = models.Payment(
+                    patient_id=patient_id,
+                    acte_id=acte.id,
+                )
+                db.add(generated)
+            generated.patient_id = patient_id
+            generated.amount = amount
+            generated.payment_method = normalize_document_payment_method(item.get("mode_reglement"))
+            generated.payment_date = _business_datetime(item, document_created_at)
+            generated.acte_id = acte.id
+            generated.notes = _generated_payment_note(document_archive_id)
+            generated.validated_by = validated_by
+            active_generated_payments.append(generated)
+        elif generated is not None:
+            generated.notes = _voided_payment_note(document_archive_id)
+
+    # Toute ligne supprimée par l'édition annule uniquement l'encaissement qui avait
+    # été généré par ce document. Un paiement manuel lié au même Acte reste intact.
+    active_acte_ids = {acte.id for acte in actes if acte.id is not None}
+    for stale_acte in all_existing_actes:
+        if stale_acte.id in active_acte_ids:
+            continue
+        for payment in payments_by_acte.get(stale_acte.id, []):
+            if _is_document_generated_payment(payment, document_archive_id):
+                payment.notes = _voided_payment_note(document_archive_id)
+
+    return actes, active_generated_payments

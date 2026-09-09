@@ -27,6 +27,10 @@ ARCHIVE_BASE_DIR = MEDIA_DIR / "archives"
 LEGACY_DOCS_DIR = MEDIA_DIR / "documents"
 TRASH_RETENTION_DAYS = 365  # 1 an
 THUMBNAIL_SIZE = (300, 400)
+_EDIT_ARCHIVE_ID_KEY = "_replace_archive_id"
+_GENERATED_PAYMENT_PREFIX = "Lien Doc ID: "
+_VOIDED_PAYMENT_PREFIX = "ANNULÉ — Lien Doc ID: "
+_TRASHED_PAYMENT_PREFIX = "CORBEILLE — Lien Doc ID: "
 
 
 class ArchiveService:
@@ -64,6 +68,70 @@ class ArchiveService:
             filename = f"{stem}_v{version}{suffix}"
         
         return path / filename
+
+    def _resolve_archive_storage_path(self, doc: models.DocumentArchive) -> Path:
+        if doc.file_path.startswith("static/archives/") or doc.file_path.startswith("static/documents/"):
+            return MEDIA_DIR / doc.file_path.replace("static/", "", 1)
+        return BASE_DIR / doc.file_path
+
+    def _replace_document_in_place(
+        self,
+        *,
+        document_id: int,
+        patient_id: int,
+        file_content: bytes,
+        filename: str,
+        doc_type: DocumentType,
+        uploaded_by_id: Optional[int],
+        title: Optional[str],
+        description: Optional[str],
+        tags: List[str],
+        clinical_data: Optional[dict],
+        analysis_id: Optional[int],
+        is_accounted: bool,
+        is_collected: bool,
+        payment_status: models.PaiementStatut,
+        commit: bool = True,
+    ) -> models.DocumentArchive:
+        """Remplace explicitement une archive existante sans créer de version visible."""
+        doc = self.db.query(models.DocumentArchive).filter(
+            models.DocumentArchive.id == document_id
+        ).first()
+        if not doc:
+            raise ValueError("Document à modifier introuvable")
+        if doc.patient_id != patient_id:
+            raise ValueError("Le document à modifier n'appartient pas à ce patient")
+        if doc.document_type != doc_type:
+            raise ValueError("Le type du document modifié ne correspond pas à l'archive existante")
+        if doc.status != DocumentStatus.ACTIF:
+            raise ValueError("Un document placé à la corbeille ne peut pas être modifié")
+
+        storage_path = self._resolve_archive_storage_path(doc)
+        storage_path.parent.mkdir(parents=True, exist_ok=True)
+        with open(storage_path, "wb") as f:
+            f.write(file_content)
+
+        doc.file_hash = self._calculate_file_hash(file_content)
+        doc.file_size = len(file_content)
+        doc.filename = storage_path.name
+        doc.original_filename = filename
+        doc.title = title or filename
+        doc.description = description
+        doc.tags = tags
+        doc.clinical_data = clinical_data
+        doc.analysis_id = analysis_id
+        doc.is_accounted = is_accounted
+        doc.is_collected = is_collected
+        doc.payment_status = payment_status
+        doc.uploaded_by_id = uploaded_by_id or doc.uploaded_by_id
+        doc.is_latest_version = True
+        doc.updated_at = datetime.now()
+        if commit:
+            self.db.commit()
+            self.db.refresh(doc)
+        else:
+            self.db.flush()
+        return doc
     
     def check_conflicts(self, patient_id: int, file_hash: str, 
                        filename: str, doc_type: DocumentType, 
@@ -145,19 +213,51 @@ class ArchiveService:
                         force_group_id: Optional[str] = None,
                         is_accounted: bool = True,
                         is_collected: bool = False,
-                        payment_status: models.PaiementStatut = models.PaiementStatut.EN_ATTENTE) -> Tuple[models.DocumentArchive, bool]:
+                        payment_status: models.PaiementStatut = models.PaiementStatut.EN_ATTENTE,
+                        commit: bool = True) -> Tuple[models.DocumentArchive, bool]:
         """
         Archive un document avec gestion intelligente des conflits.
         Retourne: (document, is_new_version)
         """
         tags = tags or []
+        clean_clinical_data = dict(clinical_data) if clinical_data else clinical_data
+        replace_archive_id = None
+        if isinstance(clean_clinical_data, dict):
+            raw_replace_id = clean_clinical_data.pop(_EDIT_ARCHIVE_ID_KEY, None)
+            if raw_replace_id not in (None, ""):
+                try:
+                    replace_archive_id = int(raw_replace_id)
+                except (TypeError, ValueError) as exc:
+                    raise ValueError("Identifiant d'archive à modifier invalide") from exc
         
         # Calculer le hash
         file_hash = self._calculate_file_hash(file_content)
         file_size = len(file_content)
+
+        # Une édition explicite remplace l'archive ciblée. Elle ne doit jamais être
+        # transformée en nouvelle version par la détection de doublons.
+        if replace_archive_id is not None:
+            doc = self._replace_document_in_place(
+                document_id=replace_archive_id,
+                patient_id=patient_id,
+                file_content=file_content,
+                filename=filename,
+                doc_type=doc_type,
+                uploaded_by_id=uploaded_by_id,
+                title=title,
+                description=description,
+                tags=tags,
+                clinical_data=clean_clinical_data,
+                analysis_id=analysis_id,
+                is_accounted=is_accounted,
+                is_collected=is_collected,
+                payment_status=payment_status,
+                commit=commit,
+            )
+            return doc, False
         
         # Vérifier les conflits (Hash, Nom, ou Contenu clinique)
-        conflict = self.check_conflicts(patient_id, file_hash, filename, doc_type, clinical_data=clinical_data)
+        conflict = self.check_conflicts(patient_id, file_hash, filename, doc_type, clinical_data=clean_clinical_data)
         
         if conflict["has_conflict"]:
             # Si c'est un doublon de contenu et que l'utilisateur n'a pas forcé
@@ -188,7 +288,7 @@ class ArchiveService:
                     old_doc.title = title or filename
                     old_doc.description = description
                     old_doc.tags = tags
-                    old_doc.clinical_data = clinical_data
+                    old_doc.clinical_data = clean_clinical_data
                     old_doc.analysis_id = analysis_id
                     old_doc.is_accounted = is_accounted
                     old_doc.is_collected = is_collected
@@ -198,8 +298,11 @@ class ArchiveService:
                     old_doc.permanent_delete_at = None
                     old_doc.is_latest_version = True
                     old_doc.updated_at = datetime.now()
-                    self.db.commit()
-                    self.db.refresh(old_doc)
+                    if commit:
+                        self.db.commit()
+                        self.db.refresh(old_doc)
+                    else:
+                        self.db.flush()
                     return old_doc, False
                 
             elif on_conflict == ConflictResolution.CREATE_VERSION:
@@ -258,7 +361,7 @@ class ArchiveService:
             title=title or filename,
             description=description,
             tags=tags,
-            clinical_data=clinical_data,
+            clinical_data=clean_clinical_data,
             analysis_id=analysis_id,
             is_accounted=is_accounted,
             is_collected=is_collected,
@@ -267,8 +370,11 @@ class ArchiveService:
         )
         
         self.db.add(doc)
-        self.db.commit()
-        self.db.refresh(doc)
+        if commit:
+            self.db.commit()
+            self.db.refresh(doc)
+        else:
+            self.db.flush()
         
         return doc, version_number > 1
     
@@ -279,23 +385,45 @@ class ArchiveService:
         ).order_by(desc(models.DocumentArchive.version_number)).all()
     
     def move_to_trash(self, document_id: int) -> models.DocumentArchive:
-        """Déplace un document dans la corbeille."""
+        """Déplace un document et ses écritures dérivées dans la corbeille comptable."""
         doc = self.db.query(models.DocumentArchive).filter(
             models.DocumentArchive.id == document_id
         ).first()
         
         if not doc:
             raise ValueError("Document non trouvé")
-        
+
+        trash_at = datetime.now()
         doc.status = DocumentStatus.SUPPRIME
-        doc.deleted_at = datetime.now()
-        doc.permanent_delete_at = datetime.now() + timedelta(days=TRASH_RETENTION_DAYS)
+        doc.deleted_at = trash_at
+        doc.permanent_delete_at = trash_at + timedelta(days=TRASH_RETENTION_DAYS)
+
+        # Les actes générés par une note d'honoraires sont dérivés du document.
+        # On masque uniquement ceux qui étaient encore actifs, avec le même timestamp
+        # que le document pour pouvoir restaurer précisément ce lot ensuite.
+        linked_actes = self.db.query(models.Acte).filter(
+            models.Acte.document_archive_id == document_id,
+            models.Acte.deleted_at.is_(None),
+        ).all()
+        for acte in linked_actes:
+            acte.deleted_at = trash_at
+
+        # Les anciens flux pouvaient créer un Payment directement lié au document
+        # (sans acte_id). On lui donne un état de corbeille distinct de l'annulation
+        # par édition afin que seule cette suppression soit réversible.
+        generated_note = f"{_GENERATED_PAYMENT_PREFIX}{document_id}"
+        trashed_note = f"{_TRASHED_PAYMENT_PREFIX}{document_id}"
+        document_payments = self.db.query(models.Payment).filter(
+            models.Payment.notes == generated_note
+        ).all()
+        for payment in document_payments:
+            payment.notes = trashed_note
         
         self.db.commit()
         return doc
     
     def restore_from_trash(self, document_id: int) -> models.DocumentArchive:
-        """Restaure un document depuis la corbeille."""
+        """Restaure un document et uniquement les écritures masquées par cette suppression."""
         doc = self.db.query(models.DocumentArchive).filter(
             and_(
                 models.DocumentArchive.id == document_id,
@@ -305,6 +433,23 @@ class ArchiveService:
         
         if not doc:
             raise ValueError("Document non trouvé dans la corbeille")
+
+        trash_at = doc.deleted_at
+        if trash_at is not None:
+            linked_actes = self.db.query(models.Acte).filter(
+                models.Acte.document_archive_id == document_id,
+                models.Acte.deleted_at == trash_at,
+            ).all()
+            for acte in linked_actes:
+                acte.deleted_at = None
+
+        trashed_note = f"{_TRASHED_PAYMENT_PREFIX}{document_id}"
+        generated_note = f"{_GENERATED_PAYMENT_PREFIX}{document_id}"
+        trashed_payments = self.db.query(models.Payment).filter(
+            models.Payment.notes == trashed_note
+        ).all()
+        for payment in trashed_payments:
+            payment.notes = generated_note
         
         doc.status = DocumentStatus.ACTIF
         doc.deleted_at = None
@@ -314,17 +459,36 @@ class ArchiveService:
         return doc
     
     def permanent_delete(self, document_id: int) -> bool:
-        """Supprime définitivement un document."""
+        """Supprime définitivement un document sans réactiver ses écritures financières."""
         doc = self.db.query(models.DocumentArchive).filter(
             models.DocumentArchive.id == document_id
         ).first()
         
         if not doc:
             return False
+
+        generated_note = f"{_GENERATED_PAYMENT_PREFIX}{document_id}"
+        trashed_note = f"{_TRASHED_PAYMENT_PREFIX}{document_id}"
+        voided_note = f"{_VOIDED_PAYMENT_PREFIX}{document_id}"
+        document_payments = self.db.query(models.Payment).filter(
+            models.Payment.notes.in_([generated_note, trashed_note])
+        ).all()
+        for payment in document_payments:
+            payment.notes = voided_note
+
+        # Tout Acte encore lié doit rester hors comptabilité après disparition du
+        # DocumentArchive. On conserve la ligne pour audit mais on la soft-delete.
+        linked_actes = self.db.query(models.Acte).filter(
+            models.Acte.document_archive_id == document_id,
+            models.Acte.deleted_at.is_(None),
+        ).all()
+        delete_at = datetime.now()
+        for acte in linked_actes:
+            acte.deleted_at = delete_at
         
         # Supprimer le fichier physique
         try:
-            file_path = Path(doc.file_path)
+            file_path = self._resolve_archive_storage_path(doc)
             if file_path.exists():
                 file_path.unlink()
         except Exception as e:
@@ -374,7 +538,7 @@ class ArchiveService:
                         date_to: Optional[datetime] = None,
                         page: int = 1, page_size: int = 20,
                         employer_id: Optional[int] = None) -> Tuple[List[models.DocumentArchive], int]:
-        """Recherche avancée de documents."""
+        """Recherche avancée des documents."""
         query = self.db.query(models.DocumentArchive)
         
         if employer_id:

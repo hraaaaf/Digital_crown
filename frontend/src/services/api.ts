@@ -12,7 +12,7 @@ export const API_BASE = resolveApiBase(
 export const api = axios.create({
   baseURL: `${API_BASE}/api`,
   timeout: 30000,
-  withCredentials: true,  // Envoie les cookies HttpOnly automatiquement
+  withCredentials: true,
 });
 
 // Synchronisation du token entre onglets (BroadcastChannel)
@@ -112,7 +112,9 @@ api.interceptors.request.use((config) => {
 });
 
 api.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    return response;
+  },
   async (error) => {
     // Requête annulée par le coupe-circuit — ne rien faire
     if (axios.isCancel(error)) return Promise.reject(error);

@@ -52,7 +52,7 @@ def test_runtime_rebuilds_full_automatic_header_from_specialty_ids():
         "Esthétique - Pédodontie",
     ]
     assert resolve_header_lines(config, "header_lines_ar") == [
-        "بنموسى أشرف .د",
+        "د. بنموسى أشرف",
         "طبيب جراح للأسنان",
         "علاج العصب - علاج",
         "تقويم الأسنان - أمراض اللثة",
