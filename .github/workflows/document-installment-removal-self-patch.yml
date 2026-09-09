@@ -1,0 +1,40 @@
+name: Document Installment Removal Guarded Patch
+
+on:
+  push:
+    branches: [fix/document-archive-consistency]
+    paths:
+      - '.github/workflows/document-installment-removal-self-patch.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/document-archive-consistency
+          fetch-depth: 0
+      - name: Patch global to non-global reconciliation
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p = Path('backend/routers/documents.py')
+          text = p.read_text()
+          old = '''                if is_global and installments_data:\n                    from backend.services.installment_reconciliation import reconcile_document_installments\n                    if not actes or actes[0].id is None:\n                        raise ValueError("Impossible de rattacher l'échéancier à la note d'honoraires")\n                    reconcile_document_installments(\n                        db,\n                        patient_id=patient.id,\n                        anchor_acte_id=actes[0].id,\n                        total_amount=total_amount,\n                        installments=installments_data,\n                    )\n'''
+          new = '''                from backend.services.installment_reconciliation import reconcile_document_installments\n                if not actes or actes[0].id is None:\n                    raise ValueError("Impossible de rattacher l'échéancier à la note d'honoraires")\n                reconcile_document_installments(\n                    db,\n                    patient_id=patient.id,\n                    anchor_acte_id=actes[0].id,\n                    total_amount=total_amount,\n                    installments=installments_data if is_global else [],\n                )\n'''
+          if text.count(old) != 1:
+              raise SystemExit(f'expected one installment block, got {text.count(old)}')
+          p.write_text(text.replace(old, new, 1))
+          PY
+          python -m py_compile backend/routers/documents.py backend/services/installment_reconciliation.py
+      - name: Commit and remove one-shot workflow
+        run: |
+          rm .github/workflows/document-installment-removal-self-patch.yml
+          git config user.name 'Digital Crown CI'
+          git config user.email 'actions@users.noreply.github.com'
+          git add backend/routers/documents.py .github/workflows/document-installment-removal-self-patch.yml
+          git commit -m 'Reconcile removal of document installment schedule'
+          git push origin HEAD:fix/document-archive-consistency
