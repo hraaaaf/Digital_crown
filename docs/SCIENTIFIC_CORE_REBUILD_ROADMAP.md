@@ -26,7 +26,7 @@ Aucun pourcentage global n'est déclaré sans recalcul vérifié.
 - Frontend : aucune génération thérapeutique automatique ; aucune norme locale ; sexe patient nullable/reset `null` ; CVM âge/sexe et DDM par IMPA neutralisés.
 - `CephaloService` utilise `cephalo_safe_engine`.
 - `cephalo_engine.py` est géométrie seule : normes locales, z-scores, croissance T1/T2, diagnostic et traitement autonomes supprimés.
-- `cephalo_consistency_validator.py` ne garde que cohérence structurelle, unités et calibration.
+- `cephalo_consistency_validator.py` ne garde que cohérence structurelle, identité SNA-SNB=ANB, unités et calibration.
 - `bilan_ortho_engine.py` restitue valeurs brutes + données praticien, sans classe/typologie/sévérité/diagnostic/traitement autonome.
 - `backend/routers/ia.py` n'importe plus directement `cephalo_engine` ni `ai_advisor`.
 - `backend/services/clinical_intelligence.py` ne dépend plus de `ai_advisor` ; son chemin céphalo historique restitue désormais les mesures brutes uniquement, sans cohorte âge-dérivée, diagnostic, indication ou stratégie automatique.
@@ -48,15 +48,27 @@ Ces runs sont des preuves historiques rouges, pas une certification du HEAD cour
 - `test_cephalo_treatment_boundary.py`
 - `test_cephalo_engine_reachability.py`
 - `test_cephalo_consistency_structural_only.py`
-- `test_cephalo_service_normative_context.py` — contrat d'intégration désormais fail-closed : âge/sexe ne créent aucune autorité normative.
+- `test_cephalo_service_normative_context.py` — contrat d'intégration fail-closed : âge/sexe ne créent aucune autorité normative.
 - `test_bilan_ortho_fail_closed.py`
 - `test_ortho_frontend_fail_closed_contract.py`
 - `test_clinical_intelligence_cephalo_fail_closed.py` — inclut le verrou `ORTHODONTIE -> motif_treatment_hints == []`.
 - `test_scientific_core_purge_contract.py`
 
-### Dernier défaut CI identifié et corrigé
+### Preuve CI de closeout avant mise à jour documentaire
 
-Le run CI du HEAD précédent a échoué sur `test_cephalo_service_normative_context.py`, qui attendait encore les anciennes cohortes automatiques `Adulte/Enfant`, normes par âge et contexte sexuel normatif. Ce test était incompatible avec le moteur géométrie-seule actuel. Il a été réécrit pour verrouiller le contrat fail-closed réel, sans réintroduire l'ancienne logique clinique.
+Sur le HEAD produit `a6ddb33041b07a772e55ba7f44b01fa69b2ae1c1` :
+
+- CI `34401719011` : **success** ; backend `3019 passed, 8 skipped, 4 warnings` ; frontend tests/build, garde production et M4-A/B/C verts.
+- T2 `34401719076` : **success**.
+- P7 `34401719000` : **success**.
+- P8 `34401719065` : **success**.
+- Settings `34401719008` : **success**.
+- Catalog `34401719077` : **success**.
+- P6 Windows Packaging `34401719033` : **success**.
+- M6-I `34401719102` : **skipped**.
+- Patient Indicators `34401719118` : **failure de harness connue**, reproduite sur l'attente obsolète du heading `Dossiers Patients` après backend ciblé 10/10, frontend ciblé 4/4, build et runtimes verts ; aucune régression produit démontrée. Le correctif du workflow est bloqué par le garde d'écriture du connecteur GitHub.
+
+Aucun nouveau défaut scientifique ou fonctionnel du lot n'est connu à ce stade.
 
 ## AUTRES LOTS ENCORE OUVERTS
 
@@ -66,8 +78,8 @@ Les autres chantiers scientifiques restent distincts du closeout ortho. La ferme
 
 Ordre : `code → tests → comportement observé → docs → CI → cohérence PR → ready → merge → post-merge`.
 
-Avant merge : aucun rouge scientifique ; aucun comportement clinique autonome non validé connu dans ce lot ; docs cohérentes ; checks requis du même HEAD verts/acceptables.
+Avant merge : aucun rouge scientifique ; aucun comportement clinique autonome non validé connu dans ce lot ; docs cohérentes ; checks visibles du même HEAD verts/acceptables. La protection de branche/required checks n'est pas entièrement lisible avec les permissions du connecteur et ne doit pas être surinterprétée.
 
 ## NEXT EXACT
 
-Vérifier les checks du HEAD final après mise à jour des preuves canoniques. Si rouge : diagnostiquer/corriger. Si vert : cohérence PR finale → ready → merge → contrôle post-merge. Aucun déploiement Vercel.
+Vérifier les checks du nouveau HEAD documentaire. Si le CI scientifique reste vert et qu'aucun nouveau rouge attribuable au lot n'apparaît : cohérence PR finale → ready → merge avec `expected_head_sha` exact → contrôle post-merge. Aucun déploiement Vercel.
