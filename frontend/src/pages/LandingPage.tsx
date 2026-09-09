@@ -126,7 +126,7 @@ export const LandingPage: React.FC = () => {
         <p className="text-xl text-slate-500 max-w-2xl mx-auto leading-relaxed mb-10 font-medium">
           DigitalCrown centralise patients, agenda, facturation et dossiers cliniques dans une interface moderne conçue pour le quotidien des cabinets dentaires.
         </p>
-        <div className="flex flex-col sm:flex-row gap-4 justify-center">
+        <div className="flex flex-col items-center sm:flex-row gap-4 justify-center">
           <a
             href="#demo"
             className="inline-flex items-center gap-2 bg-[#003380] text-white font-black px-8 py-4 rounded-2xl hover:bg-blue-900 transition-all hover:-translate-y-0.5 shadow-2xl shadow-[#003380]/30 text-base"
