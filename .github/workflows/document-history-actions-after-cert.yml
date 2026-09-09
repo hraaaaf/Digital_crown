@@ -108,19 +108,23 @@ jobs:
               localStorage.setItem('refresh_token',r||'');
               localStorage.setItem('appMode','prod');
             },{a:tok.access_token,r:tok.refresh_token});
-            const errors=[]; const http5xx=[]; const documentResponses=[];
+            const errors=[]; const http5xx=[]; const documentResponses=[]; const consoleErrors=[]; const failedRequests=[];
             page.on('pageerror',e=>errors.push(String(e)));
+            page.on('console',m=>{ if(m.type()==='error') consoleErrors.push(m.text()); });
+            page.on('requestfailed',r=>failedRequests.push({url:r.url(),error:r.failure()?.errorText||''}));
             page.on('response',r=>{
               if(r.status()>=500) http5xx.push({url:r.url(),status:r.status()});
               if(r.url().includes(`/api/patients/${patient.id}/documents`)) documentResponses.push({url:r.url(),status:r.status()});
             });
             await page.goto(`http://127.0.0.1:5173/patients/${patient.id}?tab=archives`,{waitUntil:'domcontentloaded',timeout:30000});
+            await page.locator('#root').waitFor({state:'attached',timeout:15000});
+            await page.waitForFunction(()=>document.querySelector('#root')?.childElementCount>0,undefined,{timeout:30000}).catch(()=>null);
             const diagnosticShot=`diagnostic-history-${viewport.label}.png`;
             await page.screenshot({path:path.join(out,diagnosticShot),fullPage:false});
             const actions=page.getByRole('button',{name:actionLabel,exact:true});
             await actions.waitFor({state:'visible',timeout:30000}).catch(()=>null);
             if(await actions.count()===0 || !(await actions.first().isVisible())){
-              const diagnostic={viewport,url:page.url(),body:(await page.locator('body').innerText()).slice(0,8000),actionLabel,documentResponses,errors,http5xx,diagnosticShot};
+              const diagnostic={viewport,url:page.url(),body:(await page.locator('body').innerText()).slice(0,8000),actionLabel,documentResponses,errors,http5xx,consoleErrors,failedRequests,diagnosticShot};
               fs.writeFileSync(path.join(out,`diagnostic-${viewport.label}.json`),JSON.stringify(diagnostic,null,2));
               console.log(JSON.stringify(diagnostic,null,2));
               throw new Error(`document action button not found ${viewport.label}`);
@@ -140,9 +144,9 @@ jobs:
             const contained=mb.x>=-0.5 && mb.y>=-0.5 && mb.x+mb.width<=viewport.width+0.5 && mb.y+mb.height<=viewport.height+0.5;
             const shot=`after-document-actions-${viewport.label}.png`;
             await page.screenshot({path:path.join(out,shot),fullPage:false});
-            const row={viewport,archiveId:generated.id,archiveName:generated.name,menuBox:mb,editBox:eb,trashBox:tb,gap,overlap,contained,errors,http5xx,shot};
+            const row={viewport,archiveId:generated.id,archiveName:generated.name,menuBox:mb,editBox:eb,trashBox:tb,gap,overlap,contained,errors,http5xx,consoleErrors,failedRequests,shot};
             evidence.push(row);
-            if(overlap>0 || gap<3 || !contained || errors.length || http5xx.length) throw new Error(`AFTER visual contract failed: ${JSON.stringify(row)}`);
+            if(overlap>0 || gap<3 || !contained || errors.length || http5xx.length || consoleErrors.length || failedRequests.length) throw new Error(`AFTER visual contract failed: ${JSON.stringify(row)}`);
             await ctx.close();
           }
           fs.writeFileSync(path.join(out,'after-evidence.json'),JSON.stringify(evidence,null,2));
