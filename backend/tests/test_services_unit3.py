@@ -51,10 +51,20 @@ class TestResolveMotifs:
         for key, val in MOTIF_CATALOG.items():
             assert "label" in val, f"Missing 'label' in MOTIF_CATALOG['{key}']"
 
-    def test_all_catalog_keys_have_acts(self):
+    def test_non_ortho_catalog_entries_keep_acts(self):
         from backend.services.clinical_intelligence import MOTIF_CATALOG
         for key, val in MOTIF_CATALOG.items():
-            assert "acts" in val, f"Missing 'acts' in MOTIF_CATALOG['{key}']"
+            if "ORTHODONTIE" not in val.get("specialties", []):
+                assert "acts" in val, f"Missing 'acts' in non-ortho MOTIF_CATALOG['{key}']"
+
+    def test_ortho_catalog_can_be_routing_only(self):
+        from backend.services.clinical_intelligence import MOTIF_CATALOG
+        ortho_without_acts = [
+            key
+            for key, val in MOTIF_CATALOG.items()
+            if "ORTHODONTIE" in val.get("specialties", []) and "acts" not in val
+        ]
+        assert ortho_without_acts, "At least one orthodontic motif must remain routing-only"
 
     def test_catalog_has_at_least_10_entries(self):
         from backend.services.clinical_intelligence import MOTIF_CATALOG
