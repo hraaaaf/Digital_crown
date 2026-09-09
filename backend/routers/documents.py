@@ -145,7 +145,7 @@ async def generate_document(req: schemas.DocumentRequest, archive: bool = False,
             raise ValueError(f"Type de document non supporté : {req.type}")
 
     patient = db.query(models.Patient).filter(models.Patient.id == patient_id).first()
-    replacement_file_backups: list[tuple[pathlib.Path, bytes]] = []
+    replacement_file_backups: list[tuple[pathlib.Path, Optional[bytes]]] = []
     financial_edit_committed = False
 
     def _backup_financial_edit_files() -> None:
@@ -174,17 +174,24 @@ async def generate_document(req: schemas.DocumentRequest, archive: bool = False,
                 MEDIA_DIR / "documents" / str(target.created_at.year) / f"{target.created_at.month:02d}" / canonical.name
             )
         seen = set()
-        for candidate in candidates:
+        for index, candidate in enumerate(candidates):
             resolved = candidate.resolve()
-            if resolved in seen or not resolved.exists():
+            if resolved in seen:
                 continue
             seen.add(resolved)
-            replacement_file_backups.append((resolved, resolved.read_bytes()))
+            if index == 0:
+                replacement_file_backups.append((resolved, resolved.read_bytes() if resolved.exists() else None))
+            elif resolved.exists():
+                replacement_file_backups.append((resolved, resolved.read_bytes()))
 
     def _restore_financial_edit_files() -> None:
         if financial_edit_committed:
             return
         for path, content in replacement_file_backups:
+            if content is None:
+                if path.exists():
+                    path.unlink()
+                continue
             path.parent.mkdir(parents=True, exist_ok=True)
             path.write_bytes(content)
 
