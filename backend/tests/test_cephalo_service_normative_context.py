@@ -111,7 +111,7 @@ def test_refine_analysis_remains_fail_closed(db, dentiste, monkeypatch):
     )
 
     _assert_fail_closed(refined["results"])
-    assert refined["ai_diagnostic"]["requires_validation"] is True
+    assert "Aucune stratégie thérapeutique n'est générée automatiquement" in refined["ai_diagnostic"]["strategie_therapeutique"]
 
 
 def test_unrecognized_sex_code_does_not_invent_context(db, dentiste, monkeypatch):
