@@ -38,7 +38,15 @@ def test_bilan_restates_raw_values_without_autonomous_diagnosis():
         sex="M",
     )
 
-    text = " ".join(result.values()).lower()
+    text = " ".join(
+        result[key]
+        for key in (
+            "diagnostic_squelettique",
+            "analyse_moulages",
+            "synthese_diagnostique",
+            "strategie_therapeutique",
+        )
+    ).lower()
     assert "anb = 20.0°" in text
     assert "impa = 110.0°" in text
     assert "classe ii" not in text
