@@ -1,0 +1,103 @@
+name: Document Consistency Guarded Self Patch
+
+on:
+  push:
+    branches: [fix/document-archive-consistency]
+    paths:
+      - '.github/workflows/document-consistency-self-patch.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/document-archive-consistency
+          fetch-depth: 0
+      - name: Apply exact guarded replacements
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          def replace_once(path, old, new):
+              p = Path(path)
+              text = p.read_text()
+              count = text.count(old)
+              if count != 1:
+                  raise SystemExit(f'{path}: expected exactly one match, got {count}: {old[:80]!r}')
+              p.write_text(text.replace(old, new, 1))
+
+          archive = 'backend/services/archive_service.py'
+          replace_once(
+              archive,
+              '        payment_status: models.PaiementStatut,\n    ) -> models.DocumentArchive:',
+              '        payment_status: models.PaiementStatut,\n        commit: bool = True,\n    ) -> models.DocumentArchive:',
+          )
+          replace_once(
+              archive,
+              '        self.db.commit()\n        self.db.refresh(doc)\n        return doc\n    \n    def check_conflicts',
+              '        if commit:\n            self.db.commit()\n            self.db.refresh(doc)\n        else:\n            self.db.flush()\n        return doc\n    \n    def check_conflicts',
+          )
+          replace_once(
+              archive,
+              '                        is_collected: bool = False,\n                        payment_status: models.PaiementStatut = models.PaiementStatut.EN_ATTENTE) -> Tuple[models.DocumentArchive, bool]:',
+              '                        is_collected: bool = False,\n                        payment_status: models.PaiementStatut = models.PaiementStatut.EN_ATTENTE,\n                        commit: bool = True) -> Tuple[models.DocumentArchive, bool]:',
+          )
+          replace_once(
+              archive,
+              '                payment_status=payment_status,\n            )\n            return doc, False',
+              '                payment_status=payment_status,\n                commit=commit,\n            )\n            return doc, False',
+          )
+          replace_once(
+              archive,
+              '                    self.db.commit()\n                    self.db.refresh(old_doc)\n                    return old_doc, False',
+              '                    if commit:\n                        self.db.commit()\n                        self.db.refresh(old_doc)\n                    else:\n                        self.db.flush()\n                    return old_doc, False',
+          )
+          replace_once(
+              archive,
+              '        self.db.add(doc)\n        self.db.commit()\n        self.db.refresh(doc)\n        \n        return doc, version_number > 1',
+              '        self.db.add(doc)\n        if commit:\n            self.db.commit()\n            self.db.refresh(doc)\n        else:\n            self.db.flush()\n        \n        return doc, version_number > 1',
+          )
+
+          docs = 'backend/routers/documents.py'
+          replace_once(
+              docs,
+              '                    else schemas.ConflictResolution.CANCEL\n                )\n            )',
+              '                    else schemas.ConflictResolution.CANCEL\n                ),\n                commit=req.type not in ["honoraires", "note"],\n            )',
+          )
+          replace_once(
+              docs,
+              '                persist_honoraires_lines(\n                    db,',
+              '                actes, _ = persist_honoraires_lines(\n                    db,',
+          )
+          old_plan = '''                if is_global and installments_data:\n                    # Création d'un plan de paiement\n                    plan = models.InstallmentPlan(\n                        patient_id=patient.id,\n                        title=f"Plan de paiement - {datetime.now().strftime('%d/%m/%Y')}",\n                        total_amount=total_amount\n                    )\n                    db.add(plan)\n                    db.flush() # Pour avoir l'ID du plan\n                    \n                    for inst in installments_data:\n                        # try parsing date or fallback\n                        due_date_str = inst.get('date', datetime.now().strftime('%Y-%m-%d'))\n                        try:\n                            due_date = datetime.strptime(due_date_str, '%Y-%m-%d')\n                        except ValueError:\n                            due_date = datetime.now()\n                            \n                        inst_amount = float(inst.get('amount', 0))\n                        send_rem = inst.get('sendReminder', False)\n                        db.add(models.Installment(\n                            plan_id=plan.id,\n                            label=inst.get('label', 'Échéance'),\n                            amount=inst_amount,\n                            due_date=due_date,\n                            status="EN_ATTENTE",\n                            notes='{\"sendReminder\": true}' if send_rem else None\n                        ))\n'''
+          new_plan = '''                if is_global and installments_data:\n                    from backend.services.installment_reconciliation import reconcile_document_installments\n                    if not actes or actes[0].id is None:\n                        raise ValueError("Impossible de rattacher l'échéancier à la note d'honoraires")\n                    reconcile_document_installments(\n                        db,\n                        patient_id=patient.id,\n                        anchor_acte_id=actes[0].id,\n                        total_amount=total_amount,\n                        installments=installments_data,\n                    )\n'''
+          replace_once(docs, old_plan, new_plan)
+          replace_once(
+              docs,
+              '    except ValueError as e:\n        msg = str(e)',
+              '    except ValueError as e:\n        db.rollback()\n        msg = str(e)',
+          )
+          replace_once(
+              docs,
+              '    except Exception as e:\n        logger.error(f"Erreur Génération : {e}")',
+              '    except Exception as e:\n        db.rollback()\n        logger.error(f"Erreur Génération : {e}")',
+          )
+          PY
+      - name: Static sanity checks
+        run: |
+          python -m py_compile backend/services/archive_service.py backend/services/installment_reconciliation.py backend/routers/documents.py
+          grep -q 'commit=req.type not in \["honoraires", "note"\]' backend/routers/documents.py
+          grep -q 'reconcile_document_installments' backend/routers/documents.py
+          grep -q 'commit: bool = True' backend/services/archive_service.py
+      - name: Commit patch and remove this one-shot workflow
+        run: |
+          rm .github/workflows/document-consistency-self-patch.yml
+          git config user.name 'Digital Crown CI'
+          git config user.email 'actions@users.noreply.github.com'
+          git add backend/services/archive_service.py backend/routers/documents.py .github/workflows/document-consistency-self-patch.yml
+          git commit -m 'Fix installment identity and archive accounting transaction'
+          git push origin HEAD:fix/document-archive-consistency
