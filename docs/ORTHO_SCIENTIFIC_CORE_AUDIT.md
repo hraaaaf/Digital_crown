@@ -23,7 +23,7 @@ Le logiciel peut calculer la géométrie, préserver les observations documenté
 | `cephalo_safe_engine.py` | défense en profondeur conservée |
 | `cephalo_consistency_validator.py` | cohérence structurelle, unités, calibration seulement |
 | `bilan_ortho_engine.py` | valeurs brutes + données praticien ; aucune classe/typologie/sévérité/diagnostic/traitement autonome |
-| `clinical_intelligence.py` | synthèse céphalo réécrite fail-closed : mesures brutes uniquement, aucune cohorte/diagnostic/stratégie auto |
+| `clinical_intelligence.py` | synthèse céphalo fail-closed ; motifs ODF = routage de spécialité uniquement, sans hint thérapeutique |
 | `ai_advisor.py` | supprimé ; références runtime connues retirées |
 
 ## Frontières de sécurité
@@ -33,9 +33,10 @@ Le logiciel peut calculer la géométrie, préserver les observations documenté
 - `test_cephalo_geometry_only.py` verrouille le contrat géométrie-seule.
 - `test_cephalo_treatment_boundary.py` verrouille absence de conversion IMPA→espace et préservation des données praticien.
 - `test_cephalo_consistency_structural_only.py` interdit le retour des pseudo-normes dans le gate PDF.
+- `test_cephalo_service_normative_context.py` vérifie le chemin réel `process_new_radio/refine_analysis` : cohortes `Non classé`, normes/z-scores absents, projections et narrative automatiques vides ; âge/sexe ne créent aucune autorité normative.
 - `test_bilan_ortho_fail_closed.py` interdit classes/typologies/sévérités automatiques.
 - `test_ortho_frontend_fail_closed_contract.py` verrouille sexe nullable/reset et interdit tout fallback masculin.
-- `test_clinical_intelligence_cephalo_fail_closed.py` interdit le retour de `ai_advisor`, d'une cohorte âge-dérivée, d'une synthèse diagnostique ou d'une stratégie thérapeutique céphalo.
+- `test_clinical_intelligence_cephalo_fail_closed.py` interdit le retour de `ai_advisor`, d'une synthèse diagnostique ou stratégie thérapeutique céphalo et verrouille `ORTHODONTIE -> motif_treatment_hints == []`.
 - `test_scientific_core_purge_contract.py` interdit la réapparition du wrapper `ai_advisor` et de références runtime.
 
 ## Purge `ai_advisor` — audit corrigé
@@ -47,6 +48,12 @@ L'audit initial était incomplet : après suppression du wrapper, deux CI succes
 
 Les runs `34344464825` puis `34353944361` ont échoué sur ces références. Ils constituent des preuves historiques rouges, pas une certification du HEAD courant.
 
+## Dernier défaut CI corrigé
+
+Le test d'intégration historique `test_cephalo_service_normative_context.py` attendait encore `Adulte/Enfant`, des normes dépendantes de l'âge et un contexte sexuel normatif. Le moteur runtime est désormais volontairement géométrie-seule. Le test a donc été remplacé par le contrat réel fail-closed ; aucune logique normative n'a été restaurée pour satisfaire le test.
+
+L'audit de reachability de `clinical_intelligence` a également confirmé que `motif_specialties` atteint l'API. Pour les motifs contenant `ORTHODONTIE`, la génération d'actes est stoppée avant `motif_treatment_hints`. Un test exécutable couvre désormais cette frontière.
+
 ## Base scientifique verrouillée
 
 - CVM : morphologie C2-C4, jamais âge/sexe seuls. McNamara & Franchi, Angle Orthod 2018 ; Gabriel et al., AJODO 2009.
@@ -57,10 +64,10 @@ Les runs `34344464825` puis `34353944361` ont échoué sur ces références. Ils
 
 ## Remaining exact
 
-1. CI complète sur le HEAD courant après correction `clinical_intelligence` ;
+1. CI complète sur le HEAD final ;
 2. corriger toute régression attribuable au lot ;
 3. vérifier tous les checks requis sur ce même HEAD ;
-4. mettre PR/docs en cohérence finale ;
+4. cohérence PR finale ;
 5. sortir du draft puis merge uniquement avec preuves vertes ;
 6. contrôle post-merge ;
 7. aucun déploiement Vercel sans autorisation explicite.
