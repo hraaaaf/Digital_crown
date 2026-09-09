@@ -50,6 +50,7 @@ def test_reconcile_reuses_plan_and_never_resurrects_cancelled_installments(db, d
         ],
     )
     db.commit()
+    assert plan is not None
     plan_id = plan.id
     original_ids = [row.id for row in plan.installments]
 
@@ -91,6 +92,41 @@ def test_reconcile_reuses_plan_and_never_resurrects_cancelled_installments(db, d
     assert any(row.id == original_ids[1] and row.status == 'ANNULE' for row in plans[0].installments)
 
 
+def test_reconcile_empty_schedule_cancels_pending_without_creating_empty_plan(db, dentiste):
+    patient = _patient(db, dentiste)
+    acte_without_plan = _acte(db, patient, dentiste)
+    assert reconcile_document_installments(
+        db,
+        patient_id=patient.id,
+        anchor_acte_id=acte_without_plan.id,
+        total_amount=1000,
+        installments=[],
+    ) is None
+
+    acte = _acte(db, patient, dentiste)
+    plan = reconcile_document_installments(
+        db,
+        patient_id=patient.id,
+        anchor_acte_id=acte.id,
+        total_amount=1000,
+        installments=[{'label': 'Solde', 'amount': 1000, 'date': '2026-10-10'}],
+    )
+    db.commit()
+    assert plan is not None
+
+    reconcile_document_installments(
+        db,
+        patient_id=patient.id,
+        anchor_acte_id=acte.id,
+        total_amount=1000,
+        installments=[],
+    )
+    db.commit()
+
+    plan = db.query(models.InstallmentPlan).filter(models.InstallmentPlan.id == plan.id).one()
+    assert [row.status for row in plan.installments] == ['ANNULE']
+
+
 def test_reconcile_refuses_mutating_paid_installment(db, dentiste):
     patient = _patient(db, dentiste)
     acte = _acte(db, patient, dentiste)
@@ -105,6 +141,7 @@ def test_reconcile_refuses_mutating_paid_installment(db, dentiste):
         ],
     )
     db.commit()
+    assert plan is not None
     first = sorted(plan.installments, key=lambda row: row.id)[0]
     first.status = 'PAYE'
     db.commit()
