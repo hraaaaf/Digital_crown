@@ -28,6 +28,9 @@ LEGACY_DOCS_DIR = MEDIA_DIR / "documents"
 TRASH_RETENTION_DAYS = 365  # 1 an
 THUMBNAIL_SIZE = (300, 400)
 _EDIT_ARCHIVE_ID_KEY = "_replace_archive_id"
+_GENERATED_PAYMENT_PREFIX = "Lien Doc ID: "
+_VOIDED_PAYMENT_PREFIX = "ANNULÉ — Lien Doc ID: "
+_TRASHED_PAYMENT_PREFIX = "CORBEILLE — Lien Doc ID: "
 
 
 class ArchiveService:
@@ -370,7 +373,7 @@ class ArchiveService:
         ).order_by(desc(models.DocumentArchive.version_number)).all()
     
     def move_to_trash(self, document_id: int) -> models.DocumentArchive:
-        """Déplace un document et ses Acte dérivés dans la corbeille comptable."""
+        """Déplace un document et ses écritures dérivées dans la corbeille comptable."""
         doc = self.db.query(models.DocumentArchive).filter(
             models.DocumentArchive.id == document_id
         ).first()
@@ -392,12 +395,23 @@ class ArchiveService:
         ).all()
         for acte in linked_actes:
             acte.deleted_at = trash_at
+
+        # Les anciens flux pouvaient créer un Payment directement lié au document
+        # (sans acte_id). On lui donne un état de corbeille distinct de l'annulation
+        # par édition afin que seule cette suppression soit réversible.
+        generated_note = f"{_GENERATED_PAYMENT_PREFIX}{document_id}"
+        trashed_note = f"{_TRASHED_PAYMENT_PREFIX}{document_id}"
+        document_payments = self.db.query(models.Payment).filter(
+            models.Payment.notes == generated_note
+        ).all()
+        for payment in document_payments:
+            payment.notes = trashed_note
         
         self.db.commit()
         return doc
     
     def restore_from_trash(self, document_id: int) -> models.DocumentArchive:
-        """Restaure un document et uniquement les Acte masqués par cette suppression."""
+        """Restaure un document et uniquement les écritures masquées par cette suppression."""
         doc = self.db.query(models.DocumentArchive).filter(
             and_(
                 models.DocumentArchive.id == document_id,
@@ -416,6 +430,14 @@ class ArchiveService:
             ).all()
             for acte in linked_actes:
                 acte.deleted_at = None
+
+        trashed_note = f"{_TRASHED_PAYMENT_PREFIX}{document_id}"
+        generated_note = f"{_GENERATED_PAYMENT_PREFIX}{document_id}"
+        trashed_payments = self.db.query(models.Payment).filter(
+            models.Payment.notes == trashed_note
+        ).all()
+        for payment in trashed_payments:
+            payment.notes = generated_note
         
         doc.status = DocumentStatus.ACTIF
         doc.deleted_at = None
@@ -425,13 +447,32 @@ class ArchiveService:
         return doc
     
     def permanent_delete(self, document_id: int) -> bool:
-        """Supprime définitivement un document."""
+        """Supprime définitivement un document sans réactiver ses écritures financières."""
         doc = self.db.query(models.DocumentArchive).filter(
             models.DocumentArchive.id == document_id
         ).first()
         
         if not doc:
             return False
+
+        generated_note = f"{_GENERATED_PAYMENT_PREFIX}{document_id}"
+        trashed_note = f"{_TRASHED_PAYMENT_PREFIX}{document_id}"
+        voided_note = f"{_VOIDED_PAYMENT_PREFIX}{document_id}"
+        document_payments = self.db.query(models.Payment).filter(
+            models.Payment.notes.in_([generated_note, trashed_note])
+        ).all()
+        for payment in document_payments:
+            payment.notes = voided_note
+
+        # Tout Acte encore lié doit rester hors comptabilité après disparition du
+        # DocumentArchive. On conserve la ligne pour audit mais on la soft-delete.
+        linked_actes = self.db.query(models.Acte).filter(
+            models.Acte.document_archive_id == document_id,
+            models.Acte.deleted_at.is_(None),
+        ).all()
+        delete_at = datetime.now()
+        for acte in linked_actes:
+            acte.deleted_at = delete_at
         
         # Supprimer le fichier physique
         try:
