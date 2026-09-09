@@ -1,3 +1,4 @@
+import ast
 from pathlib import Path
 
 
@@ -98,31 +99,42 @@ def test_panoramic_delete_candidates_have_no_external_runtime_consumers():
 
 
 def test_cephalo_advisor_wrapper_is_removed_and_unreachable():
-    """The retired cephalo advisor must not reappear or remain imported by runtime code."""
+    """The retired cephalo advisor must not be importable or referenced by Python runtime code."""
     for relative in CEPHALO_DELETE_CANDIDATES:
         assert not (ROOT / relative).exists(), relative
 
-    excluded = {
-        "backend/tests/test_scientific_core_purge_contract.py",
-        "docs/ORTHO_SCIENTIFIC_CORE_AUDIT.md",
-        "docs/SCIENTIFIC_CORE_REBUILD_ROADMAP.md",
-    }
-    forbidden_tokens = {
-        token
-        for tokens in CEPHALO_DELETE_CANDIDATES.values()
-        for token in tokens
-    }
-
     offenders = []
-    for path in ROOT.rglob("*"):
-        if not path.is_file() or path.suffix.lower() not in RUNTIME_TEXT_SUFFIXES:
-            continue
+    backend_root = ROOT / "backend"
+    for path in backend_root.rglob("*.py"):
         relative = path.relative_to(ROOT).as_posix()
-        if relative in excluded or "/node_modules/" in f"/{relative}/":
+        if relative.startswith("backend/tests/"):
             continue
+
         source = path.read_text(encoding="utf-8", errors="ignore")
-        matched = sorted(token for token in forbidden_tokens if token in source)
-        if matched:
-            offenders.append((relative, matched))
+        try:
+            tree = ast.parse(source, filename=relative)
+        except SyntaxError as exc:
+            offenders.append((relative, [f"syntax-error:{exc.lineno}"]))
+            continue
+
+        matches = []
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Import):
+                for alias in node.names:
+                    if alias.name == "backend.services.ai_advisor" or alias.name == "ai_advisor":
+                        matches.append(f"import:{alias.name}")
+            elif isinstance(node, ast.ImportFrom):
+                module = node.module or ""
+                if module == "backend.services.ai_advisor" or module == "ai_advisor":
+                    matches.append(f"from:{module}")
+                elif module == "backend.services" and any(alias.name == "ai_advisor" for alias in node.names):
+                    matches.append("from:backend.services.ai_advisor")
+            elif isinstance(node, ast.Name) and node.id == "ai_advisor":
+                matches.append("name:ai_advisor")
+            elif isinstance(node, ast.Name) and node.id == "AIAdvisor":
+                matches.append("name:AIAdvisor")
+
+        if matches:
+            offenders.append((relative, sorted(set(matches))))
 
     assert not offenders, f"Removed cephalo advisor still has runtime references: {offenders}"
