@@ -146,6 +146,7 @@ async def generate_document(req: schemas.DocumentRequest, archive: bool = False,
 
     patient = db.query(models.Patient).filter(models.Patient.id == patient_id).first()
     replacement_file_backups: list[tuple[pathlib.Path, bytes]] = []
+    financial_edit_committed = False
 
     def _backup_financial_edit_files() -> None:
         if req.type not in ["honoraires", "note"]:
@@ -181,6 +182,8 @@ async def generate_document(req: schemas.DocumentRequest, archive: bool = False,
             replacement_file_backups.append((resolved, resolved.read_bytes()))
 
     def _restore_financial_edit_files() -> None:
+        if financial_edit_committed:
+            return
         for path, content in replacement_file_backups:
             path.parent.mkdir(parents=True, exist_ok=True)
             path.write_bytes(content)
@@ -229,8 +232,13 @@ async def generate_document(req: schemas.DocumentRequest, archive: bool = False,
             # Le miroir historique éventuel doit évoluer dans le même lot que le
             # PDF canonique. En cas d'échec comptable, les deux seront restaurés.
             if req.type in ["honoraires", "note"]:
-                for backup_path, _ in replacement_file_backups[1:]:
-                    backup_path.write_bytes(pdf_content)
+                if doc.file_path.startswith("static/archives/") or doc.file_path.startswith("static/documents/"):
+                    canonical_after = (MEDIA_DIR / doc.file_path.replace("static/", "", 1)).resolve()
+                else:
+                    canonical_after = (BASE_DIR / doc.file_path).resolve()
+                for backup_path, _ in replacement_file_backups:
+                    if backup_path != canonical_after:
+                        backup_path.write_bytes(pdf_content)
 
             # Étape 2 & 3 : Trésorerie Relationnelle (Ghost Treasury v4.6)
             if req.type in ["honoraires", "note"]:
@@ -272,6 +280,7 @@ async def generate_document(req: schemas.DocumentRequest, archive: bool = False,
 
                 # Commit unique du lot comptable Document Studio.
                 db.commit()
+                financial_edit_committed = True
 
         # Analyse de cohérence déterministe.
         warnings = await coherence_service.analyze_coherence(patient.id, req.type, req.data, db, doctor_id=user_id)
