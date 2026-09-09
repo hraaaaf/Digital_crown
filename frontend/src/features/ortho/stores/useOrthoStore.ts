@@ -55,12 +55,12 @@ interface OrthoState {
   syncState: SyncState;
   photos: PhotoUpload[];
   dateConsultation: string;
-  sexePatient: 'M' | 'F';
+  sexePatient: 'M' | 'F' | null;
   setStep: (step: StepId) => void;
   setCompletedSteps: (updater: Set<number> | ((prev: Set<number>) => Set<number>)) => void;
   setPhotos: (updater: PhotoUpload[] | ((prev: PhotoUpload[]) => PhotoUpload[])) => void;
   setDateConsultation: (date: string) => void;
-  setSexePatient: (sexe: 'M' | 'F') => void;
+  setSexePatient: (sexe: 'M' | 'F' | null) => void;
   setPatientInfo: (id: number, name: string) => void;
   setAnalysisId: (id: number | undefined) => void;
   setImageSrc: (src: string | undefined) => void;
@@ -181,7 +181,7 @@ export const useOrthoStore = create<OrthoState>((set, get) => ({
     { id: 'intra_profile', type: 'intra_profile', file: null, preview: null, label: 'Photo Intra-orale Profil' },
   ],
   dateConsultation: new Date().toISOString().split('T')[0],
-  sexePatient: 'M',
+  sexePatient: null,
   setStep: (step) => set({ step }),
   setCompletedSteps: (updater) => set((state) => ({ completedSteps: typeof updater === 'function' ? updater(state.completedSteps) : updater })),
   setPhotos: (updater) => set((state) => ({ photos: typeof updater === 'function' ? updater(state.photos) : updater })),
@@ -205,7 +205,7 @@ export const useOrthoStore = create<OrthoState>((set, get) => ({
     const savedMeta = localStorage.getItem(`digitalcrown_etape4_${id}`);
     const savedE2 = localStorage.getItem(`digitalcrown_etape2_${id}`);
     const savedE3 = localStorage.getItem(`digitalcrown_etape3_${id}`);
-    set({ patientId: id, patientName: name });
+    set({ patientId: id, patientName: name, sexePatient: null });
     if (savedPhotos) {
       try {
         const parsed = JSON.parse(savedPhotos);
@@ -219,7 +219,7 @@ export const useOrthoStore = create<OrthoState>((set, get) => ({
         const parsed = JSON.parse(savedMeta);
         set({
           dateConsultation: parsed.dateConsultation || new Date().toISOString().split('T')[0],
-          sexePatient: parsed.sexePatient || 'M'
+          sexePatient: parsed.sexePatient === 'M' || parsed.sexePatient === 'F' ? parsed.sexePatient : null
         });
       } catch (err) {
         console.warn('Failed to parse savedMeta', err);
