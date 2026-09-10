@@ -38,6 +38,10 @@ def _num(value: Any, label: str) -> float:
         raise CephaloRuntimeEvidenceError(f"{label} must be finite")
     return out
 
+def _validate_previous(previous: Optional[Mapping[str, Any]]) -> None:
+    if previous and previous.get("schema_version") != EVIDENCE_SCHEMA_VERSION:
+        raise CephaloRuntimeEvidenceError("Unsupported persisted evidence schema version")
+
 def _case(previous: Optional[Mapping[str, Any]], requested: Optional[str]) -> str:
     old = previous.get("case_id") if previous else None
     if old is not None and (not isinstance(old, str) or not old.strip()):
@@ -53,6 +57,21 @@ def _revision(previous: Optional[Mapping[str, Any]]) -> int:
     if not isinstance(value, int) or value < 1:
         raise CephaloRuntimeEvidenceError("Invalid persisted revision")
     return value + 1
+
+def _history(previous: Optional[Mapping[str, Any]]) -> list[dict[str, Any]]:
+    if not previous:
+        return []
+    old_history = previous.get("history", [])
+    if not isinstance(old_history, list):
+        raise CephaloRuntimeEvidenceError("Persisted evidence history must be a list")
+    snapshot = {
+        "revision": previous.get("revision"),
+        "sources": previous.get("sources", []),
+        "landmarks": previous.get("landmarks", []),
+        "constructions": previous.get("constructions", []),
+        "measurements": previous.get("measurements", []),
+    }
+    return [*old_history, snapshot]
 
 def _old_auto(previous: Optional[Mapping[str, Any]]) -> list[LandmarkEvidence]:
     if not previous:
@@ -140,6 +159,7 @@ def build_cephalo_runtime_evidence_payload(
         raise CephaloRuntimeEvidenceError("patient_id must be positive")
     if not isinstance(image_record_id, str) or not image_record_id.strip():
         raise CephaloRuntimeEvidenceError("image_record_id must be non-empty")
+    _validate_previous(previous_payload)
     resolved_case = _case(previous_payload, case_id)
     revision = _revision(previous_payload)
     timestamp = recorded_at or dt.datetime.now(dt.timezone.utc)
@@ -153,6 +173,8 @@ def build_cephalo_runtime_evidence_payload(
         if old_ceph:
             if old_ceph.patient_id != patient_id or old_ceph.metadata.get("case_id") != resolved_case:
                 raise CephaloRuntimeEvidenceError("Persisted source patient/case mismatch")
+            if old_ceph.source_record_id != image_record_id:
+                raise CephaloRuntimeEvidenceError("Persisted cephalogram source record mismatch")
             ceph_source = old_ceph
     current = _current_landmarks(
         landmarks, case_id=resolved_case, revision=revision, source_ref=ceph_source.evidence_id,
@@ -179,6 +201,7 @@ def build_cephalo_runtime_evidence_payload(
     return {
         "schema_version": EVIDENCE_SCHEMA_VERSION, "case_id": resolved_case, "revision": revision,
         "authority_status": "PERSISTED_NOT_YET_READ_PATH", "legacy_angles_data_role": "COMPATIBILITY_OUTPUT",
+        "history": _history(previous_payload),
         "sources": [x.model_dump(mode="json") for x in sources],
         "landmarks": [x.model_dump(mode="json") for x in graph_landmarks],
         "constructions": [x.model_dump(mode="json") for x in constructions.values()],
