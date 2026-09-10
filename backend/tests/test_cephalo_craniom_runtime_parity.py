@@ -72,3 +72,35 @@ def test_runtime_linear_craniom_values_fail_closed_without_calibration():
     assert result.metrics.analyse_osseuse.Situation_B.valeur is None
     assert result.metrics.analyse_osseuse.Decalage_A_B.valeur is None
     assert result.metrics.analyse_osseuse.Profondeur_Faciale.valeur is None
+
+
+def test_client_projections_cannot_override_backend_craniom_measurements():
+    points = _points()
+    engine = CephaloEngine(mm_per_pixel=0.2)
+    baseline = engine.calculate_metrics(points)
+
+    malicious_or_stale_client_projection = {
+        "N_prime": (-10000.0, 9999.0),
+        "A_prime": (10000.0, -9999.0),
+        "B_prime": (-5000.0, 5000.0),
+    }
+    with_client_values = engine.calculate_metrics(
+        points,
+        mcnamara_projections=malicious_or_stale_client_projection,
+    )
+
+    assert with_client_values.metrics.analyse_osseuse.Situation_A.valeur == baseline.metrics.analyse_osseuse.Situation_A.valeur
+    assert with_client_values.metrics.analyse_osseuse.Situation_B.valeur == baseline.metrics.analyse_osseuse.Situation_B.valeur
+    assert with_client_values.metrics.analyse_osseuse.Decalage_A_B.valeur == baseline.metrics.analyse_osseuse.Decalage_A_B.valeur
+    assert with_client_values.metrics.analyse_osseuse.Profondeur_Faciale.valeur == baseline.metrics.analyse_osseuse.Profondeur_Faciale.valeur
+    assert with_client_values.visual_debug == baseline.visual_debug
+
+
+@pytest.mark.parametrize("ratio", [float("nan"), float("inf"), -0.1, 0.0])
+def test_runtime_rejects_non_finite_or_non_positive_calibration(ratio):
+    result = CephaloEngine(mm_per_pixel=ratio).calculate_metrics(_points())
+
+    assert result.metrics.analyse_osseuse.Situation_A.valeur is None
+    assert result.metrics.analyse_osseuse.Situation_B.valeur is None
+    assert result.metrics.analyse_osseuse.Decalage_A_B.valeur is None
+    assert result.metrics.analyse_osseuse.Profondeur_Faciale.valeur is None
