@@ -108,6 +108,7 @@ def test_refine_analysis_remains_fail_closed(db, dentiste, monkeypatch):
     refined = service.refine_analysis(
         created["analysis_id"],
         [{"id": lm["id"], "x": lm["x"], "y": lm["y"]} for lm in _FAKE_LANDMARKS],
+        clinician_id=str(dentiste.id),
     )
 
     _assert_fail_closed(refined["results"])
