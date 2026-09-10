@@ -111,6 +111,7 @@ def test_legacy_analysis_without_graph_is_copied_unchanged():
 
 def test_read_authority_is_projection_state_not_persisted_snapshot_metadata():
     angles, graph = _angles_with_graph(ratio=0.2, calibrated=True)
+    assert "authority_status" not in graph
     graph["authority_status"] = "PERSISTED_NOT_YET_READ_PATH"
 
     projected = project_typed_craniom_read_path(angles, patient_id=7)
