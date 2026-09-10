@@ -65,20 +65,25 @@ def test_adapter_emits_only_certified_craniom_linear_measurements():
     assert all(m.availability_status == AvailabilityStatus.AVAILABLE for m in measurements)
     assert all(m.calibration_ref == "source:calibration:42" for m in measurements)
 
-    expected = {
+    expected_values = {
         "Situation_A": result.metrics.analyse_osseuse.Situation_A.valeur,
         "Situation_B": result.metrics.analyse_osseuse.Situation_B.valeur,
         "Decalage_A_B": result.metrics.analyse_osseuse.Decalage_A_B.valeur,
         "Profondeur_Faciale": result.metrics.analyse_osseuse.Profondeur_Faciale.valeur,
     }
+    expected_constructions = {
+        "Situation_A": "construction:CRANIOM_A_TO_N_VERTICAL_V1",
+        "Situation_B": "construction:CRANIOM_B_TO_N_VERTICAL_V1",
+        "Decalage_A_B": "construction:CRANIOM_AB_PRIME_V1",
+        "Profondeur_Faciale": "construction:CRANIOM_S_TO_N_VERTICAL_DEPTH_V1",
+    }
     for measurement in measurements:
         metric_name = measurement.measurement_id.rsplit(":", 1)[1]
-        assert measurement.value == expected[metric_name]
-        assert measurement.construction_refs == [
-            f"construction:{dict(zip(
-                [s.split(':')[-1] for s in measurements[0].construction_refs],
-                [s.split(':')[-1] for s in measurements[0].construction_refs]
-            ))}" if False else measurement.construction_refs[0]
+        assert measurement.value == expected_values[metric_name]
+        assert measurement.construction_refs == [expected_constructions[metric_name]]
+        assert measurement.evidence_refs == [
+            expected_constructions[metric_name],
+            "source:calibration:42",
         ]
 
 
