@@ -11,7 +11,11 @@ import math
 from dataclasses import dataclass
 from typing import Mapping, Optional, Sequence
 
-from backend.schemas.cephalo_evidence import AvailabilityStatus, MeasurementEvidence
+from backend.schemas.cephalo_evidence import (
+    AvailabilityStatus,
+    ConstructionEvidence,
+    MeasurementEvidence,
+)
 from backend.schemas.clinical import CephaloAnalysisResult
 
 
@@ -20,6 +24,7 @@ class _MeasurementSpec:
     metric_name: str
     method_id: str
     construction_definition_id: str
+    construction_definition_version: str = "1"
 
 
 _CRANIOM_LINEAR_SPECS: Sequence[_MeasurementSpec] = (
@@ -50,29 +55,41 @@ def _valid_ratio(value: Optional[float]) -> bool:
     return value is not None and math.isfinite(value) and value > 0
 
 
-def _required_construction_ref(
-    construction_refs: Mapping[str, str], definition_id: str
-) -> str:
-    ref = construction_refs.get(definition_id)
-    if not isinstance(ref, str) or not ref.strip():
+def _required_construction(
+    constructions: Mapping[str, ConstructionEvidence], spec: _MeasurementSpec
+) -> ConstructionEvidence:
+    construction = constructions.get(spec.construction_definition_id)
+    if construction is None:
         raise ValueError(
-            f"Missing materialized construction evidence for {definition_id}"
+            "Missing materialized construction evidence for "
+            f"{spec.construction_definition_id}"
         )
-    return ref
+    if construction.definition_id != spec.construction_definition_id:
+        raise ValueError(
+            f"Construction key {spec.construction_definition_id} resolves to "
+            f"definition {construction.definition_id}"
+        )
+    if construction.definition_version != spec.construction_definition_version:
+        raise ValueError(
+            f"Construction {spec.construction_definition_id} version "
+            f"{construction.definition_version} is not certified version "
+            f"{spec.construction_definition_version}"
+        )
+    return construction
 
 
 def adapt_craniom_linear_measurements(
     result: CephaloAnalysisResult,
     *,
     measurement_namespace: str,
-    construction_refs: Mapping[str, str],
+    constructions: Mapping[str, ConstructionEvidence],
     calibration_ref: Optional[str],
 ) -> list[MeasurementEvidence]:
     """Convert certified CRANIOM linear geometry into typed evidence.
 
-    A patient value is emitted only when both the runtime payload has a valid
-    positive pixel ratio and a calibration evidence reference is supplied.
-    Otherwise the measurement is retained explicitly as ``NOT_COMPUTABLE``.
+    A patient value is emitted only when the runtime payload is millimetric,
+    carries a valid positive pixel ratio, has a calibration evidence reference,
+    and the required materialized construction is available.
     """
 
     if not isinstance(measurement_namespace, str) or not measurement_namespace.strip():
@@ -81,6 +98,10 @@ def adapt_craniom_linear_measurements(
         raise ValueError(
             f"Unsupported cephalo payload type for CRANIOM adapter: {result.analysis_metadata.type}"
         )
+    if result.analysis_metadata.unit != "mm":
+        raise ValueError(
+            f"Unsupported cephalo payload unit for CRANIOM adapter: {result.analysis_metadata.unit}"
+        )
 
     ratio_valid = _valid_ratio(result.analysis_metadata.pixel_ratio)
     calibration_available = isinstance(calibration_ref, str) and bool(calibration_ref.strip())
@@ -88,9 +109,8 @@ def adapt_craniom_linear_measurements(
     adapted: list[MeasurementEvidence] = []
 
     for spec in _CRANIOM_LINEAR_SPECS:
-        construction_ref = _required_construction_ref(
-            construction_refs, spec.construction_definition_id
-        )
+        construction = _required_construction(constructions, spec)
+        construction_ref = construction.construction_id
         raw_value = getattr(skeletal, spec.metric_name).valeur
 
         availability = AvailabilityStatus.AVAILABLE
@@ -98,7 +118,12 @@ def adapt_craniom_linear_measurements(
         if raw_value is not None and not math.isfinite(raw_value):
             availability = AvailabilityStatus.INVALID
             value = None
-        elif raw_value is None or not ratio_valid or not calibration_available:
+        elif (
+            raw_value is None
+            or not ratio_valid
+            or not calibration_available
+            or construction.availability_status != AvailabilityStatus.AVAILABLE
+        ):
             availability = AvailabilityStatus.NOT_COMPUTABLE
             value = None
 
