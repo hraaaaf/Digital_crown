@@ -5,7 +5,7 @@ import datetime as dt
 from typing import Any, Mapping
 
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict
 from sqlalchemy.orm import Session
 
 from backend import database, models
@@ -36,10 +36,9 @@ router = APIRouter()
 
 
 class AutoCalibrationRequest(BaseModel):
-    model_config = ConfigDict(extra="forbid")
+    """Trigger only. Physical profile identity must come from persisted server evidence."""
 
-    profile_id: str = Field(min_length=1)
-    profile_version: str = Field(min_length=1)
+    model_config = ConfigDict(extra="forbid")
 
 
 def _load_analysis(analysis_id: int, db: Session, current_user: models.User):
@@ -67,6 +66,56 @@ def _candidate_from_analysis(angles_data: dict[str, Any]) -> CalibrationCandidat
         raise HTTPException(status_code=409, detail="Candidat de calibration persisté invalide") from exc
 
 
+def _bound_profile_from_analysis(angles_data: dict[str, Any]):
+    """Resolve only a profile identity already bound to the persisted candidate.
+
+    The request cannot choose a physical profile. A future detector/integration may
+    bind one only when it has deterministic evidence for that identity.
+    """
+    raw = angles_data.get("calibration_candidate")
+    if not isinstance(raw, dict):
+        raise HTTPException(status_code=409, detail="Aucun candidat de calibration détecté")
+
+    binding = raw.get("profile_binding")
+    if not isinstance(binding, Mapping):
+        raise HTTPException(
+            status_code=409,
+            detail="Candidat sans identité fiduciale physique vérifiée",
+        )
+
+    profile_id = binding.get("profile_id")
+    profile_version = binding.get("profile_version")
+    validation_reference = binding.get("validation_reference")
+    if (
+        not isinstance(profile_id, str)
+        or not profile_id.strip()
+        or not isinstance(profile_version, str)
+        or not profile_version.strip()
+        or not isinstance(validation_reference, str)
+        or not validation_reference.strip()
+    ):
+        raise HTTPException(
+            status_code=409,
+            detail="Liaison du profil fiducial persisté invalide",
+        )
+
+    profile = validated_fiducial_profiles.resolve(
+        profile_id=profile_id.strip(),
+        version=profile_version.strip(),
+    )
+    if profile is None:
+        raise HTTPException(
+            status_code=409,
+            detail="Profil fiducial physique non validé ou version indisponible",
+        )
+    if profile.validation_reference != validation_reference.strip():
+        raise HTTPException(
+            status_code=409,
+            detail="Référence physique du candidat incompatible avec le profil validé",
+        )
+    return profile
+
+
 @router.post("/analyses/{analysis_id}/auto-calibrate")
 def auto_calibrate_analysis_with_provenance(
     analysis_id: int,
@@ -83,16 +132,9 @@ def auto_calibrate_analysis_with_provenance(
             detail="Auto-calibration réservée aux analyses avec graphe de preuve typé",
         )
 
+    _ = req  # Explicit trigger body; profile selection is intentionally impossible.
     candidate = _candidate_from_analysis(existing_angles)
-    profile = validated_fiducial_profiles.resolve(
-        profile_id=req.profile_id,
-        version=req.profile_version,
-    )
-    if profile is None:
-        raise HTTPException(
-            status_code=409,
-            detail="Profil fiducial physique non validé ou version indisponible",
-        )
+    profile = _bound_profile_from_analysis(existing_angles)
 
     decision = evaluate_auto_calibration(candidate, profile=profile)
     if decision.state is not AutoCalibrationState.AUTO_VERIFIED or decision.mm_per_pixel is None:

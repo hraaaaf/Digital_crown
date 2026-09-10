@@ -5,6 +5,7 @@ from types import SimpleNamespace
 import pytest
 from fastapi import HTTPException
 from fastapi.routing import APIRoute
+from pydantic import ValidationError
 
 from backend import models
 from backend.routers import cephalo_auto_calibration, ia
@@ -67,7 +68,7 @@ def _points(raw):
     return {item["id"]: (item["x"], item["y"]) for item in raw}
 
 
-def _analysis(*, with_graph=True, with_candidate=True):
+def _analysis(*, with_graph=True, with_candidate=True, with_profile_binding=True):
     raw = _raw()
     result = CephaloEngine(mm_per_pixel=None).calculate_metrics(_points(raw))
     graph = build_cephalo_runtime_evidence_payload(
@@ -84,7 +85,7 @@ def _analysis(*, with_graph=True, with_candidate=True):
     if with_graph:
         angles[EVIDENCE_GRAPH_KEY] = graph
     if with_candidate:
-        angles["calibration_candidate"] = {
+        candidate = {
             "status": "CANDIDATE_UNVERIFIED",
             "detector_method": "CLASSICAL_RULER_GEOMETRY_V1",
             "axis_x_px": 40.0,
@@ -94,6 +95,13 @@ def _analysis(*, with_graph=True, with_candidate=True):
             "distance_mm": None,
             "clinician_validated": False,
         }
+        if with_profile_binding:
+            candidate["profile_binding"] = {
+                "profile_id": "TEST_RULER",
+                "profile_version": "1",
+                "validation_reference": "test-fixture://validated-ruler-profile-v1",
+            }
+        angles["calibration_candidate"] = candidate
     return SimpleNamespace(
         id=41,
         patient_id=7,
@@ -128,7 +136,7 @@ def _call(monkeypatch, analysis, *, registry=None):
         monkeypatch.setattr(cephalo_auto_calibration, "validated_fiducial_profiles", registry)
     response = auto_calibrate_analysis_with_provenance(
         41,
-        AutoCalibrationRequest(profile_id="TEST_RULER", profile_version="1"),
+        AutoCalibrationRequest(),
         db=db,
         current_user=SimpleNamespace(id=99),
     )
@@ -152,6 +160,11 @@ def test_auto_calibration_routes_are_unique():
         assert matches[0].endpoint is endpoint
 
 
+def test_request_cannot_select_a_physical_profile():
+    with pytest.raises(ValidationError):
+        AutoCalibrationRequest(profile_id="TEST_RULER", profile_version="1")
+
+
 def test_empty_production_registry_fails_closed_without_mutation(monkeypatch):
     analysis = _analysis()
     before_angles = analysis.angles_data
@@ -166,7 +179,7 @@ def test_empty_production_registry_fails_closed_without_mutation(monkeypatch):
     with pytest.raises(HTTPException) as caught:
         auto_calibrate_analysis_with_provenance(
             41,
-            AutoCalibrationRequest(profile_id="TEST_RULER", profile_version="1"),
+            AutoCalibrationRequest(),
             db=db,
             current_user=SimpleNamespace(id=99),
         )
@@ -189,7 +202,7 @@ def test_typed_graph_is_required_before_auto_calibration(monkeypatch):
     with pytest.raises(HTTPException) as caught:
         auto_calibrate_analysis_with_provenance(
             41,
-            AutoCalibrationRequest(profile_id="TEST_RULER", profile_version="1"),
+            AutoCalibrationRequest(),
             db=db,
             current_user=SimpleNamespace(id=99),
         )
@@ -209,7 +222,7 @@ def test_candidate_is_required_before_auto_calibration(monkeypatch):
     with pytest.raises(HTTPException) as caught:
         auto_calibrate_analysis_with_provenance(
             41,
-            AutoCalibrationRequest(profile_id="TEST_RULER", profile_version="1"),
+            AutoCalibrationRequest(),
             db=db,
             current_user=SimpleNamespace(id=99),
         )
@@ -218,6 +231,53 @@ def test_candidate_is_required_before_auto_calibration(monkeypatch):
     assert "candidat" in caught.value.detail.lower()
     assert db.commits == 0
     assert analysis.is_calibrated is False
+
+
+def test_candidate_without_server_bound_profile_fails_closed_even_when_registry_has_profile(monkeypatch):
+    analysis = _analysis(with_profile_binding=False)
+    before_angles = analysis.angles_data
+    db = _DB(analysis)
+    monkeypatch.setattr(cephalo_auto_calibration, "assert_patient_access", lambda *_args: None)
+    monkeypatch.setattr(cephalo_auto_calibration, "validated_fiducial_profiles", _profile_registry())
+
+    with pytest.raises(HTTPException) as caught:
+        auto_calibrate_analysis_with_provenance(
+            41,
+            AutoCalibrationRequest(),
+            db=db,
+            current_user=SimpleNamespace(id=99),
+        )
+
+    assert caught.value.status_code == 409
+    assert "identité fiduciale physique" in caught.value.detail
+    assert db.commits == 0
+    assert analysis.is_calibrated is False
+    assert analysis.mm_per_pixel is None
+    assert analysis.angles_data is before_angles
+
+
+def test_profile_binding_reference_must_match_registry(monkeypatch):
+    analysis = _analysis()
+    analysis.angles_data["calibration_candidate"]["profile_binding"]["validation_reference"] = "forged://ref"
+    before_angles = analysis.angles_data
+    db = _DB(analysis)
+    monkeypatch.setattr(cephalo_auto_calibration, "assert_patient_access", lambda *_args: None)
+    monkeypatch.setattr(cephalo_auto_calibration, "validated_fiducial_profiles", _profile_registry())
+
+    with pytest.raises(HTTPException) as caught:
+        auto_calibrate_analysis_with_provenance(
+            41,
+            AutoCalibrationRequest(),
+            db=db,
+            current_user=SimpleNamespace(id=99),
+        )
+
+    assert caught.value.status_code == 409
+    assert "Référence physique" in caught.value.detail
+    assert db.commits == 0
+    assert analysis.is_calibrated is False
+    assert analysis.mm_per_pixel is None
+    assert analysis.angles_data is before_angles
 
 
 def test_auto_verified_success_does_not_require_clinician_confirmation(monkeypatch):
