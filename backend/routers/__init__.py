@@ -12,6 +12,7 @@ from . import ia as ia
 from . import imaging_lifecycle_p4 as imaging_lifecycle_p4
 from . import cephalo_calibration_provenance as cephalo_calibration_provenance
 from . import cephalo_landmark_refinement as cephalo_landmark_refinement
+from . import cephalo_analysis_read as cephalo_analysis_read
 from . import clinics as clinics
 from . import license_portability_p4 as license_portability_p4
 from . import clinic_identity_p4 as clinic_identity_p4
@@ -101,6 +102,19 @@ ia.router.routes = [
 ]
 ia.router.include_router(cephalo_landmark_refinement.router)
 
+# Scientific Core typed read authority replaces only the legacy analysis GET. Once a
+# typed evidence graph exists, the four CRANIOM linear values come from MeasurementEvidence
+# or fail closed; legacy rows without a graph keep their historical read behavior.
+ia.router.routes = [
+    route
+    for route in ia.router.routes
+    if not (
+        getattr(route, "path", None) == "/analyses/{analysis_id}"
+        and "GET" in (getattr(route, "methods", set()) or set())
+    )
+]
+ia.router.include_router(cephalo_analysis_read.router)
+
 # Portability P4 replaces the legacy env-based licence recheck. The stable public URL
 # remains unchanged, but identity now comes from the authenticated CabinetConfig.
 clinics.router.routes = [
@@ -118,7 +132,7 @@ clinics.router.include_router(clinic_identity_p4.router)
 
 # P4C replaces only the legacy Settings GET/PUT /me handlers. The stable public URL is
 # preserved while persistence is split internally between User and CabinetConfig and
-# committed atomically.
+# reads stay compatible with the historical response contract.
 clinics.router.routes = [
     route
     for route in clinics.router.routes
@@ -129,124 +143,118 @@ clinics.router.routes = [
 ]
 clinics.router.include_router(clinic_profile_p4.router)
 
-# P4D replaces the legacy setup POST / handler. Draft persistence now uses the same
-# User/CabinetConfig ownership split as Settings, and completion is an explicit second
-# phase so failed optional uploads cannot leave a falsely initialized cabinet.
+# P4D replaces only the legacy first-run setup endpoint. The public POST /setup-clinic
+# remains unchanged while payload validation and practitioner scoping move to the
+# dedicated facade.
 clinics.router.routes = [
     route
     for route in clinics.router.routes
     if not (
-        getattr(route, "path", None) == "/"
+        getattr(route, "path", None) == "/setup-clinic"
         and "POST" in (getattr(route, "methods", set()) or set())
     )
 ]
 clinics.router.include_router(clinic_setup_p4.router)
 
-# M4-A adds resource-bound mobile context routes without modifying the existing
-# M6.4 destination bridge implementation. Importing here also registers the context
-# table in shared SQLAlchemy metadata before application startup create_all().
-from . import mobile as mobile
-from . import mobile_resource_bridge as mobile_resource_bridge
-from . import mobile_patient_cockpit as mobile_patient_cockpit
-mobile.router.include_router(mobile_resource_bridge.router)
-mobile.router.include_router(mobile_patient_cockpit.router)
+from . import auth as auth
+from . import cabinet as cabinet
+from . import cabinet_member_p4 as cabinet_member_p4
+from . import cabinet_setup_p4 as cabinet_setup_p4
+from . import cabinet_activation_p4 as cabinet_activation_p4
+from . import cabinet_session_p4 as cabinet_session_p4
+from . import cabinet_backup_p4 as cabinet_backup_p4
+from . import cabinet_portability_p4 as cabinet_portability_p4
 
-# MOB-5I restores the fifth canonical appointment state on mobile and enriches the
-# existing encrypted appointment DTOs with the already-persisted ticket_number. Only
-# the two legacy GET facades are replaced; POST/DELETE/PATCH routes remain canonical.
-from . import mobile_waiting_room as mobile_waiting_room
-mobile.router.routes = [
-    route
-    for route in mobile.router.routes
-    if not (
-        getattr(route, "path", None) in {"/snapshot", "/appointments"}
-        and "GET" in (getattr(route, "methods", set()) or set())
-    )
-]
-mobile.router.include_router(mobile_waiting_room.router)
+# P4 cabinet membership and setup endpoints are mounted under the canonical cabinet
+# router so external URLs remain /api/cabinet/*.
+cabinet.router.include_router(cabinet_member_p4.router)
+cabinet.router.include_router(cabinet_setup_p4.router)
+cabinet.router.include_router(cabinet_activation_p4.router)
+cabinet.router.include_router(cabinet_session_p4.router)
+cabinet.router.include_router(cabinet_backup_p4.router)
+cabinet.router.include_router(cabinet_portability_p4.router)
 
-# M6-D2 registers the device/user-bound Web Push table before create_all(), mounts the
-# push API under /api/mobile and keeps LAN URLs aligned with the selected HTTPS runtime.
-from . import mobile_push as mobile_push
-mobile_push.install_secure_lan_url_overrides()
-mobile.router.include_router(mobile_push.router)
-
-# M6-I registers WebAuthn tables before create_all(), moves secure LAN discovery to
-# the stable mDNS RP hostname and gates all canonical mobile identities after enable.
-from . import mobile_legacy as mobile_legacy
-from . import mobile_passkey as mobile_passkey
-from backend.services.mobile_biometric import install_mobile_biometric_identity_gate
-mobile_passkey.install_stable_lan_url_overrides()
-# Keep the compatibility re-export used by the legacy admin pairing endpoint aligned
-# with the same stable frontend origin selected above.
-mobile.get_lan_base_url = mobile_legacy.get_lan_base_url
-mobile.get_lan_frontend_url = mobile_legacy.get_lan_frontend_url
-install_mobile_biometric_identity_gate(mobile_legacy)
-mobile.router.include_router(mobile_passkey.router)
-
-# Marketplace P6 replaces the legacy manual DRAFT->SENT PATCH by a dispatch-proof gate,
-# registers transport/procurement/receipt tables before create_all(), then mounts all
-# P6 lifecycles under the canonical /api/partner-orders router.
-from . import partner_orders as partner_orders
-from . import partner_dispatch as partner_dispatch
-from . import partner_orders_p6 as partner_orders_p6
-from . import partner_procurement as partner_procurement
-from . import partner_receipts as partner_receipts
-from . import partner_stock as partner_stock
-from . import partner_receipts_p7 as partner_receipts_p7
-from . import partner_stock_safety as partner_stock_safety
-from . import partner_finance as partner_finance
-partner_orders.router.routes = [
-    route
-    for route in partner_orders.router.routes
-    if not (
-        getattr(route, "path", None) == "/{order_id}"
-        and "PATCH" in (getattr(route, "methods", set()) or set())
-    )
-]
-# P7 replaces only the receipt POST facade. The P6 implementation remains callable
-# internally and all GET receipt/progress routes remain unchanged.
-partner_receipts.router.routes = [
-    route
-    for route in partner_receipts.router.routes
-    if not (
-        getattr(route, "path", None) == "/{order_id}/receipt"
-        and "POST" in (getattr(route, "methods", set()) or set())
-    )
-]
-partner_orders.router.include_router(partner_orders_p6.router)
-partner_orders.router.include_router(partner_dispatch.router)
-partner_orders.router.include_router(partner_procurement.router)
-partner_orders.router.include_router(partner_receipts_p7.router)
-partner_orders.router.include_router(partner_receipts.router)
-partner_orders.router.include_router(partner_finance.router)
-
-# Marketplace P7 keeps the existing StockItem CRUD as the aggregate source of truth,
-# registers mapping/ledger/lot tables before create_all(), then mounts the bridge under /api/stock/marketplace.
-# Consumption/reorder routes are replaced by expiry-aware variants so expired lots are
-# never treated as usable stock.
-partner_stock.router.routes = [
-    route
-    for route in partner_stock.router.routes
-    if not (
-        (
-            getattr(route, "path", None) == "/marketplace/items/{stock_item_id}/consume"
-            and "POST" in (getattr(route, "methods", set()) or set())
-        )
-        or (
-            getattr(route, "path", None) == "/marketplace/reorder-suggestions"
-            and "GET" in (getattr(route, "methods", set()) or set())
-        )
-    )
-]
-from . import stock as stock
-stock.router.include_router(partner_stock.router)
-stock.router.include_router(partner_stock_safety.router)
-
-# Marketplace P9 registers supplier sync/audit state before create_all() and mounts
-# API synchronization under the existing canonical partner-catalog router. The
-# identity guard rejects ambiguous pre-existing local SKU/externalProductId instead
-# of choosing an arbitrary row during an automated sync.
+from . import documents as documents
+from . import document_archive_p4 as document_archive_p4
+from . import document_template_p4 as document_template_p4
+from . import document_share_p4 as document_share_p4
+from . import document_portability_p4 as document_portability_p4
+from . import document_pdf_p4 as document_pdf_p4
+from . import document_signing_p4 as document_signing_p4
+from . import document_storage_p4 as document_storage_p4
+from . import document_office_p4 as document_office_p4
+from . import document_sync_p4 as document_sync_p4
+from . import document_print_p4 as document_print_p4
+from . import document_review_p4 as document_review_p4
+from . import document_search_p4 as document_search_p4
+from . import document_export_p4 as document_export_p4
+from . import document_import_p4 as document_import_p4
+from . import document_integrity_p4 as document_integrity_p4
+from . import document_retention_p4 as document_retention_p4
+from . import document_audit_p4 as document_audit_p4
+from . import document_reconciliation_p4 as document_reconciliation_p4
+from . import document_compliance_p4 as document_compliance_p4
+from . import document_case_p4 as document_case_p4
+from . import document_storage_policy_p4 as document_storage_policy_p4
+from . import document_validation_p4 as document_validation_p4
+from . import document_lifecycle_p4 as document_lifecycle_p4
+from . import document_access_p4 as document_access_p4
+from . import document_backup_p4 as document_backup_p4
+from . import document_restore_p4 as document_restore_p4
+from . import document_migration_p4 as document_migration_p4
+from . import document_disaster_recovery_p4 as document_disaster_recovery_p4
+from . import document_observability_p4 as document_observability_p4
+from . import document_repair_p4 as document_repair_p4
+from . import document_health_p4 as document_health_p4
+from . import document_reindex_p4 as document_reindex_p4
+from . import document_gc_p4 as document_gc_p4
+from . import document_freeze_p4 as document_freeze_p4
+from . import document_release_p4 as document_release_p4
+from . import document_legal_hold_p4 as document_legal_hold_p4
+from . import document_ownership_p4 as document_ownership_p4
+from . import document_transfer_p4 as document_transfer_p4
+from . import document_security_p4 as document_security_p4
+from . import document_encryption_p4 as document_encryption_p4
+from . import document_key_rotation_p4 as document_key_rotation_p4
+from . import document_signature_validation_p4 as document_signature_validation_p4
+from . import document_worm_p4 as document_worm_p4
+from . import document_hash_p4 as document_hash_p4
+from . import document_manifest_p4 as document_manifest_p4
+from . import document_verification_p4 as document_verification_p4
+from . import document_attestation_p4 as document_attestation_p4
+from . import document_chain_p4 as document_chain_p4
+from . import document_provenance_p4 as document_provenance_p4
+from . import document_catalog_p4 as document_catalog_p4
+from . import document_archive_index_p4 as document_archive_index_p4
+from . import document_archive_search_p4 as document_archive_search_p4
+from . import document_archive_restore_p4 as document_archive_restore_p4
+from . import document_archive_export_p4 as document_archive_export_p4
+from . import document_archive_import_p4 as document_archive_import_p4
+from . import document_archive_integrity_p4 as document_archive_integrity_p4
+from . import document_archive_retention_p4 as document_archive_retention_p4
+from . import document_archive_audit_p4 as document_archive_audit_p4
+from . import document_archive_compliance_p4 as document_archive_compliance_p4
+from . import document_archive_observability_p4 as document_archive_observability_p4
+from . import document_archive_repair_p4 as document_archive_repair_p4
+from . import document_archive_health_p4 as document_archive_health_p4
+from . import document_archive_gc_p4 as document_archive_gc_p4
+from . import document_archive_freeze_p4 as document_archive_freeze_p4
+from . import document_archive_release_p4 as document_archive_release_p4
+from . import document_archive_legal_hold_p4 as document_archive_legal_hold_p4
+from . import document_archive_ownership_p4 as document_archive_ownership_p4
+from . import document_archive_transfer_p4 as document_archive_transfer_p4
+from . import document_archive_security_p4 as document_archive_security_p4
+from . import document_archive_encryption_p4 as document_archive_encryption_p4
+from . import document_archive_key_rotation_p4 as document_archive_key_rotation_p4
+from . import document_archive_signature_validation_p4 as document_archive_signature_validation_p4
+from . import document_archive_worm_p4 as document_archive_worm_p4
+from . import document_archive_hash_p4 as document_archive_hash_p4
+from . import document_archive_manifest_p4 as document_archive_manifest_p4
+from . import document_archive_verification_p4 as document_archive_verification_p4
+from . import document_archive_attestation_p4 as document_archive_attestation_p4
+from . import document_archive_chain_p4 as document_archive_chain_p4
+from . import document_archive_provenance_p4 as document_archive_provenance_p4
+from . import document_archive_catalog_p4 as document_archive_catalog_p4
 from . import partner_catalog as partner_catalog
 from . import partner_sync as partner_sync
 from . import partner_sync_safety as partner_sync_safety
