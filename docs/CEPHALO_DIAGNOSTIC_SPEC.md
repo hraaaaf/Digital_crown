@@ -2,9 +2,10 @@
 
 **FICHIER CANONIQUE DE REPRISE**  
 **Baseline runtime SRPose38 :** PR #388 — `4e3ec0c84b58893d19214268075333042c4021a4`  
-**Fondation diagnostique :** PR #390 merged — `ce7cc5a17d0571290c0b762a553b4feaa534e026`  
-**PR active registre normatif :** #391 — `feat/cephalo-normative-registry`  
-**PR empilée intégrité graphe :** #392 — `feat/cephalo-evidence-graph`  
+**Fondation diagnostique :** PR #390 — `ce7cc5a17d0571290c0b762a553b4feaa534e026`  
+**Registre normatif :** PR #391 — merged `1c055f817e38a694de1d47f8144fcb1d9eaa2e9d`  
+**Intégrité inter-objets :** PR #392 — merged `1566f77ff5ee9d848f8e31787f92e542f16a38b7`  
+**Branche active :** `feat/cephalo-evidence-graph-resolver` — durcissement patient/cas + audit praticien réel  
 **Statut :** chantier actif ; aucun diagnostic ni plan thérapeutique déclaré certifié
 
 ## GOAL GLOBAL
@@ -23,18 +24,18 @@ Une donnée manquante reste `UNKNOWN` / `NOT_COMPUTABLE`. Aucune valeur, norme, 
 
 | Lot | Goal | Succès observable | État |
 |---|---|---|---|
-| 0 | Modèle de preuve | objets typés + `evidence_refs` + tests de contrat + cas traversant | EN COURS — schémas typés mergés via #390 ; intégrité inter-objets en #392 |
+| 0 | Modèle de preuve | objets typés + références résolues + contexte patient/cas + audit praticien + adaptateur runtime | EN COURS — schémas #390, registre #391, graphe #392 mergés ; durcissement patient/cas en cours ; adaptateur runtime restant |
 | 1 | Purger logique clinique non sourcée | moteur géométrique sans diagnostic/traitement implicite | FAIT — PR #371 |
 | 2 | Runtime SRPose38 exact | 38/38, pipeline ONNX parity certifié, fail-closed asset | FAIT — PR #388 |
 | 3 | Contrat des 38 landmarks | ordre, noms, alias et définitions opérationnelles certifiés | EN COURS — ordre 38/38 certifié ; COM critique partiel |
 | 4 | Constructions géométriques | plans/axes/projections versionnés + golden tests | EN COURS — sous-lot linéaire CRANIOM A'B'/N-vertical mergé via #390 ; conventions mandibulaires restantes |
-| 5 | COM / CRANIOM | mesures de la méthode calculables + références spécifiques sourcées séparément | EN COURS — méthode + publications Part 1/2 identifiées ; références inertes en #391 |
+| 5 | COM / CRANIOM | mesures de la méthode calculables + références spécifiques sourcées séparément | EN COURS — méthode + publications Part 1/2 identifiées ; références inertes mergées via #391 |
 | 6 | Steiner | matrice dépendances + formules + normes sourcées | À FAIRE |
 | 7 | Tweed/Merrifield | idem | À FAIRE |
 | 8 | Wits/Jacobson + Downs | idem | À FAIRE |
 | 9 | McNamara | idem | À FAIRE |
 | 10 | Ricketts + tissus mous | idem | À FAIRE |
-| 11 | Registre normatif | contexte âge/sexe/population/source/version + fail-closed | EN COURS — registre inert versionné en #391 ; activation patient interdite |
+| 11 | Registre normatif | contexte âge/sexe/population/source/version + fail-closed | EN COURS — fondation inerte mergée via #391 ; aucune activation patient |
 | 12 | Synthèse diagnostique | règles déterministes explicables, contradictions visibles | À FAIRE |
 | 13 | Indications / plan thérapeutique | options sourcées, jamais prescription autonome | À FAIRE |
 | 14 | Validation clinique + UX/PDF | cas goldens praticien, traçabilité, BEFORE/AFTER UI | À FAIRE |
@@ -66,23 +67,25 @@ Décision produit : le label `COM` peut rester transitoirement pour compatibilit
 - les projections fournies par le client ne peuvent plus remplacer la géométrie backend ;
 - Francfort ou axe dégénéré et calibration invalide restent `NOT_COMPUTABLE`.
 
-### Registre normatif #391
+### Registre normatif mergé via #391
 
 Le registre versionne source, méthode, mesure, type de référence, unité, population, construction requise et provenance. Une référence numérique doit avoir au moins une source de recherche primaire. Les références restent **inertes** : l'activation directe pour classifier un patient est refusée.
 
 Contexte marocain : l'étude Ousehal et al. 2012 est enregistrée comme source populationnelle sans injecter de valeurs numériques non revalidées dans le runtime.
 
-### Graphe de preuve #392
+### Graphe de preuve mergé via #392
 
-Le lot empilé vérifie l'existence réelle des références entre objets et ajoute des gates praticien sur diagnostic retenu, problème, objectif, option sélectionnée et plan final. Aucun seuil diagnostique ni indication thérapeutique n'y est ajouté.
+`backend/services/cephalo_evidence_graph.py` résout les références entre objets, impose l'unicité globale des identifiants, vérifie les profils/sources normatifs et refuse les plans finaux incohérents. Le cas synthétique de bout en bout et les tests fail-closed sont présents dans `backend/tests/test_cephalo_evidence_graph.py`.
+
+La couche active `cephalo_evidence_case_integrity.py` ajoute le verrou manquant : toutes les sources patient doivent appartenir au **même patient et au même cas explicite**, et tout diagnostic/problème/objectif accepté ou option sélectionnée doit posséder un vrai `ClinicianValidationEvidence` cohérent avec praticien, horodatage et action.
 
 ## GATES ENCORE OUVERTS
 
+- preuve CI du durcissement patient/cas + audit praticien réel ;
+- adaptateur runtime `CephaloAnalysisResult → MeasurementEvidence` ;
 - convention exacte du plan mandibulaire propre à chaque analyse ;
 - CRANIOM utilise pour certaines mesures `Gi/Gs`, absents comme points séparés dans SRPose38 ;
 - `A''B''` exige un protocole de regard horizontal / NHP non disponible ;
-- registre normatif #391 non encore mergé ;
-- graphe d'intégrité #392 non encore mergé ;
 - aucune référence normative n'est active pour classifier un patient.
 
 ## GATES SCIENTIFIQUES
@@ -103,25 +106,20 @@ Pour activer une proposition thérapeutique : diagnostic validé + contexte clin
 
 ## PREUVE / CI
 
-PR #390, HEAD `d2cde834a830af715fe9f9761454dae7016ede5d` :
-- CI run `34467983266` : **success** ;
-- T2 Runtime Browser `34467983268` : **success** ;
-- Settings TemplateEngine Reachability `34467983264` : **success** ;
-- PR mergeable, aucune review/thread bloquante ;
-- merge master : `ce7cc5a17d0571290c0b762a553b4feaa534e026`.
-
-PR #391 a été rebaselinée sur ce master. Sa CI post-rebaseline est en cours ; elle n'est donc pas encore déclarée validée.
+PR #390 : merged `ce7cc5a17d0571290c0b762a553b4feaa534e026` après CI/T2 verts.  
+PR #391, HEAD `a1e5e02df6f46a47b1fe2e1af34b415353c852ca` : CI `34471586594` **success**, T2 `34471586570` **success** ; merge `1c055f817e38a694de1d47f8144fcb1d9eaa2e9d`.  
+PR #392, HEAD `13be2f5fbbb0e69d52d3f97341bdedd52ad044d4` : CI `34472921729` **success**, T2 `34472921733` **success** ; merge `1566f77ff5ee9d848f8e31787f92e542f16a38b7`.
 
 ## NEXT EXACT
 
-1. terminer la validation CI de #391 ;
-2. si verte : vérifier reviews/threads puis merger #391 ;
-3. rebaseliner #392 sur master, lancer sa validation finale et merger uniquement si verte ;
-4. poursuivre les conventions mandibulaires CRANIOM/Tweed/Downs avant toute activation normative.
+1. certifier en CI le verrou patient/cas + audit `ClinicianValidationEvidence` ;
+2. merger ce durcissement uniquement si vert ;
+3. implémenter l'adaptateur runtime `CephaloAnalysisResult → MeasurementEvidence` sans activer de norme/diagnostic ;
+4. poursuivre les conventions mandibulaires CRANIOM/Tweed/Downs.
 
 ## SÉQUENCE RESTANTE
 
-`#391 registre normatif → #392 intégrité evidence graph → conventions mandibulaires → COM/CRANIOM complet → Steiner → Tweed/Merrifield → Wits/Downs → McNamara → Ricketts/soft tissue → diagnostic multiaxial → problem list/objectifs → options thérapeutiques → validation clinique → UX/PDF → closeout`
+`patient/case integrity → runtime evidence adapter → conventions mandibulaires → COM/CRANIOM complet → Steiner → Tweed/Merrifield → Wits/Downs → McNamara → Ricketts/soft tissue → diagnostic multiaxial → problem list/objectifs → options thérapeutiques → validation clinique → UX/PDF → closeout`
 
 ## DÉPLOIEMENT
 
