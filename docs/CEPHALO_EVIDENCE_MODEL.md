@@ -1,6 +1,6 @@
 # CÉPHALO — EVIDENCE MODEL
 
-**Statut : EN COURS — schémas typés + intégrité inter-objets + matérialisation constructions + adaptateur mesures sur branches empilées ; pas encore source runtime de vérité**  
+**Statut : EN COURS — graphe + constructions + mesures mergés ; frontière patient/cas en certification ; pas encore source persistée de vérité**  
 **Parent canonique :** `docs/CEPHALO_DIAGNOSTIC_SPEC.md`  
 **Rôle :** architecture transversale des lots 3→14.
 
@@ -18,11 +18,12 @@ Chaque objet dérivé conserve ses références de preuve, sa méthode/version e
 
 - contrat typé : `backend/schemas/cephalo_evidence.py` ;
 - validation inter-objets : `backend/services/cephalo_evidence_graph.py` ;
+- frontière patient/cas : `backend/services/cephalo_evidence_case_integrity.py` ;
 - matérialisation CRANIOM : `backend/services/cephalo_construction_evidence_adapter.py` ;
 - adaptateur mesures CRANIOM : `backend/services/cephalo_measurement_adapter.py` ;
-- tests dédiés : `backend/tests/test_cephalo_evidence_contracts.py`, `test_cephalo_evidence_graph.py`, `test_cephalo_construction_evidence_adapter.py`, `test_cephalo_measurement_adapter.py`.
+- tests dédiés : contrats, graphe, patient/cas, calibration, constructions et mesures.
 
-Le graphe **n'est pas encore la source de vérité persistée du workflow patient**. La chaîne actuelle couvre volontairement seulement les quatre mesures linéaires CRANIOM dont la géométrie backend est déjà versionnée : `Situation_A`, `Situation_B`, `Decalage_A_B`, `Profondeur_Faciale`.
+Le graphe **n'est pas encore la source de vérité persistée du workflow patient**. La chaîne calculée couvre volontairement seulement les quatre mesures linéaires CRANIOM dont la géométrie backend est versionnée : `Situation_A`, `Situation_B`, `Decalage_A_B`, `Profondeur_Faciale`.
 
 ## STATUTS
 
@@ -32,6 +33,12 @@ Le graphe **n'est pas encore la source de vérité persistée du workflow patien
 `MISSING` ou `NOT_COMPUTABLE` n'est jamais transformé en normalité, zéro, moyenne ou valeur patient par défaut.
 
 ## GATES STRUCTURELS
+
+### SourceEvidence / patient / cas
+
+Toute validation clinique du graphe exige un `patient_id` et un `case_id` explicites. Toutes les `SourceEvidence` du graphe doivent appartenir exactement à ce patient et porter ce même `case_id`. Le mélange inter-patient ou inter-cas est rejeté.
+
+Une `calibration_ref` de mesure doit viser une vraie `SourceEvidence` dont `kind="calibration"`, pas simplement n'importe quelle source existante.
 
 ### LandmarkEvidence
 
@@ -49,9 +56,15 @@ Une valeur patient non finie est rejetée. Une mesure linéaire `AVAILABLE` exig
 
 Profil versionné obligatoire. Version, méthode, mesure cible, unité et payload de référence doivent correspondre exactement au registre. Une référence inactive ne peut classifier aucun patient.
 
-### Diagnostic → plan
+### Diagnostic / problème / objectif / option
 
-Les références doivent réellement exister. Diagnostic, problème et objectif `ACCEPTED/EDITED` exigent praticien + date. Une option `CLINICIAN_SELECTED` exige praticien + date. Le plan final exige la même identité praticien, une validation `ACCEPT/EDIT` ciblant exactement le plan et le même horodatage d'audit.
+Les références doivent réellement exister. En plus des champs praticien + date, un état `ACCEPTED/EDITED` pour diagnostic, problème ou objectif doit posséder un vrai `ClinicianValidationEvidence` visant exactement cet objet, avec le même praticien, le même horodatage et une action `ACCEPT/EDIT`.
+
+Une option `CLINICIAN_SELECTED` suit le même contrat et ne peut être sélectionnée sur une simple affirmation embarquée dans l'objet.
+
+### FinalPlan
+
+Le plan final exige la même identité praticien, une validation `ACCEPT/EDIT` ciblant exactement le plan et le même horodatage d'audit. Toutes ses références doivent résoudre et son option doit réellement être sélectionnée.
 
 ## MATÉRIALISATION CRANIOM
 
@@ -67,23 +80,16 @@ Un landmark absent ou indisponible ne produit jamais une construction disponible
 
 `adapt_craniom_linear_measurements(...)` ne copie ni norme, ni interprétation, ni diagnostic depuis `CephaloAnalysisResult`.
 
-Une valeur est `AVAILABLE` seulement si :
-1. payload `COM_Skeletal` en millimètres ;
-2. `pixel_ratio` positif et fini ;
-3. `calibration_ref` explicite ;
-4. vraie `ConstructionEvidence`, définition attendue, version `1`, statut `AVAILABLE`.
+Une valeur est `AVAILABLE` seulement si : payload `COM_Skeletal` en mm, `pixel_ratio` positif/fini, calibration explicite, et vraie `ConstructionEvidence` de définition/version attendue au statut `AVAILABLE`. Sinon la mesure reste `NOT_COMPUTABLE`; une valeur legacy non finie devient `INVALID`.
 
-Sinon la mesure devient `NOT_COMPUTABLE` sans valeur patient. Une valeur legacy non finie devient `INVALID`.
-
-## SUCCESS
+## SUCCESS LOT 0
 
 Le Lot 0 ne sera fermé que lorsque :
-- contrats + intégrité graphe + matérialisation + adaptateur sont verts en CI ;
-- un cas synthétique traverse toute la chaîne ;
-- les mesures patient CRANIOM certifiées passent par `MeasurementEvidence` sans narration libre ;
-- aucune narration libre ne sert de donnée clinique source ;
+- contrats + graphe + frontière patient/cas + matérialisation + adaptateur sont verts en CI ;
+- un cas synthétique traverse la chaîne ;
+- le workflow patient produit/persiste ces objets comme source de vérité, sans narration libre ;
 - le `FinalPlan` reste impossible sans validation praticien.
 
 ## NEXT EXACT
 
-Valider la pile en CI puis connecter la matérialisation et l'adaptateur au workflow patient derrière une frontière de compatibilité explicite. Étendre uniquement aux mesures dont construction et source scientifique sont certifiées. Aucun diagnostic ni traitement n'est activé par cette couche.
+Certifier #395, puis connecter `Source/Landmark → ConstructionEvidence → MeasurementEvidence` au workflow patient derrière une frontière de compatibilité explicite. Aucune norme, interprétation, diagnostic ou décision thérapeutique n'est activée par cette couche.
