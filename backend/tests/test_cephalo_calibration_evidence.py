@@ -70,7 +70,8 @@ def test_manual_calibration_creates_audited_revision_and_unlocks_four_measuremen
     calibration = [source for source in payload["sources"] if source["kind"] == "calibration"]
     assert len(calibration) == 1
     assert calibration[0]["operator_id"] == "99"
-    assert calibration[0]["recorded_at"] == NOW.isoformat()
+    # Pydantic JSON mode canonicalizes UTC to RFC 3339 `Z`; compare instants, not spellings.
+    assert datetime.fromisoformat(calibration[0]["recorded_at"].replace("Z", "+00:00")) == NOW
     assert calibration[0]["metadata"]["method_version"] == "1"
     assert calibration[0]["metadata"]["calibrated_by"] == "99"
 
