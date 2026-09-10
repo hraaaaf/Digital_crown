@@ -29,14 +29,12 @@ def _calculate_age(birth_date) -> Optional[int]:
 
 
 def _patient_age_and_sex(patient: Optional["models.Patient"]) -> Tuple[Optional[int], Optional[str]]:
-    """Read patient context exactly as stored; never substitute age or sex."""
     if patient is None:
         return None, None
     return _calculate_age(patient.date_naissance), patient.sexe
 
 
 def _remove_autonomous_treatment(payload: Dict[str, Any]) -> Dict[str, Any]:
-    """Defense-in-depth treatment boundary for serialized cephalo output."""
     narrative = payload.get("ai_narrative")
     if isinstance(narrative, dict):
         narrative.pop("strategie_therapeutique", None)
@@ -79,6 +77,7 @@ class CephaloService:
         from backend.services.calibration_service import calibration_service
         logger.info("Recherche d'une réglette candidate non autoritative...")
         calibration_candidate = calibration_service.detect_ruler_candidate(file_path)
+        calibration_candidate_record = None
         if calibration_candidate is None:
             calibration_message = (
                 "Aucune réglette fiable détectée automatiquement. "
@@ -89,9 +88,12 @@ class CephaloService:
                 "Réglette candidate détectée. Vérification praticien requise "
                 "avant les mesures millimétriques."
             )
+            calibration_candidate_record = {
+                "schema_version": "CEPHALO_CALIBRATION_CANDIDATE_V1",
+                **calibration_candidate,
+                "verification_status": "UNVERIFIED",
+            }
 
-        # Detection alone never authorizes a physical scale. The calculation stays
-        # angular-only until the audited /calibrate transition is confirmed by a clinician.
         mm_ratio = None
         is_calibrated = False
 
@@ -135,6 +137,7 @@ class CephaloService:
             pts,
             persisted_data,
             mm_per_pixel=None,
+            calibration_data=calibration_candidate_record,
         )
 
         return {
@@ -184,8 +187,6 @@ class CephaloService:
             if isinstance(candidate, dict):
                 previous_payload = candidate
 
-        # A typed calibrated case cannot have its scale rewritten through the general
-        # refinement endpoint. Calibration has its own audited server-side transition.
         if (
             previous_payload is not None
             and mm_per_pixel is not None
@@ -211,7 +212,6 @@ class CephaloService:
 
         final_data_dict = _remove_autonomous_treatment(result.model_dump())
         if ai_diagnostic:
-            # Explicit practitioner-authored content is preserved unchanged.
             final_data_dict["ai_diagnostic"] = ai_diagnostic
         else:
             final_data_dict["ai_diagnostic"] = bilan_ortho_engine.generate_bilan(
@@ -223,8 +223,6 @@ class CephaloService:
 
         final_data_dict["calibration_status"] = "verified" if existing.is_calibrated else "unverified"
 
-        # Legacy analyses without a typed graph remain legacy. Inventing an SRPose or
-        # clinician provenance retrospectively would be worse than admitting it is absent.
         persisted_data = dict(final_data_dict)
         if previous_payload is not None:
             changed = landmark_submission_changed(previous_payload, pts_list)
@@ -241,8 +239,6 @@ class CephaloService:
                     validated_at=dt.datetime.now(dt.timezone.utc),
                 )
             else:
-                # Clinical/free-text edits with unchanged points must not manufacture a
-                # fake LANDMARK_EDIT evidence revision.
                 evidence_payload = previous_payload
             persisted_data[EVIDENCE_GRAPH_KEY] = evidence_payload
 
@@ -270,22 +266,12 @@ class CephaloService:
         _results: schemas.CephaloAnalysisResult,
         cd: schemas.ClinicalData,
     ) -> schemas.ClinicalData:
-        """Preserve practitioner-supplied clinical space discrepancy fail-closed.
-
-        The former implementation converted IMPA deviation with a fixed universal
-        angular-to-space factor and called the result "DDM réelle". That
-        patient-specific correction is not validated by the Scientific Core and
-        is therefore retired. No cephalometric angle changes clinical space here.
-        """
         data = cd.model_copy(deep=True)
         components = []
 
         for component in (data.ddm_maxillaire, data.ddm_mandibulaire):
             if component is None:
                 continue
-            # calcul_ddm is the explicit clinical value received from the caller.
-            # Do not reconstruct it from placeholder espace_* fields and do not
-            # manufacture a cephalometric correction.
             component.calcul_ddm_reelle = None
             components.append(component.calcul_ddm)
 
