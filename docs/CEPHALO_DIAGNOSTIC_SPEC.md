@@ -9,7 +9,8 @@
 **Matérialisation ConstructionEvidence :** PR #394 — `c647c0843b265eadf4a70652ae4608708f48d2be`  
 **Frontière patient/cas :** PR #395 — `3e8e39eb88581bd461a8104b9fad96b82d65292a`  
 **Persistence runtime evidence :** PR #397 — `7aa83d566c87db6796cddea5a1facd891f8b5896`  
-**PR active :** #398 — provenance calibration manuelle  
+**Calibration manuelle auditée :** PR #398 — `35f5eca034ab780e92aa877b1120fd4e6c3b3dce`  
+**PR active :** #399 — audit authentifié des corrections de landmarks  
 **Statut :** chantier actif ; aucun diagnostic ni plan thérapeutique déclaré certifié
 
 ## GOAL GLOBAL
@@ -26,7 +27,7 @@ Une donnée manquante reste `UNKNOWN` / `NOT_COMPUTABLE`. Aucune norme, classe, 
 
 | Lot | Goal | État vérifié |
 |---|---|---|
-| 0 | Modèle de preuve clinique typé | EN COURS — contrats, resolver, patient/cas, constructions, mesures et persistence runtime mergés ; calibration auditée en #398 ; read-path source de vérité restant |
+| 0 | Modèle de preuve clinique typé | EN COURS — contrats, resolver, patient/cas, constructions, mesures, persistence et calibration auditée mergés ; correction-landmark audit en #399 ; read-path source de vérité restant |
 | 1 | Purger logique clinique non sourcée | FAIT — PR #371 |
 | 2 | Runtime SRPose38 exact | FAIT — PR #388 |
 | 3 | Contrat des 38 landmarks | EN COURS — ordre/identité 38/38 certifiés ; définitions opérationnelles partielles |
@@ -66,25 +67,28 @@ Les quatre mesures correspondantes passent par `MeasurementEvidence`. Sans const
 ### Graphe de preuve et persistence
 Le resolver impose l'existence/type des références. #395 impose même patient, même cas et audit praticien cohérent. #397 persiste `_evidence_graph_v1` dans `CephaloAnalysis.angles_data` avec révisions/historique sans modifier le payload API public.
 
-PR #397 est mergée sur master au commit `7aa83d566c87db6796cddea5a1facd891f8b5896`. Son HEAD final `a52fc93ec8cc37b72b8e9b66e48f5a26d38f91b0` a passé CI `34490188077` et T2 `34490188120` avant merge.
-
 ### Calibration auditée #398
-Le remplacement du POST `/analyses/{analysis_id}/calibrate` conserve le même contrat public et ajoute :
-- p1/p2, distance réelle, ratio recalculé ;
-- méthode/version ;
-- identité opérateur et horodatage UTC ;
-- transaction unique ratio + provenance + géométrie + evidence snapshot ;
-- révision `MANUAL_CALIBRATION` sans inventer de nouveaux landmarks/constructions ;
-- refus si runtime landmarks et evidence courante divergent ;
-- refus si une couche clinique aval existe, plutôt que conserver silencieusement une conclusion potentiellement périmée ;
-- analyses legacy calibrables sans fabrication rétroactive de graphe.
+PR #398 est mergée au commit `35f5eca034ab780e92aa877b1120fd4e6c3b3dce`. Son HEAD final `e06af52d611ece465e5087b2c485784b6cf74d49` a passé CI `34498056894` et T2 `34498056887` avant merge.
 
-Cette section #398 reste **en certification**, pas déclarée mergée.
+Le POST canonique `/analyses/{analysis_id}/calibrate` conserve le contrat public et persiste atomiquement : p1/p2, distance réelle, ratio, méthode/version, opérateur authentifié, timestamp UTC, géométrie et révision `MANUAL_CALIBRATION`. Une analyse legacy reste calibrable sans fabrication rétroactive de graphe.
+
+### Audit corrections landmarks #399
+Le lot en cours remplace le PUT canonique `/analyses/{analysis_id}` par une façade qui tire `clinician_id` du contexte authentifié. Pour un graphe typé :
+- landmarks inchangés → aucune fausse révision `LANDMARK_EDIT` ;
+- correction d'un point SRPose → `MANUAL_CORRECTED`, coordonnées automatiques originales conservées, praticien + timestamp UTC ;
+- correction répétée → même ancre automatique originale ;
+- point omis → dépendances concernées `NOT_COMPUTABLE` ;
+- `current_landmark_refs` rend le jeu courant explicite pour empêcher la résurrection silencieuse d'un point historique ;
+- calibration ultérieure conserve ce jeu courant explicite ;
+- réintroduction d'un point SRPose précédemment omis est auditée comme correction, même si ses coordonnées redeviennent identiques à l'auto original ;
+- modification mm/pixel via le PUT générique interdite pour un cas typé : passage obligatoire par la calibration auditée ;
+- toute couche clinique aval non vide bloque une vraie correction plutôt que de devenir silencieusement périmée.
+
+Cette section #399 reste **en certification CI**, pas déclarée mergée.
 
 ## GATES OUVERTS
 
-- CI/T2 exact-head + review de #398 puis merge ;
-- propager l'identité praticien sur les corrections manuelles avant `MANUAL_CORRECTED/CLINICIAN_VALIDATED` ;
+- CI/T2 exact-head + reviews/threads de #399 puis merge ;
 - faire du graphe persistant la source read-path des quatre mesures CRANIOM ;
 - convention du plan mandibulaire propre à chaque analyse ;
 - `Gi/Gs` CRANIOM absents comme landmarks SRPose38 distincts ;
@@ -107,20 +111,21 @@ Traitement : diagnostic validé + données cliniques requises + indication/contr
 - #394 : CI `34474296352` success ; T2 `34474296300` success.
 - #395 : CI `34476589446` success ; T2 `34476589386` success ; merge `3e8e39eb88581bd461a8104b9fad96b82d65292a`.
 - #397 HEAD `a52fc93ec8cc37b72b8e9b66e48f5a26d38f91b0` : CI `34490188077` success ; T2 `34490188120` success ; merge `7aa83d566c87db6796cddea5a1facd891f8b5896`.
-- #398 : validation exact-head en cours après rebaseline sur master ; aucune preuve verte finale déclarée à ce stade.
+- #398 HEAD `e06af52d611ece465e5087b2c485784b6cf74d49` : CI `34498056894` success ; T2 `34498056887` success ; merge `35f5eca034ab780e92aa877b1120fd4e6c3b3dce`.
+- #399 : exact-head final à certifier après consolidation du lot ; aucune preuve verte finale déclarée ici avant exécution.
 
 ## NEXT EXACT
 
-1. certifier #398 exact-head ;
-2. corriger toute défaillance ;
-3. vérifier reviews/threads, fermer docs et merger si vert ;
-4. post-merge : audit praticien des corrections manuelles ;
-5. basculer le read-path des quatre mesures CRANIOM vers le graphe typé ;
+1. consolider #399 en un HEAD final ;
+2. certifier CI/T2 exact-head ;
+3. corriger toute défaillance ;
+4. vérifier reviews/threads et merger si vert ;
+5. post-merge : basculer le read-path des quatre mesures CRANIOM vers le graphe typé ;
 6. poursuivre les conventions mandibulaires.
 
 ## SÉQUENCE RESTANTE
 
-`calibration provenance → correction-landmark audit → read-path source-of-truth → conventions mandibulaires → COM/CRANIOM complet → Steiner → Tweed/Merrifield → Wits/Downs → McNamara → Ricketts/soft tissue → diagnostic multiaxial → problem list/objectifs → options → validation clinique → UX/PDF → closeout`
+`correction-landmark audit → read-path source-of-truth → conventions mandibulaires → COM/CRANIOM complet → Steiner → Tweed/Merrifield → Wits/Downs → McNamara → Ricketts/soft tissue → diagnostic multiaxial → problem list/objectifs → options → validation clinique → UX/PDF → closeout`
 
 ## DÉPLOIEMENT
 

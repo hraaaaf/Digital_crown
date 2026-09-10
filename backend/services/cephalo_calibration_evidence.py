@@ -56,10 +56,38 @@ def _history(previous: Mapping[str, Any]) -> list[dict[str, Any]]:
             "revision": previous.get("revision"),
             "sources": previous.get("sources", []),
             "landmarks": previous.get("landmarks", []),
+            "current_landmark_refs": previous.get("current_landmark_refs"),
             "constructions": previous.get("constructions", []),
             "measurements": previous.get("measurements", []),
         },
     ]
+
+
+def _explicit_current_landmarks(
+    previous_payload: Mapping[str, Any],
+    landmarks: Sequence[LandmarkEvidence],
+) -> dict[str, LandmarkEvidence] | None:
+    refs = previous_payload.get("current_landmark_refs")
+    if refs is None:
+        return None
+    if not isinstance(refs, list):
+        raise CephaloRuntimeEvidenceError("current_landmark_refs must be a list")
+    by_ref = {item.evidence_id: item for item in landmarks}
+    selected: dict[str, LandmarkEvidence] = {}
+    seen_refs: set[str] = set()
+    for ref in refs:
+        if not isinstance(ref, str) or not ref.strip() or ref in seen_refs:
+            raise CephaloRuntimeEvidenceError("Invalid current landmark evidence ref")
+        seen_refs.add(ref)
+        item = by_ref.get(ref)
+        if item is None:
+            raise CephaloRuntimeEvidenceError(f"Current landmark ref does not resolve: {ref}")
+        if item.landmark_id in selected:
+            raise CephaloRuntimeEvidenceError(
+                f"Multiple current evidence objects for landmark {item.landmark_id}"
+            )
+        selected[item.landmark_id] = item
+    return selected
 
 
 def _current_geometry_landmarks(
@@ -84,10 +112,9 @@ def _current_geometry_landmarks(
     return selected
 
 
-def _assert_runtime_points_match_evidence(
+def _runtime_point_map(
     raw_landmarks: Sequence[Mapping[str, Any]],
-    evidence_landmarks: Mapping[str, LandmarkEvidence],
-) -> None:
+) -> dict[str, tuple[float, float]]:
     raw_by_id: dict[str, tuple[float, float]] = {}
     for raw in raw_landmarks:
         landmark_id = raw.get("id")
@@ -99,7 +126,20 @@ def _assert_runtime_points_match_evidence(
             _finite(raw.get("x"), f"{landmark_id}.x"),
             _finite(raw.get("y"), f"{landmark_id}.y"),
         )
+    return raw_by_id
 
+
+def _assert_runtime_points_match_evidence(
+    raw_landmarks: Sequence[Mapping[str, Any]],
+    evidence_landmarks: Mapping[str, LandmarkEvidence],
+    *,
+    require_exact_set: bool = False,
+) -> None:
+    raw_by_id = _runtime_point_map(raw_landmarks)
+    if require_exact_set and set(raw_by_id) != set(evidence_landmarks):
+        raise CephaloRuntimeEvidenceError(
+            "Runtime landmark set differs from explicit current evidence"
+        )
     for landmark_id, evidence in evidence_landmarks.items():
         runtime = raw_by_id.get(landmark_id)
         if runtime is None:
@@ -173,8 +213,31 @@ def rebuild_evidence_after_manual_calibration(
     if ceph_source.source_record_id != image_record_id:
         raise CephaloRuntimeEvidenceError("Persisted cephalogram source record mismatch")
 
-    geometry_landmarks = _current_geometry_landmarks(landmarks, constructions)
-    _assert_runtime_points_match_evidence(runtime_landmarks, geometry_landmarks)
+    explicit_current = _explicit_current_landmarks(previous_payload, landmarks)
+    if explicit_current is not None:
+        current_ref_set = {item.evidence_id for item in explicit_current.values()}
+        stale_construction_refs = sorted(
+            {
+                ref
+                for construction in constructions
+                for ref in construction.landmark_refs
+                if ref not in current_ref_set
+            }
+        )
+        if stale_construction_refs:
+            raise CephaloRuntimeEvidenceError(
+                "Construction references non-current landmark evidence: "
+                + ", ".join(stale_construction_refs)
+            )
+        _assert_runtime_points_match_evidence(
+            runtime_landmarks,
+            explicit_current,
+            require_exact_set=True,
+        )
+    else:
+        # Compatibility path for snapshots created before current_landmark_refs existed.
+        geometry_landmarks = _current_geometry_landmarks(landmarks, constructions)
+        _assert_runtime_points_match_evidence(runtime_landmarks, geometry_landmarks)
 
     x1 = _finite(p1.get("x"), "p1.x")
     y1 = _finite(p1.get("y"), "p1.y")
@@ -226,7 +289,7 @@ def rebuild_evidence_after_manual_calibration(
     )
     validate_case_evidence_graph(graph, patient_id=patient_id, case_id=case_id)
 
-    return {
+    payload = {
         "schema_version": EVIDENCE_SCHEMA_VERSION,
         "case_id": case_id,
         "revision": next_revision,
@@ -247,3 +310,8 @@ def rebuild_evidence_after_manual_calibration(
         "validations": [],
         "final_plans": [],
     }
+    if explicit_current is not None:
+        payload["current_landmark_refs"] = [
+            item.evidence_id for item in explicit_current.values()
+        ]
+    return payload

@@ -8,8 +8,14 @@ from backend.services.cephalo_runtime_evidence import (
     EVIDENCE_GRAPH_KEY,
     build_cephalo_runtime_evidence_payload,
 )
+from backend.services.cephalo_landmark_correction_evidence import (
+    landmark_submission_changed,
+    rebuild_evidence_after_landmark_edit,
+)
 from backend import schemas, models
+import datetime as dt
 import logging
+import math
 
 logger = logging.getLogger(__name__)
 
@@ -35,6 +41,21 @@ def _remove_autonomous_treatment(payload: Dict[str, Any]) -> Dict[str, Any]:
     if isinstance(narrative, dict):
         narrative.pop("strategie_therapeutique", None)
     return payload
+
+
+def _same_optional_ratio(left: Optional[float], right: Optional[float]) -> bool:
+    if left is None or right is None:
+        return left is right
+    try:
+        left_value = float(left)
+        right_value = float(right)
+    except (TypeError, ValueError):
+        return False
+    return (
+        math.isfinite(left_value)
+        and math.isfinite(right_value)
+        and math.isclose(left_value, right_value, rel_tol=0.0, abs_tol=1e-12)
+    )
 
 
 class CephaloService:
@@ -130,13 +151,43 @@ class CephaloService:
         ai_diagnostic: Optional[Dict] = None,
         mm_per_pixel: Optional[float] = None,
         mcnamara_projections: Optional[Dict] = None,
+        clinician_id: Optional[str] = None,
     ) -> Dict[str, Any]:
         pts_list = [p.model_dump() if hasattr(p, "model_dump") else p for p in landmarks]
-        points_dict = {p["id"]: (p["x"], p["y"]) for p in pts_list}
+
+        seen_ids: set[str] = set()
+        points_dict: Dict[str, tuple[float, float]] = {}
+        for point in pts_list:
+            if not isinstance(point, dict):
+                raise ValueError("Landmark invalide lors du raffinement.")
+            landmark_id = point.get("id")
+            if not isinstance(landmark_id, str) or not landmark_id.strip():
+                raise ValueError("Landmark sans identifiant lors du raffinement.")
+            if landmark_id in seen_ids:
+                raise ValueError(f"Landmark dupliqué lors du raffinement: {landmark_id}")
+            seen_ids.add(landmark_id)
+            points_dict[landmark_id] = (point.get("x"), point.get("y"))
 
         existing = self.repo.get_by_id(analysis_id)
         if not existing:
             raise ValueError(f"Analyse {analysis_id} introuvable lors du raffinement.")
+
+        previous_payload = None
+        if isinstance(existing.angles_data, dict):
+            candidate = existing.angles_data.get(EVIDENCE_GRAPH_KEY)
+            if isinstance(candidate, dict):
+                previous_payload = candidate
+
+        # A typed calibrated case cannot have its scale rewritten through the general
+        # refinement endpoint. Calibration has its own audited server-side transition.
+        if (
+            previous_payload is not None
+            and mm_per_pixel is not None
+            and not _same_optional_ratio(mm_per_pixel, existing.mm_per_pixel)
+        ):
+            raise ValueError(
+                "Le ratio mm/pixel d'une analyse tracée doit être modifié via l'endpoint de calibration."
+            )
 
         effective_mm_per_pixel = mm_per_pixel if mm_per_pixel is not None else existing.mm_per_pixel
         age, sex = _patient_age_and_sex(existing.patient)
@@ -166,24 +217,28 @@ class CephaloService:
 
         final_data_dict["calibration_status"] = "verified" if existing.is_calibrated else "unverified"
 
-        previous_payload = None
-        if isinstance(existing.angles_data, dict):
-            candidate = existing.angles_data.get(EVIDENCE_GRAPH_KEY)
-            if isinstance(candidate, dict):
-                previous_payload = candidate
-
-        evidence_payload = build_cephalo_runtime_evidence_payload(
-            patient_id=existing.patient_id,
-            image_record_id=existing.image_original_path,
-            result=result,
-            landmarks=pts_list,
-            inference_mode=None,
-            previous_payload=previous_payload,
-            manual_revision=True,
-            is_calibrated=bool(existing.is_calibrated),
-            calibration_data=existing.calibration_data,
-        )
-        persisted_data = {**final_data_dict, EVIDENCE_GRAPH_KEY: evidence_payload}
+        # Legacy analyses without a typed graph remain legacy. Inventing an SRPose or
+        # clinician provenance retrospectively would be worse than admitting it is absent.
+        persisted_data = dict(final_data_dict)
+        if previous_payload is not None:
+            changed = landmark_submission_changed(previous_payload, pts_list)
+            if changed:
+                if clinician_id is None or not str(clinician_id).strip():
+                    raise ValueError("Une correction de landmark tracée exige l'identité du praticien.")
+                evidence_payload = rebuild_evidence_after_landmark_edit(
+                    previous_payload=previous_payload,
+                    patient_id=existing.patient_id,
+                    image_record_id=existing.image_original_path,
+                    result=result,
+                    runtime_landmarks=pts_list,
+                    clinician_id=str(clinician_id),
+                    validated_at=dt.datetime.now(dt.timezone.utc),
+                )
+            else:
+                # Clinical/free-text edits with unchanged points must not manufacture a
+                # fake LANDMARK_EDIT evidence revision.
+                evidence_payload = previous_payload
+            persisted_data[EVIDENCE_GRAPH_KEY] = evidence_payload
 
         analysis = self.repo.update(
             analysis_id,
