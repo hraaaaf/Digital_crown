@@ -1,95 +1,54 @@
 # CÉPHALO — EVIDENCE MODEL
 
-**Statut : EN COURS — graphe + constructions + mesures mergés ; frontière patient/cas en certification ; pas encore source persistée de vérité**  
-**Parent canonique :** `docs/CEPHALO_DIAGNOSTIC_SPEC.md`  
-**Rôle :** architecture transversale des lots 3→14.
+**Statut : EN COURS — contrats, intégrité, patient/cas, constructions et mesures mergés ; persistence runtime en PR #397 ; lecture applicative encore legacy**  
+**Parent canonique :** `docs/CEPHALO_DIAGNOSTIC_SPEC.md`
 
 ## GOAL
 
-Interdire les sauts non traçables entre donnée patient, mesure, interprétation, diagnostic et traitement.
+Rendre chaque mesure céphalométrique traçable jusqu'à sa source, ses landmarks, sa construction et sa calibration.
 
-## CHAÎNE CANONIQUE
+## CHAÎNE
 
-`SourceEvidence → LandmarkEvidence → Construction → Measurement → NormativeEvaluation → Finding → DiagnosticHypothesis → Problem → Objective → TreatmentOption → ClinicianValidation → FinalPlan`
+`SourceEvidence → LandmarkEvidence → ConstructionEvidence → MeasurementEvidence`
 
-Chaque objet dérivé conserve ses références de preuve, sa méthode/version et son statut.
+Les couches cliniques aval restent hors du bridge runtime actuel.
 
-## IMPLÉMENTATION ACTUELLE
+## IMPLÉMENTATION
 
-- contrat typé : `backend/schemas/cephalo_evidence.py` ;
-- validation inter-objets : `backend/services/cephalo_evidence_graph.py` ;
-- frontière patient/cas : `backend/services/cephalo_evidence_case_integrity.py` ;
-- matérialisation CRANIOM : `backend/services/cephalo_construction_evidence_adapter.py` ;
-- adaptateur mesures CRANIOM : `backend/services/cephalo_measurement_adapter.py` ;
-- tests dédiés : contrats, graphe, patient/cas, calibration, constructions et mesures.
+- `backend/schemas/cephalo_evidence.py`
+- `backend/services/cephalo_evidence_graph.py`
+- `backend/services/cephalo_evidence_case_integrity.py`
+- `backend/services/cephalo_construction_evidence_adapter.py`
+- `backend/services/cephalo_measurement_adapter.py`
+- `backend/services/cephalo_runtime_evidence.py` — PR #397
 
-Le graphe **n'est pas encore la source de vérité persistée du workflow patient**. La chaîne calculée couvre volontairement seulement les quatre mesures linéaires CRANIOM dont la géométrie backend est versionnée : `Situation_A`, `Situation_B`, `Decalage_A_B`, `Profondeur_Faciale`.
+## PERSISTENCE #397
 
-## STATUTS
+Le snapshot est écrit sous `_evidence_graph_v1` dans `CephaloAnalysis.angles_data`, dans la même écriture que le résultat historique. Aucune migration DB n'est requise.
 
-- preuve : `OBSERVED | COMPUTED | INTERPRETED | CLINICIAN_VALIDATED` ;
-- disponibilité : `AVAILABLE | MISSING | INVALID | NOT_APPLICABLE | NOT_COMPUTABLE`.
+Le payload public de `process_new_radio` et `refine_analysis` reste inchangé. Le graphe porte `authority_status=PERSISTED_NOT_YET_READ_PATH` tant que les lectures historiques ne sont pas migrées.
 
-`MISSING` ou `NOT_COMPUTABLE` n'est jamais transformé en normalité, zéro, moyenne ou valeur patient par défaut.
+## GATES FAIL-CLOSED
 
-## GATES STRUCTURELS
+- `SRPOSE38_AUTO` exige le mode `SOTA_ONNX_38` et l'ensemble exact des 38 identifiants certifiés.
+- un fallback automatique legacy ne peut pas être enregistré comme preuve SRPose38.
+- un raffinement crée une nouvelle révision `MANUAL/OBSERVED`, conserve les points SRPose38 initiaux et archive le snapshot précédent.
+- schema, `case_id` et identité de l'image source sont vérifiés avant toute nouvelle révision.
+- les quatre constructions CRANIOM versionnées utilisent uniquement les landmarks de la révision courante.
+- les quatre valeurs CRANIOM sont recroisées avec la géométrie courante avant persistence ; une divergence échoue fermée.
+- l'auto-calibration legacy seule ne débloque aucune mesure linéaire typée.
+- une calibration utilisable exige `p1`, `p2`, une distance réelle et un ratio cohérent avec cette géométrie.
+- seules `Situation_A`, `Situation_B`, `Decalage_A_B` et `Profondeur_Faciale` sont adaptées actuellement.
+- sans construction et calibration prouvées : `value=None`, `NOT_COMPUTABLE`.
 
-### SourceEvidence / patient / cas
+## PREUVE
 
-Toute validation clinique du graphe exige un `patient_id` et un `case_id` explicites. Toutes les `SourceEvidence` du graphe doivent appartenir exactement à ce patient et porter ce même `case_id`. Le mélange inter-patient ou inter-cas est rejeté.
-
-Une `calibration_ref` de mesure doit viser une vraie `SourceEvidence` dont `kind="calibration"`, pas simplement n'importe quelle source existante.
-
-### LandmarkEvidence
-
-Coordonnées finies, source image réelle, correction manuelle auditée avec coordonnées automatiques originales conservées.
-
-### ConstructionEvidence
-
-Une construction `AVAILABLE` exige de vrais `landmark_refs`, aucune dépendance déclarée manquante et une géométrie explicite. Une construction impossible devient `NOT_COMPUTABLE` avec `missing_landmark_ids`, sans faux landmark. Des landmarks provenant de radiographies différentes rendent la construction `INVALID`.
-
-### MeasurementEvidence
-
-Une valeur patient non finie est rejetée. Une mesure linéaire `AVAILABLE` exige une `calibration_ref`; sans calibration elle reste `NOT_COMPUTABLE` avec `value=None`.
-
-### NormativeEvaluation
-
-Profil versionné obligatoire. Version, méthode, mesure cible, unité et payload de référence doivent correspondre exactement au registre. Une référence inactive ne peut classifier aucun patient.
-
-### Diagnostic / problème / objectif / option
-
-Les références doivent réellement exister. En plus des champs praticien + date, un état `ACCEPTED/EDITED` pour diagnostic, problème ou objectif doit posséder un vrai `ClinicianValidationEvidence` visant exactement cet objet, avec le même praticien, le même horodatage et une action `ACCEPT/EDIT`.
-
-Une option `CLINICIAN_SELECTED` suit le même contrat et ne peut être sélectionnée sur une simple affirmation embarquée dans l'objet.
-
-### FinalPlan
-
-Le plan final exige la même identité praticien, une validation `ACCEPT/EDIT` ciblant exactement le plan et le même horodatage d'audit. Toutes ses références doivent résoudre et son option doit réellement être sélectionnée.
-
-## MATÉRIALISATION CRANIOM
-
-`materialize_craniom_linear_constructions(...)` transforme des `LandmarkEvidence` canoniques en quatre `ConstructionEvidence` versionnées :
-- `CRANIOM_A_TO_N_VERTICAL_V1` : A, N, Po, Or ;
-- `CRANIOM_B_TO_N_VERTICAL_V1` : B, N, Po, Or ;
-- `CRANIOM_AB_PRIME_V1` : A, B, Po, Or ;
-- `CRANIOM_S_TO_N_VERTICAL_DEPTH_V1` : S, N, Po, Or.
-
-Un landmark absent ou indisponible ne produit jamais une construction disponible. Une incohérence d'image source invalide uniquement les constructions dépendantes.
-
-## ADAPTATEUR MESURES CRANIOM
-
-`adapt_craniom_linear_measurements(...)` ne copie ni norme, ni interprétation, ni diagnostic depuis `CephaloAnalysisResult`.
-
-Une valeur est `AVAILABLE` seulement si : payload `COM_Skeletal` en mm, `pixel_ratio` positif/fini, calibration explicite, et vraie `ConstructionEvidence` de définition/version attendue au statut `AVAILABLE`. Sinon la mesure reste `NOT_COMPUTABLE`; une valeur legacy non finie devient `INVALID`.
+Le code HEAD #397 `61ce90bd09cbd465c3165f26c9e54796d8028f5a` a passé CI `34482223445` et T2 `34482223474`. Le commit documentaire de closeout reste soumis à l'exact-head CI avant merge.
 
 ## SUCCESS LOT 0
 
-Le Lot 0 ne sera fermé que lorsque :
-- contrats + graphe + frontière patient/cas + matérialisation + adaptateur sont verts en CI ;
-- un cas synthétique traverse la chaîne ;
-- le workflow patient produit/persiste ces objets comme source de vérité, sans narration libre ;
-- le `FinalPlan` reste impossible sans validation praticien.
+Le lot reste ouvert jusqu'à ce que : persistence + lecture utilisent le graphe comme vérité scientifique, calibration et corrections manuelles portent une provenance réelle, et les tests traversants restent verts.
 
 ## NEXT EXACT
 
-Certifier #395, puis connecter `Source/Landmark → ConstructionEvidence → MeasurementEvidence` au workflow patient derrière une frontière de compatibilité explicite. Aucune norme, interprétation, diagnostic ou décision thérapeutique n'est activée par cette couche.
+Certifier et merger #397, puis câbler la provenance de calibration manuelle et l'identité praticien des corrections. Basculer ensuite le read-path des quatre mesures CRANIOM vers `_evidence_graph_v1`.
