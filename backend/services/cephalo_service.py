@@ -77,17 +77,28 @@ class CephaloService:
         points_dict = {p["id"]: (p["x"], p["y"]) for p in pts}
 
         from backend.services.calibration_service import calibration_service
-        logger.info("Tentative de calibration automatique...")
-        auto_ratio = calibration_service.detect_mm_per_pixel(file_path)
-        if auto_ratio is None:
-            logger.warning("Auto-calibration unavailable; linear millimeter metrics will not be calculated.")
-        mm_ratio = auto_ratio
-        logger.info("Ratio retenu : %s mm/px (Auto: %s)", mm_ratio, auto_ratio is not None)
+        logger.info("Recherche d'une réglette candidate non autoritative...")
+        calibration_candidate = calibration_service.detect_ruler_candidate(file_path)
+        if calibration_candidate is None:
+            calibration_message = (
+                "Aucune réglette fiable détectée automatiquement. "
+                "Calibration manuelle requise pour les mesures millimétriques."
+            )
+        else:
+            calibration_message = (
+                "Réglette candidate détectée. Vérification praticien requise "
+                "avant les mesures millimétriques."
+            )
+
+        # Detection alone never authorizes a physical scale. The calculation stays
+        # angular-only until the audited /calibrate transition is confirmed by a clinician.
+        mm_ratio = None
+        is_calibrated = False
 
         patient = self.db.query(models.Patient).filter(models.Patient.id == patient_id).first()
         age, sex = _patient_age_and_sex(patient)
 
-        logger.info("Calcul des métriques géométriques...")
+        logger.info("Calcul des métriques géométriques sans échelle millimétrique vérifiée...")
         try:
             result = cephalo_engine.calculate_metrics(
                 points_dict,
@@ -105,19 +116,15 @@ class CephaloService:
             "warning": vision_result.get("warning"),
             "processing_time_ms": vision_result["processing_time_ms"],
         }
-        final_data_dict["calibration_status"] = "verified" if auto_ratio else "unverified"
+        final_data_dict["calibration_status"] = "unverified"
 
-        # Scientific evidence is persisted atomically inside angles_data while the
-        # existing response contract remains unchanged. Automatic legacy calibration
-        # is deliberately NOT accepted as typed calibration evidence: linear evidence
-        # stays NOT_COMPUTABLE until explicit calibration provenance exists.
         evidence_payload = build_cephalo_runtime_evidence_payload(
             patient_id=patient_id,
             image_record_id=db_path,
             result=result,
             landmarks=pts,
             inference_mode=vision_result.get("mode_inference"),
-            is_calibrated=False,
+            is_calibrated=is_calibrated,
             calibration_data=None,
         )
         persisted_data = {**final_data_dict, EVIDENCE_GRAPH_KEY: evidence_payload}
@@ -127,11 +134,8 @@ class CephaloService:
             db_path,
             pts,
             persisted_data,
-            mm_per_pixel=mm_ratio,
+            mm_per_pixel=None,
         )
-        if auto_ratio:
-            analysis.is_calibrated = True
-            self.db.commit()
 
         return {
             "status": "success",
@@ -139,8 +143,10 @@ class CephaloService:
             "results": final_data_dict,
             "ai_diagnostic": final_data_dict.get("ai_narrative", {}),
             "landmarks": pts,
-            "is_calibrated": analysis.is_calibrated,
-            "mm_per_pixel": analysis.mm_per_pixel,
+            "is_calibrated": False,
+            "mm_per_pixel": None,
+            "calibration_candidate": calibration_candidate,
+            "calibration_message": calibration_message,
         }
 
     def refine_analysis(
