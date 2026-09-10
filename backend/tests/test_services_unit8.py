@@ -107,11 +107,12 @@ class TestCephaloEngineOrthogonalProjection:
         assert abs(result[1] - 0.0) < 0.01
         assert abs(result[0] - 5.0) < 0.01
 
-    def test_degenerate_line_returns_target(self):
+    def test_degenerate_line_returns_none(self):
         eng = self._eng()
-        # Zero-length line — should return target
+        # A zero-length reference line has no defined projection direction.
+        # Fail closed instead of manufacturing a clinically plausible point.
         result = eng._get_orthogonal_projection((5, 5), (5, 5), (3, 7))
-        assert result == (3, 7)
+        assert result is None
 
     def test_returns_tuple(self):
         eng = self._eng()
