@@ -1,6 +1,6 @@
 """Cross-object integrity tests for the cephalometric evidence graph."""
 
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 import pytest
 from pydantic import ValidationError
@@ -228,6 +228,33 @@ def test_missing_normative_source_reference_is_rejected():
         validate_evidence_graph(_replace(graph, normative_evaluations=[bad_evaluation]))
 
 
+def test_normative_reference_payload_must_match_registered_values():
+    graph = _valid_graph()
+    bad_evaluation = graph.normative_evaluations[0].model_copy(
+        update={
+            "reference": {"kind": "EXTREME_RANGE", "lower": 0.0, "upper": 130.1}
+        }
+    )
+    with pytest.raises(EvidenceGraphValidationError, match="does not match registry"):
+        validate_evidence_graph(_replace(graph, normative_evaluations=[bad_evaluation]))
+
+
+def test_normative_reference_must_target_the_actual_measurement_method():
+    graph = _valid_graph()
+    bad_measurement = graph.measurements[0].model_copy(update={"method_id": "OTHER_ANGLE"})
+    with pytest.raises(EvidenceGraphValidationError, match="not measurement method"):
+        validate_evidence_graph(_replace(graph, measurements=[bad_measurement]))
+
+
+def test_inactive_normative_reference_cannot_classify_patient():
+    graph = _valid_graph()
+    bad_evaluation = graph.normative_evaluations[0].model_copy(
+        update={"classification_rule_id": "rule:unsafe", "classification": "normal"}
+    )
+    with pytest.raises(EvidenceGraphValidationError, match="inactive reference"):
+        validate_evidence_graph(_replace(graph, normative_evaluations=[bad_evaluation]))
+
+
 def test_final_plan_requires_selected_option_status():
     graph = _valid_graph()
     option = graph.treatment_options[0].model_copy(
@@ -283,12 +310,23 @@ def test_final_plan_rejects_unvalidated_diagnosis():
         validate_evidence_graph(_replace(graph, diagnoses=[diagnosis]))
 
 
-def test_final_plan_validation_must_target_same_plan_and_be_accepting():
+def test_validation_target_type_and_id_must_match_same_namespace():
     graph = _valid_graph()
     wrong_target = graph.validations[0].model_copy(update={"target_id": "objective:synthetic"})
-    with pytest.raises(EvidenceGraphValidationError, match="must target that final plan"):
+    with pytest.raises(EvidenceGraphValidationError, match="target_id"):
         validate_evidence_graph(_replace(graph, validations=[wrong_target]))
 
+    wrong_type = graph.validations[0].model_copy(update={"target_type": "objective"})
+    with pytest.raises(EvidenceGraphValidationError, match="target_id"):
+        validate_evidence_graph(_replace(graph, validations=[wrong_type]))
+
+    unknown_type = graph.validations[0].model_copy(update={"target_type": "mystery"})
+    with pytest.raises(EvidenceGraphValidationError, match="unknown target_type"):
+        validate_evidence_graph(_replace(graph, validations=[unknown_type]))
+
+
+def test_final_plan_rejects_rejected_validation():
+    graph = _valid_graph()
     rejected = graph.validations[0].model_copy(update={"action": ValidationAction.REJECT})
     with pytest.raises(EvidenceGraphValidationError, match="rejected validation"):
         validate_evidence_graph(_replace(graph, validations=[rejected]))
@@ -298,4 +336,13 @@ def test_final_plan_and_validation_must_have_same_clinician():
     graph = _valid_graph()
     validation = graph.validations[0].model_copy(update={"clinician_id": "clinician:2"})
     with pytest.raises(EvidenceGraphValidationError, match="clinician differs"):
+        validate_evidence_graph(_replace(graph, validations=[validation]))
+
+
+def test_final_plan_and_validation_must_share_exact_audit_timestamp():
+    graph = _valid_graph()
+    validation = graph.validations[0].model_copy(
+        update={"validated_at": NOW + timedelta(seconds=1)}
+    )
+    with pytest.raises(EvidenceGraphValidationError, match="timestamp differs"):
         validate_evidence_graph(_replace(graph, validations=[validation]))
