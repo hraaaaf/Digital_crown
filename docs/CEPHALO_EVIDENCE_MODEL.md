@@ -32,12 +32,18 @@ Le payload public de `process_new_radio` et `refine_analysis` reste inchangé. L
 
 - `SRPOSE38_AUTO` exige le mode `SOTA_ONNX_38` et l'ensemble exact des 38 identifiants certifiés.
 - un fallback automatique legacy ne peut pas être enregistré comme preuve SRPose38.
-- un raffinement crée une nouvelle révision `MANUAL/OBSERVED` et conserve les points SRPose38 initiaux.
+- un raffinement crée une nouvelle révision `MANUAL/OBSERVED`, conserve les points SRPose38 initiaux et archive le snapshot précédent.
+- schema, `case_id` et identité de l'image source sont vérifiés avant toute nouvelle révision.
 - les quatre constructions CRANIOM versionnées utilisent uniquement les landmarks de la révision courante.
-- l'auto-calibration legacy seule ne débloque aucune mesure linéaire typed.
+- les quatre valeurs CRANIOM sont recroisées avec la géométrie courante avant persistence ; une divergence échoue fermée.
+- l'auto-calibration legacy seule ne débloque aucune mesure linéaire typée.
 - une calibration utilisable exige `p1`, `p2`, une distance réelle et un ratio cohérent avec cette géométrie.
 - seules `Situation_A`, `Situation_B`, `Decalage_A_B` et `Profondeur_Faciale` sont adaptées actuellement.
 - sans construction et calibration prouvées : `value=None`, `NOT_COMPUTABLE`.
+
+## PREUVE
+
+Le code HEAD #397 `61ce90bd09cbd465c3165f26c9e54796d8028f5a` a passé CI `34482223445` et T2 `34482223474`. Le commit documentaire de closeout reste soumis à l'exact-head CI avant merge.
 
 ## SUCCESS LOT 0
 
@@ -45,4 +51,4 @@ Le lot reste ouvert jusqu'à ce que : persistence + lecture utilisent le graphe 
 
 ## NEXT EXACT
 
-Certifier #397, puis câbler la provenance de calibration manuelle et l'identité praticien des corrections. Basculer ensuite le read-path des quatre mesures CRANIOM vers `_evidence_graph_v1`.
+Certifier et merger #397, puis câbler la provenance de calibration manuelle et l'identité praticien des corrections. Basculer ensuite le read-path des quatre mesures CRANIOM vers `_evidence_graph_v1`.
