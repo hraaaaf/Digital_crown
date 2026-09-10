@@ -11,6 +11,7 @@ from backend.routers import cephalo_auto_calibration, ia
 from backend.routers.cephalo_auto_calibration import (
     AutoCalibrationRequest,
     auto_calibrate_analysis_with_provenance,
+    confirm_auto_calibration_with_provenance,
 )
 from backend.services.cephalo_auto_calibration_gate import ValidatedFiducialProfile
 from backend.services.cephalo_fiducial_profiles import FiducialProfileRegistry
@@ -134,17 +135,21 @@ def _call(monkeypatch, analysis, *, registry=None):
     return response, db
 
 
-def test_auto_calibration_post_route_is_unique():
-    matches = [
-        route
-        for route in ia.router.routes
-        if isinstance(route, APIRoute)
-        and route.path == "/analyses/{analysis_id}/auto-calibrate"
-        and "POST" in (route.methods or set())
-    ]
-
-    assert len(matches) == 1
-    assert matches[0].endpoint is auto_calibrate_analysis_with_provenance
+def test_auto_calibration_routes_are_unique():
+    expected = {
+        "/analyses/{analysis_id}/auto-calibrate": auto_calibrate_analysis_with_provenance,
+        "/analyses/{analysis_id}/auto-calibration/confirm": confirm_auto_calibration_with_provenance,
+    }
+    for path, endpoint in expected.items():
+        matches = [
+            route
+            for route in ia.router.routes
+            if isinstance(route, APIRoute)
+            and route.path == path
+            and "POST" in (route.methods or set())
+        ]
+        assert len(matches) == 1
+        assert matches[0].endpoint is endpoint
 
 
 def test_empty_production_registry_fails_closed_without_mutation(monkeypatch):
@@ -242,3 +247,42 @@ def test_auto_verified_success_does_not_require_clinician_confirmation(monkeypat
     assert graph["landmarks"] == previous_graph["landmarks"]
     assert graph["constructions"] == previous_graph["constructions"]
     assert all(item["availability_status"] == "AVAILABLE" for item in graph["measurements"])
+
+
+def test_optional_confirmation_changes_only_audit_state_not_ratio_or_values(monkeypatch):
+    analysis = _analysis()
+    _, db = _call(monkeypatch, analysis, registry=_profile_registry())
+    auto_graph = analysis.angles_data[EVIDENCE_GRAPH_KEY]
+    before_ratio = analysis.mm_per_pixel
+    before_values = [item["value"] for item in auto_graph["measurements"]]
+    before_landmarks = auto_graph["landmarks"]
+    before_constructions = auto_graph["constructions"]
+
+    response = confirm_auto_calibration_with_provenance(
+        41,
+        db=db,
+        current_user=SimpleNamespace(id=99),
+    )
+
+    assert response["calibration_state"] == "CLINICIAN_CONFIRMED"
+    assert response["clinician_confirmation_required"] is False
+    assert response["clinician_confirmation_recommended"] is False
+    assert response["mm_per_pixel"] == pytest.approx(before_ratio)
+    assert db.commits == 2
+    assert db.refreshes == 2
+    assert db.rollbacks == 0
+
+    assert analysis.mm_per_pixel == pytest.approx(before_ratio)
+    assert analysis.calibration_data["state"] == "CLINICIAN_CONFIRMED"
+    assert analysis.calibration_data["provenance"]["clinician_confirmed"] is False
+    assert analysis.calibration_data["confirmation"]["confirmed_by"] == "99"
+    graph = analysis.angles_data[EVIDENCE_GRAPH_KEY]
+    assert graph["revision"] == auto_graph["revision"] + 1
+    assert graph["revision_reason"] == "CLINICIAN_CALIBRATION_CONFIRMATION"
+    assert graph["landmarks"] == before_landmarks
+    assert graph["constructions"] == before_constructions
+    assert [item["value"] for item in graph["measurements"]] == before_values
+    source = next(item for item in graph["sources"] if item["kind"] == "calibration")
+    assert source["quality_status"] == "CLINICIAN_CONFIRMED_AUTO_FIDUCIAL_PROFILE"
+    assert source["metadata"]["clinician_confirmed"] is True
+    assert source["metadata"]["confirmed_by"] == "99"
