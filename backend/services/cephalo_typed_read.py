@@ -85,6 +85,10 @@ def project_typed_craniom_read_path(
     Legacy analyses without a typed graph are copied unchanged. Once a typed graph
     exists, those four values never fall back to legacy numbers: unavailable typed
     evidence projects to ``None`` and malformed typed evidence fails closed.
+
+    Historical snapshots may contain the obsolete ``authority_status`` metadata key.
+    Read authority is a property of this active projection, not an immutable property
+    of a stored scientific snapshot, so that legacy marker is not exposed downstream.
     """
     projected = deepcopy(dict(angles_data))
     payload = projected.get(EVIDENCE_GRAPH_KEY)
@@ -139,6 +143,11 @@ def project_typed_craniom_read_path(
         current["availability_status"] = measurement.availability_status.value
         current["scientific_source"] = "EVIDENCE_GRAPH_V1"
         current["measurement_id"] = measurement.measurement_id
+
+    # Older snapshots carried a software-state marker claiming the graph was not yet
+    # on a read path. Keeping that marker in an authoritative GET response would be
+    # self-contradictory. Preserve the scientific snapshot, retire only that metadata.
+    payload.pop("authority_status", None)
 
     projected["scientific_read_path"] = {
         "authority": "EVIDENCE_GRAPH_V1",
