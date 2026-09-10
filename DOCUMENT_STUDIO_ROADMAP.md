@@ -126,7 +126,7 @@ Ces validations externes ne rouvrent pas P4 engineering sauf défaut observé.
 
 ## P5 — Suivi Paiement
 
-**État : 🟡 audit canonique + contrat/lifecycle intégrés après P3 ; certification runtime/financière ouverte.**
+**État : ✅ engineering + runtime/PDF/responsive automatisés certifiés sur PR #402 ; contrepassation comptable et validations humaines séparées.**
 
 Rapports :
 - `docs/audits/DOCUMENT_STUDIO_P5_SUIVI_PAIEMENT_AUDIT.md` ;
@@ -136,7 +136,7 @@ Rapports :
 
 - création/preview/mutation fail-closed : titre, total, lignes, dates, montants, statuts ;
 - réconciliation exacte au centime ;
-- endpoint `latest` explicite et tri déterministe ;
+- endpoint `latest` explicite, tri déterministe `created_at DESC, id DESC` ;
 - échéance PAYE non réouvrable/non rechiffrable sans contrepassation ;
 - plan encaissé non supprimable sans contrepassation ;
 - UI `brouillon → équilibre → enregistrement → encaissement` ;
@@ -147,16 +147,29 @@ Rapports :
 - résumé total/payé/restant ;
 - WhatsApp manuel uniquement ;
 - P5 charge son propre `/latest` et ne pollue plus le store P3/P4 ;
+- cibles tactiles principales ≥44 px et focus clavier visible ;
 - tests schema, route et frontend ajoutés/alignés.
 
-### Reste
+### Certification observée
 
-- exécution réelle full-suite/build ;
-- runtime authentifié création/sauvegarde/encaissement ;
-- rapprochement `Payment ↔ installment` ;
-- scénario de contrepassation à définir/certifier séparément ;
-- PDF et responsive réel 1440/768/390 ;
-- certification financière finale.
+HEAD comportemental certifié avant closeout documentaire : `63d33c2c926120fec45174aba831c1154e48b35a`.
+
+- CI principal `#3156` / run `34520821875` : **success** ;
+- T2 Runtime Browser `#2167` / run `34520821872` : **success** ;
+- plan P5 runtime : total `1200.0`, lignes `500.0 + 700.0`, encaissé `500.0` ;
+- preview financière non persistante, latest déterministe et immutabilité PAYE couverts par la certification runtime ciblée ;
+- navigateur P5 vert sur 390/430/768/1280 + dark 1280 ; aucun overflow horizontal document ;
+- preview Escape, impression navigateur et fraîcheur PDF : PASS ;
+- comparaison humaine BEFORE `#2166` → AFTER `#2167` aux viewports 390/768/1280 : structure conservée, contrôles d'encaissement plus confortables, aucune régression visuelle nouvelle ;
+- score visuel humain AFTER : **8,8/10**, réserve principale = densité structurelle au viewport 390.
+
+### Hors périmètre engineering
+
+- définition et certification d'une vraie contrepassation comptable ;
+- validation comptable/réglementaire humaine si exigée ;
+- validation sur cabinet réel / production locale réelle.
+
+Ces points ne rouvrent pas P5 engineering sauf défaut observé.
 
 ---
 
@@ -281,14 +294,17 @@ Le harness T1 est **préparé mais non exécuté**. Le run T1-C observé (#503 /
 
 1. **P3 PR #77** : fermer full-repo/runtime/visuel/merge dès qu’une exécution réelle redevient possible.
 2. **P4 Note Honoraires** : engineering/runtime automatisé fermé sur PR #386 ; gates humaines externes séparées.
-3. **P5/P6** : reprendre les certifications runtime/PDF/financières encore ouvertes.
-4. **P7 stack #81→#86** : A/B/D/F/G engineering fermé ; exécuter le harness/runtime quand l’infrastructure le permet ; P7-C/E nécessitent architecture dédiée ; P7-H est un gate scientifique humain.
-5. **T1 stack #88→#94** : A→E convergés en engineering ; exécuter le harness T1 puis les checks authentifiés/browser dès qu’une exécution réelle est disponible ; ne pas certifier/merger avant ces preuves.
-6. **T2** : recertification/refonte finale après consolidation des gates précédents.
+3. **P5 Suivi Paiement** : engineering/runtime/PDF/responsive automatisés certifiés sur PR #402 ; merge/post-merge restant après checks du head documentaire final.
+4. **P6 Document Libre** : prochain lot exécutable après fermeture P5.
+5. **P7 stack #81→#86** : A/B/D/F/G engineering fermé ; exécuter le harness/runtime quand l’infrastructure le permet ; P7-C/E nécessitent architecture dédiée ; P7-H est un gate scientifique humain.
+6. **T1 stack #88→#94** : A→E convergés en engineering ; exécuter le harness T1 puis les checks authentifiés/browser dès qu’une exécution réelle est disponible ; ne pas certifier/merger avant ces preuves.
+7. **T2** : recertification/refonte finale après consolidation des gates précédents.
 
 ## Infrastructure CI
 
-Les anciennes indisponibilités GitHub Actions restent documentées historiquement, mais P4 dispose désormais de runs réels verts sur son HEAD produit certifié : T2 `34413159443` et CI `34413159336`.
+Les anciennes indisponibilités GitHub Actions restent documentées historiquement. P4 dispose de runs réels verts sur son HEAD produit certifié : T2 `34413159443` et CI `34413159336`.
+
+P5 dispose de runs réels verts sur son HEAD comportemental `63d33c2c...` : T2 `34520821872` (#2167) et CI `34520821875` (#3156). Les commits documentaires de closeout suivants doivent repasser les checks requis avant merge.
 
 Sur T1-C, le run #503 (`31941504118`) a créé trois jobs avec `runner_id=0` et `steps=[]` : aucun test de dépôt n’a donc été exécuté. Aucun PASS n'est revendiqué.
 
