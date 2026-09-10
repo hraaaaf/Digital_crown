@@ -83,8 +83,9 @@ def project_typed_craniom_read_path(
     """Overlay the four typed CRANIOM measurements onto legacy response fields.
 
     Legacy analyses without a typed graph are copied unchanged. Once a typed graph
-    exists, those four values never fall back to legacy numbers: unavailable typed
-    evidence projects to ``None`` and malformed typed evidence fails closed.
+    exists, those four values never fall back to legacy numbers. AVAILABLE carries
+    the typed value, NOT_COMPUTABLE projects to ``None``, and every other state fails
+    closed because it is outside this read-path contract.
 
     Historical snapshots may contain the obsolete ``authority_status`` metadata key.
     Read authority is a property of this active projection, not an immutable property
@@ -135,11 +136,15 @@ def project_typed_craniom_read_path(
         current = skeletal.setdefault(field_name, {})
         if not isinstance(current, dict):
             raise CephaloTypedReadError(f"Legacy field {field_name} must be an object")
-        current["valeur"] = (
-            measurement.value
-            if measurement.availability_status == AvailabilityStatus.AVAILABLE
-            else None
-        )
+        if measurement.availability_status == AvailabilityStatus.AVAILABLE:
+            current["valeur"] = measurement.value
+        elif measurement.availability_status == AvailabilityStatus.NOT_COMPUTABLE:
+            current["valeur"] = None
+        else:
+            raise CephaloTypedReadError(
+                "Unsupported typed CRANIOM availability status: "
+                f"{measurement.method_id}={measurement.availability_status.value}"
+            )
         current["availability_status"] = measurement.availability_status.value
         current["scientific_source"] = "EVIDENCE_GRAPH_V1"
         current["measurement_id"] = measurement.measurement_id
