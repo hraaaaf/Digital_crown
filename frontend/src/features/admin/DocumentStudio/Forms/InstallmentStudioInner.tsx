@@ -265,14 +265,17 @@ export const InstallmentStudio: React.FC<InstallmentStudioProps> = ({ patientId,
     window.open(url, '_blank');
   };
 
+  const focusRing = 'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:ring-offset-2';
+  const touchControl = `min-h-[44px] ${focusRing}`;
+
   return (
-    <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6 flex flex-col h-full overflow-y-auto" id="installment-studio-container" data-plan-data={JSON.stringify({ title, totalAmount, items })}>
+    <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-4 sm:p-6 flex flex-col h-full overflow-y-auto" id="installment-studio-container" data-plan-data={JSON.stringify({ title, totalAmount, items })}>
       <div className="mb-6 flex flex-wrap items-start justify-between gap-3">
         <div>
           <h3 className="text-lg font-bold text-slate-900 mb-1">Suivi Paiement</h3>
           <p className="text-sm text-slate-500">Brouillon équilibré → enregistrement → encaissement explicite.</p>
         </div>
-        <button type="button" onClick={startNewPlan} className="px-3 py-2 text-xs font-semibold rounded-lg border border-slate-200 hover:bg-slate-50">
+        <button type="button" onClick={startNewPlan} className={`px-3 py-2 text-xs font-semibold rounded-lg border border-slate-200 hover:bg-slate-50 ${touchControl}`}>
           Nouveau plan
         </button>
       </div>
@@ -282,14 +285,14 @@ export const InstallmentStudio: React.FC<InstallmentStudioProps> = ({ patientId,
           <label className="block text-sm font-medium text-slate-700 mb-1">Titre du plan</label>
           <div className="relative">
             <FileText className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4" />
-            <input type="text" value={title} disabled={!!loadedPlanId} onChange={e => setTitle(e.target.value)} className="w-full pl-10 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm disabled:opacity-60" placeholder="Ex: Plan de paiement" />
+            <input type="text" value={title} disabled={!!loadedPlanId} onChange={e => setTitle(e.target.value)} className={`w-full pl-10 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm disabled:opacity-60 ${touchControl}`} placeholder="Ex: Plan de paiement" />
           </div>
         </div>
         <div>
           <label className="block text-sm font-medium text-slate-700 mb-1">Montant Total Prévu (MAD)</label>
           <div className="relative">
             <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4" />
-            <input type="number" value={totalAmount} disabled={!!loadedPlanId} onChange={e => setTotalAmount(Number(e.target.value))} onFocus={e => e.target.select()} className="w-full pl-10 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm disabled:opacity-60" />
+            <input type="number" value={totalAmount} disabled={!!loadedPlanId} onChange={e => setTotalAmount(Number(e.target.value))} onFocus={e => e.target.select()} className={`w-full pl-10 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm disabled:opacity-60 ${touchControl}`} />
           </div>
         </div>
       </div>
@@ -298,18 +301,18 @@ export const InstallmentStudio: React.FC<InstallmentStudioProps> = ({ patientId,
         <div className="p-4 bg-slate-50 rounded-xl border border-slate-100 mb-6">
           <h4 className="text-sm font-bold text-slate-800 mb-3">Génération rapide</h4>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 items-end">
-            <div><label className="block text-xs font-medium text-slate-600 mb-1">Avance (MAD)</label><input type="number" value={advanceAmount} onChange={e => setAdvanceAmount(Number(e.target.value))} onFocus={e => e.target.select()} className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm" /></div>
-            <div><label className="block text-xs font-medium text-slate-600 mb-1">Date Avance</label><input type="date" value={advanceDate} onChange={e => setAdvanceDate(e.target.value)} className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm" /></div>
-            <div><label className="block text-xs font-medium text-slate-600 mb-1">Nbre Mensualités</label><input type="number" min="1" value={monthsCount} onChange={e => setMonthsCount(Number(e.target.value))} onFocus={e => e.target.select()} className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm" /></div>
-            <div><label className="block text-xs font-medium text-slate-600 mb-1">Montant / Mois (indicatif)</label><input type="number" value={monthlyAmount} readOnly className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-slate-100" /></div>
+            <div><label className="block text-xs font-medium text-slate-600 mb-1">Avance (MAD)</label><input type="number" value={advanceAmount} onChange={e => setAdvanceAmount(Number(e.target.value))} onFocus={e => e.target.select()} className={`w-full px-3 py-2 border border-slate-200 rounded-lg text-sm ${touchControl}`} /></div>
+            <div><label className="block text-xs font-medium text-slate-600 mb-1">Date Avance</label><input type="date" value={advanceDate} onChange={e => setAdvanceDate(e.target.value)} className={`w-full px-3 py-2 border border-slate-200 rounded-lg text-sm ${touchControl}`} /></div>
+            <div><label className="block text-xs font-medium text-slate-600 mb-1">Nbre Mensualités</label><input type="number" min="1" value={monthsCount} onChange={e => setMonthsCount(Number(e.target.value))} onFocus={e => e.target.select()} className={`w-full px-3 py-2 border border-slate-200 rounded-lg text-sm ${touchControl}`} /></div>
+            <div><label className="block text-xs font-medium text-slate-600 mb-1">Montant / Mois (indicatif)</label><input type="number" value={monthlyAmount} readOnly className={`w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-slate-100 ${touchControl}`} /></div>
           </div>
-          <button type="button" onClick={generateTable} className="mt-4 px-4 py-2 bg-slate-800 hover:bg-slate-900 text-white text-sm font-medium rounded-lg w-full">Générer le tableau des échéances</button>
+          <button type="button" onClick={generateTable} className={`mt-4 px-4 py-2 bg-slate-800 hover:bg-slate-900 text-white text-sm font-medium rounded-lg w-full ${touchControl}`}>Générer le tableau des échéances</button>
         </div>
       )}
 
       <div className="flex items-center justify-between mb-3 gap-3">
         <h4 className="text-sm font-bold text-slate-800">Échéances</h4>
-        {!loadedPlanId && <button type="button" onClick={addItem} className="flex items-center gap-1 px-3 py-1.5 bg-primary/10 text-primary text-xs font-medium rounded-lg"><Plus className="w-3.5 h-3.5" />Ajouter manuellement</button>}
+        {!loadedPlanId && <button type="button" onClick={addItem} className={`flex items-center gap-1 px-3 py-1.5 bg-primary/10 text-primary text-xs font-medium rounded-lg ${touchControl}`}><Plus className="w-3.5 h-3.5" />Ajouter manuellement</button>}
       </div>
 
       <div className="flex-1 overflow-x-auto min-h-[200px] border border-slate-200 rounded-xl">
@@ -327,7 +330,7 @@ export const InstallmentStudio: React.FC<InstallmentStudioProps> = ({ patientId,
                         aria-label={`Mode de règlement ${item.label}`}
                         value={item.paymentMethod || ''}
                         onChange={e => updateItem(item.id, 'paymentMethod', e.target.value as PaymentMethod)}
-                        className="border border-slate-200 rounded-lg px-2 py-1 text-xs"
+                        className={`border border-slate-200 rounded-lg px-2 py-1 text-xs ${touchControl}`}
                       >
                         <option value="" disabled>Mode…</option>
                         <option value="ESPECES">Espèces</option>
@@ -335,15 +338,15 @@ export const InstallmentStudio: React.FC<InstallmentStudioProps> = ({ patientId,
                         <option value="CHEQUE">Chèque</option>
                         <option value="VIREMENT">Virement</option>
                       </select>
-                      <button type="button" onClick={() => collectInstallment(item)} disabled={collectingId === item.id || !item.paymentMethod} className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-emerald-600 text-white text-xs disabled:opacity-50"><Banknote size={14} />Encaisser</button>
+                      <button type="button" onClick={() => collectInstallment(item)} disabled={collectingId === item.id || !item.paymentMethod} className={`inline-flex items-center gap-1 px-3 py-2 rounded-lg bg-emerald-600 text-white text-xs disabled:opacity-50 ${touchControl}`}><Banknote size={14} />Encaisser</button>
                     </div>
                   ) : <span className="text-xs text-slate-500">Brouillon non encaissable</span>}
                 </td>
-                <td className="px-4 py-2"><input type="text" disabled={item.paid} value={item.label} onChange={e => updateItem(item.id, 'label', e.target.value)} onBlur={e => persistEditableField(item, 'label', e.target.value)} className={`w-full bg-transparent border-none p-0 text-sm font-medium ${item.paid ? 'text-slate-400 line-through' : 'text-slate-700'}`} /></td>
-                <td className="px-4 py-2"><input type="date" disabled={item.paid} value={item.dueDate} onChange={e => updateItem(item.id, 'dueDate', e.target.value)} onBlur={e => persistEditableField(item, 'due_date', e.target.value)} className="w-full bg-transparent border-none p-0 text-sm" /></td>
-                <td className="px-4 py-2"><div className="flex items-center gap-1"><input type="number" disabled={item.persisted || item.paid} value={item.amount} onChange={e => updateItem(item.id, 'amount', Number(e.target.value))} onFocus={e => e.target.select()} className={`w-full bg-transparent border-none p-0 text-sm font-bold ${item.paid ? 'text-emerald-500' : 'text-slate-900'} disabled:opacity-70`} /><span className="text-xs text-slate-400">MAD</span></div></td>
-                <td className="px-4 py-2 text-center"><div className="flex items-center justify-center gap-2"><input type="checkbox" checked={item.sendReminder || false} onChange={e => updateItem(item.id, 'sendReminder', e.target.checked)} className="w-4 h-4 rounded" aria-label={`Activer rappel WhatsApp ${item.label}`} />{item.sendReminder && <button type="button" onClick={() => openWhatsAppReminder(item)} className="text-emerald-500" title="Ouvrir WhatsApp avec le rappel prérempli"><MessageCircle size={16} /></button>}</div></td>
-                <td className="px-4 py-2 text-right">{!item.persisted && <button type="button" onClick={() => removeItem(item.id)} className="p-1.5 text-slate-400 hover:text-red-500 rounded-lg" aria-label={`Supprimer ${item.label}`}><Trash2 className="w-4 h-4" /></button>}</td>
+                <td className="px-4 py-2"><input type="text" disabled={item.paid} value={item.label} onChange={e => updateItem(item.id, 'label', e.target.value)} onBlur={e => persistEditableField(item, 'label', e.target.value)} className={`w-full min-h-[44px] bg-transparent border-none px-1 text-sm font-medium ${focusRing} ${item.paid ? 'text-slate-400 line-through' : 'text-slate-700'}`} /></td>
+                <td className="px-4 py-2"><input type="date" disabled={item.paid} value={item.dueDate} onChange={e => updateItem(item.id, 'dueDate', e.target.value)} onBlur={e => persistEditableField(item, 'due_date', e.target.value)} className={`w-full min-h-[44px] bg-transparent border-none px-1 text-sm ${focusRing}`} /></td>
+                <td className="px-4 py-2"><div className="flex items-center gap-1"><input type="number" disabled={item.persisted || item.paid} value={item.amount} onChange={e => updateItem(item.id, 'amount', Number(e.target.value))} onFocus={e => e.target.select()} className={`w-full min-h-[44px] bg-transparent border-none px-1 text-sm font-bold ${focusRing} ${item.paid ? 'text-emerald-500' : 'text-slate-900'} disabled:opacity-70`} /><span className="text-xs text-slate-400">MAD</span></div></td>
+                <td className="px-4 py-2 text-center"><div className="flex min-h-[44px] items-center justify-center gap-2"><input type="checkbox" checked={item.sendReminder || false} onChange={e => updateItem(item.id, 'sendReminder', e.target.checked)} className={`w-6 h-6 rounded ${focusRing}`} aria-label={`Activer rappel WhatsApp ${item.label}`} />{item.sendReminder && <button type="button" onClick={() => openWhatsAppReminder(item)} className={`inline-flex min-h-[44px] min-w-[44px] items-center justify-center text-emerald-500 ${focusRing}`} title="Ouvrir WhatsApp avec le rappel prérempli"><MessageCircle size={18} /></button>}</div></td>
+                <td className="px-4 py-2 text-right">{!item.persisted && <button type="button" onClick={() => removeItem(item.id)} className={`inline-flex min-h-[44px] min-w-[44px] items-center justify-center text-slate-400 hover:text-red-500 rounded-lg ${focusRing}`} aria-label={`Supprimer ${item.label}`}><Trash2 className="w-4 h-4" /></button>}</td>
               </tr>
             ))}
             {items.length === 0 && <tr><td colSpan={6} className="px-4 py-8 text-center text-slate-500">Aucune échéance définie.</td></tr>}
@@ -359,7 +362,7 @@ export const InstallmentStudio: React.FC<InstallmentStudioProps> = ({ patientId,
         </div>
         <div className="flex flex-wrap items-center justify-between gap-3">
           {totalAmount > 0 && <span className={isBalanced ? 'text-emerald-600 text-sm font-medium' : 'text-amber-600 text-sm font-medium'}>{isBalanced ? 'Total équilibré' : 'Le total planifié diffère du total prévu'}</span>}
-          {!loadedPlanId && <button type="button" onClick={savePlan} disabled={saving || !isBalanced || !hasValidDraftRows} className="px-4 py-2 bg-primary text-white text-sm font-semibold rounded-lg disabled:opacity-40">{saving ? 'Enregistrement…' : 'Enregistrer le plan'}</button>}
+          {!loadedPlanId && <button type="button" onClick={savePlan} disabled={saving || !isBalanced || !hasValidDraftRows} className={`px-4 py-2 bg-primary text-white text-sm font-semibold rounded-lg disabled:opacity-40 ${touchControl}`}>{saving ? 'Enregistrement…' : 'Enregistrer le plan'}</button>}
           {loadedPlanId && <span className="text-xs text-slate-500">Plan enregistré #{loadedPlanId}. Les montants sont figés ; toute restructuration passe par un nouveau plan.</span>}
         </div>
       </div>
