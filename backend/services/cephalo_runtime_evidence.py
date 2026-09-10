@@ -148,7 +148,8 @@ def _assert_runtime_geometry_matches(
             if runtime_value is not None:
                 raise CephaloRuntimeEvidenceError(f"Runtime {field} exists although evidence geometry is not computable")
             continue
-        if runtime_value is None or not math.isfinite(runtime_value) or not math.isclose(runtime_value, expected_value, rel_tol=1e-9, abs_tol=1e-9):
+        expected_runtime_value = round(expected_value, 1)
+        if runtime_value is None or not math.isfinite(runtime_value) or not math.isclose(runtime_value, expected_runtime_value, rel_tol=0.0, abs_tol=1e-12):
             raise CephaloRuntimeEvidenceError(f"Runtime {field} does not match persisted evidence geometry")
 
 def _calibration_source(
