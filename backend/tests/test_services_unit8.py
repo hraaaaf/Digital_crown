@@ -74,6 +74,11 @@ class TestCephaloEngineClinicalAngle:
         result = eng._get_clinical_angle(None, (10, 0), (0, 5), (10, 5))
         assert result is None
 
+    def test_degenerate_line_returns_none(self):
+        eng = self._eng()
+        result = eng._get_clinical_angle((5, 5), (5, 5), (0, 0), (10, 0))
+        assert result is None
+
     def test_result_in_range_0_to_180(self):
         eng = self._eng()
         import random
