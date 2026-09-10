@@ -7,6 +7,7 @@ from pydantic import ValidationError
 
 from backend.schemas.cephalo_evidence import (
     AvailabilityStatus,
+    ConstructionEvidence,
     DiagnosticHypothesisEvidence,
     FinalPlanEvidence,
     LandmarkEvidence,
@@ -21,6 +22,51 @@ from backend.schemas.cephalo_evidence import (
 
 
 NOW = datetime(2026, 9, 10, 9, 0, tzinfo=timezone.utc)
+
+
+def test_available_construction_requires_real_landmark_refs_and_geometry():
+    with pytest.raises(ValidationError, match="landmark evidence refs"):
+        ConstructionEvidence(
+            construction_id="construction:fh",
+            definition_id="FH_PO_OR_V1",
+            definition_version="1",
+            geometry={"kind": "axis"},
+        )
+    with pytest.raises(ValidationError, match="explicit geometry"):
+        ConstructionEvidence(
+            construction_id="construction:fh",
+            definition_id="FH_PO_OR_V1",
+            definition_version="1",
+            landmark_refs=["landmark:Po", "landmark:Or"],
+        )
+
+
+def test_unavailable_construction_can_record_missing_landmarks_without_fake_refs():
+    construction = ConstructionEvidence(
+        construction_id="construction:fh:missing",
+        definition_id="FH_PO_OR_V1",
+        definition_version="1",
+        landmark_refs=[],
+        missing_landmark_ids=["Po", "Or"],
+        geometry={},
+        evidence_refs=[],
+        availability_status=AvailabilityStatus.NOT_COMPUTABLE,
+    )
+    assert construction.landmark_refs == []
+    assert construction.missing_landmark_ids == ["Po", "Or"]
+    assert construction.availability_status == AvailabilityStatus.NOT_COMPUTABLE
+
+
+def test_available_construction_cannot_claim_missing_landmarks():
+    with pytest.raises(ValidationError, match="cannot declare missing"):
+        ConstructionEvidence(
+            construction_id="construction:fh",
+            definition_id="FH_PO_OR_V1",
+            definition_version="1",
+            landmark_refs=["landmark:Po"],
+            missing_landmark_ids=["Or"],
+            geometry={"kind": "axis"},
+        )
 
 
 def test_measurement_requires_geometric_dependencies():
