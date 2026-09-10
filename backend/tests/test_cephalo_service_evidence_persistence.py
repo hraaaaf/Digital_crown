@@ -24,9 +24,18 @@ def _result():
 
 
 def _srpose_points():
-    return [
-        {"id": name, "x": float(100 + index * 2), "y": float(120 + index * 3)}
+    coords = {
+        name: (float(100 + index * 2), float(120 + index * 3))
         for index, name in SOTA_LANDMARKS_MAPPING.items()
+    }
+    coords.update({
+        key: value
+        for key, value in _engine_points().items()
+        if key in coords
+    })
+    return [
+        {"id": name, "x": x, "y": y}
+        for name, (x, y) in coords.items()
     ]
 
 
@@ -81,6 +90,7 @@ def test_new_analysis_persists_evidence_without_changing_public_result(monkeypat
 
     assert EVIDENCE_GRAPH_KEY in repo.persisted
     assert repo.persisted[EVIDENCE_GRAPH_KEY]["revision"] == 1
+    assert repo.persisted[EVIDENCE_GRAPH_KEY]["history"] == []
     assert EVIDENCE_GRAPH_KEY not in response["results"]
 
 
@@ -136,6 +146,8 @@ def test_refine_replaces_current_manual_revision_but_preserves_original_auto(mon
 
     payload = repo.persisted[EVIDENCE_GRAPH_KEY]
     assert payload["revision"] == 2
+    assert len(payload["history"]) == 1
+    assert payload["history"][0]["revision"] == 1
     assert len([x for x in payload["landmarks"] if x["origin"] == "SRPOSE38_AUTO"]) == 38
     assert len([x for x in payload["landmarks"] if x["origin"] == "MANUAL"]) == len(manual)
     assert EVIDENCE_GRAPH_KEY not in response["results"]
