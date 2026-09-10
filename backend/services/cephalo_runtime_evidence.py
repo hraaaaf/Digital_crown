@@ -15,11 +15,16 @@ from backend.services.cephalo_construction_evidence_adapter import materialize_c
 from backend.services.cephalo_evidence_case_integrity import validate_case_evidence_graph
 from backend.services.cephalo_evidence_graph import EvidenceGraphSnapshot
 from backend.services.cephalo_measurement_adapter import adapt_craniom_linear_measurements
-from backend.services.sota_vision_service import SRPOSE38_MODEL_NAME, SRPOSE38_MODEL_SHA256
+from backend.services.sota_vision_service import (
+    SOTA_LANDMARKS_MAPPING,
+    SRPOSE38_MODEL_NAME,
+    SRPOSE38_MODEL_SHA256,
+)
 
 EVIDENCE_GRAPH_KEY = "_evidence_graph_v1"
 EVIDENCE_SCHEMA_VERSION = "CEPHALO_EVIDENCE_V1"
 SRPOSE38_PIPELINE_VERSION = "SRPOSE38_TTA_1024_V1"
+_SRPOSE38_IDS = frozenset(SOTA_LANDMARKS_MAPPING.values())
 
 class CephaloRuntimeEvidenceError(ValueError):
     pass
@@ -90,6 +95,12 @@ def _current_landmarks(
                 pipeline_version=SRPOSE38_PIPELINE_VERSION,
                 evidence_status=EvidenceStatus.COMPUTED, **common,
             ))
+    if not manual and seen != _SRPOSE38_IDS:
+        missing = sorted(_SRPOSE38_IDS - seen)
+        extra = sorted(seen - _SRPOSE38_IDS)
+        raise CephaloRuntimeEvidenceError(
+            f"SOTA_ONNX_38 evidence requires exact 38-landmark contract; missing={missing}, extra={extra}"
+        )
     return out
 
 def _calibration_source(
