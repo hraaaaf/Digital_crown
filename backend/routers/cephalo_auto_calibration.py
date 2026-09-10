@@ -1,8 +1,8 @@
 """Explicit AUTO_VERIFIED fiducial calibration transition.
 
 The endpoint never trusts ruler-like geometry alone. It resolves an exact validated
-physical profile, re-runs the objective gate, then persists a new typed evidence
-revision atomically. Practitioner confirmation remains optional and distinct.
+physical profile, re-runs the objective gate, then persists a calibration-only typed
+evidence revision atomically. Practitioner confirmation remains optional and distinct.
 """
 from __future__ import annotations
 
@@ -110,8 +110,6 @@ def auto_calibrate_analysis_with_provenance(
     if not raw_landmarks or len(points_dict) != len(raw_landmarks):
         raise HTTPException(status_code=400, detail="Landmarks persistés invalides pour recalibrage")
 
-    vision_metadata = existing_angles.get("vision_metadata")
-    inference_mode = vision_metadata.get("mode_inference") if isinstance(vision_metadata, dict) else None
     calibrated_at = dt.datetime.now(dt.timezone.utc)
 
     try:
@@ -126,7 +124,6 @@ def auto_calibrate_analysis_with_provenance(
             image_record_id=analysis.image_original_path,
             result=geometry,
             runtime_landmarks=raw_landmarks,
-            inference_mode=inference_mode,
             decision=decision,
             calibrated_at=calibrated_at,
         )
