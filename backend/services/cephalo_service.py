@@ -182,7 +182,6 @@ class CephaloService:
             manual_revision=True,
             is_calibrated=bool(existing.is_calibrated),
             calibration_data=existing.calibration_data,
-            recorded_at=existing.created_at,
         )
         persisted_data = {**final_data_dict, EVIDENCE_GRAPH_KEY: evidence_payload}
 
