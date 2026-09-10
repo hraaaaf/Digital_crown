@@ -37,22 +37,32 @@ for (const viewport of [{width:390,height:844},{width:768,height:1024},{width:12
   }
   const title = page.getByPlaceholder('Ex: ORDONNANCE, LETTRE...');
   const content = page.getByPlaceholder("Rédigez votre document ici... Utilisez la barre d'outils pour mettre en forme le texte.");
+  const table = page.getByTitle('Tableau');
+  const a5 = page.getByRole('button', {name:'A5',exact:true});
+  const a4 = page.getByRole('button', {name:'A4',exact:true});
+  const justified = page.getByRole('button', {name:'Justifié',exact:true});
   await title.fill(`P6 ${viewport.width}`);
   await content.fill('Texte P6');
-  await page.getByTitle('Tableau').click();
-  await page.getByRole('button', {name:'A5',exact:true}).click();
-  await page.getByRole('button', {name:'A4',exact:true}).click();
-  await page.getByRole('button', {name:'Justifié',exact:true}).click();
+  await table.click();
+  await a5.click();
+  await a4.click();
+  await justified.click();
+  await content.scrollIntoViewIfNeeded();
   const metrics = await page.evaluate(() => {
     const d = document.documentElement;
-    const vw = window.innerWidth;
-    const visible = (el) => { const r=el.getBoundingClientRect(),s=getComputedStyle(el); return s.display!=='none'&&s.visibility!=='hidden'&&r.width>0&&r.height>0; };
-    const clipped = [...document.querySelectorAll('input,textarea,button')].filter(visible).filter((el)=>{const r=el.getBoundingClientRect();return r.left<-1||r.right>vw+1;}).length;
-    return { scrollWidth:d.scrollWidth, clientWidth:d.clientWidth, noOverflow:d.scrollWidth<=d.clientWidth+2, clipped };
+    return { scrollWidth:d.scrollWidth, clientWidth:d.clientWidth, noOverflow:d.scrollWidth<=d.clientWidth+2 };
   });
+  const controls = {};
+  for (const [name, locator] of Object.entries({title,content,table,a5,a4,justified})) {
+    await locator.scrollIntoViewIfNeeded();
+    const box = await locator.boundingBox();
+    controls[name] = box ? {left:box.x,right:box.x+box.width,withinViewport:box.x>=-1&&box.x+box.width<=viewport.width+1} : null;
+  }
+  const clipped = Object.entries(controls).filter(([,box]) => !box || !box.withinViewport).map(([name]) => name);
+  await content.scrollIntoViewIfNeeded();
   const screenshot = `p6-${viewport.width}x${viewport.height}-editor.png`;
-  await page.screenshot({path:path.join(out,screenshot),fullPage:true});
-  evidence.push({viewport,metrics,errors,screenshot,pass:metrics.noOverflow&&metrics.clipped===0&&errors.length===0});
+  await page.screenshot({path:path.join(out,screenshot)});
+  evidence.push({viewport,metrics:{...metrics,clipped:clipped.length},controls,errors,screenshot,pass:metrics.noOverflow&&clipped.length===0&&errors.length===0});
   await context.close();
 }
 const report = {status:evidence.every((x)=>x.pass)?'PASS':'FAIL',evidence};
