@@ -1,11 +1,15 @@
-"""Canonical manual-calibration route with typed provenance.
+"""Canonical clinician-verified calibration route with typed provenance.
 
 Replaces only POST /analyses/{analysis_id}/calibrate on the IA router.
+A persisted ruler candidate is promoted to verified fiducial provenance only when
+its detected points are the same points the clinician confirms. Edited points
+remain an explicit manual two-point calibration.
 """
 from __future__ import annotations
 
 import datetime as dt
 import math
+from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
@@ -18,6 +22,45 @@ from backend.services.cephalo_safe_engine import cephalo_safe_engine as cephalo_
 from backend.utils.access_control import assert_patient_access
 
 router = APIRouter()
+
+
+def _same_point(candidate: Any, x: float, y: float) -> bool:
+    return (
+        isinstance(candidate, list)
+        and len(candidate) == 2
+        and all(isinstance(value, (int, float)) for value in candidate)
+        and math.isclose(float(candidate[0]), float(x), rel_tol=0.0, abs_tol=1e-6)
+        and math.isclose(float(candidate[1]), float(y), rel_tol=0.0, abs_tol=1e-6)
+    )
+
+
+def _confirmed_ruler_candidate(analysis: models.CephaloAnalysis, req: schemas.CalibrationRequest) -> bool:
+    candidate = analysis.calibration_data
+    if not isinstance(candidate, dict):
+        return False
+    if candidate.get("schema_version") != "CEPHALO_CALIBRATION_CANDIDATE_V1":
+        return False
+    if candidate.get("method") != "RULER_TICK_CANDIDATE_V1":
+        return False
+    if candidate.get("verification_status") != "UNVERIFIED":
+        return False
+    return _same_point(candidate.get("p1"), req.p1.x, req.p1.y) and _same_point(
+        candidate.get("p2"), req.p2.x, req.p2.y
+    )
+
+
+def _promote_calibration_source(payload: dict[str, Any], *, ruler_candidate: bool) -> dict[str, Any]:
+    if not ruler_candidate:
+        return payload
+    for source in payload.get("sources", []):
+        if isinstance(source, dict) and source.get("kind") == "calibration":
+            source["quality_status"] = "VERIFIED_RULER_FIDUCIAL"
+            metadata = source.get("metadata")
+            if isinstance(metadata, dict):
+                metadata["method"] = "RULER_TICK_CANDIDATE_V1"
+                metadata["method_version"] = "1"
+                metadata["clinician_confirmation"] = True
+    return payload
 
 
 @router.post("/analyses/{analysis_id}/calibrate")
@@ -50,18 +93,23 @@ def calibrate_analysis_with_provenance(
             detail=f"Ratio mm/pixel aberrant ({mm_per_pixel:.4f}). Verifiez vos points.",
         )
 
+    ruler_candidate = _confirmed_ruler_candidate(analysis, req)
     calibrated_at = dt.datetime.now(dt.timezone.utc)
     clinician_id = str(current_user.id)
+    method = "RULER_TICK_CANDIDATE_V1" if ruler_candidate else "MANUAL_TWO_POINT"
+    quality_status = "VERIFIED_RULER_FIDUCIAL" if ruler_candidate else "VERIFIED_MANUAL_TWO_POINT"
     calibration_data = {
         "schema_version": "CEPHALO_CALIBRATION_V1",
-        "method": "MANUAL_TWO_POINT",
+        "method": method,
         "method_version": "1",
+        "quality_status": quality_status,
         "p1": {"x": float(req.p1.x), "y": float(req.p1.y)},
         "p2": {"x": float(req.p2.x), "y": float(req.p2.y)},
         "distance_mm": float(req.distance_mm),
         "mm_per_pixel": float(mm_per_pixel),
         "calibrated_by": clinician_id,
         "calibrated_at": calibrated_at.isoformat(),
+        "clinician_confirmation": True,
     }
 
     raw_landmarks = analysis.landmarks_data if isinstance(analysis.landmarks_data, list) else []
@@ -85,15 +133,13 @@ def calibrate_analysis_with_provenance(
 
         existing_angles = analysis.angles_data if isinstance(analysis.angles_data, dict) else {}
         updated_angles = dict(existing_angles)
-        # Recompute geometry-dependent compatibility output from the same landmarks
-        # and ratio. Practitioner-authored clinical/narrative fields are left intact.
         for key in ("analysis_metadata", "metrics", "visual_debug"):
             updated_angles[key] = geometry_payload[key]
         updated_angles["calibration_status"] = "verified"
 
         previous_evidence = existing_angles.get(EVIDENCE_GRAPH_KEY)
         if isinstance(previous_evidence, dict):
-            updated_angles[EVIDENCE_GRAPH_KEY] = rebuild_evidence_after_manual_calibration(
+            rebuilt = rebuild_evidence_after_manual_calibration(
                 previous_payload=previous_evidence,
                 patient_id=analysis.patient_id,
                 image_record_id=analysis.image_original_path,
@@ -104,6 +150,10 @@ def calibrate_analysis_with_provenance(
                 distance_mm=calibration_data["distance_mm"],
                 clinician_id=clinician_id,
                 calibrated_at=calibrated_at,
+            )
+            updated_angles[EVIDENCE_GRAPH_KEY] = _promote_calibration_source(
+                rebuilt,
+                ruler_candidate=ruler_candidate,
             )
 
         analysis.mm_per_pixel = mm_per_pixel
@@ -126,4 +176,6 @@ def calibrate_analysis_with_provenance(
         "status": "success",
         "mm_per_pixel": mm_per_pixel,
         "is_calibrated": True,
+        "calibration_method": method,
+        "quality_status": quality_status,
     }
