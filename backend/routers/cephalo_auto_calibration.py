@@ -1,13 +1,8 @@
-"""Explicit AUTO_VERIFIED fiducial calibration transition.
-
-The endpoint never trusts ruler-like geometry alone. It resolves an exact validated
-physical profile, re-runs the objective gate, then persists a calibration-only typed
-evidence revision atomically. Practitioner confirmation remains optional and distinct.
-"""
+"""Explicit fiducial calibration transitions with distinct automatic/human provenance."""
 from __future__ import annotations
 
 import datetime as dt
-from typing import Any
+from typing import Any, Mapping
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, ConfigDict, Field
@@ -15,6 +10,10 @@ from sqlalchemy.orm import Session
 
 from backend import database, models
 from backend.routers.auth import require_permission
+from backend.services.cephalo_auto_calibration_confirmation import (
+    AutoCalibrationConfirmationError,
+    confirm_auto_calibration,
+)
 from backend.services.cephalo_auto_calibration_gate import (
     AutoCalibrationState,
     evaluate_auto_calibration,
@@ -43,6 +42,18 @@ class AutoCalibrationRequest(BaseModel):
     profile_version: str = Field(min_length=1)
 
 
+def _load_analysis(analysis_id: int, db: Session, current_user: models.User):
+    analysis = (
+        db.query(models.CephaloAnalysis)
+        .filter(models.CephaloAnalysis.id == analysis_id)
+        .first()
+    )
+    if not analysis:
+        raise HTTPException(status_code=404, detail="Analyse introuvable")
+    assert_patient_access(analysis.patient_id, current_user, db)
+    return analysis
+
+
 def _candidate_from_analysis(angles_data: dict[str, Any]) -> CalibrationCandidate:
     raw = angles_data.get("calibration_candidate")
     if not isinstance(raw, dict):
@@ -63,15 +74,7 @@ def auto_calibrate_analysis_with_provenance(
     db: Session = Depends(database.get_db),
     current_user: models.User = Depends(require_permission("cephalo")),
 ):
-    analysis = (
-        db.query(models.CephaloAnalysis)
-        .filter(models.CephaloAnalysis.id == analysis_id)
-        .first()
-    )
-    if not analysis:
-        raise HTTPException(status_code=404, detail="Analyse introuvable")
-    assert_patient_access(analysis.patient_id, current_user, db)
-
+    analysis = _load_analysis(analysis_id, db, current_user)
     existing_angles = analysis.angles_data if isinstance(analysis.angles_data, dict) else {}
     previous_evidence = existing_angles.get(EVIDENCE_GRAPH_KEY)
     if not isinstance(previous_evidence, dict):
@@ -111,7 +114,6 @@ def auto_calibrate_analysis_with_provenance(
         raise HTTPException(status_code=400, detail="Landmarks persistés invalides pour recalibrage")
 
     calibrated_at = dt.datetime.now(dt.timezone.utc)
-
     try:
         geometry = cephalo_engine.calculate_metrics(
             points_dict,
@@ -169,4 +171,78 @@ def auto_calibrate_analysis_with_provenance(
         "clinician_confirmation_recommended": True,
         "profile_id": profile.profile_id,
         "profile_version": profile.version,
+    }
+
+
+@router.post("/analyses/{analysis_id}/auto-calibration/confirm")
+def confirm_auto_calibration_with_provenance(
+    analysis_id: int,
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(require_permission("cephalo")),
+):
+    """Optionally confirm an existing AUTO_VERIFIED result without changing its scale."""
+    analysis = _load_analysis(analysis_id, db, current_user)
+    if analysis.is_calibrated is not True or analysis.mm_per_pixel is None:
+        raise HTTPException(status_code=409, detail="Aucune auto-calibration vérifiée à confirmer")
+
+    calibration_data = analysis.calibration_data
+    if not isinstance(calibration_data, Mapping):
+        raise HTTPException(status_code=409, detail="Provenance de calibration absente")
+    if calibration_data.get("method") != "AUTO_FIDUCIAL_PROFILE":
+        raise HTTPException(status_code=409, detail="La calibration courante n'est pas automatique")
+    if calibration_data.get("state") != AutoCalibrationState.AUTO_VERIFIED.value:
+        raise HTTPException(status_code=409, detail="La calibration automatique n'est pas en état AUTO_VERIFIED")
+
+    existing_angles = analysis.angles_data if isinstance(analysis.angles_data, dict) else {}
+    previous_evidence = existing_angles.get(EVIDENCE_GRAPH_KEY)
+    if not isinstance(previous_evidence, dict):
+        raise HTTPException(status_code=409, detail="Graphe de preuve typé absent")
+
+    confirmed_at = dt.datetime.now(dt.timezone.utc)
+    clinician_id = str(current_user.id)
+    try:
+        evidence_payload = confirm_auto_calibration(
+            previous_payload=previous_evidence,
+            patient_id=analysis.patient_id,
+            clinician_id=clinician_id,
+            confirmed_at=confirmed_at,
+        )
+        updated_calibration_data = dict(calibration_data)
+        updated_calibration_data["state"] = AutoCalibrationState.CLINICIAN_CONFIRMED.value
+        updated_calibration_data["confirmation"] = {
+            "confirmed_by": clinician_id,
+            "confirmed_at": confirmed_at.isoformat(),
+        }
+
+        updated_angles = dict(existing_angles)
+        updated_angles["calibration_status"] = "clinician_confirmed"
+        decision = updated_angles.get("calibration_decision")
+        updated_decision = dict(decision) if isinstance(decision, Mapping) else {}
+        updated_decision["state"] = AutoCalibrationState.CLINICIAN_CONFIRMED.value
+        updated_decision["clinician_confirmed"] = True
+        updated_decision["confirmed_by"] = clinician_id
+        updated_decision["confirmed_at"] = confirmed_at.isoformat()
+        updated_angles["calibration_decision"] = updated_decision
+        updated_angles[EVIDENCE_GRAPH_KEY] = evidence_payload
+
+        analysis.calibration_data = updated_calibration_data
+        analysis.angles_data = updated_angles
+        db.commit()
+        db.refresh(analysis)
+    except AutoCalibrationConfirmationError as exc:
+        db.rollback()
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    except Exception as exc:
+        db.rollback()
+        raise HTTPException(status_code=500, detail="Échec de la confirmation de calibration") from exc
+
+    return {
+        "status": "success",
+        "calibration_state": AutoCalibrationState.CLINICIAN_CONFIRMED.value,
+        "mm_per_pixel": analysis.mm_per_pixel,
+        "is_calibrated": True,
+        "clinician_confirmation_required": False,
+        "clinician_confirmation_recommended": False,
+        "confirmed_by": clinician_id,
+        "confirmed_at": confirmed_at.isoformat(),
     }
