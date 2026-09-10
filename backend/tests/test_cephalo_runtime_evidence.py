@@ -1,20 +1,22 @@
 """Persistence-boundary tests for the cephalometric typed evidence snapshot."""
 from datetime import datetime, timezone
 
-from backend.schemas.cephalo_evidence import AvailabilityStatus, LandmarkOrigin
+from backend.schemas.cephalo_evidence import (
+    AvailabilityStatus,
+    ConstructionEvidence,
+    LandmarkEvidence,
+    LandmarkOrigin,
+    MeasurementEvidence,
+    SourceEvidence,
+)
 from backend.services.cephalo_engine import CephaloEngine
 from backend.services.cephalo_evidence_case_integrity import validate_case_evidence_graph
+from backend.services.cephalo_evidence_graph import EvidenceGraphSnapshot
 from backend.services.cephalo_runtime_evidence import (
     EVIDENCE_SCHEMA_VERSION,
     build_cephalo_runtime_evidence_payload,
 )
-from backend.services.cephalo_evidence_graph import EvidenceGraphSnapshot
-from backend.schemas.cephalo_evidence import (
-    ConstructionEvidence,
-    LandmarkEvidence,
-    MeasurementEvidence,
-    SourceEvidence,
-)
+from backend.services.sota_vision_service import SOTA_LANDMARKS_MAPPING
 
 NOW = datetime(2026, 9, 10, 13, 0, tzinfo=timezone.utc)
 CASE_ID = "cephalo:test-case"
@@ -28,7 +30,16 @@ def _points():
     }
 
 
-def _raw(offset=0.0):
+def _srpose_raw(offset=0.0):
+    coords = {
+        name: (100.0 + index * 2.0, 120.0 + index * 3.0)
+        for index, name in SOTA_LANDMARKS_MAPPING.items()
+    }
+    coords.update({key: value for key, value in _points().items() if key in coords})
+    return [{"id": key, "x": x + offset, "y": y} for key, (x, y) in coords.items()]
+
+
+def _manual_raw(offset=0.0):
     return [{"id": key, "x": x + offset, "y": y} for key, (x, y) in _points().items()]
 
 
@@ -50,7 +61,7 @@ def test_srpose_snapshot_is_persistable_but_auto_calibration_is_not_silently_tru
         patient_id=7,
         image_record_id="api/static/uploads/radios/test.jpg",
         result=_result(),
-        landmarks=_raw(),
+        landmarks=_srpose_raw(),
         inference_mode="SOTA_ONNX_38",
         case_id=CASE_ID,
         recorded_at=NOW,
@@ -58,7 +69,7 @@ def test_srpose_snapshot_is_persistable_but_auto_calibration_is_not_silently_tru
 
     assert payload["schema_version"] == EVIDENCE_SCHEMA_VERSION
     assert payload["revision"] == 1
-    assert len(payload["landmarks"]) == len(_points())
+    assert len(payload["landmarks"]) == 38
     assert all(x["origin"] == LandmarkOrigin.SRPOSE38_AUTO.value for x in payload["landmarks"])
     assert len(payload["measurements"]) == 4
     assert all(x["value"] is None for x in payload["measurements"])
@@ -71,7 +82,7 @@ def test_uncertified_automatic_detector_cannot_masquerade_as_srpose_evidence():
         patient_id=7,
         image_record_id="radio.jpg",
         result=_result(),
-        landmarks=_raw(),
+        landmarks=_manual_raw(),
         inference_mode="PRODUCTION",
         case_id=CASE_ID,
         recorded_at=NOW,
@@ -83,17 +94,17 @@ def test_uncertified_automatic_detector_cannot_masquerade_as_srpose_evidence():
 
 def test_manual_revision_preserves_original_srpose_points_and_drives_new_constructions():
     first = build_cephalo_runtime_evidence_payload(
-        patient_id=7, image_record_id="radio.jpg", result=_result(), landmarks=_raw(),
+        patient_id=7, image_record_id="radio.jpg", result=_result(), landmarks=_srpose_raw(),
         inference_mode="SOTA_ONNX_38", case_id=CASE_ID, recorded_at=NOW,
     )
     second = build_cephalo_runtime_evidence_payload(
-        patient_id=7, image_record_id="radio.jpg", result=_result(), landmarks=_raw(offset=1.0),
+        patient_id=7, image_record_id="radio.jpg", result=_result(), landmarks=_manual_raw(offset=1.0),
         inference_mode=None, previous_payload=first, manual_revision=True, recorded_at=NOW,
     )
 
     assert second["revision"] == 2
     origins = [x["origin"] for x in second["landmarks"]]
-    assert origins.count(LandmarkOrigin.SRPOSE38_AUTO.value) == len(_points())
+    assert origins.count(LandmarkOrigin.SRPOSE38_AUTO.value) == 38
     assert origins.count(LandmarkOrigin.MANUAL.value) == len(_points())
     for construction in second["constructions"]:
         assert all(":r2:" in ref for ref in construction["landmark_refs"])
@@ -105,7 +116,7 @@ def test_explicit_two_point_calibration_unlocks_only_the_four_versioned_linear_m
         patient_id=7,
         image_record_id="radio.jpg",
         result=_result(0.2),
-        landmarks=_raw(),
+        landmarks=_srpose_raw(),
         inference_mode="SOTA_ONNX_38",
         case_id=CASE_ID,
         is_calibrated=True,
