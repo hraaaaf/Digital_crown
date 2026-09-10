@@ -10,9 +10,17 @@ import math
 from typing import Dict, Optional, Tuple
 
 from backend import schemas
+from backend.services.cephalo_constructions import (
+    craniom_ab_prime_mm_v1,
+    craniom_facial_depth_mm_v1,
+    frankfort_axis_v1,
+    nasion_vertical_offset_mm_v1,
+    orthogonal_projection_v1,
+)
 
 
 Point = Tuple[float, float]
+_ANGLE_EPS = 1e-12
 
 
 class CephaloEngine:
@@ -66,22 +74,34 @@ class CephaloEngine:
         if not all((p1, p2, p3, p4)):
             return None
         assert p1 is not None and p2 is not None and p3 is not None and p4 is not None
-        a1 = math.degrees(math.atan2(p2[1] - p1[1], p2[0] - p1[0]))
-        a2 = math.degrees(math.atan2(p4[1] - p3[1], p4[0] - p3[0]))
+
+        v1 = (p2[0] - p1[0], p2[1] - p1[1])
+        v2 = (p4[0] - p3[0], p4[1] - p3[1])
+        len1 = math.hypot(*v1)
+        len2 = math.hypot(*v2)
+        if (
+            not math.isfinite(len1)
+            or not math.isfinite(len2)
+            or len1 <= _ANGLE_EPS
+            or len2 <= _ANGLE_EPS
+        ):
+            return None
+
+        a1 = math.degrees(math.atan2(v1[1], v1[0]))
+        a2 = math.degrees(math.atan2(v2[1], v2[0]))
         angle = abs(a1 - a2) % 180
         if invert:
             angle = 180 - angle
-        return round(angle, 1)
+        return round(angle, 1) if math.isfinite(angle) else None
 
     @staticmethod
-    def _get_orthogonal_projection(line_p1: Point, line_p2: Point, target: Point) -> Point:
-        dx = line_p2[0] - line_p1[0]
-        dy = line_p2[1] - line_p1[1]
-        length_sq = dx * dx + dy * dy
-        if length_sq == 0:
-            return target
-        t = ((target[0] - line_p1[0]) * dx + (target[1] - line_p1[1]) * dy) / length_sq
-        return (line_p1[0] + t * dx, line_p1[1] + t * dy)
+    def _get_orthogonal_projection(
+        line_p1: Point,
+        line_p2: Point,
+        target: Point,
+    ) -> Optional[Point]:
+        """Compatibility wrapper around the versioned fail-closed construction."""
+        return orthogonal_projection_v1(line_p1, line_p2, target)
 
     @staticmethod
     def _raw_measurement(value: Optional[float]) -> dict:
@@ -139,13 +159,18 @@ class CephaloEngine:
     ) -> schemas.CephaloAnalysisResult:
         """Compute raw geometry only.
 
-        age, sex and cvm_stage remain accepted for API compatibility but are not
-        used to infer norms, growth, diagnosis or treatment.
+        ``age``, ``sex`` and ``cvm_stage`` remain accepted for API compatibility
+        but never drive norms, growth, diagnosis or treatment.
+
+        ``mcnamara_projections`` is also accepted for backward compatibility but
+        is deliberately ignored for clinical geometry. A client-provided derived
+        projection must never override measurements recomputed from source
+        landmarks on the backend.
         """
-        del age, sex, cvm_stage
+        del age, sex, cvm_stage, mcnamara_projections
         pts = {key: self._get_point(raw_points, key) for key in self.key_mapping}
         ratio = custom_mm_ratio if custom_mm_ratio is not None else self.mm_per_pixel
-        has_calibration = ratio is not None and ratio > 0
+        has_calibration = ratio is not None and math.isfinite(ratio) and ratio > 0
 
         payload = {
             "analysis_metadata": {
@@ -175,16 +200,14 @@ class CephaloEngine:
         skeletal = payload["metrics"]["analyse_osseuse"]
         esthetic = payload["metrics"]["analyse_esthetique"]
 
-        u_fh: Optional[Point] = None
+        u_fh = frankfort_axis_v1(pts["Po"], pts["Or"])
         u_perp: Optional[Point] = None
-        if pts["Po"] and pts["Or"]:
-            v_fh = (pts["Or"][0] - pts["Po"][0], pts["Or"][1] - pts["Po"][1])
-            magnitude = math.hypot(v_fh[0], v_fh[1])
-            if magnitude > 0:
-                u_fh = (v_fh[0] / magnitude, v_fh[1] / magnitude)
-                u_perp = (-u_fh[1], u_fh[0])
-                if u_perp[1] < 0:
-                    u_perp = (-u_perp[0], -u_perp[1])
+        if u_fh is not None:
+            u_perp = (-u_fh[1], u_fh[0])
+            # SVG/image coordinates grow downward. Keep the perpendicular
+            # consistently oriented toward the bottom of the image.
+            if u_perp[1] < 0:
+                u_perp = (-u_perp[0], -u_perp[1])
 
         if has_calibration and u_fh and u_perp and pts["U1i"] and pts["L1i"]:
             assert ratio is not None
@@ -218,64 +241,50 @@ class CephaloEngine:
                 snb = self._get_clinical_angle(pts["N"], pts["S"], pts["N"], pts["B"])
         skeletal["SNA"] = self._raw_measurement(sna)
         skeletal["SNB"] = self._raw_measurement(snb)
-        skeletal["ANB"] = self._raw_measurement(sna - snb if sna is not None and snb is not None else None)
+        skeletal["ANB"] = self._raw_measurement(
+            sna - snb if sna is not None and snb is not None else None
+        )
 
         fma = self._get_clinical_angle(pts["Go"], pts["Me"], pts["Po"], pts["Or"])
         skeletal["Angle_de_Tweed"] = self._raw_measurement(fma)
 
+        # CRANIOM source-specific linear geometry. All values are recomputed
+        # exclusively from backend landmarks; client-derived projections cannot
+        # override them.
         sit_a: Optional[float] = None
         sit_b: Optional[float] = None
         dec_ab: Optional[float] = None
         facial_depth: Optional[float] = None
-        if has_calibration and u_fh and pts["N"]:
-            assert ratio is not None
-            if pts["A"]:
-                sit_a = (
-                    (pts["A"][0] - pts["N"][0]) * u_fh[0]
-                    + (pts["A"][1] - pts["N"][1]) * u_fh[1]
-                ) * ratio
-            if pts["B"]:
-                sit_b = (
-                    (pts["B"][0] - pts["N"][0]) * u_fh[0]
-                    + (pts["B"][1] - pts["N"][1]) * u_fh[1]
-                ) * ratio
-            if pts["S"]:
-                facial_depth = abs(
-                    (pts["S"][0] - pts["N"][0]) * u_fh[0]
-                    + (pts["S"][1] - pts["N"][1]) * u_fh[1]
-                ) * ratio
-            if sit_a is not None and sit_b is not None:
-                dec_ab = sit_a - sit_b
+        if has_calibration:
+            sit_a = nasion_vertical_offset_mm_v1(
+                pts["A"], pts["N"], pts["Po"], pts["Or"], ratio
+            )
+            sit_b = nasion_vertical_offset_mm_v1(
+                pts["B"], pts["N"], pts["Po"], pts["Or"], ratio
+            )
+            dec_ab = craniom_ab_prime_mm_v1(
+                pts["A"], pts["B"], pts["Po"], pts["Or"], ratio
+            )
+            facial_depth = craniom_facial_depth_mm_v1(
+                pts["S"], pts["N"], pts["Po"], pts["Or"], ratio
+            )
 
-        if has_calibration and u_fh and pts["Po"] and pts["Or"]:
-            assert ratio is not None
-            if pts["N"]:
-                n_prime = self._get_orthogonal_projection(pts["Po"], pts["Or"], pts["N"])
-                payload["visual_debug"]["N_prime"] = [round(n_prime[0], 2), round(n_prime[1], 2)]
-            if pts["A"]:
-                a_prime = self._get_orthogonal_projection(pts["Po"], pts["Or"], pts["A"])
-                payload["visual_debug"]["A_prime"] = [round(a_prime[0], 2), round(a_prime[1], 2)]
-            if pts["B"]:
-                b_prime = self._get_orthogonal_projection(pts["Po"], pts["Or"], pts["B"])
-                payload["visual_debug"]["B_prime"] = [round(b_prime[0], 2), round(b_prime[1], 2)]
-
-            n_prime = payload["visual_debug"].get("N_prime")
-            a_prime = payload["visual_debug"].get("A_prime")
-            b_prime = payload["visual_debug"].get("B_prime")
-            if mcnamara_projections:
-                n_prime = n_prime or mcnamara_projections.get("N_prime")
-                a_prime = a_prime or mcnamara_projections.get("A_prime")
-                b_prime = b_prime or mcnamara_projections.get("B_prime")
-
-            if n_prime and a_prime:
-                v_na = (a_prime[0] - n_prime[0], a_prime[1] - n_prime[1])
-                sit_a = (v_na[0] * u_fh[0] + v_na[1] * u_fh[1]) * ratio
-            if n_prime and b_prime:
-                v_nb = (b_prime[0] - n_prime[0], b_prime[1] - n_prime[1])
-                sit_b = (v_nb[0] * u_fh[0] + v_nb[1] * u_fh[1]) * ratio
-            if a_prime and b_prime:
-                v_ab = (a_prime[0] - b_prime[0], a_prime[1] - b_prime[1])
-                dec_ab = (v_ab[0] * u_fh[0] + v_ab[1] * u_fh[1]) * ratio
+        # Visual projections are derived from the same source landmarks. They are
+        # debug/visualization data only and never become measurement inputs.
+        if pts["Po"] and pts["Or"]:
+            for key, source_key in (
+                ("N_prime", "N"),
+                ("A_prime", "A"),
+                ("B_prime", "B"),
+            ):
+                projected = orthogonal_projection_v1(
+                    pts["Po"], pts["Or"], pts[source_key]
+                )
+                if projected is not None:
+                    payload["visual_debug"][key] = [
+                        round(projected[0], 2),
+                        round(projected[1], 2),
+                    ]
 
         skeletal["Situation_A"] = self._raw_measurement(sit_a)
         skeletal["Situation_B"] = self._raw_measurement(sit_b)
@@ -286,10 +295,14 @@ class CephaloEngine:
         pog_soft = pts.get("Pog_soft")
         if has_calibration and prn and pog_soft and pts["Po"] and pts["Or"]:
             esthetic["Ligne_E_Ls"] = self._raw_measurement(
-                self._signed_e_line_distance(pts.get("Ls"), prn, pog_soft, pts["Po"], pts["Or"], ratio)
+                self._signed_e_line_distance(
+                    pts.get("Ls"), prn, pog_soft, pts["Po"], pts["Or"], ratio
+                )
             )
             esthetic["Ligne_E_Li"] = self._raw_measurement(
-                self._signed_e_line_distance(pts.get("Li"), prn, pog_soft, pts["Po"], pts["Or"], ratio)
+                self._signed_e_line_distance(
+                    pts.get("Li"), prn, pog_soft, pts["Po"], pts["Or"], ratio
+                )
             )
 
         return schemas.CephaloAnalysisResult.model_validate(payload)

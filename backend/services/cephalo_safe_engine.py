@@ -1,12 +1,9 @@
-"""Safe runtime boundary for the legacy cephalometric engine.
+"""Defense-in-depth runtime boundary for the cephalometric geometry engine.
 
-The legacy ``CephaloEngine`` still contains historical local norms, growth
-projections and treatment narrative code. Runtime application code must import
-``cephalo_safe_engine`` instead.
-
-This adapter is deliberately fail-closed. It preserves measured geometry while
-preventing unvalidated normative interpretation, autonomous growth prediction
-and treatment selection from escaping the quarantined engine.
+``CephaloEngine`` is now geometry-only after the Scientific Core purge, but
+runtime application code still enters through this adapter. Keeping the boundary
+preserves the architectural guard and prevents future normative, growth or
+treatment fields from escaping accidentally if the core evolves.
 """
 from __future__ import annotations
 
@@ -16,7 +13,7 @@ from backend.services.cephalo_engine import cephalo_engine as _legacy_cephalo_en
 
 
 def _neutralize_measurement(value: Any, measurement: Dict[str, Any]) -> None:
-    """Keep the measured value, remove legacy normative authority in-place."""
+    """Keep the measured value and strip any normative authority in-place."""
     measurement["norm_mean"] = None
     measurement["norm_min"] = None
     measurement["norm_max"] = None
@@ -45,13 +42,13 @@ def _neutralize_legacy_norms(payload: Dict[str, Any]) -> None:
 
 
 class SafeCephaloEngine:
-    """Runtime adapter exposing geometry only from the quarantined legacy engine."""
+    """Runtime adapter exposing geometry only with defense-in-depth sanitization."""
 
     def calculate_metrics(self, *args: Any, **kwargs: Any):
         result = _legacy_cephalo_engine.calculate_metrics(*args, **kwargs)
 
-        # Copy before sanitizing so the quarantined engine remains inspectable in
-        # isolated tests/debugging while runtime gets a separately validated model.
+        # Copy before sanitizing so the underlying deterministic engine remains
+        # inspectable in isolated migration/regression tests.
         payload: Dict[str, Any] = result.model_dump()
 
         # 1. Never expose an autonomous treatment strategy.
@@ -62,8 +59,7 @@ class SafeCephaloEngine:
         # 2. Never expose local hard-coded normative status/interpretation as truth.
         _neutralize_legacy_norms(payload)
 
-        # 3. Legacy age-based T1/T2 morphing is not a validated patient-specific
-        # growth model. Preserve no automatic future anatomical projection.
+        # 3. No automatic future anatomical projection is authoritative here.
         payload["t1_projection"] = {}
         payload["t2_projection"] = {}
 
