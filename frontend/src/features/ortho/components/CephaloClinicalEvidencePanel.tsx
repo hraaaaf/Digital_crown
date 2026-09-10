@@ -1,6 +1,7 @@
 import React from 'react';
 import { Activity, CheckCircle2, Clock3, RotateCcw, ShieldCheck, X } from 'lucide-react';
 import { useOrthoStore } from '../stores/useOrthoStore';
+import { cephaloRepository } from '../cephaloRepository';
 
 const GRAPH_KEY = '_evidence_graph_v1';
 
@@ -79,6 +80,24 @@ export const CephaloClinicalEvidencePanel: React.FC = () => {
   React.useEffect(() => {
     if (store.activePointId) setDrawerOpen(true);
   }, [store.activePointId]);
+
+  React.useEffect(() => {
+    if (!store.analysisId) return;
+    if (graph && store.syncState !== 'success' && !store.isCalibrated) return;
+
+    let cancelled = false;
+    void cephaloRepository.getAnalysis(store.analysisId)
+      .then(loaded => {
+        if (cancelled || !loaded?.angles_data) return;
+        store.setAnglesData(loaded.angles_data);
+      })
+      .catch(error => {
+        if (!cancelled) console.warn('Typed cephalo evidence refresh failed:', error);
+      });
+    return () => { cancelled = true; };
+  // Refresh after initial typed load, a successful landmark sync, or calibration transition.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [store.analysisId, store.syncState, store.isCalibrated]);
 
   const dependentMeasurements = React.useMemo(() => {
     if (!evidencePoint?.evidence_id) return [];
