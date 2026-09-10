@@ -8,6 +8,7 @@ activating any normative rule, diagnosis or treatment recommendation.
 from __future__ import annotations
 
 import datetime
+import math
 from enum import Enum
 from typing import Any, Dict, List, Optional
 
@@ -94,6 +95,11 @@ class LandmarkEvidence(_StrictModel):
 
     @model_validator(mode="after")
     def validate_origin_contract(self):
+        if not math.isfinite(self.x) or not math.isfinite(self.y):
+            raise ValueError("Landmark coordinates must be finite")
+        for original in (self.original_auto_x, self.original_auto_y):
+            if original is not None and not math.isfinite(original):
+                raise ValueError("Original automatic coordinates must be finite")
         if self.origin == LandmarkOrigin.SRPOSE38_AUTO:
             if not self.model_id or not self.model_sha256 or not self.pipeline_version:
                 raise ValueError("Automatic landmark requires model id, SHA256 and pipeline version")
@@ -137,6 +143,8 @@ class MeasurementEvidence(_StrictModel):
             raise ValueError("Measurement requires landmark or construction dependencies")
         if self.requires_calibration and not self.calibration_ref:
             raise ValueError("Calibrated linear measurement requires calibration_ref")
+        if self.value is not None and not math.isfinite(self.value):
+            raise ValueError("Measurement value must be finite")
         if self.availability_status != AvailabilityStatus.AVAILABLE and self.value is not None:
             raise ValueError("Unavailable measurement cannot carry a patient value")
         if self.availability_status == AvailabilityStatus.AVAILABLE and self.value is None:
@@ -157,6 +165,14 @@ class NormativeEvaluationEvidence(_StrictModel):
     evidence_refs: List[str] = Field(min_length=1)
     evidence_status: EvidenceStatus = EvidenceStatus.INTERPRETED
     availability_status: AvailabilityStatus = AvailabilityStatus.AVAILABLE
+
+    @model_validator(mode="after")
+    def validate_normative_contract(self):
+        if self.availability_status == AvailabilityStatus.AVAILABLE and not self.reference:
+            raise ValueError("Available normative evaluation requires an explicit reference")
+        if self.classification is not None and not self.classification_rule_id:
+            raise ValueError("Normative classification requires a versioned classification rule")
+        return self
 
 
 class FindingEvidence(_StrictModel):

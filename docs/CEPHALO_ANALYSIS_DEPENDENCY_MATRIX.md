@@ -17,10 +17,11 @@ Une dépendance absente reste `NOT_COMPUTABLE`. Une norme non sourcée reste ina
 
 Le flux appelé historiquement `COM` dans Digital Crown correspond au périmètre de la méthode **C.R.A.N.I.O.M.** de Bonnefont, Casteigt, Ernoult et Sorel.
 
-Source publiée de référence :
+Sources publiées de référence :
 - Bonnefont R, Casteigt J, Ernoult J-F, Sorel O. *A new method for the utilization of cephalometric measurements in orthodontics or how standard deviations can sometimes be the practitioner's false friends (Part 1).* Journal of Dentofacial Anomalies and Orthodontics. 2010;13(4):385-400. DOI `10.1051/odfen/2010406`.
+- Bonnefont R, Ernoult J-F, Sorel O. *A new method of using cephalometric measurements in orthodontics (part 2) or how standard deviations can be the practitioner's false friends.* Journal of Dentofacial Anomalies and Orthodontics. 2011;14:105. DOI `10.1051/odfen/2011104`.
 
-La publication décrit un échantillon de jeunes adultes Classe I non traités et insiste sur la séparation entre mesures dentaires, formes osseuses et aide au diagnostic. Les valeurs de cette méthode doivent donc être présentées comme **références CRANIOM spécifiques**, jamais comme normes universelles.
+Les publications décrivent **83 jeunes adultes Classe I non traités**. Les valeurs de cette méthode doivent donc être présentées comme références CRANIOM spécifiques, jamais comme normes universelles.
 
 ## CRANIOM / COM — MATRICE ACTUELLE
 
@@ -47,20 +48,17 @@ Formule runtime certifiée géométriquement :
 
 `A'B' = dot(A - B, unit(Po→Or)) × mm_per_pixel`
 
-Le calcul historique actuel de `cephalo_engine.py` (`Situation_A - Situation_B`) est algébriquement équivalent. Des golden tests dédiés assurent rotation, translation, changement d'échelle et signe.
+Le runtime est branché sur `CRANIOM_AB_PRIME_V1`. Des golden tests dédiés couvrent rotation, translation, changement d'échelle, signe, calibration invalide et géométrie dégénérée.
 
 ## RÉFÉRENCES CRANIOM CONFIRMÉES, MAIS NON ENCORE ACTIVÉES
 
-La source publiée confirme notamment les bornes extrêmes d'inclinaison incisive utilisées par CRANIOM :
+Les publications CRANIOM confirment notamment les bornes extrêmes d'inclinaison incisive utilisées par la méthode :
 - incisive mandibulaire : **78° à 114°** par rapport au plan mandibulaire de Downs ;
 - incisive maxillaire : **97,5° à 130,1°** par rapport à Francfort.
 
-Le document CRANIOM détaillé/mirror explicite aussi pour A'B' :
-- moyenne à 9 ans : **+4,2 mm**, écart-type **3,2 mm** ;
-- moyenne adulte : **+2,3 mm**, écart-type **3,1 mm** ;
-- classification CRANIOM fondée sur ces plages spécifiques.
+Un document technique CRANIOM détaillé reproduit également des valeurs pour A'B', Situation A/B et profondeur faciale. Ces nombres restent **secondaires tant qu'ils ne sont pas recoupés dans une source primaire exploitable** et ne doivent pas être activés comme référence clinique canonique.
 
-Ces valeurs restent `METHOD_SPECIFIC_REFERENCE_PENDING_REGISTRY` jusqu'au Lot 11 : contexte, âge, population, source/version et règles doivent être encodés séparément de la mesure brute.
+Statut : `METHOD_SPECIFIC_REFERENCE_PENDING_REGISTRY`.
 
 ## CONFLITS LEGACY DIGITAL CROWN
 
@@ -93,7 +91,8 @@ Chaque analyse reçoit un statut `FULL | PARTIAL | NOT_COMPUTABLE` selon ses dé
 
 ## NEXT EXACT
 
-1. faire passer les golden tests des constructions CRANIOM ;
-2. brancher `cephalo_engine.py` sur les fonctions versionnées sans changement numérique attendu ;
-3. verrouiller le plan mandibulaire propre à chaque analyse ;
-4. construire ensuite le registre normatif CRANIOM sans réactiver de diagnostic automatique.
+1. obtenir une CI verte sur le HEAD final de PR #390 ;
+2. si vert, clore le sous-lot de géométrie linéaire CRANIOM ;
+3. créer le registre normatif versionné en distinguant source primaire, source secondaire, population et contexte d'applicabilité ;
+4. garder inactives les valeurs CRANIOM non recoupées par une source primaire exploitable ;
+5. verrouiller séparément `TWEED_MP`, `DOWNS_MP` et les besoins `CRANIOM_Gi/Gs`.

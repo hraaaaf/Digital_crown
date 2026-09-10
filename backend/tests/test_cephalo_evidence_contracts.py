@@ -12,6 +12,7 @@ from backend.schemas.cephalo_evidence import (
     LandmarkEvidence,
     LandmarkOrigin,
     MeasurementEvidence,
+    NormativeEvaluationEvidence,
     ReviewState,
     TreatmentOptionEvidence,
     TreatmentOptionStatus,
@@ -65,6 +66,21 @@ def test_unavailable_measurement_cannot_carry_patient_value():
         )
 
 
+@pytest.mark.parametrize("value", [float("nan"), float("inf"), float("-inf")])
+def test_measurement_rejects_nonfinite_patient_value(value):
+    with pytest.raises(ValidationError):
+        MeasurementEvidence(
+            measurement_id="m4",
+            analysis_id="COM",
+            method_id="CRANIOM_AB_PRIME_V1",
+            method_version="1",
+            value=value,
+            unit="mm",
+            construction_refs=["construction:ab-prime"],
+            evidence_refs=["source:ceph:1"],
+        )
+
+
 def test_manual_landmark_correction_preserves_auto_coordinate_and_audit():
     with pytest.raises(ValidationError):
         LandmarkEvidence(
@@ -94,6 +110,48 @@ def test_manual_landmark_correction_preserves_auto_coordinate_and_audit():
     )
     assert corrected.original_auto_x == 120.0
     assert corrected.validated_by == "clinician:1"
+
+
+@pytest.mark.parametrize("x,y", [(float("nan"), 1.0), (1.0, float("inf"))])
+def test_landmark_rejects_nonfinite_coordinates(x, y):
+    with pytest.raises(ValidationError):
+        LandmarkEvidence(
+            evidence_id="lm:N",
+            landmark_id="N",
+            x=x,
+            y=y,
+            source_image_ref="ceph:1",
+            origin=LandmarkOrigin.MANUAL,
+            evidence_refs=["source:ceph:1"],
+            evidence_status="OBSERVED",
+        )
+
+
+def test_normative_evaluation_requires_explicit_reference():
+    with pytest.raises(ValidationError):
+        NormativeEvaluationEvidence(
+            evaluation_id="norm:1",
+            measurement_ref="m1",
+            norm_profile_id="CRANIOM_ADULT_SAMPLE",
+            norm_profile_version="1",
+            reference={},
+            source_refs=["doi:10.1051/odfen/2010406"],
+            evidence_refs=["m1"],
+        )
+
+
+def test_normative_classification_requires_versioned_rule():
+    with pytest.raises(ValidationError):
+        NormativeEvaluationEvidence(
+            evaluation_id="norm:2",
+            measurement_ref="m1",
+            norm_profile_id="CRANIOM_ADULT_SAMPLE",
+            norm_profile_version="1",
+            reference={"kind": "method_specific_range"},
+            classification="within_reference",
+            source_refs=["doi:10.1051/odfen/2010406"],
+            evidence_refs=["m1"],
+        )
 
 
 def test_accepted_diagnosis_requires_clinician_validation():

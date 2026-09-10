@@ -33,7 +33,7 @@ Ce graphe **n'est pas encore branché comme source de vérité du workflow patie
 
 ### LandmarkEvidence
 
-`landmark_id`, `x`, `y`, `source_image_ref`, `origin`, `model_sha256/pipeline_version` si automatique, coordonnées automatiques originales si corrigées, audit praticien, `evidence_refs`.
+`landmark_id`, coordonnées finies `x/y`, `source_image_ref`, `origin`, `model_sha256/pipeline_version` si automatique, coordonnées automatiques originales si corrigées, audit praticien, `evidence_refs`.
 
 Origines : `SRPOSE38_AUTO | MANUAL | MANUAL_CORRECTED`.
 
@@ -43,13 +43,15 @@ Origines : `SRPOSE38_AUTO | MANUAL | MANUAL_CORRECTED`.
 
 ### Measurement
 
-`measurement_id`, `analysis_id`, `method_id/version`, `value`, `unit`, `landmark_refs`, `construction_refs`, `calibration_ref` si linéaire, statut, `evidence_refs`.
+`measurement_id`, `analysis_id`, `method_id/version`, valeur patient finie, `unit`, `landmark_refs`, `construction_refs`, `calibration_ref` si linéaire, statut, `evidence_refs`.
 
 La norme n'est jamais embarquée implicitement dans la mesure brute.
 
 ### NormativeEvaluation
 
-`measurement_ref`, `norm_profile_id/version`, contexte d'applicabilité, plage/valeur de référence sourcée, règle de classification versionnée, statut, `source_refs`.
+`measurement_ref`, `norm_profile_id/version`, contexte d'applicabilité, plage/valeur de référence explicite et sourcée, règle de classification versionnée, statut, `source_refs`.
+
+Une évaluation disponible avec référence vide est rejetée. Une classification sans `classification_rule_id` est rejetée.
 
 ### Finding / DiagnosticHypothesis
 
@@ -84,10 +86,13 @@ Les tests actuels couvrent notamment :
 1. mesure sans dépendance géométrique → rejet ;
 2. mesure linéaire sans calibration → rejet ;
 3. mesure marquée indisponible avec valeur patient → rejet ;
-4. correction manuelle landmark sans coordonnées auto originales/audit → rejet ;
-5. diagnostic accepté sans validation praticien → rejet ;
-6. option avec gate manquant mais marquée évaluable → rejet ;
-7. plan final sans gate praticien → rejet.
+4. coordonnées landmark/mesure non finies → rejet ;
+5. correction manuelle landmark sans coordonnées auto originales/audit → rejet ;
+6. évaluation normative sans référence explicite → rejet ;
+7. classification normative sans règle versionnée → rejet ;
+8. diagnostic accepté sans validation praticien → rejet ;
+9. option avec gate manquant mais marquée évaluable → rejet ;
+10. plan final sans gate praticien → rejet.
 
 Restent à tester lors du branchement runtime : existence réelle des références entre objets, propagation des contradictions, et parcours complet sans narration libre comme source clinique.
 
