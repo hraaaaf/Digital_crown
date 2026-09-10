@@ -30,6 +30,14 @@ class ReferenceKind(str, Enum):
     PERCENTILE = "PERCENTILE"
 
 
+PRIMARY_NUMERIC_TIERS = frozenset(
+    {
+        SourceTier.PRIMARY_ARTICLE,
+        SourceTier.PEER_REVIEWED_POPULATION_STUDY,
+    }
+)
+
+
 @dataclass(frozen=True)
 class NormSource:
     source_id: str
@@ -91,6 +99,12 @@ class NormRegistry:
         missing_sources = [sid for sid in reference.source_ids if sid not in self._sources]
         if missing_sources:
             raise ValueError(f"Unknown normative source(s): {', '.join(missing_sources)}")
+
+        resolved_sources = [self._sources[sid] for sid in reference.source_ids]
+        if not any(source.tier in PRIMARY_NUMERIC_TIERS for source in resolved_sources):
+            raise ValueError(
+                "Numeric normative reference requires at least one primary research source"
+            )
         if not math.isfinite(reference.lower) or not math.isfinite(reference.upper):
             raise ValueError("Normative range limits must be finite")
         if reference.lower > reference.upper:
@@ -101,6 +115,7 @@ class NormRegistry:
             raise ValueError(
                 "Registry foundation does not permit direct activation for patient classification"
             )
+
         frozen_context = MappingProxyType(dict(reference.population_context))
         self._references[reference.reference_id] = NormReference(
             reference_id=reference.reference_id,

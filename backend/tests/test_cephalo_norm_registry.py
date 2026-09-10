@@ -1,7 +1,5 @@
 """Contract tests for the inert, versioned cephalometric norm registry."""
 
-import math
-
 import pytest
 
 from backend.services.cephalo_norm_registry import (
@@ -100,6 +98,32 @@ def test_unknown_source_is_rejected():
                 lower=1.0,
                 upper=2.0,
                 source_ids=("missing",),
+                population_context={"sample": "test"},
+            )
+        )
+
+
+def test_secondary_only_numeric_reference_is_rejected():
+    local = NormRegistry()
+    local.register_source(
+        NormSource(
+            source_id="SECONDARY",
+            tier=SourceTier.SECONDARY_TECHNICAL,
+            citation="Secondary technical reproduction",
+        )
+    )
+    with pytest.raises(ValueError, match="primary research source"):
+        local.register_reference(
+            NormReference(
+                reference_id="R1",
+                method_id="TEST",
+                method_version="1",
+                measurement_id="ANGLE",
+                kind=ReferenceKind.EXTREME_RANGE,
+                unit="deg",
+                lower=1.0,
+                upper=2.0,
+                source_ids=("SECONDARY",),
                 population_context={"sample": "test"},
             )
         )
