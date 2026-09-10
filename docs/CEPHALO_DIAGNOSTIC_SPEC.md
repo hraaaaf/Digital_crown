@@ -47,7 +47,7 @@ Une donnée manquante reste `UNKNOWN` / `NOT_COMPUTABLE`. Aucune norme, classe, 
 - runtime CPU certifié ;
 - ordre CL-Detection 38/38 documenté ;
 - hash modèle et pipeline déterministes ;
-- le nouveau bridge de persistence refuse de qualifier un fallback automatique comme SRPose38 et exige l'identité exacte des 38 points.
+- #397 refuse de qualifier un fallback automatique comme SRPose38 et exige l'identité exacte des 38 points.
 
 ### CRANIOM
 Sources publiées enregistrées :
@@ -63,29 +63,31 @@ Constructions versionnées et matérialisables :
 Les quatre mesures correspondantes passent par `MeasurementEvidence`. Sans construction disponible et calibration explicitement prouvée, elles restent `NOT_COMPUTABLE`.
 
 ### Graphe de preuve
-Le resolver vérifie identifiants, références, registre normatif et gates du plan final. PR #395 ajoute : même patient, même cas, vraie source de calibration, et vrai `ClinicianValidationEvidence` pour tout objet déclaré validé/sélectionné.
+Le resolver vérifie identifiants, références, registre normatif et gates du plan final. #395 impose même patient, même cas, vraie source de calibration et vrai `ClinicianValidationEvidence` pour tout objet déclaré validé/sélectionné.
 
 ### Persistence runtime #397
-Le bridge en cours stocke le snapshot sous `_evidence_graph_v1` dans le JSON `CephaloAnalysis.angles_data`. Ce choix est additif et atomique : aucune migration DB n'est nécessaire et le payload public historique reste inchangé.
+Le bridge stocke le snapshot sous `_evidence_graph_v1` dans `CephaloAnalysis.angles_data`, dans la même écriture que le résultat historique. Aucune migration DB n'est requise et le payload public historique reste inchangé.
 
 Le snapshot persiste :
 `SourceEvidence → LandmarkEvidence → ConstructionEvidence → MeasurementEvidence`.
 
-Règles fail-closed du bridge :
-- mode `SOTA_ONNX_38` + contrat exact 38 points requis pour des landmarks automatiques certifiés ;
-- fallback automatique legacy → aucune fausse preuve landmark SRPose38 ;
+Règles fail-closed :
+- `SOTA_ONNX_38` exige le contrat exact 38 points ;
+- fallback automatique legacy → aucune fausse preuve SRPose38 ;
 - auto-calibration legacy seule → aucune mesure linéaire typée `AVAILABLE` ;
-- calibration manuelle deux-points explicitement persistée → géométrie recalculée/croisée avec `mm_per_pixel` avant utilisation ;
-- raffinement manuel → nouvelle révision ; points SRPose38 initiaux conservés, points courants marqués `MANUAL/OBSERVED`, jamais prétendus `CLINICIAN_VALIDATED` sans audit réel.
+- calibration deux-points utilisable seulement si sa géométrie recalcule le même `mm_per_pixel` ;
+- raffinement manuel → nouvelle révision avec snapshot précédent conservé ;
+- les quatre valeurs CRANIOM persistées sont recroisées avec la géométrie courante avant écriture ;
+- schema/case/image incohérents échouent fermés.
 
-`authority_status=PERSISTED_NOT_YET_READ_PATH` : la persistence existe, mais les écrans/API historiques lisent encore le payload de compatibilité. La bascule de lecture reste donc un gate distinct.
+`authority_status=PERSISTED_NOT_YET_READ_PATH` : la persistence existe sur #397, mais les lectures historiques utilisent encore le payload de compatibilité.
 
 ## GATES OUVERTS
 
-- CI exacte et review de #397 ;
-- faire du graphe persistant la source read-path de vérité sans casser la compatibilité ;
-- persister la provenance de calibration manuelle depuis la route `/analyses/{id}/calibrate` ;
-- propager l'identité praticien sur les corrections manuelles avant de les qualifier `MANUAL_CORRECTED/CLINICIAN_VALIDATED` ;
+- CI exacte du commit de closeout #397 puis merge ;
+- persister la provenance réelle de calibration manuelle depuis `/analyses/{id}/calibrate` ;
+- propager l'identité praticien sur les corrections manuelles avant `MANUAL_CORRECTED/CLINICIAN_VALIDATED` ;
+- faire du graphe persistant la source read-path des quatre mesures CRANIOM ;
 - convention du plan mandibulaire propre à chaque analyse ;
 - `Gi/Gs` CRANIOM absents comme landmarks SRPose38 distincts ;
 - `A''B''` non calculable sans protocole NHP/regard horizontal ;
@@ -106,13 +108,13 @@ Traitement : diagnostic validé + données cliniques requises + indication/contr
 - #393 : CI `34474219020` success ; T2 `34474219021` success.
 - #394 : CI `34474296352` success ; T2 `34474296300` success.
 - #395 HEAD `7daf28d2d7e93c3d34dca97d655fc67db3fb1dfa` : CI `34476589446` success ; T2 `34476589386` success ; merge `3e8e39eb88581bd461a8104b9fad96b82d65292a`.
-- #397 : certification du HEAD final requise avant merge.
+- #397 code HEAD `61ce90bd09cbd465c3165f26c9e54796d8028f5a` : CI `34482223445` success ; T2 `34482223474` success. Le commit de closeout documentaire doit encore être certifié exactement avant merge.
 
 ## NEXT EXACT
 
-1. certifier le HEAD final #397 ;
-2. corriger tout échec puis vérifier reviews/threads ;
-3. merger #397 uniquement si vert ;
+1. certifier le HEAD final documentaire #397 ;
+2. vérifier reviews/threads ;
+3. merger #397 si vert ;
 4. post-merge : câbler la provenance réelle de calibration manuelle + audit praticien des corrections ;
 5. basculer ensuite le read-path des quatre mesures CRANIOM vers le graphe typé ;
 6. poursuivre les conventions mandibulaires.
