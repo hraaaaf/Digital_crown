@@ -10,6 +10,7 @@ from . import patient_journey_p4 as patient_journey_p4
 from . import patient_financial_p6 as patient_financial_p6
 from . import ia as ia
 from . import imaging_lifecycle_p4 as imaging_lifecycle_p4
+from . import cephalo_calibration_provenance as cephalo_calibration_provenance
 from . import clinics as clinics
 from . import license_portability_p4 as license_portability_p4
 from . import clinic_identity_p4 as clinic_identity_p4
@@ -73,6 +74,19 @@ ia.router.routes = [
     )
 ]
 ia.router.include_router(imaging_lifecycle_p4.router)
+
+# Scientific Core calibration provenance replaces only the legacy calibration POST.
+# The public URL is unchanged; the replacement persists the measured points, method,
+# operator and timestamp atomically with the typed evidence revision.
+ia.router.routes = [
+    route
+    for route in ia.router.routes
+    if not (
+        getattr(route, "path", None) == "/analyses/{analysis_id}/calibrate"
+        and "POST" in (getattr(route, "methods", set()) or set())
+    )
+]
+ia.router.include_router(cephalo_calibration_provenance.router)
 
 # Portability P4 replaces the legacy env-based licence recheck. The stable public URL
 # remains unchanged, but identity now comes from the authenticated CabinetConfig.
