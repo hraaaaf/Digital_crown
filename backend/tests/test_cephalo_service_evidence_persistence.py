@@ -142,12 +142,14 @@ def test_refine_replaces_current_manual_revision_but_preserves_original_auto(mon
         {"id": key, "x": x + 1.0, "y": y}
         for key, (x, y) in _engine_points().items()
     ]
-    response = service.refine_analysis(42, manual)
+    response = service.refine_analysis(42, manual, clinician_id="99")
 
     payload = repo.persisted[EVIDENCE_GRAPH_KEY]
     assert payload["revision"] == 2
     assert len(payload["history"]) == 1
     assert payload["history"][0]["revision"] == 1
     assert len([x for x in payload["landmarks"] if x["origin"] == "SRPOSE38_AUTO"]) == 38
-    assert len([x for x in payload["landmarks"] if x["origin"] == "MANUAL"]) == len(manual)
+    corrected = [x for x in payload["landmarks"] if x["origin"] == "MANUAL_CORRECTED"]
+    assert len(corrected) == len(manual)
+    assert all(x["validated_by"] == "99" for x in corrected)
     assert EVIDENCE_GRAPH_KEY not in response["results"]
