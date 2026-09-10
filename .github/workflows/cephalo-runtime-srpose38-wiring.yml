@@ -1,0 +1,97 @@
+name: Cephalo runtime SRPose38 wiring
+
+on:
+  push:
+    branches:
+      - test/cephalo-runtime-srpose38-wiring
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  runtime-parity:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout Digital Crown
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Download validated SRPose38 ONNX artifact
+        uses: actions/download-artifact@v4
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          repository: hraaaaf/Digital_crown
+          run-id: 34281082926
+          name: cephalo-srpose38-onnx-parity
+          path: .ci/onnx
+
+      - name: Download real cephalogram benchmark artifact
+        uses: actions/download-artifact@v4
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          repository: hraaaaf/Digital_crown
+          run-id: 34281082886
+          name: cephalo-srpose38-full38-evidence
+          path: .ci/smoke
+
+      - name: Pin model asset and dependencies
+        run: |
+          mkdir -p backend/ai_models
+          cp .ci/onnx/srpose38-tta-1024.onnx backend/ai_models/model.onnx
+          echo 'a5ecd466d6d2c4ef02e145a143076a05720c0be56a260224812c23e2ecf42ddb  backend/ai_models/model.onnx' | sha256sum -c -
+          python -m pip install --upgrade pip
+          python -m pip install numpy==1.26.4 opencv-python-headless==4.13.0.92 onnxruntime==1.23.2
+
+      - name: Run Digital Crown SOTAVisionEngine on benchmark cephalogram
+        run: |
+          python - <<'PY'
+          import json
+          import math
+          from pathlib import Path
+
+          import numpy as np
+
+          from backend.services.sota_vision_service import SOTAVisionEngine
+
+          image = Path('.ci/smoke/srpose38-real-ceph-input-unpadded.png')
+          reference = json.loads(Path('.ci/onnx/srpose38-onnx-parity.json').read_text(encoding='utf-8'))
+          expected = np.asarray(reference['onnx_points'], dtype=np.float64)
+
+          engine = SOTAVisionEngine()
+          assert engine.is_ready, 'Digital Crown SOTAVisionEngine did not load the validated ONNX asset'
+          result = engine.predict_landmarks(str(image))
+          assert result is not None
+          assert result['mode_inference'] == 'SOTA_ONNX_38'
+          assert len(result['landmarks']) == 38
+
+          actual = np.asarray([[p['x'], p['y']] for p in result['landmarks']], dtype=np.float64)
+          assert actual.shape == expected.shape == (38, 2)
+          assert np.isfinite(actual).all()
+
+          delta = np.linalg.norm(actual - expected, axis=1)
+          summary = {
+              'max_delta_px': float(delta.max()),
+              'mean_delta_px': float(delta.mean()),
+              'worst_index_1based': int(delta.argmax()) + 1,
+          }
+          print('DIGITAL_CROWN_RUNTIME_PARITY', json.dumps(summary))
+          Path('digital-crown-runtime-parity.json').write_text(json.dumps(summary, indent=2), encoding='utf-8')
+
+          # The runtime must reproduce the already validated ONNX coordinate behavior.
+          assert summary['max_delta_px'] <= 0.5, summary
+          PY
+
+      - name: Upload runtime parity evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cephalo-runtime-srpose38-wiring-evidence
+          path: digital-crown-runtime-parity.json
+          if-no-files-found: warn
