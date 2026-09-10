@@ -115,11 +115,23 @@ class ConstructionEvidence(_StrictModel):
     construction_id: str = Field(min_length=1)
     definition_id: str = Field(min_length=1)
     definition_version: str = Field(min_length=1)
-    landmark_refs: List[str] = Field(min_length=1)
-    geometry: Dict[str, Any]
-    evidence_refs: List[str] = Field(min_length=1)
+    landmark_refs: List[str] = Field(default_factory=list)
+    missing_landmark_ids: List[str] = Field(default_factory=list)
+    geometry: Dict[str, Any] = Field(default_factory=dict)
+    evidence_refs: List[str] = Field(default_factory=list)
     evidence_status: EvidenceStatus = EvidenceStatus.COMPUTED
     availability_status: AvailabilityStatus = AvailabilityStatus.AVAILABLE
+
+    @model_validator(mode="after")
+    def validate_construction_contract(self):
+        if self.availability_status == AvailabilityStatus.AVAILABLE:
+            if not self.landmark_refs:
+                raise ValueError("Available construction requires landmark evidence refs")
+            if self.missing_landmark_ids:
+                raise ValueError("Available construction cannot declare missing landmarks")
+            if not self.geometry:
+                raise ValueError("Available construction requires explicit geometry")
+        return self
 
 
 class MeasurementEvidence(_StrictModel):
