@@ -1,0 +1,269 @@
+name: Cephalo Studio Visual Certification
+
+on:
+  pull_request:
+    paths:
+      - "frontend/src/features/ortho/**"
+      - ".github/workflows/cephalo-studio-visual-cert.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  capture:
+    name: Capture cephalo clinical studio
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout exact PR head
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+
+      - name: Record exact product HEAD
+        run: git rev-parse HEAD
+
+      - name: Setup Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install frontend and Chromium
+        working-directory: frontend
+        run: |
+          npm ci
+          npm install --no-save --package-lock=false playwright@1.55.0
+          npx playwright install --with-deps chromium
+
+      - name: Materialize deterministic cephalo harness
+        working-directory: frontend
+        run: |
+          cat > cephalo-visual-cert.html <<'EOF'
+          <!doctype html>
+          <html lang="fr">
+            <head>
+              <meta charset="UTF-8" />
+              <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+              <title>Cephalo Studio Visual Certification</title>
+            </head>
+            <body data-theme="dark">
+              <div id="root"></div>
+              <script type="module" src="/src/cephalo-visual-cert.tsx"></script>
+            </body>
+          </html>
+          EOF
+
+          cat > src/cephalo-visual-cert.tsx <<'EOF'
+          import React from 'react';
+          import { createRoot } from 'react-dom/client';
+          import './index.css';
+          import { Step1Cephalo } from './features/ortho/components/Step1Cephalo';
+          import { CephaloClinicalEvidencePanel } from './features/ortho/components/CephaloClinicalEvidencePanel';
+          import { useOrthoStore } from './features/ortho/stores/useOrthoStore';
+          import { PALETTE } from './features/ortho/cephaloTheme';
+
+          const ids = [
+            'S','N','Or','Po','A','B','Pog','Me','Gn','Go',
+            'L1_incisal','U1_incisal','U1_apex','L1_apex','U6','L6',
+            'Ls_soft','Li_soft','Sn_soft','Pog_soft','Ls2','Li2','Gn_soft','Me_soft',
+            'G_soft','N_soft','Cm','Prn','PNS','ANS','Ar','D_point','Ptm','Co','Ba','PT_point','Bo','C_point'
+          ];
+
+          const points = ids.map((id, index) => {
+            const t = index / (ids.length - 1);
+            const angle = t * Math.PI * 1.35 - 0.55;
+            const radiusX = index < 10 ? 225 : 175;
+            const radiusY = index < 10 ? 330 : 280;
+            return {
+              id,
+              x: 405 + Math.cos(angle) * radiusX + (index % 3) * 7,
+              y: 470 + Math.sin(angle) * radiusY + (index % 4) * 5,
+            };
+          });
+
+          const currentRefs = points.map(point => `landmark:visual:r2:${point.id}`);
+          const evidenceLandmarks = points.map((point, index) => ({
+            evidence_id: currentRefs[index],
+            landmark_id: point.id,
+            x: point.x,
+            y: point.y,
+            source_image_ref: 'source:visual:ceph',
+            origin: point.id === 'A' ? 'MANUAL_CORRECTED' : 'SRPOSE38_AUTO',
+            model_id: point.id === 'A' ? null : 'SRPose38',
+            model_sha256: point.id === 'A' ? null : 'visual-cert-sha',
+            pipeline_version: point.id === 'A' ? null : 'SRPOSE38_TTA_1024_V1',
+            original_auto_x: point.id === 'A' ? point.x - 5 : null,
+            original_auto_y: point.id === 'A' ? point.y + 4 : null,
+            validated_by: point.id === 'A' ? 'clinician:visual-cert' : null,
+            validated_at: point.id === 'A' ? '2026-09-10T19:24:00+00:00' : null,
+            evidence_refs: ['source:visual:ceph'],
+            evidence_status: point.id === 'A' ? 'CLINICIAN_VALIDATED' : 'OBSERVED',
+            availability_status: 'AVAILABLE',
+          }));
+
+          const pointARef = currentRefs[ids.indexOf('A')];
+          const evidenceGraph = {
+            schema_version: 'CEPHALO_EVIDENCE_V1',
+            case_id: 'cephalo:visual-cert',
+            revision: 2,
+            revision_reason: 'MANUAL_CALIBRATION',
+            authority_status: 'PERSISTED_NOT_YET_READ_PATH',
+            legacy_angles_data_role: 'COMPATIBILITY_OUTPUT',
+            sources: [
+              {
+                evidence_id: 'source:visual:ceph', patient_id: 1, kind: 'lateral_ceph',
+                source_record_id: 'visual-ceph.png', recorded_at: '2026-09-10T19:20:00+00:00',
+                evidence_status: 'OBSERVED', availability_status: 'AVAILABLE', metadata: {}
+              },
+              {
+                evidence_id: 'source:visual:calibration:r2', patient_id: 1, kind: 'calibration',
+                source_record_id: 'calibration:visual:r2', recorded_at: '2026-09-10T19:23:00+00:00',
+                operator_id: 'clinician:visual-cert', evidence_status: 'OBSERVED', availability_status: 'AVAILABLE',
+                quality_status: 'VERIFIED_MANUAL_TWO_POINT', metadata: { mm_per_pixel: 0.1724 }
+              }
+            ],
+            landmarks: evidenceLandmarks,
+            current_landmark_refs: currentRefs,
+            constructions: [],
+            measurements: [
+              {
+                measurement_id: 'measurement:visual:situation-a', analysis_id: 'visual',
+                method_id: 'CRANIOM_SITUATION_A_MM_V1', method_version: '1', value: 2.6, unit: 'mm',
+                landmark_refs: [pointARef], construction_refs: [], calibration_ref: 'source:visual:calibration:r2',
+                requires_calibration: true, evidence_refs: [pointARef,'source:visual:calibration:r2'],
+                evidence_status: 'COMPUTED', availability_status: 'AVAILABLE'
+              },
+              {
+                measurement_id: 'measurement:visual:ab', analysis_id: 'visual',
+                method_id: 'CRANIOM_AB_PRIME_MM_V1', method_version: '1', value: 3.1, unit: 'mm',
+                landmark_refs: [pointARef], construction_refs: [], calibration_ref: 'source:visual:calibration:r2',
+                requires_calibration: true, evidence_refs: [pointARef,'source:visual:calibration:r2'],
+                evidence_status: 'COMPUTED', availability_status: 'AVAILABLE'
+              },
+              {
+                measurement_id: 'measurement:visual:b', analysis_id: 'visual',
+                method_id: 'CRANIOM_SITUATION_B_MM_V1', method_version: '1', value: 1.8, unit: 'mm',
+                landmark_refs: [currentRefs[ids.indexOf('B')]], construction_refs: [], calibration_ref: 'source:visual:calibration:r2',
+                requires_calibration: true, evidence_refs: [currentRefs[ids.indexOf('B')],'source:visual:calibration:r2'],
+                evidence_status: 'COMPUTED', availability_status: 'AVAILABLE'
+              },
+              {
+                measurement_id: 'measurement:visual:depth', analysis_id: 'visual',
+                method_id: 'CRANIOM_FACIAL_DEPTH_MM_V1', method_version: '1', value: null, unit: 'mm',
+                landmark_refs: [currentRefs[ids.indexOf('Pog')]], construction_refs: [], calibration_ref: 'source:visual:calibration:r2',
+                requires_calibration: true, evidence_refs: [currentRefs[ids.indexOf('Pog')],'source:visual:calibration:r2'],
+                evidence_status: 'COMPUTED', availability_status: 'NOT_COMPUTABLE'
+              }
+            ]
+          };
+
+          const xray = `data:image/svg+xml,${encodeURIComponent(`
+            <svg xmlns="http://www.w3.org/2000/svg" width="800" height="1000" viewBox="0 0 800 1000">
+              <rect width="800" height="1000" fill="#020617"/>
+              <ellipse cx="390" cy="430" rx="245" ry="330" fill="none" stroke="#64748b" stroke-width="18" opacity=".45"/>
+              <ellipse cx="395" cy="430" rx="190" ry="270" fill="none" stroke="#94a3b8" stroke-width="8" opacity=".35"/>
+              <path d="M570 260 C650 300 670 390 620 430 C665 470 620 545 590 610 C560 690 500 755 410 790" fill="none" stroke="#cbd5e1" stroke-width="10" opacity=".6"/>
+              <path d="M250 660 C340 720 455 745 565 715" fill="none" stroke="#cbd5e1" stroke-width="12" opacity=".5"/>
+              <g stroke="#fbbf24" stroke-width="4" opacity=".85">
+                <line x1="705" y1="180" x2="705" y2="480"/>
+                ${[205,245,285,325,365,405,445].map(y => `<line x1="685" y1="${y}" x2="725" y2="${y}"/>`).join('')}
+              </g>
+            </svg>`)} `;
+
+          useOrthoStore.setState({
+            patientId: 1,
+            patientName: 'Patient Visual Cert',
+            analysisId: undefined,
+            imageSrc: xray,
+            local: { landmarks: points, version: 2 },
+            activePointId: 'A',
+            imgDim: { w: 800, h: 1000 },
+            mode: 'dark',
+            isCalibrated: true,
+            mmPerPixel: 0.1724,
+            showCalibration: false,
+            calibrationClickPoints: [],
+            calibrationDistance: '',
+            calibrationStep: 'selecting',
+            autoCalibMessage: 'Calibration vérifiée par le praticien : 0.1724 mm/px',
+            anglesData: { _evidence_graph_v1: evidenceGraph },
+            syncState: 'idle',
+          } as any);
+
+          const fileRef = React.createRef<HTMLInputElement>();
+          const containerRef = React.createRef<HTMLDivElement>();
+
+          function Cert() {
+            return (
+              <main className="min-h-screen bg-slate-950 p-2 sm:p-5">
+                <div className="mx-auto max-w-6xl">
+                  <div className="relative">
+                    <Step1Cephalo P={PALETTE.dark as any} fileRef={fileRef} step1ContainerRef={containerRef} />
+                    <CephaloClinicalEvidencePanel />
+                  </div>
+                </div>
+              </main>
+            );
+          }
+
+          createRoot(document.getElementById('root')!).render(<Cert />);
+          EOF
+
+          cat > cephalo-visual-cert.mjs <<'EOF'
+          import { chromium } from 'playwright';
+          import { createServer } from 'vite';
+          import fs from 'node:fs/promises';
+
+          const output = 'cephalo-visual-artifacts';
+          await fs.mkdir(output, { recursive: true });
+          const server = await createServer({ server: { host: '127.0.0.1', port: 4184, strictPort: true }, clearScreen: false });
+          await server.listen();
+          const browser = await chromium.launch();
+          try {
+            for (const width of [390, 768, 1440]) {
+              const height = width === 390 ? 844 : width === 768 ? 1024 : 1000;
+              const context = await browser.newContext({ viewport: { width, height } });
+              const page = await context.newPage();
+              const errors = [];
+              page.on('pageerror', error => errors.push(`pageerror: ${error.message}`));
+              page.on('console', message => { if (message.type() === 'error') errors.push(`console: ${message.text()}`); });
+              await page.route('**/api/ia/analyses/**', route => route.fulfill({ status: 200, contentType: 'application/json', body: '{}' }));
+              await page.goto('http://127.0.0.1:4184/cephalo-visual-cert.html', { waitUntil: 'networkidle' });
+              await page.getByText('Point sélectionné').waitFor({ state: 'visible', timeout: 15000 });
+              await page.screenshot({ path: `${output}/cephalo-studio-${width}x${height}.png`, fullPage: true, animations: 'disabled' });
+              await fs.writeFile(`${output}/cephalo-studio-${width}x${height}.errors.txt`, errors.join('\n'));
+              if (errors.length) throw new Error(`${width}px console/page errors:\n${errors.join('\n')}`);
+              await context.close();
+            }
+          } finally {
+            await browser.close();
+            await server.close();
+          }
+          EOF
+
+      - name: Capture 390 768 1440
+        working-directory: frontend
+        run: node cephalo-visual-cert.mjs
+
+      - name: Assert responsive evidence
+        working-directory: frontend
+        run: |
+          test -s cephalo-visual-artifacts/cephalo-studio-390x844.png
+          test -s cephalo-visual-artifacts/cephalo-studio-768x1024.png
+          test -s cephalo-visual-artifacts/cephalo-studio-1440x1000.png
+          test ! -s cephalo-visual-artifacts/cephalo-studio-390x844.errors.txt
+          test ! -s cephalo-visual-artifacts/cephalo-studio-768x1024.errors.txt
+          test ! -s cephalo-visual-artifacts/cephalo-studio-1440x1000.errors.txt
+
+      - name: Upload cephalo visual evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: cephalo-studio-visual-${{ github.event.pull_request.head.sha || github.sha }}
+          path: frontend/cephalo-visual-artifacts
+          if-no-files-found: error
