@@ -14,11 +14,10 @@ La méthode historiquement appelée « COM » dans Digital Crown correspond au p
 
 Source publiée :
 - *A new method for the utilization of cephalometric measurements in orthodontics or how standard deviations can sometimes be the practitioner's false friends (Part 1)*, Journal of Dentofacial Anomalies and Orthodontics, 2010, 13(4):385‑400, DOI `10.1051/odfen/2010406`.
-- Copie technique CRANIOM/ODRADE diffusée sur `slot-concept.com` avec les figures et constructions détaillées.
 
-Important : ces références décrivent une **méthode spécifique** et son échantillon de référence. Elles ne transforment pas ses valeurs en normes universelles.
+Important : cette référence décrit une **méthode spécifique** et son échantillon de référence. Elle ne transforme pas ses valeurs en normes universelles.
 
-## REGISTRE
+## REGISTRE CERTIFIABLE AVEC SRPOSE38
 
 ### `FH_PO_OR_V1`
 
@@ -61,8 +60,6 @@ La publication CRANIOM décrit explicitement A' et B' comme projections orthogon
 **Définition numérique :** droite passant par N et perpendiculaire à Francfort.  
 **État :** `SOURCE_COMPATIBLE_GEOMETRY`.
 
-CRANIOM décrit les distances A et B à la verticale passant par Nasion dans son repère où Francfort est horizontalisé. L'implémentation numérique ci-dessus matérialise cette verticale sans dépendre de l'orientation du fichier image.
-
 ### `CRANIOM_A_TO_N_VERTICAL_V1`
 
 **Dépendances :** `A`, `N`, `Po`, `Or`, calibration.  
@@ -80,18 +77,42 @@ Même définition avec B.
 
 **Dépendances :** `S`, `N`, `Po`, `Or`, calibration.  
 **Définition :** distance géométrique de S à la verticale par Nasion, mesurée parallèlement à Francfort.  
-**Formule runtime historique :** `abs(dot(S - N, unit(Po→Or))) × mm_per_pixel`.  
+**Formule :** `abs(dot(S - N, unit(Po→Or))) × mm_per_pixel`.  
 **État :** `GEOMETRY_VERIFIED_SOURCE_SEMANTICS_TO_CONFIRM`.
 
-La fiche historique fournie au projet appelle cette grandeur « profondeur faciale ». La géométrie est déterministe ; le rattachement normatif exact reste séparé.
+## IMPLÉMENTATION
 
-## CONSTRUCTIONS NON CERTIFIÉES
+Les constructions ci-dessus sont matérialisées dans `backend/services/cephalo_constructions.py`. `backend/services/cephalo_engine.py` est branché sur ces fonctions pour `Situation_A`, `Situation_B`, `Decalage_A_B`, `Profondeur_Faciale` et les projections visuelles A'/B'/N'.
 
-### Plan mandibulaire / Gonion
+Les anciennes `mcnmara_projections` calculées côté client restent acceptées dans l'API pour compatibilité mais **ne peuvent plus modifier une mesure backend**. Les coordonnées sources des landmarks sont la seule source de vérité géométrique.
 
-Le runtime historique utilise `Go-Me`. La littérature montre plusieurs conventions de Gonion. La méthode CRANIOM publiée décrit aussi des points goniaques inférieur/supérieur `Gi/Gs` pour certaines mesures verticales, alors que SRPose38 fournit un unique `Go`.
+## CONVENTIONS MANDIBULAIRES — GATE EXPLICITE
 
-**Décision :** aucune substitution `Go ↔ Gi/Gs` silencieuse. Les mesures qui exigent Gi/Gs restent `NOT_COMPUTABLE` avec SRPose38 tant qu'une convention compatible n'est pas prouvée.
+Le terme « plan mandibulaire » n'est pas une construction universelle. Les sources sérieuses décrivent plusieurs variantes :
+
+- un plan `Go-Me` est couramment utilisé dans certains schémas/logiciels ;
+- Downs est classiquement décrit par une **tangente au bord inférieur mandibulaire** ;
+- Tweed est également décrit dans la littérature par une tangente au bord inférieur, avec Menton antérieurement et la région goniale postérieurement ;
+- d'autres analyses utilisent `Go-Gn`.
+
+Sources de contrôle :
+- Downs WB. *Variations in facial relationships: Their significance in treatment and prognosis.* Am J Orthod. 1948;34(10):812‑840. DOI `10.1016/0002-9416(48)90015-3`.
+- Tweed CH. *The Frankfort-mandibular plane angle in orthodontic diagnosis, classification, treatment planning, and prognosis.* Am J Orthod Oral Surg. 1946;32:175‑230. DOI `10.1016/0096-6347(46)90001-4`.
+- Shindoi et al./comparative literature summarized in *Assessing lower incisor inclination change: a comparison of four cephalometric methods* (peer-reviewed): Downs/Tweed use a tangent to the lower mandibular border, whereas other analyses use Go-Me or Go-Gn constructions.
+
+### Conséquence Digital Crown
+
+Le champ historique `Angle_de_Tweed` est actuellement calculé avec `Go-Me`. **Il reste une mesure géométrique legacy, pas une mesure Tweed certifiée**, tant que la convention exacte de la fiche historique `26° ± 4°` n'est pas reliée à une source autoritative.
+
+Même règle pour `IMPA` : l'axe incisif est disponible, mais la construction du plan mandibulaire doit être rattachée explicitement à l'analyse choisie avant toute norme/interprétation.
+
+## CONSTRUCTIONS NON COMPUTABLES OU NON CERTIFIÉES
+
+### CRANIOM `Gi/Gs`
+
+La méthode CRANIOM publiée décrit pour certaines mesures verticales des points goniaques inférieur/supérieur `Gi/Gs`. SRPose38 fournit un unique `Go`.
+
+**Décision :** aucune substitution `Go ↔ Gi/Gs` silencieuse. Ces mesures restent `NOT_COMPUTABLE` tant qu'une construction compatible n'est pas prouvée ou qu'une saisie manuelle explicite n'est pas ajoutée.
 
 ### A''B'' / regard horizontal
 
@@ -107,9 +128,14 @@ CRANIOM distingue `A'B'` projeté sur Francfort et `A''B''` projeté sur le plan
 4. translation globale → valeurs invariantes.
 5. changement d'échelle pixel + calibration compensatrice → même valeur mm.
 6. Po=Or → `NOT_COMPUTABLE`.
-7. calibration absente/≤0 pour mesure linéaire → `NOT_COMPUTABLE`.
+7. calibration absente, non finie ou ≤0 → `NOT_COMPUTABLE`.
 8. A/B/N/S manquant → seulement les mesures dépendantes deviennent `NOT_COMPUTABLE`.
+9. projection fournie par le client → aucun effet sur la mesure backend.
+
+Tests :
+- `backend/tests/test_cephalo_craniom_constructions.py`
+- `backend/tests/test_cephalo_craniom_runtime_parity.py`
 
 ## NEXT EXACT
 
-Implémenter ces constructions en fonctions pures puis remplacer dans `cephalo_engine.py` les calculs A'B'/A-Nv/B-Nv/profondeur par le registre testé, sans réactiver aucune norme ni diagnostic.
+Obtenir la preuve CI des golden tests puis séparer explicitement les constructions `TWEED_MP`, `DOWNS_MP` et les besoins `CRANIOM_Gi/Gs` avant d'activer IMPA/FMA comme mesures attribuées à une école.
