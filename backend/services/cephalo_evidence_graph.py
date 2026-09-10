@@ -79,7 +79,7 @@ def validate_evidence_graph(
     *,
     norm_registry: NormRegistry = default_norm_registry,
 ) -> None:
-    """Validate referential integrity across one evidence-graph snapshot."""
+    """Validate referential and provenance integrity across one graph snapshot."""
 
     sources = _index_unique(graph.sources, "evidence_id", "source")
     landmarks = _index_unique(graph.landmarks, "evidence_id", "landmark evidence")
@@ -202,11 +202,47 @@ def validate_evidence_graph(
         )
         registered = norm_registry.get_reference(evaluation.norm_profile_id)
         assert registered is not None
+        measurement = measurements[evaluation.measurement_ref]
+
         if evaluation.norm_profile_version != registered.method_version:
             raise EvidenceGraphValidationError(
                 f"Normative evaluation {evaluation.evaluation_id} version does not "
                 f"match registered reference {evaluation.norm_profile_id}"
             )
+        if registered.method_id != measurement.analysis_id:
+            raise EvidenceGraphValidationError(
+                f"Normative evaluation {evaluation.evaluation_id} method does not "
+                f"match measurement analysis {measurement.analysis_id}"
+            )
+        if registered.measurement_id != measurement.method_id:
+            raise EvidenceGraphValidationError(
+                f"Normative evaluation {evaluation.evaluation_id} reference targets "
+                f"{registered.measurement_id}, not measurement method {measurement.method_id}"
+            )
+        if registered.unit != measurement.unit:
+            raise EvidenceGraphValidationError(
+                f"Normative evaluation {evaluation.evaluation_id} unit does not match measurement"
+            )
+
+        reference_payload = evaluation.reference
+        if (
+            reference_payload.get("kind") != registered.kind.value
+            or reference_payload.get("lower") != registered.lower
+            or reference_payload.get("upper") != registered.upper
+        ):
+            raise EvidenceGraphValidationError(
+                f"Normative evaluation {evaluation.evaluation_id} reference payload "
+                f"does not match registry {evaluation.norm_profile_id}"
+            )
+        if (
+            evaluation.classification is not None
+            and not registered.active_for_patient_classification
+        ):
+            raise EvidenceGraphValidationError(
+                f"Normative evaluation {evaluation.evaluation_id} cannot classify with "
+                f"an inactive reference"
+            )
+
         _require_refs(
             evaluation.source_refs,
             norm_source_ids,
@@ -289,11 +325,29 @@ def validate_evidence_graph(
             f"Treatment option {option.option_id} required_evidence_refs",
         )
 
-    target_ids = planning_upstream | option_ids | plan_ids
+    validation_target_ids: Mapping[str, Set[str]] = {
+        "source": source_ids,
+        "landmark": landmark_ids,
+        "construction": construction_ids,
+        "measurement": measurement_ids,
+        "normative_evaluation": evaluation_ids,
+        "finding": finding_ids,
+        "diagnosis": diagnosis_ids,
+        "problem": problem_ids,
+        "objective": objective_ids,
+        "treatment_option": option_ids,
+        "final_plan": plan_ids,
+    }
     for validation in graph.validations:
+        allowed_targets = validation_target_ids.get(validation.target_type)
+        if allowed_targets is None:
+            raise EvidenceGraphValidationError(
+                f"Validation {validation.validation_id} has unknown target_type "
+                f"{validation.target_type}"
+            )
         _require_refs(
             [validation.target_id],
-            target_ids,
+            allowed_targets,
             f"Validation {validation.validation_id} target_id",
         )
 
@@ -378,6 +432,10 @@ def validate_evidence_graph(
         if validation.clinician_id != plan.clinician_id:
             raise EvidenceGraphValidationError(
                 f"Final plan {plan.plan_id} clinician differs from validation record"
+            )
+        if validation.validated_at != plan.clinician_validated_at:
+            raise EvidenceGraphValidationError(
+                f"Final plan {plan.plan_id} validation timestamp differs from plan audit"
             )
         for phase in plan.phases:
             _require_refs(

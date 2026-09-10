@@ -36,6 +36,7 @@ PRIMARY_NUMERIC_TIERS = frozenset(
         SourceTier.PEER_REVIEWED_POPULATION_STUDY,
     }
 )
+SUPPORTED_REFERENCE_KINDS = frozenset({ReferenceKind.EXTREME_RANGE})
 
 
 @dataclass(frozen=True)
@@ -94,6 +95,10 @@ class NormRegistry:
         self._nonempty(reference.unit, "unit")
         if reference.reference_id in self._references:
             raise ValueError(f"Duplicate normative reference: {reference.reference_id}")
+        if reference.kind not in SUPPORTED_REFERENCE_KINDS:
+            raise ValueError(
+                "Registry foundation currently supports only explicit interval references"
+            )
         if not reference.source_ids:
             raise ValueError("Normative reference requires at least one source")
         missing_sources = [sid for sid in reference.source_ids if sid not in self._sources]
