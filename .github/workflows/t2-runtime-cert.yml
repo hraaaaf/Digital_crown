@@ -21,6 +21,8 @@ jobs:
       CLOUD_AI_ENABLED: "false"
       DEBUG: "false"
       ALLOWED_ORIGINS: "http://127.0.0.1:5173,http://localhost:5173"
+      T2_USER: t2-browser@cabinet.ma
+      T2_PASSWORD: T2BrowserPass123!
     steps:
       - uses: actions/checkout@v4
 
@@ -49,9 +51,6 @@ jobs:
         run: |
           npm ci
           npm install --no-save playwright@1.55.0
-          # ubuntu-latest already carries the browser runtime libraries used here.
-          # Avoid Playwright --with-deps: it re-enters APT mirrors and has twice
-          # exhausted this job's 30-minute budget before any product probe ran.
           npx playwright install chromium
 
       - name: Start isolated backend
@@ -90,6 +89,13 @@ jobs:
           set -o pipefail
           mkdir -p ../artifacts/t2-browser
           node scripts/certify-document-studio-browser.mjs 2>&1 | tee ../artifacts/t2-browser/runner.log
+
+      - name: Certify P6 Document Libre editor
+        working-directory: frontend
+        shell: bash
+        run: |
+          set -o pipefail
+          node scripts/certify-p6-editor.mjs 2>&1 | tee ../artifacts/t2-browser/p6-editor-runner.log
 
       - name: Certify browser print and PDF freshness
         working-directory: frontend
