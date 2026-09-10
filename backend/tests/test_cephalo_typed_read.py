@@ -99,6 +99,14 @@ def test_incomplete_or_wrong_patient_typed_graph_fails_closed():
         project_typed_craniom_read_path(angles, patient_id=999)
 
 
+def test_unexpected_typed_availability_status_fails_closed():
+    angles, graph = _angles_with_graph(ratio=0.2, calibrated=False)
+    graph["measurements"][0]["availability_status"] = "MISSING"
+
+    with pytest.raises(CephaloTypedReadError, match="Unsupported typed CRANIOM availability"):
+        project_typed_craniom_read_path(angles, patient_id=7)
+
+
 def test_legacy_analysis_without_graph_is_copied_unchanged():
     legacy = {
         "metrics": {"analyse_osseuse": {"Situation_A": {"valeur": 12.3}}},
