@@ -1,110 +1,99 @@
 # CÉPHALOMÉTRIE — MATRICE ANALYSES → MESURES → LANDMARKS
 
-**Statut : chantier actif / COM seed**  
+**Statut : chantier actif / COM-CRANIOM geometry en certification**  
 **Parent canonique :** `docs/CEPHALO_DIAGNOSTIC_SPEC.md`  
-**Contrat landmarks :** `docs/SRPOSE38_LANDMARK_CONTRACT.md`
+**Contrat landmarks :** `docs/SRPOSE38_LANDMARK_CONTRACT.md`  
+**Registre constructions :** `docs/CEPHALO_CONSTRUCTION_REGISTRY.md`
 
 ## GOAL
 
-Rendre explicite, pour chaque mesure, la chaîne :
+Rendre explicite la chaîne :
 
 `analyse → mesure → landmarks → construction → unité → calibration → formule → source → statut`
 
-Une mesure sans dépendances satisfaites ou sans formule certifiée reste `NOT_COMPUTABLE` ou `UNVERIFIED`, jamais estimée.
+Une dépendance absente reste `NOT_COMPUTABLE`. Une norme non sourcée reste inactive.
 
-## STATUTS
+## IDENTITÉ DE LA MÉTHODE HISTORIQUE
 
-- `VERIFIED_GEOMETRY` : géométrie/formule vérifiée et testable, mais norme clinique éventuellement séparée.
-- `CURRENT_IMPLEMENTATION_CANDIDATE` : comportement actuel du code, à confronter à la définition historique/autoritative de l'analyse.
-- `SOURCE_REQUIRED` : définition/norme clinique non encore suffisamment sourcée.
-- `NOT_COMPUTABLE` : dépendance indispensable absente.
+Le flux appelé historiquement `COM` dans Digital Crown correspond au périmètre de la méthode **C.R.A.N.I.O.M.** de Bonnefont, Casteigt, Ernoult et Sorel.
 
-# COM — MATRICE INITIALE
+Source publiée de référence :
+- Bonnefont R, Casteigt J, Ernoult J-F, Sorel O. *A new method for the utilization of cephalometric measurements in orthodontics or how standard deviations can sometimes be the practitioner's false friends (Part 1).* Journal of Dentofacial Anomalies and Orthodontics. 2010;13(4):385-400. DOI `10.1051/odfen/2010406`.
 
-La fiche clinique historique fournie par le praticien fixe le **périmètre fonctionnel** du COM. Elle ne constitue pas à elle seule une source suffisante pour activer des normes numériques dans le moteur.
+La publication décrit un échantillon de jeunes adultes Classe I non traités et insiste sur la séparation entre mesures dentaires, formes osseuses et aide au diagnostic. Les valeurs de cette méthode doivent donc être présentées comme **références CRANIOM spécifiques**, jamais comme normes universelles.
 
-| Bloc COM | Mesure | Landmarks SRPose38 nécessaires | Construction | Calibration | État scientifique |
+## CRANIOM / COM — MATRICE ACTUELLE
+
+| Bloc | Mesure | Landmarks SRPose38 | Construction | Calibration | État |
 |---|---|---|---|---|---|
-| Dentaire | Surplomb | U1/UI (#12), L1/LI (#11), Po (#4), Or (#3) | projection du vecteur incisif sur l'axe de Francfort dans le code actuel | mm requis | `CURRENT_IMPLEMENTATION_CANDIDATE` |
-| Dentaire | Recouvrement | U1/UI (#12), L1/LI (#11), Po (#4), Or (#3) | projection du vecteur incisif sur la normale au plan de Francfort dans le code actuel | mm requis | `CURRENT_IMPLEMENTATION_CANDIDATE` |
-| Dentaire | I / mandibulaire | L1A (#22), L1/LI (#11), Go (#10), Me (#8) | angle axe incisive mandibulaire / plan mandibulaire Go-Me | non | `VERIFIED_GEOMETRY`, norme COM à sourcer |
-| Dentaire | I / Francfort | U1A (#21), U1/UI (#12), Po (#4), Or (#3) | angle axe incisive maxillaire / Francfort Po-Or | non | `VERIFIED_GEOMETRY`, norme COM à sourcer |
-| Dentaire | Inter-incisif | U1A (#21), U1/UI (#12), L1A (#22), L1/LI (#11) | angle entre axes incisifs | non | `VERIFIED_GEOMETRY`, norme COM à sourcer |
-| Osseux | Angle de Tweed / FMA | Go (#10), Me (#8), Po (#4), Or (#3) | angle plan mandibulaire Go-Me / Francfort Po-Or | non | `VERIFIED_GEOMETRY`, définition COM exacte à confirmer |
-| Osseux | Décalage maxillo-mandibulaire A'B' | A (#5), B (#6) + plan de référence à certifier | **construction historique A'/B' non encore certifiée** | mm requis | `SOURCE_REQUIRED` |
-| Osseux | Situation maxillaire A / verticale Nasion | A (#5), N (#2), Po (#4), Or (#3) | verticale par Nasion perpendiculaire à Francfort ; distance AP signée de A | mm requis | `CURRENT_IMPLEMENTATION_CANDIDATE` |
-| Osseux | Situation mandibulaire B / verticale Nasion | B (#6), N (#2), Po (#4), Or (#3) | verticale par Nasion perpendiculaire à Francfort ; distance AP signée de B | mm requis | `CURRENT_IMPLEMENTATION_CANDIDATE` |
-| Osseux | Profondeur faciale S / verticale Nasion | S (#1), N (#2), Po (#4), Or (#3) | distance AP de S à la verticale par Nasion | mm requis | `CURRENT_IMPLEMENTATION_CANDIDATE` |
-| Suivi | Tracé 1 / Tracé 2 | mêmes dépendances par mesure | comparaison T1/T2 après gate de comparabilité | selon mesure | `SOURCE_REQUIRED` pour protocole COM de superposition |
+| Dentaire | Surplomb | U1/UI #12, L1/LI #11 + repère d'orientation | projection incisive actuelle sur axe FH | mm | `CURRENT_IMPLEMENTATION_CANDIDATE` |
+| Dentaire | Recouvrement | U1/UI #12, L1/LI #11 + repère d'orientation | projection verticale actuelle dans repère FH | mm | `CURRENT_IMPLEMENTATION_CANDIDATE` |
+| Dentaire | I / mandibulaire | L1A #22, L1 #11 + plan mandibulaire | axe L1 / plan mandibulaire | non | `ANALYSIS_DEFINITION_REQUIRED` |
+| Dentaire | I / Francfort | U1A #21, U1 #12, Po #4, Or #3 | axe U1 / FH | non | `SOURCE_VERIFIED_GEOMETRY` |
+| Dentaire | Inter-incisif | U1A #21, U1 #12, L1A #22, L1 #11 | angle axes U1/L1 | non | `VERIFIED_GEOMETRY`, référence numérique à versionner |
+| Osseux | A'B' | A #5, B #6, Po #4, Or #3 | projections orthogonales A', B' sur FH | mm | `SOURCE_VERIFIED_GEOMETRY` |
+| Osseux | A / verticale Nasion | A #5, N #2, Po #4, Or #3 | distance AP signée à la verticale N, dans repère FH | mm | `SOURCE_COMPATIBLE_GEOMETRY` |
+| Osseux | B / verticale Nasion | B #6, N #2, Po #4, Or #3 | idem | mm | `SOURCE_COMPATIBLE_GEOMETRY` |
+| Osseux | Profondeur faciale S / verticale Nasion | S #1, N #2, Po #4, Or #3 | distance parallèle à FH jusqu'à verticale N | mm | `GEOMETRY_VERIFIED_SOURCE_SEMANTICS_TO_CONFIRM` |
+| Osseux vertical | Forme faciale CRANIOM | S, N + plan mandibulaire de Downs | angle SN / plan mandibulaire | non | `NOT_COMPUTABLE_EXACTLY` tant que convention mandibulaire non certifiée |
+| Osseux vertical | Forme mandibulaire CRANIOM | Ar + Gi + Gs + Me | angle branche montante / plan mandibulaire | non | `NOT_COMPUTABLE` : SRPose38 n'émet pas Gi/Gs séparés |
+| Suivi | A''B'' regard horizontal | A, B + protocole photo NHP | projection sur plan du regard | mm | `NOT_COMPUTABLE` sans orientation naturelle de tête validée |
 
-## CONCORDANCE AVEC LE MOTEUR ACTUEL
+## A'B' — CONSTRUCTION DÉSORMAIS SOURCÉE
 
-`backend/services/cephalo_engine.py` calcule déjà géométriquement :
+CRANIOM définit A' et B' comme les **projections orthogonales des points A et B sur le plan de Francfort**. La valeur algébrique est positive lorsque A est en avant de B et négative dans le cas inverse.
 
-- surplomb ;
-- recouvrement ;
-- IMPA ;
-- I/Francfort ;
-- inter-incisif ;
-- SNA/SNB/ANB ;
-- angle de Tweed/FMA ;
-- projections A/B liées à Nasion/Francfort ;
-- profondeur faciale ;
-- Wits ;
-- longueurs Co-A et Co-Gn ;
-- angle nasolabial ;
-- distances lèvres / E-line.
+Formule runtime certifiée géométriquement :
 
-**Important :** la présence d'un calcul dans le code ne certifie pas qu'il correspond exactement à une définition COM/Steiner/Tweed/etc. L'association à une analyse clinique est un gate scientifique séparé.
+`A'B' = dot(A - B, unit(Po→Or)) × mm_per_pixel`
 
-## INVENTAIRE LEGACY — PREUVE PR #371
+Le calcul historique actuel de `cephalo_engine.py` (`Situation_A - Situation_B`) est algébriquement équivalent. Des golden tests dédiés assurent rotation, translation, changement d'échelle et signe.
 
-Le diff de `backend/services/cephalo_engine.py` supprimé lors du durcissement scientifique PR `#371` confirme que l'ancien moteur COM embarquait localement des normes et diagnostics. Cet inventaire sert uniquement à retrouver l'intention historique ; il **ne réactive aucune norme**.
+## RÉFÉRENCES CRANIOM CONFIRMÉES, MAIS NON ENCORE ACTIVÉES
 
-| Mesure legacy | Ancienne valeur codée | Constat |
+La source publiée confirme notamment les bornes extrêmes d'inclinaison incisive utilisées par CRANIOM :
+- incisive mandibulaire : **78° à 114°** par rapport au plan mandibulaire de Downs ;
+- incisive maxillaire : **97,5° à 130,1°** par rapport à Francfort.
+
+Le document CRANIOM détaillé/mirror explicite aussi pour A'B' :
+- moyenne à 9 ans : **+4,2 mm**, écart-type **3,2 mm** ;
+- moyenne adulte : **+2,3 mm**, écart-type **3,1 mm** ;
+- classification CRANIOM fondée sur ces plages spécifiques.
+
+Ces valeurs restent `METHOD_SPECIFIC_REFERENCE_PENDING_REGISTRY` jusqu'au Lot 11 : contexte, âge, population, source/version et règles doivent être encodés séparément de la mesure brute.
+
+## CONFLITS LEGACY DIGITAL CROWN
+
+Le diff retiré en PR #371 montre pourquoi aucune ancienne constante ne doit être restaurée aveuglément :
+
+| Mesure | Ancien code | Constat |
 |---|---:|---|
-| Surplomb | 2,25 ± 0,75 mm | correspond à la plage historique 1,5–3 mm |
-| Recouvrement | 2,25 ± 0,75 mm | correspond à la plage historique 1,5–3 mm |
-| IMPA | 90° ± 5° | concordant avec la fiche |
-| I / Francfort | 107° ± 5° | concordant avec la fiche |
-| Inter-incisif | 131° ± 10° | **conflit historique connu** avec une autre valeur frontend ±13 ; à arbitrer par source |
-| Angle de Tweed | 26° ± 4° | concordant avec la fiche |
-| Situation A enfant | 2,8 ± 3,3 mm | concordant avec la fiche |
-| Situation A adulte | 2,3 ± 3,0 mm | **diffère de la fiche fournie : ±3,3** |
-| Profondeur faciale enfant | 61,3 ± 5 mm | concordant avec la fiche |
-| Profondeur faciale adulte | 70,3 ± 5 mm | concordant avec la fiche |
-| Décalage A-B | aucune norme autoritative | l'ancien code le qualifiait explicitement de construction interne non validée cliniquement |
-| Situation B | aucune norme autoritative active | l'ancien code la qualifiait explicitement de mesure interne non validée comme McNamara |
+| Surplomb | 2,25 ± 0,75 mm | plage 1,5–3 mm reproduite |
+| Recouvrement | 2,25 ± 0,75 mm | plage 1,5–3 mm reproduite |
+| IMPA | 90° ± 5° | référence historique, différente de la philosophie CRANIOM des valeurs extrêmes |
+| I / Francfort | 107° ± 5° | référence historique ; CRANIOM accepte un intervalle extrême beaucoup plus large |
+| Inter-incisif | 131° ± 10° | conflit historique frontend ±13 |
+| Angle de Tweed | 26° ± 4° | présent sur la fiche historique ; à distinguer de la forme faciale CRANIOM SN/plan mandibulaire |
+| Situation A adulte | 2,3 ± 3,0 mm | diffère de la fiche fournie : ±3,3 |
+| A-B | ancien code le qualifiait de construction interne non validée | **corrigé scientifiquement : A'B' CRANIOM est maintenant identifié et sourcé** |
 
-Le même code contenait auparavant des diagnostics automatiques et des propositions de traitement à partir de seuils locaux ; ils ont été retirés dans PR `#371`. Ils ne doivent pas être restaurés sans registre de règles sourcées, tests de contexte et gate praticien.
+## DÉCISION
 
-## NORMES COM — ÉTAT
-
-La photographie historique montre notamment des plages de normalité/compensation et des valeurs âge/adulte. Une recherche de contrôle a retrouvé certaines valeurs exactes reproduites en ligne, mais dans une source secondaire de qualité insuffisante pour servir de référence clinique canonique.
-
-**Décision :**
-
-- conserver les chiffres de la fiche comme `HISTORICAL_REFERENCE_ONLY` ;
-- rechercher la publication, le manuel ou la provenance COM originale ;
-- aucune norme COM n'entre dans le registre clinique tant que `source_id`, édition/date, population de référence et unité ne sont pas établis.
+1. conserver l'entrée utilisateur `COM` pour compatibilité UX tant que nécessaire ;
+2. identifier scientifiquement la méthode comme `CRANIOM` dans le registre ;
+3. ne jamais fusionner silencieusement CRANIOM, Tweed, Steiner, Downs ou Ricketts ;
+4. garder mesure brute et évaluation normative dans deux objets séparés ;
+5. les constructions nécessitant Gi/Gs ou regard horizontal restent `NOT_COMPUTABLE` plutôt que remplacées par Go ou par l'horizontale de l'image.
 
 ## ANALYSES SUIVANTES
 
-Ordre de construction après COM :
+Steiner → Tweed/Merrifield → Wits/Jacobson → Downs → McNamara → Ricketts → tissus mous/esthétique.
 
-1. Steiner ;
-2. Tweed/Merrifield ;
-3. Wits/Jacobson ;
-4. Downs ;
-5. McNamara ;
-6. Ricketts ;
-7. tissus mous/esthétique.
-
-Chaque analyse recevra la même matrice et un statut global `FULL | PARTIAL | NOT_COMPUTABLE`.
+Chaque analyse reçoit un statut `FULL | PARTIAL | NOT_COMPUTABLE` selon ses dépendances réellement disponibles.
 
 ## NEXT EXACT
 
-1. sourcer la définition historique de `A'B'` du COM et des normes de la fiche ;
-2. certifier les définitions opérationnelles des landmarks nécessaires au COM ;
-3. écrire des golden cases géométriques COM sans normes ;
-4. ensuite seulement activer les normes COM versionnées.
+1. faire passer les golden tests des constructions CRANIOM ;
+2. brancher `cephalo_engine.py` sur les fonctions versionnées sans changement numérique attendu ;
+3. verrouiller le plan mandibulaire propre à chaque analyse ;
+4. construire ensuite le registre normatif CRANIOM sans réactiver de diagnostic automatique.
