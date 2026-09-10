@@ -21,7 +21,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.12'
+          python-version: '3.10'
 
       - name: Download validated SRPose38 ONNX artifact
         uses: actions/download-artifact@v4
@@ -47,13 +47,12 @@ jobs:
           cp .ci/onnx/srpose38-tta-1024.onnx backend/ai_models/model.onnx
           echo 'a5ecd466d6d2c4ef02e145a143076a05720c0be56a260224812c23e2ecf42ddb  backend/ai_models/model.onnx' | sha256sum -c -
           python -m pip install --upgrade pip
-          python -m pip install numpy==1.26.4 opencv-python-headless==4.13.0.92 onnxruntime==1.23.2
+          python -m pip install numpy==1.26.4 opencv-python-headless==4.11.0.86 onnxruntime==1.18.1
 
       - name: Run Digital Crown SOTAVisionEngine on benchmark cephalogram
         run: |
           python - <<'PY'
           import json
-          import math
           from pathlib import Path
 
           import numpy as np
@@ -84,7 +83,6 @@ jobs:
           print('DIGITAL_CROWN_RUNTIME_PARITY', json.dumps(summary))
           Path('digital-crown-runtime-parity.json').write_text(json.dumps(summary, indent=2), encoding='utf-8')
 
-          # The runtime must reproduce the already validated ONNX coordinate behavior.
           assert summary['max_delta_px'] <= 0.5, summary
           PY
 
