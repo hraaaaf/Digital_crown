@@ -1,4 +1,4 @@
-"""Runtime-to-evidence adapter tests for certified CRANIOM linear geometry."""
+"""Runtime-to-evidence adapter tests for versioned CRANIOM linear geometry."""
 
 from datetime import datetime, timezone
 
@@ -27,7 +27,7 @@ PATIENT_ID = 11
 ANALYSIS_ID = "analysis:42"
 CALIBRATION_REF = "source:calibration:42"
 
-CONSTRUCTION_REFS = {
+CONSTRUCTION_IDS = {
     "Situation_A": "construction:42:situation-a",
     "Situation_B": "construction:42:situation-b",
     "Decalage_A_B": "construction:42:ab-prime",
@@ -63,16 +63,31 @@ def _runtime_result(mm_per_pixel=0.2):
     return CephaloEngine(mm_per_pixel=mm_per_pixel).calculate_metrics(_points())
 
 
-def _adapt(result=None, calibration_ref=CALIBRATION_REF, construction_refs=None):
+def _constructions(landmark_refs=None):
+    refs = landmark_refs or ["landmark:placeholder"]
+    return {
+        field: ConstructionEvidence(
+            construction_id=CONSTRUCTION_IDS[field],
+            definition_id=method_id,
+            definition_version="1",
+            landmark_refs=refs,
+            geometry={"kind": "versioned_test_construction", "field": field},
+            evidence_refs=refs,
+        )
+        for field, method_id in METHODS.items()
+    }
+
+
+def _adapt(result=None, calibration_ref=CALIBRATION_REF, constructions=None):
     return adapt_craniom_linear_measurements(
         result or _runtime_result(),
         analysis_instance_id=ANALYSIS_ID,
-        construction_refs=construction_refs or CONSTRUCTION_REFS,
+        constructions=constructions or _constructions(),
         calibration_ref=calibration_ref,
     )
 
 
-def test_adapter_emits_only_four_certified_craniom_linear_measurements():
+def test_adapter_emits_only_four_versioned_craniom_linear_measurements():
     measurements = _adapt()
 
     assert len(measurements) == 4
@@ -80,7 +95,7 @@ def test_adapter_emits_only_four_certified_craniom_linear_measurements():
         measurement.measurement_id.rsplit(":", 1)[-1]: measurement
         for measurement in measurements
     }
-    assert set(by_field) == set(CONSTRUCTION_REFS)
+    assert set(by_field) == set(CONSTRUCTION_IDS)
 
     for field, measurement in by_field.items():
         assert measurement.analysis_id == "CRANIOM"
@@ -89,10 +104,10 @@ def test_adapter_emits_only_four_certified_craniom_linear_measurements():
         assert measurement.unit == "mm"
         assert measurement.value is not None
         assert measurement.availability_status == AvailabilityStatus.AVAILABLE
-        assert measurement.construction_refs == [CONSTRUCTION_REFS[field]]
+        assert measurement.construction_refs == [CONSTRUCTION_IDS[field]]
         assert measurement.calibration_ref == CALIBRATION_REF
         assert measurement.requires_calibration is True
-        assert measurement.evidence_refs == [CONSTRUCTION_REFS[field], CALIBRATION_REF]
+        assert measurement.evidence_refs == [CONSTRUCTION_IDS[field], CALIBRATION_REF]
 
 
 def test_missing_runtime_values_remain_not_computable_never_zero():
@@ -136,15 +151,41 @@ def test_adapter_rejects_non_craniom_runtime_payload():
         _adapt(result=wrong)
 
 
-def test_adapter_refuses_to_invent_missing_construction_reference():
-    incomplete = dict(CONSTRUCTION_REFS)
+def test_adapter_refuses_to_invent_missing_construction_evidence():
+    incomplete = _constructions()
     del incomplete["Decalage_A_B"]
 
     with pytest.raises(
         CephaloMeasurementEvidenceAdapterError,
-        match="Missing explicit construction ref for Decalage_A_B",
+        match="Missing explicit construction evidence for Decalage_A_B",
     ):
-        _adapt(construction_refs=incomplete)
+        _adapt(constructions=incomplete)
+
+
+def test_adapter_rejects_semantically_wrong_construction():
+    constructions = _constructions()
+    constructions["Decalage_A_B"] = constructions["Decalage_A_B"].model_copy(
+        update={"definition_id": "UNRELATED_CONSTRUCTION"}
+    )
+
+    with pytest.raises(
+        CephaloMeasurementEvidenceAdapterError,
+        match="expected 'CRANIOM_AB_PRIME_V1'",
+    ):
+        _adapt(constructions=constructions)
+
+
+def test_adapter_rejects_wrong_construction_version():
+    constructions = _constructions()
+    constructions["Situation_A"] = constructions["Situation_A"].model_copy(
+        update={"definition_version": "2"}
+    )
+
+    with pytest.raises(
+        CephaloMeasurementEvidenceAdapterError,
+        match="expected '1'",
+    ):
+        _adapt(constructions=constructions)
 
 
 def test_adapter_output_resolves_in_patient_case_graph():
@@ -180,24 +221,13 @@ def test_adapter_output_resolves_in_patient_case_graph():
         for index, landmark_id in enumerate(landmark_ids)
     ]
     landmark_refs = [landmark.evidence_id for landmark in landmarks]
+    constructions_by_field = _constructions(landmark_refs=landmark_refs)
 
-    constructions = [
-        ConstructionEvidence(
-            construction_id=CONSTRUCTION_REFS[field],
-            definition_id=method_id,
-            definition_version="1",
-            landmark_refs=landmark_refs,
-            geometry={"kind": "certified_test_construction", "field": field},
-            evidence_refs=landmark_refs,
-        )
-        for field, method_id in METHODS.items()
-    ]
-
-    measurements = _adapt()
+    measurements = _adapt(constructions=constructions_by_field)
     graph = EvidenceGraphSnapshot(
         sources=[ceph_source, calibration_source],
         landmarks=landmarks,
-        constructions=constructions,
+        constructions=list(constructions_by_field.values()),
         measurements=measurements,
     )
 
