@@ -364,13 +364,36 @@ export const useOrthoStore = create<OrthoState>((set, get) => ({
         }
       }
       if (data.results?.vision_metadata) set({ visionMetadata: data.results.vision_metadata });
-      if (data.is_calibrated !== undefined) {
-        set({ isCalibrated: data.is_calibrated, mmPerPixel: data.mm_per_pixel || null });
-        if (data.is_calibrated && data.mm_per_pixel) {
-          set({ autoCalibMessage: `Auto-calibration réussie : ${data.mm_per_pixel.toFixed(4)} mm/px` });
-          setTimeout(() => set({ autoCalibMessage: null }), 8000);
-        }
+
+      // Automatic image analysis can propose ruler ticks, but never a physical scale.
+      // Preselect the detected image-space interval and require the clinician to enter
+      // the known real-world distance before the audited calibration transition.
+      const candidate = data.calibration_candidate;
+      if (
+        candidate?.requires_clinician_validation === true &&
+        Array.isArray(candidate.p1) && candidate.p1.length === 2 &&
+        Array.isArray(candidate.p2) && candidate.p2.length === 2
+      ) {
+        set({
+          isCalibrated: false,
+          mmPerPixel: null,
+          autoCalibMessage: data.calibration_message || 'Réglette candidate détectée : validation praticien requise.',
+          calibrationClickPoints: [
+            { x: Number(candidate.p1[0]), y: Number(candidate.p1[1]) },
+            { x: Number(candidate.p2[0]), y: Number(candidate.p2[1]) },
+          ],
+          calibrationDistance: '',
+          calibrationStep: 'selecting',
+          showCalibration: true,
+        });
+      } else {
+        set({
+          isCalibrated: Boolean(data.is_calibrated),
+          mmPerPixel: data.is_calibrated && typeof data.mm_per_pixel === 'number' ? data.mm_per_pixel : null,
+          autoCalibMessage: data.calibration_message || null,
+        });
       }
+
       if (data.landmarks) set({ local: { landmarks: data.landmarks, version: 1 } });
       if (data.results?.ai_narrative) {
         const n = data.results.ai_narrative;
@@ -473,7 +496,8 @@ export const useOrthoStore = create<OrthoState>((set, get) => ({
         showCalibration: false,
         calibrationClickPoints: [],
         calibrationDistance: '',
-        calibrationStep: 'selecting'
+        calibrationStep: 'selecting',
+        autoCalibMessage: `Calibration vérifiée par le praticien : ${ratio.toFixed(4)} mm/px`,
       });
       const updatedData = await cephaloRepository.saveAnalysis(s.analysisId, { landmarks: s.local.landmarks, mm_per_pixel: ratio });
       if (updatedData.results) set({ anglesData: updatedData.results });
