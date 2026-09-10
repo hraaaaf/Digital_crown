@@ -12,6 +12,11 @@ from typing import Any, Mapping, Optional, Sequence
 from backend.schemas.cephalo_evidence import EvidenceStatus, LandmarkEvidence, LandmarkOrigin, SourceEvidence
 from backend.schemas.clinical import CephaloAnalysisResult
 from backend.services.cephalo_construction_evidence_adapter import materialize_craniom_linear_constructions
+from backend.services.cephalo_constructions import (
+    craniom_ab_prime_mm_v1,
+    craniom_facial_depth_mm_v1,
+    nasion_vertical_offset_mm_v1,
+)
 from backend.services.cephalo_evidence_case_integrity import validate_case_evidence_graph
 from backend.services.cephalo_evidence_graph import EvidenceGraphSnapshot
 from backend.services.cephalo_measurement_adapter import adapt_craniom_linear_measurements
@@ -64,14 +69,13 @@ def _history(previous: Optional[Mapping[str, Any]]) -> list[dict[str, Any]]:
     old_history = previous.get("history", [])
     if not isinstance(old_history, list):
         raise CephaloRuntimeEvidenceError("Persisted evidence history must be a list")
-    snapshot = {
+    return [*old_history, {
         "revision": previous.get("revision"),
         "sources": previous.get("sources", []),
         "landmarks": previous.get("landmarks", []),
         "constructions": previous.get("constructions", []),
         "measurements": previous.get("measurements", []),
-    }
-    return [*old_history, snapshot]
+    }]
 
 def _old_auto(previous: Optional[Mapping[str, Any]]) -> list[LandmarkEvidence]:
     if not previous:
@@ -121,6 +125,31 @@ def _current_landmarks(
             f"SOTA_ONNX_38 evidence requires exact 38-landmark contract; missing={missing}, extra={extra}"
         )
     return out
+
+def _assert_runtime_geometry_matches(
+    result: CephaloAnalysisResult,
+    current: Mapping[str, LandmarkEvidence],
+) -> None:
+    required = {"S", "N", "Po", "Or", "A", "B"}
+    if not required.issubset(current):
+        return
+    point = lambda key: (current[key].x, current[key].y)
+    ratio = result.analysis_metadata.pixel_ratio
+    expected = {
+        "Situation_A": nasion_vertical_offset_mm_v1(point("A"), point("N"), point("Po"), point("Or"), ratio),
+        "Situation_B": nasion_vertical_offset_mm_v1(point("B"), point("N"), point("Po"), point("Or"), ratio),
+        "Decalage_A_B": craniom_ab_prime_mm_v1(point("A"), point("B"), point("Po"), point("Or"), ratio),
+        "Profondeur_Faciale": craniom_facial_depth_mm_v1(point("S"), point("N"), point("Po"), point("Or"), ratio),
+    }
+    skeletal = result.metrics.analyse_osseuse
+    for field, expected_value in expected.items():
+        runtime_value = getattr(skeletal, field).valeur
+        if expected_value is None:
+            if runtime_value is not None:
+                raise CephaloRuntimeEvidenceError(f"Runtime {field} exists although evidence geometry is not computable")
+            continue
+        if runtime_value is None or not math.isfinite(runtime_value) or not math.isclose(runtime_value, expected_value, rel_tol=1e-9, abs_tol=1e-9):
+            raise CephaloRuntimeEvidenceError(f"Runtime {field} does not match persisted evidence geometry")
 
 def _calibration_source(
     *, patient_id: int, case_id: str, result: CephaloAnalysisResult,
@@ -180,9 +209,11 @@ def build_cephalo_runtime_evidence_payload(
         landmarks, case_id=resolved_case, revision=revision, source_ref=ceph_source.evidence_id,
         inference_mode=inference_mode, manual=manual_revision,
     )
+    current_by_id = {lm.landmark_id: lm for lm in current}
+    _assert_runtime_geometry_matches(result, current_by_id)
     graph_landmarks = (_old_auto(previous_payload) if manual_revision else []) + current
     constructions = materialize_craniom_linear_constructions(
-        {lm.landmark_id: lm for lm in current}, construction_namespace=f"construction:{resolved_case}:r{revision}",
+        current_by_id, construction_namespace=f"construction:{resolved_case}:r{revision}",
     )
     calibration = _calibration_source(
         patient_id=patient_id, case_id=resolved_case, result=result, is_calibrated=is_calibrated,
