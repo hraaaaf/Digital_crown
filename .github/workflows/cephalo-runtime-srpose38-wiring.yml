@@ -52,12 +52,39 @@ jobs:
       - name: Run Digital Crown SOTAVisionEngine on benchmark cephalogram
         run: |
           python - <<'PY'
+          import importlib.util
           import json
+          import sys
+          import types
           from pathlib import Path
 
           import numpy as np
 
-          from backend.services.sota_vision_service import SOTAVisionEngine
+          # Load the real scientific module without executing unrelated backend/__init__.py.
+          backend_pkg = types.ModuleType('backend')
+          backend_pkg.__path__ = [str(Path('backend').resolve())]
+          core_pkg = types.ModuleType('backend.core')
+          core_pkg.__path__ = [str(Path('backend/core').resolve())]
+          paths_mod = types.ModuleType('backend.core.paths')
+
+          class AppPaths:
+              @staticmethod
+              def get_model_path(model_name: str) -> Path:
+                  return Path('backend/ai_models') / model_name
+
+          paths_mod.AppPaths = AppPaths
+          sys.modules['backend'] = backend_pkg
+          sys.modules['backend.core'] = core_pkg
+          sys.modules['backend.core.paths'] = paths_mod
+
+          spec = importlib.util.spec_from_file_location(
+              'backend.services.sota_vision_service',
+              Path('backend/services/sota_vision_service.py'),
+          )
+          module = importlib.util.module_from_spec(spec)
+          assert spec.loader is not None
+          spec.loader.exec_module(module)
+          SOTAVisionEngine = module.SOTAVisionEngine
 
           image = Path('.ci/smoke/srpose38-real-ceph-input-unpadded.png')
           reference = json.loads(Path('.ci/onnx/srpose38-onnx-parity.json').read_text(encoding='utf-8'))
