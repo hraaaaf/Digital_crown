@@ -1,6 +1,6 @@
 # CÉPHALO — EVIDENCE MODEL
 
-**Statut : EN COURS — schémas typés + intégrité inter-objets sur branche empilée ; pas encore source runtime de vérité**  
+**Statut : EN COURS — schémas + intégrité inter-objets mergés ; verrou patient/cas en certification ; pas encore source runtime de vérité**  
 **Parent canonique :** `docs/CEPHALO_DIAGNOSTIC_SPEC.md`  
 **Rôle :** architecture transversale des lots 3→14.
 
@@ -18,8 +18,10 @@ Chaque objet dérivé conserve ses références de preuve, sa méthode/version e
 
 - contrat typé : `backend/schemas/cephalo_evidence.py` ;
 - tests unitaires d'objet : `backend/tests/test_cephalo_evidence_contracts.py` ;
-- validation inter-objets : `backend/services/cephalo_evidence_graph.py` ;
-- tests de chaîne synthétique : `backend/tests/test_cephalo_evidence_graph.py`.
+- intégrité inter-objets mergée via PR #392 : `backend/services/cephalo_evidence_graph.py` ;
+- tests de chaîne synthétique : `backend/tests/test_cephalo_evidence_graph.py` ;
+- verrou patient/cas + audit praticien réel en certification : `backend/services/cephalo_evidence_case_integrity.py` ;
+- tests associés : `backend/tests/test_cephalo_evidence_case_integrity.py`.
 
 Le graphe **n'est pas encore branché comme source de vérité du workflow patient**. Les payloads céphalo historiques restent en compatibilité pendant la migration.
 
@@ -31,6 +33,10 @@ Le graphe **n'est pas encore branché comme source de vérité du workflow patie
 `MISSING` ou `NOT_COMPUTABLE` n'est jamais transformé en normalité, zéro, moyenne ou valeur patient par défaut.
 
 ## OBJETS MINIMAUX ET GATES
+
+### SourceEvidence / frontière patient-cas
+
+Avant utilisation clinique, le graphe doit être validé avec un `patient_id` et un `case_id` explicites. Toutes les `SourceEvidence`, y compris calibration et autres records, doivent appartenir à ce même patient et porter exactement ce `case_id`. Un mélange inter-patient/inter-cas est rejeté.
 
 ### LandmarkEvidence
 
@@ -50,15 +56,15 @@ Le profil normatif doit exister dans le registre versionné. Version, méthode, 
 
 ### Finding / DiagnosticHypothesis
 
-Les preuves et findings cités doivent réellement exister. Un diagnostic `ACCEPTED/EDITED` nécessite praticien + date.
+Les preuves et findings cités doivent réellement exister. Un diagnostic `ACCEPTED/EDITED` nécessite praticien + date **et**, au niveau case-bound, un `ClinicianValidationEvidence` ACCEPT/EDIT visant exactement ce diagnostic avec le même praticien et le même horodatage.
 
 ### Problem / Objective
 
-Un état `ACCEPTED/EDITED` nécessite praticien + date. Les références diagnostic/problème doivent résoudre.
+Un état `ACCEPTED/EDITED` nécessite praticien + date et un vrai `ClinicianValidationEvidence` correspondant. Les références diagnostic/problème doivent résoudre.
 
 ### TreatmentOption
 
-Une option avec gate manquant ne peut être évaluable/sélectionnée. Une option `CLINICIAN_SELECTED` nécessite praticien + date.
+Une option avec gate manquant ne peut être évaluable/sélectionnée. Une option `CLINICIAN_SELECTED` nécessite praticien + date et un vrai `ClinicianValidationEvidence` correspondant.
 
 ### ClinicianValidation / FinalPlan
 
@@ -73,7 +79,7 @@ Le type et l'identifiant de toute validation doivent viser le même espace d'obj
 ## SUCCESS
 
 Le Lot 0 ne sera fermé que lorsque :
-- ces contrats sont verts en CI ;
+- les contrats et le verrou patient/cas sont verts en CI ;
 - au moins un cas synthétique traverse toute la chaîne ;
 - un adaptateur runtime transforme les mesures patient en `MeasurementEvidence` sans narration libre ;
 - aucune narration libre ne sert de donnée clinique source ;
@@ -81,4 +87,4 @@ Le Lot 0 ne sera fermé que lorsque :
 
 ## NEXT EXACT
 
-Après intégration de cette branche : valider l'adaptateur runtime `CephaloAnalysisResult → MeasurementEvidence`, d'abord pour les mesures CRANIOM certifiées géométriquement. Aucun diagnostic ni traitement ne sera activé par cet adaptateur.
+Certifier le verrou patient/cas en CI, puis implémenter l'adaptateur runtime `CephaloAnalysisResult → MeasurementEvidence`, d'abord pour les mesures CRANIOM certifiées géométriquement. Aucun diagnostic ni traitement ne sera activé par cet adaptateur.
