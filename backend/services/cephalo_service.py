@@ -4,6 +4,10 @@ from backend.repositories.cephalo_repository import CephaloRepository
 from backend.services.cephalo_safe_engine import cephalo_safe_engine as cephalo_engine
 from backend.services.vision_service import vision_engine
 from backend.services.bilan_ortho_engine import bilan_ortho_engine
+from backend.services.cephalo_runtime_evidence import (
+    EVIDENCE_GRAPH_KEY,
+    build_cephalo_runtime_evidence_payload,
+)
 from backend import schemas, models
 import logging
 
@@ -82,11 +86,26 @@ class CephaloService:
         }
         final_data_dict["calibration_status"] = "verified" if auto_ratio else "unverified"
 
+        # Scientific evidence is persisted atomically inside angles_data while the
+        # existing response contract remains unchanged. Automatic legacy calibration
+        # is deliberately NOT accepted as typed calibration evidence: linear evidence
+        # stays NOT_COMPUTABLE until explicit calibration provenance exists.
+        evidence_payload = build_cephalo_runtime_evidence_payload(
+            patient_id=patient_id,
+            image_record_id=db_path,
+            result=result,
+            landmarks=pts,
+            inference_mode=vision_result.get("mode_inference"),
+            is_calibrated=False,
+            calibration_data=None,
+        )
+        persisted_data = {**final_data_dict, EVIDENCE_GRAPH_KEY: evidence_payload}
+
         analysis = self.repo.create(
             patient_id,
             db_path,
             pts,
-            final_data_dict,
+            persisted_data,
             mm_per_pixel=mm_ratio,
         )
         if auto_ratio:
@@ -147,10 +166,30 @@ class CephaloService:
 
         final_data_dict["calibration_status"] = "verified" if existing.is_calibrated else "unverified"
 
+        previous_payload = None
+        if isinstance(existing.angles_data, dict):
+            candidate = existing.angles_data.get(EVIDENCE_GRAPH_KEY)
+            if isinstance(candidate, dict):
+                previous_payload = candidate
+
+        evidence_payload = build_cephalo_runtime_evidence_payload(
+            patient_id=existing.patient_id,
+            image_record_id=existing.image_original_path,
+            result=result,
+            landmarks=pts_list,
+            inference_mode=None,
+            previous_payload=previous_payload,
+            manual_revision=True,
+            is_calibrated=bool(existing.is_calibrated),
+            calibration_data=existing.calibration_data,
+            recorded_at=existing.created_at,
+        )
+        persisted_data = {**final_data_dict, EVIDENCE_GRAPH_KEY: evidence_payload}
+
         analysis = self.repo.update(
             analysis_id,
             pts_list,
-            final_data_dict,
+            persisted_data,
             effective_mm_per_pixel,
         )
         if not analysis:
