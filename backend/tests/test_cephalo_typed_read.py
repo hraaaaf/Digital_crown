@@ -107,3 +107,16 @@ def test_legacy_analysis_without_graph_is_copied_unchanged():
     projected = project_typed_craniom_read_path(legacy, patient_id=7)
     assert projected == legacy
     assert projected is not legacy
+
+
+def test_read_authority_is_projection_state_not_persisted_snapshot_metadata():
+    angles, graph = _angles_with_graph(ratio=0.2, calibrated=True)
+    graph["authority_status"] = "PERSISTED_NOT_YET_READ_PATH"
+
+    projected = project_typed_craniom_read_path(angles, patient_id=7)
+
+    # Historical storage may carry this obsolete marker, but the authoritative GET
+    # must not expose a statement that contradicts its active read-path behavior.
+    assert angles[EVIDENCE_GRAPH_KEY]["authority_status"] == "PERSISTED_NOT_YET_READ_PATH"
+    assert "authority_status" not in projected[EVIDENCE_GRAPH_KEY]
+    assert projected["scientific_read_path"]["authority"] == "EVIDENCE_GRAPH_V1"
