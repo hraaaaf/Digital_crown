@@ -16,7 +16,7 @@ export const cephaloRepository = {
   },
 
   /**
-   * Upload une radiographie et lance l'analyse IA automatique.
+   * Upload une radiographie et lance l'analyse géométrique automatique.
    */
   async uploadRadio(patientId: number | string, file: File) {
     const form = new FormData();
@@ -34,7 +34,7 @@ export const cephaloRepository = {
   },
 
   /**
-   * Applique une calibration mm/pixel sur une analyse.
+   * Applique une calibration mm/pixel manuelle auditée sur une analyse.
    */
   async calibrate(analysisId: number, p1: {x: number, y: number}, p2: {x: number, y: number}, distanceMm: number) {
     const res = await api.post(`/ia/analyses/${analysisId}/calibrate`, {
@@ -46,19 +46,11 @@ export const cephaloRepository = {
   },
 
   /**
-   * Récupère un diagnostic généré par l'IA (SLM/Ollama).
-   */
-  async getAIDiagnostic(patientId: number | string) {
-    const res = await api.get(`/patients/${patientId}/ai-diagnostic`);
-    return res.data?.report ?? res.data ?? {};
-  },
-
-  /**
    * Génère le rapport PDF complet.
    */
   async generatePDF(patientId: number | string, payload: any) {
     const res = await api.post(`/patients/${patientId}/pdf`, payload, { 
-      responseType: 'blob' as any 
+      responseType: 'blob' as any
     });
     return res.data;
   }
