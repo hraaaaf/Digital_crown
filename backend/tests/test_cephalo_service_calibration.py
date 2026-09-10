@@ -1,9 +1,9 @@
 """
-Tests d'intégration pour l'injection de `calibration_status` dans le pipeline céphalo
-(bug audit fonctionnel 2026-07-12 : ratio mm/px par défaut 0.1 utilisé silencieusement
-quand l'auto-calibration échoue, sans jamais avertir le praticien). Fixtures `db`/
-`dentiste` de conftest.py.
-Exécuter avec : pytest backend/tests/test_cephalo_service_calibration.py -v
+Tests d'intégration du statut de calibration dans le pipeline céphalo.
+
+R1 interdit toute promotion silencieuse d'un ratio détecté/legacy en calibration
+scientifique vérifiée. Un upload neuf reste non calibré tant qu'une transition de
+calibration auditée n'a pas atteint un état vérifié.
 """
 from datetime import datetime
 
@@ -30,8 +30,6 @@ def _make_patient(db, dentiste, nom="CEPHCAL"):
     return pat
 
 
-# Landmarks minimaux mais suffisants pour que SNA/SNB/ANB se calculent (angles
-# présents non-None), avec l'id "id" attendu par vision_result["landmarks"].
 _FAKE_LANDMARKS = [
     {"id": "S", "x": 50.0, "y": 60.0},
     {"id": "N", "x": 70.0, "y": 40.0},
@@ -73,12 +71,14 @@ class TestCalibrationStatusOnNewRadio:
         assert result["results"]["analysis_metadata"]["pixel_ratio"] is None
         assert result["results"]["metrics"]["analyse_dentaire"]["Surplomb"]["valeur"] is None
 
-    def test_verified_when_auto_calibration_succeeds(self, db, dentiste, monkeypatch):
+    def test_legacy_detected_ratio_cannot_promote_new_radio_to_verified(self, db, dentiste, monkeypatch):
         pat = _make_patient(db, dentiste)
         monkeypatch.setattr(
             cephalo_service_module.vision_engine, "predict_landmarks",
             lambda file_path: _fake_vision_result(),
         )
+        # Even if legacy code offers a ratio, R1 no longer accepts it as verified
+        # physical-scale evidence during upload.
         monkeypatch.setattr(
             calibration_service_module.calibration_service, "detect_mm_per_pixel",
             lambda file_path: 0.11,
@@ -87,12 +87,14 @@ class TestCalibrationStatusOnNewRadio:
         service = CephaloService(db)
         result = service.process_new_radio(pat.id, "fake_path.jpg", "fake_db_path")
 
-        assert result["results"]["calibration_status"] == "verified"
-        assert result["is_calibrated"] is True
+        assert result["results"]["calibration_status"] == "unverified"
+        assert result["is_calibrated"] is False
+        assert result["mm_per_pixel"] is None
+        assert result["results"]["analysis_metadata"]["pixel_ratio"] is None
 
 
 class TestCalibrationStatusPersistedOnRefine:
-    def test_calibrated_refine_without_ratio_reuses_stored_ratio(self, db, dentiste, monkeypatch):
+    def test_uncalibrated_refine_without_ratio_stays_unverified(self, db, dentiste, monkeypatch):
         pat = _make_patient(db, dentiste)
         monkeypatch.setattr(
             cephalo_service_module.vision_engine, "predict_landmarks",
@@ -105,18 +107,16 @@ class TestCalibrationStatusPersistedOnRefine:
         service = CephaloService(db)
         created = service.process_new_radio(pat.id, "fake_path.jpg", "fake_db_path")
 
-        # test_stub n'est pas une preuve SRPose38. La première soumission authentifiée
-        # matérialise donc des points MANUAL et exige l'identité du praticien.
         refined = service.refine_analysis(
             created["analysis_id"],
             [{"id": lm["id"], "x": lm["x"], "y": lm["y"]} for lm in _FAKE_LANDMARKS],
             clinician_id=str(dentiste.id),
         )
 
-        assert refined["results"]["calibration_status"] == "verified"
-        assert refined["is_calibrated"] is True
-        assert refined["mm_per_pixel"] == 0.237
-        assert refined["results"]["analysis_metadata"]["pixel_ratio"] == 0.237
+        assert refined["results"]["calibration_status"] == "unverified"
+        assert refined["is_calibrated"] is False
+        assert refined["mm_per_pixel"] is None
+        assert refined["results"]["analysis_metadata"]["pixel_ratio"] is None
 
     def test_explicit_refine_ratio_is_rejected_for_typed_case(self, db, dentiste, monkeypatch):
         pat = _make_patient(db, dentiste, nom="CEPHCAL_EXPLICIT")
@@ -131,8 +131,6 @@ class TestCalibrationStatusPersistedOnRefine:
         service = CephaloService(db)
         created = service.process_new_radio(pat.id, "fake_path.jpg", "fake_db_path")
 
-        # Une analyse avec graphe typé ne peut plus changer d'échelle via le
-        # raffinement générique. La calibration auditée est l'unique voie autorisée.
         with pytest.raises(ValueError, match="endpoint de calibration"):
             service.refine_analysis(
                 created["analysis_id"],
