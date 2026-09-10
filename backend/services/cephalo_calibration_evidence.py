@@ -294,7 +294,6 @@ def rebuild_evidence_after_manual_calibration(
         "case_id": case_id,
         "revision": next_revision,
         "revision_reason": "MANUAL_CALIBRATION",
-        "authority_status": "PERSISTED_NOT_YET_READ_PATH",
         "legacy_angles_data_role": "COMPATIBILITY_OUTPUT",
         "history": _history(previous_payload),
         "sources": [item.model_dump(mode="json") for item in current_sources],
