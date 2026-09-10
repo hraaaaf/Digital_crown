@@ -7,9 +7,9 @@
 - Portée : `InstallmentStudio`, plans/échéances, génération, édition, passage payé, mode de règlement, rappels WhatsApp, preview/PDF et connexions P3/P4.
 - **CODE VÉRIFIÉ** : oui pour les constats ci-dessous.
 - **TESTS HISTORIQUES EXÉCUTÉS** : anciens P4-A/P4-B certifiés par CI exacte selon la roadmap.
-- **TEST EXÉCUTÉ SUR CET AUDIT** : non revendiqué.
-- **INTERACTION RUNTIME / VISUELLE** : non exécutée dans cette session.
-- **CERTIFICATION FINANCIÈRE / PRODUCTION** : non revendiquée.
+- **TEST EXÉCUTÉ SUR CET AUDIT** : non revendiqué à la date du baseline ; voir certification finale ci-dessous.
+- **INTERACTION RUNTIME / VISUELLE** : non exécutée au baseline ; voir certification finale ci-dessous.
+- **CERTIFICATION FINANCIÈRE / PRODUCTION** : non revendiquée au baseline.
 
 ---
 
@@ -131,7 +131,7 @@ Un plan persistant doit satisfaire simultanément :
 
 ---
 
-## 6. Gates runtime encore ouverts
+## 6. Gates runtime du baseline
 
 - création plan exact / sous-alloué / sur-alloué ;
 - zéro/négatif/NaN/valeur extrême ;
@@ -143,6 +143,64 @@ Un plan persistant doit satisfaire simultanément :
 - rappel WhatsApp avec/sans téléphone ;
 - preview non persistante ;
 - archive/génération persistante ;
-- responsive 1440/768/390 et clavier.
+- responsive 390/768/1280 et clavier.
 
-Aucune fermeture P5 n'est revendiquée avant ces preuves.
+---
+
+## 7. Certification finale engineering — 2026-09-10
+
+Branche : `cert/p5-runtime-financial`.
+PR : `#402`.
+Base post-Cephalo : `6dcdb18d364545a151f1e2a3fa01b1ce37a9494f`.
+HEAD certifié avant closeout documentaire : `63d33c2c926120fec45174aba831c1154e48b35a`.
+
+### Runtime / financier vérifié
+
+- CI principal `#3156` / run `34520821875` : **success** sur le HEAD ci-dessus.
+- T2 Runtime Browser Certification `#2167` / run `34520821872` : **success** sur le même HEAD.
+- Settings R11 `#495` : **success** ; Patient P7 Final Certification `#1184` : **success**.
+- Probe financier T2 : **PASS** ; P5 plan `1200.0`, échéances `500.0 + 700.0`, encaissé `500.0`.
+- Preview financière certifiée non persistante par les tests runtime ciblés de la PR.
+- Sélection `latest` certifiée déterministe : `created_at DESC`, puis `id DESC` à égalité.
+- Une échéance `PAID/PAYE` ne peut être rechiffrée ni rouverte sans sémantique de contrepassation explicite.
+- Aucune nouvelle primitive de contrepassation n'est introduite par P5 ; ce scénario comptable reste un lot séparé.
+
+### PDF / navigateur vérifié
+
+Artefact AFTER : `t2-browser-evidence` du run T2 `#2167`.
+
+- matrice réelle : `390x844`, `430x932`, `768x1024`, `1280x900` + double-check dark `1280x900` ;
+- Suivi Paiement : **10/10 automatisé** sur navigation, contenu, actions, overflow responsive, stabilité runtime, hiérarchie/lisibilité et preview ;
+- `scrollWidth == clientWidth` sur les viewports certifiés : aucun overflow horizontal document ;
+- preview Escape : PASS ;
+- impression navigateur : PASS via PDF blob → iframe cachée → focus → print ;
+- fraîcheur PDF : PASS, hash différent après changement de contenu et payload le plus récent observé.
+
+### Comparaison visuelle humaine BEFORE → AFTER
+
+BEFORE : run T2 `#2166` / SHA `06d76834b88e22c06b55db80071d2c13b7ab4371`.
+AFTER : run T2 `#2167` / SHA `63d33c2c926120fec45174aba831c1154e48b35a`.
+
+Même viewports inspectés : `390`, `768`, `1280`.
+
+Constats :
+- structure et workflow conservés ;
+- commandes d'encaissement visiblement plus hautes et plus faciles à cibler aux viewports 768/1280 ;
+- densité mobile réduite sans créer d'overflow horizontal ;
+- aucune coupure nouvelle ni régression de hiérarchie observée ;
+- le mobile 390 reste structurellement dense, mais l'AFTER n'aggrave pas la composition et le gate d'overflow reste vert.
+
+**Score visuel humain P5 AFTER : 8,8/10.**
+
+Ce score n'est pas le score automatisé T2 10/10 : il reflète l'inspection esthétique/ergonomique humaine des captures, avec réserve sur la densité du viewport 390.
+
+## 8. Verdict
+
+**P5 engineering/runtime automatisé : ✅ certifié sur `63d33c2c...` avant le commit documentaire de closeout.**
+
+Restent hors de cette certification :
+- validation comptable/réglementaire humaine si exigée ;
+- définition métier d'une vraie contrepassation comptable ;
+- validation sur un cabinet réel / production locale réelle.
+
+Tout nouveau commit de closeout documentaire doit repasser les checks requis avant merge ; il ne modifie pas le comportement financier certifié sauf diff contraire.
