@@ -25,6 +25,7 @@ import {
 import { PALETTE } from './cephaloTheme';
 
 import { Step1Cephalo } from './components/Step1Cephalo';
+import { CephaloClinicalEvidencePanel } from './components/CephaloClinicalEvidencePanel';
 import { Step2Occlusal } from './components/Step2Occlusal';
 import { Step3Clinical } from './components/Step3Clinical';
 import { Step4Documents } from './components/Step4Documents';
@@ -381,7 +382,12 @@ export const CephaloWorkspace: React.FC<CephaloWorkspaceProps> = ({
         <div className="max-w-4xl mx-auto">
           {viewMode === 'studio' ? (
             <>
-              {step === 1 && renderStep1()}
+              {step === 1 && (
+                <div className="relative">
+                  {renderStep1()}
+                  {imageSrc && <CephaloClinicalEvidencePanel />}
+                </div>
+              )}
               {step === 2 && <Step2Occlusal P={P} />}
               {step === 3 && <Step3Clinical P={P} />}
               {step === 4 && <Step4Documents P={P} />}
