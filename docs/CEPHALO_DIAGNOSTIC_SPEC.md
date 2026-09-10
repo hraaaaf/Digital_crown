@@ -7,7 +7,8 @@
 **Intégrité inter-objets :** PR #392 — `1566f77ff5ee9d848f8e31787f92e542f16a38b7`  
 **Adaptateur MeasurementEvidence :** PR #393 — `65349a62d4b132f6bd6c2cb15f3e52b38e5d38ab`  
 **Matérialisation ConstructionEvidence :** PR #394 — `c647c0843b265eadf4a70652ae4608708f48d2be`  
-**PR active :** #395 — frontière patient/cas + audit praticien réel  
+**Frontière patient/cas :** PR #395 — `3e8e39eb88581bd461a8104b9fad96b82d65292a`  
+**PR active :** #397 — persistence runtime du graphe typé  
 **Statut :** chantier actif ; aucun diagnostic ni plan thérapeutique déclaré certifié
 
 ## GOAL GLOBAL
@@ -24,10 +25,10 @@ Une donnée manquante reste `UNKNOWN` / `NOT_COMPUTABLE`. Aucune norme, classe, 
 
 | Lot | Goal | État vérifié |
 |---|---|---|
-| 0 | Modèle de preuve clinique typé | EN COURS — schémas, registre, resolver, ConstructionEvidence et MeasurementEvidence mergés ; frontière patient/cas en #395 ; persistence/source runtime de vérité restante |
+| 0 | Modèle de preuve clinique typé | EN COURS — contrats, registre, resolver, frontière patient/cas, ConstructionEvidence et MeasurementEvidence mergés ; persistence runtime en #397 ; read-path source de vérité restant |
 | 1 | Purger logique clinique non sourcée | FAIT — PR #371 |
 | 2 | Runtime SRPose38 exact | FAIT — PR #388 |
-| 3 | Contrat des 38 landmarks | EN COURS — ordre 38/38 certifié ; définitions opérationnelles partielles |
+| 3 | Contrat des 38 landmarks | EN COURS — ordre/identité 38/38 certifiés ; définitions opérationnelles partielles |
 | 4 | Constructions géométriques | EN COURS — CRANIOM linéaire matérialisé ; conventions mandibulaires restantes |
 | 5 | COM / CRANIOM | EN COURS — géométrie + références spécifiques inertes disponibles |
 | 6 | Steiner | À FAIRE |
@@ -43,32 +44,48 @@ Une donnée manquante reste `UNKNOWN` / `NOT_COMPUTABLE`. Aucune norme, classe, 
 ## ACQUIS VÉRIFIÉS
 
 ### SRPose38
-- 38 points intégrés et runtime CPU certifié ;
-- ordre CL-Detection documenté ;
-- fail-closed si asset invalide/absent.
+- runtime CPU certifié ;
+- ordre CL-Detection 38/38 documenté ;
+- hash modèle et pipeline déterministes ;
+- le nouveau bridge de persistence refuse de qualifier un fallback automatique comme SRPose38 et exige l'identité exacte des 38 points.
 
 ### CRANIOM
 Sources publiées enregistrées :
 - Part 1 DOI `10.1051/odfen/2010406` ;
 - Part 2 DOI `10.1051/odfen/2011104`.
 
-Les références CRANIOM sont spécifiques à leur méthode/population, pas des normes universelles.
-
-Constructions versionnées et désormais matérialisables depuis les landmarks :
+Constructions versionnées et matérialisables :
 - `CRANIOM_A_TO_N_VERTICAL_V1` ;
 - `CRANIOM_B_TO_N_VERTICAL_V1` ;
 - `CRANIOM_AB_PRIME_V1` ;
 - `CRANIOM_S_TO_N_VERTICAL_DEPTH_V1`.
 
-Les quatre mesures runtime correspondantes passent par `MeasurementEvidence` uniquement avec construction compatible et calibration explicite. Sinon elles restent `NOT_COMPUTABLE`; une valeur non finie est refusée/invalidée.
+Les quatre mesures correspondantes passent par `MeasurementEvidence`. Sans construction disponible et calibration explicitement prouvée, elles restent `NOT_COMPUTABLE`.
 
 ### Graphe de preuve
-Le resolver mergé vérifie l'unicité globale des identifiants, l'existence/type des références, la cohérence du registre normatif et les gates du plan final. #395 ajoute la frontière absente : **toutes les SourceEvidence doivent appartenir au même patient et au même cas explicite**, les calibration refs doivent viser une source `kind="calibration"`, et tout diagnostic/problème/objectif accepté ou option sélectionnée doit être soutenu par un vrai `ClinicianValidationEvidence` cohérent.
+Le resolver vérifie identifiants, références, registre normatif et gates du plan final. PR #395 ajoute : même patient, même cas, vraie source de calibration, et vrai `ClinicianValidationEvidence` pour tout objet déclaré validé/sélectionné.
+
+### Persistence runtime #397
+Le bridge en cours stocke le snapshot sous `_evidence_graph_v1` dans le JSON `CephaloAnalysis.angles_data`. Ce choix est additif et atomique : aucune migration DB n'est nécessaire et le payload public historique reste inchangé.
+
+Le snapshot persiste :
+`SourceEvidence → LandmarkEvidence → ConstructionEvidence → MeasurementEvidence`.
+
+Règles fail-closed du bridge :
+- mode `SOTA_ONNX_38` + contrat exact 38 points requis pour des landmarks automatiques certifiés ;
+- fallback automatique legacy → aucune fausse preuve landmark SRPose38 ;
+- auto-calibration legacy seule → aucune mesure linéaire typée `AVAILABLE` ;
+- calibration manuelle deux-points explicitement persistée → géométrie recalculée/croisée avec `mm_per_pixel` avant utilisation ;
+- raffinement manuel → nouvelle révision ; points SRPose38 initiaux conservés, points courants marqués `MANUAL/OBSERVED`, jamais prétendus `CLINICIAN_VALIDATED` sans audit réel.
+
+`authority_status=PERSISTED_NOT_YET_READ_PATH` : la persistence existe, mais les écrans/API historiques lisent encore le payload de compatibilité. La bascule de lecture reste donc un gate distinct.
 
 ## GATES OUVERTS
 
-- CI exacte de #395 ;
-- branchement/persistence du graphe comme source de vérité du workflow patient ;
+- CI exacte et review de #397 ;
+- faire du graphe persistant la source read-path de vérité sans casser la compatibilité ;
+- persister la provenance de calibration manuelle depuis la route `/analyses/{id}/calibrate` ;
+- propager l'identité praticien sur les corrections manuelles avant de les qualifier `MANUAL_CORRECTED/CLINICIAN_VALIDATED` ;
 - convention du plan mandibulaire propre à chaque analyse ;
 - `Gi/Gs` CRANIOM absents comme landmarks SRPose38 distincts ;
 - `A''B''` non calculable sans protocole NHP/regard horizontal ;
@@ -84,22 +101,25 @@ Traitement : diagnostic validé + données cliniques requises + indication/contr
 
 ## PREUVES CI
 
-- PR #391 HEAD `a1e5e02df6f46a47b1fe2e1af34b415353c852ca` : CI `34471586594` success ; T2 `34471586570` success.
-- PR #392 HEAD `13be2f5fbbb0e69d52d3f97341bdedd52ad044d4` : CI `34472921729` success ; T2 `34472921733` success.
-- PR #393 HEAD `9739b305a0e98d8a2149d341ee035b4856d3c6ec` : CI `34474219020` success ; T2 `34474219021` success.
-- PR #394 HEAD `ef82e6bdded2168f99d6c475b1b5fbf891e3adaf` : CI `34474296352` success ; T2 `34474296300` success.
+- #391 : CI `34471586594` success ; T2 `34471586570` success.
+- #392 : CI `34472921729` success ; T2 `34472921733` success.
+- #393 : CI `34474219020` success ; T2 `34474219021` success.
+- #394 : CI `34474296352` success ; T2 `34474296300` success.
+- #395 HEAD `7daf28d2d7e93c3d34dca97d655fc67db3fb1dfa` : CI `34476589446` success ; T2 `34476589386` success ; merge `3e8e39eb88581bd461a8104b9fad96b82d65292a`.
+- #397 : certification du HEAD final requise avant merge.
 
 ## NEXT EXACT
 
-1. certifier #395 sur master `c647c0843b265eadf4a70652ae4608708f48d2be` ;
-2. si vert et sans review/thread bloquant : merger #395 ;
-3. rechercher les PR céphalo déjà ouvertes avant tout nouveau développement ;
-4. connecter ensuite la chaîne `Source/Landmark → ConstructionEvidence → MeasurementEvidence` au workflow patient, sans activer diagnostic/normes ;
-5. poursuivre les conventions mandibulaires CRANIOM/Tweed/Downs.
+1. certifier le HEAD final #397 ;
+2. corriger tout échec puis vérifier reviews/threads ;
+3. merger #397 uniquement si vert ;
+4. post-merge : câbler la provenance réelle de calibration manuelle + audit praticien des corrections ;
+5. basculer ensuite le read-path des quatre mesures CRANIOM vers le graphe typé ;
+6. poursuivre les conventions mandibulaires.
 
 ## SÉQUENCE RESTANTE
 
-`patient/case integrity → persistence/source-of-truth patient → conventions mandibulaires → COM/CRANIOM complet → Steiner → Tweed/Merrifield → Wits/Downs → McNamara → Ricketts/soft tissue → diagnostic multiaxial → problem list/objectifs → options → validation clinique → UX/PDF → closeout`
+`persistence evidence → calibration/audit provenance → read-path source-of-truth → conventions mandibulaires → COM/CRANIOM complet → Steiner → Tweed/Merrifield → Wits/Downs → McNamara → Ricketts/soft tissue → diagnostic multiaxial → problem list/objectifs → options → validation clinique → UX/PDF → closeout`
 
 ## DÉPLOIEMENT
 
