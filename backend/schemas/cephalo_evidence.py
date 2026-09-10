@@ -216,6 +216,15 @@ class ProblemEvidence(_StrictModel):
     statement: str = Field(min_length=1)
     priority: Optional[int] = Field(default=None, ge=1)
     state: ReviewState = ReviewState.PROPOSED
+    clinician_id: Optional[str] = None
+    clinician_validated_at: Optional[datetime.datetime] = None
+
+    @model_validator(mode="after")
+    def accepted_problem_requires_clinician(self):
+        if self.state in {ReviewState.ACCEPTED, ReviewState.EDITED}:
+            if not self.clinician_id or not self.clinician_validated_at:
+                raise ValueError("Accepted/edited problem requires clinician validation")
+        return self
 
 
 class ObjectiveEvidence(_StrictModel):
@@ -224,6 +233,15 @@ class ObjectiveEvidence(_StrictModel):
     target: str = Field(min_length=1)
     success_criterion: str = Field(min_length=1)
     state: ReviewState = ReviewState.PROPOSED
+    clinician_id: Optional[str] = None
+    clinician_validated_at: Optional[datetime.datetime] = None
+
+    @model_validator(mode="after")
+    def accepted_objective_requires_clinician(self):
+        if self.state in {ReviewState.ACCEPTED, ReviewState.EDITED}:
+            if not self.clinician_id or not self.clinician_validated_at:
+                raise ValueError("Accepted/edited objective requires clinician validation")
+        return self
 
 
 class TreatmentOptionEvidence(_StrictModel):
@@ -241,14 +259,19 @@ class TreatmentOptionEvidence(_StrictModel):
     profile_considerations: List[str] = Field(default_factory=list)
     stability_considerations: List[str] = Field(default_factory=list)
     status: TreatmentOptionStatus = TreatmentOptionStatus.EVALUABLE
+    clinician_id: Optional[str] = None
+    clinician_selected_at: Optional[datetime.datetime] = None
 
     @model_validator(mode="after")
-    def missing_gate_blocks_option(self):
+    def validate_option_contract(self):
         if self.missing_gates and self.status in {
             TreatmentOptionStatus.EVALUABLE,
             TreatmentOptionStatus.CLINICIAN_SELECTED,
         }:
             raise ValueError("Treatment option with missing gates cannot be evaluable or selected")
+        if self.status == TreatmentOptionStatus.CLINICIAN_SELECTED:
+            if not self.clinician_id or not self.clinician_selected_at:
+                raise ValueError("Clinician-selected treatment option requires clinician audit")
         return self
 
 

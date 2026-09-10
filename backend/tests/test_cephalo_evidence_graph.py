@@ -3,6 +3,7 @@
 from datetime import datetime, timezone
 
 import pytest
+from pydantic import ValidationError
 
 from backend.schemas.cephalo_evidence import (
     ClinicianValidationEvidence,
@@ -122,6 +123,8 @@ def _valid_graph() -> EvidenceGraphSnapshot:
         evidence_refs=["diagnosis:synthetic"],
         statement="Synthetic problem.",
         state=ReviewState.ACCEPTED,
+        clinician_id="clinician:1",
+        clinician_validated_at=NOW,
     )
     objective = ObjectiveEvidence(
         objective_id="objective:synthetic",
@@ -129,12 +132,16 @@ def _valid_graph() -> EvidenceGraphSnapshot:
         target="Synthetic target",
         success_criterion="Synthetic criterion",
         state=ReviewState.ACCEPTED,
+        clinician_id="clinician:1",
+        clinician_validated_at=NOW,
     )
     option = TreatmentOptionEvidence(
         option_id="option:synthetic",
         objective_refs=["objective:synthetic"],
         required_evidence_refs=["source:ceph:1"],
         status=TreatmentOptionStatus.CLINICIAN_SELECTED,
+        clinician_id="clinician:1",
+        clinician_selected_at=NOW,
     )
     validation = ClinicianValidationEvidence(
         validation_id="validation:plan:synthetic",
@@ -179,8 +186,19 @@ def _valid_graph() -> EvidenceGraphSnapshot:
     )
 
 
+def _replace(graph: EvidenceGraphSnapshot, **changes) -> EvidenceGraphSnapshot:
+    return EvidenceGraphSnapshot(**{**graph.__dict__, **changes})
+
+
 def test_complete_synthetic_chain_resolves_without_free_text_as_evidence():
     validate_evidence_graph(_valid_graph())
+
+
+def test_missing_source_image_reference_is_rejected():
+    graph = _valid_graph()
+    bad_landmark = graph.landmarks[0].model_copy(update={"source_image_ref": "source:missing"})
+    with pytest.raises(EvidenceGraphValidationError, match="source:missing"):
+        validate_evidence_graph(_replace(graph, landmarks=[bad_landmark, graph.landmarks[1]]))
 
 
 def test_missing_landmark_reference_is_rejected():
@@ -188,11 +206,17 @@ def test_missing_landmark_reference_is_rejected():
     bad_construction = graph.constructions[0].model_copy(
         update={"landmark_refs": ["landmark:Po", "landmark:missing"]}
     )
-    bad_graph = EvidenceGraphSnapshot(
-        **{**graph.__dict__, "constructions": [bad_construction]}
-    )
     with pytest.raises(EvidenceGraphValidationError, match="landmark:missing"):
-        validate_evidence_graph(bad_graph)
+        validate_evidence_graph(_replace(graph, constructions=[bad_construction]))
+
+
+def test_unknown_normative_profile_is_rejected():
+    graph = _valid_graph()
+    bad_evaluation = graph.normative_evaluations[0].model_copy(
+        update={"norm_profile_id": "UNKNOWN_PROFILE"}
+    )
+    with pytest.raises(EvidenceGraphValidationError, match="UNKNOWN_PROFILE"):
+        validate_evidence_graph(_replace(graph, normative_evaluations=[bad_evaluation]))
 
 
 def test_missing_normative_source_reference_is_rejected():
@@ -200,23 +224,50 @@ def test_missing_normative_source_reference_is_rejected():
     bad_evaluation = graph.normative_evaluations[0].model_copy(
         update={"source_refs": ["UNKNOWN_SOURCE"]}
     )
-    bad_graph = EvidenceGraphSnapshot(
-        **{**graph.__dict__, "normative_evaluations": [bad_evaluation]}
-    )
     with pytest.raises(EvidenceGraphValidationError, match="UNKNOWN_SOURCE"):
-        validate_evidence_graph(bad_graph)
+        validate_evidence_graph(_replace(graph, normative_evaluations=[bad_evaluation]))
 
 
 def test_final_plan_requires_selected_option_status():
     graph = _valid_graph()
     option = graph.treatment_options[0].model_copy(
-        update={"status": TreatmentOptionStatus.EVALUABLE}
-    )
-    bad_graph = EvidenceGraphSnapshot(
-        **{**graph.__dict__, "treatment_options": [option]}
+        update={
+            "status": TreatmentOptionStatus.EVALUABLE,
+            "clinician_id": None,
+            "clinician_selected_at": None,
+        }
     )
     with pytest.raises(EvidenceGraphValidationError, match="CLINICIAN_SELECTED"):
-        validate_evidence_graph(bad_graph)
+        validate_evidence_graph(_replace(graph, treatment_options=[option]))
+
+
+def test_selected_option_requires_clinician_audit_at_schema_boundary():
+    with pytest.raises(ValidationError, match="clinician audit"):
+        TreatmentOptionEvidence(
+            option_id="option:unsafe",
+            objective_refs=["objective:synthetic"],
+            required_evidence_refs=["source:ceph:1"],
+            status=TreatmentOptionStatus.CLINICIAN_SELECTED,
+        )
+
+
+def test_accepted_problem_and_objective_require_clinician_audit():
+    with pytest.raises(ValidationError, match="problem requires clinician"):
+        ProblemEvidence(
+            problem_id="problem:unsafe",
+            diagnosis_refs=["diagnosis:synthetic"],
+            evidence_refs=["diagnosis:synthetic"],
+            statement="Unsafe synthetic problem",
+            state=ReviewState.ACCEPTED,
+        )
+    with pytest.raises(ValidationError, match="objective requires clinician"):
+        ObjectiveEvidence(
+            objective_id="objective:unsafe",
+            problem_refs=["problem:synthetic"],
+            target="Unsafe target",
+            success_criterion="Unsafe criterion",
+            state=ReviewState.ACCEPTED,
+        )
 
 
 def test_final_plan_rejects_unvalidated_diagnosis():
@@ -228,14 +279,23 @@ def test_final_plan_rejects_unvalidated_diagnosis():
             "clinician_validated_at": None,
         }
     )
-    bad_graph = EvidenceGraphSnapshot(**{**graph.__dict__, "diagnoses": [diagnosis]})
     with pytest.raises(EvidenceGraphValidationError, match="unvalidated diagnosis"):
-        validate_evidence_graph(bad_graph)
+        validate_evidence_graph(_replace(graph, diagnoses=[diagnosis]))
+
+
+def test_final_plan_validation_must_target_same_plan_and_be_accepting():
+    graph = _valid_graph()
+    wrong_target = graph.validations[0].model_copy(update={"target_id": "objective:synthetic"})
+    with pytest.raises(EvidenceGraphValidationError, match="must target that final plan"):
+        validate_evidence_graph(_replace(graph, validations=[wrong_target]))
+
+    rejected = graph.validations[0].model_copy(update={"action": ValidationAction.REJECT})
+    with pytest.raises(EvidenceGraphValidationError, match="rejected validation"):
+        validate_evidence_graph(_replace(graph, validations=[rejected]))
 
 
 def test_final_plan_and_validation_must_have_same_clinician():
     graph = _valid_graph()
     validation = graph.validations[0].model_copy(update={"clinician_id": "clinician:2"})
-    bad_graph = EvidenceGraphSnapshot(**{**graph.__dict__, "validations": [validation]})
     with pytest.raises(EvidenceGraphValidationError, match="clinician differs"):
-        validate_evidence_graph(bad_graph)
+        validate_evidence_graph(_replace(graph, validations=[validation]))
