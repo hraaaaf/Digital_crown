@@ -232,7 +232,7 @@ def build_cephalo_runtime_evidence_payload(
     validate_case_evidence_graph(graph, patient_id=patient_id, case_id=resolved_case)
     return {
         "schema_version": EVIDENCE_SCHEMA_VERSION, "case_id": resolved_case, "revision": revision,
-        "authority_status": "PERSISTED_NOT_YET_READ_PATH", "legacy_angles_data_role": "COMPATIBILITY_OUTPUT",
+        "legacy_angles_data_role": "COMPATIBILITY_OUTPUT",
         "history": _history(previous_payload),
         "sources": [x.model_dump(mode="json") for x in sources],
         "landmarks": [x.model_dump(mode="json") for x in graph_landmarks],
