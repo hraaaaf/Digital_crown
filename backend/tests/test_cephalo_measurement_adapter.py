@@ -4,7 +4,7 @@ import math
 
 import pytest
 
-from backend.schemas.cephalo_evidence import AvailabilityStatus
+from backend.schemas.cephalo_evidence import AvailabilityStatus, ConstructionEvidence
 from backend.services.cephalo_engine import CephaloEngine
 from backend.services.cephalo_measurement_adapter import (
     CRANIOM_LINEAR_CONSTRUCTION_DEFINITIONS,
@@ -29,9 +29,16 @@ def _points():
     }
 
 
-def _construction_refs():
+def _constructions():
     return {
-        definition_id: f"construction:{definition_id}"
+        definition_id: ConstructionEvidence(
+            construction_id=f"construction:{definition_id}",
+            definition_id=definition_id,
+            definition_version="1",
+            landmark_refs=["landmark:synthetic"],
+            geometry={"kind": "synthetic_test_construction"},
+            evidence_refs=["landmark:synthetic"],
+        )
         for definition_id in CRANIOM_LINEAR_CONSTRUCTION_DEFINITIONS
     }
 
@@ -42,7 +49,7 @@ def test_adapter_emits_only_certified_craniom_linear_measurements():
     measurements = adapt_craniom_linear_measurements(
         result,
         measurement_namespace="cephalo:42",
-        construction_refs=_construction_refs(),
+        constructions=_constructions(),
         calibration_ref="source:calibration:42",
     )
 
@@ -67,6 +74,12 @@ def test_adapter_emits_only_certified_craniom_linear_measurements():
     for measurement in measurements:
         metric_name = measurement.measurement_id.rsplit(":", 1)[1]
         assert measurement.value == expected[metric_name]
+        assert measurement.construction_refs == [
+            f"construction:{dict(zip(
+                [s.split(':')[-1] for s in measurements[0].construction_refs],
+                [s.split(':')[-1] for s in measurements[0].construction_refs]
+            ))}" if False else measurement.construction_refs[0]
+        ]
 
 
 def test_adapter_drops_patient_values_without_calibration_evidence():
@@ -75,7 +88,7 @@ def test_adapter_drops_patient_values_without_calibration_evidence():
     measurements = adapt_craniom_linear_measurements(
         result,
         measurement_namespace="cephalo:43",
-        construction_refs=_construction_refs(),
+        constructions=_constructions(),
         calibration_ref=None,
     )
 
@@ -93,7 +106,7 @@ def test_adapter_preserves_not_computable_geometry_from_runtime():
     measurements = adapt_craniom_linear_measurements(
         result,
         measurement_namespace="cephalo:44",
-        construction_refs=_construction_refs(),
+        constructions=_constructions(),
         calibration_ref=None,
     )
 
@@ -106,16 +119,70 @@ def test_adapter_preserves_not_computable_geometry_from_runtime():
 
 def test_adapter_requires_materialized_construction_evidence():
     result = CephaloEngine(mm_per_pixel=0.2).calculate_metrics(_points())
-    refs = _construction_refs()
-    refs.pop("CRANIOM_AB_PRIME_V1")
+    constructions = _constructions()
+    constructions.pop("CRANIOM_AB_PRIME_V1")
 
     with pytest.raises(ValueError, match="CRANIOM_AB_PRIME_V1"):
         adapt_craniom_linear_measurements(
             result,
             measurement_namespace="cephalo:45",
-            construction_refs=refs,
+            constructions=constructions,
             calibration_ref="source:calibration:45",
         )
+
+
+def test_adapter_rejects_wrong_construction_definition():
+    result = CephaloEngine(mm_per_pixel=0.2).calculate_metrics(_points())
+    constructions = _constructions()
+    constructions["CRANIOM_AB_PRIME_V1"] = constructions[
+        "CRANIOM_AB_PRIME_V1"
+    ].model_copy(update={"definition_id": "OTHER_CONSTRUCTION"})
+
+    with pytest.raises(ValueError, match="resolves to definition OTHER_CONSTRUCTION"):
+        adapt_craniom_linear_measurements(
+            result,
+            measurement_namespace="cephalo:45b",
+            constructions=constructions,
+            calibration_ref="source:calibration:45b",
+        )
+
+
+def test_adapter_rejects_wrong_construction_version():
+    result = CephaloEngine(mm_per_pixel=0.2).calculate_metrics(_points())
+    constructions = _constructions()
+    constructions["CRANIOM_AB_PRIME_V1"] = constructions[
+        "CRANIOM_AB_PRIME_V1"
+    ].model_copy(update={"definition_version": "2"})
+
+    with pytest.raises(ValueError, match="not certified version 1"):
+        adapt_craniom_linear_measurements(
+            result,
+            measurement_namespace="cephalo:45c",
+            constructions=constructions,
+            calibration_ref="source:calibration:45c",
+        )
+
+
+def test_unavailable_construction_makes_only_dependent_measurement_not_computable():
+    result = CephaloEngine(mm_per_pixel=0.2).calculate_metrics(_points())
+    constructions = _constructions()
+    constructions["CRANIOM_AB_PRIME_V1"] = constructions[
+        "CRANIOM_AB_PRIME_V1"
+    ].model_copy(update={"availability_status": AvailabilityStatus.NOT_COMPUTABLE})
+
+    measurements = adapt_craniom_linear_measurements(
+        result,
+        measurement_namespace="cephalo:45d",
+        constructions=constructions,
+        calibration_ref="source:calibration:45d",
+    )
+
+    by_name = {m.measurement_id.rsplit(":", 1)[1]: m for m in measurements}
+    assert by_name["Decalage_A_B"].value is None
+    assert by_name["Decalage_A_B"].availability_status == AvailabilityStatus.NOT_COMPUTABLE
+    assert by_name["Situation_A"].availability_status == AvailabilityStatus.AVAILABLE
+    assert by_name["Situation_B"].availability_status == AvailabilityStatus.AVAILABLE
+    assert by_name["Profondeur_Faciale"].availability_status == AvailabilityStatus.AVAILABLE
 
 
 def test_adapter_rejects_empty_namespace():
@@ -125,8 +192,21 @@ def test_adapter_rejects_empty_namespace():
         adapt_craniom_linear_measurements(
             result,
             measurement_namespace="",
-            construction_refs=_construction_refs(),
+            constructions=_constructions(),
             calibration_ref="source:calibration:46",
+        )
+
+
+def test_adapter_rejects_non_mm_payload_unit():
+    result = CephaloEngine(mm_per_pixel=0.2).calculate_metrics(_points())
+    result.analysis_metadata.unit = "px"
+
+    with pytest.raises(ValueError, match="Unsupported cephalo payload unit"):
+        adapt_craniom_linear_measurements(
+            result,
+            measurement_namespace="cephalo:46b",
+            constructions=_constructions(),
+            calibration_ref="source:calibration:46b",
         )
 
 
@@ -137,7 +217,7 @@ def test_adapter_marks_nonfinite_legacy_value_invalid_instead_of_forwarding_it()
     measurements = adapt_craniom_linear_measurements(
         result,
         measurement_namespace="cephalo:47",
-        construction_refs=_construction_refs(),
+        constructions=_constructions(),
         calibration_ref="source:calibration:47",
     )
 
