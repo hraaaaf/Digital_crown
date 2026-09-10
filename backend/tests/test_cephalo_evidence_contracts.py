@@ -36,7 +36,7 @@ def test_measurement_requires_geometric_dependencies():
         )
 
 
-def test_linear_measurement_requires_calibration_reference():
+def test_linear_measurement_requires_calibration_reference_when_available():
     with pytest.raises(ValidationError):
         MeasurementEvidence(
             measurement_id="m2",
@@ -49,6 +49,25 @@ def test_linear_measurement_requires_calibration_reference():
             requires_calibration=True,
             evidence_refs=["source:ceph:1"],
         )
+
+
+def test_uncalibrated_linear_measurement_can_be_explicitly_not_computable():
+    measurement = MeasurementEvidence(
+        measurement_id="m2:not-computable",
+        analysis_id="COM",
+        method_id="CRANIOM_AB_PRIME_V1",
+        method_version="1",
+        value=None,
+        unit="mm",
+        construction_refs=["construction:ab-prime"],
+        calibration_ref=None,
+        requires_calibration=True,
+        availability_status=AvailabilityStatus.NOT_COMPUTABLE,
+        evidence_refs=["construction:ab-prime"],
+    )
+    assert measurement.value is None
+    assert measurement.calibration_ref is None
+    assert measurement.availability_status == AvailabilityStatus.NOT_COMPUTABLE
 
 
 def test_unavailable_measurement_cannot_carry_patient_value():
