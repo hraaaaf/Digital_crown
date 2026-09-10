@@ -7,6 +7,8 @@ Exécuter avec : pytest backend/tests/test_cephalo_service_calibration.py -v
 """
 from datetime import datetime
 
+import pytest
+
 from backend import models
 from backend.services.cephalo_service import CephaloService
 from backend.services import cephalo_service as cephalo_service_module
@@ -103,9 +105,12 @@ class TestCalibrationStatusPersistedOnRefine:
         service = CephaloService(db)
         created = service.process_new_radio(pat.id, "fake_path.jpg", "fake_db_path")
 
+        # test_stub n'est pas une preuve SRPose38. La première soumission authentifiée
+        # matérialise donc des points MANUAL et exige l'identité du praticien.
         refined = service.refine_analysis(
             created["analysis_id"],
             [{"id": lm["id"], "x": lm["x"], "y": lm["y"]} for lm in _FAKE_LANDMARKS],
+            clinician_id=str(dentiste.id),
         )
 
         assert refined["results"]["calibration_status"] == "verified"
@@ -113,7 +118,7 @@ class TestCalibrationStatusPersistedOnRefine:
         assert refined["mm_per_pixel"] == 0.237
         assert refined["results"]["analysis_metadata"]["pixel_ratio"] == 0.237
 
-    def test_explicit_refine_ratio_overrides_stored_ratio(self, db, dentiste, monkeypatch):
+    def test_explicit_refine_ratio_is_rejected_for_typed_case(self, db, dentiste, monkeypatch):
         pat = _make_patient(db, dentiste, nom="CEPHCAL_EXPLICIT")
         monkeypatch.setattr(
             cephalo_service_module.vision_engine, "predict_landmarks",
@@ -126,14 +131,15 @@ class TestCalibrationStatusPersistedOnRefine:
         service = CephaloService(db)
         created = service.process_new_radio(pat.id, "fake_path.jpg", "fake_db_path")
 
-        refined = service.refine_analysis(
-            created["analysis_id"],
-            [{"id": lm["id"], "x": lm["x"], "y": lm["y"]} for lm in _FAKE_LANDMARKS],
-            mm_per_pixel=0.250,
-        )
-
-        assert refined["mm_per_pixel"] == 0.250
-        assert refined["results"]["analysis_metadata"]["pixel_ratio"] == 0.250
+        # Une analyse avec graphe typé ne peut plus changer d'échelle via le
+        # raffinement générique. La calibration auditée est l'unique voie autorisée.
+        with pytest.raises(ValueError, match="endpoint de calibration"):
+            service.refine_analysis(
+                created["analysis_id"],
+                [{"id": lm["id"], "x": lm["x"], "y": lm["y"]} for lm in _FAKE_LANDMARKS],
+                mm_per_pixel=0.250,
+                clinician_id=str(dentiste.id),
+            )
 
     def test_uncalibrated_refine_does_not_become_verified(self, db, dentiste, monkeypatch):
         pat = _make_patient(db, dentiste, nom="CEPHCAL_UNVERIFIED")
@@ -151,6 +157,7 @@ class TestCalibrationStatusPersistedOnRefine:
         refined = service.refine_analysis(
             created["analysis_id"],
             [{"id": lm["id"], "x": lm["x"], "y": lm["y"]} for lm in _FAKE_LANDMARKS],
+            clinician_id=str(dentiste.id),
         )
 
         assert refined["is_calibrated"] is False
