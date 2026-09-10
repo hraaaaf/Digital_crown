@@ -20,6 +20,7 @@ from backend.services.cephalo_constructions import (
 
 
 Point = Tuple[float, float]
+_ANGLE_EPS = 1e-12
 
 
 class CephaloEngine:
@@ -73,12 +74,25 @@ class CephaloEngine:
         if not all((p1, p2, p3, p4)):
             return None
         assert p1 is not None and p2 is not None and p3 is not None and p4 is not None
-        a1 = math.degrees(math.atan2(p2[1] - p1[1], p2[0] - p1[0]))
-        a2 = math.degrees(math.atan2(p4[1] - p3[1], p4[0] - p3[0]))
+
+        v1 = (p2[0] - p1[0], p2[1] - p1[1])
+        v2 = (p4[0] - p3[0], p4[1] - p3[1])
+        len1 = math.hypot(*v1)
+        len2 = math.hypot(*v2)
+        if (
+            not math.isfinite(len1)
+            or not math.isfinite(len2)
+            or len1 <= _ANGLE_EPS
+            or len2 <= _ANGLE_EPS
+        ):
+            return None
+
+        a1 = math.degrees(math.atan2(v1[1], v1[0]))
+        a2 = math.degrees(math.atan2(v2[1], v2[0]))
         angle = abs(a1 - a2) % 180
         if invert:
             angle = 180 - angle
-        return round(angle, 1)
+        return round(angle, 1) if math.isfinite(angle) else None
 
     @staticmethod
     def _get_orthogonal_projection(
