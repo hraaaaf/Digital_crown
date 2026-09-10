@@ -1,6 +1,8 @@
 """Persistence-boundary tests for the cephalometric typed evidence snapshot."""
 from datetime import datetime, timezone
 
+import pytest
+
 from backend.schemas.cephalo_evidence import (
     AvailabilityStatus,
     ConstructionEvidence,
@@ -14,6 +16,7 @@ from backend.services.cephalo_evidence_case_integrity import validate_case_evide
 from backend.services.cephalo_evidence_graph import EvidenceGraphSnapshot
 from backend.services.cephalo_runtime_evidence import (
     EVIDENCE_SCHEMA_VERSION,
+    CephaloRuntimeEvidenceError,
     build_cephalo_runtime_evidence_payload,
 )
 from backend.services.sota_vision_service import SOTA_LANDMARKS_MAPPING
@@ -56,10 +59,10 @@ def _graph(payload):
     )
 
 
-def test_srpose_snapshot_is_persistable_but_auto_calibration_is_not_silently_trusted():
-    payload = build_cephalo_runtime_evidence_payload(
+def _initial():
+    return build_cephalo_runtime_evidence_payload(
         patient_id=7,
-        image_record_id="api/static/uploads/radios/test.jpg",
+        image_record_id="radio.jpg",
         result=_result(),
         landmarks=_srpose_raw(),
         inference_mode="SOTA_ONNX_38",
@@ -67,8 +70,12 @@ def test_srpose_snapshot_is_persistable_but_auto_calibration_is_not_silently_tru
         recorded_at=NOW,
     )
 
+
+def test_srpose_snapshot_is_persistable_but_auto_calibration_is_not_silently_trusted():
+    payload = _initial()
     assert payload["schema_version"] == EVIDENCE_SCHEMA_VERSION
     assert payload["revision"] == 1
+    assert payload["history"] == []
     assert len(payload["landmarks"]) == 38
     assert all(x["origin"] == LandmarkOrigin.SRPOSE38_AUTO.value for x in payload["landmarks"])
     assert len(payload["measurements"]) == 4
@@ -79,36 +86,58 @@ def test_srpose_snapshot_is_persistable_but_auto_calibration_is_not_silently_tru
 
 def test_uncertified_automatic_detector_cannot_masquerade_as_srpose_evidence():
     payload = build_cephalo_runtime_evidence_payload(
-        patient_id=7,
-        image_record_id="radio.jpg",
-        result=_result(),
-        landmarks=_manual_raw(),
-        inference_mode="PRODUCTION",
-        case_id=CASE_ID,
-        recorded_at=NOW,
+        patient_id=7, image_record_id="radio.jpg", result=_result(), landmarks=_manual_raw(),
+        inference_mode="PRODUCTION", case_id=CASE_ID, recorded_at=NOW,
     )
     assert payload["landmarks"] == []
     assert all(x["availability_status"] == AvailabilityStatus.NOT_COMPUTABLE.value for x in payload["constructions"])
     assert all(x["value"] is None for x in payload["measurements"])
 
 
-def test_manual_revision_preserves_original_srpose_points_and_drives_new_constructions():
-    first = build_cephalo_runtime_evidence_payload(
-        patient_id=7, image_record_id="radio.jpg", result=_result(), landmarks=_srpose_raw(),
-        inference_mode="SOTA_ONNX_38", case_id=CASE_ID, recorded_at=NOW,
-    )
+def test_srpose_mode_requires_exact_38_landmark_identity():
+    incomplete = _srpose_raw()[:-1]
+    with pytest.raises(CephaloRuntimeEvidenceError, match="exact 38-landmark contract"):
+        build_cephalo_runtime_evidence_payload(
+            patient_id=7, image_record_id="radio.jpg", result=_result(), landmarks=incomplete,
+            inference_mode="SOTA_ONNX_38", case_id=CASE_ID, recorded_at=NOW,
+        )
+
+
+def test_manual_revision_preserves_auto_points_and_full_previous_snapshot_history():
+    first = _initial()
     second = build_cephalo_runtime_evidence_payload(
         patient_id=7, image_record_id="radio.jpg", result=_result(), landmarks=_manual_raw(offset=1.0),
         inference_mode=None, previous_payload=first, manual_revision=True, recorded_at=NOW,
     )
 
     assert second["revision"] == 2
+    assert len(second["history"]) == 1
+    assert second["history"][0]["revision"] == 1
+    assert second["history"][0]["landmarks"] == first["landmarks"]
+    assert second["history"][0]["constructions"] == first["constructions"]
+    assert second["history"][0]["measurements"] == first["measurements"]
     origins = [x["origin"] for x in second["landmarks"]]
     assert origins.count(LandmarkOrigin.SRPOSE38_AUTO.value) == 38
     assert origins.count(LandmarkOrigin.MANUAL.value) == len(_points())
     for construction in second["constructions"]:
         assert all(":r2:" in ref for ref in construction["landmark_refs"])
     validate_case_evidence_graph(_graph(second), patient_id=7, case_id=CASE_ID)
+
+
+def test_previous_schema_and_image_identity_are_fail_closed():
+    first = _initial()
+    wrong_schema = {**first, "schema_version": "OTHER"}
+    with pytest.raises(CephaloRuntimeEvidenceError, match="schema version"):
+        build_cephalo_runtime_evidence_payload(
+            patient_id=7, image_record_id="radio.jpg", result=_result(), landmarks=_manual_raw(),
+            inference_mode=None, previous_payload=wrong_schema, manual_revision=True, recorded_at=NOW,
+        )
+
+    with pytest.raises(CephaloRuntimeEvidenceError, match="source record mismatch"):
+        build_cephalo_runtime_evidence_payload(
+            patient_id=7, image_record_id="another-radio.jpg", result=_result(), landmarks=_manual_raw(),
+            inference_mode=None, previous_payload=first, manual_revision=True, recorded_at=NOW,
+        )
 
 
 def test_explicit_two_point_calibration_unlocks_only_the_four_versioned_linear_measurements():
