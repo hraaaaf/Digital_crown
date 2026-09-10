@@ -21,12 +21,12 @@ Une donnée manquante reste `UNKNOWN` / `NOT_COMPUTABLE`. Aucune valeur, norme, 
 
 | Lot | Goal | Succès observable | État |
 |---|---|---|---|
-| 0 | Modèle de preuve | objets typés + `evidence_refs` + tests de contrat | SPEC FAITE ; code à faire |
+| 0 | Modèle de preuve | objets typés + `evidence_refs` + tests de contrat + cas traversant | EN COURS — schémas typés + tests de contrat ajoutés PR #390 |
 | 1 | Purger logique clinique non sourcée | moteur géométrique sans diagnostic/traitement implicite | FAIT — PR #371 |
 | 2 | Runtime SRPose38 exact | 38/38, pipeline ONNX parity certifié, fail-closed asset | FAIT — PR #388 |
 | 3 | Contrat des 38 landmarks | ordre, noms, alias et définitions opérationnelles certifiés | EN COURS — ordre 38/38 certifié ; COM critique partiel |
-| 4 | Constructions géométriques | plans/axes/projections versionnés + golden tests | EN COURS — CRANIOM A'B'/N-vertical implémentés en fonctions pures |
-| 5 | COM / CRANIOM | mesures de la méthode calculables + références spécifiques sourcées séparément | EN COURS — méthode/source identifiées ; normes inactives |
+| 4 | Constructions géométriques | plans/axes/projections versionnés + golden tests | EN COURS — CRANIOM A'B'/N-vertical branchés au runtime + gates dégénérés fail-closed ; CI finale requise |
+| 5 | COM / CRANIOM | mesures de la méthode calculables + références spécifiques sourcées séparément | EN COURS — méthode + publications Part 1/2 identifiées ; normes inactives |
 | 6 | Steiner | matrice dépendances + formules + normes sourcées | À FAIRE |
 | 7 | Tweed/Merrifield | idem | À FAIRE |
 | 8 | Wits/Jacobson + Downs | idem | À FAIRE |
@@ -45,13 +45,17 @@ Une donnée manquante reste `UNKNOWN` / `NOT_COMPUTABLE`. Aucune valeur, norme, 
 - ordre CL-Detection 1..38 ↔ runtime 0..37 documenté ;
 - ambiguïtés anatomiques conservées explicitement au lieu d'être devinées.
 
-### Méthode historique COM
+### Méthode historique COM / CRANIOM
 
 Le flux historique Digital Crown appelé `COM` a été rapproché de la méthode **C.R.A.N.I.O.M.** de Bonnefont, Casteigt, Ernoult et Sorel.
 
-Source publiée : *A new method for the utilization of cephalometric measurements in orthodontics... (Part 1)*, Journal of Dentofacial Anomalies and Orthodontics, 2010;13(4):385-400, DOI `10.1051/odfen/2010406`.
+Sources publiées :
+- Part 1 : Journal of Dentofacial Anomalies and Orthodontics. 2010;13(4):385-400. DOI `10.1051/odfen/2010406`.
+- Part 2 : Journal of Dentofacial Anomalies and Orthodontics. 2011;14:105. DOI `10.1051/odfen/2011104`.
 
-Décision produit : le label `COM` peut rester transitoirement pour compatibilité UX, mais le registre scientifique doit identifier la méthode source comme `CRANIOM` et ne pas la confondre avec Tweed/Steiner/Downs/Ricketts.
+Les publications décrivent un échantillon de **83 jeunes adultes Classe I non traités** et présentent la céphalométrie comme une aide venant après l'esthétique, le statut parodontal et l'équilibre musculaire. Les valeurs CRANIOM sont donc traitées comme références spécifiques à cette méthode/population, jamais comme normes universelles.
+
+Décision produit : le label `COM` peut rester transitoirement pour compatibilité UX, mais le registre scientifique identifie la méthode source comme `CRANIOM`.
 
 ### A'B' CRANIOM
 
@@ -59,12 +63,21 @@ A' et B' sont les projections orthogonales de A et B sur Francfort. La distance 
 
 Construction versionnée : `CRANIOM_AB_PRIME_V1`.
 
+Le navigateur peut encore envoyer les anciennes projections pour compatibilité API, mais le backend les ignore comme source de mesure et recalcule toute géométrie à partir des landmarks.
+
+### Fail-closed géométrique
+
+- Francfort dégénéré (`Po == Or`) → projection et mesures dépendantes non calculables ;
+- axe angulaire dégénéré → angle non calculable ;
+- calibration absente, nulle, négative ou non finie → mesures linéaires non calculables ;
+- aucune projection dérivée côté client ne peut remplacer la géométrie backend.
+
 ### Gates encore ouverts
 
 - convention exacte du plan mandibulaire propre à chaque analyse ;
 - CRANIOM utilise pour certaines mesures `Gi/Gs`, absents comme points séparés dans SRPose38 ;
-- `A''B''` exige un protocole de regard horizontal / photo NHP qui n'existe pas encore ;
-- aucune référence normative n'est activée tant que Lot 11 n'est pas implémenté.
+- `A''B''` exige un protocole de regard horizontal / NHP non disponible ;
+- aucune référence normative n'est activée tant que le registre normatif n'est pas implémenté et validé.
 
 ## GATES SCIENTIFIQUES
 
@@ -99,13 +112,21 @@ Pour activer une proposition thérapeutique :
 - `docs/CEPHALO_CONSTRUCTION_REGISTRY.md` — plans/axes/projections versionnés.
 - `docs/CEPHALO_ANALYSIS_DEPENDENCY_MATRIX.md` — analyses → mesures → dépendances.
 
+## PREUVE / CI
+
+- CI précédente PR #390 : `2730 passed, 5 skipped`, puis 1 échec legacy sur projection d'une ligne dégénérée ;
+- attente legacy corrigée pour respecter le contrat `NOT_COMPUTABLE` ;
+- test supplémentaire ajouté pour les angles dégénérés ;
+- tests typés du graphe de preuve ajoutés ;
+- **la fermeture du lot attend une CI verte sur le HEAD final**.
+
 ## NEXT EXACT
 
-Lot 4 : faire passer les golden tests CRANIOM et brancher le moteur courant sur les constructions versionnées sans changement numérique ; puis certifier le plan mandibulaire analyse par analyse avant d'étendre les mesures.
+Faire valider le HEAD final de PR #390 par CI. Si vert : fermer le sous-lot géométrique CRANIOM, mettre à jour le closeout puis démarrer le registre normatif CRANIOM avec valeurs versionnées et contexte de population explicite.
 
 ## SÉQUENCE RESTANTE
 
-`Lot 4 wiring/tests → Lot 3 landmarks restants selon besoin → CRANIOM geometry complet → registre normatif → Steiner → Tweed/Merrifield → Wits/Downs → McNamara → Ricketts/soft tissue → diagnostic multiaxial → problem list/objectifs → options thérapeutiques → validation clinique → UX/PDF → closeout`
+`CI PR #390 → closeout Lot 4 → registre normatif CRANIOM → COM/CRANIOM complet → Steiner → Tweed/Merrifield → Wits/Downs → McNamara → Ricketts/soft tissue → diagnostic multiaxial → problem list/objectifs → options thérapeutiques → validation clinique → UX/PDF → closeout`
 
 ## DÉPLOIEMENT
 

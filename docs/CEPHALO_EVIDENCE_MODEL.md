@@ -1,6 +1,6 @@
 # CÉPHALO — EVIDENCE MODEL
 
-**Statut : SPEC / implémentation non commencée**  
+**Statut : EN COURS — schémas typés + tests de contrat présents dans PR #390 ; pas encore source runtime de vérité**  
 **Parent canonique :** `docs/CEPHALO_DIAGNOSTIC_SPEC.md`  
 **Rôle :** architecture transversale des lots 3→14.
 
@@ -13,6 +13,14 @@ Interdire les sauts non traçables entre donnée patient, mesure, interprétatio
 `SourceEvidence → LandmarkEvidence → Construction → Measurement → NormativeEvaluation → Finding → DiagnosticHypothesis → Problem → Objective → TreatmentOption → ClinicianValidation → FinalPlan`
 
 Chaque objet dérivé conserve ses `evidence_refs`, sa méthode/version et son statut.
+
+## IMPLÉMENTATION ACTUELLE
+
+Le contrat typé est matérialisé dans `backend/schemas/cephalo_evidence.py`.
+
+Les tests de contrat sont dans `backend/tests/test_cephalo_evidence_contracts.py`.
+
+Ce graphe **n'est pas encore branché comme source de vérité du workflow patient**. Les payloads céphalo historiques restent en compatibilité pendant la migration.
 
 ## STATUTS
 
@@ -63,29 +71,36 @@ Aucun `best_option=true` automatique.
 
 Toute validation enregistre auteur, date, action `ACCEPT | EDIT | REJECT`, cible et audit avant/après.
 
-**Invariant :** un `FinalPlan` est invalide sans `clinician_id` et `clinician_validated_at`.
+**Invariant :** un `FinalPlan` est invalide sans `clinician_id`, `clinician_validated_at` et référence de validation.
 
 ## DETTE ACTUELLE
 
 `backend/schemas/clinical.py` conserve encore des sorties historiques sous chaînes libres (`DiagnosticSLM`, `plan_traitement`, `resume_diagnostic`, `ai_narrative`). Elles restent compatibles pendant migration mais ne doivent pas redevenir la source clinique de vérité. Les résumés texte seront des vues dérivées du graphe typé.
 
-## TESTS DE CONTRAT OBLIGATOIRES
+## TESTS DE CONTRAT
 
-1. mesure sans dépendance requise → `NOT_COMPUTABLE` ;
-2. mesure linéaire sans calibration → `NOT_COMPUTABLE` ;
-3. norme sans source + version → rejet ;
-4. finding sans preuve → rejet ;
+Les tests actuels couvrent notamment :
+
+1. mesure sans dépendance géométrique → rejet ;
+2. mesure linéaire sans calibration → rejet ;
+3. mesure marquée indisponible avec valeur patient → rejet ;
+4. correction manuelle landmark sans coordonnées auto originales/audit → rejet ;
 5. diagnostic accepté sans validation praticien → rejet ;
-6. objectif sans problem_ref → rejet ;
-7. option avec donnée indispensable absente → `BLOCKED_INSUFFICIENT_DATA` ;
-8. plan final sans clinician gate → rejet ;
-9. correction manuelle d'un landmark conserve coordonnée auto originale + audit ;
-10. contradiction entre analyses reste visible.
+6. option avec gate manquant mais marquée évaluable → rejet ;
+7. plan final sans gate praticien → rejet.
+
+Restent à tester lors du branchement runtime : existence réelle des références entre objets, propagation des contradictions, et parcours complet sans narration libre comme source clinique.
 
 ## SUCCESS
 
-Cette architecture sera considérée implémentée uniquement quand les schémas existent en code, les invariants sont testés et au moins un cas traverse la chaîne sans utiliser une narration libre comme source clinique.
+Le Lot 0 ne sera fermé que lorsque :
+
+- les tests de contrat sont verts ;
+- au moins un cas synthétique traverse `SourceEvidence → ... → FinalPlan` ;
+- toutes les références sont résolues/validées ;
+- aucune narration libre ne sert de donnée clinique source ;
+- le `FinalPlan` reste impossible sans validation praticien.
 
 ## NEXT EXACT
 
-Après fermeture documentaire du Lot 3 : implémenter les références de preuve + `Measurement`/`NormativeEvaluation` puis adapter l'actuel `CephaloAnalysisResult` sans casser la compatibilité.
+Après validation CI du socle PR #390 : construire l'adaptateur de compatibilité `CephaloAnalysisResult → MeasurementEvidence` puis un premier cas synthétique CRANIOM traversant le graphe jusqu'au `Finding`, sans activer de diagnostic ni traitement.
