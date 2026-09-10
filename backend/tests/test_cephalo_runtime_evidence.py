@@ -103,6 +103,25 @@ def test_srpose_mode_requires_exact_38_landmark_identity():
         )
 
 
+def test_runtime_measurement_must_match_same_landmark_geometry():
+    result = _result(0.2)
+    bad_situation_a = result.metrics.analyse_osseuse.Situation_A.model_copy(
+        update={"valeur": 99.9}
+    )
+    bad_skeletal = result.metrics.analyse_osseuse.model_copy(
+        update={"Situation_A": bad_situation_a}
+    )
+    bad_metrics = result.metrics.model_copy(update={"analyse_osseuse": bad_skeletal})
+    inconsistent = result.model_copy(update={"metrics": bad_metrics})
+
+    with pytest.raises(CephaloRuntimeEvidenceError, match="Situation_A"):
+        build_cephalo_runtime_evidence_payload(
+            patient_id=7, image_record_id="radio.jpg", result=inconsistent,
+            landmarks=_srpose_raw(), inference_mode="SOTA_ONNX_38",
+            case_id=CASE_ID, recorded_at=NOW,
+        )
+
+
 def test_manual_revision_preserves_auto_points_and_full_previous_snapshot_history():
     first = _initial()
     second = build_cephalo_runtime_evidence_payload(
