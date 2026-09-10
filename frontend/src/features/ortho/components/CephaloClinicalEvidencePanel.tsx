@@ -95,7 +95,6 @@ export const CephaloClinicalEvidencePanel: React.FC = () => {
         if (!cancelled) console.warn('Typed cephalo evidence refresh failed:', error);
       });
     return () => { cancelled = true; };
-  // Refresh after initial typed load, a successful landmark sync, or calibration transition.
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [store.analysisId, store.syncState, store.isCalibrated]);
 
@@ -113,7 +112,7 @@ export const CephaloClinicalEvidencePanel: React.FC = () => {
       <button
         type="button"
         onClick={() => setDrawerOpen(open => !open)}
-        className="absolute bottom-6 left-1/2 z-30 flex max-w-[calc(100%-9rem)] -translate-x-1/2 flex-wrap items-center justify-center gap-x-3 gap-y-1 rounded-2xl border border-slate-700/70 bg-slate-900/85 px-4 py-2.5 text-[9px] font-black uppercase tracking-wider text-slate-300 shadow-2xl backdrop-blur-xl sm:gap-x-4 sm:px-5 sm:text-[10px]"
+        className="absolute left-1/2 top-20 z-30 flex max-w-[calc(100%-2rem)] -translate-x-1/2 flex-wrap items-center justify-center gap-x-3 gap-y-1 rounded-2xl border border-slate-700/70 bg-slate-900/85 px-3 py-2 text-[9px] font-black uppercase tracking-wider text-slate-300 shadow-2xl backdrop-blur-xl sm:px-4 sm:text-[10px] lg:bottom-6 lg:top-auto lg:max-w-[calc(100%-9rem)] lg:gap-x-4 lg:px-5 lg:py-2.5"
         aria-label="Afficher l'état scientifique de l'analyse"
       >
         <span className="flex items-center gap-1.5 text-emerald-300"><Activity size={12} />{store.local.landmarks.length} points</span>
@@ -124,7 +123,7 @@ export const CephaloClinicalEvidencePanel: React.FC = () => {
       </button>
 
       {drawerOpen && store.activePointId && point && (
-        <aside className="absolute bottom-20 right-4 top-20 z-40 w-[min(22rem,calc(100%-2rem))] overflow-y-auto rounded-3xl border border-slate-700/70 bg-slate-900/95 p-5 text-slate-200 shadow-2xl backdrop-blur-2xl sm:right-6 sm:w-[21rem]">
+        <aside className="absolute bottom-20 left-3 right-3 top-auto z-40 max-h-[55%] w-auto overflow-y-auto rounded-3xl border border-slate-700/70 bg-slate-900/95 p-4 text-slate-200 shadow-2xl backdrop-blur-2xl sm:left-4 sm:right-4 sm:max-h-[58%] sm:p-5 lg:bottom-20 lg:left-auto lg:right-6 lg:top-20 lg:max-h-none lg:w-[21rem]">
           <div className="flex items-start justify-between gap-3">
             <div>
               <p className="text-[9px] font-black uppercase tracking-[0.18em] text-slate-500">Point sélectionné</p>
