@@ -149,7 +149,14 @@ def test_refine_replaces_current_manual_revision_but_preserves_original_auto(mon
     assert len(payload["history"]) == 1
     assert payload["history"][0]["revision"] == 1
     assert len([x for x in payload["landmarks"] if x["origin"] == "SRPOSE38_AUTO"]) == 38
+
+    srpose_ids = set(SOTA_LANDMARKS_MAPPING.values())
+    expected_corrected_ids = {item["id"] for item in manual if item["id"] in srpose_ids}
+    expected_manual_ids = {item["id"] for item in manual if item["id"] not in srpose_ids}
+
     corrected = [x for x in payload["landmarks"] if x["origin"] == "MANUAL_CORRECTED"]
-    assert len(corrected) == len(manual)
-    assert all(x["validated_by"] == "99" for x in corrected)
+    manual_only = [x for x in payload["landmarks"] if x["origin"] == "MANUAL"]
+    assert {x["landmark_id"] for x in corrected} == expected_corrected_ids
+    assert {x["landmark_id"] for x in manual_only} == expected_manual_ids
+    assert all(x["validated_by"] == "99" for x in corrected + manual_only)
     assert EVIDENCE_GRAPH_KEY not in response["results"]
