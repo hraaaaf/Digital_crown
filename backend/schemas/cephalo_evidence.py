@@ -115,11 +115,23 @@ class ConstructionEvidence(_StrictModel):
     construction_id: str = Field(min_length=1)
     definition_id: str = Field(min_length=1)
     definition_version: str = Field(min_length=1)
-    landmark_refs: List[str] = Field(min_length=1)
-    geometry: Dict[str, Any]
-    evidence_refs: List[str] = Field(min_length=1)
+    landmark_refs: List[str] = Field(default_factory=list)
+    missing_landmark_ids: List[str] = Field(default_factory=list)
+    geometry: Dict[str, Any] = Field(default_factory=dict)
+    evidence_refs: List[str] = Field(default_factory=list)
     evidence_status: EvidenceStatus = EvidenceStatus.COMPUTED
     availability_status: AvailabilityStatus = AvailabilityStatus.AVAILABLE
+
+    @model_validator(mode="after")
+    def validate_construction_contract(self):
+        if self.availability_status == AvailabilityStatus.AVAILABLE:
+            if not self.landmark_refs:
+                raise ValueError("Available construction requires landmark evidence refs")
+            if self.missing_landmark_ids:
+                raise ValueError("Available construction cannot declare missing landmarks")
+            if not self.geometry:
+                raise ValueError("Available construction requires explicit geometry")
+        return self
 
 
 class MeasurementEvidence(_StrictModel):
@@ -141,8 +153,12 @@ class MeasurementEvidence(_StrictModel):
     def validate_measurement_contract(self):
         if not self.landmark_refs and not self.construction_refs:
             raise ValueError("Measurement requires landmark or construction dependencies")
-        if self.requires_calibration and not self.calibration_ref:
-            raise ValueError("Calibrated linear measurement requires calibration_ref")
+        if (
+            self.requires_calibration
+            and self.availability_status == AvailabilityStatus.AVAILABLE
+            and not self.calibration_ref
+        ):
+            raise ValueError("Available calibrated linear measurement requires calibration_ref")
         if self.value is not None and not math.isfinite(self.value):
             raise ValueError("Measurement value must be finite")
         if self.availability_status != AvailabilityStatus.AVAILABLE and self.value is not None:
@@ -216,6 +232,15 @@ class ProblemEvidence(_StrictModel):
     statement: str = Field(min_length=1)
     priority: Optional[int] = Field(default=None, ge=1)
     state: ReviewState = ReviewState.PROPOSED
+    clinician_id: Optional[str] = None
+    clinician_validated_at: Optional[datetime.datetime] = None
+
+    @model_validator(mode="after")
+    def accepted_problem_requires_clinician(self):
+        if self.state in {ReviewState.ACCEPTED, ReviewState.EDITED}:
+            if not self.clinician_id or not self.clinician_validated_at:
+                raise ValueError("Accepted/edited problem requires clinician validation")
+        return self
 
 
 class ObjectiveEvidence(_StrictModel):
@@ -224,6 +249,15 @@ class ObjectiveEvidence(_StrictModel):
     target: str = Field(min_length=1)
     success_criterion: str = Field(min_length=1)
     state: ReviewState = ReviewState.PROPOSED
+    clinician_id: Optional[str] = None
+    clinician_validated_at: Optional[datetime.datetime] = None
+
+    @model_validator(mode="after")
+    def accepted_objective_requires_clinician(self):
+        if self.state in {ReviewState.ACCEPTED, ReviewState.EDITED}:
+            if not self.clinician_id or not self.clinician_validated_at:
+                raise ValueError("Accepted/edited objective requires clinician validation")
+        return self
 
 
 class TreatmentOptionEvidence(_StrictModel):
@@ -241,14 +275,19 @@ class TreatmentOptionEvidence(_StrictModel):
     profile_considerations: List[str] = Field(default_factory=list)
     stability_considerations: List[str] = Field(default_factory=list)
     status: TreatmentOptionStatus = TreatmentOptionStatus.EVALUABLE
+    clinician_id: Optional[str] = None
+    clinician_selected_at: Optional[datetime.datetime] = None
 
     @model_validator(mode="after")
-    def missing_gate_blocks_option(self):
+    def validate_option_contract(self):
         if self.missing_gates and self.status in {
             TreatmentOptionStatus.EVALUABLE,
             TreatmentOptionStatus.CLINICIAN_SELECTED,
         }:
             raise ValueError("Treatment option with missing gates cannot be evaluable or selected")
+        if self.status == TreatmentOptionStatus.CLINICIAN_SELECTED:
+            if not self.clinician_id or not self.clinician_selected_at:
+                raise ValueError("Clinician-selected treatment option requires clinician audit")
         return self
 
 

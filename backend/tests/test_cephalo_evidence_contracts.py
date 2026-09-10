@@ -7,6 +7,7 @@ from pydantic import ValidationError
 
 from backend.schemas.cephalo_evidence import (
     AvailabilityStatus,
+    ConstructionEvidence,
     DiagnosticHypothesisEvidence,
     FinalPlanEvidence,
     LandmarkEvidence,
@@ -23,6 +24,51 @@ from backend.schemas.cephalo_evidence import (
 NOW = datetime(2026, 9, 10, 9, 0, tzinfo=timezone.utc)
 
 
+def test_available_construction_requires_real_landmark_refs_and_geometry():
+    with pytest.raises(ValidationError, match="landmark evidence refs"):
+        ConstructionEvidence(
+            construction_id="construction:fh",
+            definition_id="FH_PO_OR_V1",
+            definition_version="1",
+            geometry={"kind": "axis"},
+        )
+    with pytest.raises(ValidationError, match="explicit geometry"):
+        ConstructionEvidence(
+            construction_id="construction:fh",
+            definition_id="FH_PO_OR_V1",
+            definition_version="1",
+            landmark_refs=["landmark:Po", "landmark:Or"],
+        )
+
+
+def test_unavailable_construction_can_record_missing_landmarks_without_fake_refs():
+    construction = ConstructionEvidence(
+        construction_id="construction:fh:missing",
+        definition_id="FH_PO_OR_V1",
+        definition_version="1",
+        landmark_refs=[],
+        missing_landmark_ids=["Po", "Or"],
+        geometry={},
+        evidence_refs=[],
+        availability_status=AvailabilityStatus.NOT_COMPUTABLE,
+    )
+    assert construction.landmark_refs == []
+    assert construction.missing_landmark_ids == ["Po", "Or"]
+    assert construction.availability_status == AvailabilityStatus.NOT_COMPUTABLE
+
+
+def test_available_construction_cannot_claim_missing_landmarks():
+    with pytest.raises(ValidationError, match="cannot declare missing"):
+        ConstructionEvidence(
+            construction_id="construction:fh",
+            definition_id="FH_PO_OR_V1",
+            definition_version="1",
+            landmark_refs=["landmark:Po"],
+            missing_landmark_ids=["Or"],
+            geometry={"kind": "axis"},
+        )
+
+
 def test_measurement_requires_geometric_dependencies():
     with pytest.raises(ValidationError):
         MeasurementEvidence(
@@ -36,7 +82,7 @@ def test_measurement_requires_geometric_dependencies():
         )
 
 
-def test_linear_measurement_requires_calibration_reference():
+def test_linear_measurement_requires_calibration_reference_when_available():
     with pytest.raises(ValidationError):
         MeasurementEvidence(
             measurement_id="m2",
@@ -49,6 +95,25 @@ def test_linear_measurement_requires_calibration_reference():
             requires_calibration=True,
             evidence_refs=["source:ceph:1"],
         )
+
+
+def test_uncalibrated_linear_measurement_can_be_explicitly_not_computable():
+    measurement = MeasurementEvidence(
+        measurement_id="m2:not-computable",
+        analysis_id="COM",
+        method_id="CRANIOM_AB_PRIME_V1",
+        method_version="1",
+        value=None,
+        unit="mm",
+        construction_refs=["construction:ab-prime"],
+        calibration_ref=None,
+        requires_calibration=True,
+        availability_status=AvailabilityStatus.NOT_COMPUTABLE,
+        evidence_refs=["construction:ab-prime"],
+    )
+    assert measurement.value is None
+    assert measurement.calibration_ref is None
+    assert measurement.availability_status == AvailabilityStatus.NOT_COMPUTABLE
 
 
 def test_unavailable_measurement_cannot_carry_patient_value():
