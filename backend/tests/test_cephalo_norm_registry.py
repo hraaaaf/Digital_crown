@@ -129,6 +129,33 @@ def test_secondary_only_numeric_reference_is_rejected():
         )
 
 
+def test_unsupported_reference_kind_is_rejected_until_schema_represents_it_exactly():
+    local = NormRegistry()
+    local.register_source(
+        NormSource(
+            source_id="S1",
+            tier=SourceTier.PRIMARY_ARTICLE,
+            citation="Primary source",
+        )
+    )
+    for kind in (ReferenceKind.MEAN_SD, ReferenceKind.PERCENTILE):
+        with pytest.raises(ValueError, match="only explicit interval references"):
+            local.register_reference(
+                NormReference(
+                    reference_id=f"R-{kind.value}",
+                    method_id="TEST",
+                    method_version="1",
+                    measurement_id="ANGLE",
+                    kind=kind,
+                    unit="deg",
+                    lower=1.0,
+                    upper=2.0,
+                    source_ids=("S1",),
+                    population_context={"sample": "test"},
+                )
+            )
+
+
 @pytest.mark.parametrize(
     "lower,upper",
     [(3.0, 2.0), (float("nan"), 2.0), (1.0, float("inf"))],
