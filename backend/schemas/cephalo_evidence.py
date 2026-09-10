@@ -141,8 +141,12 @@ class MeasurementEvidence(_StrictModel):
     def validate_measurement_contract(self):
         if not self.landmark_refs and not self.construction_refs:
             raise ValueError("Measurement requires landmark or construction dependencies")
-        if self.requires_calibration and not self.calibration_ref:
-            raise ValueError("Calibrated linear measurement requires calibration_ref")
+        if (
+            self.requires_calibration
+            and self.availability_status == AvailabilityStatus.AVAILABLE
+            and not self.calibration_ref
+        ):
+            raise ValueError("Available calibrated linear measurement requires calibration_ref")
         if self.value is not None and not math.isfinite(self.value):
             raise ValueError("Measurement value must be finite")
         if self.availability_status != AvailabilityStatus.AVAILABLE and self.value is not None:
