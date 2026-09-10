@@ -11,6 +11,11 @@ from typing import Any, Mapping, Optional, Sequence
 
 from backend.schemas.cephalo_evidence import EvidenceStatus, LandmarkEvidence, LandmarkOrigin, SourceEvidence
 from backend.schemas.clinical import CephaloAnalysisResult
+from backend.services.cephalo_auto_calibration_evidence import (
+    AutoCalibrationEvidenceError,
+    source_evidence_from_auto_decision,
+)
+from backend.services.cephalo_auto_calibration_gate import AutoCalibrationDecision, AutoCalibrationState
 from backend.services.cephalo_construction_evidence_adapter import materialize_craniom_linear_constructions
 from backend.services.cephalo_constructions import (
     craniom_ab_prime_mm_v1,
@@ -153,11 +158,44 @@ def _assert_runtime_geometry_matches(
             raise CephaloRuntimeEvidenceError(f"Runtime {field} does not match persisted evidence geometry")
 
 def _calibration_source(
-    *, patient_id: int, case_id: str, result: CephaloAnalysisResult,
+    *, patient_id: int, case_id: str, image_record_id: str, result: CephaloAnalysisResult,
     is_calibrated: bool, calibration_data: Optional[Mapping[str, Any]], recorded_at: dt.datetime,
 ) -> Optional[SourceEvidence]:
     if not is_calibrated or not isinstance(calibration_data, Mapping):
         return None
+
+    method = calibration_data.get("method")
+    if method == "AUTO_FIDUCIAL_PROFILE":
+        if calibration_data.get("state") != AutoCalibrationState.AUTO_VERIFIED.value:
+            raise CephaloRuntimeEvidenceError("Automatic calibration must be AUTO_VERIFIED")
+        provenance = calibration_data.get("provenance")
+        if not isinstance(provenance, Mapping):
+            raise CephaloRuntimeEvidenceError("AUTO_VERIFIED calibration requires provenance")
+        ratio = result.analysis_metadata.pixel_ratio
+        if ratio is None or not math.isfinite(ratio) or ratio <= 0:
+            raise CephaloRuntimeEvidenceError("AUTO_VERIFIED calibration requires a valid runtime ratio")
+        reason = calibration_data.get("reason")
+        if not isinstance(reason, str) or not reason.strip():
+            raise CephaloRuntimeEvidenceError("AUTO_VERIFIED calibration requires a gate reason")
+        decision = AutoCalibrationDecision(
+            state=AutoCalibrationState.AUTO_VERIFIED,
+            reason=reason.strip(),
+            mm_per_pixel=float(ratio),
+            provenance=dict(provenance),
+        )
+        try:
+            return source_evidence_from_auto_decision(
+                patient_id=patient_id,
+                case_id=case_id,
+                image_record_id=image_record_id,
+                decision=decision,
+                recorded_at=recorded_at,
+            )
+        except AutoCalibrationEvidenceError as exc:
+            raise CephaloRuntimeEvidenceError(str(exc)) from exc
+
+    if method not in {None, "MANUAL_TWO_POINT"}:
+        raise CephaloRuntimeEvidenceError(f"Unsupported calibration method: {method}")
     if not {"p1", "p2", "distance_mm"}.issubset(calibration_data):
         return None
     p1, p2 = calibration_data.get("p1"), calibration_data.get("p2")
@@ -217,7 +255,8 @@ def build_cephalo_runtime_evidence_payload(
         current_by_id, construction_namespace=f"construction:{resolved_case}:r{revision}",
     )
     calibration = _calibration_source(
-        patient_id=patient_id, case_id=resolved_case, result=result, is_calibrated=is_calibrated,
+        patient_id=patient_id, case_id=resolved_case, image_record_id=image_record_id,
+        result=result, is_calibrated=is_calibrated,
         calibration_data=calibration_data, recorded_at=timestamp,
     )
     measurements = adapt_craniom_linear_measurements(
