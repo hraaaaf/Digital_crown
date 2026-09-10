@@ -1,0 +1,96 @@
+name: Cephalo SRPose38 runtime parity
+
+on:
+  push:
+    branches: [feat/cephalo-srpose38-runtime-parity]
+    paths:
+      - 'backend/services/srpose38_pipeline.py'
+      - 'backend/services/sota_vision_service.py'
+      - 'backend/scientific_assets.json'
+      - 'backend/tests/test_srpose38_runtime_parity.py'
+      - 'backend/tests/fixtures/cephalo/srpose38_stack1_reference.json'
+      - 'requirements.txt'
+      - '.github/workflows/cephalo-srpose38-runtime-parity.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  srpose38-runtime-parity:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+          cache: pip
+
+      - name: Install minimal runtime test dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install numpy==1.26.4 opencv-python-headless==4.11.0.86 onnxruntime==1.18.1 sqlalchemy==2.0.28 pytest
+
+      - name: Unit-test SRPose38 geometry, decoder and fail-closed gates
+        run: python -m pytest -q --noconftest backend/tests/test_srpose38_runtime_parity.py
+
+      - name: Download previously certified ONNX and real-image evidence
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p /tmp/srpose-onnx /tmp/srpose-smoke
+          gh run download 34281082926 --repo "$GITHUB_REPOSITORY" --name cephalo-srpose38-onnx-parity --dir /tmp/srpose-onnx
+          gh run download 34281082886 --repo "$GITHUB_REPOSITORY" --name cephalo-srpose38-full38-evidence --dir /tmp/srpose-smoke
+          test -s /tmp/srpose-onnx/srpose38-tta-1024.onnx
+          test -s /tmp/srpose-smoke/srpose38-real-ceph-input-unpadded.png
+
+      - name: Provision canonical external asset with strict hash gate
+        run: |
+          mkdir -p backend/ai_models
+          cp /tmp/srpose-onnx/srpose38-tta-1024.onnx backend/ai_models/srpose38-tta-1024.onnx
+          echo 'a5ecd466d6d2c4ef02e145a143076a05720c0be56a260224812c23e2ecf42ddb  backend/ai_models/srpose38-tta-1024.onnx' | sha256sum -c -
+          test "$(stat -c%s backend/ai_models/srpose38-tta-1024.onnx)" = '267484931'
+
+      - name: Prove runtime parity on the certified real cephalogram
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          import numpy as np
+
+          reference = json.loads(Path('backend/tests/fixtures/cephalo/srpose38_stack1_reference.json').read_text())
+          expected = np.asarray(reference['onnx_points'], dtype=np.float64)
+          image = '/tmp/srpose-smoke/srpose38-real-ceph-input-unpadded.png'
+
+          from backend.services.sota_vision_service import sota_vision_engine
+          assert sota_vision_engine.is_ready, 'canonical SRPose38 asset did not load'
+          assert sota_vision_engine.session.get_providers()[0] == 'CPUExecutionProvider'
+
+          direct = sota_vision_engine.predict_landmarks(image)
+          assert direct is not None and len(direct['landmarks']) == 38
+          actual = np.asarray([[p['x'], p['y']] for p in direct['landmarks']], dtype=np.float64)
+          assert np.isfinite(actual).all()
+          delta = np.linalg.norm(actual - expected, axis=1)
+          max_delta = float(delta.max())
+          mean_delta = float(delta.mean())
+          tolerance = float(reference['runtime_coordinate_tolerance_px'])
+          if max_delta > tolerance:
+              raise AssertionError(f'Runtime parity failed: {max_delta:.6f}px > {tolerance:.6f}px')
+
+          from backend.services.vision_service import vision_engine
+          routed = vision_engine.predict_landmarks(image)
+          assert routed['mode_inference'] == 'SOTA_ONNX_38', routed['mode_inference']
+          assert len(routed['landmarks']) == 38
+
+          print(json.dumps({
+              'runtime_landmarks': len(actual),
+              'runtime_vs_certified_onnx_max_px': max_delta,
+              'runtime_vs_certified_onnx_mean_px': mean_delta,
+              'provider': direct['runtime_provider'],
+              'model_sha256': direct['model_sha256'],
+              'vision_router_mode': routed['mode_inference'],
+          }, indent=2))
+          print('SRPOSE38_RUNTIME_PARITY_OK')
+          PY

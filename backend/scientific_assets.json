@@ -6,10 +6,22 @@
     {
       "id": "cephalo_sota",
       "kind": "model",
-      "lifecycle": "deferred",
+      "lifecycle": "external",
       "p5_required": false,
-      "next_gate": "Cephalometry NextGen model benchmark and selection",
-      "note": "Historical CL-Detection/MICCAI-style 38-point ONNX asset is not present in the canonical checkout and is intentionally not reconstructed for Portability P5."
+      "canonical_path": "backend/ai_models/srpose38-tta-1024.onnx",
+      "sha256": "a5ecd466d6d2c4ef02e145a143076a05720c0be56a260224812c23e2ecf42ddb",
+      "size_bytes": 267484931,
+      "runtime_provider": "CPUExecutionProvider",
+      "provenance": {
+        "model": "SRPose / CL-Detection 2023",
+        "source_repository": "5k5000/CLdetection2023",
+        "source_commit": "18d17d1934970016e7610c4849311900b8d1f191",
+        "checkpoint_sha256": "fb1a781ac1c83149b379cb15724e3b0fae06ba2d567978f35c61e9d06b46fdcc",
+        "onnx_proof_pr": 377,
+        "onnx_proof_run": 34281082926
+      },
+      "next_gate": "P6/P7 scientific asset packaging and clean-machine install certification",
+      "note": "SRPose38 is the validated 38-point cephalometry runtime asset. The 267 MB binary remains external and is accepted only when size and SHA256 match the certified ONNX export."
     },
     {
       "id": "cephalo_legacy",

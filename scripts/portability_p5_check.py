@@ -91,7 +91,19 @@ def check_fail_closed_source_contract() -> None:
     sota = SOTA_SERVICE.read_text(encoding="utf-8")
     vision = VISION_SERVICE.read_text(encoding="utf-8")
     pano = PANORAMIC_SERVICE.read_text(encoding="utf-8")
-    _require("model.onnx introuvable. Mode SOTA désactivé" in sota, "SOTA missing-model fail-closed message missing")
+    _require(
+        "if not os.path.isfile(self.model_path):" in sota,
+        "SOTA must fail closed when canonical SRPose38 asset is absent",
+    )
+    _require(
+        "if os.path.getsize(self.model_path) != SRPOSE38_MODEL_SIZE_BYTES:" in sota,
+        "SOTA must reject SRPose38 assets with unexpected size",
+    )
+    _require(
+        "if actual_sha256 != SRPOSE38_MODEL_SHA256:" in sota,
+        "SOTA must reject SRPose38 assets with unexpected SHA256",
+    )
+    _require("return None" in sota, "SOTA unavailable path must return no landmarks")
     _require('mode_inference = "FAILED"' in vision and "Placement manuel requis" in vision, "Cephalo manual fallback contract missing")
     _require("if _is_clinical_environment():" in pano and "raise RuntimeError" in pano, "Panoramic clinical fail-closed contract missing")
     print("FAIL_CLOSED_SOURCE_GATE=OK")
