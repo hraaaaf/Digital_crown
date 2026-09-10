@@ -114,18 +114,88 @@ Traitement : diagnostic validé + données cliniques requises + indication/contr
 - #398 HEAD `e06af52d611ece465e5087b2c485784b6cf74d49` : CI `34498056894` success ; T2 `34498056887` success ; merge `35f5eca034ab780e92aa877b1120fd4e6c3b3dce`.
 - #399 : exact-head final à certifier après consolidation du lot ; aucune preuve verte finale déclarée ici avant exécution.
 
+## PLAN DE FERMETURE RESTANT
+
+### 1. Fermer #399 — audit des corrections landmarks
+**Goal :** chaque correction manuelle doit être authentifiée, traçable et non ambiguë.  
+**Succès :** tous les appels `refine_analysis` et leurs tests utilisent le nouveau contrat ; aucune régression ; CI/T2 exact-head verts.  
+**Preuve :** suite backend complète + CI/T2 + absence de review/thread bloquant + merge vérifié.
+
+Actions :
+- scanner tous les appels `refine_analysis` ;
+- corriger en lot les tests historiques encore basés sur l'ancien contrat ;
+- relancer une seule certification finale ;
+- corriger toute défaillance réelle ;
+- vérifier reviews/threads ;
+- merger #399 si vert ;
+- vérifier le HEAD master post-merge.
+
+### 2. Basculer le read-path vers le graphe typé
+**Goal :** supprimer la double vérité scientifique entre `angles_data` / `landmarks_data` legacy et le graphe d'évidence.  
+**Succès :** lorsqu'un graphe typé existe, les quatre mesures CRANIOM sont lues exclusivement depuis `MeasurementEvidence`.  
+**Preuve :** tests création → persistence → GET → valeurs typées ; `NOT_COMPUTABLE` reste `None` et ne retombe jamais sur une valeur legacy.
+
+Règle de transition : le legacy peut rester une vue de compatibilité, mais ne doit plus être la source scientifique canonique d'un cas typé.
+
+### 3. Fermer totalement la provenance des corrections manuelles
+**Goal :** prouver qui a modifié quoi, quand, depuis quelle donnée originale.  
+**Succès :** chaque correction conserve coordonnées avant/après, origine, `clinician_id`, timestamp, révision et historique ; aucune coordonnée corrigée n'est acceptée sans trace.  
+**Preuve :** tests multi-révisions, suppression/réintroduction, correction répétée et relecture persistée.
+
+### 4. Verrouiller la provenance de calibration
+**Goal :** toute mesure millimétrique doit dépendre d'une calibration prouvée et reproductible.  
+**Succès :** calibration manuelle persistée avec points, distance réelle, ratio, méthode/version, praticien et timestamp ; liaison explicite calibration → `MeasurementEvidence`.  
+**Preuve :** reconstruction du ratio depuis les données persistées + tests de divergence + comportement fail-closed.
+
+### 5. Certifier la chaîne runtime complète
+**Goal :** obtenir une chaîne scientifique unique et traversante.  
+**Succès :** `SourceEvidence → LandmarkEvidence → ConstructionEvidence → MeasurementEvidence` fonctionne sur création, modification, recalibration et relecture patient/cas.  
+**Preuve :** tests traversants DB/service/API + validation `validate_case_evidence_graph` + comportement fail-closed en cas de référence incohérente.
+
+### 6. Fermer les conventions céphalométriques restantes
+**Goal :** supprimer toute ambiguïté de construction avant d'étendre les analyses.  
+**Succès :** chaque mesure dispose d'une définition anatomique, construction géométrique, convention et source versionnées.  
+**Preuve :** documentation + tests géométriques + références scientifiques.
+
+Points ouverts connus :
+- convention du plan mandibulaire propre à chaque analyse ;
+- ambiguïté opérationnelle de `Go` ;
+- `Gi/Gs` CRANIOM absents comme landmarks SRPose38 distincts ;
+- `A''B''` non calculable sans protocole NHP/regard horizontal.
+
+### 7. Construire le diagnostic clinique seulement après fermeture du socle
+**Goal :** passer de mesures prouvées à une synthèse clinique explicable sans raccourci thérapeutique.  
+**Succès :** analyses → findings → hypothèses → problem list → objectifs → options, avec provenance et validation praticien.  
+**Preuve :** règles versionnées/sourcées, cas goldens, contradictions visibles, validation praticien obligatoire.
+
+Contraintes :
+- aucune norme patient activée avant validation scientifique de sa source, population et domaine d'usage ;
+- aucun seuil céphalométrique isolé ne déclenche automatiquement un traitement ;
+- aucun plan final sans `ClinicianValidationEvidence` cohérent.
+
+### 8. Certification et closeout final
+**Goal :** fermer le chantier sur une preuve reproductible, pas sur une impression de solidité.  
+**Succès :** code, tests, runtime observé et docs canoniques concordent sur master.  
+**Preuve :** tests backend complets + CI/T2 verts + documentation cohérente + merge + vérification post-merge.
+
+Ordre de closeout :
+`validation → docs canoniques → cohérence → roadmap/statut réellement vérifié → Git/merge → post-merge → lot suivant`.
+
 ## NEXT EXACT
 
-1. consolider #399 en un HEAD final ;
-2. certifier CI/T2 exact-head ;
-3. corriger toute défaillance ;
-4. vérifier reviews/threads et merger si vert ;
-5. post-merge : basculer le read-path des quatre mesures CRANIOM vers le graphe typé ;
-6. poursuivre les conventions mandibulaires.
+1. terminer le scan global des appels `refine_analysis` sur #399 ;
+2. corriger en lot tous les tests historiques incompatibles avec le contrat d'audit ;
+3. produire un HEAD final unique ;
+4. certifier CI/T2 exact-head ;
+5. si échec : diagnostiquer → corriger → tester → relancer ;
+6. si vert : vérifier reviews/threads → merge #399 → vérifier master ;
+7. rebaseliner le lot `read-path typé` sur master ;
+8. certifier création → persistence → GET sans fallback legacy ;
+9. poursuivre la chaîne runtime complète puis les conventions mandibulaires.
 
 ## SÉQUENCE RESTANTE
 
-`correction-landmark audit → read-path source-of-truth → conventions mandibulaires → COM/CRANIOM complet → Steiner → Tweed/Merrifield → Wits/Downs → McNamara → Ricketts/soft tissue → diagnostic multiaxial → problem list/objectifs → options → validation clinique → UX/PDF → closeout`
+`#399 audit landmarks → read-path source-of-truth → provenance manuelle/calibration complète → chaîne runtime traversante → conventions mandibulaires/CRANIOM → COM/CRANIOM complet → Steiner → Tweed/Merrifield → Wits/Downs → McNamara → Ricketts/soft tissue → diagnostic multiaxial → problem list/objectifs → options → validation clinique → UX/PDF → certification/closeout`
 
 ## DÉPLOIEMENT
 
