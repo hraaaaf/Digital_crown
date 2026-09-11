@@ -58,7 +58,7 @@ def _calibrated(previous=None, raw=None):
     )
 
 
-def test_manual_calibration_creates_audited_revision_and_unlocks_four_measurements():
+def test_manual_calibration_creates_audited_revision_unlocks_linear_and_preserves_u1():
     previous = _initial()
     payload = _calibrated(previous)
 
@@ -70,14 +70,19 @@ def test_manual_calibration_creates_audited_revision_and_unlocks_four_measuremen
     calibration = [source for source in payload["sources"] if source["kind"] == "calibration"]
     assert len(calibration) == 1
     assert calibration[0]["operator_id"] == "99"
-    # Pydantic JSON mode canonicalizes UTC to RFC 3339 `Z`; compare instants, not spellings.
     assert datetime.fromisoformat(calibration[0]["recorded_at"].replace("Z", "+00:00")) == NOW
     assert calibration[0]["metadata"]["method_version"] == "1"
     assert calibration[0]["metadata"]["calibrated_by"] == "99"
 
-    assert len(payload["measurements"]) == 4
+    assert len(payload["measurements"]) == 5
     assert all(item["availability_status"] == "AVAILABLE" for item in payload["measurements"])
-    assert all(item["calibration_ref"] == calibration[0]["evidence_id"] for item in payload["measurements"])
+    linear = [item for item in payload["measurements"] if item["requires_calibration"]]
+    angular = [item for item in payload["measurements"] if not item["requires_calibration"]]
+    assert len(linear) == 4
+    assert all(item["calibration_ref"] == calibration[0]["evidence_id"] for item in linear)
+    assert len(angular) == 1
+    assert angular[0]["method_id"] == "CRANIOM_U1_FRANKFORT_DEG_V1"
+    assert angular[0]["calibration_ref"] is None
 
 
 def test_calibration_rejects_runtime_landmarks_different_from_persisted_evidence():
