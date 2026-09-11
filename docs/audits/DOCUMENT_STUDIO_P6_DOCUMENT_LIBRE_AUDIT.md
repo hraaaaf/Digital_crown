@@ -1,14 +1,14 @@
 # P6 — Document Libre : audit canonique exhaustif
 
-## Baseline
+## Baseline et périmètre
 
-- Branche audit : `agent/p4-p6-audit-baselines`.
-- Baseline source : `master` à `026f78290cda53ea1b07ba5e8bfd39836448d6ce`.
-- Portée : `LibreForm`, validation, toolbar, A4/A5, alignement, destinataire/date libre, preview, archive/réouverture, impression, PDF multi-page, permissions et protection de brouillon.
+- Branche de certification : `cert/p6-document-libre`.
+- PR de certification : `#405`.
+- HEAD comportemental certifié avant closeout documentaire : `218e7ef1580e69958f02d9e8319750772f273376`.
+- Portée : `LibreForm`, validation, toolbar, A4/A5, alignement, destinataire/date libre, preview, archive/réouverture, impression, PDF multi-page, permissions, protection de brouillon et responsive éditeur.
 - **CODE VÉRIFIÉ** : oui pour les constats ci-dessous.
-- **TESTS HISTORIQUES EXÉCUTÉS** : ancien socle P3-C a eu une CI verte ; les lots récents P3-D→P3-H ont été mergés avec jobs GitHub non exécutés avant runner selon le rapport historique.
-- **TEST EXÉCUTÉ SUR CET AUDIT** : non revendiqué.
-- **INTERACTION RUNTIME / VISUELLE** : non exécutée dans cette session.
+- **TESTS EXÉCUTÉS** : oui, CI principal #3183 / run `34528255939` et T2 Runtime Browser #2191 / run `34528255978`, tous deux en succès sur le HEAD comportemental certifié.
+- **INTERACTION RUNTIME / VISUELLE** : oui pour la matrice navigateur authentifiée et le probe P6 dédié 390/768/1280 ; inspection humaine des trois captures réalisée.
 - **CERTIFICATION PRODUCTION / RÉGLEMENTAIRE** : non revendiquée.
 
 ---
@@ -41,30 +41,16 @@ Sous-flux : toolbar markup autorisé, tableau Markdown simple, format A4/A5, ali
 12. Impression finale préparée depuis un PDF frais.
 13. Archive réhydratable avec titre, contenu, destinataire, date/lieu, masquage en-tête, format et alignement.
 
-### AMÉLIORER
+### AMÉLIORER — hors gate P6
 
 1. La toolbar insère du markup visible (`<b>`, `<i>`, `<u>`, `<font...>`) dans un textarea : fonctionnel mais non WYSIWYG.
 2. Bibliothèque de templates dédiée absente : amélioration produit, pas défaut de sécurité.
-3. Accessibilité toolbar/format/alignement à recertifier au clavier et lecteur d'écran.
-4. Preview vs rendu PDF : vérifier visuellement que l'utilisateur comprend que le textarea n'est pas un aperçu WYSIWYG exact.
-5. Ergonomie petit écran 390/768 à recertifier, notamment les groupes Format/Alignement et la zone de rédaction.
+3. Hiérarchie « Grand Titre » limitée à `<font size="16">` : amélioration UX, sans élargir arbitrairement l'allowlist HTML.
+4. Densité structurelle du petit écran 390 encore perfectible, sans clipping/overflow bloquant observé dans la certification.
 
-### CORRIGER — P0
+### CORRIGER — P0/P1
 
-Aucun nouveau P0 statique démontré dans la baseline actuelle.
-
-### CORRIGER — P1
-
-#### P1-1 — certification finale absente
-Les derniers lots Document Libre ont convergé en engineering mais les runs GitHub cités dans l'audit historique n'ont pas exécuté leurs steps. Il manque donc une régression réelle du head final.
-
-**Décision** : ne pas déclarer P6 fermé tant que frontend/backend/PDF n'ont pas réellement tourné sur un head final identifiable.
-
-#### P1-2 — runtime/rendu réel non certifiés
-La sécurité du markup et du PDF est bien codée, mais il manque une inspection de PDF réels : A4/A5, texte long, tableau multi-page, caractères spéciaux, destinataire/date, hide header, alignements.
-
-#### P1-3 — affordance « Grand Titre » limitée
-Le bouton insère uniquement `<font size="16">`; ce n'est pas une hiérarchie documentaire complète. À classer amélioration UX, sans élargir arbitrairement l'allowlist HTML.
+Aucun nouveau P0 statique démontré. Les deux gaps P1 historiques de certification finale et de runtime/rendu réel sont fermés par les preuves exact-head ci-dessous.
 
 ---
 
@@ -95,29 +81,55 @@ Un Document Libre doit garantir :
 
 ---
 
-## 5. Lots canoniques restants
+## 5. Certification finale observée
 
-1. **P6-A — Régression finale réelle** : frontend/backend/PDF sur head final.
-2. **P6-B — Runtime authentifié** : saisie, toolbar, tableau, A4/A5, alignement, preview, archive, réouverture, abandon protégé, impression.
-3. **P6-C — Inspection PDF visuelle** : court/long/multipage/caractères spéciaux/tableaux.
-4. **P6-D — Responsive / accessibilité** : 1440/768/390, clavier, focus et labels.
-5. **P6-E — UX éditeur** : WYSIWYG/templates uniquement après certification, comme amélioration produit réversible.
+### Exact HEAD
+
+HEAD comportemental : `218e7ef1580e69958f02d9e8319750772f273376`.
+
+### CI principal
+
+- workflow : CI ;
+- run : `#3183` / `34528255939` ;
+- conclusion : **success** ;
+- frontend `Test suite` : **success** ;
+- frontend `Build` : **success** ;
+- les jobs de durcissement du workflow sont verts sur le même HEAD.
+
+### T2 Runtime Browser
+
+- workflow : T2 Runtime Browser Certification ;
+- run : `#2191` / `34528255978` ;
+- conclusion : **success** ;
+- `Certify strict runtime PDF` : **success** ;
+- `Execute authenticated browser matrix` : **success** ;
+- `Certify P6 Document Libre editor` : **success** ;
+- `Certify browser print and PDF freshness` : **success** ;
+- artefact navigateur uploadé avec succès.
+
+### Responsive / visuel P6
+
+Probe P6 dédié :
+- `390x844` : PASS ;
+- `768x1024` : PASS ;
+- `1280x900` : PASS ;
+- aucun overflow horizontal document ;
+- aucun clipping des contrôles P6 ciblés : titre, contenu, tableau, A5, A4, alignement justifié ;
+- aucune erreur de page remontée par le probe.
+
+Inspection humaine des trois captures : aucune régression visuelle bloquante observée. Score visuel de certification : **9/10**. Réserve : densité mobile 390, amélioration non bloquante.
 
 ---
 
-## 6. Gates runtime encore ouverts
+## 6. Verdict P6
 
-- titre/contenu vides et limites de taille ;
-- `<`, `>`, `&`, markup arbitraire et balises déséquilibrées ;
-- toolbar gras/italique/souligné/grand titre ;
-- tableaux simples et multipage ;
-- A4/A5 ; gauche/centre/droite/justifié ;
-- destinataire/date libre et masquage en-tête ;
-- preview sans archive ;
-- archive + réouverture ;
-- abandon protégé ;
-- impression depuis PDF frais ;
-- utilisateur sans permission clinique ;
-- responsive et clavier.
+**P6 engineering/runtime/PDF/responsive automatisé est certifié sur le HEAD comportemental `218e7ef...`.**
 
-**Verdict baseline : engineering fortement convergé, aucun nouveau P0 statique démontré, mais P6 reste non certifié final tant que ces gates réels ne sont pas fermés.**
+Le closeout documentaire modifie uniquement les rapports canoniques ; il doit donc repasser les checks requis sur son nouveau HEAD avant merge de la PR #405.
+
+Restent hors certification engineering :
+- production sur cabinet réel ;
+- éventuelle validation réglementaire humaine selon l'usage ;
+- WYSIWYG/templates et polish supplémentaire, qui restent des améliorations produit.
+
+Ces éléments ne rouvrent pas P6 engineering sauf défaut observé.
