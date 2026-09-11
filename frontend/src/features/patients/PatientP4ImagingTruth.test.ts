@@ -10,12 +10,16 @@ const panoHistory = src('src/features/panoramic/PanoramicHistory.tsx');
 const cephHistory = src('src/features/ortho/CephaloHistory.tsx');
 
 describe('P4 unified imaging truth boundary', () => {
-  it('exposes RVG, Panoramique and Céphalométrie as one imaging space', () => {
-    expect(details).toContain("type RadioTab = 'rvg' | 'panoramic' | 'cephalo'");
+  it('keeps RVG, Panoramique and Céphalométrie intact while allowing additive media timeline', () => {
+    expect(details).toContain("type RadioTab = 'media' | 'rvg' | 'panoramic' | 'cephalo'");
+    expect(details).toContain("handleRadioTabChange('media')");
     expect(details).toContain("handleRadioTabChange('rvg')");
+    expect(details).toContain('<PatientMediaTimeline patientId={Number(id)} />');
     expect(details).toContain('<PatientRvgPanel patientId={Number(id)} />');
+    expect(details.indexOf('label="Médiathèque"')).toBeLessThan(details.indexOf('label="RVG"'));
     expect(details.indexOf('label="RVG"')).toBeLessThan(details.indexOf('label="Panoramique"'));
     expect(details.indexOf('label="Panoramique"')).toBeLessThan(details.indexOf('label="Céphalométrie"'));
+    expect(details).toContain("const requestedRadioTab = (searchParams.get('radioTab') as RadioTab | null) || 'rvg'");
   });
 
   it('mirrors backend imaging permissions including legacy defaults and fails closed on URL state', () => {

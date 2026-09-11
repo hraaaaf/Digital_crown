@@ -16,6 +16,7 @@ import {
   History,
   Banknote,
   Image,
+  Images,
 } from 'lucide-react';
 import { api } from '../../services/api';
 import { cn } from '../../utils/cn';
@@ -30,6 +31,7 @@ import { ClinicalHub } from './components/ClinicalHub';
 import { PatientJourney } from './components/PatientJourney';
 import { PatientFinances } from './components/PatientFinances';
 import { PatientRvgPanel } from './components/PatientRvgPanel';
+import { PatientMediaTimeline } from './components/PatientMediaTimeline';
 import { QuickPayModal } from './components/QuickPayModal';
 import { PatientMobileBridge } from './components/PatientMobileBridge';
 import { usePatientStore } from '../../stores/usePatientStore';
@@ -61,7 +63,7 @@ interface Patient {
 }
 
 type TabType = 'tracking' | 'clinical' | 'radiology' | 'admin' | 'archives' | 'finances';
-type RadioTab = 'rvg' | 'panoramic' | 'cephalo';
+type RadioTab = 'media' | 'rvg' | 'panoramic' | 'cephalo';
 
 const userRoleValue = (role: unknown): string => {
   if (!role) return '';
@@ -92,13 +94,14 @@ export const PatientDetails = () => {
     (hasExplicitPermissions && (userPermissions.accounting === true || userPermissions.payments === true))
   );
   const availableRadioTabs: RadioTab[] = [
+    'media',
     'rvg',
     ...(canPanoramic ? ['panoramic' as const] : []),
     ...(canCephalo ? ['cephalo' as const] : []),
   ];
 
   const requestedRadioTab = (searchParams.get('radioTab') as RadioTab | null) || 'rvg';
-  const radioTab: RadioTab = availableRadioTabs.includes(requestedRadioTab) ? requestedRadioTab : availableRadioTabs[0];
+  const radioTab: RadioTab = availableRadioTabs.includes(requestedRadioTab) ? requestedRadioTab : 'rvg';
   const handleRadioTabChange = (value: RadioTab) => {
     if (!availableRadioTabs.includes(value)) return;
     setSearchParams(prev => {
@@ -320,6 +323,7 @@ export const PatientDetails = () => {
             <div className="space-y-6">
               <div className="flex justify-center">
                 <div className="inline-flex max-w-full overflow-x-auto bg-card-bg/50 p-1.5 rounded-2xl border border-border-main shadow-inner" aria-label="Modalités d’imagerie">
+                  <ImagingButton active={radioTab === 'media'} onClick={() => handleRadioTabChange('media')} icon={<Images size={16} />} label="Médiathèque" />
                   <ImagingButton active={radioTab === 'rvg'} onClick={() => handleRadioTabChange('rvg')} icon={<Image size={16} />} label="RVG" />
                   {canPanoramic && <ImagingButton active={radioTab === 'panoramic'} onClick={() => handleRadioTabChange('panoramic')} icon={<Target size={16} />} label="Panoramique" />}
                   {canCephalo && <ImagingButton active={radioTab === 'cephalo'} onClick={() => handleRadioTabChange('cephalo')} icon={<Activity size={16} />} label="Céphalométrie" />}
@@ -327,6 +331,7 @@ export const PatientDetails = () => {
               </div>
 
               <div className="bg-card-bg rounded-[2.5rem] shadow-elite border border-border-main overflow-hidden min-h-[70vh] p-3 sm:p-5 min-w-0">
+                {radioTab === 'media' && <PatientMediaTimeline patientId={Number(id)} />}
                 {radioTab === 'rvg' && <PatientRvgPanel patientId={Number(id)} />}
                 {radioTab === 'panoramic' && canPanoramic && <PanoramicStudio patientId={Number(id)} patientName={fullName} />}
                 {radioTab === 'cephalo' && canCephalo && (
