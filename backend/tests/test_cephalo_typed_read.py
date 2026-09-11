@@ -1,4 +1,4 @@
-"""Read-path contracts for the four versioned CRANIOM linear measurements."""
+"""Read-path contracts for versioned typed CRANIOM measurements."""
 from datetime import datetime, timezone
 
 import pytest
@@ -91,7 +91,15 @@ def test_unavailable_typed_measurement_never_falls_back_to_legacy_value():
 
 def test_incomplete_or_wrong_patient_typed_graph_fails_closed():
     angles, graph = _angles_with_graph(ratio=None, calibrated=False)
-    broken = {**angles, EVIDENCE_GRAPH_KEY: {**graph, "measurements": graph["measurements"][:-1]}}
+    # R4's U1/Frankfort measurement is compatibility-optional so persisted pre-R4
+    # four-measurement snapshots remain readable. Remove a mandatory R3 measure
+    # instead, otherwise this test accidentally constructs a valid legacy graph.
+    required_measurements = [
+        item
+        for item in graph["measurements"]
+        if not item["measurement_id"].endswith(":Situation_A")
+    ]
+    broken = {**angles, EVIDENCE_GRAPH_KEY: {**graph, "measurements": required_measurements}}
     with pytest.raises(CephaloTypedReadError, match="incomplete"):
         project_typed_craniom_read_path(broken, patient_id=7)
 
