@@ -6,9 +6,9 @@ patient geometry with no duplicate legacy field. It contains no norms,
 classification, diagnosis, growth projection or treatment logic.
 
 Compatibility note: the established skeletal rematerialization seam is also used
-as the composition point for R6 Tweed/Merrifield evidence so creation and landmark
-edits share one audited path. R6 keeps independent analysis IDs, method IDs and
-namespaces; it is not reclassified as Steiner evidence.
+as the composition point for R6 Tweed/Merrifield and source-safe R7 Downs evidence
+so creation and landmark edits share one audited path. Each analysis keeps its
+independent analysis IDs, method IDs and namespaces.
 """
 from __future__ import annotations
 
@@ -23,6 +23,10 @@ from backend.schemas.cephalo_evidence import (
     MeasurementEvidence,
 )
 from backend.schemas.clinical import CephaloAnalysisResult
+from backend.services.cephalo_downs_evidence import (
+    adapt_downs_measurements,
+    materialize_downs_constructions,
+)
 from backend.services.cephalo_steiner_geometry import (
     steiner_anb_deg_v1,
     steiner_sna_deg_v1,
@@ -186,6 +190,12 @@ def materialize_steiner_skeletal_constructions(
             construction_namespace=f"{construction_namespace}:r6",
         )
     )
+    out.update(
+        materialize_downs_constructions(
+            landmarks,
+            construction_namespace=f"{construction_namespace}:r7",
+        )
+    )
     return out
 
 
@@ -252,6 +262,12 @@ def adapt_steiner_skeletal_measurements(
         adapt_tweed_merrifield_measurements(
             result,
             measurement_namespace=f"{measurement_namespace}:r6",
+            constructions=constructions,
+        )
+    )
+    out.extend(
+        adapt_downs_measurements(
+            measurement_namespace=f"{measurement_namespace}:r7",
             constructions=constructions,
         )
     )
