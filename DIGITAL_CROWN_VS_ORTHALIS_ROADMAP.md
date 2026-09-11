@@ -3,10 +3,10 @@
 **Statut : CANONIQUE — stratégie produit compétitive**  
 **Création : 2026-09-11**  
 **Repo : `hraaaaf/Digital_crown`**  
-**Baseline de création : `master@ac858696a734cf04fcf2797ebd0bf53b0caaac25`**
+**Baseline vérifiée lors de la dernière revue : `master@9cbcf59bf85e124c4c2150c53e8d86029c923f07`**
 
 > Ce fichier gouverne la stratégie « atteindre puis dépasser Orthalis ».
-> Il ne remplace pas les roadmaps techniques spécialisées. Lorsqu'un lot touche un domaine possédant déjà un fichier canonique (céphalométrie, Document Studio, sécurité, packaging, etc.), ce fichier fixe **la priorité produit et le résultat attendu** ; le fichier spécialisé reste l'autorité d'implémentation et de certification du domaine.
+> Il ne remplace pas les roadmaps techniques spécialisées. Lorsqu'un lot touche un domaine possédant déjà un fichier canonique, ce fichier fixe **la priorité produit et le résultat attendu** ; le fichier spécialisé reste l'autorité d'implémentation et de certification.
 
 ---
 
@@ -82,9 +82,9 @@ La cible est :
 - RBAC, isolation tenant, audit logs, protection média authentifiée ;
 - doctrine « donnée absente = inconnue/non calculable » ;
 - séparation assistance machine / validation praticien ;
-- céphalométrie typée et provenance de calibration désormais intégrées.
+- céphalométrie typée et provenance de calibration intégrées.
 
-Source interne primaire : `README.md`, `master@ac858696...`, PR #406.
+Sources internes primaires : `README.md`, PR #406, `master@9cbcf59...`.
 
 ### Non-objectifs stratégiques
 
@@ -137,7 +137,7 @@ Sources officielles consultées le **2026-09-11** :
 - superposition tracés / radios / photos ;
 - modification manuelle possible.
 
-> Important : la documentation marketing officielle établit la présence revendiquée de ces fonctions. Elle ne constitue pas une validation indépendante de précision scientifique, sensibilité, reproductibilité ou sécurité clinique.
+> La documentation marketing officielle établit la présence revendiquée de ces fonctions. Elle ne constitue pas une validation indépendante de précision scientifique, sensibilité, reproductibilité ou sécurité clinique.
 
 ### Kitview
 
@@ -195,6 +195,8 @@ Orthalis Cloud 2025 / Orthalis Connect annonce un accès depuis différents appa
 
 Score sur 100, pondéré par valeur clinique/opérationnelle. Ce score sert uniquement à prioriser la roadmap.
 
+Formule : `Σ(poids_domaine × note_domaine/10)`.
+
 | Domaine | Poids | Digital Crown | Orthalis | Confiance |
 |---|---:|---:|---:|---|
 | PMS patient + agenda | 12 | 9.0/10 | 9.5/10 | moyenne-haute |
@@ -208,12 +210,12 @@ Score sur 100, pondéré par valeur clinique/opérationnelle. Ce score sert uniq
 | Maroc-first | 5 | 9.5/10 | 4.0/10 | moyenne |
 | Industrialisation / support terrain | 5 | 3.0/10 | 10.0/10 | moyenne |
 
-**Baseline stratégique indicative : Digital Crown ≈ 72/100 ; Orthalis ≈ 90/100.**
+**Calcul vérifié : Digital Crown = 70,0/100 ; Orthalis = 90,5/100.**
 
 ### Interdiction d'interprétation abusive
 
-- Le 72/100 n'est pas un audit qualité global de Digital Crown.
-- Le 90/100 n'est pas une validation indépendante d'Orthalis.
+- Le 70,0/100 n'est pas un audit qualité global de Digital Crown.
+- Le 90,5/100 n'est pas une validation indépendante d'Orthalis.
 - Les notes doivent être recalculées après chaque grand jalon avec preuves actualisées.
 - Une fonction non testée de manière comparable ne peut pas faire gagner artificiellement un point.
 
@@ -289,7 +291,7 @@ Le système peut assister l'organisation et exposer des signaux. Il ne choisit j
 
 **Priorité : HAUTE**
 
-R1 calibration assistée/provenance a été mergé via PR #406 sur `master@ac858696...`.
+R1 calibration assistée/provenance a été mergé via PR #406 ; closeout canonique ajouté sur `master@9cbcf59...`.
 
 **Cible compétitive :** ne pas viser « 25 méthodes » avant validation. Viser **5 à 8 analyses majeures réellement gouvernées et certifiées**.
 
@@ -425,7 +427,7 @@ Reconnaissance faciale de borne : **non prioritaire** en l'absence d'un besoin f
 
 ### A1 — P6 Document Libre
 
-À la création de ce document :
+À la dernière vérification :
 
 - PR #405 ouverte ;
 - draft ;
@@ -436,7 +438,8 @@ Reconnaissance faciale de borne : **non prioritaire** en l'absence d'un besoin f
 
 ### A2 — Céphalo R1
 
-**FERMÉ / MERGÉ** : PR #406, merge `ac858696a734cf04fcf2797ebd0bf53b0caaac25`.
+**FERMÉ / MERGÉ** : PR #406, merge `ac858696a734cf04fcf2797ebd0bf53b0caaac25`.  
+**CLOSEOUT master** : `9cbcf59bf85e124c4c2150c53e8d86029c923f07`.
 
 Ne pas rouvrir R1 pour ajouter des fonctions concurrentielles. Les évolutions suivantes passent par un lot R2 distinct.
 
@@ -499,7 +502,7 @@ Minimum :
 - médias liés ;
 - documents liés ;
 - finance liée sans mélanger vérité clinique et comptable ;
-- clôture/conten­tion/suivi.
+- clôture/contention/suivi.
 
 ---
 
@@ -549,7 +552,7 @@ Commencer read-mostly :
 5. second provider réel ;
 6. certification de révocation et perte réseau.
 
-**Go/no-go par provider :** documentation officielle + droit d'accès + environnement de test + mapping données + politique sécurité. Sans ces quatre éléments, le connecteur reste `BLOCKED_EXTERNAL`, pas « presque terminé ».
+**Go/no-go par provider :** documentation officielle + droit d'accès + environnement de test + mapping données + politique sécurité. Sans ces éléments, le connecteur reste `BLOCKED_EXTERNAL`, pas « presque terminé ».
 
 ---
 
@@ -767,6 +770,7 @@ Les objectifs chiffrés ne seront inscrits qu'après création d'une baseline re
 - panoramique ;
 - céphalométrie typed read-path ;
 - R1 calibration/provenance mergé dans master ;
+- closeout R1 présent dans master ;
 - mobile cabinet existant ;
 - packaging Windows existant.
 
@@ -847,4 +851,4 @@ Ne jamais convertir une intention en état terminé.
 
 ## FICHIER CANONIQUE
 
-`DIGITAL_CROWN_VS_ORTHALIS_ROADMAP.md` — Digital Crown vs Orthalis — **baseline stratégique initiale : 72/100 vs 90/100, non certifiante**.
+`DIGITAL_CROWN_VS_ORTHALIS_ROADMAP.md` — Digital Crown vs Orthalis — **baseline stratégique initiale vérifiée : 70,0/100 vs 90,5/100, non certifiante**.
