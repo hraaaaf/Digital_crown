@@ -4,6 +4,11 @@ This module materializes versioned SNA, SNB, ANB and SN-MP geometry from source
 landmarks. SNA/SNB/ANB remain parity-bound to the legacy runtime; SN-MP is typed
 patient geometry with no duplicate legacy field. It contains no norms,
 classification, diagnosis, growth projection or treatment logic.
+
+Compatibility note: the established skeletal rematerialization seam is also used
+as the composition point for R6 Tweed/Merrifield evidence so creation and landmark
+edits share one audited path. R6 keeps independent analysis IDs, method IDs and
+namespaces; it is not reclassified as Steiner evidence.
 """
 from __future__ import annotations
 
@@ -23,6 +28,10 @@ from backend.services.cephalo_steiner_geometry import (
     steiner_sna_deg_v1,
     steiner_snb_deg_v1,
     steiner_sn_mp_deg_v1,
+)
+from backend.services.cephalo_tweed_merrifield_evidence import (
+    adapt_tweed_merrifield_measurements,
+    materialize_tweed_merrifield_constructions,
 )
 
 STEINER_SOURCE_REFERENCES = (
@@ -170,6 +179,13 @@ def materialize_steiner_skeletal_constructions(
             evidence_refs=refs,
             availability_status=availability,
         )
+
+    out.update(
+        materialize_tweed_merrifield_constructions(
+            landmarks,
+            construction_namespace=f"{construction_namespace}:r6",
+        )
+    )
     return out
 
 
@@ -182,7 +198,6 @@ def adapt_steiner_skeletal_measurements(
     if not isinstance(measurement_namespace, str) or not measurement_namespace.strip():
         raise ValueError("measurement_namespace must be non-empty")
 
-    skeletal = result.metrics.analyse_osseuse
     out: list[MeasurementEvidence] = []
     for spec in _STEINER_SPECS:
         construction = constructions.get(spec.construction_definition_id)
@@ -203,7 +218,7 @@ def adapt_steiner_skeletal_measurements(
                 )
             computed_value = float(computed)
             if spec.runtime_metric_name is not None:
-                raw_value = getattr(skeletal, spec.runtime_metric_name).valeur
+                raw_value = getattr(result.metrics.analyse_osseuse, spec.runtime_metric_name).valeur
                 if raw_value is None or not math.isfinite(raw_value) or not math.isclose(
                     raw_value, computed_value, rel_tol=0.0, abs_tol=1e-12
                 ):
@@ -232,6 +247,14 @@ def adapt_steiner_skeletal_measurements(
                 availability_status=availability,
             )
         )
+
+    out.extend(
+        adapt_tweed_merrifield_measurements(
+            result,
+            measurement_namespace=f"{measurement_namespace}:r6",
+            constructions=constructions,
+        )
+    )
     return out
 
 

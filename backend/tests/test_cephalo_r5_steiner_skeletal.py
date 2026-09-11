@@ -50,6 +50,14 @@ def _points():
     return {key: (item.x, item.y) for key, item in _landmarks().items()}
 
 
+def _steiner_constructions(constructions):
+    return {
+        key: value
+        for key, value in constructions.items()
+        if key in STEINER_SKELETAL_CONSTRUCTION_DEFINITIONS
+    }
+
+
 def test_steiner_geometry_matches_existing_runtime_sna_snb_anb_and_types_sn_mp():
     points = _points()
     result = CephaloEngine(mm_per_pixel=None).calculate_metrics(points)
@@ -91,15 +99,16 @@ def test_steiner_skeletal_constructions_are_source_bound_and_uncalibrated():
     constructions = materialize_steiner_skeletal_constructions(
         _landmarks(), construction_namespace="construction:steiner:1"
     )
+    steiner = _steiner_constructions(constructions)
 
-    assert set(constructions) == set(STEINER_SKELETAL_CONSTRUCTION_DEFINITIONS)
+    assert set(steiner) == set(STEINER_SKELETAL_CONSTRUCTION_DEFINITIONS)
     assert all(
         item.availability_status == AvailabilityStatus.AVAILABLE
-        for item in constructions.values()
+        for item in steiner.values()
     )
-    assert all(item.geometry["analysis"] == "STEINER" for item in constructions.values())
-    assert all(item.geometry["computed_angle_deg"] is not None for item in constructions.values())
-    sn_mp = constructions["STEINER_SN_MP_V1"]
+    assert all(item.geometry["analysis"] == "STEINER" for item in steiner.values())
+    assert all(item.geometry["computed_angle_deg"] is not None for item in steiner.values())
+    sn_mp = steiner["STEINER_SN_MP_V1"]
     assert sn_mp.geometry["reference_axis"] == "S-N"
     assert sn_mp.geometry["mandibular_plane"] == "Go-Gn"
     assert sn_mp.geometry["axis_orientation_invariant"] is True
@@ -115,26 +124,26 @@ def test_steiner_measurements_bind_runtime_values_without_calibration():
         measurement_namespace="measurement:steiner:2",
         constructions=constructions,
     )
+    steiner = [item for item in measurements if item.analysis_id == "STEINER"]
 
-    assert [item.method_id for item in measurements] == [
+    assert [item.method_id for item in steiner] == [
         "STEINER_SNA_DEG_V1",
         "STEINER_SNB_DEG_V1",
         "STEINER_ANB_DEG_V1",
         "STEINER_SN_MP_DEG_V1",
     ]
-    assert all(item.analysis_id == "STEINER" for item in measurements)
-    assert all(item.unit == "deg" for item in measurements)
-    assert all(item.requires_calibration is False for item in measurements)
-    assert all(item.calibration_ref is None for item in measurements)
-    assert all(item.availability_status == AvailabilityStatus.AVAILABLE for item in measurements)
+    assert all(item.unit == "deg" for item in steiner)
+    assert all(item.requires_calibration is False for item in steiner)
+    assert all(item.calibration_ref is None for item in steiner)
+    assert all(item.availability_status == AvailabilityStatus.AVAILABLE for item in steiner)
 
 
 def test_missing_a_fails_closed_only_for_sna_and_anb():
     landmarks = _landmarks()
     landmarks.pop("A")
-    constructions = materialize_steiner_skeletal_constructions(
+    constructions = _steiner_constructions(materialize_steiner_skeletal_constructions(
         landmarks, construction_namespace="construction:steiner:3"
-    )
+    ))
 
     assert constructions["STEINER_SNA_V1"].availability_status == AvailabilityStatus.NOT_COMPUTABLE
     assert constructions["STEINER_ANB_V1"].availability_status == AvailabilityStatus.NOT_COMPUTABLE
@@ -145,9 +154,9 @@ def test_missing_a_fails_closed_only_for_sna_and_anb():
 def test_missing_gn_fails_closed_only_for_sn_mp():
     landmarks = _landmarks()
     landmarks.pop("Gn")
-    constructions = materialize_steiner_skeletal_constructions(
+    constructions = _steiner_constructions(materialize_steiner_skeletal_constructions(
         landmarks, construction_namespace="construction:steiner:missing-gn"
-    )
+    ))
     assert constructions["STEINER_SN_MP_V1"].availability_status == AvailabilityStatus.NOT_COMPUTABLE
     assert all(
         constructions[key].availability_status == AvailabilityStatus.AVAILABLE
@@ -158,25 +167,25 @@ def test_missing_gn_fails_closed_only_for_sn_mp():
 def test_cross_image_and_degenerate_geometry_fail_closed():
     mixed = _landmarks()
     mixed["A"] = _landmark("A", 24.0, 28.0, source="source:ceph:other")
-    constructions = materialize_steiner_skeletal_constructions(
+    constructions = _steiner_constructions(materialize_steiner_skeletal_constructions(
         mixed, construction_namespace="construction:steiner:4"
-    )
+    ))
     assert constructions["STEINER_SNA_V1"].availability_status == AvailabilityStatus.INVALID
     assert constructions["STEINER_ANB_V1"].availability_status == AvailabilityStatus.INVALID
     assert constructions["STEINER_SN_MP_V1"].availability_status == AvailabilityStatus.AVAILABLE
 
     mixed_snmp = _landmarks()
     mixed_snmp["Gn"] = _landmark("Gn", 34.0, 62.0, source="source:ceph:other")
-    constructions = materialize_steiner_skeletal_constructions(
+    constructions = _steiner_constructions(materialize_steiner_skeletal_constructions(
         mixed_snmp, construction_namespace="construction:steiner:4b"
-    )
+    ))
     assert constructions["STEINER_SN_MP_V1"].availability_status == AvailabilityStatus.INVALID
 
     degenerate = _landmarks()
     degenerate["S"] = _landmark("S", 20.0, 10.0)
-    constructions = materialize_steiner_skeletal_constructions(
+    constructions = _steiner_constructions(materialize_steiner_skeletal_constructions(
         degenerate, construction_namespace="construction:steiner:5"
-    )
+    ))
     assert all(item.availability_status == AvailabilityStatus.INVALID for item in constructions.values())
 
 
