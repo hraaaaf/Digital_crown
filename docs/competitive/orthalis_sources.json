@@ -1,0 +1,86 @@
+{
+  "schema_version": 1,
+  "checked_on": "2026-09-11",
+  "source_policy": "Only official Orthalis/Orqual pages are authoritative for vendor-claim verification in LOT B. Vendor claims are not independent runtime proof.",
+  "sources": [
+    {
+      "id": "ORTHALIS_CORE",
+      "url": "https://www.orthalis.com/orthalis/",
+      "publisher": "Orthalis / Groupe Orqual",
+      "source_type": "official_vendor_page",
+      "claims": [
+        "multi-practitioner planning",
+        "appointment reminders",
+        "patient file and medical questionnaires",
+        "billing and payments",
+        "correspondence",
+        "statistics and dashboards"
+      ]
+    },
+    {
+      "id": "ORTHALIS_CEPH",
+      "url": "https://www.orthalis.com/ceph/",
+      "publisher": "Orthalis / Groupe Orqual",
+      "source_type": "official_vendor_page",
+      "claims": [
+        "more than 25 cephalometric methods",
+        "automatic AI tracings",
+        "superposition of tracings radiographs and photos",
+        "customizable methods",
+        "Delaire Ricketts Steiner Tweed TTD-Plance Geneve Root Sassouni listed"
+      ]
+    },
+    {
+      "id": "ORTHALIS_KITVIEW",
+      "url": "https://www.orthalis.com/kitview/",
+      "publisher": "Orthalis / Groupe Orqual",
+      "source_type": "official_vendor_page",
+      "claims": [
+        "centralized digital clinical library",
+        "photos videos audio PDF documents and spreadsheets",
+        "image presentation and comparison",
+        "automatic photo acquisition",
+        "automatic photo-type recognition",
+        "case search and similar-case comparison",
+        "dental imaging interfaces"
+      ]
+    },
+    {
+      "id": "ORTHALIS_OPTIONS",
+      "url": "https://www.orthalis.com/options/",
+      "publisher": "Orthalis / Groupe Orqual",
+      "source_type": "official_vendor_page",
+      "claims": [
+        "mobile photo and video capture",
+        "automatic transfer to Kitview",
+        "patient-facing options including documents questionnaires payment and emergency photo workflows",
+        "mobile case comparison and voice memo capabilities"
+      ]
+    },
+    {
+      "id": "ORTHALIS_CONNECTORS",
+      "url": "https://www.orthalis.com/les-passerelles/",
+      "publisher": "Orthalis / Groupe Orqual",
+      "source_type": "official_vendor_page",
+      "claims": [
+        "DentalMonitoring integration",
+        "Spark integration",
+        "Doctolib integration",
+        "3Shape integration",
+        "Invisalign integration",
+        "OnyxCeph integration"
+      ]
+    },
+    {
+      "id": "ORTHALIS_HOME",
+      "url": "https://www.orthalis.com/",
+      "publisher": "Orthalis / Groupe Orqual",
+      "source_type": "official_vendor_page",
+      "claims": [
+        "Orthalis Kitview and Ceph offered as complementary suite",
+        "support and training positioning",
+        "data migration service advertised"
+      ]
+    }
+  ]
+}
