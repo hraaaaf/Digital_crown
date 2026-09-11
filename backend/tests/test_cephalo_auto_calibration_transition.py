@@ -103,9 +103,19 @@ def test_auto_calibration_creates_revision_and_unlocks_measurements_without_clin
     assert source["metadata"]["clinician_confirmed"] is False
     assert source["metadata"]["profile_id"] == "TEST_RULER"
 
-    assert len(payload["measurements"]) == 4
-    assert all(item["availability_status"] == "AVAILABLE" for item in payload["measurements"])
-    assert all(item["calibration_ref"] == source["evidence_id"] for item in payload["measurements"])
+    measurements = payload["measurements"]
+    assert len(measurements) == 5
+    assert all(item["availability_status"] == "AVAILABLE" for item in measurements)
+
+    calibrated = [item for item in measurements if item["requires_calibration"]]
+    angular = [item for item in measurements if not item["requires_calibration"]]
+    assert len(calibrated) == 4
+    assert len(angular) == 1
+    assert all(item["calibration_ref"] == source["evidence_id"] for item in calibrated)
+    assert angular[0]["method_id"] == "CRANIOM_U1_FRANKFORT_DEG_V1"
+    assert angular[0]["unit"] == "deg"
+    assert angular[0]["calibration_ref"] is None
+    assert source["evidence_id"] not in angular[0]["evidence_refs"]
 
 
 def test_auto_calibration_preserves_corrected_landmark_and_current_refs_exactly():
