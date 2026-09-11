@@ -18,6 +18,13 @@ CRANIOM_SOURCE_REFERENCES: tuple[str, ...] = (
     "doi:10.1051/odfen/2010406",
     "doi:10.1051/odfen/2011104",
 )
+DOWNS_MANDIBULAR_PLANE_SOURCE_REFERENCES: tuple[str, ...] = (
+    "doi:10.1016/0002-9416(48)90015-3",
+)
+CRANIOM_L1_DOWNS_SOURCE_REFERENCES: tuple[str, ...] = (
+    *CRANIOM_SOURCE_REFERENCES,
+    *DOWNS_MANDIBULAR_PLANE_SOURCE_REFERENCES,
+)
 
 
 @dataclass(frozen=True)
@@ -103,6 +110,16 @@ _ACTIVE_CONVENTIONS: tuple[GeometricConventionSpec, ...] = (
         operation="clinical obtuse angle between U1 apex-to-incisal long axis and Frankfort Po-to-Or",
         required_landmark_ids=("U1_apex", "U1_incisal", "Po", "Or"),
         source_references=CRANIOM_SOURCE_REFERENCES,
+        constructable=True,
+    ),
+    GeometricConventionSpec(
+        convention_id="CRANIOM_L1_DOWNS_ANGLE_V1",
+        construction_definition_id="CRANIOM_L1_TO_DOWNS_MP_V1",
+        clinical_label="Incisive inférieure / plan mandibulaire de Downs",
+        reference_frame_id="DOWNS_MP_GO_ME_V1",
+        operation="clinical obtuse angle between L1 apex-to-incisal long axis and Downs mandibular plane Go-to-Me",
+        required_landmark_ids=("L1_apex", "L1_incisal", "Go", "Me"),
+        source_references=CRANIOM_L1_DOWNS_SOURCE_REFERENCES,
         constructable=True,
     ),
 )
