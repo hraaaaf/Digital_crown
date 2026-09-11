@@ -1,4 +1,4 @@
-"""Versioned Steiner skeletal geometry.
+"""Versioned Steiner geometry.
 
 Deterministic patient geometry only. No norms, diagnosis, growth projection or treatment.
 """
@@ -37,6 +37,26 @@ def _line_angle_deg(
     return value if math.isfinite(value) else None
 
 
+def _point_to_line_distance_mm(
+    target: Optional[Point],
+    line_start: Optional[Point],
+    line_end: Optional[Point],
+    mm_per_pixel: Optional[float],
+) -> Optional[float]:
+    if target is None or line_start is None or line_end is None or mm_per_pixel is None:
+        return None
+    if not math.isfinite(mm_per_pixel) or mm_per_pixel <= 0:
+        return None
+    dx = line_end[0] - line_start[0]
+    dy = line_end[1] - line_start[1]
+    length = math.hypot(dx, dy)
+    if not math.isfinite(length) or length <= _EPS:
+        return None
+    cross = dx * (target[1] - line_start[1]) - dy * (target[0] - line_start[0])
+    value = abs(cross) / length * mm_per_pixel
+    return value if math.isfinite(value) else None
+
+
 def steiner_sna_deg_v1(
     sella: Optional[Point], nasion: Optional[Point], point_a: Optional[Point]
 ) -> Optional[float]:
@@ -64,3 +84,43 @@ def steiner_anb_deg_v1(
         return None
     value = sna - snb
     return value if math.isfinite(value) else None
+
+
+def steiner_u1_na_deg_v1(
+    u1_apex: Optional[Point],
+    u1_incisal: Optional[Point],
+    nasion: Optional[Point],
+    point_a: Optional[Point],
+) -> Optional[float]:
+    """Angle between the upper-incisor long axis and N-A."""
+    return _line_angle_deg(u1_apex, u1_incisal, nasion, point_a)
+
+
+def steiner_l1_nb_deg_v1(
+    l1_apex: Optional[Point],
+    l1_incisal: Optional[Point],
+    nasion: Optional[Point],
+    point_b: Optional[Point],
+) -> Optional[float]:
+    """Angle between the lower-incisor long axis and N-B."""
+    return _line_angle_deg(l1_apex, l1_incisal, nasion, point_b)
+
+
+def steiner_u1_na_mm_v1(
+    u1_incisal: Optional[Point],
+    nasion: Optional[Point],
+    point_a: Optional[Point],
+    mm_per_pixel: Optional[float],
+) -> Optional[float]:
+    """Perpendicular distance from upper-incisor tip to N-A."""
+    return _point_to_line_distance_mm(u1_incisal, nasion, point_a, mm_per_pixel)
+
+
+def steiner_l1_nb_mm_v1(
+    l1_incisal: Optional[Point],
+    nasion: Optional[Point],
+    point_b: Optional[Point],
+    mm_per_pixel: Optional[float],
+) -> Optional[float]:
+    """Perpendicular distance from lower-incisor tip to N-B."""
+    return _point_to_line_distance_mm(l1_incisal, nasion, point_b, mm_per_pixel)
