@@ -30,17 +30,20 @@ def _points():
 
 
 def _constructions():
-    return {
-        definition_id: ConstructionEvidence(
+    constructions = {}
+    for definition_id in CRANIOM_CONSTRUCTION_DEFINITIONS:
+        geometry = {"kind": "synthetic_test_construction"}
+        if definition_id == "CRANIOM_U1_TO_FRANKFORT_V1":
+            geometry["computed_angle_deg"] = 111.8
+        constructions[definition_id] = ConstructionEvidence(
             construction_id=f"construction:{definition_id}",
             definition_id=definition_id,
             definition_version="1",
             landmark_refs=["landmark:synthetic"],
-            geometry={"kind": "synthetic_test_construction"},
+            geometry=geometry,
             evidence_refs=["landmark:synthetic"],
         )
-        for definition_id in CRANIOM_CONSTRUCTION_DEFINITIONS
-    }
+    return constructions
 
 
 def _by_name(measurements):
@@ -75,6 +78,7 @@ def test_adapter_emits_certified_craniom_measurements_including_r4_u1_frankfort(
     assert by_name["I_Francfort"].unit == "deg"
     assert by_name["I_Francfort"].requires_calibration is False
     assert by_name["I_Francfort"].calibration_ref is None
+    assert by_name["I_Francfort"].value == 111.8
     assert by_name["I_Francfort"].value == result.metrics.analyse_dentaire.I_Francfort.valeur
 
 
@@ -93,7 +97,7 @@ def test_without_calibration_only_linear_values_are_not_computable():
         assert by_name[name].value is None
         assert by_name[name].availability_status == AvailabilityStatus.NOT_COMPUTABLE
         assert by_name[name].calibration_ref is None
-    assert by_name["I_Francfort"].value is not None
+    assert by_name["I_Francfort"].value == 111.8
     assert by_name["I_Francfort"].availability_status == AvailabilityStatus.AVAILABLE
     assert by_name["I_Francfort"].calibration_ref is None
 
@@ -114,7 +118,20 @@ def test_missing_pixel_ratio_does_not_block_uncalibrated_angular_measurement():
         for name in ("Situation_A", "Situation_B", "Decalage_A_B", "Profondeur_Faciale")
     )
     assert by_name["I_Francfort"].availability_status == AvailabilityStatus.AVAILABLE
-    assert by_name["I_Francfort"].value is not None
+    assert by_name["I_Francfort"].value == 111.8
+
+
+def test_u1_runtime_value_must_match_typed_construction_geometry():
+    result = CephaloEngine(mm_per_pixel=None).calculate_metrics(_points())
+    result.metrics.analyse_dentaire.I_Francfort.valeur = 99.9
+
+    with pytest.raises(ValueError, match="Runtime I_Francfort does not match"):
+        adapt_craniom_linear_measurements(
+            result,
+            measurement_namespace="cephalo:44b",
+            constructions=_constructions(),
+            calibration_ref=None,
+        )
 
 
 def test_adapter_requires_materialized_construction_evidence():
