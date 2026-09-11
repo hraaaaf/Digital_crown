@@ -3,6 +3,7 @@ from __future__ import annotations
 import pytest
 
 from backend.schemas.cephalo_evidence import (
+    AvailabilityStatus,
     EvidenceStatus,
     LandmarkEvidence,
     LandmarkOrigin,
@@ -19,13 +20,13 @@ from backend.services.cephalo_geometric_conventions import (
 )
 
 
-def _landmark(landmark_id: str, x: float, y: float) -> LandmarkEvidence:
+def _landmark(landmark_id: str, x: float, y: float, *, source_image_ref: str = "img:1") -> LandmarkEvidence:
     return LandmarkEvidence(
         evidence_id=f"lm:{landmark_id}",
         landmark_id=landmark_id,
         x=x,
         y=y,
-        source_image_ref="img:1",
+        source_image_ref=source_image_ref,
         origin=LandmarkOrigin.MANUAL,
         evidence_refs=["src:1"],
         evidence_status=EvidenceStatus.OBSERVED,
@@ -93,3 +94,33 @@ def test_materialized_available_construction_carries_r3_convention_provenance() 
     assert provenance["clinical_label"] == "A'B'"
     assert provenance["reference_frame_id"] == "FH_PO_OR_V1"
     assert provenance["source_references"] == list(CRANIOM_SOURCE_REFERENCES)
+
+
+def test_not_computable_construction_keeps_convention_but_withholds_patient_geometry() -> None:
+    landmarks = _complete_landmarks()
+    del landmarks["A"]
+
+    construction = materialize_craniom_linear_constructions(
+        landmarks, construction_namespace="analysis:1"
+    )["CRANIOM_AB_PRIME_V1"]
+
+    assert construction.availability_status == AvailabilityStatus.NOT_COMPUTABLE
+    assert construction.missing_landmark_ids == ["A"]
+    assert set(construction.geometry) == {"geometric_convention"}
+    provenance = construction.geometry["geometric_convention"]
+    assert provenance["convention_id"] == "CRANIOM_AB_PRIME_FH_V1"
+    assert provenance["reference_frame_id"] == "FH_PO_OR_V1"
+
+
+def test_invalid_cross_image_construction_keeps_convention_but_withholds_patient_geometry() -> None:
+    landmarks = _complete_landmarks()
+    landmarks["Or"] = _landmark("Or", 100.0, 50.0, source_image_ref="img:2")
+
+    construction = materialize_craniom_linear_constructions(
+        landmarks, construction_namespace="analysis:1"
+    )["CRANIOM_AB_PRIME_V1"]
+
+    assert construction.availability_status == AvailabilityStatus.INVALID
+    assert set(construction.geometry) == {"geometric_convention"}
+    provenance = construction.geometry["geometric_convention"]
+    assert provenance["convention_id"] == "CRANIOM_AB_PRIME_FH_V1"
