@@ -23,23 +23,42 @@ def _directed_line_angle_deg(start: Optional[Point], end: Optional[Point]) -> Op
     return angle if math.isfinite(angle) else None
 
 
+def _clinical_obtuse_angle_deg_v1(
+    axis_start: Optional[Point],
+    axis_end: Optional[Point],
+    reference_start: Optional[Point],
+    reference_end: Optional[Point],
+) -> Optional[float]:
+    axis_angle = _directed_line_angle_deg(axis_start, axis_end)
+    reference_angle = _directed_line_angle_deg(reference_start, reference_end)
+    if axis_angle is None or reference_angle is None:
+        return None
+    raw = abs(axis_angle - reference_angle) % 180.0
+    value = 180.0 - raw
+    return value if math.isfinite(value) else None
+
+
 def craniom_u1_frankfort_deg_v1(
     u1_apex: Optional[Point],
     u1_incisal: Optional[Point],
     po: Optional[Point],
     orbitale: Optional[Point],
 ) -> Optional[float]:
-    """Upper-incisor long-axis inclination to Frankfort, in degrees.
+    """Upper-incisor long-axis inclination to Frankfort, in degrees."""
+    return _clinical_obtuse_angle_deg_v1(u1_apex, u1_incisal, po, orbitale)
 
-    The upper-incisor axis is oriented apex -> incisal edge and Frankfort is
-    oriented Po -> Or. The clinical obtuse angle matches the existing backend
-    `I_Francfort` convention and is kept versioned here so typed evidence cannot
-    silently drift from runtime geometry.
+
+def craniom_l1_downs_deg_v1(
+    l1_apex: Optional[Point],
+    l1_incisal: Optional[Point],
+    gonion: Optional[Point],
+    menton: Optional[Point],
+) -> Optional[float]:
+    """Lower-incisor inclination to Downs mandibular plane Go->Me, in degrees.
+
+    The construction is explicitly versioned as the clinical obtuse angle between
+    the lower-incisor apex->incisal long axis and the Downs mandibular plane,
+    represented by Go->Me in the certified runtime. It intentionally carries no
+    normative interpretation.
     """
-    incisor_angle = _directed_line_angle_deg(u1_apex, u1_incisal)
-    frankfort_angle = _directed_line_angle_deg(po, orbitale)
-    if incisor_angle is None or frankfort_angle is None:
-        return None
-    raw = abs(incisor_angle - frankfort_angle) % 180.0
-    value = 180.0 - raw
-    return value if math.isfinite(value) else None
+    return _clinical_obtuse_angle_deg_v1(l1_apex, l1_incisal, gonion, menton)
