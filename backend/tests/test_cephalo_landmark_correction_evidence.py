@@ -203,7 +203,20 @@ def test_calibration_source_and_refs_survive_landmark_revision():
     payload = _edit(calibrated, edited, at=LATER, ratio=0.2)
 
     assert any(item["evidence_id"] == calibration["evidence_id"] for item in payload["sources"])
-    assert all(item["calibration_ref"] == calibration["evidence_id"] for item in payload["measurements"])
+    calibrated_measurements = [
+        item for item in payload["measurements"] if item["requires_calibration"]
+    ]
+    independent_measurements = [
+        item for item in payload["measurements"] if not item["requires_calibration"]
+    ]
+    assert len(calibrated_measurements) == 4
+    assert all(
+        item["calibration_ref"] == calibration["evidence_id"]
+        for item in calibrated_measurements
+    )
+    assert len(independent_measurements) == 1
+    assert independent_measurements[0]["method_id"] == "CRANIOM_U1_FRANKFORT_DEG_V1"
+    assert independent_measurements[0]["calibration_ref"] is None
 
 
 def test_calibration_preserves_explicit_current_set_after_point_omission():

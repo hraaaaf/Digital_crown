@@ -33,6 +33,11 @@ def _srpose_points():
         for key, value in _engine_points().items()
         if key in coords
     })
+    # R4 typed CRANIOM geometry uses the canonical SRPose landmark names while
+    # the legacy engine fixture uses U1a/U1i. Keep both representations bound
+    # to the same physical points so the integration test exercises real parity.
+    coords["U1_apex"] = _engine_points()["U1a"]
+    coords["U1_incisal"] = _engine_points()["U1i"]
     return [
         {"id": name, "x": x, "y": y}
         for name, (x, y) in coords.items()

@@ -95,6 +95,16 @@ _ACTIVE_CONVENTIONS: tuple[GeometricConventionSpec, ...] = (
         source_references=CRANIOM_SOURCE_REFERENCES,
         constructable=True,
     ),
+    GeometricConventionSpec(
+        convention_id="CRANIOM_U1_FRANKFORT_ANGLE_V1",
+        construction_definition_id="CRANIOM_U1_TO_FRANKFORT_V1",
+        clinical_label="Incisive supérieure / Frankfort",
+        reference_frame_id="FH_PO_OR_V1",
+        operation="clinical obtuse angle between U1 apex-to-incisal long axis and Frankfort Po-to-Or",
+        required_landmark_ids=("U1_apex", "U1_incisal", "Po", "Or"),
+        source_references=CRANIOM_SOURCE_REFERENCES,
+        constructable=True,
+    ),
 )
 
 

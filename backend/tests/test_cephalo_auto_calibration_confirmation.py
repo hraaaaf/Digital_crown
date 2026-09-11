@@ -95,7 +95,18 @@ def test_confirmation_is_audit_only_and_preserves_values_and_geometry():
     assert source["metadata"]["clinician_confirmed"] is True
     assert source["metadata"]["confirmed_by"] == "99"
     assert source["metadata"]["profile_id"] == "TEST_RULER"
-    assert all(item["calibration_ref"] == source["evidence_id"] for item in payload["measurements"])
+
+    calibrated = [item for item in payload["measurements"] if item["calibration_ref"] is not None]
+    independent = [item for item in payload["measurements"] if item["calibration_ref"] is None]
+    assert calibrated
+    assert independent
+    assert all(item["calibration_ref"] == source["evidence_id"] for item in calibrated)
+
+    previous_by_id = {item["measurement_id"]: item for item in previous["measurements"]}
+    for item in independent:
+        before = previous_by_id[item["measurement_id"]]
+        assert before["calibration_ref"] is None
+        assert item["evidence_refs"] == before["evidence_refs"]
 
 
 def test_confirmation_preserves_current_landmark_refs_when_present():

@@ -9,7 +9,7 @@ from backend.schemas.cephalo_evidence import (
     LandmarkOrigin,
 )
 from backend.services.cephalo_construction_evidence_adapter import (
-    CRANIOM_LINEAR_REQUIRED_LANDMARKS,
+    CRANIOM_REQUIRED_LANDMARKS,
     materialize_craniom_linear_constructions,
 )
 from backend.services.cephalo_geometric_conventions import (
@@ -41,12 +41,14 @@ def _complete_landmarks() -> dict[str, LandmarkEvidence]:
         "Po": _landmark("Po", 0.0, 50.0),
         "Or": _landmark("Or", 100.0, 50.0),
         "S": _landmark("S", 5.0, 20.0),
+        "U1_apex": _landmark("U1_apex", 40.0, 20.0),
+        "U1_incisal": _landmark("U1_incisal", 50.0, 45.0),
     }
 
 
 def test_every_executable_craniom_construction_has_one_active_convention() -> None:
-    assert set(ACTIVE_CRANIOM_CONVENTIONS) == set(CRANIOM_LINEAR_REQUIRED_LANDMARKS)
-    for definition_id, required_landmarks in CRANIOM_LINEAR_REQUIRED_LANDMARKS.items():
+    assert set(ACTIVE_CRANIOM_CONVENTIONS) == set(CRANIOM_REQUIRED_LANDMARKS)
+    for definition_id, required_landmarks in CRANIOM_REQUIRED_LANDMARKS.items():
         convention = get_active_craniom_convention(definition_id)
         assert convention.constructable is True
         assert convention.required_landmark_ids == required_landmarks
@@ -76,6 +78,15 @@ def test_gi_gs_contract_is_blocked_without_landmark_substitution() -> None:
     assert "Go" not in blocked.required_landmark_ids
     assert "Ar" not in blocked.required_landmark_ids
     assert blocked.blocked_reason == "GI_GS_LANDMARKS_NOT_AVAILABLE_IN_SRPOSE38_RUNTIME"
+
+
+def test_r4_u1_frankfort_convention_is_explicit_and_source_bound() -> None:
+    convention = get_active_craniom_convention("CRANIOM_U1_TO_FRANKFORT_V1")
+    assert convention.convention_id == "CRANIOM_U1_FRANKFORT_ANGLE_V1"
+    assert convention.clinical_label == "Incisive supérieure / Frankfort"
+    assert convention.required_landmark_ids == ("U1_apex", "U1_incisal", "Po", "Or")
+    assert convention.reference_frame_id == "FH_PO_OR_V1"
+    assert convention.source_references == CRANIOM_SOURCE_REFERENCES
 
 
 def test_unknown_craniom_construction_fails_closed() -> None:

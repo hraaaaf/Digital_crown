@@ -86,9 +86,14 @@ def test_canonical_get_projects_typed_measurement_at_api_boundary(monkeypatch):
 
 def test_canonical_get_returns_409_when_typed_graph_is_incomplete(monkeypatch):
     angles, graph = _angles_with_graph(ratio=0.2, calibrated=True)
+    measurements = [
+        item
+        for item in graph["measurements"]
+        if item["method_id"] != "CRANIOM_SITUATION_A_MM_V1"
+    ]
     angles[EVIDENCE_GRAPH_KEY] = {
         **graph,
-        "measurements": graph["measurements"][:-1],
+        "measurements": measurements,
     }
     monkeypatch.setattr(cephalo_analysis_read, "assert_patient_access", lambda *_args: None)
 
