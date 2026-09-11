@@ -22,6 +22,7 @@ from backend import models, schemas, database
 from backend.routers.auth import get_current_user, is_superadmin_user
 from backend.security import get_password_hash
 from backend.services.subscription_policy import (
+    TEAM_LIMITS,
     count_reserved_team_usage,
     exceeds_limit,
     get_team_limits,
@@ -67,6 +68,50 @@ def require_employer(current_user: models.User = Depends(get_current_user)) -> m
 
 def _get_plan(owner: models.User) -> str:
     return normalize_plan(getattr(owner, "subscription_plan", None))
+
+
+class _QuotaCount(int):
+    """Compatibilite temporaire pour les consommateurs legacy du dashboard.
+
+    La policy canonique utilise None pour une limite illimitee. Le dashboard
+    historique compare encore directement `used >= limit`; cette sous-classe
+    preserve cette comparaison sans reinjecter un faux plafond comme 999.
+    """
+
+    def __new__(cls, value: int):
+        return super().__new__(cls, value)
+
+    def __add__(self, other):
+        return _QuotaCount(int(self) + int(other))
+
+    def __radd__(self, other):
+        return _QuotaCount(int(other) + int(self))
+
+    def __ge__(self, other):
+        if other is None:
+            return False
+        return super().__ge__(other)
+
+
+# Surface legacy derivee exclusivement de la policy canonique.
+# Ne jamais dupliquer de limites commerciales ici.
+PLAN_QUOTAS = {
+    plan: {
+        "dentistes": limits.dentists,
+        "secretaires": limits.secretaries,
+    }
+    for plan, limits in TEAM_LIMITS.items()
+}
+
+
+def _count_team(db: Session, employer_id: int) -> dict:
+    """Adapte le comptage canonique au contrat historique du dashboard."""
+    usage = count_reserved_team_usage(db, employer_id)
+    return {
+        "dentistes": _QuotaCount(max(0, usage.dentists - 1)),
+        "secretaires": _QuotaCount(usage.secretaries),
+        "pending": usage.pending,
+    }
 
 
 def _build_quota(owner: models.User, db: Session) -> schemas.QuotaOut:
