@@ -1,7 +1,8 @@
 """Audited calibration-only transition for an AUTO_VERIFIED fiducial decision.
 
-The transition preserves the current landmark/construction evidence exactly. It
-replaces only calibration provenance and calibration-dependent measurements.
+The transition preserves current landmark/construction evidence and every
+calibration-independent measurement exactly. It replaces only calibration
+provenance and calibration-dependent CRANIOM measurements.
 """
 from __future__ import annotations
 
@@ -201,12 +202,20 @@ def rebuild_evidence_after_auto_calibration(
         )
 
         construction_map = {item.definition_id: item for item in constructions}
-        measurements = adapt_craniom_linear_measurements(
+        rebuilt_craniom = adapt_craniom_linear_measurements(
             result,
             measurement_namespace=f"measurement:{case_id}:r{next_revision}",
             constructions=construction_map,
             calibration_ref=calibration.evidence_id,
         )
+        preserved_independent = [
+            item for item in old_measurements if not item.requires_calibration
+        ]
+        rebuilt_calibrated = [
+            item for item in rebuilt_craniom if item.requires_calibration
+        ]
+        measurements = [*preserved_independent, *rebuilt_calibrated]
+
         current_sources = [source for source in sources if source.kind != "calibration"] + [calibration]
         graph = EvidenceGraphSnapshot(
             sources=current_sources,
