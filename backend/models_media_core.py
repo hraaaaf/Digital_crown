@@ -1,8 +1,8 @@
-"""Media Core C1: tenant-scoped clinical asset metadata and provenance.
+"""Media Core: tenant-scoped clinical asset metadata, provenance and storage state.
 
-This module is intentionally storage-agnostic. A ClinicalAsset identifies a patient media
-asset and its provenance; file storage, ingestion, derivatives, thumbnails and deduplication
-belong to later Media Core lots.
+C1 introduced the storage-independent ClinicalAsset registry. C2 adds only the metadata
+needed to bind an asset to an encrypted content-addressed blob. Import APIs, derivatives,
+thumbnails and UI remain later lots.
 """
 from __future__ import annotations
 
@@ -32,12 +32,17 @@ CLINICAL_ASSET_SOURCE_KINDS = (
     "DEVICE_CAPTURE",
 )
 
+CLINICAL_ASSET_STORAGE_FORMAT_AESGCM_V1 = "AESGCM_V1"
+
 
 class ClinicalAsset(Base):
-    """Storage-independent registry entry for patient clinical media.
+    """Tenant-scoped registry entry for patient clinical media.
 
     `employer_id` is the tenant authority. `patient_id` must belong to the same employer;
-    that invariant is enforced by the creation service before persistence.
+    that invariant is enforced by the creation/storage services before persistence.
+
+    `storage_key` is always a relative, non-patient-identifying key beneath MEDIA_ROOT.
+    It never contains an original filename and must never be exposed as a public URL.
     """
 
     __tablename__ = "clinical_assets"
@@ -64,6 +69,11 @@ class ClinicalAsset(Base):
             "patient_id",
             "created_at",
         ),
+        Index(
+            "ix_clinical_assets_tenant_sha256",
+            "employer_id",
+            "sha256",
+        ),
     )
 
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
@@ -81,10 +91,16 @@ class ClinicalAsset(Base):
     original_filename: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
     mime_type: Mapped[Optional[str]] = mapped_column(String(127), nullable=True)
     byte_size: Mapped[Optional[int]] = mapped_column(BigInteger, nullable=True)
-    # C1 records a supplied digest; C2 owns digest computation and dedupe semantics.
+    # C1 could record a supplied digest as metadata. Once C2 storage is bound this value
+    # is overwritten with the digest computed server-side from plaintext bytes.
     sha256: Mapped[Optional[str]] = mapped_column(String(64), nullable=True, index=True)
 
-    # Longitudinal label only. C1 does not interpret T0/T1/T2 clinically.
+    # C2 physical-storage binding. The key is relative to MEDIA_ROOT and content-addressed.
+    storage_key: Mapped[Optional[str]] = mapped_column(String(512), nullable=True, index=True)
+    storage_format: Mapped[Optional[str]] = mapped_column(String(32), nullable=True)
+    stored_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True, index=True)
+
+    # Longitudinal label only. Media Core does not interpret T0/T1/T2 clinically.
     timepoint: Mapped[Optional[str]] = mapped_column(String(32), nullable=True, index=True)
     captured_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True, index=True)
 
