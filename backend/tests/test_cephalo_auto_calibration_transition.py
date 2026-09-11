@@ -104,22 +104,33 @@ def test_auto_calibration_creates_revision_and_unlocks_measurements_without_clin
     assert source["metadata"]["profile_id"] == "TEST_RULER"
 
     measurements = payload["measurements"]
-    assert len(measurements) == 7
     assert all(item["availability_status"] == "AVAILABLE" for item in measurements)
 
-    calibrated = [item for item in measurements if item["requires_calibration"]]
-    angular = [item for item in measurements if not item["requires_calibration"]]
+    craniom = [item for item in measurements if item["analysis_id"] == "CRANIOM"]
+    steiner = [item for item in measurements if item["analysis_id"] == "STEINER"]
+    calibrated = [item for item in craniom if item["requires_calibration"]]
+    craniom_angular = [item for item in craniom if not item["requires_calibration"]]
+
     assert len(calibrated) == 4
-    assert len(angular) == 3
     assert all(item["calibration_ref"] == source["evidence_id"] for item in calibrated)
-    assert {item["method_id"] for item in angular} == {
+    assert {item["method_id"] for item in craniom_angular} == {
         "CRANIOM_U1_FRANKFORT_DEG_V1",
         "CRANIOM_L1_DOWNS_DEG_V1",
         "CRANIOM_INTERINCISAL_DEG_V1",
     }
-    assert all(item["unit"] == "deg" for item in angular)
-    assert all(item["calibration_ref"] is None for item in angular)
-    assert all(source["evidence_id"] not in item["evidence_refs"] for item in angular)
+    assert all(item["unit"] == "deg" for item in craniom_angular)
+    assert all(item["calibration_ref"] is None for item in craniom_angular)
+    assert all(source["evidence_id"] not in item["evidence_refs"] for item in craniom_angular)
+
+    assert {item["method_id"] for item in steiner} == {
+        "STEINER_SNA_DEG_V1",
+        "STEINER_SNB_DEG_V1",
+        "STEINER_ANB_DEG_V1",
+        "STEINER_U1_NA_DEG_V1",
+        "STEINER_L1_NB_DEG_V1",
+    }
+    assert all(item["requires_calibration"] is False for item in steiner)
+    assert all(item["calibration_ref"] is None for item in steiner)
 
 
 def test_auto_calibration_preserves_corrected_landmark_and_current_refs_exactly():
