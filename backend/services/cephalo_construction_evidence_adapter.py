@@ -14,7 +14,10 @@ from backend.schemas.cephalo_evidence import (
     ConstructionEvidence,
     LandmarkEvidence,
 )
-from backend.services.cephalo_craniom_angular import craniom_u1_frankfort_deg_v1
+from backend.services.cephalo_craniom_angular import (
+    craniom_l1_downs_deg_v1,
+    craniom_u1_frankfort_deg_v1,
+)
 from backend.services.cephalo_geometric_conventions import (
     geometric_convention_metadata,
     get_active_craniom_convention,
@@ -91,6 +94,20 @@ _CRANIOM_ANGULAR_CONSTRUCTIONS: Sequence[_ConstructionSpec] = (
             "coordinate_space": "source_image_pixels",
         },
     ),
+    _ConstructionSpec(
+        definition_id="CRANIOM_L1_TO_DOWNS_MP_V1",
+        required_landmark_ids=("L1_apex", "L1_incisal", "Go", "Me"),
+        geometry={
+            "kind": "directed_clinical_angle",
+            "axis_definition": "DOWNS_MP_GO_ME_V1",
+            "tooth_axis_start": "L1_apex",
+            "tooth_axis_end": "L1_incisal",
+            "reference_axis_start": "Go",
+            "reference_axis_end": "Me",
+            "angle_convention": "clinical_obtuse_v1",
+            "coordinate_space": "source_image_pixels",
+        },
+    ),
 )
 
 _CRANIOM_CONSTRUCTIONS: Sequence[_ConstructionSpec] = (
@@ -100,7 +117,7 @@ _CRANIOM_CONSTRUCTIONS: Sequence[_ConstructionSpec] = (
 
 
 def _validate_construction_specs_against_conventions() -> None:
-    """Fail import-time if executable geometry drifts from its R3/R4 convention."""
+    """Fail import-time if executable geometry drifts from its convention."""
 
     for spec in _CRANIOM_CONSTRUCTIONS:
         convention = get_active_craniom_convention(spec.definition_id)
@@ -145,11 +162,7 @@ def _collect_dependencies(
 
 
 def _convention_only_geometry(definition_id: str) -> dict[str, object]:
-    """Keep scientific provenance without pretending patient geometry is computable."""
-
-    return {
-        "geometric_convention": geometric_convention_metadata(definition_id),
-    }
+    return {"geometric_convention": geometric_convention_metadata(definition_id)}
 
 
 def _materialize_computed_geometry(
@@ -159,14 +172,23 @@ def _materialize_computed_geometry(
 ) -> bool:
     """Attach calibration-independent patient geometry; return False if degenerate."""
 
-    if spec.definition_id != "CRANIOM_U1_TO_FRANKFORT_V1":
+    if spec.definition_id == "CRANIOM_U1_TO_FRANKFORT_V1":
+        value = craniom_u1_frankfort_deg_v1(
+            (landmarks["U1_apex"].x, landmarks["U1_apex"].y),
+            (landmarks["U1_incisal"].x, landmarks["U1_incisal"].y),
+            (landmarks["Po"].x, landmarks["Po"].y),
+            (landmarks["Or"].x, landmarks["Or"].y),
+        )
+    elif spec.definition_id == "CRANIOM_L1_TO_DOWNS_MP_V1":
+        value = craniom_l1_downs_deg_v1(
+            (landmarks["L1_apex"].x, landmarks["L1_apex"].y),
+            (landmarks["L1_incisal"].x, landmarks["L1_incisal"].y),
+            (landmarks["Go"].x, landmarks["Go"].y),
+            (landmarks["Me"].x, landmarks["Me"].y),
+        )
+    else:
         return True
-    value = craniom_u1_frankfort_deg_v1(
-        (landmarks["U1_apex"].x, landmarks["U1_apex"].y),
-        (landmarks["U1_incisal"].x, landmarks["U1_incisal"].y),
-        (landmarks["Po"].x, landmarks["Po"].y),
-        (landmarks["Or"].x, landmarks["Or"].y),
-    )
+
     if value is None:
         return False
     geometry["computed_angle_deg"] = round(value, 1)
@@ -178,14 +200,6 @@ def materialize_craniom_constructions(
     *,
     construction_namespace: str,
 ) -> dict[str, ConstructionEvidence]:
-    """Create typed construction evidence for the certified CRANIOM runtime set.
-
-    Missing or unavailable landmarks produce ``NOT_COMPUTABLE`` construction
-    evidence. Cross-image or degenerate geometry produces ``INVALID`` evidence.
-    Fail-closed states retain immutable convention provenance while withholding
-    executable patient geometry.
-    """
-
     if not isinstance(construction_namespace, str) or not construction_namespace.strip():
         raise ValueError("construction_namespace must be non-empty")
 
@@ -231,8 +245,6 @@ def materialize_craniom_linear_constructions(
     *,
     construction_namespace: str,
 ) -> dict[str, ConstructionEvidence]:
-    """Backward-compatible entry point returning the full certified CRANIOM set."""
-
     return materialize_craniom_constructions(
         landmarks, construction_namespace=construction_namespace
     )
