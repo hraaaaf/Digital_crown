@@ -202,24 +202,34 @@ def test_calibration_source_and_refs_survive_landmark_revision():
     payload = _edit(calibrated, edited, at=LATER, ratio=0.2)
 
     assert any(item["evidence_id"] == calibration["evidence_id"] for item in payload["sources"])
+    craniom = [item for item in payload["measurements"] if item["analysis_id"] == "CRANIOM"]
+    steiner = [item for item in payload["measurements"] if item["analysis_id"] == "STEINER"]
     calibrated_measurements = [
-        item for item in payload["measurements"] if item["requires_calibration"]
+        item for item in craniom if item["requires_calibration"]
     ]
-    independent_measurements = [
-        item for item in payload["measurements"] if not item["requires_calibration"]
+    craniom_independent = [
+        item for item in craniom if not item["requires_calibration"]
     ]
     assert len(calibrated_measurements) == 4
     assert all(
         item["calibration_ref"] == calibration["evidence_id"]
         for item in calibrated_measurements
     )
-    assert len(independent_measurements) == 3
-    assert {item["method_id"] for item in independent_measurements} == {
+    assert {item["method_id"] for item in craniom_independent} == {
         "CRANIOM_U1_FRANKFORT_DEG_V1",
         "CRANIOM_L1_DOWNS_DEG_V1",
         "CRANIOM_INTERINCISAL_DEG_V1",
     }
-    assert all(item["calibration_ref"] is None for item in independent_measurements)
+    assert all(item["calibration_ref"] is None for item in craniom_independent)
+    assert {item["method_id"] for item in steiner} == {
+        "STEINER_SNA_DEG_V1",
+        "STEINER_SNB_DEG_V1",
+        "STEINER_ANB_DEG_V1",
+        "STEINER_U1_NA_DEG_V1",
+        "STEINER_L1_NB_DEG_V1",
+    }
+    assert all(item["requires_calibration"] is False for item in steiner)
+    assert all(item["calibration_ref"] is None for item in steiner)
 
 
 def test_calibration_preserves_explicit_current_set_after_point_omission():
