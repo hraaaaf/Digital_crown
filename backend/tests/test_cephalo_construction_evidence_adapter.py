@@ -9,7 +9,7 @@ from backend.schemas.cephalo_evidence import (
     LandmarkOrigin,
 )
 from backend.services.cephalo_construction_evidence_adapter import (
-    CRANIOM_LINEAR_REQUIRED_LANDMARKS,
+    CRANIOM_REQUIRED_LANDMARKS,
     materialize_craniom_linear_constructions,
 )
 from backend.services.cephalo_engine import CephaloEngine
@@ -24,6 +24,8 @@ def _landmark(landmark_id: str, *, source: str = "source:ceph:1", availability=A
         "Po": (0.0, 20.0),
         "Or": (20.0, 20.0),
         "S": (10.0, 10.0),
+        "U1_apex": (20.0, 25.0),
+        "U1_incisal": (24.0, 35.0),
     }
     x, y = coordinates[landmark_id]
     return LandmarkEvidence(
@@ -40,7 +42,8 @@ def _landmark(landmark_id: str, *, source: str = "source:ceph:1", availability=A
 
 
 def _landmarks():
-    return {landmark_id: _landmark(landmark_id) for landmark_id in ("A", "B", "N", "Po", "Or", "S")}
+    ids = ("A", "B", "N", "Po", "Or", "S", "U1_apex", "U1_incisal")
+    return {landmark_id: _landmark(landmark_id) for landmark_id in ids}
 
 
 def _engine_points():
@@ -53,19 +56,20 @@ def _engine_points():
         "B": (22.0, 38.0),
         "Go": (5.0, 50.0),
         "Me": (25.0, 55.0),
-        "U1a": (20.0, 25.0),
-        "U1i": (24.0, 35.0),
-        "L1a": (20.0, 48.0),
-        "L1i": (23.0, 38.0),
+        "U1_apex": (20.0, 25.0),
+        "U1_incisal": (24.0, 35.0),
+        "L1_apex": (20.0, 48.0),
+        "L1_incisal": (23.0, 38.0),
     }
 
 
-def test_all_required_landmarks_materialize_four_available_constructions():
+def test_all_required_landmarks_materialize_certified_constructions():
     constructions = materialize_craniom_linear_constructions(
         _landmarks(), construction_namespace="cephalo:1:construction"
     )
 
-    assert set(constructions) == set(CRANIOM_LINEAR_REQUIRED_LANDMARKS)
+    assert set(constructions) == set(CRANIOM_REQUIRED_LANDMARKS)
+    assert len(constructions) == 5
     for definition_id, construction in constructions.items():
         assert construction.definition_id == definition_id
         assert construction.definition_version == "1"
@@ -74,7 +78,7 @@ def test_all_required_landmarks_materialize_four_available_constructions():
         assert construction.geometry["source_image_ref"] == "source:ceph:1"
         assert set(construction.landmark_refs) == {
             f"landmark:{landmark_id}"
-            for landmark_id in CRANIOM_LINEAR_REQUIRED_LANDMARKS[definition_id]
+            for landmark_id in CRANIOM_REQUIRED_LANDMARKS[definition_id]
         }
 
 
@@ -93,8 +97,6 @@ def test_missing_or_propagates_not_computable_without_fake_reference():
     for construction in constructions.values():
         assert "Or" in construction.missing_landmark_ids
         assert "landmark:Or" not in construction.landmark_refs
-        # R3 keeps only immutable convention provenance when patient geometry
-        # cannot be constructed. No executable source-image geometry is invented.
         assert set(construction.geometry) == {"geometric_convention"}
         assert construction.geometry["geometric_convention"]["reference_frame_id"] == "FH_PO_OR_V1"
         assert "source_image_ref" not in construction.geometry
@@ -112,6 +114,24 @@ def test_missing_a_only_blocks_a_dependent_constructions():
     assert constructions["CRANIOM_AB_PRIME_V1"].availability_status == AvailabilityStatus.NOT_COMPUTABLE
     assert constructions["CRANIOM_B_TO_N_VERTICAL_V1"].availability_status == AvailabilityStatus.AVAILABLE
     assert constructions["CRANIOM_S_TO_N_VERTICAL_DEPTH_V1"].availability_status == AvailabilityStatus.AVAILABLE
+    assert constructions["CRANIOM_U1_TO_FRANKFORT_V1"].availability_status == AvailabilityStatus.AVAILABLE
+
+
+def test_missing_u1_apex_only_blocks_u1_frankfort():
+    landmarks = _landmarks()
+    landmarks.pop("U1_apex")
+
+    constructions = materialize_craniom_linear_constructions(
+        landmarks, construction_namespace="cephalo:3b:construction"
+    )
+
+    assert constructions["CRANIOM_U1_TO_FRANKFORT_V1"].availability_status == AvailabilityStatus.NOT_COMPUTABLE
+    assert constructions["CRANIOM_U1_TO_FRANKFORT_V1"].missing_landmark_ids == ["U1_apex"]
+    assert all(
+        construction.availability_status == AvailabilityStatus.AVAILABLE
+        for definition_id, construction in constructions.items()
+        if definition_id != "CRANIOM_U1_TO_FRANKFORT_V1"
+    )
 
 
 def test_present_but_unavailable_landmark_is_not_used_as_computable_evidence():
@@ -139,6 +159,7 @@ def test_mixed_source_images_make_only_affected_constructions_invalid():
     assert constructions["CRANIOM_AB_PRIME_V1"].availability_status == AvailabilityStatus.INVALID
     assert constructions["CRANIOM_B_TO_N_VERTICAL_V1"].availability_status == AvailabilityStatus.AVAILABLE
     assert constructions["CRANIOM_S_TO_N_VERTICAL_DEPTH_V1"].availability_status == AvailabilityStatus.AVAILABLE
+    assert constructions["CRANIOM_U1_TO_FRANKFORT_V1"].availability_status == AvailabilityStatus.AVAILABLE
 
 
 def test_mapping_key_must_match_canonical_landmark_id():
@@ -171,12 +192,16 @@ def test_materialized_constructions_feed_measurement_adapter_without_free_text_l
         calibration_ref="source:calibration:7",
     )
 
-    assert len(measurements) == 4
+    assert len(measurements) == 5
     assert all(m.availability_status == AvailabilityStatus.AVAILABLE for m in measurements)
     assert all(m.value is not None for m in measurements)
+    u1 = next(m for m in measurements if m.method_id == "CRANIOM_U1_FRANKFORT_DEG_V1")
+    assert u1.unit == "deg"
+    assert u1.requires_calibration is False
+    assert u1.calibration_ref is None
 
 
-def test_missing_landmark_propagates_through_materializer_to_measurements():
+def test_missing_or_propagates_through_materializer_to_measurements():
     landmarks = _landmarks()
     landmarks.pop("Or")
     constructions = materialize_craniom_linear_constructions(
