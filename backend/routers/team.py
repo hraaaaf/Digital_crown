@@ -21,6 +21,13 @@ from sqlalchemy import func
 from backend import models, schemas, database
 from backend.routers.auth import get_current_user, is_superadmin_user
 from backend.security import get_password_hash
+from backend.services.subscription_policy import (
+    count_reserved_team_usage,
+    exceeds_limit,
+    get_team_limits,
+    is_limit_reached,
+    normalize_plan,
+)
 
 router = APIRouter(tags=["Team Management"])
 
@@ -34,14 +41,6 @@ ALLOWED_TEAM_PERMISSIONS = {
     "panoramic",
     "cephalo",
     "settings",
-}
-
-# Limites par plan : (max_dentistes_total, max_secretaires_total)
-# Le proprietaire compte comme 1 dentiste.
-PLAN_QUOTAS: dict[str, dict[str, int]] = {
-    "GOLD":    {"dentistes": 1, "secretaires": 2},
-    "PREMIUM": {"dentistes": 2, "secretaires": 6},
-    "ELITE":   {"dentistes": 999, "secretaires": 999},
 }
 
 
@@ -67,40 +66,23 @@ def require_employer(current_user: models.User = Depends(get_current_user)) -> m
 # --- HELPERS QUOTA ---
 
 def _get_plan(owner: models.User) -> str:
-    plan = getattr(owner, "subscription_plan", None) or "GOLD"
-    return plan.upper() if isinstance(plan, str) else "GOLD"
-
-
-def _count_team(db: Session, employer_id: int) -> dict:
-    """Compte les membres actifs (approved + pending) par role."""
-    members = db.query(models.User).filter(
-        models.User.employer_id == employer_id,
-        models.User.approval_status.in_(["approved", "pending"]),
-    ).all()
-    dentistes = sum(1 for m in members if m.role == models.UserRole.DENTISTE)
-    secretaires = sum(1 for m in members if m.role == models.UserRole.SECRETAIRE)
-    pending = sum(1 for m in members if getattr(m, "approval_status", "approved") == "pending")
-    return {"dentistes": dentistes, "secretaires": secretaires, "pending": pending}
+    return normalize_plan(getattr(owner, "subscription_plan", None))
 
 
 def _build_quota(owner: models.User, db: Session) -> schemas.QuotaOut:
     plan = _get_plan(owner)
-    limits = PLAN_QUOTAS.get(plan, PLAN_QUOTAS["GOLD"])
-    counts = _count_team(db, owner.id)
-
-    # Owner compte comme 1 dentiste
-    dentistes_used = counts["dentistes"] + 1
-    secretaires_used = counts["secretaires"]
+    limits = get_team_limits(plan)
+    usage = count_reserved_team_usage(db, owner.id)
 
     return schemas.QuotaOut(
         plan=plan,
-        dentistes_used=dentistes_used,
-        dentistes_max=limits["dentistes"],
-        secretaires_used=secretaires_used,
-        secretaires_max=limits["secretaires"],
-        pending_count=counts["pending"],
-        can_add_dentiste=dentistes_used < limits["dentistes"],
-        can_add_secretaire=secretaires_used < limits["secretaires"],
+        dentistes_used=usage.dentists,
+        dentistes_max=limits.dentists,
+        secretaires_used=usage.secretaries,
+        secretaires_max=limits.secretaries,
+        pending_count=usage.pending,
+        can_add_dentiste=not is_limit_reached(usage.dentists, limits.dentists),
+        can_add_secretaire=not is_limit_reached(usage.secretaries, limits.secretaries),
     )
 
 
@@ -134,7 +116,6 @@ def create_team_member(
     current_user: models.User = Depends(require_employer),
 ):
     """Cree un sous-compte (statut pending — doit etre approuve par le praticien)."""
-    # Anti-doublon email
     normalized_email = member.email.lower()
     existing = db.query(models.User).filter(func.lower(models.User.email) == normalized_email).first()
     if existing:
@@ -151,7 +132,6 @@ def create_team_member(
             detail=f"L'email '{member.email}' est deja utilise par un autre compte.",
         )
 
-    # Verification quota AVANT creation
     quota = _build_quota(current_user, db)
     target_role = models.UserRole.DENTISTE if member.role == "DENTISTE" else models.UserRole.SECRETAIRE
 
@@ -172,7 +152,6 @@ def create_team_member(
             ),
         )
 
-    # Permissions par defaut
     default_permissions = {
         "agenda": True, "patients": True, "prescriptions": False,
         "accounting": False, "payments": False, "clinical": False,
@@ -193,7 +172,7 @@ def create_team_member(
         nom_complet=member.nom_complet,
         telephone_mobile=member.telephone_mobile,
         employer_id=current_user.id,
-        is_active=False,          # inactif jusqu'a approbation
+        is_active=False,
         approval_status="pending",
         permissions=user_perms,
     )
@@ -219,17 +198,24 @@ def approve_team_member(
     if getattr(member, "approval_status", "approved") != "pending":
         raise HTTPException(status_code=400, detail="Ce membre n'est pas en attente d'approbation.")
 
-    # Recheck quota au moment de l'approbation (anti-race condition)
+    # Pending members already reserve their seat. Approval must therefore
+    # reject only an existing over-quota state, not a usage equal to the cap.
     plan = _get_plan(current_user)
-    limits = PLAN_QUOTAS.get(plan, PLAN_QUOTAS["GOLD"])
-    counts = _count_team(db, current_user.id)
-    # Retirer le pending qu'on s'apprête à approuver du comptage
-    role_key = "dentistes" if member.role == models.UserRole.DENTISTE else "secretaires"
-    already_approved = counts[role_key] - 1  # pending ne compte pas encore comme approuvé
-    if already_approved >= limits[role_key]:
+    limits = get_team_limits(plan)
+    usage = count_reserved_team_usage(db, current_user.id)
+    if member.role == models.UserRole.DENTISTE:
+        role_label = "dentistes"
+        role_used = usage.dentists
+        role_limit = limits.dentists
+    else:
+        role_label = "secretaires"
+        role_used = usage.secretaries
+        role_limit = limits.secretaries
+
+    if exceeds_limit(role_used, role_limit):
         raise HTTPException(
             status_code=402,
-            detail=f"Quota {role_key} atteint ({limits[role_key]} max) pour le plan {plan}. Passez à un plan supérieur."
+            detail=f"Quota {role_label} depasse ({role_used}/{role_limit}) pour le plan {plan}. Passez a un plan superieur.",
         )
 
     member.approval_status = "approved"

@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="220" viewBox="0 0 1280 220" role="img" aria-labelledby="title desc">
+  <title id="title">Digital Crown — quota ELITE</title>
+  <desc id="desc">Mockup de la bannière Mon Équipe avec quotas illimités explicites.</desc>
+  <rect width="1280" height="220" fill="#ffffff"/>
+  <rect x="48" y="58" width="1184" height="104" rx="18" fill="#f8fafc" stroke="#e2e8f0"/>
+  <text x="82" y="105" font-family="Arial, sans-serif" font-size="12" font-weight="700" fill="#94a3b8">PLAN</text>
+  <rect x="126" y="82" width="72" height="34" rx="17" fill="#334155"/>
+  <text x="144" y="104" font-family="Arial, sans-serif" font-size="13" font-weight="700" fill="#ffffff">ELITE</text>
+  <text x="244" y="104" font-family="Arial, sans-serif" font-size="15" font-weight="700" fill="#334155">Dentistes :</text>
+  <text x="326" y="104" font-family="Arial, sans-serif" font-size="15" font-weight="800" fill="#059669">7/Illimité</text>
+  <text x="446" y="104" font-family="Arial, sans-serif" font-size="15" font-weight="700" fill="#334155">Assistantes :</text>
+  <text x="538" y="104" font-family="Arial, sans-serif" font-size="15" font-weight="800" fill="#059669">12/Illimité</text>
+  <text x="82" y="139" font-family="Arial, sans-serif" font-size="12" fill="#64748b">Layout inchangé. Seule la sémantique de limite ELITE devient explicite.</text>
+</svg>

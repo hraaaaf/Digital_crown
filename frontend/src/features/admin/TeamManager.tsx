@@ -49,9 +49,9 @@ interface TeamMember {
 interface QuotaData {
   plan: string;
   dentistes_used: number;
-  dentistes_max: number;
+  dentistes_max: number | null;
   secretaires_used: number;
-  secretaires_max: number;
+  secretaires_max: number | null;
   pending_count: number;
   can_add_dentiste: boolean;
   can_add_secretaire: boolean;
@@ -282,14 +282,14 @@ export const TeamManager: React.FC = () => {
             <Users size={15} className="text-slate-400" />
             Dentistes :
             <span className={cn("font-black", !quota.can_add_dentiste ? "text-rose-600" : "text-emerald-600")}>
-              {quota.dentistes_used}/{quota.dentistes_max}
+              {quota.dentistes_used}/{quota.dentistes_max ?? 'Illimité'}
             </span>
           </div>
           <div className="flex items-center gap-1.5 text-sm font-bold text-slate-700">
             <Shield size={15} className="text-slate-400" />
             Assistantes :
             <span className={cn("font-black", !quota.can_add_secretaire ? "text-rose-600" : "text-emerald-600")}>
-              {quota.secretaires_used}/{quota.secretaires_max}
+              {quota.secretaires_used}/{quota.secretaires_max ?? 'Illimité'}
             </span>
           </div>
           {quota.pending_count > 0 && (
