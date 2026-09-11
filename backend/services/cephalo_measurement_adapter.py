@@ -16,6 +16,7 @@ from backend.schemas.cephalo_evidence import (
     MeasurementEvidence,
 )
 from backend.schemas.clinical import CephaloAnalysisResult
+from backend.services.cephalo_mcnamara_evidence import adapt_mcnamara_measurements
 
 
 @dataclass(frozen=True)
@@ -244,12 +245,21 @@ def adapt_craniom_linear_measurements(
     constructions: Mapping[str, ConstructionEvidence],
     calibration_ref: Optional[str],
 ) -> list[MeasurementEvidence]:
-    return adapt_craniom_measurements(
+    adapted = adapt_craniom_measurements(
         result,
         measurement_namespace=measurement_namespace,
         constructions=constructions,
         calibration_ref=calibration_ref,
     )
+    adapted.extend(
+        adapt_mcnamara_measurements(
+            measurement_namespace=f"{measurement_namespace}:r8",
+            constructions=constructions,
+            mm_per_pixel=result.analysis_metadata.pixel_ratio,
+            calibration_ref=calibration_ref,
+        )
+    )
+    return adapted
 
 
 CRANIOM_LINEAR_CONSTRUCTION_DEFINITIONS = tuple(

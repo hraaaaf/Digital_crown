@@ -69,6 +69,27 @@ def _assert_downs_available_uncalibrated(graph):
     assert all(measurement["calibration_ref"] is None for measurement in downs)
 
 
+def _assert_mcnamara(graph, *, calibrated: bool):
+    mcnamara = [
+        measurement for measurement in graph["measurements"]
+        if measurement["analysis_id"] == "MCNAMARA"
+    ]
+    assert {measurement["method_id"] for measurement in mcnamara} == {
+        "MCNAMARA_CO_A_MM_V1",
+        "MCNAMARA_CO_GN_MM_V1",
+        "MCNAMARA_ANS_ME_MM_V1",
+    }
+    assert all(measurement["requires_calibration"] is True for measurement in mcnamara)
+    if calibrated:
+        assert all(measurement["availability_status"] == "AVAILABLE" for measurement in mcnamara)
+        assert all(measurement["calibration_ref"] is not None for measurement in mcnamara)
+        assert all(measurement["value"] is not None for measurement in mcnamara)
+    else:
+        assert all(measurement["availability_status"] == "NOT_COMPUTABLE" for measurement in mcnamara)
+        assert all(measurement["calibration_ref"] is None for measurement in mcnamara)
+        assert all(measurement["value"] is None for measurement in mcnamara)
+
+
 def test_unambiguous_pre_r2_snapshot_remains_readable_and_reports_verified_active_chain():
     projected = project_runtime_chain_read_path(_angles(), patient_id=7)
 
@@ -112,6 +133,7 @@ def test_creation_edit_calibration_recalculation_and_get_keep_one_active_chain()
     raw = _raw()
     initial_graph = _initial_graph(raw)
     _assert_downs_available_uncalibrated(initial_graph)
+    _assert_mcnamara(initial_graph, calibrated=False)
 
     canonical = _canonicalize_evidence_projection({EVIDENCE_GRAPH_KEY: initial_graph})[
         EVIDENCE_GRAPH_KEY
@@ -134,6 +156,7 @@ def test_creation_edit_calibration_recalculation_and_get_keep_one_active_chain()
     assert revision2["revision_reason"] == "LANDMARK_EDIT"
     assert len(revision2["current_landmark_refs"]) == 38
     _assert_downs_available_uncalibrated(revision2)
+    _assert_mcnamara(revision2, calibrated=False)
 
     calibrated_result = CephaloEngine(mm_per_pixel=0.2).calculate_metrics(_points(edited))
     revision3 = rebuild_evidence_after_manual_calibration(
@@ -151,6 +174,7 @@ def test_creation_edit_calibration_recalculation_and_get_keep_one_active_chain()
     assert revision3["revision_reason"] == "MANUAL_CALIBRATION"
     assert revision3["current_landmark_refs"] == revision2["current_landmark_refs"]
     _assert_downs_available_uncalibrated(revision3)
+    _assert_mcnamara(revision3, calibrated=True)
 
     recalculated = [dict(item) for item in edited]
     b = next(item for item in recalculated if item["id"] == "B")
@@ -166,6 +190,7 @@ def test_creation_edit_calibration_recalculation_and_get_keep_one_active_chain()
         validated_at=LATEST,
     )
     _assert_downs_available_uncalibrated(revision4)
+    _assert_mcnamara(revision4, calibrated=True)
 
     angles = recalc_result.model_dump()
     angles[EVIDENCE_GRAPH_KEY] = revision4

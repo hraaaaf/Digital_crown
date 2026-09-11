@@ -108,6 +108,7 @@ def test_auto_calibration_creates_revision_and_unlocks_measurements_without_clin
 
     craniom = [item for item in measurements if item["analysis_id"] == "CRANIOM"]
     steiner = [item for item in measurements if item["analysis_id"] == "STEINER"]
+    mcnamara = [item for item in measurements if item["analysis_id"] == "MCNAMARA"]
     calibrated = [item for item in craniom if item["requires_calibration"]]
     craniom_angular = [item for item in craniom if not item["requires_calibration"]]
 
@@ -132,6 +133,15 @@ def test_auto_calibration_creates_revision_and_unlocks_measurements_without_clin
     }
     assert all(item["requires_calibration"] is False for item in steiner)
     assert all(item["calibration_ref"] is None for item in steiner)
+
+    assert {item["method_id"] for item in mcnamara} == {
+        "MCNAMARA_CO_A_MM_V1",
+        "MCNAMARA_CO_GN_MM_V1",
+        "MCNAMARA_ANS_ME_MM_V1",
+    }
+    assert all(item["requires_calibration"] is True for item in mcnamara)
+    assert all(item["calibration_ref"] == source["evidence_id"] for item in mcnamara)
+    assert all(item["value"] is not None for item in mcnamara)
 
 
 def test_auto_calibration_preserves_corrected_landmark_and_current_refs_exactly():
