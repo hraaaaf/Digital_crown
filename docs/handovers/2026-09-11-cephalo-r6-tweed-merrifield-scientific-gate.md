@@ -9,17 +9,18 @@ Versionner uniquement les géométries patient Tweed/Merrifield scientifiquement
 1. Tweed CH. The Frankfort-mandibular plane angle in orthodontic diagnosis, classification, treatment planning, and prognosis. Am J Orthod Oral Surg. 1946;32:175-230. DOI: 10.1016/0096-6347(46)90001-4.
 2. Tweed CH. The Frankfort-Mandibular Incisor Angle (FMIA) in Orthodontic Diagnosis, Treatment Planning and Prognosis. Angle Orthod. 1954;24:121-169.
 3. Merrifield LL. The profile line as an aid in critically evaluating facial esthetics. Am J Orthod. 1966;52(11):804-822. DOI: 10.1016/0002-9416(66)90250-8.
-4. Corroboration moderne: FMA = FH vs mandibular plane; FMIA = FH vs lower-incisor long axis; IMPA = lower-incisor long axis vs mandibular plane; Z-line = soft-tissue chin to the most protrusive lip, Z-angle = Z-line vs FH.
+4. Corroboration peer-reviewed moderne: le Z-angle est décrit comme l'angle entre Frankfort et la ligne du pogonion cutané au point le plus antérieur de la lèvre la plus protrusive (supérieure ou inférieure), voir *The Correlation of a Novel Photographic Parameter for Facial Profile Assessment in Subjects With Different Sagittal Malocclusions: A Prospective Study*, 2023, PMC10544775.
+5. Corroboration clinique indépendante: *Treatment decision in adult patients with class III malocclusion: surgery versus orthodontics*, 2018, PMC6070451, définit également le Z-angle par le pogonion cutané, la lèvre la plus protrusive et le plan de Frankfort.
 
 ## Contrats géométriques R6 retenus
 ### FMA
 - plan Frankfort: Po-Or;
 - plan mandibulaire: Go-Me;
-- angle minimal orientation-invariant entre les deux axes;
 - unité: degré;
 - calibration: non requise;
 - runtime existant: `metrics.analyse_osseuse.Angle_de_Tweed`;
-- le runtime actuel calcule `_get_clinical_angle(Go, Me, Po, Or)` puis arrondit à 0,1°.
+- le runtime actuel calcule `_get_clinical_angle(Go, Me, Po, Or)` puis arrondit à 0,1°;
+- la preuve typée doit donc préserver exactement cette convention d'orientation canonique pour la parité runtime.
 
 ### IMPA
 - axe incisive mandibulaire: L1 apex -> L1 incisal;
@@ -33,6 +34,7 @@ Versionner uniquement les géométries patient Tweed/Merrifield scientifiquement
 - plan Frankfort: Po-Or;
 - axe incisive mandibulaire: L1 apex -> L1 incisal;
 - angle patient calculé directement à partir des axes, pas dérivé de `180 - FMA - IMPA`, afin d'éviter de propager les conventions/arrondis des champs historiques;
+- angle minimal orientation-invariant;
 - unité: degré;
 - calibration: non requise;
 - aucun champ runtime legacy dédié n'est actuellement identifié.
@@ -40,8 +42,8 @@ Versionner uniquement les géométries patient Tweed/Merrifield scientifiquement
 ### Merrifield Z-angle
 - plan Frankfort: Po-Or;
 - profile line: point du menton cutané `Pog_soft` vers le point le plus antérieur entre `Ls_soft` et `Li_soft`;
-- la lèvre la plus protrusive doit être sélectionnée par projection sur l'axe antérieur dérivé de Frankfort, pas par simple comparaison de x image;
-- angle entre profile line et Frankfort;
+- la lèvre la plus protrusive doit être sélectionnée par projection sur l'axe anatomique antérieur Po→Or, pas par simple comparaison de x image;
+- angle minimal entre profile line et Frankfort;
 - unité: degré;
 - calibration: non requise;
 - aucun champ runtime legacy dédié n'est actuellement identifié.
@@ -52,7 +54,8 @@ Pour FMA / IMPA / FMIA / Z-angle:
 - géométrie dégénérée -> `INVALID`;
 - landmarks provenant de sources/images différentes -> `INVALID`;
 - valeurs non finies -> refus;
-- aucun fallback silencieux sur des alias non certifiés.
+- aucun fallback silencieux sur des alias non certifiés;
+- égalité géométrique non résoluble entre Ls et Li pour la protrusion -> `INVALID` sauf points confondus.
 
 ## Double-check runtime obligatoire
 Avant activation:
