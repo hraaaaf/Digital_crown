@@ -121,6 +121,14 @@ def _collect_dependencies(
     return refs, unavailable, source_images
 
 
+def _convention_only_geometry(definition_id: str) -> dict[str, object]:
+    """Keep scientific provenance without pretending patient geometry is computable."""
+
+    return {
+        "geometric_convention": geometric_convention_metadata(definition_id),
+    }
+
+
 def materialize_craniom_linear_constructions(
     landmarks: Mapping[str, LandmarkEvidence],
     *,
@@ -130,7 +138,9 @@ def materialize_craniom_linear_constructions(
 
     Missing or unavailable landmarks produce a materialized ``NOT_COMPUTABLE``
     construction rather than a fabricated landmark reference. Landmarks from
-    different source images produce ``INVALID`` construction evidence.
+    different source images produce ``INVALID`` construction evidence. In both
+    fail-closed states, the versioned geometric convention provenance is kept
+    while executable patient geometry is withheld.
     """
 
     if not isinstance(construction_namespace, str) or not construction_namespace.strip():
@@ -146,10 +156,10 @@ def materialize_craniom_linear_constructions(
         geometry: dict[str, object] = dict(spec.geometry)
         if unavailable:
             availability = AvailabilityStatus.NOT_COMPUTABLE
-            geometry = {}
+            geometry = _convention_only_geometry(spec.definition_id)
         elif len(source_images) != 1:
             availability = AvailabilityStatus.INVALID
-            geometry = {}
+            geometry = _convention_only_geometry(spec.definition_id)
         else:
             geometry["source_image_ref"] = next(iter(source_images))
             geometry["geometric_convention"] = geometric_convention_metadata(
