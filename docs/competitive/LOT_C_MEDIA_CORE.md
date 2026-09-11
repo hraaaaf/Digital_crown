@@ -1,6 +1,6 @@
 # Digital Crown — LOT C Media Core
 
-Status: **ACTIVE — C1 ClinicalAsset metadata/provenance candidate**  
+Status: **ACTIVE — C1 CLOSED / C2 NEXT**  
 Roadmap: `DIGITAL_CROWN_VS_ORTHALIS_ROADMAP.md` / execution scorecard branch remains separate until reconciled.  
 Baseline master for C1: `e319070b4f1b4eb6de8d26845bdc3f54ce0adf49`.
 
@@ -10,8 +10,8 @@ Build a Kitview-class media foundation without weakening Digital Crown tenant is
 
 LOT C remains **50 EP** total:
 
-- C1 ClinicalAsset model / metadata / provenance — 8 EP
-- C2 storage / hash computation / dedupe / tenant guard — 8 EP
+- C1 ClinicalAsset model / metadata / provenance — 8 EP — **CLOSED**
+- C2 storage / hash computation / dedupe / tenant guard — 8 EP — **NEXT**
 - C3 secure import / derivatives / thumbnails — 8 EP
 - C4 patient T0/T1/T2 timeline / viewer — 8 EP
 - C5 comparison / search / filters — 8 EP
@@ -24,7 +24,7 @@ No competitive score increase is credited before LOT C closes. Baseline remains 
 
 Create an additive, storage-independent patient clinical-media registry that can later unify photos, radiographs, documents, video and audio without mutating existing cephalometric or panoramic scientific rows.
 
-### Success
+### Success — VERIFIED
 
 1. `clinical_assets` exists as an additive table/model.
 2. Every asset is scoped by both `employer_id` and `patient_id`.
@@ -35,7 +35,7 @@ Create an additive, storage-independent patient clinical-media registry that can
 7. `provenance_json` is metadata-only and rejects obvious duplicated patient-identifying keys.
 8. File storage, upload routes, digest computation, deduplication, derivatives and UI remain outside C1.
 9. No Cephalo implementation file is changed.
-10. Exact-head CI must pass before C1 can be credited/closed.
+10. Exact-head CI and T2 passed on the C1 implementation HEAD before this documentation-only closeout commit.
 
 ## Safety boundaries
 
@@ -46,18 +46,23 @@ Create an additive, storage-independent patient clinical-media registry that can
 - No real patient data is introduced by C1 tests.
 - No Vercel deployment.
 
-## C1 proof targets
+## C1 proof
 
-- model registration in shared SQLAlchemy metadata;
-- metadata roundtrip + tenant-scoped read;
-- cross-tenant patient creation rejection;
-- cross-tenant `created_by` rejection;
-- parent cross-patient rejection;
-- unsafe display path / PHI provenance key / malformed hash / malformed timepoint rejection;
-- Alembic revision `c1a55e700001` chained from current head `f7a8b9c0d1e2`;
-- exact-head CI success;
-- PR changed-file audit proving zero Cephalo files.
+Implementation HEAD: `d38a9e0b4af2c9dbf95b15c59ed5b7c8d503cc22`.
 
-## Next after C1 closes
+- CI #3295 — **SUCCESS**.
+- T2 Runtime Browser Certification #2290 — **SUCCESS**.
+- Patient P7 Final Certification #1195 — **SUCCESS**.
+- M6-I #1090 — **SKIPPED** as expected for this scope.
+- PR #415 changed-file audit: 7 files; zero Cephalo implementation files.
+- PR #415 review-thread audit before closeout: zero threads.
+- `master` remained `e319070b4f1b4eb6de8d26845bdc3f54ce0adf49` during the C1 implementation proof.
+- Focused C1 tests cover shared metadata registration, metadata roundtrip, tenant-scoped read, cross-tenant patient rejection, cross-tenant creator rejection, parent cross-patient rejection, unsafe path / PHI provenance / malformed hash / malformed timepoint rejection and Alembic contract.
 
-C2 must introduce the physical storage contract, server-computed SHA-256, integrity checks, dedupe semantics, tenant-safe storage keys and failure behavior. C2 must consume C1 rather than add a second media registry.
+C1 earns **8 EP** only as execution progress. Competitive score remains **70.0/100** until LOT C closes.
+
+## C2 exact next goal
+
+Introduce the physical storage contract consumed by `ClinicalAsset`, with server-computed SHA-256, integrity verification, explicit dedupe semantics, tenant-safe storage keys and defined failure/rollback behavior.
+
+C2 must consume C1 rather than create a second media registry. It must remain independent of Cephalo scientific interpretation and must not expose anonymous or cross-tenant media paths.
