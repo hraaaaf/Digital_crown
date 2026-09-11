@@ -33,6 +33,10 @@ from backend.services.cephalo_steiner_evidence_adapter import (
     adapt_steiner_skeletal_measurements,
     materialize_steiner_skeletal_constructions,
 )
+from backend.services.cephalo_steiner_vertical_evidence import (
+    adapt_steiner_vertical_measurements,
+    materialize_steiner_vertical_constructions,
+)
 from backend.services.sota_vision_service import (
     SOTA_LANDMARKS_MAPPING,
     SRPOSE38_MODEL_NAME,
@@ -44,8 +48,10 @@ EVIDENCE_SCHEMA_VERSION = "CEPHALO_EVIDENCE_V1"
 SRPOSE38_PIPELINE_VERSION = "SRPOSE38_TTA_1024_V1"
 _SRPOSE38_IDS = frozenset(SOTA_LANDMARKS_MAPPING.values())
 
+
 class CephaloRuntimeEvidenceError(ValueError):
     pass
+
 
 def _num(value: Any, label: str) -> float:
     try:
@@ -56,9 +62,11 @@ def _num(value: Any, label: str) -> float:
         raise CephaloRuntimeEvidenceError(f"{label} must be finite")
     return out
 
+
 def _validate_previous(previous: Optional[Mapping[str, Any]]) -> None:
     if previous and previous.get("schema_version") != EVIDENCE_SCHEMA_VERSION:
         raise CephaloRuntimeEvidenceError("Unsupported persisted evidence schema version")
+
 
 def _case(previous: Optional[Mapping[str, Any]], requested: Optional[str]) -> str:
     old = previous.get("case_id") if previous else None
@@ -68,6 +76,7 @@ def _case(previous: Optional[Mapping[str, Any]], requested: Optional[str]) -> st
         raise CephaloRuntimeEvidenceError("case_id mismatch")
     return requested or old or f"cephalo:{uuid.uuid4()}"
 
+
 def _revision(previous: Optional[Mapping[str, Any]]) -> int:
     if not previous:
         return 1
@@ -75,6 +84,7 @@ def _revision(previous: Optional[Mapping[str, Any]]) -> int:
     if not isinstance(value, int) or value < 1:
         raise CephaloRuntimeEvidenceError("Invalid persisted revision")
     return value + 1
+
 
 def _history(previous: Optional[Mapping[str, Any]]) -> list[dict[str, Any]]:
     if not previous:
@@ -90,6 +100,7 @@ def _history(previous: Optional[Mapping[str, Any]]) -> list[dict[str, Any]]:
         "measurements": previous.get("measurements", []),
     }]
 
+
 def _old_auto(previous: Optional[Mapping[str, Any]]) -> list[LandmarkEvidence]:
     if not previous:
         return []
@@ -97,6 +108,7 @@ def _old_auto(previous: Optional[Mapping[str, Any]]) -> list[LandmarkEvidence]:
         item for raw in previous.get("landmarks", [])
         if (item := LandmarkEvidence.model_validate(raw)).origin == LandmarkOrigin.SRPOSE38_AUTO
     ]
+
 
 def _current_landmarks(
     raw_points: Sequence[Mapping[str, Any]], *, case_id: str, revision: int,
@@ -139,6 +151,7 @@ def _current_landmarks(
         )
     return out
 
+
 def _assert_runtime_geometry_matches(
     result: CephaloAnalysisResult,
     current: Mapping[str, LandmarkEvidence],
@@ -164,6 +177,7 @@ def _assert_runtime_geometry_matches(
         expected_runtime_value = round(expected_value, 1)
         if runtime_value is None or not math.isfinite(runtime_value) or not math.isclose(runtime_value, expected_runtime_value, rel_tol=0.0, abs_tol=1e-12):
             raise CephaloRuntimeEvidenceError(f"Runtime {field} does not match persisted evidence geometry")
+
 
 def _calibration_source(
     *, patient_id: int, case_id: str, image_record_id: str, result: CephaloAnalysisResult,
@@ -224,6 +238,7 @@ def _calibration_source(
         metadata={"case_id": case_id, "method": "MANUAL_TWO_POINT", "p1": dict(p1), "p2": dict(p2), "distance_mm": distance_mm, "mm_per_pixel": ratio},
     )
 
+
 def build_cephalo_runtime_evidence_payload(
     *, patient_id: int, image_record_id: str, result: CephaloAnalysisResult,
     landmarks: Sequence[Mapping[str, Any]], inference_mode: Optional[str],
@@ -260,8 +275,6 @@ def build_cephalo_runtime_evidence_payload(
     _assert_runtime_geometry_matches(result, current_by_id)
     graph_landmarks = (_old_auto(previous_payload) if manual_revision else []) + current
 
-    # Preserve the historical CRANIOM evidence IDs exactly. Steiner is additive
-    # and gets its own namespace; introducing R5 must not rename existing R4 evidence.
     craniom_constructions = materialize_craniom_linear_constructions(
         current_by_id, construction_namespace=f"construction:{resolved_case}:r{revision}",
     )
@@ -271,6 +284,10 @@ def build_cephalo_runtime_evidence_payload(
     steiner_dental_constructions = materialize_steiner_dental_constructions(
         current_by_id,
         construction_namespace=f"construction:{resolved_case}:r{revision}:steiner:dental",
+    )
+    steiner_vertical_constructions = materialize_steiner_vertical_constructions(
+        current_by_id,
+        construction_namespace=f"construction:{resolved_case}:r{revision}:steiner:vertical",
     )
 
     calibration = _calibration_source(
@@ -290,16 +307,22 @@ def build_cephalo_runtime_evidence_payload(
         measurement_namespace=f"measurement:{resolved_case}:r{revision}:steiner:dental",
         constructions=steiner_dental_constructions,
     )
+    steiner_vertical_measurements = adapt_steiner_vertical_measurements(
+        measurement_namespace=f"measurement:{resolved_case}:r{revision}:steiner:vertical",
+        constructions=steiner_vertical_constructions,
+    )
 
     all_constructions = [
         *craniom_constructions.values(),
         *steiner_constructions.values(),
         *steiner_dental_constructions.values(),
+        *steiner_vertical_constructions.values(),
     ]
     all_measurements = [
         *craniom_measurements,
         *steiner_measurements,
         *steiner_dental_measurements,
+        *steiner_vertical_measurements,
     ]
     sources = [ceph_source] + ([calibration] if calibration else [])
     graph = EvidenceGraphSnapshot(
