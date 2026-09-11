@@ -7,3 +7,4 @@ from . import models as models
 from . import models_identity_p4 as _models_identity_p4  # noqa: F401
 from . import models_clinical_p3 as _models_clinical_p3  # noqa: F401
 from . import models_imaging_p4 as _models_imaging_p4  # noqa: F401
+from . import models_media_core as _models_media_core  # noqa: F401
