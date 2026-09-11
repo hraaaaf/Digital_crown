@@ -51,15 +51,9 @@ def _initial(raw=None):
 
 
 def _decision():
-    candidate = CalibrationCandidate.from_ticks(
-        axis_x_px=40,
-        tick_positions_y_px=[10, 35, 60, 85, 110],
-    )
+    candidate = CalibrationCandidate.from_ticks(axis_x_px=40, tick_positions_y_px=[10, 35, 60, 85, 110])
     profile = ValidatedFiducialProfile(
-        profile_id="TEST_RULER",
-        version="1",
-        known_tick_spacing_mm=5.0,
-        min_ticks=5,
+        profile_id="TEST_RULER", version="1", known_tick_spacing_mm=5.0, min_ticks=5,
         max_spacing_deviation_ratio=0.05,
         validation_reference="test-fixture://validated-ruler-profile-v1",
     )
@@ -74,26 +68,19 @@ def _auto(previous=None, raw=None, *, at=NOW, image_record_id="radio.jpg"):
     raw = raw or _raw()
     result = CephaloEngine(mm_per_pixel=0.2).calculate_metrics(_points(raw))
     return rebuild_evidence_after_auto_calibration(
-        previous_payload=previous,
-        patient_id=7,
-        image_record_id=image_record_id,
-        result=result,
-        runtime_landmarks=raw,
-        decision=_decision(),
-        calibrated_at=at,
+        previous_payload=previous, patient_id=7, image_record_id=image_record_id,
+        result=result, runtime_landmarks=raw, decision=_decision(), calibrated_at=at,
     )
 
 
 def test_auto_calibration_creates_revision_and_unlocks_measurements_without_clinician_confirmation():
     previous = _initial()
     payload = _auto(previous)
-
     assert payload["revision"] == 2
     assert payload["revision_reason"] == "AUTO_CALIBRATION"
     assert payload["history"][-1]["revision"] == 1
     assert payload["landmarks"] == previous["landmarks"]
     assert payload["constructions"] == previous["constructions"]
-
     calibration = [source for source in payload["sources"] if source["kind"] == "calibration"]
     assert len(calibration) == 1
     source = calibration[0]
@@ -102,32 +89,23 @@ def test_auto_calibration_creates_revision_and_unlocks_measurements_without_clin
     assert source["metadata"]["method"] == "AUTO_FIDUCIAL_PROFILE"
     assert source["metadata"]["clinician_confirmed"] is False
     assert source["metadata"]["profile_id"] == "TEST_RULER"
-
     measurements = payload["measurements"]
     assert all(item["availability_status"] == "AVAILABLE" for item in measurements)
-
     craniom = [item for item in measurements if item["analysis_id"] == "CRANIOM"]
     steiner = [item for item in measurements if item["analysis_id"] == "STEINER"]
     calibrated = [item for item in craniom if item["requires_calibration"]]
     craniom_angular = [item for item in craniom if not item["requires_calibration"]]
-
     assert len(calibrated) == 4
     assert all(item["calibration_ref"] == source["evidence_id"] for item in calibrated)
     assert {item["method_id"] for item in craniom_angular} == {
-        "CRANIOM_U1_FRANKFORT_DEG_V1",
-        "CRANIOM_L1_DOWNS_DEG_V1",
-        "CRANIOM_INTERINCISAL_DEG_V1",
+        "CRANIOM_U1_FRANKFORT_DEG_V1", "CRANIOM_L1_DOWNS_DEG_V1", "CRANIOM_INTERINCISAL_DEG_V1",
     }
     assert all(item["unit"] == "deg" for item in craniom_angular)
     assert all(item["calibration_ref"] is None for item in craniom_angular)
     assert all(source["evidence_id"] not in item["evidence_refs"] for item in craniom_angular)
-
     assert {item["method_id"] for item in steiner} == {
-        "STEINER_SNA_DEG_V1",
-        "STEINER_SNB_DEG_V1",
-        "STEINER_ANB_DEG_V1",
-        "STEINER_U1_NA_DEG_V1",
-        "STEINER_L1_NB_DEG_V1",
+        "STEINER_SNA_DEG_V1", "STEINER_SNB_DEG_V1", "STEINER_ANB_DEG_V1",
+        "STEINER_U1_NA_DEG_V1", "STEINER_L1_NB_DEG_V1", "STEINER_SN_MP_DEG_V1",
     }
     assert all(item["requires_calibration"] is False for item in steiner)
     assert all(item["calibration_ref"] is None for item in steiner)
@@ -140,27 +118,12 @@ def test_auto_calibration_preserves_corrected_landmark_and_current_refs_exactly(
     target["x"] += 4.0
     edit_result = CephaloEngine(mm_per_pixel=None).calculate_metrics(_points(edited))
     corrected = rebuild_evidence_after_landmark_edit(
-        previous_payload=_initial(raw),
-        patient_id=7,
-        image_record_id="radio.jpg",
-        result=edit_result,
-        runtime_landmarks=edited,
-        clinician_id="99",
-        validated_at=NOW,
+        previous_payload=_initial(raw), patient_id=7, image_record_id="radio.jpg",
+        result=edit_result, runtime_landmarks=edited, clinician_id="99", validated_at=NOW,
     )
-    corrected_a_before = next(
-        item
-        for item in corrected["landmarks"]
-        if item["landmark_id"] == "A" and item["origin"] == "MANUAL_CORRECTED"
-    )
-
+    corrected_a_before = next(item for item in corrected["landmarks"] if item["landmark_id"] == "A" and item["origin"] == "MANUAL_CORRECTED")
     calibrated = _auto(corrected, edited, at=LATER)
-    corrected_a_after = next(
-        item
-        for item in calibrated["landmarks"]
-        if item["landmark_id"] == "A" and item["origin"] == "MANUAL_CORRECTED"
-    )
-
+    corrected_a_after = next(item for item in calibrated["landmarks"] if item["landmark_id"] == "A" and item["origin"] == "MANUAL_CORRECTED")
     assert calibrated["revision"] == corrected["revision"] + 1
     assert calibrated["landmarks"] == corrected["landmarks"]
     assert calibrated["constructions"] == corrected["constructions"]
@@ -173,24 +136,11 @@ def test_auto_calibration_rejects_runtime_landmarks_different_from_current_evide
     previous = _initial()
     changed = _raw()
     changed[4] = {**changed[4], "x": changed[4]["x"] + 1.0}
-
     with pytest.raises(AutoCalibrationTransitionError, match="differs from persisted evidence"):
         _auto(previous, changed)
 
 
-@pytest.mark.parametrize(
-    "key",
-    [
-        "normative_evaluations",
-        "findings",
-        "diagnoses",
-        "problems",
-        "objectives",
-        "treatment_options",
-        "validations",
-        "final_plans",
-    ],
-)
+@pytest.mark.parametrize("key", ["normative_evaluations", "findings", "diagnoses", "problems", "objectives", "treatment_options", "validations", "final_plans"])
 def test_auto_calibration_blocks_existing_downstream_clinical_evidence(key):
     previous = {**_initial(), key: [{"existing": True}]}
     with pytest.raises(AutoCalibrationTransitionError, match=key):
@@ -203,10 +153,7 @@ def test_auto_calibration_rejects_wrong_cephalogram_identity():
 
 
 def test_candidate_only_decision_cannot_enter_transition():
-    candidate = AutoCalibrationDecision(
-        state=AutoCalibrationState.CANDIDATE_UNVERIFIED,
-        reason="NO_VALIDATED_PHYSICAL_SCALE_SOURCE",
-    )
+    candidate = AutoCalibrationDecision(state=AutoCalibrationState.CANDIDATE_UNVERIFIED, reason="NO_VALIDATED_PHYSICAL_SCALE_SOURCE")
     with pytest.raises(AutoCalibrationTransitionError, match="AUTO_VERIFIED"):
         auto_calibration_data_from_decision(candidate)
 
