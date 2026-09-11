@@ -1,0 +1,108 @@
+{
+  "schema_version": 1,
+  "measurement_policy": {
+    "allowed_statuses": ["NOT_MEASURED", "MEASURED", "BLOCKED_RUNTIME"],
+    "rule": "Numeric performance fields must be null unless measurement_status is MEASURED and evidence_ref is non-empty."
+  },
+  "scenarios": [
+    {
+      "id": "SCN_PATIENT_APPOINTMENT",
+      "title": "Create or retrieve a patient and schedule an appointment",
+      "capability_ids": ["PMS_AGENDA_MULTI_PRACTITIONER", "PATIENT_LONGITUDINAL_RECORD"],
+      "goal": "Reach a patient record and persist an appointment with practitioner and time.",
+      "synthetic_fixture_ids": ["SYN-PAT-001", "SYN-PRACT-001"],
+      "digital_crown": {"measurement_status": "NOT_MEASURED", "success": null, "elapsed_ms": null, "primary_actions": null, "errors": null, "retries": null, "evidence_ref": null},
+      "orthalis": {"measurement_status": "BLOCKED_RUNTIME", "success": null, "elapsed_ms": null, "primary_actions": null, "errors": null, "retries": null, "evidence_ref": null}
+    },
+    {
+      "id": "SCN_LONGITUDINAL_PATIENT_REVIEW",
+      "title": "Find longitudinal patient information",
+      "capability_ids": ["PATIENT_LONGITUDINAL_RECORD"],
+      "goal": "Open the patient record and retrieve a dated prior clinical event without using free-text memory.",
+      "synthetic_fixture_ids": ["SYN-PAT-002", "SYN-EVT-001"],
+      "digital_crown": {"measurement_status": "NOT_MEASURED", "success": null, "elapsed_ms": null, "primary_actions": null, "errors": null, "retries": null, "evidence_ref": null},
+      "orthalis": {"measurement_status": "BLOCKED_RUNTIME", "success": null, "elapsed_ms": null, "primary_actions": null, "errors": null, "retries": null, "evidence_ref": null}
+    },
+    {
+      "id": "SCN_DOCUMENT_OUTPUT",
+      "title": "Produce a cabinet document",
+      "capability_ids": ["DOCUMENTS_FINANCE"],
+      "goal": "Create a patient-scoped document and reach a final printable/exportable state.",
+      "synthetic_fixture_ids": ["SYN-PAT-001", "SYN-DOC-001"],
+      "digital_crown": {"measurement_status": "NOT_MEASURED", "success": null, "elapsed_ms": null, "primary_actions": null, "errors": null, "retries": null, "evidence_ref": null},
+      "orthalis": {"measurement_status": "BLOCKED_RUNTIME", "success": null, "elapsed_ms": null, "primary_actions": null, "errors": null, "retries": null, "evidence_ref": null}
+    },
+    {
+      "id": "SCN_FINANCIAL_EVENT",
+      "title": "Record and review a financial event",
+      "capability_ids": ["DOCUMENTS_FINANCE"],
+      "goal": "Record a synthetic payment or installment event and verify the resulting patient financial state.",
+      "synthetic_fixture_ids": ["SYN-PAT-001", "SYN-ACT-001", "SYN-PAY-001"],
+      "digital_crown": {"measurement_status": "NOT_MEASURED", "success": null, "elapsed_ms": null, "primary_actions": null, "errors": null, "retries": null, "evidence_ref": null},
+      "orthalis": {"measurement_status": "BLOCKED_RUNTIME", "success": null, "elapsed_ms": null, "primary_actions": null, "errors": null, "retries": null, "evidence_ref": null}
+    },
+    {
+      "id": "SCN_ORTHO_CASE_STATE",
+      "title": "Open an orthodontic case and understand its current state",
+      "capability_ids": ["ORTHO_LONGITUDINAL_JOURNEY"],
+      "goal": "Identify current treatment phase, latest control and next intended administrative step without inferring treatment decisions.",
+      "synthetic_fixture_ids": ["SYN-PAT-ORTHO-001", "SYN-ORTHO-CASE-001"],
+      "digital_crown": {"measurement_status": "NOT_MEASURED", "success": null, "elapsed_ms": null, "primary_actions": null, "errors": null, "retries": null, "evidence_ref": null},
+      "orthalis": {"measurement_status": "BLOCKED_RUNTIME", "success": null, "elapsed_ms": null, "primary_actions": null, "errors": null, "retries": null, "evidence_ref": null}
+    },
+    {
+      "id": "SCN_CEPH_REVIEW",
+      "title": "Open and review a cephalometric analysis",
+      "capability_ids": ["CEPH_CORE"],
+      "goal": "Load a synthetic cephalogram analysis, inspect landmarks and measurements, and preserve provenance after manual review.",
+      "synthetic_fixture_ids": ["SYN-PAT-ORTHO-001", "SYN-CEPH-001"],
+      "digital_crown": {"measurement_status": "NOT_MEASURED", "success": null, "elapsed_ms": null, "primary_actions": null, "errors": null, "retries": null, "evidence_ref": null},
+      "orthalis": {"measurement_status": "BLOCKED_RUNTIME", "success": null, "elapsed_ms": null, "primary_actions": null, "errors": null, "retries": null, "evidence_ref": null}
+    },
+    {
+      "id": "SCN_CEPH_LONGITUDINAL",
+      "title": "Compare cephalometric states over time",
+      "capability_ids": ["CEPH_LONGITUDINAL_SUPERPOSITION"],
+      "goal": "Compare T0 and T1 using an explicit reproducible superposition method and retain provenance.",
+      "synthetic_fixture_ids": ["SYN-PAT-ORTHO-001", "SYN-CEPH-001", "SYN-CEPH-002"],
+      "digital_crown": {"measurement_status": "BLOCKED_RUNTIME", "success": null, "elapsed_ms": null, "primary_actions": null, "errors": null, "retries": null, "evidence_ref": null},
+      "orthalis": {"measurement_status": "BLOCKED_RUNTIME", "success": null, "elapsed_ms": null, "primary_actions": null, "errors": null, "retries": null, "evidence_ref": null}
+    },
+    {
+      "id": "SCN_MEDIA_COMPARE",
+      "title": "Import, retrieve and compare clinical media",
+      "capability_ids": ["MEDIA_HUB"],
+      "goal": "Ingest a synthetic media series, retrieve it by patient/date/protocol and compare two timepoints side by side.",
+      "synthetic_fixture_ids": ["SYN-PAT-ORTHO-001", "SYN-MEDIA-SET-T0", "SYN-MEDIA-SET-T1"],
+      "digital_crown": {"measurement_status": "BLOCKED_RUNTIME", "success": null, "elapsed_ms": null, "primary_actions": null, "errors": null, "retries": null, "evidence_ref": null},
+      "orthalis": {"measurement_status": "BLOCKED_RUNTIME", "success": null, "elapsed_ms": null, "primary_actions": null, "errors": null, "retries": null, "evidence_ref": null}
+    },
+    {
+      "id": "SCN_PATIENT_COMPANION",
+      "title": "Patient-facing access to appointments and documents",
+      "capability_ids": ["PATIENT_COMPANION"],
+      "goal": "A synthetic patient identity can view only its own appointment and assigned document, with revocable access.",
+      "synthetic_fixture_ids": ["SYN-PAT-001", "SYN-DOC-001"],
+      "digital_crown": {"measurement_status": "NOT_MEASURED", "success": null, "elapsed_ms": null, "primary_actions": null, "errors": null, "retries": null, "evidence_ref": null},
+      "orthalis": {"measurement_status": "BLOCKED_RUNTIME", "success": null, "elapsed_ms": null, "primary_actions": null, "errors": null, "retries": null, "evidence_ref": null}
+    },
+    {
+      "id": "SCN_EXTERNAL_CONNECTOR",
+      "title": "Exchange data with an external orthodontic provider",
+      "capability_ids": ["EXTERNAL_CONNECTORS"],
+      "goal": "Complete one authorized provider exchange with explicit patient mapping, idempotence and audit evidence.",
+      "synthetic_fixture_ids": ["SYN-PAT-ORTHO-001", "SYN-CONNECTOR-CASE-001"],
+      "digital_crown": {"measurement_status": "BLOCKED_RUNTIME", "success": null, "elapsed_ms": null, "primary_actions": null, "errors": null, "retries": null, "evidence_ref": null},
+      "orthalis": {"measurement_status": "BLOCKED_RUNTIME", "success": null, "elapsed_ms": null, "primary_actions": null, "errors": null, "retries": null, "evidence_ref": null}
+    },
+    {
+      "id": "SCN_RECOVERY",
+      "title": "Restore cabinet continuity after failure",
+      "capability_ids": ["PACKAGING_RECOVERY", "LOCAL_FIRST_SECURITY"],
+      "goal": "Restore a synthetic cabinet backup onto a distinct test machine/profile and verify integrity without exposing secrets or patient data.",
+      "synthetic_fixture_ids": ["SYN-CABINET-001"],
+      "digital_crown": {"measurement_status": "NOT_MEASURED", "success": null, "elapsed_ms": null, "primary_actions": null, "errors": null, "retries": null, "evidence_ref": null},
+      "orthalis": {"measurement_status": "BLOCKED_RUNTIME", "success": null, "elapsed_ms": null, "primary_actions": null, "errors": null, "retries": null, "evidence_ref": null}
+    }
+  ]
+}
