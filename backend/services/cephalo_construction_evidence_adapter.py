@@ -14,6 +14,7 @@ from backend.schemas.cephalo_evidence import (
     ConstructionEvidence,
     LandmarkEvidence,
 )
+from backend.services.cephalo_craniom_angular import craniom_u1_frankfort_deg_v1
 from backend.services.cephalo_geometric_conventions import (
     geometric_convention_metadata,
     get_active_craniom_convention,
@@ -151,6 +152,27 @@ def _convention_only_geometry(definition_id: str) -> dict[str, object]:
     }
 
 
+def _materialize_computed_geometry(
+    spec: _ConstructionSpec,
+    landmarks: Mapping[str, LandmarkEvidence],
+    geometry: dict[str, object],
+) -> bool:
+    """Attach calibration-independent patient geometry; return False if degenerate."""
+
+    if spec.definition_id != "CRANIOM_U1_TO_FRANKFORT_V1":
+        return True
+    value = craniom_u1_frankfort_deg_v1(
+        (landmarks["U1_apex"].x, landmarks["U1_apex"].y),
+        (landmarks["U1_incisal"].x, landmarks["U1_incisal"].y),
+        (landmarks["Po"].x, landmarks["Po"].y),
+        (landmarks["Or"].x, landmarks["Or"].y),
+    )
+    if value is None:
+        return False
+    geometry["computed_angle_deg"] = round(value, 1)
+    return True
+
+
 def materialize_craniom_constructions(
     landmarks: Mapping[str, LandmarkEvidence],
     *,
@@ -159,9 +181,9 @@ def materialize_craniom_constructions(
     """Create typed construction evidence for the certified CRANIOM runtime set.
 
     Missing or unavailable landmarks produce ``NOT_COMPUTABLE`` construction
-    evidence. Cross-image dependencies produce ``INVALID`` evidence. In both
-    fail-closed states, immutable convention provenance is retained while
-    executable patient geometry is withheld.
+    evidence. Cross-image or degenerate geometry produces ``INVALID`` evidence.
+    Fail-closed states retain immutable convention provenance while withholding
+    executable patient geometry.
     """
 
     if not isinstance(construction_namespace, str) or not construction_namespace.strip():
@@ -186,6 +208,9 @@ def materialize_craniom_constructions(
             geometry["geometric_convention"] = geometric_convention_metadata(
                 spec.definition_id
             )
+            if not _materialize_computed_geometry(spec, landmarks, geometry):
+                availability = AvailabilityStatus.INVALID
+                geometry = _convention_only_geometry(spec.definition_id)
 
         materialized[spec.definition_id] = ConstructionEvidence(
             construction_id=f"{construction_namespace}:{spec.definition_id}",
