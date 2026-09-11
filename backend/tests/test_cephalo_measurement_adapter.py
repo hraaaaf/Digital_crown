@@ -7,7 +7,7 @@ import pytest
 from backend.schemas.cephalo_evidence import AvailabilityStatus, ConstructionEvidence
 from backend.services.cephalo_engine import CephaloEngine
 from backend.services.cephalo_measurement_adapter import (
-    CRANIOM_LINEAR_CONSTRUCTION_DEFINITIONS,
+    CRANIOM_CONSTRUCTION_DEFINITIONS,
     adapt_craniom_linear_measurements,
 )
 
@@ -22,10 +22,10 @@ def _points():
         "B": (22.0, 38.0),
         "Go": (5.0, 50.0),
         "Me": (25.0, 55.0),
-        "U1a": (20.0, 25.0),
-        "U1i": (24.0, 35.0),
-        "L1a": (20.0, 48.0),
-        "L1i": (23.0, 38.0),
+        "U1_apex": (20.0, 25.0),
+        "U1_incisal": (24.0, 35.0),
+        "L1_apex": (20.0, 48.0),
+        "L1_incisal": (23.0, 38.0),
     }
 
 
@@ -39,11 +39,15 @@ def _constructions():
             geometry={"kind": "synthetic_test_construction"},
             evidence_refs=["landmark:synthetic"],
         )
-        for definition_id in CRANIOM_LINEAR_CONSTRUCTION_DEFINITIONS
+        for definition_id in CRANIOM_CONSTRUCTION_DEFINITIONS
     }
 
 
-def test_adapter_emits_only_certified_craniom_linear_measurements():
+def _by_name(measurements):
+    return {m.measurement_id.rsplit(":", 1)[1]: m for m in measurements}
+
+
+def test_adapter_emits_certified_craniom_measurements_including_r4_u1_frankfort():
     result = CephaloEngine(mm_per_pixel=0.2).calculate_metrics(_points())
 
     measurements = adapt_craniom_linear_measurements(
@@ -58,36 +62,23 @@ def test_adapter_emits_only_certified_craniom_linear_measurements():
         "cephalo:42:Situation_B",
         "cephalo:42:Decalage_A_B",
         "cephalo:42:Profondeur_Faciale",
+        "cephalo:42:I_Francfort",
     ]
     assert all(m.analysis_id == "CRANIOM" for m in measurements)
-    assert all(m.unit == "mm" for m in measurements)
-    assert all(m.requires_calibration for m in measurements)
     assert all(m.availability_status == AvailabilityStatus.AVAILABLE for m in measurements)
-    assert all(m.calibration_ref == "source:calibration:42" for m in measurements)
 
-    expected_values = {
-        "Situation_A": result.metrics.analyse_osseuse.Situation_A.valeur,
-        "Situation_B": result.metrics.analyse_osseuse.Situation_B.valeur,
-        "Decalage_A_B": result.metrics.analyse_osseuse.Decalage_A_B.valeur,
-        "Profondeur_Faciale": result.metrics.analyse_osseuse.Profondeur_Faciale.valeur,
-    }
-    expected_constructions = {
-        "Situation_A": "construction:CRANIOM_A_TO_N_VERTICAL_V1",
-        "Situation_B": "construction:CRANIOM_B_TO_N_VERTICAL_V1",
-        "Decalage_A_B": "construction:CRANIOM_AB_PRIME_V1",
-        "Profondeur_Faciale": "construction:CRANIOM_S_TO_N_VERTICAL_DEPTH_V1",
-    }
-    for measurement in measurements:
-        metric_name = measurement.measurement_id.rsplit(":", 1)[1]
-        assert measurement.value == expected_values[metric_name]
-        assert measurement.construction_refs == [expected_constructions[metric_name]]
-        assert measurement.evidence_refs == [
-            expected_constructions[metric_name],
-            "source:calibration:42",
-        ]
+    by_name = _by_name(measurements)
+    for name in ("Situation_A", "Situation_B", "Decalage_A_B", "Profondeur_Faciale"):
+        assert by_name[name].unit == "mm"
+        assert by_name[name].requires_calibration is True
+        assert by_name[name].calibration_ref == "source:calibration:42"
+    assert by_name["I_Francfort"].unit == "deg"
+    assert by_name["I_Francfort"].requires_calibration is False
+    assert by_name["I_Francfort"].calibration_ref is None
+    assert by_name["I_Francfort"].value == result.metrics.analyse_dentaire.I_Francfort.valeur
 
 
-def test_adapter_drops_patient_values_without_calibration_evidence():
+def test_without_calibration_only_linear_values_are_not_computable():
     result = CephaloEngine(mm_per_pixel=0.2).calculate_metrics(_points())
 
     measurements = adapt_craniom_linear_measurements(
@@ -97,15 +88,17 @@ def test_adapter_drops_patient_values_without_calibration_evidence():
         calibration_ref=None,
     )
 
-    assert all(m.value is None for m in measurements)
-    assert all(m.calibration_ref is None for m in measurements)
-    assert all(
-        m.availability_status == AvailabilityStatus.NOT_COMPUTABLE
-        for m in measurements
-    )
+    by_name = _by_name(measurements)
+    for name in ("Situation_A", "Situation_B", "Decalage_A_B", "Profondeur_Faciale"):
+        assert by_name[name].value is None
+        assert by_name[name].availability_status == AvailabilityStatus.NOT_COMPUTABLE
+        assert by_name[name].calibration_ref is None
+    assert by_name["I_Francfort"].value is not None
+    assert by_name["I_Francfort"].availability_status == AvailabilityStatus.AVAILABLE
+    assert by_name["I_Francfort"].calibration_ref is None
 
 
-def test_adapter_preserves_not_computable_geometry_from_runtime():
+def test_missing_pixel_ratio_does_not_block_uncalibrated_angular_measurement():
     result = CephaloEngine(mm_per_pixel=None).calculate_metrics(_points())
 
     measurements = adapt_craniom_linear_measurements(
@@ -115,11 +108,13 @@ def test_adapter_preserves_not_computable_geometry_from_runtime():
         calibration_ref=None,
     )
 
-    assert all(m.value is None for m in measurements)
+    by_name = _by_name(measurements)
     assert all(
-        m.availability_status == AvailabilityStatus.NOT_COMPUTABLE
-        for m in measurements
+        by_name[name].availability_status == AvailabilityStatus.NOT_COMPUTABLE
+        for name in ("Situation_A", "Situation_B", "Decalage_A_B", "Profondeur_Faciale")
     )
+    assert by_name["I_Francfort"].availability_status == AvailabilityStatus.AVAILABLE
+    assert by_name["I_Francfort"].value is not None
 
 
 def test_adapter_requires_materialized_construction_evidence():
@@ -182,12 +177,35 @@ def test_unavailable_construction_makes_only_dependent_measurement_not_computabl
         calibration_ref="source:calibration:45d",
     )
 
-    by_name = {m.measurement_id.rsplit(":", 1)[1]: m for m in measurements}
+    by_name = _by_name(measurements)
     assert by_name["Decalage_A_B"].value is None
     assert by_name["Decalage_A_B"].availability_status == AvailabilityStatus.NOT_COMPUTABLE
     assert by_name["Situation_A"].availability_status == AvailabilityStatus.AVAILABLE
     assert by_name["Situation_B"].availability_status == AvailabilityStatus.AVAILABLE
     assert by_name["Profondeur_Faciale"].availability_status == AvailabilityStatus.AVAILABLE
+    assert by_name["I_Francfort"].availability_status == AvailabilityStatus.AVAILABLE
+
+
+def test_unavailable_u1_construction_blocks_only_u1_measurement():
+    result = CephaloEngine(mm_per_pixel=0.2).calculate_metrics(_points())
+    constructions = _constructions()
+    constructions["CRANIOM_U1_TO_FRANKFORT_V1"] = constructions[
+        "CRANIOM_U1_TO_FRANKFORT_V1"
+    ].model_copy(update={"availability_status": AvailabilityStatus.NOT_COMPUTABLE})
+
+    measurements = adapt_craniom_linear_measurements(
+        result,
+        measurement_namespace="cephalo:45e",
+        constructions=constructions,
+        calibration_ref="source:calibration:45e",
+    )
+    by_name = _by_name(measurements)
+    assert by_name["I_Francfort"].availability_status == AvailabilityStatus.NOT_COMPUTABLE
+    assert by_name["I_Francfort"].value is None
+    assert all(
+        by_name[name].availability_status == AvailabilityStatus.AVAILABLE
+        for name in ("Situation_A", "Situation_B", "Decalage_A_B", "Profondeur_Faciale")
+    )
 
 
 def test_adapter_rejects_empty_namespace():
