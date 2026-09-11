@@ -36,6 +36,22 @@ def test_downgrade_is_blocked_when_reserved_team_exceeds_target():
     db.commit.assert_not_called()
 
 
+def test_compliant_downgrade_at_target_capacity_succeeds():
+    db, user, admin = _context("PREMIUM")
+    usage = TeamUsage(dentists=1, secretaries=2, pending=1)
+
+    with (
+        patch.object(superadmin, "count_reserved_team_usage", return_value=usage),
+        patch.object(superadmin, "invalidate_license_cache") as invalidate,
+    ):
+        result = superadmin.set_client_plan(42, "GOLD", db, admin)
+
+    assert user.subscription_plan == "GOLD"
+    assert result == {"status": "success", "subscription_plan": "GOLD"}
+    db.commit.assert_called_once()
+    invalidate.assert_called_once_with(user.email)
+
+
 def test_upgrade_to_elite_accepts_large_team_without_device_side_effects():
     db, user, admin = _context("PREMIUM")
     usage = TeamUsage(dentists=50, secretaries=200, pending=10)

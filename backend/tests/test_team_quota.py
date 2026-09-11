@@ -1,17 +1,19 @@
 """
 Tests unitaires pour la politique de quotas d'equipe.
-Aucune connexion DB — on teste les helpers purs.
 """
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
+from backend import models
 from backend.routers.team import (
     ALLOWED_TEAM_PERMISSIONS,
+    _build_quota,
     _get_plan,
     sanitize_permissions,
 )
 from backend.services.subscription_policy import (
     TEAM_LIMITS,
     TeamUsage,
+    count_reserved_team_usage,
     exceeds_limit,
     get_team_limits,
     is_limit_reached,
@@ -44,6 +46,69 @@ class TestPlanQuotas:
     def test_finite_plan_rejects_reserved_overage(self):
         assert plan_can_accommodate("GOLD", TeamUsage(dentists=2, secretaries=2, pending=1)) is False
         assert plan_can_accommodate("PREMIUM", TeamUsage(dentists=2, secretaries=6, pending=3)) is True
+
+    def test_build_quota_exposes_real_unlimited_semantics(self):
+        owner = MagicMock()
+        owner.id = 42
+        owner.subscription_plan = "ELITE"
+        usage = TeamUsage(dentists=17, secretaries=28, pending=4)
+
+        with patch("backend.routers.team.count_reserved_team_usage", return_value=usage):
+            quota = _build_quota(owner, MagicMock())
+
+        assert quota.plan == "ELITE"
+        assert quota.dentistes_used == 17
+        assert quota.dentistes_max is None
+        assert quota.secretaires_used == 28
+        assert quota.secretaires_max is None
+        assert quota.pending_count == 4
+        assert quota.can_add_dentiste is True
+        assert quota.can_add_secretaire is True
+
+    def test_approved_and_pending_reserve_quota_but_rejected_does_not(self, db):
+        owner = models.User(
+            email="quota-owner@example.com",
+            hashed_password="x",
+            role=models.UserRole.DENTISTE,
+            approval_status=models.ApprovalStatus.APPROVED.value,
+        )
+        db.add(owner)
+        db.commit()
+        db.refresh(owner)
+
+        db.add_all([
+            models.User(
+                email="quota-approved-dentist@example.com",
+                hashed_password="x",
+                role=models.UserRole.DENTISTE,
+                employer_id=owner.id,
+                approval_status=models.ApprovalStatus.APPROVED.value,
+                is_active=True,
+            ),
+            models.User(
+                email="quota-pending-assistant@example.com",
+                hashed_password="x",
+                role=models.UserRole.SECRETAIRE,
+                employer_id=owner.id,
+                approval_status=models.ApprovalStatus.PENDING.value,
+                is_active=False,
+            ),
+            models.User(
+                email="quota-rejected-assistant@example.com",
+                hashed_password="x",
+                role=models.UserRole.SECRETAIRE,
+                employer_id=owner.id,
+                approval_status=models.ApprovalStatus.REJECTED.value,
+                is_active=False,
+            ),
+        ])
+        db.commit()
+
+        usage = count_reserved_team_usage(db, owner.id)
+
+        assert usage.dentists == 2  # owner + approved associate
+        assert usage.secretaries == 1  # pending reserves the seat
+        assert usage.pending == 1
 
 
 class TestGetPlan:

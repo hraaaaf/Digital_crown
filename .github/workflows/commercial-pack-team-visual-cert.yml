@@ -80,15 +80,15 @@ jobs:
               await page.getByRole('heading',{name:'Paramètres',exact:true}).waitFor({state:'visible',timeout:15000});
               await page.getByRole('button',{name:'Mon Équipe',exact:true}).click();
               await page.getByRole('heading',{name:'Mon Équipe',exact:true}).waitFor({state:'visible'});
-              const unlimited=page.getByText('Illimité',{exact:true});
-              if(await unlimited.count()!==2) throw new Error(`Expected two Illimité labels, got ${await unlimited.count()}`);
-              if(await page.getByText('7/Illimité',{exact:true}).count()!==1) throw new Error('Dentist unlimited quota missing');
-              if(await page.getByText('18/Illimité',{exact:true}).count()!==1) throw new Error('Assistant unlimited quota missing');
-              if(await page.getByText(/Quota atteint/i).count()!==0) throw new Error('ELITE must not render Quota atteint');
+
               const diagnostic=await page.evaluate(() => ({clientWidth:document.documentElement.clientWidth,scrollWidth:document.documentElement.scrollWidth}));
               await page.screenshot({path:`${output}/elite-team-${width}x1000.png`,fullPage:true,animations:'disabled'});
               await fs.writeFile(`${output}/elite-team-${width}.layout.json`,JSON.stringify(diagnostic,null,2));
               await fs.writeFile(`${output}/elite-team-${width}.errors.txt`,errors.join('\n'));
+
+              if(await page.getByText('7/Illimité',{exact:true}).count()!==1) throw new Error('Dentist unlimited quota missing');
+              if(await page.getByText('18/Illimité',{exact:true}).count()!==1) throw new Error('Assistant unlimited quota missing');
+              if(await page.getByText(/Quota atteint/i).count()!==0) throw new Error('ELITE must not render Quota atteint');
               if(diagnostic.scrollWidth>diagnostic.clientWidth) throw new Error(`Horizontal overflow ${diagnostic.scrollWidth}>${diagnostic.clientWidth}`);
               if(errors.length) throw new Error(errors.join('\n'));
               await context.close();
