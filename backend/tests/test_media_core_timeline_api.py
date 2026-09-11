@@ -90,6 +90,33 @@ def test_timeline_lists_primary_asset_only_and_keeps_storage_secrets_private(
     assert derived[0].id not in {entry["id"] for entry in payload["items"]}
 
 
+def test_timeline_ignores_newer_metadata_only_thumbnail_candidate(
+    client, db, dentiste, auth_headers, tmp_path, monkeypatch
+):
+    monkeypatch.setenv("SECRET_KEY", "c4-api-test-secret-key-material")
+    monkeypatch.setattr("backend.services.clinical_asset_storage.get_media_root", lambda: tmp_path)
+    patient = _patient(db, dentiste.id, "THUMB-BIND")
+    imported = _import_image(client, auth_headers, patient.id, _png_bytes(), "T0")
+
+    metadata_only = create_clinical_asset(
+        db,
+        employer_id=dentiste.id,
+        patient_id=patient.id,
+        asset_type="PHOTO",
+        source_kind="DERIVED",
+        mime_type="image/jpeg",
+        parent_asset_id=imported["id"],
+        created_by=dentiste.id,
+    )
+    db.commit()
+    assert metadata_only.id > imported["thumbnail_asset_id"]
+
+    response = client.get(f"/api/patients/{patient.id}/assets", headers=auth_headers)
+
+    assert response.status_code == 200, response.text
+    assert response.json()["items"][0]["thumbnail_asset_id"] == imported["thumbnail_asset_id"]
+
+
 def test_timeline_hides_metadata_only_asset_without_verified_blob(
     client, db, dentiste, auth_headers
 ):
