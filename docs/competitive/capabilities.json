@@ -1,0 +1,226 @@
+{
+  "schema_version": 1,
+  "baseline": {
+    "repository": "hraaaaf/Digital_crown",
+    "digital_crown_ref": "c6ed747b9b67c725d88b6cb5cc85914d969e2aed",
+    "verified_on": "2026-09-11",
+    "orthalis_sources_checked_on": "2026-09-11"
+  },
+  "status_vocabulary": [
+    "VERIFIED_REPO",
+    "PARTIAL_VERIFIED",
+    "VENDOR_CLAIM_VERIFIED",
+    "NOT_PROVEN",
+    "BLOCKED_RUNTIME"
+  ],
+  "capabilities": [
+    {
+      "id": "PMS_AGENDA_MULTI_PRACTITIONER",
+      "domain": "pms",
+      "benchmark_statement": "Multi-practitioner agenda and appointment workflow",
+      "digital_crown": {
+        "status": "VERIFIED_REPO",
+        "evidence": [
+          {"type": "repo_path", "path": "README.md", "detail": "Agenda multi-praticien listed as a main module."},
+          {"type": "repo_path", "path": "backend/routers/appointments.py", "detail": "Dedicated appointments router exists."},
+          {"type": "repo_path", "path": "frontend/src/features/agenda", "detail": "Dedicated agenda feature exists."}
+        ]
+      },
+      "orthalis": {
+        "status": "VENDOR_CLAIM_VERIFIED",
+        "evidence": [{"type": "source_id", "source_id": "ORTHALIS_CORE"}]
+      },
+      "comparability": "DOCUMENTARY_COMPARABLE"
+    },
+    {
+      "id": "PATIENT_LONGITUDINAL_RECORD",
+      "domain": "patient",
+      "benchmark_statement": "Longitudinal patient record",
+      "digital_crown": {
+        "status": "VERIFIED_REPO",
+        "evidence": [
+          {"type": "repo_path", "path": "README.md", "detail": "Longitudinal patient record and Patient Journey are listed."},
+          {"type": "repo_path", "path": "frontend/src/features/patients", "detail": "Dedicated patients feature exists."}
+        ]
+      },
+      "orthalis": {
+        "status": "VENDOR_CLAIM_VERIFIED",
+        "evidence": [{"type": "source_id", "source_id": "ORTHALIS_CORE"}]
+      },
+      "comparability": "DOCUMENTARY_COMPARABLE"
+    },
+    {
+      "id": "DOCUMENTS_FINANCE",
+      "domain": "operations",
+      "benchmark_statement": "Documents, billing and payment workflows",
+      "digital_crown": {
+        "status": "VERIFIED_REPO",
+        "evidence": [
+          {"type": "repo_path", "path": "README.md", "detail": "Documents, acts, payments and schedules are listed."},
+          {"type": "repo_path", "path": "backend/routers/documents.py", "detail": "Dedicated documents router exists."},
+          {"type": "repo_path", "path": "backend/routers/accounting.py", "detail": "Dedicated accounting router exists."}
+        ]
+      },
+      "orthalis": {
+        "status": "VENDOR_CLAIM_VERIFIED",
+        "evidence": [{"type": "source_id", "source_id": "ORTHALIS_CORE"}]
+      },
+      "comparability": "DOCUMENTARY_COMPARABLE"
+    },
+    {
+      "id": "ORTHO_LONGITUDINAL_JOURNEY",
+      "domain": "ortho",
+      "benchmark_statement": "Dedicated structured orthodontic journey from consultation through retention",
+      "digital_crown": {
+        "status": "PARTIAL_VERIFIED",
+        "evidence": [
+          {"type": "repo_path", "path": "README.md", "detail": "Patient Journey exists, but the architecture summary does not prove the complete dedicated ortho lifecycle benchmark."},
+          {"type": "repo_path", "path": "frontend/src/features/ortho", "detail": "Dedicated ortho feature exists."}
+        ]
+      },
+      "orthalis": {
+        "status": "VENDOR_CLAIM_VERIFIED",
+        "evidence": [{"type": "source_id", "source_id": "ORTHALIS_CORE"}]
+      },
+      "comparability": "NOT_RUNTIME_COMPARABLE"
+    },
+    {
+      "id": "CEPH_CORE",
+      "domain": "ceph",
+      "benchmark_statement": "Cephalometric analysis with local typed calculations and practitioner correction",
+      "digital_crown": {
+        "status": "VERIFIED_REPO",
+        "evidence": [
+          {"type": "repo_path", "path": "README.md", "detail": "Import, landmarks, manual correction and local cephalometric calculations are listed."},
+          {"type": "repo_path", "path": "backend/routers/cephalo_analysis_read.py", "detail": "Typed cephalometric analysis read path exists."},
+          {"type": "repo_path", "path": "docs/CEPHALO_DIAGNOSTIC_SPEC.md", "detail": "Canonical cephalometric specification exists."}
+        ]
+      },
+      "orthalis": {
+        "status": "VENDOR_CLAIM_VERIFIED",
+        "evidence": [{"type": "source_id", "source_id": "ORTHALIS_CEPH"}]
+      },
+      "comparability": "DOCUMENTARY_ONLY"
+    },
+    {
+      "id": "CEPH_LONGITUDINAL_SUPERPOSITION",
+      "domain": "ceph",
+      "benchmark_statement": "Longitudinal T0/T1/Tn superposition of tracings, radiographs and photos",
+      "digital_crown": {
+        "status": "NOT_PROVEN",
+        "evidence": [
+          {"type": "repo_path", "path": "README.md", "detail": "No longitudinal superposition capability is claimed in the inspected architecture summary."},
+          {"type": "repo_path", "path": "docs/CEPHALO_DIAGNOSTIC_SPEC.md", "detail": "Inspected as canonical ceph source; lack of proof is not proof of absence."}
+        ]
+      },
+      "orthalis": {
+        "status": "VENDOR_CLAIM_VERIFIED",
+        "evidence": [{"type": "source_id", "source_id": "ORTHALIS_CEPH"}]
+      },
+      "comparability": "GAP_DOCUMENTARY"
+    },
+    {
+      "id": "MEDIA_HUB",
+      "domain": "imaging",
+      "benchmark_statement": "Unified patient media library with import, search, timeline and comparison",
+      "digital_crown": {
+        "status": "NOT_PROVEN",
+        "evidence": [
+          {"type": "repo_path", "path": "README.md", "detail": "Panoramic and authenticated patient media are evidenced, but not a unified Kitview-class media hub."},
+          {"type": "repo_path", "path": "frontend/src/features/panoramic", "detail": "Dedicated panoramic feature exists; this is narrower than the benchmark capability."},
+          {"type": "repo_path", "path": "backend/routers/imaging_lifecycle_p4.py", "detail": "Imaging lifecycle route exists; this alone does not prove a unified media library."}
+        ]
+      },
+      "orthalis": {
+        "status": "VENDOR_CLAIM_VERIFIED",
+        "evidence": [{"type": "source_id", "source_id": "ORTHALIS_KITVIEW"}]
+      },
+      "comparability": "GAP_DOCUMENTARY"
+    },
+    {
+      "id": "PATIENT_COMPANION",
+      "domain": "patient_facing",
+      "benchmark_statement": "Patient-facing companion for appointments, forms, documents, payment and emergency uploads",
+      "digital_crown": {
+        "status": "PARTIAL_VERIFIED",
+        "evidence": [
+          {"type": "repo_path", "path": "README.md", "detail": "Paired mobile companion exists, but the listed scope is cabinet dashboard, agenda, finance, lab and security."},
+          {"type": "repo_path", "path": "backend/routers/mobile_patient_cockpit.py", "detail": "Patient cockpit route exists; full benchmark breadth still needs runtime proof."}
+        ]
+      },
+      "orthalis": {
+        "status": "VENDOR_CLAIM_VERIFIED",
+        "evidence": [{"type": "source_id", "source_id": "ORTHALIS_OPTIONS"}]
+      },
+      "comparability": "NOT_RUNTIME_COMPARABLE"
+    },
+    {
+      "id": "EXTERNAL_CONNECTORS",
+      "domain": "integrations",
+      "benchmark_statement": "Production integrations with major orthodontic ecosystem providers",
+      "digital_crown": {
+        "status": "NOT_PROVEN",
+        "evidence": [
+          {"type": "repo_path", "path": "README.md", "detail": "No named 3Shape, Invisalign, Spark or DentalMonitoring production connector is claimed in the inspected architecture summary."},
+          {"type": "repo_path", "path": "frontend/src/features", "detail": "Feature inventory inspected; non-proof is not proof of absence."}
+        ]
+      },
+      "orthalis": {
+        "status": "VENDOR_CLAIM_VERIFIED",
+        "evidence": [{"type": "source_id", "source_id": "ORTHALIS_CONNECTORS"}]
+      },
+      "comparability": "GAP_DOCUMENTARY"
+    },
+    {
+      "id": "LOCAL_FIRST_SECURITY",
+      "domain": "architecture",
+      "benchmark_statement": "Local-first patient-data authority with tenant isolation and authenticated media",
+      "digital_crown": {
+        "status": "VERIFIED_REPO",
+        "evidence": [
+          {"type": "repo_path", "path": "README.md", "detail": "Local-first/on-premise architecture, backend authority, tenant isolation, authenticated media, RBAC and audit logs are explicit."}
+        ]
+      },
+      "orthalis": {
+        "status": "NOT_PROVEN",
+        "evidence": [{"type": "source_id", "source_id": "ORTHALIS_HOME"}]
+      },
+      "comparability": "NOT_SECURITY_COMPARABLE"
+    },
+    {
+      "id": "PACKAGING_RECOVERY",
+      "domain": "industrialization",
+      "benchmark_statement": "Install, update, backup, restore and migration evidence suitable for cabinet operations",
+      "digital_crown": {
+        "status": "PARTIAL_VERIFIED",
+        "evidence": [
+          {"type": "repo_path", "path": "README.md", "detail": "Windows packaging with PyInstaller/Inno Setup is evidenced."},
+          {"type": "repo_path", "path": "DigitalCrown.spec", "detail": "PyInstaller specification exists."},
+          {"type": "repo_path", "path": "docs/CABINET_ONPREM_GUIDE.md", "detail": "On-premise operational guide exists."}
+        ]
+      },
+      "orthalis": {
+        "status": "VENDOR_CLAIM_VERIFIED",
+        "evidence": [{"type": "source_id", "source_id": "ORTHALIS_HOME"}]
+      },
+      "comparability": "NOT_RUNTIME_COMPARABLE"
+    },
+    {
+      "id": "MOROCCO_FIT",
+      "domain": "market_fit",
+      "benchmark_statement": "Product workflows intentionally adapted to Moroccan dental practice",
+      "digital_crown": {
+        "status": "PARTIAL_VERIFIED",
+        "evidence": [
+          {"type": "repo_path", "path": "README.md", "detail": "Dental/orthodontic local-first product is evidenced, but this file alone does not prove every Morocco-specific workflow."},
+          {"type": "repo_path", "path": "STATE.md", "detail": "Canonical product-state source included in the evidence set."}
+        ]
+      },
+      "orthalis": {
+        "status": "NOT_PROVEN",
+        "evidence": [{"type": "source_id", "source_id": "ORTHALIS_CORE"}]
+      },
+      "comparability": "MARKET_EVIDENCE_REQUIRED"
+    }
+  ]
+}
