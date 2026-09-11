@@ -1,0 +1,31 @@
+{
+  "schema_version": 1,
+  "scope": "benchmark_relevant_surface_inventory",
+  "scope_note": "This is the exact inventory of Digital Crown modules/routes used by LOT B benchmark evidence. It is not a claim to enumerate every repository file.",
+  "baseline_ref": "c6ed747b9b67c725d88b6cb5cc85914d969e2aed",
+  "items": [
+    {"id": "INV_README", "kind": "architecture_doc", "path": "README.md", "domain": "cross_cutting"},
+    {"id": "INV_STATE", "kind": "canonical_state", "path": "STATE.md", "domain": "cross_cutting"},
+    {"id": "INV_FE_AGENDA", "kind": "frontend_feature", "path": "frontend/src/features/agenda", "domain": "pms"},
+    {"id": "INV_FE_PATIENTS", "kind": "frontend_feature", "path": "frontend/src/features/patients", "domain": "patient"},
+    {"id": "INV_FE_ACCOUNTING", "kind": "frontend_feature", "path": "frontend/src/features/accounting", "domain": "finance"},
+    {"id": "INV_FE_ANALYTICS", "kind": "frontend_feature", "path": "frontend/src/features/analytics", "domain": "analytics"},
+    {"id": "INV_FE_ORTHO", "kind": "frontend_feature", "path": "frontend/src/features/ortho", "domain": "ortho"},
+    {"id": "INV_FE_PANORAMIC", "kind": "frontend_feature", "path": "frontend/src/features/panoramic", "domain": "imaging"},
+    {"id": "INV_FE_MOBILE", "kind": "frontend_feature", "path": "frontend/src/features/mobile", "domain": "mobile"},
+    {"id": "INV_BE_APPOINTMENTS", "kind": "backend_router", "path": "backend/routers/appointments.py", "domain": "pms"},
+    {"id": "INV_BE_ACCOUNTING", "kind": "backend_router", "path": "backend/routers/accounting.py", "domain": "finance"},
+    {"id": "INV_BE_DOCUMENTS", "kind": "backend_router", "path": "backend/routers/documents.py", "domain": "documents"},
+    {"id": "INV_BE_INSTALLMENTS", "kind": "backend_router", "path": "backend/routers/installments.py", "domain": "finance"},
+    {"id": "INV_BE_CEPH_READ", "kind": "backend_router", "path": "backend/routers/cephalo_analysis_read.py", "domain": "ceph"},
+    {"id": "INV_BE_CEPH_CALIBRATION", "kind": "backend_router", "path": "backend/routers/cephalo_auto_calibration.py", "domain": "ceph"},
+    {"id": "INV_BE_IMAGING_LIFECYCLE", "kind": "backend_router", "path": "backend/routers/imaging_lifecycle_p4.py", "domain": "imaging"},
+    {"id": "INV_BE_MOBILE", "kind": "backend_router", "path": "backend/routers/mobile.py", "domain": "mobile"},
+    {"id": "INV_BE_PATIENT_COCKPIT", "kind": "backend_router", "path": "backend/routers/mobile_patient_cockpit.py", "domain": "patient_facing"},
+    {"id": "INV_BE_CLINICS", "kind": "backend_router", "path": "backend/routers/clinics.py", "domain": "practice_admin"},
+    {"id": "INV_BE_FRONTDESK", "kind": "backend_router", "path": "backend/routers/frontdesk.py", "domain": "practice_admin"},
+    {"id": "INV_CEPH_SPEC", "kind": "canonical_domain_doc", "path": "docs/CEPHALO_DIAGNOSTIC_SPEC.md", "domain": "ceph"},
+    {"id": "INV_ONPREM_GUIDE", "kind": "operations_doc", "path": "docs/CABINET_ONPREM_GUIDE.md", "domain": "industrialization"},
+    {"id": "INV_WINDOWS_SPEC", "kind": "packaging", "path": "DigitalCrown.spec", "domain": "industrialization"}
+  ]
+}
