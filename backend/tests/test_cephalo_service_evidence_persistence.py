@@ -33,11 +33,13 @@ def _srpose_points():
         for key, value in _engine_points().items()
         if key in coords
     })
-    # R4 typed CRANIOM geometry uses the canonical SRPose landmark names while
-    # the legacy engine fixture uses U1a/U1i. Keep both representations bound
-    # to the same physical points so the integration test exercises real parity.
+    # Typed CRANIOM angular geometry uses canonical SRPose landmark names while
+    # the legacy engine fixture uses U1a/U1i and L1a/L1i. Keep both systems
+    # bound to the same physical points so integration parity is meaningful.
     coords["U1_apex"] = _engine_points()["U1a"]
     coords["U1_incisal"] = _engine_points()["U1i"]
+    coords["L1_apex"] = _engine_points()["L1a"]
+    coords["L1_incisal"] = _engine_points()["L1i"]
     return [
         {"id": name, "x": x, "y": y}
         for name, (x, y) in coords.items()
@@ -94,8 +96,13 @@ def test_new_analysis_persists_evidence_without_changing_public_result(monkeypat
     response = service.process_new_radio(7, "/tmp/radio.jpg", "api/static/radio.jpg")
 
     assert EVIDENCE_GRAPH_KEY in repo.persisted
-    assert repo.persisted[EVIDENCE_GRAPH_KEY]["revision"] == 1
-    assert repo.persisted[EVIDENCE_GRAPH_KEY]["history"] == []
+    graph = repo.persisted[EVIDENCE_GRAPH_KEY]
+    assert graph["revision"] == 1
+    assert graph["history"] == []
+    assert {item["method_id"] for item in graph["measurements"] if not item["requires_calibration"]} == {
+        "CRANIOM_U1_FRANKFORT_DEG_V1",
+        "CRANIOM_L1_DOWNS_DEG_V1",
+    }
     assert EVIDENCE_GRAPH_KEY not in response["results"]
 
 
