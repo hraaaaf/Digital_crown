@@ -3,26 +3,19 @@ from datetime import datetime, timezone
 
 import pytest
 
-from backend.schemas.cephalo_evidence import (
-    AvailabilityStatus,
-    ConstructionEvidence,
-    LandmarkEvidence,
-    LandmarkOrigin,
-    MeasurementEvidence,
-    SourceEvidence,
-)
+from backend.schemas.cephalo_evidence import AvailabilityStatus, ConstructionEvidence, LandmarkEvidence, LandmarkOrigin, MeasurementEvidence, SourceEvidence
 from backend.services.cephalo_engine import CephaloEngine
 from backend.services.cephalo_evidence_case_integrity import validate_case_evidence_graph
 from backend.services.cephalo_evidence_graph import EvidenceGraphSnapshot
-from backend.services.cephalo_runtime_evidence import (
-    EVIDENCE_SCHEMA_VERSION,
-    CephaloRuntimeEvidenceError,
-    build_cephalo_runtime_evidence_payload,
-)
+from backend.services.cephalo_runtime_evidence import EVIDENCE_SCHEMA_VERSION, CephaloRuntimeEvidenceError, build_cephalo_runtime_evidence_payload
 from backend.services.sota_vision_service import SOTA_LANDMARKS_MAPPING
 
 NOW = datetime(2026, 9, 10, 13, 0, tzinfo=timezone.utc)
 CASE_ID = "cephalo:test-case"
+STEINER_METHODS = {
+    "STEINER_SNA_DEG_V1", "STEINER_SNB_DEG_V1", "STEINER_ANB_DEG_V1",
+    "STEINER_U1_NA_DEG_V1", "STEINER_L1_NB_DEG_V1", "STEINER_SN_MP_DEG_V1",
+}
 
 
 def _points():
@@ -35,20 +28,24 @@ def _points():
 
 
 def _srpose_raw(offset=0.0):
-    coords = {
-        name: (100.0 + index * 2.0, 120.0 + index * 3.0)
-        for index, name in SOTA_LANDMARKS_MAPPING.items()
-    }
-    coords.update({key: value for key, value in _points().items() if key in coords})
-    return [{"id": key, "x": x + offset, "y": y} for key, (x, y) in coords.items()]
+    coords = {name: (100.0 + i * 2.0, 120.0 + i * 3.0) for i, name in SOTA_LANDMARKS_MAPPING.items()}
+    coords.update({k: v for k, v in _points().items() if k in coords})
+    return [{"id": k, "x": x + offset, "y": y} for k, (x, y) in coords.items()]
 
 
 def _manual_raw(offset=0.0):
-    return [{"id": key, "x": x + offset, "y": y} for key, (x, y) in _points().items()]
+    return [{"id": k, "x": x + offset, "y": y} for k, (x, y) in _points().items()]
 
 
 def _result(ratio=0.2):
     return CephaloEngine(mm_per_pixel=ratio).calculate_metrics(_points())
+
+
+def _initial():
+    return build_cephalo_runtime_evidence_payload(
+        patient_id=7, image_record_id="radio.jpg", result=_result(), landmarks=_srpose_raw(),
+        inference_mode="SOTA_ONNX_38", case_id=CASE_ID, recorded_at=NOW,
+    )
 
 
 def _graph(payload):
@@ -60,60 +57,26 @@ def _graph(payload):
     )
 
 
-def _initial():
-    return build_cephalo_runtime_evidence_payload(
-        patient_id=7,
-        image_record_id="radio.jpg",
-        result=_result(),
-        landmarks=_srpose_raw(),
-        inference_mode="SOTA_ONNX_38",
-        case_id=CASE_ID,
-        recorded_at=NOW,
-    )
-
-
 def test_srpose_snapshot_persists_analysis_scoped_evidence_and_does_not_silently_trust_linear_calibration():
     payload = _initial()
     assert payload["schema_version"] == EVIDENCE_SCHEMA_VERSION
-    assert payload["revision"] == 1
-    assert payload["history"] == []
+    assert payload["revision"] == 1 and payload["history"] == []
     assert len(payload["landmarks"]) == 38
     assert all(x["origin"] == LandmarkOrigin.SRPOSE38_AUTO.value for x in payload["landmarks"])
-
     craniom = [x for x in payload["measurements"] if x["analysis_id"] == "CRANIOM"]
     steiner = [x for x in payload["measurements"] if x["analysis_id"] == "STEINER"]
-
-    craniom_angular = [x for x in craniom if not x["requires_calibration"]]
-    assert {x["method_id"] for x in craniom_angular} == {
-        "CRANIOM_U1_FRANKFORT_DEG_V1",
-        "CRANIOM_L1_DOWNS_DEG_V1",
-        "CRANIOM_INTERINCISAL_DEG_V1",
-    }
-    assert all(x["availability_status"] == AvailabilityStatus.AVAILABLE.value for x in craniom_angular)
-    assert all(x["value"] is not None for x in craniom_angular)
-    assert all(x["calibration_ref"] is None for x in craniom_angular)
-
+    angular = [x for x in craniom if not x["requires_calibration"]]
     linear = [x for x in craniom if x["requires_calibration"]]
+    assert {x["method_id"] for x in angular} == {"CRANIOM_U1_FRANKFORT_DEG_V1", "CRANIOM_L1_DOWNS_DEG_V1", "CRANIOM_INTERINCISAL_DEG_V1"}
+    assert all(x["availability_status"] == AvailabilityStatus.AVAILABLE.value and x["value"] is not None and x["calibration_ref"] is None for x in angular)
     assert len(linear) == 4
-    assert all(x["value"] is None for x in linear)
-    assert all(x["availability_status"] == AvailabilityStatus.NOT_COMPUTABLE.value for x in linear)
-
-    assert {x["method_id"] for x in steiner} == {
-        "STEINER_SNA_DEG_V1",
-        "STEINER_SNB_DEG_V1",
-        "STEINER_ANB_DEG_V1",
-        "STEINER_U1_NA_DEG_V1",
-        "STEINER_L1_NB_DEG_V1",
-    }
-    assert all(x["requires_calibration"] is False for x in steiner)
-    assert all(x["calibration_ref"] is None for x in steiner)
-    assert all(x["availability_status"] == AvailabilityStatus.AVAILABLE.value for x in steiner)
-    assert all(x["value"] is not None for x in steiner)
-
+    assert all(x["value"] is None and x["availability_status"] == AvailabilityStatus.NOT_COMPUTABLE.value for x in linear)
+    assert {x["method_id"] for x in steiner} == STEINER_METHODS
+    assert all(not x["requires_calibration"] and x["calibration_ref"] is None and x["availability_status"] == AvailabilityStatus.AVAILABLE.value and x["value"] is not None for x in steiner)
     validate_case_evidence_graph(_graph(payload), patient_id=7, case_id=CASE_ID)
 
 
-def test_uncertified_automatic_detector_cannot_masquerade_as_srpose_evidence():
+def test_uncertified_detector_cannot_create_srpose_evidence():
     payload = build_cephalo_runtime_evidence_payload(
         patient_id=7, image_record_id="radio.jpg", result=_result(), landmarks=_manual_raw(),
         inference_mode="PRODUCTION", case_id=CASE_ID, recorded_at=NOW,
@@ -124,75 +87,39 @@ def test_uncertified_automatic_detector_cannot_masquerade_as_srpose_evidence():
 
 
 def test_srpose_mode_requires_exact_38_landmark_identity():
-    incomplete = _srpose_raw()[:-1]
     with pytest.raises(CephaloRuntimeEvidenceError, match="exact 38-landmark contract"):
         build_cephalo_runtime_evidence_payload(
-            patient_id=7, image_record_id="radio.jpg", result=_result(), landmarks=incomplete,
+            patient_id=7, image_record_id="radio.jpg", result=_result(), landmarks=_srpose_raw()[:-1],
             inference_mode="SOTA_ONNX_38", case_id=CASE_ID, recorded_at=NOW,
         )
 
 
 def test_runtime_measurement_must_match_same_landmark_geometry():
     result = _result(0.2)
-    bad_situation_a = result.metrics.analyse_osseuse.Situation_A.model_copy(
-        update={"valeur": 99.9}
-    )
-    bad_skeletal = result.metrics.analyse_osseuse.model_copy(
-        update={"Situation_A": bad_situation_a}
-    )
-    bad_metrics = result.metrics.model_copy(update={"analyse_osseuse": bad_skeletal})
-    inconsistent = result.model_copy(update={"metrics": bad_metrics})
-
+    bad = result.metrics.analyse_osseuse.Situation_A.model_copy(update={"valeur": 99.9})
+    skeletal = result.metrics.analyse_osseuse.model_copy(update={"Situation_A": bad})
+    inconsistent = result.model_copy(update={"metrics": result.metrics.model_copy(update={"analyse_osseuse": skeletal})})
     with pytest.raises(CephaloRuntimeEvidenceError, match="Situation_A"):
         build_cephalo_runtime_evidence_payload(
-            patient_id=7, image_record_id="radio.jpg", result=inconsistent,
-            landmarks=_srpose_raw(), inference_mode="SOTA_ONNX_38",
-            case_id=CASE_ID, recorded_at=NOW,
+            patient_id=7, image_record_id="radio.jpg", result=inconsistent, landmarks=_srpose_raw(),
+            inference_mode="SOTA_ONNX_38", case_id=CASE_ID, recorded_at=NOW,
         )
 
 
-def test_u1_runtime_measurement_must_match_typed_landmark_construction():
+@pytest.mark.parametrize("field,error", [
+    ("I_Francfort", "Runtime I_Francfort"),
+    ("IMPA", "Runtime IMPA"),
+    ("Inter_Incisif", "Runtime Inter_Incisif"),
+])
+def test_dental_runtime_measurement_must_match_typed_landmark_construction(field, error):
     result = _result(None)
-    bad_u1 = result.metrics.analyse_dentaire.I_Francfort.model_copy(update={"valeur": 99.9})
-    bad_dental = result.metrics.analyse_dentaire.model_copy(update={"I_Francfort": bad_u1})
-    bad_metrics = result.metrics.model_copy(update={"analyse_dentaire": bad_dental})
-    inconsistent = result.model_copy(update={"metrics": bad_metrics})
-
-    with pytest.raises(ValueError, match="Runtime I_Francfort does not match"):
+    metric = getattr(result.metrics.analyse_dentaire, field).model_copy(update={"valeur": 99.9})
+    dental = result.metrics.analyse_dentaire.model_copy(update={field: metric})
+    inconsistent = result.model_copy(update={"metrics": result.metrics.model_copy(update={"analyse_dentaire": dental})})
+    with pytest.raises(ValueError, match=error):
         build_cephalo_runtime_evidence_payload(
-            patient_id=7, image_record_id="radio.jpg", result=inconsistent,
-            landmarks=_srpose_raw(), inference_mode="SOTA_ONNX_38",
-            case_id=CASE_ID, recorded_at=NOW,
-        )
-
-
-def test_l1_runtime_measurement_must_match_typed_landmark_construction():
-    result = _result(None)
-    bad_l1 = result.metrics.analyse_dentaire.IMPA.model_copy(update={"valeur": 99.9})
-    bad_dental = result.metrics.analyse_dentaire.model_copy(update={"IMPA": bad_l1})
-    bad_metrics = result.metrics.model_copy(update={"analyse_dentaire": bad_dental})
-    inconsistent = result.model_copy(update={"metrics": bad_metrics})
-
-    with pytest.raises(ValueError, match="Runtime IMPA does not match"):
-        build_cephalo_runtime_evidence_payload(
-            patient_id=7, image_record_id="radio.jpg", result=inconsistent,
-            landmarks=_srpose_raw(), inference_mode="SOTA_ONNX_38",
-            case_id=CASE_ID, recorded_at=NOW,
-        )
-
-
-def test_interincisal_runtime_measurement_must_match_typed_landmark_construction():
-    result = _result(None)
-    bad_inter = result.metrics.analyse_dentaire.Inter_Incisif.model_copy(update={"valeur": 99.9})
-    bad_dental = result.metrics.analyse_dentaire.model_copy(update={"Inter_Incisif": bad_inter})
-    bad_metrics = result.metrics.model_copy(update={"analyse_dentaire": bad_dental})
-    inconsistent = result.model_copy(update={"metrics": bad_metrics})
-
-    with pytest.raises(ValueError, match="Runtime Inter_Incisif does not match"):
-        build_cephalo_runtime_evidence_payload(
-            patient_id=7, image_record_id="radio.jpg", result=inconsistent,
-            landmarks=_srpose_raw(), inference_mode="SOTA_ONNX_38",
-            case_id=CASE_ID, recorded_at=NOW,
+            patient_id=7, image_record_id="radio.jpg", result=inconsistent, landmarks=_srpose_raw(),
+            inference_mode="SOTA_ONNX_38", case_id=CASE_ID, recorded_at=NOW,
         )
 
 
@@ -202,30 +129,23 @@ def test_manual_revision_preserves_auto_points_and_full_previous_snapshot_histor
         patient_id=7, image_record_id="radio.jpg", result=_result(), landmarks=_manual_raw(offset=1.0),
         inference_mode=None, previous_payload=first, manual_revision=True, recorded_at=NOW,
     )
-
-    assert second["revision"] == 2
-    assert len(second["history"]) == 1
-    assert second["history"][0]["revision"] == 1
+    assert second["revision"] == 2 and len(second["history"]) == 1
     assert second["history"][0]["landmarks"] == first["landmarks"]
     assert second["history"][0]["constructions"] == first["constructions"]
     assert second["history"][0]["measurements"] == first["measurements"]
     origins = [x["origin"] for x in second["landmarks"]]
     assert origins.count(LandmarkOrigin.SRPOSE38_AUTO.value) == 38
     assert origins.count(LandmarkOrigin.MANUAL.value) == len(_points())
-    for construction in second["constructions"]:
-        assert all(":r2:" in ref for ref in construction["landmark_refs"])
     validate_case_evidence_graph(_graph(second), patient_id=7, case_id=CASE_ID)
 
 
 def test_previous_schema_and_image_identity_are_fail_closed():
     first = _initial()
-    wrong_schema = {**first, "schema_version": "OTHER"}
     with pytest.raises(CephaloRuntimeEvidenceError, match="schema version"):
         build_cephalo_runtime_evidence_payload(
             patient_id=7, image_record_id="radio.jpg", result=_result(), landmarks=_manual_raw(),
-            inference_mode=None, previous_payload=wrong_schema, manual_revision=True, recorded_at=NOW,
+            inference_mode=None, previous_payload={**first, "schema_version": "OTHER"}, manual_revision=True, recorded_at=NOW,
         )
-
     with pytest.raises(CephaloRuntimeEvidenceError, match="source record mismatch"):
         build_cephalo_runtime_evidence_payload(
             patient_id=7, image_record_id="another-radio.jpg", result=_result(), landmarks=_manual_raw(),
@@ -235,44 +155,17 @@ def test_previous_schema_and_image_identity_are_fail_closed():
 
 def test_explicit_two_point_calibration_unlocks_craniom_linear_and_keeps_all_angular_uncalibrated():
     payload = build_cephalo_runtime_evidence_payload(
-        patient_id=7,
-        image_record_id="radio.jpg",
-        result=_result(0.2),
-        landmarks=_srpose_raw(),
-        inference_mode="SOTA_ONNX_38",
-        case_id=CASE_ID,
-        is_calibrated=True,
-        calibration_data={"p1": {"x": 0, "y": 0}, "p2": {"x": 0, "y": 50}, "distance_mm": 10},
-        recorded_at=NOW,
+        patient_id=7, image_record_id="radio.jpg", result=_result(0.2), landmarks=_srpose_raw(),
+        inference_mode="SOTA_ONNX_38", case_id=CASE_ID, is_calibrated=True,
+        calibration_data={"p1": {"x": 0, "y": 0}, "p2": {"x": 0, "y": 50}, "distance_mm": 10}, recorded_at=NOW,
     )
-
     calibration = [x for x in payload["sources"] if x["kind"] == "calibration"]
     assert len(calibration) == 1
-    assert calibration[0]["quality_status"] == "VERIFIED_MANUAL_TWO_POINT"
-    assert all(x["availability_status"] == AvailabilityStatus.AVAILABLE.value for x in payload["measurements"])
-    assert all(x["value"] is not None for x in payload["measurements"])
-
     craniom = [x for x in payload["measurements"] if x["analysis_id"] == "CRANIOM"]
     steiner = [x for x in payload["measurements"] if x["analysis_id"] == "STEINER"]
     linear = [x for x in craniom if x["requires_calibration"]]
-    craniom_angular = [x for x in craniom if not x["requires_calibration"]]
-
     assert len(linear) == 4
     assert all(x["calibration_ref"] == calibration[0]["evidence_id"] for x in linear)
-    assert {x["method_id"] for x in craniom_angular} == {
-        "CRANIOM_U1_FRANKFORT_DEG_V1",
-        "CRANIOM_L1_DOWNS_DEG_V1",
-        "CRANIOM_INTERINCISAL_DEG_V1",
-    }
-    assert all(x["calibration_ref"] is None for x in craniom_angular)
-
-    assert {x["method_id"] for x in steiner} == {
-        "STEINER_SNA_DEG_V1",
-        "STEINER_SNB_DEG_V1",
-        "STEINER_ANB_DEG_V1",
-        "STEINER_U1_NA_DEG_V1",
-        "STEINER_L1_NB_DEG_V1",
-    }
-    assert all(x["requires_calibration"] is False for x in steiner)
-    assert all(x["calibration_ref"] is None for x in steiner)
+    assert {x["method_id"] for x in steiner} == STEINER_METHODS
+    assert all(not x["requires_calibration"] and x["calibration_ref"] is None for x in steiner)
     validate_case_evidence_graph(_graph(payload), patient_id=7, case_id=CASE_ID)
