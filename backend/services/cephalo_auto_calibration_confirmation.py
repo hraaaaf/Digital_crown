@@ -128,6 +128,13 @@ def confirm_auto_calibration(
 
     updated_measurements: list[MeasurementEvidence] = []
     for measurement in measurements:
+        if measurement.calibration_ref is None:
+            if current_calibration.evidence_id in measurement.evidence_refs:
+                raise AutoCalibrationConfirmationError(
+                    f"calibration-independent measurement {measurement.measurement_id} references current calibration"
+                )
+            updated_measurements.append(measurement)
+            continue
         if measurement.calibration_ref != current_calibration.evidence_id:
             raise AutoCalibrationConfirmationError(
                 f"measurement {measurement.measurement_id} does not reference current calibration"
