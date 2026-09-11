@@ -136,7 +136,6 @@ def test_omitted_required_point_is_not_reused_from_auto_history():
     assert by_definition["CRANIOM_AB_PRIME_V1"]["availability_status"] == "NOT_COMPUTABLE"
     assert "A" in by_definition["CRANIOM_A_TO_N_VERTICAL_V1"]["missing_landmark_ids"]
 
-    # A later edit to another landmark must not resurrect A from immutable SRPose history.
     without_a_2 = [dict(item) for item in without_a]
     b = next(item for item in without_a_2 if item["id"] == "B")
     b["x"] += 2.0
@@ -214,9 +213,12 @@ def test_calibration_source_and_refs_survive_landmark_revision():
         item["calibration_ref"] == calibration["evidence_id"]
         for item in calibrated_measurements
     )
-    assert len(independent_measurements) == 1
-    assert independent_measurements[0]["method_id"] == "CRANIOM_U1_FRANKFORT_DEG_V1"
-    assert independent_measurements[0]["calibration_ref"] is None
+    assert len(independent_measurements) == 2
+    assert {item["method_id"] for item in independent_measurements} == {
+        "CRANIOM_U1_FRANKFORT_DEG_V1",
+        "CRANIOM_L1_DOWNS_DEG_V1",
+    }
+    assert all(item["calibration_ref"] is None for item in independent_measurements)
 
 
 def test_calibration_preserves_explicit_current_set_after_point_omission():
