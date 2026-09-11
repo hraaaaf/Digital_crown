@@ -256,8 +256,10 @@ def build_cephalo_runtime_evidence_payload(
     _assert_runtime_geometry_matches(result, current_by_id)
     graph_landmarks = (_old_auto(previous_payload) if manual_revision else []) + current
 
+    # Preserve the historical CRANIOM evidence IDs exactly. Steiner is additive
+    # and gets its own namespace; introducing R5 must not rename existing R4 evidence.
     craniom_constructions = materialize_craniom_linear_constructions(
-        current_by_id, construction_namespace=f"construction:{resolved_case}:r{revision}:craniom",
+        current_by_id, construction_namespace=f"construction:{resolved_case}:r{revision}",
     )
     steiner_constructions = materialize_steiner_skeletal_constructions(
         current_by_id, construction_namespace=f"construction:{resolved_case}:r{revision}:steiner",
@@ -269,7 +271,7 @@ def build_cephalo_runtime_evidence_payload(
         calibration_data=calibration_data, recorded_at=timestamp,
     )
     craniom_measurements = adapt_craniom_linear_measurements(
-        result, measurement_namespace=f"measurement:{resolved_case}:r{revision}:craniom",
+        result, measurement_namespace=f"measurement:{resolved_case}:r{revision}",
         constructions=craniom_constructions, calibration_ref=calibration.evidence_id if calibration else None,
     )
     steiner_measurements = adapt_steiner_skeletal_measurements(
