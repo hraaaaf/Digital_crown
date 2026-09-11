@@ -122,6 +122,16 @@ _ACTIVE_CONVENTIONS: tuple[GeometricConventionSpec, ...] = (
         source_references=CRANIOM_L1_DOWNS_SOURCE_REFERENCES,
         constructable=True,
     ),
+    GeometricConventionSpec(
+        convention_id="CRANIOM_INTERINCISAL_ANGLE_V1",
+        construction_definition_id="CRANIOM_U1_L1_INTERINCISAL_V1",
+        clinical_label="Angle inter-incisif",
+        reference_frame_id="U1_L1_LONG_AXES_V1",
+        operation="larger supplementary angle between U1 and L1 apex-to-incisal long axes",
+        required_landmark_ids=("U1_apex", "U1_incisal", "L1_apex", "L1_incisal"),
+        source_references=CRANIOM_SOURCE_REFERENCES,
+        constructable=True,
+    ),
 )
 
 

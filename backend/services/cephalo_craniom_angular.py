@@ -38,6 +38,22 @@ def _clinical_obtuse_angle_deg_v1(
     return value if math.isfinite(value) else None
 
 
+def _clinical_interincisal_angle_deg_v1(
+    u1_apex: Optional[Point],
+    u1_incisal: Optional[Point],
+    l1_apex: Optional[Point],
+    l1_incisal: Optional[Point],
+) -> Optional[float]:
+    """Posterior/obtuse angle between maxillary and mandibular incisor long axes."""
+    upper = _directed_line_angle_deg(u1_apex, u1_incisal)
+    lower = _directed_line_angle_deg(l1_apex, l1_incisal)
+    if upper is None or lower is None:
+        return None
+    raw = abs(upper - lower) % 180.0
+    value = max(raw, 180.0 - raw)
+    return value if math.isfinite(value) else None
+
+
 def craniom_u1_frankfort_deg_v1(
     u1_apex: Optional[Point],
     u1_incisal: Optional[Point],
@@ -62,3 +78,20 @@ def craniom_l1_downs_deg_v1(
     normative interpretation.
     """
     return _clinical_obtuse_angle_deg_v1(l1_apex, l1_incisal, gonion, menton)
+
+
+def craniom_interincisal_deg_v1(
+    u1_apex: Optional[Point],
+    u1_incisal: Optional[Point],
+    l1_apex: Optional[Point],
+    l1_incisal: Optional[Point],
+) -> Optional[float]:
+    """Interincisal angle between U1 and L1 long axes, in degrees.
+
+    This preserves the existing runtime convention: use the larger of the two
+    supplementary line angles. It carries geometry only, never a norm or clinical
+    classification.
+    """
+    return _clinical_interincisal_angle_deg_v1(
+        u1_apex, u1_incisal, l1_apex, l1_incisal
+    )

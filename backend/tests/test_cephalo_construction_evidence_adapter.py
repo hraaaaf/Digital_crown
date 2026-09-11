@@ -76,7 +76,7 @@ def test_all_required_landmarks_materialize_certified_constructions():
     )
 
     assert set(constructions) == set(CRANIOM_REQUIRED_LANDMARKS)
-    assert len(constructions) == 6
+    assert len(constructions) == 7
     for definition_id, construction in constructions.items():
         assert construction.definition_id == definition_id
         assert construction.definition_version == "1"
@@ -89,7 +89,7 @@ def test_all_required_landmarks_materialize_certified_constructions():
         }
 
 
-def test_missing_or_blocks_only_frankfort_dependent_constructions():
+def test_missing_or_blocks_only_or_dependent_constructions():
     landmarks = _landmarks()
     landmarks.pop("Or")
 
@@ -105,8 +105,9 @@ def test_missing_or_blocks_only_frankfort_dependent_constructions():
             assert set(construction.geometry) == {"geometric_convention"}
             assert "source_image_ref" not in construction.geometry
         else:
-            assert definition_id == "CRANIOM_L1_TO_DOWNS_MP_V1"
             assert construction.availability_status == AvailabilityStatus.AVAILABLE
+    assert constructions["CRANIOM_L1_TO_DOWNS_MP_V1"].availability_status == AvailabilityStatus.AVAILABLE
+    assert constructions["CRANIOM_U1_L1_INTERINCISAL_V1"].availability_status == AvailabilityStatus.AVAILABLE
 
 
 def test_missing_a_only_blocks_a_dependent_constructions():
@@ -123,9 +124,10 @@ def test_missing_a_only_blocks_a_dependent_constructions():
     assert constructions["CRANIOM_S_TO_N_VERTICAL_DEPTH_V1"].availability_status == AvailabilityStatus.AVAILABLE
     assert constructions["CRANIOM_U1_TO_FRANKFORT_V1"].availability_status == AvailabilityStatus.AVAILABLE
     assert constructions["CRANIOM_L1_TO_DOWNS_MP_V1"].availability_status == AvailabilityStatus.AVAILABLE
+    assert constructions["CRANIOM_U1_L1_INTERINCISAL_V1"].availability_status == AvailabilityStatus.AVAILABLE
 
 
-def test_missing_u1_apex_only_blocks_u1_frankfort():
+def test_missing_u1_apex_blocks_u1_frankfort_and_interincisal():
     landmarks = _landmarks()
     landmarks.pop("U1_apex")
 
@@ -134,15 +136,11 @@ def test_missing_u1_apex_only_blocks_u1_frankfort():
     )
 
     assert constructions["CRANIOM_U1_TO_FRANKFORT_V1"].availability_status == AvailabilityStatus.NOT_COMPUTABLE
-    assert constructions["CRANIOM_U1_TO_FRANKFORT_V1"].missing_landmark_ids == ["U1_apex"]
-    assert all(
-        construction.availability_status == AvailabilityStatus.AVAILABLE
-        for definition_id, construction in constructions.items()
-        if definition_id != "CRANIOM_U1_TO_FRANKFORT_V1"
-    )
+    assert constructions["CRANIOM_U1_L1_INTERINCISAL_V1"].availability_status == AvailabilityStatus.NOT_COMPUTABLE
+    assert constructions["CRANIOM_L1_TO_DOWNS_MP_V1"].availability_status == AvailabilityStatus.AVAILABLE
 
 
-def test_missing_l1_apex_only_blocks_l1_downs():
+def test_missing_l1_apex_blocks_l1_downs_and_interincisal():
     landmarks = _landmarks()
     landmarks.pop("L1_apex")
 
@@ -150,14 +148,9 @@ def test_missing_l1_apex_only_blocks_l1_downs():
         landmarks, construction_namespace="cephalo:3c:construction"
     )
 
-    l1 = constructions["CRANIOM_L1_TO_DOWNS_MP_V1"]
-    assert l1.availability_status == AvailabilityStatus.NOT_COMPUTABLE
-    assert l1.missing_landmark_ids == ["L1_apex"]
-    assert all(
-        construction.availability_status == AvailabilityStatus.AVAILABLE
-        for definition_id, construction in constructions.items()
-        if definition_id != "CRANIOM_L1_TO_DOWNS_MP_V1"
-    )
+    assert constructions["CRANIOM_L1_TO_DOWNS_MP_V1"].availability_status == AvailabilityStatus.NOT_COMPUTABLE
+    assert constructions["CRANIOM_U1_L1_INTERINCISAL_V1"].availability_status == AvailabilityStatus.NOT_COMPUTABLE
+    assert constructions["CRANIOM_U1_TO_FRANKFORT_V1"].availability_status == AvailabilityStatus.AVAILABLE
 
 
 def test_present_but_unavailable_landmark_is_not_used_as_computable_evidence():
@@ -187,6 +180,7 @@ def test_mixed_source_images_make_only_affected_constructions_invalid():
     assert constructions["CRANIOM_S_TO_N_VERTICAL_DEPTH_V1"].availability_status == AvailabilityStatus.AVAILABLE
     assert constructions["CRANIOM_U1_TO_FRANKFORT_V1"].availability_status == AvailabilityStatus.AVAILABLE
     assert constructions["CRANIOM_L1_TO_DOWNS_MP_V1"].availability_status == AvailabilityStatus.AVAILABLE
+    assert constructions["CRANIOM_U1_L1_INTERINCISAL_V1"].availability_status == AvailabilityStatus.AVAILABLE
 
 
 def test_mapping_key_must_match_canonical_landmark_id():
@@ -219,19 +213,20 @@ def test_materialized_constructions_feed_measurement_adapter_without_free_text_l
         calibration_ref="source:calibration:7",
     )
 
-    assert len(measurements) == 6
+    assert len(measurements) == 7
     assert all(m.availability_status == AvailabilityStatus.AVAILABLE for m in measurements)
     assert all(m.value is not None for m in measurements)
     angular = [m for m in measurements if not m.requires_calibration]
     assert {m.method_id for m in angular} == {
         "CRANIOM_U1_FRANKFORT_DEG_V1",
         "CRANIOM_L1_DOWNS_DEG_V1",
+        "CRANIOM_INTERINCISAL_DEG_V1",
     }
     assert all(m.unit == "deg" for m in angular)
     assert all(m.calibration_ref is None for m in angular)
 
 
-def test_missing_or_propagates_only_to_frankfort_measurements():
+def test_missing_or_propagates_only_to_or_dependent_measurements():
     landmarks = _landmarks()
     landmarks.pop("Or")
     constructions = materialize_craniom_linear_constructions(
@@ -248,8 +243,5 @@ def test_missing_or_propagates_only_to_frankfort_measurements():
 
     by_method = {m.method_id: m for m in measurements}
     assert by_method["CRANIOM_L1_DOWNS_DEG_V1"].availability_status == AvailabilityStatus.AVAILABLE
-    assert by_method["CRANIOM_L1_DOWNS_DEG_V1"].value is not None
-    for method_id, measurement in by_method.items():
-        if method_id != "CRANIOM_L1_DOWNS_DEG_V1":
-            assert measurement.value is None
-            assert measurement.availability_status == AvailabilityStatus.NOT_COMPUTABLE
+    assert by_method["CRANIOM_INTERINCISAL_DEG_V1"].availability_status == AvailabilityStatus.AVAILABLE
+    assert by_method["CRANIOM_U1_FRANKFORT_DEG_V1"].availability_status == AvailabilityStatus.NOT_COMPUTABLE

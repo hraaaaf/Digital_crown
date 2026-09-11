@@ -102,6 +102,7 @@ def test_new_analysis_persists_evidence_without_changing_public_result(monkeypat
     assert {item["method_id"] for item in graph["measurements"] if not item["requires_calibration"]} == {
         "CRANIOM_U1_FRANKFORT_DEG_V1",
         "CRANIOM_L1_DOWNS_DEG_V1",
+        "CRANIOM_INTERINCISAL_DEG_V1",
     }
     assert EVIDENCE_GRAPH_KEY not in response["results"]
 

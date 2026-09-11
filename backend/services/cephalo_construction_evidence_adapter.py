@@ -15,6 +15,7 @@ from backend.schemas.cephalo_evidence import (
     LandmarkEvidence,
 )
 from backend.services.cephalo_craniom_angular import (
+    craniom_interincisal_deg_v1,
     craniom_l1_downs_deg_v1,
     craniom_u1_frankfort_deg_v1,
 )
@@ -108,6 +109,20 @@ _CRANIOM_ANGULAR_CONSTRUCTIONS: Sequence[_ConstructionSpec] = (
             "coordinate_space": "source_image_pixels",
         },
     ),
+    _ConstructionSpec(
+        definition_id="CRANIOM_U1_L1_INTERINCISAL_V1",
+        required_landmark_ids=("U1_apex", "U1_incisal", "L1_apex", "L1_incisal"),
+        geometry={
+            "kind": "interaxial_clinical_angle",
+            "axis_definition": "U1_L1_LONG_AXES_V1",
+            "upper_axis_start": "U1_apex",
+            "upper_axis_end": "U1_incisal",
+            "lower_axis_start": "L1_apex",
+            "lower_axis_end": "L1_incisal",
+            "angle_convention": "larger_supplementary_v1",
+            "coordinate_space": "source_image_pixels",
+        },
+    ),
 )
 
 _CRANIOM_CONSTRUCTIONS: Sequence[_ConstructionSpec] = (
@@ -185,6 +200,13 @@ def _materialize_computed_geometry(
             (landmarks["L1_incisal"].x, landmarks["L1_incisal"].y),
             (landmarks["Go"].x, landmarks["Go"].y),
             (landmarks["Me"].x, landmarks["Me"].y),
+        )
+    elif spec.definition_id == "CRANIOM_U1_L1_INTERINCISAL_V1":
+        value = craniom_interincisal_deg_v1(
+            (landmarks["U1_apex"].x, landmarks["U1_apex"].y),
+            (landmarks["U1_incisal"].x, landmarks["U1_incisal"].y),
+            (landmarks["L1_apex"].x, landmarks["L1_apex"].y),
+            (landmarks["L1_incisal"].x, landmarks["L1_incisal"].y),
         )
     else:
         return True

@@ -213,10 +213,11 @@ def test_calibration_source_and_refs_survive_landmark_revision():
         item["calibration_ref"] == calibration["evidence_id"]
         for item in calibrated_measurements
     )
-    assert len(independent_measurements) == 2
+    assert len(independent_measurements) == 3
     assert {item["method_id"] for item in independent_measurements} == {
         "CRANIOM_U1_FRANKFORT_DEG_V1",
         "CRANIOM_L1_DOWNS_DEG_V1",
+        "CRANIOM_INTERINCISAL_DEG_V1",
     }
     assert all(item["calibration_ref"] is None for item in independent_measurements)
 

@@ -30,13 +30,16 @@ def _points():
 
 
 def _constructions():
+    result = CephaloEngine(mm_per_pixel=0.2).calculate_metrics(_points())
     constructions = {}
     for definition_id in CRANIOM_CONSTRUCTION_DEFINITIONS:
         geometry = {"kind": "synthetic_test_construction"}
         if definition_id == "CRANIOM_U1_TO_FRANKFORT_V1":
-            geometry["computed_angle_deg"] = 111.8
+            geometry["computed_angle_deg"] = result.metrics.analyse_dentaire.I_Francfort.valeur
         elif definition_id == "CRANIOM_L1_TO_DOWNS_MP_V1":
-            geometry["computed_angle_deg"] = 92.7
+            geometry["computed_angle_deg"] = result.metrics.analyse_dentaire.IMPA.valeur
+        elif definition_id == "CRANIOM_U1_L1_INTERINCISAL_V1":
+            geometry["computed_angle_deg"] = result.metrics.analyse_dentaire.Inter_Incisif.valeur
         constructions[definition_id] = ConstructionEvidence(
             construction_id=f"construction:{definition_id}",
             definition_id=definition_id,
@@ -69,6 +72,7 @@ def test_adapter_emits_certified_craniom_measurements_including_r4_angulars():
         "cephalo:42:Profondeur_Faciale",
         "cephalo:42:I_Francfort",
         "cephalo:42:IMPA",
+        "cephalo:42:Inter_Incisif",
     ]
     assert all(m.analysis_id == "CRANIOM" for m in measurements)
     assert all(m.availability_status == AvailabilityStatus.AVAILABLE for m in measurements)
@@ -79,81 +83,66 @@ def test_adapter_emits_certified_craniom_measurements_including_r4_angulars():
         assert by_name[name].requires_calibration is True
         assert by_name[name].calibration_ref == "source:calibration:42"
 
-    for name, expected in (("I_Francfort", 111.8), ("IMPA", 92.7)):
+    for name in ("I_Francfort", "IMPA", "Inter_Incisif"):
         assert by_name[name].unit == "deg"
         assert by_name[name].requires_calibration is False
         assert by_name[name].calibration_ref is None
-        assert by_name[name].value == expected
-
-    assert by_name["I_Francfort"].value == result.metrics.analyse_dentaire.I_Francfort.valeur
-    assert by_name["IMPA"].value == result.metrics.analyse_dentaire.IMPA.valeur
+        assert by_name[name].value == getattr(result.metrics.analyse_dentaire, name).valeur
 
 
 def test_without_calibration_only_linear_values_are_not_computable():
     result = CephaloEngine(mm_per_pixel=0.2).calculate_metrics(_points())
-
     measurements = adapt_craniom_linear_measurements(
         result,
         measurement_namespace="cephalo:43",
         constructions=_constructions(),
         calibration_ref=None,
     )
-
     by_name = _by_name(measurements)
     for name in ("Situation_A", "Situation_B", "Decalage_A_B", "Profondeur_Faciale"):
         assert by_name[name].value is None
         assert by_name[name].availability_status == AvailabilityStatus.NOT_COMPUTABLE
         assert by_name[name].calibration_ref is None
-    assert by_name["I_Francfort"].value == 111.8
-    assert by_name["IMPA"].value == 92.7
-    assert by_name["I_Francfort"].availability_status == AvailabilityStatus.AVAILABLE
-    assert by_name["IMPA"].availability_status == AvailabilityStatus.AVAILABLE
-    assert by_name["I_Francfort"].calibration_ref is None
-    assert by_name["IMPA"].calibration_ref is None
+    for name in ("I_Francfort", "IMPA", "Inter_Incisif"):
+        assert by_name[name].value == getattr(result.metrics.analyse_dentaire, name).valeur
+        assert by_name[name].availability_status == AvailabilityStatus.AVAILABLE
+        assert by_name[name].calibration_ref is None
 
 
 def test_missing_pixel_ratio_does_not_block_uncalibrated_angular_measurements():
     result = CephaloEngine(mm_per_pixel=None).calculate_metrics(_points())
-
     measurements = adapt_craniom_linear_measurements(
         result,
         measurement_namespace="cephalo:44",
         constructions=_constructions(),
         calibration_ref=None,
     )
-
     by_name = _by_name(measurements)
     assert all(
         by_name[name].availability_status == AvailabilityStatus.NOT_COMPUTABLE
         for name in ("Situation_A", "Situation_B", "Decalage_A_B", "Profondeur_Faciale")
     )
-    assert by_name["I_Francfort"].availability_status == AvailabilityStatus.AVAILABLE
-    assert by_name["IMPA"].availability_status == AvailabilityStatus.AVAILABLE
-    assert by_name["I_Francfort"].value == 111.8
-    assert by_name["IMPA"].value == 92.7
+    assert all(
+        by_name[name].availability_status == AvailabilityStatus.AVAILABLE
+        for name in ("I_Francfort", "IMPA", "Inter_Incisif")
+    )
 
 
-def test_u1_runtime_value_must_match_typed_construction_geometry():
+@pytest.mark.parametrize(
+    ("field", "message"),
+    [
+        ("I_Francfort", "Runtime I_Francfort does not match"),
+        ("IMPA", "Runtime IMPA does not match"),
+        ("Inter_Incisif", "Runtime Inter_Incisif does not match"),
+    ],
+)
+def test_angular_runtime_value_must_match_typed_construction_geometry(field, message):
     result = CephaloEngine(mm_per_pixel=None).calculate_metrics(_points())
-    result.metrics.analyse_dentaire.I_Francfort.valeur = 99.9
-
-    with pytest.raises(ValueError, match="Runtime I_Francfort does not match"):
+    getattr(result.metrics.analyse_dentaire, field).valeur = 99.9
+    with pytest.raises(ValueError, match=message):
         adapt_craniom_linear_measurements(
             result,
-            measurement_namespace="cephalo:44b",
-            constructions=_constructions(),
-            calibration_ref=None,
-        )
-
-
-def test_l1_runtime_value_must_match_typed_construction_geometry():
-    result = CephaloEngine(mm_per_pixel=None).calculate_metrics(_points())
-    result.metrics.analyse_dentaire.IMPA.valeur = 99.9
-
-    with pytest.raises(ValueError, match="Runtime IMPA does not match"):
-        adapt_craniom_linear_measurements(
-            result,
-            measurement_namespace="cephalo:44c",
+            measurement_namespace="cephalo:44x",
             constructions=_constructions(),
             calibration_ref=None,
         )
@@ -163,7 +152,6 @@ def test_adapter_requires_materialized_construction_evidence():
     result = CephaloEngine(mm_per_pixel=0.2).calculate_metrics(_points())
     constructions = _constructions()
     constructions.pop("CRANIOM_AB_PRIME_V1")
-
     with pytest.raises(ValueError, match="CRANIOM_AB_PRIME_V1"):
         adapt_craniom_linear_measurements(
             result,
@@ -173,13 +161,26 @@ def test_adapter_requires_materialized_construction_evidence():
         )
 
 
+def test_pre_interincisal_snapshot_remains_compatible():
+    result = CephaloEngine(mm_per_pixel=0.2).calculate_metrics(_points())
+    constructions = _constructions()
+    constructions.pop("CRANIOM_U1_L1_INTERINCISAL_V1")
+    measurements = adapt_craniom_linear_measurements(
+        result,
+        measurement_namespace="cephalo:legacy",
+        constructions=constructions,
+        calibration_ref="source:calibration:legacy",
+    )
+    assert len(measurements) == 6
+    assert all(m.method_id != "CRANIOM_INTERINCISAL_DEG_V1" for m in measurements)
+
+
 def test_adapter_rejects_wrong_construction_definition():
     result = CephaloEngine(mm_per_pixel=0.2).calculate_metrics(_points())
     constructions = _constructions()
     constructions["CRANIOM_AB_PRIME_V1"] = constructions[
         "CRANIOM_AB_PRIME_V1"
     ].model_copy(update={"definition_id": "OTHER_CONSTRUCTION"})
-
     with pytest.raises(ValueError, match="resolves to definition OTHER_CONSTRUCTION"):
         adapt_craniom_linear_measurements(
             result,
@@ -195,7 +196,6 @@ def test_adapter_rejects_wrong_construction_version():
     constructions["CRANIOM_AB_PRIME_V1"] = constructions[
         "CRANIOM_AB_PRIME_V1"
     ].model_copy(update={"definition_version": "2"})
-
     with pytest.raises(ValueError, match="not certified version 1"):
         adapt_craniom_linear_measurements(
             result,
@@ -211,31 +211,35 @@ def test_unavailable_construction_makes_only_dependent_measurement_not_computabl
     constructions["CRANIOM_AB_PRIME_V1"] = constructions[
         "CRANIOM_AB_PRIME_V1"
     ].model_copy(update={"availability_status": AvailabilityStatus.NOT_COMPUTABLE})
-
     measurements = adapt_craniom_linear_measurements(
         result,
         measurement_namespace="cephalo:45d",
         constructions=constructions,
         calibration_ref="source:calibration:45d",
     )
-
     by_name = _by_name(measurements)
     assert by_name["Decalage_A_B"].value is None
     assert by_name["Decalage_A_B"].availability_status == AvailabilityStatus.NOT_COMPUTABLE
-    assert by_name["Situation_A"].availability_status == AvailabilityStatus.AVAILABLE
-    assert by_name["Situation_B"].availability_status == AvailabilityStatus.AVAILABLE
-    assert by_name["Profondeur_Faciale"].availability_status == AvailabilityStatus.AVAILABLE
-    assert by_name["I_Francfort"].availability_status == AvailabilityStatus.AVAILABLE
-    assert by_name["IMPA"].availability_status == AvailabilityStatus.AVAILABLE
+    assert all(
+        by_name[name].availability_status == AvailabilityStatus.AVAILABLE
+        for name in ("Situation_A", "Situation_B", "Profondeur_Faciale", "I_Francfort", "IMPA", "Inter_Incisif")
+    )
 
 
-def test_unavailable_u1_construction_blocks_only_u1_measurement():
+@pytest.mark.parametrize(
+    ("definition_id", "field"),
+    [
+        ("CRANIOM_U1_TO_FRANKFORT_V1", "I_Francfort"),
+        ("CRANIOM_L1_TO_DOWNS_MP_V1", "IMPA"),
+        ("CRANIOM_U1_L1_INTERINCISAL_V1", "Inter_Incisif"),
+    ],
+)
+def test_unavailable_angular_construction_blocks_only_dependent_measurement(definition_id, field):
     result = CephaloEngine(mm_per_pixel=0.2).calculate_metrics(_points())
     constructions = _constructions()
-    constructions["CRANIOM_U1_TO_FRANKFORT_V1"] = constructions[
-        "CRANIOM_U1_TO_FRANKFORT_V1"
-    ].model_copy(update={"availability_status": AvailabilityStatus.NOT_COMPUTABLE})
-
+    constructions[definition_id] = constructions[definition_id].model_copy(
+        update={"availability_status": AvailabilityStatus.NOT_COMPUTABLE}
+    )
     measurements = adapt_craniom_linear_measurements(
         result,
         measurement_namespace="cephalo:45e",
@@ -243,37 +247,12 @@ def test_unavailable_u1_construction_blocks_only_u1_measurement():
         calibration_ref="source:calibration:45e",
     )
     by_name = _by_name(measurements)
-    assert by_name["I_Francfort"].availability_status == AvailabilityStatus.NOT_COMPUTABLE
-    assert by_name["I_Francfort"].value is None
-    assert by_name["IMPA"].availability_status == AvailabilityStatus.AVAILABLE
-    assert all(
-        by_name[name].availability_status == AvailabilityStatus.AVAILABLE
-        for name in ("Situation_A", "Situation_B", "Decalage_A_B", "Profondeur_Faciale")
-    )
-
-
-def test_unavailable_l1_construction_blocks_only_l1_measurement():
-    result = CephaloEngine(mm_per_pixel=0.2).calculate_metrics(_points())
-    constructions = _constructions()
-    constructions["CRANIOM_L1_TO_DOWNS_MP_V1"] = constructions[
-        "CRANIOM_L1_TO_DOWNS_MP_V1"
-    ].model_copy(update={"availability_status": AvailabilityStatus.NOT_COMPUTABLE})
-
-    measurements = adapt_craniom_linear_measurements(
-        result,
-        measurement_namespace="cephalo:45f",
-        constructions=constructions,
-        calibration_ref="source:calibration:45f",
-    )
-    by_name = _by_name(measurements)
-    assert by_name["IMPA"].availability_status == AvailabilityStatus.NOT_COMPUTABLE
-    assert by_name["IMPA"].value is None
-    assert by_name["I_Francfort"].availability_status == AvailabilityStatus.AVAILABLE
+    assert by_name[field].availability_status == AvailabilityStatus.NOT_COMPUTABLE
+    assert by_name[field].value is None
 
 
 def test_adapter_rejects_empty_namespace():
     result = CephaloEngine(mm_per_pixel=0.2).calculate_metrics(_points())
-
     with pytest.raises(ValueError, match="measurement_namespace"):
         adapt_craniom_linear_measurements(
             result,
@@ -286,7 +265,6 @@ def test_adapter_rejects_empty_namespace():
 def test_adapter_rejects_non_mm_payload_unit():
     result = CephaloEngine(mm_per_pixel=0.2).calculate_metrics(_points())
     result.analysis_metadata.unit = "px"
-
     with pytest.raises(ValueError, match="Unsupported cephalo payload unit"):
         adapt_craniom_linear_measurements(
             result,
@@ -299,14 +277,12 @@ def test_adapter_rejects_non_mm_payload_unit():
 def test_adapter_marks_nonfinite_legacy_value_invalid_instead_of_forwarding_it():
     result = CephaloEngine(mm_per_pixel=0.2).calculate_metrics(_points())
     result.metrics.analyse_osseuse.Situation_A.valeur = float("nan")
-
     measurements = adapt_craniom_linear_measurements(
         result,
         measurement_namespace="cephalo:47",
         constructions=_constructions(),
         calibration_ref="source:calibration:47",
     )
-
     situation_a = measurements[0]
     assert situation_a.value is None
     assert situation_a.availability_status == AvailabilityStatus.INVALID

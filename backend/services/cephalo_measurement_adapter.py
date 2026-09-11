@@ -84,6 +84,15 @@ _CRANIOM_ANGULAR_SPECS: Sequence[_MeasurementSpec] = (
         requires_calibration=False,
         compatibility_optional=True,
     ),
+    _MeasurementSpec(
+        metric_name="Inter_Incisif",
+        metric_group="dental",
+        method_id="CRANIOM_INTERINCISAL_DEG_V1",
+        construction_definition_id="CRANIOM_U1_L1_INTERINCISAL_V1",
+        unit="deg",
+        requires_calibration=False,
+        compatibility_optional=True,
+    ),
 )
 
 _CRANIOM_SPECS: Sequence[_MeasurementSpec] = (
