@@ -75,7 +75,7 @@ def steiner_anb_deg_v1(
     point_a: Optional[Point],
     point_b: Optional[Point],
 ) -> Optional[float]:
-    """Steiner ANB with exact legacy-runtime rounding parity: round(SNA, 0.1) - round(SNB, 0.1)."""
+    """Steiner ANB with legacy-runtime parity: round(SNA, 1) - round(SNB, 1)."""
     sna = steiner_sna_deg_v1(sella, nasion, point_a)
     snb = steiner_snb_deg_v1(sella, nasion, point_b)
     if sna is None or snb is None:
@@ -102,3 +102,13 @@ def steiner_l1_nb_deg_v1(
 ) -> Optional[float]:
     """Smallest angle between the lower-incisor long axis and N-B."""
     return _axis_angle_deg(l1_apex, l1_incisal, nasion, point_b)
+
+
+def steiner_sn_mp_deg_v1(
+    sella: Optional[Point],
+    nasion: Optional[Point],
+    gonion: Optional[Point],
+    gnathion: Optional[Point],
+) -> Optional[float]:
+    """Smallest angle between Steiner's SN reference and mandibular plane Go-Gn."""
+    return _axis_angle_deg(sella, nasion, gonion, gnathion)

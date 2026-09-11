@@ -1,7 +1,8 @@
 """Typed evidence adapter for the Steiner skeletal slice.
 
-This module materializes versioned SNA, SNB and ANB geometry from source
-landmarks and binds it to the raw runtime measurements. It contains no norms,
+This module materializes versioned SNA, SNB, ANB and SN-MP geometry from source
+landmarks. SNA/SNB/ANB remain parity-bound to the legacy runtime; SN-MP is typed
+patient geometry with no duplicate legacy field. It contains no norms,
 classification, diagnosis, growth projection or treatment logic.
 """
 from __future__ import annotations
@@ -21,6 +22,7 @@ from backend.services.cephalo_steiner_geometry import (
     steiner_anb_deg_v1,
     steiner_sna_deg_v1,
     steiner_snb_deg_v1,
+    steiner_sn_mp_deg_v1,
 )
 
 STEINER_SOURCE_REFERENCES = (
@@ -35,6 +37,7 @@ class _SteinerSpec:
     construction_definition_id: str
     method_id: str
     required_landmark_ids: tuple[str, ...]
+    runtime_metric_name: Optional[str]
 
 
 _STEINER_SPECS = (
@@ -43,18 +46,28 @@ _STEINER_SPECS = (
         construction_definition_id="STEINER_SNA_V1",
         method_id="STEINER_SNA_DEG_V1",
         required_landmark_ids=("S", "N", "A"),
+        runtime_metric_name="SNA",
     ),
     _SteinerSpec(
         metric_name="SNB",
         construction_definition_id="STEINER_SNB_V1",
         method_id="STEINER_SNB_DEG_V1",
         required_landmark_ids=("S", "N", "B"),
+        runtime_metric_name="SNB",
     ),
     _SteinerSpec(
         metric_name="ANB",
         construction_definition_id="STEINER_ANB_V1",
         method_id="STEINER_ANB_DEG_V1",
         required_landmark_ids=("S", "N", "A", "B"),
+        runtime_metric_name="ANB",
+    ),
+    _SteinerSpec(
+        metric_name="SN_MP",
+        construction_definition_id="STEINER_SN_MP_V1",
+        method_id="STEINER_SN_MP_DEG_V1",
+        required_landmark_ids=("S", "N", "Go", "Gn"),
+        runtime_metric_name=None,
     ),
 )
 
@@ -77,6 +90,13 @@ def _computed_value(
             _point(landmarks, "N"),
             _point(landmarks, "A"),
             _point(landmarks, "B"),
+        )
+    if definition_id == "STEINER_SN_MP_V1":
+        return steiner_sn_mp_deg_v1(
+            _point(landmarks, "S"),
+            _point(landmarks, "N"),
+            _point(landmarks, "Go"),
+            _point(landmarks, "Gn"),
         )
     raise ValueError(f"Unsupported Steiner construction {definition_id}")
 
@@ -112,6 +132,14 @@ def materialize_steiner_skeletal_constructions(
             "analysis": "STEINER",
             "source_references": list(STEINER_SOURCE_REFERENCES),
         }
+        if spec.construction_definition_id == "STEINER_SN_MP_V1":
+            geometry.update(
+                {
+                    "axis_orientation_invariant": True,
+                    "reference_axis": "S-N",
+                    "mandibular_plane": "Go-Gn",
+                }
+            )
         if missing:
             availability = AvailabilityStatus.NOT_COMPUTABLE
             geometry["required_landmark_ids"] = list(spec.required_landmark_ids)
@@ -165,7 +193,6 @@ def adapt_steiner_skeletal_measurements(
                 f"Construction key {spec.construction_definition_id} resolves to {construction.definition_id}"
             )
 
-        raw_value = getattr(skeletal, spec.metric_name).valeur
         availability = construction.availability_status
         value: Optional[float] = None
         if availability == AvailabilityStatus.AVAILABLE:
@@ -175,12 +202,14 @@ def adapt_steiner_skeletal_measurements(
                     f"Available Steiner construction {spec.construction_definition_id} lacks finite computed_angle_deg"
                 )
             computed_value = float(computed)
-            if raw_value is None or not math.isfinite(raw_value) or not math.isclose(
-                raw_value, computed_value, rel_tol=0.0, abs_tol=1e-12
-            ):
-                raise ValueError(
-                    f"Runtime {spec.metric_name} does not match typed Steiner geometry"
-                )
+            if spec.runtime_metric_name is not None:
+                raw_value = getattr(skeletal, spec.runtime_metric_name).valeur
+                if raw_value is None or not math.isfinite(raw_value) or not math.isclose(
+                    raw_value, computed_value, rel_tol=0.0, abs_tol=1e-12
+                ):
+                    raise ValueError(
+                        f"Runtime {spec.runtime_metric_name} does not match typed Steiner geometry"
+                    )
             value = computed_value
         elif availability == AvailabilityStatus.INVALID:
             value = None
