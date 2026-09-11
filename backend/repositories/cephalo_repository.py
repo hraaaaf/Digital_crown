@@ -5,6 +5,54 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+_EVIDENCE_GRAPH_KEY = "_evidence_graph_v1"
+
+
+def _canonicalize_evidence_projection(results: Dict[str, Any]) -> Dict[str, Any]:
+    """Persist one explicit active landmark set whenever it can be proven safely.
+
+    Historical landmarks remain inside the typed graph for audit. The active set is
+    explicit so later construction/calibration/read transitions never have to guess
+    which evidence object is current. Ambiguous legacy graphs are intentionally left
+    without inferred refs and will fail closed on the canonical typed read path.
+    """
+    projected = dict(results)
+    raw_graph = projected.get(_EVIDENCE_GRAPH_KEY)
+    if not isinstance(raw_graph, dict):
+        return projected
+
+    graph = dict(raw_graph)
+    graph.pop("authority_status", None)
+
+    if "current_landmark_refs" not in graph:
+        raw_landmarks = graph.get("landmarks", [])
+        if isinstance(raw_landmarks, list):
+            refs: list[str] = []
+            landmark_ids: set[str] = set()
+            valid = True
+            for item in raw_landmarks:
+                if not isinstance(item, dict):
+                    valid = False
+                    break
+                evidence_id = item.get("evidence_id")
+                landmark_id = item.get("landmark_id")
+                if (
+                    not isinstance(evidence_id, str)
+                    or not evidence_id.strip()
+                    or not isinstance(landmark_id, str)
+                    or not landmark_id.strip()
+                    or landmark_id in landmark_ids
+                ):
+                    valid = False
+                    break
+                refs.append(evidence_id)
+                landmark_ids.add(landmark_id)
+            if valid:
+                graph["current_landmark_refs"] = refs
+
+    projected[_EVIDENCE_GRAPH_KEY] = graph
+    return projected
+
 
 def _merge_calibration_projection(previous: Any, results: Dict[str, Any]) -> Dict[str, Any]:
     """Preserve calibration provenance across ordinary analysis saves.
@@ -14,7 +62,7 @@ def _merge_calibration_projection(previous: Any, results: Dict[str, Any]) -> Dic
     specific AUTO_VERIFIED / CLINICIAN_CONFIRMED projection to generic
     ``verified``.
     """
-    merged = dict(results)
+    merged = _canonicalize_evidence_projection(results)
     if not isinstance(previous, dict):
         return merged
 
@@ -62,7 +110,7 @@ class CephaloRepository:
             patient_id=patient_id,
             image_original_path=image_path,
             landmarks_data=landmarks,
-            angles_data=results,
+            angles_data=_canonicalize_evidence_projection(results),
             mm_per_pixel=mm_per_pixel,
         )
         self.db.add(db_analysis)

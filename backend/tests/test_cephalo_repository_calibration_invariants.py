@@ -1,9 +1,10 @@
-"""Repository-level calibration invariants for R1."""
+"""Repository-level calibration and active-evidence invariants."""
 import inspect
 from types import SimpleNamespace
 
 from backend.repositories.cephalo_repository import (
     CephaloRepository,
+    _canonicalize_evidence_projection,
     _merge_calibration_projection,
 )
 
@@ -11,6 +12,58 @@ from backend.repositories.cephalo_repository import (
 def test_create_has_no_implicit_mm_per_pixel_default():
     parameter = inspect.signature(CephaloRepository.create).parameters["mm_per_pixel"]
     assert parameter.default is None
+
+
+def test_persistence_adds_explicit_current_landmark_refs_when_unambiguous():
+    payload = {
+        "_evidence_graph_v1": {
+            "schema_version": "CEPHALO_EVIDENCE_V1",
+            "authority_status": "PERSISTED_NOT_YET_READ_PATH",
+            "landmarks": [
+                {"evidence_id": "lm:A:auto", "landmark_id": "A"},
+                {"evidence_id": "lm:B:auto", "landmark_id": "B"},
+            ],
+        }
+    }
+
+    canonical = _canonicalize_evidence_projection(payload)
+    graph = canonical["_evidence_graph_v1"]
+
+    assert graph["current_landmark_refs"] == ["lm:A:auto", "lm:B:auto"]
+    assert "authority_status" not in graph
+
+
+def test_persistence_never_guesses_current_refs_for_ambiguous_history():
+    payload = {
+        "_evidence_graph_v1": {
+            "schema_version": "CEPHALO_EVIDENCE_V1",
+            "landmarks": [
+                {"evidence_id": "lm:A:auto", "landmark_id": "A"},
+                {"evidence_id": "lm:A:manual", "landmark_id": "A"},
+            ],
+        }
+    }
+
+    canonical = _canonicalize_evidence_projection(payload)
+
+    assert "current_landmark_refs" not in canonical["_evidence_graph_v1"]
+
+
+def test_persistence_preserves_existing_explicit_current_refs():
+    payload = {
+        "_evidence_graph_v1": {
+            "schema_version": "CEPHALO_EVIDENCE_V1",
+            "landmarks": [
+                {"evidence_id": "lm:A:auto", "landmark_id": "A"},
+                {"evidence_id": "lm:A:manual", "landmark_id": "A"},
+            ],
+            "current_landmark_refs": ["lm:A:manual"],
+        }
+    }
+
+    canonical = _canonicalize_evidence_projection(payload)
+
+    assert canonical["_evidence_graph_v1"]["current_landmark_refs"] == ["lm:A:manual"]
 
 
 def test_ordinary_save_preserves_auto_verified_projection_and_evidence_labels():

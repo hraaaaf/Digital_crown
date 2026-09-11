@@ -4,7 +4,8 @@ from sqlalchemy.orm import Session
 
 from backend import database, models, schemas
 from backend.routers.auth import require_permission
-from backend.services.cephalo_typed_read import CephaloTypedReadError, project_typed_craniom_read_path
+from backend.services.cephalo_runtime_chain import project_runtime_chain_read_path
+from backend.services.cephalo_typed_read import CephaloTypedReadError
 from backend.utils.access_control import assert_patient_access
 
 router = APIRouter()
@@ -28,7 +29,7 @@ def get_analysis_with_typed_read_path(
     out = schemas.CephaloAnalysisOut.model_validate(analysis)
     if isinstance(out.angles_data, dict):
         try:
-            out.angles_data = project_typed_craniom_read_path(
+            out.angles_data = project_runtime_chain_read_path(
                 out.angles_data,
                 patient_id=analysis.patient_id,
             )
