@@ -1,7 +1,8 @@
 """Audited manual-calibration transition for persisted cephalometric evidence.
 
 This module changes calibration provenance and the four already-versioned CRANIOM
-linear measurements only. It never activates norms, diagnosis or treatment.
+linear measurements only. Calibration-independent measurements, including Steiner,
+are preserved exactly. It never activates norms, diagnosis or treatment.
 """
 from __future__ import annotations
 
@@ -235,7 +236,6 @@ def rebuild_evidence_after_manual_calibration(
             require_exact_set=True,
         )
     else:
-        # Compatibility path for snapshots created before current_landmark_refs existed.
         geometry_landmarks = _current_geometry_landmarks(landmarks, constructions)
         _assert_runtime_points_match_evidence(runtime_landmarks, geometry_landmarks)
 
@@ -274,12 +274,20 @@ def rebuild_evidence_after_manual_calibration(
     )
 
     construction_map = {item.definition_id: item for item in constructions}
-    measurements = adapt_craniom_linear_measurements(
+    rebuilt_craniom = adapt_craniom_linear_measurements(
         result,
         measurement_namespace=f"measurement:{case_id}:r{next_revision}",
         constructions=construction_map,
         calibration_ref=calibration.evidence_id,
     )
+    preserved_independent = [
+        item for item in old_measurements if not item.requires_calibration
+    ]
+    rebuilt_calibrated = [
+        item for item in rebuilt_craniom if item.requires_calibration
+    ]
+    measurements = [*preserved_independent, *rebuilt_calibrated]
+
     current_sources = [source for source in sources if source.kind != "calibration"] + [calibration]
     graph = EvidenceGraphSnapshot(
         sources=current_sources,

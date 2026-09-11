@@ -33,9 +33,9 @@ def _srpose_points():
         for key, value in _engine_points().items()
         if key in coords
     })
-    # Typed CRANIOM angular geometry uses canonical SRPose landmark names while
-    # the legacy engine fixture uses U1a/U1i and L1a/L1i. Keep both systems
-    # bound to the same physical points so integration parity is meaningful.
+    # Typed angular geometry uses canonical SRPose landmark names while the
+    # legacy engine fixture uses U1a/U1i and L1a/L1i. Keep both systems bound
+    # to the same physical points so integration parity is meaningful.
     coords["U1_apex"] = _engine_points()["U1a"]
     coords["U1_incisal"] = _engine_points()["U1i"]
     coords["L1_apex"] = _engine_points()["L1a"]
@@ -99,10 +99,24 @@ def test_new_analysis_persists_evidence_without_changing_public_result(monkeypat
     graph = repo.persisted[EVIDENCE_GRAPH_KEY]
     assert graph["revision"] == 1
     assert graph["history"] == []
-    assert {item["method_id"] for item in graph["measurements"] if not item["requires_calibration"]} == {
+
+    craniom_angular = [
+        item for item in graph["measurements"]
+        if item["analysis_id"] == "CRANIOM" and not item["requires_calibration"]
+    ]
+    assert {item["method_id"] for item in craniom_angular} == {
         "CRANIOM_U1_FRANKFORT_DEG_V1",
         "CRANIOM_L1_DOWNS_DEG_V1",
         "CRANIOM_INTERINCISAL_DEG_V1",
+    }
+
+    steiner = [item for item in graph["measurements"] if item["analysis_id"] == "STEINER"]
+    assert {item["method_id"] for item in steiner} == {
+        "STEINER_SNA_DEG_V1",
+        "STEINER_SNB_DEG_V1",
+        "STEINER_ANB_DEG_V1",
+        "STEINER_U1_NA_DEG_V1",
+        "STEINER_L1_NB_DEG_V1",
     }
     assert EVIDENCE_GRAPH_KEY not in response["results"]
 

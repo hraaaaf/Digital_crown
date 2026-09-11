@@ -25,6 +25,14 @@ from backend.services.cephalo_constructions import (
 from backend.services.cephalo_evidence_case_integrity import validate_case_evidence_graph
 from backend.services.cephalo_evidence_graph import EvidenceGraphSnapshot
 from backend.services.cephalo_measurement_adapter import adapt_craniom_linear_measurements
+from backend.services.cephalo_steiner_dental_evidence import (
+    adapt_steiner_dental_measurements,
+    materialize_steiner_dental_constructions,
+)
+from backend.services.cephalo_steiner_evidence_adapter import (
+    adapt_steiner_skeletal_measurements,
+    materialize_steiner_skeletal_constructions,
+)
 from backend.services.sota_vision_service import (
     SOTA_LANDMARKS_MAPPING,
     SRPOSE38_MODEL_NAME,
@@ -251,22 +259,52 @@ def build_cephalo_runtime_evidence_payload(
     current_by_id = {lm.landmark_id: lm for lm in current}
     _assert_runtime_geometry_matches(result, current_by_id)
     graph_landmarks = (_old_auto(previous_payload) if manual_revision else []) + current
-    constructions = materialize_craniom_linear_constructions(
+
+    # Preserve the historical CRANIOM evidence IDs exactly. Steiner is additive
+    # and gets its own namespace; introducing R5 must not rename existing R4 evidence.
+    craniom_constructions = materialize_craniom_linear_constructions(
         current_by_id, construction_namespace=f"construction:{resolved_case}:r{revision}",
     )
+    steiner_constructions = materialize_steiner_skeletal_constructions(
+        current_by_id, construction_namespace=f"construction:{resolved_case}:r{revision}:steiner",
+    )
+    steiner_dental_constructions = materialize_steiner_dental_constructions(
+        current_by_id,
+        construction_namespace=f"construction:{resolved_case}:r{revision}:steiner:dental",
+    )
+
     calibration = _calibration_source(
         patient_id=patient_id, case_id=resolved_case, image_record_id=image_record_id,
         result=result, is_calibrated=is_calibrated,
         calibration_data=calibration_data, recorded_at=timestamp,
     )
-    measurements = adapt_craniom_linear_measurements(
+    craniom_measurements = adapt_craniom_linear_measurements(
         result, measurement_namespace=f"measurement:{resolved_case}:r{revision}",
-        constructions=constructions, calibration_ref=calibration.evidence_id if calibration else None,
+        constructions=craniom_constructions, calibration_ref=calibration.evidence_id if calibration else None,
     )
+    steiner_measurements = adapt_steiner_skeletal_measurements(
+        result, measurement_namespace=f"measurement:{resolved_case}:r{revision}:steiner",
+        constructions=steiner_constructions,
+    )
+    steiner_dental_measurements = adapt_steiner_dental_measurements(
+        measurement_namespace=f"measurement:{resolved_case}:r{revision}:steiner:dental",
+        constructions=steiner_dental_constructions,
+    )
+
+    all_constructions = [
+        *craniom_constructions.values(),
+        *steiner_constructions.values(),
+        *steiner_dental_constructions.values(),
+    ]
+    all_measurements = [
+        *craniom_measurements,
+        *steiner_measurements,
+        *steiner_dental_measurements,
+    ]
     sources = [ceph_source] + ([calibration] if calibration else [])
     graph = EvidenceGraphSnapshot(
         sources=sources, landmarks=graph_landmarks,
-        constructions=list(constructions.values()), measurements=measurements,
+        constructions=all_constructions, measurements=all_measurements,
     )
     validate_case_evidence_graph(graph, patient_id=patient_id, case_id=resolved_case)
     return {
@@ -275,8 +313,8 @@ def build_cephalo_runtime_evidence_payload(
         "history": _history(previous_payload),
         "sources": [x.model_dump(mode="json") for x in sources],
         "landmarks": [x.model_dump(mode="json") for x in graph_landmarks],
-        "constructions": [x.model_dump(mode="json") for x in constructions.values()],
-        "measurements": [x.model_dump(mode="json") for x in measurements],
+        "constructions": [x.model_dump(mode="json") for x in all_constructions],
+        "measurements": [x.model_dump(mode="json") for x in all_measurements],
         "normative_evaluations": [], "findings": [], "diagnoses": [], "problems": [],
         "objectives": [], "treatment_options": [], "validations": [], "final_plans": [],
     }

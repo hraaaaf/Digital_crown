@@ -1,8 +1,8 @@
 """Audited landmark-edit transition for persisted cephalometric evidence.
 
 The transition distinguishes unchanged points from clinician edits, preserves the
-original SRPose38 coordinates, rematerializes geometry, and keeps an explicit set of
-current landmark evidence refs so omitted points can never resurrect from history.
+original SRPose38 coordinates, rematerializes all active analysis geometry, and keeps
+an explicit set of current landmark evidence refs so omitted points never resurrect.
 """
 from __future__ import annotations
 
@@ -24,6 +24,14 @@ from backend.services.cephalo_evidence_case_integrity import validate_case_evide
 from backend.services.cephalo_evidence_graph import EvidenceGraphSnapshot
 from backend.services.cephalo_measurement_adapter import adapt_craniom_linear_measurements
 from backend.services.cephalo_runtime_evidence import EVIDENCE_SCHEMA_VERSION, CephaloRuntimeEvidenceError
+from backend.services.cephalo_steiner_dental_evidence import (
+    adapt_steiner_dental_measurements,
+    materialize_steiner_dental_constructions,
+)
+from backend.services.cephalo_steiner_evidence_adapter import (
+    adapt_steiner_skeletal_measurements,
+    materialize_steiner_skeletal_constructions,
+)
 
 _DOWNSTREAM_KEYS = (
     "normative_evaluations",
@@ -88,7 +96,6 @@ def _current_landmark_map(
             selected[item.landmark_id] = item
         return selected
 
-    # Backward-compatible inference for snapshots created before current_landmark_refs.
     grouped: dict[str, list[LandmarkEvidence]] = {}
     for item in landmarks:
         grouped.setdefault(item.landmark_id, []).append(item)
@@ -246,9 +253,6 @@ def rebuild_evidence_after_landmark_edit(
                 f"Landmark edit cannot silently preserve downstream clinical evidence: {key}"
             )
 
-    # Preserve the immutable SRPose anchor independently from the current point set.
-    # If a previously omitted SRPose point is manually reintroduced, that is an audited
-    # correction event, not a fresh MANUAL point and not an automatic resurrection.
     original_auto = {
         item.landmark_id: item
         for item in landmarks
@@ -274,8 +278,6 @@ def rebuild_evidence_after_landmark_edit(
                 validated_at=validated_at,
             )
 
-    # Keep immutable machine evidence for audit, but mark the current point set
-    # explicitly. This prevents an omitted point from becoming current again later.
     graph_landmarks_by_ref: dict[str, LandmarkEvidence] = {
         item.evidence_id: item for item in original_auto.values()
     }
@@ -283,26 +285,56 @@ def rebuild_evidence_after_landmark_edit(
         graph_landmarks_by_ref[item.evidence_id] = item
     graph_landmarks = list(graph_landmarks_by_ref.values())
 
-    new_constructions = materialize_craniom_linear_constructions(
+    craniom_constructions = materialize_craniom_linear_constructions(
         next_current,
         construction_namespace=f"construction:{case_id}:r{next_revision}",
     )
+    steiner_constructions = materialize_steiner_skeletal_constructions(
+        next_current,
+        construction_namespace=f"construction:{case_id}:r{next_revision}:steiner",
+    )
+    steiner_dental_constructions = materialize_steiner_dental_constructions(
+        next_current,
+        construction_namespace=f"construction:{case_id}:r{next_revision}:steiner:dental",
+    )
+
     calibration_sources = [source for source in sources if source.kind == "calibration"]
     if len(calibration_sources) > 1:
         raise CephaloRuntimeEvidenceError("Multiple current calibration sources")
     calibration_ref = calibration_sources[0].evidence_id if calibration_sources else None
-    new_measurements = adapt_craniom_linear_measurements(
+
+    craniom_measurements = adapt_craniom_linear_measurements(
         result,
         measurement_namespace=f"measurement:{case_id}:r{next_revision}",
-        constructions=new_constructions,
+        constructions=craniom_constructions,
         calibration_ref=calibration_ref,
     )
+    steiner_measurements = adapt_steiner_skeletal_measurements(
+        result,
+        measurement_namespace=f"measurement:{case_id}:r{next_revision}:steiner",
+        constructions=steiner_constructions,
+    )
+    steiner_dental_measurements = adapt_steiner_dental_measurements(
+        measurement_namespace=f"measurement:{case_id}:r{next_revision}:steiner:dental",
+        constructions=steiner_dental_constructions,
+    )
+
+    all_constructions = [
+        *craniom_constructions.values(),
+        *steiner_constructions.values(),
+        *steiner_dental_constructions.values(),
+    ]
+    all_measurements = [
+        *craniom_measurements,
+        *steiner_measurements,
+        *steiner_dental_measurements,
+    ]
 
     graph = EvidenceGraphSnapshot(
         sources=sources,
         landmarks=graph_landmarks,
-        constructions=list(new_constructions.values()),
-        measurements=new_measurements,
+        constructions=all_constructions,
+        measurements=all_measurements,
     )
     validate_case_evidence_graph(graph, patient_id=patient_id, case_id=case_id)
 
@@ -317,8 +349,8 @@ def rebuild_evidence_after_landmark_edit(
         "sources": [item.model_dump(mode="json") for item in sources],
         "landmarks": [item.model_dump(mode="json") for item in graph_landmarks],
         "current_landmark_refs": [item.evidence_id for item in next_current.values()],
-        "constructions": [item.model_dump(mode="json") for item in new_constructions.values()],
-        "measurements": [item.model_dump(mode="json") for item in new_measurements],
+        "constructions": [item.model_dump(mode="json") for item in all_constructions],
+        "measurements": [item.model_dump(mode="json") for item in all_measurements],
         "normative_evaluations": [],
         "findings": [],
         "diagnoses": [],
