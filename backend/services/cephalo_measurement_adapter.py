@@ -26,6 +26,7 @@ class _MeasurementSpec:
     construction_definition_id: str
     unit: str
     requires_calibration: bool
+    compatibility_optional: bool = False
     construction_definition_version: str = "1"
 
 
@@ -72,6 +73,7 @@ _CRANIOM_ANGULAR_SPECS: Sequence[_MeasurementSpec] = (
         construction_definition_id="CRANIOM_U1_TO_FRANKFORT_V1",
         unit="deg",
         requires_calibration=False,
+        compatibility_optional=True,
     ),
 )
 
@@ -87,9 +89,11 @@ def _valid_ratio(value: Optional[float]) -> bool:
 
 def _required_construction(
     constructions: Mapping[str, ConstructionEvidence], spec: _MeasurementSpec
-) -> ConstructionEvidence:
+) -> Optional[ConstructionEvidence]:
     construction = constructions.get(spec.construction_definition_id)
     if construction is None:
+        if spec.compatibility_optional:
+            return None
         raise ValueError(
             "Missing materialized construction evidence for "
             f"{spec.construction_definition_id}"
@@ -125,7 +129,13 @@ def adapt_craniom_measurements(
     constructions: Mapping[str, ConstructionEvidence],
     calibration_ref: Optional[str],
 ) -> list[MeasurementEvidence]:
-    """Convert the certified CRANIOM geometry set into typed evidence."""
+    """Convert the certified CRANIOM geometry set into typed evidence.
+
+    The R4 angular construction is compatibility-optional only so persisted R3
+    snapshots can still undergo calibration-only revisions without fabricating a
+    construction that did not exist in that snapshot. New R4 snapshots always
+    materialize it through the construction adapter.
+    """
 
     if not isinstance(measurement_namespace, str) or not measurement_namespace.strip():
         raise ValueError("measurement_namespace must be non-empty")
@@ -144,6 +154,8 @@ def adapt_craniom_measurements(
 
     for spec in _CRANIOM_SPECS:
         construction = _required_construction(constructions, spec)
+        if construction is None:
+            continue
         construction_ref = construction.construction_id
         raw_value = _raw_value(result, spec)
 
@@ -192,7 +204,7 @@ def adapt_craniom_linear_measurements(
     constructions: Mapping[str, ConstructionEvidence],
     calibration_ref: Optional[str],
 ) -> list[MeasurementEvidence]:
-    """Backward-compatible entry point returning the full certified CRANIOM set."""
+    """Backward-compatible entry point returning the certified CRANIOM set."""
 
     return adapt_craniom_measurements(
         result,
