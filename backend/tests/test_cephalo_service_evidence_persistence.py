@@ -115,6 +115,7 @@ def test_new_analysis_persists_evidence_without_changing_public_result(monkeypat
         "STEINER_SNA_DEG_V1",
         "STEINER_SNB_DEG_V1",
         "STEINER_ANB_DEG_V1",
+        "STEINER_SN_MP_DEG_V1",
         "STEINER_U1_NA_DEG_V1",
         "STEINER_L1_NB_DEG_V1",
     }

@@ -126,6 +126,7 @@ def test_auto_calibration_creates_revision_and_unlocks_measurements_without_clin
         "STEINER_SNA_DEG_V1",
         "STEINER_SNB_DEG_V1",
         "STEINER_ANB_DEG_V1",
+        "STEINER_SN_MP_DEG_V1",
         "STEINER_U1_NA_DEG_V1",
         "STEINER_L1_NB_DEG_V1",
     }

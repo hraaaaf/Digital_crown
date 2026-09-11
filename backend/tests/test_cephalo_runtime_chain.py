@@ -184,6 +184,7 @@ def test_creation_edit_calibration_recalculation_and_get_keep_one_active_chain()
         "STEINER_SNA_DEG_V1",
         "STEINER_SNB_DEG_V1",
         "STEINER_ANB_DEG_V1",
+        "STEINER_SN_MP_DEG_V1",
         "STEINER_U1_NA_DEG_V1",
         "STEINER_L1_NB_DEG_V1",
     }
