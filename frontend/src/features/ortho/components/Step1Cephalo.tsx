@@ -8,6 +8,8 @@ import type {
   UIMode, VTOSettings, ImageFilters 
 } from '../cephaloShared';
 import { useOrthoStore } from '../stores/useOrthoStore';
+import { cephaloRepository } from '../cephaloRepository';
+import { calibrationUiLabel, calibrationUiTone, deriveCalibrationUiState } from '../cephaloCalibration';
 import { scienceArticles } from '../../../data/science_articles';
 import { ClinicalTipBubble } from '../../clinical_tips/components/ClinicalTipBubble';
 
@@ -40,9 +42,10 @@ export const Step1Cephalo: React.FC<Step1CephaloProps> = ({ P, fileRef, step1Con
 
   const [showTip, setShowTip] = React.useState(false);
   const [currentTip, setCurrentTip] = React.useState('');
-  
-  // Nouveaux états pour les menus flottants
   const [activeMenu, setActiveMenu] = useState<'none' | 'visual' | 'vto'>('none');
+  const [showCalibrationAssistant, setShowCalibrationAssistant] = useState(false);
+  const [calibrationBusy, setCalibrationBusy] = useState(false);
+  const [calibrationActionError, setCalibrationActionError] = useState<string | null>(null);
 
   React.useEffect(() => {
     if (!store.imageSrc) {
@@ -97,6 +100,69 @@ export const Step1Cephalo: React.FC<Step1CephaloProps> = ({ P, fileRef, step1Con
     activeMorphing, setActiveMorphing
   } = store;
 
+  const calibrationData = anglesData?.__calibrationData ?? null;
+  const calibrationState = deriveCalibrationUiState({ isCalibrated, anglesData, calibrationData });
+  const calibrationTone = calibrationUiTone(calibrationState);
+  const calibrationLabel = calibrationUiLabel(calibrationState);
+
+  const refreshCalibrationFromServer = async () => {
+    if (!store.analysisId) return;
+    const loaded = await cephaloRepository.getAnalysis(store.analysisId);
+    const refreshedAngles = loaded.angles_data || {};
+    setAnglesData({ ...refreshedAngles, __calibrationData: loaded.calibration_data || null });
+    store.setVisionMetadata(refreshedAngles.vision_metadata || {});
+    store.setIsCalibrated(Boolean(loaded.is_calibrated));
+    store.setMmPerPixel(typeof loaded.mm_per_pixel === 'number' ? loaded.mm_per_pixel : null);
+  };
+
+  const startManualCalibration = () => {
+    setCalibrationActionError(null);
+    setShowCalibrationAssistant(false);
+    setShowCalibration(true);
+    setCalibrationClickPoints([]);
+    setCalibrationDistance('');
+    setCalibrationStep('selecting');
+  };
+
+  const handleAutoCalibration = async () => {
+    if (!store.analysisId || calibrationBusy) return;
+    setCalibrationBusy(true);
+    setCalibrationActionError(null);
+    try {
+      await cephaloRepository.autoCalibrate(store.analysisId);
+      await refreshCalibrationFromServer();
+    } catch (error: any) {
+      const detail = error?.response?.data?.detail;
+      setCalibrationActionError(typeof detail === 'string' ? detail : "La réglette détectée ne peut pas être vérifiée automatiquement.");
+    } finally {
+      setCalibrationBusy(false);
+    }
+  };
+
+  const handleConfirmAutoCalibration = async () => {
+    if (!store.analysisId || calibrationBusy) return;
+    setCalibrationBusy(true);
+    setCalibrationActionError(null);
+    try {
+      await cephaloRepository.confirmAutoCalibration(store.analysisId);
+      await refreshCalibrationFromServer();
+    } catch (error: any) {
+      const detail = error?.response?.data?.detail;
+      setCalibrationActionError(typeof detail === 'string' ? detail : "La confirmation de calibration a échoué.");
+    } finally {
+      setCalibrationBusy(false);
+    }
+  };
+
+  const handleApplyManualCalibration = async () => {
+    await applyCalibration();
+    try {
+      await refreshCalibrationFromServer();
+    } catch (error) {
+      console.warn('Calibration appliquée mais rechargement de provenance impossible:', error);
+    }
+  };
+
   // Calcul des projections de croissance (Ghosts T1 / T2)
   const computedGhosts = React.useMemo(() => {
     if (activeMorphing === 'none') return [];
@@ -116,7 +182,6 @@ export const Step1Cephalo: React.FC<Step1CephaloProps> = ({ P, fileRef, step1Con
     }];
   }, [activeMorphing, anglesData, P]);
 
-  // Si pas d'image, on garde le design d'upload (qui peut rester clair/sombre selon le thème global)
   if (!imageSrc) {
     return (
       <div className="flex-1 w-full flex flex-col items-center justify-center min-h-[400px] relative">
@@ -128,7 +193,6 @@ export const Step1Cephalo: React.FC<Step1CephaloProps> = ({ P, fileRef, step1Con
             autoHideMs={2000}
           />
         )}
-
 
         <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={e => handleFileDrop(e.target.files)} />
         <motion.div
@@ -180,15 +244,16 @@ export const Step1Cephalo: React.FC<Step1CephaloProps> = ({ P, fileRef, step1Con
     );
   }
 
-  // --- INTERFACE X-RAY RÉVOLUTIONNÉE ---
-  // L'interface force le mode sombre cinématique (Noir profond) pour l'immersion radiologique.
   const isCinematic = true; 
-  const cbg = '#020617'; // slate-950
+  const cbg = '#020617';
+  const toneClasses = calibrationTone === 'emerald'
+    ? 'bg-emerald-900/30 border-emerald-700/50 text-emerald-400 hover:bg-emerald-900/45'
+    : calibrationTone === 'indigo'
+      ? 'bg-indigo-900/30 border-indigo-700/50 text-indigo-400 hover:bg-indigo-900/45'
+      : 'bg-amber-900/30 border-amber-700/50 text-amber-400 hover:bg-amber-900/45';
 
   return (
-    <div ref={step1ContainerRef} className={`relative flex flex-col rounded-3xl overflow-hidden ${isStep1Fullscreen ? 'fixed inset-0 z-[9999]' : 'h-[80vh] w-full'}`} style={{ background: cbg, boxShadow: 'inset 0 0 100px rgba(0,0,0,0.8)' }}>
-      
-      {/* CANVAS PRINCIPAL (FULL WIDTH/HEIGHT) */}
+    <div ref={step1ContainerRef} className={`relative flex min-w-0 flex-col rounded-3xl overflow-hidden ${isStep1Fullscreen ? 'fixed inset-0 z-[9999]' : 'h-[80vh] w-full'}`} style={{ background: cbg, boxShadow: 'inset 0 0 100px rgba(0,0,0,0.8)' }}>
       <div className="absolute inset-0 z-0">
         <CephaloTracingLayer
           imageSrc={imageSrc}
@@ -206,7 +271,7 @@ export const Step1Cephalo: React.FC<Step1CephaloProps> = ({ P, fileRef, step1Con
           isCalibrating={showCalibration}
           calibrationPoints={calibrationClickPoints}
           onAddCalibrationPoint={handleCalibrationClick}
-          uiMode={'pro'} // On force le rendu sombre/pro du traceur
+          uiMode={'pro'}
           hoveredMetric={null}
           magnifierEnabled={magnifierEnabled}
           performanceMode={performanceMode}
@@ -214,30 +279,28 @@ export const Step1Cephalo: React.FC<Step1CephaloProps> = ({ P, fileRef, step1Con
         />
       </div>
 
-      {/* GRADIENT OVERLAYS POUR LES DOCKS (Effet Cinématique) */}
       <div className="absolute inset-x-0 top-0 h-32 bg-gradient-to-b from-slate-950/80 to-transparent pointer-events-none z-10" />
       <div className="absolute inset-x-0 bottom-0 h-32 bg-gradient-to-t from-slate-950/80 to-transparent pointer-events-none z-10" />
       <div className="absolute inset-y-0 left-0 w-32 bg-gradient-to-r from-slate-950/80 to-transparent pointer-events-none z-10" />
       <div className="absolute inset-y-0 right-0 w-32 bg-gradient-to-l from-slate-950/80 to-transparent pointer-events-none z-10" />
 
-      {/* TOP HEADER (Minimaliste) */}
-      <div className="absolute top-6 left-6 right-6 flex items-center justify-between z-20">
-        <div className="flex items-center gap-3">
+      <div className="absolute top-3 left-3 right-3 flex flex-wrap items-start justify-between gap-2 z-20 sm:top-6 sm:left-6 sm:right-6">
+        <div className="flex min-w-0 flex-wrap items-center gap-2 sm:gap-3">
           <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-900/60 border border-slate-700/50 backdrop-blur-md">
             <Activity size={12} className="text-emerald-400" />
             <span className="text-[10px] font-bold text-emerald-400 tracking-widest uppercase">Édition Active</span>
           </div>
-          {isCalibrated ? (
-            <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-indigo-900/30 border border-indigo-700/50 backdrop-blur-md">
-              <Target size={12} className="text-indigo-400" />
-              <span className="text-[10px] font-bold text-indigo-400 tracking-widest uppercase">{mmPerPixel?.toFixed(3)} mm/px</span>
-            </div>
-          ) : (
-            <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-amber-900/30 border border-amber-700/50 backdrop-blur-md cursor-pointer hover:bg-amber-900/50" onClick={() => { setShowCalibration(true); setCalibrationClickPoints([]); setCalibrationDistance(''); setCalibrationStep('selecting'); }}>
-              <Target size={12} className="text-amber-400" />
-              <span className="text-[10px] font-bold text-amber-400 tracking-widest uppercase">Non Calibré</span>
-            </div>
-          )}
+          <button
+            type="button"
+            onClick={() => { setCalibrationActionError(null); setShowCalibrationAssistant(true); }}
+            className={`flex max-w-[230px] items-center gap-2 rounded-full border px-3 py-1.5 backdrop-blur-md transition-colors sm:max-w-none ${toneClasses}`}
+            title="État de calibration et provenance"
+          >
+            {calibrationTone === 'emerald' ? <CheckCircle2 size={12} /> : <Target size={12} />}
+            <span className="truncate text-[10px] font-bold tracking-widest uppercase">
+              {calibrationLabel}{mmPerPixel ? ` · ${mmPerPixel.toFixed(3)} mm/px` : ''}
+            </span>
+          </button>
         </div>
         
         <div className="flex items-center gap-2">
@@ -250,20 +313,85 @@ export const Step1Cephalo: React.FC<Step1CephaloProps> = ({ P, fileRef, step1Con
         </div>
       </div>
 
-      {/* DOCK GAUCHE : Outils Visuels */}
-      <div className="absolute left-6 top-1/2 -translate-y-1/2 flex flex-col gap-3 z-30" onMouseLeave={() => setActiveMenu('none')}>
+      <AnimatePresence>
+        {showCalibrationAssistant && !showCalibration && (
+          <motion.div
+            initial={{ opacity: 0, y: -12, scale: 0.97 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -12, scale: 0.97 }}
+            className="absolute top-24 left-1/2 z-50 flex w-[calc(100%-1.5rem)] max-w-md -translate-x-1/2 flex-col gap-4 rounded-2xl border border-slate-700/60 bg-slate-900/90 p-4 shadow-2xl backdrop-blur-2xl sm:top-20 sm:p-5"
+          >
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <div className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">Calibration R1</div>
+                <h3 className="mt-1 text-sm font-black text-white">{calibrationLabel}</h3>
+              </div>
+              <button onClick={() => setShowCalibrationAssistant(false)} className="shrink-0 rounded-lg p-1.5 text-slate-400 hover:bg-slate-800 hover:text-white" aria-label="Fermer"><X size={16} /></button>
+            </div>
+
+            {calibrationState === 'CANDIDATE_UNVERIFIED' && (
+              <>
+                <p className="text-xs leading-relaxed text-slate-300">Une réglette a été détectée. L'échelle reste non vérifiée tant que le serveur n'a pas validé une source physique déjà liée au candidat.</p>
+                <button onClick={handleAutoCalibration} disabled={calibrationBusy} className="flex w-full items-center justify-center gap-2 rounded-xl bg-indigo-500 px-4 py-3 text-xs font-black uppercase tracking-widest text-white transition-colors hover:bg-indigo-600 disabled:opacity-50">
+                  {calibrationBusy ? <Loader2 size={15} className="animate-spin" /> : <CheckCircle2 size={15} />}
+                  Vérifier automatiquement
+                </button>
+                <button onClick={startManualCalibration} disabled={calibrationBusy} className="w-full rounded-xl border border-slate-700 bg-slate-800/70 px-4 py-3 text-xs font-bold text-slate-200 hover:bg-slate-800 disabled:opacity-50">Calibrer manuellement</button>
+              </>
+            )}
+
+            {calibrationState === 'AUTO_VERIFIED' && (
+              <>
+                <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/10 p-3 text-xs leading-relaxed text-emerald-100">Échelle utilisable : {mmPerPixel?.toFixed(4)} mm/px. La confirmation du praticien est recommandée mais non obligatoire.</div>
+                <button onClick={handleConfirmAutoCalibration} disabled={calibrationBusy} className="flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-500 px-4 py-3 text-xs font-black uppercase tracking-widest text-white hover:bg-emerald-600 disabled:opacity-50">
+                  {calibrationBusy ? <Loader2 size={15} className="animate-spin" /> : <CheckCircle2 size={15} />}
+                  Confirmer comme praticien
+                </button>
+                <button onClick={startManualCalibration} disabled={calibrationBusy} className="w-full rounded-xl border border-slate-700 bg-slate-800/70 px-4 py-3 text-xs font-bold text-slate-200 hover:bg-slate-800 disabled:opacity-50">Modifier manuellement</button>
+              </>
+            )}
+
+            {calibrationState === 'CLINICIAN_CONFIRMED' && (
+              <>
+                <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/10 p-3 text-xs leading-relaxed text-emerald-100">Auto-calibration confirmée par le praticien. Le ratio reste {mmPerPixel?.toFixed(4)} mm/px.</div>
+                <button onClick={startManualCalibration} disabled={calibrationBusy} className="w-full rounded-xl border border-slate-700 bg-slate-800/70 px-4 py-3 text-xs font-bold text-slate-200 hover:bg-slate-800 disabled:opacity-50">Recalibrer manuellement</button>
+              </>
+            )}
+
+            {(calibrationState === 'MANUAL_TWO_POINT' || calibrationState === 'LEGACY_VERIFIED') && (
+              <>
+                <div className="rounded-xl border border-indigo-500/20 bg-indigo-500/10 p-3 text-xs leading-relaxed text-indigo-100">Échelle active : {mmPerPixel?.toFixed(4)} mm/px. La provenance automatique n'est pas revendiquée.</div>
+                <button onClick={startManualCalibration} disabled={calibrationBusy} className="w-full rounded-xl border border-slate-700 bg-slate-800/70 px-4 py-3 text-xs font-bold text-slate-200 hover:bg-slate-800 disabled:opacity-50">Recalibrer manuellement</button>
+              </>
+            )}
+
+            {calibrationState === 'UNCALIBRATED' && (
+              <>
+                <p className="text-xs leading-relaxed text-slate-300">Aucune échelle physique vérifiée n'est disponible. Les mesures linéaires en millimètres restent indisponibles.</p>
+                <button onClick={startManualCalibration} className="w-full rounded-xl bg-indigo-500 px-4 py-3 text-xs font-black uppercase tracking-widest text-white hover:bg-indigo-600">Calibrer manuellement</button>
+              </>
+            )}
+
+            {calibrationActionError && (
+              <div className="flex items-start gap-2 rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 text-xs leading-relaxed text-amber-100">
+                <AlertCircle size={15} className="mt-0.5 shrink-0" />
+                <span>{calibrationActionError}</span>
+              </div>
+            )}
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <div className="absolute left-3 top-1/2 -translate-y-1/2 flex flex-col gap-3 z-30 sm:left-6" onMouseLeave={() => setActiveMenu('none')}>
         <div className="flex flex-col gap-2 p-2 rounded-2xl bg-slate-900/60 border border-slate-700/50 backdrop-blur-xl shadow-2xl">
-          
-          {/* Calibrage */}
           <button 
-            onClick={() => { setShowCalibration(true); setCalibrationClickPoints([]); setCalibrationDistance(''); setCalibrationStep('selecting'); }}
-            className={`w-10 h-10 flex items-center justify-center rounded-xl transition-all ${showCalibration ? 'bg-indigo-500/20 text-indigo-400 border border-indigo-500/50' : 'text-slate-400 hover:bg-slate-800 hover:text-slate-100'}`}
-            title="Calibrer l'échelle"
+            onClick={() => { setCalibrationActionError(null); setShowCalibrationAssistant(true); }}
+            className={`w-10 h-10 flex items-center justify-center rounded-xl transition-all ${showCalibration || showCalibrationAssistant ? 'bg-indigo-500/20 text-indigo-400 border border-indigo-500/50' : 'text-slate-400 hover:bg-slate-800 hover:text-slate-100'}`}
+            title="Calibration et provenance"
           >
             <Target size={18} />
           </button>
 
-          {/* Loupe */}
           <button 
             onClick={() => setMagnifierEnabled((v: boolean) => !v)}
             className={`w-10 h-10 flex items-center justify-center rounded-xl transition-all ${magnifierEnabled ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/50' : 'text-slate-400 hover:bg-slate-800 hover:text-slate-100'}`}
@@ -274,7 +402,6 @@ export const Step1Cephalo: React.FC<Step1CephaloProps> = ({ P, fileRef, step1Con
 
           <div className="w-6 h-px bg-slate-700/50 mx-auto my-1" />
 
-          {/* Luminosité / Contraste Popover */}
           <div className="relative group">
             <button 
               onMouseEnter={() => setActiveMenu('visual')}
@@ -309,7 +436,6 @@ export const Step1Cephalo: React.FC<Step1CephaloProps> = ({ P, fileRef, step1Con
             </AnimatePresence>
           </div>
 
-          {/* Invert */}
           <button 
             onClick={() => setImgFilters((f: ImageFilters) => ({ ...f, invert: !f.invert }))}
             className={`w-10 h-10 flex items-center justify-center rounded-xl transition-all ${imgFilters.invert ? 'bg-white text-black border border-white shadow-[0_0_15px_rgba(255,255,255,0.5)]' : 'text-slate-400 hover:bg-slate-800 hover:text-slate-100'}`}
@@ -320,10 +446,8 @@ export const Step1Cephalo: React.FC<Step1CephaloProps> = ({ P, fileRef, step1Con
         </div>
       </div>
 
-      {/* DOCK DROIT : VTO & Morphing */}
-      <div className="absolute right-6 top-1/2 -translate-y-1/2 flex flex-col gap-3 z-30">
+      <div className="absolute right-3 top-1/2 -translate-y-1/2 flex flex-col gap-3 z-30 sm:right-6">
         <div className="flex flex-col gap-2 p-2 rounded-2xl bg-slate-900/60 border border-slate-700/50 backdrop-blur-xl shadow-2xl">
-          
           <button 
             onClick={() => setActiveMorphing(activeMorphing === 'T1' ? 'none' : 'T1')}
             className={`w-10 h-10 flex items-center justify-center rounded-xl text-[10px] font-black transition-all ${activeMorphing === 'T1' ? 'bg-indigo-500 text-white shadow-[0_0_15px_rgba(99,102,241,0.5)]' : 'text-slate-400 hover:bg-slate-800 hover:text-slate-100'}`}
@@ -368,17 +492,16 @@ export const Step1Cephalo: React.FC<Step1CephaloProps> = ({ P, fileRef, step1Con
         </div>
       </div>
 
-      {/* STUDIO VTO (Nouveau Design Haut de Gamme) */}
       <AnimatePresence>
         {vtoSettings.enabled && (
           <motion.div
             initial={{ opacity: 0, y: 20, scale: 0.95 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 20, scale: 0.95 }}
-            className="absolute bottom-8 left-1/2 -translate-x-1/2 w-[600px] p-6 rounded-[2rem] z-40 overflow-hidden"
+            className="absolute bottom-8 left-1/2 -translate-x-1/2 w-[calc(100%-1.5rem)] max-w-[600px] p-4 sm:p-6 rounded-[2rem] z-40 overflow-hidden"
             style={{ 
-              background: 'rgba(15, 23, 42, 0.75)', // slate-900/75
-              border: '1px solid rgba(245, 158, 11, 0.3)', // amber-500/30
+              background: 'rgba(15, 23, 42, 0.75)',
+              border: '1px solid rgba(245, 158, 11, 0.3)',
               backdropFilter: 'blur(24px)',
               boxShadow: '0 25px 50px -12px rgba(0,0,0,0.7), 0 0 30px rgba(245,158,11,0.1)'
             }}
@@ -412,7 +535,6 @@ export const Step1Cephalo: React.FC<Step1CephaloProps> = ({ P, fileRef, step1Con
             </div>
 
             <div className="space-y-6">
-              {/* INCISIVE SUP */}
               <div className="space-y-3">
                 <div className="flex justify-between items-end px-1">
                   <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Incisive Supérieure (U1)</label>
@@ -429,7 +551,6 @@ export const Step1Cephalo: React.FC<Step1CephaloProps> = ({ P, fileRef, step1Con
                 />
               </div>
 
-              {/* INCISIVE INF */}
               <div className="space-y-3">
                 <div className="flex justify-between items-end px-1">
                   <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Incisive Inférieure (L1)</label>
@@ -446,7 +567,6 @@ export const Step1Cephalo: React.FC<Step1CephaloProps> = ({ P, fileRef, step1Con
                 />
               </div>
 
-              {/* MANDIBULE */}
               <div className="space-y-3">
                 <div className="flex justify-between items-end px-1">
                   <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Avancement Mandibulaire</label>
@@ -476,17 +596,16 @@ export const Step1Cephalo: React.FC<Step1CephaloProps> = ({ P, fileRef, step1Con
         )}
       </AnimatePresence>
 
-      {/* Interface de Calibration V2 (Modale Centrale sur fond sombre) */}
       <AnimatePresence>
         {showCalibration && (
-          <motion.div initial={{ opacity: 0, y: -20, scale: 0.95 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: -20, scale: 0.95 }} className="absolute top-8 left-1/2 -translate-x-1/2 flex flex-col gap-4 p-6 rounded-2xl z-50 w-96" style={{ background: 'rgba(15,23,42,0.85)', backdropFilter: 'blur(16px)', border: `1px solid rgba(99,102,241,0.5)`, boxShadow: '0 25px 50px -12px rgba(0,0,0,0.5)' }}>
+          <motion.div initial={{ opacity: 0, y: -20, scale: 0.95 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: -20, scale: 0.95 }} className="absolute top-20 left-1/2 -translate-x-1/2 flex flex-col gap-4 p-4 sm:top-8 sm:p-6 rounded-2xl z-50 w-[calc(100%-1.5rem)] max-w-96" style={{ background: 'rgba(15,23,42,0.85)', backdropFilter: 'blur(16px)', border: `1px solid rgba(99,102,241,0.5)`, boxShadow: '0 25px 50px -12px rgba(0,0,0,0.5)' }}>
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <div className="w-8 h-8 rounded-lg bg-indigo-500/20 text-indigo-400 flex items-center justify-center border border-indigo-500/50">
                   <Target size={16} />
                 </div>
                 <span className="text-sm font-black tracking-widest uppercase text-white">
-                  Calibration
+                  Calibration manuelle
                 </span>
               </div>
               <button onClick={cancelCalibration} className="p-1 rounded text-slate-400 hover:text-white hover:bg-slate-800"><X size={16} /></button>
@@ -526,7 +645,7 @@ export const Step1Cephalo: React.FC<Step1CephaloProps> = ({ P, fileRef, step1Con
                 </div>
                 <div className="flex gap-2">
                   <button onClick={() => setCalibrationStep('selecting')} className="flex-1 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest text-slate-300 hover:text-white bg-slate-800 hover:bg-slate-700 transition-colors">Modifier</button>
-                  <button onClick={applyCalibration} className="flex-[2] py-3 rounded-xl text-xs font-black uppercase tracking-widest transition-all bg-emerald-500 hover:bg-emerald-600 text-white shadow-lg shadow-emerald-500/20">Appliquer</button>
+                  <button onClick={handleApplyManualCalibration} className="flex-[2] py-3 rounded-xl text-xs font-black uppercase tracking-widest transition-all bg-emerald-500 hover:bg-emerald-600 text-white shadow-lg shadow-emerald-500/20">Appliquer</button>
                 </div>
               </div>
             )}
@@ -534,13 +653,11 @@ export const Step1Cephalo: React.FC<Step1CephaloProps> = ({ P, fileRef, step1Con
         )}
       </AnimatePresence>
 
-      {/* HUD d'état (bas droite) */}
-      <div className="absolute bottom-6 right-6 flex items-center gap-4 text-[10px] font-mono z-20 pointer-events-none">
+      <div className="absolute bottom-3 right-3 flex items-center gap-4 text-[10px] font-mono z-20 pointer-events-none sm:bottom-6 sm:right-6">
         <div className="px-3 py-1.5 rounded-full bg-slate-900/60 border border-slate-700/50 backdrop-blur-md text-slate-300">
           Landmarks: <span className="text-white font-bold">{local.landmarks.length}</span>
         </div>
       </div>
-
     </div>
   );
 };
