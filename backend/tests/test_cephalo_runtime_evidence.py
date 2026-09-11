@@ -102,6 +102,7 @@ def test_srpose_snapshot_persists_analysis_scoped_evidence_and_does_not_silently
         "STEINER_SNA_DEG_V1",
         "STEINER_SNB_DEG_V1",
         "STEINER_ANB_DEG_V1",
+        "STEINER_SN_MP_DEG_V1",
         "STEINER_U1_NA_DEG_V1",
         "STEINER_L1_NB_DEG_V1",
     }
@@ -270,6 +271,7 @@ def test_explicit_two_point_calibration_unlocks_craniom_linear_and_keeps_all_ang
         "STEINER_SNA_DEG_V1",
         "STEINER_SNB_DEG_V1",
         "STEINER_ANB_DEG_V1",
+        "STEINER_SN_MP_DEG_V1",
         "STEINER_U1_NA_DEG_V1",
         "STEINER_L1_NB_DEG_V1",
     }

@@ -96,6 +96,7 @@ def test_manual_calibration_creates_audited_revision_unlocks_linear_and_preserve
         "STEINER_SNA_DEG_V1",
         "STEINER_SNB_DEG_V1",
         "STEINER_ANB_DEG_V1",
+        "STEINER_SN_MP_DEG_V1",
         "STEINER_U1_NA_DEG_V1",
         "STEINER_L1_NB_DEG_V1",
     }
