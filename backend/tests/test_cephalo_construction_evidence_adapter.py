@@ -10,10 +10,10 @@ from backend.schemas.cephalo_evidence import (
 )
 from backend.services.cephalo_construction_evidence_adapter import (
     CRANIOM_REQUIRED_LANDMARKS,
-    materialize_craniom_linear_constructions,
+    materialize_craniom_constructions,
 )
 from backend.services.cephalo_engine import CephaloEngine
-from backend.services.cephalo_measurement_adapter import adapt_craniom_linear_measurements
+from backend.services.cephalo_measurement_adapter import adapt_craniom_measurements
 
 
 def _landmark(landmark_id: str, *, source: str = "source:ceph:1", availability=AvailabilityStatus.AVAILABLE):
@@ -71,7 +71,7 @@ def _engine_points():
 
 
 def test_all_required_landmarks_materialize_certified_constructions():
-    constructions = materialize_craniom_linear_constructions(
+    constructions = materialize_craniom_constructions(
         _landmarks(), construction_namespace="cephalo:1:construction"
     )
 
@@ -93,7 +93,7 @@ def test_missing_or_blocks_only_or_dependent_constructions():
     landmarks = _landmarks()
     landmarks.pop("Or")
 
-    constructions = materialize_craniom_linear_constructions(
+    constructions = materialize_craniom_constructions(
         landmarks, construction_namespace="cephalo:2:construction"
     )
 
@@ -114,7 +114,7 @@ def test_missing_a_only_blocks_a_dependent_constructions():
     landmarks = _landmarks()
     landmarks.pop("A")
 
-    constructions = materialize_craniom_linear_constructions(
+    constructions = materialize_craniom_constructions(
         landmarks, construction_namespace="cephalo:3:construction"
     )
 
@@ -131,7 +131,7 @@ def test_missing_u1_apex_blocks_u1_frankfort_and_interincisal():
     landmarks = _landmarks()
     landmarks.pop("U1_apex")
 
-    constructions = materialize_craniom_linear_constructions(
+    constructions = materialize_craniom_constructions(
         landmarks, construction_namespace="cephalo:3b:construction"
     )
 
@@ -144,7 +144,7 @@ def test_missing_l1_apex_blocks_l1_downs_and_interincisal():
     landmarks = _landmarks()
     landmarks.pop("L1_apex")
 
-    constructions = materialize_craniom_linear_constructions(
+    constructions = materialize_craniom_constructions(
         landmarks, construction_namespace="cephalo:3c:construction"
     )
 
@@ -157,7 +157,7 @@ def test_present_but_unavailable_landmark_is_not_used_as_computable_evidence():
     landmarks = _landmarks()
     landmarks["A"] = _landmark("A", availability=AvailabilityStatus.INVALID)
 
-    constructions = materialize_craniom_linear_constructions(
+    constructions = materialize_craniom_constructions(
         landmarks, construction_namespace="cephalo:4:construction"
     )
 
@@ -170,7 +170,7 @@ def test_mixed_source_images_make_only_affected_constructions_invalid():
     landmarks = _landmarks()
     landmarks["A"] = _landmark("A", source="source:ceph:2")
 
-    constructions = materialize_craniom_linear_constructions(
+    constructions = materialize_craniom_constructions(
         landmarks, construction_namespace="cephalo:5:construction"
     )
 
@@ -188,25 +188,25 @@ def test_mapping_key_must_match_canonical_landmark_id():
     landmarks["A"] = _landmark("B")
 
     with pytest.raises(ValueError, match="mapping key A resolves to B"):
-        materialize_craniom_linear_constructions(
+        materialize_craniom_constructions(
             landmarks, construction_namespace="cephalo:6:construction"
         )
 
 
 def test_empty_construction_namespace_is_rejected():
     with pytest.raises(ValueError, match="construction_namespace"):
-        materialize_craniom_linear_constructions(
+        materialize_craniom_constructions(
             _landmarks(), construction_namespace=""
         )
 
 
 def test_materialized_constructions_feed_measurement_adapter_without_free_text_logic():
-    constructions = materialize_craniom_linear_constructions(
+    constructions = materialize_craniom_constructions(
         _landmarks(), construction_namespace="cephalo:7:construction"
     )
     result = CephaloEngine(mm_per_pixel=0.2).calculate_metrics(_engine_points())
 
-    measurements = adapt_craniom_linear_measurements(
+    measurements = adapt_craniom_measurements(
         result,
         measurement_namespace="cephalo:7:measurement",
         constructions=constructions,
@@ -229,12 +229,12 @@ def test_materialized_constructions_feed_measurement_adapter_without_free_text_l
 def test_missing_or_propagates_only_to_or_dependent_measurements():
     landmarks = _landmarks()
     landmarks.pop("Or")
-    constructions = materialize_craniom_linear_constructions(
+    constructions = materialize_craniom_constructions(
         landmarks, construction_namespace="cephalo:8:construction"
     )
     result = CephaloEngine(mm_per_pixel=0.2).calculate_metrics(_engine_points())
 
-    measurements = adapt_craniom_linear_measurements(
+    measurements = adapt_craniom_measurements(
         result,
         measurement_namespace="cephalo:8:measurement",
         constructions=constructions,
