@@ -75,11 +75,33 @@ _CRANIOM_LINEAR_CONSTRUCTIONS: Sequence[_ConstructionSpec] = (
     ),
 )
 
+_CRANIOM_ANGULAR_CONSTRUCTIONS: Sequence[_ConstructionSpec] = (
+    _ConstructionSpec(
+        definition_id="CRANIOM_U1_TO_FRANKFORT_V1",
+        required_landmark_ids=("U1_apex", "U1_incisal", "Po", "Or"),
+        geometry={
+            "kind": "directed_clinical_angle",
+            "axis_definition": "FH_PO_OR_V1",
+            "tooth_axis_start": "U1_apex",
+            "tooth_axis_end": "U1_incisal",
+            "reference_axis_start": "Po",
+            "reference_axis_end": "Or",
+            "angle_convention": "clinical_obtuse_v1",
+            "coordinate_space": "source_image_pixels",
+        },
+    ),
+)
+
+_CRANIOM_CONSTRUCTIONS: Sequence[_ConstructionSpec] = (
+    *_CRANIOM_LINEAR_CONSTRUCTIONS,
+    *_CRANIOM_ANGULAR_CONSTRUCTIONS,
+)
+
 
 def _validate_construction_specs_against_conventions() -> None:
-    """Fail import-time if executable geometry drifts from its R3 convention."""
+    """Fail import-time if executable geometry drifts from its R3/R4 convention."""
 
-    for spec in _CRANIOM_LINEAR_CONSTRUCTIONS:
+    for spec in _CRANIOM_CONSTRUCTIONS:
         convention = get_active_craniom_convention(spec.definition_id)
         if convention.required_landmark_ids != spec.required_landmark_ids:
             raise RuntimeError(
@@ -129,25 +151,24 @@ def _convention_only_geometry(definition_id: str) -> dict[str, object]:
     }
 
 
-def materialize_craniom_linear_constructions(
+def materialize_craniom_constructions(
     landmarks: Mapping[str, LandmarkEvidence],
     *,
     construction_namespace: str,
 ) -> dict[str, ConstructionEvidence]:
-    """Create typed construction evidence for the certified CRANIOM linear set.
+    """Create typed construction evidence for the certified CRANIOM runtime set.
 
-    Missing or unavailable landmarks produce a materialized ``NOT_COMPUTABLE``
-    construction rather than a fabricated landmark reference. Landmarks from
-    different source images produce ``INVALID`` construction evidence. In both
-    fail-closed states, the versioned geometric convention provenance is kept
-    while executable patient geometry is withheld.
+    Missing or unavailable landmarks produce ``NOT_COMPUTABLE`` construction
+    evidence. Cross-image dependencies produce ``INVALID`` evidence. In both
+    fail-closed states, immutable convention provenance is retained while
+    executable patient geometry is withheld.
     """
 
     if not isinstance(construction_namespace, str) or not construction_namespace.strip():
         raise ValueError("construction_namespace must be non-empty")
 
     materialized: dict[str, ConstructionEvidence] = {}
-    for spec in _CRANIOM_LINEAR_CONSTRUCTIONS:
+    for spec in _CRANIOM_CONSTRUCTIONS:
         refs, unavailable, source_images = _collect_dependencies(
             landmarks, spec.required_landmark_ids
         )
@@ -180,7 +201,27 @@ def materialize_craniom_linear_constructions(
     return materialized
 
 
+def materialize_craniom_linear_constructions(
+    landmarks: Mapping[str, LandmarkEvidence],
+    *,
+    construction_namespace: str,
+) -> dict[str, ConstructionEvidence]:
+    """Backward-compatible entry point returning the full certified CRANIOM set."""
+
+    return materialize_craniom_constructions(
+        landmarks, construction_namespace=construction_namespace
+    )
+
+
 CRANIOM_LINEAR_REQUIRED_LANDMARKS = {
     spec.definition_id: spec.required_landmark_ids
     for spec in _CRANIOM_LINEAR_CONSTRUCTIONS
+}
+CRANIOM_ANGULAR_REQUIRED_LANDMARKS = {
+    spec.definition_id: spec.required_landmark_ids
+    for spec in _CRANIOM_ANGULAR_CONSTRUCTIONS
+}
+CRANIOM_REQUIRED_LANDMARKS = {
+    **CRANIOM_LINEAR_REQUIRED_LANDMARKS,
+    **CRANIOM_ANGULAR_REQUIRED_LANDMARKS,
 }
