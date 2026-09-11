@@ -75,20 +75,32 @@ def test_manual_calibration_creates_audited_revision_unlocks_linear_and_preserve
     assert calibration[0]["metadata"]["calibrated_by"] == "99"
 
     measurements = payload["measurements"]
-    assert len(measurements) == 7
     assert all(item["availability_status"] == "AVAILABLE" for item in measurements)
-    linear = [item for item in measurements if item["requires_calibration"]]
-    angular = [item for item in measurements if not item["requires_calibration"]]
+
+    craniom = [item for item in measurements if item["analysis_id"] == "CRANIOM"]
+    steiner = [item for item in measurements if item["analysis_id"] == "STEINER"]
+    linear = [item for item in craniom if item["requires_calibration"]]
+    craniom_angular = [item for item in craniom if not item["requires_calibration"]]
+
     assert len(linear) == 4
     assert all(item["calibration_ref"] == calibration[0]["evidence_id"] for item in linear)
-    assert len(angular) == 3
-    assert {item["method_id"] for item in angular} == {
+    assert {item["method_id"] for item in craniom_angular} == {
         "CRANIOM_U1_FRANKFORT_DEG_V1",
         "CRANIOM_L1_DOWNS_DEG_V1",
         "CRANIOM_INTERINCISAL_DEG_V1",
     }
-    assert all(item["calibration_ref"] is None for item in angular)
-    assert all(calibration[0]["evidence_id"] not in item["evidence_refs"] for item in angular)
+    assert all(item["calibration_ref"] is None for item in craniom_angular)
+    assert all(calibration[0]["evidence_id"] not in item["evidence_refs"] for item in craniom_angular)
+
+    assert {item["method_id"] for item in steiner} == {
+        "STEINER_SNA_DEG_V1",
+        "STEINER_SNB_DEG_V1",
+        "STEINER_ANB_DEG_V1",
+        "STEINER_U1_NA_DEG_V1",
+        "STEINER_L1_NB_DEG_V1",
+    }
+    assert all(item["requires_calibration"] is False for item in steiner)
+    assert all(item["calibration_ref"] is None for item in steiner)
 
 
 def test_calibration_rejects_runtime_landmarks_different_from_persisted_evidence():
