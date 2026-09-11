@@ -67,6 +67,11 @@ def _thumbnail_map(db: Session, *, employer_id: int, patient_id: int, parent_ids
             ClinicalAsset.source_kind == "DERIVED",
             ClinicalAsset.parent_asset_id.in_(parent_ids),
             ClinicalAsset.mime_type == "image/jpeg",
+            ClinicalAsset.storage_key.isnot(None),
+            ClinicalAsset.storage_format.isnot(None),
+            ClinicalAsset.stored_at.isnot(None),
+            ClinicalAsset.sha256.isnot(None),
+            ClinicalAsset.byte_size.isnot(None),
         )
         .order_by(ClinicalAsset.id.desc())
         .all()
@@ -89,7 +94,7 @@ def list_patient_assets(
     """Return the authenticated patient's primary clinical-media timeline.
 
     DERIVED assets are intentionally hidden from the timeline and only referenced as
-    thumbnails. Storage locators and hashes never leave the backend.
+    verified stored thumbnails. Storage locators and hashes never leave the backend.
     """
     _require_patient_permission(current_user)
     assert_patient_access(patient_id, current_user, db)
