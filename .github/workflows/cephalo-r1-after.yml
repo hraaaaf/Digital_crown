@@ -9,6 +9,7 @@ on:
       - frontend/src/features/ortho/cephaloCalibration.ts
       - frontend/src/features/ortho/cephaloCalibration.test.ts
       - frontend/src/features/ortho/cephaloRepository.ts
+      - frontend/src/features/ortho/cephaloRepository.test.ts
       - frontend/src/features/ortho/components/Step1Cephalo.tsx
 
 permissions:
@@ -43,7 +44,7 @@ jobs:
 
       - name: Targeted R1 provenance tests
         working-directory: frontend
-        run: npx vitest run src/features/ortho/cephaloCalibration.test.ts src/features/ortho/cephaloUtils.test.ts
+        run: npx vitest run src/features/ortho/cephaloCalibration.test.ts src/features/ortho/cephaloRepository.test.ts src/features/ortho/cephaloUtils.test.ts
 
       - name: Install ephemeral Playwright
         working-directory: frontend
