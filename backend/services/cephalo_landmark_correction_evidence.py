@@ -1,9 +1,4 @@
-"""Audited landmark-edit transition for persisted cephalometric evidence.
-
-The transition distinguishes unchanged points from clinician edits, preserves the
-original SRPose38 coordinates, rematerializes all active analysis geometry, and keeps
-an explicit set of current landmark evidence refs so omitted points never resurrect.
-"""
+"""Audited landmark-edit transition for persisted cephalometric evidence."""
 from __future__ import annotations
 
 import datetime as dt
@@ -32,16 +27,14 @@ from backend.services.cephalo_steiner_evidence_adapter import (
     adapt_steiner_skeletal_measurements,
     materialize_steiner_skeletal_constructions,
 )
+from backend.services.cephalo_steiner_vertical_evidence import (
+    adapt_steiner_vertical_measurements,
+    materialize_steiner_vertical_constructions,
+)
 
 _DOWNSTREAM_KEYS = (
-    "normative_evaluations",
-    "findings",
-    "diagnoses",
-    "problems",
-    "objectives",
-    "treatment_options",
-    "validations",
-    "final_plans",
+    "normative_evaluations", "findings", "diagnoses", "problems", "objectives",
+    "treatment_options", "validations", "final_plans",
 )
 
 
@@ -59,22 +52,18 @@ def _history(previous: Mapping[str, Any]) -> list[dict[str, Any]]:
     history = previous.get("history", [])
     if not isinstance(history, list):
         raise CephaloRuntimeEvidenceError("Persisted evidence history must be a list")
-    return [
-        *history,
-        {
-            "revision": previous.get("revision"),
-            "sources": previous.get("sources", []),
-            "landmarks": previous.get("landmarks", []),
-            "current_landmark_refs": previous.get("current_landmark_refs"),
-            "constructions": previous.get("constructions", []),
-            "measurements": previous.get("measurements", []),
-        },
-    ]
+    return [*history, {
+        "revision": previous.get("revision"),
+        "sources": previous.get("sources", []),
+        "landmarks": previous.get("landmarks", []),
+        "current_landmark_refs": previous.get("current_landmark_refs"),
+        "constructions": previous.get("constructions", []),
+        "measurements": previous.get("measurements", []),
+    }]
 
 
 def _current_landmark_map(
-    landmarks: Sequence[LandmarkEvidence],
-    current_refs: Sequence[str] | None = None,
+    landmarks: Sequence[LandmarkEvidence], current_refs: Sequence[str] | None = None,
 ) -> dict[str, LandmarkEvidence]:
     by_ref = {item.evidence_id: item for item in landmarks}
     if current_refs is not None:
@@ -90,31 +79,23 @@ def _current_landmark_map(
             if item is None:
                 raise CephaloRuntimeEvidenceError(f"Current landmark ref does not resolve: {ref}")
             if item.landmark_id in selected:
-                raise CephaloRuntimeEvidenceError(
-                    f"Multiple current evidence objects for landmark {item.landmark_id}"
-                )
+                raise CephaloRuntimeEvidenceError(f"Multiple current evidence objects for landmark {item.landmark_id}")
             selected[item.landmark_id] = item
         return selected
-
     grouped: dict[str, list[LandmarkEvidence]] = {}
     for item in landmarks:
         grouped.setdefault(item.landmark_id, []).append(item)
-
     current: dict[str, LandmarkEvidence] = {}
     for landmark_id, candidates in grouped.items():
         manual = [item for item in candidates if item.origin != LandmarkOrigin.SRPOSE38_AUTO]
         if len(manual) > 1:
-            raise CephaloRuntimeEvidenceError(
-                f"Multiple current manual evidence objects for landmark {landmark_id}"
-            )
+            raise CephaloRuntimeEvidenceError(f"Multiple current manual evidence objects for landmark {landmark_id}")
         if manual:
             current[landmark_id] = manual[0]
             continue
         auto = [item for item in candidates if item.origin == LandmarkOrigin.SRPOSE38_AUTO]
         if len(auto) != 1:
-            raise CephaloRuntimeEvidenceError(
-                f"Ambiguous automatic evidence for landmark {landmark_id}"
-            )
+            raise CephaloRuntimeEvidenceError(f"Ambiguous automatic evidence for landmark {landmark_id}")
         current[landmark_id] = auto[0]
     return current
 
@@ -127,18 +108,11 @@ def _raw_map(raw_landmarks: Sequence[Mapping[str, Any]]) -> dict[str, tuple[floa
             raise CephaloRuntimeEvidenceError("Runtime landmark id must be non-empty")
         if landmark_id in result:
             raise CephaloRuntimeEvidenceError(f"Duplicate runtime landmark id: {landmark_id}")
-        result[landmark_id] = (
-            _finite(raw.get("x"), f"{landmark_id}.x"),
-            _finite(raw.get("y"), f"{landmark_id}.y"),
-        )
+        result[landmark_id] = (_finite(raw.get("x"), f"{landmark_id}.x"), _finite(raw.get("y"), f"{landmark_id}.y"))
     return result
 
 
-def landmark_submission_changed(
-    previous_payload: Mapping[str, Any],
-    runtime_landmarks: Sequence[Mapping[str, Any]],
-) -> bool:
-    """Return whether the submitted point set/coordinates differ from current evidence."""
+def landmark_submission_changed(previous_payload: Mapping[str, Any], runtime_landmarks: Sequence[Mapping[str, Any]]) -> bool:
     if previous_payload.get("schema_version") != EVIDENCE_SCHEMA_VERSION:
         raise CephaloRuntimeEvidenceError("Unsupported persisted evidence schema version")
     landmarks = [LandmarkEvidence.model_validate(raw) for raw in previous_payload.get("landmarks", [])]
@@ -149,66 +123,35 @@ def landmark_submission_changed(
     return any(raw[key] != (current[key].x, current[key].y) for key in raw)
 
 
-def _edited_landmark(
-    *,
-    previous: LandmarkEvidence | None,
-    landmark_id: str,
-    coords: tuple[float, float],
-    source_ref: str,
-    case_id: str,
-    revision: int,
-    clinician_id: str,
-    validated_at: dt.datetime,
-) -> LandmarkEvidence:
+def _edited_landmark(*, previous: LandmarkEvidence | None, landmark_id: str, coords: tuple[float, float], source_ref: str, case_id: str, revision: int, clinician_id: str, validated_at: dt.datetime) -> LandmarkEvidence:
     common = dict(
-        evidence_id=f"landmark:{case_id}:r{revision}:{landmark_id}",
-        landmark_id=landmark_id,
-        x=coords[0],
-        y=coords[1],
-        source_image_ref=source_ref,
-        evidence_refs=[source_ref],
-        validated_by=clinician_id,
-        validated_at=validated_at,
+        evidence_id=f"landmark:{case_id}:r{revision}:{landmark_id}", landmark_id=landmark_id,
+        x=coords[0], y=coords[1], source_image_ref=source_ref, evidence_refs=[source_ref],
+        validated_by=clinician_id, validated_at=validated_at,
         evidence_status=EvidenceStatus.CLINICIAN_VALIDATED,
     )
     if previous is None or previous.origin == LandmarkOrigin.MANUAL:
         return LandmarkEvidence(origin=LandmarkOrigin.MANUAL, **common)
-
     if previous.origin == LandmarkOrigin.SRPOSE38_AUTO:
         original_x, original_y = previous.x, previous.y
     else:
         original_x, original_y = previous.original_auto_x, previous.original_auto_y
         if original_x is None or original_y is None:
-            raise CephaloRuntimeEvidenceError(
-                f"Corrected landmark {landmark_id} lost original automatic coordinates"
-            )
-
-    return LandmarkEvidence(
-        origin=LandmarkOrigin.MANUAL_CORRECTED,
-        original_auto_x=original_x,
-        original_auto_y=original_y,
-        **common,
-    )
+            raise CephaloRuntimeEvidenceError(f"Corrected landmark {landmark_id} lost original automatic coordinates")
+    return LandmarkEvidence(origin=LandmarkOrigin.MANUAL_CORRECTED, original_auto_x=original_x, original_auto_y=original_y, **common)
 
 
 def rebuild_evidence_after_landmark_edit(
-    *,
-    previous_payload: Mapping[str, Any],
-    patient_id: int,
-    image_record_id: str,
-    result: CephaloAnalysisResult,
-    runtime_landmarks: Sequence[Mapping[str, Any]],
-    clinician_id: str,
-    validated_at: dt.datetime,
+    *, previous_payload: Mapping[str, Any], patient_id: int, image_record_id: str,
+    result: CephaloAnalysisResult, runtime_landmarks: Sequence[Mapping[str, Any]],
+    clinician_id: str, validated_at: dt.datetime,
 ) -> dict[str, Any]:
-    """Create one clinician-audited landmark revision; unchanged submissions are no-ops."""
     if previous_payload.get("schema_version") != EVIDENCE_SCHEMA_VERSION:
         raise CephaloRuntimeEvidenceError("Unsupported persisted evidence schema version")
     if not clinician_id.strip():
         raise CephaloRuntimeEvidenceError("Landmark edit requires clinician_id")
     if validated_at.tzinfo is None or validated_at.utcoffset() is None:
         raise CephaloRuntimeEvidenceError("Landmark edit timestamp must be timezone-aware")
-
     revision = previous_payload.get("revision")
     case_id = previous_payload.get("case_id")
     if not isinstance(revision, int) or revision < 1:
@@ -220,45 +163,22 @@ def rebuild_evidence_after_landmark_edit(
     landmarks = [LandmarkEvidence.model_validate(raw) for raw in previous_payload.get("landmarks", [])]
     constructions = [ConstructionEvidence.model_validate(raw) for raw in previous_payload.get("constructions", [])]
     measurements = [MeasurementEvidence.model_validate(raw) for raw in previous_payload.get("measurements", [])]
-    validate_case_evidence_graph(
-        EvidenceGraphSnapshot(
-            sources=sources,
-            landmarks=landmarks,
-            constructions=constructions,
-            measurements=measurements,
-        ),
-        patient_id=patient_id,
-        case_id=case_id,
-    )
+    validate_case_evidence_graph(EvidenceGraphSnapshot(sources=sources, landmarks=landmarks, constructions=constructions, measurements=measurements), patient_id=patient_id, case_id=case_id)
 
     ceph_sources = [source for source in sources if source.kind == "lateral_ceph"]
     if len(ceph_sources) != 1 or ceph_sources[0].source_record_id != image_record_id:
         raise CephaloRuntimeEvidenceError("Persisted cephalogram source record mismatch")
     source_ref = ceph_sources[0].evidence_id
-
-    previous_current = _current_landmark_map(
-        landmarks, previous_payload.get("current_landmark_refs")
-    )
+    previous_current = _current_landmark_map(landmarks, previous_payload.get("current_landmark_refs"))
     raw = _raw_map(runtime_landmarks)
-    changed = set(raw) != set(previous_current) or any(
-        raw[key] != (previous_current[key].x, previous_current[key].y)
-        for key in raw.keys() & previous_current.keys()
-    )
+    changed = set(raw) != set(previous_current) or any(raw[key] != (previous_current[key].x, previous_current[key].y) for key in raw.keys() & previous_current.keys())
     if not changed:
         return dict(previous_payload)
-
     for key in _DOWNSTREAM_KEYS:
         if previous_payload.get(key):
-            raise CephaloRuntimeEvidenceError(
-                f"Landmark edit cannot silently preserve downstream clinical evidence: {key}"
-            )
+            raise CephaloRuntimeEvidenceError(f"Landmark edit cannot silently preserve downstream clinical evidence: {key}")
 
-    original_auto = {
-        item.landmark_id: item
-        for item in landmarks
-        if item.origin == LandmarkOrigin.SRPOSE38_AUTO
-    }
-
+    original_auto = {item.landmark_id: item for item in landmarks if item.origin == LandmarkOrigin.SRPOSE38_AUTO}
     next_revision = revision + 1
     next_current: dict[str, LandmarkEvidence] = {}
     for landmark_id, coords in raw.items():
@@ -266,97 +186,46 @@ def rebuild_evidence_after_landmark_edit(
         if old_current is not None and coords == (old_current.x, old_current.y):
             next_current[landmark_id] = old_current
         else:
-            lineage = old_current or original_auto.get(landmark_id)
             next_current[landmark_id] = _edited_landmark(
-                previous=lineage,
-                landmark_id=landmark_id,
-                coords=coords,
-                source_ref=source_ref,
-                case_id=case_id,
-                revision=next_revision,
-                clinician_id=clinician_id,
-                validated_at=validated_at,
+                previous=old_current or original_auto.get(landmark_id), landmark_id=landmark_id,
+                coords=coords, source_ref=source_ref, case_id=case_id, revision=next_revision,
+                clinician_id=clinician_id, validated_at=validated_at,
             )
 
-    graph_landmarks_by_ref: dict[str, LandmarkEvidence] = {
-        item.evidence_id: item for item in original_auto.values()
-    }
+    graph_landmarks_by_ref = {item.evidence_id: item for item in original_auto.values()}
     for item in next_current.values():
         graph_landmarks_by_ref[item.evidence_id] = item
     graph_landmarks = list(graph_landmarks_by_ref.values())
 
-    craniom_constructions = materialize_craniom_linear_constructions(
-        next_current,
-        construction_namespace=f"construction:{case_id}:r{next_revision}",
-    )
-    steiner_constructions = materialize_steiner_skeletal_constructions(
-        next_current,
-        construction_namespace=f"construction:{case_id}:r{next_revision}:steiner",
-    )
-    steiner_dental_constructions = materialize_steiner_dental_constructions(
-        next_current,
-        construction_namespace=f"construction:{case_id}:r{next_revision}:steiner:dental",
-    )
+    craniom_constructions = materialize_craniom_linear_constructions(next_current, construction_namespace=f"construction:{case_id}:r{next_revision}")
+    steiner_constructions = materialize_steiner_skeletal_constructions(next_current, construction_namespace=f"construction:{case_id}:r{next_revision}:steiner")
+    steiner_dental_constructions = materialize_steiner_dental_constructions(next_current, construction_namespace=f"construction:{case_id}:r{next_revision}:steiner:dental")
+    steiner_vertical_constructions = materialize_steiner_vertical_constructions(next_current, construction_namespace=f"construction:{case_id}:r{next_revision}:steiner:vertical")
 
     calibration_sources = [source for source in sources if source.kind == "calibration"]
     if len(calibration_sources) > 1:
         raise CephaloRuntimeEvidenceError("Multiple current calibration sources")
     calibration_ref = calibration_sources[0].evidence_id if calibration_sources else None
 
-    craniom_measurements = adapt_craniom_linear_measurements(
-        result,
-        measurement_namespace=f"measurement:{case_id}:r{next_revision}",
-        constructions=craniom_constructions,
-        calibration_ref=calibration_ref,
-    )
-    steiner_measurements = adapt_steiner_skeletal_measurements(
-        result,
-        measurement_namespace=f"measurement:{case_id}:r{next_revision}:steiner",
-        constructions=steiner_constructions,
-    )
-    steiner_dental_measurements = adapt_steiner_dental_measurements(
-        measurement_namespace=f"measurement:{case_id}:r{next_revision}:steiner:dental",
-        constructions=steiner_dental_constructions,
-    )
+    craniom_measurements = adapt_craniom_linear_measurements(result, measurement_namespace=f"measurement:{case_id}:r{next_revision}", constructions=craniom_constructions, calibration_ref=calibration_ref)
+    steiner_measurements = adapt_steiner_skeletal_measurements(result, measurement_namespace=f"measurement:{case_id}:r{next_revision}:steiner", constructions=steiner_constructions)
+    steiner_dental_measurements = adapt_steiner_dental_measurements(measurement_namespace=f"measurement:{case_id}:r{next_revision}:steiner:dental", constructions=steiner_dental_constructions)
+    steiner_vertical_measurements = adapt_steiner_vertical_measurements(measurement_namespace=f"measurement:{case_id}:r{next_revision}:steiner:vertical", constructions=steiner_vertical_constructions)
 
-    all_constructions = [
-        *craniom_constructions.values(),
-        *steiner_constructions.values(),
-        *steiner_dental_constructions.values(),
-    ]
-    all_measurements = [
-        *craniom_measurements,
-        *steiner_measurements,
-        *steiner_dental_measurements,
-    ]
-
-    graph = EvidenceGraphSnapshot(
-        sources=sources,
-        landmarks=graph_landmarks,
-        constructions=all_constructions,
-        measurements=all_measurements,
-    )
+    all_constructions = [*craniom_constructions.values(), *steiner_constructions.values(), *steiner_dental_constructions.values(), *steiner_vertical_constructions.values()]
+    all_measurements = [*craniom_measurements, *steiner_measurements, *steiner_dental_measurements, *steiner_vertical_measurements]
+    graph = EvidenceGraphSnapshot(sources=sources, landmarks=graph_landmarks, constructions=all_constructions, measurements=all_measurements)
     validate_case_evidence_graph(graph, patient_id=patient_id, case_id=case_id)
 
     return {
-        "schema_version": EVIDENCE_SCHEMA_VERSION,
-        "case_id": case_id,
-        "revision": next_revision,
-        "revision_reason": "LANDMARK_EDIT",
-        "authority_status": "PERSISTED_NOT_YET_READ_PATH",
-        "legacy_angles_data_role": "COMPATIBILITY_OUTPUT",
-        "history": _history(previous_payload),
+        "schema_version": EVIDENCE_SCHEMA_VERSION, "case_id": case_id, "revision": next_revision,
+        "revision_reason": "LANDMARK_EDIT", "authority_status": "PERSISTED_NOT_YET_READ_PATH",
+        "legacy_angles_data_role": "COMPATIBILITY_OUTPUT", "history": _history(previous_payload),
         "sources": [item.model_dump(mode="json") for item in sources],
         "landmarks": [item.model_dump(mode="json") for item in graph_landmarks],
         "current_landmark_refs": [item.evidence_id for item in next_current.values()],
         "constructions": [item.model_dump(mode="json") for item in all_constructions],
         "measurements": [item.model_dump(mode="json") for item in all_measurements],
-        "normative_evaluations": [],
-        "findings": [],
-        "diagnoses": [],
-        "problems": [],
-        "objectives": [],
-        "treatment_options": [],
-        "validations": [],
-        "final_plans": [],
+        "normative_evaluations": [], "findings": [], "diagnoses": [], "problems": [],
+        "objectives": [], "treatment_options": [], "validations": [], "final_plans": [],
     }
