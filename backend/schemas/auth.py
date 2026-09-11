@@ -108,9 +108,9 @@ class TeamMemberOut(BaseModel):
 class QuotaOut(BaseModel):
     plan: str
     dentistes_used: int
-    dentistes_max: int
+    dentistes_max: Optional[int] = None
     secretaires_used: int
-    secretaires_max: int
+    secretaires_max: Optional[int] = None
     pending_count: int
     can_add_dentiste: bool
     can_add_secretaire: bool

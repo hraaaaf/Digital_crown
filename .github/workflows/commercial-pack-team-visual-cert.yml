@@ -1,0 +1,116 @@
+name: Commercial Pack Team Visual Certification
+
+on:
+  pull_request:
+    paths:
+      - "frontend/src/features/admin/TeamManager.tsx"
+      - ".github/workflows/commercial-pack-team-visual-cert.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  elite-unlimited-after:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Verify source contract
+        run: |
+          grep -Fq "dentistes_max: number | null" frontend/src/features/admin/TeamManager.tsx
+          grep -Fq "secretaires_max: number | null" frontend/src/features/admin/TeamManager.tsx
+          grep -Fq "quota.dentistes_max ?? 'Illimité'" frontend/src/features/admin/TeamManager.tsx
+          grep -Fq "quota.secretaires_max ?? 'Illimité'" frontend/src/features/admin/TeamManager.tsx
+      - name: Install frontend and browser
+        working-directory: frontend
+        run: |
+          npm ci
+          npm install --no-save --package-lock=false playwright@1.55.0
+          npx playwright install chromium
+      - name: Inject ELITE AFTER harness
+        working-directory: frontend
+        run: |
+          cat > commercial-pack-after.html <<'EOF'
+          <!doctype html><html lang="fr"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/><title>Commercial pack AFTER</title></head><body><div id="root"></div><script type="module" src="/src/commercial-pack-after.tsx"></script></body></html>
+          EOF
+          cat > src/commercial-pack-after.tsx <<'EOF'
+          import React from 'react';
+          import { createRoot } from 'react-dom/client';
+          import { MemoryRouter } from 'react-router-dom';
+          import './index.css';
+          import Settings from './pages/Settings';
+          import { useAuthStore } from './stores/useAuthStore';
+          useAuthStore.setState({ user:{ id:1,email:'owner@elite.local',role:'ADMIN',is_superadmin:false,permissions:{} } as any,isAuthenticated:true,isLoading:false,error:null });
+          createRoot(document.getElementById('root')!).render(<MemoryRouter initialEntries={['/settings']}><Settings /></MemoryRouter>);
+          EOF
+          cat > commercial-pack-after.mjs <<'EOF'
+          import { chromium } from 'playwright';
+          import { createServer } from 'vite';
+          import fs from 'node:fs/promises';
+
+          const output='commercial-pack-after';
+          await fs.mkdir(output,{recursive:true});
+          const json=(body,status=200)=>({status,contentType:'application/json',body:JSON.stringify(body)});
+          const profile={nom_praticien:'Dr Elite',nom_cabinet:'Clinique Démo',header_lines_fr:['Dr Elite'],specialty_ids:[],contacts_json:{}};
+          const quota={plan:'ELITE',dentistes_used:7,dentistes_max:null,secretaires_used:18,secretaires_max:null,pending_count:2,can_add_dentiste:true,can_add_secretaire:true};
+          const members=[];
+          const server=await createServer({optimizeDeps:{include:['workbox-window']},server:{host:'127.0.0.1',port:4191,strictPort:true},clearScreen:false});
+          await server.listen();
+          const browser=await chromium.launch();
+          try {
+            for (const width of [390,768,1280]) {
+              const context=await browser.newContext({viewport:{width,height:1000}});
+              const page=await context.newPage();
+              const errors=[];
+              page.on('pageerror',e=>errors.push(`pageerror: ${e.message}`));
+              page.on('console',m=>{if(m.type()==='error')errors.push(`console: ${m.text()}`)});
+              await page.route('**/api/**',async route=>{
+                const url=new URL(route.request().url());
+                if(url.pathname.endsWith('/clinics/me')) return route.fulfill(json(profile));
+                if(url.pathname==='/api/team/' || url.pathname==='/api/team') return route.fulfill(json(members));
+                if(url.pathname==='/api/team/quota') return route.fulfill(json(quota));
+                return route.fulfill(json({}));
+              });
+              await page.goto('http://127.0.0.1:4191/commercial-pack-after.html',{waitUntil:'networkidle'});
+              await page.getByRole('heading',{name:'Paramètres',exact:true}).waitFor({state:'visible',timeout:15000});
+              await page.getByRole('button',{name:'Mon Équipe',exact:true}).click();
+              await page.getByRole('heading',{name:'Mon Équipe',exact:true}).waitFor({state:'visible'});
+
+              const diagnostic=await page.evaluate(() => ({clientWidth:document.documentElement.clientWidth,scrollWidth:document.documentElement.scrollWidth}));
+              await page.screenshot({path:`${output}/elite-team-${width}x1000.png`,fullPage:true,animations:'disabled'});
+              await fs.writeFile(`${output}/elite-team-${width}.layout.json`,JSON.stringify(diagnostic,null,2));
+              await fs.writeFile(`${output}/elite-team-${width}.errors.txt`,errors.join('\n'));
+
+              if(await page.getByText('7/Illimité',{exact:true}).count()!==1) throw new Error('Dentist unlimited quota missing');
+              if(await page.getByText('18/Illimité',{exact:true}).count()!==1) throw new Error('Assistant unlimited quota missing');
+              if(await page.getByText(/Quota atteint/i).count()!==0) throw new Error('ELITE must not render Quota atteint');
+              if(diagnostic.scrollWidth>diagnostic.clientWidth) throw new Error(`Horizontal overflow ${diagnostic.scrollWidth}>${diagnostic.clientWidth}`);
+              if(errors.length) throw new Error(errors.join('\n'));
+              await context.close();
+            }
+          } finally {
+            await browser.close();
+            await server.close();
+          }
+          EOF
+      - name: Capture ELITE AFTER
+        working-directory: frontend
+        run: node commercial-pack-after.mjs
+      - name: Verify ELITE AFTER
+        working-directory: frontend
+        run: |
+          test "$(find commercial-pack-after -name '*.png' | wc -l)" -eq 3
+          if grep -R -n -E 'pageerror:|console:' commercial-pack-after/*.errors.txt; then exit 1; fi
+          node -e "const fs=require('fs'); for (const f of fs.readdirSync('commercial-pack-after').filter(x=>x.endsWith('.layout.json'))) { const x=JSON.parse(fs.readFileSync('commercial-pack-after/'+f)); if(x.scrollWidth>x.clientWidth) process.exit(1); }"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: commercial-pack-team-elite-after
+          path: frontend/commercial-pack-after/
+          if-no-files-found: warn
+          retention-days: 14

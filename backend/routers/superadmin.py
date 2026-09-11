@@ -20,6 +20,11 @@ from backend.schemas.superadmin import (
 )
 from backend.services.license_service import LicenseService
 from backend.services.notification_service import notification_service
+from backend.services.subscription_policy import (
+    count_reserved_team_usage,
+    get_team_limits,
+    plan_can_accommodate,
+)
 
 router = APIRouter(tags=["SuperAdmin"])
 
@@ -295,10 +300,9 @@ def set_client_plan(
 ):
     """Change le pack d'abonnement (GOLD/PREMIUM/ELITE) d'un client.
 
-    Séparé de grant-license (qui gère uniquement la durée) — les essais via
-    code d'activation démarrent tous en GOLD (voir activate_trial_code), le
-    SuperAdmin change ici le pack au cas par cas quand un client en discute
-    après son essai.
+    License validity remains independent. A plan change is rejected if the
+    target finite quota cannot accommodate the client's approved or pending
+    team; no account is silently deactivated.
     """
     user = db.query(models.User).filter(models.User.id == user_id).first()
     if not user:
@@ -307,6 +311,21 @@ def set_client_plan(
     valid_plans = {p.value for p in models.SubscriptionPlan}
     if plan not in valid_plans:
         raise HTTPException(status_code=400, detail=f"Pack invalide. Valeurs autorisées : {sorted(valid_plans)}")
+
+    usage = count_reserved_team_usage(db, user.id)
+    if not plan_can_accommodate(plan, usage):
+        limits = get_team_limits(plan)
+        dentist_limit = "illimité" if limits.dentists is None else str(limits.dentists)
+        secretary_limit = "illimité" if limits.secretaries is None else str(limits.secretaries)
+        raise HTTPException(
+            status_code=409,
+            detail=(
+                f"Passage au pack {plan} impossible : équipe réservée "
+                f"{usage.dentists} dentiste(s) / {usage.secretaries} assistante(s), "
+                f"limites cibles {dentist_limit} / {secretary_limit}. "
+                "Réduisez d'abord l'équipe active ou en attente."
+            ),
+        )
 
     user.subscription_plan = plan
     add_license_history(db, user_id, admin.id, f"SET_PLAN_{plan}")
