@@ -59,7 +59,7 @@ jobs:
           const profile={nom_praticien:'Dr Elite',nom_cabinet:'Clinique Démo',header_lines_fr:['Dr Elite'],specialty_ids:[],contacts_json:{}};
           const quota={plan:'ELITE',dentistes_used:7,dentistes_max:null,secretaires_used:18,secretaires_max:null,pending_count:2,can_add_dentiste:true,can_add_secretaire:true};
           const members=[];
-          const server=await createServer({server:{host:'127.0.0.1',port:4191,strictPort:true},clearScreen:false});
+          const server=await createServer({optimizeDeps:{include:['workbox-window']},server:{host:'127.0.0.1',port:4191,strictPort:true},clearScreen:false});
           await server.listen();
           const browser=await chromium.launch();
           try {
