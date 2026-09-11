@@ -6,6 +6,7 @@ from fastapi import HTTPException
 from backend import models, schemas
 from backend.routers.appointments import (
     _validate_practitioner,
+    check_conflicts,
     create_appointment,
     create_bulk_appointments,
     get_multi_practitioner_appointments,
@@ -107,6 +108,20 @@ def test_invalid_practitioners_are_rejected(db, dentiste):
         assert exc.value.status_code == 403
 
 
+def test_check_conflicts_validates_practitioner_tenant(db, dentiste):
+    foreign = _foreign_owner(db)
+    with pytest.raises(HTTPException) as exc:
+        check_conflicts(
+            datetime_start="2026-09-16T09:00:00",
+            duration_minutes=30,
+            praticien_id=foreign.id,
+            exclude_id=None,
+            db=db,
+            current_user=dentiste,
+        )
+    assert exc.value.status_code == 403
+
+
 def test_update_reassignment_rechecks_practitioner_conflicts(db, dentiste):
     team = _team_user(db, dentiste)
     slot = datetime(2026, 9, 16, 9, 0)
@@ -146,6 +161,30 @@ def test_bulk_detects_internal_collision_before_insert(db, dentiste):
         create_bulk_appointments(payload, db, dentiste)
     assert exc.value.status_code == 409
     assert db.query(models.Appointment).count() == 0
+
+
+def test_bulk_allows_same_slot_for_different_practitioners(db, dentiste):
+    team = _team_user(db, dentiste)
+    slot = datetime(2026, 9, 17, 16, 0)
+    payload = schemas.AppointmentBulkCreate(
+        appointments=[
+            schemas.AppointmentImportItem(
+                patient_name="A",
+                praticien_id=dentiste.id,
+                datetime_start=slot,
+                duration_minutes=30,
+            ),
+            schemas.AppointmentImportItem(
+                patient_name="B",
+                praticien_id=team.id,
+                datetime_start=slot,
+                duration_minutes=30,
+            ),
+        ]
+    )
+
+    created = create_bulk_appointments(payload, db, dentiste)
+    assert {appt.praticien_id for appt in created} == {dentiste.id, team.id}
 
 
 def test_multi_practitioner_groups_real_assignments_and_legacy(db, dentiste):
