@@ -9,6 +9,7 @@ class AppointmentBase(BaseModel):
     model_config = ConfigDict(extra="forbid")
     patient_id: Optional[int] = None
     patient_name: Optional[str] = None
+    praticien_id: Optional[int] = None
     datetime_start: datetime.datetime
     duration_minutes: int = 30
     motif: Optional[str] = None
@@ -35,6 +36,7 @@ class AppointmentUpdate(BaseModel):
     model_config = ConfigDict(extra="forbid")
     patient_id: Optional[int] = None
     patient_name: Optional[str] = None
+    praticien_id: Optional[int] = None
     datetime_start: Optional[datetime.datetime] = None
     duration_minutes: Optional[int] = None
     motif: Optional[str] = None
@@ -65,12 +67,14 @@ class AppointmentImportItem(BaseModel):
     duration_minutes: int
     notes: Optional[str] = None
     patient_id: Optional[int] = None
+    praticien_id: Optional[int] = None
     status: AppointmentStatus = AppointmentStatus.PREVU
     scheduling_type: SchedulingType = SchedulingType.EXACT_TIME
 
 
 class AppointmentBulkCreate(BaseModel):
     appointments: List[AppointmentImportItem]
+
 
 class AppointmentSuggestionOut(BaseModel):
     model_config = ConfigDict(extra="forbid")
