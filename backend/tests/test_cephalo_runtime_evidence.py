@@ -79,17 +79,22 @@ def test_srpose_snapshot_persists_angular_evidence_but_does_not_silently_trust_l
     assert payload["history"] == []
     assert len(payload["landmarks"]) == 38
     assert all(x["origin"] == LandmarkOrigin.SRPOSE38_AUTO.value for x in payload["landmarks"])
-    assert len(payload["measurements"]) == 5
+    assert len(payload["measurements"]) == 6
     by_method = {x["method_id"]: x for x in payload["measurements"]}
-    angular = by_method["CRANIOM_U1_FRANKFORT_DEG_V1"]
-    assert angular["availability_status"] == AvailabilityStatus.AVAILABLE.value
-    assert angular["value"] is not None
-    assert angular["requires_calibration"] is False
-    assert angular["calibration_ref"] is None
+    angular = [x for x in payload["measurements"] if not x["requires_calibration"]]
+    assert {x["method_id"] for x in angular} == {
+        "CRANIOM_U1_FRANKFORT_DEG_V1",
+        "CRANIOM_L1_DOWNS_DEG_V1",
+    }
+    assert all(x["availability_status"] == AvailabilityStatus.AVAILABLE.value for x in angular)
+    assert all(x["value"] is not None for x in angular)
+    assert all(x["calibration_ref"] is None for x in angular)
     linear = [x for x in payload["measurements"] if x["requires_calibration"]]
     assert len(linear) == 4
     assert all(x["value"] is None for x in linear)
     assert all(x["availability_status"] == AvailabilityStatus.NOT_COMPUTABLE.value for x in linear)
+    assert by_method["CRANIOM_U1_FRANKFORT_DEG_V1"]["unit"] == "deg"
+    assert by_method["CRANIOM_L1_DOWNS_DEG_V1"]["unit"] == "deg"
     validate_case_evidence_graph(_graph(payload), patient_id=7, case_id=CASE_ID)
 
 
@@ -146,6 +151,21 @@ def test_u1_runtime_measurement_must_match_typed_landmark_construction():
         )
 
 
+def test_l1_runtime_measurement_must_match_typed_landmark_construction():
+    result = _result(None)
+    bad_l1 = result.metrics.analyse_dentaire.IMPA.model_copy(update={"valeur": 99.9})
+    bad_dental = result.metrics.analyse_dentaire.model_copy(update={"IMPA": bad_l1})
+    bad_metrics = result.metrics.model_copy(update={"analyse_dentaire": bad_dental})
+    inconsistent = result.model_copy(update={"metrics": bad_metrics})
+
+    with pytest.raises(ValueError, match="Runtime IMPA does not match"):
+        build_cephalo_runtime_evidence_payload(
+            patient_id=7, image_record_id="radio.jpg", result=inconsistent,
+            landmarks=_srpose_raw(), inference_mode="SOTA_ONNX_38",
+            case_id=CASE_ID, recorded_at=NOW,
+        )
+
+
 def test_manual_revision_preserves_auto_points_and_full_previous_snapshot_history():
     first = _initial()
     second = build_cephalo_runtime_evidence_payload(
@@ -183,7 +203,7 @@ def test_previous_schema_and_image_identity_are_fail_closed():
         )
 
 
-def test_explicit_two_point_calibration_unlocks_four_linear_and_keeps_u1_uncalibrated():
+def test_explicit_two_point_calibration_unlocks_four_linear_and_keeps_angular_uncalibrated():
     payload = build_cephalo_runtime_evidence_payload(
         patient_id=7,
         image_record_id="radio.jpg",
@@ -199,14 +219,17 @@ def test_explicit_two_point_calibration_unlocks_four_linear_and_keeps_u1_uncalib
     calibration = [x for x in payload["sources"] if x["kind"] == "calibration"]
     assert len(calibration) == 1
     assert calibration[0]["quality_status"] == "VERIFIED_MANUAL_TWO_POINT"
-    assert len(payload["measurements"]) == 5
+    assert len(payload["measurements"]) == 6
     assert all(x["availability_status"] == AvailabilityStatus.AVAILABLE.value for x in payload["measurements"])
     assert all(x["value"] is not None for x in payload["measurements"])
     linear = [x for x in payload["measurements"] if x["requires_calibration"]]
     angular = [x for x in payload["measurements"] if not x["requires_calibration"]]
     assert len(linear) == 4
     assert all(x["calibration_ref"] == calibration[0]["evidence_id"] for x in linear)
-    assert len(angular) == 1
-    assert angular[0]["method_id"] == "CRANIOM_U1_FRANKFORT_DEG_V1"
-    assert angular[0]["calibration_ref"] is None
+    assert len(angular) == 2
+    assert {x["method_id"] for x in angular} == {
+        "CRANIOM_U1_FRANKFORT_DEG_V1",
+        "CRANIOM_L1_DOWNS_DEG_V1",
+    }
+    assert all(x["calibration_ref"] is None for x in angular)
     validate_case_evidence_graph(_graph(payload), patient_id=7, case_id=CASE_ID)

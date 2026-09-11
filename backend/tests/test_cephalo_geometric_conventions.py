@@ -15,7 +15,9 @@ from backend.services.cephalo_construction_evidence_adapter import (
 from backend.services.cephalo_geometric_conventions import (
     ACTIVE_CRANIOM_CONVENTIONS,
     BLOCKED_CRANIOM_CONVENTIONS,
+    CRANIOM_L1_DOWNS_SOURCE_REFERENCES,
     CRANIOM_SOURCE_REFERENCES,
+    DOWNS_MANDIBULAR_PLANE_SOURCE_REFERENCES,
     get_active_craniom_convention,
 )
 
@@ -43,6 +45,10 @@ def _complete_landmarks() -> dict[str, LandmarkEvidence]:
         "S": _landmark("S", 5.0, 20.0),
         "U1_apex": _landmark("U1_apex", 40.0, 20.0),
         "U1_incisal": _landmark("U1_incisal", 50.0, 45.0),
+        "L1_apex": _landmark("L1_apex", 45.0, 70.0),
+        "L1_incisal": _landmark("L1_incisal", 50.0, 45.0),
+        "Go": _landmark("Go", 20.0, 80.0),
+        "Me": _landmark("Me", 75.0, 90.0),
     }
 
 
@@ -52,8 +58,8 @@ def test_every_executable_craniom_construction_has_one_active_convention() -> No
         convention = get_active_craniom_convention(definition_id)
         assert convention.constructable is True
         assert convention.required_landmark_ids == required_landmarks
-        assert convention.reference_frame_id == "FH_PO_OR_V1"
-        assert convention.source_references == CRANIOM_SOURCE_REFERENCES
+        assert convention.reference_frame_id is not None
+        assert convention.source_references
 
 
 def test_ab_prime_is_explicitly_frankfort_and_not_ab_double_prime() -> None:
@@ -61,6 +67,7 @@ def test_ab_prime_is_explicitly_frankfort_and_not_ab_double_prime() -> None:
     assert convention.clinical_label == "A'B'"
     assert convention.convention_id == "CRANIOM_AB_PRIME_FH_V1"
     assert convention.reference_frame_id == "FH_PO_OR_V1"
+    assert convention.source_references == CRANIOM_SOURCE_REFERENCES
     assert "DOUBLE_PRIME" not in convention.convention_id
 
     blocked = BLOCKED_CRANIOM_CONVENTIONS[
@@ -89,6 +96,18 @@ def test_r4_u1_frankfort_convention_is_explicit_and_source_bound() -> None:
     assert convention.source_references == CRANIOM_SOURCE_REFERENCES
 
 
+def test_r4_l1_downs_convention_is_explicit_and_source_bound() -> None:
+    convention = get_active_craniom_convention("CRANIOM_L1_TO_DOWNS_MP_V1")
+    assert convention.convention_id == "CRANIOM_L1_DOWNS_ANGLE_V1"
+    assert convention.clinical_label == "Incisive inférieure / plan mandibulaire de Downs"
+    assert convention.required_landmark_ids == ("L1_apex", "L1_incisal", "Go", "Me")
+    assert convention.reference_frame_id == "DOWNS_MP_GO_ME_V1"
+    assert convention.source_references == CRANIOM_L1_DOWNS_SOURCE_REFERENCES
+    assert DOWNS_MANDIBULAR_PLANE_SOURCE_REFERENCES == (
+        "doi:10.1016/0002-9416(48)90015-3",
+    )
+
+
 def test_unknown_craniom_construction_fails_closed() -> None:
     with pytest.raises(ValueError, match="No active geometric convention"):
         get_active_craniom_convention("CRANIOM_UNKNOWN_V1")
@@ -105,6 +124,12 @@ def test_materialized_available_construction_carries_r3_convention_provenance() 
     assert provenance["clinical_label"] == "A'B'"
     assert provenance["reference_frame_id"] == "FH_PO_OR_V1"
     assert provenance["source_references"] == list(CRANIOM_SOURCE_REFERENCES)
+
+    l1_downs = constructions["CRANIOM_L1_TO_DOWNS_MP_V1"]
+    l1_provenance = l1_downs.geometry["geometric_convention"]
+    assert l1_provenance["convention_id"] == "CRANIOM_L1_DOWNS_ANGLE_V1"
+    assert l1_provenance["reference_frame_id"] == "DOWNS_MP_GO_ME_V1"
+    assert l1_provenance["source_references"] == list(CRANIOM_L1_DOWNS_SOURCE_REFERENCES)
 
 
 def test_not_computable_construction_keeps_convention_but_withholds_patient_geometry() -> None:

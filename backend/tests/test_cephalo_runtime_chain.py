@@ -61,8 +61,8 @@ def test_unambiguous_pre_r2_snapshot_remains_readable_and_reports_verified_activ
     assert projected["scientific_read_path"]["authority"] == "EVIDENCE_GRAPH_V1"
     assert projected["scientific_read_path"]["active_chain"] == "VERIFIED"
     assert projected["scientific_read_path"]["current_landmark_count"] == 38
-    assert projected["scientific_read_path"]["current_construction_count"] == 5
-    assert projected["scientific_read_path"]["current_measurement_count"] == 5
+    assert projected["scientific_read_path"]["current_construction_count"] == 6
+    assert projected["scientific_read_path"]["current_measurement_count"] == 6
 
 
 def test_get_fails_closed_when_historical_landmark_makes_current_authority_ambiguous():
@@ -158,18 +158,21 @@ def test_creation_edit_calibration_recalculation_and_get_keep_one_active_chain()
     assert projected["scientific_read_path"]["active_chain"] == "VERIFIED"
     assert projected["scientific_read_path"]["revision"] == 4
     assert projected["scientific_read_path"]["current_landmark_count"] == 38
-    assert projected["scientific_read_path"]["current_construction_count"] == 5
-    assert projected["scientific_read_path"]["current_measurement_count"] == 5
+    assert projected["scientific_read_path"]["current_construction_count"] == 6
+    assert projected["scientific_read_path"]["current_measurement_count"] == 6
     assert all(
         measurement["calibration_ref"] is not None
         for measurement in revision4["measurements"]
         if measurement["availability_status"] == "AVAILABLE"
         and measurement["requires_calibration"]
     )
-    u1 = next(
+    angular = [
         measurement for measurement in revision4["measurements"]
-        if measurement["method_id"] == "CRANIOM_U1_FRANKFORT_DEG_V1"
-    )
-    assert u1["availability_status"] == "AVAILABLE"
-    assert u1["requires_calibration"] is False
-    assert u1["calibration_ref"] is None
+        if not measurement["requires_calibration"]
+    ]
+    assert {measurement["method_id"] for measurement in angular} == {
+        "CRANIOM_U1_FRANKFORT_DEG_V1",
+        "CRANIOM_L1_DOWNS_DEG_V1",
+    }
+    assert all(measurement["availability_status"] == "AVAILABLE" for measurement in angular)
+    assert all(measurement["calibration_ref"] is None for measurement in angular)

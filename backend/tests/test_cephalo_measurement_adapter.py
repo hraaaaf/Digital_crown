@@ -35,6 +35,8 @@ def _constructions():
         geometry = {"kind": "synthetic_test_construction"}
         if definition_id == "CRANIOM_U1_TO_FRANKFORT_V1":
             geometry["computed_angle_deg"] = 111.8
+        elif definition_id == "CRANIOM_L1_TO_DOWNS_MP_V1":
+            geometry["computed_angle_deg"] = 92.7
         constructions[definition_id] = ConstructionEvidence(
             construction_id=f"construction:{definition_id}",
             definition_id=definition_id,
@@ -50,7 +52,7 @@ def _by_name(measurements):
     return {m.measurement_id.rsplit(":", 1)[1]: m for m in measurements}
 
 
-def test_adapter_emits_certified_craniom_measurements_including_r4_u1_frankfort():
+def test_adapter_emits_certified_craniom_measurements_including_r4_angulars():
     result = CephaloEngine(mm_per_pixel=0.2).calculate_metrics(_points())
 
     measurements = adapt_craniom_linear_measurements(
@@ -66,6 +68,7 @@ def test_adapter_emits_certified_craniom_measurements_including_r4_u1_frankfort(
         "cephalo:42:Decalage_A_B",
         "cephalo:42:Profondeur_Faciale",
         "cephalo:42:I_Francfort",
+        "cephalo:42:IMPA",
     ]
     assert all(m.analysis_id == "CRANIOM" for m in measurements)
     assert all(m.availability_status == AvailabilityStatus.AVAILABLE for m in measurements)
@@ -75,11 +78,15 @@ def test_adapter_emits_certified_craniom_measurements_including_r4_u1_frankfort(
         assert by_name[name].unit == "mm"
         assert by_name[name].requires_calibration is True
         assert by_name[name].calibration_ref == "source:calibration:42"
-    assert by_name["I_Francfort"].unit == "deg"
-    assert by_name["I_Francfort"].requires_calibration is False
-    assert by_name["I_Francfort"].calibration_ref is None
-    assert by_name["I_Francfort"].value == 111.8
+
+    for name, expected in (("I_Francfort", 111.8), ("IMPA", 92.7)):
+        assert by_name[name].unit == "deg"
+        assert by_name[name].requires_calibration is False
+        assert by_name[name].calibration_ref is None
+        assert by_name[name].value == expected
+
     assert by_name["I_Francfort"].value == result.metrics.analyse_dentaire.I_Francfort.valeur
+    assert by_name["IMPA"].value == result.metrics.analyse_dentaire.IMPA.valeur
 
 
 def test_without_calibration_only_linear_values_are_not_computable():
@@ -98,11 +105,14 @@ def test_without_calibration_only_linear_values_are_not_computable():
         assert by_name[name].availability_status == AvailabilityStatus.NOT_COMPUTABLE
         assert by_name[name].calibration_ref is None
     assert by_name["I_Francfort"].value == 111.8
+    assert by_name["IMPA"].value == 92.7
     assert by_name["I_Francfort"].availability_status == AvailabilityStatus.AVAILABLE
+    assert by_name["IMPA"].availability_status == AvailabilityStatus.AVAILABLE
     assert by_name["I_Francfort"].calibration_ref is None
+    assert by_name["IMPA"].calibration_ref is None
 
 
-def test_missing_pixel_ratio_does_not_block_uncalibrated_angular_measurement():
+def test_missing_pixel_ratio_does_not_block_uncalibrated_angular_measurements():
     result = CephaloEngine(mm_per_pixel=None).calculate_metrics(_points())
 
     measurements = adapt_craniom_linear_measurements(
@@ -118,7 +128,9 @@ def test_missing_pixel_ratio_does_not_block_uncalibrated_angular_measurement():
         for name in ("Situation_A", "Situation_B", "Decalage_A_B", "Profondeur_Faciale")
     )
     assert by_name["I_Francfort"].availability_status == AvailabilityStatus.AVAILABLE
+    assert by_name["IMPA"].availability_status == AvailabilityStatus.AVAILABLE
     assert by_name["I_Francfort"].value == 111.8
+    assert by_name["IMPA"].value == 92.7
 
 
 def test_u1_runtime_value_must_match_typed_construction_geometry():
@@ -129,6 +141,19 @@ def test_u1_runtime_value_must_match_typed_construction_geometry():
         adapt_craniom_linear_measurements(
             result,
             measurement_namespace="cephalo:44b",
+            constructions=_constructions(),
+            calibration_ref=None,
+        )
+
+
+def test_l1_runtime_value_must_match_typed_construction_geometry():
+    result = CephaloEngine(mm_per_pixel=None).calculate_metrics(_points())
+    result.metrics.analyse_dentaire.IMPA.valeur = 99.9
+
+    with pytest.raises(ValueError, match="Runtime IMPA does not match"):
+        adapt_craniom_linear_measurements(
+            result,
+            measurement_namespace="cephalo:44c",
             constructions=_constructions(),
             calibration_ref=None,
         )
@@ -201,6 +226,7 @@ def test_unavailable_construction_makes_only_dependent_measurement_not_computabl
     assert by_name["Situation_B"].availability_status == AvailabilityStatus.AVAILABLE
     assert by_name["Profondeur_Faciale"].availability_status == AvailabilityStatus.AVAILABLE
     assert by_name["I_Francfort"].availability_status == AvailabilityStatus.AVAILABLE
+    assert by_name["IMPA"].availability_status == AvailabilityStatus.AVAILABLE
 
 
 def test_unavailable_u1_construction_blocks_only_u1_measurement():
@@ -219,10 +245,30 @@ def test_unavailable_u1_construction_blocks_only_u1_measurement():
     by_name = _by_name(measurements)
     assert by_name["I_Francfort"].availability_status == AvailabilityStatus.NOT_COMPUTABLE
     assert by_name["I_Francfort"].value is None
+    assert by_name["IMPA"].availability_status == AvailabilityStatus.AVAILABLE
     assert all(
         by_name[name].availability_status == AvailabilityStatus.AVAILABLE
         for name in ("Situation_A", "Situation_B", "Decalage_A_B", "Profondeur_Faciale")
     )
+
+
+def test_unavailable_l1_construction_blocks_only_l1_measurement():
+    result = CephaloEngine(mm_per_pixel=0.2).calculate_metrics(_points())
+    constructions = _constructions()
+    constructions["CRANIOM_L1_TO_DOWNS_MP_V1"] = constructions[
+        "CRANIOM_L1_TO_DOWNS_MP_V1"
+    ].model_copy(update={"availability_status": AvailabilityStatus.NOT_COMPUTABLE})
+
+    measurements = adapt_craniom_linear_measurements(
+        result,
+        measurement_namespace="cephalo:45f",
+        constructions=constructions,
+        calibration_ref="source:calibration:45f",
+    )
+    by_name = _by_name(measurements)
+    assert by_name["IMPA"].availability_status == AvailabilityStatus.NOT_COMPUTABLE
+    assert by_name["IMPA"].value is None
+    assert by_name["I_Francfort"].availability_status == AvailabilityStatus.AVAILABLE
 
 
 def test_adapter_rejects_empty_namespace():

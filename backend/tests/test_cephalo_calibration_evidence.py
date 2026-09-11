@@ -58,7 +58,7 @@ def _calibrated(previous=None, raw=None):
     )
 
 
-def test_manual_calibration_creates_audited_revision_unlocks_linear_and_preserves_u1():
+def test_manual_calibration_creates_audited_revision_unlocks_linear_and_preserves_angular():
     previous = _initial()
     payload = _calibrated(previous)
 
@@ -74,15 +74,20 @@ def test_manual_calibration_creates_audited_revision_unlocks_linear_and_preserve
     assert calibration[0]["metadata"]["method_version"] == "1"
     assert calibration[0]["metadata"]["calibrated_by"] == "99"
 
-    assert len(payload["measurements"]) == 5
-    assert all(item["availability_status"] == "AVAILABLE" for item in payload["measurements"])
-    linear = [item for item in payload["measurements"] if item["requires_calibration"]]
-    angular = [item for item in payload["measurements"] if not item["requires_calibration"]]
+    measurements = payload["measurements"]
+    assert len(measurements) == 6
+    assert all(item["availability_status"] == "AVAILABLE" for item in measurements)
+    linear = [item for item in measurements if item["requires_calibration"]]
+    angular = [item for item in measurements if not item["requires_calibration"]]
     assert len(linear) == 4
     assert all(item["calibration_ref"] == calibration[0]["evidence_id"] for item in linear)
-    assert len(angular) == 1
-    assert angular[0]["method_id"] == "CRANIOM_U1_FRANKFORT_DEG_V1"
-    assert angular[0]["calibration_ref"] is None
+    assert len(angular) == 2
+    assert {item["method_id"] for item in angular} == {
+        "CRANIOM_U1_FRANKFORT_DEG_V1",
+        "CRANIOM_L1_DOWNS_DEG_V1",
+    }
+    assert all(item["calibration_ref"] is None for item in angular)
+    assert all(calibration[0]["evidence_id"] not in item["evidence_refs"] for item in angular)
 
 
 def test_calibration_rejects_runtime_landmarks_different_from_persisted_evidence():

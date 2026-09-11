@@ -26,6 +26,10 @@ def _landmark(landmark_id: str, *, source: str = "source:ceph:1", availability=A
         "S": (10.0, 10.0),
         "U1_apex": (20.0, 25.0),
         "U1_incisal": (24.0, 35.0),
+        "L1_apex": (20.0, 48.0),
+        "L1_incisal": (23.0, 38.0),
+        "Go": (5.0, 50.0),
+        "Me": (25.0, 55.0),
     }
     x, y = coordinates[landmark_id]
     return LandmarkEvidence(
@@ -42,7 +46,10 @@ def _landmark(landmark_id: str, *, source: str = "source:ceph:1", availability=A
 
 
 def _landmarks():
-    ids = ("A", "B", "N", "Po", "Or", "S", "U1_apex", "U1_incisal")
+    ids = (
+        "A", "B", "N", "Po", "Or", "S",
+        "U1_apex", "U1_incisal", "L1_apex", "L1_incisal", "Go", "Me",
+    )
     return {landmark_id: _landmark(landmark_id) for landmark_id in ids}
 
 
@@ -69,7 +76,7 @@ def test_all_required_landmarks_materialize_certified_constructions():
     )
 
     assert set(constructions) == set(CRANIOM_REQUIRED_LANDMARKS)
-    assert len(constructions) == 5
+    assert len(constructions) == 6
     for definition_id, construction in constructions.items():
         assert construction.definition_id == definition_id
         assert construction.definition_version == "1"
@@ -82,7 +89,7 @@ def test_all_required_landmarks_materialize_certified_constructions():
         }
 
 
-def test_missing_or_propagates_not_computable_without_fake_reference():
+def test_missing_or_blocks_only_frankfort_dependent_constructions():
     landmarks = _landmarks()
     landmarks.pop("Or")
 
@@ -90,16 +97,16 @@ def test_missing_or_propagates_not_computable_without_fake_reference():
         landmarks, construction_namespace="cephalo:2:construction"
     )
 
-    assert all(
-        construction.availability_status == AvailabilityStatus.NOT_COMPUTABLE
-        for construction in constructions.values()
-    )
-    for construction in constructions.values():
-        assert "Or" in construction.missing_landmark_ids
-        assert "landmark:Or" not in construction.landmark_refs
-        assert set(construction.geometry) == {"geometric_convention"}
-        assert construction.geometry["geometric_convention"]["reference_frame_id"] == "FH_PO_OR_V1"
-        assert "source_image_ref" not in construction.geometry
+    for definition_id, construction in constructions.items():
+        if "Or" in CRANIOM_REQUIRED_LANDMARKS[definition_id]:
+            assert construction.availability_status == AvailabilityStatus.NOT_COMPUTABLE
+            assert "Or" in construction.missing_landmark_ids
+            assert "landmark:Or" not in construction.landmark_refs
+            assert set(construction.geometry) == {"geometric_convention"}
+            assert "source_image_ref" not in construction.geometry
+        else:
+            assert definition_id == "CRANIOM_L1_TO_DOWNS_MP_V1"
+            assert construction.availability_status == AvailabilityStatus.AVAILABLE
 
 
 def test_missing_a_only_blocks_a_dependent_constructions():
@@ -115,6 +122,7 @@ def test_missing_a_only_blocks_a_dependent_constructions():
     assert constructions["CRANIOM_B_TO_N_VERTICAL_V1"].availability_status == AvailabilityStatus.AVAILABLE
     assert constructions["CRANIOM_S_TO_N_VERTICAL_DEPTH_V1"].availability_status == AvailabilityStatus.AVAILABLE
     assert constructions["CRANIOM_U1_TO_FRANKFORT_V1"].availability_status == AvailabilityStatus.AVAILABLE
+    assert constructions["CRANIOM_L1_TO_DOWNS_MP_V1"].availability_status == AvailabilityStatus.AVAILABLE
 
 
 def test_missing_u1_apex_only_blocks_u1_frankfort():
@@ -131,6 +139,24 @@ def test_missing_u1_apex_only_blocks_u1_frankfort():
         construction.availability_status == AvailabilityStatus.AVAILABLE
         for definition_id, construction in constructions.items()
         if definition_id != "CRANIOM_U1_TO_FRANKFORT_V1"
+    )
+
+
+def test_missing_l1_apex_only_blocks_l1_downs():
+    landmarks = _landmarks()
+    landmarks.pop("L1_apex")
+
+    constructions = materialize_craniom_linear_constructions(
+        landmarks, construction_namespace="cephalo:3c:construction"
+    )
+
+    l1 = constructions["CRANIOM_L1_TO_DOWNS_MP_V1"]
+    assert l1.availability_status == AvailabilityStatus.NOT_COMPUTABLE
+    assert l1.missing_landmark_ids == ["L1_apex"]
+    assert all(
+        construction.availability_status == AvailabilityStatus.AVAILABLE
+        for definition_id, construction in constructions.items()
+        if definition_id != "CRANIOM_L1_TO_DOWNS_MP_V1"
     )
 
 
@@ -160,6 +186,7 @@ def test_mixed_source_images_make_only_affected_constructions_invalid():
     assert constructions["CRANIOM_B_TO_N_VERTICAL_V1"].availability_status == AvailabilityStatus.AVAILABLE
     assert constructions["CRANIOM_S_TO_N_VERTICAL_DEPTH_V1"].availability_status == AvailabilityStatus.AVAILABLE
     assert constructions["CRANIOM_U1_TO_FRANKFORT_V1"].availability_status == AvailabilityStatus.AVAILABLE
+    assert constructions["CRANIOM_L1_TO_DOWNS_MP_V1"].availability_status == AvailabilityStatus.AVAILABLE
 
 
 def test_mapping_key_must_match_canonical_landmark_id():
@@ -192,16 +219,19 @@ def test_materialized_constructions_feed_measurement_adapter_without_free_text_l
         calibration_ref="source:calibration:7",
     )
 
-    assert len(measurements) == 5
+    assert len(measurements) == 6
     assert all(m.availability_status == AvailabilityStatus.AVAILABLE for m in measurements)
     assert all(m.value is not None for m in measurements)
-    u1 = next(m for m in measurements if m.method_id == "CRANIOM_U1_FRANKFORT_DEG_V1")
-    assert u1.unit == "deg"
-    assert u1.requires_calibration is False
-    assert u1.calibration_ref is None
+    angular = [m for m in measurements if not m.requires_calibration]
+    assert {m.method_id for m in angular} == {
+        "CRANIOM_U1_FRANKFORT_DEG_V1",
+        "CRANIOM_L1_DOWNS_DEG_V1",
+    }
+    assert all(m.unit == "deg" for m in angular)
+    assert all(m.calibration_ref is None for m in angular)
 
 
-def test_missing_or_propagates_through_materializer_to_measurements():
+def test_missing_or_propagates_only_to_frankfort_measurements():
     landmarks = _landmarks()
     landmarks.pop("Or")
     constructions = materialize_craniom_linear_constructions(
@@ -216,8 +246,10 @@ def test_missing_or_propagates_through_materializer_to_measurements():
         calibration_ref="source:calibration:8",
     )
 
-    assert all(m.value is None for m in measurements)
-    assert all(
-        m.availability_status == AvailabilityStatus.NOT_COMPUTABLE
-        for m in measurements
-    )
+    by_method = {m.method_id: m for m in measurements}
+    assert by_method["CRANIOM_L1_DOWNS_DEG_V1"].availability_status == AvailabilityStatus.AVAILABLE
+    assert by_method["CRANIOM_L1_DOWNS_DEG_V1"].value is not None
+    for method_id, measurement in by_method.items():
+        if method_id != "CRANIOM_L1_DOWNS_DEG_V1":
+            assert measurement.value is None
+            assert measurement.availability_status == AvailabilityStatus.NOT_COMPUTABLE
