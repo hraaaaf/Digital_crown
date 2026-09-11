@@ -15,31 +15,20 @@ depends_on = None
 
 
 def upgrade() -> None:
-    op.add_column(
-        "appointments",
-        sa.Column("praticien_id", sa.Integer(), nullable=True),
-    )
-    op.create_foreign_key(
-        "fk_appointments_praticien_id_users",
-        "appointments",
-        "users",
-        ["praticien_id"],
-        ["id"],
-        ondelete="SET NULL",
-    )
-    op.create_index(
-        "ix_appointments_praticien_id",
-        "appointments",
-        ["praticien_id"],
-        unique=False,
-    )
+    with op.batch_alter_table("appointments") as batch_op:
+        batch_op.add_column(sa.Column("praticien_id", sa.Integer(), nullable=True))
+        batch_op.create_foreign_key(
+            "fk_appointments_praticien_id_users",
+            "users",
+            ["praticien_id"],
+            ["id"],
+            ondelete="SET NULL",
+        )
+        batch_op.create_index("ix_appointments_praticien_id", ["praticien_id"], unique=False)
 
 
 def downgrade() -> None:
-    op.drop_index("ix_appointments_praticien_id", table_name="appointments")
-    op.drop_constraint(
-        "fk_appointments_praticien_id_users",
-        "appointments",
-        type_="foreignkey",
-    )
-    op.drop_column("appointments", "praticien_id")
+    with op.batch_alter_table("appointments") as batch_op:
+        batch_op.drop_index("ix_appointments_praticien_id")
+        batch_op.drop_constraint("fk_appointments_praticien_id_users", type_="foreignkey")
+        batch_op.drop_column("praticien_id")
