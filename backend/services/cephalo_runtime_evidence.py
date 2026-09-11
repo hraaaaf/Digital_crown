@@ -25,6 +25,10 @@ from backend.services.cephalo_constructions import (
 from backend.services.cephalo_evidence_case_integrity import validate_case_evidence_graph
 from backend.services.cephalo_evidence_graph import EvidenceGraphSnapshot
 from backend.services.cephalo_measurement_adapter import adapt_craniom_linear_measurements
+from backend.services.cephalo_steiner_dental_evidence import (
+    adapt_steiner_dental_measurements,
+    materialize_steiner_dental_constructions,
+)
 from backend.services.cephalo_steiner_evidence_adapter import (
     adapt_steiner_skeletal_measurements,
     materialize_steiner_skeletal_constructions,
@@ -264,6 +268,10 @@ def build_cephalo_runtime_evidence_payload(
     steiner_constructions = materialize_steiner_skeletal_constructions(
         current_by_id, construction_namespace=f"construction:{resolved_case}:r{revision}:steiner",
     )
+    steiner_dental_constructions = materialize_steiner_dental_constructions(
+        current_by_id,
+        construction_namespace=f"construction:{resolved_case}:r{revision}:steiner:dental",
+    )
 
     calibration = _calibration_source(
         patient_id=patient_id, case_id=resolved_case, image_record_id=image_record_id,
@@ -278,9 +286,21 @@ def build_cephalo_runtime_evidence_payload(
         result, measurement_namespace=f"measurement:{resolved_case}:r{revision}:steiner",
         constructions=steiner_constructions,
     )
+    steiner_dental_measurements = adapt_steiner_dental_measurements(
+        measurement_namespace=f"measurement:{resolved_case}:r{revision}:steiner:dental",
+        constructions=steiner_dental_constructions,
+    )
 
-    all_constructions = [*craniom_constructions.values(), *steiner_constructions.values()]
-    all_measurements = [*craniom_measurements, *steiner_measurements]
+    all_constructions = [
+        *craniom_constructions.values(),
+        *steiner_constructions.values(),
+        *steiner_dental_constructions.values(),
+    ]
+    all_measurements = [
+        *craniom_measurements,
+        *steiner_measurements,
+        *steiner_dental_measurements,
+    ]
     sources = [ceph_source] + ([calibration] if calibration else [])
     graph = EvidenceGraphSnapshot(
         sources=sources, landmarks=graph_landmarks,
