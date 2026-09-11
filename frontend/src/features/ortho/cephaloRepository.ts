@@ -34,6 +34,23 @@ export const cephaloRepository = {
   },
 
   /**
+   * Demande au serveur de vérifier le candidat fiducial déjà persisté.
+   * Aucun profil physique n'est sélectionnable côté client.
+   */
+  async autoCalibrate(analysisId: number) {
+    const res = await api.post(`/ia/analyses/${analysisId}/auto-calibrate`, {});
+    return res.data;
+  },
+
+  /**
+   * Confirme facultativement une auto-calibration déjà AUTO_VERIFIED.
+   */
+  async confirmAutoCalibration(analysisId: number) {
+    const res = await api.post(`/ia/analyses/${analysisId}/auto-calibration/confirm`, {});
+    return res.data;
+  },
+
+  /**
    * Applique une calibration mm/pixel manuelle auditée sur une analyse.
    */
   async calibrate(analysisId: number, p1: {x: number, y: number}, p2: {x: number, y: number}, distanceMm: number) {
