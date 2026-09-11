@@ -77,12 +77,18 @@ class CephaloService:
         points_dict = {p["id"]: (p["x"], p["y"]) for p in pts}
 
         from backend.services.calibration_service import calibration_service
-        logger.info("Tentative de calibration automatique...")
-        auto_ratio = calibration_service.detect_mm_per_pixel(file_path)
-        if auto_ratio is None:
-            logger.warning("Auto-calibration unavailable; linear millimeter metrics will not be calculated.")
-        mm_ratio = auto_ratio
-        logger.info("Ratio retenu : %s mm/px (Auto: %s)", mm_ratio, auto_ratio is not None)
+        logger.info("Recherche d'un candidat de calibration automatique...")
+        calibration_candidate = calibration_service.detect_candidate(file_path)
+        candidate_payload = calibration_candidate.to_payload() if calibration_candidate else None
+        if calibration_candidate is None:
+            logger.info("Aucun candidat de réglette détecté; calibration manuelle requise pour les mesures mm.")
+        else:
+            logger.info(
+                "Candidat de réglette détecté à x=%s avec %s graduations; échelle physique non validée.",
+                calibration_candidate.axis_x_px,
+                len(calibration_candidate.tick_positions_y_px),
+            )
+        mm_ratio = None
 
         patient = self.db.query(models.Patient).filter(models.Patient.id == patient_id).first()
         age, sex = _patient_age_and_sex(patient)
@@ -105,12 +111,11 @@ class CephaloService:
             "warning": vision_result.get("warning"),
             "processing_time_ms": vision_result["processing_time_ms"],
         }
-        final_data_dict["calibration_status"] = "verified" if auto_ratio else "unverified"
+        final_data_dict["calibration_status"] = (
+            "candidate_unverified" if calibration_candidate is not None else "unverified"
+        )
+        final_data_dict["calibration_candidate"] = candidate_payload
 
-        # Scientific evidence is persisted atomically inside angles_data while the
-        # existing response contract remains unchanged. Automatic legacy calibration
-        # is deliberately NOT accepted as typed calibration evidence: linear evidence
-        # stays NOT_COMPUTABLE until explicit calibration provenance exists.
         evidence_payload = build_cephalo_runtime_evidence_payload(
             patient_id=patient_id,
             image_record_id=db_path,
@@ -127,11 +132,8 @@ class CephaloService:
             db_path,
             pts,
             persisted_data,
-            mm_per_pixel=mm_ratio,
+            mm_per_pixel=None,
         )
-        if auto_ratio:
-            analysis.is_calibrated = True
-            self.db.commit()
 
         return {
             "status": "success",
@@ -141,6 +143,7 @@ class CephaloService:
             "landmarks": pts,
             "is_calibrated": analysis.is_calibrated,
             "mm_per_pixel": analysis.mm_per_pixel,
+            "calibration_candidate": candidate_payload,
         }
 
     def refine_analysis(
@@ -178,8 +181,6 @@ class CephaloService:
             if isinstance(candidate, dict):
                 previous_payload = candidate
 
-        # A typed calibrated case cannot have its scale rewritten through the general
-        # refinement endpoint. Calibration has its own audited server-side transition.
         if (
             previous_payload is not None
             and mm_per_pixel is not None
@@ -205,7 +206,6 @@ class CephaloService:
 
         final_data_dict = _remove_autonomous_treatment(result.model_dump())
         if ai_diagnostic:
-            # Explicit practitioner-authored content is preserved unchanged.
             final_data_dict["ai_diagnostic"] = ai_diagnostic
         else:
             final_data_dict["ai_diagnostic"] = bilan_ortho_engine.generate_bilan(
@@ -217,8 +217,6 @@ class CephaloService:
 
         final_data_dict["calibration_status"] = "verified" if existing.is_calibrated else "unverified"
 
-        # Legacy analyses without a typed graph remain legacy. Inventing an SRPose or
-        # clinician provenance retrospectively would be worse than admitting it is absent.
         persisted_data = dict(final_data_dict)
         if previous_payload is not None:
             changed = landmark_submission_changed(previous_payload, pts_list)
@@ -235,8 +233,6 @@ class CephaloService:
                     validated_at=dt.datetime.now(dt.timezone.utc),
                 )
             else:
-                # Clinical/free-text edits with unchanged points must not manufacture a
-                # fake LANDMARK_EDIT evidence revision.
                 evidence_payload = previous_payload
             persisted_data[EVIDENCE_GRAPH_KEY] = evidence_payload
 
@@ -264,22 +260,13 @@ class CephaloService:
         _results: schemas.CephaloAnalysisResult,
         cd: schemas.ClinicalData,
     ) -> schemas.ClinicalData:
-        """Preserve practitioner-supplied clinical space discrepancy fail-closed.
-
-        The former implementation converted IMPA deviation with a fixed universal
-        angular-to-space factor and called the result "DDM réelle". That
-        patient-specific correction is not validated by the Scientific Core and
-        is therefore retired. No cephalometric angle changes clinical space here.
-        """
+        """Preserve practitioner-supplied clinical space discrepancy fail-closed."""
         data = cd.model_copy(deep=True)
         components = []
 
         for component in (data.ddm_maxillaire, data.ddm_mandibulaire):
             if component is None:
                 continue
-            # calcul_ddm is the explicit clinical value received from the caller.
-            # Do not reconstruct it from placeholder espace_* fields and do not
-            # manufacture a cephalometric correction.
             component.calcul_ddm_reelle = None
             components.append(component.calcul_ddm)
 

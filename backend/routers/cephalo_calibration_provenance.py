@@ -127,3 +127,10 @@ def calibrate_analysis_with_provenance(
         "mm_per_pixel": mm_per_pixel,
         "is_calibrated": True,
     }
+
+
+# R1 adds an explicit automatic transition next to the existing manual endpoint.
+# Both are mounted under the same canonical IA router and remain distinguishable in
+# persisted provenance.
+from backend.routers.cephalo_auto_calibration import router as auto_calibration_router
+router.include_router(auto_calibration_router)

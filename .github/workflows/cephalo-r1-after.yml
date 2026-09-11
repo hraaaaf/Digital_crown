@@ -1,0 +1,89 @@
+name: Cephalo R1 AFTER
+
+on:
+  pull_request:
+    paths:
+      - .github/workflows/cephalo-r1-after.yml
+      - frontend/scripts/capture-cephalo-r1-after.mjs
+      - frontend/src/features/ortho/CephaloWorkspace.tsx
+      - frontend/src/features/ortho/cephaloCalibration.ts
+      - frontend/src/features/ortho/cephaloCalibration.test.ts
+      - frontend/src/features/ortho/cephaloRepository.ts
+      - frontend/src/features/ortho/cephaloRepository.test.ts
+      - frontend/src/features/ortho/components/Step1Cephalo.tsx
+
+permissions:
+  contents: read
+
+jobs:
+  visual-cert:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout exact PR product HEAD
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+
+      - name: Assert exact product HEAD
+        shell: bash
+        env:
+          PRODUCT_HEAD: ${{ github.event.pull_request.head.sha }}
+        run: test "$(git rev-parse HEAD)" = "$PRODUCT_HEAD"
+
+      - name: Setup Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install frontend
+        working-directory: frontend
+        run: npm ci
+
+      - name: Targeted R1 provenance tests
+        working-directory: frontend
+        run: npx vitest run src/features/ortho/cephaloCalibration.test.ts src/features/ortho/cephaloRepository.test.ts src/features/ortho/cephaloUtils.test.ts
+
+      - name: Install ephemeral Playwright
+        working-directory: frontend
+        run: |
+          npm install --no-save --no-package-lock playwright@1.55.0
+          npx playwright install chromium
+
+      - name: Capture exact-head R1 AFTER
+        working-directory: frontend
+        env:
+          PRODUCT_HEAD: ${{ github.event.pull_request.head.sha }}
+        run: node scripts/capture-cephalo-r1-after.mjs
+
+      - name: Assert AFTER evidence contract
+        working-directory: frontend
+        env:
+          PRODUCT_HEAD: ${{ github.event.pull_request.head.sha }}
+        run: |
+          node --input-type=module <<'NODE'
+          import { readFile } from 'node:fs/promises';
+          const report = JSON.parse(await readFile('cephalo-r1-after-artifacts/report.json', 'utf8'));
+          if (report.productHead !== process.env.PRODUCT_HEAD) throw new Error(`Wrong product HEAD ${report.productHead}`);
+          if (report.phase !== 'AFTER') throw new Error('Wrong phase');
+          if (report.invalidCount !== 0) throw new Error(`Invalid captures: ${report.invalidCount}`);
+          if (report.blockedExternalRequests.length !== 0) throw new Error('External egress attempted');
+          if (report.captures.length !== 3) throw new Error('Expected 3 viewports');
+          for (const capture of report.captures) {
+            if (capture.metrics.horizontalDocumentOverflow) throw new Error(`Overflow at ${capture.viewport}`);
+            if (capture.metrics.assistantClipped) throw new Error(`Assistant clipped at ${capture.viewport}`);
+            if (capture.metrics.headerClipped) throw new Error(`Header clipped at ${capture.viewport}`);
+          }
+          console.log('CEPHALO-R1 AFTER contract certified on exact PR HEAD.');
+          NODE
+
+      - name: Upload R1 AFTER evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cephalo-r1-after
+          path: frontend/cephalo-r1-after-artifacts/
+          if-no-files-found: error
+          retention-days: 30
