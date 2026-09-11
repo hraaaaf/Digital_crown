@@ -72,31 +72,44 @@ def _initial():
     )
 
 
-def test_srpose_snapshot_persists_angular_evidence_but_does_not_silently_trust_linear_calibration():
+def test_srpose_snapshot_persists_analysis_scoped_evidence_and_does_not_silently_trust_linear_calibration():
     payload = _initial()
     assert payload["schema_version"] == EVIDENCE_SCHEMA_VERSION
     assert payload["revision"] == 1
     assert payload["history"] == []
     assert len(payload["landmarks"]) == 38
     assert all(x["origin"] == LandmarkOrigin.SRPOSE38_AUTO.value for x in payload["landmarks"])
-    assert len(payload["measurements"]) == 7
-    by_method = {x["method_id"]: x for x in payload["measurements"]}
-    angular = [x for x in payload["measurements"] if not x["requires_calibration"]]
-    assert {x["method_id"] for x in angular} == {
+
+    craniom = [x for x in payload["measurements"] if x["analysis_id"] == "CRANIOM"]
+    steiner = [x for x in payload["measurements"] if x["analysis_id"] == "STEINER"]
+
+    craniom_angular = [x for x in craniom if not x["requires_calibration"]]
+    assert {x["method_id"] for x in craniom_angular} == {
         "CRANIOM_U1_FRANKFORT_DEG_V1",
         "CRANIOM_L1_DOWNS_DEG_V1",
         "CRANIOM_INTERINCISAL_DEG_V1",
     }
-    assert all(x["availability_status"] == AvailabilityStatus.AVAILABLE.value for x in angular)
-    assert all(x["value"] is not None for x in angular)
-    assert all(x["calibration_ref"] is None for x in angular)
-    linear = [x for x in payload["measurements"] if x["requires_calibration"]]
+    assert all(x["availability_status"] == AvailabilityStatus.AVAILABLE.value for x in craniom_angular)
+    assert all(x["value"] is not None for x in craniom_angular)
+    assert all(x["calibration_ref"] is None for x in craniom_angular)
+
+    linear = [x for x in craniom if x["requires_calibration"]]
     assert len(linear) == 4
     assert all(x["value"] is None for x in linear)
     assert all(x["availability_status"] == AvailabilityStatus.NOT_COMPUTABLE.value for x in linear)
-    assert by_method["CRANIOM_U1_FRANKFORT_DEG_V1"]["unit"] == "deg"
-    assert by_method["CRANIOM_L1_DOWNS_DEG_V1"]["unit"] == "deg"
-    assert by_method["CRANIOM_INTERINCISAL_DEG_V1"]["unit"] == "deg"
+
+    assert {x["method_id"] for x in steiner} == {
+        "STEINER_SNA_DEG_V1",
+        "STEINER_SNB_DEG_V1",
+        "STEINER_ANB_DEG_V1",
+        "STEINER_U1_NA_DEG_V1",
+        "STEINER_L1_NB_DEG_V1",
+    }
+    assert all(x["requires_calibration"] is False for x in steiner)
+    assert all(x["calibration_ref"] is None for x in steiner)
+    assert all(x["availability_status"] == AvailabilityStatus.AVAILABLE.value for x in steiner)
+    assert all(x["value"] is not None for x in steiner)
+
     validate_case_evidence_graph(_graph(payload), patient_id=7, case_id=CASE_ID)
 
 
@@ -220,7 +233,7 @@ def test_previous_schema_and_image_identity_are_fail_closed():
         )
 
 
-def test_explicit_two_point_calibration_unlocks_four_linear_and_keeps_angular_uncalibrated():
+def test_explicit_two_point_calibration_unlocks_craniom_linear_and_keeps_all_angular_uncalibrated():
     payload = build_cephalo_runtime_evidence_payload(
         patient_id=7,
         image_record_id="radio.jpg",
@@ -236,18 +249,30 @@ def test_explicit_two_point_calibration_unlocks_four_linear_and_keeps_angular_un
     calibration = [x for x in payload["sources"] if x["kind"] == "calibration"]
     assert len(calibration) == 1
     assert calibration[0]["quality_status"] == "VERIFIED_MANUAL_TWO_POINT"
-    assert len(payload["measurements"]) == 7
     assert all(x["availability_status"] == AvailabilityStatus.AVAILABLE.value for x in payload["measurements"])
     assert all(x["value"] is not None for x in payload["measurements"])
-    linear = [x for x in payload["measurements"] if x["requires_calibration"]]
-    angular = [x for x in payload["measurements"] if not x["requires_calibration"]]
+
+    craniom = [x for x in payload["measurements"] if x["analysis_id"] == "CRANIOM"]
+    steiner = [x for x in payload["measurements"] if x["analysis_id"] == "STEINER"]
+    linear = [x for x in craniom if x["requires_calibration"]]
+    craniom_angular = [x for x in craniom if not x["requires_calibration"]]
+
     assert len(linear) == 4
     assert all(x["calibration_ref"] == calibration[0]["evidence_id"] for x in linear)
-    assert len(angular) == 3
-    assert {x["method_id"] for x in angular} == {
+    assert {x["method_id"] for x in craniom_angular} == {
         "CRANIOM_U1_FRANKFORT_DEG_V1",
         "CRANIOM_L1_DOWNS_DEG_V1",
         "CRANIOM_INTERINCISAL_DEG_V1",
     }
-    assert all(x["calibration_ref"] is None for x in angular)
+    assert all(x["calibration_ref"] is None for x in craniom_angular)
+
+    assert {x["method_id"] for x in steiner} == {
+        "STEINER_SNA_DEG_V1",
+        "STEINER_SNB_DEG_V1",
+        "STEINER_ANB_DEG_V1",
+        "STEINER_U1_NA_DEG_V1",
+        "STEINER_L1_NB_DEG_V1",
+    }
+    assert all(x["requires_calibration"] is False for x in steiner)
+    assert all(x["calibration_ref"] is None for x in steiner)
     validate_case_evidence_graph(_graph(payload), patient_id=7, case_id=CASE_ID)
