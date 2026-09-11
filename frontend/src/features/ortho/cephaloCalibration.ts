@@ -43,7 +43,7 @@ export function deriveCalibrationUiState({
 export function calibrationUiLabel(state: CalibrationUiState): string {
   switch (state) {
     case 'CANDIDATE_UNVERIFIED':
-      return 'Réglette détectée · à vérifier';
+      return 'Réglette à vérifier';
     case 'AUTO_VERIFIED':
       return 'Auto-vérifiée';
     case 'CLINICIAN_CONFIRMED':
