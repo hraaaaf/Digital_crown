@@ -150,7 +150,7 @@ try {
     await page.getByRole('heading', { name: 'Studio Céphalométrique' }).waitFor({ state: 'visible', timeout: 30000 });
     const provenanceButton = page.getByRole('button', { name: /Réglette détectée/i });
     await provenanceButton.waitFor({ state: 'visible', timeout: 30000 });
-    await provenanceButton.click();
+    await provenanceButton.evaluate(button => button.click());
     await page.getByRole('button', { name: /Vérifier automatiquement/i }).waitFor({ state: 'visible', timeout: 30000 });
     await page.waitForTimeout(200);
 
