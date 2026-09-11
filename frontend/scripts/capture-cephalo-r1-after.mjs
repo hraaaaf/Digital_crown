@@ -148,9 +148,9 @@ try {
 
     const response = await page.goto(`${BASE_URL}/cephalo-r1-after.html`, { waitUntil: 'domcontentloaded', timeout: 30000 });
     await page.getByRole('heading', { name: 'Studio Céphalométrique' }).waitFor({ state: 'visible', timeout: 30000 });
-    const provenanceButton = page.getByRole('button', { name: /Réglette détectée/i });
+    const provenanceButton = page.locator('button[title="État de calibration et provenance"]').first();
     await provenanceButton.waitFor({ state: 'visible', timeout: 30000 });
-    await provenanceButton.click();
+    await provenanceButton.evaluate(button => button.click());
     await page.getByRole('button', { name: /Vérifier automatiquement/i }).waitFor({ state: 'visible', timeout: 30000 });
     await page.waitForTimeout(200);
 
@@ -171,7 +171,7 @@ try {
         assistantClipped: Boolean(assistantRect && (assistantRect.left < -1 || assistantRect.right > innerWidth + 1 || assistantRect.top < -1 || assistantRect.bottom > innerHeight + 1)),
         headerRect: headerRect ? { left: headerRect.left, right: headerRect.right, width: headerRect.width } : null,
         headerClipped: Boolean(headerRect && (headerRect.left < -1 || headerRect.right > innerWidth + 1)),
-        hasCandidateLabel: text.includes('réglette détectée'),
+        hasCandidateLabel: text.includes('réglette à vérifier'),
         hasAutoAction: text.includes('vérifier automatiquement'),
         hasManualFallback: text.includes('calibrer manuellement'),
         hasWorkspaceHeading: text.includes('studio céphalométrique'),
