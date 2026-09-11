@@ -20,8 +20,9 @@ The primary Steiner description places the relevant crown point relative to NA/N
 Therefore U1-NA mm and L1-NB mm are `BLOCKED_LANDMARK_CONVENTION`. They must not be implemented from the incisal-edge point unless a separately sourced and versioned convention is adopted.
 
 ## Runtime status
-- SNA / SNB / ANB: typed Steiner evidence active in R5.
-- U1-NA° / L1-NB°: geometry implemented and scientifically gated; typed runtime integration remains a separate sub-slice because no unique clinical runtime fields exist yet.
+- SNA / SNB / ANB: typed Steiner evidence active in R5 and parity-bound to the existing runtime fields.
+- U1-NA° / L1-NB°: typed Steiner evidence active in R5 directly from versioned landmarks; no duplicate legacy clinical field is introduced.
+- U1-NA° / L1-NB° are calibration-independent and fail closed on missing, degenerate or cross-image evidence.
 - U1-NA mm / L1-NB mm: blocked.
 
 ## Safety
