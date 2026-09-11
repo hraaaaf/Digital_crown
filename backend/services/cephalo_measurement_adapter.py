@@ -75,6 +75,15 @@ _CRANIOM_ANGULAR_SPECS: Sequence[_MeasurementSpec] = (
         requires_calibration=False,
         compatibility_optional=True,
     ),
+    _MeasurementSpec(
+        metric_name="IMPA",
+        metric_group="dental",
+        method_id="CRANIOM_L1_DOWNS_DEG_V1",
+        construction_definition_id="CRANIOM_L1_TO_DOWNS_MP_V1",
+        unit="deg",
+        requires_calibration=False,
+        compatibility_optional=True,
+    ),
 )
 
 _CRANIOM_SPECS: Sequence[_MeasurementSpec] = (
@@ -151,10 +160,9 @@ def adapt_craniom_measurements(
 ) -> list[MeasurementEvidence]:
     """Convert the certified CRANIOM geometry set into typed evidence.
 
-    The R4 angular construction is compatibility-optional only so persisted R3
-    snapshots can still undergo calibration-only revisions without fabricating a
-    construction that did not exist in that snapshot. New R4 snapshots always
-    materialize it through the construction adapter.
+    R4 angular constructions remain compatibility-optional only for persisted
+    snapshots created before those constructions existed. New snapshots always
+    materialize the full current certified set.
     """
 
     if not isinstance(measurement_namespace, str) or not measurement_namespace.strip():
@@ -227,8 +235,6 @@ def adapt_craniom_linear_measurements(
     constructions: Mapping[str, ConstructionEvidence],
     calibration_ref: Optional[str],
 ) -> list[MeasurementEvidence]:
-    """Backward-compatible entry point returning the certified CRANIOM set."""
-
     return adapt_craniom_measurements(
         result,
         measurement_namespace=measurement_namespace,
