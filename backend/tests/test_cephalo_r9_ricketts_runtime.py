@@ -143,7 +143,7 @@ def test_ricketts_creation_edit_manual_calibration_edit_and_read_path():
     projected = project_runtime_chain_read_path(angles, patient_id=7)
     assert projected["scientific_read_path"]["active_chain"] == "VERIFIED"
     assert projected["scientific_read_path"]["revision"] == 4
-    _ricketts(projected[EVIDENCE_GRAPH_KEY])
+    _ricketts(revision4)
 
 
 def test_ricketts_auto_calibration_preserves_uncalibrated_measurement_exactly():
