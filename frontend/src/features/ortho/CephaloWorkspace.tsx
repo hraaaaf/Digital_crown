@@ -69,7 +69,7 @@ export const CephaloWorkspace: React.FC<CephaloWorkspaceProps> = ({
       store.setAnalysisId(loaded.id);
       store.setImageSrc(resolveImageSrc(loaded.image_original_path));
       store.setLocal({ landmarks, version: Date.now() });
-      store.setAnglesData(anglesData);
+      store.setAnglesData({ ...anglesData, __calibrationData: loaded.calibration_data || null });
       store.setVisionMetadata(anglesData.vision_metadata || {});
       store.setIsCalibrated(Boolean(loaded.is_calibrated));
       store.setMmPerPixel(typeof loaded.mm_per_pixel === 'number' ? loaded.mm_per_pixel : null);
@@ -299,7 +299,7 @@ export const CephaloWorkspace: React.FC<CephaloWorkspaceProps> = ({
   }
 
   return (
-    <div className="flex flex-col h-full" style={{ background: P.bg }}>
+    <div className="flex min-w-0 flex-col h-full overflow-x-hidden" style={{ background: P.bg }}>
       <AnimatePresence>
         {showStep2Blocker && (
           <Step2BlockerModal
@@ -333,21 +333,21 @@ export const CephaloWorkspace: React.FC<CephaloWorkspaceProps> = ({
         )}
       </AnimatePresence>
 
-      <div className="flex items-center justify-between px-6 py-4 border-b" style={{ borderColor: P.border, background: P.bgPanel }}>
-        <div>
-          <h2 className="text-lg font-bold" style={{ color: P.text }}>Studio Céphalométrique</h2>
-          <p className="text-xs" style={{ color: P.textMuted }}>{patientName}</p>
+      <div className="flex flex-col gap-3 border-b px-4 py-4 sm:px-6 md:flex-row md:items-center md:justify-between" style={{ borderColor: P.border, background: P.bgPanel }}>
+        <div className="min-w-0">
+          <h2 className="truncate text-lg font-bold" style={{ color: P.text }}>Studio Céphalométrique</h2>
+          <p className="truncate text-xs" style={{ color: P.textMuted }}>{patientName}</p>
         </div>
-        <div className="flex items-center gap-4">
-          <div className="flex bg-black/5 rounded-lg p-1">
-             <button onClick={() => setViewMode('studio')} className={`px-3 py-1 text-xs font-bold rounded-md transition-all ${viewMode === 'studio' ? 'bg-white shadow-sm' : 'opacity-50'}`} style={{ color: P.text }}>Actuel</button>
-             <button onClick={() => setViewMode('history')} className={`px-3 py-1 text-xs font-bold rounded-md transition-all ${viewMode === 'history' ? 'bg-white shadow-sm' : 'opacity-50'}`} style={{ color: P.text }}>Historique</button>
+        <div className="flex min-w-0 flex-wrap items-center gap-2 sm:gap-4">
+          <div className="flex shrink-0 bg-black/5 rounded-lg p-1">
+             <button onClick={() => setViewMode('studio')} className={`px-2.5 py-1 text-xs font-bold rounded-md transition-all sm:px-3 ${viewMode === 'studio' ? 'bg-white shadow-sm' : 'opacity-50'}`} style={{ color: P.text }}>Actuel</button>
+             <button onClick={() => setViewMode('history')} className={`px-2.5 py-1 text-xs font-bold rounded-md transition-all sm:px-3 ${viewMode === 'history' ? 'bg-white shadow-sm' : 'opacity-50'}`} style={{ color: P.text }}>Historique</button>
           </div>
           <SyncBadge state={syncState} P={P} />
           <button
             onClick={handleSave}
             disabled={!analysisId || isSaving}
-            className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold transition-all disabled:opacity-50 shadow-sm hover:shadow-md"
+            className="flex shrink-0 items-center gap-2 rounded-xl px-3 py-2 text-sm font-bold transition-all disabled:opacity-50 shadow-sm hover:shadow-md sm:px-4"
             style={{ background: P.bgCard, border: `1px solid ${P.border}`, color: P.text }}
           >
             {isSaving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
@@ -356,7 +356,7 @@ export const CephaloWorkspace: React.FC<CephaloWorkspaceProps> = ({
         </div>
       </div>
 
-      <div data-tour="cephalo-stepper" className="flex items-center gap-2 px-6 py-4 overflow-x-auto" style={{ background: P.bg }}>
+      <div data-tour="cephalo-stepper" className="flex max-w-full items-center gap-2 overflow-x-auto px-4 py-4 sm:px-6" style={{ background: P.bg }}>
         <StepTab id={1} label="Céphalométrie" isActive={step === 1} isCompleted={completedSteps.has(1)} onClick={() => goToStep(1)} P={P} />
         <ChevronRight size={16} style={{ color: P.textDim, opacity: 0.5 }} />
         <StepTab id={2} label="Moulages" isActive={step === 2} isCompleted={completedSteps.has(2)} onClick={() => goToStep(2)} P={P} />
@@ -368,7 +368,7 @@ export const CephaloWorkspace: React.FC<CephaloWorkspaceProps> = ({
 
       <AnimatePresence>
         {stepError && (
-          <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="px-6">
+          <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="px-4 sm:px-6">
             <div className="flex items-center gap-2 px-4 py-3 rounded-lg text-sm" style={{ background: `${P.accentError}15`, border: `1px solid ${P.accentError}40`, color: P.accentError }}>
               <AlertCircle size={16} />
               {stepError}
@@ -377,8 +377,8 @@ export const CephaloWorkspace: React.FC<CephaloWorkspaceProps> = ({
         )}
       </AnimatePresence>
 
-      <div ref={scrollContainerRef} className="flex-1 overflow-auto p-6 scroll-smooth" style={{ background: P.bg }}>
-        <div className="max-w-4xl mx-auto">
+      <div ref={scrollContainerRef} className="min-w-0 flex-1 overflow-auto p-3 scroll-smooth sm:p-6" style={{ background: P.bg }}>
+        <div className="mx-auto min-w-0 max-w-4xl">
           {viewMode === 'studio' ? (
             <>
               {step === 1 && renderStep1()}
@@ -393,7 +393,7 @@ export const CephaloWorkspace: React.FC<CephaloWorkspaceProps> = ({
                   </button>
                 )}
                 {step < 4 && (
-                  <button onClick={() => goToStep((step + 1) as StepId)} className="flex items-center gap-2 px-6 py-3 rounded-xl text-sm font-bold transition-all hover:opacity-90 shadow-lg" style={{ background: P.accent, color: 'white', boxShadow: `0 4px 12px ${P.accent}40` }}>
+                  <button onClick={() => goToStep((step + 1) as StepId)} className="flex items-center gap-2 px-4 py-3 rounded-xl text-sm font-bold transition-all hover:opacity-90 shadow-lg sm:px-6" style={{ background: P.accent, color: 'white', boxShadow: `0 4px 12px ${P.accent}40` }}>
                     {step === 1 && 'Passer aux moulages'}
                     {step === 2 && 'Passer à la synthèse'}
                     {step === 3 && 'Préparer les documents et la stratégie'}
