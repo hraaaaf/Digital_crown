@@ -122,6 +122,26 @@ def _raw_value(result: CephaloAnalysisResult, spec: _MeasurementSpec) -> Optiona
     return getattr(group, spec.metric_name).valeur
 
 
+def _verified_angular_value(
+    spec: _MeasurementSpec,
+    construction: ConstructionEvidence,
+    raw_value: Optional[float],
+) -> float:
+    computed = construction.geometry.get("computed_angle_deg")
+    if not isinstance(computed, (int, float)) or not math.isfinite(float(computed)):
+        raise ValueError(
+            f"Available construction {spec.construction_definition_id} lacks finite computed_angle_deg"
+        )
+    computed_value = float(computed)
+    if raw_value is None or not math.isfinite(raw_value) or not math.isclose(
+        raw_value, computed_value, rel_tol=0.0, abs_tol=1e-12
+    ):
+        raise ValueError(
+            f"Runtime {spec.metric_name} does not match typed construction geometry"
+        )
+    return computed_value
+
+
 def adapt_craniom_measurements(
     result: CephaloAnalysisResult,
     *,
@@ -161,15 +181,18 @@ def adapt_craniom_measurements(
 
         availability = AvailabilityStatus.AVAILABLE
         value: Optional[float] = raw_value
-        if raw_value is not None and not math.isfinite(raw_value):
-            availability = AvailabilityStatus.INVALID
-            value = None
-        elif raw_value is None or construction.availability_status != AvailabilityStatus.AVAILABLE:
+        if construction.availability_status != AvailabilityStatus.AVAILABLE:
             availability = AvailabilityStatus.NOT_COMPUTABLE
             value = None
-        elif spec.requires_calibration and (not ratio_valid or not calibration_available):
-            availability = AvailabilityStatus.NOT_COMPUTABLE
-            value = None
+        elif spec.requires_calibration:
+            if raw_value is not None and not math.isfinite(raw_value):
+                availability = AvailabilityStatus.INVALID
+                value = None
+            elif raw_value is None or not ratio_valid or not calibration_available:
+                availability = AvailabilityStatus.NOT_COMPUTABLE
+                value = None
+        else:
+            value = _verified_angular_value(spec, construction, raw_value)
 
         evidence_refs = [construction_ref]
         effective_calibration_ref: Optional[str] = None
