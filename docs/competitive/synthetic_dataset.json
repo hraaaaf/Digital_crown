@@ -1,0 +1,87 @@
+{
+  "schema_version": 1,
+  "synthetic_only": true,
+  "safety_contract": {
+    "contains_real_patient_data": false,
+    "allowed_target": "isolated test or benchmark database only",
+    "forbidden_target": "cabinet database",
+    "identifier_prefix": "SYN-"
+  },
+  "fixtures": [
+    {
+      "id": "SYN-CABINET-001",
+      "type": "cabinet",
+      "data": {"name": "Synthetic Benchmark Cabinet", "country": "MA", "city": "TEST-RABAT"}
+    },
+    {
+      "id": "SYN-PRACT-001",
+      "type": "practitioner",
+      "data": {"display_name": "Practitioner Synthetic 01", "role": "DENTIST"}
+    },
+    {
+      "id": "SYN-PAT-001",
+      "type": "patient",
+      "data": {"display_name": "Patient Synthetic 001", "birth_year": 1990, "sex": "UNSPECIFIED", "phone": null, "email": null}
+    },
+    {
+      "id": "SYN-PAT-002",
+      "type": "patient",
+      "data": {"display_name": "Patient Synthetic 002", "birth_year": 1985, "sex": "UNSPECIFIED", "phone": null, "email": null}
+    },
+    {
+      "id": "SYN-PAT-ORTHO-001",
+      "type": "patient",
+      "data": {"display_name": "Patient Synthetic Ortho 001", "birth_year": 2005, "sex": "UNSPECIFIED", "phone": null, "email": null}
+    },
+    {
+      "id": "SYN-EVT-001",
+      "type": "clinical_event",
+      "data": {"patient_id": "SYN-PAT-002", "occurred_on": "2026-01-10", "category": "FOLLOW_UP", "summary": "Synthetic prior clinical event"}
+    },
+    {
+      "id": "SYN-DOC-001",
+      "type": "document",
+      "data": {"patient_id": "SYN-PAT-001", "document_type": "LETTER", "title": "Synthetic benchmark document", "content": "Synthetic content only"}
+    },
+    {
+      "id": "SYN-ACT-001",
+      "type": "act",
+      "data": {"patient_id": "SYN-PAT-001", "label": "Synthetic act", "amount_mad": 1000.0}
+    },
+    {
+      "id": "SYN-PAY-001",
+      "type": "payment",
+      "data": {"patient_id": "SYN-PAT-001", "act_id": "SYN-ACT-001", "amount_mad": 250.0, "method": "CASH_SYNTHETIC"}
+    },
+    {
+      "id": "SYN-ORTHO-CASE-001",
+      "type": "ortho_case",
+      "data": {"patient_id": "SYN-PAT-ORTHO-001", "phase": "ACTIVE_SYNTHETIC", "latest_control_on": "2026-08-15", "next_admin_step": "SCHEDULE_CONTROL"}
+    },
+    {
+      "id": "SYN-CEPH-001",
+      "type": "ceph_case",
+      "data": {"patient_id": "SYN-PAT-ORTHO-001", "timepoint": "T0", "image_ref": "synthetic://ceph/t0", "clinical_image": false}
+    },
+    {
+      "id": "SYN-CEPH-002",
+      "type": "ceph_case",
+      "data": {"patient_id": "SYN-PAT-ORTHO-001", "timepoint": "T1", "image_ref": "synthetic://ceph/t1", "clinical_image": false}
+    },
+    {
+      "id": "SYN-MEDIA-SET-T0",
+      "type": "media_set",
+      "data": {"patient_id": "SYN-PAT-ORTHO-001", "timepoint": "T0", "protocol": "ORTHO_PHOTO_SYNTHETIC", "items": ["synthetic://media/t0/front", "synthetic://media/t0/profile"]}
+    },
+    {
+      "id": "SYN-MEDIA-SET-T1",
+      "type": "media_set",
+      "data": {"patient_id": "SYN-PAT-ORTHO-001", "timepoint": "T1", "protocol": "ORTHO_PHOTO_SYNTHETIC", "items": ["synthetic://media/t1/front", "synthetic://media/t1/profile"]}
+    },
+    {
+      "id": "SYN-CONNECTOR-CASE-001",
+      "type": "connector_case",
+      "data": {"patient_id": "SYN-PAT-ORTHO-001", "provider": "SYNTHETIC_PROVIDER", "external_case_id": "SYN-EXT-001"}
+    }
+  ]
+}
