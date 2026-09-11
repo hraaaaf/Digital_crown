@@ -60,6 +60,26 @@ def test_steiner_geometry_matches_existing_runtime_sna_snb_anb():
     assert round(anb, 1) == result.metrics.analyse_osseuse.ANB.valeur
 
 
+def test_steiner_anb_locks_runtime_round_before_subtraction_order():
+    points = {
+        "S": (10.0, 10.0),
+        "N": (20.0, 10.0),
+        "A": (23.927233306464935, 23.036137512059824),
+        "B": (25.854326169271445, 31.666251926499946),
+    }
+    result = CephaloEngine(mm_per_pixel=None).calculate_metrics(points)
+
+    sna_raw = steiner_sna_deg_v1(points["S"], points["N"], points["A"])
+    snb_raw = steiner_snb_deg_v1(points["S"], points["N"], points["B"])
+    anb = steiner_anb_deg_v1(points["S"], points["N"], points["A"], points["B"])
+
+    assert sna_raw is not None and snb_raw is not None and anb is not None
+    assert round(sna_raw - snb_raw, 1) == 1.6
+    assert round(round(sna_raw, 1) - round(snb_raw, 1), 1) == 1.7
+    assert result.metrics.analyse_osseuse.ANB.valeur == 1.7
+    assert round(anb, 1) == result.metrics.analyse_osseuse.ANB.valeur
+
+
 def test_steiner_skeletal_constructions_are_source_bound_and_uncalibrated():
     constructions = materialize_steiner_skeletal_constructions(
         _landmarks(), construction_namespace="construction:steiner:1"
