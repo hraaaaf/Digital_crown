@@ -93,7 +93,11 @@ def test_missing_or_propagates_not_computable_without_fake_reference():
     for construction in constructions.values():
         assert "Or" in construction.missing_landmark_ids
         assert "landmark:Or" not in construction.landmark_refs
-        assert construction.geometry == {}
+        # R3 keeps only immutable convention provenance when patient geometry
+        # cannot be constructed. No executable source-image geometry is invented.
+        assert set(construction.geometry) == {"geometric_convention"}
+        assert construction.geometry["geometric_convention"]["reference_frame_id"] == "FH_PO_OR_V1"
+        assert "source_image_ref" not in construction.geometry
 
 
 def test_missing_a_only_blocks_a_dependent_constructions():

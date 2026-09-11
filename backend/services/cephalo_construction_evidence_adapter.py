@@ -14,6 +14,10 @@ from backend.schemas.cephalo_evidence import (
     ConstructionEvidence,
     LandmarkEvidence,
 )
+from backend.services.cephalo_geometric_conventions import (
+    geometric_convention_metadata,
+    get_active_craniom_convention,
+)
 
 
 @dataclass(frozen=True)
@@ -72,6 +76,24 @@ _CRANIOM_LINEAR_CONSTRUCTIONS: Sequence[_ConstructionSpec] = (
 )
 
 
+def _validate_construction_specs_against_conventions() -> None:
+    """Fail import-time if executable geometry drifts from its R3 convention."""
+
+    for spec in _CRANIOM_LINEAR_CONSTRUCTIONS:
+        convention = get_active_craniom_convention(spec.definition_id)
+        if convention.required_landmark_ids != spec.required_landmark_ids:
+            raise RuntimeError(
+                f"Geometric convention landmark drift for {spec.definition_id}"
+            )
+        if convention.reference_frame_id != spec.geometry.get("axis_definition"):
+            raise RuntimeError(
+                f"Geometric convention reference-frame drift for {spec.definition_id}"
+            )
+
+
+_validate_construction_specs_against_conventions()
+
+
 def _collect_dependencies(
     landmarks: Mapping[str, LandmarkEvidence],
     required_ids: tuple[str, ...],
@@ -99,6 +121,14 @@ def _collect_dependencies(
     return refs, unavailable, source_images
 
 
+def _convention_only_geometry(definition_id: str) -> dict[str, object]:
+    """Keep scientific provenance without pretending patient geometry is computable."""
+
+    return {
+        "geometric_convention": geometric_convention_metadata(definition_id),
+    }
+
+
 def materialize_craniom_linear_constructions(
     landmarks: Mapping[str, LandmarkEvidence],
     *,
@@ -108,7 +138,9 @@ def materialize_craniom_linear_constructions(
 
     Missing or unavailable landmarks produce a materialized ``NOT_COMPUTABLE``
     construction rather than a fabricated landmark reference. Landmarks from
-    different source images produce ``INVALID`` construction evidence.
+    different source images produce ``INVALID`` construction evidence. In both
+    fail-closed states, the versioned geometric convention provenance is kept
+    while executable patient geometry is withheld.
     """
 
     if not isinstance(construction_namespace, str) or not construction_namespace.strip():
@@ -121,15 +153,18 @@ def materialize_craniom_linear_constructions(
         )
 
         availability = AvailabilityStatus.AVAILABLE
-        geometry = dict(spec.geometry)
+        geometry: dict[str, object] = dict(spec.geometry)
         if unavailable:
             availability = AvailabilityStatus.NOT_COMPUTABLE
-            geometry = {}
+            geometry = _convention_only_geometry(spec.definition_id)
         elif len(source_images) != 1:
             availability = AvailabilityStatus.INVALID
-            geometry = {}
+            geometry = _convention_only_geometry(spec.definition_id)
         else:
             geometry["source_image_ref"] = next(iter(source_images))
+            geometry["geometric_convention"] = geometric_convention_metadata(
+                spec.definition_id
+            )
 
         materialized[spec.definition_id] = ConstructionEvidence(
             construction_id=f"{construction_namespace}:{spec.definition_id}",
