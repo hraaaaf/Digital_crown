@@ -75,12 +75,12 @@ def steiner_anb_deg_v1(
     point_a: Optional[Point],
     point_b: Optional[Point],
 ) -> Optional[float]:
-    """Steiner ANB as the certified runtime difference SNA-SNB."""
+    """Steiner ANB with exact legacy-runtime rounding parity: round(SNA, 0.1) - round(SNB, 0.1)."""
     sna = steiner_sna_deg_v1(sella, nasion, point_a)
     snb = steiner_snb_deg_v1(sella, nasion, point_b)
     if sna is None or snb is None:
         return None
-    value = sna - snb
+    value = round(sna, 1) - round(snb, 1)
     return value if math.isfinite(value) else None
 
 
