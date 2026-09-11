@@ -175,22 +175,44 @@ Ces points ne rouvrent pas P5 engineering sauf défaut observé.
 
 ## P6 — Document Libre
 
-**État : ✅ engineering convergé + matrice de certification automatisée préparée ; ⏳ exécution/runtime/PDF visuel non fermés.**
+**État : ✅ engineering + CI + runtime/PDF/responsive automatisés certifiés sur PR #405 ; merge/post-merge restant.**
 
 Rapports :
 - `docs/audits/DOCUMENT_STUDIO_P6_DOCUMENT_LIBRE_AUDIT.md` ;
 - historique `docs/audits/DOCUMENT_STUDIO_P3_CERTIFICAT_AUDIT.md` ;
 - statut stack : `docs/audits/DOCUMENT_STUDIO_P4_P6_AFTER_P3_STATUS.md`.
 
-Acquis : validation titre/contenu, toolbar non-submit, contrat/PDF sûr, allowlist markup, document long/multipage, impression fraîche, auto-preview invalide silencieux, dirty-state, permission clinique, archive/réouverture.
+HEAD comportemental certifié avant closeout documentaire : `218e7ef1580e69958f02d9e8319750772f273376`.
 
-Couverture automatisée existante/ajoutée : sécurité markup, permissions, caractères spéciaux, multipage lisible, A4/A5 sur dimensions PDF, destinataire/date personnalisés et tableau Markdown.
+### Engineering acquis
 
-Harness stack : `scripts/certify_document_studio_p3_p6.sh` regroupe régression ciblée P3→P6, full backend, frontend ciblé/full, build et prod-safety fail-closed.
+- validation titre/contenu, toolbar non-submit, contrat/PDF sûr et allowlist markup ;
+- caractères spéciaux et balises déséquilibrées rendus sûrs ;
+- document long/multipage lisible, tableaux Markdown et formats A4/A5 ;
+- destinataire/date personnalisés, alignements et masquage d'en-tête ;
+- impression depuis un PDF frais ;
+- auto-preview invalide silencieux, dirty-state, permission clinique et archive/réouverture ;
+- probe P6 authentifié dédié aux contrôles éditeur 390/768/1280 sans changement produit.
 
-Aucun nouveau P0 statique démontré dans le chantier actuel.
+### Certification observée
 
-Reste : exécuter réellement le harness sur le head final, runtime authentifié, inspection A4/A5/multipage/tableaux/caractères spéciaux, responsive/accessibilité. WYSIWYG/templates = amélioration produit, pas gate sécurité.
+- CI principal `#3183` / run `34528255939` : **success** sur `218e7ef...` ;
+- T2 Runtime Browser `#2191` / run `34528255978` : **success** sur `218e7ef...` ;
+- T2 : `Certify strict runtime PDF` **success** ;
+- T2 : `Execute authenticated browser matrix` **success** ;
+- T2 : `Certify P6 Document Libre editor` **success** ;
+- T2 : `Certify browser print and PDF freshness` **success** ;
+- frontend CI : test suite + build **success** ;
+- captures P6 dédiées 390x844, 768x1024 et 1280x900 : PASS, aucun overflow document ni clipping des contrôles ciblés ;
+- inspection humaine des trois captures : aucune régression visuelle bloquante observée ; score visuel **9/10**, réserve principale = densité mobile non bloquante.
+
+### Hors périmètre engineering
+
+- WYSIWYG et bibliothèque de templates : améliorations produit réversibles, pas gates de sécurité ;
+- certification production sur un cabinet réel ;
+- validation réglementaire humaine si elle devient requise pour un usage donné.
+
+Ces points ne rouvrent pas P6 engineering sauf défaut observé.
 
 ---
 
@@ -295,8 +317,8 @@ Le harness T1 est **préparé mais non exécuté**. Le run T1-C observé (#503 /
 1. **P3 PR #77** : fermer full-repo/runtime/visuel/merge dès qu’une exécution réelle redevient possible.
 2. **P4 Note Honoraires** : engineering/runtime automatisé fermé sur PR #386 ; gates humaines externes séparées.
 3. **P5 Suivi Paiement** : engineering/runtime/PDF/responsive automatisés certifiés sur PR #402 ; merge/post-merge restant après checks du head documentaire final.
-4. **P6 Document Libre** : prochain lot exécutable après fermeture P5.
-5. **P7 stack #81→#86** : A/B/D/F/G engineering fermé ; exécuter le harness/runtime quand l’infrastructure le permet ; P7-C/E nécessitent architecture dédiée ; P7-H est un gate scientifique humain.
+4. **P6 Document Libre** : engineering/runtime/PDF/responsive automatisés certifiés sur PR #405 au HEAD comportemental `218e7ef...` ; closeout documentaire, checks exact-head, merge et post-merge restants.
+5. **P7 stack #81→#86** : prochain lot exécutable après fermeture P6 ; A/B/D/F/G engineering fermé ; exécuter le harness/runtime ; P7-C/E nécessitent architecture dédiée ; P7-H est un gate scientifique humain.
 6. **T1 stack #88→#94** : A→E convergés en engineering ; exécuter le harness T1 puis les checks authentifiés/browser dès qu’une exécution réelle est disponible ; ne pas certifier/merger avant ces preuves.
 7. **T2** : recertification/refonte finale après consolidation des gates précédents.
 
@@ -305,6 +327,8 @@ Le harness T1 est **préparé mais non exécuté**. Le run T1-C observé (#503 /
 Les anciennes indisponibilités GitHub Actions restent documentées historiquement. P4 dispose de runs réels verts sur son HEAD produit certifié : T2 `34413159443` et CI `34413159336`.
 
 P5 dispose de runs réels verts sur son HEAD comportemental `63d33c2c...` : T2 `34520821872` (#2167) et CI `34520821875` (#3156). Les commits documentaires de closeout suivants doivent repasser les checks requis avant merge.
+
+P6 dispose de runs réels verts sur son HEAD comportemental `218e7ef...` : T2 `34528255978` (#2191) et CI `34528255939` (#3183). Le commit documentaire de closeout doit repasser les checks requis avant merge.
 
 Sur T1-C, le run #503 (`31941504118`) a créé trois jobs avec `runner_id=0` et `steps=[]` : aucun test de dépôt n’a donc été exécuté. Aucun PASS n'est revendiqué.
 
