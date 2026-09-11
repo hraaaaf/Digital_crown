@@ -4,6 +4,7 @@
 
 - Produit observé : `a76f2568418d0d7d9465ee24163324047b246c86`.
 - Run de capture : `Cephalo R1 BEFORE` #1 / run `34540754492`.
+- Artefact : `cephalo-r1-before`, ID `10177177213`, SHA-256 `6213c04a5253a6ddbf717d11e5d7fff7f8569399680a2c0a0736afe780d0144e`.
 - Viewports : 390×844, 768×1024, 1280×900.
 - À 390 px : largeur document mesurée 543 px, soit +153 px de débordement horizontal.
 - Le modal manuel tient dans le viewport (384 px de large, 3 px de marge latérale à 390 px).
@@ -71,3 +72,4 @@ CLINICIAN_CONFIRMED :
 - Rapport : `scrollWidth <= innerWidth + 1` pour les 3 viewports.
 - Tests frontend : dérivation des états de provenance + endpoints sans sélection de profil côté client.
 - CI frontend build/tests verte.
+- Revue humaine obligatoire des trois PNG : un rapport DOM vert ne suffit pas si une capture est blanche, vide ou visuellement incohérente.
