@@ -1,6 +1,6 @@
 # Digital Crown — LOT C Media Core
 
-Status: **ACTIVE — C1 CLOSED / C2 CLOSED / C3 NEXT**  
+Status: **ACTIVE — C1 CLOSED / C2 CLOSED / C3 CANDIDATE**  
 Roadmap: `DIGITAL_CROWN_VS_ORTHALIS_ROADMAP.md` / execution scorecard branch remains separate until reconciled.  
 Baseline master for C1: `e319070b4f1b4eb6de8d26845bdc3f54ce0adf49`.
 
@@ -12,7 +12,7 @@ LOT C remains **50 EP** total:
 
 - C1 ClinicalAsset model / metadata / provenance — 8 EP — **CLOSED**
 - C2 storage / hash computation / dedupe / tenant guard — 8 EP — **CLOSED**
-- C3 secure import / derivatives / thumbnails — 8 EP — **NEXT**
+- C3 secure import / derivatives / thumbnails — 8 EP — **CANDIDATE**
 - C4 patient T0/T1/T2 timeline / viewer — 8 EP
 - C5 comparison / search / filters — 8 EP
 - C6 controlled smartphone capture — 5 EP
@@ -100,6 +100,53 @@ Implementation HEAD: `ef5974a9ac9a62906a0619f0c9697868e44ac6d9`.
 
 C2 earns **8 EP** only as execution progress. Competitive score remains **70.0/100** until LOT C closes.
 
+## C3 exact goal
+
+Add one authenticated clinical-media ingestion boundary that validates payload content before persistence, consumes C1/C2 as the only registry/storage truth, and creates controlled thumbnails without leaking internal storage metadata.
+
+### C3 Success
+
+1. Canonical API is `POST /api/patients/{patient_id}/assets/import`; tenant identity is derived from the authenticated user and is never accepted from multipart input.
+2. Existing patient access control and `patients` permission are enforced before reading/persisting media.
+3. C3 supports only payloads with a real parser contract: JPEG, PNG, WebP and PDF. Unsupported audio/video/container formats fail closed rather than trusting extensions.
+4. Maximum import size is 50 MiB; over-limit API payloads return 413 before parser/storage work.
+5. Content type is detected from bytes/signature and then verified by Pillow or PyMuPDF; a claimed MIME mismatch or incompatible filename extension is rejected.
+6. Images are bounded to <=12,000 px per edge and <=80 megapixels; decompression-bomb warnings/errors are rejected.
+7. PDFs must be readable, unencrypted and contain 1..500 pages.
+8. `asset_type` must match validated content: image -> PHOTO/RADIOGRAPH; PDF -> DOCUMENT.
+9. External ingestion cannot claim `DERIVED`; only UPLOAD/IMPORT/DEVICE_CAPTURE are accepted at the C3 boundary.
+10. Validation and thumbnail generation complete in memory before the first encrypted C2 blob write.
+11. Every accepted image/PDF creates a controlled JPEG thumbnail <=512 px max edge as a `DERIVED` child `ClinicalAsset` linked by `parent_asset_id`.
+12. Thumbnail pixels are re-encoded without EXIF/original embedded metadata.
+13. C2 remains storage authority: SHA-256 is server-computed, blobs are AES-GCM encrypted, and opaque tenant-scoped locators remain internal.
+14. API response exposes asset identifiers/clinical metadata only; neither `storage_key` nor SHA-256 is returned.
+15. Validation failure creates no asset row and no C2 blob.
+16. Cross-tenant patient import is rejected by existing access control.
+17. No Cephalo/Panoramic scientific implementation file is changed and no Vercel deployment occurs.
+18. Exact-head CI must pass before C3 can be credited/closed.
+
+## C3 implementation boundaries
+
+- No viewer/timeline UI in C3. That begins in C4 and must follow the mandatory BEFORE -> visual Goal -> implementation -> AFTER 390/768/1280 workflow.
+- No video/audio ingestion until deterministic content validation and derivative policy are designed.
+- No delete/GC policy is introduced. As established in C2, a DB rollback after a verified encrypted write can leave an encrypted unreferenced blob for future governed GC.
+- No raw filesystem path or public blob URL is exposed.
+- Existing document, panoramic and cephalometric media flows are not silently migrated in C3.
+
+## C3 proof targets
+
+- signature + parser validation for JPEG/PNG/WebP/PDF;
+- claimed MIME mismatch and extension mismatch rejection;
+- corrupt/unrecognized content rejection before storage;
+- image and PDF encrypted roundtrip through C2;
+- controlled JPEG derivative linked to original;
+- response excludes storage key/hash;
+- API route mounted exactly once under `/api/patients`;
+- authenticated happy path + cross-tenant denial;
+- failure leaves no `ClinicalAsset` row/blob when validation fails;
+- PR changed-file audit proves zero Cephalo implementation files;
+- exact-head CI success.
+
 ## Safety boundaries
 
 - Existing `CephaloAnalysis`, `PanoramicAnalysis` and `ImagingTrashRecord` behavior remains unchanged.
@@ -107,6 +154,6 @@ C2 earns **8 EP** only as execution progress. Competitive score remains **70.0/1
 - No real patient data is introduced by Media Core tests.
 - No Vercel deployment.
 
-## C3 exact next goal
+## Next after C3 closes
 
-Add the secure ingestion/import boundary, MIME/content validation, controlled derivatives/thumbnails and failure cleanup while consuming the C1/C2 registry/storage contract. C3 must not expose raw filesystem paths or trust client-provided hashes.
+C4 adds the patient T0/T1/T2 media timeline and viewer over the C1-C3 contracts. C4 is the first Media Core UI lot and therefore requires mandatory BEFORE captures, written visual Goal/reference, implementation, AFTER captures at 390/768/1280, comparison/tests and a visual score.
