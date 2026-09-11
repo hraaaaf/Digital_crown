@@ -1,6 +1,6 @@
 # Digital Crown — LOT C Media Core
 
-Status: **ACTIVE — C1 CLOSED / C2 CLOSED / C3 CANDIDATE**  
+Status: **ACTIVE — C1 CLOSED / C2 CLOSED / C3 CLOSED / C4 ACTIVE**  
 Roadmap: `DIGITAL_CROWN_VS_ORTHALIS_ROADMAP.md` / execution scorecard branch remains separate until reconciled.  
 Baseline master for C1: `e319070b4f1b4eb6de8d26845bdc3f54ce0adf49`.
 
@@ -12,8 +12,8 @@ LOT C remains **50 EP** total:
 
 - C1 ClinicalAsset model / metadata / provenance — 8 EP — **CLOSED**
 - C2 storage / hash computation / dedupe / tenant guard — 8 EP — **CLOSED**
-- C3 secure import / derivatives / thumbnails — 8 EP — **CANDIDATE**
-- C4 patient T0/T1/T2 timeline / viewer — 8 EP
+- C3 secure import / derivatives / thumbnails — 8 EP — **CLOSED**
+- C4 patient T0/T1/T2 timeline / viewer — 8 EP — **ACTIVE**
 - C5 comparison / search / filters — 8 EP
 - C6 controlled smartphone capture — 5 EP
 - C7 volumetric / cross-tenant / responsive certification — 5 EP
@@ -104,7 +104,7 @@ C2 earns **8 EP** only as execution progress. Competitive score remains **70.0/1
 
 Add one authenticated clinical-media ingestion boundary that validates payload content before persistence, consumes C1/C2 as the only registry/storage truth, and creates controlled thumbnails without leaking internal storage metadata.
 
-### C3 Success
+### C3 Success — VERIFIED
 
 1. Canonical API is `POST /api/patients/{patient_id}/assets/import`; tenant identity is derived from the authenticated user and is never accepted from multipart input.
 2. Existing patient access control and `patients` permission are enforced before reading/persisting media.
@@ -123,29 +123,39 @@ Add one authenticated clinical-media ingestion boundary that validates payload c
 15. Validation failure creates no asset row and no C2 blob.
 16. Cross-tenant patient import is rejected by existing access control.
 17. No Cephalo/Panoramic scientific implementation file is changed and no Vercel deployment occurs.
-18. Exact-head CI must pass before C3 can be credited/closed.
+18. Exact-head CI, T2, P7 and portability certification passed on the implementation HEAD.
 
 ## C3 implementation boundaries
 
-- No viewer/timeline UI in C3. That begins in C4 and must follow the mandatory BEFORE -> visual Goal -> implementation -> AFTER 390/768/1280 workflow.
+- No viewer/timeline UI in C3. That begins in C4 and follows the mandatory BEFORE -> visual Goal -> implementation -> AFTER 390/768/1280 workflow.
 - No video/audio ingestion until deterministic content validation and derivative policy are designed.
 - No delete/GC policy is introduced. As established in C2, a DB rollback after a verified encrypted write can leave an encrypted unreferenced blob for future governed GC.
 - No raw filesystem path or public blob URL is exposed.
 - Existing document, panoramic and cephalometric media flows are not silently migrated in C3.
 
-## C3 proof targets
+## C3 proof
 
-- signature + parser validation for JPEG/PNG/WebP/PDF;
-- claimed MIME mismatch and extension mismatch rejection;
-- corrupt/unrecognized content rejection before storage;
-- image and PDF encrypted roundtrip through C2;
-- controlled JPEG derivative linked to original;
-- response excludes storage key/hash;
-- API route mounted exactly once under `/api/patients`;
-- authenticated happy path + cross-tenant denial;
-- failure leaves no `ClinicalAsset` row/blob when validation fails;
-- PR changed-file audit proves zero Cephalo implementation files;
-- exact-head CI success.
+Implementation HEAD: `8d4252a6d8213128d4dc3d4fbf63025a09963cc8`.
+
+- CI #3330 — **SUCCESS**.
+- T2 Runtime Browser Certification #2322 — **SUCCESS**.
+- Patient P7 Final Certification #1209 — **SUCCESS**.
+- Portability Runtime Certification #506 — **SUCCESS**.
+- Onboarding Settings P2 Visual Certification #315 — **SUCCESS**.
+- M6-I #1122 — **SKIPPED** as expected for this scope.
+- PR #418 changed-file audit: 6 files; zero Cephalo/Panoramic scientific implementation files.
+- PR #418 review-thread audit before closeout: zero threads.
+- focused tests prove signature/parser validation, MIME/extension mismatch refusal, corrupt content refusal before storage, encrypted image/PDF roundtrip, controlled thumbnail derivation, cross-tenant denial, 413 pre-storage refusal and filesystem-failure rollback.
+
+C3 earns **8 EP** only as execution progress. C1-C3 therefore account for **24/50 EP** of LOT C, without changing the competitive score.
+
+## C4 UI protocol already established
+
+C4 is developed on a separate stacked branch and remains outside this C3 PR.
+
+BEFORE proof comes from Patient P7 #1209 on the C3 implementation HEAD. Its `patient-p7-final-certification` artifact includes the patient Imagerie surfaces at 390x844, 768x1024 and 1280x900 with no overflow, page error or HTTP 5xx. The artifact digest recorded during C4 kickoff is `sha256:9dabbe78235569c8c27b0f7b1b43f67bda9f3c08b78e12c02a33a59a6aa94bc0`.
+
+C4 visual Goal: add a patient media timeline/viewer inside the existing Imagerie surface, preserve RVG as the default imaging workflow, keep Panoramique/Cephalometrie behavior unchanged, and certify AFTER at the same 390 / 768 / 1280 viewports.
 
 ## Safety boundaries
 
@@ -156,4 +166,4 @@ Add one authenticated clinical-media ingestion boundary that validates payload c
 
 ## Next after C3 closes
 
-C4 adds the patient T0/T1/T2 media timeline and viewer over the C1-C3 contracts. C4 is the first Media Core UI lot and therefore requires mandatory BEFORE captures, written visual Goal/reference, implementation, AFTER captures at 390/768/1280, comparison/tests and a visual score.
+Merge C3 only after the documentation-closeout HEAD passes its exact-head gates. Then rebuild/retarget C4 onto the resulting `master` so the C4 PR remains a clean Media Core delta and does not absorb parallel Cephalo history.
