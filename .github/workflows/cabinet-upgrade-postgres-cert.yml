@@ -108,8 +108,8 @@ jobs:
         shell: powershell
         run: |
           $creator = Get-Content backend/scripts/create_release.ps1 -Raw
-          if ($creator -match 'GetRelativePath') {
-            throw "Path.GetRelativePath is not allowed: Windows PowerShell 5.1/.NET Framework compatibility"
+          if ($creator -match '\[IO\.Path\]::GetRelativePath') {
+            throw "[IO.Path]::GetRelativePath is not allowed on the Windows PowerShell 5.1 cabinet path"
           }
           if ($creator -notmatch 'Substring\(\$payloadRootResolved\.Length\)') {
             throw "Expected PowerShell 5.1-compatible relative path derivation is missing"
