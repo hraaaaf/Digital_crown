@@ -10,10 +10,11 @@ describe('Clinic P2 patient practitioner UX contract', () => {
     expect(source).toContain('patientId={patientId}');
   });
 
-  it('uses patient-scoped practitioner APIs and keeps local/document truth explicit', () => {
+  it('uses patient-scoped practitioner APIs and anchors the context before dossier content', () => {
     const source = read('./features/patients/components/PatientPractitionerContextPortal.tsx');
     expect(source).toContain("/patients/_clinic/practitioners");
     expect(source).toContain("/practitioner`");
+    expect(source).toContain('surface.prepend(host)');
     expect(source).toContain('Dossier local');
     expect(source).toContain('Patients et documents locaux inchangés');
     expect(source).toContain('Encaissements non attribués');
