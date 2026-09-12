@@ -39,6 +39,7 @@ class R14FinalClinicalStrategyEvidence(_StrictModel):
         R14_FINAL_VALIDATION_CONTRACT_VERSION
     )
     option_refs: List[str] = Field(min_length=1)
+    option_validation_refs: List[str] = Field(default_factory=list)
     criterion_refs: List[str] = Field(default_factory=list)
     source_refs: List[R13TherapeuticSourceRef] = Field(min_length=1)
     objective_refs: List[str] = Field(min_length=1)
@@ -49,7 +50,6 @@ class R14FinalClinicalStrategyEvidence(_StrictModel):
     missing_data_refs: List[str] = Field(default_factory=list)
     contradictions: List[str] = Field(default_factory=list)
     blocking_gates: List[str] = Field(default_factory=list)
-    strategy_statement: str = Field(min_length=1)
     status: R14FinalClinicalStatus = R14FinalClinicalStatus.BLOCKED
     clinician_id: Optional[str] = None
     clinician_validated_at: Optional[datetime.datetime] = None
@@ -59,6 +59,7 @@ class R14FinalClinicalStrategyEvidence(_StrictModel):
     def validate_strategy_shape(self):
         for field_name in (
             "option_refs",
+            "option_validation_refs",
             "criterion_refs",
             "objective_refs",
             "problem_refs",

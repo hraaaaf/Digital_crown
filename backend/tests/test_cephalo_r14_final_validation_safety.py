@@ -106,9 +106,13 @@ def _strategy(
     for criterion_id in criterion_refs:
         for source in criteria[criterion_id].source_refs:
             source_map[(source.source_id, source.source_version)] = source
+    option_validation_refs = (
+        [option.decision_validation_ref] if option.decision_validation_ref is not None else []
+    )
     return R14FinalClinicalStrategyEvidence(
         strategy_id="strategy:r14:synthetic",
         option_refs=[option.option_id],
+        option_validation_refs=option_validation_refs,
         criterion_refs=criterion_refs,
         source_refs=list(source_map.values()),
         objective_refs=list(option.objective_refs),
@@ -119,7 +123,6 @@ def _strategy(
         missing_data_refs=list(option.missing_data_refs),
         contradictions=list(option.contradictions),
         blocking_gates=list(blocking_gates or []),
-        strategy_statement="Synthetic R14 strategy statement for contract testing only.",
         status=status,
         clinician_id=clinician_id,
         clinician_validated_at=clinician_validated_at,
@@ -169,6 +172,7 @@ def test_r14_positive_golden_requires_selected_r13_option_and_final_clinician_va
 
     assert strategy.status == R14FinalClinicalStatus.CLINICIAN_VALIDATED
     assert strategy.option_refs == ["option:r13:synthetic"]
+    assert strategy.option_validation_refs == ["validation:r13:option:selected"]
     assert strategy.final_validation_ref == validation.validation_id
 
 
@@ -250,6 +254,18 @@ def test_r14_rejects_provenance_tampering_below_r13():
         _validate(R14FinalClinicalSnapshot(r13_snapshot=r13, strategies=[tampered]))
 
 
+def test_r14_rejects_drop_of_r13_option_decision_validation_provenance():
+    r13 = _selected_r13()
+    strategy = _strategy(
+        r13,
+        status=R14FinalClinicalStatus.AWAITING_CLINICIAN_VALIDATION,
+    )
+    tampered = strategy.model_copy(update={"option_validation_refs": []})
+
+    with pytest.raises(EvidenceGraphValidationError, match="option_validation_refs must exactly match"):
+        _validate(R14FinalClinicalSnapshot(r13_snapshot=r13, strategies=[tampered]))
+
+
 def test_r14_final_state_rejects_unresolved_validation_reference():
     r13 = _selected_r13()
     strategy = _strategy(
@@ -319,13 +335,14 @@ def test_r14_reexecutes_r13_and_rejects_invalid_upstream_option_audit():
         _validate(R14FinalClinicalSnapshot(r13_snapshot=invalid_r13, strategies=[strategy]))
 
 
-def test_r14_schema_forbids_sequencing_or_other_plan_fields():
+def test_r14_schema_forbids_free_text_strategy_or_sequencing_fields():
     r13 = _selected_r13()
     strategy = _strategy(
         r13,
         status=R14FinalClinicalStatus.AWAITING_CLINICIAN_VALIDATION,
     )
     payload = strategy.model_dump()
+    payload["strategy_statement"] = "forbidden-free-text-treatment-content"
     payload["sequencing"] = ["forbidden-in-r14"]
 
     with pytest.raises(ValidationError, match="Extra inputs are not permitted"):

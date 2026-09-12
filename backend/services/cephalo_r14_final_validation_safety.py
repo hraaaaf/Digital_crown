@@ -60,9 +60,7 @@ def _require_exact_refs(
     )
 
 
-def _require_exact_sources(
-    actual, expected: Set[SourceKey], *, context: str
-) -> None:
+def _require_exact_sources(actual, expected: Set[SourceKey], *, context: str) -> None:
     actual_set = {(item.source_id, item.source_version) for item in actual}
     if actual_set == expected:
         return
@@ -161,6 +159,7 @@ def validate_r14_final_clinical_validation(
             )
         selected_options = [options[item] for item in strategy.option_refs]
 
+        expected_option_validations: Set[str] = set()
         expected_criteria: Set[str] = set()
         expected_sources: Set[SourceKey] = set()
         expected_objectives: Set[str] = set()
@@ -173,6 +172,8 @@ def validate_r14_final_clinical_validation(
         expected_blockers: Set[str] = set()
 
         for option in selected_options:
+            if option.decision_validation_ref is not None:
+                expected_option_validations.add(option.decision_validation_ref)
             expected_criteria.update(option.indication_refs)
             expected_criteria.update(option.contraindication_refs)
             expected_sources.update(
@@ -187,9 +188,7 @@ def validate_r14_final_clinical_validation(
             expected_contradictions.update(option.contradictions)
 
             if option.status == R13TreatmentOptionStatus.EVALUABLE:
-                expected_blockers.add(
-                    f"r13:{option.option_id}:clinician_selection_required"
-                )
+                expected_blockers.add(f"r13:{option.option_id}:clinician_selection_required")
             elif option.status == R13TreatmentOptionStatus.CLINICIAN_REJECTED:
                 expected_blockers.add(f"r13:{option.option_id}:clinician_rejected")
             elif option.status == R13TreatmentOptionStatus.BLOCKED:
@@ -210,10 +209,14 @@ def validate_r14_final_clinical_validation(
             )
 
         expected_blockers.update(f"missing:{item}" for item in expected_missing)
-        expected_blockers.update(
-            f"contradiction:{item}" for item in expected_contradictions
-        )
+        expected_blockers.update(f"contradiction:{item}" for item in expected_contradictions)
 
+        _require_exact_refs(
+            strategy.option_validation_refs,
+            expected_option_validations,
+            context=f"R14 strategy {strategy.strategy_id}",
+            field="option_validation_refs",
+        )
         _require_exact_refs(
             strategy.criterion_refs,
             expected_criteria,
@@ -295,10 +298,7 @@ def validate_r14_final_clinical_validation(
                 f"R14 strategy {strategy.strategy_id} final_validation_ref does not resolve"
             )
         referenced_validation_ids.add(validation.validation_id)
-        if (
-            validation.target_type != "final_clinical_strategy"
-            or validation.target_id != strategy.strategy_id
-        ):
+        if validation.target_type != "final_clinical_strategy" or validation.target_id != strategy.strategy_id:
             raise EvidenceGraphValidationError(
                 f"R14 strategy {strategy.strategy_id} final validation must target that strategy"
             )
