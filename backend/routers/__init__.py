@@ -271,3 +271,8 @@ partner_catalog.router.include_router(partner_sync.router)
 # /api/patients prefix without changing main.py or exposing a parallel tenant surface.
 from . import media_core as media_core
 patients.router.include_router(media_core.router)
+
+# Cephalometry R15 exposes only a fail-closed clinician-facing projection under the
+# canonical patient surface; it does not create diagnoses or therapeutic decisions.
+from . import cephalo_clinical_studio as cephalo_clinical_studio
+patients.router.include_router(cephalo_clinical_studio.router)
