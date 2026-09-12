@@ -16,7 +16,11 @@ import re
 from pathlib import Path
 from typing import Any
 
-from backend.runtime_asset_certification import verify_runtime_assets
+from backend.runtime_asset_certification import (
+    ASSET_CERTIFICATE_FILENAME,
+    ASSET_MANIFEST_FILENAME,
+    verify_runtime_assets,
+)
 
 CERTIFICATE_FILENAME = "release-certification.json"
 SHA_MARKER_FILENAME = ".digitalcrown-release-sha"
@@ -124,7 +128,7 @@ def _verify_identity(root: Path, expected_pack: str | None = None) -> dict[str, 
     return payload
 
 
-def _verify_content_manifest(root: Path, payload: dict[str, Any]) -> None:
+def _verify_content_manifest(root: Path, payload: dict[str, Any]) -> set[str]:
     manifest = root / CONTENT_MANIFEST_FILENAME
     if not manifest.is_file():
         raise ReleaseCertificationError(
@@ -134,8 +138,7 @@ def _verify_content_manifest(root: Path, payload: dict[str, Any]) -> None:
     expected_manifest_digest = str(payload.get("content_manifest_sha256", "")).strip().lower()
     if not _DIGEST_RE.fullmatch(expected_manifest_digest):
         raise ReleaseCertificationError("content_manifest_sha256 must be a SHA-256 digest")
-    actual_manifest_digest = _sha256(manifest)
-    if actual_manifest_digest != expected_manifest_digest:
+    if _sha256(manifest) != expected_manifest_digest:
         raise ReleaseCertificationError(
             "Content manifest digest mismatch; certified release metadata was altered"
         )
@@ -166,6 +169,64 @@ def _verify_content_manifest(root: Path, payload: dict[str, Any]) -> None:
             raise ReleaseCertificationError(f"Certified release file missing/unsafe: {relative}")
         if _sha256(path) != expected_digest:
             raise ReleaseCertificationError(f"Certified release file changed: {relative}")
+    return seen
+
+
+def _runtime_asset_manifest_paths(root: Path) -> set[str]:
+    manifest = root / ASSET_MANIFEST_FILENAME
+    paths: set[str] = set()
+    for line in manifest.read_text(encoding="utf-8").splitlines():
+        if not line.strip():
+            continue
+        try:
+            _, relative = line.split("  ", 1)
+        except ValueError as exc:
+            raise ReleaseCertificationError(f"Malformed runtime asset manifest line: {line!r}") from exc
+        normalized = relative.replace("\\", "/")
+        if normalized in paths:
+            raise ReleaseCertificationError(f"Duplicate runtime asset manifest path: {normalized}")
+        paths.add(normalized)
+    return paths
+
+
+def _verify_exact_installable_file_set(root: Path, code_paths: set[str]) -> None:
+    """Reject appended/unlisted files in a composed source release.
+
+    This closes the gap where an attacker could preserve all attested hashes while
+    appending a new executable/importable file beside them.
+    """
+
+    allowed = set(code_paths)
+    allowed.update(_runtime_asset_manifest_paths(root))
+    allowed.update(
+        {
+            CERTIFICATE_FILENAME,
+            SHA_MARKER_FILENAME,
+            CONTENT_MANIFEST_FILENAME,
+            INSTALLABLE_CERTIFICATE_FILENAME,
+            ASSET_CERTIFICATE_FILENAME,
+            ASSET_MANIFEST_FILENAME,
+            ATTESTATION_EVIDENCE_FILENAME,
+            "release-manifest.json",
+            # Runtime audit generated only after a successful activation.
+            "runtime-activation.json",
+        }
+    )
+
+    actual: set[str] = set()
+    for path in root.rglob("*"):
+        if not path.is_file():
+            continue
+        if path.is_symlink():
+            raise ReleaseCertificationError(f"Symlink file refused in installable release: {path}")
+        actual.add(path.relative_to(root).as_posix())
+
+    unexpected = sorted(actual - allowed)
+    missing = sorted(allowed - actual - {"runtime-activation.json"})
+    if unexpected or missing:
+        raise ReleaseCertificationError(
+            f"INSTALLABLE file-set mismatch unexpected={unexpected!r} missing={missing!r}"
+        )
 
 
 def _verify_installable_metadata(
@@ -268,12 +329,7 @@ def verify_release_identity(
     *,
     expected_pack: str | None = None,
 ) -> dict[str, Any]:
-    """Verify portable CODE_CERTIFIED identity only.
-
-    This low-level primitive is used during composition/build. Real cabinet startup
-    must use ``verify_installable_release_identity`` instead.
-    """
-
+    """Verify portable CODE_CERTIFIED identity only."""
     root = Path(release_dir).resolve()
     if not root.is_dir():
         raise ReleaseCertificationError(f"Release directory does not exist: {root}")
@@ -286,7 +342,6 @@ def verify_release_directory(
     expected_pack: str | None = None,
 ) -> dict[str, Any]:
     """Verify complete CODE_CERTIFIED source payload hashes."""
-
     root = Path(release_dir).resolve()
     if not root.is_dir():
         raise ReleaseCertificationError(f"Release directory does not exist: {root}")
@@ -300,11 +355,15 @@ def verify_installable_release_directory(
     *,
     expected_pack: str | None = None,
 ) -> dict[str, Any]:
-    """Verify code + provenance composition + every external packaged runtime asset."""
-
+    """Verify code + provenance + external assets + exact composed source file-set."""
     root = Path(release_dir).resolve()
-    code_payload = verify_release_directory(root, expected_pack=expected_pack)
-    return _verify_installable_metadata(root, code_payload, expected_pack=expected_pack)
+    if not root.is_dir():
+        raise ReleaseCertificationError(f"Release directory does not exist: {root}")
+    code_payload = _verify_identity(root, expected_pack)
+    code_paths = _verify_content_manifest(root, code_payload)
+    installable = _verify_installable_metadata(root, code_payload, expected_pack=expected_pack)
+    _verify_exact_installable_file_set(root, code_paths)
+    return installable
 
 
 def verify_installable_release_identity(
@@ -314,11 +373,10 @@ def verify_installable_release_identity(
 ) -> dict[str, Any]:
     """Verify packaged identity + exact external asset bytes before first-boot writes.
 
-    PyInstaller transforms Python/source files, so the source-content manifest is
-    checked before packaging by DigitalCrown.spec. External model/data files remain
-    byte-for-byte data files and are re-hashed here inside the frozen bundle.
+    PyInstaller transforms Python/source files and adds runtime files, so exact source
+    file-set validation occurs before packaging in DigitalCrown.spec. External model
+    files remain data files and are re-hashed here inside the frozen bundle.
     """
-
     root = Path(release_dir).resolve()
     code_payload = _verify_identity(root, expected_pack)
     return _verify_installable_metadata(root, code_payload, expected_pack=expected_pack)
