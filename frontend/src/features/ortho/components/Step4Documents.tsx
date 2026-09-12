@@ -171,7 +171,7 @@ export const Step4Documents: React.FC<Step4DocumentsProps> = ({ P }) => {
     }
   };
 
-  const handleValiderEtArchiver = async () => {
+  const handleArchiveBilan = async () => {
     if (!patientId || !analysisId) return;
     setIsArchiving(true);
     try {
@@ -200,7 +200,7 @@ export const Step4Documents: React.FC<Step4DocumentsProps> = ({ P }) => {
         <div className="flex items-start gap-3 px-4 py-3 rounded-xl border" style={{ background: '#fef2f2', borderColor: '#fca5a5' }}>
           <XCircle size={18} className="text-red-500 shrink-0 mt-0.5" />
           <div>
-            <p className="text-xs font-black text-red-700 uppercase tracking-wider">Erreurs bloquantes de validation</p>
+            <p className="text-xs font-black text-red-700 uppercase tracking-wider">Erreurs bloquantes de validation de cohérence</p>
             <ul className="mt-1 space-y-0.5">{validation!.fatals.map((f, i) => <li key={i} className="text-xs text-red-600">{f}</li>)}</ul>
           </div>
         </div>
@@ -292,23 +292,26 @@ export const Step4Documents: React.FC<Step4DocumentsProps> = ({ P }) => {
         <div className="lg:col-span-7 space-y-6">
           <div className="rounded-2xl p-5 border" style={{ background: P.bgPanel, borderColor: P.border }}>
             <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-2"><Shield size={16} style={{ color: P.accent }} /><h3 className="text-xs font-black uppercase tracking-widest" style={{ color: P.text }}>Checklist de Validation</h3></div>
+              <div className="flex items-center gap-2"><Shield size={16} style={{ color: P.accent }} /><h3 className="text-xs font-black uppercase tracking-widest" style={{ color: P.text }}>Checklist de cohérence documentaire</h3></div>
               <button onClick={fetchValidation} disabled={isValidating} className="text-[9px] font-black uppercase tracking-wider px-2 py-1 rounded-lg disabled:opacity-40" style={{ color: P.accent, background: `${P.accent}15` }}>{isValidating ? 'Vérification…' : 'Actualiser'}</button>
             </div>
             <div className="space-y-0.5 divide-y">
               <CheckItem label="Image céphalométrique chargée" status={hasImage ? 'ok' : 'fail'} detail={hasImage ? undefined : 'Aucune image uploadée'} />
               <CheckItem label="Calibration effectuée" status={hasCalibration ? 'ok' : 'warning'} detail={hasCalibration ? undefined : 'Mesures mm non fiables sans calibration'} />
               <CheckItem label={`Landmarks complets (${landmarkCount}/${REQUIRED_LANDMARKS.length})`} status={landmarksOk ? 'ok' : landmarkCount > 0 ? 'warning' : 'fail'} detail={landmarksOk ? undefined : `${landmarkPct}% des points requis placés`} />
-              <CheckItem label="Validation de cohérence" status={isValidating ? 'loading' : !validation ? 'warning' : hasFatals ? 'fail' : hasWarnings ? 'warning' : 'ok'} detail={!validation ? 'Non vérifiée' : hasFatals ? `${validation.fatals.length} erreur(s)` : hasWarnings ? `${validation.warnings.length} avertissement(s)` : 'Validation sans erreur bloquante'} />
-              <CheckItem label="Diagnostic clinique rédigé" status={diagOk ? 'ok' : 'warning'} detail={diagOk ? undefined : 'Synthèse diagnostique vide'} />
+              <CheckItem label="Cohérence des mesures" status={isValidating ? 'loading' : !validation ? 'warning' : hasFatals ? 'fail' : hasWarnings ? 'warning' : 'ok'} detail={!validation ? 'Non vérifiée' : hasFatals ? `${validation.fatals.length} erreur(s)` : hasWarnings ? `${validation.warnings.length} avertissement(s)` : 'Sans erreur bloquante'} />
+              <CheckItem label="Note diagnostique praticien rédigée" status={diagOk ? 'ok' : 'warning'} detail={diagOk ? 'Note libre, hors preuve R11/R14' : 'Note libre vide'} />
             </div>
           </div>
 
           <div className="rounded-2xl p-5 border" style={{ background: P.bgPanel, borderColor: P.border }}>
-            <div className="flex items-center gap-2 mb-5"><FileText size={16} style={{ color: P.accent }} /><h3 className="text-xs font-black uppercase tracking-widest" style={{ color: P.text }}>Plan de Traitement — praticien</h3></div>
+            <div className="flex items-center gap-2 mb-2"><FileText size={16} style={{ color: P.accent }} /><h3 className="text-xs font-black uppercase tracking-widest" style={{ color: P.text }}>Notes thérapeutiques — praticien</h3></div>
+            <p className="mb-5 text-[10px] leading-relaxed" style={{ color: P.textMuted }}>
+              Ces saisies restent des notes de travail hors contrat R14. Elles ne sélectionnent aucune option R13 et ne valent jamais validation clinique finale.
+            </p>
             <div className="grid grid-cols-2 gap-4">
               <div className="p-3 rounded-xl border" style={{ background: P.bgInput, borderColor: P.border }}>
-                <label className="text-[9px] font-black uppercase tracking-widest block mb-2" style={{ color: P.textMuted }}>Technique choisie par le praticien</label>
+                <label className="text-[9px] font-black uppercase tracking-widest block mb-2" style={{ color: P.textMuted }}>Préférence technique — note praticien</label>
                 <select value={etape3Data.preference_technique || ''} onChange={e => setEtape3Data(prev => ({ ...prev, preference_technique: e.target.value as any }))} className="w-full bg-transparent font-bold text-sm outline-none" style={{ color: P.text }}>
                   <option value="">-- Non renseignée --</option>
                   <option value="DAMON">Damon (Autoligaturant)</option>
@@ -324,18 +327,19 @@ export const Step4Documents: React.FC<Step4DocumentsProps> = ({ P }) => {
                 </select>
               </div>
               <div className="p-3 rounded-xl border col-span-2" style={{ background: P.bgInput, borderColor: P.border }}>
-                <label className="text-[9px] font-black uppercase tracking-widest block mb-2" style={{ color: P.textMuted }}>Stratégie thérapeutique validée par le praticien</label>
-                <textarea value={diag.strategie_therapeutique} onChange={e => store.setDiag(prev => ({ ...prev, strategie_therapeutique: e.target.value }))} rows={5} className="w-full bg-transparent text-sm outline-none resize-none font-medium leading-relaxed" style={{ color: P.text }} placeholder="Aucune stratégie n'est générée automatiquement." />
+                <label className="text-[9px] font-black uppercase tracking-widest block mb-2" style={{ color: P.textMuted }}>Note thérapeutique libre — hors preuve R14</label>
+                <textarea value={diag.strategie_therapeutique} onChange={e => store.setDiag(prev => ({ ...prev, strategie_therapeutique: e.target.value }))} rows={5} className="w-full bg-transparent text-sm outline-none resize-none font-medium leading-relaxed" style={{ color: P.text }} placeholder="Note de travail du praticien. Aucune stratégie R14 n'est générée ou validée ici." />
               </div>
             </div>
           </div>
 
           <div className="rounded-2xl p-5 border" style={{ background: P.bgPanel, borderColor: P.border }}>
-            <p className="text-[9px] font-black text-center uppercase tracking-widest mb-4" style={{ color: P.textMuted }}>Actions disponibles</p>
+            <p className="text-[9px] font-black text-center uppercase tracking-widest mb-1" style={{ color: P.textMuted }}>Actions documentaires</p>
+            <p className="mb-4 text-center text-[9px]" style={{ color: P.textDim }}>Prévisualiser ou archiver un PDF ne valide jamais R14.</p>
             <div className="grid grid-cols-3 gap-3">
               <button onClick={onPreviewPDF} disabled={isPreviewLoading || !analysisId} className="flex flex-col items-center justify-center gap-1.5 px-3 py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest disabled:opacity-40 border" style={{ background: P.bgCard, borderColor: P.border, color: P.textMuted }}>{isPreviewLoading ? <Loader2 size={20} className="animate-spin" /> : <Eye size={20} />}Prévisualiser</button>
               <button onClick={handleBrouillon} disabled={isBrouillon || !analysisId} className="flex flex-col items-center justify-center gap-1.5 px-3 py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest disabled:opacity-40 border" style={{ background: P.bgCard, borderColor: P.border, color: P.text }}>{isBrouillon ? <Loader2 size={20} className="animate-spin" /> : <FileText size={20} />}Brouillon PDF</button>
-              <button onClick={handleValiderEtArchiver} disabled={isArchiving || isGenerating || !analysisId || !canArchive} className="flex flex-col items-center justify-center gap-1.5 px-3 py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest text-white disabled:opacity-40" style={{ background: canArchive ? `linear-gradient(135deg, ${P.accent}, #7c3aed)` : '#94a3b8' }}>{isArchiving || isGenerating ? <Loader2 size={20} className="animate-spin" /> : <Archive size={20} />}Valider & Archiver</button>
+              <button onClick={handleArchiveBilan} disabled={isArchiving || isGenerating || !analysisId || !canArchive} className="flex flex-col items-center justify-center gap-1.5 px-3 py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest text-white disabled:opacity-40" style={{ background: canArchive ? `linear-gradient(135deg, ${P.accent}, #7c3aed)` : '#94a3b8' }}>{isArchiving || isGenerating ? <Loader2 size={20} className="animate-spin" /> : <Archive size={20} />}Archiver le bilan</button>
             </div>
           </div>
         </div>
