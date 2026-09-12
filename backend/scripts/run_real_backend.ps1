@@ -1,12 +1,7 @@
-# DIGITAL-CROWN-CERTIFIED-RELEASE-POLICY-1
+# DIGITAL-CROWN-CERTIFIED-RELEASE-POLICY-2
 # The ONE controlled launcher for the real cabinet runtime (port 8005).
-# - Never uses --reload.
-# - Never starts master/a branch/a working tree.
-# - Starts only an immutable release imported from a CI-certified artifact.
-# - Independently re-verifies certificate, exact SHA, BASIC/GOLD/ELITE coverage and
-#   certified payload hashes before reading/using the real cabinet environment.
-# - Refuses anything that looks like rehearsal.
-# - Requires explicit confirmation.
+# Starts ONLY INSTALLABLE_CERTIFIED immutable releases. Never master/HEAD/branch/tag.
+# Full code + runtime-asset verification happens BEFORE the real cabinet env is read.
 
 [CmdletBinding(PositionalBinding = $false)]
 param(
@@ -44,23 +39,29 @@ function Mask-DatabaseUrl([string]$DatabaseUrl) {
     return $DatabaseUrl
 }
 
-Write-Host "=== run_real_backend.ps1 - CERTIFIED controlled activation ===" -ForegroundColor Yellow
+Write-Host "=== run_real_backend.ps1 - INSTALLABLE_CERTIFIED activation ===" -ForegroundColor Yellow
 
-# 1. Strict explicit confirmation.
 if ($ConfirmRealActivation -ne "YES") {
     Fail "missing or incorrect confirmation. Use -ConfirmRealActivation `"YES`" (exact)."
 }
 
-# 2. Release identity + certificate. This happens BEFORE touching the cabinet env/data.
+# 1. Release proof. No cabinet env/data has been read yet.
 $releaseDir = Join-Path (Join-Path $RuntimeRoot "releases") $ReleaseId
 $manifestPath = Join-Path $releaseDir "release-manifest.json"
 $certificatePath = Join-Path $releaseDir "release-certification.json"
+$installablePath = Join-Path $releaseDir "installable-certification.json"
 $shaMarkerPath = Join-Path $releaseDir ".digitalcrown-release-sha"
 $contentManifestPath = Join-Path $releaseDir "release-content.sha256"
+$assetCertificatePath = Join-Path $releaseDir "runtime-assets-certification.json"
+$assetManifestPath = Join-Path $releaseDir "runtime-assets-content.sha256"
+$attestationEvidencePath = Join-Path $releaseDir "github-attestation-verification.json"
 
-foreach ($requiredFile in @($manifestPath, $certificatePath, $shaMarkerPath, $contentManifestPath)) {
+foreach ($requiredFile in @(
+    $manifestPath, $certificatePath, $installablePath, $shaMarkerPath,
+    $contentManifestPath, $assetCertificatePath, $assetManifestPath, $attestationEvidencePath
+)) {
     if (-not (Test-Path -LiteralPath $requiredFile -PathType Leaf)) {
-        Fail "certified release is incomplete: missing $requiredFile"
+        Fail "INSTALLABLE_CERTIFIED release incomplete: missing $requiredFile"
     }
 }
 if (-not (Test-Path -LiteralPath $VenvPython -PathType Leaf)) {
@@ -69,57 +70,47 @@ if (-not (Test-Path -LiteralPath $VenvPython -PathType Leaf)) {
 
 $manifest = Get-Content -LiteralPath $manifestPath -Raw | ConvertFrom-Json
 $certificate = Get-Content -LiteralPath $certificatePath -Raw | ConvertFrom-Json
-$markerSha = (Get-Content -LiteralPath $shaMarkerPath -Raw).Trim().ToLowerInvariant()
+$installable = Get-Content -LiteralPath $installablePath -Raw | ConvertFrom-Json
 $certSha = "$($certificate.commit_sha)".Trim().ToLowerInvariant()
+$markerSha = (Get-Content -LiteralPath $shaMarkerPath -Raw).Trim().ToLowerInvariant()
 
-if ($manifest.environment -ne "cabinet-real") {
-    Fail "release is not marked environment=cabinet-real"
+if ($manifest.environment -ne "cabinet-real") { Fail "release is not marked environment=cabinet-real" }
+if ($manifest.certification_level -ne "INSTALLABLE_CERTIFIED") { Fail "release-manifest is not INSTALLABLE_CERTIFIED" }
+if ($installable.certification_level -ne "INSTALLABLE_CERTIFIED" -or $installable.installable -ne $true) {
+    Fail "final installable certificate is absent/invalid"
 }
-if ($certificate.artifact_type -ne "cabinet-certified-release") {
-    Fail "release certificate artifact_type is invalid"
-}
-if ($certSha -notmatch '^[0-9a-f]{40}$') {
-    Fail "certificate commit_sha is not an exact immutable SHA"
-}
+if ($certificate.certification_level -ne "CODE_CERTIFIED") { Fail "embedded code certificate is not CODE_CERTIFIED" }
+if ($certSha -notmatch '^[0-9a-f]{40}$') { Fail "certificate commit_sha is not an exact immutable SHA" }
 if ($markerSha -ne $certSha -or "$($manifest.commit)".Trim().ToLowerInvariant() -ne $certSha) {
-    Fail "release-manifest / certificate / SHA marker identity mismatch"
+    Fail "release-manifest / code certificate / SHA marker mismatch"
 }
-if ($ReleaseId -ne "$($certificate.release_id)") {
-    Fail "requested ReleaseId does not equal the certified release_id"
+if ($ReleaseId -ne "$($certificate.release_id)" -or $ReleaseId -ne "$($installable.release_id)") {
+    Fail "requested ReleaseId does not equal certified release_id"
 }
-$certPacks = @($certificate.certified_packs | ForEach-Object { "$($_)".Trim().ToUpperInvariant() })
+$certPacks = @($installable.certified_packs | ForEach-Object { "$($_)".Trim().ToUpperInvariant() })
 foreach ($pack in $RequiredPacks) {
-    if ($certPacks -notcontains $pack) {
-        Fail "activation refused: release is not certified for $pack"
-    }
+    if ($certPacks -notcontains $pack) { Fail "activation refused: INSTALLABLE release missing $pack" }
 }
 
-# Full verifier checks release-content.sha256 and every certified payload file.
-$verifyScript = Join-Path $releaseDir "backend\scripts\verify_certified_release.py"
+$verifyScript = Join-Path $releaseDir "backend\scripts\verify_installable_release.py"
 if (-not (Test-Path -LiteralPath $verifyScript -PathType Leaf)) {
-    Fail "release verifier missing: $verifyScript"
+    Fail "INSTALLABLE verifier missing: $verifyScript"
 }
 $oldPythonPath = $env:PYTHONPATH
 $env:PYTHONPATH = $releaseDir
 try {
     & $VenvPython $verifyScript --release-dir $releaseDir
-    if ($LASTEXITCODE -ne 0) {
-        Fail "certified release verifier rejected $ReleaseId"
-    }
+    if ($LASTEXITCODE -ne 0) { Fail "INSTALLABLE verifier rejected $ReleaseId" }
 }
 finally {
     $env:PYTHONPATH = $oldPythonPath
 }
 
-if ($manifest.frontend_dist_path -match 'rehearsal|dist-test') {
-    Fail "release frontend points to rehearsal/test output"
-}
+if ($manifest.frontend_dist_path -match 'rehearsal|dist-test') { Fail "release frontend points to rehearsal/test output" }
 $backendPath = $manifest.backend_path
-if (-not (Test-Path -LiteralPath $backendPath -PathType Container)) {
-    Fail "manifest backend_path not found: $backendPath"
-}
+if (-not (Test-Path -LiteralPath $backendPath -PathType Container)) { Fail "manifest backend_path not found: $backendPath" }
 
-# 3. Verify the real env file - never rehearsal, never printed in clear.
+# 2. Only after complete immutable release proof, inspect the real cabinet environment.
 if (-not (Test-Path -LiteralPath $RealEnvFile -PathType Leaf)) {
     Fail "real environment file not found: $RealEnvFile"
 }
@@ -137,7 +128,7 @@ if ($dbUrl -notmatch 'digitalcrown_db') { Fail "DATABASE_URL does not point to d
 if ($envValue -match 'rehearsal') { Fail "ENVIRONMENT contains rehearsal" }
 if ($mediaRoot -match 'rehearsal') { Fail "MEDIA_ROOT contains rehearsal" }
 
-# 4. Resolve cabinet TLS pair from the real repo, never from the immutable release.
+# 3. TLS and runtime startup contract.
 $realBackendDir = Split-Path $RealEnvFile -Parent
 $realRepoRoot = Split-Path $realBackendDir -Parent
 if ([string]::IsNullOrWhiteSpace($TlsCertFile)) { $TlsCertFile = Join-Path $realRepoRoot "certs\cert.pem" }
@@ -160,11 +151,12 @@ if ($httpsEnabled) {
 }
 $runtimeOrigin = if ($httpsEnabled) { "https://digitalcrown.local:$Port" } else { "http://127.0.0.1:$Port" }
 
-Write-Host "OK - CERTIFIED release checks passed." -ForegroundColor Green
+Write-Host "OK - INSTALLABLE_CERTIFIED release checks passed." -ForegroundColor Green
 Write-Host "Release     : $ReleaseId"
 Write-Host "Commit      : $certSha"
-Write-Host "Packs       : BASIC / GOLD / ELITE"
+Write-Host "Profiles    : BASIC / GOLD / ELITE"
 Write-Host "CI run      : $($certificate.certification_run_id)"
+Write-Host "Provenance  : GitHub/Sigstore VERIFIED at composition"
 Write-Host "Backend     : $backendPath"
 Write-Host "Frontend    : $($manifest.frontend_dist_path)"
 Write-Host "DATABASE_URL: $(Mask-DatabaseUrl $dbUrl)"
@@ -176,10 +168,10 @@ Write-Host "HTTPS       : $httpsEnabled"
 Write-Host "Origin      : $runtimeOrigin"
 Write-Host ""
 
-# 5. Runtime activation audit (not part of the immutable certified payload).
 $runtimeManifest = [ordered]@{
     release_id            = $ReleaseId
     commit_sha            = $certSha
+    certification_level   = "INSTALLABLE_CERTIFIED"
     certification_run_id  = [int64]$certificate.certification_run_id
     certified_packs       = $RequiredPacks
     port                  = $Port
@@ -192,11 +184,10 @@ $runtimeManifest = [ordered]@{
 }
 $runtimeManifest | ConvertTo-Json -Depth 4 | Set-Content -Path (Join-Path $releaseDir "runtime-activation.json") -Encoding utf8
 
-# 6. Startup - cwd = certified release folder, never a working repo, never --reload.
 $uvicornArgs = @("-m", "uvicorn", "backend.main:app", "--host", $BindHost, "--port", "$Port")
 if ($httpsEnabled) { $uvicornArgs += @("--ssl-certfile", $TlsCertFile, "--ssl-keyfile", $TlsKeyFile) }
 
-Write-Host "Starting certified release (cwd = $releaseDir, no --reload)..." -ForegroundColor Cyan
+Write-Host "Starting INSTALLABLE_CERTIFIED release (cwd = $releaseDir, no --reload)..." -ForegroundColor Cyan
 $env:DIGITALCROWN_ENV_FILE = $RealEnvFile
 Push-Location $releaseDir
 try {
