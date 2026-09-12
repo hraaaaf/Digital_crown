@@ -21,6 +21,9 @@ from typing import Mapping, Optional, Tuple
 class ComEvidenceState(str, Enum):
     SOURCE_LOCKED_CONSTRUCTION_BLOCKED = "SOURCE_LOCKED_CONSTRUCTION_BLOCKED"
     SOURCE_LOCKED_RULE_CONSTRUCTION_BLOCKED = "SOURCE_LOCKED_RULE_CONSTRUCTION_BLOCKED"
+    SOURCE_LOCKED_MANUAL_CONSTRUCTION_AVAILABLE = (
+        "SOURCE_LOCKED_MANUAL_CONSTRUCTION_AVAILABLE"
+    )
     PRIMARY_IDENTIFIED_NUMERIC_UNVERIFIED = "PRIMARY_IDENTIFIED_NUMERIC_UNVERIFIED"
     PEER_REVIEWED_CORROBORATED_PRIMARY_PENDING = (
         "PEER_REVIEWED_CORROBORATED_PRIMARY_PENDING"
@@ -191,8 +194,8 @@ COM_EVIDENCE_DEBTS: Tuple[ComEvidenceDebt, ...] = (
         ("TWEED_1954_FMIA",),
         "TWEED_MANDIBULAR_PLANE_EXACT_REQUIRED",
         "TWEED_HISTORICAL_CONTEXT_ONLY",
-        "Primary Tweed numeric evidence is locked, but equivalence between the Tweed lower-border mandibular plane and current runtime Go-Me has not been proven.",
-        "Lock the exact Tweed mandibular-plane construction before binding the 85-95 degree historical range to a versioned method.",
+        "Primary Tweed numeric evidence is locked, but the source-specific lower-border tangent and historical Frankfort construction are not represented; current Go-Me/Go-Gn and unproved generic Po-Or substitutions are forbidden.",
+        "Version a clinician-audited source-specific Tweed tracing contract for the historical Frankfort reference and lower-border tangent before binding the 85-95 degree historical range.",
     ),
     ComEvidenceDebt(
         "COM_IMPA_DYNAMIC_COMPENSATION",
@@ -202,8 +205,8 @@ COM_EVIDENCE_DEBTS: Tuple[ComEvidenceDebt, ...] = (
         ("TWEED_1954_FMIA",),
         "TWEED_FMA_AND_MANDIBULAR_PLANE_EXACT_REQUIRED",
         "TWEED_HISTORICAL_CONTEXT_ONLY",
-        "Tweed directly describes a dynamic rule, not a universal fixed 80-100 degree interval; exact Tweed geometry is still unbound.",
-        "After construction lock, encode the source-specific rule: target IMPA decreases one degree for each degree FMA exceeds 25; include FMA 35 -> IMPA 80 golden.",
+        "Tweed directly describes a dynamic rule, not a universal fixed 80-100 degree interval; source-specific historical Frankfort and lower-border tangent geometry are still unbound.",
+        "After the exact Tweed tracing contract is versioned, encode the source-specific rule: target IMPA decreases one degree for each degree FMA exceeds 25; include FMA 35 -> IMPA 80 golden.",
     ),
     ComEvidenceDebt(
         "COM_U1_FH_107_PM5",
@@ -253,12 +256,12 @@ COM_EVIDENCE_DEBTS: Tuple[ComEvidenceDebt, ...] = (
         "COM_FMA_26_PM4",
         "FMA",
         "26 +/- 4 deg at age 9",
-        ComEvidenceState.SOURCE_LOCKED_CONSTRUCTION_BLOCKED,
+        ComEvidenceState.SOURCE_LOCKED_MANUAL_CONSTRUCTION_AVAILABLE,
         ("RICKETTS_1981_CLINICAL_CEPHALOMETRICS", "RICKETTS_1960"),
-        "RICKETTS_TRUE_FH_SUBGONION_MENTON_EXACT_REQUIRED",
+        "RICKETTS_1981_FMA_TRUE_FH_SUBGO_ME_V1",
         "RICKETTS_AGE_DEPENDENT_HISTORICAL_CONTEXT",
-        "Primary Ricketts 1981 evidence source-locks the age-dependent numeric rule and names true Frankfort horizontal to Subgonion-Menton. Digital Crown does not yet expose that exact source-specific construction, so Go-Me or Go-Gn must not substitute.",
-        "Version and test true Frankfort horizontal (true Porion-Orbitale) plus Subgonion-Menton geometry and the source-specific age rule before patient-classification activation.",
+        "Primary Ricketts 1981 evidence source-locks the numeric/age rule and Subgonion-Menton construction. SRPose38 has no SubGo, but Digital Crown now exposes a fail-closed source-specific path requiring an explicit clinician-validated manual SubGo; Go-Me and Go-Gn remain forbidden substitutions.",
+        "Keep patient classification inactive; use only the validated-manual SubGo construction for raw FMA, and treat any future automatic SubGo as a separate landmark-certification lot before norm activation.",
     ),
     ComEvidenceDebt(
         "COM_CRANIOM_ABP_9Y",
