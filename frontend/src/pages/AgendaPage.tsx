@@ -46,8 +46,9 @@ export const AgendaPage: React.FC = () => {
     const practitionerByAppointment = new Map<number, number>();
 
     const rememberAppointment = (appointment: any) => {
-      const appointmentId = Number(appointment?.id);
-      const practitionerId = Number(appointment?.praticien_id);
+      if (!appointment || appointment.praticien_id == null) return;
+      const appointmentId = Number(appointment.id);
+      const practitionerId = Number(appointment.praticien_id);
       if (Number.isFinite(appointmentId) && Number.isFinite(practitionerId)) {
         practitionerByAppointment.set(appointmentId, practitionerId);
       }
