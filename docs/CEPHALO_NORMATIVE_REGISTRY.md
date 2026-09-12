@@ -1,93 +1,92 @@
 # CÉPHALO — REGISTRE NORMATIF VERSIONNÉ
 
-**Statut : fondation / références inertes**  
+**Statut : R10 / références inertes**  
 **Parent :** `docs/CEPHALO_DIAGNOSTIC_SPEC.md`  
 **Lot :** 11 — registre normatif
 
 ## GOAL
 
-Conserver les références céphalométriques avec leur méthode, construction, population, source et version **sans transformer une publication en règle diagnostique automatique**.
+Conserver des références céphalométriques versionnées avec source, méthode, construction et population, sans les convertir automatiquement en classification patient.
 
-La mesure patient reste séparée de la référence :
+## CONTRAT NUMÉRIQUE
 
-`MeasurementEvidence → NormReference → NormativeEvaluation → Finding`
+Le registre accepte uniquement :
 
-Une `NormReference` n'a aucun droit de produire un diagnostic ou un traitement.
+- `EXTREME_RANGE` : `lower` + `upper`, finis, `lower <= upper`, sans `mean`/`sd` ;
+- `MEAN_SD` : `mean` + `sd`, finis, `sd > 0`, sans `lower`/`upper`.
 
-## RÈGLE D'ACTIVATION
+`PERCENTILE` reste fail-closed. Toute référence exige une source de recherche admissible et un `population_context`. `active_for_patient_classification=True` est refusé.
 
-Toutes les références sont **inertes par défaut** : `active_for_patient_classification = false`.
+## BINDING AU GRAPHE
 
-Le registre actuel interdit même l'enregistrement direct d'une référence active. L'activation future exigera un gate séparé :
+Le contrat existant de `cephalo_evidence_graph.py` est la source de vérité :
 
-- construction géométrique certifiée ;
-- source primaire et contexte applicables ;
-- population/âge/sexe/développement explicités quand pertinents ;
-- règle de classification versionnée ;
-- golden cases ;
-- validation praticien ;
-- aucune translation directe `hors plage → diagnostic → traitement`.
+- `NormReference.method_id` ↔ `MeasurementEvidence.analysis_id` ;
+- `NormReference.measurement_id` ↔ `MeasurementEvidence.method_id` ;
+- `NormReference.method_version` ↔ `MeasurementEvidence.method_version` ;
+- unité identique.
 
-## SOURCES ENREGISTRÉES
+`MeasurementEvidence.measurement_id` est namespacé par cas et n'est pas une clé normative stable.
 
-| ID | Type | Population/contexte | Usage actuel |
-|---|---|---|---|
-| `CRANIOM_PART1_2010` | article primaire | 83 jeunes adultes, Classe I, non traités | provenance méthode |
-| `CRANIOM_PART2_2011` | article primaire | même cohorte décrite | deux intervalles extrêmes explicitement publiés |
-| `CRANIOM_TECHNICAL_REPRODUCTION` | document technique secondaire | reproduction détaillée CRANIOM | contrôle uniquement |
-| `MOROCCO_STEINER_OUSEHAL_2012` | étude populationnelle peer-reviewed | 71 jeunes adultes 19–27 ans, CCTD Casablanca | contexte marocain ; aucune valeur copiée sans table primaire vérifiée |
-| `PEDIATRIC_NORMS_REVIEW_NGUYEN_2024` | scoping review peer-reviewed | données normatives pédiatriques multi-études | garde âge/développement |
+## SOURCES ET RÉFÉRENCES ACTIVES DANS LE REGISTRE
 
-### Références bibliographiques
+### CRANIOM
 
-- Bonnefont R, Casteigt J, Ernoult J-F, Sorel O. J Dentofacial Anom Orthod. 2010;13(4):385-400. DOI `10.1051/odfen/2010406`.
-- Bonnefont R, Ernoult J-F, Sorel O. J Dentofacial Anom Orthod. 2011;14:105. DOI `10.1051/odfen/2011104`.
-- Ousehal L, Lazrak L, Chafii A. Int Orthod. 2012;10(1):122-134. DOI `10.1016/j.ortho.2011.12.001`, PMID `22236522`.
-- Nguyen TK, Cambala A, Hrit M, Zimmermann EA. Korean J Orthod. 2024;54(4):210-228. PMID `38898629`.
+Deux `EXTREME_RANGE`, toujours inertes :
 
-## RÉFÉRENCES NUMÉRIQUES ACTUELLEMENT ENREGISTRÉES
+- `CRANIOM_L1_DOWNS_MP_EXTREMES_YOUNG_ADULT_V1` : 78°–114°, gate `DOWNS_MP_TANGENT` ;
+- `CRANIOM_U1_FH_EXTREMES_YOUNG_ADULT_V1` : 97,5°–130,1°, gate `FH_PO_OR_V1`.
 
-Deux seules valeurs CRANIOM sont intégrées à ce stade parce qu'elles figurent explicitement dans la source primaire accessible et sont recoupées par le document technique :
+Sources primaires : Bonnefont et al. 2010, DOI `10.1051/odfen/2010406`, et Bonnefont et al. 2011, DOI `10.1051/odfen/2011104`. Les intervalles sont conservés comme extrêmes observés, pas comme seuils universels.
 
-| ID | Mesure | Référence | Construction requise | Activation |
-|---|---|---:|---|---|
-| `CRANIOM_L1_DOWNS_MP_EXTREMES_YOUNG_ADULT_V1` | incisive mandibulaire / plan mandibulaire de Downs | 78°–114° | `DOWNS_MP_TANGENT` | NON |
-| `CRANIOM_U1_FH_EXTREMES_YOUNG_ADULT_V1` | incisive maxillaire / Francfort | 97,5°–130,1° | `FH_PO_OR_V1` | NON |
+### McNamara 1984
 
-La source CRANIOM décrit ces intervalles comme des **extrêmes observés dans sa cohorte**, pas comme des seuils universels de pathologie. Le logiciel conserve donc `ReferenceKind.EXTREME_RANGE` au lieu de les déguiser en moyenne ± écart-type.
+Source primaire : McNamara JA Jr., *A method of cephalometric evaluation*, Am J Orthod. 1984;86(6):449-469. DOI `10.1016/S0002-9416(84)90352-X`, PMID `6594933`.
 
-## POURQUOI LE CONTEXTE EST OBLIGATOIRE
+Table I, échantillon Ann Arbor : 111 adultes non traités, 73 femmes et 38 hommes. Six `MEAN_SD` sont enregistrés :
 
-La littérature récente et populationnelle confirme qu'un même nombre céphalométrique ne doit pas être traité comme universel :
+| Mesure / `MeasurementEvidence.method_id` | Femmes | Hommes | Construction |
+|---|---:|---:|---|
+| Co–Gn / `MCNAMARA_CO_GN_MM_V1` | 120,2 ± 5,3 mm | 134,3 ± 6,8 mm | `MCNAMARA_CO_GN_V1` |
+| Co–A / `MCNAMARA_CO_A_MM_V1` | 91,0 ± 4,3 mm | 99,8 ± 6,0 mm | `MCNAMARA_CO_A_V1` |
+| ANS–Me / `MCNAMARA_ANS_ME_MM_V1` | 66,7 ± 4,1 mm | 74,6 ± 5,0 mm | `MCNAMARA_ANS_ME_V1` |
 
-- l'étude marocaine Ousehal et al. porte sur un échantillon spécifique du CCTD Casablanca et ses auteurs préviennent que les résultats ne peuvent pas être généralisés sans études plus larges ;
-- une revue 2024 des données pédiatriques montre des changements liés à la croissance et au développement ;
-- des travaux longitudinaux plus récents construisent des références dépendant notamment de l'âge et du sexe.
+Pour les six références : `method_id="MCNAMARA"`, `method_version="1"`, `unit="mm"`, `active_for_patient_classification=False`.
 
-Conséquence architecture : `population_context` est obligatoire dans toute référence numérique.
+Le papier primaire précise que, lorsque possible, les mesures de ses échantillons intègrent un facteur d'agrandissement de 8 %. Digital Crown produit des millimètres physiques après calibration. Le contexte porte donc `scale_compatibility="BLOCKED_UNTIL_8_PERCENT_ENLARGEMENT_MATCHED"`. Aucune comparaison patient directe n'est autorisée tant que cette compatibilité n'est pas établie.
 
-## VALEURS EXPLICITEMENT NON ACTIVÉES
+## OUSEHAL 2012 — BLOQUÉ
 
-Les valeurs 9 ans/adulte présentes sur la fiche historique COM et le document technique CRANIOM pour A'B', Situation A/B et profondeur faciale restent **hors registre numérique actif** tant que leur provenance primaire exacte n'est pas vérifiée dans un texte/tableau exploitable.
+La source `MOROCCO_STEINER_OUSEHAL_2012` conserve le contexte : 71 jeunes adultes du CCTD Casablanca, 47 femmes / 24 hommes, 19–27 ans, Classe I, profil acceptable, non traités. DOI `10.1016/j.ortho.2011.12.001`, PMID `22236522`.
 
-Même traitement pour les anciennes constantes Digital Crown de PR #371 : elles sont historiques, jamais autoritatives.
+Une publication peer-reviewed secondaire reproduit SNA `80,59 ± 3,80°`, SNB `77,68 ± 3,55°`, ANB `3,11 ± 1,68°`, mais le tableau numérique primaire Ousehal n'a pas été directement vérifié. Ces trois nombres restent donc hors `NormReference`.
 
-## GATES CONSTRUCTION
+Si ces références deviennent admissibles, le binding devra être :
 
-Une référence peut exister alors que la mesure correspondante reste non calculable :
+- `method_id="STEINER"` ;
+- `measurement_id="STEINER_SNA_DEG_V1"`, `STEINER_SNB_DEG_V1` ou `STEINER_ANB_DEG_V1` ;
+- version `1`, unité `deg`, construction exacte correspondante.
 
-- `CRANIOM_L1_DOWNS_MP...` exige `DOWNS_MP_TANGENT`. Le `Go-Me` legacy ne lui est pas substitué ;
-- `CRANIOM_U1_FH...` exige le Francfort anatomique `Po-Or` ;
-- Gi/Gs CRANIOM restent absents de SRPose38 ;
-- le regard horizontal/NHP reste requis pour A''B''.
+## TRIAGE SCIENTIFIQUE R10
+
+| Famille | Décision |
+|---|---|
+| Steiner historique 82/80/2 | pas de `MEAN_SD` démontré |
+| Tweed 25/90/65 | valeurs conventionnelles/plages, pas `MEAN_SD` |
+| Downs | chiffres non enregistrés sans table primaire certifiée |
+| McNamara | 6 `MEAN_SD` primaires enregistrés, inertes, gate 8 % |
+| Ricketts | chiffres non enregistrés sans table primaire + stratification d'âge exacte |
+| Ousehal/Maroc | candidats documentés, hors registre numérique jusqu'au tableau primaire |
 
 ## PREUVE CODE
 
-Implémentation : `backend/services/cephalo_norm_registry.py`  
-Tests : `backend/tests/test_cephalo_norm_registry.py`
+- Registre : `backend/services/cephalo_norm_registry.py`
+- Tests : `backend/tests/test_cephalo_norm_registry.py`
+- Contrat McNamara : `backend/services/cephalo_mcnamara_evidence.py`
+- Validation du binding : `backend/services/cephalo_evidence_graph.py`
 
-Les tests vérifient provenance, intervalles exacts, contexte populationnel obligatoire, rejet des doublons/sources inconnues/plages invalides, et interdiction d'activer directement une référence pour classifier un patient.
+Les tests couvrent les formes `EXTREME_RANGE`/`MEAN_SD`, valeurs non finies ou SD non positive, contexte obligatoire, immutabilité, provenance, absence de chiffres Ousehal non vérifiés, six références McNamara exactes, binding au graphe et blocage d'échelle.
 
 ## NEXT EXACT
 
-Après merge du socle PR #390 : rebaseliner cette branche sur `master`, exécuter CI, puis créer l'adaptateur `MeasurementEvidence → NormativeEvaluationEvidence` en mode **descriptif/inert** uniquement. La première classification active attendra une règle scientifique explicitement validée.
+Certifier le HEAD R10 exact par CI/T2. Si vert, merge de la PR R10. Ousehal, Downs et Ricketts restent des gates scientifiques séparés.

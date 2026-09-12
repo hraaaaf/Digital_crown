@@ -36,7 +36,9 @@ PRIMARY_NUMERIC_TIERS = frozenset(
         SourceTier.PEER_REVIEWED_POPULATION_STUDY,
     }
 )
-SUPPORTED_REFERENCE_KINDS = frozenset({ReferenceKind.EXTREME_RANGE})
+SUPPORTED_REFERENCE_KINDS = frozenset(
+    {ReferenceKind.EXTREME_RANGE, ReferenceKind.MEAN_SD}
+)
 
 
 @dataclass(frozen=True)
@@ -59,10 +61,12 @@ class NormReference:
     measurement_id: str
     kind: ReferenceKind
     unit: str
-    lower: float
-    upper: float
+    lower: Optional[float]
+    upper: Optional[float]
     source_ids: Tuple[str, ...]
     population_context: Mapping[str, str]
+    mean: Optional[float] = None
+    sd: Optional[float] = None
     construction_gate: Optional[str] = None
     active_for_patient_classification: bool = False
     note: Optional[str] = None
@@ -79,6 +83,32 @@ class NormRegistry:
     def _nonempty(value: str, field: str) -> None:
         if not isinstance(value, str) or not value.strip():
             raise ValueError(f"{field} must be non-empty")
+
+    @staticmethod
+    def _validate_numeric_shape(reference: NormReference) -> None:
+        if reference.kind == ReferenceKind.EXTREME_RANGE:
+            if reference.lower is None or reference.upper is None:
+                raise ValueError("EXTREME_RANGE requires lower and upper limits")
+            if reference.mean is not None or reference.sd is not None:
+                raise ValueError("EXTREME_RANGE cannot define mean or sd")
+            if not math.isfinite(reference.lower) or not math.isfinite(reference.upper):
+                raise ValueError("Normative range limits must be finite")
+            if reference.lower > reference.upper:
+                raise ValueError("Normative range lower limit cannot exceed upper limit")
+            return
+
+        if reference.kind == ReferenceKind.MEAN_SD:
+            if reference.mean is None or reference.sd is None:
+                raise ValueError("MEAN_SD requires mean and sd")
+            if reference.lower is not None or reference.upper is not None:
+                raise ValueError("MEAN_SD cannot define lower or upper limits")
+            if not math.isfinite(reference.mean) or not math.isfinite(reference.sd):
+                raise ValueError("MEAN_SD values must be finite")
+            if reference.sd <= 0:
+                raise ValueError("MEAN_SD sd must be strictly positive")
+            return
+
+        raise ValueError(f"Unsupported normative reference kind: {reference.kind.value}")
 
     def register_source(self, source: NormSource) -> None:
         self._nonempty(source.source_id, "source_id")
@@ -97,7 +127,7 @@ class NormRegistry:
             raise ValueError(f"Duplicate normative reference: {reference.reference_id}")
         if reference.kind not in SUPPORTED_REFERENCE_KINDS:
             raise ValueError(
-                "Registry foundation currently supports only explicit interval references"
+                "Registry currently supports only EXTREME_RANGE and MEAN_SD references"
             )
         if not reference.source_ids:
             raise ValueError("Normative reference requires at least one source")
@@ -110,10 +140,7 @@ class NormRegistry:
             raise ValueError(
                 "Numeric normative reference requires at least one primary research source"
             )
-        if not math.isfinite(reference.lower) or not math.isfinite(reference.upper):
-            raise ValueError("Normative range limits must be finite")
-        if reference.lower > reference.upper:
-            raise ValueError("Normative range lower limit cannot exceed upper limit")
+        self._validate_numeric_shape(reference)
         if not reference.population_context:
             raise ValueError("Normative reference requires explicit population context")
         if reference.active_for_patient_classification:
@@ -133,6 +160,8 @@ class NormRegistry:
             upper=reference.upper,
             source_ids=tuple(reference.source_ids),
             population_context=frozen_context,
+            mean=reference.mean,
+            sd=reference.sd,
             construction_gate=reference.construction_gate,
             active_for_patient_classification=False,
             note=reference.note,
@@ -155,7 +184,6 @@ class NormRegistry:
 
 registry = NormRegistry()
 
-# Primary CRANIOM publications.
 registry.register_source(
     NormSource(
         source_id="CRANIOM_PART1_2010",
@@ -191,8 +219,6 @@ registry.register_source(
         ),
     )
 )
-
-# Secondary technical reproduction: useful for provenance/cross-checking only.
 registry.register_source(
     NormSource(
         source_id="CRANIOM_TECHNICAL_REPRODUCTION",
@@ -205,9 +231,6 @@ registry.register_source(
         ),
     )
 )
-
-# Population context relevant to the Moroccan deployment, registered without
-# copying unverified table values into the runtime registry.
 registry.register_source(
     NormSource(
         source_id="MOROCCO_STEINER_OUSEHAL_2012",
@@ -228,7 +251,33 @@ registry.register_source(
         ),
     )
 )
-
+registry.register_source(
+    NormSource(
+        source_id="MCNAMARA_1984",
+        tier=SourceTier.PRIMARY_ARTICLE,
+        citation=(
+            "McNamara JA Jr. A method of cephalometric evaluation. "
+            "Am J Orthod. 1984;86(6):449-469."
+        ),
+        doi="10.1016/S0002-9416(84)90352-X",
+        pmid="6594933",
+        url=(
+            "https://media.dent.umich.edu/labs/mcnamara/files/"
+            "A%20method%20of%20cephalometric%20evaluation.pdf"
+        ),
+        sample_description=(
+            "Ann Arbor Table I: 111 untreated adults with well-balanced faces and "
+            "good occlusions; 73 women and 38 men; Class I, good skeletal balance, "
+            "orthognathic facial profile"
+        ),
+        applicability_note=(
+            "The article states that, whenever possible, measures from its reference "
+            "samples include an 8% enlargement factor. Linear Table I values must not "
+            "be compared with calibrated physical millimetres until scale compatibility "
+            "is explicitly established."
+        ),
+    )
+)
 registry.register_source(
     NormSource(
         source_id="PEDIATRIC_NORMS_REVIEW_NGUYEN_2024",
@@ -245,8 +294,6 @@ registry.register_source(
     )
 )
 
-# Exact ranges below are present in the accessible primary abstract of CRANIOM
-# Part 2 and cross-checked against the technical reproduction. They remain inert.
 registry.register_reference(
     NormReference(
         reference_id="CRANIOM_L1_DOWNS_MP_EXTREMES_YOUNG_ADULT_V1",
@@ -298,3 +345,131 @@ registry.register_reference(
         note="Method-specific CRANIOM observed-extremes interval; descriptive only.",
     )
 )
+
+_MCNAMARA_COMMON_CONTEXT = {
+    "site": "Ann Arbor, Michigan",
+    "treatment_status": "untreated",
+    "occlusion": "Class I",
+    "skeletal_balance": "good",
+    "facial_profile": "orthognathic; good to excellent facial configuration",
+    "radiographic_scale": "8% enlargement factor included whenever possible",
+    "scale_compatibility": "BLOCKED_UNTIL_8_PERCENT_ENLARGEMENT_MATCHED",
+}
+
+
+def _mcnamara_context(*, sex: str, sample_size: str, mean_age: str) -> Mapping[str, str]:
+    return MappingProxyType(
+        {
+            **_MCNAMARA_COMMON_CONTEXT,
+            "sex": sex,
+            "sample_size": sample_size,
+            "mean_age": mean_age,
+        }
+    )
+
+
+# Table I values are directly sourced from McNamara 1984. Registry binding
+# follows the evidence-graph contract: method_id targets MeasurementEvidence.analysis_id
+# and measurement_id targets MeasurementEvidence.method_id. The references remain
+# descriptive because the source carries an 8% enlargement convention while the
+# runtime measurements are calibrated physical millimetres.
+_MCNAMARA_TABLE_I_REFERENCES = (
+    (
+        "MCNAMARA_CO_GN_ANN_ARBOR_FEMALE_MEAN_SD_V1",
+        "MCNAMARA_CO_GN_MM_V1",
+        "MCNAMARA_CO_GN_V1",
+        "female",
+        "73",
+        "26 years 8 months",
+        120.2,
+        5.3,
+    ),
+    (
+        "MCNAMARA_CO_GN_ANN_ARBOR_MALE_MEAN_SD_V1",
+        "MCNAMARA_CO_GN_MM_V1",
+        "MCNAMARA_CO_GN_V1",
+        "male",
+        "38",
+        "30 years 9 months",
+        134.3,
+        6.8,
+    ),
+    (
+        "MCNAMARA_CO_A_ANN_ARBOR_FEMALE_MEAN_SD_V1",
+        "MCNAMARA_CO_A_MM_V1",
+        "MCNAMARA_CO_A_V1",
+        "female",
+        "73",
+        "26 years 8 months",
+        91.0,
+        4.3,
+    ),
+    (
+        "MCNAMARA_CO_A_ANN_ARBOR_MALE_MEAN_SD_V1",
+        "MCNAMARA_CO_A_MM_V1",
+        "MCNAMARA_CO_A_V1",
+        "male",
+        "38",
+        "30 years 9 months",
+        99.8,
+        6.0,
+    ),
+    (
+        "MCNAMARA_ANS_ME_ANN_ARBOR_FEMALE_MEAN_SD_V1",
+        "MCNAMARA_ANS_ME_MM_V1",
+        "MCNAMARA_ANS_ME_V1",
+        "female",
+        "73",
+        "26 years 8 months",
+        66.7,
+        4.1,
+    ),
+    (
+        "MCNAMARA_ANS_ME_ANN_ARBOR_MALE_MEAN_SD_V1",
+        "MCNAMARA_ANS_ME_MM_V1",
+        "MCNAMARA_ANS_ME_V1",
+        "male",
+        "38",
+        "30 years 9 months",
+        74.6,
+        5.0,
+    ),
+)
+
+for (
+    reference_id,
+    measurement_method_id,
+    construction_gate,
+    sex,
+    sample_size,
+    mean_age,
+    mean,
+    sd,
+) in _MCNAMARA_TABLE_I_REFERENCES:
+    registry.register_reference(
+        NormReference(
+            reference_id=reference_id,
+            method_id="MCNAMARA",
+            method_version="1",
+            measurement_id=measurement_method_id,
+            kind=ReferenceKind.MEAN_SD,
+            unit="mm",
+            lower=None,
+            upper=None,
+            source_ids=("MCNAMARA_1984",),
+            population_context=_mcnamara_context(
+                sex=sex,
+                sample_size=sample_size,
+                mean_age=mean_age,
+            ),
+            mean=mean,
+            sd=sd,
+            construction_gate=construction_gate,
+            active_for_patient_classification=False,
+            note=(
+                "Primary Table I Ann Arbor reference; descriptive only. Do not compare "
+                "with Digital Crown calibrated physical millimetres until the source's "
+                "8% enlargement convention is explicitly matched."
+            ),
+        )
+    )
