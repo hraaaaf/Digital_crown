@@ -1,7 +1,15 @@
-import React from 'react';
-import { Calendar as CalendarIcon } from 'lucide-react';
+import React, { useEffect, useMemo, useState } from 'react';
+import { Calendar as CalendarIcon, Stethoscope } from 'lucide-react';
+import { useParams } from 'react-router-dom';
+import { api } from '../../../services/api';
+import { useAuthStore } from '../../../stores/useAuthStore';
 import { cn } from '../../../utils/cn';
 import { DOCUMENT_STUDIO_LABELS, type CertifiableDocumentStudioTab } from './DocumentStudioVocabulary';
+import {
+  clearDocumentAuthorPractitionerId,
+  setDocumentAuthorPractitionerId,
+  type DocumentPractitionerOption,
+} from './DocumentAuthorSelection';
 
 interface StudioHeaderProps {
   patientName: string;
@@ -26,6 +34,77 @@ export const StudioHeader: React.FC<StudioHeaderProps> = ({
 }) => {
   const documentLabel = DOCUMENT_STUDIO_LABELS[activeTab];
   const compactHonorairesMobile = activeTab === 'honoraires';
+  const { id: patientId } = useParams();
+  const currentUser = useAuthStore(state => state.user);
+  const [practitioners, setPractitioners] = useState<DocumentPractitionerOption[]>([]);
+  const [authorPractitionerId, setAuthorPractitionerId] = useState<number | null>(null);
+  const [authorLoading, setAuthorLoading] = useState(false);
+
+  const currentUserId = useMemo(() => {
+    const parsed = Number(currentUser?.id);
+    return Number.isFinite(parsed) ? parsed : null;
+  }, [currentUser?.id]);
+
+  useEffect(() => {
+    let cancelled = false;
+    clearDocumentAuthorPractitionerId();
+    setAuthorPractitionerId(null);
+
+    const loadAuthorContext = async () => {
+      if (!patientId) return;
+      setAuthorLoading(true);
+      try {
+        const [directoryResponse, assignmentResponse] = await Promise.all([
+          api.get('/patients/_clinic/practitioners'),
+          api.get(`/patients/${patientId}/practitioner`),
+        ]);
+        if (cancelled) return;
+
+        const directory = Array.isArray(directoryResponse.data)
+          ? directoryResponse.data.filter((item: any) => Number.isFinite(Number(item?.id))).map((item: any) => ({
+              id: Number(item.id),
+              name: String(item.name || `Praticien ${item.id}`),
+              role: String(item.role || 'DENTISTE'),
+            }))
+          : [];
+        setPractitioners(directory);
+
+        const referentId = Number(assignmentResponse.data?.practitioner?.id);
+        const referent = directory.find((item: DocumentPractitionerOption) => item.id === referentId);
+        const current = currentUserId !== null
+          ? directory.find((item: DocumentPractitionerOption) => item.id === currentUserId)
+          : undefined;
+        const resolved = referent || current || (directory.length === 1 ? directory[0] : undefined);
+        const selectedId = resolved?.id ?? null;
+        setAuthorPractitionerId(selectedId);
+        setDocumentAuthorPractitionerId(selectedId);
+      } catch (error) {
+        if (!cancelled) {
+          console.error('Impossible de charger les praticiens du document:', error);
+          setPractitioners([]);
+          setAuthorPractitionerId(null);
+          clearDocumentAuthorPractitionerId();
+        }
+      } finally {
+        if (!cancelled) setAuthorLoading(false);
+      }
+    };
+
+    void loadAuthorContext();
+    return () => {
+      cancelled = true;
+      clearDocumentAuthorPractitionerId();
+    };
+  }, [patientId, currentUserId]);
+
+  const handleAuthorChange = (value: string) => {
+    const parsed = Number(value);
+    const selectedId = Number.isFinite(parsed) && practitioners.some(item => item.id === parsed)
+      ? parsed
+      : null;
+    setAuthorPractitionerId(selectedId);
+    setDocumentAuthorPractitionerId(selectedId);
+  };
 
   return (
     <div className={cn(
@@ -80,6 +159,26 @@ export const StudioHeader: React.FC<StudioHeaderProps> = ({
             {showOdontoPanoramique ? "Réduire Schéma" : "Afficher Schéma"}
           </button>
         )}
+
+        <div className="min-w-[190px] flex-1 md:flex-none bg-white dark:bg-slate-900 rounded-xl shadow-sm border border-slate-200 dark:border-white/10 p-2.5 flex flex-col items-start gap-1">
+          <label htmlFor="document-studio-author" className="text-[9px] font-black text-slate-400 uppercase flex items-center gap-1 leading-none h-3">
+            <Stethoscope size={10} /> Auteur clinique
+          </label>
+          <select
+            id="document-studio-author"
+            data-p3-author-selector
+            aria-label="Auteur clinique du document"
+            className="min-h-8 w-full bg-transparent text-xs font-black text-slate-700 dark:text-slate-200 outline-none cursor-pointer focus-visible:ring-2 focus-visible:ring-primary/40 rounded-md disabled:cursor-not-allowed disabled:opacity-60"
+            value={authorPractitionerId ?? ''}
+            onChange={(event) => handleAuthorChange(event.target.value)}
+            disabled={authorLoading || practitioners.length === 0}
+          >
+            <option value="">{authorLoading ? 'Chargement…' : 'Choisir un praticien'}</option>
+            {practitioners.map(practitioner => (
+              <option key={practitioner.id} value={practitioner.id}>{practitioner.name}</option>
+            ))}
+          </select>
+        </div>
 
         <div className={cn(
           "min-w-[140px] flex-1 md:flex-none bg-white dark:bg-slate-900 rounded-xl shadow-sm border border-slate-200 dark:border-white/10",
