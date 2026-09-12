@@ -44,10 +44,8 @@ def _write_release(tmp_path: Path, *, packs=None, sha=CERTIFIED_SHA, marker=None
 
 def test_universal_certificate_accepts_every_commercial_pack(tmp_path):
     expected = _write_release(tmp_path)
-
     for pack in REQUIRED_PACKS:
-        payload = verify_release_directory(tmp_path, expected_pack=pack)
-        assert payload == expected
+        assert verify_release_directory(tmp_path, expected_pack=pack) == expected
 
 
 def test_release_without_certificate_is_refused(tmp_path):
@@ -85,6 +83,7 @@ def test_repo_guards_cannot_fall_back_to_master_or_working_tree():
     root = Path(__file__).resolve().parents[2]
     creator = (root / "backend/scripts/create_release.ps1").read_text(encoding="utf-8-sig")
     launcher = (root / "backend/scripts/run_real_backend.ps1").read_text(encoding="utf-8-sig")
+    frozen_launcher = (root / "run.py").read_text(encoding="utf-8-sig")
     spec = (root / "DigitalCrown.spec").read_text(encoding="utf-8-sig")
     installer = (root / "installer/DigitalCrown.iss").read_text(encoding="utf-8-sig")
 
@@ -99,9 +98,16 @@ def test_repo_guards_cannot_fall_back_to_master_or_working_tree():
     assert "release-certification.json" in launcher
     assert ".digitalcrown-release-sha" in launcher
 
+    assert "verify_release_directory(_CERTIFIED_RELEASE_ROOT)" in spec
     assert "release-certification.json" in spec
     assert ".digitalcrown-release-sha" in spec
     assert "release-content.sha256" in spec
+
+    verify_call = frozen_launcher.index("\n_verify_frozen_release_certification()")
+    bootstrap_call = frozen_launcher.index("\n_first_boot_bootstrap()")
+    assert verify_call < bootstrap_call
+    assert "verify_release_identity(bundle_root)" in frozen_launcher
+
     assert "FileExists" in installer
     assert "release-certification.json" in installer
     assert ".digitalcrown-release-sha" in installer
@@ -114,6 +120,7 @@ def test_future_prs_cannot_skip_cabinet_upgrade_gate_by_path_filter():
     )
     assert "pull_request:\n    paths:" not in workflow
     assert "test_certified_release_policy.py" in workflow
+    assert "Parse PowerShell release guards" in workflow
 
 
 def test_release_certification_workflow_is_exact_sha_and_universal():
@@ -123,6 +130,7 @@ def test_release_certification_workflow_is_exact_sha_and_universal():
     )
     assert "commit_sha" in workflow
     assert "^[0-9a-f]{40}$" in workflow
+    assert "git merge-base --is-ancestor" in workflow
     assert "BASIC" in workflow
     assert "GOLD" in workflow
     assert "ELITE" in workflow
