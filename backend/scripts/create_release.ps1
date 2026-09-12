@@ -34,7 +34,7 @@ function Fail([string]$Message) {
 function Expand-SafeZip([string]$ZipPath, [string]$Destination) {
     Add-Type -AssemblyName System.IO.Compression.FileSystem
     New-Item -ItemType Directory -Path $Destination -Force | Out-Null
-    $destRoot = [IO.Path]::GetFullPath($Destination).TrimEnd('\', '/') + [IO.Path]::DirectorySeparatorChar
+    $destRoot = [IO.Path]::GetFullPath($Destination).TrimEnd([char[]]@('\', '/')) + [IO.Path]::DirectorySeparatorChar
     $archive = [IO.Compression.ZipFile]::OpenRead($ZipPath)
     try {
         foreach ($entry in $archive.Entries) {
@@ -132,18 +132,21 @@ try {
     }
 
     # Verify every listed byte AND reject any unlisted appended file.
-    $payloadRootResolved = [IO.Path]::GetFullPath($payloadRoot).TrimEnd('\', '/') + [IO.Path]::DirectorySeparatorChar
-    $expectedFiles = New-Object 'System.Collections.Generic.HashSet[string]' ([StringComparer]::OrdinalIgnoreCase)
-    [void]$expectedFiles.Add($CertificateName)
-    [void]$expectedFiles.Add($ShaMarkerName)
-    [void]$expectedFiles.Add($ContentManifestName)
+    # Avoid Path.GetRelativePath: cabinet may run Windows PowerShell 5.1/.NET Framework.
+    $payloadRootResolved = [IO.Path]::GetFullPath($payloadRoot).TrimEnd([char[]]@('\', '/')) + [IO.Path]::DirectorySeparatorChar
+    $expectedFiles = @{}
+    $expectedFiles[$CertificateName.ToLowerInvariant()] = $true
+    $expectedFiles[$ShaMarkerName.ToLowerInvariant()] = $true
+    $expectedFiles[$ContentManifestName.ToLowerInvariant()] = $true
 
     foreach ($line in Get-Content -LiteralPath $contentManifestPath) {
         if ([string]::IsNullOrWhiteSpace($line)) { continue }
         if ($line -notmatch '^([0-9a-f]{64})  (.+)$') { Fail "malformed CODE content manifest line: $line" }
         $expectedHash = $matches[1]
         $relativeSlash = $matches[2].Replace('\', '/')
-        if (-not $expectedFiles.Add($relativeSlash)) { Fail "duplicate CODE content path: $relativeSlash" }
+        $relativeKey = $relativeSlash.ToLowerInvariant()
+        if ($expectedFiles.ContainsKey($relativeKey)) { Fail "duplicate CODE content path: $relativeSlash" }
+        $expectedFiles[$relativeKey] = $true
         $relativePath = $relativeSlash.Replace('/', [IO.Path]::DirectorySeparatorChar)
         $candidate = [IO.Path]::GetFullPath((Join-Path $payloadRoot $relativePath))
         if (-not $candidate.StartsWith($payloadRootResolved, [StringComparison]::OrdinalIgnoreCase)) {
@@ -154,15 +157,18 @@ try {
         if ($actualHash -ne $expectedHash) { Fail "CODE file changed: $relativeSlash" }
     }
 
-    foreach ($actualFile in Get-ChildItem -LiteralPath $payloadRoot -File -Recurse) {
-        $relativeActual = [IO.Path]::GetRelativePath($payloadRoot, $actualFile.FullName).Replace('\', '/')
-        if (-not $expectedFiles.Contains($relativeActual)) {
+    $actualFiles = @(Get-ChildItem -LiteralPath $payloadRoot -File -Recurse)
+    foreach ($actualFile in $actualFiles) {
+        $actualFull = [IO.Path]::GetFullPath($actualFile.FullName)
+        if (-not $actualFull.StartsWith($payloadRootResolved, [StringComparison]::OrdinalIgnoreCase)) {
+            Fail "CODE file escaped payload root: $actualFull"
+        }
+        $relativeActual = $actualFull.Substring($payloadRootResolved.Length).Replace('\', '/')
+        if (-not $expectedFiles.ContainsKey($relativeActual.ToLowerInvariant())) {
             Fail "unlisted appended CODE file refused: $relativeActual"
         }
     }
-    if ($expectedFiles.Count -ne @(Get-ChildItem -LiteralPath $payloadRoot -File -Recurse).Count) {
-        Fail "CODE artifact file-set mismatch"
-    }
+    if ($expectedFiles.Count -ne $actualFiles.Count) { Fail "CODE artifact file-set mismatch" }
 
     # 3. Cryptographic provenance: repo + exact signer workflow + exact master SHA.
     $attestationArgs = @(
