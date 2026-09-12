@@ -1,10 +1,12 @@
 name: Document History Actions Visual Certification
 
 on:
+  workflow_dispatch:
   pull_request:
     branches: [master]
     paths:
       - 'frontend/src/features/patients/PatientDocuments.tsx'
+      - 'frontend/scripts/capture-document-history-actions.mjs'
       - '.github/workflows/document-history-actions-visual-cert.yml'
 
 permissions:
@@ -13,166 +15,49 @@ permissions:
 jobs:
   visual-cert:
     runs-on: ubuntu-latest
-    timeout-minutes: 35
+    timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout exact PR head
+        uses: actions/checkout@v4
         with:
-          fetch-depth: 0
-      - uses: actions/setup-python@v5
-        with:
-          python-version: '3.12'
-      - uses: actions/setup-node@v4
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - name: Setup Node 20
+        uses: actions/setup-node@v4
         with:
           node-version: '20'
-      - name: Install backend dependencies
+      - name: Install frontend and Chromium
+        working-directory: frontend
         run: |
-          python -m pip install --upgrade pip
-          pip install torch==2.12.0 torchvision==0.27.0 --index-url https://download.pytorch.org/whl/cpu
-          grep -vE '^(torch|torchvision)([<=>].*)?$' requirements.txt > /tmp/requirements-doc-history.txt
-          pip install -r /tmp/requirements-doc-history.txt
-          pip install httpx==0.27.2
-      - name: Prepare master worktree
-        run: git worktree add /tmp/dc-before origin/master
-      - name: Install browser dependencies for both trees
-        run: |
-          cd /tmp/dc-before/frontend
           npm ci
           npm install --no-save --package-lock=false --legacy-peer-deps playwright@1.55.0
           npx playwright install --with-deps chromium
-          cd "$GITHUB_WORKSPACE/frontend"
-          npm ci
-          npm install --no-save --package-lock=false --legacy-peer-deps playwright@1.55.0
-      - name: Capture BEFORE and AFTER at identical viewports
+      - name: Capture exact-head document actions
+        working-directory: frontend
         env:
-          ROOT: ${{ github.workspace }}
+          PRODUCT_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: node scripts/capture-document-history-actions.mjs
+      - name: Assert visual certificate
+        working-directory: frontend
         run: |
-          mkdir -p "$ROOT/artifacts/document-history-actions"
-          cat > /tmp/capture-doc-history.mjs <<'JS'
-          import fs from 'node:fs';
-          import path from 'node:path';
-          import { chromium, request } from '/tmp/dc-before/frontend/node_modules/playwright/index.mjs';
-
-          const [tree,label] = process.argv.slice(2);
-          const root=process.env.ROOT;
-          const source=fs.readFileSync(path.join(tree,'scripts/t2_runtime_server.py'),'utf8');
-          const user=source.match(/email=\"([^\"]+)\"/)?.[1];
-          const pass=source.match(/get_password_hash\(\"([^\"]+)\"\)/)?.[1];
-          if(!user||!pass) throw new Error('isolated credentials unavailable');
-
-          const api=await request.newContext({baseURL:'http://127.0.0.1:8005'});
-          const login=await api.post('/api/auth/login',{form:{username:user,password:pass}});
-          if(!login.ok()) throw new Error(`login ${login.status()}`);
-          const tok=await login.json();
-          const auth={Authorization:`Bearer ${tok.access_token}`};
-
-          const ps=await api.get('/api/patients',{headers:auth});
-          if(!ps.ok()) throw new Error(`patients ${ps.status()}`);
-          const patients=await ps.json();
-          const patient=patients.find(p=>p.numero_dossier==='T2-0001')||patients[0];
-          if(!patient) throw new Error('no seeded patient');
-
-          const unique=`${label}-${Date.now()}-${Math.random().toString(36).slice(2,8)}`;
-          const title=`CERT VISUELLE ${unique}`;
-          const content=`Document de certification visuelle ${unique}`;
-          const payload={type:'libre',patient_id:patient.id,data:{title,content,doc_date:'2026-09-09'},is_accounted:false,payment_status:'EN_ATTENTE'};
-          const gen=await api.post('/api/documents/generate?archive=true',{headers:{...auth,'Content-Type':'application/json'},data:payload});
-          if(!gen.ok()) throw new Error(`generate ${gen.status()} ${await gen.text()}`);
-
-          const docsResponse=await api.get(`/api/patients/${patient.id}/documents`,{headers:auth});
-          if(!docsResponse.ok()) throw new Error(`documents ${docsResponse.status()} ${await docsResponse.text()}`);
-          const docs=await docsResponse.json();
-          const generated=docs.find(d=>d.clinical_data?.content===content || d.clinical_data?.title===title);
-          if(!generated) throw new Error(`generated archive not found; docs=${JSON.stringify(docs.slice(0,5).map(d=>({id:d.id,name:d.name,clinical_data:d.clinical_data})))}`);
-          const actionLabel=`Actions du document ${generated.name}`;
-
-          const browser=await chromium.launch({headless:true});
-          const evidence=[];
-          for(const viewport of [{width:390,height:844,label:'390x844'},{width:1366,height:700,label:'1366x700'}]){
-            const ctx=await browser.newContext({viewport,colorScheme:'light'});
-            const page=await ctx.newPage();
-            await page.addInitScript(({a,r})=>{
-              localStorage.setItem('token',a);
-              localStorage.setItem('refresh_token',r||'');
-              localStorage.setItem('appMode','prod');
-            },{a:tok.access_token,r:tok.refresh_token});
-            const errors=[];
-            page.on('pageerror',e=>errors.push(String(e)));
-
-            await page.goto(`http://127.0.0.1:5173/patients/${patient.id}?tab=archives`,{waitUntil:'networkidle',timeout:90000});
-            const actions=page.getByRole('button',{name:actionLabel,exact:true});
-            await actions.waitFor({state:'visible',timeout:30000});
-            const card=actions.locator('xpath=ancestor::div[@data-document-kind][1]');
-            await actions.click();
-
-            const editTarget=label==='before'
-              ? card.getByRole('button',{name:'Modifier',exact:true})
-              : card.locator('[data-document-action="edit"]');
-            const trashTarget=label==='before'
-              ? card.getByRole('button',{name:'Mettre à la corbeille',exact:true})
-              : card.locator('[data-document-action="trash"]');
-
-            await editTarget.waitFor({state:'visible',timeout:15000});
-            await trashTarget.waitFor({state:'visible',timeout:15000});
-            const eb=await editTarget.boundingBox();
-            const tb=await trashTarget.boundingBox();
-            if(!eb||!tb) throw new Error(`missing action boxes ${label} ${viewport.label}`);
-
-            const gap=tb.y-(eb.y+eb.height);
-            const overlap=Math.max(0,(eb.y+eb.height)-tb.y);
-            const shot=`${label}-document-actions-${viewport.label}.png`;
-            await page.screenshot({path:path.join(root,'artifacts/document-history-actions',shot),fullPage:false});
-            const row={label,archiveId:generated.id,archiveName:generated.name,viewport,editBox:eb,trashBox:tb,gap,overlap,errors,shot};
-            evidence.push(row);
-            if(label==='after' && (overlap>0 || gap<3 || errors.length)) throw new Error(`AFTER visual contract failed: ${JSON.stringify(row)}`);
-            await ctx.close();
+          node - <<'JS'
+          const fs = require('fs');
+          const report = JSON.parse(fs.readFileSync('document-history-actions-artifacts/report.json', 'utf8'));
+          if (report.invalidCount !== 0) throw new Error(`invalidCount=${report.invalidCount}`);
+          if (report.blockedExternalRequests.length !== 0) throw new Error('external egress detected');
+          if (report.captures.length !== 3) throw new Error(`captures=${report.captures.length}`);
+          for (const capture of report.captures) {
+            if (!capture.valid) throw new Error(`invalid viewport ${capture.viewport}`);
+            if (capture.pageErrors.length || capture.consoleErrors.length) throw new Error(`runtime errors ${capture.viewport}`);
+            if (capture.metrics.horizontalOverflow || capture.metrics.overlap !== 0 || !capture.metrics.menuWithinViewport) throw new Error(`layout failure ${capture.viewport}`);
+            if (capture.metrics.edit.height < 44 || capture.metrics.trash.height < 44) throw new Error(`touch target failure ${capture.viewport}`);
           }
-          fs.writeFileSync(path.join(root,'artifacts/document-history-actions',`${label}-evidence.json`),JSON.stringify(evidence,null,2));
-          await browser.close();
-          await api.dispose();
+          console.log(JSON.stringify({ productHead: report.productHead, viewports: report.viewports, invalidCount: report.invalidCount }, null, 2));
           JS
-
-          run_tree () {
-            tree="$1"; label="$2"
-            rm -f t2-runtime-cert.db /tmp/dc-before/t2-runtime-cert.db
-            (cd "$tree" && exec setsid python scripts/t2_runtime_server.py > "/tmp/${label}-backend.log" 2>&1) & BPID=$!
-            for i in {1..90}; do curl -fsS http://127.0.0.1:8005/health >/dev/null && break; sleep 1; done
-            (cd "$tree/frontend" && exec setsid npm run dev -- --host 127.0.0.1 --port 5173 > "/tmp/${label}-frontend.log" 2>&1) & FPID=$!
-            for i in {1..90}; do curl -fsS http://127.0.0.1:5173 >/dev/null && break; sleep 1; done
-            node /tmp/capture-doc-history.mjs "$tree" "$label"
-            kill -- -$FPID -$BPID 2>/dev/null || true
-            wait $FPID $BPID 2>/dev/null || true
-            for i in {1..30}; do
-              if ! curl -fsS http://127.0.0.1:5173 >/dev/null 2>&1 && ! curl -fsS http://127.0.0.1:8005/health >/dev/null 2>&1; then break; fi
-              sleep 1
-            done
-          }
-          run_tree /tmp/dc-before before
-          run_tree "$ROOT" after
-      - name: Compare evidence
-        run: |
-          python - <<'PY'
-          import json, pathlib
-          p=pathlib.Path('artifacts/document-history-actions')
-          before=json.loads((p/'before-evidence.json').read_text())
-          after=json.loads((p/'after-evidence.json').read_text())
-          report=[]
-          for b,a in zip(before,after):
-              report.append({
-                  'viewport': a['viewport']['label'],
-                  'before_gap': round(b['gap'],2),
-                  'before_overlap': round(b['overlap'],2),
-                  'after_gap': round(a['gap'],2),
-                  'after_overlap': round(a['overlap'],2),
-                  'pass': a['overlap']==0 and a['gap']>=3 and not a['errors'],
-              })
-          (p/'comparison.json').write_text(json.dumps(report,indent=2))
-          print(json.dumps(report,indent=2))
-          assert all(r['pass'] for r in report)
-          PY
-      - uses: actions/upload-artifact@v4
+      - name: Upload visual evidence
+        uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: document-history-actions-before-after
-          path: artifacts/document-history-actions
+          name: document-history-actions-exact-head
+          path: frontend/document-history-actions-artifacts
           if-no-files-found: error
           retention-days: 14
