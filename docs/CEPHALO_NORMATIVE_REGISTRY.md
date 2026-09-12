@@ -30,6 +30,7 @@ Le registre interdit l'enregistrement direct d'une référence active. L'activat
 - construction géométrique certifiée ;
 - source primaire et contexte applicables ;
 - population/âge/sexe/développement explicités quand pertinents ;
+- compatibilité d'échelle/radiographie pour les mesures linéaires ;
 - règle de classification versionnée ;
 - golden cases ;
 - validation praticien ;
@@ -42,7 +43,8 @@ Le registre interdit l'enregistrement direct d'une référence active. L'activat
 | `CRANIOM_PART1_2010` | article primaire | 83 jeunes adultes, Classe I, non traités | provenance méthode |
 | `CRANIOM_PART2_2011` | article primaire | même cohorte décrite | deux intervalles extrêmes explicitement publiés |
 | `CRANIOM_TECHNICAL_REPRODUCTION` | document technique secondaire | reproduction détaillée CRANIOM | contrôle uniquement |
-| `MOROCCO_STEINER_OUSEHAL_2012` | étude populationnelle peer-reviewed | 71 jeunes adultes 19–27 ans, CCTD Casablanca | contexte marocain ; aucune valeur copiée sans table primaire vérifiée |
+| `MOROCCO_STEINER_OUSEHAL_2012` | étude populationnelle peer-reviewed | 71 jeunes adultes 19–27 ans, CCTD Casablanca | contexte marocain ; valeurs numériques bloquées faute de table primaire accessible |
+| `MCNAMARA_1984` | article primaire | 111 adultes Ann Arbor, 73 femmes / 38 hommes, Classe I, bon équilibre squelettique | références `MEAN_SD` Table I, descriptives et inertes |
 | `PEDIATRIC_NORMS_REVIEW_NGUYEN_2024` | scoping review peer-reviewed | données normatives pédiatriques multi-études | garde âge/développement |
 
 ### Références bibliographiques
@@ -51,22 +53,37 @@ Le registre interdit l'enregistrement direct d'une référence active. L'activat
 - Bonnefont R, Ernoult J-F, Sorel O. J Dentofacial Anom Orthod. 2011;14:105. DOI `10.1051/odfen/2011104`.
 - Ousehal L, Lazrak L, Chafii A. Int Orthod. 2012;10(1):122-134. DOI `10.1016/j.ortho.2011.12.001`, PMID `22236522`.
 - Govinakovi PS, Al-Busaidi I, Senguttuvan V. Sultan Qaboos Univ Med J. 2018;18(2):e182-e189. DOI `10.18295/squmj.2018.18.02.010`, PMID `30210848`.
+- McNamara JA Jr. Am J Orthod. 1984;86(6):449-469. DOI `10.1016/S0002-9416(84)90352-X`, PMID `6594933`.
 - Nguyen TK, Cambala A, Hrit M, Zimmermann EA. Korean J Orthod. 2024;54(4):210-228. PMID `38898629`.
 
-## RÉFÉRENCES NUMÉRIQUES ACTUELLEMENT ENREGISTRÉES
+## RÉFÉRENCES NUMÉRIQUES ENREGISTRÉES
 
-Deux seules valeurs CRANIOM sont intégrées à ce stade parce qu'elles figurent explicitement dans la source primaire accessible et sont recoupées par le document technique :
+### CRANIOM — `EXTREME_RANGE`
 
 | ID | Mesure | Référence | Construction requise | Activation |
 |---|---|---:|---|---|
 | `CRANIOM_L1_DOWNS_MP_EXTREMES_YOUNG_ADULT_V1` | incisive mandibulaire / plan mandibulaire de Downs | 78°–114° | `DOWNS_MP_TANGENT` | NON |
 | `CRANIOM_U1_FH_EXTREMES_YOUNG_ADULT_V1` | incisive maxillaire / Francfort | 97,5°–130,1° | `FH_PO_OR_V1` | NON |
 
-**Aucune référence `MEAN_SD` populationnelle n'est enregistrée dans le runtime à ce stade.** Le support du type existe, mais son existence ne vaut pas validation scientifique d'un chiffre.
+La source CRANIOM décrit ces intervalles comme des **extrêmes observés**, pas comme des seuils universels de pathologie.
 
-La source CRANIOM décrit ces intervalles comme des **extrêmes observés dans sa cohorte**, pas comme des seuils universels de pathologie. Le logiciel conserve donc `ReferenceKind.EXTREME_RANGE` au lieu de les déguiser en moyenne ± écart-type.
+### McNamara 1984 — `MEAN_SD` primaire
 
-## CANDIDATS OUSEHAL 2012 — BLOQUÉS AVANT ACTIVATION
+La Table I primaire du PDF de l'Université du Michigan donne les valeurs suivantes pour 111 adultes non traités d'Ann Arbor avec visages équilibrés et bonnes occlusions : 73 femmes et 38 hommes. L'âge moyen indiqué est de 26 ans 8 mois chez les femmes et 30 ans 9 mois chez les hommes.
+
+| Mesure / contrat Digital Crown | Femmes, moyenne ± SD | Hommes, moyenne ± SD | Construction | Activation |
+|---|---:|---:|---|---|
+| Co–Gn / `MCNAMARA_CO_GN_MM_V1` | 120,2 ± 5,3 mm | 134,3 ± 6,8 mm | `MCNAMARA_CO_GN_V1` | NON |
+| Co–A / `MCNAMARA_CO_A_MM_V1` | 91,0 ± 4,3 mm | 99,8 ± 6,0 mm | `MCNAMARA_CO_A_V1` | NON |
+| ANS–Me / `MCNAMARA_ANS_ME_MM_V1` | 66,7 ± 4,1 mm | 74,6 ± 5,0 mm | `MCNAMARA_ANS_ME_V1` | NON |
+
+Le même texte primaire précise que, lorsque possible, les mesures de ses échantillons intègrent un **facteur d'agrandissement de 8 %**. Digital Crown produit au contraire des millimètres physiques à partir d'une calibration vérifiée. Ces six références sont donc stockées pour provenance et traçabilité, mais portent le gate :
+
+`BLOCKED_UNTIL_8_PERCENT_ENLARGEMENT_MATCHED`
+
+Elles ne doivent pas être comparées directement aux mesures patient Digital Crown tant que cette compatibilité d'échelle n'est pas explicitement résolue.
+
+## OUSEHAL 2012 — CANDIDATS BLOQUÉS
 
 L'abstract primaire Ousehal 2012 confirme une analyse de Steiner sur 71 jeunes adultes du CCTD Casablanca, 47 femmes et 24 hommes, âge moyen 22,73 ± 1,69 ans, Classe I, profil acceptable et sans traitement orthodontique antérieur.
 
@@ -78,44 +95,38 @@ Une table comparative peer-reviewed de Govinakovi et al. 2018 reproduit pour Ous
 | SNB | 77,68° ± 3,55° | BLOQUÉ — tableau numérique primaire Ousehal non directement vérifié |
 | ANB | 3,11° ± 1,68° | BLOQUÉ — tableau numérique primaire Ousehal non directement vérifié |
 
-Ces trois valeurs sont donc des **candidats documentés**, pas des `NormReference` runtime. La publication secondaire sert de recoupement, pas de substitut silencieux au tableau primaire. L'échantillon CCTD ne doit par ailleurs pas être promu en « norme marocaine universelle » : les auteurs demandent eux-mêmes des études plus exhaustives avant généralisation.
+Le PDF et les tableaux de l'éditeur restent derrière l'accès éditeur. Ces trois valeurs demeurent donc des **candidats documentés**, pas des `NormReference` runtime. La publication secondaire sert de recoupement, pas de substitut silencieux à la table primaire.
+
+Les contrats runtime correspondants existent et ont été vérifiés dans `cephalo_steiner_evidence_adapter.py` :
+
+- SNA → `STEINER_SNA_DEG_V1`, construction `STEINER_SNA_V1`, version `1`, `deg` ;
+- SNB → `STEINER_SNB_DEG_V1`, construction `STEINER_SNB_V1`, version `1`, `deg` ;
+- ANB → `STEINER_ANB_DEG_V1`, construction `STEINER_ANB_V1`, version `1`, `deg`.
+
+Le `MeasurementEvidence.measurement_id` runtime reste namespacé par cas ; le registre conserve donc `SNA`/`SNB`/`ANB` comme clés sémantiques, tandis que le binding technique fiable repose sur méthode + version + unité + construction.
 
 ## POURQUOI LE CONTEXTE EST OBLIGATOIRE
 
-La littérature récente et populationnelle confirme qu'un même nombre céphalométrique ne doit pas être traité comme universel :
-
-- l'étude marocaine Ousehal et al. porte sur un échantillon spécifique du CCTD Casablanca et ses auteurs préviennent que les résultats ne peuvent pas être généralisés sans études plus larges ;
-- une revue 2024 des données pédiatriques montre des changements liés à la croissance et au développement ;
-- des travaux longitudinaux plus récents construisent des références dépendant notamment de l'âge et du sexe.
-
-Conséquence architecture : `population_context` est obligatoire dans toute référence numérique.
+Une valeur céphalométrique n'est pas universelle : population, âge, sexe, sélection de l'échantillon, méthode de construction et échelle radiographique peuvent changer son sens. Les références sont donc conservées avec leur contexte explicite plutôt qu'aplaties en une table de « normales » sans provenance.
 
 ## VALEURS EXPLICITEMENT NON ACTIVÉES
 
-Les valeurs 9 ans/adulte présentes sur la fiche historique COM et le document technique CRANIOM pour A'B', Situation A/B et profondeur faciale restent **hors registre numérique actif** tant que leur provenance primaire exacte n'est pas vérifiée dans un texte/tableau exploitable.
-
-Même traitement pour les anciennes constantes Digital Crown de PR #371 : elles sont historiques, jamais autoritatives.
-
-Les standards historiques Steiner 82/80/2 et Tweed 25/90/65 ne sont pas requalifiés artificiellement en `MEAN_SD` : une cible clinique ou une valeur conventionnelle n'est pas une moyenne populationnelle avec écart-type.
-
-## GATES CONSTRUCTION
-
-Une référence peut exister alors que la mesure correspondante reste non calculable :
-
-- `CRANIOM_L1_DOWNS_MP...` exige `DOWNS_MP_TANGENT`. Le `Go-Me` legacy ne lui est pas substitué ;
-- `CRANIOM_U1_FH...` exige le Francfort anatomique `Po-Or` ;
-- Gi/Gs CRANIOM restent absents de SRPose38 ;
-- le regard horizontal/NHP reste requis pour A''B''.
-
-Toute future référence `MEAN_SD` doit en plus être liée à son `measurement_id`, `method_id`, `method_version`, unité et construction exacts avant d'être enregistrée.
+- Ousehal SNA/SNB/ANB : table primaire non directement vérifiée ;
+- standards historiques Steiner 82/80/2 : cibles historiques, pas `MEAN_SD` populationnels prouvés ;
+- Tweed 25/90/65 : valeurs conventionnelles/ranges, pas `MEAN_SD` ;
+- anciennes constantes Digital Crown de PR #371 : historiques, jamais autoritatives ;
+- valeurs secondaires CRANIOM non retrouvées dans une source primaire exploitable ;
+- McNamara Table I : enregistrées mais non comparables au runtime tant que le facteur 8 % n'est pas harmonisé.
 
 ## PREUVE CODE
 
 Implémentation : `backend/services/cephalo_norm_registry.py`  
-Tests : `backend/tests/test_cephalo_norm_registry.py`
+Tests : `backend/tests/test_cephalo_norm_registry.py`  
+Contrats McNamara : `backend/services/cephalo_mcnamara_evidence.py`  
+Contrats Steiner : `backend/services/cephalo_steiner_evidence_adapter.py`
 
-Les tests vérifient provenance, invariants `EXTREME_RANGE`, invariants `MEAN_SD`, contexte populationnel obligatoire, immutabilité du contexte, rejet des doublons/sources inconnues/plages invalides/formes numériques mixtes, maintien fail-closed de `PERCENTILE`, et interdiction d'activer directement une référence pour classifier un patient.
+Les tests couvrent les invariants `EXTREME_RANGE` et `MEAN_SD`, le contexte populationnel obligatoire, l'immutabilité, les sources, les formes numériques invalides, `PERCENTILE` fail-closed, l'interdiction de classification patient, l'absence de référence numérique Ousehal non vérifiée et les six bindings McNamara exacts avec blocage d'échelle.
 
 ## NEXT EXACT
 
-Faire certifier le support `MEAN_SD` par la CI exacte de la branche R10. Ensuite, poursuivre la recherche source par source : obtenir la table primaire Ousehal avant toute activation SNA/SNB/ANB, puis traiter séparément Steiner, Tweed, Downs, McNamara et Ricketts avec les mêmes règles de provenance et de méthode. Aucun nombre secondaire ou conventionnel n'est promu automatiquement en norme runtime.
+Faire certifier le nouveau HEAD R10 par CI/T2. Si vert, conserver les références McNamara comme données descriptives inertes, puis poursuivre les familles dont les tables primaires et les constructions exactes peuvent être prouvées. Ousehal reste bloqué jusqu'à lecture directe de sa table primaire ; aucune valeur secondaire ou conventionnelle ne doit être promue pour « remplir » le registre.
