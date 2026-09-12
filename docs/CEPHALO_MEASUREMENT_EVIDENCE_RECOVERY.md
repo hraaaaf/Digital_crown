@@ -3,7 +3,8 @@
 **Date :** 2026-09-12  
 **Parent :** `docs/CEPHALO_DIAGNOSTIC_SPEC.md`  
 **Audit source :** `docs/CEPHALO_COM_VALUE_AUDIT.md`  
-**Complément primaire Ricketts :** `docs/CEPHALO_COM_PRIMARY_RECOVERY_RICKETTS_1981.md`
+**Complément primaire Ricketts :** `docs/CEPHALO_COM_PRIMARY_RECOVERY_RICKETTS_1981.md`  
+**Revue attribution inter-incisive :** `docs/CEPHALO_COM_INTERINCISAL_ATTRIBUTION_REVIEW.md`
 
 ## RÈGLE CANONIQUE
 
@@ -93,19 +94,25 @@ Des publications peer-reviewed utilisant explicitement l'analyse de Ricketts con
 
 Source de corroboration : Ravelo et al., *BioMed Research International* 2021, DOI `10.1155/2021/6670191`.
 
-## PREUVES RÉCUPÉRÉES — DOWNS / INTER-INCISIF
+## INTER-INCISIF `131° ±3°` — CONFLIT D'ATTRIBUTION
 
-### Source primaire bibliographique
+### Primaires identifiés
 
-William B. Downs. *Variations in facial relationships; their significance in treatment and prognosis.* American Journal of Orthodontics. 1948;34(10):812-840. DOI `10.1016/0002-9416(48)90015-3`.
+- William B. Downs. *Variations in facial relationships; their significance in treatment and prognosis.* American Journal of Orthodontics. 1948;34(10):812-840. DOI `10.1016/0002-9416(48)90015-3`.
+- Cecil C. Steiner. *Cephalometrics for you and me.* American Journal of Orthodontics. 1953;39(10):729-755. DOI `10.1016/0002-9416(53)90082-7`.
 
-PubMed et ScienceDirect verrouillent l'article primaire et son échantillon de sujets à excellente occlusion.
+### Contradiction retrouvée
 
-Une publication orthodontique secondaire historique attribue explicitement à Downs la valeur **131° ±3°** pour l'angle inter-incisif.
+La revue systématique de Sangalli et al. 2022 (`10.4041/kjod.2022.52.1.53`) rapporte environ **130° pour Steiner** et **135.4° ±5.8° pour Downs**. Une reconstruction peer-reviewed Downs/Steiner 2022 (`10.3390/digital2020008`) donne également **135.4°** pour Downs, avec une dispersion différente. En parallèle, des sources historiques/pédagogiques secondaires diffusent `131±3°` avec attribution variable à Downs ou Steiner.
 
-État : **source primaire identifiée, valeur exacte encore à relire directement dans le texte/tableau primaire avant activation numérique**.
+**Décision :**
 
-Décision : la mesure et la référence historique `131±3` restent dans la file de récupération ; elles ne sont pas supprimées.
+- la mesure inter-incisive reste conservée ;
+- `131±3°` reste une dette historique visible ;
+- aucune attribution Downs ou Steiner n'est source-lockée pour cette valeur exacte ;
+- état : `HISTORICAL_ATTRIBUTION_CONFLICT_PRIMARY_REVIEW_REQUIRED` ;
+- relire directement les tableaux/textes primaires Downs 1948 et Steiner 1953/1959 avant tout verrouillage numérique ;
+- ne jamais fusionner des conventions divergentes en une norme COM unique.
 
 ## U1 / FRANCFORT — 107° ±5 — PISTE BALLARD/EASTMAN
 
@@ -194,7 +201,7 @@ Les surfaces éditeur des deux articles CRANIOM confirment actuellement les extr
 | Compensation IMPA `80–100°` | **règle dynamique Tweed retrouvée**, plage fixe non prouvée | coder seulement la règle source-spécifique après construction certifiée |
 | U1-FH `107±5°` | corroboré peer-reviewed ; piste Ballard/Eastman identifiée ; plan/dispersion primaire encore ouverts | verrouiller primaire exact U1-FH, sans confondre UI/MX |
 | Compensation U1-FH `97–120°` | recherche exacte négative à ce stade | rechercher archives/sources de l'école COM ; ne pas dériver arithmétiquement |
-| Inter-incisif `131±3°` | source primaire Downs identifiée + attribution secondaire exacte | relire valeur directement dans primaire avant activation |
+| Inter-incisif `131±3°` | **conflit d'attribution/normes : Downs primaire identifié, Steiner primaire identifié, synthèses divergentes** | relire primaires Downs/Steiner et conserver références source-spécifiques séparées |
 | Compensation inter-incisif `120–142°` | recherche exacte négative à ce stade | rechercher archives/sources de l'école COM ; ne pas reconstruire depuis une moyenne ± ET |
 | FMA `26±4° à 9 ans` | **source primaire Ricketts 1981 verrouillée ; construction exacte bloquée** | versionner/tester `true FH / Subgonion-Menton`, sans substitution Go-Me/Go-Gn |
 | A'B' 9 ans | technique concordant | récupérer numérique primaire direct |
@@ -222,8 +229,9 @@ Sinon :
 
 1. versionner et tester la construction Ricketts 1981 `true FH / Subgonion-Menton` avant toute utilisation normative du `26±4° à 9 ans` ;
 2. verrouiller la construction Tweed/FMA avant toute utilisation de la règle de compensation IMPA ;
-3. retrouver le primaire exact de `U1-FH 107±5` dans la filiation Ballard/Eastman sans confondre le plan maxillaire et Francfort ;
-4. rechercher dans les archives/sources COM les plages exactes `97–120°` et `120–142°` ;
-5. récupérer les tableaux numériques CRANIOM primaires pour les valeurs linéaires 9 ans/adulte ;
-6. seulement ensuite modifier `cephalo_norm_registry.py` ou activer une règle clinique ;
-7. conserver des tests négatifs empêchant toute promotion silencieuse d'une dette scientifique en norme patient.
+3. relire directement les primaires Downs 1948 et Steiner 1953/1959 pour résoudre l'attribution/dispersion de l'inter-incisif `131±3°` ;
+4. retrouver le primaire exact de `U1-FH 107±5` dans la filiation Ballard/Eastman sans confondre le plan maxillaire et Francfort ;
+5. rechercher dans les archives/sources COM les plages exactes `97–120°` et `120–142°` ;
+6. récupérer les tableaux numériques CRANIOM primaires pour les valeurs linéaires 9 ans/adulte ;
+7. seulement ensuite modifier `cephalo_norm_registry.py` ou activer une règle clinique ;
+8. conserver des tests négatifs empêchant toute promotion silencieuse d'une dette scientifique en norme patient.
