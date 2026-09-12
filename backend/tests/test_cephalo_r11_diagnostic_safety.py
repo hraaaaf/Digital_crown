@@ -19,6 +19,11 @@ from backend.schemas.cephalo_evidence import (
     NormativeEvaluationEvidence,
     SourceEvidence,
 )
+from backend.services.cephalo_diagnostic_rule_registry import (
+    DiagnosticRuleDefinition,
+    DiagnosticRuleRegistry,
+    FindingRuleDefinition,
+)
 from backend.services.cephalo_evidence_graph import (
     EvidenceGraphSnapshot,
     EvidenceGraphValidationError,
@@ -27,6 +32,31 @@ from backend.services.cephalo_r11_diagnostic_safety import validate_r11_diagnost
 
 
 NOW = datetime(2026, 9, 12, 10, 0, tzinfo=timezone.utc)
+
+
+def _rule_registry() -> DiagnosticRuleRegistry:
+    registry = DiagnosticRuleRegistry()
+    registry.register_finding_rule(
+        FindingRuleDefinition(
+            rule_id="R11_SYNTHETIC_TEST_ONLY",
+            version="1",
+            domain="dentoalveolar",
+            source_ids=("CRANIOM_PART2_2011",),
+            description="Synthetic non-clinical finding rule used only for R11 safety tests.",
+            requires_active_normative_reference=False,
+        )
+    )
+    registry.register_diagnostic_rule(
+        DiagnosticRuleDefinition(
+            rule_id="R11_SYNTHETIC_DIAGNOSIS_TEST_ONLY",
+            version="1",
+            domain="synthetic",
+            source_ids=("CRANIOM_PART2_2011",),
+            finding_rule_ids=("R11_SYNTHETIC_TEST_ONLY",),
+            description="Synthetic non-clinical diagnostic rule used only for R11 safety tests.",
+        )
+    )
+    return registry
 
 
 def _source() -> SourceEvidence:
@@ -209,9 +239,26 @@ def test_r11_rejects_extra_fields_in_normative_payload():
         )
 
 
+def test_r11_production_registry_rejects_unregistered_finding_rule():
+    graph = _craniom_graph()
+    measurement = graph.measurements[0]
+    finding = FindingEvidence(
+        finding_id="finding:unregistered:r11",
+        domain="dentoalveolar",
+        rule_id="R11_SYNTHETIC_TEST_ONLY",
+        rule_version="1",
+        supporting_evidence_refs=[measurement.measurement_id],
+        statement="Synthetic unregistered-rule safety test only.",
+    )
+    with pytest.raises(EvidenceGraphValidationError, match="unregistered rule"):
+        validate_r11_diagnostic_graph(_replace(graph, findings=[finding]))
+
+
 def test_r11_inactive_normative_reference_cannot_support_finding():
     with pytest.raises(EvidenceGraphValidationError, match="inactive normative"):
-        validate_r11_diagnostic_graph(_craniom_graph(include_finding=True))
+        validate_r11_diagnostic_graph(
+            _craniom_graph(include_finding=True), rule_registry=_rule_registry()
+        )
 
 
 def test_r11_inactive_normative_reference_may_be_exposed_as_missing_context():
@@ -227,7 +274,9 @@ def test_r11_inactive_normative_reference_may_be_exposed_as_missing_context():
         missing_evidence_refs=[evaluation.evaluation_id],
         statement="Synthetic R11 missing-context safety test only.",
     )
-    validate_r11_diagnostic_graph(_replace(graph, findings=[finding]))
+    validate_r11_diagnostic_graph(
+        _replace(graph, findings=[finding]), rule_registry=_rule_registry()
+    )
 
 
 def test_r11_finding_cannot_use_same_evidence_as_supporting_and_opposing():
@@ -243,7 +292,33 @@ def test_r11_finding_cannot_use_same_evidence_as_supporting_and_opposing():
         statement="Synthetic R11 contradiction safety test only.",
     )
     with pytest.raises(EvidenceGraphValidationError, match="both supporting and opposing"):
-        validate_r11_diagnostic_graph(_replace(graph, findings=[finding]))
+        validate_r11_diagnostic_graph(
+            _replace(graph, findings=[finding]), rule_registry=_rule_registry()
+        )
+
+
+def test_r11_diagnosis_requires_versioned_registered_rule():
+    graph = _craniom_graph()
+    measurement = graph.measurements[0]
+    finding = FindingEvidence(
+        finding_id="finding:neutral:r11",
+        domain="dentoalveolar",
+        rule_id="R11_SYNTHETIC_TEST_ONLY",
+        rule_version="1",
+        supporting_evidence_refs=[measurement.measurement_id],
+        statement="Synthetic R11 finding used only for graph safety testing.",
+    )
+    diagnosis = DiagnosticHypothesisEvidence(
+        diagnosis_id="diagnosis:unbound:r11",
+        domain="synthetic",
+        supporting_finding_refs=[finding.finding_id],
+        statement="Synthetic unbound R11 diagnosis safety test only.",
+    )
+    with pytest.raises(EvidenceGraphValidationError, match="requires a versioned rule binding"):
+        validate_r11_diagnostic_graph(
+            _replace(graph, findings=[finding], diagnoses=[diagnosis]),
+            rule_registry=_rule_registry(),
+        )
 
 
 def test_r11_diagnosis_cannot_use_same_finding_as_supporting_and_opposing():
@@ -260,11 +335,14 @@ def test_r11_diagnosis_cannot_use_same_finding_as_supporting_and_opposing():
     diagnosis = DiagnosticHypothesisEvidence(
         diagnosis_id="diagnosis:contradictory:r11",
         domain="synthetic",
+        rule_id="R11_SYNTHETIC_DIAGNOSIS_TEST_ONLY",
+        rule_version="1",
         supporting_finding_refs=[finding.finding_id],
         opposing_finding_refs=[finding.finding_id],
         statement="Synthetic R11 diagnosis safety test only.",
     )
     with pytest.raises(EvidenceGraphValidationError, match="same finding as both"):
         validate_r11_diagnostic_graph(
-            _replace(graph, findings=[finding], diagnoses=[diagnosis])
+            _replace(graph, findings=[finding], diagnoses=[diagnosis]),
+            rule_registry=_rule_registry(),
         )
