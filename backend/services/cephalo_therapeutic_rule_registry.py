@@ -84,9 +84,19 @@ class TherapeuticRuleRegistry:
             raise ValueError(f"{field} must be non-empty")
 
     @classmethod
-    def _validate_review(cls, *, reviewed_by: str, review_reference: str) -> None:
+    def _validate_review(
+        cls,
+        *,
+        reviewed_by: str,
+        reviewed_at: datetime.datetime,
+        review_reference: str,
+    ) -> None:
         cls._nonempty(reviewed_by, "reviewed_by")
         cls._nonempty(review_reference, "review_reference")
+        if not isinstance(reviewed_at, datetime.datetime):
+            raise ValueError("reviewed_at must be a datetime")
+        if reviewed_at.tzinfo is None or reviewed_at.utcoffset() is None:
+            raise ValueError("reviewed_at must be timezone-aware")
 
     @classmethod
     def _validate_context_keys(cls, keys: Tuple[str, ...]) -> None:
@@ -101,6 +111,7 @@ class TherapeuticRuleRegistry:
         self._nonempty(source.citation, "citation")
         self._validate_review(
             reviewed_by=source.reviewed_by,
+            reviewed_at=source.reviewed_at,
             review_reference=source.review_reference,
         )
         if not source.context:
@@ -114,7 +125,17 @@ class TherapeuticRuleRegistry:
             raise ValueError(
                 f"Duplicate therapeutic source version: {source.source_id}@{source.version}"
             )
-        self._sources[key] = source
+        self._sources[key] = TherapeuticSourceDefinition(
+            source_id=source.source_id,
+            version=source.version,
+            source_type=source.source_type,
+            citation=source.citation,
+            context=MappingProxyType(dict(source.context)),
+            reviewed_by=source.reviewed_by,
+            reviewed_at=source.reviewed_at,
+            review_reference=source.review_reference,
+            approved_for_clinical_rules=True,
+        )
 
     def _validate_source_bindings(self, bindings: Tuple[SourceKey, ...]) -> None:
         if not bindings:
@@ -132,6 +153,7 @@ class TherapeuticRuleRegistry:
         self._nonempty(rule.description, "description")
         self._validate_review(
             reviewed_by=rule.reviewed_by,
+            reviewed_at=rule.reviewed_at,
             review_reference=rule.review_reference,
         )
         self._validate_context_keys(rule.required_context_keys)
@@ -150,6 +172,7 @@ class TherapeuticRuleRegistry:
         self._nonempty(rule.description, "description")
         self._validate_review(
             reviewed_by=rule.reviewed_by,
+            reviewed_at=rule.reviewed_at,
             review_reference=rule.review_reference,
         )
         self._validate_context_keys(rule.required_context_keys)
