@@ -54,7 +54,8 @@ def test_tweed_impa_numeric_evidence_is_source_locked_but_geometry_blocked():
     assert item.state == ComEvidenceState.SOURCE_LOCKED_CONSTRUCTION_BLOCKED
     assert item.source_ids == ("TWEED_1954_FMIA",)
     assert item.construction_gate == "TWEED_MANDIBULAR_PLANE_EXACT_REQUIRED"
-    assert "Go-Me" in item.blocker
+    assert "Go-Me/Go-Gn" in item.blocker
+    assert "generic Po-Or" in item.blocker
     assert COM_SOURCE_INDEX["TWEED_1954_FMIA"]["source_level"] == "PRIMARY"
 
 
@@ -66,24 +67,24 @@ def test_tweed_compensation_is_dynamic_rule_not_fake_fixed_norm():
     assert "FMA 35 -> IMPA 80" in item.next_exact
 
 
-def test_ricketts_fma_numeric_and_age_rule_are_primary_locked_but_geometry_blocked():
+def test_ricketts_fma_has_source_locked_v2_geometry_without_norm_activation():
     item = COM_EVIDENCE_DEBT_BY_ID["COM_FMA_26_PM4"]
-    assert item.state == ComEvidenceState.SOURCE_LOCKED_CONSTRUCTION_BLOCKED
+    assert item.state == ComEvidenceState.SOURCE_LOCKED_MANUAL_CONSTRUCTION_AVAILABLE
     assert item.source_ids[0] == "RICKETTS_1981_CLINICAL_CEPHALOMETRICS"
     assert item.historical_value == "26 +/- 4 deg at age 9"
-    assert (
-        item.construction_gate
-        == "RICKETTS_TRUE_FH_SUBGONION_MENTON_EXACT_REQUIRED"
-    )
-    assert "Subgonion-Menton" in item.blocker
-    assert "Go-Me or Go-Gn must not substitute" in item.blocker
-    assert (
-        COM_SOURCE_INDEX["RICKETTS_1981_CLINICAL_CEPHALOMETRICS"]["source_level"]
-        == "PRIMARY"
-    )
-    assert "28 +/- 4 degrees at age 3" in COM_SOURCE_INDEX[
-        "RICKETTS_1981_CLINICAL_CEPHALOMETRICS"
-    ]["evidence"]
+    assert item.construction_gate == "RICKETTS_1981_FMA_TRUE_FH_SUBGO_ME_V2"
+    assert "RickettsTruePo" in item.blocker
+    assert "RickettsTrueOr" in item.blocker
+    assert "RickettsSubGo" in item.blocker
+    assert "RickettsMe" in item.blocker
+    assert "generic SRPose38 Po/Or/Go/Me" in item.blocker
+    assert "patient classification inactive" in item.next_exact
+    assert item.active_for_patient_classification is False
+    source = COM_SOURCE_INDEX["RICKETTS_1981_CLINICAL_CEPHALOMETRICS"]
+    assert source["source_level"] == "PRIMARY"
+    assert source["doi"] == "10.1043/0003-3219(1981)051<0115:PITCAO>2.0.CO;2"
+    assert "28 +/- 4 degrees at age 3" in source["evidence"]
+    assert "true Frankfort" in source["evidence"]
 
 
 def test_interincisal_131_is_explicit_attribution_conflict_not_fake_source_lock():

@@ -1,58 +1,28 @@
 # -*- mode: python ; coding: utf-8 -*-
 import os
+from pathlib import Path
+
+from backend.release_certification import verify_installable_release_directory
+from backend.runtime_asset_certification import iter_runtime_asset_files
+
+# A production EXE may only be built from an INSTALLABLE_CERTIFIED release.
+# This validates exact SHA identity, GitHub provenance composition, BASIC/GOLD/ELITE
+# coverage, every code hash and every packaged external runtime-asset hash BEFORE
+# PyInstaller transforms the Python sources.
+_CERTIFIED_RELEASE_ROOT = os.getcwd()
+verify_installable_release_directory(_CERTIFIED_RELEASE_ROOT)
 
 block_cipher = None
 
-# Dépôts de recherche/compétition vendored dans backend/ai_models/, vérifiés
-# un par un (grep sur backend/services + backend/routers, jamais un seul
-# `import`/chemin réel ne les référence ; les vrais poids chargés au runtime
-# — best.onnx, best.pt, panoramic_model.onnx/.pt/.pth — vivent tous à la
-# racine de ai_models/, jamais dans ces dossiers) :
-# - CLdetection2023-master : mmpose complet (docs/configs/tests), aucun poids
-#   à l'intérieur. Son arborescence très profonde fait échouer la compilation
-#   Inno Setup ("chemin introuvable", limite de longueur de chemin Windows).
-# - dentex_repo, cephalometric-master, cephmark : aucun fichier de poids
-#   (.onnx/.pt/.pth/.ckpt) à l'intérieur, zéro référence code.
-# - CL-Detection2023 : contient un `.pt` (step5_docker_and_upload/best_model.pt,
-#   27 Mo, 8 mars) mais c'est un artefact de soumission de compétition sans
-#   rapport avec le vrai modèle chargé par l'app (best.pt, 367 Mo, 4 mai) —
-#   tailles et dates incompatibles, jamais référencé par le code réel.
-# Exclus de l'EXE packagé uniquement — ces dossiers restent dans le dépôt,
-# rien n'est supprimé.
-_AI_MODELS_EXCLUDE_DIRNAMES = {
-    'CLdetection2023-master',
-    'dentex_repo',
-    'CL-Detection2023',
-    'cephalometric-master',
-    'cephmark',
-}
-
-# cephld_cca/ EST utilisé au runtime (backend/services/vision_service.py y
-# injecte sys.path pour importer U_Net_w_Cartesian_SE, et charge son unique
-# fichier de poids racine `ceph_weights.pth`, 35 Mo). Mais cephld_cca/model/
-# contient 23 checkpoints d'entraînement intermédiaires (774 Mo, noms du
-# style Best_Network_..._E_139.pth — historique d'époques) : aucun n'est
-# jamais chargé par le code (seul `ceph_weights.pth` à la racine l'est,
-# vérifié ligne par ligne dans vision_service.py). Chemin relatif exact
-# (pas un simple nom de dossier) pour ne jamais exclure un futur dossier
-# "model" ailleurs par erreur.
-_AI_MODELS_EXCLUDE_RELPATHS = {
-    os.path.join('cephld_cca', 'model'),
-}
-
 
 def _collect_ai_models_datas():
-    root = os.path.join('backend', 'ai_models')
+    """Use the exact same selection policy as runtime-asset certification."""
+    root = Path('backend') / 'ai_models'
     entries = []
-    for dirpath, dirnames, filenames in os.walk(root):
-        dirnames[:] = [d for d in dirnames if d not in _AI_MODELS_EXCLUDE_DIRNAMES]
-        relpath = os.path.relpath(dirpath, root)
-        if any(relpath == p or relpath.startswith(p + os.sep) for p in _AI_MODELS_EXCLUDE_RELPATHS):
-            dirnames[:] = []
-            continue
-        for filename in filenames:
-            src = os.path.join(dirpath, filename)
-            entries.append((src, dirpath))
+    for source in iter_runtime_asset_files(root):
+        relative = source.resolve().relative_to(root.resolve())
+        destination = (Path('backend') / 'ai_models' / relative.parent).as_posix()
+        entries.append((str(source), destination))
     return entries
 
 
@@ -62,21 +32,25 @@ a = Analysis(
     binaries=[],
     datas=[
         ('frontend/dist', 'frontend/dist'),
-        # SÉCURITÉ : ne JAMAIS embarquer de fichier .env dans l'EXE distribué
-        # (risque de secrets figés dans le binaire). La config cabinet est
-        # chargée depuis %APPDATA%/DigitalCrown/.env ou DIGITALCROWN_ENV_FILE
-        # (cf. backend/env_loader.py), posée par la procédure d'installation.
+        # Embedded release identity / deployment-integrity proofs. run.py rechecks
+        # these before first-boot writes. Full source hashes were checked above.
+        ('release-certification.json', '.'),
+        ('.digitalcrown-release-sha', '.'),
+        ('release-content.sha256', '.'),
+        ('installable-certification.json', '.'),
+        ('runtime-assets-certification.json', '.'),
+        ('runtime-assets-content.sha256', '.'),
+        ('github-attestation-verification.json', '.'),
+        ('backend/scientific_assets.json', 'backend'),
+        # SÉCURITÉ : ne JAMAIS embarquer de fichier .env contenant des secrets.
     ] + _collect_ai_models_datas(),
     hiddenimports=[
         'uvicorn', 'fastapi', 'sqlalchemy', 'sqlite3', 'pydantic', 'sentry_sdk',
         'onnxruntime', 'cv2', 'numpy', 'PIL', 'python-multipart', 'passlib', 'bcrypt', 'jose',
-        # Imports dynamiques ratés par l'analyse statique PyInstaller :
-        # - passlib charge ses handlers par nom au runtime (crash au boot sinon)
-        # - jose charge ses backends paresseusement au premier encode/decode JWT
-        #   (crash au premier login sinon)
         'passlib.handlers', 'passlib.handlers.bcrypt',
         'jose.backends', 'jose.backends.cryptography_backend', 'jose.backends.native',
-        'backend.services.sync_manager', 'backend.seed_templates', 'backend.seed_user', 'backend.seed_clinical'
+        'backend.services.sync_manager', 'backend.seed_templates', 'backend.seed_user', 'backend.seed_clinical',
+        'backend.release_certification', 'backend.runtime_asset_certification'
     ],
     hookspath=[],
     hooksconfig={},

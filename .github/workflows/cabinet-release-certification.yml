@@ -1,0 +1,274 @@
+name: Cabinet Certified Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      commit_sha:
+        description: "Exact 40-character master HEAD SHA to certify"
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  id-token: write
+  attestations: write
+
+concurrency:
+  group: cabinet-release-cert-${{ inputs.commit_sha }}
+  cancel-in-progress: false
+
+env:
+  CERTIFIED_SHA: ${{ inputs.commit_sha }}
+
+jobs:
+  preflight:
+    name: Exact immutable master HEAD
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: master
+          fetch-depth: 0
+
+      - name: Refuse branches, tags, historical SHAs and moving refs
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ ! "$CERTIFIED_SHA" =~ ^[0-9a-f]{40}$ ]]; then
+            echo "::error::commit_sha must match ^[0-9a-f]{40}$"
+            exit 1
+          fi
+          if [[ "$GITHUB_REF" != "refs/heads/master" ]]; then
+            echo "::error::Cabinet release certification must be dispatched from master"
+            exit 1
+          fi
+          git fetch origin master --no-tags
+          MASTER_SHA="$(git rev-parse origin/master)"
+          if [[ "$CERTIFIED_SHA" != "$MASTER_SHA" || "$GITHUB_SHA" != "$MASTER_SHA" ]]; then
+            echo "::error::Only the exact current immutable master HEAD can be newly certified"
+            echo "requested=$CERTIFIED_SHA github_sha=$GITHUB_SHA master=$MASTER_SHA"
+            exit 1
+          fi
+
+  backend:
+    name: Backend full certification
+    needs: preflight
+    runs-on: ubuntu-latest
+    env:
+      SECRET_KEY: certified-release-ci-secret-key-minimum-32-characters
+      DATABASE_URL: "sqlite:///:memory:"
+      ENVIRONMENT: development
+      TELEMETRY_ENABLED: "false"
+      CLOUD_AI_ENABLED: "false"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.commit_sha }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install backend dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install torch==2.12.0 torchvision==0.27.0 --index-url https://download.pytorch.org/whl/cpu
+          grep -vE '^(torch|torchvision)([<=>].*)?$' requirements.txt > /tmp/requirements-ci.txt
+          pip install -r /tmp/requirements-ci.txt
+          pip install httpx==0.27.2 pytest pytest-asyncio
+      - name: Production safety contract
+        run: python scripts/prod_safety_check.py
+      - name: Full backend regression
+        run: python -m pytest backend/tests -q --maxfail=1
+
+  postgres18:
+    name: PostgreSQL 18 upgrade + preservation
+    needs: preflight
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: cabinet_compat
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d cabinet_compat"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    env:
+      ENVIRONMENT: test
+      DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/cabinet_compat
+      CABINET_COMPAT_POSTGRES_URL: postgresql://postgres:postgres@127.0.0.1:5432/cabinet_compat
+      SECRET_KEY: certified-release-postgres-secret-key-minimum-32-characters
+      SUPERADMIN_EMAIL: ci-admin@example.invalid
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.commit_sha }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Install compatibility dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pytest
+      - name: Cabinet compatibility gates
+        run: |
+          python -m pytest \
+            backend/tests/test_cabinet_upgrade_compatibility.py \
+            backend/tests/test_cabinet_upgrade_postgres.py \
+            backend/tests/test_clinic_local_data_preservation.py \
+            backend/tests/test_certified_release_policy.py \
+            -q
+
+  frontend:
+    name: Frontend tests + production build
+    needs: preflight
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.commit_sha }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install frontend dependencies
+        run: npm ci
+      - name: Frontend regression
+        run: npm test
+      - name: Build exact-SHA frontend
+        run: npm run build
+      - uses: actions/upload-artifact@v4
+        with:
+          name: certified-frontend-${{ inputs.commit_sha }}
+          path: frontend/dist/
+          if-no-files-found: error
+          retention-days: 14
+
+  package:
+    name: Emit attested CODE_CERTIFIED universal artifact
+    needs: [preflight, backend, postgres18, frontend]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.commit_sha }}
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install release verification dependencies
+        run: python -m pip install sqlalchemy==2.0.28
+      - uses: actions/download-artifact@v4
+        with:
+          name: certified-frontend-${{ inputs.commit_sha }}
+          path: /tmp/certified-frontend
+
+      - name: Materialize exact-SHA CODE_CERTIFIED release
+        id: materialize
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$CERTIFIED_SHA"
+          SHORT_SHA="${CERTIFIED_SHA:0:12}"
+          RELEASE_ID="dc-cabinet-${SHORT_SHA}-run${GITHUB_RUN_ID}"
+          ROOT="$RUNNER_TEMP/certified-release"
+          mkdir -p "$ROOT/frontend/dist"
+
+          # Runtime/build inputs are copied from the checked-out exact SHA only.
+          cp -a backend "$ROOT/backend"
+          cp run.py DigitalCrown.spec requirements.txt "$ROOT/"
+          cp -a installer "$ROOT/installer"
+          cp -a /tmp/certified-frontend/. "$ROOT/frontend/dist/"
+
+          python - "$ROOT" <<'PY'
+          import hashlib
+          import json
+          import os
+          import sys
+          from datetime import datetime, timezone
+          from pathlib import Path
+
+          root = Path(sys.argv[1])
+          sha = os.environ["CERTIFIED_SHA"]
+          run_id = int(os.environ["GITHUB_RUN_ID"])
+          release_id = f"dc-cabinet-{sha[:12]}-run{run_id}"
+          cert_name = "release-certification.json"
+          marker_name = ".digitalcrown-release-sha"
+          manifest_name = "release-content.sha256"
+
+          excluded = {cert_name, marker_name, manifest_name}
+          lines = []
+          for path in sorted(p for p in root.rglob("*") if p.is_file()):
+              rel = path.relative_to(root).as_posix()
+              if rel in excluded:
+                  continue
+              digest = hashlib.sha256(path.read_bytes()).hexdigest()
+              lines.append(f"{digest}  {rel}")
+          manifest = root / manifest_name
+          manifest.write_text("\n".join(lines) + "\n", encoding="utf-8")
+          manifest_digest = hashlib.sha256(manifest.read_bytes()).hexdigest()
+
+          certificate = {
+              "certificate_version": 1,
+              "artifact_type": "cabinet-certified-release",
+              "certification_level": "CODE_CERTIFIED",
+              "repository": "hraaaaf/Digital_crown",
+              "commit_sha": sha,
+              "release_id": release_id,
+              "certified_packs": ["BASIC", "GOLD", "ELITE"],
+              "certification_run_id": run_id,
+              "certified_at": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
+              "content_manifest_sha256": manifest_digest,
+              "attestation_subject": manifest_name,
+              "installable": False,
+              "installable_requires": "runtime-asset composition",
+              "checks": [
+                  "backend-full",
+                  "frontend-tests-build",
+                  "postgres18-upgrade",
+                  "local-data-preservation",
+                  "certified-release-policy",
+              ],
+          }
+          (root / cert_name).write_text(json.dumps(certificate, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+          (root / marker_name).write_text(sha + "\n", encoding="utf-8")
+          print(release_id)
+          PY
+
+          for PACK in BASIC GOLD ELITE; do
+            PYTHONPATH="$ROOT" python "$ROOT/backend/scripts/verify_certified_release.py" \
+              --release-dir "$ROOT" --expected-pack "$PACK"
+          done
+
+          echo "release_id=$RELEASE_ID" >> "$GITHUB_OUTPUT"
+
+      - name: Cryptographically attest the code content manifest
+        uses: actions/attest@v4
+        with:
+          subject-path: ${{ runner.temp }}/certified-release/release-content.sha256
+
+      - name: Certification summary
+        shell: bash
+        run: |
+          cat "$RUNNER_TEMP/certified-release/release-certification.json"
+          echo "CODE_CERTIFIED immutable SHA: $CERTIFIED_SHA"
+          echo "Universal release profiles: BASIC / GOLD / ELITE"
+          echo "NOT INSTALLABLE until certified runtime assets are composed locally."
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: code-certified-${{ steps.materialize.outputs.release_id }}
+          path: ${{ runner.temp }}/certified-release/
+          if-no-files-found: error
+          retention-days: 90
+          include-hidden-files: true

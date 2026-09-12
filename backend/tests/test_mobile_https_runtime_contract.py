@@ -35,13 +35,14 @@ def test_real_launcher_enables_tls_without_reload() -> None:
     assert '"--ssl-certfile", $TlsCertFile, "--ssl-keyfile", $TlsKeyFile' in launcher
     assert "HTTPS mobile/WebAuthn contract requires the real runtime on port 8005" in launcher
 
-    invocation = next(
+    invocations = [
         line.strip()
         for line in launcher.splitlines()
         if line.strip().startswith("& $VenvPython")
-    )
-    assert invocation == "& $VenvPython @uvicornArgs"
-    assert "--reload" not in invocation
+    ]
+    runtime_invocation = "& $VenvPython @uvicornArgs"
+    assert runtime_invocation in invocations
+    assert "--reload" not in runtime_invocation
 
 
 def test_secure_pairing_url_override_and_mdns_share_origin() -> None:

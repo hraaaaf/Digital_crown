@@ -2,6 +2,18 @@ import os
 import sys
 
 
+def _verify_frozen_release_certification() -> None:
+    """Fail closed before any first-boot write when a packaged build is not installable."""
+    if not getattr(sys, "frozen", False):
+        return
+
+    from pathlib import Path
+    from backend.release_certification import verify_installable_release_identity
+
+    bundle_root = Path(getattr(sys, "_MEIPASS", Path(sys.executable).resolve().parent))
+    verify_installable_release_identity(bundle_root)
+
+
 def _first_boot_bootstrap() -> None:
     """Create the persistent cabinet environment on first packaged launch.
 
@@ -88,6 +100,8 @@ def _maybe_run_guided_restore_worker() -> None:
     raise SystemExit(GuidedRestoreWorker.run(args.restore_id, args.parent_pid, sys.executable))
 
 
+# Order is security-sensitive: INSTALLABLE identity is checked before any env/data write.
+_verify_frozen_release_certification()
 _first_boot_bootstrap()
 _setup_frozen_logging()
 _maybe_run_guided_restore_worker()

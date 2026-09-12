@@ -43,6 +43,25 @@ Source : `backend/main.py::validate_environment_invariants()`.
 - Médias sensibles : routes authentifiées et tenant-aware, jamais accès statique public.
 - Ne jamais logger secrets, tokens, mots de passe ou master key.
 
+### Installation / release cabinet — INVARIANT ABSOLU
+
+Lire `docs/CABINET_CERTIFIED_RELEASE_POLICY.md` avant toute opération de build, packaging, installation, activation ou mise à jour cabinet.
+
+- **Interdit d'installer ou démarrer `master`, `HEAD`, une branche, un tag ou un working tree.**
+- `CODE_CERTIFIED` = code exact-SHA attesté par GitHub/Sigstore. **Ce niveau n'est PAS installable.**
+- `INSTALLABLE_CERTIFIED` = `CODE_CERTIFIED` + bundle d'assets runtime certifié pour le même SHA + composition finale revalidée.
+- **Seul `INSTALLABLE_CERTIFIED` est autorisé à atteindre un cabinet réel, PyInstaller ou Inno Setup.**
+- Le CODE SHA nouvellement certifiable doit être le HEAD courant exact de `master`, 40 caractères.
+- Toute release universelle couvre simultanément `BASIC`, `GOLD`, `ELITE` ; jamais trois forks/binaires divergents.
+- Les noms release `BASIC/GOLD/ELITE` ne renomment pas implicitement les enums de licence historiques ; toute migration commerciale reste un lot séparé.
+- `create_release.ps1` ne doit jamais recopier/reconstruire le working tree. Il doit vérifier hashes + provenance GitHub/Sigstore puis composer avec les assets runtime.
+- La sélection des assets de `DigitalCrown.spec` doit rester dérivée de `backend/runtime_asset_certification.py`, jamais dupliquée à la main.
+- `run_real_backend.ps1` doit rester fail-closed sur code + provenance + assets **avant** lecture de la config cabinet.
+- `run.py` doit vérifier `INSTALLABLE_CERTIFIED` avant le first boot.
+- Un merge sur `master` **ne signifie jamais installable**.
+- Toute évolution pouvant toucher DB, migrations, patients, documents, médias, startup, seeds, paths, restore/backup, tenant filtering ou installer exige un rehearsal sur copie fraîche des données réelles avant certification destinée à un cabinet existant.
+- Il est interdit de supprimer, neutraliser, path-filter ou contourner ces gates pour « débloquer » une release.
+
 ### Domaines scientifiques / cliniques
 
 Pour tout scope clinique ou scientifique :
@@ -71,7 +90,7 @@ Les skills d'audit sont **read-only**. Un finding se corrige dans un lot sépar�
 
 - Le dépôt de travail n'est pas le runtime cabinet.
 - Ne jamais lancer un process auto-reload contre le runtime réel.
-- Utiliser les scripts de release immuable sous `backend/scripts/` pour les opérations cabinet.
+- Utiliser uniquement une release `INSTALLABLE_CERTIFIED` composée via les scripts sous `backend/scripts/`.
 - Un build de test ne doit jamais écraser un frontend réellement servi.
 
 ### Environnement de test
@@ -97,13 +116,15 @@ Les skills d'audit sont **read-only**. Un finding se corrige dans un lot sépar�
 - Conserver les hidden imports runtime nécessaires dans `DigitalCrown.spec`.
 - Ne jamais embarquer un `.env` contenant des secrets.
 - `console=False` exige une journalisation fichier fiable.
-- Le bootstrap first-run doit précéder les imports qui figent les settings.
+- Le bootstrap first-run doit précéder les imports qui figent les settings, mais **la vérification `INSTALLABLE_CERTIFIED` doit précéder le bootstrap first-run**.
 
 ### Modèles
 
 - `backend/ai_models/` contient aussi des dépôts de recherche historiques.
 - Ne pas embarquer un dépôt complet si seuls certains artefacts runtime sont nécessaires.
-- Avant suppression ou packaging, vérifier les références runtime réelles.
+- La certification d'intégrité des assets ne vaut pas validation scientifique.
+- Un asset scientifiquement épinglé dans `backend/scientific_assets.json` doit matcher path + taille + SHA-256 ; sinon release refusée.
+- Les assets non encore épinglés restent explicitement déclarés comme tels ; ne jamais prétendre qu'ils sont scientifiquement certifiés.
 
 ## Documents / PDF
 
@@ -136,10 +157,13 @@ npm --prefix frontend run build
 - frontend : `npm ci` + tests + build ;
 - garde production négatif.
 
-Ne déclarer aucun head certifié sans preuve du run correspondant.
+`.github/workflows/cabinet-upgrade-postgres-cert.yml` est un gate PR global sans filtre de chemin et verrouille PostgreSQL 18 + préservation + politique de release.
+
+Ne déclarer aucun SHA `CODE_CERTIFIED` sans preuve du run + attestation correspondants. Ne déclarer aucune version **installable** sans certificat final `INSTALLABLE_CERTIFIED` vérifié.
 
 ## Runbooks utiles
 
+- `docs/CABINET_CERTIFIED_RELEASE_POLICY.md`
 - `docs/CABINET_ONPREM_GUIDE.md`
 - `docs/PREPROD_RUNBOOK.md`
 - `docs/PATIENT_DATA_ROLLBACK.md`
@@ -157,5 +181,7 @@ Ne déclarer aucun head certifié sans preuve du run correspondant.
 8. Mettre à jour les canoniques.
 9. Vérifier leur cohérence.
 10. PR/merge/certification seulement après preuves.
+11. Pour distribution cabinet : certifier le HEAD master exact en `CODE_CERTIFIED`.
+12. Certifier les assets runtime pour ce même SHA, composer en `INSTALLABLE_CERTIFIED`, puis seulement construire/activer.
 
-**Dernière révision canonique : 13 août 2026.**
+**Dernière révision canonique : 12 septembre 2026.**

@@ -2,13 +2,6 @@ name: Cabinet Upgrade PostgreSQL Certification
 
 on:
   pull_request:
-    paths:
-      - "backend/database.py"
-      - "backend/seed_user.py"
-      - "backend/tests/test_cabinet_upgrade_compatibility.py"
-      - "backend/tests/test_cabinet_upgrade_postgres.py"
-      - "backend/tests/test_clinic_local_data_preservation.py"
-      - ".github/workflows/cabinet-upgrade-postgres-cert.yml"
   workflow_dispatch:
 
 permissions:
@@ -20,6 +13,7 @@ concurrency:
 
 jobs:
   postgres-18-upgrade-gate:
+    name: PostgreSQL 18 + immutable release invariants
     runs-on: ubuntu-latest
     services:
       postgres:
@@ -55,10 +49,68 @@ jobs:
           pip install -r requirements.txt
           pip install pytest
 
-      - name: Run cabinet upgrade compatibility gates on PostgreSQL 18
+      - name: Parse PowerShell release guards
+        shell: pwsh
+        run: |
+          $failed = $false
+          foreach ($script in @(
+            "backend/scripts/create_release.ps1",
+            "backend/scripts/run_real_backend.ps1"
+          )) {
+            $tokens = $null
+            $errors = $null
+            [System.Management.Automation.Language.Parser]::ParseFile(
+              (Resolve-Path $script), [ref]$tokens, [ref]$errors
+            ) | Out-Null
+            if ($errors.Count -gt 0) {
+              $failed = $true
+              Write-Error "$script parse errors: $($errors | Out-String)"
+            }
+          }
+          if ($failed) { exit 1 }
+
+      - name: Run cabinet preservation and release-policy gates on PostgreSQL 18
         run: |
           python -m pytest \
             backend/tests/test_cabinet_upgrade_compatibility.py \
             backend/tests/test_cabinet_upgrade_postgres.py \
             backend/tests/test_clinic_local_data_preservation.py \
+            backend/tests/test_certified_release_policy.py \
             -q
+
+  windows-powershell-51-release-guard:
+    name: Windows PowerShell 5.1 release guards
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Parse guards with Windows PowerShell 5.1
+        shell: powershell
+        run: |
+          if ($PSVersionTable.PSVersion.Major -ne 5) {
+            throw "Expected Windows PowerShell 5.1, got $($PSVersionTable.PSVersion)"
+          }
+          foreach ($script in @(
+            "backend/scripts/create_release.ps1",
+            "backend/scripts/run_real_backend.ps1"
+          )) {
+            $tokens = $null
+            $errors = $null
+            [System.Management.Automation.Language.Parser]::ParseFile(
+              (Resolve-Path $script), [ref]$tokens, [ref]$errors
+            ) | Out-Null
+            if ($errors.Count -gt 0) {
+              throw "$script parse errors: $($errors | Out-String)"
+            }
+          }
+
+      - name: Preserve Windows PowerShell 5.1 API compatibility
+        shell: powershell
+        run: |
+          $creator = Get-Content backend/scripts/create_release.ps1 -Raw
+          if ($creator -match '\[IO\.Path\]::GetRelativePath') {
+            throw "[IO.Path]::GetRelativePath is not allowed on the Windows PowerShell 5.1 cabinet path"
+          }
+          if ($creator -notmatch 'Substring\(\$payloadRootResolved\.Length\)') {
+            throw "Expected PowerShell 5.1-compatible relative path derivation is missing"
+          }
