@@ -151,6 +151,17 @@ def _make_installable(tmp_path: Path):
         "installable": True,
     }
     (tmp_path / INSTALLABLE_CERTIFICATE_FILENAME).write_text(json.dumps(installable), encoding="utf-8")
+    (tmp_path / "release-manifest.json").write_text(
+        json.dumps(
+            {
+                "environment": "cabinet-real",
+                "release_id": code_payload["release_id"],
+                "commit": CERTIFIED_SHA,
+                "certification_level": "INSTALLABLE_CERTIFIED",
+            }
+        ),
+        encoding="utf-8",
+    )
     return code_payload, installable
 
 
@@ -217,6 +228,13 @@ def test_installable_attestation_evidence_mutation_is_refused(tmp_path):
         verify_installable_release_directory(tmp_path)
 
 
+def test_installable_unlisted_file_is_refused(tmp_path):
+    _make_installable(tmp_path)
+    (tmp_path / "backend" / "appended_evil.py").write_text("raise SystemExit('nope')\n", encoding="utf-8")
+    with pytest.raises(ReleaseCertificationError, match="file-set mismatch.*appended_evil"):
+        verify_installable_release_directory(tmp_path)
+
+
 def test_current_scientific_registry_does_not_overclaim_unpinned_models():
     root = Path(__file__).resolve().parents[2]
     pinned, unpinned = inspect_registry_coverage(root)
@@ -241,6 +259,7 @@ def test_repo_guards_cannot_fall_back_to_master_or_working_tree():
     assert "--source-digest" in creator
     assert "--signer-workflow" in creator
     assert "--deny-self-hosted-runners" in creator
+    assert "unlisted appended CODE file refused" in creator
     assert "compose_installable_release.py" in creator
 
     assert "verify_installable_release.py" in launcher
@@ -288,5 +307,7 @@ def test_release_certification_workflow_is_exact_master_sha_attested_and_code_on
     assert "actions/attest@v4" in workflow
     assert '"certification_level": "CODE_CERTIFIED"' in workflow
     assert '"installable": False' in workflow
+    assert "steps.materialize.outputs.release_id" in workflow
+    assert "runner.temp" in workflow
     assert "BASIC" in workflow and "GOLD" in workflow and "ELITE" in workflow
     assert "release-content.sha256" in workflow
