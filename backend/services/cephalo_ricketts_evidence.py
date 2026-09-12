@@ -1,8 +1,10 @@
 """Typed evidence adapter for the source-locked R9 Ricketts subset.
 
-R9 certifies Facial Depth, Facial Axis, Point-A Convexity and upper/lower lip
-distance to the Ricketts E-line with explicit, versioned geometric conventions.
-No norms, diagnosis, growth forecast or treatment logic is activated here.
+R9 certifies Facial Depth, Point-A Convexity and upper/lower lip distance to the
+Ricketts E-line with explicit, versioned geometric conventions. Facial Axis
+remains blocked until the runtime PT landmark is independently provenance-locked
+to the exact Ricketts Pt definition. No norms, diagnosis, growth forecast or
+treatment logic is activated here.
 """
 from __future__ import annotations
 
@@ -17,21 +19,14 @@ from backend.schemas.cephalo_evidence import (
     MeasurementEvidence,
 )
 from backend.services.cephalo_ricketts_geometry import (
-    ricketts_constructed_gn_v1,
     ricketts_convexity_signed_distance_px_v1,
     ricketts_e_line_horizontal_signed_distance_px_v1,
-    ricketts_facial_axis_deg_v1,
     ricketts_facial_depth_deg_v1,
 )
 
 RICKETTS_FACIAL_DEPTH_REFERENCES = (
     "doi:10.1016/0002-9416(60)90047-6",
     "doi:10.1043/0003-3219(1981)051<0115:PITCAO>2.0.CO;2",
-)
-RICKETTS_FACIAL_AXIS_REFERENCES = (
-    "doi:10.1016/S0002-9416(64)80003-8",
-    "PMCID:PMC12596171",
-    "PMCID:PMC11674528",
 )
 RICKETTS_CONVEXITY_REFERENCES = (
     "doi:10.1043/0003-3219(1981)051<0115:PITCAO>2.0.CO;2",
@@ -44,7 +39,14 @@ RICKETTS_E_LINE_REFERENCES = (
 )
 RICKETTS_LANDMARK_CONTRACT = "docs/SRPOSE38_LANDMARK_CONTRACT.md"
 
-RICKETTS_BLOCKED_CONTRACTS: dict[str, str] = {}
+RICKETTS_BLOCKED_CONTRACTS: dict[str, str] = {
+    "RICKETTS_FACIAL_AXIS_DEG_V1": (
+        "BLOCKED_LANDMARK_CONVENTION: CL-Detection landmark #28 is named PT, but "
+        "its public provenance does not independently lock the annotation to the "
+        "exact Ricketts Pt definition at the inferior border of foramen rotundum / "
+        "posterior wall of the pterygomaxillary fissure. No runtime alias is allowed."
+    ),
+}
 
 
 @dataclass(frozen=True)
@@ -60,7 +62,6 @@ class _RickettsSpec:
 
 _RICKETTS_SPECS = (
     _RickettsSpec("FACIAL_DEPTH", "RICKETTS_FACIAL_DEPTH_V1", "RICKETTS_FACIAL_DEPTH_DEG_V1", ("Po", "Or", "N", "Pog"), "facial_depth", "deg", False),
-    _RickettsSpec("FACIAL_AXIS", "RICKETTS_FACIAL_AXIS_V1", "RICKETTS_FACIAL_AXIS_DEG_V1", ("Ba", "N", "PT_point", "Pog", "Go", "Me"), "facial_axis", "deg", False),
     _RickettsSpec("CONVEXITY_A_NPOG", "RICKETTS_CONVEXITY_A_NPOG_V1", "RICKETTS_CONVEXITY_A_NPOG_MM_V1", ("A", "N", "Pog", "Po", "Or"), "convexity", "mm", True),
     _RickettsSpec("E_LINE_LS", "RICKETTS_E_LINE_LS_V1", "RICKETTS_E_LINE_LS_MM_V1", ("Ls_soft", "Prn", "Pog_soft", "Po", "Or"), "e_line", "mm", True),
     _RickettsSpec("E_LINE_LI", "RICKETTS_E_LINE_LI_V1", "RICKETTS_E_LINE_LI_MM_V1", ("Li_soft", "Prn", "Pog_soft", "Po", "Or"), "e_line", "mm", True),
@@ -82,8 +83,6 @@ def _geometry_metadata(spec: _RickettsSpec) -> dict[str, object]:
     }
     if spec.kind == "facial_depth":
         return {**common, "kind": "directed_cephalometric_angle", "source_references": list(RICKETTS_FACIAL_DEPTH_REFERENCES), "frankfort_plane": "Po-Or", "facial_plane": "N-Pog", "angle_convention": "posterior_angle_fh_po_or_to_pog_n_v1"}
-    if spec.kind == "facial_axis":
-        return {**common, "kind": "constructed_landmark_angle", "source_references": list(RICKETTS_FACIAL_AXIS_REFERENCES), "cranial_base": "Ba-N", "facial_axis": "PT_point-Gn_RICKETTS", "gn_construction": "intersection_N_Pog_with_Go_Me_v1", "angle_convention": "non_reflex_ba_n_to_pt_gn_v1"}
     if spec.kind == "convexity":
         return {**common, "kind": "signed_perpendicular_point_to_line_distance", "source_references": list(RICKETTS_CONVEXITY_REFERENCES), "target_landmark": "A", "facial_plane": "N-Pog", "sign_convention": "positive_anterior_negative_posterior_v1", "sign_orientation_axis": "FH_PO_OR_V1", "distance_convention": "perpendicular_shortest_distance_v1"}
     return {**common, "kind": "signed_fh_parallel_point_to_line_distance", "source_references": list(RICKETTS_E_LINE_REFERENCES), "e_line": "Prn-Pog_soft", "target_landmark": spec.required_landmark_ids[0], "sign_convention": "positive_anterior_negative_posterior_v1", "measurement_axis": "FH_PO_OR_V1", "distance_convention": "parallel_to_frankfort_v1"}
@@ -119,14 +118,6 @@ def materialize_ricketts_constructions(landmarks: Mapping[str, LandmarkEvidence]
             value_key: str
             if spec.kind == "facial_depth":
                 value = ricketts_facial_depth_deg_v1(_point(landmarks, "Po"), _point(landmarks, "Or"), _point(landmarks, "N"), _point(landmarks, "Pog"))
-                value_key = "computed_angle_deg"
-            elif spec.kind == "facial_axis":
-                gn = ricketts_constructed_gn_v1(_point(landmarks, "N"), _point(landmarks, "Pog"), _point(landmarks, "Go"), _point(landmarks, "Me"))
-                if gn is None:
-                    value = None
-                else:
-                    geometry["constructed_gn"] = {"x": gn[0], "y": gn[1], "construction": "intersection_N_Pog_with_Go_Me_v1"}
-                    value = ricketts_facial_axis_deg_v1(_point(landmarks, "Ba"), _point(landmarks, "N"), _point(landmarks, "PT_point"), gn)
                 value_key = "computed_angle_deg"
             elif spec.kind == "convexity":
                 value = ricketts_convexity_signed_distance_px_v1(_point(landmarks, "A"), _point(landmarks, "N"), _point(landmarks, "Pog"), _point(landmarks, "Po"), _point(landmarks, "Or"))

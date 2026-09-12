@@ -49,7 +49,7 @@ def test_ricketts_facial_depth_preserves_posterior_angle_and_mirror_invariance()
     assert forward == pytest.approx(101.309932474)
 
 
-def test_ricketts_constructed_gn_and_facial_axis_are_explicit_and_mirror_invariant():
+def test_ricketts_facial_axis_geometry_stays_pure_but_is_not_runtime_certified():
     gn = ricketts_constructed_gn_v1((4, 0), (6, 10), (0, 12), (10, 12))
     assert gn == pytest.approx((6.4, 12.0))
     angle = ricketts_facial_axis_deg_v1((-6, 0), (4, 0), (2, 4), gn)
@@ -59,6 +59,8 @@ def test_ricketts_constructed_gn_and_facial_axis_are_explicit_and_mirror_invaria
     mirrored = ricketts_facial_axis_deg_v1((6, 0), (-4, 0), (-2, 4), mirrored_gn)
     assert mirrored == pytest.approx(angle)
     assert ricketts_constructed_gn_v1((0, 0), (10, 0), (0, 1), (10, 1)) is None
+    assert "RICKETTS_FACIAL_AXIS_DEG_V1" in RICKETTS_BLOCKED_CONTRACTS
+    assert "BLOCKED_LANDMARK_CONVENTION" in RICKETTS_BLOCKED_CONTRACTS["RICKETTS_FACIAL_AXIS_DEG_V1"]
 
 
 def test_ricketts_convexity_is_signed_perpendicular_and_mirror_invariant():
@@ -79,15 +81,14 @@ def test_ricketts_e_line_uses_frankfort_parallel_not_perpendicular_distance():
     assert ricketts_e_line_horizontal_signed_distance_px_v1((3, 2), (5, -5), (5, 10), (0, 0), (10, 0)) == pytest.approx(-2.0)
 
 
-def test_ricketts_materializes_five_source_locked_constructions():
+def test_ricketts_materializes_four_source_locked_constructions():
     constructions = materialize_ricketts_constructions(_landmarks(), construction_namespace="construction:ricketts:1")
     assert set(constructions) == set(RICKETTS_CONSTRUCTION_DEFINITIONS) == {
-        "RICKETTS_FACIAL_DEPTH_V1", "RICKETTS_FACIAL_AXIS_V1", "RICKETTS_CONVEXITY_A_NPOG_V1",
+        "RICKETTS_FACIAL_DEPTH_V1", "RICKETTS_CONVEXITY_A_NPOG_V1",
         "RICKETTS_E_LINE_LS_V1", "RICKETTS_E_LINE_LI_V1",
     }
+    assert "RICKETTS_FACIAL_AXIS_V1" not in constructions
     assert all(item.availability_status == AvailabilityStatus.AVAILABLE for item in constructions.values())
-    assert constructions["RICKETTS_FACIAL_AXIS_V1"].geometry["gn_construction"] == "intersection_N_Pog_with_Go_Me_v1"
-    assert constructions["RICKETTS_FACIAL_AXIS_V1"].geometry["constructed_gn"]["x"] == pytest.approx(6.4)
     assert constructions["RICKETTS_CONVEXITY_A_NPOG_V1"].geometry["distance_convention"] == "perpendicular_shortest_distance_v1"
     assert constructions["RICKETTS_E_LINE_LS_V1"].geometry["distance_convention"] == "parallel_to_frankfort_v1"
 
@@ -100,10 +101,10 @@ def test_ricketts_calibration_contract_unlocks_only_linear_measurements():
     )
     by_method = {item.method_id: item for item in uncalibrated}
     assert {method for method, item in by_method.items() if not item.requires_calibration} == {
-        "RICKETTS_FACIAL_DEPTH_DEG_V1", "RICKETTS_FACIAL_AXIS_DEG_V1",
+        "RICKETTS_FACIAL_DEPTH_DEG_V1",
     }
-    assert all(by_method[m].availability_status == AvailabilityStatus.AVAILABLE for m in (
-        "RICKETTS_FACIAL_DEPTH_DEG_V1", "RICKETTS_FACIAL_AXIS_DEG_V1"))
+    assert by_method["RICKETTS_FACIAL_DEPTH_DEG_V1"].availability_status == AvailabilityStatus.AVAILABLE
+    assert "RICKETTS_FACIAL_AXIS_DEG_V1" not in by_method
     for method in ("RICKETTS_CONVEXITY_A_NPOG_MM_V1", "RICKETTS_E_LINE_LS_MM_V1", "RICKETTS_E_LINE_LI_MM_V1"):
         assert by_method[method].availability_status == AvailabilityStatus.NOT_COMPUTABLE
         assert by_method[method].value is None
@@ -118,7 +119,6 @@ def test_ricketts_calibration_contract_unlocks_only_linear_measurements():
     for method in ("RICKETTS_CONVEXITY_A_NPOG_MM_V1", "RICKETTS_E_LINE_LS_MM_V1", "RICKETTS_E_LINE_LI_MM_V1"):
         assert by_method[method].calibration_ref == "source:calibration:r9"
     assert by_method["RICKETTS_FACIAL_DEPTH_DEG_V1"].calibration_ref is None
-    assert by_method["RICKETTS_FACIAL_AXIS_DEG_V1"].calibration_ref is None
 
 
 @pytest.mark.parametrize(("mm_per_pixel", "calibration_ref"), [
@@ -136,11 +136,11 @@ def test_ricketts_incoherent_calibration_is_invalid(mm_per_pixel, calibration_re
 
 
 def test_ricketts_fail_closed_is_dependency_scoped():
-    missing_go = _landmarks(); missing_go.pop("Go")
-    constructions = materialize_ricketts_constructions(missing_go, construction_namespace="construction:ricketts:missing-go")
-    assert constructions["RICKETTS_FACIAL_AXIS_V1"].availability_status == AvailabilityStatus.NOT_COMPUTABLE
+    missing_a = _landmarks(); missing_a.pop("A")
+    constructions = materialize_ricketts_constructions(missing_a, construction_namespace="construction:ricketts:missing-a")
+    assert constructions["RICKETTS_CONVEXITY_A_NPOG_V1"].availability_status == AvailabilityStatus.NOT_COMPUTABLE
     assert constructions["RICKETTS_FACIAL_DEPTH_V1"].availability_status == AvailabilityStatus.AVAILABLE
-    assert constructions["RICKETTS_CONVEXITY_A_NPOG_V1"].availability_status == AvailabilityStatus.AVAILABLE
+    assert constructions["RICKETTS_E_LINE_LS_V1"].availability_status == AvailabilityStatus.AVAILABLE
 
     mixed_a = _landmarks(); mixed_a["A"] = _landmark("A", 8.0, 4.0, source="source:ceph:other")
     constructions = materialize_ricketts_constructions(mixed_a, construction_namespace="construction:ricketts:mixed-a")
@@ -159,8 +159,11 @@ def test_ricketts_fail_closed_is_dependency_scoped():
     assert constructions["RICKETTS_FACIAL_DEPTH_V1"].availability_status == AvailabilityStatus.AVAILABLE
 
 
-def test_ricketts_candidates_are_resolved_and_partial_snapshots_fail_closed():
-    assert RICKETTS_BLOCKED_CONTRACTS == {}
+def test_ricketts_facial_axis_is_blocked_and_partial_snapshots_fail_closed():
+    assert RICKETTS_BLOCKED_CONTRACTS == {
+        "RICKETTS_FACIAL_AXIS_DEG_V1": RICKETTS_BLOCKED_CONTRACTS["RICKETTS_FACIAL_AXIS_DEG_V1"]
+    }
+    assert "BLOCKED_LANDMARK_CONVENTION" in RICKETTS_BLOCKED_CONTRACTS["RICKETTS_FACIAL_AXIS_DEG_V1"]
     assert adapt_ricketts_measurements(
         measurement_namespace="measurement:ricketts:legacy", constructions={}, mm_per_pixel=None, calibration_ref=None,
     ) == []

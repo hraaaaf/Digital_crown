@@ -52,15 +52,15 @@ def _ricketts(graph, *, calibrated: bool):
     items = [item for item in graph["measurements"] if item["analysis_id"] == "RICKETTS"]
     by_method = {item["method_id"]: item for item in items}
     assert set(by_method) == {
-        "RICKETTS_FACIAL_DEPTH_DEG_V1", "RICKETTS_FACIAL_AXIS_DEG_V1",
+        "RICKETTS_FACIAL_DEPTH_DEG_V1",
         "RICKETTS_CONVEXITY_A_NPOG_MM_V1", "RICKETTS_E_LINE_LS_MM_V1", "RICKETTS_E_LINE_LI_MM_V1",
     }
-    for method in ("RICKETTS_FACIAL_DEPTH_DEG_V1", "RICKETTS_FACIAL_AXIS_DEG_V1"):
-        item = by_method[method]
-        assert item["availability_status"] == "AVAILABLE"
-        assert item["requires_calibration"] is False
-        assert item["calibration_ref"] is None
-        assert item["value"] is not None
+    assert "RICKETTS_FACIAL_AXIS_DEG_V1" not in by_method
+    depth = by_method["RICKETTS_FACIAL_DEPTH_DEG_V1"]
+    assert depth["availability_status"] == "AVAILABLE"
+    assert depth["requires_calibration"] is False
+    assert depth["calibration_ref"] is None
+    assert depth["value"] is not None
     for method in ("RICKETTS_CONVEXITY_A_NPOG_MM_V1", "RICKETTS_E_LINE_LS_MM_V1", "RICKETTS_E_LINE_LI_MM_V1"):
         item = by_method[method]
         assert item["requires_calibration"] is True
@@ -103,7 +103,6 @@ def test_ricketts_creation_edit_manual_calibration_edit_and_read_path():
     )
     edited_ricketts = _ricketts(revision2, calibrated=False)
     assert edited_ricketts["RICKETTS_FACIAL_DEPTH_DEG_V1"]["value"] != pytest.approx(initial_ricketts["RICKETTS_FACIAL_DEPTH_DEG_V1"]["value"])
-    assert edited_ricketts["RICKETTS_FACIAL_AXIS_DEG_V1"]["value"] != pytest.approx(initial_ricketts["RICKETTS_FACIAL_AXIS_DEG_V1"]["value"])
 
     calibrated_result = CephaloEngine(mm_per_pixel=0.2).calculate_metrics(_points(edited))
     revision3 = rebuild_evidence_after_manual_calibration(
@@ -113,8 +112,7 @@ def test_ricketts_creation_edit_manual_calibration_edit_and_read_path():
         clinician_id="clinician-r9", calibrated_at=LATEST,
     )
     calibrated_ricketts = _ricketts(revision3, calibrated=True)
-    for method in ("RICKETTS_FACIAL_DEPTH_DEG_V1", "RICKETTS_FACIAL_AXIS_DEG_V1"):
-        assert calibrated_ricketts[method] == edited_ricketts[method]
+    assert calibrated_ricketts["RICKETTS_FACIAL_DEPTH_DEG_V1"] == edited_ricketts["RICKETTS_FACIAL_DEPTH_DEG_V1"]
 
     recalculated = [dict(item) for item in edited]
     next(item for item in recalculated if item["id"] == "Ls_soft")["x"] += 1.0
@@ -134,7 +132,7 @@ def test_ricketts_creation_edit_manual_calibration_edit_and_read_path():
     _ricketts(projected[EVIDENCE_GRAPH_KEY], calibrated=True)
 
 
-def test_ricketts_auto_calibration_unlocks_linear_measurements_and_preserves_angles():
+def test_ricketts_auto_calibration_unlocks_linear_measurements_and_preserves_depth():
     raw = _raw(); initial = _initial(raw); initial_ricketts = _ricketts(initial, calibrated=False)
     result = CephaloEngine(mm_per_pixel=0.2).calculate_metrics(_points(raw))
     calibrated = rebuild_evidence_after_auto_calibration(
@@ -142,6 +140,5 @@ def test_ricketts_auto_calibration_unlocks_linear_measurements_and_preserves_ang
         result=result, runtime_landmarks=raw, decision=_auto_decision(), calibrated_at=LATER,
     )
     auto_ricketts = _ricketts(calibrated, calibrated=True)
-    for method in ("RICKETTS_FACIAL_DEPTH_DEG_V1", "RICKETTS_FACIAL_AXIS_DEG_V1"):
-        assert auto_ricketts[method] == initial_ricketts[method]
+    assert auto_ricketts["RICKETTS_FACIAL_DEPTH_DEG_V1"] == initial_ricketts["RICKETTS_FACIAL_DEPTH_DEG_V1"]
     assert calibrated["revision_reason"] == "AUTO_CALIBRATION"
