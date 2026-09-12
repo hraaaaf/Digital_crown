@@ -54,7 +54,7 @@ def validate_r11_diagnostic_graph(
     R11 treats every currently registered normative reference as descriptive and
     inert. Exact registry payload/provenance may be carried for traceability, but
     an inactive normative evaluation cannot support or oppose a finding. Findings
-    and hypotheses must bind to source-locked, versioned rule definitions.
+    and hypotheses must bind to exact source-locked rule id/version pairs.
     """
 
     validate_evidence_graph(graph, norm_registry=norm_registry)
@@ -115,14 +115,15 @@ def validate_r11_diagnostic_graph(
                 )
 
     for finding in graph.findings:
-        rule = rule_registry.get_finding_rule(finding.rule_id)
+        rule = rule_registry.get_finding_rule(finding.rule_id, finding.rule_version)
         if rule is None:
             raise EvidenceGraphValidationError(
-                f"R11 finding {finding.finding_id} uses unregistered rule {finding.rule_id}"
+                f"R11 finding {finding.finding_id} uses unregistered rule version "
+                f"{finding.rule_id}@{finding.rule_version}"
             )
-        if finding.rule_version != rule.version or finding.domain != rule.domain:
+        if finding.domain != rule.domain:
             raise EvidenceGraphValidationError(
-                f"R11 finding {finding.finding_id} rule version/domain does not match registry"
+                f"R11 finding {finding.finding_id} rule domain does not match registry"
             )
 
         supporting = set(finding.supporting_evidence_refs)
@@ -146,8 +147,8 @@ def validate_r11_diagnostic_graph(
             used_active_norms = (supporting | opposing) & active_evaluation_ids
             if not used_active_norms:
                 raise EvidenceGraphValidationError(
-                    f"R11 finding {finding.finding_id} rule {rule.rule_id} requires an "
-                    "active normative evaluation"
+                    f"R11 finding {finding.finding_id} rule {rule.rule_id}@{rule.version} "
+                    "requires an active normative evaluation"
                 )
 
         missing = set(finding.missing_evidence_refs)
@@ -164,16 +165,17 @@ def validate_r11_diagnostic_graph(
             raise EvidenceGraphValidationError(
                 f"R11 diagnosis {diagnosis.diagnosis_id} requires a versioned rule binding"
             )
-        rule = rule_registry.get_diagnostic_rule(diagnosis.rule_id)
+        rule = rule_registry.get_diagnostic_rule(
+            diagnosis.rule_id, diagnosis.rule_version
+        )
         if rule is None:
             raise EvidenceGraphValidationError(
-                f"R11 diagnosis {diagnosis.diagnosis_id} uses unregistered rule "
-                f"{diagnosis.rule_id}"
+                f"R11 diagnosis {diagnosis.diagnosis_id} uses unregistered rule version "
+                f"{diagnosis.rule_id}@{diagnosis.rule_version}"
             )
-        if diagnosis.rule_version != rule.version or diagnosis.domain != rule.domain:
+        if diagnosis.domain != rule.domain:
             raise EvidenceGraphValidationError(
-                f"R11 diagnosis {diagnosis.diagnosis_id} rule version/domain does not "
-                "match registry"
+                f"R11 diagnosis {diagnosis.diagnosis_id} rule domain does not match registry"
             )
 
         supporting = set(diagnosis.supporting_finding_refs)
@@ -186,12 +188,21 @@ def validate_r11_diagnostic_graph(
             )
 
         referenced_finding_ids = supporting | opposing
-        used_rule_ids = {findings[item].rule_id for item in referenced_finding_ids}
-        outside_rule = sorted(used_rule_ids - set(rule.finding_rule_ids))
+        used_rule_bindings = {
+            (findings[item].rule_id, findings[item].rule_version)
+            for item in referenced_finding_ids
+        }
+        outside_rule = sorted(
+            used_rule_bindings - set(rule.finding_rule_bindings),
+            key=lambda item: (item[0], item[1]),
+        )
         if outside_rule:
+            rendered = ", ".join(
+                f"{rule_id}@{version}" for rule_id, version in outside_rule
+            )
             raise EvidenceGraphValidationError(
-                f"R11 diagnosis {diagnosis.diagnosis_id} uses finding rule(s) outside "
-                f"registered diagnostic rule {rule.rule_id}: {', '.join(outside_rule)}"
+                f"R11 diagnosis {diagnosis.diagnosis_id} uses finding rule version(s) "
+                f"outside registered diagnostic rule {rule.rule_id}@{rule.version}: {rendered}"
             )
 
         missing = set(diagnosis.missing_data_refs)
