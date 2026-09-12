@@ -92,14 +92,16 @@ def _apply_author_before_update(_mapper, _connection, target) -> None:
 
 
 def install_document_provenance_p3() -> None:
-    """Install P3 metadata, compatibility migration, and request-scoped provenance hooks."""
+    """Install P3 metadata, response contracts, migration and provenance hooks."""
     global _INSTALLED
     if _INSTALLED:
         return
 
     from backend.models import Base, DocumentArchive
+    from backend.schemas.document_provenance_p3 import install_document_provenance_schema_contracts
 
     _attach_columns()
+    install_document_provenance_schema_contracts()
     event.listen(Base.metadata, "before_create", _migrate_existing_document_archives)
     event.listen(DocumentArchive, "before_insert", _apply_author_before_insert)
     event.listen(DocumentArchive, "before_update", _apply_author_before_update)
