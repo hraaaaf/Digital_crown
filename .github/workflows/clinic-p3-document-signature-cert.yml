@@ -8,6 +8,7 @@ on:
       - "backend/tests/test_document_signature_p3.py"
       - "backend/tests/test_document_signature_archive_surface_p3.py"
       - "backend/tests/test_document_signature_permissions_p3.py"
+      - "backend/tests/test_document_signature_read_failclosed_p3.py"
       - ".github/workflows/clinic-p3-document-signature-cert.yml"
   workflow_dispatch:
 
@@ -60,17 +61,20 @@ jobs:
           test -f backend/tests/test_document_signature_p3.py
           test -f backend/tests/test_document_signature_archive_surface_p3.py
           test -f backend/tests/test_document_signature_permissions_p3.py
+          test -f backend/tests/test_document_signature_read_failclosed_p3.py
           grep -q "Le praticien connecté ne peut signer que ses propres documents" backend/services/document_signature_p3.py
           grep -q "Document sans auteur P3" backend/services/document_signature_p3.py
           grep -q "verify_document_integrity" backend/services/document_signature_p3.py
           grep -q "Intégrité vérifiée • Non signé" backend/services/document_signature_p3.py
           grep -q "ne constitue pas une signature électronique qualifiée" backend/services/document_signature_p3.py
+          grep -q "signataire enregistré ne correspond pas" backend/services/document_signature_p3.py
           grep -q "Type de document sans politique de signature explicite" backend/routers/document_provenance_p3.py
           grep -q "test_author_can_sign_exact_active_bytes_once" backend/tests/test_document_signature_p3.py
           grep -q "test_signature_refuses_non_author_and_legacy_unknown_author" backend/tests/test_document_signature_p3.py
           grep -q "test_p3_signature_and_public_verification_routes_are_unique" backend/tests/test_document_signature_p3.py
           grep -q "test_patient_archive_surface_exposes_truthful_p3_provenance_without_touching_legacy" backend/tests/test_document_signature_archive_surface_p3.py
           grep -q "test_signature_permission_fails_closed_for_unmapped_bilan_type" backend/tests/test_document_signature_permissions_p3.py
+          grep -q "test_public_read_refuses_signer_different_from_recorded_author" backend/tests/test_document_signature_read_failclosed_p3.py
           grep -q "get_patient_documents_with_provenance" backend/routers/document_provenance_p3.py
 
       - name: Run signature invariant suite
@@ -79,6 +83,7 @@ jobs:
             backend/tests/test_document_signature_p3.py \
             backend/tests/test_document_signature_archive_surface_p3.py \
             backend/tests/test_document_signature_permissions_p3.py \
+            backend/tests/test_document_signature_read_failclosed_p3.py \
             -q --maxfail=1
 
       - name: Certification summary
@@ -92,8 +97,9 @@ jobs:
           - non-active document: signing refused
           - physical SHA-256 + size: verified before signature
           - repeated signature: idempotent, timestamp preserved
+          - read verification: signer must equal recorded P3 author
           - proof type: Digital Crown application-level signature provenance, not qualified electronic signature
-          - public verification: unsigned != signed; tampered = invalid
+          - public verification: unsigned != signed; tampered/inconsistent = invalid
           - patient archive read surface: actor/author/signer provenance exposed for canonical rows only
           - stable sign, archive-list and public verification routes: single P3 facades
           EOF
