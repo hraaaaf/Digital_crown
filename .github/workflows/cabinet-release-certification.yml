@@ -4,12 +4,14 @@ on:
   workflow_dispatch:
     inputs:
       commit_sha:
-        description: "Exact 40-character commit SHA to certify (must already belong to master)"
+        description: "Exact 40-character master HEAD SHA to certify"
         required: true
         type: string
 
 permissions:
   contents: read
+  id-token: write
+  attestations: write
 
 concurrency:
   group: cabinet-release-cert-${{ inputs.commit_sha }}
@@ -20,15 +22,15 @@ env:
 
 jobs:
   preflight:
-    name: Exact SHA / master ancestry
+    name: Exact immutable master HEAD
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ inputs.commit_sha }}
+          ref: master
           fetch-depth: 0
 
-      - name: Refuse branches, tags, short SHAs and moving refs
+      - name: Refuse branches, tags, historical SHAs and moving refs
         shell: bash
         run: |
           set -euo pipefail
@@ -36,10 +38,15 @@ jobs:
             echo "::error::commit_sha must match ^[0-9a-f]{40}$"
             exit 1
           fi
-          test "$(git rev-parse HEAD)" = "$CERTIFIED_SHA"
+          if [[ "$GITHUB_REF" != "refs/heads/master" ]]; then
+            echo "::error::Cabinet release certification must be dispatched from master"
+            exit 1
+          fi
           git fetch origin master --no-tags
-          if ! git merge-base --is-ancestor "$CERTIFIED_SHA" origin/master; then
-            echo "::error::Only an immutable SHA already integrated in master can be certified"
+          MASTER_SHA="$(git rev-parse origin/master)"
+          if [[ "$CERTIFIED_SHA" != "$MASTER_SHA" || "$GITHUB_SHA" != "$MASTER_SHA" ]]; then
+            echo "::error::Only the exact current immutable master HEAD can be newly certified"
+            echo "requested=$CERTIFIED_SHA github_sha=$GITHUB_SHA master=$MASTER_SHA"
             exit 1
           fi
 
@@ -148,7 +155,7 @@ jobs:
           retention-days: 14
 
   package:
-    name: Emit immutable universal cabinet artifact
+    name: Emit attested CODE_CERTIFIED universal artifact
     needs: [preflight, backend, postgres18, frontend]
     runs-on: ubuntu-latest
     steps:
@@ -164,7 +171,7 @@ jobs:
           name: certified-frontend-${{ inputs.commit_sha }}
           path: /tmp/certified-frontend
 
-      - name: Materialize exact-SHA universal release
+      - name: Materialize exact-SHA CODE_CERTIFIED release
         shell: bash
         run: |
           set -euo pipefail
@@ -211,6 +218,7 @@ jobs:
           certificate = {
               "certificate_version": 1,
               "artifact_type": "cabinet-certified-release",
+              "certification_level": "CODE_CERTIFIED",
               "repository": "hraaaaf/Digital_crown",
               "commit_sha": sha,
               "release_id": release_id,
@@ -218,6 +226,9 @@ jobs:
               "certification_run_id": run_id,
               "certified_at": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
               "content_manifest_sha256": manifest_digest,
+              "attestation_subject": manifest_name,
+              "installable": False,
+              "installable_requires": "runtime-asset composition",
               "checks": [
                   "backend-full",
                   "frontend-tests-build",
@@ -239,16 +250,22 @@ jobs:
           echo "RELEASE_ROOT=$ROOT" >> "$GITHUB_ENV"
           echo "RELEASE_ID=$RELEASE_ID" >> "$GITHUB_ENV"
 
+      - name: Cryptographically attest the code content manifest
+        uses: actions/attest@v4
+        with:
+          subject-path: ${{ env.RELEASE_ROOT }}/release-content.sha256
+
       - name: Certification summary
         shell: bash
         run: |
           cat "$RELEASE_ROOT/release-certification.json"
-          echo "Certified immutable SHA: $CERTIFIED_SHA"
-          echo "Universal packs: BASIC / GOLD / ELITE"
+          echo "CODE_CERTIFIED immutable SHA: $CERTIFIED_SHA"
+          echo "Universal release profiles: BASIC / GOLD / ELITE"
+          echo "NOT INSTALLABLE until certified runtime assets are composed locally."
 
       - uses: actions/upload-artifact@v4
         with:
-          name: ${{ env.RELEASE_ID }}
+          name: code-certified-${{ env.RELEASE_ID }}
           path: ${{ env.RELEASE_ROOT }}/
           if-no-files-found: error
           retention-days: 90
