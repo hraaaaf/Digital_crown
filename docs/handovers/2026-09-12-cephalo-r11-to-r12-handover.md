@@ -46,15 +46,37 @@ Décisions fermées :
 - `NOT_COMPUTABLE` et `INSUFFICIENT_DATA` restent explicites ;
 - aucune indication, option thérapeutique ni prescription en R11.
 
-## VALEURS DÉLIBÉRÉMENT BLOQUÉES
+## RÈGLE NO-DROP — AUCUNE MESURE ABANDONNÉE
 
-Autorité : `docs/CEPHALO_COM_VALUE_AUDIT.md`.
+Autorités :
+- `docs/CEPHALO_COM_VALUE_AUDIT.md`
+- `docs/CEPHALO_MEASUREMENT_EVIDENCE_RECOVERY.md`
 
-Les statuts suivants restent non activables :
+**Une mesure bloquée n'est jamais supprimée.** Elle devient une dette scientifique active avec raison du blocage + Next exact de récupération.
+
+`BLOCKED != DROPPED`
+
+Récupération déjà effectuée au closeout R11 :
+- source primaire Tweed 1954 retrouvée pour FMA/IMPA ;
+- IMPA historique `90±5°` confirmé par le texte primaire Tweed comme variation `85–95°` autour de 90° ;
+- FMA primaire Tweed = repère 25°, variation 20–30° : ne pas lui attribuer silencieusement `26±4°` ;
+- règle de compensation IMPA primaire retrouvée : chaque degré de FMA au-dessus de 25° décale l'IMPA cible d'un degré sous 90° ; exemple Tweed `FMA 35° → IMPA 80°` ;
+- source primaire Downs 1948 identifiée pour l'inter-incisif ; attribution historique `131±3°` retrouvée mais valeur à relire directement dans le primaire avant activation ;
+- `U1-FH 107±5°` corroboré dans littérature peer-reviewed mais filiation primaire exacte encore ouverte ;
+- surplomb/recouvrement conservés, avec références populationnelles à versionner plutôt qu'une fausse norme universelle ;
+- toutes les valeurs linéaires CRANIOM 9 ans/adulte restent en file de récupération si la preuve numérique primaire directe n'est pas encore acquise.
+
+Aucune de ces dettes ne doit être effacée lors de R12/R13. La recherche de preuve se poursuit dès qu'elle est nécessaire pour activer la mesure/référence concernée.
+
+## VALEURS BLOQUÉES MAIS CONSERVÉES
+
+Les statuts suivants restent non activables tant que la preuve correspondante manque :
 - `CONVENTIONAL_REFERENCE_ONLY`
 - `HISTORICAL_ONLY_BLOCKED`
 - `DIVERGENT_BLOCKED`
 - `CONSTRUCTION_BLOCKED`
+
+Ils désignent une dette scientifique, jamais un abandon.
 
 McNamara reste inert/scale-blocked. Les références actuelles ne sont pas actives pour classification patient. Les références CRANIOM extrêmes restent descriptives/traçables, pas diagnostiques.
 
@@ -67,6 +89,7 @@ McNamara reste inert/scale-blocked. Les références actuelles ne sont pas activ
 - `backend/tests/test_cephalo_r11_diagnostic_safety.py`
 - `backend/tests/test_cephalo_r11_missing_data_contract.py`
 - `docs/CEPHALO_COM_VALUE_AUDIT.md`
+- `docs/CEPHALO_MEASUREMENT_EVIDENCE_RECOVERY.md`
 - `docs/CEPHALO_DIAGNOSTIC_SPEC.md`
 
 ## NEXT EXACT — R12
@@ -81,9 +104,10 @@ Avant modification :
 1. lire `AGENTS.md` ;
 2. lire `STATE.md` ;
 3. lire `docs/CEPHALO_DIAGNOSTIC_SPEC.md` ;
-4. lire ce handover ;
-5. vérifier master/HEAD/PR/CI réels ;
-6. créer une branche R12 depuis master final vérifié.
+4. lire `docs/CEPHALO_MEASUREMENT_EVIDENCE_RECOVERY.md` ;
+5. lire ce handover ;
+6. vérifier master/HEAD/PR/CI réels ;
+7. créer une branche R12 depuis master final vérifié.
 
 ## PROMPT EXACT À COLLER DANS LA NOUVELLE FENÊTRE R12
 
@@ -111,7 +135,8 @@ Lis dans cet ordre :
 1. AGENTS.md
 2. STATE.md
 3. docs/CEPHALO_DIAGNOSTIC_SPEC.md
-4. docs/handovers/2026-09-12-cephalo-r11-to-r12-handover.md
+4. docs/CEPHALO_MEASUREMENT_EVIDENCE_RECOVERY.md
+5. docs/handovers/2026-09-12-cephalo-r11-to-r12-handover.md
 Puis vérifie repo/master/HEAD/PR/CI avant toute modification.
 
 ÉTAT VÉRIFIÉ R11
@@ -132,6 +157,14 @@ CONTRAT R11 À NE PAS CASSER
 - missing refs doivent être réellement manquantes/bloquées
 - aucune prescription/indication/option thérapeutique dans R12
 
+RÈGLE NO-DROP MESURES
+- aucune mesure n'est abandonnée ;
+- BLOCKED signifie dette scientifique active, jamais suppression ;
+- si une preuve manque, la rechercher ; si une construction manque, la verrouiller ;
+- ne jamais remplacer une preuve absente par une approximation silencieuse ;
+- conserver chaque mesure et son état jusqu'à résolution ;
+- lire et respecter docs/CEPHALO_MEASUREMENT_EVIDENCE_RECOVERY.md.
+
 R12 — GOAL CANONIQUE
 Problem list + objectifs.
 Chaque item référence explicitement les findings/diagnostics validés dont il dérive.
@@ -143,6 +176,7 @@ SUCCESS R12
 - fail-closed si un item prétend dériver d'une preuve non disponible/non validée ;
 - aucune transformation automatique d'une hypothèse non validée en problème confirmé ;
 - aucune indication, contre-indication, option thérapeutique ou plan de traitement en R12 ;
+- aucune mesure existante supprimée pour insuffisance de preuve : recherche/queue scientifique obligatoire ;
 - goldens positif / négatif / missing / contradiction ;
 - invariants inter-objets ;
 - exact-head CI verte + T2 verte ;
