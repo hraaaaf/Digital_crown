@@ -6,6 +6,7 @@ on:
       - "frontend/src/pages/Dashboard.tsx"
       - "frontend/src/features/dashboard/**"
       - "frontend/src/features/agenda/**"
+      - "frontend/src/features/clinic/**"
       - "frontend/src/pages/AgendaPage.tsx"
       - "frontend/src/features/admin/TeamManager.tsx"
       - "frontend/src/features/admin/Settings.tsx"
@@ -48,8 +49,9 @@ jobs:
           import { MemoryRouter } from 'react-router-dom';
           import './index.css';
           import { Dashboard } from './pages/Dashboard';
-          import { AgendaStudio } from './features/agenda/AgendaStudio';
+          import { AgendaPage } from './pages/AgendaPage';
           import Settings from './pages/Settings';
+          import { ClinicPractitionerBar } from './features/clinic/ClinicPractitionerBar';
           import { useAuthStore } from './stores/useAuthStore';
 
           const screen = new URLSearchParams(window.location.search).get('screen') || 'dashboard';
@@ -57,12 +59,21 @@ jobs:
             user: { id:1, email:'owner@clinic-p1.local', nom_complet:'Dr Lina Alaoui', role:'ADMIN', is_superadmin:false, permissions:{} } as any,
             isAuthenticated:true, isLoading:false, error:null,
           });
+          const path = screen === 'agenda' ? '/agenda' : screen === 'team' ? '/settings' : '/dashboard';
           const node = screen === 'agenda'
-            ? <div className="min-h-screen bg-slate-50 p-3 sm:p-6"><AgendaStudio /></div>
+            ? <AgendaPage />
             : screen === 'team'
               ? <Settings />
               : <Dashboard />;
-          createRoot(document.getElementById('root')!).render(<MemoryRouter initialEntries={[screen === 'agenda' ? '/agenda' : screen === 'team' ? '/settings' : '/dashboard']}>{node}</MemoryRouter>);
+
+          createRoot(document.getElementById('root')!).render(
+            <MemoryRouter initialEntries={[path]}>
+              <div className="min-h-screen min-w-0 overflow-x-hidden bg-slate-50 p-3 sm:p-4 lg:p-6">
+                <ClinicPractitionerBar />
+                <div className="mt-4 min-w-0">{node}</div>
+              </div>
+            </MemoryRouter>,
+          );
           EOF
           cat > clinic-p1-visual.mjs <<'EOF'
           import { chromium } from 'playwright';
@@ -76,6 +87,15 @@ jobs:
             {id:201,start_time:'2026-09-12T09:00:00',datetime_start:'2026-09-12T09:00:00',duration_minutes:30,status:'PLANIFIÉ',description:'Consultation',praticien_id:1,patient:{id:101,nom:'EL AMRANI',prenom:'Sara'}},
             {id:202,start_time:'2026-09-12T10:30:00',datetime_start:'2026-09-12T10:30:00',duration_minutes:45,status:'PLANIFIÉ',description:'Contrôle',praticien_id:2,patient:{id:102,nom:'BENALI',prenom:'Youssef'}},
           ];
+          const multiPractitioner={
+            plan:'ELITE',
+            dentists:[
+              {dentist_id:1,dentist_name:'Dr Lina Alaoui',appointments:[appointments[0]]},
+              {dentist_id:2,dentist_name:'Dr Youssef Benali',appointments:[appointments[1]]},
+            ],
+            legacy_unassigned:[],
+            total_appointments:2,
+          };
           const fixtures={
             '/api/admin/dashboard/stats':{total_patients:184,total_analyses:326,in_waiting:2,weekly_activity:[38,55,47,72,61,84,66],weekly_patient_counts:[4,7,5,9,6,10,8],weekly_patients:49,recent_patients:[{id:101,nom:'EL AMRANI',prenom:'Sara',acte:'Consultation',time:'09:20',type:'patient'},{id:102,nom:'BENALI',prenom:'Youssef',acte:'Contrôle',time:'10:05',type:'patient'}]},
             '/api/admin/cabinet/me':{header_lines_fr:['Clinique P1']},
@@ -103,10 +123,12 @@ jobs:
               for(const screen of ['dashboard','agenda','team']){
                 const context=await browser.newContext({viewport:{width,height}});
                 const page=await context.newPage();
-                const pageErrors=[];
-                page.on('pageerror',e=>pageErrors.push(e.message));
+                const errors=[];
+                page.on('pageerror',e=>errors.push(`pageerror: ${e.message}`));
+                page.on('console',m=>{if(m.type()==='error')errors.push(`console: ${m.text()}`)});
                 await page.route('**/api/**',async route=>{
                   const req=route.request(); const url=new URL(req.url());
+                  if(url.pathname==='/api/appointments/multi-practitioner') return route.fulfill(json(multiPractitioner));
                   if(url.pathname==='/api/appointments/' || url.pathname.startsWith('/api/appointments?')) return route.fulfill(json(appointments));
                   if(url.pathname.startsWith('/api/appointments')) return route.fulfill(json(url.pathname==='/api/appointments/pending'?[]:appointments));
                   if(url.pathname==='/api/patients/') return route.fulfill(json([]));
@@ -114,6 +136,8 @@ jobs:
                   return route.fulfill(json(fixtures[url.pathname] ?? {}));
                 });
                 await page.goto(`http://127.0.0.1:4197/clinic-p1-visual.html?screen=${screen}`,{waitUntil:'networkidle'});
+                await page.getByText('Contexte clinique',{exact:true}).waitFor({state:'visible',timeout:15000});
+                await page.getByText('Dr Lina Alaoui',{exact:true}).first().waitFor({state:'visible',timeout:15000});
                 if(screen==='dashboard') await page.getByText(/Bonjour,/).first().waitFor({state:'visible',timeout:15000});
                 if(screen==='agenda') await page.getByRole('heading',{name:'Studio Agenda'}).waitFor({state:'visible',timeout:15000});
                 if(screen==='team'){
@@ -123,7 +147,9 @@ jobs:
                 }
                 const layout=await page.evaluate(()=>({clientWidth:document.documentElement.clientWidth,scrollWidth:document.documentElement.scrollWidth}));
                 await page.screenshot({path:`${out}/${screen}-${width}x${height}.png`,fullPage:true,animations:'disabled'});
-                await fs.writeFile(`${out}/${screen}-${width}.layout.json`,JSON.stringify({...layout,overflowPx:Math.max(0,layout.scrollWidth-layout.clientWidth),pageErrors},null,2));
+                await fs.writeFile(`${out}/${screen}-${width}.layout.json`,JSON.stringify({...layout,overflowPx:Math.max(0,layout.scrollWidth-layout.clientWidth),errors},null,2));
+                if(layout.scrollWidth>layout.clientWidth) throw new Error(`${screen} overflow ${layout.scrollWidth}>${layout.clientWidth} at ${width}`);
+                if(errors.length) throw new Error(`${screen} runtime errors at ${width}: ${errors.join(' | ')}`);
                 await context.close();
               }
             }
@@ -142,7 +168,8 @@ jobs:
           base_sha=${{ github.event.pull_request.base.sha || github.sha }}
           viewports=390x844,768x1024,1280x900
           screens=dashboard,agenda,team
-          purpose=P1 multi-practitioner visual baseline; layout defects are recorded, not suppressed
+          phase=AFTER
+          goal=Contexte praticien global lisible, attribution Agenda cohérente, aucun overflow horizontal ni erreur runtime.
           EOF
       - uses: actions/upload-artifact@v4
         if: always()
