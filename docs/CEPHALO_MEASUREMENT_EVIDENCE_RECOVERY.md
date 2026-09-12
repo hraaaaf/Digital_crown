@@ -83,27 +83,40 @@ La règle primaire donne donc directement à 9 ans :
 
 `28° - 2° = 26°`, avec dispersion historique `±4°`.
 
-### Construction Digital Crown source-spécifique
+Le texte distingue le **true Frankfort** des proxys liés aux ear rods. La source primaire ne permet donc pas de déclarer le `Po-Or` SRPose38 générique automatiquement équivalent à ce true Frankfort.
 
-Construction versionnée : `RICKETTS_1981_FMA_TRUE_FH_SUBGO_ME_V1`.
+### Construction Digital Crown source-spécifique V2
 
-SRPose38 ne contient pas `SubGo`. Digital Crown fournit donc un chemin fail-closed sans inventer d'alias :
+Construction versionnée : `RICKETTS_1981_FMA_TRUE_FH_SUBGO_ME_V2`.
 
-- `Po`, `Or`, `Me` proviennent de la même image ;
-- `SubGo` doit être posé explicitement en `MANUAL` ;
-- ce `SubGo` doit être `CLINICIAN_VALIDATED` avec `validated_by` et `validated_at` ;
-- `Go` ne remplace jamais `SubGo` ;
-- `Go-Me` et `Go-Gn` ne remplacent jamais `SubGo-Me` ;
-- les axes dégénérés et les mélanges d'images sont invalides.
+Le chemin est volontairement strict. Quatre repères source-spécifiques sont requis sur la même image :
 
-Lorsque ces conditions sont satisfaites, Digital Crown peut calculer le **FMA brut** selon `Po-Or / SubGo-Me`.
+- `RickettsTruePo` ;
+- `RickettsTrueOr` ;
+- `RickettsSubGo` ;
+- `RickettsMe`.
+
+Dans ce lot, chacun doit être `MANUAL`, `CLINICIAN_VALIDATED`, avec `validated_by` et `validated_at`.
+
+Digital Crown refuse :
+
+- `SRPose38 Po-Or → Ricketts true Frankfort` ;
+- `Go → RickettsSubGo` ;
+- `Go-Me → RickettsSubGo-RickettsMe` ;
+- `Go-Gn → RickettsSubGo-RickettsMe` ;
+- un repère source-spécifique automatique non certifié ;
+- un repère manuel non validé ;
+- les axes dégénérés/non finis ;
+- les mélanges d'images.
+
+Lorsque ces conditions sont satisfaites, Digital Crown peut calculer le **FMA brut seulement** selon `RickettsTruePo-RickettsTrueOr / RickettsSubGo-RickettsMe`.
 
 **Décision :**
 
 - `26±4° à 9 ans` et sa règle d'âge sont **SOURCE_LOCKED** ;
-- la géométrie exacte dispose maintenant d'un chemin manuel audité : `SOURCE_LOCKED_MANUAL_CONSTRUCTION_AVAILABLE` ;
+- la géométrie exacte dispose d'un chemin manuel audité V2 : `SOURCE_LOCKED_MANUAL_CONSTRUCTION_AVAILABLE` ;
 - aucune norme patient n'est activée par cette construction ;
-- une future détection automatique de `SubGo` devra être certifiée séparément avant de remplacer la saisie manuelle ;
+- toute future détection automatique des repères source-spécifiques devra être certifiée séparément avant de remplacer cette saisie manuelle ;
 - `patient_classification_references()` reste vide.
 
 ### Corroboration peer-reviewed et divergence de convention
@@ -221,7 +234,7 @@ Les surfaces éditeur des deux articles CRANIOM confirment actuellement les extr
 | Compensation U1-FH `97–120°` | recherche exacte négative à ce stade | rechercher archives/sources de l'école COM ; ne pas dériver arithmétiquement |
 | Inter-incisif `131±3°` | **conflit d'attribution/normes : Downs primaire identifié, Steiner primaire identifié, synthèses divergentes** | relire primaires Downs/Steiner et conserver références source-spécifiques séparées |
 | Compensation inter-incisif `120–142°` | recherche exacte négative à ce stade | rechercher archives/sources de l'école COM ; ne pas reconstruire depuis une moyenne ± ET |
-| FMA `26±4° à 9 ans` | **source primaire Ricketts 1981 + chemin géométrique manuel audité disponibles** | certifier exact-head ; garder classification inactive ; automatiser SubGo seulement après certification landmark dédiée |
+| FMA `26±4° à 9 ans` | **source primaire Ricketts 1981 + chemin géométrique manuel V2 audité disponibles** | certifier exact-head ; garder classification inactive ; toute automatisation des repères Ricketts source-spécifiques exige une certification dédiée |
 | A'B' 9 ans | technique concordant | récupérer numérique primaire direct |
 | A'B' adulte | technique concordant | récupérer numérique primaire direct |
 | A/N vertical 9 ans | technique concordant | récupérer numérique primaire direct |
@@ -247,7 +260,7 @@ Une construction manuelle auditée peut rendre une **mesure brute** calculable s
 
 ## NEXT EXACT
 
-1. certifier exact-head le chemin Ricketts 1981 `Po-Or / SubGo-Me` avec SubGo manuel validé ;
+1. certifier exact-head le chemin Ricketts 1981 V2 `RickettsTruePo-RickettsTrueOr / RickettsSubGo-RickettsMe` avec quatre repères manuels validés ;
 2. verrouiller le contrat de tracing source-spécifique Tweed avant toute utilisation de la règle de compensation IMPA ;
 3. relire directement les primaires Downs 1948 et Steiner 1953/1959 pour résoudre l'attribution/dispersion de l'inter-incisif `131±3°` ;
 4. retrouver le primaire exact de `U1-FH 107±5` dans la filiation Ballard/Eastman sans confondre le plan maxillaire et Francfort ;
