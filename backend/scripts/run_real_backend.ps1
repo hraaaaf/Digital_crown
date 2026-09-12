@@ -1,16 +1,7 @@
-# REAL-RUNTIME-IMMUTABILITY-GUARD-1
+# DIGITAL-CROWN-CERTIFIED-RELEASE-POLICY-2
 # The ONE controlled launcher for the real cabinet runtime (port 8005).
-# - Never uses --reload.
-# - Only starts an immutable release produced by create_release.ps1 (never the working
-#   repo directly).
-# - Refuses anything that looks like rehearsal.
-# - Enables HTTPS on the immutable runtime when the cabinet cert/key pair exists.
-# - Requires explicit confirmation.
-#
-# Usage:
-#   .\run_real_backend.ps1 -ReleaseId <id> -ConfirmRealActivation "YES"
-#
-# Never prints a secret (DATABASE_URL is masked when displayed).
+# Starts ONLY INSTALLABLE_CERTIFIED immutable releases. Never master/HEAD/branch/tag.
+# Full code + runtime-asset verification happens BEFORE the real cabinet env is read.
 
 [CmdletBinding(PositionalBinding = $false)]
 param(
@@ -25,9 +16,6 @@ param(
     [string]$TlsKeyFile = ""
 )
 
-# Defense in depth : meme avec le binding positionnel desactive, on revalide explicitement
-# que rien parmi les valeurs recues ne contient "--reload" (ceinture + bretelles - la
-# commande uvicorn elle-meme est de toute facon construite plus bas sans passthrough).
 foreach ($v in @($ReleaseId, $ConfirmRealActivation, $RuntimeRoot, $RealEnvFile, $Port, $BindHost, $TlsCertFile, $TlsKeyFile, $args)) {
     if ("$v" -like "*--reload*") {
         Write-Host "ERROR: a provided value contains --reload and is refused: $v" -ForegroundColor Red
@@ -36,6 +24,12 @@ foreach ($v in @($ReleaseId, $ConfirmRealActivation, $RuntimeRoot, $RealEnvFile,
 }
 
 $ErrorActionPreference = "Stop"
+$RequiredPacks = @("BASIC", "GOLD", "ELITE")
+
+function Fail([string]$Message) {
+    Write-Host "ERROR: $Message" -ForegroundColor Red
+    exit 1
+}
 
 function Mask-DatabaseUrl([string]$DatabaseUrl) {
     if ([string]::IsNullOrWhiteSpace($DatabaseUrl)) { return '<missing>' }
@@ -45,40 +39,80 @@ function Mask-DatabaseUrl([string]$DatabaseUrl) {
     return $DatabaseUrl
 }
 
-Write-Host "=== run_real_backend.ps1 - controlled activation ===" -ForegroundColor Yellow
+Write-Host "=== run_real_backend.ps1 - INSTALLABLE_CERTIFIED activation ===" -ForegroundColor Yellow
 
-# 1. Strict explicit confirmation (not just "a flag is present")
 if ($ConfirmRealActivation -ne "YES") {
-    Write-Host "ERROR: missing or incorrect confirmation. Rerun with -ConfirmRealActivation `"YES`" (exact)." -ForegroundColor Red
-    exit 1
+    Fail "missing or incorrect confirmation. Use -ConfirmRealActivation `"YES`" (exact)."
 }
 
-# 2. The release must exist with a manifest
+# 1. Release proof. No cabinet env/data has been read yet.
 $releaseDir = Join-Path (Join-Path $RuntimeRoot "releases") $ReleaseId
 $manifestPath = Join-Path $releaseDir "release-manifest.json"
-if (-not (Test-Path $manifestPath)) {
-    Write-Host "ERROR: no release manifest found for $ReleaseId ($manifestPath). Activation refused." -ForegroundColor Red
-    exit 1
+$certificatePath = Join-Path $releaseDir "release-certification.json"
+$installablePath = Join-Path $releaseDir "installable-certification.json"
+$shaMarkerPath = Join-Path $releaseDir ".digitalcrown-release-sha"
+$contentManifestPath = Join-Path $releaseDir "release-content.sha256"
+$assetCertificatePath = Join-Path $releaseDir "runtime-assets-certification.json"
+$assetManifestPath = Join-Path $releaseDir "runtime-assets-content.sha256"
+$attestationEvidencePath = Join-Path $releaseDir "github-attestation-verification.json"
+
+foreach ($requiredFile in @(
+    $manifestPath, $certificatePath, $installablePath, $shaMarkerPath,
+    $contentManifestPath, $assetCertificatePath, $assetManifestPath, $attestationEvidencePath
+)) {
+    if (-not (Test-Path -LiteralPath $requiredFile -PathType Leaf)) {
+        Fail "INSTALLABLE_CERTIFIED release incomplete: missing $requiredFile"
+    }
 }
-$manifest = Get-Content $manifestPath -Raw | ConvertFrom-Json
-if ($manifest.environment -ne "cabinet-real") {
-    Write-Host "ERROR: this release is not marked environment=cabinet-real (found: $($manifest.environment)). Refused." -ForegroundColor Red
-    exit 1
-}
-if ($manifest.frontend_dist_path -match 'rehearsal|dist-test') {
-    Write-Host "ERROR: this release's frontend_dist_path points to a rehearsal/test output ($($manifest.frontend_dist_path)). Refused." -ForegroundColor Red
-    exit 1
-}
-$backendPath = $manifest.backend_path
-if (-not (Test-Path $backendPath)) {
-    Write-Host "ERROR: manifest backend_path not found: $backendPath" -ForegroundColor Red
-    exit 1
+if (-not (Test-Path -LiteralPath $VenvPython -PathType Leaf)) {
+    Fail "venv python interpreter not found: $VenvPython"
 }
 
-# 3. Verify the real env file - never rehearsal, never printed in clear
-if (-not (Test-Path $RealEnvFile)) {
-    Write-Host "ERROR: real environment file not found: $RealEnvFile" -ForegroundColor Red
-    exit 1
+$manifest = Get-Content -LiteralPath $manifestPath -Raw | ConvertFrom-Json
+$certificate = Get-Content -LiteralPath $certificatePath -Raw | ConvertFrom-Json
+$installable = Get-Content -LiteralPath $installablePath -Raw | ConvertFrom-Json
+$certSha = "$($certificate.commit_sha)".Trim().ToLowerInvariant()
+$markerSha = (Get-Content -LiteralPath $shaMarkerPath -Raw).Trim().ToLowerInvariant()
+
+if ($manifest.environment -ne "cabinet-real") { Fail "release is not marked environment=cabinet-real" }
+if ($manifest.certification_level -ne "INSTALLABLE_CERTIFIED") { Fail "release-manifest is not INSTALLABLE_CERTIFIED" }
+if ($installable.certification_level -ne "INSTALLABLE_CERTIFIED" -or $installable.installable -ne $true) {
+    Fail "final installable certificate is absent/invalid"
+}
+if ($certificate.certification_level -ne "CODE_CERTIFIED") { Fail "embedded code certificate is not CODE_CERTIFIED" }
+if ($certSha -notmatch '^[0-9a-f]{40}$') { Fail "certificate commit_sha is not an exact immutable SHA" }
+if ($markerSha -ne $certSha -or "$($manifest.commit)".Trim().ToLowerInvariant() -ne $certSha) {
+    Fail "release-manifest / code certificate / SHA marker mismatch"
+}
+if ($ReleaseId -ne "$($certificate.release_id)" -or $ReleaseId -ne "$($installable.release_id)") {
+    Fail "requested ReleaseId does not equal certified release_id"
+}
+$certPacks = @($installable.certified_packs | ForEach-Object { "$($_)".Trim().ToUpperInvariant() })
+foreach ($pack in $RequiredPacks) {
+    if ($certPacks -notcontains $pack) { Fail "activation refused: INSTALLABLE release missing $pack" }
+}
+
+$verifyScript = Join-Path $releaseDir "backend\scripts\verify_installable_release.py"
+if (-not (Test-Path -LiteralPath $verifyScript -PathType Leaf)) {
+    Fail "INSTALLABLE verifier missing: $verifyScript"
+}
+$oldPythonPath = $env:PYTHONPATH
+$env:PYTHONPATH = $releaseDir
+try {
+    & $VenvPython $verifyScript --release-dir $releaseDir
+    if ($LASTEXITCODE -ne 0) { Fail "INSTALLABLE verifier rejected $ReleaseId" }
+}
+finally {
+    $env:PYTHONPATH = $oldPythonPath
+}
+
+if ($manifest.frontend_dist_path -match 'rehearsal|dist-test') { Fail "release frontend points to rehearsal/test output" }
+$backendPath = $manifest.backend_path
+if (-not (Test-Path -LiteralPath $backendPath -PathType Container)) { Fail "manifest backend_path not found: $backendPath" }
+
+# 2. Only after complete immutable release proof, inspect the real cabinet environment.
+if (-not (Test-Path -LiteralPath $RealEnvFile -PathType Leaf)) {
+    Fail "real environment file not found: $RealEnvFile"
 }
 $envContent = Get-Content $RealEnvFile
 $dbLine = $envContent | Where-Object { $_ -match '^DATABASE_URL=' } | Select-Object -First 1
@@ -89,48 +123,22 @@ $dbUrl = if ($dbLine) { $dbLine -replace '^DATABASE_URL=', '' } else { '' }
 $envValue = if ($envLine) { ($envLine -replace '^ENVIRONMENT=', '').Trim() } else { 'development' }
 $mediaRoot = if ($mediaLine) { ($mediaLine -replace '^MEDIA_ROOT=', '').Trim() } else { '' }
 
-if ($dbUrl -match 'rehearsal') {
-    Write-Host "ERROR: DATABASE_URL contains 'rehearsal' - the real runtime refuses a rehearsal DB." -ForegroundColor Red
-    exit 1
-}
-if ($dbUrl -notmatch 'digitalcrown_db') {
-    Write-Host "ERROR: DATABASE_URL does not point to digitalcrown_db - refused (required for the real runtime)." -ForegroundColor Red
-    exit 1
-}
-if ($envValue -match 'rehearsal') {
-    Write-Host "ERROR: ENVIRONMENT ($envValue) contains 'rehearsal' - refused for the real runtime." -ForegroundColor Red
-    exit 1
-}
-if ($mediaRoot -match 'rehearsal') {
-    Write-Host "ERROR: MEDIA_ROOT ($mediaRoot) contains 'rehearsal' - refused for the real runtime." -ForegroundColor Red
-    exit 1
-}
-if (-not (Test-Path $VenvPython)) {
-    Write-Host "ERROR: venv python interpreter not found: $VenvPython" -ForegroundColor Red
-    exit 1
-}
+if ($dbUrl -match 'rehearsal') { Fail "DATABASE_URL contains rehearsal" }
+if ($dbUrl -notmatch 'digitalcrown_db') { Fail "DATABASE_URL does not point to digitalcrown_db" }
+if ($envValue -match 'rehearsal') { Fail "ENVIRONMENT contains rehearsal" }
+if ($mediaRoot -match 'rehearsal') { Fail "MEDIA_ROOT contains rehearsal" }
 
-# 4. Resolve the cabinet TLS pair from the real repo, never from the immutable release.
+# 3. TLS and runtime startup contract.
 $realBackendDir = Split-Path $RealEnvFile -Parent
 $realRepoRoot = Split-Path $realBackendDir -Parent
-if ([string]::IsNullOrWhiteSpace($TlsCertFile)) {
-    $TlsCertFile = Join-Path $realRepoRoot "certs\cert.pem"
-}
-if ([string]::IsNullOrWhiteSpace($TlsKeyFile)) {
-    $TlsKeyFile = Join-Path $realRepoRoot "certs\key.pem"
-}
+if ([string]::IsNullOrWhiteSpace($TlsCertFile)) { $TlsCertFile = Join-Path $realRepoRoot "certs\cert.pem" }
+if ([string]::IsNullOrWhiteSpace($TlsKeyFile)) { $TlsKeyFile = Join-Path $realRepoRoot "certs\key.pem" }
 
 $certExists = Test-Path $TlsCertFile
 $keyExists = Test-Path $TlsKeyFile
-if ($certExists -xor $keyExists) {
-    Write-Host "ERROR: incomplete TLS configuration: cert/key must either both exist or both be absent." -ForegroundColor Red
-    exit 1
-}
+if ($certExists -xor $keyExists) { Fail "incomplete TLS configuration: cert/key must both exist or both be absent" }
 $httpsEnabled = $certExists -and $keyExists
-if ($httpsEnabled -and $Port -ne 8005) {
-    Write-Host "ERROR: HTTPS mobile/WebAuthn contract requires the real runtime on port 8005." -ForegroundColor Red
-    exit 1
-}
+if ($httpsEnabled -and $Port -ne 8005) { Fail "HTTPS mobile/WebAuthn contract requires the real runtime on port 8005" }
 
 $env:PORT = "$Port"
 $env:DIGITALCROWN_HTTPS_PORT = "$Port"
@@ -141,42 +149,45 @@ if ($httpsEnabled) {
 } else {
     $env:DIGITALCROWN_ENABLE_HTTPS = "false"
 }
-
 $runtimeOrigin = if ($httpsEnabled) { "https://digitalcrown.local:$Port" } else { "http://127.0.0.1:$Port" }
 
-Write-Host "OK - checks passed." -ForegroundColor Green
+Write-Host "OK - INSTALLABLE_CERTIFIED release checks passed." -ForegroundColor Green
 Write-Host "Release     : $ReleaseId"
+Write-Host "Commit      : $certSha"
+Write-Host "Profiles    : BASIC / GOLD / ELITE"
+Write-Host "CI run      : $($certificate.certification_run_id)"
+Write-Host "Provenance  : GitHub/Sigstore VERIFIED at composition"
 Write-Host "Backend     : $backendPath"
 Write-Host "Frontend    : $($manifest.frontend_dist_path)"
 Write-Host "DATABASE_URL: $(Mask-DatabaseUrl $dbUrl)"
 Write-Host "ENVIRONMENT : $envValue"
 Write-Host "Port        : $Port"
 Write-Host "Bind host   : $BindHost"
-Write-Host "Reload      : DISABLED (never used by this launcher)"
+Write-Host "Reload      : DISABLED"
 Write-Host "HTTPS       : $httpsEnabled"
 Write-Host "Origin      : $runtimeOrigin"
 Write-Host ""
 
-# 5. Runtime manifest (before startup)
 $runtimeManifest = [ordered]@{
-    release_id    = $ReleaseId
-    port          = $Port
-    bind_host     = $BindHost
-    reload        = $false
-    https_enabled = [bool]$httpsEnabled
-    origin        = $runtimeOrigin
-    activated_at  = (Get-Date).ToString("o")
-    backend_path  = $backendPath
+    release_id            = $ReleaseId
+    commit_sha            = $certSha
+    certification_level   = "INSTALLABLE_CERTIFIED"
+    certification_run_id  = [int64]$certificate.certification_run_id
+    certified_packs       = $RequiredPacks
+    port                  = $Port
+    bind_host             = $BindHost
+    reload                = $false
+    https_enabled         = [bool]$httpsEnabled
+    origin                = $runtimeOrigin
+    activated_at          = (Get-Date).ToString("o")
+    backend_path          = $backendPath
 }
 $runtimeManifest | ConvertTo-Json -Depth 4 | Set-Content -Path (Join-Path $releaseDir "runtime-activation.json") -Encoding utf8
 
-# 6. Startup - cwd = release folder (never the working repo), no --reload.
 $uvicornArgs = @("-m", "uvicorn", "backend.main:app", "--host", $BindHost, "--port", "$Port")
-if ($httpsEnabled) {
-    $uvicornArgs += @("--ssl-certfile", $TlsCertFile, "--ssl-keyfile", $TlsKeyFile)
-}
+if ($httpsEnabled) { $uvicornArgs += @("--ssl-certfile", $TlsCertFile, "--ssl-keyfile", $TlsKeyFile) }
 
-Write-Host "Starting (cwd = $releaseDir, no --reload)..." -ForegroundColor Cyan
+Write-Host "Starting INSTALLABLE_CERTIFIED release (cwd = $releaseDir, no --reload)..." -ForegroundColor Cyan
 $env:DIGITALCROWN_ENV_FILE = $RealEnvFile
 Push-Location $releaseDir
 try {
