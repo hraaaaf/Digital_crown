@@ -2,7 +2,7 @@
 
 ## Statut
 
-P0 backend certifié puis mergé dans `master` via PR #429, merge commit `f265ebcd9f0654f346a969def5d93f66451af67d`. P1 UX clinique est certifié sur le code HEAD `3c29f2e29b730d447aff72f81416249bdf5073f5`; closeout documentaire final sur `feat/clinic-multipractitioner-p1-ui` / PR #430 avant merge.
+P0 backend certifié puis mergé dans `master` via PR #429, merge commit `f265ebcd9f0654f346a969def5d93f66451af67d`. P1 UX clinique certifié puis mergé via PR #430, merge commit `1a115752e133e583e523fea7c4180d97db956f75`. `master` post-merge vérifié sur ce commit, signature GitHub valide. P2 Patient, actes et facturation est le prochain lot.
 
 ## Goal global
 
@@ -49,7 +49,7 @@ Attribuer chaque nouveau rendez-vous à un praticien réel et isoler les conflit
 - Migration Alembic et tests automatisés create/update/conflicts/bulk/tenant/legacy font partie du code certifié.
 - PR #429 mergée ; `master` vérifié sur `f265ebcd9f0654f346a969def5d93f66451af67d`.
 
-## P1 — UX clinique ciblée — CERTIFIÉ
+## P1 — UX clinique ciblée — CERTIFIÉ / MERGÉ
 
 ### Goal
 
@@ -89,9 +89,12 @@ Référence détaillée : `docs/clinic/P1_MULTI_PRACTITIONER_UI.md`.
 - Score visuel documenté : **9,2 / 10**.
 - Aucun déploiement Vercel.
 
-### Verdict
+### Merge / post-merge vérifié
 
-P1 est certifié côté code et UX. La PR #430 doit encore être mergée puis `master` vérifié avant ouverture du P2.
+- PR #430 mergée avec garde SHA sur le HEAD documentaire final `d68bbef2fb8714e7311629984f83f62c426b5110`.
+- Merge commit : `1a115752e133e583e523fea7c4180d97db956f75`.
+- `master` vérifié exactement sur ce commit.
+- Commit GitHub `verified: true`, reason `valid`.
 
 ## P2 — Patient, actes et facturation
 
@@ -114,4 +117,4 @@ Multi-site : hors périmètre tant qu'un besoin produit réel et prioritaire n'e
 
 ## Next exact
 
-Vérifier les checks du HEAD documentaire final de la PR #430. S'ils sont verts : merger #430, vérifier `master` post-merge, puis ouvrir P2. En cas d'échec d'un check : diagnostiquer et corriger avant merge.
+Ouvrir P2 par l'audit du modèle Patient / Acte / Facturation et définir les critères d'attribution praticien avant toute migration ou changement UI.
