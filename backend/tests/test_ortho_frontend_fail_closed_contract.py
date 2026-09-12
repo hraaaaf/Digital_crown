@@ -62,13 +62,14 @@ def test_step4_has_no_local_normative_ranges_or_default_appliance():
     forbidden = (
         "lo: 76", "hi: 88", "flo:", "fhi:", "getAngleStatus", "norme {card.lo}",
         "preference_technique || 'DAMON'", "Damon Passive", "d-gainer", "quadhelix",
-        "disjoncteur", "activateur", "perle-tuca",
+        "disjoncteur", "activateur", "perle-tuca", "Technique choisie par le praticien",
     )
     for token in forbidden:
         assert token not in source, f"unsafe Step4 semantic reintroduced: {token}"
     assert "Valeur brute · aucune norme locale" in source
-    assert "Technique choisie par le praticien" in source
-    assert "Aucune stratégie n'est générée automatiquement" in source
+    assert "Préférence technique — saisie manuelle hors R13" in source
+    assert "Aucune stratégie R14 n'est générée ou validée ici." in source
+    assert "Prévisualiser ou archiver un PDF ne valide jamais R14." in source
 
 
 def test_cephalo_utils_must_not_reintroduce_age_cvm_or_impa_space_conversion():
