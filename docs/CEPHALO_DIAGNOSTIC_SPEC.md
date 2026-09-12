@@ -13,8 +13,9 @@
 **Calibration manuelle auditée :** PR #398 — `35f5eca034ab780e92aa877b1120fd4e6c3b3dce`  
 **Corrections landmarks auditées :** PR #399 — merge `6dcdb18d364545a151f1e2a3fa01b1ce37a9494f`  
 **Typed read-path :** PR #400 — HEAD certifié `b5f1d991ec1c954840c609dfcd5dcee8063ad9c1` — merge master `5f453d906c0562e53c921c683bb16c1a6deb3536`  
-**PR active :** #406 — `feat/cephalo-auto-fiducial-calibration`  
-**Statut :** R1 actif ; certification exact-head finale non acquise ; aucun diagnostic ni plan thérapeutique déclaré certifié.
+**R10 registre normatif :** HEAD certifié `9ffd36306ec6fa09b71d590e078af01db67e6888` — CI #3431 SUCCESS — T2 #2411 SUCCESS — PR #431 — merge `d0bdfc4fa47346f27e432139e6785177da4deef3` — closeout R10 master `2ac6ac538c79eb95a3988f2e6da9854b76dbd422`  
+**R11 diagnostic multiaxial :** HEAD certifié `6916dee975acb83d13acd540d5d2e4a8f839a478` — CI #3477 SUCCESS — T2 #2452 SUCCESS — PR #437 — merge `bc66b58b6ee4459362d3bd52150877908bdc996c`  
+**Statut courant :** R11 implémentation FERMÉE ; closeout documentaire R11 en cours ; aucun déploiement ; R12 ne doit être ouvert que dans une nouvelle fenêtre après closeout final.
 
 ## GOAL GLOBAL
 
@@ -88,7 +89,7 @@ Contrat vérifié :
 
 Preuve finale : HEAD `b5f1d991ec1c954840c609dfcd5dcee8063ad9c1` ; CI #3182 success ; T2 #2190 success ; Portability #500 success ; Onboarding Visual #309 success ; reviews 0 ; threads 0 ; merge master `5f453d906c0562e53c921c683bb16c1a6deb3536` vérifié.
 
-## R1 — CALIBRATION FIDUCIALE ASSISTÉE
+## R1 — CALIBRATION FIDUCIALE ASSISTÉE — CONTRAT HISTORIQUE
 
 ### Goal
 
@@ -146,28 +147,45 @@ Le gate automatique exige :
 
 Sans profil validé : `CANDIDATE_UNVERIFIED`.
 
-### État production actuel
+### État production contractuel
 
 Le registre `validated_fiducial_profiles` est **vide par défaut**. Donc aucun profil de test ou hypothèse implicite ne peut activer `AUTO_VERIFIED` en production. L'architecture permet l'auto-vérification, mais son activation réelle exige l'introduction explicite d'un profil physique validé.
 
-### Implémenté dans PR #406, en attente de certification finale
+Cette section conserve le contrat scientifique/HFE R1. Elle n'est pas le pointeur de reprise courant ; le pointeur courant est R12 après fermeture documentaire de R11.
 
-- `CalibrationCandidate` image-space uniquement ;
-- retrait du `10 mm` hardcodé du détecteur ;
-- `detect_mm_per_pixel()` historique ne produit plus de ratio automatique ;
-- `process_new_radio()` persiste le candidat avec `mm_per_pixel=None` et `is_calibrated=False` ;
-- gate `ValidatedFiducialProfile → AutoCalibrationDecision` ;
-- états distincts `CANDIDATE_UNVERIFIED`, `AUTO_VERIFIED`, `CLINICIAN_CONFIRMED` ;
-- provenance `AUTO_VERIFIED_FIDUCIAL_PROFILE` fail-closed ;
-- registre de profils vide par défaut ;
-- transition calibration-only préservant landmarks, constructions et `current_landmark_refs` ;
-- blocage si objets cliniques aval existent ;
-- recalcul des quatre linéaires uniquement après état vérifié ;
-- endpoint explicite `POST /analyses/{analysis_id}/auto-calibrate` ;
-- réponse API : confirmation praticien `required=false`, `recommended=true` ;
-- tests candidat, détecteur, gate, registre, source typée, runtime, transition et frontière API ajoutés.
+## R11 — DIAGNOSTIC MULTIAXIAL — CONTRAT FERMÉ
 
-**Non déclaré acquis tant que la CI/T2 exact-head de #406 n'est pas verte.**
+### Goal
+
+`findings → hypothèses explicables`, avec contradictions et données manquantes visibles, sans conclusion patient non sourcée.
+
+### Contrat certifié
+
+- chaîne : `measurement evidence → contexte normatif optionnel → finding → diagnostic hypothesis → contradictions/missing data → validation praticien ultérieure` ;
+- chaque finding R11 lie un `rule_id`, une `rule_version` et un `domain` exacts ;
+- chaque hypothèse diagnostique R11 lie un `rule_id`, une `rule_version` et un `domain` exacts ;
+- le registre production de règles diagnostiques reste **vide** tant qu'une règle clinique n'est pas source-lockée et revue ;
+- une mesure indisponible ne peut pas devenir une évaluation normative `AVAILABLE` ;
+- une évaluation normative indisponible ou inactive ne peut pas porter une classification patient ;
+- un support/opposition doit être `AVAILABLE` ;
+- un finding indisponible ne peut pas supporter ou opposer une hypothèse ;
+- une référence déclarée manquante doit réellement être indisponible, sauf contexte normatif inactif explicitement bloqué ;
+- supporting/opposing overlap est rejeté pour findings et hypothèses ;
+- aucune option thérapeutique, indication ou prescription n'est introduite en R11.
+
+### Source-lock / valeurs délibérément bloquées
+
+`docs/CEPHALO_COM_VALUE_AUDIT.md` demeure l'autorité d'audit des valeurs COM/CRANIOM historiques. Les statuts `CONVENTIONAL_REFERENCE_ONLY`, `HISTORICAL_ONLY_BLOCKED`, `DIVERGENT_BLOCKED` et `CONSTRUCTION_BLOCKED` ne sont jamais promus en norme active. McNamara reste inert/scale-blocked ; les références actuelles ne sont pas activées pour classification patient.
+
+### Preuve R11
+
+- candidate HEAD : `6916dee975acb83d13acd540d5d2e4a8f839a478` ;
+- CI #3477 : SUCCESS ;
+- T2 Runtime Browser Certification #2452 : SUCCESS ;
+- PR #437 : mergeable avant merge, 7 fichiers de scope, reviews 0, comments 0 ;
+- merge implementation : `bc66b58b6ee4459362d3bd52150877908bdc996c` ;
+- master post-merge implementation vérifié : `bc66b58b6ee4459362d3bd52150877908bdc996c` ;
+- aucun déploiement.
 
 ## ROADMAP CANONIQUE
 
@@ -176,30 +194,13 @@ Le registre `validated_fiducial_profiles` est **vide par défaut**. Donc aucun p
 **Preuve :** #400 certifiée et mergée sur master `5f453d906c0562e53c921c683bb16c1a6deb3536`.
 
 ### R1 — Calibration fiduciale assistée + provenance
-**Goal :** automatiser la calibration lorsque la preuve physique est suffisante, avec confirmation praticien facultative et toujours disponible.  
-**Succès :** candidat détecté ; fail-closed sans profil ; `AUTO_VERIFIED` seulement sur profil/gates validés ; provenance persistée ; landmarks préservés ; quatre linéaires recalculés ; API claire ; fallback manuel intact ; UX certifiée.  
-**Preuve requise :** tests synthétiques/absence/faux positifs/divergence/profile version ; tests de transition et relecture ; exact-head CI/T2 ; BEFORE/AFTER 390/768/1280+ ; revue experte.
-
-Séquence restante R1 :
-1. obtenir CI/T2 verts sur contrat backend/API ;
-2. corriger toute régression observée ;
-3. figer contrat frontend ;
-4. capture BEFORE réelle ;
-5. Goal visuel + référence alignée tokens ;
-6. implémenter états `NON CALIBRÉ`, `CANDIDAT`, `AUTO_VÉRIFIÉ`, `CONFIRMÉ/MODIFIÉ` ;
-7. conserver action de modification/calibration manuelle ;
-8. AFTER 390/768/1280+ + comparaison + tests + score/revue ;
-9. closeout #406, merge, vérification master.
+**Goal :** automatiser la calibration lorsque la preuve physique est suffisante, avec confirmation praticien facultative et toujours disponible.
 
 ### R2 — Chaîne runtime scientifique traversante
-**Goal :** chaîne unique `SourceEvidence → LandmarkEvidence → ConstructionEvidence → MeasurementEvidence`.  
-**Succès :** création, correction, calibration, recalcul et GET réutilisent la même preuve.  
-**Preuve :** tests traversants DB/service/API + fail-closed sur références incohérentes.
+**Goal :** chaîne unique `SourceEvidence → LandmarkEvidence → ConstructionEvidence → MeasurementEvidence`.
 
 ### R3 — Conventions géométriques / CRANIOM
-**Goal :** supprimer toute ambiguïté avant extension des analyses.  
-**Succès :** landmarks, construction, convention, formule et source versionnés pour chaque mesure.  
-**Points ouverts :** plan mandibulaire propre à chaque analyse ; ambiguïté `Go` ; `Gi/Gs` CRANIOM ; `A''B''` sans protocole NHP/regard horizontal.
+**Goal :** supprimer toute ambiguïté avant extension des analyses.
 
 ### R4 — COM / CRANIOM complet
 Compléter l'analyse sans convention implicite ; calibration vérifiée requise pour les linéaires.
@@ -220,12 +221,17 @@ Séparer strictement mesure, norme et interprétation.
 Même gate ; provenance explicite des landmarks tissus mous.
 
 ### R10 — Registre normatif activable
-Source, population, contexte, version et règles de classification explicites ; aucune norme implicite.
+**État : FERMÉ.**  
+Source, population, contexte, version et règles de classification explicites ; aucune norme implicite.  
+**Preuve :** candidate `9ffd36306ec6fa09b71d590e078af01db67e6888` ; CI #3431 SUCCESS ; T2 #2411 SUCCESS ; PR #431 ; merge `d0bdfc4fa47346f27e432139e6785177da4deef3` ; closeout master `2ac6ac538c79eb95a3988f2e6da9854b76dbd422`.
 
 ### R11 — Diagnostic multiaxial
-Findings puis hypothèses explicables ; contradictions et données manquantes visibles ; aucune conclusion non sourcée.
+**État : FERMÉ côté implémentation ; closeout documentaire en cours.**  
+Findings puis hypothèses explicables ; contradictions et données manquantes visibles ; aucune conclusion non sourcée.  
+**Preuve :** candidate `6916dee975acb83d13acd540d5d2e4a8f839a478` ; CI #3477 SUCCESS ; T2 #2452 SUCCESS ; PR #437 ; merge `bc66b58b6ee4459362d3bd52150877908bdc996c` ; master post-merge implementation identique.
 
 ### R12 — Problem list + objectifs
+**NEXT.**  
 Chaque item référence explicitement findings/diagnostics validés.
 
 ### R13 — Options thérapeutiques
@@ -262,19 +268,21 @@ Traitement : `diagnostic validé → données cliniques requises → indication/
 - #398 HEAD `e06af52d611ece465e5087b2c485784b6cf74d49` : CI `34498056894` success ; T2 `34498056887` success ; merge `35f5eca034ab780e92aa877b1120fd4e6c3b3dce`.
 - #399 HEAD `e2c82aa8155a308b67d776388b6909b611a8c106` : merge `6dcdb18d364545a151f1e2a3fa01b1ce37a9494f`.
 - #400 HEAD `b5f1d991ec1c954840c609dfcd5dcee8063ad9c1` : CI #3182 success ; T2 #2190 success ; Portability #500 success ; Onboarding Visual #309 success ; merge `5f453d906c0562e53c921c683bb16c1a6deb3536`.
+- R10 HEAD `9ffd36306ec6fa09b71d590e078af01db67e6888` : CI #3431 SUCCESS ; T2 #2411 SUCCESS ; merge PR #431 `d0bdfc4fa47346f27e432139e6785177da4deef3` ; closeout master `2ac6ac538c79eb95a3988f2e6da9854b76dbd422`.
+- R11 HEAD `6916dee975acb83d13acd540d5d2e4a8f839a478` : CI #3477 SUCCESS ; T2 #2452 SUCCESS ; merge PR #437 `bc66b58b6ee4459362d3bd52150877908bdc996c`.
 
 ## NEXT EXACT
 
-1. certifier le HEAD backend/API de #406 ;
-2. corriger si rouge puis recertifier ;
-3. figer le contrat frontend sans inventer de profil physique ;
-4. exécuter le cycle BEFORE → Goal visuel → référence/tokens → implémentation → AFTER 390/768/1280+ → comparaison/tests → score/revue ;
-5. closeout #406 puis merge et vérification master ;
-6. ouvrir R2 depuis master vérifié.
+Après merge du closeout R11 et vérification de master final :
+1. ouvrir **une nouvelle fenêtre exclusivement R12** ;
+2. lire `AGENTS.md` puis `STATE.md` puis ce fichier canonique ;
+3. vérifier repo/master/HEAD/PR/CI avant toute modification ;
+4. exécuter R12 seulement : `Problem list + objectifs` ;
+5. chaque item doit référencer explicitement findings/diagnostics validés ; aucune indication ou option thérapeutique ne doit être introduite avant R13.
 
 ## SÉQUENCE RESTANTE
 
-`R1 calibration fiduciale/provenance → R2 chaîne runtime traversante → R3 conventions géométriques/CRANIOM → R4 COM/CRANIOM → R5 Steiner → R6 Tweed/Merrifield → R7 Wits/Downs → R8 McNamara → R9 Ricketts/soft tissue → R10 registre normatif → R11 diagnostic multiaxial → R12 problem list/objectifs → R13 options thérapeutiques → R14 validation clinique → R15 studio UX/UI → R16 PDF → R17 certification/closeout`
+`R12 problem list/objectifs → R13 options thérapeutiques → R14 validation clinique → R15 studio UX/UI → R16 PDF → R17 certification/closeout`
 
 ## DÉPLOIEMENT
 
