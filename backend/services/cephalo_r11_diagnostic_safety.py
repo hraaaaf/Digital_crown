@@ -9,6 +9,10 @@ from __future__ import annotations
 
 from typing import Dict, Set
 
+from backend.services.cephalo_diagnostic_rule_registry import (
+    DiagnosticRuleRegistry,
+    registry as default_diagnostic_rule_registry,
+)
 from backend.services.cephalo_evidence_graph import (
     EvidenceGraphSnapshot,
     EvidenceGraphValidationError,
@@ -43,12 +47,14 @@ def validate_r11_diagnostic_graph(
     graph: EvidenceGraphSnapshot,
     *,
     norm_registry: NormRegistry = default_norm_registry,
+    rule_registry: DiagnosticRuleRegistry = default_diagnostic_rule_registry,
 ) -> None:
     """Validate R11 diagnostic-safety invariants without activating clinical rules.
 
     R11 treats every currently registered normative reference as descriptive and
     inert. Exact registry payload/provenance may be carried for traceability, but
-    an inactive normative evaluation cannot support or oppose a finding.
+    an inactive normative evaluation cannot support or oppose a finding. Findings
+    and hypotheses must bind to source-locked, versioned rule definitions.
     """
 
     validate_evidence_graph(graph, norm_registry=norm_registry)
@@ -56,8 +62,10 @@ def validate_r11_diagnostic_graph(
     measurements = {item.measurement_id: item for item in graph.measurements}
     constructions = {item.construction_id: item for item in graph.constructions}
     evaluations = {item.evaluation_id: item for item in graph.normative_evaluations}
+    findings = {item.finding_id: item for item in graph.findings}
 
     inactive_evaluation_ids: Set[str] = set()
+    active_evaluation_ids: Set[str] = set()
 
     for evaluation in graph.normative_evaluations:
         registered = norm_registry.get_reference(evaluation.norm_profile_id)
@@ -93,15 +101,30 @@ def validate_r11_diagnostic_graph(
                     f"construction gate {registered.construction_gate}"
                 )
 
-        if not registered.active_for_patient_classification:
+        if registered.active_for_patient_classification:
+            active_evaluation_ids.add(evaluation.evaluation_id)
+        else:
             inactive_evaluation_ids.add(evaluation.evaluation_id)
-            if evaluation.classification is not None or evaluation.classification_rule_id is not None:
+            if (
+                evaluation.classification is not None
+                or evaluation.classification_rule_id is not None
+            ):
                 raise EvidenceGraphValidationError(
                     f"R11 inactive normative evaluation {evaluation.evaluation_id} cannot "
                     "carry a patient classification"
                 )
 
     for finding in graph.findings:
+        rule = rule_registry.get_finding_rule(finding.rule_id)
+        if rule is None:
+            raise EvidenceGraphValidationError(
+                f"R11 finding {finding.finding_id} uses unregistered rule {finding.rule_id}"
+            )
+        if finding.rule_version != rule.version or finding.domain != rule.domain:
+            raise EvidenceGraphValidationError(
+                f"R11 finding {finding.finding_id} rule version/domain does not match registry"
+            )
+
         supporting = set(finding.supporting_evidence_refs)
         opposing = set(finding.opposing_evidence_refs)
         overlap = supporting & opposing
@@ -119,6 +142,14 @@ def validate_r11_diagnostic_graph(
                 f"{', '.join(sorted(unsafe_norm_refs))}"
             )
 
+        if rule.requires_active_normative_reference:
+            used_active_norms = (supporting | opposing) & active_evaluation_ids
+            if not used_active_norms:
+                raise EvidenceGraphValidationError(
+                    f"R11 finding {finding.finding_id} rule {rule.rule_id} requires an "
+                    "active normative evaluation"
+                )
+
         missing = set(finding.missing_evidence_refs)
         active_claim_refs = supporting | opposing
         duplicated_missing = missing & active_claim_refs
@@ -129,6 +160,22 @@ def validate_r11_diagnostic_graph(
             )
 
     for diagnosis in graph.diagnoses:
+        if not diagnosis.rule_id or not diagnosis.rule_version:
+            raise EvidenceGraphValidationError(
+                f"R11 diagnosis {diagnosis.diagnosis_id} requires a versioned rule binding"
+            )
+        rule = rule_registry.get_diagnostic_rule(diagnosis.rule_id)
+        if rule is None:
+            raise EvidenceGraphValidationError(
+                f"R11 diagnosis {diagnosis.diagnosis_id} uses unregistered rule "
+                f"{diagnosis.rule_id}"
+            )
+        if diagnosis.rule_version != rule.version or diagnosis.domain != rule.domain:
+            raise EvidenceGraphValidationError(
+                f"R11 diagnosis {diagnosis.diagnosis_id} rule version/domain does not "
+                "match registry"
+            )
+
         supporting = set(diagnosis.supporting_finding_refs)
         opposing = set(diagnosis.opposing_finding_refs)
         overlap = supporting & opposing
@@ -136,6 +183,15 @@ def validate_r11_diagnostic_graph(
             raise EvidenceGraphValidationError(
                 f"R11 diagnosis {diagnosis.diagnosis_id} cannot use the same finding as both "
                 f"supporting and opposing: {', '.join(sorted(overlap))}"
+            )
+
+        referenced_finding_ids = supporting | opposing
+        used_rule_ids = {findings[item].rule_id for item in referenced_finding_ids}
+        outside_rule = sorted(used_rule_ids - set(rule.finding_rule_ids))
+        if outside_rule:
+            raise EvidenceGraphValidationError(
+                f"R11 diagnosis {diagnosis.diagnosis_id} uses finding rule(s) outside "
+                f"registered diagnostic rule {rule.rule_id}: {', '.join(outside_rule)}"
             )
 
         missing = set(diagnosis.missing_data_refs)
