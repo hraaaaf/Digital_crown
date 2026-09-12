@@ -18,7 +18,7 @@ const resolveActivePractitionerId = (): number | null => {
   return Number.isFinite(fallback) ? fallback : null;
 };
 
-const withPractitioner = (data: unknown, practitionerId: number) => {
+export const withPractitionerContext = (data: unknown, practitionerId: number) => {
   if (!data) return { praticien_id: practitionerId };
 
   if (typeof data === 'string') {
@@ -43,28 +43,67 @@ const withPractitioner = (data: unknown, practitionerId: number) => {
 
 export const AgendaPage: React.FC = () => {
   useEffect(() => {
-    const interceptor = api.interceptors.request.use((config) => {
-      const practitionerId = resolveActivePractitionerId();
-      if (!practitionerId) return config;
+    const practitionerByAppointment = new Map<number, number>();
 
+    const rememberAppointment = (appointment: any) => {
+      const appointmentId = Number(appointment?.id);
+      const practitionerId = Number(appointment?.praticien_id);
+      if (Number.isFinite(appointmentId) && Number.isFinite(practitionerId)) {
+        practitionerByAppointment.set(appointmentId, practitionerId);
+      }
+    };
+
+    const responseInterceptor = api.interceptors.response.use((response) => {
+      const url = (response.config.url || '').split('?')[0];
+
+      if (url === '/appointments/' && Array.isArray(response.data)) {
+        response.data.forEach(rememberAppointment);
+      }
+
+      if (url === '/appointments/multi-practitioner' && Array.isArray(response.data?.dentists)) {
+        response.data.dentists.forEach((dentist: any) => {
+          if (Array.isArray(dentist.appointments)) dentist.appointments.forEach(rememberAppointment);
+        });
+        if (Array.isArray(response.data?.legacy_unassigned)) {
+          response.data.legacy_unassigned.forEach(rememberAppointment);
+        }
+      }
+
+      return response;
+    });
+
+    const requestInterceptor = api.interceptors.request.use((config) => {
+      const activePractitionerId = resolveActivePractitionerId();
       const url = (config.url || '').split('?')[0];
       const method = (config.method || 'get').toLowerCase();
 
       if (method === 'get' && url === '/appointments/check-conflicts') {
-        config.params = {
-          ...(config.params || {}),
-          praticien_id: config.params?.praticien_id ?? practitionerId,
-        };
+        const excludeId = Number(config.params?.exclude_id);
+        const editingPractitionerId = Number.isFinite(excludeId)
+          ? practitionerByAppointment.get(excludeId)
+          : undefined;
+        const practitionerId = editingPractitionerId ?? activePractitionerId;
+
+        if (practitionerId) {
+          config.params = {
+            ...(config.params || {}),
+            praticien_id: config.params?.praticien_id ?? practitionerId,
+          };
+        }
         return config;
       }
+
+      if (!activePractitionerId) return config;
 
       if (method === 'post' && url === '/appointments/') {
-        config.data = withPractitioner(config.data, practitionerId);
+        config.data = withPractitionerContext(config.data, activePractitionerId);
         return config;
       }
 
+      // Une modification conserve le praticien historique si le payload n'en
+      // fournit pas explicitement un. Le contexte global ne doit jamais réaffecter
+      // silencieusement un rendez-vous simplement parce qu'on l'édite.
       if (method === 'put' && /^\/appointments\/\d+$/.test(url)) {
-        config.data = withPractitioner(config.data, practitionerId);
         return config;
       }
 
@@ -75,7 +114,7 @@ export const AgendaPage: React.FC = () => {
             ...payload,
             appointments: payload.appointments.map((appointment) => ({
               ...appointment,
-              praticien_id: appointment.praticien_id ?? practitionerId,
+              praticien_id: appointment.praticien_id ?? activePractitionerId,
             })),
           };
         }
@@ -84,7 +123,10 @@ export const AgendaPage: React.FC = () => {
       return config;
     });
 
-    return () => api.interceptors.request.eject(interceptor);
+    return () => {
+      api.interceptors.request.eject(requestInterceptor);
+      api.interceptors.response.eject(responseInterceptor);
+    };
   }, []);
 
   return (
