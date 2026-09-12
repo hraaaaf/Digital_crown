@@ -56,12 +56,20 @@ def _request():
 
 def test_route_persists_operator_timestamp_and_typed_calibration_atomically(monkeypatch):
     raw = _raw()
+    initial_graph = _initial_graph(raw)
+    previous_independent = {
+        (item["analysis_id"], item["method_id"]): (
+            item["availability_status"], item["value"]
+        )
+        for item in initial_graph["measurements"]
+        if not item["requires_calibration"]
+    }
     analysis = SimpleNamespace(
         id=42,
         patient_id=7,
         image_original_path="radio.jpg",
         landmarks_data=raw,
-        angles_data={EVIDENCE_GRAPH_KEY: _initial_graph(raw), "clinical_data": {"note": "keep"}},
+        angles_data={EVIDENCE_GRAPH_KEY: initial_graph, "clinical_data": {"note": "keep"}},
         mm_per_pixel=None,
         is_calibrated=False,
         calibration_data=None,
@@ -94,7 +102,21 @@ def test_route_persists_operator_timestamp_and_typed_calibration_atomically(monk
     calibration = [item for item in evidence["sources"] if item["kind"] == "calibration"]
     assert len(calibration) == 1
     assert calibration[0]["operator_id"] == "99"
-    assert all(item["availability_status"] == "AVAILABLE" for item in evidence["measurements"])
+    calibrated_measurements = [
+        item for item in evidence["measurements"] if item["requires_calibration"]
+    ]
+    assert calibrated_measurements
+    assert all(
+        item["availability_status"] == "AVAILABLE"
+        for item in calibrated_measurements
+    )
+    assert {
+        (item["analysis_id"], item["method_id"]): (
+            item["availability_status"], item["value"]
+        )
+        for item in evidence["measurements"]
+        if not item["requires_calibration"]
+    } == previous_independent
     db.commit.assert_called_once()
     db.rollback.assert_not_called()
 
