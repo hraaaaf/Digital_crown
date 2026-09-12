@@ -1,8 +1,8 @@
 """P3 multi-practitioner document provenance facades.
 
 Generation keeps the authenticated user as the technical actor while binding a
-validated clinical author. Signing is a separate explicit action: only the
-authenticated practitioner who authored the exact active archive bytes may sign.
+validated clinical author. Signature provenance is a separate explicit action: only
+the authenticated practitioner who authored the exact active archive bytes may record it.
 """
 
 from __future__ import annotations
@@ -61,7 +61,6 @@ async def generate_document_with_provenance(
     db: Session = Depends(database.get_db),
     current_user: models.User = Depends(get_current_user),
 ):
-    # Preserve legacy authorization ordering before practitioner lookup.
     legacy_documents.require_document_permission(req.type, current_user)
     assert_patient_access(req.patient_id, current_user, db)
     author = resolve_document_author(db, current_user, req.author_practitioner_id)
@@ -86,7 +85,7 @@ async def generate_document_with_provenance(
 @documents_router.post(
     "/{document_id}/sign",
     response_model=DocumentArchiveOutP3,
-    summary="Signer explicitement un document P3",
+    summary="Enregistrer la signature praticien P3",
 )
 def sign_document_with_provenance(
     document_id: int,
@@ -123,7 +122,7 @@ def get_patient_documents_with_provenance(
     db: Session = Depends(database.get_db),
     current_user: models.User = Depends(require_permission("patients")),
 ):
-    """Keep the canonical archive listing and enrich only canonical rows with P3 proof."""
+    """Keep canonical listing and enrich canonical rows with P3 proof only."""
     results = legacy_patients.get_patient_documents(
         patient_id=patient_id,
         db=db,
@@ -165,7 +164,6 @@ def get_patient_documents_with_provenance(
     for item in results:
         raw_id = str(item.get("id", ""))
         if not raw_id.isdigit():
-            # Legacy files intentionally keep unknown provenance instead of invention.
             continue
         doc = docs_by_id.get(int(raw_id))
         if doc is None:
@@ -188,7 +186,6 @@ def generate_cephalo_pdf_with_provenance(
     db: Session = Depends(database.get_db),
     current_user: models.User = Depends(require_permission("cephalo")),
 ):
-    # Prevent cross-tenant practitioner probing before author resolution.
     assert_patient_access(patient_id, current_user, db)
     author = resolve_document_author(db, current_user, req.author_practitioner_id)
 
@@ -212,7 +209,7 @@ def verify_document_with_p3_signature(
     doc_id: str,
     db: Session = Depends(database.get_db),
 ):
-    """Public verification never claims a signature that P3 did not record."""
+    """Public verification never claims proof that P3 did not record."""
     config = db.query(models.CabinetConfig).first()
     primary_color = config.primary_color if config else "#003380"
     cabinet_name = config.nom_cabinet if config else "Cabinet Digital Crown"
@@ -241,9 +238,9 @@ def verify_document_with_p3_signature(
             )
             state = verification_state_for_document(doc)
             title = (
-                "Document Médical Signé"
+                "Document Médical • Signature enregistrée"
                 if state.is_signed
-                else "Document Médical Authentique"
+                else "Document Médical • Intégrité vérifiée"
                 if state.is_valid
                 else "Document Médical Invalide"
             )
@@ -264,20 +261,19 @@ def verify_document_with_p3_signature(
 
     return HTMLResponse(content=legacy_verification.get_verification_html(
         title="Document Introuvable",
-        subtitle="Erreur de Sécurité",
+        subtitle="Erreur de Vérification",
         doc_type="INCONNU",
         patient_name="NON DISPONIBLE",
         doc_date="NON SPÉCIFIÉE",
         primary_color="#ef4444",
-        status_text="Non Certifié / Invalide",
+        status_text="Non vérifié / Invalide",
         status_color="#ef4444",
         is_valid=False,
-        warning_msg="Ce document n'a pas été authentifié par Digital Crown.",
+        warning_msg="Ce document n'a pas été vérifié par Digital Crown.",
     ))
 
 
-# Replace only the canonical patient document listing. The legacy implementation stays
-# callable internally so historical local-file discovery remains exactly as before.
+# Preserve historical file discovery while replacing only the canonical patient list facade.
 legacy_patients.router.routes = [
     route
     for route in legacy_patients.router.routes
@@ -287,8 +283,7 @@ legacy_patients.router.routes = [
     )
 ]
 
-# Replace only the one-segment legacy public verification facade. The special
-# two-segment RADIO/BILAN verification endpoints remain untouched.
+# Keep special two-segment RADIO/BILAN verification untouched.
 legacy_verification.router.routes = [
     route
     for route in legacy_verification.router.routes
