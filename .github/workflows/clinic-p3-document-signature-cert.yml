@@ -9,6 +9,7 @@ on:
       - "backend/tests/test_document_signature_archive_surface_p3.py"
       - "backend/tests/test_document_signature_permissions_p3.py"
       - "backend/tests/test_document_signature_read_failclosed_p3.py"
+      - "backend/tests/test_document_signature_file_preservation_p3.py"
       - ".github/workflows/clinic-p3-document-signature-cert.yml"
   workflow_dispatch:
 
@@ -62,6 +63,7 @@ jobs:
           test -f backend/tests/test_document_signature_archive_surface_p3.py
           test -f backend/tests/test_document_signature_permissions_p3.py
           test -f backend/tests/test_document_signature_read_failclosed_p3.py
+          test -f backend/tests/test_document_signature_file_preservation_p3.py
           grep -q "Le praticien connecté ne peut signer que ses propres documents" backend/services/document_signature_p3.py
           grep -q "Document sans auteur P3" backend/services/document_signature_p3.py
           grep -q "verify_document_integrity" backend/services/document_signature_p3.py
@@ -75,6 +77,7 @@ jobs:
           grep -q "test_patient_archive_surface_exposes_truthful_p3_provenance_without_touching_legacy" backend/tests/test_document_signature_archive_surface_p3.py
           grep -q "test_signature_permission_fails_closed_for_unmapped_bilan_type" backend/tests/test_document_signature_permissions_p3.py
           grep -q "test_public_read_refuses_signer_different_from_recorded_author" backend/tests/test_document_signature_read_failclosed_p3.py
+          grep -q "test_recording_signature_preserves_exact_archived_bytes_hash_and_size" backend/tests/test_document_signature_file_preservation_p3.py
           grep -q "get_patient_documents_with_provenance" backend/routers/document_provenance_p3.py
 
       - name: Run signature invariant suite
@@ -84,6 +87,7 @@ jobs:
             backend/tests/test_document_signature_archive_surface_p3.py \
             backend/tests/test_document_signature_permissions_p3.py \
             backend/tests/test_document_signature_read_failclosed_p3.py \
+            backend/tests/test_document_signature_file_preservation_p3.py \
             -q --maxfail=1
 
       - name: Certification summary
@@ -96,6 +100,7 @@ jobs:
           - unmapped document signature permission: refused fail-closed
           - non-active document: signing refused
           - physical SHA-256 + size: verified before signature
+          - signature write: archived local file bytes/hash/size preserved exactly
           - repeated signature: idempotent, timestamp preserved
           - read verification: signer must equal recorded P3 author
           - proof type: Digital Crown application-level signature provenance, not qualified electronic signature
