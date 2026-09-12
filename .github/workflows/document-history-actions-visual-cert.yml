@@ -73,79 +73,106 @@ jobs:
 
           const unique=`${label}-${Date.now()}-${Math.random().toString(36).slice(2,8)}`;
           const title=`CERT VISUELLE ${unique}`;
-         ÛÛœÝÛÛ[XØÝ[Y[HÙ\YšXØ][Ûˆš\ÝY[H	Ý[š\]Y_XÂˆÛÛœÝ^[ØY^Ý\N‰ÛXœ™IË]Y[ÚYœ]Y[šY]NžÝ]KÛÛ[Ø×Ù]N‰ÌŒ‹LKLIßK\×ØXØÛÝ[Y™˜[ÙK^[Y[ÜÝ]\Î‰ÑS—ÐUS•IßNÂˆÛÛœÝÙ[X]ØZ]\KœÜÝ
-	ËØ\KÙØÝ[Y[ËÙÙ[™\˜]OØ\˜Ú]™O]YIËÚXY\œÎžË‹‹˜]]	ÐÛÛ[U\IÎ‰Ø\XØ][Û‹ÚœÛÛ‰ßK]Nœ^[ØYJNÂˆYŠYÙ[‹›ÚÊ
-JH›ÝÈ™]È\œ›ÜŠÙ[™\˜]H	ÙÙ[‹œÝ]\Ê
-_H	Ø]ØZ]Ù[‹^
+          const content=`Document de certification visuelle ${unique}`;
+          const payload={type:'libre',patient_id:patient.id,data:{title,content,doc_date:'2026-09-09'},is_accounted:false,payment_status:'EN_ATTENTE'};
+          const gen=await api.post('/api/documents/generate?archive=true',{headers:{...auth,'Content-Type':'application/json'},data:payload});
+          if(!gen.ok()) throw new Error(`generate ${gen.status()} ${await gen.text()}`);
 
-_X
-NÂ‚ˆÛÛœÝØÜÔ™\ÜÛœÙOX]ØZ]\K™Ù]
-Ø\KÜ]Y[ËÉÜ]Y[šYKÙØÝ[Y[ØÚXY\œÎ˜]]JNÂˆYŠYØÜÔ™\ÜÛœÙK›ÚÊ
-JH›ÝÈ™]È\œ›ÜŠØÝ[Y[È	ÙØÜÔ™\ÜÛœÙKœÝ]\Ê
-_H	Ø]ØZ]ØÜÔ™\ÜÛœÙK^
+          const docsResponse=await api.get(`/api/patients/${patient.id}/documents`,{headers:auth});
+          if(!docsResponse.ok()) throw new Error(`documents ${docsResponse.status()} ${await docsResponse.text()}`);
+          const docs=await docsResponse.json();
+          const generated=docs.find(d=>d.clinical_data?.content===content || d.clinical_data?.title===title);
+          if(!generated) throw new Error(`generated archive not found; docs=${JSON.stringify(docs.slice(0,5).map(d=>({id:d.id,name:d.name,clinical_data:d.clinical_data})))}`);
+          const actionLabel=`Actions du document ${generated.name}`;
 
-_X
-NÂˆÛÛœÝØÜÏX]ØZ]ØÜÔ™\ÜÛœÙKšœÛÛŠ
-NÂˆÛÛœÝÙ[™\˜]YYØÜË™š[™
-O™˜Û[šXØ[Ù]OË˜ÛÛ[OOXÛÛ[˜Û[šXØ[Ù]OË]OOO]]JNÂˆYŠYÙ[™\˜]Y
-H›ÝÈ™]È\œ›ÜŠÙ[™\˜]Y\˜Ú]™H›Ý›Ý[™ÈØÜÏIÒ”ÓÓ‹œÝš[™ÚYžJØÜËœÛXÙJJK›X\
-OŠÚY™šY˜[YN™›˜[YKÛ[šXØ[Ù]N™˜Û[šXØ[Ù]_JJJ_X
-NÂˆÛÛœÝXÝ[Û“X™[XXÝ[ÛœÈHØÝ[Y[	ÙÙ[™\˜]Y›˜[Y_XÂ‚ˆÛÛœÝœ›ÝÜÙ\X]ØZ]Ú›ÛZ][K›][˜Ú
-ÚXY\ÜÎY_JNÂˆÛÛœÝ]šY[˜ÙOV×NÂˆ›ÜŠÛÛœÝšY]ÜÜÙˆÞÝÚYŒÎLZYÚŽX™[‰ÌÎL	ßKÝÚYŒLÍ‹ZYÚÌX™[‰ÌLÍžÌ	ßWJ^ÂˆÛÛœÝÝX]ØZ]œ›ÝÜÙ\‹›™]ÐÛÛ^
-ÝšY]ÜÜÛÛÜ”ØÚ[YN‰ÛYÚ	ßJNÂˆÛÛœÝYÙOX]ØZ]Ý›™]ÔYÙJ
-NÂˆ]ØZ]YÙK˜Y[š]ØÜš\
+          const browser=await chromium.launch({headless:true});
+          const evidence=[];
+          for(const viewport of [{width:390,height:844,label:'390x844'},{width:1366,height:700,label:'1366x700'}]){
+            const ctx=await browser.newContext({viewport,colorScheme:'light'});
+            const page=await ctx.newPage();
+            await page.addInitScript(({a,r})=>{
+              localStorage.setItem('token',a);
+              localStorage.setItem('refresh_token',r||'');
+              localStorage.setItem('appMode','prod');
+            },{a:tok.access_token,r:tok.refresh_token});
+            const errors=[];
+            page.on('pageerror',e=>errors.push(String(e)));
 
-ØKŸJOOžÂˆØØ[ÝÜ˜YÙKœÙ]][J	ÝÚÙ[‰ËJNÂˆØØ[ÝÜ˜YÙKœÙ]][J	Ü™Yœ™\ÚÝÚÙ[‰ËŸ	ÉÊNÂˆØØ[ÝÜ˜YÙKœÙ]][J	Ø\[ÙIË	Ü›Ù	ÊNÂˆKØNÚË˜XØÙ\Ü×ÝÚÙ[‹ŽÚËœ™Yœ™\ÚÝÚÙ[ŸJNÂˆÛÛœÝ\œ›ÜœÏV×NÂˆYÙK›ÛŠ	ÜYÙY\œ›Ü‰ËOO™\œ›ÜœËœ\Ú
-Ýš[™ÊJJJNÂ‚ˆ]ØZ]YÙK™ÛÝÊ‹ËÌLËŒŒŒNLMÌËÜ]Y[ËÉÜ]Y[šYOÝXX\˜Ú]™\ØÝØZ][[‰Û™]ÛÜšÚYIË[Y[Ý]ŽLJNÂˆÛÛœÝXÝ[ÛœÏ\YÙK™Ù]žT›ÛJ	Ø]Û‰ËÛ˜[YN˜XÝ[Û“X™[^XÝY_JNÂˆ]ØZ]XÝ[ÛœËØZ]›ÜŠÜÝ]N‰Ýš\ÚX›IË[Y[Ý]ŒÌJNÂˆÛÛœÝØ\™XXÝ[ÛœË›ØØ]ÜŠ	Þ]X[˜Ù\ÝÜŽŽ™]–Ð]KYØÝ[Y[ZÚ[™VÌWIÊNÂˆ]ØZ]XÝ[ÛœË˜ÛXÚÊ
-NÂ‚ˆÛÛœÝY]\™Ù][X™[OOIØ™Y›Ü™IÂˆÈØ\™™Ù]žT›ÛJ	Ø]Û‰ËÛ˜[YN‰Ó[ÙYšY\‰Ë^XÝY_JBˆˆØ\™›ØØ]ÜŠ	ÖÙ]KYØÝ[Y[XXÝ[ÛH™Y]—IÊNÂˆÛÛœÝ˜\Ú\™Ù][X™[OOIØ™Y›Ü™IÂˆÈØ\™™Ù]žT›ÛJ	Ø]Û‰ËÛ˜[YN‰ÓY]™H0èHÛÜ˜™Z[IË^XÝY_JBˆˆØ\™›ØØ]ÜŠ	ÖÙ]KYØÝ[Y[XXÝ[ÛH˜\Ú—IÊNÂˆÛÛœÝY[U\™Ù][X™[OOIØY\‰ÈÈØ\™›ØØ]ÜŠ	ÖÙ]KYØÝ[Y[XXÝ[Û‹[Y[WIÊHˆ[Â‚ˆ]ØZ]Y]\™Ù]ØZ]›ÜŠÜÝ]N‰Ýš\ÚX›IË[Y[Ý]ŒMLJNÂˆ]ØZ]˜\Ú\™Ù]ØZ]›ÜŠÜÝ]N‰Ýš\ÚX›IË[Y[Ý]ŒMLJNÂˆYŠY[U\™Ù]
-H]ØZ]Y[U\™Ù]ØZ]›ÜŠÜÝ]N‰Ýš\ÚX›IË[Y[Ý]ŒMLJNÂˆÛÛœÝXX]ØZ]Y]\™Ù]˜›Ý[™[™Ð›Þ
+            await page.goto(`http://127.0.0.1:5173/patients/${patient.id}?tab=archives`,{waitUntil:'networkidle',timeout:90000});
+            const actions=page.getByRole('button',{name:actionLabel,exact:true});
+            await actions.waitFor({state:'visible',timeout:30000});
+            const card=actions.locator('xpath=ancestor::div[@data-document-kind][1]');
+            await actions.click();
 
-NÂˆÛÛœÝX]ØZ]˜\Ú\™Ù]˜›Ý[™[™Ð›Þ
+            const editTarget=label==='before'
+              ? card.getByRole('button',{name:'Modifier',exact:true})
+              : card.locator('[data-document-action="edit"]');
+            const trashTarget=label==='before'
+              ? card.getByRole('button',{name:'Mettre Ã  la corbeille',exact:true})
+              : card.locator('[data-document-action="trash"]');
 
-NÂˆÛÛœÝX[Y[U\™Ù]È]ØZ]Y[U\™Ù]˜›Ý[™[™Ð›Þ
+            await editTarget.waitFor({state:'visible',timeout:15000});
+            await trashTarget.waitFor({state:'visible',timeout:15000});
+            const eb=await editTarget.boundingBox();
+            const tb=await trashTarget.boundingBox();
+            if(!eb||!tb) throw new Error(`missing action boxes ${label} ${viewport.label}`);
 
-Hˆ[ÂˆYŠYXŸ]ŠH›ÝÈ™]È\œ›ÜŠZ\ÜÚ[™ÈXÝ[Ûˆ›Þ\È	ÛX™[H	ÝšY]ÜÜ›X™[X
-NÂˆYŠX™[OOIØY\‰È	‰ˆ[XŠH›ÝÈ™]È\œ›ÜŠZ\ÜÚ[™ÈY[H›Þ	ÝšY]ÜÜ›X™[X
-NÂ‚ˆÛÛœÝØ\]‹žKJX‹žJÙX‹šZYÚ
-NÂˆÛÛœÝÝ™\›\SX]›X^
-
-X‹žJÙX‹šZYÚ
-K]‹žJNÂˆÛÛœÝY[PÛÛZ[™YH[Xˆ
-ˆX‹žH	‰‚ˆX‹žHH	‰‚ˆX‹ž
-ÈX‹ÚYHšY]ÜÜÚY	‰‚ˆX‹žH
-ÈX‹šZYÚHšY]ÜÜšZYÚˆ
-NÂˆÛÛœÝÚÝX	ÛX™[KYØÝ[Y[XXÝ[ÛœËIÝšY]ÜÜ›X™[Kœ™ØÂˆ]ØZ]YÙKœØÜ™Y[œÚÝ
-Ü]œ]š›Ú[Š›ÛÝ	Ø\Y˜XÝËÙØÝ[Y[Z\ÝÜžKXXÝ[ÛœÉËÚÝ
-K[YÙN™˜[Ù_JNÂˆÛÛœÝ›ÝÏ^ÛX™[\˜Ú]™RY™Ù[™\˜]YšY\˜Ú]™S˜[YN™Ù[™\˜]Y›˜[YKšY]ÜÜY]›Þ™X‹˜\Ú›Þ‹Y[P›Þ›X‹Y[PÛÛZ[™YØ\Ý™\›\\œ›ÜœËÚÝNÂˆ]šY[˜ÙKœ\Ú
-›ÝÊNÂˆYŠX™[OOIØY\‰È	‰ˆ
-Ý™\›\ŒØ\È[Y[PÛÛZ[™Y\œ›ÜœË›[™Ý
-JH›ÝÈ™]È\œ›ÜŠQ•Tˆš\ÝX[ÛÛ˜XÝ˜Z[Yˆ	Ò”ÓÓ‹œÝš[™ÚYžJ›ÝÊ_X
-NÂˆ]ØZ]Ý˜ÛÜÙJ
-NÂˆBˆœËÜš]Qš[TÞ[˜Ê]š›Ú[Š›ÛÝ	Ø\Y˜XÝËÙØÝ[Y[Z\ÝÜžKXXÝ[ÛœÉË	ÛX™[KY]šY[˜ÙKšœÛÛ˜
-K”ÓÓ‹œÝš[™ÚYžJ]šY[˜ÙK[ŠJNÂˆ]ØZ]œ›ÝÜÙ\‹˜ÛÜÙJ
-NÂˆ]ØZ]\K™\ÜÜÙJ
-NÂˆ”Â‚ˆ[—Ý™YH
+            const gap=tb.y-(eb.y+eb.height);
+            const overlap=Math.max(0,(eb.y+eb.height)-tb.y);
+            const shot=`${label}-document-actions-${viewport.label}.png`;
+            await page.screenshot({path:path.join(root,'artifacts/document-history-actions',shot),fullPage:false});
+            const row={label,archiveId:generated.id,archiveName:generated.name,viewport,editBox:eb,trashBox:tb,gap,overlap,errors,shot};
+            evidence.push(row);
+            if(label==='after' && (overlap>0 || gap<3 || errors.length)) throw new Error(`AFTER visual contract failed: ${JSON.stringify(row)}`);
+            await ctx.close();
+          }
+          fs.writeFileSync(path.join(root,'artifacts/document-history-actions',`${label}-evidence.json`),JSON.stringify(evidence,null,2));
+          await browser.close();
+          await api.dispose();
+          JS
 
-HÂˆ™YOH‰HŽÈX™[H‰ˆ‚ˆ›HYˆ‹\[[YKXÙ\™ˆÝ\ÙËX™Y›Ü™KÝ‹\[[YKXÙ\™‚ˆ
-Ù‰™YHˆ	‰ˆ^XÈÙ]ÚY]ÛˆØÜš\ËÝ—Ü[[YWÜÙ\™\‹œHˆ‹Ý\ÉÛX™[KX˜XÚÙ[™›ÙÈˆ‰ŒJH	ˆ”QIBˆ›ÜˆH[ˆÌK‹ŽLNÈÈÝ\›YœÔÈ‹ËÌLËŒŒŒNŽKÚX[‹Ù]‹Û[	‰ˆœ™XZÎÈÛY\NÈÛ™Bˆ
-Ù‰™YKÙœ›Û[™ˆ	‰ˆ^XÈÙ]ÚYœH[ˆ]ˆKHKZÜÝLËŒŒŒHK\ÜLMÌÈˆ‹Ý\ÉÛX™[KYœ›Û[™›ÙÈˆ‰ŒJH	ˆ”QIBˆ›ÜˆH[ˆÌK‹ŽLNÈÈÝ\›YœÔÈ‹ËÌLËŒŒŒNLMÌÈ‹Ù]‹Û[	‰ˆœ™XZÎÈÛY\NÈÛ™Bˆ›ÙHÝ\ØØ\\™KYØËZ\ÝÜžK›ZœÈ‰™YHˆ‰X™[‚ˆÚ[KHI”QI”Q‹Ù]‹Û[YBˆØZ]	”Q	”Q‹Ù]‹Û[YBˆ›ÜˆH[ˆÌK‹ŒÌNÈÂˆYˆHÝ\›YœÔÈ‹ËÌLËŒŒŒNLMÌÈ‹Ù]‹Û[‰ŒH	‰ˆHÝ\›YœÔÈ‹ËÌLËŒŒŒNŽKÚX[‹Ù]‹Û[‰ŒNÈ[ˆœ™XZÎÈšBˆÛY\BˆÛ™BˆBˆ[—Ý™YHÝ\ÙËX™Y›Ü™H™Y›Ü™Bˆ[—Ý™YH‰“ÓÕˆY\‚ˆH˜[YNˆÛÛ\\™H]šY[˜ÙBˆ[Žˆˆ]ÛˆH	ÔIÂˆ[\ÜœÛÛ‹]X‚ˆ\]X‹”]
-	Ø\Y˜XÝËÙØÝ[Y[Z\ÝÜžKXXÝ[ÛœÉÊBˆ™Y›Ü™OZœÛÛ‹›ØYÊ
-ÉØ™Y›Ü™KY]šY[˜ÙKšœÛÛ‰ÊKœ™XYÝ^
-
-JBˆY\ZœÛÛ‹›ØYÊ
-ÉØY\‹Y]šY[˜ÙKšœÛÛ‰ÊKœ™XYÝ^
-
-JBˆ™\ÜV×Bˆ›Üˆ‹H[ˆš\
-™Y›Ü™KY\ŠN‚ˆ™\Ü˜\[™
-Âˆ	ÝšY]ÜÜ	ÎˆVÉÝšY]ÜÜ	×VÉÛX™[	×Kˆ	Ø™Y›Ü™WÙØ\	Îˆ›Ý[™
-–ÉÙØ\	×KŠKˆ	Ø™Y›Ü™WÛÝ™\›\	Îˆ›Ý[™
-–ÉÛÝ™\›\	×KŠKˆ	ØY\—ÙØ\	Îˆ›Ý[™
-VÉÙØ\	×KŠKˆ	ØY\—ÛÝ™\›\	Îˆ›Ý[™
-VÉÛÝ™\›\	×KŠKˆ	ØY\—ÛY[WØÛÛZ[™Y	Îˆ›ÛÛ
-VÉÛY[PÛÛZ[™Y	×JKˆ	Ü\ÜÉÎˆVÉÛÝ™\›\	×OOL[™VÉÙØ\	×OLÈ[™VÉÛY[PÛÛZ[™Y	×H[™›ÝVÉÙ\œ›ÜœÉ×KˆJBˆ
-ÉØÛÛ\\š\ÛÛ‹šœÛÛ‰ÊKÜš]WÝ^
-œÛÛ‹™[\Ê™\Ü[™[LŠJBˆš[
-œÛÛ‹™[\Ê™\Ü[™[LŠJBˆ\ÜÙ\[
-–ÉÜ\ÜÉ×H›Üˆˆ[ˆ™\Ü
-BˆBˆH\Ù\ÎˆXÝ[ÛœËÝ\ØYX\Y˜XÝˆYŽˆ[Ø^\Ê
-BˆÚ]‚ˆ˜[YNˆØÝ[Y[Z\ÝÜžKXXÝ[ÛœËX™Y›Ü™KXY\‚ˆ]ˆ\Y˜XÝËÙØÝ[Y[Z\ÝÜžKXXÝ[ÛœÂˆY‹[›ËYš[\ËY›Ý[™ˆ\œ›Ü‚ˆ™][[Û‹Y^\ÎˆM
+          run_tree () {
+            tree="$1"; label="$2"
+            rm -f t2-runtime-cert.db /tmp/dc-before/t2-runtime-cert.db
+            (cd "$tree" && exec setsid python scripts/t2_runtime_server.py > "/tmp/${label}-backend.log" 2>&1) & BPID=$!
+            for i in {1..90}; do curl -fsS http://127.0.0.1:8005/health >/dev/null && break; sleep 1; done
+            (cd "$tree/frontend" && exec setsid npm run dev -- --host 127.0.0.1 --port 5173 > "/tmp/${label}-frontend.log" 2>&1) & FPID=$!
+            for i in {1..90}; do curl -fsS http://127.0.0.1:5173 >/dev/null && break; sleep 1; done
+            node /tmp/capture-doc-history.mjs "$tree" "$label"
+            kill -- -$FPID -$BPID 2>/dev/null || true
+            wait $FPID $BPID 2>/dev/null || true
+            for i in {1..30}; do
+              if ! curl -fsS http://127.0.0.1:5173 >/dev/null 2>&1 && ! curl -fsS http://127.0.0.1:8005/health >/dev/null 2>&1; then break; fi
+              sleep 1
+            done
+          }
+          run_tree /tmp/dc-before before
+          run_tree "$ROOT" after
+      - name: Compare evidence
+        run: |
+          python - <<'PY'
+          import json, pathlib
+          p=pathlib.Path('artifacts/document-history-actions')
+          before=json.loads((p/'before-evidence.json').read_text())
+          after=json.loads((p/'after-evidence.json').read_text())
+          report=[]
+          for b,a in zip(before,after):
+              report.append({
+                  'viewport': a['viewport']['label'],
+                  'before_gap': round(b['gap'],2),
+                  'before_overlap': round(b['overlap'],2),
+                  'after_gap': round(a['gap'],2),
+                  'after_overlap': round(a['overlap'],2),
+                  'pass': a['overlap']==0 and a['gap']>=3 and not a['errors'],
+              })
+          (p/'comparison.json').write_text(json.dumps(report,indent=2))
+          print(json.dumps(report,indent=2))
+          assert all(r['pass'] for r in report)
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: document-history-actions-before-after
+          path: artifacts/document-history-actions
+          if-no-files-found: error
+          retention-days: 14
