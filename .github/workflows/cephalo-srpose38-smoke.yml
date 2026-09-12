@@ -1,0 +1,138 @@
+name: Cephalo SRPose38 smoke
+
+on:
+  push:
+    branches: [test/cephalo-srpose38-ci]
+  pull_request:
+    branches: [refactor/scientific-core-purge]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  srpose38-real-ceph-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+          cache: pip
+
+      - name: Fetch model, real cephalogram and public 38-point reference
+        run: |
+          git clone --depth 1 https://github.com/5k5000/CLdetection2023.git srpose
+          git clone --depth 1 https://github.com/szuboy/CL-Detection2023.git baseline
+          curl -fsSL 'https://raw.githubusercontent.com/Xushuolin/HRNet-combine-CBAM-f-Cephalometric-Landmark-Detection/cf29e1fcccc2ba36864af61960811775645f2a65/CL-Detection2023-MMPose/CL-detection2023/valid.json' -o public-valid.json
+          test -s baseline/step5_docker_and_upload/test/stack1.mha
+          test -s public-valid.json
+
+      - name: Install CPU inference dependencies
+        run: |
+          python -m pip install --upgrade pip wheel
+          python -m pip install torch==2.0.1 torchvision==0.15.2 --index-url https://download.pytorch.org/whl/cpu
+          python -m pip install numpy==1.26.4 gdown SimpleITK opencv-python-headless==4.11.0.86 mmengine==0.10.7 json_tricks munkres scipy pillow 'xtcocotools>=1.12'
+          python -m pip install mmcv==2.0.1 --no-deps -f https://download.openmmlab.com/mmcv/dist/cpu/torch2.0.0/index.html
+          python -m pip install -e srpose/mmpose_package/mmpose --no-deps --no-build-isolation
+
+      - name: Download published checkpoint
+        run: |
+          mkdir -p srpose/MMPose-checkpoints/CLdetection/srpose_s2
+          gdown 'https://drive.google.com/uc?id=10HrNDBBpuECTcgNgcWNUt7kM6m4ZMXM4' -O srpose/MMPose-checkpoints/CLdetection/srpose_s2/demo.pth
+          test -s srpose/MMPose-checkpoints/CLdetection/srpose_s2/demo.pth
+          sha256sum srpose/MMPose-checkpoints/CLdetection/srpose_s2/demo.pth | tee srpose38-checkpoint.sha256
+
+      - name: Infer and score all 38 landmarks
+        run: |
+          cat > /tmp/score_srpose38.py <<'PY'
+          import json
+          from pathlib import Path
+          import cv2
+          import numpy as np
+          import SimpleITK as sitk
+          import torch
+          from mmpose.apis import init_model, inference_topdown
+          from mmpose.structures import merge_data_samples
+          from cldetection_utils import remove_zero_padding
+
+          root = Path.cwd()
+          stack = sitk.GetArrayFromImage(sitk.ReadImage(str(root/'baseline/step5_docker_and_upload/test/stack1.mha')))
+          image = remove_zero_padding(stack[0])
+          assert image.shape[:2] == (2400, 1935), image.shape
+
+          public = json.loads((root/'public-valid.json').read_text(encoding='utf-8'))
+          image_meta = next(x for x in public['images'] if int(x['id']) == 1)
+          ann = next(x for x in public['annotations'] if int(x['image_id']) == 1)
+          assert int(ann['num_keypoints']) == 38
+          raw = np.asarray(ann['keypoints'], dtype=float).reshape(38, 3)
+          assert np.all(raw[:,2] == 1)
+          gt = raw[:,:2]
+          scale = float(image_meta['spacing'])
+          assert scale == 0.1
+          # Identity guard against the organizer's public README example for image 1.
+          assert np.array_equal(gt[0], [835.,996.])
+          assert np.array_equal(gt[1], [1473.,1029.])
+
+          config = root/'srpose/configs/CLdetection2023/srpose_s2.py'
+          checkpoint = root/'srpose/MMPose-checkpoints/CLdetection/srpose_s2/demo.pth'
+          model = init_model(str(config), str(checkpoint), device='cpu')
+          model.eval()
+          with torch.no_grad():
+              samples = inference_topdown(model=model, img=image, bboxes=None, bbox_format='xyxy')
+              pred = np.asarray(merge_data_samples(samples).pred_instances.keypoints[0], dtype=float)
+          assert pred.shape == (38,2), pred.shape
+          assert np.isfinite(pred).all()
+
+          err = np.linalg.norm(pred-gt, axis=1)*scale
+          per = [{
+              'index': i+1,
+              'pred_x': round(float(pred[i,0]),3), 'pred_y': round(float(pred[i,1]),3),
+              'gt_x': float(gt[i,0]), 'gt_y': float(gt[i,1]),
+              'error_mm': round(float(err[i]),3)
+          } for i in range(38)]
+          sdr = {str(t): float(np.mean(err <= t)) for t in (1.0,1.5,2.0,2.5,3.0,4.0)}
+          metrics = {
+              'checkpoint_sha256':'fb1a781ac1c83149b379cb15724e3b0fae06ba2d567978f35c61e9d06b46fdcc',
+              'image':'CL-Detection public stack1.mha slice 1, official zero-padding removal',
+              'ground_truth':'public COCO conversion valid.json, image_id=1; first two points identity-checked against organizer README',
+              'landmarks':38, 'scale_mm_per_pixel':scale,
+              'mre_mm':round(float(np.mean(err)),4),
+              'median_error_mm':round(float(np.median(err)),4),
+              'max_error_mm':round(float(np.max(err)),4),
+              'sdr':{k:round(v,6) for k,v in sdr.items()},
+              'worst_landmarks':sorted(per,key=lambda x:x['error_mm'],reverse=True)[:10],
+              'per_landmark':per
+          }
+          Path('srpose38-full38-metrics.json').write_text(json.dumps(metrics,indent=2),encoding='utf-8')
+          Path('srpose38-coordinates.json').write_text(json.dumps(per,indent=2),encoding='utf-8')
+
+          overlay=image.copy()
+          for i,((px,py),(gx,gy)) in enumerate(zip(pred,gt),1):
+              p=(int(round(px)),int(round(py))); g=(int(round(gx)),int(round(gy)))
+              cv2.line(overlay,g,p,(255,255,0),1)
+              cv2.circle(overlay,g,7,(0,0,255),2)
+              cv2.circle(overlay,p,5,(0,255,0),-1)
+              cv2.putText(overlay,str(i),(p[0]+7,p[1]-7),cv2.FONT_HERSHEY_SIMPLEX,.45,(0,255,0),1,cv2.LINE_AA)
+          cv2.imwrite('srpose38-real-ceph-full38-vs-pred.png',overlay)
+          cv2.imwrite('srpose38-real-ceph-input-unpadded.png',image)
+
+          print('SRPOSE38_FULL38_OK', json.dumps({k:metrics[k] for k in ('mre_mm','median_error_mm','max_error_mm','sdr','worst_landmarks')}))
+          PY
+          PYTHONPATH="$PWD/srpose:$PWD/srpose/mmpose_package/mmpose" python /tmp/score_srpose38.py | tee srpose38-smoke.log
+          grep -q 'SRPOSE38_FULL38_OK' srpose38-smoke.log
+
+      - name: Upload evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cephalo-srpose38-full38-evidence
+          if-no-files-found: warn
+          path: |
+            srpose38-checkpoint.sha256
+            srpose38-smoke.log
+            srpose38-coordinates.json
+            srpose38-full38-metrics.json
+            srpose38-real-ceph-input-unpadded.png
+            srpose38-real-ceph-full38-vs-pred.png
