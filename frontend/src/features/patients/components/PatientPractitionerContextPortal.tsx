@@ -43,24 +43,40 @@ export const PatientPractitionerContextPortal = ({ patientId }: { patientId: num
   const queryClient = useQueryClient();
 
   useEffect(() => {
-    if (isDocuments) {
-      setTarget(null);
-      return;
-    }
+    setTarget(null);
+    if (isDocuments) return;
 
-    const resolve = () => {
-      const node = document.querySelector<HTMLElement>('[data-flow-patient-surface]');
-      if (node) setTarget(node);
-      return Boolean(node);
+    let host: HTMLElement | null = null;
+    let observer: MutationObserver | null = null;
+
+    const attach = () => {
+      const surface = document.querySelector<HTMLElement>('[data-flow-patient-surface]');
+      if (!surface) return false;
+
+      const staleHost = surface.querySelector<HTMLElement>(':scope > [data-p2-practitioner-host="true"]');
+      if (staleHost) staleHost.remove();
+
+      host = document.createElement('div');
+      host.dataset.p2PractitionerHost = 'true';
+      host.className = 'min-w-0';
+      surface.prepend(host);
+      setTarget(host);
+      return true;
     };
 
-    if (resolve()) return;
-    const observer = new MutationObserver(() => {
-      if (resolve()) observer.disconnect();
-    });
-    observer.observe(document.body, { childList: true, subtree: true });
-    return () => observer.disconnect();
-  }, [isDocuments, patientId]);
+    if (!attach()) {
+      observer = new MutationObserver(() => {
+        if (attach()) observer?.disconnect();
+      });
+      observer.observe(document.body, { childList: true, subtree: true });
+    }
+
+    return () => {
+      observer?.disconnect();
+      host?.remove();
+      setTarget(null);
+    };
+  }, [isDocuments, patientId, tab]);
 
   const optionsQuery = useQuery<PractitionerOption[]>({
     queryKey: ['patient-practitioner-options'],
