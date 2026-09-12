@@ -2,105 +2,157 @@
 
 ## Statut
 
-**Règle absolue et fail-closed.** Ce document gouverne toute installation ou mise à jour d'un cabinet Digital Crown.
+**Règle absolue, fail-closed, transverse à tous les chantiers.**
+
+Aucun cabinet réel ne doit installer ou démarrer `master`, `HEAD`, une branche, un tag, un working tree, un build ad hoc ou un simple artefact CI.
 
 ## Goal
 
-Garantir qu'aucun cabinet réel ne puisse installer ou démarrer un checkout, une branche, `master`, un working tree ou un build ad hoc. L'unité installable est exclusivement une **release immuable certifiée**, liée à un SHA Git exact et validée pour les trois packs commerciaux **BASIC / GOLD / ELITE**.
+L’unité installable est exclusivement une **release immuable `INSTALLABLE_CERTIFIED`**, liée à un SHA Git exact de 40 caractères et compatible avec les trois profils de distribution **BASIC / GOLD / ELITE**.
 
-## Invariant d'installation
+## Deux niveaux obligatoires
 
-Une version est `INSTALLABLE` si et seulement si toutes les conditions suivantes sont prouvées :
+### 1. `CODE_CERTIFIED`
 
-1. son `commit_sha` est un SHA Git complet de 40 caractères ;
-2. ce SHA est déjà intégré à `master` ;
-3. le workflow GitHub Actions `Cabinet Certified Release` a été exécuté sur ce SHA exact ;
-4. backend complet, frontend tests/build, PostgreSQL 18, préservation Patient/Documents/médias synthétique et règles de release sont verts ;
-5. l'artefact contient :
-   - `release-certification.json` ;
-   - `.digitalcrown-release-sha` ;
-   - `release-content.sha256` ;
-6. le certificat couvre simultanément `BASIC`, `GOLD`, `ELITE` ;
-7. le manifest SHA-256 correspond à tous les fichiers certifiés ;
-8. `create_release.ps1` importe l'artefact sans jamais le reconstruire depuis le working tree ;
-9. `run_real_backend.ps1` revérifie identité + hashes avant toute activation réelle ;
-10. un build PyInstaller vérifie le payload certifié avant compilation et embarque l'identité certifiée ;
-11. l'installeur Inno Setup refuse de compiler sans identité certifiée ;
-12. l'EXE packagé vérifie l'identité certifiée avant tout bootstrap/écriture cabinet.
+Émis uniquement par `.github/workflows/cabinet-release-certification.yml` pour **le HEAD courant exact de `master`**.
 
-**`master` n'est jamais installable en tant que ref mouvante.** Un SHA appartenant à `master` peut devenir installable uniquement après émission de son certificat.
+Il prouve :
 
-## Release universelle et packs
+- SHA Git exact 40 caractères ;
+- backend complet vert ;
+- frontend tests + build verts ;
+- PostgreSQL 18 / compatibilité upgrade verts ;
+- préservation Patient/Documents synthétique verte ;
+- politique de release verte ;
+- couverture des profils `BASIC / GOLD / ELITE` ;
+- manifest `release-content.sha256` ;
+- attestation GitHub/Sigstore cryptographique du manifest, liée au repo, au workflow signataire et au SHA source.
 
-Il n'existe qu'un seul binaire/source runtime par SHA certifié. Le même artefact est certifié pour :
+**`CODE_CERTIFIED` n’est pas installable.** Les modèles/assets scientifiques externes ne sont volontairement pas stockés dans Git.
 
-- `BASIC`
-- `GOLD`
-- `ELITE`
+### 2. `INSTALLABLE_CERTIFIED`
 
-La licence et les entitlements déterminent les capacités commerciales après installation ; ils ne créent pas trois forks/binaires différents.
+Créé localement uniquement par composition d’un `CODE_CERTIFIED` avec un bundle d’assets runtime certifié pour **ce même SHA**.
 
-Les noms de certification `BASIC/GOLD/ELITE` sont le contrat commercial d'installation. Ils ne constituent pas, à eux seuls, une migration des enums historiques éventuellement présents en base/code. Une évolution du modèle de licence reste un chantier séparé avec migration explicite.
+Il prouve en plus :
 
-## Workflow officiel de certification
+- provenance GitHub/Sigstore du manifest code vérifiée ;
+- bundle d’assets ciblant exactement le même SHA ;
+- digest exact de `backend/scientific_assets.json` ;
+- SHA-256 de chaque asset réellement packagé ;
+- vérification des pins scientifiques déjà présents dans le registre ;
+- conservation explicite de la liste des assets encore non épinglés scientifiquement ;
+- cohérence exacte entre sélection d’assets certifiée et sélection PyInstaller ;
+- certificat final `installable-certification.json` ;
+- revérification complète avant promotion atomique dans `releases/`.
 
-### 1. Développement
+**Seul `INSTALLABLE_CERTIFIED` peut être activé ou transformé en EXE/installer.**
 
-Les changements vivent sur une branche/PR. Toute PR exécute notamment :
+## Profils BASIC / GOLD / ELITE
+
+Un seul code/binaire universel est produit par SHA. Les profils `BASIC / GOLD / ELITE` sont les profils de distribution certifiés de la release.
+
+Ils ne créent pas trois forks.
+
+Les enums internes historiques actuellement présents dans le code de licence peuvent porter d’autres noms, notamment `GOLD / PREMIUM / ELITE`. Cette politique de release **ne renomme pas automatiquement ces données historiques**. Toute migration commerciale d’enums reste un chantier distinct avec migration et compatibilité explicites.
+
+## Workflow officiel
+
+### A. Développement / PR
+
+Toute PR exécute notamment :
 
 - CI générale ;
 - `Cabinet Upgrade PostgreSQL Certification` sur PostgreSQL 18 ;
 - tests de préservation Patient/Documents ;
-- tests de la politique de release.
+- tests de politique release.
 
-Le gate PostgreSQL/release ne possède **aucun filtre `paths:`** : une PR ne peut pas l'éviter en modifiant un fichier non listé.
+Le gate cabinet ne possède aucun filtre `paths:` : une PR ne peut pas contourner la protection en modifiant un fichier non listé.
 
-### 2. Merge
+### B. Merge
 
-Une fois les preuves du lot acquises, la PR est mergée selon le processus du chantier. Le merge ne crée pas automatiquement une version installable.
+Le merge ne rend rien installable.
 
-### 3. Certification
+### C. Certification CODE
 
-Déclencher manuellement `.github/workflows/cabinet-release-certification.yml` avec :
-
-```text
-commit_sha=<SHA EXACT 40 caractères>
-```
-
-Le workflow refuse :
-
-- `master` ;
-- `HEAD` ;
-- un tag ;
-- un SHA court ;
-- un SHA non ancêtre de `master`.
-
-Il rejoue les preuves de release et produit uniquement après succès l'artefact :
+Depuis **`master` uniquement**, déclencher :
 
 ```text
-dc-cabinet-<12 premiers caractères SHA>-run<GITHUB_RUN_ID>
+Cabinet Certified Release
+commit_sha=<HEAD master exact, 40 caractères>
 ```
 
-### 4. Import cabinet
+Le workflow refuse notamment :
 
-Télécharger l'artefact ZIP GitHub Actions, puis :
+- `master`, `HEAD`, tag ou SHA court comme valeur mouvante ;
+- un SHA différent du HEAD courant de `master` ;
+- une exécution du workflow depuis une autre ref ;
+- tout gate backend/frontend/PostgreSQL/préservation non vert.
+
+Sortie :
+
+```text
+code-certified-dc-cabinet-<SHA12>-run<RUN_ID>
+```
+
+avec :
+
+- `release-certification.json` → `certification_level=CODE_CERTIFIED` ;
+- `.digitalcrown-release-sha` ;
+- `release-content.sha256` ;
+- attestation Sigstore GitHub de `release-content.sha256`.
+
+### D. Certification des assets runtime
+
+Sur la machine qui détient les modèles externes :
+
+```powershell
+python backend\scripts\certify_runtime_assets.py `
+  --code-release-dir "C:\chemin\code-certified-extrait" `
+  --ai-models-dir "C:\chemin\backend\ai_models" `
+  --output "C:\chemin\runtime-assets-<SHA12>.zip"
+```
+
+Le script sélectionne exactement les fichiers que PyInstaller est autorisé à embarquer, hash chaque fichier et lie le bundle au SHA code + digest du registre scientifique.
+
+### E. Composition `INSTALLABLE_CERTIFIED`
 
 ```powershell
 backend\scripts\create_release.ps1 `
-  -CertifiedArtifactZip "C:\chemin\dc-cabinet-...zip"
+  -CertifiedArtifactZip "C:\chemin\code-certified-...zip" `
+  -RuntimeAssetsZip "C:\chemin\runtime-assets-...zip"
 ```
 
 Le script :
 
-- ne lit/copiera jamais le working tree ;
-- vérifie certificat, SHA, packs et hashes ;
-- refuse tout écrasement d'une release existante ;
-- crée une release immuable hors dépôt ;
-- n'active rien.
+1. extrait les ZIP avec protection path traversal ;
+2. vérifie les hashes du CODE artifact sans exécuter son code ;
+3. vérifie cryptographiquement l’attestation GitHub/Sigstore avec :
+   - repo `hraaaaf/Digital_crown` ;
+   - workflow signataire exact ;
+   - SHA source exact ;
+   - ref source `refs/heads/master` ;
+   - refus des runners self-hosted ;
+4. extrait le bundle runtime ;
+5. exécute ensuite seulement le composeur provenant du CODE artifact désormais attesté ;
+6. revalide code + assets ;
+7. crée `installable-certification.json` ;
+8. revalide la release finale ;
+9. promeut atomiquement la release dans `RuntimeRoot\releases\<release_id>` ;
+10. n’active rien.
 
-### 5. Activation réelle
+### Vérification Sigstore hors ligne
 
-Après backup/rehearsal requis par le niveau de risque :
+`create_release.ps1` accepte :
+
+```powershell
+-AttestationBundle "...jsonl" `
+-TrustedRoot "trusted_root.jsonl"
+```
+
+Les deux doivent être fournis ensemble. Sans eux, la vérification se fait via GitHub CLI en ligne.
+
+## Activation réelle
 
 ```powershell
 backend\scripts\run_real_backend.ps1 `
@@ -108,58 +160,86 @@ backend\scripts\run_real_backend.ps1 `
   -ConfirmRealActivation "YES"
 ```
 
-Le launcher revalide le certificat et tous les fichiers certifiés **avant** de lire/utiliser la configuration du cabinet.
+Avant de lire la configuration réelle du cabinet, le launcher exige et revérifie :
+
+- `release-certification.json` ;
+- `.digitalcrown-release-sha` ;
+- `release-content.sha256` ;
+- `installable-certification.json` ;
+- `runtime-assets-certification.json` ;
+- `runtime-assets-content.sha256` ;
+- `github-attestation-verification.json` ;
+- tous les fichiers code certifiés ;
+- tous les assets runtime certifiés.
+
+Toute divergence = **activation refusée**.
 
 ## EXE / installeur Windows
 
-Un EXE de production doit être construit depuis le contenu extrait de l'artefact certifié :
+`DigitalCrown.spec` :
 
-1. `DigitalCrown.spec` vérifie le payload source certifié intégral ;
-2. il embarque certificat + SHA + manifest ;
-3. `run.py` vérifie cette identité avant le first boot ;
-4. `installer/DigitalCrown.iss` refuse de compiler si ces fichiers ne sont pas présents dans `dist/DigitalCrown`.
+- refuse tout dossier qui n’est pas `INSTALLABLE_CERTIFIED` ;
+- utilise la même sélection d’assets que le certifieur ;
+- revalide code + assets avant PyInstaller ;
+- embarque les certificats/manifests/preuves nécessaires.
 
-Un `DigitalCrownSetup.exe` produit autrement est **NON CERTIFIÉ / NON INSTALLABLE**, même s'il semble fonctionner.
+`run.py` :
 
-## Données réelles et rehearsal
+- revérifie l’identité INSTALLABLE + les assets embarqués **avant le first boot** ;
+- aucun `.env`, secret, DB ou média n’est créé/touché avant ce gate.
 
-La certification automatisée est nécessaire mais ne remplace pas un rehearsal sur copie fraîche lorsqu'une évolution touche ou peut toucher :
+`installer/DigitalCrown.iss` :
+
+- refuse de compiler si les preuves INSTALLABLE ne sont pas présentes dans `dist/DigitalCrown`.
+
+Tout `DigitalCrownSetup.exe` produit autrement est **NON CERTIFIÉ / NON INSTALLABLE**.
+
+## Assets scientifiques
+
+`backend/scientific_assets.json` reste la source de vérité scientifique.
+
+La certification runtime distingue explicitement :
+
+- **asset épinglé scientifiquement** : path + taille + SHA-256 connus, obligatoirement vérifiés ;
+- **asset non encore épinglé scientifiquement** : ses octets sont figés pour l’intégrité de cette release mais cela ne constitue aucune validation scientifique.
+
+La certification d’installation ne doit jamais être présentée comme une validation clinique/scientifique.
+
+## Données réelles / rehearsal
+
+La certification automatisée est nécessaire mais ne remplace pas un rehearsal sur copie fraîche lorsqu’une évolution peut toucher :
 
 - schéma DB / migrations / enums ;
-- `Patient` / `DocumentArchive` / actes / paiements ;
+- Patient / DocumentArchive / actes / paiements ;
 - chemins DB/médias ;
-- startup/bootstrap/seeds ;
+- bootstrap/seeds ;
 - installer/restore/backup ;
 - tenant/isolation pouvant masquer des dossiers historiques.
 
-Dans ces cas, avant de certifier une nouvelle release destinée à un cabinet existant :
-
-1. inventaire read-only réel ;
-2. backup DB + médias ;
-3. copie/rehearsal isolé ;
-4. BEFORE/AFTER compteurs + IDs + hashes ;
-5. smoke fonctionnel ;
-6. verdict explicite `GO INSTALLATION`.
-
-Aucune écriture de test ne doit toucher la DB ou les médias réels.
+Dans ces cas : inventaire réel read-only → backup DB+médias → copie isolée → BEFORE/AFTER compteurs/IDs/hashes → smoke → verdict explicite `GO INSTALLATION`.
 
 ## Interdictions permanentes
 
-- installer `master`, `HEAD`, une branche ou un tag directement ;
-- fabriquer une release depuis le working tree ;
-- copier manuellement des fichiers modifiés dans une release certifiée ;
-- éditer une release déjà importée ;
-- supprimer/bypasser le verifier pour « débloquer » un cabinet ;
-- émettre un certificat ne couvrant pas les trois packs ;
-- considérer une CI verte comme équivalente au rehearsal réel quand le risque données l'exige ;
-- auto-déployer/auto-upgrader un cabinet vers le dernier `master`.
+- installer `master`, `HEAD`, une branche ou un tag ;
+- installer directement un `CODE_CERTIFIED` ;
+- créer une release depuis le working tree ;
+- éditer une release déjà composée ;
+- remplacer/copier manuellement un asset après certification ;
+- contourner le verifier pour « débloquer » un cabinet ;
+- certifier moins que BASIC/GOLD/ELITE ;
+- considérer une CI verte comme rehearsal réel quand le risque données l’exige ;
+- auto-upgrader un cabinet vers le dernier `master`.
 
 ## Preuves techniques canoniques
 
 - `.github/workflows/cabinet-upgrade-postgres-cert.yml`
 - `.github/workflows/cabinet-release-certification.yml`
 - `backend/release_certification.py`
+- `backend/runtime_asset_certification.py`
 - `backend/scripts/verify_certified_release.py`
+- `backend/scripts/verify_installable_release.py`
+- `backend/scripts/certify_runtime_assets.py`
+- `backend/scripts/compose_installable_release.py`
 - `backend/scripts/create_release.ps1`
 - `backend/scripts/run_real_backend.ps1`
 - `backend/tests/test_certified_release_policy.py`
@@ -167,6 +247,6 @@ Aucune écriture de test ne doit toucher la DB ou les médias réels.
 - `run.py`
 - `installer/DigitalCrown.iss`
 
-## Limite supply-chain explicite
+## Supply-chain
 
-Le certificat et le manifest SHA-256 empêchent les dérives accidentelles/working-tree et détectent la modification des fichiers certifiés. Ils ne remplacent pas encore une signature Authenticode ou une attestation cryptographique externe avec clé matérielle. Cette couche pourra être ajoutée ultérieurement sans affaiblir le présent fail-closed.
+La provenance code repose désormais sur une attestation GitHub/Sigstore cryptographiquement vérifiable, liée au repo/workflow/SHA. La signature Authenticode du futur installateur reste une couche distincte de distribution Windows et ne doit pas être confondue avec cette certification de provenance + intégrité.
