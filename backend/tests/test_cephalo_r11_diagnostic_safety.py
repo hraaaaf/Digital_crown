@@ -52,7 +52,7 @@ def _rule_registry() -> DiagnosticRuleRegistry:
             version="1",
             domain="synthetic",
             source_ids=("CRANIOM_PART2_2011",),
-            finding_rule_ids=("R11_SYNTHETIC_TEST_ONLY",),
+            finding_rule_bindings=(("R11_SYNTHETIC_TEST_ONLY", "1"),),
             description="Synthetic non-clinical diagnostic rule used only for R11 safety tests.",
         )
     )
