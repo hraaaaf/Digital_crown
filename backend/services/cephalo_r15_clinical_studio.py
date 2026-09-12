@@ -33,6 +33,7 @@ def _stage(
         "blocking_gates": blockers,
         "missing_data_refs": [],
         "contradictions": [],
+        "contraindications": [],
         "provenance": provenance,
         "clinician_action": {
             "available": False,
@@ -82,7 +83,6 @@ def build_r15_clinical_studio_snapshot(
     r11_blockers = list(runtime_blockers)
     if diagnostic_rules == 0 or finding_rules == 0:
         r11_blockers.append("diagnostic_rule_registry_empty")
-    # R11 evidence is currently a certified contract/validator, not a persisted runtime artifact.
     r11_blockers.append("r11_authoritative_snapshot_not_persisted")
 
     r12_blockers = ["r11_not_authoritative", "r12_authoritative_snapshot_not_persisted"]
