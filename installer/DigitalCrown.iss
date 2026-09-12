@@ -1,9 +1,8 @@
-; Digital Crown certified cabinet installer.
+; Digital Crown INSTALLABLE_CERTIFIED cabinet installer.
 ;
 ; ABSOLUTE RULE: this installer may only be compiled from a PyInstaller dist that
-; already embeds a CI-issued immutable release certificate + exact SHA marker.
-; DigitalCrown.spec enforces the same rule before producing the dist, and run.py
-; re-verifies the embedded identity before first-boot writes.
+; already embeds a complete INSTALLABLE_CERTIFIED release proof. DigitalCrown.spec
+; enforces the same rule before build, and run.py re-verifies it before first boot.
 
 #define MyAppName "DigitalCrown"
 #define MyAppPublisher "SANINOVA"
@@ -12,13 +11,25 @@
 #define MyDistDir "..\dist\DigitalCrown"
 
 #if !FileExists(MyDistDir + "\release-certification.json")
-  #error "CERTIFIED RELEASE REQUIRED: dist/DigitalCrown/release-certification.json is missing"
+  #error "INSTALLABLE_CERTIFIED REQUIRED: release-certification.json is missing"
 #endif
 #if !FileExists(MyDistDir + "\.digitalcrown-release-sha")
-  #error "CERTIFIED RELEASE REQUIRED: dist/DigitalCrown/.digitalcrown-release-sha is missing"
+  #error "INSTALLABLE_CERTIFIED REQUIRED: .digitalcrown-release-sha is missing"
 #endif
 #if !FileExists(MyDistDir + "\release-content.sha256")
-  #error "CERTIFIED RELEASE REQUIRED: dist/DigitalCrown/release-content.sha256 is missing"
+  #error "INSTALLABLE_CERTIFIED REQUIRED: release-content.sha256 is missing"
+#endif
+#if !FileExists(MyDistDir + "\installable-certification.json")
+  #error "INSTALLABLE_CERTIFIED REQUIRED: installable-certification.json is missing"
+#endif
+#if !FileExists(MyDistDir + "\runtime-assets-certification.json")
+  #error "INSTALLABLE_CERTIFIED REQUIRED: runtime-assets-certification.json is missing"
+#endif
+#if !FileExists(MyDistDir + "\runtime-assets-content.sha256")
+  #error "INSTALLABLE_CERTIFIED REQUIRED: runtime-assets-content.sha256 is missing"
+#endif
+#if !FileExists(MyDistDir + "\github-attestation-verification.json")
+  #error "INSTALLABLE_CERTIFIED REQUIRED: GitHub attestation verification evidence is missing"
 #endif
 
 [Setup]
@@ -31,7 +42,7 @@ DefaultGroupName={#MyAppName}
 DisableProgramGroupPage=yes
 PrivilegesRequired=lowest
 OutputDir=..\dist_installer
-OutputBaseFilename=DigitalCrownSetup-CERTIFIED
+OutputBaseFilename=DigitalCrownSetup-INSTALLABLE-CERTIFIED
 Compression=zip
 SolidCompression=no
 WizardStyle=modern
@@ -50,14 +61,12 @@ Name: "{group}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"
 Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"
 
 [Run]
-; Tâche planifiée au logon de l'utilisateur courant (pas de service SYSTEM,
-; pas de mot de passe à stocker, pas d'élévation nécessaire).
 Filename: "{sys}\schtasks.exe"; \
     Parameters: "/create /tn ""{#MyAppTaskName}"" /tr ""\""{app}\{#MyAppExeName}\"""" /sc onlogon /rl limited /f"; \
     Flags: runhidden; StatusMsg: "Configuration du démarrage automatique..."
 
-; Premier lancement. DigitalCrown.exe refuse lui-même de démarrer si l'identité
-; de release certifiée n'est pas embarquée.
+; Premier lancement. DigitalCrown.exe refuse lui-même de démarrer si le bundle
+; INSTALLABLE_CERTIFIED n'est pas cohérent avant toute écriture first-boot.
 Filename: "{app}\{#MyAppExeName}"; Description: "Lancer {#MyAppName}"; \
     Flags: nowait postinstall skipifsilent runasoriginaluser
 
