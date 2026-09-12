@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 from datetime import datetime
 from types import SimpleNamespace
 
@@ -14,6 +15,7 @@ from backend.models_document_provenance_p3 import (
     _migrate_existing_document_archives,
     install_document_provenance_p3,
 )
+from backend.schemas.document_provenance_p3 import DocumentArchiveOutP3
 from backend.services.document_provenance_context import (
     effective_document_practitioner_id,
     get_document_author_practitioner_id,
@@ -128,6 +130,17 @@ def test_document_author_context_is_request_scoped_and_resettable():
     assert effective_document_practitioner_id(11) == 11
 
 
+def test_document_author_context_propagates_into_asyncio_to_thread():
+    async def _read_in_worker():
+        return await asyncio.to_thread(get_document_author_practitioner_id)
+
+    token = set_document_author_practitioner_id(42)
+    try:
+        assert asyncio.run(_read_in_worker()) == 42
+    finally:
+        reset_document_author_practitioner_id(token)
+
+
 def test_provenance_columns_are_nullable_user_foreign_keys():
     install_document_provenance_p3()
     table = models.DocumentArchive.__table__
@@ -141,6 +154,14 @@ def test_provenance_columns_are_nullable_user_foreign_keys():
         assert len(foreign_keys) == 1
         assert foreign_keys[0].target_fullname == "users.id"
         assert foreign_keys[0].ondelete == "SET NULL"
+
+
+def test_archive_response_contract_exposes_actor_author_and_signature():
+    fields = DocumentArchiveOutP3.model_fields
+    assert "uploaded_by_id" in fields
+    assert "author_practitioner_id" in fields
+    assert "signed_by_practitioner_id" in fields
+    assert "signed_at" in fields
 
 
 def test_historical_schema_migration_preserves_row_and_does_not_backfill():
@@ -236,3 +257,23 @@ def test_document_factory_renders_visible_identity_from_validated_author():
 
     assert result == "generated.pdf"
     assert captured["user_id"] == 42
+
+
+def test_p3_replaces_stable_generation_routes_once(client):
+    from backend.routers import documents, patients
+
+    document_routes = [
+        route for route in documents.router.routes
+        if getattr(route, "path", None) == "/generate"
+        and "POST" in (getattr(route, "methods", set()) or set())
+    ]
+    cephalo_routes = [
+        route for route in patients.router.routes
+        if getattr(route, "path", None) == "/{patient_id}/pdf"
+        and "POST" in (getattr(route, "methods", set()) or set())
+    ]
+
+    assert len(document_routes) == 1
+    assert document_routes[0].endpoint.__name__ == "generate_document_with_provenance"
+    assert len(cephalo_routes) == 1
+    assert cephalo_routes[0].endpoint.__name__ == "generate_cephalo_pdf_with_provenance"
