@@ -66,22 +66,25 @@ describe('ClinicalScientificStudio R15', () => {
     vi.clearAllMocks();
   });
 
-  it('shows the complete R11-R14 authority chain and keeps EVALUABLE non-prescriptive', async () => {
+  it('shows the clinical authority chain first and keeps R11-R14 as technical traceability', async () => {
     vi.mocked(api.get).mockResolvedValue({ data: snapshot } as never);
 
     render(<ClinicalScientificStudio patientId={915} analysisId={9915} P={PALETTE.dark} />);
 
     await screen.findByText('Chaîne clinique scientifique');
     expect(api.get).toHaveBeenCalledWith('/patients/915/cephalo-clinical-studio?analysis_id=9915');
-    expect(screen.getByText('R11 → R14')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /R11/i })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /R12/i })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /R13/i })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /R14/i })).toBeInTheDocument();
+    expect(screen.getByText('Diagnostic → décision clinique')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Diagnostic scientifique/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Problem list & objectifs/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Options thérapeutiques/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Validation clinique finale/i })).toBeInTheDocument();
+    expect(screen.queryByText('R11 → R14')).not.toBeInTheDocument();
+    expect(screen.getByText(/traçabilité interne R11 → R14/i)).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole('button', { name: /R13/i }));
+    fireEvent.click(screen.getByRole('button', { name: /Options thérapeutiques/i }));
 
     expect(await screen.findByText('Évaluable · non sélectionné')).toBeInTheDocument();
+    expect(screen.getAllByText('Réf. technique R13').length).toBeGreaterThanOrEqual(1);
     expect(screen.getByText("Évaluable n'est jamais une prescription.")).toBeInTheDocument();
     expect(screen.getByText('clinician_selection_required')).toBeInTheDocument();
     expect(screen.getByText('Aucune validation disponible')).toBeInTheDocument();
