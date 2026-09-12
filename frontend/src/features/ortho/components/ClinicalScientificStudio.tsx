@@ -32,6 +32,7 @@ interface ClinicalStage {
   blocking_gates: string[];
   missing_data_refs: string[];
   contradictions: string[];
+  contraindications: string[];
   provenance: ProvenanceRef[];
   clinician_action: ClinicianAction;
 }
@@ -69,6 +70,7 @@ const LABELS: Record<string, string> = {
   r13_authoritative_snapshot_not_persisted: 'Snapshot R13 autoritaire non persisté',
   r13_no_clinician_selected_option: 'Aucune option R13 sélectionnée par le praticien',
   r14_authoritative_snapshot_not_persisted: 'Snapshot R14 autoritaire non persisté',
+  clinician_selection_required: 'Sélection explicite du praticien requise',
 };
 
 const stateLabel = (state: ClinicalStage['presentation_state']) => {
@@ -78,6 +80,28 @@ const stateLabel = (state: ClinicalStage['presentation_state']) => {
   if (state === 'VALIDATED') return 'Validé avec preuve';
   return 'Rejeté avec preuve';
 };
+
+const EvidenceRefs: React.FC<{
+  title: string;
+  items: string[];
+  authoritative: boolean;
+  P: any;
+}> = ({ title, items, authoritative, P }) => (
+  <div className="rounded-xl border p-3" style={{ borderColor: P.border, background: P.bgInput }}>
+    <div className="mb-2 text-[10px] font-black uppercase tracking-wider" style={{ color: P.text }}>{title}</div>
+    {items.length ? (
+      <ul className="space-y-1.5">
+        {items.map(item => (
+          <li key={item} className="break-words font-mono text-[9px] leading-4" style={{ color: P.textMuted }}>{item}</li>
+        ))}
+      </ul>
+    ) : (
+      <p className="text-[10px] leading-4" style={{ color: P.textDim }}>
+        {authoritative ? 'Aucun élément déclaré dans le snapshot autoritaire.' : 'Non résolu : aucun snapshot autoritaire persistant.'}
+      </p>
+    )}
+  </div>
+);
 
 export const ClinicalScientificStudio: React.FC<Props> = ({ patientId, analysisId, P }) => {
   const [snapshot, setSnapshot] = useState<StudioSnapshot | null>(null);
@@ -201,63 +225,71 @@ export const ClinicalScientificStudio: React.FC<Props> = ({ patientId, analysisI
           </div>
 
           {selected && (
-            <div className="mt-4 grid gap-4 rounded-2xl border p-4 lg:grid-cols-[1.25fr_0.75fr]" style={{ borderColor: P.border, background: P.bgCard }}>
-              <div className="min-w-0">
-                <div className="flex flex-wrap items-center gap-2">
-                  <span className="text-[10px] font-black tracking-[0.18em]" style={{ color: P.accent }}>{selected.stage_id}</span>
-                  <ChevronRight size={13} style={{ color: P.textDim }} />
-                  <span className="text-xs font-black" style={{ color: P.text }}>{selected.title}</span>
-                </div>
-                <p className="mt-2 text-xs leading-5" style={{ color: P.textMuted }}>{selected.summary}</p>
+            <div className="mt-4 rounded-2xl border p-4" style={{ borderColor: P.border, background: P.bgCard }}>
+              <div className="grid gap-4 lg:grid-cols-[1.25fr_0.75fr]">
+                <div className="min-w-0">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="text-[10px] font-black tracking-[0.18em]" style={{ color: P.accent }}>{selected.stage_id}</span>
+                    <ChevronRight size={13} style={{ color: P.textDim }} />
+                    <span className="text-xs font-black" style={{ color: P.text }}>{selected.title}</span>
+                  </div>
+                  <p className="mt-2 text-xs leading-5" style={{ color: P.textMuted }}>{selected.summary}</p>
 
-                <div className="mt-4 grid gap-3 md:grid-cols-2">
-                  <div className="rounded-xl border p-3" style={{ borderColor: P.border, background: P.bgInput }}>
-                    <div className="mb-2 flex items-center gap-2">
-                      <AlertTriangle size={14} style={{ color: P.accentWarning }} />
-                      <span className="text-[10px] font-black uppercase tracking-wider" style={{ color: P.text }}>Blocages visibles</span>
+                  <div className="mt-4 grid gap-3 md:grid-cols-2">
+                    <div className="rounded-xl border p-3" style={{ borderColor: P.border, background: P.bgInput }}>
+                      <div className="mb-2 flex items-center gap-2">
+                        <AlertTriangle size={14} style={{ color: P.accentWarning }} />
+                        <span className="text-[10px] font-black uppercase tracking-wider" style={{ color: P.text }}>Blocages visibles</span>
+                      </div>
+                      {selected.blocking_gates.length ? (
+                        <ul className="space-y-2">
+                          {selected.blocking_gates.map(gate => (
+                            <li key={gate} className="text-[11px] leading-4" style={{ color: P.textMuted }}>
+                              <span className="font-bold" style={{ color: P.text }}>{LABELS[gate] ?? gate}</span>
+                              <span className="mt-0.5 block font-mono text-[9px]" style={{ color: P.textDim }}>{gate}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      ) : <p className="text-[11px]" style={{ color: P.accentSuccess }}>Aucun gate bloquant.</p>}
                     </div>
-                    {selected.blocking_gates.length ? (
-                      <ul className="space-y-2">
-                        {selected.blocking_gates.map(gate => (
-                          <li key={gate} className="text-[11px] leading-4" style={{ color: P.textMuted }}>
-                            <span className="font-bold" style={{ color: P.text }}>{LABELS[gate] ?? gate}</span>
-                            <span className="mt-0.5 block font-mono text-[9px]" style={{ color: P.textDim }}>{gate}</span>
-                          </li>
+
+                    <div className="rounded-xl border p-3" style={{ borderColor: P.border, background: P.bgInput }}>
+                      <div className="mb-2 flex items-center gap-2">
+                        <Database size={14} style={{ color: P.accent }} />
+                        <span className="text-[10px] font-black uppercase tracking-wider" style={{ color: P.text }}>Provenance</span>
+                      </div>
+                      <dl className="space-y-2">
+                        {selected.provenance.map(item => (
+                          <div key={`${item.label}-${item.value}`} className="flex items-start justify-between gap-3 text-[10px]">
+                            <dt style={{ color: P.textMuted }}>{item.label}</dt>
+                            <dd className="max-w-[55%] break-words text-right font-bold" style={{ color: P.text }}>{item.value}</dd>
+                          </div>
                         ))}
-                      </ul>
-                    ) : <p className="text-[11px]" style={{ color: P.accentSuccess }}>Aucun gate bloquant.</p>}
-                  </div>
-
-                  <div className="rounded-xl border p-3" style={{ borderColor: P.border, background: P.bgInput }}>
-                    <div className="mb-2 flex items-center gap-2">
-                      <Database size={14} style={{ color: P.accent }} />
-                      <span className="text-[10px] font-black uppercase tracking-wider" style={{ color: P.text }}>Provenance</span>
+                      </dl>
                     </div>
-                    <dl className="space-y-2">
-                      {selected.provenance.map(item => (
-                        <div key={`${item.label}-${item.value}`} className="flex items-start justify-between gap-3 text-[10px]">
-                          <dt style={{ color: P.textMuted }}>{item.label}</dt>
-                          <dd className="max-w-[55%] break-words text-right font-bold" style={{ color: P.text }}>{item.value}</dd>
-                        </div>
-                      ))}
-                    </dl>
                   </div>
                 </div>
+
+                <aside className="rounded-xl border p-3" style={{ borderColor: `${P.accentWarning}45`, background: `${P.accentWarning}09` }}>
+                  <div className="flex items-center gap-2">
+                    <LockKeyhole size={15} style={{ color: P.accentWarning }} />
+                    <span className="text-[10px] font-black uppercase tracking-wider" style={{ color: P.text }}>Action praticien</span>
+                  </div>
+                  <p className="mt-2 text-xs font-black" style={{ color: P.text }}>
+                    {selected.clinician_action.available ? selected.clinician_action.label : 'Aucune validation disponible'}
+                  </p>
+                  <p className="mt-2 text-[11px] leading-5" style={{ color: P.textMuted }}>{selected.clinician_action.reason}</p>
+                  <div className="mt-3 rounded-lg border px-3 py-2 text-[9px] font-bold leading-4" style={{ borderColor: P.border, color: P.textDim }}>
+                    Toute validation visible doit créer une preuve backend résolue avec cible, clinicien et horodatage. Aucun état local ne vaut validation clinique.
+                  </div>
+                </aside>
               </div>
 
-              <aside className="rounded-xl border p-3" style={{ borderColor: `${P.accentWarning}45`, background: `${P.accentWarning}09` }}>
-                <div className="flex items-center gap-2">
-                  <LockKeyhole size={15} style={{ color: P.accentWarning }} />
-                  <span className="text-[10px] font-black uppercase tracking-wider" style={{ color: P.text }}>Action praticien</span>
-                </div>
-                <p className="mt-2 text-xs font-black" style={{ color: P.text }}>
-                  {selected.clinician_action.available ? selected.clinician_action.label : 'Aucune validation disponible'}
-                </p>
-                <p className="mt-2 text-[11px] leading-5" style={{ color: P.textMuted }}>{selected.clinician_action.reason}</p>
-                <div className="mt-3 rounded-lg border px-3 py-2 text-[9px] font-bold leading-4" style={{ borderColor: P.border, color: P.textDim }}>
-                  Toute validation visible doit créer une preuve backend résolue avec cible, clinicien et horodatage. Aucun état local ne vaut validation clinique.
-                </div>
-              </aside>
+              <div className="mt-3 grid gap-3 sm:grid-cols-3" data-testid="r15-scientific-exceptions">
+                <EvidenceRefs title="Données manquantes" items={selected.missing_data_refs} authoritative={Boolean(selected.authoritative_status)} P={P} />
+                <EvidenceRefs title="Contradictions" items={selected.contradictions} authoritative={Boolean(selected.authoritative_status)} P={P} />
+                <EvidenceRefs title="Contre-indications" items={selected.contraindications} authoritative={Boolean(selected.authoritative_status)} P={P} />
+              </div>
             </div>
           )}
 
