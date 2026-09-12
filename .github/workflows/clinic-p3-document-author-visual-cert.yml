@@ -151,10 +151,10 @@ jobs:
           assert all(c['selectorValue']=='1' for c in after['captures'])
           assert all(c['overflowPx']==0 and not c['errors'] for c in after['captures'])
           mobile=next(c for c in after['captures'] if c['width']==390)
-          assert (mobile['selectorHeight'] or 0) >= 32
+          assert (mobile['selectorHeight'] or 0) >= 44
           score=10.0
           Path('clinic-p3-author-after/visual-score.txt').write_text(
-            'visual_gate_score=10.0/10\nformula=2.5 no-overflow + 2.5 selector-visible + 2.5 safe-author-preselected + 2.5 runtime-clean\n'
+            'visual_gate_score=10.0/10\nformula=2.5 no-overflow + 2.5 selector-visible-and-44px + 2.5 safe-author-preselected + 2.5 runtime-clean\n'
           )
           print(f'P3 author selector visual gate: {score}/10')
           PY
