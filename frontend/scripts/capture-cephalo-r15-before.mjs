@@ -130,7 +130,15 @@ async function collectMetrics(page, viewportName, step) {
   }, { viewportName, step });
 }
 
-async function captureViewport(viewport) {
+function metricsAreBaseline(metrics, step) {
+  if (!metrics?.hasWorkspaceHeading || metrics.horizontalDocumentOverflow || metrics.headerClipped) return false;
+  if (!metrics.hasStep3Tab || !metrics.hasStep4Tab) return false;
+  if (metrics.hasR11Surface || metrics.hasR12Surface || metrics.hasR13Surface || metrics.hasR14Surface) return false;
+  if (step === 'step3') return metrics.hasLegacyDiagnostic && metrics.hasLegacyTreatmentDecision;
+  return metrics.hasLegacyTreatmentPanel && metrics.hasLegacyArchiveAction;
+}
+
+async function captureAttempt(viewport, attempt) {
   const browser = await chromium.launch({ headless: true });
   const context = await browser.newContext({
     viewport: { width: viewport.width, height: viewport.height },
@@ -157,14 +165,17 @@ async function captureViewport(viewport) {
         return route.fulfill(json({ id: 915, nom: 'Démo', prenom: 'R15', age: 34, sexe: 'M' }));
       }
       if (request.method() === 'GET' && url.pathname === '/api/patients/915/cephalo-validation') {
-        return route.fulfill(json({ status: 'ok', issues: [], warnings: [] }));
+        return route.fulfill(json({ is_valid: true, fatals: [], warnings: [] }));
+      }
+      if (request.method() === 'PUT' && url.pathname === '/api/ia/analyses/9915') {
+        return route.fulfill(json({ id: 9915, status: 'saved' }));
       }
       return route.fulfill(json({ detail: 'Endpoint neutralisé dans le BEFORE visuel R15' }, 418));
     }
     if (url.hostname === 'fonts.googleapis.com') {
       return route.fulfill({ status: 200, contentType: 'text/css; charset=utf-8', body: '/* offline visual harness */' });
     }
-    blockedExternalRequests.push({ viewport: viewport.name, url: request.url(), method: request.method() });
+    blockedExternalRequests.push({ viewport: viewport.name, attempt, url: request.url(), method: request.method() });
     return route.abort('blockedbyclient');
   });
 
@@ -173,33 +184,41 @@ async function captureViewport(viewport) {
     await page.getByRole('heading', { name: 'Studio Céphalométrique' }).waitFor({ state: 'visible', timeout: 30000 });
     await page.getByRole('button', { name: /Synthèse clinique/i }).waitFor({ state: 'visible', timeout: 30000 });
     await page.evaluate(async () => { if (document.fonts?.ready) await document.fonts.ready; });
-    await page.waitForTimeout(250);
+    await page.waitForTimeout(350);
 
     const step3Top = await collectMetrics(page, viewport.name, 'step3-top');
+    if (!metricsAreBaseline(step3Top, 'step3')) throw new Error(`Step 3 baseline contract failed: ${JSON.stringify(step3Top)}`);
     await page.screenshot({ path: path.join(OUTPUT_DIR, `before-step3-top-${viewport.name}.png`), fullPage: false });
 
     const diagnosticText = page.getByText(/Diagnostic \/ Résumé Diagnostique/i).first();
-    if (await diagnosticText.count()) {
-      await diagnosticText.scrollIntoViewIfNeeded();
-      await page.waitForTimeout(150);
-      await page.screenshot({ path: path.join(OUTPUT_DIR, `before-step3-decision-${viewport.name}.png`), fullPage: false });
-    }
+    await diagnosticText.waitFor({ state: 'visible', timeout: 10000 });
+    await diagnosticText.scrollIntoViewIfNeeded();
+    await page.waitForTimeout(150);
+    await page.screenshot({ path: path.join(OUTPUT_DIR, `before-step3-decision-${viewport.name}.png`), fullPage: false });
 
     await page.getByRole('button', { name: /Documents & stratégie/i }).click();
+    await page.getByText(/Plan de Traitement/i).first().waitFor({ state: 'visible', timeout: 15000 });
     await page.waitForTimeout(250);
     const step4Top = await collectMetrics(page, viewport.name, 'step4-top');
+    if (!metricsAreBaseline(step4Top, 'step4')) throw new Error(`Step 4 baseline contract failed: ${JSON.stringify(step4Top)}`);
     await page.screenshot({ path: path.join(OUTPUT_DIR, `before-step4-top-${viewport.name}.png`), fullPage: false });
 
     const archiveAction = page.getByRole('button', { name: /Valider & Archiver/i }).first();
-    if (await archiveAction.count()) {
-      await archiveAction.scrollIntoViewIfNeeded();
-      await page.waitForTimeout(150);
-      await page.screenshot({ path: path.join(OUTPUT_DIR, `before-step4-action-${viewport.name}.png`), fullPage: false });
-    }
+    await archiveAction.waitFor({ state: 'visible', timeout: 10000 });
+    await archiveAction.scrollIntoViewIfNeeded();
+    await page.waitForTimeout(150);
+    await page.screenshot({ path: path.join(OUTPUT_DIR, `before-step4-action-${viewport.name}.png`), fullPage: false });
 
-    const valid = response?.status() === 200 && pageErrors.length === 0 && step3Top.hasWorkspaceHeading && step3Top.hasStep3Tab && step4Top.hasStep4Tab;
+    const valid = (
+      response?.status() === 200 &&
+      pageErrors.length === 0 &&
+      consoleErrors.length === 0 &&
+      metricsAreBaseline(step3Top, 'step3') &&
+      metricsAreBaseline(step4Top, 'step4')
+    );
     return {
       viewport: viewport.name,
+      attempt,
       httpStatus: response?.status() ?? null,
       pageErrors,
       consoleErrors,
@@ -211,6 +230,7 @@ async function captureViewport(viewport) {
   } catch (error) {
     return {
       viewport: viewport.name,
+      attempt,
       httpStatus: null,
       pageErrors: [...pageErrors, error instanceof Error ? error.message : String(error)],
       consoleErrors,
@@ -225,7 +245,22 @@ async function captureViewport(viewport) {
 
 try {
   await waitForServer(`${BASE_URL}/cephalo-r15-before.html`);
-  for (const viewport of viewports) captures.push(await captureViewport(viewport));
+  for (const viewport of viewports) {
+    const attempts = [await captureAttempt(viewport, 1)];
+    if (!attempts[0].valid) attempts.push(await captureAttempt(viewport, 2));
+    const finalAttempt = attempts.at(-1);
+    captures.push({
+      ...finalAttempt,
+      attempts: attempts.map(item => ({
+        attempt: item.attempt,
+        valid: item.valid,
+        httpStatus: item.httpStatus,
+        pageErrors: item.pageErrors,
+        consoleErrors: item.consoleErrors,
+      })),
+      recoveredTransientRender: attempts.length === 2 && !attempts[0].valid && attempts[1].valid,
+    });
+  }
 } finally {
   if (!server.killed) server.kill('SIGTERM');
   await Promise.race([once(server, 'exit'), new Promise(resolve => setTimeout(resolve, 3000))]).catch(() => {});
@@ -239,8 +274,8 @@ const report = {
   phase: 'BEFORE',
   productHead: PRODUCT_HEAD,
   viewports: viewports.map(item => item.name),
-  fixturePolicy: 'Real production CephaloWorkspace/Step3Clinical/Step4Documents with deterministic non-clinical fixture and isolated patient metadata. No R11-R14 UI is injected by the harness.',
-  capturePolicy: 'Fresh Chromium context per viewport; product UI is not modified. BEFORE succeeds when current Step3 and Step4 render and screenshots are captured, while layout/semantic defects are recorded rather than hidden.',
+  fixturePolicy: 'Exact R14-closed production CephaloWorkspace/Step3Clinical/Step4Documents with deterministic non-clinical fixture and isolated patient metadata. No R11-R14 UI is injected by the harness.',
+  capturePolicy: 'Exact baseline SHA. Fresh Chromium process per viewport/attempt. One retry is allowed only after a failed first render; the final attempt must independently satisfy the complete legacy-baseline and layout contract.',
   captures,
   blockedExternalRequests,
   invalidCount: invalid.length,
