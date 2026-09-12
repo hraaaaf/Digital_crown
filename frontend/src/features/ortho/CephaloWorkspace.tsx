@@ -28,6 +28,7 @@ import { Step1Cephalo } from './components/Step1Cephalo';
 import { Step2Occlusal } from './components/Step2Occlusal';
 import { Step3Clinical } from './components/Step3Clinical';
 import { Step4Documents } from './components/Step4Documents';
+import { ClinicalScientificStudio } from './components/ClinicalScientificStudio';
 import { LivePreview } from '../admin/DocumentStudio/LivePreview';
 import { StepTab } from './components/StepTab';
 import { SyncBadge } from './components/SyncBadge';
@@ -381,6 +382,9 @@ export const CephaloWorkspace: React.FC<CephaloWorkspaceProps> = ({
         <div className="mx-auto min-w-0 max-w-4xl">
           {viewMode === 'studio' ? (
             <>
+              {(step === 3 || step === 4) && (
+                <ClinicalScientificStudio patientId={patientId} analysisId={analysisId} P={P} />
+              )}
               {step === 1 && renderStep1()}
               {step === 2 && <Step2Occlusal P={P} />}
               {step === 3 && <Step3Clinical P={P} />}
