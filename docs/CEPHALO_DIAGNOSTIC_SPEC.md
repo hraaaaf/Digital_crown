@@ -17,7 +17,8 @@
 **R11 diagnostic multiaxial :** HEAD certifié `6916dee975acb83d13acd540d5d2e4a8f839a478` — CI #3477 SUCCESS — T2 #2452 SUCCESS — PR #437 — merge `bc66b58b6ee4459362d3bd52150877908bdc996c`  
 **R12 problem list + objectifs :** HEAD certifié `dc04d759191828afe85c643719165e7d4fcc916e` — CI #3500 SUCCESS — T2 #2465 SUCCESS — PR #441 — merge `02d4be759e4ddbc24293340c6c10848174ace07a`  
 **R13 options thérapeutiques :** HEAD certifié `7fd6fdae604010510b74e5fe908dc76a425a71cf` — CI #3526 SUCCESS — T2 #2489 SUCCESS — PR #444 — merge `4740b463e49f8ddee9dbb704faaecd086c389beb`  
-**Statut courant :** R13 FERMÉ ; aucun déploiement ; NEXT = R14 dans une nouvelle fenêtre depuis master final vérifié.
+**R14 validation clinique finale :** HEAD certifié `017a7eaf7d293c5a7af19fb44987a2d5ff3f675c` — CI #3581 SUCCESS — T2 #2536 SUCCESS — PR #447 — merge `2f1f1d88bf6027988a398967bed5e65883b729aa`  
+**Statut courant :** R14 implémentation certifiée et mergée ; closeout documentaire en cours ; aucun déploiement ; NEXT = fermer R14 puis reprendre R15 depuis master final vérifié.
 
 ## GOAL GLOBAL
 
@@ -153,7 +154,7 @@ Sans profil validé : `CANDIDATE_UNVERIFIED`.
 
 Le registre `validated_fiducial_profiles` est **vide par défaut**. Donc aucun profil de test ou hypothèse implicite ne peut activer `AUTO_VERIFIED` en production. L'architecture permet l'auto-vérification, mais son activation réelle exige l'introduction explicite d'un profil physique validé.
 
-Cette section conserve le contrat scientifique/HFE R1. Elle n'est pas le pointeur de reprise courant ; le pointeur courant est R14 après fermeture documentaire de R13.
+Cette section conserve le contrat scientifique/HFE R1. Elle n'est pas le pointeur de reprise courant ; le pointeur courant est R15 après fermeture documentaire de R14.
 
 ## R11 — DIAGNOSTIC MULTIAXIAL — CONTRAT FERMÉ
 
@@ -287,6 +288,60 @@ Cette section conserve le contrat scientifique/HFE R1. Elle n'est pas le pointeu
 - UI : aucune modification ;
 - déploiement : aucun.
 
+## R14 — VALIDATION CLINIQUE FINALE — CONTRAT FERMÉ
+
+### Goal
+
+`objets R13 valides → stratégie clinique finale structurée → validation/rejet praticien final audité`, sans choix thérapeutique autonome ni contenu clinique fabriqué.
+
+### Contrat certifié
+
+- contrat versionné : `R14_FINAL_CLINICAL_VALIDATION_V1` ;
+- le validateur R14 réexécute d'abord R13, donc toute la chaîne R13 → R12 → R11 reste autoritaire ;
+- provenance exacte obligatoire : stratégie R14 → options R13 → validations de décision d'option → critères indication/contre-indication + sources → objectifs R12 → problèmes → diagnostics/findings R11 → evidence/missing/contradictions ;
+- toute provenance manquante, ajoutée ou altérée est refusée ;
+- une option R13 `EVALUABLE` ne devient jamais automatiquement un plan : elle ajoute `clinician_selection_required` et maintient la stratégie R14 `BLOCKED` ;
+- une option R13 `BLOCKED` propage exactement ses gates ; une option `CLINICIAN_REJECTED` reste bloquante ;
+- `missing_data_refs` et contradictions sont recopiés exactement et deviennent des blockers explicites ;
+- seule une option R13 `CLINICIAN_SELECTED` peut participer à une stratégie R14 non bloquée ;
+- `AWAITING_CLINICIAN_VALIDATION` est explicitement non final ;
+- `CLINICIAN_VALIDATED` / `CLINICIAN_REJECTED` exigent une `ClinicianValidationEvidence` résolue vers la stratégie exacte, avec cible/action/clinicien/timestamp cohérents et timezone-aware ;
+- une validation finale orpheline, mal ciblée ou incohérente est refusée ;
+- les états non finaux ne peuvent pas porter de faux champs d'audit final ;
+- les champs de stratégie thérapeutique libre, séquençage ou détails de plan sont interdits à cette couche ;
+- aucun registre thérapeutique réel, norme, seuil, indication ou source clinique nouvelle n'a été activé ;
+- aucune mesure n'est supprimée : `BLOCKED != DROPPED` reste obligatoire ;
+- aucune UI n'a été modifiée ; aucun déploiement n'a été effectué.
+
+### Goldens / refus certifiés
+
+- positif : stratégie finale synthétique issue d'une option R13 `CLINICIAN_SELECTED` + validation finale praticien exacte ;
+- `EVALUABLE` → jamais de promotion automatique ;
+- `EVALUABLE` ne peut être représenté qu'avec blocker explicite `clinician_selection_required` ;
+- missing data et gates R13 doivent être préservés exactement ;
+- contradiction explicite → propagation + blocage ;
+- suppression silencieuse d'un missing ref → refus ;
+- falsification de provenance finding → refus ;
+- suppression de provenance validation de décision R13 → refus ;
+- validation finale non résolue / mauvaise cible / orpheline → refus ;
+- snapshot R13 invalide → refus car R13 est réexécuté ;
+- champs free-text/sequencing → refus ;
+- timestamp final sans timezone → refus.
+
+### Preuve R14
+
+- branche implémentation : `feat/cephalo-r14-final-clinical-validation` ;
+- candidate HEAD certifié : `017a7eaf7d293c5a7af19fb44987a2d5ff3f675c` ;
+- CI #3581 : SUCCESS ;
+- T2 Runtime Browser Certification #2536 : SUCCESS ;
+- Cabinet Upgrade PostgreSQL Certification #51 : SUCCESS ;
+- PR #447 : 3 fichiers ajoutés, 827 additions, 0 suppression ; reviews 0 ; threads 0 ; commentaires PR 0 ;
+- diff exact avant merge : 3 fichiers R14 uniquement ;
+- merge implementation : `2f1f1d88bf6027988a398967bed5e65883b729aa` ;
+- master post-merge implementation vérifié : `2f1f1d88bf6027988a398967bed5e65883b729aa` ;
+- UI : aucune modification ;
+- déploiement : aucun.
+
 ## ROADMAP CANONIQUE
 
 ### R0 — Typed read-path
@@ -341,7 +396,9 @@ Options évaluables, jamais prescription autonome ; indications/contre-indicatio
 **Preuve :** candidate `7fd6fdae604010510b74e5fe908dc76a425a71cf` ; CI #3526 SUCCESS ; T2 #2489 SUCCESS ; PR #444 ; merge `4740b463e49f8ddee9dbb704faaecd086c389beb` ; master post-merge implementation identique.
 
 ### R14 — Validation clinique finale
-Aucune synthèse/stratégie finale sans validation praticien traçable.
+**État : FERMÉ côté implémentation ; closeout documentaire en certification.**  
+Stratégie finale impossible sans sélection R13 praticien préalable et validation/rejet final R14 traçable ; aucune prescription autonome.  
+**Preuve :** candidate `017a7eaf7d293c5a7af19fb44987a2d5ff3f675c` ; CI #3581 SUCCESS ; T2 #2536 SUCCESS ; PR #447 ; merge `2f1f1d88bf6027988a398967bed5e65883b729aa` ; master post-merge implementation identique.
 
 ### R15 — Studio clinique UX/UI Digital Crown
 Radio dominante, état scientifique compact, provenance/correction/calculabilité visibles ; cycle UX obligatoire complet.
@@ -358,7 +415,7 @@ Mesure : `landmarks définis → construction versionnée → formule testée �
 
 Diagnostic : `règle versionnée/sourcée → supporting/opposing evidence → contradictions → cas goldens → validation praticien`.
 
-Traitement : `diagnostic validé → données cliniques requises → indication/contre-indications sourcées → options → sélection praticien`. Jamais de prescription autonome.
+Traitement : `diagnostic validé → données cliniques requises → indication/contre-indications sourcées → options → sélection praticien → validation clinique finale`. Jamais de prescription autonome.
 
 ## PREUVES CI HISTORIQUES
 
@@ -375,20 +432,24 @@ Traitement : `diagnostic validé → données cliniques requises → indication/
 - R11 HEAD `6916dee975acb83d13acd540d5d2e4a8f839a478` : CI #3477 SUCCESS ; T2 #2452 SUCCESS ; merge PR #437 `bc66b58b6ee4459362d3bd52150877908bdc996c`.
 - R12 HEAD `dc04d759191828afe85c643719165e7d4fcc916e` : CI #3500 SUCCESS ; T2 #2465 SUCCESS ; merge PR #441 `02d4be759e4ddbc24293340c6c10848174ace07a`.
 - R13 HEAD `7fd6fdae604010510b74e5fe908dc76a425a71cf` : CI #3526 SUCCESS ; T2 #2489 SUCCESS ; merge PR #444 `4740b463e49f8ddee9dbb704faaecd086c389beb`.
+- R14 HEAD `017a7eaf7d293c5a7af19fb44987a2d5ff3f675c` : CI #3581 SUCCESS ; T2 #2536 SUCCESS ; PostgreSQL #51 SUCCESS ; merge PR #447 `2f1f1d88bf6027988a398967bed5e65883b729aa`.
 
 ## NEXT EXACT
 
-Après merge du closeout R13 et vérification de master final :
-1. ouvrir **une nouvelle fenêtre exclusivement R14** ;
-2. lire `AGENTS.md` puis `STATE.md` puis ce fichier canonique puis `docs/CEPHALO_MEASUREMENT_EVIDENCE_RECOVERY.md` puis le handover R13→R14 ;
+Après merge du closeout R14 et vérification de master final :
+1. ouvrir **une nouvelle fenêtre exclusivement R15** ;
+2. lire `AGENTS.md` puis `STATE.md` puis ce fichier canonique puis `docs/CEPHALO_MEASUREMENT_EVIDENCE_RECOVERY.md` puis `docs/handovers/2026-09-12-cephalo-r14-to-r15-handover.md` ;
 3. vérifier repo/master/HEAD/PR/CI avant toute modification ;
-4. exécuter R14 seulement : `Validation clinique finale` ;
-5. construire uniquement la couche de synthèse/stratégie finale qui exige une validation praticien traçable et consomme les objets R13 sans les contourner ;
-6. ne pas démarrer R15 ni modifier l'UX/UI sauf nécessité stricte de R14 et cycle visuel complet.
+4. exécuter R15 seulement : `Studio clinique UX/UI Digital Crown` ;
+5. appliquer obligatoirement `BEFORE réel → Goal visuel → référence/mockup → implémentation → AFTER mêmes viewports 390/768/1280+ → comparaison → tests → score visuel` ;
+6. exposer fidèlement les états R11/R12/R13/R14 sans inventer de contenu clinique ni simuler une validation praticien ;
+7. ne pas démarrer R16 dans R15.
+
+Dette séparée à vérifier au démarrage R15 : `.github/workflows/document-history-actions-visual-cert.yml` était déjà corrompu avant R14 et peut produire un workflow visuel sans jobs ; R14 ne l'a pas modifié.
 
 ## SÉQUENCE RESTANTE
 
-`R14 validation clinique finale → R15 studio UX/UI → R16 PDF → R17 certification/closeout`
+`R15 studio UX/UI → R16 PDF → R17 certification/closeout`
 
 ## DÉPLOIEMENT
 
