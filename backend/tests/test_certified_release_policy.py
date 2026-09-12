@@ -1,3 +1,4 @@
+import hashlib
 import json
 from pathlib import Path
 
@@ -5,6 +6,7 @@ import pytest
 
 from backend.release_certification import (
     CERTIFICATE_FILENAME,
+    CONTENT_MANIFEST_FILENAME,
     REQUIRED_PACKS,
     SHA_MARKER_FILENAME,
     ReleaseCertificationError,
@@ -16,6 +18,13 @@ CERTIFIED_SHA = "a" * 40
 
 
 def _write_release(tmp_path: Path, *, packs=None, sha=CERTIFIED_SHA, marker=None):
+    payload_file = tmp_path / "backend-payload.txt"
+    payload_file.write_text("certified-payload", encoding="utf-8")
+    payload_digest = hashlib.sha256(payload_file.read_bytes()).hexdigest()
+    manifest = tmp_path / CONTENT_MANIFEST_FILENAME
+    manifest.write_text(f"{payload_digest}  backend-payload.txt\n", encoding="utf-8")
+    manifest_digest = hashlib.sha256(manifest.read_bytes()).hexdigest()
+
     release_id = f"dc-cabinet-{sha[:12]}-run123"
     payload = {
         "certificate_version": 1,
@@ -26,6 +35,7 @@ def _write_release(tmp_path: Path, *, packs=None, sha=CERTIFIED_SHA, marker=None
         "certified_packs": list(packs if packs is not None else REQUIRED_PACKS),
         "certification_run_id": 123,
         "certified_at": "2026-09-12T12:00:00Z",
+        "content_manifest_sha256": manifest_digest,
     }
     (tmp_path / CERTIFICATE_FILENAME).write_text(json.dumps(payload), encoding="utf-8")
     (tmp_path / SHA_MARKER_FILENAME).write_text(marker or sha, encoding="utf-8")
@@ -64,6 +74,13 @@ def test_release_requires_exact_immutable_sha(tmp_path):
         verify_release_directory(tmp_path)
 
 
+def test_certified_payload_mutation_is_refused(tmp_path):
+    _write_release(tmp_path)
+    (tmp_path / "backend-payload.txt").write_text("mutated", encoding="utf-8")
+    with pytest.raises(ReleaseCertificationError, match="Certified release file changed"):
+        verify_release_directory(tmp_path)
+
+
 def test_repo_guards_cannot_fall_back_to_master_or_working_tree():
     root = Path(__file__).resolve().parents[2]
     creator = (root / "backend/scripts/create_release.ps1").read_text(encoding="utf-8-sig")
@@ -76,6 +93,7 @@ def test_repo_guards_cannot_fall_back_to_master_or_working_tree():
     assert "robocopy \"$RepoRoot\\backend\"" not in creator
     assert "release-certification.json" in creator
     assert ".digitalcrown-release-sha" in creator
+    assert "release-content.sha256" in creator
 
     assert "verify_certified_release.py" in launcher
     assert "release-certification.json" in launcher
@@ -83,6 +101,7 @@ def test_repo_guards_cannot_fall_back_to_master_or_working_tree():
 
     assert "release-certification.json" in spec
     assert ".digitalcrown-release-sha" in spec
+    assert "release-content.sha256" in spec
     assert "FileExists" in installer
     assert "release-certification.json" in installer
     assert ".digitalcrown-release-sha" in installer
@@ -109,3 +128,4 @@ def test_release_certification_workflow_is_exact_sha_and_universal():
     assert "ELITE" in workflow
     assert "release-certification.json" in workflow
     assert ".digitalcrown-release-sha" in workflow
+    assert "release-content.sha256" in workflow
