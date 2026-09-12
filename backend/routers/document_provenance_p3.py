@@ -117,6 +117,70 @@ def sign_document_with_provenance(
     return signed
 
 
+@patients_router.get("/{patient_id}/documents")
+def get_patient_documents_with_provenance(
+    patient_id: int,
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(require_permission("patients")),
+):
+    """Keep the canonical archive listing and enrich only canonical rows with P3 proof."""
+    results = legacy_patients.get_patient_documents(
+        patient_id=patient_id,
+        db=db,
+        current_user=current_user,
+    )
+
+    canonical_ids = [
+        int(item["id"])
+        for item in results
+        if str(item.get("id", "")).isdigit()
+    ]
+    if not canonical_ids:
+        return results
+
+    docs = db.query(models.DocumentArchive).filter(
+        models.DocumentArchive.id.in_(canonical_ids),
+        models.DocumentArchive.patient_id == patient_id,
+    ).all()
+    docs_by_id = {doc.id: doc for doc in docs}
+
+    practitioner_ids = {
+        practitioner_id
+        for doc in docs
+        for practitioner_id in (
+            doc.author_practitioner_id,
+            doc.signed_by_practitioner_id,
+        )
+        if practitioner_id is not None
+    }
+    practitioners = (
+        db.query(models.User).filter(models.User.id.in_(practitioner_ids)).all()
+        if practitioner_ids else []
+    )
+    names = {
+        user.id: (user.nom_complet or user.email or f"Praticien {user.id}")
+        for user in practitioners
+    }
+
+    for item in results:
+        raw_id = str(item.get("id", ""))
+        if not raw_id.isdigit():
+            # Legacy files intentionally keep unknown provenance instead of invention.
+            continue
+        doc = docs_by_id.get(int(raw_id))
+        if doc is None:
+            continue
+        item.update({
+            "author_practitioner_id": doc.author_practitioner_id,
+            "author_practitioner_name": names.get(doc.author_practitioner_id),
+            "signed_by_practitioner_id": doc.signed_by_practitioner_id,
+            "signed_by_practitioner_name": names.get(doc.signed_by_practitioner_id),
+            "signed_at": doc.signed_at.isoformat() if doc.signed_at else None,
+        })
+
+    return results
+
+
 @patients_router.post("/{patient_id}/pdf")
 def generate_cephalo_pdf_with_provenance(
     patient_id: int,
@@ -211,6 +275,17 @@ def verify_document_with_p3_signature(
         warning_msg="Ce document n'a pas été authentifié par Digital Crown.",
     ))
 
+
+# Replace only the canonical patient document listing. The legacy implementation stays
+# callable internally so historical local-file discovery remains exactly as before.
+legacy_patients.router.routes = [
+    route
+    for route in legacy_patients.router.routes
+    if not (
+        getattr(route, "path", None) == "/{patient_id}/documents"
+        and "GET" in (getattr(route, "methods", set()) or set())
+    )
+]
 
 # Replace only the one-segment legacy public verification facade. The special
 # two-segment RADIO/BILAN verification endpoints remain untouched.
