@@ -41,6 +41,7 @@ def test_r15_projection_fails_closed_when_no_analysis(monkeypatch):
     assert all(stage["presentation_state"] == "BLOCKED" for stage in snapshot["stages"])
     assert all(stage["missing_data_refs"] == [] for stage in snapshot["stages"])
     assert all(stage["contradictions"] == [] for stage in snapshot["stages"])
+    assert all(stage["contraindications"] == [] for stage in snapshot["stages"])
     assert all(stage["clinician_action"]["available"] is False for stage in snapshot["stages"])
     assert all(stage["clinician_action"]["audit_required"] is True for stage in snapshot["stages"])
 
