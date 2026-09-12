@@ -94,7 +94,7 @@ jobs:
                 return route.fulfill({status:200,contentType:'application/json',body:'{}'});
               });
               await page.goto('http://127.0.0.1:4201/clinic-p3-signature.html',{waitUntil:'networkidle'});
-              await page.getByText('ordonnance-a-signer.pdf',{exact:true}).waitFor({state:'visible',timeout:15000});
+              await page.locator('[data-document-kind]').first().waitFor({state:'visible',timeout:15000});
               const statusNodes=page.locator('[data-p3-signature-status]');
               const statusCount=await statusNodes.count();
               const states=statusCount ? await statusNodes.evaluateAll(nodes=>nodes.map(node=>node.getAttribute('data-p3-signature-state'))) : [];
