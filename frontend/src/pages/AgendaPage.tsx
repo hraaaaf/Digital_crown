@@ -80,11 +80,14 @@ export const AgendaPage: React.FC = () => {
 
       if (method === 'get' && url === '/appointments/check-conflicts') {
         const excludeId = Number(config.params?.exclude_id);
-        const editingPractitionerId = Number.isFinite(excludeId)
+        const isEditing = Number.isFinite(excludeId);
+        const practitionerId = isEditing
           ? practitionerByAppointment.get(excludeId)
-          : undefined;
-        const practitionerId = editingPractitionerId ?? activePractitionerId;
+          : activePractitionerId;
 
+        // Si l'édition a démarré avant que le mapping rendez-vous→praticien soit
+        // connu, ne jamais substituer le contexte global : le save backend reste
+        // autoritaire et préservera le praticien historique.
         if (practitionerId) {
           config.params = {
             ...(config.params || {}),
