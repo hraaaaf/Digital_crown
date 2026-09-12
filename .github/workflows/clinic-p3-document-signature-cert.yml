@@ -61,7 +61,8 @@ jobs:
           grep -q "Le praticien connecté ne peut signer que ses propres documents" backend/services/document_signature_p3.py
           grep -q "Document sans auteur P3" backend/services/document_signature_p3.py
           grep -q "verify_document_integrity" backend/services/document_signature_p3.py
-          grep -q "Authentique • Non signé" backend/services/document_signature_p3.py
+          grep -q "Intégrité vérifiée • Non signé" backend/services/document_signature_p3.py
+          grep -q "ne constitue pas une signature électronique qualifiée" backend/services/document_signature_p3.py
           grep -q "test_author_can_sign_exact_active_bytes_once" backend/tests/test_document_signature_p3.py
           grep -q "test_signature_refuses_non_author_and_legacy_unknown_author" backend/tests/test_document_signature_p3.py
           grep -q "test_p3_signature_and_public_verification_routes_are_unique" backend/tests/test_document_signature_p3.py
@@ -85,6 +86,7 @@ jobs:
           - non-active document: signing refused
           - physical SHA-256 + size: verified before signature
           - repeated signature: idempotent, timestamp preserved
+          - proof type: Digital Crown application-level signature provenance, not qualified electronic signature
           - public verification: unsigned != signed; tampered = invalid
           - patient archive read surface: actor/author/signer provenance exposed for canonical rows only
           - stable sign, archive-list and public verification routes: single P3 facades
