@@ -58,7 +58,7 @@ def test_tweed_impa_numeric_evidence_is_source_locked_but_geometry_blocked():
     assert COM_SOURCE_INDEX["TWEED_1954_FMIA"]["source_level"] == "PRIMARY"
 
 
-def test_tweed_compensation_is_preserved_as_dynamic_rule_not_fake_fixed_norm():
+def test_tweed_compensation_is_dynamic_rule_not_fake_fixed_norm():
     item = COM_EVIDENCE_DEBT_BY_ID["COM_IMPA_DYNAMIC_COMPENSATION"]
     assert item.state == ComEvidenceState.SOURCE_LOCKED_RULE_CONSTRUCTION_BLOCKED
     assert "dynamic rule" in item.historical_value
@@ -66,11 +66,27 @@ def test_tweed_compensation_is_preserved_as_dynamic_rule_not_fake_fixed_norm():
     assert "FMA 35 -> IMPA 80" in item.next_exact
 
 
-def test_known_unverified_historical_values_remain_blocked():
+def test_ricketts_fma_numeric_and_age_rule_are_primary_locked_but_geometry_blocked():
+    item = COM_EVIDENCE_DEBT_BY_ID["COM_FMA_26_PM4"]
+    assert item.state == ComEvidenceState.SOURCE_LOCKED_CONSTRUCTION_BLOCKED
+    assert item.source_ids[0] == "RICKETTS_1981_CLINICAL_CEPHALOMETRICS"
+    assert item.historical_value == "26 +/- 4 deg at age 9"
     assert (
-        COM_EVIDENCE_DEBT_BY_ID["COM_FMA_26_PM4"].state
-        == ComEvidenceState.PEER_REVIEWED_CORROBORATED_PRIMARY_PENDING
+        item.construction_gate
+        == "RICKETTS_TRUE_FH_SUBGONION_MENTON_EXACT_REQUIRED"
     )
+    assert "Subgonion-Menton" in item.blocker
+    assert "Go-Me or Go-Gn must not substitute" in item.blocker
+    assert (
+        COM_SOURCE_INDEX["RICKETTS_1981_CLINICAL_CEPHALOMETRICS"]["source_level"]
+        == "PRIMARY"
+    )
+    assert "28 +/- 4 degrees at age 3" in COM_SOURCE_INDEX[
+        "RICKETTS_1981_CLINICAL_CEPHALOMETRICS"
+    ]["evidence"]
+
+
+def test_known_unverified_historical_values_remain_blocked():
     assert (
         COM_EVIDENCE_DEBT_BY_ID["COM_INTERINCISAL_131_PM3"].state
         == ComEvidenceState.PRIMARY_IDENTIFIED_NUMERIC_UNVERIFIED
