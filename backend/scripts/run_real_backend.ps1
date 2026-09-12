@@ -138,7 +138,7 @@ $certExists = Test-Path $TlsCertFile
 $keyExists = Test-Path $TlsKeyFile
 if ($certExists -xor $keyExists) { Fail "incomplete TLS configuration: cert/key must both exist or both be absent" }
 $httpsEnabled = $certExists -and $keyExists
-if ($httpsEnabled -and $Port -ne 8005) { Fail "HTTPS mobile/WebAuthn contract requires port 8005" }
+if ($httpsEnabled -and $Port -ne 8005) { Fail "HTTPS mobile/WebAuthn contract requires the real runtime on port 8005" }
 
 $env:PORT = "$Port"
 $env:DIGITALCROWN_HTTPS_PORT = "$Port"
