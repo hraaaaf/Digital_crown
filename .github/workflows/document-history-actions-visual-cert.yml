@@ -29,7 +29,7 @@ jobs:
         working-directory: frontend
         run: |
           npm ci
-          npm install --no-save --package-lock=false --legacy-peer-deps playwright@1.55.0
+          npm install --no-save --package-lock=false --legacy-peer-deps react-is playwright@1.55.0
           npx playwright install --with-deps chromium
       - name: Capture exact-head document actions
         working-directory: frontend
