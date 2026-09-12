@@ -171,7 +171,7 @@ export const StudioHeader: React.FC<StudioHeaderProps> = ({
             id="document-studio-author"
             data-p3-author-selector
             aria-label="Auteur clinique du document"
-            className="min-h-8 w-full bg-transparent text-xs font-black text-slate-700 dark:text-slate-200 outline-none cursor-pointer focus-visible:ring-2 focus-visible:ring-primary/40 rounded-md disabled:cursor-not-allowed disabled:opacity-60"
+            className="min-h-11 w-full bg-transparent text-xs font-black text-slate-700 dark:text-slate-200 outline-none cursor-pointer focus-visible:ring-2 focus-visible:ring-primary/40 rounded-md disabled:cursor-not-allowed disabled:opacity-60"
             value={authorPractitionerId ?? ''}
             onChange={(event) => handleAuthorChange(event.target.value)}
             disabled={authorLoading || practitioners.length === 0}
