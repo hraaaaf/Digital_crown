@@ -15,7 +15,8 @@
 **Typed read-path :** PR #400 — HEAD certifié `b5f1d991ec1c954840c609dfcd5dcee8063ad9c1` — merge master `5f453d906c0562e53c921c683bb16c1a6deb3536`  
 **R10 registre normatif :** HEAD certifié `9ffd36306ec6fa09b71d590e078af01db67e6888` — CI #3431 SUCCESS — T2 #2411 SUCCESS — PR #431 — merge `d0bdfc4fa47346f27e432139e6785177da4deef3` — closeout R10 master `2ac6ac538c79eb95a3988f2e6da9854b76dbd422`  
 **R11 diagnostic multiaxial :** HEAD certifié `6916dee975acb83d13acd540d5d2e4a8f839a478` — CI #3477 SUCCESS — T2 #2452 SUCCESS — PR #437 — merge `bc66b58b6ee4459362d3bd52150877908bdc996c`  
-**Statut courant :** R11 FERMÉ ; aucun déploiement ; NEXT = R12 dans une nouvelle fenêtre depuis master final vérifié.
+**R12 problem list + objectifs :** HEAD certifié `dc04d759191828afe85c643719165e7d4fcc916e` — CI #3500 SUCCESS — T2 #2465 SUCCESS — PR #441 — merge `02d4be759e4ddbc24293340c6c10848174ace07a`  
+**Statut courant :** R12 FERMÉ ; aucun déploiement ; NEXT = R13 dans une nouvelle fenêtre depuis master final vérifié.
 
 ## GOAL GLOBAL
 
@@ -151,7 +152,7 @@ Sans profil validé : `CANDIDATE_UNVERIFIED`.
 
 Le registre `validated_fiducial_profiles` est **vide par défaut**. Donc aucun profil de test ou hypothèse implicite ne peut activer `AUTO_VERIFIED` en production. L'architecture permet l'auto-vérification, mais son activation réelle exige l'introduction explicite d'un profil physique validé.
 
-Cette section conserve le contrat scientifique/HFE R1. Elle n'est pas le pointeur de reprise courant ; le pointeur courant est R12 après fermeture documentaire de R11.
+Cette section conserve le contrat scientifique/HFE R1. Elle n'est pas le pointeur de reprise courant ; le pointeur courant est R13 après fermeture documentaire de R12.
 
 ## R11 — DIAGNOSTIC MULTIAXIAL — CONTRAT FERMÉ
 
@@ -186,6 +187,52 @@ Cette section conserve le contrat scientifique/HFE R1. Elle n'est pas le pointeu
 - merge implementation : `bc66b58b6ee4459362d3bd52150877908bdc996c` ;
 - master post-merge implementation vérifié : `bc66b58b6ee4459362d3bd52150877908bdc996c` ;
 - aucun déploiement.
+
+## R12 — PROBLEM LIST + OBJECTIFS — CONTRAT FERMÉ
+
+### Goal
+
+`diagnostics validés → problem list traçable → objectifs traçables`, avec contradictions et données manquantes propagées sans transformation thérapeutique.
+
+### Contrat certifié
+
+- contrats dédiés et versionnés : `R12_PROBLEM_LIST_V1` et `R12_OBJECTIVE_V1` ;
+- un problème R12 ne peut référencer que des diagnostics R11 existants en état `ACCEPTED` ou `EDITED` ;
+- les findings dérivés doivent correspondre exactement aux findings supporting/opposing des diagnostics sélectionnés ;
+- chaque finding utilisé doit être `AVAILABLE` et posséder une validation praticien explicite dont la dernière action est `ACCEPT` ou `EDIT` ;
+- `finding_refs`, `missing_data_refs`, `contradictions` et `evidence_refs` doivent correspondre exactement à la provenance amont attendue ; aucune omission silencieuse n'est acceptée ;
+- un objectif R12 ne peut dériver que de problèmes R12 validés (`ACCEPTED` ou `EDITED`) ;
+- un objectif recopie exactement sa provenance vers problèmes, diagnostics, findings, missing data et contradictions ;
+- les identifiants problem/objective doivent rester uniques par rapport au graphe amont ;
+- le validateur R12 réexécute d'abord le contrat R11 : aucun contournement de la sécurité diagnostique ;
+- le snapshot R12 refuse toute fuite de `treatment_options` ou `final_plans` ;
+- aucune indication, contre-indication, option thérapeutique, mécanique, appareil ou prescription n'est introduite en R12 ;
+- aucune règle clinique, norme, seuil ou valeur médicale nouvelle n'est activée par R12 ;
+- aucune mesure n'est supprimée : `BLOCKED != DROPPED` reste obligatoire.
+
+### Goldens / refus certifiés
+
+- positif : lineage validée complète ;
+- négatif : diagnostic non validé → problème refusé ;
+- négatif : finding sans validation praticien → problème refusé ;
+- missing data : propagation exacte obligatoire jusqu'au problème puis à l'objectif ;
+- contradiction : propagation exacte obligatoire ;
+- problème non validé → objectif refusé ;
+- fuite de couche thérapeutique → refus ;
+- champ thérapeutique additionnel sur contrat R12 → refus.
+
+### Preuve R12
+
+- branche implémentation : `feat/cephalo-r12-problem-list-objectives` ;
+- candidate HEAD : `dc04d759191828afe85c643719165e7d4fcc916e` ;
+- CI #3500 : SUCCESS ;
+- T2 Runtime Browser Certification #2465 : SUCCESS ;
+- PR #441 : 1 commit, 3 fichiers ajoutés, scope backend R12 uniquement ;
+- reviews : 0 ; threads : 0 ; commentaires PR : 0 ;
+- merge implementation : `02d4be759e4ddbc24293340c6c10848174ace07a` ;
+- master post-merge implementation vérifié : `02d4be759e4ddbc24293340c6c10848174ace07a` ;
+- UI : aucune modification ;
+- déploiement : aucun.
 
 ## ROADMAP CANONIQUE
 
@@ -231,8 +278,9 @@ Findings puis hypothèses explicables ; contradictions et données manquantes vi
 **Preuve :** candidate `6916dee975acb83d13acd540d5d2e4a8f839a478` ; CI #3477 SUCCESS ; T2 #2452 SUCCESS ; PR #437 ; merge `bc66b58b6ee4459362d3bd52150877908bdc996c` ; master post-merge implementation identique.
 
 ### R12 — Problem list + objectifs
-**NEXT.**  
-Chaque item référence explicitement findings/diagnostics validés.
+**État : FERMÉ.**  
+Chaque item référence explicitement les findings/diagnostics validés dont il dérive ; missing data et contradictions sont propagées fail-closed.  
+**Preuve :** candidate `dc04d759191828afe85c643719165e7d4fcc916e` ; CI #3500 SUCCESS ; T2 #2465 SUCCESS ; PR #441 ; merge `02d4be759e4ddbc24293340c6c10848174ace07a` ; master post-merge implementation identique.
 
 ### R13 — Options thérapeutiques
 Options évaluables, jamais prescription autonome ; indications/contre-indications sourcées et sélection praticien.
@@ -270,19 +318,21 @@ Traitement : `diagnostic validé → données cliniques requises → indication/
 - #400 HEAD `b5f1d991ec1c954840c609dfcd5dcee8063ad9c1` : CI #3182 success ; T2 #2190 success ; Portability #500 success ; Onboarding Visual #309 success ; merge `5f453d906c0562e53c921c683bb16c1a6deb3536`.
 - R10 HEAD `9ffd36306ec6fa09b71d590e078af01db67e6888` : CI #3431 SUCCESS ; T2 #2411 SUCCESS ; merge PR #431 `d0bdfc4fa47346f27e432139e6785177da4deef3` ; closeout master `2ac6ac538c79eb95a3988f2e6da9854b76dbd422`.
 - R11 HEAD `6916dee975acb83d13acd540d5d2e4a8f839a478` : CI #3477 SUCCESS ; T2 #2452 SUCCESS ; merge PR #437 `bc66b58b6ee4459362d3bd52150877908bdc996c`.
+- R12 HEAD `dc04d759191828afe85c643719165e7d4fcc916e` : CI #3500 SUCCESS ; T2 #2465 SUCCESS ; merge PR #441 `02d4be759e4ddbc24293340c6c10848174ace07a`.
 
 ## NEXT EXACT
 
-Après merge du closeout R11 et vérification de master final :
-1. ouvrir **une nouvelle fenêtre exclusivement R12** ;
-2. lire `AGENTS.md` puis `STATE.md` puis ce fichier canonique ;
+Après merge du closeout R12 et vérification de master final :
+1. ouvrir **une nouvelle fenêtre exclusivement R13** ;
+2. lire `AGENTS.md` puis `STATE.md` puis ce fichier canonique puis `docs/CEPHALO_MEASUREMENT_EVIDENCE_RECOVERY.md` puis le handover R12→R13 ;
 3. vérifier repo/master/HEAD/PR/CI avant toute modification ;
-4. exécuter R12 seulement : `Problem list + objectifs` ;
-5. chaque item doit référencer explicitement findings/diagnostics validés ; aucune indication ou option thérapeutique ne doit être introduite avant R13.
+4. exécuter R13 seulement : `Options thérapeutiques` ;
+5. toute indication/contre-indication doit être sourcée/versionnée et toute option doit dériver d'objectifs R12 validés ;
+6. aucune prescription autonome ni plan final R14 ne doit être introduit.
 
 ## SÉQUENCE RESTANTE
 
-`R12 problem list/objectifs → R13 options thérapeutiques → R14 validation clinique → R15 studio UX/UI → R16 PDF → R17 certification/closeout`
+`R13 options thérapeutiques → R14 validation clinique → R15 studio UX/UI → R16 PDF → R17 certification/closeout`
 
 ## DÉPLOIEMENT
 
