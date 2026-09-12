@@ -29,8 +29,13 @@ _SessionLocal = sessionmaker(bind=_engine, autocommit=False, autoflush=False)
 def _create_tables():
     """Crée toutes les tables SQLAlchemy une seule fois pour la session de tests."""
     from backend import models, database
+    from backend.models_document_provenance_p3 import install_document_provenance_p3
+
     database.engine = _engine
     database.SessionLocal = _SessionLocal
+    # P3 attaches its additive provenance columns before create_all(), matching the
+    # production router import order and exercising the real cabinet schema contract.
+    install_document_provenance_p3()
     models.Base.metadata.create_all(bind=_engine)
     yield
     models.Base.metadata.drop_all(bind=_engine)

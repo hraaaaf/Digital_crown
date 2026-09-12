@@ -271,3 +271,29 @@ partner_catalog.router.include_router(partner_sync.router)
 # /api/patients prefix without changing main.py or exposing a parallel tenant surface.
 from . import media_core as media_core
 patients.router.include_router(media_core.router)
+
+# Clinic multi-practitioner P3 registers additive DocumentArchive provenance before
+# startup create_all(), then replaces only the two stable PDF generation facades.
+# Legacy business logic remains canonical behind the wrappers.
+from backend.models_document_provenance_p3 import install_document_provenance_p3
+install_document_provenance_p3()
+from . import documents as documents
+from . import document_provenance_p3 as document_provenance_p3
+documents.router.routes = [
+    route
+    for route in documents.router.routes
+    if not (
+        getattr(route, "path", None) == "/generate"
+        and "POST" in (getattr(route, "methods", set()) or set())
+    )
+]
+patients.router.routes = [
+    route
+    for route in patients.router.routes
+    if not (
+        getattr(route, "path", None) == "/{patient_id}/pdf"
+        and "POST" in (getattr(route, "methods", set()) or set())
+    )
+]
+documents.router.include_router(document_provenance_p3.documents_router)
+patients.router.include_router(document_provenance_p3.patients_router)
