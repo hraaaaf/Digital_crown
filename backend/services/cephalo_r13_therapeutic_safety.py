@@ -94,9 +94,36 @@ def _require_context_keys(context: Dict[str, str], keys: Tuple[str, ...], *, lab
         )
 
 
+def _require_source_applicability_context(
+    context: Dict[str, str],
+    source_bindings: Tuple[SourceKey, ...],
+    *,
+    registry: TherapeuticRuleRegistry,
+    label: str,
+) -> None:
+    """Require every registered source applicability constraint to match exactly."""
+
+    for source_id, source_version in source_bindings:
+        source = registry.get_source(source_id, source_version)
+        if source is None:
+            raise EvidenceGraphValidationError(
+                f"{label} references unavailable registered source {source_id}@{source_version}"
+            )
+        mismatches = sorted(
+            key
+            for key, expected_value in source.context.items()
+            if context.get(key) != expected_value
+        )
+        if mismatches:
+            raise EvidenceGraphValidationError(
+                f"{label} context is incompatible with source {source_id}@{source_version}: "
+                + ", ".join(mismatches)
+            )
+
+
 def _planning_ids(snapshot: R12ProblemObjectiveSnapshot) -> Set[str]:
     graph = snapshot.diagnostic_graph
-    result = {
+    return {
         *(item.evidence_id for item in graph.sources),
         *(item.evidence_id for item in graph.landmarks),
         *(item.construction_id for item in graph.constructions),
@@ -107,7 +134,6 @@ def _planning_ids(snapshot: R12ProblemObjectiveSnapshot) -> Set[str]:
         *(item.problem_id for item in snapshot.problems),
         *(item.objective_id for item in snapshot.objectives),
     }
-    return result
 
 
 def _global_upstream_ids(snapshot: R12ProblemObjectiveSnapshot) -> Set[str]:
@@ -135,7 +161,6 @@ def validate_r13_therapeutic_options(
     r12 = snapshot.r12_snapshot
     planning_ids = _planning_ids(r12)
     global_ids = _global_upstream_ids(r12)
-    problems = {item.problem_id: item for item in r12.problems}
     objectives = {item.objective_id: item for item in r12.objectives}
 
     criteria: Dict[str, R13TherapeuticCriterionEvidence] = {}
@@ -165,6 +190,12 @@ def validate_r13_therapeutic_options(
         _require_context_keys(
             criterion.context,
             rule.required_context_keys,
+            label=f"R13 criterion {criterion.criterion_id}",
+        )
+        _require_source_applicability_context(
+            criterion.context,
+            rule.source_bindings,
+            registry=therapeutic_rule_registry,
             label=f"R13 criterion {criterion.criterion_id}",
         )
         _require_refs(
@@ -212,6 +243,12 @@ def validate_r13_therapeutic_options(
         _require_context_keys(
             option.context,
             rule.required_context_keys,
+            label=f"R13 option {option.option_id}",
+        )
+        _require_source_applicability_context(
+            option.context,
+            rule.source_bindings,
+            registry=therapeutic_rule_registry,
             label=f"R13 option {option.option_id}",
         )
         _require_refs(
