@@ -49,6 +49,20 @@ class CephaloPDFRequestP3(schemas.CephaloPDFRequest):
     author_practitioner_id: Optional[int] = None
 
 
+def require_signature_document_permission(
+    doc_type: str,
+    current_user: models.User,
+) -> None:
+    """Fail closed when a stored document type has no explicit signature policy."""
+    normalized_type = str(doc_type or "").lower()
+    if normalized_type not in legacy_documents.DOCUMENT_TYPE_PERMISSIONS:
+        raise HTTPException(
+            status_code=403,
+            detail="Type de document sans politique de signature explicite",
+        )
+    legacy_documents.require_document_permission(doc_type, current_user)
+
+
 @documents_router.post(
     "/generate",
     summary="Générer un document PDF avec provenance praticien",
@@ -100,7 +114,7 @@ def sign_document_with_provenance(
 
     assert_patient_access(doc.patient_id, current_user, db)
     doc_type = getattr(doc.document_type, "value", str(doc.document_type))
-    legacy_documents.require_document_permission(doc_type, current_user)
+    require_signature_document_permission(doc_type, current_user)
 
     signed = sign_document(db, doc, current_user)
     audit_service.log(

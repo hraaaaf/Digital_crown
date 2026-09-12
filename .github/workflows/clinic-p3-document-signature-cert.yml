@@ -7,6 +7,7 @@ on:
       - "backend/services/document_signature_p3.py"
       - "backend/tests/test_document_signature_p3.py"
       - "backend/tests/test_document_signature_archive_surface_p3.py"
+      - "backend/tests/test_document_signature_permissions_p3.py"
       - ".github/workflows/clinic-p3-document-signature-cert.yml"
   workflow_dispatch:
 
@@ -58,15 +59,18 @@ jobs:
           test -f backend/services/document_signature_p3.py
           test -f backend/tests/test_document_signature_p3.py
           test -f backend/tests/test_document_signature_archive_surface_p3.py
+          test -f backend/tests/test_document_signature_permissions_p3.py
           grep -q "Le praticien connecté ne peut signer que ses propres documents" backend/services/document_signature_p3.py
           grep -q "Document sans auteur P3" backend/services/document_signature_p3.py
           grep -q "verify_document_integrity" backend/services/document_signature_p3.py
           grep -q "Intégrité vérifiée • Non signé" backend/services/document_signature_p3.py
           grep -q "ne constitue pas une signature électronique qualifiée" backend/services/document_signature_p3.py
+          grep -q "Type de document sans politique de signature explicite" backend/routers/document_provenance_p3.py
           grep -q "test_author_can_sign_exact_active_bytes_once" backend/tests/test_document_signature_p3.py
           grep -q "test_signature_refuses_non_author_and_legacy_unknown_author" backend/tests/test_document_signature_p3.py
           grep -q "test_p3_signature_and_public_verification_routes_are_unique" backend/tests/test_document_signature_p3.py
           grep -q "test_patient_archive_surface_exposes_truthful_p3_provenance_without_touching_legacy" backend/tests/test_document_signature_archive_surface_p3.py
+          grep -q "test_signature_permission_fails_closed_for_unmapped_bilan_type" backend/tests/test_document_signature_permissions_p3.py
           grep -q "get_patient_documents_with_provenance" backend/routers/document_provenance_p3.py
 
       - name: Run signature invariant suite
@@ -74,6 +78,7 @@ jobs:
           python -m pytest \
             backend/tests/test_document_signature_p3.py \
             backend/tests/test_document_signature_archive_surface_p3.py \
+            backend/tests/test_document_signature_permissions_p3.py \
             -q --maxfail=1
 
       - name: Certification summary
@@ -83,6 +88,7 @@ jobs:
           - exact head: \`${P3_SIGNATURE_HEAD}\`
           - signer: authenticated active approved author only
           - legacy/unknown author: signing refused
+          - unmapped document signature permission: refused fail-closed
           - non-active document: signing refused
           - physical SHA-256 + size: verified before signature
           - repeated signature: idempotent, timestamp preserved
