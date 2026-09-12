@@ -61,13 +61,30 @@ Tous imposent un mode **read-only** pour leur phase d'audit/validation.
 - Ne jamais inventer une donnée manquante ni masquer une incertitude.
 - Tests verts ne valent pas certification du domaine.
 
+### Installation / release cabinet — INVARIANT ABSOLU
+
+Lire `docs/CABINET_CERTIFIED_RELEASE_POLICY.md` avant toute opération de build, packaging, installation, activation ou mise à jour cabinet.
+
+- **Interdit d'installer ou démarrer `master`, `HEAD`, une branche, un tag ou un working tree.**
+- `CODE_CERTIFIED` = SHA exact validé par CI + provenance GitHub/Sigstore. **Non installable.**
+- `INSTALLABLE_CERTIFIED` = CODE_CERTIFIED + assets runtime du même SHA + composition finale intégralement revérifiée.
+- **Seul `INSTALLABLE_CERTIFIED` peut atteindre un cabinet réel, PyInstaller ou Inno Setup.**
+- Une release universelle couvre `BASIC`, `GOLD`, `ELITE`; jamais trois forks.
+- Les noms release `BASIC/GOLD/ELITE` ne migrent pas implicitement les enums internes historiques.
+- `create_release.ps1` ne copie jamais le working tree : il vérifie hashes + attestation Sigstore puis compose avec les assets externes.
+- `DigitalCrown.spec` doit utiliser la sélection d'assets canonique de `backend/runtime_asset_certification.py`.
+- `run_real_backend.ps1` et `run.py` doivent rester fail-closed avant toute lecture/écriture cabinet.
+- Un merge sur `master` **ne signifie jamais installable**.
+- Toute évolution touchant ou pouvant masquer/altérer DB, migrations, patients, documents, médias, startup, seeds, paths, restore/backup, tenant filtering ou installer exige un rehearsal sur copie fraîche avant certification destinée à un cabinet existant.
+- Ne jamais supprimer, neutraliser, path-filter ou contourner ces gates pour accélérer une livraison.
+
 ## Pièges opérationnels
 
 ### Runtime réel
 
 - Le dépôt de travail n'est pas le runtime cabinet.
 - Ne jamais utiliser un process auto-reload contre le runtime réel.
-- Utiliser les scripts de release immuable sous `backend/scripts/`.
+- Utiliser uniquement une release `INSTALLABLE_CERTIFIED` composée via les scripts sous `backend/scripts/`.
 - Un build de test ne doit jamais écraser un frontend réellement servi.
 
 ### Environnement de test
@@ -93,7 +110,8 @@ Tous imposent un mode **read-only** pour leur phase d'audit/validation.
 - Conserver les hidden imports runtime requis dans `DigitalCrown.spec`.
 - Ne jamais embarquer un `.env` contenant des secrets.
 - `console=False` exige une journalisation fichier fiable.
-- Le bootstrap first-run doit précéder les imports qui figent les settings.
+- La vérification `INSTALLABLE_CERTIFIED` doit précéder le bootstrap first-run.
+- L'intégrité d'un asset runtime n'est pas une validation scientifique : ne jamais confondre les deux.
 
 ## Documents / PDF
 
@@ -119,16 +137,15 @@ npm --prefix frontend run build
 
 ### CI actuelle
 
-`.github/workflows/ci.yml` contient :
+`.github/workflows/ci.yml` contient backend, frontend et garde production négative.
 
-- backend : install + prod safety check + pytest ;
-- frontend : `npm ci` + tests + build ;
-- garde production négatif.
+`.github/workflows/cabinet-upgrade-postgres-cert.yml` est un gate PR global sans filtre de chemin : PostgreSQL 18 + préservation + politique de release.
 
-Ne déclarer aucun head certifié sans preuve du run correspondant.
+Ne déclarer aucun SHA `CODE_CERTIFIED` sans preuve du run + attestation. Ne déclarer aucune version **installable** sans certificat final `INSTALLABLE_CERTIFIED` vérifié.
 
 ## Runbooks utiles
 
+- `docs/CABINET_CERTIFIED_RELEASE_POLICY.md`
 - `docs/CABINET_ONPREM_GUIDE.md`
 - `docs/PREPROD_RUNBOOK.md`
 - `docs/PATIENT_DATA_ROLLBACK.md`
@@ -146,5 +163,7 @@ Ne déclarer aucun head certifié sans preuve du run correspondant.
 8. Review indépendante si requise.
 9. Mettre à jour les canoniques et vérifier leur cohérence.
 10. PR/merge/certification seulement après preuves.
+11. Pour distribution cabinet : certifier le HEAD master exact en `CODE_CERTIFIED`.
+12. Certifier les assets du même SHA, composer en `INSTALLABLE_CERTIFIED`, puis seulement construire/activer.
 
-**Dernière révision canonique : 13 août 2026.**
+**Dernière révision canonique : 12 septembre 2026.**
