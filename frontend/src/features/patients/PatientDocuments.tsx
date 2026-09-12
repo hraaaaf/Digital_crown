@@ -285,7 +285,7 @@ export const PatientDocuments = () => {
                         <MoreHorizontal size={19} />
                       </button>
                       {actionsOpenFor === doc.id && (
-                        <div id={`document-actions-${doc.id}`} data-document-action-menu role="menu" className="absolute left-0 top-12 z-50 w-56 rounded-xl border border-slate-200/80 bg-white/95 shadow-xl backdrop-blur-xl p-1.5">
+                        <div id={`document-actions-${doc.id}`} data-document-action-menu role="menu" className="absolute right-0 top-12 z-50 w-56 rounded-xl border border-slate-200/80 bg-white/95 shadow-xl backdrop-blur-xl p-1.5">
                           {canRecordSignature && (
                             <>
                               <button
