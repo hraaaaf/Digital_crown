@@ -15,7 +15,7 @@
 **Typed read-path :** PR #400 — HEAD certifié `b5f1d991ec1c954840c609dfcd5dcee8063ad9c1` — merge master `5f453d906c0562e53c921c683bb16c1a6deb3536`  
 **R10 registre normatif :** HEAD certifié `9ffd36306ec6fa09b71d590e078af01db67e6888` — CI #3431 SUCCESS — T2 #2411 SUCCESS — PR #431 — merge `d0bdfc4fa47346f27e432139e6785177da4deef3` — closeout R10 master `2ac6ac538c79eb95a3988f2e6da9854b76dbd422`  
 **R11 diagnostic multiaxial :** HEAD certifié `6916dee975acb83d13acd540d5d2e4a8f839a478` — CI #3477 SUCCESS — T2 #2452 SUCCESS — PR #437 — merge `bc66b58b6ee4459362d3bd52150877908bdc996c`  
-**Statut courant :** R11 implémentation FERMÉE ; closeout documentaire R11 en cours ; aucun déploiement ; R12 ne doit être ouvert que dans une nouvelle fenêtre après closeout final.
+**Statut courant :** R11 FERMÉ ; aucun déploiement ; NEXT = R12 dans une nouvelle fenêtre depuis master final vérifié.
 
 ## GOAL GLOBAL
 
@@ -226,7 +226,7 @@ Source, population, contexte, version et règles de classification explicites ; 
 **Preuve :** candidate `9ffd36306ec6fa09b71d590e078af01db67e6888` ; CI #3431 SUCCESS ; T2 #2411 SUCCESS ; PR #431 ; merge `d0bdfc4fa47346f27e432139e6785177da4deef3` ; closeout master `2ac6ac538c79eb95a3988f2e6da9854b76dbd422`.
 
 ### R11 — Diagnostic multiaxial
-**État : FERMÉ côté implémentation ; closeout documentaire en cours.**  
+**État : FERMÉ.**  
 Findings puis hypothèses explicables ; contradictions et données manquantes visibles ; aucune conclusion non sourcée.  
 **Preuve :** candidate `6916dee975acb83d13acd540d5d2e4a8f839a478` ; CI #3477 SUCCESS ; T2 #2452 SUCCESS ; PR #437 ; merge `bc66b58b6ee4459362d3bd52150877908bdc996c` ; master post-merge implementation identique.
 
