@@ -6,9 +6,11 @@ from backend import database, models
 from backend.routers.auth import require_permission
 from backend.services.accounting_service import accounting_service
 from backend.utils.access_control import assert_patient_access
+from backend.routers import patient_practitioner_p2
 
 
 router = APIRouter()
+router.include_router(patient_practitioner_p2.router)
 
 
 @router.get("/{patient_id}/financial-snapshot")
@@ -23,6 +25,10 @@ def get_patient_financial_snapshot_p6(
     Payments remain factual even when no Acte row exists, but in that situation
     `total_billed` and `remaining_due` must not be interpreted as proof that nothing
     is owed. Document-generated voided/trashed payments are excluded everywhere.
+
+    P2 adds an additive practitioner breakdown. Revenue is attributed only when a
+    payment can be traced to an Acte (directly, or through an installment plan linked
+    to an Acte). Payments without that evidence remain explicitly unattributed.
     """
     assert_patient_access(patient_id, current_user, db)
 
@@ -31,26 +37,18 @@ def get_patient_financial_snapshot_p6(
     today = date_type.today()
     visible_payment = accounting_service._visible_payment_filter()
 
-    acte_count = int(
-        db.query(func.count(models.Acte.id))
+    active_actes = (
+        db.query(models.Acte)
         .filter(
             models.Acte.patient_id == patient_id,
             models.Acte.deleted_at.is_(None),
         )
-        .scalar()
-        or 0
+        .all()
     )
+    acte_count = len(active_actes)
     has_billing_data = acte_count > 0
 
-    total_billed = float(
-        db.query(func.sum(models.Acte.montant))
-        .filter(
-            models.Acte.patient_id == patient_id,
-            models.Acte.deleted_at.is_(None),
-        )
-        .scalar()
-        or 0.0
-    )
+    total_billed = sum(float(acte.montant or 0.0) for acte in active_actes)
     total_collected = float(
         db.query(func.sum(models.Payment.amount))
         .outerjoin(models.Acte, models.Payment.acte_id == models.Acte.id)
@@ -62,6 +60,74 @@ def get_patient_financial_snapshot_p6(
         or 0.0
     )
     remaining_due = max(total_billed - total_collected, 0.0) if has_billing_data else None
+
+    # P2 — production/encaissement par praticien, sans répartition inventée.
+    acte_by_id = {acte.id: acte for acte in active_actes}
+    practitioner_ids = {acte.praticien_id for acte in active_actes if acte.praticien_id is not None}
+    practitioners = (
+        db.query(models.User).filter(models.User.id.in_(practitioner_ids)).all()
+        if practitioner_ids else []
+    )
+    practitioner_names = {
+        user.id: (user.nom_complet or user.email or f"Praticien {user.id}")
+        for user in practitioners
+    }
+    breakdown = {}
+    for acte in active_actes:
+        if acte.praticien_id is None:
+            continue
+        row = breakdown.setdefault(
+            acte.praticien_id,
+            {
+                "practitioner_id": acte.praticien_id,
+                "practitioner_name": practitioner_names.get(acte.praticien_id, f"Praticien {acte.praticien_id}"),
+                "act_count": 0,
+                "total_billed": 0.0,
+                "linked_collected": 0.0,
+            },
+        )
+        row["act_count"] += 1
+        row["total_billed"] += float(acte.montant or 0.0)
+
+    installment_to_acte = {
+        installment_id: acte_id
+        for installment_id, acte_id in (
+            db.query(models.Installment.id, models.InstallmentPlan.acte_id)
+            .join(models.InstallmentPlan, models.Installment.plan_id == models.InstallmentPlan.id)
+            .filter(
+                models.InstallmentPlan.patient_id == patient_id,
+                models.InstallmentPlan.acte_id.isnot(None),
+            )
+            .all()
+        )
+    }
+    visible_payments = (
+        db.query(models.Payment)
+        .outerjoin(models.Acte, models.Payment.acte_id == models.Acte.id)
+        .filter(
+            models.Payment.patient_id == patient_id,
+            visible_payment,
+        )
+        .all()
+    )
+    unattributed_collected = 0.0
+    for payment in visible_payments:
+        linked_acte_id = payment.acte_id
+        if linked_acte_id is None and payment.installment_id is not None:
+            linked_acte_id = installment_to_acte.get(payment.installment_id)
+        linked_acte = acte_by_id.get(linked_acte_id) if linked_acte_id is not None else None
+        practitioner_id = linked_acte.praticien_id if linked_acte is not None else None
+        if practitioner_id is not None and practitioner_id in breakdown:
+            breakdown[practitioner_id]["linked_collected"] += float(payment.amount or 0.0)
+        else:
+            unattributed_collected += float(payment.amount or 0.0)
+
+    by_practitioner = []
+    for row in sorted(breakdown.values(), key=lambda item: item["practitioner_name"].lower()):
+        row["total_billed"] = round(row["total_billed"], 2)
+        row["linked_collected"] = round(row["linked_collected"], 2)
+        row["linked_remaining_due"] = round(max(row["total_billed"] - row["linked_collected"], 0.0), 2)
+        by_practitioner.append(row)
 
     overdue_actes = (
         db.query(models.Acte)
@@ -166,4 +232,6 @@ def get_patient_financial_snapshot_p6(
         "next_installment": next_installment,
         "recent_payments": recent_list,
         "payment_methods": payment_methods,
+        "by_practitioner": by_practitioner,
+        "unattributed_collected": round(unattributed_collected, 2),
     }
