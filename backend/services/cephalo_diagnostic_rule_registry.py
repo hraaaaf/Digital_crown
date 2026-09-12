@@ -11,7 +11,20 @@ from dataclasses import dataclass
 from types import MappingProxyType
 from typing import Dict, Mapping, Optional, Tuple
 
-from backend.services.cephalo_norm_registry import NormRegistry, registry as default_norm_registry
+from backend.services.cephalo_norm_registry import (
+    NormRegistry,
+    SourceTier,
+    registry as default_norm_registry,
+)
+
+
+_ADMISSIBLE_RULE_SOURCE_TIERS = frozenset(
+    {
+        SourceTier.PRIMARY_ARTICLE,
+        SourceTier.PEER_REVIEWED_POPULATION_STUDY,
+        SourceTier.PEER_REVIEWED_REVIEW,
+    }
+)
 
 
 @dataclass(frozen=True)
@@ -53,6 +66,14 @@ class DiagnosticRuleRegistry:
         unknown = sorted(set(source_ids) - set(self._norm_registry.sources))
         if unknown:
             raise ValueError(f"Unknown diagnostic rule source(s): {', '.join(unknown)}")
+        resolved = [self._norm_registry.get_source(source_id) for source_id in source_ids]
+        if not any(
+            source is not None and source.tier in _ADMISSIBLE_RULE_SOURCE_TIERS
+            for source in resolved
+        ):
+            raise ValueError(
+                "Diagnostic rule requires at least one peer-reviewed scientific source"
+            )
 
     def register_finding_rule(self, rule: FindingRuleDefinition) -> None:
         self._nonempty(rule.rule_id, "rule_id")
