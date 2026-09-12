@@ -31,7 +31,17 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
 import { PatientDocuments } from './features/patients/PatientDocuments';
+import { api } from './services/api';
 import './index.css';
+
+const fixture = ${JSON.stringify(doc)};
+(api as any).get = async (url: string) => {
+  if (url === '/patients/915/documents') return { data: [fixture], status: 200 };
+  throw new Error('Unexpected GET in deterministic document-history visual cert: ' + url);
+};
+(api as any).post = async (url: string) => {
+  throw new Error('Unexpected POST in deterministic document-history visual cert: ' + url);
+};
 
 document.body.dataset.theme = 'light';
 ReactDOM.createRoot(document.getElementById('root')!).render(
@@ -42,7 +52,6 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
 `;
 
 const htmlSource = `<!doctype html><html lang="fr"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/><title>Document history actions cert</title><style>html,body,#root{width:100%;min-height:100%;margin:0}body{padding:16px;box-sizing:border-box}</style></head><body><div id="root"></div><script type="module" src="/src/document-history-actions-cert-entry.tsx"></script></body></html>`;
-const json = (body, status = 200) => ({ status, contentType: 'application/json', body: JSON.stringify(body) });
 
 async function waitForServer(url, timeoutMs = 30000) {
   const startedAt = Date.now();
@@ -61,7 +70,7 @@ await writeFile(path.join(FRONTEND_DIR, 'document-history-actions-cert.html'), h
 const viteBin = path.join(FRONTEND_DIR, 'node_modules', '.bin', process.platform === 'win32' ? 'vite.cmd' : 'vite');
 const server = spawn(viteBin, ['--host', '127.0.0.1', '--port', String(PORT)], {
   cwd: FRONTEND_DIR,
-  env: { ...process.env, BROWSER: 'none', VITE_API_URL: 'http://127.0.0.1:8005' },
+  env: { ...process.env, BROWSER: 'none' },
   stdio: ['ignore', 'pipe', 'pipe'],
 });
 let serverLog = '';
@@ -79,7 +88,6 @@ try {
     const page = await context.newPage();
     const pageErrors = [];
     const consoleErrors = [];
-    const apiRequests = [];
     page.on('pageerror', error => pageErrors.push(error.message));
     page.on('console', message => { if (message.type() === 'error') consoleErrors.push(message.text()); });
 
@@ -87,19 +95,22 @@ try {
       const request = route.request();
       const url = new URL(request.url());
       if (url.hostname === '127.0.0.1' && url.port === String(PORT)) return route.continue();
-      if (url.hostname === '127.0.0.1' && url.port === '8005') {
-        apiRequests.push(`${request.method()} ${url.pathname}${url.search}`);
-        if (request.method() === 'GET' && url.pathname === '/api/patients/915/documents') return route.fulfill(json([doc]));
-        return route.fulfill(json({ detail: 'Endpoint neutralisé dans la certification visuelle' }, 418));
-      }
-      if (url.hostname === 'fonts.googleapis.com') return route.fulfill({ status: 200, contentType: 'text/css; charset=utf-8', body: '/* offline */' });
+      if (url.hostname === 'fonts.googleapis.com') return route.fulfill({ status: 200, contentType: 'text/css; charset=utf-8', body: '/* offline visual harness */' });
       blockedExternalRequests.push({ viewport: viewport.name, url: request.url(), method: request.method() });
       return route.abort('blockedbyclient');
     });
 
     const response = await page.goto(`${BASE_URL}/document-history-actions-cert.html`, { waitUntil: 'domcontentloaded', timeout: 30000 });
+    try {
+      await page.getByText(doc.name, { exact: true }).waitFor({ state: 'visible', timeout: 15000 });
+    } catch (error) {
+      await page.screenshot({ path: path.join(OUTPUT_DIR, `debug-${viewport.name}.png`), fullPage: true });
+      await writeFile(path.join(OUTPUT_DIR, `debug-${viewport.name}.txt`), `${error}\n\nBODY:\n${await page.locator('body').innerText()}\n\nPAGE_ERRORS:\n${pageErrors.join('\n')}\n\nCONSOLE_ERRORS:\n${consoleErrors.join('\n')}`, 'utf8');
+      throw error;
+    }
+
     const actionButton = page.getByRole('button', { name: `Actions du document ${doc.name}`, exact: true });
-    await actionButton.waitFor({ state: 'visible', timeout: 30000 });
+    await actionButton.waitFor({ state: 'visible', timeout: 10000 });
     await actionButton.click();
     const edit = page.locator('[data-document-action="edit"]');
     const trash = page.locator('[data-document-action="trash"]');
@@ -131,7 +142,7 @@ try {
       metrics.menuWithinViewport && pageErrors.length === 0 && consoleErrors.length === 0;
     const shot = `document-actions-${viewport.name}.png`;
     await page.screenshot({ path: path.join(OUTPUT_DIR, shot), fullPage: false });
-    captures.push({ viewport: viewport.name, httpStatus: response?.status() ?? null, apiRequests, pageErrors, consoleErrors, metrics, shot, valid });
+    captures.push({ viewport: viewport.name, httpStatus: response?.status() ?? null, pageErrors, consoleErrors, metrics, shot, valid });
     await context.close();
     await browser.close();
   }
@@ -140,7 +151,7 @@ try {
     certificate: 'DOCUMENT_HISTORY_ACTIONS_VISUAL_CERT_V2',
     productHead: PRODUCT_HEAD,
     viewports: viewports.map(v => v.name),
-    policy: 'Actual PatientDocuments component, deterministic API fixture, no backend/auth dependency, fresh Chromium per viewport.',
+    policy: 'Actual PatientDocuments component, deterministic in-process API fixture, no backend/auth/network dependency, fresh Chromium per viewport.',
     captures,
     blockedExternalRequests,
     invalidCount: captures.filter(c => !c.valid).length,
