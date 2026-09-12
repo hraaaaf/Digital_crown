@@ -20,6 +20,7 @@ const stage = (overrides: Record<string, unknown>) => ({
   blocking_gates: ['r11_authoritative_snapshot_not_persisted'],
   missing_data_refs: ['measurement:missing'],
   contradictions: ['contradiction:test'],
+  contraindications: ['contraindication:test'],
   provenance: [{ label: 'Source', value: 'typed-evidence-v1' }],
   clinician_action: {
     available: false,
@@ -84,6 +85,12 @@ describe('ClinicalScientificStudio R15', () => {
     expect(screen.getByText('clinician_selection_required')).toBeInTheDocument();
     expect(screen.getByText('Aucune validation disponible')).toBeInTheDocument();
     expect(screen.getByText(/preuve backend résolue/i)).toBeInTheDocument();
+    expect(screen.getByText('Données manquantes')).toBeInTheDocument();
+    expect(screen.getByText('Contradictions')).toBeInTheDocument();
+    expect(screen.getByText('Contre-indications')).toBeInTheDocument();
+    expect(screen.getByText('measurement:missing')).toBeInTheDocument();
+    expect(screen.getByText('contradiction:test')).toBeInTheDocument();
+    expect(screen.getByText('contraindication:test')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /valider|accepter|sélectionner/i })).not.toBeInTheDocument();
   });
 
