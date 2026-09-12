@@ -18,6 +18,23 @@ export function clearDocumentAuthorPractitionerId(): void {
   selectedAuthorPractitionerId = null;
 }
 
+export function resolveDocumentAuthorPreselection(
+  practitioners: DocumentPractitionerOption[],
+  currentUserId: number | null,
+  referentPractitionerId: number | null,
+): number | null {
+  if (currentUserId !== null && practitioners.some(item => item.id === currentUserId)) {
+    return currentUserId;
+  }
+  if (
+    referentPractitionerId !== null &&
+    practitioners.some(item => item.id === referentPractitionerId)
+  ) {
+    return referentPractitionerId;
+  }
+  return practitioners.length === 1 ? practitioners[0].id : null;
+}
+
 export interface RequestInterceptorClient {
   interceptors: {
     request: {
