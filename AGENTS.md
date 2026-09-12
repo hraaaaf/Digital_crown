@@ -43,6 +43,21 @@ Source : `backend/main.py::validate_environment_invariants()`.
 - Médias sensibles : routes authentifiées et tenant-aware, jamais accès statique public.
 - Ne jamais logger secrets, tokens, mots de passe ou master key.
 
+### Installation / release cabinet — INVARIANT ABSOLU
+
+Lire `docs/CABINET_CERTIFIED_RELEASE_POLICY.md` avant toute opération de build, packaging, installation, activation ou mise à jour cabinet.
+
+- **Interdit d'installer ou démarrer `master`, `HEAD`, une branche, un tag ou un working tree.**
+- L'unique unité installable est un artefact **CI certifié** pour un SHA Git exact de 40 caractères déjà intégré à `master`.
+- Toute release installable doit porter `release-certification.json`, `.digitalcrown-release-sha` et `release-content.sha256` valides.
+- Une release cabinet est universelle et doit être certifiée simultanément pour `BASIC`, `GOLD` et `ELITE` ; jamais trois forks/binaires divergents.
+- `create_release.ps1` ne doit jamais recopier/reconstruire le working tree : il importe seulement l'artefact certifié.
+- `run_real_backend.ps1` doit rester fail-closed sur l'identité/hashes de release avant toute activation réelle.
+- PyInstaller/Inno Setup ne doivent jamais produire un build installable depuis une source non certifiée.
+- Un merge sur `master` **ne signifie pas installable**. Seul le workflow `.github/workflows/cabinet-release-certification.yml` peut produire l'artefact installable.
+- Toute évolution pouvant toucher DB, migrations, patients, documents, médias, startup, seeds, paths, restore/backup, tenant filtering ou installer exige un rehearsal sur copie fraîche des données réelles avant certification destinée à un cabinet existant.
+- Il est interdit de supprimer, neutraliser, path-filter ou contourner ces gates pour « débloquer » une release.
+
 ### Domaines scientifiques / cliniques
 
 Pour tout scope clinique ou scientifique :
@@ -71,7 +86,7 @@ Les skills d'audit sont **read-only**. Un finding se corrige dans un lot sépar�
 
 - Le dépôt de travail n'est pas le runtime cabinet.
 - Ne jamais lancer un process auto-reload contre le runtime réel.
-- Utiliser les scripts de release immuable sous `backend/scripts/` pour les opérations cabinet.
+- Utiliser uniquement une release certifiée importée via les scripts sous `backend/scripts/` pour les opérations cabinet.
 - Un build de test ne doit jamais écraser un frontend réellement servi.
 
 ### Environnement de test
@@ -97,7 +112,7 @@ Les skills d'audit sont **read-only**. Un finding se corrige dans un lot sépar�
 - Conserver les hidden imports runtime nécessaires dans `DigitalCrown.spec`.
 - Ne jamais embarquer un `.env` contenant des secrets.
 - `console=False` exige une journalisation fichier fiable.
-- Le bootstrap first-run doit précéder les imports qui figent les settings.
+- Le bootstrap first-run doit précéder les imports qui figent les settings, mais **la vérification d'identité de release certifiée doit précéder le bootstrap first-run**.
 
 ### Modèles
 
@@ -136,10 +151,13 @@ npm --prefix frontend run build
 - frontend : `npm ci` + tests + build ;
 - garde production négatif.
 
-Ne déclarer aucun head certifié sans preuve du run correspondant.
+`.github/workflows/cabinet-upgrade-postgres-cert.yml` est un gate PR global sans filtre de chemin et verrouille PostgreSQL 18 + préservation + politique de release.
+
+Ne déclarer aucun head certifié sans preuve du run correspondant. Ne déclarer aucune version **installable** sans artefact du workflow `Cabinet Certified Release` sur le SHA exact.
 
 ## Runbooks utiles
 
+- `docs/CABINET_CERTIFIED_RELEASE_POLICY.md`
 - `docs/CABINET_ONPREM_GUIDE.md`
 - `docs/PREPROD_RUNBOOK.md`
 - `docs/PATIENT_DATA_ROLLBACK.md`
@@ -157,5 +175,6 @@ Ne déclarer aucun head certifié sans preuve du run correspondant.
 8. Mettre à jour les canoniques.
 9. Vérifier leur cohérence.
 10. PR/merge/certification seulement après preuves.
+11. Pour une installation cabinet : certifier le SHA mergé via `Cabinet Certified Release`, puis importer/activer uniquement l'artefact émis.
 
-**Dernière révision canonique : 13 août 2026.**
+**Dernière révision canonique : 12 septembre 2026.**
