@@ -70,7 +70,9 @@ def test_moroccan_source_is_registered_without_unverified_numeric_reference():
     assert source is not None
     assert source.doi == "10.1016/j.ortho.2011.12.001"
     assert source.pmid == "22236522"
-    assert not any("MOROCCO" in ref.reference_id for ref in registry.references.values())
+    assert not any(
+        ref.kind == ReferenceKind.MEAN_SD for ref in registry.references.values()
+    )
 
 
 def test_duplicate_source_and_reference_ids_are_rejected():
