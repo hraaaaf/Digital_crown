@@ -66,12 +66,15 @@ Tous imposent un mode **read-only** pour leur phase d'audit/validation.
 Lire `docs/CABINET_CERTIFIED_RELEASE_POLICY.md` avant toute opération de build, packaging, installation, activation ou mise à jour cabinet.
 
 - **Interdit d'installer ou démarrer `master`, `HEAD`, une branche, un tag ou un working tree.**
-- L'unique unité installable est un artefact **CI certifié** pour un SHA Git exact de 40 caractères déjà intégré à `master`.
-- Toute release installable doit porter `release-certification.json`, `.digitalcrown-release-sha` et `release-content.sha256` valides.
-- Une release cabinet est universelle et doit être certifiée simultanément pour `BASIC`, `GOLD` et `ELITE` ; jamais trois forks/binaires divergents.
-- `create_release.ps1` importe uniquement l'artefact certifié et ne copie jamais le working tree.
-- `run_real_backend.ps1`, PyInstaller, l'EXE et Inno Setup doivent rester fail-closed si l'identité certifiée manque ou diverge.
-- Un merge sur `master` **ne signifie jamais installable**. Seul `.github/workflows/cabinet-release-certification.yml` émet l'artefact installable.
+- `CODE_CERTIFIED` = SHA exact validé par CI + provenance GitHub/Sigstore. **Non installable.**
+- `INSTALLABLE_CERTIFIED` = CODE_CERTIFIED + assets runtime du même SHA + composition finale intégralement revérifiée.
+- **Seul `INSTALLABLE_CERTIFIED` peut atteindre un cabinet réel, PyInstaller ou Inno Setup.**
+- Une release universelle couvre `BASIC`, `GOLD`, `ELITE`; jamais trois forks.
+- Les noms release `BASIC/GOLD/ELITE` ne migrent pas implicitement les enums internes historiques.
+- `create_release.ps1` ne copie jamais le working tree : il vérifie hashes + attestation Sigstore puis compose avec les assets externes.
+- `DigitalCrown.spec` doit utiliser la sélection d'assets canonique de `backend/runtime_asset_certification.py`.
+- `run_real_backend.ps1` et `run.py` doivent rester fail-closed avant toute lecture/écriture cabinet.
+- Un merge sur `master` **ne signifie jamais installable**.
 - Toute évolution touchant ou pouvant masquer/altérer DB, migrations, patients, documents, médias, startup, seeds, paths, restore/backup, tenant filtering ou installer exige un rehearsal sur copie fraîche avant certification destinée à un cabinet existant.
 - Ne jamais supprimer, neutraliser, path-filter ou contourner ces gates pour accélérer une livraison.
 
@@ -81,7 +84,7 @@ Lire `docs/CABINET_CERTIFIED_RELEASE_POLICY.md` avant toute opération de build,
 
 - Le dépôt de travail n'est pas le runtime cabinet.
 - Ne jamais utiliser un process auto-reload contre le runtime réel.
-- Utiliser uniquement une release certifiée importée via les scripts sous `backend/scripts/`.
+- Utiliser uniquement une release `INSTALLABLE_CERTIFIED` composée via les scripts sous `backend/scripts/`.
 - Un build de test ne doit jamais écraser un frontend réellement servi.
 
 ### Environnement de test
@@ -107,7 +110,8 @@ Lire `docs/CABINET_CERTIFIED_RELEASE_POLICY.md` avant toute opération de build,
 - Conserver les hidden imports runtime requis dans `DigitalCrown.spec`.
 - Ne jamais embarquer un `.env` contenant des secrets.
 - `console=False` exige une journalisation fichier fiable.
-- Le bootstrap first-run doit précéder les imports qui figent les settings, mais **la vérification de release certifiée doit précéder le bootstrap first-run**.
+- La vérification `INSTALLABLE_CERTIFIED` doit précéder le bootstrap first-run.
+- L'intégrité d'un asset runtime n'est pas une validation scientifique : ne jamais confondre les deux.
 
 ## Documents / PDF
 
@@ -137,7 +141,7 @@ npm --prefix frontend run build
 
 `.github/workflows/cabinet-upgrade-postgres-cert.yml` est un gate PR global sans filtre de chemin : PostgreSQL 18 + préservation + politique de release.
 
-Ne déclarer aucun head certifié sans preuve du run correspondant. Ne déclarer aucune version **installable** sans artefact du workflow `Cabinet Certified Release` sur le SHA exact.
+Ne déclarer aucun SHA `CODE_CERTIFIED` sans preuve du run + attestation. Ne déclarer aucune version **installable** sans certificat final `INSTALLABLE_CERTIFIED` vérifié.
 
 ## Runbooks utiles
 
@@ -159,6 +163,7 @@ Ne déclarer aucun head certifié sans preuve du run correspondant. Ne déclarer
 8. Review indépendante si requise.
 9. Mettre à jour les canoniques et vérifier leur cohérence.
 10. PR/merge/certification seulement après preuves.
-11. Pour un cabinet : certifier le SHA mergé via `Cabinet Certified Release`, puis importer/activer uniquement l'artefact émis.
+11. Pour distribution cabinet : certifier le HEAD master exact en `CODE_CERTIFIED`.
+12. Certifier les assets du même SHA, composer en `INSTALLABLE_CERTIFIED`, puis seulement construire/activer.
 
 **Dernière révision canonique : 12 septembre 2026.**
