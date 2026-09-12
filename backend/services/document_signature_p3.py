@@ -1,9 +1,8 @@
-"""Fail-closed P3 document signing and public verification state.
+"""Fail-closed P3 document signature provenance and public verification state.
 
-A signature is meaningful only when it is bound to the exact archived bytes.
-The authenticated practitioner signs only their own authored canonical document.
-Legacy documents without author provenance remain unsigned until explicitly
-regenerated under P3 provenance.
+This is application-level practitioner signature provenance bound to the exact archived
+bytes through their persisted SHA-256 and size. It is not a qualified electronic
+signature, PKI signature, or certificate-backed digital signature.
 """
 
 from __future__ import annotations
@@ -12,7 +11,6 @@ import hashlib
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import Optional
 
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
@@ -44,7 +42,7 @@ def resolve_document_storage_path(doc: models.DocumentArchive) -> Path:
 
 
 def verify_document_integrity(doc: models.DocumentArchive) -> tuple[bool, str]:
-    """Verify that the physical bytes still match the persisted SHA-256 and size."""
+    """Verify that physical bytes still match the persisted SHA-256 and size."""
     path = resolve_document_storage_path(doc)
     if not path.is_file():
         return False, "Fichier physique introuvable"
@@ -61,7 +59,7 @@ def verify_document_integrity(doc: models.DocumentArchive) -> tuple[bool, str]:
 
 
 def verification_state_for_document(doc: models.DocumentArchive) -> DocumentVerificationState:
-    """Return truthful public verification state for one canonical archive."""
+    """Return truthful integrity/signature-provenance state for one canonical archive."""
     if doc.status != models.DocumentStatus.ACTIF:
         return DocumentVerificationState(
             is_valid=False,
@@ -96,14 +94,18 @@ def verification_state_for_document(doc: models.DocumentArchive) -> DocumentVeri
         return DocumentVerificationState(
             is_valid=True,
             is_signed=True,
-            status_text="Authentique & Signé",
+            status_text="Intégrité vérifiée • Signature praticien enregistrée",
             status_color="#10b981",
+            warning_msg=(
+                "Signature applicative Digital Crown liée à cette empreinte SHA-256 ; "
+                "ce statut ne constitue pas une signature électronique qualifiée."
+            ),
         )
 
     return DocumentVerificationState(
         is_valid=True,
         is_signed=False,
-        status_text="Authentique • Non signé",
+        status_text="Intégrité vérifiée • Non signé",
         status_color="#f59e0b",
         warning_msg="Aucune signature praticien n'est enregistrée pour ce document.",
     )
@@ -114,7 +116,7 @@ def sign_document(
     doc: models.DocumentArchive,
     current_user: models.User,
 ) -> models.DocumentArchive:
-    """Bind the current authenticated author to the exact current archive bytes."""
+    """Record the authenticated author against the exact current archive bytes."""
     employer_id = current_user.get_employer_id()
     if not is_assignable_practitioner(current_user, employer_id):
         raise HTTPException(status_code=403, detail="Seul un praticien actif et approuvé peut signer")
