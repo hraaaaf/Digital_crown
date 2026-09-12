@@ -2,13 +2,6 @@ name: Cabinet Upgrade PostgreSQL Certification
 
 on:
   pull_request:
-    paths:
-      - "backend/database.py"
-      - "backend/seed_user.py"
-      - "backend/tests/test_cabinet_upgrade_compatibility.py"
-      - "backend/tests/test_cabinet_upgrade_postgres.py"
-      - "backend/tests/test_clinic_local_data_preservation.py"
-      - ".github/workflows/cabinet-upgrade-postgres-cert.yml"
   workflow_dispatch:
 
 permissions:
@@ -20,6 +13,7 @@ concurrency:
 
 jobs:
   postgres-18-upgrade-gate:
+    name: PostgreSQL 18 + immutable release invariants
     runs-on: ubuntu-latest
     services:
       postgres:
@@ -55,10 +49,11 @@ jobs:
           pip install -r requirements.txt
           pip install pytest
 
-      - name: Run cabinet upgrade compatibility gates on PostgreSQL 18
+      - name: Run cabinet preservation and release-policy gates on PostgreSQL 18
         run: |
           python -m pytest \
             backend/tests/test_cabinet_upgrade_compatibility.py \
             backend/tests/test_cabinet_upgrade_postgres.py \
             backend/tests/test_clinic_local_data_preservation.py \
+            backend/tests/test_certified_release_policy.py \
             -q
