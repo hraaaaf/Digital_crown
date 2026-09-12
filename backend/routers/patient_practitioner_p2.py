@@ -7,6 +7,11 @@ from sqlalchemy.orm import Session
 from backend import database, models
 from backend.models_clinic_p2 import PatientPractitionerAssignment
 from backend.routers.auth import require_permission
+from backend.services.practitioner_policy import (
+    is_assignable_practitioner,
+    practitioner_payload,
+    validate_practitioner,
+)
 from backend.utils.access_control import assert_patient_access
 
 
@@ -18,26 +23,18 @@ class PatientPractitionerAssignmentIn(BaseModel):
 
 
 def _is_assignable_practitioner(user: models.User, employer_id: int) -> bool:
-    if not user.is_active or user.approval_status != models.ApprovalStatus.APPROVED.value:
-        return False
-    if user.id == employer_id:
-        return user.role in (models.UserRole.DENTISTE, models.UserRole.ADMIN)
-    return user.employer_id == employer_id and user.role == models.UserRole.DENTISTE
+    """Backward-compatible alias for the shared P3 practitioner policy."""
+    return is_assignable_practitioner(user, employer_id)
 
 
 def _validate_practitioner(db: Session, employer_id: int, practitioner_id: int) -> models.User:
-    practitioner = db.query(models.User).filter(models.User.id == practitioner_id).first()
-    if not practitioner or not _is_assignable_practitioner(practitioner, employer_id):
-        raise HTTPException(status_code=403, detail="Praticien non assignable dans ce cabinet")
-    return practitioner
+    """Backward-compatible alias for the shared P3 practitioner policy."""
+    return validate_practitioner(db, employer_id, practitioner_id)
 
 
 def _practitioner_payload(user: models.User) -> dict:
-    return {
-        "id": user.id,
-        "name": user.nom_complet or user.email or f"Praticien {user.id}",
-        "role": getattr(user.role, "value", user.role),
-    }
+    """Backward-compatible alias for the shared P3 practitioner payload."""
+    return practitioner_payload(user)
 
 
 @router.get("/_clinic/practitioners")
@@ -50,9 +47,9 @@ def list_patient_practitioners(
     candidates = db.query(models.User).filter(
         (models.User.id == employer_id) | (models.User.employer_id == employer_id)
     ).all()
-    practitioners = [user for user in candidates if _is_assignable_practitioner(user, employer_id)]
+    practitioners = [user for user in candidates if is_assignable_practitioner(user, employer_id)]
     practitioners.sort(key=lambda user: (0 if user.id == employer_id else 1, (user.nom_complet or user.email or "").lower()))
-    return [_practitioner_payload(user) for user in practitioners]
+    return [practitioner_payload(user) for user in practitioners]
 
 
 @router.get("/{patient_id}/practitioner")
@@ -71,7 +68,7 @@ def get_patient_practitioner(
     practitioner = db.query(models.User).filter(models.User.id == assignment.practitioner_id).first()
     return {
         "patient_id": patient_id,
-        "practitioner": _practitioner_payload(practitioner) if practitioner else None,
+        "practitioner": practitioner_payload(practitioner) if practitioner else None,
     }
 
 
@@ -87,7 +84,7 @@ def set_patient_practitioner(
     employer_id = current_user.get_employer_id()
     practitioner = None
     if payload.practitioner_id is not None:
-        practitioner = _validate_practitioner(db, employer_id, payload.practitioner_id)
+        practitioner = validate_practitioner(db, employer_id, payload.practitioner_id)
 
     assignment = db.query(PatientPractitionerAssignment).filter(
         PatientPractitionerAssignment.patient_id == patient_id,
@@ -109,5 +106,5 @@ def set_patient_practitioner(
     db.commit()
     return {
         "patient_id": patient_id,
-        "practitioner": _practitioner_payload(practitioner) if practitioner else None,
+        "practitioner": practitioner_payload(practitioner) if practitioner else None,
     }

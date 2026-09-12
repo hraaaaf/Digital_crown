@@ -16,6 +16,7 @@ from backend.services.generators.bilan_ortho_gen import BilanOrthoPDFGenerator
 from backend.services.generators.installment_gen import generate_installment_plan
 from backend.services.archive_service import ArchiveService
 from backend.services.certificate_payload_policy import normalize_and_validate_certificate_data
+from backend.services.document_provenance_context import effective_document_practitioner_id
 from backend.services.honoraires_contract import validate_honoraires_document_data
 
 logger = logging.getLogger(__name__)
@@ -91,31 +92,37 @@ class DocumentFactory:
         """Génère une ordonnance PDF via ReportLab (Stable v1.2 Ghost Elite)."""
         if custom_config and custom_config.get("settings_preview"):
             return self._create_settings_preview_ordonnance(patient, data, db, user_id, custom_config)
-        return self.ord_gen.generate(patient, data, db=db, user_id=user_id, custom_config=custom_config)
+        render_user_id = effective_document_practitioner_id(user_id)
+        return self.ord_gen.generate(patient, data, db=db, user_id=render_user_id, custom_config=custom_config)
 
     def create_certificat(self, patient, data, db: Session = None, user_id: int = None):
         """Génère un certificat médical PDF après validation du contrat P3."""
         validated_data = normalize_and_validate_certificate_data(data)
-        return self.cert_gen.generate(patient, validated_data, db=db, user_id=user_id)
+        render_user_id = effective_document_practitioner_id(user_id)
+        return self.cert_gen.generate(patient, validated_data, db=db, user_id=render_user_id)
 
     def create_note_honoraires(self, patient, data, db: Session = None, user_id: int = None):
         validated_data = validate_honoraires_document_data(data)
         facture_seq = getattr(validated_data, 'facture_numero', None)
-        return self.acc_gen.generate_note(patient, validated_data, facture_number=facture_seq, db=db, user_id=user_id)
+        render_user_id = effective_document_practitioner_id(user_id)
+        return self.acc_gen.generate_note(patient, validated_data, facture_number=facture_seq, db=db, user_id=render_user_id)
     
     def create_devis(self, patient, data, db: Session = None, user_id: int = None):
         devis_seq = getattr(data, 'devis_numero', None)
-        return self.acc_gen.generate_devis(patient, data, document_number=devis_seq, db=db, user_id=user_id)
+        render_user_id = effective_document_practitioner_id(user_id)
+        return self.acc_gen.generate_devis(patient, data, document_number=devis_seq, db=db, user_id=render_user_id)
     
     def create_document_libre(self, patient, data, db: Session = None, user_id: int = None):
-        return self.libre_gen.generate(patient, data, db=db, user_id=user_id)
+        render_user_id = effective_document_practitioner_id(user_id)
+        return self.libre_gen.generate(patient, data, db=db, user_id=render_user_id)
     
     def create_cephalo_report(self, patient, analysis, db: Session = None, user_id: int = None):
         try:
             cabinet, user = None, None
-            if db and user_id:
-                cabinet = self._get_cabinet_config(user_id, db)
-                user = db.query(models.User).filter(models.User.id == user_id).first()
+            render_user_id = effective_document_practitioner_id(user_id)
+            if db and render_user_id:
+                cabinet = self._get_cabinet_config(render_user_id, db)
+                user = db.query(models.User).filter(models.User.id == render_user_id).first()
 
             results_dict = analysis.results if hasattr(analysis, 'results') else analysis.get('results', analysis)
             radio_image_path = getattr(analysis, 'image_path', getattr(analysis, 'image_original_path', None))

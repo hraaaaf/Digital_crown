@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 
 from backend import models
 from backend.services.acte_classification import classify_acte_type
+from backend.services.document_provenance_context import effective_document_practitioner_id
 
 
 _PAYMENT_METHOD_ALIASES = {
@@ -109,6 +110,10 @@ def persist_honoraires_lines(
 
     No commit is performed here. The caller owns the transaction.
     """
+    practitioner_id = effective_document_practitioner_id(practitioner_id)
+    if practitioner_id is None:
+        raise ValueError("Praticien auteur requis pour persister les honoraires")
+
     item_list = list(items)
     if not item_list:
         raise ValueError("Une note d'honoraires doit contenir au moins un acte.")
