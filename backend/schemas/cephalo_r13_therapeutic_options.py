@@ -7,6 +7,7 @@ selection remains a clinician action with an auditable validation record.
 
 from __future__ import annotations
 
+import datetime
 from enum import Enum
 from typing import Dict, List, Literal, Optional
 
@@ -117,7 +118,7 @@ class R13TreatmentOptionEvidence(_StrictModel):
     label: str = Field(min_length=1)
     status: R13TreatmentOptionStatus = R13TreatmentOptionStatus.BLOCKED
     clinician_id: Optional[str] = None
-    clinician_decided_at: Optional[str] = None
+    clinician_decided_at: Optional[datetime.datetime] = None
     decision_validation_ref: Optional[str] = None
 
     @model_validator(mode="after")
