@@ -17,6 +17,7 @@ from backend.schemas.cephalo_evidence import (
 )
 from backend.schemas.clinical import CephaloAnalysisResult
 from backend.services.cephalo_mcnamara_evidence import adapt_mcnamara_measurements
+from backend.services.cephalo_ricketts_evidence import adapt_ricketts_measurements
 
 
 @dataclass(frozen=True)
@@ -254,6 +255,14 @@ def adapt_craniom_linear_measurements(
     adapted.extend(
         adapt_mcnamara_measurements(
             measurement_namespace=f"{measurement_namespace}:r8",
+            constructions=constructions,
+            mm_per_pixel=result.analysis_metadata.pixel_ratio,
+            calibration_ref=calibration_ref,
+        )
+    )
+    adapted.extend(
+        adapt_ricketts_measurements(
+            measurement_namespace=f"{measurement_namespace}:r9",
             constructions=constructions,
             mm_per_pixel=result.analysis_metadata.pixel_ratio,
             calibration_ref=calibration_ref,

@@ -26,10 +26,18 @@ CASE_ID = "cephalo:auto-calibration-test"
 
 
 def _raw():
-    return [
+    raw = [
         {"id": name, "x": float(100 + index * 2), "y": float(120 + index * 3)}
         for index, name in SOTA_LANDMARKS_MAPPING.items()
     ]
+    for item in raw:
+        if item["id"] == "Pog":
+            item["x"] += 8.0
+        elif item["id"] == "Go":
+            item["y"] += 6.0
+        elif item["id"] == "Pog_soft":
+            item["x"] += 7.0
+    return raw
 
 
 def _points(raw):

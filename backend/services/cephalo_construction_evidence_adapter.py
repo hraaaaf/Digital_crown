@@ -24,6 +24,7 @@ from backend.services.cephalo_geometric_conventions import (
     get_active_craniom_convention,
 )
 from backend.services.cephalo_mcnamara_evidence import materialize_mcnamara_constructions
+from backend.services.cephalo_ricketts_evidence import materialize_ricketts_constructions
 
 
 @dataclass(frozen=True)
@@ -275,6 +276,12 @@ def materialize_craniom_linear_constructions(
         materialize_mcnamara_constructions(
             landmarks,
             construction_namespace=f"{construction_namespace}:r8",
+        )
+    )
+    materialized.update(
+        materialize_ricketts_constructions(
+            landmarks,
+            construction_namespace=f"{construction_namespace}:r9",
         )
     )
     return materialized
