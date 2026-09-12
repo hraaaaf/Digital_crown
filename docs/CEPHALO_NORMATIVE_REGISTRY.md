@@ -105,6 +105,19 @@ Les contrats runtime correspondants existent et ont été vérifiés dans `cepha
 
 Le `MeasurementEvidence.measurement_id` runtime reste namespacé par cas ; le registre conserve donc `SNA`/`SNB`/`ANB` comme clés sémantiques, tandis que le binding technique fiable repose sur méthode + version + unité + construction.
 
+## TRIAGE SCIENTIFIQUE R10
+
+| Famille | Preuve primaire examinée | Décision R10 |
+|---|---|---|
+| Steiner | articles historiques identifiés ; standards 82/80/2 non prouvés comme moyenne ± SD d'une cohorte compatible | pas de `MEAN_SD` |
+| Tweed | PDF primaire 1954, Tweed Foundation | pas de `MEAN_SD` : 25° est explicitement appelé norme choisie arbitrairement ; IMPA 90° est désigné dans une plage 85–95° ; FMIA 65° en découle |
+| Downs | source primaire 1948 identifiée ; contrats runtime `DOWNS_FACIAL_ANGLE_DEG_V1` et `DOWNS_Y_AXIS_DEG_V1` vérifiés | valeurs 1956 non enregistrées tant que la table primaire n'est pas visuellement certifiée |
+| McNamara | PDF primaire 1984, Table I, Université du Michigan | six `MEAN_SD` enregistrés, inertes, avec gate d'agrandissement 8 % |
+| Ricketts | article primaire 1960 : 1000 cas, cinq mesures, changements liés à l'âge | pas de norme numérique activée : tables exactes/stratification d'âge non certifiées ici et Facial Axis reste fail-closed en R9 |
+| Ousehal/Maroc | abstract primaire + table secondaire peer-reviewed concordante | SNA/SNB/ANB documentés mais non enregistrés tant que la table primaire n'est pas lisible |
+
+Ce triage évite un piège classique : transformer des objectifs historiques, des plages de travail ou des moyennes secondaires en « normes statistiques » simplement parce qu'elles sont faciles à trouver.
+
 ## POURQUOI LE CONTEXTE EST OBLIGATOIRE
 
 Une valeur céphalométrique n'est pas universelle : population, âge, sexe, sélection de l'échantillon, méthode de construction et échelle radiographique peuvent changer son sens. Les références sont donc conservées avec leur contexte explicite plutôt qu'aplaties en une table de « normales » sans provenance.
@@ -114,6 +127,8 @@ Une valeur céphalométrique n'est pas universelle : population, âge, sexe, sé
 - Ousehal SNA/SNB/ANB : table primaire non directement vérifiée ;
 - standards historiques Steiner 82/80/2 : cibles historiques, pas `MEAN_SD` populationnels prouvés ;
 - Tweed 25/90/65 : valeurs conventionnelles/ranges, pas `MEAN_SD` ;
+- Downs : valeurs numériques secondaires non promues sans contrôle primaire ;
+- Ricketts : normes numériques non promues sans table primaire et contexte d'âge exacts ;
 - anciennes constantes Digital Crown de PR #371 : historiques, jamais autoritatives ;
 - valeurs secondaires CRANIOM non retrouvées dans une source primaire exploitable ;
 - McNamara Table I : enregistrées mais non comparables au runtime tant que le facteur 8 % n'est pas harmonisé.
@@ -123,10 +138,11 @@ Une valeur céphalométrique n'est pas universelle : population, âge, sexe, sé
 Implémentation : `backend/services/cephalo_norm_registry.py`  
 Tests : `backend/tests/test_cephalo_norm_registry.py`  
 Contrats McNamara : `backend/services/cephalo_mcnamara_evidence.py`  
-Contrats Steiner : `backend/services/cephalo_steiner_evidence_adapter.py`
+Contrats Steiner : `backend/services/cephalo_steiner_evidence_adapter.py`  
+Contrats Downs : `backend/services/cephalo_downs_evidence.py`
 
 Les tests couvrent les invariants `EXTREME_RANGE` et `MEAN_SD`, le contexte populationnel obligatoire, l'immutabilité, les sources, les formes numériques invalides, `PERCENTILE` fail-closed, l'interdiction de classification patient, l'absence de référence numérique Ousehal non vérifiée et les six bindings McNamara exacts avec blocage d'échelle.
 
 ## NEXT EXACT
 
-Faire certifier le nouveau HEAD R10 par CI/T2. Si vert, conserver les références McNamara comme données descriptives inertes, puis poursuivre les familles dont les tables primaires et les constructions exactes peuvent être prouvées. Ousehal reste bloqué jusqu'à lecture directe de sa table primaire ; aucune valeur secondaire ou conventionnelle ne doit être promue pour « remplir » le registre.
+Faire certifier le nouveau HEAD R10 par CI/T2. Si vert, conserver les références McNamara comme données descriptives inertes, puis merger R10. Ousehal, Downs et Ricketts restent des gates scientifiques séparés tant que leurs tables primaires exactes ne sont pas vérifiées ; aucune valeur secondaire ou conventionnelle ne doit être promue pour « remplir » le registre.
