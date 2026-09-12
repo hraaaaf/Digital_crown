@@ -2,7 +2,6 @@ import React, { useEffect, useMemo, useState } from 'react';
 import {
   AlertTriangle,
   CheckCircle2,
-  ChevronRight,
   Clock3,
   Database,
   LockKeyhole,
@@ -62,14 +61,14 @@ const LABELS: Record<string, string> = {
   active_runtime_chain_unverified: 'Chaîne de preuve active non vérifiée',
   active_runtime_chain_incoherent: 'Chaîne de preuve active incohérente',
   diagnostic_rule_registry_empty: 'Aucune règle diagnostique source-lockée active',
-  r11_authoritative_snapshot_not_persisted: 'Snapshot R11 autoritaire non persisté',
-  r11_not_authoritative: 'R11 non autoritaire',
-  r12_authoritative_snapshot_not_persisted: 'Snapshot R12 autoritaire non persisté',
-  r12_not_authoritative: 'R12 non autoritaire',
+  r11_authoritative_snapshot_not_persisted: 'Diagnostic scientifique autoritaire non persisté',
+  r11_not_authoritative: 'Diagnostic scientifique non autoritaire',
+  r12_authoritative_snapshot_not_persisted: 'Problèmes et objectifs autoritaires non persistés',
+  r12_not_authoritative: 'Problèmes et objectifs non autoritaires',
   therapeutic_rule_registry_empty: 'Aucune règle thérapeutique source-lockée active',
-  r13_authoritative_snapshot_not_persisted: 'Snapshot R13 autoritaire non persisté',
-  r13_no_clinician_selected_option: 'Aucune option R13 sélectionnée par le praticien',
-  r14_authoritative_snapshot_not_persisted: 'Snapshot R14 autoritaire non persisté',
+  r13_authoritative_snapshot_not_persisted: 'Options thérapeutiques autoritaires non persistées',
+  r13_no_clinician_selected_option: 'Aucune option thérapeutique sélectionnée par le praticien',
+  r14_authoritative_snapshot_not_persisted: 'Décision clinique finale autoritaire non persistée',
   clinician_selection_required: 'Sélection explicite du praticien requise',
 };
 
@@ -156,8 +155,8 @@ export const ClinicalScientificStudio: React.FC<Props> = ({ patientId, analysisI
             <div className="min-w-0">
               <div className="flex flex-wrap items-center gap-2">
                 <h3 className="text-sm font-black uppercase tracking-[0.12em]" style={{ color: P.text }}>Chaîne clinique scientifique</h3>
-                <span className="rounded-full px-2 py-1 text-[9px] font-black tracking-widest" style={{ background: `${P.accent}18`, color: P.accent }}>
-                  R11 → R14
+                <span className="rounded-full px-2 py-1 text-[9px] font-black tracking-wide" style={{ background: `${P.accent}18`, color: P.accent }}>
+                  Diagnostic → décision clinique
                 </span>
               </div>
               <p className="mt-1 max-w-2xl text-xs leading-5" style={{ color: P.textMuted }}>
@@ -211,15 +210,15 @@ export const ClinicalScientificStudio: React.FC<Props> = ({ patientId, analysisI
                   }}
                 >
                   <div className="flex items-start justify-between gap-2">
-                    <span className="text-[10px] font-black tracking-[0.16em]" style={{ color: P.accent }}>{stage.stage_id}</span>
+                    <p className="text-xs font-black leading-4" style={{ color: P.text }}>{stage.title}</p>
                     {stage.presentation_state === 'VALIDATED'
                       ? <CheckCircle2 size={15} style={{ color }} />
                       : stage.presentation_state === 'AWAITING_CLINICIAN'
                         ? <Clock3 size={15} style={{ color }} />
                         : <LockKeyhole size={15} style={{ color }} />}
                   </div>
-                  <p className="mt-2 text-xs font-black leading-4" style={{ color: P.text }}>{stage.title}</p>
                   <p className="mt-2 text-[10px] font-bold leading-4" style={{ color }}>{stateLabel(stage.presentation_state)}</p>
+                  <p className="mt-2 text-[9px] font-bold uppercase tracking-[0.12em]" style={{ color: P.textDim }}>Réf. technique {stage.stage_id}</p>
                 </button>
               );
             })}
@@ -230,9 +229,10 @@ export const ClinicalScientificStudio: React.FC<Props> = ({ patientId, analysisI
               <div className="grid gap-4 lg:grid-cols-[1.25fr_0.75fr]">
                 <div className="min-w-0">
                   <div className="flex flex-wrap items-center gap-2">
-                    <span className="text-[10px] font-black tracking-[0.18em]" style={{ color: P.accent }}>{selected.stage_id}</span>
-                    <ChevronRight size={13} style={{ color: P.textDim }} />
                     <span className="text-xs font-black" style={{ color: P.text }}>{selected.title}</span>
+                    <span className="rounded-full border px-2 py-0.5 text-[9px] font-bold uppercase tracking-[0.12em]" style={{ borderColor: P.border, color: P.textDim }}>
+                      Réf. technique {selected.stage_id}
+                    </span>
                   </div>
                   <p className="mt-2 text-xs leading-5" style={{ color: P.textMuted }}>{selected.summary}</p>
 
@@ -295,7 +295,7 @@ export const ClinicalScientificStudio: React.FC<Props> = ({ patientId, analysisI
           )}
 
           <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-[9px]" style={{ color: P.textDim }}>
-            <span>Contrat {snapshot.contract_version}</span>
+            <span>Contrat {snapshot.contract_version} · traçabilité interne R11 → R14</span>
             <span>Analyse {snapshot.analysis_id ?? 'absente'} · graphe typé {snapshot.evidence_graph_present ? 'présent' : 'absent'} · chaîne active {snapshot.active_runtime_chain_verified ? 'vérifiée' : 'non vérifiée'}</span>
           </div>
         </div>
