@@ -91,6 +91,18 @@ def verification_state_for_document(doc: models.DocumentArchive) -> DocumentVeri
         )
 
     if has_signer and has_timestamp:
+        author_id = doc.author_practitioner_id
+        if author_id is None or int(doc.signed_by_practitioner_id) != int(author_id):
+            return DocumentVerificationState(
+                is_valid=False,
+                is_signed=False,
+                status_text="Signature incohérente",
+                status_color="#ef4444",
+                warning_msg=(
+                    "Le signataire enregistré ne correspond pas à l'auteur praticien P3 "
+                    "du document."
+                ),
+            )
         return DocumentVerificationState(
             is_valid=True,
             is_signed=True,
@@ -141,7 +153,6 @@ def sign_document(
             doc.signed_by_practitioner_id == current_user.id
             and doc.signed_at is not None
         ):
-            # Idempotence: a second click must not rewrite the proof timestamp.
             return doc
         raise HTTPException(status_code=409, detail="Signature existante incohérente")
 
