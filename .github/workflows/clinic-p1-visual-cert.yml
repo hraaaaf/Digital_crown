@@ -1,0 +1,155 @@
+name: Clinic P1 Multi-Practitioner Visual Certification
+
+on:
+  pull_request:
+    paths:
+      - "frontend/src/pages/Dashboard.tsx"
+      - "frontend/src/features/dashboard/**"
+      - "frontend/src/features/agenda/**"
+      - "frontend/src/pages/AgendaPage.tsx"
+      - "frontend/src/features/admin/TeamManager.tsx"
+      - "frontend/src/features/admin/Settings.tsx"
+      - "frontend/src/components/Layout/**"
+      - ".github/workflows/clinic-p1-visual-cert.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: clinic-p1-visual-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  capture:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install frontend and Chromium
+        working-directory: frontend
+        run: |
+          npm ci
+          npm install --no-save --package-lock=false playwright@1.55.0
+          npx playwright install --with-deps chromium
+      - name: Inject deterministic P1 harness
+        working-directory: frontend
+        run: |
+          cat > clinic-p1-visual.html <<'EOF'
+          <!doctype html><html lang="fr"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/><title>Clinic P1 Visual</title></head><body><div id="root"></div><script type="module" src="/src/clinic-p1-visual.tsx"></script></body></html>
+          EOF
+          cat > src/clinic-p1-visual.tsx <<'EOF'
+          import React from 'react';
+          import { createRoot } from 'react-dom/client';
+          import { MemoryRouter } from 'react-router-dom';
+          import './index.css';
+          import { Dashboard } from './pages/Dashboard';
+          import { AgendaStudio } from './features/agenda/AgendaStudio';
+          import Settings from './pages/Settings';
+          import { useAuthStore } from './stores/useAuthStore';
+
+          const screen = new URLSearchParams(window.location.search).get('screen') || 'dashboard';
+          useAuthStore.setState({
+            user: { id:1, email:'owner@clinic-p1.local', nom_complet:'Dr Lina Alaoui', role:'ADMIN', is_superadmin:false, permissions:{} } as any,
+            isAuthenticated:true, isLoading:false, error:null,
+          });
+          const node = screen === 'agenda'
+            ? <div className="min-h-screen bg-slate-50 p-3 sm:p-6"><AgendaStudio /></div>
+            : screen === 'team'
+              ? <Settings />
+              : <Dashboard />;
+          createRoot(document.getElementById('root')!).render(<MemoryRouter initialEntries={[screen === 'agenda' ? '/agenda' : screen === 'team' ? '/settings' : '/dashboard']}>{node}</MemoryRouter>);
+          EOF
+          cat > clinic-p1-visual.mjs <<'EOF'
+          import { chromium } from 'playwright';
+          import { createServer } from 'vite';
+          import fs from 'node:fs/promises';
+
+          const out='clinic-p1-visual';
+          await fs.mkdir(out,{recursive:true});
+          const json=(body,status=200)=>({status,contentType:'application/json',body:JSON.stringify(body)});
+          const appointments=[
+            {id:201,start_time:'2026-09-12T09:00:00',datetime_start:'2026-09-12T09:00:00',duration_minutes:30,status:'PLANIFIÉ',description:'Consultation',praticien_id:1,patient:{id:101,nom:'EL AMRANI',prenom:'Sara'}},
+            {id:202,start_time:'2026-09-12T10:30:00',datetime_start:'2026-09-12T10:30:00',duration_minutes:45,status:'PLANIFIÉ',description:'Contrôle',praticien_id:2,patient:{id:102,nom:'BENALI',prenom:'Youssef'}},
+          ];
+          const fixtures={
+            '/api/admin/dashboard/stats':{total_patients:184,total_analyses:326,in_waiting:2,weekly_activity:[38,55,47,72,61,84,66],weekly_patient_counts:[4,7,5,9,6,10,8],weekly_patients:49,recent_patients:[{id:101,nom:'EL AMRANI',prenom:'Sara',acte:'Consultation',time:'09:20',type:'patient'},{id:102,nom:'BENALI',prenom:'Youssef',acte:'Contrôle',time:'10:05',type:'patient'}]},
+            '/api/admin/cabinet/me':{header_lines_fr:['Clinique P1']},
+            '/api/clinics/me':{nom_praticien:'Dr Lina Alaoui',nom_cabinet:'Clinique P1',header_lines_fr:['Dr Lina Alaoui'],specialty_ids:[],contacts_json:{}},
+            '/api/intelligence/alerts/today':{alerts:[]},
+            '/api/intelligence/forecast-semaine':{week_start:'2026-09-07',week_end:'2026-09-13',rdv_count:31,forecast_revenue:28400,avg_per_rdv:916},
+            '/api/intelligence/taux-conversion':{devis_count:12,converted_count:8,taux:66.7,avg_days:4},
+            '/api/intelligence/projection-mensuelle':{historical:[],projections:[],avg_monthly:77233},
+            '/api/intelligence/latent-cash':{total_opportunites:0,valeur_totale_latente:0,opportunites:[]},
+            '/api/stats/financial':{today_revenue:6200,month_revenue:48600,total_debt:9300},
+            '/api/admin/cabinet-health':{database:{status:'ok'},disk:{status:'ok',free_gb:418,total_gb:512},backup_local:{status:'ok',overall_status:'ok'},offsite:{status:'ok',offsite_status:'ok'},overall_severity:'ok'},
+            '/api/agenda/settings':{id:1,opening_time_morning:'09:00',closing_time_morning:'13:00',opening_time_afternoon:'14:00',closing_time_afternoon:'18:00',is_continuous:false,agenda_mode:'EXACT',use_tickets:true},
+            '/api/appointments/pending':[],
+            '/api/upcoming-holidays':[],
+            '/api/agenda/upcoming-holidays':[],
+            '/api/team/':[],
+            '/api/team':[],
+            '/api/team/quota':{plan:'ELITE',dentistes_used:2,dentistes_max:null,secretaires_used:1,secretaires_max:null,pending_count:0,can_add_dentiste:true,can_add_secretaire:true},
+          };
+          const server=await createServer({server:{host:'127.0.0.1',port:4197,strictPort:true},clearScreen:false});
+          await server.listen();
+          const browser=await chromium.launch();
+          try {
+            for(const [width,height] of [[390,844],[768,1024],[1280,900]]){
+              for(const screen of ['dashboard','agenda','team']){
+                const context=await browser.newContext({viewport:{width,height}});
+                const page=await context.newPage();
+                const pageErrors=[];
+                page.on('pageerror',e=>pageErrors.push(e.message));
+                await page.route('**/api/**',async route=>{
+                  const req=route.request(); const url=new URL(req.url());
+                  if(url.pathname==='/api/appointments/' || url.pathname.startsWith('/api/appointments?')) return route.fulfill(json(appointments));
+                  if(url.pathname.startsWith('/api/appointments')) return route.fulfill(json(url.pathname==='/api/appointments/pending'?[]:appointments));
+                  if(url.pathname==='/api/patients/') return route.fulfill(json([]));
+                  if(req.method()!=='GET') return route.fulfill(json({}));
+                  return route.fulfill(json(fixtures[url.pathname] ?? {}));
+                });
+                await page.goto(`http://127.0.0.1:4197/clinic-p1-visual.html?screen=${screen}`,{waitUntil:'networkidle'});
+                if(screen==='dashboard') await page.getByText(/Bonjour,/).first().waitFor({state:'visible',timeout:15000});
+                if(screen==='agenda') await page.getByRole('heading',{name:'Studio Agenda'}).waitFor({state:'visible',timeout:15000});
+                if(screen==='team'){
+                  await page.getByRole('heading',{name:'Paramètres',exact:true}).waitFor({state:'visible',timeout:15000});
+                  await page.getByRole('button',{name:'Mon Équipe',exact:true}).click();
+                  await page.getByRole('heading',{name:'Mon Équipe',exact:true}).waitFor({state:'visible'});
+                }
+                const layout=await page.evaluate(()=>({clientWidth:document.documentElement.clientWidth,scrollWidth:document.documentElement.scrollWidth}));
+                if(layout.scrollWidth>layout.clientWidth) throw new Error(`${screen} overflow ${layout.scrollWidth}>${layout.clientWidth} at ${width}`);
+                if(pageErrors.length) throw new Error(`${screen} pageerror: ${pageErrors.join(' | ')}`);
+                await page.screenshot({path:`${out}/${screen}-${width}x${height}.png`,fullPage:true,animations:'disabled'});
+                await fs.writeFile(`${out}/${screen}-${width}.layout.json`,JSON.stringify(layout,null,2));
+                await context.close();
+              }
+            }
+          } finally { await browser.close(); await server.close(); }
+          EOF
+      - name: Capture deterministic 390 / 768 / 1280
+        working-directory: frontend
+        run: node clinic-p1-visual.mjs
+      - name: Verify evidence
+        working-directory: frontend
+        run: |
+          test "$(find clinic-p1-visual -name '*.png' | wc -l)" -eq 9
+          test "$(find clinic-p1-visual -name '*.layout.json' | wc -l)" -eq 9
+          cat > clinic-p1-visual/metadata.txt <<EOF
+          head_sha=${{ github.event.pull_request.head.sha || github.sha }}
+          base_sha=${{ github.event.pull_request.base.sha || github.sha }}
+          viewports=390x844,768x1024,1280x900
+          screens=dashboard,agenda,team
+          purpose=P1 multi-practitioner visual evidence
+          EOF
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: clinic-p1-visual-evidence
+          path: frontend/clinic-p1-visual/
+          if-no-files-found: error
+          retention-days: 14
