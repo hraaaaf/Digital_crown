@@ -1,0 +1,53 @@
+name: Cephalo R15 BEFORE
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - feat/cephalo-r15-clinical-studio-ux
+    paths:
+      - 'frontend/scripts/capture-cephalo-r15-before.mjs'
+      - '.github/workflows/cephalo-r15-before.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  visual-before:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: |
+          npm ci
+          npm install --no-save --package-lock=false --legacy-peer-deps playwright@1.55.0
+          npx playwright install --with-deps chromium
+      - name: Capture real R15 BEFORE
+        working-directory: frontend
+        env:
+          PRODUCT_HEAD: ${{ github.sha }}
+        run: node scripts/capture-cephalo-r15-before.mjs
+      - name: Verify artifact contract
+        working-directory: frontend
+        run: |
+          test -s cephalo-r15-before-artifacts/report.json
+          for viewport in 390x844 768x1024 1280x900; do
+            test -s "cephalo-r15-before-artifacts/before-step3-top-${viewport}.png"
+            test -s "cephalo-r15-before-artifacts/before-step3-decision-${viewport}.png"
+            test -s "cephalo-r15-before-artifacts/before-step4-top-${viewport}.png"
+            test -s "cephalo-r15-before-artifacts/before-step4-action-${viewport}.png"
+          done
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: cephalo-r15-before
+          path: frontend/cephalo-r15-before-artifacts
+          if-no-files-found: error
+          retention-days: 30
