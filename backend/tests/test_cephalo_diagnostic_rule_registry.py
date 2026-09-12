@@ -42,23 +42,33 @@ def test_secondary_technical_source_alone_cannot_activate_diagnostic_rule():
         )
 
 
-def test_duplicate_finding_rule_is_rejected():
+def test_duplicate_exact_finding_rule_version_is_rejected():
     registry = DiagnosticRuleRegistry()
     registry.register_finding_rule(_finding_rule())
-    with pytest.raises(ValueError, match="Duplicate finding rule"):
+    with pytest.raises(ValueError, match="Duplicate finding rule version"):
         registry.register_finding_rule(_finding_rule())
 
 
-def test_diagnostic_rule_requires_registered_finding_rule():
+def test_same_rule_id_can_retain_multiple_versions():
     registry = DiagnosticRuleRegistry()
-    with pytest.raises(ValueError, match="unknown finding rule"):
+    v1 = _finding_rule(version="1")
+    v2 = _finding_rule(version="2")
+    registry.register_finding_rule(v1)
+    registry.register_finding_rule(v2)
+    assert registry.get_finding_rule(v1.rule_id, "1") == v1
+    assert registry.get_finding_rule(v2.rule_id, "2") == v2
+
+
+def test_diagnostic_rule_requires_registered_finding_rule_version():
+    registry = DiagnosticRuleRegistry()
+    with pytest.raises(ValueError, match="unknown finding rule version"):
         registry.register_diagnostic_rule(
             DiagnosticRuleDefinition(
                 rule_id="R11_TEST_DIAGNOSIS",
                 version="1",
                 domain="synthetic",
                 source_ids=("CRANIOM_PART2_2011",),
-                finding_rule_ids=("R11_TEST_FINDING",),
+                finding_rule_bindings=(("R11_TEST_FINDING", "1"),),
                 description="Synthetic diagnostic registry test only.",
             )
         )
@@ -73,9 +83,15 @@ def test_source_bound_finding_and_diagnostic_rules_register_together():
         version="1",
         domain="synthetic",
         source_ids=("CRANIOM_PART2_2011",),
-        finding_rule_ids=(finding_rule.rule_id,),
+        finding_rule_bindings=((finding_rule.rule_id, finding_rule.version),),
         description="Synthetic diagnostic registry test only.",
     )
     registry.register_diagnostic_rule(diagnostic_rule)
-    assert registry.get_finding_rule(finding_rule.rule_id) == finding_rule
-    assert registry.get_diagnostic_rule(diagnostic_rule.rule_id) == diagnostic_rule
+    assert (
+        registry.get_finding_rule(finding_rule.rule_id, finding_rule.version)
+        == finding_rule
+    )
+    assert (
+        registry.get_diagnostic_rule(diagnostic_rule.rule_id, diagnostic_rule.version)
+        == diagnostic_rule
+    )
