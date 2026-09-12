@@ -172,6 +172,7 @@ jobs:
           path: /tmp/certified-frontend
 
       - name: Materialize exact-SHA CODE_CERTIFIED release
+        id: materialize
         shell: bash
         run: |
           set -euo pipefail
@@ -247,25 +248,24 @@ jobs:
               --release-dir "$ROOT" --expected-pack "$PACK"
           done
 
-          echo "RELEASE_ROOT=$ROOT" >> "$GITHUB_ENV"
-          echo "RELEASE_ID=$RELEASE_ID" >> "$GITHUB_ENV"
+          echo "release_id=$RELEASE_ID" >> "$GITHUB_OUTPUT"
 
       - name: Cryptographically attest the code content manifest
         uses: actions/attest@v4
         with:
-          subject-path: ${{ env.RELEASE_ROOT }}/release-content.sha256
+          subject-path: ${{ runner.temp }}/certified-release/release-content.sha256
 
       - name: Certification summary
         shell: bash
         run: |
-          cat "$RELEASE_ROOT/release-certification.json"
+          cat "$RUNNER_TEMP/certified-release/release-certification.json"
           echo "CODE_CERTIFIED immutable SHA: $CERTIFIED_SHA"
           echo "Universal release profiles: BASIC / GOLD / ELITE"
           echo "NOT INSTALLABLE until certified runtime assets are composed locally."
 
       - uses: actions/upload-artifact@v4
         with:
-          name: code-certified-${{ env.RELEASE_ID }}
-          path: ${{ env.RELEASE_ROOT }}/
+          name: code-certified-${{ steps.materialize.outputs.release_id }}
+          path: ${{ runner.temp }}/certified-release/
           if-no-files-found: error
           retention-days: 90
