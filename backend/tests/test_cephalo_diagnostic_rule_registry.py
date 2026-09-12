@@ -34,6 +34,14 @@ def test_finding_rule_requires_known_scientific_source():
         registry.register_finding_rule(_finding_rule(source_ids=("UNKNOWN_SOURCE",)))
 
 
+def test_secondary_technical_source_alone_cannot_activate_diagnostic_rule():
+    registry = DiagnosticRuleRegistry()
+    with pytest.raises(ValueError, match="peer-reviewed scientific source"):
+        registry.register_finding_rule(
+            _finding_rule(source_ids=("CRANIOM_TECHNICAL_REPRODUCTION",))
+        )
+
+
 def test_duplicate_finding_rule_is_rejected():
     registry = DiagnosticRuleRegistry()
     registry.register_finding_rule(_finding_rule())
