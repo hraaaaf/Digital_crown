@@ -410,7 +410,7 @@ def test_r11_diagnosis_rejects_unavailable_finding_as_support():
     graph = _craniom_graph()
     unavailable = _finding(
         "finding:missing:r11",
-        missing=[graph.measurements[0].measurement_id],
+        missing=[graph.normative_evaluations[0].evaluation_id],
         availability_status=AvailabilityStatus.NOT_COMPUTABLE,
     )
     diagnosis = _diagnosis(
@@ -432,7 +432,7 @@ def test_r11_diagnosis_rejects_unavailable_finding_as_opposition():
     )
     unavailable = _finding(
         "finding:missing:r11",
-        missing=[graph.measurements[0].measurement_id],
+        missing=[graph.normative_evaluations[0].evaluation_id],
         availability_status=AvailabilityStatus.NOT_COMPUTABLE,
     )
     diagnosis = _diagnosis(
