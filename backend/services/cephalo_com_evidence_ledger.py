@@ -125,11 +125,14 @@ COM_SOURCE_INDEX: Mapping[str, Mapping[str, str]] = MappingProxyType(
                     "1981;51(2):115-150."
                 ),
                 "source_level": "PRIMARY",
+                "doi": "10.1043/0003-3219(1981)051<0115:PITCAO>2.0.CO;2",
                 "evidence": (
                     "Ricketts' Summary Descriptive Analysis cue sheet gives the "
                     "mandibular plane as true Frankfort horizontal to Subgonion-Menton, "
                     "28 +/- 4 degrees at age 3, decreasing 1 degree each 3 years to "
-                    "maturity; therefore age 9 is 26 +/- 4 degrees."
+                    "maturity; therefore age 9 is 26 +/- 4 degrees. True Frankfort is "
+                    "source-specific and must not be silently replaced by generic "
+                    "automatic Po-Or geometry."
                 ),
             }
         ),
@@ -258,10 +261,10 @@ COM_EVIDENCE_DEBTS: Tuple[ComEvidenceDebt, ...] = (
         "26 +/- 4 deg at age 9",
         ComEvidenceState.SOURCE_LOCKED_MANUAL_CONSTRUCTION_AVAILABLE,
         ("RICKETTS_1981_CLINICAL_CEPHALOMETRICS", "RICKETTS_1960"),
-        "RICKETTS_1981_FMA_TRUE_FH_SUBGO_ME_V1",
+        "RICKETTS_1981_FMA_TRUE_FH_SUBGO_ME_V2",
         "RICKETTS_AGE_DEPENDENT_HISTORICAL_CONTEXT",
-        "Primary Ricketts 1981 evidence source-locks the numeric/age rule and Subgonion-Menton construction. SRPose38 has no SubGo, but Digital Crown now exposes a fail-closed source-specific path requiring an explicit clinician-validated manual SubGo; Go-Me and Go-Gn remain forbidden substitutions.",
-        "Keep patient classification inactive; use only the validated-manual SubGo construction for raw FMA, and treat any future automatic SubGo as a separate landmark-certification lot before norm activation.",
+        "Primary Ricketts 1981 evidence source-locks the numeric/age rule and true Frankfort to Subgonion-Menton construction. Digital Crown exposes a fail-closed raw-measurement path only when RickettsTruePo, RickettsTrueOr, RickettsSubGo, and RickettsMe are explicit clinician-validated MANUAL landmarks from one image; generic SRPose38 Po/Or/Go/Me, Go-Me and Go-Gn remain forbidden substitutions.",
+        "Keep patient classification inactive; use only RICKETTS_1981_FMA_TRUE_FH_SUBGO_ME_V2 for raw FMA, and certify any future automatic source-specific landmark mapping separately before norm activation.",
     ),
     ComEvidenceDebt(
         "COM_CRANIOM_ABP_9Y",
