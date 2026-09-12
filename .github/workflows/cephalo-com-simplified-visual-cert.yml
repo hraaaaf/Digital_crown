@@ -154,5 +154,5 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: cephalo-com-${{ matrix.phase }}-${{ matrix.width }}
-          path: frontend/cephalo-com-${{ lower(matrix.phase) }}-${{ matrix.width }}
+          path: frontend/cephalo-com-*-${{ matrix.width }}
           if-no-files-found: error
