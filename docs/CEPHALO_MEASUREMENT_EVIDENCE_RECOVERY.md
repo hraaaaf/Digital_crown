@@ -4,7 +4,8 @@
 **Parent :** `docs/CEPHALO_DIAGNOSTIC_SPEC.md`  
 **Audit source :** `docs/CEPHALO_COM_VALUE_AUDIT.md`  
 **Complément primaire Ricketts :** `docs/CEPHALO_COM_PRIMARY_RECOVERY_RICKETTS_1981.md`  
-**Revue attribution inter-incisive :** `docs/CEPHALO_COM_INTERINCISAL_ATTRIBUTION_REVIEW.md`
+**Revue attribution inter-incisive :** `docs/CEPHALO_COM_INTERINCISAL_ATTRIBUTION_REVIEW.md`  
+**Récupération géométrique source-spécifique :** `docs/CEPHALO_COM_SOURCE_GEOMETRY_RECOVERY.md`
 
 ## RÈGLE CANONIQUE
 
@@ -62,7 +63,9 @@ Décision Digital Crown :
 - ne pas enregistrer `80–100°` comme une « norme fixe » universelle ;
 - **ne pas abandonner la compensation** ;
 - la conserver comme règle Tweed historique source-lockée, dépendante du FMA et de la construction géométrique Tweed exacte ;
-- avant runtime clinique, verrouiller la construction du plan mandibulaire Tweed et tester la formule sur cas goldens.
+- le plan mandibulaire Tweed est une tangente au bord inférieur mandibulaire : `Go-Me` et `Go-Gn` ne sont pas des substitutions source-exactes ;
+- le Frankfort historique de Tweed ne doit pas être assimilé silencieusement au `Po-Or` générique Digital Crown sans preuve ;
+- avant runtime clinique, verrouiller un contrat de tracing source-spécifique Tweed et tester la formule sur cas goldens.
 
 ## FMA 26° ±4 — RICKETTS 1981 SOURCE-LOCKÉ
 
@@ -80,17 +83,32 @@ La règle primaire donne donc directement à 9 ans :
 
 `28° - 2° = 26°`, avec dispersion historique `±4°`.
 
+### Construction Digital Crown source-spécifique
+
+Construction versionnée : `RICKETTS_1981_FMA_TRUE_FH_SUBGO_ME_V1`.
+
+SRPose38 ne contient pas `SubGo`. Digital Crown fournit donc un chemin fail-closed sans inventer d'alias :
+
+- `Po`, `Or`, `Me` proviennent de la même image ;
+- `SubGo` doit être posé explicitement en `MANUAL` ;
+- ce `SubGo` doit être `CLINICIAN_VALIDATED` avec `validated_by` et `validated_at` ;
+- `Go` ne remplace jamais `SubGo` ;
+- `Go-Me` et `Go-Gn` ne remplacent jamais `SubGo-Me` ;
+- les axes dégénérés et les mélanges d'images sont invalides.
+
+Lorsque ces conditions sont satisfaites, Digital Crown peut calculer le **FMA brut** selon `Po-Or / SubGo-Me`.
+
 **Décision :**
 
-- `26±4° à 9 ans` et sa règle d'âge sont désormais **SOURCE_LOCKED** ;
-- la construction source-spécifique reste **BLOCKED** : Ricketts 1981 utilise le vrai Francfort et `Subgonion-Menton` ;
-- ne pas substituer silencieusement `Go-Me` ou `Go-Gn` ;
-- gate : `RICKETTS_TRUE_FH_SUBGONION_MENTON_EXACT_REQUIRED` ;
-- aucune activation normative patient avant construction versionnée, goldens et revue.
+- `26±4° à 9 ans` et sa règle d'âge sont **SOURCE_LOCKED** ;
+- la géométrie exacte dispose maintenant d'un chemin manuel audité : `SOURCE_LOCKED_MANUAL_CONSTRUCTION_AVAILABLE` ;
+- aucune norme patient n'est activée par cette construction ;
+- une future détection automatique de `SubGo` devra être certifiée séparément avant de remplacer la saisie manuelle ;
+- `patient_classification_references()` reste vide.
 
 ### Corroboration peer-reviewed et divergence de convention
 
-Des publications peer-reviewed utilisant explicitement l'analyse de Ricketts confirment `26±4°` à 9 ans, mais certaines emploient une convention géométrique moderne `Po-Or / Go-Gn`. Cette divergence ne doit pas écraser la construction de la source primaire et justifie le blocage géométrique fail-closed.
+Des publications peer-reviewed utilisant explicitement l'analyse de Ricketts confirment `26±4°` à 9 ans, mais certaines emploient une convention géométrique moderne `Po-Or / Go-Gn`. Cette divergence ne doit pas écraser la construction de la source primaire.
 
 Source de corroboration : Ravelo et al., *BioMed Research International* 2021, DOI `10.1155/2021/6670191`.
 
@@ -197,13 +215,13 @@ Les surfaces éditeur des deux articles CRANIOM confirment actuellement les extr
 |---|---|---|
 | Surplomb `1.5–3 mm` | mesure conservée, population-dépendance confirmée | retrouver source historique exacte ou définir référence populationnelle versionnée |
 | Recouvrement `1.5–3 mm` | mesure conservée, population-dépendance confirmée | idem |
-| IMPA `90±5°` | **source primaire Tweed retrouvée** | verrouiller construction Tweed puis tests |
-| Compensation IMPA `80–100°` | **règle dynamique Tweed retrouvée**, plage fixe non prouvée | coder seulement la règle source-spécifique après construction certifiée |
+| IMPA `90±5°` | **source primaire Tweed retrouvée ; géométrie source-exacte toujours bloquée** | versionner tracing Tweed historique, sans Go-Me/Go-Gn ni Po-Or générique silencieux |
+| Compensation IMPA `80–100°` | **règle dynamique Tweed retrouvée**, plage fixe non prouvée | coder seulement la règle source-spécifique après construction Tweed certifiée |
 | U1-FH `107±5°` | corroboré peer-reviewed ; piste Ballard/Eastman identifiée ; plan/dispersion primaire encore ouverts | verrouiller primaire exact U1-FH, sans confondre UI/MX |
 | Compensation U1-FH `97–120°` | recherche exacte négative à ce stade | rechercher archives/sources de l'école COM ; ne pas dériver arithmétiquement |
 | Inter-incisif `131±3°` | **conflit d'attribution/normes : Downs primaire identifié, Steiner primaire identifié, synthèses divergentes** | relire primaires Downs/Steiner et conserver références source-spécifiques séparées |
 | Compensation inter-incisif `120–142°` | recherche exacte négative à ce stade | rechercher archives/sources de l'école COM ; ne pas reconstruire depuis une moyenne ± ET |
-| FMA `26±4° à 9 ans` | **source primaire Ricketts 1981 verrouillée ; construction exacte bloquée** | versionner/tester `true FH / Subgonion-Menton`, sans substitution Go-Me/Go-Gn |
+| FMA `26±4° à 9 ans` | **source primaire Ricketts 1981 + chemin géométrique manuel audité disponibles** | certifier exact-head ; garder classification inactive ; automatiser SubGo seulement après certification landmark dédiée |
 | A'B' 9 ans | technique concordant | récupérer numérique primaire direct |
 | A'B' adulte | technique concordant | récupérer numérique primaire direct |
 | A/N vertical 9 ans | technique concordant | récupérer numérique primaire direct |
@@ -223,12 +241,14 @@ Sinon :
 
 `mesure conservée + provenance + état BLOCKED/UNKNOWN + dette scientifique explicite`.
 
+Une construction manuelle auditée peut rendre une **mesure brute** calculable sans rendre sa **norme** automatiquement active.
+
 **BLOCKED n'est jamais synonyme de DROPPED.**
 
 ## NEXT EXACT
 
-1. versionner et tester la construction Ricketts 1981 `true FH / Subgonion-Menton` avant toute utilisation normative du `26±4° à 9 ans` ;
-2. verrouiller la construction Tweed/FMA avant toute utilisation de la règle de compensation IMPA ;
+1. certifier exact-head le chemin Ricketts 1981 `Po-Or / SubGo-Me` avec SubGo manuel validé ;
+2. verrouiller le contrat de tracing source-spécifique Tweed avant toute utilisation de la règle de compensation IMPA ;
 3. relire directement les primaires Downs 1948 et Steiner 1953/1959 pour résoudre l'attribution/dispersion de l'inter-incisif `131±3°` ;
 4. retrouver le primaire exact de `U1-FH 107±5` dans la filiation Ballard/Eastman sans confondre le plan maxillaire et Francfort ;
 5. rechercher dans les archives/sources COM les plages exactes `97–120°` et `120–142°` ;
