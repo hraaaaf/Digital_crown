@@ -109,6 +109,25 @@ def test_financial_snapshot_attributes_only_traceable_payments(client, db, denti
     )
     db.add_all([owner_act, associate_act])
     db.flush()
+
+    plan = models.InstallmentPlan(
+        patient_id=patient.id,
+        acte_id=associate_act.id,
+        title="Couronne — échéancier",
+        total_amount=2000.0,
+    )
+    db.add(plan)
+    db.flush()
+    installment = models.Installment(
+        plan_id=plan.id,
+        label="Échéance 1",
+        amount=400.0,
+        due_date=datetime(2026, 10, 1),
+        status="PAYE",
+    )
+    db.add(installment)
+    db.flush()
+
     db.add_all([
         models.Payment(
             patient_id=patient.id,
@@ -121,6 +140,13 @@ def test_financial_snapshot_attributes_only_traceable_payments(client, db, denti
             amount=1200.0,
             payment_method=models.PaymentMethod.ESPECES,
             acte_id=associate_act.id,
+        ),
+        models.Payment(
+            patient_id=patient.id,
+            amount=400.0,
+            payment_method=models.PaymentMethod.VIREMENT,
+            installment_id=installment.id,
+            acte_id=None,
         ),
         models.Payment(
             patient_id=patient.id,
@@ -137,7 +163,8 @@ def test_financial_snapshot_attributes_only_traceable_payments(client, db, denti
     payload = response.json()
 
     assert payload["total_billed"] == 3000.0
-    assert payload["total_collected"] == 2000.0
+    assert payload["total_collected"] == 2400.0
+    assert payload["remaining_due"] == 600.0
     assert payload["unattributed_collected"] == 300.0
 
     by_id = {row["practitioner_id"]: row for row in payload["by_practitioner"]}
@@ -145,5 +172,5 @@ def test_financial_snapshot_attributes_only_traceable_payments(client, db, denti
     assert by_id[dentiste.id]["linked_collected"] == 500.0
     assert by_id[dentiste.id]["linked_remaining_due"] == 500.0
     assert by_id[associate.id]["total_billed"] == 2000.0
-    assert by_id[associate.id]["linked_collected"] == 1200.0
-    assert by_id[associate.id]["linked_remaining_due"] == 800.0
+    assert by_id[associate.id]["linked_collected"] == 1600.0
+    assert by_id[associate.id]["linked_remaining_due"] == 400.0
