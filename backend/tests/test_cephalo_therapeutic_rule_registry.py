@@ -4,6 +4,10 @@ from datetime import datetime, timezone
 
 import pytest
 
+from backend.services.cephalo_evidence_graph import EvidenceGraphValidationError
+from backend.services.cephalo_r13_therapeutic_safety import (
+    _require_source_applicability_context,
+)
 from backend.services.cephalo_therapeutic_rule_registry import (
     TherapeuticRuleRegistry,
     TherapeuticSourceDefinition,
@@ -51,4 +55,27 @@ def test_therapeutic_source_review_timestamp_must_be_timezone_aware():
                 context={"population": "synthetic", "setting": "unit-test"},
                 reviewed_at=datetime(2026, 9, 12, 13, 30),
             )
+        )
+
+
+def test_therapeutic_evaluation_context_must_match_registered_source_applicability():
+    registry = TherapeuticRuleRegistry()
+    registry.register_source(
+        _source(context={"population": "synthetic", "setting": "unit-test"})
+    )
+    binding = (("R13_REGISTRY_SYNTHETIC_SOURCE", "1"),)
+
+    _require_source_applicability_context(
+        {"population": "synthetic", "setting": "unit-test", "extra": "allowed"},
+        binding,
+        registry=registry,
+        label="synthetic criterion",
+    )
+
+    with pytest.raises(EvidenceGraphValidationError, match="incompatible with source"):
+        _require_source_applicability_context(
+            {"population": "different-population", "setting": "unit-test"},
+            binding,
+            registry=registry,
+            label="synthetic criterion",
         )
