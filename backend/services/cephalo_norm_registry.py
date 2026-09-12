@@ -184,7 +184,6 @@ class NormRegistry:
 
 registry = NormRegistry()
 
-# Primary CRANIOM publications.
 registry.register_source(
     NormSource(
         source_id="CRANIOM_PART1_2010",
@@ -220,8 +219,6 @@ registry.register_source(
         ),
     )
 )
-
-# Secondary technical reproduction: useful for provenance/cross-checking only.
 registry.register_source(
     NormSource(
         source_id="CRANIOM_TECHNICAL_REPRODUCTION",
@@ -234,9 +231,6 @@ registry.register_source(
         ),
     )
 )
-
-# Population context relevant to the Moroccan deployment, registered without
-# copying unverified table values into the runtime registry.
 registry.register_source(
     NormSource(
         source_id="MOROCCO_STEINER_OUSEHAL_2012",
@@ -257,7 +251,6 @@ registry.register_source(
         ),
     )
 )
-
 registry.register_source(
     NormSource(
         source_id="MCNAMARA_1984",
@@ -285,7 +278,6 @@ registry.register_source(
         ),
     )
 )
-
 registry.register_source(
     NormSource(
         source_id="PEDIATRIC_NORMS_REVIEW_NGUYEN_2024",
@@ -302,8 +294,6 @@ registry.register_source(
     )
 )
 
-# Exact ranges below are present in the accessible primary abstract of CRANIOM
-# Part 2 and cross-checked against the technical reproduction. They remain inert.
 registry.register_reference(
     NormReference(
         reference_id="CRANIOM_L1_DOWNS_MP_EXTREMES_YOUNG_ADULT_V1",
@@ -378,16 +368,15 @@ def _mcnamara_context(*, sex: str, sample_size: str, mean_age: str) -> Mapping[s
     )
 
 
-# Primary Table I mean ± SD values. They are stored for traceability only. The
-# runtime McNamara measurements are physical millimetres after verified image
-# calibration, whereas the historical source states an 8% enlargement factor.
-# Direct numeric comparison therefore remains blocked until scale compatibility
-# is explicitly proven.
+# Table I values are directly sourced from McNamara 1984. Registry binding
+# follows the evidence-graph contract: method_id targets MeasurementEvidence.analysis_id
+# and measurement_id targets MeasurementEvidence.method_id. The references remain
+# descriptive because the source carries an 8% enlargement convention while the
+# runtime measurements are calibrated physical millimetres.
 _MCNAMARA_TABLE_I_REFERENCES = (
     (
         "MCNAMARA_CO_GN_ANN_ARBOR_FEMALE_MEAN_SD_V1",
         "MCNAMARA_CO_GN_MM_V1",
-        "CO_GN",
         "MCNAMARA_CO_GN_V1",
         "female",
         "73",
@@ -398,7 +387,6 @@ _MCNAMARA_TABLE_I_REFERENCES = (
     (
         "MCNAMARA_CO_GN_ANN_ARBOR_MALE_MEAN_SD_V1",
         "MCNAMARA_CO_GN_MM_V1",
-        "CO_GN",
         "MCNAMARA_CO_GN_V1",
         "male",
         "38",
@@ -409,7 +397,6 @@ _MCNAMARA_TABLE_I_REFERENCES = (
     (
         "MCNAMARA_CO_A_ANN_ARBOR_FEMALE_MEAN_SD_V1",
         "MCNAMARA_CO_A_MM_V1",
-        "CO_A",
         "MCNAMARA_CO_A_V1",
         "female",
         "73",
@@ -420,7 +407,6 @@ _MCNAMARA_TABLE_I_REFERENCES = (
     (
         "MCNAMARA_CO_A_ANN_ARBOR_MALE_MEAN_SD_V1",
         "MCNAMARA_CO_A_MM_V1",
-        "CO_A",
         "MCNAMARA_CO_A_V1",
         "male",
         "38",
@@ -431,7 +417,6 @@ _MCNAMARA_TABLE_I_REFERENCES = (
     (
         "MCNAMARA_ANS_ME_ANN_ARBOR_FEMALE_MEAN_SD_V1",
         "MCNAMARA_ANS_ME_MM_V1",
-        "ANS_ME",
         "MCNAMARA_ANS_ME_V1",
         "female",
         "73",
@@ -442,7 +427,6 @@ _MCNAMARA_TABLE_I_REFERENCES = (
     (
         "MCNAMARA_ANS_ME_ANN_ARBOR_MALE_MEAN_SD_V1",
         "MCNAMARA_ANS_ME_MM_V1",
-        "ANS_ME",
         "MCNAMARA_ANS_ME_V1",
         "male",
         "38",
@@ -454,8 +438,7 @@ _MCNAMARA_TABLE_I_REFERENCES = (
 
 for (
     reference_id,
-    method_id,
-    measurement_id,
+    measurement_method_id,
     construction_gate,
     sex,
     sample_size,
@@ -466,9 +449,9 @@ for (
     registry.register_reference(
         NormReference(
             reference_id=reference_id,
-            method_id=method_id,
+            method_id="MCNAMARA",
             method_version="1",
-            measurement_id=measurement_id,
+            measurement_id=measurement_method_id,
             kind=ReferenceKind.MEAN_SD,
             unit="mm",
             lower=None,
