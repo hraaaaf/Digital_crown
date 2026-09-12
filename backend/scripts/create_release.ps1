@@ -131,19 +131,37 @@ try {
         Fail "release-content.sha256 digest does not match CODE certificate"
     }
 
+    # Verify every listed byte AND reject any unlisted appended file.
     $payloadRootResolved = [IO.Path]::GetFullPath($payloadRoot).TrimEnd('\', '/') + [IO.Path]::DirectorySeparatorChar
+    $expectedFiles = New-Object 'System.Collections.Generic.HashSet[string]' ([StringComparer]::OrdinalIgnoreCase)
+    [void]$expectedFiles.Add($CertificateName)
+    [void]$expectedFiles.Add($ShaMarkerName)
+    [void]$expectedFiles.Add($ContentManifestName)
+
     foreach ($line in Get-Content -LiteralPath $contentManifestPath) {
         if ([string]::IsNullOrWhiteSpace($line)) { continue }
         if ($line -notmatch '^([0-9a-f]{64})  (.+)$') { Fail "malformed CODE content manifest line: $line" }
         $expectedHash = $matches[1]
-        $relativePath = $matches[2].Replace('/', [IO.Path]::DirectorySeparatorChar)
+        $relativeSlash = $matches[2].Replace('\', '/')
+        if (-not $expectedFiles.Add($relativeSlash)) { Fail "duplicate CODE content path: $relativeSlash" }
+        $relativePath = $relativeSlash.Replace('/', [IO.Path]::DirectorySeparatorChar)
         $candidate = [IO.Path]::GetFullPath((Join-Path $payloadRoot $relativePath))
         if (-not $candidate.StartsWith($payloadRootResolved, [StringComparison]::OrdinalIgnoreCase)) {
-            Fail "unsafe CODE content path: $relativePath"
+            Fail "unsafe CODE content path: $relativeSlash"
         }
-        if (-not (Test-Path -LiteralPath $candidate -PathType Leaf)) { Fail "CODE file missing: $relativePath" }
+        if (-not (Test-Path -LiteralPath $candidate -PathType Leaf)) { Fail "CODE file missing: $relativeSlash" }
         $actualHash = (Get-FileHash -LiteralPath $candidate -Algorithm SHA256).Hash.ToLowerInvariant()
-        if ($actualHash -ne $expectedHash) { Fail "CODE file changed: $relativePath" }
+        if ($actualHash -ne $expectedHash) { Fail "CODE file changed: $relativeSlash" }
+    }
+
+    foreach ($actualFile in Get-ChildItem -LiteralPath $payloadRoot -File -Recurse) {
+        $relativeActual = [IO.Path]::GetRelativePath($payloadRoot, $actualFile.FullName).Replace('\', '/')
+        if (-not $expectedFiles.Contains($relativeActual)) {
+            Fail "unlisted appended CODE file refused: $relativeActual"
+        }
+    }
+    if ($expectedFiles.Count -ne @(Get-ChildItem -LiteralPath $payloadRoot -File -Recurse).Count) {
+        Fail "CODE artifact file-set mismatch"
     }
 
     # 3. Cryptographic provenance: repo + exact signer workflow + exact master SHA.
@@ -196,7 +214,7 @@ try {
         $env:PYTHONPATH = $oldPythonPath
     }
 
-    Write-Host "" 
+    Write-Host ""
     Write-Host "=== INSTALLABLE_CERTIFIED release composed (NOT ACTIVATED) ===" -ForegroundColor Green
     Write-Host "commit     : $commitSha"
     Write-Host "profiles   : BASIC / GOLD / ELITE"
