@@ -1,9 +1,7 @@
 """Fail-closed COM/CRANIOM historical evidence ledger.
 
-This module is a research/debt inventory only. It deliberately does not expose
-patient classification, diagnosis, treatment indication, or normative runtime
-activation. A row may become source-locked while remaining blocked on geometry,
-population applicability, or direct primary numeric verification.
+Research/debt inventory only. It does not expose patient classification,
+diagnosis, treatment indication, or normative runtime activation.
 
 Scientific invariant:
     measurement != reference != finding != diagnosis != indication != treatment
@@ -49,8 +47,6 @@ class ComEvidenceDebt:
     active_for_patient_classification: bool = False
 
 
-# Primary/strong sources already present elsewhere in the scientific corpus.
-# IDs here are traceability handles, not runtime activation handles.
 COM_SOURCE_INDEX: Mapping[str, Mapping[str, str]] = MappingProxyType(
     {
         "TWEED_1954_FMIA": MappingProxyType(
@@ -87,6 +83,22 @@ COM_SOURCE_INDEX: Mapping[str, Mapping[str, str]] = MappingProxyType(
                 ),
                 "source_level": "PRIMARY_IDENTIFIED",
                 "doi": "10.1016/0002-9416(60)90047-6",
+            }
+        ),
+        "RICKETTS_1981_CLINICAL_CEPHALOMETRICS": MappingProxyType(
+            {
+                "citation": (
+                    "Ricketts RM. Perspectives in the clinical application of "
+                    "cephalometrics: the first fifty years. Angle Orthod. "
+                    "1981;51(2):115-150."
+                ),
+                "source_level": "PRIMARY",
+                "evidence": (
+                    "Ricketts' Summary Descriptive Analysis cue sheet gives the "
+                    "mandibular plane as true Frankfort horizontal to Subgonion-Menton, "
+                    "28 +/- 4 degrees at age 3, decreasing 1 degree each 3 years to "
+                    "maturity; therefore age 9 is 26 +/- 4 degrees."
+                ),
             }
         ),
         "CRANIOM_PART2_2011": MappingProxyType(
@@ -216,7 +228,10 @@ COM_EVIDENCE_DEBTS: Tuple[ComEvidenceDebt, ...] = (
         source_ids=(),
         construction_gate="FH_PO_OR_PLUS_U1_AXIS_EXACT_REQUIRED",
         population_gate=None,
-        blocker="Targeted research did not recover a reliable exact source for 97-120 degrees.",
+        blocker=(
+            "Targeted research did not recover a reliable exact source for "
+            "97-120 degrees."
+        ),
         next_exact=(
             "Search original COM-school archives; do not derive this interval "
             "arithmetically from 107 +/- 5 or from CRANIOM extremes."
@@ -235,7 +250,10 @@ COM_EVIDENCE_DEBTS: Tuple[ComEvidenceDebt, ...] = (
             "supports 131 +/- 3, but the exact number has not been reread directly in "
             "the primary table/text."
         ),
-        next_exact="Verify the exact 131 +/- 3 value directly in the Downs 1948 primary text/table.",
+        next_exact=(
+            "Verify the exact 131 +/- 3 value directly in the Downs 1948 primary "
+            "text/table."
+        ),
     ),
     ComEvidenceDebt(
         debt_id="COM_INTERINCISAL_COMP_120_142",
@@ -245,7 +263,10 @@ COM_EVIDENCE_DEBTS: Tuple[ComEvidenceDebt, ...] = (
         source_ids=(),
         construction_gate="U1_AXIS_L1_AXIS_EXACT_REQUIRED",
         population_gate=None,
-        blocker="No reliable exact primary or peer-reviewed source for 120-142 degrees was recovered.",
+        blocker=(
+            "No reliable exact primary or peer-reviewed source for 120-142 degrees "
+            "was recovered."
+        ),
         next_exact=(
             "Search original COM-school archives; never reconstruct this range from "
             "131 +/- 3, 131 +/- 5, 130 +/- 6, or another convention."
@@ -254,19 +275,21 @@ COM_EVIDENCE_DEBTS: Tuple[ComEvidenceDebt, ...] = (
     ComEvidenceDebt(
         debt_id="COM_FMA_26_PM4",
         label="FMA",
-        historical_value="26 +/- 4 deg",
-        state=ComEvidenceState.PEER_REVIEWED_CORROBORATED_PRIMARY_PENDING,
-        source_ids=("RICKETTS_1960",),
-        construction_gate="RICKETTS_FH_GO_GN_EXACT_REQUIRED",
-        population_gate="RICKETTS_AGE_CONTEXT_REQUIRED",
+        historical_value="26 +/- 4 deg at age 9",
+        state=ComEvidenceState.SOURCE_LOCKED_CONSTRUCTION_BLOCKED,
+        source_ids=("RICKETTS_1981_CLINICAL_CEPHALOMETRICS", "RICKETTS_1960"),
+        construction_gate="RICKETTS_TRUE_FH_SUBGONION_MENTON_EXACT_REQUIRED",
+        population_gate="RICKETTS_AGE_DEPENDENT_HISTORICAL_CONTEXT",
         blocker=(
-            "26 +/- 4 is strongly attributed to Ricketts in peer-reviewed literature, "
-            "but the numeric value/age correction has not been directly extracted "
-            "from an accessible primary Ricketts table."
+            "Primary Ricketts 1981 evidence source-locks the age-dependent numeric "
+            "rule and names the construction as true Frankfort horizontal to "
+            "Subgonion-Menton. Digital Crown does not yet expose that exact "
+            "source-specific construction, so Go-Me or Go-Gn must not substitute."
         ),
         next_exact=(
-            "Lock the numeric reference and age contract directly from a primary "
-            "Ricketts source, then certify the exact FH/mandibular-plane construction."
+            "Version and test true Frankfort horizontal (true Porion-Orbitale) plus "
+            "Subgonion-Menton geometry, including the source-specific age rule, "
+            "before any patient-classification activation."
         ),
     ),
     ComEvidenceDebt(
@@ -277,7 +300,10 @@ COM_EVIDENCE_DEBTS: Tuple[ComEvidenceDebt, ...] = (
         source_ids=("CRANIOM_PART2_2011", "CRANIOM_TECHNICAL_REPRODUCTION"),
         construction_gate="CRANIOM_AB_PRIME_V1",
         population_gate="CRANIOM_AGE_9_CONTEXT_REQUIRED",
-        blocker="Numeric value is reproduced technically but not yet read directly from the primary table.",
+        blocker=(
+            "Numeric value is reproduced technically but not yet read directly from "
+            "the primary table."
+        ),
         next_exact="Recover the primary CRANIOM table row for A'B' at age 9.",
     ),
     ComEvidenceDebt(
@@ -288,7 +314,10 @@ COM_EVIDENCE_DEBTS: Tuple[ComEvidenceDebt, ...] = (
         source_ids=("CRANIOM_PART2_2011", "CRANIOM_TECHNICAL_REPRODUCTION"),
         construction_gate="CRANIOM_AB_PRIME_V1",
         population_gate="CRANIOM_ADULT_CONTEXT_REQUIRED",
-        blocker="Numeric value is reproduced technically but not yet read directly from the primary table.",
+        blocker=(
+            "Numeric value is reproduced technically but not yet read directly from "
+            "the primary table."
+        ),
         next_exact="Recover the primary CRANIOM table row for adult A'B'.",
     ),
     ComEvidenceDebt(
@@ -299,7 +328,10 @@ COM_EVIDENCE_DEBTS: Tuple[ComEvidenceDebt, ...] = (
         source_ids=("CRANIOM_PART2_2011", "CRANIOM_TECHNICAL_REPRODUCTION"),
         construction_gate="CRANIOM_N_VERTICAL_OFFSET_V1",
         population_gate="CRANIOM_AGE_9_CONTEXT_REQUIRED",
-        blocker="Numeric value is reproduced technically but not yet read directly from the primary table.",
+        blocker=(
+            "Numeric value is reproduced technically but not yet read directly from "
+            "the primary table."
+        ),
         next_exact="Recover the primary CRANIOM table row for A/N vertical at age 9.",
     ),
     ComEvidenceDebt(
@@ -311,7 +343,9 @@ COM_EVIDENCE_DEBTS: Tuple[ComEvidenceDebt, ...] = (
         construction_gate="CRANIOM_N_VERTICAL_OFFSET_V1",
         population_gate="CRANIOM_ADULT_CONTEXT_REQUIRED",
         blocker="Secondary reproductions diverge on SD (3.0 vs 3.3 mm).",
-        next_exact="Resolve the 3.0/3.3 mm SD directly against the original primary table.",
+        next_exact=(
+            "Resolve the 3.0/3.3 mm SD directly against the original primary table."
+        ),
     ),
     ComEvidenceDebt(
         debt_id="COM_CRANIOM_B_NVERT_9Y",
@@ -321,7 +355,10 @@ COM_EVIDENCE_DEBTS: Tuple[ComEvidenceDebt, ...] = (
         source_ids=("CRANIOM_PART2_2011", "CRANIOM_TECHNICAL_REPRODUCTION"),
         construction_gate="CRANIOM_N_VERTICAL_OFFSET_V1",
         population_gate="CRANIOM_AGE_9_CONTEXT_REQUIRED",
-        blocker="Numeric value is reproduced technically but not yet read directly from the primary table.",
+        blocker=(
+            "Numeric value is reproduced technically but not yet read directly from "
+            "the primary table."
+        ),
         next_exact="Recover the primary CRANIOM table row for B/N vertical at age 9.",
     ),
     ComEvidenceDebt(
@@ -332,7 +369,10 @@ COM_EVIDENCE_DEBTS: Tuple[ComEvidenceDebt, ...] = (
         source_ids=("CRANIOM_PART2_2011", "CRANIOM_TECHNICAL_REPRODUCTION"),
         construction_gate="CRANIOM_N_VERTICAL_OFFSET_V1",
         population_gate="CRANIOM_ADULT_CONTEXT_REQUIRED",
-        blocker="Numeric value is reproduced technically but not yet read directly from the primary table.",
+        blocker=(
+            "Numeric value is reproduced technically but not yet read directly from "
+            "the primary table."
+        ),
         next_exact="Recover the primary CRANIOM table row for adult B/N vertical.",
     ),
     ComEvidenceDebt(
@@ -343,8 +383,14 @@ COM_EVIDENCE_DEBTS: Tuple[ComEvidenceDebt, ...] = (
         source_ids=("CRANIOM_PART2_2011", "CRANIOM_TECHNICAL_REPRODUCTION"),
         construction_gate="CRANIOM_FACIAL_DEPTH_MM_V1",
         population_gate="CRANIOM_AGE_9_CONTEXT_REQUIRED",
-        blocker="Secondary material diverges between tabular 61.3 and rounded textual 62 mm.",
-        next_exact="Resolve the table value and construction semantics directly in the primary source.",
+        blocker=(
+            "Secondary material diverges between tabular 61.3 and rounded textual "
+            "62 mm."
+        ),
+        next_exact=(
+            "Resolve the table value and construction semantics directly in the "
+            "primary source."
+        ),
     ),
     ComEvidenceDebt(
         debt_id="COM_CRANIOM_S_NVERT_DEPTH_ADULT",
@@ -354,8 +400,14 @@ COM_EVIDENCE_DEBTS: Tuple[ComEvidenceDebt, ...] = (
         source_ids=("CRANIOM_PART2_2011", "CRANIOM_TECHNICAL_REPRODUCTION"),
         construction_gate="CRANIOM_FACIAL_DEPTH_MM_V1",
         population_gate="CRANIOM_ADULT_CONTEXT_REQUIRED",
-        blocker="Numeric value is reproduced technically but not yet read directly from the primary table.",
-        next_exact="Recover the adult facial-depth row directly from the primary table and certify geometry.",
+        blocker=(
+            "Numeric value is reproduced technically but not yet read directly from "
+            "the primary table."
+        ),
+        next_exact=(
+            "Recover the adult facial-depth row directly from the primary table and "
+            "certify geometry."
+        ),
     ),
 )
 
@@ -366,12 +418,7 @@ COM_EVIDENCE_DEBT_BY_ID: Mapping[str, ComEvidenceDebt] = MappingProxyType(
 
 
 def patient_classification_references() -> Tuple[ComEvidenceDebt, ...]:
-    """Return active COM debt rows.
-
-    Research debt must never silently become a clinical classifier. The function
-    intentionally returns an empty tuple until a separate reviewed activation
-    contract exists.
-    """
+    """Return active COM debt rows; intentionally empty until reviewed activation."""
 
     return tuple(
         item for item in COM_EVIDENCE_DEBTS if item.active_for_patient_classification
