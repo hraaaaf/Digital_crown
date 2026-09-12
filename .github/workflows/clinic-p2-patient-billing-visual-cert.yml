@@ -1,0 +1,156 @@
+name: Clinic P2 Patient Billing Visual Certification
+
+on:
+  pull_request:
+    paths:
+      - "frontend/src/features/patients/**"
+      - "frontend/src/types/**"
+      - ".github/workflows/clinic-p2-patient-billing-visual-cert.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: clinic-p2-patient-visual-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  capture:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install frontend and Chromium
+        working-directory: frontend
+        run: |
+          npm ci
+          npm install --no-save --package-lock=false playwright@1.55.0
+          npx playwright install --with-deps chromium
+      - name: Inject deterministic P2 harness
+        working-directory: frontend
+        run: |
+          cat > clinic-p2-visual.html <<'EOF'
+          <!doctype html><html lang="fr"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/><title>Clinic P2 Visual</title></head><body><div id="root"></div><script type="module" src="/src/clinic-p2-visual.tsx"></script></body></html>
+          EOF
+          cat > src/clinic-p2-visual.tsx <<'EOF'
+          import React from 'react';
+          import { createRoot } from 'react-dom/client';
+          import { MemoryRouter, Route, Routes } from 'react-router-dom';
+          import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+          import './index.css';
+          import { PatientDetails } from './features/patients/PatientDetails';
+          import { EditPatientForm } from './features/patients/EditPatientForm';
+          import { AddPatientForm } from './features/patients/AddPatientForm';
+          import { useAuthStore } from './stores/useAuthStore';
+
+          const screen = new URLSearchParams(window.location.search).get('screen') || 'details';
+          const path = screen === 'finances' ? '/patients/101?tab=finances' : screen === 'edit' ? '/patients/101/edit' : screen === 'add' ? '/patients/new' : '/patients/101';
+          useAuthStore.setState({
+            user: { id:'1', email:'owner@clinic-p2.local', nom_complet:'Dr Lina Alaoui', role:'ADMIN', is_superadmin:false, permissions:{patients:true,clinical:true,accounting:true,payments:true} } as any,
+            isAuthenticated:true, isLoading:false, error:null,
+          });
+          const client = new QueryClient({defaultOptions:{queries:{retry:false,staleTime:60000}}});
+          createRoot(document.getElementById('root')!).render(
+            <QueryClientProvider client={client}>
+              <MemoryRouter initialEntries={[path]}>
+                <div className="min-h-screen min-w-0 overflow-x-hidden bg-slate-50">
+                  <Routes>
+                    <Route path="/patients/new" element={<AddPatientForm />} />
+                    <Route path="/patients/:id/edit" element={<EditPatientForm />} />
+                    <Route path="/patients/:id" element={<PatientDetails />} />
+                  </Routes>
+                </div>
+              </MemoryRouter>
+            </QueryClientProvider>,
+          );
+          EOF
+          cat > clinic-p2-visual.mjs <<'EOF'
+          import { chromium } from 'playwright';
+          import { createServer } from 'vite';
+          import fs from 'node:fs/promises';
+
+          const out='clinic-p2-visual';
+          await fs.mkdir(out,{recursive:true});
+          const json=(body,status=200)=>({status,contentType:'application/json',body:JSON.stringify(body)});
+          const patient={id:101,numero_dossier:'101',nom:'EL AMRANI',prenom:'Sara',date_naissance:'1992-05-18T00:00:00',sexe:'F',email:'sara@example.local',telephone:'0612345678',telephone_2:null,telephone_3:null,adresse:'Rabat',assurance:'AUCUNE',antecedents_medicaux:null,motif_consultation:null,employer_id:1,created_at:'2025-01-10T10:00:00',dossier:{id:1,is_ortho_active:false,note_honnetete:null}};
+          const journey={patient_id:101,window_months:24,truncated:false,total_events_available:2,summary:{active_plan_steps:1,total_plan_steps:2,remaining_due:1200,has_billing_data:true,next_appointment:'2026-09-14T10:00:00',last_document_date:'2026-09-10T12:00:00'},events:[{event_key:'appointment:1',source:'appointment',type:'APPOINTMENT',ref_id:1,date:'2026-09-14T10:00:00',title:'Contrôle',status:'PLANIFIÉ',phase_hint:'consultation',navigation_target:'INLINE',related_event_key:null},{event_key:'payment:1',source:'payment',type:'PAYMENT',ref_id:2,date:'2026-09-10T12:00:00',title:'Paiement 800 MAD',status:'PAYE',phase_hint:'paiement',navigation_target:'ACCOUNTING_TAB',related_event_key:null}]};
+          const snapshot={has_billing_data:true,total_billed:4200,total_collected:3000,remaining_due:1200,overdue_count:1,overdue_total:1200,overdue_items:[{id:11,libelle:'Couronne céramique',montant:2200,statut_paiement:'PARTIEL',date_debut:'2026-09-08',type_acte:'PROTHESE'}],upcoming_installments_count:1,upcoming_installments_total:600,upcoming_installments:[{id:31,label:'Échéance 2',amount:600,due_date:'2026-10-01'}],next_installment:{id:31,label:'Échéance 2',amount:600,due_date:'2026-10-01'},recent_payments:[{id:51,amount:800,payment_method:'CARTE',payment_date:'2026-09-10',notes:null}],payment_methods:{CARTE:{total:800,count:1},ESPECES:{total:2200,count:2}},by_practitioner:[{practitioner_id:1,practitioner_name:'Dr Lina Alaoui',act_count:1,total_billed:2000,linked_collected:2000,linked_remaining_due:0},{practitioner_id:2,practitioner_name:'Dr Youssef Benali',act_count:1,total_billed:2200,linked_collected:700,linked_remaining_due:1500}],unattributed_collected:300};
+          const billing=[{id:10,libelle:'Détartrage',montant:2000,total_paid:2000,remaining_due:0,statut_paiement:'PAYE',date_debut:'2026-09-01',type_acte:'SOINS'},{id:11,libelle:'Couronne céramique',montant:2200,total_paid:1000,remaining_due:1200,statut_paiement:'PARTIEL',date_debut:'2026-09-08',type_acte:'PROTHESE'}];
+          const practitioners=[{id:1,name:'Dr Lina Alaoui',role:'ADMIN'},{id:2,name:'Dr Youssef Benali',role:'DENTISTE'}];
+          const assignment={patient_id:101,practitioner:{id:1,name:'Dr Lina Alaoui',role:'ADMIN'}};
+          const server=await createServer({server:{host:'127.0.0.1',port:4198,strictPort:true},clearScreen:false});
+          await server.listen();
+          const browser=await chromium.launch();
+          try {
+            for(const [width,height] of [[390,844],[768,1024],[1280,900]]){
+              for(const screen of ['details','finances','edit','add']){
+                const context=await browser.newContext({viewport:{width,height}});
+                const page=await context.newPage();
+                const errors=[];
+                page.on('pageerror',e=>errors.push(`pageerror: ${e.message}`));
+                page.on('console',m=>{ if(m.type()==='error') errors.push(`console: ${m.text()}`); });
+                await page.route('**/api/**',async route=>{
+                  const req=route.request(); const url=new URL(req.url());
+                  if(url.pathname==='/api/patients/_clinic/practitioners') return route.fulfill(json(practitioners));
+                  if(url.pathname==='/api/patients/101/practitioner') return route.fulfill(json(assignment));
+                  if(url.pathname==='/api/patients/101') return route.fulfill(json(patient));
+                  if(url.pathname==='/api/patients/next-dossier-number') return route.fulfill(json({next_number:'102'}));
+                  if(url.pathname.startsWith('/api/patients/check-dossier/')) return route.fulfill(json({exists:false,patient_id:null,patient_name:null}));
+                  if(url.pathname==='/api/patients/101/journey') return route.fulfill(json(journey));
+                  if(url.pathname==='/api/patients/101/financial-snapshot') return route.fulfill(json(snapshot));
+                  if(url.pathname==='/api/accounting/actes-billing/patient/101') return route.fulfill(json(billing));
+                  if(url.pathname==='/api/actes/patient/101') return route.fulfill(json([]));
+                  if(url.pathname==='/api/patients/101/documents') return route.fulfill(json([]));
+                  if(url.pathname==='/api/intelligence/patient/101/nba') return route.fulfill(json({nba:null}));
+                  if(req.method()!=='GET') return route.fulfill(json({}));
+                  return route.fulfill(json({}));
+                });
+                await page.goto(`http://127.0.0.1:4198/clinic-p2-visual.html?screen=${screen}`,{waitUntil:'networkidle'});
+                if(screen==='details') {
+                  await page.getByText('EL AMRANI Sara',{exact:true}).waitFor({state:'visible',timeout:15000});
+                  await page.getByText('Référent clinique',{exact:true}).waitFor({state:'visible',timeout:15000});
+                }
+                if(screen==='finances') {
+                  await page.getByText('Facturé',{exact:true}).first().waitFor({state:'visible',timeout:15000});
+                  await page.getByText('Production par praticien',{exact:true}).waitFor({state:'visible',timeout:15000});
+                }
+                if(screen==='edit') await page.getByRole('heading',{name:'Mise à jour'}).waitFor({state:'visible',timeout:15000});
+                if(screen==='add') await page.getByRole('heading',{name:'Nouveau Patient'}).waitFor({state:'visible',timeout:15000});
+                const layout=await page.evaluate(()=>({clientWidth:document.documentElement.clientWidth,scrollWidth:document.documentElement.scrollWidth}));
+                await page.screenshot({path:`${out}/${screen}-${width}x${height}.png`,fullPage:true,animations:'disabled'});
+                await fs.writeFile(`${out}/${screen}-${width}.layout.json`,JSON.stringify({...layout,overflowPx:Math.max(0,layout.scrollWidth-layout.clientWidth),errors},null,2));
+                if(layout.scrollWidth>layout.clientWidth) throw new Error(`${screen} overflow ${layout.scrollWidth}>${layout.clientWidth} at ${width}`);
+                if(errors.length) throw new Error(`${screen} runtime errors at ${width}: ${errors.join(' | ')}`);
+                await context.close();
+              }
+            }
+          } finally { await browser.close(); await server.close(); }
+          EOF
+      - name: Capture deterministic P2 AFTER
+        working-directory: frontend
+        run: node clinic-p2-visual.mjs
+      - name: Verify evidence
+        working-directory: frontend
+        run: |
+          test "$(find clinic-p2-visual -name '*.png' | wc -l)" -eq 12
+          test "$(find clinic-p2-visual -name '*.layout.json' | wc -l)" -eq 12
+          cat > clinic-p2-visual/metadata.txt <<EOF
+          head_sha=${{ github.event.pull_request.head.sha || github.sha }}
+          base_sha=${{ github.event.pull_request.base.sha || github.sha }}
+          phase=AFTER
+          viewports=390x844,768x1024,1280x900
+          screens=details,finances,edit,add
+          goal=additive patient practitioner context plus truthful finance attribution; local patients and documents remain canonical
+          EOF
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: clinic-p2-patient-visual-evidence
+          path: frontend/clinic-p2-visual/
+          if-no-files-found: error
+          retention-days: 14

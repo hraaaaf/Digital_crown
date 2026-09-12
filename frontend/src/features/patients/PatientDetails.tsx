@@ -2,6 +2,7 @@ import { useEffect, useLayoutEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { DigitalCrownLoader } from '../../components/DigitalCrownLoader';
 import { PatientDetails as PatientDetailsInner } from './PatientDetailsInner';
+import { PatientPractitionerContextPortal } from './components/PatientPractitionerContextPortal';
 import {
   hasUnsavedPatientDocumentDraft,
   resetPatientDocumentBoundary,
@@ -41,5 +42,11 @@ export const PatientDetails = () => {
     return <DigitalCrownLoader text="Sécurisation du dossier patient..." />;
   }
 
-  return <PatientDetailsInner key={id} />;
+  const patientId = Number(id);
+  return (
+    <>
+      {Number.isFinite(patientId) && <PatientPractitionerContextPortal patientId={patientId} />}
+      <PatientDetailsInner key={id} />
+    </>
+  );
 };
