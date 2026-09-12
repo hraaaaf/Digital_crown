@@ -235,8 +235,7 @@ registry.register_source(
     )
 )
 
-# Population context relevant to the Moroccan deployment, registered without
-# copying unverified table values into the runtime registry.
+# Population context relevant to the Moroccan deployment.
 registry.register_source(
     NormSource(
         source_id="MOROCCO_STEINER_OUSEHAL_2012",
@@ -254,6 +253,28 @@ registry.register_source(
         applicability_note=(
             "Authors caution that the sample should not be generalized to Casablanca "
             "or Morocco as a whole without more exhaustive studies."
+        ),
+    )
+)
+registry.register_source(
+    NormSource(
+        source_id="OUSEHAL_NUMERIC_CROSSCHECK_GOVINAKOVI_2018",
+        tier=SourceTier.PEER_REVIEWED_POPULATION_STUDY,
+        citation=(
+            "Govinakovi PS, Al-Busaidi I, Senguttuvan V. Cephalometric Norms in an "
+            "Omani Adult Population of Arab Descent. Sultan Qaboos Univ Med J. "
+            "2018;18(2):e182-e189."
+        ),
+        doi="10.18295/squmj.2018.18.02.010",
+        pmid="30210848",
+        url="https://pmc.ncbi.nlm.nih.gov/articles/PMC6132525/",
+        sample_description=(
+            "Independent peer-reviewed comparison table reproducing the Ousehal et al. "
+            "2012 SNA, SNB and ANB mean ± SD values for 71 Moroccan adults."
+        ),
+        applicability_note=(
+            "Cross-check source only for the published Ousehal sagittal numeric values; "
+            "its Omani study population is not used as the Moroccan reference cohort."
         ),
     )
 )
@@ -325,5 +346,85 @@ registry.register_reference(
         construction_gate="FH_PO_OR_V1",
         active_for_patient_classification=False,
         note="Method-specific CRANIOM observed-extremes interval; descriptive only.",
+    )
+)
+
+# Ousehal et al. 2012 sagittal Steiner values, restricted to the CCTD Casablanca
+# reference sample and independently cross-checked in Govinakovi et al. 2018.
+# These references remain descriptive and cannot directly classify a patient.
+_OUSEHAL_CONTEXT = MappingProxyType(
+    {
+        "site": "CCTD Casablanca",
+        "age_range_years": "19-27",
+        "mean_age_years": "22.73",
+        "mean_age_sd_years": "1.69",
+        "sample_size": "71",
+        "sex_composition": "47 women; 24 men",
+        "occlusion": "Class I",
+        "facial_selection": "facial harmony; acceptable profile",
+        "orthodontic_treatment_history": "none",
+        "generalizability": "CCTD sample only; not universal Casablanca or Morocco norm",
+    }
+)
+_OUSEHAL_SOURCES = (
+    "MOROCCO_STEINER_OUSEHAL_2012",
+    "OUSEHAL_NUMERIC_CROSSCHECK_GOVINAKOVI_2018",
+)
+
+registry.register_reference(
+    NormReference(
+        reference_id="STEINER_SNA_CCTD_CASABLANCA_19_27_MEAN_SD_V1",
+        method_id="STEINER_SNA_DEG_V1",
+        method_version="1",
+        measurement_id="SNA",
+        kind=ReferenceKind.MEAN_SD,
+        unit="deg",
+        lower=None,
+        upper=None,
+        source_ids=_OUSEHAL_SOURCES,
+        population_context=_OUSEHAL_CONTEXT,
+        mean=80.59,
+        sd=3.80,
+        construction_gate="STEINER_SNA_V1",
+        active_for_patient_classification=False,
+        note="Descriptive CCTD Casablanca reference sample; not a universal Moroccan norm.",
+    )
+)
+registry.register_reference(
+    NormReference(
+        reference_id="STEINER_SNB_CCTD_CASABLANCA_19_27_MEAN_SD_V1",
+        method_id="STEINER_SNB_DEG_V1",
+        method_version="1",
+        measurement_id="SNB",
+        kind=ReferenceKind.MEAN_SD,
+        unit="deg",
+        lower=None,
+        upper=None,
+        source_ids=_OUSEHAL_SOURCES,
+        population_context=_OUSEHAL_CONTEXT,
+        mean=77.68,
+        sd=3.55,
+        construction_gate="STEINER_SNB_V1",
+        active_for_patient_classification=False,
+        note="Descriptive CCTD Casablanca reference sample; not a universal Moroccan norm.",
+    )
+)
+registry.register_reference(
+    NormReference(
+        reference_id="STEINER_ANB_CCTD_CASABLANCA_19_27_MEAN_SD_V1",
+        method_id="STEINER_ANB_DEG_V1",
+        method_version="1",
+        measurement_id="ANB",
+        kind=ReferenceKind.MEAN_SD,
+        unit="deg",
+        lower=None,
+        upper=None,
+        source_ids=_OUSEHAL_SOURCES,
+        population_context=_OUSEHAL_CONTEXT,
+        mean=3.11,
+        sd=1.68,
+        construction_gate="STEINER_ANB_V1",
+        active_for_patient_classification=False,
+        note="Descriptive CCTD Casablanca reference sample; not a universal Moroccan norm.",
     )
 )

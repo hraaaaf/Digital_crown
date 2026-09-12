@@ -65,12 +65,60 @@ def test_reference_keeps_population_context_explicit_and_frozen():
         ref.population_context["sample_size"] = "999"  # type: ignore[index]
 
 
-def test_moroccan_source_is_registered_without_unverified_numeric_reference():
+def test_moroccan_steiner_sagittal_values_are_double_sourced_and_inert():
     source = registry.get_source("MOROCCO_STEINER_OUSEHAL_2012")
+    crosscheck = registry.get_source("OUSEHAL_NUMERIC_CROSSCHECK_GOVINAKOVI_2018")
     assert source is not None
     assert source.doi == "10.1016/j.ortho.2011.12.001"
     assert source.pmid == "22236522"
-    assert not any("MOROCCO" in ref.reference_id for ref in registry.references.values())
+    assert crosscheck is not None
+    assert crosscheck.doi == "10.18295/squmj.2018.18.02.010"
+    assert crosscheck.pmid == "30210848"
+
+    expected = {
+        "STEINER_SNA_CCTD_CASABLANCA_19_27_MEAN_SD_V1": (
+            "STEINER_SNA_DEG_V1",
+            "SNA",
+            "STEINER_SNA_V1",
+            80.59,
+            3.80,
+        ),
+        "STEINER_SNB_CCTD_CASABLANCA_19_27_MEAN_SD_V1": (
+            "STEINER_SNB_DEG_V1",
+            "SNB",
+            "STEINER_SNB_V1",
+            77.68,
+            3.55,
+        ),
+        "STEINER_ANB_CCTD_CASABLANCA_19_27_MEAN_SD_V1": (
+            "STEINER_ANB_DEG_V1",
+            "ANB",
+            "STEINER_ANB_V1",
+            3.11,
+            1.68,
+        ),
+    }
+    for reference_id, (method_id, measurement_id, construction_gate, mean, sd) in expected.items():
+        ref = registry.get_reference(reference_id)
+        assert ref is not None
+        assert ref.method_id == method_id
+        assert ref.method_version == "1"
+        assert ref.measurement_id == measurement_id
+        assert ref.construction_gate == construction_gate
+        assert ref.kind == ReferenceKind.MEAN_SD
+        assert ref.unit == "deg"
+        assert ref.mean == mean and ref.sd == sd
+        assert ref.lower is None and ref.upper is None
+        assert ref.source_ids == (
+            "MOROCCO_STEINER_OUSEHAL_2012",
+            "OUSEHAL_NUMERIC_CROSSCHECK_GOVINAKOVI_2018",
+        )
+        assert ref.population_context["site"] == "CCTD Casablanca"
+        assert ref.population_context["age_range_years"] == "19-27"
+        assert ref.population_context["sample_size"] == "71"
+        assert ref.population_context["sex_composition"] == "47 women; 24 men"
+        assert "not universal" in ref.population_context["generalizability"]
+        assert ref.active_for_patient_classification is False
 
 
 def test_duplicate_source_and_reference_ids_are_rejected():
