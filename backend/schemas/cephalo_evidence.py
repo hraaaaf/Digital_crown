@@ -216,6 +216,8 @@ class FindingEvidence(_StrictModel):
 class DiagnosticHypothesisEvidence(_StrictModel):
     diagnosis_id: str = Field(min_length=1)
     domain: str = Field(min_length=1)
+    rule_id: Optional[str] = None
+    rule_version: Optional[str] = None
     supporting_finding_refs: List[str] = Field(default_factory=list)
     opposing_finding_refs: List[str] = Field(default_factory=list)
     missing_data_refs: List[str] = Field(default_factory=list)
@@ -227,6 +229,8 @@ class DiagnosticHypothesisEvidence(_StrictModel):
 
     @model_validator(mode="after")
     def validate_diagnosis_contract(self):
+        if (self.rule_id is None) != (self.rule_version is None):
+            raise ValueError("Diagnostic rule id and version must be provided together")
         if self.state == ReviewState.INSUFFICIENT_DATA:
             if not self.missing_data_refs:
                 raise ValueError("Insufficient-data diagnosis requires explicit missing data refs")
