@@ -36,7 +36,9 @@ PRIMARY_NUMERIC_TIERS = frozenset(
         SourceTier.PEER_REVIEWED_POPULATION_STUDY,
     }
 )
-SUPPORTED_REFERENCE_KINDS = frozenset({ReferenceKind.EXTREME_RANGE})
+SUPPORTED_REFERENCE_KINDS = frozenset(
+    {ReferenceKind.EXTREME_RANGE, ReferenceKind.MEAN_SD}
+)
 
 
 @dataclass(frozen=True)
@@ -59,10 +61,12 @@ class NormReference:
     measurement_id: str
     kind: ReferenceKind
     unit: str
-    lower: float
-    upper: float
+    lower: Optional[float]
+    upper: Optional[float]
     source_ids: Tuple[str, ...]
     population_context: Mapping[str, str]
+    mean: Optional[float] = None
+    sd: Optional[float] = None
     construction_gate: Optional[str] = None
     active_for_patient_classification: bool = False
     note: Optional[str] = None
@@ -79,6 +83,32 @@ class NormRegistry:
     def _nonempty(value: str, field: str) -> None:
         if not isinstance(value, str) or not value.strip():
             raise ValueError(f"{field} must be non-empty")
+
+    @staticmethod
+    def _validate_numeric_shape(reference: NormReference) -> None:
+        if reference.kind == ReferenceKind.EXTREME_RANGE:
+            if reference.lower is None or reference.upper is None:
+                raise ValueError("EXTREME_RANGE requires lower and upper limits")
+            if reference.mean is not None or reference.sd is not None:
+                raise ValueError("EXTREME_RANGE cannot define mean or sd")
+            if not math.isfinite(reference.lower) or not math.isfinite(reference.upper):
+                raise ValueError("Normative range limits must be finite")
+            if reference.lower > reference.upper:
+                raise ValueError("Normative range lower limit cannot exceed upper limit")
+            return
+
+        if reference.kind == ReferenceKind.MEAN_SD:
+            if reference.mean is None or reference.sd is None:
+                raise ValueError("MEAN_SD requires mean and sd")
+            if reference.lower is not None or reference.upper is not None:
+                raise ValueError("MEAN_SD cannot define lower or upper limits")
+            if not math.isfinite(reference.mean) or not math.isfinite(reference.sd):
+                raise ValueError("MEAN_SD values must be finite")
+            if reference.sd <= 0:
+                raise ValueError("MEAN_SD sd must be strictly positive")
+            return
+
+        raise ValueError(f"Unsupported normative reference kind: {reference.kind.value}")
 
     def register_source(self, source: NormSource) -> None:
         self._nonempty(source.source_id, "source_id")
@@ -97,7 +127,7 @@ class NormRegistry:
             raise ValueError(f"Duplicate normative reference: {reference.reference_id}")
         if reference.kind not in SUPPORTED_REFERENCE_KINDS:
             raise ValueError(
-                "Registry foundation currently supports only explicit interval references"
+                "Registry currently supports only EXTREME_RANGE and MEAN_SD references"
             )
         if not reference.source_ids:
             raise ValueError("Normative reference requires at least one source")
@@ -110,10 +140,7 @@ class NormRegistry:
             raise ValueError(
                 "Numeric normative reference requires at least one primary research source"
             )
-        if not math.isfinite(reference.lower) or not math.isfinite(reference.upper):
-            raise ValueError("Normative range limits must be finite")
-        if reference.lower > reference.upper:
-            raise ValueError("Normative range lower limit cannot exceed upper limit")
+        self._validate_numeric_shape(reference)
         if not reference.population_context:
             raise ValueError("Normative reference requires explicit population context")
         if reference.active_for_patient_classification:
@@ -133,6 +160,8 @@ class NormRegistry:
             upper=reference.upper,
             source_ids=tuple(reference.source_ids),
             population_context=frozen_context,
+            mean=reference.mean,
+            sd=reference.sd,
             construction_gate=reference.construction_gate,
             active_for_patient_classification=False,
             note=reference.note,
