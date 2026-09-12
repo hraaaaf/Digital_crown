@@ -1,11 +1,11 @@
-"""Fail-closed verification for installable Digital Crown cabinet releases.
+"""Fail-closed certification for Digital Crown cabinet releases.
 
-A cabinet release is installable only when it carries a CI-issued certificate tied
-exactly to one immutable 40-character Git commit SHA and certified for every
-commercial pack supported by the universal binary.
+Two levels are intentionally distinct:
+- CODE_CERTIFIED: GitHub Actions validated one exact immutable 40-char Git SHA.
+- INSTALLABLE_CERTIFIED: that code proof was composed with the exact external runtime
+  assets and provenance verification required for cabinet installation/startup.
 
-This module intentionally uses only the Python standard library so it can run before
-the application imports database/configuration code.
+Only INSTALLABLE_CERTIFIED is allowed to reach a real cabinet runtime or installer.
 """
 
 from __future__ import annotations
@@ -16,12 +16,19 @@ import re
 from pathlib import Path
 from typing import Any
 
+from backend.runtime_asset_certification import verify_runtime_assets
+
 CERTIFICATE_FILENAME = "release-certification.json"
 SHA_MARKER_FILENAME = ".digitalcrown-release-sha"
 CONTENT_MANIFEST_FILENAME = "release-content.sha256"
+INSTALLABLE_CERTIFICATE_FILENAME = "installable-certification.json"
 CERTIFICATE_VERSION = 1
+INSTALLABLE_CERTIFICATE_VERSION = 1
 REPOSITORY = "hraaaaf/Digital_crown"
 REQUIRED_PACKS = ("BASIC", "GOLD", "ELITE")
+CODE_CERTIFICATION_LEVEL = "CODE_CERTIFIED"
+INSTALLABLE_CERTIFICATION_LEVEL = "INSTALLABLE_CERTIFIED"
+GITHUB_SIGNER_WORKFLOW = "hraaaaf/Digital_crown/.github/workflows/cabinet-release-certification.yml"
 _SHA_RE = re.compile(r"^[0-9a-f]{40}$")
 _DIGEST_RE = re.compile(r"^[0-9a-f]{64}$")
 
@@ -38,19 +45,26 @@ def _sha256(path: Path) -> str:
     return digest.hexdigest()
 
 
-def _load_certificate(release_dir: Path) -> dict[str, Any]:
-    path = release_dir / CERTIFICATE_FILENAME
+def _load_json(path: Path, label: str) -> dict[str, Any]:
     if not path.is_file():
-        raise ReleaseCertificationError(
-            f"Missing {CERTIFICATE_FILENAME}; uncertified cabinet release refused"
-        )
+        raise ReleaseCertificationError(f"Missing {path.name}; {label} refused")
     try:
         payload = json.loads(path.read_text(encoding="utf-8-sig"))
     except (OSError, json.JSONDecodeError) as exc:
-        raise ReleaseCertificationError(f"Invalid release certificate: {exc}") from exc
+        raise ReleaseCertificationError(f"Invalid {path.name}: {exc}") from exc
     if not isinstance(payload, dict):
-        raise ReleaseCertificationError("Release certificate must be a JSON object")
+        raise ReleaseCertificationError(f"{path.name} must be a JSON object")
     return payload
+
+
+def _load_certificate(release_dir: Path) -> dict[str, Any]:
+    return _load_json(release_dir / CERTIFICATE_FILENAME, "uncertified cabinet release")
+
+
+def _normalize_packs(value: object) -> set[str]:
+    if not isinstance(value, list):
+        raise ReleaseCertificationError("certified_packs must be a list")
+    return {str(pack).strip().upper() for pack in value}
 
 
 def _verify_identity(root: Path, expected_pack: str | None = None) -> dict[str, Any]:
@@ -66,6 +80,8 @@ def _verify_identity(root: Path, expected_pack: str | None = None) -> dict[str, 
         )
     if payload.get("artifact_type") != "cabinet-certified-release":
         raise ReleaseCertificationError("Certificate is not a cabinet-certified-release")
+    if payload.get("certification_level") != CODE_CERTIFICATION_LEVEL:
+        raise ReleaseCertificationError("Release certificate is not CODE_CERTIFIED")
 
     commit_sha = str(payload.get("commit_sha", "")).strip().lower()
     if not _SHA_RE.fullmatch(commit_sha):
@@ -86,10 +102,7 @@ def _verify_identity(root: Path, expected_pack: str | None = None) -> dict[str, 
     if not release_id or commit_sha[:12] not in release_id:
         raise ReleaseCertificationError("release_id must include the certified SHA prefix")
 
-    packs_raw = payload.get("certified_packs")
-    if not isinstance(packs_raw, list):
-        raise ReleaseCertificationError("certified_packs must be a list")
-    packs = {str(pack).strip().upper() for pack in packs_raw}
+    packs = _normalize_packs(payload.get("certified_packs"))
     missing = set(REQUIRED_PACKS) - packs
     if missing:
         raise ReleaseCertificationError(
@@ -130,14 +143,19 @@ def _verify_content_manifest(root: Path, payload: dict[str, Any]) -> None:
     if not lines:
         raise ReleaseCertificationError("Content manifest is empty")
 
+    seen: set[str] = set()
     for line in lines:
         try:
             expected_digest, relative = line.split("  ", 1)
         except ValueError as exc:
             raise ReleaseCertificationError(f"Malformed content manifest line: {line!r}") from exc
         expected_digest = expected_digest.strip().lower()
+        relative = relative.replace("\\", "/")
         if not _DIGEST_RE.fullmatch(expected_digest):
             raise ReleaseCertificationError(f"Malformed file digest for {relative!r}")
+        if relative in seen:
+            raise ReleaseCertificationError(f"Duplicate content manifest path: {relative}")
+        seen.add(relative)
 
         rel_path = Path(relative)
         if rel_path.is_absolute() or ".." in rel_path.parts:
@@ -149,16 +167,77 @@ def _verify_content_manifest(root: Path, payload: dict[str, Any]) -> None:
             raise ReleaseCertificationError(f"Certified release file changed: {relative}")
 
 
+def _verify_installable_metadata(
+    root: Path,
+    code_payload: dict[str, Any],
+    *,
+    expected_pack: str | None = None,
+) -> dict[str, Any]:
+    installable = _load_json(
+        root / INSTALLABLE_CERTIFICATE_FILENAME,
+        "non-installable cabinet release",
+    )
+    if installable.get("certificate_version") != INSTALLABLE_CERTIFICATE_VERSION:
+        raise ReleaseCertificationError("Unsupported installable certificate version")
+    if installable.get("artifact_type") != "cabinet-installable-release":
+        raise ReleaseCertificationError("Installable certificate artifact_type is invalid")
+    if installable.get("certification_level") != INSTALLABLE_CERTIFICATION_LEVEL:
+        raise ReleaseCertificationError("Release is not INSTALLABLE_CERTIFIED")
+
+    commit_sha = str(code_payload["commit_sha"]).lower()
+    if str(installable.get("commit_sha", "")).strip().lower() != commit_sha:
+        raise ReleaseCertificationError("Installable certificate/code SHA mismatch")
+    if str(installable.get("release_id", "")).strip() != str(code_payload["release_id"]):
+        raise ReleaseCertificationError("Installable certificate release_id mismatch")
+    if installable.get("code_certification_run_id") != code_payload.get("certification_run_id"):
+        raise ReleaseCertificationError("Installable/code certification run mismatch")
+    if str(installable.get("code_content_manifest_sha256", "")).lower() != str(
+        code_payload.get("content_manifest_sha256", "")
+    ).lower():
+        raise ReleaseCertificationError("Installable/code content manifest mismatch")
+
+    packs = _normalize_packs(installable.get("certified_packs"))
+    if packs != set(REQUIRED_PACKS):
+        raise ReleaseCertificationError("INSTALLABLE certificate must cover exactly BASIC/GOLD/ELITE")
+    if expected_pack is not None and expected_pack.strip().upper() not in packs:
+        raise ReleaseCertificationError(f"Installable release does not cover {expected_pack!r}")
+
+    if installable.get("github_attestation_verified") is not True:
+        raise ReleaseCertificationError("GitHub/Sigstore provenance was not verified")
+    if installable.get("github_attestation_repository") != REPOSITORY:
+        raise ReleaseCertificationError("GitHub attestation repository mismatch")
+    if installable.get("github_attestation_signer_workflow") != GITHUB_SIGNER_WORKFLOW:
+        raise ReleaseCertificationError("GitHub attestation signer workflow mismatch")
+    if str(installable.get("github_attestation_source_digest", "")).lower() != commit_sha:
+        raise ReleaseCertificationError("GitHub attestation source digest mismatch")
+
+    registry_digest = str(installable.get("scientific_assets_registry_sha256", "")).lower()
+    asset_manifest_digest = str(installable.get("runtime_assets_content_manifest_sha256", "")).lower()
+    if not _DIGEST_RE.fullmatch(registry_digest):
+        raise ReleaseCertificationError("Invalid scientific asset registry digest")
+    if not _DIGEST_RE.fullmatch(asset_manifest_digest):
+        raise ReleaseCertificationError("Invalid runtime asset manifest digest")
+
+    asset_payload = verify_runtime_assets(
+        root,
+        expected_commit_sha=commit_sha,
+        expected_registry_sha256=registry_digest,
+    )
+    if str(asset_payload.get("content_manifest_sha256", "")).lower() != asset_manifest_digest:
+        raise ReleaseCertificationError("Installable/runtime asset manifest mismatch")
+
+    return installable
+
+
 def verify_release_identity(
     release_dir: str | Path,
     *,
     expected_pack: str | None = None,
 ) -> dict[str, Any]:
-    """Verify portable identity embedded in a packaged/frozen build.
+    """Verify portable CODE_CERTIFIED identity only.
 
-    PyInstaller transforms source files, so the source-content manifest is verified at
-    build time by ``DigitalCrown.spec``. The packaged runtime then rechecks the embedded
-    certificate + exact SHA marker + universal pack coverage before first-boot writes.
+    This low-level primitive is used during composition/build. Real cabinet startup
+    must use ``verify_installable_release_identity`` instead.
     """
 
     root = Path(release_dir).resolve()
@@ -172,7 +251,7 @@ def verify_release_directory(
     *,
     expected_pack: str | None = None,
 ) -> dict[str, Any]:
-    """Verify identity plus all certified source/runtime payload hashes."""
+    """Verify complete CODE_CERTIFIED source payload hashes."""
 
     root = Path(release_dir).resolve()
     if not root.is_dir():
@@ -180,3 +259,32 @@ def verify_release_directory(
     payload = _verify_identity(root, expected_pack)
     _verify_content_manifest(root, payload)
     return payload
+
+
+def verify_installable_release_directory(
+    release_dir: str | Path,
+    *,
+    expected_pack: str | None = None,
+) -> dict[str, Any]:
+    """Verify code + provenance composition + every external packaged runtime asset."""
+
+    root = Path(release_dir).resolve()
+    code_payload = verify_release_directory(root, expected_pack=expected_pack)
+    return _verify_installable_metadata(root, code_payload, expected_pack=expected_pack)
+
+
+def verify_installable_release_identity(
+    release_dir: str | Path,
+    *,
+    expected_pack: str | None = None,
+) -> dict[str, Any]:
+    """Verify packaged identity + exact external asset bytes before first-boot writes.
+
+    PyInstaller transforms Python/source files, so the source-content manifest is
+    checked before packaging by DigitalCrown.spec. External model/data files remain
+    byte-for-byte data files and are re-hashed here inside the frozen bundle.
+    """
+
+    root = Path(release_dir).resolve()
+    code_payload = _verify_identity(root, expected_pack)
+    return _verify_installable_metadata(root, code_payload, expected_pack=expected_pack)
