@@ -86,11 +86,29 @@ def test_ricketts_fma_numeric_and_age_rule_are_primary_locked_but_geometry_block
     ]["evidence"]
 
 
-def test_known_unverified_historical_values_remain_blocked():
+def test_interincisal_131_is_explicit_attribution_conflict_not_fake_source_lock():
+    item = COM_EVIDENCE_DEBT_BY_ID["COM_INTERINCISAL_131_PM3"]
     assert (
-        COM_EVIDENCE_DEBT_BY_ID["COM_INTERINCISAL_131_PM3"].state
-        == ComEvidenceState.PRIMARY_IDENTIFIED_NUMERIC_UNVERIFIED
+        item.state
+        == ComEvidenceState.HISTORICAL_ATTRIBUTION_CONFLICT_PRIMARY_REVIEW_REQUIRED
     )
+    assert item.source_ids == (
+        "DOWNS_1948",
+        "STEINER_1953",
+        "SANGALLI_2022_SYSTEMATIC_REVIEW",
+    )
+    assert "135.4 +/- 5.8" in item.blocker
+    assert "131 +/- 3" in item.blocker
+    assert "never collapse conflicting conventions" in item.next_exact
+    assert COM_SOURCE_INDEX["DOWNS_1948"]["source_level"] == "PRIMARY_IDENTIFIED"
+    assert COM_SOURCE_INDEX["STEINER_1953"]["source_level"] == "PRIMARY_IDENTIFIED"
+    assert (
+        COM_SOURCE_INDEX["SANGALLI_2022_SYSTEMATIC_REVIEW"]["source_level"]
+        == "SYSTEMATIC_REVIEW"
+    )
+
+
+def test_known_unverified_historical_values_remain_blocked():
     assert (
         COM_EVIDENCE_DEBT_BY_ID["COM_U1_FH_COMP_97_120"].state
         == ComEvidenceState.PRIMARY_SOURCE_NOT_FOUND
