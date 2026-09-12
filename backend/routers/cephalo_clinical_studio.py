@@ -12,6 +12,7 @@ router = APIRouter()
 @router.get("/{patient_id}/cephalo-clinical-studio")
 def get_cephalo_clinical_studio(
     patient_id: int,
+    analysis_id: int | None = None,
     db: Session = Depends(database.get_db),
     current_user: models.User = Depends(require_permission("cephalo")),
 ):
@@ -20,12 +21,18 @@ def get_cephalo_clinical_studio(
     if not patient:
         raise HTTPException(status_code=404, detail="Patient introuvable")
 
-    analysis = (
-        db.query(models.CephaloAnalysis)
-        .filter(models.CephaloAnalysis.patient_id == patient_id)
-        .order_by(models.CephaloAnalysis.created_at.desc(), models.CephaloAnalysis.id.desc())
-        .first()
-    )
+    analysis_query = db.query(models.CephaloAnalysis).filter(models.CephaloAnalysis.patient_id == patient_id)
+    if analysis_id is not None:
+        analysis = analysis_query.filter(models.CephaloAnalysis.id == analysis_id).first()
+        if not analysis:
+            raise HTTPException(status_code=404, detail="Analyse céphalométrique introuvable pour ce patient")
+    else:
+        analysis = (
+            analysis_query
+            .order_by(models.CephaloAnalysis.created_at.desc(), models.CephaloAnalysis.id.desc())
+            .first()
+        )
+
     return build_r15_clinical_studio_snapshot(
         patient_id=patient_id,
         analysis_id=analysis.id if analysis else None,

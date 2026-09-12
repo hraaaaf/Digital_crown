@@ -3,6 +3,7 @@ from types import SimpleNamespace
 import pytest
 from fastapi import HTTPException
 
+from backend import models
 from backend.routers import cephalo_clinical_studio as router
 from backend.services import cephalo_r15_clinical_studio as studio
 from backend.services.cephalo_runtime_evidence import EVIDENCE_GRAPH_KEY
@@ -108,7 +109,52 @@ def test_r15_router_checks_patient_access_before_any_patient_query(monkeypatch):
     fake_user = object()
 
     with pytest.raises(HTTPException) as exc:
-        router.get_cephalo_clinical_studio(123, db=fake_db, current_user=fake_user)
+        router.get_cephalo_clinical_studio(123, analysis_id=99, db=fake_db, current_user=fake_user)
 
     assert exc.value.status_code == 403
     assert calls == [(123, fake_user, fake_db)]
+
+
+def test_r15_router_projects_the_exact_requested_analysis(monkeypatch):
+    monkeypatch.setattr(router, "assert_patient_access", lambda patient_id, current_user, db: None)
+
+    patient = SimpleNamespace(id=42)
+    requested = SimpleNamespace(id=99, patient_id=42, angles_data={"source": "requested"})
+    filters = []
+
+    class FakeQuery:
+        def __init__(self, model):
+            self.model = model
+
+        def filter(self, *expressions):
+            filters.extend(expressions)
+            return self
+
+        def order_by(self, *args):
+            raise AssertionError("latest-analysis fallback must not run when analysis_id is supplied")
+
+        def first(self):
+            if self.model is models.Patient:
+                return patient
+            if self.model is models.CephaloAnalysis:
+                return requested
+            raise AssertionError(f"unexpected model {self.model}")
+
+    class FakeDb:
+        def query(self, model):
+            return FakeQuery(model)
+
+    captured = {}
+
+    def _project(**kwargs):
+        captured.update(kwargs)
+        return {"analysis_id": kwargs["analysis_id"]}
+
+    monkeypatch.setattr(router, "build_r15_clinical_studio_snapshot", _project)
+
+    result = router.get_cephalo_clinical_studio(42, analysis_id=99, db=FakeDb(), current_user=object())
+
+    assert result == {"analysis_id": 99}
+    assert captured == {"patient_id": 42, "analysis_id": 99, "angles_data": {"source": "requested"}}
+    analysis_id_filters = [expr for expr in filters if getattr(getattr(expr, "left", None), "name", None) == "id"]
+    assert any(getattr(expr.right, "value", None) == 99 for expr in analysis_id_filters)

@@ -72,6 +72,7 @@ describe('ClinicalScientificStudio R15', () => {
     render(<ClinicalScientificStudio patientId={915} analysisId={9915} P={PALETTE.dark} />);
 
     await screen.findByText('Chaîne clinique scientifique');
+    expect(api.get).toHaveBeenCalledWith('/patients/915/cephalo-clinical-studio?analysis_id=9915');
     expect(screen.getByText('R11 → R14')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /R11/i })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /R12/i })).toBeInTheDocument();
@@ -101,6 +102,15 @@ describe('ClinicalScientificStudio R15', () => {
 
     expect(await screen.findByText('Fail-closed')).toBeInTheDocument();
     expect(screen.getByText(/aucune validation n'est autorisée/i)).toBeInTheDocument();
-    await waitFor(() => expect(api.get).toHaveBeenCalledWith('/patients/915/cephalo-clinical-studio'));
+    await waitFor(() => expect(api.get).toHaveBeenCalledWith('/patients/915/cephalo-clinical-studio?analysis_id=9915'));
+  });
+
+  it('falls back to the patient latest-analysis projection only when no analysis is selected', async () => {
+    vi.mocked(api.get).mockResolvedValue({ data: snapshot } as never);
+
+    render(<ClinicalScientificStudio patientId={915} P={PALETTE.dark} />);
+
+    await screen.findByText('Chaîne clinique scientifique');
+    expect(api.get).toHaveBeenCalledWith('/patients/915/cephalo-clinical-studio');
   });
 });

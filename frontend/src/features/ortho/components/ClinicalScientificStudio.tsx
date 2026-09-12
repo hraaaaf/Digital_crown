@@ -115,7 +115,8 @@ export const ClinicalScientificStudio: React.FC<Props> = ({ patientId, analysisI
       setLoading(true);
       setError(null);
       try {
-        const { data } = await api.get<StudioSnapshot>(`/patients/${patientId}/cephalo-clinical-studio`);
+        const analysisQuery = analysisId != null ? `?analysis_id=${encodeURIComponent(String(analysisId))}` : '';
+        const { data } = await api.get<StudioSnapshot>(`/patients/${patientId}/cephalo-clinical-studio${analysisQuery}`);
         if (!cancelled) setSnapshot(data);
       } catch (err) {
         console.error('R15 clinical studio snapshot unavailable:', err);
