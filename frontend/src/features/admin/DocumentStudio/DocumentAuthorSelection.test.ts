@@ -3,7 +3,9 @@ import {
   clearDocumentAuthorPractitionerId,
   getDocumentAuthorPractitionerId,
   installDocumentAuthorRequestGuard,
+  resolveDocumentAuthorPreselection,
   setDocumentAuthorPractitionerId,
+  type DocumentPractitionerOption,
 } from './DocumentAuthorSelection';
 
 function fakeClient() {
@@ -31,7 +33,28 @@ function fakeClient() {
   };
 }
 
+const practitioners: DocumentPractitionerOption[] = [
+  { id: 1, name: 'Dr Lina Alaoui', role: 'ADMIN' },
+  { id: 2, name: 'Dr Youssef Benali', role: 'DENTISTE' },
+];
+
 describe('P3 document author selection guard', () => {
+  it('prefers the authenticated practitioner over a different patient referent', () => {
+    expect(resolveDocumentAuthorPreselection(practitioners, 1, 2)).toBe(1);
+  });
+
+  it('falls back to the patient referent when the authenticated actor is not a practitioner', () => {
+    expect(resolveDocumentAuthorPreselection(practitioners, 99, 2)).toBe(2);
+  });
+
+  it('uses the only practitioner when no actor or referent can be resolved', () => {
+    expect(resolveDocumentAuthorPreselection([practitioners[1]], 99, null)).toBe(2);
+  });
+
+  it('never guesses when multiple practitioners remain ambiguous', () => {
+    expect(resolveDocumentAuthorPreselection(practitioners, 99, null)).toBeNull();
+  });
+
   it('stores and clears the selected practitioner explicitly', () => {
     clearDocumentAuthorPractitionerId();
     expect(getDocumentAuthorPractitionerId()).toBeNull();
