@@ -260,6 +260,34 @@ registry.register_source(
 
 registry.register_source(
     NormSource(
+        source_id="MCNAMARA_1984",
+        tier=SourceTier.PRIMARY_ARTICLE,
+        citation=(
+            "McNamara JA Jr. A method of cephalometric evaluation. "
+            "Am J Orthod. 1984;86(6):449-469."
+        ),
+        doi="10.1016/S0002-9416(84)90352-X",
+        pmid="6594933",
+        url=(
+            "https://media.dent.umich.edu/labs/mcnamara/files/"
+            "A%20method%20of%20cephalometric%20evaluation.pdf"
+        ),
+        sample_description=(
+            "Ann Arbor Table I: 111 untreated adults with well-balanced faces and "
+            "good occlusions; 73 women and 38 men; Class I, good skeletal balance, "
+            "orthognathic facial profile"
+        ),
+        applicability_note=(
+            "The article states that, whenever possible, measures from its reference "
+            "samples include an 8% enlargement factor. Linear Table I values must not "
+            "be compared with calibrated physical millimetres until scale compatibility "
+            "is explicitly established."
+        ),
+    )
+)
+
+registry.register_source(
+    NormSource(
         source_id="PEDIATRIC_NORMS_REVIEW_NGUYEN_2024",
         tier=SourceTier.PEER_REVIEWED_REVIEW,
         citation=(
@@ -327,3 +355,138 @@ registry.register_reference(
         note="Method-specific CRANIOM observed-extremes interval; descriptive only.",
     )
 )
+
+_MCNAMARA_COMMON_CONTEXT = {
+    "site": "Ann Arbor, Michigan",
+    "treatment_status": "untreated",
+    "occlusion": "Class I",
+    "skeletal_balance": "good",
+    "facial_profile": "orthognathic; good to excellent facial configuration",
+    "radiographic_scale": "8% enlargement factor included whenever possible",
+    "scale_compatibility": "BLOCKED_UNTIL_8_PERCENT_ENLARGEMENT_MATCHED",
+}
+
+
+def _mcnamara_context(*, sex: str, sample_size: str, mean_age: str) -> Mapping[str, str]:
+    return MappingProxyType(
+        {
+            **_MCNAMARA_COMMON_CONTEXT,
+            "sex": sex,
+            "sample_size": sample_size,
+            "mean_age": mean_age,
+        }
+    )
+
+
+# Primary Table I mean ± SD values. They are stored for traceability only. The
+# runtime McNamara measurements are physical millimetres after verified image
+# calibration, whereas the historical source states an 8% enlargement factor.
+# Direct numeric comparison therefore remains blocked until scale compatibility
+# is explicitly proven.
+_MCNAMARA_TABLE_I_REFERENCES = (
+    (
+        "MCNAMARA_CO_GN_ANN_ARBOR_FEMALE_MEAN_SD_V1",
+        "MCNAMARA_CO_GN_MM_V1",
+        "CO_GN",
+        "MCNAMARA_CO_GN_V1",
+        "female",
+        "73",
+        "26 years 8 months",
+        120.2,
+        5.3,
+    ),
+    (
+        "MCNAMARA_CO_GN_ANN_ARBOR_MALE_MEAN_SD_V1",
+        "MCNAMARA_CO_GN_MM_V1",
+        "CO_GN",
+        "MCNAMARA_CO_GN_V1",
+        "male",
+        "38",
+        "30 years 9 months",
+        134.3,
+        6.8,
+    ),
+    (
+        "MCNAMARA_CO_A_ANN_ARBOR_FEMALE_MEAN_SD_V1",
+        "MCNAMARA_CO_A_MM_V1",
+        "CO_A",
+        "MCNAMARA_CO_A_V1",
+        "female",
+        "73",
+        "26 years 8 months",
+        91.0,
+        4.3,
+    ),
+    (
+        "MCNAMARA_CO_A_ANN_ARBOR_MALE_MEAN_SD_V1",
+        "MCNAMARA_CO_A_MM_V1",
+        "CO_A",
+        "MCNAMARA_CO_A_V1",
+        "male",
+        "38",
+        "30 years 9 months",
+        99.8,
+        6.0,
+    ),
+    (
+        "MCNAMARA_ANS_ME_ANN_ARBOR_FEMALE_MEAN_SD_V1",
+        "MCNAMARA_ANS_ME_MM_V1",
+        "ANS_ME",
+        "MCNAMARA_ANS_ME_V1",
+        "female",
+        "73",
+        "26 years 8 months",
+        66.7,
+        4.1,
+    ),
+    (
+        "MCNAMARA_ANS_ME_ANN_ARBOR_MALE_MEAN_SD_V1",
+        "MCNAMARA_ANS_ME_MM_V1",
+        "ANS_ME",
+        "MCNAMARA_ANS_ME_V1",
+        "male",
+        "38",
+        "30 years 9 months",
+        74.6,
+        5.0,
+    ),
+)
+
+for (
+    reference_id,
+    method_id,
+    measurement_id,
+    construction_gate,
+    sex,
+    sample_size,
+    mean_age,
+    mean,
+    sd,
+) in _MCNAMARA_TABLE_I_REFERENCES:
+    registry.register_reference(
+        NormReference(
+            reference_id=reference_id,
+            method_id=method_id,
+            method_version="1",
+            measurement_id=measurement_id,
+            kind=ReferenceKind.MEAN_SD,
+            unit="mm",
+            lower=None,
+            upper=None,
+            source_ids=("MCNAMARA_1984",),
+            population_context=_mcnamara_context(
+                sex=sex,
+                sample_size=sample_size,
+                mean_age=mean_age,
+            ),
+            mean=mean,
+            sd=sd,
+            construction_gate=construction_gate,
+            active_for_patient_classification=False,
+            note=(
+                "Primary Table I Ann Arbor reference; descriptive only. Do not compare "
+                "with Digital Crown calibrated physical millimetres until the source's "
+                "8% enlargement convention is explicitly matched."
+            ),
+        )
+    )
