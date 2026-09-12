@@ -63,6 +63,27 @@ def _require_available_claim_refs(
         )
 
 
+def _require_missing_or_blocked_refs(
+    refs: Set[str],
+    evidence_objects: Mapping[str, object],
+    *,
+    inactive_evaluation_ids: Set[str],
+    context: str,
+) -> None:
+    falsely_missing = sorted(
+        ref
+        for ref in refs
+        if getattr(evidence_objects[ref], "availability_status", None)
+        == AvailabilityStatus.AVAILABLE
+        and ref not in inactive_evaluation_ids
+    )
+    if falsely_missing:
+        raise EvidenceGraphValidationError(
+            f"{context} cannot mark available evidence as missing/blocked: "
+            f"{', '.join(falsely_missing)}"
+        )
+
+
 def validate_r11_diagnostic_graph(
     graph: EvidenceGraphSnapshot,
     *,
@@ -118,6 +139,26 @@ def validate_r11_diagnostic_graph(
             )
 
         measurement = measurements[evaluation.measurement_ref]
+        if (
+            measurement.availability_status != AvailabilityStatus.AVAILABLE
+            and evaluation.availability_status == AvailabilityStatus.AVAILABLE
+        ):
+            raise EvidenceGraphValidationError(
+                f"R11 normative evaluation {evaluation.evaluation_id} cannot be AVAILABLE "
+                f"when measurement {measurement.measurement_id} is unavailable"
+            )
+        if (
+            evaluation.availability_status != AvailabilityStatus.AVAILABLE
+            and (
+                evaluation.classification is not None
+                or evaluation.classification_rule_id is not None
+            )
+        ):
+            raise EvidenceGraphValidationError(
+                f"R11 unavailable normative evaluation {evaluation.evaluation_id} cannot "
+                "carry a patient classification"
+            )
+
         if registered.construction_gate:
             definition_ids = {
                 constructions[construction_ref].definition_id
@@ -195,6 +236,12 @@ def validate_r11_diagnostic_graph(
                 f"R11 finding {finding.finding_id} cannot mark active evidence as missing: "
                 f"{', '.join(sorted(duplicated_missing))}"
             )
+        _require_missing_or_blocked_refs(
+            missing,
+            interpretation_evidence,
+            inactive_evaluation_ids=inactive_evaluation_ids,
+            context=f"R11 finding {finding.finding_id}",
+        )
 
     for diagnosis in graph.diagnoses:
         if not diagnosis.rule_id or not diagnosis.rule_version:
@@ -253,10 +300,9 @@ def validate_r11_diagnostic_graph(
             )
 
         missing = set(diagnosis.missing_data_refs)
-        referenced_evaluations = missing & set(evaluations)
-        for evaluation_id in referenced_evaluations:
-            if evaluation_id not in inactive_evaluation_ids:
-                continue
-            # Explicitly allowed: an inert/unusable normative evaluation may be surfaced
-            # as missing/blocked context. It must never become positive/negative evidence.
-            continue
+        _require_missing_or_blocked_refs(
+            missing,
+            interpretation_evidence,
+            inactive_evaluation_ids=inactive_evaluation_ids,
+            context=f"R11 diagnosis {diagnosis.diagnosis_id}",
+        )
