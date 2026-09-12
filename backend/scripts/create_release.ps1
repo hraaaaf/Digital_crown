@@ -1,18 +1,20 @@
-# DIGITAL-CROWN-CERTIFIED-RELEASE-POLICY-1
-# Materialize an immutable cabinet release ONLY from a CI-certified artifact.
+# DIGITAL-CROWN-CERTIFIED-RELEASE-POLICY-2
+# Compose an INSTALLABLE_CERTIFIED cabinet release from:
+#   1) one GitHub CODE_CERTIFIED artifact for an exact master SHA;
+#   2) one runtime-assets bundle bound to that same SHA.
 #
-# Forbidden by design:
-# - copying the current working tree;
-# - resolving HEAD/master/a branch/tag locally;
-# - creating an installable release without a certificate tied to an exact SHA;
-# - accepting a release that is not certified for BASIC + GOLD + ELITE.
-#
-# This script never activates the release and never touches cabinet data.
+# This script NEVER copies the working tree, NEVER resolves HEAD/master locally,
+# NEVER activates the release, and NEVER touches cabinet DB/media.
 
 [CmdletBinding(PositionalBinding = $false)]
 param(
     [Parameter(Mandatory = $true)][string]$CertifiedArtifactZip,
-    [string]$RuntimeRoot = "C:\Users\lenovo\DigitalCrown-Runtime"
+    [Parameter(Mandatory = $true)][string]$RuntimeAssetsZip,
+    [string]$RuntimeRoot = "C:\Users\lenovo\DigitalCrown-Runtime",
+    [string]$VerifierPython = "python",
+    [string]$GitHubCli = "gh",
+    [string]$AttestationBundle = "",
+    [string]$TrustedRoot = ""
 )
 
 $ErrorActionPreference = "Stop"
@@ -20,138 +22,186 @@ $RequiredPacks = @("BASIC", "GOLD", "ELITE")
 $CertificateName = "release-certification.json"
 $ShaMarkerName = ".digitalcrown-release-sha"
 $ContentManifestName = "release-content.sha256"
+$AssetCertificateName = "runtime-assets-certification.json"
+$Repo = "hraaaaf/Digital_crown"
+$SignerWorkflow = "hraaaaf/Digital_crown/.github/workflows/cabinet-release-certification.yml"
 
 function Fail([string]$Message) {
     Write-Host "ERROR: $Message" -ForegroundColor Red
     exit 1
 }
 
-Write-Host "=== create_release.ps1 - certified artifact import ===" -ForegroundColor Yellow
-
-if (-not (Test-Path -LiteralPath $CertifiedArtifactZip -PathType Leaf)) {
-    Fail "certified artifact ZIP not found: $CertifiedArtifactZip"
+function Expand-SafeZip([string]$ZipPath, [string]$Destination) {
+    Add-Type -AssemblyName System.IO.Compression.FileSystem
+    New-Item -ItemType Directory -Path $Destination -Force | Out-Null
+    $destRoot = [IO.Path]::GetFullPath($Destination).TrimEnd('\', '/') + [IO.Path]::DirectorySeparatorChar
+    $archive = [IO.Compression.ZipFile]::OpenRead($ZipPath)
+    try {
+        foreach ($entry in $archive.Entries) {
+            $target = [IO.Path]::GetFullPath((Join-Path $Destination $entry.FullName))
+            if (-not $target.StartsWith($destRoot, [StringComparison]::OrdinalIgnoreCase)) {
+                Fail "ZIP path traversal refused: $($entry.FullName)"
+            }
+            if ([string]::IsNullOrEmpty($entry.Name)) {
+                New-Item -ItemType Directory -Path $target -Force | Out-Null
+                continue
+            }
+            $parent = Split-Path $target -Parent
+            New-Item -ItemType Directory -Path $parent -Force | Out-Null
+            [IO.Compression.ZipFileExtensions]::ExtractToFile($entry, $target, $true)
+        }
+    }
+    finally {
+        $archive.Dispose()
+    }
 }
-if ([IO.Path]::GetExtension($CertifiedArtifactZip).ToLowerInvariant() -ne ".zip") {
-    Fail "only a downloaded certified .zip artifact is accepted"
+
+function Get-SinglePayloadRoot([string]$SearchRoot, [string]$Filename) {
+    $candidates = @(Get-ChildItem -LiteralPath $SearchRoot -Filter $Filename -File -Recurse)
+    if ($candidates.Count -ne 1) {
+        Fail "archive must contain exactly one $Filename (found $($candidates.Count))"
+    }
+    return (Split-Path $candidates[0].FullName -Parent)
 }
 
-$runtimeReleases = Join-Path $RuntimeRoot "releases"
+Write-Host "=== create_release.ps1 - INSTALLABLE certification composition ===" -ForegroundColor Yellow
+
+foreach ($zip in @($CertifiedArtifactZip, $RuntimeAssetsZip)) {
+    if (-not (Test-Path -LiteralPath $zip -PathType Leaf)) {
+        Fail "required ZIP not found: $zip"
+    }
+    if ([IO.Path]::GetExtension($zip).ToLowerInvariant() -ne ".zip") {
+        Fail "only .zip certification artifacts are accepted: $zip"
+    }
+}
+if (-not (Get-Command $VerifierPython -ErrorAction SilentlyContinue)) {
+    Fail "Python verifier not found: $VerifierPython"
+}
+if (-not (Get-Command $GitHubCli -ErrorAction SilentlyContinue)) {
+    Fail "GitHub CLI is required to verify Sigstore provenance: $GitHubCli"
+}
+if ([string]::IsNullOrWhiteSpace($AttestationBundle) -xor [string]::IsNullOrWhiteSpace($TrustedRoot)) {
+    Fail "offline attestation verification requires BOTH -AttestationBundle and -TrustedRoot"
+}
+if (-not [string]::IsNullOrWhiteSpace($AttestationBundle)) {
+    if (-not (Test-Path -LiteralPath $AttestationBundle -PathType Leaf)) { Fail "attestation bundle not found" }
+    if (-not (Test-Path -LiteralPath $TrustedRoot -PathType Leaf)) { Fail "trusted root not found" }
+}
+
 $stagingRoot = Join-Path $RuntimeRoot ".certified-release-staging"
 $staging = Join-Path $stagingRoot ([guid]::NewGuid().ToString("N"))
-New-Item -ItemType Directory -Path $runtimeReleases -Force | Out-Null
-New-Item -ItemType Directory -Path $staging -Force | Out-Null
+$codeStaging = Join-Path $staging "code"
+$assetStaging = Join-Path $staging "assets"
+New-Item -ItemType Directory -Path $codeStaging -Force | Out-Null
+New-Item -ItemType Directory -Path $assetStaging -Force | Out-Null
 
 try {
-    Expand-Archive -LiteralPath $CertifiedArtifactZip -DestinationPath $staging -Force
-
-    $certCandidates = @(Get-ChildItem -LiteralPath $staging -Filter $CertificateName -File -Recurse)
-    if ($certCandidates.Count -ne 1) {
-        Fail "artifact must contain exactly one $CertificateName (found $($certCandidates.Count))"
-    }
-    $payloadRoot = Split-Path $certCandidates[0].FullName -Parent
+    # 1. Safe extraction only. No code from the artifact is executed yet.
+    Expand-SafeZip $CertifiedArtifactZip $codeStaging
+    $payloadRoot = Get-SinglePayloadRoot $codeStaging $CertificateName
     $certificatePath = Join-Path $payloadRoot $CertificateName
     $markerPath = Join-Path $payloadRoot $ShaMarkerName
     $contentManifestPath = Join-Path $payloadRoot $ContentManifestName
 
     foreach ($requiredFile in @($certificatePath, $markerPath, $contentManifestPath)) {
         if (-not (Test-Path -LiteralPath $requiredFile -PathType Leaf)) {
-            Fail "certified artifact is incomplete: missing $requiredFile"
+            Fail "CODE_CERTIFIED artifact incomplete: missing $requiredFile"
         }
     }
 
+    # 2. Verify CODE_CERTIFIED metadata without executing artifact code.
     $certificate = Get-Content -LiteralPath $certificatePath -Raw | ConvertFrom-Json
-    if ($certificate.certificate_version -ne 1) {
-        Fail "unsupported certificate_version: $($certificate.certificate_version)"
-    }
-    if ($certificate.artifact_type -ne "cabinet-certified-release") {
-        Fail "artifact_type is not cabinet-certified-release"
-    }
-    if ($certificate.repository -ne "hraaaaf/Digital_crown") {
-        Fail "unexpected certificate repository: $($certificate.repository)"
-    }
+    if ($certificate.certificate_version -ne 1) { Fail "unsupported CODE certificate version" }
+    if ($certificate.artifact_type -ne "cabinet-certified-release") { Fail "invalid CODE artifact_type" }
+    if ($certificate.certification_level -ne "CODE_CERTIFIED") { Fail "artifact is not CODE_CERTIFIED" }
+    if ($certificate.repository -ne $Repo) { Fail "unexpected certificate repository" }
 
     $commitSha = "$($certificate.commit_sha)".Trim().ToLowerInvariant()
-    if ($commitSha -notmatch '^[0-9a-f]{40}$') {
-        Fail "certificate commit_sha must be an exact immutable 40-character SHA"
-    }
+    if ($commitSha -notmatch '^[0-9a-f]{40}$') { Fail "CODE certificate requires an exact 40-char SHA" }
     $markerSha = (Get-Content -LiteralPath $markerPath -Raw).Trim().ToLowerInvariant()
-    if ($markerSha -ne $commitSha) {
-        Fail "SHA marker does not match certificate commit_sha"
-    }
+    if ($markerSha -ne $commitSha) { Fail "SHA marker does not match CODE certificate" }
 
     $packs = @($certificate.certified_packs | ForEach-Object { "$($_)".Trim().ToUpperInvariant() })
     foreach ($pack in $RequiredPacks) {
-        if ($packs -notcontains $pack) {
-            Fail "release is not universal: missing certified pack $pack"
-        }
-    }
-
-    $releaseId = "$($certificate.release_id)".Trim()
-    if ([string]::IsNullOrWhiteSpace($releaseId) -or -not $releaseId.Contains($commitSha.Substring(0, 12))) {
-        Fail "release_id must contain the certified SHA prefix"
-    }
-    if ([int64]$certificate.certification_run_id -le 0) {
-        Fail "certificate has no valid GitHub certification_run_id"
+        if ($packs -notcontains $pack) { Fail "CODE release missing certified profile $pack" }
     }
 
     $manifestDigest = (Get-FileHash -LiteralPath $contentManifestPath -Algorithm SHA256).Hash.ToLowerInvariant()
     if ($manifestDigest -ne "$($certificate.content_manifest_sha256)".Trim().ToLowerInvariant()) {
-        Fail "release-content.sha256 digest does not match the certificate"
+        Fail "release-content.sha256 digest does not match CODE certificate"
     }
 
-    $payloadRootResolved = [IO.Path]::GetFullPath($payloadRoot).TrimEnd('\') + '\'
+    $payloadRootResolved = [IO.Path]::GetFullPath($payloadRoot).TrimEnd('\', '/') + [IO.Path]::DirectorySeparatorChar
     foreach ($line in Get-Content -LiteralPath $contentManifestPath) {
         if ([string]::IsNullOrWhiteSpace($line)) { continue }
-        if ($line -notmatch '^([0-9a-f]{64})  (.+)$') {
-            Fail "malformed content manifest line: $line"
-        }
+        if ($line -notmatch '^([0-9a-f]{64})  (.+)$') { Fail "malformed CODE content manifest line: $line" }
         $expectedHash = $matches[1]
-        $relativePath = $matches[2].Replace('/', '\')
+        $relativePath = $matches[2].Replace('/', [IO.Path]::DirectorySeparatorChar)
         $candidate = [IO.Path]::GetFullPath((Join-Path $payloadRoot $relativePath))
         if (-not $candidate.StartsWith($payloadRootResolved, [StringComparison]::OrdinalIgnoreCase)) {
-            Fail "unsafe content manifest path: $relativePath"
+            Fail "unsafe CODE content path: $relativePath"
         }
-        if (-not (Test-Path -LiteralPath $candidate -PathType Leaf)) {
-            Fail "certified file missing: $relativePath"
-        }
+        if (-not (Test-Path -LiteralPath $candidate -PathType Leaf)) { Fail "CODE file missing: $relativePath" }
         $actualHash = (Get-FileHash -LiteralPath $candidate -Algorithm SHA256).Hash.ToLowerInvariant()
-        if ($actualHash -ne $expectedHash) {
-            Fail "certified file changed: $relativePath"
-        }
+        if ($actualHash -ne $expectedHash) { Fail "CODE file changed: $relativePath" }
     }
 
-    $releaseDir = Join-Path $runtimeReleases $releaseId
-    if (Test-Path -LiteralPath $releaseDir) {
-        Fail "immutable release already exists and will never be overwritten: $releaseDir"
+    # 3. Cryptographic provenance: repo + exact signer workflow + exact master SHA.
+    $attestationArgs = @(
+        "attestation", "verify", $contentManifestPath,
+        "--repo", $Repo,
+        "--signer-workflow", $SignerWorkflow,
+        "--source-digest", $commitSha,
+        "--source-ref", "refs/heads/master",
+        "--deny-self-hosted-runners",
+        "--format", "json"
+    )
+    if (-not [string]::IsNullOrWhiteSpace($AttestationBundle)) {
+        $attestationArgs += @("--bundle", $AttestationBundle, "--custom-trusted-root", $TrustedRoot)
     }
+    $attestationOutput = & $GitHubCli @attestationArgs
+    if ($LASTEXITCODE -ne 0) { Fail "GitHub/Sigstore provenance verification failed" }
+    $attestationText = $attestationOutput -join [Environment]::NewLine
+    try { $attestationParsed = $attestationText | ConvertFrom-Json } catch { Fail "invalid gh attestation JSON output" }
+    if (@($attestationParsed).Count -lt 1) { Fail "gh attestation verify returned no verified attestation" }
+    $attestationEvidencePath = Join-Path $staging "github-attestation-verification.json"
+    $attestationText | Set-Content -LiteralPath $attestationEvidencePath -Encoding utf8
 
-    New-Item -ItemType Directory -Path $releaseDir -Force | Out-Null
-    Copy-Item -Path (Join-Path $payloadRoot '*') -Destination $releaseDir -Recurse -Force
-    Copy-Item -LiteralPath $markerPath -Destination (Join-Path $releaseDir $ShaMarkerName) -Force
+    # 4. Runtime assets are safely extracted but not trusted yet.
+    Expand-SafeZip $RuntimeAssetsZip $assetStaging
+    $assetRoot = Get-SinglePayloadRoot $assetStaging $AssetCertificateName
 
-    $releaseManifest = [ordered]@{
-        environment          = "cabinet-real"
-        release_id           = $releaseId
-        commit               = $commitSha
-        certified_packs      = $RequiredPacks
-        certification_run_id = [int64]$certificate.certification_run_id
-        imported_at          = (Get-Date).ToString("o")
-        backend_path         = (Join-Path $releaseDir "backend")
-        frontend_dist_path   = (Join-Path $releaseDir "frontend\dist")
-        artifact_sha256      = (Get-FileHash -LiteralPath $CertifiedArtifactZip -Algorithm SHA256).Hash.ToLowerInvariant()
-        created_by_script    = "create_release.ps1"
+    # 5. Only now execute the compose script from the hash-verified + Sigstore-verified
+    # exact code artifact. It re-verifies CODE + assets and promotes atomically.
+    $composeScript = Join-Path $payloadRoot "backend\scripts\compose_installable_release.py"
+    if (-not (Test-Path -LiteralPath $composeScript -PathType Leaf)) {
+        Fail "attested compose_installable_release.py missing"
     }
-    $releaseManifest | ConvertTo-Json -Depth 6 | Set-Content -Path (Join-Path $releaseDir "release-manifest.json") -Encoding utf8
+    $codeArtifactHash = (Get-FileHash -LiteralPath $CertifiedArtifactZip -Algorithm SHA256).Hash.ToLowerInvariant()
+    $assetBundleHash = (Get-FileHash -LiteralPath $RuntimeAssetsZip -Algorithm SHA256).Hash.ToLowerInvariant()
+
+    $oldPythonPath = $env:PYTHONPATH
+    $env:PYTHONPATH = $payloadRoot
+    try {
+        & $VerifierPython $composeScript `
+            --code-release-dir $payloadRoot `
+            --runtime-assets-dir $assetRoot `
+            --runtime-root $RuntimeRoot `
+            --attestation-evidence $attestationEvidencePath `
+            --code-artifact-sha256 $codeArtifactHash `
+            --runtime-asset-bundle-sha256 $assetBundleHash
+        if ($LASTEXITCODE -ne 0) { Fail "INSTALLABLE composition verifier rejected the release" }
+    }
+    finally {
+        $env:PYTHONPATH = $oldPythonPath
+    }
 
     Write-Host "" 
-    Write-Host "=== CERTIFIED immutable release imported (NOT ACTIVATED) ===" -ForegroundColor Green
-    Write-Host "release_id : $releaseId"
-    Write-Host "path       : $releaseDir"
+    Write-Host "=== INSTALLABLE_CERTIFIED release composed (NOT ACTIVATED) ===" -ForegroundColor Green
     Write-Host "commit     : $commitSha"
-    Write-Host "packs      : BASIC / GOLD / ELITE"
-    Write-Host "CI run     : $($certificate.certification_run_id)"
-    Write-Host ""
-    Write-Host "Activation still requires run_real_backend.ps1 and its independent certificate verification." -ForegroundColor Yellow
+    Write-Host "profiles   : BASIC / GOLD / ELITE"
+    Write-Host "provenance : GitHub/Sigstore VERIFIED"
+    Write-Host "activation : still forbidden until run_real_backend.ps1 explicit activation" -ForegroundColor Yellow
 }
 finally {
     if (Test-Path -LiteralPath $staging) {
