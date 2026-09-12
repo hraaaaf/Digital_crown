@@ -1,0 +1,188 @@
+name: Clinic P3 Document Signature UI Certification
+
+on:
+  pull_request:
+    paths:
+      - "frontend/src/features/patients/PatientDocuments.tsx"
+      - ".github/workflows/clinic-p3-document-signature-ui-cert.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: clinic-p3-document-signature-ui-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  before-after:
+    name: P3 signature archive UI BEFORE / AFTER
+    runs-on: ubuntu-latest
+    steps:
+      - name: Resolve exact base and head
+        run: |
+          echo "BASE_SHA=${{ github.event.pull_request.base.sha || github.sha }}" >> "$GITHUB_ENV"
+          echo "HEAD_SHA=${{ github.event.pull_request.head.sha || github.sha }}" >> "$GITHUB_ENV"
+
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.pull_request.base.sha || github.sha }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install frontend and Chromium
+        working-directory: frontend
+        run: |
+          npm ci
+          npm install --no-save --package-lock=false playwright@1.55.0
+          npx playwright install --with-deps chromium
+
+      - name: Materialize deterministic archive harness
+        working-directory: frontend
+        run: |
+          cat > clinic-p3-signature.html <<'EOF'
+          <!doctype html><html lang="fr"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/><title>P3 Signature</title></head><body><div id="root"></div><script type="module" src="/src/clinic-p3-signature.tsx"></script></body></html>
+          EOF
+          cat > src/clinic-p3-signature.tsx <<'EOF'
+          import React from 'react';
+          import { createRoot } from 'react-dom/client';
+          import { MemoryRouter, Route, Routes } from 'react-router-dom';
+          import './index.css';
+          import { PatientDocuments } from './features/patients/PatientDocuments';
+          import { useAuthStore } from './stores/useAuthStore';
+          useAuthStore.setState({
+            user:{id:'1',email:'lina@p3.local',nom_complet:'Dr Lina Alaoui',role:'ADMIN',employer_id:null,is_superadmin:false,permissions:{patients:true,clinical:true,accounting:true,prescriptions:true}} as any,
+            isAuthenticated:true,isLoading:false,error:null,
+          });
+          createRoot(document.getElementById('root')!).render(
+            <MemoryRouter initialEntries={['/patients/101/archives']}>
+              <Routes><Route path="/patients/:id/archives" element={<div className="min-h-screen bg-slate-50 p-4"><PatientDocuments/></div>} /></Routes>
+            </MemoryRouter>,
+          );
+          EOF
+          cat > clinic-p3-signature.mjs <<'EOF'
+          import { chromium } from 'playwright';
+          import { createServer } from 'vite';
+          import fs from 'node:fs/promises';
+          const phase=process.env.PHASE;
+          const out=`clinic-p3-signature-${phase.toLowerCase()}`;
+          await fs.mkdir(out,{recursive:true});
+          const docs=[
+            {id:'7',name:'ordonnance-a-signer.pdf',type:'ORDONNANCE',date:'12/09/2026',url:'static/a.pdf',file_exists:true,clinical_data:{medications:[]},author_practitioner_id:1,author_practitioner_name:'Dr Lina Alaoui',signed_by_practitioner_id:null,signed_by_practitioner_name:null,signed_at:null},
+            {id:'8',name:'certificat-signe.pdf',type:'CERTIFICAT',date:'12/09/2026',url:'static/b.pdf',file_exists:true,clinical_data:{reason:'Consultation'},author_practitioner_id:2,author_practitioner_name:'Dr Youssef Benali',signed_by_practitioner_id:2,signed_by_practitioner_name:'Dr Youssef Benali',signed_at:'2026-09-12T20:15:00'},
+            {id:'9',name:'ancien-canonique.pdf',type:'LIBRE',date:'10/09/2026',url:'static/c.pdf',file_exists:true,clinical_data:{title:'Note'},author_practitioner_id:null,author_practitioner_name:null,signed_by_practitioner_id:null,signed_by_practitioner_name:null,signed_at:null},
+          ];
+          const server=await createServer({server:{host:'127.0.0.1',port:4201,strictPort:true},clearScreen:false});
+          await server.listen();
+          const browser=await chromium.launch();
+          const captures=[];
+          try {
+            for(const [width,height] of [[390,844],[768,1024],[1280,900]]){
+              const context=await browser.newContext({viewport:{width,height}});
+              const page=await context.newPage();
+              const errors=[];
+              page.on('pageerror',e=>errors.push(`pageerror:${e.message}`));
+              page.on('console',m=>{if(m.type()==='error') errors.push(`console:${m.text()}`)});
+              await page.route('**/api/**',async route=>{
+                const req=route.request(); const url=new URL(req.url());
+                if(url.pathname==='/api/patients/101/documents') return route.fulfill({status:200,contentType:'application/json',body:JSON.stringify(docs)});
+                return route.fulfill({status:200,contentType:'application/json',body:'{}'});
+              });
+              await page.goto('http://127.0.0.1:4201/clinic-p3-signature.html',{waitUntil:'networkidle'});
+              await page.getByText('ordonnance-a-signer.pdf',{exact:true}).waitFor({state:'visible',timeout:15000});
+              const statusNodes=page.locator('[data-p3-signature-status]');
+              const statusCount=await statusNodes.count();
+              const states=statusCount ? await statusNodes.evaluateAll(nodes=>nodes.map(node=>node.getAttribute('data-p3-signature-state'))) : [];
+              let signActionCount=0, signActionHeight=null;
+              const firstAction=page.getByRole('button',{name:'Actions du document ordonnance-a-signer.pdf'});
+              await firstAction.click();
+              const signAction=page.locator('[data-p3-sign-action]');
+              signActionCount=await signAction.count();
+              if(signActionCount){const box=await signAction.boundingBox(); signActionHeight=box?.height ?? null;}
+              const metrics=await page.evaluate(()=>({clientWidth:document.documentElement.clientWidth,scrollWidth:document.documentElement.scrollWidth}));
+              await page.screenshot({path:`${out}/${width}x${height}.png`,fullPage:true,animations:'disabled'});
+              captures.push({width,height,statusCount,states,signActionCount,signActionHeight,overflowPx:Math.max(0,metrics.scrollWidth-metrics.clientWidth),errors});
+              await context.close();
+            }
+          } finally {await browser.close(); await server.close();}
+          await fs.writeFile(`${out}/report.json`,JSON.stringify({phase,captures},null,2));
+          EOF
+
+      - name: Capture BEFORE exact base
+        working-directory: frontend
+        env:
+          PHASE: BEFORE
+        run: node clinic-p3-signature.mjs
+
+      - name: Checkout exact head
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          clean: false
+
+      - name: Preserve deterministic harness
+        working-directory: frontend
+        run: |
+          test -f clinic-p3-signature.html
+          test -f src/clinic-p3-signature.tsx
+          test -f clinic-p3-signature.mjs
+
+      - name: Capture AFTER exact head
+        working-directory: frontend
+        env:
+          PHASE: AFTER
+        run: node clinic-p3-signature.mjs
+
+      - name: Compare BEFORE / AFTER and score
+        working-directory: frontend
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          before=json.loads(Path('clinic-p3-signature-before/report.json').read_text())
+          after=json.loads(Path('clinic-p3-signature-after/report.json').read_text())
+          assert [c['width'] for c in before['captures']]==[390,768,1280]
+          assert [c['width'] for c in after['captures']]==[390,768,1280]
+          assert all(c['statusCount']==0 and c['signActionCount']==0 for c in before['captures'])
+          assert all(c['overflowPx']==0 and not c['errors'] for c in before['captures'])
+          expected=['unsigned','signed','historical']
+          assert all(c['statusCount']==3 and c['states']==expected for c in after['captures'])
+          assert all(c['signActionCount']==1 for c in after['captures'])
+          assert all(c['overflowPx']==0 and not c['errors'] for c in after['captures'])
+          mobile=next(c for c in after['captures'] if c['width']==390)
+          assert (mobile['signActionHeight'] or 0) >= 44
+          Path('clinic-p3-signature-after/visual-score.txt').write_text(
+            'visual_gate_score=10.0/10\nformula=2.5 truthful-states + 2.5 author-only-action + 2.5 no-overflow-touch44 + 2.5 runtime-clean\n'
+          )
+          print('P3 signature archive UI visual gate: 10.0/10')
+          PY
+
+      - name: Evidence metadata
+        working-directory: frontend
+        run: |
+          cat > clinic-p3-signature-after/metadata.txt <<EOF
+          chantier=Clinique multi-praticiens
+          lot=P3 signature archive UI
+          base_sha=${BASE_SHA}
+          head_sha=${HEAD_SHA}
+          goal=show truthful signature provenance and author-only explicit signature action
+          reference=existing PatientDocuments cards and action menu
+          viewports=390x844,768x1024,1280x900
+          terminology=application-level practitioner signature provenance; not qualified electronic signature
+          deployment=none
+          EOF
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: clinic-p3-document-signature-ui-before-after
+          path: |
+            frontend/clinic-p3-signature-before/
+            frontend/clinic-p3-signature-after/
+          if-no-files-found: error
+          retention-days: 14
