@@ -30,6 +30,7 @@ def test_find_conflicts_accepts_aware_input_against_naive_db(db, dentiste):
     conflicts = _find_conflicts(
         db,
         dentiste.id,
+        dentiste.id,
         start.replace(tzinfo=timezone.utc) + timedelta(minutes=15),
         30,
     )
