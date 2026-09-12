@@ -87,14 +87,15 @@ def test_public_verification_distinguishes_unsigned_signed_and_tampered(tmp_path
     unsigned = verification_state_for_document(doc)
     assert unsigned.is_valid is True
     assert unsigned.is_signed is False
-    assert unsigned.status_text == "Authentique • Non signé"
+    assert unsigned.status_text == "Intégrité vérifiée • Non signé"
 
     doc.signed_by_practitioner_id = 1
     doc.signed_at = datetime(2026, 9, 12, 20, 0, 0)
     signed = verification_state_for_document(doc)
     assert signed.is_valid is True
     assert signed.is_signed is True
-    assert signed.status_text == "Authentique & Signé"
+    assert signed.status_text == "Intégrité vérifiée • Signature praticien enregistrée"
+    assert "ne constitue pas une signature électronique qualifiée" in signed.warning_msg
 
     path.write_bytes(b"tampered")
     tampered = verification_state_for_document(doc)
@@ -136,7 +137,7 @@ def test_author_can_sign_exact_active_bytes_once(tmp_path, monkeypatch):
     assert db.commit_count == 1
     assert db.refresh_count == 1
 
-    # Idempotence: a second click returns the same proof timestamp.
+    # Idempotence: a second click must not rewrite the proof timestamp.
     signed_again = sign_document(db, doc, user)
     assert signed_again.signed_at == first_signed_at
     assert db.commit_count == 1
