@@ -1,7 +1,5 @@
 from datetime import datetime
 
-import pytest
-
 from backend import models
 from backend.models_clinic_p2 import PatientPractitionerAssignment
 from backend.tests.conftest import make_user
@@ -96,7 +94,7 @@ def test_financial_snapshot_attributes_only_traceable_payments(client, db, denti
     owner_act = models.Acte(
         patient_id=patient.id,
         praticien_id=dentiste.id,
-        type_acte=models.ActeType.SOINS,
+        type_acte=models.ActeType.SOIN,
         libelle="Détartrage",
         montant=1000.0,
         statut_paiement=models.PaiementStatut.PARTIEL,
