@@ -54,7 +54,8 @@ def test_tweed_impa_numeric_evidence_is_source_locked_but_geometry_blocked():
     assert item.state == ComEvidenceState.SOURCE_LOCKED_CONSTRUCTION_BLOCKED
     assert item.source_ids == ("TWEED_1954_FMIA",)
     assert item.construction_gate == "TWEED_MANDIBULAR_PLANE_EXACT_REQUIRED"
-    assert "Go-Me" in item.blocker
+    assert "Go-Me/Go-Gn" in item.blocker
+    assert "generic Po-Or" in item.blocker
     assert COM_SOURCE_INDEX["TWEED_1954_FMIA"]["source_level"] == "PRIMARY"
 
 
@@ -66,17 +67,16 @@ def test_tweed_compensation_is_dynamic_rule_not_fake_fixed_norm():
     assert "FMA 35 -> IMPA 80" in item.next_exact
 
 
-def test_ricketts_fma_numeric_and_age_rule_are_primary_locked_but_geometry_blocked():
+def test_ricketts_fma_has_source_locked_manual_geometry_path_without_norm_activation():
     item = COM_EVIDENCE_DEBT_BY_ID["COM_FMA_26_PM4"]
-    assert item.state == ComEvidenceState.SOURCE_LOCKED_CONSTRUCTION_BLOCKED
+    assert item.state == ComEvidenceState.SOURCE_LOCKED_MANUAL_CONSTRUCTION_AVAILABLE
     assert item.source_ids[0] == "RICKETTS_1981_CLINICAL_CEPHALOMETRICS"
     assert item.historical_value == "26 +/- 4 deg at age 9"
-    assert (
-        item.construction_gate
-        == "RICKETTS_TRUE_FH_SUBGONION_MENTON_EXACT_REQUIRED"
-    )
-    assert "Subgonion-Menton" in item.blocker
-    assert "Go-Me or Go-Gn must not substitute" in item.blocker
+    assert item.construction_gate == "RICKETTS_1981_FMA_TRUE_FH_SUBGO_ME_V1"
+    assert "clinician-validated manual SubGo" in item.blocker
+    assert "Go-Me and Go-Gn remain forbidden substitutions" in item.blocker
+    assert "patient classification inactive" in item.next_exact
+    assert item.active_for_patient_classification is False
     assert (
         COM_SOURCE_INDEX["RICKETTS_1981_CLINICAL_CEPHALOMETRICS"]["source_level"]
         == "PRIMARY"
