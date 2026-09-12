@@ -7,6 +7,7 @@ import { cn } from '../../../utils/cn';
 import { DOCUMENT_STUDIO_LABELS, type CertifiableDocumentStudioTab } from './DocumentStudioVocabulary';
 import {
   clearDocumentAuthorPractitionerId,
+  installDocumentAuthorRequestGuard,
   setDocumentAuthorPractitionerId,
   type DocumentPractitionerOption,
 } from './DocumentAuthorSelection';
@@ -44,6 +45,8 @@ export const StudioHeader: React.FC<StudioHeaderProps> = ({
     const parsed = Number(currentUser?.id);
     return Number.isFinite(parsed) ? parsed : null;
   }, [currentUser?.id]);
+
+  useEffect(() => installDocumentAuthorRequestGuard(api), []);
 
   useEffect(() => {
     let cancelled = false;
