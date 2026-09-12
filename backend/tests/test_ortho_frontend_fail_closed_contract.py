@@ -47,13 +47,13 @@ def test_step3_is_practitioner_controlled_and_contains_no_local_clinical_thresho
         "autoSeverite", "autoDivision", "Morphologie Dentaire (Auto-Déduit)",
         "Bot Expert ODF", "Générer", "handleDiagChange('strategie_therapeutique', expertReport",
         "> 3.5 ? 'Supraclusie'", "> 4 ? 'Proalvéolie'", "DDM RÉELLE",
-        "normal=", "mean=", "tol=",
+        "normal=", "mean=", "tol=", "Plan thérapeutique — décision praticien",
     )
     for token in forbidden:
         assert token not in source, f"unsafe Step3 semantic reintroduced: {token}"
-    assert "Plan thérapeutique — décision praticien" in source
-    assert "Aucune génération automatique" in source
-    assert "Stade CVM — praticien" in source
+    assert "Note thérapeutique libre legacy — hors R13/R14" in source
+    assert "elle ne sélectionne aucune option R13 et ne valide aucune stratégie R14." in source
+    assert "Stade CVM — saisie manuelle" in source
     assert "Le stade CVM n'est jamais déduit de l'âge ou du sexe" in source
 
 
