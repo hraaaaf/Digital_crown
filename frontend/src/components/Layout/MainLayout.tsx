@@ -9,6 +9,7 @@ import { safeStorage } from '../../hooks/useLocalStorage';
 import { AnimatedBackground } from '../AnimatedBackground';
 import { PREMIUM_FONTS } from '../../features/admin/constants';
 import { VoluntaryTutorialPanel } from '../../features/tutorial/VoluntaryTutorial';
+import { ClinicPractitionerBar } from '../../features/clinic/ClinicPractitionerBar';
 
 import { motion, AnimatePresence } from 'framer-motion';
 import { useState } from 'react';
@@ -53,6 +54,7 @@ export const MainLayout: React.FC<LayoutProps> = ({ children }) => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const isDocumentStudio = /^\/patients\/\d+$/.test(location.pathname)
     && new URLSearchParams(location.search).get('tab') === 'admin';
+  const showPractitionerContext = ['/dashboard', '/agenda', '/settings'].includes(location.pathname);
 
   React.useEffect(() => {
     setIsSidebarOpen(false);
@@ -69,7 +71,7 @@ export const MainLayout: React.FC<LayoutProps> = ({ children }) => {
 
       <Sidebar isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} />
 
-      <div className="flex-1 flex flex-col relative z-10 overflow-hidden">
+      <div className="flex-1 flex flex-col relative z-10 overflow-hidden min-w-0">
         <LicenseBanner />
         <button
           onClick={() => setIsSidebarOpen(true)}
@@ -81,7 +83,7 @@ export const MainLayout: React.FC<LayoutProps> = ({ children }) => {
         <Header />
         <VoluntaryTutorialPanel />
 
-        <main className={`flex-1 overflow-y-auto overflow-x-hidden pt-0 flex flex-col custom-scrollbar ${isDocumentStudio ? 'p-2 sm:p-4 lg:p-8' : 'p-8'}`}>
+        <main className={`flex-1 overflow-y-auto overflow-x-hidden pt-0 flex flex-col custom-scrollbar ${isDocumentStudio ? 'p-2 sm:p-4 lg:p-8' : 'p-3 sm:p-4 lg:p-8'}`}>
           <AnimatePresence mode="wait">
             <motion.div
               key={location.pathname}
@@ -89,13 +91,20 @@ export const MainLayout: React.FC<LayoutProps> = ({ children }) => {
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -15 }}
               transition={{ duration: 0.4, ease: "easeOut" }}
-              className={`flex-1 rounded-elite border backdrop-blur-xl shadow-elite transition-elite ${isDocumentStudio ? 'p-2 sm:p-4 lg:p-6' : 'p-6'}`}
+              className={`min-w-0 flex flex-1 flex-col rounded-elite border backdrop-blur-xl shadow-elite transition-elite ${isDocumentStudio ? 'p-2 sm:p-4 lg:p-6' : 'p-3 sm:p-4 lg:p-6'}`}
               style={{
                 backgroundColor: 'var(--glass-bg)',
                 borderColor: 'var(--glass-border)'
               }}
             >
-              {children}
+              {showPractitionerContext && (
+                <div className="mb-4 min-w-0">
+                  <ClinicPractitionerBar />
+                </div>
+              )}
+              <div className="min-w-0 flex-1">
+                {children}
+              </div>
             </motion.div>
           </AnimatePresence>
         </main>
