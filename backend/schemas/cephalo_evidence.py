@@ -196,7 +196,7 @@ class FindingEvidence(_StrictModel):
     domain: str = Field(min_length=1)
     rule_id: str = Field(min_length=1)
     rule_version: str = Field(min_length=1)
-    supporting_evidence_refs: List[str] = Field(min_length=1)
+    supporting_evidence_refs: List[str] = Field(default_factory=list)
     opposing_evidence_refs: List[str] = Field(default_factory=list)
     missing_evidence_refs: List[str] = Field(default_factory=list)
     contradictions: List[str] = Field(default_factory=list)
@@ -204,11 +204,21 @@ class FindingEvidence(_StrictModel):
     evidence_status: EvidenceStatus = EvidenceStatus.INTERPRETED
     availability_status: AvailabilityStatus = AvailabilityStatus.AVAILABLE
 
+    @model_validator(mode="after")
+    def validate_finding_availability(self):
+        if self.availability_status == AvailabilityStatus.AVAILABLE and not self.supporting_evidence_refs:
+            raise ValueError("Available finding requires supporting evidence")
+        if self.availability_status != AvailabilityStatus.AVAILABLE and not self.missing_evidence_refs:
+            raise ValueError("Unavailable finding requires explicit missing evidence refs")
+        return self
+
 
 class DiagnosticHypothesisEvidence(_StrictModel):
     diagnosis_id: str = Field(min_length=1)
     domain: str = Field(min_length=1)
-    supporting_finding_refs: List[str] = Field(min_length=1)
+    rule_id: Optional[str] = None
+    rule_version: Optional[str] = None
+    supporting_finding_refs: List[str] = Field(default_factory=list)
     opposing_finding_refs: List[str] = Field(default_factory=list)
     missing_data_refs: List[str] = Field(default_factory=list)
     contradictions: List[str] = Field(default_factory=list)
@@ -218,7 +228,14 @@ class DiagnosticHypothesisEvidence(_StrictModel):
     clinician_validated_at: Optional[datetime.datetime] = None
 
     @model_validator(mode="after")
-    def accepted_diagnosis_requires_clinician(self):
+    def validate_diagnosis_contract(self):
+        if (self.rule_id is None) != (self.rule_version is None):
+            raise ValueError("Diagnostic rule id and version must be provided together")
+        if self.state == ReviewState.INSUFFICIENT_DATA:
+            if not self.missing_data_refs:
+                raise ValueError("Insufficient-data diagnosis requires explicit missing data refs")
+        elif not self.supporting_finding_refs:
+            raise ValueError("Diagnostic hypothesis requires supporting findings")
         if self.state in {ReviewState.ACCEPTED, ReviewState.EDITED}:
             if not self.clinician_id or not self.clinician_validated_at:
                 raise ValueError("Accepted/edited diagnosis requires clinician validation")
