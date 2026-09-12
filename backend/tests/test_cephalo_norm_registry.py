@@ -71,8 +71,112 @@ def test_moroccan_source_is_registered_without_unverified_numeric_reference():
     assert source.doi == "10.1016/j.ortho.2011.12.001"
     assert source.pmid == "22236522"
     assert not any(
-        ref.kind == ReferenceKind.MEAN_SD for ref in registry.references.values()
+        "MOROCCO_STEINER_OUSEHAL_2012" in ref.source_ids
+        for ref in registry.references.values()
     )
+
+
+def test_mcnamara_primary_table_i_mean_sd_refs_are_exactly_bound_and_inert():
+    source = registry.get_source("MCNAMARA_1984")
+    assert source is not None
+    assert source.tier == SourceTier.PRIMARY_ARTICLE
+    assert source.doi == "10.1016/S0002-9416(84)90352-X"
+    assert source.pmid == "6594933"
+
+    expected = {
+        "MCNAMARA_CO_GN_ANN_ARBOR_FEMALE_MEAN_SD_V1": (
+            "MCNAMARA_CO_GN_MM_V1",
+            "CO_GN",
+            "MCNAMARA_CO_GN_V1",
+            "female",
+            "73",
+            "26 years 8 months",
+            120.2,
+            5.3,
+        ),
+        "MCNAMARA_CO_GN_ANN_ARBOR_MALE_MEAN_SD_V1": (
+            "MCNAMARA_CO_GN_MM_V1",
+            "CO_GN",
+            "MCNAMARA_CO_GN_V1",
+            "male",
+            "38",
+            "30 years 9 months",
+            134.3,
+            6.8,
+        ),
+        "MCNAMARA_CO_A_ANN_ARBOR_FEMALE_MEAN_SD_V1": (
+            "MCNAMARA_CO_A_MM_V1",
+            "CO_A",
+            "MCNAMARA_CO_A_V1",
+            "female",
+            "73",
+            "26 years 8 months",
+            91.0,
+            4.3,
+        ),
+        "MCNAMARA_CO_A_ANN_ARBOR_MALE_MEAN_SD_V1": (
+            "MCNAMARA_CO_A_MM_V1",
+            "CO_A",
+            "MCNAMARA_CO_A_V1",
+            "male",
+            "38",
+            "30 years 9 months",
+            99.8,
+            6.0,
+        ),
+        "MCNAMARA_ANS_ME_ANN_ARBOR_FEMALE_MEAN_SD_V1": (
+            "MCNAMARA_ANS_ME_MM_V1",
+            "ANS_ME",
+            "MCNAMARA_ANS_ME_V1",
+            "female",
+            "73",
+            "26 years 8 months",
+            66.7,
+            4.1,
+        ),
+        "MCNAMARA_ANS_ME_ANN_ARBOR_MALE_MEAN_SD_V1": (
+            "MCNAMARA_ANS_ME_MM_V1",
+            "ANS_ME",
+            "MCNAMARA_ANS_ME_V1",
+            "male",
+            "38",
+            "30 years 9 months",
+            74.6,
+            5.0,
+        ),
+    }
+
+    for reference_id, (
+        method_id,
+        measurement_id,
+        construction_gate,
+        sex,
+        sample_size,
+        mean_age,
+        mean,
+        sd,
+    ) in expected.items():
+        ref = registry.get_reference(reference_id)
+        assert ref is not None
+        assert ref.kind == ReferenceKind.MEAN_SD
+        assert ref.method_id == method_id
+        assert ref.method_version == "1"
+        assert ref.measurement_id == measurement_id
+        assert ref.construction_gate == construction_gate
+        assert ref.unit == "mm"
+        assert ref.mean == mean and ref.sd == sd
+        assert ref.lower is None and ref.upper is None
+        assert ref.source_ids == ("MCNAMARA_1984",)
+        assert ref.population_context["sex"] == sex
+        assert ref.population_context["sample_size"] == sample_size
+        assert ref.population_context["mean_age"] == mean_age
+        assert ref.population_context["radiographic_scale"].startswith("8% enlargement")
+        assert (
+            ref.population_context["scale_compatibility"]
+            == "BLOCKED_UNTIL_8_PERCENT_ENLARGEMENT_MATCHED"
+        )
+        assert ref.active_for_patient_classification is False
+        assert ref.note is not None and "Do not compare" in ref.note
 
 
 def test_duplicate_source_and_reference_ids_are_rejected():
@@ -264,7 +368,13 @@ def test_percentile_kind_remains_fail_closed():
 
 @pytest.mark.parametrize(
     "lower,upper",
-    [(None, 2.0), (1.0, None), (3.0, 2.0), (float("nan"), 2.0), (1.0, float("inf"))],
+    [
+        (None, 2.0),
+        (1.0, None),
+        (3.0, 2.0),
+        (float("nan"), 2.0),
+        (1.0, float("inf")),
+    ],
 )
 def test_invalid_ranges_are_rejected(lower, upper):
     local = _primary_registry()
