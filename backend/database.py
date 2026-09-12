@@ -139,19 +139,27 @@ SessionLocal = sessionmaker(
 )
 
 
-def migrate_appointment_columns():
-    """Ajoute les colonnes frontdesk si absentes (ALTER TABLE, SQLite ou PostgreSQL)."""
-    from sqlalchemy import text
-    datetime_type = "TIMESTAMP" if engine.dialect.name == "postgresql" else "DATETIME"
+def migrate_appointment_columns(bind=None):
+    """Ajoute les colonnes additives appointments réellement attendues au runtime.
+
+    Le cabinet historique n'exécute pas automatiquement Alembic. Cette migration
+    self-healing doit donc couvrir aussi `praticien_id` introduit par P0, sans
+    backfill ni réécriture des rendez-vous existants.
+    """
+    from sqlalchemy import inspect, text
+
+    db_engine = bind or engine
+    datetime_type = "TIMESTAMP" if db_engine.dialect.name == "postgresql" else "DATETIME"
     new_columns = [
         ("source", "VARCHAR(50)"),
         ("phone", "VARCHAR(30)"),
         ("confirmed_by_id", "INTEGER"),
         ("confirmed_at", datetime_type),
         ("expires_at", datetime_type),
+        ("praticien_id", "INTEGER REFERENCES users(id) ON DELETE SET NULL"),
     ]
     try:
-        with engine.connect() as conn:
+        with db_engine.connect() as conn:
             for col_name, col_type in new_columns:
                 try:
                     conn.execute(text(f"ALTER TABLE appointments ADD COLUMN {col_name} {col_type}"))
@@ -160,8 +168,92 @@ def migrate_appointment_columns():
                 except Exception as e:
                     conn.rollback()
                     logger.debug(f"Column {col_name} may already exist: {e}")
+            try:
+                conn.execute(text(
+                    "CREATE INDEX IF NOT EXISTS ix_appointments_praticien_id "
+                    "ON appointments (praticien_id)"
+                ))
+                conn.commit()
+            except Exception as e:
+                conn.rollback()
+                logger.debug("Appointment practitioner index may already exist: %s", e)
     except Exception as e:
-        logger.warning(f"Migration warning: {e}")
+        raise RuntimeError(f"Critical appointments schema migration failed: {e}") from e
+
+    inspector = inspect(db_engine)
+    columns = {column["name"] for column in inspector.get_columns("appointments")}
+    if "praticien_id" not in columns:
+        raise RuntimeError(
+            "Critical appointments schema mismatch: praticien_id is still missing after migration"
+        )
+    indexes = {index["name"] for index in inspector.get_indexes("appointments")}
+    if "ix_appointments_praticien_id" not in indexes:
+        raise RuntimeError(
+            "Critical appointments schema mismatch: ix_appointments_praticien_id is missing"
+        )
+
+
+def migrate_payment_status_enum(bind=None):
+    """Aligne l'enum PostgreSQL PaiementStatut sur le modèle, de façon additive.
+
+    SQLAlchemy `create_all()` ne modifie pas un enum PostgreSQL déjà existant.
+    Les cabinets historiques peuvent donc avoir EN_ATTENTE/PAYE/PARTIEL sans la
+    valeur A_ENCAISSER désormais déclarée dans le modèle. On découvre le type
+    réellement porté par `actes.statut_paiement`, puis on ajoute uniquement la
+    valeur manquante. SQLite n'a pas besoin de cette étape.
+    """
+    from sqlalchemy import text
+
+    db_engine = bind or engine
+    if db_engine.dialect.name != "postgresql":
+        return
+
+    with db_engine.connect().execution_options(isolation_level="AUTOCOMMIT") as conn:
+        enum_row = conn.execute(text("""
+            SELECT n.nspname AS schema_name, t.typname AS type_name
+            FROM pg_attribute a
+            JOIN pg_class c ON c.oid = a.attrelid
+            JOIN pg_namespace n ON n.oid = c.relnamespace
+            JOIN pg_type t ON t.oid = a.atttypid
+            WHERE c.relname = 'actes'
+              AND a.attname = 'statut_paiement'
+              AND a.attnum > 0
+              AND NOT a.attisdropped
+              AND t.typtype = 'e'
+              AND n.nspname = current_schema()
+            LIMIT 1
+        """)).mappings().first()
+        if not enum_row:
+            raise RuntimeError(
+                "Critical payment schema mismatch: actes.statut_paiement PostgreSQL enum not found"
+            )
+
+        value_exists = conn.execute(text("""
+            SELECT EXISTS (
+                SELECT 1
+                FROM pg_type t
+                JOIN pg_enum e ON e.enumtypid = t.oid
+                JOIN pg_namespace n ON n.oid = t.typnamespace
+                WHERE n.nspname = :schema_name
+                  AND t.typname = :type_name
+                  AND e.enumlabel = 'A_ENCAISSER'
+            )
+        """), {
+            "schema_name": enum_row["schema_name"],
+            "type_name": enum_row["type_name"],
+        }).scalar()
+        if value_exists:
+            return
+
+        preparer = db_engine.dialect.identifier_preparer
+        qualified_type = (
+            f"{preparer.quote(enum_row['schema_name'])}."
+            f"{preparer.quote(enum_row['type_name'])}"
+        )
+        conn.execute(text(
+            f"ALTER TYPE {qualified_type} ADD VALUE IF NOT EXISTS 'A_ENCAISSER'"
+        ))
+        logger.info("✅ Added A_ENCAISSER to PostgreSQL payment status enum")
 
 
 def migrate_actes_columns():
@@ -189,6 +281,10 @@ def migrate_actes_columns():
                 logger.debug(f"Column deleted_at may already exist: {e}")
     except Exception as e:
         logger.warning(f"Migration warning (actes): {e}")
+
+    # Fail-closed sur PostgreSQL : la divergence d'enum provoque sinon un HTTP 500
+    # dès la lecture Finances (`A_ENCAISSER`). Cette étape est additive uniquement.
+    migrate_payment_status_enum()
 
 
 def migrate_patient_columns():
@@ -222,7 +318,7 @@ def migrate_proactive_alert_columns():
             try:
                 conn.execute(text(f"ALTER TABLE proactive_alerts ADD COLUMN snoozed_until {datetime_type}"))
                 conn.commit()
-                logger.info("✅ Added column snoozed_until to proactive_alerts table")
+                logger.info(f"✅ Added column snoozed_until to proactive_alerts table")
             except Exception as e:
                 conn.rollback()
                 logger.debug(f"Column snoozed_until may already exist: {e}")
