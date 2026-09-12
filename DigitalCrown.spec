@@ -1,6 +1,14 @@
 # -*- mode: python ; coding: utf-8 -*-
 import os
 
+from backend.release_certification import verify_release_directory
+
+# A production EXE may only be built from the CI-certified source artifact itself.
+# This validates exact SHA identity + BASIC/GOLD/ELITE coverage + every source payload
+# hash BEFORE PyInstaller transforms the files.
+_CERTIFIED_RELEASE_ROOT = os.getcwd()
+verify_release_directory(_CERTIFIED_RELEASE_ROOT)
+
 block_cipher = None
 
 # Dépôts de recherche/compétition vendored dans backend/ai_models/, vérifiés
@@ -62,21 +70,23 @@ a = Analysis(
     binaries=[],
     datas=[
         ('frontend/dist', 'frontend/dist'),
+        # Release identity is embedded in the packaged app. run.py verifies it
+        # before first-boot writes. The full source-content manifest was already
+        # checked above before PyInstaller transformation.
+        ('release-certification.json', '.'),
+        ('.digitalcrown-release-sha', '.'),
+        ('release-content.sha256', '.'),
         # SÉCURITÉ : ne JAMAIS embarquer de fichier .env dans l'EXE distribué
         # (risque de secrets figés dans le binaire). La config cabinet est
-        # chargée depuis %APPDATA%/DigitalCrown/.env ou DIGITALCROWN_ENV_FILE
-        # (cf. backend/env_loader.py), posée par la procédure d'installation.
+        # chargée depuis %APPDATA%/DigitalCrown/.env ou DIGITALCROWN_ENV_FILE.
     ] + _collect_ai_models_datas(),
     hiddenimports=[
         'uvicorn', 'fastapi', 'sqlalchemy', 'sqlite3', 'pydantic', 'sentry_sdk',
         'onnxruntime', 'cv2', 'numpy', 'PIL', 'python-multipart', 'passlib', 'bcrypt', 'jose',
-        # Imports dynamiques ratés par l'analyse statique PyInstaller :
-        # - passlib charge ses handlers par nom au runtime (crash au boot sinon)
-        # - jose charge ses backends paresseusement au premier encode/decode JWT
-        #   (crash au premier login sinon)
         'passlib.handlers', 'passlib.handlers.bcrypt',
         'jose.backends', 'jose.backends.cryptography_backend', 'jose.backends.native',
-        'backend.services.sync_manager', 'backend.seed_templates', 'backend.seed_user', 'backend.seed_clinical'
+        'backend.services.sync_manager', 'backend.seed_templates', 'backend.seed_user', 'backend.seed_clinical',
+        'backend.release_certification'
     ],
     hookspath=[],
     hooksconfig={},
