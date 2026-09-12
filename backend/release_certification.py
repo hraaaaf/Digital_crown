@@ -10,6 +10,7 @@ the application imports database/configuration code.
 
 from __future__ import annotations
 
+import hashlib
 import json
 import re
 from pathlib import Path
@@ -17,14 +18,24 @@ from typing import Any
 
 CERTIFICATE_FILENAME = "release-certification.json"
 SHA_MARKER_FILENAME = ".digitalcrown-release-sha"
+CONTENT_MANIFEST_FILENAME = "release-content.sha256"
 CERTIFICATE_VERSION = 1
 REPOSITORY = "hraaaaf/Digital_crown"
 REQUIRED_PACKS = ("BASIC", "GOLD", "ELITE")
 _SHA_RE = re.compile(r"^[0-9a-f]{40}$")
+_DIGEST_RE = re.compile(r"^[0-9a-f]{64}$")
 
 
 class ReleaseCertificationError(RuntimeError):
     """Raised when a release is not eligible for cabinet installation/startup."""
+
+
+def _sha256(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as handle:
+        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
 
 
 def _load_certificate(release_dir: Path) -> dict[str, Any]:
@@ -42,16 +53,55 @@ def _load_certificate(release_dir: Path) -> dict[str, Any]:
     return payload
 
 
+def _verify_content_manifest(root: Path, payload: dict[str, Any]) -> None:
+    manifest = root / CONTENT_MANIFEST_FILENAME
+    if not manifest.is_file():
+        raise ReleaseCertificationError(
+            f"Missing {CONTENT_MANIFEST_FILENAME}; certified payload integrity cannot be proven"
+        )
+
+    expected_manifest_digest = str(payload.get("content_manifest_sha256", "")).strip().lower()
+    if not _DIGEST_RE.fullmatch(expected_manifest_digest):
+        raise ReleaseCertificationError("content_manifest_sha256 must be a SHA-256 digest")
+    actual_manifest_digest = _sha256(manifest)
+    if actual_manifest_digest != expected_manifest_digest:
+        raise ReleaseCertificationError(
+            "Content manifest digest mismatch; certified release metadata was altered"
+        )
+
+    lines = manifest.read_text(encoding="utf-8").splitlines()
+    if not lines:
+        raise ReleaseCertificationError("Content manifest is empty")
+
+    for line in lines:
+        try:
+            expected_digest, relative = line.split("  ", 1)
+        except ValueError as exc:
+            raise ReleaseCertificationError(f"Malformed content manifest line: {line!r}") from exc
+        expected_digest = expected_digest.strip().lower()
+        if not _DIGEST_RE.fullmatch(expected_digest):
+            raise ReleaseCertificationError(f"Malformed file digest for {relative!r}")
+
+        rel_path = Path(relative)
+        if rel_path.is_absolute() or ".." in rel_path.parts:
+            raise ReleaseCertificationError(f"Unsafe content manifest path: {relative!r}")
+        path = root / rel_path
+        if not path.is_file():
+            raise ReleaseCertificationError(f"Certified release file missing: {relative}")
+        if _sha256(path) != expected_digest:
+            raise ReleaseCertificationError(f"Certified release file changed: {relative}")
+
+
 def verify_release_directory(
     release_dir: str | Path,
     *,
     expected_pack: str | None = None,
 ) -> dict[str, Any]:
-    """Validate the immutable release certificate and SHA marker.
+    """Validate certificate, exact SHA marker, pack coverage and payload hashes.
 
-    This is a provenance/integrity gate for our release workflow, not a substitute for
-    OS code-signing. It fails closed if the certificate, exact SHA marker, repository,
-    policy version, or BASIC/GOLD/ELITE coverage is missing or inconsistent.
+    This is the repository's fail-closed release integrity gate. OS/authenticode
+    signing remains a separate supply-chain layer; this check prevents accidental or
+    unauthorized working-tree/master drift from being accepted as a cabinet release.
     """
 
     root = Path(release_dir).resolve()
@@ -103,6 +153,8 @@ def verify_release_directory(
     run_id = payload.get("certification_run_id")
     if not isinstance(run_id, int) or run_id <= 0:
         raise ReleaseCertificationError("certification_run_id must be a positive integer")
+
+    _verify_content_manifest(root, payload)
 
     if expected_pack is not None:
         pack = expected_pack.strip().upper()
