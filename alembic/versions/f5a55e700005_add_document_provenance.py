@@ -18,47 +18,38 @@ depends_on = None
 
 
 def upgrade() -> None:
-    op.add_column(
-        "document_archives",
-        sa.Column("author_practitioner_id", sa.Integer(), nullable=True),
-    )
-    op.add_column(
-        "document_archives",
-        sa.Column("signed_by_practitioner_id", sa.Integer(), nullable=True),
-    )
-    op.add_column(
-        "document_archives",
-        sa.Column("signed_at", sa.DateTime(), nullable=True),
-    )
-    op.create_foreign_key(
-        "fk_document_archives_author_practitioner_id_users",
-        "document_archives",
-        "users",
-        ["author_practitioner_id"],
-        ["id"],
-        ondelete="SET NULL",
-    )
-    op.create_foreign_key(
-        "fk_document_archives_signed_by_practitioner_id_users",
-        "document_archives",
-        "users",
-        ["signed_by_practitioner_id"],
-        ["id"],
-        ondelete="SET NULL",
-    )
+    # Batch mode keeps the same migration valid on cabinet SQLite and PostgreSQL.
+    # SQLite cannot add named foreign keys in place after table creation.
+    with op.batch_alter_table("document_archives") as batch_op:
+        batch_op.add_column(sa.Column("author_practitioner_id", sa.Integer(), nullable=True))
+        batch_op.add_column(sa.Column("signed_by_practitioner_id", sa.Integer(), nullable=True))
+        batch_op.add_column(sa.Column("signed_at", sa.DateTime(), nullable=True))
+        batch_op.create_foreign_key(
+            "fk_document_archives_author_practitioner_id_users",
+            "users",
+            ["author_practitioner_id"],
+            ["id"],
+            ondelete="SET NULL",
+        )
+        batch_op.create_foreign_key(
+            "fk_document_archives_signed_by_practitioner_id_users",
+            "users",
+            ["signed_by_practitioner_id"],
+            ["id"],
+            ondelete="SET NULL",
+        )
 
 
 def downgrade() -> None:
-    op.drop_constraint(
-        "fk_document_archives_signed_by_practitioner_id_users",
-        "document_archives",
-        type_="foreignkey",
-    )
-    op.drop_constraint(
-        "fk_document_archives_author_practitioner_id_users",
-        "document_archives",
-        type_="foreignkey",
-    )
-    op.drop_column("document_archives", "signed_at")
-    op.drop_column("document_archives", "signed_by_practitioner_id")
-    op.drop_column("document_archives", "author_practitioner_id")
+    with op.batch_alter_table("document_archives") as batch_op:
+        batch_op.drop_constraint(
+            "fk_document_archives_signed_by_practitioner_id_users",
+            type_="foreignkey",
+        )
+        batch_op.drop_constraint(
+            "fk_document_archives_author_practitioner_id_users",
+            type_="foreignkey",
+        )
+        batch_op.drop_column("signed_at")
+        batch_op.drop_column("signed_by_practitioner_id")
+        batch_op.drop_column("author_practitioner_id")
