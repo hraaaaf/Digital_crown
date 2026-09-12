@@ -2,7 +2,7 @@
 
 ## Statut
 
-Chantier actif. P0 en cours sur `feat/clinic-multipractitioner-p0`.
+P0 backend certifié sur le code HEAD `f2e96286409ac22783afb3eff6b9651dce9d7ebc`. Closeout documentaire en cours sur `feat/clinic-multipractitioner-p0`; P1 UX clinique ciblée est le prochain lot.
 
 ## Goal global
 
@@ -20,7 +20,7 @@ Faire évoluer Digital Crown d'un agenda de cabinet partagé vers un fonctionnem
 - Les imports bulk obéissent aux mêmes règles d'accès, de disponibilité et de conflit que la création unitaire.
 - Aucun changement de déploiement Vercel dans ce chantier sans autorisation explicite.
 
-## P0 — Agenda multi-praticiens réel
+## P0 — Agenda multi-praticiens réel — CERTIFIÉ
 
 ### Goal
 
@@ -38,9 +38,15 @@ Attribuer chaque nouveau rendez-vous à un praticien réel et isoler les conflit
 8. Les rendez-vous historiques restent lisibles et aucune migration destructive/backfill n'est effectuée.
 9. Tests backend et CI verts sur le HEAD exact.
 
-### Preuve attendue
+### Preuve vérifiée
 
-Migration Alembic + tests automatisés create/update/conflicts/bulk/tenant/legacy + CI GitHub sur le HEAD exact.
+- Code HEAD certifié : `f2e96286409ac22783afb3eff6b9651dce9d7ebc`.
+- CI GitHub run `34660038023` : `completed / success`.
+- Job backend `Tests & durcissement` `103460450879` : `completed / success`, incluant `Test suite` et `Prod safety check`.
+- Frontend tests + build : success.
+- M4-A, M4-B, M4-C et garde production : success.
+- Certifications exact-head : Patient P7 `34660038043` success; T2 Runtime Browser `34660038036` success; Marketplace `34660038059` success; Catalog Connected Truth `34660038075` success. M6-I `34660037963` skipped.
+- Migration Alembic et tests automatisés create/update/conflicts/bulk/tenant/legacy font partie du code certifié.
 
 ## P1 — UX clinique ciblée
 
@@ -61,9 +67,9 @@ Multi-site : hors périmètre tant qu'un besoin produit réel et prioritaire n'e
 ## Références
 
 - `docs/PATIENT_P3_CLINIQUE_GOAL.md` reste une référence complémentaire; ce chantier ne le remplace pas.
-- Le modèle agenda actuel utilise `Appointment.employer_id`, `datetime_start` et `duration_minutes`.
-- Chaîne Alembic vérifiée au démarrage P0 : `f7a8b9c0d1e2 → c1a55e700001 → c2a55e700002`.
+- Le modèle agenda utilise `Appointment.employer_id`, `datetime_start`, `duration_minutes` et désormais `praticien_id`.
+- Chaîne Alembic au démarrage P0 : `f7a8b9c0d1e2 → c1a55e700001 → c2a55e700002`; P0 ajoute `d3a55e700003`.
 
 ## Next exact
 
-Implémenter P0 sur le modèle réel : `praticien_id` nullable → validation tenant/praticien → conflits par praticien + legacy global → bulk atomique → vue multi-praticien réelle → migration → tests → CI.
+Merger le closeout P0 après vérification de la PR, vérifier `master` post-merge, puis ouvrir P1 par la capture BEFORE des écrans Dashboard/Agenda/Team Manager aux viewports 390/768/1280 avant toute modification UI.
