@@ -1,0 +1,140 @@
+name: Cephalo R15 BEFORE Visual Certification
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/cephalo-r15-before-visual-cert.yml"
+      - "docs/handovers/2026-09-13-cephalo-r15-clinical-studio.md"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  before:
+    name: R15 BEFORE ${{ matrix.width }}px
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        width: [390, 768, 1280]
+    steps:
+      - name: Resolve exact base
+        id: ref
+        shell: bash
+        run: |
+          if [ -n "${{ github.event.pull_request.base.sha }}" ]; then
+            echo "value=${{ github.event.pull_request.base.sha }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "value=1e79d236b89a56592128d09451803b9adf4ee0fd" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ steps.ref.outputs.value }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install frontend and Chromium
+        working-directory: frontend
+        run: |
+          npm ci
+          npm install --no-save --package-lock=false playwright@1.55.0
+          npx playwright install --with-deps chromium
+
+      - name: Materialize deterministic R15 harness
+        working-directory: frontend
+        shell: bash
+        run: |
+          cat > cephalo-r15-before.html <<'EOF'
+          <!doctype html><html lang="fr"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/><title>R15 BEFORE</title></head><body><div id="root"></div><script type="module" src="/src/cephalo-r15-before.tsx"></script></body></html>
+          EOF
+          cat > src/cephalo-r15-before.tsx <<'EOF'
+          import React from 'react';
+          import { createRoot } from 'react-dom/client';
+          import './index.css';
+          import { Step3Clinical } from './features/ortho/components/Step3Clinical';
+          import { useOrthoStore } from './features/ortho/stores/useOrthoStore';
+
+          const current = useOrthoStore.getState();
+          useOrthoStore.setState({
+            anglesData: {
+              scientific_read_path: {
+                authority: 'EVIDENCE_GRAPH_V1',
+                active_chain: 'VERIFIED',
+                sources: 2,
+                landmarks: 12,
+                constructions: 7,
+                measurements: 7,
+              },
+              _evidence_graph_v1: {
+                sources: [{ source_id: 'source:1' }, { source_id: 'source:2' }],
+                landmarks: Array.from({length: 12}, (_, i) => ({ evidence_id: `landmark:${i}` })),
+                constructions: Array.from({length: 7}, (_, i) => ({ construction_id: `construction:${i}` })),
+                measurements: Array.from({length: 7}, (_, i) => ({ measurement_id: `measurement:${i}` })),
+                findings: [], diagnoses: [], problems: [], objectives: [], treatment_options: [], validations: [], final_plans: [],
+              }
+            },
+            etape3Data: {
+              ...current.etape3Data,
+              age: 15,
+              selectedAnalysis: 'COM',
+              dentaire: { ...current.etape3Data.dentaire, surplomb: 2.6, recouvrement: 2.5, impa: 94.3, i_francfort: 113.7, inter_incisif: 132.7 },
+              osseuse: { ...current.etape3Data.osseuse, angle_tweed: 26, decalage_ab: 2.3, situation_a: 2.3, situation_b: 0, profondeur_faciale: 70 },
+              analyse_moulages_auto: 'Classe molaire : I bilatérale\nForme d’arcade : U',
+            },
+            diag: {
+              ...current.diag,
+              analyse_dentaire: 'Note clinique dentaire',
+              diagnostic_squelettique: 'Note clinique squelettique',
+              analyse_moulages: 'Note praticien moulages',
+              synthese_diagnostique: 'Synthèse praticien',
+              strategie_therapeutique: 'Décision praticien',
+            },
+          });
+
+          const P = {
+            bg: '#f8fafc', bgPanel: '#ffffff', bgCard: '#ffffff', bgInput: '#f8fafc', border: '#dbe3ee',
+            text: '#0f172a', textMuted: '#64748b', textDim: '#94a3b8', accent: '#2563eb', accentSuccess: '#16a34a', shadow: '0 8px 30px rgba(15,23,42,.06)'
+          };
+
+          createRoot(document.getElementById('root')!).render(<main className="min-h-screen p-4"><Step3Clinical P={P} /></main>);
+          EOF
+          cat > cephalo-r15-before.mjs <<'EOF'
+          import { chromium } from 'playwright';
+          import { createServer } from 'vite';
+          import fs from 'node:fs/promises';
+          const width=Number(process.env.WIDTH); const height=width===390?844:width===768?1024:900;
+          const out=`cephalo-r15-before-${width}`; await fs.mkdir(out,{recursive:true});
+          const server=await createServer({server:{host:'127.0.0.1',port:4197,strictPort:true},clearScreen:false}); await server.listen();
+          const browser=await chromium.launch(); const context=await browser.newContext({viewport:{width,height}}); const page=await context.newPage(); const errors=[];
+          page.on('pageerror',e=>errors.push(`pageerror:${e.message}`)); page.on('console',m=>{if(m.type()==='error') errors.push(`console:${m.text()}`)});
+          try {
+            await page.goto('http://127.0.0.1:4197/cephalo-r15-before.html',{waitUntil:'networkidle'});
+            const scientific=await page.getByText('Chaîne scientifique',{exact:true}).count();
+            const structured=await page.getByText('État clinique structuré',{exact:true}).count();
+            const practitionerMarker=await page.getByText(/Saisie praticien.*jamais préremplie/i).count();
+            const dims=await page.evaluate(()=>({clientWidth:document.documentElement.clientWidth,scrollWidth:document.documentElement.scrollWidth}));
+            const report={phase:'BEFORE',width,height,scientific,structured,practitionerMarker,overflowPx:Math.max(0,dims.scrollWidth-dims.clientWidth),errors};
+            await page.screenshot({path:`${out}/${width}x${height}.png`,fullPage:true,animations:'disabled'});
+            await fs.writeFile(`${out}/report.json`,JSON.stringify(report,null,2));
+            if(scientific!==0 || structured!==0 || practitionerMarker!==0) throw new Error(`Unexpected BEFORE hierarchy: ${JSON.stringify(report)}`);
+            if(report.overflowPx!==0 || errors.length!==0) throw new Error(`Unstable BEFORE viewport: ${JSON.stringify(report)}`);
+          } finally { await context.close(); await browser.close(); await server.close(); }
+          EOF
+
+      - name: Capture and assert BEFORE
+        working-directory: frontend
+        env:
+          WIDTH: ${{ matrix.width }}
+        run: node cephalo-r15-before.mjs
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: cephalo-r15-BEFORE-${{ matrix.width }}
+          path: frontend/cephalo-r15-before-${{ matrix.width }}
+          if-no-files-found: error
