@@ -77,3 +77,40 @@ jobs:
             backend/tests/test_clinic_local_data_preservation.py \
             backend/tests/test_certified_release_policy.py \
             -q
+
+  windows-powershell-51-release-guard:
+    name: Windows PowerShell 5.1 release guards
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Parse guards with Windows PowerShell 5.1
+        shell: powershell
+        run: |
+          if ($PSVersionTable.PSVersion.Major -ne 5) {
+            throw "Expected Windows PowerShell 5.1, got $($PSVersionTable.PSVersion)"
+          }
+          foreach ($script in @(
+            "backend/scripts/create_release.ps1",
+            "backend/scripts/run_real_backend.ps1"
+          )) {
+            $tokens = $null
+            $errors = $null
+            [System.Management.Automation.Language.Parser]::ParseFile(
+              (Resolve-Path $script), [ref]$tokens, [ref]$errors
+            ) | Out-Null
+            if ($errors.Count -gt 0) {
+              throw "$script parse errors: $($errors | Out-String)"
+            }
+          }
+
+      - name: Preserve Windows PowerShell 5.1 API compatibility
+        shell: powershell
+        run: |
+          $creator = Get-Content backend/scripts/create_release.ps1 -Raw
+          if ($creator -match 'GetRelativePath') {
+            throw "Path.GetRelativePath is not allowed: Windows PowerShell 5.1/.NET Framework compatibility"
+          }
+          if ($creator -notmatch 'Substring\(\$payloadRootResolved\.Length\)') {
+            throw "Expected PowerShell 5.1-compatible relative path derivation is missing"
+          }
