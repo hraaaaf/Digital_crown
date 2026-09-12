@@ -300,18 +300,18 @@ export const Step4Documents: React.FC<Step4DocumentsProps> = ({ P }) => {
               <CheckItem label="Calibration effectuée" status={hasCalibration ? 'ok' : 'warning'} detail={hasCalibration ? undefined : 'Mesures mm non fiables sans calibration'} />
               <CheckItem label={`Landmarks complets (${landmarkCount}/${REQUIRED_LANDMARKS.length})`} status={landmarksOk ? 'ok' : landmarkCount > 0 ? 'warning' : 'fail'} detail={landmarksOk ? undefined : `${landmarkPct}% des points requis placés`} />
               <CheckItem label="Cohérence des mesures" status={isValidating ? 'loading' : !validation ? 'warning' : hasFatals ? 'fail' : hasWarnings ? 'warning' : 'ok'} detail={!validation ? 'Non vérifiée' : hasFatals ? `${validation.fatals.length} erreur(s)` : hasWarnings ? `${validation.warnings.length} avertissement(s)` : 'Sans erreur bloquante'} />
-              <CheckItem label="Note diagnostique praticien rédigée" status={diagOk ? 'ok' : 'warning'} detail={diagOk ? 'Note libre, hors preuve R11/R14' : 'Note libre vide'} />
+              <CheckItem label="Note diagnostique libre legacy présente" status={diagOk ? 'ok' : 'warning'} detail={diagOk ? 'Contenu non autoritaire, provenance non certifiée' : 'Note libre vide'} />
             </div>
           </div>
 
           <div className="rounded-2xl p-5 border" style={{ background: P.bgPanel, borderColor: P.border }}>
-            <div className="flex items-center gap-2 mb-2"><FileText size={16} style={{ color: P.accent }} /><h3 className="text-xs font-black uppercase tracking-widest" style={{ color: P.text }}>Notes thérapeutiques — praticien</h3></div>
+            <div className="flex items-center gap-2 mb-2"><FileText size={16} style={{ color: P.accent }} /><h3 className="text-xs font-black uppercase tracking-widest" style={{ color: P.text }}>Notes thérapeutiques legacy — provenance non certifiée</h3></div>
             <p className="mb-5 text-[10px] leading-relaxed" style={{ color: P.textMuted }}>
-              Ces saisies restent des notes de travail hors contrat R14. Elles ne sélectionnent aucune option R13 et ne valent jamais validation clinique finale.
+              Ces champs peuvent contenir une saisie manuelle ou un contenu historique dont l'auteur n'est pas attesté par le contrat legacy. Ils restent hors R13/R14 et ne valent jamais validation clinique finale.
             </p>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="p-3 rounded-xl border" style={{ background: P.bgInput, borderColor: P.border }}>
-                <label className="text-[9px] font-black uppercase tracking-widest block mb-2" style={{ color: P.textMuted }}>Préférence technique — note praticien</label>
+                <label className="text-[9px] font-black uppercase tracking-widest block mb-2" style={{ color: P.textMuted }}>Préférence technique — saisie manuelle hors R13</label>
                 <select value={etape3Data.preference_technique || ''} onChange={e => setEtape3Data(prev => ({ ...prev, preference_technique: e.target.value as any }))} className="w-full bg-transparent font-bold text-sm outline-none" style={{ color: P.text }}>
                   <option value="">-- Non renseignée --</option>
                   <option value="DAMON">Damon (Autoligaturant)</option>
@@ -320,15 +320,15 @@ export const Step4Documents: React.FC<Step4DocumentsProps> = ({ P }) => {
                 </select>
               </div>
               <div className="p-3 rounded-xl border" style={{ background: P.bgInput, borderColor: P.border }}>
-                <label className="text-[9px] font-black uppercase tracking-widest block mb-2" style={{ color: P.textMuted }}>Stade CVM — praticien</label>
+                <label className="text-[9px] font-black uppercase tracking-widest block mb-2" style={{ color: P.textMuted }}>Stade CVM — saisie manuelle</label>
                 <select value={etape3Data.cvm || ''} onChange={e => setEtape3Data(prev => ({ ...prev, cvm: e.target.value as any }))} className="w-full bg-transparent font-bold text-sm outline-none" style={{ color: P.text }}>
                   <option value="">-- Non renseigné --</option>
                   {['CS1','CS2','CS3','CS4','CS5','CS6'].map(v => <option key={v} value={v}>{v}</option>)}
                 </select>
               </div>
-              <div className="p-3 rounded-xl border col-span-2" style={{ background: P.bgInput, borderColor: P.border }}>
-                <label className="text-[9px] font-black uppercase tracking-widest block mb-2" style={{ color: P.textMuted }}>Note thérapeutique libre — hors preuve R14</label>
-                <textarea value={diag.strategie_therapeutique} onChange={e => store.setDiag(prev => ({ ...prev, strategie_therapeutique: e.target.value }))} rows={5} className="w-full bg-transparent text-sm outline-none resize-none font-medium leading-relaxed" style={{ color: P.text }} placeholder="Note de travail du praticien. Aucune stratégie R14 n'est générée ou validée ici." />
+              <div className="p-3 rounded-xl border sm:col-span-2" style={{ background: P.bgInput, borderColor: P.border }}>
+                <label className="text-[9px] font-black uppercase tracking-widest block mb-2" style={{ color: P.textMuted }}>Note thérapeutique libre legacy — hors preuve R14</label>
+                <textarea value={diag.strategie_therapeutique} onChange={e => store.setDiag(prev => ({ ...prev, strategie_therapeutique: e.target.value }))} rows={5} className="w-full bg-transparent text-sm outline-none resize-none font-medium leading-relaxed" style={{ color: P.text }} placeholder="Saisie libre ou contenu historique — provenance non certifiée. Aucune stratégie R14 n'est générée ou validée ici." />
               </div>
             </div>
           </div>
@@ -336,7 +336,7 @@ export const Step4Documents: React.FC<Step4DocumentsProps> = ({ P }) => {
           <div className="rounded-2xl p-5 border" style={{ background: P.bgPanel, borderColor: P.border }}>
             <p className="text-[9px] font-black text-center uppercase tracking-widest mb-1" style={{ color: P.textMuted }}>Actions documentaires</p>
             <p className="mb-4 text-center text-[9px]" style={{ color: P.textDim }}>Prévisualiser ou archiver un PDF ne valide jamais R14.</p>
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
               <button onClick={onPreviewPDF} disabled={isPreviewLoading || !analysisId} className="flex flex-col items-center justify-center gap-1.5 px-3 py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest disabled:opacity-40 border" style={{ background: P.bgCard, borderColor: P.border, color: P.textMuted }}>{isPreviewLoading ? <Loader2 size={20} className="animate-spin" /> : <Eye size={20} />}Prévisualiser</button>
               <button onClick={handleBrouillon} disabled={isBrouillon || !analysisId} className="flex flex-col items-center justify-center gap-1.5 px-3 py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest disabled:opacity-40 border" style={{ background: P.bgCard, borderColor: P.border, color: P.text }}>{isBrouillon ? <Loader2 size={20} className="animate-spin" /> : <FileText size={20} />}Brouillon PDF</button>
               <button onClick={handleArchiveBilan} disabled={isArchiving || isGenerating || !analysisId || !canArchive} className="flex flex-col items-center justify-center gap-1.5 px-3 py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest text-white disabled:opacity-40" style={{ background: canArchive ? `linear-gradient(135deg, ${P.accent}, #7c3aed)` : '#94a3b8' }}>{isArchiving || isGenerating ? <Loader2 size={20} className="animate-spin" /> : <Archive size={20} />}Archiver le bilan</button>
