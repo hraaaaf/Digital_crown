@@ -49,6 +49,26 @@ jobs:
           pip install -r requirements.txt
           pip install pytest
 
+      - name: Parse PowerShell release guards
+        shell: pwsh
+        run: |
+          $failed = $false
+          foreach ($script in @(
+            "backend/scripts/create_release.ps1",
+            "backend/scripts/run_real_backend.ps1"
+          )) {
+            $tokens = $null
+            $errors = $null
+            [System.Management.Automation.Language.Parser]::ParseFile(
+              (Resolve-Path $script), [ref]$tokens, [ref]$errors
+            ) | Out-Null
+            if ($errors.Count -gt 0) {
+              $failed = $true
+              Write-Error "$script parse errors: $($errors | Out-String)"
+            }
+          }
+          if ($failed) { exit 1 }
+
       - name: Run cabinet preservation and release-policy gates on PostgreSQL 18
         run: |
           python -m pytest \
