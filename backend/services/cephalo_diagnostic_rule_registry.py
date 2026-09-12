@@ -18,6 +18,8 @@ from backend.services.cephalo_norm_registry import (
 )
 
 
+RuleKey = Tuple[str, str]
+
 _ADMISSIBLE_RULE_SOURCE_TIERS = frozenset(
     {
         SourceTier.PRIMARY_ARTICLE,
@@ -43,17 +45,17 @@ class DiagnosticRuleDefinition:
     version: str
     domain: str
     source_ids: Tuple[str, ...]
-    finding_rule_ids: Tuple[str, ...]
+    finding_rule_bindings: Tuple[RuleKey, ...]
     description: str
 
 
 class DiagnosticRuleRegistry:
-    """Fail-closed registry for source-bound R11 rule metadata."""
+    """Fail-closed registry retaining exact rule id/version pairs."""
 
     def __init__(self, *, norm_registry: NormRegistry = default_norm_registry) -> None:
         self._norm_registry = norm_registry
-        self._finding_rules: Dict[str, FindingRuleDefinition] = {}
-        self._diagnostic_rules: Dict[str, DiagnosticRuleDefinition] = {}
+        self._finding_rules: Dict[RuleKey, FindingRuleDefinition] = {}
+        self._diagnostic_rules: Dict[RuleKey, DiagnosticRuleDefinition] = {}
 
     @staticmethod
     def _nonempty(value: str, field: str) -> None:
@@ -80,41 +82,51 @@ class DiagnosticRuleRegistry:
         self._nonempty(rule.version, "version")
         self._nonempty(rule.domain, "domain")
         self._nonempty(rule.description, "description")
-        if rule.rule_id in self._finding_rules:
-            raise ValueError(f"Duplicate finding rule: {rule.rule_id}")
+        key = (rule.rule_id, rule.version)
+        if key in self._finding_rules:
+            raise ValueError(f"Duplicate finding rule version: {rule.rule_id}@{rule.version}")
         self._validate_sources(rule.source_ids)
-        self._finding_rules[rule.rule_id] = rule
+        self._finding_rules[key] = rule
 
     def register_diagnostic_rule(self, rule: DiagnosticRuleDefinition) -> None:
         self._nonempty(rule.rule_id, "rule_id")
         self._nonempty(rule.version, "version")
         self._nonempty(rule.domain, "domain")
         self._nonempty(rule.description, "description")
-        if rule.rule_id in self._diagnostic_rules:
-            raise ValueError(f"Duplicate diagnostic rule: {rule.rule_id}")
-        self._validate_sources(rule.source_ids)
-        if not rule.finding_rule_ids:
-            raise ValueError("Diagnostic rule requires at least one finding rule")
-        unknown = sorted(set(rule.finding_rule_ids) - set(self._finding_rules))
-        if unknown:
+        key = (rule.rule_id, rule.version)
+        if key in self._diagnostic_rules:
             raise ValueError(
-                f"Diagnostic rule references unknown finding rule(s): {', '.join(unknown)}"
+                f"Duplicate diagnostic rule version: {rule.rule_id}@{rule.version}"
             )
-        self._diagnostic_rules[rule.rule_id] = rule
+        self._validate_sources(rule.source_ids)
+        if not rule.finding_rule_bindings:
+            raise ValueError("Diagnostic rule requires at least one finding rule binding")
+        unknown = sorted(
+            set(rule.finding_rule_bindings) - set(self._finding_rules),
+            key=lambda item: (item[0], item[1]),
+        )
+        if unknown:
+            rendered = ", ".join(f"{rule_id}@{version}" for rule_id, version in unknown)
+            raise ValueError(
+                f"Diagnostic rule references unknown finding rule version(s): {rendered}"
+            )
+        self._diagnostic_rules[key] = rule
 
     @property
-    def finding_rules(self) -> Mapping[str, FindingRuleDefinition]:
+    def finding_rules(self) -> Mapping[RuleKey, FindingRuleDefinition]:
         return MappingProxyType(dict(self._finding_rules))
 
     @property
-    def diagnostic_rules(self) -> Mapping[str, DiagnosticRuleDefinition]:
+    def diagnostic_rules(self) -> Mapping[RuleKey, DiagnosticRuleDefinition]:
         return MappingProxyType(dict(self._diagnostic_rules))
 
-    def get_finding_rule(self, rule_id: str) -> Optional[FindingRuleDefinition]:
-        return self._finding_rules.get(rule_id)
+    def get_finding_rule(self, rule_id: str, version: str) -> Optional[FindingRuleDefinition]:
+        return self._finding_rules.get((rule_id, version))
 
-    def get_diagnostic_rule(self, rule_id: str) -> Optional[DiagnosticRuleDefinition]:
-        return self._diagnostic_rules.get(rule_id)
+    def get_diagnostic_rule(
+        self, rule_id: str, version: str
+    ) -> Optional[DiagnosticRuleDefinition]:
+        return self._diagnostic_rules.get((rule_id, version))
 
 
 # Production registry intentionally empty. R11 must source-lock and review every
