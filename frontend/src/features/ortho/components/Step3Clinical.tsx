@@ -71,32 +71,16 @@ export const Step3Clinical: React.FC<Step3ClinicalProps> = ({ P }) => {
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <FieldShell label="Âge (ans)" P={P}>
-                <input
-                  type="number"
-                  value={data.age}
-                  onChange={e => onChange(prev => ({ ...prev, age: e.target.value === '' ? '' : parseInt(e.target.value) }))}
-                  className="w-full bg-transparent font-black text-lg outline-none"
-                  style={{ color: P.text }}
-                />
+                <input type="number" value={data.age} onChange={e => onChange(prev => ({ ...prev, age: e.target.value === '' ? '' : parseInt(e.target.value) }))} className="w-full bg-transparent font-black text-lg outline-none" style={{ color: P.text }} />
               </FieldShell>
               <FieldShell label="Stade CVM — praticien" P={P}>
-                <select
-                  value={data.cvm}
-                  onChange={e => onChange(prev => ({ ...prev, cvm: e.target.value as any }))}
-                  className="w-full bg-transparent font-bold text-sm outline-none"
-                  style={{ color: P.text }}
-                >
+                <select value={data.cvm} onChange={e => onChange(prev => ({ ...prev, cvm: e.target.value as any }))} className="w-full bg-transparent font-bold text-sm outline-none" style={{ color: P.text }}>
                   <option value="">Non renseigné</option>
                   {['CS1', 'CS2', 'CS3', 'CS4', 'CS5', 'CS6'].map(v => <option key={v} value={v}>{v}</option>)}
                 </select>
               </FieldShell>
               <FieldShell label="Denture — praticien" P={P}>
-                <select
-                  value={data.denture_type || ''}
-                  onChange={e => onChange(prev => ({ ...prev, denture_type: e.target.value as any }))}
-                  className="w-full bg-transparent font-bold text-sm outline-none"
-                  style={{ color: P.text }}
-                >
+                <select value={data.denture_type || ''} onChange={e => onChange(prev => ({ ...prev, denture_type: e.target.value as any }))} className="w-full bg-transparent font-bold text-sm outline-none" style={{ color: P.text }}>
                   <option value="">Non renseignée</option>
                   <option value="TEMPORAIRE">Temporaire</option>
                   <option value="MIXTE">Mixte</option>
@@ -186,26 +170,30 @@ export const Step3Clinical: React.FC<Step3ClinicalProps> = ({ P }) => {
       </div>
 
       <div className="space-y-3">
-        <AccordionSection title="3. Examen des Moulages" icon={<Activity size={14} style={{ color: P.accent }} />} P={P}>
+        <div className="rounded-xl border px-4 py-3 text-[11px] leading-5" style={{ borderColor: `${P.accentWarning}45`, background: `${P.accentWarning}09`, color: P.textMuted }}>
+          <strong style={{ color: P.text }}>Notes praticien non autoritaires.</strong> Les champs libres ci-dessous documentent le raisonnement clinique mais ne créent aucune preuve R11, sélection R13 ou validation R14.
+        </div>
+
+        <AccordionSection title="3. Examen des Moulages — note praticien" icon={<Activity size={14} style={{ color: P.accent }} />} P={P}>
           <div className="space-y-4 pt-2">
             <div className="p-4 rounded-xl font-mono text-[11px] leading-relaxed" style={{ background: P.bgInput, border: `1px solid ${P.border}40`, color: P.text }}>
               {data.analyse_moulages_auto ? data.analyse_moulages_auto.split('\n').map((line, i) => <div key={i}>{line}</div>) : <span className="opacity-40 italic">En attente des données occlusales...</span>}
             </div>
-            <textarea value={diag.analyse_moulages} onChange={e => handleDiagChange('analyse_moulages', e.target.value)} className="w-full h-24 p-3 rounded-xl bg-white/50 border text-sm focus:ring-2 outline-none transition-all" style={{ borderColor: P.border, color: P.text }} placeholder="Notes du praticien..." />
+            <textarea value={diag.analyse_moulages} onChange={e => handleDiagChange('analyse_moulages', e.target.value)} className="w-full h-24 p-3 rounded-xl bg-white/50 border text-sm focus:ring-2 outline-none transition-all" style={{ borderColor: P.border, color: P.text }} placeholder="Note libre du praticien — hors preuve scientifique autoritaire..." />
           </div>
         </AccordionSection>
 
-        <AccordionSection title="4. Diagnostic / Résumé Diagnostique" icon={<Info size={14} style={{ color: P.accent }} />} defaultOpen P={P}>
-          <textarea value={diag.synthese_diagnostique} onChange={e => handleDiagChange('synthese_diagnostique', e.target.value)} className="w-full h-32 p-3 rounded-xl bg-white/50 border text-sm focus:ring-2 outline-none transition-all mt-2" style={{ borderColor: P.border, color: P.text }} placeholder="Diagnostic / synthèse validée par le praticien..." />
+        <AccordionSection title="4. Note diagnostique praticien — hors R11" icon={<Info size={14} style={{ color: P.accent }} />} defaultOpen P={P}>
+          <textarea value={diag.synthese_diagnostique} onChange={e => handleDiagChange('synthese_diagnostique', e.target.value)} className="w-full h-32 p-3 rounded-xl bg-white/50 border text-sm focus:ring-2 outline-none transition-all mt-2" style={{ borderColor: P.border, color: P.text }} placeholder="Note diagnostique libre du praticien. Ne vaut pas diagnostic R11 autoritaire." />
         </AccordionSection>
 
-        <AccordionSection title="5. Plan thérapeutique — décision praticien" icon={<Info size={14} style={{ color: P.accent }} />} P={P}>
+        <AccordionSection title="5. Note thérapeutique praticien — hors R13/R14" icon={<Info size={14} style={{ color: P.accent }} />} P={P}>
           <textarea
             value={diag.strategie_therapeutique}
             onChange={e => handleDiagChange('strategie_therapeutique', e.target.value)}
             className="w-full h-48 p-4 rounded-xl bg-white/50 border text-sm focus:ring-2 outline-none transition-all resize-none overflow-y-auto leading-relaxed mt-2"
             style={{ borderColor: P.border, color: P.text }}
-            placeholder="Plan thérapeutique saisi et validé par le praticien. Aucune génération automatique."
+            placeholder="Note thérapeutique libre. Elle ne sélectionne aucune option R13 et ne valide aucune stratégie R14."
           />
         </AccordionSection>
       </div>
