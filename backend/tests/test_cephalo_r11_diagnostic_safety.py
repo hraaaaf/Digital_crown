@@ -120,13 +120,9 @@ def _craniom_graph(*, include_finding: bool = False) -> EvidenceGraphSnapshot:
     findings = []
     if include_finding:
         findings = [
-            FindingEvidence(
-                finding_id="finding:unsafe_norm:r11",
-                domain="dentoalveolar",
-                rule_id="R11_SYNTHETIC_TEST_ONLY",
-                rule_version="1",
-                supporting_evidence_refs=[evaluation.evaluation_id],
-                statement="Synthetic R11 safety test only.",
+            _finding(
+                "finding:unsafe_norm:r11",
+                supporting=[evaluation.evaluation_id],
             )
         ]
     return EvidenceGraphSnapshot(
@@ -184,6 +180,56 @@ def _replace(graph: EvidenceGraphSnapshot, **changes) -> EvidenceGraphSnapshot:
     return EvidenceGraphSnapshot(**{**graph.__dict__, **changes})
 
 
+def _finding(
+    finding_id: str,
+    *,
+    supporting=None,
+    opposing=None,
+    missing=None,
+    availability_status: AvailabilityStatus = AvailabilityStatus.AVAILABLE,
+) -> FindingEvidence:
+    return FindingEvidence(
+        finding_id=finding_id,
+        domain="dentoalveolar",
+        rule_id="R11_SYNTHETIC_TEST_ONLY",
+        rule_version="1",
+        supporting_evidence_refs=list(supporting or []),
+        opposing_evidence_refs=list(opposing or []),
+        missing_evidence_refs=list(missing or []),
+        statement="Synthetic R11 safety-test finding.",
+        availability_status=availability_status,
+    )
+
+
+def _diagnosis(
+    diagnosis_id: str,
+    *,
+    supporting=None,
+    opposing=None,
+    missing=None,
+    contradictions=None,
+    state: ReviewState = ReviewState.PROPOSED,
+) -> DiagnosticHypothesisEvidence:
+    return DiagnosticHypothesisEvidence(
+        diagnosis_id=diagnosis_id,
+        domain="synthetic",
+        rule_id="R11_SYNTHETIC_DIAGNOSIS_TEST_ONLY",
+        rule_version="1",
+        supporting_finding_refs=list(supporting or []),
+        opposing_finding_refs=list(opposing or []),
+        missing_data_refs=list(missing or []),
+        contradictions=list(contradictions or []),
+        statement="Synthetic R11 safety-test hypothesis.",
+        state=state,
+    )
+
+
+def _unavailable_measurement(graph: EvidenceGraphSnapshot) -> MeasurementEvidence:
+    return graph.measurements[0].model_copy(
+        update={"value": None, "availability_status": AvailabilityStatus.NOT_COMPUTABLE}
+    )
+
+
 def test_r11_accepts_exact_inert_extreme_range_for_traceability_only():
     validate_r11_diagnostic_graph(_craniom_graph())
 
@@ -194,9 +240,7 @@ def test_r11_requires_exact_registered_normative_sources():
         update={"source_refs": ["CRANIOM_PART2_2011"]}
     )
     with pytest.raises(EvidenceGraphValidationError, match="source_refs must exactly match"):
-        validate_r11_diagnostic_graph(
-            _replace(graph, normative_evaluations=[evaluation])
-        )
+        validate_r11_diagnostic_graph(_replace(graph, normative_evaluations=[evaluation]))
 
 
 def test_r11_requires_exact_construction_gate_for_normative_reference():
@@ -218,9 +262,7 @@ def test_r11_rejects_mean_sd_payload_drift():
         update={"reference": {"kind": "MEAN_SD", "mean": 120.2, "sd": 5.4}}
     )
     with pytest.raises(EvidenceGraphValidationError, match="does not exactly match registry"):
-        validate_r11_diagnostic_graph(
-            _replace(graph, normative_evaluations=[evaluation])
-        )
+        validate_r11_diagnostic_graph(_replace(graph, normative_evaluations=[evaluation]))
 
 
 def test_r11_rejects_extra_fields_in_normative_payload():
@@ -239,21 +281,14 @@ def test_r11_rejects_extra_fields_in_normative_payload():
         EvidenceGraphValidationError,
         match=r"reference payload does not (exactly )?match registry",
     ):
-        validate_r11_diagnostic_graph(
-            _replace(graph, normative_evaluations=[evaluation])
-        )
+        validate_r11_diagnostic_graph(_replace(graph, normative_evaluations=[evaluation]))
 
 
 def test_r11_production_registry_rejects_unregistered_finding_rule():
     graph = _craniom_graph()
-    measurement = graph.measurements[0]
-    finding = FindingEvidence(
-        finding_id="finding:unregistered:r11",
-        domain="dentoalveolar",
-        rule_id="R11_SYNTHETIC_TEST_ONLY",
-        rule_version="1",
-        supporting_evidence_refs=[measurement.measurement_id],
-        statement="Synthetic unregistered-rule safety test only.",
+    finding = _finding(
+        "finding:unregistered:r11",
+        supporting=[graph.measurements[0].measurement_id],
     )
     with pytest.raises(EvidenceGraphValidationError, match="unregistered rule"):
         validate_r11_diagnostic_graph(_replace(graph, findings=[finding]))
@@ -268,74 +303,83 @@ def test_r11_inactive_normative_reference_cannot_support_finding():
 
 def test_r11_inactive_normative_reference_may_be_exposed_as_missing_context():
     graph = _craniom_graph()
-    evaluation = graph.normative_evaluations[0]
-    measurement = graph.measurements[0]
-    finding = FindingEvidence(
-        finding_id="finding:blocked_norm:r11",
-        domain="dentoalveolar",
-        rule_id="R11_SYNTHETIC_TEST_ONLY",
-        rule_version="1",
-        supporting_evidence_refs=[measurement.measurement_id],
-        missing_evidence_refs=[evaluation.evaluation_id],
-        statement="Synthetic R11 missing-context safety test only.",
+    finding = _finding(
+        "finding:blocked_norm:r11",
+        supporting=[graph.measurements[0].measurement_id],
+        missing=[graph.normative_evaluations[0].evaluation_id],
     )
     validate_r11_diagnostic_graph(
         _replace(graph, findings=[finding]), rule_registry=_rule_registry()
     )
 
 
-def test_r11_finding_cannot_use_unavailable_measurement_as_supporting_evidence():
+def test_r11_available_normative_evaluation_rejects_unavailable_measurement():
     graph = _craniom_graph()
-    measurement = graph.measurements[0].model_copy(
-        update={"value": None, "availability_status": AvailabilityStatus.NOT_COMPUTABLE}
-    )
-    finding = FindingEvidence(
-        finding_id="finding:unavailable_support:r11",
-        domain="dentoalveolar",
-        rule_id="R11_SYNTHETIC_TEST_ONLY",
-        rule_version="1",
-        supporting_evidence_refs=[measurement.measurement_id],
-        statement="Synthetic unavailable-support safety test only.",
+    measurement = _unavailable_measurement(graph)
+    with pytest.raises(EvidenceGraphValidationError, match="cannot be AVAILABLE"):
+        validate_r11_diagnostic_graph(_replace(graph, measurements=[measurement]))
+
+
+def test_r11_finding_rejects_unavailable_measurement_as_support():
+    graph = _craniom_graph()
+    measurement = _unavailable_measurement(graph)
+    finding = _finding(
+        "finding:unavailable_support:r11",
+        supporting=[measurement.measurement_id],
     )
     with pytest.raises(EvidenceGraphValidationError, match="unavailable evidence"):
         validate_r11_diagnostic_graph(
-            _replace(graph, measurements=[measurement], findings=[finding]),
+            _replace(
+                graph,
+                measurements=[measurement],
+                normative_evaluations=[],
+                findings=[finding],
+            ),
             rule_registry=_rule_registry(),
         )
 
 
-def test_r11_finding_cannot_use_unavailable_measurement_as_opposing_evidence():
+def test_r11_finding_rejects_unavailable_measurement_as_opposition():
     graph = _craniom_graph()
-    measurement = graph.measurements[0].model_copy(
-        update={"value": None, "availability_status": AvailabilityStatus.NOT_COMPUTABLE}
-    )
-    finding = FindingEvidence(
-        finding_id="finding:unavailable_opposition:r11",
-        domain="dentoalveolar",
-        rule_id="R11_SYNTHETIC_TEST_ONLY",
-        rule_version="1",
-        supporting_evidence_refs=[graph.sources[0].evidence_id],
-        opposing_evidence_refs=[measurement.measurement_id],
-        statement="Synthetic unavailable-opposition safety test only.",
+    measurement = _unavailable_measurement(graph)
+    finding = _finding(
+        "finding:unavailable_opposition:r11",
+        supporting=[graph.sources[0].evidence_id],
+        opposing=[measurement.measurement_id],
     )
     with pytest.raises(EvidenceGraphValidationError, match="unavailable evidence"):
         validate_r11_diagnostic_graph(
-            _replace(graph, measurements=[measurement], findings=[finding]),
+            _replace(
+                graph,
+                measurements=[measurement],
+                normative_evaluations=[],
+                findings=[finding],
+            ),
             rule_registry=_rule_registry(),
         )
 
 
-def test_r11_finding_cannot_use_same_evidence_as_supporting_and_opposing():
+def test_r11_finding_rejects_available_evidence_marked_missing():
     graph = _craniom_graph()
-    measurement = graph.measurements[0]
-    finding = FindingEvidence(
-        finding_id="finding:contradictory:r11",
-        domain="dentoalveolar",
-        rule_id="R11_SYNTHETIC_TEST_ONLY",
-        rule_version="1",
-        supporting_evidence_refs=[measurement.measurement_id],
-        opposing_evidence_refs=[measurement.measurement_id],
-        statement="Synthetic R11 contradiction safety test only.",
+    finding = _finding(
+        "finding:false_missing:r11",
+        supporting=[graph.sources[0].evidence_id],
+        missing=[graph.measurements[0].measurement_id],
+    )
+    with pytest.raises(EvidenceGraphValidationError, match="available evidence as missing"):
+        validate_r11_diagnostic_graph(
+            _replace(graph, normative_evaluations=[], findings=[finding]),
+            rule_registry=_rule_registry(),
+        )
+
+
+def test_r11_finding_rejects_same_evidence_as_supporting_and_opposing():
+    graph = _craniom_graph()
+    measurement_id = graph.measurements[0].measurement_id
+    finding = _finding(
+        "finding:contradictory:r11",
+        supporting=[measurement_id],
+        opposing=[measurement_id],
     )
     with pytest.raises(EvidenceGraphValidationError, match="both supporting and opposing"):
         validate_r11_diagnostic_graph(
@@ -345,14 +389,9 @@ def test_r11_finding_cannot_use_same_evidence_as_supporting_and_opposing():
 
 def test_r11_diagnosis_requires_versioned_registered_rule():
     graph = _craniom_graph()
-    measurement = graph.measurements[0]
-    finding = FindingEvidence(
-        finding_id="finding:neutral:r11",
-        domain="dentoalveolar",
-        rule_id="R11_SYNTHETIC_TEST_ONLY",
-        rule_version="1",
-        supporting_evidence_refs=[measurement.measurement_id],
-        statement="Synthetic R11 finding used only for graph safety testing.",
+    finding = _finding(
+        "finding:neutral:r11",
+        supporting=[graph.measurements[0].measurement_id],
     )
     diagnosis = DiagnosticHypothesisEvidence(
         diagnosis_id="diagnosis:unbound:r11",
@@ -367,108 +406,65 @@ def test_r11_diagnosis_requires_versioned_registered_rule():
         )
 
 
-def test_r11_diagnosis_cannot_use_unavailable_finding_as_supporting_evidence():
+def test_r11_diagnosis_rejects_unavailable_finding_as_support():
     graph = _craniom_graph()
-    measurement = graph.measurements[0]
-    unavailable_finding = FindingEvidence(
-        finding_id="finding:missing:r11",
-        domain="dentoalveolar",
-        rule_id="R11_SYNTHETIC_TEST_ONLY",
-        rule_version="1",
-        missing_evidence_refs=[measurement.measurement_id],
-        statement="Synthetic unavailable finding safety test only.",
+    unavailable = _finding(
+        "finding:missing:r11",
+        missing=[graph.measurements[0].measurement_id],
         availability_status=AvailabilityStatus.NOT_COMPUTABLE,
     )
-    diagnosis = DiagnosticHypothesisEvidence(
-        diagnosis_id="diagnosis:unsafe_missing_support:r11",
-        domain="synthetic",
-        rule_id="R11_SYNTHETIC_DIAGNOSIS_TEST_ONLY",
-        rule_version="1",
-        supporting_finding_refs=[unavailable_finding.finding_id],
-        statement="Synthetic diagnosis with unavailable support.",
+    diagnosis = _diagnosis(
+        "diagnosis:unsafe_missing_support:r11",
+        supporting=[unavailable.finding_id],
     )
     with pytest.raises(EvidenceGraphValidationError, match="unavailable finding"):
         validate_r11_diagnostic_graph(
-            _replace(graph, findings=[unavailable_finding], diagnoses=[diagnosis]),
+            _replace(graph, findings=[unavailable], diagnoses=[diagnosis]),
             rule_registry=_rule_registry(),
         )
 
 
-def test_r11_diagnosis_cannot_use_unavailable_finding_as_opposing_evidence():
+def test_r11_diagnosis_rejects_unavailable_finding_as_opposition():
     graph = _craniom_graph()
-    measurement = graph.measurements[0]
-    supporting_finding = FindingEvidence(
-        finding_id="finding:available:r11",
-        domain="dentoalveolar",
-        rule_id="R11_SYNTHETIC_TEST_ONLY",
-        rule_version="1",
-        supporting_evidence_refs=[measurement.measurement_id],
-        statement="Synthetic available finding.",
+    available = _finding(
+        "finding:available:r11",
+        supporting=[graph.measurements[0].measurement_id],
     )
-    unavailable_finding = FindingEvidence(
-        finding_id="finding:missing:r11",
-        domain="dentoalveolar",
-        rule_id="R11_SYNTHETIC_TEST_ONLY",
-        rule_version="1",
-        missing_evidence_refs=[measurement.measurement_id],
-        statement="Synthetic unavailable finding.",
+    unavailable = _finding(
+        "finding:missing:r11",
+        missing=[graph.measurements[0].measurement_id],
         availability_status=AvailabilityStatus.NOT_COMPUTABLE,
     )
-    diagnosis = DiagnosticHypothesisEvidence(
-        diagnosis_id="diagnosis:unsafe_missing_opposition:r11",
-        domain="synthetic",
-        rule_id="R11_SYNTHETIC_DIAGNOSIS_TEST_ONLY",
-        rule_version="1",
-        supporting_finding_refs=[supporting_finding.finding_id],
-        opposing_finding_refs=[unavailable_finding.finding_id],
-        statement="Synthetic diagnosis with unavailable opposition.",
+    diagnosis = _diagnosis(
+        "diagnosis:unsafe_missing_opposition:r11",
+        supporting=[available.finding_id],
+        opposing=[unavailable.finding_id],
     )
     with pytest.raises(EvidenceGraphValidationError, match="unavailable finding"):
         validate_r11_diagnostic_graph(
-            _replace(
-                graph,
-                findings=[supporting_finding, unavailable_finding],
-                diagnoses=[diagnosis],
-            ),
+            _replace(graph, findings=[available, unavailable], diagnoses=[diagnosis]),
             rule_registry=_rule_registry(),
         )
 
 
 def test_r11_distinct_supporting_and_opposing_findings_preserve_contradiction():
     graph = _craniom_graph()
-    measurement = graph.measurements[0]
-    supporting_finding = FindingEvidence(
-        finding_id="finding:support:r11",
-        domain="dentoalveolar",
-        rule_id="R11_SYNTHETIC_TEST_ONLY",
-        rule_version="1",
-        supporting_evidence_refs=[measurement.measurement_id],
-        statement="Synthetic supporting finding.",
+    supporting = _finding(
+        "finding:support:r11",
+        supporting=[graph.measurements[0].measurement_id],
     )
-    opposing_finding = FindingEvidence(
-        finding_id="finding:oppose:r11",
-        domain="dentoalveolar",
-        rule_id="R11_SYNTHETIC_TEST_ONLY",
-        rule_version="1",
-        supporting_evidence_refs=[graph.sources[0].evidence_id],
-        statement="Synthetic opposing finding.",
+    opposing = _finding(
+        "finding:oppose:r11",
+        supporting=[graph.sources[0].evidence_id],
     )
-    diagnosis = DiagnosticHypothesisEvidence(
-        diagnosis_id="diagnosis:contradiction_visible:r11",
-        domain="synthetic",
-        rule_id="R11_SYNTHETIC_DIAGNOSIS_TEST_ONLY",
-        rule_version="1",
-        supporting_finding_refs=[supporting_finding.finding_id],
-        opposing_finding_refs=[opposing_finding.finding_id],
+    diagnosis = _diagnosis(
+        "diagnosis:contradiction_visible:r11",
+        supporting=[supporting.finding_id],
+        opposing=[opposing.finding_id],
         contradictions=["Synthetic contradiction retained explicitly."],
-        statement="Synthetic explainable hypothesis with explicit contradiction.",
     )
     validate_r11_diagnostic_graph(
-        _replace(
-            graph,
-            findings=[supporting_finding, opposing_finding],
-            diagnoses=[diagnosis],
-        ),
+        _replace(graph, findings=[supporting, opposing], diagnoses=[diagnosis]),
         rule_registry=_rule_registry(),
     )
     assert diagnosis.contradictions == ["Synthetic contradiction retained explicitly."]
@@ -476,42 +472,48 @@ def test_r11_distinct_supporting_and_opposing_findings_preserve_contradiction():
 
 def test_r11_insufficient_data_hypothesis_keeps_missing_evidence_explicit():
     graph = _craniom_graph()
-    measurement = graph.measurements[0]
-    diagnosis = DiagnosticHypothesisEvidence(
-        diagnosis_id="diagnosis:insufficient:r11",
-        domain="synthetic",
-        rule_id="R11_SYNTHETIC_DIAGNOSIS_TEST_ONLY",
-        rule_version="1",
-        missing_data_refs=[measurement.measurement_id],
-        statement="Synthetic insufficient-data hypothesis.",
+    measurement = _unavailable_measurement(graph)
+    diagnosis = _diagnosis(
+        "diagnosis:insufficient:r11",
+        missing=[measurement.measurement_id],
         state=ReviewState.INSUFFICIENT_DATA,
     )
     validate_r11_diagnostic_graph(
-        _replace(graph, diagnoses=[diagnosis]),
+        _replace(
+            graph,
+            measurements=[measurement],
+            normative_evaluations=[],
+            diagnoses=[diagnosis],
+        ),
         rule_registry=_rule_registry(),
     )
     assert diagnosis.missing_data_refs == [measurement.measurement_id]
 
 
-def test_r11_diagnosis_cannot_use_same_finding_as_supporting_and_opposing():
+def test_r11_insufficient_data_hypothesis_rejects_available_measurement_as_missing():
     graph = _craniom_graph()
-    measurement = graph.measurements[0]
-    finding = FindingEvidence(
-        finding_id="finding:neutral:r11",
-        domain="dentoalveolar",
-        rule_id="R11_SYNTHETIC_TEST_ONLY",
-        rule_version="1",
-        supporting_evidence_refs=[measurement.measurement_id],
-        statement="Synthetic R11 finding used only for graph safety testing.",
+    diagnosis = _diagnosis(
+        "diagnosis:false_missing:r11",
+        missing=[graph.measurements[0].measurement_id],
+        state=ReviewState.INSUFFICIENT_DATA,
     )
-    diagnosis = DiagnosticHypothesisEvidence(
-        diagnosis_id="diagnosis:contradictory:r11",
-        domain="synthetic",
-        rule_id="R11_SYNTHETIC_DIAGNOSIS_TEST_ONLY",
-        rule_version="1",
-        supporting_finding_refs=[finding.finding_id],
-        opposing_finding_refs=[finding.finding_id],
-        statement="Synthetic R11 diagnosis safety test only.",
+    with pytest.raises(EvidenceGraphValidationError, match="available evidence as missing"):
+        validate_r11_diagnostic_graph(
+            _replace(graph, normative_evaluations=[], diagnoses=[diagnosis]),
+            rule_registry=_rule_registry(),
+        )
+
+
+def test_r11_diagnosis_rejects_same_finding_as_supporting_and_opposing():
+    graph = _craniom_graph()
+    finding = _finding(
+        "finding:neutral:r11",
+        supporting=[graph.measurements[0].measurement_id],
+    )
+    diagnosis = _diagnosis(
+        "diagnosis:contradictory:r11",
+        supporting=[finding.finding_id],
+        opposing=[finding.finding_id],
     )
     with pytest.raises(EvidenceGraphValidationError, match="same finding as both"):
         validate_r11_diagnostic_graph(
