@@ -86,7 +86,6 @@ def test_mcnamara_primary_table_i_mean_sd_refs_are_exactly_bound_and_inert():
     expected = {
         "MCNAMARA_CO_GN_ANN_ARBOR_FEMALE_MEAN_SD_V1": (
             "MCNAMARA_CO_GN_MM_V1",
-            "CO_GN",
             "MCNAMARA_CO_GN_V1",
             "female",
             "73",
@@ -96,7 +95,6 @@ def test_mcnamara_primary_table_i_mean_sd_refs_are_exactly_bound_and_inert():
         ),
         "MCNAMARA_CO_GN_ANN_ARBOR_MALE_MEAN_SD_V1": (
             "MCNAMARA_CO_GN_MM_V1",
-            "CO_GN",
             "MCNAMARA_CO_GN_V1",
             "male",
             "38",
@@ -106,7 +104,6 @@ def test_mcnamara_primary_table_i_mean_sd_refs_are_exactly_bound_and_inert():
         ),
         "MCNAMARA_CO_A_ANN_ARBOR_FEMALE_MEAN_SD_V1": (
             "MCNAMARA_CO_A_MM_V1",
-            "CO_A",
             "MCNAMARA_CO_A_V1",
             "female",
             "73",
@@ -116,7 +113,6 @@ def test_mcnamara_primary_table_i_mean_sd_refs_are_exactly_bound_and_inert():
         ),
         "MCNAMARA_CO_A_ANN_ARBOR_MALE_MEAN_SD_V1": (
             "MCNAMARA_CO_A_MM_V1",
-            "CO_A",
             "MCNAMARA_CO_A_V1",
             "male",
             "38",
@@ -126,7 +122,6 @@ def test_mcnamara_primary_table_i_mean_sd_refs_are_exactly_bound_and_inert():
         ),
         "MCNAMARA_ANS_ME_ANN_ARBOR_FEMALE_MEAN_SD_V1": (
             "MCNAMARA_ANS_ME_MM_V1",
-            "ANS_ME",
             "MCNAMARA_ANS_ME_V1",
             "female",
             "73",
@@ -136,7 +131,6 @@ def test_mcnamara_primary_table_i_mean_sd_refs_are_exactly_bound_and_inert():
         ),
         "MCNAMARA_ANS_ME_ANN_ARBOR_MALE_MEAN_SD_V1": (
             "MCNAMARA_ANS_ME_MM_V1",
-            "ANS_ME",
             "MCNAMARA_ANS_ME_V1",
             "male",
             "38",
@@ -146,9 +140,15 @@ def test_mcnamara_primary_table_i_mean_sd_refs_are_exactly_bound_and_inert():
         ),
     }
 
+    mean_sd_refs = {
+        ref.reference_id: ref
+        for ref in registry.references.values()
+        if ref.kind == ReferenceKind.MEAN_SD
+    }
+    assert set(mean_sd_refs) == set(expected)
+
     for reference_id, (
-        method_id,
-        measurement_id,
+        measurement_method_id,
         construction_gate,
         sex,
         sample_size,
@@ -156,12 +156,12 @@ def test_mcnamara_primary_table_i_mean_sd_refs_are_exactly_bound_and_inert():
         mean,
         sd,
     ) in expected.items():
-        ref = registry.get_reference(reference_id)
-        assert ref is not None
-        assert ref.kind == ReferenceKind.MEAN_SD
-        assert ref.method_id == method_id
+        ref = mean_sd_refs[reference_id]
+        # EvidenceGraph contract: reference method_id targets analysis_id and
+        # reference measurement_id targets MeasurementEvidence.method_id.
+        assert ref.method_id == "MCNAMARA"
+        assert ref.measurement_id == measurement_method_id
         assert ref.method_version == "1"
-        assert ref.measurement_id == measurement_id
         assert ref.construction_gate == construction_gate
         assert ref.unit == "mm"
         assert ref.mean == mean and ref.sd == sd
