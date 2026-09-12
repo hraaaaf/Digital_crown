@@ -2,7 +2,7 @@
 
 ## Statut
 
-P0 backend certifié puis mergé dans `master` via PR #429, merge commit `f265ebcd9f0654f346a969def5d93f66451af67d`. P1 UX clinique ciblée est en cours sur `feat/clinic-multipractitioner-p1-ui` / PR #430. Le BEFORE exact est acquis ; l'implémentation P1 attend encore sa certification AFTER et la CI exact-head.
+P0 backend certifié puis mergé dans `master` via PR #429, merge commit `f265ebcd9f0654f346a969def5d93f66451af67d`. P1 UX clinique est certifié sur le code HEAD `3c29f2e29b730d447aff72f81416249bdf5073f5`; closeout documentaire final sur `feat/clinic-multipractitioner-p1-ui` / PR #430 avant merge.
 
 ## Goal global
 
@@ -49,7 +49,7 @@ Attribuer chaque nouveau rendez-vous à un praticien réel et isoler les conflit
 - Migration Alembic et tests automatisés create/update/conflicts/bulk/tenant/legacy font partie du code certifié.
 - PR #429 mergée ; `master` vérifié sur `f265ebcd9f0654f346a969def5d93f66451af67d`.
 
-## P1 — UX clinique ciblée — EN COURS
+## P1 — UX clinique ciblée — CERTIFIÉ
 
 ### Goal
 
@@ -63,7 +63,7 @@ Rendre le praticien actif explicite sur Dashboard, Agenda et Team Manager, puis 
 - Dashboard 390 : `scrollWidth=402` pour `clientWidth=390`, soit 12 px de débordement dans le harnais direct.
 - Agenda / Team : 0 overflow, mais aucun contexte praticien global explicite.
 
-### Référence / implémentation
+### Implémentation certifiée
 
 Référence détaillée : `docs/clinic/P1_MULTI_PRACTITIONER_UI.md`.
 
@@ -75,16 +75,23 @@ Référence détaillée : `docs/clinic/P1_MULTI_PRACTITIONER_UI.md`.
 - mapping rendez-vous → praticien utilisé pour le conflict-check d'une édition ;
 - tests de contrat frontend ajoutés.
 
-### Gate de certification restant
+### AFTER vérifié
 
-- AFTER exact aux mêmes viewports 390 / 768 / 1280 ;
-- 0 overflow horizontal ;
-- 0 pageerror / console error ;
-- inspection des 9 captures et comparaison BEFORE / AFTER ;
-- score visuel documenté ;
-- CI et T2 exact-head verts ;
-- closeout documentaire puis merge PR #430 ;
-- vérification `master` post-merge avant P2.
+- Code HEAD certifié : `3c29f2e29b730d447aff72f81416249bdf5073f5`.
+- Visual P1 `34681876692` : completed / success.
+- T2 Runtime Browser `34681876693` : completed / success.
+- CI principale `34681876685` : completed / success.
+- Voluntary Tutorial Visual `34681876771` : completed / success.
+- 9 captures AFTER : Dashboard / Agenda / Team × 390x844 / 768x1024 / 1280x900.
+- 0 overflow horizontal sur les 9 captures.
+- 0 pageerror / console error selon le gate exact-head.
+- Dashboard 390 : 12 px overflow BEFORE → 0 AFTER.
+- Score visuel documenté : **9,2 / 10**.
+- Aucun déploiement Vercel.
+
+### Verdict
+
+P1 est certifié côté code et UX. La PR #430 doit encore être mergée puis `master` vérifié avant ouverture du P2.
 
 ## P2 — Patient, actes et facturation
 
@@ -107,4 +114,4 @@ Multi-site : hors périmètre tant qu'un besoin produit réel et prioritaire n'e
 
 ## Next exact
 
-Récupérer le run AFTER exact du HEAD P1 courant. S'il échoue : diagnostiquer, corriger et relancer. S'il est vert : télécharger les 9 captures, comparer BEFORE / AFTER, calculer le score visuel, attendre la CI/T2 exact-head si encore en cours, puis faire le closeout et merger PR #430 avant d'ouvrir P2.
+Vérifier les checks du HEAD documentaire final de la PR #430. S'ils sont verts : merger #430, vérifier `master` post-merge, puis ouvrir P2. En cas d'échec d'un check : diagnostiquer et corriger avant merge.
