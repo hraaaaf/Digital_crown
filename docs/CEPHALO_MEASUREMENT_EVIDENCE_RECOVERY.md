@@ -22,7 +22,7 @@ Récupérer chaque mesure ou règle présente dans l'audit COM/CRANIOM historiqu
 
 1. verrouiller la définition géométrique ;
 2. verrouiller la source numérique ou la règle source-spécifique ;
-3. définir population/âge/sex/contexte si nécessaire ;
+3. définir population/âge/sexe/contexte si nécessaire ;
 4. conserver les divergences au lieu de les écraser ;
 5. n'activer une classification patient qu'après preuve suffisante et tests fail-closed.
 
@@ -47,7 +47,7 @@ Le texte primaire de Tweed indique explicitement :
 Conséquence :
 
 - la ligne historique `IMPA 90° ±5` possède désormais une **source primaire directe** Tweed ;
-- la ligne historique `FMA 26° ±4` **ne doit pas être attribuée à Tweed** : la source primaire Tweed retrouvée donne 25° avec une variation 20–30°. `26±4` appartient à une autre convention/école dans la littérature et doit rester séparé.
+- la ligne historique `FMA 26° ±4` **ne doit pas être attribuée à Tweed** : la source primaire Tweed retrouvée donne 25° avec une variation 20–30°.
 
 ### Compensation IMPA
 
@@ -61,6 +61,32 @@ Décision Digital Crown :
 - **ne pas abandonner la compensation** ;
 - la conserver comme règle Tweed historique source-lockée, dépendante du FMA et de la construction géométrique Tweed exacte ;
 - avant runtime clinique, verrouiller la construction du plan mandibulaire Tweed et tester la formule sur cas goldens.
+
+## FMA 26° ±4 — PISTE RICKETTS RENFORCÉE
+
+### Source primaire Ricketts identifiée
+
+Robert M. Ricketts. *A foundation for cephalometric communication.* American Journal of Orthodontics. 1960;46(5):330-357. DOI `10.1016/0002-9416(60)90047-6`.
+
+La surface éditeur ScienceDirect confirme que cette publication introduit l'analyse morphologique de Ricketts et inclut l'angle du plan mandibulaire. **La valeur numérique `26±4°` n'a pas encore été directement extraite du texte/tableau primaire accessible**, donc elle n'est pas marquée `PRIMARY_SOURCE_LOCKED` à ce stade.
+
+### Corroboration peer-reviewed
+
+Des publications peer-reviewed utilisant explicitement l'analyse de Ricketts donnent :
+
+- angle du plan mandibulaire Ricketts `Po-Or / Go-Gn` : **26±4°** ;
+- valeur de référence à 9 ans : **26±4°** ;
+- correction d'âge rapportée dans la littérature récente : environ **−0.3°/an**.
+
+Sources de corroboration :
+- Ravelo et al., *BioMed Research International* 2021, DOI `10.1155/2021/6670191` ;
+- littérature récente d'analyse Ricketts VERT confirmant `26±4°` à 9 ans et l'ajustement d'âge.
+
+Décision :
+
+- `26±4°` est désormais **fortement attribué à Ricketts**, pas à Tweed ;
+- conserver l'âge et la construction exacte comme parties du contrat ;
+- avant activation normative, verrouiller directement la valeur et l'âge/correction sur une publication primaire Ricketts ou équivalente de premier niveau.
 
 ## PREUVES RÉCUPÉRÉES — DOWNS / INTER-INCISIF
 
@@ -76,18 +102,37 @@ Une publication orthodontique secondaire historique attribue explicitement à Do
 
 Décision : la mesure et la référence historique `131±3` restent dans la file de récupération ; elles ne sont pas supprimées.
 
-## U1 / FRANCFORT — 107° ±5
+## U1 / FRANCFORT — 107° ±5 — PISTE BALLARD/EASTMAN
 
-La valeur `107° ±5` est retrouvée dans de la littérature clinique peer-reviewed comme référence pour l'angle incisive maxillaire / plan de Francfort. Cependant la filiation primaire exacte de cette valeur n'est pas encore verrouillée.
+La valeur `107° ±5` est retrouvée dans de la littérature clinique peer-reviewed récente comme référence pour l'angle incisive maxillaire / plan de Francfort.
+
+La recherche historique identifie également **Clifford F. Ballard** comme une source majeure de la céphalométrie Eastman et de la position incisive. Sources historiques/peer-reviewed identifiées :
+
+- Ballard CF. *Some bases for aetiology and diagnosis in orthodontics.* Dental Record. 1948;68:133-145 ;
+- Ballard CF. travaux 1951/1953 sur diagnostic et morphologie ;
+- MacAllister MJ, Rock WP. *The Eastman Standard Incisor Angulations: Are They still Appropriate?* British Journal of Orthodontics. 1992;19(1):55-58. DOI `10.1179/bjo.19.1.55`.
+
+MacAllister & Rock confirment que les « Eastman Standard values » ont une histoire Ballard/Eastman mais soulignent que leur dérivation exacte était déjà difficile à reconstruire. Les documents pédagogiques francophones attribuent souvent `I/F ≈107°` à Ballard, avec des dispersions rapportées de `±2`, `±3` ou `±5` selon les sources. En outre, les standards Eastman publiés utilisent aussi des mesures incisives sur le **plan maxillaire**, qui ne sont pas interchangeables avec `U1-FH`.
 
 Décision :
 
 - conserver `U1-FH` comme mesure ;
 - conserver `107±5` comme référence historique à sourcer ;
-- ne pas la présenter comme norme CRANIOM ;
-- rechercher l'analyse/école primaire qui définit précisément ce repère avant activation.
+- **ne pas fusionner** `U1-FH` avec une mesure Eastman `UI/MX` ou une référence CRANIOM ;
+- poursuivre jusqu'au primaire exact définissant **le plan de Francfort + la valeur + la dispersion** avant activation.
 
-La plage historique `97–120°` reste une dette distincte : elle ne doit pas être reconstruite artificiellement depuis `107±5`.
+La plage historique `97–120°` reste une dette distincte : aucune source exacte n'a été retrouvée lors des recherches ciblées ; elle ne doit pas être reconstruite artificiellement depuis `107±5`.
+
+## PLAGE INTER-INCISIVE 120–142°
+
+Recherche ciblée effectuée sur la plage exacte et sur les termes « compensation interincisive » : **aucune source primaire ou peer-reviewed fiable n'a été retrouvée pour `120–142°` comme plage normative/compensatoire exacte**.
+
+Cette absence de résultat ne supprime pas la ligne.
+
+Décision :
+- conserver la plage historique comme dette scientifique ;
+- ne pas la dériver de `131±3`, `131±5`, `130±6` ou d'une autre convention ;
+- poursuivre par les sources historiques de l'école qui a produit la fiche COM.
 
 ## SURPLOMB / RECOUVREMENT
 
@@ -114,7 +159,9 @@ Les surfaces éditeur Cambridge/JDAO confirment l'étude de **83 jeunes adultes 
 - incisive mandibulaire / plan mandibulaire de Downs : **78–114°** ;
 - incisive maxillaire / Francfort : **97.5–130.1°**.
 
-Ces références restent descriptives et ne constituent pas à elles seules une règle diagnostique patient.
+Les auteurs précisent que les mesures osseuses décrivent des typologies plutôt que des anomalies automatiques et placent la céphalométrie après l'évaluation esthétique, parodontale et musculaire.
+
+Ces références restent donc descriptives et ne constituent pas à elles seules une règle diagnostique patient.
 
 ## CRANIOM — VALEURS À RÉCUPÉRER, PAS À ABANDONNER
 
@@ -130,21 +177,21 @@ Les valeurs suivantes restent dans la queue scientifique jusqu'au verrouillage n
 - profondeur faciale adulte `70.3 ±5 mm` ;
 - construction/orientation NHP pour `A''B''` lorsqu'elle est utilisée au lieu de `A'B'`.
 
-Le manuscrit/audit technique CRANIOM reproduit plusieurs de ces valeurs, mais l'activation normative attend une vérification directe sur la publication primaire ou une source de même niveau.
+Les surfaces éditeur des deux articles CRANIOM confirment actuellement les extrêmes incisifs, mais n'exposent pas dans leurs abstracts les tableaux numériques linéaires ci-dessus. Le document technique CRANIOM les reproduit ; leur activation normative attend néanmoins une lecture directe du tableau primaire ou une source de même niveau.
 
 ## BACKLOG COMPLET — AUCUNE LIGNE SUPPRIMÉE
 
 | Élément historique | État récupération | Next exact |
 |---|---|---|
-| Surplomb `1.5–3 mm` | mesure conservée, source exacte ouverte | retrouver source historique exacte ou définir référence populationnelle versionnée |
-| Recouvrement `1.5–3 mm` | mesure conservée, source exacte ouverte | idem |
+| Surplomb `1.5–3 mm` | mesure conservée, population-dépendance confirmée | retrouver source historique exacte ou définir référence populationnelle versionnée |
+| Recouvrement `1.5–3 mm` | mesure conservée, population-dépendance confirmée | idem |
 | IMPA `90±5°` | **source primaire Tweed retrouvée** | verrouiller construction Tweed puis tests |
 | Compensation IMPA `80–100°` | **règle dynamique Tweed retrouvée**, plage fixe non prouvée | coder seulement la règle source-spécifique après construction certifiée |
-| U1-FH `107±5°` | corroboré peer-reviewed, primaire d'origine ouvert | identifier source primaire/école exacte |
-| Compensation U1-FH `97–120°` | ouverte | rechercher source primaire exacte ; ne pas dériver arithmétiquement |
+| U1-FH `107±5°` | corroboré peer-reviewed ; piste Ballard/Eastman identifiée ; plan/dispersion primaire encore ouverts | verrouiller primaire exact U1-FH, sans confondre UI/MX |
+| Compensation U1-FH `97–120°` | recherche exacte négative à ce stade | rechercher archives/sources de l'école COM ; ne pas dériver arithmétiquement |
 | Inter-incisif `131±3°` | source primaire Downs identifiée + attribution secondaire exacte | relire valeur directement dans primaire avant activation |
-| Compensation inter-incisif `120–142°` | ouverte | recherche source exacte / logique de compensation |
-| FMA `26±4°` | divergence d'attribution clarifiée | séparer Tweed `25°, 20–30` de la convention `26±4` et sourcer cette dernière |
+| Compensation inter-incisif `120–142°` | recherche exacte négative à ce stade | rechercher archives/sources de l'école COM ; ne pas reconstruire depuis une moyenne ± ET |
+| FMA `26±4°` | **forte attribution Ricketts peer-reviewed** ; primaire Ricketts 1960 identifié mais valeur directe à extraire | verrouiller valeur/âge sur primaire Ricketts puis construction `FH/Go-Gn` |
 | A'B' 9 ans | technique concordant | récupérer numérique primaire direct |
 | A'B' adulte | technique concordant | récupérer numérique primaire direct |
 | A/N vertical 9 ans | technique concordant | récupérer numérique primaire direct |
@@ -168,9 +215,10 @@ Sinon :
 
 ## NEXT EXACT
 
-1. poursuivre l'acquisition des sources primaires exactes pour les lignes ouvertes ci-dessus ;
+1. récupérer directement le numérique primaire Ricketts `26±4°` et son contrat d'âge/construction ;
 2. verrouiller la construction Tweed/FMA avant toute utilisation de la règle de compensation IMPA ;
-3. résoudre la filiation primaire `U1-FH 107±5` et les deux plages de compensation maxillaire/inter-incisive ;
-4. récupérer les tableaux numériques CRANIOM primaires pour les valeurs linéaires 9 ans/adulte ;
-5. seulement ensuite modifier `cephalo_norm_registry.py` ou activer une règle clinique ;
-6. conserver des tests négatifs empêchant toute promotion silencieuse d'une dette scientifique en norme patient.
+3. retrouver le primaire exact de `U1-FH 107±5` dans la filiation Ballard/Eastman sans confondre le plan maxillaire et Francfort ;
+4. rechercher dans les archives/sources COM les plages exactes `97–120°` et `120–142°` ;
+5. récupérer les tableaux numériques CRANIOM primaires pour les valeurs linéaires 9 ans/adulte ;
+6. seulement ensuite modifier `cephalo_norm_registry.py` ou activer une règle clinique ;
+7. conserver des tests négatifs empêchant toute promotion silencieuse d'une dette scientifique en norme patient.
