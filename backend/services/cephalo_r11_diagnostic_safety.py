@@ -7,8 +7,9 @@ classification threshold, diagnosis, or treatment recommendation.
 
 from __future__ import annotations
 
-from typing import Dict, Set
+from typing import Dict, Mapping, Set
 
+from backend.schemas.cephalo_evidence import AvailabilityStatus
 from backend.services.cephalo_diagnostic_rule_registry import (
     DiagnosticRuleRegistry,
     registry as default_diagnostic_rule_registry,
@@ -43,6 +44,25 @@ def _expected_reference_payload(reference) -> Dict[str, object]:
     )
 
 
+def _require_available_claim_refs(
+    refs: Set[str],
+    evidence_objects: Mapping[str, object],
+    *,
+    context: str,
+) -> None:
+    unavailable = sorted(
+        ref
+        for ref in refs
+        if getattr(evidence_objects[ref], "availability_status", None)
+        != AvailabilityStatus.AVAILABLE
+    )
+    if unavailable:
+        raise EvidenceGraphValidationError(
+            f"{context} cannot use unavailable evidence as supporting/opposing: "
+            f"{', '.join(unavailable)}"
+        )
+
+
 def validate_r11_diagnostic_graph(
     graph: EvidenceGraphSnapshot,
     *,
@@ -59,10 +79,19 @@ def validate_r11_diagnostic_graph(
 
     validate_evidence_graph(graph, norm_registry=norm_registry)
 
+    sources = {item.evidence_id: item for item in graph.sources}
+    landmarks = {item.evidence_id: item for item in graph.landmarks}
     measurements = {item.measurement_id: item for item in graph.measurements}
     constructions = {item.construction_id: item for item in graph.constructions}
     evaluations = {item.evaluation_id: item for item in graph.normative_evaluations}
     findings = {item.finding_id: item for item in graph.findings}
+    interpretation_evidence: Dict[str, object] = {
+        **sources,
+        **landmarks,
+        **constructions,
+        **measurements,
+        **evaluations,
+    }
 
     inactive_evaluation_ids: Set[str] = set()
     active_evaluation_ids: Set[str] = set()
@@ -102,7 +131,8 @@ def validate_r11_diagnostic_graph(
                 )
 
         if registered.active_for_patient_classification:
-            active_evaluation_ids.add(evaluation.evaluation_id)
+            if evaluation.availability_status == AvailabilityStatus.AVAILABLE:
+                active_evaluation_ids.add(evaluation.evaluation_id)
         else:
             inactive_evaluation_ids.add(evaluation.evaluation_id)
             if (
@@ -134,6 +164,12 @@ def validate_r11_diagnostic_graph(
                 f"R11 finding {finding.finding_id} cannot use the same evidence as both "
                 f"supporting and opposing: {', '.join(sorted(overlap))}"
             )
+
+        _require_available_claim_refs(
+            supporting | opposing,
+            interpretation_evidence,
+            context=f"R11 finding {finding.finding_id}",
+        )
 
         unsafe_norm_refs = (supporting | opposing) & inactive_evaluation_ids
         if unsafe_norm_refs:
@@ -185,6 +221,17 @@ def validate_r11_diagnostic_graph(
             raise EvidenceGraphValidationError(
                 f"R11 diagnosis {diagnosis.diagnosis_id} cannot use the same finding as both "
                 f"supporting and opposing: {', '.join(sorted(overlap))}"
+            )
+
+        unavailable_findings = sorted(
+            finding_id
+            for finding_id in supporting | opposing
+            if findings[finding_id].availability_status != AvailabilityStatus.AVAILABLE
+        )
+        if unavailable_findings:
+            raise EvidenceGraphValidationError(
+                f"R11 diagnosis {diagnosis.diagnosis_id} cannot use unavailable finding(s) "
+                f"as supporting/opposing: {', '.join(unavailable_findings)}"
             )
 
         referenced_finding_ids = supporting | opposing
