@@ -1,0 +1,184 @@
+name: Clinic P3 Document Author Visual Certification
+
+on:
+  pull_request:
+    paths:
+      - "frontend/src/features/admin/DocumentStudio/StudioHeader.tsx"
+      - "frontend/src/features/admin/DocumentStudio/DocumentAuthorSelection.ts"
+      - "frontend/src/features/admin/DocumentStudio/DocumentAuthorSelection.test.ts"
+      - ".github/workflows/clinic-p3-document-author-visual-cert.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: clinic-p3-document-author-visual-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  before-after:
+    name: P3 author selector BEFORE / AFTER
+    runs-on: ubuntu-latest
+    steps:
+      - name: Resolve base and head
+        run: |
+          echo "BASE_SHA=${{ github.event.pull_request.base.sha || github.sha }}" >> "$GITHUB_ENV"
+          echo "HEAD_SHA=${{ github.event.pull_request.head.sha || github.sha }}" >> "$GITHUB_ENV"
+
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.pull_request.base.sha || github.sha }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install frontend and Chromium
+        working-directory: frontend
+        run: |
+          npm ci
+          npm install --no-save --package-lock=false playwright@1.55.0
+          npx playwright install --with-deps chromium
+
+      - name: Materialize deterministic header harness
+        working-directory: frontend
+        run: |
+          cat > clinic-p3-author.html <<'EOF'
+          <!doctype html><html lang="fr"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/><title>P3 Author</title></head><body><div id="root"></div><script type="module" src="/src/clinic-p3-author.tsx"></script></body></html>
+          EOF
+          cat > src/clinic-p3-author.tsx <<'EOF'
+          import React from 'react';
+          import { createRoot } from 'react-dom/client';
+          import { MemoryRouter, Route, Routes } from 'react-router-dom';
+          import './index.css';
+          import { StudioHeader } from './features/admin/DocumentStudio/StudioHeader';
+          import { useAuthStore } from './stores/useAuthStore';
+          useAuthStore.setState({
+            user: { id:1, email:'owner@clinic-p3.local', nom_complet:'Dr Lina Alaoui', role:'ADMIN', employer_id:null, is_superadmin:false, permissions:{patients:true,clinical:true,accounting:true,prescriptions:true} } as any,
+            isAuthenticated:true, isLoading:false, error:null,
+          });
+          createRoot(document.getElementById('root')!).render(
+            <MemoryRouter initialEntries={['/patients/101?tab=admin']}>
+              <Routes><Route path="/patients/:id" element={<div className="min-h-screen bg-slate-50 p-4"><StudioHeader patientName="EL AMRANI Sara" docDate="2026-09-12" onDateChange={()=>{}} activeTab="ordonnance" showOdontoPanoramique={false} onToggleOdonto={()=>{}} /></div>} /></Routes>
+            </MemoryRouter>,
+          );
+          EOF
+          cat > clinic-p3-author.mjs <<'EOF'
+          import { chromium } from 'playwright';
+          import { createServer } from 'vite';
+          import fs from 'node:fs/promises';
+          const phase=process.env.PHASE;
+          const out=`clinic-p3-author-${phase.toLowerCase()}`;
+          await fs.mkdir(out,{recursive:true});
+          const server=await createServer({server:{host:'127.0.0.1',port:4199,strictPort:true},clearScreen:false});
+          await server.listen();
+          const browser=await chromium.launch();
+          const captures=[];
+          try {
+            for(const [width,height] of [[390,844],[768,1024],[1280,900]]){
+              const context=await browser.newContext({viewport:{width,height}});
+              const page=await context.newPage();
+              const errors=[];
+              page.on('pageerror',e=>errors.push(`pageerror:${e.message}`));
+              page.on('console',m=>{if(m.type()==='error') errors.push(`console:${m.text()}`)});
+              await page.route('**/api/**',async route=>{
+                const url=new URL(route.request().url());
+                if(url.pathname==='/api/patients/_clinic/practitioners') return route.fulfill({status:200,contentType:'application/json',body:JSON.stringify([{id:1,name:'Dr Lina Alaoui',role:'ADMIN'},{id:2,name:'Dr Youssef Benali',role:'DENTISTE'}])});
+                if(url.pathname==='/api/patients/101/practitioner') return route.fulfill({status:200,contentType:'application/json',body:JSON.stringify({patient_id:101,practitioner:{id:2,name:'Dr Youssef Benali',role:'DENTISTE'}})});
+                return route.fulfill({status:200,contentType:'application/json',body:'{}'});
+              });
+              await page.goto('http://127.0.0.1:4199/clinic-p3-author.html',{waitUntil:'networkidle'});
+              const selector=page.locator('[data-p3-author-selector]');
+              const selectorCount=await selector.count();
+              let selectorValue=null, selectorHeight=null;
+              if(selectorCount){
+                selectorValue=await selector.inputValue();
+                const box=await selector.boundingBox();
+                selectorHeight=box?.height ?? null;
+              }
+              const metrics=await page.evaluate(()=>({clientWidth:document.documentElement.clientWidth,scrollWidth:document.documentElement.scrollWidth}));
+              await page.screenshot({path:`${out}/${width}x${height}.png`,fullPage:true,animations:'disabled'});
+              const record={width,height,selectorCount,selectorValue,selectorHeight,overflowPx:Math.max(0,metrics.scrollWidth-metrics.clientWidth),errors};
+              captures.push(record);
+              await context.close();
+            }
+          } finally {await browser.close(); await server.close();}
+          await fs.writeFile(`${out}/report.json`,JSON.stringify({phase,captures},null,2));
+          EOF
+
+      - name: Capture BEFORE exact base
+        working-directory: frontend
+        env:
+          PHASE: BEFORE
+        run: node clinic-p3-author.mjs
+
+      - name: Checkout exact head
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          clean: false
+
+      - name: Re-materialize harness after checkout
+        working-directory: frontend
+        run: |
+          test -f clinic-p3-author.html
+          test -f src/clinic-p3-author.tsx
+          test -f clinic-p3-author.mjs
+
+      - name: Capture AFTER exact head
+        working-directory: frontend
+        env:
+          PHASE: AFTER
+        run: node clinic-p3-author.mjs
+
+      - name: Compare BEFORE / AFTER and score
+        working-directory: frontend
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          before=json.loads(Path('clinic-p3-author-before/report.json').read_text())
+          after=json.loads(Path('clinic-p3-author-after/report.json').read_text())
+          assert [c['width'] for c in before['captures']]==[390,768,1280]
+          assert [c['width'] for c in after['captures']]==[390,768,1280]
+          assert all(c['selectorCount']==0 for c in before['captures'])
+          assert all(c['overflowPx']==0 and not c['errors'] for c in before['captures'])
+          assert all(c['selectorCount']==1 for c in after['captures'])
+          assert all(c['selectorValue']=='1' for c in after['captures'])
+          assert all(c['overflowPx']==0 and not c['errors'] for c in after['captures'])
+          mobile=next(c for c in after['captures'] if c['width']==390)
+          assert (mobile['selectorHeight'] or 0) >= 44
+          score=10.0
+          Path('clinic-p3-author-after/visual-score.txt').write_text(
+            'visual_gate_score=10.0/10\nformula=2.5 no-overflow + 2.5 selector-visible-and-44px + 2.5 safe-author-preselected + 2.5 runtime-clean\n'
+          )
+          print(f'P3 author selector visual gate: {score}/10')
+          PY
+
+      - name: Evidence metadata
+        working-directory: frontend
+        run: |
+          cat > clinic-p3-author-after/metadata.txt <<EOF
+          chantier=Clinique multi-praticiens
+          lot=P3 document author UI
+          base_sha=${BASE_SHA}
+          head_sha=${HEAD_SHA}
+          goal=surface one truthful clinical author selector without adding horizontal overflow or silently attributing another practitioner
+          reference=existing StudioHeader date-control visual language
+          viewports=390x844,768x1024,1280x900
+          deployment=none
+          EOF
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: clinic-p3-document-author-before-after
+          path: |
+            frontend/clinic-p3-author-before/
+            frontend/clinic-p3-author-after/
+          if-no-files-found: error
+          retention-days: 14
