@@ -22,6 +22,7 @@ CERTIFICATE_FILENAME = "release-certification.json"
 SHA_MARKER_FILENAME = ".digitalcrown-release-sha"
 CONTENT_MANIFEST_FILENAME = "release-content.sha256"
 INSTALLABLE_CERTIFICATE_FILENAME = "installable-certification.json"
+ATTESTATION_EVIDENCE_FILENAME = "github-attestation-verification.json"
 CERTIFICATE_VERSION = 1
 INSTALLABLE_CERTIFICATE_VERSION = 1
 REPOSITORY = "hraaaaf/Digital_crown"
@@ -161,8 +162,8 @@ def _verify_content_manifest(root: Path, payload: dict[str, Any]) -> None:
         if rel_path.is_absolute() or ".." in rel_path.parts:
             raise ReleaseCertificationError(f"Unsafe content manifest path: {relative!r}")
         path = root / rel_path
-        if not path.is_file():
-            raise ReleaseCertificationError(f"Certified release file missing: {relative}")
+        if not path.is_file() or path.is_symlink():
+            raise ReleaseCertificationError(f"Certified release file missing/unsafe: {relative}")
         if _sha256(path) != expected_digest:
             raise ReleaseCertificationError(f"Certified release file changed: {relative}")
 
@@ -183,6 +184,8 @@ def _verify_installable_metadata(
         raise ReleaseCertificationError("Installable certificate artifact_type is invalid")
     if installable.get("certification_level") != INSTALLABLE_CERTIFICATION_LEVEL:
         raise ReleaseCertificationError("Release is not INSTALLABLE_CERTIFIED")
+    if installable.get("installable") is not True:
+        raise ReleaseCertificationError("Installable certificate is not marked installable=true")
 
     commit_sha = str(code_payload["commit_sha"]).lower()
     if str(installable.get("commit_sha", "")).strip().lower() != commit_sha:
@@ -195,6 +198,10 @@ def _verify_installable_metadata(
         code_payload.get("content_manifest_sha256", "")
     ).lower():
         raise ReleaseCertificationError("Installable/code content manifest mismatch")
+
+    for digest_field in ("code_artifact_sha256", "runtime_asset_bundle_sha256"):
+        if not _DIGEST_RE.fullmatch(str(installable.get(digest_field, "")).lower()):
+            raise ReleaseCertificationError(f"Invalid {digest_field}")
 
     packs = _normalize_packs(installable.get("certified_packs"))
     if packs != set(REQUIRED_PACKS):
@@ -210,6 +217,21 @@ def _verify_installable_metadata(
         raise ReleaseCertificationError("GitHub attestation signer workflow mismatch")
     if str(installable.get("github_attestation_source_digest", "")).lower() != commit_sha:
         raise ReleaseCertificationError("GitHub attestation source digest mismatch")
+    if installable.get("github_attestation_source_ref") != "refs/heads/master":
+        raise ReleaseCertificationError("GitHub attestation source ref mismatch")
+
+    evidence_path = root / ATTESTATION_EVIDENCE_FILENAME
+    evidence_digest = str(installable.get("github_attestation_evidence_sha256", "")).lower()
+    if not _DIGEST_RE.fullmatch(evidence_digest):
+        raise ReleaseCertificationError("Invalid GitHub attestation evidence digest")
+    if not evidence_path.is_file() or evidence_path.is_symlink() or _sha256(evidence_path) != evidence_digest:
+        raise ReleaseCertificationError("GitHub attestation verification evidence changed/missing")
+    try:
+        evidence_payload = json.loads(evidence_path.read_text(encoding="utf-8-sig"))
+    except (OSError, json.JSONDecodeError) as exc:
+        raise ReleaseCertificationError(f"Invalid GitHub attestation evidence JSON: {exc}") from exc
+    if not isinstance(evidence_payload, list) or not evidence_payload:
+        raise ReleaseCertificationError("GitHub attestation evidence must be a non-empty JSON array")
 
     registry_digest = str(installable.get("scientific_assets_registry_sha256", "")).lower()
     asset_manifest_digest = str(installable.get("runtime_assets_content_manifest_sha256", "")).lower()
@@ -225,6 +247,18 @@ def _verify_installable_metadata(
     )
     if str(asset_payload.get("content_manifest_sha256", "")).lower() != asset_manifest_digest:
         raise ReleaseCertificationError("Installable/runtime asset manifest mismatch")
+    if installable.get("runtime_assets_file_count") != asset_payload.get("file_count"):
+        raise ReleaseCertificationError("Installable/runtime asset file_count mismatch")
+    if installable.get("runtime_assets_total_bytes") != asset_payload.get("total_bytes"):
+        raise ReleaseCertificationError("Installable/runtime asset total_bytes mismatch")
+    if sorted(installable.get("pinned_registry_assets_verified") or []) != sorted(
+        asset_payload.get("pinned_registry_assets_verified") or []
+    ):
+        raise ReleaseCertificationError("Installable/pinned registry coverage mismatch")
+    if sorted(installable.get("unpinned_registry_assets") or []) != sorted(
+        asset_payload.get("unpinned_registry_assets") or []
+    ):
+        raise ReleaseCertificationError("Installable/unpinned registry coverage mismatch")
 
     return installable
 
