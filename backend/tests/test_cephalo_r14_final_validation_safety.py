@@ -88,6 +88,18 @@ def _blocked_r13() -> R13TherapeuticSnapshot:
     return R13TherapeuticSnapshot(r12_snapshot=r12, criteria=criteria, options=[option])
 
 
+def _contradictory_r13() -> R13TherapeuticSnapshot:
+    r12 = _r12(include_contradiction=True)
+    criteria = _criteria(r12)
+    option = _option(
+        r12,
+        criteria,
+        status=R13TreatmentOptionStatus.BLOCKED,
+        blocking_gates=["contradiction:synthetic upstream contradiction"],
+    )
+    return R13TherapeuticSnapshot(r12_snapshot=r12, criteria=criteria, options=[option])
+
+
 def _strategy(
     r13: R13TherapeuticSnapshot,
     *,
@@ -223,6 +235,21 @@ def test_r14_preserves_r13_missing_data_and_blocking_gates_without_drop():
 
     _validate(R14FinalClinicalSnapshot(r13_snapshot=r13, strategies=[strategy]))
     assert strategy.missing_data_refs == ["source:r13:missing"]
+
+
+def test_r14_preserves_upstream_contradiction_and_keeps_it_blocking():
+    r13 = _contradictory_r13()
+    strategy = _strategy(
+        r13,
+        status=R14FinalClinicalStatus.BLOCKED,
+        blocking_gates=[
+            "contradiction:synthetic upstream contradiction",
+            "r13:option:r13:synthetic:contradiction:synthetic upstream contradiction",
+        ],
+    )
+
+    _validate(R14FinalClinicalSnapshot(r13_snapshot=r13, strategies=[strategy]))
+    assert strategy.contradictions == ["synthetic upstream contradiction"]
 
 
 def test_r14_rejects_silent_drop_of_missing_data():
