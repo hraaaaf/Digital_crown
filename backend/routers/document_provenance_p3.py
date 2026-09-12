@@ -1,32 +1,44 @@
 """P3 multi-practitioner document provenance facades.
 
-These handlers replace only the stable generation endpoints. They delegate all legacy
-business logic to the existing handlers while binding a validated clinical author in a
-request-scoped ContextVar. The authenticated user remains the technical actor.
+Generation keeps the authenticated user as the technical actor while binding a
+validated clinical author. Signing is a separate explicit action: only the
+authenticated practitioner who authored the exact active archive bytes may sign.
 """
 
 from __future__ import annotations
 
+import logging
 from typing import Optional
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
+from fastapi.responses import HTMLResponse
+from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
 from backend import database, models, schemas
 from backend.routers.auth import get_current_user, require_permission
+from backend.schemas.document_provenance_p3 import DocumentArchiveOutP3
+from backend.services.audit_service import audit_service
 from backend.services.document_provenance_context import (
     reset_document_author_practitioner_id,
     set_document_author_practitioner_id,
+)
+from backend.services.document_signature_p3 import (
+    sign_document,
+    verification_state_for_document,
 )
 from backend.services.practitioner_policy import resolve_document_author
 from backend.utils.access_control import assert_patient_access
 
 from . import documents as legacy_documents
 from . import patients as legacy_patients
+from . import verification as legacy_verification
 
 
+logger = logging.getLogger(__name__)
 documents_router = APIRouter()
 patients_router = APIRouter()
+verification_router = APIRouter()
 
 
 class DocumentRequestP3(schemas.DocumentRequest):
@@ -71,6 +83,40 @@ async def generate_document_with_provenance(
         reset_document_author_practitioner_id(token)
 
 
+@documents_router.post(
+    "/{document_id}/sign",
+    response_model=DocumentArchiveOutP3,
+    summary="Signer explicitement un document P3",
+)
+def sign_document_with_provenance(
+    document_id: int,
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    doc = db.query(models.DocumentArchive).filter(
+        models.DocumentArchive.id == document_id
+    ).first()
+    if doc is None:
+        raise HTTPException(status_code=404, detail="Document introuvable")
+
+    assert_patient_access(doc.patient_id, current_user, db)
+    doc_type = getattr(doc.document_type, "value", str(doc.document_type))
+    legacy_documents.require_document_permission(doc_type, current_user)
+
+    signed = sign_document(db, doc, current_user)
+    audit_service.log(
+        db=db,
+        user_id=current_user.id,
+        employer_id=current_user.get_employer_id(),
+        action="DOCUMENT_SIGNED",
+        resource_type="Document",
+        resource_id=str(doc.id),
+        severity="INFO",
+        details=f"SHA256: {doc.file_hash}",
+    )
+    return signed
+
+
 @patients_router.post("/{patient_id}/pdf")
 def generate_cephalo_pdf_with_provenance(
     patient_id: int,
@@ -95,3 +141,85 @@ def generate_cephalo_pdf_with_provenance(
         )
     finally:
         reset_document_author_practitioner_id(token)
+
+
+@verification_router.get("/verify/{doc_id}", response_class=HTMLResponse)
+def verify_document_with_p3_signature(
+    doc_id: str,
+    db: Session = Depends(database.get_db),
+):
+    """Public verification never claims a signature that P3 did not record."""
+    config = db.query(models.CabinetConfig).first()
+    primary_color = config.primary_color if config else "#003380"
+    cabinet_name = config.nom_cabinet if config else "Cabinet Digital Crown"
+
+    try:
+        doc = None
+        if doc_id.isdigit():
+            doc = db.query(models.DocumentArchive).filter(
+                models.DocumentArchive.id == int(doc_id)
+            ).first()
+        if doc is None:
+            doc = db.query(models.DocumentArchive).filter(
+                or_(
+                    models.DocumentArchive.filename.contains(doc_id),
+                    models.DocumentArchive.original_filename.contains(doc_id),
+                )
+            ).first()
+
+        if doc is not None:
+            patient = db.query(models.Patient).filter(
+                models.Patient.id == doc.patient_id
+            ).first()
+            patient_name = (
+                f"{patient.nom.upper()} {patient.prenom[0]}."
+                if patient else "PATIENT INCONNU"
+            )
+            state = verification_state_for_document(doc)
+            title = (
+                "Document Médical Signé"
+                if state.is_signed
+                else "Document Médical Authentique"
+                if state.is_valid
+                else "Document Médical Invalide"
+            )
+            return HTMLResponse(content=legacy_verification.get_verification_html(
+                title=title,
+                subtitle=cabinet_name,
+                doc_type=doc.document_type.value,
+                patient_name=patient_name,
+                doc_date=doc.created_at.strftime("%d/%m/%Y à %H:%M"),
+                primary_color=primary_color,
+                status_text=state.status_text,
+                status_color=state.status_color,
+                is_valid=state.is_valid,
+                warning_msg=state.warning_msg,
+            ))
+    except Exception as exc:
+        logger.error("P3 document verification failed: %s", exc)
+
+    return HTMLResponse(content=legacy_verification.get_verification_html(
+        title="Document Introuvable",
+        subtitle="Erreur de Sécurité",
+        doc_type="INCONNU",
+        patient_name="NON DISPONIBLE",
+        doc_date="NON SPÉCIFIÉE",
+        primary_color="#ef4444",
+        status_text="Non Certifié / Invalide",
+        status_color="#ef4444",
+        is_valid=False,
+        warning_msg="Ce document n'a pas été authentifié par Digital Crown.",
+    ))
+
+
+# Replace only the one-segment legacy public verification facade. The special
+# two-segment RADIO/BILAN verification endpoints remain untouched.
+legacy_verification.router.routes = [
+    route
+    for route in legacy_verification.router.routes
+    if not (
+        getattr(route, "path", None) == "/verify/{doc_id}"
+        and "GET" in (getattr(route, "methods", set()) or set())
+    )
+]
+legacy_verification.router.include_router(verification_router)
