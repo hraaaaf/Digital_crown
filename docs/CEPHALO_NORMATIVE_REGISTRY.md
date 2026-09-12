@@ -1,6 +1,6 @@
 # CÉPHALO — REGISTRE NORMATIF VERSIONNÉ
 
-**Statut : R10 / références inertes**  
+**Statut : R10 FERMÉ / références inertes**  
 **Parent :** `docs/CEPHALO_DIAGNOSTIC_SPEC.md`  
 **Lot :** 11 — registre normatif
 
@@ -87,6 +87,16 @@ Si ces références deviennent admissibles, le binding devra être :
 
 Les tests couvrent les formes `EXTREME_RANGE`/`MEAN_SD`, valeurs non finies ou SD non positive, contexte obligatoire, immutabilité, provenance, absence de chiffres Ousehal non vérifiés, six références McNamara exactes, binding au graphe et blocage d'échelle.
 
+## PREUVE DE CLÔTURE R10
+
+- Candidate HEAD certifié : `9ffd36306ec6fa09b71d590e078af01db67e6888` ;
+- CI #3431 : `success` ;
+- T2 Runtime Browser Certification #2411 : `success` ;
+- PR #431 : mergée ;
+- merge commit R10 : `d0bdfc4fa47346f27e432139e6785177da4deef3` ;
+- le merge R10 est ancêtre du `master` vérifié après intégration d'autres chantiers ;
+- aucun déploiement requis ni déclenché par R10.
+
 ## NEXT EXACT
 
-Certifier le HEAD R10 exact par CI/T2. Si vert, merge de la PR R10. Ousehal, Downs et Ricketts restent des gates scientifiques séparés.
+R11 — diagnostic multiaxial : cadrer les findings et hypothèses explicables, rendre contradictions et données manquantes visibles, et conserver une frontière stricte entre preuve, interprétation et conclusion clinique.
