@@ -8,6 +8,7 @@ import { DOCUMENT_STUDIO_LABELS, type CertifiableDocumentStudioTab } from './Doc
 import {
   clearDocumentAuthorPractitionerId,
   installDocumentAuthorRequestGuard,
+  resolveDocumentAuthorPreselection,
   setDocumentAuthorPractitionerId,
   type DocumentPractitionerOption,
 } from './DocumentAuthorSelection';
@@ -73,12 +74,11 @@ export const StudioHeader: React.FC<StudioHeaderProps> = ({
         setPractitioners(directory);
 
         const referentId = Number(assignmentResponse.data?.practitioner?.id);
-        const referent = directory.find((item: DocumentPractitionerOption) => item.id === referentId);
-        const current = currentUserId !== null
-          ? directory.find((item: DocumentPractitionerOption) => item.id === currentUserId)
-          : undefined;
-        const resolved = referent || current || (directory.length === 1 ? directory[0] : undefined);
-        const selectedId = resolved?.id ?? null;
+        const selectedId = resolveDocumentAuthorPreselection(
+          directory,
+          currentUserId,
+          Number.isFinite(referentId) ? referentId : null,
+        );
         setAuthorPractitionerId(selectedId);
         setDocumentAuthorPractitionerId(selectedId);
       } catch (error) {
