@@ -227,7 +227,7 @@ async function captureAttempt(viewport, attempt) {
     if (!studioContract(step3Top) || !step3Top.hasNonAuthoritativeNotes) throw new Error(`Step3 AFTER contract failed ${JSON.stringify(step3Top)}`);
     await page.screenshot({ path: path.join(OUTPUT_DIR, `after-step3-top-${viewport.name}.png`), fullPage: false });
 
-    const note = page.getByText(/Note diagnostique praticien/i).first();
+    const note = page.getByText(/Note diagnostique libre legacy/i).first();
     await note.waitFor({ state: 'visible', timeout: 10000 });
     await note.scrollIntoViewIfNeeded();
     await page.waitForTimeout(150);
@@ -246,6 +246,7 @@ async function captureAttempt(viewport, attempt) {
     await page.waitForTimeout(150);
     await page.screenshot({ path: path.join(OUTPUT_DIR, `after-step4-action-${viewport.name}.png`), fullPage: false });
 
+    const selectedAnalysisBound = apiRequests.includes('GET /api/patients/915/cephalo-clinical-studio?analysis_id=9915');
     return {
       viewport: viewport.name,
       attempt,
@@ -253,12 +254,13 @@ async function captureAttempt(viewport, attempt) {
       pageErrors,
       consoleErrors,
       apiRequests,
+      selectedAnalysisBound,
       step3Top,
       step4Top,
-      valid: response?.status() === 200 && pageErrors.length === 0 && consoleErrors.length === 0 && studioContract(step3Top) && studioContract(step4Top),
+      valid: response?.status() === 200 && pageErrors.length === 0 && consoleErrors.length === 0 && selectedAnalysisBound && studioContract(step3Top) && studioContract(step4Top),
     };
   } catch (error) {
-    return { viewport: viewport.name, attempt, httpStatus: null, pageErrors: [...pageErrors, error instanceof Error ? error.message : String(error)], consoleErrors, apiRequests, valid: false };
+    return { viewport: viewport.name, attempt, httpStatus: null, pageErrors: [...pageErrors, error instanceof Error ? error.message : String(error)], consoleErrors, apiRequests, selectedAnalysisBound: false, valid: false };
   } finally {
     await context.close().catch(() => {});
     await browser.close().catch(() => {});
@@ -285,7 +287,7 @@ const report = {
   lot: 'CEPHALO-R15', phase: 'AFTER', productHead: PRODUCT_HEAD,
   viewports: viewports.map(item => item.name),
   fixturePolicy: 'Real production R15 CephaloWorkspace with isolated deterministic patient/clinical snapshot. Snapshot is fail-closed and contains no invented clinical conclusion.',
-  capturePolicy: 'Fresh Chromium process per viewport/attempt. One retry only for transient render failure. Final attempt must satisfy scientific-state visibility, semantic-separation, layout and console gates.',
+  capturePolicy: 'Fresh Chromium process per viewport/attempt. One retry only for transient render failure. Final attempt must satisfy scientific-state visibility, semantic-separation, selected-analysis binding, layout and console gates.',
   captures, blockedExternalRequests, invalidCount: invalid.length,
 };
 await writeFile(path.join(OUTPUT_DIR, 'report.json'), JSON.stringify(report, null, 2), 'utf8');
