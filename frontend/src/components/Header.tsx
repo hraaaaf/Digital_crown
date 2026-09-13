@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Bell, UserCircle, Settings, LogOut, Calculator, Shield } from 'lucide-react';
+import { Bell, UserCircle, Settings, LogOut, Calculator, Shield, Bot } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { cabinetApi } from '../services/templateApi';
 import { api } from '../services/api';
@@ -8,7 +8,13 @@ import { useAuthStore } from '../stores/useAuthStore';
 import { authService } from '../services/auth';
 import { TutorialHelpButton } from '../features/tutorial/VoluntaryTutorial';
 
-export const Header = () => {
+interface HeaderProps {
+  isCrownBotOpen?: boolean;
+  crownBotUnreadCount?: number;
+  onToggleCrownBot?: () => void;
+}
+
+export const Header = ({ isCrownBotOpen = false, crownBotUnreadCount = 0, onToggleCrownBot }: HeaderProps) => {
   const [cabinetName, setCabinetName] = useState('Chargement...');
   const [praticienName, setPraticienName] = useState('Praticien');
   const [treasuryCount, setTreasuryCount] = useState(0);
@@ -105,6 +111,24 @@ export const Header = () => {
           >
             <Shield size={20} />
           </Link>
+        )}
+
+        {onToggleCrownBot && (
+          <button
+            type="button"
+            data-ux1-c-crownbot-header
+            onClick={onToggleCrownBot}
+            aria-label={isCrownBotOpen ? 'Fermer CrownBot' : 'Ouvrir CrownBot'}
+            aria-expanded={isCrownBotOpen}
+            className="lg:hidden relative min-w-11 min-h-11 inline-flex items-center justify-center text-text-muted hover:text-primary hover:bg-primary/5 rounded-elite-sm transition-elite"
+          >
+            <Bot size={20} />
+            {crownBotUnreadCount > 0 && !isCrownBotOpen && (
+              <span className="absolute top-1 right-1 min-w-4 h-4 px-1 bg-amber-400 text-slate-900 text-[8px] font-black rounded-full flex items-center justify-center border border-card-bg">
+                {crownBotUnreadCount}
+              </span>
+            )}
+          </button>
         )}
 
         <TutorialHelpButton />
