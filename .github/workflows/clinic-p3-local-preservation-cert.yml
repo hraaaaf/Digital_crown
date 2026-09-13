@@ -27,12 +27,23 @@ jobs:
     name: P3 additive migration + exact-byte preservation
     runs-on: ubuntu-latest
     env:
-      ENVIRONMENT: test
-      SECRET_KEY: clinic-p3-local-preservation-cert-secret
-      TELEMETRY_ENABLED: false
-      CLOUD_AI_ENABLED: false
+      ENVIRONMENT: development
+      DATABASE_URL: "sqlite:///:memory:"
+      SECRET_KEY: ci-only-secret-key-minimum-32-characters-long
+      TELEMETRY_ENABLED: "false"
+      CLOUD_AI_ENABLED: "false"
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout exact head
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+
+      - name: Record exact head
+        run: |
+          HEAD_SHA=$(git rev-parse HEAD)
+          EXPECTED_SHA="${{ github.event.pull_request.head.sha || github.sha }}"
+          test "$HEAD_SHA" = "$EXPECTED_SHA"
+          echo "P3_PRESERVATION_HEAD=$HEAD_SHA" >> "$GITHUB_ENV"
 
       - uses: actions/setup-python@v5
         with:
@@ -42,8 +53,10 @@ jobs:
       - name: Install backend dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install -r requirements.txt
-          pip install pytest
+          pip install torch==2.12.0 torchvision==0.27.0 --index-url https://download.pytorch.org/whl/cpu
+          grep -vE '^(torch|torchvision)([<=>].*)?$' requirements.txt > /tmp/requirements-p3-preservation.txt
+          pip install -r /tmp/requirements-p3-preservation.txt
+          pip install httpx==0.27.2 pytest pytest-asyncio
 
       - name: Run P3 preservation contract
         run: |
@@ -53,19 +66,23 @@ jobs:
             backend/tests/test_document_signature_file_preservation_p3.py \
             backend/tests/test_document_signature_permissions_p3.py \
             backend/tests/test_document_signature_read_failclosed_p3.py \
-            -q
+            -q --maxfail=1
 
       - name: Assert signature claim boundary remains explicit
         run: |
           grep -F "application-level practitioner signature provenance" backend/services/document_signature_p3.py
           grep -F "It is not a qualified electronic" backend/services/document_signature_p3.py
 
-      - name: Certification metadata
+      - name: Certification summary
         run: |
-          cat <<EOF
-          chantier=Clinique multi-praticiens
-          lot=P3 local document preservation
-          goal=additive provenance migration and practitioner signature metadata must preserve historical archive rows and exact local file bytes
-          evidence=synthetic isolated local vault; not a copy of real patient data
-          deployment=none
+          cat >> "$GITHUB_STEP_SUMMARY" <<EOF
+          ## Clinic P3 Local Document Preservation
+          - exact head: \`${P3_PRESERVATION_HEAD}\`
+          - additive provenance migration: idempotent
+          - historical archive attribution: remains NULL without backfill
+          - historical row identity, patient link, path, hash, size and status: preserved
+          - practitioner signature provenance: metadata-only on exact archived bytes
+          - physical bytes / SHA-256: unchanged
+          - evidence boundary: isolated synthetic local vault; not a copy of real patient data
+          - deployment: none
           EOF
