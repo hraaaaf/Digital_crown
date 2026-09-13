@@ -101,7 +101,8 @@ jobs:
             const errors=[];
             page.on('pageerror',e=>errors.push(String(e)));
 
-            await page.goto(`http://127.0.0.1:5173/patients/${patient.id}?tab=archives`,{waitUntil:'networkidle',timeout:90000});
+            // Background polling keeps this app intentionally non-idle. The visible action is the readiness contract.
+            await page.goto(`http://127.0.0.1:5173/patients/${patient.id}?tab=archives`,{waitUntil:'domcontentloaded',timeout:90000});
             const actions=page.getByRole('button',{name:actionLabel,exact:true});
             await actions.waitFor({state:'visible',timeout:30000});
             const card=actions.locator('xpath=ancestor::div[@data-document-kind][1]');
