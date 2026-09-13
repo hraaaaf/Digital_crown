@@ -86,10 +86,10 @@ const EvidenceRefs: React.FC<{
   authoritative: boolean;
   P: any;
 }> = ({ title, items, authoritative, P }) => (
-  <div className="rounded-xl border p-3" style={{ borderColor: P.border, background: P.bgInput }}>
-    <div className="mb-2 text-[10px] font-black uppercase tracking-wider" style={{ color: P.text }}>{title}</div>
+  <div className="min-w-0 rounded-xl border px-3 py-2.5" style={{ borderColor: P.border, background: P.bgInput }}>
+    <div className="mb-1.5 text-[9px] font-black uppercase tracking-[0.1em]" style={{ color: P.text }}>{title}</div>
     {items.length ? (
-      <ul className="space-y-1.5">
+      <ul className="space-y-1">
         {items.map(item => (
           <li key={item} className="break-words font-mono text-[9px] leading-4" style={{ color: P.textMuted }}>{item}</li>
         ))}
@@ -101,6 +101,12 @@ const EvidenceRefs: React.FC<{
     )}
   </div>
 );
+
+const StageStatusIcon: React.FC<{ stage: ClinicalStage; color: string }> = ({ stage, color }) => {
+  if (stage.presentation_state === 'VALIDATED') return <CheckCircle2 size={14} style={{ color }} />;
+  if (stage.presentation_state === 'AWAITING_CLINICIAN') return <Clock3 size={14} style={{ color }} />;
+  return <LockKeyhole size={14} style={{ color }} />;
+};
 
 export const ClinicalScientificStudio: React.FC<Props> = ({ patientId, analysisId, P }) => {
   const [snapshot, setSnapshot] = useState<StudioSnapshot | null>(null);
@@ -143,31 +149,31 @@ export const ClinicalScientificStudio: React.FC<Props> = ({ patientId, analysisI
   return (
     <section
       data-testid="r15-clinical-studio"
-      className="mb-6 overflow-hidden rounded-2xl border"
+      className="mb-5 overflow-hidden rounded-2xl border"
       style={{ background: P.bgPanel, borderColor: P.border, boxShadow: P.shadow }}
     >
-      <div className="border-b p-4 sm:p-5" style={{ borderColor: P.border }}>
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-          <div className="flex min-w-0 gap-3">
-            <div className="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl" style={{ background: `${P.accent}18`, color: P.accent }}>
-              <ShieldCheck size={20} />
+      <div className="border-b px-3.5 py-3.5 sm:px-4 lg:px-5" style={{ borderColor: P.border }}>
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex min-w-0 items-start gap-3">
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl" style={{ background: `${P.accent}14`, color: P.accent }}>
+              <ShieldCheck size={18} />
             </div>
             <div className="min-w-0">
-              <div className="flex flex-wrap items-center gap-2">
-                <h3 className="text-sm font-black uppercase tracking-[0.12em]" style={{ color: P.text }}>Chaîne clinique scientifique</h3>
-                <span className="rounded-full px-2 py-1 text-[9px] font-black tracking-wide" style={{ background: `${P.accent}18`, color: P.accent }}>
+              <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                <h3 className="text-[12px] font-black uppercase tracking-[0.11em]" style={{ color: P.text }}>Chaîne clinique scientifique</h3>
+                <span className="rounded-full px-2 py-0.5 text-[9px] font-black tracking-wide" style={{ background: `${P.accent}12`, color: P.accent }}>
                   Diagnostic → décision clinique
                 </span>
               </div>
-              <p className="mt-1 max-w-2xl text-xs leading-5" style={{ color: P.textMuted }}>
-                Lecture des états autoritaires, de leur provenance et des blocages. Une mesure calculable n'est ni un diagnostic, ni une indication, ni un traitement.
+              <p className="mt-1 max-w-3xl text-[11px] leading-4.5" style={{ color: P.textMuted }}>
+                États autoritaires, provenance et blocages. Une mesure calculable n'est ni un diagnostic, ni une indication, ni un traitement.
               </p>
             </div>
           </div>
           {snapshot && (
-            <div className="flex shrink-0 items-center gap-2 rounded-xl border px-3 py-2" style={{ borderColor: P.border, background: P.bgCard }}>
-              <LockKeyhole size={14} style={{ color: snapshot.blocking_gate_count ? P.accentWarning : P.accentSuccess }} />
-              <span className="text-[10px] font-black uppercase tracking-wider" style={{ color: P.textMuted }}>
+            <div className="flex min-h-9 shrink-0 items-center gap-2 self-start rounded-xl border px-3 py-2 sm:self-auto" style={{ borderColor: P.border, background: P.bgCard }}>
+              <LockKeyhole size={13} style={{ color: snapshot.blocking_gate_count ? P.accentWarning : P.accentSuccess }} />
+              <span className="text-[9px] font-black uppercase tracking-wider" style={{ color: P.textMuted }}>
                 {snapshot.blocking_gate_count} blocage{snapshot.blocking_gate_count === 1 ? '' : 's'} actif{snapshot.blocking_gate_count === 1 ? '' : 's'}
               </span>
             </div>
@@ -176,14 +182,14 @@ export const ClinicalScientificStudio: React.FC<Props> = ({ patientId, analysisI
       </div>
 
       {loading && (
-        <div className="flex items-center gap-3 p-5 text-xs font-bold" style={{ color: P.textMuted }}>
-          <RefreshCw size={16} className="animate-spin" /> Vérification de l'autorité scientifique…
+        <div className="flex items-center gap-3 px-4 py-4 text-xs font-bold" style={{ color: P.textMuted }}>
+          <RefreshCw size={15} className="animate-spin" /> Vérification de l'autorité scientifique…
         </div>
       )}
 
       {!loading && error && (
-        <div className="m-4 flex gap-3 rounded-xl border p-4" style={{ borderColor: `${P.accentError}55`, background: `${P.accentError}10` }}>
-          <AlertTriangle className="mt-0.5 shrink-0" size={18} style={{ color: P.accentError }} />
+        <div className="m-3 flex gap-3 rounded-xl border p-3.5 sm:m-4" style={{ borderColor: `${P.accentError}55`, background: `${P.accentError}10` }}>
+          <AlertTriangle className="mt-0.5 shrink-0" size={17} style={{ color: P.accentError }} />
           <div>
             <p className="text-xs font-black" style={{ color: P.text }}>Fail-closed</p>
             <p className="mt-1 text-xs leading-5" style={{ color: P.textMuted }}>{error}</p>
@@ -192,8 +198,12 @@ export const ClinicalScientificStudio: React.FC<Props> = ({ patientId, analysisI
       )}
 
       {!loading && snapshot && (
-        <div className="p-4 sm:p-5">
-          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="p-3 sm:p-4 lg:p-5">
+          <div
+            data-testid="r15-stage-rail"
+            className="-mx-1 flex snap-x gap-2 overflow-x-auto px-1 pb-1 lg:mx-0 lg:grid lg:grid-cols-4 lg:overflow-visible lg:px-0"
+            aria-label="Étapes de la chaîne clinique scientifique"
+          >
             {snapshot.stages.map(stage => {
               const active = selected?.stage_id === stage.stage_id;
               const color = statusColor(stage.presentation_state);
@@ -201,100 +211,110 @@ export const ClinicalScientificStudio: React.FC<Props> = ({ patientId, analysisI
                 <button
                   key={stage.stage_id}
                   type="button"
+                  aria-pressed={active}
                   onClick={() => setSelectedId(stage.stage_id)}
-                  className="min-w-0 rounded-xl border p-3 text-left transition-all hover:-translate-y-0.5"
+                  className="min-h-[64px] min-w-[168px] snap-start rounded-xl border px-3 py-2.5 text-left transition-all hover:-translate-y-0.5 sm:min-w-[210px] lg:min-w-0"
                   style={{
-                    background: active ? `${P.accent}12` : P.bgCard,
-                    borderColor: active ? `${P.accent}80` : P.border,
-                    boxShadow: active ? `0 0 0 1px ${P.accent}20` : 'none',
+                    background: active ? `${P.accent}10` : P.bgCard,
+                    borderColor: active ? `${P.accent}70` : P.border,
+                    boxShadow: active ? `0 0 0 1px ${P.accent}18` : 'none',
                   }}
                 >
                   <div className="flex items-start justify-between gap-2">
-                    <p className="text-xs font-black leading-4" style={{ color: P.text }}>{stage.title}</p>
-                    {stage.presentation_state === 'VALIDATED'
-                      ? <CheckCircle2 size={15} style={{ color }} />
-                      : stage.presentation_state === 'AWAITING_CLINICIAN'
-                        ? <Clock3 size={15} style={{ color }} />
-                        : <LockKeyhole size={15} style={{ color }} />}
+                    <div className="min-w-0">
+                      <div className="mb-1 flex items-center gap-1.5">
+                        <span className="rounded-md px-1.5 py-0.5 text-[8px] font-black tracking-[0.1em]" style={{ background: `${P.accent}10`, color: P.textDim }}>
+                          {stage.stage_id}
+                        </span>
+                        <span className="text-[9px] font-bold leading-4" style={{ color }}>{stateLabel(stage.presentation_state)}</span>
+                      </div>
+                      <p className="line-clamp-2 text-[11px] font-black leading-4" style={{ color: P.text }}>{stage.title}</p>
+                    </div>
+                    <StageStatusIcon stage={stage} color={color} />
                   </div>
-                  <p className="mt-2 text-[10px] font-bold leading-4" style={{ color }}>{stateLabel(stage.presentation_state)}</p>
-                  <p className="mt-2 text-[9px] font-bold uppercase tracking-[0.12em]" style={{ color: P.textDim }}>Réf. technique {stage.stage_id}</p>
                 </button>
               );
             })}
           </div>
 
           {selected && (
-            <div className="mt-4 rounded-2xl border p-4" style={{ borderColor: P.border, background: P.bgCard }}>
-              <div className="grid gap-4 lg:grid-cols-[1.25fr_0.75fr]">
-                <div className="min-w-0">
-                  <div className="flex flex-wrap items-center gap-2">
+            <div className="mt-3 overflow-hidden rounded-2xl border" style={{ borderColor: P.border, background: P.bgCard }}>
+              <div className="border-b px-3.5 py-3 sm:px-4" style={{ borderColor: P.border }}>
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div className="flex min-w-0 flex-wrap items-center gap-2">
                     <span className="text-xs font-black" style={{ color: P.text }}>{selected.title}</span>
-                    <span className="rounded-full border px-2 py-0.5 text-[9px] font-bold uppercase tracking-[0.12em]" style={{ borderColor: P.border, color: P.textDim }}>
+                    <span className="rounded-full border px-2 py-0.5 text-[8px] font-bold uppercase tracking-[0.12em]" style={{ borderColor: P.border, color: P.textDim }}>
                       Réf. technique {selected.stage_id}
                     </span>
                   </div>
-                  <p className="mt-2 text-xs leading-5" style={{ color: P.textMuted }}>{selected.summary}</p>
+                  <span className="text-[10px] font-bold" style={{ color: statusColor(selected.presentation_state) }}>
+                    {stateLabel(selected.presentation_state)}
+                  </span>
+                </div>
+                <p className="mt-1.5 max-w-4xl text-[11px] leading-4.5" style={{ color: P.textMuted }}>{selected.summary}</p>
+              </div>
 
-                  <div className="mt-4 grid gap-3 md:grid-cols-2">
-                    <div className="rounded-xl border p-3" style={{ borderColor: P.border, background: P.bgInput }}>
+              <div className="grid gap-3 p-3 sm:p-4 xl:grid-cols-[minmax(0,1.45fr)_minmax(250px,0.55fr)]">
+                <div className="min-w-0">
+                  <div className="grid gap-2.5 md:grid-cols-2">
+                    <div className="rounded-xl border px-3 py-2.5" style={{ borderColor: P.border, background: P.bgInput }}>
                       <div className="mb-2 flex items-center gap-2">
-                        <AlertTriangle size={14} style={{ color: P.accentWarning }} />
-                        <span className="text-[10px] font-black uppercase tracking-wider" style={{ color: P.text }}>Blocages visibles</span>
+                        <AlertTriangle size={13} style={{ color: P.accentWarning }} />
+                        <span className="text-[9px] font-black uppercase tracking-wider" style={{ color: P.text }}>Blocages visibles</span>
                       </div>
                       {selected.blocking_gates.length ? (
-                        <ul className="space-y-2">
+                        <ul className="space-y-1.5">
                           {selected.blocking_gates.map(gate => (
-                            <li key={gate} className="text-[11px] leading-4" style={{ color: P.textMuted }}>
+                            <li key={gate} className="text-[10px] leading-4" style={{ color: P.textMuted }}>
                               <span className="font-bold" style={{ color: P.text }}>{LABELS[gate] ?? gate}</span>
-                              <span className="mt-0.5 block font-mono text-[9px]" style={{ color: P.textDim }}>{gate}</span>
+                              <span className="mt-0.5 block break-words font-mono text-[8px]" style={{ color: P.textDim }}>{gate}</span>
                             </li>
                           ))}
                         </ul>
-                      ) : <p className="text-[11px]" style={{ color: P.accentSuccess }}>Aucun gate bloquant.</p>}
+                      ) : <p className="text-[10px]" style={{ color: P.accentSuccess }}>Aucun gate bloquant.</p>}
                     </div>
 
-                    <div className="rounded-xl border p-3" style={{ borderColor: P.border, background: P.bgInput }}>
+                    <div className="rounded-xl border px-3 py-2.5" style={{ borderColor: P.border, background: P.bgInput }}>
                       <div className="mb-2 flex items-center gap-2">
-                        <Database size={14} style={{ color: P.accent }} />
-                        <span className="text-[10px] font-black uppercase tracking-wider" style={{ color: P.text }}>Provenance</span>
+                        <Database size={13} style={{ color: P.accent }} />
+                        <span className="text-[9px] font-black uppercase tracking-wider" style={{ color: P.text }}>Provenance</span>
                       </div>
-                      <dl className="space-y-2">
+                      <dl className="space-y-1.5">
                         {selected.provenance.map(item => (
-                          <div key={`${item.label}-${item.value}`} className="flex items-start justify-between gap-3 text-[10px]">
-                            <dt style={{ color: P.textMuted }}>{item.label}</dt>
-                            <dd className="max-w-[55%] break-words text-right font-bold" style={{ color: P.text }}>{item.value}</dd>
+                          <div key={`${item.label}-${item.value}`} className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)] gap-2 text-[9px] leading-4">
+                            <dt className="break-words" style={{ color: P.textMuted }}>{item.label}</dt>
+                            <dd className="break-words text-right font-bold" style={{ color: P.text }}>{item.value}</dd>
                           </div>
                         ))}
                       </dl>
                     </div>
                   </div>
+
+                  <div className="mt-2.5 grid gap-2 sm:grid-cols-3" data-testid="r15-scientific-exceptions">
+                    <EvidenceRefs title="Données manquantes" items={selected.missing_data_refs} authoritative={Boolean(selected.authoritative_status)} P={P} />
+                    <EvidenceRefs title="Contradictions" items={selected.contradictions} authoritative={Boolean(selected.authoritative_status)} P={P} />
+                    <EvidenceRefs title="Contre-indications" items={selected.contraindications} authoritative={Boolean(selected.authoritative_status)} P={P} />
+                  </div>
                 </div>
 
-                <aside className="rounded-xl border p-3" style={{ borderColor: `${P.accentWarning}45`, background: `${P.accentWarning}09` }}>
+                <aside className="rounded-xl border px-3 py-3" style={{ borderColor: `${P.accentWarning}45`, background: `${P.accentWarning}08` }}>
                   <div className="flex items-center gap-2">
-                    <LockKeyhole size={15} style={{ color: P.accentWarning }} />
-                    <span className="text-[10px] font-black uppercase tracking-wider" style={{ color: P.text }}>Action praticien</span>
+                    <LockKeyhole size={14} style={{ color: P.accentWarning }} />
+                    <span className="text-[9px] font-black uppercase tracking-wider" style={{ color: P.text }}>Action praticien</span>
                   </div>
-                  <p className="mt-2 text-xs font-black" style={{ color: P.text }}>
+                  <p className="mt-2 text-[11px] font-black" style={{ color: P.text }}>
                     {selected.clinician_action.available ? selected.clinician_action.label : 'Aucune validation disponible'}
                   </p>
-                  <p className="mt-2 text-[11px] leading-5" style={{ color: P.textMuted }}>{selected.clinician_action.reason}</p>
-                  <div className="mt-3 rounded-lg border px-3 py-2 text-[9px] font-bold leading-4" style={{ borderColor: P.border, color: P.textDim }}>
+                  <p className="mt-1.5 text-[10px] leading-4.5" style={{ color: P.textMuted }}>{selected.clinician_action.reason}</p>
+                  <div className="mt-2.5 rounded-lg border px-2.5 py-2 text-[9px] font-bold leading-4" style={{ borderColor: P.border, color: P.textDim }}>
                     Toute validation visible doit créer une preuve backend résolue avec cible, clinicien et horodatage. Aucun état local ne vaut validation clinique.
                   </div>
                 </aside>
               </div>
-
-              <div className="mt-3 grid gap-3 sm:grid-cols-3" data-testid="r15-scientific-exceptions">
-                <EvidenceRefs title="Données manquantes" items={selected.missing_data_refs} authoritative={Boolean(selected.authoritative_status)} P={P} />
-                <EvidenceRefs title="Contradictions" items={selected.contradictions} authoritative={Boolean(selected.authoritative_status)} P={P} />
-                <EvidenceRefs title="Contre-indications" items={selected.contraindications} authoritative={Boolean(selected.authoritative_status)} P={P} />
-              </div>
             </div>
           )}
 
-          <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-[9px]" style={{ color: P.textDim }}>
+          <div className="mt-2.5 flex flex-wrap items-center justify-between gap-x-3 gap-y-1 text-[8px] leading-4" style={{ color: P.textDim }}>
             <span>Contrat {snapshot.contract_version} · traçabilité interne R11 → R14</span>
             <span>Analyse {snapshot.analysis_id ?? 'absente'} · graphe typé {snapshot.evidence_graph_present ? 'présent' : 'absent'} · chaîne active {snapshot.active_runtime_chain_verified ? 'vérifiée' : 'non vérifiée'}</span>
           </div>
