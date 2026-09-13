@@ -55,6 +55,26 @@ jobs:
           cache: npm
           cache-dependency-path: frontend/package-lock.json
 
+      - name: Generate isolated runtime credential
+        shell: bash
+        run: |
+          echo "T2_USER=t2-browser@cabinet.ma" >> "$GITHUB_ENV"
+          echo "T2_PASSWORD=$(python -c 'import secrets; print(secrets.token_urlsafe(32))')" >> "$GITHUB_ENV"
+
+      - name: Align legacy P7 browser probe with runtime credential
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          path = Path('frontend/scripts/certify-patient-p7-browser.mjs')
+          text = path.read_text(encoding='utf-8')
+          legacy = "password: 'T2BrowserPass123!'"
+          replacement = 'password: process.env.T2_PASSWORD'
+          if legacy not in text:
+              raise RuntimeError('P7 browser credential contract changed unexpectedly')
+          path.write_text(text.replace(legacy, replacement, 1), encoding='utf-8')
+          PY
+
       - name: Final source truth contract
         run: |
           python - <<'PY'
