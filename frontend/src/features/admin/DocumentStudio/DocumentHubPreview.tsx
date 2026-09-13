@@ -82,13 +82,23 @@ export const DocumentHubPreview: React.FC<DocumentHubPreviewProps> = ({
 
   if (desktopInline) {
     return (
-      <aside
-        data-ordonnance-desktop-preview="inline"
-        aria-label={`Aperçu document — ${title}`}
-        className="absolute inset-y-6 right-5 z-30 hidden w-[520px] min-w-0 xl:block"
-      >
-        {preview}
-      </aside>
+      <>
+        <style>{`
+          @media (min-width: 1280px) {
+            .relative:has(> [data-ordonnance-desktop-preview="inline"]) > .custom-scrollbar {
+              padding-left: 1.25rem !important;
+              padding-right: 27.8125rem !important;
+            }
+          }
+        `}</style>
+        <aside
+          data-ordonnance-desktop-preview="inline"
+          aria-label={`Aperçu document — ${title}`}
+          className="absolute inset-y-6 right-5 z-30 hidden w-[400px] min-w-0 xl:block"
+        >
+          {preview}
+        </aside>
+      </>
     );
   }
 
