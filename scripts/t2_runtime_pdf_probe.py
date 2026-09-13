@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import json
+import os
 from pathlib import Path
 
 import httpx
@@ -20,10 +21,13 @@ def fail(message: str) -> None:
 
 def main() -> None:
     OUT_PATH.parent.mkdir(parents=True, exist_ok=True)
+    runtime_password = os.environ.get("T2_PASSWORD")
+    if not runtime_password:
+        fail("T2_PASSWORD is required")
     with httpx.Client(base_url=BASE_URL, timeout=60.0) as client:
         login = client.post(
             "/api/auth/login",
-            data={"username": "t2-browser@cabinet.ma", "password": "T2BrowserPass123!"},
+            data={"username": "t2-browser@cabinet.ma", "password": runtime_password},
         )
         if login.status_code != 200:
             fail(f"login={login.status_code}: {login.text[:300]}")

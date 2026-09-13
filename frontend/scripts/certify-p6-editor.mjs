@@ -30,10 +30,10 @@ for (const viewport of [{width:390,height:844},{width:768,height:1024},{width:12
   page.on('pageerror', (e) => errors.push(String(e)));
   await page.goto(`http://127.0.0.1:5173/patients/${patient.id}?tab=admin&documentTab=libre`, { waitUntil:'networkidle', timeout:90000 });
   await page.getByText('Document Libre', { exact:true }).first().waitFor({ timeout:30000 });
-  const dialog = page.getByRole('dialog').last();
-  if (await dialog.isVisible({timeout:1000}).catch(() => false)) {
+  const initialDialog = page.getByRole('dialog').last();
+  if (await initialDialog.isVisible({timeout:1000}).catch(() => false)) {
     await page.keyboard.press('Escape');
-    await dialog.waitFor({state:'hidden',timeout:10000}).catch(() => {});
+    await initialDialog.waitFor({state:'hidden',timeout:10000}).catch(() => {});
   }
   const title = page.getByPlaceholder('Ex: ORDONNANCE, LETTRE...');
   const content = page.getByPlaceholder("Rédigez votre document ici... Utilisez la barre d'outils pour mettre en forme le texte.");
@@ -60,9 +60,58 @@ for (const viewport of [{width:390,height:844},{width:768,height:1024},{width:12
   }
   const clipped = Object.entries(controls).filter(([,box]) => !box || !box.withinViewport).map(([name]) => name);
   await content.scrollIntoViewIfNeeded();
-  const screenshot = `p6-${viewport.width}x${viewport.height}-editor.png`;
-  await page.screenshot({path:path.join(out,screenshot)});
-  evidence.push({viewport,metrics:{...metrics,clipped:clipped.length},controls,errors,screenshot,pass:metrics.noOverflow&&clipped.length===0&&errors.length===0});
+  const editorScreenshot = `p6-${viewport.width}x${viewport.height}-editor.png`;
+  await page.screenshot({path:path.join(out,editorScreenshot)});
+
+  const previewButton = page.getByRole('button', {name:'Aperçu',exact:true});
+  await previewButton.scrollIntoViewIfNeeded();
+  await previewButton.click();
+  const previewDialog = page.getByRole('dialog', {name:'Document Libre'}).last();
+  await previewDialog.waitFor({state:'visible',timeout:30000});
+  const overlay = page.locator('.document-studio-live-preview');
+  const overlayBox = await overlay.boundingBox();
+  const previewBox = await previewDialog.boundingBox();
+  const previewLayout = {
+    overlayCoversViewport: Boolean(
+      overlayBox &&
+      overlayBox.x <= 1 &&
+      overlayBox.y <= 1 &&
+      overlayBox.width >= viewport.width - 2 &&
+      overlayBox.height >= viewport.height - 2
+    ),
+    dialogWithinViewport: Boolean(
+      previewBox &&
+      previewBox.x >= -1 &&
+      previewBox.y >= -1 &&
+      previewBox.x + previewBox.width <= viewport.width + 1 &&
+      previewBox.y + previewBox.height <= viewport.height + 1
+    ),
+    compactOverlayWidth: viewport.width < 1024
+      ? Boolean(previewBox && previewBox.width >= viewport.width * 0.9)
+      : true,
+    desktopCentered: viewport.width >= 1024
+      ? Boolean(
+          previewBox &&
+          Math.abs((previewBox.x + previewBox.width / 2) - viewport.width / 2) <= 4 &&
+          previewBox.width <= 1026
+        )
+      : true,
+  };
+  const previewScreenshot = `p6-${viewport.width}x${viewport.height}-preview.png`;
+  await page.screenshot({path:path.join(out,previewScreenshot)});
+  await page.keyboard.press('Escape');
+  await previewDialog.waitFor({state:'hidden',timeout:10000});
+
+  const previewPass = Object.values(previewLayout).every(Boolean);
+  evidence.push({
+    viewport,
+    metrics:{...metrics,clipped:clipped.length},
+    controls,
+    preview:{overlayBox,previewBox,layout:previewLayout},
+    errors,
+    screenshots:{editor:editorScreenshot,preview:previewScreenshot},
+    pass:metrics.noOverflow&&clipped.length===0&&previewPass&&errors.length===0,
+  });
   await context.close();
 }
 const report = {status:evidence.every((x)=>x.pass)?'PASS':'FAIL',evidence};

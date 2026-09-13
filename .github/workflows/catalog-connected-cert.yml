@@ -96,6 +96,22 @@ jobs:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
           clean: false
 
+      - name: Restore disposable runtime credential for AFTER parity
+        shell: bash
+        run: |
+          python - <<'PY'
+          import os
+          import pathlib
+          import re
+
+          source = pathlib.Path('/tmp/catalog-connected-cert.mjs').read_text(encoding='utf-8')
+          match = re.search(r"password:\s*'([^']+)'", source)
+          if not match:
+              raise SystemExit('immutable BEFORE certification credential not found')
+          with open(os.environ['GITHUB_ENV'], 'a', encoding='utf-8') as env_file:
+              env_file.write(f"T2_PASSWORD={match.group(1)}\n")
+          PY
+
       - name: Sync backend dependencies to exact PR head
         run: |
           grep -vE '^(torch|torchvision)([<=>].*)?$' requirements.txt > /tmp/requirements-catalog-connected-after.txt

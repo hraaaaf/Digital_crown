@@ -255,35 +255,56 @@ Le harness `scripts/certify_document_studio_p7.sh` reste une régression de code
 
 ## T1 — Audit transversal premium
 
-**État : 🟡 T1-A→T1-E convergés en engineering sur PR #88/#89/#91/#92/#93 ; T1-F harness/closeout sur PR #94 ; runtime/CI/visuel non certifiés.**
+**État : ✅ engineering + runtime automatisé P1→P6 fermés ; merge final en attente des gates exact-head du closeout documentaire.**
 
-Rapport : `docs/audits/DOCUMENT_STUDIO_T1_TRANSVERSAL_PREMIUM_AUDIT.md`.
+Rapports :
+- `docs/audits/DOCUMENT_STUDIO_T1_TRANSVERSAL_PREMIUM_AUDIT.md` ;
+- `docs/audits/DOCUMENT_STUDIO_T1_CURRENT_SURFACE_2026-09-11.md`.
 
-### Engineering acquis historique
+PR : #465 `test(t1): certify active P1-P6 transversal boundaries`.
 
-- **T1-A patient isolation** : remount par patient, reset atomique du store comptable et de l’édition archivée, invalidation des dirty states, protections contre réponses patient/suggestion tardives ;
+HEAD comportemental historique : `51e98dd3f14882278e7de5a2f862bb7a256d985b`.
+HEAD exact recertifié après réalignement master : `2e5644a447c891e2a4772632aa14b3be32fbaadb`.
+
+### Engineering acquis
+
+- **T1-A patient isolation** : remount/reset patient-scoped et protections contre réponses tardives ;
 - **T1-B navigation** : policy dirty-state et transitions Document Studio centralisées ;
-- **T1-C frontière clinique** : suppression du side-channel Ghost/free-text/financial labels ; sécurité ordonnance dédiée conservée ; exécuteur direct `ai-diagnostic` neutralisé dans le Studio certifiable ;
-- **T1-D vérité UI** : surfaces Header/Tabs/Footer/Preview contrôlées et gate anti-régression contre les claims runtime/IA trompeurs ;
-- **T1-E responsive/a11y** : labels/états accessibles, cibles tactiles, focus visible, dialogues impression/preview, Escape preview, iframe titrée, durcissement mobile ;
-- **T1-F préparé** : `scripts/certify_document_studio_t1.sh` regroupe régression T1 ciblée, full frontend et build production.
+- **T1-C frontière clinique** : suppression du side-channel partagé non autoritatif et absence de point d’entrée Studio actif vers `ai-diagnostic` ;
+- **T1-D vérité UI** : surfaces Header/Tabs/Footer/Preview contrôlées ;
+- **T1-E responsive/a11y** : labels/états accessibles, cibles tactiles, focus, dialogues, Escape preview, iframe titrée, durcissement mobile ;
+- harness T1 réaligné sur **P1→P6** ; P7 dormant exclu du gate ciblé ;
+- credential T2 jetable généré à l’exécution ;
+- plafond de login élevé uniquement dans le serveur T2 isolé afin que les probes du même run ne s’auto-bloquent pas ; la politique produit reste inchangée.
 
-### Limite de preuve
+### Certification observée
 
-Le harness T1 est **préparé mais non exécuté** sur le `master` actuel. Les anciennes affirmations P1→P7 doivent être relues dans le contrat produit actuel P1→P6, P7 étant désormais explicitement dormant/hors Studio certifiable.
+Sur `2e5644a447c891e2a4772632aa14b3be32fbaadb` :
+
+- CI `#3707` / `34751837897` : **SUCCESS** ;
+- T2 `#2651` / `34751838021` : **SUCCESS** ;
+- Catalog Connected Truth `#1099` / `34751837908` : **SUCCESS** ;
+- Cabinet Upgrade PostgreSQL `#166` / `34751837937` : **SUCCESS** ;
+- Patient P7 Final `#1314` / `34751837988` : **SUCCESS** sans réactivation P7 ;
+- M6-I `#1451` : **SKIPPED** attendu.
+
+Le T2 exact-head a passé le probe transversal T1, le seed patient B, le PDF strict, la réconciliation P3/P4/P5, la matrice navigateur authentifiée, P6 et la fraîcheur print/PDF.
+
+Artefact exact-head : `t2-browser-evidence`, ID `10316051646`, digest `sha256:d0888b44cf7ba4a4413d4f66442aa808a631591a024cf5a6cbcc4e73c4de5b7f`.
 
 ### Reste
 
-- exécuter `scripts/certify_document_studio_t1.sh` sur le head final avec Node 20 ;
-- recertifier la matrice active P1→P6 : isolation patient, dirty-state/navigation manuelle + URL, vérité UI, aucune route Studio vers `ai-diagnostic` ;
-- navigateur réel 390/430/1280, clavier/focus, preview/impression ;
-- seulement après ces preuves : certification T1, closeout, merge et transition T2.
+- gates CI/T2 du **HEAD documentaire final** créé par le closeout ;
+- contrôle mergeable + reviews/threads ;
+- squash merge PR #465 avec contrôle du HEAD attendu ;
+- vérification post-merge `master` ;
+- transition T2.
 
 ---
 
 ## T2 — Refonte intelligente finale / recertification globale
 
-**État : ⬜ après fermeture des gates exécutables T1 sur le périmètre actif P1→P6.**
+**État : ⬜ prochain lot après squash merge et vérification post-merge T1.**
 
 À couvrir : cartographie finale, matrice garder/améliorer/fusionner/cacher/supprimer/refaire, navigation cible, hiérarchie, priorités, critères UX/fonctionnels, régression globale et recertification finale.
 
@@ -314,8 +335,8 @@ P7 dormant n’entre dans T2 que comme dette/code historique à classer : conser
 3. **P5 Suivi Paiement** : engineering/runtime/PDF/responsive automatisés certifiés ; contrepassation réelle reste séparée.
 4. **P6 Document Libre** : **fermé et mergé** sur `master` `e5a9f37...` après CI/T2 exact-head verts.
 5. **P7 Compagnon Diagnostique** : **retiré du Studio certifiable** ; code dormant, aucune réactivation implicite.
-6. **T1** : **prochain lot exécutable** sur le périmètre actif P1→P6 ; lancer harness + runtime/browser puis closeout.
-7. **T2** : recertification/refonte finale après T1 ; classer définitivement la dette P7 dormant.
+6. **T1** : engineering/runtime P1→P6 fermé sur HEAD recertifié `2e5644a...` ; gates du HEAD documentaire final puis merge/post-merge restent à fermer.
+7. **T2** : recertification/refonte finale immédiatement après fermeture réelle T1 ; P7 dormant reste hors produit sauf chantier séparé.
 
 ## Infrastructure CI
 
@@ -325,7 +346,9 @@ P5 dispose de runs réels verts sur son HEAD comportemental `63d33c2c...` : T2 `
 
 P6 dispose de runs réels verts sur son HEAD comportemental `218e7ef...` : T2 `34528255978` (#2191) et CI `34528255939` (#3183), puis sur le HEAD closeout `9269f9c...` : T2 `34582263341` (#2229) et CI `34582263330` (#3224). PR #405 squash-mergée sur `master` `e5a9f37...`.
 
-Le harness T1 canonique est `scripts/certify_document_studio_t1.sh` et doit être exécuté sur le `master` moderne / branche de certification dédiée avant tout claim T1.
+T1 dispose sur son HEAD comportemental `51e98dd3...` de T2 `34750958888` (#2645) **SUCCESS**. Après réalignement master, le HEAD `2e5644a...` dispose de CI `34751837897` (#3707) **SUCCESS**, T2 `34751838021` (#2651) **SUCCESS**, Catalog `34751837908` (#1099) **SUCCESS**, PostgreSQL `34751837937` (#166) **SUCCESS** et Patient P7 `34751837988` (#1314) **SUCCESS** ; M6-I #1451 est **SKIPPED** attendu.
+
+Le harness T1 canonique est `scripts/certify_document_studio_t1.sh`.
 
 ## Règle de progression
 

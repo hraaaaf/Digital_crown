@@ -29,13 +29,20 @@ export const LivePreview: React.FC<LivePreviewProps> = ({
 
   useEffect(() => {
     if (inline) return;
+
     closeButtonRef.current?.focus();
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
 
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') onClose();
     };
     window.addEventListener('keydown', onKeyDown);
-    return () => window.removeEventListener('keydown', onKeyDown);
+
+    return () => {
+      window.removeEventListener('keydown', onKeyDown);
+      document.body.style.overflow = previousOverflow;
+    };
   }, [inline, onClose]);
 
   const showSkeleton = loading || Boolean(pdfUrl && !iframeReady);
@@ -160,28 +167,16 @@ export const LivePreview: React.FC<LivePreviewProps> = ({
   }
 
   return createPortal(
-    <>
-      <style>{`
-        body:has(.document-studio-live-preview) .fixed.right-2.top-2.bottom-2.w-\\[550px\\].z-\\[11000\\] {
-          pointer-events: none;
-        }
-        @media (max-width: 1023px) {
-          body:has(.document-studio-live-preview) div:has(> [data-tour="document-hub-content"]) {
-            padding-left: 1rem !important;
-            padding-right: 1rem !important;
-          }
-        }
-      `}</style>
+    <div className="document-studio-live-preview fixed inset-0 z-[40000] flex items-stretch justify-center bg-slate-950/60 backdrop-blur-sm sm:p-4 lg:items-center lg:p-8">
       <div
-        className="document-studio-live-preview fixed inset-x-3 bottom-3 top-3 z-[20000] flex flex-col overflow-hidden rounded-[2rem] border border-slate-200/60 bg-white shadow-[0_32px_64px_rgba(0,0,0,0.2)] ring-1 ring-black/5 animate-in slide-in-from-right-12 duration-500 sm:inset-y-4 sm:left-auto sm:right-4 sm:w-[min(600px,calc(100vw-2rem))] sm:rounded-[3rem]"
-        style={{ pointerEvents: 'auto' }}
+        className="relative flex h-[100dvh] w-full flex-col overflow-hidden bg-white shadow-2xl animate-in fade-in zoom-in-95 duration-300 sm:h-[calc(100dvh-2rem)] sm:max-w-4xl sm:rounded-[2rem] lg:h-[calc(100dvh-4rem)] lg:max-h-[900px] lg:max-w-5xl lg:rounded-[2.5rem]"
         role="dialog"
         aria-modal="true"
         aria-labelledby="document-studio-live-preview-title"
       >
         {containerContent}
       </div>
-    </>,
+    </div>,
     document.body,
   );
 };
