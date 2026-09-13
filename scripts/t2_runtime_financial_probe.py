@@ -7,6 +7,7 @@ Runs only against the disposable T2 runtime database configured by the workflow.
 from __future__ import annotations
 
 import json
+import os
 import sys
 from pathlib import Path
 
@@ -60,10 +61,13 @@ def counts(patient_id: int) -> dict[str, int]:
 
 def main() -> None:
     OUT_PATH.parent.mkdir(parents=True, exist_ok=True)
+    runtime_password = os.environ.get("T2_PASSWORD")
+    if not runtime_password:
+        fail("T2_PASSWORD is required")
     with httpx.Client(base_url=BASE_URL, timeout=90.0) as client:
         login = client.post(
             "/api/auth/login",
-            data={"username": "t2-browser@cabinet.ma", "password": "T2BrowserPass123!"},
+            data={"username": "t2-browser@cabinet.ma", "password": runtime_password},
         )
         if login.status_code != 200:
             fail(f"login={login.status_code}", {"body": login.text[:500]})
