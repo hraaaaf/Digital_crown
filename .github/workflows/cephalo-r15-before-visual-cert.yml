@@ -1,32 +1,41 @@
-name: Cephalo R15 BEFORE Visual Certification
+name: Cephalo R15 Clinical Studio Visual Certification
 
 on:
   pull_request:
     paths:
       - ".github/workflows/cephalo-r15-before-visual-cert.yml"
       - "docs/handovers/2026-09-13-cephalo-r15-clinical-studio.md"
+      - "frontend/src/features/ortho/cephaloClinicalEvidence.ts"
+      - "frontend/src/features/ortho/cephaloClinicalEvidence.test.ts"
+      - "frontend/src/features/ortho/cephaloRepository.ts"
+      - "frontend/src/features/ortho/cephaloRepository.test.ts"
+      - "frontend/src/features/ortho/cephaloUtils.ts"
+      - "frontend/src/features/ortho/components/Step3Clinical.tsx"
   workflow_dispatch:
 
 permissions:
   contents: read
 
 jobs:
-  before:
-    name: R15 BEFORE ${{ matrix.width }}px
+  capture:
+    name: R15 ${{ matrix.phase }} ${{ matrix.width }}px
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
+        phase: [BEFORE, AFTER]
         width: [390, 768, 1280]
     steps:
-      - name: Resolve exact base
+      - name: Resolve exact ref
         id: ref
         shell: bash
         run: |
-          if [ -n "${{ github.event.pull_request.base.sha }}" ]; then
+          if [ "${{ matrix.phase }}" = "BEFORE" ] && [ -n "${{ github.event.pull_request.base.sha }}" ]; then
             echo "value=${{ github.event.pull_request.base.sha }}" >> "$GITHUB_OUTPUT"
+          elif [ "${{ matrix.phase }}" = "AFTER" ] && [ -n "${{ github.event.pull_request.head.sha }}" ]; then
+            echo "value=${{ github.event.pull_request.head.sha }}" >> "$GITHUB_OUTPUT"
           else
-            echo "value=1e79d236b89a56592128d09451803b9adf4ee0fd" >> "$GITHUB_OUTPUT"
+            echo "value=${{ github.sha }}" >> "$GITHUB_OUTPUT"
           fi
 
       - uses: actions/checkout@v4
@@ -50,10 +59,10 @@ jobs:
         working-directory: frontend
         shell: bash
         run: |
-          cat > cephalo-r15-before.html <<'EOF'
-          <!doctype html><html lang="fr"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/><title>R15 BEFORE</title></head><body><div id="root"></div><script type="module" src="/src/cephalo-r15-before.tsx"></script></body></html>
+          cat > cephalo-r15-cert.html <<'EOF'
+          <!doctype html><html lang="fr"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/><title>R15 cert</title></head><body><div id="root"></div><script type="module" src="/src/cephalo-r15-cert.tsx"></script></body></html>
           EOF
-          cat > src/cephalo-r15-before.tsx <<'EOF'
+          cat > src/cephalo-r15-cert.tsx <<'EOF'
           import React from 'react';
           import { createRoot } from 'react-dom/client';
           import './index.css';
@@ -66,11 +75,11 @@ jobs:
               scientific_read_path: {
                 authority: 'EVIDENCE_GRAPH_V1',
                 active_chain: 'VERIFIED',
-                sources: 2,
-                landmarks: 12,
-                constructions: 7,
-                measurements: 7,
+                current_landmark_count: 12,
+                current_construction_count: 7,
+                current_measurement_count: 7,
               },
+              __legacy_clinical_content: 'UNATTRIBUTED_LEGACY',
               _evidence_graph_v1: {
                 sources: [{ source_id: 'source:1' }, { source_id: 'source:2' }],
                 landmarks: Array.from({length: 12}, (_, i) => ({ evidence_id: `landmark:${i}` })),
@@ -78,6 +87,10 @@ jobs:
                 measurements: Array.from({length: 7}, (_, i) => ({ measurement_id: `measurement:${i}` })),
                 findings: [], diagnoses: [], problems: [], objectives: [], treatment_options: [], validations: [], final_plans: [],
               }
+            },
+            etape2Data: {
+              occlusal: { molaire_droite: 'I', molaire_gauche: 'II', canine_droite: 'I', canine_gauche: 'I' },
+              type_arcade: 'U',
             },
             etape3Data: {
               ...current.etape3Data,
@@ -101,40 +114,48 @@ jobs:
             bg: '#f8fafc', bgPanel: '#ffffff', bgCard: '#ffffff', bgInput: '#f8fafc', border: '#dbe3ee',
             text: '#0f172a', textMuted: '#64748b', textDim: '#94a3b8', accent: '#2563eb', accentSuccess: '#16a34a', shadow: '0 8px 30px rgba(15,23,42,.06)'
           };
-
           createRoot(document.getElementById('root')!).render(<main className="min-h-screen p-4"><Step3Clinical P={P} /></main>);
           EOF
-          cat > cephalo-r15-before.mjs <<'EOF'
+          cat > cephalo-r15-cert.mjs <<'EOF'
           import { chromium } from 'playwright';
           import { createServer } from 'vite';
           import fs from 'node:fs/promises';
-          const width=Number(process.env.WIDTH); const height=width===390?844:width===768?1024:900;
-          const out=`cephalo-r15-before-${width}`; await fs.mkdir(out,{recursive:true});
+          const phase=process.env.PHASE; const width=Number(process.env.WIDTH); const height=width===390?844:width===768?1024:900;
+          const out=`cephalo-r15-${phase.toLowerCase()}-${width}`; await fs.mkdir(out,{recursive:true});
           const server=await createServer({server:{host:'127.0.0.1',port:4197,strictPort:true},clearScreen:false}); await server.listen();
           const browser=await chromium.launch(); const context=await browser.newContext({viewport:{width,height}}); const page=await context.newPage(); const errors=[];
           page.on('pageerror',e=>errors.push(`pageerror:${e.message}`)); page.on('console',m=>{if(m.type()==='error') errors.push(`console:${m.text()}`)});
           try {
-            await page.goto('http://127.0.0.1:4197/cephalo-r15-before.html',{waitUntil:'networkidle'});
-            const scientific=await page.getByText('Chaîne scientifique',{exact:true}).count();
-            const structured=await page.getByText('État clinique structuré',{exact:true}).count();
-            const practitionerMarker=await page.getByText(/Saisie praticien.*jamais préremplie/i).count();
+            await page.goto('http://127.0.0.1:4197/cephalo-r15-cert.html',{waitUntil:'networkidle'});
+            const scientific=await page.locator('[data-r15-scientific]').count();
+            const structured=await page.locator('[data-r15-structured]').count();
+            const practitionerMarker=await page.locator('[data-r15-practitioner-origin]').count();
+            const fakeClinicalActions=await page.getByRole('button',{name:/valider|accepter|plan final/i}).count();
+            const legacyWarning=await page.getByText(/Contenu historique non attribuable/i).count();
+            const mouldSeparation=await page.getByText(/Description calculée.*non copiée/i).count();
             const dims=await page.evaluate(()=>({clientWidth:document.documentElement.clientWidth,scrollWidth:document.documentElement.scrollWidth}));
-            const report={phase:'BEFORE',width,height,scientific,structured,practitionerMarker,overflowPx:Math.max(0,dims.scrollWidth-dims.clientWidth),errors};
+            const report={phase,width,height,scientific,structured,practitionerMarker,fakeClinicalActions,legacyWarning,mouldSeparation,overflowPx:Math.max(0,dims.scrollWidth-dims.clientWidth),errors};
             await page.screenshot({path:`${out}/${width}x${height}.png`,fullPage:true,animations:'disabled'});
             await fs.writeFile(`${out}/report.json`,JSON.stringify(report,null,2));
-            if(scientific!==0 || structured!==0 || practitionerMarker!==0) throw new Error(`Unexpected BEFORE hierarchy: ${JSON.stringify(report)}`);
-            if(report.overflowPx!==0 || errors.length!==0) throw new Error(`Unstable BEFORE viewport: ${JSON.stringify(report)}`);
+            if(phase==='BEFORE') {
+              if(scientific!==0 || structured!==0 || practitionerMarker!==0) throw new Error(`Unexpected BEFORE hierarchy: ${JSON.stringify(report)}`);
+            } else {
+              if(scientific!==1 || structured!==1 || practitionerMarker!==1 || legacyWarning!==1 || mouldSeparation!==1) throw new Error(`Incomplete AFTER hierarchy: ${JSON.stringify(report)}`);
+              if(fakeClinicalActions!==0) throw new Error(`Fictitious clinical action exposed: ${JSON.stringify(report)}`);
+            }
+            if(report.overflowPx!==0 || errors.length!==0) throw new Error(`Unstable viewport: ${JSON.stringify(report)}`);
           } finally { await context.close(); await browser.close(); await server.close(); }
           EOF
 
-      - name: Capture and assert BEFORE
+      - name: Capture and assert
         working-directory: frontend
         env:
+          PHASE: ${{ matrix.phase }}
           WIDTH: ${{ matrix.width }}
-        run: node cephalo-r15-before.mjs
+        run: node cephalo-r15-cert.mjs
 
       - uses: actions/upload-artifact@v4
         with:
-          name: cephalo-r15-BEFORE-${{ matrix.width }}
-          path: frontend/cephalo-r15-before-${{ matrix.width }}
+          name: cephalo-r15-${{ matrix.phase }}-${{ matrix.width }}
+          path: frontend/cephalo-r15-*-${{ matrix.width }}
           if-no-files-found: error
