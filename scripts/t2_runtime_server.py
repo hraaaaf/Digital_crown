@@ -17,6 +17,13 @@ os.environ["CLOUD_AI_ENABLED"] = "false"
 os.environ["DEBUG"] = "false"
 os.environ["ALLOWED_ORIGINS"] = "http://127.0.0.1:5173,http://localhost:5173"
 
+# La certification T2 enchaîne plusieurs authentifications valides dans un même
+# processus. Le limiteur produit (5 tentatives / 10 min) reste inchangé ; seul
+# ce serveur CI jetable relève son plafond afin que les probes ne se bloquent
+# pas mutuellement avant le dernier contrôle print/PDF.
+import backend.utils.rate_limit as rate_limit
+rate_limit.MAX_ATTEMPTS = 100
+
 from backend import database, models
 from backend.security import get_password_hash
 
