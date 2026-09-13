@@ -103,6 +103,88 @@ Corrections appliquées avant nouvelle certification:
 - gate P3 réaligné pour vérifier la conservation du sélecteur actuel en BEFORE et AFTER, sa présélection, son minimum 44 px et l’absence d’overflow ;
 - aucune modification backend, PDF, pharmacologique ou des endpoints.
 
+## Correction overlap après inspection visuelle
+
+La première certification verte ne suffisait pas: les captures T2 montraient encore que le `StudioHeader` sticky pouvait recouvrir le début de la zone Protocoles. Le défaut existait déjà en BEFORE, mais il violait explicitement le critère de succès de ce lot.
+
+Correction finale:
+
+- sur `ordonnance` uniquement, le `StudioHeader` repasse dans le flux normal (`relative z-20`) au lieu de `sticky top-0 z-[60]` ;
+- les autres onglets conservent leur sticky ;
+- un test UX verrouille ce contrat pour éviter le retour du chevauchement.
+
+## AFTER certifié — lot A compactage
+
+HEAD exact: `ff2dc2e548bc02e84379ff85f0bec4fb89f7117d`.
+
+GitHub Actions exact-head:
+
+- CI `#3755` / run `34773776962`: `SUCCESS` ;
+- T2 Runtime Browser `#2694` / run `34773776790`: `SUCCESS` ;
+- Clinic P3 Document Author Visual `#18` / run `34773776691`: `SUCCESS` ;
+- Cabinet Upgrade PostgreSQL `#209` / run `34773776737`: `SUCCESS` ;
+- Patient P7 Final `#1348` / run `34773776698`: `SUCCESS` ;
+- Settings R11 `#541` / run `34773776733`: `SUCCESS` ;
+- M6-I `#1494`: `SKIPPED` attendu.
+
+Artefact visuel final:
+
+- nom: `t2-browser-evidence` ;
+- artefact: `10322349101` ;
+- digest: `sha256:1e8978977fca480e40087f3631adeb0b637dac076e43459334bce02b62839b4a` ;
+- HEAD artefact: `ff2dc2e548bc02e84379ff85f0bec4fb89f7117d` ;
+- captures vérifiées: `390×844`, `430×932`, `768×1024`, `1280×900`.
+
+Résultats observés sur l’artefact final:
+
+- aucun chevauchement header/contenu visible aux quatre viewports ;
+- aucun overflow horizontal sur Ordonnance ;
+- la prescription et les actions finales remontent nettement dans le viewport mobile ;
+- le header Ordonnance quitte naturellement l’écran au scroll au lieu de recouvrir la prescription ;
+- le Live Preview reste modal/overlay et se ferme par Escape ;
+- le stress de navigation T2 termine 10/10 transitions avec dirty guard observé ;
+- T2 rapporte 6/6 pages vertes sans erreur runtime.
+
+## Comparaison BEFORE → AFTER
+
+### 390×844 / 430×932
+
+BEFORE: StudioHeader auteur/date dominait la hauteur utile et le contenu de prescription était repoussé sous le fold ; sur les états capturés, un toast et la structure sticky pouvaient étouffer le bas de page.
+
+AFTER: protocoles, ligne médicament, contrôle local, ajout de ligne et footer sont visibles beaucoup plus tôt ; le header ne recouvre plus la surface clinique et aucune compression latérale n’est observée.
+
+### 768×1024
+
+BEFORE: le header et les wrappers prenaient une part disproportionnée de la surface utile.
+
+AFTER: protocoles + ligne médicament + actions finales coexistent dans le viewport avec une hiérarchie plus directe.
+
+### 1280×900
+
+BEFORE: collision visuelle entre header sticky et début des protocoles possible.
+
+AFTER: protocoles, ligne médicament et actions s’alignent sans superposition ; la prescription récupère une surface verticale utile importante.
+
+## Score visuel manuel — lot A
+
+Ce score est un audit humain des captures exact-head, distinct du score automatisé T2 qui vaut 10/10 sur ses propres critères.
+
+- Hiérarchie visuelle: **9.1/10**
+- Responsive mobile: **9.3/10**
+- Densité utile: **9.2/10**
+- Cohérence visuelle Digital Crown / premium: **8.6/10**
+- Sécurité clinique: **préservée, aucune régression observée dans les contrats/tests exact-head**
+
+Conclusion: le **lot A compactage est certifié**, mais **Ordonnance Perfect V2 globale n’est pas clôturée**. La cible esthétique >=9/10 n’est pas encore atteinte sur la cohérence Crown/premium.
+
+## Reste V2 connu
+
+1. rendre les protocoles système fréquents accessibles comme quick chips sans supprimer les sélecteurs complets ;
+2. renforcer la QuickEntry comme véritable héros visuel de la prescription ;
+3. harmoniser les surfaces Ordonnance avec les tokens Crown existants sans empilement blanc-sur-blanc ;
+4. refaire les captures BEFORE/AFTER 390/430/768/1280 et rescoring ;
+5. ne considérer Perfect V2 clôturé qu’une fois la cohérence visuelle >=9/10 réellement observée.
+
 ## Hors périmètre
 
 - Aucun changement backend.
@@ -142,4 +224,4 @@ Tests minimum:
 
 ## Critère de clôture
 
-Le lot n’est fermé qu’avec captures AFTER, comparaison BEFORE/AFTER, tests verts et absence de régression fonctionnelle observée.
+Le lot global n’est fermé qu’avec captures AFTER, comparaison BEFORE/AFTER, tests verts, absence de régression fonctionnelle observée et score visuel cible atteint.
