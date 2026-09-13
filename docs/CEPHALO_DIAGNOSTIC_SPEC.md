@@ -18,7 +18,7 @@
 **R12 problem list + objectifs :** HEAD certifié `dc04d759191828afe85c643719165e7d4fcc916e` — CI #3500 SUCCESS — T2 #2465 SUCCESS — PR #441 — merge `02d4be759e4ddbc24293340c6c10848174ace07a`  
 **R13 options thérapeutiques :** HEAD certifié `7fd6fdae604010510b74e5fe908dc76a425a71cf` — CI #3526 SUCCESS — T2 #2489 SUCCESS — PR #444 — merge `4740b463e49f8ddee9dbb704faaecd086c389beb`  
 **R14 validation clinique finale :** HEAD certifié `017a7eaf7d293c5a7af19fb44987a2d5ff3f675c` — CI #3581 SUCCESS — T2 #2536 SUCCESS — PR #447 — merge `2f1f1d88bf6027988a398967bed5e65883b729aa`  
-**Statut courant :** R14 implémentation certifiée et mergée ; closeout documentaire en cours ; aucun déploiement ; NEXT = fermer R14 puis reprendre R15 depuis master final vérifié.
+**Statut courant :** COM simplifié fermé sur master ; R15 Studio clinique est actif dans une fenêtre dédiée et n’est pas encore clos ; R15bis UI/UX est planifié immédiatement après fermeture de R15 ; aucun déploiement ; NEXT = terminer R15 sans chevauchement, puis reprendre R15bis depuis le master final vérifié.
 
 ## GOAL GLOBAL
 
@@ -154,7 +154,7 @@ Sans profil validé : `CANDIDATE_UNVERIFIED`.
 
 Le registre `validated_fiducial_profiles` est **vide par défaut**. Donc aucun profil de test ou hypothèse implicite ne peut activer `AUTO_VERIFIED` en production. L'architecture permet l'auto-vérification, mais son activation réelle exige l'introduction explicite d'un profil physique validé.
 
-Cette section conserve le contrat scientifique/HFE R1. Elle n'est pas le pointeur de reprise courant ; le pointeur courant est R15 après fermeture documentaire de R14.
+Cette section conserve le contrat scientifique/HFE R1. Elle n'est pas le pointeur de reprise courant ; le pointeur courant est R15, suivi de R15bis après fermeture de R15.
 
 ## R11 — DIAGNOSTIC MULTIAXIAL — CONTRAT FERMÉ
 
@@ -401,7 +401,16 @@ Stratégie finale impossible sans sélection R13 praticien préalable et validat
 **Preuve :** candidate `017a7eaf7d293c5a7af19fb44987a2d5ff3f675c` ; CI #3581 SUCCESS ; T2 #2536 SUCCESS ; PR #447 ; merge `2f1f1d88bf6027988a398967bed5e65883b729aa` ; master post-merge implementation identique.
 
 ### R15 — Studio clinique UX/UI Digital Crown
+**État : ACTIF dans une fenêtre dédiée ; ne pas chevaucher depuis une autre fenêtre.**  
 Radio dominante, état scientifique compact, provenance/correction/calculabilité visibles ; cycle UX obligatoire complet.
+
+### R15bis — Refinement UI/UX du studio céphalométrique
+**État : PLANIFIÉ ; implémentation interdite avant fermeture réelle de R15.**  
+**Goal :** reprendre la structure visuelle validée du mockup COM comme inspiration fonctionnelle — navigation majeure claire, viewer dominant, panneau résultats séparé, tableaux compacts et icônes homogènes — tout en conservant strictement l’identité/tokens Digital Crown et sans toucher à la logique clinique/scientifique.  
+**Référence visuelle :** `docs/assets/cephalo/r15bis-ui-reference.jpg`.  
+**Plan détaillé :** `docs/handovers/2026-09-13-cephalo-r15bis-uiux-plan.md`.  
+**Succès :** BEFORE réel puis AFTER aux mêmes viewports 390 / 768 / 1280+, overflow 0, erreurs console/page 0, navigation uniquement vers routes réelles, aucun bouton/destinataire factice, aucune modification des calculs/contrats R11-R14/COM/CRANIOM, comparaison documentée et score visuel argumenté.  
+**Non-goal :** le thème sombre du mockup n’est pas la cible ; R15bis est une refonte de structure/hiérarchie, pas un changement de moteur clinique.
 
 ### R16 — PDF / restitution
 UI/API/PDF doivent restituer le même graphe et le même état validé.
@@ -436,20 +445,21 @@ Traitement : `diagnostic validé → données cliniques requises → indication/
 
 ## NEXT EXACT
 
-Après merge du closeout R14 et vérification de master final :
-1. ouvrir **une nouvelle fenêtre exclusivement R15** ;
-2. lire `AGENTS.md` puis `STATE.md` puis ce fichier canonique puis `docs/CEPHALO_MEASUREMENT_EVIDENCE_RECOVERY.md` puis `docs/handovers/2026-09-12-cephalo-r14-to-r15-handover.md` ;
-3. vérifier repo/master/HEAD/PR/CI avant toute modification ;
-4. exécuter R15 seulement : `Studio clinique UX/UI Digital Crown` ;
-5. appliquer obligatoirement `BEFORE réel → Goal visuel → référence/mockup → implémentation → AFTER mêmes viewports 390/768/1280+ → comparaison → tests → score visuel` ;
-6. exposer fidèlement les états R11/R12/R13/R14 sans inventer de contenu clinique ni simuler une validation praticien ;
-7. ne pas démarrer R16 dans R15.
+1. **Ne pas intervenir sur R15 depuis cette fenêtre** : R15 reste la responsabilité de sa fenêtre dédiée jusqu’à merge + closeout vérifié.
+2. Dès R15 fermé, ouvrir une fenêtre exclusivement **R15bis UI/UX**.
+3. Lire `AGENTS.md` puis `STATE.md` puis ce fichier canonique puis `docs/handovers/2026-09-13-cephalo-r15bis-uiux-plan.md`.
+4. Vérifier repo/master/HEAD/PR/CI et confirmer que le R15 réellement mergé est la baseline.
+5. Capturer le BEFORE R15bis réel en 390 / 768 / 1280+ avant toute modification.
+6. Utiliser `docs/assets/cephalo/r15bis-ui-reference.jpg` uniquement comme référence structurelle : navigation claire, viewer dominant, résultats séparés, tableaux/icônes ; **ne pas reprendre le dark theme**.
+7. Mapper la référence aux tokens/composants Digital Crown, puis implémenter sans toucher aux contrats scientifiques/diagnostiques/thérapeutiques.
+8. Certifier AFTER aux mêmes viewports, comparer BEFORE/AFTER, tester overflow/console/interactions/accessibilité et produire un score visuel argumenté.
+9. Fermer R15bis avant de démarrer R16.
 
-Dette séparée à vérifier au démarrage R15 : `.github/workflows/document-history-actions-visual-cert.yml` était déjà corrompu avant R14 et peut produire un workflow visuel sans jobs ; R14 ne l'a pas modifié.
+Dette séparée historique : `.github/workflows/document-history-actions-visual-cert.yml` était déjà corrompu avant R14 et peut produire un workflow visuel sans jobs ; ne pas le compter comme preuve sans vérification réelle.
 
 ## SÉQUENCE RESTANTE
 
-`R15 studio UX/UI → R16 PDF → R17 certification/closeout`
+`R15 studio clinique (fenêtre dédiée) → closeout R15 → R15bis UI/UX → R16 PDF/restitution → R17 certification/closeout`
 
 ## DÉPLOIEMENT
 
