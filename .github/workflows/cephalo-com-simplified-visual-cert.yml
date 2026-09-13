@@ -1,0 +1,158 @@
+name: Cephalo COM Simplified Visual Certification
+
+on:
+  pull_request:
+    paths:
+      - "frontend/src/features/ortho/components/Step3Clinical.tsx"
+      - ".github/workflows/cephalo-com-simplified-visual-cert.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  capture:
+    name: COM ${{ matrix.phase }} ${{ matrix.width }}px
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        phase: [BEFORE, AFTER]
+        width: [390, 768, 1280]
+    steps:
+      - name: Resolve ref
+        id: ref
+        shell: bash
+        run: |
+          if [ "${{ matrix.phase }}" = "BEFORE" ] && [ -n "${{ github.event.pull_request.base.sha }}" ]; then
+            echo "value=${{ github.event.pull_request.base.sha }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "value=${{ github.event.pull_request.head.sha || github.sha }}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ steps.ref.outputs.value }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install frontend and Chromium
+        working-directory: frontend
+        run: |
+          npm ci
+          npm install --no-save --package-lock=false playwright@1.55.0
+          npx playwright install --with-deps chromium
+
+      - name: Materialize deterministic COM harness
+        working-directory: frontend
+        shell: bash
+        run: |
+          cat > cephalo-com-cert.html <<'EOF'
+          <!doctype html><html lang="fr"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/><title>COM cert</title></head><body><div id="root"></div><script type="module" src="/src/cephalo-com-cert.tsx"></script></body></html>
+          EOF
+          cat > src/cephalo-com-cert.tsx <<'EOF'
+          import React from 'react';
+          import { createRoot } from 'react-dom/client';
+          import './index.css';
+          import { Step3Clinical } from './features/ortho/components/Step3Clinical';
+          import { useOrthoStore } from './features/ortho/stores/useOrthoStore';
+
+          const current = useOrthoStore.getState();
+          useOrthoStore.setState({
+            etape3Data: {
+              ...current.etape3Data,
+              age: 15,
+              selectedAnalysis: 'COM',
+              dentaire: {
+                ...current.etape3Data.dentaire,
+                surplomb: 2.6,
+                recouvrement: 2.5,
+                impa: 94.3,
+                i_francfort: 113.7,
+                inter_incisif: 132.7,
+              },
+              osseuse: {
+                ...current.etape3Data.osseuse,
+                angle_tweed: 26,
+                decalage_ab: 2.3,
+                situation_a: 2.3,
+                situation_b: 0,
+                profondeur_faciale: 70,
+              },
+            },
+          });
+
+          const P = {
+            bg: '#f8fafc', bgPanel: '#ffffff', bgCard: '#ffffff', bgInput: '#f8fafc',
+            border: '#dbe3ee', text: '#0f172a', textMuted: '#64748b', textDim: '#94a3b8',
+            accent: '#2563eb', accentSuccess: '#16a34a', shadow: '0 8px 30px rgba(15,23,42,.06)'
+          };
+
+          createRoot(document.getElementById('root')!).render(
+            <main className="min-h-screen p-4"><Step3Clinical P={P} /></main>
+          );
+          EOF
+          cat > cephalo-com-cert.mjs <<'EOF'
+          import { chromium } from 'playwright';
+          import { createServer } from 'vite';
+          import fs from 'node:fs/promises';
+
+          const phase = process.env.PHASE;
+          const width = Number(process.env.WIDTH);
+          const height = width === 390 ? 844 : width === 768 ? 1024 : 900;
+          const out = `cephalo-com-${phase.toLowerCase()}-${width}`;
+          await fs.mkdir(out, { recursive: true });
+          const server = await createServer({ server: { host: '127.0.0.1', port: 4198, strictPort: true }, clearScreen: false });
+          await server.listen();
+          const browser = await chromium.launch();
+          const context = await browser.newContext({ viewport: { width, height } });
+          const page = await context.newPage();
+          const errors = [];
+          page.on('pageerror', e => errors.push(`pageerror:${e.message}`));
+          page.on('console', m => { if (m.type() === 'error') errors.push(`console:${m.text()}`); });
+          try {
+            await page.goto('http://127.0.0.1:4198/cephalo-com-cert.html', { waitUntil: 'networkidle' });
+            await page.getByRole('button', { name: 'Analyse Osseuse' }).click();
+            const labels = [
+              'Surplomb', 'Recouvrement', '1 / Mandibulaire (IMPA)', '1 / Francfort',
+              'Inter Incisif (1/1)', 'Angle de Tweed', 'A′B′', 'Situation Point A',
+              'Situation Point B', 'Profondeur Faciale'
+            ];
+            const matched = {};
+            for (const label of labels) matched[label] = await page.getByText(label, { exact: true }).count();
+            const ricketts = await page.getByText('Analyse Esthétique (Ricketts)', { exact: true }).count();
+            const dims = await page.evaluate(() => ({ clientWidth: document.documentElement.clientWidth, scrollWidth: document.documentElement.scrollWidth }));
+            const report = {
+              phase, width, height, matched, matchedCount: Object.values(matched).filter(v => v > 0).length,
+              ricketts, overflowPx: Math.max(0, dims.scrollWidth - dims.clientWidth), errors
+            };
+            await page.screenshot({ path: `${out}/${width}x${height}.png`, fullPage: true, animations: 'disabled' });
+            await fs.writeFile(`${out}/report.json`, JSON.stringify(report, null, 2));
+            if (phase === 'BEFORE') {
+              if (report.matchedCount !== 8 || matched['A′B′'] !== 0 || matched['Situation Point B'] !== 0 || ricketts !== 1) throw new Error(`Unexpected BEFORE contract: ${JSON.stringify(report)}`);
+            } else {
+              if (report.matchedCount !== 10 || ricketts !== 0 || report.overflowPx !== 0 || errors.length !== 0) throw new Error(`Unexpected AFTER contract: ${JSON.stringify(report)}`);
+            }
+          } finally {
+            await context.close();
+            await browser.close();
+            await server.close();
+          }
+          EOF
+
+      - name: Capture and assert
+        working-directory: frontend
+        env:
+          PHASE: ${{ matrix.phase }}
+          WIDTH: ${{ matrix.width }}
+        run: node cephalo-com-cert.mjs
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: cephalo-com-${{ matrix.phase }}-${{ matrix.width }}
+          path: frontend/cephalo-com-*-${{ matrix.width }}
+          if-no-files-found: error

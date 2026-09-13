@@ -87,8 +87,13 @@ _ACTIVE_CONVENTIONS: tuple[GeometricConventionSpec, ...] = (
         construction_definition_id="CRANIOM_AB_PRIME_V1",
         clinical_label="A'B'",
         reference_frame_id="FH_PO_OR_V1",
-        operation="signed distance between orthogonal projections of A and B on Frankfort",
-        required_landmark_ids=("A", "B", "Po", "Or"),
+        operation=(
+            "construct McNamara as the perpendicular to Frankfort through N; "
+            "construct parallels through A and B; intersect those parallels with "
+            "Frankfort at A' and B'; measure signed A'B' along Frankfort, positive "
+            "when A is anterior to B"
+        ),
+        required_landmark_ids=("A", "B", "N", "Po", "Or"),
         source_references=CRANIOM_SOURCE_REFERENCES,
         constructable=True,
     ),

@@ -136,7 +136,9 @@ export const Step3Clinical: React.FC<Step3ClinicalProps> = ({ P }) => {
             <div className="grid grid-cols-2 gap-4 pt-2">
               {(currentAnalysis === 'COM' || currentAnalysis === 'TWEED') && <MetricInput label="Angle de Tweed" value={data.osseuse.angle_tweed} onChange={v => updateOsseuse('angle_tweed', v)} unit="°" P={P} />}
               {currentAnalysis === 'COM' && <>
+                <MetricInput label="A′B′" value={data.osseuse.decalage_ab} onChange={v => updateOsseuse('decalage_ab', v)} unit="mm" P={P} />
                 <MetricInput label="Situation Point A" value={data.osseuse.situation_a} onChange={v => updateOsseuse('situation_a', v)} unit="mm" P={P} />
+                <MetricInput label="Situation Point B" value={data.osseuse.situation_b} onChange={v => updateOsseuse('situation_b', v)} unit="mm" P={P} />
                 <MetricInput label="Profondeur Faciale" value={data.osseuse.profondeur_faciale} onChange={v => updateOsseuse('profondeur_faciale', v)} unit="mm" P={P} />
               </>}
               {currentAnalysis === 'STEINER' && <>
@@ -147,12 +149,14 @@ export const Step3Clinical: React.FC<Step3ClinicalProps> = ({ P }) => {
             </div>
           </AccordionSection>
 
-          <AccordionSection title="Analyse Esthétique (Ricketts)" icon={<Activity size={16} style={{ color: P.accentSuccess }} />} P={P}>
-            <div className="grid grid-cols-2 gap-4 pt-2">
-              <MetricInput label="Ligne E / Ls" value={data.esthetique?.ligne_e_ls} onChange={v => updateEsthetique('ligne_e_ls', v)} unit="mm" P={P} />
-              <MetricInput label="Ligne E / Li" value={data.esthetique?.ligne_e_li} onChange={v => updateEsthetique('ligne_e_li', v)} unit="mm" P={P} />
-            </div>
-          </AccordionSection>
+          {currentAnalysis !== 'COM' && (
+            <AccordionSection title="Analyse Esthétique (Ricketts)" icon={<Activity size={16} style={{ color: P.accentSuccess }} />} P={P}>
+              <div className="grid grid-cols-2 gap-4 pt-2">
+                <MetricInput label="Ligne E / Ls" value={data.esthetique?.ligne_e_ls} onChange={v => updateEsthetique('ligne_e_ls', v)} unit="mm" P={P} />
+                <MetricInput label="Ligne E / Li" value={data.esthetique?.ligne_e_li} onChange={v => updateEsthetique('ligne_e_li', v)} unit="mm" P={P} />
+              </div>
+            </AccordionSection>
+          )}
         </div>
 
         <div className="space-y-6">
