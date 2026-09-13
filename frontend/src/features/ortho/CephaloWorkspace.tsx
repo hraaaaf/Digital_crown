@@ -7,7 +7,7 @@
  */
 
 import React, {
-  useState, useRef, useEffect,
+  useState, useRef, useEffect, useMemo,
 } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -22,7 +22,7 @@ import type {
 import {
   computeStep3Data,
 } from './cephaloUtils';
-import { PALETTE } from './cephaloTheme';
+import { getCephaloPalette } from './cephaloTheme';
 
 import { Step1Cephalo } from './components/Step1Cephalo';
 import { Step2Occlusal } from './components/Step2Occlusal';
@@ -49,8 +49,8 @@ export const CephaloWorkspace: React.FC<CephaloWorkspaceProps> = ({
   patientName,
 }) => {
   const store = useOrthoStore();
-  const mode = store.mode;
-  const P = PALETTE[mode];
+  const [themeRevision, setThemeRevision] = useState(0);
+  const P = useMemo(() => getCephaloPalette(), [themeRevision]);
   const [patientData, setPatientData] = useState<{ age: number; sexe: 'M' | 'F' } | null>(null);
   const [patientDataError, setPatientDataError] = useState(false);
   const [viewMode, setViewMode] = useState<'studio' | 'history'>('studio');
@@ -105,11 +105,7 @@ export const CephaloWorkspace: React.FC<CephaloWorkspaceProps> = ({
   useEffect(() => {
     store.setPatientInfo(patientId, patientName);
 
-    const syncTheme = () => {
-      const isDark = document.body.dataset.theme === 'dark' || document.body.dataset.theme === 'prestige';
-      store.setMode(isDark ? 'dark' : 'light');
-    };
-
+    const syncTheme = () => setThemeRevision(revision => revision + 1);
     const observer = new MutationObserver(syncTheme);
     observer.observe(document.body, { attributes: true, attributeFilter: ['data-theme'] });
 
