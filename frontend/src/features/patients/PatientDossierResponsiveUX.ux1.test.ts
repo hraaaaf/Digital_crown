@@ -11,11 +11,13 @@ const layout = read('src/components/Layout/MainLayout.tsx');
 const css = read('src/components/Layout/patientDossierResponsive.css');
 
 describe('UX1 patient dossier responsive contract', () => {
-  it('keeps patient navigation discoverable on compact viewports', () => {
+  it('keeps every patient navigation destination visible on compact viewports', () => {
     expect(patient).toContain('data-tour="patient-tabs"');
     expect(css).toContain('[data-tour="patient-tabs"]');
-    expect(css).toContain('scroll-snap-type: x mandatory');
-    expect(css).toContain('mask-image: linear-gradient');
+    expect(css).toContain('grid-template-columns: repeat(auto-fit, minmax(3.75rem, 1fr))');
+    expect(css).toContain('overflow: visible !important');
+    expect(css).toContain('mask-image: none !important');
+    expect(css).not.toContain('scroll-snap-type: x mandatory');
   });
 
   it('shows all imaging modalities in a compact three-column layout', () => {
