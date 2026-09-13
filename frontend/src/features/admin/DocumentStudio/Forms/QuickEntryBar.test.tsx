@@ -43,6 +43,13 @@ describe('QuickEntryBar — autocomplete médicament (Saisie Rapide)', () => {
     } as any)
   })
 
+  it('expose la saisie rapide comme surface clinique identifiable et tactile', () => {
+    const { container } = renderQuickEntryBar()
+    expect(screen.getByText('Saisie rapide')).toBeInTheDocument()
+    expect(screen.getByRole('textbox', { name: 'Médicament, dosage, forme, posologie' })).toHaveClass('min-h-14')
+    expect(container.querySelector('[data-ordonnance-quick-entry]')).toBeInTheDocument()
+  })
+
   it('affiche les suggestions quand la liste est non vide', () => {
     renderQuickEntryBar()
     expect(screen.getByText('PARACETAMOL')).toBeInTheDocument()
@@ -74,6 +81,7 @@ describe('QuickEntryBar — autocomplete médicament (Saisie Rapide)', () => {
     renderQuickEntryBar()
     const suggestionButton = screen.getByText('PARACETAMOL').closest('button')!
     expect(suggestionButton).toHaveAttribute('type', 'button')
+    expect(suggestionButton).toHaveClass('min-h-11')
   })
 
   it("n'affiche pas le dropdown quand la liste de suggestions est vide", () => {
@@ -91,6 +99,7 @@ describe('QuickEntryBar — autocomplete médicament (Saisie Rapide)', () => {
     const { onAddDrug, parseQuickEntry } = renderQuickEntryBar({ quickVal: '', quickSuggestions: [] })
 
     const recent = await screen.findByRole('button', { name: 'DOLIPRANE' })
+    expect(recent).toHaveClass('min-h-11')
     expect(screen.getByRole('button', { name: 'KIN' })).toBeInTheDocument()
 
     fireEvent.click(recent)
