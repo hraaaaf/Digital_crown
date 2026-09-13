@@ -92,12 +92,12 @@ export const Header = ({ isCrownBotOpen = false, crownBotUnreadCount = 0, onTogg
   };
 
   return (
-    <header className="h-20 bg-transparent flex items-center justify-end gap-6 px-8 shrink-0 relative z-[1000]">
-      <div className="flex items-center gap-2">
+    <header className="h-20 bg-transparent flex items-center justify-end gap-2 pl-16 pr-3 sm:pl-20 sm:pr-6 lg:gap-6 lg:px-8 shrink-0 relative z-[1000]">
+      <div className="flex items-center gap-1 sm:gap-2">
         {user?.is_superadmin && (
           <Link
             to="/super-admin"
-            className="hidden sm:flex items-center gap-2 px-3 py-2 bg-amber-400/10 text-amber-500 hover:bg-amber-400/20 rounded-elite-sm font-black text-xs transition-elite border border-amber-400/20 mr-2"
+            className="hidden lg:flex items-center gap-2 px-3 py-2 bg-amber-400/10 text-amber-500 hover:bg-amber-400/20 rounded-elite-sm font-black text-xs transition-elite border border-amber-400/20 mr-2"
           >
             Gestion des Dentistes
           </Link>
@@ -106,7 +106,7 @@ export const Header = ({ isCrownBotOpen = false, crownBotUnreadCount = 0, onTogg
         {user?.is_superadmin && (
           <Link
             to="/super-admin"
-            className="flex sm:hidden p-2.5 text-amber-500 bg-amber-400/10 hover:bg-amber-400/20 rounded-elite-sm transition-elite border border-amber-400/20"
+            className="hidden sm:flex lg:hidden p-2.5 text-amber-500 bg-amber-400/10 hover:bg-amber-400/20 rounded-elite-sm transition-elite border border-amber-400/20"
             title="Gestion des Dentistes"
           >
             <Shield size={20} />
@@ -181,9 +181,9 @@ export const Header = ({ isCrownBotOpen = false, crownBotUnreadCount = 0, onTogg
         </div>
       </div>
 
-      <div className="hidden md:block w-px h-6 bg-border-main mx-2" />
+      <div className="hidden lg:block w-px h-6 bg-border-main mx-2" />
 
-      <div className="flex items-center gap-4">
+      <div className="hidden lg:flex items-center gap-4">
         <div className="text-right hidden lg:block">
           <p className="text-sm font-black text-primary leading-none tracking-tight font-outfit">{cabinetName}</p>
           <p className="text-[10px] font-bold text-text-muted mt-1 uppercase tracking-tighter">
@@ -197,7 +197,7 @@ export const Header = ({ isCrownBotOpen = false, crownBotUnreadCount = 0, onTogg
 
       <button
         onClick={() => setShowLogoutConfirm(true)}
-        className="ml-2 p-2.5 text-text-muted hover:text-red-600 hover:bg-red-500/10 rounded-elite-sm transition-elite group"
+        className="ml-0 lg:ml-2 p-2.5 text-text-muted hover:text-red-600 hover:bg-red-500/10 rounded-elite-sm transition-elite group"
         title="Déconnexion"
       >
         <LogOut size={20} className="group-hover:scale-110 transition-elite" />
