@@ -185,7 +185,7 @@ export const StudioHeader: React.FC<StudioHeaderProps> = ({
             aria-label="Auteur clinique du document"
             className={cn(
               "w-full bg-transparent text-xs font-black text-slate-700 dark:text-slate-200 outline-none cursor-pointer focus-visible:ring-2 focus-visible:ring-primary/40 rounded-md disabled:cursor-not-allowed disabled:opacity-60",
-              compactOrdonnance ? "min-h-9" : "min-h-11",
+              compactOrdonnance ? "min-h-11" : "min-h-11",
             )}
             value={authorPractitionerId ?? ''}
             onChange={(event) => handleAuthorChange(event.target.value)}
@@ -222,7 +222,7 @@ export const StudioHeader: React.FC<StudioHeaderProps> = ({
             aria-label={compactOrdonnance || compactHonorairesMobile ? "Date d'émission" : undefined}
             className={cn(
               "bg-transparent text-xs font-black text-slate-700 dark:text-slate-200 outline-none w-full cursor-pointer focus-visible:ring-2 focus-visible:ring-primary/40 rounded-md",
-              compactOrdonnance ? "min-h-9" : compactHonorairesMobile ? "min-h-11 sm:min-h-8" : "min-h-8",
+              compactOrdonnance ? "min-h-11" : compactHonorairesMobile ? "min-h-11 sm:min-h-8" : "min-h-8",
             )}
             value={docDate}
             onChange={(e) => onDateChange(e.target.value)}
