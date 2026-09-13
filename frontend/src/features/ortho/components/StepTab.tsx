@@ -22,14 +22,22 @@ interface StepTabProps {
   P: Palette;
 }
 
+const MOBILE_LABELS: Record<StepId, string> = {
+  1: 'Céphalo',
+  2: 'Moulages',
+  3: 'Synthèse',
+  4: 'Documents',
+};
+
 export const StepTab: React.FC<StepTabProps> = ({ id, label, isActive, isCompleted, hasError, onClick, P }) => (
   <motion.button
     type="button"
     aria-current={isActive ? 'step' : undefined}
+    aria-label={`${id}. ${label}`}
     whileHover={{ y: -1 }}
     whileTap={{ scale: 0.98 }}
     onClick={onClick}
-    className="relative min-h-11 shrink-0 whitespace-nowrap rounded-xl px-3 py-2.5 transition-all sm:px-3.5"
+    className="relative min-h-11 shrink-0 whitespace-nowrap rounded-xl px-2.5 py-2.5 transition-all sm:px-3.5"
     style={{
       background: isActive ? `${P.accent}10` : 'transparent',
       border: `1px solid ${isActive ? `${P.accent}80` : P.border}`,
@@ -37,11 +45,12 @@ export const StepTab: React.FC<StepTabProps> = ({ id, label, isActive, isComplet
       boxShadow: isActive ? `0 4px 14px ${P.accent}12` : 'none',
     }}
   >
-    <div className="flex items-center gap-2 text-[11px] font-semibold tracking-wide">
-      {isCompleted && !isActive && !hasError && <CheckCircle2 size={13} style={{ color: P.accentSuccess }} />}
-      {hasError && !isActive && <AlertCircle size={13} style={{ color: P.accentError }} />}
-      <span className="text-[10px] font-black opacity-50">{id}</span>
-      <span>{label}</span>
+    <div className="flex items-center gap-1.5 text-[10px] font-semibold tracking-wide sm:gap-2 sm:text-[11px]">
+      {isCompleted && !isActive && !hasError && <CheckCircle2 size={12} style={{ color: P.accentSuccess }} />}
+      {hasError && !isActive && <AlertCircle size={12} style={{ color: P.accentError }} />}
+      <span className="text-[9px] font-black opacity-50 sm:text-[10px]">{id}</span>
+      <span className="sm:hidden">{MOBILE_LABELS[id]}</span>
+      <span className="hidden sm:inline">{label}</span>
     </div>
     {isActive && (
       <motion.div
