@@ -7,6 +7,10 @@ on:
       - feat/cephalo-r15bis-uiux
     paths:
       - '.github/workflows/cephalo-r15bis-before.yml'
+  pull_request:
+    branches: [master]
+    paths:
+      - '.github/workflows/cephalo-r15bis-before.yml'
 
 permissions:
   contents: read
