@@ -1,5 +1,4 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { AnimatePresence, motion } from 'framer-motion';
 import { LivePreview } from './LivePreview';
 import { useDocumentPreviewController } from './useDocumentPreviewController';
 
@@ -44,19 +43,6 @@ export const DocumentHubPreview: React.FC<DocumentHubPreviewProps> = ({
     }
   }, [pdfUrl]);
 
-  useEffect(() => {
-    if (!open) return;
-
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key !== 'Escape') return;
-      event.preventDefault();
-      onClose();
-    };
-
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [open, onClose]);
-
   const generatePreview = useCallback(() => {
     setStale(true);
     void onGeneratePreview();
@@ -68,24 +54,15 @@ export const DocumentHubPreview: React.FC<DocumentHubPreviewProps> = ({
     onGeneratePreview: generatePreview,
   });
 
+  if (!open) return null;
+
   return (
-    <AnimatePresence>
-      {open && (
-        <motion.div
-          initial={{ x: 600, opacity: 0 }}
-          animate={{ x: 0, opacity: 1 }}
-          exit={{ x: 600, opacity: 0 }}
-          className="fixed inset-2 z-[11000] drop-shadow-2xl xl:left-auto xl:w-[550px]"
-        >
-          <LivePreview
-            pdfUrl={stale ? null : pdfUrl}
-            loading={loading || stale}
-            onClose={onClose}
-            onRefresh={generatePreview}
-            title={title}
-          />
-        </motion.div>
-      )}
-    </AnimatePresence>
+    <LivePreview
+      pdfUrl={stale ? null : pdfUrl}
+      loading={loading || stale}
+      onClose={onClose}
+      onRefresh={generatePreview}
+      title={title}
+    />
   );
 };
