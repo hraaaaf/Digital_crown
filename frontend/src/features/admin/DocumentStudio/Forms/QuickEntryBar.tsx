@@ -74,9 +74,67 @@ export const QuickEntryBar: React.FC<QuickEntryBarProps> = ({
   return (
     <section
       data-ordonnance-quick-entry
+      data-ordonnance-premium="u3"
       aria-label="Saisie rapide de l'ordonnance"
       className="relative min-w-0 space-y-3 rounded-[1.75rem] border border-slate-200/70 bg-white/60 p-3 shadow-lg shadow-slate-900/[0.03] backdrop-blur-2xl dark:border-white/10 dark:bg-slate-900/50 sm:p-4"
     >
+      <style>{`
+        [data-ordonnance-hierarchy-header="primary"],
+        [data-ordonnance-density-context],
+        [data-ordonnance-protocol-chips],
+        [data-ordonnance-quick-entry],
+        [data-ordonnance-drug-card] {
+          background:
+            linear-gradient(
+              135deg,
+              color-mix(in srgb, var(--primary) 7%, transparent),
+              transparent 42%,
+              color-mix(in srgb, var(--accent) 5%, transparent)
+            ),
+            color-mix(in srgb, var(--glass-bg) 92%, transparent) !important;
+          border-color: var(--glass-border) !important;
+          color: var(--text-main) !important;
+          box-shadow:
+            0 18px 45px color-mix(in srgb, var(--primary) 8%, transparent),
+            inset 0 1px 0 color-mix(in srgb, var(--text-main) 8%, transparent) !important;
+          backdrop-filter: blur(24px) saturate(145%) !important;
+          -webkit-backdrop-filter: blur(24px) saturate(145%) !important;
+        }
+
+        [data-ordonnance-hierarchy-header="primary"] > div:last-child > div {
+          background: color-mix(in srgb, var(--card-bg) 82%, transparent) !important;
+          border-color: var(--glass-border) !important;
+          box-shadow: inset 0 1px 0 color-mix(in srgb, var(--text-main) 6%, transparent) !important;
+        }
+
+        [data-ordonnance-hierarchy-header="primary"] select,
+        [data-ordonnance-hierarchy-header="primary"] input {
+          color: var(--text-main) !important;
+        }
+
+        [data-ordonnance-quick-entry] input {
+          background: color-mix(in srgb, var(--input-bg) 88%, transparent) !important;
+          border-color: var(--border-color) !important;
+          color: var(--text-main) !important;
+          box-shadow:
+            0 10px 28px color-mix(in srgb, var(--primary) 5%, transparent),
+            inset 0 1px 0 color-mix(in srgb, var(--text-main) 5%, transparent) !important;
+        }
+
+        [data-ordonnance-quick-entry] input:focus {
+          border-color: color-mix(in srgb, var(--primary) 38%, var(--border-color)) !important;
+          box-shadow:
+            0 12px 30px color-mix(in srgb, var(--primary) 8%, transparent),
+            0 0 0 4px color-mix(in srgb, var(--primary) 10%, transparent) !important;
+        }
+
+        [data-ordonnance-drug-card] {
+          box-shadow:
+            0 16px 38px color-mix(in srgb, var(--primary) 7%, transparent),
+            inset 0 1px 0 color-mix(in srgb, var(--text-main) 7%, transparent) !important;
+        }
+      `}</style>
+
       <div className="flex items-center justify-between gap-3 px-1">
         <div className="flex min-w-0 items-center gap-2">
           <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border border-primary/10 bg-primary/10 text-primary">
