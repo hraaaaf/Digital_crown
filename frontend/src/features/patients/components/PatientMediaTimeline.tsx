@@ -258,34 +258,34 @@ export const PatientMediaTimeline = ({ patientId }: PatientMediaTimelineProps) =
   };
 
   return (
-    <div data-testid="patient-media-timeline" className="min-w-0 space-y-2.5 sm:space-y-3">
-      <div className="rounded-[1.25rem] border border-border-main bg-card-bg px-2.5 py-2.5 sm:px-3 sm:py-3 lg:px-4">
-        <div className="flex flex-col gap-2.5 lg:flex-row lg:items-center lg:justify-between">
+    <div data-testid="patient-media-timeline" className="min-w-0 space-y-2">
+      <div className="rounded-xl border border-border-main bg-card-bg px-2 py-2 sm:px-2.5 sm:py-2.5 lg:px-3">
+        <div className="flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between">
           <div className="min-w-0">
-            <div className="flex items-center gap-2 text-primary">
-              <Images size={18} />
-              <h2 className="text-base font-black tracking-tight text-main sm:text-lg lg:text-xl">Médiathèque clinique</h2>
+            <div className="flex max-w-full flex-wrap items-center gap-x-2 gap-y-1 text-primary">
+              <Images size={17} className="shrink-0" />
+              <h2 className="text-base font-black tracking-tight text-main sm:text-lg">Médiathèque clinique</h2>
+              {grouped.length > 0 && (
+                <div className="flex max-w-full gap-1 overflow-x-auto scrollbar-none" aria-label="Repères longitudinaux">
+                  {grouped.map(([label, assets]) => (
+                    <span key={label} className="inline-flex shrink-0 items-center gap-1 rounded-full border border-primary/10 bg-primary/5 px-1.5 py-0.5 text-[8px] font-black uppercase tracking-wide text-primary sm:text-[9px]">
+                      {label} <span className="text-text-muted">{assets.length}</span>
+                    </span>
+                  ))}
+                </div>
+              )}
             </div>
-            <p className="mt-0.5 text-[11px] font-medium leading-snug text-text-muted sm:text-xs lg:text-sm">
+            <p className="mt-0.5 hidden text-[11px] font-medium leading-snug text-text-muted md:block lg:text-xs">
               Suivi longitudinal T0, T1, T2… des médias cliniques.
             </p>
-            {grouped.length > 0 && (
-              <div className="mt-1.5 flex max-w-full gap-1.5 overflow-x-auto pb-0.5 scrollbar-none" aria-label="Repères longitudinaux">
-                {grouped.map(([label, assets]) => (
-                  <span key={label} className="inline-flex shrink-0 items-center gap-1 rounded-full border border-primary/10 bg-primary/5 px-2 py-0.5 text-[9px] font-black uppercase tracking-wide text-primary sm:py-1 sm:text-[10px]">
-                    {label} <span className="text-text-muted">{assets.length}</span>
-                  </span>
-                ))}
-              </div>
-            )}
           </div>
 
-          <div className="grid w-full grid-cols-2 gap-1.5 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] sm:gap-2 lg:w-auto" aria-label="Import média clinique">
+          <div className="grid w-full grid-cols-2 gap-1.5 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] lg:w-auto lg:min-w-[390px]" aria-label="Import média clinique">
             <select
               aria-label="Type de média"
               value={assetType}
               onChange={(event) => setAssetType(event.target.value as 'PHOTO' | 'RADIOGRAPH' | 'DOCUMENT')}
-              className="h-8 min-w-0 rounded-lg border border-border-main bg-card-bg px-2.5 text-[10px] font-black uppercase tracking-wide text-main outline-none focus:border-primary sm:h-9 sm:rounded-xl sm:px-3 sm:text-[11px]"
+              className="h-8 min-w-0 rounded-lg border border-border-main bg-card-bg px-2.5 text-[10px] font-black uppercase tracking-wide text-main outline-none focus:border-primary sm:text-[11px]"
             >
               <option value="PHOTO">Photo</option>
               <option value="RADIOGRAPH">Radiographie</option>
@@ -295,7 +295,7 @@ export const PatientMediaTimeline = ({ patientId }: PatientMediaTimelineProps) =
               aria-label="Repère temporel"
               value={timepoint}
               onChange={(event) => setTimepoint(event.target.value)}
-              className="h-8 min-w-0 rounded-lg border border-border-main bg-card-bg px-2.5 text-[10px] font-black uppercase tracking-wide text-main outline-none focus:border-primary sm:h-9 sm:rounded-xl sm:px-3 sm:text-[11px]"
+              className="h-8 min-w-0 rounded-lg border border-border-main bg-card-bg px-2.5 text-[10px] font-black uppercase tracking-wide text-main outline-none focus:border-primary sm:text-[11px]"
             >
               <option value="">Sans repère</option>
               <option value="T0">T0</option>
@@ -306,7 +306,7 @@ export const PatientMediaTimeline = ({ patientId }: PatientMediaTimelineProps) =
               type="button"
               onClick={() => fileInputRef.current?.click()}
               disabled={uploading}
-              className="col-span-2 inline-flex h-8 items-center justify-center gap-1.5 rounded-lg bg-primary px-3 text-[10px] font-black uppercase tracking-wider text-white shadow-sm transition-all hover:opacity-95 disabled:cursor-not-allowed disabled:opacity-50 sm:col-span-1 sm:h-9 sm:rounded-xl sm:px-4 sm:text-[11px] sm:tracking-widest"
+              className="col-span-2 inline-flex h-8 items-center justify-center gap-1.5 rounded-lg bg-primary px-3 text-[10px] font-black uppercase tracking-wider text-white shadow-sm transition-all hover:opacity-95 disabled:cursor-not-allowed disabled:opacity-50 sm:col-span-1 sm:px-4 sm:text-[11px] sm:tracking-widest"
             >
               {uploading ? <Loader2 size={13} className="animate-spin" /> : <Upload size={13} />}
               Importer
