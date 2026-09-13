@@ -116,7 +116,10 @@ export const MainLayout: React.FC<LayoutProps> = ({ children }) => {
         </main>
       </div>
 
-      <div className={`${isPatientRoute ? 'hidden lg:block' : ''} fixed right-4 z-50 bottom-[max(1rem,env(safe-area-inset-bottom))] sm:bottom-8 sm:right-8`}>
+      <div
+        data-ux1-c-crownbot-floating
+        className={`${isPatientRoute ? 'hidden lg:block' : ''} fixed right-4 z-50 bottom-[max(1rem,env(safe-area-inset-bottom))] sm:bottom-8 sm:right-8`}
+      >
         <button
           onClick={() => setIsBotOpen(!isBotOpen)}
           aria-label={isBotOpen ? 'Fermer CrownBot' : 'Ouvrir CrownBot'}
@@ -135,6 +138,7 @@ export const MainLayout: React.FC<LayoutProps> = ({ children }) => {
       <AnimatePresence>
         {isBotOpen && (
           <motion.div
+            data-ux1-c-crownbot-overlay
             initial={{ opacity: 0, y: 20, scale: 0.95 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 20, scale: 0.95 }}
