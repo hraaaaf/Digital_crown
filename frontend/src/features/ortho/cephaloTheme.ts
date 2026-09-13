@@ -78,10 +78,15 @@ const fromGlobalTheme = (fallback: CephaloPalette): CephaloPalette => ({
 });
 
 /**
- * Céphalo consumes the application's semantic CSS tokens instead of owning a
- * parallel theme. The light/dark keys remain only for the legacy UIMode API;
- * every read resolves the currently selected Digital Crown theme (emerald,
- * rose, prestige, ocean, graphite, dark, high-contrast, or default).
+ * Production path: resolve the semantic tokens currently active on document.body.
+ * No Digital Crown theme is classified or remapped by Céphalo.
+ */
+export const getCephaloPalette = (): CephaloPalette => fromGlobalTheme(FALLBACK.light);
+
+/**
+ * Compatibility surface for isolated tests/legacy callers. In a mounted app,
+ * both getters resolve the active global tokens; their fallback differs only
+ * when the CSS token layer is unavailable (SSR/isolated harness).
  */
 export const PALETTE = {
   get dark(): CephaloPalette {
