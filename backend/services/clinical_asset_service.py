@@ -4,6 +4,7 @@ from __future__ import annotations
 import re
 from typing import Any, Optional
 
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from backend.models import Patient, User
@@ -181,9 +182,53 @@ def create_clinical_asset(
 def get_clinical_asset_for_patient(
     db: Session, *, employer_id: int, patient_id: int, asset_id: int
 ) -> Optional[ClinicalAsset]:
-    """Tenant + patient scoped read primitive for future Media Core APIs."""
+    """Tenant + patient scoped read primitive for Media Core APIs."""
     return db.query(ClinicalAsset).filter(
         ClinicalAsset.id == int(asset_id),
         ClinicalAsset.employer_id == int(employer_id),
         ClinicalAsset.patient_id == int(patient_id),
     ).first()
+
+
+def list_clinical_assets_for_patient(
+    db: Session,
+    *,
+    employer_id: int,
+    patient_id: int,
+    include_derived: bool = False,
+    limit: int = 200,
+    offset: int = 0,
+) -> list[ClinicalAsset]:
+    """Return a bounded tenant-scoped timeline slice for one patient.
+
+    C4 hides DERIVED assets by default so thumbnails never appear as independent clinical
+    events. Only assets with a complete C2 storage binding are timeline-visible. Ordering uses
+    acquisition time when available, then creation time, newest first.
+    """
+    employer_id = int(employer_id)
+    patient_id = int(patient_id)
+    _require_patient_in_tenant(db, employer_id, patient_id)
+
+    limit = max(1, min(int(limit), 200))
+    offset = max(0, int(offset))
+    query = db.query(ClinicalAsset).filter(
+        ClinicalAsset.employer_id == employer_id,
+        ClinicalAsset.patient_id == patient_id,
+        ClinicalAsset.storage_key.isnot(None),
+        ClinicalAsset.storage_format.isnot(None),
+        ClinicalAsset.stored_at.isnot(None),
+        ClinicalAsset.sha256.isnot(None),
+        ClinicalAsset.byte_size.isnot(None),
+    )
+    if not include_derived:
+        query = query.filter(ClinicalAsset.source_kind != "DERIVED")
+
+    return (
+        query.order_by(
+            func.coalesce(ClinicalAsset.captured_at, ClinicalAsset.created_at).desc(),
+            ClinicalAsset.id.desc(),
+        )
+        .offset(offset)
+        .limit(limit)
+        .all()
+    )
