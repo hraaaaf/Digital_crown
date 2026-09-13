@@ -83,27 +83,6 @@ export const DocumentHubContent: React.FC<DocumentHubContentProps> = ({
   <div data-tour="document-hub-content" className="flex-1 flex flex-col p-2 min-h-min shrink-0">
     {activeTab === 'ordonnance' && (
       <>
-        <div className="flex items-center gap-2 mb-3 px-1">
-          <button
-            type="button"
-            onClick={() => setShowLegalAnnotations(value => !value)}
-            className={cn(
-              'relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 focus:outline-none',
-              showLegalAnnotations ? 'bg-primary' : 'bg-slate-200'
-            )}
-            role="switch"
-            aria-checked={showLegalAnnotations}
-            aria-labelledby="document-studio-legal-annotations-label"
-          >
-            <span className={cn(
-              'pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200',
-              showLegalAnnotations ? 'translate-x-4' : 'translate-x-0'
-            )} />
-          </button>
-          <span id="document-studio-legal-annotations-label" className="text-[10px] font-bold text-text-muted uppercase tracking-widest">
-            Mentions légales (Radioprotection)
-          </span>
-        </div>
         <PrescriptionAgenticStudio
           patientId={patientId || '0'}
           drugs={drugs}
@@ -125,6 +104,28 @@ export const DocumentHubContent: React.FC<DocumentHubContentProps> = ({
           hasChanges={generator.hasChanges}
           coherenceWarnings={generator.coherenceWarnings}
         />
+
+        <div data-ordonnance-secondary-meta className="mt-3 flex items-center gap-2 px-1">
+          <button
+            type="button"
+            onClick={() => setShowLegalAnnotations(value => !value)}
+            className={cn(
+              'relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 focus:outline-none',
+              showLegalAnnotations ? 'bg-primary' : 'bg-slate-200'
+            )}
+            role="switch"
+            aria-checked={showLegalAnnotations}
+            aria-labelledby="document-studio-legal-annotations-label"
+          >
+            <span className={cn(
+              'pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200',
+              showLegalAnnotations ? 'translate-x-4' : 'translate-x-0'
+            )} />
+          </button>
+          <span id="document-studio-legal-annotations-label" className="text-[10px] font-bold text-text-muted uppercase tracking-widest">
+            Mentions légales (Radioprotection)
+          </span>
+        </div>
       </>
     )}
 
