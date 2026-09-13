@@ -1,58 +1,99 @@
 # T1 — surface certifiable actuelle
 
-Date : 2026-09-11
+Date : 2026-09-13
 
 ## Verdict
 
 Le Document Studio certifiable actuel couvre **P1→P6 uniquement** : Ordonnance, Certificat, Devis, Note Honoraires, Suivi Paiement et Document Libre.
 
-Le Compagnon Diagnostique historique P7 a été retiré volontairement du contrat produit actif. Son code et certains tests subsistent dans le dépôt, mais ils ne font pas partie de la surface runtime à certifier par T1.
+Le Compagnon Diagnostique historique P7 reste volontairement hors du contrat produit actif. Son code dormant n'est pas revendiqué comme surface runtime certifiée.
 
-## Preuves vérifiées
+## Preuves de périmètre
 
 - `StudioTabs.tsx` expose uniquement P1→P6.
-- `DocumentStudioVocabulary.ts` ne contient plus `plan` et `CertifiableDocumentStudioTab` couvre six pages.
-- `DocumentTabNavigationPolicy.ts` et son test couvrent uniquement les états dirty des six pages actives.
-- le navigateur T2 certifie les six pages actives et possède `assertCompanionAbsent(...)` pour empêcher la réapparition silencieuse de P7.
-- commits historiques `a294dacc428d7bee43f910bcb3e71bd8bc6f3496` et `8e8bb2c245e5b742a37ac29d9b0b6a9aec9e4481` retirent explicitement le tab et réduisent le vocabulaire aux pages produisant des documents.
+- `DocumentStudioVocabulary.ts` couvre les six pages documentaires actives.
+- `DocumentTabNavigationPolicy.ts` couvre les états dirty des pages actives.
+- le navigateur T2 contient un garde d'absence du Compagnon Diagnostique.
+- commits historiques `a294dacc428d7bee43f910bcb3e71bd8bc6f3496` et `8e8bb2c245e5b742a37ac29d9b0b6a9aec9e4481` retirent explicitement P7 de la surface certifiable.
 
-## Conséquence pour T1
+## Certification runtime observée
 
-Le harness T1 historique mélangeait encore la surface active avec `P7DirtyState.p7f.test.tsx` et annonçait une matrice P1→P7.
+HEAD comportemental certifié avant closeout documentaire : `51e98dd3f14882278e7de5a2f862bb7a256d985b`.
 
-Ce lot réaligne le gate exécutable sur la réalité actuelle :
+T2 Runtime Browser Certification `#2645` / run `34750958888` : **success**.
 
-- régression ciblée T1 = patient boundary + navigation + clinical boundary + UI truth + shell a11y + dirty-state P1/P6, sans P7 dormant ;
-- full frontend suite et build restent inchangés ;
-- les gates runtime portent sur P1→P6 ;
-- P7 reste un chantier produit/clinique séparé si une réactivation est décidée un jour.
+Le job `T2 Browser Runtime Matrix` (`103707302825`) a exécuté avec succès :
 
-## Probe runtime préparé — non exécuté
+- génération d'un credential jetable de certification ;
+- seed du second patient synthétique `T2-0002` ;
+- PDF runtime strict ;
+- réconciliation persistée P3/P4/P5 ;
+- matrice navigateur authentifiée P1→P6 ;
+- probe transversal T1 ;
+- probe P6 Document Libre ;
+- impression navigateur et fraîcheur PDF ;
+- upload des preuves.
 
-Le T2 existant couvre déjà la matrice navigateur P1→P6, 390/430/768/1280, dark desktop, preview/Escape, overflow, page errors, stress de navigation manuel, P6 dédié et fraîcheur print/PDF. T1 ne duplique donc pas cette couverture.
+### Boundary patient A→B
 
-Le nouveau `frontend/scripts/certify-t1-transversal.mjs`, exécuté dans le même job T2, cible seulement les trous de preuve distincts :
+Le probe T1 a observé :
 
-1. création d'un second patient synthétique isolé `T2-0002` via `scripts/t1_runtime_seed_patient_b.py` ;
-2. navigation SPA B→A avec réponse HTTP A volontairement retardée, puis A→B avant libération de A ;
-3. preuve que B reste autoritaire avant et après libération de la réponse A ;
-4. brouillon Document Libre → transition URL vers Certificat : `Annuler` restaure `libre` et conserve le brouillon ; `Continuer` atteint `certificat` ;
-5. absence du Compagnon Diagnostique et de toute requête `ai-diagnostic` pendant le probe ;
-6. artefact structuré `t1-transversal.json` + captures ciblées.
+- patient A `T2-0001`, patient B `T2-0002` ;
+- réponses A volontairement retardées puis libérées ;
+- B reste autoritaire avant libération de A ;
+- B reste autoritaire après libération de A ;
+- aucune erreur de routage ;
+- verdict : **PASS**.
 
-Le workflow T2 a été préparé pour exécuter ce probe après sa matrice navigateur existante et conserver les preuves dans l'artefact `t2-browser-evidence`.
+### Navigation URL dirty
 
-**Aucun PASS runtime n'est revendiqué tant que ce HEAD n'a pas réellement tourné.**
+Le probe a observé :
 
-## Gates T1 encore ouverts
+- `Annuler` restaure l'URL du document courant ;
+- le brouillon reste conservé ;
+- la confirmation dirty est bien armée ;
+- `Continuer` atteint la cible ;
+- verdict : **PASS**.
 
-1. exécuter le harness T1 réaligné sur le HEAD final avec Node 20 ;
-2. exécuter le probe runtime ciblé A→B + URL dirty ;
-3. repasser le T2 complet sur le même HEAD pour réutiliser sa couverture P1→P6 responsive/preview/PDF/print ;
-4. repasser la CI principale ;
-5. inspecter les preuves puis fermer audit/roadmap ;
-6. exact-head final après closeout documentaire avant merge.
+### Frontière clinique
 
-## Limite
+Le probe a observé :
 
-Cette correction ne modifie aucun comportement produit. Elle corrige uniquement le périmètre de certification T1 et ajoute de la preuve runtime sur l'infrastructure CI isolée.
+- Compagnon Diagnostique absent ;
+- aucune requête `ai-diagnostic` ;
+- aucune page error ;
+- verdict : **PASS**.
+
+### Matrice P1→P6 et sorties
+
+La matrice navigateur T2 a conclu `greenPages=6/6` et le stress de navigation a exécuté `10/10` transitions attendues avec dirty guard observé.
+
+Le même run a également certifié :
+
+- PDF runtime valide (`application/pdf`, signature `%PDF`) ;
+- réconciliation P3/P4/P5 ;
+- P6 sans overflow/clipping aux viewports 390×844, 768×1024, 1280×900 ;
+- impression via PDF blob → iframe cachée → `print()` ;
+- fraîcheur PDF prouvée par deux hashes distincts et observation du dernier payload.
+
+Artefact : `t2-browser-evidence`, artifact ID `10316225660`, digest `sha256:886455c2ffcb560e50cb22e0e3798cc362459615904afec3da9c6396c2aaf333`.
+
+## Gates complémentaires observés sur le même HEAD
+
+- Catalog Connected Truth Certification `#1094` / run `34750958896` : **success**.
+- Cabinet Upgrade PostgreSQL Certification `#160` / run `34750958994` : **success**.
+- Patient P7 Final Certification `#1309` / run `34750959000` : **success** ; ce workflow ne réactive pas P7 dans le Document Studio.
+- M6-I Biometric Passkey Certification `#1445` : **skipped** attendu.
+- CI principal `#3701` / run `34750958892` : encore en cours au moment de ce closeout intermédiaire ; les jobs frontend/build déjà terminés sont verts, le job backend principal n'est pas encore terminal.
+
+## Limites et closeout
+
+Aucune modification UI/UX produit n'est incluse dans T1. Le changement de plafond du rate limiter est strictement limité au serveur runtime T2 jetable ; la politique produit reste inchangée.
+
+T1 ne doit être déclaré fermé et mergé qu'après :
+
+1. CI principale terminale verte ;
+2. mise à jour documentaire finale ;
+3. gates exact-head du HEAD documentaire final ;
+4. merge squash exact-head ;
+5. vérification post-merge sur `master`.
