@@ -62,7 +62,12 @@ async function waitForDocumentTab(slug) {
 const patientBName = `${patientB.nom.toUpperCase()} ${patientB.prenom}`;
 const patientAName = `${patientA.nom.toUpperCase()} ${patientA.prenom}`;
 const bPath = pathFor(patientB.id);
-await page.goto(`http://127.0.0.1:5173${bPath}`, { waitUntil: 'networkidle', timeout: 90000 });
+try {
+  await page.goto(`http://127.0.0.1:5173${bPath}`, { waitUntil: 'domcontentloaded', timeout: 90000 });
+} catch (error) {
+  if (!String(error).includes('net::ERR_ABORTED')) throw error;
+}
+await page.waitForURL((url) => url.pathname === `/patients/${patientB.id}`, { timeout: 30000 });
 await page.getByRole('heading', { name: patientBName, exact: true }).waitFor({ timeout: 30000 });
 await page.locator('[data-tour="patient-tabs"]').getByText('Documents', { exact: true }).waitFor({ timeout: 30000 });
 
