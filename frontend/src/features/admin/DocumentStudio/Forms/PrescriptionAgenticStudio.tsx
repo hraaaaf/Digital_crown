@@ -17,6 +17,7 @@ import {
   type PrescriptionSafetyWarning,
 } from '../PrescriptionSafetyState';
 import { PrescriptionAgenticStudio as LegacyPrescriptionAgenticStudio } from './PrescriptionAgenticStudioLegacy';
+import { DEFAULT_MOROCCO_PRESETS } from './prescriptionTypes';
 
 export type { DrugItem } from './PrescriptionAgenticStudioLegacy';
 
@@ -137,6 +138,17 @@ export const PrescriptionAgenticStudio: React.FC<PrescriptionAgenticStudioProps>
     setLegacyEpoch(epoch => epoch + 1);
   }, []);
 
+  const applySystemProtocol = useCallback((label: string) => {
+    const legacyRoot = document.querySelector('.prescription-r3-legacy');
+    if (!legacyRoot) return;
+    const systemSelect = Array.from(legacyRoot.querySelectorAll('select')).find(select =>
+      Array.from(select.options).some(option => option.value === label),
+    );
+    if (!systemSelect) return;
+    systemSelect.value = label;
+    systemSelect.dispatchEvent(new Event('change', { bubbles: true }));
+  }, []);
+
   const safetyDrugNames = useMemo(
     () => props.drugs
       .filter(drug => drug.type !== 'EXAMEN')
@@ -191,6 +203,12 @@ export const PrescriptionAgenticStudio: React.FC<PrescriptionAgenticStudioProps>
         }
         .prescription-r3-safety-orchestrated .prescription-r3-legacy > div > div:first-child > div:last-child > button:last-child {
           display: none !important;
+        }
+        .prescription-r3-safety-orchestrated .prescription-r3-legacy div[class~="space-y-1.5"]:has(select option[value="Avulsion Simple"]) {
+          display: none !important;
+        }
+        .prescription-r3-safety-orchestrated .prescription-r3-legacy div[class~="grid"]:has(> div select option[value="Avulsion Simple"]) {
+          grid-template-columns: minmax(0, 1fr) !important;
         }
       `}</style>
 
@@ -276,6 +294,36 @@ export const PrescriptionAgenticStudio: React.FC<PrescriptionAgenticStudioProps>
             </div>
           </div>
         )}
+      </section>
+
+      <section
+        data-ordonnance-protocol-chips
+        aria-label="Protocoles système rapides"
+        className="mx-1 rounded-2xl border border-slate-200/70 bg-white/45 p-2.5 shadow-sm backdrop-blur-2xl dark:border-white/10 dark:bg-slate-900/45 sm:p-3"
+      >
+        <div className="mb-2 flex items-center justify-between gap-3 px-1">
+          <div>
+            <div className="text-[9px] font-black uppercase tracking-widest text-slate-700 dark:text-slate-200">Protocoles rapides</div>
+            <div className="mt-0.5 hidden text-[9px] font-semibold text-slate-400 dark:text-slate-500 sm:block">
+              Les protocoles existants passent toujours par l’arbitrage pharmacologique.
+            </div>
+          </div>
+          <span className="shrink-0 rounded-lg border border-slate-200/70 bg-white/65 px-2 py-1 text-[8px] font-black uppercase tracking-wider text-slate-400 dark:border-white/10 dark:bg-slate-950/50 dark:text-slate-500">
+            1 clic
+          </span>
+        </div>
+        <div className="flex gap-2 overflow-x-auto pb-1 sm:flex-wrap sm:overflow-visible" role="group" aria-label="Choisir un protocole système">
+          {DEFAULT_MOROCCO_PRESETS.map(preset => (
+            <button
+              key={preset.label}
+              type="button"
+              onClick={() => applySystemProtocol(preset.label)}
+              className="inline-flex min-h-11 shrink-0 items-center rounded-xl border border-slate-200/80 bg-white/75 px-3 py-2 text-[9px] font-black uppercase tracking-wide text-slate-600 shadow-sm transition-all hover:border-primary/30 hover:bg-primary/5 hover:text-primary focus:outline-none focus:ring-4 focus:ring-primary/10 dark:border-white/10 dark:bg-slate-950/50 dark:text-slate-300 dark:hover:bg-slate-900"
+            >
+              {preset.label}
+            </button>
+          ))}
+        </div>
       </section>
 
       <div className="prescription-r3-legacy">
