@@ -1,3 +1,4 @@
+// Dedicated visual gate for the real DrugRow prescription composer fixture.
 import fs from 'node:fs';
 import path from 'node:path';
 import { chromium } from 'playwright';
