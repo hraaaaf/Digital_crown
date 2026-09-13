@@ -119,31 +119,31 @@ export const PatientPractitionerContextPortal = ({ patientId }: { patientId: num
   if (!target || isDocuments) return null;
 
   return createPortal(
-    <div className={cn(isRadiology ? 'mb-2 space-y-1.5' : 'mb-6 space-y-3')} data-p2-practitioner-context>
+    <div className={cn(isRadiology ? 'mb-1' : 'mb-6 space-y-3')} data-p2-practitioner-context>
       <section className={cn(
         'relative min-w-0 overflow-hidden border border-blue-100/80 bg-white/80 shadow-[0_18px_50px_-34px_rgba(0,51,128,0.45)] backdrop-blur-xl',
-        isRadiology ? 'rounded-xl px-2.5 py-2 sm:rounded-2xl sm:px-3 sm:py-2.5' : 'rounded-[2rem] p-4 sm:p-5',
+        isRadiology ? 'rounded-xl px-2 py-1.5 sm:px-2.5 sm:py-2' : 'rounded-[2rem] p-4 sm:p-5',
       )}>
         <div className="pointer-events-none absolute -right-12 -top-16 h-40 w-40 rounded-full bg-blue-100/60 blur-3xl" />
         <div className={cn(
           'relative min-w-0',
-          isRadiology ? 'grid grid-cols-[minmax(0,1fr)_minmax(140px,0.9fr)] items-center gap-2 sm:grid-cols-[minmax(0,1fr)_300px] sm:gap-3' : 'flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between',
+          isRadiology ? 'grid grid-cols-[minmax(0,1fr)_minmax(132px,0.9fr)] items-center gap-1.5 sm:grid-cols-[minmax(0,1fr)_260px] sm:gap-2' : 'flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between',
         )}>
-          <div className={cn('flex min-w-0 items-center', isRadiology ? 'gap-2' : 'gap-3')}>
+          <div className={cn('flex min-w-0 items-center', isRadiology ? 'gap-1.5' : 'gap-3')}>
             <div className={cn(
               'flex shrink-0 items-center justify-center bg-[#003380] text-white shadow-lg shadow-blue-900/15',
-              isRadiology ? 'h-8 w-8 rounded-lg sm:h-9 sm:w-9 sm:rounded-xl' : 'h-11 w-11 rounded-2xl',
+              isRadiology ? 'h-7 w-7 rounded-lg sm:h-8 sm:w-8' : 'h-11 w-11 rounded-2xl',
             )}>
-              <UserRoundCheck size={isRadiology ? 16 : 20} />
+              <UserRoundCheck size={isRadiology ? 14 : 20} />
             </div>
             <div className="min-w-0">
-              <div className={cn('flex flex-wrap items-center', isRadiology ? 'gap-1' : 'gap-2')}>
-                <p className={cn('font-black uppercase text-slate-400', isRadiology ? 'text-[8px] tracking-[0.12em]' : 'text-[10px] tracking-[0.16em]')}>Référent clinique</p>
-                <span className={cn('items-center gap-1 rounded-full border border-emerald-100 bg-emerald-50 font-black uppercase tracking-wide text-emerald-700', isRadiology ? 'hidden px-1.5 py-0.5 text-[8px] sm:inline-flex' : 'inline-flex px-2 py-1 text-[9px]')}>
-                  <ShieldCheck size={isRadiology ? 9 : 11} /> Dossier local
+              <div className={cn('flex items-center', isRadiology ? 'gap-1.5' : 'flex-wrap gap-2')}>
+                <p className={cn('font-black uppercase text-slate-400', isRadiology ? 'text-[7px] tracking-[0.1em]' : 'text-[10px] tracking-[0.16em]')}>Référent clinique</p>
+                <span className={cn('items-center gap-1 rounded-full border border-emerald-100 bg-emerald-50 font-black uppercase tracking-wide text-emerald-700', isRadiology ? 'hidden px-1.5 py-0.5 text-[7px] lg:inline-flex' : 'inline-flex px-2 py-1 text-[9px]')}>
+                  <ShieldCheck size={isRadiology ? 8 : 11} /> Dossier local
                 </span>
               </div>
-              <p className={cn('truncate font-black text-slate-900', isRadiology ? 'mt-0.5 text-[11px] sm:text-xs' : 'mt-1 text-sm')}>{selectedName}</p>
+              <p className={cn('truncate font-black text-slate-900', isRadiology ? 'text-[10px] leading-tight sm:text-[11px]' : 'mt-1 text-sm')}>{selectedName}</p>
               {!isRadiology && (
                 <p className="mt-0.5 text-[11px] font-semibold text-slate-400">
                   Attribution clinique additive. Patients et documents locaux inchangés.
@@ -155,7 +155,7 @@ export const PatientPractitionerContextPortal = ({ patientId }: { patientId: num
           <div className={cn('min-w-0', !isRadiology && 'lg:w-[340px]')}>
             <label className={cn(
               'items-center gap-1.5 font-black uppercase tracking-[0.14em] text-slate-400',
-              isRadiology ? 'mb-1 hidden text-[8px] sm:flex' : 'mb-1.5 flex text-[9px]',
+              isRadiology ? 'hidden' : 'mb-1.5 flex text-[9px]',
             )}>
               <Stethoscope size={12} /> Praticien référent
             </label>
@@ -165,7 +165,7 @@ export const PatientPractitionerContextPortal = ({ patientId }: { patientId: num
               onChange={(event) => assignMutation.mutate(event.target.value ? Number(event.target.value) : null)}
               className={cn(
                 'w-full border border-slate-200 bg-white font-black text-slate-800 outline-none transition focus:border-[#003380]/40 focus:ring-4 focus:ring-[#003380]/10 disabled:opacity-60',
-                isRadiology ? 'h-8 rounded-lg px-2 text-[11px] sm:h-9 sm:rounded-xl sm:px-3 sm:text-xs' : 'rounded-2xl px-4 py-3 text-sm',
+                isRadiology ? 'h-7 rounded-lg px-2 text-[10px] sm:h-8 sm:text-[11px]' : 'rounded-2xl px-4 py-3 text-sm',
               )}
               aria-label="Praticien référent"
             >
@@ -176,7 +176,7 @@ export const PatientPractitionerContextPortal = ({ patientId }: { patientId: num
             </select>
             <p className={cn(
               'items-center gap-1 font-semibold text-slate-400',
-              isRadiology ? 'mt-1 hidden text-[9px] md:flex' : 'mt-1.5 flex text-[10px]',
+              isRadiology ? 'hidden' : 'mt-1.5 flex text-[10px]',
             )}>
               <UsersRound size={11} /> {practitionerCount} praticien{practitionerCount > 1 ? 's' : ''} assignable{practitionerCount > 1 ? 's' : ''}
             </p>
