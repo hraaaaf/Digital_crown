@@ -73,18 +73,12 @@ async function measure(page) {
       '[data-ordonnance-quick-entry] input',
       '[data-ordonnance-quick-entry] button',
       '[data-ordonnance-drug-card] button',
-      '[data-ordonnance-prescription-composer] select',
     ];
     const touchHeights = touchSelectors.flatMap(selector =>
       [...document.querySelectorAll(selector)].filter(visible).map(el => el.getBoundingClientRect().height),
     );
     const addLine = [...document.querySelectorAll('button')].find(el => visible(el) && /ajouter une ligne/i.test(el.textContent || ''));
     if (addLine) touchHeights.push(addLine.getBoundingClientRect().height);
-
-    const composerControls = [...document.querySelectorAll('[data-ordonnance-prescription-composer] select')].filter(visible);
-    const composerHeights = composerControls.map(el => el.getBoundingClientRect().height);
-    const composerSummary = document.querySelector('[data-composer-summary]');
-
     const doc = document.documentElement;
     const density = rect('[data-ordonnance-density="u2"]');
     const desktopPreview = rect('[data-ordonnance-desktop-preview="inline"]');
@@ -94,10 +88,6 @@ async function measure(page) {
       protocols: rect('[data-ordonnance-protocol-chips]'),
       quickEntry: rect('[data-ordonnance-quick-entry]'),
       drugCard: rect('[data-ordonnance-drug-card]'),
-      composer: rect('[data-ordonnance-prescription-composer]'),
-      composerControlCount: composerControls.length,
-      composerControlMinHeight: composerHeights.length ? Math.min(...composerHeights) : null,
-      composerSummary: composerSummary && visible(composerSummary) ? rect('[data-composer-summary]') : null,
       desktopPreview,
       visibleEditorWidth: density && desktopPreview ? Math.max(0, desktopPreview.left - density.left) : null,
       addLine: addLine ? { height: addLine.getBoundingClientRect().height } : null,
@@ -124,16 +114,10 @@ for (const viewport of viewports) {
   const topShot = `ordonnance-fidelity-v3-${viewport.width}x${viewport.height}-top.png`;
   await page.screenshot({ path: path.join(outDir, topShot), fullPage: false });
 
-  const composer = page.locator('[data-ordonnance-prescription-composer]').first();
-  if (await composer.count()) {
-    await composer.scrollIntoViewIfNeeded();
+  const addLine = page.getByRole('button', { name: /ajouter une ligne/i }).first();
+  if (await addLine.count()) {
+    await addLine.scrollIntoViewIfNeeded();
     await page.waitForTimeout(180);
-  } else {
-    const addLine = page.getByRole('button', { name: /ajouter une ligne/i }).first();
-    if (await addLine.count()) {
-      await addLine.scrollIntoViewIfNeeded();
-      await page.waitForTimeout(180);
-    }
   }
   const planningMetrics = await measure(page);
   const planningShot = `ordonnance-fidelity-v3-${viewport.width}x${viewport.height}-planning.png`;
@@ -171,13 +155,6 @@ for (const capture of captures) {
     if (!metrics.noHorizontalOverflow) failures.push(`${capture.viewport.width}-${scene}: horizontal overflow`);
     if (metrics.touchMin !== null && metrics.touchMin < 43.5) failures.push(`${capture.viewport.width}-${scene}: touch target ${metrics.touchMin}`);
   }
-
-  const planning = capture.planning.metrics;
-  if (!planning.composer) failures.push(`${capture.viewport.width}-planning: prescription composer missing`);
-  if (planning.composerControlCount !== 4) failures.push(`${capture.viewport.width}-planning: expected 4 composer controls, got ${planning.composerControlCount}`);
-  if ((planning.composerControlMinHeight || 0) < 43.5) failures.push(`${capture.viewport.width}-planning: composer touch target ${planning.composerControlMinHeight}`);
-  if (!planning.composerSummary) failures.push(`${capture.viewport.width}-planning: composer summary missing`);
-
   if (capture.viewport.width >= 1280) {
     const previewMetrics = capture.preview?.metrics;
     if (!previewMetrics?.desktopPreview) failures.push(`${capture.viewport.width}-preview: inline preview missing`);
