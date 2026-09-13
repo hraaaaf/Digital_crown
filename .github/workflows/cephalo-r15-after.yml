@@ -10,6 +10,8 @@ on:
       - 'backend/routers/cephalo_clinical_studio.py'
       - 'backend/tests/test_cephalo_r15_clinical_studio.py'
       - 'frontend/src/features/ortho/CephaloWorkspace.tsx'
+      - 'frontend/src/features/ortho/cephaloTheme.ts'
+      - 'frontend/src/features/ortho/cephaloTheme.test.ts'
       - 'frontend/src/features/ortho/components/ClinicalScientificStudio.tsx'
       - 'frontend/src/features/ortho/components/ClinicalScientificStudio.test.tsx'
       - 'frontend/src/features/ortho/components/Step3Clinical.tsx'
@@ -52,9 +54,9 @@ jobs:
           npm ci
           npm install --no-save --package-lock=false --legacy-peer-deps playwright@1.55.0 react-is@19.2.0 @testing-library/dom@10.4.1
           npx playwright install --with-deps chromium
-      - name: Targeted R15 frontend test
+      - name: Targeted R15 frontend and theme tests
         working-directory: frontend
-        run: npx vitest run src/features/ortho/components/ClinicalScientificStudio.test.tsx
+        run: npx vitest run src/features/ortho/components/ClinicalScientificStudio.test.tsx src/features/ortho/cephaloTheme.test.ts
       - name: Capture exact-head R15 AFTER
         working-directory: frontend
         env:
@@ -77,7 +79,7 @@ jobs:
             if (!capture.valid || capture.pageErrors.length || capture.consoleErrors.length) throw new Error(`Runtime failure ${capture.viewport}`);
             for (const scene of [capture.step3Top, capture.step4Top]) {
               if (scene.horizontalDocumentOverflow || scene.headerClipped) throw new Error(`Layout failure ${capture.viewport}/${scene.scene}`);
-              if (!scene.hasScientificChain || !scene.hasR11Surface || !scene.hasR12Surface || !scene.hasR13Surface || !scene.hasR14Surface) throw new Error(`Missing R11-R14 chain ${capture.viewport}`);
+              if (!scene.hasScientificChain || !scene.hasR11Surface || !scene.hasR12Surface || !scene.hasR13Surface || !scene.hasR14Surface) throw new Error(`Missing R11-R14 traceability ${capture.viewport}`);
               if (!scene.hasMissingSurface || !scene.hasContradictionSurface || !scene.hasContraindicationSurface) throw new Error(`Scientific exceptions hidden ${capture.viewport}`);
               if (!scene.hasPractitionerAction || !scene.hasNoFakeValidation) throw new Error(`Practitioner action contract missing ${capture.viewport}`);
               if (scene.hasLegacyDiagnostic || scene.hasLegacyTreatmentDecision || scene.hasLegacyTreatmentPanel || scene.hasLegacyArchiveAction) throw new Error(`Legacy authority wording remains ${capture.viewport}`);
