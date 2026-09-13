@@ -197,13 +197,13 @@ export const PrescriptionAgenticStudio: React.FC<PrescriptionAgenticStudioProps>
       <section className="mx-1 overflow-hidden rounded-2xl border border-slate-200/70 bg-white/45 p-2.5 shadow-sm backdrop-blur-2xl dark:border-white/10 dark:bg-slate-900/45 sm:p-3">
         <div className="flex flex-wrap items-center justify-between gap-2 px-1 pb-2">
           <div className="min-w-0">
-            <div className="text-[9px] font-black uppercase tracking-widest text-slate-700 dark:text-slate-200">Sécurité clinique</div>
+            <div className="text-[9px] font-black uppercase tracking-widest text-slate-700 dark:text-slate-200">Contexte patient</div>
             <div className="mt-0.5 hidden text-[9px] font-semibold text-slate-500 dark:text-slate-400 sm:block">
-              Contexte patient et contrôle déterministe de l’ordonnance.
+              Données du dossier et vérifications déterministes utilisées pour l’ordonnance en cours.
             </div>
           </div>
           <div className="rounded-lg border border-slate-200/70 bg-white/65 px-2.5 py-1 text-[9px] font-black uppercase tracking-wider text-slate-600 shadow-sm backdrop-blur-xl dark:border-white/10 dark:bg-slate-950/50 dark:text-slate-300">
-            {activeLineCount} ligne{activeLineCount > 1 ? 's' : ''}
+            {activeLineCount} ligne{activeLineCount > 1 ? 's' : ''} renseignée{activeLineCount > 1 ? 's' : ''}
           </div>
         </div>
 
@@ -248,19 +248,19 @@ export const PrescriptionAgenticStudio: React.FC<PrescriptionAgenticStudioProps>
             <button
               type="button"
               onClick={restoreProtocols}
-              className="min-h-10 rounded-xl border border-slate-200/70 bg-white/65 px-3 py-2 text-[9px] font-black uppercase tracking-wider text-slate-600 shadow-sm backdrop-blur-xl transition-all hover:border-primary/20 hover:bg-white hover:text-primary dark:border-white/10 dark:bg-slate-950/50 dark:text-slate-300 dark:hover:bg-slate-900 sm:px-3.5"
+              className="min-h-11 rounded-xl border border-slate-200/70 bg-white/65 px-3 py-2 text-[9px] font-black uppercase tracking-wider text-slate-600 shadow-sm backdrop-blur-xl transition-all hover:border-primary/20 hover:bg-white hover:text-primary dark:border-white/10 dark:bg-slate-950/50 dark:text-slate-300 dark:hover:bg-slate-900 sm:px-3.5"
               title="Réafficher la zone Mes protocoles"
             >
-              Protocoles
+              Mes protocoles
             </button>
             <button
               type="button"
               onClick={refreshClinicalContext}
-              className="flex min-h-10 items-center justify-center gap-1.5 rounded-xl border border-slate-200/70 bg-white/65 px-3 py-2 text-[9px] font-black uppercase tracking-wider text-slate-600 shadow-sm backdrop-blur-xl transition-all hover:border-primary/20 hover:bg-white hover:text-primary dark:border-white/10 dark:bg-slate-950/50 dark:text-slate-300 dark:hover:bg-slate-900 sm:px-3.5"
+              className="flex min-h-11 items-center justify-center gap-1.5 rounded-xl border border-slate-200/70 bg-white/65 px-3 py-2 text-[9px] font-black uppercase tracking-wider text-slate-600 shadow-sm backdrop-blur-xl transition-all hover:border-primary/20 hover:bg-white hover:text-primary dark:border-white/10 dark:bg-slate-950/50 dark:text-slate-300 dark:hover:bg-slate-900 sm:px-3.5"
               title="Relancer le chargement du contexte patient"
             >
               <RefreshCcw size={13} className="shrink-0" />
-              <span>Actualiser</span>
+              <span>Actualiser le contexte</span>
             </button>
           </div>
         </div>
