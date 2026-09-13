@@ -53,7 +53,7 @@ export const MainLayout: React.FC<LayoutProps> = ({ children }) => {
   const [isBotOpen, setIsBotOpen] = useState(false);
   const [ghostUnreadCount, setGhostUnreadCount] = useState(0);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  const isPatientRoute = /^\/patients\/\d+(?:\/|$)/.test(location.pathname);
+  const isPatientRoute = /^\/patients(?:\/|$)/.test(location.pathname);
   const isDocumentStudio = /^\/patients\/\d+$/.test(location.pathname)
     && new URLSearchParams(location.search).get('tab') === 'admin';
   const showPractitionerContext = ['/dashboard', '/agenda', '/settings'].includes(location.pathname);
