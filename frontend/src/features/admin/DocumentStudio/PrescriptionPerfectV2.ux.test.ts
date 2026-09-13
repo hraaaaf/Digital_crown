@@ -28,6 +28,14 @@ describe('Ordonnance Perfect V2 UX contract', () => {
     expect(prescription).toContain('div:nth-child(2):not(:has([data-ordonnance-quick-entry]))');
   });
 
+  it('exposes the existing system protocols as 44px quick chips without bypassing the legacy safety path', () => {
+    expect(prescription).toContain('data-ordonnance-protocol-chips');
+    expect(prescription).toContain('DEFAULT_MOROCCO_PRESETS.map');
+    expect(prescription).toContain("systemSelect.dispatchEvent(new Event('change', { bubbles: true }))");
+    expect(prescription).toContain('onClick={() => applySystemProtocol(preset.label)}');
+    expect(prescription).toContain('min-h-11');
+  });
+
   it('keeps deterministic prescription safety and established clinical copy visible', () => {
     expect(prescription).toContain('Contexte patient');
     expect(prescription).toContain('Données du dossier et vérifications déterministes utilisées pour l’ordonnance en cours.');
