@@ -64,6 +64,9 @@ jobs:
           cat /tmp/t2-backend.log
           exit 1
 
+      - name: Seed T1 second isolated patient
+        run: python scripts/t1_runtime_seed_patient_b.py
+
       - name: Certify strict runtime PDF
         run: python scripts/t2_runtime_pdf_probe.py
 
@@ -89,6 +92,13 @@ jobs:
           set -o pipefail
           mkdir -p ../artifacts/t2-browser
           node scripts/certify-document-studio-browser.mjs 2>&1 | tee ../artifacts/t2-browser/runner.log
+
+      - name: Certify T1 transversal runtime boundaries
+        working-directory: frontend
+        shell: bash
+        run: |
+          set -o pipefail
+          node scripts/certify-t1-transversal.mjs 2>&1 | tee ../artifacts/t2-browser/t1-transversal-runner.log
 
       - name: Certify P6 Document Libre editor
         working-directory: frontend
