@@ -102,19 +102,26 @@ Le benchmark Competitive vs Orthalis (`70/100` au dernier état vérifié) reste
 ### L8 — Competitive / Media — KPI SÉPARÉ
 - Score comparatif dernier état vérifié : `70,0/100` tant que LOT C n'est pas fermé.
 - C1→C3 mergés ; C4 historique reste un sous-lot distinct tant que non fermé.
+- C4 live : PR #419 `feat(media): add C4 authenticated media timeline reads`, branche `competitive/lot-c4-media-timeline`.
+- Référence BEFORE réelle : `HEAD 4e8e69bd018c443e92ac667cdc357468d19d0c8c`, `Media C4 Visual Certification` run #14 / `34780111896` SUCCESS, artifact `media-c4-visual-certification`.
+- **Référentiel visuel C4 verrouillé** : écran maître `Patient > Imagerie > Médiathèque`.
+- Target UX : viewer central visible au-dessus du fold desktop, hiérarchie patient/imagerie compacte, filtres lisibles avec compteurs, CTA Importer clair, densité maîtrisée, responsive 390/768/1280, conservation stricte des workflows métier.
+- Axes de score fixes : Hiérarchie visuelle / Clarté fonctionnelle / Cohérence design system / Densité-respiration / Qualité responsive, chacun /10.
+- Gate visuel de fermeture : **moyenne > 9,5/10** sur AFTER réel, avec absence d'overflow horizontal, clipping, chevauchement, pageerror et HTTP 5xx pertinents.
+- Le mockup cible sert de **référence de convergence**, pas d'autorisation pour supprimer une fonction métier présente : le référent clinique/praticien, les actions patient et les surfaces RVG/Panoramique/Céphalométrie doivent rester accessibles, mais peuvent être compactés/repositionnés.
 - Ce score ne doit jamais être confondu avec le % d'exécution global.
 
 ## Chemin critique unique
 
-1. **Revalider les gates logiciels réellement encore ouverts** Competitive/Media et release, sans toucher Céphalo.
-2. **Fermer le prochain gate logiciel prouvé ouvert**, en commençant par C4 Competitive/Media si son état live confirme qu'il reste réellement incomplet.
+1. **Fermer C4 Competitive/Media** sur la cible visuelle verrouillée, sans toucher au chantier scientifique Céphalo.
+2. **Revalider ensuite les gates logiciels réellement encore ouverts** Competitive/Media C5+ et release.
 3. **Exécuter les gates physiques** : Portabilité P13 puis Mobile Terrain, selon disponibilité du matériel réel.
 4. **Fermer Sécurité** dès que l'accès control-plane production permet l'exécution réelle des mutations autorisées.
 5. **Certification globale non-Céphalo** : master propre, CI transverse verte, docs canoniques cohérents, aucun gate logiciel connu restant, inventaire explicite des seuls human/external gates résiduels.
 
 ## Next exact
 
-**Fenêtre suivante : revalider l'état live de Competitive/Media C4 et des dettes release/CI, choisir le premier gate réellement ouvert, puis le fermer avec preuve sans toucher Céphalométrie.**
+**C4 : comparer le BEFORE réel de `Patient > Imagerie > Médiathèque` au référentiel visuel verrouillé, relever les écarts, implémenter un seul écran maître, puis certifier AFTER 390/768/1280 jusqu'à moyenne > 9,5/10 avant closeout.**
 
 ## Règles de continuité
 
@@ -139,10 +146,12 @@ Le programme est clos lorsque :
 
 - baseline de création : `master@dca24d01ca5591d4255f3ac85f79a32ab6d673c1`
 - master post-P3 vérifié : `f16fc658dad0ee4ff67a919568359f1e90d4e2da`
-- PR #463 : MERGED
-- HEAD P3 certifié : `30e5c235cebdb9f4e460b03a0687856336149c08`
+- master courant vérifié avant verrouillage cible C4 : `a7ac09192a2ee3d878c926ccdb894d507dd73d31`
+- PR C4 : **#419 OPEN / DRAFT**
+- HEAD C4 BEFORE certifié : `4e8e69bd018c443e92ac667cdc357468d19d0c8c`
+- Media C4 Visual Certification #14 : **SUCCESS**
 - indice global courant : **86,5 %**
 - Céphalométrie : **hors périmètre**
-- prochain gate logiciel : à revalider live entre Competitive/Media C4 et dette release/CI
+- prochain gate logiciel : **Competitive/Media C4**
 - human gates : **Portabilité P13 + Mobile Terrain**
 - external gate : **Security control-plane production**
