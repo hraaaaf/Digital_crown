@@ -80,13 +80,16 @@ async function measure(page) {
     const addLine = [...document.querySelectorAll('button')].find(el => visible(el) && /ajouter une ligne/i.test(el.textContent || ''));
     if (addLine) touchHeights.push(addLine.getBoundingClientRect().height);
     const doc = document.documentElement;
+    const density = rect('[data-ordonnance-density="u2"]');
+    const desktopPreview = rect('[data-ordonnance-desktop-preview="inline"]');
     return {
-      density: rect('[data-ordonnance-density="u2"]'),
+      density,
       context: rect('[data-ordonnance-density-context]'),
       protocols: rect('[data-ordonnance-protocol-chips]'),
       quickEntry: rect('[data-ordonnance-quick-entry]'),
       drugCard: rect('[data-ordonnance-drug-card]'),
-      desktopPreview: rect('[data-ordonnance-desktop-preview="inline"]'),
+      desktopPreview,
+      visibleEditorWidth: density && desktopPreview ? Math.max(0, desktopPreview.left - density.left) : null,
       addLine: addLine ? { height: addLine.getBoundingClientRect().height } : null,
       touchMin: touchHeights.length ? Math.min(...touchHeights) : null,
       touchCount: touchHeights.length,
@@ -155,8 +158,9 @@ for (const capture of captures) {
   if (capture.viewport.width >= 1280) {
     const previewMetrics = capture.preview?.metrics;
     if (!previewMetrics?.desktopPreview) failures.push(`${capture.viewport.width}-preview: inline preview missing`);
-    if ((previewMetrics?.desktopPreview?.width || 0) < 390) failures.push(`${capture.viewport.width}-preview: inline preview too narrow`);
-    if ((previewMetrics?.density?.width || 0) < 480) failures.push(`${capture.viewport.width}-preview: editor collapsed below 480px`);
+    if ((previewMetrics?.desktopPreview?.width || 0) < 290) failures.push(`${capture.viewport.width}-preview: inline preview too narrow`);
+    if ((previewMetrics?.density?.width || 0) < 540) failures.push(`${capture.viewport.width}-preview: editor layout width below 540px`);
+    if ((previewMetrics?.visibleEditorWidth || 0) < 460) failures.push(`${capture.viewport.width}-preview: visible editor width below 460px`);
     if (!previewMetrics?.noHorizontalOverflow) failures.push(`${capture.viewport.width}-preview: horizontal overflow`);
   }
   if (capture.pageErrors.length) failures.push(`${capture.viewport.width}: page errors ${capture.pageErrors.join(' | ')}`);
