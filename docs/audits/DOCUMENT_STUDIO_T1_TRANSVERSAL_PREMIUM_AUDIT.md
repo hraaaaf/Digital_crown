@@ -2,7 +2,7 @@
 
 Date : 2026-09-13
 Scope canonique : **P1→P6 actifs uniquement**.
-PR courante : #465 `test(t1): certify active P1-P6 transversal boundaries`.
+PR : #465 `test(t1): certify active P1-P6 transversal boundaries`.
 
 ## 1. Contrat de preuve
 
@@ -13,110 +13,101 @@ PR courante : #465 `test(t1): certify active P1-P6 transversal boundaries`.
 
 Le Compagnon Diagnostique historique P7 est hors de la surface Document Studio active. Son code dormant ne doit pas être mélangé à la certification T1 actuelle.
 
-## 2. Risques transversaux ciblés
+## 2. Frontières transversales certifiées
 
-T1 ferme les frontières partagées suivantes :
+T1 couvre :
 
-1. isolation patient : aucun état patient A ne doit devenir autoritaire chez B ;
-2. stale response : une réponse A tardive ne doit pas écraser B ;
-3. navigation dirty : transitions manuelles et URL doivent respecter le même garde ;
-4. frontière clinique : aucune exécution du chemin `ai-diagnostic` historique depuis le Studio actif ;
-5. vérité produit : uniquement six pages P1→P6 ;
-6. responsive/a11y/runtime : réutilisation du T2 complet plutôt que duplication de couverture.
+1. isolation patient A/B ;
+2. résistance aux stale responses ;
+3. navigation dirty manuelle et URL ;
+4. frontière clinique avec absence du chemin `ai-diagnostic` depuis le Studio actif ;
+5. vérité produit P1→P6 uniquement ;
+6. réutilisation du T2 pour runtime, responsive, PDF et navigation.
 
 ## 3. Engineering vérifié
 
-Les correctifs historiques T1-A→T1-E restent la base engineering :
+Les correctifs T1-A→T1-E restent la base :
 
 - reset patient-scoped et remount au changement de patient ;
 - fetches patient/suggestions cancellation-safe ;
 - `DocumentTabNavigationPolicy` centralise les transitions dirty ;
 - suppression des side-channels cliniques partagés non autoritatifs ;
 - retrait du point d'entrée actif vers le Compagnon Diagnostique ;
-- durcissement vérité UI, labels/ARIA/focus/Escape et shell responsive.
+- durcissement vérité UI, labels/ARIA/focus/Escape et shell responsive ;
+- harness `scripts/certify_document_studio_t1.sh` limité à P1→P6 ;
+- credential runtime T2 jetable ;
+- plafond login augmenté uniquement dans le serveur T2 isolé, sans modification de la politique produit.
 
-Le harness actuel `scripts/certify_document_studio_t1.sh` cible P1→P6 et exclut le test P7 dormant de la régression ciblée.
+## 4. Preuve comportementale initiale
 
-## 4. Certification runtime exécutée
-
-HEAD comportemental certifié avant closeout documentaire : `51e98dd3f14882278e7de5a2f862bb7a256d985b`.
+HEAD comportemental : `51e98dd3f14882278e7de5a2f862bb7a256d985b`.
 
 T2 Runtime Browser Certification `#2645` / run `34750958888` : **SUCCESS**.
-Job : `T2 Browser Runtime Matrix` / `103707302825` : **SUCCESS**.
 
-### Patient boundary
+Le probe transversal a observé :
 
-Le probe `frontend/scripts/certify-t1-transversal.mjs` a observé :
-
-- A = `T2-0001`, B = `T2-0002` ;
-- deux réponses A retardées puis libérées ;
-- B autoritaire avant libération : `true` ;
+- B autoritaire avant libération des réponses A retardées : `true` ;
 - B autoritaire après libération : `true` ;
 - route errors : `[]` ;
-- verdict : **PASS**.
-
-### URL dirty boundary
-
-Observé :
-
-- annulation restaure l'URL : `true` ;
+- annulation URL dirty restaure l'URL : `true` ;
 - brouillon conservé : `true` ;
-- confirmation dirty armée : `true` ;
-- confirmation atteint la cible : `true` ;
-- session de confirmation isolée : `true` ;
-- verdict : **PASS**.
-
-### Clinical boundary
-
-Observé :
-
+- confirmation dirty atteint la cible : `true` ;
 - Compagnon Diagnostique absent : `true` ;
 - requêtes `ai-diagnostic` : `[]` ;
-- page errors : `[]` ;
-- verdict : **PASS**.
+- page errors : `[]`.
 
-## 5. Couverture T2 réutilisée
+Artefact historique : `t2-browser-evidence`, ID `10316225660`, digest `sha256:886455c2ffcb560e50cb22e0e3798cc362459615904afec3da9c6396c2aaf333`.
 
-Le même run T2 a passé :
+## 5. Réalignement master et recertification exact-head
+
+La branche T1 a été réalignée avec le master `28ec7f531b1a3dbedd9180ddbf48c75b067c8aa5` via le commit de branche `2e5644a447c891e2a4772632aa14b3be32fbaadb`.
+
+Sur ce HEAD exact :
+
+- CI `#3707` / `34751837897` : **SUCCESS** ;
+- T2 `#2651` / `34751838021` : **SUCCESS** ;
+- Catalog Connected Truth `#1099` / `34751837908` : **SUCCESS** ;
+- Cabinet Upgrade PostgreSQL `#166` / `34751837937` : **SUCCESS** ;
+- Patient P7 Final `#1314` / `34751837988` : **SUCCESS** ;
+- M6-I `#1451` : **SKIPPED** attendu.
+
+Le job T2 exact-head `T2 Browser Runtime Matrix` / `103709592150` a terminé **SUCCESS** avec notamment :
 
 - credential runtime jetable ;
-- seed du patient B ;
+- seed patient B ;
 - PDF runtime strict ;
 - réconciliation P3/P4/P5 ;
-- matrice navigateur P1→P6 ;
-- stress navigation 10/10 transitions ;
-- P6 390×844 / 768×1024 / 1280×900 sans overflow ni clipping ;
-- impression navigateur ;
-- fraîcheur PDF ;
+- matrice navigateur authentifiée ;
+- probe transversal T1 ;
+- probe P6 Document Libre ;
+- impression navigateur et fraîcheur PDF ;
 - upload des preuves.
 
-Artefact : `t2-browser-evidence`, ID `10316225660`, digest `sha256:886455c2ffcb560e50cb22e0e3798cc362459615904afec3da9c6396c2aaf333`.
+Artefact exact-head : `t2-browser-evidence`, ID `10316051646`, digest `sha256:d0888b44cf7ba4a4413d4f66442aa808a631591a024cf5a6cbcc4e73c4de5b7f`.
 
-## 6. Gates voisins observés
+## 6. Statut closeout
 
-Sur le même HEAD comportemental :
+**Engineering T1 P1→P6 : fermé sur le HEAD exact `2e5644a...`.**
 
-- Catalog Connected Truth `#1094` / `34750958896` : **SUCCESS** ;
-- Cabinet Upgrade PostgreSQL `#160` / `34750958994` : **SUCCESS** ;
-- Patient P7 Final `#1309` / `34750959000` : **SUCCESS**, sans réactivation P7 dans Document Studio ;
-- M6-I `#1445` : **SKIPPED** attendu.
+**Runtime transversal T1 : PASS observé sur ce même HEAD.**
 
-CI principale `#3701` / `34750958892` était encore en cours au moment de cette mise à jour. Les jobs frontend/tests/build et les bridges M4 déjà terminés sont verts ; le job backend principal doit encore devenir terminal vert avant fermeture T1.
+**CI/T2 et gates voisins déclenchés : terminaux conformes sur ce même HEAD.**
 
-## 7. Correctifs d'infrastructure de certification
+P7 reste dormant et hors surface active ; le workflow Patient P7 Final ne constitue pas une réactivation produit.
 
-Le runtime T2 utilise désormais un credential jetable généré par workflow. Les probes historiques encore dépendants de l'ancien marqueur sont réalignés à l'exécution.
+Le présent commit documentaire crée volontairement un nouveau HEAD. Il doit donc être recertifié exact-head avant squash merge #465.
 
-Le rate limiter produit reste inchangé. Le serveur **T2 isolé uniquement** élève son plafond de tentatives afin que les multiples probes authentifiés du même run ne s'auto-bloquent pas.
+## 7. Hors périmètre engineering
 
-## 8. Statut actuel
+- validation clinique/réglementaire humaine éventuelle ;
+- certification sur cabinet réel / production locale réelle ;
+- toute réactivation future de P7, qui exige un chantier produit + clinique séparé.
 
-**Engineering : convergé sur P1→P6.**
+## 8. Séquence restante
 
-**Runtime transversal T1 : PASS observé.**
-
-**T2 global : SUCCESS observé.**
-
-**CI principale : encore non terminale au moment de ce document.**
-
-T1 n'est donc pas encore déclaré fermé/mergé dans ce fichier. La fermeture finale exige : CI terminale verte → closeout documentaire cohérent → gates exact-head du HEAD documentaire final → squash merge exact-head → vérification post-merge `master`.
+1. aligner la roadmap canonique sur ce closeout ;
+2. exécuter/observer les gates exact-head du HEAD documentaire final ;
+3. vérifier mergeable + reviews/threads ;
+4. squash merge #465 avec contrôle du HEAD attendu ;
+5. vérifier `master` post-merge ;
+6. poursuivre avec T2 uniquement après fermeture réelle de T1.
