@@ -1,5 +1,8 @@
 import { api } from '../../services/api';
-
+import {
+  sanitizeAnalysisReadPayload,
+  sanitizeAnalysisUploadPayload,
+} from './cephaloClinicalEvidence';
 
 /**
  * Repository central pour la gestion des analyses céphalométriques.
@@ -9,20 +12,25 @@ export const cephaloRepository = {
   
   /**
    * Récupère une analyse existante par son ID.
+   * R15 ne laisse remonter vers les champs éditables que les notes portant
+   * une provenance praticien explicite. Le contenu historique ambigu reste
+   * signalé dans angles_data sans être auto-promu.
    */
   async getAnalysis(analysisId: number) {
     const res = await api.get(`/ia/analyses/${analysisId}`);
-    return res.data;
+    return sanitizeAnalysisReadPayload(res.data);
   },
 
   /**
    * Upload une radiographie et lance l'analyse géométrique automatique.
+   * Les narratifs automatiques historiques restent disponibles comme signal
+   * legacy, mais ne sont jamais injectés dans les notes praticien.
    */
   async uploadRadio(patientId: number | string, file: File) {
     const form = new FormData();
     form.append('file', file);
     const res = await api.post(`/ia/upload-radio?patient_id=${patientId}`, form);
-    return res.data;
+    return sanitizeAnalysisUploadPayload(res.data);
   },
 
   /**

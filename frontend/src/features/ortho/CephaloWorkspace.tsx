@@ -22,6 +22,7 @@ import type {
 import {
   computeStep3Data,
 } from './cephaloUtils';
+import { readClinicianDiagnostic } from './cephaloClinicalEvidence';
 import { PALETTE } from './cephaloTheme';
 
 import { Step1Cephalo } from './components/Step1Cephalo';
@@ -75,16 +76,14 @@ export const CephaloWorkspace: React.FC<CephaloWorkspaceProps> = ({
       store.setMmPerPixel(typeof loaded.mm_per_pixel === 'number' ? loaded.mm_per_pixel : null);
       store.setCompletedSteps(new Set(landmarks.length ? [1] : []));
 
-      const narrative = anglesData.ai_narrative || loaded.ai_diagnostic;
-      if (narrative) {
-        store.setDiag(prev => ({
-          ...prev,
-          diagnostic_squelettique: narrative.diagnostic_squelettique || prev.diagnostic_squelettique,
-          analyse_moulages: narrative.analyse_moulages || prev.analyse_moulages,
-          synthese_diagnostique: narrative.synthese_diagnostique || prev.synthese_diagnostique,
-          strategie_therapeutique: narrative.strategie_therapeutique || prev.strategie_therapeutique,
-        }));
-      }
+      const clinicianDiagnostic = readClinicianDiagnostic(loaded.ai_diagnostic);
+      store.setDiag(clinicianDiagnostic ?? {
+        analyse_dentaire: '',
+        diagnostic_squelettique: '',
+        analyse_moulages: '',
+        synthese_diagnostique: '',
+        strategie_therapeutique: '',
+      });
 
       store.setStep(1);
       setViewMode('studio');
@@ -189,15 +188,6 @@ export const CephaloWorkspace: React.FC<CephaloWorkspaceProps> = ({
         return prev;
       }
 
-      const currentMoulageDiag = store.diag.analyse_moulages;
-      const isPlaceholder = !currentMoulageDiag ||
-                           currentMoulageDiag === "Occlusion à préciser (Classe d'Angle, Subdivision, Forme d'arcade)." ||
-                           currentMoulageDiag.trim() === "";
-
-      if (isPlaceholder && automated.analyse_moulages_auto) {
-        store.setDiag(d => ({ ...d, analyse_moulages: automated.analyse_moulages_auto || "" }));
-      }
-
       return {
         ...prev,
         ...automated,
@@ -206,7 +196,7 @@ export const CephaloWorkspace: React.FC<CephaloWorkspaceProps> = ({
       };
     });
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [local.landmarks, patientData, mmPerPixel, store.etape2Data, store.etape3Data.selectedAnalysis, store.diag.analyse_moulages]);
+  }, [local.landmarks, patientData, mmPerPixel, store.etape2Data, store.etape3Data.selectedAnalysis]);
 
   const [stepError, setStepError] = useState<string | null>(null);
 
