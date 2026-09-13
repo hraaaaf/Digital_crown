@@ -77,6 +77,32 @@ Mockup conceptuel validé dans le chantier Ordonnance:
 - 1280: largeur utile maximale pour saisie + cartes médicaments.
 - Live Preview: overlay inchangé dans son principe.
 
+## Première validation CI et corrections
+
+Premier HEAD testé: `d60fbe147085e7ceb39707f4adf1ee10fddeaa3a`.
+
+Résultats observés:
+
+- T2 Runtime Browser Certification: `SUCCESS`.
+- Cabinet Upgrade PostgreSQL Certification: `SUCCESS`.
+- Patient P7 Final Certification: `SUCCESS`.
+- Main CI frontend: 602 tests passés, 2 échecs contractuels ciblés.
+- P3 Document Author Visual Certification: échec.
+
+Causes prouvées:
+
+1. le compactage avait raccourci le contrôle auteur à 36 px alors que le contrat tactile exige >=44 px ;
+2. deux libellés contractuels historiques avaient été raccourcis (`Mes protocoles`, `Contexte patient` + texte associé), cassant R6/R7 sans gain fonctionnel nécessaire ;
+3. le workflow P3 exigeait encore `selectorCount == 0` en BEFORE alors que le `master` courant possède déjà le sélecteur auteur.
+
+Corrections appliquées avant nouvelle certification:
+
+- auteur et date Ordonnance restaurés à `min-h-11` (44 px) ;
+- actions secondaires sécurité également à `min-h-11` ;
+- libellés/description/compteur contractuels restaurés, tout en gardant le layout compact et les styles dark/glass ;
+- gate P3 réaligné pour vérifier la conservation du sélecteur actuel en BEFORE et AFTER, sa présélection, son minimum 44 px et l’absence d’overflow ;
+- aucune modification backend, PDF, pharmacologique ou des endpoints.
+
 ## Hors périmètre
 
 - Aucun changement backend.
