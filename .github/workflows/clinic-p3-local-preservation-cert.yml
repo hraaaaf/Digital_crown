@@ -26,9 +26,24 @@ jobs:
   p3-local-preservation:
     name: P3 additive migration + exact-byte preservation
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: p3_preservation
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d p3_preservation"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
     env:
       ENVIRONMENT: development
       DATABASE_URL: "sqlite:///:memory:"
+      P3_PRESERVATION_POSTGRES_URL: "postgresql://postgres:postgres@127.0.0.1:5432/p3_preservation"
       SECRET_KEY: ci-only-secret-key-minimum-32-characters-long
       TELEMETRY_ENABLED: "false"
       CLOUD_AI_ENABLED: "false"
@@ -78,11 +93,11 @@ jobs:
           cat >> "$GITHUB_STEP_SUMMARY" <<EOF
           ## Clinic P3 Local Document Preservation
           - exact head: \`${P3_PRESERVATION_HEAD}\`
-          - additive provenance migration: idempotent
+          - additive provenance migration: idempotent on SQLite local-vault rehearsal and PostgreSQL 18
           - historical archive attribution: remains NULL without backfill
           - historical row identity, patient link, path, hash, size and status: preserved
           - practitioner signature provenance: metadata-only on exact archived bytes
           - physical bytes / SHA-256: unchanged
-          - evidence boundary: isolated synthetic local vault; not a copy of real patient data
+          - evidence boundary: isolated synthetic local vault + isolated PostgreSQL 18; not a copy of real patient data
           - deployment: none
           EOF
