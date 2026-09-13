@@ -39,6 +39,7 @@ export const PatientPractitionerContextPortal = ({ patientId }: { patientId: num
   const tab = searchParams.get('tab') || 'tracking';
   const isDocuments = tab === 'admin' || tab === 'archives';
   const isFinances = tab === 'finances';
+  const isRadiology = tab === 'radiology';
   const [target, setTarget] = useState<HTMLElement | null>(null);
   const queryClient = useQueryClient();
 
@@ -118,37 +119,54 @@ export const PatientPractitionerContextPortal = ({ patientId }: { patientId: num
   if (!target || isDocuments) return null;
 
   return createPortal(
-    <div className="mb-6 space-y-3" data-p2-practitioner-context>
-      <section className="relative min-w-0 overflow-hidden rounded-[2rem] border border-blue-100/80 bg-white/80 p-4 shadow-[0_18px_50px_-34px_rgba(0,51,128,0.45)] backdrop-blur-xl sm:p-5">
+    <div className={cn(isRadiology ? 'mb-1' : 'mb-6 space-y-3')} data-p2-practitioner-context>
+      <section className={cn(
+        'relative min-w-0 overflow-hidden border border-blue-100/80 bg-white/80 shadow-[0_18px_50px_-34px_rgba(0,51,128,0.45)] backdrop-blur-xl',
+        isRadiology ? 'rounded-xl px-2 py-1.5 sm:px-2.5 sm:py-2' : 'rounded-[2rem] p-4 sm:p-5',
+      )}>
         <div className="pointer-events-none absolute -right-12 -top-16 h-40 w-40 rounded-full bg-blue-100/60 blur-3xl" />
-        <div className="relative flex min-w-0 flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-          <div className="flex min-w-0 items-center gap-3">
-            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[#003380] text-white shadow-lg shadow-blue-900/15">
-              <UserRoundCheck size={20} />
+        <div className={cn(
+          'relative min-w-0',
+          isRadiology ? 'grid grid-cols-[minmax(0,1fr)_minmax(132px,0.9fr)] items-center gap-1.5 sm:grid-cols-[minmax(0,1fr)_260px] sm:gap-2' : 'flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between',
+        )}>
+          <div className={cn('flex min-w-0 items-center', isRadiology ? 'gap-1.5' : 'gap-3')}>
+            <div className={cn(
+              'flex shrink-0 items-center justify-center bg-[#003380] text-white shadow-lg shadow-blue-900/15',
+              isRadiology ? 'h-7 w-7 rounded-lg sm:h-8 sm:w-8' : 'h-11 w-11 rounded-2xl',
+            )}>
+              <UserRoundCheck size={isRadiology ? 14 : 20} />
             </div>
             <div className="min-w-0">
-              <div className="flex flex-wrap items-center gap-2">
-                <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">Référent clinique</p>
-                <span className="inline-flex items-center gap-1 rounded-full border border-emerald-100 bg-emerald-50 px-2 py-1 text-[9px] font-black uppercase tracking-wide text-emerald-700">
-                  <ShieldCheck size={11} /> Dossier local
+              <div className={cn('flex items-center', isRadiology ? 'gap-1.5' : 'flex-wrap gap-2')}>
+                <p className={cn('font-black uppercase text-slate-400', isRadiology ? 'text-[7px] tracking-[0.1em]' : 'text-[10px] tracking-[0.16em]')}>Référent clinique</p>
+                <span className={cn('items-center gap-1 rounded-full border border-emerald-100 bg-emerald-50 font-black uppercase tracking-wide text-emerald-700', isRadiology ? 'hidden px-1.5 py-0.5 text-[7px] lg:inline-flex' : 'inline-flex px-2 py-1 text-[9px]')}>
+                  <ShieldCheck size={isRadiology ? 8 : 11} /> Dossier local
                 </span>
               </div>
-              <p className="mt-1 truncate text-sm font-black text-slate-900">{selectedName}</p>
-              <p className="mt-0.5 text-[11px] font-semibold text-slate-400">
-                Attribution clinique additive. Patients et documents locaux inchangés.
-              </p>
+              <p className={cn('truncate font-black text-slate-900', isRadiology ? 'text-[10px] leading-tight sm:text-[11px]' : 'mt-1 text-sm')}>{selectedName}</p>
+              {!isRadiology && (
+                <p className="mt-0.5 text-[11px] font-semibold text-slate-400">
+                  Attribution clinique additive. Patients et documents locaux inchangés.
+                </p>
+              )}
             </div>
           </div>
 
-          <div className="min-w-0 lg:w-[340px]">
-            <label className="mb-1.5 flex items-center gap-1.5 text-[9px] font-black uppercase tracking-[0.14em] text-slate-400">
+          <div className={cn('min-w-0', !isRadiology && 'lg:w-[340px]')}>
+            <label className={cn(
+              'items-center gap-1.5 font-black uppercase tracking-[0.14em] text-slate-400',
+              isRadiology ? 'hidden' : 'mb-1.5 flex text-[9px]',
+            )}>
               <Stethoscope size={12} /> Praticien référent
             </label>
             <select
               value={selectedId}
               disabled={optionsQuery.isLoading || assignmentQuery.isLoading || assignMutation.isPending}
               onChange={(event) => assignMutation.mutate(event.target.value ? Number(event.target.value) : null)}
-              className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-black text-slate-800 outline-none transition focus:border-[#003380]/40 focus:ring-4 focus:ring-[#003380]/10 disabled:opacity-60"
+              className={cn(
+                'w-full border border-slate-200 bg-white font-black text-slate-800 outline-none transition focus:border-[#003380]/40 focus:ring-4 focus:ring-[#003380]/10 disabled:opacity-60',
+                isRadiology ? 'h-7 rounded-lg px-2 text-[10px] sm:h-8 sm:text-[11px]' : 'rounded-2xl px-4 py-3 text-sm',
+              )}
               aria-label="Praticien référent"
             >
               <option value="">Non attribué</option>
@@ -156,7 +174,10 @@ export const PatientPractitionerContextPortal = ({ patientId }: { patientId: num
                 <option key={practitioner.id} value={practitioner.id}>{practitioner.name}</option>
               ))}
             </select>
-            <p className="mt-1.5 flex items-center gap-1 text-[10px] font-semibold text-slate-400">
+            <p className={cn(
+              'items-center gap-1 font-semibold text-slate-400',
+              isRadiology ? 'hidden' : 'mt-1.5 flex text-[10px]',
+            )}>
               <UsersRound size={11} /> {practitionerCount} praticien{practitionerCount > 1 ? 's' : ''} assignable{practitionerCount > 1 ? 's' : ''}
             </p>
           </div>

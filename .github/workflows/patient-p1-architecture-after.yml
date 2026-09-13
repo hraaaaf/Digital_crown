@@ -23,6 +23,8 @@ jobs:
       CLOUD_AI_ENABLED: 'false'
       DEBUG: 'false'
       ALLOWED_ORIGINS: 'http://127.0.0.1:5173,http://localhost:5173'
+      T2_USER: t2-browser@cabinet.ma
+      T2_PASSWORD: T2BrowserPass-${{ github.run_id }}!
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -89,8 +91,11 @@ jobs:
           import { chromium, request } from 'playwright';
           const out=path.resolve('../artifacts/p1-architecture-after');
           const viewports=[{width:390,height:844},{width:430,height:932},{width:768,height:1024},{width:1280,height:900}];
+          const user=process.env.T2_USER;
+          const pass=process.env.T2_PASSWORD;
+          if(!user||!pass) throw new Error('isolated credentials unavailable');
           const api=await request.newContext({baseURL:'http://127.0.0.1:8005'});
-          const login=await api.post('/api/auth/login',{form:{username:'t2-browser@cabinet.ma',password:'T2BrowserPass123!'}});
+          const login=await api.post('/api/auth/login',{form:{username:user,password:pass}});
           if(!login.ok()) throw new Error(await login.text());
           const tok=await login.json(); const headers={Authorization:`Bearer ${tok.access_token}`};
           const ps=await api.get('/api/patients',{headers});
