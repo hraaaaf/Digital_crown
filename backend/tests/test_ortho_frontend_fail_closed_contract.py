@@ -47,13 +47,13 @@ def test_step3_is_practitioner_controlled_and_contains_no_local_clinical_thresho
         "autoSeverite", "autoDivision", "Morphologie Dentaire (Auto-Déduit)",
         "Bot Expert ODF", "Générer", "handleDiagChange('strategie_therapeutique', expertReport",
         "> 3.5 ? 'Supraclusie'", "> 4 ? 'Proalvéolie'", "DDM RÉELLE",
-        "normal=", "mean=", "tol=",
+        "normal=", "mean=", "tol=", "Plan thérapeutique — décision praticien",
     )
     for token in forbidden:
         assert token not in source, f"unsafe Step3 semantic reintroduced: {token}"
-    assert "Plan thérapeutique — décision praticien" in source
-    assert "Aucune génération automatique" in source
-    assert "Stade CVM — praticien" in source
+    assert "Note thérapeutique libre legacy — hors R13/R14" in source
+    assert "elle ne sélectionne aucune option R13 et ne valide aucune stratégie R14." in source
+    assert "Stade CVM — saisie manuelle" in source
     assert "Le stade CVM n'est jamais déduit de l'âge ou du sexe" in source
 
 
@@ -62,13 +62,14 @@ def test_step4_has_no_local_normative_ranges_or_default_appliance():
     forbidden = (
         "lo: 76", "hi: 88", "flo:", "fhi:", "getAngleStatus", "norme {card.lo}",
         "preference_technique || 'DAMON'", "Damon Passive", "d-gainer", "quadhelix",
-        "disjoncteur", "activateur", "perle-tuca",
+        "disjoncteur", "activateur", "perle-tuca", "Technique choisie par le praticien",
     )
     for token in forbidden:
         assert token not in source, f"unsafe Step4 semantic reintroduced: {token}"
     assert "Valeur brute · aucune norme locale" in source
-    assert "Technique choisie par le praticien" in source
-    assert "Aucune stratégie n'est générée automatiquement" in source
+    assert "Préférence technique — saisie manuelle hors R13" in source
+    assert "Aucune stratégie R14 n'est générée ou validée ici." in source
+    assert "Prévisualiser ou archiver un PDF ne valide jamais R14." in source
 
 
 def test_cephalo_utils_must_not_reintroduce_age_cvm_or_impa_space_conversion():

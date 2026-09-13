@@ -1,0 +1,102 @@
+name: Cephalo R15 AFTER
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - feat/cephalo-r15-clinical-studio-ux
+    paths:
+      - 'backend/services/cephalo_r15_clinical_studio.py'
+      - 'backend/routers/cephalo_clinical_studio.py'
+      - 'backend/tests/test_cephalo_r15_clinical_studio.py'
+      - 'frontend/src/features/ortho/CephaloWorkspace.tsx'
+      - 'frontend/src/features/ortho/cephaloTheme.ts'
+      - 'frontend/src/features/ortho/cephaloTheme.test.ts'
+      - 'frontend/src/features/ortho/components/ClinicalScientificStudio.tsx'
+      - 'frontend/src/features/ortho/components/ClinicalScientificStudio.test.tsx'
+      - 'frontend/src/features/ortho/components/Step3Clinical.tsx'
+      - 'frontend/src/features/ortho/components/Step4Documents.tsx'
+      - 'frontend/scripts/capture-cephalo-r15-after.mjs'
+      - '.github/workflows/cephalo-r15-after.yml'
+      - 'docs/CEPHALO_R15_STUDIO_UX_UI.md'
+  pull_request:
+    branches: [master]
+    paths:
+      - 'backend/services/cephalo_r15_clinical_studio.py'
+      - 'backend/routers/cephalo_clinical_studio.py'
+      - 'frontend/src/features/ortho/**'
+      - '.github/workflows/cephalo-r15-after.yml'
+      - 'docs/CEPHALO_R15_STUDIO_UX_UI.md'
+
+permissions:
+  contents: read
+
+jobs:
+  visual-after:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - name: Assert exact product HEAD
+        env:
+          PRODUCT_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: test "$(git rev-parse HEAD)" = "$PRODUCT_HEAD"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install frontend and browser
+        working-directory: frontend
+        run: |
+          npm ci
+          npm install --no-save --package-lock=false --legacy-peer-deps playwright@1.55.0 react-is@19.2.0 @testing-library/dom@10.4.1
+          npx playwright install --with-deps chromium
+      - name: Targeted R15 frontend and theme tests
+        working-directory: frontend
+        run: npx vitest run src/features/ortho/components/ClinicalScientificStudio.test.tsx src/features/ortho/cephaloTheme.test.ts
+      - name: Capture exact-head R15 AFTER
+        working-directory: frontend
+        env:
+          PRODUCT_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: node scripts/capture-cephalo-r15-after.mjs
+      - name: Verify AFTER evidence contract
+        working-directory: frontend
+        env:
+          PRODUCT_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          node --input-type=module <<'NODE'
+          import { readFile } from 'node:fs/promises';
+          const report = JSON.parse(await readFile('cephalo-r15-after-artifacts/report.json', 'utf8'));
+          if (report.productHead !== process.env.PRODUCT_HEAD) throw new Error(`Wrong product HEAD ${report.productHead}`);
+          if (report.phase !== 'AFTER') throw new Error(`Wrong phase ${report.phase}`);
+          if (report.invalidCount !== 0) throw new Error(`Invalid captures ${report.invalidCount}`);
+          if (report.blockedExternalRequests.length !== 0) throw new Error('Unexpected external egress');
+          if (report.captures.length !== 3) throw new Error('Expected three viewports');
+          for (const capture of report.captures) {
+            if (!capture.valid || capture.pageErrors.length || capture.consoleErrors.length) throw new Error(`Runtime failure ${capture.viewport}`);
+            for (const scene of [capture.step3Top, capture.step4Top]) {
+              if (scene.horizontalDocumentOverflow || scene.headerClipped) throw new Error(`Layout failure ${capture.viewport}/${scene.scene}`);
+              if (!scene.hasScientificChain || !scene.hasR11Surface || !scene.hasR12Surface || !scene.hasR13Surface || !scene.hasR14Surface) throw new Error(`Missing R11-R14 traceability ${capture.viewport}`);
+              if (!scene.hasMissingSurface || !scene.hasContradictionSurface || !scene.hasContraindicationSurface) throw new Error(`Scientific exceptions hidden ${capture.viewport}`);
+              if (!scene.hasPractitionerAction || !scene.hasNoFakeValidation) throw new Error(`Practitioner action contract missing ${capture.viewport}`);
+              if (scene.hasLegacyDiagnostic || scene.hasLegacyTreatmentDecision || scene.hasLegacyTreatmentPanel || scene.hasLegacyArchiveAction) throw new Error(`Legacy authority wording remains ${capture.viewport}`);
+            }
+            if (!capture.step4Top.hasDocumentSeparation || !capture.step4Top.hasArchiveAction) throw new Error(`Document/R14 separation missing ${capture.viewport}`);
+          }
+          NODE
+          for viewport in 390x844 768x1024 1280x900; do
+            test -s "cephalo-r15-after-artifacts/after-step3-top-${viewport}.png"
+            test -s "cephalo-r15-after-artifacts/after-step3-decision-${viewport}.png"
+            test -s "cephalo-r15-after-artifacts/after-step4-top-${viewport}.png"
+            test -s "cephalo-r15-after-artifacts/after-step4-action-${viewport}.png"
+          done
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: cephalo-r15-after-${{ github.sha }}
+          path: frontend/cephalo-r15-after-artifacts
+          if-no-files-found: error
+          retention-days: 30

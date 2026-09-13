@@ -297,3 +297,8 @@ patients.router.routes = [
 ]
 documents.router.include_router(document_provenance_p3.documents_router)
 patients.router.include_router(document_provenance_p3.patients_router)
+
+# Cephalometry R15 exposes only a fail-closed clinician-facing projection under the
+# canonical patient surface; it does not create diagnoses or therapeutic decisions.
+from . import cephalo_clinical_studio as cephalo_clinical_studio
+patients.router.include_router(cephalo_clinical_studio.router)
