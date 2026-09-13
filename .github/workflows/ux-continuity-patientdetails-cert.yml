@@ -16,6 +16,9 @@ jobs:
   after:
     runs-on: ubuntu-latest
     timeout-minutes: 35
+    env:
+      T2_USER: t2-browser@cabinet.ma
+      T2_PASSWORD: T2BrowserPass-${{ github.run_id }}!
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -66,9 +69,8 @@ jobs:
           import fs from 'node:fs';
           import path from 'node:path';
           import { chromium, request } from 'playwright';
-          const source=fs.readFileSync('../scripts/t2_runtime_server.py','utf8');
-          const user=source.match(/email=\"([^\"]+)\"/)?.[1];
-          const pass=source.match(/get_password_hash\(\"([^\"]+)\"\)/)?.[1];
+          const user=process.env.T2_USER;
+          const pass=process.env.T2_PASSWORD;
           if(!user||!pass) throw new Error('isolated credentials unavailable');
           const api=await request.newContext({baseURL:'http://127.0.0.1:8005'});
           const login=await api.post('/api/auth/login',{form:{username:user,password:pass}});
