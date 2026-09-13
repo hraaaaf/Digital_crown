@@ -1,0 +1,103 @@
+name: Clinic P3 Local Document Preservation Certification
+
+on:
+  pull_request:
+    paths:
+      - "backend/models_document_provenance_p3.py"
+      - "backend/services/document_signature_p3.py"
+      - "backend/services/document_provenance_context.py"
+      - "backend/services/practitioner_policy.py"
+      - "backend/tests/test_clinic_p3_local_preservation.py"
+      - "backend/tests/test_document_provenance_p3.py"
+      - "backend/tests/test_document_signature_file_preservation_p3.py"
+      - "backend/tests/test_document_signature_permissions_p3.py"
+      - "backend/tests/test_document_signature_read_failclosed_p3.py"
+      - ".github/workflows/clinic-p3-local-preservation-cert.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: clinic-p3-local-preservation-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  p3-local-preservation:
+    name: P3 additive migration + exact-byte preservation
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: p3_preservation
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d p3_preservation"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    env:
+      ENVIRONMENT: development
+      DATABASE_URL: "sqlite:///:memory:"
+      P3_PRESERVATION_POSTGRES_URL: "postgresql://postgres:postgres@127.0.0.1:5432/p3_preservation"
+      SECRET_KEY: ci-only-secret-key-minimum-32-characters-long
+      TELEMETRY_ENABLED: "false"
+      CLOUD_AI_ENABLED: "false"
+    steps:
+      - name: Checkout exact head
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+
+      - name: Record exact head
+        run: |
+          HEAD_SHA=$(git rev-parse HEAD)
+          EXPECTED_SHA="${{ github.event.pull_request.head.sha || github.sha }}"
+          test "$HEAD_SHA" = "$EXPECTED_SHA"
+          echo "P3_PRESERVATION_HEAD=$HEAD_SHA" >> "$GITHUB_ENV"
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install backend dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install torch==2.12.0 torchvision==0.27.0 --index-url https://download.pytorch.org/whl/cpu
+          grep -vE '^(torch|torchvision)([<=>].*)?$' requirements.txt > /tmp/requirements-p3-preservation.txt
+          pip install -r /tmp/requirements-p3-preservation.txt
+          pip install httpx==0.27.2 pytest pytest-asyncio
+
+      - name: Run P3 preservation contract
+        run: |
+          python -m pytest \
+            backend/tests/test_clinic_p3_local_preservation.py \
+            backend/tests/test_document_provenance_p3.py \
+            backend/tests/test_document_signature_file_preservation_p3.py \
+            backend/tests/test_document_signature_permissions_p3.py \
+            backend/tests/test_document_signature_read_failclosed_p3.py \
+            -q --maxfail=1
+
+      - name: Assert signature claim boundary remains explicit
+        run: |
+          grep -F "application-level practitioner signature provenance" backend/services/document_signature_p3.py
+          grep -F "It is not a qualified electronic" backend/services/document_signature_p3.py
+
+      - name: Certification summary
+        run: |
+          cat >> "$GITHUB_STEP_SUMMARY" <<EOF
+          ## Clinic P3 Local Document Preservation
+          - exact head: \`${P3_PRESERVATION_HEAD}\`
+          - additive provenance migration: idempotent on SQLite local-vault rehearsal and PostgreSQL 18
+          - historical archive attribution: remains NULL without backfill
+          - historical row identity, patient link, path, hash, size and status: preserved
+          - practitioner signature provenance: metadata-only on exact archived bytes
+          - physical bytes / SHA-256: unchanged
+          - evidence boundary: isolated synthetic local vault + isolated PostgreSQL 18; not a copy of real patient data
+          - deployment: none
+          EOF

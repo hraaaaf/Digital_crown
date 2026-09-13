@@ -10,6 +10,7 @@ import { AnimatedBackground } from '../AnimatedBackground';
 import { PREMIUM_FONTS } from '../../features/admin/constants';
 import { VoluntaryTutorialPanel } from '../../features/tutorial/VoluntaryTutorial';
 import { ClinicPractitionerBar } from '../../features/clinic/ClinicPractitionerBar';
+import './patientDossierResponsive.css';
 
 import { motion, AnimatePresence } from 'framer-motion';
 import { useState } from 'react';
@@ -52,6 +53,7 @@ export const MainLayout: React.FC<LayoutProps> = ({ children }) => {
   const [isBotOpen, setIsBotOpen] = useState(false);
   const [ghostUnreadCount, setGhostUnreadCount] = useState(0);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const isPatientRoute = /^\/patients(?:\/|$)/.test(location.pathname);
   const isDocumentStudio = /^\/patients\/\d+$/.test(location.pathname)
     && new URLSearchParams(location.search).get('tab') === 'admin';
   const showPractitionerContext = ['/dashboard', '/agenda', '/settings'].includes(location.pathname);
@@ -80,7 +82,11 @@ export const MainLayout: React.FC<LayoutProps> = ({ children }) => {
         >
           <Menu size={22} />
         </button>
-        <Header />
+        <Header
+          isCrownBotOpen={isBotOpen}
+          crownBotUnreadCount={ghostUnreadCount}
+          onToggleCrownBot={isPatientRoute ? () => setIsBotOpen(value => !value) : undefined}
+        />
         <VoluntaryTutorialPanel />
 
         <main className={`flex-1 overflow-y-auto overflow-x-hidden pt-0 flex flex-col custom-scrollbar ${isDocumentStudio ? 'p-2 sm:p-4 lg:p-8' : 'p-3 sm:p-4 lg:p-8'}`}>
@@ -110,10 +116,15 @@ export const MainLayout: React.FC<LayoutProps> = ({ children }) => {
         </main>
       </div>
 
-      <div className="fixed bottom-8 right-8 z-50">
+      <div
+        data-ux1-c-crownbot-floating
+        className={`${isPatientRoute ? 'hidden lg:block' : ''} fixed right-4 z-50 bottom-[max(1rem,env(safe-area-inset-bottom))] sm:bottom-8 sm:right-8`}
+      >
         <button
           onClick={() => setIsBotOpen(!isBotOpen)}
-          className="w-14 h-14 bg-gradient-to-tr from-primary to-secondary text-white rounded-full shadow-2xl flex items-center justify-center hover:scale-110 active:scale-95 transition-all border border-white/20 relative"
+          aria-label={isBotOpen ? 'Fermer CrownBot' : 'Ouvrir CrownBot'}
+          aria-expanded={isBotOpen}
+          className="w-12 h-12 sm:w-14 sm:h-14 bg-gradient-to-tr from-primary to-secondary text-white rounded-full shadow-2xl flex items-center justify-center hover:scale-110 active:scale-95 transition-all border border-white/20 relative"
         >
           <Bot size={24} />
           {ghostUnreadCount > 0 && !isBotOpen && (
@@ -127,11 +138,16 @@ export const MainLayout: React.FC<LayoutProps> = ({ children }) => {
       <AnimatePresence>
         {isBotOpen && (
           <motion.div
+            data-ux1-c-crownbot-overlay
             initial={{ opacity: 0, y: 20, scale: 0.95 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 20, scale: 0.95 }}
             transition={{ duration: 0.2 }}
-            className="fixed bottom-28 right-8 w-[400px] h-[600px] z-50 rounded-[24px] overflow-hidden shadow-2xl border border-white/20 bg-white/5 backdrop-blur-3xl"
+            className={`fixed z-[1000] rounded-[24px] overflow-hidden shadow-2xl border border-white/20 bg-white/5 backdrop-blur-3xl ${
+              isPatientRoute
+                ? 'inset-3 lg:inset-auto lg:bottom-28 lg:right-8 lg:w-[400px] lg:h-[600px]'
+                : 'inset-3 sm:inset-auto sm:bottom-28 sm:right-8 sm:w-[400px] sm:h-[600px]'
+            }`}
           >
             <CrownBotChat onClose={() => setIsBotOpen(false)} onUnreadChange={setGhostUnreadCount} />
           </motion.div>

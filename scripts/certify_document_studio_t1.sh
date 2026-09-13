@@ -2,6 +2,8 @@
 set -euo pipefail
 
 # T1 Document Studio transversal premium — automated engineering gate.
+# Current certifiable surface: P1→P6 only. Historical P7 code is dormant and
+# excluded from the active Document Studio contract.
 # This script proves repository checks only. It does not certify authenticated
 # runtime behavior, visual rendering, clinical science, finance or production.
 
@@ -31,7 +33,7 @@ fi
 HEAD_SHA="$(git rev-parse HEAD)"
 printf 'Document Studio T1 candidate head: %s\n' "$HEAD_SHA"
 
-printf '\n[1/3] Targeted T1 transversal regression\n'
+printf '\n[1/3] Targeted T1 transversal regression (active P1-P6 surface)\n'
 (
   cd frontend
   npm test -- \
@@ -41,8 +43,7 @@ printf '\n[1/3] Targeted T1 transversal regression\n'
     src/features/admin/DocumentStudio/DocumentStudioUiTruth.test.ts \
     src/features/admin/DocumentStudio/DocumentStudioShellA11y.test.ts \
     src/features/admin/DocumentStudio/PrescriptionDirtyState.test.ts \
-    src/features/admin/DocumentStudio/LibreDirtyState.test.ts \
-    src/features/admin/DocumentStudio/P7DirtyState.p7f.test.tsx
+    src/features/admin/DocumentStudio/LibreDirtyState.test.ts
 )
 pass "targeted T1 transversal regression"
 
@@ -61,9 +62,10 @@ printf '\n[3/3] Frontend production build\n'
 pass "frontend production build"
 
 printf '\nAUTOMATED T1 ENGINEERING GATES PASSED for %s\n' "$HEAD_SHA"
+printf 'CURRENT CERTIFIABLE SURFACE: P1-P6. P7 remains dormant and excluded.\n'
 printf 'REMAINING NON-AUTOMATED GATES:\n'
 printf '  - authenticated patient A → B non-contamination check, including delayed A response\n'
-printf '  - manual + URL-driven dirty navigation checks across P1–P7\n'
+printf '  - manual + URL-driven dirty navigation checks across active P1-P6\n'
 printf '  - 390px / 430px / 1280px browser matrix and keyboard/focus smoke check\n'
 printf '  - real PDF preview / print interaction checks\n'
 printf '  - clinical and financial certification remain independent where applicable\n'

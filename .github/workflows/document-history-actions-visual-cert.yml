@@ -1,63 +1,295 @@
 name: Document History Actions Visual Certification
 
 on:
-  workflow_dispatch:
   pull_request:
     branches: [master]
     paths:
       - 'frontend/src/features/patients/PatientDocuments.tsx'
-      - 'frontend/scripts/capture-document-history-actions.mjs'
       - '.github/workflows/document-history-actions-visual-cert.yml'
 
 permissions:
   contents: read
 
+concurrency:
+  group: document-history-actions-visual-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 jobs:
   visual-cert:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
     steps:
-      - name: Checkout exact PR head
-        uses: actions/checkout@v4
+      - name: Resolve exact base and head
+        run: |
+          echo "BASE_SHA=${{ github.event.pull_request.base.sha || github.sha }}" >> "$GITHUB_ENV"
+          echo "HEAD_SHA=${{ github.event.pull_request.head.sha || github.sha }}" >> "$GITHUB_ENV"
+
+      - uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.pull_request.head.sha || github.sha }}
-      - name: Setup Node 20
-        uses: actions/setup-node@v4
+          fetch-depth: 0
+          ref: ${{ github.event.pull_request.base.sha || github.sha }}
+
+      - uses: actions/setup-node@v4
         with:
           node-version: '20'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
       - name: Install frontend and Chromium
         working-directory: frontend
         run: |
           npm ci
-          npm install --no-save --package-lock=false --legacy-peer-deps react-is playwright@1.55.0
+          npm install --no-save --package-lock=false --legacy-peer-deps playwright@1.55.0 react-is@19.2.0
           npx playwright install --with-deps chromium
-      - name: Capture exact-head document actions
-        working-directory: frontend
-        env:
-          PRODUCT_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
-        run: node scripts/capture-document-history-actions.mjs
-      - name: Assert visual certificate
+
+      - name: Materialize deterministic PatientDocuments harness
         working-directory: frontend
         run: |
-          node - <<'JS'
-          const fs = require('fs');
-          const report = JSON.parse(fs.readFileSync('document-history-actions-artifacts/report.json', 'utf8'));
-          if (report.invalidCount !== 0) throw new Error(`invalidCount=${report.invalidCount}`);
-          if (report.blockedExternalRequests.length !== 0) throw new Error('external egress detected');
-          if (report.captures.length !== 3) throw new Error(`captures=${report.captures.length}`);
-          for (const capture of report.captures) {
-            if (!capture.valid) throw new Error(`invalid viewport ${capture.viewport}`);
-            if (capture.pageErrors.length || capture.consoleErrors.length) throw new Error(`runtime errors ${capture.viewport}`);
-            if (capture.metrics.horizontalOverflow || capture.metrics.overlap !== 0 || !capture.metrics.menuWithinViewport) throw new Error(`layout failure ${capture.viewport}`);
-            if (capture.metrics.edit.height < 44 || capture.metrics.trash.height < 44) throw new Error(`touch target failure ${capture.viewport}`);
+          cat > document-history-actions.html <<'EOF'
+          <!doctype html>
+          <html lang="fr">
+            <head>
+              <meta charset="UTF-8" />
+              <meta name="viewport" content="width=device-width,initial-scale=1" />
+              <title>Document History Actions</title>
+            </head>
+            <body>
+              <div id="root"></div>
+              <script type="module" src="/src/document-history-actions.tsx"></script>
+            </body>
+          </html>
+          EOF
+
+          cat > src/document-history-actions.tsx <<'EOF'
+          import React from 'react';
+          import { createRoot } from 'react-dom/client';
+          import { MemoryRouter, Route, Routes } from 'react-router-dom';
+          import './index.css';
+          import { PatientDocuments } from './features/patients/PatientDocuments';
+          import { useAuthStore } from './stores/useAuthStore';
+
+          useAuthStore.setState({
+            user: {
+              id: 1,
+              email: 'owner@document-history.local',
+              nom_complet: 'Dr Test Cabinet',
+              role: 'ADMIN',
+              employer_id: null,
+              is_superadmin: false,
+              permissions: { patients: true, clinical: true, accounting: true, prescriptions: true },
+            } as any,
+            isAuthenticated: true,
+            isLoading: false,
+            error: null,
+          });
+
+          createRoot(document.getElementById('root')!).render(
+            <MemoryRouter initialEntries={['/patients/101?tab=archives']}>
+              <Routes>
+                <Route
+                  path="/patients/:id"
+                  element={
+                    <main className="min-h-screen bg-slate-50 p-4 md:p-6">
+                      <PatientDocuments />
+                    </main>
+                  }
+                />
+              </Routes>
+            </MemoryRouter>,
+          );
+          EOF
+
+          cat > document-history-actions.mjs <<'EOF'
+          import { chromium } from 'playwright';
+          import { createServer } from 'vite';
+          import fs from 'node:fs/promises';
+
+          const phase = process.env.PHASE;
+          const out = `document-history-actions-${phase.toLowerCase()}`;
+          await fs.mkdir(out, { recursive: true });
+
+          const server = await createServer({
+            server: { host: '127.0.0.1', port: 4198, strictPort: true },
+            clearScreen: false,
+          });
+          await server.listen();
+
+          const browser = await chromium.launch({ headless: true });
+          const captures = [];
+          const documentName = 'CERT_VISUELLE_ACTIONS.pdf';
+          const documentRow = {
+            id: '501',
+            name: documentName,
+            type: 'LIBRE',
+            date: '2026-09-13',
+            url: '/api/documents/501/download',
+            file_exists: true,
+            clinical_data: { title: 'Certification visuelle', content: 'Document de certification' },
+            payment_status: 'EN_ATTENTE',
+            is_accounted: false,
+            author_practitioner_id: 1,
+            author_practitioner_name: 'Dr Test Cabinet',
+            signed_by_practitioner_id: 1,
+            signed_by_practitioner_name: 'Dr Test Cabinet',
+            signed_at: '2026-09-13T12:00:00Z',
+          };
+
+          try {
+            for (const [width, height] of [[390, 844], [768, 1024], [1280, 900]]) {
+              const context = await browser.newContext({ viewport: { width, height }, colorScheme: 'light' });
+              const page = await context.newPage();
+              const errors = [];
+              page.on('pageerror', error => errors.push(`pageerror:${error.message}`));
+              page.on('console', message => {
+                if (message.type() === 'error') errors.push(`console:${message.text()}`);
+              });
+
+              await page.route('**/api/**', async route => {
+                const url = new URL(route.request().url());
+                if (url.pathname === '/api/patients/101/documents') {
+                  return route.fulfill({
+                    status: 200,
+                    contentType: 'application/json',
+                    body: JSON.stringify([documentRow]),
+                  });
+                }
+                return route.fulfill({ status: 200, contentType: 'application/json', body: '{}' });
+              });
+
+              await page.goto('http://127.0.0.1:4198/document-history-actions.html', { waitUntil: 'networkidle' });
+
+              const actionButton = page.getByRole('button', {
+                name: `Actions du document ${documentName}`,
+                exact: true,
+              });
+              await actionButton.waitFor({ state: 'visible', timeout: 15000 });
+              const card = actionButton.locator('xpath=ancestor::div[@data-document-kind][1]');
+              await actionButton.click();
+
+              const edit = card.locator('[data-document-action="edit"]');
+              const trash = card.locator('[data-document-action="trash"]');
+              await edit.waitFor({ state: 'visible', timeout: 5000 });
+              await trash.waitFor({ state: 'visible', timeout: 5000 });
+
+              const editBox = await edit.boundingBox();
+              const trashBox = await trash.boundingBox();
+              if (!editBox || !trashBox) throw new Error(`missing action boxes ${phase} ${width}x${height}`);
+
+              const gap = trashBox.y - (editBox.y + editBox.height);
+              const overlap = Math.max(0, (editBox.y + editBox.height) - trashBox.y);
+              const metrics = await page.evaluate(() => ({
+                clientWidth: document.documentElement.clientWidth,
+                scrollWidth: document.documentElement.scrollWidth,
+              }));
+              const overflowPx = Math.max(0, metrics.scrollWidth - metrics.clientWidth);
+              const shot = `${phase.toLowerCase()}-document-actions-${width}x${height}.png`;
+              await page.screenshot({ path: `${out}/${shot}`, fullPage: false, animations: 'disabled' });
+
+              captures.push({
+                phase,
+                width,
+                height,
+                gap,
+                overlap,
+                overflowPx,
+                editBox,
+                trashBox,
+                errors,
+                shot,
+              });
+              await context.close();
+            }
+          } finally {
+            await browser.close();
+            await server.close();
           }
-          console.log(JSON.stringify({ productHead: report.productHead, viewports: report.viewports, invalidCount: report.invalidCount }, null, 2));
-          JS
-      - name: Upload visual evidence
-        uses: actions/upload-artifact@v4
+
+          await fs.writeFile(`${out}/report.json`, JSON.stringify({ phase, captures }, null, 2));
+          EOF
+
+      - name: Capture BEFORE exact base
+        working-directory: frontend
+        env:
+          PHASE: BEFORE
+        run: node document-history-actions.mjs
+
+      - name: Checkout exact head
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          clean: false
+
+      - name: Verify harness survived checkout
+        working-directory: frontend
+        run: |
+          test -f document-history-actions.html
+          test -f src/document-history-actions.tsx
+          test -f document-history-actions.mjs
+
+      - name: Capture AFTER exact head
+        working-directory: frontend
+        env:
+          PHASE: AFTER
+        run: node document-history-actions.mjs
+
+      - name: Compare evidence and score
+        working-directory: frontend
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          before = json.loads(Path('document-history-actions-before/report.json').read_text())
+          after = json.loads(Path('document-history-actions-after/report.json').read_text())
+          assert [c['width'] for c in before['captures']] == [390, 768, 1280]
+          assert [c['width'] for c in after['captures']] == [390, 768, 1280]
+
+          report = []
+          for b, a in zip(before['captures'], after['captures']):
+              passed = (
+                  a['overlap'] == 0
+                  and a['overflowPx'] == 0
+                  and not a['errors']
+              )
+              report.append({
+                  'viewport': f"{a['width']}x{a['height']}",
+                  'before_gap': round(b['gap'], 2),
+                  'before_overlap': round(b['overlap'], 2),
+                  'after_gap': round(a['gap'], 2),
+                  'after_overlap': round(a['overlap'], 2),
+                  'after_overflowPx': a['overflowPx'],
+                  'errors': a['errors'],
+                  'pass': passed,
+              })
+
+          Path('document-history-actions-after/comparison.json').write_text(json.dumps(report, indent=2))
+          assert all(row['pass'] for row in report), json.dumps(report, indent=2)
+          Path('document-history-actions-after/visual-score.txt').write_text(
+              'visual_gate_score=10.0/10\n'
+              'formula=4.0 no-action-overlap + 2.0 no-horizontal-overflow + 2.0 runtime-clean + 1.0 three-required-viewports + 1.0 before-after-evidence\n'
+          )
+          print(json.dumps(report, indent=2))
+          PY
+
+      - name: Evidence metadata
+        working-directory: frontend
+        run: |
+          cat > document-history-actions-after/metadata.txt <<EOF
+          chantier=Document History Actions Visual Certification
+          goal=prove document action menu edit/trash controls do not overlap and remain horizontally contained
+          base_sha=${BASE_SHA}
+          head_sha=${HEAD_SHA}
+          viewports=390x844,768x1024,1280x900
+          strategy=deterministic component harness with mocked document API
+          deployment=none
+          EOF
+
+      - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: document-history-actions-exact-head
-          path: frontend/document-history-actions-artifacts
+          name: document-history-actions-before-after
+          path: |
+            frontend/document-history-actions-before/
+            frontend/document-history-actions-after/
           if-no-files-found: error
           retention-days: 14

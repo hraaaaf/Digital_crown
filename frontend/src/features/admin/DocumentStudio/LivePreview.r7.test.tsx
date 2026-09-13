@@ -62,4 +62,30 @@ describe('LivePreview R7', () => {
     fireEvent.keyDown(window, { key: 'Escape' })
     expect(onClose).toHaveBeenCalledTimes(1)
   })
+
+  it('utilise un overlay modal responsive au lieu du drawer droit historique', () => {
+    const { unmount } = render(
+      <LivePreview
+        pdfUrl={null}
+        loading={false}
+        onClose={vi.fn()}
+        title="Document Libre"
+      />,
+    )
+
+    const overlay = document.querySelector('.document-studio-live-preview')
+    const dialog = screen.getByRole('dialog', { name: 'Document Libre' })
+
+    expect(overlay).toHaveClass('fixed', 'inset-0')
+    expect(overlay).toHaveClass('bg-slate-950/60', 'backdrop-blur-sm')
+    expect(dialog.className).toContain('w-full')
+    expect(dialog.className).toContain('sm:max-w-4xl')
+    expect(dialog.className).toContain('lg:max-w-5xl')
+    expect(dialog.className).not.toContain('sm:left-auto')
+    expect(dialog.className).not.toContain('w-[550px]')
+    expect(document.body.style.overflow).toBe('hidden')
+
+    unmount()
+    expect(document.body.style.overflow).toBe('')
+  })
 })

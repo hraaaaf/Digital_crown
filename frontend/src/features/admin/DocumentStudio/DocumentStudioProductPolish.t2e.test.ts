@@ -9,7 +9,8 @@ const source = (file: string) => readFileSync(
 const header = source('StudioHeader.tsx');
 const tabs = source('StudioTabs.tsx');
 const footer = source('StudioFooter.tsx');
-const preview = source('DocumentHubPreview.tsx');
+const previewController = source('DocumentHubPreview.tsx');
+const livePreview = source('LivePreview.tsx');
 
 describe('Document Studio T2-E product polish', () => {
   it('keeps patient identity and current document visible in the shell header', () => {
@@ -35,10 +36,11 @@ describe('Document Studio T2-E product polish', () => {
     expect(footer).toContain('dark:bg-slate-950/85');
   });
 
-  it('closes the open preview with Escape and unregisters the keyboard handler', () => {
-    expect(preview).toContain("event.key !== 'Escape'");
-    expect(preview).toContain('onClose();');
-    expect(preview).toContain("window.addEventListener('keydown', handleKeyDown)");
-    expect(preview).toContain("window.removeEventListener('keydown', handleKeyDown)");
+  it('delegates preview rendering and keeps Escape lifecycle on the modal owner', () => {
+    expect(previewController).toContain('<LivePreview');
+    expect(livePreview).toContain("event.key === 'Escape'");
+    expect(livePreview).toContain('onClose();');
+    expect(livePreview).toContain("window.addEventListener('keydown', onKeyDown)");
+    expect(livePreview).toContain("window.removeEventListener('keydown', onKeyDown)");
   });
 });
