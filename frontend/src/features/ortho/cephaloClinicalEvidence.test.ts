@@ -35,14 +35,14 @@ describe('R15 clinician provenance', () => {
     });
     expect(legacy.ai_diagnostic).toBeNull();
     expect(legacy.angles_data.ai_narrative).toBeUndefined();
-    expect(legacy.angles_data.__legacy_clinical_content).toBe('UNATTRIBUTED_LEGACY');
+    expect((legacy.angles_data as Record<string, any>).__legacy_clinical_content).toBe('UNATTRIBUTED_LEGACY');
 
     const marked = sanitizeAnalysisReadPayload({
       ai_diagnostic: serializeClinicianDiagnostic(diag),
       angles_data: { metrics: {} },
     });
     expect(readClinicianDiagnostic(marked.ai_diagnostic)).toEqual(diag);
-    expect(marked.angles_data.__legacy_clinical_content).toBeUndefined();
+    expect((marked.angles_data as Record<string, any>).__legacy_clinical_content).toBeUndefined();
   });
 
   it('removes fresh automated narrative before the store can promote it', () => {
@@ -50,7 +50,7 @@ describe('R15 clinician provenance', () => {
       results: { ai_narrative: { synthese_diagnostique: 'machine' }, metrics: {} },
     });
     expect(payload.results.ai_narrative).toBeUndefined();
-    expect(payload.results.__legacy_clinical_content).toBe('UNATTRIBUTED_LEGACY');
+    expect((payload.results as Record<string, any>).__legacy_clinical_content).toBe('UNATTRIBUTED_LEGACY');
   });
 });
 
