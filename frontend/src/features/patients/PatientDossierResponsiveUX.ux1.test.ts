@@ -4,6 +4,7 @@ import { describe, expect, it } from 'vitest';
 
 const read = (path: string) => readFileSync(resolve(process.cwd(), path), 'utf8');
 
+const route = read('src/features/patients/PatientDetails.tsx');
 const patient = read('src/features/patients/PatientDetailsInner.tsx');
 const bridge = read('src/features/patients/components/PatientMobileBridge.tsx');
 const tabs = read('src/features/admin/DocumentStudio/StudioTabs.tsx');
@@ -11,6 +12,10 @@ const layout = read('src/components/Layout/MainLayout.tsx');
 const css = read('src/components/Layout/patientDossierResponsive.css');
 
 describe('UX1 patient dossier responsive contract', () => {
+  it('loads the responsive contract at the patient route boundary', () => {
+    expect(route).toContain("../../components/Layout/patientDossierResponsive.css");
+  });
+
   it('keeps every patient navigation destination visible on compact viewports', () => {
     expect(patient).toContain('data-tour="patient-tabs"');
     expect(css).toContain('[data-tour="patient-tabs"]');
