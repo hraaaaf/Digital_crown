@@ -1,208 +1,122 @@
 # Document Studio — T1 Audit transversal premium
 
-Date: 2026-08-16
-Baseline code: `0a720dace83613cfc9fb0e0ae1c754e19c447c28` (P7-G head)
-Corrective stack: PR #88 → #89 → #91 → #92 → #93 → #94
-Scope: shared Document Studio boundaries after P1–P7 engineering work.
+Date : 2026-09-13
+Scope canonique : **P1→P6 actifs uniquement**.
+PR courante : #465 `test(t1): certify active P1-P6 transversal boundaries`.
 
-## 1. Proof contract
+## 1. Contrat de preuve
 
-This audit separates:
-- **CODE VÉRIFIÉ**: statically inspected source/diff on the referenced branch/head.
-- **TEST PRÉPARÉ**: automated test or harness exists but no execution result is inferred.
-- **TEST EXÉCUTÉ**: only when an actual test run is observed.
-- **INTERACTION RUNTIME**: only when reproduced in the authenticated product.
-- **CERTIFICATION**: only after the required runtime/CI/manual gates pass.
+- **CODE VÉRIFIÉ** : démontré par source/diff.
+- **TEST EXÉCUTÉ** : réellement exécuté avec résultat observé.
+- **INTERACTION RUNTIME** : observée dans le navigateur authentifié.
+- **CERTIFICATION** : uniquement après gates runtime/CI exact-head requis.
 
-A GitHub Actions job that fails before any step is neither a code failure nor a PASS.
+Le Compagnon Diagnostique historique P7 est hors de la surface Document Studio active. Son code dormant ne doit pas être mélangé à la certification T1 actuelle.
 
-## 2. Baseline shared architecture and defects
+## 2. Risques transversaux ciblés
 
-The T1 baseline demonstrated:
-- `/patients/:id` could reuse the same `PatientDetails` tree while the patient id changed;
-- P3/P4 patient-sensitive financial drafts lived in global `useAccountingStore` state without a patient-boundary reset;
-- `DocumentHub` patient fetches could apply stale responses;
-- URL-driven `documentTab` transitions bypassed the interactive dirty guard;
-- dirty-state coverage was fragmented across P1–P7;
-- shared “Ghost” logic derived clinical/radiological/therapeutic recommendations from free-text antecedents and financial act labels;
-- a direct `documentTab=ai` path could expose a deterministic therapeutic-strategy generator under an “IA” label;
-- shell truth/a11y/responsive invariants were not centrally gated.
+T1 ferme les frontières partagées suivantes :
 
-These statements describe the **baseline**, not the post-correction state.
+1. isolation patient : aucun état patient A ne doit devenir autoritaire chez B ;
+2. stale response : une réponse A tardive ne doit pas écraser B ;
+3. navigation dirty : transitions manuelles et URL doivent respecter le même garde ;
+4. frontière clinique : aucune exécution du chemin `ai-diagnostic` historique depuis le Studio actif ;
+5. vérité produit : uniquement six pages P1→P6 ;
+6. responsive/a11y/runtime : réutilisation du T2 complet plutôt que duplication de couverture.
 
-## 3. Baseline severity matrix
+## 3. Engineering vérifié
 
-### P0
+Les correctifs historiques T1-A→T1-E restent la base engineering :
 
-#### T1-P0-1 — Cross-patient financial/editor state persistence
+- reset patient-scoped et remount au changement de patient ;
+- fetches patient/suggestions cancellation-safe ;
+- `DocumentTabNavigationPolicy` centralise les transitions dirty ;
+- suppression des side-channels cliniques partagés non autoritatifs ;
+- retrait du point d'entrée actif vers le Compagnon Diagnostique ;
+- durcissement vérité UI, labels/ARIA/focus/Escape et shell responsive.
 
-A patient A draft could survive into patient B through shared global state and archived edit state.
+Le harness actuel `scripts/certify_document_studio_t1.sh` cible P1→P6 et exclut le test P7 dormant de la régression ciblée.
 
-**Required target:** patient identity is a hard isolation boundary.
+## 4. Certification runtime exécutée
 
-#### T1-P0-2 — Stale patient-details response
+HEAD comportemental certifié avant closeout documentaire : `51e98dd3f14882278e7de5a2f862bb7a256d985b`.
 
-A late patient A response could overwrite the current B context.
+T2 Runtime Browser Certification `#2645` / run `34750958888` : **SUCCESS**.
+Job : `T2 Browser Runtime Matrix` / `103707302825` : **SUCCESS**.
 
-**Required target:** stale responses are ignored and old context is cleared at identity change.
+### Patient boundary
 
-#### T1-P0-3 — Free-text / financial-label clinical inference
+Le probe `frontend/scripts/certify-t1-transversal.mjs` a observé :
 
-Unstructured antecedents and financial descriptions could create prescriptive medication/imaging/treatment statements.
+- A = `T2-0001`, B = `T2-0002` ;
+- deux réponses A retardées puis libérées ;
+- B autoritaire avant libération : `true` ;
+- B autoritaire après libération : `true` ;
+- route errors : `[]` ;
+- verdict : **PASS**.
 
-**Required target:** no clinical recommendation from those non-authoritative inputs in the certifiable shared path.
+### URL dirty boundary
 
-#### T1-P0-4 — Programmatic navigation bypass
+Observé :
 
-`documentTab` synchronization could call `setActiveTab` outside the dirty-aware transition contract.
+- annulation restaure l'URL : `true` ;
+- brouillon conservé : `true` ;
+- confirmation dirty armée : `true` ;
+- confirmation atteint la cible : `true` ;
+- session de confirmation isolée : `true` ;
+- verdict : **PASS**.
 
-**Required target:** manual and URL-driven transitions share one guard.
+### Clinical boundary
 
-### P1
+Observé :
 
-- dirty-state parity across P1–P7;
-- truthful capability/status messaging;
-- responsive preview and compact shell;
-- explicit keyboard/focus/accessible-state semantics;
-- stale preview/suggestion/edit hydration invalidation at patient boundaries.
+- Compagnon Diagnostique absent : `true` ;
+- requêtes `ai-diagnostic` : `[]` ;
+- page errors : `[]` ;
+- verdict : **PASS**.
 
-## 4. Target transversal contract
+## 5. Couverture T2 réutilisée
 
-1. **Patient boundary:** patient id change invalidates patient-scoped shared document/edit state and stale async responses.
-2. **Navigation boundary:** manual and URL-driven tab transitions use one dirty-aware decision path.
-3. **Clinical boundary:** free-text antecedents and financial descriptions never prescribe/infer treatment, imaging or medication in the shared certifiable path.
-4. **Truthful UI:** capability/status claims are evidenced or absent; uncertified clinical features are explicitly unavailable.
-5. **Responsive/a11y:** core shell controls expose labels/state/focus semantics and remain usable on narrow screens.
-6. **Proof:** T1 remains uncertified until executable harness + authenticated runtime/browser gates pass on the exact final head.
+Le même run T2 a passé :
 
-## 5. Corrective execution status
+- credential runtime jetable ;
+- seed du patient B ;
+- PDF runtime strict ;
+- réconciliation P3/P4/P5 ;
+- matrice navigateur P1→P6 ;
+- stress navigation 10/10 transitions ;
+- P6 390×844 / 768×1024 / 1280×900 sans overflow ni clipping ;
+- impression navigateur ;
+- fraîcheur PDF ;
+- upload des preuves.
 
-### T1-A — Patient isolation — CODE VÉRIFIÉ
+Artefact : `t2-browser-evidence`, ID `10316225660`, digest `sha256:886455c2ffcb560e50cb22e0e3798cc362459615904afec3da9c6396c2aaf333`.
 
-PR #88.
+## 6. Gates voisins observés
 
-Implemented:
-- route-level `PatientDetails` wrapper remounts the patient workspace with `key={id}`;
-- patient-boundary reset clears `useAccountingStore` and archived `editingDoc` state before the new patient tree renders;
-- patient-boundary regression test verifies financial/store/edit reset;
-- subsequent T1-C hardening makes `DocumentHub` patient and smart-suggestion fetches cancellation-safe and clears stale context before replacement.
+Sur le même HEAD comportemental :
 
-**Engineering finding:** the baseline cross-patient shared-state path is closed statically.
+- Catalog Connected Truth `#1094` / `34750958896` : **SUCCESS** ;
+- Cabinet Upgrade PostgreSQL `#160` / `34750958994` : **SUCCESS** ;
+- Patient P7 Final `#1309` / `34750959000` : **SUCCESS**, sans réactivation P7 dans Document Studio ;
+- M6-I `#1445` : **SKIPPED** attendu.
 
-**Not yet runtime-certified:** rapid authenticated A→B switch with delayed A network response.
+CI principale `#3701` / `34750958892` était encore en cours au moment de cette mise à jour. Les jobs frontend/tests/build et les bridges M4 déjà terminés sont verts ; le job backend principal doit encore devenir terminal vert avant fermeture T1.
 
-### T1-B — Unified navigation guard — CODE VÉRIFIÉ
+## 7. Correctifs d'infrastructure de certification
 
-PR #89.
+Le runtime T2 utilise désormais un credential jetable généré par workflow. Les probes historiques encore dépendants de l'ancien marqueur sont réalignés à l'exécution.
 
-Implemented:
-- one `DocumentTabNavigationPolicy` covers P1/P2/P3/P4/P5/P6/P7;
-- P1/P6/P7 existing dirty-state primitives are retained;
-- P2 gets explicit certificate dirty-state publication;
-- P5 gets explicit unsaved-plan dirty-state publication without treating server hydration as user editing;
-- P3/P4 shared accounting drafts are evaluated through the same central transition decision;
-- `DocumentHub` is the authoritative transition orchestrator for both UI clicks and URL `documentTab` changes;
-- URL cancellation restores the current tab rather than silently discarding the draft;
-- unguarded reload/back controls were removed from the Studio header;
-- patient boundary reset also clears document dirty-state modules.
+Le rate limiter produit reste inchangé. Le serveur **T2 isolé uniquement** élève son plafond de tentatives afin que les multiples probes authentifiés du même run ne s'auto-bloquent pas.
 
-**Engineering finding:** the baseline manual/programmatic dirty-guard split is closed statically.
+## 8. Statut actuel
 
-**Not yet runtime-certified:** authenticated manual + URL-driven abandon/cancel matrix across all pages.
+**Engineering : convergé sur P1→P6.**
 
-### T1-C — Clinical inference boundary — CODE VÉRIFIÉ
+**Runtime transversal T1 : PASS observé.**
 
-PR #91.
+**T2 global : SUCCESS observé.**
 
-Implemented:
-- removed the shared `Insight` side channel from `DocumentHub`;
-- removed Ghost Complications, Ghost Mutuelle and missing-post-op protocol suggestions from the active shared hub;
-- removed shared financial/free-text inference statements for anticoagulation, diabetes, bisphosphonates, pregnancy, antibiotics and radiography;
-- dedicated deterministic prescription safety remains in the prescription-specific path rather than being duplicated in the shared financial/document hub;
-- patient/smart-suggestion requests are cancellation-safe;
-- the direct `documentTab=ai` footer executor no longer calls `/patients/{id}/ai-diagnostic`; it exposes an explicit unavailable state instead;
-- source gates forbid reintroduction of the removed inference strings and AI launch control.
+**CI principale : encore non terminale au moment de ce document.**
 
-**Engineering finding:** no baseline free-text/financial-label prescriptive side channel remains in the inspected certifiable shared path.
-
-**Important scope:** the historical backend deterministic `ai-diagnostic` engine is not certified by T1 and was not deleted; T1 only removes its executable Document Studio entry point.
-
-### T1-D — UI truth — CODE VÉRIFIÉ
-
-PR #92.
-
-Inspected active shell surfaces:
-- `StudioHeader.tsx`;
-- `StudioTabs.tsx`;
-- `StudioFooter.tsx`;
-- `LivePreview.tsx`.
-
-Result after T1-C:
-- no additional active static “Moteur Local Actif”, “Lancer Analyse IA”, “Régénérer Analyse” or “IA certifiée” claim was demonstrated;
-- anti-regression source gate added;
-- uncertified clinical path must remain visibly unavailable pending separate scientific validation.
-
-### T1-E — Responsive / accessibility shell — CODE VÉRIFIÉ
-
-PR #93.
-
-Implemented:
-- explicit document-date `label`/`id` association;
-- `aria-pressed` for odontogram, active document tabs and preview state;
-- primary shell controls raised to touch-friendly minimum heights and given visible keyboard focus rings;
-- print confirmation declared as an accessible modal dialog;
-- PDF preview declared as a dialog when overlaid and region when inline;
-- PDF preview closes on Escape;
-- iframe keeps an explicit title;
-- narrow-screen footer spacing/text sizing hardened;
-- source-level accessibility invariants added.
-
-**Not yet visually/runtime-certified:** real browser checks at 390/430/1280 and full keyboard/focus smoke test.
-
-### T1-F — Final transversal recertification — TEST PRÉPARÉ, NOT EXECUTED
-
-PR #94.
-
-Added `scripts/certify_document_studio_t1.sh`:
-1. targeted T1 transversal regression;
-2. full frontend test suite;
-3. frontend production build.
-
-The harness requires Node 20 and a clean worktree and prints the exact candidate HEAD.
-
-**No PASS is claimed merely because the harness exists.**
-
-## 6. CI observation
-
-On the observed T1-C exact head, GitHub Actions run #503 (`31941504118`) concluded failure before executing repository steps: jobs reported `runner_id=0` and empty `steps`.
-
-Therefore:
-- this is **not evidence of a code-test failure**;
-- this is **not a PASS**;
-- no repeated polling is useful until runner execution is restored.
-
-The T1-F harness is the canonical executable gate to run once infrastructure permits.
-
-## 7. Runtime gates still open
-
-Required before final T1 certification:
-- authenticated A→B patient switch with populated P3/P4 draft: zero old item/payment/installment/edit state survives;
-- authenticated A→B with intentionally delayed A response: B remains authoritative;
-- dirty P1/P2/P3/P4/P5/P6/P7: manual and URL-driven transitions show equivalent cancel/discard behavior;
-- no Document Studio route can execute the uncertified `ai-diagnostic` clinical-strategy path;
-- real 390 px / 430 px / 1280 px responsive matrix;
-- keyboard/focus smoke check, including dialogs and PDF preview Escape close;
-- real preview/print interaction check;
-- targeted T1 harness + full frontend suite + production build on the exact final head.
-
-Clinical, pharmacological, financial and regulatory certifications remain separate wherever applicable.
-
-## 8. Current status
-
-**Engineering A→E: statically converged on the stacked T1 branches.**
-
-**T1-F automation: prepared, not executed.**
-
-**Runtime / CI / visual certification: OPEN.**
-
-Consequently, T1 must not be labelled “certified”, “production ready” or fully closed. The next technically valid transition is execution of the exact-head T1 harness when runners are available, followed by authenticated/browser runtime checks and only then final certification/merge closeout.
+T1 n'est donc pas encore déclaré fermé/mergé dans ce fichier. La fermeture finale exige : CI terminale verte → closeout documentaire cohérent → gates exact-head du HEAD documentaire final → squash merge exact-head → vérification post-merge `master`.
