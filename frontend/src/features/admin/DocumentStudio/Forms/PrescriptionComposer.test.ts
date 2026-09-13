@@ -23,6 +23,16 @@ describe('PrescriptionComposer', () => {
     })).toBe('1 comprimé, si douleur, sans dépasser 3 fois par jour pendant 3 jours.');
   });
 
+  it('conserve si douleur lors du roundtrip avec plafond quotidien', () => {
+    const state = {
+      amount: '1 comprimé',
+      frequency: 'si douleur',
+      constraint: 'max 3/jour',
+      context: '3 jours',
+    };
+    expect(parsePrescriptionPosology(composePrescriptionPosology(state))).toEqual(state);
+  });
+
   it('reconnaît un preset historique x 3 par jour', () => {
     expect(parsePrescriptionPosology('1 cp x 3 / jour pendant 4 jours')).toEqual({
       amount: '1 comprimé',
