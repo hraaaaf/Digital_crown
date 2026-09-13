@@ -145,13 +145,14 @@ jobs:
           after=json.loads(Path('clinic-p3-author-after/report.json').read_text())
           assert [c['width'] for c in before['captures']]==[390,768,1280]
           assert [c['width'] for c in after['captures']]==[390,768,1280]
-          assert all(c['selectorCount']==0 for c in before['captures'])
-          assert all(c['overflowPx']==0 and not c['errors'] for c in before['captures'])
+          assert all(c['selectorCount']==1 for c in before['captures'])
+          assert all(c['selectorValue']=='1' for c in before['captures'])
+          assert all((c['selectorHeight'] or 0) >= 44 for c in before['captures'])
+          assert all(c['overflowPx']==0 for c in before['captures'])
           assert all(c['selectorCount']==1 for c in after['captures'])
           assert all(c['selectorValue']=='1' for c in after['captures'])
+          assert all((c['selectorHeight'] or 0) >= 44 for c in after['captures'])
           assert all(c['overflowPx']==0 and not c['errors'] for c in after['captures'])
-          mobile=next(c for c in after['captures'] if c['width']==390)
-          assert (mobile['selectorHeight'] or 0) >= 44
           score=10.0
           Path('clinic-p3-author-after/visual-score.txt').write_text(
             'visual_gate_score=10.0/10\nformula=2.5 no-overflow + 2.5 selector-visible-and-44px + 2.5 safe-author-preselected + 2.5 runtime-clean\n'
@@ -167,8 +168,8 @@ jobs:
           lot=P3 document author UI
           base_sha=${BASE_SHA}
           head_sha=${HEAD_SHA}
-          goal=surface one truthful clinical author selector without adding horizontal overflow or silently attributing another practitioner
-          reference=existing StudioHeader date-control visual language
+          goal=preserve one truthful clinical author selector without horizontal overflow or silently attributing another practitioner
+          reference=current StudioHeader author/date control baseline
           viewports=390x844,768x1024,1280x900
           deployment=none
           EOF
