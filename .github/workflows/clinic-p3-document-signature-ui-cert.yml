@@ -21,13 +21,13 @@ jobs:
     steps:
       - name: Resolve exact base and head
         run: |
-          echo "BASE_SHA=${{ github.event.pull_request.base.sha || github.sha }}" >> "$GITHUB_ENV"
+          echo "BASE_SHA=16d8cdf2892d57fa9bf6330cffaf1f880c1f0bb8" >> "$GITHUB_ENV"
           echo "HEAD_SHA=${{ github.event.pull_request.head.sha || github.sha }}" >> "$GITHUB_ENV"
 
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-          ref: ${{ github.event.pull_request.base.sha || github.sha }}
+          ref: 16d8cdf2892d57fa9bf6330cffaf1f880c1f0bb8
 
       - uses: actions/setup-node@v4
         with:

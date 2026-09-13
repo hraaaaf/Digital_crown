@@ -18,7 +18,8 @@
 **R12 problem list + objectifs :** HEAD certifié `dc04d759191828afe85c643719165e7d4fcc916e` — CI #3500 SUCCESS — T2 #2465 SUCCESS — PR #441 — merge `02d4be759e4ddbc24293340c6c10848174ace07a`  
 **R13 options thérapeutiques :** HEAD certifié `7fd6fdae604010510b74e5fe908dc76a425a71cf` — CI #3526 SUCCESS — T2 #2489 SUCCESS — PR #444 — merge `4740b463e49f8ddee9dbb704faaecd086c389beb`  
 **R14 validation clinique finale :** HEAD certifié `017a7eaf7d293c5a7af19fb44987a2d5ff3f675c` — CI #3581 SUCCESS — T2 #2536 SUCCESS — PR #447 — merge `2f1f1d88bf6027988a398967bed5e65883b729aa`  
-**Statut courant :** COM simplifié fermé sur master ; R15 Studio clinique est actif dans une fenêtre dédiée et n’est pas encore clos ; R15bis UI/UX est planifié immédiatement après fermeture de R15 ; aucun déploiement ; NEXT = terminer R15 sans chevauchement, puis reprendre R15bis depuis le master final vérifié.
+**R15 Studio clinique UX/UI :** HEAD certifié `f70d62df584a38a7deb8341dc608ad14274c3dec` — CI #3783 SUCCESS — T2 #2715 SUCCESS — PostgreSQL #230 SUCCESS — R15 AFTER #47 SUCCESS — Document History AFTER #45 SUCCESS — Document History Visual #1220 SUCCESS — PR #458 — merge `258762da7aff8e7fd481990e96f32b761d635234`  
+**Statut courant :** COM simplifié et R15 Studio clinique fermés sur master ; R15bis UI/UX est le lot suivant depuis le master post-closeout vérifié ; aucun déploiement ; NEXT = R15bis, puis R16.
 
 ## GOAL GLOBAL
 
@@ -154,7 +155,7 @@ Sans profil validé : `CANDIDATE_UNVERIFIED`.
 
 Le registre `validated_fiducial_profiles` est **vide par défaut**. Donc aucun profil de test ou hypothèse implicite ne peut activer `AUTO_VERIFIED` en production. L'architecture permet l'auto-vérification, mais son activation réelle exige l'introduction explicite d'un profil physique validé.
 
-Cette section conserve le contrat scientifique/HFE R1. Elle n'est pas le pointeur de reprise courant ; le pointeur courant est R15, suivi de R15bis après fermeture de R15.
+Cette section conserve le contrat scientifique/HFE R1. Elle n'est pas le pointeur de reprise courant ; le pointeur courant est R15bis, après fermeture vérifiée de R15.
 
 ## R11 — DIAGNOSTIC MULTIAXIAL — CONTRAT FERMÉ
 
@@ -396,16 +397,17 @@ Options évaluables, jamais prescription autonome ; indications/contre-indicatio
 **Preuve :** candidate `7fd6fdae604010510b74e5fe908dc76a425a71cf` ; CI #3526 SUCCESS ; T2 #2489 SUCCESS ; PR #444 ; merge `4740b463e49f8ddee9dbb704faaecd086c389beb` ; master post-merge implementation identique.
 
 ### R14 — Validation clinique finale
-**État : FERMÉ côté implémentation ; closeout documentaire en certification.**  
+**État : FERMÉ.**  
 Stratégie finale impossible sans sélection R13 praticien préalable et validation/rejet final R14 traçable ; aucune prescription autonome.  
 **Preuve :** candidate `017a7eaf7d293c5a7af19fb44987a2d5ff3f675c` ; CI #3581 SUCCESS ; T2 #2536 SUCCESS ; PR #447 ; merge `2f1f1d88bf6027988a398967bed5e65883b729aa` ; master post-merge implementation identique.
 
 ### R15 — Studio clinique UX/UI Digital Crown
-**État : ACTIF dans une fenêtre dédiée ; ne pas chevaucher depuis une autre fenêtre.**  
-Radio dominante, état scientifique compact, provenance/correction/calculabilité visibles ; cycle UX obligatoire complet.
+**État : FERMÉ.**  
+Chaîne R11→R14 explicite et fail-closed ; provenance, blockers, missing data, contradictions et contre-indications visibles ; notes legacy séparées de l'autorité ; archivage séparé de la validation clinique.  
+**Preuve :** candidate `f70d62df584a38a7deb8341dc608ad14274c3dec` ; CI #3783 SUCCESS ; T2 #2715 SUCCESS ; PostgreSQL #230 SUCCESS ; R15 AFTER #47 SUCCESS ; Document History AFTER #45 SUCCESS ; Document History Visual #1220 SUCCESS ; reviews 0 ; threads 0 ; PR #458 ; merge `258762da7aff8e7fd481990e96f32b761d635234` ; master post-merge implementation identique ; aucun déploiement.
 
 ### R15bis — Refinement UI/UX du studio céphalométrique
-**État : PLANIFIÉ ; implémentation interdite avant fermeture réelle de R15.**  
+**État : NEXT / lot suivant ; implémentation depuis le master post-closeout vérifié.**  
 **Goal :** reprendre la structure visuelle validée du mockup COM comme inspiration fonctionnelle — navigation majeure claire, viewer dominant, panneau résultats séparé, tableaux compacts et icônes homogènes — tout en conservant strictement l’identité/tokens Digital Crown et sans toucher à la logique clinique/scientifique.  
 **Référence visuelle :** `docs/assets/cephalo/r15bis-ui-reference.jpg`.  
 **Plan détaillé :** `docs/handovers/2026-09-13-cephalo-r15bis-uiux-plan.md`.  
@@ -442,24 +444,24 @@ Traitement : `diagnostic validé → données cliniques requises → indication/
 - R12 HEAD `dc04d759191828afe85c643719165e7d4fcc916e` : CI #3500 SUCCESS ; T2 #2465 SUCCESS ; merge PR #441 `02d4be759e4ddbc24293340c6c10848174ace07a`.
 - R13 HEAD `7fd6fdae604010510b74e5fe908dc76a425a71cf` : CI #3526 SUCCESS ; T2 #2489 SUCCESS ; merge PR #444 `4740b463e49f8ddee9dbb704faaecd086c389beb`.
 - R14 HEAD `017a7eaf7d293c5a7af19fb44987a2d5ff3f675c` : CI #3581 SUCCESS ; T2 #2536 SUCCESS ; PostgreSQL #51 SUCCESS ; merge PR #447 `2f1f1d88bf6027988a398967bed5e65883b729aa`.
+- R15 HEAD `f70d62df584a38a7deb8341dc608ad14274c3dec` : CI #3783 SUCCESS ; T2 #2715 SUCCESS ; PostgreSQL #230 SUCCESS ; R15 AFTER #47 SUCCESS ; Document History AFTER #45 SUCCESS ; Document History Visual #1220 SUCCESS ; merge PR #458 `258762da7aff8e7fd481990e96f32b761d635234`.
 
 ## NEXT EXACT
 
-1. **Ne pas intervenir sur R15 depuis cette fenêtre** : R15 reste la responsabilité de sa fenêtre dédiée jusqu’à merge + closeout vérifié.
-2. Dès R15 fermé, ouvrir une fenêtre exclusivement **R15bis UI/UX**.
-3. Lire `AGENTS.md` puis `STATE.md` puis ce fichier canonique puis `docs/handovers/2026-09-13-cephalo-r15bis-uiux-plan.md`.
-4. Vérifier repo/master/HEAD/PR/CI et confirmer que le R15 réellement mergé est la baseline.
-5. Capturer le BEFORE R15bis réel en 390 / 768 / 1280+ avant toute modification.
-6. Utiliser `docs/assets/cephalo/r15bis-ui-reference.jpg` uniquement comme référence structurelle : navigation claire, viewer dominant, résultats séparés, tableaux/icônes ; **ne pas reprendre le dark theme**.
-7. Mapper la référence aux tokens/composants Digital Crown, puis implémenter sans toucher aux contrats scientifiques/diagnostiques/thérapeutiques.
-8. Certifier AFTER aux mêmes viewports, comparer BEFORE/AFTER, tester overflow/console/interactions/accessibilité et produire un score visuel argumenté.
-9. Fermer R15bis avant de démarrer R16.
+1. Partir du **master post-closeout vérifié** et ouvrir le lot exclusivement **R15bis UI/UX**.
+2. Lire `AGENTS.md` puis `STATE.md` puis ce fichier canonique puis `docs/handovers/2026-09-13-cephalo-r15bis-uiux-plan.md`.
+3. Vérifier repo/master/HEAD/PR/CI et confirmer que R15 mergé + closeout documentaire sont bien la baseline.
+4. Capturer le BEFORE R15bis réel en 390 / 768 / 1280+ avant toute modification.
+5. Utiliser `docs/assets/cephalo/r15bis-ui-reference.jpg` uniquement comme référence structurelle : navigation claire, viewer dominant, résultats séparés, tableaux/icônes ; **ne pas reprendre le dark theme**.
+6. Mapper la référence aux tokens/composants Digital Crown, puis implémenter sans toucher aux contrats scientifiques/diagnostiques/thérapeutiques.
+7. Certifier AFTER aux mêmes viewports, comparer BEFORE/AFTER, tester overflow/console/interactions/accessibilité et produire un score visuel argumenté.
+8. Fermer R15bis avant de démarrer R16.
 
-Dette séparée historique : `.github/workflows/document-history-actions-visual-cert.yml` était déjà corrompu avant R14 et peut produire un workflow visuel sans jobs ; ne pas le compter comme preuve sans vérification réelle.
+Dette Document History : réparée pendant R15. Les deux certificats exact-head finaux (`AFTER #45`, `Visual #1220`) sont SUCCESS sur `f70d62df584a38a7deb8341dc608ad14274c3dec`.
 
 ## SÉQUENCE RESTANTE
 
-`R15 studio clinique (fenêtre dédiée) → closeout R15 → R15bis UI/UX → R16 PDF/restitution → R17 certification/closeout`
+`R15bis UI/UX → R16 PDF/restitution → R17 certification/closeout`
 
 ## DÉPLOIEMENT
 

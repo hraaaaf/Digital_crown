@@ -27,6 +27,7 @@ jobs:
       CLOUD_AI_ENABLED: 'false'
       DEBUG: 'false'
       ALLOWED_ORIGINS: 'http://127.0.0.1:5173,http://localhost:5173'
+      T2_USER: t2-browser@cabinet.ma
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -37,6 +38,9 @@ jobs:
           node-version: '20'
           cache: npm
           cache-dependency-path: frontend/package-lock.json
+      - name: Generate isolated runtime credential
+        shell: bash
+        run: python -c 'import secrets; print("T2_PASSWORD=" + secrets.token_urlsafe(24))' >> "$GITHUB_ENV"
       - name: Install backend
         run: |
           python -m pip install --upgrade pip
@@ -97,9 +101,8 @@ jobs:
           import { chromium, request } from 'playwright';
 
           const out=path.resolve('../artifacts/document-history-actions-after');
-          const source=fs.readFileSync(path.resolve('../scripts/t2_runtime_server.py'),'utf8');
-          const user=source.match(/email="([^"]+)"/)?.[1];
-          const pass=source.match(/get_password_hash\("([^"]+)"\)/)?.[1];
+          const user=process.env.T2_USER;
+          const pass=process.env.T2_PASSWORD;
           if(!user||!pass) throw new Error('isolated credentials unavailable');
 
           const api=await request.newContext({baseURL:'http://127.0.0.1:8005'});

@@ -71,32 +71,16 @@ export const Step3Clinical: React.FC<Step3ClinicalProps> = ({ P }) => {
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <FieldShell label="Âge (ans)" P={P}>
-                <input
-                  type="number"
-                  value={data.age}
-                  onChange={e => onChange(prev => ({ ...prev, age: e.target.value === '' ? '' : parseInt(e.target.value) }))}
-                  className="w-full bg-transparent font-black text-lg outline-none"
-                  style={{ color: P.text }}
-                />
+                <input type="number" value={data.age} onChange={e => onChange(prev => ({ ...prev, age: e.target.value === '' ? '' : parseInt(e.target.value) }))} className="w-full bg-transparent font-black text-lg outline-none" style={{ color: P.text }} />
               </FieldShell>
-              <FieldShell label="Stade CVM — praticien" P={P}>
-                <select
-                  value={data.cvm}
-                  onChange={e => onChange(prev => ({ ...prev, cvm: e.target.value as any }))}
-                  className="w-full bg-transparent font-bold text-sm outline-none"
-                  style={{ color: P.text }}
-                >
+              <FieldShell label="Stade CVM — saisie manuelle" P={P}>
+                <select value={data.cvm} onChange={e => onChange(prev => ({ ...prev, cvm: e.target.value as any }))} className="w-full bg-transparent font-bold text-sm outline-none" style={{ color: P.text }}>
                   <option value="">Non renseigné</option>
                   {['CS1', 'CS2', 'CS3', 'CS4', 'CS5', 'CS6'].map(v => <option key={v} value={v}>{v}</option>)}
                 </select>
               </FieldShell>
-              <FieldShell label="Denture — praticien" P={P}>
-                <select
-                  value={data.denture_type || ''}
-                  onChange={e => onChange(prev => ({ ...prev, denture_type: e.target.value as any }))}
-                  className="w-full bg-transparent font-bold text-sm outline-none"
-                  style={{ color: P.text }}
-                >
+              <FieldShell label="Denture — saisie manuelle" P={P}>
+                <select value={data.denture_type || ''} onChange={e => onChange(prev => ({ ...prev, denture_type: e.target.value as any }))} className="w-full bg-transparent font-bold text-sm outline-none" style={{ color: P.text }}>
                   <option value="">Non renseignée</option>
                   <option value="TEMPORAIRE">Temporaire</option>
                   <option value="MIXTE">Mixte</option>
@@ -105,7 +89,7 @@ export const Step3Clinical: React.FC<Step3ClinicalProps> = ({ P }) => {
               </FieldShell>
             </div>
             <p className="mt-4 text-[11px] leading-relaxed" style={{ color: P.textMuted }}>
-              Le stade CVM n'est jamais déduit de l'âge ou du sexe. Toute valeur CVM affichée ici est une saisie clinique du praticien.
+              Le stade CVM n'est jamais déduit de l'âge ou du sexe. Toute valeur CVM affichée ici est une saisie manuelle non promue en preuve R11.
             </p>
           </div>
 
@@ -166,8 +150,8 @@ export const Step3Clinical: React.FC<Step3ClinicalProps> = ({ P }) => {
               <h3 className="text-sm font-black uppercase tracking-widest" style={{ color: P.text }}>Synthèse descriptive</h3>
             </div>
             <div className="space-y-4">
-              <RawRow label="Classe squelettique" value={data.classe_squelettique || 'Non classifiable / non documentée'} P={P} />
-              <RawRow label="Pattern vertical" value={data.pattern_vertical || 'Non classifiable / non documenté'} P={P} />
+              <RawRow label="Classe squelettique · legacy hors R11" value={data.classe_squelettique || 'Non classifiable / non documentée'} P={P} />
+              <RawRow label="Pattern vertical · legacy hors R11" value={data.pattern_vertical || 'Non classifiable / non documenté'} P={P} />
               <RawRow label="DDM clinique" value={raw(data.ddm_clinique, 'mm')} P={P} />
               <RawRow label="Surplomb mesuré" value={raw(data.dentaire.surplomb, 'mm')} P={P} />
               <RawRow label="Recouvrement mesuré" value={raw(data.dentaire.recouvrement, 'mm')} P={P} />
@@ -179,37 +163,42 @@ export const Step3Clinical: React.FC<Step3ClinicalProps> = ({ P }) => {
             </p>
           </div>
 
-          <AccordionSection title="1. Analyse Dentaire et Alvéolaire" icon={<Ruler size={14} style={{ color: P.accent }} />} P={P}>
-            <textarea value={diag.analyse_dentaire} onChange={e => handleDiagChange('analyse_dentaire', e.target.value)} className="w-full h-24 p-3 rounded-xl bg-white/50 border text-sm focus:ring-2 outline-none transition-all mt-2" style={{ borderColor: P.border, color: P.text }} placeholder="Description clinique du praticien..." />
+          <div className="rounded-xl border px-4 py-3 text-[11px] leading-5" style={{ borderColor: `${P.accentWarning}45`, background: `${P.accentWarning}09`, color: P.textMuted }}>
+            <strong style={{ color: P.text }}>Ancienne catégorie « Notes praticien non autoritaires » : provenance legacy non certifiée.</strong> Ces champs peuvent contenir une saisie manuelle ou un contenu historique ; le contrat legacy ne permet pas d'en attester l'auteur. Ils ne créent aucune preuve R11, sélection R13 ou validation R14.
+          </div>
+
+          <AccordionSection title="1. Note libre legacy — Analyse dentaire et alvéolaire" icon={<Ruler size={14} style={{ color: P.accent }} />} P={P}>
+            <textarea value={diag.analyse_dentaire} onChange={e => handleDiagChange('analyse_dentaire', e.target.value)} className="w-full h-24 p-3 rounded-xl bg-white/50 border text-sm focus:ring-2 outline-none transition-all mt-2" style={{ borderColor: P.border, color: P.text }} placeholder="Saisie libre ou contenu historique — provenance non certifiée, hors preuve R11." />
           </AccordionSection>
 
-          <AccordionSection title="2. Analyse Squelettique" icon={<Activity size={14} style={{ color: P.accent }} />} P={P}>
-            <textarea value={diag.diagnostic_squelettique} onChange={e => handleDiagChange('diagnostic_squelettique', e.target.value)} className="w-full h-24 p-3 rounded-xl bg-white/50 border text-sm focus:ring-2 outline-none transition-all mt-2" style={{ borderColor: P.border, color: P.text }} placeholder="Description clinique du praticien..." />
+          <AccordionSection title="2. Note libre legacy — Analyse squelettique" icon={<Activity size={14} style={{ color: P.accent }} />} P={P}>
+            <textarea value={diag.diagnostic_squelettique} onChange={e => handleDiagChange('diagnostic_squelettique', e.target.value)} className="w-full h-24 p-3 rounded-xl bg-white/50 border text-sm focus:ring-2 outline-none transition-all mt-2" style={{ borderColor: P.border, color: P.text }} placeholder="Saisie libre ou contenu historique — provenance non certifiée, hors preuve R11." />
           </AccordionSection>
         </div>
       </div>
 
       <div className="space-y-3">
-        <AccordionSection title="3. Examen des Moulages" icon={<Activity size={14} style={{ color: P.accent }} />} P={P}>
+        <AccordionSection title="3. Examen des Moulages — auto descriptif + note libre legacy" icon={<Activity size={14} style={{ color: P.accent }} />} P={P}>
           <div className="space-y-4 pt-2">
             <div className="p-4 rounded-xl font-mono text-[11px] leading-relaxed" style={{ background: P.bgInput, border: `1px solid ${P.border}40`, color: P.text }}>
+              <div className="mb-2 font-sans text-[9px] font-black uppercase tracking-wider" style={{ color: P.textMuted }}>Synthèse occlusale automatique descriptive · hors R11</div>
               {data.analyse_moulages_auto ? data.analyse_moulages_auto.split('\n').map((line, i) => <div key={i}>{line}</div>) : <span className="opacity-40 italic">En attente des données occlusales...</span>}
             </div>
-            <textarea value={diag.analyse_moulages} onChange={e => handleDiagChange('analyse_moulages', e.target.value)} className="w-full h-24 p-3 rounded-xl bg-white/50 border text-sm focus:ring-2 outline-none transition-all" style={{ borderColor: P.border, color: P.text }} placeholder="Notes du praticien..." />
+            <textarea value={diag.analyse_moulages} onChange={e => handleDiagChange('analyse_moulages', e.target.value)} className="w-full h-24 p-3 rounded-xl bg-white/50 border text-sm focus:ring-2 outline-none transition-all" style={{ borderColor: P.border, color: P.text }} placeholder="Note libre legacy — auteur non certifié, hors preuve scientifique autoritaire." />
           </div>
         </AccordionSection>
 
-        <AccordionSection title="4. Diagnostic / Résumé Diagnostique" icon={<Info size={14} style={{ color: P.accent }} />} defaultOpen P={P}>
-          <textarea value={diag.synthese_diagnostique} onChange={e => handleDiagChange('synthese_diagnostique', e.target.value)} className="w-full h-32 p-3 rounded-xl bg-white/50 border text-sm focus:ring-2 outline-none transition-all mt-2" style={{ borderColor: P.border, color: P.text }} placeholder="Diagnostic / synthèse validée par le praticien..." />
+        <AccordionSection title="4. Note diagnostique libre legacy — hors R11" icon={<Info size={14} style={{ color: P.accent }} />} defaultOpen P={P}>
+          <textarea value={diag.synthese_diagnostique} onChange={e => handleDiagChange('synthese_diagnostique', e.target.value)} className="w-full h-32 p-3 rounded-xl bg-white/50 border text-sm focus:ring-2 outline-none transition-all mt-2" style={{ borderColor: P.border, color: P.text }} placeholder="Note diagnostique libre legacy. Provenance non certifiée ; ne vaut pas diagnostic R11 autoritaire." />
         </AccordionSection>
 
-        <AccordionSection title="5. Plan thérapeutique — décision praticien" icon={<Info size={14} style={{ color: P.accent }} />} P={P}>
+        <AccordionSection title="5. Note thérapeutique libre legacy — hors R13/R14" icon={<Info size={14} style={{ color: P.accent }} />} P={P}>
           <textarea
             value={diag.strategie_therapeutique}
             onChange={e => handleDiagChange('strategie_therapeutique', e.target.value)}
             className="w-full h-48 p-4 rounded-xl bg-white/50 border text-sm focus:ring-2 outline-none transition-all resize-none overflow-y-auto leading-relaxed mt-2"
             style={{ borderColor: P.border, color: P.text }}
-            placeholder="Plan thérapeutique saisi et validé par le praticien. Aucune génération automatique."
+            placeholder="Note thérapeutique libre legacy. Provenance non certifiée ; elle ne sélectionne aucune option R13 et ne valide aucune stratégie R14."
           />
         </AccordionSection>
       </div>
