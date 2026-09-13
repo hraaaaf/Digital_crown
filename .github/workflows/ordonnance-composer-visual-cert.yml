@@ -31,6 +31,10 @@ jobs:
         working-directory: frontend
         run: npm ci
 
+      - name: Install Playwright runner only
+        working-directory: frontend
+        run: npm install --no-save --package-lock=false playwright@1.63.0
+
       - name: Install Chromium
         working-directory: frontend
         run: npx playwright install --with-deps chromium
