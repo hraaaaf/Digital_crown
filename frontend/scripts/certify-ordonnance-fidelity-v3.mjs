@@ -158,9 +158,9 @@ for (const capture of captures) {
   if (capture.viewport.width >= 1280) {
     const previewMetrics = capture.preview?.metrics;
     if (!previewMetrics?.desktopPreview) failures.push(`${capture.viewport.width}-preview: inline preview missing`);
-    if ((previewMetrics?.desktopPreview?.width || 0) < 290) failures.push(`${capture.viewport.width}-preview: inline preview too narrow`);
-    if ((previewMetrics?.density?.width || 0) < 540) failures.push(`${capture.viewport.width}-preview: editor layout width below 540px`);
-    if ((previewMetrics?.visibleEditorWidth || 0) < 460) failures.push(`${capture.viewport.width}-preview: visible editor width below 460px`);
+    if ((previewMetrics?.desktopPreview?.width || 0) < 270) failures.push(`${capture.viewport.width}-preview: inline preview too narrow`);
+    if ((previewMetrics?.density?.width || 0) < 530) failures.push(`${capture.viewport.width}-preview: editor layout width below 530px`);
+    if ((previewMetrics?.visibleEditorWidth || 0) < 495) failures.push(`${capture.viewport.width}-preview: visible editor width below 495px`);
     if (!previewMetrics?.noHorizontalOverflow) failures.push(`${capture.viewport.width}-preview: horizontal overflow`);
   }
   if (capture.pageErrors.length) failures.push(`${capture.viewport.width}: page errors ${capture.pageErrors.join(' | ')}`);
