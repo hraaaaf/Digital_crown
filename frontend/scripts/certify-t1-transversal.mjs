@@ -140,6 +140,9 @@ await waitForDocumentTab('libre');
 const cancelRestoredUrl = new URLSearchParams(new URL(page.url()).search).get('documentTab') === 'libre';
 const cancelPreservedDraft = (await libreEditor.inputValue()) === dirtyMarker;
 
+const confirmDirtyMarker = `${dirtyMarker} · confirmation`;
+await libreEditor.fill(confirmDirtyMarker);
+const confirmDirtyRearmed = (await libreEditor.inputValue()) === confirmDirtyMarker;
 await spaNavigate(pathFor(patientB.id, 'certificat'));
 await discardDialog.waitFor({ state: 'visible', timeout: 15000 });
 await discardDialog.getByRole('button', { name: 'Continuer', exact: true }).click();
@@ -170,8 +173,9 @@ const evidence = {
   urlDirtyBoundary: {
     cancelRestoredUrl,
     cancelPreservedDraft,
+    confirmDirtyRearmed,
     confirmReachedTarget,
-    pass: cancelRestoredUrl && cancelPreservedDraft && confirmReachedTarget,
+    pass: cancelRestoredUrl && cancelPreservedDraft && confirmDirtyRearmed && confirmReachedTarget,
   },
   clinicalBoundary: {
     companionAbsent,
