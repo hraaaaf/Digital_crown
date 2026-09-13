@@ -20,6 +20,10 @@ os.environ["ALLOWED_ORIGINS"] = "http://127.0.0.1:5173,http://localhost:5173"
 from backend import database, models
 from backend.security import get_password_hash
 
+runtime_password = os.environ.get("T2_PASSWORD")
+if not runtime_password:
+    raise RuntimeError("T2 runtime certification requires T2_PASSWORD")
+
 models.Base.metadata.create_all(bind=database.engine)
 
 with database.SessionLocal() as db:
@@ -27,7 +31,7 @@ with database.SessionLocal() as db:
     if not user:
         user = models.User(
             email="t2-browser@cabinet.ma",
-            hashed_password=get_password_hash("T2BrowserPass123!"),
+            hashed_password=get_password_hash(runtime_password),
             role=models.UserRole.DENTISTE,
             nom_complet="Dr T2 Browser",
             is_active=True,
