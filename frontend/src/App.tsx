@@ -68,7 +68,7 @@ const ContextualToaster = () => {
     return () => window.removeEventListener('resize', onResize);
   }, []);
 
-  const patientCompact = /^\/patients\/\d+(?:\/|$)/.test(location.pathname) && compactViewport;
+  const patientCompact = /^\/patients(?:\/|$)/.test(location.pathname) && compactViewport;
 
   return (
     <Toaster
