@@ -2,6 +2,7 @@ import React from 'react';
 import { Activity, ChevronDown, Info, Ruler } from 'lucide-react';
 import type { DiagnosticTexts, DonneesEtape3 } from '../cephaloTypes';
 import { fmtNum } from '../cephaloUtils';
+import { describeOcclusalState, summarizeClinicalEvidence } from '../cephaloClinicalEvidence';
 import { cn } from '../../../utils/cn';
 import { useOrthoStore } from '../stores/useOrthoStore';
 
@@ -12,6 +13,8 @@ interface Step3ClinicalProps {
 export const Step3Clinical: React.FC<Step3ClinicalProps> = ({ P }) => {
   const store = useOrthoStore();
   const { etape3Data: data, setEtape3Data: onChange, diag, setDiag: onDiagChange } = store;
+  const evidence = summarizeClinicalEvidence(store.anglesData);
+  const occlusalDescription = describeOcclusalState(store.etape2Data);
 
   const updateDentaire = (key: keyof typeof data.dentaire, val: string) => {
     const num = val === '' ? '' : parseFloat(val);
@@ -42,16 +45,22 @@ export const Step3Clinical: React.FC<Step3ClinicalProps> = ({ P }) => {
     return `${fmtNum(Number(value))} ${unit}`;
   };
 
+  const scientificLabel = evidence.scientificStatus === 'VERIFIED'
+    ? 'Vérifiée'
+    : evidence.scientificStatus === 'INCOMPLETE'
+      ? 'Incomplète'
+      : 'Non disponible';
+
   return (
     <div className="flex flex-col gap-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
       <div className="flex justify-center">
-        <div className="inline-flex p-1 rounded-2xl border backdrop-blur-md" style={{ background: `${P.bgCard}80`, borderColor: P.border }}>
+        <div className="inline-flex max-w-full overflow-x-auto p-1 rounded-2xl border backdrop-blur-md" style={{ background: `${P.bgCard}80`, borderColor: P.border }}>
           {(['COM', 'STEINER', 'TWEED'] as const).map(type => (
             <button
               key={type}
               onClick={() => setAnalysis(type)}
               className={cn(
-                'px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-[0.2em] transition-all',
+                'shrink-0 px-4 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-[0.16em] transition-all sm:px-6 sm:tracking-[0.2em]',
                 currentAnalysis === type ? 'shadow-lg scale-105' : 'opacity-40 hover:opacity-100'
               )}
               style={{ background: currentAnalysis === type ? P.accent : 'transparent', color: currentAnalysis === type ? '#fff' : P.text }}
@@ -60,6 +69,51 @@ export const Step3Clinical: React.FC<Step3ClinicalProps> = ({ P }) => {
             </button>
           ))}
         </div>
+      </div>
+
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+        <section data-r15-scientific className="min-w-0 rounded-2xl p-5 sm:p-6" style={{ background: P.bgPanel, border: `1px solid ${P.border}`, boxShadow: P.shadow }}>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex min-w-0 items-center gap-3">
+              <Activity size={18} style={{ color: P.accent }} />
+              <h3 className="text-sm font-black uppercase tracking-widest" style={{ color: P.text }}>Chaîne scientifique</h3>
+            </div>
+            <span className="rounded-full px-3 py-1 text-[10px] font-black uppercase tracking-wider" style={{ background: `${P.accent}12`, color: P.accent }}>
+              {scientificLabel}
+            </span>
+          </div>
+          <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
+            <EvidenceCounter label="Sources" value={evidence.sourceCount} P={P} />
+            <EvidenceCounter label="Repères" value={evidence.landmarkCount} P={P} />
+            <EvidenceCounter label="Constructions" value={evidence.constructionCount} P={P} />
+            <EvidenceCounter label="Mesures" value={evidence.measurementCount} P={P} />
+          </div>
+          <p className="mt-4 text-[11px] leading-relaxed" style={{ color: P.textMuted }}>
+            La chaîne décrit la preuve géométrique disponible. Mesure brute, constat, diagnostic et décision thérapeutique restent des niveaux distincts.
+          </p>
+        </section>
+
+        <section data-r15-structured className="min-w-0 rounded-2xl p-5 sm:p-6" style={{ background: P.bgPanel, border: `1px solid ${P.border}`, boxShadow: P.shadow }}>
+          <div className="flex items-center gap-3">
+            <Info size={18} style={{ color: P.accent }} />
+            <h3 className="text-sm font-black uppercase tracking-widest" style={{ color: P.text }}>État clinique structuré</h3>
+          </div>
+          <div className="mt-5 space-y-2">
+            <RawRow label="R11 · Diagnostic" value={evidence.r11} P={P} />
+            <RawRow label="R12 · Problèmes / objectifs" value={evidence.r12} P={P} />
+            <RawRow label="R13 · Options thérapeutiques" value={evidence.r13} P={P} />
+            <RawRow label="R14 · Stratégie finale" value={evidence.r14} P={P} />
+          </div>
+          {evidence.hasLegacyClinicalContent && (
+            <p className="mt-4 rounded-xl p-3 text-[11px] leading-relaxed" style={{ background: P.bgInput, border: `1px solid ${P.border}`, color: P.textMuted }}>
+              Contenu historique non attribuable détecté : il n’est pas injecté dans les champs praticien.
+            </p>
+          )}
+        </section>
+      </div>
+
+      <div data-r15-practitioner-origin className="rounded-2xl px-5 py-4 text-xs font-bold leading-relaxed sm:px-6" style={{ background: P.bgCard, border: `1px solid ${P.border}`, color: P.textMuted }}>
+        <span style={{ color: P.text }}>Saisie praticien</span> — jamais préremplie automatiquement. Les descriptions calculées restent en lecture seule jusqu’à une saisie explicite du praticien.
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -192,8 +246,11 @@ export const Step3Clinical: React.FC<Step3ClinicalProps> = ({ P }) => {
       <div className="space-y-3">
         <AccordionSection title="3. Examen des Moulages" icon={<Activity size={14} style={{ color: P.accent }} />} P={P}>
           <div className="space-y-4 pt-2">
-            <div className="p-4 rounded-xl font-mono text-[11px] leading-relaxed" style={{ background: P.bgInput, border: `1px solid ${P.border}40`, color: P.text }}>
-              {data.analyse_moulages_auto ? data.analyse_moulages_auto.split('\n').map((line, i) => <div key={i}>{line}</div>) : <span className="opacity-40 italic">En attente des données occlusales...</span>}
+            <div>
+              <p className="mb-2 text-[10px] font-black uppercase tracking-wider" style={{ color: P.textMuted }}>Description calculée — non copiée dans la note praticien</p>
+              <div className="p-4 rounded-xl font-mono text-[11px] leading-relaxed" style={{ background: P.bgInput, border: `1px solid ${P.border}40`, color: P.text }}>
+                {occlusalDescription ? occlusalDescription.split('\n').map((line, i) => <div key={i}>{line}</div>) : <span className="opacity-40 italic">En attente des données occlusales...</span>}
+              </div>
             </div>
             <textarea value={diag.analyse_moulages} onChange={e => handleDiagChange('analyse_moulages', e.target.value)} className="w-full h-24 p-3 rounded-xl bg-white/50 border text-sm focus:ring-2 outline-none transition-all" style={{ borderColor: P.border, color: P.text }} placeholder="Notes du praticien..." />
           </div>
@@ -244,9 +301,16 @@ const FieldShell: React.FC<{ label: string; P: any; children: React.ReactNode }>
 );
 
 const RawRow: React.FC<{ label: string; value: string; P: any }> = ({ label, value, P }) => (
-  <div className="flex items-center justify-between gap-4 p-3 rounded-xl border" style={{ background: P.bgInput, borderColor: P.border }}>
-    <span className="text-xs font-bold" style={{ color: P.textMuted }}>{label}</span>
-    <span className="text-xs font-black text-right" style={{ color: P.text }}>{value}</span>
+  <div className="flex min-w-0 items-start justify-between gap-4 p-3 rounded-xl border" style={{ background: P.bgInput, borderColor: P.border }}>
+    <span className="min-w-0 text-xs font-bold" style={{ color: P.textMuted }}>{label}</span>
+    <span className="min-w-0 break-words text-right text-xs font-black" style={{ color: P.text }}>{value}</span>
+  </div>
+);
+
+const EvidenceCounter = ({ label, value, P }: { label: string; value: number; P: any }) => (
+  <div className="min-w-0 rounded-xl p-3 text-center" style={{ background: P.bgInput, border: `1px solid ${P.border}` }}>
+    <div className="text-lg font-black" style={{ color: P.text }}>{value}</div>
+    <div className="mt-1 truncate text-[9px] font-black uppercase tracking-wider" style={{ color: P.textMuted }}>{label}</div>
   </div>
 );
 
