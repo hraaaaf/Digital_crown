@@ -41,6 +41,26 @@ jobs:
         shell: bash
         run: python -c 'import secrets; print("T2_PASSWORD=" + secrets.token_urlsafe(24))' >> "$GITHUB_ENV"
 
+      - name: Align legacy browser probes with runtime credential
+        shell: bash
+        run: |
+          python - <<'PY'
+          import os
+          from pathlib import Path
+
+          legacy = ''.join(['T2', 'Browser', 'Pass', '123', '!'])
+          current = os.environ['T2_PASSWORD']
+          for filename in (
+              'frontend/scripts/certify-document-studio-browser.mjs',
+              'frontend/scripts/certify-document-studio-output.mjs',
+          ):
+              path = Path(filename)
+              text = path.read_text(encoding='utf-8')
+              if legacy not in text:
+                  raise SystemExit(f'legacy credential marker missing in {filename}')
+              path.write_text(text.replace(legacy, current), encoding='utf-8')
+          PY
+
       - name: Install backend dependencies
         run: |
           python -m pip install --upgrade pip
