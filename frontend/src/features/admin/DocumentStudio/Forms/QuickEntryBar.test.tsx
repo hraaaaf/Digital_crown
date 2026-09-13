@@ -44,10 +44,10 @@ describe('QuickEntryBar — autocomplete médicament (Saisie Rapide)', () => {
   })
 
   it('expose la saisie rapide comme surface clinique identifiable et tactile', () => {
-    const { container } = renderQuickEntryBar()
+    renderQuickEntryBar()
     expect(screen.getByText('Saisie rapide')).toBeInTheDocument()
     expect(screen.getByRole('textbox', { name: 'Médicament, dosage, forme, posologie' })).toHaveClass('min-h-14')
-    expect(container.querySelector('[data-ordonnance-quick-entry]')).toBeInTheDocument()
+    expect(document.querySelector('[data-ordonnance-quick-entry]')).toBeInTheDocument()
   })
 
   it('affiche les suggestions quand la liste est non vide', () => {
