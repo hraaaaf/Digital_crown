@@ -41,9 +41,9 @@ Aucune palette Ordonnance parallèle. Aucun `data-theme` local. Aucun hexadécim
 | Lot | Axe | Score entrée | Cible | État |
 | --- | --- | ---: | ---: | --- |
 | U1 | Hiérarchie | 7,5 | 9,5 | **certifié 9,5/10** |
-| U2 | Densité clinique | 7,7 | 9,4 | **en cours** |
+| U2 | Densité clinique | 7,7 | 9,4 | **certifié 9,4/10** |
 | U3 | Premium / Glass | 5,8 | 9,6 | à faire |
-| U4 | Cartes médicaments | 6,2 | 9,4 | à faire |
+| U4 | Cartes médicaments | 6,2 | 9,4 | **en cours** |
 | U5 | Composition desktop | 6,5 | 9,5 | à faire |
 | U6 | Cohérence générale | 6,8 | 9,5 | à faire |
 
@@ -151,36 +151,82 @@ Constats sur `390/430/768/1280` :
 
 Faire passer la densité clinique de **7,7/10 à >=9,4/10** en réduisant les espaces et paddings non fonctionnels, tout en conservant la lisibilité et les cibles tactiles.
 
-## Succès observable U2
-
-- réduction perceptible de la hauteur perdue entre blocs, cible environ 20–30 % sur les zones compactables ;
-- QuickEntry conserve son champ principal `min-h-14` ;
-- protocoles, actions contexte, suggestions et accès rapides conservent >=44 px ;
-- bouton `Ajouter une ligne` conserve >=44 px ;
-- aucune logique clinique, pharmacologique, safety, backend, PDF ou LLM modifiée ;
-- aucun token ou thème global modifié ;
-- AFTER inspecté sur `390×844`, `430×932`, `768×1024`, `1280×900` ;
-- score manuel Densité clinique >= **9,4/10** avant validation U2.
-
-## Implémentation U2 en cours
+## Implémentation U2
 
 - wrapper clinique V3 : espacement principal `space-y-3 → space-y-2` ;
 - contexte/sécurité : paddings et gaps réduits, sans réduire les contrôles tactiles ;
 - protocoles rapides : padding/gap resserrés, chips toujours `min-h-11` ;
 - QuickEntry : padding de surface et rythme interne resserrés via la couche U2, champ principal inchangé à 56 px ;
 - planning legacy : rythme vertical réduit via CSS ciblé ;
-- `Ajouter une ligne` : padding vertical réduit mais `min-height: 44px` imposé ;
+- `Ajouter une ligne` : padding vertical réduit avec hauteur observée **48 px** ;
 - test statique U2 ajouté.
 
-## Validation U2 obligatoire
+## Preuves U2
 
-1. tests frontend + build ;
-2. T2 exact-head ;
-3. AFTER `390/430/768/1280` ;
-4. comparaison visuelle avec baseline U1 ;
-5. correction si score <9,4 ;
-6. aucun merge : continuer U4 sur la même PR si U2 est certifié.
+HEAD visuel exact : `ffff17b08600685fff812ffce6142198160c9dee`.
+
+Gate dédié : **Ordonnance Fidelity V3 Visual Certification #1 — SUCCESS**.
+
+- run : `34785169116` ;
+- artifact : `ordonnance-fidelity-v3-evidence`, ID `10326287992` ;
+- digest : `sha256:7e0addffa0843dd67d1356ecb919b88fd03cdf0b5b71b23c56847e3669d88323` ;
+- scènes : `top` + `planning` ;
+- viewports : `390×844`, `430×932`, `768×1024`, `1280×900` ;
+- `noHorizontalOverflow=true` sur les 8 captures ;
+- `touchMin=44` ;
+- `addLine.height=48` ;
+- `quickEntry.height=122` ;
+- aucune erreur page ;
+- frontend tests + build CI #3807 : **SUCCESS**.
+
+La CI backend globale #3807 peut encore s’exécuter indépendamment ; elle ne porte pas sur les changements UI U2 et n’empêche pas la poursuite de la PR cumulative.
+
+## Score U2
+
+Score manuel AFTER Densité clinique : **9,4/10**.
+
+Les écarts visuels restants observés relèvent principalement de la structure interne de `DrugRow` (U4) et de la composition desktop (U5), pas d’un espacement U2 résiduel bloquant.
+
+## État U2
+
+**CERTIFIÉ : 9,4/10.**
+
+Aucun merge intermédiaire.
+
+---
+
+## BEFORE U4 — Cartes médicaments
+
+Baseline exacte : HEAD visuel U2 `ffff17b08600685fff812ffce6142198160c9dee`.
+
+Artifact BEFORE U4 : gate Fidelity V3 #1, artifact ID `10326287992`, digest `sha256:7e0addffa0843dd67d1356ecb919b88fd03cdf0b5b71b23c56847e3669d88323`.
+
+Score manuel BEFORE U4 : **6,2/10**.
+
+Constats :
+
+1. la carte actuelle ressemble encore à un formulaire horizontal plutôt qu’à une carte clinique ;
+2. le nom du médicament, la dose, la forme et la posologie ne forment pas une hiérarchie assez évidente ;
+3. plusieurs surfaces utilisent encore des couleurs `slate/violet` fixes au lieu des tokens sémantiques du thème actif ;
+4. sur mobile, type / identité / métadonnées / suppression manquent d’une composition verticale nette ;
+5. U4 ne doit modifier ni la logique de suggestions, ni les callbacks, ni la normalisation pharmacologique.
+
+## Goal U4
+
+Faire passer les cartes médicaments de **6,2/10 à >=9,4/10** en rapprochant leur composition du mockup : identité clinique forte, métadonnées compactes, posologie clairement séparée, actions secondaires discrètes, héritage intégral du thème actif.
+
+## Succès observable U4
+
+- nom médicament immédiatement dominant ;
+- forme, dose et `NS` lisibles comme métadonnées compactes ;
+- posologie dans une zone dédiée lisible ;
+- type médicament/examen explicite sans surcharger la carte ;
+- cibles tactiles principales >=44 px ;
+- aucune logique clinique/pharmacologique/backend/PDF modifiée ;
+- surfaces principales via `bg-card`, `bg-input-field`, `text-text-main`, `text-text-muted`, `border-border-main`, `primary` ;
+- AFTER Fidelity V3 sur `390/430/768/1280` ;
+- score manuel >= **9,4/10**.
 
 ## Next
 
-Certifier U2, puis démarrer **U4 — Cartes médicaments, 6,2 → 9,4** sur la même PR #474.
+Implémenter et certifier **U4 — Cartes médicaments**, puis poursuivre U5 sur la même PR #474.
