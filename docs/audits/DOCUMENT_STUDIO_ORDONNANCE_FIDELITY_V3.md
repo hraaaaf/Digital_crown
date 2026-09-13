@@ -6,6 +6,16 @@ Date: 2026-09-13
 
 Rapprocher l’UI Ordonnance du mockup cible sans créer de thème Ordonnance dédié et sans modifier le moteur clinique, pharmacologique, les endpoints, le PDF ou les contrats backend.
 
+## Stratégie Git du chantier
+
+Une seule branche et une seule PR cumulative sont conservées pour U1 → U6.
+
+- branche : `ux/ordonnance-fidelity-v3-u1-hierarchy`
+- PR : `#474`
+- merge : **unique après certification U6 + score global + closeout**
+
+Aucun merge intermédiaire par axe.
+
 ## Invariant thème
 
 Ordonnance hérite exclusivement du thème actif de Digital Crown.
@@ -24,14 +34,14 @@ Tokens de référence existants :
 - `--border-color`
 - `--input-bg`
 
-Aucune palette Ordonnance parallèle. Aucun `data-theme` local. Aucun hexadécimal ajouté dans les surfaces U1.
+Aucune palette Ordonnance parallèle. Aucun `data-theme` local. Aucun hexadécimal ajouté dans les surfaces Fidelity V3.
 
 ## Axes et lots
 
 | Lot | Axe | Score entrée | Cible | État |
 | --- | --- | ---: | ---: | --- |
-| U1 | Hiérarchie | 7,5 | 9,5 | cible visuelle atteinte, merge pending exact-head closeout |
-| U2 | Densité clinique | 7,7 | 9,4 | à faire |
+| U1 | Hiérarchie | 7,5 | 9,5 | **certifié 9,5/10** |
+| U2 | Densité clinique | 7,7 | 9,4 | **en cours** |
 | U3 | Premium / Glass | 5,8 | 9,6 | à faire |
 | U4 | Cartes médicaments | 6,2 | 9,4 | à faire |
 | U5 | Composition desktop | 6,5 | 9,5 | à faire |
@@ -97,42 +107,80 @@ Résultats AFTER :
 - erreurs runtime = **0** ;
 - comparaison manuelle BEFORE/AFTER : `Ordonnance` remplace `Studio Documentaire + badge Ordonnance` comme niveau primaire, patient immédiatement dessous.
 
-### T2 runtime browser
+### Exact-head closeout U1
 
-Run : `34782051150` / #2716 — **SUCCESS**.
+HEAD documentaire U1 : `74e7a7d105dc0b982dc22e3cdee01061121d4651`.
 
-Artifact : `t2-browser-evidence`, ID `10325209319`.
-Digest : `sha256:7cbfa421ca1ada48da401dde247ef28058bc85fa91121990e6c740dacf6bdad0`.
-
-Le browser matrix Ordonnance passe sur `390/430/768/1280` et le mobile `430×932` conserve les actions `Aperçu / Enregistrer / Imprimer` sans squeeze ni overflow observé.
-
-### Autres gates exact code HEAD
-
-- Settings R11 #550 : **SUCCESS** ;
-- PostgreSQL #231 : **SUCCESS** ;
-- Patient P7 #1368 : **SUCCESS** ;
-- M6-I #1516 : **SKIPPED attendu** ;
-- CI #3784 : frontend tests + build **SUCCESS** ; backend global encore en cours au moment de cette mise à jour documentaire.
+- CI #3785 : **SUCCESS** ;
+- T2 #2717 : **SUCCESS** ;
+- P3 #22 : **SUCCESS** ;
+- Patient P7 #1369 : **SUCCESS** ;
+- PostgreSQL #232 : **SUCCESS** ;
+- Settings R11 #551 : **SUCCESS** ;
+- M6-I #1517 : **SKIPPED attendu**.
 
 ## Score U1
 
 Score manuel AFTER Hiérarchie : **9,5/10**.
 
-Justification :
-
-- le type de document est désormais le premier niveau de lecture ;
-- le patient est immédiatement associé à ce contexte ;
-- les contrôles auteur/date sont présents sans dominer ;
-- l’ordre clinique principal reste intact ;
-- le secondaire légal n’interrompt plus l’entrée du workflow ;
-- les quatre viewports de référence sont couverts visuellement par P3 exact-head.
-
 ## État U1
 
-**CIBLE VISUELLE ATTEINTE : 9,5/10.**
+**CERTIFIÉ : 9,5/10.**
 
-Le lot n’est pas déclaré mergé ni clôturé tant que ce commit documentaire exact-head n’a pas repassé les gates requis et que `master` n’a pas été vérifié après merge.
+Pas de merge intermédiaire : U1 reste dans la PR cumulative #474 jusqu’au closeout global U6.
+
+---
+
+## BEFORE U2 — Densité clinique
+
+Baseline exacte : HEAD U1 certifié `74e7a7d105dc0b982dc22e3cdee01061121d4651`.
+
+Artifact T2 baseline : run #2717, artifact `t2-browser-evidence`, ID `10325204876`, digest `sha256:7eb7ba006f42ce3db136782f91e677b942578eee852bb2bdee51b69bcf9b3125`.
+
+Score manuel BEFORE U2 : **7,7/10**.
+
+Constats sur `390/430/768/1280` :
+
+1. rythme vertical trop généreux entre contexte, protocoles, QuickEntry et planning ;
+2. sur mobile 430 px, les blocs secondaires consomment une part excessive du viewport ;
+3. la zone `Ajouter une ligne` utilise plus de hauteur que sa fonction ne le justifie ;
+4. la densité peut être améliorée sans réduire les cibles tactiles sous 44 px ;
+5. U2 ne doit ni refondre les cartes médicament (U4), ni modifier la composition desktop (U5), ni ajouter d’effets Glass (U3).
+
+## Goal U2
+
+Faire passer la densité clinique de **7,7/10 à >=9,4/10** en réduisant les espaces et paddings non fonctionnels, tout en conservant la lisibilité et les cibles tactiles.
+
+## Succès observable U2
+
+- réduction perceptible de la hauteur perdue entre blocs, cible environ 20–30 % sur les zones compactables ;
+- QuickEntry conserve son champ principal `min-h-14` ;
+- protocoles, actions contexte, suggestions et accès rapides conservent >=44 px ;
+- bouton `Ajouter une ligne` conserve >=44 px ;
+- aucune logique clinique, pharmacologique, safety, backend, PDF ou LLM modifiée ;
+- aucun token ou thème global modifié ;
+- AFTER inspecté sur `390×844`, `430×932`, `768×1024`, `1280×900` ;
+- score manuel Densité clinique >= **9,4/10** avant validation U2.
+
+## Implémentation U2 en cours
+
+- wrapper clinique V3 : espacement principal `space-y-3 → space-y-2` ;
+- contexte/sécurité : paddings et gaps réduits, sans réduire les contrôles tactiles ;
+- protocoles rapides : padding/gap resserrés, chips toujours `min-h-11` ;
+- QuickEntry : padding de surface et rythme interne resserrés via la couche U2, champ principal inchangé à 56 px ;
+- planning legacy : rythme vertical réduit via CSS ciblé ;
+- `Ajouter une ligne` : padding vertical réduit mais `min-height: 44px` imposé ;
+- test statique U2 ajouté.
+
+## Validation U2 obligatoire
+
+1. tests frontend + build ;
+2. T2 exact-head ;
+3. AFTER `390/430/768/1280` ;
+4. comparaison visuelle avec baseline U1 ;
+5. correction si score <9,4 ;
+6. aucun merge : continuer U4 sur la même PR si U2 est certifié.
 
 ## Next
 
-Après exact-head green + merge U1 : démarrer **U2 — Densité clinique, 7,7 → 9,4**, toujours avec héritage exclusif du thème actif.
+Certifier U2, puis démarrer **U4 — Cartes médicaments, 6,2 → 9,4** sur la même PR #474.
