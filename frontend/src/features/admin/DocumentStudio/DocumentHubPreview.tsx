@@ -12,6 +12,8 @@ interface DocumentHubPreviewProps {
   onGeneratePreview: () => Promise<void> | void;
 }
 
+const desktopPreviewQuery = '(min-width: 1280px)';
+
 export const DocumentHubPreview: React.FC<DocumentHubPreviewProps> = ({
   open,
   fingerprint,
@@ -22,8 +24,19 @@ export const DocumentHubPreview: React.FC<DocumentHubPreviewProps> = ({
   onGeneratePreview,
 }) => {
   const [stale, setStale] = useState(false);
+  const [desktopInline, setDesktopInline] = useState(() => (
+    typeof window !== 'undefined' && window.matchMedia(desktopPreviewQuery).matches
+  ));
   const previousPdfUrl = useRef<string | null>(pdfUrl);
   const previousFingerprint = useRef(fingerprint);
+
+  useEffect(() => {
+    const media = window.matchMedia(desktopPreviewQuery);
+    const update = () => setDesktopInline(media.matches);
+    update();
+    media.addEventListener('change', update);
+    return () => media.removeEventListener('change', update);
+  }, []);
 
   useEffect(() => {
     if (open && pdfUrl) setStale(true);
@@ -56,13 +69,28 @@ export const DocumentHubPreview: React.FC<DocumentHubPreviewProps> = ({
 
   if (!open) return null;
 
-  return (
+  const preview = (
     <LivePreview
       pdfUrl={stale ? null : pdfUrl}
       loading={loading || stale}
       onClose={onClose}
       onRefresh={generatePreview}
       title={title}
+      inline={desktopInline}
     />
   );
+
+  if (desktopInline) {
+    return (
+      <aside
+        data-ordonnance-desktop-preview="inline"
+        aria-label={`Aperçu document — ${title}`}
+        className="absolute inset-y-6 right-5 z-30 hidden w-[520px] min-w-0 xl:block"
+      >
+        {preview}
+      </aside>
+    );
+  }
+
+  return preview;
 };
