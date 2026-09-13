@@ -102,7 +102,7 @@ export const PatientMobileBridge = ({ patientId, patientName }: { patientId: num
         type="button"
         onClick={() => setOpen(true)}
         aria-label="Ouvrir ce patient sur mobile"
-        className="min-h-9 sm:min-h-11 min-w-9 sm:min-w-0 px-2 sm:px-3 inline-flex items-center justify-center gap-2 text-[10px] font-black uppercase tracking-widest rounded-xl border border-primary/20 bg-primary/5 hover:bg-primary/10 transition-colors"
+        className="min-h-11 min-w-11 sm:min-w-0 px-2 sm:px-3 inline-flex items-center justify-center gap-2 text-[10px] font-black uppercase tracking-widest rounded-xl border border-primary/20 bg-primary/5 hover:bg-primary/10 transition-colors"
         style={{ color: 'var(--primary)' }}
       >
         <Smartphone size={16} />

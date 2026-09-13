@@ -22,6 +22,7 @@ describe('UX1 patient dossier responsive contract', () => {
     expect(patient).toContain('aria-label="Modalités d’imagerie"');
     expect(css).toContain('grid-template-columns: repeat(3, minmax(0, 1fr))');
     expect(css).toContain('white-space: normal !important');
+    expect(css).toContain('min-height: 2.75rem !important');
   });
 
   it('exposes all six document types without hidden horizontal scrolling', () => {
@@ -38,8 +39,8 @@ describe('UX1 patient dossier responsive contract', () => {
     expect(layout).toContain("aria-expanded={isBotOpen}");
   });
 
-  it('keeps the mobile bridge available without spending a full text row', () => {
-    expect(bridge).toContain('min-h-9 sm:min-h-11');
+  it('keeps the mobile bridge compact without shrinking the touch target below 44px', () => {
+    expect(bridge).toContain('min-h-11 min-w-11');
     expect(bridge).toContain('hidden sm:inline');
     expect(bridge).toContain('aria-label="Ouvrir ce patient sur mobile"');
   });

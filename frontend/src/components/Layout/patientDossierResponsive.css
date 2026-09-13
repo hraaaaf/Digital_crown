@@ -25,7 +25,7 @@
   }
 
   body:has([data-flow-patient-surface]) [aria-label="Actions rapides patient"] > button {
-    height: 2.5rem !important;
+    height: 2.75rem !important;
   }
 
   body:has([data-flow-patient-surface]) [data-tour="patient-tabs"] {
@@ -57,6 +57,7 @@
 
   body:has([data-flow-patient-surface]) [aria-label="Modalités d’imagerie"] > button {
     min-width: 0 !important;
+    min-height: 2.75rem !important;
     justify-content: center !important;
     gap: 0.25rem !important;
     padding: 0.65rem 0.35rem !important;
