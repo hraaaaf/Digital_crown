@@ -1,10 +1,12 @@
 # DIGITAL CROWN — CÉPHALOMÉTRIE — R15 STUDIO CLINIQUE UX/UI
 
-**Date :** 2026-09-12  
-**Statut :** R15 CANDIDAT — certification finale en cours, non mergé  
+**Date :** 2026-09-13  
+**Statut :** R15 FERMÉ — certifié, mergé et vérifié sur master  
 **Base BEFORE produit vérifiée :** `36091c89a6f4ae0679f40980e9f7f3e5e143d6be`  
+**HEAD candidat final certifié :** `f70d62df584a38a7deb8341dc608ad14274c3dec`  
+**Merge master :** `258762da7aff8e7fd481990e96f32b761d635234`  
 **Branche :** `feat/cephalo-r15-clinical-studio-ux`  
-**PR :** #458  
+**PR :** #458 — MERGED  
 **Canonique parent :** `docs/CEPHALO_DIAGNOSTIC_SPEC.md`  
 **Déploiement :** aucun ; aucun déploiement Vercel sans autorisation explicite.
 
@@ -126,22 +128,24 @@ Le Studio est une **projection clinique**, pas un moteur supplémentaire :
 - Step 3 renomme les champs historiques comme notes libres legacy hors R11/R13/R14 ;
 - Step 4 sépare `Prévisualiser`, `Brouillon PDF`, `Archiver le bilan` de toute validation R14.
 
-## AFTER VISUEL PROUVÉ
+## AFTER VISUEL FINAL PROUVÉ
 
-Run exact candidat vérifié :
-- run `34723980208` : **SUCCESS** ;
-- product HEAD `c618d6e589ab1a80e0f9e6735c861ad7e222c316` ;
-- artifact id `10307316607` ;
-- digest `sha256:881019162700bf45cd088fb21a6d7ab1a19e704d1d138f7dfe7edef25da5ff26` ;
+Workflow : `Cephalo R15 AFTER` #47.
+
+Preuve exacte du HEAD final :
+- run `34782048394` : **SUCCESS** ;
+- product HEAD `f70d62df584a38a7deb8341dc608ad14274c3dec` ;
+- artifact id `10324659988` ;
+- digest `sha256:c16f860f888ce13dce53e81f071baa7126947661a2bdd4887f935fe40c5a5d3e` ;
 - 12 captures aux mêmes viewports/scènes que le BEFORE ;
+- viewports `390x844`, `768x1024`, `1280x900` ;
 - `invalidCount = 0` ;
 - zéro egress externe ;
 - zéro erreur console/page sur les tentatives finales ;
 - zéro overflow horizontal ;
 - `analysis_id=9915` lié explicitement sur les trois viewports ;
-- aucun ancien libellé dangereux (`Diagnostic / Résumé Diagnostique`, `Plan thérapeutique — décision praticien`, `Valider & Archiver`) dans les surfaces certifiées.
-
-Le HEAD de branche continue d'évoluer uniquement pour les gardes/tests/certification ; un AFTER exact du HEAD final reste obligatoire avant merge.
+- aucun ancien libellé dangereux dans les surfaces certifiées ;
+- le rendu 768 a nécessité une seconde tentative fraîche après un rendu transitoire vide ; la tentative finale est valide.
 
 ## COMPARAISON BEFORE → AFTER
 
@@ -167,21 +171,32 @@ Barème observé :
 
 Déduction : sur 390 px, la chaîne complète impose naturellement davantage de hauteur et R14 n'est pas entièrement visible dans le premier viewport. Aucun contenu critique n'est masqué, mais la densité verticale empêche de revendiquer un score parfait.
 
-## TESTS / GARDES
+## TESTS / GARDES FINAUX
 
-Déjà prouvés sur candidats R15 :
-- frontend tests/build verts sur le candidat précédent ;
-- T2 et PostgreSQL verts sur le candidat précédent ;
-- reviews : 0 ; threads : 0 ;
-- diff audité : scope R15 + réparation de la dette visuelle historique uniquement.
+HEAD certifié `f70d62df584a38a7deb8341dc608ad14274c3dec` :
+- CI #3783 : **SUCCESS** ;
+- T2 Runtime Browser Certification #2715 : **SUCCESS** ;
+- Cabinet Upgrade PostgreSQL Certification #230 : **SUCCESS** ;
+- Cephalo R15 AFTER #47 : **SUCCESS** ;
+- Document History Actions AFTER Certification #45 : **SUCCESS** ;
+- Document History Actions Visual Certification #1220 : **SUCCESS** ;
+- reviews : 0 ; threads : 0 ; commentaires PR : 0 ;
+- PR #458 mergeable avant merge ;
+- master vérifié inchangé sur `ab4bd58bf17bf567473ebfd6dfbd2e273ebd9426` juste avant merge.
 
-Correction de garde effectuée :
-- le test statique legacy qui exigeait `Plan thérapeutique — décision praticien` a été aligné sur le nouveau contrat fail-closed et interdit désormais le retour de ce libellé.
+Correction de garde intégrée :
+- le test statique legacy qui exigeait `Plan thérapeutique — décision praticien` a été aligné sur le nouveau contrat fail-closed et interdit désormais le retour de ce libellé ;
+- `Document History Actions AFTER Certification` génère un `T2_PASSWORD` isolé comme le workflow T2 au lieu d'affaiblir le runtime ;
+- les deux certificats Document History sont verts ensemble sur le HEAD final.
 
-Dette `Document History Actions Visual Certification` :
-- l'ancien workflow dépendait du backend/auth/génération PDF et timeoutait avant même d'atteindre le composant ;
-- le nouveau certificat rend le vrai `PatientDocuments` avec fixture déterministe, Chromium frais et contrôles 390/768/1280 ;
-- preuve verte du HEAD final encore requise avant merge.
+## PREUVE DE CLÔTURE R15
+
+- candidate HEAD certifié : `f70d62df584a38a7deb8341dc608ad14274c3dec` ;
+- PR #458 : **MERGED** ;
+- merge commit : `258762da7aff8e7fd481990e96f32b761d635234` ;
+- master post-merge vérifié : `258762da7aff8e7fd481990e96f32b761d635234` ;
+- parents du merge : `ab4bd58bf17bf567473ebfd6dfbd2e273ebd9426` + `f70d62df584a38a7deb8341dc608ad14274c3dec` ;
+- aucun déploiement.
 
 ## NON-GOALS R15
 
@@ -192,18 +207,6 @@ Dette `Document History Actions Visual Certification` :
 - aucun PDF/restitution R16 ;
 - aucun déploiement Vercel.
 
-## GATES RESTANTS AVANT MERGE
-
-1. `Document History Actions Visual Certification` vert sur HEAD final ;
-2. CI exact-head verte ;
-3. T2 exact-head verte ;
-4. PostgreSQL exact-head vert ;
-5. AFTER R15 exact-head vert ;
-6. reviews/threads toujours clean ;
-7. PR mergeable ;
-8. merge puis vérification master post-merge ;
-9. closeout canonique + handover R16 dans un lot documentaire auditable.
-
 ## NEXT EXACT
 
-Obtenir tous les checks exact-head verts sur le dernier commit de certification, corriger toute régression prouvée, puis merger #458 uniquement lorsque les gates ci-dessus sont satisfaits.
+R15 est fermé. Reprendre **R15bis UI/UX** depuis le master post-closeout vérifié, avec le R15 final comme BEFORE réel, puis suivre le cycle obligatoire `BEFORE → Goal → référence/mockup → implémentation → AFTER mêmes viewports → comparaison/tests → score visuel` sans modifier les contrats scientifiques R11–R14.
