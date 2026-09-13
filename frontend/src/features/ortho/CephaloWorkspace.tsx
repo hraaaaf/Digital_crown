@@ -7,7 +7,7 @@
  */
 
 import React, {
-  useState, useRef, useEffect,
+  useState, useRef, useEffect, useMemo,
 } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -22,12 +22,13 @@ import type {
 import {
   computeStep3Data,
 } from './cephaloUtils';
-import { PALETTE } from './cephaloTheme';
+import { getCephaloPalette } from './cephaloTheme';
 
 import { Step1Cephalo } from './components/Step1Cephalo';
 import { Step2Occlusal } from './components/Step2Occlusal';
 import { Step3Clinical } from './components/Step3Clinical';
 import { Step4Documents } from './components/Step4Documents';
+import { ClinicalScientificStudio } from './components/ClinicalScientificStudio';
 import { LivePreview } from '../admin/DocumentStudio/LivePreview';
 import { StepTab } from './components/StepTab';
 import { SyncBadge } from './components/SyncBadge';
@@ -48,8 +49,8 @@ export const CephaloWorkspace: React.FC<CephaloWorkspaceProps> = ({
   patientName,
 }) => {
   const store = useOrthoStore();
-  const mode = store.mode;
-  const P = PALETTE[mode];
+  const [themeRevision, setThemeRevision] = useState(0);
+  const P = useMemo(() => getCephaloPalette(), [themeRevision]);
   const [patientData, setPatientData] = useState<{ age: number; sexe: 'M' | 'F' } | null>(null);
   const [patientDataError, setPatientDataError] = useState(false);
   const [viewMode, setViewMode] = useState<'studio' | 'history'>('studio');
@@ -104,11 +105,7 @@ export const CephaloWorkspace: React.FC<CephaloWorkspaceProps> = ({
   useEffect(() => {
     store.setPatientInfo(patientId, patientName);
 
-    const syncTheme = () => {
-      const isDark = document.body.dataset.theme === 'dark' || document.body.dataset.theme === 'prestige';
-      store.setMode(isDark ? 'dark' : 'light');
-    };
-
+    const syncTheme = () => setThemeRevision(revision => revision + 1);
     const observer = new MutationObserver(syncTheme);
     observer.observe(document.body, { attributes: true, attributeFilter: ['data-theme'] });
 
@@ -381,6 +378,9 @@ export const CephaloWorkspace: React.FC<CephaloWorkspaceProps> = ({
         <div className="mx-auto min-w-0 max-w-4xl">
           {viewMode === 'studio' ? (
             <>
+              {(step === 3 || step === 4) && (
+                <ClinicalScientificStudio patientId={patientId} analysisId={analysisId} P={P} />
+              )}
               {step === 1 && renderStep1()}
               {step === 2 && <Step2Occlusal P={P} />}
               {step === 3 && <Step3Clinical P={P} />}
