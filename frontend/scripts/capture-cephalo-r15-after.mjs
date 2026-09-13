@@ -82,12 +82,11 @@ import { CephaloWorkspace } from './features/ortho/CephaloWorkspace';
 import { useOrthoStore } from './features/ortho/stores/useOrthoStore';
 import './index.css';
 
-document.body.dataset.theme = 'dark';
 const fixture = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(\`
   <svg xmlns="http://www.w3.org/2000/svg" width="1200" height="1600" viewBox="0 0 1200 1600">
-    <rect width="1200" height="1600" fill="#020617"/>
-    <path d="M470 220 C720 260 820 520 760 760 C710 960 570 1160 420 1340" fill="none" stroke="#94a3b8" stroke-width="18" opacity=".38"/>
-    <path d="M390 520 C600 450 790 560 820 760 C760 900 620 970 460 940" fill="none" stroke="#cbd5e1" stroke-width="12" opacity=".28"/>
+    <rect width="1200" height="1600" fill="#e2e8f0"/>
+    <path d="M470 220 C720 260 820 520 760 760 C710 960 570 1160 420 1340" fill="none" stroke="#64748b" stroke-width="18" opacity=".38"/>
+    <path d="M390 520 C600 450 790 560 820 760 C760 900 620 970 460 940" fill="none" stroke="#94a3b8" stroke-width="12" opacity=".28"/>
   </svg>\`);
 
 useOrthoStore.setState({
@@ -153,9 +152,19 @@ async function metrics(page, viewportName, scene) {
     const text = (body.textContent || '').toLowerCase();
     const header = Array.from(document.querySelectorAll('h2')).find(node => node.textContent?.includes('Studio Céphalométrique'))?.parentElement?.parentElement;
     const rect = header?.getBoundingClientRect();
+    const styles = getComputedStyle(body);
+    const themeTokens = {
+      bg: styles.getPropertyValue('--bg-medical-pearl').trim(),
+      card: styles.getPropertyValue('--card-bg').trim(),
+      text: styles.getPropertyValue('--text-main').trim(),
+      primary: styles.getPropertyValue('--primary').trim(),
+    };
     return {
       viewport: viewportName,
       scene,
+      theme: body.dataset.theme || 'default',
+      themeTokens,
+      themeTokensResolved: Object.values(themeTokens).every(Boolean),
       innerWidth,
       scrollWidth: Math.max(doc.scrollWidth, body.scrollWidth),
       horizontalDocumentOverflow: Math.max(doc.scrollWidth, body.scrollWidth) > innerWidth + 1,
@@ -184,7 +193,8 @@ async function metrics(page, viewportName, scene) {
 }
 
 function studioContract(m) {
-  return m.hasWorkspaceHeading && m.hasScientificChain && m.hasR11Surface && m.hasR12Surface && m.hasR13Surface && m.hasR14Surface &&
+  return m.theme === 'default' && m.themeTokensResolved &&
+    m.hasWorkspaceHeading && m.hasScientificChain && m.hasR11Surface && m.hasR12Surface && m.hasR13Surface && m.hasR14Surface &&
     m.hasMissingSurface && m.hasContradictionSurface && m.hasContraindicationSurface && m.hasPractitionerAction && m.hasNoFakeValidation &&
     !m.horizontalDocumentOverflow && !m.headerClipped && !m.hasLegacyDiagnostic && !m.hasLegacyTreatmentDecision && !m.hasLegacyTreatmentPanel && !m.hasLegacyArchiveAction;
 }
@@ -286,8 +296,8 @@ const invalid = captures.filter(item => !item.valid);
 const report = {
   lot: 'CEPHALO-R15', phase: 'AFTER', productHead: PRODUCT_HEAD,
   viewports: viewports.map(item => item.name),
-  fixturePolicy: 'Real production R15 CephaloWorkspace with isolated deterministic patient/clinical snapshot. Snapshot is fail-closed and contains no invented clinical conclusion.',
-  capturePolicy: 'Fresh Chromium process per viewport/attempt. One retry only for transient render failure. Final attempt must satisfy scientific-state visibility, semantic-separation, selected-analysis binding, layout and console gates.',
+  fixturePolicy: 'Real production R15 CephaloWorkspace with isolated deterministic patient/clinical snapshot. Global default Digital Crown theme is used without forcing a local Cephalo theme. Snapshot is fail-closed and contains no invented clinical conclusion.',
+  capturePolicy: 'Fresh Chromium process per viewport/attempt. One retry only for transient render failure. Final attempt must satisfy global-theme token resolution, scientific-state visibility, semantic-separation, selected-analysis binding, layout and console gates.',
   captures, blockedExternalRequests, invalidCount: invalid.length,
 };
 await writeFile(path.join(OUTPUT_DIR, 'report.json'), JSON.stringify(report, null, 2), 'utf8');
