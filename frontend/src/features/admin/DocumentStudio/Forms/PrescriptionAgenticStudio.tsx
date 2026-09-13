@@ -186,7 +186,7 @@ export const PrescriptionAgenticStudio: React.FC<PrescriptionAgenticStudioProps>
     <div className="prescription-r3-safety-orchestrated space-y-3">
       <style>{`
         .prescription-r3-safety-orchestrated .prescription-r3-legacy > div > div:first-child > div:first-child,
-        .prescription-r3-safety-orchestrated .prescription-r3-legacy > div > div:first-child > div:nth-child(2) {
+        .prescription-r3-safety-orchestrated .prescription-r3-legacy > div > div:first-child > div:nth-child(2):not(:has([data-ordonnance-quick-entry])) {
           display: none !important;
         }
         .prescription-r3-safety-orchestrated .prescription-r3-legacy > div > div:first-child > div:last-child > button:last-child {

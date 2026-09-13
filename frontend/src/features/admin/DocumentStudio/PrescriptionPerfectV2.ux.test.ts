@@ -24,6 +24,10 @@ describe('Ordonnance Perfect V2 UX contract', () => {
     expect(header).toContain('compactOrdonnance ? "relative z-20" : "sticky top-0 z-[60]"');
   });
 
+  it('never lets positional legacy masking hide the semantic quick-entry surface', () => {
+    expect(prescription).toContain('div:nth-child(2):not(:has([data-ordonnance-quick-entry]))');
+  });
+
   it('keeps deterministic prescription safety and established clinical copy visible', () => {
     expect(prescription).toContain('Contexte patient');
     expect(prescription).toContain('Données du dossier et vérifications déterministes utilisées pour l’ordonnance en cours.');
