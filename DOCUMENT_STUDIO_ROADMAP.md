@@ -255,7 +255,7 @@ Le harness `scripts/certify_document_studio_p7.sh` reste une régression de code
 
 ## T1 — Audit transversal premium
 
-**État : 🟢 runtime transversal P1→P6 certifié sur HEAD comportemental ; closeout exact-head final en cours.**
+**État : ✅ engineering + runtime automatisé P1→P6 fermés ; merge final en attente des gates exact-head du closeout documentaire.**
 
 Rapports :
 - `docs/audits/DOCUMENT_STUDIO_T1_TRANSVERSAL_PREMIUM_AUDIT.md` ;
@@ -263,7 +263,8 @@ Rapports :
 
 PR : #465 `test(t1): certify active P1-P6 transversal boundaries`.
 
-HEAD comportemental certifié avant closeout documentaire : `51e98dd3f14882278e7de5a2f862bb7a256d985b`.
+HEAD comportemental historique : `51e98dd3f14882278e7de5a2f862bb7a256d985b`.
+HEAD exact recertifié après réalignement master : `2e5644a447c891e2a4772632aa14b3be32fbaadb`.
 
 ### Engineering acquis
 
@@ -278,37 +279,23 @@ HEAD comportemental certifié avant closeout documentaire : `51e98dd3f14882278e7
 
 ### Certification observée
 
-T2 Runtime Browser Certification `#2645` / run `34750958888` : **SUCCESS**.
-Job `T2 Browser Runtime Matrix` / `103707302825` : **SUCCESS**.
+Sur `2e5644a447c891e2a4772632aa14b3be32fbaadb` :
 
-Le probe transversal T1 a observé :
+- CI `#3707` / `34751837897` : **SUCCESS** ;
+- T2 `#2651` / `34751838021` : **SUCCESS** ;
+- Catalog Connected Truth `#1099` / `34751837908` : **SUCCESS** ;
+- Cabinet Upgrade PostgreSQL `#166` / `34751837937` : **SUCCESS** ;
+- Patient P7 Final `#1314` / `34751837988` : **SUCCESS** sans réactivation P7 ;
+- M6-I `#1451` : **SKIPPED** attendu.
 
-- patient B autoritaire avant et après libération des réponses retardées de A ;
-- aucune route error ;
-- annulation URL dirty restaure l’URL et conserve le brouillon ;
-- confirmation dirty atteint la cible ;
-- Compagnon Diagnostique absent ;
-- aucune requête `ai-diagnostic` ;
-- aucune page error ;
-- statut global : **PASS**.
+Le T2 exact-head a passé le probe transversal T1, le seed patient B, le PDF strict, la réconciliation P3/P4/P5, la matrice navigateur authentifiée, P6 et la fraîcheur print/PDF.
 
-La même exécution T2 a aussi passé : PDF runtime strict, réconciliation P3/P4/P5, matrice P1→P6 `greenPages=6/6`, stress navigation `10/10`, P6 responsive 390/768/1280, impression navigateur et fraîcheur PDF.
-
-Artefact : `t2-browser-evidence`, ID `10316225660`, digest `sha256:886455c2ffcb560e50cb22e0e3798cc362459615904afec3da9c6396c2aaf333`.
-
-Gates voisins sur le même HEAD comportemental :
-
-- Catalog Connected Truth `#1094` / `34750958896` : **SUCCESS** ;
-- Cabinet Upgrade PostgreSQL `#160` / `34750958994` : **SUCCESS** ;
-- Patient P7 Final `#1309` / `34750959000` : **SUCCESS** sans réactivation P7 dans le Studio ;
-- M6-I `#1445` : **SKIPPED** attendu.
-
-CI principal `#3701` / `34750958892` n’était pas terminal au moment du closeout intermédiaire ; les jobs frontend/tests/build et bridges M4 déjà terminés étaient verts.
+Artefact exact-head : `t2-browser-evidence`, ID `10316051646`, digest `sha256:d0888b44cf7ba4a4413d4f66442aa808a631591a024cf5a6cbcc4e73c4de5b7f`.
 
 ### Reste
 
-- gates CI/T2 sur le **HEAD documentaire final** ;
-- inspection des preuves exact-head ;
+- gates CI/T2 du **HEAD documentaire final** créé par le closeout ;
+- contrôle mergeable + reviews/threads ;
 - squash merge PR #465 avec contrôle du HEAD attendu ;
 - vérification post-merge `master` ;
 - transition T2.
@@ -317,7 +304,7 @@ CI principal `#3701` / `34750958892` n’était pas terminal au moment du closeo
 
 ## T2 — Refonte intelligente finale / recertification globale
 
-**État : ⬜ après fermeture des gates exécutables T1 sur le périmètre actif P1→P6.**
+**État : ⬜ prochain lot après squash merge et vérification post-merge T1.**
 
 À couvrir : cartographie finale, matrice garder/améliorer/fusionner/cacher/supprimer/refaire, navigation cible, hiérarchie, priorités, critères UX/fonctionnels, régression globale et recertification finale.
 
@@ -348,8 +335,8 @@ P7 dormant n’entre dans T2 que comme dette/code historique à classer : conser
 3. **P5 Suivi Paiement** : engineering/runtime/PDF/responsive automatisés certifiés ; contrepassation réelle reste séparée.
 4. **P6 Document Libre** : **fermé et mergé** sur `master` `e5a9f37...` après CI/T2 exact-head verts.
 5. **P7 Compagnon Diagnostique** : **retiré du Studio certifiable** ; code dormant, aucune réactivation implicite.
-6. **T1** : runtime P1→P6 prouvé vert sur le HEAD comportemental ; exact-head documentaire final, merge et post-merge restent à fermer.
-7. **T2** : recertification/refonte finale après T1 ; classer définitivement la dette P7 dormant.
+6. **T1** : engineering/runtime P1→P6 fermé sur HEAD recertifié `2e5644a...` ; gates du HEAD documentaire final puis merge/post-merge restent à fermer.
+7. **T2** : recertification/refonte finale immédiatement après fermeture réelle T1 ; P7 dormant reste hors produit sauf chantier séparé.
 
 ## Infrastructure CI
 
@@ -359,7 +346,7 @@ P5 dispose de runs réels verts sur son HEAD comportemental `63d33c2c...` : T2 `
 
 P6 dispose de runs réels verts sur son HEAD comportemental `218e7ef...` : T2 `34528255978` (#2191) et CI `34528255939` (#3183), puis sur le HEAD closeout `9269f9c...` : T2 `34582263341` (#2229) et CI `34582263330` (#3224). PR #405 squash-mergée sur `master` `e5a9f37...`.
 
-T1 dispose sur son HEAD comportemental `51e98dd3...` de T2 `34750958888` (#2645) **SUCCESS**, Catalog `34750958896` (#1094) **SUCCESS**, PostgreSQL `34750958994` (#160) **SUCCESS**, Patient P7 `34750959000` (#1309) **SUCCESS**. La CI `34750958892` (#3701) était encore non terminale lors du closeout intermédiaire.
+T1 dispose sur son HEAD comportemental `51e98dd3...` de T2 `34750958888` (#2645) **SUCCESS**. Après réalignement master, le HEAD `2e5644a...` dispose de CI `34751837897` (#3707) **SUCCESS**, T2 `34751838021` (#2651) **SUCCESS**, Catalog `34751837908` (#1099) **SUCCESS**, PostgreSQL `34751837937` (#166) **SUCCESS** et Patient P7 `34751837988` (#1314) **SUCCESS** ; M6-I #1451 est **SKIPPED** attendu.
 
 Le harness T1 canonique est `scripts/certify_document_studio_t1.sh`.
 
