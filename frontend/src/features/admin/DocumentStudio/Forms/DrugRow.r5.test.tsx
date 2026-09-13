@@ -49,7 +49,7 @@ describe('DrugRow R5 progressive disclosure', () => {
     expect(screen.getByPlaceholderText('NOM DU MÉDICAMENT...')).toBeInTheDocument()
     expect(screen.queryByText('Dose')).not.toBeInTheDocument()
     expect(screen.queryByPlaceholderText('Ex. 1 gélule × 3/jour pendant 7 jours')).not.toBeInTheDocument()
-    expect(screen.getByText(/Les détails de dose, forme et posologie apparaissent/)).toBeInTheDocument()
+    expect(screen.getByText(/Identifiez le médicament pour renseigner forme, dose et posologie/)).toBeInTheDocument()
   })
 
   it('affiche les détails dès qu’un médicament est identifié', () => {
