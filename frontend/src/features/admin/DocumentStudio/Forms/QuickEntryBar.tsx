@@ -72,9 +72,28 @@ export const QuickEntryBar: React.FC<QuickEntryBarProps> = ({
   const showQuickPicks = !quickVal.trim() && (visibleRecent.length > 0 || visibleFrequent.length > 0);
 
   return (
-    <div className="relative group space-y-3 min-w-0">
-      <div className="relative min-w-0">
-        <div className="absolute inset-y-0 left-4 sm:left-6 flex items-center text-primary/40 group-focus-within:text-primary transition-colors">
+    <section
+      data-ordonnance-quick-entry
+      aria-label="Saisie rapide de l'ordonnance"
+      className="relative min-w-0 space-y-3 rounded-[1.75rem] border border-slate-200/70 bg-white/60 p-3 shadow-lg shadow-slate-900/[0.03] backdrop-blur-2xl dark:border-white/10 dark:bg-slate-900/50 sm:p-4"
+    >
+      <div className="flex items-center justify-between gap-3 px-1">
+        <div className="flex min-w-0 items-center gap-2">
+          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border border-primary/10 bg-primary/10 text-primary">
+            <Zap size={15} />
+          </div>
+          <div className="min-w-0">
+            <div className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-800 dark:text-slate-100">Saisie rapide</div>
+            <div className="hidden text-[9px] font-semibold text-slate-400 dark:text-slate-500 sm:block">Médicament, dosage, forme et posologie en une ligne.</div>
+          </div>
+        </div>
+        <span className="hidden shrink-0 rounded-lg border border-slate-200/70 bg-white/70 px-2.5 py-1 text-[9px] font-black uppercase tracking-wider text-slate-400 dark:border-white/10 dark:bg-slate-950/50 dark:text-slate-500 sm:inline-flex">
+          {submitting ? 'Ajout…' : '↵ Ajouter'}
+        </span>
+      </div>
+
+      <div className="relative min-w-0 group">
+        <div className="absolute inset-y-0 left-4 flex items-center text-primary/45 transition-colors group-focus-within:text-primary sm:left-5">
           <Zap size={18} />
         </div>
         <input
@@ -82,12 +101,13 @@ export const QuickEntryBar: React.FC<QuickEntryBarProps> = ({
           value={quickVal}
           disabled={submitting}
           aria-busy={submitting}
+          aria-label="Médicament, dosage, forme, posologie"
           onChange={e => {
             const v = e.target.value;
             setQuickVal(v);
             onSearchChange(v);
           }}
-          className="w-full min-w-0 bg-white/70 border border-white/90 backdrop-blur-xl rounded-[2rem] pl-12 pr-4 sm:pl-16 sm:pr-32 py-5 text-sm sm:text-base font-bold text-slate-800 focus:bg-white focus:border-primary/30 focus:shadow-2xl focus:shadow-primary/5 transition-all outline-none placeholder:text-slate-300 disabled:opacity-60"
+          className="min-h-14 w-full min-w-0 rounded-2xl border border-slate-200/80 bg-white/85 py-3.5 pl-12 pr-4 text-sm font-bold text-slate-800 outline-none shadow-sm backdrop-blur-xl transition-all placeholder:text-slate-300 focus:border-primary/30 focus:bg-white focus:ring-4 focus:ring-primary/10 disabled:opacity-60 dark:border-white/10 dark:bg-slate-950/60 dark:text-slate-100 dark:placeholder:text-slate-600 dark:focus:bg-slate-950 sm:pl-14 sm:pr-4 sm:text-base"
           placeholder="Médicament, dosage, forme, posologie…"
           onKeyDown={async e => {
             if (e.key === 'ArrowDown') {
@@ -114,22 +134,16 @@ export const QuickEntryBar: React.FC<QuickEntryBarProps> = ({
           onBlur={() => setTimeout(() => setQuickHighlightedIdx(-1), 200)}
         />
 
-        <div className="absolute right-6 top-1/2 -translate-y-1/2 hidden sm:flex items-center gap-2">
-          <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest border border-slate-200 px-2 py-1 rounded-lg bg-white/70">
-            {submitting ? 'AJOUT…' : '↵ AJOUTER'}
-          </span>
-        </div>
-
         <AnimatePresence>
           {quickSuggestions.length > 0 && (
             <motion.div
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: 10 }}
-              className="absolute left-2 right-2 sm:left-6 sm:right-6 top-full mt-2 bg-white border border-slate-200 rounded-3xl shadow-2xl z-[999] overflow-hidden py-3"
+              className="absolute left-1 right-1 top-full z-[999] mt-2 overflow-hidden rounded-2xl border border-slate-200 bg-white py-2 shadow-2xl dark:border-white/10 dark:bg-slate-950 sm:left-3 sm:right-3"
             >
-              <div className="px-4 sm:px-6 py-2 border-b border-slate-50 mb-2">
-                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Suggestions de médicaments</span>
+              <div className="mb-1 border-b border-slate-100 px-4 py-2 dark:border-white/10 sm:px-5">
+                <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Suggestions de médicaments</span>
               </div>
               {quickSuggestions.map((s, i) => (
                 <button
@@ -143,8 +157,10 @@ export const QuickEntryBar: React.FC<QuickEntryBarProps> = ({
                     await submitDrug(parts.join(' '));
                   }}
                   className={cn(
-                    'w-full px-5 sm:px-8 py-3 text-left text-sm font-bold transition-all flex items-center justify-between group disabled:opacity-50',
-                    i === quickHighlightedIdx ? 'bg-primary text-white' : 'text-slate-600 hover:bg-primary/5 hover:text-primary',
+                    'flex min-h-11 w-full items-center justify-between px-5 py-2.5 text-left text-sm font-bold transition-all group disabled:opacity-50',
+                    i === quickHighlightedIdx
+                      ? 'bg-primary text-white'
+                      : 'text-slate-600 hover:bg-primary/5 hover:text-primary dark:text-slate-300 dark:hover:bg-white/5',
                   )}
                 >
                   <span>{s}</span>
@@ -157,19 +173,33 @@ export const QuickEntryBar: React.FC<QuickEntryBarProps> = ({
       </div>
 
       {showQuickPicks && (
-        <div className="flex flex-wrap items-center gap-2 px-2" aria-label="Accès rapides aux médicaments habituels">
+        <div className="flex flex-wrap items-center gap-2 px-1" aria-label="Accès rapides aux médicaments habituels">
           {visibleRecent.map(name => (
-            <button key={`recent-${name}`} type="button" disabled={submitting} onClick={() => void submitDrug(name)} className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-white/80 px-3 py-1.5 text-[10px] font-black uppercase tracking-wide text-slate-600 transition-colors hover:border-primary/30 hover:text-primary disabled:opacity-50" title="Médicament récent">
+            <button
+              key={`recent-${name}`}
+              type="button"
+              disabled={submitting}
+              onClick={() => void submitDrug(name)}
+              className="inline-flex min-h-11 items-center gap-1.5 rounded-xl border border-slate-200/80 bg-white/75 px-3 py-2 text-[10px] font-black uppercase tracking-wide text-slate-600 shadow-sm transition-colors hover:border-primary/30 hover:bg-white hover:text-primary disabled:opacity-50 dark:border-white/10 dark:bg-slate-950/50 dark:text-slate-300 dark:hover:bg-slate-900"
+              title="Médicament récent"
+            >
               <Clock3 size={11} />{name}
             </button>
           ))}
           {visibleFrequent.map(name => (
-            <button key={`frequent-${name}`} type="button" disabled={submitting} onClick={() => void submitDrug(name)} className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-white/80 px-3 py-1.5 text-[10px] font-black uppercase tracking-wide text-slate-600 transition-colors hover:border-primary/30 hover:text-primary disabled:opacity-50" title="Médicament fréquent">
+            <button
+              key={`frequent-${name}`}
+              type="button"
+              disabled={submitting}
+              onClick={() => void submitDrug(name)}
+              className="inline-flex min-h-11 items-center gap-1.5 rounded-xl border border-slate-200/80 bg-white/75 px-3 py-2 text-[10px] font-black uppercase tracking-wide text-slate-600 shadow-sm transition-colors hover:border-primary/30 hover:bg-white hover:text-primary disabled:opacity-50 dark:border-white/10 dark:bg-slate-950/50 dark:text-slate-300 dark:hover:bg-slate-900"
+              title="Médicament fréquent"
+            >
               <TrendingUp size={11} />{name}
             </button>
           ))}
         </div>
       )}
-    </div>
+    </section>
   );
 };
