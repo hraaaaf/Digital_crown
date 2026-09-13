@@ -78,12 +78,13 @@ describe('ClinicalScientificStudio R15', () => {
     expect(screen.getByRole('button', { name: /Problem list & objectifs/i })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Options thérapeutiques/i })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Validation clinique finale/i })).toBeInTheDocument();
+    expect(screen.getByTestId('r15-stage-rail')).toHaveClass('grid-cols-4');
     expect(screen.queryByText('R11 → R14')).not.toBeInTheDocument();
     expect(screen.getByText(/traçabilité interne R11 → R14/i)).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: /Options thérapeutiques/i }));
 
-    expect(await screen.findByText('Évaluable · non sélectionné')).toBeInTheDocument();
+    expect(screen.getAllByText('Évaluable · non sélectionné').length).toBeGreaterThanOrEqual(1);
     expect(screen.getAllByText('Réf. technique R13').length).toBeGreaterThanOrEqual(1);
     expect(screen.getByText("Évaluable n'est jamais une prescription.")).toBeInTheDocument();
     expect(screen.getByText('clinician_selection_required')).toBeInTheDocument();
