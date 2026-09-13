@@ -1,0 +1,97 @@
+name: Cephalo R15bis BEFORE
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - feat/cephalo-r15bis-uiux
+    paths:
+      - '.github/workflows/cephalo-r15bis-before.yml'
+
+permissions:
+  contents: read
+
+env:
+  R15BIS_BASE_SHA: 3dbab4e1fe722265932799eff01d4de8de252da9
+
+jobs:
+  visual-before:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Checkout R15bis harness branch
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Prepare exact R15-closed baseline
+        run: |
+          git worktree add /tmp/dc-r15bis-before "$R15BIS_BASE_SHA"
+          test "$(git -C /tmp/dc-r15bis-before rev-parse HEAD)" = "$R15BIS_BASE_SHA"
+      - name: Install harness browser dependencies
+        working-directory: frontend
+        run: |
+          npm ci
+          npm install --no-save --package-lock=false --legacy-peer-deps playwright@1.55.0 react-is@19.2.0 @testing-library/dom@10.4.1
+          npx playwright install --with-deps chromium
+      - name: Install exact baseline frontend
+        run: |
+          cd /tmp/dc-r15bis-before/frontend
+          npm ci
+          npm install --no-save --package-lock=false --legacy-peer-deps playwright@1.55.0 react-is@19.2.0 @testing-library/dom@10.4.1
+      - name: Capture exact R15 final state as R15bis BEFORE
+        run: |
+          cd /tmp/dc-r15bis-before/frontend
+          PRODUCT_HEAD="$R15BIS_BASE_SHA" node scripts/capture-cephalo-r15-after.mjs
+          rm -rf "$GITHUB_WORKSPACE/frontend/cephalo-r15bis-before-artifacts"
+          mv cephalo-r15-after-artifacts "$GITHUB_WORKSPACE/frontend/cephalo-r15bis-before-artifacts"
+          cat > "$GITHUB_WORKSPACE/frontend/cephalo-r15bis-before-artifacts/r15bis-before-metadata.json" <<JSON
+          {
+            "lot": "CEPHALO-R15BIS",
+            "phase": "BEFORE",
+            "baselineProductHead": "$R15BIS_BASE_SHA",
+            "sourceHarness": "frontend/scripts/capture-cephalo-r15-after.mjs",
+            "sourceReportPhase": "AFTER",
+            "reason": "R15 final UI is the exact R15bis BEFORE baseline; closeout merge after R15 changed documentation only."
+          }
+          JSON
+      - name: Verify exact R15bis BEFORE evidence contract
+        working-directory: frontend
+        run: |
+          node --input-type=module <<'NODE'
+          import { readFile } from 'node:fs/promises';
+          const report = JSON.parse(await readFile('cephalo-r15bis-before-artifacts/report.json', 'utf8'));
+          const metadata = JSON.parse(await readFile('cephalo-r15bis-before-artifacts/r15bis-before-metadata.json', 'utf8'));
+          const expected = process.env.R15BIS_BASE_SHA;
+          if (report.productHead !== expected) throw new Error(`Wrong baseline SHA ${report.productHead}`);
+          if (report.phase !== 'AFTER') throw new Error(`Unexpected source report phase ${report.phase}`);
+          if (metadata.phase !== 'BEFORE' || metadata.baselineProductHead !== expected) throw new Error('Invalid R15bis BEFORE metadata');
+          if (report.invalidCount !== 0) throw new Error(`Invalid captures ${report.invalidCount}`);
+          if (report.blockedExternalRequests.length !== 0) throw new Error('Unexpected external egress');
+          if (report.captures.length !== 3) throw new Error('Expected three certified viewports');
+          for (const capture of report.captures) {
+            if (!capture.valid || capture.consoleErrors.length || capture.pageErrors.length) throw new Error(`Runtime failure ${capture.viewport}`);
+            if (!capture.selectedAnalysisBound) throw new Error(`Selected analysis not bound ${capture.viewport}`);
+            for (const scene of [capture.step3Top, capture.step4Top]) {
+              if (scene.horizontalDocumentOverflow || scene.headerClipped) throw new Error(`Layout failure ${capture.viewport}/${scene.scene}`);
+              if (!scene.hasScientificChain || !scene.hasR11Surface || !scene.hasR12Surface || !scene.hasR13Surface || !scene.hasR14Surface) throw new Error(`Missing R11-R14 traceability ${capture.viewport}`);
+            }
+          }
+          NODE
+          for viewport in 390x844 768x1024 1280x900; do
+            test -s "cephalo-r15bis-before-artifacts/after-step3-top-${viewport}.png"
+            test -s "cephalo-r15bis-before-artifacts/after-step3-decision-${viewport}.png"
+            test -s "cephalo-r15bis-before-artifacts/after-step4-top-${viewport}.png"
+            test -s "cephalo-r15bis-before-artifacts/after-step4-action-${viewport}.png"
+          done
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: cephalo-r15bis-before-exact-master
+          path: frontend/cephalo-r15bis-before-artifacts
+          if-no-files-found: error
+          retention-days: 30
