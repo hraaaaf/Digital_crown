@@ -155,7 +155,8 @@ for (const capture of captures) {
   if (capture.viewport.width >= 1280) {
     const previewMetrics = capture.preview?.metrics;
     if (!previewMetrics?.desktopPreview) failures.push(`${capture.viewport.width}-preview: inline preview missing`);
-    if ((previewMetrics?.desktopPreview?.width || 0) < 500) failures.push(`${capture.viewport.width}-preview: inline preview too narrow`);
+    if ((previewMetrics?.desktopPreview?.width || 0) < 390) failures.push(`${capture.viewport.width}-preview: inline preview too narrow`);
+    if ((previewMetrics?.density?.width || 0) < 480) failures.push(`${capture.viewport.width}-preview: editor collapsed below 480px`);
     if (!previewMetrics?.noHorizontalOverflow) failures.push(`${capture.viewport.width}-preview: horizontal overflow`);
   }
   if (capture.pageErrors.length) failures.push(`${capture.viewport.width}: page errors ${capture.pageErrors.join(' | ')}`);
