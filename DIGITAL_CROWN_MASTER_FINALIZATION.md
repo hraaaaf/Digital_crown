@@ -28,17 +28,19 @@ Obtenir un Digital Crown non-Céphalo cohérent, certifié et exploitable en cab
 
 Le score global est un **indice de pilotage conservateur**, calculé uniquement à partir des chantiers non-Céphalo disposant déjà d'un pourcentage explicite et comparable dans le pilotage courant. Chaque axe compte une fois. Aucun poids subjectif n'est ajouté.
 
-Axes inclus au baseline :
+Axes inclus au score courant :
 1. Document Studio P1→P6 : 100 %
 2. Dossier Patient UX1 A/B/C : 100 %
-3. Clinique multi-praticiens : 75 % structurel tant que P3 n'est pas fermé
+3. Clinique multi-praticiens : 100 % après fermeture certifiée de P3
 4. Portabilité : 89,2 % (`149/167 EP`)
 5. Mobile Terrain : 70 %
 6. Sécurité / Anti-piratage : 60 % baseline
 
-Calcul : `(100 + 100 + 75 + 89,2 + 70 + 60) / 6 = 82,37 %`.
+Calcul courant : `(100 + 100 + 100 + 89,2 + 70 + 60) / 6 = 86,53 %`.
 
-**Indice global initial : 82,4 %.**
+**Indice global courant : 86,5 %.**
+
+Indice initial avant fermeture P3 : **82,4 %**.
 
 Règle : un axe ne monte que sur preuve observable. Un sous-lot presque fini ne vaut pas 100 % tant que son gate de clôture n'est pas fermé.
 
@@ -56,13 +58,21 @@ Le benchmark Competitive vs Orthalis (`70/100` au dernier état vérifié) reste
 - UX1-C overlays : PR #468 mergée.
 - 390 / 768 / 1280 certifiés sur les gates dédiés.
 
-### L3 — Clinique multi-praticiens — ACTIF
+### L3 — Clinique multi-praticiens — FERMÉ
 - P0 agenda backend : fermé.
 - P1 UI praticien : fermé.
 - P2 patient/facturation : fermé.
 - P3 documents/provenance/signature : implémentation majeure mergée via #454, #455, #457, #459.
-- Gate restant connu : PR #463 `Clinic P3: certify local document preservation`.
-- Tant que #463 n'est pas close avec preuve, l'axe reste à 75 % structurel dans l'indice global.
+- Gate final #463 `Clinic P3: certify local document preservation` : MERGED.
+- HEAD certifié #463 : `30e5c235cebdb9f4e460b03a0687856336149c08`.
+- Merge commit : `f16fc658dad0ee4ff67a919568359f1e90d4e2da`.
+- CI #3763 : SUCCESS.
+- `Clinic P3 Local Document Preservation Certification` #7 : SUCCESS.
+- `Cabinet Upgrade PostgreSQL Certification` #216 : SUCCESS.
+- `T2 Runtime Browser Certification` #2701 : SUCCESS.
+- Preuve P3 : migration additive idempotente SQLite/PostgreSQL 18, identité de ligne/patient/path/SHA-256/taille/statut préservés, aucun backfill silencieux author/signer/timestamp, signature applicative limitée aux métadonnées prévues et bytes physiques inchangés.
+- Frontière de preuve : rehearsal synthétique isolé local-vault + PostgreSQL 18 ; aucune prétention de copie de données patient réelles ni de signature électronique qualifiée.
+- Axe multi-praticiens : **100 %**.
 
 ### L4 — Portabilité — HUMAN GATE
 - État vérifié : `149/167 EP = 89,2 %`.
@@ -85,6 +95,7 @@ Le benchmark Competitive vs Orthalis (`70/100` au dernier état vérifié) reste
 - Correctifs packaging CODE_CERTIFIED #450 et #451 mergés.
 - Dette Document History restaurée et fermée via PR #469, mergée sur `master` au commit `0c89a3f31dfb86b752b980e711f267c8bbb8d067`.
 - HEAD #469 `6fca04b870f03bdd6805067ea6bba8ca93d85d35` : CI, T2, PostgreSQL et `Document History Actions Visual Certification` en SUCCESS ; artifact `document-history-actions-before-after` produit.
+- P3 #463 a également fermé sur CI #3763 SUCCESS, PostgreSQL #216 SUCCESS et T2 #2701 SUCCESS.
 - Cet axe n'entre pas dans l'indice numérique tant qu'aucun pourcentage canonique comparable n'est défini.
 - Rechercher uniquement les dettes release/CI encore réellement ouvertes lors des closeouts suivants.
 
@@ -95,16 +106,15 @@ Le benchmark Competitive vs Orthalis (`70/100` au dernier état vérifié) reste
 
 ## Chemin critique unique
 
-1. **Fermer P3 via #463** avec preuve de préservation locale SQLite/PostgreSQL et absence de réécriture silencieuse des archives.
-2. **Recalculer l'indice global** après fermeture P3. P3 passe alors de 75 % à 100 % si et seulement si le closeout complet est prouvé.
-3. **Traiter les gates logiciels restants Competitive/Media et release** sans toucher Céphalo.
-4. **Exécuter les gates physiques** : Portabilité P13 puis Mobile Terrain, selon disponibilité du matériel réel.
-5. **Fermer Sécurité** dès que l'accès control-plane production permet l'exécution réelle des mutations autorisées.
-6. **Certification globale non-Céphalo** : master propre, CI transverse verte, docs canoniques cohérents, aucun gate logiciel connu restant, inventaire explicite des seuls human/external gates résiduels.
+1. **Revalider les gates logiciels réellement encore ouverts** Competitive/Media et release, sans toucher Céphalo.
+2. **Fermer le prochain gate logiciel prouvé ouvert**, en commençant par C4 Competitive/Media si son état live confirme qu'il reste réellement incomplet.
+3. **Exécuter les gates physiques** : Portabilité P13 puis Mobile Terrain, selon disponibilité du matériel réel.
+4. **Fermer Sécurité** dès que l'accès control-plane production permet l'exécution réelle des mutations autorisées.
+5. **Certification globale non-Céphalo** : master propre, CI transverse verte, docs canoniques cohérents, aucun gate logiciel connu restant, inventaire explicite des seuls human/external gates résiduels.
 
 ## Next exact
 
-**PR #463 : vérifier l'état live après l'avancée de `master`, confirmer le contrat de préservation local SQLite/PostgreSQL 18, CI exact-head et absence de réécriture silencieuse, puis fermer/merger uniquement si toutes les preuves du gate P3 restent valides.**
+**Fenêtre suivante : revalider l'état live de Competitive/Media C4 et des dettes release/CI, choisir le premier gate réellement ouvert, puis le fermer avec preuve sans toucher Céphalométrie.**
 
 ## Règles de continuité
 
@@ -125,12 +135,14 @@ Le programme est clos lorsque :
 - le score global final est recalculé à partir d'états réellement fermés ;
 - le closeout master et les docs canoniques concordent.
 
-## Repères baseline
+## Repères courant
 
 - baseline de création : `master@dca24d01ca5591d4255f3ac85f79a32ab6d673c1`
-- dernière avancée master vérifiée avant installation canonique : `0c89a3f31dfb86b752b980e711f267c8bbb8d067` (#469)
-- indice global : **82,4 %**
+- master post-P3 vérifié : `f16fc658dad0ee4ff67a919568359f1e90d4e2da`
+- PR #463 : MERGED
+- HEAD P3 certifié : `30e5c235cebdb9f4e460b03a0687856336149c08`
+- indice global courant : **86,5 %**
 - Céphalométrie : **hors périmètre**
-- blocage logiciel prioritaire : **P3 / #463**
+- prochain gate logiciel : à revalider live entre Competitive/Media C4 et dette release/CI
 - human gates : **Portabilité P13 + Mobile Terrain**
 - external gate : **Security control-plane production**
