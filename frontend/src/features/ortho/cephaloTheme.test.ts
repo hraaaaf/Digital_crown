@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from 'vitest';
-import { PALETTE } from './cephaloTheme';
+import { getCephaloPalette } from './cephaloTheme';
 
 const setThemeTokens = (tokens: Record<string, string>) => {
   Object.entries(tokens).forEach(([name, value]) => document.body.style.setProperty(name, value));
@@ -7,11 +7,11 @@ const setThemeTokens = (tokens: Record<string, string>) => {
 
 afterEach(() => {
   document.body.removeAttribute('style');
-  delete document.body.dataset.theme;
+  document.body.removeAttribute('data-theme');
 });
 
 describe('cephaloTheme global token inheritance', () => {
-  it('resolves the currently selected light-family theme instead of a local palette', () => {
+  it('resolves the currently selected theme directly instead of a local light/dark palette', () => {
     document.body.dataset.theme = 'emerald';
     setThemeTokens({
       '--bg-medical-pearl': '#f0fdf4',
@@ -25,7 +25,7 @@ describe('cephaloTheme global token inheritance', () => {
       '--shadow-elite-hover': '0 20px 25px rgba(0,0,0,.08)',
     });
 
-    const emerald = PALETTE.light;
+    const emerald = getCephaloPalette();
     expect(emerald.bg).toBe('#f0fdf4');
     expect(emerald.bgPanel).toBe('#fcfdfd');
     expect(emerald.text).toBe('#064e3b');
@@ -42,7 +42,7 @@ describe('cephaloTheme global token inheritance', () => {
       '--primary': '#db2777',
     });
 
-    const rose = PALETTE.light;
+    const rose = getCephaloPalette();
     expect(rose.bg).toBe('#fff1f2');
     expect(rose.bgPanel).toBe('#fffbfb');
     expect(rose.text).toBe('#831843');
@@ -50,7 +50,7 @@ describe('cephaloTheme global token inheritance', () => {
     expect(rose.accent).not.toBe(emerald.accent);
   });
 
-  it('resolves prestige/dark from the same global semantic tokens', () => {
+  it('resolves prestige from the same global semantic tokens without remapping it to dark', () => {
     document.body.dataset.theme = 'prestige';
     setThemeTokens({
       '--bg-medical-pearl': '#0f172a',
@@ -62,7 +62,7 @@ describe('cephaloTheme global token inheritance', () => {
       '--primary': '#3b82f6',
     });
 
-    const prestige = PALETTE.dark;
+    const prestige = getCephaloPalette();
     expect(prestige.bg).toBe('#0f172a');
     expect(prestige.bgCard).toBe('#1e293b');
     expect(prestige.border).toBe('#334155');
