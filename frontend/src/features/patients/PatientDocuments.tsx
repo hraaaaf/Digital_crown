@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { api } from '../../services/api';
 import { usePatientStore } from '../../stores/usePatientStore';
+import { useAuthStore } from '../../stores/useAuthStore';
 import {
   FileText,
   Eye,
@@ -21,6 +22,9 @@ import {
   RefreshCcw,
   MoreHorizontal,
   Monitor,
+  BadgeCheck,
+  PenTool,
+  ShieldQuestion,
 } from 'lucide-react';
 import { cn } from '../../utils/cn';
 import { DocumentMobileBridge } from './DocumentMobileBridge';
@@ -36,16 +40,37 @@ interface DocumentInfo {
   payment_status?: string;
   is_accounted?: boolean;
   isDuplicate?: boolean;
+  author_practitioner_id?: number | null;
+  author_practitioner_name?: string | null;
+  signed_by_practitioner_id?: number | null;
+  signed_by_practitioner_name?: string | null;
+  signed_at?: string | null;
 }
+
+const formatSignatureDate = (value?: string | null) => {
+  if (!value) return null;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return null;
+  return date.toLocaleString('fr-MA', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+};
 
 export const PatientDocuments = () => {
   const { id } = useParams();
+  const currentUser = useAuthStore(state => state.user);
+  const currentUserId = Number(currentUser?.id);
   const [docs, setDocs] = useState<DocumentInfo[]>([]);
   const [loading, setLoading] = useState(true);
   const [fetchError, setFetchError] = useState(false);
   const [reloadKey, setReloadKey] = useState(0);
   const [searchTerm, setSearchTerm] = useState('');
   const [actionsOpenFor, setActionsOpenFor] = useState<string | null>(null);
+  const [signingDocId, setSigningDocId] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchDocs = async () => {
@@ -89,6 +114,34 @@ export const PatientDocuments = () => {
       return;
     }
     setEditingDoc(doc);
+  };
+
+  const handleSign = async (doc: DocumentInfo) => {
+    if (!/^\d+$/.test(doc.id) || doc.signed_at) return;
+    if (!Number.isFinite(currentUserId) || doc.author_practitioner_id !== currentUserId) return;
+
+    const confirmed = window.confirm(
+      "Enregistrer votre signature praticien sur ce document ?\n\n" +
+      "Digital Crown liera votre identité et l'heure de signature à l'empreinte SHA-256 du fichier archivé. " +
+      "Ce marquage applicatif ne constitue pas une signature électronique qualifiée."
+    );
+    if (!confirmed) return;
+
+    setSigningDocId(doc.id);
+    try {
+      await api.post(`/documents/${doc.id}/sign`);
+      setActionsOpenFor(null);
+      setReloadKey(key => key + 1);
+    } catch (err: any) {
+      console.error('Erreur signature document:', err);
+      const detail = err?.response?.data?.detail;
+      const message = typeof detail === 'string'
+        ? detail
+        : detail?.message || "Impossible d'enregistrer la signature de ce document.";
+      alert(message);
+    } finally {
+      setSigningDocId(null);
+    }
   };
 
   const handleView = async (docId: string) => {
@@ -198,6 +251,17 @@ export const PatientDocuments = () => {
         {docsWithDuplicates.map((doc) => {
           const isLegacy = doc.id.startsWith('legacy:');
           const canonicalId = !isLegacy && /^\d+$/.test(doc.id) ? Number(doc.id) : null;
+          const hasRecordedAuthor = canonicalId !== null && doc.author_practitioner_id != null;
+          const hasRecordedSignature = canonicalId !== null && Boolean(doc.signed_at && doc.signed_by_practitioner_id != null);
+          const canRecordSignature = (
+            canonicalId !== null &&
+            doc.file_exists !== false &&
+            !hasRecordedSignature &&
+            Number.isFinite(currentUserId) &&
+            doc.author_practitioner_id === currentUserId
+          );
+          const signedDate = formatSignatureDate(doc.signed_at);
+
           return (
             <div key={doc.id} data-document-kind={isLegacy ? 'legacy' : 'canonical'} className={cn(
               'group backdrop-blur-xl p-6 rounded-[2.5rem] shadow-[0_4px_20px_rgb(0,0,0,0.03)] hover:-translate-y-1.5 transition-all duration-500 relative overflow-visible',
@@ -221,7 +285,25 @@ export const PatientDocuments = () => {
                         <MoreHorizontal size={19} />
                       </button>
                       {actionsOpenFor === doc.id && (
-                        <div id={`document-actions-${doc.id}`} data-document-action-menu role="menu" className="absolute left-0 top-12 z-50 w-48 rounded-xl border border-slate-200/80 bg-white/95 shadow-xl backdrop-blur-xl p-1.5">
+                        <div id={`document-actions-${doc.id}`} data-document-action-menu role="menu" className="absolute right-0 top-12 z-50 w-56 rounded-xl border border-slate-200/80 bg-white/95 shadow-xl backdrop-blur-xl p-1.5">
+                          {canRecordSignature && (
+                            <>
+                              <button
+                                data-document-action="sign"
+                                data-p3-sign-action
+                                data-m4c-touch
+                                role="menuitem"
+                                type="button"
+                                disabled={signingDocId === doc.id}
+                                onClick={() => void handleSign(doc)}
+                                className="w-full min-h-11 px-3 rounded-lg hover:bg-emerald-50 text-emerald-700 font-bold text-xs inline-flex items-center gap-2 transition-colors disabled:opacity-60"
+                              >
+                                {signingDocId === doc.id ? <Loader2 size={16} className="animate-spin" /> : <PenTool size={16} />}
+                                Enregistrer ma signature
+                              </button>
+                              <div className="mx-2 my-0.5 h-px bg-slate-100" aria-hidden="true" />
+                            </>
+                          )}
                           <button data-document-action="edit" data-m4c-touch role="menuitem" type="button" onClick={() => handleEdit(doc)} className="w-full min-h-11 px-3 rounded-lg hover:bg-slate-50 text-slate-700 font-bold text-xs inline-flex items-center gap-2 transition-colors"><Edit size={16} className="text-amber-600" /> Modifier</button>
                           <div className="mx-2 my-0.5 h-px bg-slate-100" aria-hidden="true" />
                           <button data-document-action="trash" data-m4c-touch role="menuitem" type="button" onClick={() => void handleDelete(doc.id)} className="w-full min-h-11 px-3 rounded-lg hover:bg-rose-50/80 text-rose-600 font-bold text-xs inline-flex items-center gap-2 transition-colors"><Trash2 size={16} /> Mettre à la corbeille</button>
@@ -233,10 +315,39 @@ export const PatientDocuments = () => {
                 </div>
               </div>
 
-              <div className="relative z-10 mb-6">
+              <div className="relative z-10 mb-4">
                 <h3 className="font-black text-text-main text-lg truncate pr-4 leading-tight">{doc.name}</h3>
                 <div className="flex items-center gap-2 text-slate-400 text-[11px] font-bold mt-2 uppercase tracking-wide"><Calendar size={14} className="text-primary/60" /> {isLegacy ? 'Ancien format · desktop uniquement' : `Généré le ${doc.date}`}</div>
               </div>
+
+              {!isLegacy && (
+                <div
+                  data-p3-signature-status
+                  data-p3-signature-state={hasRecordedSignature ? 'signed' : hasRecordedAuthor ? 'unsigned' : 'historical'}
+                  className={cn(
+                    'relative z-10 mb-5 min-h-12 rounded-2xl border px-3 py-2.5 flex items-start gap-2.5 text-[11px]',
+                    hasRecordedSignature
+                      ? 'border-emerald-200 bg-emerald-50 text-emerald-800'
+                      : hasRecordedAuthor
+                        ? 'border-amber-200 bg-amber-50 text-amber-800'
+                        : 'border-slate-200 bg-slate-50 text-slate-500',
+                  )}
+                >
+                  {hasRecordedSignature ? <BadgeCheck size={17} className="mt-0.5 shrink-0" /> : <ShieldQuestion size={17} className="mt-0.5 shrink-0" />}
+                  <div className="min-w-0">
+                    <div className="font-black uppercase tracking-wide">
+                      {hasRecordedSignature ? 'Signature praticien enregistrée' : hasRecordedAuthor ? 'Non signé' : 'Provenance historique non attribuée'}
+                    </div>
+                    <div className="mt-0.5 font-semibold normal-case leading-snug">
+                      {hasRecordedSignature
+                        ? `${doc.signed_by_practitioner_name || 'Praticien'}${signedDate ? ` · ${signedDate}` : ''}`
+                        : hasRecordedAuthor
+                          ? `Auteur : ${doc.author_practitioner_name || `Praticien ${doc.author_practitioner_id}`}`
+                          : 'Aucun auteur P3 enregistré ; aucune attribution n’est inventée.'}
+                    </div>
+                  </div>
+                </div>
+              )}
 
               <div className="grid grid-cols-2 gap-3 relative z-10">
                 {doc.file_exists === false ? (
