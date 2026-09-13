@@ -40,20 +40,25 @@ describe('UX1 patient dossier responsive contract', () => {
     expect(tabs).toContain('w-full lg:w-auto');
   });
 
-  it('moves the patient CrownBot launcher into the compact header and keeps the chat over content', () => {
+  it('moves the patient CrownBot launcher into the compact header and keeps it reachable', () => {
     expect(header).toContain('data-ux1-c-crownbot-header');
     expect(header).toContain('min-w-11 min-h-11');
+    expect(header).toContain('pl-16 pr-3 sm:pl-20 sm:pr-6');
+    expect(header).toContain('hidden lg:flex items-center gap-4');
     expect(layout).toContain("onToggleCrownBot={isPatientRoute ? () => setIsBotOpen(value => !value) : undefined}");
     expect(layout).toContain("isPatientRoute ? 'hidden lg:block' : ''");
     expect(layout).toContain('lg:w-[400px] lg:h-[600px]');
   });
 
-  it('moves compact patient toasts to the top and constrains their width', () => {
+  it('keeps compact patient toasts non-blocking', () => {
     expect(app).toContain('const ContextualToaster');
     expect(app).toContain('window.innerWidth < 1024');
     expect(app).toContain("position={patientCompact ? 'top-center' : 'bottom-right'}");
     expect(app).toContain("maxWidth: patientCompact ? 'calc(100vw - 24px)' : '420px'");
     expect(app).toContain('<ContextualToaster />');
+    expect(css).toContain('[data-rht-toaster]');
+    expect(css).toContain('top: 5.5rem !important');
+    expect(css).toContain('pointer-events: none !important');
   });
 
   it('keeps the mobile bridge compact without shrinking the touch target below 44px', () => {
