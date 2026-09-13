@@ -1,8 +1,10 @@
 from __future__ import annotations
 
 import hashlib
+import os
 from types import SimpleNamespace
 
+import pytest
 from sqlalchemy import create_engine, inspect, text
 
 from backend import models
@@ -156,3 +158,60 @@ def test_p3_additive_migration_and_signature_preserve_historical_archive_bytes(t
 
     assert physical_file.read_bytes() == original_bytes
     assert hashlib.sha256(physical_file.read_bytes()).hexdigest() == original_hash
+
+
+def test_p3_postgres18_additive_migration_preserves_historical_row_without_backfill():
+    """Exercise the same pre-P3 ALTER TABLE contract on the cabinet PostgreSQL dialect."""
+    database_url = os.getenv("P3_PRESERVATION_POSTGRES_URL")
+    if not database_url:
+        pytest.skip("P3_PRESERVATION_POSTGRES_URL is only provided by the PostgreSQL 18 gate")
+
+    engine = create_engine(database_url)
+    try:
+        with engine.begin() as connection:
+            connection.execute(text("DROP TABLE IF EXISTS document_archives CASCADE"))
+            connection.execute(text("DROP TABLE IF EXISTS users CASCADE"))
+            connection.execute(text("CREATE TABLE users (id INTEGER PRIMARY KEY)"))
+            connection.execute(text(
+                "CREATE TABLE document_archives ("
+                "id INTEGER PRIMARY KEY, "
+                "patient_id INTEGER NOT NULL, "
+                "file_hash TEXT NOT NULL, "
+                "file_size INTEGER NOT NULL, "
+                "file_path TEXT NOT NULL, "
+                "status TEXT NOT NULL)"
+            ))
+            connection.execute(text("INSERT INTO users (id) VALUES (1)"))
+            connection.execute(text(
+                "INSERT INTO document_archives "
+                "(id, patient_id, file_hash, file_size, file_path, status) "
+                "VALUES (17, 201, 'postgres-historic-hash', 1234, "
+                "'static/archives/201/historic.pdf', 'ACTIF')"
+            ))
+
+            before = connection.execute(text(
+                "SELECT id, patient_id, file_hash, file_size, file_path, status "
+                "FROM document_archives WHERE id = 17"
+            )).mappings().one()
+
+            _migrate_existing_document_archives(None, connection)
+            _migrate_existing_document_archives(None, connection)
+
+            after = connection.execute(text(
+                "SELECT id, patient_id, file_hash, file_size, file_path, status, "
+                "author_practitioner_id, signed_by_practitioner_id, signed_at "
+                "FROM document_archives WHERE id = 17"
+            )).mappings().one()
+
+            assert tuple(after[key] for key in before.keys()) == tuple(before.values())
+            assert after["author_practitioner_id"] is None
+            assert after["signed_by_practitioner_id"] is None
+            assert after["signed_at"] is None
+
+            columns = {column["name"] for column in inspect(connection).get_columns("document_archives")}
+            assert {"author_practitioner_id", "signed_by_practitioner_id", "signed_at"}.issubset(columns)
+    finally:
+        with engine.begin() as connection:
+            connection.execute(text("DROP TABLE IF EXISTS document_archives CASCADE"))
+            connection.execute(text("DROP TABLE IF EXISTS users CASCADE"))
+        engine.dispose()
