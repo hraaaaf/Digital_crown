@@ -83,9 +83,10 @@ Le benchmark Competitive vs Orthalis (`70/100` au dernier état vérifié) reste
 
 ### L7 — Release / CI — ACTIF TRANSVERSE
 - Correctifs packaging CODE_CERTIFIED #450 et #451 mergés.
-- Dette active actuelle : PR #469 `fix(ci): restore document history visual certification workflow`.
-- Ce lot n'entre pas encore dans l'indice numérique car aucun pourcentage canonique comparable n'existait au baseline.
-- Il reste néanmoins prioritaire car un gate CI cassé peut bloquer plusieurs lots certifiables.
+- Dette Document History restaurée et fermée via PR #469, mergée sur `master` au commit `0c89a3f31dfb86b752b980e711f267c8bbb8d067`.
+- HEAD #469 `6fca04b870f03bdd6805067ea6bba8ca93d85d35` : CI, T2, PostgreSQL et `Document History Actions Visual Certification` en SUCCESS ; artifact `document-history-actions-before-after` produit.
+- Cet axe n'entre pas dans l'indice numérique tant qu'aucun pourcentage canonique comparable n'est défini.
+- Rechercher uniquement les dettes release/CI encore réellement ouvertes lors des closeouts suivants.
 
 ### L8 — Competitive / Media — KPI SÉPARÉ
 - Score comparatif dernier état vérifié : `70,0/100` tant que LOT C n'est pas fermé.
@@ -94,17 +95,16 @@ Le benchmark Competitive vs Orthalis (`70/100` au dernier état vérifié) reste
 
 ## Chemin critique unique
 
-1. **Réparer et fermer #469** afin de restaurer le certificat visuel Document History.
-2. **Fermer P3 via #463** avec preuve de préservation locale SQLite/PostgreSQL et absence de réécriture silencieuse des archives.
-3. **Recalculer l'indice global** après fermeture P3. P3 passe alors de 75 % à 100 % si et seulement si le closeout complet est prouvé.
-4. **Traiter les gates logiciels restants Competitive/Media et release** sans toucher Céphalo.
-5. **Exécuter les gates physiques** : Portabilité P13 puis Mobile Terrain, selon disponibilité du matériel réel.
-6. **Fermer Sécurité** dès que l'accès control-plane production permet l'exécution réelle des mutations autorisées.
-7. **Certification globale non-Céphalo** : master propre, CI transverse verte, docs canoniques cohérents, aucun gate logiciel connu restant, inventaire explicite des seuls human/external gates résiduels.
+1. **Fermer P3 via #463** avec preuve de préservation locale SQLite/PostgreSQL et absence de réécriture silencieuse des archives.
+2. **Recalculer l'indice global** après fermeture P3. P3 passe alors de 75 % à 100 % si et seulement si le closeout complet est prouvé.
+3. **Traiter les gates logiciels restants Competitive/Media et release** sans toucher Céphalo.
+4. **Exécuter les gates physiques** : Portabilité P13 puis Mobile Terrain, selon disponibilité du matériel réel.
+5. **Fermer Sécurité** dès que l'accès control-plane production permet l'exécution réelle des mutations autorisées.
+6. **Certification globale non-Céphalo** : master propre, CI transverse verte, docs canoniques cohérents, aucun gate logiciel connu restant, inventaire explicite des seuls human/external gates résiduels.
 
 ## Next exact
 
-**PR #469 : restaurer le workflow `document-history-actions-visual-cert.yml`, obtenir création réelle du job `visual-cert`, SUCCESS terminal et artifact `document-history-actions-before-after`, puis merger si le diff reste CI/docs-only.**
+**PR #463 : vérifier l'état live après l'avancée de `master`, confirmer le contrat de préservation local SQLite/PostgreSQL 18, CI exact-head et absence de réécriture silencieuse, puis fermer/merger uniquement si toutes les preuves du gate P3 restent valides.**
 
 ## Règles de continuité
 
@@ -127,10 +127,10 @@ Le programme est clos lorsque :
 
 ## Repères baseline
 
-- master : `dca24d01ca5591d4255f3ac85f79a32ab6d673c1`
+- baseline de création : `master@dca24d01ca5591d4255f3ac85f79a32ab6d673c1`
+- dernière avancée master vérifiée avant installation canonique : `0c89a3f31dfb86b752b980e711f267c8bbb8d067` (#469)
 - indice global : **82,4 %**
 - Céphalométrie : **hors périmètre**
-- blocage logiciel prioritaire : **#469**
-- prochain lot métier à fermer : **P3 / #463**
+- blocage logiciel prioritaire : **P3 / #463**
 - human gates : **Portabilité P13 + Mobile Terrain**
 - external gate : **Security control-plane production**
