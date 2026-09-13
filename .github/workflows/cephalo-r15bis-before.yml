@@ -7,10 +7,12 @@ on:
       - feat/cephalo-r15bis-uiux
     paths:
       - '.github/workflows/cephalo-r15bis-before.yml'
+      - 'frontend/scripts/capture-cephalo-r15bis-before-viewer.mjs'
   pull_request:
     branches: [master]
     paths:
       - '.github/workflows/cephalo-r15bis-before.yml'
+      - 'frontend/scripts/capture-cephalo-r15bis-before-viewer.mjs'
 
 permissions:
   contents: read
@@ -50,7 +52,9 @@ jobs:
       - name: Capture exact R15 final state as R15bis BEFORE
         run: |
           cd /tmp/dc-r15bis-before/frontend
+          cp "$GITHUB_WORKSPACE/frontend/scripts/capture-cephalo-r15bis-before-viewer.mjs" scripts/capture-cephalo-r15bis-before-viewer.mjs
           PRODUCT_HEAD="$R15BIS_BASE_SHA" node scripts/capture-cephalo-r15-after.mjs
+          PRODUCT_HEAD="$R15BIS_BASE_SHA" node scripts/capture-cephalo-r15bis-before-viewer.mjs
           rm -rf "$GITHUB_WORKSPACE/frontend/cephalo-r15bis-before-artifacts"
           mv cephalo-r15-after-artifacts "$GITHUB_WORKSPACE/frontend/cephalo-r15bis-before-artifacts"
           cat > "$GITHUB_WORKSPACE/frontend/cephalo-r15bis-before-artifacts/r15bis-before-metadata.json" <<JSON
@@ -59,6 +63,7 @@ jobs:
             "phase": "BEFORE",
             "baselineProductHead": "$R15BIS_BASE_SHA",
             "sourceHarness": "frontend/scripts/capture-cephalo-r15-after.mjs",
+            "viewerSourceHarness": "frontend/scripts/capture-cephalo-r15bis-before-viewer.mjs",
             "sourceReportPhase": "AFTER",
             "reason": "R15 final UI is the exact R15bis BEFORE baseline; closeout merge after R15 changed documentation only."
           }
@@ -69,6 +74,7 @@ jobs:
           node --input-type=module <<'NODE'
           import { readFile } from 'node:fs/promises';
           const report = JSON.parse(await readFile('cephalo-r15bis-before-artifacts/report.json', 'utf8'));
+          const viewerReport = JSON.parse(await readFile('cephalo-r15bis-before-artifacts/viewer-report.json', 'utf8'));
           const metadata = JSON.parse(await readFile('cephalo-r15bis-before-artifacts/r15bis-before-metadata.json', 'utf8'));
           const expected = process.env.R15BIS_BASE_SHA;
           if (report.productHead !== expected) throw new Error(`Wrong baseline SHA ${report.productHead}`);
@@ -85,12 +91,20 @@ jobs:
               if (!scene.hasScientificChain || !scene.hasR11Surface || !scene.hasR12Surface || !scene.hasR13Surface || !scene.hasR14Surface) throw new Error(`Missing R11-R14 traceability ${capture.viewport}`);
             }
           }
+          if (viewerReport.productHead !== expected || viewerReport.phase !== 'BEFORE_VIEWER') throw new Error('Invalid viewer baseline identity');
+          if (viewerReport.invalidCount !== 0 || viewerReport.blockedExternalRequests.length !== 0) throw new Error('Viewer BEFORE invalid');
+          if (viewerReport.captures.length !== 3) throw new Error('Expected three viewer captures');
+          for (const capture of viewerReport.captures) {
+            if (!capture.valid || capture.consoleErrors.length || capture.pageErrors.length) throw new Error(`Viewer runtime failure ${capture.viewport}`);
+            if (capture.horizontalDocumentOverflow || !capture.viewerInBounds || !capture.themeTokensResolved) throw new Error(`Viewer layout failure ${capture.viewport}`);
+          }
           NODE
           for viewport in 390x844 768x1024 1280x900; do
             test -s "cephalo-r15bis-before-artifacts/after-step3-top-${viewport}.png"
             test -s "cephalo-r15bis-before-artifacts/after-step3-decision-${viewport}.png"
             test -s "cephalo-r15bis-before-artifacts/after-step4-top-${viewport}.png"
             test -s "cephalo-r15bis-before-artifacts/after-step4-action-${viewport}.png"
+            test -s "cephalo-r15bis-before-artifacts/before-step1-viewer-${viewport}.png"
           done
       - uses: actions/upload-artifact@v4
         if: always()
