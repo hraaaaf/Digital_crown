@@ -30,29 +30,37 @@ const context = await browser.newContext({ viewport: { width: 1280, height: 900 
 const page = await context.newPage();
 const pageErrors = [];
 const aiDiagnosticRequests = [];
-page.on('pageerror', (error) => pageErrors.push(String(error)));
-page.on('request', (req) => {
-  if (req.url().includes('ai-diagnostic')) aiDiagnosticRequests.push(req.url());
-});
 
-await page.addInitScript(({ access, refresh }) => {
-  localStorage.setItem('token', access);
-  localStorage.setItem('refresh_token', refresh || '');
-  localStorage.setItem('appMode', 'prod');
-}, { access: tokens.access_token, refresh: tokens.refresh_token });
+function observePage(targetPage) {
+  targetPage.on('pageerror', (error) => pageErrors.push(String(error)));
+  targetPage.on('request', (req) => {
+    if (req.url().includes('ai-diagnostic')) aiDiagnosticRequests.push(req.url());
+  });
+}
+
+async function installAuth(targetPage) {
+  await targetPage.addInitScript(({ access, refresh }) => {
+    localStorage.setItem('token', access);
+    localStorage.setItem('refresh_token', refresh || '');
+    localStorage.setItem('appMode', 'prod');
+  }, { access: tokens.access_token, refresh: tokens.refresh_token });
+}
+
+observePage(page);
+await installAuth(page);
 
 const pathFor = (patientId, documentTab = 'libre') =>
   `/patients/${patientId}?tab=admin&documentTab=${documentTab}`;
 
-async function spaNavigate(relativePath) {
-  await page.evaluate((nextPath) => {
+async function spaNavigate(targetPage, relativePath) {
+  await targetPage.evaluate((nextPath) => {
     window.history.pushState({}, '', nextPath);
     window.dispatchEvent(new PopStateEvent('popstate'));
   }, relativePath);
 }
 
-async function waitForDocumentTab(slug) {
-  await page.waitForFunction(
+async function waitForDocumentTab(targetPage, slug) {
+  await targetPage.waitForFunction(
     (expected) => new URLSearchParams(window.location.search).get('documentTab') === expected,
     slug,
     { timeout: 15000 },
@@ -96,13 +104,13 @@ await page.route(delayedPattern, async (route) => {
   }
 });
 
-await spaNavigate(pathFor(patientA.id));
+await spaNavigate(page, pathFor(patientA.id));
 await Promise.race([
   firstDelayedA,
   new Promise((_, reject) => setTimeout(() => reject(new Error('No delayed patient A request observed')), 15000)),
 ]);
 
-await spaNavigate(bPath);
+await spaNavigate(page, bPath);
 await page.getByRole('heading', { name: patientBName, exact: true }).waitFor({ timeout: 30000 });
 const bAuthoritativeBeforeRelease = page.url().includes(`/patients/${patientB.id}`)
   && await page.getByRole('heading', { name: patientBName, exact: true }).isVisible();
@@ -123,36 +131,56 @@ if (await openDialog.isVisible({ timeout: 1000 }).catch(() => false)) {
   await openDialog.waitFor({ state: 'hidden', timeout: 10000 }).catch(() => {});
 }
 
-await waitForDocumentTab('libre');
+await waitForDocumentTab(page, 'libre');
 await page.getByText('Document Libre', { exact: true }).first().waitFor({ timeout: 30000 });
 const libreEditor = page.locator('textarea').first();
 await libreEditor.waitFor({ state: 'visible', timeout: 30000 });
 const dirtyMarker = 'T1 URL dirty boundary — conserver si annulation';
 await libreEditor.fill(dirtyMarker);
 
-await spaNavigate(pathFor(patientB.id, 'certificat'));
+await spaNavigate(page, pathFor(patientB.id, 'certificat'));
 const discardDialog = page.getByRole('dialog').filter({ hasText: 'Document en cours' }).last();
 await discardDialog.waitFor({ state: 'visible', timeout: 15000 });
 await page.screenshot({ path: path.join(outDir, 't1-url-dirty-dialog.png'), fullPage: false });
 await discardDialog.getByRole('button', { name: 'Annuler', exact: true }).click();
 await discardDialog.waitFor({ state: 'hidden', timeout: 10000 });
-await waitForDocumentTab('libre');
+await waitForDocumentTab(page, 'libre');
 const cancelRestoredUrl = new URLSearchParams(new URL(page.url()).search).get('documentTab') === 'libre';
 const cancelPreservedDraft = (await libreEditor.inputValue()) === dirtyMarker;
-
-const confirmDirtyMarker = `${dirtyMarker} · confirmation`;
-await libreEditor.fill(confirmDirtyMarker);
-const confirmDirtyRearmed = (await libreEditor.inputValue()) === confirmDirtyMarker;
-await spaNavigate(pathFor(patientB.id, 'certificat'));
-await discardDialog.waitFor({ state: 'visible', timeout: 15000 });
-await discardDialog.getByRole('button', { name: 'Continuer', exact: true }).click();
-await discardDialog.waitFor({ state: 'hidden', timeout: 10000 });
-await waitForDocumentTab('certificat');
-await page.getByText('Certificat', { exact: true }).first().waitFor({ timeout: 30000 });
-const confirmReachedTarget = new URLSearchParams(new URL(page.url()).search).get('documentTab') === 'certificat';
-
-const companionAbsent = (await page.locator('[data-tour="tab-strategie"]').count()) === 0
+const cancelCompanionAbsent = (await page.locator('[data-tour="tab-strategie"]').count()) === 0
   && (await page.getByText('Compagnon Diagnostique', { exact: true }).count()) === 0;
+
+// Certify explicit discard in a fresh browser realm so the confirmation path is
+// independent from the asynchronous URL restoration performed by Cancel.
+const confirmContext = await browser.newContext({ viewport: { width: 1280, height: 900 }, colorScheme: 'light' });
+const confirmPage = await confirmContext.newPage();
+observePage(confirmPage);
+await installAuth(confirmPage);
+try {
+  await confirmPage.goto(`http://127.0.0.1:5173${bPath}`, { waitUntil: 'domcontentloaded', timeout: 90000 });
+} catch (error) {
+  if (!String(error).includes('net::ERR_ABORTED')) throw error;
+}
+await confirmPage.getByRole('heading', { name: patientBName, exact: true }).waitFor({ timeout: 30000 });
+await waitForDocumentTab(confirmPage, 'libre');
+await confirmPage.getByText('Document Libre', { exact: true }).first().waitFor({ timeout: 30000 });
+const confirmEditor = confirmPage.locator('textarea').first();
+await confirmEditor.waitFor({ state: 'visible', timeout: 30000 });
+const confirmDirtyMarker = 'T1 URL dirty boundary — abandon explicite';
+await confirmEditor.fill(confirmDirtyMarker);
+const confirmDirtyArmed = (await confirmEditor.inputValue()) === confirmDirtyMarker;
+await spaNavigate(confirmPage, pathFor(patientB.id, 'certificat'));
+const confirmDialog = confirmPage.getByRole('dialog').filter({ hasText: 'Document en cours' }).last();
+await confirmDialog.waitFor({ state: 'visible', timeout: 15000 });
+await confirmDialog.getByRole('button', { name: 'Continuer', exact: true }).click();
+await confirmDialog.waitFor({ state: 'hidden', timeout: 10000 });
+await waitForDocumentTab(confirmPage, 'certificat');
+await confirmPage.getByText('Certificat', { exact: true }).first().waitFor({ timeout: 30000 });
+const confirmReachedTarget = new URLSearchParams(new URL(confirmPage.url()).search).get('documentTab') === 'certificat';
+const confirmCompanionAbsent = (await confirmPage.locator('[data-tour="tab-strategie"]').count()) === 0
+  && (await confirmPage.getByText('Compagnon Diagnostique', { exact: true }).count()) === 0;
+
+const companionAbsent = cancelCompanionAbsent && confirmCompanionAbsent;
 const aiDiagnosticAbsent = aiDiagnosticRequests.length === 0;
 
 const evidence = {
@@ -173,9 +201,10 @@ const evidence = {
   urlDirtyBoundary: {
     cancelRestoredUrl,
     cancelPreservedDraft,
-    confirmDirtyRearmed,
+    confirmDirtyArmed,
     confirmReachedTarget,
-    pass: cancelRestoredUrl && cancelPreservedDraft && confirmDirtyRearmed && confirmReachedTarget,
+    isolatedConfirmationSession: true,
+    pass: cancelRestoredUrl && cancelPreservedDraft && confirmDirtyArmed && confirmReachedTarget,
   },
   clinicalBoundary: {
     companionAbsent,
@@ -196,6 +225,7 @@ evidence.status = evidence.patientBoundary.pass
 fs.writeFileSync(path.join(outDir, 't1-transversal.json'), JSON.stringify(evidence, null, 2));
 console.log(JSON.stringify(evidence, null, 2));
 
+await confirmContext.close();
 await context.close();
 await browser.close();
 await api.dispose();
