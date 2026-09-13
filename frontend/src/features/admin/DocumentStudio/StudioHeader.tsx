@@ -112,7 +112,8 @@ export const StudioHeader: React.FC<StudioHeaderProps> = ({
 
   return (
     <div className={cn(
-      "sticky top-0 z-[60] -mt-1 -mx-1 mb-2 bg-white/85 dark:bg-slate-950/80 backdrop-blur-3xl rounded-2xl border border-slate-200/70 dark:border-white/10 flex flex-col md:flex-row justify-between items-start md:items-center shrink-0 transition-all duration-300 shadow-sm",
+      "-mt-1 -mx-1 mb-2 bg-white/85 dark:bg-slate-950/80 backdrop-blur-3xl rounded-2xl border border-slate-200/70 dark:border-white/10 flex flex-col md:flex-row justify-between items-start md:items-center shrink-0 transition-all duration-300 shadow-sm",
+      compactOrdonnance ? "relative z-20" : "sticky top-0 z-[60]",
       compactOrdonnance
         ? "p-2 gap-2 sm:px-3 sm:py-2.5 md:gap-3"
         : compactHonorairesMobile
