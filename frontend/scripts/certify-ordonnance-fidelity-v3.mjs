@@ -60,7 +60,7 @@ async function measure(page) {
       const el = document.querySelector(selector);
       if (!el) return null;
       const r = el.getBoundingClientRect();
-      return { top: r.top, bottom: r.bottom, width: r.width, height: r.height };
+      return { top: r.top, bottom: r.bottom, left: r.left, right: r.right, width: r.width, height: r.height };
     };
     const visible = (el) => {
       const style = getComputedStyle(el);
@@ -72,6 +72,7 @@ async function measure(page) {
       '[data-ordonnance-protocol-chips] button',
       '[data-ordonnance-quick-entry] input',
       '[data-ordonnance-quick-entry] button',
+      '[data-ordonnance-drug-card] button',
     ];
     const touchHeights = touchSelectors.flatMap(selector =>
       [...document.querySelectorAll(selector)].filter(visible).map(el => el.getBoundingClientRect().height),
@@ -84,6 +85,8 @@ async function measure(page) {
       context: rect('[data-ordonnance-density-context]'),
       protocols: rect('[data-ordonnance-protocol-chips]'),
       quickEntry: rect('[data-ordonnance-quick-entry]'),
+      drugCard: rect('[data-ordonnance-drug-card]'),
+      desktopPreview: rect('[data-ordonnance-desktop-preview="inline"]'),
       addLine: addLine ? { height: addLine.getBoundingClientRect().height } : null,
       touchMin: touchHeights.length ? Math.min(...touchHeights) : null,
       touchCount: touchHeights.length,
@@ -117,10 +120,25 @@ for (const viewport of viewports) {
   const planningShot = `ordonnance-fidelity-v3-${viewport.width}x${viewport.height}-planning.png`;
   await page.screenshot({ path: path.join(outDir, planningShot), fullPage: false });
 
+  let previewScene = null;
+  if (viewport.width >= 1280) {
+    const previewButton = page.getByRole('button', { name: /aperçu/i }).first();
+    if (!(await previewButton.count())) throw new Error('Desktop preview action not found');
+    await previewButton.click();
+    const inlinePreview = page.locator('[data-ordonnance-desktop-preview="inline"]');
+    await inlinePreview.waitFor({ state: 'visible', timeout: 30000 });
+    await page.waitForTimeout(250);
+    const previewMetrics = await measure(page);
+    const previewShot = `ordonnance-fidelity-v3-${viewport.width}x${viewport.height}-preview.png`;
+    await page.screenshot({ path: path.join(outDir, previewShot), fullPage: false });
+    previewScene = { screenshot: previewShot, metrics: previewMetrics };
+  }
+
   captures.push({
     viewport,
     top: { screenshot: topShot, metrics: topMetrics },
     planning: { screenshot: planningShot, metrics: planningMetrics },
+    preview: previewScene,
     pageErrors,
   });
 
@@ -133,6 +151,12 @@ for (const capture of captures) {
     const metrics = capture[scene].metrics;
     if (!metrics.noHorizontalOverflow) failures.push(`${capture.viewport.width}-${scene}: horizontal overflow`);
     if (metrics.touchMin !== null && metrics.touchMin < 43.5) failures.push(`${capture.viewport.width}-${scene}: touch target ${metrics.touchMin}`);
+  }
+  if (capture.viewport.width >= 1280) {
+    const previewMetrics = capture.preview?.metrics;
+    if (!previewMetrics?.desktopPreview) failures.push(`${capture.viewport.width}-preview: inline preview missing`);
+    if ((previewMetrics?.desktopPreview?.width || 0) < 500) failures.push(`${capture.viewport.width}-preview: inline preview too narrow`);
+    if (!previewMetrics?.noHorizontalOverflow) failures.push(`${capture.viewport.width}-preview: horizontal overflow`);
   }
   if (capture.pageErrors.length) failures.push(`${capture.viewport.width}: page errors ${capture.pageErrors.join(' | ')}`);
 }
