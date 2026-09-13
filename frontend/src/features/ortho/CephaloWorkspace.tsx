@@ -281,6 +281,14 @@ export const CephaloWorkspace: React.FC<CephaloWorkspaceProps> = ({
     />
   );
 
+  const workspaceWidthClass = viewMode === 'history'
+    ? 'max-w-5xl'
+    : step === 1
+      ? 'max-w-7xl'
+      : step >= 3
+        ? 'max-w-6xl'
+        : 'max-w-5xl';
+
   if (patientDataError) {
     return (
       <div className="min-h-[420px] flex flex-col items-center justify-center gap-4 px-6 text-center" style={{ background: P.bg }}>
@@ -330,21 +338,22 @@ export const CephaloWorkspace: React.FC<CephaloWorkspaceProps> = ({
         )}
       </AnimatePresence>
 
-      <div className="flex flex-col gap-3 border-b px-4 py-4 sm:px-6 md:flex-row md:items-center md:justify-between" style={{ borderColor: P.border, background: P.bgPanel }}>
+      <div className="flex flex-col gap-3 border-b px-4 py-3 sm:px-6 md:flex-row md:items-center md:justify-between" style={{ borderColor: P.border, background: P.bgPanel }}>
         <div className="min-w-0">
           <h2 className="truncate text-lg font-bold" style={{ color: P.text }}>Studio Céphalométrique</h2>
           <p className="truncate text-xs" style={{ color: P.textMuted }}>{patientName}</p>
         </div>
-        <div className="flex min-w-0 flex-wrap items-center gap-2 sm:gap-4">
-          <div className="flex shrink-0 bg-black/5 rounded-lg p-1">
-             <button onClick={() => setViewMode('studio')} className={`px-2.5 py-1 text-xs font-bold rounded-md transition-all sm:px-3 ${viewMode === 'studio' ? 'bg-white shadow-sm' : 'opacity-50'}`} style={{ color: P.text }}>Actuel</button>
-             <button onClick={() => setViewMode('history')} className={`px-2.5 py-1 text-xs font-bold rounded-md transition-all sm:px-3 ${viewMode === 'history' ? 'bg-white shadow-sm' : 'opacity-50'}`} style={{ color: P.text }}>Historique</button>
+        <div className="flex min-w-0 flex-wrap items-center gap-2 sm:gap-3">
+          <div className="flex shrink-0 rounded-xl p-1" style={{ background: P.bgInput, border: `1px solid ${P.border}` }}>
+             <button type="button" aria-pressed={viewMode === 'studio'} onClick={() => setViewMode('studio')} className="min-h-9 rounded-lg px-3 text-xs font-bold transition-all" style={{ background: viewMode === 'studio' ? P.bgCard : 'transparent', color: viewMode === 'studio' ? P.text : P.textMuted, boxShadow: viewMode === 'studio' ? P.shadow : 'none' }}>Actuel</button>
+             <button type="button" aria-pressed={viewMode === 'history'} onClick={() => setViewMode('history')} className="min-h-9 rounded-lg px-3 text-xs font-bold transition-all" style={{ background: viewMode === 'history' ? P.bgCard : 'transparent', color: viewMode === 'history' ? P.text : P.textMuted, boxShadow: viewMode === 'history' ? P.shadow : 'none' }}>Historique</button>
           </div>
           <SyncBadge state={syncState} P={P} />
           <button
+            type="button"
             onClick={handleSave}
             disabled={!analysisId || isSaving}
-            className="flex shrink-0 items-center gap-2 rounded-xl px-3 py-2 text-sm font-bold transition-all disabled:opacity-50 shadow-sm hover:shadow-md sm:px-4"
+            className="flex min-h-11 shrink-0 items-center gap-2 rounded-xl px-3 py-2 text-sm font-bold transition-all disabled:opacity-50 shadow-sm hover:shadow-md sm:px-4"
             style={{ background: P.bgCard, border: `1px solid ${P.border}`, color: P.text }}
           >
             {isSaving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
@@ -353,7 +362,7 @@ export const CephaloWorkspace: React.FC<CephaloWorkspaceProps> = ({
         </div>
       </div>
 
-      <div data-tour="cephalo-stepper" className="flex max-w-full items-center gap-2 overflow-x-auto px-4 py-4 sm:px-6" style={{ background: P.bg }}>
+      <div data-tour="cephalo-stepper" className="flex max-w-full items-center gap-2 overflow-x-auto px-4 py-3 sm:px-6" style={{ background: P.bg }}>
         <StepTab id={1} label="Céphalométrie" isActive={step === 1} isCompleted={completedSteps.has(1)} onClick={() => goToStep(1)} P={P} />
         <ChevronRight size={16} style={{ color: P.textDim, opacity: 0.5 }} />
         <StepTab id={2} label="Moulages" isActive={step === 2} isCompleted={completedSteps.has(2)} onClick={() => goToStep(2)} P={P} />
@@ -375,7 +384,7 @@ export const CephaloWorkspace: React.FC<CephaloWorkspaceProps> = ({
       </AnimatePresence>
 
       <div ref={scrollContainerRef} className="min-w-0 flex-1 overflow-auto p-3 scroll-smooth sm:p-6" style={{ background: P.bg }}>
-        <div className="mx-auto min-w-0 max-w-4xl">
+        <div className={`mx-auto w-full min-w-0 ${workspaceWidthClass}`}>
           {viewMode === 'studio' ? (
             <>
               {(step === 3 || step === 4) && (
@@ -388,12 +397,12 @@ export const CephaloWorkspace: React.FC<CephaloWorkspaceProps> = ({
 
               <div className={`flex mt-8 pt-6 border-t ${step > 1 ? 'justify-between' : 'justify-end'}`} style={{ borderColor: P.border }}>
                 {step > 1 && (
-                  <button onClick={() => goToStep((step - 1) as StepId)} className="flex items-center gap-2 px-6 py-3 rounded-xl text-sm font-bold transition-all hover:opacity-80" style={{ border: `1px solid ${P.border}`, color: P.textMuted }}>
+                  <button type="button" onClick={() => goToStep((step - 1) as StepId)} className="flex min-h-11 items-center gap-2 px-6 py-3 rounded-xl text-sm font-bold transition-all hover:opacity-80" style={{ border: `1px solid ${P.border}`, color: P.textMuted }}>
                     <ChevronLeft size={18} /> Précédent
                   </button>
                 )}
                 {step < 4 && (
-                  <button onClick={() => goToStep((step + 1) as StepId)} className="flex items-center gap-2 px-4 py-3 rounded-xl text-sm font-bold transition-all hover:opacity-90 shadow-lg sm:px-6" style={{ background: P.accent, color: 'white', boxShadow: `0 4px 12px ${P.accent}40` }}>
+                  <button type="button" onClick={() => goToStep((step + 1) as StepId)} className="flex min-h-11 items-center gap-2 px-4 py-3 rounded-xl text-sm font-bold transition-all hover:opacity-90 shadow-lg sm:px-6" style={{ background: P.accent, color: 'white', boxShadow: `0 4px 12px ${P.accent}40` }}>
                     {step === 1 && 'Passer aux moulages'}
                     {step === 2 && 'Passer à la synthèse'}
                     {step === 3 && 'Préparer les documents et la stratégie'}
