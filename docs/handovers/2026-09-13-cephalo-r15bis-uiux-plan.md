@@ -3,7 +3,9 @@
 **Date :** 2026-09-13  
 **Repo :** `hraaaaf/Digital_crown`  
 **Canonique :** `docs/CEPHALO_DIAGNOSTIC_SPEC.md`  
-**Gate d’entrée :** R15 doit être mergé, closeouté et vérifié sur `master` avant toute implémentation R15bis.  
+**Gate d’entrée :** SATISFAIT — R15 mergé, closeouté et vérifié sur `master` `3dbab4e1fe722265932799eff01d4de8de252da9`.  
+**Branche active :** `feat/cephalo-r15bis-uiux`  
+**PR active :** #477  
 **Référence visuelle :** `docs/assets/cephalo/r15bis-ui-reference.jpg`
 
 ## GOAL
@@ -59,14 +61,22 @@ R15bis est réussi seulement si les preuves montrent :
 
 ## BEFORE OBLIGATOIRE
 
-Avant toute modification :
+État courant : **harness dédié ajouté, capture exacte encore à obtenir avant toute modification UI**.
 
-1. vérifier `master`, HEAD, PRs et CI ;
-2. confirmer que R15 est réellement fermé ;
-3. capturer le studio R15 **réel** en 390 / 768 / 1280+ ;
-4. inventorier navigation, viewer, panneaux, actions, états et densité ;
-5. écrire les écarts visuels par rapport au Goal R15bis ;
-6. ne modifier aucun fichier UI avant ces preuves.
+Baseline exacte : `3dbab4e1fe722265932799eff01d4de8de252da9`.
+
+Workflow : `.github/workflows/cephalo-r15bis-before.yml`.
+
+Méthode : réutiliser le harness R15 AFTER certifié sur la baseline exacte ; conserver son `report.json` brut inchangé et ajouter `r15bis-before-metadata.json` pour qualifier explicitement cette capture comme BEFORE R15bis.
+
+Avant toute modification UI :
+
+1. obtenir le run BEFORE vert ;
+2. vérifier artifact + baseline SHA + 390 / 768 / 1280+ ;
+3. inventorier navigation, viewer, panneaux, actions, états et densité ;
+4. comparer au Goal R15bis ;
+5. figer mockup/tokens final ;
+6. seulement ensuite modifier les fichiers UI.
 
 ## IMPLÉMENTATION AUTORISÉE
 
@@ -106,8 +116,8 @@ Aucun “10/10” sans captures et comparaison réelles.
 
 ## NEXT EXACT
 
-**Attendre uniquement la fermeture réelle de R15. Dès R15 mergé + closeout vérifié sur master : relire ce fichier, capturer BEFORE R15bis aux trois viewports, puis réaliser le mockup/tokens final avant implémentation.**
+Obtenir et auditer l’artifact **Cephalo R15bis BEFORE** sur la baseline `3dbab4e1fe722265932799eff01d4de8de252da9`. Tant que cette preuve n’est pas verte, **aucun fichier UI ne doit être modifié**.
 
 ## SÉQUENCE RESTANTE CÉPHALO
 
-`R15 actif dans fenêtre dédiée → closeout R15 → R15bis UI/UX → R16 PDF/restitution → R17 certification/closeout`
+`R15bis BEFORE → Goal/mockup/tokens final → implémentation R15bis → AFTER/certification → closeout R15bis → R16 PDF/restitution → R17 certification/closeout`
