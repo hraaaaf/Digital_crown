@@ -16,6 +16,7 @@ import {
   History,
   Banknote,
   Image,
+  Images,
 } from 'lucide-react';
 import { api } from '../../services/api';
 import { cn } from '../../utils/cn';
@@ -30,6 +31,7 @@ import { ClinicalHub } from './components/ClinicalHub';
 import { PatientJourney } from './components/PatientJourney';
 import { PatientFinances } from './components/PatientFinances';
 import { PatientRvgPanel } from './components/PatientRvgPanel';
+import { PatientMediaTimeline } from './components/PatientMediaTimeline';
 import { QuickPayModal } from './components/QuickPayModal';
 import { PatientMobileBridge } from './components/PatientMobileBridge';
 import { usePatientStore } from '../../stores/usePatientStore';
@@ -61,7 +63,7 @@ interface Patient {
 }
 
 type TabType = 'tracking' | 'clinical' | 'radiology' | 'admin' | 'archives' | 'finances';
-type RadioTab = 'rvg' | 'panoramic' | 'cephalo';
+type RadioTab = 'media' | 'rvg' | 'panoramic' | 'cephalo';
 
 const userRoleValue = (role: unknown): string => {
   if (!role) return '';
@@ -92,13 +94,14 @@ export const PatientDetails = () => {
     (hasExplicitPermissions && (userPermissions.accounting === true || userPermissions.payments === true))
   );
   const availableRadioTabs: RadioTab[] = [
+    'media',
     'rvg',
     ...(canPanoramic ? ['panoramic' as const] : []),
     ...(canCephalo ? ['cephalo' as const] : []),
   ];
 
   const requestedRadioTab = (searchParams.get('radioTab') as RadioTab | null) || 'rvg';
-  const radioTab: RadioTab = availableRadioTabs.includes(requestedRadioTab) ? requestedRadioTab : availableRadioTabs[0];
+  const radioTab: RadioTab = availableRadioTabs.includes(requestedRadioTab) ? requestedRadioTab : 'rvg';
   const handleRadioTabChange = (value: RadioTab) => {
     if (!availableRadioTabs.includes(value)) return;
     setSearchParams(prev => {
@@ -242,6 +245,7 @@ export const PatientDetails = () => {
 
   const fullName = `${patient.nom.toUpperCase()} ${patient.prenom}`;
   const isDocuments = activeTab === 'admin' || activeTab === 'archives';
+  const isRadiology = activeTab === 'radiology';
   const documentView = activeTab === 'archives' ? 'history' : 'create';
   const birthDate = new Date(patient.date_naissance);
   const today = new Date();
@@ -253,28 +257,28 @@ export const PatientDetails = () => {
   return (
     <div className={cn('flex flex-col bg-transparent', isDocuments ? 'h-screen overflow-hidden' : 'min-h-screen')}>
       <header className="sticky top-0 z-[300] bg-card-bg/90 backdrop-blur-xl border-b border-border-main shadow-elite">
-        <div className="max-w-[1600px] mx-auto px-4 md:px-8 pt-3">
-          <div className="flex flex-col xl:flex-row xl:items-center xl:justify-between gap-3 mb-3">
+        <div className={cn('max-w-[1600px] mx-auto md:px-8', isRadiology ? 'px-3 pt-2' : 'px-4 pt-3')}>
+          <div className={cn('flex flex-col xl:flex-row xl:items-center xl:justify-between', isRadiology ? 'gap-2 mb-2' : 'gap-3 mb-3')}>
             <div className="flex items-start sm:items-center gap-3 min-w-0">
-              <button onClick={() => navigate('/patients')} className="w-10 h-10 shrink-0 bg-card-bg border border-border-main flex items-center justify-center rounded-xl shadow-sm active:scale-95 transition-all" style={{ color: 'var(--primary)' }} aria-label="Retourner à la liste des patients"><ArrowLeft size={20} strokeWidth={2.5} /></button>
+              <button onClick={() => navigate('/patients')} className={cn('shrink-0 bg-card-bg border border-border-main flex items-center justify-center rounded-xl shadow-sm active:scale-95 transition-all', isRadiology ? 'w-9 h-9' : 'w-10 h-10')} style={{ color: 'var(--primary)' }} aria-label="Retourner à la liste des patients"><ArrowLeft size={isRadiology ? 18 : 20} strokeWidth={2.5} /></button>
               <div className="min-w-0">
                 <div className="flex flex-wrap items-center gap-2">
-                  <h1 className="font-black tracking-tight text-xl md:text-2xl truncate" style={{ color: 'var(--primary)' }}>{fullName}</h1>
+                  <h1 className={cn('font-black tracking-tight truncate', isRadiology ? 'text-lg md:text-xl' : 'text-xl md:text-2xl')} style={{ color: 'var(--primary)' }}>{fullName}</h1>
                   <AssuranceBadge assurance={patient.assurance} size="full" hideWhenNone />
                   {patient.antecedents_medicaux && <span className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-red-50 border border-red-200 text-red-700 text-[10px] font-black uppercase tracking-wide"><AlertTriangle size={12} /> Alerte médicale</span>}
                   <button onClick={() => navigate(`/patients/${id}/edit`)} className="px-2.5 py-1 text-[10px] font-black uppercase tracking-widest rounded-lg border border-primary/15 bg-primary/5 hover:bg-primary/10 transition-colors" style={{ color: 'var(--primary)' }}>Modifier</button>
                   <PatientMobileBridge patientId={patient.id} patientName={fullName} />
                 </div>
-                <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1.5 text-xs font-bold text-text-muted">
+                <div className={cn('flex flex-wrap items-center gap-x-3 gap-y-1 text-xs font-bold text-text-muted', isRadiology ? 'mt-1' : 'mt-1.5')}>
                   <span className="inline-flex items-center gap-1.5"><FileDigit size={13} style={{ color: 'var(--primary)' }} /><span className="font-mono" style={{ color: 'var(--primary)' }}>{patient.numero_dossier || `ID-${patient.id}`}</span></span>
                   <span>{age >= 0 && age < 130 ? `${age} ans · ` : ''}{birthLabel}</span>
-                  <span className="inline-flex items-center gap-1.5"><Phone size={13} />{patient.telephone}</span>
+                  <span className={cn('items-center gap-1.5', isRadiology ? 'hidden sm:inline-flex' : 'inline-flex')}><Phone size={13} />{patient.telephone}</span>
                   {patient.email && <span className="hidden md:inline-flex items-center gap-1.5"><Mail size={13} />{patient.email}</span>}
                 </div>
               </div>
             </div>
 
-            <div className={cn('grid gap-2 w-full xl:w-auto', canFinance ? 'grid-cols-4' : 'grid-cols-3')} aria-label="Actions rapides patient">
+            <div className={cn('grid gap-2 w-full xl:w-auto', canFinance ? 'grid-cols-4' : 'grid-cols-3', isRadiology && 'hidden lg:grid')} aria-label="Actions rapides patient">
               <QuickAction icon={<Calendar size={18} />} label="RDV" onClick={() => navigate('/agenda', { state: { prefillPatientId: patient.id, prefillPatientNom: patient.nom, prefillPatientPrenom: patient.prenom } })} />
               <QuickAction icon={<Stethoscope size={18} />} label={canClinical ? 'Examen' : 'Suivi'} onClick={() => handleTabChange(canClinical ? 'clinical' : 'tracking')} />
               <QuickAction icon={<FileText size={18} />} label="Document" onClick={handleDocumentCreate} />
@@ -282,7 +286,7 @@ export const PatientDetails = () => {
             </div>
           </div>
 
-          <div data-tour="patient-tabs" className="flex gap-1 sm:gap-3 overflow-x-auto border-b border-transparent -mb-[1px] scrollbar-none">
+          <div data-tour="patient-tabs" className={cn('flex overflow-x-auto border-b border-transparent -mb-[1px] scrollbar-none', isRadiology ? 'gap-0.5 sm:gap-2' : 'gap-1 sm:gap-3')}>
             <TabButton active={activeTab === 'tracking'} onClick={() => handleTabChange('tracking')} icon={<Calendar size={17} />} label="Vue d’ensemble" />
             {canClinical && <TabButton active={activeTab === 'clinical'} onClick={() => handleTabChange('clinical')} icon={<Stethoscope size={17} />} label="Clinique" />}
             <TabButton active={activeTab === 'radiology'} onClick={() => handleTabChange('radiology')} icon={<Activity size={17} />} label="Imagerie" />
@@ -292,21 +296,21 @@ export const PatientDetails = () => {
         </div>
       </header>
 
-      <main ref={flowContentRef} data-flow-patient-surface={activeTab} className={cn('max-w-[1600px] mx-auto w-full transition-all duration-500', isDocuments ? 'flex-1 min-h-0 px-3 py-3 md:px-6 md:py-4' : 'flex-1 px-4 py-6 md:px-8 md:py-8 space-y-6')}>
+      <main ref={flowContentRef} data-flow-patient-surface={activeTab} className={cn('max-w-[1600px] mx-auto w-full transition-all duration-500', isDocuments ? 'flex-1 min-h-0 px-3 py-3 md:px-6 md:py-4' : isRadiology ? 'flex-1 px-2.5 py-3 sm:px-4 sm:py-4 md:px-6 md:py-5 space-y-3' : 'flex-1 px-4 py-6 md:px-8 md:py-8 space-y-6')}>
         {!isDocuments && (patient.antecedents_medicaux || patient.motif_consultation) && (
-          <div className="flex flex-col gap-3 animate-in fade-in slide-in-from-top-4 duration-500">
-            {patient.antecedents_medicaux && <div className="p-4 bg-red-50 border border-red-200 rounded-2xl flex items-start gap-3 text-red-700 shadow-sm"><AlertTriangle className="w-5 h-5 shrink-0 mt-0.5" /><div><h4 className="font-black text-sm uppercase tracking-widest mb-1">Antécédents Médicaux</h4><p className="text-sm font-medium whitespace-pre-wrap">{patient.antecedents_medicaux}</p></div></div>}
+          <div className={cn('flex flex-col animate-in fade-in slide-in-from-top-4 duration-500', isRadiology ? 'gap-2' : 'gap-3')}>
+            {patient.antecedents_medicaux && <div className={cn('bg-red-50 border border-red-200 flex items-start text-red-700 shadow-sm', isRadiology ? 'p-2.5 rounded-xl gap-2' : 'p-4 rounded-2xl gap-3')}><AlertTriangle className={cn('shrink-0 mt-0.5', isRadiology ? 'w-4 h-4' : 'w-5 h-5')} /><div><h4 className={cn('font-black uppercase tracking-widest', isRadiology ? 'text-[10px] mb-0.5' : 'text-sm mb-1')}>Antécédents Médicaux</h4><p className={cn('font-medium whitespace-pre-wrap', isRadiology ? 'text-xs line-clamp-2' : 'text-sm')}>{patient.antecedents_medicaux}</p></div></div>}
             {patient.motif_consultation && (
-              <div className="p-4 bg-blue-50 border border-blue-100 rounded-2xl flex items-start gap-3 text-blue-800 shadow-sm">
-                <Activity className="w-5 h-5 shrink-0 mt-0.5" />
+              <div className={cn('bg-blue-50 border border-blue-100 flex items-start text-blue-800 shadow-sm', isRadiology ? 'p-2.5 rounded-xl gap-2' : 'p-4 rounded-2xl gap-3')}>
+                <Activity className={cn('shrink-0 mt-0.5', isRadiology ? 'w-4 h-4' : 'w-5 h-5')} />
                 <div className="flex-1">
-                  <h4 className="font-black text-sm uppercase tracking-widest mb-2">Motif de Consultation Initial</h4>
-                  <div className="flex flex-wrap gap-2">
+                  <h4 className={cn('font-black uppercase tracking-widest', isRadiology ? 'text-[10px] mb-1' : 'text-sm mb-2')}>Motif de Consultation Initial</h4>
+                  <div className={cn('flex flex-wrap', isRadiology ? 'gap-1' : 'gap-2')}>
                     {parseMotifs(patient.motif_consultation).map(motifId => {
                       const motif = findMotifById(motifId);
                       if (!motif) return null;
                       const isUrgent = motif.urgency === 'urgence';
-                      return <div key={motifId} className={cn('inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-bold tracking-wider', isUrgent ? 'bg-red-100 text-red-700 border border-red-200' : 'bg-blue-100 text-blue-700 border border-blue-200')}>{motif.label}{isUrgent && <span className="inline-block w-1.5 h-1.5 rounded-full bg-red-600 animate-pulse" />}</div>;
+                      return <div key={motifId} className={cn('inline-flex items-center rounded-lg font-bold tracking-wider', isRadiology ? 'gap-1.5 px-2 py-1 text-[10px]' : 'gap-2 px-3 py-1.5 text-xs', isUrgent ? 'bg-red-100 text-red-700 border border-red-200' : 'bg-blue-100 text-blue-700 border border-blue-200')}>{motif.label}{isUrgent && <span className="inline-block w-1.5 h-1.5 rounded-full bg-red-600 animate-pulse" />}</div>;
                     })}
                   </div>
                 </div>
@@ -317,16 +321,18 @@ export const PatientDetails = () => {
 
         <div className={cn('animate-in fade-in slide-in-from-bottom-8 duration-700 h-full', !isDocuments && 'delay-150')}>
           {activeTab === 'radiology' && (
-            <div className="space-y-6">
+            <div className="space-y-3">
               <div className="flex justify-center">
-                <div className="inline-flex max-w-full overflow-x-auto bg-card-bg/50 p-1.5 rounded-2xl border border-border-main shadow-inner" aria-label="Modalités d’imagerie">
-                  <ImagingButton active={radioTab === 'rvg'} onClick={() => handleRadioTabChange('rvg')} icon={<Image size={16} />} label="RVG" />
-                  {canPanoramic && <ImagingButton active={radioTab === 'panoramic'} onClick={() => handleRadioTabChange('panoramic')} icon={<Target size={16} />} label="Panoramique" />}
-                  {canCephalo && <ImagingButton active={radioTab === 'cephalo'} onClick={() => handleRadioTabChange('cephalo')} icon={<Activity size={16} />} label="Céphalométrie" />}
+                <div className="inline-flex max-w-full overflow-x-auto bg-card-bg/50 p-1 rounded-xl border border-border-main shadow-inner" aria-label="Modalités d’imagerie">
+                  <ImagingButton active={radioTab === 'media'} onClick={() => handleRadioTabChange('media')} icon={<Images size={15} />} label="Médiathèque" />
+                  <ImagingButton active={radioTab === 'rvg'} onClick={() => handleRadioTabChange('rvg')} icon={<Image size={15} />} label="RVG" />
+                  {canPanoramic && <ImagingButton active={radioTab === 'panoramic'} onClick={() => handleRadioTabChange('panoramic')} icon={<Target size={15} />} label="Panoramique" />}
+                  {canCephalo && <ImagingButton active={radioTab === 'cephalo'} onClick={() => handleRadioTabChange('cephalo')} icon={<Activity size={15} />} label="Céphalométrie" />}
                 </div>
               </div>
 
-              <div className="bg-card-bg rounded-[2.5rem] shadow-elite border border-border-main overflow-hidden min-h-[70vh] p-3 sm:p-5 min-w-0">
+              <div className="bg-card-bg rounded-[1.5rem] sm:rounded-[2rem] shadow-elite border border-border-main overflow-hidden min-h-[60vh] p-2 sm:p-3 md:p-4 min-w-0">
+                {radioTab === 'media' && <PatientMediaTimeline patientId={Number(id)} />}
                 {radioTab === 'rvg' && <PatientRvgPanel patientId={Number(id)} />}
                 {radioTab === 'panoramic' && canPanoramic && <PanoramicStudio patientId={Number(id)} patientName={fullName} />}
                 {radioTab === 'cephalo' && canCephalo && (
@@ -380,13 +386,13 @@ const QuickAction = ({ icon, label, onClick, accent = 'primary' }: any) => (
 );
 
 const TabButton = ({ active, onClick, icon, label }: any) => (
-  <button onClick={onClick} className={cn('shrink-0 flex items-center gap-2 pb-2.5 px-2 md:px-3 text-[11px] md:text-[12px] font-black uppercase tracking-[0.08em] transition-all border-b-[3px] whitespace-nowrap', active ? 'text-primary' : 'border-transparent text-text-muted hover:text-main hover:border-border-main')} style={active ? { borderColor: 'var(--primary)', color: 'var(--primary)' } : {}}>
+  <button onClick={onClick} className={cn('shrink-0 flex items-center gap-1.5 sm:gap-2 pb-2 px-1.5 md:px-3 text-[10px] md:text-[12px] font-black uppercase tracking-[0.06em] md:tracking-[0.08em] transition-all border-b-[3px] whitespace-nowrap', active ? 'text-primary' : 'border-transparent text-text-muted hover:text-main hover:border-border-main')} style={active ? { borderColor: 'var(--primary)', color: 'var(--primary)' } : {}}>
     {icon} {label}
   </button>
 );
 
 const ImagingButton = ({ active, onClick, icon, label }: any) => (
-  <button onClick={onClick} className={cn('px-4 md:px-7 py-3 text-xs font-black uppercase tracking-[0.12em] rounded-xl transition-all duration-300 flex items-center gap-2 whitespace-nowrap', active ? 'bg-card-bg text-primary shadow-elite' : 'text-text-muted hover:text-main')}>
+  <button onClick={onClick} className={cn('px-2.5 sm:px-3.5 md:px-5 py-2 text-[10px] sm:text-[11px] font-black uppercase tracking-[0.08em] sm:tracking-[0.1em] rounded-lg transition-all duration-300 flex items-center gap-1.5 sm:gap-2 whitespace-nowrap', active ? 'bg-card-bg text-primary shadow-elite' : 'text-text-muted hover:text-main')}>
     {icon} {label}
   </button>
 );
