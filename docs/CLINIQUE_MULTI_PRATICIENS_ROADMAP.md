@@ -2,7 +2,7 @@
 
 ## Statut
 
-P0 backend, P1 UX et P2 Patient/actes/facturation sont certifiés et mergés. Le gate de compatibilité d'upgrade cabinet réel est également certifié sur données réelles copiées, corrigé puis mergé. P3 Documents, signatures et ressources est le lot suivant.
+P0 backend, P1 UX et P2 Patient/actes/facturation sont certifiés et mergés. Le gate de compatibilité d'upgrade cabinet réel est certifié sur données réelles copiées, corrigé puis mergé. L'implémentation P3 Documents/auteurs/signatures est mergée ; le gate reproductible de préservation locale PR #463 reste en cours avant certification finale du lot.
 
 ## Goal global
 
@@ -120,9 +120,53 @@ Anomalies historiques hors périmètre du changement : 2 247 médias physiques n
 
 Référence : `docs/clinic/CABINET_UPGRADE_COMPATIBILITY_GATE.md`.
 
-## P3 — Documents, signatures et ressources
+## P3 — Documents, auteurs et signatures — IMPLÉMENTÉ / MERGÉ, CLOSEOUT EN COURS
 
-Étendre les signatures/auteurs de documents, permissions avancées et, si justifié par le workflow clinique, ressources physiques (salles/fauteuils), tout en conservant le stockage documentaire local comme source de vérité.
+### Goal
+
+Ajouter une provenance clinique multi-praticiens et une signature praticien applicative liée aux octets archivés, sans déplacer ni réécrire les documents locaux historiques.
+
+### Architecture mergée
+
+- `uploaded_by_id` reste l'acteur technique ; `author_practitioner_id` représente l'auteur clinique.
+- `author_practitioner_id`, `signed_by_practitioner_id`, `signed_at` sont additifs et nullable.
+- aucun backfill historique ; provenance inconnue = `NULL`.
+- auteur limité au même cabinet, actif, approuvé et assignable ; acteur non-praticien sans auteur explicite refusé.
+- PDF généré avec l'identité de l'auteur sélectionné ; audit technique conservé séparément.
+- signature autorisée uniquement à l'auteur exact d'un document canonique actif dont SHA-256/taille correspondent aux octets physiques.
+- remplacement/régénération des octets invalide la signature antérieure.
+- types document sans politique explicite de signature refusés fail-closed.
+- aucune permission `sign_documents` supplémentaire : permission du type + auteur exact + praticien éligible + intégrité constituent le gate.
+- signature = provenance applicative Digital Crown liée au SHA-256/taille ; **pas** une signature électronique qualifiée, PKI ou certificat.
+
+### UI / preuves
+
+- PR #454 provenance backend : merge `04304b7f5428d3c684e54a7de71d76d135b6a3aa`.
+- PR #455 Auteur clinique UI : merge `3fc3b0ac604b6a291000dc7c91915cb377713788` ; certification visuelle finale 10.0/10.
+- PR #457 signature backend : merge `3b3152813b635393c880c8eb270772060e85e1f6`.
+- PR #459 signature Archives UI : HEAD `3e0ca1f08ebbc5f19c28ac2e715cdf4e08480472`, merge `a213376114ca26cedfdb7a112f9320156cf88adb`.
+- P3 Signature UI `34727387320` : success, score **10.0/10**, 390x844 / 768x1024 / 1280x900, 0 overflow/runtime error.
+- Document History Actions AFTER `34727387326` : success à 390x844 et 1366x700.
+- PostgreSQL `34727387310`, T2 `34727387337`, P2 Visual `34727387366`, CI `34727387334`, Patient P7 `34727387347` : success.
+- aucun déploiement Vercel.
+
+### Gate de préservation P3
+
+PR #463 ajoute un gate exact-head reproductible sur vault synthétique local + PostgreSQL 18 isolé afin de prouver :
+
+- self-migration provenance idempotente ;
+- aucune attribution historique rétroactive ;
+- conservation id/patient/path/hash/taille/statut ;
+- signature metadata-only sans réécriture des octets ;
+- maintien des protections fail-closed existantes.
+
+Ce gate **n'est pas** présenté comme une nouvelle copie de données patient réelles. Le gate cabinet réel ci-dessus reste la preuve de conservation sur copie de l'installation réelle.
+
+### Ressources physiques
+
+Salles/fauteuils sont différés : aucun besoin workflow clinique démontré n'a justifié l'ajout d'un modèle ou d'une UI spéculative dans P3.
+
+Référence détaillée : `docs/clinic/P3_DOCUMENT_PROVENANCE_SIGNATURES.md`.
 
 ## Différé
 
@@ -130,12 +174,13 @@ Multi-site : hors périmètre tant qu'un besoin produit réel et prioritaire n'e
 
 ## Références
 
-- `docs/PATIENT_P3_CLINIQUE_GOAL.md` reste une référence complémentaire.
+- `docs/PATIENT_P3_CLINIQUE_GOAL.md` reste une référence complémentaire et ne doit pas être confondu avec ce P3 multi-praticiens.
 - `docs/clinic/P1_MULTI_PRACTITIONER_UI.md` — spécification P1.
 - `docs/clinic/P2_PATIENT_PRACTITIONER_BILLING.md` — spécification et preuves P2.
+- `docs/clinic/P3_DOCUMENT_PROVENANCE_SIGNATURES.md` — architecture, claim boundary et preuves P3.
 - `docs/clinic/CABINET_UPGRADE_COMPATIBILITY_GATE.md` — gate cabinet réel et procédure de certification.
-- Chaîne Alembic : P0 `d3a55e700003`; P2 ajoute `e4a55e700004` de façon additive ; le runtime cabinet conserve des self-migrations ciblées pour compatibilité historique.
+- Chaîne Alembic : P0 `d3a55e700003`; P2 `e4a55e700004`; P3 provenance `f5a55e700005`, avec self-migrations ciblées pour compatibilité du runtime cabinet historique.
 
 ## Next exact
 
-P3 : auditer Documents / signatures / auteurs / permissions en préservant strictement les documents locaux existants. Avant toute future installation cabinet, conserver le même principe fail-closed : backup/copie, rehearsal, comparaison BEFORE/AFTER, puis installation seulement sur preuve GO.
+PR #463 : obtenir le gate préservation + CI/PostgreSQL/T2 verts, merger avec garde SHA, puis passer P3 à `CERTIFIÉ / MERGÉ`. Ensuite clôturer le chantier multi-praticiens à la frontière planifiée P3 ; multi-site et ressources physiques restent différés tant qu'un besoin produit réel n'est pas démontré.
