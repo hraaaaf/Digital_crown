@@ -73,12 +73,26 @@ for (const viewport of viewports) {
     throw new Error(`UX1-C compact overlay not viewport-dominant at ${viewport.width}: ${JSON.stringify(box)}`);
   }
 
+  const layering = await page.evaluate(() => {
+    const overlayNode = document.querySelector('[data-ux1-c-crownbot-overlay]');
+    const toasterNode = document.querySelector('[data-rht-toaster]');
+    const z = (node) => node ? Number.parseInt(getComputedStyle(node).zIndex || '0', 10) || 0 : null;
+    return {
+      overlayZ: z(overlayNode),
+      toasterZ: z(toasterNode),
+      toasterPresent: Boolean(toasterNode),
+    };
+  });
+  if (compact && layering.toasterPresent && (layering.toasterZ ?? 0) >= (layering.overlayZ ?? 0)) {
+    throw new Error(`UX1-C toast must stay below CrownBot at ${viewport.width}: ${JSON.stringify(layering)}`);
+  }
+
   const openShot = `ux1c-open-${viewport.width}x${viewport.height}.png`;
   await page.screenshot({ path: path.join(outDir, openShot), fullPage: false });
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth + 2);
   if (overflow) throw new Error(`UX1-C horizontal overflow at ${viewport.width}`);
 
-  evidence.push({ viewport, compact, headerVisible, floatingVisible, overlayBox: box, closedShot, openShot, overflow, pageErrors });
+  evidence.push({ viewport, compact, headerVisible, floatingVisible, overlayBox: box, layering, closedShot, openShot, overflow, pageErrors });
   await context.close();
 }
 
