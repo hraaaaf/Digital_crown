@@ -61,9 +61,9 @@ export const DrugRow: React.FC<DrugRowProps> = ({
         isNameSuggestOpen && 'z-50',
       )}
     >
-      <div className="flex min-w-0 items-start gap-2.5 sm:gap-3">
+      <div className="flex min-w-0 flex-col items-stretch gap-2.5 sm:flex-row sm:items-start sm:gap-3">
         <div
-          className="inline-flex shrink-0 rounded-xl border border-border-main bg-input-field/70 p-1"
+          className="inline-flex w-fit shrink-0 self-start rounded-xl border border-border-main bg-input-field/70 p-1"
           role="group"
           aria-label="Type de ligne"
         >
