@@ -24,24 +24,28 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
+      - name: Generate isolated runtime credential
+        shell: bash
+        run: |
+          echo "T2_USER=t2-browser@cabinet.ma" >> "$GITHUB_ENV"
+          echo "T2_PASSWORD=$(python -c 'import secrets; print(secrets.token_urlsafe(32))')" >> "$GITHUB_ENV"
       - name: Install backend dependencies
         run: |
           python -m pip install --upgrade pip
           pip install torch==2.12.0 torchvision==0.27.0 --index-url https://download.pytorch.org/whl/cpu
           grep -vE '^(torch|torchvision)([<=>].*)?$' requirements.txt > /tmp/requirements-doc-history.txt
           pip install -r /tmp/requirements-doc-history.txt
-          pip install httpx==0.27.2
       - name: Prepare master worktree
         run: git worktree add /tmp/dc-before origin/master
       - name: Install browser dependencies for both trees
         run: |
           cd /tmp/dc-before/frontend
           npm ci
-          npm install --no-save playwright@1.55.0
+          npm install --no-save --package-lock=false --legacy-peer-deps playwright@1.55.0
           npx playwright install --with-deps chromium
           cd "$GITHUB_WORKSPACE/frontend"
           npm ci
-          npm install --no-save playwright@1.55.0
+          npm install --no-save --package-lock=false --legacy-peer-deps playwright@1.55.0
       - name: Capture BEFORE and AFTER at identical viewports
         env:
           ROOT: ${{ github.workspace }}
@@ -54,14 +58,13 @@ jobs:
 
           const [tree,label] = process.argv.slice(2);
           const root=process.env.ROOT;
-          const source=fs.readFileSync(path.join(tree,'scripts/t2_runtime_server.py'),'utf8');
-          const user=source.match(/email=\"([^\"]+)\"/)?.[1];
-          const pass=source.match(/get_password_hash\(\"([^\"]+)\"\)/)?.[1];
+          const user=process.env.T2_USER;
+          const pass=process.env.T2_PASSWORD;
           if(!user||!pass) throw new Error('isolated credentials unavailable');
 
           const api=await request.newContext({baseURL:'http://127.0.0.1:8005'});
           const login=await api.post('/api/auth/login',{form:{username:user,password:pass}});
-          if(!login.ok()) throw new Error(`login ${login.status()}`);
+          if(!login.ok()) throw new Error(`login ${login.status()} ${await login.text()}`);
           const tok=await login.json();
           const auth={Authorization:`Bearer ${tok.access_token}`};
 
@@ -134,10 +137,20 @@ jobs:
           run_tree () {
             tree="$1"; label="$2"
             rm -f t2-runtime-cert.db /tmp/dc-before/t2-runtime-cert.db
-            (cd "$tree" && exec setsid python scripts/t2_runtime_server.py > "/tmp/${label}-backend.log" 2>&1) & BPID=$!
-            for i in {1..90}; do curl -fsS http://127.0.0.1:8005/health >/dev/null && break; sleep 1; done
+            (cd "$tree" && exec setsid env T2_PASSWORD="$T2_PASSWORD" python scripts/t2_runtime_server.py > "/tmp/${label}-backend.log" 2>&1) & BPID=$!
+            ready=0
+            for i in {1..90}; do
+              if curl -fsS http://127.0.0.1:8005/health >/dev/null; then ready=1; break; fi
+              sleep 1
+            done
+            if [ "$ready" -ne 1 ]; then cat "/tmp/${label}-backend.log"; return 1; fi
             (cd "$tree/frontend" && exec setsid npm run dev -- --host 127.0.0.1 --port 5173 > "/tmp/${label}-frontend.log" 2>&1) & FPID=$!
-            for i in {1..90}; do curl -fsS http://127.0.0.1:5173 >/dev/null && break; sleep 1; done
+            ready=0
+            for i in {1..90}; do
+              if curl -fsS http://127.0.0.1:5173 >/dev/null; then ready=1; break; fi
+              sleep 1
+            done
+            if [ "$ready" -ne 1 ]; then cat "/tmp/${label}-frontend.log"; kill -- -$BPID 2>/dev/null || true; return 1; fi
             node /tmp/capture-doc-history.mjs "$tree" "$label"
             kill -- -$FPID -$BPID 2>/dev/null || true
             wait $FPID $BPID 2>/dev/null || true
