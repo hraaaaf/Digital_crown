@@ -82,7 +82,13 @@ export const DocumentHubContent: React.FC<DocumentHubContentProps> = ({
 }) => (
   <div data-tour="document-hub-content" className="flex-1 flex flex-col p-2 min-h-min shrink-0">
     {activeTab === 'ordonnance' && (
-      <>
+      <div data-ordonnance-coherence="u6">
+        <style>{`
+          [data-ordonnance-coherence="u6"] .prescription-r3-legacy div:has(> div[title^="État partiel des contrôles locaux"]) {
+            display: none !important;
+          }
+        `}</style>
+
         <PrescriptionAgenticStudio
           patientId={patientId || '0'}
           drugs={drugs}
@@ -105,28 +111,30 @@ export const DocumentHubContent: React.FC<DocumentHubContentProps> = ({
           coherenceWarnings={generator.coherenceWarnings}
         />
 
-        <div data-ordonnance-secondary-meta className="mt-3 flex items-center gap-2 px-1">
+        <div data-ordonnance-secondary-meta className="mt-3 flex min-h-11 items-center gap-2 rounded-xl border border-border-main bg-glass-bg px-2 text-text-muted backdrop-blur-xl">
           <button
             type="button"
             onClick={() => setShowLegalAnnotations(value => !value)}
-            className={cn(
-              'relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 focus:outline-none',
-              showLegalAnnotations ? 'bg-primary' : 'bg-slate-200'
-            )}
+            className="inline-flex h-11 w-11 shrink-0 cursor-pointer items-center justify-center rounded-xl transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
             role="switch"
             aria-checked={showLegalAnnotations}
             aria-labelledby="document-studio-legal-annotations-label"
           >
             <span className={cn(
-              'pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200',
-              showLegalAnnotations ? 'translate-x-4' : 'translate-x-0'
-            )} />
+              'relative inline-flex h-5 w-9 rounded-full transition-colors duration-200',
+              showLegalAnnotations ? 'bg-primary' : 'bg-input-field'
+            )}>
+              <span className={cn(
+                'pointer-events-none absolute top-0.5 inline-block h-4 w-4 rounded-full bg-card shadow-sm ring-0 transition duration-200',
+                showLegalAnnotations ? 'translate-x-[18px]' : 'translate-x-0.5'
+              )} />
+            </span>
           </button>
-          <span id="document-studio-legal-annotations-label" className="text-[10px] font-bold text-text-muted uppercase tracking-widest">
+          <span id="document-studio-legal-annotations-label" className="text-[10px] font-bold uppercase tracking-widest">
             Mentions légales (Radioprotection)
           </span>
         </div>
-      </>
+      </div>
     )}
 
     {activeTab === 'certificat' && (
