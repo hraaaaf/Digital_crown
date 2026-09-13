@@ -14,8 +14,8 @@ describe('Ordonnance Fidelity V3 U5 desktop composition', () => {
   it('uses a balanced inline split at desktop width without collapsing the editor', () => {
     expect(preview).toContain("const desktopPreviewQuery = '(min-width: 1280px)'");
     expect(preview).toContain('data-ordonnance-desktop-preview="inline"');
-    expect(preview).toContain('w-[300px]');
-    expect(preview).toContain('padding-right: 21.25rem !important');
+    expect(preview).toContain('w-[280px]');
+    expect(preview).toContain('padding-right: 19.375rem !important');
     expect(preview).toContain('padding-left: 1rem !important');
   });
 
