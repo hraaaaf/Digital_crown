@@ -24,8 +24,8 @@ jobs:
         id: ref
         shell: bash
         run: |
-          if [ "${{ matrix.phase }}" = "BEFORE" ] && [ -n "${{ github.event.pull_request.base.sha }}" ]; then
-            echo "value=${{ github.event.pull_request.base.sha }}" >> "$GITHUB_OUTPUT"
+          if [ "${{ matrix.phase }}" = "BEFORE" ]; then
+            echo "value=3b3152813b635393c880c8eb270772060e85e1f6" >> "$GITHUB_OUTPUT"
           else
             echo "value=${{ github.event.pull_request.head.sha || github.sha }}" >> "$GITHUB_OUTPUT"
           fi
