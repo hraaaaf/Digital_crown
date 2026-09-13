@@ -94,6 +94,9 @@ const frequencyFromText = (text: string): string => {
   if (/matin\s+et\s+soir/i.test(text)) return 'matin et soir';
   if (/\ble\s+matin\b/i.test(text)) return 'le matin';
   if (/\ble\s+soir\b/i.test(text)) return 'le soir';
+  const painWithMaximum = /\bsi\s+douleur\b/i.test(text)
+    && /(?:max(?:imum)?|sans\s+d[eé]passer)/i.test(text);
+  if (painWithMaximum) return 'si douleur';
   const perDay = text.match(/(?:x\s*|\b)([1-4])\s*(?:x|fois)?\s*\/?\s*(?:par\s+)?jour/i);
   if (perDay) return `${perDay[1]} fois par jour`;
   if (/\bsi\s+douleur\b/i.test(text)) return 'si douleur';
