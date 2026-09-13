@@ -365,3 +365,21 @@ body {
   0%, 100% { opacity: 0.8; }
   50% { opacity: 0.4; }
 }
+
+/* Keep Patient Documents action menus inside narrow mobile viewports. */
+@media (max-width: 639px) {
+  [data-document-action-menu] {
+    right: auto !important;
+    left: 50% !important;
+    transform: translateX(-50%);
+    max-width: calc(100vw - 2rem);
+  }
+}
+
+/* Open Patient Documents action menus upward on larger screens to avoid bottom clipping. */
+@media (min-width: 640px) {
+  [data-document-action-menu] {
+    top: auto !important;
+    bottom: 3rem !important;
+  }
+}
