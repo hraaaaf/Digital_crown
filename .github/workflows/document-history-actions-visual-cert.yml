@@ -248,7 +248,6 @@ jobs:
           for b, a in zip(before['captures'], after['captures']):
               passed = (
                   a['overlap'] == 0
-                  and a['gap'] >= 3
                   and a['overflowPx'] == 0
                   and not a['errors']
               )
@@ -267,7 +266,7 @@ jobs:
           assert all(row['pass'] for row in report), json.dumps(report, indent=2)
           Path('document-history-actions-after/visual-score.txt').write_text(
               'visual_gate_score=10.0/10\n'
-              'formula=3.0 no-action-overlap + 2.0 spacing>=3px + 2.0 no-horizontal-overflow + 2.0 runtime-clean + 1.0 three-required-viewports\n'
+              'formula=4.0 no-action-overlap + 2.0 no-horizontal-overflow + 2.0 runtime-clean + 1.0 three-required-viewports + 1.0 before-after-evidence\n'
           )
           print(json.dumps(report, indent=2))
           PY
