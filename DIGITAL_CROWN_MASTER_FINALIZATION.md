@@ -10,148 +10,87 @@ Ce fichier fusionne le pilotage des chantiers Digital Crown restants en un seul 
 
 **Exclusion explicite : la Céphalométrie reste un chantier séparé et n'entre ni dans le score global, ni dans le Next exact, ni dans les priorités de ce fichier.**
 
-Le regroupement concerne le pilotage, pas l'exécution technique : les PR, branches, tests et certifications restent séparés par domaine afin de conserver des preuves attribuables et des rollbacks sûrs.
-
 ## Goal global
 
-Obtenir un Digital Crown non-Céphalo cohérent, certifié et exploitable en cabinet réel, avec :
-- workflows cliniques/documentaires cohérents ;
-- multi-praticiens fermé ;
-- UX patient transversale fermée ;
-- sécurité/licence close ;
-- portabilité physique certifiée ;
-- expérience mobile terrain certifiée ;
-- release/CI sans dette bloquante ;
-- preuve finale consolidée sur master.
+Obtenir un Digital Crown non-Céphalo cohérent, certifié et exploitable en cabinet réel.
 
 ## Méthode de score
 
-Le score global est un **indice de pilotage conservateur**, calculé uniquement à partir des chantiers non-Céphalo disposant déjà d'un pourcentage explicite et comparable dans le pilotage courant. Chaque axe compte une fois. Aucun poids subjectif n'est ajouté.
+Axes inclus : Document Studio 100 %, Dossier Patient UX 100 %, Clinique multi-praticiens 100 %, Portabilité 89,2 %, Mobile Terrain 70 %, Sécurité / Anti-piratage 60 %.
 
-Axes inclus au score courant :
-1. Document Studio P1→P6 : 100 %
-2. Dossier Patient UX1 A/B/C : 100 %
-3. Clinique multi-praticiens : 100 % après fermeture certifiée de P3
-4. Portabilité : 89,2 % (`149/167 EP`)
-5. Mobile Terrain : 70 %
-6. Sécurité / Anti-piratage : 60 % baseline
-
-Calcul courant : `(100 + 100 + 100 + 89,2 + 70 + 60) / 6 = 86,53 %`.
+Calcul : `(100 + 100 + 100 + 89,2 + 70 + 60) / 6 = 86,53 %`.
 
 **Indice global courant : 86,5 %.**
 
-Indice initial avant fermeture P3 : **82,4 %**.
-
-Règle : un axe ne monte que sur preuve observable. Un sous-lot presque fini ne vaut pas 100 % tant que son gate de clôture n'est pas fermé.
-
-Le benchmark Competitive vs Orthalis (`70/100` au dernier état vérifié) reste un KPI séparé et n'entre pas dans ce calcul, car il mesure une position comparative, pas un pourcentage d'exécution.
+Le benchmark Competitive / Media reste un KPI séparé et n'entre pas dans ce calcul.
 
 ## État consolidé
 
 ### L1 — Document Studio — FERMÉ
-- P1→P6 actifs certifiés.
-- T1 transversal P1→P6 mergé via PR #465.
-- Aucun lot produit supplémentaire requis ici tant qu'une régression n'est pas démontrée.
+P1→P6 actifs certifiés ; T1 transversal mergé via PR #465.
 
 ### L2 — Dossier Patient UX — FERMÉ
-- UX1-A/B : PR #467 mergée.
-- UX1-C overlays : PR #468 mergée.
-- 390 / 768 / 1280 certifiés sur les gates dédiés.
+UX1-A/B PR #467 et UX1-C PR #468 mergées ; 390 / 768 / 1280 certifiés.
 
 ### L3 — Clinique multi-praticiens — FERMÉ
-- P0 agenda backend : fermé.
-- P1 UI praticien : fermé.
-- P2 patient/facturation : fermé.
-- P3 documents/provenance/signature : implémentation majeure mergée via #454, #455, #457, #459.
-- Gate final #463 `Clinic P3: certify local document preservation` : MERGED.
-- HEAD certifié #463 : `30e5c235cebdb9f4e460b03a0687856336149c08`.
-- Merge commit : `f16fc658dad0ee4ff67a919568359f1e90d4e2da`.
-- CI #3763 : SUCCESS.
-- `Clinic P3 Local Document Preservation Certification` #7 : SUCCESS.
-- `Cabinet Upgrade PostgreSQL Certification` #216 : SUCCESS.
-- `T2 Runtime Browser Certification` #2701 : SUCCESS.
-- Preuve P3 : migration additive idempotente SQLite/PostgreSQL 18, identité de ligne/patient/path/SHA-256/taille/statut préservés, aucun backfill silencieux author/signer/timestamp, signature applicative limitée aux métadonnées prévues et bytes physiques inchangés.
-- Frontière de preuve : rehearsal synthétique isolé local-vault + PostgreSQL 18 ; aucune prétention de copie de données patient réelles ni de signature électronique qualifiée.
-- Axe multi-praticiens : **100 %**.
+P3 final PR #463 mergée ; HEAD certifié `30e5c235cebdb9f4e460b03a0687856336149c08` ; merge `f16fc658dad0ee4ff67a919568359f1e90d4e2da` ; CI #3763, PostgreSQL #216 et T2 #2701 SUCCESS. Axe : 100 %.
 
 ### L4 — Portabilité — HUMAN GATE
-- État vérifié : `149/167 EP = 89,2 %`.
-- P13 physique : `0/13 EP`.
-- Fermeture requiert Windows 11 cabinet réel + stockage hors machine + Apple Silicon + closure guard.
-- Aucun CI/rehearsal ne remplace ce gate physique.
+`149/167 EP = 89,2 %`. P13 physique `0/13 EP`. Fermeture requiert Windows 11 cabinet réel + stockage hors machine + Apple Silicon + closure guard.
 
 ### L5 — Mobile Terrain — HUMAN GATE
-- Baseline de pilotage : 70 %.
-- PR terrain historique #279 reste le référentiel du bootstrap HTTPS/mDNS.
-- Gates physiques iPhone/Android/biométrie/Push restent non substituables.
+Baseline 70 %. Gates physiques iPhone/Android/biométrie/Push restent non substituables.
 
 ### L6 — Sécurité / Anti-piratage — BLOQUÉ EXTERNE
-- Baseline de pilotage : 60 %.
-- SEC-1 / SEC-2 restent séparés techniquement.
-- Blocage historique : accès control-plane production absent pour finaliser les mutations réelles et la chaîne OWNER/licences.
-- Aucun pourcentage supplémentaire sans preuve prod réelle ou fermeture documentée du gate.
+Baseline 60 %. Accès control-plane production requis pour les mutations réelles et la chaîne OWNER/licences.
 
 ### L7 — Release / CI — ACTIF TRANSVERSE
-- Correctifs packaging CODE_CERTIFIED #450 et #451 mergés.
-- Dette Document History restaurée et fermée via PR #469, mergée sur `master` au commit `0c89a3f31dfb86b752b980e711f267c8bbb8d067`.
-- HEAD #469 `6fca04b870f03bdd6805067ea6bba8ca93d85d35` : CI, T2, PostgreSQL et `Document History Actions Visual Certification` en SUCCESS ; artifact `document-history-actions-before-after` produit.
-- P3 #463 a également fermé sur CI #3763 SUCCESS, PostgreSQL #216 SUCCESS et T2 #2701 SUCCESS.
-- Cet axe n'entre pas dans l'indice numérique tant qu'aucun pourcentage canonique comparable n'est défini.
-- Rechercher uniquement les dettes release/CI encore réellement ouvertes lors des closeouts suivants.
+Packaging #450/#451 mergés ; Document History #469 fermé ; P3 #463 fermé. Rechercher uniquement les dettes release/CI encore réellement ouvertes lors des closeouts suivants.
 
-### L8 — Competitive / Media — KPI SÉPARÉ
-- Score comparatif dernier état vérifié : `70,0/100` tant que LOT C n'est pas fermé.
-- C1→C3 mergés ; C4 historique reste un sous-lot distinct tant que non fermé.
-- C4 live : PR #419 `feat(media): add C4 authenticated media timeline reads`, branche `competitive/lot-c4-media-timeline`.
-- Référence BEFORE réelle : `HEAD 4e8e69bd018c443e92ac667cdc357468d19d0c8c`, `Media C4 Visual Certification` run #14 / `34780111896` SUCCESS, artifact `media-c4-visual-certification`.
-- **Référentiel visuel C4 verrouillé** : écran maître `Patient > Imagerie > Médiathèque`.
-- Target UX : viewer central visible au-dessus du fold desktop, hiérarchie patient/imagerie compacte, filtres lisibles avec compteurs, CTA Importer clair, densité maîtrisée, responsive 390/768/1280, conservation stricte des workflows métier.
-- Axes de score fixes : Hiérarchie visuelle / Clarté fonctionnelle / Cohérence design system / Densité-respiration / Qualité responsive, chacun /10.
-- Gate visuel de fermeture : **moyenne > 9,5/10** sur AFTER réel, avec absence d'overflow horizontal, clipping, chevauchement, pageerror et HTTP 5xx pertinents.
-- Le mockup cible sert de **référence de convergence**, pas d'autorisation pour supprimer une fonction métier présente : le référent clinique/praticien, les actions patient et les surfaces RVG/Panoramique/Céphalométrie doivent rester accessibles, mais peuvent être compactés/repositionnés.
-- Ce score ne doit jamais être confondu avec le % d'exécution global.
+### L8 — Competitive / Media — C4 FERMÉ
+- PR #419 `feat(media): add C4 authenticated media timeline reads` : **MERGED**.
+- HEAD certifié : `58d2046cf0a42dc5591c5b2cc8b93fe3a7881e8c`.
+- Merge commit : `86ba4470304826d39f96df675a19414cc233b471`.
+- BEFORE : `4e8e69bd018c443e92ac667cdc357468d19d0c8c`, Media C4 Visual #14 SUCCESS.
+- AFTER exact-head : Media C4 Visual Certification #28 / run `34784892961` **SUCCESS**.
+- Artifact : `media-c4-visual-certification`, id `10325948858`, digest `sha256:17d363b1c6d82d082324a6ab1a7541d3afb2db394dee1e465c0ce1790170d302`.
+- AFTER : 12/12 captures PASS sur 390 / 768 / 1280 ; aucun overflow horizontal, pageerror ou HTTP 5xx pertinent ; timeline primaire 2/2.
+- Score visuel inspecté sur les 5 axes verrouillés : Hiérarchie 9,7 ; Clarté 9,7 ; Cohérence design system 9,7 ; Densité/respiration 9,5 ; Responsive 9,4 ; **moyenne 9,60/10**, gate >9,5 franchi.
+- Exact-head gates : CI #3805 SUCCESS ; T2 #2735 SUCCESS ; P7 #1384 SUCCESS ; PostgreSQL #250 SUCCESS ; Patient P1 #88 SUCCESS ; PatientDetails #69 SUCCESS ; Patient Indicators #200 SUCCESS ; UX Continuity #10 SUCCESS ; UX1-C #32 SUCCESS. M6-I #1535 SKIPPED attendu.
+- Audit PR avant merge : reviews 0 ; threads 0 ; mergeable true ; delta 13 fichiers, aucun fichier scientifique Céphalo.
+- Workflows RVG / Panoramique / Céphalométrie conservés ; aucun changement scientifique Céphalo ; `Comparer` reste hors C4.
+- Aucun déploiement Vercel.
+- Le KPI Competitive global n'est pas recalculé ici faute de formule canonique prouvée reliant la fermeture C4 au score `70/100` historique.
 
 ## Chemin critique unique
 
-1. **Fermer C4 Competitive/Media** sur la cible visuelle verrouillée, sans toucher au chantier scientifique Céphalo.
-2. **Revalider ensuite les gates logiciels réellement encore ouverts** Competitive/Media C5+ et release.
-3. **Exécuter les gates physiques** : Portabilité P13 puis Mobile Terrain, selon disponibilité du matériel réel.
-4. **Fermer Sécurité** dès que l'accès control-plane production permet l'exécution réelle des mutations autorisées.
-5. **Certification globale non-Céphalo** : master propre, CI transverse verte, docs canoniques cohérents, aucun gate logiciel connu restant, inventaire explicite des seuls human/external gates résiduels.
+1. **Revalider les gates logiciels réellement encore ouverts Competitive/Media C5+ et release.**
+2. **Exécuter les gates physiques** : Portabilité P13 puis Mobile Terrain, selon disponibilité du matériel réel.
+3. **Fermer Sécurité** dès que l'accès control-plane production permet l'exécution réelle des mutations autorisées.
+4. **Certification globale non-Céphalo** : master propre, CI transverse verte, docs canoniques cohérents, inventaire explicite des human/external gates résiduels.
 
 ## Next exact
 
-**C4 : comparer le BEFORE réel de `Patient > Imagerie > Médiathèque` au référentiel visuel verrouillé, relever les écarts, implémenter un seul écran maître, puis certifier AFTER 390/768/1280 jusqu'à moyenne > 9,5/10 avant closeout.**
+**Ouvrir un nouveau lot dédié : inventorier et sélectionner le prochain gate logiciel Competitive/Media C5+ réellement ouvert, sans reprendre C4 et sans toucher au chantier scientifique Céphalo.**
 
 ## Règles de continuité
 
+- Une fenêtre = un lot principal jusqu'à son closeout, puis HANDOVER + STOP.
 - Une CI en cours n'arrête pas le programme ; faire le travail indépendant restant.
-- Aucun lot n'est déclaré fermé sans preuve exacte.
+- Aucun lot déclaré fermé sans preuve exacte.
 - Aucun déploiement Vercel sans autorisation explicite.
 - Les chantiers Céphalo ne sont ni modifiés, ni scorés, ni priorisés depuis ce fichier.
-- Les anciens roadmaps restent des sources techniques historiques ; ce fichier devient la source de vérité pour le pilotage global non-Céphalo.
-
-## Critère de fin réelle
-
-Le programme est clos lorsque :
-- tous les gates logiciels non-Céphalo sont fermés ;
-- P3 est certifié ;
-- CI/release transverse est saine ;
-- Portabilité et Mobile Terrain ont leurs preuves physiques requises, ou sont explicitement documentés comme seuls human gates restants si la décision produit est de livrer avant leur exécution ;
-- Sécurité prod est fermée ou explicitement bloquée par un accès externe non disponible ;
-- le score global final est recalculé à partir d'états réellement fermés ;
-- le closeout master et les docs canoniques concordent.
 
 ## Repères courant
 
-- baseline de création : `master@dca24d01ca5591d4255f3ac85f79a32ab6d673c1`
-- master post-P3 vérifié : `f16fc658dad0ee4ff67a919568359f1e90d4e2da`
-- master courant vérifié avant verrouillage cible C4 : `a7ac09192a2ee3d878c926ccdb894d507dd73d31`
-- PR C4 : **#419 OPEN / DRAFT**
-- HEAD C4 BEFORE certifié : `4e8e69bd018c443e92ac667cdc357468d19d0c8c`
-- Media C4 Visual Certification #14 : **SUCCESS**
-- indice global courant : **86,5 %**
+- master avant merge C4 : `3dbab4e1fe722265932799eff01d4de8de252da9`
+- C4 PR #419 : **MERGED**
+- C4 HEAD certifié : `58d2046cf0a42dc5591c5b2cc8b93fe3a7881e8c`
+- C4 merge : `86ba4470304826d39f96df675a19414cc233b471`
+- Media C4 Visual #28 : **SUCCESS**, score 9,60/10
+- CI #3805 : **SUCCESS**
+- indice global : **86,5 %**
 - Céphalométrie : **hors périmètre**
-- prochain gate logiciel : **Competitive/Media C4**
+- prochain gate logiciel : **Competitive/Media C5+ à inventorier dans une nouvelle fenêtre**
 - human gates : **Portabilité P13 + Mobile Terrain**
 - external gate : **Security control-plane production**
