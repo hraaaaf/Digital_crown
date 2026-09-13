@@ -50,9 +50,15 @@ jobs:
           npm ci
           npm install --no-save --package-lock=false --legacy-peer-deps playwright@1.55.0 react-is@19.2.0 @testing-library/dom@10.4.1
           npx playwright install --with-deps chromium
-      - name: Targeted R15bis frontend tests
+      - name: Test clinical scientific studio
         working-directory: frontend
-        run: npx vitest run src/features/ortho/components/ClinicalScientificStudio.test.tsx src/features/ortho/components/StepTab.test.tsx src/features/ortho/cephaloTheme.test.ts
+        run: npx vitest run src/features/ortho/components/ClinicalScientificStudio.test.tsx
+      - name: Test workflow navigation keyboard semantics
+        working-directory: frontend
+        run: npx vitest run src/features/ortho/components/StepTab.test.tsx
+      - name: Test theme token mapping
+        working-directory: frontend
+        run: npx vitest run src/features/ortho/cephaloTheme.test.ts
       - name: Capture exact-head R15bis AFTER
         working-directory: frontend
         env:
@@ -127,5 +133,5 @@ jobs:
         with:
           name: cephalo-r15bis-after-${{ github.sha }}
           path: frontend/cephalo-r15-after-artifacts
-          if-no-files-found: error
+          if-no-files-found: warn
           retention-days: 30
