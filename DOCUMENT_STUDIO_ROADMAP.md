@@ -31,62 +31,145 @@ Une CI qui échoue avant tout step n’est ni un échec du code ni un PASS.
 
 ## P1 — Ordonnance
 
-**État : ✅ engineering fermé + recertification visuelle réalisée ; gates cliniques humaines séparées.**
+**État : ✅ engineering fermé + recertification visuelle réalisée ; gates authentifiés/cliniques séparés.**
 
 Rapport : `docs/audits/DOCUMENT_STUDIO_P1_ORDONNANCE_AUDIT.md`.
 
-Acquis : safety fail-closed, dirty-state, habitudes/protocoles, contexte patient, preview responsive, visuel multi-viewport. La matrice T2 actuelle couvre aussi la page dans la surface P1→P6.
+Acquis : R1→R7 fusionnés, safety fail-closed, dirty-state, habitudes/protocoles, UX rapide, contexte patient, preview responsive, visuel 1440/768/390.
+
+Reste : interaction authentifiée locale et certification clinique/pharmacologique humaine.
 
 ---
 
 ## P2 — Certificat
 
-**État : ✅ engineering convergé ; runtime transversal actuel couvert par T2.**
+**État : ✅ engineering convergé ; ⏳ certification finale runtime/PDF non fermée.**
 
 Rapport historique : `docs/audits/DOCUMENT_STUDIO_P3_CERTIFICAT_AUDIT.md`.
 
-Acquis : nature explicite, dates/durée séparées, aucun choix clinique prérempli, texte libre praticien, contrat backend, signature, impression fraîche, intégrité PDF. Les validations réglementaires/cliniciennes humaines restent indépendantes.
+Acquis : nature explicite, dates/durée séparées, aucun choix clinique prérempli, texte libre praticien, contrat backend, signature manuscrite dentiste, impression fraîche, intégrité PDF, QR neutralisé sans contrat valide.
+
+Reste : régression finale, runtime authentifié, inspection PDF et certification réglementaire/clinique si requise.
 
 ---
 
 ## P3 — Devis
 
-**État : 🟡 dette historique documentée ; comportement actuel inclus dans la recertification T2.**
+**État : 🟡 P3-A→P3-G intégrés sur PR #77 ; P3-H partiellement exécuté ; PR toujours draft/non mergée.**
 
 Rapports :
 - `docs/audits/DOCUMENT_STUDIO_P3_DEVIS_AUDIT.md` ;
-- `docs/audits/DOCUMENT_STUDIO_P3_DEVIS_INTEGRATION_STATUS.md`.
+- `docs/audits/DOCUMENT_STUDIO_P3_DEVIS_INTEGRATION_STATUS.md` sur la branche P3.
 
-Les anciennes PR P3 ne doivent pas être remergées mécaniquement dans le `master` moderne. Le runtime actuel T2 certifie notamment l’absence de mutation financière parasite lors de la génération du Devis.
+Acquis sur #77 : isolation financière Devis, source de vérité odontogramme, catalogue/dentition, phases non financières, apprentissage autoritatif, Plan→Devis, suppression suggestion RDV financière générique, PDF multipage lisible, responsive/accessibilité engineering.
+
+Preuves ciblées historiques P3-H : backend 13 passed ; policies frontend 22 groupes ; odontogramme 9 groupes ; PriceBrain 1 groupe ; PDF long 36 actes → 3 pages avec en-tête répété et minimum observé 7,5 pt.
+
+Reste : suite complète + build, smoke authentifié, PDF cabinet réel, responsive réel, merge et post-merge.
 
 ---
 
 ## P4 — Note Honoraires
 
-**État : ✅ engineering + runtime automatisé fermés ; validations comptable/réglementaire humaines séparées.**
+**État : ✅ engineering + runtime automatisé fermés sur PR #386 ; validations comptable/réglementaire humaine et production réelle séparées.**
 
 Rapports :
 - `docs/audits/DOCUMENT_STUDIO_P4_HONORAIRES_AUDIT.md` ;
 - `docs/audits/DOCUMENT_STUDIO_P4_P6_AFTER_P3_STATUS.md` ;
 - `docs/audits/DOCUMENT_STUDIO_P4_FINAL_CERTIFICATION_2026-09-09.md`.
 
-HEAD produit historiquement certifié : `99c63b1247448805360e949d6da745afa53ba340`.
+HEAD produit certifié : `99c63b1247448805360e949d6da745afa53ba340`.
 
-Le T2 courant repasse les invariants P4 : invalides 422 sans mutation, EN_ATTENTE sans Payment, PAYE avec Payment exact, réhydratation du statut et réconciliation persistée.
+### Engineering acquis
+
+- contrats Devis P3 et Honoraires P4 fusionnés sans régression volontaire ;
+- statut documentaire fermé ; `PARTIEL` refusé sans montant encaissé explicite ;
+- note/acte vide refusés ; montants finis, >0, ≤ 1 000 000 MAD ;
+- validation request + pré-PDF + persistance ;
+- `PAYE` exige un mode de règlement choisi explicitement ;
+- `EN_ATTENTE` n’exige, ne sérialise et ne conserve aucun mode de règlement ;
+- aucun fallback silencieux vers Espèces à la persistance ;
+- allocation exacte `Acte ↔ Payment` conservée ;
+- note globale réconciliée au centime ;
+- échéances d’une note exigeant un plan datées explicitement avant PDF/archive : aucune date financière synthétisée ;
+- Devis → Honoraires conserve les actes mais réinitialise statut/mode/plan/échéances ;
+- aucun historique P5 injecté dans le store P3/P4 ;
+- suggestions radio/RDV non contractuelles retirées du parcours financier ;
+- édition remplace l’archive logique au lieu d’ajouter un doublon ;
+- réouverture réhydrate `payment_status` et `is_accounted` ;
+- corbeille/restauration et agrégats financiers actifs durcis ;
+- tests request, pré-PDF, persistance, absence d’inférence clinique et store ajoutés.
+
+### Certification observée
+
+- T2 Runtime Browser run `34413159443` : **success** ;
+- CI principal run `34413159336` : **success** ;
+- invalides P4 422 sans mutation DB : note vide, montant 0, PAYE sans mode, PARTIEL implicite ;
+- EN_ATTENTE : Acte sans Payment ;
+- PAYE : Acte + Payment exact lié à `acte_id` ;
+- multi-actes PAYE : 2 Actes + 2 Payments exacts ;
+- note globale : équilibre exact accepté, déséquilibres refusés ;
+- archive/relecture : statut PAYE et `is_accounted=true` conservés ;
+- navigateur Honoraires vert sur 390/430/768/1280 + dark 1280 ;
+- preview, PDF runtime, impression navigateur et fraîcheur PDF : verts dans T2 ;
+- PR #384/#385 : édition/archives/comptabilité/Historique et dropdown visuel certifiés puis mergés.
+
+### Hors périmètre engineering
+
+- validation comptable/réglementaire humaine si exigée ;
+- inspection esthétique humaine d’un PDF cabinet réel ;
+- certification production sur environnement cabinet réel.
+
+Ces validations externes ne rouvrent pas P4 engineering sauf défaut observé.
 
 ---
 
 ## P5 — Suivi Paiement
 
-**État : ✅ engineering + runtime/PDF/responsive automatisés certifiés ; contrepassation comptable réelle séparée.**
+**État : ✅ engineering + runtime/PDF/responsive automatisés certifiés sur PR #402 ; contrepassation comptable et validations humaines séparées.**
 
 Rapports :
 - `docs/audits/DOCUMENT_STUDIO_P5_SUIVI_PAIEMENT_AUDIT.md` ;
 - `docs/audits/DOCUMENT_STUDIO_P4_P6_AFTER_P3_STATUS.md`.
 
-HEAD comportemental historique : `63d33c2c926120fec45174aba831c1154e48b35a`.
+### Engineering acquis
 
-Le T2 courant repasse la réconciliation du plan de paiement, dont total `1200.0`, lignes `500.0 + 700.0` et encaissé `500.0`.
+- création/preview/mutation fail-closed : titre, total, lignes, dates, montants, statuts ;
+- réconciliation exacte au centime ;
+- endpoint `latest` explicite, tri déterministe `created_at DESC, id DESC` ;
+- échéance PAYE non réouvrable/non rechiffrable sans contrepassation ;
+- plan encaissé non supprimable sans contrepassation ;
+- UI `brouillon → équilibre → enregistrement → encaissement` ;
+- ancien checkbox local « Réglé » supprimé ;
+- aucun mode de paiement présélectionné ;
+- bouton d’encaissement désactivé jusqu’au choix explicite ;
+- montants persistés figés ; restructuration via nouveau plan ;
+- résumé total/payé/restant ;
+- WhatsApp manuel uniquement ;
+- P5 charge son propre `/latest` et ne pollue plus le store P3/P4 ;
+- cibles tactiles principales ≥44 px et focus clavier visible ;
+- tests schema, route et frontend ajoutés/alignés.
+
+### Certification observée
+
+HEAD comportemental certifié avant closeout documentaire : `63d33c2c926120fec45174aba831c1154e48b35a`.
+
+- CI principal `#3156` / run `34520821875` : **success** ;
+- T2 Runtime Browser `#2167` / run `34520821872` : **success** ;
+- plan P5 runtime : total `1200.0`, lignes `500.0 + 700.0`, encaissé `500.0` ;
+- preview financière non persistante, latest déterministe et immutabilité PAYE couverts par la certification runtime ciblée ;
+- navigateur P5 vert sur 390/430/768/1280 + dark 1280 ; aucun overflow horizontal document ;
+- preview Escape, impression navigateur et fraîcheur PDF : PASS ;
+- comparaison humaine BEFORE `#2166` → AFTER `#2167` aux viewports 390/768/1280 : structure conservée, contrôles d'encaissement plus confortables, aucune régression visuelle nouvelle ;
+- score visuel humain AFTER : **8,8/10**, réserve principale = densité structurelle au viewport 390.
+
+### Hors périmètre engineering
+
+- définition et certification d'une vraie contrepassation comptable ;
+- validation comptable/réglementaire humaine si exigée ;
+- validation sur cabinet réel / production locale réelle.
+
+Ces points ne rouvrent pas P5 engineering sauf défaut observé.
 
 ---
 
@@ -96,38 +179,83 @@ Le T2 courant repasse la réconciliation du plan de paiement, dont total `1200.0
 
 Rapports :
 - `docs/audits/DOCUMENT_STUDIO_P6_DOCUMENT_LIBRE_AUDIT.md` ;
-- `docs/audits/DOCUMENT_STUDIO_P4_P6_AFTER_P3_STATUS.md`.
+- historique `docs/audits/DOCUMENT_STUDIO_P3_CERTIFICAT_AUDIT.md` ;
+- statut stack : `docs/audits/DOCUMENT_STUDIO_P4_P6_AFTER_P3_STATUS.md`.
 
 HEAD comportemental certifié : `218e7ef1580e69958f02d9e8319750772f273376`.
 HEAD closeout exact : `9269f9c4111b1c7ce58dfcaa748b4b56cf892b13`.
-Merge squash historique : `e5a9f37fe33690759124cadb18d672d756647578`.
+Merge squash sur `master` : `e5a9f37fe33690759124cadb18d672d756647578`.
 
-Le T2 actuel repasse P6 aux viewports 390×844, 768×1024 et 1280×900 sans overflow ni clipping, ainsi que PDF, print et fraîcheur.
+### Engineering acquis
+
+- validation titre/contenu, toolbar non-submit, contrat/PDF sûr et allowlist markup ;
+- caractères spéciaux et balises déséquilibrées rendus sûrs ;
+- document long/multipage lisible, tableaux Markdown et formats A4/A5 ;
+- destinataire/date personnalisés, alignements et masquage d'en-tête ;
+- impression depuis un PDF frais ;
+- auto-preview invalide silencieux, dirty-state, permission clinique et archive/réouverture ;
+- probe P6 authentifié dédié aux contrôles éditeur 390/768/1280 sans changement produit.
+
+### Certification observée
+
+- HEAD comportemental : CI `#3183` / `34528255939` **success** ; T2 `#2191` / `34528255978` **success** ;
+- HEAD closeout exact : CI `#3224` / `34582263330` **success** ; T2 `#2229` / `34582263341` **success** ;
+- T2 : strict runtime PDF, matrice navigateur authentifiée, probe P6 et fraîcheur print/PDF **success** ;
+- frontend CI : test suite + build **success** ;
+- captures P6 dédiées 390x844, 768x1024 et 1280x900 : PASS, aucun overflow document ni clipping des contrôles ciblés ;
+- inspection humaine : aucune régression visuelle bloquante ; score visuel **9/10**, réserve principale = densité mobile non bloquante ;
+- post-merge : branche `master` vérifiée exactement à `e5a9f37...` avec le squash P6.
+
+### Hors périmètre engineering
+
+- WYSIWYG et bibliothèque de templates : améliorations produit réversibles, pas gates de sécurité ;
+- certification production sur un cabinet réel ;
+- validation réglementaire humaine si elle devient requise pour un usage donné.
+
+Ces points ne rouvrent pas P6 engineering sauf défaut observé.
 
 ---
 
 ## P7 — Compagnon Diagnostique
 
-**État : ⛔ surface retirée du Document Studio certifiable ; code historique dormant ; aucune certification runtime/scientifique active revendiquée.**
+**État actuel : ⛔ surface retirée du Document Studio certifiable ; code historique dormant ; aucune certification runtime/scientifique active revendiquée.**
 
 Rapports :
-- `docs/audits/DOCUMENT_STUDIO_P7_CURRENT_PRODUCT_TRUTH_2026-09-11.md` ;
-- historique `docs/audits/DOCUMENT_STUDIO_P7_COMPAGNON_DIAGNOSTIQUE_AUDIT.md` ;
-- historique `docs/audits/DOCUMENT_STUDIO_P7_INTEGRATION_STATUS.md`.
+- vérité produit actuelle : `docs/audits/DOCUMENT_STUDIO_P7_CURRENT_PRODUCT_TRUTH_2026-09-11.md` ;
+- historique : `docs/audits/DOCUMENT_STUDIO_P7_COMPAGNON_DIAGNOSTIQUE_AUDIT.md` ;
+- historique d’intégration : `docs/audits/DOCUMENT_STUDIO_P7_INTEGRATION_STATUS.md`.
 
-Vérité actuelle vérifiée :
+### Vérité produit vérifiée
 
 - `StudioTabs.tsx` expose uniquement P1→P6 ;
 - `DocumentStudioVocabulary.ts` ne contient plus `plan` ;
-- le T2 échoue si le Compagnon Diagnostique redevient visible ;
-- `TreatmentPlanStudio.tsx` reste du code dormant, pas une surface produit certifiée ;
-- toute réactivation future = nouveau chantier produit + clinique avec validation scientifique humaine.
+- le type `CertifiableDocumentStudioTab` couvre uniquement les six pages documentaires actives ;
+- le T2 navigateur actuel contient `assertCompanionAbsent(...)` et échoue si le Compagnon Diagnostique redevient visible ;
+- commit `a294dacc...` : retrait explicite du tab diagnostique ;
+- commit `8e8bb2c...` : contrat réduit aux tabs produisant des documents ;
+- `TreatmentPlanStudio.tsx` existe encore, mais comme code dormant et avec des sorties cliniques/thérapeutiques spécifiques : sa présence ne prouve ni exposition produit ni validation scientifique.
+
+### Statut des anciens lots
+
+Les lots historiques P7-A/B/D/F/G conservent de la valeur comme durcissement de code dormant : warning-only sur signaux ATCD, reset patient, no-match legacy fail-closed, dirty-state, wording moins prescriptif, responsive/a11y.
+
+Ils **ne doivent plus être interprétés comme la fermeture engineering d’une page active**, puisque cette page a ensuite été retirée du contrat certifiable.
+
+Le harness `scripts/certify_document_studio_p7.sh` reste une régression de code historique ; il ne certifie pas un runtime P7 actif.
+
+### Décision canonique
+
+- ne pas réactiver silencieusement `plan` ;
+- ne pas lancer de certification runtime P7 comme si la surface existait encore ;
+- conserver le code dormant jusqu’à décision explicite de réactivation ou suppression ;
+- toute réactivation future = **nouveau chantier produit + clinique** avec contexte structuré, provenance/version/evidence, validation scientifique humaine, runtime patient A→B et cycle UI BEFORE/mockup/AFTER ;
+- pour le Document Studio actuel, **T1 est le prochain lot transversal exécutable après P6**.
 
 ---
 
 ## T1 — Audit transversal premium
 
-**État : 🟢 runtime transversal P1→P6 certifié sur HEAD comportemental ; closeout documentaire et exact-head final en cours.**
+**État : 🟢 runtime transversal P1→P6 certifié sur HEAD comportemental ; closeout exact-head final en cours.**
 
 Rapports :
 - `docs/audits/DOCUMENT_STUDIO_T1_TRANSVERSAL_PREMIUM_AUDIT.md` ;
@@ -139,15 +267,14 @@ HEAD comportemental certifié avant closeout documentaire : `51e98dd3f14882278e7
 
 ### Engineering acquis
 
-- isolation patient et reset du state patient-scoped ;
-- protection contre réponses patient tardives ;
-- dirty-state/navigation centralisés ;
-- frontières cliniques partagées durcies ;
-- aucune entrée Document Studio active vers `ai-diagnostic` ;
-- vérité UI/a11y/responsive durcie ;
-- harness T1 réaligné sur **P1→P6** et P7 dormant exclu du gate ciblé ;
-- credential T2 jetable généré à l'exécution ;
-- limite de login élevée uniquement dans le serveur T2 isolé pour permettre les multiples probes du même run, sans changer la politique produit.
+- **T1-A patient isolation** : remount/reset patient-scoped et protections contre réponses tardives ;
+- **T1-B navigation** : policy dirty-state et transitions Document Studio centralisées ;
+- **T1-C frontière clinique** : suppression du side-channel partagé non autoritatif et absence de point d’entrée Studio actif vers `ai-diagnostic` ;
+- **T1-D vérité UI** : surfaces Header/Tabs/Footer/Preview contrôlées ;
+- **T1-E responsive/a11y** : labels/états accessibles, cibles tactiles, focus, dialogues, Escape preview, iframe titrée, durcissement mobile ;
+- harness T1 réaligné sur **P1→P6** ; P7 dormant exclu du gate ciblé ;
+- credential T2 jetable généré à l’exécution ;
+- plafond de login élevé uniquement dans le serveur T2 isolé afin que les probes du même run ne s’auto-bloquent pas ; la politique produit reste inchangée.
 
 ### Certification observée
 
@@ -158,47 +285,39 @@ Le probe transversal T1 a observé :
 
 - patient B autoritaire avant et après libération des réponses retardées de A ;
 - aucune route error ;
-- annulation URL dirty restaure l'URL et conserve le brouillon ;
+- annulation URL dirty restaure l’URL et conserve le brouillon ;
 - confirmation dirty atteint la cible ;
 - Compagnon Diagnostique absent ;
 - aucune requête `ai-diagnostic` ;
 - aucune page error ;
 - statut global : **PASS**.
 
-La même exécution T2 a également passé :
-
-- PDF runtime strict ;
-- réconciliation P3/P4/P5 ;
-- matrice navigateur active P1→P6 avec `greenPages=6/6` ;
-- stress de navigation `10/10` transitions avec dirty guard observé ;
-- P6 responsive 390/768/1280 ;
-- impression navigateur ;
-- fraîcheur PDF.
+La même exécution T2 a aussi passé : PDF runtime strict, réconciliation P3/P4/P5, matrice P1→P6 `greenPages=6/6`, stress navigation `10/10`, P6 responsive 390/768/1280, impression navigateur et fraîcheur PDF.
 
 Artefact : `t2-browser-evidence`, ID `10316225660`, digest `sha256:886455c2ffcb560e50cb22e0e3798cc362459615904afec3da9c6396c2aaf333`.
 
 Gates voisins sur le même HEAD comportemental :
 
-- Catalog Connected Truth `#1094` / run `34750958896` : **SUCCESS** ;
-- Cabinet Upgrade PostgreSQL `#160` / run `34750958994` : **SUCCESS** ;
-- Patient P7 Final `#1309` / run `34750959000` : **SUCCESS** sans réactivation P7 dans le Studio ;
+- Catalog Connected Truth `#1094` / `34750958896` : **SUCCESS** ;
+- Cabinet Upgrade PostgreSQL `#160` / `34750958994` : **SUCCESS** ;
+- Patient P7 Final `#1309` / `34750959000` : **SUCCESS** sans réactivation P7 dans le Studio ;
 - M6-I `#1445` : **SKIPPED** attendu.
 
-CI principal `#3701` / run `34750958892` n'était pas encore terminal lors du closeout intermédiaire. Les jobs frontend/tests/build et bridges M4 déjà terminés étaient verts ; le job backend principal restait en cours.
+CI principal `#3701` / `34750958892` n’était pas terminal au moment du closeout intermédiaire ; les jobs frontend/tests/build et bridges M4 déjà terminés étaient verts.
 
-### Reste avant fermeture T1
+### Reste
 
-1. obtenir la CI principale terminale verte ;
-2. exécuter les gates sur le **HEAD documentaire final** ;
-3. inspecter les preuves exact-head ;
-4. squash merge PR #465 avec contrôle du HEAD attendu ;
-5. vérifier `master` post-merge.
+- gates CI/T2 sur le **HEAD documentaire final** ;
+- inspection des preuves exact-head ;
+- squash merge PR #465 avec contrôle du HEAD attendu ;
+- vérification post-merge `master` ;
+- transition T2.
 
 ---
 
 ## T2 — Refonte intelligente finale / recertification globale
 
-**État : ⬜ après fermeture formelle T1.**
+**État : ⬜ après fermeture des gates exécutables T1 sur le périmètre actif P1→P6.**
 
 À couvrir : cartographie finale, matrice garder/améliorer/fusionner/cacher/supprimer/refaire, navigation cible, hiérarchie, priorités, critères UX/fonctionnels, régression globale et recertification finale.
 
@@ -224,23 +343,26 @@ P7 dormant n’entre dans T2 que comme dette/code historique à classer : conser
 
 ## Chemin critique courant
 
-1. **P1→P6** : surface active actuelle.
-2. **P7** : retiré du Studio certifiable, aucune réactivation implicite.
-3. **T1** : runtime P1→P6 prouvé vert sur le HEAD comportemental ; closeout/exact-head final/merge restent à fermer.
-4. **T2** : lot suivant après fermeture formelle T1.
+1. **P3 PR #77** : dette historique à réconcilier séparément avec le `master` moderne ; ne pas réintroduire une ancienne stack par simple merge.
+2. **P4 Note Honoraires** : engineering/runtime automatisé fermé ; gates humaines externes séparées.
+3. **P5 Suivi Paiement** : engineering/runtime/PDF/responsive automatisés certifiés ; contrepassation réelle reste séparée.
+4. **P6 Document Libre** : **fermé et mergé** sur `master` `e5a9f37...` après CI/T2 exact-head verts.
+5. **P7 Compagnon Diagnostique** : **retiré du Studio certifiable** ; code dormant, aucune réactivation implicite.
+6. **T1** : runtime P1→P6 prouvé vert sur le HEAD comportemental ; exact-head documentaire final, merge et post-merge restent à fermer.
+7. **T2** : recertification/refonte finale après T1 ; classer définitivement la dette P7 dormant.
 
 ## Infrastructure CI
 
-P4 : T2 `34413159443` et CI `34413159336` historiquement verts.
+P4 dispose de runs réels verts sur son HEAD produit certifié : T2 `34413159443` et CI `34413159336`.
 
-P5 : T2 `34520821872` (#2167) et CI `34520821875` (#3156) historiquement verts.
+P5 dispose de runs réels verts sur son HEAD comportemental `63d33c2c...` : T2 `34520821872` (#2167) et CI `34520821875` (#3156).
 
-P6 : HEAD comportemental T2 `34528255978` (#2191) + CI `34528255939` (#3183), puis HEAD closeout T2 `34582263341` (#2229) + CI `34582263330` (#3224), tous verts ; PR #405 squash-mergée.
+P6 dispose de runs réels verts sur son HEAD comportemental `218e7ef...` : T2 `34528255978` (#2191) et CI `34528255939` (#3183), puis sur le HEAD closeout `9269f9c...` : T2 `34582263341` (#2229) et CI `34582263330` (#3224). PR #405 squash-mergée sur `master` `e5a9f37...`.
 
-T1 : HEAD comportemental `51e98dd3...` avec T2 `34750958888` (#2645) **SUCCESS**, Catalog `34750958896` (#1094) **SUCCESS**, PostgreSQL `34750958994` (#160) **SUCCESS**, Patient P7 `34750959000` (#1309) **SUCCESS** ; CI `34750958892` (#3701) encore non terminale lors du closeout intermédiaire.
+T1 dispose sur son HEAD comportemental `51e98dd3...` de T2 `34750958888` (#2645) **SUCCESS**, Catalog `34750958896` (#1094) **SUCCESS**, PostgreSQL `34750958994` (#160) **SUCCESS**, Patient P7 `34750959000` (#1309) **SUCCESS**. La CI `34750958892` (#3701) était encore non terminale lors du closeout intermédiaire.
 
 Le harness T1 canonique est `scripts/certify_document_studio_t1.sh`.
 
 ## Règle de progression
 
-**audit → vérité produit actuelle → défauts classés → correctifs réversibles → tests ciblés → CI/runtime → audit/status canonique → roadmap → exact-head final → merge → post-merge → lot suivant.**
+**audit → vérité produit actuelle → défauts classés → correctifs réversibles → tests ciblés → CI si disponible → runtime/visuel selon risque → audit/status canonique → roadmap → lot suivant.**
