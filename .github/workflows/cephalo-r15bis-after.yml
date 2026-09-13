@@ -10,6 +10,7 @@ on:
       - 'frontend/src/features/ortho/components/ClinicalScientificStudio.tsx'
       - 'frontend/src/features/ortho/components/ClinicalScientificStudio.test.tsx'
       - 'frontend/src/features/ortho/components/StepTab.tsx'
+      - 'frontend/src/features/ortho/components/StepTab.test.tsx'
       - 'frontend/src/features/ortho/components/Step3Clinical.tsx'
       - 'frontend/src/features/ortho/components/Step4Documents.tsx'
       - 'frontend/scripts/capture-cephalo-r15-after.mjs'
@@ -51,7 +52,7 @@ jobs:
           npx playwright install --with-deps chromium
       - name: Targeted R15bis frontend tests
         working-directory: frontend
-        run: npx vitest run src/features/ortho/components/ClinicalScientificStudio.test.tsx src/features/ortho/cephaloTheme.test.ts
+        run: npx vitest run src/features/ortho/components/ClinicalScientificStudio.test.tsx src/features/ortho/components/StepTab.test.tsx src/features/ortho/cephaloTheme.test.ts
       - name: Capture exact-head R15bis AFTER
         working-directory: frontend
         env:
