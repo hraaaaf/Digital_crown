@@ -54,7 +54,7 @@ export function sanitizeAnalysisReadPayload<T extends Record<string, any>>(paylo
     ...payload,
     angles_data: angles,
     ai_diagnostic: markedClinician ? serializeClinicianDiagnostic(markedClinician) : null,
-  };
+  } as T;
 }
 
 export function sanitizeAnalysisUploadPayload<T extends Record<string, any>>(payload: T): T {
@@ -64,7 +64,7 @@ export function sanitizeAnalysisUploadPayload<T extends Record<string, any>>(pay
     delete results.ai_narrative;
     results.__legacy_clinical_content = 'UNATTRIBUTED_LEGACY';
   }
-  return { ...payload, results };
+  return { ...payload, results } as T;
 }
 
 const safeArray = (value: unknown): any[] => Array.isArray(value) ? value : [];
