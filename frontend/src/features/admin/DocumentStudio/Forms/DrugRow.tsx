@@ -1,9 +1,22 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { AlertCircle, ChevronRight, ChevronUp, ChevronDown, Microscope, Pill, Trash2 } from 'lucide-react';
+import {
+  AlertCircle, CalendarDays, ChevronRight, ChevronUp, ChevronDown,
+  Clock3, Microscope, Pill, Trash2, Utensils,
+} from 'lucide-react';
 import { cn } from '../../../../utils/cn';
 import type { DrugItem } from './prescriptionTypes';
 import { getFormeIcon } from './prescriptionTypes';
+import {
+  PRESCRIPTION_AMOUNT_OPTIONS,
+  PRESCRIPTION_CONSTRAINT_OPTIONS,
+  PRESCRIPTION_CONTEXT_OPTIONS,
+  PRESCRIPTION_FREQUENCY_OPTIONS,
+  composePrescriptionPosology,
+  composerRecognitionCount,
+  parsePrescriptionPosology,
+  type PrescriptionComposerState,
+} from './PrescriptionComposer';
 import type { ValidationError } from '../useDocumentGenerator';
 
 export interface DrugRowProps {
@@ -44,6 +57,14 @@ export const DrugRow: React.FC<DrugRowProps> = ({
     : null;
   const isNameSuggestOpen = activeSearchId?.id === drug.id && activeSearchId?.field === 'name' && suggestions.medications.length > 0;
   const cardLabel = isRadio ? `Examen ${String(idx + 1).padStart(2, '0')}` : `Médicament ${String(idx + 1).padStart(2, '0')}`;
+  const composer = parsePrescriptionPosology(drug.posologie);
+  const composerRecognized = composerRecognitionCount(composer);
+  const hasCustomPosology = Boolean(drug.posologie.trim()) && composerRecognized < 2;
+
+  const updateComposer = (field: keyof PrescriptionComposerState, value: string) => {
+    const next = { ...composer, [field]: value };
+    onUpdateDrug(drug.id, 'posologie', composePrescriptionPosology(next));
+  };
 
   return (
     <motion.div
@@ -182,7 +203,7 @@ export const DrugRow: React.FC<DrugRowProps> = ({
           )}
 
           {!isRadio && hasIdentity && (
-            <div className="mt-3 grid min-w-0 gap-3 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
+            <div className="mt-3 min-w-0 space-y-3">
               <div className="flex min-w-0 flex-wrap content-start items-center gap-2">
                 <button
                   type="button"
@@ -231,21 +252,107 @@ export const DrugRow: React.FC<DrugRowProps> = ({
                 </button>
               </div>
 
-              <label className="block min-w-0 rounded-xl border border-border-main bg-input-field/70 px-3 py-2.5 transition-all focus-within:border-primary/30 focus-within:bg-card focus-within:ring-2 focus-within:ring-primary/10">
-                <span className="mb-1 block text-[9px] font-black uppercase tracking-[0.14em] text-text-muted">Posologie</span>
-                <textarea
-                  rows={2}
-                  className="min-h-[3.25rem] w-full min-w-0 resize-none border-none bg-transparent p-0 text-xs font-bold leading-relaxed text-text-main outline-none placeholder:text-text-muted/55 focus:ring-0"
-                  placeholder="Ex. 1 gélule × 3/jour pendant 7 jours"
-                  value={drug.posologie}
-                  onFocus={() => onSearch(drug.id, 'posologie', drug.posologie)}
-                  onChange={e => {
-                    onSearch(drug.id, 'posologie', e.target.value);
-                    e.target.style.height = 'auto';
-                    e.target.style.height = `${e.target.scrollHeight}px`;
-                  }}
-                />
-              </label>
+              <div
+                data-ordonnance-prescription-composer
+                className="rounded-2xl border border-border-main bg-glass-bg/70 p-2.5 shadow-sm backdrop-blur-xl sm:p-3"
+              >
+                <div className="mb-2 flex flex-wrap items-center justify-between gap-2 px-0.5">
+                  <span className="text-[9px] font-black uppercase tracking-[0.16em] text-text-muted">Prescription structurée</span>
+                  {hasCustomPosology && (
+                    <span className="text-[8px] font-bold text-text-muted">Texte libre actif · un choix reconstruit la phrase</span>
+                  )}
+                </div>
+
+                <div className="grid min-w-0 grid-cols-2 gap-2 xl:grid-cols-4">
+                  <label className="relative min-w-0">
+                    <Pill size={14} className="pointer-events-none absolute left-3 top-1/2 z-10 -translate-y-1/2 text-text-muted" />
+                    <select
+                      data-composer-field="amount"
+                      aria-label="Prise"
+                      value={composer.amount}
+                      onChange={e => updateComposer('amount', e.target.value)}
+                      className="min-h-11 w-full appearance-none rounded-xl border border-border-main bg-input-field/80 py-2 pl-9 pr-7 text-[10px] font-black text-text-main outline-none transition-all hover:border-primary/30 focus:border-primary/40 focus:ring-2 focus:ring-primary/10"
+                    >
+                      <option value="">Prise</option>
+                      {PRESCRIPTION_AMOUNT_OPTIONS.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}
+                    </select>
+                    <ChevronDown size={13} className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-text-muted" />
+                  </label>
+
+                  <label className="relative min-w-0">
+                    <Clock3 size={14} className="pointer-events-none absolute left-3 top-1/2 z-10 -translate-y-1/2 text-text-muted" />
+                    <select
+                      data-composer-field="frequency"
+                      aria-label="Rythme"
+                      value={composer.frequency}
+                      onChange={e => updateComposer('frequency', e.target.value)}
+                      className="min-h-11 w-full appearance-none rounded-xl border border-border-main bg-input-field/80 py-2 pl-9 pr-7 text-[10px] font-black text-text-main outline-none transition-all hover:border-primary/30 focus:border-primary/40 focus:ring-2 focus:ring-primary/10"
+                    >
+                      <option value="">Rythme</option>
+                      {PRESCRIPTION_FREQUENCY_OPTIONS.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}
+                    </select>
+                    <ChevronDown size={13} className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-text-muted" />
+                  </label>
+
+                  <label className="relative min-w-0">
+                    <CalendarDays size={14} className="pointer-events-none absolute left-3 top-1/2 z-10 -translate-y-1/2 text-text-muted" />
+                    <select
+                      data-composer-field="constraint"
+                      aria-label="Durée ou limite"
+                      value={composer.constraint}
+                      onChange={e => updateComposer('constraint', e.target.value)}
+                      className="min-h-11 w-full appearance-none rounded-xl border border-border-main bg-input-field/80 py-2 pl-9 pr-7 text-[10px] font-black text-text-main outline-none transition-all hover:border-primary/30 focus:border-primary/40 focus:ring-2 focus:ring-primary/10"
+                    >
+                      <option value="">Durée / max</option>
+                      {PRESCRIPTION_CONSTRAINT_OPTIONS.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}
+                    </select>
+                    <ChevronDown size={13} className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-text-muted" />
+                  </label>
+
+                  <label className="relative min-w-0">
+                    <Utensils size={14} className="pointer-events-none absolute left-3 top-1/2 z-10 -translate-y-1/2 text-text-muted" />
+                    <select
+                      data-composer-field="context"
+                      aria-label="Moment ou condition"
+                      value={composer.context}
+                      onChange={e => updateComposer('context', e.target.value)}
+                      className="min-h-11 w-full appearance-none rounded-xl border border-border-main bg-input-field/80 py-2 pl-9 pr-7 text-[10px] font-black text-text-main outline-none transition-all hover:border-primary/30 focus:border-primary/40 focus:ring-2 focus:ring-primary/10"
+                    >
+                      <option value="">Moment / durée</option>
+                      {PRESCRIPTION_CONTEXT_OPTIONS.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}
+                    </select>
+                    <ChevronDown size={13} className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-text-muted" />
+                  </label>
+                </div>
+
+                <div
+                  data-composer-summary
+                  className="mt-2 min-h-11 rounded-xl border border-border-main/80 bg-input-field/45 px-3 py-2.5 text-xs font-bold leading-relaxed text-text-main"
+                >
+                  {drug.posologie || 'Sélectionnez les paramètres de prise pour générer la phrase de prescription.'}
+                </div>
+
+                <details className="mt-1.5 group">
+                  <summary className="cursor-pointer select-none px-1 py-1.5 text-[9px] font-black uppercase tracking-[0.14em] text-text-muted hover:text-primary">
+                    Texte libre
+                  </summary>
+                  <label className="mt-1 block min-w-0 rounded-xl border border-border-main bg-input-field/70 px-3 py-2.5 transition-all focus-within:border-primary/30 focus-within:bg-card focus-within:ring-2 focus-within:ring-primary/10">
+                    <textarea
+                      rows={2}
+                      aria-label="Posologie en texte libre"
+                      className="min-h-[3.25rem] w-full min-w-0 resize-none border-none bg-transparent p-0 text-xs font-bold leading-relaxed text-text-main outline-none placeholder:text-text-muted/55 focus:ring-0"
+                      placeholder="Ex. 1 gélule × 3/jour pendant 7 jours"
+                      value={drug.posologie}
+                      onFocus={() => onSearch(drug.id, 'posologie', drug.posologie)}
+                      onChange={e => {
+                        onSearch(drug.id, 'posologie', e.target.value);
+                        e.target.style.height = 'auto';
+                        e.target.style.height = `${e.target.scrollHeight}px`;
+                      }}
+                    />
+                  </label>
+                </details>
+              </div>
             </div>
           )}
 
