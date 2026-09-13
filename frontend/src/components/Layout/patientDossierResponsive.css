@@ -1,0 +1,81 @@
+/* Patient dossier responsive contract — UX1
+ * Scope deliberately limited to the patient route by :has([data-flow-patient-surface]).
+ * Desktop remains untouched; mobile/tablet reduce chrome and make hidden navigation discoverable.
+ */
+
+@media (max-width: 767px) {
+  body:has([data-flow-patient-surface]) header.sticky > div {
+    padding-top: 0.5rem;
+    padding-left: 0.75rem;
+    padding-right: 0.75rem;
+  }
+
+  body:has([data-flow-patient-surface]) header.sticky > div > div:first-child {
+    gap: 0.5rem;
+    margin-bottom: 0.5rem;
+  }
+
+  body:has([data-flow-patient-surface]) header.sticky h1 {
+    font-size: 1rem !important;
+    line-height: 1.2 !important;
+  }
+
+  body:has([data-flow-patient-surface]) [aria-label="Actions rapides patient"] {
+    gap: 0.375rem !important;
+  }
+
+  body:has([data-flow-patient-surface]) [aria-label="Actions rapides patient"] > button {
+    height: 2.5rem !important;
+  }
+
+  body:has([data-flow-patient-surface]) [data-tour="patient-tabs"] {
+    gap: 0.25rem !important;
+    padding-right: 2.75rem;
+    scroll-snap-type: x mandatory;
+    scroll-padding-inline: 0.5rem;
+    -webkit-overflow-scrolling: touch;
+    -webkit-mask-image: linear-gradient(to right, #000 0, #000 calc(100% - 2.75rem), transparent 100%);
+    mask-image: linear-gradient(to right, #000 0, #000 calc(100% - 2.75rem), transparent 100%);
+  }
+
+  body:has([data-flow-patient-surface]) [data-tour="patient-tabs"] > button {
+    scroll-snap-align: start;
+    padding-left: 0.5rem !important;
+    padding-right: 0.5rem !important;
+    gap: 0.35rem !important;
+    font-size: 0.625rem !important;
+    letter-spacing: 0.04em !important;
+  }
+
+  body:has([data-flow-patient-surface]) [aria-label="Modalités d’imagerie"] {
+    display: grid !important;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    width: 100% !important;
+    max-width: 100% !important;
+    overflow: visible !important;
+  }
+
+  body:has([data-flow-patient-surface]) [aria-label="Modalités d’imagerie"] > button {
+    min-width: 0 !important;
+    justify-content: center !important;
+    gap: 0.25rem !important;
+    padding: 0.65rem 0.35rem !important;
+    white-space: normal !important;
+    text-align: center;
+    font-size: 0.56rem !important;
+    line-height: 1.15 !important;
+    letter-spacing: 0.03em !important;
+  }
+}
+
+@media (min-width: 768px) and (max-width: 1023px) {
+  body:has([data-flow-patient-surface]) [aria-label="Modalités d’imagerie"] {
+    display: grid !important;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    width: min(100%, 42rem) !important;
+  }
+
+  body:has([data-flow-patient-surface]) [aria-label="Modalités d’imagerie"] > button {
+    justify-content: center !important;
+  }
+}
