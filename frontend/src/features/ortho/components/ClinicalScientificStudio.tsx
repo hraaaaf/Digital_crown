@@ -165,7 +165,7 @@ export const ClinicalScientificStudio: React.FC<Props> = ({ patientId, analysisI
                   Diagnostic → décision clinique
                 </span>
               </div>
-              <p className="mt-1 max-w-3xl text-[11px] leading-4.5" style={{ color: P.textMuted }}>
+              <p className="mt-1 max-w-3xl text-[11px] leading-[18px]" style={{ color: P.textMuted }}>
                 États autoritaires, provenance et blocages. Une mesure calculable n'est ni un diagnostic, ni une indication, ni un traitement.
               </p>
             </div>
@@ -240,18 +240,13 @@ export const ClinicalScientificStudio: React.FC<Props> = ({ patientId, analysisI
           {selected && (
             <div className="mt-3 overflow-hidden rounded-2xl border" style={{ borderColor: P.border, background: P.bgCard }}>
               <div className="border-b px-3.5 py-3 sm:px-4" style={{ borderColor: P.border }}>
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <div className="flex min-w-0 flex-wrap items-center gap-2">
-                    <span className="text-xs font-black" style={{ color: P.text }}>{selected.title}</span>
-                    <span className="rounded-full border px-2 py-0.5 text-[8px] font-bold uppercase tracking-[0.12em]" style={{ borderColor: P.border, color: P.textDim }}>
-                      Réf. technique {selected.stage_id}
-                    </span>
-                  </div>
-                  <span className="text-[10px] font-bold" style={{ color: statusColor(selected.presentation_state) }}>
-                    {stateLabel(selected.presentation_state)}
+                <div className="flex min-w-0 flex-wrap items-center gap-2">
+                  <span className="text-xs font-black" style={{ color: P.text }}>{selected.title}</span>
+                  <span className="rounded-full border px-2 py-0.5 text-[8px] font-bold uppercase tracking-[0.12em]" style={{ borderColor: P.border, color: P.textDim }}>
+                    Réf. technique {selected.stage_id}
                   </span>
                 </div>
-                <p className="mt-1.5 max-w-4xl text-[11px] leading-4.5" style={{ color: P.textMuted }}>{selected.summary}</p>
+                <p className="mt-1.5 max-w-4xl text-[11px] leading-[18px]" style={{ color: P.textMuted }}>{selected.summary}</p>
               </div>
 
               <div className="grid gap-3 p-3 sm:p-4 xl:grid-cols-[minmax(0,1.45fr)_minmax(250px,0.55fr)]">
@@ -305,7 +300,7 @@ export const ClinicalScientificStudio: React.FC<Props> = ({ patientId, analysisI
                   <p className="mt-2 text-[11px] font-black" style={{ color: P.text }}>
                     {selected.clinician_action.available ? selected.clinician_action.label : 'Aucune validation disponible'}
                   </p>
-                  <p className="mt-1.5 text-[10px] leading-4.5" style={{ color: P.textMuted }}>{selected.clinician_action.reason}</p>
+                  <p className="mt-1.5 text-[10px] leading-[18px]" style={{ color: P.textMuted }}>{selected.clinician_action.reason}</p>
                   <div className="mt-2.5 rounded-lg border px-2.5 py-2 text-[9px] font-bold leading-4" style={{ borderColor: P.border, color: P.textDim }}>
                     Toute validation visible doit créer une preuve backend résolue avec cible, clinicien et horodatage. Aucun état local ne vaut validation clinique.
                   </div>
