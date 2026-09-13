@@ -20,6 +20,10 @@ describe('Ordonnance Perfect V2 UX contract', () => {
     expect(header).toContain("activeTab === 'honoraires'");
   });
 
+  it('keeps the ordonnance header in normal flow so it cannot cover prescription content', () => {
+    expect(header).toContain('compactOrdonnance ? "relative z-20" : "sticky top-0 z-[60]"');
+  });
+
   it('keeps deterministic prescription safety and established clinical copy visible', () => {
     expect(prescription).toContain('Contexte patient');
     expect(prescription).toContain('Données du dossier et vérifications déterministes utilisées pour l’ordonnance en cours.');
