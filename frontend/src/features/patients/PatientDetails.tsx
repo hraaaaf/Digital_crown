@@ -1,6 +1,7 @@
 import { useEffect, useLayoutEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { DigitalCrownLoader } from '../../components/DigitalCrownLoader';
+import '../../components/Layout/patientDossierResponsive.css';
 import { PatientDetails as PatientDetailsInner } from './PatientDetailsInner';
 import { PatientPractitionerContextPortal } from './components/PatientPractitionerContextPortal';
 import {
