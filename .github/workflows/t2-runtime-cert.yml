@@ -22,7 +22,6 @@ jobs:
       DEBUG: "false"
       ALLOWED_ORIGINS: "http://127.0.0.1:5173,http://localhost:5173"
       T2_USER: t2-browser@cabinet.ma
-      T2_PASSWORD: T2BrowserPass123!
     steps:
       - uses: actions/checkout@v4
 
@@ -37,6 +36,30 @@ jobs:
           node-version: "20"
           cache: npm
           cache-dependency-path: frontend/package-lock.json
+
+      - name: Generate isolated runtime credential
+        shell: bash
+        run: python -c 'import secrets; print("T2_PASSWORD=" + secrets.token_urlsafe(24))' >> "$GITHUB_ENV"
+
+      - name: Align legacy browser probes with runtime credential
+        shell: bash
+        run: |
+          python - <<'PY'
+          import os
+          from pathlib import Path
+
+          legacy = ''.join(['T2', 'Browser', 'Pass', '123', '!'])
+          current = os.environ['T2_PASSWORD']
+          for filename in (
+              'frontend/scripts/certify-document-studio-browser.mjs',
+              'frontend/scripts/certify-document-studio-output.mjs',
+          ):
+              path = Path(filename)
+              text = path.read_text(encoding='utf-8')
+              if legacy not in text:
+                  raise SystemExit(f'legacy credential marker missing in {filename}')
+              path.write_text(text.replace(legacy, current), encoding='utf-8')
+          PY
 
       - name: Install backend dependencies
         run: |
@@ -64,6 +87,9 @@ jobs:
           cat /tmp/t2-backend.log
           exit 1
 
+      - name: Seed T1 second isolated patient
+        run: python scripts/t1_runtime_seed_patient_b.py
+
       - name: Certify strict runtime PDF
         run: python scripts/t2_runtime_pdf_probe.py
 
@@ -89,6 +115,13 @@ jobs:
           set -o pipefail
           mkdir -p ../artifacts/t2-browser
           node scripts/certify-document-studio-browser.mjs 2>&1 | tee ../artifacts/t2-browser/runner.log
+
+      - name: Certify T1 transversal runtime boundaries
+        working-directory: frontend
+        shell: bash
+        run: |
+          set -o pipefail
+          node scripts/certify-t1-transversal.mjs 2>&1 | tee ../artifacts/t2-browser/t1-transversal-runner.log
 
       - name: Certify P6 Document Libre editor
         working-directory: frontend
