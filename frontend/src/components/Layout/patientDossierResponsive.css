@@ -1,6 +1,6 @@
 /* Patient dossier responsive contract — UX1
  * Scope deliberately limited to the patient route by :has([data-flow-patient-surface]).
- * Desktop remains untouched; mobile/tablet reduce chrome and make hidden navigation discoverable.
+ * Desktop remains untouched; mobile/tablet reduce chrome and keep every patient destination visible.
  */
 
 @media (max-width: 767px) {
@@ -29,22 +29,32 @@
   }
 
   body:has([data-flow-patient-surface]) [data-tour="patient-tabs"] {
-    gap: 0.25rem !important;
-    padding-right: 2.75rem;
-    scroll-snap-type: x mandatory;
-    scroll-padding-inline: 0.5rem;
-    -webkit-overflow-scrolling: touch;
-    -webkit-mask-image: linear-gradient(to right, #000 0, #000 calc(100% - 2.75rem), transparent 100%);
-    mask-image: linear-gradient(to right, #000 0, #000 calc(100% - 2.75rem), transparent 100%);
+    display: grid !important;
+    grid-template-columns: repeat(auto-fit, minmax(3.75rem, 1fr));
+    gap: 0.125rem !important;
+    padding-right: 0 !important;
+    overflow: visible !important;
+    -webkit-mask-image: none !important;
+    mask-image: none !important;
   }
 
   body:has([data-flow-patient-surface]) [data-tour="patient-tabs"] > button {
-    scroll-snap-align: start;
-    padding-left: 0.5rem !important;
-    padding-right: 0.5rem !important;
-    gap: 0.35rem !important;
-    font-size: 0.625rem !important;
-    letter-spacing: 0.04em !important;
+    min-width: 0 !important;
+    min-height: 2.75rem !important;
+    flex-direction: column;
+    justify-content: center;
+    padding: 0.3rem 0.1rem !important;
+    gap: 0.15rem !important;
+    font-size: 0.5rem !important;
+    line-height: 1.05 !important;
+    letter-spacing: 0.02em !important;
+    white-space: normal !important;
+    text-align: center;
+  }
+
+  body:has([data-flow-patient-surface]) [data-tour="patient-tabs"] > button svg {
+    width: 0.95rem;
+    height: 0.95rem;
   }
 
   body:has([data-flow-patient-surface]) [aria-label="Modalités d’imagerie"] {
