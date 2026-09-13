@@ -1,6 +1,6 @@
 @import "tailwindcss";
 
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Outfit:wght@400;500;600;700;800;900&family=Playfair+Display:ital,wght@0,400..900;1,400..900&family=JetBrains+Mono:wght@400;500;600;700;800&family=Lora:ital,wght@0,400..700;1,400..700&family=Amiri:ital,wght@0,400;0,700;1,400;1,700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Outfit:wght@400;500;600;700;800;900&family=Playfair+Display:ital,wght@0,400..900;1,400..900&family=JetBrains+Mono:wght@400;500;600;700;800&family=Lora:ital,wght@0,400..700;1,400..700&family=Amiri:ital,wght@0,400;0,700;1,700&display=swap');
 
 @theme {
   /* Palette Médicale Pro - Pilotée par Variables CSS */
@@ -373,5 +373,13 @@ body {
     left: 50% !important;
     transform: translateX(-50%);
     max-width: calc(100vw - 2rem);
+  }
+}
+
+/* Open Patient Documents action menus upward on larger screens to avoid bottom clipping. */
+@media (min-width: 640px) {
+  [data-document-action-menu] {
+    top: auto !important;
+    bottom: 3rem !important;
   }
 }
