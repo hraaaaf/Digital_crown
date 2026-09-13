@@ -1,9 +1,18 @@
 import React from 'react';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { describe, expect, it, vi } from 'vitest';
+import { beforeAll, describe, expect, it, vi } from 'vitest';
 import { PALETTE } from '../cephaloTheme';
 import { StepTab } from './StepTab';
+
+beforeAll(() => {
+  if (typeof globalThis.PointerEvent === 'undefined') {
+    Object.defineProperty(globalThis, 'PointerEvent', {
+      value: MouseEvent,
+      configurable: true,
+    });
+  }
+});
 
 describe('StepTab R15bis', () => {
   it('exposes the active step semantically and remains keyboard activatable', async () => {
