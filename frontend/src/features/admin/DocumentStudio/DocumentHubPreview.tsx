@@ -86,15 +86,15 @@ export const DocumentHubPreview: React.FC<DocumentHubPreviewProps> = ({
         <style>{`
           @media (min-width: 1280px) {
             .relative:has(> [data-ordonnance-desktop-preview="inline"]) > .custom-scrollbar {
-              padding-left: 1.25rem !important;
-              padding-right: 27.8125rem !important;
+              padding-left: 1rem !important;
+              padding-right: 21.25rem !important;
             }
           }
         `}</style>
         <aside
           data-ordonnance-desktop-preview="inline"
           aria-label={`Aperçu document — ${title}`}
-          className="absolute inset-y-6 right-5 z-30 hidden w-[400px] min-w-0 xl:block"
+          className="absolute inset-y-6 right-5 z-30 hidden w-[300px] min-w-0 xl:block"
         >
           {preview}
         </aside>
