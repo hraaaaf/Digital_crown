@@ -7,16 +7,16 @@ const source = (file: string) => readFileSync(
   'utf8',
 );
 
-const hub = readFileSync(resolve(process.cwd(), 'src/features/admin/DocumentHub.tsx'), 'utf8');
 const preview = source('DocumentHubPreview.tsx');
 const livePreview = source('LivePreview.tsx');
 
 describe('Ordonnance Fidelity V3 U5 desktop composition', () => {
-  it('reuses the existing desktop preview reservation instead of stacking a portal over it', () => {
-    expect(hub).toContain('xl:pr-[570px]');
+  it('uses a balanced inline split at desktop width without collapsing the editor', () => {
     expect(preview).toContain("const desktopPreviewQuery = '(min-width: 1280px)'");
     expect(preview).toContain('data-ordonnance-desktop-preview="inline"');
-    expect(preview).toContain('w-[520px]');
+    expect(preview).toContain('w-[400px]');
+    expect(preview).toContain('padding-right: 27.8125rem !important');
+    expect(preview).toContain('padding-left: 1.25rem !important');
   });
 
   it('keeps the mobile and tablet preview modal behavior', () => {
