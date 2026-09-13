@@ -50,7 +50,7 @@ describe('UX1 patient dossier responsive contract', () => {
     expect(layout).toContain('lg:w-[400px] lg:h-[600px]');
   });
 
-  it('keeps compact patient toasts non-blocking', () => {
+  it('keeps compact patient toasts non-blocking and below CrownBot', () => {
     expect(app).toContain('const ContextualToaster');
     expect(app).toContain('window.innerWidth < 1024');
     expect(app).toContain("position={patientCompact ? 'top-center' : 'bottom-right'}");
@@ -58,6 +58,7 @@ describe('UX1 patient dossier responsive contract', () => {
     expect(app).toContain('<ContextualToaster />');
     expect(css).toContain('[data-rht-toaster]');
     expect(css).toContain('top: 5.5rem !important');
+    expect(css).toContain('z-index: 900 !important');
     expect(css).toContain('pointer-events: none !important');
   });
 
