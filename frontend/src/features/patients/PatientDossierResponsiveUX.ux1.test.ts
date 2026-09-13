@@ -9,6 +9,8 @@ const patient = read('src/features/patients/PatientDetailsInner.tsx');
 const bridge = read('src/features/patients/components/PatientMobileBridge.tsx');
 const tabs = read('src/features/admin/DocumentStudio/StudioTabs.tsx');
 const layout = read('src/components/Layout/MainLayout.tsx');
+const header = read('src/components/Header.tsx');
+const app = read('src/App.tsx');
 const css = read('src/components/Layout/patientDossierResponsive.css');
 
 describe('UX1 patient dossier responsive contract', () => {
@@ -38,12 +40,20 @@ describe('UX1 patient dossier responsive contract', () => {
     expect(tabs).toContain('w-full lg:w-auto');
   });
 
-  it('keeps CrownBot inside mobile safe areas and uses a viewport overlay when open', () => {
-    expect(layout).toContain("./patientDossierResponsive.css");
-    expect(layout).toContain('bottom-[max(1rem,env(safe-area-inset-bottom))]');
-    expect(layout).toContain('fixed inset-3 z-[1000]');
-    expect(layout).toContain('sm:w-[400px] sm:h-[600px]');
-    expect(layout).toContain("aria-expanded={isBotOpen}");
+  it('moves the patient CrownBot launcher into the compact header and keeps the chat over content', () => {
+    expect(header).toContain('data-ux1-c-crownbot-header');
+    expect(header).toContain('min-w-11 min-h-11');
+    expect(layout).toContain("onToggleCrownBot={isPatientRoute ? () => setIsBotOpen(value => !value) : undefined}");
+    expect(layout).toContain("isPatientRoute ? 'hidden lg:block' : ''");
+    expect(layout).toContain('lg:w-[400px] lg:h-[600px]');
+  });
+
+  it('moves compact patient toasts to the top and constrains their width', () => {
+    expect(app).toContain('const ContextualToaster');
+    expect(app).toContain('window.innerWidth < 1024');
+    expect(app).toContain("position={patientCompact ? 'top-center' : 'bottom-right'}");
+    expect(app).toContain("maxWidth: patientCompact ? 'calc(100vw - 24px)' : '420px'");
+    expect(app).toContain('<ContextualToaster />');
   });
 
   it('keeps the mobile bridge compact without shrinking the touch target below 44px', () => {
