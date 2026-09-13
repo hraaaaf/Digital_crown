@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Bell, UserCircle, Settings, LogOut, Calculator, Shield } from 'lucide-react';
+import { Bell, UserCircle, Settings, LogOut, Calculator, Shield, Bot } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { cabinetApi } from '../services/templateApi';
 import { api } from '../services/api';
@@ -8,7 +8,13 @@ import { useAuthStore } from '../stores/useAuthStore';
 import { authService } from '../services/auth';
 import { TutorialHelpButton } from '../features/tutorial/VoluntaryTutorial';
 
-export const Header = () => {
+interface HeaderProps {
+  isCrownBotOpen?: boolean;
+  crownBotUnreadCount?: number;
+  onToggleCrownBot?: () => void;
+}
+
+export const Header = ({ isCrownBotOpen = false, crownBotUnreadCount = 0, onToggleCrownBot }: HeaderProps) => {
   const [cabinetName, setCabinetName] = useState('Chargement...');
   const [praticienName, setPraticienName] = useState('Praticien');
   const [treasuryCount, setTreasuryCount] = useState(0);
@@ -86,12 +92,12 @@ export const Header = () => {
   };
 
   return (
-    <header className="h-20 bg-transparent flex items-center justify-end gap-6 px-8 shrink-0 relative z-[1000]">
-      <div className="flex items-center gap-2">
+    <header className="h-20 bg-transparent flex items-center justify-end gap-2 pl-16 pr-3 sm:pl-20 sm:pr-6 lg:gap-6 lg:px-8 shrink-0 relative z-[1000]">
+      <div className="flex items-center gap-1 sm:gap-2">
         {user?.is_superadmin && (
           <Link
             to="/super-admin"
-            className="hidden sm:flex items-center gap-2 px-3 py-2 bg-amber-400/10 text-amber-500 hover:bg-amber-400/20 rounded-elite-sm font-black text-xs transition-elite border border-amber-400/20 mr-2"
+            className="hidden lg:flex items-center gap-2 px-3 py-2 bg-amber-400/10 text-amber-500 hover:bg-amber-400/20 rounded-elite-sm font-black text-xs transition-elite border border-amber-400/20 mr-2"
           >
             Gestion des Dentistes
           </Link>
@@ -100,11 +106,29 @@ export const Header = () => {
         {user?.is_superadmin && (
           <Link
             to="/super-admin"
-            className="flex sm:hidden p-2.5 text-amber-500 bg-amber-400/10 hover:bg-amber-400/20 rounded-elite-sm transition-elite border border-amber-400/20"
+            className="hidden sm:flex lg:hidden p-2.5 text-amber-500 bg-amber-400/10 hover:bg-amber-400/20 rounded-elite-sm transition-elite border border-amber-400/20"
             title="Gestion des Dentistes"
           >
             <Shield size={20} />
           </Link>
+        )}
+
+        {onToggleCrownBot && (
+          <button
+            type="button"
+            data-ux1-c-crownbot-header
+            onClick={onToggleCrownBot}
+            aria-label={isCrownBotOpen ? 'Fermer CrownBot' : 'Ouvrir CrownBot'}
+            aria-expanded={isCrownBotOpen}
+            className="lg:hidden relative min-w-11 min-h-11 inline-flex items-center justify-center text-text-muted hover:text-primary hover:bg-primary/5 rounded-elite-sm transition-elite"
+          >
+            <Bot size={20} />
+            {crownBotUnreadCount > 0 && !isCrownBotOpen && (
+              <span className="absolute top-1 right-1 min-w-4 h-4 px-1 bg-amber-400 text-slate-900 text-[8px] font-black rounded-full flex items-center justify-center border border-card-bg">
+                {crownBotUnreadCount}
+              </span>
+            )}
+          </button>
         )}
 
         <TutorialHelpButton />
@@ -157,9 +181,9 @@ export const Header = () => {
         </div>
       </div>
 
-      <div className="hidden md:block w-px h-6 bg-border-main mx-2" />
+      <div className="hidden lg:block w-px h-6 bg-border-main mx-2" />
 
-      <div className="flex items-center gap-4">
+      <div className="hidden lg:flex items-center gap-4">
         <div className="text-right hidden lg:block">
           <p className="text-sm font-black text-primary leading-none tracking-tight font-outfit">{cabinetName}</p>
           <p className="text-[10px] font-bold text-text-muted mt-1 uppercase tracking-tighter">
@@ -173,7 +197,7 @@ export const Header = () => {
 
       <button
         onClick={() => setShowLogoutConfirm(true)}
-        className="ml-2 p-2.5 text-text-muted hover:text-red-600 hover:bg-red-500/10 rounded-elite-sm transition-elite group"
+        className="ml-0 lg:ml-2 p-2.5 text-text-muted hover:text-red-600 hover:bg-red-500/10 rounded-elite-sm transition-elite group"
         title="Déconnexion"
       >
         <LogOut size={20} className="group-hover:scale-110 transition-elite" />

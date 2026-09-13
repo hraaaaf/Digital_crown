@@ -4,112 +4,116 @@ Date : 2026-09-13
 
 ## État vérifié
 
-T1 est fermé : PR #465 squash-mergée, master post-merge `b9fc9ca6f0e978d51fa2180c30143b2c2c047200` vérifié.
+T1 Document Studio est fermé : PR #465 squash-mergée, master post-merge `b9fc9ca6f0e978d51fa2180c30143b2c2c047200` vérifié.
 
-Le lot UX transversal est porté par la PR #467, branche `ux/patient-dossier-transversal`. La preuve visuelle de référence ci-dessous est le HEAD produit `5846b7bd46b0d9cc2ec18319f86c8867755f8472` ; le closeout documentaire qui contient ce texte doit encore être recertifié exact-head avant merge.
+UX1-A/B est fermé : PR #467 squash-mergée sur master `0ca44f224f03d31f8d322498484fe2bfcd5d66e9`.
 
-Gates observés sur `5846b7bd46b0d9cc2ec18319f86c8867755f8472` :
-- Patient P7 Final Certification #1325 : SUCCESS, 40/40 captures attendues ;
-- Clinic P2 Patient Billing Visual Certification #51 : SUCCESS ; artifact `clinic-p2-patient-visual-evidence` ID `10317211290`, digest `sha256:2487167d7d247d810e97bfc28ab9029b84b1e1bf33b5460b5d1d64bcc2078150` ;
-- T2 Runtime Browser Certification #2662 : SUCCESS ;
-- Cabinet Upgrade PostgreSQL #177 : SUCCESS ;
-- Settings R11 #518 : SUCCESS ;
-- M6-I #1462 : SKIPPED attendu ;
-- CI #3719 et Clinic P1 #21 étaient encore non terminaux lors de ce closeout intermédiaire.
+UX1-C est porté par la PR #468, branche `ux/patient-dossier-overlays`.
 
-## BEFORE inspecté
-
-Captures réelles 390x844, 430x932, 768x1024 et 1280x900 sur : Vue d’ensemble, Clinique, Imagerie RVG, Panoramique, Céphalométrie, Documents création, Documents historique, Finances, Nouveau patient, Modifier patient.
-
-Le desktop était stable, mais le mobile restait trop dérivé du desktop : chrome patient trop haut, destinations hors champ, sous-navigation Imagerie tronquée, types de documents cachés et couches flottantes couvrant du contenu.
+La preuve produit/visuelle de référence UX1-C est le HEAD `b73f2c7173637c8a867e6d97cb3aa197b475728a`. Le présent closeout documentaire crée un nouveau HEAD qui doit être recertifié exact-head avant squash merge.
 
 ## Goal UX1
 
-À 390/430/768, garder les fonctions actuelles mais rendre le dossier patient immédiatement lisible et navigable. À 1280, préserver la densité et la stabilité existantes.
+À 390/430/768, conserver toutes les fonctions du dossier patient tout en supprimant les effets de desktop compressé : navigation tronquée, colonnes secondaires qui étouffent la page et overlays qui recouvrent les zones cliniques ou CTA. À 1280, préserver la densité desktop existante.
 
 Succès observable :
-- aucune destination patient essentielle hors champ ;
-- RVG / Panoramique / Céphalométrie tous lisibles ;
-- les 6 types du Document Studio immédiatement découvrables ;
-- zéro overflow horizontal sur les surfaces certifiées ;
-- couches globales non bloquantes ;
-- captures AFTER 390/768/1280 + tests + comparaison avant merge.
+- les cinq destinations patient essentielles sont visibles sans scroll horizontal caché ;
+- RVG / Panoramique / Céphalométrie sont simultanément lisibles ;
+- les six types du Document Studio sont immédiatement découvrables ;
+- le Live Preview P6 ne recouvre plus arbitrairement le Studio ;
+- CrownBot compact est accessible depuis le header et son overlay reste dans le viewport ;
+- les toasts patient restent informatifs mais ne dominent ni ne bloquent CrownBot ;
+- zéro overflow horizontal et zéro page error sur la matrice UX1-C 390/768/1280.
 
-## Référence / mockup fonctionnel
+## BEFORE
 
-Mobile :
+Les captures initiales montraient :
+- header patient trop haut sur mobile ;
+- `Documents` / `Finances` hors champ à 390 ;
+- sous-navigation Imagerie tronquée ;
+- six types Document Studio partiellement cachés ;
+- Live Preview P6 en drawer latéral recouvrant le Studio ;
+- CrownBot flottant couvrant du contenu ;
+- toast `Dossier à compléter` pouvant recouvrir une zone utile puis le header CrownBot.
+
+## Référence fonctionnelle
+
+Mobile : une tâche principale par écran. Les couches lourdes viennent par-dessus le contenu, jamais en colonne concurrente.
 
 ```text
-[←] NOM Patient              [actions]
+[Menu]                     [Bot][Aide][Réglages][Notif][Sortie]
+[←] NOM Patient                     [Modifier]
 N° dossier · âge · téléphone
 [ RDV ][ Examen ][ Document ][ Encaisser ]
 [ Vue ][ Clinique ][ Imagerie ][ Documents ][ Finances ]
-             contenu métier
+                 contenu métier
 ```
 
-En Imagerie, les 3 modalités doivent être visibles simultanément. Dans Document Studio, les 6 types passent en grille mobile plutôt qu’en bandeau horizontal caché. Un overlay lourd prend le viewport ; une action secondaire flottante ne doit pas couvrir une zone clinique critique.
+## AFTER vérifié
 
-## Résultat page par page / transversal
-
-### PASS — shell patient mobile
+### UX1-A — Shell patient mobile : PASS
 
 - Header compacté sans suppression fonctionnelle.
-- `Ouvrir sur mobile` reste disponible avec cible tactile >= 44 px.
-- À 390 px, les cinq destinations `Vue d’ensemble / Clinique / Imagerie / Documents / Finances` sont simultanément visibles.
-- L’onglet actif `Finances` reste visible et souligné dans la capture dédiée.
+- `Ouvrir sur mobile` conserve une cible tactile >= 44 px.
+- Les cinq destinations `Vue d’ensemble / Clinique / Imagerie / Documents / Finances` sont simultanément visibles à 390.
+- Aucun scroll horizontal caché n’est requis pour découvrir une destination patient.
 
-### PASS — Imagerie
+### UX1-B — Navigations secondaires : PASS
 
-- RVG / Panoramique / Céphalométrie sont visibles en grille 3 colonnes à 390/430/768.
-- Les captures Patient P7 #1325 couvrent les trois modalités sur 4 viewports.
+- Imagerie : RVG / Panoramique / Céphalométrie en grille 3 colonnes à 390/430/768.
+- Document Studio : les six types P1→P6 sont visibles en grille mobile/tablette.
+- Live Preview P6 : 390 plein écran utile, 768 overlay, 1280 modale centrée ; clipping nul sur la certification T2 correspondante.
 
-### PASS — Document Studio
+### UX1-C — Couches globales : PASS visuel et comportemental sur `b73f2c7...`
 
-- Les six types P1→P6 sont visibles à 390 en grille 2 colonnes : Ordonnance, Certificat, Devis, Note Honoraires, Suivi Paiement, Document Libre.
-- Le Live Preview P6 reste une vraie modale responsive : 390 plein écran, 768 overlay 736x992, 1280 modale centrée 1024x836 ; clipping = 0 sur la certification T2 antérieure puis T2 exact-head #2662 SUCCESS.
+Patient UX1-C Overlay Visual Certification #9 : **SUCCESS**.
 
-### PASS — overflow / stabilité
+Artifact :
+- nom : `patient-ux1c-overlay-evidence`
+- ID : `10318763556`
+- digest : `sha256:f15efce3409adeb6d0581904366cade9c1fde426eb04997cdbf2ee069054cad2`
 
-Clinic P2 #51 a produit 12 fichiers de métriques pour `details`, `finances`, `edit`, `add` aux viewports 390/768/1280 : `overflowPx = 0` et `errors = []` sur les 12.
+Matrice vérifiée :
+- 390×844 : launcher CrownBot header visible, launcher flottant absent, overlay `366×820`, `overlayZ=1000`, `toasterZ=900`, overflow=false, pageErrors=[] ;
+- 768×1024 : launcher CrownBot header visible, launcher flottant absent, overlay `744×1000`, `overlayZ=1000`, `toasterZ=900`, overflow=false, pageErrors=[] ;
+- 1280×900 : launcher header absent, launcher flottant desktop visible, overlay `400×600`, overflow=false, pageErrors=[] ;
+- le test échoue désormais si le toast compact passe devant CrownBot.
 
-Patient P7 #1325 : `status = PASS`, 40 captures / 40 attendues, 10 surfaces × 4 viewports.
-
-### PARTIAL — CrownBot
-
-- La fenêtre ouverte est désormais contrainte au viewport mobile et respecte la safe-area.
-- Le launcher flottant peut encore recouvrir une petite zone de contenu, notamment en bas du Document Studio à 390.
-- Ce point n’est donc pas certifié « zéro collision ».
-
-### OPEN — toast NBA
-
-- Le toast `Dossier à compléter` est encore rendu via le Toaster global `bottom-right` et peut masquer une partie de l’Imagerie à 390 pendant sa durée d’affichage.
-- Ne pas le déclarer corrigé. Sa transformation en callout persistant / centre de notifications reste une décision produit séparée ; un simple repositionnement non bloquant reste réversible.
+Autres gates observés sur `b73f2c7...` :
+- Patient P7 Final Certification #1338 : SUCCESS ;
+- T2 Runtime Browser Certification #2675 : SUCCESS ;
+- Clinic P1 #34 : SUCCESS ;
+- Clinic P2 #64 : SUCCESS ;
+- Cabinet Upgrade PostgreSQL #190 : SUCCESS ;
+- Settings R11 : SUCCESS ;
+- Voluntary Tutorial #37 : SUCCESS ;
+- Mobile Stock #56 : SUCCESS ;
+- M6-I #1475 : SKIPPED attendu ;
+- CI #3733 était encore en cours lors du passage au closeout documentaire et ne constitue donc pas une preuve de ce nouveau HEAD documentaire.
 
 ## P2 / human gates séparés
 
-- Ne pas supprimer automatiquement `Ouvrir sur mobile` sans décision produit.
-- Ne pas remplacer le wording interne `Étape P7 certifiée` sans mapping métier validé.
-- Ne pas transformer le NBA en nouveau flux métier sans arbitrage produit.
+- `Ouvrir sur mobile` reste conservé ; aucune suppression produit automatique.
+- Le wording interne `Étape P7 certifiée` n’est pas modifié sans mapping métier validé.
+- Le NBA reste un toast ; aucun nouveau workflow métier n’est créé par UX1.
+- Aucun déploiement Vercel n’est réalisé dans ce lot.
 
-## Scores visuels
+## Score visuel
 
-- P6 Live Preview : **9,2/10**. Réserve : header preview encore un peu haut à 390.
-- Shell/navigation patient après UX1-A/B : **8,8/10**. Les destinations sont enfin visibles sans scroll horizontal caché ; réserve principale : labels compacts à 390.
-- UX1 global : **non clôturé** tant que CrownBot launcher + toast NBA restent potentiellement superposés au contenu.
+Barème interne : lisibilité 25 %, hiérarchie 25 %, collisions/overlays 25 %, cohérence responsive 25 %.
 
-## Lots
+- P6 Live Preview : **9,2/10**.
+- Shell/navigation patient UX1-A/B : **8,8/10**.
+- UX1-C overlays : **9,4/10** après preuve 390/768/1280 et correction du layering toast/CrownBot.
+- UX1 global : **9,1/10**. Réserve principale : densité du chrome supérieur encore élevée à 390, sans collision fonctionnelle démontrée.
 
-### UX1-A — Shell patient mobile
-État : PASS visuel sur HEAD `5846b7bd...`.
+## Conclusion
 
-### UX1-B — Navigations secondaires
-État : PASS visuel sur HEAD `5846b7bd...`.
-
-### UX1-C — Couches globales
-État : PARTIAL / OPEN. CrownBot ouvert est responsive, mais launcher et toast NBA nécessitent encore un traitement non bloquant.
+UX1-A/B est fusionné. UX1-C est **fermé côté produit et preuve visuelle sur `b73f2c7...`**, mais la PR #468 ne doit être mergée qu’après certification exact-head du présent closeout documentaire.
 
 ## Next exact
 
-1. Recertifier le HEAD documentaire final issu de ce closeout.
-2. Si vert, merger PR #467 après contrôle mergeability/reviews/threads.
-3. Ouvrir UX1-C depuis master : CrownBot launcher + toast NBA, avec BEFORE/AFTER 390/768/1280 et sans changement de logique clinique.
+1. Recertifier le HEAD documentaire final de PR #468.
+2. Si les gates requis sont verts avec M6-I skipped attendu, vérifier mergeability + reviews/threads.
+3. Squash merge PR #468.
+4. Vérifier master post-merge et les éventuels workflows post-merge une fois.

@@ -58,6 +58,36 @@ const PageLoader = () => (
   <DigitalCrownLoader minHeight="min-h-[60vh]" className="bg-transparent" spinnerColor="border-blue-600" />
 );
 
+const ContextualToaster = () => {
+  const location = useLocation();
+  const [compactViewport, setCompactViewport] = useState(() => window.innerWidth < 1024);
+
+  useEffect(() => {
+    const onResize = () => setCompactViewport(window.innerWidth < 1024);
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
+
+  const patientCompact = /^\/patients(?:\/|$)/.test(location.pathname) && compactViewport;
+
+  return (
+    <Toaster
+      position={patientCompact ? 'top-center' : 'bottom-right'}
+      containerStyle={patientCompact ? { top: 12, left: 12, right: 12, bottom: 'auto' } : undefined}
+      toastOptions={{
+        style: {
+          borderRadius: '16px',
+          fontWeight: 700,
+          fontSize: '13px',
+          maxWidth: patientCompact ? 'calc(100vw - 24px)' : '420px',
+        },
+        success: { duration: 3000 },
+        error: { duration: 5000 },
+      }}
+    />
+  );
+};
+
 // ==============================================================================
 // COMPOSANT DE PROTECTION DES ROUTES
 // ==============================================================================
@@ -176,8 +206,6 @@ const MobileProtectedRoute = ({ children }: { children: React.ReactNode }) => {
 
   return <MobileBiometricGate>{children}</MobileBiometricGate>;
 };
-
-
 
 // =============================================================================
 // ROUTES PROTÉGÉES (avec layout)
@@ -310,14 +338,7 @@ function App() {
   return (
     <BrowserRouter>
       <OfflineQueueViewer />
-      <Toaster
-        position="bottom-right"
-        toastOptions={{
-          style: { borderRadius: '16px', fontWeight: 700, fontSize: '13px' },
-          success: { duration: 3000 },
-          error: { duration: 5000 },
-        }}
-      />
+      <ContextualToaster />
       <Routes>
         {/* ROUTAGE INTELLIGENT RACINE (PWA Entry Point) */}
         <Route path="/" element={<SmartRootRouter />} />
