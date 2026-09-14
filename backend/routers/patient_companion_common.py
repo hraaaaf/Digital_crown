@@ -95,7 +95,13 @@ def credential_recipient_hash(
         return None
 
 
+def require_companion_admin(current_user: models.User) -> None:
+    if not has_permission(current_user, "patient_companion"):
+        raise HTTPException(status_code=403, detail="Permission Patient Companion requise.")
+
+
 def staff_patient_or_404(db: Session, current_user: models.User, patient_id: int) -> models.Patient:
+    require_companion_admin(current_user)
     if not has_permission(current_user, "patients"):
         raise HTTPException(status_code=403, detail="Permission patients requise.")
     employer_id = int(current_user.get_employer_id())
