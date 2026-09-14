@@ -5,6 +5,7 @@ import '@testing-library/jest-dom/vitest';
 vi.mock('../../../../services/api', () => ({
   api: {
     get: vi.fn(async () => ({ data: [] })),
+    put: vi.fn(async () => ({ data: [] })),
     post: vi.fn(async () => ({ data: [] })),
     interceptors: {
       request: { use: vi.fn(() => 1), eject: vi.fn() },
@@ -16,7 +17,7 @@ vi.mock('../../../../services/api', () => ({
 import { PrescriptionAgenticStudio } from './PrescriptionAgenticStudio';
 
 describe('PrescriptionAgenticStudio V1 context terminology', () => {
-  it('présente le flux documentaire et compte les lignes renseignées sans suggestion clinique', () => {
+  it('présente le contexte structuré sans activer de suggestion clinique', () => {
     render(
       <PrescriptionAgenticStudio
         patientId=""
@@ -47,7 +48,8 @@ describe('PrescriptionAgenticStudio V1 context terminology', () => {
 
     expect(screen.getByText(/Recherche documentaire → présentation explicite → validation praticien/)).toBeInTheDocument();
     expect(screen.getByText('1 ligne renseignée')).toBeInTheDocument();
+    expect(screen.getByText(/Contexte clinique structuré/)).toBeInTheDocument();
     expect(screen.getAllByText(/Suggestion clinique/).length).toBeGreaterThan(0);
-    expect(screen.getByText(/Aucune règle V1 n’est certifiée/)).toBeInTheDocument();
+    expect(screen.getByText(/aucune règle de dose V1 n’est certifiée ni activée/i)).toBeInTheDocument();
   });
 });
