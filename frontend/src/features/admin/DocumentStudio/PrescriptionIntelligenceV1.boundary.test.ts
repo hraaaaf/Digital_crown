@@ -23,10 +23,11 @@ describe('Prescription Intelligence V1 active clinical boundary', () => {
     expect(studio).toContain('data-clinical-rule-status="blocked"');
   });
 
-  it('does not call the uncertified legacy safety engine from V1', () => {
+  it('does not call the uncertified legacy safety engine from V1 or expose its internal status copy', () => {
     expect(studio).not.toContain("api.post('/prescriptions/safety/check'");
     expect(studio).toContain('data-safety-status="blocked"');
-    expect(studio).toContain('Le moteur de sécurité legacy n’est pas une règle V1 certifiée');
+    expect(studio).not.toContain('Suggestion clinique bloquée');
+    expect(studio).not.toContain('Contrôle clinique automatique bloqué');
   });
 
   it('captures C1 patient facts without introducing a prescription automation path', () => {
