@@ -20,8 +20,16 @@ const items = [
 
 describe('PatientMediaTimeline C5', () => {
   beforeEach(() => {
-    vi.mocked(api.get).mockImplementation(async (url: string) => {
-      if (url === '/patients/7/assets') return { data: { items } } as any;
+    vi.mocked(api.get).mockImplementation(async (url: string, config?: any) => {
+      if (url === '/patients/7/assets') {
+        const params = config?.params || {};
+        const filtered = items.filter((item) => {
+          if (params.asset_type && item.asset_type !== params.asset_type) return false;
+          if (params.timepoint && item.timepoint !== params.timepoint) return false;
+          return true;
+        });
+        return { data: { items: filtered, has_more: false } } as any;
+      }
       return { data: new Blob(['x'], { type: 'image/png' }) } as any;
     });
     vi.stubGlobal('URL', { ...URL, createObjectURL: vi.fn(() => 'blob:test'), revokeObjectURL: vi.fn() });
@@ -33,14 +41,14 @@ describe('PatientMediaTimeline C5', () => {
 
     await screen.findByText('3/3');
     await user.selectOptions(screen.getByLabelText('Filtrer par type'), 'RADIOGRAPH');
-    expect(await screen.findByText('1/3')).toBeInTheDocument();
+    expect(await screen.findByText('1/1')).toBeInTheDocument();
     const rail = screen.getByTestId('media-asset-rail');
     expect(within(rail).getByText('Radiographie')).toBeInTheDocument();
     expect(within(rail).queryByText('Photo')).not.toBeInTheDocument();
     expect(within(rail).queryByText('Document')).not.toBeInTheDocument();
 
     await user.selectOptions(screen.getByLabelText('Filtrer par repère'), 'T1');
-    expect(screen.getByText('1/3')).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByText('1/1')).toBeInTheDocument());
     expect(within(rail).getByText('Radiographie')).toBeInTheDocument();
   });
 
