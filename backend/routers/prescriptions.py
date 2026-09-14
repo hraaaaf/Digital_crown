@@ -117,6 +117,9 @@ def evaluate_ie_prophylaxis_rule(
             penicillin_allergy_status=(
                 context.penicillin_allergy_status if context is not None else "UNKNOWN"
             ),
+            generic_medication_allergy_present=(
+                context is not None and context.medication_allergy_status == "PRESENT"
+            ),
             oral_route_possible=payload.oral_route_possible,
             currently_taking_penicillin_or_amoxicillin=payload.currently_taking_penicillin_or_amoxicillin,
             selected_active_ingredient_code=active_ingredient_code,
