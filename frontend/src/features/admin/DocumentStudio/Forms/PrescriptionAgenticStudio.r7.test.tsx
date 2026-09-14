@@ -17,7 +17,7 @@ vi.mock('../../../../services/api', () => ({
 import { PrescriptionAgenticStudio } from './PrescriptionAgenticStudio';
 
 describe('PrescriptionAgenticStudio V1 context terminology', () => {
-  it('présente le contexte structuré sans activer de suggestion clinique', () => {
+  it('présente le contexte structuré et l indication du document sans activer de suggestion clinique', () => {
     render(
       <PrescriptionAgenticStudio
         patientId=""
@@ -39,6 +39,8 @@ describe('PrescriptionAgenticStudio V1 context terminology', () => {
           { id: 2, name: '', dosage: '', forme: '', posologie: '', type: 'MEDICAMENT' },
         ]}
         setDrugs={vi.fn()}
+        prescriptionIndication="Infection odontogène documentée"
+        onPrescriptionIndicationChange={vi.fn()}
         onUpdateDrug={vi.fn()}
         onRemoveDrug={vi.fn()}
         onAddDrug={vi.fn()}
@@ -49,6 +51,8 @@ describe('PrescriptionAgenticStudio V1 context terminology', () => {
     expect(screen.getByText(/Recherche documentaire → présentation explicite → validation praticien/)).toBeInTheDocument();
     expect(screen.getByText('1 ligne renseignée')).toBeInTheDocument();
     expect(screen.getByText(/Contexte clinique structuré/)).toBeInTheDocument();
+    expect(screen.getByLabelText('Indication de cette ordonnance')).toHaveValue('Infection odontogène documentée');
+    expect(screen.getByText(/enregistrée avec l’ordonnance, pas dans les faits durables du patient/i)).toBeInTheDocument();
     expect(screen.getAllByText(/Suggestion clinique/).length).toBeGreaterThan(0);
     expect(screen.getByText(/aucune règle de dose V1 n’est certifiée ni activée/i)).toBeInTheDocument();
   });
