@@ -7,6 +7,7 @@ const documentHub = src('DocumentHub.tsx');
 const documentHubContent = src('DocumentStudio/DocumentHubContent.tsx');
 const generator = src('DocumentStudio/useDocumentGenerator.ts');
 const studio = src('DocumentStudio/Forms/PrescriptionAgenticStudioV1.tsx');
+const clinicalContextPanel = src('DocumentStudio/Forms/PatientClinicalContextPanel.tsx');
 
 describe('Prescription Intelligence V1 active clinical boundary', () => {
   it('does not call or retain the legacy smart suggestion path', () => {
@@ -26,6 +27,14 @@ describe('Prescription Intelligence V1 active clinical boundary', () => {
     expect(studio).not.toContain("api.post('/prescriptions/safety/check'");
     expect(studio).toContain('data-safety-status="blocked"');
     expect(studio).toContain('Le moteur de sécurité legacy n’est pas une règle V1 certifiée');
+  });
+
+  it('captures C1 patient facts without introducing a prescription automation path', () => {
+    expect(studio).toContain('PatientClinicalContextPanel');
+    expect(clinicalContextPanel).toContain('/clinical-context');
+    expect(clinicalContextPanel).not.toContain('/prescriptions/');
+    expect(clinicalContextPanel).not.toContain('clinical_ready');
+    expect(clinicalContextPanel).toContain('Enregistrer le contexte');
   });
 
   it('never invents a medication form when V1 has none', () => {
