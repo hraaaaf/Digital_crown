@@ -10,7 +10,10 @@ from __future__ import annotations
 from typing import Any, Mapping
 
 from backend.services.cephalo_r15_clinical_studio import build_r15_clinical_studio_snapshot
-from backend.services.cephalo_runtime_chain import validate_active_runtime_chain
+from backend.services.cephalo_runtime_chain import (
+    project_runtime_chain_read_path,
+    validate_active_runtime_chain,
+)
 from backend.services.cephalo_runtime_evidence import EVIDENCE_GRAPH_KEY
 from backend.services.cephalo_typed_read import deserialize_evidence_snapshot
 
@@ -45,7 +48,8 @@ def build_cephalo_pdf_projection(
     """Build the renderer-neutral PDF model from backend authority only.
 
     Missing or incoherent typed evidence never falls back to legacy patient
-    numbers. The R15 snapshot remains the authority for R11-R14 presentation.
+    numbers. Measurements are exposed only after the exact authoritative runtime
+    read path, including case integrity, succeeds for this patient.
     """
     payload = dict(angles_data or {})
     studio = build_r15_clinical_studio_snapshot(
@@ -60,6 +64,9 @@ def build_cephalo_pdf_projection(
 
     if isinstance(graph_payload, dict):
         try:
+            # This is the same authoritative read gate used by the API/Studio. It
+            # verifies typed-read case integrity before any patient value is exposed.
+            project_runtime_chain_read_path(payload, patient_id=patient_id)
             graph = deserialize_evidence_snapshot(graph_payload)
             chain = validate_active_runtime_chain(graph_payload, graph)
             measurements = sorted(
