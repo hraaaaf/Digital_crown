@@ -6,6 +6,7 @@ from datetime import datetime
 from typing import Any, Iterable
 
 from sqlalchemy.orm import Session
+from sqlalchemy.orm.attributes import flag_modified
 
 from backend import models
 from backend.services.acte_classification import classify_acte_type
@@ -238,6 +239,10 @@ def persist_honoraires_lines(
         snapshot = dict(archive.clinical_data or {})
         snapshot["payments"] = item_list
         archive.clinical_data = snapshot
+        # The original archived JSON and ``items`` can share nested dict/list objects.
+        # UUID/catalog mutations happen in-place, so SQLAlchemy may otherwise compare
+        # equal old/new JSON values and skip the UPDATE. Force persistence explicitly.
+        flag_modified(archive, "clinical_data")
 
     db.flush()
 
