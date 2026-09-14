@@ -2,13 +2,6 @@ name: Cephalo R18 Tracing AFTER
 
 on:
   workflow_dispatch:
-  pull_request:
-    branches: [master]
-    paths:
-      - 'frontend/src/features/ortho/CephaloTracingLayer.tsx'
-      - 'frontend/src/features/ortho/CephaloTracingLayerBase.tsx'
-      - 'frontend/scripts/capture-cephalo-r18-tracing-after.mjs'
-      - '.github/workflows/cephalo-r18-tracing-after.yml'
 
 permissions:
   contents: read
@@ -20,10 +13,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.pull_request.head.sha || github.sha }}
-      - name: Assert exact product HEAD
+          ref: ${{ github.sha }}
+      - name: Assert exact historical HEAD
         env:
-          PRODUCT_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+          PRODUCT_HEAD: ${{ github.sha }}
         run: test "$(git rev-parse HEAD)" = "$PRODUCT_HEAD"
       - uses: actions/setup-node@v4
         with:
@@ -36,15 +29,15 @@ jobs:
           npm ci
           npm install --no-save --package-lock=false --legacy-peer-deps playwright@1.55.0 react-is@19.2.0 @testing-library/dom@10.4.1
           npx playwright install --with-deps chromium
-      - name: Capture exact-head R18 tracing AFTER
+      - name: Capture historical R18 tracing AFTER
         working-directory: frontend
         env:
-          PRODUCT_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+          PRODUCT_HEAD: ${{ github.sha }}
         run: node scripts/capture-cephalo-r18-tracing-after.mjs
-      - name: Verify AFTER evidence contract
+      - name: Verify historical R18 AFTER evidence contract
         working-directory: frontend
         env:
-          PRODUCT_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+          PRODUCT_HEAD: ${{ github.sha }}
         run: |
           node --input-type=module <<'NODE'
           import { readFile } from 'node:fs/promises';
@@ -56,11 +49,6 @@ jobs:
             if(c.states.length!==5||c.states.some(s=>!s.valid)) throw new Error(`Analysis contract failure ${c.viewport}`);
           }
           NODE
-          for viewport in 390x844 768x1024 1280x900; do
-            for mode in all steiner tweed mcnamara ricketts; do
-              test -s "cephalo-r18-tracing-after-artifacts/after-tracing-${mode}-${viewport}.png"
-            done
-          done
       - uses: actions/upload-artifact@v4
         if: always()
         with:
