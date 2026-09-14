@@ -37,13 +37,13 @@ describe('Ordonnance Perfect V2 UX contract', () => {
     expect(prescription).toContain('Suggestion clinique bloquée');
   });
 
-  it('keeps deterministic prescription safety and fail-closed clinical copy visible', () => {
+  it('keeps clinical automation explicitly fail-closed', () => {
     expect(prescription).toContain('Prescription Intelligence V1');
     expect(prescription).toContain('Recherche documentaire → présentation explicite → validation praticien');
     expect(prescription).toContain('data-clinical-rule-status="blocked"');
-    expect(prescription).toContain('data-safety-status={safetyStatus}');
-    expect(prescription).toContain("api.post('/prescriptions/safety/check'");
-    expect(prescription).toContain('Contrôle de sécurité indisponible : aucune validation implicite.');
+    expect(prescription).toContain('data-safety-status="blocked"');
+    expect(prescription).toContain('Contrôle clinique automatique bloqué.');
+    expect(prescription).not.toContain("api.post('/prescriptions/safety/check'");
     expect(prescription).toContain('min-h-11');
   });
 
