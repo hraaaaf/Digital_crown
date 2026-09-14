@@ -11,6 +11,7 @@ import {
 } from '../PrescriptionFormPolicy';
 import type { ValidationError } from '../useDocumentGenerator';
 import { DrugRow } from './DrugRow';
+import { IEProphylaxisRulePanel } from './IEProphylaxisRulePanel';
 import { PatientClinicalContextPanel } from './PatientClinicalContextPanel';
 import type { DrugItem } from './prescriptionTypes';
 
@@ -80,6 +81,10 @@ export const PrescriptionAgenticStudio: React.FC<PrescriptionAgenticStudioProps>
   const contextPatientId = Number.isInteger(numericPatientId) && numericPatientId > 0
     ? numericPatientId
     : undefined;
+  const ieAmoxicillinDrug = drugs.find(drug => (
+    Boolean(drug.catalogPresentationId)
+    && ['AMOXICILLINE', 'AMOXICILLIN'].includes((drug.catalogDci || '').trim().toUpperCase())
+  ));
 
   useEffect(() => {
     if (baselineFingerprintRef.current === null) {
@@ -223,6 +228,8 @@ export const PrescriptionAgenticStudio: React.FC<PrescriptionAgenticStudioProps>
       </button>
 
       <PatientClinicalContextPanel patientId={contextPatientId} />
+
+      <IEProphylaxisRulePanel patientId={contextPatientId} drug={ieAmoxicillinDrug} />
 
       <section
         data-prescription-indication="document"
