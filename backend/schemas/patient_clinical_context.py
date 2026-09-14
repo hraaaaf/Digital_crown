@@ -17,9 +17,10 @@ def _clean_optional_text(value: Optional[str]) -> Optional[str]:
 
 
 class PatientClinicalContextUpdate(BaseModel):
-    """Full practitioner-entered clinical context state.
+    """Full practitioner-entered durable patient context state.
 
     No field in this schema implies that a prescription rule is clinically ready.
+    Prescription-specific indication is intentionally owned by the ordonnance document.
     """
 
     model_config = ConfigDict(extra="forbid")
@@ -31,7 +32,6 @@ class PatientClinicalContextUpdate(BaseModel):
     renal_context_note: Optional[str] = None
     hepatic_context_status: OrganContextStatus = "UNKNOWN"
     hepatic_context_note: Optional[str] = None
-    prescription_indication: Optional[str] = None
 
     @field_validator("weight_kg")
     @classmethod
@@ -59,7 +59,7 @@ class PatientClinicalContextUpdate(BaseModel):
                 cleaned.append(label)
         return cleaned
 
-    @field_validator("renal_context_note", "hepatic_context_note", "prescription_indication", mode="before")
+    @field_validator("renal_context_note", "hepatic_context_note", mode="before")
     @classmethod
     def normalize_optional_text(cls, value):
         return _clean_optional_text(value)
