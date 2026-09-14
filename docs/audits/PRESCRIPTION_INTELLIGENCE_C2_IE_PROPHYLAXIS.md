@@ -48,14 +48,39 @@ Relevant source-backed rule elements:
 
 ### Cross-check — ESC
 
-ESC infective-endocarditis guidance independently reports oral amoxicillin **2 g as a single dose 30–60 minutes before** an eligible dental procedure in high-risk patients.
+ESC 2023 infective-endocarditis guidance was reviewed as an independent cross-check. C2 remains intentionally aligned to the AHA/ADA dental selection contract rather than merging societies into a broader eligibility rule.
+
+## Independent cardiac-taxonomy review
+
+The first broad enum `QUALIFYING_CONGENITAL_HEART_DISEASE` was rejected before activation because it could incorrectly imply that all congenital heart disease qualifies.
+
+The current fail-closed positive categories are source-explicit:
+
+- `PROSTHETIC_CARDIAC_VALVE`;
+- `PROSTHETIC_MATERIAL_FOR_CARDIAC_VALVE_REPAIR`;
+- `PREVIOUS_INFECTIVE_ENDOCARDITIS`;
+- `UNREPAIRED_CYANOTIC_CONGENITAL_HEART_DISEASE`;
+- `REPAIRED_CHD_WITH_RESIDUAL_SHUNT_OR_VALVULAR_REGURGITATION_AT_PROSTHETIC_PATCH_OR_DEVICE`;
+- `CARDIAC_TRANSPLANT_WITH_VALVE_REGURGITATION_DUE_STRUCTURALLY_ABNORMAL_VALVE`.
+
+Non-qualifying/unsupported states remain explicit:
+
+- `UNKNOWN` blocks as unknown;
+- `NONE_REPORTED` blocks;
+- `OTHER_CARDIAC_CONDITION` blocks.
+
+### Deliberately unresolved / excluded CHD edge case
+
+Older AHA/ACC guidance and the current ADA pediatric summary mention a completely repaired congenital defect with prosthetic material/device during the first six months after repair. The current ADA general patient-selection summary does not present that item in the same way.
+
+C2 adult rule 1 therefore **does not automate this six-month repaired-CHD scenario**. It remains a manual/specialist-confirmation case until its current source contract is separately reconciled. This is a deliberate fail-closed scope reduction, not an assertion that prophylaxis is never indicated.
 
 ## Scope locked for rule 1
 
 Included:
 
 - adult only, age >=18;
-- high-risk cardiac category explicitly selected from a controlled enum;
+- high-risk cardiac category explicitly selected from the source-exact controlled enum above;
 - qualifying dental procedure explicitly confirmed;
 - penicillin/amoxicillin allergy explicitly checked;
 - oral route explicitly possible;
@@ -69,6 +94,7 @@ Excluded:
 - allergy alternatives;
 - parenteral alternatives;
 - post-procedure rescue dosing;
+- six-month completely repaired CHD scenario pending separate reconciliation;
 - inference from `antecedents_medicaux` or any other free text;
 - automatic interpretation of a diagnosis, cardiac letter or physician note;
 - automatic selection of an antibiotic when the patient is already taking penicillin/amoxicillin;
@@ -79,22 +105,20 @@ Excluded:
 The rule blocks if any of the following is absent/unsafe:
 
 - age unknown or <18;
-- cardiac risk unknown or non-qualifying;
+- cardiac risk unknown, unsupported or non-qualifying;
 - dental procedure eligibility unknown or false;
 - penicillin allergy unknown or present;
+- any generic free-text medication allergy remains present and unreconciled;
 - oral route unknown or impossible;
 - current penicillin/amoxicillin exposure unknown or true;
 - exact selected presentation not resolvable server-side;
 - canonical active ingredient is not exactly `AMOXICILLIN`.
 
-## Qualifying cardiac categories represented by the current rule contract
+### Generic allergy reconciliation guard
 
-- prosthetic cardiac valve or prosthetic material used for valve repair;
-- previous infective endocarditis;
-- qualifying congenital heart disease;
-- cardiac transplant with valvulopathy.
+The existing C1 `medication_allergies` list is free text. C2 never tries to infer whether entries such as brand names, abbreviations or spelling variants represent penicillin/amoxicillin allergy.
 
-The product must not infer one of these categories from narrative text. Exact category wording/coverage remains subject to independent scientific review before UI activation.
+Therefore, if `medication_allergy_status=PRESENT`, C2 returns `GENERIC_MEDICATION_ALLERGY_REQUIRES_RECONCILIATION` even when the dedicated penicillin state says `NONE_KNOWN`. This is intentionally conservative until allergies have a structured/coded representation.
 
 ## Rule output
 
@@ -133,6 +157,7 @@ The endpoint:
 - accepts only prescription-scoped explicit procedure/route/current-antibiotic facts;
 - resolves the selected CNOPS presentation server-side using its stable `presentation_id`;
 - maps only exact single-ingredient `AMOXICILLINE` / `AMOXICILLIN` DCI to the rule code;
+- blocks unresolved generic medication allergies rather than parsing them;
 - returns a rule evaluation only;
 - performs no DB write, no ordonnance mutation, no dose autofill and no call to legacy `/safety/check` or `/smart-suggest`.
 
@@ -140,9 +165,11 @@ The endpoint:
 
 - positive eligible adult rule;
 - unknown inputs fail closed;
-- non-qualifying cardiac context;
+- non-qualifying/other cardiac context;
+- all automated source-exact positive cardiac categories;
 - non-qualifying dental procedure;
 - penicillin allergy;
+- unresolved generic medication allergy;
 - current penicillin/amoxicillin exposure;
 - pediatric patient blocked;
 - unverified/wrong medication identity;
@@ -158,14 +185,13 @@ The endpoint:
 ## Remaining gates before UI activation
 
 1. Exact-head CI + PostgreSQL migration + patient/document non-regression.
-2. Independent scientific review of the represented cardiac categories and exact source wording; resolve any AHA/ADA/ESC category-detail divergence before exposing eligibility choices.
-3. Decide UI ownership for prescription-scoped facts without persisting transient states into durable patient context.
-4. BEFORE capture of the current prescription UI at 390/430/768/1280.
-5. Written practitioner-facing mockup with no internal certification jargon.
-6. UI suggestion card that remains non-autonomous and requires explicit practitioner acceptance.
-7. AFTER certification at the same viewports + frontend/backend regressions.
-8. Rebase against current master and recertify exact merge candidate.
-9. Merge + post-merge CI + canonical closeout.
+2. BEFORE capture of the current prescription UI at 390/430/768/1280.
+3. Written practitioner-facing mockup with no internal certification jargon.
+4. UI ownership for transient procedure/route/current-antibiotic facts without polluting durable patient context.
+5. UI suggestion card that remains non-autonomous and requires explicit practitioner acceptance.
+6. AFTER certification at the same viewports + frontend/backend regressions.
+7. Rebase against current master and recertify exact merge candidate.
+8. Merge + post-merge CI + canonical closeout.
 
 ## Implemented files
 
@@ -186,4 +212,4 @@ The rule is callable only through a read-only evaluation endpoint. No existing p
 
 ## Next exact
 
-Certify the exact backend candidate, independently review the cardiac eligibility taxonomy, then design and certify the practitioner-facing read-only suggestion flow. Do not implement pediatric or alternative-antibiotic branches in this lot.
+Certify the exact backend candidate. If green, capture the current prescription UI BEFORE at 390/430/768/1280 and design the practitioner-facing read-only suggestion flow. Do not implement pediatric, alternative-antibiotic or unresolved six-month repaired-CHD branches in this lot.
