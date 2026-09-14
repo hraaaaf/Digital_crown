@@ -14,6 +14,14 @@ def _studio(*, blockers=None, stages=None, active=True):
     }
 
 
+def _allow_runtime_read(monkeypatch):
+    monkeypatch.setattr(
+        projection,
+        "project_runtime_chain_read_path",
+        lambda payload, patient_id: {"scientific_read_path": {"active_chain": "VERIFIED"}},
+    )
+
+
 def test_pdf_projection_is_explicitly_incomplete_without_typed_graph(monkeypatch):
     monkeypatch.setattr(
         projection,
@@ -53,6 +61,7 @@ def test_pdf_projection_ignores_legacy_clinical_narrative(monkeypatch):
         },
     )()
     fake_chain = type("Chain", (), {"measurements": {"SNA": fake_measurement}})()
+    _allow_runtime_read(monkeypatch)
     monkeypatch.setattr(projection, "deserialize_evidence_snapshot", lambda payload: object())
     monkeypatch.setattr(projection, "validate_active_runtime_chain", lambda payload, graph: fake_chain)
     monkeypatch.setattr(
@@ -118,6 +127,7 @@ def test_pdf_projection_preserves_not_computable_measurement(monkeypatch):
         },
     )()
     fake_chain = type("Chain", (), {"measurements": {"Situation_A": fake_measurement}})()
+    _allow_runtime_read(monkeypatch)
     monkeypatch.setattr(projection, "deserialize_evidence_snapshot", lambda payload: object())
     monkeypatch.setattr(projection, "validate_active_runtime_chain", lambda payload, graph: fake_chain)
     monkeypatch.setattr(
@@ -136,6 +146,34 @@ def test_pdf_projection_preserves_not_computable_measurement(monkeypatch):
     assert measurement["availability_status"] == "NOT_COMPUTABLE"
     assert measurement["value"] is None
     assert measurement["requires_calibration"] is True
+
+
+def test_pdf_projection_never_exposes_values_when_authoritative_runtime_read_fails(monkeypatch):
+    monkeypatch.setattr(
+        projection,
+        "build_r15_clinical_studio_snapshot",
+        lambda **kwargs: _studio(blockers=["active_runtime_chain_incoherent"], active=False),
+    )
+
+    def reject_runtime_read(payload, patient_id):
+        raise ValueError("case integrity mismatch")
+
+    monkeypatch.setattr(projection, "project_runtime_chain_read_path", reject_runtime_read)
+    monkeypatch.setattr(
+        projection,
+        "validate_active_runtime_chain",
+        lambda payload, graph: (_ for _ in ()).throw(AssertionError("must not expose chain after failed read")),
+    )
+
+    result = projection.build_cephalo_pdf_projection(
+        patient_id=999,
+        analysis_id=9,
+        angles_data={EVIDENCE_GRAPH_KEY: {"contract": "typed"}},
+    )
+
+    assert result["measurements"] == []
+    assert "typed_measurement_projection_incoherent" in result["blocking_gates"]
+    assert result["document_state"] == "INCOMPLETE"
 
 
 def test_pdf_projection_preserves_stage_blockers_missing_contradictions_and_contraindications(monkeypatch):
