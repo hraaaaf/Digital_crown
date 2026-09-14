@@ -1,3 +1,5 @@
+from datetime import datetime
+
 import pytest
 
 from backend import models
@@ -50,7 +52,7 @@ def _draft(act_ids):
     )
 
 
-def _mapping(act, *, status, source_hash, code="D713"):
+def _mapping(act, *, status, source_hash, code="D713", validator_id=None):
     return NgapCatalogMapping(
         catalog_act_id=act.id,
         code_kind="NGAP",
@@ -63,6 +65,8 @@ def _mapping(act, *, status, source_hash, code="D713"):
         source_authority="Ministere de la Sante",
         source_url="https://example.invalid/arrete.pdf",
         source_hash=source_hash,
+        validated_by_practitioner_id=validator_id,
+        validated_at=(datetime(2026, 9, 14, 19, 0) if validator_id is not None else None),
     )
 
 
@@ -84,9 +88,14 @@ def test_pending_reference_keeps_draft_incomplete(db):
     assert "lines[0].ngap:OUTDATED" in result.unresolved_fields
 
 
-def test_verified_reference_promotes_complete_draft_to_review(db):
+def test_verified_reference_promotes_complete_draft_to_review(db, dentiste):
     act = _catalog_act(db, name="Verified draft")
-    db.add(_mapping(act, status="VERIFIED_PRIMARY", source_hash="c" * 64))
+    db.add(_mapping(
+        act,
+        status="VERIFIED_PRIMARY",
+        source_hash="c" * 64,
+        validator_id=dentiste.id,
+    ))
     db.flush()
 
     result = apply_ngap_reference_to_draft(
@@ -103,11 +112,23 @@ def test_verified_reference_promotes_complete_draft_to_review(db):
     assert result.reference.ngap_reference_hash == "c" * 64
 
 
-def test_mixed_hashes_for_same_reference_version_are_rejected(db):
+def test_mixed_hashes_for_same_reference_version_are_rejected(db, dentiste):
     first = _catalog_act(db, name="Hash A")
     second = _catalog_act(db, name="Hash B")
-    db.add(_mapping(first, status="VERIFIED_PRIMARY", source_hash="a" * 64, code="D713"))
-    db.add(_mapping(second, status="VERIFIED_PRIMARY", source_hash="b" * 64, code="D714"))
+    db.add(_mapping(
+        first,
+        status="VERIFIED_PRIMARY",
+        source_hash="a" * 64,
+        code="D713",
+        validator_id=dentiste.id,
+    ))
+    db.add(_mapping(
+        second,
+        status="VERIFIED_PRIMARY",
+        source_hash="b" * 64,
+        code="D714",
+        validator_id=dentiste.id,
+    ))
     db.flush()
 
     with pytest.raises(ValueError, match="plusieurs hashes"):
