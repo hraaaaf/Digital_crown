@@ -10,6 +10,7 @@ def _eligible(**overrides):
         cardiac_risk_category="PREVIOUS_INFECTIVE_ENDOCARDITIS",
         dental_procedure_qualifies=True,
         penicillin_allergy_status="NONE_KNOWN",
+        generic_medication_allergy_present=False,
         oral_route_possible=True,
         currently_taking_penicillin_or_amoxicillin=False,
         selected_active_ingredient_code="AMOXICILLIN",
@@ -59,12 +60,30 @@ def test_unknown_inputs_fail_closed_instead_of_guessing():
     assert "ACTIVE_INGREDIENT_NOT_AMOXICILLIN" in result.blockers
 
 
-def test_rule_blocks_non_qualifying_cardiac_context():
-    result = evaluate_ie_prophylaxis_adult_oral_amoxicillin(
-        _eligible(cardiac_risk_category="NONE_REPORTED")
+def test_rule_blocks_non_qualifying_or_other_cardiac_context():
+    for category in ("NONE_REPORTED", "OTHER_CARDIAC_CONDITION"):
+        result = evaluate_ie_prophylaxis_adult_oral_amoxicillin(
+            _eligible(cardiac_risk_category=category)
+        )
+        assert result.status == "BLOCKED"
+        assert result.blockers == ("CARDIAC_RISK_NOT_QUALIFYING",)
+
+
+def test_rule_accepts_only_explicit_source_backed_cardiac_categories():
+    qualifying = (
+        "PROSTHETIC_CARDIAC_VALVE",
+        "PROSTHETIC_MATERIAL_FOR_CARDIAC_VALVE_REPAIR",
+        "PREVIOUS_INFECTIVE_ENDOCARDITIS",
+        "UNREPAIRED_CYANOTIC_CONGENITAL_HEART_DISEASE",
+        "REPAIRED_CHD_WITH_RESIDUAL_SHUNT_OR_VALVULAR_REGURGITATION_AT_PROSTHETIC_PATCH_OR_DEVICE",
+        "CARDIAC_TRANSPLANT_WITH_VALVE_REGURGITATION_DUE_STRUCTURALLY_ABNORMAL_VALVE",
     )
-    assert result.status == "BLOCKED"
-    assert result.blockers == ("CARDIAC_RISK_NOT_QUALIFYING",)
+    for category in qualifying:
+        result = evaluate_ie_prophylaxis_adult_oral_amoxicillin(
+            _eligible(cardiac_risk_category=category)
+        )
+        assert result.status == "READY"
+        assert result.blockers == ()
 
 
 def test_rule_blocks_non_qualifying_dental_procedure():
@@ -81,6 +100,14 @@ def test_rule_blocks_reported_penicillin_allergy():
     )
     assert result.status == "BLOCKED"
     assert result.blockers == ("PENICILLIN_ALLERGY_PRESENT",)
+
+
+def test_rule_blocks_unreconciled_generic_medication_allergy():
+    result = evaluate_ie_prophylaxis_adult_oral_amoxicillin(
+        _eligible(generic_medication_allergy_present=True)
+    )
+    assert result.status == "BLOCKED"
+    assert result.blockers == ("GENERIC_MEDICATION_ALLERGY_REQUIRES_RECONCILIATION",)
 
 
 def test_rule_blocks_current_penicillin_or_amoxicillin_exposure():
