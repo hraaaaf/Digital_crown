@@ -18,6 +18,8 @@ type DocumentHubContentProps = {
   setShowLegalAnnotations: React.Dispatch<React.SetStateAction<boolean>>;
   drugs: DrugItem[];
   setDrugs: React.Dispatch<React.SetStateAction<DrugItem[]>>;
+  prescriptionIndication: string;
+  setPrescriptionIndication: React.Dispatch<React.SetStateAction<string>>;
   certifType: string;
   setCertifType: React.Dispatch<React.SetStateAction<string>>;
   certifDays: number;
@@ -53,6 +55,8 @@ export const DocumentHubContent: React.FC<DocumentHubContentProps> = ({
   setShowLegalAnnotations,
   drugs,
   setDrugs,
+  prescriptionIndication,
+  setPrescriptionIndication,
   certifType,
   setCertifType,
   certifDays,
@@ -93,6 +97,11 @@ export const DocumentHubContent: React.FC<DocumentHubContentProps> = ({
           patientId={patientId || '0'}
           drugs={drugs}
           setDrugs={setDrugs}
+          prescriptionIndication={prescriptionIndication}
+          onPrescriptionIndicationChange={(value) => {
+            setPrescriptionIndication(value);
+            generator.setHasChanges(true);
+          }}
           onUpdateDrug={(id, field, value) => {
             setDrugs(previous => previous.map(drug => drug.id === id ? { ...drug, [field]: value } : drug));
             generator.setHasChanges(true);

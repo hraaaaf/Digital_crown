@@ -8,6 +8,7 @@ from . import patient_clinical_conclusions as patient_clinical_conclusions
 from . import patient_master_plan_p3 as patient_master_plan_p3
 from . import patient_journey_p4 as patient_journey_p4
 from . import patient_financial_p6 as patient_financial_p6
+from . import patient_clinical_context as patient_clinical_context
 from . import ia as ia
 from . import imaging_lifecycle_p4 as imaging_lifecycle_p4
 from . import cephalo_calibration_provenance as cephalo_calibration_provenance
@@ -59,6 +60,7 @@ patients.router.include_router(patient_clinical_conclusions.router)
 patients.router.include_router(patient_master_plan_p3.router)
 patients.router.include_router(patient_journey_p4.router)
 patients.router.include_router(patient_financial_p6.router)
+patients.router.include_router(patient_clinical_context.router)
 
 # P4 replaces only the two normal hard-delete handlers. The scientific upload,
 # analysis, report and history routes remain untouched. A user DELETE now records

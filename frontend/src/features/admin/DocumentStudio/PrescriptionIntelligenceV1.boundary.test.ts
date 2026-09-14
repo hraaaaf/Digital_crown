@@ -7,6 +7,7 @@ const documentHub = src('DocumentHub.tsx');
 const documentHubContent = src('DocumentStudio/DocumentHubContent.tsx');
 const generator = src('DocumentStudio/useDocumentGenerator.ts');
 const studio = src('DocumentStudio/Forms/PrescriptionAgenticStudioV1.tsx');
+const clinicalContextPanel = src('DocumentStudio/Forms/PatientClinicalContextPanel.tsx');
 
 describe('Prescription Intelligence V1 active clinical boundary', () => {
   it('does not call or retain the legacy smart suggestion path', () => {
@@ -26,6 +27,31 @@ describe('Prescription Intelligence V1 active clinical boundary', () => {
     expect(studio).not.toContain("api.post('/prescriptions/safety/check'");
     expect(studio).toContain('data-safety-status="blocked"');
     expect(studio).toContain('Le moteur de sécurité legacy n’est pas une règle V1 certifiée');
+  });
+
+  it('captures C1 patient facts without introducing a prescription automation path', () => {
+    expect(studio).toContain('PatientClinicalContextPanel');
+    expect(clinicalContextPanel).toContain('/clinical-context');
+    expect(clinicalContextPanel).not.toContain('/prescriptions/');
+    expect(clinicalContextPanel).not.toContain('clinical_ready');
+    expect(clinicalContextPanel).not.toContain('prescription_indication');
+    expect(clinicalContextPanel).not.toContain('Indication de cette prescription');
+    expect(clinicalContextPanel).toContain('Enregistrer le contexte');
+  });
+
+  it('keeps prescription indication scoped to the ordonnance document', () => {
+    expect(studio).toContain('data-prescription-indication="document"');
+    expect(studio).toContain("indication: currentIndicationRef.current.trim() || null");
+    expect(documentHub).toContain("indication?: string;");
+    expect(documentHub).toContain("setPrescriptionIndication(d.indication || '')");
+    expect(documentHubContent).toContain('prescriptionIndication={prescriptionIndication}');
+  });
+
+  it('does not silently relearn dosage or posology from archived prescriptions', () => {
+    expect(generator).not.toContain('/prescriptions/habits/record');
+    expect(generator).not.toContain('ibuprofene');
+    expect(generator).not.toContain('ketoprofene');
+    expect(generator).not.toContain('augmentin');
   });
 
   it('never invents a medication form when V1 has none', () => {

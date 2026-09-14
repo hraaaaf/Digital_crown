@@ -5,6 +5,7 @@ export interface DocumentPreviewFingerprintInput {
   patientId?: string;
   docDate: string;
   drugs?: Array<Record<string, unknown>>;
+  prescriptionIndication?: string;
   certificate?: {
     type: string;
     days: number;

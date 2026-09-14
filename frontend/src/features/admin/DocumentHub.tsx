@@ -37,6 +37,7 @@ interface DocumentHubProps {
 
 interface GenericClinicalData {
   medications?: { nom?: string; dosage?: string; forme?: string; posologie?: string; type?: 'MEDICAMENT' | 'EXAMEN' }[];
+  indication?: string;
   reason?: string;
   days?: number;
   start_date?: string;
@@ -67,6 +68,7 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
   const [sideStudioType, setSideStudioType] = useState<'NONE' | 'PREVIEW'>('NONE');
 
   const [drugs, setDrugs] = useState<DrugItem[]>([{ id: 1, name: '', dosage: '', forme: '', posologie: '', type: 'MEDICAMENT' }]);
+  const [prescriptionIndication, setPrescriptionIndication] = useState('');
   const [showLegalAnnotations, setShowLegalAnnotations] = useState(true);
   const [certifType, setCertifType] = useState('');
   const [certifDays, setCertifDays] = useState(0);
@@ -135,6 +137,7 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
     patientId,
     docDate,
     drugs: drugs as unknown as Array<Record<string, unknown>>,
+    prescriptionIndication,
     certificate: {
       type: certifType,
       days: certifDays,
@@ -162,7 +165,7 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
     showLegalAnnotations,
     installmentPayload: echeancierPayload,
   }), [
-    activeTab, patientId, docDate, drugs,
+    activeTab, patientId, docDate, drugs, prescriptionIndication,
     certifType, certifDays, certifStartDate, certifCustomMotif,
     items, paymentMode, paymentStatus, installments, isGlobalNote, selectedTeethFromOdontogram,
     libreTitle, libreContent, libreCustomPatient, libreCustomDate, libreHideHeader, librePageSize, libreAlignment,
@@ -172,6 +175,10 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
   const generatePreview = useCallback(() => {
     return generator.handleGenerate(false, false, true);
   }, [generator.handleGenerate]);
+
+  useEffect(() => {
+    if (!editData) setPrescriptionIndication('');
+  }, [patientId, editData]);
 
   useEffect(() => {
     if (!editData?.clinical_data) return;
@@ -188,6 +195,7 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
     setActiveTab(desiredTab);
 
     if (desiredTab === 'ordonnance') {
+      setPrescriptionIndication(d.indication || '');
       if (d.medications) setDrugs(d.medications.map((m: { nom?: string; dosage?: string; forme?: string; posologie?: string; type?: 'MEDICAMENT' | 'EXAMEN' }, idx: number) => ({
         id: Date.now() + idx, name: m.nom || '', dosage: m.dosage || '',
         forme: m.forme || '', posologie: m.posologie || '',
@@ -281,6 +289,8 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
           setShowLegalAnnotations={setShowLegalAnnotations}
           drugs={drugs}
           setDrugs={setDrugs}
+          prescriptionIndication={prescriptionIndication}
+          setPrescriptionIndication={setPrescriptionIndication}
           certifType={certifType}
           setCertifType={setCertifType}
           certifDays={certifDays}
