@@ -1,0 +1,275 @@
+name: Cephalo SRPose38 ONNX parity
+
+on:
+  push:
+    branches:
+      - test/cephalo-srpose38-ci
+  pull_request:
+    branches:
+      - refactor/scientific-core-purge
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  srpose38-onnx-parity:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+
+    steps:
+      - name: Checkout Digital Crown
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.10
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+          cache: pip
+
+      - name: Fetch pinned candidate sources and real challenge sample
+        run: |
+          git clone --depth 1 https://github.com/5k5000/CLdetection2023.git srpose
+          git clone --depth 1 https://github.com/szuboy/CL-Detection2023.git baseline
+          git -C srpose rev-parse HEAD | tee srpose-source.sha
+          git -C baseline rev-parse HEAD | tee challenge-sample-source.sha
+          test -f baseline/step5_docker_and_upload/test/stack1.mha
+
+      - name: Install export and CPU inference dependencies
+        run: |
+          python -m pip install --upgrade pip wheel
+          python -m pip install torch==2.0.1 torchvision==0.15.2 --index-url https://download.pytorch.org/whl/cpu
+          python -m pip install numpy==1.26.4 gdown SimpleITK opencv-python-headless==4.11.0.86 mmengine==0.10.7 json_tricks munkres scipy pillow 'xtcocotools>=1.12' onnx==1.16.2 onnxruntime==1.18.1
+          python -m pip install mmcv==2.0.1 --no-deps -f https://download.openmmlab.com/mmcv/dist/cpu/torch2.0.0/index.html
+          python -m pip install -e srpose/mmpose_package/mmpose --no-deps --no-build-isolation
+
+      - name: Download and pin published SRPose checkpoint
+        run: |
+          mkdir -p srpose/MMPose-checkpoints/CLdetection/srpose_s2
+          gdown 'https://drive.google.com/uc?id=10HrNDBBpuECTcgNgcWNUt7kM6m4ZMXM4' -O srpose/MMPose-checkpoints/CLdetection/srpose_s2/demo.pth
+          test -s srpose/MMPose-checkpoints/CLdetection/srpose_s2/demo.pth
+          echo 'fb1a781ac1c83149b379cb15724e3b0fae06ba2d567978f35c61e9d06b46fdcc  srpose/MMPose-checkpoints/CLdetection/srpose_s2/demo.pth' | sha256sum -c -
+          sha256sum srpose/MMPose-checkpoints/CLdetection/srpose_s2/demo.pth | tee srpose38-checkpoint.sha256
+
+      - name: Export exact inference network and prove PyTorch/ONNX coordinate parity
+        run: |
+          cat > /tmp/export_srpose38_onnx.py <<'PY'
+          import hashlib
+          import json
+          from pathlib import Path
+
+          import cv2
+          import numpy as np
+          import onnx
+          import onnxruntime as ort
+          import SimpleITK as sitk
+          import torch
+          import torch.nn as nn
+          from mmcv.transforms import Compose
+          from mmengine.dataset import pseudo_collate
+          from mmpose.apis import init_model, inference_topdown
+          from mmpose.structures import merge_data_samples
+          from cldetection_utils import remove_zero_padding
+
+          ROOT = Path.cwd()
+          CONFIG = ROOT / 'srpose/configs/CLdetection2023/srpose_s2.py'
+          CKPT = ROOT / 'srpose/MMPose-checkpoints/CLdetection/srpose_s2/demo.pth'
+          MHA = ROOT / 'baseline/step5_docker_and_upload/test/stack1.mha'
+          ONNX_PATH = ROOT / 'srpose38-tta-1024.onnx'
+
+          class SRPose38TTA(nn.Module):
+              """Exportable network matching SRPose test-time flip behavior.
+
+              Input is already affine-warped, RGB, normalized NCHW float32.
+              Cephalometric dataset has identity flip_indices because no point has a swap peer.
+              """
+              def __init__(self, pose_model):
+                  super().__init__()
+                  self.backbone = pose_model.backbone
+                  self.head = pose_model.head
+
+              def forward(self, x):
+                  hm = self.head(self.backbone(x))
+                  x_flip = torch.flip(x, dims=[-1])
+                  hm_flip = self.head(self.backbone(x_flip))
+                  hm_flip_back = torch.flip(hm_flip, dims=[-1])
+                  return (hm + hm_flip_back) * 0.5
+
+          def sha256(path):
+              h = hashlib.sha256()
+              with open(path, 'rb') as f:
+                  for chunk in iter(lambda: f.read(1024 * 1024), b''):
+                      h.update(chunk)
+              return h.hexdigest()
+
+          # Real public challenge cephalogram and official author preprocessing.
+          stack = sitk.GetArrayFromImage(sitk.ReadImage(str(MHA)))
+          image = remove_zero_padding(stack[0])
+          if image.shape != (2400, 1935, 3):
+              raise AssertionError(f'Unexpected unpadded image shape {image.shape}')
+
+          model = init_model(str(CONFIG), str(CKPT), device='cpu')
+          model.eval()
+
+          # The challenge metadata explicitly defines no left/right swap peers.
+          flip_indices = list(model.dataset_meta.get('flip_indices', []))
+          if flip_indices != list(range(38)):
+              raise AssertionError(f'Expected identity flip_indices 0..37, got {flip_indices}')
+
+          # Reference end-to-end MMPose result in original-image coordinates.
+          with torch.no_grad():
+              ref_result = merge_data_samples(
+                  inference_topdown(model=model, img=image, bboxes=None, bbox_format='xyxy')
+              )
+          ref_points = np.asarray(ref_result.pred_instances.keypoints[0], dtype=np.float64)
+          if ref_points.shape != (38, 2):
+              raise AssertionError(ref_points.shape)
+
+          # Reproduce the official test pipeline to obtain the exact network tensor and geometry metadata.
+          h, w = image.shape[:2]
+          pipeline = Compose(model.cfg.test_dataloader.dataset.pipeline)
+          data_info = dict(
+              img=image,
+              bbox=np.array([[0, 0, w, h]], dtype=np.float32),
+              bbox_score=np.ones(1, dtype=np.float32),
+          )
+          data_info.update(model.dataset_meta)
+          packed = pipeline(data_info)
+          batch = pseudo_collate([packed])
+          processed = model.data_preprocessor(batch, training=False)
+          x = processed['inputs'].detach().cpu().float()
+          sample = processed['data_samples'][0]
+          if tuple(x.shape) != (1, 3, 1024, 1024):
+              raise AssertionError(f'Unexpected network input shape {tuple(x.shape)}')
+
+          wrapper = SRPose38TTA(model).eval()
+          with torch.no_grad():
+              torch_hm = wrapper(x).detach().cpu().numpy()
+          if torch_hm.shape != (1, 38, 1024, 1024):
+              raise AssertionError(f'Unexpected PyTorch heatmap shape {torch_hm.shape}')
+
+          # Ensure the export wrapper itself reproduces MMPose end-to-end decoding.
+          torch_input_points, _ = model.head.decoder.decode(torch_hm[0])
+          torch_input_points = np.asarray(torch_input_points[0], dtype=np.float64)
+          center = np.asarray(sample.gt_instances.bbox_centers[0], dtype=np.float64)
+          scale = np.asarray(sample.gt_instances.bbox_scales[0], dtype=np.float64)
+          input_size = np.asarray(sample.metainfo['input_size'], dtype=np.float64)
+          torch_orig = torch_input_points / input_size * scale + center - 0.5 * scale
+          wrapper_diff = np.linalg.norm(torch_orig - ref_points, axis=1)
+          wrapper_max_px = float(wrapper_diff.max())
+          wrapper_mean_px = float(wrapper_diff.mean())
+          print(f'WRAPPER_PARITY max={wrapper_max_px:.6f}px mean={wrapper_mean_px:.6f}px')
+          if wrapper_max_px > 0.05:
+              raise AssertionError(f'Export wrapper does not reproduce MMPose: max {wrapper_max_px}px')
+
+          # Fixed clinical runtime input shape. Dynamic source-image geometry stays outside ONNX.
+          torch.onnx.export(
+              wrapper,
+              x,
+              str(ONNX_PATH),
+              export_params=True,
+              opset_version=17,
+              do_constant_folding=True,
+              input_names=['input'],
+              output_names=['heatmaps'],
+              dynamic_axes=None,
+          )
+          if not ONNX_PATH.is_file() or ONNX_PATH.stat().st_size == 0:
+              raise AssertionError('ONNX export missing/empty')
+          onnx_model = onnx.load(str(ONNX_PATH))
+          onnx.checker.check_model(onnx_model)
+
+          session = ort.InferenceSession(str(ONNX_PATH), providers=['CPUExecutionProvider'])
+          ort_hm = session.run(['heatmaps'], {'input': x.numpy()})[0]
+          if ort_hm.shape != torch_hm.shape:
+              raise AssertionError(f'ORT shape {ort_hm.shape} != torch {torch_hm.shape}')
+          if not np.isfinite(ort_hm).all():
+              raise AssertionError('ONNX Runtime returned non-finite heatmaps')
+
+          heatmap_abs = np.abs(ort_hm.astype(np.float64) - torch_hm.astype(np.float64))
+          hm_max_abs = float(heatmap_abs.max())
+          hm_mean_abs = float(heatmap_abs.mean())
+
+          ort_input_points, _ = model.head.decoder.decode(ort_hm[0])
+          ort_input_points = np.asarray(ort_input_points[0], dtype=np.float64)
+          ort_orig = ort_input_points / input_size * scale + center - 0.5 * scale
+          coord_diff = np.linalg.norm(ort_orig - ref_points, axis=1)
+          coord_max_px = float(coord_diff.max())
+          coord_mean_px = float(coord_diff.mean())
+
+          # Argmax parity is an additional guard independent of DarkPose refinement.
+          def argmax_xy(hm):
+              flat = hm.reshape(hm.shape[0], -1).argmax(axis=1)
+              yy, xx = np.divmod(flat, hm.shape[-1])
+              return np.stack([xx, yy], axis=1).astype(np.float64)
+          arg_t = argmax_xy(torch_hm[0])
+          arg_o = argmax_xy(ort_hm[0])
+          arg_diff = np.linalg.norm(arg_t - arg_o, axis=1)
+
+          metrics = {
+              'checkpoint_sha256': sha256(CKPT),
+              'onnx_sha256': sha256(ONNX_PATH),
+              'onnx_size_bytes': ONNX_PATH.stat().st_size,
+              'input_shape': list(x.shape),
+              'output_shape': list(ort_hm.shape),
+              'preprocessing': {
+                  'remove_zero_padding': True,
+                  'topdown_affine_input_size': [1024, 1024],
+                  'bbox_padding': 1.25,
+                  'bgr_to_rgb': True,
+                  'mean': [121.25, 121.25, 121.25],
+                  'std': [76.5, 76.5, 76.5],
+              },
+              'tta': {'horizontal_flip': True, 'flip_indices': list(range(38)), 'shift_heatmap': False},
+              'decoder': {'type': 'MSRAHeatmap', 'unbiased_darkpose': True, 'blur_kernel_size': 11},
+              'wrapper_vs_reference_max_px': wrapper_max_px,
+              'wrapper_vs_reference_mean_px': wrapper_mean_px,
+              'onnx_vs_pytorch_heatmap_max_abs': hm_max_abs,
+              'onnx_vs_pytorch_heatmap_mean_abs': hm_mean_abs,
+              'onnx_vs_reference_coordinate_max_px': coord_max_px,
+              'onnx_vs_reference_coordinate_mean_px': coord_mean_px,
+              'argmax_max_delta_px': float(arg_diff.max()),
+              'argmax_mean_delta_px': float(arg_diff.mean()),
+              'reference_points': ref_points.round(4).tolist(),
+              'onnx_points': ort_orig.round(4).tolist(),
+          }
+          Path('srpose38-onnx-parity.json').write_text(json.dumps(metrics, indent=2), encoding='utf-8')
+          Path('srpose38-onnx.sha256').write_text(f'{metrics["onnx_sha256"]}  {ONNX_PATH.name}\n', encoding='utf-8')
+
+          print(json.dumps({
+              'onnx_sha256': metrics['onnx_sha256'],
+              'onnx_size_bytes': metrics['onnx_size_bytes'],
+              'heatmap_max_abs': hm_max_abs,
+              'coord_max_px': coord_max_px,
+              'coord_mean_px': coord_mean_px,
+              'argmax_max_delta_px': metrics['argmax_max_delta_px'],
+          }, indent=2))
+
+          # Clinical integration gate: coordinate behavior must be effectively identical.
+          if coord_max_px > 0.25:
+              raise AssertionError(f'ONNX coordinate parity failed: max {coord_max_px:.6f}px')
+          if float(arg_diff.max()) > 1.0:
+              raise AssertionError(f'ONNX argmax parity failed: max {arg_diff.max():.3f}px')
+          if hm_max_abs > 0.05:
+              raise AssertionError(f'ONNX numerical divergence too high: {hm_max_abs}')
+
+          print('SRPOSE38_ONNX_PARITY_OK')
+          PY
+          PYTHONPATH="$PWD/srpose:$PWD/srpose/mmpose_package/mmpose" python /tmp/export_srpose38_onnx.py | tee srpose38-onnx-parity.log
+          grep -q 'SRPOSE38_ONNX_PARITY_OK' srpose38-onnx-parity.log
+
+      - name: Upload ONNX parity evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cephalo-srpose38-onnx-parity
+          if-no-files-found: warn
+          compression-level: 0
+          path: |
+            srpose38-tta-1024.onnx
+            srpose38-onnx.sha256
+            srpose38-onnx-parity.json
+            srpose38-onnx-parity.log
+            srpose38-checkpoint.sha256
+            srpose-source.sha
+            challenge-sample-source.sha

@@ -1,0 +1,1 @@
+Trigger isolated SRPose38 smoke workflow on branch test/cephalo-srpose38-ci.
