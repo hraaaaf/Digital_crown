@@ -40,6 +40,7 @@ def _validated_draft(template_hash: str, reference_hash: str):
         template=InsuranceTemplateSnapshot(
             template_version="CNSS-610-1-04",
             template_hash=template_hash,
+            source_url="https://example.invalid/cnss-610-1-04.pdf",
         ),
         reference=InsuranceReferenceSnapshot(
             ngap_reference_version="arrete-177-06",
@@ -70,10 +71,15 @@ def test_renderer_gate_rejects_template_hash_mismatch():
         )
 
 
-def test_renderer_gate_rejects_unlocked_ngap_reference():
+def test_renderer_gate_defends_against_unlocked_ngap_reference_even_if_model_was_bypassed():
     template = b"%PDF-1.4\nlocked-template\n"
     template_hash = hashlib.sha256(template).hexdigest()
-    draft = _validated_draft(template_hash, "")
+    draft = _validated_draft(template_hash, "a" * 64).model_copy(update={
+        "reference": InsuranceReferenceSnapshot(
+            ngap_reference_version="arrete-177-06",
+            ngap_reference_hash=None,
+        )
+    })
 
     with pytest.raises(ValueError, match="NGAP reference"):
         assert_insurance_render_ready(
