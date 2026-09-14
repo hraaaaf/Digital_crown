@@ -22,7 +22,6 @@ const emptyContext = {
   renal_context_note: null,
   hepatic_context_status: 'UNKNOWN',
   hepatic_context_note: null,
-  prescription_indication: null,
   updated_at: null,
   updated_by_user_id: null,
 };
@@ -45,10 +44,11 @@ describe('PatientClinicalContextPanel C1', () => {
     expect(screen.getByLabelText('Statut des allergies médicamenteuses')).toHaveValue('UNKNOWN');
     expect(screen.getByLabelText('Statut du contexte rénal')).toHaveValue('UNKNOWN');
     expect(screen.getByLabelText('Statut du contexte hépatique')).toHaveValue('UNKNOWN');
+    expect(screen.queryByLabelText(/Indication/i)).not.toBeInTheDocument();
     expect(screen.getByText(/Aucun calcul de dose n’est activé/i)).toBeInTheDocument();
   });
 
-  it('enregistre uniquement les faits explicitement saisis', async () => {
+  it('enregistre uniquement les faits patient explicitement saisis', async () => {
     render(<PatientClinicalContextPanel patientId={42} />);
     const weight = await screen.findByLabelText('Poids explicite en kilogrammes');
     const saveButton = screen.getByRole('button', { name: /Enregistrer le contexte/i });
@@ -59,7 +59,6 @@ describe('PatientClinicalContextPanel C1', () => {
     fireEvent.change(screen.getByLabelText('Allergies médicamenteuses rapportées'), { target: { value: 'Pénicilline, Ibuprofène' } });
     fireEvent.change(screen.getByLabelText('Statut du contexte rénal'), { target: { value: 'IMPAIRMENT_REPORTED' } });
     fireEvent.change(screen.getByLabelText('Note rénale factuelle'), { target: { value: 'Atteinte rapportée' } });
-    fireEvent.change(screen.getByLabelText('Indication de la prescription'), { target: { value: 'Indication explicite' } });
     fireEvent.click(saveButton);
 
     await waitFor(() => expect(api.put).toHaveBeenCalledWith('/patients/42/clinical-context', {
@@ -70,7 +69,6 @@ describe('PatientClinicalContextPanel C1', () => {
       renal_context_note: 'Atteinte rapportée',
       hepatic_context_status: 'UNKNOWN',
       hepatic_context_note: null,
-      prescription_indication: 'Indication explicite',
     }));
     expect(await screen.findByText('Contexte enregistré')).toBeInTheDocument();
   });
