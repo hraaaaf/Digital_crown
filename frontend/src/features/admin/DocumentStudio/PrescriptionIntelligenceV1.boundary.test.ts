@@ -19,4 +19,10 @@ describe('Prescription Intelligence V1 active clinical boundary', () => {
     expect(studio).not.toContain('QUICK_PRESCRIPTIONS');
     expect(studio).toContain('data-clinical-rule-status="blocked"');
   });
+
+  it('does not call the uncertified legacy safety engine from V1', () => {
+    expect(studio).not.toContain("api.post('/prescriptions/safety/check'");
+    expect(studio).toContain('data-safety-status="blocked"');
+    expect(studio).toContain('Le moteur de sécurité legacy n’est pas une règle V1 certifiée');
+  });
 });
