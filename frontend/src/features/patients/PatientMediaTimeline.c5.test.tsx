@@ -48,8 +48,11 @@ describe('PatientMediaTimeline C5', () => {
     expect(within(rail).queryByText('Document')).not.toBeInTheDocument();
 
     await user.selectOptions(screen.getByLabelText('Filtrer par repère'), 'T1');
-    await waitFor(() => expect(screen.getByText('1/1')).toBeInTheDocument());
-    expect(within(rail).getByText('Radiographie')).toBeInTheDocument();
+    await waitFor(() => expect(api.get).toHaveBeenCalledWith('/patients/7/assets', expect.objectContaining({
+      params: expect.objectContaining({ asset_type: 'RADIOGRAPH', timepoint: 'T1' }),
+    })));
+    expect(await screen.findByText('1/1')).toBeInTheDocument();
+    expect(within(screen.getByTestId('media-asset-rail')).getByText('Radiographie')).toBeInTheDocument();
   });
 
   it('opens a two-asset compare panel and can clear it', async () => {
