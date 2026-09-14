@@ -45,7 +45,7 @@ def test_schema_accepts_unknown_fail_closed_state():
     assert payload.medication_allergies is None
     assert payload.renal_context_status == "UNKNOWN"
     assert payload.hepatic_context_status == "UNKNOWN"
-    assert payload.prescription_indication is None
+    assert "prescription_indication" not in payload.model_dump()
 
 
 @pytest.mark.parametrize("value", [0, -1, float("inf"), float("-inf"), float("nan")])
@@ -94,6 +94,7 @@ def test_context_get_defaults_and_put_roundtrip(client, db, dentiste, auth_heade
     assert initial_data["medication_allergy_status"] == "UNKNOWN"
     assert initial_data["renal_context_status"] == "UNKNOWN"
     assert initial_data["hepatic_context_status"] == "UNKNOWN"
+    assert "prescription_indication" not in initial_data
     assert "clinical_ready" not in initial_data
     assert "dose" not in initial_data
 
@@ -105,7 +106,6 @@ def test_context_get_defaults_and_put_roundtrip(client, db, dentiste, auth_heade
         "renal_context_note": "Atteinte rénale rapportée par le praticien",
         "hepatic_context_status": "NO_KNOWN_IMPAIRMENT",
         "hepatic_context_note": None,
-        "prescription_indication": "Indication saisie explicitement",
     }
     saved = client.put(
         f"/api/patients/{patient.id}/clinical-context",
@@ -117,14 +117,8 @@ def test_context_get_defaults_and_put_roundtrip(client, db, dentiste, auth_heade
     assert saved_data["weight_kg"] == 72.5
     assert saved_data["medication_allergies"] == ["Pénicilline"]
     assert saved_data["updated_by_user_id"] == dentiste.id
+    assert "prescription_indication" not in saved_data
     assert "clinical_ready" not in saved_data
-
-    read_back = client.get(
-        f"/api/patients/{patient.id}/clinical-context",
-        headers=auth_headers,
-    )
-    assert read_back.status_code == 200, read_back.text
-    assert read_back.json()["prescription_indication"] == "Indication saisie explicitement"
 
 
 def test_context_is_tenant_isolated(client, db, dentiste, auth_headers):
@@ -140,9 +134,10 @@ def test_context_is_tenant_isolated(client, db, dentiste, auth_headers):
 
 def test_context_rejects_unknown_fields(client, db, dentiste, auth_headers):
     patient = _patient(db, dentiste.id, suffix="STRICT")
-    response = client.put(
-        f"/api/patients/{patient.id}/clinical-context",
-        headers=auth_headers,
-        json={"clinical_ready": True},
-    )
-    assert response.status_code == 422
+    for forbidden in ({"clinical_ready": True}, {"prescription_indication": "document-scoped"}):
+        response = client.put(
+            f"/api/patients/{patient.id}/clinical-context",
+            headers=auth_headers,
+            json=forbidden,
+        )
+        assert response.status_code == 422
