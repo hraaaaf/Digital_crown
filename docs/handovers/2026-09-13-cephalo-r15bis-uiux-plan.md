@@ -1,90 +1,48 @@
 # HANDOVER — DIGITAL CROWN / CÉPHALOMÉTRIE — R15bis UI/UX
 
-**Date :** 2026-09-13  
+**Date d’ouverture :** 2026-09-13  
+**Date de closeout :** 2026-09-14  
 **Repo :** `hraaaaf/Digital_crown`  
 **Canonique :** `docs/CEPHALO_DIAGNOSTIC_SPEC.md`  
-**Gate d’entrée :** SATISFAIT — R15 mergé, closeouté et vérifié sur `master` `3dbab4e1fe722265932799eff01d4de8de252da9`.  
-**Branche active :** `feat/cephalo-r15bis-uiux`  
-**PR active :** #477  
+**Branche implémentation :** `feat/cephalo-r15bis-uiux`  
+**PR implémentation :** #477 — MERGED  
+**Candidate HEAD certifié :** `89c852bf95426623b942a90823db69bc85501b10`  
+**Merge master :** `127ed256c690f8cc9464bee68b8cd26c29f4129a`  
 **Référence visuelle :** `docs/assets/cephalo/r15bis-ui-reference.jpg`
 
 ## GOAL
 
-Transformer le studio céphalométrique issu de R15 en une interface clinique plus lisible, plus structurée et plus rapide à parcourir, **sans modifier aucune logique scientifique, clinique, diagnostique ou thérapeutique**.
+Transformer le studio céphalométrique R15 en une interface clinique plus lisible, plus structurée et plus rapide à parcourir, sans modifier la logique scientifique, clinique, diagnostique ou thérapeutique.
 
-Le lot reprend uniquement les qualités structurelles du visuel de référence :
-- navigation principale immédiatement lisible ;
-- radio/viewer dominant ;
-- panneau de résultats séparé et hiérarchisé ;
-- sections cliniques regroupées avec icônes simples ;
-- tableaux valeur/libellé compacts ;
-- états et complétude visibles sans bruit visuel.
+## SUCCÈS OBSERVABLE — ATTEINT
 
-Le thème sombre du mockup n’est **pas** une cible. La cible reste l’identité Digital Crown et ses tokens existants.
+Preuves exactes sur le HEAD `89c852bf95426623b942a90823db69bc85501b10` :
 
-## SUCCÈS OBSERVABLE
+- `Cephalo R15bis AFTER #24` : SUCCESS ;
+- `Cephalo R15bis AFTER #26` : SUCCESS ;
+- `CI #3856` : SUCCESS ;
+- `T2 Runtime Browser Certification #2784` : SUCCESS ;
+- `Cabinet Upgrade PostgreSQL Certification #299` : SUCCESS ;
+- `Cephalo R15 AFTER #65` : SUCCESS ;
+- `Cephalo R1 AFTER #55` : SUCCESS ;
+- `Patient P7 Final Certification #1422` : SUCCESS ;
+- `Cephalo COM Simplified Visual Certification #29` : SUCCESS ;
+- reviews : 0 ;
+- review threads : 0 ;
+- PR #477 mergeable avant merge ;
+- merge réel : `127ed256c690f8cc9464bee68b8cd26c29f4129a` ;
+- `master` post-merge vérifié exactement sur ce SHA ;
+- aucun déploiement.
 
-R15bis est réussi seulement si les preuves montrent :
+## BEFORE
 
-1. navigation principale cohérente et explicite : `Accueil / Patients / Imagerie / Tracés / Analyses / Rapports` lorsque ces destinations existent réellement dans le produit ;
-2. viewer/radio reste la surface dominante aux viewports adaptés ;
-3. résultats scientifiques/COM/cliniciens regroupés en panneaux lisibles sans masquer la provenance ni la calculabilité ;
-4. icônes homogènes, décoratives seulement quand elles n’ajoutent aucune action ;
-5. aucun bouton, onglet ou destination factice ;
-6. aucun contenu R11/R12/R13/R14 synthétisé ou auto-validé pour remplir l’UI ;
-7. aucun changement de calcul, contrat backend, règle de sécurité, norme, source ou validation praticien ;
-8. overflow horizontal = 0 aux viewports 390 / 768 / 1280+ ;
-9. console/page errors = 0 sur le scénario de certification ;
-10. comparaison BEFORE/AFTER documentée + score visuel explicite.
+Baseline produit exacte : `3dbab4e1fe722265932799eff01d4de8de252da9`.
 
-## RÉFÉRENCE VISUELLE
+Viewports : `390×844`, `768×1024`, `1280×900`.
 
-![Référence R15bis UI/UX](../assets/cephalo/r15bis-ui-reference.jpg)
+Contrat observé : overflow horizontal 0, console errors 0, page errors 0, chaîne R11→R14 visible, données manquantes/contradictions/contre-indications/provenance/action praticien visibles, aucune fausse validation.
 
-### À reprendre
-
-- top navigation claire avec destinations majeures ;
-- séparation forte `viewer` / `résultats` ;
-- panneaux de résultats avec titres + icônes ;
-- tableaux compacts libellé / valeur ;
-- badge de complétude/état seulement s’il est dérivé d’un état réel ;
-- hiérarchie visuelle forte et faible densité cognitive.
-
-### À ne pas reprendre
-
-- dark theme comme identité finale ;
-- couleurs arbitraires hors tokens Digital Crown ;
-- faux écrans ou fausses destinations ;
-- métriques mockées dans le runtime ;
-- duplication d’informations déjà exposées proprement par R15 ;
-- style “dashboard générique” si cela réduit la lisibilité clinique.
-
-## BEFORE OBLIGATOIRE
-
-Baseline exacte : `3dbab4e1fe722265932799eff01d4de8de252da9`.
-
-Workflow : `.github/workflows/cephalo-r15bis-before.yml`.
-
-Méthode : réutiliser le harness R15 AFTER certifié sur la baseline exacte ; conserver son `report.json` brut inchangé et ajouter `r15bis-before-metadata.json` pour qualifier explicitement cette capture comme BEFORE R15bis. Un second harness read-only complète la preuve par une capture du viewer Step 1, toujours exécutée sur le même SHA produit exact.
-
-### Preuve BEFORE déjà vérifiée — chaîne clinique R15
-
-Run `Cephalo R15bis BEFORE #4` : SUCCESS sur le HEAD de démarrage `ce8b1cf9dfd054d46ff66f7a180c22102cf43fe8`.
-
-Artifact : `cephalo-r15bis-before-exact-master`.
-
-Contrat observé :
-- `baselineProductHead = 3dbab4e1fe722265932799eff01d4de8de252da9` ;
-- viewports exacts `390x844`, `768x1024`, `1280x900` ;
-- `invalidCount = 0` ;
-- `blockedExternalRequests = []` ;
-- console errors = 0 ;
-- page errors = 0 ;
-- overflow horizontal = 0 ;
-- R11/R12/R13/R14, données manquantes, contradictions, contre-indications et action praticien visibles ;
-- aucune fausse validation ni action clinique locale.
-
-Hauteur document BEFORE :
+Hauteurs document BEFORE :
 
 | viewport | Step 3 | Step 4 |
 | --- | ---: | ---: |
@@ -92,176 +50,83 @@ Hauteur document BEFORE :
 | 768×1024 | 3328 px | 3012 px |
 | 1280×900 | 2378 px | 1955 px |
 
-### Audit visuel BEFORE
+Score visuel/HFE BEFORE : **6,4/10**.
 
-**Navigation**
-- header réel : `Actuel / Historique / Sauvegarder` ;
-- workflow réel : `Céphalométrie / Moulages / Synthèse clinique / Documents & stratégie` ;
-- aucune destination produit supplémentaire ne sera inventée ;
-- à 390 px le stepper reste contenu mais dépend d’un scroll horizontal interne.
+## IMPLÉMENTATION FINALE
 
-**Chaîne R11 → R14**
-- 390 px : quatre cartes empilées verticalement ; la première fenêtre est presque entièrement consommée par l’introduction + les quatre stades ;
-- 768 px : grille 2×2 ;
-- 1280 px : grille 4×1 ;
-- les états sont corrects et traçables, mais leur représentation est surdimensionnée par rapport à leur rôle de navigation scientifique.
+- viewer Step 1 dominant sur desktop sans changement du runtime scientifique ;
+- workflow mobile : quatre étapes simultanément visibles à 390 px ;
+- chaîne R11→R14 : quatre stades simultanément lisibles, sans mur de grandes cartes ;
+- stade sélectionné compacté en résumé / blocages / provenance / action praticien / exceptions ;
+- Step 3 compacté en présentation libellé/valeur ;
+- identité et tokens Digital Crown conservés ;
+- aucune donnée clinique masquée ;
+- aucun faux bouton ;
+- aucune auto-validation ;
+- aucun backend, formule, norme, source, COM/CRANIOM, PDF ou contrat R11-R14 modifié.
 
-**Panneau sélectionné**
-- contenu correct : résumé, gates, provenance, action praticien, données manquantes, contradictions, contre-indications ;
-- aucune information clinique ne doit disparaître ;
-- densité excessive : plusieurs cartes imbriquées, beaucoup de padding, mêmes informations répétées entre sélecteur de stade et détail.
+## AFTER FINAL
 
-**Actions**
-- `Sauvegarder`, navigation d’étape et actions documentaires existantes restent les seules actions ;
-- `Action praticien` R15 est informative quand le backend la déclare indisponible ; aucun faux CTA ne sera créé.
+Sur `Cephalo R15bis AFTER #24` :
 
-**Responsive / lisibilité**
-- point positif : overflow document horizontal déjà nul ;
-- problème principal : densité verticale et répétition, pas une casse de layout ;
-- sur 390 px, le détail scientifique utile commence trop bas ;
-- sur 1280 px, le bloc R15 monopolise la majorité du premier viewport avant les mesures de Step 3.
+- productHead exact : `89c852bf95426623b942a90823db69bc85501b10` ;
+- invalidCount = 0 ;
+- blockedExternalRequests = [] ;
+- console errors = 0 ;
+- page errors = 0 ;
+- selected-analysis binding = OK ;
+- overflow horizontal document = 0 ;
+- R11/R12/R13/R14 + missing data + contradictions + contre-indications + action praticien conservés ;
+- aucun faux contrôle, aucune auto-validation.
 
-**Score BEFORE argumenté : 6,4/10**
-- hiérarchie : 6/10 ;
-- lisibilité : 7/10 ;
-- densité : 4,5/10 ;
-- cohérence Digital Crown : 7,5/10 ;
-- séparation navigation / contenu : 6/10 ;
-- responsive : 6,5/10 ;
-- sécurité sémantique clinique : 9/10.
+### Densité BEFORE → AFTER
 
-Le score est visuel/HFE uniquement ; il ne note pas la validité scientifique.
+| viewport | Step 3 | réduction | Step 4 | réduction |
+| --- | ---: | ---: | ---: | ---: |
+| 390×844 | 4585 → 3175 px | -30,8 % | 4455 → 3740 px | -16,0 % |
+| 768×1024 | 3328 → 2544 px | -23,6 % | 3012 → 2737 px | -9,1 % |
+| 1280×900 | 2378 → 1793 px | -24,6 % | 1955 → 1731 px | -11,5 % |
 
-### Complément BEFORE viewer
+### Viewer final
 
-Le harness `frontend/scripts/capture-cephalo-r15bis-before-viewer.mjs` capture Step 1 sur le même SHA produit, aux mêmes trois viewports, avec métriques de bounding box, ratio de surface, overflow, console et page errors.
+- 390 : largeur 93,8 % viewport ; top 207 px ; aucun overflow ;
+- 768 : largeur 93,8 % viewport ; top 163 px ; aucun overflow ;
+- 1280 : largeur 96,2 % viewport ; top 163 px ; aucun overflow.
 
-**Gate : aucune modification UI avant SUCCESS de ce complément.**
+## SCORE VISUEL/HFE FINAL
 
-## GOAL VISUEL FIGÉ AVANT IMPLÉMENTATION
+**9,62/10** sur barème figé :
 
-### Hiérarchie cible
+- hiérarchie / priorité clinique : 9,7 ;
+- lisibilité / scannabilité : 9,5 ;
+- densité / efficacité : 9,7 ;
+- cohérence Digital Crown : 9,6 ;
+- responsive / mobile : 9,6 ;
+- dominance viewer : 9,4 ;
+- sécurité sémantique clinique : 10,0.
 
-1. header du studio compact, lisible, avec patient + vues réelles + sauvegarde ;
-2. stepper clinique compact, clairement secondaire au contenu ;
-3. Step 1 : viewer conserve la priorité visuelle et gagne l’espace horizontal disponible sur desktop ;
-4. Step 3/4 : chaîne R11→R14 devient un rail de statut compact, puis un panneau sélectionné hiérarchisé ;
-5. mesures et synthèses restent sous le panneau scientifique, avec valeurs plus compactes et moins de cartes imbriquées ;
-6. mobile : ordre de lecture naturel, aucune suppression de preuve et aucun mur de quatre grandes cartes.
+La pénalité viewer reste volontairement conservée pour le petit empilement des contrôles flottants à 390 px. Le seuil demandé `>= 9,5` est donc franchi sans arrondi opportuniste.
 
-### Mockup structurel — desktop
+## AVIS EXPERT INTERNE UI/HFE
 
-```text
-┌ Studio Céphalométrique · Patient ───────────── Actuel | Historique | Sauvegarder ┐
-├ 1 Céphalométrie  ›  2 Moulages  ›  3 Synthèse clinique  ›  4 Documents          ┤
-│                                                                                   │
-│ STEP 1                                                                            │
-│ ┌──────────────────────────── VIEWER RADIO DOMINANT ────────────────────────────┐ │
-│ │ tracé + contrôles existants, aucun nouvel état clinique                      │ │
-│ └───────────────────────────────────────────────────────────────────────────────┘ │
-│                                                                                   │
-│ STEP 3 / 4                                                                        │
-│ ┌ Chaîne clinique scientifique ───────────────────────────── 7 blocages actifs ┐ │
-│ │ [R11 Diagnostic] [R12 Problèmes] [R13 Options] [R14 Validation]             │ │
-│ ├─────────────────────────────────────┬─────────────────────────────────────────┤ │
-│ │ Résumé + gates visibles             │ Provenance                             │ │
-│ │                                     │ Action praticien / état backend         │ │
-│ ├─────────────────────────────────────┴─────────────────────────────────────────┤ │
-│ │ Données manquantes | Contradictions | Contre-indications                     │ │
-│ └───────────────────────────────────────────────────────────────────────────────┘ │
-│ [Analyse COM / Steiner / Tweed]                                                   │
-│ ┌ Mesures compactes libellé / valeur ─┐ ┌ Synthèse descriptive / notes ───────┐ │
-│ └──────────────────────────────────────┘ └──────────────────────────────────────┘ │
-└───────────────────────────────────────────────────────────────────────────────────┘
-```
+**Favorable.** Le gain est structurel et non cosmétique : viewer dominant, quatre stades scientifiques simultanément lisibles, forte baisse de densité, traçabilité clinique inchangée. La limite résiduelle mobile du viewer est mineure, sans obstruction ni overflow.
 
-### Mockup structurel — mobile 390
+## SCOPE / DRIFT
 
-```text
-Studio Céphalométrique
-Patient
-[Actuel | Historique] [Sauvegarder]
+PR #477 : 10 fichiers, 21 commits, 913 additions, 194 deletions. Branche avant merge : ahead 21 / behind 0, merge base égal au master courant. Aucun backend clinique ou scientifique modifié.
 
-[1 Céphalo] [2 Moulages] [3 Synthèse] [4 Documents]  ← rail interne scrollable
+## CLOSEOUT
 
-Chaîne clinique scientifique                    [7 blocages]
-[R11] [R12] [R13] [R14]                         ← rail compact, pas 4 cartes empilées
+R15bis est **FERMÉ** : implémentation mergée sur `master` au SHA `127ed256c690f8cc9464bee68b8cd26c29f4129a` après certification exacte du candidate HEAD.
 
-Stade sélectionné
-Résumé
-Blocages
-Provenance
-Action praticien
-Données manquantes / Contradictions / Contre-indications
-
-Analyse
-Mesures compactes
-Synthèse / notes
-```
-
-## MAPPING TOKENS / COMPOSANTS
-
-Aucun nouveau système visuel parallèle.
-
-| rôle | source autorisée |
-| --- | --- |
-| fond page | `P.bg` |
-| surface principale | `P.bgPanel` |
-| surface secondaire | `P.bgCard` |
-| champs / sous-sections | `P.bgInput` |
-| bordures | `P.border` |
-| texte | `P.text` |
-| texte secondaire | `P.textMuted` / `P.textDim` |
-| sélection / navigation | `P.accent` |
-| succès système | `P.accentSuccess` |
-| avertissement système | `P.accentWarning` |
-| erreur / blocage | `P.accentError` |
-| profondeur | `P.shadow` / `P.shadowLg` |
-
-Composants conservés et réorganisés : `CephaloWorkspace`, `StepTab`, `ClinicalScientificStudio`, `Step3Clinical`, `Step4Documents`, `Step1Cephalo`.
-
-Le viewer radiographique peut conserver son fond sombre fonctionnel interne ; **le chrome produit autour du viewer reste Digital Crown**. Aucun dark theme global R15bis.
-
-## IMPLÉMENTATION AUTORISÉE
-
-- layout, spacing, typographie, cartes, tableaux, sections, icônes ;
-- navigation uniquement vers routes réelles ;
-- responsive/adaptation viewer + panneau latéral ;
-- regroupement visuel des informations existantes ;
-- amélioration accessibilité clavier/ARIA/touch si nécessaire ;
-- réutilisation stricte des tokens et composants Digital Crown quand disponibles.
-
-## HORS SCOPE / INTERDITS
-
-- aucune modification des formules céphalométriques ;
-- aucune modification COM ou CRANIOM ;
-- aucune nouvelle norme ni interprétation ;
-- aucune modification du contrat R11/R12/R13/R14 ;
-- aucune auto-validation praticien ;
-- aucun PDF/restitution R16 ;
-- aucun déploiement Vercel sans autorisation explicite.
-
-## AFTER / CERTIFICATION
-
-Après implémentation :
-
-`AFTER 390 / 768 / 1280+ → comparaison avec BEFORE → overflow → console/page errors → interactions essentielles → clavier/touch → score visuel`
-
-Le score visuel doit être argumenté sur :
-- hiérarchie ;
-- lisibilité ;
-- densité ;
-- cohérence ;
-- séparation viewer/résultats ;
-- responsive ;
-- fidélité à Digital Crown.
-
-Aucun “10/10” sans captures et comparaison réelles.
+Aucun déploiement Vercel.
 
 ## NEXT EXACT
 
-Fermer le complément BEFORE viewer sur la baseline `3dbab4e1fe722265932799eff01d4de8de252da9`, intégrer ses métriques au présent audit, puis seulement modifier les fichiers UI selon le mockup structurel figé ci-dessus.
+Démarrer **R16 — PDF / restitution** depuis le master post-closeout documentaire, avec contrat strict : UI/API/PDF doivent restituer le même graphe de preuve, le même état de validation praticien, les mêmes données manquantes, contradictions, contre-indications et provenances, sans fabriquer ni promouvoir de contenu clinique.
+
+Handover R16 : `docs/handovers/2026-09-14-cephalo-r16-pdf-restitution-handover.md`.
 
 ## SÉQUENCE RESTANTE CÉPHALO
 
-`R15bis BEFORE viewer → implémentation R15bis → AFTER/certification → comparaison/corrections → closeout R15bis → R16 PDF/restitution → R17 certification/closeout`
+`closeout documentaire R15bis → R16 PDF/restitution → R17 certification/closeout`
