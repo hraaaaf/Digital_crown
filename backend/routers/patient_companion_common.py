@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import hmac
+import re
 import secrets
 from dataclasses import dataclass
 
@@ -56,6 +57,44 @@ def generate_manual_code() -> str:
     return "-".join(compact[i:i + 4] for i in range(0, 12, 4))
 
 
+def normalize_recipient(recipient_type: str, raw: str) -> str:
+    if recipient_type == "email":
+        value = raw.strip().lower()
+        if not value or "@" not in value or len(value) > 254:
+            raise ValueError("invalid email")
+        return value
+    if recipient_type == "phone":
+        value = re.sub(r"[\s().-]", "", raw.strip())
+        if value.startswith("00"):
+            value = "+" + value[2:]
+        if not re.fullmatch(r"\+[1-9]\d{7,14}", value):
+            raise ValueError("phone must be E.164")
+        return value
+    raise ValueError("unsupported recipient type")
+
+
+def recipient_hash(recipient_type: str, raw: str) -> str:
+    normalized = normalize_recipient(recipient_type, raw)
+    return hmac.new(
+        SECRET_KEY.encode("utf-8"),
+        f"{recipient_type}:{normalized}".encode("utf-8"),
+        hashlib.sha256,
+    ).hexdigest()
+
+
+def credential_recipient_hash(
+    credential: FirebasePatientCredential,
+    recipient_type: str,
+) -> str | None:
+    raw = credential.verified_email if recipient_type == "email" else credential.phone_number
+    if not raw:
+        return None
+    try:
+        return recipient_hash(recipient_type, raw)
+    except ValueError:
+        return None
+
+
 def staff_patient_or_404(db: Session, current_user: models.User, patient_id: int) -> models.Patient:
     if not has_permission(current_user, "patients"):
         raise HTTPException(status_code=403, detail="Permission patients requise.")
@@ -77,8 +116,6 @@ def staff_patient_or_404(db: Session, current_user: models.User, patient_id: int
 def patient_credential(
     authorization: str | None = Header(default=None),
 ) -> FirebasePatientCredential:
-    # Keep patient and cabinet authentication namespaces disjoint. The cabinet
-    # middleware owns `Bearer`; Patient Companion owns the explicit `Firebase` scheme.
     if not authorization:
         raise HTTPException(status_code=401, detail="Authentification patient requise.")
     scheme, separator, raw = authorization.partition(" ")
