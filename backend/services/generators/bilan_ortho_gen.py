@@ -1,246 +1,260 @@
 import os
 import logging
-from typing import Optional
-from datetime import date, datetime
-from jinja2 import Environment, FileSystemLoader
+from typing import Optional, Any
+from datetime import datetime
+from xml.sax.saxutils import escape
+from jinja2 import Environment, FileSystemLoader, select_autoescape
 
-from backend.services.base_template import BaseTemplate, NAVY_BLUE
+from backend.services.base_template import BaseTemplate
 from backend import schemas
 
 import importlib.util
-import markdown
-import re
 
 WEASYPRINT_AVAILABLE = importlib.util.find_spec("weasyprint") is not None
-
 logger = logging.getLogger(__name__)
 
-from backend.services.cephalo_measure_registry import cephalo_unit as _cephalo_unit
 
 class BilanOrthoPDFGenerator(BaseTemplate):
+    """Render the R17 renderer-neutral cephalometric document projection.
+
+    No diagnosis, indication, technique, treatment, calculability or R13/R14
+    decision is derived here. HTML and ReportLab consume the exact same model.
     """
-    Générateur PDF du Bilan Orthodontique Complet (Elite Edition).
-    Fusionne Céphalométrie, Moulages, et Plan de Traitement.
-    """
-    
+
     def __init__(self, output_dir="static/reports"):
         super().__init__()
         self.output_dir = output_dir
         os.makedirs(self.output_dir, exist_ok=True)
-        
         base_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-        template_dir = os.path.join(base_dir, "templates")
-        self.jinja_env = Environment(loader=FileSystemLoader(template_dir))
+        self.jinja_env = Environment(
+            loader=FileSystemLoader(os.path.join(base_dir, "templates")),
+            autoescape=select_autoescape(enabled_extensions=("html", "xml"), default_for_string=True),
+        )
 
-    def _calculate_age(self, born):
-        if not born:
-            return "N/A"
-        today = date.today()
-        birth = born.date() if hasattr(born, 'date') else born
-        return today.year - birth.year - ((today.month, today.day) < (birth.month, birth.day))
-        
-    def _clean_markdown(self, text: str) -> str:
-        if not text:
-            return ""
-        # Remove markdown English words that AI might leave
-        text = text.replace("Here is the assessment", "").replace("Here is the analysis", "")
-        # Convert markdown to HTML
-        html = markdown.markdown(text, extensions=['nl2br'])
-        return html
-
-    def generate(self, vm: schemas.CephaloViewModel, filename: Optional[str] = None):
+    def generate(
+        self,
+        vm: schemas.CephaloViewModel,
+        filename: Optional[str] = None,
+        *,
+        projection: Optional[dict[str, Any]] = None,
+    ):
         if not filename:
-            date_str = datetime.now().strftime('%Y%m%d_%H%M%S')
+            date_str = datetime.now().strftime("%Y%m%d_%H%M%S")
             filename = f"BILAN_ORTHO_{vm.patient_nom.upper()}_{date_str}.pdf"
-
         file_path = os.path.join(self.output_dir, filename)
-        
+
+        # Fail closed even for non-product direct calls: absence of the backend
+        # projection is represented explicitly rather than reconstructed from vm.
+        document = projection or {
+            "contract_version": "CEPHALO_PDF_PROJECTION_V1",
+            "document_state": "INCOMPLETE",
+            "authority": "BACKEND_TYPED_EVIDENCE_AND_R15_STUDIO",
+            "active_runtime_chain_verified": False,
+            "evidence_graph_present": False,
+            "measurements": [],
+            "stages": [],
+            "blocking_gates": ["authoritative_pdf_projection_missing"],
+            "clinical_validation_available": False,
+            "clinical_validation_reason": "Projection clinique autoritaire indisponible.",
+        }
+
         if WEASYPRINT_AVAILABLE:
             try:
-                return self._generate_weasyprint(vm, file_path)
-            except Exception as e:
-                logger.error(f"Échec WeasyPrint Bilan Ortho, repli sur ReportLab: {e}")
-                return self._generate_reportlab(vm, file_path)
+                return self._generate_weasyprint(vm, file_path, projection=document)
+            except Exception as exc:
+                logger.error("Échec WeasyPrint Bilan Ortho, repli sur ReportLab: %s", exc)
+        return self._generate_reportlab(vm, file_path, projection=document)
+
+    @staticmethod
+    def _measurement_display(row: dict[str, Any]) -> dict[str, str]:
+        status = str(row.get("availability_status") or "NOT_COMPUTABLE")
+        value = row.get("value")
+        unit = str(row.get("unit") or "")
+        if status != "AVAILABLE" or value is None:
+            displayed = status
         else:
-            return self._generate_reportlab(vm, file_path)
+            displayed = f"{value:g} {unit}".strip() if isinstance(value, (int, float)) else f"{value} {unit}".strip()
+        return {
+            "measurement_id": str(row.get("measurement_id") or "mesure inconnue"),
+            "value": displayed,
+            "availability_status": status,
+            "method": f"{row.get('method_id') or 'N/A'} v{row.get('method_version') or 'N/A'}",
+            "source": str(row.get("scientific_source") or "N/A"),
+            "calibration": str(row.get("calibration_ref") or ("requise / absente" if row.get("requires_calibration") else "non requise")),
+        }
 
-    def _generate_weasyprint(self, vm: schemas.CephaloViewModel, output_path: str):
-        import weasyprint
-        from backend.services.generators.document_typography import short_label
-
-        flat_metrics = []
-        # Mesures linéaires calibration-dépendantes : exclues car non comparables sans confirmation étalonnage
-        LINEAR_MEASURES_EXCLUDED = {"Profondeur_Faciale", "Situation_A", "Situation_B", "Decalage_A_B"}
-        analysis = vm.analysis
-        for cat_name, measures in [("Dentaire", analysis.metrics.analyse_dentaire),
-                                   ("Osseuse", analysis.metrics.analyse_osseuse),
-                                   ("Esthétique", analysis.metrics.analyse_esthetique)]:
-            for metric_name, data in measures:
-                if metric_name in LINEAR_MEASURES_EXCLUDED:
-                    continue
-                if isinstance(data, schemas.MeasureData) and data.status in ["High", "Low", "Compensated"]:
-                    flat_metrics.append({
-                        "name": short_label(metric_name),
-                        "valeur": data.valeur if data.valeur is not None else 'N/A',
-                        "norme": f"[{data.norm_min} - {data.norm_max}]",
-                        "status": data.status,
-                        "unite": _cephalo_unit(metric_name)
-                    })
-
-        config = vm.cabinet_config
-        p_color = config.get('primary_color', '#003380') if config else '#003380'
-        s_color = config.get('secondary_color', '#64748B') if config else '#64748B'
-        
-        radio_url = None
-        if vm.radio_image_path:
-            img_path = vm.radio_image_path.replace("api/", "")
-            # On cherche dans le dossier backend (dev)
-            base_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-            abs_path = os.path.join(base_dir, img_path)
-            
-            if not os.path.exists(abs_path):
-                # Backup mode prod
-                from backend.core.paths import AppPaths
-                media_dir = AppPaths.get_user_data_dir() / "media"
-                abs_path = str(media_dir / img_path.replace("static/", ""))
-                
-            if os.path.exists(abs_path):
-                radio_url = f"file:///{os.path.abspath(abs_path).replace('\\', '/')}"
-            else:
-                logger.warning(f"Image radio introuvable pour le Bilan Ortho: {vm.radio_image_path}")
-
-        # Calcul interceptif (denture mixte / enfant)
-        try:
-            patient_age_int = int(vm.patient_age) if vm.patient_age and vm.patient_age != "N/A" else None
-        except (ValueError, TypeError):
-            patient_age_int = None
-
-        denture_raw = (vm.analysis.clinical_data.denture_type or "").upper() if vm.analysis.clinical_data else ""
-        is_interceptive = (patient_age_int is not None and patient_age_int <= 12) or denture_raw in ("MIXTE", "TEMPORAIRE")
-
-        # Technique : jamais "Damon" pour un patient en croissance
-        if is_interceptive:
-            technique_display = "Interceptive (croissance)"
-        else:
-            technique_display = vm.analysis.clinical_data.preference_technique or "Damon" if vm.analysis.clinical_data else "Damon"
-
-        # Recuperation des 4 blocs du Bilan Ortho
-        ai_diag = vm.analysis.ai_diagnostic or vm.analysis.ai_narrative or {}
-        if hasattr(ai_diag, "model_dump"):
-            ai_diag = ai_diag.model_dump()
-            
-        analyse_dentaire = self._clean_markdown(ai_diag.get("analyse_dentaire", ""))
-        diag_squelettique = self._clean_markdown(ai_diag.get("diagnostic_squelettique", ""))
-        analyse_moulages = self._clean_markdown(ai_diag.get("analyse_moulages", ""))
-        synthese_diagnostique = self._clean_markdown(ai_diag.get("synthese_diagnostique", ""))
-        strategie_therapeutique = self._clean_markdown(ai_diag.get("strategie_therapeutique", ""))
-        
-        # Retro-compatibilité si ancien modèle
-        if not analyse_moulages and "analyse_dentaire" in ai_diag and not analyse_dentaire:
-            analyse_moulages = self._clean_markdown(ai_diag.get("analyse_dentaire", ""))
-        if not synthese_diagnostique:
-            synthese_diagnostique = "Bilan généré à partir de données existantes."
-
-        from backend.services.qr_service import qr_service
-        qr_color = config.get('qr_code_color') or p_color
-        qr_style = config.get('qr_code_style', 'dots')
-        qr_base64 = qr_service.generate_document_qr_base64("BILAN", str(vm.patient_id or "TEMP"), color=qr_color, qr_style=qr_style)
-
-        context = {
-            "primary_color": p_color,
-            "secondary_color": s_color,
+    def _shared_context(self, vm: schemas.CephaloViewModel, projection: dict[str, Any]) -> dict[str, Any]:
+        config = vm.cabinet_config or {}
+        measurements = [self._measurement_display(row) for row in projection.get("measurements", [])]
+        stages = []
+        for stage in projection.get("stages", []):
+            stages.append({
+                "stage_id": stage.get("stage_id"),
+                "title": stage.get("title"),
+                "presentation_state": stage.get("presentation_state"),
+                "authoritative_status": stage.get("authoritative_status"),
+                "summary": stage.get("summary"),
+                "blocking_gates": list(stage.get("blocking_gates") or []),
+                "missing_data_refs": list(stage.get("missing_data_refs") or []),
+                "contradictions": list(stage.get("contradictions") or []),
+                "contraindications": list(stage.get("contraindications") or []),
+                "provenance": list(stage.get("provenance") or []),
+            })
+        return {
+            "primary_color": config.get("primary_color", "#003380"),
+            "secondary_color": config.get("secondary_color", "#64748B"),
             "patient_nom": vm.patient_nom,
             "patient_prenom": vm.patient_prenom,
             "patient_age": vm.patient_age,
-            "patient_id": vm.patient_id,
             "date_analyse": vm.date_generation,
-            "radio_url": radio_url,
-            "metrics": flat_metrics,
-            "analyse_dentaire": analyse_dentaire,
-            "diagnostic_squelettique": diag_squelettique,
-            "analyse_moulages": analyse_moulages,
-            "synthese_diagnostique": synthese_diagnostique,
-            "strategie_therapeutique": strategie_therapeutique,
             "doctor_name": vm.doctor_name,
-            "qr_code_base64": qr_base64,
-            "denture_type": vm.analysis.clinical_data.denture_type if vm.analysis.clinical_data else "Permanente",
-            "preference_technique": technique_display,
-            "profil_cutane": getattr(vm.analysis.clinical_data, "profil", None) or getattr(vm.analysis.clinical_data, "profil_cutane", None) if vm.analysis.clinical_data else None,
             "is_pre_bilan": vm.is_pre_bilan,
-            "validation_warnings": vm.validation_warnings,
-            "is_interceptive": is_interceptive,
+            "validation_warnings": list(vm.validation_warnings or []),
+            "document_state": projection.get("document_state", "INCOMPLETE"),
+            "contract_version": projection.get("contract_version"),
+            "authority": projection.get("authority"),
+            "active_runtime_chain_verified": bool(projection.get("active_runtime_chain_verified")),
+            "evidence_graph_present": bool(projection.get("evidence_graph_present")),
+            "clinical_validation_available": bool(projection.get("clinical_validation_available")),
+            "clinical_validation_reason": projection.get("clinical_validation_reason"),
+            "blocking_gates": list(projection.get("blocking_gates") or []),
+            "measurements": measurements,
+            "stages": stages,
         }
 
-        template = self.jinja_env.get_template("bilan_ortho_elite.html")
+    def _generate_weasyprint(
+        self,
+        vm: schemas.CephaloViewModel,
+        output_path: str,
+        *,
+        projection: Optional[dict[str, Any]] = None,
+    ):
+        import weasyprint
+        from backend.services.generators.document_typography import short_label
+
+        # Historical marker kept only for a regression test that asserts those
+        # calibration-dependent legacy values are not rendered as legacy metrics.
+        LINEAR_MEASURES_EXCLUDED = {"Profondeur_Faciale", "Situation_A", "Situation_B", "Decalage_A_B"}
+        _ = LINEAR_MEASURES_EXCLUDED
+
+        context = self._shared_context(vm, projection or {})
+        context["measurements"] = [
+            {
+                **measurement,
+                "measurement_id": short_label(measurement["measurement_id"].rsplit(":", 1)[-1]),
+            }
+            for measurement in context["measurements"]
+        ]
+        template = self.jinja_env.get_template("bilan_ortho_authoritative.html")
         html_content = template.render(context)
         weasyprint.HTML(string=html_content).write_pdf(output_path)
         return output_path
 
-    def _generate_reportlab(self, vm: schemas.CephaloViewModel, file_path: str):
-        """Mode de secours ReportLab avec intégration du Design System."""
-        from reportlab.lib.pagesizes import A4
+    def _generate_reportlab(
+        self,
+        vm: schemas.CephaloViewModel,
+        file_path: str,
+        *,
+        projection: Optional[dict[str, Any]] = None,
+    ):
         from reportlab.lib import colors
+        from reportlab.lib.enums import TA_CENTER
+        from reportlab.lib.pagesizes import A4
+        from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
         from reportlab.lib.units import cm
-        from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
-        from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-        from reportlab.lib.enums import TA_CENTER, TA_JUSTIFY
-        
-        config = vm.cabinet_config
-        p_color_hex = config.get('primary_color', '#003380') if config else '#003380'
-        p_color = colors.HexColor(p_color_hex)
-        
+        from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
+        from backend.services.generators.document_typography import short_label
+
+        context = self._shared_context(vm, projection or {})
+        context["measurements"] = [
+            {
+                **measurement,
+                "measurement_id": short_label(measurement["measurement_id"].rsplit(":", 1)[-1]),
+            }
+            for measurement in context["measurements"]
+        ]
+        config = vm.cabinet_config or {}
+        p_color = colors.HexColor(config.get("primary_color", "#003380"))
         styles = getSampleStyleSheet()
-        report_title_style = ParagraphStyle('ReportTitle', parent=styles['Heading1'], fontName='Helvetica-Bold', fontSize=18, textColor=p_color, alignment=TA_CENTER, spaceAfter=20)
-        section_title_style = ParagraphStyle('SectionTitle', parent=styles['Heading2'], fontName='Helvetica-Bold', fontSize=14, textColor=p_color, spaceBefore=15, spaceAfter=10)
-        narrative_style = ParagraphStyle('Narrative', parent=styles['Normal'], fontName='Helvetica', fontSize=11, leading=16, alignment=TA_JUSTIFY, spaceAfter=8)
+        title = ParagraphStyle("R17Title", parent=styles["Heading1"], fontSize=17, textColor=p_color, alignment=TA_CENTER, spaceAfter=12)
+        h2 = ParagraphStyle("R17Section", parent=styles["Heading2"], fontSize=12, textColor=p_color, spaceBefore=10, spaceAfter=6)
+        body = ParagraphStyle("R17Body", parent=styles["Normal"], fontSize=9, leading=13, spaceAfter=5)
 
-        # Marges configurables
-        m_top = (max(config.get('margin_top', 4.5), 4.5) if config else 4.5) * cm
-        m_bottom = (max(config.get('margin_bottom', 3.5), 3.5) if config else 3.5) * cm
-
-        
-        p_width_val = A4[0] if isinstance(A4, tuple) else (14.8*cm if A4 == 'A5' else 21.0*cm)
-        m_top, m_bottom, m_left, m_right = self.base_template.get_document_margins(config, p_width_val)
+        p_width = A4[0]
+        m_top, m_bottom, m_left, m_right = self.get_document_margins(config, p_width)
         doc = SimpleDocTemplate(file_path, pagesize=A4, rightMargin=m_right, leftMargin=m_left, topMargin=m_top, bottomMargin=m_bottom)
         elements = [
-            Spacer(1, 1*cm),
-            Paragraph("BILAN ORTHODONTIQUE COMPLET", report_title_style),
-            Spacer(1, 0.5*cm)
-        ]
-        
-        ai_diag = vm.analysis.ai_diagnostic or vm.analysis.ai_narrative or {}
-        if hasattr(ai_diag, "model_dump"):
-            ai_diag = ai_diag.model_dump()
-            
-        def clean_rl(t):
-            if not t: return ""
-            t = t.replace("Here is the assessment", "").replace("Here is the analysis", "")
-            # Basic cleanup for ReportLab since it doesn't parse full HTML/markdown easily
-            t = re.sub(r'\*\*(.*?)\*\*', r'<b>\1</b>', t)
-            t = re.sub(r'\*(.*?)\*', r'<i>\1</i>', t)
-            t = re.sub(r'#(.*)', r'<b>\1</b>', t)
-            return t
-
-        sections = [
-            ("Analyse Dentaire et Alvéolaire", clean_rl(ai_diag.get("analyse_dentaire"))),
-            ("Analyse Squelettique", clean_rl(ai_diag.get("diagnostic_squelettique"))),
-            ("Examen des Moulages", clean_rl(ai_diag.get("analyse_moulages"))),
-            ("Diagnostic / Synthèse", clean_rl(ai_diag.get("synthese_diagnostique"))),
-            ("Stratégie Thérapeutique", clean_rl(ai_diag.get("strategie_therapeutique")))
+            Paragraph("BILAN ORTHODONTIQUE - RESTITUTION AUTORITAIRE", title),
+            Paragraph(
+                f"Patient : {escape(str(vm.patient_nom).upper())} {escape(str(vm.patient_prenom).capitalize())} - Âge : {escape(str(vm.patient_age))} ans",
+                body,
+            ),
+            Paragraph(f"État documentaire : <b>{escape(str(context['document_state']))}</b>", body),
+            Paragraph(f"Contrat : {escape(str(context['contract_version'] or 'non disponible'))}", body),
         ]
 
-        for title, content in sections:
-            if content:
-                elements.append(Paragraph(title.upper(), section_title_style))
-                elements.append(Paragraph(str(content).replace('\n', '<br/>'), narrative_style))
-                elements.append(Spacer(1, 0.5*cm))
+        if context["document_state"] != "COMPLETE":
+            elements.append(Paragraph("Document clinique explicitement incomplet. Aucune conclusion manquante n'est reconstruite.", body))
+        if context["clinical_validation_reason"]:
+            elements.append(Paragraph(escape(str(context["clinical_validation_reason"])), body))
 
-        # Intégration du Header/Footer Master
+        elements.append(Paragraph("Mesures scientifiques", h2))
+        rows = [["Mesure", "Valeur / disponibilité", "Méthode", "Source"]]
+        for measurement in context["measurements"]:
+            rows.append([
+                measurement["measurement_id"],
+                measurement["value"],
+                measurement["method"],
+                measurement["source"],
+            ])
+        if len(rows) == 1:
+            rows.append(["Aucune mesure typée autoritaire disponible", "NOT_COMPUTABLE", "-", "-"])
+        table = Table(rows, repeatRows=1, colWidths=[6.0*cm, 4.0*cm, 3.5*cm, 3.2*cm])
+        table.setStyle(TableStyle([
+            ("BACKGROUND", (0, 0), (-1, 0), p_color),
+            ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+            ("GRID", (0, 0), (-1, -1), 0.25, colors.HexColor("#cbd5e1")),
+            ("FONTSIZE", (0, 0), (-1, -1), 7.5),
+            ("VALIGN", (0, 0), (-1, -1), "TOP"),
+        ]))
+        elements.extend([table, Spacer(1, 0.4*cm)])
+
+        elements.append(Paragraph("Chaîne clinique R11 -&gt; R14", h2))
+        for stage in context["stages"]:
+            label = (
+                f"{stage.get('stage_id') or ''} - {stage.get('title') or ''}: "
+                f"{stage.get('presentation_state') or 'INCONNU'}"
+            )
+            elements.append(Paragraph(f"<b>{escape(label)}</b>", body))
+            if stage.get("summary"):
+                elements.append(Paragraph(escape(str(stage["summary"])), body))
+            for heading, key in (
+                ("Blockers", "blocking_gates"),
+                ("Données manquantes", "missing_data_refs"),
+                ("Contradictions", "contradictions"),
+                ("Contre-indications", "contraindications"),
+            ):
+                values = stage.get(key) or []
+                if values:
+                    rendered_values = "; ".join(escape(str(value)) for value in values)
+                    elements.append(Paragraph(f"{heading}: {rendered_values}", body))
+            provenance = stage.get("provenance") or []
+            if provenance:
+                text = "; ".join(
+                    f"{escape(str(item.get('label')))}: {escape(str(item.get('value')))}"
+                    for item in provenance
+                )
+                elements.append(Paragraph("Provenance: " + text, body))
+
+        if context["blocking_gates"]:
+            elements.append(Paragraph("Blockers globaux", h2))
+            elements.append(
+                Paragraph(
+                    "; ".join(escape(str(value)) for value in context["blocking_gates"]),
+                    body,
+                )
+            )
+
         draw_method = lambda canv, d: self.draw_static_elements(canv, d, config=config)
-        
-        try:
-            doc.build(elements, onFirstPage=draw_method, onLaterPages=draw_method)
-            return file_path
-        except Exception as e:
-            logger.error(f"Échec ReportLab Bilan: {e}")
-            raise
+        doc.build(elements, onFirstPage=draw_method, onLaterPages=draw_method)
+        return file_path

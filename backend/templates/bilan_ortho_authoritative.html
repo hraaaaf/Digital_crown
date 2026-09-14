@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<title>Bilan orthodontique - {{ patient_nom }}</title>
+<style>
+:root { --primary: {{ primary_color }}; --secondary: {{ secondary_color }}; }
+@page { size:A4; margin:1.5cm; @bottom-center { content:"Page " counter(page) " / " counter(pages); font-size:8pt; color:var(--secondary); } }
+body { font-family:Helvetica,Arial,sans-serif; color:#1f2937; font-size:9.5pt; line-height:1.45; }
+h1 { color:var(--primary); text-align:center; font-size:19pt; margin:0 0 5px; }
+h2 { color:var(--primary); font-size:13pt; margin:20px 0 8px; border-bottom:1px solid #dbe3ec; padding-bottom:4px; }
+.meta,.notice,.stage { border:1px solid #dbe3ec; border-radius:5px; padding:10px 12px; margin:8px 0; page-break-inside:avoid; }
+.notice { background:#fff7ed; border-left:4px solid #ea580c; }
+.incomplete { background:#fef2f2; border-left:4px solid #dc2626; }
+.ok { background:#f0fdf4; border-left:4px solid #16a34a; }
+.small { color:var(--secondary); font-size:8pt; }
+table { width:100%; border-collapse:collapse; table-layout:fixed; font-size:8pt; }
+th { background:var(--primary); color:white; padding:6px; border:1px solid #dbe3ec; text-align:left; }
+td { padding:6px; border:1px solid #dbe3ec; vertical-align:top; overflow-wrap:anywhere; }
+ul { margin:4px 0 4px 18px; padding:0; }
+.state { font-weight:bold; }
+.footer { margin-top:24px; padding-top:10px; border-top:1px solid #dbe3ec; font-size:8pt; color:var(--secondary); }
+</style>
+</head>
+<body>
+<h1>Bilan orthodontique</h1>
+<div class="small" style="text-align:center;">Restitution scientifique autoritaire - {{ contract_version or 'contrat indisponible' }}</div>
+
+<div class="meta">
+<strong>Patient :</strong> {{ patient_nom.upper() }} {{ patient_prenom.capitalize() }} &nbsp; | &nbsp;
+<strong>Âge :</strong> {{ patient_age }} ans &nbsp; | &nbsp;
+<strong>Date :</strong> {{ date_analyse }}<br>
+<strong>Autorité :</strong> {{ authority or 'indisponible' }}<br>
+<strong>Chaîne typée active :</strong> {{ 'VERIFIED' if active_runtime_chain_verified else 'NON VERIFIED' }}
+</div>
+
+{% if document_state != 'COMPLETE' %}
+<div class="notice incomplete">
+<strong>DOCUMENT CLINIQUE INCOMPLET</strong><br>
+Les données absentes, non calculables ou non validées restent explicitement non résolues. Aucune conclusion clinique ou thérapeutique n'est reconstruite pour compléter le document.
+{% if clinical_validation_reason %}<div class="small">{{ clinical_validation_reason }}</div>{% endif %}
+</div>
+{% else %}
+<div class="notice ok"><strong>État documentaire : COMPLETE</strong></div>
+{% endif %}
+
+{% if is_pre_bilan %}
+<div class="notice"><strong>PRÉ-BILAN</strong> - document de travail non archivé.</div>
+{% endif %}
+
+{% if validation_warnings %}
+<div class="notice"><strong>Points à vérifier :</strong><ul>{% for item in validation_warnings %}<li>{{ item }}</li>{% endfor %}</ul></div>
+{% endif %}
+
+<h2>Mesures scientifiques</h2>
+<table>
+<thead><tr><th style="width:28%">Mesure</th><th style="width:20%">Valeur / disponibilité</th><th style="width:22%">Méthode</th><th style="width:15%">Source</th><th style="width:15%">Calibration</th></tr></thead>
+<tbody>
+{% if measurements %}
+{% for m in measurements %}
+<tr><td>{{ m.measurement_id }}</td><td><strong>{{ m.value }}</strong><br><span class="small">{{ m.availability_status }}</span></td><td>{{ m.method }}</td><td>{{ m.source }}</td><td>{{ m.calibration }}</td></tr>
+{% endfor %}
+{% else %}
+<tr><td colspan="5">Aucune mesure typée autoritaire disponible. État : NOT_COMPUTABLE / indisponible selon la preuve backend.</td></tr>
+{% endif %}
+</tbody>
+</table>
+
+<h2>Chaîne clinique R11 → R14</h2>
+{% for stage in stages %}
+<div class="stage">
+<div class="state">{{ stage.stage_id }} - {{ stage.title }} : {{ stage.presentation_state }}</div>
+{% if stage.summary %}<div>{{ stage.summary }}</div>{% endif %}
+{% if stage.blocking_gates %}<div><strong>Blockers :</strong><ul>{% for item in stage.blocking_gates %}<li>{{ item }}</li>{% endfor %}</ul></div>{% endif %}
+{% if stage.missing_data_refs %}<div><strong>Données manquantes :</strong><ul>{% for item in stage.missing_data_refs %}<li>{{ item }}</li>{% endfor %}</ul></div>{% endif %}
+{% if stage.contradictions %}<div><strong>Contradictions :</strong><ul>{% for item in stage.contradictions %}<li>{{ item }}</li>{% endfor %}</ul></div>{% endif %}
+{% if stage.contraindications %}<div><strong>Contre-indications :</strong><ul>{% for item in stage.contraindications %}<li>{{ item }}</li>{% endfor %}</ul></div>{% endif %}
+{% if stage.provenance %}<div><strong>Provenance :</strong><ul>{% for item in stage.provenance %}<li>{{ item.label }} : {{ item.value }}</li>{% endfor %}</ul></div>{% endif %}
+</div>
+{% endfor %}
+
+{% if blocking_gates %}
+<h2>Blockers globaux</h2>
+<div class="notice"><ul>{% for item in blocking_gates %}<li>{{ item }}</li>{% endfor %}</ul></div>
+{% endif %}
+
+<div class="footer">
+Praticien responsable : {{ doctor_name or 'non renseigné' }}.<br>
+Ce document restitue l'état clinique autoritaire disponible. EVALUABLE n'implique jamais sélection ; BLOCKED n'implique jamais DROPPED ; une validation finale R14 exige une preuve praticien autoritaire.
+</div>
+</body>
+</html>
