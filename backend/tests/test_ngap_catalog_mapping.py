@@ -1,3 +1,5 @@
+from datetime import datetime
+
 import pytest
 from sqlalchemy.exc import IntegrityError
 
@@ -38,6 +40,8 @@ def _mapping(act, **overrides):
         "source_authority": "Ministere de la Sante",
         "source_url": "https://example.invalid/arrete.pdf",
         "source_hash": None,
+        "validated_by_practitioner_id": None,
+        "validated_at": None,
     }
     values.update(overrides)
     return NgapCatalogMapping(**values)
@@ -57,13 +61,15 @@ def test_pending_primary_mapping_fails_closed_as_outdated(db):
     assert resolution.code is None
 
 
-def test_verified_primary_mapping_resolves_exact_by_catalog_id_only(db):
+def test_verified_primary_mapping_resolves_exact_by_catalog_id_only(db, dentiste):
     act = _catalog_act(db, name="Verified")
     db.add(_mapping(
         act,
         verification_status="VERIFIED_PRIMARY",
         source_hash="a" * 64,
         requires_radiograph=True,
+        validated_by_practitioner_id=dentiste.id,
+        validated_at=datetime(2026, 9, 14, 19, 0),
     ))
     db.flush()
 
@@ -77,12 +83,10 @@ def test_verified_primary_mapping_resolves_exact_by_catalog_id_only(db):
     assert resolution.coefficient == 10.0
     assert resolution.release_hash == "a" * 64
     assert resolution.requires_radiograph is True
-
-    # CatalogAct.code is deliberately not interpreted; the mapping row is authoritative.
     assert act.code == "LEGACY-MIXED-CODE"
 
 
-def test_non_ngap_classification_never_becomes_exact(db):
+def test_non_ngap_classification_never_becomes_exact(db, dentiste):
     act = _catalog_act(db, name="Internal")
     db.add(_mapping(
         act,
@@ -91,6 +95,8 @@ def test_non_ngap_classification_never_becomes_exact(db):
         coefficient=None,
         verification_status="VERIFIED_PRIMARY",
         source_hash="b" * 64,
+        validated_by_practitioner_id=dentiste.id,
+        validated_at=datetime(2026, 9, 14, 19, 0),
     ))
     db.flush()
 
@@ -102,12 +108,27 @@ def test_non_ngap_classification_never_becomes_exact(db):
     assert resolution.status == InsuranceMappingStatus.NO_MATCH
 
 
-def test_database_rejects_verified_primary_mapping_without_sha256(db):
+def test_database_rejects_verified_primary_mapping_without_sha256(db, dentiste):
     act = _catalog_act(db, name="Bad hash")
     db.add(_mapping(
         act,
         verification_status="VERIFIED_PRIMARY",
         source_hash=None,
+        validated_by_practitioner_id=dentiste.id,
+        validated_at=datetime(2026, 9, 14, 19, 0),
+    ))
+
+    with pytest.raises(IntegrityError):
+        db.flush()
+    db.rollback()
+
+
+def test_database_rejects_verified_primary_mapping_without_practitioner_validation(db):
+    act = _catalog_act(db, name="No validation")
+    db.add(_mapping(
+        act,
+        verification_status="VERIFIED_PRIMARY",
+        source_hash="c" * 64,
     ))
 
     with pytest.raises(IntegrityError):
