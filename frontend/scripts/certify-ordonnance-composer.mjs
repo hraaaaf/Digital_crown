@@ -22,6 +22,16 @@ for (const viewport of viewports) {
   const pageErrors = [];
   page.on('pageerror', error => pageErrors.push(String(error)));
 
+  // The composer fixture certifies DrugRow rendering only. DrugRowV1 now performs
+  // a documentary catalog lookup after mount, while this workflow intentionally
+  // starts no backend. Keep the visual harness deterministic and self-contained
+  // instead of letting an unrelated API failure/redirect unmount the fixture.
+  await page.route('**/api/medications/search**', route => route.fulfill({
+    status: 200,
+    contentType: 'application/json',
+    body: '[]',
+  }));
+
   await page.goto('http://127.0.0.1:5173/ordonnance-composer-fixture.html', {
     waitUntil: 'networkidle',
     timeout: 60000,
