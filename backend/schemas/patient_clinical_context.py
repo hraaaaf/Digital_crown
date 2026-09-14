@@ -6,7 +6,16 @@ from pydantic import BaseModel, ConfigDict, field_validator, model_validator
 
 
 MedicationAllergyStatus = Literal["UNKNOWN", "NONE_KNOWN", "PRESENT"]
+PenicillinAllergyStatus = Literal["UNKNOWN", "NONE_KNOWN", "PRESENT"]
 OrganContextStatus = Literal["UNKNOWN", "NO_KNOWN_IMPAIRMENT", "IMPAIRMENT_REPORTED"]
+IECardiacRiskCategory = Literal[
+    "UNKNOWN",
+    "NONE_REPORTED",
+    "PROSTHETIC_CARDIAC_VALVE_OR_REPAIR_MATERIAL",
+    "PREVIOUS_INFECTIVE_ENDOCARDITIS",
+    "QUALIFYING_CONGENITAL_HEART_DISEASE",
+    "CARDIAC_TRANSPLANT_WITH_VALVULOPATHY",
+]
 
 
 def _clean_optional_text(value: Optional[str]) -> Optional[str]:
@@ -28,6 +37,8 @@ class PatientClinicalContextUpdate(BaseModel):
     weight_kg: Optional[float] = None
     medication_allergy_status: MedicationAllergyStatus = "UNKNOWN"
     medication_allergies: Optional[List[str]] = None
+    penicillin_allergy_status: PenicillinAllergyStatus = "UNKNOWN"
+    ie_cardiac_risk_category: IECardiacRiskCategory = "UNKNOWN"
     renal_context_status: OrganContextStatus = "UNKNOWN"
     renal_context_note: Optional[str] = None
     hepatic_context_status: OrganContextStatus = "UNKNOWN"
