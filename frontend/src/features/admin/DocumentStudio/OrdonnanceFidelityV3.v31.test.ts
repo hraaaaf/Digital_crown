@@ -3,7 +3,7 @@ import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 const drugRow = readFileSync(
-  resolve(process.cwd(), 'src/features/admin/DocumentStudio/Forms/DrugRow.tsx'),
+  resolve(process.cwd(), 'src/features/admin/DocumentStudio/Forms/DrugRowV1.tsx'),
   'utf8',
 );
 
