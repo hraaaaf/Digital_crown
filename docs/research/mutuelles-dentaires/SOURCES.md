@@ -20,17 +20,21 @@ Règle : une copie publique non officielle sert uniquement à comprendre la stru
 - Niveau : SECONDAIRE.
 - Usage : repérage visuel uniquement jusqu’au verrouillage/hash d’un original officiel courant.
 
-## CNSS — officiel courant non verrouillé
+## CNSS — référence cabinet validée, source primaire encore à verrouiller
 
-Recherches ciblées sur `cnss.ma` : aucune feuille dentaire officielle courante exploitable n’a été verrouillée dans ce lot.
-
-Copies secondaires observées :
-- `https://docteurtarikrhafli.wordpress.com/wp-content/uploads/2020/10/cnss-feuille-de-soins-dentaires.pdf`
+Référence visuelle validée par le praticien utilisateur le 2026-09-14 comme étant le formulaire effectivement utilisé dans son cabinet :
 - `https://dentiste-rabat.com/wp-content/uploads/2023/03/610-1-04_2.pdf`
+- Référence : `610-1-04`
+- Validation : `VERIFIED_CABINET_REFERENCE`
 
-Plusieurs sources secondaires attribuent la référence `610-1-04` à la feuille de soins dentaires ; une source secondaire contradictoire mentionne `611-1-04`. Conclusion : NE PAS coder de référence/version CNSS avant source primaire.
+Cette validation métier permet d’utiliser ce document comme référence fonctionnelle et visuelle pour la préparation hors runtime. Elle ne remplace pas le verrouillage ultérieur d’un binaire officiel courant depuis une source primaire CNSS avant activation applicative.
 
-Statut template : `UNVERIFIED_PRIMARY_LOCK_REQUIRED`.
+Autre copie secondaire observée :
+- `https://docteurtarikrhafli.wordpress.com/wp-content/uploads/2020/10/cnss-feuille-de-soins-dentaires.pdf`
+
+Une source secondaire contradictoire avait mentionné `611-1-04`; la référence `610-1-04` est désormais retenue comme référence cabinet validée, sans la déclarer `VERIFIED_PRIMARY`.
+
+Statut template : `VERIFIED_CABINET_REFERENCE / PRIMARY_LOCK_PENDING`.
 
 ## Mutuelle des FAR / DMFAR — officiel courant non verrouillé
 
