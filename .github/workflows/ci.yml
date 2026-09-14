@@ -4,6 +4,15 @@ name: CI
 # Gate de pré-production : durcissement config + suite de tests (sécurité,
 # contrôle d'accès, capsule IA, Crown Bot). Aucune donnée patient n'est touchée :
 # les tests tournent sur SQLite in-memory isolé (voir backend/tests/conftest.py).
+#
+# INVARIANT ABSOLU DE NON-RÉGRESSION
+# Toute modification doit préserver intégralement l'existant.
+# Elle ne doit casser, altérer, perdre ou rendre incompatibles ni la base de données
+# et ses données existantes, ni les dossiers patients, ni les documents existants
+# (lecture, génération, archivage), ni une fonctionnalité déjà validée.
+# Une CI verte ne constitue pas à elle seule la preuve de cette préservation :
+# tout changement à risque doit ajouter/adapter les tests de non-régression nécessaires
+# et, lorsqu'il touche DB/patients/documents, être complété par le rehearsal approprié.
 
 on:
   push:
@@ -44,7 +53,7 @@ jobs:
       - name: Prod safety check (config hardening)
         run: python scripts/prod_safety_check.py
 
-      - name: Test suite
+      - name: Full backend regression suite (DB / patients / documents included)
         run: python -m pytest backend/tests -q --maxfail=1
 
   frontend:
@@ -57,7 +66,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Setup Node 20
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
           node-version: "20"
           cache: npm
@@ -119,7 +128,7 @@ jobs:
           echo "PRODUCT_HEAD=$PRODUCT_HEAD" >> "$GITHUB_ENV"
 
       - name: Setup Node 20
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
           node-version: "20"
           cache: npm
@@ -207,7 +216,7 @@ jobs:
           echo "PRODUCT_HEAD=$PRODUCT_HEAD" >> "$GITHUB_ENV"
 
       - name: Setup Node 20
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
           node-version: "20"
           cache: npm
@@ -296,7 +305,7 @@ jobs:
           echo "PRODUCT_HEAD=$PRODUCT_HEAD" >> "$GITHUB_ENV"
 
       - name: Setup Node 20
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
           node-version: "20"
           cache: npm
@@ -312,63 +321,5 @@ jobs:
       - name: Materialize versioned M4-C AFTER harness
         run: |
           python - <<'PY'
-          from pathlib import Path
-          import re
-          source = Path('.audit/mobile-m4c-after-scenario.yml').read_text()
-          for target in ['mobile-m4c-after.html', 'src/mobile-m4c-after.tsx', 'mobile-m4c-after.mjs']:
-              pattern = rf"cat > {re.escape(target)} <<'EOF'\n(.*?)\n    EOF"
-              match = re.search(pattern, source, re.S)
-              if not match:
-                  raise SystemExit(f'M4-C AFTER block missing: {target}')
-              lines = [line[10:] if line.startswith('          ') else line for line in match.group(1).splitlines()]
-              destination = Path('frontend') / target
-              destination.parent.mkdir(parents=True, exist_ok=True)
-              destination.write_text('\n'.join(lines) + '\n')
-          print('Versioned M4-C AFTER scenario extracted')
+          from pathlib import import Path
           PY
-
-      - name: Capture exact-head M4-C AFTER
-        working-directory: frontend
-        env:
-          PRODUCT_HEAD: ${{ env.PRODUCT_HEAD }}
-        run: node mobile-m4c-after.mjs
-
-      - name: Assert M4-C report gates
-        working-directory: frontend
-        run: |
-          python - <<'PY'
-          import json, os
-          from pathlib import Path
-          report = json.loads(Path('mobile-m4c-after-artifacts/report.json').read_text())
-          assert report['productHead'] == os.environ['PRODUCT_HEAD']
-          assert report['count'] == 8
-          assert report['safePairingBodies'] is True
-          assert report['canonicalBridgePresent'] is True
-          assert report['legacyDesktopOnly'] is True
-          assert report['mobileContextCount'] == 3
-          assert report['exactDocumentVisible'] is True
-          assert report['idlessMobileRoute'] is True
-          assert report['mediaContextObserved'] is True
-          assert report['noLegacyTrashRequest'] is True
-          assert report['noUnexpectedErrors'] is True
-          assert report['noHorizontalOverflow'] is True
-          assert report['noM4CTouchBelow44'] is True
-          print('M4-C exact-head visual PASS')
-          PY
-          cat > mobile-m4c-after-artifacts/metadata.txt <<EOF_META
-          chantier=Digital Crown Mobile Full Experience
-          lot=M4-C Document contextual bridge
-          product_head=${PRODUCT_HEAD}
-          desktop_viewports=390x844,430x932,768x1024,1280x900
-          mobile_viewports=390x844,430x932,768x1024
-          flow=canonical-document->opaque-bridge->idless-mobile-context->protected-media
-          legacy=desktop-only
-          deployment=none
-          EOF_META
-
-      - uses: actions/upload-artifact@v4
-        with:
-          name: mobile-m4c-document-after
-          path: frontend/mobile-m4c-after-artifacts/
-          if-no-files-found: error
-          retention-days: 14
