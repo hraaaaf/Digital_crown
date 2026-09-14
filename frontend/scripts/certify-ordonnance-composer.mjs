@@ -27,12 +27,15 @@ for (const viewport of viewports) {
     timeout: 60000,
   });
   await page.locator('[data-composer-visual-fixture]').waitFor({ state: 'visible', timeout: 20000 });
+  const cards = page.locator('[data-ordonnance-drug-card]');
+  await cards.nth(1).waitFor({ state: 'visible', timeout: 20000 });
   await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'dark'));
   await page.waitForTimeout(180);
 
-  const cards = page.locator('[data-ordonnance-drug-card]');
   const cardCount = await cards.count();
-  if (cardCount !== 2) throw new Error(`Expected 2 DrugRow cards, got ${cardCount}`);
+  if (cardCount !== 2) {
+    throw new Error(`Expected 2 DrugRow cards at ${viewport.width}x${viewport.height}, got ${cardCount}; pageErrors=${pageErrors.join(' | ')}`);
+  }
 
   const scenes = [];
   for (const [index, label] of [[0, 'regular'], [1, 'pain']]) {
