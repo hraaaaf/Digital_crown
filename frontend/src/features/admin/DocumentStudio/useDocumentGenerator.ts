@@ -276,7 +276,7 @@ export function useDocumentGenerator(params: UseDocumentGeneratorParams) {
         medications: drugs.map(d => ({
           nom: d.name,
           dosage: d.dosage,
-          forme: d.forme || 'Sachets',
+          forme: d.forme,
           posologie: d.posologie,
           type: d.type || 'MEDICAMENT',
           non_substituable: d.non_substituable ?? false,
