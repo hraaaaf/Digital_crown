@@ -28,6 +28,7 @@ from backend.routers.patient_companion_common import (
     principal_for_access,
     recipient_hash,
     require_companion_admin,
+    require_companion_cabinet_write_license,
     safe_patient_context,
     staff_patient_or_404,
     token_hash,
@@ -165,6 +166,11 @@ def activate_patient_companion(
         or invitation.consumed_at is not None or invitation.expires_at <= now
     ):
         raise HTTPException(status_code=400, detail="Invitation invalide ou expirée.")
+
+    # Firebase-authenticated requests intentionally carry no cabinet JWT, so the
+    # global staff licence middleware cannot resolve their tenant. Activation is
+    # a write: enforce the owning cabinet licence locally before creating links.
+    require_companion_cabinet_write_license(db, invitation.employer_id)
 
     credential_digest = credential_recipient_hash(credential, invitation.recipient_type)
     if credential_digest is None or not secrets.compare_digest(credential_digest, invitation.recipient_hash):
