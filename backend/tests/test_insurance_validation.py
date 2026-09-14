@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import date, datetime
 
 import fitz
 import pytest
@@ -6,6 +6,7 @@ import pytest
 from backend import models
 from backend.models_ngap_reference import NgapCatalogMapping
 from backend.schemas.insurance_submission import (
+    InsuranceCareType,
     InsuranceDraftStatus,
     InsuranceOrganization,
     InsuranceRequestNature,
@@ -89,6 +90,9 @@ def _honoraires(client, auth_headers, patient_id, catalog_act_id):
 
 
 def _complete_admin(draft):
+    # This test targets the practitioner-validation gate itself. Keep the
+    # administrative snapshot explicit and complete instead of depending on
+    # unrelated prefill inference details.
     return draft.administrative.model_copy(update={
         "request_nature": InsuranceRequestNature.EXECUTION,
         "insured_full_name": "Insurance VALIDATION",
@@ -96,7 +100,13 @@ def _complete_admin(draft):
         "insured_national_id": "AB123456",
         "insured_address": "Rabat",
         "relationship_to_insured": "LUI_MEME",
+        "beneficiary_full_name": "Insurance VALIDATION",
+        "beneficiary_birth_date": date(1990, 1, 1),
         "beneficiary_national_id": "AB123456",
+        "beneficiary_sex": "M",
+        "practitioner_full_name": "Dr Validation",
+        "practitioner_inpe": "INPE-VALID",
+        "care_type": InsuranceCareType.SOINS,
     })
 
 
