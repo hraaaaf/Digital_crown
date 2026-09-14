@@ -63,51 +63,98 @@ for (const viewport of [{width:390,height:844},{width:768,height:1024},{width:12
   const editorScreenshot = `p6-${viewport.width}x${viewport.height}-editor.png`;
   await page.screenshot({path:path.join(out,editorScreenshot)});
 
-  const previewButton = page.getByRole('button', {name:'Aperçu',exact:true});
-  await previewButton.scrollIntoViewIfNeeded();
-  await previewButton.click();
-  const previewDialog = page.getByRole('dialog', {name:'Document Libre'}).last();
-  await previewDialog.waitFor({state:'visible',timeout:30000});
-  const overlay = page.locator('.document-studio-live-preview');
-  const overlayBox = await overlay.boundingBox();
-  const previewBox = await previewDialog.boundingBox();
-  const previewLayout = {
-    overlayCoversViewport: Boolean(
-      overlayBox &&
-      overlayBox.x <= 1 &&
-      overlayBox.y <= 1 &&
-      overlayBox.width >= viewport.width - 2 &&
-      overlayBox.height >= viewport.height - 2
-    ),
-    dialogWithinViewport: Boolean(
-      previewBox &&
-      previewBox.x >= -1 &&
-      previewBox.y >= -1 &&
-      previewBox.x + previewBox.width <= viewport.width + 1 &&
-      previewBox.y + previewBox.height <= viewport.height + 1
-    ),
-    compactOverlayWidth: viewport.width < 1024
-      ? Boolean(previewBox && previewBox.width >= viewport.width * 0.9)
-      : true,
-    desktopCentered: viewport.width >= 1024
-      ? Boolean(
-          previewBox &&
-          Math.abs((previewBox.x + previewBox.width / 2) - viewport.width / 2) <= 4 &&
-          previewBox.width <= 1026
-        )
-      : true,
-  };
-  const previewScreenshot = `p6-${viewport.width}x${viewport.height}-preview.png`;
-  await page.screenshot({path:path.join(out,previewScreenshot)});
-  await page.keyboard.press('Escape');
-  await previewDialog.waitFor({state:'hidden',timeout:10000});
+  const inlinePreview = page.locator('[data-ordonnance-desktop-preview="inline"]').last();
+  const inlineVisible = viewport.width >= 1280
+    && await inlinePreview.isVisible({timeout:1500}).catch(() => false);
 
-  const previewPass = Object.values(previewLayout).every(Boolean);
+  let previewEvidence;
+  let previewPass = false;
+  const previewScreenshot = `p6-${viewport.width}x${viewport.height}-preview.png`;
+
+  if (inlineVisible) {
+    const previewRegion = inlinePreview.getByRole('region', {name:/Aperçu PDF/i}).last();
+    await previewRegion.waitFor({state:'visible',timeout:10000});
+    const inlineBox = await inlinePreview.boundingBox();
+    const previewBox = await previewRegion.boundingBox();
+    const previewLayout = {
+      inlineWithinViewport: Boolean(
+        inlineBox &&
+        inlineBox.x >= -1 &&
+        inlineBox.y >= -1 &&
+        inlineBox.x + inlineBox.width <= viewport.width + 1 &&
+        inlineBox.y + inlineBox.height <= viewport.height + 120
+      ),
+      inlineWidthStable: Boolean(inlineBox && inlineBox.width >= 270 && inlineBox.width <= 290),
+      editorRemainsVisible: Boolean(await content.isVisible()),
+      noHorizontalOverflow: metrics.noOverflow,
+    };
+    await page.screenshot({path:path.join(out,previewScreenshot)});
+    const closeButton = inlinePreview.getByRole('button', {name:/Fermer/i}).first();
+    await closeButton.click();
+    await inlinePreview.waitFor({state:'hidden',timeout:10000});
+    previewPass = Object.values(previewLayout).every(Boolean);
+    previewEvidence = {
+      mode:'inline',
+      inlineBox,
+      previewBox,
+      layout:previewLayout,
+      dismissed:true,
+      dismissalMode:'close-button',
+    };
+  } else {
+    const previewButton = page.getByRole('button', {name:'Aperçu',exact:true});
+    await previewButton.scrollIntoViewIfNeeded();
+    await previewButton.click();
+    const previewDialog = page.getByRole('dialog', {name:'Document Libre'}).last();
+    await previewDialog.waitFor({state:'visible',timeout:30000});
+    const overlay = page.locator('.document-studio-live-preview');
+    const overlayBox = await overlay.boundingBox();
+    const previewBox = await previewDialog.boundingBox();
+    const previewLayout = {
+      overlayCoversViewport: Boolean(
+        overlayBox &&
+        overlayBox.x <= 1 &&
+        overlayBox.y <= 1 &&
+        overlayBox.width >= viewport.width - 2 &&
+        overlayBox.height >= viewport.height - 2
+      ),
+      dialogWithinViewport: Boolean(
+        previewBox &&
+        previewBox.x >= -1 &&
+        previewBox.y >= -1 &&
+        previewBox.x + previewBox.width <= viewport.width + 1 &&
+        previewBox.y + previewBox.height <= viewport.height + 1
+      ),
+      compactOverlayWidth: viewport.width < 1024
+        ? Boolean(previewBox && previewBox.width >= viewport.width * 0.9)
+        : true,
+      desktopCentered: viewport.width >= 1024
+        ? Boolean(
+            previewBox &&
+            Math.abs((previewBox.x + previewBox.width / 2) - viewport.width / 2) <= 4 &&
+            previewBox.width <= 1026
+          )
+        : true,
+    };
+    await page.screenshot({path:path.join(out,previewScreenshot)});
+    await page.keyboard.press('Escape');
+    await previewDialog.waitFor({state:'hidden',timeout:10000});
+    previewPass = Object.values(previewLayout).every(Boolean);
+    previewEvidence = {
+      mode:'modal',
+      overlayBox,
+      previewBox,
+      layout:previewLayout,
+      dismissed:true,
+      dismissalMode:'escape',
+    };
+  }
+
   evidence.push({
     viewport,
     metrics:{...metrics,clipped:clipped.length},
     controls,
-    preview:{overlayBox,previewBox,layout:previewLayout},
+    preview:previewEvidence,
     errors,
     screenshots:{editor:editorScreenshot,preview:previewScreenshot},
     pass:metrics.noOverflow&&clipped.length===0&&previewPass&&errors.length===0,

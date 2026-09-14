@@ -1,0 +1,77 @@
+name: Ordonnance Composer Visual Certification
+
+on:
+  pull_request:
+    paths:
+      - 'frontend/src/features/admin/DocumentStudio/Forms/DrugRow.tsx'
+      - 'frontend/src/features/admin/DocumentStudio/Forms/PrescriptionComposer.ts'
+      - 'frontend/src/features/admin/DocumentStudio/Forms/PrescriptionComposerFixture.tsx'
+      - 'frontend/scripts/certify-ordonnance-composer.mjs'
+      - 'frontend/ordonnance-composer-fixture.html'
+      - '.github/workflows/ordonnance-composer-visual-cert.yml'
+  workflow_dispatch:
+
+jobs:
+  ordonnance-composer-visual:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout exact PR head
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+
+      - name: Assert exact product HEAD
+        env:
+          EXPECTED_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          ACTUAL_HEAD="$(git rev-parse HEAD)"
+          echo "expected=$EXPECTED_HEAD"
+          echo "actual=$ACTUAL_HEAD"
+          test "$ACTUAL_HEAD" = "$EXPECTED_HEAD"
+
+      - name: Setup Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install frontend
+        working-directory: frontend
+        run: npm ci
+
+      - name: Install Playwright runner only
+        working-directory: frontend
+        run: npm install --no-save --package-lock=false playwright@1.63.0
+
+      - name: Install Chromium
+        working-directory: frontend
+        run: npx playwright install --with-deps chromium
+
+      - name: Start fixture server
+        working-directory: frontend
+        run: |
+          npm run dev -- --host 127.0.0.1 --port 5173 > /tmp/ordonnance-composer-vite.log 2>&1 &
+          for i in {1..60}; do
+            if curl -fsS http://127.0.0.1:5173/ordonnance-composer-fixture.html >/dev/null; then
+              exit 0
+            fi
+            sleep 1
+          done
+          cat /tmp/ordonnance-composer-vite.log
+          exit 1
+
+      - name: Capture composer evidence
+        working-directory: frontend
+        run: node scripts/certify-ordonnance-composer.mjs
+
+      - name: Upload composer evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ordonnance-composer-visual-evidence
+          path: artifacts/ordonnance-composer
+          if-no-files-found: error
+          retention-days: 14

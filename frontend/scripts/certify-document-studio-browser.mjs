@@ -103,22 +103,46 @@ async function certifyStudioPage(page, studioPage, viewport, colorScheme) {
     hierarchyReadability: scoreFromBool(metrics.headingCount > 0 || metrics.bodyTextLength > 250),
   };
 
-  let preview = { available: false, score: null, escapeClosed: null };
+  let preview = {
+    available: false,
+    score: null,
+    escapeClosed: null,
+    dismissed: null,
+    dismissalMode: null,
+  };
   const previewButton = page.getByRole('button', { name: /aperçu|prévisual/i }).first();
   if (await previewButton.count()) {
     preview.available = true;
     try {
       await previewButton.click();
-      const dialog = page.getByRole('dialog').last();
-      await dialog.waitFor({ state: 'visible', timeout: 30000 });
-      await page.keyboard.press('Escape');
-      await dialog.waitFor({ state: 'hidden', timeout: 10000 });
-      await page.waitForTimeout(400);
-      preview.score = 10;
-      preview.escapeClosed = true;
+      const inlinePreview = page.locator('[data-ordonnance-desktop-preview="inline"]').last();
+      const inlineVisible = viewport.width >= 1280
+        && await inlinePreview.isVisible({ timeout: 3000 }).catch(() => false);
+
+      if (inlineVisible) {
+        preview.dismissalMode = 'close-button';
+        const closeButton = inlinePreview.getByRole('button', { name: /fermer/i }).first();
+        await closeButton.click();
+        await inlinePreview.waitFor({ state: 'hidden', timeout: 10000 });
+        await page.waitForTimeout(400);
+        preview.score = 10;
+        preview.dismissed = true;
+        preview.escapeClosed = null;
+      } else {
+        preview.dismissalMode = 'escape';
+        const dialog = page.getByRole('dialog').last();
+        await dialog.waitFor({ state: 'visible', timeout: 30000 });
+        await page.keyboard.press('Escape');
+        await dialog.waitFor({ state: 'hidden', timeout: 10000 });
+        await page.waitForTimeout(400);
+        preview.score = 10;
+        preview.dismissed = true;
+        preview.escapeClosed = true;
+      }
     } catch {
       preview.score = 0;
-      preview.escapeClosed = false;
+      preview.dismissed = false;
+      if (preview.dismissalMode === 'escape') preview.escapeClosed = false;
     }
   }
 

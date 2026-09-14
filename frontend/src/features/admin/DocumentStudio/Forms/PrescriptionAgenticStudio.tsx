@@ -195,7 +195,7 @@ export const PrescriptionAgenticStudio: React.FC<PrescriptionAgenticStudioProps>
   }, [safetyFingerprint]);
 
   return (
-    <div className="prescription-r3-safety-orchestrated space-y-3">
+    <div data-ordonnance-density="u2" className="prescription-r3-safety-orchestrated space-y-2">
       <style>{`
         .prescription-r3-safety-orchestrated .prescription-r3-legacy > div > div:first-child > div:first-child,
         .prescription-r3-safety-orchestrated .prescription-r3-legacy > div > div:first-child > div:nth-child(2):not(:has([data-ordonnance-quick-entry])) {
@@ -210,25 +210,48 @@ export const PrescriptionAgenticStudio: React.FC<PrescriptionAgenticStudioProps>
         .prescription-r3-safety-orchestrated .prescription-r3-legacy div[class~="grid"]:has(> div select option[value="Avulsion Simple"]) {
           grid-template-columns: minmax(0, 1fr) !important;
         }
+        .prescription-r3-safety-orchestrated[data-ordonnance-density="u2"] [data-ordonnance-quick-entry] {
+          padding: 0.625rem !important;
+          border-radius: 1.25rem !important;
+        }
+        .prescription-r3-safety-orchestrated[data-ordonnance-density="u2"] [data-ordonnance-quick-entry] > :not([hidden]) ~ :not([hidden]) {
+          margin-top: 0.5rem !important;
+        }
+        .prescription-r3-safety-orchestrated[data-ordonnance-density="u2"] .prescription-r3-legacy > div > :not([hidden]) ~ :not([hidden]) {
+          margin-top: 0.75rem !important;
+        }
+        .prescription-r3-safety-orchestrated[data-ordonnance-density="u2"] .prescription-r3-legacy div[class~="space-y-4"]:has(button[class~="border-dashed"]) > :not([hidden]) ~ :not([hidden]) {
+          margin-top: 0.625rem !important;
+        }
+        .prescription-r3-safety-orchestrated[data-ordonnance-density="u2"] .prescription-r3-legacy div[class~="mt-6"]:has(> button[class~="border-dashed"]) {
+          margin-top: 0.5rem !important;
+          gap: 0.5rem !important;
+        }
+        .prescription-r3-safety-orchestrated[data-ordonnance-density="u2"] .prescription-r3-legacy button[class~="py-5"][class~="border-dashed"] {
+          min-height: 44px;
+          padding-top: 0.75rem !important;
+          padding-bottom: 0.75rem !important;
+          border-radius: 1.25rem !important;
+        }
       `}</style>
 
-      <section className="mx-1 overflow-hidden rounded-2xl border border-slate-200/70 bg-white/45 p-2.5 shadow-sm backdrop-blur-2xl dark:border-white/10 dark:bg-slate-900/45 sm:p-3">
-        <div className="flex flex-wrap items-center justify-between gap-2 px-1 pb-2">
+      <section data-ordonnance-density-context className="mx-1 overflow-hidden rounded-2xl border border-slate-200/70 bg-white/45 p-2 shadow-sm backdrop-blur-2xl dark:border-white/10 dark:bg-slate-900/45 sm:p-2.5">
+        <div className="flex flex-wrap items-center justify-between gap-1.5 px-1 pb-1.5">
           <div className="min-w-0">
             <div className="text-[9px] font-black uppercase tracking-widest text-slate-700 dark:text-slate-200">Contexte patient</div>
             <div className="mt-0.5 hidden text-[9px] font-semibold text-slate-500 dark:text-slate-400 sm:block">
               Données du dossier et vérifications déterministes utilisées pour l’ordonnance en cours.
             </div>
           </div>
-          <div className="rounded-lg border border-slate-200/70 bg-white/65 px-2.5 py-1 text-[9px] font-black uppercase tracking-wider text-slate-600 shadow-sm backdrop-blur-xl dark:border-white/10 dark:bg-slate-950/50 dark:text-slate-300">
+          <div className="rounded-lg border border-slate-200/70 bg-white/65 px-2 py-1 text-[9px] font-black uppercase tracking-wider text-slate-600 shadow-sm backdrop-blur-xl dark:border-white/10 dark:bg-slate-950/50 dark:text-slate-300">
             {activeLineCount} ligne{activeLineCount > 1 ? 's' : ''} renseignée{activeLineCount > 1 ? 's' : ''}
           </div>
         </div>
 
-        <div className="grid gap-2 lg:grid-cols-[minmax(0,1fr)_auto]">
+        <div className="grid gap-1.5 lg:grid-cols-[minmax(0,1fr)_auto]">
           <div
             className={cn(
-              'flex min-w-0 items-start gap-2.5 rounded-xl border px-3 py-2.5 shadow-sm backdrop-blur-xl',
+              'flex min-w-0 items-start gap-2 rounded-xl border px-2.5 py-2 shadow-sm backdrop-blur-xl',
               safetyToneClass[safetyView.tone],
             )}
             role="status"
@@ -252,7 +275,7 @@ export const PrescriptionAgenticStudio: React.FC<PrescriptionAgenticStudioProps>
                 {safetyStatus === 'error' && 'Contrôle indisponible : l’ordonnance ne doit pas être présentée comme vérifiée.'}
               </div>
               {safetyStatus === 'verified' && safetyWarnings.length > 0 && (
-                <ul className="mt-2 space-y-1 text-[10px] font-bold">
+                <ul className="mt-1.5 space-y-1 text-[10px] font-bold">
                   {safetyWarnings.slice(0, 4).map((warning, index) => (
                     <li key={`${warning.type || 'warning'}-${index}`}>• {warning.message}</li>
                   ))}
@@ -262,11 +285,11 @@ export const PrescriptionAgenticStudio: React.FC<PrescriptionAgenticStudioProps>
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-2 lg:flex lg:items-stretch">
+          <div className="grid grid-cols-2 gap-1.5 lg:flex lg:items-stretch">
             <button
               type="button"
               onClick={restoreProtocols}
-              className="min-h-11 rounded-xl border border-slate-200/70 bg-white/65 px-3 py-2 text-[9px] font-black uppercase tracking-wider text-slate-600 shadow-sm backdrop-blur-xl transition-all hover:border-primary/20 hover:bg-white hover:text-primary dark:border-white/10 dark:bg-slate-950/50 dark:text-slate-300 dark:hover:bg-slate-900 sm:px-3.5"
+              className="min-h-11 rounded-xl border border-slate-200/70 bg-white/65 px-2.5 py-2 text-[9px] font-black uppercase tracking-wider text-slate-600 shadow-sm backdrop-blur-xl transition-all hover:border-primary/20 hover:bg-white hover:text-primary dark:border-white/10 dark:bg-slate-950/50 dark:text-slate-300 dark:hover:bg-slate-900 sm:px-3"
               title="Réafficher la zone Mes protocoles"
             >
               Mes protocoles
@@ -274,7 +297,7 @@ export const PrescriptionAgenticStudio: React.FC<PrescriptionAgenticStudioProps>
             <button
               type="button"
               onClick={refreshClinicalContext}
-              className="flex min-h-11 items-center justify-center gap-1.5 rounded-xl border border-slate-200/70 bg-white/65 px-3 py-2 text-[9px] font-black uppercase tracking-wider text-slate-600 shadow-sm backdrop-blur-xl transition-all hover:border-primary/20 hover:bg-white hover:text-primary dark:border-white/10 dark:bg-slate-950/50 dark:text-slate-300 dark:hover:bg-slate-900 sm:px-3.5"
+              className="flex min-h-11 items-center justify-center gap-1.5 rounded-xl border border-slate-200/70 bg-white/65 px-2.5 py-2 text-[9px] font-black uppercase tracking-wider text-slate-600 shadow-sm backdrop-blur-xl transition-all hover:border-primary/20 hover:bg-white hover:text-primary dark:border-white/10 dark:bg-slate-950/50 dark:text-slate-300 dark:hover:bg-slate-900 sm:px-3"
               title="Relancer le chargement du contexte patient"
             >
               <RefreshCcw size={13} className="shrink-0" />
@@ -284,7 +307,7 @@ export const PrescriptionAgenticStudio: React.FC<PrescriptionAgenticStudioProps>
         </div>
 
         {missingMedicationForm && (
-          <div className="mt-2 flex items-start gap-2.5 rounded-xl border border-amber-100/80 bg-amber-50/60 px-3 py-2.5 text-amber-800 shadow-sm backdrop-blur-xl dark:border-amber-900/40 dark:bg-amber-950/25 dark:text-amber-300" role="alert">
+          <div className="mt-1.5 flex items-start gap-2 rounded-xl border border-amber-100/80 bg-amber-50/60 px-2.5 py-2 text-amber-800 shadow-sm backdrop-blur-xl dark:border-amber-900/40 dark:bg-amber-950/25 dark:text-amber-300" role="alert">
             <AlertCircle size={15} className="mt-0.5 shrink-0" />
             <div>
               <div className="text-[9px] font-black uppercase tracking-widest">Forme pharmaceutique non renseignée</div>
@@ -299,9 +322,9 @@ export const PrescriptionAgenticStudio: React.FC<PrescriptionAgenticStudioProps>
       <section
         data-ordonnance-protocol-chips
         aria-label="Protocoles système rapides"
-        className="mx-1 rounded-2xl border border-slate-200/70 bg-white/45 p-2.5 shadow-sm backdrop-blur-2xl dark:border-white/10 dark:bg-slate-900/45 sm:p-3"
+        className="mx-1 rounded-2xl border border-slate-200/70 bg-white/45 p-2 shadow-sm backdrop-blur-2xl dark:border-white/10 dark:bg-slate-900/45 sm:p-2.5"
       >
-        <div className="mb-2 flex items-center justify-between gap-3 px-1">
+        <div className="mb-1.5 flex items-center justify-between gap-2 px-1">
           <div>
             <div className="text-[9px] font-black uppercase tracking-widest text-slate-700 dark:text-slate-200">Protocoles rapides</div>
             <div className="mt-0.5 hidden text-[9px] font-semibold text-slate-400 dark:text-slate-500 sm:block">
@@ -312,7 +335,7 @@ export const PrescriptionAgenticStudio: React.FC<PrescriptionAgenticStudioProps>
             1 clic
           </span>
         </div>
-        <div className="flex gap-2 overflow-x-auto pb-1 sm:flex-wrap sm:overflow-visible" role="group" aria-label="Choisir un protocole système">
+        <div className="flex gap-1.5 overflow-x-auto pb-0.5 sm:flex-wrap sm:overflow-visible" role="group" aria-label="Choisir un protocole système">
           {DEFAULT_MOROCCO_PRESETS.map(preset => (
             <button
               key={preset.label}

@@ -111,15 +111,18 @@ export const StudioHeader: React.FC<StudioHeaderProps> = ({
   };
 
   return (
-    <div className={cn(
-      "-mt-1 -mx-1 mb-2 bg-white/85 dark:bg-slate-950/80 backdrop-blur-3xl rounded-2xl border border-slate-200/70 dark:border-white/10 flex flex-col md:flex-row justify-between items-start md:items-center shrink-0 transition-all duration-300 shadow-sm",
-      compactOrdonnance ? "relative z-20" : "sticky top-0 z-[60]",
-      compactOrdonnance
-        ? "p-2 gap-2 sm:px-3 sm:py-2.5 md:gap-3"
-        : compactHonorairesMobile
-          ? "p-2 gap-2 sm:p-3 sm:gap-3"
-          : "p-2.5 sm:p-3 gap-3",
-    )}>
+    <div
+      data-ordonnance-hierarchy-header={compactOrdonnance ? 'primary' : undefined}
+      className={cn(
+        "-mt-1 -mx-1 mb-2 bg-white/85 dark:bg-slate-950/80 backdrop-blur-3xl rounded-2xl border border-slate-200/70 dark:border-white/10 flex flex-col md:flex-row justify-between items-start md:items-center shrink-0 transition-all duration-300 shadow-sm",
+        compactOrdonnance ? "relative z-20" : "sticky top-0 z-[60]",
+        compactOrdonnance
+          ? "p-2 gap-2 sm:px-3 sm:py-2.5 md:gap-3"
+          : compactHonorairesMobile
+            ? "p-2 gap-2 sm:p-3 sm:gap-3"
+            : "p-2.5 sm:p-3 gap-3",
+      )}
+    >
       <div className={cn("flex min-w-0 items-center", compactOrdonnance || compactHonorairesMobile ? "gap-2 sm:gap-3" : "gap-3")}>
         <div className={cn(
           "shrink-0 bg-primary/10 rounded-xl flex items-center justify-center text-primary border border-primary/10",
@@ -129,20 +132,32 @@ export const StudioHeader: React.FC<StudioHeaderProps> = ({
         </div>
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-            <h2 className="text-sm sm:text-base font-black text-primary tracking-tight leading-none" style={{ color: 'var(--primary)' }}>
-              Studio Documentaire
+            <h2
+              data-ordonnance-hierarchy-title={compactOrdonnance ? true : undefined}
+              className={cn(
+                "font-black text-primary tracking-tight leading-none",
+                compactOrdonnance ? "text-base sm:text-lg" : "text-sm sm:text-base",
+              )}
+              style={{ color: 'var(--primary)' }}
+            >
+              {compactOrdonnance ? documentLabel : 'Studio Documentaire'}
             </h2>
-            <span className="rounded-full bg-slate-100 dark:bg-slate-800 px-2 py-1 text-[9px] font-black uppercase tracking-wider text-slate-500 dark:text-slate-300">
-              {documentLabel}
-            </span>
+            {!compactOrdonnance && (
+              <span className="rounded-full bg-slate-100 dark:bg-slate-800 px-2 py-1 text-[9px] font-black uppercase tracking-wider text-slate-500 dark:text-slate-300">
+                {documentLabel}
+              </span>
+            )}
           </div>
           <p className={cn(
-            "flex min-w-0 items-center gap-2 text-[10px] font-bold text-slate-500 dark:text-slate-400",
-            compactOrdonnance || compactHonorairesMobile ? "mt-1" : "mt-1.5",
+            "flex min-w-0 items-center gap-2 font-bold text-slate-500 dark:text-slate-400",
+            compactOrdonnance ? "mt-1 text-[11px]" : "mt-1.5 text-[10px]",
           )}>
-            <span className="shrink-0 uppercase tracking-widest">Patient actif</span>
+            <span className="shrink-0 uppercase tracking-widest">{compactOrdonnance ? 'Patient' : 'Patient actif'}</span>
             <span aria-hidden="true" className="text-slate-300 dark:text-slate-700">•</span>
-            <span className="truncate font-black tracking-tight text-slate-900 dark:text-white">{patientName}</span>
+            <span className={cn(
+              "truncate font-black tracking-tight text-slate-900 dark:text-white",
+              compactOrdonnance ? "text-xs sm:text-sm" : "",
+            )}>{patientName}</span>
           </p>
         </div>
       </div>
@@ -184,10 +199,7 @@ export const StudioHeader: React.FC<StudioHeaderProps> = ({
             id="document-studio-author"
             data-p3-author-selector
             aria-label="Auteur clinique du document"
-            className={cn(
-              "w-full bg-transparent text-xs font-black text-slate-700 dark:text-slate-200 outline-none cursor-pointer focus-visible:ring-2 focus-visible:ring-primary/40 rounded-md disabled:cursor-not-allowed disabled:opacity-60",
-              compactOrdonnance ? "min-h-11" : "min-h-11",
-            )}
+            className="w-full min-h-11 bg-transparent text-xs font-black text-slate-700 dark:text-slate-200 outline-none cursor-pointer focus-visible:ring-2 focus-visible:ring-primary/40 rounded-md disabled:cursor-not-allowed disabled:opacity-60"
             value={authorPractitionerId ?? ''}
             onChange={(event) => handleAuthorChange(event.target.value)}
             disabled={authorLoading || practitioners.length === 0}

@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react'
+import { fireEvent, render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import '@testing-library/jest-dom/vitest'
 
@@ -17,6 +17,7 @@ const baseDrug: DrugItem = {
 }
 
 function renderRow(drug: DrugItem) {
+  const onUpdateDrug = vi.fn()
   render(
     <DrugRow
       drug={drug}
@@ -29,7 +30,7 @@ function renderRow(drug: DrugItem) {
       suggestions={{ medications: [], dosages: [], posologies: [] }}
       highlightedIdx={-1}
       medChecks={{}}
-      onUpdateDrug={vi.fn()}
+      onUpdateDrug={onUpdateDrug}
       onRemoveDrug={vi.fn()}
       onMove={vi.fn()}
       onSearch={vi.fn()}
@@ -40,6 +41,7 @@ function renderRow(drug: DrugItem) {
       onToggleType={vi.fn()}
     />,
   )
+  return { onUpdateDrug }
 }
 
 describe('DrugRow R5 progressive disclosure', () => {
@@ -48,16 +50,49 @@ describe('DrugRow R5 progressive disclosure', () => {
 
     expect(screen.getByPlaceholderText('NOM DU MÉDICAMENT...')).toBeInTheDocument()
     expect(screen.queryByText('Dose')).not.toBeInTheDocument()
+    expect(screen.queryByLabelText('Prise')).not.toBeInTheDocument()
     expect(screen.queryByPlaceholderText('Ex. 1 gélule × 3/jour pendant 7 jours')).not.toBeInTheDocument()
-    expect(screen.getByText(/Les détails de dose, forme et posologie apparaissent/)).toBeInTheDocument()
+    expect(screen.getByText(/Identifiez le médicament pour renseigner forme, dose et posologie/)).toBeInTheDocument()
   })
 
-  it('affiche les détails dès qu’un médicament est identifié', () => {
-    renderRow({ ...baseDrug, name: 'AMOXICILLINE', forme: 'GÉLULES', dosage: '500MG' })
+  it('affiche le Prescription Composer dès qu’un médicament est identifié', () => {
+    renderRow({
+      ...baseDrug,
+      name: 'AMOXICILLINE',
+      forme: 'GÉLULES',
+      dosage: '500MG',
+      posologie: '1 cp x 3 / jour pendant 7 jours',
+    })
 
     expect(screen.getByText('Dose')).toBeInTheDocument()
     expect(screen.getByDisplayValue('500MG')).toBeInTheDocument()
     expect(screen.getByText('GÉLULES')).toBeInTheDocument()
-    expect(screen.getByPlaceholderText('Ex. 1 gélule × 3/jour pendant 7 jours')).toBeInTheDocument()
+    expect(screen.getByLabelText('Prise')).toHaveValue('1 comprimé')
+    expect(screen.getByLabelText('Rythme')).toHaveValue('3 fois par jour')
+    expect(screen.getByLabelText('Durée ou limite')).toHaveValue('7 jours')
+    expect(screen.getByLabelText('Moment ou condition')).toHaveValue('')
+    expect(screen.getByLabelText('Posologie en texte libre')).toBeInTheDocument()
+  })
+
+  it('génère la phrase de posologie dans le contrat string existant', () => {
+    const { onUpdateDrug } = renderRow({
+      ...baseDrug,
+      name: 'IBUPROFÈNE',
+      forme: 'COMPRIMÉS',
+      dosage: '400MG',
+      posologie: '1 comprimé, si douleur, sans dépasser 3 fois par jour pendant 3 jours.',
+    })
+
+    expect(screen.getByLabelText('Prise')).toHaveValue('1 comprimé')
+    expect(screen.getByLabelText('Rythme')).toHaveValue('si douleur')
+    expect(screen.getByLabelText('Durée ou limite')).toHaveValue('max 3/jour')
+    expect(screen.getByLabelText('Moment ou condition')).toHaveValue('3 jours')
+
+    fireEvent.change(screen.getByLabelText('Moment ou condition'), { target: { value: '5 jours' } })
+    expect(onUpdateDrug).toHaveBeenLastCalledWith(
+      1,
+      'posologie',
+      '1 comprimé, si douleur, sans dépasser 3 fois par jour pendant 5 jours.',
+    )
   })
 })
