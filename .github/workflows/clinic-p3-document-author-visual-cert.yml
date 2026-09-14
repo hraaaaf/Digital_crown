@@ -79,7 +79,7 @@ jobs:
           const browser=await chromium.launch();
           const captures=[];
           try {
-            for(const [width,height] of [[390,844],[768,1024],[1280,900]]){
+            for(const [width,height] of [[390,844],[430,932],[768,1024],[1280,900]]){
               const context=await browser.newContext({viewport:{width,height}});
               const page=await context.newPage();
               const errors=[];
@@ -143,8 +143,8 @@ jobs:
           from pathlib import Path
           before=json.loads(Path('clinic-p3-author-before/report.json').read_text())
           after=json.loads(Path('clinic-p3-author-after/report.json').read_text())
-          assert [c['width'] for c in before['captures']]==[390,768,1280]
-          assert [c['width'] for c in after['captures']]==[390,768,1280]
+          assert [c['width'] for c in before['captures']]==[390,430,768,1280]
+          assert [c['width'] for c in after['captures']]==[390,430,768,1280]
           assert all(c['selectorCount']==1 for c in before['captures'])
           assert all(c['selectorValue']=='1' for c in before['captures'])
           assert all((c['selectorHeight'] or 0) >= 44 for c in before['captures'])
@@ -165,12 +165,12 @@ jobs:
         run: |
           cat > clinic-p3-author-after/metadata.txt <<EOF
           chantier=Clinique multi-praticiens
-          lot=P3 document author UI
+          lot=P3 document author UI + Ordonnance U1 hierarchy evidence
           base_sha=${BASE_SHA}
           head_sha=${HEAD_SHA}
-          goal=preserve one truthful clinical author selector without horizontal overflow or silently attributing another practitioner
+          goal=preserve one truthful clinical author selector and capture Ordonnance hierarchy without horizontal overflow
           reference=current StudioHeader author/date control baseline
-          viewports=390x844,768x1024,1280x900
+          viewports=390x844,430x932,768x1024,1280x900
           deployment=none
           EOF
 
