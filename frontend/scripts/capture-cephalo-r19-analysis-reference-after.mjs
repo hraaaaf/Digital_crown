@@ -64,12 +64,12 @@ function modeContract(mode, metrics) {
   if (metrics.analysis !== mode || metrics.panelAnalysis !== mode || !metrics.hasAnalysisSelector || metrics.horizontalOverflow) return false;
   if (metrics.selectorButtons.length !== 6) return false;
   const labels = new Set(metrics.landmarkLabels);
-  if (mode === 'all') return metrics.svgLines > 8;
-  if (mode === 'steiner') return labels.has('S') && labels.has('N') && labels.has('A') && labels.has('B') && !labels.has('Po');
-  if (mode === 'tweed') return labels.has('Po') && labels.has('Or') && labels.has('Go') && labels.has('Me') && !labels.has('S');
-  if (mode === 'mcnamara') return labels.has('McNamara') && labels.has("A'") && labels.has("B'") && !labels.has('S') && metrics.panelRows === 3;
-  if (mode === 'com') return metrics.panelRows === 10 && metrics.comConstructionCount >= 10 && labels.has('Po') && labels.has('Or') && labels.has('S') && labels.has('N');
-  if (mode === 'ricketts') return labels.has('Prn') && labels.has('Ls_soft') && labels.has('Li_soft') && metrics.rickettsConstructionCount >= 1;
+  if (mode === 'all') return metrics.svgLines > 8 && metrics.panelRows >= 10;
+  if (mode === 'steiner') return metrics.panelRows === 3 && metrics.svgLines >= 6 && metrics.comConstructionCount === 0 && metrics.rickettsConstructionCount === 0 && metrics.legacyMcNamaraLeakCount === 0;
+  if (mode === 'tweed') return metrics.panelRows === 2 && metrics.svgLines >= 6 && metrics.comConstructionCount === 0 && metrics.rickettsConstructionCount === 0 && metrics.legacyMcNamaraLeakCount === 0;
+  if (mode === 'mcnamara') return labels.has('McNamara') && labels.has("A'") && labels.has("B'") && metrics.panelRows === 3 && metrics.comConstructionCount === 0;
+  if (mode === 'com') return metrics.panelRows === 10 && metrics.comConstructionCount >= 10 && metrics.legacyMcNamaraLeakCount === 0 && labels.has('Po') && labels.has('Or') && labels.has('S') && labels.has('N');
+  if (mode === 'ricketts') return metrics.panelRows === 2 && metrics.rickettsConstructionCount >= 1 && metrics.comConstructionCount === 0 && metrics.legacyMcNamaraLeakCount === 0;
   return false;
 }
 
@@ -102,19 +102,24 @@ async function captureViewport(viewport,attempt){
      await page.waitForFunction(()=>document.querySelector('[data-r19-measure-detail="I_Francfort"]')!==null,{timeout:3000});
    }
    await page.waitForTimeout(80);
-   const metrics=await page.evaluate(()=>({
-    analysis:document.querySelector('[data-cephalo-analysis]')?.getAttribute('data-cephalo-analysis')||null,
-    panelAnalysis:document.querySelector('[data-r19-analysis-panel]')?.getAttribute('data-r19-analysis-panel')||null,
-    hasAnalysisSelector:Boolean(document.querySelector('[aria-label="Analyse du tracé"]')),
-    selectorButtons:Array.from(document.querySelectorAll('[aria-label="Analyse du tracé"] button')).map(n=>n.getAttribute('data-analysis')),
-    panelRows:document.querySelectorAll('[data-r19-metric]').length,
-    svgLines:document.querySelectorAll('svg line').length,
-    landmarkLabels:Array.from(document.querySelectorAll('svg text')).map(n=>n.textContent?.trim()).filter(Boolean),
-    rickettsConstructionCount:document.querySelectorAll('[data-r18-construction^="ricketts-"]').length,
-    comConstructionCount:document.querySelectorAll('[data-r19-construction^="com-"]').length,
-    selectedDetail:document.querySelector('[data-r19-measure-detail]')?.getAttribute('data-r19-measure-detail')||null,
-    horizontalOverflow:document.documentElement.scrollWidth>innerWidth+1
-   }));
+   const metrics=await page.evaluate(()=>{
+    const landmarkLabels=Array.from(document.querySelectorAll('svg text')).map(n=>n.textContent?.trim()).filter(Boolean);
+    const legacyMcNamaraLeakCount=landmarkLabels.filter(label=>label==='McNamara'||label==="A'"||label==="B'").length;
+    return {
+      analysis:document.querySelector('[data-cephalo-analysis]')?.getAttribute('data-cephalo-analysis')||null,
+      panelAnalysis:document.querySelector('[data-r19-analysis-panel]')?.getAttribute('data-r19-analysis-panel')||null,
+      hasAnalysisSelector:Boolean(document.querySelector('[aria-label="Analyse du tracé"]')),
+      selectorButtons:Array.from(document.querySelectorAll('[aria-label="Analyse du tracé"] button')).map(n=>n.getAttribute('data-analysis')),
+      panelRows:document.querySelectorAll('[data-r19-metric]').length,
+      svgLines:document.querySelectorAll('svg line').length,
+      landmarkLabels,
+      rickettsConstructionCount:document.querySelectorAll('[data-r18-construction^="ricketts-"]').length,
+      comConstructionCount:document.querySelectorAll('[data-r19-construction^="com-"]').length,
+      legacyMcNamaraLeakCount,
+      selectedDetail:document.querySelector('[data-r19-measure-detail]')?.getAttribute('data-r19-measure-detail')||null,
+      horizontalOverflow:document.documentElement.scrollWidth>innerWidth+1
+    };
+   });
    const valid=modeContract(mode,metrics) && (mode!=='com'||metrics.selectedDetail==='I_Francfort');
    await page.screenshot({path:path.join(OUTPUT_DIR,`after-reference-${mode}-${viewport.name}.png`),fullPage:false});
    if(mode==='com'){
@@ -138,5 +143,5 @@ try{
   captures.push({...finalAttempt,attempts:attempts.map(a=>({attempt:a.attempt,valid:a.valid,pageErrors:a.pageErrors,consoleErrors:a.consoleErrors,states:a.states})),recoveredTransientRender:attempts.length===2&&!attempts[0].valid&&attempts[1].valid});
  }
 }finally{if(!server.killed)server.kill('SIGTERM');await Promise.race([once(server,'exit'),new Promise(r=>setTimeout(r,3000))]).catch(()=>{});await writeFile(path.join(OUTPUT_DIR,'vite.log'),serverLog,'utf8')}
-const invalid=captures.filter(c=>!c.valid); const report={lot:'CEPHALO-R19-ANALYSIS-REFERENCE-LAYOUT',phase:'AFTER',productHead:PRODUCT_HEAD,viewports:viewports.map(v=>v.name),modes,capturePolicy:'R18 deterministic fixture lineage; same 390/768/1280 viewports; R19 adds analysis panel and autonomous COM; fresh Chromium per viewport; one retry only after invalid first render.',captures,blockedExternalRequests,invalidCount:invalid.length};
+const invalid=captures.filter(c=>!c.valid); const report={lot:'CEPHALO-R19-ANALYSIS-REFERENCE-LAYOUT',phase:'AFTER',productHead:PRODUCT_HEAD,viewports:viewports.map(v=>v.name),modes,capturePolicy:'R18 deterministic fixture lineage; same 390/768/1280 viewports; R19 adds analysis panel and autonomous COM; validates rendered constructions and rejects legacy McNamara leakage in COM; fresh Chromium per viewport; one retry only after invalid first render.',captures,blockedExternalRequests,invalidCount:invalid.length};
 await writeFile(path.join(OUTPUT_DIR,'report.json'),JSON.stringify(report,null,2),'utf8'); console.log(JSON.stringify(report,null,2)); if(invalid.length||blockedExternalRequests.length)process.exitCode=1;

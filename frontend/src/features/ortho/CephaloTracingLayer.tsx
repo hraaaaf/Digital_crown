@@ -50,6 +50,8 @@ const MODE_LANDMARKS: Record<Exclude<AnalysisMode, 'all'>, Set<string>> = {
   ]),
 };
 
+const COM_BASE_SUPPRESSED_LANDMARKS = new Set(['n', 'nasion', 'a', 'point_a', 'b', 'point_b']);
+
 const normalizeMode = (value?: string): AnalysisMode => {
   const normalized = (value || 'all').trim().toLowerCase();
   if (normalized === 'steiner') return 'steiner';
@@ -130,6 +132,23 @@ export const CephaloTracingLayer: React.FC<CephaloTracingLayerProps> = (props) =
       landmarks: filterLandmarks(ghost.landmarks, mode),
     })),
     [props.ghosts, mode],
+  );
+
+  const baseLandmarks = React.useMemo(
+    () => mode === 'com'
+      ? filteredLandmarks.filter(item => !COM_BASE_SUPPRESSED_LANDMARKS.has(item.id.toLowerCase()))
+      : filteredLandmarks,
+    [filteredLandmarks, mode],
+  );
+
+  const baseGhosts = React.useMemo<GhostData[]>(
+    () => mode === 'com'
+      ? filteredGhosts.map(ghost => ({
+          ...ghost,
+          landmarks: ghost.landmarks.filter(item => !COM_BASE_SUPPRESSED_LANDMARKS.has(item.id.toLowerCase())),
+        }))
+      : filteredGhosts,
+    [filteredGhosts, mode],
   );
 
   const mergeLandmarkUpdate = React.useCallback((updatedSubset: Landmark[]) => {
@@ -219,8 +238,8 @@ export const CephaloTracingLayer: React.FC<CephaloTracingLayerProps> = (props) =
     <div className="absolute inset-0 z-20 h-full w-full" data-cephalo-analysis={mode}>
       <BaseCephaloTracingLayer
         {...props}
-        landmarks={filteredLandmarks}
-        ghosts={filteredGhosts}
+        landmarks={baseLandmarks}
+        ghosts={baseGhosts}
         onUpdateLandmarks={mergeLandmarkUpdate}
         activeAnalysis={baseAnalysis}
         hoveredMetric={metricFocus ?? props.hoveredMetric ?? null}
