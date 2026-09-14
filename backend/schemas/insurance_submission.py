@@ -95,23 +95,17 @@ class InsuranceSubmissionDraft(BaseModel):
 
     @model_validator(mode="after")
     def enforce_validation_state(self):
-        has_blocking_mapping = any(
-            line.mapping_status
-            in {
-                InsuranceMappingStatus.AMBIGUOUS,
-                InsuranceMappingStatus.NO_MATCH,
-                InsuranceMappingStatus.OUTDATED,
-            }
-            for line in self.lines
+        all_mappings_exact = all(
+            line.mapping_status == InsuranceMappingStatus.EXACT for line in self.lines
         )
 
         if self.status == InsuranceDraftStatus.READY_FOR_REVIEW:
-            if self.unresolved_fields or has_blocking_mapping:
-                raise ValueError("READY_FOR_REVIEW requires no unresolved fields or blocking mappings")
+            if self.unresolved_fields or not all_mappings_exact:
+                raise ValueError("READY_FOR_REVIEW requires no unresolved fields and EXACT mappings")
 
         if self.status == InsuranceDraftStatus.VALIDATED:
-            if self.unresolved_fields or has_blocking_mapping:
-                raise ValueError("VALIDATED requires no unresolved fields or blocking mappings")
+            if self.unresolved_fields or not all_mappings_exact:
+                raise ValueError("VALIDATED requires no unresolved fields and EXACT mappings")
             if self.validated_by_practitioner_id is None or self.validated_at is None:
                 raise ValueError("VALIDATED requires practitioner id and validation timestamp")
 
