@@ -12,6 +12,7 @@ from backend.schemas.insurance_submission import (
     InsuranceSubmissionDraft,
     InsuranceSubmissionLine,
     InsuranceTemplateSnapshot,
+    InsuranceTemplateTrust,
 )
 from backend.services.insurance_render_gate import assert_insurance_render_ready
 
@@ -41,6 +42,7 @@ def _validated_draft(template_hash: str, reference_hash: str):
             template_version="CNSS-610-1-04",
             template_hash=template_hash,
             source_url="https://example.invalid/cnss-610-1-04.pdf",
+            trust=InsuranceTemplateTrust.CABINET_VALIDATED_BINARY,
         ),
         reference=InsuranceReferenceSnapshot(
             ngap_reference_version="arrete-177-06",
