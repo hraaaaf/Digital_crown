@@ -53,6 +53,9 @@ Le snapshot administratif comprend:
 ### Regressions CI liaison/archive — CORRIGEES
 1. CI #4065: UID cree dans `Acte` mais pas durablement marque dans le JSON archive. Correctif `6a4778f8...`: reconstruction snapshot + `flag_modified(archive, "clinical_data")`.
 2. CI #4123 sur `7a01205e...`: la metadonnee technique `source_line_uid` enrichissant la premiere archive cassait ensuite la detection de doublon d'une note utilisateur identique; 1548 tests passes avant arret. Correctif: politique NOTE_HONORAIRES qui compare le contenu metier en ignorant uniquement `source_line_uid` et `catalog_act_id=None`, tout en conservant un vrai `catalog_act_id` comme identite significative. Tests dedies ajoutes.
+3. CI #4139 sur `8d7415d9...`: fixture de validation reutilisait une instance `CatalogAct` expiree apres appel HTTP. Premier correctif: identite primitive conservee.
+4. CI #4141 sur `b7aa96ce...`: cause racine transactionnelle confirmee; `/documents/generate` rend dans une seconde `SessionLocal` en thread, donc un `CatalogAct` seulement `flush()` n'etait pas visible. Correctif test uniquement: commit de la donnee de reference avant appel HTTP.
+5. CI #4142 sur `1b8a7879...`: le gate arrivait ensuite jusqu'a la completude administrative et bloquait car la fixture ne renseignait explicitement que 7/13 champs CNSS obligatoires. Correctif `672133f6...`: fixture du test de validation rendue explicitement complete et independante du prefill.
 
 ## Lot 3 — Archivage PDF final — IMPLEMENTE
 - uniquement draft `VALIDATED`;
@@ -179,21 +182,34 @@ Activation seulement si:
 - profil de coordonnees calibre/valide sur ce hash exact;
 - migration/rollback, archivage/reimpression et UX certifies.
 
-## CI connue
-- CI #4065: regression JSON UID, corrigee `6a4778f8...`.
-- CI #4123 sur `7a01205e...`: **FAILURE** uniquement sur detection de doublon Honoraires apres enrichissement UID; PostgreSQL #549, provenance #103, browser #3034 et Catalog #1179 **SUCCESS**.
-- correctif detection doublon + tests pousses avant la finalisation backend.
-- HEAD `3a8ce5dc...`: CI #4137 et certifications lancees; etat observe `in_progress/pending`, donc non declare vert.
-- les commits documentaires ulterieurs relancent naturellement la certification du HEAD exact final.
+## Certification backend — PROUVE
+HEAD code certifie: `672133f6040e2f6c1bc91f71ceffff2a7380067d`.
+
+Exact-head:
+- CI #4143: **SUCCESS**;
+- Cabinet Upgrade PostgreSQL #566: **SUCCESS**;
+- Clinic P3 Document Provenance #116: **SUCCESS**;
+- T2 Runtime Browser #3051: **SUCCESS**;
+- Catalog Connected Truth #1192: **SUCCESS**;
+- M6-I Biometric #1851: **SKIPPED attendu**.
+
+Dans CI #4143, frontend tests/build, M4-A, M4-B, M4-C et garde production negative sont **SUCCESS**; la suite backend `Tests & durcissement` est **SUCCESS** sur le meme run.
+
+## Realignement master
+- ancien master absorbe: `3b22f2a0dbb5b778a53265b97ad3029eeb88e656` (Prescription Intelligence C1 implementation);
+- master a ensuite avance d'un commit docs-only Prescription Intelligence: `e7198b274438ec05373e8ebee9c84fc80e409149`;
+- compare `3b22f2a0... -> e7198b27...`: uniquement `docs/audits/PRESCRIPTION_INTELLIGENCE_V1.md`;
+- merge explicite sur la branche Mutuelles: `4da73c4cd1ac234f9c7504c79bfa580a09f92538`;
+- apres merge: **89 ahead / 0 behind**, merge-base exactement `e7198b274438ec05373e8ebee9c84fc80e409149`.
 
 ## Interdits
 Second moteur Honoraires, second catalogue clinique, Ordonnance bis, fuzzy mapping, backfill artificiel, signature/cachet/accord assureur fabrique, auto-cotation sans source primaire hashee ET validation metier, template secondaire promu en final, rendu approximatif d'un formulaire officiel, deploiement Vercel sans autorisation explicite.
 
 ## Etat
-`LOTS_1_4_IMPLEMENTED / NGAP_ENGINE_IMPLEMENTED_SOURCE_PENDING / LOCAL_SOURCE_STORE_IMPLEMENTED / CNSS_ADMIN_PREFILL_IMPLEMENTED / SOURCE_CONSISTENCY_GATE_IMPLEMENTED / PRACTITIONER_VALIDATION_GATE_IMPLEMENTED / HASH_BOUND_OVERLAY_IMPLEMENTED / FINALIZATION_ARCHIVE_IMPLEMENTED / PRIMARY_HASH_PENDING / CNSS_TEMPLATE_BINARY_PENDING / CI_PENDING / RUNTIME_NOT_ACTIVATED`
+`LOTS_1_4_IMPLEMENTED / NGAP_ENGINE_IMPLEMENTED_SOURCE_PENDING / LOCAL_SOURCE_STORE_IMPLEMENTED / CNSS_ADMIN_PREFILL_IMPLEMENTED / SOURCE_CONSISTENCY_GATE_IMPLEMENTED / PRACTITIONER_VALIDATION_GATE_IMPLEMENTED / HASH_BOUND_OVERLAY_IMPLEMENTED / FINALIZATION_ARCHIVE_IMPLEMENTED / BACKEND_CODE_HEAD_CERTIFIED / MASTER_REALIGNED / PRIMARY_HASH_PENDING / CNSS_TEMPLATE_BINARY_PENDING / RUNTIME_NOT_ACTIVATED`
 
 ## Next exact
-1. Certifier le HEAD exact final; corriger si rouge.
+1. Certifier le nouveau HEAD documentaire/merge exact; aucune logique metier n'a change depuis `672133f6...`.
 2. Recuperer localement un binaire primaire NGAP exact -> lock/store/hash.
 3. Valider un premier lot representatif de mappings NGAP par praticien.
 4. Recuperer/verrouiller le binaire CNSS 610-1-04 exact.
