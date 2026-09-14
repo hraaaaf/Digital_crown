@@ -69,6 +69,10 @@ async function measure(page) {
     };
     const touchSelectors = [
       '[data-prescription-intelligence-studio="v1"] button',
+      '[data-patient-clinical-context="c1"] input',
+      '[data-patient-clinical-context="c1"] select',
+      '[data-patient-clinical-context="c1"] textarea',
+      '[data-patient-clinical-context="c1"] button',
       '[data-ordonnance-drug-card] button',
       '[data-ordonnance-prescription-composer] select',
     ];
@@ -79,11 +83,13 @@ async function measure(page) {
     if (addLine) touchHeights.push(addLine.getBoundingClientRect().height);
     const doc = document.documentElement;
     const studio = rect('[data-prescription-intelligence-studio="v1"]');
+    const clinicalContext = rect('[data-patient-clinical-context="c1"]');
     const clinicalBlocked = rect('[data-clinical-rule-status="blocked"]');
     const safety = rect('[data-safety-status]');
     const desktopPreview = rect('[data-ordonnance-desktop-preview="inline"]');
     return {
       studio,
+      clinicalContext,
       clinicalBlocked,
       safety,
       drugCard: rect('[data-ordonnance-drug-card]'),
@@ -107,6 +113,7 @@ for (const viewport of viewports) {
   const url = `http://127.0.0.1:5173/patients/${patient.id}?tab=admin&documentTab=ordonnance`;
   await page.goto(url, { waitUntil: 'networkidle', timeout: 90000 });
   await page.locator('[data-prescription-intelligence-studio="v1"]').waitFor({ state: 'attached', timeout: 30000 });
+  await page.locator('[data-patient-clinical-context="c1"]').waitFor({ state: 'attached', timeout: 30000 });
   await page.locator('[data-clinical-rule-status="blocked"]').waitFor({ state: 'attached', timeout: 30000 });
   await resetScrollableAncestors(page);
 
@@ -153,6 +160,7 @@ for (const capture of captures) {
   for (const scene of ['top', 'planning']) {
     const metrics = capture[scene].metrics;
     if (!metrics.studio) failures.push(`${capture.viewport.width}-${scene}: V1 studio missing`);
+    if (!metrics.clinicalContext) failures.push(`${capture.viewport.width}-${scene}: C1 clinical context missing`);
     if (!metrics.clinicalBlocked) failures.push(`${capture.viewport.width}-${scene}: fail-closed clinical status missing`);
     if (!metrics.noHorizontalOverflow) failures.push(`${capture.viewport.width}-${scene}: horizontal overflow`);
     if (metrics.touchMin !== null && metrics.touchMin < 43.5) failures.push(`${capture.viewport.width}-${scene}: touch target ${metrics.touchMin}`);
@@ -163,6 +171,7 @@ for (const capture of captures) {
     if ((previewMetrics?.desktopPreview?.width || 0) < 270) failures.push(`${capture.viewport.width}-preview: inline preview too narrow`);
     if ((previewMetrics?.studio?.width || 0) < 530) failures.push(`${capture.viewport.width}-preview: editor layout width below 530px`);
     if ((previewMetrics?.visibleEditorWidth || 0) < 495) failures.push(`${capture.viewport.width}-preview: visible editor width below 495px`);
+    if (!previewMetrics?.clinicalContext) failures.push(`${capture.viewport.width}-preview: C1 clinical context missing`);
     if (!previewMetrics?.clinicalBlocked) failures.push(`${capture.viewport.width}-preview: fail-closed clinical status missing`);
     if (!previewMetrics?.noHorizontalOverflow) failures.push(`${capture.viewport.width}-preview: horizontal overflow`);
   }
