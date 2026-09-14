@@ -22,6 +22,21 @@
 **R15bis refinement UI/UX :** HEAD certifié `89c852bf95426623b942a90823db69bc85501b10` — CI #3856 SUCCESS — T2 #2784 SUCCESS — PostgreSQL #299 SUCCESS — R15bis AFTER #24 SUCCESS — R15bis AFTER #26 SUCCESS — score visuel/HFE final 9,62/10 — PR #477 — merge `127ed256c690f8cc9464bee68b8cd26c29f4129a`  
 **Statut courant :** R15bis est fermé et mergé sur master ; aucun déploiement ; NEXT = R16 PDF/restitution, puis R17 certification/closeout.
 
+## PROTOCOLE R / FENÊTRES DE CONVERSATION — OBLIGATOIRE
+
+À compter de **R16**, la numérotation `R` est liée à la continuité de conversation, pas seulement au thème fonctionnel :
+
+- **1 fenêtre de conversation active = 1 numéro `R` distinct** ;
+- une fenêtre conserve son `R` jusqu'à sa clôture ou son handover ;
+- si le contexte doit passer dans une nouvelle fenêtre, la nouvelle fenêtre prend le `R` suivant, même si le chantier fonctionnel continue ;
+- un suffixe de type `bis` peut subsister dans l'historique antérieur, mais ne doit plus servir à réutiliser le même numéro dans une nouvelle fenêtre ;
+- chaque `R` doit avoir un scope, un état, les preuves Git/CI disponibles, un handover de fin et un prompt de reprise du `R` suivant ;
+- **un `R` n'est pas clôturé tant que le handover final et le prompt de la fenêtre suivante ne sont pas produits** ;
+- le fichier canonique doit indiquer explicitement la correspondance `R ↔ fenêtre/date ↔ scope ↔ état ↔ HEAD/PR/CI ↔ handover ↔ Next` pour le pointeur courant et les transitions futures ;
+- si un `R` est bloqué par un gate externe réel, le handover doit enregistrer le blocage exact et la prochaine action, sans simuler une clôture.
+
+Règle de reprise : `ouvrir nouvelle fenêtre → lire canonique → identifier R courant/suivant → lire handover → exécuter le prompt de reprise → vérifier repo/HEAD/PR/CI avant modification`.
+
 ## GOAL GLOBAL
 
 `cas patient → image → 38 landmarks → constructions → mesures → analyses → findings → synthèse diagnostique → problem list → objectifs → options thérapeutiques → validation praticien → plan final`
@@ -416,10 +431,12 @@ Chaîne R11→R14 explicite et fail-closed ; provenance, blockers, missing data,
 
 ### R16 — PDF / restitution
 **État : NEXT.**  
+**Fenêtre :** conversation de reprise ouverte le 2026-09-14 ; à partir de R16, la règle `1 fenêtre = 1 R` est obligatoire.  
 UI/API/PDF doivent restituer le même graphe et le même état validé. Le PDF reste une projection de lecture, jamais une source de vérité parallèle.  
 **Handover :** `docs/handovers/2026-09-14-cephalo-r16-pdf-restitution-handover.md`.
 
 ### R17 — Certification / closeout
+**Fenêtre :** prochaine fenêtre de conversation après clôture/handover R16.  
 Code, tests, runtime, UX et docs canoniques concordants sur master.
 
 ## GATES SCIENTIFIQUES
@@ -451,20 +468,20 @@ Traitement : `diagnostic validé → données cliniques requises → indication/
 
 ## NEXT EXACT
 
-1. Partir du master post-closeout R15bis vérifié et ouvrir exclusivement **R16 PDF/restitution**.
+1. Partir du master post-closeout R15bis vérifié et ouvrir exclusivement **R16 PDF/restitution** dans la fenêtre de conversation R16.
 2. Lire `AGENTS.md`, puis `STATE.md`, puis ce fichier canonique, puis `docs/handovers/2026-09-14-cephalo-r16-pdf-restitution-handover.md`.
 3. Vérifier repo/master/HEAD/PR/CI avant tout changement.
 4. Localiser le générateur PDF céphalométrique actuel et identifier sa source de données exacte.
 5. Capturer le BEFORE documentaire et établir la matrice de cohérence API/UI/PDF.
 6. Corriger uniquement les divergences prouvées, sans reconstruire la logique clinique dans le PDF.
 7. Certifier cas complet + cas fail-closed : NOT_COMPUTABLE, missing data, contradiction, contre-indication, R13 EVALUABLE/BLOCKED, R14 awaiting/validated.
-8. Fermer R16 avant R17.
+8. Fermer R16 avec **handover final + prompt R17**, puis seulement ouvrir la fenêtre R17.
 
 Dette Document History : réparée pendant R15. Les deux certificats exact-head finaux (`AFTER #45`, `Visual #1220`) sont SUCCESS sur `f70d62df584a38a7deb8341dc608ad14274c3dec`.
 
 ## SÉQUENCE RESTANTE
 
-`R16 PDF/restitution → R17 certification/closeout`
+`R16 PDF/restitution (fenêtre R16) → handover + prompt R17 → R17 certification/closeout (fenêtre R17)`
 
 ## DÉPLOIEMENT
 
