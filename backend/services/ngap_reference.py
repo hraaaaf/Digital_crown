@@ -8,11 +8,14 @@ window, and is linked explicitly to a CatalogAct. No label/fuzzy matching exists
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+import hashlib
+import unicodedata
+from dataclasses import dataclass, field, replace
 from datetime import date
 from enum import Enum
 from typing import Mapping, Optional
 
+import fitz
 from sqlalchemy.orm import Session
 
 from backend import models
@@ -77,6 +80,61 @@ class NgapResolution:
     release_hash: Optional[str] = None
     requires_prior_approval: bool = False
     requires_radiograph: bool = False
+
+
+def _normalized_pdf_text(value: str) -> str:
+    normalized = unicodedata.normalize("NFKD", value or "")
+    ascii_text = "".join(char for char in normalized if not unicodedata.combining(char))
+    return " ".join(ascii_text.lower().split())
+
+
+def lock_ngap_primary_pdf(
+    *,
+    release: NgapRelease,
+    pdf_bytes: bytes,
+    source_url: Optional[str] = None,
+) -> NgapRelease:
+    """Verify legal identity markers then SHA-256 lock one primary NGAP PDF.
+
+    Hashing arbitrary PDF bytes is insufficient. The binary must be readable and contain
+    both the arrêté identifier and the NGAP title before the release can become
+    VERIFIED_PRIMARY. This does not populate any regulatory mappings by itself.
+    """
+    if release.status != NgapReferenceStatus.PRIMARY_HASH_PENDING:
+        raise ValueError("NGAP release is not awaiting a primary binary lock")
+    if not pdf_bytes or not pdf_bytes.startswith(b"%PDF"):
+        raise ValueError("NGAP primary source is not a PDF binary")
+
+    try:
+        document = fitz.open(stream=pdf_bytes, filetype="pdf")
+        text = "\n".join(page.get_text("text") for page in document)
+        page_count = int(document.page_count)
+        document.close()
+    except Exception as exc:
+        raise ValueError("NGAP primary PDF binary is unreadable") from exc
+
+    if page_count <= 0:
+        raise ValueError("NGAP primary PDF has no pages")
+
+    normalized = _normalized_pdf_text(text)
+    required_markers = (
+        "177-06",
+        "nomenclature generale des actes professionnels",
+    )
+    missing = [marker for marker in required_markers if marker not in normalized]
+    if missing:
+        raise ValueError("NGAP primary PDF identity markers are missing")
+
+    effective_source_url = str(source_url or release.source_url or "").strip()
+    if not effective_source_url:
+        raise ValueError("NGAP primary source provenance is required")
+
+    return replace(
+        release,
+        source_url=effective_source_url,
+        status=NgapReferenceStatus.VERIFIED_PRIMARY,
+        source_hash=hashlib.sha256(pdf_bytes).hexdigest(),
+    )
 
 
 def resolve_ngap_code(
@@ -191,8 +249,8 @@ def resolve_catalog_act_ngap(
 
 
 # Primary authority is the Moroccan Ministry of Health regulation database.
-# The same arrêté is also indexed by data.gov.ma and CNOPS, but exact bytes could
-# not be retrieved reproducibly in this session; no hash is fabricated.
+# The same arrêté is indexed by the SGG Bulletin Officiel n°5414, data.gov.ma and
+# CNOPS. Exact primary bytes still need reproducible retrieval; no hash is fabricated.
 DENTAL_NGAP_PRIMARY_PENDING = NgapRelease(
     version="arrete-177-06",
     authority="Ministere de la Sante et de la Protection Sociale",
@@ -207,6 +265,7 @@ DENTAL_NGAP_PRIMARY_PENDING = NgapRelease(
 )
 
 DENTAL_NGAP_CORROBORATING_URLS = (
+    "https://www.sgg.gov.ma/BO/bo_fr/2006/bo_5414_fr.pdf",
     "https://data.gov.ma/data/fr/dataset/b8425cb6-828f-4fa9-9f02-cdd372d18f65/resource/"
     "f66d23ac-012f-4439-ac99-4beb129ce640/download/ngap-cnops-2014.pdf",
     "https://cnops.org.ma/sites/default/files/2022-10/Nomeclature_0.pdf",
