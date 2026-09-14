@@ -1,32 +1,22 @@
-import { fireEvent, render, screen } from '@testing-library/react'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
-import '@testing-library/jest-dom/vitest'
-
-const legacyMount = vi.fn()
-
-vi.mock('./PrescriptionAgenticStudioLegacy', () => ({
-  PrescriptionAgenticStudio: (props: any) => {
-    legacyMount(props)
-    return <div data-testid="legacy-studio">legacy</div>
-  },
-}))
+import { render, screen } from '@testing-library/react';
+import { describe, expect, it, vi } from 'vitest';
+import '@testing-library/jest-dom/vitest';
 
 vi.mock('../../../../services/api', () => ({
   api: {
+    get: vi.fn(async () => ({ data: [] })),
     post: vi.fn(async () => ({ data: [] })),
     interceptors: {
       request: { use: vi.fn(() => 1), eject: vi.fn() },
       response: { use: vi.fn(() => 2), eject: vi.fn() },
     },
   },
-}))
+}));
 
-import { PrescriptionAgenticStudio } from './PrescriptionAgenticStudio'
+import { PrescriptionAgenticStudio } from './PrescriptionAgenticStudio';
 
-describe('PrescriptionAgenticStudio R6 protocol visibility', () => {
-  beforeEach(() => legacyMount.mockClear())
-
-  it('réaffiche Mes protocoles en remontant le studio legacy', () => {
+describe('PrescriptionAgenticStudio V1 — isolation legacy', () => {
+  it('retire les automatismes prescriptifs legacy du chemin actif', () => {
     render(
       <PrescriptionAgenticStudio
         patientId=""
@@ -37,13 +27,13 @@ describe('PrescriptionAgenticStudio R6 protocol visibility', () => {
         onAddDrug={vi.fn()}
         validationErrors={[]}
       />,
-    )
+    );
 
-    const callsBeforeRestore = legacyMount.mock.calls.length
-    expect(callsBeforeRestore).toBeGreaterThan(0)
-
-    fireEvent.click(screen.getByRole('button', { name: 'Mes protocoles' }))
-
-    expect(legacyMount.mock.calls.length).toBeGreaterThan(callsBeforeRestore)
-  })
-})
+    expect(screen.getByText('Prescription Intelligence V1')).toBeInTheDocument();
+    expect(screen.getByText(/Suggestion clinique bloquée/)).toBeInTheDocument();
+    expect(screen.queryByText(/Protocoles Cliniques/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Saisie rapide/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Établir l'Ordonnance/i)).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Mes protocoles/i })).not.toBeInTheDocument();
+  });
+});

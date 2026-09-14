@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { api } from '../../services/api';
 import { cn } from '../../utils/cn';
 
 // Composants Modulaires
@@ -66,7 +65,6 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
 
   const [docDate, setDocDate] = useState(new Date().toISOString().split('T')[0]);
   const [sideStudioType, setSideStudioType] = useState<'NONE' | 'PREVIEW'>('NONE');
-  const [smartSuggestion, setSmartSuggestion] = useState<{ rationale: string; drugs: DrugItem[] } | null>(null);
 
   const [drugs, setDrugs] = useState<DrugItem[]>([{ id: 1, name: '', dosage: '', forme: '', posologie: '', type: 'MEDICAMENT' }]);
   const [showLegalAnnotations, setShowLegalAnnotations] = useState(true);
@@ -120,13 +118,13 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
     items,
     paymentMode,
     libreTitle, libreContent, libreCustomPatient, libreCustomDate,
-    libreHideHeader, librePageSize, libreAlignment, docDate, selectedTeethFromOdontogram, smartSuggestion,
+    libreHideHeader, librePageSize, libreAlignment, docDate, selectedTeethFromOdontogram, smartSuggestion: null,
     installments, isAccounted, paymentStatus, isGlobalNote,
     editArchiveId: editData?.id,
     showLegalAnnotations, echeancierPayload,
   }), [
     patientId, patientDetails, activeTab, drugs, certifType, certifDays, certifStartDate, certifCustomMotif,
-    items, paymentMode, libreTitle, libreContent, libreCustomPatient, libreCustomDate, libreHideHeader, librePageSize, libreAlignment, docDate, selectedTeethFromOdontogram, smartSuggestion,
+    items, paymentMode, libreTitle, libreContent, libreCustomPatient, libreCustomDate, libreHideHeader, librePageSize, libreAlignment, docDate, selectedTeethFromOdontogram,
     installments, isAccounted, paymentStatus, isGlobalNote, editData?.id, showLegalAnnotations, echeancierPayload,
   ]);
 
@@ -192,7 +190,7 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
     if (desiredTab === 'ordonnance') {
       if (d.medications) setDrugs(d.medications.map((m: { nom?: string; dosage?: string; forme?: string; posologie?: string; type?: 'MEDICAMENT' | 'EXAMEN' }, idx: number) => ({
         id: Date.now() + idx, name: m.nom || '', dosage: m.dosage || '',
-        forme: m.forme || 'Sachets', posologie: m.posologie || '',
+        forme: m.forme || '', posologie: m.posologie || '',
         type: m.type || 'MEDICAMENT'
       })));
     } else if (desiredTab === 'certificat') {
@@ -237,26 +235,6 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
     }
     if (d.doc_date) setDocDate(d.doc_date);
   }, [editData, allowedTabs, setActiveTab, setItems, setPaymentMode, setPaymentStatus, setIsAccounted, setIsGlobalNote, setInstallments]);
-
-  useEffect(() => {
-    if (!patientId || activeTab !== 'ordonnance' || !allowedTabs.includes('ordonnance')) {
-      setSmartSuggestion(null);
-      return;
-    }
-
-    let cancelled = false;
-    api.get(`/prescriptions/smart-suggest/${patientId}`)
-      .then(res => {
-        if (!cancelled) setSmartSuggestion(res.data);
-      })
-      .catch(err => {
-        if (!cancelled) console.error(err);
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [patientId, activeTab, allowedTabs]);
 
   useEffect(() => {
     if (activeTab === 'certificat' || activeTab === 'libre') {
@@ -338,7 +316,6 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
           showPrintWarning={generator.showPrintWarning}
           onCloseWarning={generator.closeWarning}
           hasChanges={generator.hasChanges}
-          onSavePreference={() => generator.handleSavePreference(smartSuggestion, drugs)}
           total={accountingDocumentTotal(items)}
           sideStudioType={sideStudioType}
           onTogglePreview={() => setSideStudioType(prev => prev === 'PREVIEW' ? 'NONE' : 'PREVIEW')}
