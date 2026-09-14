@@ -1,9 +1,9 @@
 """Versioned, fail-closed NGAP reference primitives for dental insurance submissions.
 
 The production reference deliberately remains locked while the authoritative source
-binary/hash is unavailable. A release or database mapping can resolve EXACT only when
-it is explicitly VERIFIED_PRIMARY, carries a SHA-256 source hash, is in its validity
-window, and is linked explicitly to a CatalogAct. No label/fuzzy matching exists here.
+binary/hash is unavailable. A database mapping can resolve EXACT only when the primary
+source is SHA-256 locked and the mapping itself was explicitly validated by a
+practitioner. No label/fuzzy matching exists here.
 """
 
 from __future__ import annotations
@@ -98,7 +98,7 @@ def lock_ngap_primary_pdf(
 
     Hashing arbitrary PDF bytes is insufficient. The binary must be readable and contain
     both the arrêté identifier and the NGAP title before the release can become
-    VERIFIED_PRIMARY. This does not populate any regulatory mappings by itself.
+    VERIFIED_PRIMARY. This does not populate or validate regulatory mappings.
     """
     if release.status != NgapReferenceStatus.PRIMARY_HASH_PENDING:
         raise ValueError("NGAP release is not awaiting a primary binary lock")
@@ -144,10 +144,11 @@ def resolve_ngap_code(
     release: NgapRelease,
     on_date: Optional[date] = None,
 ) -> NgapResolution:
-    """Resolve an explicit catalog code against one locked reference release.
+    """Resolve an explicit code against one locked in-memory reference release.
 
-    INTERNAL/OTHER codes and missing codes are never interpreted as NGAP. An unlocked,
-    pending or expired release returns OUTDATED before inspecting entries.
+    This helper is used only with explicitly constructed/versioned release data. The
+    production DB path is ``resolve_catalog_act_ngap`` because legacy CatalogAct.code
+    can contain internal values.
     """
     if code_kind != NgapCodeKind.NGAP or not str(catalog_code or "").strip():
         return NgapResolution(status=InsuranceMappingStatus.NO_MATCH)
@@ -190,9 +191,8 @@ def resolve_catalog_act_ngap(
 ) -> NgapResolution:
     """Resolve one CatalogAct through an explicit versioned regulatory mapping row.
 
-    This is the runtime path intended for insurance submissions. It never reads or
-    interprets ``CatalogAct.code`` because that legacy field may contain NGAP or an
-    internal code. The separate mapping row is the only accepted classification.
+    ``CatalogAct.code`` is never interpreted. EXACT additionally requires source lock
+    and explicit practitioner validation of the mapping row.
     """
     from backend.models_ngap_reference import NgapCatalogMapping
 
@@ -218,6 +218,8 @@ def resolve_catalog_act_ngap(
     locked = (
         mapping.verification_status == NgapReferenceStatus.VERIFIED_PRIMARY.value
         and len(source_hash) == 64
+        and mapping.validated_by_practitioner_id is not None
+        and mapping.validated_at is not None
         and (mapping.valid_from is None or effective_date >= mapping.valid_from)
         and (mapping.valid_to is None or effective_date <= mapping.valid_to)
     )
