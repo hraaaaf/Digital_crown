@@ -5,7 +5,7 @@ Date : 2026-09-14.
 Baseline auditée : `master` @ `5e1802901301a36fa4acf3d34adbfbde84258c18`.
 
 ## Goal
-Préparer l’automatisation future des feuilles de soins dentaires CNOPS, CNSS et Mutuelle des FAR en réutilisant les données déjà présentes dans Digital Crown, sans dupliquer les domaines Patient, Actes, Honoraires ou Ordonnance.
+Préparer l’automatisation future des feuilles de soins dentaires CNOPS, CNSS et Mutuelle des FAR en réutilisant les données déjà présentes dans Digital Crown, sans dupliquer les domaines Patient, Actes, Honoraires ou Ordonnance et sans mettre en risque la base patients existante.
 
 ## Succès de ce lot
 - audit anti-doublon documenté ;
@@ -13,7 +13,9 @@ Préparer l’automatisation future des feuilles de soins dentaires CNOPS, CNSS 
 - politique NGAP déterministe et versionnée documentée ;
 - sources primaires/secondaires classées ;
 - référence CNSS `610-1-04` validée métier le 2026-09-14 comme formulaire effectivement utilisé au cabinet ;
-- aucun fichier runtime, route, dépendance, modèle DB ou UI modifié.
+- politique Patient verrouillée : données assurance administratives facultatives et activables, hors formulaire patient standard par défaut ;
+- politique DB verrouillée : future évolution additive/rétrocompatible uniquement, aucun backfill obligatoire des patients historiques ;
+- aucun fichier runtime, route, dépendance, modèle DB ou UI modifié dans ce lot.
 
 ## Architecture cible — non implémentée
 
@@ -35,27 +37,46 @@ Principe : `InsuranceSubmissionDraft` est un DTO/adaptateur de sortie. Il ne dev
 
 ## Statuts de champ prévus
 - `AUTO` : fait déjà présent en base/dossier.
+- `PATIENT_OPTIONAL` : donnée administrative facultative stockable sur le patient, masquée du formulaire standard tant que non activée.
 - `DERIVED_NGAP` : calcul/mapping déterministe depuis un acte existant.
 - `MANUAL_REQUIRED` : donnée que le praticien doit saisir/confirmer.
 - `INSURER_ONLY` : champ réservé à l’organisme gestionnaire.
 - `SIGNATURE_REQUIRED` : signature/cachet réel requis, jamais simulé automatiquement.
 - `UNSUPPORTED` : absent ou non fiabilisé dans Digital Crown.
 
-## Garde-fous
+## Règle Patient / assurance
+Le dossier patient général ne doit pas devenir un formulaire administratif de mutuelle.
+
+CIN, affiliation/immatriculation/compte, qualité assuré/ayant-droit et données analogues :
+- facultatives ;
+- non affichées par défaut dans le formulaire Patient ;
+- activées uniquement via une section/action assurance ou lors de la préparation d’une feuille de soins ;
+- réutilisées automatiquement si elles ont déjà été renseignées ;
+- jamais inventées ni exigées pour les patients qui n’en ont pas besoin.
+
+## Garde-fou DB patients existants — P0
+Toute future intégration doit préserver intégralement la base cabinet existante.
+
+Interdits : suppression/renommage destructif de colonnes Patient, changement de sens d’un champ existant, migration exigeant un backfill artificiel, invalidation des anciennes lignes.
+
+Si de nouveaux champs sont nécessaires, ils seront additifs et `nullable`/optionnels. Avant migration réelle, une copie représentative de DB devra démontrer : même nombre de patients avant/après, mêmes IDs, aucune valeur existante modifiée/perdue, nouveaux champs vides acceptés, anciens dossiers toujours ouvrables et éditables, rollback testé.
+
+## Garde-fous fonctionnels
 1. Aucun code NGAP n’est deviné silencieusement.
 2. Toute ambiguïté de mapping bloque l’auto-remplissage du code concerné et demande validation praticien.
 3. Aucun cachet, signature, accord préalable ou décision assureur n’est fabriqué.
-4. CNSS : `610-1-04` est désormais `VERIFIED_CABINET_REFERENCE`, mais le binaire officiel courant reste à verrouiller avant activation applicative.
-5. FAR : le PDF/formulaire reste NON CANONIQUE tant qu’une version officielle actuelle n’est pas verrouillée depuis une source primaire.
+4. CNSS : `610-1-04` est `VERIFIED_CABINET_REFERENCE`, mais le binaire officiel courant reste à verrouiller avant activation applicative.
+5. FAR : le PDF/formulaire reste NON CANONIQUE tant qu’une version officielle actuelle n’est pas verrouillée depuis une source primaire et/ou validée métier selon le flux retenu.
 6. Les données Honoraires et Ordonnance devront être lues depuis les sous-systèmes existants, jamais recopiées dans un second moteur.
+7. Aucune migration Patient n’est autorisée avant preuve de non-perte sur DB de test/copied cabinet DB.
 
 ## Fichiers de ce pack
-- `EXISTING_APP_AUDIT.md` : réutilisation de l’existant et gaps.
-- `FIELD_MATRIX.md` : champs CNOPS/CNSS/FAR et provenance future.
+- `EXISTING_APP_AUDIT.md` : réutilisation de l’existant, gaps et garde-fou DB.
+- `FIELD_MATRIX.md` : champs CNOPS/CNSS/FAR, provenance future et UX des champs optionnels.
 - `SOURCES.md` : sources et niveau de confiance.
 - `NGAP_POLICY.md` : gouvernance du référentiel et du mapping.
 
 ## Gate avant toute intégration
-Le chantier d’intégration ne doit démarrer qu’après : verrouillage du formulaire officiel courant pour chaque organisme, hash/version du template, audit exact des champs Patient/Cabinet/Actes, et table NGAP/TNR validée à partir de sources ONMD/ANAM.
+Le chantier d’intégration ne doit démarrer qu’après : verrouillage du formulaire retenu pour chaque organisme, hash/version du template, audit exact des champs Patient/Cabinet/Actes, localisation de la source canonique des dents, table NGAP/TNR validée, et plan de migration additive testé sur une copie de DB existante.
 
 CNSS `610-1-04` a franchi le gate métier/visuel cabinet, mais pas encore le gate `VERIFIED_PRIMARY`.
