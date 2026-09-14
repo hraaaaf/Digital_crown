@@ -177,6 +177,12 @@ export const PrescriptionAgenticStudio: React.FC<PrescriptionAgenticStudioProps>
       data-safety-status="blocked"
       className="space-y-3"
     >
+      <style>{`
+        [data-prescription-intelligence-studio="v1"] [data-clinical-suggestion-status="blocked"] {
+          display: none !important;
+        }
+      `}</style>
+
       <section className="rounded-2xl border border-border-main bg-glass-bg/70 p-3 shadow-sm backdrop-blur-xl sm:p-4">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="min-w-0">
