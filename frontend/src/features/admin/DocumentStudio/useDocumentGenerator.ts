@@ -154,36 +154,16 @@ function analyzeCoherence(params: UseDocumentGeneratorParams): CoherenceWarning[
   const { activeTab, drugs, items } = params;
 
   if (activeTab === 'ordonnance') {
+    // Prescription Intelligence V1 ne porte ici qu'un contrôle de complétude.
+    // Toute interaction, contre-indication ou dose clinique reste bloquée tant
+    // qu'une règle V1 sourcée, versionnée et testée n'est pas disponible.
     const namedDrugs = drugs.filter(d =>
       d.name.trim() &&
       d.type !== 'EXAMEN' &&
       !/radio|bilan|scanner|irm|panoramique|telecrane|télécrane/i.test(d.name)
     );
-    const hasMissingDosage = namedDrugs.some(d => !d.dosage.trim());
-    if (hasMissingDosage) {
+    if (namedDrugs.some(d => !d.dosage.trim())) {
       warnings.push({ level: 'warning', message: "Certains médicaments n'ont pas de dosage spécifié. Vérifiez avant impression." });
-    }
-    const antibiotics = namedDrugs.filter(d =>
-      /amoxicillin|augmentin|clamoxyl|metronidazole|flagyl|clindamycin|dalacin/i.test(d.name)
-    );
-    if (antibiotics.length > 1) {
-      warnings.push({ level: 'warning', message: `Association antibiotique détectée (${antibiotics.map(a => a.name).join(', ')}). Vérifiez la pertinence clinique.` });
-    }
-
-    const ains = namedDrugs.filter(d => /ibuprofène|ibuprofene|antadys|nurofen|ketoprofène|biprofenid|diclofenac|voltarène/i.test(d.name));
-    const corticos = namedDrugs.filter(d => /solupred|prednisolone|cortancyl|celestene/i.test(d.name));
-
-    if (ains.length > 0 && corticos.length > 0) {
-      warnings.push({ level: 'warning', message: `Association AINS et Corticoïdes détectée (${ains[0].name} + ${corticos[0].name}). Risque ulcérogène accru.` });
-    }
-
-    if (ains.length > 1) {
-      warnings.push({ level: 'critical', message: `Redondance d'AINS détectée. Évitez de prescrire deux AINS simultanément.` });
-    }
-
-    const paracetamol = namedDrugs.filter(d => /doliprane|paracetamol|efferalgan/i.test(d.name));
-    if (paracetamol.length > 1) {
-      warnings.push({ level: 'warning', message: `Surdosage potentiel de Paracétamol détecté. Vérifiez la dose journalière maximale (3g à 4g/jour).` });
     }
   }
 
@@ -479,21 +459,9 @@ export function useDocumentGenerator(params: UseDocumentGeneratorParams) {
           window.open(finalUrl, '_blank');
         }
 
-        if (activeTab === 'ordonnance' && !isPreview && archive) {
-          try {
-            for (const drug of drugs) {
-              if (drug.name.trim()) {
-                await api.post('/prescriptions/habits/record', {
-                  medication_name: drug.name,
-                  dosage: drug.dosage,
-                  posologie: drug.posologie
-                });
-              }
-            }
-          } catch (e) {
-            console.warn("Échec de l'apprentissage des habitudes (silencieux)", e);
-          }
-        }
+        // Prescription Intelligence V1 n'apprend plus silencieusement les
+        // dosages/posologies archivés. L'historique legacy reste disponible
+        // hors du chemin V1, mais n'alimente aucune suggestion automatique ici.
 
         // Les actes financiers sont appris côté backend après génération/archivage réussi.
         if ((activeTab === 'devis' || activeTab === 'honoraires') && !isPreview && archive) {
