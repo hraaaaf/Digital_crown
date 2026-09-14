@@ -11,7 +11,7 @@ from __future__ import annotations
 import hashlib
 import unicodedata
 from dataclasses import dataclass, field, replace
-from datetime import date
+from datetime import date, datetime
 from enum import Enum
 from typing import Mapping, Optional
 
@@ -135,6 +135,50 @@ def lock_ngap_primary_pdf(
         status=NgapReferenceStatus.VERIFIED_PRIMARY,
         source_hash=hashlib.sha256(pdf_bytes).hexdigest(),
     )
+
+
+def certify_catalog_act_ngap_mapping(
+    db: Session,
+    *,
+    mapping_id: int,
+    locked_release: NgapRelease,
+    practitioner_id: int,
+    validated_at: Optional[datetime] = None,
+):
+    """Promote one pending mapping only against the same locked primary release.
+
+    This is the explicit métier-validation step. It never commits; the caller owns the
+    transaction and may still roll back the certification atomically.
+    """
+    from backend.models_ngap_reference import NgapCatalogMapping
+
+    validation_time = validated_at or datetime.utcnow()
+    if not locked_release.is_locked_for_automatic_mapping(on_date=validation_time.date()):
+        raise ValueError("NGAP primary release is not locked/current")
+
+    mapping = db.query(NgapCatalogMapping).filter(NgapCatalogMapping.id == int(mapping_id)).first()
+    if mapping is None:
+        raise ValueError("NGAP mapping not found")
+    if mapping.reference_version != locked_release.version:
+        raise ValueError("NGAP mapping/reference version mismatch")
+
+    practitioner = db.query(models.User).filter(
+        models.User.id == int(practitioner_id),
+        models.User.is_active.is_(True),
+    ).first()
+    if practitioner is None:
+        raise ValueError("Active practitioner validator not found")
+
+    mapping.source_authority = locked_release.authority
+    mapping.source_url = locked_release.source_url
+    mapping.source_hash = locked_release.source_hash
+    mapping.verification_status = NgapReferenceStatus.VERIFIED_PRIMARY.value
+    mapping.valid_from = locked_release.valid_from
+    mapping.valid_to = locked_release.valid_to
+    mapping.validated_by_practitioner_id = practitioner.id
+    mapping.validated_at = validation_time
+    db.flush()
+    return mapping
 
 
 def resolve_ngap_code(
