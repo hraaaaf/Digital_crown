@@ -27,6 +27,12 @@ class InsuranceDraftStatus(str, Enum):
     VALIDATED = "VALIDATED"
 
 
+class InsuranceTemplateTrust(str, Enum):
+    OFFICIAL_PRIMARY = "OFFICIAL_PRIMARY"
+    CABINET_VALIDATED_BINARY = "CABINET_VALIDATED_BINARY"
+    SECONDARY_REFERENCE = "SECONDARY_REFERENCE"
+
+
 class InsuranceAdministrativeSnapshot(BaseModel):
     """Administrative data required by insurer forms, never inferred when absent."""
     model_config = ConfigDict(extra="forbid")
@@ -89,6 +95,7 @@ class InsuranceTemplateSnapshot(BaseModel):
     template_version: str = Field(min_length=1)
     template_hash: Optional[str] = None
     source_url: Optional[str] = None
+    trust: Optional[InsuranceTemplateTrust] = None
 
 
 class InsuranceReferenceSnapshot(BaseModel):
@@ -128,6 +135,11 @@ class InsuranceSubmissionDraft(BaseModel):
                 raise ValueError("VALIDATED requires locked template SHA-256")
             if not self.template.source_url or not self.template.source_url.strip():
                 raise ValueError("VALIDATED requires template source provenance")
+            if self.template.trust not in {
+                InsuranceTemplateTrust.OFFICIAL_PRIMARY,
+                InsuranceTemplateTrust.CABINET_VALIDATED_BINARY,
+            }:
+                raise ValueError("VALIDATED requires an official or cabinet-validated template binary")
             if (
                 not self.reference.ngap_reference_version
                 or not self.reference.ngap_reference_hash
