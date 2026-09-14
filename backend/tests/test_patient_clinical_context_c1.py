@@ -5,7 +5,7 @@ from pydantic import ValidationError
 
 from backend import models
 from backend.schemas.patient_clinical_context import PatientClinicalContextUpdate
-from backend.tests.conftest import make_user
+from backend.security import get_password_hash
 
 
 def _patient(db, employer_id: int, suffix: str = "C1"):
@@ -23,13 +23,19 @@ def _patient(db, employer_id: int, suffix: str = "C1"):
     return patient
 
 
-def _headers(client, user, password="TestPass123!"):
-    response = client.post(
-        "/api/auth/login",
-        data={"username": user.email, "password": password},
+def _other_practitioner(db):
+    user = models.User(
+        email="other-context@cabinet.ma",
+        hashed_password=get_password_hash("TestPass123!"),
+        role="DENTISTE",
+        nom_complet="Dr. Other Context",
+        is_active=True,
+        is_licensed=True,
     )
-    assert response.status_code == 200, response.text
-    return {"Authorization": f"Bearer {response.json()['access_token']}"}
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+    return user
 
 
 def test_schema_accepts_unknown_fail_closed_state():
@@ -122,7 +128,7 @@ def test_context_get_defaults_and_put_roundtrip(client, db, dentiste, auth_heade
 
 
 def test_context_is_tenant_isolated(client, db, dentiste, auth_headers):
-    other = make_user(db, email="other-context@cabinet.ma")
+    other = _other_practitioner(db)
     foreign_patient = _patient(db, other.id, suffix="OTHER")
 
     response = client.get(
