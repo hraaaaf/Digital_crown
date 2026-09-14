@@ -1,0 +1,77 @@
+name: Cephalo R18 Synthetic Runtime Capture
+
+on:
+  pull_request:
+    branches: [master]
+    paths:
+      - 'frontend/scripts/capture-cephalo-r18-synthetic.mjs'
+      - '.github/workflows/cephalo-r18-synthetic-capture.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  synthetic-captures:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+
+      - name: Assert exact capture HEAD
+        env:
+          PRODUCT_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: test "$(git rev-parse HEAD)" = "$PRODUCT_HEAD"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install frontend and Chromium
+        working-directory: frontend
+        run: |
+          npm ci
+          npm install --no-save --package-lock=false --legacy-peer-deps playwright@1.55.0
+          npx playwright install --with-deps chromium
+
+      - name: Capture COM, Steiner and Tweed from synthetic landmarks
+        working-directory: frontend
+        env:
+          PRODUCT_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: node scripts/capture-cephalo-r18-synthetic.mjs
+
+      - name: Verify capture contract
+        working-directory: frontend
+        env:
+          PRODUCT_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          node --input-type=module <<'NODE'
+          import { readFile } from 'node:fs/promises';
+          const report = JSON.parse(await readFile('cephalo-r18-synthetic-artifacts/report.json', 'utf8'));
+          if (report.productHead !== process.env.PRODUCT_HEAD) throw new Error('Exact-head mismatch');
+          if (report.fixture !== 'CEPHALO_R18_SYNTHETIC_V1') throw new Error('Fixture mismatch');
+          if (report.analyses.length !== 3) throw new Error(`Expected 3 analysis modes, got ${report.analyses.length}`);
+          const expected = ['COM', 'STEINER', 'TWEED'];
+          for (const name of expected) {
+            const item = report.analyses.find(entry => entry.mode === name);
+            if (!item?.valid) throw new Error(`${name} capture invalid`);
+            if (!item.values || Object.values(item.values).some(value => value === null || value === '' || value === '-')) throw new Error(`${name} has missing calculated values`);
+          }
+          if (report.pageErrors.length || report.consoleErrors.length) throw new Error('Browser errors recorded');
+          NODE
+          test -s cephalo-r18-synthetic-artifacts/analysis-com-1440x1400@2x.png
+          test -s cephalo-r18-synthetic-artifacts/analysis-steiner-1440x1400@2x.png
+          test -s cephalo-r18-synthetic-artifacts/analysis-tweed-1440x1400@2x.png
+          test -s cephalo-r18-synthetic-artifacts/synthetic-landmarks.json
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: cephalo-r18-synthetic-${{ github.event.pull_request.head.sha || github.sha }}
+          path: frontend/cephalo-r18-synthetic-artifacts
+          if-no-files-found: warn
+          retention-days: 30
