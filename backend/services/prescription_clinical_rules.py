@@ -43,6 +43,7 @@ class IEProphylaxisAdultOralAmoxicillinInput:
     cardiac_risk_category: CardiacRiskCategory
     dental_procedure_qualifies: Optional[bool]
     penicillin_allergy_status: PenicillinAllergyStatus
+    generic_medication_allergy_present: bool
     oral_route_possible: Optional[bool]
     currently_taking_penicillin_or_amoxicillin: Optional[bool]
     selected_active_ingredient_code: Optional[str]
@@ -64,7 +65,7 @@ class ClinicalRuleResult:
 
 
 RULE_ID = "IE_PROPHYLAXIS_ADULT_ORAL_AMOXICILLIN"
-RULE_VERSION = "2026-09-15.v2"
+RULE_VERSION = "2026-09-15.v3"
 
 
 def evaluate_ie_prophylaxis_adult_oral_amoxicillin(
@@ -86,6 +87,9 @@ def evaluate_ie_prophylaxis_adult_oral_amoxicillin(
         blockers.append("DENTAL_PROCEDURE_ELIGIBILITY_UNKNOWN")
     elif data.dental_procedure_qualifies is not True:
         blockers.append("DENTAL_PROCEDURE_NOT_QUALIFYING")
+
+    if data.generic_medication_allergy_present:
+        blockers.append("GENERIC_MEDICATION_ALLERGY_REQUIRES_RECONCILIATION")
 
     if data.penicillin_allergy_status == "UNKNOWN":
         blockers.append("PENICILLIN_ALLERGY_UNKNOWN")
