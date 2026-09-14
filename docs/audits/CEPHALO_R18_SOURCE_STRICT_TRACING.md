@@ -6,61 +6,74 @@ Faire de chaque mesure affichée une construction visuellement vérifiable :
 
 `landmarks source → construction versionnée → mesure → rendu du même contrat géométrique`.
 
-La sélection d'une analyse doit limiter le tracé aux points et constructions nécessaires à cette analyse, sans constructions étrangères persistantes à l'écran.
+La sélection d'une analyse doit limiter le tracé aux points et constructions nécessaires, sans constructions étrangères persistantes à l'écran.
 
 ## Succès observable
 
 1. audit frontend/backend R18 : `concordance_certified=true`, 0 divergence ;
 2. Steiner : SN, NA, NB + axes incisifs nécessaires, sans McNamara/Ricketts ;
 3. Tweed : Frankfort, plan mandibulaire + axes incisifs nécessaires ;
-4. COM/McNamara : Frankfort, N-perp et projections A/B + Co-A, Co-Gn, ANS-Me ;
-5. Ricketts : profil cutané + E-line Prn-Pog' + projections Ls/Li, sans constructions squelettiques non nécessaires ;
-6. mode Tous disponible pour l'inspection globale ;
+4. COM/McNamara : Frankfort, N-perp et projections A/B + Co-A, Co-Gn, ANS-Me + Wits ;
+5. Ricketts : profil cutané + E-line et constructions dures disponibles, sans constructions étrangères ;
+6. mode Tous disponible pour inspection globale ;
 7. BEFORE/AFTER aux mêmes viewports 390x844, 768x1024, 1280x900 ;
 8. aucune overflow, erreur runtime ou egress externe dans le harness visuel ;
 9. aucune modification rétroactive de la sémantique Ricketts E-line V1 persistée.
 
 ## Preuve mathématique acquise
 
-R18 Scientific Concordance run #5, HEAD `595780ca3f17271a668f04b5a9e226f81303929e` : audit SUCCESS avec hard gate ; artefact `concordance-report.json` : `concordance_certified=true`, 0 divergence sur 90 comparaisons (41 PASS, 49 PASS_UNAVAILABLE).
+R18 Scientific Concordance run #5, HEAD `595780ca3f17271a668f04b5a9e226f81303929e` : SUCCESS avec hard gate ; artefact `concordance-report.json` : `concordance_certified=true`, 0 divergence sur 90 comparaisons (41 PASS, 49 PASS_UNAVAILABLE).
 
-Les distances linéaires Steiner U1-NA/L1-NB restent `NOT_COMPUTABLE` automatiquement tant que le landmark de couronne requis n'existe pas ; le bord incisif n'est plus utilisé comme substitut silencieux.
+Les runs exact-head suivants doivent rester verts avant closeout.
+
+Les distances linéaires Steiner U1-NA/L1-NB restent `NOT_COMPUTABLE` automatiquement tant que le landmark coronaire requis n'existe pas ; le bord incisif n'est plus utilisé comme substitut silencieux.
 
 ## Contrat Ricketts E-line
 
-- V1 historique : distance parallèle à Frankfort conservée pour la lecture des snapshots existants ;
+- V1 historique : distance parallèle à Frankfort conservée pour lecture des snapshots existants ;
 - V2 active : plus courte distance/perpendiculaire du point labial à Prn-Pog', Frankfort servant uniquement à orienter le signe antérieur/postérieur ;
 - identifiants de construction et méthode versionnés séparément (`*_V2`).
 
 Références enregistrées dans le code : DOI `10.1016/S0002-9416(68)90278-9`, PMCID `PMC6007603`, `PMC10973926`, `PMC12569150`.
 
-## BEFORE
+## BEFORE figé
 
-Harness dédié : `.github/workflows/cephalo-r18-tracing-before.yml` + `frontend/scripts/capture-cephalo-r18-tracing-before.mjs`.
+Référence canonique : workflow `Cephalo R18 Tracing BEFORE`, run `34882384184` / #3, SUCCESS, HEAD `26d0aaf7c1b674227de310715ef35ccf27c82c04`.
 
-Le BEFORE doit prouver l'état réel antérieur : pas de sélecteur de tracé au Step 1 et superposition globale non filtrée. Le run/artefact exact est inscrit ici seulement après succès.
+Viewports : 390x844, 768x1024, 1280x900. Le BEFORE prouve : sélecteur absent, superposition globale non filtrée, zéro overflow horizontal.
 
-## Mockup / référence d'interaction
+Artefact : `10362879498`, digest `sha256:586528cc04dbf3e90ae71ea71e65a89542c48f6cfeeda333adbbf005d3412954`.
 
-Sélecteur compact intégré au viewer, sans nouveau panneau :
+Le workflow BEFORE est désormais manuel et pinne ce HEAD ; il ne doit pas être recalculé sur l'UI AFTER.
 
-`[ COM ] [ Steiner ] [ Tweed ] [ Ricketts ] [ Tous ]`
+## Référence d'interaction implémentée
+
+Sélecteur compact intégré au viewer :
+
+`[ Tous ] [ Steiner ] [ Tweed ] [ McNamara / COM ] [ Ricketts ]`
 
 - desktop/tablette : groupe centré sous les contrôles supérieurs ;
-- mobile : largeur contrainte, défilement horizontal interne sans overflow du document ;
-- état actif : token accent existant, pas de couleur clinique nouvelle ;
+- mobile : groupe déplacé sous les badges d'état pour éviter l'interception tactile, largeur contrainte et défilement horizontal interne ;
+- état actif : tokens existants cyan/sombre ;
 - changement immédiat, sans recalcul ni mutation des landmarks ;
-- le choix est partagé avec `etape3Data.selectedAnalysis` pour qu'une seule source UI pilote mesures et tracé.
+- les corrections de landmarks d'une vue filtrée sont fusionnées dans le jeu complet afin de ne jamais perdre les points masqués.
+
+Le sélecteur de tracing est local au viewer R18. `etape3Data.selectedAnalysis` n'est pas étendu à Ricketts dans ce lot afin de ne pas modifier silencieusement le contrat clinique du Step 3. Une unification de ces deux sélections nécessiterait un contrat explicite séparé.
+
+## Architecture
+
+Le moteur historique est conservé byte-for-byte dans `frontend/src/features/ortho/CephaloTracingLayerBase.tsx`.
+
+`frontend/src/features/ortho/CephaloTracingLayer.tsx` est le contrôleur R18 : il filtre landmarks + ghosts par analyse, délègue le rendu historique au moteur Base et ajoute les constructions Ricketts dures/Wits nécessaires.
 
 ## Invariants
 
-- un filtre d'affichage ne modifie jamais les coordonnées ni la mesure ;
+- un filtre d'affichage ne modifie jamais la mesure ;
 - profil cutané/E-line uniquement en Ricketts ou Tous ;
-- projections McNamara uniquement en COM/McNamara ou Tous ;
-- Wits reste compatible au niveau tracing interne mais n'est pas promu comme nouvelle analyse clinique dans ce lot ;
-- aucune norme/diagnostic/traitement n'est introduit par ce chantier ;
-- aucun déploiement.
+- projections McNamara uniquement en McNamara/COM ou Tous ;
+- aucune norme, diagnostic ou traitement n'est introduit par ce chantier ;
+- aucun déploiement Vercel.
 
 ## État
 
-EN COURS — mathématiques certifiées ; BEFORE visuel lancé ; implémentation UI interdite tant que le BEFORE n'est pas produit avec succès.
+EN COURS — mathématiques certifiées ; BEFORE certifié et figé ; contrôleur UI implémenté ; première certification AFTER a validé 768/1280 et révélé une collision mobile 390, corrigée au commit `aa30483774838a63654f7b786d5e38d7b89a438c`. Closeout interdit tant que AFTER exact-head + CI générale + comparaison visuelle finale + merge ne sont pas prouvés.
