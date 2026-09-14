@@ -9,17 +9,14 @@ from __future__ import annotations
 
 import hashlib
 from dataclasses import dataclass
-from enum import Enum
 
 import fitz
 
-from backend.schemas.insurance_submission import InsuranceOrganization, InsuranceTemplateSnapshot
-
-
-class InsuranceTemplateTrust(str, Enum):
-    OFFICIAL_PRIMARY = "OFFICIAL_PRIMARY"
-    CABINET_VALIDATED_BINARY = "CABINET_VALIDATED_BINARY"
-    SECONDARY_REFERENCE = "SECONDARY_REFERENCE"
+from backend.schemas.insurance_submission import (
+    InsuranceOrganization,
+    InsuranceTemplateSnapshot,
+    InsuranceTemplateTrust,
+)
 
 
 @dataclass(frozen=True)
@@ -43,6 +40,7 @@ class LockedInsuranceTemplate:
             template_version=self.definition.version,
             template_hash=self.sha256,
             source_url=self.source_url,
+            trust=self.definition.trust,
         )
 
 
