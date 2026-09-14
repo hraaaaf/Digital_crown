@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef } from 'react';
-import { AlertCircle, Plus, ShieldAlert } from 'lucide-react';
+import { Plus } from 'lucide-react';
 
 import { api } from '../../../../services/api';
 import {
@@ -166,36 +166,23 @@ export const PrescriptionAgenticStudio: React.FC<PrescriptionAgenticStudioProps>
   };
 
   return (
-    <div data-prescription-intelligence-studio="v1" className="space-y-3">
+    <div
+      data-prescription-intelligence-studio="v1"
+      data-clinical-rule-status="blocked"
+      data-safety-status="blocked"
+      className="space-y-3"
+    >
       <section className="rounded-2xl border border-border-main bg-glass-bg/70 p-3 shadow-sm backdrop-blur-xl sm:p-4">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="min-w-0">
-            <div className="text-[9px] font-black uppercase tracking-[0.18em] text-text-muted">Prescription Intelligence V1</div>
-            <div className="mt-1 text-xs font-black text-text-main">Recherche documentaire → présentation explicite → validation praticien</div>
+            <div className="text-[9px] font-black uppercase tracking-[0.18em] text-text-muted">Prescription</div>
+            <div className="mt-1 text-xs font-black text-text-main">Recherche médicament → présentation → validation</div>
             <p className="mt-1 max-w-3xl text-[10px] font-semibold leading-relaxed text-text-muted">
-              Les protocoles automatiques, habitudes de posologie et suggestions cliniques legacy sont désactivés dans ce flux. Le snapshot CNOPS sert à identifier une présentation, jamais à décider une dose.
+              Recherchez le médicament, choisissez sa présentation puis complétez les instructions de prescription avant validation.
             </p>
           </div>
           <div className="rounded-xl border border-border-main bg-card/80 px-3 py-2 text-[9px] font-black uppercase tracking-wide text-text-muted">
             {activeLineCount} ligne{activeLineCount > 1 ? 's' : ''} renseignée{activeLineCount > 1 ? 's' : ''}
-          </div>
-        </div>
-
-        <div className="mt-3 grid gap-2 lg:grid-cols-2">
-          <div
-            data-clinical-rule-status="blocked"
-            className="flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50/65 px-3 py-2 text-[10px] font-semibold text-amber-800"
-          >
-            <ShieldAlert size={14} className="mt-0.5 shrink-0" />
-            <div><span className="font-black">Suggestion clinique bloquée.</span> Le contexte structuré peut être renseigné, mais aucune règle de dose V1 n’est certifiée ni activée.</div>
-          </div>
-
-          <div
-            data-safety-status="blocked"
-            className="flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50/65 px-3 py-2 text-[10px] font-semibold text-amber-800"
-          >
-            <AlertCircle size={14} className="mt-0.5 shrink-0" />
-            <div><span className="font-black">Contrôle clinique automatique bloqué.</span> Le moteur de sécurité legacy n’est pas une règle V1 certifiée et n’est donc pas appelé depuis ce flux.</div>
           </div>
         </div>
       </section>
@@ -252,7 +239,7 @@ export const PrescriptionAgenticStudio: React.FC<PrescriptionAgenticStudioProps>
           />
         </label>
         <p className="mt-1.5 text-[10px] font-semibold leading-relaxed text-text-muted">
-          Cette indication est enregistrée avec l’ordonnance, pas dans les faits durables du patient. Elle n’active aucune règle de dose.
+          Cette indication reste liée à cette ordonnance.
         </p>
       </section>
     </div>
