@@ -134,6 +134,18 @@ Frontend :
 
 Migration C1 : `c1ctx0000001`, chaînée sur `f5a55e700005`.
 
+### UX C1
+
+Le premier AFTER C1 techniquement vert a été refusé après inspection visuelle : le panneau clinique développé par défaut doublait pratiquement la hauteur du studio et repoussait la saisie médicament.
+
+Correction retenue :
+
+- saisie médicament et action `Ajouter une ligne` restent les premières actions métier du studio ;
+- contexte patient C1 compact/replié par défaut avec résumé factuel ;
+- dépliage explicite `Renseigner`, sauvegarde manuelle puis repli automatique ;
+- indication de l’ordonnance reste séparée et document-scoped après la zone médicaments ;
+- le certificateur capture désormais une scène C1 dépliée dédiée en plus de `top`, `planning` et `preview`.
+
 ## Frontend A+B
 
 Fichiers principaux :
@@ -178,9 +190,11 @@ Score visuel conservateur A+B : **9.3/10**.
 
 BEFORE C1 = dernier état A+B certifié : Ordonnance Fidelity V3 Visual #70, run `34878423582`, artifact `10361827618`, mêmes quatre viewports.
 
-AFTER C1 : **EN ATTENTE DE CERTIFICATION EXACT-HEAD**.
+Premier AFTER C1 inspecté : Fidelity #93 sur `f30292e8e4f802a489dbc5d8c9391c99a95470f4` — gate automatique **SUCCESS**, mais version **rejetée visuellement**. Hauteur studio observée : `390 px : 1295.25 px` et `1280 px : 842.25 px`, contre `636.25 px` et `406.25 px` au BEFORE C1 ; la saisie médicament perdait sa priorité visuelle.
 
-Le gate C1 exige désormais : panneau contexte patient présent, indication document-scoped présente, règle clinique toujours bloquée, contrôles visibles ≥ 44 px, aucun overflow horizontal, preview desktop conservée.
+AFTER C1 corrigé : **EN ATTENTE DE CERTIFICATION EXACT-HEAD**.
+
+Le gate C1 corrigé exige : contexte patient compact par défaut, indication document-scoped présente, carte médicament + action `Ajouter une ligne` visibles ensemble dans la scène planning, scène C1 dépliée avec les champs structurés visibles, contrôles visibles ≥ 44 px, aucun overflow horizontal, preview desktop conservée.
 
 ## Repo / merge
 
@@ -190,7 +204,7 @@ A+B : PR `#487` mergée ; squash merge `c8870ecca4c9ac3f3beb00df6030785dd8ee5aa1
 
 C1 : PR `#495 — feat(prescription): add structured patient context C1` — **OPEN**, base `master` `4cfa04d651a47fa0cc2c60482e5ff5729148fb86`.
 
-Candidat C1 en cours de certification : `20474f252225fcc3b59bb443e04086b33d46e821`.
+Candidat C1 corrigé en cours de certification : `7f36b47cadc91a43ba3c48a8139c5487b458b5e2`.
 
 ## Preuves CI A+B
 
@@ -217,16 +231,16 @@ Post-merge A+B `master` sur `c8870ecca4c9ac3f3beb00df6030785dd8ee5aa1` :
 
 ## Preuves C1
 
-Candidat exact-head `20474f252225fcc3b59bb443e04086b33d46e821` :
+Candidat exact-head corrigé `7f36b47cadc91a43ba3c48a8139c5487b458b5e2` :
 
-- CI #4102 / run `34889855818` : **IN_PROGRESS** ;
-- Ordonnance Fidelity V3 Visual #91 / run `34889855994` : **IN_PROGRESS** ;
-- T2 Runtime Browser #3013 / run `34889855822` : **IN_PROGRESS** ;
-- Patient P7 #1541 / run `34889855804` : **IN_PROGRESS** ;
-- PostgreSQL #528 / run `34889855967` : **IN_PROGRESS** ;
-- Portability Runtime #592 / run `34889855820` : **SUCCESS** ;
-- Settings R11 #665 / run `34889855802` : **SUCCESS** ;
-- M6-I #1813 / run `34889855983` : **SKIPPED attendu**.
+- CI #4127 / run `34892422969` : **QUEUED** ;
+- Ordonnance Fidelity V3 Visual #97 / run `34892423245` : **PENDING** ;
+- T2 Runtime Browser #3037 / run `34892422980` : **PENDING** ;
+- Patient P7 #1547 / run `34892423105` : **PENDING** ;
+- PostgreSQL #552 / run `34892423181` : **PENDING** ;
+- Portability Runtime #598 / run `34892423118` : **IN_PROGRESS** ;
+- Settings R11 #671 / run `34892423109` : **SUCCESS** ;
+- M6-I #1837 / run `34892423217` : **SKIPPED attendu**.
 
 Ces états ne constituent pas encore une certification finale C1.
 
@@ -245,4 +259,4 @@ Aucun déploiement Vercel demandé ni réalisé.
 
 ## Next exact
 
-`Attendre uniquement les verdicts exact-head déjà lancés tout en terminant les contrôles indépendants ; si verts, inspecter l’artifact Fidelity C1 aux quatre viewports, comparer au BEFORE A+B, inscrire les preuves finales ici, puis merger PR #495 et vérifier master post-merge.`
+`Achever les verdicts exact-head du candidat corrigé ; si verts, inspecter l’artifact Fidelity aux quatre viewports et la scène C1 dépliée, comparer au BEFORE A+B, inscrire les preuves finales ici, merger PR #495 par squash, puis vérifier master post-merge.`
