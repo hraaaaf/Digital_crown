@@ -1,8 +1,8 @@
 # Mutuelles dentaires — préparation isolée
 
-Statut : RESEARCH ONLY — aucune intégration applicative.
+Statut : `READY_FOR_INTEGRATION_DESIGN / NOT_READY_FOR_RUNTIME`.
 Date : 2026-09-14.
-Master recroisé : `1ce5bc8a6297c89e9b69a8b455ada576d374a6fc`.
+Master recroisé au closeout : `1ce5bc8a6297c89e9b69a8b455ada576d374a6fc`.
 
 ## Goal
 Préparer l’automatisation future des feuilles de soins dentaires CNOPS, CNSS et Mutuelle des FAR en réutilisant les données déjà présentes dans Digital Crown, sans dupliquer Patient, Actes, Honoraires, Ordonnance ou catalogue d’actes et sans mettre en risque la base existante.
@@ -74,7 +74,21 @@ Aucun hash n’est inscrit tant qu’il n’a pas été calculé sur les octets 
 12. `TEST_MATRIX.md`
 13. `MIGRATION_PLAN.md`
 
-## Gate avant intégration
-Restent : verrouillage réel des binaires/hashes lorsqu’accessible, audit final anti-doublon/cohérence, validation métier d’un échantillon NGAP représentatif, puis chantier d’intégration séparé avec tests et migration sur copie DB.
+## Closeout recherche — preuve
+- diff `master → branche` : 13 fichiers, exclusivement `docs/research/mutuelles-dentaires/` ;
+- divergence au closeout : 21 commits ahead / 30 behind ;
+- aucun PR ouvert/fermé sur cette branche ;
+- aucun status/check CI associé au HEAD du closeout ;
+- aucun fichier runtime, UI, DB ou migration dans le diff.
+
+## Gate
+`READY_FOR_INTEGRATION_DESIGN` signifie : le contrat, les liaisons, le référentiel cible, les tests et le plan de migration sont suffisamment définis pour ouvrir un chantier d’intégration séparé.
+
+`NOT_READY_FOR_RUNTIME` reste obligatoire tant que :
+1. les binaires/templates et SHA-256 ne sont pas verrouillés quand techniquement accessibles ;
+2. le mapping NGAP réel n’est pas construit depuis sources primaires versionnées ;
+3. un échantillon représentatif n’est pas validé métier ;
+4. la migration additive n’est pas testée sur copie DB ;
+5. les tests automatisés du futur chantier d’intégration ne sont pas verts.
 
 La branche de recherche ne doit ni migrer la DB ni activer de renderer.

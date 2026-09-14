@@ -1,7 +1,7 @@
 # HANDOVER — Mutuelles dentaires Digital Crown
 
 Date : 2026-09-14.
-Statut : préparation isolée, aucune intégration runtime.
+Statut : `READY_FOR_INTEGRATION_DESIGN / NOT_READY_FOR_RUNTIME`.
 Repo : `hraaaaf/Digital_crown`.
 Branche : `research/mutuelles-dentaires-prep-20260914`.
 
@@ -9,80 +9,61 @@ Branche : `research/mutuelles-dentaires-prep-20260914`.
 Préparer l’automatisation future des feuilles de soins dentaires CNOPS, CNSS et FAR en réutilisant Patient, Cabinet, Honoraires, Ordonnance, Acte, CatalogAct et DocumentArchive existants, avec mapping NGAP déterministe/versionné/traçable et sans risque DB.
 
 ## À lire EN PREMIER
-1. `README.md`
-2. `HANDOVER.md`
-3. `VISUAL_REFERENCES.md`
-4. `EXISTING_APP_AUDIT.md`
-5. `FIELD_MATRIX.md`
-6. `SOURCES.md`
-7. `NGAP_POLICY.md`
-8. `INSURANCE_SUBMISSION_DRAFT.md`
-9. `ACT_CATALOG_LINK_STRATEGY.md`
-10. `NGAP_REFERENCE_SCHEMA.md`
-11. `TEMPLATE_LOCK_STATUS.md`
-12. `TEST_MATRIX.md`
-13. `MIGRATION_PLAN.md`
+Les 13 fichiers sous `docs/research/mutuelles-dentaires/` :
+`README.md`, `HANDOVER.md`, `VISUAL_REFERENCES.md`, `EXISTING_APP_AUDIT.md`, `FIELD_MATRIX.md`, `SOURCES.md`, `NGAP_POLICY.md`, `INSURANCE_SUBMISSION_DRAFT.md`, `ACT_CATALOG_LINK_STRATEGY.md`, `NGAP_REFERENCE_SCHEMA.md`, `TEMPLATE_LOCK_STATUS.md`, `TEST_MATRIX.md`, `MIGRATION_PLAN.md`.
 
-Tous sous `docs/research/mutuelles-dentaires/`.
+Puis revérifier réellement master, HEAD branche, diff, PR et CI. Les SHA ci-dessous sont des preuves historiques, pas des vérités éternelles. Git, cette machine à rappeler que le présent a déjà changé.
 
-Puis vérifier réellement master, HEAD branche, diff, PR et CI. Ne jamais croire un SHA historique par réflexe, sport très populaire chez les humains.
-
-## État vérifié de reprise
-- master observé : `1ce5bc8a6297c89e9b69a8b455ada576d374a6fc` ;
-- branche avant le premier lot de reprise : `d28f81b29c1d3b588fd8a964a00ff56025a165b8` ;
-- premier commit de reprise : `5332ea19170203791ec8842170a430fe144b211f` ;
-- divergence initiale vérifiée : 19 ahead / 30 behind ;
+## État vérifié au closeout
+- master : `1ce5bc8a6297c89e9b69a8b455ada576d374a6fc` ;
+- commit DTO/liaison/NGAP : `5332ea19170203791ec8842170a430fe144b211f` ;
+- commit templates/tests/migration : `0676fa5a7556e4f00c3d2915e3a21780ff674464` ;
+- diff avant commit de closeout : 13 fichiers, tous exclusivement sous `docs/research/mutuelles-dentaires/` ;
+- divergence avant commit de closeout : 21 ahead / 30 behind ;
 - aucun PR ;
-- aucun status/check CI observé sur le HEAD initial ;
-- aucun runtime/UI/DB modifié.
+- aucun status/check CI observé ;
+- aucun runtime/UI/DB/migration modifié.
 
-## Livrables verrouillés
-- `InsuranceSubmissionDraft` défini hors runtime ;
-- provenance/type/nullabilité/invariants documentés ;
-- stratégie ligne Honoraires ↔ Acte ↔ CatalogAct : historique par index contrôlé, cible `source_line_uid + catalog_act_id` ;
-- schéma NGAP versionné avec `EXACT / AMBIGUOUS / NO_MATCH / OUTDATED` ;
-- matrice de tests documentaires/mapping/non-régression ;
-- plan de migration additive + rollback ;
-- incohérence FAR de `FIELD_MATRIX.md` corrigée : FAR est bien validé cabinet.
+## Décisions verrouillées
+- `InsuranceSubmissionDraft` = DTO de sortie, jamais source clinique/financière ;
+- historique ligne Honoraires ↔ Acte : fallback contrôlé par `document_archive_id + index actif` ;
+- cible future : `source_line_uid` immuable + `catalog_act_id` nullable explicite ;
+- `CatalogAct` reste le catalogue unique ;
+- référentiel NGAP séparé uniquement comme couche réglementaire versionnée liée à `CatalogAct` ;
+- aucun fuzzy matching silencieux ;
+- mapping `AMBIGUOUS/NO_MATCH/OUTDATED` = fail-closed + validation praticien ;
+- données assurance Patient optionnelles et contextuelles ;
+- migration future additive uniquement, sans backfill inventé ;
+- aucun cachet/signature/accord assureur fabriqué.
 
 ## Templates
-### CNSS
-- `610-1-04`, Réf. ANAM `1.2.03.01` ;
-- validation cabinet acquise ;
-- PDF de référence observé comme 2 pages ;
-- binaire/hash non verrouillés dans cette session.
+- CNSS `610-1-04` : `VERIFIED_CABINET_REFERENCE / PRIMARY_LOCK_PENDING`, PDF de référence observé comme 2 pages, hash non calculé.
+- FAR `Feuille de Mutuelle FAR 2021-1` : `VERIFIED_CABINET_REFERENCE / PRIMARY_LOCK_PENDING`, validation cabinet déjà acquise ; ne pas la redemander sauf divergence de version/binaire.
+- CNOPS : `VERIFIED_INSTITUTIONAL_PAGE / BINARY_HASH_PENDING`, page institutionnelle et exigences dentaire confirmées ; binaire exact inaccessible dans cette session.
 
-### FAR
-- `Feuille de Mutuelle FAR 2021-1` ;
-- validation cabinet acquise le 2026-09-14 ;
-- ne jamais la redemander sauf divergence de version/binaire ;
-- binaire institutionnel/hash non verrouillés.
+Aucun SHA-256 n’a été inventé.
 
-### CNOPS
-- page institutionnelle confirme explicitement une `Feuille de soins dentaires` ;
-- page dossier dentaire confirme identité assuré/bénéficiaire, INPE, cachet/signature, date, honoraires, schéma dentaire et pièces selon cas ;
-- copie secondaire observée comme 2 pages ;
-- téléchargement institutionnel exact en timeout dans cette session ;
-- aucun SHA-256 inventé.
+## Gate de fin du lot recherche
+Le lot documentaire est prêt pour concevoir l’intégration, mais PAS pour activer le runtime.
+
+Avant runtime, il faut encore :
+1. verrouiller les binaires/templates + SHA-256 quand l’accès le permet ;
+2. construire le référentiel NGAP réel depuis sources primaires versionnées ;
+3. valider métier un échantillon représentatif ;
+4. implémenter dans un chantier séparé ;
+5. tester migration additive + rollback sur copie DB ;
+6. faire passer les tests automatisés ;
+7. seulement ensuite envisager activation cabinet.
 
 ## Next exact
-1. faire un audit final de cohérence des 13 documents ;
-2. vérifier que le diff reste exclusivement `docs/research/mutuelles-dentaires/` ;
-3. vérifier CI/status ;
-4. si tout est cohérent, fermer le lot recherche avec un gate explicite : `READY_FOR_INTEGRATION_DESIGN` mais `NOT_READY_FOR_RUNTIME` tant que les binaires/hashes et validation métier NGAP finale ne sont pas verrouillés ;
-5. ne pas créer de migration/runtime dans cette branche.
+À la prochaine reprise : ne pas refaire la recherche préparatoire. Ouvrir un **chantier d’intégration séparé** uniquement si l’utilisateur demande de passer au code. Sinon, le seul travail documentaire restant est la récupération/hash des templates dès qu’un accès fiable aux binaires est possible.
 
 ## Blocages réels
-- récupération fiable des octets des templates web pour SHA-256 ;
-- validation métier d’un échantillon NGAP représentatif avant activation ;
-- intégration/migration volontairement hors périmètre de cette branche.
-
-## Séquence restante
-Audit final docs → diff/CI → closeout recherche → futur chantier d’intégration séparé → migration sur copie DB → tests → validation métier NGAP → activation cabinet.
+- accès fiable aux octets des templates web pour hash ;
+- validation métier NGAP finale ;
+- intégration/runtime volontairement hors périmètre de cette branche.
 
 ## Interdits
-- pas de fuzzy matching silencieux ;
-- pas de second catalogue ;
-- pas de données assurance inventées ;
 - pas de migration réelle ici ;
+- pas de renderer activé ;
 - pas de déploiement.
