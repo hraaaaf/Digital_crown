@@ -1,5 +1,5 @@
 import { readdirSync, readFileSync } from 'node:fs';
-import { basename, relative, resolve } from 'node:path';
+import { relative, resolve } from 'node:path';
 import ts from 'typescript';
 import { describe, expect, it } from 'vitest';
 
@@ -16,7 +16,7 @@ const TECHNICAL_COPY_PATTERNS = [
   { label: 'feature-flag implementation terminology', re: /\bfeature[ -]?flag\b/i },
   { label: 'endpoint implementation terminology', re: /\bendpoint\b/i },
   { label: 'internal engine terminology', re: /\bmoteur\s+(?:local|safety|clinique|de\s+s[ée]curit[ée])\b/i },
-  { label: 'internal lot/version rule terminology', re: /\b(?:lot\s+[A-Z]?\d+|r[èe]gle\s+V\d+)\b/i },
+  { label: 'internal lot/version rule terminology', re: /\b(?:lot\s+[A-Z]?\d+|r[èe]gle\s+V\d+|R(?:11|12|13|14|15))\b/i },
   { label: 'internal blocked-state wording', re: /\b(?:suggestion\s+clinique|contr[oô]le\s+clinique\s+automatique)\s+bloqu[ée]e?\b/i },
   { label: 'implementation materialization wording', re: /\bnon\s+mat[ée]rialis[ée]\b/i },
   { label: 'internal product version in prescription UI', re: /\bPrescription\s+Intelligence\s+V\d+\b/i },
@@ -24,6 +24,14 @@ const TECHNICAL_COPY_PATTERNS = [
   { label: 'implementation-centric form wording', re: /\bArchitecture\s+de\s+la\s+Forme\b/i },
   { label: 'unsupported AI action claim', re: /\b(?:Lancer|R[ée]g[ée]n[ée]rer)\s+Analyse\s+IA\b/i },
   { label: 'technical certification claim', re: /\bIA\s+certifi[ée]e?\b/i },
+  { label: 'internal brand/nickname', re: /\bGhost(?:\s+Elite)?\b/i },
+  { label: 'internal studio naming', re: /\bStudio\b/i },
+  { label: 'internal hub naming', re: /\bHub\b/i },
+  { label: 'internal analytics naming', re: /\bAnalytics\b/i },
+  { label: 'internal marketplace naming', re: /\bMarketplace\b/i },
+  { label: 'preview/debug wording', re: /\bPreview\b/i },
+  { label: 'roadmap exposed in navigation', re: /\bBient[oô]t\s+disponible\b/i },
+  { label: 'security implementation jargon', re: /\b(?:ECDH|LAN)\b/ },
 ];
 
 const USER_COPY_ATTRIBUTES = new Set([
