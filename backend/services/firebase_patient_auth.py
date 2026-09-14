@@ -30,6 +30,8 @@ class FirebasePatientCredential:
     issued_at: datetime | None
     expires_at: datetime | None
     auth_time: datetime | None
+    verified_email: str | None = None
+    phone_number: str | None = None
 
 
 def _as_datetime(value) -> datetime | None:
@@ -63,7 +65,7 @@ def _ensure_firebase_app():
 
 
 def verify_patient_id_token(id_token: str) -> FirebasePatientCredential:
-    """Verify a Firebase ID token and return only the claims needed by Patient Companion.
+    """Verify a Firebase ID token and return only Patient Companion trust claims.
 
     Token contents are never logged. Revocation checks are enabled because this principal
     gates patient health data; any verifier failure is fail-closed.
@@ -89,9 +91,15 @@ def verify_patient_id_token(id_token: str) -> FirebasePatientCredential:
     if not subject or len(subject) > 128:
         raise FirebasePatientAuthInvalid("Invalid patient credential.")
 
+    email = str(decoded.get("email") or "").strip().lower()
+    verified_email = email if email and decoded.get("email_verified") is True else None
+    phone_number = str(decoded.get("phone_number") or "").strip() or None
+
     return FirebasePatientCredential(
         subject=subject,
         issued_at=_as_datetime(decoded.get("iat")),
         expires_at=_as_datetime(decoded.get("exp")),
         auth_time=_as_datetime(decoded.get("auth_time")),
+        verified_email=verified_email,
+        phone_number=phone_number,
     )
