@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -64,6 +64,7 @@ describe('PatientMediaTimeline C7', () => {
       params: expect.objectContaining({ q: 'radio', offset: 0 }),
     })), { timeout: 1500 });
     expect(await screen.findByText('1/1')).toBeInTheDocument();
-    expect(screen.getByText('Radiographie')).toBeInTheDocument();
+    const rail = screen.getByTestId('media-asset-rail');
+    expect(within(rail).getByText('Radiographie')).toBeInTheDocument();
   });
 });
