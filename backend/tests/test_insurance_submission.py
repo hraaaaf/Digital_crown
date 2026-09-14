@@ -4,8 +4,8 @@ import pytest
 
 from backend.schemas.insurance_submission import (
     InsuranceDraftStatus, InsuranceLineSource, InsuranceMappingStatus,
-    InsuranceOrganization, InsuranceSubmissionDraft, InsuranceSubmissionLine,
-    InsuranceTemplateSnapshot,
+    InsuranceOrganization, InsuranceReferenceSnapshot, InsuranceSubmissionDraft,
+    InsuranceSubmissionLine, InsuranceTemplateSnapshot,
 )
 from backend.services.insurance_submission import (
     archive_validated_insurance_pdf, build_draft_from_honoraires_snapshot,
@@ -32,8 +32,15 @@ def _draft(**overrides):
     values = {
         "patient_id": 12, "organization": InsuranceOrganization.CNSS,
         "honoraires_document_id": 42, "lines": [_line()],
-        "template": InsuranceTemplateSnapshot(template_version="CNSS-610-1-04",
-            template_hash="abc123", source_url="https://example.invalid/cnss.pdf"),
+        "template": InsuranceTemplateSnapshot(
+            template_version="CNSS-610-1-04",
+            template_hash="a" * 64,
+            source_url="https://example.invalid/cnss.pdf",
+        ),
+        "reference": InsuranceReferenceSnapshot(
+            ngap_reference_version="arrete-177-06-test",
+            ngap_reference_hash="b" * 64,
+        ),
     }
     values.update(overrides)
     return InsuranceSubmissionDraft(**values)
@@ -61,11 +68,38 @@ def test_ready_for_review_requires_exact_mapping_and_no_missing_fields():
     assert _draft(status=InsuranceDraftStatus.READY_FOR_REVIEW, lines=[_exact_line()]).status == InsuranceDraftStatus.READY_FOR_REVIEW
 
 
-def test_validated_requires_practitioner_and_timestamp():
+def test_validated_requires_practitioner_timestamp_and_locked_sources():
     with pytest.raises(ValueError, match="practitioner"):
         _draft(status=InsuranceDraftStatus.VALIDATED, lines=[_exact_line()])
-    draft = _draft(status=InsuranceDraftStatus.VALIDATED, lines=[_exact_line()],
-        validated_by_practitioner_id=3, validated_at=datetime(2026, 9, 14, 18, 45))
+
+    with pytest.raises(ValueError, match="template SHA-256"):
+        _draft(
+            status=InsuranceDraftStatus.VALIDATED,
+            lines=[_exact_line()],
+            template=InsuranceTemplateSnapshot(
+                template_version="CNSS-610-1-04",
+                template_hash=None,
+                source_url="https://example.invalid/cnss.pdf",
+            ),
+            validated_by_practitioner_id=3,
+            validated_at=datetime(2026, 9, 14, 18, 45),
+        )
+
+    with pytest.raises(ValueError, match="NGAP reference"):
+        _draft(
+            status=InsuranceDraftStatus.VALIDATED,
+            lines=[_exact_line()],
+            reference=InsuranceReferenceSnapshot(),
+            validated_by_practitioner_id=3,
+            validated_at=datetime(2026, 9, 14, 18, 45),
+        )
+
+    draft = _draft(
+        status=InsuranceDraftStatus.VALIDATED,
+        lines=[_exact_line()],
+        validated_by_practitioner_id=3,
+        validated_at=datetime(2026, 9, 14, 18, 45),
+    )
     assert draft.status == InsuranceDraftStatus.VALIDATED
 
 
@@ -108,7 +142,11 @@ def test_archive_rejects_unvalidated_draft_before_db():
 
 
 def test_archive_rejects_non_pdf_before_db():
-    validated = _draft(status=InsuranceDraftStatus.VALIDATED, lines=[_exact_line()],
-        validated_by_practitioner_id=3, validated_at=datetime(2026, 9, 14, 18, 45))
+    validated = _draft(
+        status=InsuranceDraftStatus.VALIDATED,
+        lines=[_exact_line()],
+        validated_by_practitioner_id=3,
+        validated_at=datetime(2026, 9, 14, 18, 45),
+    )
     with pytest.raises(ValueError, match="PDF content"):
         archive_validated_insurance_pdf(None, draft=validated, pdf_content=b"not a pdf", filename="cnss.pdf")
