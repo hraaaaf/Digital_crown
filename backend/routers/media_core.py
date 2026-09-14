@@ -88,30 +88,41 @@ def list_patient_assets(
     patient_id: int,
     limit: int = Query(200, ge=1, le=200),
     offset: int = Query(0, ge=0),
+    q: Optional[str] = Query(None, max_length=120),
+    asset_type: Optional[str] = Query(None, max_length=32),
+    source_kind: Optional[str] = Query(None, max_length=32),
+    timepoint: Optional[str] = Query(None, max_length=32),
     db: Session = Depends(database.get_db),
     current_user: models.User = Depends(get_current_user),
 ):
-    """Return the authenticated patient's primary clinical-media timeline.
+    """Return a bounded, searchable patient clinical-media timeline.
 
-    DERIVED assets are intentionally hidden from the timeline and only referenced as
-    verified stored thumbnails. Storage locators and hashes never leave the backend.
+    Filtering is executed inside the tenant + patient query. DERIVED assets stay hidden and
+    thumbnails are batch-loaded for the returned page. One sentinel row is fetched to expose
+    has_more without an unbounded COUNT query.
     """
     _require_patient_permission(current_user)
     assert_patient_access(patient_id, current_user, db)
     employer_id = int(current_user.get_employer_id())
 
     try:
-        assets = list_clinical_assets_for_patient(
+        rows = list_clinical_assets_for_patient(
             db,
             employer_id=employer_id,
             patient_id=patient_id,
             include_derived=False,
-            limit=limit,
+            limit=limit + 1,
             offset=offset,
+            search=q,
+            asset_type=asset_type,
+            source_kind=source_kind,
+            timepoint=timepoint,
         )
     except ClinicalAssetInvariantError as exc:
         raise HTTPException(status_code=404, detail="Patient media timeline unavailable") from exc
 
+    has_more = len(rows) > limit
+    assets = rows[:limit]
     thumbnails = _thumbnail_map(
         db,
         employer_id=employer_id,
@@ -125,6 +136,7 @@ def list_patient_assets(
         ],
         "limit": limit,
         "offset": offset,
+        "has_more": has_more,
     }
 
 
@@ -184,12 +196,7 @@ async def import_clinical_asset(
     db: Session = Depends(database.get_db),
     current_user: models.User = Depends(get_current_user),
 ):
-    """Validate and ingest a supported clinical media payload.
-
-    Tenant identity is derived from the authenticated user and is never accepted from the
-    multipart form. C3 returns metadata identifiers only; storage keys and content hashes are
-    intentionally kept internal.
-    """
+    """Validate and ingest a supported clinical media payload."""
     _require_patient_permission(current_user)
     assert_patient_access(patient_id, current_user, db)
     employer_id = int(current_user.get_employer_id())

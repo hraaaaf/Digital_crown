@@ -27,6 +27,8 @@ interface ViewerState {
   url: string;
 }
 
+const PAGE_SIZE = 200;
+
 const assetTypeLabel: Record<string, string> = {
   PHOTO: 'Photo',
   RADIOGRAPH: 'Radiographie',
@@ -120,6 +122,8 @@ const AuthenticatedAssetPreview = ({ patientId, asset, compact = false }: { pati
 export const PatientMediaTimeline = ({ patientId }: PatientMediaTimelineProps) => {
   const [items, setItems] = useState<ClinicalAsset[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(false);
   const [loadError, setLoadError] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [assetType, setAssetType] = useState<'PHOTO' | 'RADIOGRAPH' | 'DOCUMENT'>('PHOTO');
@@ -127,27 +131,54 @@ export const PatientMediaTimeline = ({ patientId }: PatientMediaTimelineProps) =
   const [viewer, setViewer] = useState<ViewerState | null>(null);
   const [selectedAssetId, setSelectedAssetId] = useState<number | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const [typeFilter, setTypeFilter] = useState('ALL');
   const [timepointFilter, setTimepointFilter] = useState('ALL');
   const [compareIds, setCompareIds] = useState<number[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const workspaceRef = useRef<HTMLDivElement>(null);
   const workspaceTopBeforeCompareRef = useRef<number | null>(null);
-
-  const loadAssets = useCallback(async () => {
-    try {
-      setLoadError(false);
-      const response = await api.get(`/patients/${patientId}/assets`);
-      setItems(Array.isArray(response.data?.items) ? response.data.items : []);
-    } catch {
-      setLoadError(true);
-    } finally {
-      setLoading(false);
-    }
-  }, [patientId]);
+  const requestIdRef = useRef(0);
 
   useEffect(() => {
-    setLoading(true);
+    const timer = window.setTimeout(() => setDebouncedSearch(searchTerm.trim()), 250);
+    return () => window.clearTimeout(timer);
+  }, [searchTerm]);
+
+  const loadAssets = useCallback(async ({ append = false, offset = 0 }: { append?: boolean; offset?: number } = {}) => {
+    const requestId = ++requestIdRef.current;
+    try {
+      if (append) setLoadingMore(true);
+      else setLoading(true);
+      setLoadError(false);
+      const response = await api.get(`/patients/${patientId}/assets`, {
+        params: {
+          limit: PAGE_SIZE,
+          offset,
+          q: debouncedSearch || undefined,
+          asset_type: typeFilter === 'ALL' ? undefined : typeFilter,
+          timepoint: timepointFilter === 'ALL' ? undefined : (timepointFilter === 'Sans repère' ? '__NONE__' : timepointFilter),
+        },
+      });
+      if (requestId !== requestIdRef.current) return;
+      const nextItems = Array.isArray(response.data?.items) ? response.data.items : [];
+      setItems((current) => {
+        if (!append) return nextItems;
+        const seen = new Set(current.map((item) => item.id));
+        return [...current, ...nextItems.filter((item: ClinicalAsset) => !seen.has(item.id))];
+      });
+      setHasMore(Boolean(response.data?.has_more));
+    } catch {
+      if (requestId === requestIdRef.current) setLoadError(true);
+    } finally {
+      if (requestId === requestIdRef.current) {
+        setLoading(false);
+        setLoadingMore(false);
+      }
+    }
+  }, [debouncedSearch, patientId, timepointFilter, typeFilter]);
+
+  useEffect(() => {
     void loadAssets();
   }, [loadAssets]);
 
@@ -164,7 +195,7 @@ export const PatientMediaTimeline = ({ patientId }: PatientMediaTimelineProps) =
     setCompareIds((current) => current.filter((id) => items.some((item) => item.id === id)).slice(0, 2));
   }, [items]);
 
-  const availableTimepoints = useMemo(() => Array.from(new Set(items.map((item) => item.timepoint || 'Sans repère'))).sort((a, b) => timepointOrder(a) - timepointOrder(b)), [items]);
+  const availableTimepoints = useMemo(() => Array.from(new Set(['T0', 'T1', 'T2', ...items.map((item) => item.timepoint || 'Sans repère')])).sort((a, b) => timepointOrder(a) - timepointOrder(b)), [items]);
 
   const filteredItems = useMemo(() => {
     const query = searchTerm.trim().toLocaleLowerCase('fr');
@@ -350,6 +381,7 @@ export const PatientMediaTimeline = ({ patientId }: PatientMediaTimelineProps) =
                 const compared = compareIds.includes(asset.id);
                 return <article key={asset.id} className={cn('min-w-0 overflow-hidden rounded-xl border bg-card-bg transition-all', selected ? 'border-primary/40 shadow-sm ring-2 ring-primary/5' : 'border-border-main hover:border-primary/20')}><div className="flex w-full min-w-0 items-center gap-2 p-1.5"><button type="button" onClick={() => void openAsset(asset)} className="flex min-w-0 flex-1 items-center gap-2 text-left" aria-label={`Ouvrir ${assetTypeLabel[asset.asset_type] || 'média'} ${asset.timepoint || ''}`.trim()}><div className="relative h-14 w-20 shrink-0 overflow-hidden rounded-lg bg-slate-50">{asset.thumbnail_asset_id ? <AuthenticatedThumbnail patientId={patientId} assetId={asset.thumbnail_asset_id} /> : <div className="absolute inset-0 flex items-center justify-center text-slate-300">{asset.asset_type === 'DOCUMENT' ? <FileText size={26} /> : <ImageIcon size={26} />}</div>}</div><div className="min-w-0 flex-1"><div className="flex items-center justify-between gap-2"><span className="truncate text-[11px] font-black text-main">{assetTypeLabel[asset.asset_type] || asset.asset_type}</span><Eye size={13} className="shrink-0 text-text-muted" /></div><p className="mt-0.5 truncate text-[9px] font-bold text-text-muted">{formatDate(asset.captured_at || asset.created_at)}</p><p className="mt-0.5 text-[8px] font-black uppercase tracking-wider text-primary">{asset.mime_type === 'application/pdf' ? 'PDF' : 'Image'} · {asset.timepoint || 'Sans repère'}</p></div></button><button type="button" onClick={() => toggleCompare(asset.id)} className={cn('flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border transition', compared ? 'border-primary bg-primary text-white' : 'border-border-main text-text-muted hover:border-primary/30 hover:text-primary')} aria-pressed={compared} aria-label={compared ? 'Retirer de la comparaison' : 'Ajouter à la comparaison'}>{compared ? <Check size={14} /> : <span className="text-[10px] font-black">1/2</span>}</button></div></article>;
               })}</div></section>)}
+              {hasMore && <button type="button" onClick={() => void loadAssets({ append: true, offset: items.length })} disabled={loadingMore} className="inline-flex h-9 w-full items-center justify-center gap-1.5 rounded-xl border border-border-main bg-card-bg text-[10px] font-black uppercase tracking-wider text-primary disabled:opacity-50" aria-label="Charger plus de médias">{loadingMore && <Loader2 size={13} className="animate-spin" />}Charger plus</button>}
             </div>
 
             <section data-testid="media-inline-viewer" aria-label="Aperçu média clinique" className="order-1 min-w-0 overflow-hidden rounded-[1.25rem] border border-border-main bg-card-bg shadow-sm md:order-2">
