@@ -10,6 +10,17 @@ export interface DrugItem {
   type?: 'MEDICAMENT' | 'EXAMEN';
   quantite?: number;
   non_substituable?: boolean;
+
+  // Prescription Intelligence V1 — identité documentaire explicite.
+  // Ces champs ne constituent ni une recommandation thérapeutique ni une preuve
+  // de commercialisation actuelle. Ils lient seulement la ligne à la présentation
+  // exacte choisie par le praticien dans le snapshot CNOPS.
+  catalogPresentationId?: string;
+  catalogDci?: string;
+  catalogSourceId?: string;
+  catalogSourceLabel?: string;
+  catalogSnapshotDate?: string;
+  catalogMarketingStatusVerified?: boolean;
 }
 
 export const FORMES = [
@@ -33,6 +44,8 @@ export const KIN_PRESET = {
   posologie: '1 rinçage / jour pendant 7 jours',
 };
 
+// LEGACY uniquement. Prescription Intelligence V1 ne doit jamais utiliser ces
+// valeurs comme source d'identité, de présentation ou de règle clinique.
 export const DEFAULT_MOROCCO_PRESETS = [
   {
     label: 'Avulsion Simple',

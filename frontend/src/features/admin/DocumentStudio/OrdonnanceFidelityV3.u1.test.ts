@@ -14,7 +14,7 @@ const appSource = (file: string) => readFileSync(
 
 const header = documentStudioSource('StudioHeader.tsx');
 const content = documentStudioSource('DocumentHubContent.tsx');
-const prescription = documentStudioSource('Forms/PrescriptionAgenticStudio.tsx');
+const prescription = documentStudioSource('Forms/PrescriptionAgenticStudioV1.tsx');
 const theme = appSource('index.css');
 
 describe('Ordonnance Fidelity V3 U1 hierarchy', () => {
@@ -36,15 +36,15 @@ describe('Ordonnance Fidelity V3 U1 hierarchy', () => {
     expect(clinicalWorkspace).toBeLessThan(legalMetadata);
   });
 
-  it('orders context and safety before protocols, then the prescription body', () => {
-    const contextIndex = prescription.indexOf('Contexte patient');
-    const protocolsIndex = prescription.indexOf('data-ordonnance-protocol-chips');
-    const prescriptionBodyIndex = prescription.indexOf('className="prescription-r3-legacy"');
-    expect(contextIndex).toBeGreaterThan(-1);
-    expect(protocolsIndex).toBeGreaterThan(-1);
+  it('orders blocked clinical guidance and safety before the prescription body', () => {
+    const blockedIndex = prescription.indexOf('data-clinical-rule-status="blocked"');
+    const safetyIndex = prescription.indexOf('data-safety-status="blocked"');
+    const prescriptionBodyIndex = prescription.indexOf('<DrugRow');
+    expect(blockedIndex).toBeGreaterThan(-1);
+    expect(safetyIndex).toBeGreaterThan(-1);
     expect(prescriptionBodyIndex).toBeGreaterThan(-1);
-    expect(contextIndex).toBeLessThan(protocolsIndex);
-    expect(protocolsIndex).toBeLessThan(prescriptionBodyIndex);
+    expect(blockedIndex).toBeLessThan(prescriptionBodyIndex);
+    expect(safetyIndex).toBeLessThan(prescriptionBodyIndex);
   });
 
   it('inherits the active application theme instead of creating an Ordonnance palette', () => {
