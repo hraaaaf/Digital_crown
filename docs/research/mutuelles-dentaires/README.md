@@ -11,7 +11,7 @@ Préparer l’automatisation future des feuilles de soins dentaires CNOPS, CNSS 
 - audit anti-doublon documenté ;
 - CNSS `610-1-04` validé métier comme formulaire utilisé au cabinet ;
 - FAR `Feuille de Mutuelle FAR 2021-1` validée métier comme référence cabinet ;
-- CNOPS : page institutionnelle et exigences métier identifiées ; binaire exact/hash encore à verrouiller ;
+- CNOPS : page institutionnelle et entrée de téléchargement `Feuille de soins dentaires` confirmées ; binaire exact/hash non récupérés ;
 - source dents Honoraires : `DocumentArchive.clinical_data.payments[*].dent/dents` ;
 - `Acte` sans dent(s) ni `catalog_act_id` actuellement ;
 - `CatalogAct.code` potentiellement NGAP ou interne ;
@@ -52,12 +52,12 @@ CNOPS      CNSS      FAR
 - migration future strictement additive, sans backfill inventé ;
 - aucun cachet/signature/accord assureur fabriqué.
 
-## Templates
-- CNSS : `VERIFIED_CABINET_REFERENCE / PRIMARY_LOCK_PENDING` ; PDF de référence observé comme 2 pages, hash non calculé faute d’accès fiable aux octets.
-- FAR : `VERIFIED_CABINET_REFERENCE / PRIMARY_LOCK_PENDING` ; validation cabinet acquise, binaire primaire/hash non verrouillés.
-- CNOPS : `VERIFIED_INSTITUTIONAL_PAGE / BINARY_HASH_PENDING` ; page institutionnelle confirme la feuille de soins dentaires, binaire exact non récupéré dans cette session.
+## Templates — état de preuve
+- CNSS : `VERIFIED_CABINET_REFERENCE / BINARY_HASH_PENDING / PRIMARY_LOCK_PENDING` ; PDF de référence observé comme 2 pages ; octets non récupérés de façon fiable, donc aucun hash déclaré.
+- FAR : `VERIFIED_CABINET_REFERENCE / BINARY_HASH_PENDING / PRIMARY_LOCK_PENDING` ; validation cabinet acquise ; binaire institutionnel exact non verrouillé.
+- CNOPS : `VERIFIED_INSTITUTIONAL_PAGE / OFFICIAL_BINARY_RETRIEVAL_PENDING` ; CNOPS expose explicitement la feuille de soins dentaires et son téléchargement ; copie secondaire observée comme 2 pages ; binaire institutionnel exact non récupéré.
 
-Aucun hash n’est inscrit tant qu’il n’a pas été calculé sur les octets réellement récupérés.
+Aucun SHA-256 n’est inscrit tant qu’il n’a pas été calculé sur les octets réellement récupérés.
 
 ## Fichiers canoniques de reprise
 1. `README.md`
@@ -75,14 +75,14 @@ Aucun hash n’est inscrit tant qu’il n’a pas été calculé sur les octets 
 13. `MIGRATION_PLAN.md`
 
 ## Closeout recherche — preuve
-- diff `master → branche` : 13 fichiers, exclusivement `docs/research/mutuelles-dentaires/` ;
-- divergence au closeout : 21 commits ahead / 30 behind ;
-- aucun PR ouvert/fermé sur cette branche ;
-- aucun status/check CI associé au HEAD du closeout ;
-- aucun fichier runtime, UI, DB ou migration dans le diff.
+- le diff `master → branche` reste exclusivement sous `docs/research/mutuelles-dentaires/` ;
+- aucun fichier runtime, UI, modèle DB ou migration applicative n’est présent dans le diff ;
+- aucun PR n’est associé à cette branche au dernier contrôle ;
+- aucun status/check CI n’est associé au HEAD au dernier contrôle (`statuses=[]`, `total_count=0`) ;
+- la branche diverge de master car elle a été créée sur une baseline antérieure : ne pas merger mécaniquement sans rebase/contrôle de cohérence.
 
 ## Gate
-`READY_FOR_INTEGRATION_DESIGN` signifie : le contrat, les liaisons, le référentiel cible, les tests et le plan de migration sont suffisamment définis pour ouvrir un chantier d’intégration séparé.
+`READY_FOR_INTEGRATION_DESIGN` signifie : contrat, liaisons, référentiel cible, tests et plan de migration sont suffisamment définis pour ouvrir un chantier d’intégration séparé.
 
 `NOT_READY_FOR_RUNTIME` reste obligatoire tant que :
 1. les binaires/templates et SHA-256 ne sont pas verrouillés quand techniquement accessibles ;
