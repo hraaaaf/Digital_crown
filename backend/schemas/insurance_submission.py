@@ -27,6 +27,30 @@ class InsuranceDraftStatus(str, Enum):
     VALIDATED = "VALIDATED"
 
 
+class InsuranceAdministrativeSnapshot(BaseModel):
+    """Administrative data required by insurer forms, never inferred when absent."""
+    model_config = ConfigDict(extra="forbid")
+
+    insured_full_name: Optional[str] = None
+    insured_registration_number: Optional[str] = None
+    insured_national_id: Optional[str] = None
+    insured_address: Optional[str] = None
+    insured_quality: Optional[str] = None
+
+    beneficiary_full_name: Optional[str] = None
+    beneficiary_birth_date: Optional[date] = None
+    beneficiary_national_id: Optional[str] = None
+    beneficiary_sex: Optional[str] = None
+    relationship_to_insured: Optional[str] = None
+
+    practitioner_full_name: Optional[str] = None
+    practitioner_inpe: Optional[str] = None
+
+    care_type: Optional[str] = None
+    prior_approval_number: Optional[str] = None
+    attachments_count: int = Field(default=0, ge=0, le=99)
+
+
 class InsuranceLineSource(BaseModel):
     model_config = ConfigDict(extra="forbid")
     honoraires_document_id: int
@@ -80,6 +104,7 @@ class InsuranceSubmissionDraft(BaseModel):
     organization: InsuranceOrganization
     honoraires_document_id: int
     lines: List[InsuranceSubmissionLine] = Field(min_length=1)
+    administrative: InsuranceAdministrativeSnapshot = Field(default_factory=InsuranceAdministrativeSnapshot)
     unresolved_fields: List[str] = Field(default_factory=list)
     status: InsuranceDraftStatus = InsuranceDraftStatus.INCOMPLETE
     template: InsuranceTemplateSnapshot
