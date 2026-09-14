@@ -6,8 +6,10 @@ exact template SHA-256. Signature, stamp/cachet and insurer-decision fields are 
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
 from enum import Enum
+import hashlib
+import json
 import re
 
 import fitz
@@ -39,6 +41,29 @@ class InsuranceOverlayProfile:
     template_hash: str
     profile_version: str
     placements: tuple[InsuranceOverlayPlacement, ...]
+
+
+def insurance_overlay_profile_sha256(profile: InsuranceOverlayProfile) -> str:
+    payload = {
+        "organization": profile.organization,
+        "template_version": profile.template_version,
+        "template_hash": profile.template_hash,
+        "profile_version": profile.profile_version,
+        "placements": [
+            {
+                **asdict(placement),
+                "kind": placement.kind.value,
+            }
+            for placement in profile.placements
+        ],
+    }
+    canonical = json.dumps(
+        payload,
+        ensure_ascii=False,
+        sort_keys=True,
+        separators=(",", ":"),
+    ).encode("utf-8")
+    return hashlib.sha256(canonical).hexdigest()
 
 
 _FORBIDDEN_FIELD_TOKENS = (
