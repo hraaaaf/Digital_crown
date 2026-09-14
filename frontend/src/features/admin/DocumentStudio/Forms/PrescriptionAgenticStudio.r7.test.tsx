@@ -5,6 +5,7 @@ import '@testing-library/jest-dom/vitest';
 vi.mock('../../../../services/api', () => ({
   api: {
     get: vi.fn(async () => ({ data: [] })),
+    put: vi.fn(async () => ({ data: [] })),
     post: vi.fn(async () => ({ data: [] })),
     interceptors: {
       request: { use: vi.fn(() => 1), eject: vi.fn() },
@@ -15,29 +16,18 @@ vi.mock('../../../../services/api', () => ({
 
 import { PrescriptionAgenticStudio } from './PrescriptionAgenticStudio';
 
-describe('PrescriptionAgenticStudio V1 context terminology', () => {
-  it('présente le flux documentaire et compte les lignes renseignées sans suggestion clinique', () => {
-    render(
+describe('PrescriptionAgenticStudio practitioner copy', () => {
+  it('conserve les statuts internes sans afficher les bandeaux techniques', () => {
+    const { container } = render(
       <PrescriptionAgenticStudio
         patientId=""
         drugs={[
-          {
-            id: 1,
-            name: 'AMOXICILLINE TEST',
-            dosage: '1 G',
-            forme: 'COMPRIME',
-            posologie: '',
-            type: 'MEDICAMENT',
-            catalogPresentationId: 'cnops:test',
-            catalogDci: 'AMOXICILLINE',
-            catalogSourceId: 'cnops-open-data-medications',
-            catalogSourceLabel: 'CNOPS Open Data — Référentiel des médicaments',
-            catalogSnapshotDate: '2021-12-13',
-            catalogMarketingStatusVerified: false,
-          },
+          { id: 1, name: 'MEDICAMENT TEST', dosage: '1 G', forme: 'COMPRIME', posologie: '', type: 'MEDICAMENT' },
           { id: 2, name: '', dosage: '', forme: '', posologie: '', type: 'MEDICAMENT' },
         ]}
         setDrugs={vi.fn()}
+        prescriptionIndication="Contexte documenté"
+        onPrescriptionIndicationChange={vi.fn()}
         onUpdateDrug={vi.fn()}
         onRemoveDrug={vi.fn()}
         onAddDrug={vi.fn()}
@@ -45,9 +35,14 @@ describe('PrescriptionAgenticStudio V1 context terminology', () => {
       />,
     );
 
-    expect(screen.getByText(/Recherche documentaire → présentation explicite → validation praticien/)).toBeInTheDocument();
+    expect(screen.getByText(/Recherche médicament → présentation → validation/)).toBeInTheDocument();
     expect(screen.getByText('1 ligne renseignée')).toBeInTheDocument();
-    expect(screen.getAllByText(/Suggestion clinique/).length).toBeGreaterThan(0);
-    expect(screen.getByText(/Aucune règle V1 n’est certifiée/)).toBeInTheDocument();
+    expect(screen.getByLabelText('Indication de cette ordonnance')).toHaveValue('Contexte documenté');
+    expect(screen.queryByText(/Suggestion clinique bloquée/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Contrôle clinique automatique bloqué/i)).not.toBeInTheDocument();
+
+    const studio = container.querySelector('[data-prescription-intelligence-studio="v1"]');
+    expect(studio).toHaveAttribute('data-clinical-rule-status', 'blocked');
+    expect(studio).toHaveAttribute('data-safety-status', 'blocked');
   });
 });

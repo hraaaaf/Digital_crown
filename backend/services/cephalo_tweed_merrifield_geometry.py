@@ -16,16 +16,18 @@ def _finite_point(point: Point) -> bool:
 
 
 def _ray_angle_deg(p1: Point, p2: Point, p3: Point, p4: Point) -> Optional[float]:
-    """Match the legacy runtime ray-angle convention exactly, before rounding."""
+    """Non-reflex angle between directed rays, robust across atan2 wrap boundaries."""
     if not all(_finite_point(point) for point in (p1, p2, p3, p4)):
         return None
     v1 = (p2[0] - p1[0], p2[1] - p1[1])
     v2 = (p4[0] - p3[0], p4[1] - p3[1])
-    if math.hypot(*v1) <= _EPS or math.hypot(*v2) <= _EPS:
+    len1 = math.hypot(*v1)
+    len2 = math.hypot(*v2)
+    if len1 <= _EPS or len2 <= _EPS:
         return None
-    a1 = math.degrees(math.atan2(v1[1], v1[0]))
-    a2 = math.degrees(math.atan2(v2[1], v2[0]))
-    value = abs(a1 - a2) % 180.0
+    cosine = (v1[0] * v2[0] + v1[1] * v2[1]) / (len1 * len2)
+    cosine = max(-1.0, min(1.0, cosine))
+    value = math.degrees(math.acos(cosine))
     return value if math.isfinite(value) else None
 
 
@@ -39,14 +41,14 @@ def _axis_angle_deg(p1: Point, p2: Point, p3: Point, p4: Point) -> Optional[floa
 
 
 def tweed_fma_deg_v1(go: Point, me: Point, po: Point, or_: Point) -> Optional[float]:
-    """FMA with exact legacy runtime orientation semantics: Go->Me vs Po->Or."""
+    """FMA between Go->Me and Po->Or using the non-reflex ray angle."""
     return _ray_angle_deg(go, me, po, or_)
 
 
 def tweed_impa_deg_v1(
     l1_apex: Point, l1_incisal: Point, go: Point, me: Point
 ) -> Optional[float]:
-    """IMPA with exact legacy runtime operation order, before final serialization."""
+    """IMPA as the clinical supplementary angle to L1 apex->incisal vs Go->Me."""
     raw = _ray_angle_deg(l1_apex, l1_incisal, go, me)
     if raw is None:
         return None

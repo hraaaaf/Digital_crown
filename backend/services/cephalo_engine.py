@@ -80,16 +80,15 @@ class CephaloEngine:
         len1 = math.hypot(*v1)
         len2 = math.hypot(*v2)
         if (
-            not math.isfinite(len1)
-            or not math.isfinite(len2)
+            not all(math.isfinite(value) for value in (*v1, *v2, len1, len2))
             or len1 <= _ANGLE_EPS
             or len2 <= _ANGLE_EPS
         ):
             return None
 
-        a1 = math.degrees(math.atan2(v1[1], v1[0]))
-        a2 = math.degrees(math.atan2(v2[1], v2[0]))
-        angle = abs(a1 - a2) % 180
+        cosine = (v1[0] * v2[0] + v1[1] * v2[1]) / (len1 * len2)
+        cosine = max(-1.0, min(1.0, cosine))
+        angle = math.degrees(math.acos(cosine))
         if invert:
             angle = 180 - angle
         return round(angle, 1) if math.isfinite(angle) else None
@@ -204,8 +203,6 @@ class CephaloEngine:
         u_perp: Optional[Point] = None
         if u_fh is not None:
             u_perp = (-u_fh[1], u_fh[0])
-            # SVG/image coordinates grow downward. Keep the perpendicular
-            # consistently oriented toward the bottom of the image.
             if u_perp[1] < 0:
                 u_perp = (-u_perp[0], -u_perp[1])
 
@@ -248,9 +245,6 @@ class CephaloEngine:
         fma = self._get_clinical_angle(pts["Go"], pts["Me"], pts["Po"], pts["Or"])
         skeletal["Angle_de_Tweed"] = self._raw_measurement(fma)
 
-        # CRANIOM source-specific linear geometry. All values are recomputed
-        # exclusively from backend landmarks; client-derived projections cannot
-        # override them.
         sit_a: Optional[float] = None
         sit_b: Optional[float] = None
         dec_ab: Optional[float] = None
@@ -269,8 +263,6 @@ class CephaloEngine:
                 pts["S"], pts["N"], pts["Po"], pts["Or"], ratio
             )
 
-        # Visual projections are derived from the same source landmarks. They are
-        # debug/visualization data only and never become measurement inputs.
         if pts["Po"] and pts["Or"]:
             for key, source_key in (
                 ("N_prime", "N"),
