@@ -48,13 +48,7 @@ def _request(patient_id: int, presentation_id: str = "cnops:test-amoxicillin"):
     }
 
 
-def test_read_only_endpoint_returns_ready_only_for_exact_eligible_context(
-    client, db, dentiste, auth_headers, monkeypatch
-):
-    patient = _patient(db, dentiste.id)
-    context = _context(db, patient.id, dentiste.id, dentiste.id)
-    before_updated_by = context.updated_by_user_id
-
+def _mock_amoxicillin(monkeypatch):
     monkeypatch.setattr(
         "backend.routers.prescriptions.medication_dict.get_presentation",
         lambda presentation_id: {
@@ -66,6 +60,15 @@ def test_read_only_endpoint_returns_ready_only_for_exact_eligible_context(
             "forme": "GELULE",
         },
     )
+
+
+def test_read_only_endpoint_returns_ready_only_for_exact_eligible_context(
+    client, db, dentiste, auth_headers, monkeypatch
+):
+    patient = _patient(db, dentiste.id)
+    context = _context(db, patient.id, dentiste.id, dentiste.id)
+    before_updated_by = context.updated_by_user_id
+    _mock_amoxicillin(monkeypatch)
 
     response = client.post(
         "/api/prescriptions/clinical-rules/ie-prophylaxis/evaluate",
@@ -92,10 +95,7 @@ def test_endpoint_fails_closed_when_structured_context_is_absent(
     client, db, dentiste, auth_headers, monkeypatch
 ):
     patient = _patient(db, dentiste.id, suffix="C2EMPTY")
-    monkeypatch.setattr(
-        "backend.routers.prescriptions.medication_dict.get_presentation",
-        lambda presentation_id: {"presentation_id": presentation_id, "dci": "AMOXICILLINE"},
-    )
+    _mock_amoxicillin(monkeypatch)
 
     response = client.post(
         "/api/prescriptions/clinical-rules/ie-prophylaxis/evaluate",
@@ -115,10 +115,7 @@ def test_endpoint_blocks_pediatric_patient_without_reusing_adult_dose(
 ):
     patient = _patient(db, dentiste.id, birth_year=2012, suffix="C2CHILD")
     _context(db, patient.id, dentiste.id, dentiste.id)
-    monkeypatch.setattr(
-        "backend.routers.prescriptions.medication_dict.get_presentation",
-        lambda presentation_id: {"presentation_id": presentation_id, "dci": "AMOXICILLINE"},
-    )
+    _mock_amoxicillin(monkeypatch)
 
     response = client.post(
         "/api/prescriptions/clinical-rules/ie-prophylaxis/evaluate",
@@ -130,6 +127,28 @@ def test_endpoint_blocks_pediatric_patient_without_reusing_adult_dose(
     assert data["status"] == "BLOCKED"
     assert data["total_dose_mg"] is None
     assert "ADULT_RULE_ONLY" in data["blockers"]
+
+
+def test_endpoint_blocks_unreconciled_generic_medication_allergy(
+    client, db, dentiste, auth_headers, monkeypatch
+):
+    patient = _patient(db, dentiste.id, suffix="C2ALLERGY")
+    context = _context(db, patient.id, dentiste.id, dentiste.id)
+    context.medication_allergy_status = "PRESENT"
+    context.medication_allergies = ["Ibuprofène"]
+    db.commit()
+    _mock_amoxicillin(monkeypatch)
+
+    response = client.post(
+        "/api/prescriptions/clinical-rules/ie-prophylaxis/evaluate",
+        headers=auth_headers,
+        json=_request(patient.id),
+    )
+    assert response.status_code == 200, response.text
+    data = response.json()
+    assert data["status"] == "BLOCKED"
+    assert data["total_dose_mg"] is None
+    assert "GENERIC_MEDICATION_ALLERGY_REQUIRES_RECONCILIATION" in data["blockers"]
 
 
 def test_endpoint_resolves_presentation_server_side_and_blocks_association(
@@ -162,10 +181,7 @@ def test_endpoint_rejects_unknown_request_fields_and_missing_session_facts(
 ):
     patient = _patient(db, dentiste.id, suffix="C2STRICT")
     _context(db, patient.id, dentiste.id, dentiste.id)
-    monkeypatch.setattr(
-        "backend.routers.prescriptions.medication_dict.get_presentation",
-        lambda presentation_id: {"presentation_id": presentation_id, "dci": "AMOXICILLINE"},
-    )
+    _mock_amoxicillin(monkeypatch)
 
     invalid = _request(patient.id)
     invalid["cardiac_risk_category"] = "PREVIOUS_INFECTIVE_ENDOCARDITIS"
@@ -208,10 +224,7 @@ def test_endpoint_enforces_patient_tenant_isolation(
     db.refresh(other)
     foreign_patient = _patient(db, other.id, suffix="C2FOREIGN")
 
-    monkeypatch.setattr(
-        "backend.routers.prescriptions.medication_dict.get_presentation",
-        lambda presentation_id: {"presentation_id": presentation_id, "dci": "AMOXICILLINE"},
-    )
+    _mock_amoxicillin(monkeypatch)
     response = client.post(
         "/api/prescriptions/clinical-rules/ie-prophylaxis/evaluate",
         headers=auth_headers,
