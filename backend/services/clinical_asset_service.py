@@ -4,8 +4,8 @@ from __future__ import annotations
 import re
 from typing import Any, Optional
 
-from sqlalchemy import func
-from sqlalchemy.orm import Session
+from sqlalchemy import func, or_
+from sqlalchemy.orm import Query, Session
 
 from backend.models import Patient, User
 from backend.models_media_core import (
@@ -190,27 +190,21 @@ def get_clinical_asset_for_patient(
     ).first()
 
 
-def list_clinical_assets_for_patient(
+def _escape_like(value: str) -> str:
+    return value.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+
+
+def _timeline_query(
     db: Session,
     *,
     employer_id: int,
     patient_id: int,
-    include_derived: bool = False,
-    limit: int = 200,
-    offset: int = 0,
-) -> list[ClinicalAsset]:
-    """Return a bounded tenant-scoped timeline slice for one patient.
-
-    C4 hides DERIVED assets by default so thumbnails never appear as independent clinical
-    events. Only assets with a complete C2 storage binding are timeline-visible. Ordering uses
-    acquisition time when available, then creation time, newest first.
-    """
-    employer_id = int(employer_id)
-    patient_id = int(patient_id)
-    _require_patient_in_tenant(db, employer_id, patient_id)
-
-    limit = max(1, min(int(limit), 200))
-    offset = max(0, int(offset))
+    include_derived: bool,
+    search: Optional[str],
+    asset_type: Optional[str],
+    source_kind: Optional[str],
+    timepoint: Optional[str],
+) -> Query:
     query = db.query(ClinicalAsset).filter(
         ClinicalAsset.employer_id == employer_id,
         ClinicalAsset.patient_id == patient_id,
@@ -222,6 +216,63 @@ def list_clinical_assets_for_patient(
     )
     if not include_derived:
         query = query.filter(ClinicalAsset.source_kind != "DERIVED")
+    if asset_type:
+        query = query.filter(ClinicalAsset.asset_type == asset_type.strip().upper())
+    if source_kind:
+        query = query.filter(ClinicalAsset.source_kind == source_kind.strip().upper())
+    if timepoint:
+        normalized_timepoint = timepoint.strip().upper()
+        query = query.filter(
+            ClinicalAsset.timepoint.is_(None)
+            if normalized_timepoint == "__NONE__"
+            else ClinicalAsset.timepoint == normalized_timepoint
+        )
+    if search and search.strip():
+        pattern = f"%{_escape_like(search.strip())}%"
+        query = query.filter(
+            or_(
+                ClinicalAsset.asset_type.ilike(pattern, escape="\\"),
+                ClinicalAsset.source_kind.ilike(pattern, escape="\\"),
+                ClinicalAsset.timepoint.ilike(pattern, escape="\\"),
+                ClinicalAsset.original_filename.ilike(pattern, escape="\\"),
+                ClinicalAsset.source_ref.ilike(pattern, escape="\\"),
+            )
+        )
+    return query
+
+
+def list_clinical_assets_for_patient(
+    db: Session,
+    *,
+    employer_id: int,
+    patient_id: int,
+    include_derived: bool = False,
+    limit: int = 200,
+    offset: int = 0,
+    search: Optional[str] = None,
+    asset_type: Optional[str] = None,
+    source_kind: Optional[str] = None,
+    timepoint: Optional[str] = None,
+) -> list[ClinicalAsset]:
+    """Return a bounded tenant-scoped, searchable timeline slice for one patient."""
+    employer_id = int(employer_id)
+    patient_id = int(patient_id)
+    _require_patient_in_tenant(db, employer_id, patient_id)
+
+    # 201 is intentionally allowed internally so the API can fetch one sentinel row
+    # and expose has_more while keeping the public page size capped at 200.
+    limit = max(1, min(int(limit), 201))
+    offset = max(0, int(offset))
+    query = _timeline_query(
+        db,
+        employer_id=employer_id,
+        patient_id=patient_id,
+        include_derived=include_derived,
+        search=search,
+        asset_type=asset_type,
+        source_kind=source_kind,
+        timepoint=timepoint,
+    )
 
     return (
         query.order_by(
