@@ -5,32 +5,66 @@ from backend.models_patient_companion import PatientCompanionShareGrant
 from backend.security import get_password_hash
 
 
-def test_secretary_cannot_share_prescription_without_prescription_permission(client, db, dentiste):
-    secretary = models.User(
-        email="secretary-companion@test.local",
+def _secretary(db, owner, *, companion: bool, prescriptions: bool):
+    user = models.User(
+        email=f"secretary-{int(companion)}-{int(prescriptions)}@test.local",
         hashed_password=get_password_hash("TestPass123!"),
         role="SECRETAIRE",
         nom_complet="Secrétaire Test",
         is_active=True,
         is_licensed=True,
-        employer_id=dentiste.id,
-        permissions={"patients": True, "prescriptions": False},
+        employer_id=owner.id,
+        permissions={
+            "patients": True,
+            "patient_companion": companion,
+            "prescriptions": prescriptions,
+        },
     )
-    db.add(secretary)
+    db.add(user)
     db.commit()
-    db.refresh(secretary)
+    db.refresh(user)
+    return user
 
+
+def _headers(client, user):
+    login = client.post(
+        "/api/auth/login",
+        data={"username": user.email, "password": "TestPass123!"},
+    )
+    assert login.status_code == 200, login.text
+    return {"Authorization": f"Bearer {login.json()['access_token']}"}
+
+
+def _patient(db, owner, dossier):
     patient = models.Patient(
-        numero_dossier="D-COMP-RBAC",
+        numero_dossier=dossier,
         nom="RBAC",
         prenom="Patient",
         date_naissance=datetime(1990, 1, 1),
         sexe="M",
-        employer_id=dentiste.id,
+        employer_id=owner.id,
     )
     db.add(patient)
     db.commit()
     db.refresh(patient)
+    return patient
+
+
+def test_secretary_without_companion_permission_cannot_issue_invitation(client, db, dentiste):
+    secretary = _secretary(db, dentiste, companion=False, prescriptions=False)
+    patient = _patient(db, dentiste, "D-COMP-ADMIN")
+
+    response = client.post(
+        f"/api/patient-companion/admin/patients/{patient.id}/invitation",
+        headers=_headers(client, secretary),
+        json={"recipient_type": "email", "recipient": "patient@example.test"},
+    )
+    assert response.status_code == 403, response.text
+
+
+def test_secretary_cannot_share_prescription_without_prescription_permission(client, db, dentiste):
+    secretary = _secretary(db, dentiste, companion=True, prescriptions=False)
+    patient = _patient(db, dentiste, "D-COMP-RBAC")
 
     document = models.DocumentArchive(
         patient_id=patient.id,
@@ -50,16 +84,9 @@ def test_secretary_cannot_share_prescription_without_prescription_permission(cli
     db.commit()
     db.refresh(document)
 
-    login = client.post(
-        "/api/auth/login",
-        data={"username": secretary.email, "password": "TestPass123!"},
-    )
-    assert login.status_code == 200, login.text
-    headers = {"Authorization": f"Bearer {login.json()['access_token']}"}
-
     response = client.post(
         f"/api/patient-companion/admin/patients/{patient.id}/shares",
-        headers=headers,
+        headers=_headers(client, secretary),
         json={"resource_type": "document", "resource_id": document.id},
     )
     assert response.status_code == 403, response.text
