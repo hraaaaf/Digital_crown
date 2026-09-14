@@ -33,9 +33,23 @@ class InsuranceTemplateTrust(str, Enum):
     SECONDARY_REFERENCE = "SECONDARY_REFERENCE"
 
 
+class InsuranceRequestNature(str, Enum):
+    EXECUTION = "EXECUTION"
+    PRIOR_APPROVAL = "PRIOR_APPROVAL"
+
+
+class InsuranceCareType(str, Enum):
+    SOINS = "SOINS"
+    PROTHESE = "PROTHESE"
+    ORTHODONTIE_FACIALE = "ORTHODONTIE_FACIALE"
+    AUTRES = "AUTRES"
+
+
 class InsuranceAdministrativeSnapshot(BaseModel):
     """Administrative data required by insurer forms, never inferred when absent."""
     model_config = ConfigDict(extra="forbid")
+
+    request_nature: Optional[InsuranceRequestNature] = None
 
     insured_full_name: Optional[str] = None
     insured_registration_number: Optional[str] = None
@@ -52,8 +66,10 @@ class InsuranceAdministrativeSnapshot(BaseModel):
     practitioner_full_name: Optional[str] = None
     practitioner_inpe: Optional[str] = None
 
-    care_type: Optional[str] = None
+    care_type: Optional[InsuranceCareType] = None
     prior_approval_number: Optional[str] = None
+    accident_date: Optional[date] = None
+    accident_circumstances: Optional[str] = None
     attachments_count: int = Field(default=0, ge=0, le=99)
 
 
