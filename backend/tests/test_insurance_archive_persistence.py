@@ -2,7 +2,16 @@ from datetime import datetime
 import hashlib
 
 from backend import models
-from backend.schemas.insurance_submission import InsuranceDraftStatus, InsuranceLineSource, InsuranceMappingStatus, InsuranceOrganization, InsuranceSubmissionDraft, InsuranceSubmissionLine, InsuranceTemplateSnapshot
+from backend.schemas.insurance_submission import (
+    InsuranceDraftStatus,
+    InsuranceLineSource,
+    InsuranceMappingStatus,
+    InsuranceOrganization,
+    InsuranceReferenceSnapshot,
+    InsuranceSubmissionDraft,
+    InsuranceSubmissionLine,
+    InsuranceTemplateSnapshot,
+)
 from backend.services.insurance_submission import archive_validated_insurance_pdf
 
 
@@ -32,7 +41,15 @@ def test_insurance_archive_persists_pdf_snapshot(db, dentiste, tmp_path, monkeyp
             ngap_code="D1", mapping_rule_id="ngap-2026:d1"
         )],
         status=InsuranceDraftStatus.VALIDATED,
-        template=InsuranceTemplateSnapshot(template_version="CNSS-610-1-04", template_hash="template-hash"),
+        template=InsuranceTemplateSnapshot(
+            template_version="CNSS-610-1-04",
+            template_hash="a" * 64,
+            source_url="https://example.invalid/cnss.pdf",
+        ),
+        reference=InsuranceReferenceSnapshot(
+            ngap_reference_version="arrete-177-06-test",
+            ngap_reference_hash="b" * 64,
+        ),
         validated_by_practitioner_id=dentiste.id,
         validated_at=datetime(2026, 9, 14, 18, 45),
     )
@@ -48,5 +65,7 @@ def test_insurance_archive_persists_pdf_snapshot(db, dentiste, tmp_path, monkeyp
     assert document.clinical_data["kind"] == "INSURANCE_SUBMISSION"
     assert document.clinical_data["organization"] == "CNSS"
     assert document.clinical_data["source_honoraires_document_id"] == 42
+    assert document.clinical_data["template_hash"] == "a" * 64
+    assert document.clinical_data["ngap_reference_hash"] == "b" * 64
     assert "insurance_submission" in document.tags
     assert "cnss" in document.tags
