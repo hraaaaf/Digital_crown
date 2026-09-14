@@ -68,11 +68,9 @@ async function measure(page) {
       return style.display !== 'none' && style.visibility !== 'hidden' && r.width > 0 && r.height > 0;
     };
     const touchSelectors = [
-      '[data-ordonnance-density-context] button',
-      '[data-ordonnance-protocol-chips] button',
-      '[data-ordonnance-quick-entry] input',
-      '[data-ordonnance-quick-entry] button',
+      '[data-prescription-intelligence-studio="v1"] button',
       '[data-ordonnance-drug-card] button',
+      '[data-ordonnance-prescription-composer] select',
     ];
     const touchHeights = touchSelectors.flatMap(selector =>
       [...document.querySelectorAll(selector)].filter(visible).map(el => el.getBoundingClientRect().height),
@@ -80,16 +78,17 @@ async function measure(page) {
     const addLine = [...document.querySelectorAll('button')].find(el => visible(el) && /ajouter une ligne/i.test(el.textContent || ''));
     if (addLine) touchHeights.push(addLine.getBoundingClientRect().height);
     const doc = document.documentElement;
-    const density = rect('[data-ordonnance-density="u2"]');
+    const studio = rect('[data-prescription-intelligence-studio="v1"]');
+    const clinicalBlocked = rect('[data-clinical-rule-status="blocked"]');
+    const safety = rect('[data-safety-status]');
     const desktopPreview = rect('[data-ordonnance-desktop-preview="inline"]');
     return {
-      density,
-      context: rect('[data-ordonnance-density-context]'),
-      protocols: rect('[data-ordonnance-protocol-chips]'),
-      quickEntry: rect('[data-ordonnance-quick-entry]'),
+      studio,
+      clinicalBlocked,
+      safety,
       drugCard: rect('[data-ordonnance-drug-card]'),
       desktopPreview,
-      visibleEditorWidth: density && desktopPreview ? Math.max(0, desktopPreview.left - density.left) : null,
+      visibleEditorWidth: studio && desktopPreview ? Math.max(0, desktopPreview.left - studio.left) : null,
       addLine: addLine ? { height: addLine.getBoundingClientRect().height } : null,
       touchMin: touchHeights.length ? Math.min(...touchHeights) : null,
       touchCount: touchHeights.length,
@@ -107,7 +106,8 @@ for (const viewport of viewports) {
 
   const url = `http://127.0.0.1:5173/patients/${patient.id}?tab=admin&documentTab=ordonnance`;
   await page.goto(url, { waitUntil: 'networkidle', timeout: 90000 });
-  await page.locator('[data-ordonnance-density="u2"]').waitFor({ state: 'attached', timeout: 30000 });
+  await page.locator('[data-prescription-intelligence-studio="v1"]').waitFor({ state: 'attached', timeout: 30000 });
+  await page.locator('[data-clinical-rule-status="blocked"]').waitFor({ state: 'attached', timeout: 30000 });
   await resetScrollableAncestors(page);
 
   const topMetrics = await measure(page);
@@ -152,6 +152,8 @@ const failures = [];
 for (const capture of captures) {
   for (const scene of ['top', 'planning']) {
     const metrics = capture[scene].metrics;
+    if (!metrics.studio) failures.push(`${capture.viewport.width}-${scene}: V1 studio missing`);
+    if (!metrics.clinicalBlocked) failures.push(`${capture.viewport.width}-${scene}: fail-closed clinical status missing`);
     if (!metrics.noHorizontalOverflow) failures.push(`${capture.viewport.width}-${scene}: horizontal overflow`);
     if (metrics.touchMin !== null && metrics.touchMin < 43.5) failures.push(`${capture.viewport.width}-${scene}: touch target ${metrics.touchMin}`);
   }
@@ -159,8 +161,9 @@ for (const capture of captures) {
     const previewMetrics = capture.preview?.metrics;
     if (!previewMetrics?.desktopPreview) failures.push(`${capture.viewport.width}-preview: inline preview missing`);
     if ((previewMetrics?.desktopPreview?.width || 0) < 270) failures.push(`${capture.viewport.width}-preview: inline preview too narrow`);
-    if ((previewMetrics?.density?.width || 0) < 530) failures.push(`${capture.viewport.width}-preview: editor layout width below 530px`);
+    if ((previewMetrics?.studio?.width || 0) < 530) failures.push(`${capture.viewport.width}-preview: editor layout width below 530px`);
     if ((previewMetrics?.visibleEditorWidth || 0) < 495) failures.push(`${capture.viewport.width}-preview: visible editor width below 495px`);
+    if (!previewMetrics?.clinicalBlocked) failures.push(`${capture.viewport.width}-preview: fail-closed clinical status missing`);
     if (!previewMetrics?.noHorizontalOverflow) failures.push(`${capture.viewport.width}-preview: horizontal overflow`);
   }
   if (capture.pageErrors.length) failures.push(`${capture.viewport.width}: page errors ${capture.pageErrors.join(' | ')}`);
