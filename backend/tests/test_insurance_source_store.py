@@ -27,6 +27,17 @@ def _pdf_bytes(*, pages: int, text: str = "") -> bytes:
     return payload
 
 
+def test_template_source_store_requires_validator_for_cabinet_trust(tmp_path):
+    payload = _pdf_bytes(pages=2, text="CNSS dental template")
+    with pytest.raises(ValueError, match="validator identity"):
+        lock_and_store_insurance_template(
+            root=tmp_path,
+            definition=CNSS_610_1_04,
+            pdf_bytes=payload,
+            source_url="cabinet://validated/CNSS-610-1-04.pdf",
+        )
+
+
 def test_template_source_store_is_hash_addressed_and_idempotent(tmp_path):
     payload = _pdf_bytes(pages=2, text="CNSS dental template")
     locked, stored = lock_and_store_insurance_template(
@@ -34,6 +45,7 @@ def test_template_source_store_is_hash_addressed_and_idempotent(tmp_path):
         definition=CNSS_610_1_04,
         pdf_bytes=payload,
         source_url="cabinet://validated/CNSS-610-1-04.pdf",
+        cabinet_validated_by="Dr Test",
     )
     assert Path(stored.pdf_path).read_bytes() == payload
     assert locked.sha256 == stored.sha256
@@ -43,6 +55,7 @@ def test_template_source_store_is_hash_addressed_and_idempotent(tmp_path):
         definition=CNSS_610_1_04,
         pdf_bytes=payload,
         source_url="cabinet://validated/CNSS-610-1-04.pdf",
+        cabinet_validated_by="Dr Test",
     )
     assert second_locked.sha256 == locked.sha256
     assert second_stored == stored
@@ -56,6 +69,7 @@ def test_template_source_store_rejects_wrong_page_count(tmp_path):
             definition=CNSS_610_1_04,
             pdf_bytes=payload,
             source_url="cabinet://validated/CNSS-610-1-04.pdf",
+            cabinet_validated_by="Dr Test",
         )
 
 
