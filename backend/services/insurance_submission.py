@@ -11,11 +11,13 @@ from backend.schemas.insurance_submission import (
     InsuranceLineSource,
     InsuranceMappingStatus,
     InsuranceOrganization,
+    InsuranceReferenceSnapshot,
     InsuranceSubmissionDraft,
     InsuranceSubmissionLine,
     InsuranceTemplateSnapshot,
 )
 from backend.services.archive_service import ArchiveService
+from backend.services.ngap_reference import resolve_catalog_act_ngap
 
 INSURANCE_ARCHIVE_KIND = "INSURANCE_SUBMISSION"
 INSURANCE_ARCHIVE_SCHEMA_VERSION = "1"
@@ -79,6 +81,86 @@ def build_draft_from_honoraires_snapshot(*, patient_id: int, organization: Insur
         template=InsuranceTemplateSnapshot(template_version=template_version, template_hash=template_hash,
             source_url=template_source_url),
     )
+
+
+def apply_ngap_reference_to_draft(
+    db: Session,
+    *,
+    draft: InsuranceSubmissionDraft,
+    reference_version: str,
+    on_date: Optional[date] = None,
+) -> InsuranceSubmissionDraft:
+    """Resolve each draft line through the explicit versioned CatalogAct mapping.
+
+    The operation always invalidates any previous practitioner validation. A draft is
+    promoted to READY_FOR_REVIEW only when every line resolves EXACT and no other
+    unresolved fields remain. Multiple source hashes for one reference version are
+    rejected as a corrupted regulatory snapshot.
+    """
+    base_unresolved = [
+        value for value in draft.unresolved_fields
+        if not (value.startswith("lines[") and "].ngap:" in value)
+    ]
+    unresolved = list(base_unresolved)
+    resolved_lines: List[InsuranceSubmissionLine] = []
+    release_hashes: set[str] = set()
+
+    for index, line in enumerate(draft.lines):
+        if line.source.catalog_act_id is None:
+            resolution_status = InsuranceMappingStatus.NO_MATCH
+            resolution = None
+        else:
+            resolution = resolve_catalog_act_ngap(
+                db,
+                catalog_act_id=line.source.catalog_act_id,
+                reference_version=reference_version,
+                on_date=on_date or line.service_date,
+            )
+            resolution_status = resolution.status
+
+        if resolution is not None and resolution.release_hash:
+            release_hashes.add(resolution.release_hash)
+
+        if resolution is not None and resolution_status == InsuranceMappingStatus.EXACT:
+            resolved_line = line.model_copy(update={
+                "mapping_status": InsuranceMappingStatus.EXACT,
+                "ngap_code": resolution.code,
+                "ngap_coefficient": resolution.coefficient,
+                "mapping_rule_id": resolution.mapping_rule_id,
+            })
+        else:
+            resolved_line = line.model_copy(update={
+                "mapping_status": resolution_status,
+                "ngap_code": None,
+                "ngap_coefficient": None,
+                "mapping_rule_id": None,
+            })
+            unresolved.append(f"lines[{index}].ngap:{resolution_status.value}")
+        resolved_lines.append(resolved_line)
+
+    if len(release_hashes) > 1:
+        raise ValueError("Referentiel NGAP incoherent: plusieurs hashes pour une meme version")
+
+    all_exact = all(
+        line.mapping_status == InsuranceMappingStatus.EXACT for line in resolved_lines
+    )
+    next_status = (
+        InsuranceDraftStatus.READY_FOR_REVIEW
+        if all_exact and not unresolved
+        else InsuranceDraftStatus.INCOMPLETE
+    )
+
+    return draft.model_copy(update={
+        "lines": resolved_lines,
+        "unresolved_fields": unresolved,
+        "status": next_status,
+        "reference": InsuranceReferenceSnapshot(
+            ngap_reference_version=reference_version,
+            ngap_reference_hash=(next(iter(release_hashes)) if release_hashes else None),
+        ),
+        "validated_by_practitioner_id": None,
+        "validated_at": None,
+    })
 
 
 def build_insurance_archive_clinical_data(draft: InsuranceSubmissionDraft) -> Dict[str, Any]:
