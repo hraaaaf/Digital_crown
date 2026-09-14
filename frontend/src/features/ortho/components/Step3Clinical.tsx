@@ -43,16 +43,17 @@ export const Step3Clinical: React.FC<Step3ClinicalProps> = ({ P }) => {
   };
 
   return (
-    <div className="flex flex-col gap-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+    <div className="flex flex-col gap-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
       <div className="flex justify-center">
-        <div className="inline-flex p-1 rounded-2xl border backdrop-blur-md" style={{ background: `${P.bgCard}80`, borderColor: P.border }}>
+        <div className="inline-flex rounded-xl border p-0.5 backdrop-blur-md" style={{ background: `${P.bgCard}80`, borderColor: P.border }}>
           {(['COM', 'STEINER', 'TWEED'] as const).map(type => (
             <button
               key={type}
+              type="button"
               onClick={() => setAnalysis(type)}
               className={cn(
-                'px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-[0.2em] transition-all',
-                currentAnalysis === type ? 'shadow-lg scale-105' : 'opacity-40 hover:opacity-100'
+                'rounded-lg px-4 py-2 text-[9px] font-black uppercase tracking-[0.16em] transition-all sm:px-5',
+                currentAnalysis === type ? 'shadow-sm' : 'opacity-50 hover:opacity-100'
               )}
               style={{ background: currentAnalysis === type ? P.accent : 'transparent', color: currentAnalysis === type ? '#fff' : P.text }}
             >
@@ -62,25 +63,25 @@ export const Step3Clinical: React.FC<Step3ClinicalProps> = ({ P }) => {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="space-y-6">
-          <div className="rounded-2xl p-6" style={{ background: P.bgPanel, border: `1px solid ${P.border}`, boxShadow: P.shadow }}>
-            <div className="flex items-center gap-3 mb-6">
-              <Activity size={18} style={{ color: P.accent }} />
-              <h3 className="text-sm font-black uppercase tracking-widest" style={{ color: P.text }}>Données Patient</h3>
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+        <div className="space-y-4">
+          <div className="rounded-xl p-4" style={{ background: P.bgPanel, border: `1px solid ${P.border}`, boxShadow: P.shadow }}>
+            <div className="mb-4 flex items-center gap-2.5">
+              <Activity size={16} style={{ color: P.accent }} />
+              <h3 className="text-[11px] font-black uppercase tracking-[0.14em]" style={{ color: P.text }}>Données Patient</h3>
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
               <FieldShell label="Âge (ans)" P={P}>
-                <input type="number" value={data.age} onChange={e => onChange(prev => ({ ...prev, age: e.target.value === '' ? '' : parseInt(e.target.value) }))} className="w-full bg-transparent font-black text-lg outline-none" style={{ color: P.text }} />
+                <input type="number" value={data.age} onChange={e => onChange(prev => ({ ...prev, age: e.target.value === '' ? '' : parseInt(e.target.value) }))} className="w-full bg-transparent text-base font-black outline-none" style={{ color: P.text }} />
               </FieldShell>
               <FieldShell label="Stade CVM — saisie manuelle" P={P}>
-                <select value={data.cvm} onChange={e => onChange(prev => ({ ...prev, cvm: e.target.value as any }))} className="w-full bg-transparent font-bold text-sm outline-none" style={{ color: P.text }}>
+                <select value={data.cvm} onChange={e => onChange(prev => ({ ...prev, cvm: e.target.value as any }))} className="w-full bg-transparent text-xs font-bold outline-none" style={{ color: P.text }}>
                   <option value="">Non renseigné</option>
                   {['CS1', 'CS2', 'CS3', 'CS4', 'CS5', 'CS6'].map(v => <option key={v} value={v}>{v}</option>)}
                 </select>
               </FieldShell>
               <FieldShell label="Denture — saisie manuelle" P={P}>
-                <select value={data.denture_type || ''} onChange={e => onChange(prev => ({ ...prev, denture_type: e.target.value as any }))} className="w-full bg-transparent font-bold text-sm outline-none" style={{ color: P.text }}>
+                <select value={data.denture_type || ''} onChange={e => onChange(prev => ({ ...prev, denture_type: e.target.value as any }))} className="w-full bg-transparent text-xs font-bold outline-none" style={{ color: P.text }}>
                   <option value="">Non renseignée</option>
                   <option value="TEMPORAIRE">Temporaire</option>
                   <option value="MIXTE">Mixte</option>
@@ -88,13 +89,13 @@ export const Step3Clinical: React.FC<Step3ClinicalProps> = ({ P }) => {
                 </select>
               </FieldShell>
             </div>
-            <p className="mt-4 text-[11px] leading-relaxed" style={{ color: P.textMuted }}>
+            <p className="mt-3 text-[10px] leading-4" style={{ color: P.textMuted }}>
               Le stade CVM n'est jamais déduit de l'âge ou du sexe. Toute valeur CVM affichée ici est une saisie manuelle non promue en preuve R11.
             </p>
           </div>
 
-          <AccordionSection title="Analyse Dentaire" icon={<Ruler size={16} style={{ color: P.accent }} />} defaultOpen P={P}>
-            <div className="grid grid-cols-2 gap-4 pt-2">
+          <AccordionSection title="Analyse Dentaire" icon={<Ruler size={14} style={{ color: P.accent }} />} defaultOpen P={P}>
+            <div className="grid grid-cols-2 gap-2 pt-1">
               {currentAnalysis === 'COM' && <>
                 <MetricInput label="Surplomb" value={data.dentaire.surplomb} unit="mm" P={P} readOnly />
                 <MetricInput label="Recouvrement" value={data.dentaire.recouvrement} unit="mm" P={P} readOnly />
@@ -116,8 +117,8 @@ export const Step3Clinical: React.FC<Step3ClinicalProps> = ({ P }) => {
             </div>
           </AccordionSection>
 
-          <AccordionSection title="Analyse Osseuse" icon={<Activity size={16} style={{ color: P.accent }} />} P={P}>
-            <div className="grid grid-cols-2 gap-4 pt-2">
+          <AccordionSection title="Analyse Osseuse" icon={<Activity size={14} style={{ color: P.accent }} />} P={P}>
+            <div className="grid grid-cols-2 gap-2 pt-1">
               {(currentAnalysis === 'COM' || currentAnalysis === 'TWEED') && <MetricInput label="Angle de Tweed" value={data.osseuse.angle_tweed} onChange={v => updateOsseuse('angle_tweed', v)} unit="°" P={P} />}
               {currentAnalysis === 'COM' && <>
                 <MetricInput label="A′B′" value={data.osseuse.decalage_ab} onChange={v => updateOsseuse('decalage_ab', v)} unit="mm" P={P} />
@@ -134,8 +135,8 @@ export const Step3Clinical: React.FC<Step3ClinicalProps> = ({ P }) => {
           </AccordionSection>
 
           {currentAnalysis !== 'COM' && (
-            <AccordionSection title="Analyse Esthétique (Ricketts)" icon={<Activity size={16} style={{ color: P.accentSuccess }} />} P={P}>
-              <div className="grid grid-cols-2 gap-4 pt-2">
+            <AccordionSection title="Analyse Esthétique (Ricketts)" icon={<Activity size={14} style={{ color: P.accentSuccess }} />} P={P}>
+              <div className="grid grid-cols-2 gap-2 pt-1">
                 <MetricInput label="Ligne E / Ls" value={data.esthetique?.ligne_e_ls} onChange={v => updateEsthetique('ligne_e_ls', v)} unit="mm" P={P} />
                 <MetricInput label="Ligne E / Li" value={data.esthetique?.ligne_e_li} onChange={v => updateEsthetique('ligne_e_li', v)} unit="mm" P={P} />
               </div>
@@ -143,13 +144,13 @@ export const Step3Clinical: React.FC<Step3ClinicalProps> = ({ P }) => {
           )}
         </div>
 
-        <div className="space-y-6">
-          <div className="rounded-2xl p-6 flex flex-col" style={{ background: P.bgPanel, border: `1px solid ${P.border}`, boxShadow: P.shadow }}>
-            <div className="flex items-center gap-3 mb-6">
-              <Info size={18} style={{ color: P.accent }} />
-              <h3 className="text-sm font-black uppercase tracking-widest" style={{ color: P.text }}>Synthèse descriptive</h3>
+        <div className="space-y-4">
+          <div className="flex flex-col rounded-xl p-4" style={{ background: P.bgPanel, border: `1px solid ${P.border}`, boxShadow: P.shadow }}>
+            <div className="mb-4 flex items-center gap-2.5">
+              <Info size={16} style={{ color: P.accent }} />
+              <h3 className="text-[11px] font-black uppercase tracking-[0.14em]" style={{ color: P.text }}>Synthèse descriptive</h3>
             </div>
-            <div className="space-y-4">
+            <div className="space-y-1.5">
               <RawRow label="Classe squelettique · legacy hors R11" value={data.classe_squelettique || 'Non classifiable / non documentée'} P={P} />
               <RawRow label="Pattern vertical · legacy hors R11" value={data.pattern_vertical || 'Non classifiable / non documenté'} P={P} />
               <RawRow label="DDM clinique" value={raw(data.ddm_clinique, 'mm')} P={P} />
@@ -158,45 +159,45 @@ export const Step3Clinical: React.FC<Step3ClinicalProps> = ({ P }) => {
               <RawRow label="IMPA mesuré" value={raw(data.dentaire.impa, '°')} P={P} />
               <RawRow label="Type d'arcade" value={typeArcadeEtape2 === 'Indéterminé' ? 'Indéterminé' : `Forme en ${typeArcadeEtape2}`} P={P} />
             </div>
-            <p className="mt-5 text-[11px] leading-relaxed" style={{ color: P.textMuted }}>
+            <p className="mt-3 text-[10px] leading-4" style={{ color: P.textMuted }}>
               Aucune sévérité DDM, division de Classe II, proalvéolie, supra/infraclusie ou indication thérapeutique n'est déduite localement de ces mesures.
             </p>
           </div>
 
-          <div className="rounded-xl border px-4 py-3 text-[11px] leading-5" style={{ borderColor: `${P.accentWarning}45`, background: `${P.accentWarning}09`, color: P.textMuted }}>
+          <div className="rounded-lg border px-3 py-2.5 text-[10px] leading-4" style={{ borderColor: `${P.accentWarning}45`, background: `${P.accentWarning}09`, color: P.textMuted }}>
             <strong style={{ color: P.text }}>Ancienne catégorie « Notes praticien non autoritaires » : provenance legacy non certifiée.</strong> Ces champs peuvent contenir une saisie manuelle ou un contenu historique ; le contrat legacy ne permet pas d'en attester l'auteur. Ils ne créent aucune preuve R11, sélection R13 ou validation R14.
           </div>
 
-          <AccordionSection title="1. Note libre legacy — Analyse dentaire et alvéolaire" icon={<Ruler size={14} style={{ color: P.accent }} />} P={P}>
-            <textarea value={diag.analyse_dentaire} onChange={e => handleDiagChange('analyse_dentaire', e.target.value)} className="w-full h-24 p-3 rounded-xl bg-white/50 border text-sm focus:ring-2 outline-none transition-all mt-2" style={{ borderColor: P.border, color: P.text }} placeholder="Saisie libre ou contenu historique — provenance non certifiée, hors preuve R11." />
+          <AccordionSection title="1. Note libre legacy — Analyse dentaire et alvéolaire" icon={<Ruler size={13} style={{ color: P.accent }} />} P={P}>
+            <textarea value={diag.analyse_dentaire} onChange={e => handleDiagChange('analyse_dentaire', e.target.value)} className="mt-1 h-24 w-full rounded-lg border bg-white/50 p-3 text-sm outline-none transition-all focus:ring-2" style={{ borderColor: P.border, color: P.text }} placeholder="Saisie libre ou contenu historique — provenance non certifiée, hors preuve R11." />
           </AccordionSection>
 
-          <AccordionSection title="2. Note libre legacy — Analyse squelettique" icon={<Activity size={14} style={{ color: P.accent }} />} P={P}>
-            <textarea value={diag.diagnostic_squelettique} onChange={e => handleDiagChange('diagnostic_squelettique', e.target.value)} className="w-full h-24 p-3 rounded-xl bg-white/50 border text-sm focus:ring-2 outline-none transition-all mt-2" style={{ borderColor: P.border, color: P.text }} placeholder="Saisie libre ou contenu historique — provenance non certifiée, hors preuve R11." />
+          <AccordionSection title="2. Note libre legacy — Analyse squelettique" icon={<Activity size={13} style={{ color: P.accent }} />} P={P}>
+            <textarea value={diag.diagnostic_squelettique} onChange={e => handleDiagChange('diagnostic_squelettique', e.target.value)} className="mt-1 h-24 w-full rounded-lg border bg-white/50 p-3 text-sm outline-none transition-all focus:ring-2" style={{ borderColor: P.border, color: P.text }} placeholder="Saisie libre ou contenu historique — provenance non certifiée, hors preuve R11." />
           </AccordionSection>
         </div>
       </div>
 
-      <div className="space-y-3">
-        <AccordionSection title="3. Examen des Moulages — auto descriptif + note libre legacy" icon={<Activity size={14} style={{ color: P.accent }} />} P={P}>
-          <div className="space-y-4 pt-2">
-            <div className="p-4 rounded-xl font-mono text-[11px] leading-relaxed" style={{ background: P.bgInput, border: `1px solid ${P.border}40`, color: P.text }}>
-              <div className="mb-2 font-sans text-[9px] font-black uppercase tracking-wider" style={{ color: P.textMuted }}>Synthèse occlusale automatique descriptive · hors R11</div>
+      <div className="space-y-2.5">
+        <AccordionSection title="3. Examen des Moulages — auto descriptif + note libre legacy" icon={<Activity size={13} style={{ color: P.accent }} />} P={P}>
+          <div className="space-y-3 pt-1">
+            <div className="rounded-lg p-3 font-mono text-[10px] leading-4" style={{ background: P.bgInput, border: `1px solid ${P.border}40`, color: P.text }}>
+              <div className="mb-1.5 font-sans text-[8px] font-black uppercase tracking-wider" style={{ color: P.textMuted }}>Synthèse occlusale automatique descriptive · hors R11</div>
               {data.analyse_moulages_auto ? data.analyse_moulages_auto.split('\n').map((line, i) => <div key={i}>{line}</div>) : <span className="opacity-40 italic">En attente des données occlusales...</span>}
             </div>
-            <textarea value={diag.analyse_moulages} onChange={e => handleDiagChange('analyse_moulages', e.target.value)} className="w-full h-24 p-3 rounded-xl bg-white/50 border text-sm focus:ring-2 outline-none transition-all" style={{ borderColor: P.border, color: P.text }} placeholder="Note libre legacy — auteur non certifié, hors preuve scientifique autoritaire." />
+            <textarea value={diag.analyse_moulages} onChange={e => handleDiagChange('analyse_moulages', e.target.value)} className="h-24 w-full rounded-lg border bg-white/50 p-3 text-sm outline-none transition-all focus:ring-2" style={{ borderColor: P.border, color: P.text }} placeholder="Note libre legacy — auteur non certifié, hors preuve scientifique autoritaire." />
           </div>
         </AccordionSection>
 
-        <AccordionSection title="4. Note diagnostique libre legacy — hors R11" icon={<Info size={14} style={{ color: P.accent }} />} defaultOpen P={P}>
-          <textarea value={diag.synthese_diagnostique} onChange={e => handleDiagChange('synthese_diagnostique', e.target.value)} className="w-full h-32 p-3 rounded-xl bg-white/50 border text-sm focus:ring-2 outline-none transition-all mt-2" style={{ borderColor: P.border, color: P.text }} placeholder="Note diagnostique libre legacy. Provenance non certifiée ; ne vaut pas diagnostic R11 autoritaire." />
+        <AccordionSection title="4. Note diagnostique libre legacy — hors R11" icon={<Info size={13} style={{ color: P.accent }} />} defaultOpen P={P}>
+          <textarea value={diag.synthese_diagnostique} onChange={e => handleDiagChange('synthese_diagnostique', e.target.value)} className="mt-1 h-32 w-full rounded-lg border bg-white/50 p-3 text-sm outline-none transition-all focus:ring-2" style={{ borderColor: P.border, color: P.text }} placeholder="Note diagnostique libre legacy. Provenance non certifiée ; ne vaut pas diagnostic R11 autoritaire." />
         </AccordionSection>
 
-        <AccordionSection title="5. Note thérapeutique libre legacy — hors R13/R14" icon={<Info size={14} style={{ color: P.accent }} />} P={P}>
+        <AccordionSection title="5. Note thérapeutique libre legacy — hors R13/R14" icon={<Info size={13} style={{ color: P.accent }} />} P={P}>
           <textarea
             value={diag.strategie_therapeutique}
             onChange={e => handleDiagChange('strategie_therapeutique', e.target.value)}
-            className="w-full h-48 p-4 rounded-xl bg-white/50 border text-sm focus:ring-2 outline-none transition-all resize-none overflow-y-auto leading-relaxed mt-2"
+            className="mt-1 h-48 w-full resize-none overflow-y-auto rounded-lg border bg-white/50 p-4 text-sm leading-relaxed outline-none transition-all focus:ring-2"
             style={{ borderColor: P.border, color: P.text }}
             placeholder="Note thérapeutique libre legacy. Provenance non certifiée ; elle ne sélectionne aucune option R13 et ne valide aucune stratégie R14."
           />
@@ -215,27 +216,27 @@ const AccordionSection: React.FC<{
 }> = ({ title, icon, defaultOpen = false, P, children }) => {
   const [open, setOpen] = React.useState(defaultOpen);
   return (
-    <div className="rounded-2xl overflow-hidden" style={{ background: P.bgCard, border: `1px solid ${P.border}` }}>
-      <button type="button" onClick={() => setOpen(o => !o)} className="w-full flex items-center justify-between px-6 py-4 transition-all hover:brightness-110" style={{ background: open ? `${P.accent}08` : 'transparent' }}>
-        <div className="flex items-center gap-3">{icon}<span className="text-sm font-black uppercase tracking-widest" style={{ color: P.text }}>{title}</span></div>
-        <ChevronDown size={16} className="transition-transform duration-300" style={{ color: P.textMuted, transform: open ? 'rotate(180deg)' : 'rotate(0deg)' }} />
+    <div className="overflow-hidden rounded-xl" style={{ background: P.bgCard, border: `1px solid ${P.border}` }}>
+      <button type="button" onClick={() => setOpen(o => !o)} className="flex min-h-11 w-full items-center justify-between px-4 py-3 text-left transition-all hover:brightness-105" style={{ background: open ? `${P.accent}07` : 'transparent' }}>
+        <div className="flex min-w-0 items-center gap-2.5">{icon}<span className="text-[10px] font-black uppercase tracking-[0.12em] sm:text-[11px]" style={{ color: P.text }}>{title}</span></div>
+        <ChevronDown size={15} className="shrink-0 transition-transform duration-300" style={{ color: P.textMuted, transform: open ? 'rotate(180deg)' : 'rotate(0deg)' }} />
       </button>
-      {open && <div className="px-6 pb-6 pt-2 border-t" style={{ borderColor: P.border }}>{children}</div>}
+      {open && <div className="border-t px-4 pb-4 pt-2" style={{ borderColor: P.border }}>{children}</div>}
     </div>
   );
 };
 
 const FieldShell: React.FC<{ label: string; P: any; children: React.ReactNode }> = ({ label, P, children }) => (
-  <div className="p-4 rounded-xl" style={{ background: P.bgInput, border: `1px solid ${P.border}` }}>
-    <label className="text-[10px] font-black uppercase tracking-widest block mb-2" style={{ color: P.textMuted }}>{label}</label>
+  <div className="rounded-lg p-3" style={{ background: P.bgInput, border: `1px solid ${P.border}` }}>
+    <label className="mb-1.5 block text-[8px] font-black uppercase tracking-[0.1em]" style={{ color: P.textMuted }}>{label}</label>
     {children}
   </div>
 );
 
 const RawRow: React.FC<{ label: string; value: string; P: any }> = ({ label, value, P }) => (
-  <div className="flex items-center justify-between gap-4 p-3 rounded-xl border" style={{ background: P.bgInput, borderColor: P.border }}>
-    <span className="text-xs font-bold" style={{ color: P.textMuted }}>{label}</span>
-    <span className="text-xs font-black text-right" style={{ color: P.text }}>{value}</span>
+  <div className="flex items-center justify-between gap-3 rounded-lg border px-2.5 py-2" style={{ background: P.bgInput, borderColor: P.border }}>
+    <span className="text-[10px] font-bold leading-4" style={{ color: P.textMuted }}>{label}</span>
+    <span className="text-right text-[10px] font-black leading-4" style={{ color: P.text }}>{value}</span>
   </div>
 );
 
@@ -247,18 +248,18 @@ const MetricInput = ({ label, value, onChange, unit, P, readOnly }: {
   P: any;
   readOnly?: boolean;
 }) => (
-  <div className="p-4 rounded-xl border" style={{ background: P.bgInput, borderColor: P.border }}>
-    <div className="flex justify-between items-center mb-2">
-      <span className="text-[9px] font-black uppercase tracking-wider" style={{ color: P.textMuted }}>{label}</span>
-      <span className="text-[8px] font-bold opacity-50" style={{ color: P.textDim }}>Valeur brute</span>
+  <div className="rounded-lg border p-2.5" style={{ background: P.bgInput, borderColor: P.border }}>
+    <div className="mb-1 flex items-start justify-between gap-2">
+      <span className="text-[8px] font-black uppercase leading-3 tracking-[0.08em]" style={{ color: P.textMuted }}>{label}</span>
+      <span className="shrink-0 text-[7px] font-bold opacity-50" style={{ color: P.textDim }}>Brut</span>
     </div>
     <div className="flex items-center gap-1">
       {readOnly ? (
-        <div className="w-full bg-transparent font-black text-lg" style={{ color: P.text }}>{value !== '' && value !== null && value !== undefined ? value : '-'}</div>
+        <div className="w-full bg-transparent text-base font-black" style={{ color: P.text }}>{value !== '' && value !== null && value !== undefined ? value : '-'}</div>
       ) : (
-        <input type="text" value={value} onChange={e => onChange?.(e.target.value)} className="w-full bg-transparent font-black text-lg outline-none" style={{ color: P.text }} />
+        <input type="text" value={value} onChange={e => onChange?.(e.target.value)} className="w-full bg-transparent text-base font-black outline-none" style={{ color: P.text }} />
       )}
-      <span className="text-xs font-bold" style={{ color: P.textDim }}>{unit}</span>
+      <span className="text-[10px] font-bold" style={{ color: P.textDim }}>{unit}</span>
     </div>
   </div>
 );
