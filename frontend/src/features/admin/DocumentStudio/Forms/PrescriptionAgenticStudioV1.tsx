@@ -200,27 +200,6 @@ export const PrescriptionAgenticStudio: React.FC<PrescriptionAgenticStudioProps>
         </div>
       </section>
 
-      <PatientClinicalContextPanel patientId={contextPatientId} />
-
-      <section
-        data-prescription-indication="document"
-        className="rounded-2xl border border-border-main bg-glass-bg/70 px-3.5 py-3 shadow-sm backdrop-blur-xl sm:px-4"
-      >
-        <label>
-          <span className="mb-1.5 block text-[10px] font-black uppercase tracking-[0.13em] text-text-muted">Indication de cette ordonnance</span>
-          <textarea
-            aria-label="Indication de cette ordonnance"
-            className="min-h-[64px] w-full resize-y rounded-xl border border-border-main bg-background px-3 py-2 text-sm font-semibold text-text-main outline-none transition focus:border-accent/60 focus:ring-2 focus:ring-accent/10"
-            value={prescriptionIndication}
-            onChange={event => onPrescriptionIndicationChange(event.target.value)}
-            placeholder="Contexte explicite de cette décision de prescription"
-          />
-        </label>
-        <p className="mt-1.5 text-[10px] font-semibold leading-relaxed text-text-muted">
-          Cette indication est enregistrée avec l’ordonnance, pas dans les faits durables du patient. Elle n’active aucune règle de dose.
-        </p>
-      </section>
-
       <div className="space-y-3">
         {drugs.map((drug, idx) => (
           <DrugRow
@@ -255,6 +234,27 @@ export const PrescriptionAgenticStudio: React.FC<PrescriptionAgenticStudioProps>
       >
         <Plus size={15} /> Ajouter une ligne
       </button>
+
+      <PatientClinicalContextPanel patientId={contextPatientId} />
+
+      <section
+        data-prescription-indication="document"
+        className="rounded-2xl border border-border-main bg-glass-bg/70 px-3.5 py-3 shadow-sm backdrop-blur-xl sm:px-4"
+      >
+        <label>
+          <span className="mb-1.5 block text-[10px] font-black uppercase tracking-[0.13em] text-text-muted">Indication de cette ordonnance</span>
+          <textarea
+            aria-label="Indication de cette ordonnance"
+            className="min-h-[64px] w-full resize-y rounded-xl border border-border-main bg-background px-3 py-2 text-sm font-semibold text-text-main outline-none transition focus:border-accent/60 focus:ring-2 focus:ring-accent/10"
+            value={prescriptionIndication}
+            onChange={event => onPrescriptionIndicationChange(event.target.value)}
+            placeholder="Contexte explicite de cette décision de prescription"
+          />
+        </label>
+        <p className="mt-1.5 text-[10px] font-semibold leading-relaxed text-text-muted">
+          Cette indication est enregistrée avec l’ordonnance, pas dans les faits durables du patient. Elle n’active aucune règle de dose.
+        </p>
+      </section>
     </div>
   );
 };
