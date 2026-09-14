@@ -57,9 +57,19 @@ Preuves attendues CI:
 - CatalogAct inconnu => 422 + rollback transactionnel;
 - migration + rollback conservent l'ID d'une ligne legacy.
 
-### Lot 5 — Referentiel NGAP local versionne — NEXT
-Goal: EXACT/AMBIGUOUS/NO_MATCH/OUTDATED, provenance primaire, validite/hash, fail-closed.
-Gate: aucune auto-cotation avant source/version primaire et validation metier.
+### Lot 5 — Referentiel NGAP local versionne — SCAFFOLD IMPLEMENTE / SOURCE LOCK BLOQUE
+Implementation:
+- `NgapRelease` versionne avec autorite, URL, hash, dates de validite et statut;
+- `NGAP` et `INTERNAL` explicitement separes;
+- resolution uniquement par code exact, aucun fuzzy/libelle;
+- `EXACT` autorise seulement si release `VERIFIED_PRIMARY` + SHA-256 valide + code exact;
+- release reelle `arrete-177-06` maintenue `PRIMARY_HASH_PENDING`, donc aucun `EXACT` reel possible;
+- release expiree/non verrouillee => `OUTDATED`; code interne/absent => `NO_MATCH`.
+Sources primaires recroisees:
+- ONMD communique 01/26 du 02/02/2026: utilisation appropriee NGAP + TNR;
+- ANAM: convention nationale chirurgiens-dentistes et arretes applicables;
+- CNOPS/ONMD: nomenclature et referentiel medico-administratif dentaires.
+Blocage reel: les endpoints PDF primaires testes renvoient 502/timeout, empechant une recuperation reproductible des octets et donc un SHA-256 certifiable. Aucun hash n'est invente.
 
 ### Lot 6 — Renderers
 Ordre: CNSS `610-1-04` -> CNOPS -> FAR.
@@ -73,12 +83,12 @@ Success: generation depuis Honoraires et Documents sans nouveau sous-systeme.
 Activation seulement si templates hash/verrouilles, NGAP primaire versionne, migration/rollback testes, validation metier representative et archivage/reimpression verifies.
 
 ## Ordre restant
-`CI Lot 4 -> Lot 5 NGAP -> Lot 6 CNSS -> Lot 7 UX -> CNOPS/FAR -> gate cabinet`
+`CI Lots 1-5 scaffold -> verrouillage binaire NGAP -> population/validation NGAP -> Lot 6 CNSS -> Lot 7 UX -> CNOPS/FAR -> gate cabinet`
 
 ## Interdits
 Second moteur Honoraires, second catalogue NGAP, Ordonnance bis, fuzzy mapping silencieux, backfill artificiel, signature/cachet/accord assureur fabrique, deploiement Vercel sans autorisation explicite.
 
 ## Etat
-`LOTS_1_4_IMPLEMENTED / MASTER_ALIGNMENT_COMPLETE / CI_PENDING / RUNTIME_NOT_ACTIVATED`
+`LOTS_1_4_IMPLEMENTED / LOT_5_FAIL_CLOSED_SCAFFOLD / PRIMARY_HASH_PENDING / CI_PENDING / RUNTIME_NOT_ACTIVATED`
 
-Next exact: recertifier le HEAD aligne sur master; si vert, construire le referentiel NGAP local versionne a partir de sources primaires verrouillees.
+Next exact: recertifier le HEAD courant; en parallele, reprendre le verrouillage du binaire primaire NGAP seulement via une source officielle techniquement recuperable. Apres hash primaire: peupler les regles NGAP verifiees, puis renderer CNSS `610-1-04`.
