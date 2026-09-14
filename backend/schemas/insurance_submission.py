@@ -99,4 +99,14 @@ class InsuranceSubmissionDraft(BaseModel):
                 raise ValueError("VALIDATED requires no unresolved fields and EXACT mappings")
             if self.validated_by_practitioner_id is None or self.validated_at is None:
                 raise ValueError("VALIDATED requires practitioner id and validation timestamp")
+            if not self.template.template_hash or len(self.template.template_hash) != 64:
+                raise ValueError("VALIDATED requires locked template SHA-256")
+            if not self.template.source_url or not self.template.source_url.strip():
+                raise ValueError("VALIDATED requires template source provenance")
+            if (
+                not self.reference.ngap_reference_version
+                or not self.reference.ngap_reference_hash
+                or len(self.reference.ngap_reference_hash) != 64
+            ):
+                raise ValueError("VALIDATED requires locked NGAP reference version/SHA-256")
         return self
