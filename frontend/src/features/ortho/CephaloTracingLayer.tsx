@@ -187,7 +187,7 @@ export const CephaloTracingLayer: React.FC<CephaloTracingLayerProps> = (props) =
         </svg>
       )}
 
-      <div className="pointer-events-none absolute inset-x-0 top-24 z-40 flex justify-center px-3 sm:top-16">
+      <div className="pointer-events-none absolute inset-x-0 top-36 z-40 flex justify-center px-3 sm:top-16">
         <div
           aria-label="Analyse du tracé"
           className="pointer-events-auto flex max-w-full items-center gap-1 overflow-x-auto rounded-2xl border border-slate-700/70 bg-slate-950/80 p-1 shadow-2xl backdrop-blur-xl"
