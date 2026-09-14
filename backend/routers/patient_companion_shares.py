@@ -14,11 +14,12 @@ from backend.models_patient_companion import (
     PatientCompanionIdentity,
     PatientCompanionShareGrant,
 )
-from backend.routers.auth import get_current_user, has_permission
+from backend.routers.auth import get_current_user
 from backend.routers.patient_companion_common import (
     get_db,
     patient_identity,
     principal_for_access,
+    require_companion_admin,
     staff_patient_or_404,
 )
 from backend.services.audit_service import audit_service
@@ -206,8 +207,7 @@ def revoke_patient_access(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user),
 ):
-    if not has_permission(current_user, "patients"):
-        raise HTTPException(status_code=403, detail="Permission patients requise.")
+    require_companion_admin(current_user)
     employer_id = int(current_user.get_employer_id())
     access = db.query(PatientCompanionAccess).filter(
         PatientCompanionAccess.public_id == access_id,
