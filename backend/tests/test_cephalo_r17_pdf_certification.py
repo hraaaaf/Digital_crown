@@ -116,7 +116,6 @@ def _projection() -> dict:
 
 def _required_tokens() -> tuple[str, ...]:
     return (
-        "INCOMPLETE",
         "SNA",
         "81.5",
         "NOT_COMPUTABLE",
@@ -159,6 +158,7 @@ def test_reportlab_pdf_is_real_readable_and_fail_closed(tmp_path: Path):
 
     full_text = "\n".join(page.get_text("text") for page in doc)
     _assert_semantics(full_text)
+    assert "INCOMPLETE" in full_text
 
     for page in doc:
         rect = page.rect
@@ -179,6 +179,7 @@ def test_html_and_reportlab_share_the_same_authoritative_semantics(tmp_path: Pat
     html = generator.jinja_env.get_template("bilan_ortho_authoritative.html").render(context)
 
     _assert_semantics(html)
+    assert "DOCUMENT CLINIQUE INCOMPLET" in html
     assert "AWAITING_CLINICIAN" in html
     assert "EVALUABLE n'est jamais une prescription" in html
     assert context["measurements"][1]["value"] == "NOT_COMPUTABLE"
