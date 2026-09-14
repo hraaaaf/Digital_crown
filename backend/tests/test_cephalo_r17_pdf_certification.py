@@ -1,6 +1,7 @@
 """R17 document-level certification for authoritative cephalometric restitution."""
 from __future__ import annotations
 
+from html import unescape
 from pathlib import Path
 
 import fitz
@@ -50,94 +51,23 @@ def _projection() -> dict:
         "clinical_validation_reason": "R14 authority unavailable",
         "blocking_gates": ["r14_authoritative_snapshot_not_persisted"],
         "measurements": [
-            {
-                "measurement_id": "SNA",
-                "value": 81.5,
-                "unit": "deg",
-                "availability_status": "AVAILABLE",
-                "method_id": "STEINER",
-                "method_version": "1",
-                "scientific_source": "EVIDENCE_GRAPH_V1",
-                "requires_calibration": False,
-                "calibration_ref": None,
-            },
-            {
-                "measurement_id": "Situation_A",
-                "value": None,
-                "unit": "mm",
-                "availability_status": "NOT_COMPUTABLE",
-                "method_id": "CRANIOM",
-                "method_version": "1",
-                "scientific_source": "EVIDENCE_GRAPH_V1",
-                "requires_calibration": True,
-                "calibration_ref": None,
-            },
+            {"measurement_id": "SNA", "value": 81.5, "unit": "deg", "availability_status": "AVAILABLE", "method_id": "STEINER", "method_version": "1", "scientific_source": "EVIDENCE_GRAPH_V1", "requires_calibration": False, "calibration_ref": None},
+            {"measurement_id": "Situation_A", "value": None, "unit": "mm", "availability_status": "NOT_COMPUTABLE", "method_id": "CRANIOM", "method_version": "1", "scientific_source": "EVIDENCE_GRAPH_V1", "requires_calibration": True, "calibration_ref": None},
         ],
         "stages": [
-            {
-                "stage_id": "R11",
-                "title": "Diagnostic scientifique",
-                "presentation_state": "BLOCKED",
-                "authoritative_status": None,
-                "summary": "Diagnostic non promu sans snapshot autoritaire.",
-                "blocking_gates": ["r11_authoritative_snapshot_not_persisted"],
-                "missing_data_refs": ["source:missing"],
-                "contradictions": ["synthetic contradiction"],
-                "contraindications": [],
-                "provenance": [{"label": "source", "value": "EVIDENCE_GRAPH_V1"}],
-            },
-            {
-                "stage_id": "R13",
-                "title": "Options therapeutiques",
-                "presentation_state": "BLOCKED",
-                "authoritative_status": "BLOCKED",
-                "summary": "EVALUABLE n'est jamais une prescription.",
-                "blocking_gates": ["r13_authoritative_snapshot_not_persisted"],
-                "missing_data_refs": [],
-                "contradictions": [],
-                "contraindications": ["synthetic contraindication"],
-                "provenance": [{"label": "source", "value": "R15_STUDIO"}],
-            },
-            {
-                "stage_id": "R14",
-                "title": "Validation clinique finale",
-                "presentation_state": "AWAITING_CLINICIAN",
-                "authoritative_status": None,
-                "summary": "Validation praticien requise.",
-                "blocking_gates": ["r14_authoritative_snapshot_not_persisted"],
-                "missing_data_refs": [],
-                "contradictions": [],
-                "contraindications": [],
-                "provenance": [{"label": "authority", "value": "R13 selection required"}],
-            },
+            {"stage_id": "R11", "title": "Diagnostic scientifique", "presentation_state": "BLOCKED", "authoritative_status": None, "summary": "Diagnostic non promu sans snapshot autoritaire.", "blocking_gates": ["r11_authoritative_snapshot_not_persisted"], "missing_data_refs": ["source:missing"], "contradictions": ["synthetic contradiction"], "contraindications": [], "provenance": [{"label": "source", "value": "EVIDENCE_GRAPH_V1"}]},
+            {"stage_id": "R13", "title": "Options therapeutiques", "presentation_state": "BLOCKED", "authoritative_status": "BLOCKED", "summary": "EVALUABLE n'est jamais une prescription.", "blocking_gates": ["r13_authoritative_snapshot_not_persisted"], "missing_data_refs": [], "contradictions": [], "contraindications": ["synthetic contraindication"], "provenance": [{"label": "source", "value": "R15_STUDIO"}]},
+            {"stage_id": "R14", "title": "Validation clinique finale", "presentation_state": "AWAITING_CLINICIAN", "authoritative_status": None, "summary": "Validation praticien requise.", "blocking_gates": ["r14_authoritative_snapshot_not_persisted"], "missing_data_refs": [], "contradictions": [], "contraindications": [], "provenance": [{"label": "authority", "value": "R13 selection required"}]},
         ],
     }
 
 
 def _required_tokens() -> tuple[str, ...]:
-    return (
-        "SNA",
-        "81.5",
-        "NOT_COMPUTABLE",
-        "R11",
-        "R13",
-        "R14",
-        "BLOCKED",
-        "synthetic contradiction",
-        "synthetic contraindication",
-        "EVIDENCE_GRAPH_V1",
-    )
+    return ("SNA", "81.5", "NOT_COMPUTABLE", "R11", "R13", "R14", "BLOCKED", "synthetic contradiction", "synthetic contraindication", "EVIDENCE_GRAPH_V1")
 
 
 def _forbidden_tokens() -> tuple[str, ...]:
-    return (
-        "CLIENT_DIAG_SHOULD_NOT_RENDER",
-        "CLIENT_MOULAGES_SHOULD_NOT_RENDER",
-        "CLIENT_SYNTHESIS_SHOULD_NOT_RENDER",
-        "CLIENT_PLAN_SHOULD_NOT_RENDER",
-        "Damon",
-        "DAMON",
-    )
+    return ("CLIENT_DIAG_SHOULD_NOT_RENDER", "CLIENT_MOULAGES_SHOULD_NOT_RENDER", "CLIENT_SYNTHESIS_SHOULD_NOT_RENDER", "CLIENT_PLAN_SHOULD_NOT_RENDER", "Damon", "DAMON")
 
 
 def _assert_semantics(text: str) -> None:
@@ -151,15 +81,12 @@ def test_reportlab_pdf_is_real_readable_and_fail_closed(tmp_path: Path):
     generator = BilanOrthoPDFGenerator(str(tmp_path))
     pdf_path = tmp_path / "r17-reportlab-after.pdf"
     generator._generate_reportlab(_vm(), str(pdf_path), projection=_projection())
-
     assert pdf_path.exists() and pdf_path.stat().st_size > 5_000
     doc = fitz.open(pdf_path)
     assert len(doc) >= 1
-
     full_text = "\n".join(page.get_text("text") for page in doc)
     _assert_semantics(full_text)
     assert "INCOMPLETE" in full_text
-
     for page in doc:
         rect = page.rect
         assert 590 <= rect.width <= 600
@@ -177,10 +104,9 @@ def test_html_and_reportlab_share_the_same_authoritative_semantics(tmp_path: Pat
     generator = BilanOrthoPDFGenerator(str(tmp_path))
     context = generator._shared_context(_vm(), _projection())
     html = generator.jinja_env.get_template("bilan_ortho_authoritative.html").render(context)
-
     _assert_semantics(html)
     assert "DOCUMENT CLINIQUE INCOMPLET" in html
     assert "AWAITING_CLINICIAN" in html
-    assert "EVALUABLE n'est jamais une prescription" in html
+    assert "EVALUABLE n'est jamais une prescription" in unescape(html)
     assert context["measurements"][1]["value"] == "NOT_COMPUTABLE"
     assert context["document_state"] == "INCOMPLETE"
