@@ -1,12 +1,11 @@
 name: Cephalo R18 Tracing BEFORE
 
+# Frozen baseline evidence.
+# Canonical successful capture: run 34882384184 at product HEAD
+# 26d0aaf7c1b674227de310715ef35ccf27c82c04.
+# Do not auto-run this pre-change contract after the R18 tracing UI exists.
 on:
   workflow_dispatch:
-  pull_request:
-    branches: [master]
-    paths:
-      - 'frontend/scripts/capture-cephalo-r18-tracing-before.mjs'
-      - '.github/workflows/cephalo-r18-tracing-before.yml'
 
 permissions:
   contents: read
@@ -18,11 +17,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.pull_request.head.sha || github.sha }}
-      - name: Assert exact product HEAD
-        env:
-          PRODUCT_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
-        run: test "$(git rev-parse HEAD)" = "$PRODUCT_HEAD"
+          ref: 26d0aaf7c1b674227de310715ef35ccf27c82c04
+      - name: Assert frozen product HEAD
+        run: test "$(git rev-parse HEAD)" = "26d0aaf7c1b674227de310715ef35ccf27c82c04"
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
@@ -34,20 +31,18 @@ jobs:
           npm ci
           npm install --no-save --package-lock=false --legacy-peer-deps playwright@1.55.0 react-is@19.2.0 @testing-library/dom@10.4.1
           npx playwright install --with-deps chromium
-      - name: Capture exact-head R18 tracing BEFORE
+      - name: Capture frozen R18 tracing BEFORE
         working-directory: frontend
         env:
-          PRODUCT_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+          PRODUCT_HEAD: 26d0aaf7c1b674227de310715ef35ccf27c82c04
         run: node scripts/capture-cephalo-r18-tracing-before.mjs
       - name: Verify BEFORE evidence contract
         working-directory: frontend
-        env:
-          PRODUCT_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
         run: |
           node --input-type=module <<'NODE'
           import { readFile } from 'node:fs/promises';
           const r=JSON.parse(await readFile('cephalo-r18-tracing-before-artifacts/report.json','utf8'));
-          if(r.productHead!==process.env.PRODUCT_HEAD||r.phase!=='BEFORE'||r.invalidCount!==0||r.blockedExternalRequests.length) throw new Error('Invalid R18 BEFORE evidence');
+          if(r.productHead!=='26d0aaf7c1b674227de310715ef35ccf27c82c04'||r.phase!=='BEFORE'||r.invalidCount!==0||r.blockedExternalRequests.length) throw new Error('Invalid R18 BEFORE evidence');
           if(r.captures.length!==3) throw new Error('Expected three viewports');
           for(const c of r.captures){if(!c.valid||c.metrics.hasAnalysisSelector||c.metrics.horizontalOverflow)throw new Error(`Invalid ${c.viewport}`)}
           NODE
@@ -55,7 +50,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: cephalo-r18-tracing-before-${{ github.sha }}
+          name: cephalo-r18-tracing-before-frozen-26d0aaf7
           path: frontend/cephalo-r18-tracing-before-artifacts
           if-no-files-found: error
           retention-days: 30
