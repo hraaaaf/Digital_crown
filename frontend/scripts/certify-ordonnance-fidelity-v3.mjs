@@ -67,6 +67,7 @@ async function measure(page) {
       const r = el.getBoundingClientRect();
       return style.display !== 'none' && style.visibility !== 'hidden' && r.width > 0 && r.height > 0;
     };
+    const inViewport = (r) => Boolean(r && r.bottom > 0 && r.top < window.innerHeight);
     const touchSelectors = [
       '[data-prescription-intelligence-studio="v1"] button',
       '[data-patient-clinical-context="c1"] input',
@@ -88,17 +89,27 @@ async function measure(page) {
     const prescriptionIndication = rect('[data-prescription-indication="document"]');
     const clinicalBlocked = rect('[data-clinical-rule-status="blocked"]');
     const safety = rect('[data-safety-status]');
+    const drugCard = rect('[data-ordonnance-drug-card]');
+    const addLineRect = addLine ? addLine.getBoundingClientRect() : null;
     const desktopPreview = rect('[data-ordonnance-desktop-preview="inline"]');
+    const clinicalRoot = document.querySelector('[data-patient-clinical-context="c1"]');
+    const clinicalFields = clinicalRoot
+      ? [...clinicalRoot.querySelectorAll('input, select, textarea')].filter(visible).length
+      : 0;
     return {
       studio,
       clinicalContext,
       prescriptionIndication,
       clinicalBlocked,
       safety,
-      drugCard: rect('[data-ordonnance-drug-card]'),
+      drugCard,
+      drugCardInViewport: inViewport(drugCard),
+      addLine: addLineRect ? { height: addLineRect.height, top: addLineRect.top, bottom: addLineRect.bottom } : null,
+      addLineInViewport: inViewport(addLineRect),
+      clinicalExpanded: clinicalRoot?.getAttribute('data-context-expanded') === 'true',
+      clinicalFields,
       desktopPreview,
       visibleEditorWidth: studio && desktopPreview ? Math.max(0, desktopPreview.left - studio.left) : null,
-      addLine: addLine ? { height: addLine.getBoundingClientRect().height } : null,
       touchMin: touchHeights.length ? Math.min(...touchHeights) : null,
       touchCount: touchHeights.length,
       noHorizontalOverflow: doc.scrollWidth <= doc.clientWidth + 2,
@@ -126,13 +137,27 @@ for (const viewport of viewports) {
   await page.screenshot({ path: path.join(outDir, topShot), fullPage: false });
 
   const addLine = page.getByRole('button', { name: /ajouter une ligne/i }).first();
-  if (await addLine.count()) {
-    await addLine.scrollIntoViewIfNeeded();
-    await page.waitForTimeout(180);
-  }
+  if (!(await addLine.count())) throw new Error('Add medication line action not found');
+  await addLine.scrollIntoViewIfNeeded();
+  await page.waitForTimeout(180);
   const planningMetrics = await measure(page);
   const planningShot = `ordonnance-fidelity-v3-${viewport.width}x${viewport.height}-planning.png`;
   await page.screenshot({ path: path.join(outDir, planningShot), fullPage: false });
+
+  const contextToggle = page.getByRole('button', { name: /renseigner/i }).first();
+  if (!(await contextToggle.count())) throw new Error('C1 context expand action not found');
+  await contextToggle.scrollIntoViewIfNeeded();
+  await contextToggle.click();
+  await page.locator('[data-patient-clinical-context="c1"][data-context-expanded="true"]').waitFor({ state: 'attached', timeout: 10000 });
+  await page.waitForTimeout(180);
+  const clinicalMetrics = await measure(page);
+  const clinicalShot = `ordonnance-fidelity-v3-${viewport.width}x${viewport.height}-clinical.png`;
+  await page.screenshot({ path: path.join(outDir, clinicalShot), fullPage: false });
+
+  const reduceContext = page.getByRole('button', { name: /réduire/i }).first();
+  if (!(await reduceContext.count())) throw new Error('C1 context reduce action not found');
+  await reduceContext.click();
+  await page.waitForTimeout(120);
 
   let previewScene = null;
   if (viewport.width >= 1280) {
@@ -152,6 +177,7 @@ for (const viewport of viewports) {
     viewport,
     top: { screenshot: topShot, metrics: topMetrics },
     planning: { screenshot: planningShot, metrics: planningMetrics },
+    clinical: { screenshot: clinicalShot, metrics: clinicalMetrics },
     preview: previewScene,
     pageErrors,
   });
@@ -165,11 +191,25 @@ for (const capture of captures) {
     const metrics = capture[scene].metrics;
     if (!metrics.studio) failures.push(`${capture.viewport.width}-${scene}: V1 studio missing`);
     if (!metrics.clinicalContext) failures.push(`${capture.viewport.width}-${scene}: C1 clinical context missing`);
+    if (metrics.clinicalExpanded) failures.push(`${capture.viewport.width}-${scene}: C1 must be compact by default`);
     if (!metrics.prescriptionIndication) failures.push(`${capture.viewport.width}-${scene}: document-scoped indication missing`);
     if (!metrics.clinicalBlocked) failures.push(`${capture.viewport.width}-${scene}: fail-closed clinical status missing`);
     if (!metrics.noHorizontalOverflow) failures.push(`${capture.viewport.width}-${scene}: horizontal overflow`);
     if (metrics.touchMin !== null && metrics.touchMin < 43.5) failures.push(`${capture.viewport.width}-${scene}: touch target ${metrics.touchMin}`);
   }
+
+  const planningMetrics = capture.planning.metrics;
+  if (!planningMetrics.drugCard) failures.push(`${capture.viewport.width}-planning: medication card missing`);
+  if (!planningMetrics.drugCardInViewport) failures.push(`${capture.viewport.width}-planning: medication card not visible with add-line planning scene`);
+  if (!planningMetrics.addLineInViewport) failures.push(`${capture.viewport.width}-planning: add-line action not visible`);
+
+  const clinicalMetrics = capture.clinical.metrics;
+  if (!clinicalMetrics.clinicalContext) failures.push(`${capture.viewport.width}-clinical: C1 context missing`);
+  if (!clinicalMetrics.clinicalExpanded) failures.push(`${capture.viewport.width}-clinical: C1 context did not expand`);
+  if (clinicalMetrics.clinicalFields < 4) failures.push(`${capture.viewport.width}-clinical: expected structured C1 fields visible`);
+  if (!clinicalMetrics.noHorizontalOverflow) failures.push(`${capture.viewport.width}-clinical: horizontal overflow`);
+  if (clinicalMetrics.touchMin !== null && clinicalMetrics.touchMin < 43.5) failures.push(`${capture.viewport.width}-clinical: touch target ${clinicalMetrics.touchMin}`);
+
   if (capture.viewport.width >= 1280) {
     const previewMetrics = capture.preview?.metrics;
     if (!previewMetrics?.desktopPreview) failures.push(`${capture.viewport.width}-preview: inline preview missing`);
@@ -177,6 +217,7 @@ for (const capture of captures) {
     if ((previewMetrics?.studio?.width || 0) < 530) failures.push(`${capture.viewport.width}-preview: editor layout width below 530px`);
     if ((previewMetrics?.visibleEditorWidth || 0) < 495) failures.push(`${capture.viewport.width}-preview: visible editor width below 495px`);
     if (!previewMetrics?.clinicalContext) failures.push(`${capture.viewport.width}-preview: C1 clinical context missing`);
+    if (previewMetrics?.clinicalExpanded) failures.push(`${capture.viewport.width}-preview: C1 should be compact after explicit reduce`);
     if (!previewMetrics?.prescriptionIndication) failures.push(`${capture.viewport.width}-preview: document-scoped indication missing`);
     if (!previewMetrics?.clinicalBlocked) failures.push(`${capture.viewport.width}-preview: fail-closed clinical status missing`);
     if (!previewMetrics?.noHorizontalOverflow) failures.push(`${capture.viewport.width}-preview: horizontal overflow`);
