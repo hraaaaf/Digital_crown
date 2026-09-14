@@ -108,6 +108,9 @@ def _prepared_fixture(client, auth_headers, db, dentiste, tmp_path):
     patient_id = _patient(client, auth_headers)
     catalog_act = _catalog_act(db)
     catalog_act_id = catalog_act.id
+    # Document generation renders in a separate SessionLocal/thread, so the
+    # reference act must be committed before the HTTP call can resolve it.
+    db.commit()
     _honoraires(client, auth_headers, patient_id, catalog_act_id)
     document = db.query(models.DocumentArchive).filter(
         models.DocumentArchive.patient_id == patient_id,
