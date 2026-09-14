@@ -30,19 +30,20 @@ describe('Ordonnance Perfect V2 UX contract', () => {
     expect(prescription).not.toContain('QuickEntryBar');
   });
 
-  it('does not expose legacy protocol presets in the V1 prescription flow', () => {
+  it('does not expose legacy protocol presets or internal certification copy in the prescription flow', () => {
     expect(prescription).not.toContain('data-ordonnance-protocol-chips');
     expect(prescription).not.toContain('DEFAULT_MOROCCO_PRESETS.map');
     expect(prescription).not.toContain('applySystemProtocol');
-    expect(prescription).toContain('Suggestion clinique bloquée');
+    expect(prescription).not.toContain('Suggestion clinique bloquée');
+    expect(prescription).not.toContain('Contrôle clinique automatique bloqué');
+    expect(prescription).not.toContain('Prescription Intelligence V1');
   });
 
-  it('keeps clinical automation explicitly fail-closed', () => {
-    expect(prescription).toContain('Prescription Intelligence V1');
-    expect(prescription).toContain('Recherche documentaire → présentation explicite → validation praticien');
+  it('keeps clinical automation fail-closed through internal markers without practitioner-facing warnings', () => {
+    expect(prescription).toContain('Prescription');
+    expect(prescription).toContain('Recherche médicament → présentation → validation');
     expect(prescription).toContain('data-clinical-rule-status="blocked"');
     expect(prescription).toContain('data-safety-status="blocked"');
-    expect(prescription).toContain('Contrôle clinique automatique bloqué.');
     expect(prescription).not.toContain("api.post('/prescriptions/safety/check'");
     expect(prescription).toContain('min-h-11');
   });

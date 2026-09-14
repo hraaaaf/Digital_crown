@@ -40,6 +40,8 @@ describe('PatientClinicalContextPanel C1', () => {
 
     const expand = await screen.findByRole('button', { name: /Renseigner/i });
     expect(api.get).toHaveBeenCalledWith('/patients/42/clinical-context');
+    expect(screen.getByText('Contexte patient')).toBeInTheDocument();
+    expect(screen.getByText(/Poids, allergies et informations rénales ou hépatiques utiles à la prescription/i)).toBeInTheDocument();
     expect(screen.getByText(/Poids :/i)).toBeInTheDocument();
     expect(screen.getByText(/non renseigné/i)).toBeInTheDocument();
     expect(screen.queryByLabelText('Poids explicite en kilogrammes')).not.toBeInTheDocument();
@@ -51,7 +53,7 @@ describe('PatientClinicalContextPanel C1', () => {
     expect(screen.getByLabelText('Statut du contexte rénal')).toHaveValue('UNKNOWN');
     expect(screen.getByLabelText('Statut du contexte hépatique')).toHaveValue('UNKNOWN');
     expect(screen.queryByLabelText(/Indication/i)).not.toBeInTheDocument();
-    expect(screen.getByText(/Aucun calcul de dose n’est activé/i)).toBeInTheDocument();
+    expect(screen.queryByText(/Aucun calcul de dose n’est activé/i)).not.toBeInTheDocument();
   });
 
   it('enregistre uniquement les faits patient explicitement saisis puis replie le panneau', async () => {
