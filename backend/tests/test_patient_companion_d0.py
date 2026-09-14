@@ -12,6 +12,9 @@ from backend.routers import patient_companion_activation, patient_companion_comm
 from backend.security import get_password_hash
 from backend.services.firebase_patient_auth import FirebasePatientAuthInvalid, FirebasePatientCredential
 
+EMAIL_A = "a@example.test"
+EMAIL_B = "b@example.test"
+
 
 def _user(db, email):
     user = models.User(
@@ -60,8 +63,12 @@ def _patient_headers(firebase_token="firebase-a"):
 def _fake_patient_auth(monkeypatch):
     now = datetime.now(timezone.utc)
     credentials = {
-        "firebase-a": FirebasePatientCredential("firebase-subject-a", now, now + timedelta(hours=1), now),
-        "firebase-b": FirebasePatientCredential("firebase-subject-b", now, now + timedelta(hours=1), now),
+        "firebase-a": FirebasePatientCredential(
+            "firebase-subject-a", now, now + timedelta(hours=1), now, verified_email=EMAIL_A
+        ),
+        "firebase-b": FirebasePatientCredential(
+            "firebase-subject-b", now, now + timedelta(hours=1), now, verified_email=EMAIL_B
+        ),
     }
 
     def _verify(token):
@@ -73,11 +80,12 @@ def _fake_patient_auth(monkeypatch):
     monkeypatch.setattr(patient_companion_activation, "check_rate_limit", lambda *_a, **_kw: None)
 
 
-def _invite(client, headers, patient_id, **payload):
+def _invite(client, headers, patient_id, *, recipient=EMAIL_A, **payload):
+    request = {"recipient_type": "email", "recipient": recipient, **payload}
     response = client.post(
         f"/api/patient-companion/admin/patients/{patient_id}/invitation",
         headers=headers,
-        json=payload,
+        json=request,
     )
     assert response.status_code == 201, response.text
     return response.json()
@@ -92,7 +100,7 @@ def _activate(client, firebase_token="firebase-a", **payload):
     )
 
 
-def test_invitation_is_hashed_single_use_and_staff_jwt_is_not_patient_auth(client, db):
+def test_invitation_is_hashed_bound_single_use_and_staff_jwt_is_not_patient_auth(client, db):
     owner = _user(db, "owner-a@test.local")
     patient = _patient(db, owner, "A")
     staff = _staff_headers(client, owner)
@@ -101,9 +109,16 @@ def test_invitation_is_hashed_single_use_and_staff_jwt_is_not_patient_auth(clien
     assert row.employer_id == owner.id and row.patient_id == patient.id
     assert row.token_hash != invitation["qr_token"]
     assert row.manual_code_hash != invitation["manual_code"].replace("-", "")
+    assert row.recipient_type == "email"
+    assert row.recipient_hash != EMAIL_A
 
     client.cookies.clear()
     assert client.get("/api/patient-companion/me", headers=staff).status_code == 401
+
+    stolen_qr = _activate(client, "firebase-b", token=invitation["qr_token"])
+    assert stolen_qr.status_code == 403
+    db.refresh(row)
+    assert row.consumed_at is None
 
     activated = _activate(client, "firebase-a", token=invitation["qr_token"])
     assert activated.status_code == 200, activated.text
@@ -137,16 +152,16 @@ def test_cross_tenant_invitation_and_cross_identity_context_fail_closed(client, 
     assert client.post(
         f"/api/patient-companion/admin/patients/{pb.id}/invitation",
         headers=staff_a,
-        json={},
+        json={"recipient_type": "email", "recipient": EMAIL_A},
     ).status_code == 404
 
-    ia = _invite(client, staff_a, pa.id)
+    ia = _invite(client, staff_a, pa.id, recipient=EMAIL_A)
     activation_a = _activate(client, "firebase-a", token=ia["qr_token"])
     assert activation_a.status_code == 200
     access_a = activation_a.json()["access_id"]
 
     staff_b = _staff_headers(client, owner_b)
-    ib = _invite(client, staff_b, pb.id)
+    ib = _invite(client, staff_b, pb.id, recipient=EMAIL_B)
     activation_b = _activate(client, "firebase-b", token=ib["qr_token"])
     assert activation_b.status_code == 200
     access_b = activation_b.json()["access_id"]
@@ -243,7 +258,19 @@ def test_invalid_patient_scheme_and_invalid_firebase_token_fail_closed(client):
     ).status_code == 401
 
 
-def test_firebase_verifier_requests_revocation_check(monkeypatch):
+def test_phone_recipient_requires_e164(client, db):
+    owner = _user(db, "owner-phone@test.local")
+    patient = _patient(db, owner, "Phone")
+    staff = _staff_headers(client, owner)
+    response = client.post(
+        f"/api/patient-companion/admin/patients/{patient.id}/invitation",
+        headers=staff,
+        json={"recipient_type": "phone", "recipient": "0612345678"},
+    )
+    assert response.status_code == 422
+
+
+def test_firebase_verifier_requests_revocation_check_and_verified_contact(monkeypatch):
     from backend.services import firebase_patient_auth as service
     sentinel_app = object()
     seen = {}
@@ -251,8 +278,17 @@ def test_firebase_verifier_requests_revocation_check(monkeypatch):
 
     def _verify(token, *, app, check_revoked):
         seen.update(token=token, app=app, check_revoked=check_revoked)
-        return {"uid": "firebase-subject-test", "iat": 1700000000, "exp": 1700003600, "auth_time": 1700000000}
+        return {
+            "uid": "firebase-subject-test",
+            "iat": 1700000000,
+            "exp": 1700003600,
+            "auth_time": 1700000000,
+            "email": "Verified@Example.Test",
+            "email_verified": True,
+        }
 
     monkeypatch.setattr(service.firebase_auth, "verify_id_token", _verify)
-    assert service.verify_patient_id_token("opaque-token").subject == "firebase-subject-test"
+    credential = service.verify_patient_id_token("opaque-token")
+    assert credential.subject == "firebase-subject-test"
+    assert credential.verified_email == "verified@example.test"
     assert seen == {"token": "opaque-token", "app": sentinel_app, "check_revoked": True}
