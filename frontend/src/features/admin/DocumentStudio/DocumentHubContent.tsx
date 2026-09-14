@@ -103,10 +103,9 @@ export const DocumentHubContent: React.FC<DocumentHubContentProps> = ({
           }}
           onAddDrug={() => setDrugs(previous => [
             ...previous,
-            { id: Date.now(), name: '', dosage: '', forme: 'Comprimés', posologie: '', type: 'MEDICAMENT' },
+            { id: Date.now(), name: '', dosage: '', forme: '', posologie: '', type: 'MEDICAMENT' },
           ])}
           validationErrors={generator.validationErrors}
-          onSaveHabit={(context, nextDrugs) => generator.handleSavePreference({ protocol_name: context }, nextDrugs)}
           hasChanges={generator.hasChanges}
           coherenceWarnings={generator.coherenceWarnings}
         />
