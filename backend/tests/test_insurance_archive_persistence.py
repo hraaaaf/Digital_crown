@@ -11,6 +11,7 @@ from backend.schemas.insurance_submission import (
     InsuranceSubmissionDraft,
     InsuranceSubmissionLine,
     InsuranceTemplateSnapshot,
+    InsuranceTemplateTrust,
 )
 from backend.services.insurance_submission import archive_validated_insurance_pdf
 
@@ -45,6 +46,7 @@ def test_insurance_archive_persists_pdf_snapshot(db, dentiste, tmp_path, monkeyp
             template_version="CNSS-610-1-04",
             template_hash="a" * 64,
             source_url="https://example.invalid/cnss.pdf",
+            trust=InsuranceTemplateTrust.CABINET_VALIDATED_BINARY,
         ),
         reference=InsuranceReferenceSnapshot(
             ngap_reference_version="arrete-177-06-test",
@@ -67,5 +69,6 @@ def test_insurance_archive_persists_pdf_snapshot(db, dentiste, tmp_path, monkeyp
     assert document.clinical_data["source_honoraires_document_id"] == 42
     assert document.clinical_data["template_hash"] == "a" * 64
     assert document.clinical_data["ngap_reference_hash"] == "b" * 64
+    assert document.clinical_data["draft"]["template"]["trust"] == "CABINET_VALIDATED_BINARY"
     assert "insurance_submission" in document.tags
     assert "cnss" in document.tags
