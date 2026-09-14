@@ -53,6 +53,10 @@ def extract(case: dict) -> dict[str, float | None]:
     out['anb'] = safe(steiner.steiner_anb_deg_v1, p, ('S','N','A','B'), lambda v: js_round(v,1))
     out['i_na_angle'] = safe(steiner.steiner_u1_na_deg_v1, p, ('U1_apex','U1_incisal','N','A'), lambda v: js_round(v,0))
     out['i_nb_angle'] = safe(steiner.steiner_l1_nb_deg_v1, p, ('L1_apex','L1_incisal','N','B'), lambda v: js_round(v,0))
+    # Source-strict Steiner linear distances require a crown landmark that the
+    # current contract does not expose. Both runtimes therefore fail closed.
+    out['i_na_mm'] = None
+    out['i_nb_mm'] = None
     out['fma'] = safe(tweed.tweed_fma_deg_v1, p, ('Go','Me','Po','Or'), lambda v: js_round(v,0))
     out['impa'] = safe(tweed.tweed_impa_deg_v1, p, ('L1_apex','L1_incisal','Go','Me'), lambda v: js_round(v,1))
     out['fmia'] = safe(tweed.tweed_fmia_deg_v1, p, ('L1_apex','L1_incisal','Po','Or'), lambda v: js_round(v,0))
@@ -61,7 +65,7 @@ def extract(case: dict) -> dict[str, float | None]:
     out['interincisal'] = safe(craniom.craniom_interincisal_deg_v1, p, ('U1_apex','U1_incisal','L1_apex','L1_incisal'), lambda v: js_round(v,0))
     for out_key, lip_key in (('eline_ls','Ls_soft'),('eline_li','Li_soft')):
         if ratio is not None and have(p, lip_key,'Prn','Pog_soft','Po','Or'):
-            value = ricketts.ricketts_e_line_horizontal_signed_distance_px_v1(
+            value = ricketts.ricketts_e_line_perpendicular_signed_distance_px_v2(
                 p[lip_key], p['Prn'], p['Pog_soft'], p['Po'], p['Or']
             )
             out[out_key] = None if value is None else js_round(value * float(ratio),1)
