@@ -80,7 +80,7 @@ class PatientCompanionAccess(Base):
 
 
 class PatientCompanionInvitation(Base):
-    """Short-lived single-use cabinet invitation for pairing a Firebase identity."""
+    """Short-lived single-use cabinet invitation for pairing a verified Firebase identity."""
 
     __tablename__ = "patient_companion_invitations"
     __table_args__ = (
@@ -111,6 +111,8 @@ class PatientCompanionInvitation(Base):
     )
     token_hash: Mapped[str] = mapped_column(String(64), unique=True, nullable=False, index=True)
     manual_code_hash: Mapped[str] = mapped_column(String(64), unique=True, nullable=False, index=True)
+    recipient_type: Mapped[str] = mapped_column(String(16), nullable=False)
+    recipient_hash: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
     relationship_type: Mapped[str] = mapped_column(String(24), nullable=False, default="SELF")
     created_by_user_id: Mapped[Optional[int]] = mapped_column(
         ForeignKey("users.id", ondelete="SET NULL"),
