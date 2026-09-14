@@ -5,6 +5,7 @@ import hmac
 import re
 import secrets
 from dataclasses import dataclass
+from datetime import datetime
 
 from fastapi import Depends, Header, HTTPException
 from sqlalchemy import and_
@@ -99,14 +100,32 @@ def require_companion_admin(current_user: models.User) -> None:
     if is_superadmin_user(current_user):
         return
     role = current_user.role.value if hasattr(current_user.role, "value") else str(current_user.role)
-    if role == "ADMIN":
-        return
-    if role == "DENTISTE" and current_user.employer_id is None:
+    if role in {"ADMIN", "DENTISTE"} and current_user.employer_id is None:
         return
     raise HTTPException(
         status_code=403,
         detail="Administration Patient Companion réservée au praticien principal.",
     )
+
+
+def require_companion_cabinet_write_license(db: Session, employer_id: int) -> None:
+    """Mirror the cabinet write lock for Firebase-authenticated activation.
+
+    Patient Companion Firebase requests intentionally do not use a cabinet JWT, so
+    the global license middleware cannot resolve a staff account for them. Activation
+    is a write and must therefore enforce the cabinet owner's local licence state
+    before creating any identity/access binding.
+    """
+    owner = db.query(models.User).filter(
+        models.User.id == int(employer_id),
+        models.User.employer_id.is_(None),
+    ).first()
+    if owner is None:
+        raise HTTPException(status_code=403, detail="Cabinet indisponible.")
+    if owner.is_suspended or owner.is_archived or not owner.is_licensed:
+        raise HTTPException(status_code=403, detail="Licence cabinet inactive.")
+    if owner.license_expires_at and datetime.utcnow() > owner.license_expires_at:
+        raise HTTPException(status_code=403, detail="Licence cabinet expirée.")
 
 
 def staff_patient_or_404(db: Session, current_user: models.User, patient_id: int) -> models.Patient:
