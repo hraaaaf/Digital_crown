@@ -17,7 +17,6 @@ type PatientClinicalContext = {
   renal_context_note: string | null;
   hepatic_context_status: OrganStatus;
   hepatic_context_note: string | null;
-  prescription_indication: string | null;
   updated_at?: string | null;
   updated_by_user_id?: number | null;
 };
@@ -30,7 +29,6 @@ const EMPTY_CONTEXT: PatientClinicalContext = {
   renal_context_note: null,
   hepatic_context_status: 'UNKNOWN',
   hepatic_context_note: null,
-  prescription_indication: null,
 };
 
 const fieldClass = 'min-h-[44px] w-full rounded-xl border border-border-main bg-background px-3 py-2 text-sm font-semibold text-text-main outline-none transition focus:border-accent/60 focus:ring-2 focus:ring-accent/10';
@@ -119,7 +117,6 @@ export function PatientClinicalContextPanel({ patientId }: { patientId?: number 
       renal_context_note: context.renal_context_status === 'IMPAIRMENT_REPORTED' ? context.renal_context_note : null,
       hepatic_context_status: context.hepatic_context_status,
       hepatic_context_note: context.hepatic_context_status === 'IMPAIRMENT_REPORTED' ? context.hepatic_context_note : null,
-      prescription_indication: context.prescription_indication,
     };
 
     try {
@@ -148,7 +145,7 @@ export function PatientClinicalContextPanel({ patientId }: { patientId?: number 
             <ShieldAlert size={13} /> Contexte clinique structuré
           </div>
           <p className="mt-1 text-[11px] font-semibold leading-relaxed text-text-muted">
-            Données factuelles saisies par le praticien. Aucun calcul de dose n’est activé par ces champs.
+            Données factuelles durables saisies par le praticien. Aucun calcul de dose n’est activé par ces champs.
           </p>
         </div>
         {loading && <Loader2 aria-label="Chargement du contexte clinique" size={17} className="shrink-0 animate-spin text-text-muted" />}
@@ -265,17 +262,6 @@ export function PatientClinicalContextPanel({ patientId }: { patientId?: number 
               />
             </label>
           )}
-
-          <label className="md:col-span-2">
-            <span className={labelClass}>Indication de cette prescription</span>
-            <textarea
-              aria-label="Indication de la prescription"
-              className={`${fieldClass} min-h-[64px] resize-y`}
-              value={context.prescription_indication ?? ''}
-              onChange={event => update('prescription_indication', event.target.value || null)}
-              placeholder="À saisir explicitement pour cette décision de prescription"
-            />
-          </label>
         </div>
       )}
 
