@@ -1,5 +1,5 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { AlertCircle, Plus, ShieldAlert, ShieldCheck } from 'lucide-react';
+import React, { useEffect, useMemo, useRef } from 'react';
+import { AlertCircle, Plus, ShieldAlert } from 'lucide-react';
 
 import { api } from '../../../../services/api';
 import {
@@ -26,9 +26,6 @@ export interface PrescriptionAgenticStudioProps {
   coherenceWarnings?: { level: string; message: string }[];
 }
 
-type SafetyWarning = { type?: string; message: string };
-type SafetyStatus = 'unchecked' | 'checking' | 'verified' | 'error';
-
 const fingerprint = (drugs: DrugItem[]): string => JSON.stringify(
   drugs.map(drug => ({
     id: drug.id,
@@ -54,7 +51,6 @@ const clearCatalogMetadata = (drug: DrugItem): DrugItem => ({
 });
 
 export const PrescriptionAgenticStudio: React.FC<PrescriptionAgenticStudioProps> = ({
-  patientId,
   drugs,
   setDrugs,
   onUpdateDrug,
@@ -62,19 +58,11 @@ export const PrescriptionAgenticStudio: React.FC<PrescriptionAgenticStudioProps>
   onAddDrug,
   validationErrors,
 }) => {
-  const [safetyStatus, setSafetyStatus] = useState<SafetyStatus>('unchecked');
-  const [safetyWarnings, setSafetyWarnings] = useState<SafetyWarning[]>([]);
   const baselineFingerprintRef = useRef<string | null>(null);
   const currentDrugsRef = useRef(drugs);
   currentDrugsRef.current = drugs;
 
   const currentFingerprint = useMemo(() => fingerprint(drugs), [drugs]);
-  const medicationNames = useMemo(
-    () => drugs
-      .filter(drug => drug.type !== 'EXAMEN' && drug.name.trim())
-      .map(drug => drug.name.trim()),
-    [drugs],
-  );
   const activeLineCount = drugs.filter(drug => drug.name.trim()).length;
 
   useEffect(() => {
@@ -132,39 +120,6 @@ export const PrescriptionAgenticStudio: React.FC<PrescriptionAgenticStudioProps>
     return () => window.removeEventListener('beforeunload', beforeUnload);
   }, []);
 
-  useEffect(() => {
-    if (!patientId.trim() || medicationNames.length === 0) {
-      setSafetyStatus('unchecked');
-      setSafetyWarnings([]);
-      return;
-    }
-
-    let cancelled = false;
-    setSafetyStatus('checking');
-    setSafetyWarnings([]);
-    const timer = window.setTimeout(async () => {
-      try {
-        const response = await api.post('/prescriptions/safety/check', {
-          patient_id: patientId,
-          drug_names: medicationNames,
-        });
-        if (cancelled) return;
-        setSafetyWarnings(Array.isArray(response.data) ? response.data : []);
-        setSafetyStatus('verified');
-      } catch (error) {
-        if (cancelled) return;
-        console.error('Prescription safety check failed:', error);
-        setSafetyWarnings([]);
-        setSafetyStatus('error');
-      }
-    }, 300);
-
-    return () => {
-      cancelled = true;
-      window.clearTimeout(timer);
-    };
-  }, [patientId, JSON.stringify(medicationNames)]);
-
   const moveDrug = (id: number, direction: 'up' | 'down') => {
     const index = drugs.findIndex(drug => drug.id === id);
     if (index < 0) return;
@@ -212,29 +167,13 @@ export const PrescriptionAgenticStudio: React.FC<PrescriptionAgenticStudioProps>
           </div>
 
           <div
-            data-safety-status={safetyStatus}
-            className="flex items-start gap-2 rounded-xl border border-border-main bg-card/70 px-3 py-2 text-[10px] font-semibold text-text-muted"
+            data-safety-status="blocked"
+            className="flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50/65 px-3 py-2 text-[10px] font-semibold text-amber-800"
           >
-            {safetyStatus === 'verified' && safetyWarnings.length === 0
-              ? <ShieldCheck size={14} className="mt-0.5 shrink-0 text-emerald-600" />
-              : <AlertCircle size={14} className="mt-0.5 shrink-0" />}
-            <div>
-              {safetyStatus === 'unchecked' && 'Contrôle de sécurité backend prêt après identification d’un médicament.'}
-              {safetyStatus === 'checking' && 'Contrôle de sécurité backend en cours…'}
-              {safetyStatus === 'verified' && safetyWarnings.length === 0 && 'Contrôle de sécurité backend exécuté : aucune alerte retournée.'}
-              {safetyStatus === 'verified' && safetyWarnings.length > 0 && `Revue praticien requise : ${safetyWarnings.length} alerte(s) retournée(s).`}
-              {safetyStatus === 'error' && 'Contrôle de sécurité indisponible : aucune validation implicite.'}
-            </div>
+            <AlertCircle size={14} className="mt-0.5 shrink-0" />
+            <div><span className="font-black">Contrôle clinique automatique bloqué.</span> Le moteur de sécurité legacy n’est pas une règle V1 certifiée et n’est donc pas appelé depuis ce flux.</div>
           </div>
         </div>
-
-        {safetyWarnings.length > 0 && (
-          <ul className="mt-2 space-y-1 rounded-xl border border-amber-200 bg-amber-50/65 px-3 py-2 text-[10px] font-semibold text-amber-800">
-            {safetyWarnings.slice(0, 5).map((warning, index) => (
-              <li key={`${warning.type || 'warning'}-${index}`}>• {warning.message}</li>
-            ))}
-          </ul>
-        )}
       </section>
 
       <div className="space-y-3">
