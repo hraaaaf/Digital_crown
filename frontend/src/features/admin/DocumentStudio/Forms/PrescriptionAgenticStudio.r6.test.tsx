@@ -16,7 +16,7 @@ vi.mock('../../../../services/api', () => ({
 import { PrescriptionAgenticStudio } from './PrescriptionAgenticStudio';
 
 describe('PrescriptionAgenticStudio V1 — isolation legacy', () => {
-  it('retire les automatismes prescriptifs legacy du chemin actif', () => {
+  it('retire les automatismes prescriptifs legacy du chemin actif sans exposer le jargon interne', () => {
     render(
       <PrescriptionAgenticStudio
         patientId=""
@@ -31,8 +31,11 @@ describe('PrescriptionAgenticStudio V1 — isolation legacy', () => {
       />,
     );
 
-    expect(screen.getByText('Prescription Intelligence V1')).toBeInTheDocument();
-    expect(screen.getByText(/Suggestion clinique bloquée/)).toBeInTheDocument();
+    expect(screen.getByText('Prescription')).toBeInTheDocument();
+    expect(screen.getByText('Recherche médicament → présentation → validation')).toBeInTheDocument();
+    expect(screen.queryByText(/Suggestion clinique bloquée/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Contrôle clinique automatique bloqué/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Prescription Intelligence V1/)).not.toBeInTheDocument();
     expect(screen.queryByText(/Protocoles Cliniques/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/Saisie rapide/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/Établir l'Ordonnance/i)).not.toBeInTheDocument();
