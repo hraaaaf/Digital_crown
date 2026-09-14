@@ -1,4 +1,4 @@
-"""Versioned geometry for the source-locked R9 Ricketts subset.
+"""Versioned geometry for the source-locked R9/R18 Ricketts subset.
 
 Only patient-observed geometry with explicitly versioned conventions is
 implemented here. No norms, classification, diagnosis, prognosis or treatment
@@ -41,7 +41,6 @@ def ricketts_facial_depth_deg_v1(
     pog: Point,
 ) -> Optional[float]:
     """Posterior angle from anatomical Frankfort Po->Or to facial plane Pog->N."""
-
     if not _finite_points(po, or_, n, pog):
         return None
     return _angle_deg(
@@ -57,7 +56,6 @@ def ricketts_constructed_gn_v1(
     me: Point,
 ) -> Optional[Point]:
     """Construct clinical Gn as intersection of N-Pog and Go-Me infinite lines."""
-
     if not _finite_points(n, pog, go, me):
         return None
     facial = (pog[0] - n[0], pog[1] - n[1])
@@ -80,7 +78,6 @@ def ricketts_facial_axis_deg_v1(
     gn_constructed: Point,
 ) -> Optional[float]:
     """Inferior/non-reflex angle between Ba->N and Pt->constructed-Gn."""
-
     if not _finite_points(ba, n, pt, gn_constructed):
         return None
     return _angle_deg(
@@ -96,12 +93,7 @@ def ricketts_convexity_signed_distance_px_v1(
     po: Point,
     or_: Point,
 ) -> Optional[float]:
-    """Signed perpendicular A-to-NPog distance in source pixels.
-
-    Magnitude is the shortest point-to-line distance. Sign is positive when the
-    perpendicular residual points anteriorly along anatomical Frankfort Po->Or.
-    """
-
+    """Signed perpendicular A-to-NPog distance in source pixels."""
     if not _finite_points(a, n, pog, po, or_):
         return None
     facial = (pog[0] - n[0], pog[1] - n[1])
@@ -110,7 +102,6 @@ def ricketts_convexity_signed_distance_px_v1(
     fh_len = math.hypot(*fh)
     if facial_len_sq <= _EPS or fh_len <= _EPS:
         return None
-
     t = ((a[0] - n[0]) * facial[0] + (a[1] - n[1]) * facial[1]) / facial_len_sq
     projection = (n[0] + t * facial[0], n[1] + t * facial[1])
     residual = (a[0] - projection[0], a[1] - projection[1])
@@ -119,7 +110,6 @@ def ricketts_convexity_signed_distance_px_v1(
         return None
     if magnitude <= _EPS:
         return 0.0
-
     anterior_score = residual[0] * (fh[0] / fh_len) + residual[1] * (fh[1] / fh_len)
     if not math.isfinite(anterior_score) or abs(anterior_score) <= _EPS:
         return None
@@ -133,12 +123,11 @@ def ricketts_e_line_horizontal_signed_distance_px_v1(
     po: Point,
     or_: Point,
 ) -> Optional[float]:
-    """Signed lip-to-E-line distance measured parallel to anatomical Frankfort.
+    """Legacy V1: signed E-line displacement measured parallel to Frankfort.
 
-    The value is the scalar displacement from the E-line to the lip along the
-    anterior unit direction Po->Or. Positive is anterior; negative posterior.
+    Retained only so persisted V1 evidence keeps immutable semantics. New R18
+    evidence uses the source-strict perpendicular V2 convention below.
     """
-
     if not _finite_points(lip, prn, pog_soft, po, or_):
         return None
     fh = (or_[0] - po[0], or_[1] - po[1])
@@ -152,3 +141,39 @@ def ricketts_e_line_horizontal_signed_distance_px_v1(
         return None
     displacement = _cross((lip[0] - prn[0], lip[1] - prn[1]), e_line) / denominator
     return displacement if math.isfinite(displacement) else None
+
+
+def ricketts_e_line_perpendicular_signed_distance_px_v2(
+    lip: Point,
+    prn: Point,
+    pog_soft: Point,
+    po: Point,
+    or_: Point,
+) -> Optional[float]:
+    """R18 V2: signed shortest/perpendicular lip distance to Prn-Pog'.
+
+    Magnitude is the perpendicular point-to-line distance. Frankfort Po->Or is
+    used only to orient the sign (positive anterior, negative posterior), never
+    to change the distance magnitude. V2 is mirror-invariant and matches the
+    source-strict cephalometric E-line definition used by the runtime/frontend.
+    """
+    if not _finite_points(lip, prn, pog_soft, po, or_):
+        return None
+    e_line = (pog_soft[0] - prn[0], pog_soft[1] - prn[1])
+    e_len_sq = e_line[0] ** 2 + e_line[1] ** 2
+    fh = (or_[0] - po[0], or_[1] - po[1])
+    fh_len = math.hypot(*fh)
+    if e_len_sq <= _EPS or fh_len <= _EPS:
+        return None
+    t = ((lip[0] - prn[0]) * e_line[0] + (lip[1] - prn[1]) * e_line[1]) / e_len_sq
+    projection = (prn[0] + t * e_line[0], prn[1] + t * e_line[1])
+    residual = (lip[0] - projection[0], lip[1] - projection[1])
+    magnitude = math.hypot(*residual)
+    if not math.isfinite(magnitude):
+        return None
+    if magnitude <= _EPS:
+        return 0.0
+    anterior_score = residual[0] * (fh[0] / fh_len) + residual[1] * (fh[1] / fh_len)
+    if not math.isfinite(anterior_score) or abs(anterior_score) <= _EPS:
+        return None
+    return math.copysign(magnitude, anterior_score)
