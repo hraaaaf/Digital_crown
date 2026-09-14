@@ -66,7 +66,10 @@ export const PrescriptionAgenticStudio: React.FC<PrescriptionAgenticStudioProps>
 
   const currentFingerprint = useMemo(() => fingerprint(drugs), [drugs]);
   const activeLineCount = drugs.filter(drug => drug.name.trim()).length;
-  const numericPatientId = Number(patientId);
+  const numericPatientId = patientId.trim() ? Number(patientId) : Number.NaN;
+  const contextPatientId = Number.isInteger(numericPatientId) && numericPatientId > 0
+    ? numericPatientId
+    : undefined;
 
   useEffect(() => {
     if (baselineFingerprintRef.current === null) {
@@ -179,7 +182,7 @@ export const PrescriptionAgenticStudio: React.FC<PrescriptionAgenticStudioProps>
         </div>
       </section>
 
-      <PatientClinicalContextPanel patientId={Number.isFinite(numericPatientId) ? numericPatientId : undefined} />
+      <PatientClinicalContextPanel patientId={contextPatientId} />
 
       <div className="space-y-3">
         {drugs.map((drug, idx) => (
