@@ -8,7 +8,8 @@ const source = (file: string) => readFileSync(
 );
 
 const header = source('StudioHeader.tsx');
-const prescription = source('Forms/PrescriptionAgenticStudio.tsx');
+const prescription = source('Forms/PrescriptionAgenticStudioV1.tsx');
+const drugRow = source('Forms/DrugRowV1.tsx');
 const livePreview = source('LivePreview.tsx');
 
 describe('Ordonnance Perfect V2 UX contract', () => {
@@ -24,27 +25,25 @@ describe('Ordonnance Perfect V2 UX contract', () => {
     expect(header).toContain('compactOrdonnance ? "relative z-20" : "sticky top-0 z-[60]"');
   });
 
-  it('never lets positional legacy masking hide the semantic quick-entry surface', () => {
-    expect(prescription).toContain('div:nth-child(2):not(:has([data-ordonnance-quick-entry]))');
+  it('keeps legacy quick-entry hidden from the active V1 clinical path', () => {
+    expect(drugRow).toContain('[data-ordonnance-quick-entry] { display: none !important; }');
+    expect(prescription).not.toContain('QuickEntryBar');
   });
 
-  it('exposes the existing system protocols as 44px quick chips without bypassing the legacy safety path', () => {
-    expect(prescription).toContain('data-ordonnance-protocol-chips');
-    expect(prescription).toContain('DEFAULT_MOROCCO_PRESETS.map');
-    expect(prescription).toContain("systemSelect.dispatchEvent(new Event('change', { bubbles: true }))");
-    expect(prescription).toContain('onClick={() => applySystemProtocol(preset.label)}');
-    expect(prescription).toContain('min-h-11');
+  it('does not expose legacy protocol presets in the V1 prescription flow', () => {
+    expect(prescription).not.toContain('data-ordonnance-protocol-chips');
+    expect(prescription).not.toContain('DEFAULT_MOROCCO_PRESETS.map');
+    expect(prescription).not.toContain('applySystemProtocol');
+    expect(prescription).toContain('Suggestion clinique bloquée');
   });
 
-  it('keeps deterministic prescription safety and established clinical copy visible', () => {
-    expect(prescription).toContain('Contexte patient');
-    expect(prescription).toContain('Données du dossier et vérifications déterministes utilisées pour l’ordonnance en cours.');
-    expect(prescription).toContain('renseignée');
+  it('keeps deterministic prescription safety and fail-closed clinical copy visible', () => {
+    expect(prescription).toContain('Prescription Intelligence V1');
+    expect(prescription).toContain('Recherche documentaire → présentation explicite → validation praticien');
+    expect(prescription).toContain('data-clinical-rule-status="blocked"');
     expect(prescription).toContain('data-safety-status={safetyStatus}');
     expect(prescription).toContain("api.post('/prescriptions/safety/check'");
-    expect(prescription).toContain('dark:bg-slate-900/45');
-    expect(prescription).toContain('Mes protocoles');
-    expect(prescription).toContain('Actualiser le contexte');
+    expect(prescription).toContain('Contrôle de sécurité indisponible : aucune validation implicite.');
     expect(prescription).toContain('min-h-11');
   });
 
