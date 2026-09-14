@@ -38,7 +38,7 @@ describe('Ordonnance Fidelity V3 U1 hierarchy', () => {
 
   it('orders blocked clinical guidance and safety before the prescription body', () => {
     const blockedIndex = prescription.indexOf('data-clinical-rule-status="blocked"');
-    const safetyIndex = prescription.indexOf('data-safety-status={safetyStatus}');
+    const safetyIndex = prescription.indexOf('data-safety-status="blocked"');
     const prescriptionBodyIndex = prescription.indexOf('<DrugRow');
     expect(blockedIndex).toBeGreaterThan(-1);
     expect(safetyIndex).toBeGreaterThan(-1);
