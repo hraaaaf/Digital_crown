@@ -1,9 +1,9 @@
 """Versioned, fail-closed NGAP reference primitives for dental insurance submissions.
 
 The production reference deliberately remains locked while the authoritative source
-binary/hash is unavailable. A release can resolve EXACT only when it is explicitly
-VERIFIED_PRIMARY, carries a SHA-256 source hash, and contains an exact code entry.
-No label/fuzzy matching exists here.
+binary/hash is unavailable. A release or database mapping can resolve EXACT only when
+it is explicitly VERIFIED_PRIMARY, carries a SHA-256 source hash, is in its validity
+window, and is linked explicitly to a CatalogAct. No label/fuzzy matching exists here.
 """
 
 from __future__ import annotations
@@ -13,12 +13,16 @@ from datetime import date
 from enum import Enum
 from typing import Mapping, Optional
 
+from sqlalchemy.orm import Session
+
+from backend import models
 from backend.schemas.insurance_submission import InsuranceMappingStatus
 
 
 class NgapCodeKind(str, Enum):
     NGAP = "NGAP"
     INTERNAL = "INTERNAL"
+    OTHER = "OTHER"
 
 
 class NgapReferenceStatus(str, Enum):
@@ -44,6 +48,7 @@ class NgapRelease:
     source_url: str
     status: NgapReferenceStatus
     source_hash: Optional[str] = None
+    publication_reference: Optional[str] = None
     valid_from: Optional[date] = None
     valid_to: Optional[date] = None
     entries: Mapping[str, NgapEntry] = field(default_factory=dict)
@@ -70,6 +75,8 @@ class NgapResolution:
     mapping_rule_id: Optional[str] = None
     release_version: Optional[str] = None
     release_hash: Optional[str] = None
+    requires_prior_approval: bool = False
+    requires_radiograph: bool = False
 
 
 def resolve_ngap_code(
@@ -81,7 +88,7 @@ def resolve_ngap_code(
 ) -> NgapResolution:
     """Resolve an explicit catalog code against one locked reference release.
 
-    INTERNAL codes and missing codes are never interpreted as NGAP. An unlocked,
+    INTERNAL/OTHER codes and missing codes are never interpreted as NGAP. An unlocked,
     pending or expired release returns OUTDATED before inspecting entries.
     """
     if code_kind != NgapCodeKind.NGAP or not str(catalog_code or "").strip():
@@ -111,17 +118,96 @@ def resolve_ngap_code(
         mapping_rule_id=entry.mapping_rule_id,
         release_version=release.version,
         release_hash=release.source_hash,
+        requires_prior_approval=entry.requires_prior_approval,
+        requires_radiograph=entry.requires_radiograph,
     )
 
 
-# Real authority metadata is known, but the official binary could not yet be
-# retrieved reproducibly for SHA-256 locking. Therefore entries remain empty and
-# automatic mapping is intentionally impossible on this release object.
+def resolve_catalog_act_ngap(
+    db: Session,
+    *,
+    catalog_act_id: int,
+    reference_version: str,
+    on_date: Optional[date] = None,
+) -> NgapResolution:
+    """Resolve one CatalogAct through an explicit versioned regulatory mapping row.
+
+    This is the runtime path intended for insurance submissions. It never reads or
+    interprets ``CatalogAct.code`` because that legacy field may contain NGAP or an
+    internal code. The separate mapping row is the only accepted classification.
+    """
+    from backend.models_ngap_reference import NgapCatalogMapping
+
+    catalog_act = db.query(models.CatalogAct).filter(
+        models.CatalogAct.id == int(catalog_act_id),
+        models.CatalogAct.is_active.is_(True),
+    ).first()
+    if catalog_act is None:
+        return NgapResolution(status=InsuranceMappingStatus.NO_MATCH)
+
+    mapping = db.query(NgapCatalogMapping).filter(
+        NgapCatalogMapping.catalog_act_id == catalog_act.id,
+        NgapCatalogMapping.reference_version == str(reference_version),
+    ).first()
+    if mapping is None:
+        return NgapResolution(status=InsuranceMappingStatus.NO_MATCH)
+
+    if mapping.code_kind != NgapCodeKind.NGAP.value:
+        return NgapResolution(status=InsuranceMappingStatus.NO_MATCH)
+
+    effective_date = on_date or date.today()
+    source_hash = str(mapping.source_hash or "")
+    locked = (
+        mapping.verification_status == NgapReferenceStatus.VERIFIED_PRIMARY.value
+        and len(source_hash) == 64
+        and (mapping.valid_from is None or effective_date >= mapping.valid_from)
+        and (mapping.valid_to is None or effective_date <= mapping.valid_to)
+    )
+    if not locked:
+        return NgapResolution(
+            status=InsuranceMappingStatus.OUTDATED,
+            release_version=mapping.reference_version,
+            release_hash=mapping.source_hash,
+        )
+
+    if not mapping.ngap_code or mapping.coefficient is None or not mapping.mapping_rule_id:
+        return NgapResolution(
+            status=InsuranceMappingStatus.OUTDATED,
+            release_version=mapping.reference_version,
+            release_hash=mapping.source_hash,
+        )
+
+    return NgapResolution(
+        status=InsuranceMappingStatus.EXACT,
+        code=mapping.ngap_code,
+        coefficient=float(mapping.coefficient),
+        official_label=mapping.official_label,
+        mapping_rule_id=mapping.mapping_rule_id,
+        release_version=mapping.reference_version,
+        release_hash=mapping.source_hash,
+        requires_prior_approval=bool(mapping.requires_prior_approval),
+        requires_radiograph=bool(mapping.requires_radiograph),
+    )
+
+
+# Primary authority is the Moroccan Ministry of Health regulation database.
+# The same arrêté is also indexed by data.gov.ma and CNOPS, but exact bytes could
+# not be retrieved reproducibly in this session; no hash is fabricated.
 DENTAL_NGAP_PRIMARY_PENDING = NgapRelease(
     version="arrete-177-06",
-    authority="Ministere de la Sante / CNOPS",
-    source_url="https://cnops.org.ma/sites/default/files/2022-10/Nomeclature_0.pdf",
+    authority="Ministere de la Sante et de la Protection Sociale",
+    source_url=(
+        "https://www.sante.gov.ma/Reglementation/Nomenclature/Documents/"
+        "Arr%C3%AAt%C3%A9%20n%C2%B0%20177-06.pdf"
+    ),
+    publication_reference="B.O. n° 5414 du 20/04/2006",
     status=NgapReferenceStatus.PRIMARY_HASH_PENDING,
     source_hash=None,
     entries={},
+)
+
+DENTAL_NGAP_CORROBORATING_URLS = (
+    "https://data.gov.ma/data/fr/dataset/b8425cb6-828f-4fa9-9f02-cdd372d18f65/resource/"
+    "f66d23ac-012f-4439-ac99-4beb129ce640/download/ngap-cnops-2014.pdf",
+    "https://cnops.org.ma/sites/default/files/2022-10/Nomeclature_0.pdf",
 )
