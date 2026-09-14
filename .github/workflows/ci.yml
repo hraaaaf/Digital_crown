@@ -4,6 +4,15 @@ name: CI
 # Gate de pré-production : durcissement config + suite de tests (sécurité,
 # contrôle d'accès, capsule IA, Crown Bot). Aucune donnée patient n'est touchée :
 # les tests tournent sur SQLite in-memory isolé (voir backend/tests/conftest.py).
+#
+# INVARIANT ABSOLU DE NON-RÉGRESSION
+# Toute modification doit préserver intégralement l'existant.
+# Elle ne doit casser, altérer, perdre ou rendre incompatibles ni la base de données
+# et ses données existantes, ni les dossiers patients, ni les documents existants
+# (lecture, génération, archivage), ni une fonctionnalité déjà validée.
+# Une CI verte ne constitue pas à elle seule la preuve de cette préservation :
+# tout changement à risque doit ajouter/adapter les tests de non-régression nécessaires
+# et, lorsqu'il touche DB/patients/documents, être complété par le rehearsal approprié.
 
 on:
   push:
@@ -44,7 +53,7 @@ jobs:
       - name: Prod safety check (config hardening)
         run: python scripts/prod_safety_check.py
 
-      - name: Test suite
+      - name: Full backend regression suite (DB / patients / documents included)
         run: python -m pytest backend/tests -q --maxfail=1
 
   frontend:
