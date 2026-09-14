@@ -72,13 +72,14 @@ const normalize = (text: string) => text
   .trim();
 
 const amountFromText = (text: string): string => {
+  const endToken = '(?=\\s|[,.;:)]|$)';
   const rules: Array<[RegExp, (match: RegExpMatchArray) => string]> = [
-    [/\b(?:1\/2|0[,.]5)\s*(?:cp|comprim[eé])\b/i, () => '½ comprimé'],
-    [/\b(\d+)\s*(?:cp|comprim[eé]s?)\b/i, m => `${m[1]} comprimé${Number(m[1]) > 1 ? 's' : ''}`],
-    [/\b(\d+)\s*(?:g[eé]l|g[eé]lule?s?)\b/i, m => `${m[1]} gélule${Number(m[1]) > 1 ? 's' : ''}`],
-    [/\b(\d+)\s*(?:sach|sachet?s?)\b/i, m => `${m[1]} sachet${Number(m[1]) > 1 ? 's' : ''}`],
-    [/\b(\d+)\s*(?:rin[cç]age?s?)\b/i, m => `${m[1]} rinçage${Number(m[1]) > 1 ? 's' : ''}`],
-    [/\b(5|10)\s*ml\b/i, m => `${m[1]} ml`],
+    [new RegExp(`\\b(?:1\\/2|0[,.]5)\\s*(?:cp|comprim[eé])${endToken}`, 'i'), () => '½ comprimé'],
+    [new RegExp(`\\b(\\d+)\\s*(?:cp|comprim[eé]s?)${endToken}`, 'i'), m => `${m[1]} comprimé${Number(m[1]) > 1 ? 's' : ''}`],
+    [new RegExp(`\\b(\\d+)\\s*(?:g[eé]l|g[eé]lule?s?)${endToken}`, 'i'), m => `${m[1]} gélule${Number(m[1]) > 1 ? 's' : ''}`],
+    [new RegExp(`\\b(\\d+)\\s*(?:sach|sachet?s?)${endToken}`, 'i'), m => `${m[1]} sachet${Number(m[1]) > 1 ? 's' : ''}`],
+    [new RegExp(`\\b(\\d+)\\s*(?:rin[cç]age?s?)${endToken}`, 'i'), m => `${m[1]} rinçage${Number(m[1]) > 1 ? 's' : ''}`],
+    [new RegExp(`\\b(5|10)\\s*ml${endToken}`, 'i'), m => `${m[1]} ml`],
   ];
   for (const [rule, map] of rules) {
     const match = text.match(rule);
