@@ -2,8 +2,8 @@
 
 The cabinet product is local-first. Official servers are therefore not a runtime
 dependency: once exact bytes are obtained, they are validated first, then persisted
-under their SHA-256 with a deterministic JSON manifest. Nothing here promotes an
-unverified source by itself.
+under their SHA-256 with a deterministic JSON manifest. Reads re-verify both the bytes
+and manifest identity before a renderer can consume them.
 """
 
 from __future__ import annotations
@@ -25,6 +25,7 @@ from backend.services.insurance_template_registry import (
 from backend.services.ngap_reference import NgapRelease, lock_ngap_primary_pdf
 
 _SAFE_COMPONENT = re.compile(r"^[A-Za-z0-9_.-]+$")
+_SHA256 = re.compile(r"^[0-9a-f]{64}$")
 
 
 @dataclass(frozen=True)
@@ -36,10 +37,24 @@ class StoredInsuranceSource:
     manifest_path: str
 
 
+@dataclass(frozen=True)
+class LoadedInsuranceSource:
+    stored: StoredInsuranceSource
+    pdf_bytes: bytes
+    manifest: dict[str, Any]
+
+
 def _safe_component(value: str, field: str) -> str:
     normalized = str(value or "").strip()
     if not normalized or not _SAFE_COMPONENT.fullmatch(normalized):
         raise ValueError(f"Invalid {field} for immutable insurance source store")
+    return normalized
+
+
+def _safe_sha256(value: str) -> str:
+    normalized = str(value or "").strip().lower()
+    if not _SHA256.fullmatch(normalized):
+        raise ValueError("Invalid SHA-256 for immutable insurance source store")
     return normalized
 
 
@@ -54,9 +69,9 @@ def _store_locked_bytes(
 ) -> StoredInsuranceSource:
     namespace = _safe_component(namespace, "namespace")
     version = _safe_component(version, "version")
-    expected_sha256 = str(expected_sha256 or "").strip().lower()
+    expected_sha256 = _safe_sha256(expected_sha256)
     actual_sha256 = hashlib.sha256(pdf_bytes).hexdigest()
-    if len(expected_sha256) != 64 or actual_sha256 != expected_sha256:
+    if actual_sha256 != expected_sha256:
         raise ValueError("Insurance source SHA-256 mismatch")
     if not pdf_bytes.startswith(b"%PDF"):
         raise ValueError("Insurance source store accepts PDF bytes only")
@@ -98,6 +113,54 @@ def _store_locked_bytes(
         pdf_path=str(pdf_path),
         manifest_path=str(manifest_path),
     )
+
+
+def load_stored_insurance_source(
+    *,
+    root: Path,
+    namespace: str,
+    version: str,
+    sha256: str,
+) -> LoadedInsuranceSource:
+    """Load one exact immutable source and fail closed on any tampering/mismatch."""
+    namespace = _safe_component(namespace, "namespace")
+    version = _safe_component(version, "version")
+    sha256 = _safe_sha256(sha256)
+    target_dir = Path(root) / namespace / version / sha256
+    pdf_path = target_dir / "source.pdf"
+    manifest_path = target_dir / "manifest.json"
+    if not pdf_path.is_file() or not manifest_path.is_file():
+        raise ValueError("Stored insurance source is incomplete or missing")
+
+    pdf_bytes = pdf_path.read_bytes()
+    if not pdf_bytes.startswith(b"%PDF"):
+        raise ValueError("Stored insurance source is not a PDF")
+    if hashlib.sha256(pdf_bytes).hexdigest() != sha256:
+        raise ValueError("Stored insurance source PDF SHA-256 mismatch")
+
+    try:
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeError, json.JSONDecodeError) as exc:
+        raise ValueError("Stored insurance source manifest is unreadable") from exc
+    if not isinstance(manifest, dict):
+        raise ValueError("Stored insurance source manifest is invalid")
+    expected_identity = {
+        "namespace": namespace,
+        "version": version,
+        "sha256": sha256,
+    }
+    for key, expected in expected_identity.items():
+        if manifest.get(key) != expected:
+            raise ValueError(f"Stored insurance source manifest {key} mismatch")
+
+    stored = StoredInsuranceSource(
+        namespace=namespace,
+        version=version,
+        sha256=sha256,
+        pdf_path=str(pdf_path),
+        manifest_path=str(manifest_path),
+    )
+    return LoadedInsuranceSource(stored=stored, pdf_bytes=pdf_bytes, manifest=manifest)
 
 
 def lock_and_store_ngap_primary(
