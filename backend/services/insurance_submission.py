@@ -169,8 +169,12 @@ def apply_ngap_reference_to_draft(
     })
 
 
-def build_insurance_archive_clinical_data(draft: InsuranceSubmissionDraft) -> Dict[str, Any]:
-    return {
+def build_insurance_archive_clinical_data(
+    draft: InsuranceSubmissionDraft,
+    *,
+    render_evidence: Optional[Dict[str, Any]] = None,
+) -> Dict[str, Any]:
+    payload: Dict[str, Any] = {
         "kind": INSURANCE_ARCHIVE_KIND, "schema_version": INSURANCE_ARCHIVE_SCHEMA_VERSION,
         "organization": draft.organization.value, "patient_id": draft.patient_id,
         "source_honoraires_document_id": draft.honoraires_document_id,
@@ -184,14 +188,24 @@ def build_insurance_archive_clinical_data(draft: InsuranceSubmissionDraft) -> Di
         "validated_at": draft.validated_at.isoformat() if draft.validated_at else None,
         "draft": draft.model_dump(mode="json"),
     }
+    if render_evidence is not None:
+        payload["render_evidence"] = dict(render_evidence)
+    return payload
 
 
 def build_insurance_archive_tags(draft: InsuranceSubmissionDraft) -> List[str]:
     return ["insurance_submission", draft.organization.value.lower(), f"template:{draft.template.template_version}"]
 
 
-def archive_validated_insurance_pdf(db: Session, *, draft: InsuranceSubmissionDraft, pdf_content: bytes,
-    filename: str, uploaded_by_id: Optional[int] = None):
+def archive_validated_insurance_pdf(
+    db: Session,
+    *,
+    draft: InsuranceSubmissionDraft,
+    pdf_content: bytes,
+    filename: str,
+    uploaded_by_id: Optional[int] = None,
+    render_evidence: Optional[Dict[str, Any]] = None,
+):
     if draft.status != InsuranceDraftStatus.VALIDATED:
         raise ValueError("Only a VALIDATED insurance draft can be archived")
     if not pdf_content or not pdf_content.startswith(b"%PDF"):
@@ -201,6 +215,10 @@ def archive_validated_insurance_pdf(db: Session, *, draft: InsuranceSubmissionDr
         doc_type=models.DocumentType.AUTRE, uploaded_by_id=uploaded_by_id,
         title=f"Feuille de soins {draft.organization.value}",
         description=f"Feuille de soins {draft.organization.value} validee par le praticien",
-        tags=build_insurance_archive_tags(draft), clinical_data=build_insurance_archive_clinical_data(draft),
+        tags=build_insurance_archive_tags(draft),
+        clinical_data=build_insurance_archive_clinical_data(
+            draft,
+            render_evidence=render_evidence,
+        ),
         is_accounted=False, is_collected=False, payment_status=models.PaiementStatut.EN_ATTENTE,
     )
