@@ -24,7 +24,6 @@ async def create_appointment_request(
 
     employer_id = current_user.get_employer_id()
 
-    # Create appointment with PENDING_REQUEST status
     appointment = models.Appointment(
         patient_name=f"{req.last_name} {req.first_name}",
         datetime_start=req.requested_start,
@@ -42,7 +41,6 @@ async def create_appointment_request(
     db.commit()
     db.refresh(appointment)
 
-    # Audit log
     audit_service.log(
         db=db,
         user_id=current_user.id,
@@ -148,7 +146,6 @@ async def request_patient_confirmation(
         details=f"Confirmation demandée au patient : {appt.patient_name}",
     )
 
-    # Return message template (mock—WhatsApp not integrated yet)
     message_template = f"""Bonjour {appt.patient_name.split()[0]}, votre demande de rendez-vous
 pour le {appt.datetime_start.strftime('%d/%m/%Y')} à {appt.datetime_start.strftime('%H:%M')} est disponible.
 Merci de confirmer votre présence."""
@@ -298,3 +295,10 @@ async def expire_appointment(
     )
 
     return {"id": appt.id, "status": appt.status.value}
+
+
+# D0 Patient Companion is mounted here only because main.py exposes this router at /api.
+# Business logic stays isolated in its own module; this keeps the public contract
+# /api/patient-companion/* without creating another app-level router registry.
+from backend.routers import patient_companion as patient_companion
+router.include_router(patient_companion.router, prefix="/patient-companion")
