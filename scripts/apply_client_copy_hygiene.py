@@ -1,31 +1,91 @@
 from pathlib import Path
+import re
 
 replacements = {
     'frontend/src/components/Header.tsx': [
         ('Alertes Ghost Treasury', 'Alertes de trésorerie'),
     ],
+    'frontend/src/components/ComingSoon.tsx': [
+        ('Cette section sera bientôt disponible. Merci de votre patience.', "Cette section n'est pas disponible dans cette version."),
+    ],
+    'frontend/src/components/CrownBot/CrownBotChat.tsx': [
+        ('Mémoire contextuelle étendue (Ghost Brain+)', 'Mémoire contextuelle étendue'),
+        ('Ghost Brain', 'Mémoire contextuelle'),
+    ],
+    'frontend/src/components/GhostBrainWidget.tsx': [
+        ('Ghost Brain Insights', 'Synthèse contextuelle'),
+    ],
+    'frontend/src/components/LabJobsBoard.tsx': [
+        ("Module en cours de finalisation — bientôt disponible dans sa version complète. Vous pouvez déjà l'utiliser normalement.", 'Module disponible. Les fonctions affichées sont celles actuellement prises en charge.'),
+    ],
     'frontend/src/App.tsx': [
         ("Patientez pendant le démarrage de l'IA...", 'Démarrage de Digital Crown…'),
         ('Ce module est en construction et sera bientôt disponible dans une prochaine mise à jour.', "Ce module n'est pas disponible dans cette version."),
     ],
+    'frontend/src/features/accounting/components/AccountingTabs.tsx': [
+        ('Ghost Treasury Hub', 'Trésorerie'),
+    ],
     'frontend/src/features/admin/Settings/SettingsContainer.tsx': [
         ('Les réglages Profil, Design et Performance ont été confirmés par le backend.', 'Les réglages Profil, Design et Performance ont bien été enregistrés.'),
         ('Impossible de vérifier la configuration réelle du cabinet. Aucune valeur de repli n’est modifiable tant que la lecture backend n’a pas réussi.', 'Impossible de charger la configuration du cabinet. Réessayez avant de modifier ces réglages.'),
+        ('Ghost Elite Studio', 'Paramètres du cabinet'),
+    ],
+    'frontend/src/features/admin/Settings/tabs/BrandingTab.tsx': [
+        ("Choisir l'aperçu du studio", "Choisir l'aperçu"),
     ],
     'frontend/src/features/admin/Security/MobileSecurity.tsx': [
         ("Les données cliniques restent sur le réseau local du cabinet. Le pont QR transporte uniquement une adresse LAN et un secret temporaire. La clé locale est transmise chiffrée après l'échange ECDH et la destination est revalidée par le backend selon les permissions réelles de l'utilisateur appairé.", "Les données cliniques restent sur le réseau local du cabinet. L'appairage mobile utilise une connexion chiffrée et respecte les droits de l'utilisateur."),
     ],
+    'frontend/src/features/admin/SetupWizard/steps/Step5Design.tsx': [
+        ('Studio de Design', 'Personnalisation visuelle'),
+    ],
     'frontend/src/features/admin/SetupWizard/steps/Step6Theme.tsx': [
         ('Le thème n’est enregistré localement qu’après la confirmation backend finale. Quitter ou échouer pendant l’installation ne modifie pas vos préférences persistantes.', 'Le thème est enregistré uniquement lorsque la configuration est confirmée. Quitter avant la fin conserve vos préférences actuelles.'),
     ],
+    'frontend/src/features/admin/TeamManager.tsx': [
+        ('Studio Agenda', 'Agenda'),
+        ('Studio Prescriptions', 'Prescriptions'),
+    ],
+    'frontend/src/features/admin/DocumentStudio/StudioHeader.tsx': [
+        ('Studio Documentaire', 'Documents'),
+    ],
     'frontend/src/features/mobile/Dashboard/MobilePreviewBotView.tsx': [
         ('Bonjour. Cette Preview montre l’interface Crown Bot sans charger de session cabinet ni contacter le backend.', 'Bonjour. Voici un aperçu de l’assistant Digital Crown.'),
+    ],
+    'frontend/src/features/mobile/Dashboard/components/MobileBottomNav.tsx': [
+        ("label: 'Marketplace'", "label: 'Approvisionnement'"),
+    ],
+    'frontend/src/features/mobile/Dashboard/views/MarketplaceView.tsx': [
+        ('>Marketplace<', '>Approvisionnement<'),
+        ('Filtres Marketplace mobile', 'Filtres approvisionnement mobile'),
+    ],
+    'frontend/src/features/mobile/Dashboard/views/MobileQuickDocumentSheet.tsx': [
+        ('Quick Document Studio', 'Document rapide'),
+    ],
+    'frontend/src/features/mobile/Dashboard/views/MobileSuperAdminView.tsx': [
+        ("label: 'Marketplace'", "label: 'Approvisionnement'"),
+        ('Marketplace global', 'Approvisionnement global'),
+        ('Marketplace Admin', 'Administration approvisionnement'),
+        ('Journal Marketplace vide.', "Journal d'approvisionnement vide."),
+    ],
+    'frontend/src/features/agenda/AgendaModal.tsx': [
+        ('Ghost Intelligence', 'Suggestions'),
+    ],
+    'frontend/src/features/agenda/AgendaStudio.tsx': [
+        ('Studio Agenda', 'Agenda'),
+    ],
+    'frontend/src/features/clinical-ref/EliteScienceHub.tsx': [
+        ('Elite Science Hub', 'Bibliothèque scientifique'),
+    ],
+    'frontend/src/features/dashboard/components/MarketplaceCard.tsx': [
+        ('>Marketplace<', '>Approvisionnement<'),
     ],
     'frontend/src/features/ortho/components/ClinicalScientificStudio.tsx': [
         ('Non résolu · snapshot autoritaire absent.', 'Non résolu · données cliniques insuffisantes.'),
     ],
     'frontend/src/features/ortho/components/Step3Clinical.tsx': [
         ('Pattern vertical · legacy hors R11', 'Pattern vertical · donnée historique'),
+        ("Le stade CVM n'est jamais déduit de l'âge ou du sexe. Toute valeur CVM affichée ici est une saisie manuelle non promue en preuve R11.", "Le stade CVM n'est jamais déduit de l'âge ou du sexe. Toute valeur affichée ici provient d'une saisie manuelle à confirmer par le praticien."),
         ("Aucune sévérité DDM, division de Classe II, proalvéolie, supra/infraclusie ou indication thérapeutique n'est déduite localement de ces mesures.", 'Ces mesures restent descriptives et ne déterminent pas à elles seules un diagnostic ou une indication thérapeutique.'),
         ('Ancienne catégorie « Notes praticien non autoritaires » : provenance legacy non certifiée.', 'Notes praticien importées : origine non vérifiée.'),
         ("Ces champs peuvent contenir une saisie manuelle ou un contenu historique ; le contrat legacy ne permet pas d'en attester l'auteur. Ils ne créent aucune preuve R11, sélection R13 ou validation R14.", "Ces champs peuvent contenir une saisie manuelle ou un contenu historique dont l'auteur n'est pas vérifié. Ils ne valent ni diagnostic validé ni décision thérapeutique."),
@@ -51,6 +111,14 @@ replacements = {
         ("Saisie libre ou contenu historique — provenance non certifiée. Aucune stratégie R14 n'est générée ou validée ici.", 'Saisie libre ou contenu historique — origine non vérifiée ; à confirmer par le praticien.'),
         ('Prévisualiser ou archiver un PDF ne valide jamais R14.', 'Prévisualiser ou archiver un PDF ne constitue pas une validation clinique.'),
     ],
+    'frontend/src/features/ortho/CephaloWorkspace.tsx': [
+        ('Studio Céphalométrique', 'Céphalométrie'),
+        ('Retour Studio', 'Retour'),
+    ],
+    'frontend/src/features/panoramic/PanoramicStudio.tsx': [
+        ('Studio Panoramique -', 'Radiographie panoramique -'),
+        ('Retour Studio', 'Retour'),
+    ],
     'frontend/src/features/patients/components/ClinicalHubCore.tsx': [
         ('Source backend enregistrée', 'Source enregistrée'),
     ],
@@ -68,6 +136,28 @@ replacements = {
     ],
     'frontend/src/features/admin/DocumentStudio/DocumentHubContent.tsx': [
         ('title^="État partiel des contrôles locaux"', 'title^="Contrôles de sécurité partiellement disponibles"'),
+    ],
+    'frontend/src/pages/Analytics.tsx': [
+        ('Impossible de charger les analytics', 'Impossible de charger les indicateurs'),
+        ('Analytics & Intelligence', 'Indicateurs'),
+        ('Le Ghost Brain rédigera des messages personnalisés pour les devis les plus élevés.', 'Des messages personnalisés peuvent être préparés pour les devis les plus élevés.'),
+    ],
+    'frontend/src/pages/PartnerCatalogAdminPage.tsx': [
+        ('Retour marketplace', "Retour à l'approvisionnement"),
+    ],
+    'frontend/src/pages/PartnerMarketplacePage.tsx': [
+        ('>Marketplace<', '>Approvisionnement<'),
+        ('Recherche Marketplace', 'Recherche approvisionnement'),
+        ('Filtres Marketplace', 'Filtres approvisionnement'),
+    ],
+    'frontend/src/pages/PartnerSupplierPage.tsx': [
+        ('Retour marketplace', "Retour à l'approvisionnement"),
+    ],
+    'frontend/src/pages/StockPage.tsx': [
+        ("Module en cours de finalisation — bientôt disponible dans sa version complète. Vous pouvez déjà l'utiliser normalement.", 'Module disponible. Les fonctions affichées sont celles actuellement prises en charge.'),
+    ],
+    'frontend/src/pages/WaitingRoomPage.tsx': [
+        ("Module en cours de finalisation — bientôt disponible dans sa version complète. Vous pouvez déjà l'utiliser normalement.", 'Module disponible. Les fonctions affichées sont celles actuellement prises en charge.'),
     ],
 }
 
@@ -99,16 +189,16 @@ for old, new in [
 ]:
     text = text.replace(old, new)
 
-upcoming = '''          <div className="text-[10px] font-black text-amber-500 uppercase tracking-widest px-4 mb-3 mt-6 flex items-center gap-1.5">
-            <Construction size={12} /> Bientôt disponible
-          </div>
-          {hasAccess('patients') && <NavItem to="/stock" icon={<Package size={20} />} label="Gestion Stock" badge="Bientôt" />}
-          {hasAccess('agenda') && <NavItem to="/salle-attente" icon={<Armchair size={20} />} label="Salle d'attente" badge="Bientôt" />}
-          <NavItem to="/labo" icon={<FlaskConical size={20} />} label="Module Labo" badge="Bientôt" />}
-
-'''
-text = text.replace(upcoming, '')
-for import_line in ['  FlaskConical,\n', '  Package,\n', '  Armchair,\n', '  Construction\n']:
+text = re.sub(
+    r'\n\s*<div className="text-\[10px\][\s\S]*?<Construction size=\{12\} /> Bientôt disponible\s*</div>\s*'
+    r'\{hasAccess\(\'patients\'\) && <NavItem to="/stock"[\s\S]*?/>\}\s*'
+    r'\{hasAccess\(\'agenda\'\) && <NavItem to="/salle-attente"[\s\S]*?/>\}\s*'
+    r'<NavItem to="/labo"[\s\S]*?/>\s*',
+    '\n',
+    text,
+    count=1,
+)
+for import_line in ['  FlaskConical,\n', '  Package,\n', '  Armchair,\n', '  Construction\n', '  Construction,\n']:
     text = text.replace(import_line, '')
 sidebar.write_text(text, encoding='utf-8')
 print('updated frontend/src/components/Sidebar.tsx')
