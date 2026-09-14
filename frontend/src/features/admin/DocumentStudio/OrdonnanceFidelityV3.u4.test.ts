@@ -3,7 +3,7 @@ import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 const drugRow = readFileSync(
-  resolve(process.cwd(), 'src/features/admin/DocumentStudio/Forms/DrugRow.tsx'),
+  resolve(process.cwd(), 'src/features/admin/DocumentStudio/Forms/DrugRowV1.tsx'),
   'utf8',
 );
 
@@ -37,8 +37,6 @@ describe('Ordonnance Fidelity V3 U4 medication cards', () => {
   it('preserves medication behavior callbacks', () => {
     for (const callback of [
       'onToggleType',
-      'onSearch',
-      'onApplySuggestion',
       'onFormeOpen',
       'onUpdateDrug',
       'onMove',
@@ -46,5 +44,7 @@ describe('Ordonnance Fidelity V3 U4 medication cards', () => {
     ]) {
       expect(drugRow).toContain(callback);
     }
+    expect(drugRow).toContain("api.get('/medications/search'");
+    expect(drugRow).not.toContain('onApplySuggestion(');
   });
 });
