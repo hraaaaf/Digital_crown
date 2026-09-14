@@ -148,7 +148,9 @@ export const CephaloAnalysisWorkbenchPanel: React.FC<CephaloAnalysisWorkbenchPan
       return;
     }
     publishCephaloMetricFocus(makeFocus(activeDefinition, activeMetric));
-    return () => window.dispatchEvent(new CustomEvent(CEPHALO_METRIC_FOCUS_EVENT, { detail: null }));
+    return () => {
+      window.dispatchEvent(new CustomEvent(CEPHALO_METRIC_FOCUS_EVENT, { detail: null }));
+    };
   }, [activeDefinition, activeMetric]);
 
   const tone = (metric?: MetricRecord) => {
