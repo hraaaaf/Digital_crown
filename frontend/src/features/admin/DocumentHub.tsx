@@ -190,7 +190,7 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
     if (desiredTab === 'ordonnance') {
       if (d.medications) setDrugs(d.medications.map((m: { nom?: string; dosage?: string; forme?: string; posologie?: string; type?: 'MEDICAMENT' | 'EXAMEN' }, idx: number) => ({
         id: Date.now() + idx, name: m.nom || '', dosage: m.dosage || '',
-        forme: m.forme || 'Sachets', posologie: m.posologie || '',
+        forme: m.forme || '', posologie: m.posologie || '',
         type: m.type || 'MEDICAMENT'
       })));
     } else if (desiredTab === 'certificat') {
