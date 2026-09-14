@@ -5,7 +5,7 @@ import pytest
 from backend.schemas.insurance_submission import (
     InsuranceDraftStatus, InsuranceLineSource, InsuranceMappingStatus,
     InsuranceOrganization, InsuranceReferenceSnapshot, InsuranceSubmissionDraft,
-    InsuranceSubmissionLine, InsuranceTemplateSnapshot,
+    InsuranceSubmissionLine, InsuranceTemplateSnapshot, InsuranceTemplateTrust,
 )
 from backend.services.insurance_submission import (
     archive_validated_insurance_pdf, build_draft_from_honoraires_snapshot,
@@ -36,6 +36,7 @@ def _draft(**overrides):
             template_version="CNSS-610-1-04",
             template_hash="a" * 64,
             source_url="https://example.invalid/cnss.pdf",
+            trust=InsuranceTemplateTrust.CABINET_VALIDATED_BINARY,
         ),
         "reference": InsuranceReferenceSnapshot(
             ngap_reference_version="arrete-177-06-test",
@@ -80,6 +81,21 @@ def test_validated_requires_practitioner_timestamp_and_locked_sources():
                 template_version="CNSS-610-1-04",
                 template_hash=None,
                 source_url="https://example.invalid/cnss.pdf",
+                trust=InsuranceTemplateTrust.CABINET_VALIDATED_BINARY,
+            ),
+            validated_by_practitioner_id=3,
+            validated_at=datetime(2026, 9, 14, 18, 45),
+        )
+
+    with pytest.raises(ValueError, match="official or cabinet-validated"):
+        _draft(
+            status=InsuranceDraftStatus.VALIDATED,
+            lines=[_exact_line()],
+            template=InsuranceTemplateSnapshot(
+                template_version="CNOPS-DENTAL-BINARY-PENDING",
+                template_hash="c" * 64,
+                source_url="https://example.invalid/cnops.pdf",
+                trust=InsuranceTemplateTrust.SECONDARY_REFERENCE,
             ),
             validated_by_practitioner_id=3,
             validated_at=datetime(2026, 9, 14, 18, 45),
