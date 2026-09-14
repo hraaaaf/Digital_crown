@@ -88,13 +88,13 @@ Runtime:
 
 Sources recroisees:
 - Ministere Sante: arrete 177-06 du 27/01/2006;
-- SGG: BO 5414 du 20/04/2006;
-- data.gov.ma: ressource NGAP;
+- SGG/DIO: BO 5414 du 20/04/2006;
+- data.gov.ma: ressource NGAP, producteur CNOPS;
 - CNOPS: nomenclature 177-06;
 - ONMD 01/26 du 02/02/2026: NGAP + TNR;
 - ANAM: convention/arretes chirurgiens-dentistes.
 
-Blocage externe: endpoints PDF primaires 403/502/timeout/cache miss; aucun hash officiel invente.
+Blocage externe: les sources officielles sont identifiees, mais les octets exacts du PDF primaire ne sont pas recuperables de facon reproductible depuis l'environnement actuel (timeouts/403/DNS/cache miss). Aucun hash officiel invente. La File Library et Google Drive ont ete recherches: aucun binaire `177-06`/NGAP primaire n'y est present; seul le communique ONMD 01/26 est present sur Drive comme corroboration.
 
 ## Lot 5B — Store local immuable des sources — IMPLEMENTE
 `insurance_source_store.py`:
@@ -115,7 +115,9 @@ Commande locale `scripts/lock_insurance_source.py`:
 - aucun binaire n'a encore ete promu faute de fichier source exact disponible.
 
 ## Lot 6 — CNSS 610-1-04 — BACKEND DE PREPARATION/VALIDATION/RENDU GENERIQUE IMPLEMENTE / CALIBRATION BLOQUEE PAR BINAIRE
-Reference cabinet validee: `CNSS-610-1-04`, 2 pages attendues.
+Reference dentaire confirmee: `CNSS-610-1-04`, 2 pages attendues, ref ANAM `1.2.03.01`.
+
+Une copie secondaire coherente 2 pages a ete retrouvee et recroisee, mais aucune copie officielle CNSS exacte n'est recuperable/verrouillee depuis l'environnement. Elle ne doit pas etre promue silencieusement en `OFFICIAL_PRIMARY`. La voie `CABINET_VALIDATED_BINARY` reste possible uniquement apres validation explicite d'un binaire exact par le praticien/cabinet.
 
 ### Politique administrative CNSS — IMPLEMENTEE
 - prefill uniquement faits explicites: nom beneficiaire, naissance, sexe, nom praticien;
@@ -182,7 +184,7 @@ Activation seulement si:
 - profil de coordonnees calibre/valide sur ce hash exact;
 - migration/rollback, archivage/reimpression et UX certifies.
 
-## Certification backend — PROUVE
+## Certification backend — PROUVEE
 HEAD code certifie: `672133f6040e2f6c1bc91f71ceffff2a7380067d`.
 
 Exact-head:
@@ -193,26 +195,32 @@ Exact-head:
 - Catalog Connected Truth #1192: **SUCCESS**;
 - M6-I Biometric #1851: **SKIPPED attendu**.
 
-Dans CI #4143, frontend tests/build, M4-A, M4-B, M4-C et garde production negative sont **SUCCESS**; la suite backend `Tests & durcissement` est **SUCCESS** sur le meme run.
+Closeout documentaire `67d3dcf23c6da45e1385c81e97d3f109902389d0`:
+- CI #4146: **SUCCESS**;
+- PostgreSQL #568: **SUCCESS**;
+- Provenance #118: **SUCCESS**;
+- Browser #3053: **SUCCESS**;
+- Catalog #1194: **SUCCESS**.
 
 ## Realignement master
-- ancien master absorbe: `3b22f2a0dbb5b778a53265b97ad3029eeb88e656` (Prescription Intelligence C1 implementation);
-- master a ensuite avance d'un commit docs-only Prescription Intelligence: `e7198b274438ec05373e8ebee9c84fc80e409149`;
-- compare `3b22f2a0... -> e7198b27...`: uniquement `docs/audits/PRESCRIPTION_INTELLIGENCE_V1.md`;
-- merge explicite sur la branche Mutuelles: `4da73c4cd1ac234f9c7504c79bfa580a09f92538`;
-- apres merge: **89 ahead / 0 behind**, merge-base exactement `e7198b274438ec05373e8ebee9c84fc80e409149`.
+- `master` courant absorbe: `38dc018426d93437c6a77e9d5856c529096dda5a`;
+- les trois commits depuis `e7198b27...` ne modifient que `.github/workflows/ci.yml` et ajoutent/restaurent l'invariant explicite de non-regression, le workflow M4-C complet et les versions d'actions deja en usage;
+- merge explicite sur la branche Mutuelles: `7f8d2c6ed31f7ca94c6252fe67fd6d4e92d36cf3`;
+- apres merge: **91 ahead / 0 behind**, merge-base exactement `38dc018426d93437c6a77e9d5856c529096dda5a`;
+- PR #493: draft, mergeable=true;
+- certification exact-head `7f8d2c6e...`: PostgreSQL #584, Provenance #119, Browser #3069 et Catalog #1195 **SUCCESS**; M6-I #1869 **SKIPPED attendu**; CI #4165 encore `in_progress` au dernier controle, seule la regression backend complete restant en execution.
 
 ## Interdits
 Second moteur Honoraires, second catalogue clinique, Ordonnance bis, fuzzy mapping, backfill artificiel, signature/cachet/accord assureur fabrique, auto-cotation sans source primaire hashee ET validation metier, template secondaire promu en final, rendu approximatif d'un formulaire officiel, deploiement Vercel sans autorisation explicite.
 
 ## Etat
-`LOTS_1_4_IMPLEMENTED / NGAP_ENGINE_IMPLEMENTED_SOURCE_PENDING / LOCAL_SOURCE_STORE_IMPLEMENTED / CNSS_ADMIN_PREFILL_IMPLEMENTED / SOURCE_CONSISTENCY_GATE_IMPLEMENTED / PRACTITIONER_VALIDATION_GATE_IMPLEMENTED / HASH_BOUND_OVERLAY_IMPLEMENTED / FINALIZATION_ARCHIVE_IMPLEMENTED / BACKEND_CODE_HEAD_CERTIFIED / MASTER_REALIGNED / PRIMARY_HASH_PENDING / CNSS_TEMPLATE_BINARY_PENDING / RUNTIME_NOT_ACTIVATED`
+`LOTS_1_4_IMPLEMENTED / NGAP_ENGINE_IMPLEMENTED_SOURCE_PENDING / LOCAL_SOURCE_STORE_IMPLEMENTED / CNSS_ADMIN_PREFILL_IMPLEMENTED / SOURCE_CONSISTENCY_GATE_IMPLEMENTED / PRACTITIONER_VALIDATION_GATE_IMPLEMENTED / HASH_BOUND_OVERLAY_IMPLEMENTED / FINALIZATION_ARCHIVE_IMPLEMENTED / BACKEND_CODE_HEAD_CERTIFIED / MASTER_REALIGNED / EXACT_HEAD_SPECIAL_CERTS_GREEN / CI_4165_PENDING / PRIMARY_HASH_PENDING / CNSS_TEMPLATE_BINARY_PENDING / RUNTIME_NOT_ACTIVATED`
 
 ## Next exact
-1. Certifier le nouveau HEAD documentaire/merge exact; aucune logique metier n'a change depuis `672133f6...`.
-2. Recuperer localement un binaire primaire NGAP exact -> lock/store/hash.
+1. Obtenir le verdict CI #4165 sur `7f8d2c6e...`; si vert, ne plus muter le HEAD pour de la documentation seule.
+2. Recuperer localement le binaire primaire NGAP exact depuis Ministere/DIO -> lock/store/hash.
 3. Valider un premier lot representatif de mappings NGAP par praticien.
-4. Recuperer/verrouiller le binaire CNSS 610-1-04 exact.
+4. Recuperer/verrouiller le binaire CNSS 610-1-04 exact; a defaut de source officielle recuperable, utiliser `CABINET_VALIDATED_BINARY` uniquement apres validation explicite du fichier exact.
 5. Calibrer profil CNSS sur CE hash -> test visuel fidele.
 6. BEFORE/mockup -> UX -> AFTER/tests.
 7. CNOPS/FAR -> gate cabinet -> closeout/merge.
