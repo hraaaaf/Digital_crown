@@ -6,7 +6,7 @@ Examples:
 
   python scripts/lock_insurance_source.py --kind cnss --file ./610-1-04.pdf \
       --source-url cabinet://validated/CNSS-610-1-04.pdf \
-      --confirm-cabinet-validation
+      --confirm-cabinet-validation --validated-by "Dr Nom"
 """
 
 from __future__ import annotations
@@ -46,6 +46,11 @@ def _parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Required before a CABINET_VALIDATED_BINARY template can be locked",
     )
+    parser.add_argument(
+        "--validated-by",
+        default=None,
+        help="Practitioner/operator identity required with --confirm-cabinet-validation",
+    )
     return parser
 
 
@@ -81,25 +86,30 @@ def main() -> int:
             "far": FAR_2021_1,
         }
         definition = definitions[args.kind]
-        if (
-            definition.trust == InsuranceTemplateTrust.CABINET_VALIDATED_BINARY
-            and not args.confirm_cabinet_validation
-        ):
-            raise SystemExit(
-                "This template is CABINET_VALIDATED_BINARY: rerun with "
-                "--confirm-cabinet-validation only after explicit practitioner validation."
-            )
+        validator = str(args.validated_by or "").strip() or None
+        if definition.trust == InsuranceTemplateTrust.CABINET_VALIDATED_BINARY:
+            if not args.confirm_cabinet_validation:
+                raise SystemExit(
+                    "This template is CABINET_VALIDATED_BINARY: rerun with "
+                    "--confirm-cabinet-validation only after explicit practitioner validation."
+                )
+            if validator is None:
+                raise SystemExit(
+                    "--validated-by is required when confirming a cabinet-validated binary."
+                )
         locked, stored = lock_and_store_insurance_template(
             root=root,
             definition=definition,
             pdf_bytes=pdf_bytes,
             source_url=args.source_url,
+            cabinet_validated_by=validator,
         )
         result = {
             "kind": "template",
             "organization": definition.organization.value,
             "version": definition.version,
             "trust": definition.trust.value,
+            "cabinet_validated_by": validator,
             "sha256": locked.sha256,
             "page_count": locked.page_count,
             "source_url": locked.source_url,
