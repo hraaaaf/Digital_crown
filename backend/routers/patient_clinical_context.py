@@ -26,7 +26,6 @@ def _empty_context(patient_id: int, employer_id: int) -> PatientClinicalContextO
         renal_context_note=None,
         hepatic_context_status="UNKNOWN",
         hepatic_context_note=None,
-        prescription_indication=None,
         updated_at=None,
         updated_by_user_id=None,
     )
