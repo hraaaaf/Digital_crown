@@ -15,6 +15,7 @@ from backend.schemas.insurance_submission import (
     InsuranceSubmissionDraft,
     InsuranceSubmissionLine,
     InsuranceTemplateSnapshot,
+    InsuranceTemplateTrust,
 )
 from backend.services.archive_service import ArchiveService
 from backend.services.ngap_reference import resolve_catalog_act_ngap
@@ -47,6 +48,7 @@ def _service_date(item: Dict[str, Any], fallback: date) -> date:
 def build_draft_from_honoraires_snapshot(*, patient_id: int, organization: InsuranceOrganization,
     honoraires_document_id: int, payments: Iterable[Dict[str, Any]], template_version: str,
     template_hash: Optional[str] = None, template_source_url: Optional[str] = None,
+    template_trust: Optional[InsuranceTemplateTrust] = None,
     active_acte_ids: Optional[Sequence[int]] = None, fallback_date: Optional[date] = None,
     unresolved_fields: Optional[List[str]] = None) -> InsuranceSubmissionDraft:
     item_list = list(payments)
@@ -78,8 +80,12 @@ def build_draft_from_honoraires_snapshot(*, patient_id: int, organization: Insur
     return InsuranceSubmissionDraft(
         patient_id=patient_id, organization=organization, honoraires_document_id=honoraires_document_id,
         lines=lines, unresolved_fields=list(unresolved_fields or []), status=InsuranceDraftStatus.INCOMPLETE,
-        template=InsuranceTemplateSnapshot(template_version=template_version, template_hash=template_hash,
-            source_url=template_source_url),
+        template=InsuranceTemplateSnapshot(
+            template_version=template_version,
+            template_hash=template_hash,
+            source_url=template_source_url,
+            trust=template_trust,
+        ),
     )
 
 
@@ -171,6 +177,7 @@ def build_insurance_archive_clinical_data(draft: InsuranceSubmissionDraft) -> Di
         "source_ordonnance_document_id": draft.source_ordonnance_document_id,
         "template_version": draft.template.template_version, "template_hash": draft.template.template_hash,
         "template_source_url": draft.template.source_url,
+        "template_trust": draft.template.trust.value if draft.template.trust else None,
         "ngap_reference_version": draft.reference.ngap_reference_version,
         "ngap_reference_hash": draft.reference.ngap_reference_hash,
         "validated_by_practitioner_id": draft.validated_by_practitioner_id,
