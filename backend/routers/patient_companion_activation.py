@@ -19,12 +19,14 @@ from backend.models_patient_companion import (
 from backend.routers.auth import get_current_user, has_permission
 from backend.routers.patient_companion_common import (
     PROVIDER,
+    credential_recipient_hash,
     generate_manual_code,
     get_db,
     manual_code_hash,
     patient_credential,
     patient_identity,
     principal_for_access,
+    recipient_hash,
     safe_patient_context,
     staff_patient_or_404,
     token_hash,
@@ -39,6 +41,8 @@ router = APIRouter()
 class InvitationCreateRequest(BaseModel):
     relationship_type: Literal["SELF", "PARENT", "GUARDIAN", "CAREGIVER"] = "SELF"
     expires_in_minutes: int = Field(default=15, ge=5, le=60)
+    recipient_type: Literal["email", "phone"]
+    recipient: str = Field(min_length=3, max_length=254)
 
 
 class ActivationRequest(BaseModel):
@@ -57,6 +61,12 @@ def create_patient_invitation(
     patient = staff_patient_or_404(db, current_user, patient_id)
     employer_id = int(current_user.get_employer_id())
     now = datetime.utcnow()
+    try:
+        recipient_digest = recipient_hash(body.recipient_type, body.recipient)
+    except ValueError:
+        detail = "Email invalide." if body.recipient_type == "email" else "Numéro requis au format E.164, ex. +2126..."
+        raise HTTPException(status_code=422, detail=detail) from None
+
     db.query(PatientCompanionInvitation).filter(
         PatientCompanionInvitation.employer_id == employer_id,
         PatientCompanionInvitation.patient_id == patient.id,
@@ -72,6 +82,8 @@ def create_patient_invitation(
         patient_id=patient.id,
         token_hash=token_hash(raw_token),
         manual_code_hash=manual_code_hash(manual_code),
+        recipient_type=body.recipient_type,
+        recipient_hash=recipient_digest,
         relationship_type=body.relationship_type,
         created_by_user_id=current_user.id,
         expires_at=now + timedelta(minutes=body.expires_in_minutes),
@@ -87,7 +99,8 @@ def create_patient_invitation(
     audit_service.log(
         db=db, user_id=current_user.id, employer_id=employer_id,
         action="PATIENT_COMPANION_INVITATION_CREATED", resource_type="Patient",
-        resource_id=str(patient.id), details=f"Invitation Patient Companion créée ({body.relationship_type}).",
+        resource_id=str(patient.id),
+        details=f"Invitation Patient Companion créée ({body.relationship_type}, {body.recipient_type}).",
     )
     response.headers["Cache-Control"] = "no-store"
     return {
@@ -96,6 +109,7 @@ def create_patient_invitation(
         "manual_code": manual_code,
         "expires_at": invitation.expires_at,
         "relationship_type": invitation.relationship_type,
+        "recipient_type": invitation.recipient_type,
     }
 
 
@@ -151,6 +165,10 @@ def activate_patient_companion(
         or invitation.consumed_at is not None or invitation.expires_at <= now
     ):
         raise HTTPException(status_code=400, detail="Invitation invalide ou expirée.")
+
+    credential_digest = credential_recipient_hash(credential, invitation.recipient_type)
+    if credential_digest is None or not secrets.compare_digest(credential_digest, invitation.recipient_hash):
+        raise HTTPException(status_code=403, detail="Identité vérifiée différente du destinataire de l'invitation.")
 
     patient = db.query(models.Patient).filter(
         models.Patient.id == invitation.patient_id,
