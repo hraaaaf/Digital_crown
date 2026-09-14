@@ -37,6 +37,13 @@ _TEMPLATE_BY_ORGANIZATION = {
     InsuranceOrganization.FAR: FAR_2021_1,
 }
 
+_PATIENT_INSURANCE_ORGANIZATION = {
+    "CNSS": InsuranceOrganization.CNSS,
+    "CNOPS": InsuranceOrganization.CNOPS,
+    "MUTUELLE_FAR": InsuranceOrganization.FAR,
+    "FAR": InsuranceOrganization.FAR,
+}
+
 
 def _active_actes(db: Session, document_archive_id: int) -> list[models.Acte]:
     return (
@@ -99,6 +106,13 @@ def _template_definition(organization: InsuranceOrganization) -> InsuranceTempla
         raise ValueError("Unsupported insurance organization") from exc
 
 
+def _assert_patient_insurer(patient: models.Patient, organization: InsuranceOrganization) -> None:
+    raw = str(getattr(patient, "assurance", None) or "").strip().upper()
+    actual = _PATIENT_INSURANCE_ORGANIZATION.get(raw)
+    if actual != organization:
+        raise ValueError("Requested insurer does not match the patient insurance record")
+
+
 def prepare_insurance_draft_from_honoraires(
     db: Session,
     *,
@@ -119,6 +133,7 @@ def prepare_insurance_draft_from_honoraires(
     patient = db.query(models.Patient).filter(models.Patient.id == document.patient_id).first()
     if patient is None:
         raise ValueError("Honoraires patient not found")
+    _assert_patient_insurer(patient, organization)
 
     clinical_data = document.clinical_data or {}
     payments = clinical_data.get("payments") if isinstance(clinical_data, dict) else None
@@ -149,7 +164,8 @@ def prepare_insurance_draft_from_honoraires(
     else:
         template_hash = None
         template_source_url = None
-        template_trust = definition.trust
+        # Trust is evidence attached to exact locked bytes, not to a registry label.
+        template_trust = None
 
     draft = build_draft_from_honoraires_snapshot(
         patient_id=patient.id,
