@@ -4,86 +4,40 @@ Date : 2026-09-14
 
 ## Statut
 
-**A+B certifiés et mergés sur `master`. C1 en cours de certification ; toute suggestion clinique reste bloquée (fail-closed).**
+**CLOS — A+B et C1 certifiés et mergés sur `master`. Toute suggestion clinique C reste volontairement bloquée (fail-closed).**
 
 Ce fichier est le point de reprise canonique du chantier « Prescription Intelligence V1 ».
 
 ## Goal
 
-Permettre dans l’ordonnance un flux sécurisé :
+Flux cible :
 
-`recherche médicament → sélection explicite d’une présentation documentaire → suggestion clinique uniquement si contexte + règle certifiée suffisants → calcul traçable → validation explicite du praticien`.
+`recherche médicament → présentation documentaire explicite → contexte clinique structuré → suggestion clinique seulement si règle certifiée + contexte suffisant → calcul traçable → validation praticien`.
 
-## Résultat A — Recherche médicament
+À l’issue de C1, seules les trois premières briques sont implémentées. Aucune règle de dose n’est activée.
 
-- Autocomplete actif uniquement via `/medications/search`.
-- Source : snapshot documentaire CNOPS exposé avec provenance explicite.
-- Aucun fallback actif vers habitudes, presets ou smart-suggest legacy.
-- Recherche par nom commercial ou DCI.
-- Une panne du référentiel échoue fermée : aucune suggestion n’est inventée.
+## A — Recherche médicament
 
-## Résultat B — Présentation explicite
+- autocomplete uniquement via `/medications/search` ;
+- recherche nom commercial / DCI ;
+- snapshot CNOPS avec provenance explicite ;
+- aucune habitude/preset/smart-suggest legacy dans le flux actif ;
+- panne référentiel = aucune suggestion inventée.
 
-- Chaque résultat correspond à une présentation documentaire identifiée par un ID stable `cnops:<sha256>`.
-- La sélection explicite renseigne uniquement : nom, dosage documentaire, forme documentaire et provenance.
-- La sélection remet toujours `posologie` à vide.
-- Toute modification du nom après sélection invalide l’identité documentaire, le dosage, la forme et la posologie associés.
-- Aucun fallback silencieux `Comprimés` ou `Sachets` n’existe pour une forme inconnue, une nouvelle ligne, une archive ou le payload final.
-- Aucune voie d’administration n’est inférée depuis la forme.
+## B — Présentation explicite
 
-## Résultat C — Suggestion clinique
-
-**NON IMPLÉMENTÉE / BLOQUÉE PAR CONCEPTION.**
-
-L’UI affiche explicitement `Suggestion clinique bloquée` et `Contrôle clinique automatique bloqué`.
-
-Le flux V1 actif n’appelle pas `/prescriptions/smart-suggest/{patient_id}` ni `/prescriptions/safety/check` : ces mécanismes legacy contiennent des règles/mappings cliniques non certifiés selon le contrat V1.
-
-C1 ajoute uniquement les données structurées nécessaires à de futurs contrôles : poids explicite, allergies médicamenteuses structurées et contexte rénal/hépatique déclaré. L’indication est volontairement **scopée à chaque ordonnance** et non au patient, afin qu’une indication ancienne ne puisse pas être réutilisée silencieusement sur une nouvelle prescription.
-
-Ces données ne suffisent pas à activer une règle clinique. C ne pourra être activé qu’après certification scientifique séparée de chaque règle, avec contexte nécessaire explicite, sources sérieuses concordantes et tests positifs/négatifs.
-
-## Frontière clinique V1
-
-Le chemin actif garantit :
-
-- aucune dose calculée depuis mémoire ou hardcode ;
-- aucune règle pharmacologique hardcodée dans le générateur actif ;
-- aucun apprentissage silencieux dosage/posologie après archivage ;
-- aucun quick preset/protocole legacy actif ;
-- aucun choix automatique de forme si la source ne la fournit pas ;
-- aucune revendication de sécurité clinique automatique tant que le moteur correspondant n’est pas certifié ;
-- validation praticien obligatoire pour le texte persistant de l’ordonnance.
-
-Les services/endpoints legacy peuvent encore exister dans le repo hors du chemin V1 ; leur existence n’est pas une certification et ils ne sont pas utilisés par ce flux.
-
-## Provenance catalogue
-
-Source documentaire : `CNOPS Open Data — Référentiel des médicaments`.
-
-- producteur : CNOPS ;
-- portail : Open Data Maroc ;
-- licence : Open Data Commons Open Database License (ODbL) ;
-- dernière modification publique observée du jeu : `2021-12-13 16:26 UTC` ;
-- contenu déclaré : princeps/génériques, prix public, prix hôpital, base de remboursement.
-
-Conclusion : cette source est exploitable comme **snapshot documentaire historique** d’identité/présentation. Elle ne prouve pas le statut de commercialisation actuel en 2026. Le contrat expose donc `current_marketing_status_verified=false`.
-
-## Backend A+B
-
-Fichiers principaux :
-
-- `backend/services/medication_dict.py`
-- `backend/routers/medications.py`
-- `backend/tests/test_prescription_intelligence_catalog.py`
-
-Contrats testés : provenance, ID présentation stable/résoluble, présentation inconnue fail-closed, validation dosage limitée à la présence documentaire, aucune revendication de commercialisation actuelle.
+- ID stable `cnops:<sha256>` par présentation ;
+- sélection explicite renseigne nom, dosage documentaire, forme documentaire et provenance ;
+- `posologie` est remise à vide après sélection ;
+- modifier le nom invalide identité documentaire + dosage + forme + posologie ;
+- aucun fallback silencieux `Comprimés` / `Sachets` ;
+- aucune voie d’administration inférée.
 
 ## C1 — Contexte clinique structuré
 
-### Ownership
+### Données patient durables
 
-Données patient durables, persistées dans `patient_clinical_contexts` :
+Persistées dans `patient_clinical_contexts` :
 
 - `weight_kg` ;
 - `medication_allergy_status` + `medication_allergies` ;
@@ -96,167 +50,166 @@ Données patient durables, persistées dans `patient_clinical_contexts` :
 - allergies : `UNKNOWN`, `NONE_KNOWN`, `PRESENT` ;
 - rein/foie : `UNKNOWN`, `NO_KNOWN_IMPAIRMENT`, `IMPAIRMENT_REPORTED`.
 
-L’API patient rejette les champs inconnus, notamment `clinical_ready` et `prescription_indication`.
+Invariants :
 
-L’**indication de prescription est document-scoped** : elle appartient au `clinical_data` de l’ordonnance, participe au fingerprint de preview et est réhydratée en édition de cette ordonnance. Elle n’est pas enregistrée dans le contexte durable du patient et n’active aucune règle de dose.
+- poids fini strictement positif ou inconnu ;
+- allergie `PRESENT` exige au moins une allergie explicite ;
+- aucune liste d’allergies sous `UNKNOWN` ;
+- note rénale/hépatique seulement avec `IMPAIRMENT_REPORTED` ;
+- erreur de chargement UI = aucune valeur supposée + sauvegarde bloquée ;
+- sauvegarde manuelle uniquement ;
+- aucun `clinical_ready` ;
+- aucune formule, aucun seuil médical, aucun calcul de dose.
 
-### Fichiers C1
+### Ownership indication
 
-Backend :
+L’indication appartient à **l’ordonnance**, pas au patient :
+
+- absente du modèle/table/API patient C1 ;
+- `prescription_indication` est rejeté par l’API `clinical-context` ;
+- stockée dans `clinical_data` de l’ordonnance ;
+- réhydratée en édition de cette ordonnance ;
+- injectée uniquement dans le payload `type=ordonnance` ;
+- jamais injectée dans certificat/devis/etc. ;
+- non interprétée cliniquement et non imprimée dans C1.
+
+## Frontière clinique
+
+**Suggestion clinique : NON IMPLÉMENTÉE / BLOQUÉE PAR CONCEPTION.**
+
+L’UI affiche :
+
+- `Suggestion clinique bloquée` ;
+- `Contrôle clinique automatique bloqué`.
+
+Le flux V1 actif n’appelle ni `/prescriptions/smart-suggest/{patient_id}` ni `/prescriptions/safety/check`.
+
+C1 ne prouve pas l’exactitude clinique des données saisies et ne suffit pas à autoriser une règle de dose. Toute règle future devra être certifiée séparément avec paramètres complets, sources concordantes/versionnées et tests positifs/négatifs.
+
+## Provenance catalogue
+
+Source documentaire : `CNOPS Open Data — Référentiel des médicaments`.
+
+- producteur : CNOPS ;
+- licence : ODbL ;
+- dernière modification publique observée : `2021-12-13 16:26 UTC` ;
+- usage autorisé ici : snapshot documentaire historique d’identité/présentation ;
+- `current_marketing_status_verified=false`.
+
+Le snapshot 2021 ne constitue pas une preuve de commercialisation actuelle en 2026.
+
+## Migration C1
+
+Migration : `c1ctx0000001`, chaînée sur `f5a55e700005`.
+
+Fichiers principaux :
 
 - `backend/models_patient_clinical_context.py`
 - `backend/schemas/patient_clinical_context.py`
 - `backend/routers/patient_clinical_context.py`
 - `backend/tests/test_patient_clinical_context_c1.py`
 - `alembic/versions/c1ctx0000001_add_patient_clinical_context.py`
-
-Frontend :
-
 - `frontend/src/features/admin/DocumentStudio/Forms/PatientClinicalContextPanel.tsx`
 - `frontend/src/features/admin/DocumentStudio/Forms/PrescriptionAgenticStudioV1.tsx`
 - `frontend/src/features/admin/DocumentStudio/Forms/PrescriptionAgenticStudio.indication.test.tsx`
-- `frontend/src/features/admin/DocumentHub.tsx`
-- `frontend/src/features/admin/DocumentStudio/DocumentHubContent.tsx`
-- `frontend/src/features/admin/DocumentStudio/DocumentPreviewFingerprint.ts`
 - `frontend/src/features/admin/DocumentStudio/PrescriptionIntelligenceV1.boundary.test.ts`
 
-### Invariants C1
+## UI/UX C1 — BEFORE → AFTER
 
-- poids : valeur finie strictement positive ou inconnue ;
-- allergie `PRESENT` exige au moins une allergie explicite ;
-- aucune liste d’allergies sous `UNKNOWN` ;
-- note rénale/hépatique seulement avec `IMPAIRMENT_REPORTED` ;
-- erreur de chargement UI : aucune valeur clinique supposée et sauvegarde bloquée ;
-- sauvegarde clinique patient manuelle uniquement ;
-- aucune formule, aucun seuil médical, aucun calcul de dose ;
-- aucune route `/prescriptions/*` introduite par le panneau C1 ;
-- indication injectée uniquement dans le payload `ordonnance`, jamais dans les autres types de document.
+Viewports : `390×844`, `430×932`, `768×1024`, `1280×900`.
 
-Migration C1 : `c1ctx0000001`, chaînée sur `f5a55e700005`.
+### BEFORE C1
 
-### UX C1
+Référence A+B certifiée : Ordonnance Fidelity V3 #70, run `34878423582`, artifact `10361827618`, digest `sha256:606606845e996b9f794b7b3a03368f809c6e5c11f68c147b714c2958dd064f6a`.
 
-Le premier AFTER C1 techniquement vert a été refusé après inspection visuelle : le panneau clinique développé par défaut doublait pratiquement la hauteur du studio et repoussait la saisie médicament.
+Hauteur studio :
 
-Correction retenue :
+| Viewport | BEFORE |
+| --- | ---: |
+| 390×844 | 636.25 px |
+| 430×932 | 590 px |
+| 768×1024 | 447.25 px |
+| 1280×900 | 406.25 px |
 
-- saisie médicament et action `Ajouter une ligne` restent les premières actions métier du studio ;
-- contexte patient C1 compact/replié par défaut avec résumé factuel ;
-- dépliage explicite `Renseigner`, sauvegarde manuelle puis repli automatique ;
-- indication de l’ordonnance reste séparée et document-scoped après la zone médicaments ;
-- le certificateur capture désormais une scène C1 dépliée dédiée en plus de `top`, `planning` et `preview`.
+### Premier AFTER rejeté
 
-## Frontend A+B
+Fidelity #93 sur `f30292e8e4f802a489dbc5d8c9391c99a95470f4` : gate automatique vert mais version refusée après inspection visuelle.
 
-Fichiers principaux :
+Motif : contexte clinique développé par défaut, studio fortement allongé et saisie médicament repoussée.
 
-- `frontend/src/features/admin/DocumentStudio/Forms/DrugRowV1.tsx`
-- `frontend/src/features/admin/DocumentStudio/Forms/PrescriptionAgenticStudioV1.tsx`
-- `frontend/src/features/admin/DocumentHub.tsx`
-- `frontend/src/features/admin/DocumentStudio/DocumentHubContent.tsx`
-- `frontend/src/features/admin/DocumentStudio/useDocumentGenerator.ts`
-- `frontend/src/features/admin/DocumentStudio/PrescriptionIntelligenceV1.boundary.test.ts`
+### AFTER C1 final certifié
 
-Garde-fous testés : catalogue uniquement, sélection explicite, aucune posologie injectée, invalidation des champs associés si le nom change, absence smart-suggest/safety-check legacy, absence de forme implicite, blocage clinique explicite.
+HEAD PR certifié : `d943a49da1362028e4b02158193b0e82842faf02`.
 
-## UI/UX — A+B BEFORE → AFTER
+Ordonnance Fidelity V3 Visual #98 : **SUCCESS** — run `34892570623`.
 
-Viewports obligatoires : `390×844`, `430×932`, `768×1024`, `1280×900`.
+Artifact : `10367746003`.
 
-### BEFORE A+B
+Digest : `sha256:a0686c574578695038ac5b97762e619a9eb9e2244f707a2349237b92fc3ee54e`.
 
-Référence certifiée Ordonnance Fidelity V3.1 : artifact `10339208565`, digest `sha256:018e71b154551aadba5f90171b735770efde4b19cf03654cf64eaac4044e230d`.
+Résultats :
 
-### AFTER A+B exact-head
+- 4/4 viewports PASS ;
+- touch target minimum `44 px` ;
+- aucun overflow horizontal ;
+- carte médicament + action `Ajouter une ligne` visibles ensemble dans la scène planning ;
+- contexte patient compact/replié par défaut ;
+- scène C1 dépliée dédiée avec les 4 groupes structurés visibles ;
+- preview desktop conservée.
 
-HEAD certifié : `6e9129ebc03e1b73fac36dc2944149c194bcc023`.
+Hauteur studio finale, contexte compact :
 
-Ordonnance Fidelity V3 Visual #70 : **SUCCESS** — run `34878423582`, artifact `10361827618`, digest `sha256:606606845e996b9f794b7b3a03368f809c6e5c11f68c147b714c2958dd064f6a`, 4/4 viewports, touch target minimum `44 px`, aucun overflow horizontal, aucune erreur page.
-
-Ordonnance Composer Visual #34 : **SUCCESS** — run `34878423578`, artifact `10362195361`, digest `sha256:70cac3124ececb85c9554e34535bc211b9de1beb88ec5d0768de723126b0482e`.
-
-### Comparaison A+B
-
-| Viewport | BEFORE | AFTER | Réduction |
+| Viewport | BEFORE | AFTER C1 | Écart |
 | --- | ---: | ---: | ---: |
-| 390×844 | 993 px | 636.25 px | 35.9 % |
-| 430×932 | 966 px | 590 px | 38.9 % |
-| 768×1024 | 939.25 px | 447.25 px | 52.4 % |
-| 1280×900 | 889.25 px | 406.25 px | 54.3 % |
+| 390×844 | 636.25 px | 1054.875 px | +65.8 % |
+| 430×932 | 590 px | 975.75 px | +65.4 % |
+| 768×1024 | 447.25 px | 749.75 px | +67.6 % |
+| 1280×900 | 406.25 px | 681.75 px | +67.8 % |
 
-Score visuel conservateur A+B : **9.3/10**.
+La hausse d’empreinte verticale est acceptée en C1 car elle correspond à un nouveau contexte patient structuré + une indication document-scoped, tandis que l’action principale médicament reste prioritaire et visible en scène planning.
 
-## UI/UX — C1 BEFORE → AFTER
+Score visuel conservateur C1 : **9.0/10**.
 
-BEFORE C1 = dernier état A+B certifié : Ordonnance Fidelity V3 Visual #70, run `34878423582`, artifact `10361827618`, mêmes quatre viewports.
+## Preuves exact-head C1 avant merge
 
-Premier AFTER C1 inspecté : Fidelity #93 sur `f30292e8e4f802a489dbc5d8c9391c99a95470f4` — gate automatique **SUCCESS**, mais version **rejetée visuellement**. Hauteur studio observée : `390 px : 1295.25 px` et `1280 px : 842.25 px`, contre `636.25 px` et `406.25 px` au BEFORE C1 ; la saisie médicament perdait sa priorité visuelle.
+HEAD : `d943a49da1362028e4b02158193b0e82842faf02`.
 
-AFTER C1 corrigé : **EN ATTENTE DE CERTIFICATION EXACT-HEAD**.
+- CI #4129 / run `34892570531` : **SUCCESS** ;
+- frontend tests + build : **SUCCESS** ;
+- backend prod safety/config hardening : **SUCCESS** ;
+- backend test suite : **SUCCESS** ;
+- garde production négative : **SUCCESS** ;
+- M4-A / M4-B / M4-C contextual bridges : **SUCCESS** ;
+- Fidelity #98 / run `34892570623` : **SUCCESS**.
 
-Le gate C1 corrigé exige : contexte patient compact par défaut, indication document-scoped présente, carte médicament + action `Ajouter une ligne` visibles ensemble dans la scène planning, scène C1 dépliée avec les champs structurés visibles, contrôles visibles ≥ 44 px, aucun overflow horizontal, preview desktop conservée.
+## Merge et post-merge
 
-## Repo / merge
+PR `#495 — feat(prescription): add structured patient context C1` : **MERGED**.
 
-Repo : `hraaaaf/Digital_crown`.
+Squash merge : `3b22f2a0dbb5b778a53265b97ad3029eeb88e656`.
 
-A+B : PR `#487` mergée ; squash merge `c8870ecca4c9ac3f3beb00df6030785dd8ee5aa1`.
+Parent master au merge : `9b1b354631d60faa462dc98c629c14bf38fe2ddf`.
 
-C1 : PR `#495 — feat(prescription): add structured patient context C1` — **OPEN**, base `master` `4cfa04d651a47fa0cc2c60482e5ff5729148fb86`.
+Post-merge CI #4140 / run `34895686869` sur `3b22f2a0dbb5b778a53265b97ad3029eeb88e656` : **SUCCESS**.
 
-Candidat C1 corrigé en cours de certification : `7f36b47cadc91a43ba3c48a8139c5487b458b5e2`.
-
-## Preuves CI A+B
-
-HEAD produit certifié avant canonical `6e9129ebc03e1b73fac36dc2944149c194bcc023` :
-
-- CI #3986 / `34878423669` : **SUCCESS** ;
-- T2 Runtime Browser #2899 / `34878423636` : **SUCCESS** ;
-- Patient P7 #1498 / `34878423562` : **SUCCESS** ;
-- Catalog Connected Truth #1126 / `34878423561` : **SUCCESS** ;
-- PostgreSQL #414 / `34878423557` : **SUCCESS** ;
-- Ordonnance Fidelity V3 Visual #70 / `34878423582` : **SUCCESS** ;
-- Ordonnance Composer Visual #34 / `34878423578` : **SUCCESS** ;
-- Settings R11 #644 / `34878423659` : **SUCCESS** ;
-- M6-I #1699 / `34878423604` : **SKIPPED attendu**.
-
-Post-merge A+B `master` sur `c8870ecca4c9ac3f3beb00df6030785dd8ee5aa1` :
-
-- CI #3992 / run `34880364187` : **SUCCESS** ;
-- Frontend tests : **SUCCESS** ;
-- Frontend build : **SUCCESS** ;
-- Backend prod safety/config hardening : **SUCCESS** ;
-- Backend test suite : **SUCCESS** ;
-- Garde production négative : **SUCCESS**.
-
-## Preuves C1
-
-Candidat exact-head corrigé `7f36b47cadc91a43ba3c48a8139c5487b458b5e2` :
-
-- CI #4127 / run `34892422969` : **QUEUED** ;
-- Ordonnance Fidelity V3 Visual #97 / run `34892423245` : **PENDING** ;
-- T2 Runtime Browser #3037 / run `34892422980` : **PENDING** ;
-- Patient P7 #1547 / run `34892423105` : **PENDING** ;
-- PostgreSQL #552 / run `34892423181` : **PENDING** ;
-- Portability Runtime #598 / run `34892423118` : **IN_PROGRESS** ;
-- Settings R11 #671 / run `34892423109` : **SUCCESS** ;
-- M6-I #1837 / run `34892423217` : **SKIPPED attendu**.
-
-Ces états ne constituent pas encore une certification finale C1.
-
-## Déploiement
+- frontend tests : **SUCCESS** ;
+- frontend build : **SUCCESS** ;
+- backend prod safety/config hardening : **SUCCESS** ;
+- backend test suite : **SUCCESS** ;
+- garde production négative : **SUCCESS** ;
+- M4 contextual bridges : **SKIPPED attendu** sur push.
 
 Aucun déploiement Vercel demandé ni réalisé.
 
 ## Risques résiduels / lot suivant
 
-1. Le snapshot CNOPS est ancien et ne doit jamais être utilisé comme preuve de disponibilité commerciale actuelle.
-2. Les moteurs pharmacologiques legacy restent présents hors du chemin V1 ; ils ne doivent pas être reconnectés sans certification.
-3. C1 fournit des faits structurés, mais **ne prouve pas leur exactitude clinique** et ne suffit pas à autoriser une règle de dose.
-4. L’indication est conservée comme métadonnée de l’ordonnance ; C1 ne l’imprime pas dans le PDF et ne l’interprète pas.
-5. Toute règle C suivante exige un contrat clinique séparé, sources versionnées/concordantes, paramètres complets et tests d’acceptation/refus indépendants.
-6. Aclav reste un exemple UX uniquement jusqu’à identification de la présentation exacte et vérification documentaire/clinique dédiée.
+1. Le snapshot CNOPS reste historique et ne doit pas être présenté comme preuve de disponibilité commerciale actuelle.
+2. Les moteurs pharmacologiques legacy restent hors du chemin V1.
+3. C1 fournit des faits structurés mais pas une validation médicale automatisée.
+4. L’indication reste métadonnée de l’ordonnance en C1, non interprétée.
+5. Toute règle C2 exige une certification scientifique indépendante avant activation.
+6. Aclav reste un exemple UX uniquement tant que présentation exacte + règle clinique dédiée ne sont pas certifiées.
 
 ## Next exact
 
-`Achever les verdicts exact-head du candidat corrigé ; si verts, inspecter l’artifact Fidelity aux quatre viewports et la scène C1 dépliée, comparer au BEFORE A+B, inscrire les preuves finales ici, merger PR #495 par squash, puis vérifier master post-merge.`
+`C2 : sélectionner une seule règle clinique candidate, définir son contexte minimal exact, sourcer la règle avec ≥2 sources sérieuses concordantes, modéliser le contrat de calcul/versionnement, écrire les tests positifs/négatifs, puis seulement envisager son activation derrière un gate fail-closed.`
