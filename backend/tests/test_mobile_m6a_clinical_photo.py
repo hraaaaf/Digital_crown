@@ -1,6 +1,5 @@
 from datetime import datetime, timedelta
 from io import BytesIO
-from pathlib import Path
 
 import pytest
 from cryptography.hazmat.primitives import serialization
@@ -8,10 +7,11 @@ from cryptography.hazmat.primitives.asymmetric import ec
 from PIL import Image
 
 from backend import models
+from backend.models_media_core import ClinicalAsset
 from backend.routers import mobile_resource_bridge
 from backend.routers.mobile_resource_bridge import BRIDGE_CONTEXT_TABLE  # noqa: F401
 from backend.security import get_password_hash
-from backend.services import archive_service
+from backend.services import archive_service, clinical_asset_storage
 
 
 @pytest.fixture(autouse=True)
@@ -24,6 +24,7 @@ def _isolate_mobile_photo_runtime(tmp_path, monkeypatch):
     monkeypatch.setattr(archive_service, 'MEDIA_DIR', tmp_path)
     monkeypatch.setattr(archive_service, 'ARCHIVE_BASE_DIR', tmp_path / 'archives')
     monkeypatch.setattr(mobile_resource_bridge._documents, 'MEDIA_DIR', tmp_path)
+    monkeypatch.setenv('MEDIA_ROOT', str(tmp_path / 'media'))
     yield
     _license_cache.clear()
 
@@ -145,20 +146,28 @@ def test_mobile_clinical_photo_archives_exact_patient_and_strips_metadata(client
     assert 'patient_id' not in payload
     assert 'file_path' not in payload['document']
 
-    document = db.query(models.DocumentArchive).filter(models.DocumentArchive.id == payload['document']['id']).one()
-    assert document.patient_id == patient.id
-    assert document.document_type == models.DocumentType.PHOTO_CLINIQUE
-    assert document.uploaded_by_id == dentiste.id
-    assert document.original_filename.startswith('photo-clinique-')
-    assert document.original_filename.endswith('.jpg')
-    assert '..' not in document.original_filename
-    assert 'evil' not in document.original_filename
+    asset = db.query(ClinicalAsset).filter(ClinicalAsset.id == payload['document']['id']).one()
+    assert asset.patient_id == patient.id
+    assert asset.employer_id == dentiste.id
+    assert asset.asset_type == 'PHOTO'
+    assert asset.source_kind == 'DEVICE_CAPTURE'
+    assert asset.source_ref == 'MOBILE_RESOURCE_BRIDGE'
+    assert asset.created_by == dentiste.id
+    assert asset.original_filename.startswith('device-capture-')
+    assert asset.original_filename.endswith('.jpg')
+    assert '..' not in asset.original_filename
+    assert 'evil' not in asset.original_filename
+    assert asset.mime_type == 'image/jpeg'
+    assert asset.storage_key
+    assert asset.storage_format == 'AESGCM_V1'
 
-    relative = document.file_path.replace('static/archives/', '', 1)
-    stored = Path(archive_service.ARCHIVE_BASE_DIR) / relative
-    assert stored.is_file()
-    assert archive_service.ARCHIVE_BASE_DIR.resolve() in stored.resolve().parents
-    with Image.open(stored) as normalized:
+    stored = clinical_asset_storage.read_clinical_asset_bytes(
+        db,
+        employer_id=dentiste.id,
+        patient_id=patient.id,
+        asset_id=asset.id,
+    )
+    with Image.open(BytesIO(stored)) as normalized:
         assert normalized.format == 'JPEG'
         assert normalized.getexif().get(274) is None
         assert normalized.getexif().get(270) is None
@@ -175,11 +184,11 @@ def test_mobile_clinical_photo_rejects_invalid_and_oversized_files(client, db, d
 
     invalid = _upload(client, access, context_key, b'not-an-image', filename='fake.jpg')
     assert invalid.status_code == 422
-    assert db.query(models.DocumentArchive).count() == 0
+    assert db.query(ClinicalAsset).count() == 0
 
     oversized = _upload(client, access, context_key, b'x' * (12 * 1024 * 1024 + 1), filename='large.jpg')
     assert oversized.status_code == 413
-    assert db.query(models.DocumentArchive).count() == 0
+    assert db.query(ClinicalAsset).count() == 0
 
 
 def test_mobile_clinical_photo_revalidates_permission_at_upload_time(client, db, dentiste, monkeypatch):
@@ -203,7 +212,7 @@ def test_mobile_clinical_photo_revalidates_permission_at_upload_time(client, db,
     db.commit()
     denied = _upload(client, access, context_key, _jpeg_bytes())
     assert denied.status_code == 403
-    assert db.query(models.DocumentArchive).count() == 0
+    assert db.query(ClinicalAsset).count() == 0
 
 
 def test_mobile_clinical_photo_rejects_deleted_patient_and_non_patient_context(client, db, dentiste, auth_headers, monkeypatch):
@@ -219,7 +228,7 @@ def test_mobile_clinical_photo_rejects_deleted_patient_and_non_patient_context(c
     db.commit()
     deleted = _upload(client, access, context_key, _jpeg_bytes())
     assert deleted.status_code == 404
-    assert db.query(models.DocumentArchive).count() == 0
+    assert db.query(ClinicalAsset).count() == 0
 
     patient.deleted_at = None
     db.commit()
@@ -248,4 +257,4 @@ def test_mobile_clinical_photo_rejects_deleted_patient_and_non_patient_context(c
     assert destination.status_code == 200
     wrong = _upload(client, appointment_access, destination.json()['context']['key'], _jpeg_bytes())
     assert wrong.status_code == 422
-    assert db.query(models.DocumentArchive).count() == 0
+    assert db.query(ClinicalAsset).count() == 0
