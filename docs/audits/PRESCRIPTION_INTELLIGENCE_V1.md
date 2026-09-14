@@ -4,7 +4,7 @@ Date : 2026-09-14
 
 ## Statut
 
-**A+B CERTIFIÉS EXACT-HEAD — canonical de closeout en cours ; lot C volontairement bloqué (fail-closed).**
+**CLOS — A+B certifiés et mergés sur `master` ; lot C volontairement bloqué (fail-closed).**
 
 Ce fichier est le point de reprise canonique du chantier « Prescription Intelligence V1 ».
 
@@ -35,19 +35,11 @@ Permettre dans l’ordonnance un flux sécurisé :
 
 **NON IMPLÉMENTÉE / BLOQUÉE PAR CONCEPTION.**
 
-L’UI affiche explicitement :
+L’UI affiche explicitement `Suggestion clinique bloquée` et `Contrôle clinique automatique bloqué`.
 
-- `Suggestion clinique bloquée` ;
-- `Contrôle clinique automatique bloqué`.
+Le flux V1 actif n’appelle pas `/prescriptions/smart-suggest/{patient_id}` ni `/prescriptions/safety/check` : ces mécanismes legacy contiennent des règles/mappings cliniques non certifiés selon le contrat V1.
 
-Le flux V1 actif n’appelle pas :
-
-- `/prescriptions/smart-suggest/{patient_id}` ;
-- `/prescriptions/safety/check`.
-
-Motif : ces mécanismes legacy contiennent des règles/mappings cliniques non certifiés selon le contrat V1.
-
-Le modèle `Patient` expose actuellement de façon structurée notamment la date de naissance et un champ libre `antecedents_medicaux`, mais pas les champs structurés requis pour généraliser des règles de dose sûres tels que poids, allergies structurées, fonction rénale/hépatique et indication clinique structurée. C ne pourra être activé qu’après ajout des données nécessaires et certification scientifique de chaque règle.
+Le modèle patient ne fournit pas encore de façon structurée tout le contexte requis pour généraliser des règles de dose sûres : poids, allergies structurées, fonction rénale/hépatique et indication clinique structurée. C ne pourra être activé qu’après ajout des données nécessaires et certification scientifique de chaque règle.
 
 ## Frontière clinique V1
 
@@ -71,8 +63,7 @@ Source documentaire : `CNOPS Open Data — Référentiel des médicaments`.
 - portail : Open Data Maroc ;
 - licence : Open Data Commons Open Database License (ODbL) ;
 - dernière modification publique observée du jeu : `2021-12-13 16:26 UTC` ;
-- contenu déclaré : princeps/génériques, prix public, prix hôpital, base de remboursement ;
-- la CNOPS décrit également son guide médicament comme associant DCI, noms commerciaux, dosage, présentation, classe thérapeutique, PPV et PBR.
+- contenu déclaré : princeps/génériques, prix public, prix hôpital, base de remboursement.
 
 Conclusion : cette source est exploitable comme **snapshot documentaire historique** d’identité/présentation. Elle ne prouve pas le statut de commercialisation actuel en 2026. Le contrat expose donc `current_marketing_status_verified=false`.
 
@@ -84,13 +75,7 @@ Fichiers principaux :
 - `backend/routers/medications.py`
 - `backend/tests/test_prescription_intelligence_catalog.py`
 
-Contrats testés :
-
-- provenance ;
-- ID présentation stable et résoluble ;
-- présentation inconnue fail-closed ;
-- validation dosage limitée à la présence documentaire dans le snapshot ;
-- aucune revendication de commercialisation actuelle.
+Contrats testés : provenance, ID présentation stable/résoluble, présentation inconnue fail-closed, validation dosage limitée à la présence documentaire, aucune revendication de commercialisation actuelle.
 
 ## Frontend
 
@@ -103,16 +88,7 @@ Fichiers principaux :
 - `frontend/src/features/admin/DocumentStudio/useDocumentGenerator.ts`
 - `frontend/src/features/admin/DocumentStudio/PrescriptionIntelligenceV1.boundary.test.ts`
 
-Garde-fous testés :
-
-- catalogue uniquement ;
-- sélection explicite ;
-- aucune posologie injectée ;
-- invalidation des champs associés si le nom change ;
-- absence smart-suggest ;
-- absence safety/check legacy dans V1 ;
-- absence de forme implicite ;
-- blocage clinique explicite.
+Garde-fous testés : catalogue uniquement, sélection explicite, aucune posologie injectée, invalidation des champs associés si le nom change, absence smart-suggest/safety-check legacy, absence de forme implicite, blocage clinique explicite.
 
 ## UI/UX — BEFORE → AFTER
 
@@ -120,38 +96,17 @@ Viewports obligatoires : `390×844`, `430×932`, `768×1024`, `1280×900`.
 
 ### BEFORE
 
-Référence certifiée Ordonnance Fidelity V3.1 :
+Référence certifiée Ordonnance Fidelity V3.1 : artifact `10339208565`, digest `sha256:018e71b154551aadba5f90171b735770efde4b19cf03654cf64eaac4044e230d`.
 
-- artifact `10339208565` ;
-- digest `sha256:018e71b154551aadba5f90171b735770efde4b19cf03654cf64eaac4044e230d`.
+### AFTER exact-head produit
 
-### AFTER exact HEAD
+HEAD certifié : `6e9129ebc03e1b73fac36dc2944149c194bcc023`.
 
-HEAD certifié :
+Ordonnance Fidelity V3 Visual #70 : **SUCCESS** — run `34878423582`, artifact `10361827618`, digest `sha256:606606845e996b9f794b7b3a03368f809c6e5c11f68c147b714c2958dd064f6a`, 4/4 viewports, touch target minimum `44 px`, aucun overflow horizontal, aucune erreur page.
 
-`6e9129ebc03e1b73fac36dc2944149c194bcc023`
-
-Ordonnance Fidelity V3 Visual #70 : **SUCCESS**
-
-- run `34878423582` ;
-- artifact `10361827618` ;
-- digest `sha256:606606845e996b9f794b7b3a03368f809c6e5c11f68c147b714c2958dd064f6a` ;
-- 4/4 viewports ;
-- touch target minimum : `44 px` ;
-- aucun overflow horizontal ;
-- aucune erreur page.
-
-Ordonnance Composer Visual #34 : **SUCCESS**
-
-- run `34878423578` ;
-- artifact `10362195361` ;
-- digest `sha256:70cac3124ececb85c9554e34535bc211b9de1beb88ec5d0768de723126b0482e`.
-
-Les deux derniers commits ne modifient pas le produit : `94a6998d...` aligne uniquement un probe Vitest sur `data-safety-status="blocked"`; `6e9129eb...` rend le fixture Composer autonome en mockant `/api/medications/search` à `[]`.
+Ordonnance Composer Visual #34 : **SUCCESS** — run `34878423578`, artifact `10362195361`, digest `sha256:70cac3124ececb85c9554e34535bc211b9de1beb88ec5d0768de723126b0482e`.
 
 ### Comparaison
-
-Hauteur du studio principal BEFORE → AFTER :
 
 | Viewport | BEFORE | AFTER | Réduction |
 | --- | ---: | ---: | ---: |
@@ -160,39 +115,38 @@ Hauteur du studio principal BEFORE → AFTER :
 | 768×1024 | 939.25 px | 447.25 px | 52.4 % |
 | 1280×900 | 889.25 px | 406.25 px | 54.3 % |
 
-Le flux remplace les surfaces de protocoles/quick-entry legacy par une hiérarchie documentaire plus courte, avec deux états de sécurité bloqués visibles avant le corps de prescription.
+Score visuel conservateur : **9.3/10**. Réserve : sur 390/430 px, les deux messages fail-closed occupent encore une hauteur notable avant le premier champ médicament ; densité acceptée au bénéfice de la sécurité explicite.
 
-Score visuel conservateur : **9.3/10**. Réserve principale : sur 390/430 px, les deux messages fail-closed consomment encore une hauteur notable avant le premier champ médicament ; cette densité est volontairement acceptée au bénéfice de la sécurité explicite.
+## Repo / merge
 
-## Repo / PR
+Repo : `hraaaaf/Digital_crown`.
 
-Repo : `hraaaaf/Digital_crown`
+PR : `#487 — feat(prescription): secure Prescription Intelligence V1 A+B` — **MERGED**.
 
-Branche : `feat/prescription-intelligence-v1`
+Squash merge produit sur `master` : `c8870ecca4c9ac3f3beb00df6030785dd8ee5aa1`.
 
-PR : `#487 — feat(prescription): secure Prescription Intelligence V1 A+B`
+## Preuves CI
 
-HEAD produit + probes avant canonical : `6e9129ebc03e1b73fac36dc2944149c194bcc023`
+HEAD produit certifié avant canonical `6e9129ebc03e1b73fac36dc2944149c194bcc023` :
 
-Master observé avant closeout : `1ce5bc8a6297c89e9b69a8b455ada576d374a6fc`.
+- CI #3986 / `34878423669` : **SUCCESS** ;
+- T2 Runtime Browser #2899 / `34878423636` : **SUCCESS** ;
+- Patient P7 #1498 / `34878423562` : **SUCCESS** ;
+- Catalog Connected Truth #1126 / `34878423561` : **SUCCESS** ;
+- PostgreSQL #414 / `34878423557` : **SUCCESS** ;
+- Ordonnance Fidelity V3 Visual #70 / `34878423582` : **SUCCESS** ;
+- Ordonnance Composer Visual #34 / `34878423578` : **SUCCESS** ;
+- Settings R11 #644 / `34878423659` : **SUCCESS** ;
+- M6-I #1699 / `34878423604` : **SKIPPED attendu**.
 
-Depuis la base historique de la PR, master n’a ajouté qu’un fichier documentaire hors scope : `docs/audits/COMPETITIVE_ROADMAP_POST_MEDIA.md`. PR mergeable vérifiée `true` avant closeout ; aucun rebase produit requis.
+Post-merge `master` sur `c8870ecca4c9ac3f3beb00df6030785dd8ee5aa1` :
 
-## CI exact-head avant canonical
-
-Tous les gates du HEAD `6e9129ebc03e1b73fac36dc2944149c194bcc023` sont terminés :
-
-- CI #3986, run `34878423669` : **SUCCESS** ; frontend tests + build **SUCCESS** ; backend tests + durcissement **SUCCESS**.
-- T2 Runtime Browser #2899, run `34878423636` : **SUCCESS**.
-- Patient P7 #1498, run `34878423562` : **SUCCESS**.
-- Catalog Connected Truth #1126, run `34878423561` : **SUCCESS**.
-- PostgreSQL #414, run `34878423557` : **SUCCESS**.
-- Ordonnance Fidelity V3 Visual #70, run `34878423582` : **SUCCESS**.
-- Ordonnance Composer Visual #34, run `34878423578` : **SUCCESS**.
-- Settings R11 #644, run `34878423659` : **SUCCESS**.
-- M6-I #1699, run `34878423604` : **SKIPPED attendu**.
-
-Le premier run CI du produit avait identifié un unique probe statique obsolète dans `OrdonnanceFidelityV3.u1.test.ts` : il cherchait `data-safety-status={safetyStatus}` alors que V1 utilise l’état fixe `data-safety-status="blocked"`. Le correctif `94a6998d...` modifie uniquement cette assertion. Le run Composer suivant a révélé que son fixture visuel dépendait involontairement d’un appel `/api/medications/search` alors que ce workflow ne démarre aucun backend ; `6e9129eb...` isole désormais le gate en mockant ce seul endpoint à `[]`.
+- CI #3992 / run `34880364187` : **SUCCESS** ;
+- Frontend tests : **SUCCESS** ;
+- Frontend build : **SUCCESS** ;
+- Backend prod safety/config hardening : **SUCCESS** ;
+- Backend test suite : **SUCCESS** ;
+- Garde production négative : **SUCCESS**.
 
 ## Déploiement
 
@@ -205,6 +159,14 @@ Aucun déploiement Vercel demandé ni réalisé.
 3. C exige d’abord un contexte patient structuré suffisant, puis une règle clinique sourcée/versionnée avec au moins deux sources sérieuses concordantes et des tests positifs/négatifs.
 4. Aclav reste un exemple UX uniquement jusqu’à identification de la présentation exacte et vérification documentaire/clinique dédiée.
 
+## Lot C — point de reprise
+
+Chemin code vérifié pour le contexte clinique structuré :
+
+`models.Patient → backend/schemas/patient.py → frontend/src/features/patients/PatientIdentityContract.ts → AddPatientForm.tsx / EditPatientForm.tsx`.
+
+Le contrat `PatientBase` utilise `extra="forbid"` : les nouveaux champs doivent être explicitement modélisés et migrés, jamais cachés dans `antecedents_medicaux`.
+
 ## Next exact
 
-`pousser ce canonical → vérifier le CI du commit documentaire → squash merge PR #487 → vérifier master/PR post-merge → mettre ce canonical en statut CLOS avec le SHA de merge → vérifier le post-merge.`
+`Lot C : concevoir et implémenter d’abord le contexte patient clinique structuré minimal, avec migration + API + UI + tests ; maintenir toute suggestion clinique fail-closed jusqu’à certification scientifique séparée des règles.`
