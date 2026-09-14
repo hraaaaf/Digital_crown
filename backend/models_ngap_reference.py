@@ -2,7 +2,8 @@
 
 This table is additive and intentionally empty by default. CatalogAct remains the
 clinical source of truth. A row can only be used for automatic NGAP resolution when
-its source is explicitly VERIFIED_PRIMARY and carries a locked SHA-256.
+its primary source is SHA-256 locked and the mapping itself was explicitly validated
+by a practitioner.
 """
 
 from __future__ import annotations
@@ -50,8 +51,9 @@ class NgapCatalogMapping(Base):
         ),
         CheckConstraint(
             "verification_status != 'VERIFIED_PRIMARY' OR "
-            "(source_hash IS NOT NULL AND length(source_hash) = 64)",
-            name="ck_ngap_mapping_verified_hash",
+            "(source_hash IS NOT NULL AND length(source_hash) = 64 "
+            "AND validated_by_practitioner_id IS NOT NULL AND validated_at IS NOT NULL)",
+            name="ck_ngap_mapping_verified_evidence",
         ),
     )
 
@@ -77,5 +79,10 @@ class NgapCatalogMapping(Base):
     source_hash: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
     valid_from: Mapped[Optional[date]] = mapped_column(Date, nullable=True)
     valid_to: Mapped[Optional[date]] = mapped_column(Date, nullable=True)
+
+    validated_by_practitioner_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("users.id", ondelete="RESTRICT"), nullable=True, index=True
+    )
+    validated_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
 
     created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=func.now())
