@@ -77,11 +77,15 @@ def staff_patient_or_404(db: Session, current_user: models.User, patient_id: int
 def patient_credential(
     authorization: str | None = Header(default=None),
 ) -> FirebasePatientCredential:
-    if not authorization or not authorization.startswith("Bearer "):
+    # Keep patient and cabinet authentication namespaces disjoint. The cabinet
+    # middleware owns `Bearer`; Patient Companion owns the explicit `Firebase` scheme.
+    if not authorization:
         raise HTTPException(status_code=401, detail="Authentification patient requise.")
-    raw = authorization[7:].strip()
+    scheme, separator, raw = authorization.partition(" ")
+    if not separator or scheme.lower() != "firebase" or not raw.strip():
+        raise HTTPException(status_code=401, detail="Authentification patient requise.")
     try:
-        return verify_patient_id_token(raw)
+        return verify_patient_id_token(raw.strip())
     except FirebasePatientAuthUnavailable:
         raise HTTPException(
             status_code=503,
