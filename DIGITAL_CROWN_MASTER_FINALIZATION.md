@@ -47,37 +47,32 @@ Baseline 60 %. Accès control-plane production requis pour les mutations réelle
 ### L7 — Release / CI — ACTIF TRANSVERSE
 Packaging #450/#451 mergés ; Document History #469 fermé ; P3 #463 fermé. Rechercher uniquement les dettes release/CI encore réellement ouvertes lors des closeouts suivants.
 
-### L8 — Competitive / Media — C6 FERMÉ
-- C5 reste fermé via PR #478 ; baseline visuelle certifiée C5 : **9,6/10**.
-- PR #482 `feat(media): add C6 controlled smartphone capture` : **MERGED**.
-- HEAD candidat C6 certifié : `b9565ed1374b9fb9e43880e09e2c303e24496408`.
-- Merge squash C6 : `78be81a718980fe81a3a597456c7bf8d73c16528`.
-- Base exacte avant merge : `master@4023d978f82b954ebbba9bec1c05a7bdd5e73896` ; master n'avait pas dérivé avant merge.
-- Scope final C6 : exactement 3 fichiers backend ; aucun frontend, migration, workflow, configuration d'authentification ou fichier scientifique Céphalo.
-- Fonctionnalité fermée : la capture photo existante du smartphone appairé et du contexte patient est persistée via le Media Core canonique en `ClinicalAsset` `PHOTO / DEVICE_CAPTURE`, sans dual-write `DocumentArchive` ; le contrat JSON mobile historique utile est conservé.
-- Contrôles hérités et revalidés : JWT mobile `surface=mobile` / `kind=device_session`, utilisateur actif, tenant/employer exact, `jti` non blacklisté, appareil appairé actif et non révoqué, contexte ressource serveur lié au tenant/utilisateur/appareil, patient du tenant exact.
-- Validation C6 : MIME non-image rejeté ; faux JPEG rejeté par vérification réelle de l'image ; taille > 12 MiB rejetée ; aucune écriture Media Core sur ces rejets.
-- Ingestion canonique C3 conservée : détection réelle du type, hash serveur, thumbnail, stockage chiffré AES-GCM et déduplication limitée au tenant.
-- Provenance : `MOBILE_RESOURCE_BRIDGE`, `SMARTPHONE_CAMERA`, contexte patient et device id ; audit `CLINICAL_PHOTO_CAPTURED` rattaché au `CLINICAL_ASSET` après commit réussi.
-- Local-first : upload vers `api_base_url` du cabinet appairé ; en perte réseau la photo reste en aperçu pour retry ; aucun fallback cloud/public et aucun canal média anonyme ajouté.
-- Test historique M6-A réaligné sur le Media Core : vérifie `ClinicalAsset`, `DEVICE_CAPTURE`, stockage `AESGCM_V1`, lecture contrôlée et suppression EXIF ; le legacy `DocumentArchive` n'est pas réintroduit.
-- Exact-head candidat : CI #3921 **SUCCESS** ; PostgreSQL #357 **SUCCESS** ; T2 #2842 **SUCCESS** ; P7 #1466 **SUCCESS** ; M6-I #1642 **SKIPPED attendu**.
-- Post-merge master `78be81a7…` : CI #3922 / run `34841456003` **SUCCESS** ; backend Tests & durcissement SUCCESS ; frontend tests & build SUCCESS ; garde production négative SUCCESS ; bridges M4-A/B/C SKIPPED car hors scope du push.
-- Audit PR avant merge : reviews 0 ; threads 0 ; comments 0 ; mergeable true.
-- UI/UX C6 : aucun fichier frontend modifié. Sur master mergé, `PatientMediaTimeline.tsx` conserve le blob `5a55e735c6f70f2c34df373939cfa0c5689f0bac` et `MobileContext.tsx` le blob `b35b69b3c5cda9f9dc75ad0bd72a293682a520fa`, identiques à la baseline C5 certifiée. Donc aucun nouveau score visuel C6 n'est inventé ; référence visuelle inchangée : **9,6/10**.
+### L8 — Competitive / Media — C7 FERMÉ
+- C4/C5/C6 restent fermés ; C7 n'a pas repris leurs scopes hors régression nécessaire et n'a pas touché la Céphalométrie.
+- PR #483 `feat(media): certify Competitive / Media C7` : **MERGED**.
+- HEAD candidat certifié : `cf56bb69e65d0eca5b8c5a73e593a02c788cb2d7`.
+- Merge squash C7 : `fdaa969f4369c7335e9badcd9480df223f8ee30c`.
+- Fonctionnalité fermée : recherche et filtres Media Core côté serveur sous scope tenant + patient, pagination bornée avec `has_more`, taille publique maximale 200, chargement explicite de la page suivante dans le Media Hub, protections de réponse obsolète et déduplication frontend.
+- Certification volumétrique : **5 000 assets** tenant A + **500 assets de bruit cross-tenant** ; première page `0,0171 s`, seconde `0,0152 s`, offset profond 4 800 `0,0166 s`, recherche profonde `0,0093 s`, filtre combiné `0,0037 s` ; compteur SQL constant à **2 SELECT** pour les listes certifiées.
+- Invariants volumétriques validés : ordre déterministe, pages adjacentes sans duplication/gap, offset profond correct, marqueur situé au-delà des 200 premiers retrouvé par recherche serveur, filtres `asset_type` / `source_kind` / `timepoint` fonctionnels.
+- Isolation cross-tenant validée : aucun asset du tenant étranger exposé dans la timeline tenant A ; accès direct au contenu étranger retourne **404** ; le scope tenant + patient reste appliqué au service et aux routes de contenu.
+- Exact-head candidat : CI #3941 / run `34856390298` **SUCCESS** ; backend **3467 passed / 10 skipped** ; frontend complet SUCCESS ; tests C7 dédiés pagination + recherche serveur SUCCESS ; PostgreSQL #374, T2 #2859, P7 #1474, C4 Visual #58 et autres checks pertinents SUCCESS ; M6-I #1659 SKIPPED attendu.
+- Responsive / UI : Media C5 Visual Certification #28 / run `34856390242` **SUCCESS** aux viewports **390×844, 768×1024, 1280×900** ; 3/3 captures, zéro overflow horizontal, zéro overlap sticky/workspace, zéro page error, zéro HTTP 5xx.
+- Comparaison stricte BEFORE → AFTER avec la baseline C5 Visual Certification #20 : 390×844 pixel-identique ; 768×1024 delta `0,002416 %` des pixels ; 1280×900 delta `0,005208 %` ; aucun changement UX visible. Score visuel C7 conservé à **9,6/10** sur preuve comparative.
+- Audit PR avant merge : **0 review / 0 thread / 0 comment** ; PR mergeable et HEAD exact confirmé avant merge.
+- Post-merge `master@fdaa969f4369c7335e9badcd9480df223f8ee30c` : CI #3942 / run `34857880262` **SUCCESS**.
 - Aucun déploiement Vercel.
-- Le KPI Competitive global n'est pas recalculé à C6 : le gain Media `6,0 → 8,5` reste conditionné à la fermeture complète du Lot C.
+- Le KPI Competitive / Media reste séparé du calcul global ; aucune nouvelle valeur globale n'est inventée sans règle canonique de recalcul.
 
 ## Chemin critique unique
 
-1. **Fermer Competitive/Media C7, sans reprendre C4/C5/C6 et sans toucher au chantier scientifique Céphalo.**
-2. **Exécuter les gates physiques** : Portabilité P13 puis Mobile Terrain, selon disponibilité du matériel réel.
-3. **Fermer Sécurité** dès que l'accès control-plane production permet l'exécution réelle des mutations autorisées.
-4. **Certification globale non-Céphalo** : master propre, CI transverse verte, docs canoniques cohérents, inventaire explicite des human/external gates résiduels.
+1. **Exécuter les gates physiques** : Portabilité P13 puis Mobile Terrain, selon disponibilité du matériel réel.
+2. **Fermer Sécurité** dès que l'accès control-plane production permet l'exécution réelle des mutations autorisées.
+3. **Certification globale non-Céphalo** : master propre, CI transverse verte, docs canoniques cohérents, inventaire explicite des human/external gates résiduels.
 
 ## Next exact
 
-**Ouvrir un nouveau lot dédié Competitive / Media C7 — certification volumétrique + cross-tenant + responsive (5 EP) ; ne pas reprendre C4/C5/C6, ne pas toucher à la Céphalométrie et ne pas déployer Vercel sans autorisation explicite.**
+**HUMAN GATE — Portabilité P13 : exécuter la certification physique uniquement quand Windows 11 cabinet réel + stockage hors machine + Apple Silicon sont disponibles. En attendant, ne pas simuler ni remplacer ce gate.**
 
 ## Règles de continuité
 
@@ -89,19 +84,19 @@ Packaging #450/#451 mergés ; Document History #469 fermé ; P3 #463 fermé. Rec
 
 ## Repères courant
 
-- master avant merge C6 : `4023d978f82b954ebbba9bec1c05a7bdd5e73896`
-- C6 PR #482 : **MERGED**
-- C6 HEAD certifié : `b9565ed1374b9fb9e43880e09e2c303e24496408`
-- C6 merge squash : `78be81a718980fe81a3a597456c7bf8d73c16528`
-- CI candidat #3921 : **SUCCESS**
-- CI post-merge #3922 : **SUCCESS**
-- T2 #2842 : **SUCCESS**
-- P7 #1466 : **SUCCESS**
-- PostgreSQL #357 : **SUCCESS**
-- UI C6 : **zéro delta frontend**, référence C5 9,6/10 conservée
+- Competitive / Media C7 : **FERMÉ**
+- C7 PR #483 : **MERGED**
+- C7 HEAD certifié : `cf56bb69e65d0eca5b8c5a73e593a02c788cb2d7`
+- C7 merge squash : `fdaa969f4369c7335e9badcd9480df223f8ee30c`
+- CI candidat #3941 : **SUCCESS**
+- CI post-merge #3942 : **SUCCESS**
+- Media C5 Visual #28 : **SUCCESS**
+- volumétrie C7 : **5 000 + 500**, deep offset 4 800, 2 SELECT constants, toutes latences mesurées < 0,018 s
+- cross-tenant C7 : **0 fuite observée**, contenu étranger 404
+- UI C7 : **390 / 768 / 1280 certifiés**, score visuel **9,6/10** conservé après comparaison stricte BEFORE/AFTER
 - audit PR : **0 review / 0 thread / 0 comment**
 - indice global : **86,5 %**
 - Céphalométrie : **hors périmètre**
-- prochain gate logiciel : **Competitive / Media C7 — certification volumétrique + cross-tenant + responsive (5 EP)**
+- prochain gate : **Portabilité P13 — HUMAN GATE physique**
 - human gates : **Portabilité P13 + Mobile Terrain**
 - external gate : **Security control-plane production**
