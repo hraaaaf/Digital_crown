@@ -12,10 +12,11 @@ import hashlib
 import json
 import os
 import re
-from dataclasses import asdict, dataclass
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+from backend.schemas.insurance_submission import InsuranceTemplateTrust
 from backend.services.insurance_template_registry import (
     InsuranceTemplateDefinition,
     LockedInsuranceTemplate,
@@ -137,8 +138,21 @@ def lock_and_store_insurance_template(
     definition: InsuranceTemplateDefinition,
     pdf_bytes: bytes,
     source_url: str,
+    cabinet_validated_by: str | None = None,
 ) -> tuple[LockedInsuranceTemplate, StoredInsuranceSource]:
-    """Validate insurer template identity constraints, then store immutable bytes."""
+    """Validate insurer template constraints, then store immutable exact bytes.
+
+    A CABINET_VALIDATED_BINARY cannot be stored without the explicit identity of the
+    practitioner/operator who validated that exact binary. Secondary references remain
+    storable for comparison but cannot satisfy the submission VALIDATED gate.
+    """
+    validator = str(cabinet_validated_by or "").strip() or None
+    if (
+        definition.trust == InsuranceTemplateTrust.CABINET_VALIDATED_BINARY
+        and validator is None
+    ):
+        raise ValueError("Cabinet-validated template requires validator identity")
+
     locked = lock_template_pdf(
         definition=definition,
         pdf_bytes=pdf_bytes,
@@ -157,6 +171,7 @@ def lock_and_store_insurance_template(
             "trust": definition.trust.value,
             "source_url": locked.source_url,
             "page_count": locked.page_count,
+            "cabinet_validated_by": validator,
         },
     )
     return locked, stored
