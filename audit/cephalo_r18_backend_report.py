@@ -4,7 +4,11 @@ from __future__ import annotations
 
 import json
 import math
+import sys
 from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT))
 
 from backend.services.cephalo_steiner_geometry import (
     steiner_sna_deg_v1, steiner_snb_deg_v1, steiner_anb_deg_v1,
@@ -21,7 +25,6 @@ from backend.services.cephalo_ricketts_geometry import (
     ricketts_e_line_horizontal_signed_distance_px_v1,
 )
 
-ROOT = Path(__file__).resolve().parents[1]
 FIXTURES = ROOT / 'audit' / 'cephalo_r18_concordance_fixtures.json'
 OUT = ROOT / 'audit' / 'out' / 'backend.json'
 
