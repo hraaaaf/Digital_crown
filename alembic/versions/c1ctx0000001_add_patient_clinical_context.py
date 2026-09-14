@@ -29,7 +29,6 @@ def upgrade() -> None:
         sa.Column("renal_context_note", sa.Text(), nullable=True),
         sa.Column("hepatic_context_status", sa.String(length=32), server_default="UNKNOWN", nullable=False),
         sa.Column("hepatic_context_note", sa.Text(), nullable=True),
-        sa.Column("prescription_indication", sa.Text(), nullable=True),
         sa.Column("updated_at", sa.DateTime(), server_default=sa.func.now(), nullable=False),
         sa.Column("updated_by_user_id", sa.Integer(), nullable=True),
         sa.ForeignKeyConstraint(["employer_id"], ["users.id"], ondelete="CASCADE"),
