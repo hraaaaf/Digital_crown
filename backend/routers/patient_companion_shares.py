@@ -75,13 +75,17 @@ def grant_patient_share(
 ):
     patient = staff_patient_or_404(db, current_user, patient_id)
     employer_id = int(current_user.get_employer_id())
-    _shareable_resource_or_404(
+    resource = _shareable_resource_or_404(
         db,
         employer_id=employer_id,
         patient_id=patient.id,
         resource_type=body.resource_type,
         resource_id=body.resource_id,
     )
+    if body.resource_type == "document":
+        from backend.routers.documents import require_document_permission
+        doc_type = getattr(resource.document_type, "value", resource.document_type)
+        require_document_permission(str(doc_type), current_user)
 
     grant = db.query(PatientCompanionShareGrant).filter(
         PatientCompanionShareGrant.employer_id == employer_id,
