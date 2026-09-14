@@ -2,7 +2,8 @@ import os
 import logging
 from typing import Optional, Any
 from datetime import datetime
-from jinja2 import Environment, FileSystemLoader
+from xml.sax.saxutils import escape
+from jinja2 import Environment, FileSystemLoader, select_autoescape
 
 from backend.services.base_template import BaseTemplate
 from backend import schemas
@@ -25,7 +26,10 @@ class BilanOrthoPDFGenerator(BaseTemplate):
         self.output_dir = output_dir
         os.makedirs(self.output_dir, exist_ok=True)
         base_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-        self.jinja_env = Environment(loader=FileSystemLoader(os.path.join(base_dir, "templates")))
+        self.jinja_env = Environment(
+            loader=FileSystemLoader(os.path.join(base_dir, "templates")),
+            autoescape=select_autoescape(enabled_extensions=("html", "xml"), default_for_string=True),
+        )
 
     def generate(
         self,
@@ -181,15 +185,18 @@ class BilanOrthoPDFGenerator(BaseTemplate):
         doc = SimpleDocTemplate(file_path, pagesize=A4, rightMargin=m_right, leftMargin=m_left, topMargin=m_top, bottomMargin=m_bottom)
         elements = [
             Paragraph("BILAN ORTHODONTIQUE - RESTITUTION AUTORITAIRE", title),
-            Paragraph(f"Patient : {vm.patient_nom.upper()} {vm.patient_prenom.capitalize()} - Âge : {vm.patient_age} ans", body),
-            Paragraph(f"État documentaire : <b>{context['document_state']}</b>", body),
-            Paragraph(f"Contrat : {context['contract_version'] or 'non disponible'}", body),
+            Paragraph(
+                f"Patient : {escape(str(vm.patient_nom).upper())} {escape(str(vm.patient_prenom).capitalize())} - Âge : {escape(str(vm.patient_age))} ans",
+                body,
+            ),
+            Paragraph(f"État documentaire : <b>{escape(str(context['document_state']))}</b>", body),
+            Paragraph(f"Contrat : {escape(str(context['contract_version'] or 'non disponible'))}", body),
         ]
 
         if context["document_state"] != "COMPLETE":
             elements.append(Paragraph("Document clinique explicitement incomplet. Aucune conclusion manquante n'est reconstruite.", body))
         if context["clinical_validation_reason"]:
-            elements.append(Paragraph(str(context["clinical_validation_reason"]), body))
+            elements.append(Paragraph(escape(str(context["clinical_validation_reason"])), body))
 
         elements.append(Paragraph("Mesures scientifiques", h2))
         rows = [["Mesure", "Valeur / disponibilité", "Méthode", "Source"]]
@@ -212,12 +219,15 @@ class BilanOrthoPDFGenerator(BaseTemplate):
         ]))
         elements.extend([table, Spacer(1, 0.4*cm)])
 
-        elements.append(Paragraph("Chaîne clinique R11 -> R14", h2))
+        elements.append(Paragraph("Chaîne clinique R11 -&gt; R14", h2))
         for stage in context["stages"]:
-            label = f"{stage.get('stage_id') or ''} - {stage.get('title') or ''}: {stage.get('presentation_state') or 'INCONNU'}"
-            elements.append(Paragraph(f"<b>{label}</b>", body))
+            label = (
+                f"{stage.get('stage_id') or ''} - {stage.get('title') or ''}: "
+                f"{stage.get('presentation_state') or 'INCONNU'}"
+            )
+            elements.append(Paragraph(f"<b>{escape(label)}</b>", body))
             if stage.get("summary"):
-                elements.append(Paragraph(str(stage["summary"]), body))
+                elements.append(Paragraph(escape(str(stage["summary"])), body))
             for heading, key in (
                 ("Blockers", "blocking_gates"),
                 ("Données manquantes", "missing_data_refs"),
@@ -226,15 +236,24 @@ class BilanOrthoPDFGenerator(BaseTemplate):
             ):
                 values = stage.get(key) or []
                 if values:
-                    elements.append(Paragraph(f"{heading}: " + "; ".join(map(str, values)), body))
+                    rendered_values = "; ".join(escape(str(value)) for value in values)
+                    elements.append(Paragraph(f"{heading}: {rendered_values}", body))
             provenance = stage.get("provenance") or []
             if provenance:
-                text = "; ".join(f"{item.get('label')}: {item.get('value')}" for item in provenance)
+                text = "; ".join(
+                    f"{escape(str(item.get('label')))}: {escape(str(item.get('value')))}"
+                    for item in provenance
+                )
                 elements.append(Paragraph("Provenance: " + text, body))
 
         if context["blocking_gates"]:
             elements.append(Paragraph("Blockers globaux", h2))
-            elements.append(Paragraph("; ".join(map(str, context["blocking_gates"])), body))
+            elements.append(
+                Paragraph(
+                    "; ".join(escape(str(value)) for value in context["blocking_gates"]),
+                    body,
+                )
+            )
 
         draw_method = lambda canv, d: self.draw_static_elements(canv, d, config=config)
         doc.build(elements, onFirstPage=draw_method, onLaterPages=draw_method)
