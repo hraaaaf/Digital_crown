@@ -57,14 +57,19 @@ const viteBin=path.join(FRONTEND_DIR,'node_modules','.bin',process.platform==='w
 const server=spawn(viteBin,['--host','127.0.0.1','--port',String(PORT)],{cwd:FRONTEND_DIR,env:{...process.env,BROWSER:'none',VITE_API_URL:'http://127.0.0.1:8005'},stdio:['ignore','pipe','pipe']});
 let serverLog=''; server.stdout.on('data',c=>serverLog+=c); server.stderr.on('data',c=>serverLog+=c);
 const captures=[]; const blockedExternalRequests=[];
-try{
- await waitForServer(`${BASE_URL}/cephalo-r18-tracing-before.html`);
- for(const viewport of viewports){
-  const browser=await chromium.launch({headless:true}); const context=await browser.newContext({viewport:{width:viewport.width,height:viewport.height},reducedMotion:'reduce',locale:'fr-FR'}); const page=await context.newPage();
-  const pageErrors=[]; const consoleErrors=[]; page.on('pageerror',e=>pageErrors.push(e.message)); page.on('console',m=>{if(m.type()==='error')consoleErrors.push(m.text())});
-  await page.route('**/*',async route=>{const req=route.request();const u=new URL(req.url());if(u.hostname==='127.0.0.1'&&u.port===String(PORT))return route.continue();if(u.hostname==='127.0.0.1'&&u.port==='8005'){if(req.method()==='GET'&&u.pathname==='/api/patients/918')return route.fulfill(json({id:918,age:34,sexe:'M'}));return route.fulfill(json({detail:'neutralized'},418));}if(u.hostname==='fonts.googleapis.com')return route.fulfill({status:200,contentType:'text/css',body:''});blockedExternalRequests.push(req.url());return route.abort('blockedbyclient')});
+
+async function captureViewport(viewport,attempt){
+ const browser=await chromium.launch({headless:true});
+ const context=await browser.newContext({viewport:{width:viewport.width,height:viewport.height},reducedMotion:'reduce',locale:'fr-FR'});
+ const page=await context.newPage();
+ const pageErrors=[]; const consoleErrors=[];
+ page.on('pageerror',e=>pageErrors.push(e.message)); page.on('console',m=>{if(m.type()==='error')consoleErrors.push(m.text())});
+ await page.route('**/*',async route=>{const req=route.request();const u=new URL(req.url());if(u.hostname==='127.0.0.1'&&u.port===String(PORT))return route.continue();if(u.hostname==='127.0.0.1'&&u.port==='8005'){if(req.method()==='GET'&&u.pathname==='/api/patients/918')return route.fulfill(json({id:918,age:34,sexe:'M'}));return route.fulfill(json({detail:'neutralized'},418));}if(u.hostname==='fonts.googleapis.com')return route.fulfill({status:200,contentType:'text/css',body:''});blockedExternalRequests.push({viewport:viewport.name,attempt,url:req.url()});return route.abort('blockedbyclient')});
+ try{
   const response=await page.goto(`${BASE_URL}/cephalo-r18-tracing-before.html`,{waitUntil:'domcontentloaded',timeout:30000});
-  await page.getByRole('heading',{name:'Studio Céphalométrique'}).waitFor({state:'visible',timeout:30000}); await page.waitForTimeout(350);
+  await page.getByRole('heading',{name:'Studio Céphalométrique'}).waitFor({state:'visible',timeout:30000});
+  await page.waitForFunction(()=>document.querySelectorAll('svg line').length>8,{timeout:5000}).catch(()=>{});
+  await page.waitForTimeout(250);
   const metrics=await page.evaluate(()=>({
    hasAnalysisSelector:Boolean(document.querySelector('[aria-label="Analyse du tracé"]')),
    svgLines:document.querySelectorAll('svg line').length,
@@ -73,10 +78,20 @@ try{
    horizontalOverflow:document.documentElement.scrollWidth>innerWidth+1
   }));
   const valid=response?.status()===200&&!pageErrors.length&&!consoleErrors.length&&!metrics.horizontalOverflow&&!metrics.hasAnalysisSelector&&metrics.svgLines>8;
-  await page.screenshot({path:path.join(OUTPUT_DIR,`before-tracing-${viewport.name}.png`),fullPage:false});
-  captures.push({viewport:viewport.name,valid,pageErrors,consoleErrors,metrics});
-  await context.close(); await browser.close();
+  if(valid)await page.screenshot({path:path.join(OUTPUT_DIR,`before-tracing-${viewport.name}.png`),fullPage:false});
+  return {viewport:viewport.name,attempt,valid,pageErrors,consoleErrors,metrics};
+ }catch(error){return{viewport:viewport.name,attempt,valid:false,pageErrors:[...pageErrors,error instanceof Error?error.message:String(error)],consoleErrors,metrics:{hasAnalysisSelector:false,svgLines:0,svgPaths:0,landmarkLabels:[],horizontalOverflow:false}}}
+ finally{await context.close().catch(()=>{});await browser.close().catch(()=>{})}
+}
+
+try{
+ await waitForServer(`${BASE_URL}/cephalo-r18-tracing-before.html`);
+ for(const viewport of viewports){
+  const attempts=[await captureViewport(viewport,1)];
+  if(!attempts[0].valid)attempts.push(await captureViewport(viewport,2));
+  const finalAttempt=attempts.at(-1);
+  captures.push({...finalAttempt,attempts:attempts.map(a=>({attempt:a.attempt,valid:a.valid,pageErrors:a.pageErrors,consoleErrors:a.consoleErrors,metrics:a.metrics})),recoveredTransientRender:attempts.length===2&&!attempts[0].valid&&attempts[1].valid});
  }
 }finally{if(!server.killed)server.kill('SIGTERM');await Promise.race([once(server,'exit'),new Promise(r=>setTimeout(r,3000))]).catch(()=>{});await writeFile(path.join(OUTPUT_DIR,'vite.log'),serverLog,'utf8')}
-const invalid=captures.filter(c=>!c.valid); const report={lot:'CEPHALO-R18-TRACING',phase:'BEFORE',productHead:PRODUCT_HEAD,viewports:viewports.map(v=>v.name),captures,blockedExternalRequests,invalidCount:invalid.length};
+const invalid=captures.filter(c=>!c.valid); const report={lot:'CEPHALO-R18-TRACING',phase:'BEFORE',productHead:PRODUCT_HEAD,viewports:viewports.map(v=>v.name),capturePolicy:'Fresh Chromium per viewport; one fresh-process retry only after invalid first render.',captures,blockedExternalRequests,invalidCount:invalid.length};
 await writeFile(path.join(OUTPUT_DIR,'report.json'),JSON.stringify(report,null,2),'utf8'); console.log(JSON.stringify(report,null,2)); if(invalid.length||blockedExternalRequests.length)process.exitCode=1;
