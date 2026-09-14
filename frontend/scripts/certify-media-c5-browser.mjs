@@ -63,9 +63,9 @@ for (const viewport of viewports) {
   await page.getByText('Médiathèque clinique', { exact: true }).waitFor({ state: 'visible', timeout: 30000 });
 
   const search = page.getByLabel('Rechercher un média');
-  await search.fill('radiographie');
-  const filteredText = await page.getByText(/1\/3/).count();
-  if (!filteredText) throw new Error('C5 search did not narrow media list to 1/3');
+  await search.fill('radio');
+  const filteredText = await page.getByText(/1\/1/).count();
+  if (!filteredText) throw new Error('C5 server search did not narrow media list to 1/1');
   await search.fill('');
 
   const addButtons = page.getByRole('button', { name: 'Ajouter à la comparaison' });
