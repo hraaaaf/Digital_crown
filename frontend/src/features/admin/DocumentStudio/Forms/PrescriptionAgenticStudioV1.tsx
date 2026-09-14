@@ -11,6 +11,7 @@ import {
 } from '../PrescriptionFormPolicy';
 import type { ValidationError } from '../useDocumentGenerator';
 import { DrugRow } from './DrugRow';
+import { PatientClinicalContextPanel } from './PatientClinicalContextPanel';
 import type { DrugItem } from './prescriptionTypes';
 
 export interface PrescriptionAgenticStudioProps {
@@ -51,6 +52,7 @@ const clearCatalogMetadata = (drug: DrugItem): DrugItem => ({
 });
 
 export const PrescriptionAgenticStudio: React.FC<PrescriptionAgenticStudioProps> = ({
+  patientId,
   drugs,
   setDrugs,
   onUpdateDrug,
@@ -64,6 +66,7 @@ export const PrescriptionAgenticStudio: React.FC<PrescriptionAgenticStudioProps>
 
   const currentFingerprint = useMemo(() => fingerprint(drugs), [drugs]);
   const activeLineCount = drugs.filter(drug => drug.name.trim()).length;
+  const numericPatientId = Number(patientId);
 
   useEffect(() => {
     if (baselineFingerprintRef.current === null) {
@@ -163,7 +166,7 @@ export const PrescriptionAgenticStudio: React.FC<PrescriptionAgenticStudioProps>
             className="flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50/65 px-3 py-2 text-[10px] font-semibold text-amber-800"
           >
             <ShieldAlert size={14} className="mt-0.5 shrink-0" />
-            <div><span className="font-black">Suggestion clinique bloquée.</span> Aucune règle V1 n’est certifiée et le dossier patient ne possède pas encore tous les champs structurés requis.</div>
+            <div><span className="font-black">Suggestion clinique bloquée.</span> Le contexte structuré peut être renseigné, mais aucune règle de dose V1 n’est certifiée ni activée.</div>
           </div>
 
           <div
@@ -175,6 +178,8 @@ export const PrescriptionAgenticStudio: React.FC<PrescriptionAgenticStudioProps>
           </div>
         </div>
       </section>
+
+      <PatientClinicalContextPanel patientId={Number.isFinite(numericPatientId) ? numericPatientId : undefined} />
 
       <div className="space-y-3">
         {drugs.map((drug, idx) => (
