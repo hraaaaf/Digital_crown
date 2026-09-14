@@ -43,8 +43,8 @@ class InsuranceOverlayProfile:
     placements: tuple[InsuranceOverlayPlacement, ...]
 
 
-def insurance_overlay_profile_sha256(profile: InsuranceOverlayProfile) -> str:
-    payload = {
+def insurance_overlay_profile_payload(profile: InsuranceOverlayProfile) -> dict:
+    return {
         "organization": profile.organization,
         "template_version": profile.template_version,
         "template_hash": profile.template_hash,
@@ -57,8 +57,11 @@ def insurance_overlay_profile_sha256(profile: InsuranceOverlayProfile) -> str:
             for placement in profile.placements
         ],
     }
+
+
+def insurance_overlay_profile_sha256(profile: InsuranceOverlayProfile) -> str:
     canonical = json.dumps(
-        payload,
+        insurance_overlay_profile_payload(profile),
         ensure_ascii=False,
         sort_keys=True,
         separators=(",", ":"),
