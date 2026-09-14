@@ -3,6 +3,7 @@
 Date: 2026-09-14
 Branch: `feature/mutuelles-dentaires-integration-v2-20260914`
 Baseline: `master` @ `c8870ecca4c9ac3f3beb00df6030785dd8ee5aa1`
+PR: `#493` (draft)
 
 ## Goal
 Integrer un workflow unique de feuille de soins CNSS/CNOPS/FAR a partir des donnees existantes Digital Crown, avec validation praticien, tracabilite NGAP et archivage du PDF final dans le dossier patient, sans dupliquer Honoraires, Ordonnance, CatalogAct ni DocumentArchive.
@@ -30,20 +31,24 @@ Un type documentaire dedie ne sera ajoute qu'apres migration additive testee.
 ## Roadmap
 ### Lot 1 — Contrat runtime pur
 Goal: `InsuranceSubmissionDraft` type, deterministe et fail-closed.
+Implementation: CODED.
 Success: schema sans DB; EXACT obligatoire avant revue/validation.
-Preuve: pytest cible vert.
+Preuve attendue: pytest cible vert.
 
 ### Lot 2 — Adaptateur Honoraires -> Draft
 Goal: construire depuis `DocumentArchive.clinical_data.payments[*]` et les `Acte` derives.
+Implementation: CODED.
 Success: dents depuis snapshot; fallback historique par index actif; divergence => blocage.
-Preuve: tests alignement/mismatch/shrink-expand.
+Preuve attendue: tests alignement/mismatch.
 
 ### Lot 3 — Archivage PDF valide
 Goal: archiver chaque feuille finalisee dans `DocumentArchive`.
+Implementation: CODED.
 Success: PDF + snapshot + organisme + template/hash + NGAP/version + source Honoraires conserves.
-Preuve: test ArchiveService sur DB de test + hash fichier.
+Preuve attendue: test DB isole `test_insurance_archive_persistence.py` + hash SHA-256.
 
 ### Lot 4 — Liaison structuree actes/catalogue
+Status: NOT STARTED — gate CI Lots 1-3.
 Cible additive: `source_line_uid` immuable + `catalog_act_id` nullable.
 Success: historique sans backfill invente; nouveaux liens deterministes.
 Preuve: migration sur copie DB + rollback + invariants patients/IDs.
@@ -63,7 +68,7 @@ Success: generation depuis Honoraires et Documents sans nouveau sous-systeme.
 Preuve: 360/390/768/1440 + tests interaction.
 
 ### Lot 8 — Gate cabinet
-Activation seulement si templates hash/verrouilles, NGAP primaire versionne, migration/rollback testes, validation metier representatif et archivage/reimpression verifies.
+Activation seulement si templates hash/verrouilles, NGAP primaire versionne, migration/rollback testes, validation metier representative et archivage/reimpression verifies.
 
 ## Ordre
 `Lot 1 -> Lot 2 -> Lot 3 -> Lot 4 -> Lot 5 -> Lot 6 CNSS -> Lot 7 UX -> CNOPS/FAR -> gate cabinet`
@@ -71,7 +76,15 @@ Activation seulement si templates hash/verrouilles, NGAP primaire versionne, mig
 ## Interdits
 Second moteur Honoraires, second catalogue NGAP, Ordonnance bis, fuzzy mapping silencieux, backfill artificiel, signature/cachet/accord assureur fabrique, deploiement Vercel sans autorisation explicite.
 
-## Etat
-`INTEGRATION_STARTED / RUNTIME_NOT_ACTIVATED`
+## Etat courant
+`LOTS_1_3_CODED / CI_PENDING / RUNTIME_NOT_ACTIVATED`
 
-Next exact: finaliser Lots 1-3 avec tests, puis engager Lot 4 seulement apres validation de non-regression DB.
+Derniere preuve codee:
+- contrat fail-closed;
+- dents lues depuis snapshot Honoraires;
+- mismatch lignes/Acte refuse;
+- archivage uniquement d'un draft `VALIDATED` et d'un contenu `%PDF`;
+- persistance dans `DocumentArchive` via `DocumentType.AUTRE` + snapshot/tags explicites;
+- test DB isole ajoute sans toucher la DB cabinet.
+
+Next exact: obtenir CI verte sur le HEAD courant, puis ouvrir Lot 4 et tester la migration additive/rollback avant toute UI.
