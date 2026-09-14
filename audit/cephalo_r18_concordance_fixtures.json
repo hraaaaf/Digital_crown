@@ -1,0 +1,56 @@
+{
+  "cases": [
+    {
+      "id": "baseline_current",
+      "mmPerPixel": 0.1,
+      "landmarks": [
+        {"id":"S","x":500,"y":250},{"id":"N","x":600,"y":300},{"id":"A","x":640,"y":500},{"id":"B","x":620,"y":650},
+        {"id":"Po","x":450,"y":350},{"id":"Or","x":650,"y":360},{"id":"Go","x":450,"y":800},{"id":"Me","x":650,"y":900},
+        {"id":"U1_incisal","x":650,"y":700},{"id":"U1_apex","x":620,"y":560},{"id":"L1_incisal","x":630,"y":690},{"id":"L1_apex","x":590,"y":790},
+        {"id":"Prn","x":760,"y":480},{"id":"Ls_soft","x":735,"y":620},{"id":"Li_soft","x":730,"y":690},{"id":"Pog_soft","x":700,"y":820}
+      ]
+    },
+    {
+      "id": "clinical_orientation_reference",
+      "mmPerPixel": 1.0,
+      "landmarks": [
+        {"id":"S","x":-10,"y":5},{"id":"N","x":0,"y":0},{"id":"A","x":5,"y":15},{"id":"B","x":5,"y":20},
+        {"id":"Po","x":-10,"y":10},{"id":"Or","x":10,"y":10},{"id":"Go","x":-10,"y":30},{"id":"Me","x":10,"y":35},
+        {"id":"U1_apex","x":2,"y":8},{"id":"U1_incisal","x":1.3,"y":18},{"id":"L1_apex","x":2,"y":28},{"id":"L1_incisal","x":3.9,"y":18}
+      ]
+    },
+    {
+      "id": "steiner_obtuse_axis",
+      "mmPerPixel": 1.0,
+      "landmarks": [
+        {"id":"S","x":-10,"y":0},{"id":"N","x":0,"y":0},{"id":"A","x":10,"y":10},{"id":"B","x":10,"y":0},
+        {"id":"Po","x":0,"y":20},{"id":"Or","x":10,"y":20},{"id":"Go","x":0,"y":30},{"id":"Me","x":10,"y":30},
+        {"id":"U1_apex","x":0,"y":0},{"id":"U1_incisal","x":10,"y":1},{"id":"L1_apex","x":0,"y":0},{"id":"L1_incisal","x":-9.0631,"y":4.2262}
+      ]
+    },
+    {
+      "id": "orientation_wrap_impa",
+      "mmPerPixel": 1.0,
+      "landmarks": [
+        {"id":"Po","x":0,"y":10},{"id":"Or","x":10,"y":10},{"id":"Go","x":20,"y":20},{"id":"Me","x":10.1519,"y":18.2635},
+        {"id":"L1_apex","x":0,"y":0},{"id":"L1_incisal","x":-9.8481,"y":1.7365}
+      ]
+    },
+    {
+      "id": "eline_oblique",
+      "mmPerPixel": 1.0,
+      "landmarks": [
+        {"id":"Po","x":0,"y":0},{"id":"Or","x":10,"y":0},{"id":"Prn","x":0,"y":0},{"id":"Pog_soft","x":10,"y":10},
+        {"id":"Ls_soft","x":10,"y":0},{"id":"Li_soft","x":5,"y":0}
+      ]
+    },
+    {
+      "id": "degenerate_fail_closed",
+      "mmPerPixel": 1.0,
+      "landmarks": [
+        {"id":"S","x":0,"y":0},{"id":"N","x":0,"y":0},{"id":"A","x":10,"y":0},{"id":"B","x":20,"y":0},
+        {"id":"Po","x":0,"y":1},{"id":"Or","x":0,"y":1},{"id":"Go","x":0,"y":5},{"id":"Me","x":10,"y":5}
+      ]
+    }
+  ]
+}

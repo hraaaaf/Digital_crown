@@ -1,0 +1,43 @@
+name: Cephalo R18 Scientific Concordance Audit
+
+on:
+  pull_request:
+    paths:
+      - 'audit/**'
+      - 'frontend/src/features/ortho/cephaloConcordance.audit.test.ts'
+      - '.github/workflows/cephalo-r18-scientific-concordance.yml'
+  workflow_dispatch:
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install frontend lockfile
+        working-directory: frontend
+        run: npm ci
+      - name: Extract frontend geometry from real Step 3 code
+        working-directory: frontend
+        run: npx vitest run src/features/ortho/cephaloConcordance.audit.test.ts
+      - name: Extract backend versioned geometry
+        run: python audit/cephalo_r18_backend_report.py
+      - name: Compare frontend and backend
+        run: |
+          python audit/cephalo_r18_compare.py
+          cat audit/out/concordance-report.md >> "$GITHUB_STEP_SUMMARY"
+      - name: Upload concordance evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cephalo-r18-scientific-concordance-${{ github.sha }}
+          path: audit/out/
+          retention-days: 30

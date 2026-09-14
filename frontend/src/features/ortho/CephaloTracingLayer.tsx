@@ -1,995 +1,222 @@
-/**
- * CephaloTracingLayer.tsx  ·  v4.2  ·  Digital Crown
- * ─────────────────────────────────────────────────────────────────────────────
- *
- * FIXES v4.2 — BUG DE DÉSALIGNEMENT POINT / CURSEUR
- * ───────────────────────────────────────────────────
- *
- *  CAUSE RACINE DU BUG (double problème) :
- *
- *  1. framer-motion <motion.g drag> applique pendant le drag un
- *     CSS `transform: translate(Δx, Δy)` sur le groupe entier.
- *     Mais cx/cy des <circle> restent fixés à pt.x/pt.y (coords commitées).
- *     ➜ Le cercle visuel flotte par rapport à sa position SVG réelle.
- *     ➜ Le commentaire originel "cx/cy = TOUJOURS pt.x/pt.y" était FAUX :
- *       c'est précisément ce choix qui créait le désalignement.
- *
- *  2. screenToSVG utilisait getBoundingClientRect + window.scrollX/Y.
- *     Cette méthode IGNORE le letterboxing SVG (preserveAspectRatio=xMidYMid).
- *     Si le ratio conteneur ≠ ratio image, l'offset calculé est décalé.
- *
- *  CORRECTIONS :
- *
- *  ✦ Suppression totale de framer-motion drag (motion.g drag, onDrag, onDragEnd,
- *    lastDragRef, screenToSVG, info.point).
- *
- *  ✦ Remplacement par Pointer Events natifs SVG :
- *      onPointerDown  → setPointerCapture (drag reste captif même hors hitbox)
- *      onPointerMove  → calcul coordonnées via getScreenCTM().inverse()
- *      onPointerUp    → commit final + onUpdateLandmarks
- *
- *  ✦ clientToSVG via svg.getScreenCTM().inverse() :
- *      Méthode canonique du W3C SVG. Prend en compte automatiquement :
- *      - viewBox + preserveAspectRatio (letterboxing)
- *      - CSS transforms sur l'élément et ses ancêtres
- *      - Zoom navigateur + scroll
- *      ➜ AUCUN calcul manuel de ratios / offsets.
- *
- *  ✦ Pendant le drag, le point est rendu à dispX/dispY = activeDragPos
- *    (coordonnée SVG temps-réel), PAS à pt.x/pt.y.
- *    ➜ Le pixel visuel EST la coordonnée SVG réelle. Zéro décalage.
- *
- * Architecture v4.2 (logique métier inchangée) :
- *   ✦ Tooth Engine     — AnatomicalTooth recalculé frame-by-frame
- *   ✦ Dual WedgeZone   — IMPA L1/Plan Mand + I/F U1/Francfort (pendant drag)
- *   ✦ Wedges statiques — zones de tolérance toujours visibles derrière dents
- *   ✦ Mode Isolation   — opacity 5% pendant drag
- *   ✦ Loupe SVG        — zoom ×3 pixel-perfect
- *   ✦ IDs backend      — Po Or N S A B Go Me U1_incisal U1_apex L1_incisal L1_apex
- *   ✦ Normes COM       — IMPA 90°±5° (comp 80-100°), I/F 107°±5° (comp 97-120°)
- * ─────────────────────────────────────────────────────────────────────────────
- */
-
 import React from 'react';
-import { motion } from 'framer-motion';
-import { cn } from '../../utils/cn';
-import type { Landmark, ImageFilters, VTOSettings } from './cephaloShared';
-import { toDeg, projectPointOnLine, getPerpendicularTick, buildWedgePath } from './cephaloMath';
-import { AnatomicalTooth } from './components/AnatomicalTooth';
-import { WedgeZone } from './components/WedgeZone';
-import { CephaloCalibrationOverlay } from './components/CephaloCalibrationOverlay';
-import { CephaloMagnifierOverlay } from './components/CephaloMagnifierOverlay';
-import { CephaloLandmarkReticles } from './components/CephaloLandmarkReticles';
-import { CephaloSvgDefs } from './components/CephaloSvgDefs';
-import { useCephaloInteraction } from './hooks/useCephaloInteraction';
+import { CephaloTracingLayer as BaseCephaloTracingLayer } from './CephaloTracingLayerBase';
+import type { CephaloTracingLayerProps, GhostData, TracingUIMode } from './CephaloTracingLayerBase';
+import type { Landmark } from './cephaloShared';
+import { projectPointOnLine } from './cephaloMath';
 
-// ─────────────────────────────────────────────────────────────────────────────
-// TYPES EXPORTÉS (Locaux)
-// ─────────────────────────────────────────────────────────────────────────────
+export type { CephaloTracingLayerProps, GhostData, TracingUIMode };
 
-export interface GhostData {
-  landmarks: Landmark[];
-  opacity: number;
-  color: string;
-}
+type AnalysisMode = 'all' | 'steiner' | 'tweed' | 'mcnamara' | 'ricketts';
 
-// ─────────────────────────────────────────────────────────────────────────────
-// PROPS
-// ─────────────────────────────────────────────────────────────────────────────
+const ANALYSIS_OPTIONS: Array<{ id: AnalysisMode; label: string; shortLabel?: string }> = [
+  { id: 'all', label: 'Tous' },
+  { id: 'steiner', label: 'Steiner' },
+  { id: 'tweed', label: 'Tweed' },
+  { id: 'mcnamara', label: 'McNamara / COM', shortLabel: 'COM' },
+  { id: 'ricketts', label: 'Ricketts' },
+];
 
-export type TracingUIMode = 'standard' | 'pro';
+const MODE_LANDMARKS: Record<Exclude<AnalysisMode, 'all'>, Set<string>> = {
+  steiner: new Set([
+    's', 'n', 'a', 'b',
+    'u1_incisal', 'u1i', 'u1_apex', 'u1a',
+    'l1_incisal', 'l1i', 'l1_apex', 'l1a',
+  ]),
+  tweed: new Set([
+    'po', 'or', 'go', 'me',
+    'u1_incisal', 'u1i', 'u1_apex', 'u1a',
+    'l1_incisal', 'l1i', 'l1_apex', 'l1a',
+  ]),
+  mcnamara: new Set([
+    'po', 'or', 'n', 'a', 'b', 'co', 'gn', 'ans', 'me',
+    'occ_ant', 'occ_post',
+  ]),
+  ricketts: new Set([
+    'g_soft', 'g-soft', 'n_soft', 'n-soft', 'prn', 'nose_tip', 'cm',
+    'sn_soft', 'sn', 'a_soft', 'ls_soft', 'ls', 'ls2', 'ul', 'upper_lip',
+    'st', 'stomion', 'li2', 'li_soft', 'li', 'll', 'lower_lip',
+    'b_soft', 'pog_soft', 'stpog', 'soft_pogonion', 'me_soft', 'soft_menton',
+  ]),
+};
 
-export interface CephaloTracingLayerProps {
-  imageSrc?: string;
-  imgFilters?: ImageFilters;
-  landmarks: Landmark[];
-  baseOpacity?: number;
-  ghosts?: GhostData[];
-  imageWidth: number;
-  imageHeight: number;
-  onUpdateLandmarks: (newLandmarks: Landmark[]) => void;
-  activePointId?: string | null;
-  focusedPointId?: string | null;
-  onPointMouseDown?: (id: string) => void;
-  visualDebug?: {
-    N_prime?: [number, number];
-    A_prime?: [number, number];
-    B_prime?: [number, number];
-    normative_zones?: Array<{
-      cx: number; cy: number; rx: number; ry: number; rotation?: number;
-    }>;
-  } | null;
-  isCalibrating?: boolean;
-  calibrationPoints?: { x: number; y: number }[];
-  onAddCalibrationPoint?: (p: { x: number; y: number }) => void;
-  uiMode?: TracingUIMode;
-  hoveredMetric?: { key: string; points: string[]; lines: string[] } | null;
-  onEmptyAreaClick?: (p: { x: number; y: number }) => void;
-  magnifierEnabled?: boolean;
-  performanceMode?: boolean;
-  vto?: VTOSettings;
-  activeAnalysis?: string;
-}
+const normalizeMode = (value?: string): AnalysisMode => {
+  const normalized = (value || 'all').trim().toLowerCase();
+  if (normalized === 'steiner') return 'steiner';
+  if (normalized === 'tweed') return 'tweed';
+  if (normalized === 'mcnamara' || normalized === 'com') return 'mcnamara';
+  if (normalized === 'ricketts' || normalized === 'esthetique') return 'ricketts';
+  return 'all';
+};
 
-// ─────────────────────────────────────────────────────────────────────────────
-// DESIGN TOKENS — alignés sur cephalo_engine.py
-// ─────────────────────────────────────────────────────────────────────────────
+const filterLandmarks = (landmarks: Landmark[], mode: AnalysisMode) => {
+  if (mode === 'all') return landmarks;
+  const allowed = MODE_LANDMARKS[mode];
+  return landmarks.filter(item => allowed.has(item.id.toLowerCase()));
+};
 
-const PALETTE = {
-  pro: {
-    francfort: '#00f5ff',
-    mandibule: '#8b5cf6',
-    mcNamara: '#eab308',
-    sn: '#00f5ff',
-    na: '#eab308',
-    nb: '#eab308',
-    ab: '#8b5cf6',
-    u1: '#00f5ff',
-    l1: '#32cd32',
-    ptDefault: '#00f5ff',
-    ptU: '#00f5ff',
-    ptL: '#32cd32',
-    magnifierBg: '#050505',
-    magnifierRing: '#00f5ff',
-    crosshairCol: '#32cd32',
-    isolationDim: 0.05,
-    wedgeNorm: '#32cd32',
-    wedgeComp: '#eab308',
-    wedgeSevere: '#ef4444',
-    wedgeNormLine: '#32cd32',
-    wedgeU1Norm: '#00f5ff',
-    wedgeU1Comp: '#eab308',
-    wedgeU1Severe: '#ef4444',
-  },
-  standard: {
-    francfort: '#2563eb',
-    mandibule: '#3b82f6',
-    mcNamara: '#d97706',
-    sn: '#60a5fa',
-    na: '#d97706',
-    nb: '#d97706',
-    ab: '#6366f1',
-    u1: '#ef4444',
-    l1: '#22c55e',
-    ptDefault: '#f59e0b',
-    ptU: '#ef4444',
-    ptL: '#22c55e',
-    magnifierBg: '#0f172a',
-    magnifierRing: '#2563eb',
-    crosshairCol: '#22c55e',
-    isolationDim: 0.06,
-    wedgeNorm: '#22c55e',
-    wedgeComp: '#f59e0b',
-    wedgeSevere: '#ef4444',
-    wedgeNormLine: '#16a34a',
-    wedgeU1Norm: '#2563eb',
-    wedgeU1Comp: '#d97706',
-    wedgeU1Severe: '#ef4444',
-  },
-} as const;
+const findPoint = (landmarks: Landmark[], id: string) =>
+  landmarks.find(item => item.id.toLowerCase() === id.toLowerCase());
 
-type PaletteKey = keyof typeof PALETTE;
+/**
+ * R18 scientific tracing controller.
+ *
+ * The historical tracing engine is preserved byte-for-byte in
+ * CephaloTracingLayerBase.tsx. This controller constrains the landmarks given
+ * to that engine so each selected analysis can only materialize its own
+ * constructions. Ricketts hard-tissue constructions are drawn here because
+ * the legacy engine only contained its soft-tissue profile/E-line surface.
+ */
+export const CephaloTracingLayer: React.FC<CephaloTracingLayerProps> = (props) => {
+  const [mode, setMode] = React.useState<AnalysisMode>(() => normalizeMode(props.activeAnalysis));
 
-// ─────────────────────────────────────────────────────────────────────────────
-// NORMES CLINIQUES — cephalo_engine.py strict
-//   IMPA  : mean=90°, norm=±5°, comp=(80°,100°)   → plan mandibulaire Go→Me
-//   I/F   : mean=107°, norm=±5°, comp=(97°,120°)  → plan de Francfort  Po→Or
-// ─────────────────────────────────────────────────────────────────────────────
+  React.useEffect(() => {
+    if (props.activeAnalysis) setMode(normalizeMode(props.activeAnalysis));
+  }, [props.activeAnalysis]);
 
-const IMPA_MEAN = 90;
-const IMPA_NORM_HALF = 5;
-const IMPA_COMP_HALF = 10;
+  const filteredLandmarks = React.useMemo(
+    () => filterLandmarks(props.landmarks, mode),
+    [props.landmarks, mode],
+  );
 
-const IF_MEAN = 107;
-const IF_NORM_HALF = 5;
-const IF_COMP_LOW = 97;
-const IF_COMP_HIGH = 120;
-const IF_COMP_HALF = Math.max(IF_MEAN - IF_COMP_LOW, IF_COMP_HIGH - IF_MEAN);
+  const filteredGhosts = React.useMemo<GhostData[]>(
+    () => (props.ghosts || []).map(ghost => ({
+      ...ghost,
+      landmarks: filterLandmarks(ghost.landmarks, mode),
+    })),
+    [props.ghosts, mode],
+  );
 
-// Math helpers imported from ./cephaloMath
-// toRad, toDeg, projectPointOnLine, getPerpendicularTick, polarPoint, buildWedgePath
-
-// AnatomicalTooth imported from ./components/AnatomicalTooth
-
-// WedgeZone imported from ./components/WedgeZone
-
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Points tissu mou non interactifs (vision_service.py)
-// ─────────────────────────────────────────────────────────────────────────────
-
-
-
-// ─────────────────────────────────────────────────────────────────────────────
-// COMPOSANT PRINCIPAL
-// ─────────────────────────────────────────────────────────────────────────────
-
-export const CephaloTracingLayer: React.FC<CephaloTracingLayerProps> = ({
-  imageSrc,
-  imgFilters,
-  landmarks,
-  baseOpacity = 1,
-  ghosts = [],
-  imageWidth,
-  imageHeight,
-  onUpdateLandmarks,
-  activePointId,
-  focusedPointId,
-  onPointMouseDown,
-  visualDebug,
-  isCalibrating = false,
-  calibrationPoints,
-  onAddCalibrationPoint,
-  uiMode = 'standard',
-  hoveredMetric,
-  onEmptyAreaClick,
-  magnifierEnabled = true,
-  performanceMode = false,
-  vto = { enabled: false, showGhostFace: true, showSoftTissue: true },
-  activeAnalysis = 'all'
-}) => {
-  const P = PALETTE[uiMode as PaletteKey];
-  const isPro = uiMode === 'pro';
-
-  const {
-    svgRef,
-    activeDragId,
-    setActiveDragId,
-    activeDragPos,
-    setActiveDragPos,
-    magnifier,
-    setMagnifier,
-    clientToSVG,
-    getPoint,
-    handleSvgClick,
-  } = useCephaloInteraction({
-    landmarks,
-    imageWidth,
-    imageHeight,
-    magnifierEnabled,
-    isCalibrating,
-    onAddCalibrationPoint,
-    onEmptyAreaClick,
-  });
-
-  // HOVER METRIC
-  // ─────────────────────────────────────────────────────────────────────────
-
-  const isHoverActive = !!hoveredMetric;
-  const isLineHovered = (lineId: string) =>
-    isHoverActive &&
-    hoveredMetric!.lines.map(l => l.toLowerCase()).includes(lineId.toLowerCase());
-
-  // ─────────────────────────────────────────────────────────────────────────
-  // LOUPE — positionnement adaptatif (évite les bords)
-  // ─────────────────────────────────────────────────────────────────────────
-
-  const MAG_R = 80;
-  const MAG_MAR = 40;
-  const MAG_ZOOM = 3;
-
-  let magX = magnifier.x + MAG_MAR + MAG_R;
-  if (magX + MAG_R > imageWidth) magX = magnifier.x - MAG_MAR - MAG_R;
-  if (magX - MAG_R < 0) magX = MAG_R + MAG_MAR;
-  let magY = magnifier.y + MAG_MAR + MAG_R;
-  if (magY + MAG_R > imageHeight) magY = magnifier.y - MAG_MAR - MAG_R;
-  if (magY - MAG_R < 0) magY = MAG_R + MAG_MAR;
-
-  // ─────────────────────────────────────────────────────────────────────────
-  // CALQUE SQUELETTIQUE
-  // ─────────────────────────────────────────────────────────────────────────
-
-  const renderSkeletalLayer = (
-    pts: Landmark[],
-    isGhost = false,
-    overrideColor?: string,
-    layerOp = 1,
-  ) => {
-    const applyVTO = (points: Landmark[]) => {
-      if (!vto.enabled || isGhost) return points;
-
-      const u1x = vto.u1_offset?.x || 0;
-      const l1x = vto.l1_offset?.x || 0;
-      const mandX = vto.mand_offset?.x || 0;
-
-      return points.map(pt => {
-        const id = pt.id.toLowerCase();
-
-        // 1. Déplacement des structures dures (Squelette/Dents)
-        if (id.includes('u1')) return { ...pt, x: pt.x + u1x };
-        if (id.includes('l1')) return { ...pt, x: pt.x + l1x + mandX };
-        if (id === 'b' || id === 'pog' || id === 'me' || id === 'go') return { ...pt, x: pt.x + mandX };
-
-        // 2. Déplacement des tissus mous (Suivi proportionnel)
-        // Lèvre supérieure (Ls) suit U1 à ~75%
-        if (id === 'ls' || id === 'ul' || id === 'st') {
-          return { ...pt, x: pt.x + u1x * 0.75 };
-        }
-        // Lèvre inférieure (Li) suit L1 à ~80% et la mandibule à 100%
-        if (id === 'li' || id === 'll') {
-          return { ...pt, x: pt.x + (l1x * 0.8) + mandX };
-        }
-        // Menton cutané suit la mandibule à 100%
-        if (id === 'b_soft' || id === 'pog_soft' || id === 'me_soft' || id === 'stpog') {
-          return { ...pt, x: pt.x + mandX };
-        }
-        // Sn suit légèrement le maxillaire (25%)
-        if (id === 'sn' || id === 'a_soft') {
-          return { ...pt, x: pt.x + u1x * 0.25 };
-        }
-
-        return pt;
-      });
-    };
-
-
-    const finalPts = applyVTO(pts);
-
-    const po = getPoint(finalPts, 'Po');
-    const or_ = getPoint(finalPts, 'Or');
-    const a = getPoint(finalPts, 'A');
-    const b = getPoint(finalPts, 'B');
-    const go = getPoint(finalPts, 'Go');
-    const me = getPoint(finalPts, 'Me');
-    const u1i = getPoint(finalPts, 'U1_incisal') ?? getPoint(finalPts, 'U1i');
-    const u1a = getPoint(finalPts, 'U1_apex') ?? getPoint(finalPts, 'U1a');
-    const l1i = getPoint(finalPts, 'L1_incisal') ?? getPoint(finalPts, 'L1i');
-    const l1a = getPoint(finalPts, 'L1_apex') ?? getPoint(finalPts, 'L1a');
-    const gSoft = getPoint(finalPts, 'G_soft') ?? getPoint(finalPts, 'g_soft') ?? getPoint(finalPts, 'g-soft');
-    const nSoft = getPoint(finalPts, 'N_soft') ?? getPoint(finalPts, 'n_soft') ?? getPoint(finalPts, 'n-soft');
-    const prn = getPoint(finalPts, 'Prn') ?? getPoint(finalPts, 'prn') ?? getPoint(finalPts, 'Nose_Tip');
-    const cm = getPoint(finalPts, 'Cm') ?? getPoint(finalPts, 'cm');
-    const sn = getPoint(finalPts, 'Sn_soft') ?? getPoint(finalPts, 'Sn') ?? getPoint(finalPts, 'sn');
-    const aSoft = getPoint(finalPts, 'A_soft') ?? getPoint(finalPts, 'a_soft');
-    const ls = getPoint(finalPts, 'Ls_soft') ?? getPoint(finalPts, 'Ls') ?? getPoint(finalPts, 'ls') ?? getPoint(finalPts, 'UL') ?? getPoint(finalPts, 'ul') ?? getPoint(finalPts, 'Upper_Lip');
-    const st = getPoint(finalPts, 'St') ?? getPoint(finalPts, 'st') ?? getPoint(finalPts, 'Stomion');
-    const li = getPoint(finalPts, 'Li_soft') ?? getPoint(finalPts, 'Li') ?? getPoint(finalPts, 'li') ?? getPoint(finalPts, 'LL') ?? getPoint(finalPts, 'll') ?? getPoint(finalPts, 'Lower_Lip');
-    const bSoft = getPoint(finalPts, 'B_soft') ?? getPoint(finalPts, 'b_soft');
-    const pogSoft = getPoint(finalPts, 'Pog_soft') ?? getPoint(finalPts, 'pog_soft') ?? getPoint(finalPts, 'stpog') ?? getPoint(finalPts, 'stPog') ?? getPoint(finalPts, 'Soft_Pogonion');
-    const meSoft = getPoint(finalPts, 'Me_soft') ?? getPoint(finalPts, 'me_soft') ?? getPoint(finalPts, 'Soft_Menton');
-
-
-
-
-    const ghostDash = isGhost ? '6,4' : undefined;
-
-    const seg = (
-      p1: Landmark | undefined, p2: Landmark | undefined,
-      lineKey: string, defColor: string,
-      opts?: { dash?: string; op?: number },
-    ) => {
-      if (!p1 || !p2) return null;
-      
-      // LOGIQUE D'AFFICHAGE DYNAMIQUE SELON L'ANALYSE
-      if (activeAnalysis !== 'all' && !isGhost) {
-        const a = activeAnalysis.toLowerCase();
-        if (a === 'steiner' && !['sn', 'na', 'nb'].includes(lineKey)) return null;
-        if (a === 'tweed' && !['fh', 'mp', 'u1', 'l1'].includes(lineKey)) return null;
-        if (a === 'mcnamara' && !['fh', 'mcnamara_perp', 'coa', 'cogn', 'ansme'].includes(lineKey)) return null;
-        if (a === 'wits' && !['occ'].includes(lineKey)) return null;
-        if (a === 'esthetique' && !['eline'].includes(lineKey)) return null;
-      }
-
-      const c = overrideColor ?? defColor;
-      const isH = !isGhost && isLineHovered(lineKey);
-      const sw = isH ? 2.8 : 1.5;
-      const op = (opts?.op ?? 1) * layerOp;
-      return (
-        <motion.line
-          key={`${lineKey}-${isGhost}`}
-          x1={p1.x} y1={p1.y} x2={p2.x} y2={p2.y}
-          stroke={c} strokeDasharray={opts?.dash ?? ghostDash}
-          vectorEffect="non-scaling-stroke"
-          animate={performanceMode ? {} : { strokeWidth: sw, opacity: op }}
-          transition={{ duration: 0.14 }}
-          style={!performanceMode && isH ? { filter: `drop-shadow(0 0 5px ${c})` } : {}}
-        />
-      );
-    };
-
-    const u1Active = !isGhost && (activeDragId === 'U1_incisal' || activeDragId === 'U1_apex');
-    const l1Active = !isGhost && (activeDragId === 'L1_incisal' || activeDragId === 'L1_apex');
-    const u1Glow = isPro ? `drop-shadow(0 0 12px ${P.u1})` : undefined;
-    const l1Glow = isPro ? `drop-shadow(0 0 12px ${P.l1})` : undefined;
-
-    // ── Wedge IMPA statique (zones de tolérance, toujours visibles) ────────
-    // Référence : Plan Mandibulaire Go → Me (pas le plan de Francfort)
-    // Axe idéal  : perpendiculaire au plan mand. → IMPA = 90°
-    // Rendu AVANT AnatomicalTooth → derrière les incisives
-
-    let wedgeCompPath: string | null = null;
-    let wedgeNormPath: string | null = null;
-
-    if (!isGhost && l1a && l1i && go && me) {
-      const mandDx = me.x - go.x;
-      const mandDy = me.y - go.y;
-      const mandLen = Math.sqrt(mandDx * mandDx + mandDy * mandDy);
-      const toothDx = l1i.x - l1a.x;
-      const toothDy = l1i.y - l1a.y;
-      const toothLen = Math.sqrt(toothDx * toothDx + toothDy * toothDy);
-
-      if (mandLen >= 2 && toothLen >= 2) {
-        const mandAngle = toDeg(Math.atan2(mandDy, mandDx));
-        const toothAngle = toDeg(Math.atan2(toothDy, toothDx));
-
-        // Choisir la perpendiculaire la plus proche de l'axe réel de la dent
-        const perpA = mandAngle - 90;
-        const perpB = mandAngle + 90;
-        const angDiff = (a2: number, b2: number) => {
-          let d = ((a2 - b2) % 360 + 360) % 360;
-          if (d > 180) d -= 360;
-          return Math.abs(d);
-        };
-        const idealAxis = angDiff(toothAngle, perpA) <= angDiff(toothAngle, perpB) ? perpA : perpB;
-
-        const R = Math.min(Math.max(toothLen * 0.80, 40), 110);
-        const Rinner = R * 0.30;
-
-        wedgeCompPath = buildWedgePath(l1a.x, l1a.y, R, Rinner,
-          idealAxis - IMPA_COMP_HALF, IMPA_COMP_HALF * 2);
-        wedgeNormPath = buildWedgePath(l1a.x, l1a.y, R * 0.90, Rinner * 1.05,
-          idealAxis - IMPA_NORM_HALF, IMPA_NORM_HALF * 2);
-      }
+  const mergeLandmarkUpdate = React.useCallback((updatedSubset: Landmark[]) => {
+    if (mode === 'all') {
+      props.onUpdateLandmarks(updatedSubset);
+      return;
     }
+    const updates = new Map(updatedSubset.map(item => [item.id.toLowerCase(), item]));
+    const merged = props.landmarks.map(item => updates.get(item.id.toLowerCase()) ?? item);
+    const existing = new Set(props.landmarks.map(item => item.id.toLowerCase()));
+    for (const item of updatedSubset) {
+      if (!existing.has(item.id.toLowerCase())) merged.push(item);
+    }
+    props.onUpdateLandmarks(merged);
+  }, [mode, props.landmarks, props.onUpdateLandmarks]);
 
-    const wNorm = overrideColor ?? P.wedgeNorm;
-    const wComp = overrideColor ?? P.wedgeComp;
+  const baseAnalysis = mode === 'ricketts' ? 'esthetique' : mode;
 
-    // Nouveaux points pour McNamara et Wits
-    const n = getPoint(finalPts, 'N');
-    const s = getPoint(finalPts, 'S');
-    const co = getPoint(finalPts, 'Co');
-    const gn = getPoint(finalPts, 'Gn');
-    const ans = getPoint(finalPts, 'ANS');
-    const occAnt = getPoint(finalPts, 'Occ_Ant');
-    const occPost = getPoint(finalPts, 'Occ_Post');
+  const po = findPoint(props.landmarks, 'Po');
+  const orPoint = findPoint(props.landmarks, 'Or');
+  const n = findPoint(props.landmarks, 'N');
+  const pog = findPoint(props.landmarks, 'Pog');
+  const a = findPoint(props.landmarks, 'A');
+  const occAnt = findPoint(props.landmarks, 'Occ_Ant');
+  const occPost = findPoint(props.landmarks, 'Occ_Post');
 
-    const showSteiner = activeAnalysis === 'all' || activeAnalysis.toLowerCase() === 'steiner';
-    const showTweed = activeAnalysis === 'all' || activeAnalysis.toLowerCase() === 'tweed';
-    const showMcNamara = activeAnalysis === 'all' || activeAnalysis.toLowerCase() === 'mcnamara';
-    const showWits = activeAnalysis === 'all' || activeAnalysis.toLowerCase() === 'wits';
-    const showEsthetique = activeAnalysis === 'all' || activeAnalysis.toLowerCase() === 'esthetique';
-
-    return (
-      <g key={isGhost ? `ghost-${layerOp}` : 'main-layer'}>
-        {/* Plans de référence */}
-        {showTweed || showMcNamara ? seg(po, or_, 'fh', P.francfort) : null}
-        {showTweed ? seg(go, me, 'mp', P.mandibule) : null}
-        
-        {/* Lignes Steiner */}
-        {showSteiner && (
-          <>
-            {seg(s, n, 'sn', P.sn)}
-            {seg(n, a, 'na', P.na)}
-            {seg(n, b, 'nb', P.nb)}
-            {seg(a, b, 'ab', P.ab, { dash: isGhost ? '6,4' : '2,3', op: 0.50 })}
-          </>
-        )}
-
-        {/* Lignes McNamara */}
-        {showMcNamara && (
-          <>
-            {seg(co, a, 'coa', P.mcNamara)}
-            {seg(co, gn, 'cogn', P.mcNamara)}
-            {seg(ans, me, 'ansme', P.mcNamara, { dash: '2,2' })}
-          </>
-        )}
-
-        {/* Lignes Wits */}
-        {showWits && (
-          <>
-            {seg(occPost, occAnt, 'occ', P.mcNamara, { dash: '4,4' })}
-          </>
-        )}
-
-        {/* ══ COUCHE ESTHÉTIQUE "GHOST ELITE" ══════════════════════════ */}
-
-        {/* 1. Spline du Profil Cutané Continu (Lissage Bézier Haute Fidélité) */}
-        {vto.showSoftTissue && !isGhost && (
-          (() => {
-            // Liste ordonnée des points du profil (Source SOTA 38 pts)
-            // On trie par Y pour garantir une descente anatomique fluide (évite les croisements)
-            const ls2 = getPoint(finalPts, 'Ls2') || getPoint(finalPts, 'ls2');
-            const li2 = getPoint(finalPts, 'Li2') || getPoint(finalPts, 'li2');
-
-            const profilePoints = [
-              gSoft, nSoft, prn, cm, sn, aSoft, ls, ls2, st, li2, li, bSoft, pogSoft, meSoft
-            ].filter(Boolean) as Landmark[];
-            
-            // Tri vertical strict pour éviter les "nœuds" dans la spline
-            profilePoints.sort((a, b) => a.y - b.y);
-
-            if (profilePoints.length < 2) return null;
-
-            // Détection de l'orientation (Gauche ou Droite)
-            const n = getPoint(pts, 'N');
-            const por = getPoint(pts, 'Po');
-            const facesRight = n && por ? n.x > por.x : true;
-            
-            // REMPLISSAGE : On remplit vers l'ARRIÈRE de la tête (opposé au regard)
-            const edgeX = facesRight ? 0 : imageWidth;
-
-            // Calcul de la Spline (Catmull-Rom vers Cubic Bezier)
-            // Cette méthode garantit que la courbe passe EXACTEMENT par les landmarks.
-            const getControlPoints = (p0: Landmark, p1: Landmark, p2: Landmark, t: number = 0.2) => {
-              const d1 = Math.sqrt((p1.x - p0.x) ** 2 + (p1.y - p0.y) ** 2);
-              const d2 = Math.sqrt((p2.x - p1.x) ** 2 + (p2.y - p1.y) ** 2);
-              const fa = t * d1 / (d1 + d2);
-              const fb = t * d2 / (d1 + d2);
-              const p1x = p1.x - fa * (p2.x - p0.x);
-              const p1y = p1.y - fa * (p2.y - p0.y);
-              const p2x = p1.x + fb * (p2.x - p0.x);
-              const p2y = p1.y + fb * (p2.y - p0.y);
-              return [{ x: p1x, y: p1y }, { x: p2x, y: p2y }];
-            };
-
-            let d = `M ${profilePoints[0].x} ${profilePoints[0].y}`;
-            const n_pts = profilePoints.length;
-            
-            for (let i = 0; i < n_pts - 1; i++) {
-              const p0 = profilePoints[i === 0 ? i : i - 1];
-              const p1 = profilePoints[i];
-              const p2 = profilePoints[i + 1];
-              const p3 = profilePoints[i + 2 === n_pts ? i + 1 : i + 2];
-
-              const cp1 = getControlPoints(p0, p1, p2)[1];
-              const cp2 = getControlPoints(p1, p2, p3)[0];
-
-              d += ` C ${cp1.x} ${cp1.y}, ${cp2.x} ${cp2.y}, ${p2.x} ${p2.y}`;
-            }
-
-            return (
-              <g>
-                <defs>
-                  {/* Skin Gradient for the real profile */}
-                  <linearGradient id="skinProfileGradient" 
-                    x1={facesRight ? "100%" : "0%"} y1="0%" 
-                    x2={facesRight ? "0%" : "100%"} y2="0%">
-                    <stop offset="0%" stopColor="#fca5a5" stopOpacity="0.4" />
-                    <stop offset="30%" stopColor="#fca5a5" stopOpacity="0.15" />
-                    <stop offset="100%" stopColor="#fca5a5" stopOpacity="0" />
-                  </linearGradient>
-
-                  {/* Gradient for Ghost/VTO Elite */}
-                  <linearGradient id="ghostFaceGradientDynamic" 
-                    x1={facesRight ? "100%" : "0%"} y1="0%" 
-                    x2={facesRight ? "0%" : "100%"} y2="0%">
-                    <stop offset="0%" stopColor="#00f5ff" stopOpacity="0.22" />
-                    <stop offset="60%" stopColor="#00f5ff" stopOpacity="0.08" />
-                    <stop offset="100%" stopColor="#00f5ff" stopOpacity="0" />
-                  </linearGradient>
-                </defs>
-
-                {/* Rendu du Masque de Peau (Skin Fill) au lieu d'une simple ligne */}
-                <motion.path
-                  initial={false}
-                  animate={{ d: `${d} L ${edgeX} ${profilePoints[n_pts - 1].y} L ${edgeX} ${profilePoints[0].y} Z` }}
-                  transition={{ type: 'spring', stiffness: 100, damping: 25 }}
-                  fill={isGhost || vto.showGhostFace ? "url(#ghostFaceGradientDynamic)" : "url(#skinProfileGradient)"}
-                  style={{ pointerEvents: 'none' }}
-                />
-
-                {/* Ligne de profil cutané */}
-                <motion.path
-                  initial={false}
-                  animate={{ d }}
-                  transition={{ type: 'spring', stiffness: 100, damping: 25 }}
-                  fill="none"
-                  stroke={isGhost || vto.showGhostFace ? "#00f5ff" : "#fca5a5"}
-                  strokeWidth="2.5"
-                  strokeLinejoin="round"
-                  strokeLinecap="round"
-                  opacity={isGhost ? 0.7 : 0.9}
-                  style={!performanceMode ? { filter: `drop-shadow(0 0 8px ${isGhost || vto.showGhostFace ? 'rgba(0,245,255,0.6)' : 'rgba(252,165,165,0.6)'})` } : {}}
-                  vectorEffect="non-scaling-stroke"
-                  className="pointer-events-none"
-                />
-              </g>
-            );
-          })()
-        )}
-
-
-
-        {/* 2. Ligne E de Ricketts */}
-        {prn && pogSoft && (
-          <g>
-            <line x1={prn.x} y1={prn.y} x2={pogSoft.x} y2={pogSoft.y}
-              stroke="#ec4899" strokeWidth={isGhost ? "1" : "2"} strokeDasharray={isGhost ? '6,4' : '4,2'}
-              opacity={isGhost ? "0.4" : "0.85"} vectorEffect="non-scaling-stroke"
-              style={!isGhost && !performanceMode ? { filter: 'drop-shadow(0 0 5px rgba(236,72,153,0.5))' } : {}}
-            />
-
-            {/* Projections Ls et Li sur la Ligne E */}
-            {!isGhost && ls && li && (
-              (() => {
-                const dx = pogSoft.x - prn.x; const dy = pogSoft.y - prn.y;
-                const lenSq = dx * dx + dy * dy;
-                if (lenSq === 0) return null;
-
-                // Projection Ls
-                const tLs = ((ls.x - prn.x) * dx + (ls.y - prn.y) * dy) / lenSq;
-                const pLs = { x: prn.x + tLs * dx, y: prn.y + tLs * dy };
-
-                // Projection Li
-                const tLi = ((li.x - prn.x) * dx + (li.y - prn.y) * dy) / lenSq;
-                const pLi = { x: prn.x + tLi * dx, y: prn.y + tLi * dy };
-
-                return (
-                  <>
-                    <line x1={ls.x} y1={ls.y} x2={pLs.x} y2={pLs.y} stroke="#ec4899" strokeWidth="1.5" opacity="0.9" vectorEffect="non-scaling-stroke" />
-                    <line x1={li.x} y1={li.y} x2={pLi.x} y2={pLi.y} stroke="#ec4899" strokeWidth="1.5" opacity="0.9" vectorEffect="non-scaling-stroke" />
-                    <circle cx={pLs.x} cy={pLs.y} r="2.5" fill="#ec4899" />
-                    <circle cx={pLi.x} cy={pLi.y} r="2.5" fill="#ec4899" />
-                  </>
-                );
-              })()
-            )}
-          </g>
-        )}
-
-        {/* ══════════════════════════════════════════════════════════════ */}
-
-        {/* Secteur JAUNE compensation ±10° — en premier = derrière */}
-        {wedgeCompPath && (
-          <path d={wedgeCompPath} fill={wComp} fillOpacity="0.10"
-            stroke={wComp} strokeWidth="0.9" strokeDasharray="4,2"
-            vectorEffect="non-scaling-stroke" className="pointer-events-none" />
-        )}
-        {/* Secteur VERT norme ±5° — en second = devant le jaune */}
-        {wedgeNormPath && (
-          <path d={wedgeNormPath} fill={wNorm} fillOpacity="0.20"
-            stroke={wNorm} strokeWidth="1.1"
-            vectorEffect="non-scaling-stroke" className="pointer-events-none" />
-        )}
-
-        {/* Incisive supérieure U1 */}
-        {u1i && u1a && (
-          <AnatomicalTooth incisalPoint={u1i} apexPoint={u1a}
-            color={overrideColor ?? P.u1}
-            isHovered={!isGhost && isLineHovered('u1')}
-            opacity={layerOp} isGhost={isGhost}
-            isBeingDragged={u1Active} glowFilter={u1Glow} />
-        )}
-        {/* Incisive inférieure L1 */}
-        {l1i && l1a && (
-          <AnatomicalTooth incisalPoint={l1i} apexPoint={l1a}
-            color={overrideColor ?? P.l1}
-            isHovered={!isGhost && isLineHovered('l1')}
-            opacity={layerOp} isGhost={isGhost}
-            isBeingDragged={l1Active} glowFilter={l1Glow} />
-        )}
-      </g>
-    );
-  };
-
-  // ─────────────────────────────────────────────────────────────────────────
-  // PLAN DE FRANCFORT ÉTENDU (pour voir les projections A', B')
-  // ─────────────────────────────────────────────────────────────────────────
-
-  const po = getPoint(landmarks, 'Po');
-  const or_ = getPoint(landmarks, 'Or');
-
-  // Plan de Francfort étendu à l'infini pour les projections
-  let francfortLineExtended: { x1: number; y1: number; x2: number; y2: number } | null = null;
-  if (po && or_) {
-    const dx = or_.x - po.x;
-    const dy = or_.y - po.y;
-    francfortLineExtended = {
-      x1: po.x - dx * 10, y1: po.y - dy * 10,
-      x2: or_.x + dx * 10, y2: or_.y + dy * 10,
-    };
-  }
-
-  // PROJECTIONS McNAMARA (N', A', B') - calculées en temps réel côté frontend
-  // pour rester synchronisées quand les landmarks bougent
-  const n0 = getPoint(landmarks, 'N');
-  const ptA = getPoint(landmarks, 'A');
-  const ptB = getPoint(landmarks, 'B');
-
-  // Calcul de l'angle du plan de Francfort (pour les tiquets perpendiculaires)
-  const francfortAngle = (po && or_) ? toDeg(Math.atan2(or_.y - po.y, or_.x - po.x)) : 0;
-
-  // Calcul de N' (projection de N sur le plan de Francfort)
-  const nPrime = (po && or_ && n0)
-    ? projectPointOnLine(n0.x, n0.y, po.x, po.y, or_.x, or_.y)
+  const aOnNPog = a && n && pog
+    ? projectPointOnLine(a.x, a.y, n.x, n.y, pog.x, pog.y)
     : null;
 
-  // Calcul de A' (projection de A sur le plan de Francfort)
-  const aPrime = (po && or_ && ptA)
-    ? projectPointOnLine(ptA.x, ptA.y, po.x, po.y, or_.x, or_.y)
-    : null;
-
-  // Calcul de B' (projection de B sur le plan de Francfort)
-  const bPrime = (po && or_ && ptB)
-    ? projectPointOnLine(ptB.x, ptB.y, po.x, po.y, or_.x, or_.y)
-    : null;
-
-  // LIGNE McNAMARA (perpendiculaire au plan de Francfort passant par N')
-  let mcNamaraLine: { x1: number; y1: number; x2: number; y2: number } | null = null;
-  if (n0 && nPrime) {
-    const dx = nPrime.x - n0.x;
-    const dy = nPrime.y - n0.y;
-    mcNamaraLine = {
-      x1: n0.x - dx * 1000, y1: n0.y - dy * 1000,
-      x2: n0.x + dx * 1000, y2: n0.y + dy * 1000,
-    };
-  }
-
-  // Tiquets perpendiculaires pour N', A', B' (style premium)
-  const nPrimeTick = nPrime ? getPerpendicularTick(nPrime.x, nPrime.y, francfortAngle, 14) : null;
-  const aPrimeTick = aPrime ? getPerpendicularTick(aPrime.x, aPrime.y, francfortAngle, 14) : null;
-  const bPrimeTick = bPrime ? getPerpendicularTick(bPrime.x, bPrime.y, francfortAngle, 14) : null;
-
-  // ─────────────────────────────────────────────────────────────────────────
-  // WEDGE ZONES dynamiques (pendant drag)
-  // ─────────────────────────────────────────────────────────────────────────
-  // CORRECTION: L'IMPA utilise le PLAN MANDIBULAIRE (Go→Me), pas le plan Francfort!
-  // L'I/F utilise le plan Francfort (Po→Or)
-  // ─────────────────────────────────────────────────────────────────────────
-
-  const dragId = activeDragId ?? '';
-  const l1Dragged = ['L1_incisal', 'L1_apex', 'L1i', 'L1a'].includes(dragId);
-  const u1Dragged = ['U1_incisal', 'U1_apex', 'U1i', 'U1a'].includes(dragId);
-  const frkDragged = dragId === 'Po' || dragId === 'Or';
-  const mandDragged = dragId === 'Go' || dragId === 'Me';
-
-  const wL1i = (l1Dragged || frkDragged || mandDragged) ? (getPoint(landmarks, 'L1_incisal') ?? getPoint(landmarks, 'L1i')) : null;
-  const wL1a = (l1Dragged || frkDragged || mandDragged) ? (getPoint(landmarks, 'L1_apex') ?? getPoint(landmarks, 'L1a')) : null;
-  const wU1i = (u1Dragged || frkDragged) ? (getPoint(landmarks, 'U1_incisal') ?? getPoint(landmarks, 'U1i')) : null;
-  const wU1a = (u1Dragged || frkDragged) ? (getPoint(landmarks, 'U1_apex') ?? getPoint(landmarks, 'U1a')) : null;
-  const wPo = (u1Dragged || frkDragged) ? getPoint(landmarks, 'Po') : null;
-  const wOr = (u1Dragged || frkDragged) ? getPoint(landmarks, 'Or') : null;
-  // IMPA utilise Go et Me (plan mandibulaire), pas Po/Or!
-  const wGo = (l1Dragged || mandDragged) ? getPoint(landmarks, 'Go') : null;
-  const wMe = (l1Dragged || mandDragged) ? getPoint(landmarks, 'Me') : null;
-
-  const showIMPA = !!(wL1i && wL1a && wGo && wMe);
-  const showIF = !!(wU1i && wU1a && wPo && wOr);
-
-  // Mode isolation : opacité réduite pendant drag
-  const skeletalOp = activeDragId ? P.isolationDim : baseOpacity;
-
-  // ─────────────────────────────────────────────────────────────────────────
-  // RENDER
-  // ─────────────────────────────────────────────────────────────────────────
-
-  if (imageWidth === 0 || imageHeight === 0) return null;
+  const showRickettsHard = mode === 'ricketts' || mode === 'all';
+  const showRickettsMarkers = mode === 'ricketts';
+  const showComWits = mode === 'mcnamara';
 
   return (
-    <div className="absolute inset-0 w-full h-full z-20">
-      <svg
-        ref={svgRef}
-        viewBox={`0 0 ${imageWidth} ${imageHeight}`}
-        preserveAspectRatio="xMidYMid meet"
-        className={cn('w-full h-full', isCalibrating ? 'cursor-crosshair' : 'cursor-default')}
-        onClick={handleSvgClick}
-        onPointerMove={e => {
-          // Loupe passive (hors drag — le drag a son propre handler sur le g)
-          if (!magnifierEnabled || activeDragId) return;
-          const coords = clientToSVG(e.clientX, e.clientY);
-          if (coords) setMagnifier({ x: coords.x, y: coords.y, show: true });
-        }}
-        onPointerLeave={() => {
-          if (!activeDragId) setMagnifier(m => ({ ...m, show: false }));
-        }}
-      >
-        <CephaloSvgDefs
-          magX={magX}
-          magY={magY}
-          MAG_R={MAG_R}
-          isPro={isPro}
-        />
+    <div className="absolute inset-0 z-20 h-full w-full" data-cephalo-analysis={mode}>
+      <BaseCephaloTracingLayer
+        {...props}
+        landmarks={filteredLandmarks}
+        ghosts={filteredGhosts}
+        onUpdateLandmarks={mergeLandmarkUpdate}
+        activeAnalysis={baseAnalysis}
+      />
 
-        {/* ══ IMAGE DE FOND ═══════════════════════════════════════════
-            Radiographie céphalométrique - rendue en premier (arrière-plan)
-            ══════════════════════════════════════════════════════════ */}
-        {imageSrc && (
-          <image
-            href={imageSrc}
-            x={0}
-            y={0}
-            width={imageWidth}
-            height={imageHeight}
-            preserveAspectRatio="none"
-            style={{
-              filter: imgFilters ? [
-                `brightness(${imgFilters.brightness ?? 100}%)`,
-                `contrast(${imgFilters.contrast ?? 100}%)`,
-                `invert(${imgFilters.invert ? 100 : 0}%)`,
-              ].join(' ') : undefined,
-            }}
-          />
-        )}
+      {(showRickettsHard || showComWits) && props.imageWidth > 0 && props.imageHeight > 0 && (
+        <svg
+          viewBox={`0 0 ${props.imageWidth} ${props.imageHeight}`}
+          preserveAspectRatio="xMidYMid meet"
+          className="pointer-events-none absolute inset-0 z-[28] h-full w-full"
+          aria-hidden="true"
+        >
+          {showRickettsHard && po && orPoint && (
+            <line
+              data-r18-construction="ricketts-frankfort"
+              x1={po.x} y1={po.y} x2={orPoint.x} y2={orPoint.y}
+              stroke="#67e8f9" strokeWidth="1.6" strokeDasharray="8,4"
+              opacity="0.9" vectorEffect="non-scaling-stroke"
+            />
+          )}
+          {showRickettsHard && n && pog && (
+            <line
+              data-r18-construction="ricketts-n-pog"
+              x1={n.x} y1={n.y} x2={pog.x} y2={pog.y}
+              stroke="#f472b6" strokeWidth="1.8"
+              opacity="0.92" vectorEffect="non-scaling-stroke"
+            />
+          )}
+          {showRickettsHard && a && aOnNPog && (
+            <line
+              data-r18-construction="ricketts-convexity"
+              x1={a.x} y1={a.y} x2={aOnNPog.x} y2={aOnNPog.y}
+              stroke="#f472b6" strokeWidth="1.6" strokeDasharray="3,3"
+              opacity="0.95" vectorEffect="non-scaling-stroke"
+            />
+          )}
 
-        {/* ══ CALQUE SQUELETTIQUE ═══════════════════════════════════════
-            Atténué à P.isolationDim pendant tout drag (Mode Isolation)
-            ══════════════════════════════════════════════════════════ */}
-        <motion.g animate={{ opacity: skeletalOp }} transition={{ duration: 0.10 }}>
-          {ghosts.map(g => renderSkeletalLayer(g.landmarks, true, g.color, g.opacity))}
-          {renderSkeletalLayer(landmarks, false, undefined, baseOpacity)}
+          {showRickettsMarkers && [po, orPoint, n, pog, a].filter(Boolean).map(point => {
+            const p = point as Landmark;
+            return (
+              <g key={`ricketts-${p.id}`} data-r18-point={p.id}>
+                <circle cx={p.x} cy={p.y} r="3.4" fill="#ffffff" stroke="#f472b6" strokeWidth="1.4" vectorEffect="non-scaling-stroke" />
+                <text x={p.x + 10} y={p.y - 10} fill="#fbcfe8" fontSize="10" fontWeight="800">{p.id}</text>
+              </g>
+            );
+          })}
 
-          <g opacity={baseOpacity}>
-            {isPro && visualDebug?.normative_zones?.map((z, i) => (
-              <ellipse key={`zone-${i}`}
-                cx={z.cx} cy={z.cy} rx={z.rx} ry={z.ry}
-                fill="rgba(0,245,255,0.04)" stroke="#00f5ff"
-                strokeWidth="0.5" strokeDasharray="2,2"
-                transform={`rotate(${z.rotation ?? 0},${z.cx},${z.cy})`}
-                vectorEffect="non-scaling-stroke" className="pointer-events-none" />
-            ))}
-            {/* Ligne de Référence - Plan de Francfort étendu */}
-            {francfortLineExtended && (
+          {showComWits && occPost && occAnt && (
+            <g data-r18-construction="com-wits-occlusal">
               <line
-                x1={francfortLineExtended.x1} y1={francfortLineExtended.y1}
-                x2={francfortLineExtended.x2} y2={francfortLineExtended.y2}
-                stroke="#ff6b6b"
-                strokeWidth="1.5"
-                opacity="0.6"
-                strokeDasharray="10,5"
-                vectorEffect="non-scaling-stroke" />
-            )}
-          </g>
-        </motion.g>
+                x1={occPost.x} y1={occPost.y} x2={occAnt.x} y2={occAnt.y}
+                stroke="#facc15" strokeWidth="1.7" strokeDasharray="5,4"
+                opacity="0.92" vectorEffect="non-scaling-stroke"
+              />
+              <text
+                x={(occPost.x + occAnt.x) / 2 + 10}
+                y={(occPost.y + occAnt.y) / 2 - 10}
+                fill="#fde68a" fontSize="10" fontWeight="800"
+              >Wits</text>
+            </g>
+          )}
+        </svg>
+      )}
 
-        {/* ══ PROJECTIONS A' ET B' + LIGNE McNAMARA ═══════════════════════
-            Toujours visibles, hors du groupe à opacité variable
-            ═══════════════════════════════════════════════════════════ */}
-
-        {/* Ligne McNamara (perpendiculaire au plan de Francfort par N') */}
-        {mcNamaraLine && nPrime && nPrimeTick && (
-          <g>
-            {/* Ligne McNamara subtile */}
-            <line
-              x1={mcNamaraLine.x1} y1={mcNamaraLine.y1}
-              x2={mcNamaraLine.x2} y2={mcNamaraLine.y2}
-              stroke="#ff00ff"
-              strokeWidth="1.5"
-              strokeDasharray="8,4"
-              opacity="0.7"
-              vectorEffect="non-scaling-stroke" />
-            {/* Tiquet perpendiculaire pour N' */}
-            <line
-              x1={nPrimeTick.x1} y1={nPrimeTick.y1}
-              x2={nPrimeTick.x2} y2={nPrimeTick.y2}
-              stroke="#ff00ff"
-              strokeWidth="2"
-              strokeLinecap="round"
-              vectorEffect="non-scaling-stroke" />
-            {/* Label McNamara */}
-            <text
-              x={nPrime.x + 20} y={nPrime.y - 15}
-              fontSize="12"
-              fontWeight="600"
-              fill="#ff00ff"
-              style={{ userSelect: 'none', pointerEvents: 'none' }}
-            >
-              McNamara
-            </text>
-          </g>
-        )}
-
-        {/* Projection A → A' */}
-        {aPrime && ptA && aPrimeTick && (
-          <g>
-            {/* Ligne de projection A → A' */}
-            <line
-              x1={ptA.x} y1={ptA.y}
-              x2={aPrime.x} y2={aPrime.y}
-              stroke="#ff0000"
-              strokeDasharray="5,5"
-              strokeWidth="2"
-              opacity="0.8"
-              vectorEffect="non-scaling-stroke" />
-            {/* Tiquet perpendiculaire premium */}
-            <line
-              x1={aPrimeTick.x1} y1={aPrimeTick.y1}
-              x2={aPrimeTick.x2} y2={aPrimeTick.y2}
-              stroke="#ff0000"
-              strokeWidth="2.5"
-              strokeLinecap="round"
-              vectorEffect="non-scaling-stroke" />
-            {/* Label A' */}
-            <text
-              x={aPrime.x + 18} y={aPrime.y - 12}
-              fontSize="14"
-              fontWeight="bold"
-              fill="#ff0000"
-              style={{ userSelect: 'none', pointerEvents: 'none' }}
-            >
-              A'
-            </text>
-          </g>
-        )}
-
-        {/* Projection B → B' */}
-        {bPrime && ptB && bPrimeTick && (
-          <g>
-            {/* Ligne de projection B → B' */}
-            <line
-              x1={ptB.x} y1={ptB.y}
-              x2={bPrime.x} y2={bPrime.y}
-              stroke="#00ff00"
-              strokeDasharray="5,5"
-              strokeWidth="2"
-              opacity="0.8"
-              vectorEffect="non-scaling-stroke" />
-            {/* Tiquet perpendiculaire premium */}
-            <line
-              x1={bPrimeTick.x1} y1={bPrimeTick.y1}
-              x2={bPrimeTick.x2} y2={bPrimeTick.y2}
-              stroke="#00ff00"
-              strokeWidth="2.5"
-              strokeLinecap="round"
-              vectorEffect="non-scaling-stroke" />
-            {/* Label B' */}
-            <text
-              x={bPrime.x + 18} y={bPrime.y - 12}
-              fontSize="14"
-              fontWeight="bold"
-              fill="#00ff00"
-              style={{ userSelect: 'none', pointerEvents: 'none' }}
-            >
-              B'
-            </text>
-          </g>
-        )}
-
-        {/* ══ WEDGES DYNAMIQUES (pendant drag) ═══════════════════════════
-            Hors du motion.g d'isolation → toujours à 100% d'opacité
-            ══════════════════════════════════════════════════════════ */}
-        {showIMPA && (
-          <WedgeZone apexPt={wL1a!} incisalPt={wL1i!} po={wGo!} or_={wMe!}
-            label="IMPA" normMean={IMPA_MEAN} normHalf={IMPA_NORM_HALF} compHalf={IMPA_COMP_HALF}
-            colors={{ norm: P.wedgeNorm, comp: P.wedgeComp, severe: P.wedgeSevere, normLine: P.wedgeNormLine }} />
-        )}
-        {showIF && (
-          <WedgeZone apexPt={wU1a!} incisalPt={wU1i!} po={wPo!} or_={wOr!}
-            label="I/F" normMean={IF_MEAN} normHalf={IF_NORM_HALF} compHalf={IF_COMP_HALF}
-            colors={{ norm: P.wedgeU1Norm, comp: P.wedgeU1Comp, severe: P.wedgeU1Severe, normLine: P.wedgeU1Norm }} />
-        )}
-
-        <CephaloLandmarkReticles
-          landmarks={landmarks}
-          isCalibrating={isCalibrating}
-          baseOpacity={baseOpacity}
-          activeDragId={activeDragId}
-          activeDragPos={activeDragPos}
-          activePointId={activePointId}
-          focusedPointId={focusedPointId}
-          hoveredMetric={hoveredMetric}
-          palette={P}
-          isPro={isPro}
-          setActiveDragId={setActiveDragId}
-          setActiveDragPos={setActiveDragPos}
-          magnifierEnabled={magnifierEnabled}
-          setMagnifier={setMagnifier}
-          clientToSVG={clientToSVG}
-          onPointMouseDown={onPointMouseDown}
-          onUpdateLandmarks={onUpdateLandmarks}
-        />
-
-        <CephaloCalibrationOverlay
-          isCalibrating={isCalibrating}
-          activeDragId={activeDragId}
-          magnifier={magnifier}
-          calibrationPoints={calibrationPoints}
-        />
-
-        <CephaloMagnifierOverlay
-          magnifierEnabled={magnifierEnabled}
-          magnifier={magnifier}
-          imageSrc={imageSrc}
-          imageWidth={imageWidth}
-          imageHeight={imageHeight}
-          imgFilters={imgFilters}
-          magX={magX}
-          magY={magY}
-          MAG_R={MAG_R}
-          MAG_ZOOM={MAG_ZOOM}
-          palette={P}
-        />
-      </svg>
+      <div className="pointer-events-none absolute inset-x-0 top-36 z-40 flex justify-center px-3 sm:top-16">
+        <div
+          aria-label="Analyse du tracé"
+          className="pointer-events-auto flex max-w-full items-center gap-1 overflow-x-auto rounded-2xl border border-slate-700/70 bg-slate-950/80 p-1 shadow-2xl backdrop-blur-xl"
+        >
+          <span className="hidden shrink-0 px-2 text-[9px] font-black uppercase tracking-[0.18em] text-slate-500 sm:inline">Tracé</span>
+          {ANALYSIS_OPTIONS.map(option => {
+            const selected = mode === option.id;
+            return (
+              <button
+                key={option.id}
+                type="button"
+                data-analysis={option.id}
+                aria-pressed={selected}
+                onClick={() => setMode(option.id)}
+                className={`shrink-0 rounded-xl px-2.5 py-1.5 text-[9px] font-black uppercase tracking-[0.08em] transition-all sm:px-3 sm:text-[10px] ${selected
+                  ? 'border border-cyan-400/45 bg-cyan-400/15 text-cyan-100 shadow-[0_0_18px_rgba(34,211,238,0.12)]'
+                  : 'border border-transparent text-slate-400 hover:bg-slate-800/80 hover:text-slate-100'}`}
+              >
+                {option.shortLabel ? (
+                  <>
+                    <span className="sm:hidden">{option.shortLabel}</span>
+                    <span className="hidden sm:inline">{option.label}</span>
+                  </>
+                ) : option.label}
+              </button>
+            );
+          })}
+        </div>
+      </div>
     </div>
   );
 };

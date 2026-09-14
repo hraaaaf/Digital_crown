@@ -11,16 +11,29 @@ Point = Tuple[float, float]
 _EPS = 1e-12
 
 
-def _directed_line_angle_deg(start: Optional[Point], end: Optional[Point]) -> Optional[float]:
-    if start is None or end is None:
+def _ray_angle_deg(
+    p1: Optional[Point],
+    p2: Optional[Point],
+    p3: Optional[Point],
+    p4: Optional[Point],
+) -> Optional[float]:
+    if not all((p1, p2, p3, p4)):
         return None
-    dx = end[0] - start[0]
-    dy = end[1] - start[1]
-    length = math.hypot(dx, dy)
-    if not math.isfinite(length) or length <= _EPS:
+    assert p1 is not None and p2 is not None and p3 is not None and p4 is not None
+    v1 = (p2[0] - p1[0], p2[1] - p1[1])
+    v2 = (p4[0] - p3[0], p4[1] - p3[1])
+    len1 = math.hypot(*v1)
+    len2 = math.hypot(*v2)
+    if (
+        not all(math.isfinite(value) for value in (*v1, *v2, len1, len2))
+        or len1 <= _EPS
+        or len2 <= _EPS
+    ):
         return None
-    angle = math.degrees(math.atan2(dy, dx))
-    return angle if math.isfinite(angle) else None
+    cosine = (v1[0] * v2[0] + v1[1] * v2[1]) / (len1 * len2)
+    cosine = max(-1.0, min(1.0, cosine))
+    value = math.degrees(math.acos(cosine))
+    return value if math.isfinite(value) else None
 
 
 def _clinical_obtuse_angle_deg_v1(
@@ -29,11 +42,9 @@ def _clinical_obtuse_angle_deg_v1(
     reference_start: Optional[Point],
     reference_end: Optional[Point],
 ) -> Optional[float]:
-    axis_angle = _directed_line_angle_deg(axis_start, axis_end)
-    reference_angle = _directed_line_angle_deg(reference_start, reference_end)
-    if axis_angle is None or reference_angle is None:
+    raw = _ray_angle_deg(axis_start, axis_end, reference_start, reference_end)
+    if raw is None:
         return None
-    raw = abs(axis_angle - reference_angle) % 180.0
     value = 180.0 - raw
     return value if math.isfinite(value) else None
 
@@ -45,11 +56,9 @@ def _clinical_interincisal_angle_deg_v1(
     l1_incisal: Optional[Point],
 ) -> Optional[float]:
     """Posterior/obtuse angle between maxillary and mandibular incisor long axes."""
-    upper = _directed_line_angle_deg(u1_apex, u1_incisal)
-    lower = _directed_line_angle_deg(l1_apex, l1_incisal)
-    if upper is None or lower is None:
+    raw = _ray_angle_deg(u1_apex, u1_incisal, l1_apex, l1_incisal)
+    if raw is None:
         return None
-    raw = abs(upper - lower) % 180.0
     value = max(raw, 180.0 - raw)
     return value if math.isfinite(value) else None
 
@@ -88,7 +97,7 @@ def craniom_interincisal_deg_v1(
 ) -> Optional[float]:
     """Interincisal angle between U1 and L1 long axes, in degrees.
 
-    This preserves the existing runtime convention: use the larger of the two
+    This preserves the certified convention: use the larger of the two
     supplementary line angles. It carries geometry only, never a norm or clinical
     classification.
     """

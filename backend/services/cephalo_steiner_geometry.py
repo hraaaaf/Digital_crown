@@ -20,7 +20,7 @@ def _ray_angle_deg(
     p3: Optional[Point],
     p4: Optional[Point],
 ) -> Optional[float]:
-    """Directed-ray angle magnitude in [0, 180), preserving ray orientation."""
+    """Non-reflex angle between two directed rays, in [0, 180]."""
     if not all((p1, p2, p3, p4)):
         return None
     assert p1 is not None and p2 is not None and p3 is not None and p4 is not None
@@ -29,15 +29,14 @@ def _ray_angle_deg(
     len1 = math.hypot(*v1)
     len2 = math.hypot(*v2)
     if (
-        not math.isfinite(len1)
-        or not math.isfinite(len2)
+        not all(math.isfinite(value) for value in (*v1, *v2, len1, len2))
         or len1 <= _EPS
         or len2 <= _EPS
     ):
         return None
-    a1 = math.degrees(math.atan2(v1[1], v1[0]))
-    a2 = math.degrees(math.atan2(v2[1], v2[0]))
-    value = abs(a1 - a2) % 180.0
+    cosine = (v1[0] * v2[0] + v1[1] * v2[1]) / (len1 * len2)
+    cosine = max(-1.0, min(1.0, cosine))
+    value = math.degrees(math.acos(cosine))
     return value if math.isfinite(value) else None
 
 
@@ -75,7 +74,7 @@ def steiner_anb_deg_v1(
     point_a: Optional[Point],
     point_b: Optional[Point],
 ) -> Optional[float]:
-    """Steiner ANB with legacy-runtime parity: round(SNA, 1) - round(SNB, 1)."""
+    """Steiner ANB with runtime parity: round(SNA, 1) - round(SNB, 1)."""
     sna = steiner_sna_deg_v1(sella, nasion, point_a)
     snb = steiner_snb_deg_v1(sella, nasion, point_b)
     if sna is None or snb is None:
