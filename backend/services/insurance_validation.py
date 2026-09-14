@@ -20,7 +20,7 @@ from backend.services.insurance_source_store import load_stored_insurance_source
 from backend.services.insurance_submission import apply_ngap_reference_to_draft
 
 
-def _assert_template_source(
+def assert_insurance_template_source(
     *,
     source_store_root: Path,
     draft: InsuranceSubmissionDraft,
@@ -55,7 +55,7 @@ def _assert_template_source(
         raise ValueError("Cabinet-validated template has no validator identity")
 
 
-def _assert_ngap_source(
+def assert_insurance_ngap_source(
     *,
     source_store_root: Path,
     draft: InsuranceSubmissionDraft,
@@ -135,8 +135,8 @@ def validate_insurance_draft_by_practitioner(
     if any(line.mapping_status.value != "EXACT" for line in resolved.lines):
         raise ValueError("Insurance submission contains unresolved NGAP mappings")
 
-    _assert_template_source(source_store_root=Path(source_store_root), draft=resolved)
-    _assert_ngap_source(source_store_root=Path(source_store_root), draft=resolved)
+    assert_insurance_template_source(source_store_root=Path(source_store_root), draft=resolved)
+    assert_insurance_ngap_source(source_store_root=Path(source_store_root), draft=resolved)
 
     payload = resolved.model_dump()
     payload.update({
