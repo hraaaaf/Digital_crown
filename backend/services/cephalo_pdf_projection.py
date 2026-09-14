@@ -60,6 +60,7 @@ def build_cephalo_pdf_projection(
 
     measurements: list[dict[str, Any]] = []
     projection_blockers: list[str] = []
+    typed_projection_verified = False
     graph_payload = payload.get(EVIDENCE_GRAPH_KEY)
 
     if isinstance(graph_payload, dict):
@@ -73,6 +74,7 @@ def build_cephalo_pdf_projection(
                 (_measurement_row(item) for item in chain.measurements.values()),
                 key=lambda row: row["measurement_id"],
             )
+            typed_projection_verified = True
         except Exception:
             projection_blockers.append("typed_measurement_projection_incoherent")
     else:
@@ -100,6 +102,9 @@ def build_cephalo_pdf_projection(
         set(studio.get("blocking_gates") or []) | set(projection_blockers)
     )
     is_complete = bool(studio.get("clinical_validation_available")) and not blockers
+    active_runtime_chain_verified = (
+        bool(studio.get("active_runtime_chain_verified")) and typed_projection_verified
+    )
 
     return {
         "contract_version": CEPHALO_PDF_PROJECTION_VERSION,
@@ -107,7 +112,7 @@ def build_cephalo_pdf_projection(
         "analysis_id": analysis_id,
         "document_state": "COMPLETE" if is_complete else "INCOMPLETE",
         "authority": "BACKEND_TYPED_EVIDENCE_AND_R15_STUDIO",
-        "active_runtime_chain_verified": bool(studio.get("active_runtime_chain_verified")),
+        "active_runtime_chain_verified": active_runtime_chain_verified,
         "evidence_graph_present": bool(studio.get("evidence_graph_present")),
         "measurements": measurements,
         "stages": stages,
