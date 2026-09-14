@@ -53,7 +53,7 @@ def _ricketts(graph, *, calibrated: bool):
     by_method = {item["method_id"]: item for item in items}
     assert set(by_method) == {
         "RICKETTS_FACIAL_DEPTH_DEG_V1",
-        "RICKETTS_CONVEXITY_A_NPOG_MM_V1", "RICKETTS_E_LINE_LS_MM_V1", "RICKETTS_E_LINE_LI_MM_V1",
+        "RICKETTS_CONVEXITY_A_NPOG_MM_V1", "RICKETTS_E_LINE_LS_MM_V2", "RICKETTS_E_LINE_LI_MM_V2",
     }
     assert "RICKETTS_FACIAL_AXIS_DEG_V1" not in by_method
     depth = by_method["RICKETTS_FACIAL_DEPTH_DEG_V1"]
@@ -61,7 +61,7 @@ def _ricketts(graph, *, calibrated: bool):
     assert depth["requires_calibration"] is False
     assert depth["calibration_ref"] is None
     assert depth["value"] is not None
-    for method in ("RICKETTS_CONVEXITY_A_NPOG_MM_V1", "RICKETTS_E_LINE_LS_MM_V1", "RICKETTS_E_LINE_LI_MM_V1"):
+    for method in ("RICKETTS_CONVEXITY_A_NPOG_MM_V1", "RICKETTS_E_LINE_LS_MM_V2", "RICKETTS_E_LINE_LI_MM_V2"):
         item = by_method[method]
         assert item["requires_calibration"] is True
         if calibrated:
@@ -122,8 +122,8 @@ def test_ricketts_creation_edit_manual_calibration_edit_and_read_path():
         result=recalc_result, runtime_landmarks=recalculated, clinician_id="clinician-r9", validated_at=LATEST,
     )
     recalculated_ricketts = _ricketts(revision4, calibrated=True)
-    assert recalculated_ricketts["RICKETTS_E_LINE_LS_MM_V1"]["value"] != pytest.approx(calibrated_ricketts["RICKETTS_E_LINE_LS_MM_V1"]["value"])
-    assert recalculated_ricketts["RICKETTS_E_LINE_LI_MM_V1"]["value"] == pytest.approx(calibrated_ricketts["RICKETTS_E_LINE_LI_MM_V1"]["value"])
+    assert recalculated_ricketts["RICKETTS_E_LINE_LS_MM_V2"]["value"] != pytest.approx(calibrated_ricketts["RICKETTS_E_LINE_LS_MM_V2"]["value"])
+    assert recalculated_ricketts["RICKETTS_E_LINE_LI_MM_V2"]["value"] == pytest.approx(calibrated_ricketts["RICKETTS_E_LINE_LI_MM_V2"]["value"])
 
     angles = recalc_result.model_dump(); angles[EVIDENCE_GRAPH_KEY] = revision4
     projected = project_runtime_chain_read_path(angles, patient_id=7)
