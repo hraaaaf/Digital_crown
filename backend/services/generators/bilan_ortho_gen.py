@@ -177,7 +177,7 @@ class BilanOrthoPDFGenerator(BaseTemplate):
         body = ParagraphStyle("R17Body", parent=styles["Normal"], fontSize=9, leading=13, spaceAfter=5)
 
         p_width = A4[0]
-        m_top, m_bottom, m_left, m_right = self.base_template.get_document_margins(config, p_width)
+        m_top, m_bottom, m_left, m_right = self.get_document_margins(config, p_width)
         doc = SimpleDocTemplate(file_path, pagesize=A4, rightMargin=m_right, leftMargin=m_left, topMargin=m_top, bottomMargin=m_bottom)
         elements = [
             Paragraph("BILAN ORTHODONTIQUE - RESTITUTION AUTORITAIRE", title),
