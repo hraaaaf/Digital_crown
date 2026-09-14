@@ -175,11 +175,12 @@ def validate_dosage(name: str, dosage_mg: Optional[float]) -> Dict[str, Any]:
 
     `exists=True` signifie seulement que le dosage apparaît dans le snapshot historique.
     Cela ne certifie ni disponibilité actuelle, ni indication, ni posologie.
+    Le contrat historique `{"known": False}` reste inchangé pour un médicament inconnu.
     """
     _load()
     recs = _matching_records(name)
     if not recs:
-        return {"known": False, "source": dict(CATALOG_SOURCE)}
+        return {"known": False}
 
     strengths = sorted({mg for rec in recs for mg in _strengths_mg(rec)})
     dci = next((rec.get("dci", "") for rec in recs if rec.get("dci")), "")
