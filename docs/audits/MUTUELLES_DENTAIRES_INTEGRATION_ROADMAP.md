@@ -79,6 +79,6 @@ Activation seulement si templates hash/verrouilles, NGAP primaire versionne, mig
 Second moteur Honoraires, second catalogue NGAP, Ordonnance bis, fuzzy mapping silencieux, backfill artificiel, signature/cachet/accord assureur fabrique, deploiement Vercel sans autorisation explicite.
 
 ## Etat
-`LOTS_1_4_IMPLEMENTED / MASTER_ALIGNMENT_PREPARED / CI_PENDING / RUNTIME_NOT_ACTIVATED`
+`LOTS_1_4_IMPLEMENTED / MASTER_ALIGNMENT_COMPLETE / CI_PENDING / RUNTIME_NOT_ACTIVATED`
 
-Next exact: pointer la branche sur le merge d'alignement `master`, puis recertifier le HEAD; si vert, construire le referentiel NGAP local versionne a partir de sources primaires verrouillees.
+Next exact: recertifier le HEAD aligne sur master; si vert, construire le referentiel NGAP local versionne a partir de sources primaires verrouillees.
