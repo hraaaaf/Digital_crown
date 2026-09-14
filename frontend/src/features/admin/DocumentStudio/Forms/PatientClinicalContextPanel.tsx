@@ -104,7 +104,7 @@ export function PatientClinicalContextPanel({ patientId }: { patientId?: number 
   };
 
   const save = async () => {
-    if (!patientId || saving) return;
+    if (!patientId || loading || loadError || saving) return;
     setSaving(true);
     setSaveState('idle');
     const allergies = context.medication_allergy_status === 'PRESENT'
@@ -157,6 +157,10 @@ export function PatientClinicalContextPanel({ patientId }: { patientId?: number 
       {!patientId ? (
         <div className="mt-3 rounded-xl border border-amber-500/25 bg-amber-500/5 px-3 py-2 text-xs font-bold text-amber-700 dark:text-amber-300">
           Contexte indisponible : aucun patient sélectionné.
+        </div>
+      ) : loading ? (
+        <div className="mt-3 flex min-h-[88px] items-center justify-center rounded-xl border border-border-main bg-background/60 px-3 py-3 text-xs font-bold text-text-muted">
+          <Loader2 size={15} className="mr-2 animate-spin" /> Chargement du contexte clinique…
         </div>
       ) : loadError ? (
         <div className="mt-3 flex items-center gap-2 rounded-xl border border-amber-500/25 bg-amber-500/5 px-3 py-2 text-xs font-bold text-amber-700 dark:text-amber-300">
