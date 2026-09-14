@@ -1,107 +1,150 @@
-import { render, screen, fireEvent } from '@testing-library/react'
-import { describe, it, expect, vi } from 'vitest'
-import '@testing-library/jest-dom/vitest'
-import { DrugRow } from './DrugRow'
-import type { DrugItem } from './prescriptionTypes'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import '@testing-library/jest-dom/vitest';
+
+import { api } from '../../../../services/api';
+import { DrugRow } from './DrugRow';
+import type { DrugItem } from './prescriptionTypes';
+
+vi.mock('../../../../services/api', () => ({
+  api: { get: vi.fn() },
+}));
+
+const presentation = {
+  presentation_id: 'cnops:test-500',
+  nom: 'PARACETAMOL TEST 500 MG',
+  dci: 'PARACETAMOL',
+  dosage: '500',
+  unite: 'MG',
+  forme: 'COMPRIME',
+  source: {
+    id: 'cnops-open-data-medications',
+    label: 'CNOPS Open Data — Référentiel des médicaments',
+    license: 'ODbL',
+    source_url: 'https://www.data.gov.ma/data/fr/dataset/referentiel-des-medicaments',
+    snapshot_date: '2021-12-13',
+    freshness: 'historical_snapshot',
+    current_marketing_status_verified: false,
+  },
+};
 
 const baseDrug: DrugItem = {
   id: 1,
   name: 'PARACE',
   dosage: '',
-  forme: 'COMPRIMÉS',
+  forme: '',
   posologie: '',
   type: 'MEDICAMENT',
-}
+};
 
-const noop = () => {}
+const noop = () => {};
 
 function renderDrugRow(overrides: Partial<React.ComponentProps<typeof DrugRow>> = {}) {
-  const onApplySuggestion = vi.fn()
-  const onSearch = vi.fn()
-  const props = {
+  const onUpdateDrug = vi.fn();
+  const props: React.ComponentProps<typeof DrugRow> = {
     drug: baseDrug,
     idx: 0,
     drugsCount: 1,
     assessment: null,
     validationErrors: [],
     forcedDrugs: [],
-    activeSearchId: { id: 1, field: 'name' },
-    suggestions: { medications: ['PARACETAMOL', 'PARACETAMOL BIOGARAN'], dosages: [], posologies: [] },
+    activeSearchId: null,
+    suggestions: { medications: [], dosages: [], posologies: [] },
     highlightedIdx: -1,
     medChecks: {},
-    onUpdateDrug: noop,
+    onUpdateDrug,
     onRemoveDrug: noop,
     onMove: noop,
-    onSearch,
+    onSearch: noop,
     onKeyDown: noop,
-    onApplySuggestion,
+    onApplySuggestion: noop,
     onFormeOpen: noop,
     onForceAllergy: noop,
     onToggleType: noop,
     ...overrides,
-  }
-  render(<DrugRow {...props} />)
-  return { onApplySuggestion, onSearch }
+  };
+  render(<DrugRow {...props} />);
+  return { onUpdateDrug };
 }
 
-describe('DrugRow — autocomplete médicament', () => {
-  it('affiche les suggestions quand activeSearchId correspond au champ name', () => {
-    renderDrugRow()
-    expect(screen.getByText('PARACETAMOL')).toBeInTheDocument()
-    expect(screen.getByText('PARACETAMOL BIOGARAN')).toBeInTheDocument()
-  })
+describe('DrugRow — Prescription Intelligence V1', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.mocked(api.get).mockResolvedValue({ data: [presentation] } as any);
+  });
 
-  it("appelle onApplySuggestion dès le mousedown (avant tout blur) quand on clique sur une suggestion", () => {
-    const { onApplySuggestion } = renderDrugRow()
-    const suggestionButton = screen.getByText('PARACETAMOL').closest('button')!
+  it('recherche uniquement dans le référentiel médicament après 2 caractères', async () => {
+    renderDrugRow();
 
-    fireEvent.mouseDown(suggestionButton)
+    await waitFor(() => {
+      expect(api.get).toHaveBeenCalledWith('/medications/search', { params: { q: 'PARACE' } });
+    });
+    expect(await screen.findByText('PARACETAMOL TEST 500 MG')).toBeInTheDocument();
+    expect(screen.getByText(/snapshot 13\/12\/2021/i)).toBeInTheDocument();
+  });
 
-    expect(onApplySuggestion).toHaveBeenCalledWith(1, 'name', 'PARACETAMOL')
-  })
+  it('sélectionne explicitement une présentation et n injecte aucune posologie', async () => {
+    const { onUpdateDrug } = renderDrugRow();
+    const suggestion = await screen.findByText('PARACETAMOL TEST 500 MG');
 
-  it('le mousedown sur la suggestion empêche le comportement par défaut (evite le blur qui fermerait le dropdown)', () => {
-    renderDrugRow()
-    const suggestionButton = screen.getByText('PARACETAMOL').closest('button')!
+    fireEvent.mouseDown(suggestion.closest('button')!);
 
-    const event = new MouseEvent('mousedown', { bubbles: true, cancelable: true })
-    const preventDefaultSpy = vi.spyOn(event, 'preventDefault')
-    suggestionButton.dispatchEvent(event)
+    expect(onUpdateDrug).toHaveBeenCalledWith(1, 'name', 'PARACETAMOL TEST 500 MG');
+    expect(onUpdateDrug).toHaveBeenCalledWith(1, 'dosage', '500 MG');
+    expect(onUpdateDrug).toHaveBeenCalledWith(1, 'forme', 'COMPRIME');
+    expect(onUpdateDrug).toHaveBeenCalledWith(1, 'posologie', '');
+    expect(onUpdateDrug).toHaveBeenCalledWith(1, 'catalogPresentationId', 'cnops:test-500');
+    expect(onUpdateDrug).toHaveBeenCalledWith(1, 'catalogMarketingStatusVerified', false);
+  });
 
-    expect(preventDefaultSpy).toHaveBeenCalled()
-  })
+  it('échoue fermé si le référentiel est indisponible', async () => {
+    vi.mocked(api.get).mockRejectedValueOnce(new Error('offline'));
+    renderDrugRow();
 
-  it("n'affiche pas le dropdown quand activeSearchId pointe vers un autre champ", () => {
-    renderDrugRow({ activeSearchId: { id: 1, field: 'dosage' } })
-    expect(screen.queryByText('PARACETAMOL')).not.toBeInTheDocument()
-  })
+    expect(await screen.findByText(/Référentiel médicament indisponible/)).toBeInTheDocument();
+    expect(screen.queryByText('PARACETAMOL TEST 500 MG')).not.toBeInTheDocument();
+  });
 
-  it("n'affiche pas le dropdown quand la liste de suggestions est vide", () => {
-    renderDrugRow({ suggestions: { medications: [], dosages: [], posologies: [] } })
-    expect(screen.queryByText('PARACETAMOL')).not.toBeInTheDocument()
-  })
+  it('bloque la suggestion clinique même après sélection documentaire', () => {
+    renderDrugRow({
+      drug: {
+        ...baseDrug,
+        name: 'PARACETAMOL TEST 500 MG',
+        dosage: '500 MG',
+        forme: 'COMPRIME',
+        catalogPresentationId: 'cnops:test-500',
+        catalogDci: 'PARACETAMOL',
+        catalogSourceId: 'cnops-open-data-medications',
+        catalogSourceLabel: 'CNOPS Open Data — Référentiel des médicaments',
+        catalogSnapshotDate: '2021-12-13',
+        catalogMarketingStatusVerified: false,
+      },
+    });
 
-  it("élève la ligne au-dessus de l'overlay plein écran (z-40) du parent quand son dropdown nom est ouvert, sinon la laisse au niveau normal", () => {
-    const { container, rerender } = render(<DrugRow
-      drug={baseDrug} idx={0} drugsCount={1} assessment={null} validationErrors={[]}
-      forcedDrugs={[]} activeSearchId={{ id: 1, field: 'name' }}
-      suggestions={{ medications: ['PARACETAMOL'], dosages: [], posologies: [] }}
-      highlightedIdx={-1} medChecks={{}} onUpdateDrug={noop} onRemoveDrug={noop} onMove={noop}
-      onSearch={noop} onKeyDown={noop} onApplySuggestion={noop} onFormeOpen={noop}
-      onForceAllergy={noop} onToggleType={noop}
-    />)
-    // Le dropdown est ouvert pour cette ligne -> doit dépasser le z-40 de l'overlay
-    expect(container.firstElementChild).toHaveClass('z-50')
+    expect(screen.getByText(/Suggestion clinique indisponible/)).toBeInTheDocument();
+    expect(screen.getByText(/Aucune règle de dose V1 certifiée/)).toBeInTheDocument();
+  });
 
-    rerender(<DrugRow
-      drug={baseDrug} idx={0} drugsCount={1} assessment={null} validationErrors={[]}
-      forcedDrugs={[]} activeSearchId={null}
-      suggestions={{ medications: [], dosages: [], posologies: [] }}
-      highlightedIdx={-1} medChecks={{}} onUpdateDrug={noop} onRemoveDrug={noop} onMove={noop}
-      onSearch={noop} onKeyDown={noop} onApplySuggestion={noop} onFormeOpen={noop}
-      onForceAllergy={noop} onToggleType={noop}
-    />)
-    // Dropdown fermé -> pas besoin de dépasser l'overlay
-    expect(container.firstElementChild).not.toHaveClass('z-50')
-  })
-})
+  it('efface identité documentaire et champs cliniques si le nom sélectionné est modifié', () => {
+    const { onUpdateDrug } = renderDrugRow({
+      drug: {
+        ...baseDrug,
+        name: 'PARACETAMOL TEST 500 MG',
+        dosage: '500 MG',
+        forme: 'COMPRIME',
+        posologie: 'ancienne posologie',
+        catalogPresentationId: 'cnops:test-500',
+      },
+    });
+
+    fireEvent.change(screen.getByDisplayValue('PARACETAMOL TEST 500 MG'), {
+      target: { value: 'PARACETAMOL TEST' },
+    });
+
+    expect(onUpdateDrug).toHaveBeenCalledWith(1, 'catalogPresentationId', undefined);
+    expect(onUpdateDrug).toHaveBeenCalledWith(1, 'dosage', '');
+    expect(onUpdateDrug).toHaveBeenCalledWith(1, 'forme', '');
+    expect(onUpdateDrug).toHaveBeenCalledWith(1, 'posologie', '');
+    expect(onUpdateDrug).toHaveBeenCalledWith(1, 'name', 'PARACETAMOL TEST');
+  });
+});
