@@ -18,6 +18,7 @@ from backend.services.archive_service import ArchiveService
 from backend.services.certificate_payload_policy import normalize_and_validate_certificate_data
 from backend.services.document_provenance_context import effective_document_practitioner_id
 from backend.services.honoraires_contract import validate_honoraires_document_data
+from backend.services.cephalo_pdf_projection import build_cephalo_pdf_projection
 
 logger = logging.getLogger(__name__)
 
@@ -25,19 +26,19 @@ class DocumentFactory:
     """
     Façade S.O.L.I.D. révisée pour l'architecture SaaS Multi-Tenant.
     """
-    
+
     def __init__(self, output_dir="static/documents", static_dir="static"):
         self.output_dir = output_dir
         self.static_dir = static_dir
         os.makedirs(self.output_dir, exist_ok=True)
-        
+
         # Générateurs PDF réellement utilisés par les routes produit.
         self.ord_gen = OrdonnanceGenerator(self.output_dir)
         self.cert_gen = CertificatGenerator(self.output_dir)
         self.acc_gen = TenantAwareAccountingGenerator(self.output_dir)
         self.libre_gen = LibreGenerator(self.output_dir)
         self.ceph_gen = BilanOrthoPDFGenerator(self.output_dir)
-    
+
     def _get_cabinet_config(self, user_id: int, db: Session) -> models.CabinetConfig:
         """Récupère la config du cabinet — filtre sur l'employeur (isolation multi-tenant)."""
         user = db.query(models.User).filter(models.User.id == user_id).first()
@@ -46,7 +47,7 @@ class DocumentFactory:
         if not config:
             raise ValueError(f"Cabinet non configuré pour l'employeur {employer_id}")
         return config
-    
+
     def _build_output_path(self, patient, doc_type: str) -> str:
         """Construit le chemin de sortie pour le PDF."""
         now = datetime.now()
@@ -69,8 +70,6 @@ class DocumentFactory:
         preview_root = os.path.join(self.output_dir, ".previews", "settings_branding", str(user_id or "anonymous"))
         os.makedirs(preview_root, exist_ok=True)
 
-        # Une seule génération de preview conservée par utilisateur : la suivante
-        # remplace la précédente au lieu de polluer le dossier des vrais documents.
         for root, _, files in os.walk(preview_root):
             for filename in files:
                 if filename.lower().endswith(".pdf"):
@@ -83,20 +82,14 @@ class DocumentFactory:
         preview_config.pop("settings_preview", None)
         preview_generator = OrdonnanceGenerator(preview_root)
         return preview_generator.generate(patient, data, db=db, user_id=user_id, custom_config=preview_config)
-    
-    # ==========================================================================
-    # MÉTHODES PUBLIQUES
-    # ==========================================================================
-    
+
     def create_ordonnance(self, patient, data, db: Session = None, user_id: int = None, custom_config: dict = None):
-        """Génère une ordonnance PDF via ReportLab (Stable v1.2 Ghost Elite)."""
         if custom_config and custom_config.get("settings_preview"):
             return self._create_settings_preview_ordonnance(patient, data, db, user_id, custom_config)
         render_user_id = effective_document_practitioner_id(user_id)
         return self.ord_gen.generate(patient, data, db=db, user_id=render_user_id, custom_config=custom_config)
 
     def create_certificat(self, patient, data, db: Session = None, user_id: int = None):
-        """Génère un certificat médical PDF après validation du contrat P3."""
         validated_data = normalize_and_validate_certificate_data(data)
         render_user_id = effective_document_practitioner_id(user_id)
         return self.cert_gen.generate(patient, validated_data, db=db, user_id=render_user_id)
@@ -106,17 +99,18 @@ class DocumentFactory:
         facture_seq = getattr(validated_data, 'facture_numero', None)
         render_user_id = effective_document_practitioner_id(user_id)
         return self.acc_gen.generate_note(patient, validated_data, facture_number=facture_seq, db=db, user_id=render_user_id)
-    
+
     def create_devis(self, patient, data, db: Session = None, user_id: int = None):
         devis_seq = getattr(data, 'devis_numero', None)
         render_user_id = effective_document_practitioner_id(user_id)
         return self.acc_gen.generate_devis(patient, data, document_number=devis_seq, db=db, user_id=render_user_id)
-    
+
     def create_document_libre(self, patient, data, db: Session = None, user_id: int = None):
         render_user_id = effective_document_practitioner_id(user_id)
         return self.libre_gen.generate(patient, data, db=db, user_id=render_user_id)
-    
+
     def create_cephalo_report(self, patient, analysis, db: Session = None, user_id: int = None):
+        """Generate a cephalometric PDF strictly from backend scientific authority."""
         try:
             cabinet, user = None, None
             render_user_id = effective_document_practitioner_id(user_id)
@@ -125,9 +119,24 @@ class DocumentFactory:
                 user = db.query(models.User).filter(models.User.id == render_user_id).first()
 
             results_dict = analysis.results if hasattr(analysis, 'results') else analysis.get('results', analysis)
-            radio_image_path = getattr(analysis, 'image_path', getattr(analysis, 'image_original_path', None))
+            analysis_id = getattr(analysis, 'id', None)
+            if analysis_id is None and isinstance(analysis, dict):
+                analysis_id = analysis.get('id')
+            patient_id = getattr(patient, 'id', None)
 
-            # Lire les flags de pré-bilan et avertissements
+            # R17: build authority before Pydantic legacy compatibility filtering.
+            # The projection ignores ai_diagnostic/ai_narrative/clinical_data as
+            # clinical authorities, so client-injected legacy values cannot alter it.
+            projection = build_cephalo_pdf_projection(
+                patient_id=patient_id,
+                analysis_id=analysis_id,
+                angles_data=results_dict,
+            )
+
+            radio_image_path = getattr(analysis, 'image_path', getattr(analysis, 'image_original_path', None))
+            if isinstance(analysis, dict):
+                radio_image_path = analysis.get('image_path') or analysis.get('image_original_path')
+
             is_pre_bilan = analysis.get("_is_pre_bilan", False) if isinstance(analysis, dict) else False
             validation_warnings = analysis.get("_validation_warnings", []) if isinstance(analysis, dict) else []
 
@@ -135,7 +144,7 @@ class DocumentFactory:
                 patient_nom=patient.nom,
                 patient_prenom=patient.prenom,
                 patient_age=str(self._calculate_age(patient.date_naissance)),
-                patient_id=getattr(patient, 'id', None),
+                patient_id=patient_id,
                 analysis=schemas.CephaloAnalysisResult.model_validate(results_dict),
                 cabinet_config={
                     "primary_color": cabinet.primary_color if cabinet else "#1A365D",
@@ -152,17 +161,12 @@ class DocumentFactory:
                 is_pre_bilan=is_pre_bilan,
                 validation_warnings=validation_warnings
             )
-            return self.ceph_gen.generate(vm)
+            return self.ceph_gen.generate(vm, projection=projection)
         except Exception as e:
             logger.error(f"Erreur rapport céphalo: {e}")
             raise
-            
-    def create_installment_plan(self, db: Session, plan_id: int, user_id: int, archive: bool = True) -> dict:
-        """
-        Génère un PDF d'échéancier de paiement Ortho/Autre.
 
-        En mode preview (`archive=False`), aucune archive BDD n'est créée.
-        """
+    def create_installment_plan(self, db: Session, plan_id: int, user_id: int, archive: bool = True) -> dict:
         actor = db.query(models.User).filter(models.User.id == user_id).first()
         if not actor:
             raise ValueError("Utilisateur introuvable")
@@ -186,9 +190,6 @@ class DocumentFactory:
                 "filename": filename
             }
 
-        # L'archive canonique exige le contenu et le vrai schéma DocumentArchive.
-        # L'échéancier n'a pas de DocumentType dédié : AUTRE + métadonnées explicites
-        # évite d'inventer une seconde taxonomie ou des colonnes fantômes.
         with open(filepath, "rb") as handle:
             file_content = handle.read()
 
@@ -205,8 +206,6 @@ class DocumentFactory:
             is_collected=False,
         )
 
-        # Compatibilité API : le PDF généré reste accessible à son URL historique ;
-        # archive_id pointe vers la copie canonique versionnée.
         return {
             "url": f"/static/documents/{filename}",
             "archive_id": archive_obj.id,
