@@ -54,18 +54,6 @@ const clearCatalogMetadata = (drug: DrugItem): DrugItem => ({
   catalogMarketingStatusVerified: undefined,
 });
 
-const withDocumentIndication = (payload: any, indication: string) => {
-  const next = preserveExplicitMedicationForms(payload, []);
-  if (next?.type !== 'ordonnance' || !next?.data || typeof next.data !== 'object') return next;
-  return {
-    ...next,
-    data: {
-      ...next.data,
-      indication: indication.trim() || null,
-    },
-  };
-};
-
 export const PrescriptionAgenticStudio: React.FC<PrescriptionAgenticStudioProps> = ({
   patientId,
   drugs,
