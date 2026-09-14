@@ -15,7 +15,7 @@
 **Typed read-path :** PR #400 — HEAD certifié `b5f1d991ec1c954840c609dfcd5dcee8063ad9c1` — merge master `5f453d906c0562e53c921c683bb16c1a6deb3536`  
 **R10 registre normatif :** HEAD certifié `9ffd36306ec6fa09b71d590e078af01db67e6888` — CI #3431 SUCCESS — T2 #2411 SUCCESS — PR #431 — merge `d0bdfc4fa47346f27e432139e6785177da4deef3` — closeout R10 master `2ac6ac538c79eb95a3988f2e6da9854b76dbd422`  
 **R11 diagnostic multiaxial :** HEAD certifié `6916dee975acb83d13acd540d5d2e4a8f839a478` — CI #3477 SUCCESS — T2 #2452 SUCCESS — PR #437 — merge `bc66b58b6ee4459362d3bd52150877908bdc996c`  
-**R12 problem list + objectifs :** HEAD certifié `dc04d759191828afe85c643719165e7d4fcc916e` — CI #3500 SUCCESS — T2 #2465 SUCCESS — PR #441 — merge `02d4be759191828afe85c643719165e7d4fcc916e`  
+**R12 problem list + objectifs :** HEAD certifié `dc04d759191828afe85c643719165e7d4fcc916e` — CI #3500 SUCCESS — T2 #2465 SUCCESS — PR #441 — merge `02d4be759e4ddbc24293340c6c10848174ace07a`  
 **R13 options thérapeutiques :** HEAD certifié `7fd6fdae604010510b74e5fe908dc76a425a71cf` — CI #3526 SUCCESS — T2 #2489 SUCCESS — PR #444 — merge `4740b463e49f8ddee9dbb704faaecd086c389beb`  
 **R14 validation clinique finale :** HEAD certifié `017a7eaf7d293c5a7af19fb44987a2d5ff3f675c` — CI #3581 SUCCESS — T2 #2536 SUCCESS — PR #447 — merge `2f1f1d88bf6027988a398967bed5e65883b729aa`  
 **R15 Studio clinique UX/UI :** HEAD certifié `f70d62df584a38a7deb8341dc608ad14274c3dec` — CI #3783 SUCCESS — T2 #2715 SUCCESS — PostgreSQL #230 SUCCESS — R15 AFTER #47 SUCCESS — Document History AFTER #45 SUCCESS — Document History Visual #1220 SUCCESS — PR #458 — merge `258762da7aff8e7fd481990e96f32b761d635234`  
@@ -248,8 +248,8 @@ Cette section conserve le contrat scientifique/HFE R1. Elle n'est pas le pointeu
 - T2 Runtime Browser Certification #2465 : SUCCESS ;
 - PR #441 : 1 commit, 3 fichiers ajoutés, scope backend R12 uniquement ;
 - reviews : 0 ; threads : 0 ; commentaires PR : 0 ;
-- merge implementation : `02d4be759191828afe85c643719165e7d4fcc916e` ;
-- master post-merge implementation vérifié : `02d4be759191828afe85c643719165e7d4fcc916e` ;
+- merge implementation : `02d4be759e4ddbc24293340c6c10848174ace07a` ;
+- master post-merge implementation vérifié : `02d4be759e4ddbc24293340c6c10848174ace07a` ;
 - UI : aucune modification ;
 - déploiement : aucun.
 
@@ -405,7 +405,7 @@ Findings puis hypothèses explicables ; contradictions et données manquantes vi
 ### R12 — Problem list + objectifs
 **État : FERMÉ.**  
 Chaque item référence explicitement les findings/diagnostics validés dont il dérive ; missing data et contradictions sont propagées fail-closed.  
-**Preuve :** candidate `dc04d759191828afe85c643719165e7d4fcc916e` ; CI #3500 SUCCESS ; T2 #2465 SUCCESS ; PR #441 ; merge `02d4be759191828afe85c643719165e7d4fcc916e` ; master post-merge implementation identique.
+**Preuve :** candidate `dc04d759191828afe85c643719165e7d4fcc916e` ; CI #3500 SUCCESS ; T2 #2465 SUCCESS ; PR #441 ; merge `02d4be759e4ddbc24293340c6c10848174ace07a` ; master post-merge implementation identique.
 
 ### R13 — Options thérapeutiques
 **État : FERMÉ.**  
@@ -460,7 +460,7 @@ Traitement : `diagnostic validé → données cliniques requises → indication/
 - #400 HEAD `b5f1d991ec1c954840c609dfcd5dcee8063ad9c1` : CI #3182 success ; T2 #2190 success ; Portability #500 success ; Onboarding Visual #309 success ; merge `5f453d906c0562e53c921c683bb16c1a6deb3536`.
 - R10 HEAD `9ffd36306ec6fa09b71d590e078af01db67e6888` : CI #3431 SUCCESS ; T2 #2411 SUCCESS ; merge PR #431 `d0bdfc4fa47346f27e432139e6785177da4deef3` ; closeout master `2ac6ac538c79eb95a3988f2e6da9854b76dbd422`.
 - R11 HEAD `6916dee975acb83d13acd540d5d2e4a8f839a478` : CI #3477 SUCCESS ; T2 #2452 SUCCESS ; merge PR #437 `bc66b58b6ee4459362d3bd52150877908bdc996c`.
-- R12 HEAD `dc04d759191828afe85c643719165e7d4fcc916e` : CI #3500 SUCCESS ; T2 #2465 SUCCESS ; merge PR #441 `02d4be759191828afe85c643719165e7d4fcc916e`.
+- R12 HEAD `dc04d759191828afe85c643719165e7d4fcc916e` : CI #3500 SUCCESS ; T2 #2465 SUCCESS ; merge PR #441 `02d4be759e4ddbc24293340c6c10848174ace07a`.
 - R13 HEAD `7fd6fdae604010510b74e5fe908dc76a425a71cf` : CI #3526 SUCCESS ; T2 #2489 SUCCESS ; merge PR #444 `4740b463e49f8ddee9dbb704faaecd086c389beb`.
 - R14 HEAD `017a7eaf7d293c5a7af19fb44987a2d5ff3f675c` : CI #3581 SUCCESS ; T2 #2536 SUCCESS ; PostgreSQL #51 SUCCESS ; merge PR #447 `2f1f1d88bf6027988a398967bed5e65883b729aa`.
 - R15 HEAD `f70d62df584a38a7deb8341dc608ad14274c3dec` : CI #3783 SUCCESS ; T2 #2715 SUCCESS ; PostgreSQL #230 SUCCESS ; R15 AFTER #47 SUCCESS ; Document History AFTER #45 SUCCESS ; Document History Visual #1220 SUCCESS ; merge PR #458 `258762da7aff8e7fd481990e96f32b761d635234`.
