@@ -126,6 +126,7 @@ class BilanOrthoPDFGenerator(BaseTemplate):
         projection: Optional[dict[str, Any]] = None,
     ):
         import weasyprint
+        from backend.services.generators.document_typography import short_label
 
         # Historical marker kept only for a regression test that asserts those
         # calibration-dependent legacy values are not rendered as legacy metrics.
@@ -133,6 +134,13 @@ class BilanOrthoPDFGenerator(BaseTemplate):
         _ = LINEAR_MEASURES_EXCLUDED
 
         context = self._shared_context(vm, projection or {})
+        context["measurements"] = [
+            {
+                **measurement,
+                "measurement_id": short_label(measurement["measurement_id"].rsplit(":", 1)[-1]),
+            }
+            for measurement in context["measurements"]
+        ]
         template = self.jinja_env.get_template("bilan_ortho_authoritative.html")
         html_content = template.render(context)
         weasyprint.HTML(string=html_content).write_pdf(output_path)
@@ -151,8 +159,16 @@ class BilanOrthoPDFGenerator(BaseTemplate):
         from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
         from reportlab.lib.units import cm
         from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
+        from backend.services.generators.document_typography import short_label
 
         context = self._shared_context(vm, projection or {})
+        context["measurements"] = [
+            {
+                **measurement,
+                "measurement_id": short_label(measurement["measurement_id"].rsplit(":", 1)[-1]),
+            }
+            for measurement in context["measurements"]
+        ]
         config = vm.cabinet_config or {}
         p_color = colors.HexColor(config.get("primary_color", "#003380"))
         styles = getSampleStyleSheet()
