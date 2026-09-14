@@ -105,9 +105,10 @@ def _prepared_fixture(client, auth_headers, db, dentiste, tmp_path):
     dentiste.identifiants_legaux = {"inpe": "INPE-VALID"}
     db.flush()
 
-    catalog_act = _catalog_act(db)
     patient_id = _patient(client, auth_headers)
-    _honoraires(client, auth_headers, patient_id, catalog_act.id)
+    catalog_act = _catalog_act(db)
+    catalog_act_id = catalog_act.id
+    _honoraires(client, auth_headers, patient_id, catalog_act_id)
     document = db.query(models.DocumentArchive).filter(
         models.DocumentArchive.patient_id == patient_id,
         models.DocumentArchive.document_type == models.DocumentType.NOTE_HONORAIRES,
@@ -124,7 +125,7 @@ def _prepared_fixture(client, auth_headers, db, dentiste, tmp_path):
         source_url="cabinet://official/177-06.pdf",
     )
     db.add(NgapCatalogMapping(
-        catalog_act_id=catalog_act.id,
+        catalog_act_id=catalog_act_id,
         code_kind="NGAP",
         ngap_code="D1",
         coefficient=10.0,
@@ -132,7 +133,7 @@ def _prepared_fixture(client, auth_headers, db, dentiste, tmp_path):
         requires_prior_approval=False,
         requires_radiograph=False,
         reference_version=locked_release.version,
-        mapping_rule_id=f"{locked_release.version}:{catalog_act.id}",
+        mapping_rule_id=f"{locked_release.version}:{catalog_act_id}",
         verification_status="VERIFIED_PRIMARY",
         source_authority=locked_release.authority,
         source_url=locked_release.source_url,
