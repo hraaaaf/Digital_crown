@@ -7,7 +7,7 @@ import pytest
 
 from backend import models
 from backend.models_media_core import ClinicalAsset
-from backend.models_patient_companion import PatientCompanionAccess, PatientCompanionInvitation
+from backend.models_patient_companion import PatientCompanionInvitation
 from backend.routers import patient_companion_activation, patient_companion_common
 from backend.security import get_password_hash
 from backend.services.firebase_patient_auth import FirebasePatientAuthInvalid, FirebasePatientCredential
@@ -22,7 +22,9 @@ def _user(db, email):
         is_active=True,
         is_licensed=True,
     )
-    db.add(user); db.commit(); db.refresh(user)
+    db.add(user)
+    db.commit()
+    db.refresh(user)
     return user
 
 
@@ -35,7 +37,9 @@ def _patient(db, owner, nom):
         sexe="M",
         employer_id=owner.id,
     )
-    db.add(patient); db.commit(); db.refresh(patient)
+    db.add(patient)
+    db.commit()
+    db.refresh(patient)
     return patient
 
 
@@ -48,8 +52,8 @@ def _staff_headers(client, user):
     return {"Authorization": f"Bearer {response.json()['access_token']}"}
 
 
-def _patient_headers(token="firebase-a"):
-    return {"Authorization": f"Firebase {token}"}
+def _patient_headers(firebase_token="firebase-a"):
+    return {"Authorization": f"Firebase {firebase_token}"}
 
 
 @pytest.fixture(autouse=True)
@@ -79,11 +83,11 @@ def _invite(client, headers, patient_id, **payload):
     return response.json()
 
 
-def _activate(client, token="firebase-a", **payload):
+def _activate(client, firebase_token="firebase-a", **payload):
     client.cookies.clear()
     return client.post(
         "/api/patient-companion/activate",
-        headers=_patient_headers(token),
+        headers=_patient_headers(firebase_token),
         json=payload,
     )
 
@@ -101,10 +105,7 @@ def test_invitation_is_hashed_single_use_and_staff_jwt_is_not_patient_auth(clien
     client.cookies.clear()
     assert client.get("/api/patient-companion/me", headers=staff).status_code == 401
 
-    activated = _activate(client, token=invitation["qr_token"])
-    # The first positional `token` above is Firebase credential, so activate correctly below.
-    if activated.status_code != 200:
-        activated = _activate(client, "firebase-a", token=invitation["qr_token"])
+    activated = _activate(client, "firebase-a", token=invitation["qr_token"])
     assert activated.status_code == 200, activated.text
     assert activated.headers["cache-control"] == "no-store"
     replay = _activate(client, "firebase-b", token=invitation["qr_token"])
@@ -184,9 +185,14 @@ def test_media_share_requires_explicit_same_patient_grant(client, db):
         employer_id=owner.id, patient_id=pb.id, asset_type="PHOTO",
         source_kind="UPLOAD", mime_type="image/jpeg", created_by=owner.id,
     )
-    db.add_all([media_a, media_b]); db.commit(); db.refresh(media_a); db.refresh(media_b)
+    db.add_all([media_a, media_b])
+    db.commit()
+    db.refresh(media_a)
+    db.refresh(media_b)
     invite = _invite(client, staff, pa.id)
-    access_id = _activate(client, "firebase-a", token=invite["qr_token"]).json()["access_id"]
+    activation = _activate(client, "firebase-a", token=invite["qr_token"])
+    assert activation.status_code == 200, activation.text
+    access_id = activation.json()["access_id"]
 
     assert client.post(
         f"/api/patient-companion/admin/patients/{pa.id}/shares",
@@ -213,7 +219,9 @@ def test_access_revocation_is_immediate(client, db):
     patient = _patient(db, owner, "Revoke")
     staff = _staff_headers(client, owner)
     invite = _invite(client, staff, patient.id)
-    access_id = _activate(client, "firebase-a", token=invite["qr_token"]).json()["access_id"]
+    activation = _activate(client, "firebase-a", token=invite["qr_token"])
+    assert activation.status_code == 200, activation.text
+    access_id = activation.json()["access_id"]
     revoked = client.post(
         f"/api/patient-companion/admin/accesses/{access_id}/revoke",
         headers=staff,
@@ -221,6 +229,18 @@ def test_access_revocation_is_immediate(client, db):
     assert revoked.status_code == 200
     client.cookies.clear()
     assert client.get("/api/patient-companion/me", headers=_patient_headers()).status_code == 403
+
+
+def test_invalid_patient_scheme_and_invalid_firebase_token_fail_closed(client):
+    client.cookies.clear()
+    assert client.get(
+        "/api/patient-companion/me",
+        headers={"Authorization": "Bearer definitely-not-a-staff-token"},
+    ).status_code == 401
+    assert client.get(
+        "/api/patient-companion/me",
+        headers=_patient_headers("invalid-firebase"),
+    ).status_code == 401
 
 
 def test_firebase_verifier_requests_revocation_check(monkeypatch):
