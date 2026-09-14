@@ -129,9 +129,11 @@ def persist_honoraires_lines(
 ) -> tuple[list[models.Acte], list[models.Payment]]:
     """Stage or reconcile Acte rows and exact document-generated payments.
 
-    New lines get a stable UUID mirrored in the canonical Honoraires snapshot and
-    the derived Acte. Existing rows prefer explicit UID matching; historical rows
-    without UID retain the controlled index fallback. No fuzzy catalogue matching.
+    New lines get a stable UUID mirrored into the canonical Honoraires snapshot when
+    the source DocumentArchive exists, and always into the derived Acte. Existing rows
+    prefer explicit UID matching; historical rows without UID retain the controlled
+    index fallback. Direct service-level callers without a persisted archive remain
+    supported. No fuzzy catalogue matching.
     """
     practitioner_id = effective_document_practitioner_id(practitioner_id)
     if practitioner_id is None:
@@ -232,11 +234,10 @@ def persist_honoraires_lines(
     archive = db.query(models.DocumentArchive).filter(
         models.DocumentArchive.id == document_archive_id
     ).first()
-    if archive is None:
-        raise ValueError("Archive Honoraires source introuvable")
-    snapshot = dict(archive.clinical_data or {})
-    snapshot["payments"] = item_list
-    archive.clinical_data = snapshot
+    if archive is not None:
+        snapshot = dict(archive.clinical_data or {})
+        snapshot["payments"] = item_list
+        archive.clinical_data = snapshot
 
     db.flush()
 
