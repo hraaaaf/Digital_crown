@@ -2,12 +2,9 @@ import { render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import '@testing-library/jest-dom/vitest';
 
-vi.mock('./PrescriptionAgenticStudioLegacy', () => ({
-  PrescriptionAgenticStudio: () => <div>legacy studio</div>,
-}));
-
 vi.mock('../../../../services/api', () => ({
   api: {
+    get: vi.fn(async () => ({ data: [] })),
     post: vi.fn(async () => ({ data: [] })),
     interceptors: {
       request: { use: vi.fn(() => 1), eject: vi.fn() },
@@ -18,13 +15,26 @@ vi.mock('../../../../services/api', () => ({
 
 import { PrescriptionAgenticStudio } from './PrescriptionAgenticStudio';
 
-describe('PrescriptionAgenticStudio R7 context terminology', () => {
-  it('présente un contexte patient déterministe et compte les lignes renseignées', () => {
+describe('PrescriptionAgenticStudio V1 context terminology', () => {
+  it('présente le flux documentaire et compte les lignes renseignées sans suggestion clinique', () => {
     render(
       <PrescriptionAgenticStudio
         patientId=""
         drugs={[
-          { id: 1, name: 'AMOXICILLINE', dosage: '1G', forme: 'COMPRIMÉS', posologie: '2x/j', type: 'MEDICAMENT' },
+          {
+            id: 1,
+            name: 'AMOXICILLINE TEST',
+            dosage: '1 G',
+            forme: 'COMPRIME',
+            posologie: '',
+            type: 'MEDICAMENT',
+            catalogPresentationId: 'cnops:test',
+            catalogDci: 'AMOXICILLINE',
+            catalogSourceId: 'cnops-open-data-medications',
+            catalogSourceLabel: 'CNOPS Open Data — Référentiel des médicaments',
+            catalogSnapshotDate: '2021-12-13',
+            catalogMarketingStatusVerified: false,
+          },
           { id: 2, name: '', dosage: '', forme: '', posologie: '', type: 'MEDICAMENT' },
         ]}
         setDrugs={vi.fn()}
@@ -35,8 +45,9 @@ describe('PrescriptionAgenticStudio R7 context terminology', () => {
       />,
     );
 
-    expect(screen.getByText('Contexte patient')).toBeInTheDocument();
-    expect(screen.getByText(/Données du dossier et vérifications déterministes/)).toBeInTheDocument();
+    expect(screen.getByText(/Recherche documentaire → présentation explicite → validation praticien/)).toBeInTheDocument();
     expect(screen.getByText('1 ligne renseignée')).toBeInTheDocument();
+    expect(screen.getAllByText(/Suggestion clinique/).length).toBeGreaterThan(0);
+    expect(screen.getByText(/Aucune règle V1 n’est certifiée/)).toBeInTheDocument();
   });
 });
