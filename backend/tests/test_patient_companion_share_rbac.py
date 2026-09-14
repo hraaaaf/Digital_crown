@@ -5,9 +5,9 @@ from backend.models_patient_companion import PatientCompanionShareGrant
 from backend.security import get_password_hash
 
 
-def _secretary(db, owner, *, companion: bool, prescriptions: bool):
+def _secretary(db, owner):
     user = models.User(
-        email=f"secretary-{int(companion)}-{int(prescriptions)}@test.local",
+        email="secretary-companion@test.local",
         hashed_password=get_password_hash("TestPass123!"),
         role="SECRETAIRE",
         nom_complet="Secrétaire Test",
@@ -16,8 +16,9 @@ def _secretary(db, owner, *, companion: bool, prescriptions: bool):
         employer_id=owner.id,
         permissions={
             "patients": True,
-            "patient_companion": companion,
-            "prescriptions": prescriptions,
+            "prescriptions": True,
+            "accounting": True,
+            "clinical": True,
         },
     )
     db.add(user)
@@ -50,8 +51,8 @@ def _patient(db, owner, dossier):
     return patient
 
 
-def test_secretary_without_companion_permission_cannot_issue_invitation(client, db, dentiste):
-    secretary = _secretary(db, dentiste, companion=False, prescriptions=False)
+def test_secretary_cannot_issue_companion_invitation_even_with_patient_access(client, db, dentiste):
+    secretary = _secretary(db, dentiste)
     patient = _patient(db, dentiste, "D-COMP-ADMIN")
 
     response = client.post(
@@ -62,8 +63,8 @@ def test_secretary_without_companion_permission_cannot_issue_invitation(client, 
     assert response.status_code == 403, response.text
 
 
-def test_secretary_cannot_share_prescription_without_prescription_permission(client, db, dentiste):
-    secretary = _secretary(db, dentiste, companion=True, prescriptions=False)
+def test_secretary_cannot_publish_patient_share_even_with_document_rights(client, db, dentiste):
+    secretary = _secretary(db, dentiste)
     patient = _patient(db, dentiste, "D-COMP-RBAC")
 
     document = models.DocumentArchive(
