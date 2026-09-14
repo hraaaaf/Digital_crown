@@ -1,6 +1,7 @@
 from datetime import datetime
 
 from backend import models
+from backend.models_patient_companion import PatientCompanionShareGrant
 from backend.security import get_password_hash
 
 
@@ -62,4 +63,4 @@ def test_secretary_cannot_share_prescription_without_prescription_permission(cli
         json={"resource_type": "document", "resource_id": document.id},
     )
     assert response.status_code == 403, response.text
-    assert db.query(models.Patient).filter(models.Patient.id == patient.id).count() == 1
+    assert db.query(PatientCompanionShareGrant).count() == 0
