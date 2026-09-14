@@ -4,7 +4,7 @@ Date: 2026-09-15
 
 ## Status
 
-ACTIVE — scientific/backend rule contract implemented on an isolated branch. No API endpoint, no UI suggestion and no automatic prescription activation yet.
+ACTIVE — scientific/backend rule + structured patient facts + read-only evaluation endpoint implemented on an isolated branch. No UI suggestion and no automatic prescription activation.
 
 ## Goal
 
@@ -19,7 +19,8 @@ Success means:
 - unknown, conflicting, pediatric, allergic, non-qualifying, wrong-medication or concurrent-penicillin cases block;
 - only the fully eligible adult path returns the source-backed regimen;
 - the result is traceable to a rule id, rule version and source ids;
-- no UI/API activation occurs before structured patient/session inputs exist and the rule is independently reviewed.
+- evaluation is read-only and cannot mutate an ordonnance or silently autofill a dose;
+- no practitioner-facing activation occurs before independent scientific review and UI certification.
 
 ## Scientific sources
 
@@ -59,8 +60,8 @@ Included:
 - penicillin/amoxicillin allergy explicitly checked;
 - oral route explicitly possible;
 - current penicillin/amoxicillin exposure explicitly checked;
-- exact selected medication identity explicitly coded as `AMOXICILLIN`;
-- exact presentation selection explicitly verified.
+- exact selected medication presentation resolved server-side from its stable documentary `presentation_id`;
+- exact single-ingredient DCI must resolve to `AMOXICILLIN`.
 
 Excluded:
 
@@ -83,17 +84,17 @@ The rule blocks if any of the following is absent/unsafe:
 - penicillin allergy unknown or present;
 - oral route unknown or impossible;
 - current penicillin/amoxicillin exposure unknown or true;
-- exact selected presentation not verified;
+- exact selected presentation not resolvable server-side;
 - canonical active ingredient is not exactly `AMOXICILLIN`.
 
-## Qualifying cardiac categories represented by the rule contract
+## Qualifying cardiac categories represented by the current rule contract
 
 - prosthetic cardiac valve or prosthetic material used for valve repair;
 - previous infective endocarditis;
 - qualifying congenital heart disease;
 - cardiac transplant with valvulopathy.
 
-The product must not infer one of these categories from narrative text.
+The product must not infer one of these categories from narrative text. Exact category wording/coverage remains subject to independent scientific review before UI activation.
 
 ## Rule output
 
@@ -109,30 +110,80 @@ Only when every gate passes:
 
 This result is a **clinical suggestion candidate**, not an autonomous prescription. Practitioner validation remains mandatory.
 
-## Product integration gates before UI activation
+## Durable patient facts implemented
 
-1. Add structured durable cardiac-risk category to patient clinical context, with `UNKNOWN` default.
-2. Add a dedicated structured penicillin/amoxicillin allergy state; generic free-text allergy matching is not sufficient.
-3. Add prescription/session-scoped explicit fields for:
-   - qualifying dental procedure;
-   - oral route possible;
-   - current penicillin/amoxicillin exposure.
-4. Derive adult age from `Patient.date_naissance` using the procedure date, not a guessed age string.
-5. Bind the rule only to an exact selected `AMOXICILLIN` presentation.
-6. Expose the result as a practitioner-reviewed suggestion, never as silent autofill.
-7. Add UI BEFORE → mockup → AFTER certification at 390/430/768/1280.
-8. Run backend full regression including DB / patients / documents before merge.
-9. Independent scientific review before activation.
+`patient_clinical_contexts` now adds, with additive migration and `UNKNOWN` default:
+
+- `penicillin_allergy_status`;
+- `ie_cardiac_risk_category`.
+
+These are factual practitioner-entered states only. They do not create `clinical_ready` and do not store any dose.
+
+Migration: `c2ie0000002`, descending from `c1ctx0000001`.
+
+## Read-only evaluation endpoint implemented
+
+`POST /api/prescriptions/clinical-rules/ie-prophylaxis/evaluate`
+
+The endpoint:
+
+- enforces prescription permission + patient tenant access;
+- derives age from `Patient.date_naissance` at the supplied procedure date;
+- reads cardiac/allergy facts only from structured patient context;
+- accepts only prescription-scoped explicit procedure/route/current-antibiotic facts;
+- resolves the selected CNOPS presentation server-side using its stable `presentation_id`;
+- maps only exact single-ingredient `AMOXICILLINE` / `AMOXICILLIN` DCI to the rule code;
+- returns a rule evaluation only;
+- performs no DB write, no ordonnance mutation, no dose autofill and no call to legacy `/safety/check` or `/smart-suggest`.
+
+## Tests implemented
+
+- positive eligible adult rule;
+- unknown inputs fail closed;
+- non-qualifying cardiac context;
+- non-qualifying dental procedure;
+- penicillin allergy;
+- current penicillin/amoxicillin exposure;
+- pediatric patient blocked;
+- unverified/wrong medication identity;
+- patient-context defaults + API roundtrip;
+- read-only endpoint READY path;
+- missing structured context;
+- server-side association rejection (amoxicillin/clavulanate);
+- request cannot override durable cardiac state;
+- missing prescription-scoped facts;
+- tenant isolation;
+- patient/context non-mutation across evaluation.
+
+## Remaining gates before UI activation
+
+1. Exact-head CI + PostgreSQL migration + patient/document non-regression.
+2. Independent scientific review of the represented cardiac categories and exact source wording; resolve any AHA/ADA/ESC category-detail divergence before exposing eligibility choices.
+3. Decide UI ownership for prescription-scoped facts without persisting transient states into durable patient context.
+4. BEFORE capture of the current prescription UI at 390/430/768/1280.
+5. Written practitioner-facing mockup with no internal certification jargon.
+6. UI suggestion card that remains non-autonomous and requires explicit practitioner acceptance.
+7. AFTER certification at the same viewports + frontend/backend regressions.
+8. Rebase against current master and recertify exact merge candidate.
+9. Merge + post-merge CI + canonical closeout.
 
 ## Implemented files
 
 - `backend/services/prescription_clinical_rules.py`
+- `backend/schemas/prescription_clinical_rules.py`
+- `backend/routers/prescriptions.py`
+- `backend/models_patient_clinical_context.py`
+- `backend/schemas/patient_clinical_context.py`
+- `backend/routers/patient_clinical_context.py`
+- `alembic/versions/c2ie0000002_add_ie_prophylaxis_patient_context.py`
 - `backend/tests/test_prescription_clinical_rule_ie_prophylaxis.py`
+- `backend/tests/test_patient_clinical_context_c2.py`
+- `backend/tests/test_prescription_c2_ie_evaluation_endpoint.py`
 
 ## Current safety state
 
-No route imports or calls this rule yet. No existing prescription flow is modified. Therefore C2 currently cannot emit a practitioner-facing suggestion in production.
+The rule is callable only through a read-only evaluation endpoint. No existing prescription UI calls it. No ordonnance is mutated, no dose is inserted, and legacy smart-suggest/safety logic remains disconnected from the Prescription Intelligence V1 UI flow.
 
 ## Next exact
 
-Add the missing structured inputs without changing existing patient/document semantics, then expose a read-only evaluation endpoint and UI suggestion card behind the same fail-closed gates. Do not implement pediatric or alternative-antibiotic branches in this lot.
+Certify the exact backend candidate, independently review the cardiac eligibility taxonomy, then design and certify the practitioner-facing read-only suggestion flow. Do not implement pediatric or alternative-antibiotic branches in this lot.
