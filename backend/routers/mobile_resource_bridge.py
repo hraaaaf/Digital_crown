@@ -669,13 +669,20 @@ def get_resource_context(
     raise HTTPException(status_code=422, detail="Type de ressource mobile non pris en charge.")
 
 
-@router.post('/resource-context-photo', summary='Archiver une photo clinique depuis le contexte Patient mobile')
+@router.post('/resource-context-photo', summary='Capturer une photo clinique dans le Media Core patient')
 async def upload_resource_context_photo(
     context_key: str = Form(...),
     file: UploadFile = File(...),
     authorization: str = Header(...),
     db: Session = Depends(database.get_db),
 ):
+    from backend.services.clinical_asset_ingestion import (
+        ClinicalAssetIngestionError,
+        ingest_clinical_asset_bytes,
+    )
+    from backend.services.clinical_asset_service import ClinicalAssetInvariantError
+    from backend.services.clinical_asset_storage import ClinicalAssetStorageError
+
     mobile_user, context = _validated_mobile_context(db, authorization, context_key)
     if str(context['resource_type']).lower() != 'patient':
         raise HTTPException(status_code=422, detail="La photo clinique exige un contexte Patient.")
@@ -691,36 +698,74 @@ async def upload_resource_context_photo(
         await file.close()
     normalized = _normalize_clinical_photo(raw)
 
-    filename = f"photo-clinique-{datetime.utcnow().strftime('%Y%m%d-%H%M%S')}-{secrets.token_hex(4)}.jpg"
-    archive_service = _documents.get_archive_service(db)
-    document, _ = archive_service.archive_document(
-        patient_id=patient.id,
-        file_content=normalized,
-        filename=filename,
-        doc_type=models.DocumentType.PHOTO_CLINIQUE,
-        uploaded_by_id=mobile_user.id,
-        title='Photo clinique',
-        description='Capture mobile contextuelle',
-        tags=['mobile', 'photo-clinique'],
-        is_accounted=False,
-    )
+    captured_at = datetime.utcnow()
+    filename = f"device-capture-{captured_at.strftime('%Y%m%d-%H%M%S')}-{secrets.token_hex(4)}.jpg"
+    try:
+        result = ingest_clinical_asset_bytes(
+            db,
+            employer_id=int(mobile_user.get_employer_id()),
+            patient_id=int(patient.id),
+            asset_type='PHOTO',
+            source_kind='DEVICE_CAPTURE',
+            content=normalized,
+            original_filename=filename,
+            claimed_mime_type='image/jpeg',
+            source_ref='MOBILE_RESOURCE_BRIDGE',
+            captured_at=captured_at,
+            created_by=int(mobile_user.id),
+            provenance_json={
+                'ingestion_channel': 'MOBILE_RESOURCE_BRIDGE',
+                'capture_kind': 'SMARTPHONE_CAMERA',
+                'bridge_resource_type': 'patient',
+                'device_id': str(context.get('device_id') or ''),
+            },
+        )
+        db.commit()
+        db.refresh(result.asset)
+        if result.thumbnail_asset is not None:
+            db.refresh(result.thumbnail_asset)
+    except HTTPException:
+        db.rollback()
+        raise
+    except (ClinicalAssetIngestionError, ClinicalAssetInvariantError) as exc:
+        db.rollback()
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    except (ClinicalAssetStorageError, OSError) as exc:
+        db.rollback()
+        raise HTTPException(status_code=503, detail="Clinical media storage unavailable") from exc
+
     _documents.audit_service.log(
         db=db,
         user_id=mobile_user.id,
         employer_id=mobile_user.get_employer_id(),
         action='CLINICAL_PHOTO_CAPTURED',
-        resource_type='PHOTO_CLINIQUE',
-        resource_id=str(document.id),
+        resource_type='CLINICAL_ASSET',
+        resource_id=str(result.asset.id),
         severity='INFO',
-        details=f"Photo clinique mobile archivée document_id={document.id}",
+        details=(
+            f"Photo clinique mobile enregistrée asset_id={result.asset.id} "
+            f"source_kind=DEVICE_CAPTURE patient_id={patient.id}"
+        ),
     )
+    thumbnail_id = result.thumbnail_asset.id if result.thumbnail_asset is not None else None
+    created_at = result.asset.created_at.isoformat() if result.asset.created_at else None
     return {
         'success': True,
+        'asset': {
+            'id': result.asset.id,
+            'asset_type': result.asset.asset_type,
+            'source_kind': result.asset.source_kind,
+            'mime_type': result.asset.mime_type,
+            'thumbnail_asset_id': thumbnail_id,
+            'created_at': created_at,
+        },
+        # Backward-compatible mobile contract: the UI only checks this marker.
+        # The identifier now belongs to ClinicalAsset; no DocumentArchive row is created.
         'document': {
-            'id': document.id,
+            'id': result.asset.id,
             'document_type': models.DocumentType.PHOTO_CLINIQUE.value,
-            'title': document.title or 'Photo clinique',
-            'created_at': document.created_at.isoformat() if document.created_at else None,
+            'title': 'Photo clinique',
+            'created_at': created_at,
         },
     }
 
