@@ -49,16 +49,22 @@ for (const viewport of viewports) {
         const rect = node.getBoundingClientRect();
         return style.display !== 'none' && style.visibility !== 'hidden' && rect.width > 0 && rect.height > 0;
       };
-      const controls = [...el.querySelectorAll('[data-ordonnance-prescription-composer] select')].filter(visible);
-      const summary = el.querySelector('[data-composer-summary]');
+      const composer = el.querySelector('[data-ordonnance-prescription-composer]');
+      const controls = composer
+        ? [...composer.querySelectorAll('select')].filter(visible)
+        : [];
+      const persistedLabel = composer
+        ? [...composer.querySelectorAll('div')].find(node => node.textContent?.trim() === 'Phrase persistée')
+        : null;
+      const persistedValue = persistedLabel?.nextElementSibling || null;
       const rect = el.getBoundingClientRect();
       return {
         card: { width: rect.width, height: rect.height, left: rect.left, right: rect.right },
-        composerVisible: Boolean(el.querySelector('[data-ordonnance-prescription-composer]')),
+        composerVisible: Boolean(composer),
         controlCount: controls.length,
         controlMinHeight: controls.length ? Math.min(...controls.map(control => control.getBoundingClientRect().height)) : null,
-        summaryVisible: Boolean(summary && visible(summary)),
-        summaryText: summary?.textContent?.trim() || '',
+        summaryVisible: Boolean(persistedValue && visible(persistedValue)),
+        summaryText: persistedValue?.textContent?.trim() || '',
       };
     });
 
@@ -85,9 +91,9 @@ for (const capture of captures) {
     if (!scene.metrics.composerVisible) failures.push(`${capture.viewport.width}-${scene.label}: composer missing`);
     if (scene.metrics.controlCount !== 4) failures.push(`${capture.viewport.width}-${scene.label}: expected 4 controls, got ${scene.metrics.controlCount}`);
     if ((scene.metrics.controlMinHeight || 0) < 43.5) failures.push(`${capture.viewport.width}-${scene.label}: control height ${scene.metrics.controlMinHeight}`);
-    if (!scene.metrics.summaryVisible) failures.push(`${capture.viewport.width}-${scene.label}: summary missing`);
+    if (!scene.metrics.summaryVisible) failures.push(`${capture.viewport.width}-${scene.label}: persisted phrase missing`);
     if (scene.metrics.summaryText !== expectedSummary[scene.label]) {
-      failures.push(`${capture.viewport.width}-${scene.label}: unexpected summary ${scene.metrics.summaryText}`);
+      failures.push(`${capture.viewport.width}-${scene.label}: unexpected persisted phrase ${scene.metrics.summaryText}`);
     }
   }
 }
