@@ -8,11 +8,11 @@ export type { CephaloTracingLayerProps, GhostData, TracingUIMode };
 
 type AnalysisMode = 'all' | 'steiner' | 'tweed' | 'mcnamara' | 'ricketts';
 
-const ANALYSIS_OPTIONS: Array<{ id: AnalysisMode; label: string }> = [
+const ANALYSIS_OPTIONS: Array<{ id: AnalysisMode; label: string; shortLabel?: string }> = [
   { id: 'all', label: 'Tous' },
   { id: 'steiner', label: 'Steiner' },
   { id: 'tweed', label: 'Tweed' },
-  { id: 'mcnamara', label: 'McNamara / COM' },
+  { id: 'mcnamara', label: 'McNamara / COM', shortLabel: 'COM' },
   { id: 'ricketts', label: 'Ricketts' },
 ];
 
@@ -206,7 +206,12 @@ export const CephaloTracingLayer: React.FC<CephaloTracingLayerProps> = (props) =
                   ? 'border border-cyan-400/45 bg-cyan-400/15 text-cyan-100 shadow-[0_0_18px_rgba(34,211,238,0.12)]'
                   : 'border border-transparent text-slate-400 hover:bg-slate-800/80 hover:text-slate-100'}`}
               >
-                {option.label}
+                {option.shortLabel ? (
+                  <>
+                    <span className="sm:hidden">{option.shortLabel}</span>
+                    <span className="hidden sm:inline">{option.label}</span>
+                  </>
+                ) : option.label}
               </button>
             );
           })}
