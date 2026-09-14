@@ -7,7 +7,7 @@ from typing import Literal
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
 from pydantic import BaseModel, Field
 from sqlalchemy import and_
-from sqlalchemy.exc import IntegrityError
+from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.orm import Session
 
 from backend import models
@@ -57,17 +57,13 @@ def create_patient_invitation(
     patient = staff_patient_or_404(db, current_user, patient_id)
     employer_id = int(current_user.get_employer_id())
     now = datetime.utcnow()
-
     db.query(PatientCompanionInvitation).filter(
         PatientCompanionInvitation.employer_id == employer_id,
         PatientCompanionInvitation.patient_id == patient.id,
         PatientCompanionInvitation.consumed_at.is_(None),
         PatientCompanionInvitation.revoked_at.is_(None),
         PatientCompanionInvitation.expires_at > now,
-    ).update(
-        {PatientCompanionInvitation.revoked_at: now},
-        synchronize_session=False,
-    )
+    ).update({PatientCompanionInvitation.revoked_at: now}, synchronize_session=False)
 
     raw_token = secrets.token_urlsafe(32)
     manual_code = generate_manual_code()
@@ -89,13 +85,9 @@ def create_patient_invitation(
         raise HTTPException(status_code=503, detail="Impossible de générer une invitation unique.") from None
 
     audit_service.log(
-        db=db,
-        user_id=current_user.id,
-        employer_id=employer_id,
-        action="PATIENT_COMPANION_INVITATION_CREATED",
-        resource_type="Patient",
-        resource_id=str(patient.id),
-        details=f"Invitation Patient Companion créée ({body.relationship_type}).",
+        db=db, user_id=current_user.id, employer_id=employer_id,
+        action="PATIENT_COMPANION_INVITATION_CREATED", resource_type="Patient",
+        resource_id=str(patient.id), details=f"Invitation Patient Companion créée ({body.relationship_type}).",
     )
     response.headers["Cache-Control"] = "no-store"
     return {
@@ -128,12 +120,9 @@ def revoke_patient_invitation(
         invitation.revoked_at = datetime.utcnow()
         db.commit()
     audit_service.log(
-        db=db,
-        user_id=current_user.id,
-        employer_id=employer_id,
+        db=db, user_id=current_user.id, employer_id=employer_id,
         action="PATIENT_COMPANION_INVITATION_REVOKED",
-        resource_type="PatientCompanionInvitation",
-        resource_id=invitation.public_id,
+        resource_type="PatientCompanionInvitation", resource_id=invitation.public_id,
     )
     return {"status": "revoked", "invitation_id": invitation.public_id}
 
@@ -154,16 +143,12 @@ def activate_patient_companion(
     if body.token:
         query = query.filter(PatientCompanionInvitation.token_hash == token_hash(body.token))
     else:
-        query = query.filter(
-            PatientCompanionInvitation.manual_code_hash == manual_code_hash(body.manual_code or "")
-        )
-    invitation = query.with_for_update().first()
+        query = query.filter(PatientCompanionInvitation.manual_code_hash == manual_code_hash(body.manual_code or ""))
+    invitation = query.first()
     now = datetime.utcnow()
     if (
-        invitation is None
-        or invitation.revoked_at is not None
-        or invitation.consumed_at is not None
-        or invitation.expires_at <= now
+        invitation is None or invitation.revoked_at is not None
+        or invitation.consumed_at is not None or invitation.expires_at <= now
     ):
         raise HTTPException(status_code=400, detail="Invitation invalide ou expirée.")
 
@@ -175,57 +160,71 @@ def activate_patient_companion(
     if patient is None:
         raise HTTPException(status_code=400, detail="Invitation invalide ou expirée.")
 
-    identity = db.query(PatientCompanionIdentity).filter(
-        PatientCompanionIdentity.provider == PROVIDER,
-        PatientCompanionIdentity.subject == credential.subject,
-    ).with_for_update().first()
-    if identity is None:
-        identity = PatientCompanionIdentity(
-            provider=PROVIDER,
-            subject=credential.subject,
-            last_seen_at=now,
-        )
-        db.add(identity)
-        db.flush()
-    else:
-        identity.revoked_at = None
-        identity.last_seen_at = now
-
-    access = db.query(PatientCompanionAccess).filter(
-        PatientCompanionAccess.identity_id == identity.id,
-        PatientCompanionAccess.employer_id == invitation.employer_id,
-        PatientCompanionAccess.patient_id == invitation.patient_id,
-    ).with_for_update().first()
-    if access is None:
-        access = PatientCompanionAccess(
-            identity_id=identity.id,
-            employer_id=invitation.employer_id,
-            patient_id=invitation.patient_id,
-            relationship_type=invitation.relationship_type,
-        )
-        db.add(access)
-        db.flush()
-    else:
-        access.relationship_type = invitation.relationship_type
-        access.revoked_at = None
-
-    invitation.consumed_at = now
-    invitation.consumed_by_identity_id = identity.id
     try:
+        identity = db.query(PatientCompanionIdentity).filter(
+            PatientCompanionIdentity.provider == PROVIDER,
+            PatientCompanionIdentity.subject == credential.subject,
+        ).first()
+        if identity is None:
+            identity = PatientCompanionIdentity(
+                provider=PROVIDER, subject=credential.subject, last_seen_at=now,
+            )
+            db.add(identity)
+            db.flush()
+        elif identity.revoked_at is not None:
+            raise HTTPException(status_code=403, detail="Identité patient révoquée.")
+        else:
+            identity.last_seen_at = now
+
+        access = db.query(PatientCompanionAccess).filter(
+            PatientCompanionAccess.identity_id == identity.id,
+            PatientCompanionAccess.employer_id == invitation.employer_id,
+            PatientCompanionAccess.patient_id == invitation.patient_id,
+        ).first()
+        if access is None:
+            access = PatientCompanionAccess(
+                identity_id=identity.id,
+                employer_id=invitation.employer_id,
+                patient_id=invitation.patient_id,
+                relationship_type=invitation.relationship_type,
+            )
+            db.add(access)
+            db.flush()
+        else:
+            access.relationship_type = invitation.relationship_type
+            access.revoked_at = None
+
+        consumed = db.query(PatientCompanionInvitation).filter(
+            PatientCompanionInvitation.id == invitation.id,
+            PatientCompanionInvitation.consumed_at.is_(None),
+            PatientCompanionInvitation.revoked_at.is_(None),
+            PatientCompanionInvitation.expires_at > now,
+        ).update(
+            {
+                PatientCompanionInvitation.consumed_at: now,
+                PatientCompanionInvitation.consumed_by_identity_id: identity.id,
+            },
+            synchronize_session=False,
+        )
+        if consumed != 1:
+            db.rollback()
+            raise HTTPException(status_code=409, detail="Activation déjà traitée.")
         db.commit()
         db.refresh(access)
+    except HTTPException:
+        db.rollback()
+        raise
     except IntegrityError:
         db.rollback()
         raise HTTPException(status_code=409, detail="Activation déjà traitée.") from None
+    except SQLAlchemyError:
+        db.rollback()
+        raise HTTPException(status_code=503, detail="Activation non finalisée.") from None
 
     audit_service.log(
-        db=db,
-        user_id=None,
-        employer_id=access.employer_id,
-        action="PATIENT_COMPANION_ACTIVATED",
-        resource_type="PatientCompanionAccess",
-        resource_id=access.public_id,
-        details=f"Activation Firebase ({access.relationship_type}).",
+        db=db, user_id=None, employer_id=access.employer_id,
+        action="PATIENT_COMPANION_ACTIVATED", resource_type="PatientCompanionAccess",
+        resource_id=access.public_id, details=f"Activation Firebase ({access.relationship_type}).",
     )
     response.headers["Cache-Control"] = "no-store"
     return {"status": "activated", **safe_patient_context(access, patient)}
@@ -249,10 +248,7 @@ def get_patient_companion_me(
     ).order_by(PatientCompanionAccess.created_at.asc()).all()
     if not rows:
         raise HTTPException(status_code=403, detail="Aucun accès patient actif.")
-    return {
-        "provider": identity.provider,
-        "contexts": [safe_patient_context(access, patient) for access, patient in rows],
-    }
+    return {"provider": identity.provider, "contexts": [safe_patient_context(a, p) for a, p in rows]}
 
 
 @router.get("/contexts/{access_id}/appointments")
@@ -269,16 +265,14 @@ def get_patient_appointments(
         models.Appointment.datetime_start >= datetime.utcnow(),
         models.Appointment.status != models.AppointmentStatus.ANNULE,
     ).order_by(models.Appointment.datetime_start.asc()).limit(limit).all()
-    return {
-        "items": [
-            {
-                "id": row.id,
-                "datetime_start": row.datetime_start,
-                "duration_minutes": row.duration_minutes,
-                "motif": row.motif or "Consultation",
-                "status": getattr(row.status, "value", row.status),
-                "scheduling_type": getattr(row.scheduling_type, "value", row.scheduling_type),
-            }
-            for row in rows
-        ]
-    }
+    return {"items": [
+        {
+            "id": row.id,
+            "datetime_start": row.datetime_start,
+            "duration_minutes": row.duration_minutes,
+            "motif": row.motif or "Consultation",
+            "status": getattr(row.status, "value", row.status),
+            "scheduling_type": getattr(row.scheduling_type, "value", row.scheduling_type),
+        }
+        for row in rows
+    ]}
