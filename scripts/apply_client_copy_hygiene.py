@@ -1,0 +1,114 @@
+from pathlib import Path
+
+replacements = {
+    'frontend/src/components/Header.tsx': [
+        ('Alertes Ghost Treasury', 'Alertes de trésorerie'),
+    ],
+    'frontend/src/App.tsx': [
+        ("Patientez pendant le démarrage de l'IA...", 'Démarrage de Digital Crown…'),
+        ('Ce module est en construction et sera bientôt disponible dans une prochaine mise à jour.', "Ce module n'est pas disponible dans cette version."),
+    ],
+    'frontend/src/features/admin/Settings/SettingsContainer.tsx': [
+        ('Les réglages Profil, Design et Performance ont été confirmés par le backend.', 'Les réglages Profil, Design et Performance ont bien été enregistrés.'),
+        ('Impossible de vérifier la configuration réelle du cabinet. Aucune valeur de repli n’est modifiable tant que la lecture backend n’a pas réussi.', 'Impossible de charger la configuration du cabinet. Réessayez avant de modifier ces réglages.'),
+    ],
+    'frontend/src/features/admin/Security/MobileSecurity.tsx': [
+        ("Les données cliniques restent sur le réseau local du cabinet. Le pont QR transporte uniquement une adresse LAN et un secret temporaire. La clé locale est transmise chiffrée après l'échange ECDH et la destination est revalidée par le backend selon les permissions réelles de l'utilisateur appairé.", "Les données cliniques restent sur le réseau local du cabinet. L'appairage mobile utilise une connexion chiffrée et respecte les droits de l'utilisateur."),
+    ],
+    'frontend/src/features/admin/SetupWizard/steps/Step6Theme.tsx': [
+        ('Le thème n’est enregistré localement qu’après la confirmation backend finale. Quitter ou échouer pendant l’installation ne modifie pas vos préférences persistantes.', 'Le thème est enregistré uniquement lorsque la configuration est confirmée. Quitter avant la fin conserve vos préférences actuelles.'),
+    ],
+    'frontend/src/features/mobile/Dashboard/MobilePreviewBotView.tsx': [
+        ('Bonjour. Cette Preview montre l’interface Crown Bot sans charger de session cabinet ni contacter le backend.', 'Bonjour. Voici un aperçu de l’assistant Digital Crown.'),
+    ],
+    'frontend/src/features/ortho/components/ClinicalScientificStudio.tsx': [
+        ('Non résolu · snapshot autoritaire absent.', 'Non résolu · données cliniques insuffisantes.'),
+    ],
+    'frontend/src/features/ortho/components/Step3Clinical.tsx': [
+        ('Pattern vertical · legacy hors R11', 'Pattern vertical · donnée historique'),
+        ("Aucune sévérité DDM, division de Classe II, proalvéolie, supra/infraclusie ou indication thérapeutique n'est déduite localement de ces mesures.", 'Ces mesures restent descriptives et ne déterminent pas à elles seules un diagnostic ou une indication thérapeutique.'),
+        ('Ancienne catégorie « Notes praticien non autoritaires » : provenance legacy non certifiée.', 'Notes praticien importées : origine non vérifiée.'),
+        ("Ces champs peuvent contenir une saisie manuelle ou un contenu historique ; le contrat legacy ne permet pas d'en attester l'auteur. Ils ne créent aucune preuve R11, sélection R13 ou validation R14.", "Ces champs peuvent contenir une saisie manuelle ou un contenu historique dont l'auteur n'est pas vérifié. Ils ne valent ni diagnostic validé ni décision thérapeutique."),
+        ('1. Note libre legacy — Analyse dentaire et alvéolaire', '1. Note libre — Analyse dentaire et alvéolaire'),
+        ('2. Note libre legacy — Analyse squelettique', '2. Note libre — Analyse squelettique'),
+        ('Saisie libre ou contenu historique — provenance non certifiée, hors preuve R11.', 'Saisie libre ou contenu historique — origine non vérifiée ; à confirmer par le praticien.'),
+        ('3. Examen des Moulages — auto descriptif + note libre legacy', '3. Examen des moulages — description + note libre'),
+        ('Synthèse occlusale automatique descriptive · hors R11', 'Synthèse occlusale descriptive'),
+        ('Note libre legacy — auteur non certifié, hors preuve scientifique autoritaire.', 'Note libre — auteur non vérifié ; ne vaut pas validation clinique.'),
+        ('4. Note diagnostique libre legacy — hors R11', '4. Note diagnostique libre — à valider'),
+        ('Note diagnostique libre legacy. Provenance non certifiée ; ne vaut pas diagnostic R11 autoritaire.', 'Note diagnostique libre — à confirmer par le praticien.'),
+        ('5. Note thérapeutique libre legacy — hors R13/R14', '5. Note thérapeutique libre — à valider'),
+        ('Note thérapeutique libre legacy. Provenance non certifiée ; elle ne sélectionne aucune option R13 et ne valide aucune stratégie R14.', 'Note thérapeutique libre — à confirmer par le praticien.'),
+    ],
+    'frontend/src/features/ortho/components/Step4Documents.tsx': [
+        ("Aucune plage normale ni couleur diagnostique n'est calculée dans le frontend. L'interprétation normative autoritative appartient au registre scientifique backend.", 'Les valeurs de référence et leur interprétation proviennent du référentiel scientifique validé.'),
+        ('Note diagnostique libre legacy présente', 'Note diagnostique libre présente'),
+        ('Contenu non autoritaire, provenance non certifiée', 'Contenu à confirmer par le praticien'),
+        ('Notes thérapeutiques legacy — provenance non certifiée', 'Notes thérapeutiques importées — origine non vérifiée'),
+        ("Ces champs peuvent contenir une saisie manuelle ou un contenu historique dont l'auteur n'est pas attesté par le contrat legacy. Ils restent hors R13/R14 et ne valent jamais validation clinique finale.", "Ces champs peuvent contenir une saisie manuelle ou un contenu historique dont l'auteur n'est pas vérifié. Ils ne valent pas validation clinique finale."),
+        ('Préférence technique — saisie manuelle hors R13', 'Préférence technique — saisie manuelle'),
+        ('Note thérapeutique libre legacy — hors preuve R14', 'Note thérapeutique libre — à valider'),
+        ("Saisie libre ou contenu historique — provenance non certifiée. Aucune stratégie R14 n'est générée ou validée ici.", 'Saisie libre ou contenu historique — origine non vérifiée ; à confirmer par le praticien.'),
+        ('Prévisualiser ou archiver un PDF ne valide jamais R14.', 'Prévisualiser ou archiver un PDF ne constitue pas une validation clinique.'),
+    ],
+    'frontend/src/features/patients/components/ClinicalHubCore.tsx': [
+        ('Source backend enregistrée', 'Source enregistrée'),
+    ],
+    'frontend/src/features/patients/components/PatientRvgPanel.tsx': [
+        ("Aucun état vide n'est déduit tant que le backend ne répond pas.", "Impossible de confirmer l'absence de données tant que le chargement n'est pas terminé."),
+    ],
+    'frontend/src/features/patients/PatientDocuments.tsx': [
+        ("Aucun état vide n'est déduit tant que le backend ne répond pas.", "Impossible de confirmer l'absence de données tant que le chargement n'est pas terminé."),
+    ],
+    'frontend/src/features/admin/DocumentStudio/Forms/PrescriptionForm.tsx': [
+        ('Suggestion IA', 'Suggestion'),
+    ],
+    'frontend/src/features/admin/DocumentStudio/Forms/PrescriptionAgenticStudioLegacy.tsx': [
+        ('État partiel des contrôles locaux. Le moteur safety complet est traité au lot R3.', 'Contrôles de sécurité partiellement disponibles.'),
+    ],
+    'frontend/src/features/admin/DocumentStudio/DocumentHubContent.tsx': [
+        ('title^="État partiel des contrôles locaux"', 'title^="Contrôles de sécurité partiellement disponibles"'),
+    ],
+}
+
+for path_str, pairs in replacements.items():
+    path = Path(path_str)
+    text = path.read_text(encoding='utf-8')
+    changed = False
+    for old, new in pairs:
+        if old in text:
+            text = text.replace(old, new)
+            changed = True
+    if changed:
+        path.write_text(text, encoding='utf-8')
+        print(f'updated {path_str}')
+
+sidebar = Path('frontend/src/components/Sidebar.tsx')
+text = sidebar.read_text(encoding='utf-8')
+for old, new in [
+    ('alt="Digital Crown AI"', 'alt="Digital Crown"'),
+    ('>Intelligence & Gestion<', '>Cabinet<'),
+    ('label="Analytics"', 'label="Indicateurs"'),
+    ('label="Studio Agenda"', 'label="Agenda"'),
+    ('label="Dossiers Patients"', 'label="Patients"'),
+    ('label="Bibliothèque Elite"', 'label="Bibliothèque clinique"'),
+    ('label="Marketplace"', 'label="Approvisionnement"'),
+    ('label="Studio Céphalométrique"', 'label="Céphalométrie"'),
+    ('label="Hub Documentaire"', 'label="Documents"'),
+    ('label="Archives & Historique"', 'label="Archives"'),
+]:
+    text = text.replace(old, new)
+
+upcoming = '''          <div className="text-[10px] font-black text-amber-500 uppercase tracking-widest px-4 mb-3 mt-6 flex items-center gap-1.5">
+            <Construction size={12} /> Bientôt disponible
+          </div>
+          {hasAccess('patients') && <NavItem to="/stock" icon={<Package size={20} />} label="Gestion Stock" badge="Bientôt" />}
+          {hasAccess('agenda') && <NavItem to="/salle-attente" icon={<Armchair size={20} />} label="Salle d'attente" badge="Bientôt" />}
+          <NavItem to="/labo" icon={<FlaskConical size={20} />} label="Module Labo" badge="Bientôt" />}
+
+'''
+text = text.replace(upcoming, '')
+for import_line in ['  FlaskConical,\n', '  Package,\n', '  Armchair,\n', '  Construction\n']:
+    text = text.replace(import_line, '')
+sidebar.write_text(text, encoding='utf-8')
+print('updated frontend/src/components/Sidebar.tsx')
