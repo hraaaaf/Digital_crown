@@ -1,26 +1,12 @@
 # Document Studio — Ordonnance Fidelity V3.1
 
-Date de clôture candidate : 2026-09-14
+Date de clôture : 2026-09-14
 
 ## Goal global
 
 Rapprocher l’UI Ordonnance du mockup cible sans créer de thème Ordonnance dédié et sans modifier le moteur clinique, pharmacologique, les endpoints, le PDF ou les contrats backend.
 
-## Stratégie Git
-
-- repo : `hraaaaf/Digital_crown`
-- branche : `ux/ordonnance-fidelity-v3-u1-hierarchy`
-- PR cumulative : `#474`
-- merge : unique après certification globale réelle
-- Vercel : aucun déploiement
-
-## Invariant thème
-
-Ordonnance hérite exclusivement du thème actif Digital Crown via les tokens existants (`primary`, `secondary`, `accent`, `glass-bg`, `glass-border`, `card`, `text-main`, `text-muted`, `border-main`, `input-field`).
-
-Aucune palette Ordonnance parallèle. Aucun `data-theme` local dans le produit. Les couleurs d’alerte clinique restent sémantiques.
-
-## Scores finaux du scope Ordonnance
+## Résultat final
 
 | Lot | Axe | Score final |
 | --- | --- | ---: |
@@ -33,15 +19,19 @@ Aucune palette Ordonnance parallèle. Aucun `data-theme` local dans le produit. 
 
 Moyenne : `9,52/10`, présentée à un chiffre après la virgule : **9,5/10**.
 
+## Invariant thème
+
+Ordonnance hérite exclusivement du thème actif Digital Crown via les tokens existants (`primary`, `secondary`, `accent`, `glass-bg`, `glass-border`, `card`, `text-main`, `text-muted`, `border-main`, `input-field`).
+
+Aucune palette Ordonnance parallèle. Aucun `data-theme` local dans le produit. Les couleurs d’alerte clinique restent sémantiques.
+
 ## V3.1 — Prescription Composer
 
-La revue utilisateur du mockup avait identifié un écart central : le compositeur structuré de posologie manquait dans la V3 initiale.
-
-Le composant est maintenant présent dans chaque `DrugRow` avec le contrat suivant :
+Le compositeur structuré est présent dans chaque `DrugRow` avec le contrat :
 
 `Prise → rythme/condition → durée/limite → moment/durée → phrase synthétique`.
 
-Scénarios de référence certifiés :
+Scénarios certifiés :
 
 - `1 comprimé | 3 fois par jour | 7 jours | Après repas`
   → `1 comprimé, 3 fois par jour pendant 7 jours, après les repas.`
@@ -56,46 +46,34 @@ Aucun champ backend, migration DB, endpoint, PDF ou moteur pharmacologique n’a
 
 La mention automatique `voie orale` n’est pas générée car le contrat médicament actuel ne fournit pas de donnée fiable de voie d’administration. V3.1 n’infère pas une route clinique à partir de la forme galénique.
 
-## Preuves visuelles et runtime
+## Preuves exact-head finales
 
-### HEAD produit recertifié
+HEAD documentaire final avant merge :
 
-`3016fc70629a4c531979633beb6ba1e19a23bad7`
+`c57f69931ccdc46732c167f6f47631e0d9acbe8f`
 
-- CI #3893 : **SUCCESS**
-- T2 Runtime Browser #2819 : **SUCCESS**
-- Ordonnance Fidelity V3 Visual #46 : **SUCCESS**
-  - artifact `10339125099`
-  - digest `sha256:833ae33f6c9f3a4da8e625233f0fa2ab168eb7218ca6cd4960cd6d47c6ad5bd3`
-- Ordonnance Composer Visual #10 : **SUCCESS**
-  - artifact `10338661093`
-  - digest `sha256:1cbb3a07cba83468b2e0ee49a1d031361f2200ebfb39c7d19519b99193854ac8`
-- Patient P7 #1455 : **SUCCESS**
-- PostgreSQL #334 : **SUCCESS**
-- Clinic P3 #73 : **SUCCESS**
-- Settings #602 : **SUCCESS**
-- M6-I #1619 : **SKIPPED attendu**
+- CI #3896 : **SUCCESS**
+- T2 Runtime Browser #2822 : **SUCCESS**
+- Ordonnance Fidelity V3 Visual #48 : **SUCCESS**
+  - artifact `10339208565`
+  - digest `sha256:018e71b154551aadba5f90171b735770efde4b19cf03654cf64eaac4044e230d`
+- Ordonnance Composer Visual #12 : **SUCCESS**
+- Patient P7 #1458 : **SUCCESS**
+- PostgreSQL #337 : **SUCCESS**
+- Clinic P3 #75 : **SUCCESS**
+- Settings #604 : **SUCCESS**
+- M6-I #1622 : **SKIPPED attendu**
 
-### Composer Visual #10
+Composer Visual certifie :
 
-Viewports certifiés :
-
-- 390×844
-- 430×932
-- 768×1024
-- 1280×900
-
-Critères observables :
-
-- 2 cartes `DrugRow` réelles dans le fixture dédié ;
-- 4 contrôles structurés par carte ;
+- 390×844 / 430×932 / 768×1024 / 1280×900 ;
+- 4 contrôles structurés ;
 - hauteur minimale des contrôles >=44 px ;
-- résumé synthétique visible ;
-- textes attendus exacts sur les deux scénarios ;
+- résumés synthétiques exacts ;
 - aucun overflow horizontal ;
 - aucune erreur runtime.
 
-### Fidelity V3 #46
+Fidelity V3 certifie :
 
 - 390 / 430 / 768 / 1280 sans overflow ;
 - tactile minimum 44 px ;
@@ -112,25 +90,26 @@ Deux probes historiques supposaient encore que le preview desktop était modal e
 
 Les certificateurs `certify-document-studio-browser.mjs` et `certify-p6-editor.mjs` ont été alignés sur ce contrat. Le produit n’a pas été modifié pour satisfaire ces probes.
 
-## Synchronisation master
+## Merge unique et post-merge
 
-Le produit recertifié a ensuite été resynchronisé sans force avec `master` `629907dedae74d7d28d1dfc33e635b8410eb5f1e` via le merge commit `c0f2a284f23fcda03f104d7067596b013ea10970`.
+PR `#474` : **MERGED**.
 
-Les commits arrivés sur `master` concernaient Céphalo et étaient hors du périmètre Ordonnance.
+Merge commit :
 
-## État final avant merge unique
+`7607f759cf30d78df20de3d17bf0d361f11d2d36`
 
-- PR #474 ouverte ;
-- mergeable : oui ;
-- aucun déploiement Vercel ;
-- score final scope Ordonnance : **9,5/10** ;
-- capture finale à produire depuis `master` après merge pour le comparatif demandé `MOCKUP CIBLE | APP RÉELLE FINALE`.
+Après merge, comparaison `c57f699...7607f759` :
 
-## Next exact
+- `ahead_by=4` ;
+- un seul fichier supplémentaire diffère : `docs/CEPHALO_DIAGNOSTIC_SPEC.md` ;
+- aucun fichier Ordonnance, Fidelity, Composer ou Document Studio n’a changé entre le HEAD certifié et le `master` mergé.
 
-1. certifier le HEAD documentaire final ;
-2. vérifier PR / reviews / threads / diff ;
-3. merge unique #474 avec verrouillage du HEAD ;
-4. vérifier `master` post-merge ;
-5. produire la capture finale réelle depuis le code mergé ;
-6. livrer le côte-à-côte final sans fixture ni incrustation de démonstration.
+La capture réelle utilisée pour le comparatif final provient donc du gate Fidelity #48 sur le même contenu produit que `master` post-merge.
+
+## Déploiement
+
+Aucun déploiement Vercel.
+
+## Statut
+
+**CLOS — Ordonnance Fidelity V3.1 certifiée et mergée.**
