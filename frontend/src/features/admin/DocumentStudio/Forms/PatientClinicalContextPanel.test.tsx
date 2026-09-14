@@ -39,8 +39,9 @@ describe('PatientClinicalContextPanel C1', () => {
   it('charge un état inconnu sans inventer de valeur clinique', async () => {
     render(<PatientClinicalContextPanel patientId={42} />);
 
-    await waitFor(() => expect(api.get).toHaveBeenCalledWith('/patients/42/clinical-context'));
-    expect(screen.getByLabelText('Poids explicite en kilogrammes')).toHaveValue(null);
+    const weight = await screen.findByLabelText('Poids explicite en kilogrammes');
+    expect(api.get).toHaveBeenCalledWith('/patients/42/clinical-context');
+    expect(weight).toHaveValue(null);
     expect(screen.getByLabelText('Statut des allergies médicamenteuses')).toHaveValue('UNKNOWN');
     expect(screen.getByLabelText('Statut du contexte rénal')).toHaveValue('UNKNOWN');
     expect(screen.getByLabelText('Statut du contexte hépatique')).toHaveValue('UNKNOWN');
@@ -49,15 +50,17 @@ describe('PatientClinicalContextPanel C1', () => {
 
   it('enregistre uniquement les faits explicitement saisis', async () => {
     render(<PatientClinicalContextPanel patientId={42} />);
-    await screen.findByText(/Aucun calcul de dose n’est activé/i);
+    const weight = await screen.findByLabelText('Poids explicite en kilogrammes');
+    const saveButton = screen.getByRole('button', { name: /Enregistrer le contexte/i });
+    expect(saveButton).toBeEnabled();
 
-    fireEvent.change(screen.getByLabelText('Poids explicite en kilogrammes'), { target: { value: '72.5' } });
+    fireEvent.change(weight, { target: { value: '72.5' } });
     fireEvent.change(screen.getByLabelText('Statut des allergies médicamenteuses'), { target: { value: 'PRESENT' } });
     fireEvent.change(screen.getByLabelText('Allergies médicamenteuses rapportées'), { target: { value: 'Pénicilline, Ibuprofène' } });
     fireEvent.change(screen.getByLabelText('Statut du contexte rénal'), { target: { value: 'IMPAIRMENT_REPORTED' } });
     fireEvent.change(screen.getByLabelText('Note rénale factuelle'), { target: { value: 'Atteinte rapportée' } });
     fireEvent.change(screen.getByLabelText('Indication de la prescription'), { target: { value: 'Indication explicite' } });
-    fireEvent.click(screen.getByRole('button', { name: /Enregistrer le contexte/i }));
+    fireEvent.click(saveButton);
 
     await waitFor(() => expect(api.put).toHaveBeenCalledWith('/patients/42/clinical-context', {
       weight_kg: 72.5,
