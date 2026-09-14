@@ -20,7 +20,8 @@
 **R14 validation clinique finale :** HEAD certifié `017a7eaf7d293c5a7af19fb44987a2d5ff3f675c` — CI #3581 SUCCESS — T2 #2536 SUCCESS — PR #447 — merge `2f1f1d88bf6027988a398967bed5e65883b729aa`  
 **R15 Studio clinique UX/UI :** HEAD certifié `f70d62df584a38a7deb8341dc608ad14274c3dec` — CI #3783 SUCCESS — T2 #2715 SUCCESS — PostgreSQL #230 SUCCESS — R15 AFTER #47 SUCCESS — Document History AFTER #45 SUCCESS — Document History Visual #1220 SUCCESS — PR #458 — merge `258762da7aff8e7fd481990e96f32b761d635234`  
 **R15bis refinement UI/UX :** HEAD certifié `89c852bf95426623b942a90823db69bc85501b10` — CI #3856 SUCCESS — T2 #2784 SUCCESS — PostgreSQL #299 SUCCESS — R15bis AFTER #24 SUCCESS — R15bis AFTER #26 SUCCESS — score visuel/HFE final 9,62/10 — PR #477 — merge `127ed256c690f8cc9464bee68b8cd26c29f4129a`  
-**Statut courant :** R15bis est fermé et mergé sur master ; aucun déploiement ; NEXT = R16 PDF/restitution, puis R17 certification/closeout.
+**R17 restitution PDF autoritaire / closeout :** HEAD certifié `58dcd4bfa2901f36e3d9b30e97629c87db89f80b` — CI #3931 SUCCESS — T2 #2850 SUCCESS — PostgreSQL #365 SUCCESS — P3 #37 SUCCESS — PR #481 — merge produit `f0aafd9278791becdc6980e3804022231553cfd7` — handover `docs/handovers/2026-09-14-cephalo-r17-final-handover.md`.  
+**Statut courant :** R0→R17 céphalométrie planifiée est fermée côté produit ; closeout documentaire R17 en cours sur `docs/cephalo-r17-closeout` ; aucun déploiement. Aucun R18 fonctionnel n'est planifié ; R18 est uniquement la prochaine fenêtre procédurale de reprise/post-closeout selon le protocole `1 fenêtre = 1 R`.
 
 ## PROTOCOLE R / FENÊTRES DE CONVERSATION — OBLIGATOIRE
 
@@ -171,7 +172,7 @@ Sans profil validé : `CANDIDATE_UNVERIFIED`.
 
 Le registre `validated_fiducial_profiles` est **vide par défaut**. Donc aucun profil de test ou hypothèse implicite ne peut activer `AUTO_VERIFIED` en production. L'architecture permet l'auto-vérification, mais son activation réelle exige l'introduction explicite d'un profil physique validé.
 
-Cette section conserve le contrat scientifique/HFE R1. Elle n'est pas le pointeur de reprise courant ; le pointeur courant est R16 après fermeture vérifiée de R15bis.
+Cette section conserve le contrat scientifique/HFE R1. Elle n'est pas le pointeur de reprise courant ; le pointeur courant post-R17 est le handover `docs/handovers/2026-09-14-cephalo-r17-final-handover.md`, puis R18 uniquement comme fenêtre procédurale si une nouvelle fenêtre est ouverte.
 
 ## R11 — DIAGNOSTIC MULTIAXIAL — CONTRAT FERMÉ
 
@@ -430,14 +431,21 @@ Chaîne R11→R14 explicite et fail-closed ; provenance, blockers, missing data,
 **Preuve :** candidate `89c852bf95426623b942a90823db69bc85501b10` ; CI #3856 SUCCESS ; T2 #2784 SUCCESS ; PostgreSQL #299 SUCCESS ; R15bis AFTER #24 SUCCESS ; R15bis AFTER #26 SUCCESS ; score visuel/HFE final **9,62/10** ; reviews 0 ; threads 0 ; PR #477 ; merge `127ed256c690f8cc9464bee68b8cd26c29f4129a` ; master post-merge vérifié exactement sur ce SHA ; aucun déploiement.
 
 ### R16 — PDF / restitution
-**État : NEXT.**  
-**Fenêtre :** conversation de reprise ouverte le 2026-09-14 ; à partir de R16, la règle `1 fenêtre = 1 R` est obligatoire.  
-UI/API/PDF doivent restituer le même graphe et le même état validé. Le PDF reste une projection de lecture, jamais une source de vérité parallèle.  
-**Handover :** `docs/handovers/2026-09-14-cephalo-r16-pdf-restitution-handover.md`.
+**État : FERMÉ dans la continuité R17.**  
+**Fenêtre :** audit/restitution repris le 2026-09-14 ; l'audit read-only restant a été clôturé dans la fenêtre R17 avant implémentation afin de respecter la continuité sans créer R17bis.  
+Le BEFORE a prouvé que le PDF pouvait dépendre de champs legacy et contenir des reconstructions renderer-side. La correction R17 a remplacé cette divergence par une projection autoritaire unique.  
+**Handover d'entrée :** `docs/handovers/2026-09-14-cephalo-r16-pdf-restitution-handover.md`.
 
 ### R17 — Certification / closeout
-**Fenêtre :** prochaine fenêtre de conversation après clôture/handover R16.  
-Code, tests, runtime, UX et docs canoniques concordants sur master.
+**État produit : FERMÉ ET MERGÉ.**  
+**Fenêtre :** conversation R17 du 2026-09-14.  
+**Goal atteint :** PDF projection fail-closed du typed evidence + R15 Studio ; champs legacy non autoritaires ; HTML/ReportLab partagent le même document model ; indisponibilités/blockers/missing/contradictions/contre-indications/provenance préservés ; aucun contenu clinique fabriqué.  
+**Preuve :** candidate `58dcd4bfa2901f36e3d9b30e97629c87db89f80b` ; CI #3931 SUCCESS ; T2 #2850 SUCCESS ; PostgreSQL #365 SUCCESS ; Clinic P3 #37 SUCCESS ; reviews 0 ; threads 0 ; PR #481 ; merge produit `f0aafd9278791becdc6980e3804022231553cfd7` ; master post-merge produit vérifié exactement sur ce SHA ; aucun déploiement.  
+**Handover final + prompt R18 :** `docs/handovers/2026-09-14-cephalo-r17-final-handover.md`.
+
+### R18 — Reprise procédurale uniquement
+**État : non fonctionnel / aucune feature planifiée.**  
+Le numéro existe uniquement parce que le protocole impose un numéro distinct à toute future fenêtre. Si une nouvelle fenêtre est ouverte, elle vérifie d'abord le closeout R17 puis ne démarre un nouveau chantier que s'il est défini par une source canonique existante ou une instruction explicite utilisateur. Aucun code R18 n'est pré-planifié.
 
 ## GATES SCIENTIFIQUES
 
@@ -465,23 +473,21 @@ Traitement : `diagnostic validé → données cliniques requises → indication/
 - R14 HEAD `017a7eaf7d293c5a7af19fb44987a2d5ff3f675c` : CI #3581 SUCCESS ; T2 #2536 SUCCESS ; PostgreSQL #51 SUCCESS ; merge PR #447 `2f1f1d88bf6027988a398967bed5e65883b729aa`.
 - R15 HEAD `f70d62df584a38a7deb8341dc608ad14274c3dec` : CI #3783 SUCCESS ; T2 #2715 SUCCESS ; PostgreSQL #230 SUCCESS ; R15 AFTER #47 SUCCESS ; Document History AFTER #45 SUCCESS ; Document History Visual #1220 SUCCESS ; merge PR #458 `258762da7aff8e7fd481990e96f32b761d635234`.
 - R15bis HEAD `89c852bf95426623b942a90823db69bc85501b10` : CI #3856 SUCCESS ; T2 #2784 SUCCESS ; PostgreSQL #299 SUCCESS ; R15bis AFTER #24 SUCCESS ; R15bis AFTER #26 SUCCESS ; merge PR #477 `127ed256c690f8cc9464bee68b8cd26c29f4129a`.
+- R17 HEAD `58dcd4bfa2901f36e3d9b30e97629c87db89f80b` : CI #3931 SUCCESS ; T2 #2850 SUCCESS ; PostgreSQL #365 SUCCESS ; Clinic P3 #37 SUCCESS ; merge PR #481 `f0aafd9278791becdc6980e3804022231553cfd7`.
 
 ## NEXT EXACT
 
-1. Partir du master post-closeout R15bis vérifié et ouvrir exclusivement **R16 PDF/restitution** dans la fenêtre de conversation R16.
-2. Lire `AGENTS.md`, puis `STATE.md`, puis ce fichier canonique, puis `docs/handovers/2026-09-14-cephalo-r16-pdf-restitution-handover.md`.
-3. Vérifier repo/master/HEAD/PR/CI avant tout changement.
-4. Localiser le générateur PDF céphalométrique actuel et identifier sa source de données exacte.
-5. Capturer le BEFORE documentaire et établir la matrice de cohérence API/UI/PDF.
-6. Corriger uniquement les divergences prouvées, sans reconstruire la logique clinique dans le PDF.
-7. Certifier cas complet + cas fail-closed : NOT_COMPUTABLE, missing data, contradiction, contre-indication, R13 EVALUABLE/BLOCKED, R14 awaiting/validated.
-8. Fermer R16 avec **handover final + prompt R17**, puis seulement ouvrir la fenêtre R17.
+1. Fermer le closeout documentaire R17 : vérifier le diff de `docs/cephalo-r17-closeout`, CI/reviews/threads, merger la PR documentaire et vérifier `master` post-merge.
+2. Ne démarrer aucune feature céphalométrique supplémentaire automatiquement : la roadmap fonctionnelle planifiée se termine à R17.
+3. Si une nouvelle fenêtre est ouverte, elle prend le numéro **R18** uniquement selon le protocole de continuité et commence par lire `docs/handovers/2026-09-14-cephalo-r17-final-handover.md`.
+4. R18 doit vérifier master/PR #481/merge produit/closeout documentaire/CI, puis soit identifier un nouveau chantier explicitement défini, soit constater qu'aucun chantier céphalométrique suivant n'est planifié.
+5. Ne pas rouvrir R17 en l'absence de régression prouvée.
 
 Dette Document History : réparée pendant R15. Les deux certificats exact-head finaux (`AFTER #45`, `Visual #1220`) sont SUCCESS sur `f70d62df584a38a7deb8341dc608ad14274c3dec`.
 
 ## SÉQUENCE RESTANTE
 
-`R16 PDF/restitution (fenêtre R16) → handover + prompt R17 → R17 certification/closeout (fenêtre R17)`
+`closeout documentaire R17 → vérification master → fin de la roadmap céphalométrique planifiée ; R18 seulement comme fenêtre procédurale de reprise si nécessaire`
 
 ## DÉPLOIEMENT
 
