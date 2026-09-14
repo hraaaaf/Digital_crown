@@ -49,6 +49,8 @@ Donc :
 - aucun usage aveugle de `CatalogAct.code` comme NGAP ;
 - futur mapping seulement après liaison stable + type/provenance/version du code.
 
+La cible documentaire détaillée est définie dans `INSURANCE_SUBMISSION_DRAFT.md`, `ACT_CATALOG_LINK_STRATEGY.md` et `NGAP_REFERENCE_SCHEMA.md`.
+
 ## UX des données assurance patient
 Le formulaire Patient standard reste léger : CIN, affiliation, qualité assuré/ayant-droit et informations analogues sont optionnelles, masquées par défaut et révélées uniquement dans le contexte assurance/mutuelle. Une donnée absente ne bloque jamais le dossier général.
 
@@ -67,4 +69,4 @@ Toute évolution future du schéma Patient est additive : nouveaux champs nullab
 ## Statut templates
 - CNOPS : exigences fonctionnelles étayées institutionnellement ; template exact à verrouiller/hash.
 - CNSS : `610-1-04` validé métier comme modèle utilisé au cabinet ; primaire courant encore à verrouiller avant activation.
-- FAR : copie publique informative, validation métier exacte encore requise.
+- FAR : `Feuille de Mutuelle FAR 2021-1` validée métier comme référence cabinet ; source primaire/binaire institutionnel courant encore à verrouiller avant activation.
