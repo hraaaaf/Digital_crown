@@ -16,68 +16,56 @@ Le thème du mockup n'est PAS une source de design. Digital Crown conserve ses t
 
 ## BEFORE
 
-Le BEFORE produit reste la preuve R18 certifiée. Aucun fichier produit céphalométrique n'avait changé entre le merge R18 `71a087391d175ffe6f3a9e4e7962c833bab23fa5` et le départ R19. La dérive de `master` observée pendant R19 jusqu'à `38dc018426d93437c6a77e9d5856c529096dda5a` ne touche pas le produit céphalométrique ; depuis la base PR `e7198b274438ec05373e8ebee9c84fc80e409149`, elle modifie seulement `.github/workflows/ci.yml`.
+Le BEFORE produit reste la preuve R18 certifiée. Référence BEFORE visuelle : R18 Tracing AFTER #7, run `34889128064`, 15/15 états valides sur `390×844`, `768×1024`, `1280×900`, zéro overflow horizontal, score HFE R18 enregistré `9.4/10`.
 
-Référence BEFORE visuelle : R18 Tracing AFTER #7, run `34889128064`, 15/15 états valides sur `390×844`, `768×1024`, `1280×900`, zéro overflow horizontal, score HFE R18 enregistré `9.4/10`.
-
-## Contrat R19
+## Contrat R19 livré
 
 1. Analyses séparées : `Tous | Steiner | Tweed | McNamara | COM | Ricketts`.
 2. `COM` n'est plus un alias de McNamara.
-3. À partir du desktop large, le panneau d'analyse est voisin de la téléradio ; aux viewports plus petits il est empilé pour préserver la lisibilité et éviter l'overflow.
+3. Desktop large : panneau d'analyse voisin de la téléradio ; viewports plus petits : empilement responsive sans overflow.
 4. Chaque ligne du tableau sélectionnée/survolée focalise sa construction géométrique sur la téléradio.
-5. Le panneau n'invente aucune donnée : valeur absente = `NC`, norme absente du payload = `—`.
-6. L'écart n'est calculé côté UI que si `value/valeur` et `norm_mean` existent dans le résultat ; aucune moyenne n'est codée en dur.
-7. Les constructions COM réutilisent strictement les conventions déjà versionnées dans `backend/services/cephalo_constructions.py` et `cephalo_engine.py` : Frankfort Po–Or, verticale de Nasion perpendiculaire à Frankfort, projections A′/B′, composantes surplomb/recouvrement, axes incisifs et plan mandibulaire.
-8. McNamara conserve ses constructions R18 ; ses valeurs restent `NC` tant qu'aucun résultat backend versionné ne fournit `Co_A`, `Co_Gn`, `ANS_Me`.
-9. Ricketts conserve le contrat R18, notamment la ligne E et les invariants source-strict.
-10. La base historique R18 reste immuable : `CephaloTracingLayerBase.tsx` blob `a0fcc90ca9f872c4bdcad927c10585003989990f` ; `Step1CephaloBase.tsx` blob `4349ed3c979f2974a5432146106f2ba0a047fa1f`, identique au `Step1Cephalo.tsx` de la base R19.
-11. En COM, les landmarks N/A/B sont volontairement retirés **uniquement du rendu Base R18** afin d'empêcher les projections McNamara historiques non conditionnées de fuir dans COM ; les constructions COM utilisent toujours les landmarks originaux dans l'overlay R19.
+5. Aucune donnée inventée : valeur absente = `NC`, norme absente = `—`.
+6. L'écart UI n'est calculé que si la valeur et `norm_mean` existent dans le payload.
+7. Les constructions COM réutilisent les conventions céphalométriques déjà versionnées ; aucun changement de formule backend R19.
+8. McNamara et Ricketts conservent leurs contrats R18.
+9. La base historique R18 reste immuable.
+10. La fuite historique McNamara dans COM est neutralisée sans supprimer les landmarks nécessaires aux constructions COM R19.
 
-## AFTER certifié produit
+## Preuves exact-head avant merge
 
-Produit candidat : `493dd290eec8bd004ec928ebd100707b56099b7c`.
+HEAD candidat final : `97ae1f236e73119b977f976e70732b42ee4ae86c`.
 
-Workflow `Cephalo R19 Analysis Reference AFTER` #7 : run `34903739212` — **SUCCESS**.
+- CI #4166, run `34904860533` — **SUCCESS** ; frontend tests + build **SUCCESS** ; full backend regression DB / patients / documents **SUCCESS**.
+- Cephalo R19 Analysis Reference AFTER #9, run `34904860852` — **SUCCESS**.
+- Artefact AFTER #9 : `10372492103`, digest `sha256:0985faf00396105d080f8da787bcee8d661e8ad4a6e0a12c10a1bfbddf247c49`.
+- T2 Runtime Browser #3070 — **SUCCESS**.
+- Cabinet Upgrade PostgreSQL #585 — **SUCCESS**.
+- Cephalo R15 AFTER #96 — **SUCCESS**.
+- Cephalo R15bis AFTER #57 — **SUCCESS**.
+- Cephalo R1 AFTER #66 — **SUCCESS**.
+- M6-I #1870 — `SKIPPED` attendu.
 
-Artefact : ID `10371414961`, digest `sha256:8a4c0c2b286d9754b2ec2f1b8c03151f9d6e9bbaf836a8218928e43925b576c3`.
-
-Contrat observé dans `report.json` :
-
-- `productHead=493dd290eec8bd004ec928ebd100707b56099b7c` ;
-- `invalidCount=0` ;
-- `blockedExternalRequests=[]` ;
-- 3 viewports × 6 modes = **18/18 états valides**, tous au premier essai ;
-- `horizontalOverflow=false` dans les 18 états ;
-- `pageErrors=0`, `consoleErrors=0` ;
-- COM : `panelRows=10`, `comConstructionCount=15`, sélection `I_Francfort` synchronisée ;
-- fuite historique McNamara en COM : `legacyMcNamaraLeakCount=0` sur les 3 viewports ;
-- McNamara conserve ses 3 marqueurs historiques attendus dans son propre mode ;
-- Ricketts : construction dédiée détectée ; Steiner/Tweed restent isolés ;
-- test focalisé `CephaloAnalysisWorkbenchPanel` : étape CI **SUCCESS** ;
-- capture exact-head et vérification du contrat AFTER : étapes CI **SUCCESS**.
-
-Les regressions visuelles historiques restent vertes sur ce même produit candidat : Cephalo R15 AFTER #94 **SUCCESS**, R15bis AFTER #55 **SUCCESS**, R1 AFTER #64 **SUCCESS**.
+Contrat visuel certifié : 3 viewports × 6 modes = **18/18 états valides**, zéro overflow horizontal, zéro erreur page/console ; COM = 10 lignes, 15 constructions ; fuite McNamara en COM = 0.
 
 ## Comparaison visuelle avec le mockup
 
-Inspection manuelle de l'artefact R19 #7 sur les mêmes viewports :
+- `1280×900` : téléradio/tracé à gauche, panneau à droite, sélecteur, tableau `Mesure / Valeur / Norme / Écart` et détail de mesure conformes à la hiérarchie cible.
+- `768×1024` : panneau empilé, lisible sans débordement.
+- `390×844` : interface compacte, valeurs lisibles, aucun overflow horizontal.
+- thème : tokens Digital Crown conservés ; thème du mockup non copié.
 
-- `1280×900` : téléradio/tracé à gauche et panneau d'analyse à droite, proportions et hiérarchie cohérentes avec le mockup ; sélecteur d'analyse au-dessus du tracé ; tableau `Mesure / Valeur / Norme / Écart` et carte détail présents ;
-- `768×1024` : panneau empilé, tableau lisible sans débordement ;
-- `390×844` : colonnes compactées, valeurs lisibles, aucun overflow horizontal ;
-- thème : surfaces, bordures, accent, textes et états proviennent des tokens Digital Crown ; le thème visuel du mockup n'est pas copié ;
-- COM : aucune fuite `McNamara / A' / B'` après correction.
+**Score visuel R19 : 9.4/10.**
 
-**Score visuel R19 : 9.4/10.** L'agencement et le niveau de détail suivent fortement la référence ; les différences restantes sont intentionnelles et relèvent du thème Digital Crown et du responsive, pas d'une divergence de structure.
+## Merge et closeout
 
-## Non-goals
+PR #496 : **MERGED** par squash.
 
-- Aucun changement de formule backend.
-- Aucune nouvelle norme clinique.
-- Aucun changement de calibrage.
-- Aucun déploiement Vercel.
+Merge produit réel : `d62171871eca6d5c428cef22044fe874ff2dda00`.
+
+Le merge a été effectué sur le `master` réel `279a8b56c77dfca36a8e1316d1a5f87d6aa2308e`, dont la dérive depuis le précédent master concernait uniquement Prescription Intelligence et ne touchait aucun fichier céphalométrique R19. Après merge, `master` a été vérifié sur `d62171871eca6d5c428cef22044fe874ff2dda00` avant ce commit documentaire de closeout.
+
+Aucun déploiement Vercel.
 
 ## État
 
-`CANDIDAT CLOSEOUT PRÉ-MERGE — AFTER produit certifié ; CI générale et certifications transverses du HEAD documentaire à confirmer avant merge.`
+`R19 — FERMÉ ET MERGÉ.`
