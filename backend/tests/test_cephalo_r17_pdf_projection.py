@@ -266,19 +266,19 @@ def test_pdf_projection_preserves_r13_evaluable_without_promoting_selection(monk
     assert result["document_state"] == "INCOMPLETE"
 
 
-def test_pdf_projection_is_complete_only_with_authoritative_r14_validation_and_no_blockers(monkeypatch):
+def test_pdf_projection_current_r14_awaiting_authority_stays_incomplete(monkeypatch):
     stage = {
         "stage_id": "R14",
         "title": "Validation clinique finale",
-        "presentation_state": "VALIDATED",
-        "authoritative_status": "VALIDATED",
-        "summary": "Validation praticien autoritaire disponible.",
-        "blocking_gates": [],
+        "presentation_state": "AWAITING_CLINICIAN",
+        "authoritative_status": "AWAITING_CLINICIAN",
+        "summary": "Validation praticien requise.",
+        "blocking_gates": ["r14_authoritative_snapshot_not_persisted"],
         "missing_data_refs": [],
         "contradictions": [],
         "contraindications": [],
-        "provenance": [{"label": "authority", "value": "R14_PRACTITIONER_PROOF"}],
-        "clinician_action": {"available": True, "selected": True},
+        "provenance": [{"label": "authority", "value": "R14 snapshot absent"}],
+        "clinician_action": {"available": False},
     }
     _allow_empty_typed_chain(monkeypatch)
     monkeypatch.setattr(
@@ -286,10 +286,37 @@ def test_pdf_projection_is_complete_only_with_authoritative_r14_validation_and_n
         "build_r15_clinical_studio_snapshot",
         lambda **kwargs: _studio(
             stages=[stage],
+            blockers=["r14_authoritative_snapshot_not_persisted"],
+            active=True,
+            clinical_validation_available=False,
+            clinical_validation_reason="Final clinical validation has no persisted authoritative R14 snapshot yet.",
+        ),
+    )
+
+    result = projection.build_cephalo_pdf_projection(
+        patient_id=7,
+        analysis_id=9,
+        angles_data={EVIDENCE_GRAPH_KEY: {"contract": "typed"}},
+    )
+
+    assert result["active_runtime_chain_verified"] is True
+    assert result["clinical_validation_available"] is False
+    assert result["document_state"] == "INCOMPLETE"
+    assert result["stages"][0]["presentation_state"] == "AWAITING_CLINICIAN"
+    assert "r14_authoritative_snapshot_not_persisted" in result["blocking_gates"]
+
+
+def test_pdf_projection_complete_gate_requires_validation_and_zero_blockers(monkeypatch):
+    _allow_empty_typed_chain(monkeypatch)
+    monkeypatch.setattr(
+        projection,
+        "build_r15_clinical_studio_snapshot",
+        lambda **kwargs: _studio(
+            stages=[],
             blockers=[],
             active=True,
             clinical_validation_available=True,
-            clinical_validation_reason="R14 practitioner proof resolved",
+            clinical_validation_reason="authoritative validation resolved",
         ),
     )
 
@@ -301,8 +328,5 @@ def test_pdf_projection_is_complete_only_with_authoritative_r14_validation_and_n
 
     assert result["active_runtime_chain_verified"] is True
     assert result["clinical_validation_available"] is True
+    assert result["blocking_gates"] == []
     assert result["document_state"] == "COMPLETE"
-    assert result["stages"][0]["presentation_state"] == "VALIDATED"
-    assert result["stages"][0]["provenance"] == [
-        {"label": "authority", "value": "R14_PRACTITIONER_PROOF"}
-    ]
