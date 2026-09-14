@@ -101,3 +101,23 @@ def test_missing_projection_fails_closed_in_generate_contract(tmp_path, monkeypa
     assert captured["document_state"] == "INCOMPLETE"
     assert captured["clinical_validation_available"] is False
     assert captured["blocking_gates"] == ["authoritative_pdf_projection_missing"]
+
+
+def test_html_renderer_autoescapes_authoritative_text(tmp_path):
+    generator = BilanOrthoPDFGenerator(str(tmp_path))
+    projection = _projection()
+    projection["clinical_validation_reason"] = "<reason&unsafe>"
+    projection["stages"][0]["summary"] = "<summary&unsafe>"
+    projection["stages"][0]["provenance"] = [
+        {"label": "<source>", "value": "<value&unsafe>"}
+    ]
+
+    context = generator._shared_context(_vm(), projection)
+    html = generator.jinja_env.get_template("bilan_ortho_authoritative.html").render(context)
+
+    assert "<reason&unsafe>" not in html
+    assert "<summary&unsafe>" not in html
+    assert "<value&unsafe>" not in html
+    assert "&lt;reason&amp;unsafe&gt;" in html
+    assert "&lt;summary&amp;unsafe&gt;" in html
+    assert "&lt;value&amp;unsafe&gt;" in html
