@@ -161,10 +161,10 @@ export function PatientClinicalContextPanel({ patientId }: { patientId?: number 
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.14em] text-text-muted">
-            <ShieldAlert size={13} /> Contexte clinique structuré
+            <ShieldAlert size={13} /> Contexte patient
           </div>
           <p className="mt-1 text-[11px] font-semibold leading-relaxed text-text-muted">
-            Données factuelles durables saisies par le praticien. Aucun calcul de dose n’est activé par ces champs.
+            Poids, allergies et informations rénales ou hépatiques utiles à la prescription.
           </p>
         </div>
         {!loading && patientId && !loadError && (
