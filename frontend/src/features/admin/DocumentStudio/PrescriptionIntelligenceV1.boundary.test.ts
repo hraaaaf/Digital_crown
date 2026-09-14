@@ -4,6 +4,8 @@ import { describe, expect, it } from 'vitest';
 
 const src = (file: string) => readFileSync(resolve(process.cwd(), 'src/features/admin', file), 'utf8');
 const documentHub = src('DocumentHub.tsx');
+const documentHubContent = src('DocumentStudio/DocumentHubContent.tsx');
+const generator = src('DocumentStudio/useDocumentGenerator.ts');
 const studio = src('DocumentStudio/Forms/PrescriptionAgenticStudioV1.tsx');
 
 describe('Prescription Intelligence V1 active clinical boundary', () => {
@@ -24,5 +26,12 @@ describe('Prescription Intelligence V1 active clinical boundary', () => {
     expect(studio).not.toContain("api.post('/prescriptions/safety/check'");
     expect(studio).toContain('data-safety-status="blocked"');
     expect(studio).toContain('Le moteur de sécurité legacy n’est pas une règle V1 certifiée');
+  });
+
+  it('never invents a medication form when V1 has none', () => {
+    expect(documentHub).not.toContain("forme: m.forme || 'Sachets'");
+    expect(documentHubContent).not.toContain("forme: 'Comprimés'");
+    expect(generator).not.toContain("forme: d.forme || 'Sachets'");
+    expect(generator).toContain('forme: d.forme,');
   });
 });
