@@ -1,0 +1,78 @@
+name: Cephalo R19 Analysis Reference AFTER
+
+on:
+  workflow_dispatch:
+  pull_request:
+    branches: [master]
+    paths:
+      - 'frontend/src/features/ortho/CephaloTracingLayer.tsx'
+      - 'frontend/src/features/ortho/cephaloAnalysisBridge.ts'
+      - 'frontend/src/features/ortho/components/CephaloAnalysisWorkbenchPanel.tsx'
+      - 'frontend/src/features/ortho/components/CephaloAnalysisWorkbenchPanel.test.tsx'
+      - 'frontend/src/features/ortho/components/Step1Cephalo.tsx'
+      - 'frontend/src/features/ortho/components/Step1CephaloBase.tsx'
+      - 'frontend/scripts/capture-cephalo-r19-analysis-reference-after.mjs'
+      - '.github/workflows/cephalo-r19-analysis-reference-after.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  visual-after:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - name: Assert exact product HEAD
+        env:
+          PRODUCT_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: test "$(git rev-parse HEAD)" = "$PRODUCT_HEAD"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install frontend and browser
+        working-directory: frontend
+        run: |
+          npm ci
+          npm install --no-save --package-lock=false --legacy-peer-deps playwright@1.55.0 react-is@19.2.0 @testing-library/dom@10.4.1
+          npx playwright install --with-deps chromium
+      - name: Run focused R19 contract test
+        working-directory: frontend
+        run: npx vitest run src/features/ortho/components/CephaloAnalysisWorkbenchPanel.test.tsx
+      - name: Capture exact-head R19 analysis AFTER
+        working-directory: frontend
+        env:
+          PRODUCT_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: node scripts/capture-cephalo-r19-analysis-reference-after.mjs
+      - name: Verify AFTER evidence contract
+        working-directory: frontend
+        env:
+          PRODUCT_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          node --input-type=module <<'NODE'
+          import { readFile } from 'node:fs/promises';
+          const r=JSON.parse(await readFile('cephalo-r19-analysis-reference-after-artifacts/report.json','utf8'));
+          if(r.productHead!==process.env.PRODUCT_HEAD||r.phase!=='AFTER'||r.invalidCount!==0||r.blockedExternalRequests.length) throw new Error('Invalid R19 AFTER evidence');
+          if(r.captures.length!==3) throw new Error('Expected three viewports');
+          for(const c of r.captures){
+            if(!c.valid) throw new Error(`Invalid ${c.viewport}`);
+            if(c.states.length!==6||c.states.some(s=>!s.valid)) throw new Error(`Analysis contract failure ${c.viewport}`);
+          }
+          NODE
+          for viewport in 390x844 768x1024 1280x900; do
+            for mode in all steiner tweed mcnamara com ricketts; do
+              test -s "cephalo-r19-analysis-reference-after-artifacts/after-reference-${mode}-${viewport}.png"
+            done
+            test -s "cephalo-r19-analysis-reference-after-artifacts/after-com-panel-${viewport}.png"
+          done
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: cephalo-r19-analysis-reference-after-${{ github.sha }}
+          path: frontend/cephalo-r19-analysis-reference-after-artifacts
+          if-no-files-found: error
+          retention-days: 30

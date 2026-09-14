@@ -3,17 +3,24 @@ import { CephaloTracingLayer as BaseCephaloTracingLayer } from './CephaloTracing
 import type { CephaloTracingLayerProps, GhostData, TracingUIMode } from './CephaloTracingLayerBase';
 import type { Landmark } from './cephaloShared';
 import { projectPointOnLine } from './cephaloMath';
+import {
+  CEPHALO_METRIC_FOCUS_EVENT,
+  publishCephaloAnalysis,
+  type CephaloAnalysisMode,
+  type CephaloMetricFocus,
+} from './cephaloAnalysisBridge';
 
 export type { CephaloTracingLayerProps, GhostData, TracingUIMode };
 
-type AnalysisMode = 'all' | 'steiner' | 'tweed' | 'mcnamara' | 'ricketts';
+type AnalysisMode = CephaloAnalysisMode;
 
 const ANALYSIS_OPTIONS: Array<{ id: AnalysisMode; label: string; shortLabel?: string }> = [
   { id: 'all', label: 'Tous' },
   { id: 'steiner', label: 'Steiner' },
   { id: 'tweed', label: 'Tweed' },
-  { id: 'mcnamara', label: 'McNamara / COM', shortLabel: 'COM' },
-  { id: 'ricketts', label: 'Ricketts' },
+  { id: 'mcnamara', label: 'McNamara', shortLabel: 'McN' },
+  { id: 'com', label: 'COM' },
+  { id: 'ricketts', label: 'Ricketts', shortLabel: 'Rick.' },
 ];
 
 const MODE_LANDMARKS: Record<Exclude<AnalysisMode, 'all'>, Set<string>> = {
@@ -29,7 +36,11 @@ const MODE_LANDMARKS: Record<Exclude<AnalysisMode, 'all'>, Set<string>> = {
   ]),
   mcnamara: new Set([
     'po', 'or', 'n', 'a', 'b', 'co', 'gn', 'ans', 'me',
-    'occ_ant', 'occ_post',
+  ]),
+  com: new Set([
+    's', 'n', 'a', 'b', 'po', 'or', 'go', 'me',
+    'u1_incisal', 'u1i', 'u1_apex', 'u1a',
+    'l1_incisal', 'l1i', 'l1_apex', 'l1a',
   ]),
   ricketts: new Set([
     'g_soft', 'g-soft', 'n_soft', 'n-soft', 'prn', 'nose_tip', 'cm',
@@ -43,7 +54,8 @@ const normalizeMode = (value?: string): AnalysisMode => {
   const normalized = (value || 'all').trim().toLowerCase();
   if (normalized === 'steiner') return 'steiner';
   if (normalized === 'tweed') return 'tweed';
-  if (normalized === 'mcnamara' || normalized === 'com') return 'mcnamara';
+  if (normalized === 'mcnamara') return 'mcnamara';
+  if (normalized === 'com') return 'com';
   if (normalized === 'ricketts' || normalized === 'esthetique') return 'ricketts';
   return 'all';
 };
@@ -57,21 +69,55 @@ const filterLandmarks = (landmarks: Landmark[], mode: AnalysisMode) => {
 const findPoint = (landmarks: Landmark[], id: string) =>
   landmarks.find(item => item.id.toLowerCase() === id.toLowerCase());
 
+const findPointAny = (landmarks: Landmark[], ...ids: string[]) => {
+  for (const id of ids) {
+    const point = findPoint(landmarks, id);
+    if (point) return point;
+  }
+  return undefined;
+};
+
+const unitAxis = (start?: Landmark, end?: Landmark) => {
+  if (!start || !end) return null;
+  const dx = end.x - start.x;
+  const dy = end.y - start.y;
+  const length = Math.hypot(dx, dy);
+  if (!Number.isFinite(length) || length <= 1e-9) return null;
+  return { x: dx / length, y: dy / length };
+};
+
 /**
- * R18 scientific tracing controller.
+ * R19 analysis tracing controller.
  *
- * The historical tracing engine is preserved byte-for-byte in
- * CephaloTracingLayerBase.tsx. This controller constrains the landmarks given
- * to that engine so each selected analysis can only materialize its own
- * constructions. Ricketts hard-tissue constructions are drawn here because
- * the legacy engine only contained its soft-tissue profile/E-line surface.
+ * R18's historical drawing engine remains byte-identical in
+ * CephaloTracingLayerBase.tsx. This controller now separates COM from
+ * McNamara and adds only source-locked COM constructions already implemented
+ * by the backend geometry engine. It never computes or classifies a clinical
+ * result for display; patient values still come from the backend.
  */
 export const CephaloTracingLayer: React.FC<CephaloTracingLayerProps> = (props) => {
   const [mode, setMode] = React.useState<AnalysisMode>(() => normalizeMode(props.activeAnalysis));
+  const [metricFocus, setMetricFocus] = React.useState<CephaloMetricFocus | null>(props.hoveredMetric ?? null);
 
   React.useEffect(() => {
     if (props.activeAnalysis) setMode(normalizeMode(props.activeAnalysis));
   }, [props.activeAnalysis]);
+
+  React.useEffect(() => {
+    publishCephaloAnalysis(mode);
+  }, [mode]);
+
+  React.useEffect(() => {
+    const onMetric = (event: Event) => {
+      setMetricFocus((event as CustomEvent<CephaloMetricFocus | null>).detail ?? null);
+    };
+    window.addEventListener(CEPHALO_METRIC_FOCUS_EVENT, onMetric as EventListener);
+    return () => window.removeEventListener(CEPHALO_METRIC_FOCUS_EVENT, onMetric as EventListener);
+  }, []);
+
+  React.useEffect(() => {
+    if (props.hoveredMetric) setMetricFocus(props.hoveredMetric);
+  }, [props.hoveredMetric]);
 
   const filteredLandmarks = React.useMemo(
     () => filterLandmarks(props.landmarks, mode),
@@ -100,23 +146,74 @@ export const CephaloTracingLayer: React.FC<CephaloTracingLayerProps> = (props) =
     props.onUpdateLandmarks(merged);
   }, [mode, props.landmarks, props.onUpdateLandmarks]);
 
-  const baseAnalysis = mode === 'ricketts' ? 'esthetique' : mode;
+  const baseAnalysis = mode === 'ricketts' ? 'esthetique' : mode === 'com' ? 'wits' : mode;
 
-  const po = findPoint(props.landmarks, 'Po');
-  const orPoint = findPoint(props.landmarks, 'Or');
-  const n = findPoint(props.landmarks, 'N');
-  const pog = findPoint(props.landmarks, 'Pog');
-  const a = findPoint(props.landmarks, 'A');
-  const occAnt = findPoint(props.landmarks, 'Occ_Ant');
-  const occPost = findPoint(props.landmarks, 'Occ_Post');
+  const po = findPointAny(props.landmarks, 'Po', 'Porion');
+  const orPoint = findPointAny(props.landmarks, 'Or', 'Orbitale');
+  const n = findPointAny(props.landmarks, 'N', 'Nasion');
+  const s = findPointAny(props.landmarks, 'S', 'Sella');
+  const pog = findPointAny(props.landmarks, 'Pog');
+  const a = findPointAny(props.landmarks, 'A', 'Point_A');
+  const b = findPointAny(props.landmarks, 'B', 'Point_B');
+  const go = findPointAny(props.landmarks, 'Go', 'Gonion');
+  const me = findPointAny(props.landmarks, 'Me', 'Menton');
+  const u1i = findPointAny(props.landmarks, 'U1_incisal', 'U1i');
+  const u1a = findPointAny(props.landmarks, 'U1_apex', 'U1a');
+  const l1i = findPointAny(props.landmarks, 'L1_incisal', 'L1i');
+  const l1a = findPointAny(props.landmarks, 'L1_apex', 'L1a');
 
   const aOnNPog = a && n && pog
     ? projectPointOnLine(a.x, a.y, n.x, n.y, pog.x, pog.y)
     : null;
 
+  const frankfort = unitAxis(po, orPoint);
+  const frankfortPerp = frankfort
+    ? (() => {
+        let x = -frankfort.y;
+        let y = frankfort.x;
+        if (y < 0) { x = -x; y = -y; }
+        return { x, y };
+      })()
+    : null;
+
+  const nVerticalStart = n && frankfortPerp
+    ? { x: n.x - frankfortPerp.x * props.imageHeight, y: n.y - frankfortPerp.y * props.imageHeight }
+    : null;
+  const nVerticalEnd = n && frankfortPerp
+    ? { x: n.x + frankfortPerp.x * props.imageHeight, y: n.y + frankfortPerp.y * props.imageHeight }
+    : null;
+
+  const projectOnNVertical = (point?: Landmark) =>
+    point && nVerticalStart && nVerticalEnd
+      ? projectPointOnLine(point.x, point.y, nVerticalStart.x, nVerticalStart.y, nVerticalEnd.x, nVerticalEnd.y)
+      : null;
+
+  const aOnNVertical = projectOnNVertical(a);
+  const bOnNVertical = projectOnNVertical(b);
+  const sOnNVertical = projectOnNVertical(s);
+  const aPrime = a && po && orPoint ? projectPointOnLine(a.x, a.y, po.x, po.y, orPoint.x, orPoint.y) : null;
+  const bPrime = b && po && orPoint ? projectPointOnLine(b.x, b.y, po.x, po.y, orPoint.x, orPoint.y) : null;
+
+  const incisalVector = u1i && l1i ? { x: u1i.x - l1i.x, y: u1i.y - l1i.y } : null;
+  const overjetEnd = l1i && frankfort && incisalVector
+    ? (() => {
+        const amount = incisalVector.x * frankfort.x + incisalVector.y * frankfort.y;
+        return { x: l1i.x + frankfort.x * amount, y: l1i.y + frankfort.y * amount };
+      })()
+    : null;
+
   const showRickettsHard = mode === 'ricketts' || mode === 'all';
   const showRickettsMarkers = mode === 'ricketts';
-  const showComWits = mode === 'mcnamara';
+  const showCom = mode === 'com';
+  const focusedKey = showCom ? metricFocus?.key ?? null : null;
+  const comStyle = (keys: string[], color: string) => {
+    const active = !focusedKey || keys.includes(focusedKey);
+    return {
+      stroke: color,
+      opacity: active ? 0.96 : 0.16,
+      strokeWidth: active && focusedKey ? 2.6 : 1.7,
+    };
+  };
 
   return (
     <div className="absolute inset-0 z-20 h-full w-full" data-cephalo-analysis={mode}>
@@ -126,9 +223,10 @@ export const CephaloTracingLayer: React.FC<CephaloTracingLayerProps> = (props) =
         ghosts={filteredGhosts}
         onUpdateLandmarks={mergeLandmarkUpdate}
         activeAnalysis={baseAnalysis}
+        hoveredMetric={metricFocus ?? props.hoveredMetric ?? null}
       />
 
-      {(showRickettsHard || showComWits) && props.imageWidth > 0 && props.imageHeight > 0 && (
+      {(showRickettsHard || showCom) && props.imageWidth > 0 && props.imageHeight > 0 && (
         <svg
           viewBox={`0 0 ${props.imageWidth} ${props.imageHeight}`}
           preserveAspectRatio="xMidYMid meet"
@@ -159,7 +257,6 @@ export const CephaloTracingLayer: React.FC<CephaloTracingLayerProps> = (props) =
               opacity="0.95" vectorEffect="non-scaling-stroke"
             />
           )}
-
           {showRickettsMarkers && [po, orPoint, n, pog, a].filter(Boolean).map(point => {
             const p = point as Landmark;
             return (
@@ -170,27 +267,77 @@ export const CephaloTracingLayer: React.FC<CephaloTracingLayerProps> = (props) =
             );
           })}
 
-          {showComWits && occPost && occAnt && (
-            <g data-r18-construction="com-wits-occlusal">
-              <line
-                x1={occPost.x} y1={occPost.y} x2={occAnt.x} y2={occAnt.y}
-                stroke="#facc15" strokeWidth="1.7" strokeDasharray="5,4"
-                opacity="0.92" vectorEffect="non-scaling-stroke"
-              />
-              <text
-                x={(occPost.x + occAnt.x) / 2 + 10}
-                y={(occPost.y + occAnt.y) / 2 - 10}
-                fill="#fde68a" fontSize="10" fontWeight="800"
-              >Wits</text>
-            </g>
-          )}
+          {showCom && po && orPoint && (() => {
+            const style = comStyle(['I_Francfort','Angle_de_Tweed','Situation_A','Situation_B','Profondeur_Faciale','Decalage_A_B','Surplomb','Recouvrement'], '#38bdf8');
+            return <line data-r19-construction="com-frankfort" x1={po.x} y1={po.y} x2={orPoint.x} y2={orPoint.y} {...style} vectorEffect="non-scaling-stroke" />;
+          })()}
+          {showCom && go && me && (() => {
+            const style = comStyle(['IMPA','Angle_de_Tweed'], '#34d399');
+            return <line data-r19-construction="com-mandibular" x1={go.x} y1={go.y} x2={me.x} y2={me.y} {...style} vectorEffect="non-scaling-stroke" />;
+          })()}
+          {showCom && u1a && u1i && (() => {
+            const style = comStyle(['I_Francfort','Inter_Incisif'], '#f472b6');
+            return <line data-r19-construction="com-u1-axis" x1={u1a.x} y1={u1a.y} x2={u1i.x} y2={u1i.y} {...style} vectorEffect="non-scaling-stroke" />;
+          })()}
+          {showCom && l1a && l1i && (() => {
+            const style = comStyle(['IMPA','Inter_Incisif'], '#2dd4bf');
+            return <line data-r19-construction="com-l1-axis" x1={l1a.x} y1={l1a.y} x2={l1i.x} y2={l1i.y} {...style} vectorEffect="non-scaling-stroke" />;
+          })()}
+          {showCom && nVerticalStart && nVerticalEnd && (() => {
+            const style = comStyle(['Situation_A','Situation_B','Profondeur_Faciale'], '#c084fc');
+            return <line data-r19-construction="com-nasion-vertical" x1={nVerticalStart.x} y1={nVerticalStart.y} x2={nVerticalEnd.x} y2={nVerticalEnd.y} strokeDasharray="7,5" {...style} vectorEffect="non-scaling-stroke" />;
+          })()}
+          {showCom && a && aOnNVertical && (() => {
+            const style = comStyle(['Situation_A'], '#fb7185');
+            return <line data-r19-construction="com-situation-a" x1={a.x} y1={a.y} x2={aOnNVertical.x} y2={aOnNVertical.y} {...style} vectorEffect="non-scaling-stroke" />;
+          })()}
+          {showCom && b && bOnNVertical && (() => {
+            const style = comStyle(['Situation_B'], '#fb7185');
+            return <line data-r19-construction="com-situation-b" x1={b.x} y1={b.y} x2={bOnNVertical.x} y2={bOnNVertical.y} {...style} vectorEffect="non-scaling-stroke" />;
+          })()}
+          {showCom && s && sOnNVertical && (() => {
+            const style = comStyle(['Profondeur_Faciale'], '#facc15');
+            return <line data-r19-construction="com-facial-depth" x1={s.x} y1={s.y} x2={sOnNVertical.x} y2={sOnNVertical.y} strokeDasharray="4,3" {...style} vectorEffect="non-scaling-stroke" />;
+          })()}
+          {showCom && a && aPrime && (() => {
+            const style = comStyle(['Decalage_A_B'], '#facc15');
+            return <line data-r19-construction="com-a-prime-drop" x1={a.x} y1={a.y} x2={aPrime.x} y2={aPrime.y} strokeDasharray="3,3" {...style} vectorEffect="non-scaling-stroke" />;
+          })()}
+          {showCom && b && bPrime && (() => {
+            const style = comStyle(['Decalage_A_B'], '#facc15');
+            return <line data-r19-construction="com-b-prime-drop" x1={b.x} y1={b.y} x2={bPrime.x} y2={bPrime.y} strokeDasharray="3,3" {...style} vectorEffect="non-scaling-stroke" />;
+          })()}
+          {showCom && aPrime && bPrime && (() => {
+            const style = comStyle(['Decalage_A_B'], '#facc15');
+            return <line data-r19-construction="com-ab-prime" x1={aPrime.x} y1={aPrime.y} x2={bPrime.x} y2={bPrime.y} {...style} vectorEffect="non-scaling-stroke" />;
+          })()}
+          {showCom && l1i && overjetEnd && (() => {
+            const style = comStyle(['Surplomb'], '#fb923c');
+            return <line data-r19-construction="com-overjet" x1={l1i.x} y1={l1i.y} x2={overjetEnd.x} y2={overjetEnd.y} {...style} vectorEffect="non-scaling-stroke" />;
+          })()}
+          {showCom && u1i && overjetEnd && (() => {
+            const style = comStyle(['Recouvrement'], '#60a5fa');
+            return <line data-r19-construction="com-overbite" x1={overjetEnd.x} y1={overjetEnd.y} x2={u1i.x} y2={u1i.y} {...style} vectorEffect="non-scaling-stroke" />;
+          })()}
+
+          {showCom && [po, orPoint, n, s, a, b, go, me, u1i, u1a, l1i, l1a].filter(Boolean).map(point => {
+            const p = point as Landmark;
+            return (
+              <g key={`com-${p.id}`} data-r19-point={p.id} opacity={focusedKey ? 0.82 : 0.92}>
+                <circle cx={p.x} cy={p.y} r="3.2" fill="#020617" stroke="#e2e8f0" strokeWidth="1.4" vectorEffect="non-scaling-stroke" />
+                <text x={p.x + 8} y={p.y - 8} fill="#e2e8f0" fontSize="9" fontWeight="800">{p.id}</text>
+              </g>
+            );
+          })}
+          {showCom && aPrime && <text data-r19-construction="com-a-prime-label" x={aPrime.x + 7} y={aPrime.y - 7} fill="#fde68a" fontSize="9" fontWeight="800">A′</text>}
+          {showCom && bPrime && <text data-r19-construction="com-b-prime-label" x={bPrime.x + 7} y={bPrime.y + 13} fill="#fde68a" fontSize="9" fontWeight="800">B′</text>}
         </svg>
       )}
 
       <div className="pointer-events-none absolute inset-x-0 top-36 z-40 flex justify-center px-3 sm:top-16">
         <div
           aria-label="Analyse du tracé"
-          className="pointer-events-auto flex max-w-full items-center gap-1 overflow-x-auto rounded-2xl border border-slate-700/70 bg-slate-950/80 p-1 shadow-2xl backdrop-blur-xl"
+          className="pointer-events-auto flex max-w-full items-center gap-0.5 overflow-x-auto rounded-2xl border border-slate-700/70 bg-slate-950/80 p-1 shadow-2xl backdrop-blur-xl sm:gap-1"
         >
           <span className="hidden shrink-0 px-2 text-[9px] font-black uppercase tracking-[0.18em] text-slate-500 sm:inline">Tracé</span>
           {ANALYSIS_OPTIONS.map(option => {
@@ -202,7 +349,7 @@ export const CephaloTracingLayer: React.FC<CephaloTracingLayerProps> = (props) =
                 data-analysis={option.id}
                 aria-pressed={selected}
                 onClick={() => setMode(option.id)}
-                className={`shrink-0 rounded-xl px-2.5 py-1.5 text-[9px] font-black uppercase tracking-[0.08em] transition-all sm:px-3 sm:text-[10px] ${selected
+                className={`shrink-0 rounded-xl px-2 py-1.5 text-[8px] font-black uppercase tracking-[0.04em] transition-all sm:px-3 sm:text-[10px] sm:tracking-[0.08em] ${selected
                   ? 'border border-cyan-400/45 bg-cyan-400/15 text-cyan-100 shadow-[0_0_18px_rgba(34,211,238,0.12)]'
                   : 'border border-transparent text-slate-400 hover:bg-slate-800/80 hover:text-slate-100'}`}
               >
