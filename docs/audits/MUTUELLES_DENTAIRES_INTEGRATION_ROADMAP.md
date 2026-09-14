@@ -23,7 +23,7 @@ Pas de nouvel enum SQL immediatement:
 - `DocumentType.AUTRE`;
 - tags `insurance_submission`, organisme, version template;
 - `clinical_data.kind = INSURANCE_SUBMISSION`;
-- snapshot complet `InsuranceSubmissionDraft` + provenance Honoraires + template/version/hash/trust + NGAP/version/hash + validation praticien.
+- snapshot complet `InsuranceSubmissionDraft` + provenance Honoraires + template/version/hash/trust + NGAP/version/hash + validation praticien + preuve de rendu.
 
 ## Lot 1 — Contrat runtime — IMPLEMENTE
 `InsuranceSubmissionDraft` fail-closed.
@@ -34,7 +34,7 @@ Invariants:
 - `SECONDARY_REFERENCE` ne peut jamais devenir un document final valide;
 - aucune archive finale depuis un draft non `VALIDATED`.
 
-Le snapshot administratif comprend maintenant:
+Le snapshot administratif comprend:
 - nature demande `EXECUTION|PRIOR_APPROVAL`;
 - assure: nom, immatriculation, CIN, adresse, qualite;
 - beneficiaire: nom, naissance, CIN, sexe, lien;
@@ -46,22 +46,21 @@ Le snapshot administratif comprend maintenant:
 - source: `DocumentArchive.clinical_data.payments[*]` + `Acte` derives;
 - dents depuis snapshot;
 - mismatch historique fail-closed;
-- `source_line_uid` stable + `catalog_act_id` explicite.
+- `source_line_uid` stable + `catalog_act_id` explicite;
+- liaison UID prioritaire, fallback index seulement historique;
+- organisme demande doit correspondre a `Patient.assurance`.
 
-### Regression CI liaison JSON
-CI #4065 a trouve que l'UID etait bien cree dans `Acte` mais pas durablement persiste dans `DocumentArchive.clinical_data` a cause de mutations JSON imbriquees partagees.
-Correction `6a4778f8c1cd03b7a45c3284b1ec0f7fa2aa9018`:
-- reconstruction snapshot;
-- `flag_modified(archive, "clinical_data")` apres mise a jour;
-- aucun retour a l'exigence d'une archive pour les appels service legacy.
-Le HEAD final doit recertifier cette preuve.
+### Regressions CI liaison/archive — CORRIGEES
+1. CI #4065: UID cree dans `Acte` mais pas durablement marque dans le JSON archive. Correctif `6a4778f8...`: reconstruction snapshot + `flag_modified(archive, "clinical_data")`.
+2. CI #4123 sur `7a01205e...`: la metadonnee technique `source_line_uid` enrichissant la premiere archive cassait ensuite la detection de doublon d'une note utilisateur identique; 1548 tests passes avant arret. Correctif: politique NOTE_HONORAIRES qui compare le contenu metier en ignorant uniquement `source_line_uid` et `catalog_act_id=None`, tout en conservant un vrai `catalog_act_id` comme identite significative. Tests dedies ajoutes.
 
 ## Lot 3 — Archivage PDF final — IMPLEMENTE
 - uniquement draft `VALIDATED`;
 - PDF final archive dans `DocumentArchive`;
 - snapshot/tags/provenance complets;
 - hashes template + NGAP + trust template conserves;
-- reimpression historique fondee sur snapshot, pas sur le referentiel courant.
+- preuve renderer conservee: version, profil complet de coordonnees, hash profil, hash template, hash PDF final;
+- reimpression historique fondee sur le snapshot + profil archive, pas sur le referentiel courant.
 
 ## Lot 4 — Liaison actes/catalogue — IMPLEMENTE
 - `Acte.source_line_uid` nullable;
@@ -95,49 +94,68 @@ Sources recroisees:
 Blocage externe: endpoints PDF primaires 403/502/timeout/cache miss; aucun hash officiel invente.
 
 ## Lot 5B — Store local immuable des sources — IMPLEMENTE
-Objectif: ne pas dependre du reseau officiel au runtime cabinet.
-
 `insurance_source_store.py`:
 - validation source AVANT stockage;
 - stockage hash-addressed `namespace/version/sha256/source.pdf`;
 - `manifest.json` deterministe;
 - ecriture atomique;
-- collision octets/manifest => blocage;
-- NGAP passe obligatoirement par le controle identite juridique;
+- lecture avec revalidation SHA + identite manifeste;
+- collision/alteration => blocage;
+- NGAP passe par le controle identite juridique;
 - template passe par controle PDF/pages/hash/trust;
 - `CABINET_VALIDATED_BINARY` exige l'identite explicite du validateur dans le manifeste.
 
-Commande locale:
-`scripts/lock_insurance_source.py`
+Commande locale `scripts/lock_insurance_source.py`:
 - `--kind ngap|cnss|cnops|far`;
 - fichier local + provenance;
 - CNSS/FAR cabinet-valide exige `--confirm-cabinet-validation --validated-by "..."`;
 - aucun binaire n'a encore ete promu faute de fichier source exact disponible.
 
-## Lot 6 — CNSS 610-1-04 — PREPARATION IMPLEMENTEE / RENDERER BLOQUE PAR BINAIRE
+## Lot 6 — CNSS 610-1-04 — BACKEND DE PREPARATION/VALIDATION/RENDU GENERIQUE IMPLEMENTE / CALIBRATION BLOQUEE PAR BINAIRE
 Reference cabinet validee: `CNSS-610-1-04`, 2 pages attendues.
 
-Gate renderer:
-- draft `VALIDATED`;
-- template PDF exact;
-- hash octets = hash snapshot;
-- template trust accepte;
-- version/hash NGAP;
-- toutes lignes EXACT.
-
-Aucune coordonnee PDF de rendu n'est inventee avant verrouillage d'un binaire exact.
-
 ### Politique administrative CNSS — IMPLEMENTEE
-Le controle de completude 610-1-04 impose notamment assure, immatriculation, CIN, lien/adresse, beneficiaire, naissance/CIN/sexe, praticien/INPE, nature demande, type de soins et donnees d'actes.
+- prefill uniquement faits explicites: nom beneficiaire, naissance, sexe, nom praticien;
+- INPE seulement depuis une cle explicitement INPE/INP;
+- type de soins seulement si tous les Acte sources convergent vers une categorie deterministe;
+- note mixte => manuel;
+- adresse patient jamais assimilee automatiquement a l'adresse assure;
+- CIN/immatriculation/identite assure/lien jamais inventes;
+- tous champs obligatoires manquants deviennent `administrative.<field>`.
 
-`prefill_cnss_administrative()`:
-- prefill uniquement faits deja explicites: nom beneficiaire, naissance, sexe, nom praticien;
-- INPE uniquement si une cle legale explicitement nommee INPE/INP existe; aucun fallback;
-- type de soins infere seulement si tous les `Acte` sources appartiennent a une unique categorie deterministe;
-- note mixte => type reste manuel;
-- patient.adresse n'est jamais copie dans adresse assure car beneficiaire != assure possible;
-- aucune CIN, immatriculation, identite assure ou lien de parente invente;
-- tous champs obligatoires absents deviennent `administrative.<field>` dans `unresolved_fields`.
+### Preparation et coherence source — IMPLEMENTEES
+`prepare_insurance_draft_from_honoraires()` + `assert_draft_matches_honoraires_source()`:
+- relisent Honoraires/Acte cote serveur;
+- recroisent patient, organisme, UID, Acte, catalog_act_id, date, dents, libelle, montant;
+- toute divergence => blocage avant validation.
+
+### Validation praticien — IMPLEMENTEE
+`validate_insurance_draft_by_practitioner()`:
+- seul le praticien source peut valider;
+- NGAP recalcule depuis la DB, jamais depuis le client;
+- completude administrative recalculee;
+- template + source NGAP relus dans le store immuable;
+- produit un nouveau snapshot `VALIDATED` uniquement si toutes les preuves restent coherentes.
+
+### Renderer generique — IMPLEMENTE
+`insurance_pdf_overlay.py`:
+- aucune coordonnee assureur hardcodee;
+- profil separe lie a `organization + template_version + template_hash`;
+- profil canonique serialisable + SHA-256;
+- champs signature/cachet/decision assureur explicitement interdits;
+- hash template exact obligatoire avant insertion PDF.
+
+### Finalisation rendu -> archive — IMPLEMENTEE
+`finalize_insurance_submission_pdf()`:
+1. exige un draft deja `VALIDATED`;
+2. revalide immediatement DB + NGAP + sources immuables avec le meme praticien/date;
+3. compare le snapshot reconstruit au snapshot valide: difference => `stale or altered`, nouvelle revue obligatoire;
+4. relit le template exact depuis le store;
+5. rend via le profil hash-bound;
+6. calcule le SHA-256 du PDF final;
+7. archive PDF + profil complet + hash profil + hash PDF final.
+
+Aucune coordonnee CNSS reelle n'est inventee avant verrouillage du binaire exact. La calibration fidele du `610-1-04` reste donc bloquee par le fichier source.
 
 ## Lot 7 — UX/UI — A FAIRE APRES GATES BINAIRES/METIER
 Protocole obligatoire:
@@ -158,26 +176,27 @@ Activation seulement si:
 - source NGAP primaire binaire/hash verrouillee;
 - mappings representatifs valides par praticien;
 - template assureur exact verrouille et trust acceptable;
-- renderer certifie;
+- profil de coordonnees calibre/valide sur ce hash exact;
 - migration/rollback, archivage/reimpression et UX certifies.
 
 ## CI connue
-- CI #4031: regression appel service legacy, corrigee `49111ea...`.
-- CI #4065 sur `1c01b94...`: **FAILURE** uniquement sur persistance `source_line_uid` dans JSON archive; 1655 tests passes avant arret; PostgreSQL #491, provenance #73, browser #2976 et Catalog #1149 **SUCCESS**.
-- correctif exact: `6a4778f8...` (`flag_modified`).
-- depuis ce correctif, plusieurs durcissements source-store/template/admin ont ete ajoutes; le HEAD final courant doit etre recertifie en une passe.
+- CI #4065: regression JSON UID, corrigee `6a4778f8...`.
+- CI #4123 sur `7a01205e...`: **FAILURE** uniquement sur detection de doublon Honoraires apres enrichissement UID; PostgreSQL #549, provenance #103, browser #3034 et Catalog #1179 **SUCCESS**.
+- correctif detection doublon + tests pousses avant la finalisation backend.
+- HEAD `3a8ce5dc...`: CI #4137 et certifications lancees; etat observe `in_progress/pending`, donc non declare vert.
+- les commits documentaires ulterieurs relancent naturellement la certification du HEAD exact final.
 
 ## Interdits
-Second moteur Honoraires, second catalogue clinique, Ordonnance bis, fuzzy mapping, backfill artificiel, signature/cachet/accord assureur fabrique, auto-cotation sans source primaire hashée ET validation metier, template secondaire promu en final, rendu approximatif d'un formulaire officiel, deploiement Vercel sans autorisation explicite.
+Second moteur Honoraires, second catalogue clinique, Ordonnance bis, fuzzy mapping, backfill artificiel, signature/cachet/accord assureur fabrique, auto-cotation sans source primaire hashee ET validation metier, template secondaire promu en final, rendu approximatif d'un formulaire officiel, deploiement Vercel sans autorisation explicite.
 
 ## Etat
-`LOTS_1_4_IMPLEMENTED / NGAP_ENGINE_IMPLEMENTED_SOURCE_PENDING / LOCAL_SOURCE_STORE_IMPLEMENTED / TEMPLATE_TRUST_GATE_IMPLEMENTED / CNSS_ADMIN_PREFILL_IMPLEMENTED / RENDER_GATE_IMPLEMENTED / PRIMARY_HASH_PENDING / CNSS_TEMPLATE_BINARY_PENDING / CI_RECERTIFICATION_REQUIRED / RUNTIME_NOT_ACTIVATED`
+`LOTS_1_4_IMPLEMENTED / NGAP_ENGINE_IMPLEMENTED_SOURCE_PENDING / LOCAL_SOURCE_STORE_IMPLEMENTED / CNSS_ADMIN_PREFILL_IMPLEMENTED / SOURCE_CONSISTENCY_GATE_IMPLEMENTED / PRACTITIONER_VALIDATION_GATE_IMPLEMENTED / HASH_BOUND_OVERLAY_IMPLEMENTED / FINALIZATION_ARCHIVE_IMPLEMENTED / PRIMARY_HASH_PENDING / CNSS_TEMPLATE_BINARY_PENDING / CI_PENDING / RUNTIME_NOT_ACTIVATED`
 
 ## Next exact
-1. Recertifier le HEAD courant et corriger toute regression.
+1. Certifier le HEAD exact final; corriger si rouge.
 2. Recuperer localement un binaire primaire NGAP exact -> lock/store/hash.
 3. Valider un premier lot representatif de mappings NGAP par praticien.
 4. Recuperer/verrouiller le binaire CNSS 610-1-04 exact.
-5. Renderer CNSS fidele.
+5. Calibrer profil CNSS sur CE hash -> test visuel fidele.
 6. BEFORE/mockup -> UX -> AFTER/tests.
 7. CNOPS/FAR -> gate cabinet -> closeout/merge.
