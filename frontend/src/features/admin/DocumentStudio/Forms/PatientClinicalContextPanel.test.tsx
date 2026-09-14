@@ -35,12 +35,18 @@ describe('PatientClinicalContextPanel C1', () => {
     } as any));
   });
 
-  it('charge un état inconnu sans inventer de valeur clinique', async () => {
+  it('charge un état inconnu replié sans inventer de valeur clinique', async () => {
     render(<PatientClinicalContextPanel patientId={42} />);
 
-    const weight = await screen.findByLabelText('Poids explicite en kilogrammes');
+    const expand = await screen.findByRole('button', { name: /Renseigner/i });
     expect(api.get).toHaveBeenCalledWith('/patients/42/clinical-context');
-    expect(weight).toHaveValue(null);
+    expect(screen.getByText(/Poids :/i)).toBeInTheDocument();
+    expect(screen.getByText(/non renseigné/i)).toBeInTheDocument();
+    expect(screen.queryByLabelText('Poids explicite en kilogrammes')).not.toBeInTheDocument();
+
+    fireEvent.click(expand);
+
+    expect(screen.getByLabelText('Poids explicite en kilogrammes')).toHaveValue(null);
     expect(screen.getByLabelText('Statut des allergies médicamenteuses')).toHaveValue('UNKNOWN');
     expect(screen.getByLabelText('Statut du contexte rénal')).toHaveValue('UNKNOWN');
     expect(screen.getByLabelText('Statut du contexte hépatique')).toHaveValue('UNKNOWN');
@@ -48,9 +54,11 @@ describe('PatientClinicalContextPanel C1', () => {
     expect(screen.getByText(/Aucun calcul de dose n’est activé/i)).toBeInTheDocument();
   });
 
-  it('enregistre uniquement les faits patient explicitement saisis', async () => {
+  it('enregistre uniquement les faits patient explicitement saisis puis replie le panneau', async () => {
     render(<PatientClinicalContextPanel patientId={42} />);
-    const weight = await screen.findByLabelText('Poids explicite en kilogrammes');
+    fireEvent.click(await screen.findByRole('button', { name: /Renseigner/i }));
+
+    const weight = screen.getByLabelText('Poids explicite en kilogrammes');
     const saveButton = screen.getByRole('button', { name: /Enregistrer le contexte/i });
     expect(saveButton).toBeEnabled();
 
@@ -71,6 +79,9 @@ describe('PatientClinicalContextPanel C1', () => {
       hepatic_context_note: null,
     }));
     expect(await screen.findByText('Contexte enregistré')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Renseigner/i })).toHaveAttribute('aria-expanded', 'false');
+    expect(screen.queryByLabelText('Poids explicite en kilogrammes')).not.toBeInTheDocument();
+    expect(screen.getByText('72.5 kg')).toBeInTheDocument();
   });
 
   it('échoue fermé si le contexte ne peut pas être chargé', async () => {
@@ -78,7 +89,9 @@ describe('PatientClinicalContextPanel C1', () => {
     render(<PatientClinicalContextPanel patientId={42} />);
 
     expect(await screen.findByText(/Contexte non chargé. Aucune valeur n’est supposée/i)).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /Enregistrer le contexte/i })).toBeDisabled();
+    expect(screen.queryByRole('button', { name: /Renseigner/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Enregistrer le contexte/i })).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('Poids explicite en kilogrammes')).not.toBeInTheDocument();
   });
 
   it('ne persiste pas une note d organe après retour à un statut non atteint', async () => {
@@ -91,7 +104,8 @@ describe('PatientClinicalContextPanel C1', () => {
     } as any);
     render(<PatientClinicalContextPanel patientId={42} />);
 
-    const renalStatus = await screen.findByLabelText('Statut du contexte rénal');
+    fireEvent.click(await screen.findByRole('button', { name: /Renseigner/i }));
+    const renalStatus = screen.getByLabelText('Statut du contexte rénal');
     expect(screen.getByLabelText('Note rénale factuelle')).toHaveValue('Note existante');
     fireEvent.change(renalStatus, { target: { value: 'NO_KNOWN_IMPAIRMENT' } });
     fireEvent.click(screen.getByRole('button', { name: /Enregistrer le contexte/i }));
