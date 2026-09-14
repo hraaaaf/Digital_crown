@@ -1,0 +1,47 @@
+name: Cephalo R17 PDF Certification
+
+on:
+  pull_request:
+    paths:
+      - 'backend/services/cephalo_pdf_projection.py'
+      - 'backend/services/document_factory.py'
+      - 'backend/services/generators/bilan_ortho_gen.py'
+      - 'backend/templates/bilan_ortho_authoritative.html'
+      - 'backend/tests/test_cephalo_r17_pdf_projection.py'
+      - 'backend/tests/test_cephalo_r17_pdf_renderer_contract.py'
+      - 'scripts/cephalo_r17_pdf_cert.py'
+      - '.github/workflows/cephalo-r17-pdf-cert.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  certify:
+    runs-on: ubuntu-24.04
+    env:
+      SECRET_KEY: ci-only-secret-key-minimum-32-characters-long
+      DATABASE_URL: sqlite:///:memory:
+      ENVIRONMENT: development
+      TELEMETRY_ENABLED: 'false'
+      CLOUD_AI_ENABLED: 'false'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install focused PDF runtime
+        run: |
+          python -m pip install --upgrade pip
+          pip install pydantic==2.6.3 jinja2 reportlab==4.4.3 PyMuPDF weasyprint sqlalchemy==2.0.28
+      - name: Run R17 PDF projection and renderer contracts
+        run: |
+          python -m pytest backend/tests/test_cephalo_r17_pdf_projection.py backend/tests/test_cephalo_r17_pdf_renderer_contract.py -q
+      - name: Generate and verify HTML + ReportLab PDFs
+        run: python scripts/cephalo_r17_pdf_cert.py
+      - name: Upload R17 PDF certification artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: cephalo-r17-pdf-cert
+          path: artifacts/cephalo-r17-pdf-cert/
+          if-no-files-found: error
+          retention-days: 14
