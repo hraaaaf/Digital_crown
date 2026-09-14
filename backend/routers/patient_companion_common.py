@@ -12,7 +12,7 @@ from sqlalchemy.orm import Session
 
 from backend import database, models
 from backend.models_patient_companion import PatientCompanionAccess, PatientCompanionIdentity
-from backend.routers.auth import has_permission
+from backend.routers.auth import has_permission, is_superadmin_user
 from backend.security import SECRET_KEY
 from backend.services.firebase_patient_auth import (
     FirebasePatientAuthInvalid,
@@ -96,8 +96,17 @@ def credential_recipient_hash(
 
 
 def require_companion_admin(current_user: models.User) -> None:
-    if not has_permission(current_user, "patient_companion"):
-        raise HTTPException(status_code=403, detail="Permission Patient Companion requise.")
+    if is_superadmin_user(current_user):
+        return
+    role = current_user.role.value if hasattr(current_user.role, "value") else str(current_user.role)
+    if role == "ADMIN":
+        return
+    if role == "DENTISTE" and current_user.employer_id is None:
+        return
+    raise HTTPException(
+        status_code=403,
+        detail="Administration Patient Companion réservée au praticien principal.",
+    )
 
 
 def staff_patient_or_404(db: Session, current_user: models.User, patient_id: int) -> models.Patient:
