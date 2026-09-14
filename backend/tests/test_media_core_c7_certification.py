@@ -61,7 +61,7 @@ def _timed(callable_):
     return result, elapsed
 
 
-def test_c7_volume_pagination_search_filters_query_scaling_and_cross_tenant(client, db, dentiste, auth_headers):
+def test_c7_volume_pagination_search_filters_query_scaling_and_cross_tenant(client, db, dentiste, auth_headers, capsys):
     patient = _patient(db, dentiste.id)
     foreign = models.User(
         email="media-c7-foreign@cabinet.ma",
@@ -110,10 +110,12 @@ def test_c7_volume_pagination_search_filters_query_scaling_and_cross_tenant(clie
     select_counts = []
     for limit in (1, C7_PAGE_SIZE):
         count = 0
+
         def before_cursor_execute(_conn, _cursor, statement, _params, _context, _executemany):
             nonlocal count
             if statement.lstrip().upper().startswith("SELECT"):
                 count += 1
+
         event.listen(engine, "before_cursor_execute", before_cursor_execute)
         try:
             list_clinical_assets_for_patient(db, employer_id=dentiste.id, patient_id=patient.id, limit=limit, offset=0)
@@ -122,4 +124,11 @@ def test_c7_volume_pagination_search_filters_query_scaling_and_cross_tenant(clie
         select_counts.append(count)
     assert select_counts[0] == select_counts[1] == 2
 
-    print("C7_METRICS " f"volume={C7_VOLUME_ASSETS} foreign={C7_FOREIGN_ASSETS} " f"newest={newest_elapsed:.4f}s second={second_elapsed:.4f}s deep={deep_elapsed:.4f}s " f"search={search_elapsed:.4f}s filter={filter_elapsed:.4f}s selects={select_counts[0]}")
+    metrics = (
+        "C7_METRICS "
+        f"volume={C7_VOLUME_ASSETS} foreign={C7_FOREIGN_ASSETS} "
+        f"newest={newest_elapsed:.4f}s second={second_elapsed:.4f}s deep={deep_elapsed:.4f}s "
+        f"search={search_elapsed:.4f}s filter={filter_elapsed:.4f}s selects={select_counts[0]}"
+    )
+    with capsys.disabled():
+        print(metrics, flush=True)
