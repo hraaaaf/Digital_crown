@@ -2,40 +2,35 @@
 """R18 audit-only backend extractor for frontend/backend cephalometric concordance."""
 from __future__ import annotations
 
+import importlib.util
 import json
 import math
-import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT))
-
-from backend.services.cephalo_steiner_geometry import (
-    steiner_sna_deg_v1, steiner_snb_deg_v1, steiner_anb_deg_v1,
-    steiner_u1_na_deg_v1, steiner_l1_nb_deg_v1,
-)
-from backend.services.cephalo_tweed_merrifield_geometry import (
-    tweed_fma_deg_v1, tweed_impa_deg_v1, tweed_fmia_deg_v1,
-)
-from backend.services.cephalo_craniom_angular import (
-    craniom_u1_frankfort_deg_v1, craniom_l1_downs_deg_v1,
-    craniom_interincisal_deg_v1,
-)
-from backend.services.cephalo_ricketts_geometry import (
-    ricketts_e_line_horizontal_signed_distance_px_v1,
-)
-
 FIXTURES = ROOT / 'audit' / 'cephalo_r18_concordance_fixtures.json'
 OUT = ROOT / 'audit' / 'out' / 'backend.json'
+
+
+def load_module(name: str, relative_path: str):
+    path = ROOT / relative_path
+    spec = importlib.util.spec_from_file_location(name, path)
+    if spec is None or spec.loader is None:
+        raise RuntimeError(f'Cannot load {path}')
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+steiner = load_module('audit_steiner_geometry', 'backend/services/cephalo_steiner_geometry.py')
+tweed = load_module('audit_tweed_geometry', 'backend/services/cephalo_tweed_merrifield_geometry.py')
+craniom = load_module('audit_craniom_angular', 'backend/services/cephalo_craniom_angular.py')
+ricketts = load_module('audit_ricketts_geometry', 'backend/services/cephalo_ricketts_geometry.py')
 
 
 def js_round(value: float, decimals: int = 0) -> float:
     factor = 10 ** decimals
     return math.floor(value * factor + 0.5) / factor
-
-
-def point(points: dict[str, tuple[float, float]], key: str):
-    return points.get(key)
 
 
 def have(points: dict[str, tuple[float, float]], *keys: str) -> bool:
@@ -45,7 +40,7 @@ def have(points: dict[str, tuple[float, float]], *keys: str) -> bool:
 def safe(call, points, keys, transform=lambda x: x):
     if not have(points, *keys):
         return None
-    value = call(*[point(points, k) for k in keys])
+    value = call(*[points[k] for k in keys])
     return None if value is None else transform(value)
 
 
@@ -53,20 +48,22 @@ def extract(case: dict) -> dict[str, float | None]:
     p = {lm['id']: (float(lm['x']), float(lm['y'])) for lm in case['landmarks']}
     ratio = case['mmPerPixel']
     out: dict[str, float | None] = {}
-    out['sna'] = safe(steiner_sna_deg_v1, p, ('S','N','A'), lambda v: js_round(v,1))
-    out['snb'] = safe(steiner_snb_deg_v1, p, ('S','N','B'), lambda v: js_round(v,1))
-    out['anb'] = safe(steiner_anb_deg_v1, p, ('S','N','A','B'), lambda v: js_round(v,1))
-    out['i_na_angle'] = safe(steiner_u1_na_deg_v1, p, ('U1_apex','U1_incisal','N','A'), lambda v: js_round(v,0))
-    out['i_nb_angle'] = safe(steiner_l1_nb_deg_v1, p, ('L1_apex','L1_incisal','N','B'), lambda v: js_round(v,0))
-    out['fma'] = safe(tweed_fma_deg_v1, p, ('Go','Me','Po','Or'), lambda v: js_round(v,0))
-    out['impa'] = safe(tweed_impa_deg_v1, p, ('L1_apex','L1_incisal','Go','Me'), lambda v: js_round(v,1))
-    out['fmia'] = safe(tweed_fmia_deg_v1, p, ('L1_apex','L1_incisal','Po','Or'), lambda v: js_round(v,0))
-    out['u1_frankfort'] = safe(craniom_u1_frankfort_deg_v1, p, ('U1_apex','U1_incisal','Po','Or'), lambda v: js_round(v,1))
-    out['l1_downs_craniom'] = safe(craniom_l1_downs_deg_v1, p, ('L1_apex','L1_incisal','Go','Me'), lambda v: js_round(v,1))
-    out['interincisal'] = safe(craniom_interincisal_deg_v1, p, ('U1_apex','U1_incisal','L1_apex','L1_incisal'), lambda v: js_round(v,0))
+    out['sna'] = safe(steiner.steiner_sna_deg_v1, p, ('S','N','A'), lambda v: js_round(v,1))
+    out['snb'] = safe(steiner.steiner_snb_deg_v1, p, ('S','N','B'), lambda v: js_round(v,1))
+    out['anb'] = safe(steiner.steiner_anb_deg_v1, p, ('S','N','A','B'), lambda v: js_round(v,1))
+    out['i_na_angle'] = safe(steiner.steiner_u1_na_deg_v1, p, ('U1_apex','U1_incisal','N','A'), lambda v: js_round(v,0))
+    out['i_nb_angle'] = safe(steiner.steiner_l1_nb_deg_v1, p, ('L1_apex','L1_incisal','N','B'), lambda v: js_round(v,0))
+    out['fma'] = safe(tweed.tweed_fma_deg_v1, p, ('Go','Me','Po','Or'), lambda v: js_round(v,0))
+    out['impa'] = safe(tweed.tweed_impa_deg_v1, p, ('L1_apex','L1_incisal','Go','Me'), lambda v: js_round(v,1))
+    out['fmia'] = safe(tweed.tweed_fmia_deg_v1, p, ('L1_apex','L1_incisal','Po','Or'), lambda v: js_round(v,0))
+    out['u1_frankfort'] = safe(craniom.craniom_u1_frankfort_deg_v1, p, ('U1_apex','U1_incisal','Po','Or'), lambda v: js_round(v,1))
+    out['l1_downs_craniom'] = safe(craniom.craniom_l1_downs_deg_v1, p, ('L1_apex','L1_incisal','Go','Me'), lambda v: js_round(v,1))
+    out['interincisal'] = safe(craniom.craniom_interincisal_deg_v1, p, ('U1_apex','U1_incisal','L1_apex','L1_incisal'), lambda v: js_round(v,0))
     for out_key, lip_key in (('eline_ls','Ls_soft'),('eline_li','Li_soft')):
         if ratio is not None and have(p, lip_key,'Prn','Pog_soft','Po','Or'):
-            value = ricketts_e_line_horizontal_signed_distance_px_v1(p[lip_key],p['Prn'],p['Pog_soft'],p['Po'],p['Or'])
+            value = ricketts.ricketts_e_line_horizontal_signed_distance_px_v1(
+                p[lip_key], p['Prn'], p['Pog_soft'], p['Po'], p['Or']
+            )
             out[out_key] = None if value is None else js_round(value * float(ratio),1)
         else:
             out[out_key] = None
