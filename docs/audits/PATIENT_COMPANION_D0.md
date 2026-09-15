@@ -1,11 +1,12 @@
 # Digital Crown — Patient Companion D0
 
-Status: **CLOSEOUT HEAD CANDIDATE — realigned on latest master; exact-head certification, merge and post-merge still required**
+Status: **CLOSED — merged and post-merge certified**
 
 Repository: `hraaaaf/Digital_crown`
-PR: `#490`
-Current runtime candidate before documentation closeout: `3119c316548d3b75c52dacd2a4e12cd9fe79a894`
-Base master: `0aa34f39ca97fd3a220bc8a5d9d9ae3e5412c8`
+PR: `#490` — MERGED
+Certified PR head: `e57fa6f8aed2be1b6f47baad3976586ff3c603c4`
+Squash merge / certified runtime master: `f61103ee971bd6e64317d8fc0bc759246fa2fd57`
+Post-merge CI: `#4243` / run `34943083332` — **SUCCESS**
 
 ## Goal
 
@@ -33,16 +34,12 @@ Create the smallest secure patient-facing identity and access boundary without r
 
 ## Anti-duplication / non-regression decisions
 
-- Reuse canonical `Patient`.
-- Reuse canonical `Appointment`.
-- Reuse `DocumentArchive`.
-- Reuse Media Core / `ClinicalAsset`.
+- Reuse canonical `Patient`, `Appointment`, `DocumentArchive` and Media Core / `ClinicalAsset`.
 - Do not expose `mobile_patient_cockpit.py` to patients.
-- Do not create a second Patient Journey.
-- Do not create patient cabinet `User` accounts.
+- Do not create a second Patient Journey or patient cabinet `User` accounts.
 - No existing Patient, Appointment or Document model is rewritten by D0.
-- Against `master@0aa34f39ca97fd3a220bc8a5d9d9ae3e5412c8`, PR #490 is restricted to 11 D0 files; prescription/cephalo work from master is not part of the PR diff.
 - The only pre-existing application router changed functionally by D0 is `backend/routers/frontdesk.py`, to mount the isolated `/api/patient-companion/*` router.
+- Final D0 PR overlay was 12 files after latest-master realignment; the concurrent Prescription C2 master change was verified disjoint before the final realignment.
 
 ## Security invariants covered by D0 tests
 
@@ -60,55 +57,33 @@ Create the smallest secure patient-facing identity and access boundary without r
 12. Patient Companion routes are mounted in the real FastAPI application.
 13. Firebase activation with an inactive cabinet licence returns 403 before consuming the invitation or creating `PatientCompanionIdentity` / `PatientCompanionAccess`.
 
-## Evidence lineage
+## Final certification evidence
 
-### Historical D0-specific candidate
-
-Candidate `e5b841a9f22cee7d83573cb8479bd5835a728151` had:
-- Cabinet Upgrade PostgreSQL #592: **SUCCESS**;
-- Patient P7 #1557: **SUCCESS**;
-- T2 Runtime Browser #3077: **SUCCESS**.
-
-Those runs verify the D0-specific code before subsequent master realignments. They are retained as historical evidence only and are not final merge certification.
-
-### Current realigned lineage
-
-`3119c316548d3b75c52dacd2a4e12cd9fe79a894` is aligned with `master@0aa34f39ca97fd3a220bc8a5d9d9ae3e5412c8`. The master change since the preceding alignment was documentation-only in `PRESCRIPTION_INTELLIGENCE_V1.md`; the D0 overlay remains restricted to the same 11 Patient Companion files.
-
-Verified structural facts at closeout preparation:
-- PR #490 is open and mergeable;
-- D0 overlay is restricted to 11 Patient Companion files, including the minimal frontdesk router composition;
-- no prescription/cephalo implementation file is introduced by the PR diff;
-- no PR reviews, review threads or comments were present in the pre-closeout audit.
-
-Exact-head workflow gates are required for the documentation closeout HEAD. No pending/in-progress run is counted as success.
+- Final realigned PR head: `e57fa6f8aed2be1b6f47baad3976586ff3c603c4`.
+- Exact-head CI #4220: **SUCCESS**, including full backend regression for DB / patients / documents.
+- Exact-head backend result observed before merge: **3495 passed / 10 skipped**.
+- Exact-head Cabinet Upgrade PostgreSQL #632: **SUCCESS**.
+- Exact-head Patient P7 #1587: **SUCCESS**.
+- Exact-head T2 Runtime Browser #3117: **SUCCESS**.
+- M6-I #1917: skipped as expected / not applicable.
+- Final PR audit: no blocking reviews, review threads or comments; PR mergeable before merge.
+- PR #490 squash-merged with expected-head protection.
+- Squash merge SHA: `f61103ee971bd6e64317d8fc0bc759246fa2fd57`.
+- `master` was verified on that exact SHA after merge.
+- Post-merge CI #4243 / run `34943083332`: **SUCCESS** on `f61103ee971bd6e64317d8fc0bc759246fa2fd57`.
 
 ## Explicit non-goals / remaining Lot D work
 
-D0 does not implement:
-- patient-facing UI;
-- remote secure gateway/relay for access outside the cabinet LAN;
-- consent/acknowledgement UX;
-- appointment mutation/self-booking;
-- patient document/media byte delivery;
-- employee delegation UI/RBAC for Companion administration;
-- Connect Hub conversations;
-- any autonomous clinical decision;
-- any Vercel deployment.
+D0 does not implement patient-facing UI, remote secure gateway/relay, consent/acknowledgement UX, appointment mutation/self-booking, patient document/media byte delivery, employee delegation UI/RBAC, Connect Hub conversations, autonomous clinical decisions or Vercel deployment.
 
 ## UI status
 
-No product UI changed in D0, therefore BEFORE/AFTER responsive certification is not applicable to this sublot. It becomes mandatory for D1 patient-facing UI at 390×844, 768×1024 and 1280×900.
+No product UI changed in D0, therefore BEFORE/AFTER responsive certification was not applicable. It is mandatory for D1 patient-facing UI at 390×844, 768×1024 and 1280×900.
 
-## Closeout gate
+## Closeout
 
-D0 is not CLOSED until:
-1. the documentation closeout HEAD passes exact-head CI including full backend regression coverage for DB / patients / documents and all applicable current-master gates;
-2. PR #490 comments/reviews/threads and mergeability are rechecked on that exact HEAD;
-3. PR #490 is squash-merged with expected-HEAD protection;
-4. post-merge CI on `master` is green;
-5. the canonical roadmap records exact merge/post-merge evidence.
+D0 is CLOSED. Its secure identity/authorization foundation is merged and post-merge certified. Any future regression must preserve the existing DB, patient data, documents, validated functionality and the D0 isolation invariants above.
 
 ## Next exact
 
-Certify the final documentation closeout HEAD of PR #490. If green, perform final PR audit, squash merge with expected HEAD protection, verify post-merge `master` CI, record exact closeout evidence, then start D1 from current master with mandatory UI BEFORE evidence.
+Start D1 from current `master`: capture BEFORE evidence, write the D1 UI Goal, establish mockup/reference, then implement patient activation/onboarding UI and the minimum useful Patient Companion shell without weakening D0 security. No Vercel deployment without explicit authorization.
