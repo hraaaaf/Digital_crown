@@ -29,7 +29,7 @@ const TECHNICAL_COPY_PATTERNS = [
   { label: 'english marketplace label', re: /\bMarketplace\b/i },
   { label: 'english analytics label', re: /\bAnalytics(?:\s*&\s*Intelligence)?\b/i },
   { label: 'english frontdesk label', re: /\bFrontdesk\b/i },
-  { label: 'roadmap exposed to user', re: /\b(?:Bient[oô]t(?:\s+disponible)?|en\s+cours\s+de\s+finalisation)\b/i },
+  { label: 'roadmap exposed to user', re: /^(?:Bient[oô]t(?:\s+disponible)?|en\s+cours\s+de\s+finalisation)[.!]?$/i },
   { label: 'security implementation jargon', re: /\b(?:ECDH|LAN)\b/ },
 ];
 
