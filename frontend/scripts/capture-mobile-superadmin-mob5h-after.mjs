@@ -136,7 +136,7 @@ try {
     await page.getByRole('button', { name: /CMD-PART-DEMO-7001/ }).click();
     await page.getByRole('dialog', { name: 'CMD-PART-DEMO-7001' }).waitFor({ state: 'visible' });
     const operationCapabilities = {
-      dispatch: await page.getByRole('button', { name: /Dispatch fournisseur/i }).isVisible(),
+      dispatch: await page.getByRole('button', { name: /Envoyer au fournisseur/i }).isVisible(),
       procurement: await page.getByRole('button', { name: /Accuser réception fournisseur/i }).isVisible(),
       invoice: await page.getByRole('button', { name: /Enregistrer facture/i }).isVisible(),
       receipt: await page.getByRole('button', { name: /Enregistrer réception/i }).isVisible(),
