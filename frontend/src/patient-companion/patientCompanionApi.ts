@@ -1,5 +1,5 @@
 import { resolveApiBase } from '../services/apiBase';
-import { getVerifiedPatientIdToken } from './firebasePatientAuth';
+import { getVerifiedPatientIdToken, signOutPatient } from './firebasePatientAuth';
 
 const env = (import.meta as ImportMeta & { env?: Record<string, string | undefined> }).env ?? {};
 const PATIENT_API_BASE = resolveApiBase(
@@ -45,6 +45,13 @@ export class PatientCompanionApiError extends Error {
   }
 }
 
+async function failClosedInvalidPatientSession(): Promise<void> {
+  await signOutPatient().catch(() => undefined);
+  if (typeof window !== 'undefined') {
+    window.location.replace('/patient-companion');
+  }
+}
+
 async function patientRequest<T>(path: string, init: RequestInit = {}): Promise<T> {
   const token = await getVerifiedPatientIdToken();
   const headers = new Headers(init.headers);
@@ -69,6 +76,9 @@ async function patientRequest<T>(path: string, init: RequestInit = {}): Promise<
     const detail = payload && typeof payload === 'object' && 'detail' in payload
       ? String((payload as { detail?: unknown }).detail ?? '')
       : '';
+    if (response.status === 401) {
+      await failClosedInvalidPatientSession();
+    }
     throw new PatientCompanionApiError(response.status, detail || 'Requête Patient Companion refusée.');
   }
 
