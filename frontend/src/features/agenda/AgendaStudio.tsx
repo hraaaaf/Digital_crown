@@ -107,6 +107,7 @@ export const AgendaStudio: React.FC = () => {
     if (state?.prefillPatientId) {
       setPrefillPatient({ id: state.prefillPatientId, nom: state.prefillPatientNom || '', prenom: state.prefillPatientPrenom || '' });
       setPrefillOpen(true);
+      // Nettoie le state de navigation pour qu'un retour arrière ne rouvre pas la modale.
       window.history.replaceState({}, '', location.pathname);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -130,7 +131,7 @@ export const AgendaStudio: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    const interval = setInterval(fetchPendingRequests, 30000);
+    const interval = setInterval(fetchPendingRequests, 30000); // Refresh every 30s
     return () => clearInterval(interval);
   }, []);
 
@@ -201,6 +202,7 @@ export const AgendaStudio: React.FC = () => {
         reason: hol.name,
         is_recurring: false
       });
+      // Optionally reload or show a success message
       setUpcomingHolidays(prev => prev.slice(1));
     } catch (err) {
       console.error(err);
@@ -209,6 +211,8 @@ export const AgendaStudio: React.FC = () => {
 
   return (
     <div className="w-full max-w-7xl mx-auto space-y-6 min-w-0 overflow-x-clip">
+      
+      {/* JOUR FÉRIÉ À VENIR */}
       {upcomingHolidays.length > 0 && (
         <div className="bg-primary text-white p-4 rounded-2xl shadow-lg flex flex-col sm:flex-row sm:items-center justify-between gap-4 animate-in fade-in slide-in-from-top-4">
           <div className="flex items-center gap-4">
@@ -231,60 +235,173 @@ export const AgendaStudio: React.FC = () => {
         </div>
       )}
 
+      {/* GLOBAL CONTROLS HEADER */}
       <div data-tour="agenda-header" className="flex flex-col lg:flex-row justify-between items-stretch lg:items-center gap-4 sm:gap-6 bg-white/40 backdrop-blur-2xl border border-white/60 p-4 sm:p-6 rounded-[2rem] sm:rounded-[2.5rem] shadow-2xl min-w-0">
+        
+        {/* Left: Branding & Date Navigation */}
         <div className="flex items-center gap-3 sm:gap-6 min-w-0">
           <div className="w-14 h-14 bg-primary text-white rounded-2xl flex items-center justify-center shadow-lg shadow-primary/20 transform hover:scale-105 transition-transform">
             <Calendar size={28} />
           </div>
+          
           <div className="space-y-1">
             <h1 className="text-2xl sm:text-3xl font-black text-primary tracking-tight whitespace-nowrap">Agenda</h1>
             <div className="flex items-center gap-3">
-              <button onClick={handlePrev} className="p-1.5 hover:bg-white/60 rounded-full transition-colors text-primary"><ChevronLeft size={20} /></button>
+              <button onClick={handlePrev} className="p-1.5 hover:bg-white/60 rounded-full transition-colors text-primary">
+                <ChevronLeft size={20} />
+              </button>
               <span className="text-sm font-black text-slate-600 min-w-[140px] text-center uppercase tracking-wider">
-                {viewMode === 'month' ? selectedDate.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' }) : selectedDate.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' })}
+                {viewMode === 'month' 
+                  ? selectedDate.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' })
+                  : selectedDate.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' })}
               </span>
-              <button onClick={handleNext} className="p-1.5 hover:bg-white/60 rounded-full transition-colors text-primary"><ChevronRight size={20} /></button>
+              <button onClick={handleNext} className="p-1.5 hover:bg-white/60 rounded-full transition-colors text-primary">
+                <ChevronRight size={20} />
+              </button>
             </div>
           </div>
         </div>
 
+        {/* Right: View Switching & Actions */}
         <div data-tour="agenda-view-switcher" className="w-full lg:w-auto min-w-0 flex flex-wrap items-center justify-center lg:justify-end gap-1 sm:gap-2 bg-slate-100/50 p-1.5 rounded-2xl border border-slate-200/50 backdrop-blur-md">
-          <button onClick={() => setIsFrontdeskModalOpen(true)} className="flex items-center gap-2 px-4 py-2.5 text-orange-600 hover:bg-orange-100 font-bold text-sm rounded-xl transition-all relative" title="Nouvelle demande de rendez-vous">
-            <AlertCircle size={18} /><span className="hidden xl:inline">Demande RDV</span>{pendingCount > 0 && <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs font-black w-5 h-5 rounded-full flex items-center justify-center">{pendingCount}</span>}
+          <button
+            onClick={() => setIsFrontdeskModalOpen(true)}
+            className="flex items-center gap-2 px-4 py-2.5 text-orange-600 hover:bg-orange-100 font-bold text-sm rounded-xl transition-all relative"
+            title="Nouvelle demande de rendez-vous"
+          >
+            <AlertCircle size={18} />
+            <span className="hidden xl:inline">Demande RDV</span>
+            {pendingCount > 0 && <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs font-black w-5 h-5 rounded-full flex items-center justify-center">{pendingCount}</span>}
           </button>
-          <button onClick={() => setIsImportModalOpen(true)} className="flex items-center gap-2 px-4 py-2.5 text-primary hover:brightness-110 hover:bg-primary/10 font-bold text-sm rounded-xl transition-all" title="Importer depuis Google Agenda">
-            <UploadCloud size={18} /><span className="hidden xl:inline">Importer</span>
+
+          <button
+            onClick={() => setIsImportModalOpen(true)}
+            className="flex items-center gap-2 px-4 py-2.5 text-primary hover:brightness-110 hover:bg-primary/10 font-bold text-sm rounded-xl transition-all"
+            title="Importer depuis Google Agenda"
+          >
+            <UploadCloud size={18} />
+            <span className="hidden xl:inline">Importer</span>
+          </button>
+          
+          <div className="hidden sm:block w-px h-6 bg-slate-200 mx-1" />
+
+          <button 
+            onClick={() => setViewMode('day')}
+            className={cn(
+              "flex items-center gap-2 px-3 sm:px-4 py-2.5 rounded-xl font-bold text-sm transition-all",
+              viewMode === 'day' ? "bg-white text-primary shadow-sm" : "text-slate-500 hover:text-primary hover:bg-white/40"
+            )}
+          >
+            <CalendarDays size={18} /> Jour
+          </button>
+          <button 
+            onClick={() => setViewMode('week')}
+            className={cn(
+              "flex items-center gap-2 px-3 sm:px-4 py-2.5 rounded-xl font-bold text-sm transition-all",
+              viewMode === 'week' ? "bg-white text-primary shadow-sm" : "text-slate-500 hover:text-primary hover:bg-white/40"
+            )}
+          >
+            <ListFilter size={18} /> Semaine
+          </button>
+          <button 
+            onClick={() => setViewMode('month')}
+            className={cn(
+              "flex items-center gap-2 px-3 sm:px-4 py-2.5 rounded-xl font-bold text-sm transition-all",
+              viewMode === 'month' ? "bg-white text-primary shadow-sm" : "text-slate-500 hover:text-primary hover:bg-white/40"
+            )}
+          >
+            <LayoutGrid size={18} /> Mois
+          </button>
+          <button
+            onClick={() => setViewMode('multi')}
+            className={cn(
+              "flex items-center gap-2 px-3 sm:px-4 py-2.5 rounded-xl font-bold text-sm transition-all",
+              viewMode === 'multi' ? "bg-white text-indigo-600 shadow-sm" : "text-slate-500 hover:text-indigo-600 hover:bg-white/40"
+            )}
+            title="Vue multi-praticien (PREMIUM/ELITE)"
+          >
+            <Users size={18} /> Multi
           </button>
           <div className="hidden sm:block w-px h-6 bg-slate-200 mx-1" />
-          <button onClick={() => setViewMode('day')} className={cn("flex items-center gap-2 px-3 sm:px-4 py-2.5 rounded-xl font-bold text-sm transition-all", viewMode === 'day' ? "bg-white text-primary shadow-sm" : "text-slate-500 hover:text-primary hover:bg-white/40")}><CalendarDays size={18} /><span className="hidden sm:inline">Jour</span></button>
-          <button onClick={() => setViewMode('week')} className={cn("flex items-center gap-2 px-3 sm:px-4 py-2.5 rounded-xl font-bold text-sm transition-all", viewMode === 'week' ? "bg-white text-primary shadow-sm" : "text-slate-500 hover:text-primary hover:bg-white/40")}><LayoutGrid size={18} /><span className="hidden sm:inline">Semaine</span></button>
-          <button onClick={() => setViewMode('month')} className={cn("flex items-center gap-2 px-3 sm:px-4 py-2.5 rounded-xl font-bold text-sm transition-all", viewMode === 'month' ? "bg-white text-primary shadow-sm" : "text-slate-500 hover:text-primary hover:bg-white/40")}><Calendar size={18} /><span className="hidden sm:inline">Mois</span></button>
-          <button onClick={() => setViewMode('multi')} className={cn("flex items-center gap-2 px-3 sm:px-4 py-2.5 rounded-xl font-bold text-sm transition-all", viewMode === 'multi' ? "bg-white text-primary shadow-sm" : "text-slate-500 hover:text-primary hover:bg-white/40")} title="Vue multi-praticien"><Users size={18} /><span className="hidden sm:inline">Équipe</span></button>
-          <button onClick={() => setShowPendingOnly(!showPendingOnly)} className={cn("flex items-center gap-2 px-3 sm:px-4 py-2.5 rounded-xl font-bold text-sm transition-all", showPendingOnly ? "bg-orange-500 text-white shadow-md" : "text-slate-500 hover:text-orange-600 hover:bg-orange-50")} title="Afficher uniquement les demandes en attente">
-            <ListFilter size={18} />{pendingCount > 0 && <span className="text-[10px] font-black">{pendingCount}</span>}
+          <button
+            onClick={handleToday}
+            className="px-5 py-2.5 bg-white text-slate-700 font-bold text-sm rounded-xl hover:bg-slate-50 transition-all border border-slate-200 shadow-sm"
+          >
+            Aujourd'hui
           </button>
-          <button onClick={handleToday} className="px-4 py-2.5 text-primary hover:bg-primary/10 font-bold text-sm rounded-xl transition-all">Aujourd'hui</button>
-          <button onClick={() => window.dispatchEvent(new CustomEvent('open-settings-agenda'))} className="p-2.5 text-slate-400 hover:text-primary hover:bg-white rounded-xl transition-all" title="Paramètres de l'agenda"><Settings size={18} /></button>
         </div>
       </div>
 
-      {upcomingHolidays.length > 0 && (
-        <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 flex items-center gap-4">
-          <div className="w-10 h-10 bg-amber-100 rounded-xl flex items-center justify-center text-amber-600"><Calendar size={20} /></div>
-          <div className="flex-1"><p className="font-black text-amber-800 text-sm">Prochain jour férié</p><p className="text-amber-600 text-xs font-medium">{upcomingHolidays[0].name} — {new Date(upcomingHolidays[0].date).toLocaleDateString('fr-FR')}</p></div>
+      {/* PENDING REQUESTS SECTION */}
+      {pendingCount > 0 && (
+        <div className="space-y-3 bg-orange-50 border-2 border-orange-200 rounded-2xl p-6">
+          <div className="flex items-center justify-between">
+            <h2 className="text-lg font-black text-orange-800 flex items-center gap-2">
+              <AlertCircle size={20} /> Demandes en attente ({pendingCount})
+            </h2>
+            <button
+              onClick={() => setShowPendingOnly(!showPendingOnly)}
+              className="text-xs px-3 py-1.5 bg-orange-200 text-orange-800 rounded-lg hover:bg-orange-300 font-bold"
+            >
+              {showPendingOnly ? 'Afficher tout' : 'Afficher seulement'}
+            </button>
+          </div>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+            {pendingRequests.map(req => (
+              <PendingRequestCard
+                key={req.id}
+                request={req}
+                onAction={() => {
+                  fetchPendingRequests();
+                  setRefreshKey(prev => prev + 1);
+                }}
+              />
+            ))}
+          </div>
         </div>
       )}
 
-      {showPendingOnly ? (
-        <div className="space-y-4">
-          <div className="flex items-center justify-between"><h2 className="text-xl font-black text-slate-800">Demandes de rendez-vous en attente</h2><span className="text-sm font-bold text-slate-400">{pendingRequests.length} demande{pendingRequests.length > 1 ? 's' : ''}</span></div>
-          {pendingRequests.length === 0 ? <div className="py-16 text-center text-slate-400 font-bold bg-white/50 rounded-3xl">Aucune demande en attente.</div> : <div className="grid gap-3">{pendingRequests.map((request: any) => <PendingRequestCard key={request.id} request={request} onResolved={fetchPendingRequests} />)}</div>}
-        </div>
-      ) : renderView()}
+      {/* RENDER ACTIVE VIEW */}
+      <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+        {renderView()}
+      </div>
 
-      <GoogleImportModal isOpen={isImportModalOpen} onClose={() => setIsImportModalOpen(false)} onSuccess={() => setRefreshKey(k => k + 1)} />
-      <FrontdeskModal isOpen={isFrontdeskModalOpen} onClose={() => setIsFrontdeskModalOpen(false)} onSuccess={() => { fetchPendingRequests(); setRefreshKey(k => k + 1); }} />
-      <AgendaModal isOpen={prefillOpen} onClose={() => { setPrefillOpen(false); setPrefillPatient(null); }} selectedDate={selectedDate} prefillPatient={prefillPatient} onSuccess={() => { setPrefillOpen(false); setPrefillPatient(null); setRefreshKey(k => k + 1); }} />
+      <FrontdeskModal
+        open={isFrontdeskModalOpen}
+        onClose={() => setIsFrontdeskModalOpen(false)}
+        onSuccess={() => {
+          fetchPendingRequests();
+          setRefreshKey(prev => prev + 1);
+          setIsFrontdeskModalOpen(false);
+        }}
+        selectedDate={selectedDate}
+      />
+
+      <GoogleImportModal
+        isOpen={isImportModalOpen}
+        onClose={() => setIsImportModalOpen(false)}
+        onSuccess={() => {
+          // Force le rafraichissement de la vue active
+          setRefreshKey(prev => prev + 1);
+        }}
+      />
+
+      {prefillPatient && (
+        <AgendaModal
+          isOpen={prefillOpen}
+          onClose={() => { setPrefillOpen(false); setPrefillPatient(null); }}
+          onSaved={() => {
+            setRefreshKey(prev => prev + 1);
+            setPrefillOpen(false);
+            setPrefillPatient(null);
+          }}
+          selectedDate={selectedDate}
+          initialPatientId={prefillPatient.id}
+          initialPatientNom={prefillPatient.nom}
+          initialPatientPrenom={prefillPatient.prenom}
+        />
+      )}
+
     </div>
   );
 };
