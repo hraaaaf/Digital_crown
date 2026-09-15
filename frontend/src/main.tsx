@@ -7,6 +7,7 @@ import { bootstrapMobileRuntimeTheme } from './features/mobile/Dashboard/hooks/u
 import { bootstrapMobileQuickIntent } from './features/mobile/mobileQuickIntent.ts'
 import './index.css'
 import './styles/mobileGlassSystem.css'
+import './styles/patientCompanionTheme.css'
 import './features/mobile/mobileRuntimeTheme.css'
 import './features/mobile/mobileQuickIntent.css'
 import * as Sentry from '@sentry/react'
@@ -16,6 +17,10 @@ import { registerSW } from 'virtual:pwa-register'
 const isPreviewRequest = isDcPreviewDemoRequested()
 const previewPath = window.location.pathname
 const isPatientCompanionRequest = previewPath.startsWith('/patient-companion')
+
+if (isPatientCompanionRequest) {
+  document.body.dataset.surface = 'patient-companion'
+}
 
 if (previewPath.startsWith('/mobile')) {
   bootstrapMobileRuntimeTheme()
