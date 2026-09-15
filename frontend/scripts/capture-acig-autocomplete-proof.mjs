@@ -62,27 +62,23 @@ const provenanceLabel = results.getByText(
   { exact: true },
 );
 await provenanceLabel.waitFor({ state: 'visible', timeout: 10000 });
+const provenanceText = await provenanceLabel.innerText();
 
 const selectedBadges = page.getByText('Présentation identifiée', { exact: true });
 if (await selectedBadges.count()) throw new Error('A presentation was selected unexpectedly');
 
 const shot = 'acig-autocomplete-proof-1280x900.png';
 await page.screenshot({ path: path.join(outDir, shot), fullPage: false });
-fs.writeFileSync(path.join(outDir, 'acig-autocomplete-proof.json'), JSON.stringify({
+const evidence = {
   query: 'ACIG',
   selected: false,
   suggestionCount: count,
-  provenanceLabel: await provenanceLabel.innerText(),
+  provenanceLabel: provenanceText,
   visibleSuggestions: visibleTexts,
   screenshot: shot,
-}, null, 2));
+};
+fs.writeFileSync(path.join(outDir, 'acig-autocomplete-proof.json'), JSON.stringify(evidence, null, 2));
 
 await browser.close();
 await api.dispose();
-console.log(JSON.stringify({
-  query: 'ACIG',
-  selected: false,
-  suggestionCount: count,
-  provenanceLabel: await provenanceLabel.innerText(),
-  visibleSuggestions: visibleTexts,
-}, null, 2));
+console.log(JSON.stringify(evidence, null, 2));
