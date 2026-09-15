@@ -5,6 +5,7 @@ on:
     paths:
       - 'frontend/src/features/admin/DocumentStudio/**'
       - 'frontend/scripts/certify-ordonnance-fidelity-v3.mjs'
+      - 'frontend/scripts/capture-acig-autocomplete-proof.mjs'
       - '.github/workflows/ordonnance-fidelity-v3-visual-cert.yml'
   workflow_dispatch:
 
@@ -80,6 +81,10 @@ jobs:
           done
           cat /tmp/ordonnance-v3-frontend.log
           exit 1
+
+      - name: Capture ACIG AMMPS autocomplete proof
+        working-directory: frontend
+        run: node scripts/capture-acig-autocomplete-proof.mjs
 
       - name: Capture deterministic Fidelity V3 evidence
         working-directory: frontend
