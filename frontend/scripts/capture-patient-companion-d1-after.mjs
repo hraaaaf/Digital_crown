@@ -124,7 +124,7 @@ try {
       const response = await page.goto(`${BASE_URL}/patient-companion-d1-after.html?state=${state}`, { waitUntil: 'domcontentloaded', timeout: 30000 });
       await page.getByText('Patient Companion').first().waitFor({ state: 'visible', timeout: 30000 });
       if (state === 'public-entry') {
-        await page.getByText('Accès patient').waitFor({ state: 'visible', timeout: 30000 });
+        await page.getByText('Accès patient', { exact: true }).waitFor({ state: 'visible', timeout: 30000 });
         await page.getByText('Vos rendez-vous et partages, sans ouvrir le dossier du cabinet.').waitFor({ state: 'visible', timeout: 30000 });
       } else if (state === 'home') {
         await page.getByText('Prochains rendez-vous').waitFor({ state: 'visible', timeout: 30000 });
