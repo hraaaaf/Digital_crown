@@ -10,9 +10,9 @@ const source = (file: string) => readFileSync(
 const hubContent = source('DocumentHubContent.tsx');
 
 describe('Ordonnance Fidelity V3 U6 coherence', () => {
-  it('removes only the redundant legacy local-safety badge from the composed Ordonnance surface', () => {
+  it('removes only the redundant local-safety badge from the composed Ordonnance surface', () => {
     expect(hubContent).toContain('data-ordonnance-coherence="u6"');
-    expect(hubContent).toContain('title^="État partiel des contrôles locaux"');
+    expect(hubContent).toContain('title^="Contrôles de sécurité partiellement disponibles"');
     expect(hubContent).toContain('display: none !important');
   });
 
