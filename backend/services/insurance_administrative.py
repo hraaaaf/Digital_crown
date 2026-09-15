@@ -1,8 +1,9 @@
 """Administrative prefill and completeness policy for dental insurance drafts.
 
-Only values already explicit in Digital Crown are copied. Insured identity/affiliation,
-beneficiary CIN, relationship and practitioner INPE are never guessed. Missing required
-CNSS fields remain visible in ``unresolved_fields`` for the preparation/review UI.
+Only values already explicit in Digital Crown are copied. Fields from the CNSS insured
+section that the cabinet explicitly chose to leave untouched are never guessed and are
+not blockers for practitioner validation. Missing fields inside the validated Digital
+Crown practitioner/beneficiary zone remain visible in ``unresolved_fields``.
 """
 
 from __future__ import annotations
@@ -23,13 +24,11 @@ from backend.schemas.insurance_submission import (
 )
 
 
+# Human visual validation of CNSS 610-1-04 on 2026-09-15 deliberately limits
+# Digital Crown auto-fill to the practitioner declaration area. The upper insured
+# section is completed outside Digital Crown and must therefore never block the
+# practitioner validation/finalization gate.
 CNSS_REQUIRED_ADMIN_FIELDS = (
-    "request_nature",
-    "insured_full_name",
-    "insured_registration_number",
-    "insured_national_id",
-    "insured_address",
-    "relationship_to_insured",
     "beneficiary_full_name",
     "beneficiary_birth_date",
     "beneficiary_national_id",
