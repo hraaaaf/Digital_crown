@@ -17,6 +17,7 @@ import {
   Banknote,
   Image,
   Images,
+  Smartphone,
 } from 'lucide-react';
 import { api } from '../../services/api';
 import { cn } from '../../utils/cn';
@@ -34,6 +35,7 @@ import { PatientRvgPanel } from './components/PatientRvgPanel';
 import { PatientMediaTimeline } from './components/PatientMediaTimeline';
 import { QuickPayModal } from './components/QuickPayModal';
 import { PatientMobileBridge } from './components/PatientMobileBridge';
+import { PatientCompanionPanel } from './components/PatientCompanionPanel';
 import { usePatientStore } from '../../stores/usePatientStore';
 import { useAuthStore } from '../../stores/useAuthStore';
 import { EliteGhostLoader } from '../../components/EliteGhostLoader';
@@ -62,7 +64,7 @@ interface Patient {
   };
 }
 
-type TabType = 'tracking' | 'clinical' | 'radiology' | 'admin' | 'archives' | 'finances';
+type TabType = 'tracking' | 'clinical' | 'radiology' | 'admin' | 'archives' | 'finances' | 'companion';
 type RadioTab = 'media' | 'rvg' | 'panoramic' | 'cephalo';
 
 const userRoleValue = (role: unknown): string => {
@@ -202,6 +204,12 @@ export const PatientDetails = () => {
     }
   }, [canFinance, activeTab, setSearchParams]);
 
+  useEffect(() => {
+    if (!ownerOrAdmin && activeTab === 'companion') {
+      setSearchParams({ tab: 'tracking' }, { replace: true });
+    }
+  }, [ownerOrAdmin, activeTab, setSearchParams]);
+
   const activateOrtho = async () => {
     try {
       setLoading(true);
@@ -291,6 +299,7 @@ export const PatientDetails = () => {
             {canClinical && <TabButton compact={isRadiology} active={activeTab === 'clinical'} onClick={() => handleTabChange('clinical')} icon={<Stethoscope size={17} />} label="Clinique" />}
             <TabButton compact={isRadiology} active={activeTab === 'radiology'} onClick={() => handleTabChange('radiology')} icon={<Activity size={17} />} label="Imagerie" />
             <TabButton compact={isRadiology} active={isDocuments} onClick={handleDocumentCreate} icon={<FileText size={17} />} label="Documents" />
+            {ownerOrAdmin && <TabButton compact={isRadiology} active={activeTab === 'companion'} onClick={() => handleTabChange('companion')} icon={<Smartphone size={17} />} label="Companion" />}
             {canFinance && <TabButton compact={isRadiology} active={activeTab === 'finances'} onClick={() => handleTabChange('finances')} icon={<Banknote size={17} />} label="Finances" />}
           </div>
         </div>
@@ -367,6 +376,8 @@ export const PatientDetails = () => {
               </div>
             </div>
           )}
+
+          {ownerOrAdmin && activeTab === 'companion' && <PatientCompanionPanel patientId={Number(id)} patientEmail={patient.email} />}
 
           {canFinance && activeTab === 'finances' && <PatientFinances patientId={Number(id)} />}
         </div>
