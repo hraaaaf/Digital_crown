@@ -3,7 +3,9 @@
 Coordinates are valid only for the exact cabinet-validated binary with SHA-256
 ``e1fb63afb1893886d518135dfb209f24f2464e8cd664e89881fc7c373854864d``.
 The source is the 2-page bilingual CNSS/AMO dental form validated by the cabinet on
-2026-09-15. Signature/cachet and insurer-only areas are deliberately never written.
+2026-09-15. Human visual validation restricts page 1 auto-fill to the practitioner
+section starting at ``Déclaration du Chirurgien Dentiste``. The insured section,
+signature/cachet areas and insurer-only areas are deliberately never written.
 """
 
 from __future__ import annotations
@@ -18,7 +20,7 @@ from backend.services.insurance_pdf_overlay import (
 CNSS_610_1_04_TEMPLATE_SHA256 = (
     "e1fb63afb1893886d518135dfb209f24f2464e8cd664e89881fc7c373854864d"
 )
-CNSS_610_1_04_PROFILE_VERSION = "cnss-610-1-04-e1fb63af-v1"
+CNSS_610_1_04_PROFILE_VERSION = "cnss-610-1-04-e1fb63af-v2"
 CNSS_610_1_04_MAX_LINES = 3
 
 
@@ -34,18 +36,9 @@ def _mark(field_key: str, x: float, y: float) -> InsuranceOverlayPlacement:
     )
 
 
+# Page 1 is intentionally restricted to the practitioner declaration zone validated
+# by the practitioner. The upper "Partie réservée à l'assuré(e)" stays untouched.
 _PAGE_1 = (
-    _mark("choice.request_nature.PRIOR_APPROVAL", 746, 67),
-    _mark("choice.request_nature.EXECUTION", 850, 67),
-    InsuranceOverlayPlacement("administrative.insured_full_name", 0, 690, 108, 8.0, max_chars=42),
-    InsuranceOverlayPlacement("administrative.insured_registration_number", 0, 665, 130, 8.0, max_chars=18),
-    InsuranceOverlayPlacement("administrative.insured_national_id", 0, 815, 148, 8.0, max_chars=16),
-    _mark("choice.relationship_to_insured.CONJOINT", 746, 170),
-    _mark("choice.relationship_to_insured.ENFANT", 830, 170),
-    _mark("choice.relationship_to_insured.LUI_MEME", 895, 170),
-    InsuranceOverlayPlacement("administrative.insured_address", 0, 670, 189, 7.0, max_chars=55),
-    InsuranceOverlayPlacement("computed.total_amount_mad", 0, 690, 215, 8.0, max_chars=12),
-    InsuranceOverlayPlacement("computed.attachments_count", 0, 815, 232, 8.0, max_chars=3),
     InsuranceOverlayPlacement("administrative.beneficiary_full_name", 0, 680, 275, 8.0, max_chars=42),
     InsuranceOverlayPlacement("administrative.beneficiary_birth_date", 0, 790, 291, 7.0, max_chars=10),
     InsuranceOverlayPlacement("administrative.beneficiary_national_id", 0, 800, 312, 8.0, max_chars=16),

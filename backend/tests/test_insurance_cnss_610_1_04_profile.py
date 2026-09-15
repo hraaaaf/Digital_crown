@@ -21,6 +21,7 @@ from backend.schemas.insurance_submission import (
 )
 from backend.services.insurance_cnss_610_1_04_profile import (
     CNSS_610_1_04_PROFILE_V1,
+    CNSS_610_1_04_PROFILE_VERSION,
     CNSS_610_1_04_TEMPLATE_SHA256,
 )
 from backend.services.insurance_pdf_overlay import (
@@ -101,7 +102,34 @@ def test_cnss_profile_is_bound_to_exact_cabinet_validated_binary_hash():
     assert CNSS_610_1_04_TEMPLATE_SHA256 == (
         "e1fb63afb1893886d518135dfb209f24f2464e8cd664e89881fc7c373854864d"
     )
+    assert CNSS_610_1_04_PROFILE_V1.profile_version == CNSS_610_1_04_PROFILE_VERSION
+    assert CNSS_610_1_04_PROFILE_VERSION == "cnss-610-1-04-e1fb63af-v2"
     assert CNSS_610_1_04_PROFILE_V1.max_lines == 3
+
+
+def test_cnss_page_1_profile_is_restricted_to_validated_practitioner_zone():
+    page_1 = {
+        placement.field_key: placement
+        for placement in CNSS_610_1_04_PROFILE_V1.placements
+        if placement.page_index == 0
+    }
+    assert set(page_1) == {
+        "administrative.beneficiary_full_name",
+        "administrative.beneficiary_birth_date",
+        "administrative.beneficiary_national_id",
+        "choice.beneficiary_sex.M",
+        "choice.beneficiary_sex.F",
+        "administrative.practitioner_inpe",
+        "choice.care_type.SOINS",
+        "choice.care_type.PROTHESE",
+        "choice.care_type.ORTHODONTIE_FACIALE",
+        "choice.care_type.AUTRES",
+        "administrative.prior_approval_number",
+        "administrative.accident_circumstances",
+        "administrative.accident_date",
+    }
+    assert page_1["administrative.beneficiary_birth_date"].y == 291
+    assert page_1["administrative.beneficiary_national_id"].y == 312
 
 
 def test_overlay_profile_payload_remains_backward_compatible_when_capacity_is_unset():
@@ -149,7 +177,7 @@ def test_cnss_profile_renders_one_line_and_leaves_unused_form_rows_blank():
     assert text.count("D708") == 1
 
 
-def test_cnss_profile_renders_relationship_and_care_choices_without_signature_fields():
+def test_cnss_profile_renders_only_validated_page_1_zone_without_signature_fields():
     template = _synthetic_template()
     template_hash = hashlib.sha256(template).hexdigest()
     profile = replace(CNSS_610_1_04_PROFILE_V1, template_hash=template_hash)
@@ -164,10 +192,14 @@ def test_cnss_profile_renders_relationship_and_care_choices_without_signature_fi
     text = "\n".join(page.get_text("text") for page in document)
     document.close()
 
-    assert "Assure Test" in text
     assert "Youssef Test" in text
+    assert "1990-01-01" in text
+    assert "AB123456" in text
     assert "INPE123456" in text
     assert "D708" in text
-    assert text.count("X") >= 4  # execution, self, male, care type
+    assert "Assure Test" not in text
+    assert "123456789" not in text
+    assert "Rabat" not in text
+    assert text.count("X") == 2  # beneficiary sex + care type only
     assert "signature" not in text.lower()
     assert "cachet" not in text.lower()
