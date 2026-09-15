@@ -83,6 +83,13 @@ def test_snapshot_verified_requires_complete_hash_official_provenance_and_safe_p
     assert medication_rcp_manifest.snapshot_is_verified(unsafe_path) is False
     assert medication_rcp_manifest.entry_is_fail_closed(unsafe_path) is False
 
+    malformed_date = {
+        **complete,
+        "rcp_checked_at": "20260915",
+    }
+    assert medication_rcp_manifest.snapshot_is_verified(malformed_date) is False
+    assert medication_rcp_manifest.entry_is_fail_closed(malformed_date) is False
+
 
 def test_unavailable_verified_requires_explicit_official_absence_and_no_artifact():
     valid = {
@@ -109,6 +116,12 @@ def test_unavailable_verified_requires_explicit_official_absence_and_no_artifact
         "local_artifact_path": "backend/data/rcp/ghost.pdf",
     }
     assert medication_rcp_manifest.entry_is_fail_closed(fake_artifact) is False
+
+    malformed_date = {
+        **valid,
+        "rcp_checked_at": "20260915",
+    }
+    assert medication_rcp_manifest.entry_is_fail_closed(malformed_date) is False
 
 
 def test_missing_link_is_not_promoted_to_unavailable_verified():
