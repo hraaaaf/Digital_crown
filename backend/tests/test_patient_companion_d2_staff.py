@@ -24,6 +24,23 @@ def _owner(db, email: str):
     return user
 
 
+def _employee(db, owner, email: str):
+    user = models.User(
+        email=email,
+        hashed_password=get_password_hash("TestPass123!"),
+        role="SECRETAIRE",
+        nom_complet="Employé D2",
+        is_active=True,
+        is_licensed=True,
+        employer_id=owner.id,
+        permissions={"patients": True},
+    )
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+    return user
+
+
 def _patient(db, owner, nom: str):
     patient = models.Patient(
         numero_dossier=f"D2-{uuid.uuid4().hex[:8]}",
@@ -113,3 +130,15 @@ def test_staff_status_is_tenant_scoped(client, db):
         headers=headers_a,
     )
     assert response.status_code == 404
+
+
+def test_employee_cannot_read_companion_staff_status_even_with_patient_permission(client, db):
+    owner = _owner(db, "d2-rbac-owner@test.local")
+    employee = _employee(db, owner, "d2-rbac-employee@test.local")
+    patient = _patient(db, owner, "RBAC")
+
+    response = client.get(
+        f"/api/patient-companion/admin/patients/{patient.id}/status",
+        headers=_headers(client, employee),
+    )
+    assert response.status_code == 403, response.text
