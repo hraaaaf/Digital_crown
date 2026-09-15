@@ -31,6 +31,11 @@ replace('frontend/src/components/CrownBot/CrownBotChat.tsx', [
     ('3 échanges IA', '3 échanges'),
     ('préférences IA', 'préférences de l’assistant'),
     ('votre assistant IA', 'votre assistant'),
+    ('<span className="ml-1.5 text-[8px] font-black bg-amber-400 text-slate-900 px-1.5 py-0.5 rounded-full uppercase tracking-wide">Bientôt</span>', ''),
+    ('<span className="absolute -top-2 -right-2 bg-amber-400 text-slate-900 text-[9px] font-black px-2 py-0.5 rounded-full uppercase tracking-wide shadow-md">\n              Bientôt\n            </span>', ''),
+    ('Chat IA — Bientôt disponible', 'Assistant conversationnel'),
+    ('Le chat conversationnel avec Crown Bot sera disponible dans la prochaine version.', 'Cette fonction n’est pas accessible depuis cet écran.'),
+    ('Crown Bot V2 — En développement', 'Assistant Digital Crown'),
 ])
 
 replace('frontend/src/features/admin/TeamManager.tsx', [
@@ -40,4 +45,8 @@ replace('frontend/src/features/admin/TeamManager.tsx', [
 
 replace('frontend/src/features/ortho/components/Step3Clinical.tsx', [
     ('Classe squelettique · legacy hors R11', 'Classe squelettique · donnée historique'),
+])
+
+replace('frontend/src/features/agenda/AgendaStudio.tsx', [
+    ('Nouvelle demande RDV frontdesk', 'Nouvelle demande de rendez-vous'),
 ])
