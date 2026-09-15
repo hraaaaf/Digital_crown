@@ -1,12 +1,13 @@
 from pathlib import Path
-import re
 
 replacements = {
     'frontend/src/components/Header.tsx': [
         ('Alertes Ghost Treasury', 'Alertes de trésorerie'),
     ],
     'frontend/src/components/ComingSoon.tsx': [
-        ('Cette section sera bientôt disponible. Merci de votre patience.', "Cette section n'est pas disponible dans cette version."),
+        ('Cette section sera bientôt disponible. Merci de votre patience.', 'Cette section n’est pas disponible dans cette version.'),
+        ('Bientôt disponible', 'Indisponible dans cette version'),
+        ('En construction', 'Fonction indisponible'),
     ],
     'frontend/src/components/CrownBot/CrownBotChat.tsx': [
         ('Mémoire contextuelle étendue (Ghost Brain+)', 'Mémoire contextuelle étendue'),
@@ -20,7 +21,7 @@ replacements = {
     ],
     'frontend/src/App.tsx': [
         ("Patientez pendant le démarrage de l'IA...", 'Démarrage de Digital Crown…'),
-        ('Ce module est en construction et sera bientôt disponible dans une prochaine mise à jour.', "Ce module n'est pas disponible dans cette version."),
+        ('Ce module est en construction et sera bientôt disponible dans une prochaine mise à jour.', 'Ce module n’est pas disponible dans cette version.'),
     ],
     'frontend/src/features/accounting/components/AccountingTabs.tsx': [
         ('Ghost Treasury Hub', 'Trésorerie'),
@@ -29,6 +30,7 @@ replacements = {
         ('Les réglages Profil, Design et Performance ont été confirmés par le backend.', 'Les réglages Profil, Design et Performance ont bien été enregistrés.'),
         ('Impossible de vérifier la configuration réelle du cabinet. Aucune valeur de repli n’est modifiable tant que la lecture backend n’a pas réussi.', 'Impossible de charger la configuration du cabinet. Réessayez avant de modifier ces réglages.'),
         ('Ghost Elite Studio', 'Paramètres du cabinet'),
+        ('Initialisation du Centre de Contrôle...', 'Chargement des paramètres…'),
     ],
     'frontend/src/features/admin/Settings/tabs/BrandingTab.tsx': [
         ("Choisir l'aperçu du studio", "Choisir l'aperçu"),
@@ -79,6 +81,7 @@ replacements = {
     ],
     'frontend/src/features/dashboard/components/MarketplaceCard.tsx': [
         ('>Marketplace<', '>Approvisionnement<'),
+        ('\n              Marketplace\n', '\n              Approvisionnement\n'),
     ],
     'frontend/src/features/ortho/components/ClinicalScientificStudio.tsx': [
         ('Non résolu · snapshot autoritaire absent.', 'Non résolu · données cliniques insuffisantes.'),
@@ -189,15 +192,15 @@ for old, new in [
 ]:
     text = text.replace(old, new)
 
-text = re.sub(
-    r'\n\s*<div className="text-\[10px\][\s\S]*?<Construction size=\{12\} /> Bientôt disponible\s*</div>\s*'
-    r'\{hasAccess\(\'patients\'\) && <NavItem to="/stock"[\s\S]*?/>\}\s*'
-    r'\{hasAccess\(\'agenda\'\) && <NavItem to="/salle-attente"[\s\S]*?/>\}\s*'
-    r'<NavItem to="/labo"[\s\S]*?/>\s*',
-    '\n',
-    text,
-    count=1,
-)
+upcoming = '''          <div className="text-[10px] font-black text-amber-500 uppercase tracking-widest px-4 mb-3 mt-6 flex items-center gap-1.5">
+            <Construction size={12} /> Bientôt disponible
+          </div>
+          {hasAccess('patients') && <NavItem to="/stock" icon={<Package size={20} />} label="Gestion Stock" badge="Bientôt" />}
+          {hasAccess('agenda') && <NavItem to="/salle-attente" icon={<Armchair size={20} />} label="Salle d'attente" badge="Bientôt" />}
+          <NavItem to="/labo" icon={<FlaskConical size={20} />} label="Module Labo" badge="Bientôt" />
+
+'''
+text = text.replace(upcoming, '')
 for import_line in ['  FlaskConical,\n', '  Package,\n', '  Armchair,\n', '  Construction\n', '  Construction,\n']:
     text = text.replace(import_line, '')
 sidebar.write_text(text, encoding='utf-8')
