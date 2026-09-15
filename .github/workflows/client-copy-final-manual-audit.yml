@@ -1,0 +1,68 @@
+name: Client Copy Final Manual Audit
+
+on:
+  push:
+    branches:
+      - tmp/client-copy-final-manual-audit
+
+permissions:
+  contents: write
+
+concurrency:
+  group: client-copy-final-manual-audit
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: tmp/client-copy-final-manual-audit
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Apply final manual audit corrections
+        run: python scripts/finalize_manual_copy_audit.py
+
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Run permanent wording guard
+        working-directory: frontend
+        run: npm test -- src/ClientFacingCopyCandidateAudit.test.ts
+
+      - name: Run focused behavior contracts
+        working-directory: frontend
+        run: |
+          npm test -- \
+            src/features/mobile/Dashboard/views/MobileSuperAdminView.test.tsx \
+            src/features/mobile/Dashboard/views/MarketplaceView.test.tsx \
+            src/features/mobile/Dashboard/components/MobileBottomNav.test.tsx \
+            src/features/mobile/Dashboard/views/FrontdeskView.test.tsx
+
+      - name: Build production frontend
+        working-directory: frontend
+        run: npm run build
+
+      - name: Validate product-only diff
+        run: |
+          git diff --check
+          git diff --stat
+          git diff --quiet -- .github/workflows || true
+          test -z "$(git status --porcelain -- .github/workflows)"
+
+      - name: Commit verified product patch
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add frontend
+          git commit -m "fix(ui): close final client wording gaps"
+          git push origin HEAD:tmp/client-copy-final-manual-audit
