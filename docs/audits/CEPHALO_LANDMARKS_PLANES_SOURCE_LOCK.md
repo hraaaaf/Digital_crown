@@ -1,6 +1,6 @@
 # Céphalo-N — Source-lock des landmarks, plans et lignes
 
-Statut : **AUDIT SOURCE-LOCK V3 — GATE TWEED OUVERT — ZÉRO NOUVELLE FORMULE CLINIQUE**
+Statut : **AUDIT SOURCE-LOCK V4 — DÉCISION TWEED FERMÉE — ZÉRO NOUVELLE FORMULE CLINIQUE**
 
 Date : 2026-09-15
 
@@ -17,7 +17,7 @@ Compléments :
 
 **Succès** — ne jamais confondre : primitive géométrique, ID logiciel, liaison SRPose, identité anatomique, point construit, variante d’analyse, absence et blocage de modalité.
 
-**Preuve** — moteurs Digital Crown + provenance exacte SRPose38 + sources primaires Steiner 1953, Tweed 1954, Ricketts 1972/1981 et McNamara 1984.
+**Preuve** — moteurs Digital Crown + provenance exacte SRPose38 + sources primaires Steiner 1953, Tweed 1954, Ricketts 1972/1981 et McNamara 1984 + décision clinique du 2026-09-15 de conserver le Frankfort Digital Crown `Po-Or` pour Tweed.
 
 ## États
 
@@ -27,7 +27,8 @@ Compléments :
 - `MISSING` : point/contrat absent.
 - `SOURCE_LOCK_REQUIRED` : définition ou liaison détecteur insuffisamment prouvée.
 - `BLOCKED_MODALITY` : modalité actuelle incapable de fournir l’information.
-- `WRONG_VARIANT` : construction voisine non interchangeable avec la version validée.
+- `WRONG_VARIANT` : construction voisine non interchangeable avec la version historique stricte.
+- `SELECTED_DC_CONTRACT` : convention explicitement retenue pour Digital Crown, sans prétendre être la reproduction historique stricte lorsqu’elle diffère.
 
 ---
 
@@ -38,12 +39,13 @@ Compléments :
 3. `Pog` dur ≠ `Pog'` mou.
 4. `Gn_anatomic` ≠ `Gn_constructed`.
 5. `Pt_Ricketts` ≠ `PTM_McNamara`.
-6. `Po_anatomic-Or` est la référence explicite de McNamara 1984 et Ricketts 1981 ; **Tweed 1954 strict utilise une autre construction Frankfort liée à l’ear-rod**.
+6. `Po_anatomic-Or` est la référence explicite de McNamara 1984 et Ricketts 1981. Pour Tweed dans Digital Crown, **la décision clinique est de conserver `Po-Or` comme contrat actif `DC_TWEED_ANATOMICAL_FH_VARIANT`**. La construction ear-rod de Tweed 1954 reste documentée comme version historique distincte et non active.
 7. Bord incisif, apex et surface faciale/coronaire sont distincts.
 8. `Go-Me`, `Go-Gn` et `Sub.Go.-M.` ne sont pas fusionnés par commodité.
 9. Ricketts frontal/PA reste `BLOCKED_MODALITY` sans pipeline frontal validé.
 10. La position d’un canal neuronal ne permet jamais de déduire son anatomie.
 11. Le mapping SRPose legacy est préservé pour non-régression, sans devenir une autorité scientifique.
+12. Les normes historiques Tweed 1954 ne doivent pas être présentées comme strictement source-concordantes avec `DC_TWEED_ANATOMICAL_FH_VARIANT` sans validation normative spécifique ; l’existant est préservé, mais toute nouvelle couche scientifique doit versionner explicitement ce point.
 
 ---
 
@@ -98,9 +100,9 @@ La chaîne d’évidence prouve modèle/hash/pipeline et ID logiciel produit. El
 | `N` | Steiner, McNamara, Ricketts, COM | présent | `1:N` | idem |
 | `A` | Steiner, McNamara, Ricketts, COM | présent | `4:A` | idem |
 | `B` | Steiner, COM | présent | `5:B` | idem ; jamais Pog |
-| `Po_anatomic` | McNamara, Ricketts, COM | Po-Or disponible | `3:Po` | géométrie oui ; auto non validé |
-| `Or` | McNamara, Ricketts, COM | présent | `2:Or` | auto non validé |
-| `Tweed_FH_earrod_point` | Tweed 1954 strict | absent | aucun | **`MISSING / WRONG_VARIANT_CURRENT`** |
+| `Po_anatomic` | McNamara, Ricketts, COM, Tweed/DC | Po-Or disponible | `3:Po` | géométrie oui ; auto non validé |
+| `Or` | McNamara, Ricketts, COM, Tweed/DC | présent | `2:Or` | auto non validé |
+| `Tweed_FH_earrod_point` | Tweed 1954 strict historique | absent | aucun | `HISTORICAL_NOT_SELECTED` |
 | `Go` | Steiner, Tweed/DC, McNamara | présent | `9:Go` | auto non validé |
 | `Me` | Tweed/DC, McNamara | présent | `7:Me` | auto non validé |
 | `Gn_anatomic` | Steiner, McNamara Co-Gn | ID générique ambigu | `8:Gn` | séparer du construit |
@@ -146,10 +148,10 @@ Les IDs locaux `Cm`, `Ar`, `Bo`, `C_point`, `G_soft`, `N_soft`, `Gn_soft`, `Me_s
 | `OCCLUSAL_STEINER` | plan occlusal vs SN | Steiner 1953 | `SOURCE_LOCK_REQUIRED` pour repères exacts |
 | `ND_STEINER_1959` | N-D | Steiner 1959 | `MISSING` |
 | `D_LINE_STEINER_1959` | convention 1959 | Steiner 1959 | `SOURCE_LOCK_REQUIRED` |
-| `FH_TWEED_1954_STRICT` | point 4,5 mm au-dessus centre ear-rod → bord inférieur orbite | Tweed 1954 | **absent** |
-| `FH_DC_TWEED_PO_OR_V1` | Po-Or | variante DC actuelle | présent ; **`WRONG_VARIANT` si appelé Tweed 1954 strict** |
-| `MP_TWEED_DC_GO_ME` | Go-Me | DC actuel | présent |
-| `L1_AXIS` | apex→bord incisif | Tweed 1954 | `MATCH_GEOMETRY` |
+| `FH_TWEED_1954_STRICT` | point 4,5 mm au-dessus centre ear-rod → bord inférieur orbite | Tweed 1954 historique | `HISTORICAL_NOT_SELECTED` |
+| `FH_DC_TWEED_PO_OR_V1` | Porion anatomique-Orbitale | variante DC retenue | **`SELECTED_DC_CONTRACT`** |
+| `MP_TWEED_DC_GO_ME` | Go-Me | variante DC actuelle | présent |
+| `L1_AXIS` | apex→bord incisif | Tweed | `MATCH_GEOMETRY` |
 | `FH_MCNAMARA` | Porion anatomique-Orbitale | McNamara 1984 | `MATCH_GEOMETRY`; inputs auto non validés |
 | `N_PERP_MCNAMARA` | ⟂ FH par N | McNamara 1984 | primitive présente |
 | `A_VERTICAL_MCNAMARA` | parallèle N-perp par A | McNamara 1984 | non exposé comme contrat complet |
@@ -161,7 +163,7 @@ Les IDs locaux `Cm`, `Ar`, `Bo`, `C_point`, `G_soft`, `N_soft`, `Gn_soft`, `Me_s
 | `NPog_RICKETTS` | N-Pog | Ricketts 1981 | présent |
 | `PT_GN_RICKETTS` | Pt-Gn céphalométrique | Ricketts 1972/1981 | `MATCH_GEOMETRY`; Pt input auto non validé |
 | `GN_RICKETTS_CONSTRUCTED` | intersection facial plane + mandibular plane | Ricketts 1972 | construction DC correspondante |
-| `MP_RICKETTS_1981` | FH vs `Sub.Go.-M.` | Ricketts 1981 | **`MISSING / SOURCE_LOCK_REQUIRED`** |
+| `MP_RICKETTS_1981` | FH vs `Sub.Go.-M.` | Ricketts 1981 | `MISSING / SOURCE_LOCK_REQUIRED` |
 | `PALATAL_RICKETTS` | ANS-PNS | Ricketts 1981 | géométrie simple ; PNS auto non validé |
 | `ORAL_GNOMON_RICKETTS` | ANS-Xi-Pm | Ricketts 1981 | `MISSING` |
 | `PTV_RICKETTS` | verticale à true FH depuis le repère pterygoïdien source | Ricketts 1981 | `MISSING_STRICT_CONTRACT` |
@@ -182,7 +184,9 @@ Les IDs locaux `Cm`, `Ar`, `Bo`, `C_point`, `G_soft`, `N_soft`, `Gn_soft`, `Me_s
 
 ## Tweed
 
-**Gate clinique ouvert.** Le triangle DC actuel utilise `Po-Or`; Tweed 1954 primaire utilise un Frankfort historique lié à l’ear-rod. Les valeurs FMA/FMIA peuvent donc différer. Aucun renommage en « strict 1954 » et aucune migration de formule sans décision clinique explicite.
+**Décision clinique fermée le 2026-09-15 : conserver le Frankfort Digital Crown `Po-Or`.** Le contrat actif devient `DC_TWEED_ANATOMICAL_FH_VARIANT`. Aucune migration ni modification de FMA/FMIA n’est requise : les valeurs runtime actuelles restent inchangées.
+
+La construction `TWEED_1954_STRICT_EAR_ROD_FH` reste documentée comme historique, mais n’est pas le contrat choisi pour Digital Crown. En conséquence, toute nouvelle couche de normes/interprétation doit distinguer explicitement la variante DC `Po-Or` des normes historiquement dérivées d’un autre Frankfort ; aucun collage silencieux de norme « strict 1954 » n’est autorisé.
 
 ## McNamara
 
@@ -228,9 +232,10 @@ Une nouvelle mesure n’est autorisée que si :
 6. calibration mm valide si nécessaire ;
 7. modalité adaptée.
 
-### Gates actifs
+### État des gates
 
-- **Tweed 1954** : `HUMAN_CLINICAL_DECISION_REQUIRED` entre reproduction historique et variante anatomique DC clairement versionnée.
+- **Tweed geometry** : `CLOSED` — contrat retenu `DC_TWEED_ANATOMICAL_FH_VARIANT = Po-Or`; runtime inchangé.
+- **Tweed historical norms** : `SOURCE_LOCK_REQUIRED` pour toute future prétention de stricte concordance normative 1954 avec la variante DC.
 - **SRPose semantics** : `SOURCE_LOCK_REQUIRED` pour toute extension automatique.
 - **Ricketts PA** : `BLOCKED_MODALITY`.
 
@@ -238,11 +243,10 @@ Une nouvelle mesure n’est autorisée que si :
 
 # 8. Next exact
 
-Travail indépendant autorisé avant le gate Tweed :
-
 1. formaliser les contrats scientifiques séparés `Pt_Ricketts`, `PTM_McNamara`, `Gn_anatomic`, `Gn_constructed`, surfaces incisives, Xi/Pm et airway ;
 2. préparer des fixtures manuelles source-lockées pour tests géométriques ;
-3. ne modifier aucune valeur runtime Tweed avant choix clinique ;
-4. ne promouvoir aucun canal SRPose legacy en vérité anatomique.
+3. conserver `Po-Or` pour Tweed sans migration runtime ;
+4. ne promouvoir aucun canal SRPose legacy en vérité anatomique ;
+5. valider séparément toute future couche normative Tweed appliquée à la variante DC.
 
 Aucune norme, interprétation, UI ou valeur clinique runtime n’est modifiée par ce document.
