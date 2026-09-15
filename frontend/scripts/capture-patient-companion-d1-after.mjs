@@ -26,9 +26,11 @@ import { LandingPage } from './pages/LandingPage';
 import { PatientCompanionPage } from './pages/PatientCompanionPage';
 import { PatientCompanionApiError } from './patient-companion/patientCompanionApi';
 import './index.css';
+import './styles/patientCompanionTheme.css';
 
 document.body.dataset.theme = 'light';
 const state = new URLSearchParams(window.location.search).get('state') || 'home';
+if (state !== 'public-entry') document.body.dataset.surface = 'patient-companion';
 const verifiedUser = { uid: 'visual-patient', email: 'nadia@example.test', emailVerified: true };
 const context = {
   access_id: 'visual-access',
