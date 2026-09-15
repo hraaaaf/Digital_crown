@@ -32,6 +32,8 @@ a = Analysis(
     binaries=[],
     datas=[
         ('frontend/dist', 'frontend/dist'),
+        ('backend/data/medications_ma.json', 'backend/data'),
+        ('backend/data/medications_ma_ammps_2026.json', 'backend/data'),
         # Embedded release identity / deployment-integrity proofs. run.py rechecks
         # these before first-boot writes. Full source hashes were checked above.
         ('release-certification.json', '.'),

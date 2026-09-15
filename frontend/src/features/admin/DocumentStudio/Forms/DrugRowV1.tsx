@@ -77,6 +77,12 @@ export interface DrugRowProps {
 const presentationStrength = (presentation: CatalogPresentation): string =>
   [presentation.dosage, presentation.unite].filter(Boolean).join(' ').trim();
 
+const catalogSourceShortLabel = (source: CatalogSource): string => {
+  if (source.id.startsWith('ammps-')) return 'AMMPS';
+  if (source.id === 'cnops-open-data-medications') return 'CNOPS Open Data';
+  return source.label || 'Référentiel documentaire';
+};
+
 const fmtMg = (mg: number) => (mg < 1000 ? `${mg}mg` : `${mg / 1000}g`);
 
 export const DrugRow: React.FC<DrugRowProps> = ({
@@ -314,13 +320,14 @@ export const DrugRow: React.FC<DrugRowProps> = ({
                     className="absolute left-0 right-0 top-full z-[100] mt-2 max-h-[340px] overflow-y-auto rounded-2xl border border-border-main bg-card py-2 shadow-2xl"
                   >
                     <div className="border-b border-border-main px-4 pb-2 pt-1 text-[8px] font-bold text-text-muted sm:px-5">
-                      Référentiel CNOPS Open Data · snapshot 13/12/2021 · statut commercial actuel non certifié
+                      Référentiels documentaires marocains · provenance indiquée par présentation
                     </div>
                     {catalogResults.map((presentation, index) => (
                       <button
                         key={presentation.presentation_id}
                         type="button"
                         data-presentation-id={presentation.presentation_id}
+                        data-catalog-source-id={presentation.source.id}
                         onMouseDown={event => {
                           event.preventDefault();
                           selectPresentation(presentation);
@@ -336,6 +343,9 @@ export const DrugRow: React.FC<DrugRowProps> = ({
                           <span className="block truncate text-xs font-black">{presentation.nom}</span>
                           <span className="mt-0.5 block truncate text-[9px] font-semibold text-text-muted">
                             {presentation.dci || 'DCI non renseignée'}
+                          </span>
+                          <span className="mt-0.5 block truncate text-[8px] font-bold text-text-muted/80">
+                            {catalogSourceShortLabel(presentation.source)} · {presentation.source.snapshot_date || 'date non renseignée'} · statut commercial actuel {presentation.source.current_marketing_status_verified ? 'vérifié' : 'non certifié'}
                           </span>
                         </span>
                         <span className="flex shrink-0 items-center gap-2">
@@ -417,8 +427,8 @@ export const DrugRow: React.FC<DrugRowProps> = ({
                     </div>
                   </div>
                   <div className="shrink-0 text-right text-[8px] font-bold opacity-80">
-                    <div>{drug.catalogSourceLabel || 'CNOPS Open Data'}</div>
-                    <div>Snapshot {drug.catalogSnapshotDate || '2021-12-13'} · disponibilité actuelle non certifiée</div>
+                    <div>{drug.catalogSourceLabel || 'Référentiel documentaire'}</div>
+                    <div>Snapshot {drug.catalogSnapshotDate || 'date non renseignée'} · disponibilité actuelle non certifiée</div>
                   </div>
                 </div>
               ) : (
