@@ -1,0 +1,50 @@
+name: Patient Companion D1 backend security
+
+on:
+  push:
+    branches:
+      - feat/patient-companion-d1-ui
+    paths:
+      - '.github/workflows/patient-companion-d1-backend.yml'
+      - 'backend/routers/patient_companion*.py'
+      - 'backend/models_patient_companion.py'
+      - 'backend/services/firebase_patient_auth.py'
+      - 'backend/tests/test_patient_companion*.py'
+      - 'frontend/src/patient-companion/**'
+  workflow_dispatch:
+
+concurrency:
+  group: patient-companion-d1-backend-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  d0-security-contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      SECRET_KEY: ci-only-secret-key-minimum-32-characters-long
+      DATABASE_URL: "sqlite:///:memory:"
+      ENVIRONMENT: development
+      TELEMETRY_ENABLED: "false"
+      CLOUD_AI_ENABLED: "false"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install backend test dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install torch==2.12.0 torchvision==0.27.0 --index-url https://download.pytorch.org/whl/cpu
+          grep -vE '^(torch|torchvision)([<=>].*)?$' requirements.txt > /tmp/requirements-ci.txt
+          pip install -r /tmp/requirements-ci.txt
+          pip install httpx==0.27.2 pytest pytest-asyncio
+      - name: Re-certify D0 patient isolation contracts
+        run: >-
+          python -m pytest -q --maxfail=1
+          backend/tests/test_patient_companion_d0.py
+          backend/tests/test_patient_companion_runtime_integration.py
+          backend/tests/test_patient_companion_share_rbac.py

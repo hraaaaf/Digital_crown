@@ -1,0 +1,45 @@
+name: Patient Companion D1 check
+
+on:
+  push:
+    branches:
+      - feat/patient-companion-d1-ui
+    paths:
+      - '.github/workflows/patient-companion-d1-check.yml'
+      - 'frontend/src/pages/PatientCompanionPage.tsx'
+      - 'frontend/src/patient-companion/**'
+      - 'frontend/src/PatientCompanionD1.test.tsx'
+      - 'frontend/src/PatientCompanionTransport.test.ts'
+      - 'frontend/src/main.tsx'
+      - 'frontend/package.json'
+      - 'frontend/package-lock.json'
+      - 'frontend/.env.example'
+  workflow_dispatch:
+
+concurrency:
+  group: patient-companion-d1-check-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  frontend:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install exact frontend lockfile
+        run: npm ci --legacy-peer-deps
+      - name: Focused D1 tests
+        run: npx vitest run src/PatientCompanionD1.test.tsx src/PatientCompanionTransport.test.ts
+      - name: Frontend build
+        run: npm run build

@@ -7,6 +7,7 @@ import { bootstrapMobileRuntimeTheme } from './features/mobile/Dashboard/hooks/u
 import { bootstrapMobileQuickIntent } from './features/mobile/mobileQuickIntent.ts'
 import './index.css'
 import './styles/mobileGlassSystem.css'
+import './styles/patientCompanionTheme.css'
 import './features/mobile/mobileRuntimeTheme.css'
 import './features/mobile/mobileQuickIntent.css'
 import * as Sentry from '@sentry/react'
@@ -15,6 +16,11 @@ import { registerSW } from 'virtual:pwa-register'
 
 const isPreviewRequest = isDcPreviewDemoRequested()
 const previewPath = window.location.pathname
+const isPatientCompanionRequest = previewPath.startsWith('/patient-companion')
+
+if (isPatientCompanionRequest) {
+  document.body.dataset.surface = 'patient-companion'
+}
 
 if (previewPath.startsWith('/mobile')) {
   bootstrapMobileRuntimeTheme()
@@ -29,7 +35,9 @@ if (isPreviewRequest && (previewPath === '/mobile/demo' || previewPath === '/mob
   document.head.appendChild(policy)
 }
 
-if (!isPreviewRequest && import.meta.env.VITE_SENTRY_DSN) {
+// Patient Companion can render patient identity and explicitly shared health-data metadata.
+// Keep it outside the existing Sentry Replay surface until a patient-specific telemetry policy exists.
+if (!isPreviewRequest && !isPatientCompanionRequest && import.meta.env.VITE_SENTRY_DSN) {
   Sentry.init({
     dsn: import.meta.env.VITE_SENTRY_DSN,
     integrations: [
@@ -103,7 +111,7 @@ async function migrateLegacyMobileOfflineState(): Promise<boolean> {
   return true
 }
 
-if (!isPreviewRequest && 'serviceWorker' in navigator) {
+if (!isPreviewRequest && !isPatientCompanionRequest && 'serviceWorker' in navigator) {
   void migrateLegacyMobileOfflineState().then((ready) => {
     if (!ready) return
     registerSW({ immediate: true })
@@ -111,6 +119,11 @@ if (!isPreviewRequest && 'serviceWorker' in navigator) {
 }
 
 async function resolveApplication(): Promise<React.ReactNode> {
+  if (isPatientCompanionRequest) {
+    const { PatientCompanionEntry } = await import('./patient-companion/PatientCompanionEntry.tsx')
+    return <PatientCompanionEntry />
+  }
+
   if (isPreviewRequest) {
     if (previewPath === '/mobile/demo') {
       const { MobilePreviewDashboard } = await import('./features/mobile/Dashboard/MobilePreviewDashboard.tsx')
