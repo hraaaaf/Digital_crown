@@ -1,6 +1,6 @@
 # Prescription Medication Catalog — AMMPS 2026 supplement
 
-Status: ACTIVE
+Status: VALIDATED — PRE-MERGE
 
 ## Goal
 
@@ -37,7 +37,7 @@ Baseline dédiée : PR #506, master de départ `647f682ea71e026e7e9604fc0ca419e2
 
 Scénario : ouvrir Ordonnance, saisir exactement `ACIG`, ne rien sélectionner, capturer 1280x900.
 
-État attendu et déjà observé dans le test précédent #503 : requête API 200, zéro suggestion visible car ACIGAM est absent du snapshot CNOPS 2021 embarqué.
+Preuve BEFORE : Fidelity #141, artifact `10388957731`, `suggestionCount: 0`.
 
 ## Mockup / référence cible
 
@@ -68,4 +68,24 @@ Aucun bouton d’application automatique, aucune posologie, aucune recommandatio
 
 ## Closeout evidence
 
-À compléter uniquement après tests, capture AFTER, comparaison BEFORE/AFTER, CI exacte et revue visuelle.
+Validation visuelle propriétaire : ACCEPTÉE le 2026-09-15 sur la capture AFTER 1280x900.
+
+Dernier HEAD fonctionnel certifié avant ce closeout documentaire : `2004504774887b2a020e16d86d3c02868380d024`.
+
+Preuves exact-head :
+- Ordonnance Fidelity V3 Visual Certification #173 : SUCCESS ;
+- artifact `ordonnance-fidelity-v3-evidence` id `10391109630`, head SHA `2004504774887b2a020e16d86d3c02868380d024`, digest `sha256:b4e876770d0347cad59c8957e41bf3e5cf432f926a4327318d639ea6fce31fda` ;
+- CI #4311 : SUCCESS ;
+- Catalog Connected Truth Certification #1254 : SUCCESS ;
+- Cabinet Upgrade PostgreSQL Certification #717 : SUCCESS ;
+- Settings R11 TemplateBuilder Dependency Audit #742 : SUCCESS ;
+- T2 Runtime Browser Certification #3202 : SUCCESS ;
+- Patient P7 Final Certification #1643 : SUCCESS.
+
+AFTER mesuré sur le HEAD fonctionnel certifié : saisie `ACIG`, une suggestion ACIGAM visible, source `ammps-rmmg-2026-01`, aucune sélection automatique, champ conservé à `ACIG`, aucune erreur page.
+
+Comparaison BEFORE → AFTER : `0 suggestion` → `ACIGAM` documenté et sourcé AMMPS, sans autofill clinique. La modification du test frontend obsolète a ensuite été certifiée par CI #4311 sans modification de logique produit.
+
+Score visuel de conformité au mockup : 10/10 sur les critères contractuels observables (suggestion, identité, DCI, provenance, absence de sélection automatique). Ce score mesure la conformité au mockup, pas une appréciation esthétique générale.
+
+Merge autorisable uniquement après certification du commit documentaire de closeout et vérification finale de la PR. Aucun déploiement Vercel.
