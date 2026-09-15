@@ -1,0 +1,94 @@
+{
+  "fixture_id": "CEPHALO_SOURCE_LOCKED_GEOMETRY_V1",
+  "purpose": "Manual synthetic geometry only; independent from detector channel semantics and clinical norms.",
+  "steiner": {
+    "points": {
+      "S": [1.0, 0.0],
+      "N": [0.0, 0.0],
+      "A": [0.0, 1.0],
+      "B": [1.0, 1.0],
+      "U1_apex": [0.0, 0.0],
+      "U1_incisal": [1.0, 1.0],
+      "L1_apex": [0.0, 0.0],
+      "L1_incisal": [1.0, 0.0],
+      "Go": [0.0, 2.0],
+      "Gn_anatomic": [1.0, 2.0]
+    },
+    "expected": {
+      "SNA_deg": 90.0,
+      "SNB_deg": 45.0,
+      "ANB_deg": 45.0,
+      "U1_NA_deg": 45.0,
+      "L1_NB_deg": 45.0,
+      "SN_GoGn_deg": 0.0
+    }
+  },
+  "tweed_dc_po_or": {
+    "points": {
+      "Po_anatomic": [0.0, 0.0],
+      "Or": [10.0, 0.0],
+      "Go": [0.0, 10.0],
+      "Me": [10.0, 10.0],
+      "L1_apex": [5.0, 15.0],
+      "L1_incisal": [5.0, 5.0]
+    },
+    "expected": {
+      "FMA_deg": 0.0,
+      "IMPA_deg": 90.0,
+      "FMIA_deg": 90.0,
+      "triangle_sum_deg": 180.0
+    }
+  },
+  "mcnamara_1984": {
+    "mm_per_pixel": 0.2,
+    "points": {
+      "Co_anatomic": [0.0, 0.0],
+      "A": [3.0, 4.0],
+      "Gn_anatomic": [6.0, 8.0],
+      "ANS": [2.0, 1.0],
+      "Me": [2.0, 7.0]
+    },
+    "expected": {
+      "Co_A_mm": 1.0,
+      "Co_Gn_mm": 2.0,
+      "ANS_Me_mm": 1.2,
+      "maxillomandibular_differential_mm": 1.0
+    }
+  },
+  "ricketts": {
+    "points": {
+      "Po_anatomic": [0.0, 0.0],
+      "Or": [10.0, 0.0],
+      "N": [4.0, 0.0],
+      "Pog_hard": [6.0, 10.0],
+      "Go": [0.0, 12.0],
+      "Me": [10.0, 12.0],
+      "Ba": [-6.0, 0.0],
+      "Pt_Ricketts": [2.0, 4.0],
+      "A": [8.0, 4.0]
+    },
+    "expected": {
+      "Facial_Angle_deg": 101.30993247402021,
+      "Gn_constructed": [6.4, 12.0],
+      "Facial_Axis_deg": 61.18920625702693,
+      "Maxillary_Convexity_px": 3.1378581622109443
+    }
+  },
+  "com_dc_legacy": {
+    "mm_per_pixel": 0.5,
+    "points": {
+      "N": [0.0, 0.0],
+      "Po_anatomic": [0.0, 10.0],
+      "Or": [10.0, 10.0],
+      "A": [3.0, 5.0],
+      "B": [-2.0, 5.0],
+      "S": [-4.0, 0.0]
+    },
+    "expected": {
+      "Situation_A_mm": 1.5,
+      "Situation_B_mm": -1.0,
+      "AB_prime_mm": 2.5,
+      "Facial_Depth_mm": 2.0
+    }
+  }
+}
