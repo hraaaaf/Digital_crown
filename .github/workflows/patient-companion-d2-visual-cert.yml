@@ -7,18 +7,24 @@ on:
     paths:
       - 'backend/routers/patient_companion_activation.py'
       - 'backend/routers/patient_companion_shares.py'
+      - 'backend/tests/test_patient_companion_d2_staff.py'
       - 'frontend/src/features/patients/PatientDetailsInner.tsx'
       - 'frontend/src/features/patients/components/PatientCompanionPanel.tsx'
+      - 'frontend/src/features/patients/components/PatientCompanionPanel.test.ts'
       - 'frontend/scripts/capture-patient-companion-d2-visual.mjs'
+      - 'docs/audits/PATIENT_COMPANION_D2.md'
       - '.github/workflows/patient-companion-d2-visual-cert.yml'
   pull_request:
     branches: [master]
     paths:
       - 'backend/routers/patient_companion_activation.py'
       - 'backend/routers/patient_companion_shares.py'
+      - 'backend/tests/test_patient_companion_d2_staff.py'
       - 'frontend/src/features/patients/PatientDetailsInner.tsx'
       - 'frontend/src/features/patients/components/PatientCompanionPanel.tsx'
+      - 'frontend/src/features/patients/components/PatientCompanionPanel.test.ts'
       - 'frontend/scripts/capture-patient-companion-d2-visual.mjs'
+      - 'docs/audits/PATIENT_COMPANION_D2.md'
       - '.github/workflows/patient-companion-d2-visual-cert.yml'
 
 permissions:
