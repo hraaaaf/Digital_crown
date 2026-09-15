@@ -8,7 +8,8 @@ Prescription Intelligence V1 traite ces fichiers comme des SOURCES DOCUMENTAIRES
 
 Sources intégrées :
 - CNOPS Open Data, snapshot historique du 2021-12-13 ;
-- AMMPS, Répertoire Marocain des Médicaments Génériques, édition projet janvier 2026.
+- AMMPS, Répertoire Marocain des Médicaments Génériques, édition projet janvier 2026 ;
+- AMMPS, base courante des médicaments, snapshot réglementaire daté.
 """
 from __future__ import annotations
 
@@ -24,6 +25,7 @@ logger = logging.getLogger(__name__)
 _DATA_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "data")
 _DATA_PATH = os.path.join(_DATA_DIR, "medications_ma.json")
 _AMMPS_DATA_PATH = os.path.join(_DATA_DIR, "medications_ma_ammps_2026.json")
+_AMMPS_CURRENT_DATA_PATH = os.path.join(_DATA_DIR, "medications_ma_ammps_current_2026.json")
 
 CATALOG_SOURCE: Dict[str, Any] = {
     "id": "cnops-open-data-medications",
@@ -43,6 +45,16 @@ AMMPS_RMMG_SOURCE: Dict[str, Any] = {
     "snapshot_date": "2026-01",
     "freshness": "official_project_edition",
     "current_marketing_status_verified": False,
+}
+
+AMMPS_CURRENT_SOURCE: Dict[str, Any] = {
+    "id": "ammps-medications-current-2026-09-15",
+    "label": "AMMPS — Base de données des médicaments, snapshot courant",
+    "license": "non_specifiee",
+    "source_url": "https://www.ammps.gov.ma/recherche-medicaments",
+    "snapshot_date": "2026-09-15",
+    "freshness": "current_snapshot",
+    "current_marketing_status_verified": True,
 }
 
 _MEDS: List[Dict[str, Any]] = []
@@ -68,6 +80,7 @@ def _load() -> None:
 
     records: List[Dict[str, Any]] = []
     for path, source in (
+        (_AMMPS_CURRENT_DATA_PATH, AMMPS_CURRENT_SOURCE),
         (_AMMPS_DATA_PATH, AMMPS_RMMG_SOURCE),
         (_DATA_PATH, CATALOG_SOURCE),
     ):
@@ -96,7 +109,7 @@ def catalog_metadata() -> Dict[str, Any]:
 
     sources = [
         {**source, "record_count": source_counts.get(source["id"], 0)}
-        for source in (AMMPS_RMMG_SOURCE, CATALOG_SOURCE)
+        for source in (AMMPS_CURRENT_SOURCE, AMMPS_RMMG_SOURCE, CATALOG_SOURCE)
     ]
     cnops_count = source_counts.get(CATALOG_SOURCE["id"], 0)
 
@@ -108,12 +121,12 @@ def catalog_metadata() -> Dict[str, Any]:
         "available": cnops_count > 0,
         "total_record_count": len(_MEDS),
         "sources": sources,
-        "additional_sources": [sources[0]],
+        "additional_sources": sources[:-1],
     }
 
 
 def _presentation_id(rec: Dict[str, Any]) -> str:
-    """Identifiant stable dérivé uniquement des champs documentaires de la présentation."""
+    """Identifiant historique stable ; son contrat ne doit pas changer en M1."""
     canonical = "|".join(
         str(rec.get(field) or "").strip().upper()
         for field in ("nom", "dci", "dosage", "unite", "forme")
@@ -124,6 +137,18 @@ def _presentation_id(rec: Dict[str, Any]) -> str:
     return f"{prefix}:{digest}"
 
 
+def _regulatory_presentation_id(rec: Dict[str, Any]) -> str:
+    """Identifiant réglementaire package-level, sans modifier l'ID historique."""
+    canonical = "|".join(
+        str(rec.get(field) or "").strip().upper()
+        for field in ("nom", "dci", "dosage", "unite", "forme", "presentation", "epi")
+    )
+    digest = hashlib.sha256(canonical.encode("utf-8")).hexdigest()[:24]
+    source_id = _record_source(rec).get("id", "")
+    prefix = "ammps-reg" if source_id.startswith("ammps-") else "cnops-reg"
+    return f"{prefix}:{digest}"
+
+
 def _canonical_presentation_key(rec: Dict[str, Any]) -> str:
     return "|".join(
         str(rec.get(field) or "").strip().upper()
@@ -131,9 +156,17 @@ def _canonical_presentation_key(rec: Dict[str, Any]) -> str:
     )
 
 
+def _regulatory_presentation_key(rec: Dict[str, Any]) -> str:
+    return "|".join(
+        str(rec.get(field) or "").strip().upper()
+        for field in ("nom", "dci", "dosage", "unite", "forme", "presentation", "epi")
+    )
+
+
 def _public_presentation(rec: Dict[str, Any]) -> Dict[str, Any]:
     result: Dict[str, Any] = {
         "presentation_id": _presentation_id(rec),
+        "regulatory_presentation_id": _regulatory_presentation_id(rec),
         "nom": rec.get("nom", ""),
         "dci": rec.get("dci", ""),
         "dosage": rec.get("dosage", ""),
@@ -141,8 +174,23 @@ def _public_presentation(rec: Dict[str, Any]) -> Dict[str, Any]:
         "forme": rec.get("forme", ""),
         "source": _record_source(rec),
     }
-    for field in ("voie_administration", "epi", "ean13"):
-        if rec.get(field):
+    for field in (
+        "voie_administration",
+        "epi",
+        "ean13",
+        "presentation",
+        "amm_status",
+        "market_status",
+        "market_status_checked_at",
+        "therapeutic_class",
+        "source_page_url",
+        "rcp_link_observed",
+        "rcp_url",
+        "rcp_snapshot_status",
+        "rcp_sha256",
+        "rcp_checked_at",
+    ):
+        if field in rec:
             result[field] = rec[field]
     return result
 
@@ -181,12 +229,15 @@ def _brand_root(name: str) -> str:
     return re.split(r"\s|\d", (name or "").upper().strip(), 1)[0]
 
 
-def search(q: str, limit: int = 30) -> List[Dict[str, Any]]:
-    """Recherche documentaire par nom commercial ou DCI.
+def _matches_query(rec: Dict[str, Any], query: str) -> bool:
+    return query in str(rec.get("nom", "")).upper() or query in str(rec.get("dci", "")).upper()
 
-    Chaque résultat est une présentation explicite. La sélection d'un résultat ne doit
-    jamais être interprétée comme une recommandation thérapeutique ou une confirmation
-    de disponibilité actuelle.
+
+def search(q: str, limit: int = 30) -> List[Dict[str, Any]]:
+    """Recherche documentaire historique par nom commercial ou DCI.
+
+    Le comportement de déduplication historique reste inchangé. Pour distinguer les
+    conditionnements réglementaires, utiliser `search_regulatory_presentations`.
     """
     _load()
     query = (q or "").upper().strip()
@@ -196,7 +247,7 @@ def search(q: str, limit: int = 30) -> List[Dict[str, Any]]:
     hits: List[Dict[str, Any]] = []
     seen: set[str] = set()
     for rec in _MEDS:
-        if query not in str(rec.get("nom", "")).upper() and query not in str(rec.get("dci", "")).upper():
+        if not _matches_query(rec, query):
             continue
         canonical_key = _canonical_presentation_key(rec)
         if canonical_key in seen:
@@ -208,14 +259,48 @@ def search(q: str, limit: int = 30) -> List[Dict[str, Any]]:
     return hits
 
 
+def search_regulatory_presentations(q: str, limit: int = 100) -> List[Dict[str, Any]]:
+    """Recherche documentaire package-level pour les preuves AMMPS/RCP."""
+    _load()
+    query = (q or "").upper().strip()
+    if len(query) < 2:
+        return []
+
+    hits: List[Dict[str, Any]] = []
+    seen: set[str] = set()
+    for rec in _MEDS:
+        if not _matches_query(rec, query):
+            continue
+        regulatory_key = _regulatory_presentation_key(rec)
+        if regulatory_key in seen:
+            continue
+        seen.add(regulatory_key)
+        hits.append(_public_presentation(rec))
+        if len(hits) >= max(1, min(limit, 500)):
+            break
+    return hits
+
+
 def get_presentation(presentation_id: str) -> Optional[Dict[str, Any]]:
-    """Résout une présentation par son identifiant documentaire stable."""
+    """Résout une présentation par son identifiant documentaire historique stable."""
     _load()
     wanted = (presentation_id or "").strip()
     if not wanted:
         return None
     for rec in _MEDS:
         if _presentation_id(rec) == wanted:
+            return _public_presentation(rec)
+    return None
+
+
+def get_regulatory_presentation(regulatory_presentation_id: str) -> Optional[Dict[str, Any]]:
+    """Résout un conditionnement réglementaire exact par son identifiant M1."""
+    _load()
+    wanted = (regulatory_presentation_id or "").strip()
+    if not wanted:
+        return None
+    for rec in _MEDS:
+        if _regulatory_presentation_id(rec) == wanted:
             return _public_presentation(rec)
     return None
 
