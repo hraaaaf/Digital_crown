@@ -46,13 +46,17 @@ _SUPPLEMENT_SOURCES: List[Dict[str, Any]] = []
 _LOADED = False
 
 
-def _presentation_id(rec: Dict[str, Any]) -> str:
-    """Identifiant stable dérivé des champs documentaires, sans réattribuer un supplément à CNOPS."""
-    canonical = "|".join(
+def _presentation_key(rec: Dict[str, Any]) -> str:
+    """Identité documentaire, indépendante de la provenance de l'enregistrement."""
+    return "|".join(
         str(rec.get(field) or "").strip().upper()
         for field in ("nom", "dci", "dosage", "unite", "forme")
     )
-    digest = hashlib.sha256(canonical.encode("utf-8")).hexdigest()[:20]
+
+
+def _presentation_id(rec: Dict[str, Any]) -> str:
+    """Identifiant stable dérivé de l'identité documentaire et préfixé par la famille de source."""
+    digest = hashlib.sha256(_presentation_key(rec).encode("utf-8")).hexdigest()[:20]
     prefix = "ma-doc" if isinstance(rec.get("_source"), dict) else "cnops"
     return f"{prefix}:{digest}"
 
@@ -80,13 +84,15 @@ def _load() -> None:
         logger.warning("Supplément médicaments indisponible (%s)", exc)
         supplement_records = []
 
+    # Déduplication par identité documentaire. Si le supplément contient exactement
+    # la même présentation, sa provenance plus récente remplace le snapshot de base.
     merged: Dict[str, Dict[str, Any]] = {}
     for rec in base_records:
         if isinstance(rec, dict):
-            merged[_presentation_id(rec)] = rec
+            merged[_presentation_key(rec)] = rec
     for rec in supplement_records:
         if isinstance(rec, dict):
-            merged[_presentation_id(rec)] = rec
+            merged[_presentation_key(rec)] = rec
 
     _MEDS = list(merged.values())
     _SUPPLEMENT_COUNT = len([rec for rec in supplement_records if isinstance(rec, dict)])
