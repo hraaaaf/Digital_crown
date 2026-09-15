@@ -1,15 +1,15 @@
-name: Client Copy Security Finalize
+name: Client Copy Final Atomic Staging
 
 on:
   push:
     branches:
-      - fix/client-facing-copy-hygiene
+      - tmp/client-copy-final-atomic
 
 permissions:
   contents: write
 
 concurrency:
-  group: client-copy-security-finalize
+  group: client-copy-final-atomic-staging
   cancel-in-progress: true
 
 jobs:
@@ -19,7 +19,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: fix/client-facing-copy-hygiene
+          ref: tmp/client-copy-final-atomic
           fetch-depth: 0
 
       - uses: actions/setup-node@v5
@@ -28,7 +28,7 @@ jobs:
           cache: npm
           cache-dependency-path: frontend/package-lock.json
 
-      - name: Apply security and harness copy hygiene
+      - name: Apply complete client copy cleanup
         run: python scripts/finalize_security_copy.py
 
       - name: Fail closed unknown displayed statuses
@@ -38,7 +38,7 @@ jobs:
         working-directory: frontend
         run: npm ci
 
-      - name: Run targeted wording contracts
+      - name: Run wording contracts
         working-directory: frontend
         run: |
           npm test -- \
@@ -50,21 +50,21 @@ jobs:
         working-directory: frontend
         run: npm run build
 
-      - name: Validate diff
+      - name: Validate exact staged diff
         run: |
           git diff --check
           git diff --stat
 
-      - name: Remove one-shot files
+      - name: Remove staging one-shot files
         run: |
           rm .github/workflows/client-copy-security-finalize.yml
           rm scripts/finalize_security_copy.py
           rm scripts/finalize_status_fallback.py
 
-      - name: Commit verified patch
+      - name: Commit verified atomic candidate
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add -A
-          git commit -m "fix(ui): finish client-facing security wording"
-          git push origin HEAD:fix/client-facing-copy-hygiene
+          git commit -m "fix(ui): complete client-facing copy cleanup"
+          git push origin HEAD:tmp/client-copy-final-atomic
