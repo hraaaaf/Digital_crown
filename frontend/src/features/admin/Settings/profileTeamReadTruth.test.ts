@@ -16,7 +16,7 @@ describe('Settings profile/team read truth', () => {
     expect(containerSource).toContain('profileReadError && activeProfileBackedTab');
     expect(containerSource).toContain('access.canSettings && !profileReadError');
     expect(containerSource).toContain("'Profil indisponible'");
-    expect(containerSource).toContain('Aucune valeur de repli n’est modifiable');
+    expect(containerSource).toContain('Réessayez avant de modifier ces réglages.');
   });
 
   it('does not expose team management until both members and quota reads are verified', () => {
