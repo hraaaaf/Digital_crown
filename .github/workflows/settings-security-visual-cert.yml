@@ -214,6 +214,7 @@ jobs:
               content = '\n'.join(lines) + '\n'
               if target == 'mobile-m64-after.mjs':
                   content = content.replace("'Recettes Jour'", "'Recettes du jour'")
+                  content = content.replace("'Générer le pont mobile'", "'Générer le QR de connexion'")
               destination = Path('frontend') / target
               destination.parent.mkdir(parents=True, exist_ok=True)
               destination.write_text(content)
