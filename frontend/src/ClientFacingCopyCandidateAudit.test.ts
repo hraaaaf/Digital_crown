@@ -42,6 +42,10 @@ const TECHNICAL_COPY_PATTERNS = [
   { label: 'internal tenancy/version jargon', re: /\bTenant\b|\bP10\b/i },
   { label: 'raw internal workflow status', re: /\b(?:DRAFT|SENT_TO_PARTNER|MODIFIED_AFTER_SEND|CONFIRMED|FULFILLED|CANCELLED|WAITING_INVOICE|AMOUNT_MISMATCH|SUCCEEDED|DEGRADED|APPLIED)\b/ },
   { label: 'integration field jargon', re: /\b(?:URL\s+API|Mode\s+sync)\b/i },
+  { label: 'security implementation vocabulary', re: /Zero-Knowledge|AES-256|\bpasskey\b|\bcoffre\s+local\b/i },
+  { label: 'system status implementation vocabulary', re: /\bCache\s+local\b|\bSync\b|Status\s+Syst[eè]me|Serveur\s+local\s+op[eé]rationnel/i },
+  { label: 'mobile bridge implementation vocabulary', re: /pont\s+mobile|secret\s+[ée]ph[ée]m[eè]re|c[oô]t[ée]\s+serveur|\bjetons?\b/i },
+  { label: 'preview developer vocabulary', re: /\bPreview\b|\bgate\b|appel\s+r[eé]seau|Digital\s+Crown\s+local/i },
 ];
 
 const USER_COPY_ATTRIBUTES = new Set(['alt', 'aria-label', 'aria-description', 'placeholder', 'title', 'engineName', 'label', 'eyebrow', 'subtitle', 'description', 'message', 'caption', 'helperText', 'emptyText']);

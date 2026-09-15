@@ -90,14 +90,14 @@ export function SecuriteView({
           <ShieldCheck size={40} />
         </div>
         <div className="z-10">
-          <p className="font-black text-white text-xl font-outfit">Terminal Appairé</p>
+          <p className="font-black text-white text-xl font-outfit">Téléphone connecté</p>
           <p className="text-[11px] text-white/70 mt-2 leading-relaxed max-w-xs">
-            Accès direct au cabinet via réseau local. Aucune donnée ne transite par un serveur cloud.
+            Connexion directe et sécurisée au cabinet.
           </p>
         </div>
         <div className="w-full flex items-center justify-center gap-2 py-2.5 bg-white/12 backdrop-blur-xl border border-white/25 rounded-[16px] shadow-[inset_0_1px_0_rgba(255,255,255,0.34)] z-10">
           <div className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
-          <span className="text-[10px] font-black text-white uppercase tracking-widest">Zero-Knowledge · AES-256</span>
+          <span className="text-[10px] font-black text-white uppercase tracking-widest">Connexion chiffrée</span>
         </div>
       </div>
 
@@ -110,7 +110,7 @@ export function SecuriteView({
               <span className="text-[9px] font-black text-text-muted uppercase tracking-widest">Réseau</span>
             </div>
             <p className={cn('text-xs font-black', isOnline ? 'text-emerald-600' : 'text-rose-500')}>{isOnline ? 'En ligne' : 'Hors ligne'}</p>
-            <p className="text-[9px] text-text-muted mt-0.5 font-bold">{isOnline ? 'Temps réel' : 'Cache local'}</p>
+            <p className="text-[9px] text-text-muted mt-0.5 font-bold">{isOnline ? 'Temps réel' : 'Accès hors connexion'}</p>
           </div>
         </div>
         <div className={cn(premiumGlass, 'rounded-[20px] p-4')}>
@@ -118,7 +118,7 @@ export function SecuriteView({
           <div className="relative z-10">
             <div className="flex items-center gap-2 mb-3">
               <RefreshCw size={14} className="text-primary" />
-              <span className="text-[9px] font-black text-text-muted uppercase tracking-widest">Sync</span>
+              <span className="text-[9px] font-black text-text-muted uppercase tracking-widest">Mise à jour</span>
             </div>
             <p className="text-xs font-black text-text-main">{syncStatus === 'success' ? 'À jour' : syncStatus === 'loading' ? 'En cours…' : 'En attente'}</p>
             <p className="text-[9px] text-text-muted mt-0.5 font-bold">{snapshot ? new Date(snapshot.generated_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }) : '—'}</p>
@@ -130,8 +130,8 @@ export function SecuriteView({
         <GlassReflection />
         <div className="relative z-10 w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
         <div className="relative z-10">
-          <p className="text-[10px] font-black text-text-muted uppercase tracking-widest">Status Système</p>
-          <p className="text-sm font-black text-text-main">Serveur local opérationnel</p>
+          <p className="text-[10px] font-black text-text-muted uppercase tracking-widest">État de la connexion</p>
+          <p className="text-sm font-black text-text-main">Cabinet accessible</p>
         </div>
         <FileText size={16} className="relative z-10 ml-auto text-text-muted" />
       </div>
@@ -153,8 +153,8 @@ export function SecuriteView({
                 {passkeyEnabled
                   ? 'Face ID, empreinte ou verrou sécurisé requis. L’accès reste temporaire et lié à ce téléphone.'
                   : passkeyPending
-                    ? 'La passkey est créée mais le coffre local doit encore être scellé avant activation.'
-                    : 'Ajoute un second verrou local sans remplacer le QR d’appairage ni la révocation du cabinet.'}
+                    ? 'La biométrie est enregistrée mais son activation doit encore être terminée.'
+                    : 'Ajoute une protection biométrique supplémentaire sans modifier votre accès actuel.'}
               </p>
             </div>
             <LockKeyhole size={16} className="text-text-muted shrink-0 mt-1" />
@@ -182,7 +182,7 @@ export function SecuriteView({
 
           {passkeyEnabled && confirmingPasskeyDisable && (
             <div className="mt-4 rounded-[18px] border border-rose-200 bg-rose-50/80 backdrop-blur-xl p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.9)]">
-              <p className="text-[10px] font-black text-rose-700 leading-relaxed">Après vérification biométrique, le coffre local sera restauré puis la passkey sera déliée de cet appareil.</p>
+              <p className="text-[10px] font-black text-rose-700 leading-relaxed">Après vérification biométrique, l’accès biométrique sera retiré de cet appareil.</p>
               <div className="grid grid-cols-2 gap-2 mt-3">
                 <button type="button" onClick={() => setConfirmingPasskeyDisable(false)} className="min-h-[48px] rounded-[14px] bg-white border border-slate-200 text-[10px] font-black text-text-muted">Annuler</button>
                 <button type="button" disabled={passkeyBusy} onClick={disablePasskey} className="min-h-[48px] rounded-[14px] bg-rose-500 text-white text-[10px] font-black disabled:opacity-50">Confirmer</button>
@@ -191,7 +191,7 @@ export function SecuriteView({
           )}
 
           {passkeyError && <p role="alert" className="mt-3 text-[10px] font-bold text-rose-600">{passkeyError}</p>}
-          <p className="mt-3 text-[9px] text-text-muted leading-relaxed font-semibold">Origine passkey stable : <span className="font-black">digitalcrown.local</span>. Aucune empreinte ni donnée Face ID n’est reçue par Digital Crown.</p>
+          <p className="mt-3 text-[9px] text-text-muted leading-relaxed font-semibold">La biométrie reste gérée par votre téléphone. Digital Crown ne reçoit ni empreinte ni donnée Face ID.</p>
         </div>
       </section>
 
@@ -204,7 +204,7 @@ export function SecuriteView({
         <div className="bg-rose-50/85 backdrop-blur-xl border border-rose-200 rounded-[24px] p-5 space-y-4 shadow-[0_12px_30px_rgba(244,63,94,0.08),inset_0_1px_0_rgba(255,255,255,0.9)]">
           <div className="flex items-center gap-3">
             <AlertTriangle size={20} className="text-rose-500 shrink-0" />
-            <p className="text-xs font-black text-rose-700 leading-relaxed">Cela supprimera les clés de ce téléphone. Il faudra re-scanner le QR Code pour se reconnecter.</p>
+            <p className="text-xs font-black text-rose-700 leading-relaxed">Cela supprimera l’accès enregistré sur ce téléphone. Il faudra scanner à nouveau le QR de connexion.</p>
           </div>
           <div className="grid grid-cols-2 gap-3">
             <button onClick={() => setConfirming(false)} className="py-4 rounded-[16px] text-xs font-black uppercase tracking-widest border border-slate-200 text-slate-500 bg-white active:scale-95 transition-all">Annuler</button>

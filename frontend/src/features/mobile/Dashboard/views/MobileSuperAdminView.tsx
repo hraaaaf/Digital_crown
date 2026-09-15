@@ -104,8 +104,7 @@ const AVAILABILITY_LABELS: Record<string, string> = {
 function statusLabel(value: unknown): string {
   const raw = String(value ?? '').trim();
   if (!raw) return '—';
-  return INTERNAL_STATUS_LABELS[raw.toUpperCase()]
-    ?? raw.replace(/[_-]+/g, ' ').toLowerCase().replace(/^./, letter => letter.toUpperCase());
+  return INTERNAL_STATUS_LABELS[raw.toUpperCase()] ?? 'À vérifier';
 }
 
 function syncModeLabel(value: unknown): string {

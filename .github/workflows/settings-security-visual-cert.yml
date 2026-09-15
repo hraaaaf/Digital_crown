@@ -128,7 +128,7 @@ jobs:
 
               const userTarget = page.getByLabel('Utilisateur mobile cible');
               const destinationTarget = page.getByLabel('Destination mobile');
-              const generateTarget = page.getByRole('button', { name: 'Générer le pont mobile', exact: true });
+              const generateTarget = page.getByRole('button', { name: 'Générer le QR de connexion', exact: true });
               await userTarget.waitFor({ state: 'visible' });
               await destinationTarget.waitFor({ state: 'visible' });
               await generateTarget.waitFor({ state: 'visible' });

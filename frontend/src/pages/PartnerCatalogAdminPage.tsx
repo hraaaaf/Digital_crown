@@ -316,7 +316,7 @@ export const PartnerCatalogAdminPage: React.FC = () => {
             <Input label="Nom fournisseur" value={supplierForm.name} onChange={(value) => setSupplierForm((current) => ({ ...current, name: value }))} required />
             <Input label="Badge" value={supplierForm.badge} onChange={(value) => setSupplierForm((current) => ({ ...current, badge: value }))} />
             <Input label="API base URL" value={supplierForm.apiBaseUrl} onChange={(value) => setSupplierForm((current) => ({ ...current, apiBaseUrl: value }))} />
-            <Input label="Sync mode" value={supplierForm.syncMode} onChange={(value) => setSupplierForm((current) => ({ ...current, syncMode: value }))} />
+            <Input label="Mode de mise à jour" value={supplierForm.syncMode} onChange={(value) => setSupplierForm((current) => ({ ...current, syncMode: value }))} />
             <Toggle label="Actif" checked={supplierForm.isActive} onChange={(checked) => setSupplierForm((current) => ({ ...current, isActive: checked }))} />
             <TextArea label="Description" value={supplierForm.description} onChange={(value) => setSupplierForm((current) => ({ ...current, description: value }))} />
             <TextArea label="Promesse" value={supplierForm.promise} onChange={(value) => setSupplierForm((current) => ({ ...current, promise: value }))} />

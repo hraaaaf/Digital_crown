@@ -81,7 +81,7 @@ export function MobileHeader({
             )} />
             <RefreshCw size={10} className={cn('text-text-muted', syncStatus === 'loading' ? 'animate-spin' : '')} />
             <span className="text-[9px] font-black text-text-muted uppercase tracking-widest flex items-center gap-1">
-              {syncStatus === 'loading' ? 'Sync…' : syncStatus === 'error' ? 'Offline' : 'Live'}
+              {syncStatus === 'loading' ? 'Mise à jour…' : syncStatus === 'error' ? 'Offline' : 'Live'}
               {queuedActionsCount > 0 && <span className="bg-rose-500 text-white px-1 rounded-full">{queuedActionsCount}</span>}
             </span>
           </button>

@@ -52,15 +52,15 @@ export const DocumentMobileBridge = ({ documentId, documentName, documentType }:
   };
 
   const modal = open && typeof document !== 'undefined' ? createPortal(
-    <div className="fixed inset-0 z-[750] bg-slate-950/45 backdrop-blur-sm p-3 sm:p-6 flex items-center justify-center" role="dialog" aria-modal="true" aria-label="Pont mobile document" onClick={(event) => event.stopPropagation()}>
+    <div className="fixed inset-0 z-[750] bg-slate-950/45 backdrop-blur-sm p-3 sm:p-6 flex items-center justify-center" role="dialog" aria-modal="true" aria-label="Document sur mobile" onClick={(event) => event.stopPropagation()}>
       <section data-m4c-bridge className="w-full max-w-xl max-h-[92dvh] overflow-y-auto rounded-[2rem] border border-border-main bg-card-bg shadow-2xl p-5 sm:p-7">
         <div className="flex items-start justify-between gap-4 mb-5">
           <div className="min-w-0">
-            <div className="flex items-center gap-2 text-primary mb-1"><QrCode size={18}/><p className="text-[10px] font-black uppercase tracking-[0.18em]">Pont mobile</p></div>
+            <div className="flex items-center gap-2 text-primary mb-1"><QrCode size={18}/><p className="text-[10px] font-black uppercase tracking-[0.18em]">Accès mobile</p></div>
             <h2 className="text-xl font-black text-text-main">Ouvrir ce document sur mobile</h2>
             <p className="text-xs font-bold text-text-muted mt-1 truncate">{documentType} · {documentName}</p>
           </div>
-          <button data-m4c-touch type="button" onClick={() => setOpen(false)} aria-label="Fermer le pont mobile document" className="min-w-11 min-h-11 rounded-xl border border-border-main inline-flex items-center justify-center text-text-muted hover:text-text-main"><X size={18}/></button>
+          <button data-m4c-touch type="button" onClick={() => setOpen(false)} aria-label="Fermer l’accès mobile document" className="min-w-11 min-h-11 rounded-xl border border-border-main inline-flex items-center justify-center text-text-muted hover:text-text-main"><X size={18}/></button>
         </div>
         {loading ? <div className="min-h-40 flex items-center justify-center gap-3 text-text-muted font-bold text-sm"><Loader2 className="animate-spin" size={20}/> Préparation sécurisée…</div> : error ? <div className="rounded-2xl border border-rose-200 bg-rose-50 p-4"><p className="text-sm font-bold text-rose-700">{error}</p><button data-m4c-touch type="button" onClick={() => void loadOptions()} className="mt-3 min-h-11 px-4 rounded-xl border border-rose-200 bg-white text-rose-700 font-black text-xs inline-flex items-center gap-2"><RefreshCcw size={15}/> Réessayer</button></div> : <div className="space-y-5">
           <div className="grid gap-3 sm:grid-cols-2">

@@ -138,7 +138,7 @@ export const MobileSecurity = () => {
       }
     } catch (error: any) {
       const detail = error?.response?.data?.detail;
-      toast.error(typeof detail === 'string' ? detail : "Impossible de générer le pont mobile.");
+      toast.error(typeof detail === 'string' ? detail : "Impossible de générer le QR de connexion.");
     } finally {
       setIsGenerating(false);
     }
@@ -170,7 +170,7 @@ export const MobileSecurity = () => {
         </div>
         <div>
           <h2 className="text-xl font-bold text-slate-800 dark:text-white font-outfit">Compagnon Mobile</h2>
-          <p className="text-sm text-slate-500">Créez un pont sécurisé vers une surface mobile précise.</p>
+          <p className="text-sm text-slate-500">Connectez un téléphone à l’espace mobile de votre choix.</p>
         </div>
       </div>
 
@@ -180,10 +180,10 @@ export const MobileSecurity = () => {
             <div>
               <h3 className="text-lg font-semibold mb-2 flex items-center gap-2">
                 <Shield size={18} className="text-emerald-500" />
-                Pont mobile sécurisé
+                Connexion mobile sécurisée
               </h3>
               <p className="text-sm text-slate-500">
-                Choisissez l'utilisateur et la destination. Le QR contient uniquement un secret éphémère ; aucune donnée patient n'y est encodée.
+                Choisissez l’utilisateur et l’espace à ouvrir. Le QR ne contient aucune donnée patient et expire automatiquement.
               </p>
             </div>
 
@@ -247,7 +247,7 @@ export const MobileSecurity = () => {
                   className="w-full min-h-[52px] rounded-2xl bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-300 text-white font-black text-sm flex items-center justify-center gap-3 shadow-lg shadow-indigo-500/20 transition-all active:scale-[0.98]"
                 >
                   {isGenerating ? <RefreshCw size={18} className="animate-spin" /> : <QrCode size={18} />}
-                  Générer le pont mobile
+                  Générer le QR de connexion
                 </button>
               </div>
             )}
@@ -264,7 +264,7 @@ export const MobileSecurity = () => {
                   <div className="flex flex-col sm:flex-row gap-5 items-center sm:items-start">
                     <img
                       src={pairing.qr_code}
-                      alt="Pont QR Digital Crown Mobile"
+                      alt="QR de connexion Digital Crown Mobile"
                       className="w-40 h-40 bg-white rounded-2xl p-2 object-contain border border-indigo-100"
                     />
                     <div className="min-w-0 flex-1 text-center sm:text-left">
@@ -278,7 +278,7 @@ export const MobileSecurity = () => {
                         <Clock3 size={14} /> Valable {formatCountdown(countdown)}
                       </p>
                       <p className="mt-2 text-[11px] leading-relaxed text-slate-500">
-                        Aucune donnée patient dans le QR. La destination est validée côté serveur après l'appairage.
+                        Aucune donnée patient dans le QR. L’accès s’ouvre uniquement vers l’espace choisi.
                       </p>
                     </div>
                   </div>
@@ -294,10 +294,10 @@ export const MobileSecurity = () => {
           <div className="bg-rose-500/5 dark:bg-rose-500/10 rounded-3xl border border-rose-500/20 p-5 sm:p-8">
             <h3 className="text-lg font-semibold text-rose-600 dark:text-rose-400 mb-2 flex items-center gap-2">
               <AlertTriangle size={18} />
-              Zone de Danger
+              Révoquer les accès
             </h3>
             <p className="text-sm text-slate-600 dark:text-slate-400 mb-6">
-              En cas de perte ou de vol, révoquez les sessions mobiles existantes. Les anciens jetons seront refusés immédiatement et les codes d'appairage en attente seront invalidés pour ce cabinet.
+              En cas de perte ou de vol, révoquez les accès mobiles existants. Les accès actifs seront immédiatement désactivés et les QR en attente ne fonctionneront plus.
             </p>
 
             <button
@@ -335,7 +335,7 @@ export const MobileSecurity = () => {
       <div className="bg-slate-50 dark:bg-white/5 rounded-2xl p-6 border border-slate-200/60 dark:border-white/5">
         <h4 className="text-sm font-bold text-slate-700 dark:text-slate-300 mb-2">Sécurité mobile locale</h4>
         <p className="text-xs text-slate-500 leading-relaxed">
-          Les données cliniques restent sur le réseau local du cabinet. L'appairage mobile utilise une connexion chiffrée et respecte les droits de l'utilisateur.
+          Les données cliniques restent au cabinet. La connexion mobile est chiffrée et respecte les droits de l’utilisateur.
         </p>
       </div>
     </div>
