@@ -1,0 +1,86 @@
+name: Patient Companion D1 BEFORE
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - feat/patient-companion-d1-ui
+    paths:
+      - 'frontend/scripts/capture-patient-companion-d1-before.mjs'
+      - '.github/workflows/patient-companion-d1-before.yml'
+
+permissions:
+  contents: read
+
+env:
+  D1_BASE_SHA: 3fd0fb6ed759cff527a4524b031e6c0ab537f5d3
+
+jobs:
+  visual-before:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Checkout D1 harness branch
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Prepare exact D0-closed baseline
+        run: |
+          git worktree add /tmp/dc-d1-before "$D1_BASE_SHA"
+          test "$(git -C /tmp/dc-d1-before rev-parse HEAD)" = "$D1_BASE_SHA"
+      - name: Install harness browser dependencies
+        working-directory: frontend
+        run: |
+          npm ci
+          npm install --no-save --package-lock=false --legacy-peer-deps playwright@1.55.0 react-is@19.2.0
+          npx playwright install --with-deps chromium
+      - name: Install exact baseline frontend
+        run: |
+          cd /tmp/dc-d1-before/frontend
+          npm ci
+          npm install --no-save --package-lock=false --legacy-peer-deps react-is@19.2.0
+      - name: Capture exact D1 BEFORE
+        run: |
+          cd /tmp/dc-d1-before/frontend
+          set +e
+          PRODUCT_HEAD="$D1_BASE_SHA" node "$GITHUB_WORKSPACE/frontend/scripts/capture-patient-companion-d1-before.mjs"
+          capture_exit=$?
+          set -e
+          rm -rf "$GITHUB_WORKSPACE/frontend/patient-companion-d1-before-artifacts"
+          if [ -d patient-companion-d1-before-artifacts ]; then
+            cp -R patient-companion-d1-before-artifacts "$GITHUB_WORKSPACE/frontend/"
+          fi
+          exit "$capture_exit"
+      - name: Verify exact baseline artifact contract
+        working-directory: frontend
+        run: |
+          node --input-type=module <<'NODE'
+          import { readFile } from 'node:fs/promises';
+          const report = JSON.parse(await readFile('patient-companion-d1-before-artifacts/report.json', 'utf8'));
+          if (report.productHead !== process.env.D1_BASE_SHA) throw new Error(`Wrong baseline SHA ${report.productHead}`);
+          if (report.phase !== 'BEFORE') throw new Error(`Wrong phase ${report.phase}`);
+          if (report.invalidCount !== 0) throw new Error(`Invalid captures ${report.invalidCount}`);
+          if (report.blockedExternalRequests.length !== 0) throw new Error('Unexpected external egress');
+          if (report.captures.length !== 3) throw new Error('Expected three certified viewports');
+          for (const capture of report.captures) {
+            if (!capture.valid) throw new Error(`Invalid ${capture.viewport}`);
+            if (capture.httpStatus !== 200) throw new Error(`Unexpected HTTP ${capture.viewport}: ${capture.httpStatus}`);
+            if (capture.pageErrors.length || capture.consoleErrors.length) throw new Error(`Runtime errors ${capture.viewport}`);
+            if (capture.metrics.hasPatientCompanion || capture.metrics.hasPatientSpace || capture.metrics.hasPatientActivation) throw new Error(`Patient D1 UI already present in baseline ${capture.viewport}`);
+          }
+          NODE
+          for viewport in 390x844 768x1024 1280x900; do
+            test -s "patient-companion-d1-before-artifacts/before-public-entry-${viewport}.png"
+          done
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: patient-companion-d1-before-exact-master
+          path: frontend/patient-companion-d1-before-artifacts
+          if-no-files-found: error
+          retention-days: 30
