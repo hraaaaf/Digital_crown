@@ -41,10 +41,11 @@ class InsuranceOverlayProfile:
     template_hash: str
     profile_version: str
     placements: tuple[InsuranceOverlayPlacement, ...]
+    max_lines: int | None = None
 
 
 def insurance_overlay_profile_payload(profile: InsuranceOverlayProfile) -> dict:
-    return {
+    payload = {
         "organization": profile.organization,
         "template_version": profile.template_version,
         "template_hash": profile.template_hash,
@@ -57,6 +58,10 @@ def insurance_overlay_profile_payload(profile: InsuranceOverlayProfile) -> dict:
             for placement in profile.placements
         ],
     }
+    # Preserve hashes of historical profiles that predate the optional capacity gate.
+    if profile.max_lines is not None:
+        payload["max_lines"] = profile.max_lines
+    return payload
 
 
 def insurance_overlay_profile_sha256(profile: InsuranceOverlayProfile) -> str:
@@ -77,7 +82,9 @@ _FORBIDDEN_FIELD_TOKENS = (
     "accord_assureur",
 )
 _LINE_FIELD = re.compile(r"^lines\[(\d+)\]\.(label|service_date|amount_mad|ngap_code|ngap_coefficient|teeth)$")
-_CHOICE_FIELD = re.compile(r"^choice\.(request_nature|care_type|beneficiary_sex)\.([A-Za-z0-9_]+)$")
+_CHOICE_FIELD = re.compile(
+    r"^choice\.(request_nature|care_type|beneficiary_sex|relationship_to_insured)\.([A-Za-z0-9_]+)$"
+)
 _ADMIN_FIELDS = {
     "request_nature",
     "insured_full_name",
@@ -163,6 +170,11 @@ def render_insurance_pdf_overlay(
         raise ValueError("Overlay profile template SHA-256 mismatch")
     if not profile.profile_version.strip():
         raise ValueError("Overlay profile version is required")
+    if profile.max_lines is not None:
+        if profile.max_lines <= 0:
+            raise ValueError("Overlay profile max_lines is invalid")
+        if len(draft.lines) > profile.max_lines:
+            raise ValueError("Overlay profile cannot represent all care lines")
 
     try:
         document = fitz.open(stream=template_bytes, filetype="pdf")
