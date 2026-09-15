@@ -56,6 +56,19 @@ describe('Patient Companion D1 transport isolation', () => {
     expect(source).not.toContain('browserLocalPersistence');
   });
 
+  it('keeps the invitation QR token memory-only and strips it from the URL before render', () => {
+    const source = read('./patient-companion/PatientCompanionEntry.tsx');
+    expect(source).toContain("new URLSearchParams(window.location.search).get('token')");
+    expect(source).toContain("window.history.replaceState({}, '', window.location.pathname)");
+    expect(source).not.toContain('localStorage');
+    expect(source).not.toContain('sessionStorage');
+  });
+
+  it('pins the dedicated Firebase Web Auth dependency exactly', () => {
+    const pkg = JSON.parse(read('../package.json')) as { dependencies?: Record<string, string> };
+    expect(pkg.dependencies?.firebase).toBe('12.19.0');
+  });
+
   it('boots Patient Companion before the staff App and excludes patient pages from staff telemetry/offline bootstrap', () => {
     const source = read('./main.tsx');
     expect(source).toContain("previewPath.startsWith('/patient-companion')");
