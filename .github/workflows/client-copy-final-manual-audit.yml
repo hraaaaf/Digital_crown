@@ -46,7 +46,8 @@ jobs:
             src/features/mobile/Dashboard/views/MobileSuperAdminView.test.tsx \
             src/features/mobile/Dashboard/views/MarketplaceView.test.tsx \
             src/features/mobile/Dashboard/components/MobileBottomNav.test.tsx \
-            src/features/mobile/Dashboard/views/FrontdeskView.test.tsx
+            src/features/mobile/Dashboard/views/FrontdeskView.test.tsx \
+            src/test/mobileM64ContextualBridge.test.ts
 
       - name: Build production frontend
         working-directory: frontend
