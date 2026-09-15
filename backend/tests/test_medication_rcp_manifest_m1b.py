@@ -46,7 +46,7 @@ def test_rcp_reader_has_no_historical_fallback():
     assert medication_rcp_manifest.get_rcp_evidence(regulatory_id) is None
 
 
-def test_snapshot_verified_requires_complete_hash_and_official_provenance():
+def test_snapshot_verified_requires_complete_hash_official_provenance_and_safe_path():
     incomplete = {
         "capture_status": "SNAPSHOT_VERIFIED",
         "source_page_url": OFFICIAL_SOURCE_PAGE,
@@ -73,8 +73,15 @@ def test_snapshot_verified_requires_complete_hash_and_official_provenance():
     assert medication_rcp_manifest.snapshot_is_verified(non_official) is False
     assert medication_rcp_manifest.entry_is_fail_closed(non_official) is False
 
+    unsafe_path = {
+        **complete,
+        "local_artifact_path": "../../etc/passwd",
+    }
+    assert medication_rcp_manifest.snapshot_is_verified(unsafe_path) is False
+    assert medication_rcp_manifest.entry_is_fail_closed(unsafe_path) is False
 
-def test_unavailable_verified_cannot_carry_fake_artifact_or_hash():
+
+def test_unavailable_verified_requires_explicit_official_absence_and_no_artifact():
     valid = {
         "capture_status": "UNAVAILABLE_VERIFIED",
         "source_page_url": OFFICIAL_SOURCE_PAGE,
@@ -82,16 +89,23 @@ def test_unavailable_verified_cannot_carry_fake_artifact_or_hash():
         "rcp_sha256": None,
         "rcp_checked_at": "2026-09-15",
         "local_artifact_path": None,
+        "unavailability_evidence": "OFFICIAL_SOURCE_EXPLICIT_NO_RCP",
         "extracted_clinical_fields": {},
     }
     assert medication_rcp_manifest.entry_is_fail_closed(valid) is True
 
-    invalid = {
+    missing_proof = {
+        **valid,
+        "unavailability_evidence": None,
+    }
+    assert medication_rcp_manifest.entry_is_fail_closed(missing_proof) is False
+
+    fake_artifact = {
         **valid,
         "rcp_sha256": "b" * 64,
         "local_artifact_path": "backend/data/rcp/ghost.pdf",
     }
-    assert medication_rcp_manifest.entry_is_fail_closed(invalid) is False
+    assert medication_rcp_manifest.entry_is_fail_closed(fake_artifact) is False
 
 
 def test_missing_link_is_not_promoted_to_unavailable_verified():
