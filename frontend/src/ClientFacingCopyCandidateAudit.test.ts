@@ -22,13 +22,14 @@ const TECHNICAL_COPY_PATTERNS = [
   { label: 'implementation materialization wording', re: /\bnon\s+mat[ée]rialis[ée]\b/i },
   { label: 'internal prescription version', re: /\bPrescription\s+Intelligence\s+V\d+\b/i },
   { label: 'AI implementation label', re: /\bSuggestion\s+IA\b/i },
+  { label: 'LLM implementation label', re: /\bLLM\b/i },
   { label: 'internal brand/nickname', re: /\bGhost(?:\s+(?:Brain|Treasury|Intelligence|Elite))?\b/i },
   { label: 'internal studio label', re: /\b(?:Studio\s+(?:Agenda|Prescriptions?|C[ée]phalom[ée]trique|Panoramique|Documentaire|de\s+Design)|Quick\s+Document\s+Studio)\b/i },
   { label: 'internal science label', re: /\bElite\s+Science\s+Hub\b/i },
   { label: 'english marketplace label', re: /\bMarketplace\b/i },
   { label: 'english analytics label', re: /\bAnalytics(?:\s*&\s*Intelligence)?\b/i },
   { label: 'english frontdesk label', re: /\bFrontdesk\b/i },
-  { label: 'roadmap exposed to user', re: /\b(?:Bient[oô]t\s+disponible|en\s+cours\s+de\s+finalisation)\b/i },
+  { label: 'roadmap exposed to user', re: /\b(?:Bient[oô]t(?:\s+disponible)?|en\s+cours\s+de\s+finalisation)\b/i },
   { label: 'security implementation jargon', re: /\b(?:ECDH|LAN)\b/ },
 ];
 
