@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import base64
 import secrets
 from datetime import datetime, timedelta
 from typing import Literal
@@ -36,6 +37,7 @@ from backend.routers.patient_companion_common import (
 )
 from backend.services.audit_service import audit_service
 from backend.services.firebase_patient_auth import FirebasePatientCredential
+from backend.services.qr_service import qr_service
 from backend.utils.rate_limit import check_rate_limit
 
 router = APIRouter()
@@ -145,6 +147,9 @@ def create_patient_invitation(
 
     raw_token = secrets.token_urlsafe(32)
     manual_code = generate_manual_code()
+    qr_data_url = "data:image/png;base64," + base64.b64encode(
+        qr_service.generate_qr_bytes(raw_token, qr_style="classic").getvalue()
+    ).decode("ascii")
     invitation = PatientCompanionInvitation(
         employer_id=employer_id,
         patient_id=patient.id,
@@ -174,6 +179,7 @@ def create_patient_invitation(
     return {
         "invitation_id": invitation.public_id,
         "qr_token": raw_token,
+        "qr_data_url": qr_data_url,
         "manual_code": manual_code,
         "expires_at": invitation.expires_at,
         "relationship_type": invitation.relationship_type,
@@ -233,6 +239,9 @@ def activate_patient_companion(
     ):
         raise HTTPException(status_code=400, detail="Invitation invalide ou expirée.")
 
+    # Firebase-authenticated requests intentionally carry no cabinet JWT, so the
+    # global staff licence middleware cannot resolve their tenant. Activation is
+    # a write: enforce the owning cabinet licence locally before creating links.
     require_companion_cabinet_write_license(db, invitation.employer_id)
 
     credential_digest = credential_recipient_hash(credential, invitation.recipient_type)
