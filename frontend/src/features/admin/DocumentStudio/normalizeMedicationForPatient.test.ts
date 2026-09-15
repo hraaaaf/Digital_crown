@@ -170,3 +170,63 @@ describe('normalizeMedicationForPatient — R1 cross-path invariants', () => {
     expect(result.requiresPractitionerConfirmation).toBe(true);
   });
 });
+
+describe('normalizeMedicationForPatient — paediatric weight safety', () => {
+  it('blocks an ibuprofen age-band regimen when a real weight makes it exceed 30 mg/kg/day', () => {
+    const result = normalizeMedicationForPatient({
+      drug: baseDrug('IBUPROFENE'),
+      source: 'line_autocomplete',
+      patient: { ageYears: 10, weightKg: 25 },
+    });
+
+    expect(result.arbitration.status).toBe('requires_review');
+    expect(result.arbitration.regimen).toBeNull();
+    expect(result.arbitration.messages.join(' ')).toContain('30 mg/kg/j');
+    expect(result.arbitration.messages.join(' ')).toContain('900 mg/j');
+    expect(result.arbitration.messages.join(' ')).toContain('750 mg/j max');
+    expect(result.drug.dosage).toBe('');
+    expect(result.drug.posologie).toBe('');
+    expect(result.requiresPractitionerConfirmation).toBe(true);
+  });
+
+  it('keeps the sourced ibuprofen age-band regimen when a real weight satisfies the ceiling', () => {
+    const result = normalizeMedicationForPatient({
+      drug: baseDrug('IBUPROFENE'),
+      source: 'line_autocomplete',
+      patient: { ageYears: 10, weightKg: 30 },
+    });
+
+    expect(result.arbitration.status).toBe('applicable');
+    expect(result.arbitration.regimen?.dosage).toBe('300MG');
+    expect(result.drug.dosage).toBe('300MG');
+    expect(result.drug.posologie).toContain('300 mg 3 fois par jour');
+  });
+
+  it('never invents a missing weight for ibuprofen and preserves the existing sourced age band', () => {
+    const result = normalizeMedicationForPatient({
+      drug: baseDrug('IBUPROFENE'),
+      source: 'line_autocomplete',
+      patient: { ageYears: 10 },
+    });
+
+    expect(result.arbitration.status).toBe('applicable');
+    expect(result.drug.dosage).toBe('300MG');
+    expect(result.drug.posologie).toContain('300 mg 3 fois par jour');
+  });
+
+  it('does not overwrite an explicit practitioner regimen even when the weight safety gate requires review', () => {
+    const result = normalizeMedicationForPatient({
+      drug: baseDrug('IBUPROFENE', '300MG', '300 mg 3 fois par jour'),
+      source: 'quick_entry',
+      patient: { ageYears: 10, weightKg: 25 },
+      practitionerExplicitDosage: true,
+      practitionerExplicitPosology: true,
+    });
+
+    expect(result.arbitration.status).toBe('requires_review');
+    expect(result.arbitration.regimen).toBeNull();
+    expect(result.drug.dosage).toBe('300MG');
+    expect(result.drug.posologie).toBe('300 mg 3 fois par jour');
+    expect(result.requiresPractitionerConfirmation).toBe(true);
+  });
+});
