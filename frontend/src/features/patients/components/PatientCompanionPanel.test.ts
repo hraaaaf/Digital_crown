@@ -17,6 +17,13 @@ describe('Patient Companion D2 staff surface', () => {
     expect(panel).toContain('setEphemeralInvitation(null)');
   });
 
+  it('refreshes durable status after multi-access revocation, including partial failures', () => {
+    expect(panel).toContain('Promise.allSettled');
+    expect(panel).toContain("result.status === 'rejected'");
+    expect(panel).toContain('Révocation partielle : état actualisé');
+    expect(panel).toContain('await load();');
+  });
+
   it('is exposed only to the principal owner/admin inside PatientDetails', () => {
     expect(details).toContain("| 'companion'");
     expect(details).toContain('ownerOrAdmin && <TabButton');
