@@ -69,6 +69,19 @@ class NgapRelease:
         return True
 
 
+@dataclass(frozen=True)
+class NgapResolution:
+    status: InsuranceMappingStatus
+    code: Optional[str] = None
+    coefficient: Optional[float] = None
+    official_label: Optional[str] = None
+    mapping_rule_id: Optional[str] = None
+    release_version: Optional[str] = None
+    release_hash: Optional[str] = None
+    requires_prior_approval: bool = False
+    requires_radiograph: bool = False
+
+
 def _basic_normalized_pdf_text(value: str) -> str:
     normalized = unicodedata.normalize("NFKD", value or "")
     ascii_text = "".join(char for char in normalized if not unicodedata.combining(char))
