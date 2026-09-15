@@ -21,6 +21,11 @@ class PatientClinicalContext(Base):
     medication_allergy_status = Column(String(32), nullable=False, default="UNKNOWN", server_default="UNKNOWN")
     medication_allergies = Column(JSON, nullable=True)
 
+    # C2 durable facts. These fields remain factual context only; they do not imply
+    # that any prescription rule is ready or clinically indicated.
+    penicillin_allergy_status = Column(String(32), nullable=False, default="UNKNOWN", server_default="UNKNOWN")
+    ie_cardiac_risk_category = Column(String(64), nullable=False, default="UNKNOWN", server_default="UNKNOWN")
+
     renal_context_status = Column(String(32), nullable=False, default="UNKNOWN", server_default="UNKNOWN")
     renal_context_note = Column(Text, nullable=True)
 
