@@ -1,0 +1,123 @@
+name: Client Copy Mobile Security BEFORE AFTER
+
+on:
+  pull_request:
+    paths:
+      - 'frontend/src/features/mobile/Dashboard/views/SecuriteView.tsx'
+      - 'frontend/src/ClientFacingCopyCandidateAudit.test.ts'
+      - '.github/workflows/client-copy-mobile-security-before-after.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: client-copy-mobile-security-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  exact-before-after:
+    if: github.head_ref == 'fix/client-facing-copy-hygiene'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout exact PR head
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+
+      - name: Record immutable heads and preserve audit harness
+        run: |
+          PRODUCT_HEAD=$(git rev-parse HEAD)
+          BASE_HEAD="${{ github.event.pull_request.base.sha }}"
+          test "$PRODUCT_HEAD" = "${{ github.event.pull_request.head.sha }}"
+          echo "PRODUCT_HEAD=$PRODUCT_HEAD" >> "$GITHUB_ENV"
+          echo "BASE_HEAD=$BASE_HEAD" >> "$GITHUB_ENV"
+          mkdir -p /tmp/client-copy-mobile-security
+          cp .audit/mobile-m6-i-visual.tsx /tmp/client-copy-mobile-security/
+          cp .audit/mobile-m6-i-lock.tsx /tmp/client-copy-mobile-security/
+          cp .audit/mobile-m6-i-passkey-visual-stub.ts /tmp/client-copy-mobile-security/
+          cp .audit/mobile-m6-i-storage-lock-stub.ts /tmp/client-copy-mobile-security/
+          cp .audit/mobile-m6-i-visual.html /tmp/client-copy-mobile-security/
+          cp .audit/mobile-m6-i-lock.html /tmp/client-copy-mobile-security/
+          cp .audit/mobile-m6-i-capture.mjs /tmp/client-copy-mobile-security/
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install frontend and Chromium once
+        working-directory: frontend
+        run: |
+          npm ci
+          npm install --no-save --package-lock=false --ignore-scripts playwright@1.62.1
+          npx playwright install --with-deps chromium
+
+      - name: Capture exact BASE BEFORE
+        run: |
+          git checkout --force "$BASE_HEAD"
+          test "$(git rev-parse HEAD)" = "$BASE_HEAD"
+          cp /tmp/client-copy-mobile-security/mobile-m6-i-visual.tsx frontend/src/mobile-m6-i-visual.tsx
+          cp /tmp/client-copy-mobile-security/mobile-m6-i-visual.html frontend/mobile-m6-i-visual.html
+          cp /tmp/client-copy-mobile-security/mobile-m6-i-capture.mjs frontend/mobile-m6-i-capture.mjs
+          cp /tmp/client-copy-mobile-security/mobile-m6-i-passkey-visual-stub.ts frontend/src/services/zka/mobilePasskey.ts
+          cd frontend
+          node mobile-m6-i-capture.mjs before "$BASE_HEAD"
+
+      - name: Capture exact PR AFTER
+        run: |
+          git checkout --force "$PRODUCT_HEAD"
+          test "$(git rev-parse HEAD)" = "$PRODUCT_HEAD"
+          cp /tmp/client-copy-mobile-security/mobile-m6-i-visual.tsx frontend/src/mobile-m6-i-visual.tsx
+          cp /tmp/client-copy-mobile-security/mobile-m6-i-lock.tsx frontend/src/mobile-m6-i-lock.tsx
+          cp /tmp/client-copy-mobile-security/mobile-m6-i-visual.html frontend/mobile-m6-i-visual.html
+          cp /tmp/client-copy-mobile-security/mobile-m6-i-lock.html frontend/mobile-m6-i-lock.html
+          cp /tmp/client-copy-mobile-security/mobile-m6-i-capture.mjs frontend/mobile-m6-i-capture.mjs
+          cp /tmp/client-copy-mobile-security/mobile-m6-i-passkey-visual-stub.ts frontend/src/services/zka/mobilePasskey.ts
+          cp /tmp/client-copy-mobile-security/mobile-m6-i-storage-lock-stub.ts frontend/src/services/zka/MobileStorage.ts
+          cd frontend
+          node mobile-m6-i-capture.mjs after "$PRODUCT_HEAD"
+
+      - name: Assert exact visual gates
+        working-directory: frontend
+        run: |
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          report = json.loads(Path('mobile-m6-i-artifacts/report.json').read_text())
+          assert report['baseHead'] == os.environ['BASE_HEAD']
+          assert report['productHead'] == os.environ['PRODUCT_HEAD']
+          captures = report['captures']
+          before = [x for x in captures if x['phase'] == 'before' and x['kind'] == 'security']
+          after = [x for x in captures if x['phase'] == 'after' and x['kind'] == 'security']
+          context = [x for x in captures if x['phase'] == 'after' and x['kind'] == 'context']
+          locks = [x for x in captures if x['phase'] == 'after' and x['kind'] == 'lock']
+          assert len(before) == 3
+          assert len(after) == 3
+          assert len(context) == 3
+          assert len(locks) == 3
+          assert all(not x['errors'] for x in captures)
+          assert all(not x['metrics']['hasHorizontalOverflow'] for x in captures)
+          assert all(x['metrics']['biometricVisible'] is True for x in before + after)
+          assert all(x['metrics']['activationHeight'] >= 52 for x in before + after)
+          assert all(x['metrics']['protectedContentVisible'] is False for x in locks)
+          assert all(x['metrics']['unlockHeight'] >= 56 for x in locks)
+          print('Client Copy Mobile Security exact BEFORE/AFTER PASS')
+          PY
+          cat > mobile-m6-i-artifacts/client-copy-metadata.txt <<EOF_META
+          chantier=Client Copy Hygiene
+          surface=Mobile Security
+          base_head=${BASE_HEAD}
+          product_head=${PRODUCT_HEAD}
+          viewports=390x844,430x932,768x1024
+          deployment=none
+          EOF_META
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: client-copy-mobile-security-before-after
+          path: frontend/mobile-m6-i-artifacts/
+          if-no-files-found: error
+          retention-days: 14

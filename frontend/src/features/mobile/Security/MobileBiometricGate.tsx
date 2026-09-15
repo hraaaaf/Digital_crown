@@ -151,7 +151,7 @@ export function MobileBiometricGate({ children }: Props) {
         )}
         {message && <p role="alert" className="mt-4 text-xs font-bold text-rose-600">{message}</p>}
         <p className="mt-6 text-[10px] leading-relaxed text-text-muted font-semibold">
-          Le QR d’appairage et la révocation du cabinet restent obligatoires. La passkey ne remplace jamais l’identité serveur.
+          Le QR de connexion et la révocation du cabinet restent obligatoires. La biométrie ne remplace jamais l’identification du compte.
         </p>
       </section>
     </main>

@@ -340,7 +340,7 @@ export const CephaloWorkspace: React.FC<CephaloWorkspaceProps> = ({
 
       <div className="flex flex-col gap-3 border-b px-4 py-3 sm:px-6 md:flex-row md:items-center md:justify-between" style={{ borderColor: P.border, background: P.bgPanel }}>
         <div className="min-w-0">
-          <h2 className="truncate text-lg font-bold" style={{ color: P.text }}>Studio Céphalométrique</h2>
+          <h2 className="truncate text-lg font-bold" style={{ color: P.text }}>Céphalométrie</h2>
           <p className="truncate text-xs" style={{ color: P.textMuted }}>{patientName}</p>
         </div>
         <div className="flex min-w-0 flex-wrap items-center gap-2 sm:gap-3">

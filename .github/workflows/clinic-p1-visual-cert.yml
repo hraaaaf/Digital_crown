@@ -139,7 +139,7 @@ jobs:
                 await page.getByText('Contexte clinique',{exact:true}).waitFor({state:'visible',timeout:15000});
                 await page.getByText('Dr Lina Alaoui',{exact:true}).first().waitFor({state:'visible',timeout:15000});
                 if(screen==='dashboard') await page.getByText(/Bonjour,/).first().waitFor({state:'visible',timeout:15000});
-                if(screen==='agenda') await page.getByRole('heading',{name:'Studio Agenda'}).waitFor({state:'visible',timeout:15000});
+                if(screen==='agenda') await page.getByRole('heading',{name:'Agenda'}).waitFor({state:'visible',timeout:15000});
                 if(screen==='team'){
                   await page.getByRole('heading',{name:'Paramètres',exact:true}).waitFor({state:'visible',timeout:15000});
                   await page.getByRole('button',{name:'Mon Équipe',exact:true}).click();

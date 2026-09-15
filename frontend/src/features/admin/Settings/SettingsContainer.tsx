@@ -70,7 +70,7 @@ const SettingsSaveBar: React.FC<{
           </p>
           <p className={cn('mt-1 text-xs font-medium leading-relaxed', saveSuccess ? 'text-emerald-700' : 'text-amber-800')}>
             {saveSuccess
-              ? 'Les réglages Profil, Design et Performance ont été confirmés par le backend.'
+              ? 'Les réglages Profil, Design et Performance ont bien été enregistrés.'
               : 'Profil, Design & Ambiance et Performance & Assistance partagent cette sauvegarde.'}
           </p>
         </div>
@@ -172,7 +172,7 @@ const SettingsContainer: React.FC = () => {
 
   if (loading) {
     return (
-      <DigitalCrownLoader text="Initialisation du Centre de Contrôle..." minHeight="min-h-[600px]" />
+      <DigitalCrownLoader text="Chargement des paramètres…" minHeight="min-h-[600px]" />
     );
   }
 
@@ -249,7 +249,7 @@ const SettingsContainer: React.FC = () => {
             </div>
             <div className="min-w-0">
               <h1 className="text-2xl font-black text-slate-900 tracking-tight">Paramètres</h1>
-              <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-1">Ghost Elite Studio</p>
+              <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-1">Paramètres du cabinet</p>
             </div>
           </div>
 
@@ -298,7 +298,7 @@ const SettingsContainer: React.FC = () => {
             {profileReadError && activeProfileBackedTab ? (
               <SettingsReadError
                 title={activeTab === 'profil' ? 'Profil indisponible' : 'Configuration cabinet indisponible'}
-                message="Impossible de vérifier la configuration réelle du cabinet. Aucune valeur de repli n’est modifiable tant que la lecture backend n’a pas réussi."
+                message="Impossible de charger la configuration du cabinet. Réessayez avant de modifier ces réglages."
                 onRetry={retryProfile}
               />
             ) : (

@@ -20,7 +20,7 @@ describe('MarketplaceView', () => {
   it('searches by SKU, adds to cart and opens a prefilled DRAFT checkout', async () => {
     render(<MarketplaceView previewData={preview} />);
 
-    expect(screen.getByRole('heading', { name: 'Marketplace' })).toBeTruthy();
+    expect(screen.getByRole('heading', { name: 'Approvisionnement' })).toBeTruthy();
     const search = screen.getByRole('searchbox', { name: 'Rechercher par nom ou SKU' });
     fireEvent.change(search, { target: { value: 'ENDO-22' } });
     expect(screen.getByText('Limes NiTi')).toBeTruthy();

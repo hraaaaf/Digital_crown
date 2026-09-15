@@ -8,10 +8,10 @@ const source = readFileSync(
 );
 
 describe('Patient Documents P5 truth boundary', () => {
-  it('distinguishes backend failure from a real empty history', () => {
+  it('distinguishes data-load failure from a real empty history', () => {
     expect(source).toContain('const [fetchError, setFetchError]');
     expect(source).toContain("Impossible de charger l'historique");
-    expect(source).toContain("Aucun état vide n'est déduit tant que le backend ne répond pas.");
+    expect(source).toContain("Impossible de confirmer l'absence de données tant que le chargement n'est pas terminé.");
     expect(source).toContain('Réessayer');
   });
 

@@ -20,7 +20,7 @@ export const SyncBadge: React.FC<SyncBadgeProps> = ({ state, P }) => {
   const cfg = {
     syncing: { color: P.accent, icon: <Loader2 size={12} className="animate-spin" />, label: 'Synchronisation…' },
     success: { color: P.accentSuccess, icon: <CheckCircle2 size={12} />, label: 'Synchronisé' },
-    error: { color: P.accentError, icon: <AlertCircle size={12} />, label: 'Erreur sync' },
+    error: { color: P.accentError, icon: <AlertCircle size={12} />, label: 'Échec de mise à jour' },
   }[state];
   return (
     <motion.div

@@ -42,7 +42,7 @@ describe('MobileSuperAdminView', () => {
     fireEvent.click(sectionButton('Essais'));
     expect(screen.getByText('DC-DEMO-42A1-8BC2')).toBeTruthy();
 
-    fireEvent.click(sectionButton('Marketplace'));
+    fireEvent.click(sectionButton('Approvisionnement'));
     expect(screen.getByText('Dental Supply Demo')).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Catalogue' })).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Incidents' })).toBeTruthy();
@@ -66,9 +66,11 @@ describe('MobileSuperAdminView', () => {
     fireEvent.click(screen.getByRole('button', { name: /CMD-PART-DEMO-7001/ }));
 
     expect(await screen.findByRole('dialog', { name: 'CMD-PART-DEMO-7001' })).toBeTruthy();
-    expect(screen.getByRole('button', { name: /Dispatch fournisseur/i })).toBeTruthy();
+    expect(screen.getByRole('button', { name: /Envoyer au fournisseur/i })).toBeTruthy();
     expect(screen.getByRole('button', { name: /Accuser réception fournisseur/i })).toBeTruthy();
     expect(screen.getByRole('button', { name: /Enregistrer facture/i })).toBeTruthy();
     expect(screen.getByRole('button', { name: /Enregistrer réception/i })).toBeTruthy();
+    expect(screen.getAllByText(/Dental Supply Demo · Brouillon/i).length).toBeGreaterThan(0);
+    expect(screen.queryByText(/DRAFT|CONFIRMED|FULFILLED|Control-plane|WebAuthn|JWT|Procurement|Backorder|Outcome|HTTP/i)).toBeNull();
   });
 });

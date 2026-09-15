@@ -212,6 +212,7 @@ jobs:
           const server = await createServer({
             server: { host: '127.0.0.1', port: 4181, strictPort: true },
             clearScreen: false,
+            optimizeDeps: { include: ['workbox-window'] },
           });
           await server.listen();
           const browser = await chromium.launch();

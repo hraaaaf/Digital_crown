@@ -73,7 +73,7 @@ export const BrandingTab: React.FC = () => {
             </span>
             <div
               className="flex max-w-full bg-[var(--bg-medical-pearl)] p-1 rounded-xl border border-[var(--border-color)]"
-              aria-label="Choisir l'aperçu du studio"
+              aria-label="Choisir l'aperçu"
             >
               {(['app', 'doc'] as Scope[]).map((scope) => (
                 <button

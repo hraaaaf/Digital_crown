@@ -132,7 +132,7 @@ export const PrescriptionForm: React.FC<PrescriptionFormProps> = ({
                 </div>
                 <div>
                   <h4 className="text-sm font-black text-primary uppercase tracking-tight">
-                    {loadingSmart ? "Analyse du dossier..." : "Suggestion IA"}
+                    {loadingSmart ? "Analyse du dossier..." : "Suggestion"}
                   </h4>
                   <p className="text-xs text-slate-500 font-medium">
                     {loadingSmart ? "Recherche du meilleur protocole..." : <>Protocole détecté : <span className="font-bold text-primary">{smartSuggestion?.protocol_name}</span></>}

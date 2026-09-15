@@ -49,7 +49,7 @@ export const PatientRvgPanel: React.FC<PatientRvgPanelProps> = ({ patientId }) =
         <AlertCircle size={38} className="text-rose-500" />
         <div>
           <h3 className="font-black text-slate-800">Impossible de charger les RVG</h3>
-          <p className="text-sm text-slate-500 mt-1">Aucun état vide n'est déduit tant que le backend ne répond pas.</p>
+          <p className="text-sm text-slate-500 mt-1">Impossible de confirmer l'absence de données tant que le chargement n'est pas terminé.</p>
         </div>
         <button
           type="button"

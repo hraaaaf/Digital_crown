@@ -154,6 +154,7 @@ jobs:
           const server = await createServer({
             server: { host: '127.0.0.1', port: 4188, strictPort: true },
             clearScreen: false,
+            optimizeDeps: { include: ['workbox-window'] },
           });
           await server.listen();
 

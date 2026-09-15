@@ -156,7 +156,7 @@ async function captureViewport(viewport, attempt) {
 
   try {
     const response = await page.goto(`${BASE_URL}/cephalo-r1-after.html`, { waitUntil: 'domcontentloaded', timeout: 30000 });
-    await page.getByRole('heading', { name: 'Studio Céphalométrique' }).waitFor({ state: 'visible', timeout: 30000 });
+    await page.getByRole('heading', { name: 'Céphalométrie' }).waitFor({ state: 'visible', timeout: 30000 });
     const provenanceButton = page.locator('button[title="État de calibration et provenance"]').first();
     await provenanceButton.waitFor({ state: 'visible', timeout: 30000 });
     await provenanceButton.evaluate(button => button.click());
@@ -171,7 +171,7 @@ async function captureViewport(viewport, attempt) {
       const assistantButton = Array.from(document.querySelectorAll('button')).find(node => node.textContent?.toLowerCase().includes('vérifier automatiquement'));
       const assistant = assistantButton?.closest('div.absolute');
       const assistantRect = assistant?.getBoundingClientRect();
-      const topHeader = Array.from(document.querySelectorAll('h2')).find(node => node.textContent?.includes('Studio Céphalométrique'))?.parentElement?.parentElement;
+      const topHeader = Array.from(document.querySelectorAll('h2')).find(node => node.textContent?.includes('Céphalométrie'))?.parentElement?.parentElement;
       const headerRect = topHeader?.getBoundingClientRect();
       return {
         innerWidth,
@@ -184,7 +184,7 @@ async function captureViewport(viewport, attempt) {
         hasCandidateLabel: text.includes('réglette à vérifier'),
         hasAutoAction: text.includes('vérifier automatiquement'),
         hasManualFallback: text.includes('calibrer manuellement'),
-        hasWorkspaceHeading: text.includes('studio céphalométrique'),
+        hasWorkspaceHeading: text.includes('céphalométrie'),
       };
     });
 

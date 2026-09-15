@@ -43,7 +43,7 @@ describe('M6.4 contextual QR bridge', () => {
     expect(securitySource).toContain('destination: selectedDestination');
     expect(securitySource).toContain('aria-label="Utilisateur mobile cible"');
     expect(securitySource).toContain('aria-label="Destination mobile"');
-    expect(securitySource).toContain('Générer le pont mobile');
+    expect(securitySource).toContain('Générer le QR de connexion');
     expect(securitySource).toContain('contains_patient_data !== false');
     expect(securitySource).not.toContain("api.get('/admin/zka-key-qr')");
   });

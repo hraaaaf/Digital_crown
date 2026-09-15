@@ -31,7 +31,7 @@ export const PartnerMarketplacePage = () => {
               <Zap size={14} className="text-primary" aria-hidden="true" />
               Approvisionnement rapide
             </div>
-            <h1 className="mt-1 font-outfit text-2xl font-black leading-tight text-text-main sm:text-3xl">Marketplace</h1>
+            <h1 className="mt-1 font-outfit text-2xl font-black leading-tight text-text-main sm:text-3xl">Approvisionnement</h1>
             <p className="mt-1 max-w-2xl text-sm font-medium text-text-muted">
               Trouvez une référence par nom ou SKU, ajustez la quantité et préparez un brouillon de commande.
             </p>
@@ -51,7 +51,7 @@ export const PartnerMarketplacePage = () => {
         </div>
       </header>
 
-      <section className="rounded-elite-lg border border-border-main bg-card-bg p-3 shadow-elite sm:p-4" aria-label="Recherche Marketplace">
+      <section className="rounded-elite-lg border border-border-main bg-card-bg p-3 shadow-elite sm:p-4" aria-label="Recherche approvisionnement">
         <div className="flex flex-col gap-3 md:flex-row md:items-center">
           <label className="relative min-w-0 flex-1" htmlFor="marketplace-search">
             <span className="sr-only">Rechercher par nom ou SKU</span>
@@ -75,7 +75,7 @@ export const PartnerMarketplacePage = () => {
           </button>
         </div>
 
-        <div className="mt-3 flex gap-2 overflow-x-auto pb-1" aria-label="Filtres Marketplace">
+        <div className="mt-3 flex gap-2 overflow-x-auto pb-1" aria-label="Filtres approvisionnement">
           <button
             type="button"
             onClick={() => marketplace.setAvailableOnly(!marketplace.availableOnly)}
@@ -168,7 +168,7 @@ export const PartnerMarketplacePage = () => {
             className="mt-4 w-full rounded-elite px-4 py-3 text-sm font-black text-white transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-45"
             style={{ backgroundColor: 'var(--primary)' }}
           >
-            Préparer le DRAFT
+            Préparer le brouillon
           </button>
           <p className="mt-2 text-center text-[11px] font-semibold leading-relaxed text-text-muted">
             Le fournisseur ne reçoit rien à cette étape.
@@ -257,7 +257,7 @@ const CheckoutDialog = ({ customer, cartLines, total, submitting, successMessage
       <div className="flex items-start justify-between gap-4">
         <div>
           <p className="text-[10px] font-black uppercase tracking-[0.2em] text-text-muted">Brouillon de commande</p>
-          <h2 id="marketplace-checkout-title" className="mt-1 font-outfit text-2xl font-black text-text-main">Préparer le DRAFT</h2>
+          <h2 id="marketplace-checkout-title" className="mt-1 font-outfit text-2xl font-black text-text-main">Préparer le brouillon</h2>
         </div>
         <button type="button" onClick={onClose} className="grid h-11 w-11 place-items-center rounded-full border border-border-main text-text-muted" aria-label="Fermer"><X size={18} /></button>
       </div>
@@ -297,7 +297,7 @@ const CheckoutDialog = ({ customer, cartLines, total, submitting, successMessage
           {submitting ? 'Enregistrement…' : 'Enregistrer le brouillon'}
         </button>
         <p className="text-center text-[11px] font-semibold leading-relaxed text-text-muted">
-          Cette action crée une commande DRAFT dans Digital Crown. Rien n’est encore transmis au fournisseur.
+          Cette action crée un brouillon de commande dans Digital Crown. Rien n’est encore transmis au fournisseur.
         </p>
       </form>
     </section>

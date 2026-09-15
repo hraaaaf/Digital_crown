@@ -65,8 +65,8 @@ export const ReportViewer: React.FC<ReportViewerProps> = ({
           </div>
         </div>
         <div className="text-center">
-          <p className="text-indigo-900 font-black text-sm tracking-widest uppercase">Génération du rapport déterministe...</p>
-          <p className="text-slate-400 text-[10px] mt-1 font-mono italic">Moteur Panoramique SOTA • Zéro-Hallucination</p>
+          <p className="text-indigo-900 font-black text-sm tracking-widest uppercase">Génération du bilan...</p>
+          <p className="text-slate-400 text-[10px] mt-1 font-mono italic">Préparation des constatations • validation praticien</p>
         </div>
       </div>
     );
@@ -83,15 +83,15 @@ export const ReportViewer: React.FC<ReportViewerProps> = ({
 
   return (
     <div className="bg-white rounded-[2.5rem] shadow-2xl shadow-indigo-100/50 border border-slate-200/60 overflow-hidden flex flex-col h-full print:shadow-none print:border-none print:rounded-none">
-      {/* Header Actions - Ghost Elite Style */}
+      {/* Header actions */}
       <div className="bg-slate-50/80 backdrop-blur-md px-8 py-5 border-b border-slate-100 flex justify-between items-center print:hidden shrink-0">
         <div className="flex items-center gap-3">
           <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center shadow-lg shadow-indigo-200">
             <FileText size={16} className="text-white" />
           </div>
           <div>
-            <span className="block font-black text-slate-800 text-xs tracking-[0.15em] uppercase">Intelligence Clinique</span>
-            <span className="block text-[9px] text-indigo-500 font-bold uppercase tracking-widest">{engineName || "Générateur Déterministe"}</span>
+            <span className="block font-black text-slate-800 text-xs tracking-[0.15em] uppercase">Bilan clinique</span>
+            <span className="block text-[9px] text-indigo-500 font-bold uppercase tracking-widest">{engineName || "Radiographie panoramique"}</span>
           </div>
         </div>
         <div className="flex items-center gap-2">
@@ -126,14 +126,14 @@ export const ReportViewer: React.FC<ReportViewerProps> = ({
               <button
                 onClick={onPreview}
                 className="p-2.5 hover:bg-white hover:shadow-md rounded-xl transition-all text-slate-500 hover:text-indigo-600 active:scale-90"
-                title="Aperçu Live PDF"
+                title="Aperçu du PDF"
               >
                 <Eye size={18} />
               </button>
               <button
                 onClick={() => window.print()}
                 className="p-2.5 hover:bg-white hover:shadow-md rounded-xl transition-all text-slate-500 hover:text-indigo-600 active:scale-90"
-                title="Imprimer le diagnostic"
+                title="Imprimer le bilan"
               >
                 <Printer size={18} />
               </button>
@@ -211,14 +211,14 @@ export const ReportViewer: React.FC<ReportViewerProps> = ({
                 <ShieldCheck size={20} className="text-white" />
               </div>
               <div>
-                <p className="text-[11px] font-black text-emerald-900 uppercase tracking-wider">Bilan Déterministe</p>
-                <p className="text-[10px] text-emerald-700/80 leading-tight">Rédigé sans LLM — éditable et validé par le praticien</p>
+                <p className="text-[11px] font-black text-emerald-900 uppercase tracking-wider">Bilan clinique</p>
+                <p className="text-[10px] text-emerald-700/80 leading-tight">Éditable avant validation par le praticien</p>
               </div>
             </div>
 
-            {/* Footer Automatique (Compliance) */}
+            {/* Footer automatique */}
             <div className="mt-12 pt-6 border-t border-slate-100 text-[9px] text-slate-400 italic leading-relaxed font-medium">
-              Ce rapport est généré déterministement à partir des dents nommées par l'IA et des annotations cliniques du praticien.
+              Ce bilan est préparé à partir des dents repérées automatiquement et des annotations cliniques du praticien.
               Il ne remplace en aucun cas l'expertise clinique finale du praticien responsable. Digital Crown - SANINOVA Edition.
             </div>
           </>

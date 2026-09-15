@@ -225,7 +225,7 @@ export const PatientDocuments = () => {
         <ArchiveX size={40} className="text-rose-400" />
         <div>
           <h3 className="text-slate-800 font-black text-lg">Impossible de charger l'historique</h3>
-          <p className="text-slate-400 text-sm mt-1">Aucun état vide n'est déduit tant que le backend ne répond pas.</p>
+          <p className="text-slate-400 text-sm mt-1">Impossible de confirmer l'absence de données tant que le chargement n'est pas terminé.</p>
         </div>
         <button type="button" onClick={() => setReloadKey(key => key + 1)} className="min-h-11 flex items-center gap-2 px-4 rounded-xl bg-primary text-white font-black text-xs uppercase tracking-widest">
           <RefreshCcw size={15} /> Réessayer
