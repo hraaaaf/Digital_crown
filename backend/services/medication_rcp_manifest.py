@@ -5,9 +5,11 @@ l'état de capture d'un RCP officiel lié à une présentation réglementaire ex
 """
 from __future__ import annotations
 
+import hashlib
 import json
 import logging
 import re
+from datetime import date
 from pathlib import Path, PurePosixPath
 from typing import Any, Dict, Optional
 from urllib.parse import urlparse
@@ -143,3 +145,51 @@ def entry_is_fail_closed(entry: Dict[str, Any]) -> bool:
         and entry.get("local_artifact_path") is None
         and extracted == {}
     )
+
+
+def prepare_verified_snapshot_entry(
+    entry: Dict[str, Any],
+    *,
+    pdf_bytes: bytes,
+    rcp_url: str,
+    checked_at: str,
+    local_artifact_path: str,
+) -> Dict[str, Any]:
+    """Prépare une preuve SNAPSHOT_VERIFIED à partir d'un PDF déjà capturé.
+
+    Cette fonction ne télécharge rien, ne persiste rien et n'extrait aucune donnée
+    clinique. Elle valide uniquement la provenance, le format minimal et l'intégrité
+    cryptographique avant de produire une copie de l'entrée prête à être revue.
+    """
+    if entry.get("capture_status") != "PENDING_DOWNLOAD" or not entry_is_fail_closed(entry):
+        raise ValueError("RCP entry must be a valid PENDING_DOWNLOAD record")
+
+    if not isinstance(pdf_bytes, (bytes, bytearray)) or not bytes(pdf_bytes).startswith(b"%PDF-"):
+        raise ValueError("Captured RCP artifact must be a PDF")
+
+    if not _is_official_ammps_url(rcp_url):
+        raise ValueError("RCP URL must use the official AMMPS HTTPS domain")
+
+    try:
+        date.fromisoformat(checked_at.strip())
+    except (AttributeError, ValueError):
+        raise ValueError("checked_at must be an ISO date (YYYY-MM-DD)") from None
+
+    if not _is_safe_local_artifact_path(local_artifact_path):
+        raise ValueError("RCP artifact path must stay under backend/data/rcp")
+    if PurePosixPath(local_artifact_path.strip()).suffix.lower() != ".pdf":
+        raise ValueError("RCP artifact path must end with .pdf")
+
+    prepared = {
+        **entry,
+        "capture_status": "SNAPSHOT_VERIFIED",
+        "rcp_url": rcp_url.strip(),
+        "rcp_sha256": hashlib.sha256(bytes(pdf_bytes)).hexdigest(),
+        "rcp_checked_at": checked_at.strip(),
+        "local_artifact_path": local_artifact_path.strip(),
+        "unavailability_evidence": None,
+        "extracted_clinical_fields": {},
+    }
+    if not entry_is_fail_closed(prepared):
+        raise ValueError("Prepared RCP snapshot failed fail-closed integrity checks")
+    return prepared
