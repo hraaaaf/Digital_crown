@@ -1,0 +1,77 @@
+name: Patient Companion D1 AFTER
+
+on:
+  push:
+    branches:
+      - feat/patient-companion-d1-ui
+    paths:
+      - '.github/workflows/patient-companion-d1-after.yml'
+      - 'frontend/scripts/capture-patient-companion-d1-after.mjs'
+      - 'frontend/src/pages/PatientCompanionPage.tsx'
+      - 'frontend/src/patient-companion/**'
+      - 'frontend/src/main.tsx'
+      - 'frontend/package.json'
+  workflow_dispatch:
+
+concurrency:
+  group: patient-companion-d1-after-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  visual-after:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Install D1 frontend manifest
+        run: npm install --package-lock=false --legacy-peer-deps
+      - name: Install capture browser
+        run: |
+          npm install --no-save --package-lock=false --legacy-peer-deps playwright@1.55.0 react-is@19.2.0
+          npx playwright install --with-deps chromium
+      - name: Capture D1 AFTER
+        run: PRODUCT_HEAD="$GITHUB_SHA" node scripts/capture-patient-companion-d1-after.mjs
+      - name: Verify D1 AFTER contract
+        run: |
+          node --input-type=module <<'NODE'
+          import { readFile } from 'node:fs/promises';
+          const report = JSON.parse(await readFile('patient-companion-d1-after-artifacts/report.json', 'utf8'));
+          if (report.productHead !== process.env.GITHUB_SHA) throw new Error(`Wrong product HEAD ${report.productHead}`);
+          if (report.phase !== 'AFTER') throw new Error(`Wrong phase ${report.phase}`);
+          if (report.invalidCount !== 0) throw new Error(`Invalid captures ${report.invalidCount}`);
+          if (report.blockedExternalRequests.length !== 0) throw new Error('Unexpected external egress');
+          if (report.baselineComparableState !== 'public-entry') throw new Error('Missing comparable baseline state');
+          const expectedStates = ['public-entry', 'home', 'activation'];
+          const expectedViewports = ['390x844', '768x1024', '1280x900'];
+          for (const state of expectedStates) {
+            const rows = report.captures.filter((capture) => capture.state === state);
+            if (rows.length !== 3) throw new Error(`Expected three captures for ${state}`);
+            for (const viewport of expectedViewports) {
+              const capture = rows.find((row) => row.viewport === viewport);
+              if (!capture?.valid) throw new Error(`Invalid ${state} ${viewport}`);
+              if (capture.pageErrors.length || capture.consoleErrors.length) throw new Error(`Browser errors ${state} ${viewport}`);
+              if (state !== 'public-entry' && capture.metrics.horizontalDocumentOverflow) throw new Error(`D1 overflow ${state} ${viewport}`);
+            }
+          }
+          NODE
+          for state in public-entry home activation; do
+            for viewport in 390x844 768x1024 1280x900; do
+              test -s "patient-companion-d1-after-artifacts/after-${state}-${viewport}.png"
+            done
+          done
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: patient-companion-d1-after
+          path: frontend/patient-companion-d1-after-artifacts
+          if-no-files-found: error
+          retention-days: 30
