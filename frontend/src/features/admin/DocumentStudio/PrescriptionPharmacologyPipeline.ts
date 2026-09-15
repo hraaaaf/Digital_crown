@@ -1,6 +1,9 @@
 import { api } from '../../../services/api';
 import type { DrugItem } from './Forms/prescriptionTypes';
-import type { PatientPharmacologyContext } from './DentalPharmacologyArbiter';
+import type {
+  DentalAbscessContext,
+  PatientPharmacologyContext,
+} from './DentalPharmacologyArbiter';
 import {
   normalizeMedicationForPatient,
   type MedicationInputSource,
@@ -92,6 +95,8 @@ export async function resolveAndNormalizeMedication(args: {
   drug: DrugItem;
   source: MedicationInputSource;
   assessment: any;
+  /** Explicit structured abscess context supplied by the clinical workflow. */
+  dentalAbscessContext?: DentalAbscessContext | null;
   practitionerExplicit?: PractitionerExplicitFields;
 }): Promise<MedicationNormalizationResult & { dictionaryResult: any | null }> {
   if (args.drug.type === 'EXAMEN') {
@@ -99,6 +104,7 @@ export async function resolveAndNormalizeMedication(args: {
       drug: args.drug,
       source: args.source,
       patient: buildPatientPharmacologyContext(args.assessment),
+      dentalAbscessContext: args.dentalAbscessContext,
     });
     return { ...result, dictionaryResult: null };
   }
@@ -108,6 +114,7 @@ export async function resolveAndNormalizeMedication(args: {
     drug: args.drug,
     source: args.source,
     patient: buildPatientPharmacologyContext(args.assessment),
+    dentalAbscessContext: args.dentalAbscessContext,
     moleculeName: arbitrationIdentity(dci, args.drug),
     practitionerExplicitDosage: args.practitionerExplicit?.dosage,
     practitionerExplicitPosology: args.practitionerExplicit?.posology,
