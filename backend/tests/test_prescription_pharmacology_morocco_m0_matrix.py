@@ -5,6 +5,7 @@ from pathlib import Path
 AUDIT_DIR = Path(__file__).resolve().parents[2] / "docs" / "audits"
 MATRIX_PATH = AUDIT_DIR / "PRESCRIPTION_PHARMACOLOGY_MOROCCO_M0_MATRIX.json"
 EVIDENCE_PATH = AUDIT_DIR / "PRESCRIPTION_PHARMACOLOGY_MOROCCO_M0_EVIDENCE.json"
+INDICATIONS_PATH = AUDIT_DIR / "PRESCRIPTION_PHARMACOLOGY_MOROCCO_M0_INDICATIONS.json"
 
 ALLOWED_TIERS = {
     "AUTO_OK_MAROC",
@@ -21,6 +22,10 @@ def load_matrix():
 
 def load_evidence():
     return json.loads(EVIDENCE_PATH.read_text(encoding="utf-8"))
+
+
+def load_indications():
+    return json.loads(INDICATIONS_PATH.read_text(encoding="utf-8"))
 
 
 def test_morocco_m0_matrix_is_parseable_and_non_runtime():
@@ -108,3 +113,48 @@ def test_morocco_m0_negative_search_is_not_encoded_as_absence():
 
     for row in load_matrix()["rows"]:
         assert row.get("market_state") != "ABSENT_BY_SEARCH_ONLY", row["id"]
+
+
+def test_morocco_m0_indication_universe_is_parseable_unique_and_non_runtime():
+    indications = load_indications()
+    rows = indications["rows"]
+    ids = [row["id"] for row in rows]
+
+    assert indications["schema_version"] == "m0-indications.1"
+    assert indications["runtime_behavior_change"] is False
+    assert indications["verified_at"] == "2026-09-15"
+    assert len(rows) == 22
+    assert len(ids) == len(set(ids)) == 22
+
+
+def test_morocco_m0_indications_are_fail_closed_and_link_only_known_molecules():
+    matrix = load_matrix()
+    known_matrix_rows = {row["id"] for row in matrix["rows"]}
+
+    for indication in load_indications()["rows"]:
+        assert indication["m0_tier"] in ALLOWED_TIERS, indication["id"]
+        assert indication["m0_tier"] != "AUTO_OK_MAROC", indication["id"]
+        assert indication.get("gap", "").strip(), indication["id"]
+        assert indication.get("indication", "").strip(), indication["id"]
+        assert indication.get("care_scope", "").strip(), indication["id"]
+        assert indication.get("drug_role", "").strip(), indication["id"]
+        assert isinstance(indication.get("local_measures_first"), bool), indication["id"]
+
+        for row_id in indication.get("linked_matrix_ids", []):
+            assert row_id in known_matrix_rows, f"{indication['id']}: unknown matrix row {row_id}"
+
+
+def test_morocco_m0_never_turns_localised_abscess_or_red_flags_into_auto_antibiotics():
+    indications = {row["id"]: row for row in load_indications()["rows"]}
+
+    localised = indications["infection.dental_abscess_localised"]
+    assert localised["drug_role"] == "NO_ROUTINE_ANTIBIOTIC"
+    assert localised["m0_tier"] == "REVIEW_ONLY"
+
+    severe = indications["infection.dental_abscess_severe_red_flags"]
+    assert severe["care_scope"] == "EMERGENCY_REFERRAL"
+    assert severe["m0_tier"] == "NOT_SUPPORTED"
+
+    emergency = indications["emergency.chairside_medication_set"]
+    assert emergency["care_scope"] == "EMERGENCY_CHAIRSIDE"
+    assert emergency["m0_tier"] == "NOT_SUPPORTED"
