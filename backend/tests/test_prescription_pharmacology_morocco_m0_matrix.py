@@ -6,6 +6,7 @@ AUDIT_DIR = Path(__file__).resolve().parents[2] / "docs" / "audits"
 MATRIX_PATH = AUDIT_DIR / "PRESCRIPTION_PHARMACOLOGY_MOROCCO_M0_MATRIX.json"
 EVIDENCE_PATH = AUDIT_DIR / "PRESCRIPTION_PHARMACOLOGY_MOROCCO_M0_EVIDENCE.json"
 INDICATIONS_PATH = AUDIT_DIR / "PRESCRIPTION_PHARMACOLOGY_MOROCCO_M0_INDICATIONS.json"
+SAFETY_PATH = AUDIT_DIR / "PRESCRIPTION_PHARMACOLOGY_MOROCCO_M0_SAFETY_DIMENSIONS.json"
 
 ALLOWED_TIERS = {
     "AUTO_OK_MAROC",
@@ -14,6 +15,21 @@ ALLOWED_TIERS = {
     "NOT_SUPPORTED",
 }
 ALLOWED_EVIDENCE_STATES = {"CROSS_CHECKED", "PRIMARY_ONLY"}
+ALLOWED_SAFETY_STATES = {
+    "CURRENT_ENGINE_PARTIAL_NEEDS_MOROCCO_RCP",
+    "PENDING_MOROCCO_RCP",
+    "PENDING_MOROCCO_PROTOCOL",
+    "SPECIALIST_OR_EXTERNAL_PROTOCOL",
+    "NOT_APPLICABLE_OR_NON_MEDICINE",
+}
+REQUIRED_SAFETY_DIMENSIONS = {
+    "age_weight",
+    "pregnancy_breastfeeding",
+    "renal",
+    "hepatic",
+    "allergy",
+    "interactions",
+}
 
 
 def load_matrix():
@@ -26,6 +42,10 @@ def load_evidence():
 
 def load_indications():
     return json.loads(INDICATIONS_PATH.read_text(encoding="utf-8"))
+
+
+def load_safety():
+    return json.loads(SAFETY_PATH.read_text(encoding="utf-8"))
 
 
 def test_morocco_m0_matrix_is_parseable_and_non_runtime():
@@ -158,3 +178,32 @@ def test_morocco_m0_never_turns_localised_abscess_or_red_flags_into_auto_antibio
     emergency = indications["emergency.chairside_medication_set"]
     assert emergency["care_scope"] == "EMERGENCY_CHAIRSIDE"
     assert emergency["m0_tier"] == "NOT_SUPPORTED"
+
+
+def test_morocco_m0_safety_dimensions_cover_exactly_the_50_matrix_rows():
+    matrix_ids = {row["id"] for row in load_matrix()["rows"]}
+    safety = load_safety()
+    safety_ids = [row["id"] for row in safety["rows"]]
+
+    assert safety["schema_version"] == "m0-safety.1"
+    assert safety["runtime_behavior_change"] is False
+    assert safety["verified_at"] == "2026-09-15"
+    assert set(safety["allowed_states"]) == ALLOWED_SAFETY_STATES
+    assert set(safety["dimensions"]) == REQUIRED_SAFETY_DIMENSIONS
+    assert len(safety_ids) == len(set(safety_ids)) == 50
+    assert set(safety_ids) == matrix_ids
+
+
+def test_morocco_m0_safety_dimensions_have_no_silent_gap():
+    for row in load_safety()["rows"]:
+        assert set(row) == REQUIRED_SAFETY_DIMENSIONS | {"id"}, row["id"]
+        for dimension in REQUIRED_SAFETY_DIMENSIONS:
+            assert row[dimension] in ALLOWED_SAFETY_STATES, f"{row['id']}: {dimension}"
+
+
+def test_morocco_m0_pending_safety_never_implies_auto_permission():
+    matrix_by_id = {row["id"]: row for row in load_matrix()["rows"]}
+
+    for safety_row in load_safety()["rows"]:
+        if any(value.startswith("PENDING_") for key, value in safety_row.items() if key != "id"):
+            assert matrix_by_id[safety_row["id"]]["m0_tier"] != "AUTO_OK_MAROC", safety_row["id"]
