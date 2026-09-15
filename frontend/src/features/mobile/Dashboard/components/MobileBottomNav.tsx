@@ -69,13 +69,13 @@ export function MobileBottomNav({
     {
       id: 'frontdesk' as Tab,
       icon: ClipboardList,
-      label: 'Frontdesk',
+      label: 'Accueil',
       allowedRoles: ['DENTISTE', 'ADMIN', 'SECRETAIRE'],
     },
     {
       id: 'finance' as Tab,
       icon: TrendingUp,
-      label: 'Finance',
+      label: 'Trésorerie',
       allowedRoles: ['DENTISTE', 'ADMIN'],
     },
     {
