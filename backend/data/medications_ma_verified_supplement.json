@@ -6,16 +6,18 @@
     "unite": "MG",
     "forme": "COMPRIME SECABLE",
     "_source": {
-      "id": "ma-acigam-official-plus-crosscheck-2026-01-16",
-      "label": "Ministère de la Santé — Arrêté n°941.18 / BO 6670 + Medicament.ma (cross-check)",
+      "id": "ma-acigam-100-bo2018-crosscheck-2026",
+      "label": "Ministère de la Santé — BO 6670 (2018) + Medicament.ma (cross-check 2026)",
       "license": "official_publication + secondary_reference",
       "source_url": "https://www.sante.gov.ma/sites/Ar/reglementation/DocLib6/Arr%C3%AAt%C3%A9%20n%C2%B0941.18.pdf",
-      "snapshot_date": "2026-01-16",
-      "freshness": "cross_checked_secondary_2026",
+      "snapshot_date": "2018-05-03",
+      "freshness": "historical_official_crosschecked_2026",
       "current_marketing_status_verified": false,
+      "current_regulatory_directory_match": false,
       "evidence": [
-        {"role": "primary_official_presentation", "url": "https://www.sante.gov.ma/sites/Ar/reglementation/DocLib6/Arr%C3%AAt%C3%A9%20n%C2%B0941.18.pdf", "detail": "ACIGAM 100 MG COMPRIME SÉCABLE BOITE DE 30"},
-        {"role": "secondary_identity_and_status_crosscheck", "url": "https://medicament.ma/medicament/acigam-100-mg-comprime-secable/", "detail": "BOTTU S.A.; acide tiaprofénique; 100 MG; comprimé sécable; mise à jour 2026-01-16"}
+        {"role": "primary_official_historical_presentation", "url": "https://www.sante.gov.ma/sites/Ar/reglementation/DocLib6/Arr%C3%AAt%C3%A9%20n%C2%B0941.18.pdf", "detail": "ACIGAM 100 MG COMPRIME SÉCABLE BOITE DE 30; Bulletin Officiel n°6670 du 03/05/2018"},
+        {"role": "secondary_2026_crosscheck", "url": "https://medicament.ma/medicament/acigam-100-mg-comprime-secable/", "detail": "BOTTU S.A.; acide tiaprofénique; 100 MG; comprimé sécable; mise à jour 2026-01-16"},
+        {"role": "current_official_directory_check", "url": "https://ammps.gov.ma/repertoire-medicaments-generiques", "detail": "Édition projet janvier 2026: ACIGAM 100 MG non retrouvé dans le groupe ACIDE TIAPROFENIQUE 100 MG; ne pas conclure à une disponibilité ou autorisation actuelle à partir de ce supplément"}
       ]
     }
   },
@@ -26,16 +28,18 @@
     "unite": "MG",
     "forme": "COMPRIME SECABLE",
     "_source": {
-      "id": "ma-acigam-official-plus-crosscheck-2026-01-16",
-      "label": "Ministère de la Santé — Arrêté n°941.18 / BO 6670 + Medicament.ma (cross-check)",
-      "license": "official_publication + secondary_reference",
-      "source_url": "https://www.sante.gov.ma/sites/Ar/reglementation/DocLib6/Arr%C3%AAt%C3%A9%20n%C2%B0941.18.pdf",
-      "snapshot_date": "2026-01-16",
-      "freshness": "cross_checked_secondary_2026",
+      "id": "ammps-rmmg-2026-acigam-200",
+      "label": "AMMPS — Répertoire Marocain des Médicaments Génériques, édition projet janvier 2026",
+      "license": "official_publication",
+      "source_url": "https://ammps.gov.ma/repertoire-medicaments-generiques",
+      "snapshot_date": "2026-01",
+      "freshness": "official_directory_2026",
       "current_marketing_status_verified": false,
+      "current_regulatory_directory_match": true,
       "evidence": [
-        {"role": "primary_official_presentation", "url": "https://www.sante.gov.ma/sites/Ar/reglementation/DocLib6/Arr%C3%AAt%C3%A9%20n%C2%B0941.18.pdf", "detail": "ACIGAM 200 MG COMPRIME SÉCABLE BOITE DE 20"},
-        {"role": "secondary_identity_and_status_crosscheck", "url": "https://medicament.ma/medicament/acigam-200-mg-comprime-secable/", "detail": "BOTTU S.A.; acide tiaprofénique; 200 MG; comprimé sécable; mise à jour 2026-01-16"}
+        {"role": "primary_current_official_directory", "url": "https://ammps.gov.ma/repertoire-medicaments-generiques", "detail": "ACIGAM 200 MG COMPRIME SECABLE BOITE DE 20; BOTTU; EAN13 6118000041986"},
+        {"role": "primary_official_historical_presentation", "url": "https://www.sante.gov.ma/sites/Ar/reglementation/DocLib6/Arr%C3%AAt%C3%A9%20n%C2%B0941.18.pdf", "detail": "ACIGAM 200 MG COMPRIME SÉCABLE BOITE DE 20; Bulletin Officiel n°6670 du 03/05/2018"},
+        {"role": "secondary_2026_crosscheck", "url": "https://medicament.ma/medicament/acigam-200-mg-comprime-secable/", "detail": "BOTTU S.A.; acide tiaprofénique; 200 MG; comprimé sécable; mise à jour 2026-01-16"}
       ]
     }
   }
