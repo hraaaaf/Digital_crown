@@ -45,20 +45,27 @@ const acigamText = (await acigam.innerText()).trim();
 if (!/ACIDE TIAPROFENIQUE/i.test(acigamText)) throw new Error('ACIGAM DCI not rendered');
 if (!/AMMPS/i.test(acigamText)) throw new Error('AMMPS provenance not rendered');
 if (!/2026-01/i.test(acigamText)) throw new Error('AMMPS edition date not rendered');
+
+const selectedPresentationCount = await page.locator('[data-selected-medication-presentation]').count();
+const selected = selectedPresentationCount > 0;
+if (selected) throw new Error('Medication presentation was selected automatically after typing ACIG');
+const inputValue = await input.inputValue();
+if (inputValue !== 'ACIG') throw new Error(`Medication input changed unexpectedly after autocomplete: ${inputValue}`);
 if (pageErrors.length) throw new Error(`Page errors: ${pageErrors.join(' | ')}`);
 
 await page.waitForTimeout(250);
 const shot = 'acig-autocomplete-after-1280x900.png';
 await page.screenshot({ path: path.join(outDir, shot), fullPage: false });
 fs.writeFileSync(path.join(outDir, 'acig-autocomplete-after.json'), JSON.stringify({
-  query: 'ACIG',
-  selected: false,
+  query: inputValue,
+  selected,
+  selectedPresentationCount,
   suggestionCount: count,
   acigamText,
   sourceId: 'ammps-rmmg-2026-01',
   pageErrors,
   screenshot: shot,
 }, null, 2));
-console.log(JSON.stringify({ query: 'ACIG', selected: false, suggestionCount: count, sourceId: 'ammps-rmmg-2026-01' }));
+console.log(JSON.stringify({ query: inputValue, selected, selectedPresentationCount, suggestionCount: count, sourceId: 'ammps-rmmg-2026-01' }));
 await browser.close();
 await api.dispose();
