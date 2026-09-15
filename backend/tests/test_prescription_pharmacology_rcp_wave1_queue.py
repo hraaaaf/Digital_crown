@@ -69,3 +69,14 @@ def test_missing_source_cannot_be_marked_ready():
     for entry in queue["entries"]:
         if not entry["source_urls"]:
             assert entry["state"] == "PENDING_CURRENT_PRESENTATION_DISCOVERY"
+
+
+def test_ibuprofen_ready_state_is_grounded_in_current_ammps_search_page():
+    queue = _load_queue()
+    ibuprofen = next(
+        entry for entry in queue["entries"] if entry["molecule_id"] == "ibuprofen"
+    )
+
+    assert ibuprofen["state"] == "READY_FOR_CAPTURE_TRANSPORT"
+    assert "https://www.ammps.gov.ma/recherche-medicaments?page=27" in ibuprofen["source_urls"]
+    assert "exact download target" in ibuprofen["gap"].lower()
