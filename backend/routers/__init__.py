@@ -118,7 +118,7 @@ ia.router.routes = [
 ia.router.include_router(cephalo_analysis_read.router)
 
 # Portability P4 replaces the legacy env-based licence recheck. The stable public URL
-# remains unchanged, but identity now comes from the authenticated CabinetConfig.
+# is unchanged, but identity now comes from the authenticated CabinetConfig.
 clinics.router.routes = [
     route
     for route in clinics.router.routes
@@ -299,6 +299,11 @@ patients.router.routes = [
 ]
 documents.router.include_router(document_provenance_p3.documents_router)
 patients.router.include_router(document_provenance_p3.patients_router)
+
+# Mutuelles: keep the submission facade under the already-mounted documents surface.
+# This avoids a second application router while preserving the canonical /api/documents prefix.
+from . import insurance_submissions as insurance_submissions
+documents.router.include_router(insurance_submissions.router, prefix="/insurance-submissions")
 
 # Cephalometry R15 exposes only a fail-closed clinician-facing projection under the
 # canonical patient surface; it does not create diagnoses or therapeutic decisions.
