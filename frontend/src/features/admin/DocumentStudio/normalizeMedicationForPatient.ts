@@ -5,6 +5,7 @@ import {
   type PharmacologyArbitration,
 } from './DentalPharmacologyArbiter';
 import { arbitrateMedicationSupplement } from './DentalPharmacologySupplement';
+import { applyMedicationWeightSafety } from './PrescriptionPharmacologyWeightSafety';
 import {
   arbitrateForMorocco,
   type MoroccoMedicationEvidence,
@@ -83,13 +84,20 @@ const defaultMoroccoEvidence = (
  * 10. International guidance may populate a visible support regimen, but it is
  *    never considered automatically adoptable for Morocco unless the Morocco
  *    policy gate explicitly allows it.
+ * 11. Source-backed weight ceilings are enforced after regimen arbitration when
+ *    a real patient weight is available; no replacement dose is invented.
  */
 export function normalizeMedicationForPatient(
   input: MedicationNormalizationInput,
 ): MedicationNormalizationResult {
   const arbitratedMolecule = input.moleculeName?.trim() || input.drug.name;
-  const arbitration = arbitrateMedicationSupplement(arbitratedMolecule, input.patient)
+  const sourceArbitration = arbitrateMedicationSupplement(arbitratedMolecule, input.patient)
     ?? arbitrateMedication(arbitratedMolecule, input.patient);
+  const arbitration = applyMedicationWeightSafety(
+    arbitratedMolecule,
+    input.patient,
+    sourceArbitration,
+  );
   const regimen = arbitration.regimen;
   const moroccoDecision = arbitrateForMorocco(
     input.moroccoEvidence ?? defaultMoroccoEvidence(arbitratedMolecule, arbitration),
