@@ -150,6 +150,7 @@ def test_prepare_verified_snapshot_entry_hashes_pdf_without_mutating_source():
         (b"not-a-pdf", "https://www.ammps.gov.ma/rcp/example.pdf", "2026-09-15", "backend/data/rcp/example.pdf"),
         (b"%PDF-1.7\n%%EOF", "https://example.com/rcp.pdf", "2026-09-15", "backend/data/rcp/example.pdf"),
         (b"%PDF-1.7\n%%EOF", "https://www.ammps.gov.ma/rcp/example.pdf", "15/09/2026", "backend/data/rcp/example.pdf"),
+        (b"%PDF-1.7\n%%EOF", "https://www.ammps.gov.ma/rcp/example.pdf", "20260915", "backend/data/rcp/example.pdf"),
         (b"%PDF-1.7\n%%EOF", "https://www.ammps.gov.ma/rcp/example.pdf", "2026-09-15", "../../example.pdf"),
         (b"%PDF-1.7\n%%EOF", "https://www.ammps.gov.ma/rcp/example.pdf", "2026-09-15", "backend/data/rcp/example.txt"),
     ],
