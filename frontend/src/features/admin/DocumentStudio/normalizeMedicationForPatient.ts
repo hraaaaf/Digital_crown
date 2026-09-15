@@ -1,11 +1,13 @@
 import type { DrugItem } from './Forms/prescriptionTypes';
 import {
   arbitrateMedication,
+  type DentalAbscessContext,
   type PatientPharmacologyContext,
   type PharmacologyArbitration,
 } from './DentalPharmacologyArbiter';
 import { arbitrateMedicationSupplement } from './DentalPharmacologySupplement';
 import { applyMedicationWeightSafety } from './PrescriptionPharmacologyWeightSafety';
+import { applyAmoxicillinSevereDentalAbscessSafety } from './PrescriptionAmoxicillinSevereSafety';
 import {
   arbitrateForMorocco,
   type MoroccoMedicationEvidence,
@@ -24,6 +26,8 @@ export interface MedicationNormalizationInput {
   drug: DrugItem;
   source: MedicationInputSource;
   patient: PatientPharmacologyContext;
+  /** Explicit structured dental abscess context only; never inferred from free text. */
+  dentalAbscessContext?: DentalAbscessContext | null;
   /**
    * DCI / substance active resolved from a trusted medication dictionary.
    * If absent, the displayed drug name is used and unknown brands fail closed.
@@ -86,6 +90,8 @@ const defaultMoroccoEvidence = (
  *    policy gate explicitly allows it.
  * 11. Source-backed weight ceilings are enforced after regimen arbitration when
  *    a real patient weight is available; no replacement dose is invented.
+ * 12. Severe dental infection is consumed only from an explicit structured
+ *    DentalAbscessContext; no free-text severity inference is allowed.
  */
 export function normalizeMedicationForPatient(
   input: MedicationNormalizationInput,
@@ -93,10 +99,16 @@ export function normalizeMedicationForPatient(
   const arbitratedMolecule = input.moleculeName?.trim() || input.drug.name;
   const sourceArbitration = arbitrateMedicationSupplement(arbitratedMolecule, input.patient)
     ?? arbitrateMedication(arbitratedMolecule, input.patient);
-  const arbitration = applyMedicationWeightSafety(
+  const weightSafeArbitration = applyMedicationWeightSafety(
     arbitratedMolecule,
     input.patient,
     sourceArbitration,
+  );
+  const arbitration = applyAmoxicillinSevereDentalAbscessSafety(
+    arbitratedMolecule,
+    input.patient,
+    input.dentalAbscessContext,
+    weightSafeArbitration,
   );
   const regimen = arbitration.regimen;
   const moroccoDecision = arbitrateForMorocco(
