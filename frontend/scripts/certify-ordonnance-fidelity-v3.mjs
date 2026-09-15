@@ -70,10 +70,13 @@ async function measure(page) {
     const inViewport = (r) => Boolean(r && r.bottom > 0 && r.top < window.innerHeight);
     const touchSelectors = [
       '[data-prescription-intelligence-studio="v1"] button',
-      '[data-patient-clinical-context="c1"] input',
-      '[data-patient-clinical-context="c1"] select',
-      '[data-patient-clinical-context="c1"] textarea',
-      '[data-patient-clinical-context="c1"] button',
+      '[data-patient-clinical-context] input',
+      '[data-patient-clinical-context] select',
+      '[data-patient-clinical-context] textarea',
+      '[data-patient-clinical-context] button',
+      '[data-ie-prophylaxis-rule="c2"] input',
+      '[data-ie-prophylaxis-rule="c2"] select',
+      '[data-ie-prophylaxis-rule="c2"] button',
       '[data-prescription-indication="document"] textarea',
       '[data-ordonnance-drug-card] button',
       '[data-ordonnance-prescription-composer] select',
@@ -85,17 +88,22 @@ async function measure(page) {
     if (addLine) touchHeights.push(addLine.getBoundingClientRect().height);
     const doc = document.documentElement;
     const studio = rect('[data-prescription-intelligence-studio="v1"]');
-    const clinicalContext = rect('[data-patient-clinical-context="c1"]');
+    const clinicalContext = rect('[data-patient-clinical-context]');
     const prescriptionIndication = rect('[data-prescription-indication="document"]');
     const clinicalBlocked = rect('[data-clinical-rule-status="blocked"]');
     const safety = rect('[data-safety-status]');
     const drugCard = rect('[data-ordonnance-drug-card]');
+    const ieRule = rect('[data-ie-prophylaxis-rule="c2"]');
     const addLineRect = addLine ? addLine.getBoundingClientRect() : null;
     const desktopPreview = rect('[data-ordonnance-desktop-preview="inline"]');
-    const clinicalRoot = document.querySelector('[data-patient-clinical-context="c1"]');
+    const clinicalRoot = document.querySelector('[data-patient-clinical-context]');
+    const ieRoot = document.querySelector('[data-ie-prophylaxis-rule="c2"]');
     const clinicalFields = clinicalRoot
       ? [...clinicalRoot.querySelectorAll('input, select, textarea')].filter(visible).length
       : 0;
+    const internalCopyVisible = [...document.querySelectorAll('*')]
+      .filter(visible)
+      .some(el => /règle de dose v1 certifiée|suggestion clinique indisponible/i.test(el.innerText || ''));
     return {
       studio,
       clinicalContext,
@@ -108,13 +116,38 @@ async function measure(page) {
       addLineInViewport: inViewport(addLineRect),
       clinicalExpanded: clinicalRoot?.getAttribute('data-context-expanded') === 'true',
       clinicalFields,
+      ieRule,
+      ieExpanded: ieRoot?.getAttribute('data-rule-expanded') === 'true',
+      ieResult: ieRoot?.getAttribute('data-rule-result') || null,
       desktopPreview,
       visibleEditorWidth: studio && desktopPreview ? Math.max(0, desktopPreview.left - studio.left) : null,
       touchMin: touchHeights.length ? Math.min(...touchHeights) : null,
       touchCount: touchHeights.length,
+      internalCopyVisible,
       noHorizontalOverflow: doc.scrollWidth <= doc.clientWidth + 2,
     };
   });
+}
+
+async function selectExactAmoxicillin(page) {
+  const nameInput = page.getByPlaceholder('NOM OU DCI DU MÉDICAMENT...').first();
+  if (!(await nameInput.count())) throw new Error('Medication name input not found');
+  await nameInput.fill('AMOXICILLINE');
+  const results = page.locator('[data-medication-catalog-results]');
+  await results.waitFor({ state: 'visible', timeout: 30000 });
+  const buttons = results.locator('button[data-presentation-id]');
+  const count = await buttons.count();
+  let selected = false;
+  for (let i = 0; i < count; i += 1) {
+    const lines = (await buttons.nth(i).innerText()).split('\n').map(line => line.trim().toUpperCase()).filter(Boolean);
+    if (lines.includes('AMOXICILLINE') || lines.includes('AMOXICILLIN')) {
+      await buttons.nth(i).click();
+      selected = true;
+      break;
+    }
+  }
+  if (!selected) throw new Error('Exact single-ingredient amoxicillin presentation not found in catalog results');
+  await page.locator('[data-ie-prophylaxis-rule="c2"]').waitFor({ state: 'attached', timeout: 10000 });
 }
 
 for (const viewport of viewports) {
@@ -124,10 +157,30 @@ for (const viewport of viewports) {
   const pageErrors = [];
   page.on('pageerror', error => pageErrors.push(String(error)));
 
+  await page.route('**/api/prescriptions/clinical-rules/ie-prophylaxis/evaluate', async route => {
+    if (route.request().method() !== 'POST') return route.continue();
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        status: 'READY',
+        rule_id: 'IE_PROPHYLAXIS_ADULT_ORAL_AMOXICILLIN',
+        rule_version: '2026-09-15.v3',
+        blockers: [],
+        active_ingredient_code: 'AMOXICILLIN',
+        total_dose_mg: 2000,
+        timing_min_minutes_before: 30,
+        timing_max_minutes_before: 60,
+        single_dose: true,
+        source_ids: ['AHA_VGS_IE_2021', 'ADA_IE_PROPHYLAXIS'],
+      }),
+    });
+  });
+
   const url = `http://127.0.0.1:5173/patients/${patient.id}?tab=admin&documentTab=ordonnance`;
   await page.goto(url, { waitUntil: 'networkidle', timeout: 90000 });
   await page.locator('[data-prescription-intelligence-studio="v1"]').waitFor({ state: 'attached', timeout: 30000 });
-  await page.locator('[data-patient-clinical-context="c1"]').waitFor({ state: 'attached', timeout: 30000 });
+  await page.locator('[data-patient-clinical-context]').waitFor({ state: 'attached', timeout: 30000 });
   await page.locator('[data-prescription-indication="document"]').waitFor({ state: 'attached', timeout: 30000 });
   await page.locator('[data-clinical-rule-status="blocked"]').waitFor({ state: 'attached', timeout: 30000 });
   await resetScrollableAncestors(page);
@@ -145,19 +198,35 @@ for (const viewport of viewports) {
   await page.screenshot({ path: path.join(outDir, planningShot), fullPage: false });
 
   const contextToggle = page.getByRole('button', { name: /renseigner/i }).first();
-  if (!(await contextToggle.count())) throw new Error('C1 context expand action not found');
+  if (!(await contextToggle.count())) throw new Error('Clinical context expand action not found');
   await contextToggle.scrollIntoViewIfNeeded();
   await contextToggle.click();
-  await page.locator('[data-patient-clinical-context="c1"][data-context-expanded="true"]').waitFor({ state: 'attached', timeout: 10000 });
+  await page.locator('[data-patient-clinical-context][data-context-expanded="true"]').waitFor({ state: 'attached', timeout: 10000 });
   await page.waitForTimeout(180);
   const clinicalMetrics = await measure(page);
   const clinicalShot = `ordonnance-fidelity-v3-${viewport.width}x${viewport.height}-clinical.png`;
   await page.screenshot({ path: path.join(outDir, clinicalShot), fullPage: false });
 
   const reduceContext = page.getByRole('button', { name: /réduire/i }).first();
-  if (!(await reduceContext.count())) throw new Error('C1 context reduce action not found');
+  if (!(await reduceContext.count())) throw new Error('Clinical context reduce action not found');
   await reduceContext.click();
   await page.waitForTimeout(120);
+
+  await selectExactAmoxicillin(page);
+  const ieToggle = page.locator('[data-ie-prophylaxis-rule="c2"]').getByRole('button', { name: /^Évaluer$/i });
+  await ieToggle.scrollIntoViewIfNeeded();
+  await ieToggle.click();
+  await page.getByLabel('Date prévue du geste').fill('2026-10-01');
+  await page.getByLabel('Geste avec manipulation gingivale périapicale ou perforation muqueuse').selectOption('yes');
+  await page.getByLabel('Voie orale possible').selectOption('yes');
+  await page.getByLabel('Prise actuelle de pénicilline ou amoxicilline').selectOption('no');
+  await page.getByRole('button', { name: /Vérifier la prophylaxie/i }).click();
+  await page.locator('[data-ie-prophylaxis-rule="c2"][data-rule-result="READY"]').waitFor({ state: 'attached', timeout: 10000 });
+  await page.getByText('Amoxicilline 2 g, prise unique, 30–60 min avant le geste').scrollIntoViewIfNeeded();
+  await page.waitForTimeout(180);
+  const c2Metrics = await measure(page);
+  const c2Shot = `ordonnance-fidelity-v3-${viewport.width}x${viewport.height}-c2-ready.png`;
+  await page.screenshot({ path: path.join(outDir, c2Shot), fullPage: false });
 
   let previewScene = null;
   if (viewport.width >= 1280) {
@@ -178,6 +247,7 @@ for (const viewport of viewports) {
     top: { screenshot: topShot, metrics: topMetrics },
     planning: { screenshot: planningShot, metrics: planningMetrics },
     clinical: { screenshot: clinicalShot, metrics: clinicalMetrics },
+    c2: { screenshot: c2Shot, metrics: c2Metrics },
     preview: previewScene,
     pageErrors,
   });
@@ -190,12 +260,13 @@ for (const capture of captures) {
   for (const scene of ['top', 'planning']) {
     const metrics = capture[scene].metrics;
     if (!metrics.studio) failures.push(`${capture.viewport.width}-${scene}: V1 studio missing`);
-    if (!metrics.clinicalContext) failures.push(`${capture.viewport.width}-${scene}: C1 clinical context missing`);
-    if (metrics.clinicalExpanded) failures.push(`${capture.viewport.width}-${scene}: C1 must be compact by default`);
+    if (!metrics.clinicalContext) failures.push(`${capture.viewport.width}-${scene}: clinical context missing`);
+    if (metrics.clinicalExpanded) failures.push(`${capture.viewport.width}-${scene}: clinical context must be compact by default`);
     if (!metrics.prescriptionIndication) failures.push(`${capture.viewport.width}-${scene}: document-scoped indication missing`);
-    if (!metrics.clinicalBlocked) failures.push(`${capture.viewport.width}-${scene}: fail-closed clinical status missing`);
+    if (!metrics.clinicalBlocked) failures.push(`${capture.viewport.width}-${scene}: autonomous clinical status gate missing`);
     if (!metrics.noHorizontalOverflow) failures.push(`${capture.viewport.width}-${scene}: horizontal overflow`);
     if (metrics.touchMin !== null && metrics.touchMin < 43.5) failures.push(`${capture.viewport.width}-${scene}: touch target ${metrics.touchMin}`);
+    if (metrics.internalCopyVisible) failures.push(`${capture.viewport.width}-${scene}: internal certification copy visible to practitioner`);
   }
 
   const planningMetrics = capture.planning.metrics;
@@ -204,11 +275,20 @@ for (const capture of captures) {
   if (!planningMetrics.addLineInViewport) failures.push(`${capture.viewport.width}-planning: add-line action not visible`);
 
   const clinicalMetrics = capture.clinical.metrics;
-  if (!clinicalMetrics.clinicalContext) failures.push(`${capture.viewport.width}-clinical: C1 context missing`);
-  if (!clinicalMetrics.clinicalExpanded) failures.push(`${capture.viewport.width}-clinical: C1 context did not expand`);
-  if (clinicalMetrics.clinicalFields < 4) failures.push(`${capture.viewport.width}-clinical: expected structured C1 fields visible`);
+  if (!clinicalMetrics.clinicalContext) failures.push(`${capture.viewport.width}-clinical: context missing`);
+  if (!clinicalMetrics.clinicalExpanded) failures.push(`${capture.viewport.width}-clinical: context did not expand`);
+  if (clinicalMetrics.clinicalFields < 6) failures.push(`${capture.viewport.width}-clinical: expected C2 structured patient fields visible`);
   if (!clinicalMetrics.noHorizontalOverflow) failures.push(`${capture.viewport.width}-clinical: horizontal overflow`);
   if (clinicalMetrics.touchMin !== null && clinicalMetrics.touchMin < 43.5) failures.push(`${capture.viewport.width}-clinical: touch target ${clinicalMetrics.touchMin}`);
+  if (clinicalMetrics.internalCopyVisible) failures.push(`${capture.viewport.width}-clinical: internal certification copy visible to practitioner`);
+
+  const c2Metrics = capture.c2.metrics;
+  if (!c2Metrics.ieRule) failures.push(`${capture.viewport.width}-c2: C2 IE panel missing`);
+  if (!c2Metrics.ieExpanded) failures.push(`${capture.viewport.width}-c2: C2 IE panel not expanded`);
+  if (c2Metrics.ieResult !== 'READY') failures.push(`${capture.viewport.width}-c2: READY result not rendered`);
+  if (!c2Metrics.noHorizontalOverflow) failures.push(`${capture.viewport.width}-c2: horizontal overflow`);
+  if (c2Metrics.touchMin !== null && c2Metrics.touchMin < 43.5) failures.push(`${capture.viewport.width}-c2: touch target ${c2Metrics.touchMin}`);
+  if (c2Metrics.internalCopyVisible) failures.push(`${capture.viewport.width}-c2: internal certification copy visible to practitioner`);
 
   if (capture.viewport.width >= 1280) {
     const previewMetrics = capture.preview?.metrics;
@@ -216,10 +296,8 @@ for (const capture of captures) {
     if ((previewMetrics?.desktopPreview?.width || 0) < 270) failures.push(`${capture.viewport.width}-preview: inline preview too narrow`);
     if ((previewMetrics?.studio?.width || 0) < 530) failures.push(`${capture.viewport.width}-preview: editor layout width below 530px`);
     if ((previewMetrics?.visibleEditorWidth || 0) < 495) failures.push(`${capture.viewport.width}-preview: visible editor width below 495px`);
-    if (!previewMetrics?.clinicalContext) failures.push(`${capture.viewport.width}-preview: C1 clinical context missing`);
-    if (previewMetrics?.clinicalExpanded) failures.push(`${capture.viewport.width}-preview: C1 should be compact after explicit reduce`);
+    if (!previewMetrics?.clinicalContext) failures.push(`${capture.viewport.width}-preview: clinical context missing`);
     if (!previewMetrics?.prescriptionIndication) failures.push(`${capture.viewport.width}-preview: document-scoped indication missing`);
-    if (!previewMetrics?.clinicalBlocked) failures.push(`${capture.viewport.width}-preview: fail-closed clinical status missing`);
     if (!previewMetrics?.noHorizontalOverflow) failures.push(`${capture.viewport.width}-preview: horizontal overflow`);
   }
   if (capture.pageErrors.length) failures.push(`${capture.viewport.width}: page errors ${capture.pageErrors.join(' | ')}`);

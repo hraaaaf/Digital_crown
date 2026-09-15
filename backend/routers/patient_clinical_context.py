@@ -22,6 +22,8 @@ def _empty_context(patient_id: int, employer_id: int) -> PatientClinicalContextO
         weight_kg=None,
         medication_allergy_status="UNKNOWN",
         medication_allergies=None,
+        penicillin_allergy_status="UNKNOWN",
+        ie_cardiac_risk_category="UNKNOWN",
         renal_context_status="UNKNOWN",
         renal_context_note=None,
         hepatic_context_status="UNKNOWN",
