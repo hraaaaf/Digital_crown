@@ -1,6 +1,6 @@
 # Prescription Pharmacology Morocco RCP M1
 
-Status: ACTIVE — M1-B1 WAVE 1 RCP ACQUISITION
+Status: ACTIVE — M1-B2 FIRST VERIFIED RCP CAPTURE TRANSPORT
 
 ## Goal
 
@@ -42,9 +42,19 @@ M1-B0 a livré :
 
 Post-merge CI #4409 a été annulée/supplantée avant la régression complète ; elle n'est pas retenue comme preuve post-merge. Les preuves pre-merge exact-head restent vertes.
 
-## M1-B1 — Wave 1 acquisition
+## M1-B1 — Wave 1 acquisition close et mergée
 
-Branche : `feat/prescription-pharmacology-morocco-rcp-m1b-wave1`, créée depuis le merge exact M1-B0 `81bf142021cdf4770e9c6ca92078306ac4898783`.
+PR #519 mergée en squash : `21651f22df9ba5210078969aa46abc527ba9e2bd`.
+
+Preuves exact-head avant merge sur `65a24f69366865811e2f22e432e2af69e4650a90` :
+
+- CI #4411 : success ;
+- PostgreSQL #806 : success ;
+- Catalog Connected Truth #1288 : success ;
+- T2 Runtime #3291 : success ;
+- M6-I : skipped attendu.
+
+Le post-merge CI #4418 a été annulé immédiatement parce que `master` a avancé sur un commit documentaire Patient Companion D1. Il n'est pas retenu comme preuve post-merge.
 
 Queue machine : `docs/audits/PRESCRIPTION_PHARMACOLOGY_MOROCCO_RCP_WAVE1_QUEUE.json`.
 
@@ -69,6 +79,33 @@ Univers exact Wave 1 :
 
 Les pages AMMPS officielles exposent le bouton « Télécharger RCP » pour plusieurs présentations Wave 1. Le href/fichier cible n'est pas exposé de façon fiable par les moyens de fetch actuellement disponibles. Aucun `rcp_url`, hash ou `SNAPSHOT_VERIFIED` n'est donc fabriqué.
 
+## M1-B2 — first verified capture transport
+
+Branche active : `feat/prescription-pharmacology-morocco-rcp-first-capture`.
+
+Base réelle : `497e56738166c2a4344858a5251a487a17e54f2f`, qui contient le merge M1-B1 comme parent direct puis le closeout documentaire Patient Companion D1.
+
+Infrastructure actuellement implémentée :
+
+- helper documentaire `prepare_verified_snapshot_entry(...)` dans `backend/services/medication_rcp_manifest.py` ;
+- aucun téléchargement réseau ;
+- aucune persistance automatique ;
+- aucune extraction clinique ;
+- source obligatoire = entrée `PENDING_DOWNLOAD` déjà fail-closed ;
+- artefact capturé doit commencer par la signature PDF ;
+- URL RCP obligatoire en HTTPS sur domaine AMMPS officiel ;
+- date de contrôle ISO `YYYY-MM-DD` obligatoire ;
+- artefact local limité à `backend/data/rcp/*.pdf` ;
+- SHA-256 calculé sur les octets exacts du PDF ;
+- résultat construit par copie, sans mutation silencieuse de l'entrée source ;
+- tests négatifs couvrent faux PDF, domaine non officiel, date invalide, chemin non sûr et entrée source polluée.
+
+État de preuve : aucun PDF RCP AMMPS n'a encore été physiquement capturé dans ce lot. Donc aucune entrée n'est encore promue en `SNAPSHOT_VERIFIED`.
+
+Le téléchargement du premier RCP reste bloqué par le transport du site AMMPS : le bouton est publiquement visible mais le document cible n'est pas exposé par les fetchs disponibles. Firecrawl a été proposé mais n'est pas installé.
+
+Une revue scientifique indépendante distincte de l'agent auteur reste obligatoire avant merge de M1-B2. Une auto-revue ne vaut pas cette gate.
+
 ## Règles de capture
 
 1. identifier la présentation réglementaire exacte ;
@@ -88,7 +125,8 @@ Les pages AMMPS officielles exposent le bouton « Télécharger RCP » pour plus
 - aucun fallback réglementaire vers CNOPS/RMMG ;
 - aucun nouveau `AUTO_OK_MAROC` ;
 - aucun schéma thérapeutique nouveau activé ;
-- aucune disponibilité pharmacie temps réel fabriquée.
+- aucune disponibilité pharmacie temps réel fabriquée ;
+- aucun accès réseau AMMPS requis au runtime cabinet.
 
 ## Human gate
 
