@@ -19,6 +19,7 @@ logger = logging.getLogger(__name__)
 _MANIFEST_PATH = Path(__file__).resolve().parents[1] / "data" / "medications_ma_ammps_rcp_manifest_2026.json"
 _ALLOWED_STATUSES = {"PENDING_DOWNLOAD", "SNAPSHOT_VERIFIED", "UNAVAILABLE_VERIFIED"}
 _SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
+_ISO_DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 _OFFICIAL_AMMPS_HOSTS = {"ammps.gov.ma", "www.ammps.gov.ma"}
 _UNAVAILABLE_EVIDENCE = "OFFICIAL_SOURCE_EXPLICIT_NO_RCP"
 _MANIFEST: Optional[Dict[str, Any]] = None
@@ -170,9 +171,12 @@ def prepare_verified_snapshot_entry(
     if not _is_official_ammps_url(rcp_url):
         raise ValueError("RCP URL must use the official AMMPS HTTPS domain")
 
+    normalized_date = checked_at.strip() if isinstance(checked_at, str) else ""
+    if not _ISO_DATE_RE.fullmatch(normalized_date):
+        raise ValueError("checked_at must be an ISO date (YYYY-MM-DD)")
     try:
-        date.fromisoformat(checked_at.strip())
-    except (AttributeError, ValueError):
+        date.fromisoformat(normalized_date)
+    except ValueError:
         raise ValueError("checked_at must be an ISO date (YYYY-MM-DD)") from None
 
     if not _is_safe_local_artifact_path(local_artifact_path):
@@ -185,7 +189,7 @@ def prepare_verified_snapshot_entry(
         "capture_status": "SNAPSHOT_VERIFIED",
         "rcp_url": rcp_url.strip(),
         "rcp_sha256": hashlib.sha256(bytes(pdf_bytes)).hexdigest(),
-        "rcp_checked_at": checked_at.strip(),
+        "rcp_checked_at": normalized_date,
         "local_artifact_path": local_artifact_path.strip(),
         "unavailability_evidence": None,
         "extracted_clinical_fields": {},
