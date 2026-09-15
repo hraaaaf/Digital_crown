@@ -2,12 +2,9 @@ import json
 from pathlib import Path
 
 
-MATRIX_PATH = (
-    Path(__file__).resolve().parents[2]
-    / "docs"
-    / "audits"
-    / "PRESCRIPTION_PHARMACOLOGY_MOROCCO_M0_MATRIX.json"
-)
+AUDIT_DIR = Path(__file__).resolve().parents[2] / "docs" / "audits"
+MATRIX_PATH = AUDIT_DIR / "PRESCRIPTION_PHARMACOLOGY_MOROCCO_M0_MATRIX.json"
+EVIDENCE_PATH = AUDIT_DIR / "PRESCRIPTION_PHARMACOLOGY_MOROCCO_M0_EVIDENCE.json"
 
 ALLOWED_TIERS = {
     "AUTO_OK_MAROC",
@@ -15,10 +12,15 @@ ALLOWED_TIERS = {
     "REVIEW_ONLY",
     "NOT_SUPPORTED",
 }
+ALLOWED_EVIDENCE_STATES = {"CROSS_CHECKED", "PRIMARY_ONLY"}
 
 
 def load_matrix():
     return json.loads(MATRIX_PATH.read_text(encoding="utf-8"))
+
+
+def load_evidence():
+    return json.loads(EVIDENCE_PATH.read_text(encoding="utf-8"))
 
 
 def test_morocco_m0_matrix_is_parseable_and_non_runtime():
@@ -76,3 +78,33 @@ def test_morocco_m0_keeps_high_risk_contexts_out_of_automatic_prescription():
         "emergency.midazolam",
     ):
         assert rows[row_id]["m0_tier"] in {"REVIEW_ONLY", "NOT_SUPPORTED"}
+
+
+def test_morocco_m0_evidence_ledger_is_unique_and_references_known_rows():
+    matrix = load_matrix()
+    evidence = load_evidence()
+    known_rows = {row["id"] for row in matrix["rows"]}
+    evidence_ids = [entry["evidence_id"] for entry in evidence["entries"]]
+
+    assert evidence["schema_version"] == "m0-evidence.1"
+    assert evidence["verified_at"] == "2026-09-15"
+    assert len(evidence_ids) == len(set(evidence_ids))
+
+    for entry in evidence["entries"]:
+        assert entry["verification_state"] in ALLOWED_EVIDENCE_STATES, entry["evidence_id"]
+        assert entry.get("primary_sources"), entry["evidence_id"]
+        assert entry["clinical_regimen_proven"] is False, entry["evidence_id"]
+
+        for row_id in entry.get("matrix_ids", []):
+            assert row_id in known_rows, f"{entry['evidence_id']}: unknown matrix row {row_id}"
+
+        if entry["verification_state"] == "CROSS_CHECKED":
+            assert entry.get("cross_checks"), entry["evidence_id"]
+
+
+def test_morocco_m0_negative_search_is_not_encoded_as_absence():
+    evidence = load_evidence()
+    assert "NEGATIVE_SEARCH_NOT_ABSENCE" in evidence["rules"]
+
+    for row in load_matrix()["rows"]:
+        assert row.get("market_state") != "ABSENT_BY_SEARCH_ONLY", row["id"]
