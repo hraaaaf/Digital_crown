@@ -124,7 +124,7 @@ jobs:
                 await page.locator('input[type="file"]').setInputFiles({ name:'pano.png', mimeType:'image/png', buffer:Buffer.from('panoramic-proof') });
 
                 if (scene === 'loading') {
-                  await page.getByText('Repérage dentaire', { exact:true }).waitFor({ state:'visible', timeout:3000 });
+                  await page.locator('p', { hasText: 'Repérage dentaire' }).last().waitFor({ state:'visible', timeout:3000 });
                 } else {
                   await page.getByRole('button', { name:'Bilan PDF', exact:true }).waitFor({ state:'visible', timeout:10000 });
                   await page.getByRole('button', { name:'Bilan PDF', exact:true }).click();
