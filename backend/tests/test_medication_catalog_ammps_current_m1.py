@@ -12,6 +12,7 @@ def test_regulatory_identity_distinguishes_ammps_packaging_without_breaking_lega
     assert len({row["presentation_id"] for row in current}) == 1
     assert len({row["regulatory_presentation_id"] for row in current}) == 2
     assert all(row["regulatory_presentation_id"].startswith("ammps-reg:") for row in current)
+    assert {row["amm_status"] for row in current} == {"PENDING_VERIFICATION"}
 
 
 def test_historical_search_keeps_deduplicated_contract():
@@ -47,6 +48,7 @@ def test_get_regulatory_presentation_resolves_exact_package():
     assert resolved is not None
     assert resolved["presentation"] == "BOITE DE 24"
     assert resolved["market_status"] == "Commercialisé AO"
+    assert resolved["amm_status"] == "PENDING_VERIFICATION"
     assert resolved["source"]["current_marketing_status_verified"] is True
 
 
