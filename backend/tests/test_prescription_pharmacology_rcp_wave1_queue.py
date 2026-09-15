@@ -80,3 +80,15 @@ def test_ibuprofen_ready_state_is_grounded_in_current_ammps_search_page():
     assert ibuprofen["state"] == "READY_FOR_CAPTURE_TRANSPORT"
     assert "https://www.ammps.gov.ma/recherche-medicaments?page=27" in ibuprofen["source_urls"]
     assert "exact download target" in ibuprofen["gap"].lower()
+
+
+def test_metronidazole_package_evidence_advances_only_to_link_confirmation():
+    queue = _load_queue()
+    metronidazole = next(
+        entry for entry in queue["entries"] if entry["molecule_id"] == "metronidazole"
+    )
+
+    assert metronidazole["state"] == "PENDING_RCP_LINK_CONFIRMATION"
+    assert "https://ammps.gov.ma/repertoire-medicaments-generiques?page=11" in metronidazole["source_urls"]
+    assert "https://www.ammps.gov.ma/note-information/repertoire-marocain-des-medicaments-generiques" in metronidazole["source_urls"]
+    assert "rcp link" in metronidazole["gap"].lower()
