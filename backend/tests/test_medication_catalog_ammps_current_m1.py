@@ -23,6 +23,15 @@ def test_current_snapshot_is_isolated_from_historical_search_api():
     assert all(row["source"]["id"] != CURRENT_SOURCE_ID for row in rows)
 
 
+def test_regulatory_api_never_falls_back_to_legacy_sources():
+    legacy = medication_dict.search("DISPAMOX", limit=5)
+    assert legacy
+    legacy_regulatory_id = legacy[0]["regulatory_presentation_id"]
+
+    assert medication_dict.search_regulatory_presentations("DISPAMOX") == []
+    assert medication_dict.get_regulatory_presentation(legacy_regulatory_id) is None
+
+
 def test_current_snapshot_separates_market_and_amm_status_by_package():
     rows = medication_dict.search_regulatory_presentations("CLAMOXYL")
     current = [row for row in rows if row["source"]["id"] == CURRENT_SOURCE_ID]
