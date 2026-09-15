@@ -1,0 +1,77 @@
+name: UI Human Visual Approval
+
+# Manual visual gate for frontend/UI changes.
+# A green automated visual check is not enough: Achraf must first see the AFTER
+# captures and explicitly approve them. The approval is represented by the
+# `visual-approved-by-achraf` PR label.
+#
+# IMPORTANT: any new commit on the PR invalidates the previous visual approval.
+# The synchronize event removes the label and this gate fails closed until the
+# new exact HEAD has been shown to Achraf and approved again.
+
+on:
+  pull_request_target:
+    types: [opened, reopened, synchronize, labeled, unlabeled]
+
+permissions:
+  contents: read
+  pull-requests: read
+  issues: write
+
+jobs:
+  human-visual-approval:
+    name: Human visual approval (Achraf)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Detect frontend/UI impact
+        id: ui
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          set -euo pipefail
+          gh api --paginate "repos/${REPO}/pulls/${PR_NUMBER}/files?per_page=100" --jq '.[].filename' > /tmp/changed-files.txt
+          cat /tmp/changed-files.txt
+
+          if grep -Eq '^frontend/' /tmp/changed-files.txt; then
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Skip non-UI PRs
+        if: steps.ui.outputs.changed != 'true'
+        run: echo "No frontend/UI change detected; human visual approval is not required."
+
+      - name: Invalidate stale approval after PR head changes
+        if: steps.ui.outputs.changed == 'true' && github.event.action == 'synchronize'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          set -euo pipefail
+          gh api -X DELETE \
+            "repos/${REPO}/issues/${PR_NUMBER}/labels/visual-approved-by-achraf" \
+            >/dev/null 2>&1 || true
+          echo "::error::Visual approval invalidated because the PR HEAD changed. Show the new AFTER captures to Achraf, obtain explicit approval, then re-apply the visual-approved-by-achraf label."
+          exit 1
+
+      - name: Require Achraf visual approval
+        if: steps.ui.outputs.changed == 'true' && github.event.action != 'synchronize'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          set -euo pipefail
+          labels=$(gh api "repos/${REPO}/issues/${PR_NUMBER}/labels?per_page=100" --jq '.[].name')
+          printf '%s\n' "$labels"
+
+          if printf '%s\n' "$labels" | grep -Fxq 'visual-approved-by-achraf'; then
+            echo "PASS: Achraf visual approval label is present for the current PR HEAD."
+          else
+            echo "::error::UI/UX change detected. CI cannot pass until AFTER captures for the current PR HEAD have been shown to Achraf and he has explicitly approved them. Then apply label: visual-approved-by-achraf"
+            exit 1
+          fi
