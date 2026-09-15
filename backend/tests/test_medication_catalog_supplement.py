@@ -21,6 +21,24 @@ def test_acig_partial_search_returns_two_sourced_presentations():
     assert all(item["source"]["current_marketing_status_verified"] is False for item in results)
 
 
+def test_presentation_dedupe_key_is_independent_from_source_metadata():
+    base = {
+        "nom": "EXEMPLE 100 MG",
+        "dci": "EXEMPLE",
+        "dosage": "100",
+        "unite": "MG",
+        "forme": "COMPRIME",
+    }
+    supplement = {
+        **base,
+        "_source": {"id": "verified-supplement"},
+    }
+
+    assert medication_dict._presentation_key(base) == medication_dict._presentation_key(supplement)
+    assert medication_dict._presentation_id(base).startswith("cnops:")
+    assert medication_dict._presentation_id(supplement).startswith("ma-doc:")
+
+
 def test_acig_presentation_resolution_preserves_source_provenance():
     _reload_catalog()
     result = medication_dict.search("ACIG", limit=1)[0]
