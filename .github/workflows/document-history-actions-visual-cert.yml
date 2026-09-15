@@ -111,6 +111,7 @@ jobs:
           const server = await createServer({
             server: { host: '127.0.0.1', port: 4198, strictPort: true },
             clearScreen: false,
+            optimizeDeps: { include: ['workbox-window'] },
           });
           await server.listen();
 
@@ -169,14 +170,15 @@ jobs:
               const edit = card.locator('[data-document-action="edit"]');
               const trash = card.locator('[data-document-action="trash"]');
               await edit.waitFor({ state: 'visible', timeout: 5000 });
-              await trash.waitFor({ state: 'visible', timeout: 5000 });
+              const trashVisible = await trash.isVisible().catch(() => false);
+              if (phase === 'AFTER' && !trashVisible) throw new Error(`trash action missing ${phase} ${width}x${height}`);
 
               const editBox = await edit.boundingBox();
-              const trashBox = await trash.boundingBox();
-              if (!editBox || !trashBox) throw new Error(`missing action boxes ${phase} ${width}x${height}`);
+              const trashBox = trashVisible ? await trash.boundingBox() : null;
+              if (!editBox) throw new Error(`missing edit action box ${phase} ${width}x${height}`);
 
-              const gap = trashBox.y - (editBox.y + editBox.height);
-              const overlap = Math.max(0, (editBox.y + editBox.height) - trashBox.y);
+              const gap = trashBox ? trashBox.y - (editBox.y + editBox.height) : null;
+              const overlap = trashBox ? Math.max(0, (editBox.y + editBox.height) - trashBox.y) : 0;
               const metrics = await page.evaluate(() => ({
                 clientWidth: document.documentElement.clientWidth,
                 scrollWidth: document.documentElement.scrollWidth,
