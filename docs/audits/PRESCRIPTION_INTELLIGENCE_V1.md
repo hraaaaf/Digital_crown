@@ -4,7 +4,7 @@ Date : 2026-09-14
 
 ## Statut
 
-**CLOS — A+B et C1 certifiés et mergés sur `master`. Toute suggestion clinique C reste volontairement bloquée (fail-closed).**
+**CLOS — A+B et C1 certifiés et mergés sur `master`. Correction UX praticien #497 mergée. Toute suggestion clinique C reste volontairement fail-closed.**
 
 Ce fichier est le point de reprise canonique du chantier « Prescription Intelligence V1 ».
 
@@ -28,27 +28,20 @@ Flux cible :
 
 - ID stable `cnops:<sha256>` par présentation ;
 - sélection explicite renseigne nom, dosage documentaire, forme documentaire et provenance ;
-- `posologie` est remise à vide après sélection ;
+- `posologie` remise à vide après sélection ;
 - modifier le nom invalide identité documentaire + dosage + forme + posologie ;
 - aucun fallback silencieux `Comprimés` / `Sachets` ;
 - aucune voie d’administration inférée.
 
 ## C1 — Contexte clinique structuré
 
-### Données patient durables
-
-Persistées dans `patient_clinical_contexts` :
+Persisté dans `patient_clinical_contexts` :
 
 - `weight_kg` ;
 - `medication_allergy_status` + `medication_allergies` ;
 - `renal_context_status` + `renal_context_note` ;
 - `hepatic_context_status` + `hepatic_context_note` ;
 - provenance minimale `updated_at` / `updated_by_user_id`.
-
-États explicites :
-
-- allergies : `UNKNOWN`, `NONE_KNOWN`, `PRESENT` ;
-- rein/foie : `UNKNOWN`, `NO_KNOWN_IMPAIRMENT`, `IMPAIRMENT_REPORTED`.
 
 Invariants :
 
@@ -66,9 +59,9 @@ Invariants :
 L’indication appartient à **l’ordonnance**, pas au patient :
 
 - absente du modèle/table/API patient C1 ;
-- `prescription_indication` est rejeté par l’API `clinical-context` ;
+- `prescription_indication` rejeté par l’API `clinical-context` ;
 - stockée dans `clinical_data` de l’ordonnance ;
-- réhydratée en édition de cette ordonnance ;
+- réhydratée en édition ;
 - injectée uniquement dans le payload `type=ordonnance` ;
 - jamais injectée dans certificat/devis/etc. ;
 - non interprétée cliniquement et non imprimée dans C1.
@@ -77,14 +70,22 @@ L’indication appartient à **l’ordonnance**, pas au patient :
 
 **Suggestion clinique : NON IMPLÉMENTÉE / BLOQUÉE PAR CONCEPTION.**
 
-L’UI affiche :
+Le statut fail-closed reste **interne** :
 
-- `Suggestion clinique bloquée` ;
-- `Contrôle clinique automatique bloqué`.
+- `data-clinical-rule-status="blocked"` ;
+- `data-safety-status="blocked"` ;
+- aucun appel actif à `/prescriptions/smart-suggest/{patient_id}` ;
+- aucun appel actif à `/prescriptions/safety/check`.
 
-Le flux V1 actif n’appelle ni `/prescriptions/smart-suggest/{patient_id}` ni `/prescriptions/safety/check`.
+Important UX : les libellés techniques `Suggestion clinique bloquée`, `Contrôle clinique automatique bloqué`, `legacy` et `V1 certifiée` ne sont plus affichés au praticien.
 
-C1 ne prouve pas l’exactitude clinique des données saisies et ne suffit pas à autoriser une règle de dose. Toute règle future devra être certifiée séparément avec paramètres complets, sources concordantes/versionnées et tests positifs/négatifs.
+L’UI praticien affiche uniquement une copie métier :
+- `Prescription` ;
+- `Recherche médicament → présentation → validation` ;
+- `Contexte patient` ;
+- poids, allergies, contexte rénal/hépatique et indication de l’ordonnance.
+
+C1 ne prouve pas l’exactitude clinique des données saisies et ne suffit pas à autoriser une règle de dose. Toute règle future doit être certifiée séparément avec paramètres complets, sources concordantes/versionnées et tests positifs/négatifs.
 
 ## Provenance catalogue
 
@@ -93,7 +94,7 @@ Source documentaire : `CNOPS Open Data — Référentiel des médicaments`.
 - producteur : CNOPS ;
 - licence : ODbL ;
 - dernière modification publique observée : `2021-12-13 16:26 UTC` ;
-- usage autorisé ici : snapshot documentaire historique d’identité/présentation ;
+- usage : snapshot documentaire historique d’identité/présentation ;
 - `current_marketing_status_verified=false`.
 
 Le snapshot 2021 ne constitue pas une preuve de commercialisation actuelle en 2026.
@@ -114,90 +115,99 @@ Fichiers principaux :
 - `frontend/src/features/admin/DocumentStudio/Forms/PrescriptionAgenticStudio.indication.test.tsx`
 - `frontend/src/features/admin/DocumentStudio/PrescriptionIntelligenceV1.boundary.test.ts`
 
-## UI/UX C1 — BEFORE → AFTER
+## UI/UX C1 — historique
 
 Viewports : `390×844`, `430×932`, `768×1024`, `1280×900`.
 
 ### BEFORE C1
 
-Référence A+B certifiée : Ordonnance Fidelity V3 #70, run `34878423582`, artifact `10361827618`, digest `sha256:606606845e996b9f794b7b3a03368f809c6e5c11f68c147b714c2958dd064f6a`.
-
-Hauteur studio :
-
-| Viewport | BEFORE |
-| --- | ---: |
-| 390×844 | 636.25 px |
-| 430×932 | 590 px |
-| 768×1024 | 447.25 px |
-| 1280×900 | 406.25 px |
+Référence A+B : Fidelity #70, run `34878423582`, artifact `10361827618`,
+digest `sha256:606606845e996b9f794b7b3a03368f809c6e5c11f68c147b714c2958dd064f6a`.
 
 ### Premier AFTER rejeté
 
-Fidelity #93 sur `f30292e8e4f802a489dbc5d8c9391c99a95470f4` : gate automatique vert mais version refusée après inspection visuelle.
+Fidelity #93 sur `f30292e8e4f802a489dbc5d8c9391c99a95470f4` : gate automatique vert, rejet humain car contexte clinique développé par défaut et médicament repoussé.
 
-Motif : contexte clinique développé par défaut, studio fortement allongé et saisie médicament repoussée.
+### AFTER C1 certifié avant correction UX praticien
 
-### AFTER C1 final certifié
+HEAD : `d943a49da1362028e4b02158193b0e82842faf02`.
 
-HEAD PR certifié : `d943a49da1362028e4b02158193b0e82842faf02`.
+Fidelity #98 / run `34892570623` : **SUCCESS**.
+Artifact `10367746003`.
+Digest `sha256:a0686c574578695038ac5b97762e619a9eb9e2244f707a2349237b92fc3ee54e`.
 
-Ordonnance Fidelity V3 Visual #98 : **SUCCESS** — run `34892570623`.
+Score visuel conservateur : **9.0/10**.
 
-Artifact : `10367746003`.
+## Correction UX praticien #497 — BEFORE → AFTER
 
-Digest : `sha256:a0686c574578695038ac5b97762e619a9eb9e2244f707a2349237b92fc3ee54e`.
+### Goal
+
+Retirer de l’interface dentiste les statuts techniques internes sans modifier la logique fail-closed ni l’existant DB/patients/documents.
+
+### BEFORE
+
+Le praticien voyait notamment :
+
+- `Suggestion clinique bloquée` ;
+- `Contrôle clinique automatique bloqué` ;
+- du vocabulaire interne autour de certification/legacy ;
+- `Contexte clinique structuré` accompagné de la mention qu’aucun calcul de dose n’était activé.
+
+### AFTER final exact-head
+
+PR head certifié : `352f914735da4c0981d1bdbc9e5619b5d5de7879`.
+
+Fidelity #103 / run `34903537345` : **SUCCESS**.
+Artifact : `10371681258`.
+Digest : `sha256:4db6404230db025a8b14a5e7ab1d6e6f27ff277cf3cbda44452d9003046a5153`.
 
 Résultats :
 
 - 4/4 viewports PASS ;
 - touch target minimum `44 px` ;
 - aucun overflow horizontal ;
-- carte médicament + action `Ajouter une ligne` visibles ensemble dans la scène planning ;
-- contexte patient compact/replié par défaut ;
-- scène C1 dépliée dédiée avec les 4 groupes structurés visibles ;
-- preview desktop conservée.
+- `pageErrors=[]` sur les 4 viewports ;
+- carte médicament + `Ajouter une ligne` visibles ensemble dans la scène planning ;
+- contexte patient replié par défaut ;
+- scène contexte dépliée : 4 groupes structurés visibles ;
+- preview desktop : `280 px`, largeur éditeur visible `501.6875 px`.
 
-Hauteur studio finale, contexte compact :
+Hauteur planning :
 
-| Viewport | BEFORE | AFTER C1 | Écart |
+| Viewport | BEFORE correction | AFTER correction | Réduction |
 | --- | ---: | ---: | ---: |
-| 390×844 | 636.25 px | 1054.875 px | +65.8 % |
-| 430×932 | 590 px | 975.75 px | +65.4 % |
-| 768×1024 | 447.25 px | 749.75 px | +67.6 % |
-| 1280×900 | 406.25 px | 681.75 px | +67.8 % |
+| 390×844 | 1054.875 px | 781 px | -26.0 % |
+| 430×932 | 975.75 px | 766 px | -21.5 % |
+| 768×1024 | 749.75 px | 617.5 px | -17.6 % |
+| 1280×900 | 681.75 px | 590.5 px | -13.4 % |
 
-La hausse d’empreinte verticale est acceptée en C1 car elle correspond à un nouveau contexte patient structuré + une indication document-scoped, tandis que l’action principale médicament reste prioritaire et visible en scène planning.
+Inspection humaine des mêmes 4 viewports : hiérarchie métier nette, aucun bandeau technique résiduel observé, `Contexte patient` lisible et secondaire après médicament/ajout de ligne.
 
-Score visuel conservateur C1 : **9.0/10**.
+Score visuel conservateur après correction : **9.4/10**.
 
-## Preuves exact-head C1 avant merge
+## Preuves exact-head #497 avant merge
 
-HEAD : `d943a49da1362028e4b02158193b0e82842faf02`.
+HEAD : `352f914735da4c0981d1bdbc9e5619b5d5de7879`.
 
-- CI #4129 / run `34892570531` : **SUCCESS** ;
+- CI #4159 / run `34903537431` : **SUCCESS** ;
 - frontend tests + build : **SUCCESS** ;
-- backend prod safety/config hardening : **SUCCESS** ;
-- backend test suite : **SUCCESS** ;
+- backend full regression suite, DB / patients / documents inclus : **SUCCESS** ;
 - garde production négative : **SUCCESS** ;
-- M4-A / M4-B / M4-C contextual bridges : **SUCCESS** ;
-- Fidelity #98 / run `34892570623` : **SUCCESS**.
+- M4-A / M4-B / M4-C : **SUCCESS** ;
+- Fidelity #103 : **SUCCESS** ;
+- Patient P7 #1553 : **SUCCESS** ;
+- T2 #3063 : **SUCCESS** ;
+- PostgreSQL #578 : **SUCCESS** ;
+- Settings #677 : **SUCCESS** ;
+- M6-I #1863 : **SKIPPED attendu**.
 
-## Merge et post-merge
+## Merge #497 et post-merge
 
-PR `#495 — feat(prescription): add structured patient context C1` : **MERGED**.
+PR `#497 — fix(prescription): hide internal certification copy from practitioners` : **MERGED**.
 
-Squash merge : `3b22f2a0dbb5b778a53265b97ad3029eeb88e656`.
+Squash merge : `279a8b56c77dfca36a8e1316d1a5f87d6aa2308e`.
 
-Parent master au merge : `9b1b354631d60faa462dc98c629c14bf38fe2ddf`.
-
-Post-merge CI #4140 / run `34895686869` sur `3b22f2a0dbb5b778a53265b97ad3029eeb88e656` : **SUCCESS**.
-
-- frontend tests : **SUCCESS** ;
-- frontend build : **SUCCESS** ;
-- backend prod safety/config hardening : **SUCCESS** ;
-- backend test suite : **SUCCESS** ;
-- garde production négative : **SUCCESS** ;
-- M4 contextual bridges : **SKIPPED attendu** sur push.
+Post-merge CI #4170 / run `34905190921` sur `279a8b56c77dfca36a8e1316d1a5f87d6aa2308e` : **SUCCESS**.
 
 Aucun déploiement Vercel demandé ni réalisé.
 
