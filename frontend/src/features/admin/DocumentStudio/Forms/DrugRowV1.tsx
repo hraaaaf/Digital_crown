@@ -314,7 +314,9 @@ export const DrugRow: React.FC<DrugRowProps> = ({
                     className="absolute left-0 right-0 top-full z-[100] mt-2 max-h-[340px] overflow-y-auto rounded-2xl border border-border-main bg-card py-2 shadow-2xl"
                   >
                     <div className="border-b border-border-main px-4 pb-2 pt-1 text-[8px] font-bold text-text-muted sm:px-5">
-                      Référentiel CNOPS Open Data · snapshot 13/12/2021 · statut commercial actuel non certifié
+                      {catalogResults.every(presentation => presentation.source.id === 'cnops-open-data-medications')
+                        ? 'Référentiel CNOPS Open Data · snapshot 13/12/2021 · statut commercial actuel non certifié'
+                        : 'Référentiel documentaire Maroc · provenance par présentation · statut commercial actuel non certifié'}
                     </div>
                     {catalogResults.map((presentation, index) => (
                       <button
