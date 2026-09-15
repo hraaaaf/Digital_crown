@@ -1,0 +1,70 @@
+{
+  "schema_version": "m1b-wave1.1",
+  "verified_at": "2026-09-15",
+  "runtime_behavior_change": false,
+  "purpose": "Evidence acquisition queue only. No treatment rule or clinical activation.",
+  "allowed_states": [
+    "READY_FOR_CAPTURE_TRANSPORT",
+    "PENDING_RCP_LINK_CONFIRMATION",
+    "PENDING_CURRENT_PAGE_CONFIRMATION",
+    "PENDING_CURRENT_PRESENTATION_DISCOVERY"
+  ],
+  "entries": [
+    {
+      "molecule_id": "paracetamol",
+      "state": "READY_FOR_CAPTURE_TRANSPORT",
+      "source_urls": [
+        "https://www.ammps.gov.ma/recherche-medicaments?page=47",
+        "https://ammps.gov.ma/repertoire-medicaments-generiques?page=12"
+      ],
+      "gap": "Official document target not yet captured."
+    },
+    {
+      "molecule_id": "ibuprofen",
+      "state": "PENDING_RCP_LINK_CONFIRMATION",
+      "source_urls": [
+        "https://www.ammps.gov.ma/basesdedonnes/liste_marocaine_des_medicaments?page=68"
+      ],
+      "gap": "Current package status verified; official document link still requires capture."
+    },
+    {
+      "molecule_id": "amoxicillin",
+      "state": "READY_FOR_CAPTURE_TRANSPORT",
+      "source_urls": [
+        "https://www.ammps.gov.ma/recherche-medicaments?page=42"
+      ],
+      "gap": "Official document button verified; exact download target not exposed by current fetch path."
+    },
+    {
+      "molecule_id": "penicillin_v",
+      "state": "READY_FOR_CAPTURE_TRANSPORT",
+      "source_urls": [
+        "https://www.ammps.gov.ma/recherche-medicaments?page=49"
+      ],
+      "gap": "Exact official document target still requires capture."
+    },
+    {
+      "molecule_id": "metronidazole",
+      "state": "PENDING_CURRENT_PAGE_CONFIRMATION",
+      "source_urls": [
+        "https://ammps.gov.ma/repertoire-medicaments-generiques?page=11"
+      ],
+      "gap": "Current package-level page and document link must be confirmed before capture."
+    },
+    {
+      "molecule_id": "clarithromycin",
+      "state": "READY_FOR_CAPTURE_TRANSPORT",
+      "source_urls": [
+        "https://www.ammps.gov.ma/recherche-medicaments?page=117",
+        "https://www.ammps.gov.ma/repertoire-medicaments-generiques?page=5"
+      ],
+      "gap": "Exact official document target still requires capture."
+    },
+    {
+      "molecule_id": "clindamycin",
+      "state": "PENDING_CURRENT_PRESENTATION_DISCOVERY",
+      "source_urls": [],
+      "gap": "No current package-level AMMPS presentation identified in this research pass; this is not evidence of absence."
+    }
+  ]
+}
