@@ -28,6 +28,7 @@ import {
 } from 'lucide-react';
 import { cn } from '../../utils/cn';
 import { DocumentMobileBridge } from './DocumentMobileBridge';
+import { CnssInsuranceAction } from './CnssInsuranceAction';
 
 interface DocumentInfo {
   id: string;
@@ -260,6 +261,7 @@ export const PatientDocuments = () => {
             Number.isFinite(currentUserId) &&
             doc.author_practitioner_id === currentUserId
           );
+          const canPrepareCnss = canonicalId !== null && doc.file_exists !== false && doc.type.toUpperCase() === 'NOTE';
           const signedDate = formatSignatureDate(doc.signed_at);
 
           return (
@@ -301,6 +303,16 @@ export const PatientDocuments = () => {
                                 {signingDocId === doc.id ? <Loader2 size={16} className="animate-spin" /> : <PenTool size={16} />}
                                 Enregistrer ma signature
                               </button>
+                              <div className="mx-2 my-0.5 h-px bg-slate-100" aria-hidden="true" />
+                            </>
+                          )}
+                          {canPrepareCnss && (
+                            <>
+                              <CnssInsuranceAction
+                                honorairesDocumentId={canonicalId}
+                                onArchived={() => setReloadKey(key => key + 1)}
+                                onCloseMenu={() => setActionsOpenFor(null)}
+                              />
                               <div className="mx-2 my-0.5 h-px bg-slate-100" aria-hidden="true" />
                             </>
                           )}
