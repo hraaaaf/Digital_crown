@@ -1,0 +1,171 @@
+{
+  "schema_version": "m0-evidence.1",
+  "verified_at": "2026-09-15",
+  "rules": {
+    "CROSS_CHECKED": "Claim matched in at least two serious sources, with a primary Moroccan source when available.",
+    "PRIMARY_ONLY": "Claim observed in one Moroccan primary source. It may guide further research but cannot alone upgrade a clinical automation tier.",
+    "NEGATIVE_SEARCH_NOT_ABSENCE": "Failure to retrieve a product from web indexing is never treated as proof that the product or AMM is absent."
+  },
+  "entries": [
+    {
+      "evidence_id": "MA-AMOX-SP-1G-B12-20260915",
+      "matrix_ids": ["abx.amoxicillin"],
+      "claim_type": "MARKET_PRESENTATION",
+      "claim": "AMOXICILLINE SP 1 g comprimé dispersible, boîte de 12, is listed by AMMPS as commercialized.",
+      "verification_state": "CROSS_CHECKED",
+      "primary_sources": [
+        "https://www.ammps.gov.ma/recherche-medicaments?page=42"
+      ],
+      "cross_checks": [
+        "https://www.sgg.gov.ma/BO/FR/2873/2024/BO_7262_Fr.pdf"
+      ],
+      "clinical_regimen_proven": false,
+      "note": "BO cross-check supports the named presentation and regulated pricing; it is not a dosing source."
+    },
+    {
+      "evidence_id": "MA-AMOX-SP-500-B12-20260915",
+      "matrix_ids": ["abx.amoxicillin"],
+      "claim_type": "MARKET_PRESENTATION",
+      "claim": "AMOXICILLINE SP 500 mg comprimé dispersible, boîte de 12, is listed by AMMPS; the same named presentation appears in BO 7262 pricing annex.",
+      "verification_state": "CROSS_CHECKED",
+      "primary_sources": [
+        "https://www.ammps.gov.ma/recherche-medicaments?page=42"
+      ],
+      "cross_checks": [
+        "https://www.sgg.gov.ma/BO/FR/2873/2024/BO_7262_Fr.pdf"
+      ],
+      "clinical_regimen_proven": false
+    },
+    {
+      "evidence_id": "MA-AMOX-SP-250SUSP-20260915",
+      "matrix_ids": ["abx.amoxicillin"],
+      "claim_type": "MARKET_PRESENTATION",
+      "claim": "AMOXICILLINE SP 250 mg/5 ml oral suspension, 60 ml, is listed by AMMPS and appears in BO 7262 pricing annex.",
+      "verification_state": "CROSS_CHECKED",
+      "primary_sources": [
+        "https://www.ammps.gov.ma/recherche-medicaments?page=42"
+      ],
+      "cross_checks": [
+        "https://www.sgg.gov.ma/BO/FR/2873/2024/BO_7262_Fr.pdf"
+      ],
+      "clinical_regimen_proven": false
+    },
+    {
+      "evidence_id": "MA-AMOX-SP-500SUSP-20260915",
+      "matrix_ids": ["abx.amoxicillin"],
+      "claim_type": "MARKET_PRESENTATION",
+      "claim": "AMOXICILLINE SP 500 mg/5 ml oral suspension, 60 ml, is listed by AMMPS and appears in BO 7262 pricing annex.",
+      "verification_state": "CROSS_CHECKED",
+      "primary_sources": [
+        "https://www.ammps.gov.ma/recherche-medicaments?page=42"
+      ],
+      "cross_checks": [
+        "https://www.sgg.gov.ma/BO/FR/2873/2024/BO_7262_Fr.pdf"
+      ],
+      "clinical_regimen_proven": false
+    },
+    {
+      "evidence_id": "MA-AMOXCLAV-AUGMENTIN-1G125-20260915",
+      "matrix_ids": ["abx.amox_clav"],
+      "claim_type": "MARKET_PRESENTATION",
+      "claim": "AUGMENTIN 1 g/125 mg oral sachet presentations are listed by AMMPS as commercialized.",
+      "verification_state": "PRIMARY_ONLY",
+      "primary_sources": [
+        "https://www.ammps.gov.ma/basesdedonnes/liste_marocaine_des_medicaments?page=45"
+      ],
+      "cross_checks": [],
+      "clinical_regimen_proven": false,
+      "note": "Current dental stewardship/indication remains a separate clinical question."
+    },
+    {
+      "evidence_id": "MA-AMOXCLAV-AUGMENTIN-500625-B32-20260915",
+      "matrix_ids": ["abx.amox_clav"],
+      "claim_type": "MARKET_PRESENTATION",
+      "claim": "AUGMENTIN ADULTE 500 mg/62.5 mg, box of 32, is listed by AMMPS as commercialized; the box of 24 is separately listed as withdrawn.",
+      "verification_state": "PRIMARY_ONLY",
+      "primary_sources": [
+        "https://www.ammps.gov.ma/basesdedonnes/liste_marocaine_des_medicaments?page=45"
+      ],
+      "cross_checks": [],
+      "clinical_regimen_proven": false,
+      "note": "Presentation status must remain presentation-specific."
+    },
+    {
+      "evidence_id": "MA-SPIRA-METRO-BIDONTOGYL-20260915",
+      "matrix_ids": ["abx.spiramycin_metronidazole"],
+      "claim_type": "MARKET_PRESENTATION",
+      "claim": "BIDONTOGYL 1.5 MUI/250 mg, box of 15, is listed by AMMPS as commercialized.",
+      "verification_state": "PRIMARY_ONLY",
+      "primary_sources": [
+        "https://www.ammps.gov.ma/recherche-medicaments?page=99"
+      ],
+      "cross_checks": [],
+      "clinical_regimen_proven": false
+    },
+    {
+      "evidence_id": "MA-LIDOCAINE-XYLOROLLAND-ADRENALINE-20260915",
+      "matrix_ids": ["local_anesthesia.lidocaine"],
+      "claim_type": "DENTAL_CHAIRSIDE_PRESENTATION",
+      "claim": "XYLOROLLAND AVEC ADRENALINE 36 mg/0.04086 mg is listed by AMMPS as a dental injectable solution, box of 50 cartridges, commercialized AO.",
+      "verification_state": "PRIMARY_ONLY",
+      "primary_sources": [
+        "https://www.ammps.gov.ma/basesdedonnes/liste_marocaine_des_medicaments?page=482"
+      ],
+      "cross_checks": [],
+      "clinical_regimen_proven": false,
+      "note": "Chairside anesthetic registry, not ambulatory Ordonnance."
+    },
+    {
+      "evidence_id": "MA-LIDOCAINE-XYLOROLLAND-PLAIN-20260915",
+      "matrix_ids": ["local_anesthesia.lidocaine"],
+      "claim_type": "DENTAL_CHAIRSIDE_PRESENTATION",
+      "claim": "XYLOROLLAND SANS VASOCONSTRICTEUR 36 mg is listed by AMMPS as a dental injectable solution, box of 50 cartridges, commercialized AO.",
+      "verification_state": "PRIMARY_ONLY",
+      "primary_sources": [
+        "https://www.ammps.gov.ma/basesdedonnes/liste_marocaine_des_medicaments?page=482"
+      ],
+      "cross_checks": [],
+      "clinical_regimen_proven": false,
+      "note": "Chairside anesthetic registry, not ambulatory Ordonnance."
+    },
+    {
+      "evidence_id": "MA-LIDOCAINE-XYLONOR-20260915",
+      "matrix_ids": ["local_anesthesia.lidocaine"],
+      "claim_type": "DENTAL_CHAIRSIDE_PRESENTATION",
+      "claim": "XYLONOR lidocaine/cetrimide solution for dental use is listed by AMMPS as commercialized.",
+      "verification_state": "PRIMARY_ONLY",
+      "primary_sources": [
+        "https://www.ammps.gov.ma/basesdedonnes/liste_marocaine_des_medicaments?page=482"
+      ],
+      "cross_checks": [],
+      "clinical_regimen_proven": false
+    },
+    {
+      "evidence_id": "MA-LIDOCAINE-XYLOCAINE-VISCOUS-WITHDRAWN-20260915",
+      "matrix_ids": ["local_anesthesia.lidocaine"],
+      "claim_type": "MARKET_STATUS",
+      "claim": "XYLOCAINE VISQUEUSE 2% oral gel is listed by AMMPS as withdrawn from market.",
+      "verification_state": "PRIMARY_ONLY",
+      "primary_sources": [
+        "https://www.ammps.gov.ma/basesdedonnes/liste_marocaine_des_medicaments?page=482"
+      ],
+      "cross_checks": [],
+      "clinical_regimen_proven": false
+    },
+    {
+      "evidence_id": "MA-RMMG-2026-SCOPE-20260915",
+      "matrix_ids": [],
+      "claim_type": "REFERENCE_SCOPE",
+      "claim": "AMMPS states that the January 2026 RMMG project directory lists generic medicines effectively commercialized on the national market and is dynamic.",
+      "verification_state": "CROSS_CHECKED",
+      "primary_sources": [
+        "https://www.ammps.gov.ma/note-information/repertoire-marocain-des-medicaments-generiques"
+      ],
+      "cross_checks": [
+        "https://www.ammps.gov.ma/repertoire-medicaments-generiques"
+      ],
+      "clinical_regimen_proven": false,
+      "note": "This scope statement applies to RMMG generics, not every branded presentation in the full AMMPS medicine database."
+    }
+  ]
+}

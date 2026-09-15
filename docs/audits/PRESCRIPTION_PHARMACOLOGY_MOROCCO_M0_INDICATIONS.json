@@ -1,0 +1,250 @@
+{
+  "schema_version": "m0-indications.1",
+  "verified_at": "2026-09-15",
+  "runtime_behavior_change": false,
+  "purpose": "Clinical indication universe for scientific mapping. No new prescribing rule is activated by this file.",
+  "rows": [
+    {
+      "id": "pain.odontogenic",
+      "indication": "Odontogenic or post-operative dental pain",
+      "care_scope": "AMBULATORY",
+      "local_measures_first": true,
+      "drug_role": "ANALGESIA",
+      "linked_matrix_ids": ["pain.paracetamol", "nsaid.ibuprofen", "pain.paracetamol_codeine", "pain.tramadol"],
+      "morocco_state": "HISTORICAL_NATIONAL_SCOPE_CURRENT_PRODUCT_EVIDENCE_PENDING",
+      "m0_tier": "PROPOSE_CONFIRM",
+      "gap": "Current Moroccan product-level RCP/risk mapping must be completed before widening automation."
+    },
+    {
+      "id": "infection.dental_abscess_localised",
+      "indication": "Localised dental abscess without spreading or systemic involvement",
+      "care_scope": "AMBULATORY_LOCAL_TREATMENT",
+      "local_measures_first": true,
+      "drug_role": "NO_ROUTINE_ANTIBIOTIC",
+      "linked_matrix_ids": ["abx.amoxicillin", "abx.pen_v", "abx.metronidazole"],
+      "morocco_state": "NATIONAL_DENTAL_SCOPE_EXISTS_CURRENT_STEWARDSHIP_CROSSCHECK_REQUIRED",
+      "m0_tier": "REVIEW_ONLY",
+      "gap": "M0 must preserve drainage/removal-of-cause priority and prevent antibiotic suggestion solely from the word abscess."
+    },
+    {
+      "id": "infection.dental_abscess_spreading_systemic",
+      "indication": "Dental abscess with spreading infection or systemic involvement",
+      "care_scope": "AMBULATORY_IF_NO_RED_FLAGS",
+      "local_measures_first": true,
+      "drug_role": "ANTIBIOTIC_WHEN_CLINICALLY_INDICATED",
+      "linked_matrix_ids": ["abx.pen_v", "abx.amoxicillin", "abx.metronidazole"],
+      "morocco_state": "MOROCCO_DENTAL_SCOPE_2014_CURRENT_RCP_EXTRACTION_PENDING",
+      "m0_tier": "PROPOSE_CONFIRM",
+      "gap": "Current Moroccan molecule-specific regimen and hierarchy must be adjudicated before activation."
+    },
+    {
+      "id": "infection.dental_abscess_severe_red_flags",
+      "indication": "Severe odontogenic infection with airway/deep-space or other emergency red flags",
+      "care_scope": "EMERGENCY_REFERRAL",
+      "local_measures_first": false,
+      "drug_role": "DO_NOT_DELAY_EMERGENCY_TRANSFER",
+      "linked_matrix_ids": ["abx.amoxicillin", "abx.amox_clav"],
+      "morocco_state": "MOROCCO_EMERGENCY_PROTOCOL_PENDING",
+      "m0_tier": "NOT_SUPPORTED",
+      "gap": "Requires explicit Moroccan emergency pathway; outpatient dose logic must never substitute for referral."
+    },
+    {
+      "id": "periodontal.necrotising_gingivitis_periodontitis",
+      "indication": "Necrotising gingivitis or necrotising periodontitis",
+      "care_scope": "AMBULATORY",
+      "local_measures_first": true,
+      "drug_role": "ANTIBIOTIC_ONLY_IF_SYSTEMIC_OR_PERSISTENT_SEVERE_CONTEXT",
+      "linked_matrix_ids": ["abx.metronidazole", "abx.amoxicillin"],
+      "morocco_state": "MOROCCO_2014_PERIODONTAL_ANTIBIOTIC_SCOPE_PARTIAL",
+      "m0_tier": "REVIEW_ONLY",
+      "gap": "Current Moroccan indication-specific regimen and diagnostic terminology pending."
+    },
+    {
+      "id": "periodontal.pericoronitis",
+      "indication": "Pericoronitis",
+      "care_scope": "AMBULATORY",
+      "local_measures_first": true,
+      "drug_role": "ANTIBIOTIC_ONLY_IF_SYSTEMIC_INVOLVEMENT_OR_PERSISTENT_SWELLING",
+      "linked_matrix_ids": ["abx.metronidazole", "abx.amoxicillin"],
+      "morocco_state": "CURRENT_MOROCCO_PROTOCOL_NOT_IDENTIFIED",
+      "m0_tier": "REVIEW_ONLY",
+      "gap": "Current Moroccan indication-specific protocol pending; no automatic antibiotic for uncomplicated pericoronitis."
+    },
+    {
+      "id": "fungal.candidosis_mild_localised",
+      "indication": "Mild/localised oral candidosis or denture-associated candidosis",
+      "care_scope": "AMBULATORY",
+      "local_measures_first": true,
+      "drug_role": "TOPICAL_ANTIFUNGAL_AFTER_PREDISPOSING_FACTORS_REVIEW",
+      "linked_matrix_ids": ["fungal.miconazole", "fungal.nystatin", "mouthwash.chlorhexidine"],
+      "morocco_state": "CURRENT_MOROCCO_DENTAL_SOURCE_NOT_IDENTIFIED",
+      "m0_tier": "PROPOSE_CONFIRM",
+      "gap": "Moroccan oral presentations, RCP indications and interaction rules pending."
+    },
+    {
+      "id": "fungal.candidosis_severe_extensive",
+      "indication": "Severe/extensive oral candidosis or failure of appropriate topical management",
+      "care_scope": "AMBULATORY_OR_REFERRAL_DEPENDING_HOST",
+      "local_measures_first": true,
+      "drug_role": "SYSTEMIC_ANTIFUNGAL_WITH_INTERACTION_REVIEW",
+      "linked_matrix_ids": ["fungal.fluconazole", "fungal.miconazole", "fungal.nystatin"],
+      "morocco_state": "CURRENT_MOROCCO_DENTAL_SOURCE_NOT_IDENTIFIED",
+      "m0_tier": "REVIEW_ONLY",
+      "gap": "Moroccan indication, dose, host-risk and interaction rules pending."
+    },
+    {
+      "id": "fungal.angular_cheilitis",
+      "indication": "Angular cheilitis",
+      "care_scope": "AMBULATORY",
+      "local_measures_first": true,
+      "drug_role": "CAUSE_DEPENDENT_TOPICAL_TREATMENT",
+      "linked_matrix_ids": ["fungal.miconazole", "mucosa.hydrocortisone_oromucosal"],
+      "morocco_state": "CURRENT_MOROCCO_DENTAL_SOURCE_NOT_IDENTIFIED",
+      "m0_tier": "REVIEW_ONLY",
+      "gap": "Must distinguish candidal/mixed disease from clearly bacterial disease; Moroccan fusidic-acid/topical combination evidence not yet mapped."
+    },
+    {
+      "id": "viral.primary_herpetic_gingivostomatitis_mild",
+      "indication": "Mild primary herpetic gingivostomatitis",
+      "care_scope": "AMBULATORY_SUPPORTIVE",
+      "local_measures_first": true,
+      "drug_role": "SUPPORTIVE_ANALGESIA_AND_LOCAL_MEASURES",
+      "linked_matrix_ids": ["pain.paracetamol", "mouthwash.chlorhexidine", "mouthwash.hydrogen_peroxide", "mucosa.benzydamine"],
+      "morocco_state": "CURRENT_MOROCCO_PROTOCOL_NOT_IDENTIFIED",
+      "m0_tier": "REVIEW_ONLY",
+      "gap": "Moroccan supportive-care product evidence and age rules pending."
+    },
+    {
+      "id": "viral.herpes_severe_or_immunocompromised",
+      "indication": "Severe oral herpes simplex or infection in an immunocompromised patient",
+      "care_scope": "AMBULATORY_OR_URGENT_REFERRAL",
+      "local_measures_first": true,
+      "drug_role": "SYSTEMIC_ANTIVIRAL_OR_REFERRAL",
+      "linked_matrix_ids": ["viral.aciclovir"],
+      "morocco_state": "RMMG_PRESENTATIONS_IDENTIFIED_DENTAL_RCP_PENDING",
+      "m0_tier": "REVIEW_ONLY",
+      "gap": "Moroccan oral-HSV RCP indication, dose and referral threshold pending."
+    },
+    {
+      "id": "viral.herpes_labialis_mild",
+      "indication": "Mild herpes labialis in a non-immunocompromised patient",
+      "care_scope": "AMBULATORY",
+      "local_measures_first": true,
+      "drug_role": "TOPICAL_ANTIVIRAL_CANDIDATE",
+      "linked_matrix_ids": ["viral.aciclovir"],
+      "morocco_state": "TOPICAL_ACICLOVIR_PRESENTATION_IDENTIFIED_RCP_PENDING",
+      "m0_tier": "REVIEW_ONLY",
+      "gap": "Moroccan topical indication/regimen must be confirmed from RCP."
+    },
+    {
+      "id": "mucosa.ulceration_inflammation",
+      "indication": "Diagnosed oral mucosal ulceration/inflammation suitable for symptomatic topical care",
+      "care_scope": "AMBULATORY",
+      "local_measures_first": true,
+      "drug_role": "LOCAL_ANALGESIC_MOUTHWASH_OR_TOPICAL_CORTICOSTEROID_BY_LESION",
+      "linked_matrix_ids": ["mucosa.benzydamine", "mucosa.hydrocortisone_oromucosal", "mucosa.betamethasone_mouthwash", "mucosa.beclometasone_topical_oral", "mouthwash.chlorhexidine", "mouthwash.sodium_chloride_compound"],
+      "morocco_state": "CURRENT_MOROCCO_DENTAL_SOURCE_NOT_IDENTIFIED",
+      "m0_tier": "REVIEW_ONLY",
+      "gap": "Diagnosis-specific Morocco evidence and off-label boundaries pending."
+    },
+    {
+      "id": "mucosa.persistent_ulcer_red_flag",
+      "indication": "Persistent or suspicious oral ulcer",
+      "care_scope": "REFERRAL_DIAGNOSTIC",
+      "local_measures_first": false,
+      "drug_role": "DO_NOT_MASK_WITH_AUTOMATIC_REPEAT_PRESCRIPTION",
+      "linked_matrix_ids": [],
+      "morocco_state": "ONCOLOGY_OR_ORAL_MEDICINE_REFERRAL_PATH_PENDING",
+      "m0_tier": "NOT_SUPPORTED",
+      "gap": "Referral/biopsy pathway must be handled outside routine pharmacology automation."
+    },
+    {
+      "id": "caries.high_risk_prevention",
+      "indication": "High caries risk requiring prescription-strength fluoride prevention",
+      "care_scope": "AMBULATORY_PREVENTION",
+      "local_measures_first": true,
+      "drug_role": "FLUORIDE_PREVENTION_BY_AGE_RISK_AND_PRODUCT",
+      "linked_matrix_ids": ["caries.fluoride_2800", "caries.fluoride_5000", "caries.fluoride_mouthwash_005"],
+      "morocco_state": "CURRENT_MOROCCO_MEDICINAL_PRESENTATIONS_NOT_MAPPED",
+      "m0_tier": "PROPOSE_CONFIRM",
+      "gap": "Moroccan product status, age limits and medicinal/device/cosmetic classification pending."
+    },
+    {
+      "id": "xerostomia.symptomatic",
+      "indication": "Symptomatic dry mouth/xerostomia",
+      "care_scope": "AMBULATORY",
+      "local_measures_first": true,
+      "drug_role": "CAUSE_REVIEW_SALIVA_SUPPORT_OR_SIALOGOGUE_WHEN_APPROPRIATE",
+      "linked_matrix_ids": ["xerostomia.pilocarpine", "xerostomia.saliva_substitute"],
+      "morocco_state": "CURRENT_MOROCCO_DENTAL_SOURCE_NOT_IDENTIFIED",
+      "m0_tier": "REVIEW_ONLY",
+      "gap": "Underlying-cause workflow and Morocco product/classification evidence pending."
+    },
+    {
+      "id": "hemostasis.anticoagulated_dental_patient",
+      "indication": "Dental patient requiring local haemostasis while taking anticoagulant/antiplatelet therapy",
+      "care_scope": "CHAIRSIDE_AND_POSTOP",
+      "local_measures_first": true,
+      "drug_role": "LOCAL_HEMOSTATIC_ADJUVANT_CANDIDATE",
+      "linked_matrix_ids": ["hemostasis.tranexamic"],
+      "morocco_state": "CURRENT_MOROCCO_DENTAL_PROTOCOL_NOT_IDENTIFIED",
+      "m0_tier": "REVIEW_ONLY",
+      "gap": "Must be integrated with procedure bleeding-risk and antithrombotic management; local tranexamic use may be off-label."
+    },
+    {
+      "id": "prophylaxis.infective_endocarditis",
+      "indication": "Infective endocarditis antibiotic prophylaxis around invasive dental procedures",
+      "care_scope": "HIGH_RISK_PROTOCOL",
+      "local_measures_first": false,
+      "drug_role": "PROPHYLAXIS_ONLY_FOR_ELIGIBLE_CARDIAC_RISK_AND_PROCEDURE",
+      "linked_matrix_ids": ["abx.prophylaxis", "abx.amoxicillin", "abx.clindamycin", "abx.azithromycin", "abx.clarithromycin"],
+      "morocco_state": "NO_CURRENT_OFFICIAL_MOROCCAN_PROTOCOL_IDENTIFIED_IN_M0_SEARCH",
+      "m0_tier": "REVIEW_ONLY",
+      "gap": "Older Moroccan academic material is inconsistent with modern international guidance; current authoritative Moroccan protocol is required before encoding."
+    },
+    {
+      "id": "anxiety.dental_premedication",
+      "indication": "Dental anxiety requiring pharmacological premedication",
+      "care_scope": "HIGH_RISK_AMBULATORY",
+      "local_measures_first": true,
+      "drug_role": "ANXIOLYTIC_ONLY_UNDER_EXPLICIT_PROTOCOL",
+      "linked_matrix_ids": ["anxiety.diazepam"],
+      "morocco_state": "CURRENT_MOROCCO_DENTAL_PROTOCOL_AND_LEGAL_RULES_NOT_VALIDATED",
+      "m0_tier": "REVIEW_ONLY",
+      "gap": "Requires Moroccan legal/prescription constraints, dose protocol, escort/driving and sedation-safety rules."
+    },
+    {
+      "id": "facial_pain.tmd",
+      "indication": "Temporomandibular disorder or non-odontogenic facial pain",
+      "care_scope": "DIAGNOSIS_FIRST",
+      "local_measures_first": true,
+      "drug_role": "LIMITED_SYMPTOMATIC_MEDICATION_OR_REFERRAL",
+      "linked_matrix_ids": ["facial_pain.tmd_diazepam", "facial_pain.neuropathic", "nsaid.ibuprofen"],
+      "morocco_state": "CURRENT_MOROCCO_DENTAL_PROTOCOL_NOT_IDENTIFIED",
+      "m0_tier": "REVIEW_ONLY",
+      "gap": "Must not reuse odontogenic pain rules for neuropathic/TMD pain without diagnosis-specific evidence."
+    },
+    {
+      "id": "sinusitis.possible_dental_overlap",
+      "indication": "Acute sinusitis encountered in dental differential diagnosis",
+      "care_scope": "DIFFERENTIAL_OR_REFERRAL",
+      "local_measures_first": false,
+      "drug_role": "DO_NOT_AUTOMATICALLY_TREAT_AS_ODONTOGENIC_INFECTION",
+      "linked_matrix_ids": [],
+      "morocco_state": "OUTSIDE_CURRENT_DENTAL_MOROCCO_PROTOCOL",
+      "m0_tier": "NOT_SUPPORTED",
+      "gap": "Requires diagnosis and medical/ENT guidance; kept in universe to prevent incorrect dental-antibiotic reuse."
+    },
+    {
+      "id": "emergency.chairside_medication_set",
+      "indication": "Medical emergency in the dental practice",
+      "care_scope": "EMERGENCY_CHAIRSIDE",
+      "local_measures_first": false,
+      "drug_role": "EMERGENCY_PROTOCOL_NOT_AMBULATORY_PRESCRIPTION",
+      "linked_matrix_ids": ["emergency.adrenaline", "emergency.aspirin", "emergency.glucagon", "emergency.gtn", "emergency.midazolam", "emergency.glucose", "emergency.oxygen", "emergency.salbutamol", "emergency.antihistamines"],
+      "morocco_state": "MOROCCO_EMERGENCY_PROTOCOL_PENDING",
+      "m0_tier": "NOT_SUPPORTED",
+      "gap": "Must remain a separate emergency module with Moroccan stock/protocol/legal validation."
+    }
+  ]
+}

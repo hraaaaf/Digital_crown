@@ -1,0 +1,80 @@
+{
+  "schema_version": "m0-safety.1",
+  "verified_at": "2026-09-15",
+  "runtime_behavior_change": false,
+  "purpose": "Make every patient-safety dimension explicit for every M0 row. PENDING means unresolved evidence, never permission to infer or auto-prescribe.",
+  "allowed_states": [
+    "CURRENT_ENGINE_PARTIAL_NEEDS_MOROCCO_RCP",
+    "PENDING_MOROCCO_RCP",
+    "PENDING_MOROCCO_PROTOCOL",
+    "SPECIALIST_OR_EXTERNAL_PROTOCOL",
+    "NOT_APPLICABLE_OR_NON_MEDICINE"
+  ],
+  "dimensions": [
+    "age_weight",
+    "pregnancy_breastfeeding",
+    "renal",
+    "hepatic",
+    "allergy",
+    "interactions"
+  ],
+  "rows": [
+    {"id":"pain.paracetamol","age_weight":"CURRENT_ENGINE_PARTIAL_NEEDS_MOROCCO_RCP","pregnancy_breastfeeding":"PENDING_MOROCCO_RCP","renal":"PENDING_MOROCCO_RCP","hepatic":"PENDING_MOROCCO_RCP","allergy":"PENDING_MOROCCO_RCP","interactions":"PENDING_MOROCCO_RCP"},
+    {"id":"pain.paracetamol_codeine","age_weight":"PENDING_MOROCCO_RCP","pregnancy_breastfeeding":"PENDING_MOROCCO_RCP","renal":"PENDING_MOROCCO_RCP","hepatic":"PENDING_MOROCCO_RCP","allergy":"PENDING_MOROCCO_RCP","interactions":"PENDING_MOROCCO_RCP"},
+    {"id":"pain.tramadol","age_weight":"PENDING_MOROCCO_RCP","pregnancy_breastfeeding":"PENDING_MOROCCO_RCP","renal":"PENDING_MOROCCO_RCP","hepatic":"PENDING_MOROCCO_RCP","allergy":"PENDING_MOROCCO_RCP","interactions":"PENDING_MOROCCO_RCP"},
+    {"id":"nsaid.ibuprofen","age_weight":"CURRENT_ENGINE_PARTIAL_NEEDS_MOROCCO_RCP","pregnancy_breastfeeding":"CURRENT_ENGINE_PARTIAL_NEEDS_MOROCCO_RCP","renal":"PENDING_MOROCCO_RCP","hepatic":"PENDING_MOROCCO_RCP","allergy":"PENDING_MOROCCO_RCP","interactions":"CURRENT_ENGINE_PARTIAL_NEEDS_MOROCCO_RCP"},
+    {"id":"nsaid.diclofenac","age_weight":"PENDING_MOROCCO_RCP","pregnancy_breastfeeding":"PENDING_MOROCCO_RCP","renal":"PENDING_MOROCCO_RCP","hepatic":"PENDING_MOROCCO_RCP","allergy":"PENDING_MOROCCO_RCP","interactions":"PENDING_MOROCCO_RCP"},
+    {"id":"nsaid.ketoprofen","age_weight":"PENDING_MOROCCO_RCP","pregnancy_breastfeeding":"PENDING_MOROCCO_RCP","renal":"PENDING_MOROCCO_RCP","hepatic":"PENDING_MOROCCO_RCP","allergy":"PENDING_MOROCCO_RCP","interactions":"PENDING_MOROCCO_RCP"},
+    {"id":"steroid.systemic","age_weight":"PENDING_MOROCCO_RCP","pregnancy_breastfeeding":"PENDING_MOROCCO_RCP","renal":"PENDING_MOROCCO_RCP","hepatic":"PENDING_MOROCCO_RCP","allergy":"PENDING_MOROCCO_RCP","interactions":"PENDING_MOROCCO_RCP"},
+
+    {"id":"abx.amoxicillin","age_weight":"CURRENT_ENGINE_PARTIAL_NEEDS_MOROCCO_RCP","pregnancy_breastfeeding":"PENDING_MOROCCO_RCP","renal":"CURRENT_ENGINE_PARTIAL_NEEDS_MOROCCO_RCP","hepatic":"PENDING_MOROCCO_RCP","allergy":"CURRENT_ENGINE_PARTIAL_NEEDS_MOROCCO_RCP","interactions":"PENDING_MOROCCO_RCP"},
+    {"id":"abx.pen_v","age_weight":"CURRENT_ENGINE_PARTIAL_NEEDS_MOROCCO_RCP","pregnancy_breastfeeding":"PENDING_MOROCCO_RCP","renal":"PENDING_MOROCCO_RCP","hepatic":"PENDING_MOROCCO_RCP","allergy":"CURRENT_ENGINE_PARTIAL_NEEDS_MOROCCO_RCP","interactions":"PENDING_MOROCCO_RCP"},
+    {"id":"abx.metronidazole","age_weight":"CURRENT_ENGINE_PARTIAL_NEEDS_MOROCCO_RCP","pregnancy_breastfeeding":"PENDING_MOROCCO_RCP","renal":"PENDING_MOROCCO_RCP","hepatic":"PENDING_MOROCCO_RCP","allergy":"PENDING_MOROCCO_RCP","interactions":"CURRENT_ENGINE_PARTIAL_NEEDS_MOROCCO_RCP"},
+    {"id":"abx.spiramycin_metronidazole","age_weight":"PENDING_MOROCCO_RCP","pregnancy_breastfeeding":"PENDING_MOROCCO_RCP","renal":"PENDING_MOROCCO_RCP","hepatic":"PENDING_MOROCCO_RCP","allergy":"PENDING_MOROCCO_RCP","interactions":"PENDING_MOROCCO_RCP"},
+    {"id":"abx.amox_clav","age_weight":"PENDING_MOROCCO_RCP","pregnancy_breastfeeding":"PENDING_MOROCCO_RCP","renal":"PENDING_MOROCCO_RCP","hepatic":"PENDING_MOROCCO_RCP","allergy":"PENDING_MOROCCO_RCP","interactions":"PENDING_MOROCCO_RCP"},
+    {"id":"abx.clarithromycin","age_weight":"CURRENT_ENGINE_PARTIAL_NEEDS_MOROCCO_RCP","pregnancy_breastfeeding":"PENDING_MOROCCO_RCP","renal":"PENDING_MOROCCO_RCP","hepatic":"PENDING_MOROCCO_RCP","allergy":"PENDING_MOROCCO_RCP","interactions":"PENDING_MOROCCO_RCP"},
+    {"id":"abx.azithromycin","age_weight":"PENDING_MOROCCO_RCP","pregnancy_breastfeeding":"PENDING_MOROCCO_RCP","renal":"PENDING_MOROCCO_RCP","hepatic":"PENDING_MOROCCO_RCP","allergy":"PENDING_MOROCCO_RCP","interactions":"PENDING_MOROCCO_RCP"},
+    {"id":"abx.clindamycin","age_weight":"CURRENT_ENGINE_PARTIAL_NEEDS_MOROCCO_RCP","pregnancy_breastfeeding":"PENDING_MOROCCO_RCP","renal":"PENDING_MOROCCO_RCP","hepatic":"PENDING_MOROCCO_RCP","allergy":"PENDING_MOROCCO_RCP","interactions":"PENDING_MOROCCO_RCP"},
+    {"id":"perio.doxycycline","age_weight":"PENDING_MOROCCO_RCP","pregnancy_breastfeeding":"PENDING_MOROCCO_RCP","renal":"PENDING_MOROCCO_RCP","hepatic":"PENDING_MOROCCO_RCP","allergy":"PENDING_MOROCCO_RCP","interactions":"PENDING_MOROCCO_RCP"},
+    {"id":"abx.prophylaxis","age_weight":"PENDING_MOROCCO_PROTOCOL","pregnancy_breastfeeding":"PENDING_MOROCCO_PROTOCOL","renal":"PENDING_MOROCCO_PROTOCOL","hepatic":"PENDING_MOROCCO_PROTOCOL","allergy":"PENDING_MOROCCO_PROTOCOL","interactions":"PENDING_MOROCCO_PROTOCOL"},
+
+    {"id":"fungal.miconazole","age_weight":"CURRENT_ENGINE_PARTIAL_NEEDS_MOROCCO_RCP","pregnancy_breastfeeding":"PENDING_MOROCCO_RCP","renal":"PENDING_MOROCCO_RCP","hepatic":"PENDING_MOROCCO_RCP","allergy":"PENDING_MOROCCO_RCP","interactions":"CURRENT_ENGINE_PARTIAL_NEEDS_MOROCCO_RCP"},
+    {"id":"fungal.nystatin","age_weight":"CURRENT_ENGINE_PARTIAL_NEEDS_MOROCCO_RCP","pregnancy_breastfeeding":"PENDING_MOROCCO_RCP","renal":"PENDING_MOROCCO_RCP","hepatic":"PENDING_MOROCCO_RCP","allergy":"PENDING_MOROCCO_RCP","interactions":"PENDING_MOROCCO_RCP"},
+    {"id":"fungal.fluconazole","age_weight":"CURRENT_ENGINE_PARTIAL_NEEDS_MOROCCO_RCP","pregnancy_breastfeeding":"PENDING_MOROCCO_RCP","renal":"PENDING_MOROCCO_RCP","hepatic":"PENDING_MOROCCO_RCP","allergy":"PENDING_MOROCCO_RCP","interactions":"PENDING_MOROCCO_RCP"},
+    {"id":"viral.aciclovir","age_weight":"CURRENT_ENGINE_PARTIAL_NEEDS_MOROCCO_RCP","pregnancy_breastfeeding":"PENDING_MOROCCO_RCP","renal":"PENDING_MOROCCO_RCP","hepatic":"PENDING_MOROCCO_RCP","allergy":"PENDING_MOROCCO_RCP","interactions":"PENDING_MOROCCO_RCP"},
+
+    {"id":"mouthwash.chlorhexidine","age_weight":"CURRENT_ENGINE_PARTIAL_NEEDS_MOROCCO_RCP","pregnancy_breastfeeding":"PENDING_MOROCCO_RCP","renal":"PENDING_MOROCCO_RCP","hepatic":"PENDING_MOROCCO_RCP","allergy":"PENDING_MOROCCO_RCP","interactions":"PENDING_MOROCCO_RCP"},
+    {"id":"mouthwash.hydrogen_peroxide","age_weight":"PENDING_MOROCCO_RCP","pregnancy_breastfeeding":"PENDING_MOROCCO_RCP","renal":"PENDING_MOROCCO_RCP","hepatic":"PENDING_MOROCCO_RCP","allergy":"PENDING_MOROCCO_RCP","interactions":"PENDING_MOROCCO_RCP"},
+    {"id":"mouthwash.sodium_chloride_compound","age_weight":"PENDING_MOROCCO_PROTOCOL","pregnancy_breastfeeding":"PENDING_MOROCCO_PROTOCOL","renal":"PENDING_MOROCCO_PROTOCOL","hepatic":"PENDING_MOROCCO_PROTOCOL","allergy":"PENDING_MOROCCO_PROTOCOL","interactions":"PENDING_MOROCCO_PROTOCOL"},
+    {"id":"mucosa.benzydamine","age_weight":"CURRENT_ENGINE_PARTIAL_NEEDS_MOROCCO_RCP","pregnancy_breastfeeding":"PENDING_MOROCCO_RCP","renal":"PENDING_MOROCCO_RCP","hepatic":"PENDING_MOROCCO_RCP","allergy":"PENDING_MOROCCO_RCP","interactions":"PENDING_MOROCCO_RCP"},
+    {"id":"mucosa.hydrocortisone_oromucosal","age_weight":"CURRENT_ENGINE_PARTIAL_NEEDS_MOROCCO_RCP","pregnancy_breastfeeding":"PENDING_MOROCCO_RCP","renal":"PENDING_MOROCCO_RCP","hepatic":"PENDING_MOROCCO_RCP","allergy":"PENDING_MOROCCO_RCP","interactions":"PENDING_MOROCCO_RCP"},
+    {"id":"mucosa.betamethasone_mouthwash","age_weight":"PENDING_MOROCCO_RCP","pregnancy_breastfeeding":"PENDING_MOROCCO_RCP","renal":"PENDING_MOROCCO_RCP","hepatic":"PENDING_MOROCCO_RCP","allergy":"PENDING_MOROCCO_RCP","interactions":"PENDING_MOROCCO_RCP"},
+    {"id":"mucosa.beclometasone_topical_oral","age_weight":"PENDING_MOROCCO_RCP","pregnancy_breastfeeding":"PENDING_MOROCCO_RCP","renal":"PENDING_MOROCCO_RCP","hepatic":"PENDING_MOROCCO_RCP","allergy":"PENDING_MOROCCO_RCP","interactions":"PENDING_MOROCCO_RCP"},
+    {"id":"mucosa.doxycycline_mouthwash","age_weight":"PENDING_MOROCCO_RCP","pregnancy_breastfeeding":"PENDING_MOROCCO_RCP","renal":"PENDING_MOROCCO_RCP","hepatic":"PENDING_MOROCCO_RCP","allergy":"PENDING_MOROCCO_RCP","interactions":"PENDING_MOROCCO_RCP"},
+
+    {"id":"caries.fluoride_2800","age_weight":"CURRENT_ENGINE_PARTIAL_NEEDS_MOROCCO_RCP","pregnancy_breastfeeding":"PENDING_MOROCCO_RCP","renal":"PENDING_MOROCCO_RCP","hepatic":"PENDING_MOROCCO_RCP","allergy":"PENDING_MOROCCO_RCP","interactions":"PENDING_MOROCCO_RCP"},
+    {"id":"caries.fluoride_5000","age_weight":"CURRENT_ENGINE_PARTIAL_NEEDS_MOROCCO_RCP","pregnancy_breastfeeding":"PENDING_MOROCCO_RCP","renal":"PENDING_MOROCCO_RCP","hepatic":"PENDING_MOROCCO_RCP","allergy":"PENDING_MOROCCO_RCP","interactions":"PENDING_MOROCCO_RCP"},
+    {"id":"caries.fluoride_mouthwash_005","age_weight":"CURRENT_ENGINE_PARTIAL_NEEDS_MOROCCO_RCP","pregnancy_breastfeeding":"PENDING_MOROCCO_RCP","renal":"PENDING_MOROCCO_RCP","hepatic":"PENDING_MOROCCO_RCP","allergy":"PENDING_MOROCCO_RCP","interactions":"PENDING_MOROCCO_RCP"},
+    {"id":"xerostomia.pilocarpine","age_weight":"PENDING_MOROCCO_RCP","pregnancy_breastfeeding":"PENDING_MOROCCO_RCP","renal":"PENDING_MOROCCO_RCP","hepatic":"PENDING_MOROCCO_RCP","allergy":"PENDING_MOROCCO_RCP","interactions":"PENDING_MOROCCO_RCP"},
+    {"id":"xerostomia.saliva_substitute","age_weight":"NOT_APPLICABLE_OR_NON_MEDICINE","pregnancy_breastfeeding":"PENDING_MOROCCO_PROTOCOL","renal":"PENDING_MOROCCO_PROTOCOL","hepatic":"PENDING_MOROCCO_PROTOCOL","allergy":"PENDING_MOROCCO_PROTOCOL","interactions":"PENDING_MOROCCO_PROTOCOL"},
+    {"id":"hemostasis.tranexamic","age_weight":"PENDING_MOROCCO_RCP","pregnancy_breastfeeding":"PENDING_MOROCCO_RCP","renal":"PENDING_MOROCCO_RCP","hepatic":"PENDING_MOROCCO_RCP","allergy":"PENDING_MOROCCO_RCP","interactions":"PENDING_MOROCCO_RCP"},
+
+    {"id":"local_anesthesia.articaine_adrenaline","age_weight":"PENDING_MOROCCO_RCP","pregnancy_breastfeeding":"PENDING_MOROCCO_RCP","renal":"PENDING_MOROCCO_RCP","hepatic":"PENDING_MOROCCO_RCP","allergy":"PENDING_MOROCCO_RCP","interactions":"PENDING_MOROCCO_RCP"},
+    {"id":"local_anesthesia.lidocaine","age_weight":"PENDING_MOROCCO_RCP","pregnancy_breastfeeding":"PENDING_MOROCCO_RCP","renal":"PENDING_MOROCCO_RCP","hepatic":"PENDING_MOROCCO_RCP","allergy":"PENDING_MOROCCO_RCP","interactions":"PENDING_MOROCCO_RCP"},
+    {"id":"local_anesthesia.mepivacaine","age_weight":"PENDING_MOROCCO_RCP","pregnancy_breastfeeding":"PENDING_MOROCCO_RCP","renal":"PENDING_MOROCCO_RCP","hepatic":"PENDING_MOROCCO_RCP","allergy":"PENDING_MOROCCO_RCP","interactions":"PENDING_MOROCCO_RCP"},
+
+    {"id":"anxiety.diazepam","age_weight":"PENDING_MOROCCO_RCP","pregnancy_breastfeeding":"PENDING_MOROCCO_RCP","renal":"PENDING_MOROCCO_RCP","hepatic":"PENDING_MOROCCO_RCP","allergy":"PENDING_MOROCCO_RCP","interactions":"PENDING_MOROCCO_RCP"},
+    {"id":"facial_pain.tmd_diazepam","age_weight":"PENDING_MOROCCO_RCP","pregnancy_breastfeeding":"PENDING_MOROCCO_RCP","renal":"PENDING_MOROCCO_RCP","hepatic":"PENDING_MOROCCO_RCP","allergy":"PENDING_MOROCCO_RCP","interactions":"PENDING_MOROCCO_RCP"},
+    {"id":"facial_pain.neuropathic","age_weight":"SPECIALIST_OR_EXTERNAL_PROTOCOL","pregnancy_breastfeeding":"SPECIALIST_OR_EXTERNAL_PROTOCOL","renal":"SPECIALIST_OR_EXTERNAL_PROTOCOL","hepatic":"SPECIALIST_OR_EXTERNAL_PROTOCOL","allergy":"SPECIALIST_OR_EXTERNAL_PROTOCOL","interactions":"SPECIALIST_OR_EXTERNAL_PROTOCOL"},
+
+    {"id":"emergency.adrenaline","age_weight":"PENDING_MOROCCO_PROTOCOL","pregnancy_breastfeeding":"PENDING_MOROCCO_PROTOCOL","renal":"PENDING_MOROCCO_PROTOCOL","hepatic":"PENDING_MOROCCO_PROTOCOL","allergy":"PENDING_MOROCCO_PROTOCOL","interactions":"PENDING_MOROCCO_PROTOCOL"},
+    {"id":"emergency.aspirin","age_weight":"PENDING_MOROCCO_PROTOCOL","pregnancy_breastfeeding":"PENDING_MOROCCO_PROTOCOL","renal":"PENDING_MOROCCO_PROTOCOL","hepatic":"PENDING_MOROCCO_PROTOCOL","allergy":"PENDING_MOROCCO_PROTOCOL","interactions":"PENDING_MOROCCO_PROTOCOL"},
+    {"id":"emergency.glucagon","age_weight":"PENDING_MOROCCO_PROTOCOL","pregnancy_breastfeeding":"PENDING_MOROCCO_PROTOCOL","renal":"PENDING_MOROCCO_PROTOCOL","hepatic":"PENDING_MOROCCO_PROTOCOL","allergy":"PENDING_MOROCCO_PROTOCOL","interactions":"PENDING_MOROCCO_PROTOCOL"},
+    {"id":"emergency.gtn","age_weight":"PENDING_MOROCCO_PROTOCOL","pregnancy_breastfeeding":"PENDING_MOROCCO_PROTOCOL","renal":"PENDING_MOROCCO_PROTOCOL","hepatic":"PENDING_MOROCCO_PROTOCOL","allergy":"PENDING_MOROCCO_PROTOCOL","interactions":"PENDING_MOROCCO_PROTOCOL"},
+    {"id":"emergency.midazolam","age_weight":"PENDING_MOROCCO_PROTOCOL","pregnancy_breastfeeding":"PENDING_MOROCCO_PROTOCOL","renal":"PENDING_MOROCCO_PROTOCOL","hepatic":"PENDING_MOROCCO_PROTOCOL","allergy":"PENDING_MOROCCO_PROTOCOL","interactions":"PENDING_MOROCCO_PROTOCOL"},
+    {"id":"emergency.glucose","age_weight":"PENDING_MOROCCO_PROTOCOL","pregnancy_breastfeeding":"NOT_APPLICABLE_OR_NON_MEDICINE","renal":"NOT_APPLICABLE_OR_NON_MEDICINE","hepatic":"NOT_APPLICABLE_OR_NON_MEDICINE","allergy":"PENDING_MOROCCO_PROTOCOL","interactions":"NOT_APPLICABLE_OR_NON_MEDICINE"},
+    {"id":"emergency.oxygen","age_weight":"PENDING_MOROCCO_PROTOCOL","pregnancy_breastfeeding":"PENDING_MOROCCO_PROTOCOL","renal":"NOT_APPLICABLE_OR_NON_MEDICINE","hepatic":"NOT_APPLICABLE_OR_NON_MEDICINE","allergy":"NOT_APPLICABLE_OR_NON_MEDICINE","interactions":"PENDING_MOROCCO_PROTOCOL"},
+    {"id":"emergency.salbutamol","age_weight":"PENDING_MOROCCO_PROTOCOL","pregnancy_breastfeeding":"PENDING_MOROCCO_PROTOCOL","renal":"PENDING_MOROCCO_PROTOCOL","hepatic":"PENDING_MOROCCO_PROTOCOL","allergy":"PENDING_MOROCCO_PROTOCOL","interactions":"PENDING_MOROCCO_PROTOCOL"},
+    {"id":"emergency.antihistamines","age_weight":"PENDING_MOROCCO_PROTOCOL","pregnancy_breastfeeding":"PENDING_MOROCCO_PROTOCOL","renal":"PENDING_MOROCCO_PROTOCOL","hepatic":"PENDING_MOROCCO_PROTOCOL","allergy":"PENDING_MOROCCO_PROTOCOL","interactions":"PENDING_MOROCCO_PROTOCOL"}
+  ]
+}
