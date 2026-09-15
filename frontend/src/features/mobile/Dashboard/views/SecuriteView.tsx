@@ -151,7 +151,7 @@ export function SecuriteView({
               </div>
               <p className="mt-1 text-[10px] leading-relaxed text-text-muted font-semibold">
                 {passkeyEnabled
-                  ? 'Face ID, empreinte ou verrou sécurisé requis. La session UV reste courte et liée à ce téléphone.'
+                  ? 'Face ID, empreinte ou verrou sécurisé requis. L’accès reste temporaire et lié à ce téléphone.'
                   : passkeyPending
                     ? 'La passkey est créée mais le coffre local doit encore être scellé avant activation.'
                     : 'Ajoute un second verrou local sans remplacer le QR d’appairage ni la révocation du cabinet.'}

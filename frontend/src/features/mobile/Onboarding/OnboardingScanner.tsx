@@ -428,7 +428,7 @@ export const OnboardingScanner = () => {
             </div>
             <h2 className="text-2xl font-black tracking-tight text-center mb-2">Connexion sécurisée</h2>
             <p className="text-xs text-text-muted font-medium text-center leading-relaxed">
-              Activez HTTPS pour chiffrer vos données sur le réseau local.{' '}
+              Activez la connexion sécurisée pour chiffrer vos données sur le réseau local.{' '}
               <span className="font-black text-primary">Une seule fois.</span>
             </p>
             <p className="mt-3 text-xs font-black text-primary">Destination : {destinationLabel}</p>
@@ -460,7 +460,7 @@ export const OnboardingScanner = () => {
             onClick={skipAndGo}
             className="w-full min-h-11 px-3 text-xs font-bold text-text-muted hover:text-text-main transition-colors flex items-center justify-center gap-1"
           >
-            Accéder à {destinationLabel} sans HTTPS
+            Accéder à {destinationLabel} sans connexion sécurisée
             <ArrowRight size={14} />
           </button>
         </div>

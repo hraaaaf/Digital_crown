@@ -34,10 +34,18 @@ const TECHNICAL_COPY_PATTERNS = [
   { label: 'english frontdesk label', re: /\bFrontdesk\b/i },
   { label: 'roadmap exposed to user', re: /^(?:Bient[oô]t(?:\s+disponible)?|en\s+cours\s+de\s+finalisation)[.!]?$/i },
   { label: 'security implementation jargon', re: /\b(?:ECDH|LAN)\b/ },
+  { label: 'internal control-plane terminology', re: /\bcontrol[- ]plane\b/i },
+  { label: 'authentication implementation jargon', re: /\b(?:WebAuthn|JWT|session\s+UV)\b/i },
+  { label: 'synchronization implementation jargon', re: /\b(?:backoff|Force\s+sync|Mode\s+sync|incident\s+sync)\b/i },
+  { label: 'transport implementation jargon', re: /\b(?:HTTP|HTTPS)\b(?!:\/\/)|\bidempotence\b/i },
+  { label: 'supply implementation jargon', re: /\b(?:Procurement|Backorder|Dispatch|Outcome)\b/i },
+  { label: 'internal tenancy/version jargon', re: /\bTenant\b|\bP10\b/i },
+  { label: 'raw internal workflow status', re: /\b(?:DRAFT|SENT_TO_PARTNER|MODIFIED_AFTER_SEND|CONFIRMED|FULFILLED|CANCELLED|WAITING_INVOICE|AMOUNT_MISMATCH|SUCCEEDED|DEGRADED|APPLIED)\b/ },
+  { label: 'integration field jargon', re: /\b(?:URL\s+API|Mode\s+sync)\b/i },
 ];
 
-const USER_COPY_ATTRIBUTES = new Set(['alt', 'aria-label', 'aria-description', 'placeholder', 'title', 'engineName']);
-const USER_COPY_PROPERTIES = new Set(['label', 'title', 'subtitle', 'description', 'message', 'caption', 'helperText', 'emptyText', 'placeholder']);
+const USER_COPY_ATTRIBUTES = new Set(['alt', 'aria-label', 'aria-description', 'placeholder', 'title', 'engineName', 'label', 'eyebrow', 'subtitle', 'description', 'message', 'caption', 'helperText', 'emptyText']);
+const USER_COPY_PROPERTIES = new Set(['label', 'title', 'subtitle', 'description', 'message', 'body', 'caption', 'helperText', 'emptyText', 'placeholder']);
 const USER_NOTICE_METHODS = new Set(['alert', 'confirm', 'error', 'success', 'loading']);
 
 type Finding = { file: string; line: number; source: string; reason: string; text: string };

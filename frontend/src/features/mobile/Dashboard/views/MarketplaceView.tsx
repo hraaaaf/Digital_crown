@@ -186,7 +186,7 @@ function MobileCheckout({ customer, cartLines, total, submitting, successMessage
           <div className="flex items-start justify-between gap-3">
             <div>
               <p className="text-[9px] font-black uppercase tracking-[0.16em] text-text-muted">Panier · {cartLines.reduce((sum, line) => sum + line.quantity, 0)} unité(s)</p>
-              <h2 id="mobile-marketplace-checkout-title" className="mt-1 font-outfit text-[22px] font-black text-text-main">Préparer le DRAFT</h2>
+              <h2 id="mobile-marketplace-checkout-title" className="mt-1 font-outfit text-[22px] font-black text-text-main">Préparer le brouillon</h2>
             </div>
             <button type="button" onClick={onClose} className="grid h-11 w-11 place-items-center rounded-full border border-glass-border bg-background text-text-muted" aria-label="Fermer"><X size={18} /></button>
           </div>
@@ -232,7 +232,7 @@ function MobileCheckout({ customer, cartLines, total, submitting, successMessage
               {submitting ? 'Enregistrement…' : 'Enregistrer le brouillon'}
             </button>
             <p className="pb-[max(4px,env(safe-area-inset-bottom))] text-center text-[9px] font-bold leading-relaxed text-text-muted">
-              Crée un DRAFT Digital Crown. Rien n’est transmis au fournisseur.
+              Crée un brouillon de commande Digital Crown. Rien n’est transmis au fournisseur.
             </p>
           </form>
         </div>
