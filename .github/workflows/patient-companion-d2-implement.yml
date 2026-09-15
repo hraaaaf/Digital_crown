@@ -14,6 +14,13 @@ jobs:
   implement-and-verify:
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    env:
+      SECRET_KEY: patient-companion-d2-ci-secret-key-minimum-32-characters
+      DATABASE_URL: "sqlite:///:memory:"
+      ENVIRONMENT: development
+      TELEMETRY_ENABLED: "false"
+      CLOUD_AI_ENABLED: "false"
+      DIGITAL_CROWN_TESTING: "1"
     steps:
       - uses: actions/checkout@v4
         with:
@@ -67,22 +74,20 @@ jobs:
 
       - uses: actions/setup-python@v5
         with:
-          python-version: '3.12'
-      - name: Install backend
+          python-version: "3.12"
+      - name: Install backend dependencies
         run: |
           python -m pip install --upgrade pip
           pip install torch==2.12.0 torchvision==0.27.0 --index-url https://download.pytorch.org/whl/cpu
           grep -vE '^(torch|torchvision)([<=>].*)?$' requirements.txt > /tmp/requirements-patient-companion-d2.txt
           pip install -r /tmp/requirements-patient-companion-d2.txt
-          pip install httpx==0.27.2
+          pip install httpx==0.27.2 pytest pytest-asyncio
       - name: Backend D0 + D2 tests
-        env:
-          DIGITAL_CROWN_TESTING: '1'
-        run: pytest -q backend/tests/test_patient_companion_d0.py backend/tests/test_patient_companion_runtime_integration.py backend/tests/test_patient_companion_share_rbac.py backend/tests/test_patient_companion_d2_staff.py
+        run: python -m pytest -q backend/tests/test_patient_companion_d0.py backend/tests/test_patient_companion_runtime_integration.py backend/tests/test_patient_companion_share_rbac.py backend/tests/test_patient_companion_d2_staff.py
 
       - uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: "20"
           cache: npm
           cache-dependency-path: frontend/package-lock.json
       - name: Install frontend
