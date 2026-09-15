@@ -79,7 +79,6 @@ def _load() -> None:
         return
 
     records: List[Dict[str, Any]] = []
-    # Preserve the historical source precedence for all legacy APIs.
     for path, source in (
         (_AMMPS_DATA_PATH, AMMPS_RMMG_SOURCE),
         (_DATA_PATH, CATALOG_SOURCE),
@@ -100,8 +99,14 @@ def _record_source(rec: Dict[str, Any]) -> Dict[str, Any]:
     return dict(source) if isinstance(source, dict) else dict(CATALOG_SOURCE)
 
 
+def _legacy_records() -> List[Dict[str, Any]]:
+    """Legacy APIs must ignore the M1 current snapshot until explicitly migrated."""
+    current_source_id = AMMPS_CURRENT_SOURCE["id"]
+    return [rec for rec in _MEDS if _record_source(rec).get("id") != current_source_id]
+
+
 def _regulatory_records() -> List[Dict[str, Any]]:
-    """Regulatory APIs prefer the dated current AMMPS snapshot, legacy APIs do not."""
+    """Regulatory APIs prefer the dated current AMMPS snapshot."""
     current_source_id = AMMPS_CURRENT_SOURCE["id"]
     return sorted(
         _MEDS,
@@ -125,8 +130,6 @@ def catalog_metadata() -> Dict[str, Any]:
 
     return {
         **CATALOG_SOURCE,
-        # Compatibilité : `record_count` et `available` décrivent toujours la source
-        # historique CNOPS exposée au premier niveau, comme avant l'ajout multi-source.
         "record_count": cnops_count,
         "available": cnops_count > 0,
         "total_record_count": len(_MEDS),
@@ -206,7 +209,6 @@ def _public_presentation(rec: Dict[str, Any]) -> Dict[str, Any]:
 
 
 def _to_mg(value: str, unit: str) -> Optional[float]:
-    """Convertit un couple (dosage, unité) en mg. Ignore les concentrations (/ML, %, UI...)."""
     if not value:
         return None
     u = (unit or "").upper().strip()
@@ -222,7 +224,6 @@ def _to_mg(value: str, unit: str) -> Optional[float]:
 
 
 def _strengths_mg(rec: Dict[str, Any]) -> List[float]:
-    """Tous les composants en mg d'une présentation (gère les associations '1 / 60')."""
     doses = [d.strip() for d in (rec.get("dosage") or "").split("/")]
     units = [u.strip() for u in (rec.get("unite") or "").split("/")]
     out: List[float] = []
@@ -235,7 +236,6 @@ def _strengths_mg(rec: Dict[str, Any]) -> List[float]:
 
 
 def _brand_root(name: str) -> str:
-    """Racine du nom commercial utilisée uniquement pour la validation documentaire."""
     return re.split(r"\s|\d", (name or "").upper().strip(), 1)[0]
 
 
@@ -244,11 +244,7 @@ def _matches_query(rec: Dict[str, Any], query: str) -> bool:
 
 
 def search(q: str, limit: int = 30) -> List[Dict[str, Any]]:
-    """Recherche documentaire historique par nom commercial ou DCI.
-
-    Le comportement et la priorité des sources historiques restent inchangés. Pour
-    distinguer les conditionnements réglementaires, utiliser `search_regulatory_presentations`.
-    """
+    """Recherche documentaire historique par nom commercial ou DCI."""
     _load()
     query = (q or "").upper().strip()
     if len(query) < 2:
@@ -256,7 +252,7 @@ def search(q: str, limit: int = 30) -> List[Dict[str, Any]]:
 
     hits: List[Dict[str, Any]] = []
     seen: set[str] = set()
-    for rec in _MEDS:
+    for rec in _legacy_records():
         if not _matches_query(rec, query):
             continue
         canonical_key = _canonical_presentation_key(rec)
@@ -292,19 +288,17 @@ def search_regulatory_presentations(q: str, limit: int = 100) -> List[Dict[str, 
 
 
 def get_presentation(presentation_id: str) -> Optional[Dict[str, Any]]:
-    """Résout une présentation par son identifiant documentaire historique stable."""
     _load()
     wanted = (presentation_id or "").strip()
     if not wanted:
         return None
-    for rec in _MEDS:
+    for rec in _legacy_records():
         if _presentation_id(rec) == wanted:
             return _public_presentation(rec)
     return None
 
 
 def get_regulatory_presentation(regulatory_presentation_id: str) -> Optional[Dict[str, Any]]:
-    """Résout un conditionnement réglementaire exact par son identifiant M1."""
     _load()
     wanted = (regulatory_presentation_id or "").strip()
     if not wanted:
@@ -316,24 +310,19 @@ def get_regulatory_presentation(regulatory_presentation_id: str) -> Optional[Dic
 
 
 def _matching_records(name: str) -> List[Dict[str, Any]]:
-    """Présentations documentaires correspondant à un nom commercial ou une DCI."""
     upper = (name or "").upper().strip()
     if not upper:
         return []
+    records = _legacy_records()
     root = _brand_root(upper)
-    by_brand = [rec for rec in _MEDS if str(rec.get("nom", "")).upper().startswith(root)] if len(root) >= 3 else []
+    by_brand = [rec for rec in records if str(rec.get("nom", "")).upper().startswith(root)] if len(root) >= 3 else []
     if by_brand:
         return by_brand
-    return [rec for rec in _MEDS if upper in str(rec.get("dci", "")).upper()]
+    return [rec for rec in records if upper in str(rec.get("dci", "")).upper()]
 
 
 def validate_dosage(name: str, dosage_mg: Optional[float]) -> Dict[str, Any]:
-    """Vérifie une correspondance documentaire de dosage dans les sources intégrées.
-
-    `exists=True` signifie seulement que le dosage apparaît dans une source documentaire.
-    Cela ne certifie ni disponibilité actuelle, ni indication, ni posologie.
-    Le contrat historique `{"known": False}` reste inchangé pour un médicament inconnu.
-    """
+    """Correspondance documentaire historique uniquement ; aucune preuve clinique."""
     _load()
     recs = _matching_records(name)
     if not recs:
