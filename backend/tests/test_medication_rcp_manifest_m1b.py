@@ -96,6 +96,26 @@ def test_snapshot_verified_requires_complete_hash_official_provenance_and_real_a
     assert medication_rcp_manifest.snapshot_is_verified(missing_artifact) is False
     assert medication_rcp_manifest.entry_is_fail_closed(missing_artifact) is False
 
+    txt_path = "backend/data/rcp/not-a-pdf.txt"
+    _write_local_artifact(tmp_path, monkeypatch, txt_path, pdf_bytes)
+    wrong_extension = {
+        **complete,
+        "local_artifact_path": txt_path,
+    }
+    assert medication_rcp_manifest.snapshot_is_verified(wrong_extension) is False
+    assert medication_rcp_manifest.entry_is_fail_closed(wrong_extension) is False
+
+    disguised_path = "backend/data/rcp/disguised.pdf"
+    disguised_bytes = b"plain text pretending to be a PDF"
+    _write_local_artifact(tmp_path, monkeypatch, disguised_path, disguised_bytes)
+    disguised_file = {
+        **complete,
+        "local_artifact_path": disguised_path,
+        "rcp_sha256": hashlib.sha256(disguised_bytes).hexdigest(),
+    }
+    assert medication_rcp_manifest.snapshot_is_verified(disguised_file) is False
+    assert medication_rcp_manifest.entry_is_fail_closed(disguised_file) is False
+
     non_official = {
         **complete,
         "rcp_url": "https://example.com/rcp.pdf",
