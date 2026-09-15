@@ -106,12 +106,9 @@ def _legacy_records() -> List[Dict[str, Any]]:
 
 
 def _regulatory_records() -> List[Dict[str, Any]]:
-    """Regulatory APIs prefer the dated current AMMPS snapshot."""
+    """Regulatory APIs are fail-closed to the dated current AMMPS snapshot only."""
     current_source_id = AMMPS_CURRENT_SOURCE["id"]
-    return sorted(
-        _MEDS,
-        key=lambda rec: 0 if _record_source(rec).get("id") == current_source_id else 1,
-    )
+    return [rec for rec in _MEDS if _record_source(rec).get("id") == current_source_id]
 
 
 def catalog_metadata() -> Dict[str, Any]:
@@ -266,7 +263,7 @@ def search(q: str, limit: int = 30) -> List[Dict[str, Any]]:
 
 
 def search_regulatory_presentations(q: str, limit: int = 100) -> List[Dict[str, Any]]:
-    """Recherche documentaire package-level pour les preuves AMMPS/RCP."""
+    """Recherche package-level dans le snapshot AMMPS courant uniquement."""
     _load()
     query = (q or "").upper().strip()
     if len(query) < 2:
