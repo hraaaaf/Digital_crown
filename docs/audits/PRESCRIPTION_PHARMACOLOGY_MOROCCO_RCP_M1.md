@@ -1,53 +1,60 @@
 # Prescription Pharmacology Morocco RCP M1
 
-Status: ACTIVE — M1-A IMPLEMENTED / FINAL EXACT-HEAD CI REQUIRED
+Status: ACTIVE — M1-B0 RCP EVIDENCE FOUNDATION
 
 ## Goal
 
-Construire un snapshot local et versionné des preuves réglementaires AMMPS pertinentes pour la pharmacologie dentaire, sans créer de second moteur de prescription et sans dépendance réseau au runtime cabinet.
+Construire un snapshot local, versionné et vérifiable des preuves réglementaires/RCP AMMPS utiles à la pharmacologie dentaire, sans second moteur de prescription, sans dépendance réseau au runtime cabinet et sans promouvoir une donnée clinique non prouvée.
 
 ## Success
 
-M1 est clos uniquement lorsque chaque présentation dentaire prioritaire possède une identité réglementaire unique, son statut AMM, son statut de commercialisation, sa provenance AMMPS, son état RCP (`PENDING_DOWNLOAD`, `SNAPSHOT_VERIFIED` ou `UNAVAILABLE_VERIFIED`), et lorsque tout RCP local validé possède une empreinte SHA-256 et une date de vérification.
+M1 est clos uniquement lorsque chaque présentation prioritaire possède une identité réglementaire unique, un statut AMM/commercialisation sourcé, un état RCP explicite (`PENDING_DOWNLOAD`, `SNAPSHOT_VERIFIED` ou `UNAVAILABLE_VERIFIED`) et, pour tout RCP capturé, une URL officielle exacte, une date et une empreinte SHA-256.
 
 Aucune ligne M1 n'autorise à elle seule une posologie ou un passage vers `AUTO_OK_MAROC`.
 
-## Architecture retenue
+## M1-A — clos et mergé
 
-- Réutiliser le catalogue unique `backend/services/medication_dict.py`.
-- Préserver le `presentation_id` historique pour compatibilité.
-- Ajouter un `regulatory_presentation_id` package-level, dérivé au minimum de nom, DCI, dosage, unité, forme, conditionnement et EPI.
-- Les APIs historiques `search`, `get_presentation` et `validate_dosage` ignorent le snapshot AMMPS courant M1 tant qu'une migration explicite n'est pas validée.
-- Les APIs réglementaires M1 sont fail-closed sur le snapshot AMMPS courant daté uniquement : aucune absence ne peut retomber silencieusement vers CNOPS ou RMMG historique.
-- Conserver séparément `amm_status`, `market_status`, `market_status_checked_at`, `rcp_url`, `rcp_snapshot_status`, `rcp_sha256`, `rcp_checked_at`.
-- La présence d'un lien RCP n'est jamais assimilée à un RCP téléchargé/validé.
-- AMM, commercialisation et disponibilité pharmacie temps réel restent trois notions distinctes.
+PR #517 mergée en squash sur master : `d474ad18ba47d55a0d53f1f90e47a451f4dbac5e`.
 
-## Sources officielles vérifiées le 2026-09-15
+Preuves exact-head avant merge sur `6ef95315d8d08e870cedddbfe1a3abbc329d8268` :
 
-- AMMPS — Base de données des médicaments : 9 908 présentations affichées lors de la vérification ; statut par présentation et téléchargement RCP exposés.
-- AMMPS — Liste marocaine des médicaments : statut AMM et statut de commercialisation séparés.
-- AMMPS — RMMG, édition projet janvier 2026 : répertoire dynamique des génériques effectivement commercialisés ; ne remplace pas le RCP.
+- CI #4391 : success ;
+- PostgreSQL #790 : success ;
+- Catalog Connected Truth #1285 : success ;
+- T2 Runtime #3275 : success ;
+- M6-I : skipped attendu.
 
-## M1-A — identité réglementaire et statut
+Post-merge CI master #4392 : démarrée ; conclusion finale encore requise pour closeout post-merge.
 
-Implémentation actuelle :
+M1-A a livré :
 
-- source locale `backend/data/medications_ma_ammps_current_2026.json` intégrée au catalogue documentaire unifié ;
-- 8 présentations d'amoxicilline seedées avec statut de commercialisation vérifié au 2026-09-15 ;
-- statut AMM conservé uniquement lorsqu'il est explicitement exposé par la source, sinon `PENDING_VERIFICATION` ;
-- RCP non téléchargé = `PENDING_DOWNLOAD`, `rcp_sha256 = null`, `rcp_checked_at = null` ;
+- snapshot AMMPS courant package-level ;
 - `regulatory_presentation_id` distinct par conditionnement ;
-- packaging PyInstaller mis à jour pour embarquer le snapshot ;
-- tests de non-régression sur identité historique, isolement du snapshot courant, collision de conditionnement, packaging et fail-closed réglementaire.
+- APIs historiques CNOPS/RMMG inchangées ;
+- APIs réglementaires fail-closed sur le snapshot AMMPS courant uniquement ;
+- aucune posologie, durée, décision clinique, DB, patient, document ou UI modifiés.
 
-La variante `DISPAMOX`, présente dans l'ancien référentiel, sert de test de sécurité : si elle est absente du snapshot AMMPS courant M1, l'API réglementaire retourne aucun résultat au lieu de réutiliser une preuve historique.
+## M1-B0 — fondation de preuve RCP
 
-M1-A ne modifie aucune décision clinique, posologie, durée, tier d'automatisation, donnée patient, document clinique, schéma DB ou UI.
+Branche active : `feat/prescription-pharmacology-morocco-rcp-m1b-foundation`, créée depuis le merge M1-A exact `d474ad18ba47d55a0d53f1f90e47a451f4dbac5e`.
 
-## M1-B — snapshot RCP local
+Fondation actuellement implémentée :
 
-Wave 1 prioritaire, car déjà utilisée ou directement pertinente dans le moteur dentaire :
+- `backend/data/medications_ma_ammps_rcp_manifest_2026.json` ;
+- schéma `m1b-rcp.1` ;
+- 8/8 présentations AMMPS d'amoxicilline liées à leur `regulatory_presentation_id` exact ;
+- toutes les entrées restent `PENDING_DOWNLOAD` ;
+- aucune extraction clinique ;
+- `SNAPSHOT_VERIFIED` exige URL officielle, date, artefact local et SHA-256 valide ;
+- absence de lien observé n'est jamais convertie automatiquement en `UNAVAILABLE_VERIFIED` ;
+- source secondaire autorisée uniquement comme recoupement, jamais comme preuve primaire d'activation ;
+- lecteur documentaire isolé `backend/services/medication_rcp_manifest.py` ;
+- manifest inclus dans le packaging desktop ;
+- tests fail-closed dédiés ajoutés.
+
+## Wave 1 M1-B
+
+Ordre prioritaire :
 
 1. paracétamol ;
 2. ibuprofène ;
@@ -57,43 +64,31 @@ Wave 1 prioritaire, car déjà utilisée ou directement pertinente dans le moteu
 6. clarithromycine ;
 7. clindamycine.
 
-Pour chaque présentation retenue :
+AMMPS expose actuellement des liens « Télécharger RCP » pour plusieurs présentations exactes Wave 1. Le href du document n'étant pas encore capturé de façon fiable dans notre flux, aucune URL RCP ni aucun hash n'est inventé : l'état reste `PENDING_DOWNLOAD`.
 
-1. récupérer le RCP depuis la source AMMPS officielle exacte ;
-2. conserver un manifest local versionné léger avec identité réglementaire, URL officielle, date et état de capture ;
-3. calculer SHA-256 du RCP capturé ;
-4. extraire uniquement les champs structurés explicitement présents dans le RCP ;
-5. conserver le PDF brut hors runtime si nécessaire, sans perdre sa provenance/hash ;
-6. toute donnée absente ou ambiguë reste `PENDING_*` / review, jamais inférée.
+## Règles de capture
 
-Une source secondaire peut servir de recoupement documentaire, mais ne peut jamais remplacer l'AMMPS comme preuve réglementaire primaire d'activation.
+1. identifier la présentation réglementaire exacte ;
+2. récupérer le RCP depuis l'AMMPS officielle ;
+3. conserver URL officielle exacte + date ;
+4. calculer SHA-256 ;
+5. seulement alors passer à `SNAPSHOT_VERIFIED` ;
+6. extraire ensuite uniquement les champs explicitement présents ;
+7. toute donnée absente/ambiguë reste `PENDING_*` ou review ;
+8. une recherche web négative ne prouve jamais l'absence d'un RCP.
 
 ## Non-régression obligatoire
 
 - aucun changement DB ;
 - aucun changement patient/document ;
-- aucun changement UI en M1-A ;
-- recherche CNOPS/RMMG historique inchangée ;
-- `presentation_id` historique inchangé ;
-- `get_presentation()` historique reste compatible ;
-- APIs réglementaires sans fallback historique ;
+- aucun changement UI ;
+- aucun fallback réglementaire vers CNOPS/RMMG ;
 - aucun nouveau `AUTO_OK_MAROC` ;
-- aucun schéma thérapeutique nouveau activé.
-
-## Preuve M1-A
-
-État actuellement vérifié :
-
-- PostgreSQL certification #782 : success sur le HEAD code `4f49b67b7c304c432bd4954dd08620559fdc426f` ;
-- Catalog Connected Truth #1281 : success sur le même HEAD code ;
-- T2 Runtime #3267 : success sur le même HEAD code ;
-- CI #4383 de ce HEAD code : cancelled après création du commit de closeout, donc non retenue comme preuve ;
-- M0 post-merge CI #4369 : success.
-
-Le HEAD final de closeout documentaire doit recevoir sa propre certification exact-head avant ready/merge. Une certification d'un HEAD antérieur ne vaut pas preuve pour le HEAD final.
+- aucun schéma thérapeutique nouveau activé ;
+- aucune disponibilité pharmacie temps réel fabriquée.
 
 ## Human gate
 
-Les données RCP extraites qui pourraient modifier une décision clinique passeront par validation médicale avant M2.
+Toute donnée RCP extraite susceptible de modifier une décision clinique reste soumise à validation médicale avant M2.
 
 Aucun Vercel.
