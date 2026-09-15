@@ -23,8 +23,11 @@ jobs:
           cache: npm
           cache-dependency-path: frontend/package-lock.json
 
-      - name: Apply copy hygiene patch
+      - name: Apply SuperAdmin copy hygiene patch
         run: python scripts/finalize_superadmin_copy.py
+
+      - name: Apply cross-surface copy hygiene follow-up
+        run: python scripts/finalize_copy_followup.py
 
       - name: Install frontend dependencies
         working-directory: frontend
@@ -43,11 +46,12 @@ jobs:
         run: |
           rm .github/workflows/client-copy-superadmin-finalize.yml
           rm scripts/finalize_superadmin_copy.py
+          rm scripts/finalize_copy_followup.py
 
       - name: Commit verified patch
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add -A
-          git commit -m "fix(ui): remove SuperAdmin implementation wording"
+          git commit -m "fix(ui): remove remaining client implementation wording"
           git push origin HEAD:fix/client-facing-copy-hygiene
