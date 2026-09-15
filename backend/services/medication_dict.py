@@ -87,21 +87,26 @@ def _record_source(rec: Dict[str, Any]) -> Dict[str, Any]:
 
 
 def catalog_metadata() -> Dict[str, Any]:
-    """Métadonnées de provenance exposées sans sur-promettre la fraîcheur clinique."""
+    """Métadonnées multi-source, avec contrat historique CNOPS préservé au premier niveau."""
     _load()
     source_counts: Dict[str, int] = {}
     for rec in _MEDS:
         source_id = _record_source(rec).get("id", "unknown")
         source_counts[source_id] = source_counts.get(source_id, 0) + 1
 
-    sources = []
-    for source in (AMMPS_RMMG_SOURCE, CATALOG_SOURCE):
-        sources.append({**source, "record_count": source_counts.get(source["id"], 0)})
+    sources = [
+        {**source, "record_count": source_counts.get(source["id"], 0)}
+        for source in (AMMPS_RMMG_SOURCE, CATALOG_SOURCE)
+    ]
+    cnops_count = source_counts.get(CATALOG_SOURCE["id"], 0)
 
     return {
         **CATALOG_SOURCE,
-        "record_count": len(_MEDS),
-        "available": bool(_MEDS),
+        # Compatibilité : `record_count` et `available` décrivent toujours la source
+        # historique CNOPS exposée au premier niveau, comme avant l'ajout multi-source.
+        "record_count": cnops_count,
+        "available": cnops_count > 0,
+        "total_record_count": len(_MEDS),
         "sources": sources,
         "additional_sources": [sources[0]],
     }
