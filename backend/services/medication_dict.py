@@ -246,12 +246,25 @@ def validate_dosage(name: str, dosage_mg: Optional[float]) -> Dict[str, Any]:
 
     strengths = sorted({mg for rec in recs for mg in _strengths_mg(rec)})
     dci = next((str(rec.get("dci", "")) for rec in recs if rec.get("dci")), "")
+    source_rec = recs[0]
+    dosage_exists = None
+    if dosage_mg is not None and strengths:
+        dosage_exists = any(abs(dosage_mg - strength) < 0.01 for strength in strengths)
+        if dosage_exists:
+            source_rec = next(
+                (
+                    rec for rec in recs
+                    if any(abs(dosage_mg - strength) < 0.01 for strength in _strengths_mg(rec))
+                ),
+                recs[0],
+            )
+
     result: Dict[str, Any] = {
         "known": True,
         "dci": dci,
         "available_mg": strengths,
-        "source": _source_for_record(recs[0]),
+        "source": _source_for_record(source_rec),
     }
-    if dosage_mg is not None and strengths:
-        result["exists"] = any(abs(dosage_mg - strength) < 0.01 for strength in strengths)
+    if dosage_exists is not None:
+        result["exists"] = dosage_exists
     return result
