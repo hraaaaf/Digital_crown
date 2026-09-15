@@ -1,85 +1,64 @@
 # Céphalo-N — Source-lock des landmarks, plans et lignes
 
-Statut : **AUDIT SOURCE-LOCK V2 — ZÉRO NOUVELLE FORMULE CLINIQUE**
+Statut : **AUDIT SOURCE-LOCK V3 — GATE TWEED OUVERT — ZÉRO NOUVELLE FORMULE CLINIQUE**
 
 Date : 2026-09-15
 
 Dépend de : `docs/audits/CEPHALO_GLOBAL_ANALYSIS_VALIDATION.md`
 
-Complément provenance : `docs/audits/CEPHALO_SRPOSE38_PROVENANCE.md`
+Compléments :
+
+- `docs/audits/CEPHALO_SRPOSE38_PROVENANCE.md`
+- `docs/audits/CEPHALO_PRIMARY_LANDMARK_CONSTRUCTIONS.md`
 
 ## Goal / Succès / Preuve
 
-**Goal** — figer le vocabulaire anatomique et les référentiels géométriques nécessaires aux analyses validées Steiner, Tweed, McNamara, Ricketts et `COM_DC_LEGACY_V1`, avant toute nouvelle implémentation de mesure.
+**Goal** — figer le vocabulaire anatomique et les référentiels nécessaires à Steiner, Tweed, McNamara, Ricketts et `COM_DC_LEGACY_V1` avant toute nouvelle mesure.
 
-**Succès** — chaque landmark et chaque plan/ligne est classé sans confondre : existence géométrique, existence d’un ID logiciel, liaison automatique SRPose, identité anatomique démontrée, construction, absence et blocage de modalité.
+**Succès** — ne jamais confondre : primitive géométrique, ID logiciel, liaison SRPose, identité anatomique, point construit, variante d’analyse, absence et blocage de modalité.
 
-**Preuve** — comparaison entre la cartographie clinique validée, les moteurs géométriques Digital Crown, `sota_vision_service.py`, `srpose38_pipeline.py`, `cephalo_runtime_evidence.py`, l’historique Git du mapping 38 points et le dépôt source exact du checkpoint SRPose certifié.
+**Preuve** — moteurs Digital Crown + provenance exacte SRPose38 + sources primaires Steiner 1953, Tweed 1954, Ricketts 1972/1981 et McNamara 1984.
 
-## États utilisés
+## États
 
-- `EXISTS_GEOMETRY` : primitive géométrique déjà présente.
-- `LEGACY_AUTO_UNVERIFIED` : ID produit par le mapping SRPose local, sans preuve anatomique amont suffisante.
-- `CONSTRUCTED` : point/axe construit par une convention explicite.
-- `MISSING` : point ou contrat absent.
-- `AMBIGUOUS` : symbole présent mais plusieurs définitions possibles.
-- `SOURCE_LOCK_REQUIRED` : définition/convention ou liaison détecteur non suffisamment prouvée.
-- `BLOCKED_MODALITY` : impossible dans la modalité actuelle.
-- `WRONG_VARIANT` : variante voisine existante mais non interchangeable.
-
-## Règles verrouillées
-
-1. Aucun nouveau calcul clinique dans ce lot.
-2. Un alias logiciel n’est jamais une preuve d’équivalence anatomique.
-3. `Pog` dur ≠ `Pog'` mou.
-4. `Gn` anatomique ≠ `Gn` construit d’une analyse.
-5. `Pt` ≠ `PTM/Ptm` tant que la convention source ne l’établit pas explicitement.
-6. `Po` signifie Porion anatomique lorsqu’un plan de Frankfort clinique est requis ; aucun point machine n’est substitué silencieusement.
-7. Bord incisif / apex / surface labiale coronaire sont trois concepts différents.
-8. `Go-Me`, `Go-Gn` et `sub-Go-M` sont des plans mandibulaires différents et versionnés par analyse.
-9. Le frontal/PA Ricketts reste `BLOCKED_MODALITY` tant qu’un pipeline frontal validé n’existe pas.
-10. L’existence d’un mapping logiciel `index → nom` ne prouve pas sa sémantique anatomique.
-11. La non-régression impose de préserver le mapping SRPose historique tant qu’aucune migration clinique contrôlée n’est décidée ; cette préservation ne le transforme pas en preuve scientifique.
+- `MATCH_GEOMETRY` : géométrie conforme à la construction source.
+- `LEGACY_AUTO_UNVERIFIED` : canal/ID automatique local présent, sémantique anatomique amont non démontrée.
+- `CONSTRUCTED` : point construit par une convention explicite.
+- `MISSING` : point/contrat absent.
+- `SOURCE_LOCK_REQUIRED` : définition ou liaison détecteur insuffisamment prouvée.
+- `BLOCKED_MODALITY` : modalité actuelle incapable de fournir l’information.
+- `WRONG_VARIANT` : construction voisine non interchangeable avec la version validée.
 
 ---
 
-# 1. Réalité moteur actuelle
+# 1. Règles verrouillées
 
-## 1.1 Contrat générique
+1. Aucun nouveau calcul clinique dans ce lot.
+2. Un alias logiciel n’est pas une preuve anatomique.
+3. `Pog` dur ≠ `Pog'` mou.
+4. `Gn_anatomic` ≠ `Gn_constructed`.
+5. `Pt_Ricketts` ≠ `PTM_McNamara`.
+6. `Po_anatomic-Or` est la référence explicite de McNamara 1984 et Ricketts 1981 ; **Tweed 1954 strict utilise une autre construction Frankfort liée à l’ear-rod**.
+7. Bord incisif, apex et surface faciale/coronaire sont distincts.
+8. `Go-Me`, `Go-Gn` et `Sub.Go.-M.` ne sont pas fusionnés par commodité.
+9. Ricketts frontal/PA reste `BLOCKED_MODALITY` sans pipeline frontal validé.
+10. La position d’un canal neuronal ne permet jamais de déduire son anatomie.
+11. Le mapping SRPose legacy est préservé pour non-régression, sans devenir une autorité scientifique.
 
-`cephalo_engine.py` accepte actuellement des clés canoniques et plusieurs alias, notamment :
+---
 
-- `S`: `S`, `Sella`
-- `N`: `N`, `Nasion`
-- `Po`: `Po`, `Porion`
-- `Or`: `Or`, `Orbitale`
-- `A`: `A`, `Point_A`
-- `B`: `B`, `Point_B`
-- `Go`: `Go`, `Gonion`
-- `Me`: `Me`, `Menton`
-- `U1i`: `U1i`, `U1_incisal`, `11_incisal`, `UIe`
-- `U1a`: `U1a`, `U1_apex`, `11_apex`, `UIa`
-- `L1i`: `L1i`, `L1_incisal`, `41_incisal`, `LIe`
-- `L1a`: `L1a`, `L1_apex`, `41_apex`, `LIa`
-- `Prn`, `Pog_soft`, `Sn`, `Ls`, `Li`
-- `Co`: `Co`, `Condylion`, `Condyle`
-- `Gn`: `Gn`, `Gnathion`
-- `ANS`: `ANS`, `ENA`, `Anterior_Nasal_Spine`
-- `Occ_Ant`, `Occ_Post`
+# 2. SRPose38 : contrat logiciel observé
 
-**Décision V2** : ces alias sont des chemins logiciels observés. La future couche scientifique ne doit accepter une équivalence que si la définition anatomique et la provenance sont explicites.
+Runtime certifié :
 
-## 1.2 SRPose38 : résultat de l’audit de provenance
+- modèle : `srpose38-tta-1024.onnx` ;
+- SHA256 : `a5ecd466d6d2c4ef02e145a143076a05720c0be56a260224812c23e2ecf42ddb` ;
+- sortie : 38 heatmaps ;
+- checkpoint source : `5k5000/CLdetection2023` commit `18d17d1934970016e7610c4849311900b8d1f191`.
 
-Le runtime certifié impose :
+Le dépôt source exact du checkpoint nomme ses keypoints uniquement `0..37`. Il ne fournit aucun dictionnaire anatomique public.
 
-- modèle `srpose38-tta-1024.onnx` ;
-- SHA256 `a5ecd466d6d2c4ef02e145a143076a05720c0be56a260224812c23e2ecf42ddb` ;
-- `SRPOSE38_NUM_LANDMARKS = 38` ;
-- sortie exacte de 38 heatmaps ;
-- checkpoint source `5k5000/CLdetection2023`, commit `18d17d1934970016e7610c4849311900b8d1f191`.
-
-Digital Crown possède un mapping local dans `sota_vision_service.py` :
+Digital Crown possède néanmoins ce mapping local :
 
 | Index | ID local | Index | ID local |
 |---:|---|---:|---|
@@ -103,251 +82,167 @@ Digital Crown possède un mapping local dans `sota_vision_service.py` :
 | 17 | ANS | 36 | U6 |
 | 18 | Ar | 37 | L6 |
 
-**Point crucial** : le dépôt source exact du checkpoint définit ses `keypoint_info` uniquement comme catégories numériques `0..37`. Il ne donne pas de noms anatomiques. Le code Digital Crown actuel indique lui-même que la parité d’inférence est distincte de la validation clinique de la nomenclature.
-
-Donc :
+Classification :
 
 `SOTA_LANDMARKS_MAPPING = LEGACY_AUTO_UNVERIFIED`
 
-et non `SOURCE_PROVEN_ANATOMY`.
-
-Cette distinction corrige l’ancien constat trop grossier « mapping absent ». Le mapping existe, mais sa sémantique anatomique n’est pas source-lockée.
-
-## 1.3 Chaîne d’autorité runtime
-
-`cephalo_runtime_evidence.py` importe le mapping local, exige exactement ses 38 IDs en mode `SOTA_ONNX_38`, puis persiste modèle, SHA256 et version de pipeline dans la preuve de landmark.
-
-Cela prouve correctement **quel modèle et quelle sortie logicielle** ont produit un point. Cela ne prouve pas **que le nom anatomique attaché au canal est celui du contrat d’annotation historique**.
-
-## 1.4 Géométries déjà versionnées à conserver
-
-- Steiner : SNA, SNB, ANB, U1-NA angulaire, L1-NB angulaire, SN/Go-Gn.
-- Tweed : FMA `Go-Me / Po-Or`, IMPA `L1 / Go-Me`, FMIA `L1 / Po-Or`.
-- McNamara : segments Co-A, Co-Gn, ANS-Me avec calibration fail-closed.
-- Ricketts : facial depth, Gn construit V1, facial axis, convexité maxillaire, E-line V1 legacy + V2 perpendiculaire.
-- CRANIOM/COM : Situation A, Situation B, A'B', profondeur faciale legacy, U1/FH, L1/Downs, interincisif, avec conventions versionnées ou contrats bloqués.
+La chaîne d’évidence prouve modèle/hash/pipeline et ID logiciel produit. Elle ne prouve pas que `index 3 = Porion anatomique`, etc.
 
 ---
 
-# 2. Matrice latérale : science, moteur et disponibilité automatique
+# 3. Matrice landmarks / constructions latérales
 
-| ID scientifique cible | Classe | Usages | Géométrie/contrat DC | Liaison SRPose locale | Décision V2 |
-|---|---|---|---|---|---|
-| `S` | anatomique | Steiner; COM | EXISTS_GEOMETRY | index 0 `S` | auto `LEGACY_UNVERIFIED`; définition scientifique à figer |
-| `N` | anatomique | Steiner; McNamara; Ricketts; COM | EXISTS_GEOMETRY | 1 `N` | idem |
-| `A` | anatomique | Steiner; McNamara; Ricketts; COM | EXISTS_GEOMETRY | 4 `A` | idem |
-| `B` | anatomique | Steiner; COM | EXISTS_GEOMETRY | 5 `B` | ne jamais substituer à Pog |
-| `Po_anat` | anatomique | Tweed; McNamara; Ricketts; COM | EXISTS_GEOMETRY | 3 `Po` | `SOURCE_LOCK_REQUIRED` pour identité Porion anatomique |
-| `Or` | anatomique | Tweed; McNamara; Ricketts; COM | EXISTS_GEOMETRY | 2 `Or` | auto non validé sémantiquement |
-| `Go` | anatomique | Steiner; Tweed; COM | EXISTS_GEOMETRY | 9 `Go` | plan dépend de l’analyse |
-| `Me` | anatomique | Tweed; McNamara; COM | EXISTS_GEOMETRY | 7 `Me` | auto non validé sémantiquement |
-| `Gn_anat` | anatomique | Steiner; McNamara | symbole présent / ambigu | 8 `Gn` | séparer du Gn construit Ricketts |
-| `Gn_Ricketts_constructed` | construit | Ricketts Facial Axis | CONSTRUCTED | aucune liaison directe nécessaire | garder ID distinct |
-| `Pog_hard` | anatomique | McNamara; Ricketts | primitives possibles si point fourni | 6 `Pog` | `LEGACY_AUTO_UNVERIFIED`; ne jamais confondre avec Pog' |
-| `Pog_soft` / `Pog'` | tissu mou | Ricketts E-line | EXISTS_GEOMETRY | 15 `Pog_soft` | liaison locale non prouvée anatomiquement |
-| `Prn` | tissu mou | Ricketts E-plane | EXISTS_GEOMETRY | 25 `Prn` | idem |
-| `Li` | tissu mou | Ricketts E-plane | EXISTS_GEOMETRY | 13 `Li_soft`; 30 `Li2` | deux IDs locaux : définition exacte requise |
-| `Ls` | tissu mou | Ricketts extension; profil | EXISTS_GEOMETRY | 12 `Ls_soft`; 29 `Ls2` | deux IDs locaux : définition exacte requise |
-| `Sn` | tissu mou | contexte McNamara | EXISTS_SYMBOL | 14 `Sn_soft` | auto non validé sémantiquement |
-| `Co` / Condylion | anatomique | McNamara Co-A/Co-Gn | EXISTS_GEOMETRY | 24 `Co` | retirer l’équivalence future avec générique `Condyle`; source-lock Condylion |
-| `Ba` | anatomique | McNamara/Ricketts | absent du contrat générique principal | 26 `Ba` | **pas réellement absent du mapping local** ; auto `LEGACY_UNVERIFIED` |
-| `Pt_Ricketts` | source-spécifique | Ricketts Facial Axis | contrat cible manquant | 27 `PT_point` | ne pas déclarer `PT_point = Pt_Ricketts` sans source |
-| `PTM_McNamara` | source-spécifique | McNamara | contrat cible manquant | 23 `Ptm` | ne pas déclarer équivalence avant source-lock |
-| `ANS` | anatomique | McNamara; Ricketts | EXISTS_GEOMETRY | 17 `ANS` | auto non validé sémantiquement |
-| `PNS` | anatomique | Ricketts palatal plane | absent du contrat générique principal | 16 `PNS` | **ID auto local existe**, sémantique à valider |
-| `D_Steiner` | source-spécifique | Steiner 1959 | MISSING_CONTRACT | 19 `D_point` | `D_point = D_Steiner` non démontré |
-| `Xi_Ricketts` | construit | Ricketts | MISSING | aucun | construction source-spécifique requise |
-| `Pm_Ricketts` | source-spécifique | Ricketts | MISSING | aucun ID explicite | ne pas réutiliser Me/Pog |
-| `subGo_M_Ricketts` | construit | Ricketts MP | MISSING_CONTRACT | n/a | ne pas substituer Go-Me |
-| `U1_apex` | dentaire | Steiner; COM | EXISTS_GEOMETRY | 20 `U1_apex` | axe possible, auto non validé sémantiquement |
-| `U1_incisal` | dentaire | Steiner; COM | EXISTS_GEOMETRY | 11 `U1_incisal` | bord incisif, pas surface labiale |
-| `U1_labial_crown` | surface dentaire | Steiner linéaire; McNamara | MISSING | aucun ID explicite | bloquant |
-| `L1_apex` | dentaire | Steiner; Tweed; COM | EXISTS_GEOMETRY | 21 `L1_apex` | auto non validé sémantiquement |
-| `L1_incisal` | dentaire | Steiner; Tweed; Ricketts; COM | EXISTS_GEOMETRY | 10 `L1_incisal` | bord incisif |
-| `L1_labial_crown` | surface dentaire | Steiner/McNamara selon protocole | MISSING | aucun ID explicite | bloquant |
-| `U6_Steiner` | dentaire | Steiner suivi | contrat exact manquant | 36 `U6` | `U6` générique ≠ point Steiner prouvé |
-| `L6_Steiner` | dentaire | Steiner suivi | contrat exact manquant | 37 `L6` | idem |
-| `U6_Ricketts` | dentaire | Ricketts U6-PTV | contrat exact manquant | 36 `U6` | exact point molaire/repère non source-locké |
-| `Occ_Ant` | construit/dentaire | plan occlusal | EXISTS_SYMBOL | aucun ID direct | définition Steiner à figer |
-| `Occ_Post` | construit/dentaire | plan occlusal | EXISTS_SYMBOL | aucun ID direct | idem |
-| `pharynx_upper_soft_palate` | airway | McNamara | MISSING | aucun | protocole 1984 exact requis |
-| `pharynx_upper_wall` | airway | McNamara | MISSING | aucun | idem |
-| `pharynx_lower_tongue` | airway | McNamara | MISSING | aucun | idem |
-| `pharynx_lower_wall` | airway | McNamara | MISSING | aucun | idem |
+| ID scientifique cible | Analyse(s) | DC géométrie | SRPose local | Verdict |
+|---|---|---|---|---|
+| `S` | Steiner, COM | présent | `0:S` | `LEGACY_AUTO_UNVERIFIED` |
+| `N` | Steiner, McNamara, Ricketts, COM | présent | `1:N` | idem |
+| `A` | Steiner, McNamara, Ricketts, COM | présent | `4:A` | idem |
+| `B` | Steiner, COM | présent | `5:B` | idem ; jamais Pog |
+| `Po_anatomic` | McNamara, Ricketts, COM | Po-Or disponible | `3:Po` | géométrie oui ; auto non validé |
+| `Or` | McNamara, Ricketts, COM | présent | `2:Or` | auto non validé |
+| `Tweed_FH_earrod_point` | Tweed 1954 strict | absent | aucun | **`MISSING / WRONG_VARIANT_CURRENT`** |
+| `Go` | Steiner, Tweed/DC, McNamara | présent | `9:Go` | auto non validé |
+| `Me` | Tweed/DC, McNamara | présent | `7:Me` | auto non validé |
+| `Gn_anatomic` | Steiner, McNamara Co-Gn | ID générique ambigu | `8:Gn` | séparer du construit |
+| `Gn_cephalometric_constructed` | Ricketts axis; McNamara facial axis | construction possible | n/a | source-locké comme construction ; ID distinct requis |
+| `Pog_hard` | McNamara, Ricketts | primitives présentes | `6:Pog` | auto non validé |
+| `Pog_soft/Pog'` | Ricketts E-line | présent | `15:Pog_soft` | auto non validé |
+| `Prn` | Ricketts E-line | présent | `25:Prn` | auto non validé |
+| `Co/Condylion` | McNamara | segments présents | `24:Co` | définition primaire source-lockée ; canal non validé |
+| `Ba` | McNamara/Ricketts | utilisable si fourni | `26:Ba` | auto non validé |
+| `Pt_Ricketts` | Ricketts | facial axis présent | `27:PT_point` | définition source-lockée ; liaison canal non validée |
+| `PTM_McNamara` | McNamara | contrat incomplet | `23:Ptm` | définition source-lockée ; liaison canal non validée |
+| `ANS` | McNamara/Ricketts | présent | `17:ANS` | auto non validé |
+| `PNS` | Ricketts palatal | point nécessaire | `16:PNS` | auto non validé |
+| `D_Steiner_1959` | Steiner 1959 | absent | `19:D_point` | équivalence non démontrée |
+| `Xi_Ricketts` | Ricketts | absent | aucun | définition/construction source-lockée, runtime manquant |
+| `Pm_Ricketts` | Ricketts | absent | aucun | définition source-lockée, runtime manquant |
+| `U1_apex` | Steiner/COM | présent | `20:U1_apex` | auto non validé |
+| `U1_incisal` | Steiner/COM | présent | `11:U1_incisal` | auto non validé |
+| `U1_facial_crown` | Steiner linéaire/McNamara | absent | aucun explicite | `MISSING` |
+| `L1_apex` | Steiner/Tweed/COM | présent | `21:L1_apex` | auto non validé |
+| `L1_incisal` | Steiner/Tweed/Ricketts/COM | présent | `10:L1_incisal` | auto non validé |
+| `L1_facial_crown` | Steiner linéaire/McNamara | absent | aucun explicite | `MISSING` |
+| `U6_Ricketts_distal_crown` | Ricketts U6-PTV | contrat absent | `36:U6` générique | ne pas assimiler |
+| `U6_Steiner` | Steiner suivi | contrat absent | `36:U6` | ne pas assimiler |
+| `L6_Steiner` | Steiner suivi | contrat absent | `37:L6` | ne pas assimiler |
+| `upper_pharynx_soft_palate` | McNamara | absent | aucun | définition source-lockée ; runtime manquant |
+| `upper_pharynx_wall` | McNamara | absent | aucun | idem |
+| `lower_pharynx_tongue-mandible` | McNamara | absent | aucun | définition source-lockée ; runtime manquant |
+| `lower_pharynx_wall` | McNamara | absent | aucun | idem |
 
-## 2.1 Points SRPose locaux sans équivalence clinique validée pour les cinq analyses
-
-Les IDs suivants existent dans le mapping local mais ne doivent pas être recyclés par ressemblance de nom :
-
-- `Cm`
-- `Ar`
-- `Bo`
-- `C_point`
-- `G_soft`
-- `N_soft`
-- `Gn_soft`
-- `Me_soft`
-- `Ls2`
-- `Li2`
-
-Ils restent disponibles comme **observations logicielles legacy**, sans autorité nouvelle pour Steiner/Tweed/McNamara/Ricketts/COM tant que leur définition n’est pas source-lockée.
+Les IDs locaux `Cm`, `Ar`, `Bo`, `C_point`, `G_soft`, `N_soft`, `Gn_soft`, `Me_soft`, `Ls2`, `Li2` ne reçoivent aucune nouvelle autorité clinique par ressemblance de nom.
 
 ---
 
-# 3. Landmarks PA/frontaux Ricketts 1981
+# 4. Plans / lignes / axes versionnés
 
-Tous les éléments suivants sont `BLOCKED_MODALITY` dans le pipeline latéral actuel :
-
-| Landmark / famille | Usage |
-|---|---|
-| `NC_R`, `NC_L` | largeur cavité nasale NC-NC |
-| `Z_R`, `Z_L` | frontal facial reference |
-| `J_R`, `J_L` | relation maxillaire / fronto-denture |
-| `Ag_R`, `Ag_L` | largeur mandibulaire Ag-Ag / plans frontaux |
-| `Cg` + repères de plan sagittal médian | asymétrie |
-| `ANS_PA`, `Pog_PA` | asymétrie squelettique |
-| `B6_R`, `B6_L` | largeur intermolaire / relation au fronto-denture |
-| `B3_R`, `B3_L` | largeur intercanine |
-| `U6_R`, `U6_L` | crossbite transverse |
-| `iif` | midpoint incisives inférieures |
-
-**Règle** : aucun de ces points ne doit être dérivé d’une téléradiographie de profil par projection, symétrisation ou heuristique.
-
----
-
-# 4. Plans, lignes et axes source-lockés
-
-| ID cible | Définition / landmarks | Analyse/version | État actuel |
+| Contrat cible | Définition source | Version | État DC |
 |---|---|---|---|
-| `SN_STEINER` | S-N | Steiner | EXISTS_GEOMETRY |
-| `NA_STEINER` | N-A | Steiner | EXISTS_GEOMETRY |
-| `NB_STEINER` | N-B | Steiner | EXISTS_GEOMETRY |
-| `ND_STEINER_1959` | N-D | Steiner 1959 | MISSING_CONTRACT |
-| `GOGN_STEINER` | Go-Gn anatomique | Steiner | PARTIAL ; distinguer Gn anatomique |
-| `OCCLUSAL_STEINER` | définition primaire Steiner à partir des repères occlusaux validés | Steiner | SOURCE_LOCK_REQUIRED |
-| `D_LINE_STEINER_1959` | ligne D selon protocole 1959 | Steiner 1959 | MISSING / SOURCE_LOCK_REQUIRED |
-| `FH_TWEED_PO_OR` | Porion anatomique-Orbitale | Tweed | EXISTS_GEOMETRY ; identité des points auto à confirmer |
-| `MP_TWEED_GO_ME` | Go-Me dans moteur actuel | Tweed | EXISTS_GEOMETRY ; garder version Tweed |
-| `L1_AXIS` | L1 apex-incisal | Tweed/Steiner/COM | EXISTS_GEOMETRY |
-| `U1_AXIS` | U1 apex-incisal | Steiner/COM | EXISTS_GEOMETRY |
-| `FH_MCNAMARA_PO_OR` | Po-Or | McNamara | géométrie réutilisable, ID sémantique séparé |
-| `N_PERP_MCNAMARA` | perpendiculaire à FH passant par N | McNamara | primitive EXISTS_GEOMETRY |
-| `A_VERTICAL_MCNAMARA` | parallèle à N-perp passant par A | McNamara | NOT_EXPOSED_AS_VERSIONED_CONTRACT |
-| `A_POG_MCNAMARA` | A-Pog dur | McNamara | dépend de Pog hard source-locké |
-| `BA_N` | Ba-N | McNamara/Ricketts | géométrie possible ; Ba auto legacy non validé |
-| `PTM_GN_MCNAMARA` | PTM-Gn selon convention 1984 | McNamara | SOURCE_LOCK_REQUIRED |
-| `NPog_RICKETTS` | N-Pog dur facial plane | Ricketts | EXISTS_GEOMETRY si Pog fourni |
-| `FH_RICKETTS` | Po-Or | Ricketts | EXISTS_GEOMETRY |
-| `PT_GN_RICKETTS` | Pt-Gn construit | Ricketts | EXISTS_GEOMETRY ; identité `PT_point` non démontrée |
-| `MP_RICKETTS` | plan mandibulaire source 1981 `sub-Go-M` | Ricketts | MISSING_CONTRACT ; ne pas substituer Tweed Go-Me |
-| `PALATAL_RICKETTS` | ANS-PNS | Ricketts | géométriquement simple ; PNS auto legacy non validé |
-| `APOG_RICKETTS` | A-Pog dur | Ricketts | dépend de Pog hard contractuel |
-| `PTV_RICKETTS` | Pterygoid Vertical source 1981 | Ricketts | SOURCE_LOCK_REQUIRED |
-| `E_LINE_RICKETTS` | Prn-Pog' | Ricketts | EXISTS_GEOMETRY V2 perpendiculaire |
-| `CORPUS_AXIS_RICKETTS` | source-specific | Ricketts bend | MISSING / SOURCE_LOCK_REQUIRED |
-| `CONDYLE_AXIS_RICKETTS` | source-specific | Ricketts bend | MISSING / SOURCE_LOCK_REQUIRED |
-| `FH_CRANIOM` | Po-Or | COM | EXISTS_GEOMETRY as `FH_PO_OR_V1` |
-| `N_VERTICAL_CRANIOM` | N-perp to FH | COM Situation A/B/depth | EXISTS_GEOMETRY |
-| `DOWNS_MP_GO_ME` | Go-Me | COM L1/Downs | EXISTS source-referenced ; ne pas renommer Tweed/Ricketts |
-| `FRONTAL_FACIAL_PLANE_R/L` | Z-Ag | Ricketts PA | BLOCKED_MODALITY |
-| `FRONTO_DENTURE_R/L` | J-Ag | Ricketts PA | BLOCKED_MODALITY |
-| `CENTRAL_SAGITTAL_PA` | convention 1981 source-lockée | Ricketts PA | BLOCKED_MODALITY / SOURCE_LOCK_REQUIRED |
-| `FRONTAL_APO` | frontal A-Po | Ricketts PA | BLOCKED_MODALITY |
+| `SN_STEINER` | S-N | Steiner 1953 | `MATCH_GEOMETRY` |
+| `NA_STEINER` | N-A | Steiner 1953 | `MATCH_GEOMETRY` |
+| `NB_STEINER` | N-B | Steiner 1953 | `MATCH_GEOMETRY` |
+| `GOGN_STEINER` | Go-Gn | Steiner 1953 | géométrie présente ; Gn anatomique à distinguer |
+| `OCCLUSAL_STEINER` | plan occlusal vs SN | Steiner 1953 | `SOURCE_LOCK_REQUIRED` pour repères exacts |
+| `ND_STEINER_1959` | N-D | Steiner 1959 | `MISSING` |
+| `D_LINE_STEINER_1959` | convention 1959 | Steiner 1959 | `SOURCE_LOCK_REQUIRED` |
+| `FH_TWEED_1954_STRICT` | point 4,5 mm au-dessus centre ear-rod → bord inférieur orbite | Tweed 1954 | **absent** |
+| `FH_DC_TWEED_PO_OR_V1` | Po-Or | variante DC actuelle | présent ; **`WRONG_VARIANT` si appelé Tweed 1954 strict** |
+| `MP_TWEED_DC_GO_ME` | Go-Me | DC actuel | présent |
+| `L1_AXIS` | apex→bord incisif | Tweed 1954 | `MATCH_GEOMETRY` |
+| `FH_MCNAMARA` | Porion anatomique-Orbitale | McNamara 1984 | `MATCH_GEOMETRY`; inputs auto non validés |
+| `N_PERP_MCNAMARA` | ⟂ FH par N | McNamara 1984 | primitive présente |
+| `A_VERTICAL_MCNAMARA` | parallèle N-perp par A | McNamara 1984 | non exposé comme contrat complet |
+| `A_POG_MCNAMARA` | A-Pog dur | McNamara 1984 | possible ; surfaces incisives manquantes |
+| `MP_MCNAMARA` | Go-Me | McNamara 1984 | primitive possible |
+| `FACIAL_PLANE_MCNAMARA` | N-Pog | McNamara 1984 | primitive possible |
+| `FACIAL_AXIS_MCNAMARA` | PTM→Gn construit vs Ba-N | McNamara 1984 | `PARTIAL` |
+| `FH_RICKETTS` | true Porion-Orbitale, pas ear-rod | Ricketts 1981 | `MATCH_GEOMETRY`; auto IDs non validés |
+| `NPog_RICKETTS` | N-Pog | Ricketts 1981 | présent |
+| `PT_GN_RICKETTS` | Pt-Gn céphalométrique | Ricketts 1972/1981 | `MATCH_GEOMETRY`; Pt input auto non validé |
+| `GN_RICKETTS_CONSTRUCTED` | intersection facial plane + mandibular plane | Ricketts 1972 | construction DC correspondante |
+| `MP_RICKETTS_1981` | FH vs `Sub.Go.-M.` | Ricketts 1981 | **`MISSING / SOURCE_LOCK_REQUIRED`** |
+| `PALATAL_RICKETTS` | ANS-PNS | Ricketts 1981 | géométrie simple ; PNS auto non validé |
+| `ORAL_GNOMON_RICKETTS` | ANS-Xi-Pm | Ricketts 1981 | `MISSING` |
+| `PTV_RICKETTS` | verticale à true FH depuis le repère pterygoïdien source | Ricketts 1981 | `MISSING_STRICT_CONTRACT` |
+| `E_LINE_RICKETTS` | Prn-Pog' | Ricketts | V2 perpendiculaire présent |
+| `CORPUS_AXIS_RICKETTS` | Xi-Pm | Ricketts 1981 | `MISSING` |
+| `CONDYLE_AXIS_RICKETTS` | axe condylien source-spécifique | Ricketts 1981 | `MISSING` |
+| `FH_CRANIOM` | Po-Or | COM legacy | présent et versionné |
+| `N_VERTICAL_CRANIOM` | N-perp à FH | COM legacy | présent |
+| `DOWNS_MP_GO_ME` | Go-Me | COM/Downs | présent ; garder distinct des contrats Tweed/Ricketts |
 
 ---
 
-# 5. Réutilisable vs à corriger
-
-## Réutilisable sans réécrire la géométrie
-
-1. Primitives fail-closed de projection/distance et calibration.
-2. Steiner angulaire déjà séparé dans son module.
-3. Tweed FMA/IMPA/FMIA déjà séparé ; **FMIA existe déjà dans le backend**.
-4. McNamara Co-A/Co-Gn/ANS-Me linéaires.
-5. Ricketts facial depth, facial axis, convexité et E-line V2.
-6. CRANIOM conventions explicitement versionnées.
-7. Provenance modèle/hash/pipeline SRPose38 déjà persistable dans la chaîne d’évidence.
-
-## À corriger avant toute extension clinique
-
-1. Remplacer la confiance implicite dans les alias par un contrat anatomique explicite au point d’entrée scientifique.
-2. Traiter `SOTA_LANDMARKS_MAPPING` comme `LEGACY_AUTO_UNVERIFIED`, pas comme dictionnaire anatomique officiel.
-3. Séparer `Gn_anat` et `Gn_Ricketts_constructed` dans les contrats et preuves.
-4. Introduire un `Pog_hard` explicite ; ne jamais réutiliser `Pog_soft` ni B.
-5. Exiger `Co = Condylion` source-locké ; retirer toute équivalence silencieuse avec un générique `Condyle` dans la future couche scientifique.
-6. Ajouter les surfaces coronaires U1/L1 avant les distances linéaires qui les exigent.
-7. Source-locker Ba, Pt/PTM, PNS, D, U6/L6 avant d’utiliser les IDs SRPose locaux homonymes comme autorité clinique.
-8. Ajouter Xi, Pm et les repères airway qui n’ont pas d’équivalent auto explicite.
-9. Laisser tout Ricketts PA en fail-closed jusqu’à une modalité frontale validée.
-
----
-
-# 6. Gaps par analyse après source-lock V2
+# 5. Findings par analyse
 
 ## Steiner
 
-- Angles principaux : géométrie largement présente.
-- Le mapping local fournit S/N/A/B/Go/Gn/U1/L1 et un `D_point`, mais ces liaisons auto restent `LEGACY_UNVERIFIED`.
-- Bloquants réels : surfaces coronaires U1/L1, définition D 1959, plan occlusal source-locké, définitions U6/L6 source-spécifiques, extension 1959.
+`MATCH_GEOMETRY` pour SNA, SNB, ANB, U1/NA angulaire, L1/NB angulaire et SN/Go-Gn. Les distances coronaires restent correctement fail-closed faute de surfaces coronaires dédiées. Steiner 1959 reste une couche séparée.
 
 ## Tweed
 
-- FMA, IMPA, FMIA : géométrie présente.
-- Le trio Po/Or/Go-Me/L1 a des IDs locaux, mais l’identité anatomique automatique reste non validée.
-- Pas de nouvelle formule nécessaire pour le triangle.
+**Gate clinique ouvert.** Le triangle DC actuel utilise `Po-Or`; Tweed 1954 primaire utilise un Frankfort historique lié à l’ear-rod. Les valeurs FMA/FMIA peuvent donc différer. Aucun renommage en « strict 1954 » et aucune migration de formule sans décision clinique explicite.
 
 ## McNamara
 
-- Co-A, Co-Gn, ANS-Me présents géométriquement.
-- Le mapping local contient Co, Pog, Ba et Ptm, mais aucun ne doit être promu automatiquement au contrat McNamara sans source-lock.
-- Restent à définir : A-vertical exact, surfaces incisives si requises par la mesure, airway landmarks et conventions PTM/Gn.
+Les segments Co-A, Co-Gn et ANS-Me sont géométriquement cohérents si les landmarks sont valides. Le papier 1984 source-locke Porion anatomique, N-perp, Condylion, Gn anatomique, Gn construit, PTM, facial plane et airway. Les surfaces faciales des incisives restent manquantes.
 
 ## Ricketts
 
-- Plusieurs primitives latérales sont présentes.
-- Le mapping local contient Pog, Ba, PNS et `PT_point`, mais leur équivalence aux conventions Ricketts 1981 n’est pas démontrée.
-- Xi, Pm, MP `sub-Go-M`, PTV/U6 exact et axes du mandibular bend restent à construire/source-locker.
-- Les 12 facteurs frontaux restent `BLOCKED_MODALITY`.
-- `Ag-Ag` reste `NORM HOLD`; ce lot ne lève pas le conflit normatif.
+Facial depth et facial axis ont une base géométrique cohérente. Le Gn construit DC est compatible avec la définition du cephalometric Gn de Ricketts 1972. Xi, Pm, PTV/U6 strict, mandibular plane `Sub.Go.-M.` et mandibular bend restent incomplets. Les 12 facteurs frontaux restent bloqués par modalité.
 
 ## COM_DC_LEGACY_V1
 
-- Les constructions actuelles sont documentées et versionnées.
-- Elles restent un composite interne ; aucune réattribution historique n’est autorisée.
-- Les points auto utilisés par le flux legacy conservent leur comportement pour non-régression, sans extension de leur autorité scientifique.
+Conserver ses conventions versionnées telles quelles pour non-régression. Ne pas les réattribuer à une analyse historique voisine.
 
 ---
 
-# 7. Gate avant angles/distances supplémentaires
+# 6. Ricketts frontal/PA 1981
 
-Une mesure supplémentaire n’est autorisée que si :
+Tous les contrats suivants restent `BLOCKED_MODALITY` en latéral :
 
-1. tous les landmarks requis ont un ID scientifique non ambigu ;
-2. leur définition anatomique/construite et leur incidence sont source-lockées ;
-3. le plan/axe exact est versionné par analyse ;
-4. le point est fourni/corrigé manuellement avec provenance **ou** la liaison automatique détecteur→landmark a été validée ;
-5. aucune variante voisine n’est substituée ;
-6. la calibration mm est valide pour les distances ;
-7. le transversal reste impossible sans PA/frontale validée.
+- NC-NC ;
+- J droite/gauche vers frontal facial plane ;
+- Ag-Ag ;
+- symétrie médiane ;
+- B6-B6 ;
+- B3-B3 ;
+- B6 droite/gauche vers J-Ag ;
+- midpoint incisives inférieures vers frontal A-Po ;
+- relations molaires transverses droite/gauche.
 
-## Gate SRPose borné
-
-Le runtime et la provenance du modèle sont maintenant prouvés, mais la **sémantique anatomique du mapping local** reste `SOURCE_LOCK_REQUIRED`.
-
-Conséquence :
-
-- la géométrie et les contrats scientifiques peuvent avancer ;
-- des fixtures manuelles explicites peuvent servir aux tests ;
-- aucune nouvelle mesure ne peut obtenir son autorité clinique automatique du seul mapping local SRPose38.
+Le conflit normatif Ag-Ag reste `NORM_HOLD` : cue sheet +1,25 mm/an, tableau 9 +1,35 mm/an, et les valeurs âge 3→18 correspondent mathématiquement à +1,35 mm/an.
 
 ---
 
-# 8. Prochaine séquence
+# 7. Gates avant nouvelle mesure
 
-`définitions anatomiques primaires → contrats landmark IDs → plans/lignes versionnés → fixtures manuelles de référence → tests géométriques isolés → angles/distances → SVG synchronisé → logique par analyse → synthèse inter-analyses → onboarding ODF`
+Une nouvelle mesure n’est autorisée que si :
 
-Aucune norme clinique nouvelle et aucune interprétation diagnostique n’est activée dans ce lot.
+1. landmarks non ambigus ;
+2. définition anatomique/construite source-lockée ;
+3. plan/axe versionné par analyse ;
+4. provenance manuelle validée **ou** liaison automatique détecteur→landmark validée ;
+5. aucune variante voisine substituée ;
+6. calibration mm valide si nécessaire ;
+7. modalité adaptée.
 
-## Next exact
+### Gates actifs
 
-Source-locker maintenant les **définitions anatomiques et constructions** nécessaires aux mesures déjà validées, analyse par analyse, en commençant par le noyau réutilisable Steiner/Tweed/McNamara/Ricketts, sans utiliser la table SRPose locale comme source anatomique.
+- **Tweed 1954** : `HUMAN_CLINICAL_DECISION_REQUIRED` entre reproduction historique et variante anatomique DC clairement versionnée.
+- **SRPose semantics** : `SOURCE_LOCK_REQUIRED` pour toute extension automatique.
+- **Ricketts PA** : `BLOCKED_MODALITY`.
+
+---
+
+# 8. Next exact
+
+Travail indépendant autorisé avant le gate Tweed :
+
+1. formaliser les contrats scientifiques séparés `Pt_Ricketts`, `PTM_McNamara`, `Gn_anatomic`, `Gn_constructed`, surfaces incisives, Xi/Pm et airway ;
+2. préparer des fixtures manuelles source-lockées pour tests géométriques ;
+3. ne modifier aucune valeur runtime Tweed avant choix clinique ;
+4. ne promouvoir aucun canal SRPose legacy en vérité anatomique.
+
+Aucune norme, interprétation, UI ou valeur clinique runtime n’est modifiée par ce document.
