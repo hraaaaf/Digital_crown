@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('./patient-companion/firebasePatientAuth', () => ({
   getVerifiedPatientIdToken: vi.fn().mockResolvedValue('patient-id-token'),
+  signOutPatient: vi.fn().mockResolvedValue(undefined),
 }));
 
 import { getPatientContexts } from './patient-companion/patientCompanionApi';
@@ -38,6 +39,13 @@ describe('Patient Companion D1 transport isolation', () => {
     expect(source).not.toContain("localStorage.getItem('token')");
     expect(source).toContain("headers.set('Authorization', `Firebase ${token}`)");
     expect(source).toContain("credentials: 'omit'");
+  });
+
+  it('fails closed if the backend rejects the Firebase patient session', () => {
+    const source = read('./patient-companion/patientCompanionApi.ts');
+    expect(source).toContain('if (response.status === 401)');
+    expect(source).toContain('await signOutPatient()');
+    expect(source).toContain("window.location.replace('/patient-companion')");
   });
 
   it('forces a fresh Firebase token after verified-email reload', () => {
