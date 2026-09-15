@@ -44,7 +44,7 @@ jobs:
       CLOUD_AI_ENABLED: "false"
       DEBUG: "false"
       DIGITAL_CROWN_TESTING: "1"
-      ALLOWED_ORIGINS: "http://127.0.0.1:5173,http://localhost:5173,http://127.0.0.1:5174,http://localhost:5174"
+      ALLOWED_ORIGINS: "http://127.0.0.1:5173,http://localhost:5173"
       T2_USER: t2-browser@cabinet.ma
     steps:
       - name: Checkout AFTER exact head
@@ -112,10 +112,10 @@ jobs:
       - name: Start BEFORE frontend
         working-directory: before/frontend
         run: |
-          npm run dev -- --host 127.0.0.1 --port 5174 > /tmp/d2-before-frontend.log 2>&1 &
+          npm run dev -- --host 127.0.0.1 --port 5173 > /tmp/d2-before-frontend.log 2>&1 &
           echo $! > /tmp/d2-before-frontend.pid
           for i in {1..60}; do
-            if curl -fsS http://127.0.0.1:5174 >/dev/null; then exit 0; fi
+            if curl -fsS http://127.0.0.1:5173 >/dev/null; then exit 0; fi
             sleep 1
           done
           cat /tmp/d2-before-frontend.log
@@ -126,7 +126,7 @@ jobs:
         env:
           D2_PHASE: BEFORE
           D2_API_URL: http://127.0.0.1:8005
-          D2_APP_URL: http://127.0.0.1:5174
+          D2_APP_URL: http://127.0.0.1:5173
           D2_OUT_DIR: ../../artifacts/patient-companion-d2-before
           PRODUCT_HEAD: ${{ env.BASE_HEAD }}
         run: node scripts/capture-patient-companion-d2-visual.mjs
