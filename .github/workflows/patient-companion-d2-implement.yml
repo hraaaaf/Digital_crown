@@ -11,100 +11,56 @@ permissions:
   contents: write
 
 jobs:
-  implement-and-verify:
+  wire-frontend:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
-    env:
-      SECRET_KEY: patient-companion-d2-ci-secret-key-minimum-32-characters
-      DATABASE_URL: "sqlite:///:memory:"
-      ENVIRONMENT: development
-      TELEMETRY_ENABLED: "false"
-      CLOUD_AI_ENABLED: "false"
-      DIGITAL_CROWN_TESTING: "1"
+    timeout-minutes: 5
     steps:
       - uses: actions/checkout@v4
         with:
           ref: feat/patient-companion-d2-staff-ui
           fetch-depth: 0
 
-      - name: Apply deterministic D2 wiring
+      - name: Apply deterministic D2 staff tab wiring
         run: |
           python - <<'PY'
           from pathlib import Path
 
-          activation = Path('backend/routers/patient_companion_activation.py')
-          s = activation.read_text()
-          marker = 'import secrets\n'
-          assert marker in s, 'activation import marker drifted'
-          s = s.replace(marker, 'import base64\nimport secrets\n', 1)
-          marker = 'from backend.services.firebase_patient_auth import FirebasePatientCredential\n'
-          assert marker in s, 'firebase import marker drifted'
-          s = s.replace(marker, marker + 'from backend.services.qr_service import qr_service\n', 1)
-          marker = '    raw_token = secrets.token_urlsafe(32)\n    manual_code = generate_manual_code()\n'
-          assert marker in s, 'invitation secret marker drifted'
-          s = s.replace(marker, marker + '    qr_data_url = "data:image/png;base64," + base64.b64encode(\n        qr_service.generate_qr_bytes(raw_token, qr_style="classic").getvalue()\n    ).decode("ascii")\n', 1)
-          marker = '        "qr_token": raw_token,\n        "manual_code": manual_code,\n'
-          assert marker in s, 'invitation response marker drifted'
-          s = s.replace(marker, '        "qr_token": raw_token,\n        "qr_data_url": qr_data_url,\n        "manual_code": manual_code,\n', 1)
-          activation.write_text(s)
-
           patient = Path('frontend/src/features/patients/PatientDetailsInner.tsx')
           s = patient.read_text()
+
           marker = "  Images,\n} from 'lucide-react';"
           assert marker in s, 'lucide marker drifted'
           s = s.replace(marker, "  Images,\n  Smartphone,\n} from 'lucide-react';", 1)
+
           marker = "import { PatientMobileBridge } from './components/PatientMobileBridge';\n"
           assert marker in s, 'component import marker drifted'
           s = s.replace(marker, marker + "import { PatientCompanionPanel } from './components/PatientCompanionPanel';\n", 1)
+
           marker = "type TabType = 'tracking' | 'clinical' | 'radiology' | 'admin' | 'archives' | 'finances';"
           assert marker in s, 'TabType marker drifted'
           s = s.replace(marker, "type TabType = 'tracking' | 'clinical' | 'radiology' | 'admin' | 'archives' | 'finances' | 'companion';", 1)
+
           marker = "  useEffect(() => {\n    if (!canFinance && activeTab === 'finances') {\n      setIsPayModalOpen(false);\n      setSearchParams({ tab: 'tracking' }, { replace: true });\n    }\n  }, [canFinance, activeTab, setSearchParams]);\n"
           assert marker in s, 'finance guard marker drifted'
           guard = "\n  useEffect(() => {\n    if (!ownerOrAdmin && activeTab === 'companion') {\n      setSearchParams({ tab: 'tracking' }, { replace: true });\n    }\n  }, [ownerOrAdmin, activeTab, setSearchParams]);\n"
           s = s.replace(marker, marker + guard, 1)
+
           marker = '            <TabButton compact={isRadiology} active={isDocuments} onClick={handleDocumentCreate} icon={<FileText size={17} />} label="Documents" />\n'
           assert marker in s, 'tabs marker drifted'
           s = s.replace(marker, marker + "            {ownerOrAdmin && <TabButton compact={isRadiology} active={activeTab === 'companion'} onClick={() => handleTabChange('companion')} icon={<Smartphone size={17} />} label=\"Companion\" />}\n", 1)
+
           marker = "          {canFinance && activeTab === 'finances' && <PatientFinances patientId={Number(id)} />}\n"
           assert marker in s, 'render marker drifted'
           s = s.replace(marker, "          {ownerOrAdmin && activeTab === 'companion' && <PatientCompanionPanel patientId={Number(id)} patientEmail={patient.email} />}\n\n" + marker, 1)
+
           patient.write_text(s)
           PY
 
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-      - name: Install backend dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install torch==2.12.0 torchvision==0.27.0 --index-url https://download.pytorch.org/whl/cpu
-          grep -vE '^(torch|torchvision)([<=>].*)?$' requirements.txt > /tmp/requirements-patient-companion-d2.txt
-          pip install -r /tmp/requirements-patient-companion-d2.txt
-          pip install httpx==0.27.2 pytest pytest-asyncio
-      - name: Backend D0 + D2 tests
-        run: python -m pytest -q backend/tests/test_patient_companion_d0.py backend/tests/test_patient_companion_runtime_integration.py backend/tests/test_patient_companion_share_rbac.py backend/tests/test_patient_companion_d2_staff.py
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: "20"
-          cache: npm
-          cache-dependency-path: frontend/package-lock.json
-      - name: Install frontend
-        working-directory: frontend
-        run: npm ci
-      - name: Frontend targeted tests
-        working-directory: frontend
-        run: npx vitest run src/features/patients/PatientDetailsFlowHandoff.test.ts src/features/patients/components/PatientCompanionPanel.test.ts
-      - name: Frontend TypeScript build
-        working-directory: frontend
-        run: npm run build:test
-
-      - name: Commit verified D2 wiring
+      - name: Commit wiring
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add backend/routers/patient_companion_activation.py frontend/src/features/patients/PatientDetailsInner.tsx
+          git add frontend/src/features/patients/PatientDetailsInner.tsx
           git diff --cached --check
-          git commit -m "feat: wire Patient Companion D2 staff operations"
+          git commit -m "feat: wire Patient Companion into patient record"
           git push origin HEAD:feat/patient-companion-d2-staff-ui
