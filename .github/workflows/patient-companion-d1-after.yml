@@ -54,7 +54,7 @@ jobs:
           if (report.phase !== 'AFTER') throw new Error(`Wrong phase ${report.phase}`);
           if (report.invalidCount !== 0) throw new Error(`Invalid captures ${report.invalidCount}`);
           if (report.blockedExternalRequests.length !== 0) throw new Error('Unexpected external egress');
-          if (report.baselineComparableState !== 'public-entry') throw new Error('Missing comparable baseline state');
+          if (report.baselineComparableState !== 'patient-public-entry') throw new Error('Missing patient public-entry certification');
           const expectedStates = ['public-entry', 'home', 'activation'];
           const expectedViewports = ['390x844', '768x1024', '1280x900'];
           for (const state of expectedStates) {
@@ -64,7 +64,7 @@ jobs:
               const capture = rows.find((row) => row.viewport === viewport);
               if (!capture?.valid) throw new Error(`Invalid ${state} ${viewport}`);
               if (capture.pageErrors.length || capture.consoleErrors.length) throw new Error(`Browser errors ${state} ${viewport}`);
-              if (state !== 'public-entry' && capture.metrics.horizontalDocumentOverflow) throw new Error(`D1 overflow ${state} ${viewport}`);
+              if (capture.metrics.horizontalDocumentOverflow) throw new Error(`D1 overflow ${state} ${viewport}`);
             }
           }
           NODE
