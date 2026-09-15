@@ -111,7 +111,8 @@ async function captureAttempt(viewport, attempt) {
 
   try {
     const response = await page.goto(`${BASE_URL}/cephalo-r15bis-before-viewer.html`, { waitUntil: 'domcontentloaded', timeout: 30000 });
-    await page.getByRole('heading', { name: 'Céphalométrie' }).waitFor({ state: 'visible', timeout: 30000 });
+    // This harness runs against the immutable R15 BEFORE baseline, where the old heading is intentional evidence.
+    await page.getByRole('heading', { name: 'Studio Céphalométrique' }).waitFor({ state: 'visible', timeout: 30000 });
     await page.getByText('Édition Active').waitFor({ state: 'visible', timeout: 30000 });
     await page.evaluate(async () => { if (document.fonts?.ready) await document.fonts.ready; });
     await page.waitForTimeout(350);
