@@ -62,6 +62,25 @@ type OrdersMeta = {
 
 type ReconcileState = Record<number, { status: string; currentTotal: string; note: string; partnerReference: string; saving: boolean }>;
 
+
+const PRODUCT_AVAILABILITY_LABELS: Record<string, string> = {
+  AVAILABLE: 'Disponible',
+  ON_REQUEST: 'Sur demande',
+  DISCONTINUED: 'Arrêté',
+};
+
+const ORDER_STATUS_LABELS: Record<string, string> = {
+  DRAFT: 'Brouillon',
+  SENT_TO_PARTNER: 'Envoyée au fournisseur',
+  MODIFIED_AFTER_SEND: 'Modifiée après envoi',
+  CONFIRMED: 'Confirmée',
+  FULFILLED: 'Livrée',
+  CANCELLED: 'Annulée',
+};
+
+const orderStatusLabel = (value: string | null | undefined) =>
+  ORDER_STATUS_LABELS[String(value || '').toUpperCase()] ?? 'À vérifier';
+
 const emptySupplier = {
   supplierKey: '',
   name: '',
@@ -128,7 +147,7 @@ export const PartnerCatalogAdminPage: React.FC = () => {
         }));
       }
     } catch (error: any) {
-      setErrorMessage(error?.response?.data?.detail || 'Impossible de charger le dashboard catalogue partenaire.');
+      setErrorMessage(error?.response?.data?.detail || 'Impossible de charger le catalogue fournisseur.');
     } finally {
       setLoading(false);
     }
@@ -198,7 +217,7 @@ export const PartnerCatalogAdminPage: React.FC = () => {
         isActive: supplierForm.isActive,
       });
       setSupplierForm(emptySupplier);
-      setSuccessMessage('Fournisseur partenaire ajoute.');
+      setSuccessMessage('Fournisseur partenaire ajouté.');
       await loadAll();
     } catch (error: any) {
       setErrorMessage(error?.response?.data?.detail || "Impossible d'ajouter le fournisseur.");
@@ -235,7 +254,7 @@ export const PartnerCatalogAdminPage: React.FC = () => {
         dentalSpecialty: current.dentalSpecialty,
         availability: current.availability,
       }));
-      setSuccessMessage('Produit partenaire ajoute.');
+      setSuccessMessage('Produit partenaire ajouté.');
       await loadAll();
     } catch (error: any) {
       setErrorMessage(error?.response?.data?.detail || "Impossible d'ajouter le produit.");
@@ -272,7 +291,7 @@ export const PartnerCatalogAdminPage: React.FC = () => {
         partnerReference: state.partnerReference,
       });
       await loadOrders();
-      setSuccessMessage(`Commande ${order.orderNumber} réconciliée avec le statut ${state.status}.`);
+      setSuccessMessage(`Commande ${order.orderNumber} mise à jour : ${orderStatusLabel(state.status)}.`);
     } catch (error: any) {
       setErrorMessage(error?.response?.data?.detail || error?.message || 'Impossible de mettre à jour la commande partenaire.');
     } finally {
@@ -285,7 +304,7 @@ export const PartnerCatalogAdminPage: React.FC = () => {
       <div className="flex items-center justify-between gap-4">
         <Link to="/approvisionnement" className="inline-flex items-center gap-2 px-4 py-3 rounded-elite border border-border-main text-sm font-black text-slate-700 hover:bg-slate-50">
           <ArrowLeft size={16} />
-          Retour marketplace
+          Retour à l'approvisionnement
         </Link>
         <button
           type="button"
@@ -308,15 +327,15 @@ export const PartnerCatalogAdminPage: React.FC = () => {
             </div>
             <div>
               <h2 className="font-outfit text-lg font-black text-slate-900">Ajouter un fournisseur</h2>
-              <p className="text-xs font-bold uppercase tracking-widest text-text-muted">Base pour futur import API fournisseur</p>
+              <p className="text-xs font-bold uppercase tracking-widest text-text-muted">Configuration du fournisseur</p>
             </div>
           </div>
           <form onSubmit={handleCreateSupplier} className="grid grid-cols-1 md:grid-cols-2 gap-3">
             <Input label="Clé fournisseur" value={supplierForm.supplierKey} onChange={(value) => setSupplierForm((current) => ({ ...current, supplierKey: value }))} required />
             <Input label="Nom fournisseur" value={supplierForm.name} onChange={(value) => setSupplierForm((current) => ({ ...current, name: value }))} required />
             <Input label="Badge" value={supplierForm.badge} onChange={(value) => setSupplierForm((current) => ({ ...current, badge: value }))} />
-            <Input label="API base URL" value={supplierForm.apiBaseUrl} onChange={(value) => setSupplierForm((current) => ({ ...current, apiBaseUrl: value }))} />
-            <Input label="Sync mode" value={supplierForm.syncMode} onChange={(value) => setSupplierForm((current) => ({ ...current, syncMode: value }))} />
+            <Input label="Adresse de connexion" value={supplierForm.apiBaseUrl} onChange={(value) => setSupplierForm((current) => ({ ...current, apiBaseUrl: value }))} />
+            <Select label="Mode de mise à jour" value={supplierForm.syncMode} onChange={(value) => setSupplierForm((current) => ({ ...current, syncMode: value }))} options={[{ value: 'manual', label: 'Manuelle' }, { value: 'api', label: 'Automatique' }]} />
             <Toggle label="Actif" checked={supplierForm.isActive} onChange={(checked) => setSupplierForm((current) => ({ ...current, isActive: checked }))} />
             <TextArea label="Description" value={supplierForm.description} onChange={(value) => setSupplierForm((current) => ({ ...current, description: value }))} />
             <TextArea label="Promesse" value={supplierForm.promise} onChange={(value) => setSupplierForm((current) => ({ ...current, promise: value }))} />
@@ -347,7 +366,7 @@ export const PartnerCatalogAdminPage: React.FC = () => {
             <Select label="Spécialité" value={productForm.dentalSpecialty} onChange={(value) => setProductForm((current) => ({ ...current, dentalSpecialty: value }))} options={(meta?.specialties || []).map((item) => ({ value: item, label: item }))} required />
             <Input label="Unité" value={productForm.unit} onChange={(value) => setProductForm((current) => ({ ...current, unit: value }))} required />
             <Input label="Prix" type="number" value={productForm.price} onChange={(value) => setProductForm((current) => ({ ...current, price: value }))} required />
-            <Select label="Disponibilité" value={productForm.availability} onChange={(value) => setProductForm((current) => ({ ...current, availability: value }))} options={(meta?.availability || []).map((item) => ({ value: item, label: item }))} required />
+            <Select label="Disponibilité" value={productForm.availability} onChange={(value) => setProductForm((current) => ({ ...current, availability: value }))} options={(meta?.availability || []).map((item) => ({ value: item, label: PRODUCT_AVAILABILITY_LABELS[item] ?? 'À vérifier' }))} required />
             <Input label="Ordre tri" type="number" value={productForm.sortOrder} onChange={(value) => setProductForm((current) => ({ ...current, sortOrder: value }))} />
             <TextArea label="Description courte" value={productForm.shortDescription} onChange={(value) => setProductForm((current) => ({ ...current, shortDescription: value }))} />
             <TextArea label="Description longue" value={productForm.longDescription} onChange={(value) => setProductForm((current) => ({ ...current, longDescription: value }))} />
@@ -403,7 +422,7 @@ export const PartnerCatalogAdminPage: React.FC = () => {
                     product.availability === 'ON_REQUEST' ? 'bg-amber-50 text-amber-700 border-amber-200' :
                     'bg-slate-100 text-slate-500 border-slate-200'
                   )}>
-                    {product.availability}
+                    {PRODUCT_AVAILABILITY_LABELS[product.availability] ?? 'À vérifier'}
                   </span>
                 </div>
                 <div className="grid grid-cols-3 gap-3 text-sm">
@@ -448,7 +467,7 @@ export const PartnerCatalogAdminPage: React.FC = () => {
           ) : orders.length === 0 ? (
             <div className="col-span-full flex flex-col items-center text-center gap-2 rounded-elite border border-dashed border-border-main bg-slate-50 px-6 py-10">
               <p className="font-black text-slate-900">Aucune commande partenaire enregistrée</p>
-              <p className="text-sm text-text-muted">Les commandes passées depuis la marketplace apparaîtront ici pour réconciliation.</p>
+              <p className="text-sm text-text-muted">Les commandes passées depuis l’approvisionnement apparaîtront ici pour suivi.</p>
             </div>
           ) : (
             orders.map((order) => {
@@ -467,7 +486,7 @@ export const PartnerCatalogAdminPage: React.FC = () => {
                       <p className="text-sm text-text-muted mt-1">{order.strategyLabel}</p>
                     </div>
                     <span className="px-2.5 py-1 rounded-full bg-slate-100 text-slate-600 text-[10px] font-black uppercase tracking-widest">
-                      {order.status}
+                      {orderStatusLabel(order.status)}
                     </span>
                   </div>
 
@@ -487,7 +506,7 @@ export const PartnerCatalogAdminPage: React.FC = () => {
                       label="Nouveau statut"
                       value={state.status}
                       onChange={(value) => updateReconcileField(order.id, { status: value })}
-                      options={(ordersMeta?.supportedStatuses || []).map((statusValue) => ({ value: statusValue, label: statusValue }))}
+                      options={(ordersMeta?.supportedStatuses || []).map((statusValue) => ({ value: statusValue, label: orderStatusLabel(statusValue) }))}
                     />
                     <Input
                       label="Total courant"
@@ -516,7 +535,7 @@ export const PartnerCatalogAdminPage: React.FC = () => {
                     onClick={() => handleReconcile(order)}
                     className="w-full py-3 rounded-elite border border-border-main bg-card-bg text-slate-800 font-black uppercase tracking-widest text-xs hover:bg-slate-50 disabled:opacity-60"
                   >
-                    {state.saving ? 'Mise à jour...' : 'Appliquer le recalcul'}
+                    {state.saving ? 'Mise à jour…' : 'Enregistrer les modifications'}
                   </button>
                 </div>
               );
@@ -586,7 +605,7 @@ const Select = ({
       required={required}
       className="w-full px-4 py-3 border border-border-main rounded-elite text-sm font-medium outline-none focus:ring-2 focus:ring-primary/10 bg-card-bg"
     >
-      <option value="">Selectionner</option>
+      <option value="">Sélectionner</option>
       {options.map((option) => (
         <option key={option.value} value={option.value}>{option.label}</option>
       ))}

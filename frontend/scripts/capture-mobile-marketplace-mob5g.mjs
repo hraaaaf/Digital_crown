@@ -170,7 +170,7 @@ try {
 
   const urlBefore = page.url();
   await page.getByRole('button', { name: 'Ajouter une unité de Composite universel nano-hybride' }).click();
-  await page.getByRole('button', { name: 'Préparer le DRAFT' }).click();
+  await page.getByRole('button', { name: 'Préparer le brouillon' }).click();
   await page.locator('[data-marketplace-checkout]').waitFor({ state: 'visible' });
   const prefill = {
     fullName: await page.getByLabel('Nom complet').inputValue(),

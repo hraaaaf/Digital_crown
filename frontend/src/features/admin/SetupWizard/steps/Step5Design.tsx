@@ -83,7 +83,7 @@ export const Step5Design: React.FC<Props> = ({
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-right-4 duration-500">
       <div className="text-center">
-        <h2 className="text-2xl font-black text-slate-900 tracking-tight">Studio de Design</h2>
+        <h2 className="text-2xl font-black text-slate-900 tracking-tight">Personnalisation visuelle</h2>
         <p className="text-slate-500 text-sm mt-1">Personnalisez l'apparence de vos documents officiels.</p>
       </div>
 

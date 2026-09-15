@@ -11,10 +11,10 @@ vi.mock('../../../../services/api', () => ({
 
 afterEach(() => cleanup());
 
-describe('FrontdeskView MOB-5B', () => {
+describe('Accueil mobile MOB-5B', () => {
   it('renders the dedicated mobile empty state without desktop alerts', async () => {
     render(<FrontdeskView />);
-    expect(await screen.findByText('Frontdesk')).toBeTruthy();
+    expect(await screen.findByText('Accueil')).toBeTruthy();
     expect(await screen.findByText('Aucune demande en attente')).toBeTruthy();
     expect(screen.queryByText('Créer demande')).toBeNull();
   });

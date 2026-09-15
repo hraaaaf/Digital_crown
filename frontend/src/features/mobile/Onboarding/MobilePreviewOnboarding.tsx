@@ -10,7 +10,7 @@ function PreviewEntryCard() {
       className="w-full mt-6 p-5 rounded-3xl shadow-elite"
       style={{ backgroundColor: 'var(--glass-bg)', borderColor: 'var(--glass-border)', borderWidth: '1px' }}
     >
-      <p className="text-[10px] font-black text-primary uppercase tracking-widest mb-2">MODE DÉMO — PREVIEW VERCEL</p>
+      <p className="text-[10px] font-black text-primary uppercase tracking-widest mb-2">MODE DÉMO — PARCOURS FICTIF</p>
       <h2 className="text-base font-black tracking-tight text-text-main mb-2">Explorer Digital Crown sans connecter le cabinet</h2>
       <p className="text-[11px] text-text-muted leading-relaxed font-bold mb-4">Aucune donnée cabinet • aucune session réelle</p>
       <button

@@ -66,7 +66,7 @@ jobs:
 
           const output = 'settings-rbac-artifacts';
           await fs.mkdir(output, { recursive: true });
-          const server = await createServer({ server: { host: '127.0.0.1', port: 4178, strictPort: true }, clearScreen: false });
+          const server = await createServer({ server: { host: '127.0.0.1', port: 4178, strictPort: true }, clearScreen: false, optimizeDeps: { include: ['workbox-window'] } });
           await server.listen();
           const browser = await chromium.launch();
           const widths = [1440, 1024, 768, 430, 390];
@@ -94,16 +94,12 @@ jobs:
                   throw new Error(`Settings failed to mount for ${role} at ${width}px: ${errors.join(' | ') || 'no captured browser error'}`, { cause: error });
                 }
                 if (role === 'admin') {
-                  for (const label of allAdminTabs) {
-                    await page.getByRole('button', { name: label, exact: true }).waitFor({ state: 'visible' });
-                  }
+                  for (const label of allAdminTabs) await page.getByRole('button', { name: label, exact: true }).waitFor({ state: 'visible' });
                   await page.screenshot({ path: `${output}/admin-profil-${width}x1200.png`, fullPage: true, animations: 'disabled' });
                 } else {
                   await page.getByRole('button', { name: 'Horaires & Agenda', exact: true }).waitFor({ state: 'visible' });
                   await page.getByRole('heading', { name: 'Horaires & Agenda', exact: true }).waitFor({ state: 'visible' });
-                  for (const label of forbiddenForSecretary) {
-                    if (await page.getByRole('button', { name: label, exact: true }).count()) throw new Error(`Forbidden secretary tab visible: ${label}`);
-                  }
+                  for (const label of forbiddenForSecretary) if (await page.getByRole('button', { name: label, exact: true }).count()) throw new Error(`Forbidden secretary tab visible: ${label}`);
                   if (await page.getByRole('button', { name: 'Mettre à jour le Profil', exact: true }).count()) throw new Error('Forbidden profile save button visible to secretary');
                   await page.screenshot({ path: `${output}/secretary-agenda-${width}x1200.png`, fullPage: true, animations: 'disabled' });
                 }
@@ -121,8 +117,7 @@ jobs:
         run: node settings-rbac-cert.mjs
       - name: Verify proof count
         working-directory: frontend
-        run: |
-          test "$(find settings-rbac-artifacts -name '*.png' | wc -l)" -eq 10
+        run: test "$(find settings-rbac-artifacts -name '*.png' | wc -l)" -eq 10
       - uses: actions/upload-artifact@v4
         with:
           name: settings-rbac-visual-cert

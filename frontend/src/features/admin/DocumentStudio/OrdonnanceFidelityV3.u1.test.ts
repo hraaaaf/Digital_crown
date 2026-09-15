@@ -21,7 +21,7 @@ describe('Ordonnance Fidelity V3 U1 hierarchy', () => {
   it('makes Ordonnance the primary title while keeping patient, author and date visible', () => {
     expect(header).toContain('data-ordonnance-hierarchy-header');
     expect(header).toContain('data-ordonnance-hierarchy-title');
-    expect(header).toContain("{compactOrdonnance ? documentLabel : 'Studio Documentaire'}");
+    expect(header).toContain("{compactOrdonnance ? documentLabel : 'Documents'}");
     expect(header).toContain("{compactOrdonnance ? 'Patient' : 'Patient actif'}");
     expect(header).toContain('id="document-studio-author"');
     expect(header).toContain('id="document-studio-date"');

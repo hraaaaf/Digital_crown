@@ -29,7 +29,7 @@ export const AccountingTabs = ({ activeTab, setActiveTab, treasuryData, debtData
         activeTab === 'treasury' ? "bg-white shadow-lg text-indigo-600" : "text-slate-500 hover:text-slate-800"
       )}
     >
-      <Calculator size={14} /> Ghost Treasury Hub
+      <Calculator size={14} /> Trésorerie
       {treasuryData?.pending_count > 0 && (
         <span className="ml-1 px-1.5 py-0.5 bg-indigo-100 text-indigo-600 text-[9px] rounded-full font-black animate-pulse">
           {treasuryData.pending_count}

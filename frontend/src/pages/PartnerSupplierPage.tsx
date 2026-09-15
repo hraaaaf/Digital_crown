@@ -111,7 +111,7 @@ export const PartnerSupplierPage: React.FC = () => {
       <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <Link to="/approvisionnement" className="inline-flex items-center gap-2 rounded-elite border border-border-main px-4 py-3 text-sm font-black text-text-main hover:bg-input-field w-fit">
           <ArrowLeft size={16} />
-          Retour marketplace
+          Retour à l'approvisionnement
         </Link>
         <div className="flex flex-wrap items-center gap-3">
           <button type="button" onClick={loadSupplierView} className="inline-flex items-center gap-2 rounded-elite border border-border-main px-4 py-3 text-sm font-black text-text-main hover:bg-input-field">

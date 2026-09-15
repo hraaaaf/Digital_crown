@@ -140,7 +140,7 @@ jobs:
           };
 
           const reply = body => ({ status: 200, contentType: 'application/json', body: JSON.stringify(body) });
-          const server = await createServer({ server: { host: '127.0.0.1', port: 4182, strictPort: true }, clearScreen: false });
+          const server = await createServer({ server: { host: '127.0.0.1', port: 4182, strictPort: true }, optimizeDeps: { include: ['workbox-window'] }, clearScreen: false });
           await server.listen();
           const browser = await chromium.launch();
 

@@ -6,7 +6,7 @@ const rows = [
     icon: WifiOff,
     title: 'Connexion cabinet',
     value: 'Désactivée',
-    detail: 'Aucun appel réseau vers Digital Crown local.',
+    detail: 'Aucune connexion au cabinet réel.',
   },
   {
     icon: Database,
@@ -18,7 +18,7 @@ const rows = [
     icon: Fingerprint,
     title: 'Biométrie',
     value: 'Non certifiée ici',
-    detail: 'Face ID / empreinte restent un gate terrain sur appareil physique.',
+    detail: 'La biométrie doit être vérifiée sur un appareil physique.',
   },
 ];
 
@@ -45,9 +45,9 @@ export function MobilePreviewSecurityView() {
           </div>
           <div>
             <p className="text-[10px] font-black uppercase tracking-[0.18em] text-white/70">Sécurité Mobile</p>
-            <h2 className="mt-1 text-xl font-black tracking-tight">Preview isolée</h2>
+            <h2 className="mt-1 text-xl font-black tracking-tight">Démonstration isolée</h2>
             <p className="mt-2 text-[11px] font-semibold leading-relaxed text-white/80">
-              Aucun appareil appairé. Aucune clé, session ou donnée cabinet n’est créée dans cette Preview.
+              Aucun appareil connecté. Aucun accès ni aucune donnée du cabinet n’est créé dans cette démonstration.
             </p>
           </div>
         </div>
@@ -78,7 +78,7 @@ export function MobilePreviewSecurityView() {
       <div className="flex items-start gap-3 rounded-[22px] border border-emerald-200/70 bg-emerald-50/70 px-4 py-4 shadow-sm">
         <CheckCircle2 className="mt-0.5 shrink-0 text-emerald-600" size={20} />
         <div>
-          <p className="text-[10px] font-black uppercase tracking-widest text-emerald-700">Isolation active</p>
+          <p className="text-[10px] font-black uppercase tracking-widest text-emerald-700">Mode démonstration actif</p>
           <p className="mt-1 text-[10px] font-semibold leading-relaxed text-emerald-800/75">
             Cette surface est uniquement une démonstration visuelle du compagnon mobile.
           </p>

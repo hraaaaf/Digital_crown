@@ -236,7 +236,7 @@ export const PanoramicStudio: React.FC<PanoramicStudioProps> = ({ patientId, pat
         <div className="bg-white rounded-[2rem] shadow-sm border border-slate-200/60 p-4 lg:p-6 flex flex-col lg:flex-row items-start lg:items-center justify-between shrink-0 gap-4">
           <div>
             <h2 className="text-xl font-black text-slate-800 tracking-tight flex items-center gap-2">
-              Studio Panoramique - {patientName}
+              Radiographie panoramique - {patientName}
             </h2>
             <p className="text-sm text-slate-500 mt-1 font-medium italic">Repérage dentaire automatique · validation praticien</p>
           </div>
@@ -265,7 +265,7 @@ export const PanoramicStudio: React.FC<PanoramicStudioProps> = ({ patientId, pat
               )}
             >
               <History size={18} />
-              {viewMode === 'history' ? 'Retour Studio' : 'Historique'}
+              {viewMode === 'history' ? 'Retour' : 'Historique'}
             </button>
 
             <input type="file" ref={fileInputRef} onChange={handleUpload} accept="image/*" className="hidden" />
@@ -321,7 +321,7 @@ export const PanoramicStudio: React.FC<PanoramicStudioProps> = ({ patientId, pat
                         Repérage dentaire<span className="inline-flex ml-1 w-3 overflow-hidden animate-pulse">...</span>
                       </p>
                       <p className="text-indigo-300/80 text-[9px] font-mono tracking-widest uppercase mb-2">Localisation des dents</p>
-                      <p className="text-slate-400 text-[8px] font-mono uppercase tracking-[0.2em] bg-slate-800/80 px-3 py-1 rounded-full border border-slate-700/50 whitespace-nowrap">Moteur déterministe • validation praticien</p>
+                      <p className="text-slate-400 text-[8px] font-mono uppercase tracking-[0.2em] bg-slate-800/80 px-3 py-1 rounded-full border border-slate-700/50 whitespace-nowrap">Repérage automatique • validation praticien</p>
                     </div>
                   </div>
                   <style>{`
@@ -447,7 +447,7 @@ export const PanoramicStudio: React.FC<PanoramicStudioProps> = ({ patientId, pat
                   )}
                 </div>
               ) : sidebarTab === 'report' ? (
-                <div className="flex-1 flex flex-col"><ReportViewer markdown={result.report_narrative} isGenerating={loading} engineName="Loki-Silvres V8 (Déterministe)" onDownload={handleDownloadPDF} isDownloading={downloading} onPreview={handlePreview} onSaveEdit={handleSaveReport} /></div>
+                <div className="flex-1 flex flex-col"><ReportViewer markdown={result.report_narrative} isGenerating={loading} engineName="Radiographie panoramique" onDownload={handleDownloadPDF} isDownloading={downloading} onPreview={handlePreview} onSaveEdit={handleSaveReport} /></div>
               ) : (
                 <div className="p-8 space-y-8 flex-1 flex flex-col">
                   <div className="bg-indigo-50/60 border border-indigo-100 rounded-2xl p-4 flex items-start gap-3 shrink-0">

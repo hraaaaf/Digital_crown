@@ -192,7 +192,7 @@ export const LandingPage: React.FC = () => {
           />
           <Feature
             icon={<Shield size={22} className="text-[#003380]" />}
-            title="Sécurité & Multi-tenant"
+            title="Sécurité & isolation des cabinets"
             desc="Chaque cabinet dispose d'un espace isolé. Permissions granulaires par sous-compte (secrétaire, associé)."
           />
           <Feature

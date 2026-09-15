@@ -22,9 +22,7 @@ export function FinanceView({
 
   return (
     <div className="space-y-6">
-      {/* KPI grid */}
       <div className="grid grid-cols-2 gap-3">
-        {/* Today */}
         <div className="bg-glass-bg border border-glass-border backdrop-blur-md rounded-[24px] p-5 shadow-elite" style={{ background: 'linear-gradient(135deg, var(--primary), var(--secondary))' }}>
           <div className="w-8 h-8 bg-white/20 backdrop-blur-md rounded-[12px] flex items-center justify-center text-white mb-3 border border-white/30">
             <Wallet size={16} />
@@ -33,11 +31,10 @@ export function FinanceView({
             ? <Skeleton className="h-8 w-24 bg-white/20" />
             : <>
                 <p className="text-xl font-black tracking-tight text-white font-outfit">{fmt(f?.today_revenue ?? 0)}</p>
-                <p className="text-[9px] font-black text-white/70 uppercase tracking-widest mt-1">Recettes Jour</p>
+                <p className="text-[9px] font-black text-white/70 uppercase tracking-widest mt-1">Recettes du jour</p>
               </>
           }
         </div>
-        {/* Month */}
         <div className="bg-glass-bg border border-glass-border backdrop-blur-md rounded-[24px] p-5 shadow-elite">
           <div className="w-8 h-8 bg-amber-500/10 rounded-[12px] flex items-center justify-center text-amber-600 mb-3 border border-amber-500/20">
             <TrendingUp size={16} />
@@ -54,11 +51,10 @@ export function FinanceView({
                     </span>
                   )}
                 </div>
-                <p className="text-[9px] font-black text-text-muted uppercase tracking-widest mt-1">Recettes Mois</p>
+                <p className="text-[9px] font-black text-text-muted uppercase tracking-widest mt-1">Recettes du mois</p>
               </>
           }
         </div>
-        {/* Patients */}
         <div className="bg-glass-bg border border-glass-border backdrop-blur-md rounded-[24px] p-5 shadow-elite">
           <div className="w-8 h-8 bg-emerald-500/10 rounded-[12px] flex items-center justify-center text-emerald-600 mb-3 border border-emerald-500/20">
             <Users size={16} />
@@ -66,7 +62,6 @@ export function FinanceView({
           <p className="text-xl font-black tracking-tight text-text-main font-outfit">{f?.total_patients ?? '—'}</p>
           <p className="text-[9px] font-black text-text-muted uppercase tracking-widest mt-1">Patients</p>
         </div>
-        {/* Total debt */}
         <div className="bg-glass-bg border border-glass-border backdrop-blur-md rounded-[24px] p-5 shadow-elite">
           <div className="w-8 h-8 bg-rose-500/10 rounded-[12px] flex items-center justify-center text-rose-500 mb-3 border border-rose-500/20">
             <AlertTriangle size={16} />
@@ -76,13 +71,12 @@ export function FinanceView({
         </div>
       </div>
 
-      {/* 7-day chart */}
       {f?.weekly_revenue && f.weekly_revenue.length > 0 && (
         <div className="bg-glass-bg border border-glass-border backdrop-blur-md rounded-[24px] p-6 shadow-elite">
           <div className="flex items-center justify-between mb-6 border-b border-border-main pb-4">
             <div>
-              <p className="text-[9px] font-black text-text-muted uppercase tracking-[0.2em]">Intelligence Analytique</p>
-              <h4 className="text-lg font-black text-primary font-outfit mt-0.5">Activité 7 Jours</h4>
+              <p className="text-[9px] font-black text-text-muted uppercase tracking-[0.2em]">Activité</p>
+              <h4 className="text-lg font-black text-primary font-outfit mt-0.5">7 derniers jours</h4>
             </div>
             <span className="text-[9px] font-black text-text-muted uppercase tracking-wider">MAD</span>
           </div>
@@ -95,13 +89,13 @@ export function FinanceView({
                     <stop offset="95%" stopColor="var(--primary)" stopOpacity={0}/>
                   </linearGradient>
                 </defs>
-                <XAxis 
-                  dataKey="date" 
-                  axisLine={false} 
-                  tickLine={false} 
+                <XAxis
+                  dataKey="date"
+                  axisLine={false}
+                  tickLine={false}
                   tickFormatter={(val, i) => dayLabel(val, i, f.weekly_revenue.length)}
-                  tick={{ fontSize: 9, fontWeight: 900, fill: '#94a3b8' }} 
-                  dy={10} 
+                  tick={{ fontSize: 9, fontWeight: 900, fill: '#94a3b8' }}
+                  dy={10}
                 />
                 <Tooltip
                   cursor={{ stroke: 'var(--primary)', strokeWidth: 1, strokeDasharray: '4 4', opacity: 0.2 }}
@@ -126,10 +120,9 @@ export function FinanceView({
         </div>
       )}
 
-      {/* Debtors */}
       <div>
         <h2 className="text-[10px] font-black text-text-muted uppercase tracking-widest mb-3 px-1 flex items-center gap-2">
-          <AlertTriangle size={14} className="text-rose-500" /> Liste Rouge
+          <AlertTriangle size={14} className="text-rose-500" /> Impayés
           <span className="ml-auto">{snapshot?.debtors.length ?? 0} dossiers</span>
         </h2>
         {!snapshot?.debtors.length ? (
@@ -172,7 +165,7 @@ export function FinanceView({
         onClick={handleExportPDF}
         className="w-full py-4 bg-primary border border-primary/20 text-white rounded-[24px] font-black text-[11px] uppercase tracking-widest flex items-center justify-center gap-2 active:scale-95 transition-all shadow-elite hover:bg-primary/90"
       >
-        <Download size={16} /> Exporter le Bilan PDF du Mois
+        <Download size={16} /> Exporter le bilan mensuel en PDF
       </button>
     </div>
   );

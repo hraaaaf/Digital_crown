@@ -30,7 +30,7 @@ export function evaluatePushCapability(input: PushCapabilityInput): MobilePushSt
   if (!input.secure) {
     return {
       kind: 'secure-required',
-      title: 'HTTPS requis',
+      title: 'Connexion sécurisée requise',
       detail: 'Les notifications OS exigent une connexion chiffrée au cabinet.',
     };
   }

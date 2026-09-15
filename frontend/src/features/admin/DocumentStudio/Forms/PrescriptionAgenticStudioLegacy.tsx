@@ -883,7 +883,7 @@ export const PrescriptionAgenticStudio: React.FC<PrescriptionAgenticStudioProps>
                     ? 'bg-amber-500/10 border-amber-500/20 text-amber-600'
                     : 'bg-slate-500/10 border-slate-500/20 text-slate-600',
                 )}
-                title="État partiel des contrôles locaux. Le moteur safety complet est traité au lot R3."
+                title="Contrôles de sécurité partiellement disponibles."
               >
                 {coherenceWarnings.length > 0 || Object.keys(pharmacologyReviews).length > 0 ? <AlertCircle size={12} /> : <ShieldCheck size={12} />}
                 <span className="text-[8px] font-black uppercase tracking-widest">

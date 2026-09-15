@@ -49,7 +49,7 @@ jobs:
           import { createServer } from 'vite';
           import fs from 'node:fs/promises';
           const output='settings-ia-artifacts'; await fs.mkdir(output,{recursive:true});
-          const server=await createServer({server:{host:'127.0.0.1',port:4178,strictPort:true},clearScreen:false}); await server.listen();
+          const server=await createServer({server:{host:'127.0.0.1',port:4178,strictPort:true},clearScreen:false,optimizeDeps:{include:['workbox-window']}}); await server.listen();
           const browser=await chromium.launch();
           const widths=[1440,1024,768,430,390];
           try {

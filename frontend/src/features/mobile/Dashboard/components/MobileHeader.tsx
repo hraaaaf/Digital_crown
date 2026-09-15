@@ -53,7 +53,7 @@ export function MobileHeader({
             <button
               type="button"
               disabled
-              aria-label="Notifications désactivées dans la Preview"
+              aria-label="Notifications désactivées dans la démonstration"
               className="relative h-12 w-12 shrink-0 rounded-[16px] border border-glass-border bg-card shadow-elite backdrop-blur-md flex items-center justify-center text-primary"
               style={{ backgroundColor: 'var(--glass-bg)' }}
             >
@@ -81,7 +81,7 @@ export function MobileHeader({
             )} />
             <RefreshCw size={10} className={cn('text-text-muted', syncStatus === 'loading' ? 'animate-spin' : '')} />
             <span className="text-[9px] font-black text-text-muted uppercase tracking-widest flex items-center gap-1">
-              {syncStatus === 'loading' ? 'Sync…' : syncStatus === 'error' ? 'Offline' : 'Live'}
+              {syncStatus === 'loading' ? 'Mise à jour…' : syncStatus === 'error' ? 'Hors ligne' : 'À jour'}
               {queuedActionsCount > 0 && <span className="bg-rose-500 text-white px-1 rounded-full">{queuedActionsCount}</span>}
             </span>
           </button>

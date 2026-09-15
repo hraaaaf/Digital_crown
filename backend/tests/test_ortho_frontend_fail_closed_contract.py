@@ -51,8 +51,9 @@ def test_step3_is_practitioner_controlled_and_contains_no_local_clinical_thresho
     )
     for token in forbidden:
         assert token not in source, f"unsafe Step3 semantic reintroduced: {token}"
-    assert "Note thérapeutique libre legacy — hors R13/R14" in source
-    assert "elle ne sélectionne aucune option R13 et ne valide aucune stratégie R14." in source
+    assert "Notes praticien importées : origine non vérifiée." in source
+    assert "Ils ne valent ni diagnostic validé ni décision thérapeutique." in source
+    assert "5. Note thérapeutique libre — à valider" in source
     assert "Stade CVM — saisie manuelle" in source
     assert "Le stade CVM n'est jamais déduit de l'âge ou du sexe" in source
 
@@ -63,13 +64,14 @@ def test_step4_has_no_local_normative_ranges_or_default_appliance():
         "lo: 76", "hi: 88", "flo:", "fhi:", "getAngleStatus", "norme {card.lo}",
         "preference_technique || 'DAMON'", "Damon Passive", "d-gainer", "quadhelix",
         "disjoncteur", "activateur", "perle-tuca", "Technique choisie par le praticien",
+        "hors R13", "R14",
     )
     for token in forbidden:
         assert token not in source, f"unsafe Step4 semantic reintroduced: {token}"
     assert "Valeur brute · aucune norme locale" in source
-    assert "Préférence technique — saisie manuelle hors R13" in source
-    assert "Aucune stratégie R14 n'est générée ou validée ici." in source
-    assert "Prévisualiser ou archiver un PDF ne valide jamais R14." in source
+    assert "Préférence technique — saisie manuelle" in source
+    assert "Ces champs peuvent contenir une saisie manuelle ou un contenu historique dont l'auteur n'est pas vérifié. Ils ne valent pas validation clinique finale." in source
+    assert "Prévisualiser ou archiver un PDF ne constitue pas une validation clinique." in source
 
 
 def test_cephalo_utils_must_not_reintroduce_age_cvm_or_impa_space_conversion():
