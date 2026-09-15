@@ -151,7 +151,7 @@ export const Step3Clinical: React.FC<Step3ClinicalProps> = ({ P }) => {
               <h3 className="text-[11px] font-black uppercase tracking-[0.14em]" style={{ color: P.text }}>Synthèse descriptive</h3>
             </div>
             <div className="space-y-1.5">
-              <RawRow label="Classe squelettique · legacy hors R11" value={data.classe_squelettique || 'Non classifiable / non documentée'} P={P} />
+              <RawRow label="Classe squelettique · donnée historique" value={data.classe_squelettique || 'Non classifiable / non documentée'} P={P} />
               <RawRow label="Pattern vertical · donnée historique" value={data.pattern_vertical || 'Non classifiable / non documenté'} P={P} />
               <RawRow label="DDM clinique" value={raw(data.ddm_clinique, 'mm')} P={P} />
               <RawRow label="Surplomb mesuré" value={raw(data.dentaire.surplomb, 'mm')} P={P} />

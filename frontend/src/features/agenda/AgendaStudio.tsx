@@ -267,7 +267,7 @@ export const AgendaStudio: React.FC = () => {
           <button
             onClick={() => setIsFrontdeskModalOpen(true)}
             className="flex items-center gap-2 px-4 py-2.5 text-orange-600 hover:bg-orange-100 font-bold text-sm rounded-xl transition-all relative"
-            title="Nouvelle demande RDV frontdesk"
+            title="Nouvelle demande de rendez-vous"
           >
             <AlertCircle size={18} />
             <span className="hidden xl:inline">Demande RDV</span>

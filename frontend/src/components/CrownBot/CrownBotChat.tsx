@@ -119,20 +119,20 @@ function PremiumUpsellCard({ onClose }: { onClose: () => void }) {
         </div>
         <div>
           <p className="text-white font-black text-xs tracking-wide leading-none">Crown Bot Premium</p>
-          <p className="text-white/75 text-[9px] mt-0.5">Limite de l'assistant IA atteinte</p>
+          <p className="text-white/75 text-[9px] mt-0.5">Limite de l’assistant atteinte</p>
         </div>
       </div>
 
       {/* Body */}
       <div className="bg-amber-50 px-4 py-3">
         <p className="text-amber-900 text-[11px] font-semibold mb-2 leading-relaxed">
-          Vous avez utilisé vos <strong>3 échanges IA</strong> gratuits. Passez à Premium pour des conversations illimitées.
+          Vous avez utilisé vos <strong>3 échanges</strong> gratuits. Passez à Premium pour des conversations illimitées.
         </p>
         <ul className="space-y-1 mb-3">
           {[
-            'Conversations LLM illimitées',
+            'Conversations avec l’assistant',
             'Mémoire contextuelle étendue',
-            'Actions avancées (ordonnances, devis auto)',
+            'Actions avancées (ordonnances et devis)',
           ].map((item) => (
             <li key={item} className="flex items-start gap-1.5 text-[10px] text-amber-800 font-medium">
               <Sparkles size={10} className="text-amber-500 mt-0.5 shrink-0" />
@@ -207,7 +207,7 @@ function getPageContext(pathname: string): { title: string; desc: string; sugges
   };
   if (/^\/settings/.test(pathname)) return {
     title: 'Paramètres',
-    desc: "Vous configurez le cabinet. Besoin d'aide pour la facturation, le branding ou les préférences IA ?",
+    desc: "Vous configurez le cabinet. Besoin d'aide pour la facturation, le branding ou les préférences de l’assistant ?",
     suggestions: ['Configurer la facturation', 'Branding du cabinet', 'Paramètres IA'],
   };
   if (/^\/bibliotheque/.test(pathname)) return {
@@ -217,7 +217,7 @@ function getPageContext(pathname: string): { title: string; desc: string; sugges
   };
   return {
     title: 'Crown Bot',
-    desc: "Bonjour ! Je suis Crown Bot, votre assistant IA. Comment puis-je vous aider ?",
+    desc: "Bonjour ! Je suis Crown Bot, votre assistant. Comment puis-je vous aider ?",
     suggestions: ['Mon programme du jour', 'Créer un RDV', 'Finance du jour'],
   };
 }
@@ -597,7 +597,7 @@ export function CrownBotChat({
               activeTab === 'chat' ? 'bg-white/15 text-white' : 'text-white/60 hover:text-white/80')}
           >
             <MessageSquare size={13} /> Chat
-            <span className="ml-1.5 text-[8px] font-black bg-amber-400 text-slate-900 px-1.5 py-0.5 rounded-full uppercase tracking-wide">Bientôt</span>
+            
           </button>
         </div>
       </div>
@@ -609,15 +609,13 @@ export function CrownBotChat({
             <div className="w-20 h-20 rounded-[2rem] bg-gradient-to-tr from-primary/20 to-secondary/20 flex items-center justify-center shadow-inner border border-white/60">
               <MessageSquare size={36} className="text-primary/40" />
             </div>
-            <span className="absolute -top-2 -right-2 bg-amber-400 text-slate-900 text-[9px] font-black px-2 py-0.5 rounded-full uppercase tracking-wide shadow-md">
-              Bientôt
-            </span>
+            
           </div>
 
           <div className="text-center space-y-2">
-            <h3 className="font-black text-slate-800 text-sm tracking-tight">Chat IA — Bientôt disponible</h3>
+            <h3 className="font-black text-slate-800 text-sm tracking-tight">Assistant conversationnel</h3>
             <p className="text-[11px] text-slate-500 leading-relaxed max-w-[220px]">
-              Le chat conversationnel avec Crown Bot sera disponible dans la prochaine version.
+              Cette fonction n’est pas accessible depuis cet écran.
             </p>
           </div>
 
@@ -631,7 +629,7 @@ export function CrownBotChat({
           </div>
 
           <p className="text-[9px] text-slate-400 font-bold uppercase tracking-widest">
-            Crown Bot V2 — En développement
+            Assistant Digital Crown
           </p>
         </div>
       )}
@@ -646,8 +644,8 @@ export function CrownBotChat({
                 <BrainCircuit size={14} />
               </div>
               <div>
-                <p className="text-[10px] font-black text-primary uppercase tracking-widest leading-none">Mémoire contextuelle V2</p>
-                <p className="text-[8px] text-slate-400 font-bold mt-0.5">Conscience Proactive</p>
+                <p className="text-[10px] font-black text-primary uppercase tracking-widest leading-none">Mémoire contextuelle</p>
+                <p className="text-[8px] text-slate-400 font-bold mt-0.5">Suivi contextuel</p>
               </div>
             </div>
             {unreadCount > 0 && (

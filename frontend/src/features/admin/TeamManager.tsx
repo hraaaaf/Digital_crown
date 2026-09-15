@@ -450,7 +450,7 @@ export const TeamManager: React.FC = () => {
                   { key: 'prescriptions', label: 'Prescriptions', desc: 'Rédaction d\'ordonnances cliniques' },
                   { key: 'accounting', label: 'Comptabilité & Chiffres', desc: 'Statistiques financières et paiements' },
                   { key: 'payments', label: 'Encaissements', desc: 'Valider et enregistrer les paiements' },
-                  { key: 'clinical', label: 'Examen Clinique & IA', desc: 'Diagnostic, plan de traitement, synthèses IA' },
+                  { key: 'clinical', label: 'Examen clinique & assistance', desc: 'Examen, plan de traitement et synthèses cliniques' },
                   { key: 'panoramic', label: 'Imagerie OPG IA', desc: 'Analyses radio panoramiques' },
                   { key: 'cephalo', label: 'Tracés Céphalométriques', desc: 'Analyses et rapports ortho' },
                   { key: 'settings', label: 'Réglages Cabinet', desc: 'Configuration de l\'en-tête et thèmes' }
@@ -699,7 +699,7 @@ export const TeamManager: React.FC = () => {
                 { key: 'prescriptions', label: 'Prescriptions', desc: 'Rédaction d\'ordonnances cliniques' },
                 { key: 'accounting', label: 'Comptabilité & Chiffres', desc: 'Statistiques financières et paiements' },
                 { key: 'payments', label: 'Encaissements', desc: 'Valider et enregistrer les paiements' },
-                { key: 'clinical', label: 'Examen Clinique & IA', desc: 'Diagnostic, plan de traitement, synthèses IA' },
+                { key: 'clinical', label: 'Examen clinique & assistance', desc: 'Examen, plan de traitement et synthèses cliniques' },
                 { key: 'panoramic', label: 'Imagerie OPG IA', desc: 'Analyses radio panoramiques' },
                 { key: 'cephalo', label: 'Tracés Céphalométriques', desc: 'Analyses et rapports ortho' },
                 { key: 'settings', label: 'Réglages Cabinet', desc: 'Configuration de l\'en-tête et thèmes' }

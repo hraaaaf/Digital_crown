@@ -162,12 +162,6 @@ export const WaitingRoomPage = () => {
     <div className="p-6 max-w-7xl mx-auto space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
 
       <div className="space-y-3">
-        {/* Bientôt disponible */}
-        <div className="px-4 py-2 bg-amber-50 border border-amber-200 rounded-xl text-xs font-bold text-amber-700 flex items-center gap-2">
-          <span className="text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-600 border border-amber-500/20">Bientôt</span>
-          Module disponible. Les fonctions affichées sont celles actuellement prises en charge.
-        </div>
-
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>
