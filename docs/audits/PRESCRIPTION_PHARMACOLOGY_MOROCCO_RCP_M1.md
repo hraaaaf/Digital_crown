@@ -8,7 +8,7 @@ Construire un snapshot local, versionné et vérifiable des preuves réglementai
 
 ## Success
 
-M1 est clos uniquement lorsque chaque présentation prioritaire possède une identité réglementaire unique, un statut AMM/commercialisation sourcé, un état RCP explicite (`PENDING_DOWNLOAD`, `SNAPSHOT_VERIFIED` ou `UNAVAILABLE_VERIFIED`) et, pour tout RCP capturé, une URL officielle exacte, une date et une empreinte SHA-256.
+M1 est clos uniquement lorsque chaque présentation prioritaire possède une identité réglementaire unique, un statut AMM/commercialisation sourcé, un état RCP explicite (`PENDING_DOWNLOAD`, `SNAPSHOT_VERIFIED` ou `UNAVAILABLE_VERIFIED`) et, pour tout RCP capturé, une URL officielle exacte, une date et une empreinte SHA-256 concordant avec l'artefact local réellement présent.
 
 Aucune ligne M1 n'autorise à elle seule une posologie ou un passage vers `AUTO_OK_MAROC`.
 
@@ -94,11 +94,14 @@ Infrastructure actuellement implémentée :
 - source obligatoire = entrée `PENDING_DOWNLOAD` déjà fail-closed ;
 - artefact capturé doit commencer par la signature PDF ;
 - URL RCP obligatoire en HTTPS sur domaine AMMPS officiel ;
-- date de contrôle ISO `YYYY-MM-DD` obligatoire ;
+- date de contrôle strictement `YYYY-MM-DD` ;
 - artefact local limité à `backend/data/rcp/*.pdf` ;
-- SHA-256 calculé sur les octets exacts du PDF ;
+- l'artefact déclaré doit exister réellement ;
+- les octets de l'artefact local doivent correspondre exactement aux octets capturés ;
+- SHA-256 calculé sur l'artefact local réel, pas sur une valeur déclarative ;
+- `snapshot_is_verified(...)` relit l'artefact local et refuse un hash discordant ou un fichier absent ;
 - résultat construit par copie, sans mutation silencieuse de l'entrée source ;
-- tests négatifs couvrent faux PDF, domaine non officiel, date invalide, chemin non sûr et entrée source polluée.
+- tests négatifs couvrent faux PDF, domaine non officiel, date invalide, chemin non sûr, fichier absent, hash faux, mismatch d'octets et entrée source polluée.
 
 État de preuve : aucun PDF RCP AMMPS n'a encore été physiquement capturé dans ce lot. Donc aucune entrée n'est encore promue en `SNAPSHOT_VERIFIED`.
 
@@ -111,11 +114,12 @@ Une revue scientifique indépendante distincte de l'agent auteur reste obligatoi
 1. identifier la présentation réglementaire exacte ;
 2. récupérer le document depuis l'AMMPS officielle ;
 3. conserver URL officielle exacte + date ;
-4. calculer SHA-256 ;
-5. seulement alors passer à `SNAPSHOT_VERIFIED` ;
-6. extraire ensuite uniquement les champs explicitement présents ;
-7. toute donnée absente/ambiguë reste `PENDING_*` ou review ;
-8. une recherche web négative ne prouve jamais l'absence d'un RCP.
+4. conserver l'artefact réel sous `backend/data/rcp/...` ;
+5. vérifier que les octets locaux correspondent aux octets capturés puis calculer SHA-256 ;
+6. seulement alors passer à `SNAPSHOT_VERIFIED` ;
+7. extraire ensuite uniquement les champs explicitement présents ;
+8. toute donnée absente/ambiguë reste `PENDING_*` ou review ;
+9. une recherche web négative ne prouve jamais l'absence d'un RCP.
 
 ## Non-régression obligatoire
 
