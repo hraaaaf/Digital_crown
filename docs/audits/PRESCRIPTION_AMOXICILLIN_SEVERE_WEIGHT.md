@@ -13,6 +13,7 @@ Sécuriser l’adaptation de l’amoxicilline lorsqu’une infection dentaire s�
 - entre 6 mois et 11 ans, poids réel obligatoire ;
 - le plafond SDCEP `jusqu’à 30 mg/kg par prise, max 1 g, 3 fois/jour` est calculé comme borne, pas comme prescription automatique ;
 - l’absence de poids échoue fermé ;
+- une insuffisance rénale structurée bloque toute adaptation automatique ;
 - les adolescents sont revus manuellement lorsque la recommandation dentaire par âge et le SmPC pondéral doivent être réconciliés ;
 - aucune valeur explicitement saisie par le praticien n’est écrasée ;
 - le gate Maroc reste inchangé ;
@@ -35,7 +36,8 @@ https://www.medicines.org.uk/emc/product/14146/smpc
 
 Le SmPC impose de tenir compte de la sévérité, de l’âge, du poids et de la fonction rénale. Pour l’abcès dentaire avec cellulite diffuse :
 - adultes et enfants >=40 kg : en infection sévère, 750 mg à 1 g toutes les 8 heures ;
-- enfants <40 kg : 40 à 90 mg/kg/j en prises réparties.
+- enfants <40 kg : 40 à 90 mg/kg/j en prises réparties ;
+- l’insuffisance rénale nécessite des adaptations dépendant du niveau de fonction rénale/GFR.
 
 ## Divergence importante
 
@@ -48,10 +50,11 @@ Chez certains adolescents légers, une lecture purement par âge de l’escalade
 1. vérifie que la molécule est bien l’amoxicilline simple ;
 2. exige `DentalAbscessContext.severeInfection === true` ;
 3. conserve tous les blocages antérieurs (allergie, absence de preuve, etc.) ;
-4. 6 mois–11 ans : exige le poids réel et calcule uniquement la borne `min(30 mg/kg, 1000 mg)` par prise ;
-5. adolescent sans poids : `requires_weight` ;
-6. adolescent/adulte sévère : `requires_review`, aucune dose internationale sélectionnée automatiquement ;
-7. les saisies explicites du praticien restent inchangées mais signalées pour validation.
+4. insuffisance rénale structurée : `requires_review`, aucune adaptation automatique ;
+5. 6 mois–11 ans : exige le poids réel et calcule uniquement la borne `min(30 mg/kg, 1000 mg)` par prise ;
+6. adolescent sans poids : `requires_weight` ;
+7. adolescent/adulte sévère : `requires_review`, aucune dose internationale sélectionnée automatiquement ;
+8. les saisies explicites du praticien restent inchangées mais signalées pour validation.
 
 Le pipeline expose `dentalAbscessContext` comme paramètre explicite. Il n’est pas construit depuis du texte clinique libre.
 
@@ -62,6 +65,7 @@ Couverture ajoutée :
 - enfant sévère sans poids => `requires_weight` ;
 - enfant 20 kg => plafond 600 mg/prise, aucune dose auto ;
 - plafond absolu 1 g ;
+- insuffisance rénale structurée => fail-closed ;
 - adolescent sévère sans poids => `requires_weight` ;
 - adolescent sévère avec poids => `requires_review` ;
 - valeurs praticien explicites préservées ;
