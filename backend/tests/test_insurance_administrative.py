@@ -8,7 +8,6 @@ from backend.schemas.insurance_submission import (
     InsuranceLineSource,
     InsuranceMappingStatus,
     InsuranceOrganization,
-    InsuranceRequestNature,
     InsuranceSubmissionDraft,
     InsuranceSubmissionLine,
     InsuranceTemplateSnapshot,
@@ -96,17 +95,21 @@ def test_cnss_prefill_uses_only_explicit_patient_and_practitioner_facts(db, dent
     assert admin.practitioner_inpe == "INPE-12345"
     assert admin.care_type == InsuranceCareType.SOINS
 
-    # Never infer insured identity from beneficiary data/address.
+    # Never infer the upper insured section from beneficiary data/address.
     assert admin.insured_full_name is None
     assert admin.insured_address is None
     assert admin.relationship_to_insured is None
-    assert "administrative.insured_full_name" in result.unresolved_fields
-    assert "administrative.insured_registration_number" in result.unresolved_fields
-    assert "administrative.insured_national_id" in result.unresolved_fields
-    assert "administrative.insured_address" in result.unresolved_fields
-    assert "administrative.relationship_to_insured" in result.unresolved_fields
+
+    # The cabinet-validated CNSS profile deliberately leaves the insured section
+    # untouched, so these fields are not blockers for practitioner validation.
+    assert "administrative.insured_full_name" not in result.unresolved_fields
+    assert "administrative.insured_registration_number" not in result.unresolved_fields
+    assert "administrative.insured_national_id" not in result.unresolved_fields
+    assert "administrative.insured_address" not in result.unresolved_fields
+    assert "administrative.relationship_to_insured" not in result.unresolved_fields
+    assert "administrative.request_nature" not in result.unresolved_fields
+
     assert "administrative.beneficiary_national_id" in result.unresolved_fields
-    assert "administrative.request_nature" in result.unresolved_fields
     assert "administrative.practitioner_inpe" not in result.unresolved_fields
     assert result.status == InsuranceDraftStatus.INCOMPLETE
 
@@ -128,16 +131,10 @@ def test_unknown_legal_identifier_is_not_guessed_as_inpe(db, dentiste):
     assert "administrative.practitioner_inpe" in result.unresolved_fields
 
 
-def test_complete_manual_admin_plus_exact_mapping_becomes_ready_for_review(db, dentiste):
+def test_validated_cnss_zone_plus_exact_mapping_becomes_ready_for_review(db, dentiste):
     patient = _patient(db, dentiste, suffix="READY")
     acte = _acte(db, patient, dentiste)
-    complete = InsuranceAdministrativeSnapshot(
-        request_nature=InsuranceRequestNature.EXECUTION,
-        insured_full_name="Assure Test",
-        insured_registration_number="123456789",
-        insured_national_id="AB123456",
-        insured_address="Rabat",
-        relationship_to_insured="LUI_MEME",
+    complete_validated_zone = InsuranceAdministrativeSnapshot(
         beneficiary_full_name="Youssef PatientREADY",
         beneficiary_birth_date=date(1992, 4, 3),
         beneficiary_national_id="AB123456",
@@ -149,10 +146,12 @@ def test_complete_manual_admin_plus_exact_mapping_becomes_ready_for_review(db, d
     )
     result = prefill_cnss_administrative(
         db,
-        draft=_draft(patient.id, acte.id, exact=True, administrative=complete),
+        draft=_draft(patient.id, acte.id, exact=True, administrative=complete_validated_zone),
         patient=patient,
         practitioner=dentiste,
     )
+    assert result.administrative.insured_full_name is None
+    assert result.administrative.request_nature is None
     assert result.unresolved_fields == []
     assert result.status == InsuranceDraftStatus.READY_FOR_REVIEW
 
