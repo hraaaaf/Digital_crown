@@ -23,7 +23,7 @@ def replace_or_verify(path: str, old: str, new: str) -> None:
     raise SystemExit(f'{path}: expected old once or verified new once; old={old_count}, new={new_count}')
 
 
-# Mobile production security: keep the guarantees, remove implementation vocabulary.
+# Mobile production security: keep guarantees, remove implementation vocabulary.
 path = 'frontend/src/features/mobile/Dashboard/views/SecuriteView.tsx'
 for old, new in [
     ('Terminal Appairé', 'Téléphone connecté'),
@@ -41,7 +41,7 @@ for old, new in [
 ]:
     replace_exact(path, old, new)
 
-# Desktop settings security: user language only.
+# Desktop settings security.
 path = 'frontend/src/features/admin/Security/MobileSecurity.tsx'
 for old, new in [
     ('Créez un pont sécurisé vers une surface mobile précise.', 'Connectez un téléphone à l’espace mobile de votre choix.'),
@@ -57,7 +57,7 @@ for old, new in [
 ]:
     replace_exact(path, old, new)
 
-# Demo security is user-visible too: remove developer vocabulary from the preview route.
+# Demo security.
 path = 'frontend/src/features/mobile/Dashboard/MobilePreviewSecurityView.tsx'
 for old, new in [
     ('Aucun appel réseau vers Digital Crown local.', 'Aucune connexion au cabinet réel.'),
@@ -68,7 +68,32 @@ for old, new in [
 ]:
     replace_exact(path, old, new)
 
-# Extend the permanent scanner to keep these implementation terms out of rendered copy.
+# Additional rendered wording surfaced by the strengthened scanner.
+for path, old, new in [
+    ('frontend/src/features/agenda/AppointmentMobileBridge.tsx', 'aria-label="Pont mobile rendez-vous"', 'aria-label="Rendez-vous sur mobile"'),
+    ('frontend/src/features/agenda/AppointmentMobileBridge.tsx', '>Pont mobile<', '>Accès mobile<'),
+    ('frontend/src/features/agenda/AppointmentMobileBridge.tsx', 'aria-label="Fermer le pont mobile rendez-vous"', 'aria-label="Fermer l’accès mobile rendez-vous"'),
+    ('frontend/src/features/mobile/Context/MobileContext.tsx', 'Contexte résolu côté serveur · aucun identifiant rendez-vous dans l’URL', 'Rendez-vous vérifié de manière sécurisée'),
+    ('frontend/src/features/mobile/Dashboard/components/MobileHeader.tsx', "'Sync…'", "'Mise à jour…'"),
+    ('frontend/src/features/mobile/Dashboard/MobilePreviewBotView.tsx', 'Preview locale · données fictives', 'Démonstration locale · données fictives'),
+    ('frontend/src/features/mobile/Dashboard/MobilePreviewBotView.tsx', 'Assistant désactivé dans la Preview', 'Assistant désactivé dans cette démonstration'),
+    ('frontend/src/features/mobile/Dashboard/MobilePreviewDashboard.tsx', 'MODE DÉMO — PREVIEW LOCALE', 'MODE DÉMO — DONNÉES FICTIVES'),
+    ('frontend/src/features/mobile/Onboarding/MobilePreviewOnboarding.tsx', 'MODE DÉMO — PREVIEW VERCEL', 'MODE DÉMO — PARCOURS FICTIF'),
+    ('frontend/src/features/mobile/Onboarding/OnboardingScanner.tsx', '>Zero-Knowledge<', '>Données protégées<'),
+    ('frontend/src/features/mobile/Onboarding/OnboardingScanner.tsx', 'La clé AES-256 reste sur ce téléphone. Aucune donnée lisible ne quitte votre réseau local.', 'Les informations de connexion restent protégées sur ce téléphone. Aucune donnée lisible ne quitte le cabinet.'),
+    ('frontend/src/features/mobile/Security/MobileBiometricGate.tsx', 'Le QR d’appairage et la révocation du cabinet restent obligatoires. La passkey ne remplace jamais l’identité serveur.', 'Le QR de connexion et la révocation du cabinet restent obligatoires. La biométrie ne remplace jamais l’identification du compte.'),
+    ('frontend/src/features/ortho/components/SyncBadge.tsx', "label: 'Erreur sync'", "label: 'Échec de mise à jour'"),
+    ('frontend/src/features/panoramic/PanoramicMobileBridge.tsx', 'aria-label="Pont mobile radio panoramique"', 'aria-label="Radiographie panoramique sur mobile"'),
+    ('frontend/src/features/panoramic/PanoramicMobileBridge.tsx', '>Pont mobile<', '>Accès mobile<'),
+    ('frontend/src/features/panoramic/PanoramicMobileBridge.tsx', 'aria-label="Fermer le pont mobile"', 'aria-label="Fermer l’accès mobile"'),
+    ('frontend/src/features/patients/DocumentMobileBridge.tsx', 'aria-label="Pont mobile document"', 'aria-label="Document sur mobile"'),
+    ('frontend/src/features/patients/DocumentMobileBridge.tsx', '>Pont mobile<', '>Accès mobile<'),
+    ('frontend/src/features/patients/DocumentMobileBridge.tsx', 'aria-label="Fermer le pont mobile document"', 'aria-label="Fermer l’accès mobile document"'),
+    ('frontend/src/pages/PartnerCatalogAdminPage.tsx', 'label="Sync mode"', 'label="Mode de mise à jour"'),
+]:
+    replace_exact(path, old, new)
+
+# Permanent scanner.
 path = 'frontend/src/ClientFacingCopyCandidateAudit.test.ts'
 anchor = "  { label: 'integration field jargon', re: /\\b(?:URL\\s+API|Mode\\s+sync)\\b/i },\n"
 block = anchor + """  { label: 'security implementation vocabulary', re: /Zero-Knowledge|AES-256|\\bpasskey\\b|\\bcoffre\\s+local\\b/i },
@@ -78,7 +103,7 @@ block = anchor + """  { label: 'security implementation vocabulary', re: /Zero-K
 """
 replace_exact(path, anchor, block)
 
-# Existing visual harnesses must follow the new user-facing labels, not restore old copy.
+# Existing harnesses must follow user-facing labels.
 replace_or_verify(
     'frontend/scripts/capture-mobile-superadmin-mob5h-after.mjs',
     "dispatch: await page.getByRole('button', { name: /Dispatch fournisseur/i }).isVisible(),",
