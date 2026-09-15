@@ -1,6 +1,6 @@
 # Prescription Pharmacology — Age & Weight Safety
 
-Status: ACTIVE
+Status: VALIDATED — PRE-MERGE
 
 ## Goal
 
@@ -50,4 +50,27 @@ Le modificateur pondéral d’amoxicilline en infection sévère n’est pas act
 
 ## Proof
 
-À compléter après commit, tests ciblés, CI exacte et revue du diff. Aucun changement UI/UX dans ce sous-lot, donc aucune capture BEFORE/AFTER n’est requise à ce stade.
+HEAD fonctionnel certifié : `46f695b62abc40172b376c2f5ada41c7156736ed`.
+
+PR #511, exact-head checks :
+- CI #4327 : SUCCESS ;
+- Ordonnance Fidelity V3 Visual Certification #176 : SUCCESS ;
+- T2 Runtime Browser Certification #3214 : SUCCESS ;
+- Patient P7 Final Certification #1646 : SUCCESS ;
+- Cabinet Upgrade PostgreSQL Certification #729 : SUCCESS ;
+- Settings R11 TemplateBuilder Dependency Audit #745 : SUCCESS ;
+- M6-I Biometric Passkey Certification #2014 : skipped, hors périmètre du diff.
+
+Frontend `tests & build` : SUCCESS dans CI #4327.
+
+Cas de sécurité couverts par les tests du sous-lot :
+- 10 ans / 25 kg : schéma âge ibuprofène 300 mg x3 = 900 mg/j, plafond pondéral 750 mg/j => `requires_review`, aucun regimen automatique ;
+- 10 ans / 30 kg : plafond 900 mg/j => schéma source-backed conservé ;
+- poids absent : aucun poids inventé, règle âge existante conservée ;
+- dose/posologie explicitement saisies par le praticien : jamais écrasées silencieusement, même lorsque la revue est exigée.
+
+Diff fonctionnel revu : 1 commit fonctionnel initial, 4 fichiers touchés, aucune modification UI/UX et aucune modification DB. Le garde-fou ne crée aucune posologie de remplacement et ne contourne pas le gate Maroc.
+
+Aucune capture BEFORE/AFTER requise pour ce sous-lot : comportement de sécurité interne sans modification visuelle.
+
+Merge autorisable uniquement après certification du commit documentaire de closeout et vérification finale de la PR. Aucun déploiement Vercel.
