@@ -47,6 +47,7 @@ for old, new in [
     ('Créez un pont sécurisé vers une surface mobile précise.', 'Connectez un téléphone à l’espace mobile de votre choix.'),
     ('Pont mobile sécurisé', 'Connexion mobile sécurisée'),
     ("Choisissez l'utilisateur et la destination. Le QR contient uniquement un secret éphémère ; aucune donnée patient n'y est encodée.", "Choisissez l’utilisateur et l’espace à ouvrir. Le QR ne contient aucune donnée patient et expire automatiquement."),
+    ('Générer le pont mobile', 'Générer le QR de connexion'),
     ('Impossible de générer le pont mobile.', 'Impossible de générer le QR de connexion.'),
     ('alt="Pont QR Digital Crown Mobile"', 'alt="QR de connexion Digital Crown Mobile"'),
     ("Aucune donnée patient dans le QR. La destination est validée côté serveur après l'appairage.", 'Aucune donnée patient dans le QR. L’accès s’ouvre uniquement vers l’espace choisi.'),
@@ -87,4 +88,9 @@ replace_or_verify(
     'frontend/scripts/capture-mobile-marketplace-mob5g.mjs',
     "await page.getByRole('button', { name: 'Préparer le DRAFT' }).click();",
     "await page.getByRole('button', { name: 'Préparer le brouillon' }).click();",
+)
+replace_or_verify(
+    '.github/workflows/settings-security-visual-cert.yml',
+    "const generateTarget = page.getByRole('button', { name: 'Générer le pont mobile', exact: true });",
+    "const generateTarget = page.getByRole('button', { name: 'Générer le QR de connexion', exact: true });",
 )
