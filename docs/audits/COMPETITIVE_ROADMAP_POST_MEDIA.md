@@ -86,10 +86,13 @@ D0 explicitly does **not** include patient UI, remote gateway, consent UX, appoi
 
 ### D1 — activation/onboarding UI + minimum useful shell
 
-**Status: READY FOR PR — implementation complete; owner visual validation accepted; exact-head PR CI / merge pending.**
+**Status: CLOSED — merged, owner-validated and post-merge certified.**
 
 Canonical: `docs/audits/PATIENT_COMPANION_D1.md`
-Branch: `feat/patient-companion-d1-ui`
+PR: **#512 — MERGED**
+Certified PR head: `26806bfc93f1ef59845002467fab45aa00a5d171`
+Squash merge: `0895296867fa1b27ecbccd77ffcb8614ef83e04f`
+Post-merge CI #4404 / run `35003086120`, attempt 2: **SUCCESS**
 
 Implemented scope:
 - public Patient Companion entry independent from staff auth;
@@ -103,36 +106,51 @@ Implemented scope:
 - no cabinet sidebar, no shared cabinet JWT, no patient byte serving;
 - native Digital Crown theme tokens consumed by the Patient Companion surface; no parallel glass system.
 
-Visual sequence completed:
-1. BEFORE capture certified;
-2. Goal written;
-3. mockup/reference locked;
-4. implementation completed;
-5. AFTER captured at 390×844, 768×1024, 1280×900;
-6. comparison/tests performed;
-7. final themed AFTER run `34969236348` **SUCCESS** on `e92dc5e9b2459c2737e3a72587c3266ff9045bca`;
-8. 9/9 captures valid, zero D1 overflow/browser errors/unexpected egress;
-9. owner human visual validation **ACCEPTED 2026-09-15**;
-10. visual assessment **9/10**.
+Final visual proof:
+- exact-head AFTER run `34999967279` **SUCCESS** on `26806bfc93f1ef59845002467fab45aa00a5d171`;
+- artifact `10408724608`;
+- digest `sha256:c9e349e0a7f2324a9608f26b23f867c0fcbaaf8e853a5b30fd85c9efd46eca51`;
+- patient-facing `public-entry`, `home`, `activation` captured at 390×844, 768×1024, 1280×900;
+- 9/9 captures valid;
+- zero horizontal overflow, page errors, console errors or unexpected external egress;
+- no staff navigation and no dentist marketing hero on patient public entry;
+- owner human visual validation **ACCEPTED 2026-09-15**;
+- visual assessment **9.2/10**.
 
-Reproducibility cleanup:
+Final non-regression proof:
+- exact-head general CI #4393 / run `34999973162`: **SUCCESS**;
+- PostgreSQL #791: **SUCCESS**;
+- T2 #3276: **SUCCESS**;
+- Patient P7 #1683: **SUCCESS**;
+- Catalog #1286: **SUCCESS**;
+- Media C4 #70: **SUCCESS**;
+- Marketplace #261: **SUCCESS**;
+- PR #512 mergeability and blocking-discussion audit clean before merge;
+- expected-head-protected squash merge completed;
+- `master` verified on `0895296867fa1b27ecbccd77ffcb8614ef83e04f`;
+- post-merge CI #4404 attempt 2 **SUCCESS**;
+- post-merge backend regression: **3541 passed / 10 skipped / 4 warnings**;
+- post-merge frontend tests + build: **SUCCESS**;
+- post-merge production negative guard: **SUCCESS**.
+
+Reproducibility controls retained:
 - Firebase pinned `12.19.0`;
 - `@testing-library/dom` pinned `10.4.1`;
-- frontend lockfile synchronized by run `34970452423` **SUCCESS**;
-- D1 frontend/visual gates switched to `npm ci --legacy-peer-deps`;
-- temporary repair/lock workflows removed.
+- `react-is` explicitly declared;
+- frontend lockfile synchronized;
+- D1 frontend/visual gates use `npm ci --legacy-peer-deps`;
+- temporary repair helpers removed.
 
-D1 still requires exact-head PR certification, merge, post-merge verification and final canonical closeout before CLOSED.
+D1 non-goals remain: no appointment mutation, no patient byte download/open fallback, no employee delegation, no second business source, no remote gateway, no Vercel deployment.
 
 ## 5. Remaining roadmap order
 
-1. Finish D1 closeout — PR / exact-head CI / merge / post-merge
-2. Lot D1+ — useful patient workflows beyond the minimum shell, only after new scope is explicitly bounded
-3. Lot E — Connect Hub
-4. Lot F — Ortho Journey
-5. Lot G — Assurance Maroc
-6. Lot H — Lab / Prosthesis Collaboration
-7. Lot I — BI / Recall / Outcomes
+1. Lot D1+ — useful patient workflows beyond the minimum shell, only after new scope is explicitly bounded
+2. Lot E — Connect Hub
+3. Lot F — Ortho Journey
+4. Lot G — Assurance Maroc
+5. Lot H — Lab / Prosthesis Collaboration
+6. Lot I — BI / Recall / Outcomes
 
 F/G may be swapped if Morocco insurance becomes higher commercial priority.
 
@@ -196,12 +214,13 @@ A lot is not CLOSED until applicable steps are complete:
 
 ## 13. Current state / Next exact
 
-- Media C: CLOSED.
-- Patient Companion D0: CLOSED with exact merge and post-merge evidence recorded.
-- Patient Companion D1: **READY FOR PR**, human visual validation accepted; exact-head PR CI / merge pending.
+- Media C: **CLOSED**.
+- Patient Companion D0: **CLOSED** with exact merge and post-merge evidence recorded.
+- Patient Companion D1: **CLOSED** with exact-head visual proof, human validation, merge and post-merge CI recorded.
+- D1+: not started; scope must be bounded before implementation.
 - E–I: not started.
 - No deployment authorized.
 
-**Next exact:** open D1 PR against current `master`, run exact-head focused + backend/non-regression CI, fix any failure without weakening D0 isolation, merge only when green, then verify post-merge and record final evidence.
+**Next exact:** either bound the D1+ patient workflow scope, or if no additional Patient Companion scope is selected, begin Lot E with an anti-duplication audit of existing notification/push/preferences infrastructure before any implementation.
 
 End of canonical roadmap.
