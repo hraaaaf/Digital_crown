@@ -16,7 +16,10 @@ const TECHNICAL_COPY_PATTERNS = [
   { label: 'fail-closed implementation terminology', re: /\bfail[ -]?closed\b/i },
   { label: 'feature-flag implementation terminology', re: /\bfeature[ -]?flag\b/i },
   { label: 'endpoint implementation terminology', re: /\bendpoint\b/i },
-  { label: 'internal engine terminology', re: /\bmoteur\s+(?:local|safety|clinique|de\s+s[ée]curit[ée])\b/i },
+  { label: 'internal engine terminology', re: /\bmoteur\s+(?:local|safety|clinique|de\s+s[ée]curit[ée]|d[ée]terministe)\b/i },
+  { label: 'deterministic implementation terminology', re: /\bd[ée]terministe(?:ment)?\b/i },
+  { label: 'model-quality implementation jargon', re: /\bSOTA\b|z[ée]ro[- ]hallucination/i },
+  { label: 'internal panoramic engine brand', re: /\bLoki[- ]Silvres(?:\s+V\d+)?\b/i },
   { label: 'internal lot/version terminology', re: /\b(?:lot\s+[A-Z]?\d+|r[èe]gle\s+V\d+|R(?:11|12|13|14|15))\b/i },
   { label: 'internal blocked-state wording', re: /\b(?:suggestion\s+clinique|contr[oô]le\s+clinique\s+automatique)\s+bloqu[ée]e?\b/i },
   { label: 'implementation materialization wording', re: /\bnon\s+mat[ée]rialis[ée]\b/i },
@@ -33,7 +36,7 @@ const TECHNICAL_COPY_PATTERNS = [
   { label: 'security implementation jargon', re: /\b(?:ECDH|LAN)\b/ },
 ];
 
-const USER_COPY_ATTRIBUTES = new Set(['alt', 'aria-label', 'aria-description', 'placeholder', 'title']);
+const USER_COPY_ATTRIBUTES = new Set(['alt', 'aria-label', 'aria-description', 'placeholder', 'title', 'engineName']);
 const USER_COPY_PROPERTIES = new Set(['label', 'title', 'subtitle', 'description', 'message', 'caption', 'helperText', 'emptyText', 'placeholder']);
 const USER_NOTICE_METHODS = new Set(['alert', 'confirm', 'error', 'success', 'loading']);
 
