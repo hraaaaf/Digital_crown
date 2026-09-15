@@ -47,13 +47,14 @@ _LOADED = False
 
 
 def _presentation_id(rec: Dict[str, Any]) -> str:
-    """Identifiant stable dérivé uniquement des champs documentaires de la présentation."""
+    """Identifiant stable dérivé des champs documentaires, sans réattribuer un supplément à CNOPS."""
     canonical = "|".join(
         str(rec.get(field) or "").strip().upper()
         for field in ("nom", "dci", "dosage", "unite", "forme")
     )
     digest = hashlib.sha256(canonical.encode("utf-8")).hexdigest()[:20]
-    return f"cnops:{digest}"
+    prefix = "ma-doc" if isinstance(rec.get("_source"), dict) else "cnops"
+    return f"{prefix}:{digest}"
 
 
 def _load() -> None:
