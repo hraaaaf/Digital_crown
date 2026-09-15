@@ -1,9 +1,11 @@
 # Digital Crown — Patient Companion D1
 
-Status: **READY FOR PR — implementation complete; visual evidence human-validated; exact-head PR CI / merge / post-merge pending**
+Status: **CLOSED — merged, human-validated and post-merge certified**
 
 Repository: `hraaaaf/Digital_crown`
-Branch: `feat/patient-companion-d1-ui`
+Merged PR: `#512`
+Certified candidate HEAD: `26806bfc93f1ef59845002467fab45aa00a5d171`
+Squash merge on `master`: `0895296867fa1b27ecbccd77ffcb8614ef83e04f`
 Canonical predecessor: `docs/audits/PATIENT_COMPANION_D0.md`
 Roadmap: `docs/audits/COMPETITIVE_ROADMAP_POST_MEDIA.md`
 
@@ -33,6 +35,8 @@ D1 is successful only if observable proof shows all of the following:
 12. AFTER evidence exists at exactly 390×844, 768×1024 and 1280×900 with no D1 horizontal overflow, page errors or console errors.
 13. Patient Companion visual surfaces consume the existing Digital Crown theme tokens; no parallel glassmorphism palette/system is introduced.
 
+All 13 criteria are now covered by implementation, visual proof, exact-head certification and post-merge non-regression evidence recorded below.
+
 ## 3. Certified BEFORE
 
 Workflow: `Patient Companion D1 BEFORE` run `34948914354` — **SUCCESS**.
@@ -44,10 +48,8 @@ Observed baseline at 390×844 / 768×1024 / 1280×900:
 - HTTP 200 on all three captures;
 - zero page errors;
 - zero console errors;
-- `Patient Companion` absent;
-- `espace patient` absent;
-- patient activation absent;
-- legacy landing overflow already exists at 390 and 768 and is recorded as a D0 BEFORE defect, not as D1 behavior.
+- no patient-facing Patient Companion entry existed in D0;
+- the captured public landing was the dentist-facing landing and is historical BEFORE evidence only, not a semantic pixel baseline for the final patient-facing public entry.
 
 ## 4. Auth / transport implementation
 
@@ -97,7 +99,7 @@ D0 administration remains intentionally narrow:
 - document/media shares are explicit allow-list grants;
 - full Patient Companion access can be revoked by the practitioner principal.
 
-Current backend `require_companion_admin` reserves Patient Companion administration to the principal `ADMIN` / `DENTISTE` account without an employer parent (plus superadmin). Employee delegation, including assistant administration, remains a D1 non-goal and is not silently enabled.
+Current backend `require_companion_admin` reserves Patient Companion administration to the principal `ADMIN` / `DENTISTE` account without an employer parent, plus superadmin. Employee delegation, including assistant administration, remains a D1 non-goal and is not silently enabled.
 
 ## 7. UI reference and final theme rule
 
@@ -111,16 +113,16 @@ Final theme decision after human review:
 
 - consume Digital Crown native tokens only: `--glass-bg`, `--glass-border`, `--shadow-glass`, theme blur and semantic background/text/border variables;
 - no D1-specific alternative palette or independent glassmorphism values;
-- public landing baseline remains outside the Patient Companion themed surface.
+- patient-facing public entry, activation and home all render inside the Patient Companion themed surface.
 
-## 8. AFTER evidence and human validation
+## 8. Final AFTER evidence and human validation
 
-Final themed visual proof:
+Final exact-head visual proof:
 
-- workflow: `Patient Companion D1 AFTER` run `34969236348` — **SUCCESS**;
-- exact product/capture HEAD: `e92dc5e9b2459c2737e3a72587c3266ff9045bca`;
-- artifact id: `10397070398`;
-- artifact digest: `sha256:3147a1604bb481e6e889d96b278b95d2713f045ddeda1030721e0f17da3549af`;
+- workflow: `Patient Companion D1 AFTER` run `34999967279` — **SUCCESS**;
+- exact product/capture HEAD: `26806bfc93f1ef59845002467fab45aa00a5d171`;
+- artifact id: `10408724608`;
+- artifact digest: `sha256:c9e349e0a7f2324a9608f26b23f867c0fcbaaf8e853a5b30fd85c9efd46eca51`;
 - states: `public-entry`, `home`, `activation`;
 - viewports: `390x844`, `768x1024`, `1280x900`;
 - 9/9 captures valid;
@@ -128,45 +130,84 @@ Final themed visual proof:
 - zero page errors;
 - zero console errors;
 - zero unexpected external egress;
-- no horizontal overflow on D1 patient states;
-- known legacy public landing overflow remains baseline-only at 390/768;
-- native Patient Companion theme stylesheet and `data-surface='patient-companion'` are loaded by the final visual harness;
-- human visual validation: **ACCEPTED by owner on 2026-09-15**.
+- zero horizontal overflow on all 9 captures;
+- public-entry confirmed patient-facing, with no staff navigation and no dentist marketing hero;
+- native Patient Companion theme tokens loaded by the final visual harness;
+- owner human visual validation: **ACCEPTED 2026-09-15**;
+- PR label `ui-human-visual-approved` applied only after that exact-head validation.
 
-Visual assessment after native-theme correction: **9/10**. This is not a production-readiness score and does not replace PR/non-regression proof.
+Visual assessment after final patient-facing correction: **9.2/10**. This is a visual score only, not a production-readiness claim.
 
-## 9. Focused implementation proof already obtained
+## 9. Exact-head PR proof
 
-Before final documentation closeout:
+Certified candidate: `26806bfc93f1ef59845002467fab45aa00a5d171`.
 
-- focused `Patient Companion D1 check` previously succeeded on the functional D1 candidate;
-- final themed AFTER run above succeeded;
-- D0 backend security workflow exists to recertify the D0 boundary;
-- frontend manifest pins Firebase `12.19.0` and `@testing-library/dom` `10.4.1`;
-- one-shot lock synchronization run `34970452423` succeeded;
-- `frontend/package-lock.json` is synchronized with the exact manifest;
-- D1 frontend and visual workflows now install with `npm ci --legacy-peer-deps`;
-- temporary repair/lock helper workflows have been removed.
+Observed exact-head evidence before merge:
 
-Exact-head PR CI is still required before merge.
+- `Patient Companion D1 AFTER` run `34999967279`: **SUCCESS**;
+- general CI run `34999973162` / CI `#4393`: **SUCCESS**;
+- Cabinet Upgrade PostgreSQL Certification `34999973302` / `#791`: **SUCCESS**;
+- Mobile SuperAdmin MOB-5H `34999973202` / `#103`: **SUCCESS**;
+- Patient UX1-C Overlay Visual `34999973190` / `#133`: **SUCCESS**;
+- Media C4 Visual `34999973220` / `#70`: **SUCCESS**;
+- Catalog Connected Truth `34999973268` / `#1286`: **SUCCESS**;
+- T2 Runtime Browser `34999973185` / `#3276`: **SUCCESS**;
+- Patient P7 Final `34999973243` / `#1683`: **SUCCESS**;
+- Marketplace Final Certification `34999973277` / `#261`: **SUCCESS**;
+- M6-I Biometric Passkey was skipped as expected;
+- PR #512 was mergeable, non-draft, with no blocking comments/reviews/threads observed before merge.
 
-## 10. D1 non-goals
+Reproducibility controls retained:
+
+- Firebase pinned `12.19.0`;
+- `@testing-library/dom` pinned `10.4.1`;
+- `react-is` declared explicitly for frontend runtime reproducibility;
+- frontend lockfile synchronized;
+- D1 frontend/visual gates use `npm ci --legacy-peer-deps`;
+- temporary repair helpers removed.
+
+## 10. Merge and post-merge proof
+
+PR `#512 — Patient Companion D1: secure patient UI and native theme` was squash-merged with expected-head protection.
+
+- certified PR head: `26806bfc93f1ef59845002467fab45aa00a5d171`;
+- squash merge commit: `0895296867fa1b27ecbccd77ffcb8614ef83e04f`;
+- `master` verified on that merge SHA after merge;
+- merge commit signature: verified;
+- post-merge CI run `35003086120` / CI `#4404`, attempt 2: **SUCCESS**;
+- post-merge frontend tests + build: **SUCCESS**;
+- post-merge production negative guard: **SUCCESS**;
+- post-merge backend regression including DB / patients / documents: **3541 passed / 10 skipped / 4 warnings**;
+- the first attempt of #4404 was cancelled after its substantive test steps had succeeded; only the cancelled job was rerun, and attempt 2 completed successfully.
+
+This is the final non-regression proof for D1 closeout.
+
+## 11. D1 non-goals
 
 No appointment create/edit/cancel, no clinical decisions, no implicit document/media access, no byte download endpoint, no remote/home gateway, no employee delegation, no second business model/store, no destructive migration, no Vercel deployment.
 
-## 11. Required proof before CLOSED
+## 12. Closure decision
 
-Still required:
+**D1 = CLOSED.**
 
-- PR created from `feat/patient-companion-d1-ui` to `master`;
-- exact-head focused frontend check with reproducible lockfile install;
-- exact-head D0 backend security/runtime recertification;
-- proportional non-regression CI covering DB/patients/documents as applicable;
-- PR comments/reviews/mergeability checked;
-- merge;
-- post-merge CI / behavior verification;
-- roadmap and this canonical updated with exact merge/post-merge evidence.
+Closure basis:
 
-## 12. Next exact
+- bounded scope implemented;
+- D0 security boundary preserved;
+- exact-head functional and visual certification obtained;
+- human visual validation obtained on the final exact head;
+- proportional non-regression checks green;
+- PR merged with exact expected head;
+- post-merge CI green on the exact merge SHA;
+- canonical and roadmap reconciled with final evidence.
 
-Open the D1 PR against current `master`, run exact-head certification/non-regression CI, resolve any failure without weakening D0 boundaries, then merge only if all required proof is green. No Vercel deployment is authorised.
+No Vercel deployment was performed or authorised.
+
+## 13. Next exact
+
+Do not reopen D1 unless a demonstrated regression or new bounded scope requires it.
+
+Next product work is either:
+
+- define and bound `D1+` patient workflows without weakening D0/D1 isolation; or
+- proceed to Lot E `Connect Hub` and first run an anti-duplication audit against the existing notification/push/preferences infrastructure.
