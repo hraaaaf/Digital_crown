@@ -48,26 +48,24 @@ Do not reopen Media C6/C7 unless a real regression or new scope is demonstrated.
 
 ### D0 — identity / authorization foundation
 
-**Status:** CLOSEOUT HEAD CANDIDATE — latest-master alignment complete; exact-head certification, merge and post-merge remaining.
+**Status: CLOSED — merged and post-merge certified.**
 
 Canonical: `docs/audits/PATIENT_COMPANION_D0.md`
-PR: **#490**
-Runtime candidate before documentation closeout: `3119c316548d3b75c52dacd2a4e12cd9fe79a894`
-Base master: `0aa34f39ca97fd3a220bc8a5d9d9ae3e5412c8`
+PR: **#490 — MERGED**
+Certified PR head: `e57fa6f8aed2be1b6f47baad3976586ff3c603c4`
+Squash merge: `f61103ee971bd6e64317d8fc0bc759246fa2fd57`
+Post-merge CI #4243 / run `34943083332`: **SUCCESS**
 
-Verified structural state before documentation closeout:
-- PR #490 open and mergeable;
-- D0 overlay restricted to 11 Patient Companion files, including minimal frontdesk router composition;
-- no prescription/cephalo implementation file in the D0 PR diff after latest-master alignment;
-- pre-closeout audit found 0 reviews, 0 review threads and 0 comments.
-
-Historical D0-specific evidence before master realignment:
-- candidate `e5b841a9f22cee7d83573cb8479bd5835a728151`;
-- Cabinet Upgrade PostgreSQL #592 **SUCCESS**;
-- Patient P7 #1557 **SUCCESS**;
-- T2 Runtime Browser #3077 **SUCCESS**.
-
-These runs are retained as historical evidence only. Final certification must use the final documentation closeout HEAD after alignment with current master.
+Final evidence:
+- exact-head CI #4220 **SUCCESS**, including full backend regression DB / patients / documents;
+- backend exact-head result observed before merge: **3495 passed / 10 skipped**;
+- PostgreSQL #632 **SUCCESS**;
+- Patient P7 #1587 **SUCCESS**;
+- T2 #3117 **SUCCESS**;
+- final PR audit found no blocking reviews, review threads or comments;
+- expected-head-protected squash merge completed;
+- `master` verified on `f61103ee971bd6e64317d8fc0bc759246fa2fd57` after merge;
+- post-merge CI #4243 **SUCCESS** on that exact merge SHA.
 
 D0 implemented:
 - separate Firebase patient principal;
@@ -86,11 +84,11 @@ D0 implemented:
 
 D0 explicitly does **not** include patient UI, remote gateway, consent UX, appointment mutations, content byte-serving, Connect Hub or Vercel deployment.
 
-### D1 — next sublot after D0 merge
+### D1 — activation/onboarding UI + minimum useful shell
 
-**Status:** NOT STARTED.
+**Status: NEXT — not yet implemented.**
 
-Goal: patient activation/onboarding UI and minimum useful companion shell on top of D0.
+Goal: patient activation/onboarding UI and minimum useful companion shell on top of the certified D0 security boundary.
 
 Mandatory UI sequence:
 1. BEFORE capture;
@@ -105,7 +103,7 @@ D1 must not weaken D0 auth isolation. Remote/home access remains a separate gate
 
 ## 5. Remaining roadmap order
 
-1. Lot D — Patient Companion
+1. Lot D1+ — Patient Companion UI / useful patient workflows
 2. Lot E — Connect Hub
 3. Lot F — Ortho Journey
 4. Lot G — Assurance Maroc
@@ -175,10 +173,11 @@ A lot is not CLOSED until applicable steps are complete:
 ## 13. Current state / Next exact
 
 - Media C: CLOSED.
-- Patient Companion D0: latest-master alignment complete; both closeout canoniques are being finalized on PR #490; D0 is not CLOSED.
-- D1–I: not started.
+- Patient Companion D0: **CLOSED** with exact merge and post-merge evidence recorded.
+- Patient Companion D1: NEXT, not yet implemented.
+- E–I: not started.
 - No deployment authorized.
 
-**Next exact:** certify the final documentation closeout HEAD of PR #490 → if green, recheck comments/reviews/threads/mergeability → squash merge with expected HEAD protection → verify post-merge `master` CI → record merged evidence and mark D0 CLOSED → start D1 with mandatory UI BEFORE evidence.
+**Next exact:** verify the documentation-closeout `master` HEAD and its CI, then start D1 with mandatory BEFORE evidence → written Goal → mockup/reference → implementation → AFTER at 390×844 / 768×1024 / 1280×900 → comparison/tests → visual score.
 
 End of canonical roadmap.
