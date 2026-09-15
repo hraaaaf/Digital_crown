@@ -66,6 +66,19 @@ def _is_safe_local_artifact_path(value: Any) -> bool:
     )
 
 
+def _is_strict_iso_date(value: Any) -> bool:
+    if not isinstance(value, str):
+        return False
+    normalized = value.strip()
+    if not _ISO_DATE_RE.fullmatch(normalized):
+        return False
+    try:
+        date.fromisoformat(normalized)
+    except ValueError:
+        return False
+    return True
+
+
 def manifest_metadata() -> Dict[str, Any]:
     manifest = _load_manifest()
     entries = manifest.get("entries") if isinstance(manifest.get("entries"), list) else []
@@ -104,7 +117,7 @@ def snapshot_is_verified(entry: Dict[str, Any]) -> bool:
         and _SHA256_RE.fullmatch(sha256)
         and _is_official_ammps_url(entry.get("source_page_url"))
         and _is_official_ammps_url(entry.get("rcp_url"))
-        and entry.get("rcp_checked_at")
+        and _is_strict_iso_date(entry.get("rcp_checked_at"))
         and _is_safe_local_artifact_path(entry.get("local_artifact_path"))
     )
 
@@ -139,7 +152,7 @@ def entry_is_fail_closed(entry: Dict[str, Any]) -> bool:
 
     # UNAVAILABLE_VERIFIED : absence explicitement prouvée par la source officielle.
     return bool(
-        entry.get("rcp_checked_at")
+        _is_strict_iso_date(entry.get("rcp_checked_at"))
         and entry.get("unavailability_evidence") == _UNAVAILABLE_EVIDENCE
         and rcp_url is None
         and entry.get("rcp_sha256") is None
@@ -172,12 +185,8 @@ def prepare_verified_snapshot_entry(
         raise ValueError("RCP URL must use the official AMMPS HTTPS domain")
 
     normalized_date = checked_at.strip() if isinstance(checked_at, str) else ""
-    if not _ISO_DATE_RE.fullmatch(normalized_date):
+    if not _is_strict_iso_date(normalized_date):
         raise ValueError("checked_at must be an ISO date (YYYY-MM-DD)")
-    try:
-        date.fromisoformat(normalized_date)
-    except ValueError:
-        raise ValueError("checked_at must be an ISO date (YYYY-MM-DD)") from None
 
     if not _is_safe_local_artifact_path(local_artifact_path):
         raise ValueError("RCP artifact path must stay under backend/data/rcp")
