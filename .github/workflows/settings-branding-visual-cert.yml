@@ -60,7 +60,7 @@ jobs:
             qr_code_enabled:false, show_patient_badges:true, performance_mode:false, clinical_tips_enabled:true,
             hide_header:true, hide_footer:true, cabinet_type:'PRIVE'
           };
-          const server=await createServer({server:{host:'127.0.0.1',port:4178,strictPort:true},clearScreen:false}); await server.listen();
+          const server=await createServer({server:{host:'127.0.0.1',port:4178,strictPort:true},clearScreen:false,optimizeDeps:{include:['workbox-window']}}); await server.listen();
           const browser=await chromium.launch();
           try {
             for (const width of [1440,1024,768,430,390]) {

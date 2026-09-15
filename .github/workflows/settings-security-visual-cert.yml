@@ -211,10 +211,13 @@ jobs:
               if not match:
                   raise SystemExit(f'Frozen AFTER block missing: {target}')
               lines = [line[10:] if line.startswith('          ') else line for line in match.group(1).splitlines()]
+              content = '\n'.join(lines) + '\n'
+              if target == 'mobile-m64-after.mjs':
+                  content = content.replace("'Recettes Jour'", "'Recettes du jour'")
               destination = Path('frontend') / target
               destination.parent.mkdir(parents=True, exist_ok=True)
-              destination.write_text('\n'.join(lines) + '\n')
-          print('Versioned M6.4 AFTER scenario extracted')
+              destination.write_text(content)
+          print('Versioned M6.4 AFTER scenario extracted with current client wording')
           PY
 
       - name: Mirror production MobileProtectedRoute pairing gate

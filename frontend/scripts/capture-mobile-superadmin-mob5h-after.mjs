@@ -120,7 +120,7 @@ try {
     await page.getByText('DC-DEMO-42A1-8BC2').waitFor({ state: 'visible' });
     await screenshotState(page, viewport, 'trials');
 
-    await page.locator('header').getByRole('button', { name: 'Marketplace' }).click();
+    await page.locator('header').getByRole('button', { name: 'Approvisionnement' }).click();
     await page.getByText('Dental Supply Demo').waitFor({ state: 'visible' });
     const marketplaceCapabilities = {
       suppliers: await page.getByRole('button', { name: 'Fournisseurs' }).isVisible(),
