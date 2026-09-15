@@ -79,10 +79,11 @@ def _load() -> None:
         return
 
     records: List[Dict[str, Any]] = []
+    # Preserve the historical source precedence for all legacy APIs.
     for path, source in (
-        (_AMMPS_CURRENT_DATA_PATH, AMMPS_CURRENT_SOURCE),
         (_AMMPS_DATA_PATH, AMMPS_RMMG_SOURCE),
         (_DATA_PATH, CATALOG_SOURCE),
+        (_AMMPS_CURRENT_DATA_PATH, AMMPS_CURRENT_SOURCE),
     ):
         try:
             records.extend(_read_records(path, source))
@@ -97,6 +98,15 @@ def _load() -> None:
 def _record_source(rec: Dict[str, Any]) -> Dict[str, Any]:
     source = rec.get("_source")
     return dict(source) if isinstance(source, dict) else dict(CATALOG_SOURCE)
+
+
+def _regulatory_records() -> List[Dict[str, Any]]:
+    """Regulatory APIs prefer the dated current AMMPS snapshot, legacy APIs do not."""
+    current_source_id = AMMPS_CURRENT_SOURCE["id"]
+    return sorted(
+        _MEDS,
+        key=lambda rec: 0 if _record_source(rec).get("id") == current_source_id else 1,
+    )
 
 
 def catalog_metadata() -> Dict[str, Any]:
@@ -236,8 +246,8 @@ def _matches_query(rec: Dict[str, Any], query: str) -> bool:
 def search(q: str, limit: int = 30) -> List[Dict[str, Any]]:
     """Recherche documentaire historique par nom commercial ou DCI.
 
-    Le comportement de déduplication historique reste inchangé. Pour distinguer les
-    conditionnements réglementaires, utiliser `search_regulatory_presentations`.
+    Le comportement et la priorité des sources historiques restent inchangés. Pour
+    distinguer les conditionnements réglementaires, utiliser `search_regulatory_presentations`.
     """
     _load()
     query = (q or "").upper().strip()
@@ -268,7 +278,7 @@ def search_regulatory_presentations(q: str, limit: int = 100) -> List[Dict[str, 
 
     hits: List[Dict[str, Any]] = []
     seen: set[str] = set()
-    for rec in _MEDS:
+    for rec in _regulatory_records():
         if not _matches_query(rec, query):
             continue
         regulatory_key = _regulatory_presentation_key(rec)
@@ -299,7 +309,7 @@ def get_regulatory_presentation(regulatory_presentation_id: str) -> Optional[Dic
     wanted = (regulatory_presentation_id or "").strip()
     if not wanted:
         return None
-    for rec in _MEDS:
+    for rec in _regulatory_records():
         if _regulatory_presentation_id(rec) == wanted:
             return _public_presentation(rec)
     return None
