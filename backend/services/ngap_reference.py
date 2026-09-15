@@ -69,23 +69,45 @@ class NgapRelease:
         return True
 
 
-@dataclass(frozen=True)
-class NgapResolution:
-    status: InsuranceMappingStatus
-    code: Optional[str] = None
-    coefficient: Optional[float] = None
-    official_label: Optional[str] = None
-    mapping_rule_id: Optional[str] = None
-    release_version: Optional[str] = None
-    release_hash: Optional[str] = None
-    requires_prior_approval: bool = False
-    requires_radiograph: bool = False
-
-
-def _normalized_pdf_text(value: str) -> str:
+def _basic_normalized_pdf_text(value: str) -> str:
     normalized = unicodedata.normalize("NFKD", value or "")
     ascii_text = "".join(char for char in normalized if not unicodedata.combining(char))
     return " ".join(ascii_text.lower().split())
+
+
+def _decode_legacy_sgg_text(value: str) -> str:
+    """Decode the legacy glyph encoding used by the official SGG BO 5414 PDF.
+
+    The source renders correctly but has no usable ToUnicode mapping: PyMuPDF returns
+    glyph codes shifted by 29 positions (for example ``%8//(7,1`` for ``BULLETIN``).
+    Decode only when both characteristic SGG signatures are present, so ordinary PDFs
+    keep the strict native-text path.
+    """
+    if "%8//(7,1" not in value or "QRPHQFODWXUH" not in value:
+        return ""
+
+    decoded: list[str] = []
+    for char in value:
+        if char in "\r\n\t ":
+            decoded.append(char)
+            continue
+        codepoint = ord(char)
+        if codepoint <= 0x7F and codepoint + 29 <= 0xFF:
+            decoded.append(chr(codepoint + 29))
+        else:
+            decoded.append(char)
+
+    # Accented glyphs used in the legal title land on control-code positions after
+    # the shift. Map only the values required to recover the official French markers.
+    return "".join(decoded).translate({0x8D: "é", 0x8F: "ê", 0x83: "°"})
+
+
+def _normalized_pdf_text(value: str) -> str:
+    native = _basic_normalized_pdf_text(value)
+    legacy_sgg = _decode_legacy_sgg_text(value)
+    if not legacy_sgg:
+        return native
+    return f"{native}\n{_basic_normalized_pdf_text(legacy_sgg)}"
 
 
 def lock_ngap_primary_pdf(
