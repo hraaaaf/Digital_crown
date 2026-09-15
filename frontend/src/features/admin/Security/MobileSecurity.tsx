@@ -134,7 +134,7 @@ export const MobileSecurity = () => {
       if (response.data.contains_patient_data !== false) {
         setPairing(null);
         setCountdown(0);
-        throw new Error('Réponse de pont mobile non conforme.');
+        throw new Error('Réponse de connexion mobile non valide.');
       }
     } catch (error: any) {
       const detail = error?.response?.data?.detail;
@@ -145,17 +145,17 @@ export const MobileSecurity = () => {
   };
 
   const handleRevoke = async () => {
-    if (!window.confirm("Révoquer immédiatement toutes les sessions mobiles existantes de ce cabinet ? Les téléphones devront être appairés à nouveau.")) return;
+    if (!window.confirm("Déconnecter immédiatement tous les téléphones de ce cabinet ? Ils devront être connectés à nouveau avec un QR.")) return;
 
     setIsRevoking(true);
     try {
       await api.post('/admin/revoke-mobile');
-      setStatus({ type: 'success', msg: "Sessions mobiles révoquées. Un nouvel appairage est nécessaire." });
+      setStatus({ type: 'success', msg: "Tous les téléphones ont été déconnectés. Un nouveau QR de connexion est nécessaire." });
       setPairing(null);
       setCountdown(0);
     } catch (error: any) {
       const detail = error?.response?.data?.detail;
-      setStatus({ type: 'error', msg: typeof detail === 'string' ? detail : "Impossible de confirmer la révocation mobile." });
+      setStatus({ type: 'error', msg: typeof detail === 'string' ? detail : "Impossible de déconnecter les téléphones." });
     } finally {
       setIsRevoking(false);
       setTimeout(() => setStatus(null), 5000);

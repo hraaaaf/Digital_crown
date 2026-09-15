@@ -451,7 +451,7 @@ export const TeamManager: React.FC = () => {
                   { key: 'accounting', label: 'Comptabilité & Chiffres', desc: 'Statistiques financières et paiements' },
                   { key: 'payments', label: 'Encaissements', desc: 'Valider et enregistrer les paiements' },
                   { key: 'clinical', label: 'Examen clinique & assistance', desc: 'Examen, plan de traitement et synthèses cliniques' },
-                  { key: 'panoramic', label: 'Imagerie OPG IA', desc: 'Analyses radio panoramiques' },
+                  { key: 'panoramic', label: 'Imagerie panoramique', desc: 'Analyses radio panoramiques' },
                   { key: 'cephalo', label: 'Tracés Céphalométriques', desc: 'Analyses et rapports ortho' },
                   { key: 'settings', label: 'Réglages Cabinet', desc: 'Configuration de l\'en-tête et thèmes' }
                 ].map((perm) => (
@@ -700,7 +700,7 @@ export const TeamManager: React.FC = () => {
                 { key: 'accounting', label: 'Comptabilité & Chiffres', desc: 'Statistiques financières et paiements' },
                 { key: 'payments', label: 'Encaissements', desc: 'Valider et enregistrer les paiements' },
                 { key: 'clinical', label: 'Examen clinique & assistance', desc: 'Examen, plan de traitement et synthèses cliniques' },
-                { key: 'panoramic', label: 'Imagerie OPG IA', desc: 'Analyses radio panoramiques' },
+                { key: 'panoramic', label: 'Imagerie panoramique', desc: 'Analyses radio panoramiques' },
                 { key: 'cephalo', label: 'Tracés Céphalométriques', desc: 'Analyses et rapports ortho' },
                 { key: 'settings', label: 'Réglages Cabinet', desc: 'Configuration de l\'en-tête et thèmes' }
               ].map((perm) => {

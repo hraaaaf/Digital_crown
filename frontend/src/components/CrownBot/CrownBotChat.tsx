@@ -208,7 +208,7 @@ function getPageContext(pathname: string): { title: string; desc: string; sugges
   if (/^\/settings/.test(pathname)) return {
     title: 'Paramètres',
     desc: "Vous configurez le cabinet. Besoin d'aide pour la facturation, le branding ou les préférences de l’assistant ?",
-    suggestions: ['Configurer la facturation', 'Branding du cabinet', 'Paramètres IA'],
+    suggestions: ['Configurer la facturation', 'Branding du cabinet', 'Paramètres de l’assistant'],
   };
   if (/^\/bibliotheque/.test(pathname)) return {
     title: 'Bibliothèque',
