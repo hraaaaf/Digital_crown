@@ -31,6 +31,9 @@ jobs:
       - name: Apply security and harness copy hygiene
         run: python scripts/finalize_security_copy.py
 
+      - name: Fail closed unknown displayed statuses
+        run: python scripts/finalize_status_fallback.py
+
       - name: Install frontend dependencies
         working-directory: frontend
         run: npm ci
@@ -56,6 +59,7 @@ jobs:
         run: |
           rm .github/workflows/client-copy-security-finalize.yml
           rm scripts/finalize_security_copy.py
+          rm scripts/finalize_status_fallback.py
 
       - name: Commit verified patch
         run: |
