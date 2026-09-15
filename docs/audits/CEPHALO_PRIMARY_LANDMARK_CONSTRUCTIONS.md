@@ -1,6 +1,6 @@
 # Céphalo-N — Constructions primaires par analyse
 
-Statut : **SOURCE-LOCK PRIMAIRE V1 — GATE TWEED OUVERT — ZÉRO CODE CLINIQUE**
+Statut : **SOURCE-LOCK PRIMAIRE V2 — DÉCISION TWEED FERMÉE — ZÉRO CODE CLINIQUE**
 
 Date : 2026-09-15
 
@@ -14,9 +14,9 @@ Dépend de :
 
 **Goal** — verrouiller, analyse par analyse, les constructions géométriques réellement décrites par les sources primaires avant toute extension du moteur.
 
-**Succès** — pour chaque construction critique : source/version, définition, convention Digital Crown actuelle et verdict `MATCH`, `PARTIAL`, `WRONG_VARIANT`, `MISSING` ou `SOURCE_LOCK_REQUIRED`.
+**Succès** — pour chaque construction critique : source/version, définition, convention Digital Crown actuelle et verdict `MATCH`, `PARTIAL`, `WRONG_VARIANT`, `MISSING`, `SOURCE_LOCK_REQUIRED` ou `SELECTED_DC_CONTRACT`.
 
-**Preuve** — articles primaires Steiner 1953, Tweed 1954, Ricketts et al. 1972, Ricketts 1981 et McNamara 1984, recoupés avec les modules géométriques actuels de Digital Crown.
+**Preuve** — articles primaires Steiner 1953, Tweed 1954, Ricketts et al. 1972, Ricketts 1981 et McNamara 1984, recoupés avec les modules géométriques actuels de Digital Crown, plus décision clinique du 2026-09-15 de conserver `Po-Or` pour le Frankfort Tweed Digital Crown.
 
 Aucune norme nouvelle, interprétation diagnostique ou modification de calcul n’est activée par ce document.
 
@@ -24,12 +24,13 @@ Aucune norme nouvelle, interprétation diagnostique ou modification de calcul n�
 
 # 1. Verdict transversal
 
-| Analyse/version | Construction critique | Source primaire | DC actuel | Verdict |
+| Analyse/version | Construction critique | Source primaire / décision | DC actuel | Verdict |
 |---|---|---|---|---|
 | Steiner 1953 | SN, NA, NB, axes incisifs, Go-Gn | Steiner 1953 | modules dédiés correspondants | `MATCH/PARTIAL` selon landmark supply |
 | Steiner 1953 | distances U1-NA / L1-NB | Steiner 1953 | volontairement absentes | `MISSING_CORONAL_SURFACE` |
-| Tweed 1954 strict | Frankfort du triangle | Tweed 1954 | `Po-Or` | **`WRONG_VARIANT_FOR_1954`** |
-| Tweed 1954 | axe incisive inférieure apex→bord incisif | Tweed 1954 | apex→incisal | `MATCH` |
+| Tweed 1954 strict historique | Frankfort du triangle | Tweed 1954 | `Po-Or` | `WRONG_VARIANT_FOR_1954` si présenté comme strict historique |
+| Digital Crown Tweed | Frankfort du triangle | décision clinique DC 2026-09-15 | `Po-Or` | **`SELECTED_DC_CONTRACT`** |
+| Tweed | axe incisive inférieure apex→bord incisif | Tweed 1954 | apex→incisal | `MATCH` |
 | McNamara 1984 | FH | Po anatomique-Orbitale | primitives Po-Or | `MATCH_GEOMETRY / AUTO_ID_UNVERIFIED` |
 | McNamara 1984 | Nasion perpendicular | ⟂ FH par N | primitive réutilisable | `MATCH_GEOMETRY` |
 | McNamara 1984 | Co-A / Co-Gn anatomique / ANS-Me | article 1984 | module linéaire dédié | `MATCH_GEOMETRY / LANDMARK_GATE` |
@@ -92,7 +93,7 @@ Aucun `D_point` SRPose local ne peut être déclaré automatiquement équivalent
 
 ---
 
-# 3. Tweed — triangle strict 1954
+# 3. Tweed — source historique 1954 et contrat Digital Crown retenu
 
 Source primaire : Charles H. Tweed, **“The Frankfort-mandibular incisor angle (FMIA) in orthodontic diagnosis, treatment planning and prognosis”**, *Angle Orthodontist*, 1954;24:121-169.
 
@@ -117,13 +118,13 @@ Il ne s’agit donc pas, dans ce papier 1954, d’un `Porion anatomique → Orbi
 
 Le code ne construit aucun point « 4,5 mm au-dessus du centre de l’ear rod ».
 
-### Verdict
+### Verdict historique
 
 `DC_TWEED_PO_OR_V1 ≠ TWEED_1954_STRICT_FH`
 
-Classification : **`WRONG_VARIANT_FOR_TWEED_1954_STRICT`**.
+Classification historique : `WRONG_VARIANT_FOR_TWEED_1954_STRICT` si l’on prétend reproduire mot pour mot la construction de 1954.
 
-Cela ne signifie pas que `Po-Or` est une mauvaise référence clinique en général. Cela signifie qu’elle **ne doit pas être présentée comme la construction exacte de Tweed 1954**.
+Cela ne signifie pas que `Po-Or` est une mauvaise référence clinique. Cela signifie seulement que la provenance doit être correctement nommée.
 
 ## 3.2 Incisive inférieure
 
@@ -136,14 +137,24 @@ Le module Digital Crown utilise `L1_apex → L1_incisal`.
 
 **Verdict** : `MATCH_GEOMETRY`, sous réserve du mapping anatomique des deux points.
 
-## 3.3 Human gate Tweed
+## 3.3 Décision clinique Digital Crown — fermée
 
-Avant toute activation « Tweed strict 1954 », il faut choisir explicitement entre :
+Décision clinique du 2026-09-15 : **conserver notre façon de tracer Frankfort avec `Po-Or`** pour Tweed.
 
-- `TWEED_1954_STRICT_EAR_ROD_FH` : reproduction historique du papier ;
-- `DC_TWEED_ANATOMICAL_FH_VARIANT` : conserver Po-Or, mais le nommer/versionner comme variante distincte.
+Contrat retenu :
 
-Aucun changement automatique n’est autorisé dans cette PR car il modifierait les valeurs FMA/FMIA et donc le sens des normes historiques.
+`DC_TWEED_ANATOMICAL_FH_VARIANT = Porion anatomique → Orbitale`
+
+Conséquences :
+
+- FMA/FMIA actuels ne sont pas recalculés ni migrés ;
+- aucune donnée patient ou document historique n’est modifié ;
+- l’implémentation runtime actuelle reste inchangée ;
+- `TWEED_1954_STRICT_EAR_ROD_FH` reste documenté comme variante historique non active ;
+- l’UI et la documentation future ne doivent pas présenter la variante DC comme reproduction géométrique stricte du papier 1954 ;
+- toute future couche normative Tweed doit versionner explicitement sa compatibilité avec `DC_TWEED_ANATOMICAL_FH_VARIANT`. Les normes historiques ne doivent pas être déclarées strictement concordantes avec une géométrie différente sans validation.
+
+**Verdict Digital Crown** : `SELECTED_DC_CONTRACT`.
 
 ---
 
@@ -231,7 +242,7 @@ Ricketts 1981 précise que l’analyse latérale utilise le **true Frankfort hor
 
 **Verdict DC** : `MATCH_GEOMETRY` pour Po-Or, mais `AUTO_ID_UNVERIFIED` tant que le canal `Po` du détecteur n’est pas anatomiquement validé.
 
-Cette convention est explicitement différente du Frankfort historique de Tweed 1954.
+Cette convention est explicitement différente du Frankfort historique de Tweed 1954, tout en coïncidant avec le choix actif `Po-Or` de Digital Crown pour Tweed.
 
 ## 5.2 Facial axis et Gn céphalométrique
 
@@ -317,7 +328,7 @@ Le conflit normatif Ag-Ag reste `NORM_HOLD` : le cue sheet indique +1,25 mm/an a
 
 ## 6.1 IDs à séparer obligatoirement
 
-- `FH_TWEED_1954_EAR_ROD` ≠ `FH_ANATOMIC_PO_OR` ;
+- `FH_TWEED_1954_EAR_ROD` ≠ `FH_DC_TWEED_PO_OR_V1` ; le second est le contrat Digital Crown retenu ;
 - `Pt_Ricketts` ≠ `PTM_McNamara` ;
 - `Gn_Ricketts_cephalometric` / `Gn_McNamara_constructed` doivent porter leur convention, même si leurs constructions peuvent coïncider ;
 - `Gn_McNamara_anatomic` reste distinct du Gn construit ;
@@ -333,13 +344,15 @@ Une ligne clinique ne doit pas être partagée uniquement parce qu’elle utilis
 
 ---
 
-# 7. Gate clinique réel
+# 7. Gates scientifiques
 
-## Gate A — Tweed
+## Gate A — Tweed geometry
 
-**Ouvert.** L’implémentation actuelle `Po-Or` ne reproduit pas le Frankfort du papier Tweed 1954 strict.
+**Fermé.** Contrat retenu : `DC_TWEED_ANATOMICAL_FH_VARIANT = Po-Or`. Aucun changement runtime n’est nécessaire, puisque le moteur calcule déjà FMA/FMIA avec `Po-Or`.
 
-Aucune modification de formule ne doit être faite avant décision de version : historique strict vs variante anatomique moderne Digital Crown.
+Le contrat historique `TWEED_1954_STRICT_EAR_ROD_FH` reste documenté mais non actif.
+
+La compatibilité des **normes historiques strictes** avec la variante DC reste un sujet distinct de source-lock normatif ; elle ne doit pas être supposée par simple héritage du nom « Tweed ».
 
 ## Gate B — SRPose semantics
 
@@ -353,9 +366,10 @@ Aucune modification de formule ne doit être faite avant décision de version : 
 
 # 8. Next exact
 
-1. Reclasser le contrat Tweed actuel comme `DC_TWEED_ANATOMICAL_FH_VARIANT` tant qu’il n’est pas décidé de reproduire la construction historique 1954.
-2. Écrire les contrats scientifiques de landmarks/constructions sans changer les valeurs runtime.
-3. Créer ensuite des fixtures manuelles source-lockées pour tester les primitives géométriques.
-4. N’implémenter une nouvelle mesure qu’après fermeture de son gate landmark + plan/ligne + modalité.
+1. matérialiser `DC_TWEED_ANATOMICAL_FH_VARIANT = Po-Or` dans les futurs contrats scientifiques sans modifier les valeurs runtime ;
+2. écrire les contrats scientifiques de landmarks/constructions restants ;
+3. créer des fixtures manuelles source-lockées pour tester les primitives géométriques ;
+4. n’implémenter une nouvelle mesure qu’après fermeture de son gate landmark + plan/ligne + modalité ;
+5. traiter séparément le source-lock des normes Tweed pour la variante DC.
 
 Aucune mesure clinique, norme ou interprétation n’a été modifiée dans ce lot.
