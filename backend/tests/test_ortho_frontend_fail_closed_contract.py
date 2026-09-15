@@ -51,8 +51,9 @@ def test_step3_is_practitioner_controlled_and_contains_no_local_clinical_thresho
     )
     for token in forbidden:
         assert token not in source, f"unsafe Step3 semantic reintroduced: {token}"
-    assert "Note thérapeutique libre legacy — hors R13/R14" in source
-    assert "elle ne sélectionne aucune option R13 et ne valide aucune stratégie R14." in source
+    assert "Notes praticien importées : origine non vérifiée." in source
+    assert "Ils ne valent ni diagnostic validé ni décision thérapeutique." in source
+    assert "5. Note thérapeutique libre — à valider" in source
     assert "Stade CVM — saisie manuelle" in source
     assert "Le stade CVM n'est jamais déduit de l'âge ou du sexe" in source
 

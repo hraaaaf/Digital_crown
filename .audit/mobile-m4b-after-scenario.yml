@@ -76,7 +76,7 @@ scenario:
           try {
             for (const viewport of [{ width: 1280, height: 900 }, { width: 768, height: 1024 }]) {
               const { context, page, errors } = await setup(viewport); await page.goto('http://127.0.0.1:4183/mobile-m4b-after.html?view=desktop', { waitUntil: 'networkidle' });
-              await page.getByText('Studio Panoramique - BENNANI Sara', { exact: true }).waitFor({ state: 'visible', timeout: 15000 }); await page.getByRole('button', { name: 'Historique', exact: true }).first().click(); await page.getByText('Historique des examens (1)', { exact: true }).waitFor({ state: 'visible' });
+              await page.getByText('Radiographie panoramique - BENNANI Sara', { exact: true }).waitFor({ state: 'visible', timeout: 15000 }); await page.getByRole('button', { name: 'Historique', exact: true }).first().click(); await page.getByText('Historique des examens (1)', { exact: true }).waitFor({ state: 'visible' });
               await capture(page, errors, `history-${viewport.width}x${viewport.height}`, 'desktop-history', viewport);
               await page.getByRole('button', { name: 'Ouvrir cette radio panoramique sur mobile', exact: true }).click(); await page.getByRole('button', { name: 'Générer le QR', exact: true }).click(); await page.getByText('427315', { exact: true }).waitFor({ state: 'visible' });
               await capture(page, errors, `bridge-${viewport.width}x${viewport.height}`, 'desktop-bridge', viewport); await context.close();
