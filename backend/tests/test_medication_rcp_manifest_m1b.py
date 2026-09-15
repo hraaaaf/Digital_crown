@@ -1,10 +1,21 @@
+import hashlib
 from pathlib import Path
+
+import pytest
 
 from backend.services import medication_dict, medication_rcp_manifest
 
 
 CURRENT_SOURCE_ID = "ammps-medications-current-2026-09-15"
 OFFICIAL_SOURCE_PAGE = "https://www.ammps.gov.ma/recherche-medicaments?page=42"
+
+
+def _write_local_artifact(tmp_path, monkeypatch, relative_path: str, payload: bytes) -> Path:
+    monkeypatch.setattr(medication_rcp_manifest, "_REPO_ROOT", tmp_path)
+    artifact = tmp_path / Path(relative_path)
+    artifact.parent.mkdir(parents=True, exist_ok=True)
+    artifact.write_bytes(payload)
+    return artifact
 
 
 def test_rcp_manifest_covers_exact_current_amoxicillin_regulatory_ids():
@@ -46,14 +57,19 @@ def test_rcp_reader_has_no_historical_fallback():
     assert medication_rcp_manifest.get_rcp_evidence(regulatory_id) is None
 
 
-def test_snapshot_verified_requires_complete_hash_official_provenance_and_safe_path():
+def test_snapshot_verified_requires_complete_hash_official_provenance_and_real_artifact(tmp_path, monkeypatch):
+    pdf_bytes = b"%PDF-1.7\nverified local artifact\n%%EOF"
+    relative_path = "backend/data/rcp/example.pdf"
+    _write_local_artifact(tmp_path, monkeypatch, relative_path, pdf_bytes)
+    expected_hash = hashlib.sha256(pdf_bytes).hexdigest()
+
     incomplete = {
         "capture_status": "SNAPSHOT_VERIFIED",
         "source_page_url": OFFICIAL_SOURCE_PAGE,
         "rcp_url": "https://www.ammps.gov.ma/example.pdf",
         "rcp_sha256": None,
         "rcp_checked_at": "2026-09-15",
-        "local_artifact_path": "backend/data/rcp/example.pdf",
+        "local_artifact_path": relative_path,
         "extracted_clinical_fields": {},
     }
     assert medication_rcp_manifest.snapshot_is_verified(incomplete) is False
@@ -61,10 +77,44 @@ def test_snapshot_verified_requires_complete_hash_official_provenance_and_safe_p
 
     complete = {
         **incomplete,
-        "rcp_sha256": "a" * 64,
+        "rcp_sha256": expected_hash,
     }
     assert medication_rcp_manifest.snapshot_is_verified(complete) is True
     assert medication_rcp_manifest.entry_is_fail_closed(complete) is True
+
+    wrong_hash = {
+        **complete,
+        "rcp_sha256": "a" * 64,
+    }
+    assert medication_rcp_manifest.snapshot_is_verified(wrong_hash) is False
+    assert medication_rcp_manifest.entry_is_fail_closed(wrong_hash) is False
+
+    missing_artifact = {
+        **complete,
+        "local_artifact_path": "backend/data/rcp/missing.pdf",
+    }
+    assert medication_rcp_manifest.snapshot_is_verified(missing_artifact) is False
+    assert medication_rcp_manifest.entry_is_fail_closed(missing_artifact) is False
+
+    txt_path = "backend/data/rcp/not-a-pdf.txt"
+    _write_local_artifact(tmp_path, monkeypatch, txt_path, pdf_bytes)
+    wrong_extension = {
+        **complete,
+        "local_artifact_path": txt_path,
+    }
+    assert medication_rcp_manifest.snapshot_is_verified(wrong_extension) is False
+    assert medication_rcp_manifest.entry_is_fail_closed(wrong_extension) is False
+
+    disguised_path = "backend/data/rcp/disguised.pdf"
+    disguised_bytes = b"plain text pretending to be a PDF"
+    _write_local_artifact(tmp_path, monkeypatch, disguised_path, disguised_bytes)
+    disguised_file = {
+        **complete,
+        "local_artifact_path": disguised_path,
+        "rcp_sha256": hashlib.sha256(disguised_bytes).hexdigest(),
+    }
+    assert medication_rcp_manifest.snapshot_is_verified(disguised_file) is False
+    assert medication_rcp_manifest.entry_is_fail_closed(disguised_file) is False
 
     non_official = {
         **complete,
@@ -79,6 +129,13 @@ def test_snapshot_verified_requires_complete_hash_official_provenance_and_safe_p
     }
     assert medication_rcp_manifest.snapshot_is_verified(unsafe_path) is False
     assert medication_rcp_manifest.entry_is_fail_closed(unsafe_path) is False
+
+    malformed_date = {
+        **complete,
+        "rcp_checked_at": "20260915",
+    }
+    assert medication_rcp_manifest.snapshot_is_verified(malformed_date) is False
+    assert medication_rcp_manifest.entry_is_fail_closed(malformed_date) is False
 
 
 def test_unavailable_verified_requires_explicit_official_absence_and_no_artifact():
@@ -107,6 +164,12 @@ def test_unavailable_verified_requires_explicit_official_absence_and_no_artifact
     }
     assert medication_rcp_manifest.entry_is_fail_closed(fake_artifact) is False
 
+    malformed_date = {
+        **valid,
+        "rcp_checked_at": "20260915",
+    }
+    assert medication_rcp_manifest.entry_is_fail_closed(malformed_date) is False
+
 
 def test_missing_link_is_not_promoted_to_unavailable_verified():
     entries = medication_rcp_manifest._load_manifest()["entries"]
@@ -114,6 +177,117 @@ def test_missing_link_is_not_promoted_to_unavailable_verified():
     assert clamoxyl
     assert all(entry["rcp_link_observed"] is False for entry in clamoxyl)
     assert all(entry["capture_status"] == "PENDING_DOWNLOAD" for entry in clamoxyl)
+
+
+def test_prepare_verified_snapshot_entry_hashes_real_artifact_without_mutating_source(tmp_path, monkeypatch):
+    original = medication_rcp_manifest._load_manifest()["entries"][0]
+    original_copy = dict(original)
+    pdf_bytes = b"%PDF-1.7\nRCP test fixture without clinical content\n%%EOF"
+    relative_path = "backend/data/rcp/example.pdf"
+    _write_local_artifact(tmp_path, monkeypatch, relative_path, pdf_bytes)
+    rcp_url = "https://www.ammps.gov.ma/sites/default/files/rcp/example.pdf"
+
+    prepared = medication_rcp_manifest.prepare_verified_snapshot_entry(
+        original,
+        pdf_bytes=pdf_bytes,
+        rcp_url=rcp_url,
+        checked_at="2026-09-15",
+        local_artifact_path=relative_path,
+    )
+
+    assert original == original_copy
+    assert original["capture_status"] == "PENDING_DOWNLOAD"
+    assert prepared["capture_status"] == "SNAPSHOT_VERIFIED"
+    assert prepared["rcp_url"] == rcp_url
+    assert prepared["rcp_sha256"] == hashlib.sha256(pdf_bytes).hexdigest()
+    assert prepared["rcp_checked_at"] == "2026-09-15"
+    assert prepared["local_artifact_path"] == relative_path
+    assert prepared["extracted_clinical_fields"] == {}
+    assert medication_rcp_manifest.entry_is_fail_closed(prepared) is True
+
+
+def test_prepare_verified_snapshot_entry_rejects_mismatched_declared_artifact(tmp_path, monkeypatch):
+    original = medication_rcp_manifest._load_manifest()["entries"][0]
+    relative_path = "backend/data/rcp/example.pdf"
+    _write_local_artifact(tmp_path, monkeypatch, relative_path, b"%PDF-1.7\nlocal bytes\n%%EOF")
+
+    with pytest.raises(ValueError, match="do not match"):
+        medication_rcp_manifest.prepare_verified_snapshot_entry(
+            original,
+            pdf_bytes=b"%PDF-1.7\ncaptured bytes\n%%EOF",
+            rcp_url="https://www.ammps.gov.ma/rcp/example.pdf",
+            checked_at="2026-09-15",
+            local_artifact_path=relative_path,
+        )
+
+
+def test_prepare_verified_snapshot_entry_rejects_missing_local_artifact(tmp_path, monkeypatch):
+    monkeypatch.setattr(medication_rcp_manifest, "_REPO_ROOT", tmp_path)
+    original = medication_rcp_manifest._load_manifest()["entries"][0]
+
+    with pytest.raises(ValueError, match="must exist"):
+        medication_rcp_manifest.prepare_verified_snapshot_entry(
+            original,
+            pdf_bytes=b"%PDF-1.7\n%%EOF",
+            rcp_url="https://www.ammps.gov.ma/rcp/example.pdf",
+            checked_at="2026-09-15",
+            local_artifact_path="backend/data/rcp/missing.pdf",
+        )
+
+
+@pytest.mark.parametrize(
+    ("pdf_bytes", "rcp_url", "checked_at", "local_artifact_path"),
+    [
+        (b"not-a-pdf", "https://www.ammps.gov.ma/rcp/example.pdf", "2026-09-15", "backend/data/rcp/example.pdf"),
+        (b"%PDF-1.7\n%%EOF", "https://example.com/rcp.pdf", "2026-09-15", "backend/data/rcp/example.pdf"),
+        (b"%PDF-1.7\n%%EOF", "https://www.ammps.gov.ma/rcp/example.pdf", "15/09/2026", "backend/data/rcp/example.pdf"),
+        (b"%PDF-1.7\n%%EOF", "https://www.ammps.gov.ma/rcp/example.pdf", "20260915", "backend/data/rcp/example.pdf"),
+        (b"%PDF-1.7\n%%EOF", "https://www.ammps.gov.ma/rcp/example.pdf", "2026-09-15", "../../example.pdf"),
+        (b"%PDF-1.7\n%%EOF", "https://www.ammps.gov.ma/rcp/example.pdf", "2026-09-15", "backend/data/rcp/example.txt"),
+    ],
+)
+def test_prepare_verified_snapshot_entry_rejects_invalid_capture_inputs(
+    pdf_bytes,
+    rcp_url,
+    checked_at,
+    local_artifact_path,
+    tmp_path,
+    monkeypatch,
+):
+    original = medication_rcp_manifest._load_manifest()["entries"][0]
+    monkeypatch.setattr(medication_rcp_manifest, "_REPO_ROOT", tmp_path)
+    if local_artifact_path.startswith("backend/data/rcp/"):
+        artifact = tmp_path / Path(local_artifact_path)
+        artifact.parent.mkdir(parents=True, exist_ok=True)
+        artifact.write_bytes(pdf_bytes)
+
+    with pytest.raises(ValueError):
+        medication_rcp_manifest.prepare_verified_snapshot_entry(
+            original,
+            pdf_bytes=pdf_bytes,
+            rcp_url=rcp_url,
+            checked_at=checked_at,
+            local_artifact_path=local_artifact_path,
+        )
+
+
+def test_prepare_verified_snapshot_entry_requires_clean_pending_source_entry(tmp_path, monkeypatch):
+    original = medication_rcp_manifest._load_manifest()["entries"][0]
+    polluted = {
+        **original,
+        "extracted_clinical_fields": {"dose": "forbidden in capture layer"},
+    }
+    relative_path = "backend/data/rcp/example.pdf"
+    _write_local_artifact(tmp_path, monkeypatch, relative_path, b"%PDF-1.7\n%%EOF")
+
+    with pytest.raises(ValueError):
+        medication_rcp_manifest.prepare_verified_snapshot_entry(
+            polluted,
+            pdf_bytes=b"%PDF-1.7\n%%EOF",
+            rcp_url="https://www.ammps.gov.ma/rcp/example.pdf",
+            checked_at="2026-09-15",
+            local_artifact_path=relative_path,
+        )
 
 
 def test_rcp_manifest_metadata_is_documentary_only():
