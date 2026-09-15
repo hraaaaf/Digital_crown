@@ -10,6 +10,19 @@ def replace_exact(path: str, old: str, new: str, expected: int = 1) -> None:
     file.write_text(text.replace(old, new), encoding='utf-8')
 
 
+def replace_or_verify(path: str, old: str, new: str) -> None:
+    file = Path(path)
+    text = file.read_text(encoding='utf-8')
+    old_count = text.count(old)
+    new_count = text.count(new)
+    if old_count == 1:
+        file.write_text(text.replace(old, new), encoding='utf-8')
+        return
+    if old_count == 0 and new_count == 1:
+        return
+    raise SystemExit(f'{path}: expected old once or verified new once; old={old_count}, new={new_count}')
+
+
 # Mobile production security: keep the guarantees, remove implementation vocabulary.
 path = 'frontend/src/features/mobile/Dashboard/views/SecuriteView.tsx'
 for old, new in [
@@ -65,12 +78,12 @@ block = anchor + """  { label: 'security implementation vocabulary', re: /Zero-K
 replace_exact(path, anchor, block)
 
 # Existing visual harnesses must follow the new user-facing labels, not restore old copy.
-replace_exact(
+replace_or_verify(
     'frontend/scripts/capture-mobile-superadmin-mob5h-after.mjs',
     "dispatch: await page.getByRole('button', { name: /Dispatch fournisseur/i }).isVisible(),",
     "dispatch: await page.getByRole('button', { name: /Envoyer au fournisseur/i }).isVisible(),",
 )
-replace_exact(
+replace_or_verify(
     'frontend/scripts/capture-mobile-marketplace-mob5g.mjs',
     "await page.getByRole('button', { name: 'Préparer le DRAFT' }).click();",
     "await page.getByRole('button', { name: 'Préparer le brouillon' }).click();",
