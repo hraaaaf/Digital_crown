@@ -66,6 +66,7 @@ export interface InsuranceSubmissionDraft {
 
 export interface InsuranceFinalizationResult {
   document_id: number;
-  sha256: string;
-  filename: string;
+  is_new_version: boolean;
+  file_hash: string;
+  original_filename: string;
 }
