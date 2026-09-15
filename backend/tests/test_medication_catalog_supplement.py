@@ -16,6 +16,7 @@ def test_acig_partial_search_returns_two_sourced_presentations():
     assert all(item["unite"] == "MG" for item in results)
     assert all(item["forme"] == "COMPRIME SECABLE" for item in results)
     assert all(item["dci"] == "ACIDE TIAPROFÉNIQUE" for item in results)
+    assert all(item["presentation_id"].startswith("ma-doc:") for item in results)
     assert all(item["source"]["id"] == "ma-acigam-official-plus-crosscheck-2026-01-16" for item in results)
     assert all(item["source"]["current_marketing_status_verified"] is False for item in results)
 
@@ -44,6 +45,7 @@ def test_base_cnops_results_remain_available_and_keep_original_source():
     _reload_catalog()
     results = medication_dict.search("AMOXICILLINE", limit=5)
     assert results
+    assert all(item["presentation_id"].startswith("cnops:") for item in results)
     assert any(item["source"]["id"] == "cnops-open-data-medications" for item in results)
 
 
