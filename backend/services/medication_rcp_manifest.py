@@ -67,6 +67,13 @@ def _is_safe_local_artifact_path(value: Any) -> bool:
     )
 
 
+def _is_safe_local_pdf_artifact_path(value: Any) -> bool:
+    return bool(
+        _is_safe_local_artifact_path(value)
+        and PurePosixPath(str(value).strip()).suffix.lower() == ".pdf"
+    )
+
+
 def _read_local_artifact_bytes(value: Any) -> Optional[bytes]:
     """Lit uniquement un artefact réellement présent sous backend/data/rcp."""
     if not _is_safe_local_artifact_path(value):
@@ -132,7 +139,10 @@ def snapshot_is_verified(entry: Dict[str, Any]) -> bool:
     if entry.get("capture_status") != "SNAPSHOT_VERIFIED":
         return False
     sha256 = entry.get("rcp_sha256")
-    artifact_bytes = _read_local_artifact_bytes(entry.get("local_artifact_path"))
+    local_artifact_path = entry.get("local_artifact_path")
+    if not _is_safe_local_pdf_artifact_path(local_artifact_path):
+        return False
+    artifact_bytes = _read_local_artifact_bytes(local_artifact_path)
     return bool(
         isinstance(sha256, str)
         and _SHA256_RE.fullmatch(sha256)
@@ -140,6 +150,7 @@ def snapshot_is_verified(entry: Dict[str, Any]) -> bool:
         and _is_official_ammps_url(entry.get("rcp_url"))
         and _is_strict_iso_date(entry.get("rcp_checked_at"))
         and artifact_bytes is not None
+        and artifact_bytes.startswith(b"%PDF-")
         and hashlib.sha256(artifact_bytes).hexdigest() == sha256
     )
 
@@ -210,11 +221,9 @@ def prepare_verified_snapshot_entry(
     if not _is_strict_iso_date(normalized_date):
         raise ValueError("checked_at must be an ISO date (YYYY-MM-DD)")
 
-    if not _is_safe_local_artifact_path(local_artifact_path):
-        raise ValueError("RCP artifact path must stay under backend/data/rcp")
+    if not _is_safe_local_pdf_artifact_path(local_artifact_path):
+        raise ValueError("RCP artifact path must be a PDF under backend/data/rcp")
     normalized_path = local_artifact_path.strip()
-    if PurePosixPath(normalized_path).suffix.lower() != ".pdf":
-        raise ValueError("RCP artifact path must end with .pdf")
 
     artifact_bytes = _read_local_artifact_bytes(normalized_path)
     if artifact_bytes is None:
