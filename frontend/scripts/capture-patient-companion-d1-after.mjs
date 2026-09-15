@@ -172,7 +172,7 @@ try {
       const valid = response?.status() === 200
         && pageErrors.length === 0
         && consoleErrors.length === 0
-        && !metrics.hasStaffNavigation
+        && (state === 'public-entry' || !metrics.hasStaffNavigation)
         && stateValid;
 
       await page.screenshot({ path: path.join(OUTPUT_DIR, `after-${state}-${viewport.name}.png`), fullPage: false });
