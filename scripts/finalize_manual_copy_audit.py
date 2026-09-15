@@ -30,6 +30,17 @@ replace_exact(
     "{syncStatus === 'loading' ? 'Mise à jour…' : syncStatus === 'error' ? 'Hors ligne' : 'À jour'}",
 )
 
+# Desktop mobile-security messages can also surface in errors/confirmation flows.
+path = 'frontend/src/features/admin/Security/MobileSecurity.tsx'
+replace_exact(path, "throw new Error('Réponse de pont mobile non conforme.');", "throw new Error('Réponse de connexion mobile non valide.');")
+replace_exact(
+    path,
+    'if (!window.confirm("Révoquer immédiatement toutes les sessions mobiles existantes de ce cabinet ? Les téléphones devront être appairés à nouveau.")) return;',
+    'if (!window.confirm("Déconnecter immédiatement tous les téléphones de ce cabinet ? Ils devront être connectés à nouveau avec un QR.")) return;',
+)
+replace_exact(path, 'setStatus({ type: \'success\', msg: "Sessions mobiles révoquées. Un nouvel appairage est nécessaire." });', 'setStatus({ type: \'success\', msg: "Tous les téléphones ont été déconnectés. Un nouveau QR de connexion est nécessaire." });')
+replace_exact(path, 'setStatus({ type: \'error\', msg: typeof detail === \'string\' ? detail : "Impossible de confirmer la révocation mobile." });', 'setStatus({ type: \'error\', msg: typeof detail === \'string\' ? detail : "Impossible de déconnecter les téléphones." });')
+
 # Assistant/settings copy.
 replace_exact(
     'frontend/src/components/CrownBot/CrownBotChat.tsx',
@@ -99,10 +110,18 @@ extra = anchor + """  { label: 'raw connectivity status', re: /^(?:Offline|Live)
 """
 replace_exact(path, anchor, extra)
 
-# Fail closed on all manually identified remnants in product copy.
+# Align the old contextual bridge contract with the current client-facing label.
+replace_exact(
+    'frontend/src/test/mobileM64ContextualBridge.test.ts',
+    "expect(securitySource).toContain('Générer le pont mobile');",
+    "expect(securitySource).toContain('Générer le QR de connexion');",
+)
+
+# Fail closed on all manually identified remnants in client-facing product copy.
 checks = {
     'frontend/src/features/panoramic/PanoramicMobileBridge.tsx': ['pont mobile', 'côté serveur', 'secret temporaire'],
     'frontend/src/features/mobile/Dashboard/components/MobileHeader.tsx': ["'Offline'", "'Live'", 'dans la Preview'],
+    'frontend/src/features/admin/Security/MobileSecurity.tsx': ['Réponse de pont mobile non conforme', 'sessions mobiles existantes', 'appairés à nouveau', 'Sessions mobiles révoquées', 'nouvel appairage'],
     'frontend/src/components/CrownBot/CrownBotChat.tsx': ['Paramètres IA'],
     'frontend/src/features/admin/TeamManager.tsx': ['Imagerie OPG IA'],
     'frontend/src/pages/PartnerCatalogAdminPage.tsx': ['API base URL', 'futur import API fournisseur', 'depuis la marketplace', '{order.status}', 'label: statusValue', '{product.availability}'],
