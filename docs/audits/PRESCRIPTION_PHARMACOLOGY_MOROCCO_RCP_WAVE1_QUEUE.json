@@ -46,11 +46,12 @@
     },
     {
       "molecule_id": "metronidazole",
-      "state": "PENDING_CURRENT_PAGE_CONFIRMATION",
+      "state": "PENDING_RCP_LINK_CONFIRMATION",
       "source_urls": [
-        "https://ammps.gov.ma/repertoire-medicaments-generiques?page=11"
+        "https://ammps.gov.ma/repertoire-medicaments-generiques?page=11",
+        "https://www.ammps.gov.ma/note-information/repertoire-marocain-des-medicaments-generiques"
       ],
-      "gap": "Current package-level page and document link must be confirmed before capture."
+      "gap": "Current oral generic package-level presentations and EANs are confirmed in the January 2026 AMMPS RMMG; the current official RCP link and exact document target still require confirmation."
     },
     {
       "molecule_id": "clarithromycin",
