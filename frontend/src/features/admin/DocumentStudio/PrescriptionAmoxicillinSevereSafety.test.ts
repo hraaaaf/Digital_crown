@@ -72,6 +72,21 @@ describe('severe dental abscess — amoxicillin age/weight safety', () => {
     expect(result.arbitration.regimen).toBeNull();
   });
 
+  it('fails closed when structured renal impairment is present', () => {
+    const result = normalizeMedicationForPatient({
+      drug: baseDrug(),
+      source: 'line_autocomplete',
+      patient: { ageYears: 7, weightKg: 20, renalImpairment: true },
+      dentalAbscessContext: { severeInfection: true },
+    });
+
+    expect(result.arbitration.status).toBe('requires_review');
+    expect(result.arbitration.regimen).toBeNull();
+    expect(result.arbitration.messages.join(' ')).toContain('fonction rénale');
+    expect(result.drug.dosage).toBe('');
+    expect(result.drug.posologie).toBe('');
+  });
+
   it('requires weight in a severe adolescent before reconciling age-based SDCEP and weight-based SmPC guidance', () => {
     const result = normalizeMedicationForPatient({
       drug: baseDrug(),
