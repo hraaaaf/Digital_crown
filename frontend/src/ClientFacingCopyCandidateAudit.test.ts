@@ -3,6 +3,7 @@ import { relative, resolve } from 'node:path';
 import ts from 'typescript';
 import { describe, expect, it } from 'vitest';
 
+// Regression gate: practitioner-facing copy must stay free of implementation terminology.
 const SRC_ROOT = resolve(process.cwd(), 'src');
 
 const TECHNICAL_COPY_PATTERNS = [
