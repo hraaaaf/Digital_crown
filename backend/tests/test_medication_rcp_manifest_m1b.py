@@ -1,4 +1,7 @@
+import hashlib
 from pathlib import Path
+
+import pytest
 
 from backend.services import medication_dict, medication_rcp_manifest
 
@@ -114,6 +117,76 @@ def test_missing_link_is_not_promoted_to_unavailable_verified():
     assert clamoxyl
     assert all(entry["rcp_link_observed"] is False for entry in clamoxyl)
     assert all(entry["capture_status"] == "PENDING_DOWNLOAD" for entry in clamoxyl)
+
+
+def test_prepare_verified_snapshot_entry_hashes_pdf_without_mutating_source():
+    original = medication_rcp_manifest._load_manifest()["entries"][0]
+    original_copy = dict(original)
+    pdf_bytes = b"%PDF-1.7\nRCP test fixture without clinical content\n%%EOF"
+    rcp_url = "https://www.ammps.gov.ma/sites/default/files/rcp/example.pdf"
+
+    prepared = medication_rcp_manifest.prepare_verified_snapshot_entry(
+        original,
+        pdf_bytes=pdf_bytes,
+        rcp_url=rcp_url,
+        checked_at="2026-09-15",
+        local_artifact_path="backend/data/rcp/example.pdf",
+    )
+
+    assert original == original_copy
+    assert original["capture_status"] == "PENDING_DOWNLOAD"
+    assert prepared["capture_status"] == "SNAPSHOT_VERIFIED"
+    assert prepared["rcp_url"] == rcp_url
+    assert prepared["rcp_sha256"] == hashlib.sha256(pdf_bytes).hexdigest()
+    assert prepared["rcp_checked_at"] == "2026-09-15"
+    assert prepared["local_artifact_path"] == "backend/data/rcp/example.pdf"
+    assert prepared["extracted_clinical_fields"] == {}
+    assert medication_rcp_manifest.entry_is_fail_closed(prepared) is True
+
+
+@pytest.mark.parametrize(
+    ("pdf_bytes", "rcp_url", "checked_at", "local_artifact_path"),
+    [
+        (b"not-a-pdf", "https://www.ammps.gov.ma/rcp/example.pdf", "2026-09-15", "backend/data/rcp/example.pdf"),
+        (b"%PDF-1.7\n%%EOF", "https://example.com/rcp.pdf", "2026-09-15", "backend/data/rcp/example.pdf"),
+        (b"%PDF-1.7\n%%EOF", "https://www.ammps.gov.ma/rcp/example.pdf", "15/09/2026", "backend/data/rcp/example.pdf"),
+        (b"%PDF-1.7\n%%EOF", "https://www.ammps.gov.ma/rcp/example.pdf", "2026-09-15", "../../example.pdf"),
+        (b"%PDF-1.7\n%%EOF", "https://www.ammps.gov.ma/rcp/example.pdf", "2026-09-15", "backend/data/rcp/example.txt"),
+    ],
+)
+def test_prepare_verified_snapshot_entry_rejects_invalid_capture_inputs(
+    pdf_bytes,
+    rcp_url,
+    checked_at,
+    local_artifact_path,
+):
+    original = medication_rcp_manifest._load_manifest()["entries"][0]
+
+    with pytest.raises(ValueError):
+        medication_rcp_manifest.prepare_verified_snapshot_entry(
+            original,
+            pdf_bytes=pdf_bytes,
+            rcp_url=rcp_url,
+            checked_at=checked_at,
+            local_artifact_path=local_artifact_path,
+        )
+
+
+def test_prepare_verified_snapshot_entry_requires_clean_pending_source_entry():
+    original = medication_rcp_manifest._load_manifest()["entries"][0]
+    polluted = {
+        **original,
+        "extracted_clinical_fields": {"dose": "forbidden in capture layer"},
+    }
+
+    with pytest.raises(ValueError):
+        medication_rcp_manifest.prepare_verified_snapshot_entry(
+            polluted,
+            pdf_bytes=b"%PDF-1.7\n%%EOF",
+            rcp_url="https://www.ammps.gov.ma/rcp/example.pdf",
+            checked_at="2026-09-15",
+            local_artifact_path="backend/data/rcp/example.pdf",
+        )
 
 
 def test_rcp_manifest_metadata_is_documentary_only():
