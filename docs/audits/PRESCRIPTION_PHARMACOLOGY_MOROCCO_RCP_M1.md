@@ -82,14 +82,15 @@ Une source secondaire peut servir de recoupement documentaire, mais ne peut jama
 
 ## Preuve M1-A
 
-Vérifié avant closeout documentaire :
+État actuellement vérifié :
 
-- PostgreSQL certification #782 : success ;
-- Catalog Connected Truth #1281 : success sur le HEAD code précédent ;
-- T2 Runtime #3267 : success sur le HEAD code précédent ;
+- PostgreSQL certification #782 : success sur le HEAD code `4f49b67b7c304c432bd4954dd08620559fdc426f` ;
+- Catalog Connected Truth #1281 : success sur le même HEAD code ;
+- T2 Runtime #3267 : success sur le même HEAD code ;
+- CI #4383 de ce HEAD code : cancelled après création du commit de closeout, donc non retenue comme preuve ;
 - M0 post-merge CI #4369 : success.
 
-Le commit de closeout documentaire doit encore recevoir sa propre certification exact-head avant ready/merge. Une certification d'un HEAD antérieur ne vaut pas preuve pour le HEAD final.
+Le HEAD final de closeout documentaire doit recevoir sa propre certification exact-head avant ready/merge. Une certification d'un HEAD antérieur ne vaut pas preuve pour le HEAD final.
 
 ## Human gate
 
