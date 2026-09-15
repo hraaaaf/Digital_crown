@@ -98,7 +98,9 @@ jobs:
 
       - name: Sync frontend dependencies to exact PR head
         working-directory: frontend
-        run: npm ci
+        run: |
+          npm ci
+          npm install --no-save playwright@1.55.0
 
       - name: Restore disposable runtime credential for AFTER parity
         shell: bash
