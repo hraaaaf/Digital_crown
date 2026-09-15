@@ -6,6 +6,16 @@ import { api } from '../../../../services/api';
 
 type AllergyStatus = 'UNKNOWN' | 'NONE_KNOWN' | 'PRESENT';
 type OrganStatus = 'UNKNOWN' | 'NO_KNOWN_IMPAIRMENT' | 'IMPAIRMENT_REPORTED';
+type IECardiacRiskCategory =
+  | 'UNKNOWN'
+  | 'NONE_REPORTED'
+  | 'OTHER_CARDIAC_CONDITION'
+  | 'PROSTHETIC_CARDIAC_VALVE'
+  | 'PROSTHETIC_MATERIAL_FOR_CARDIAC_VALVE_REPAIR'
+  | 'PREVIOUS_INFECTIVE_ENDOCARDITIS'
+  | 'UNREPAIRED_CYANOTIC_CONGENITAL_HEART_DISEASE'
+  | 'REPAIRED_CHD_WITH_RESIDUAL_SHUNT_OR_VALVULAR_REGURGITATION_AT_PROSTHETIC_PATCH_OR_DEVICE'
+  | 'CARDIAC_TRANSPLANT_WITH_VALVE_REGURGITATION_DUE_STRUCTURALLY_ABNORMAL_VALVE';
 
 type PatientClinicalContext = {
   patient_id?: number;
@@ -13,6 +23,8 @@ type PatientClinicalContext = {
   weight_kg: number | null;
   medication_allergy_status: AllergyStatus;
   medication_allergies: string[] | null;
+  penicillin_allergy_status: AllergyStatus;
+  ie_cardiac_risk_category: IECardiacRiskCategory;
   renal_context_status: OrganStatus;
   renal_context_note: string | null;
   hepatic_context_status: OrganStatus;
@@ -25,6 +37,8 @@ const EMPTY_CONTEXT: PatientClinicalContext = {
   weight_kg: null,
   medication_allergy_status: 'UNKNOWN',
   medication_allergies: null,
+  penicillin_allergy_status: 'UNKNOWN',
+  ie_cardiac_risk_category: 'UNKNOWN',
   renal_context_status: 'UNKNOWN',
   renal_context_note: null,
   hepatic_context_status: 'UNKNOWN',
@@ -41,6 +55,19 @@ function allergySummary(context: PatientClinicalContext): string {
     return `${count} rapportée${count > 1 ? 's' : ''}`;
   }
   return 'inconnues';
+}
+
+function penicillinSummary(status: AllergyStatus): string {
+  if (status === 'NONE_KNOWN') return 'aucune connue';
+  if (status === 'PRESENT') return 'rapportée';
+  return 'non vérifiée';
+}
+
+function cardiacSummary(category: IECardiacRiskCategory): string {
+  if (category === 'UNKNOWN') return 'non vérifié';
+  if (category === 'NONE_REPORTED') return 'aucun haut risque déclaré';
+  if (category === 'OTHER_CARDIAC_CONDITION') return 'autre cardiopathie';
+  return 'haut risque déclaré';
 }
 
 function organSummary(status: OrganStatus): string {
@@ -130,6 +157,8 @@ export function PatientClinicalContextPanel({ patientId }: { patientId?: number 
       weight_kg: context.weight_kg,
       medication_allergy_status: context.medication_allergy_status,
       medication_allergies: allergies,
+      penicillin_allergy_status: context.penicillin_allergy_status,
+      ie_cardiac_risk_category: context.ie_cardiac_risk_category,
       renal_context_status: context.renal_context_status,
       renal_context_note: context.renal_context_status === 'IMPAIRMENT_REPORTED' ? context.renal_context_note : null,
       hepatic_context_status: context.hepatic_context_status,
@@ -154,7 +183,7 @@ export function PatientClinicalContextPanel({ patientId }: { patientId?: number 
 
   return (
     <section
-      data-patient-clinical-context="c1"
+      data-patient-clinical-context="c2"
       data-context-expanded={expanded ? 'true' : 'false'}
       className="rounded-2xl border border-border-main bg-glass-bg/70 px-3.5 py-3 shadow-sm backdrop-blur-xl sm:px-4"
     >
@@ -164,7 +193,7 @@ export function PatientClinicalContextPanel({ patientId }: { patientId?: number 
             <ShieldAlert size={13} /> Contexte patient
           </div>
           <p className="mt-1 text-[11px] font-semibold leading-relaxed text-text-muted">
-            Poids, allergies et informations rénales ou hépatiques utiles à la prescription.
+            Poids, allergies et informations médicales utiles à la prescription.
           </p>
         </div>
         {!loading && patientId && !loadError && (
@@ -195,13 +224,20 @@ export function PatientClinicalContextPanel({ patientId }: { patientId?: number 
         </div>
       ) : !expanded ? (
         <div data-clinical-context-summary="compact" className="mt-2 rounded-xl border border-border-main/80 bg-background/55 px-3 py-2 text-[10px] font-bold leading-relaxed text-text-muted">
-          Poids : <span className="text-text-main">{context.weight_kg == null ? 'non renseigné' : `${context.weight_kg} kg`}</span>
-          <span className="mx-1.5 opacity-50">•</span>
-          Allergies : <span className="text-text-main">{allergySummary(context)}</span>
-          <span className="mx-1.5 opacity-50">•</span>
-          Rein : <span className="text-text-main">{organSummary(context.renal_context_status)}</span>
-          <span className="mx-1.5 opacity-50">•</span>
-          Foie : <span className="text-text-main">{organSummary(context.hepatic_context_status)}</span>
+          <div>
+            Poids : <span className="text-text-main">{context.weight_kg == null ? 'non renseigné' : `${context.weight_kg} kg`}</span>
+            <span className="mx-1.5 opacity-50">•</span>
+            Allergies : <span className="text-text-main">{allergySummary(context)}</span>
+            <span className="mx-1.5 opacity-50">•</span>
+            Rein : <span className="text-text-main">{organSummary(context.renal_context_status)}</span>
+            <span className="mx-1.5 opacity-50">•</span>
+            Foie : <span className="text-text-main">{organSummary(context.hepatic_context_status)}</span>
+          </div>
+          <div className="mt-0.5">
+            Pénicilline : <span className="text-text-main">{penicillinSummary(context.penicillin_allergy_status)}</span>
+            <span className="mx-1.5 opacity-50">•</span>
+            Risque endocardite : <span className="text-text-main">{cardiacSummary(context.ie_cardiac_risk_category)}</span>
+          </div>
         </div>
       ) : (
         <>
@@ -249,6 +285,40 @@ export function PatientClinicalContextPanel({ patientId }: { patientId?: number 
                 />
               </label>
             )}
+
+            <label>
+              <span className={labelClass}>Allergie pénicilline / amoxicilline</span>
+              <select
+                aria-label="Statut allergie pénicilline ou amoxicilline"
+                className={fieldClass}
+                value={context.penicillin_allergy_status}
+                onChange={event => update('penicillin_allergy_status', event.target.value as AllergyStatus)}
+              >
+                <option value="UNKNOWN">Inconnu / non vérifié</option>
+                <option value="NONE_KNOWN">Aucune connue déclarée</option>
+                <option value="PRESENT">Allergie rapportée</option>
+              </select>
+            </label>
+
+            <label>
+              <span className={labelClass}>Risque cardiaque d’endocardite</span>
+              <select
+                aria-label="Catégorie cardiaque endocardite infectieuse"
+                className={fieldClass}
+                value={context.ie_cardiac_risk_category}
+                onChange={event => update('ie_cardiac_risk_category', event.target.value as IECardiacRiskCategory)}
+              >
+                <option value="UNKNOWN">Non renseigné / à vérifier</option>
+                <option value="NONE_REPORTED">Aucune situation à haut risque connue</option>
+                <option value="PROSTHETIC_CARDIAC_VALVE">Valve cardiaque prothétique</option>
+                <option value="PROSTHETIC_MATERIAL_FOR_CARDIAC_VALVE_REPAIR">Matériel prothétique utilisé pour réparation valvulaire</option>
+                <option value="PREVIOUS_INFECTIVE_ENDOCARDITIS">Antécédent d’endocardite infectieuse</option>
+                <option value="UNREPAIRED_CYANOTIC_CONGENITAL_HEART_DISEASE">Cardiopathie congénitale cyanogène non réparée</option>
+                <option value="REPAIRED_CHD_WITH_RESIDUAL_SHUNT_OR_VALVULAR_REGURGITATION_AT_PROSTHETIC_PATCH_OR_DEVICE">Cardiopathie congénitale réparée avec shunt résiduel ou régurgitation au niveau d’un patch/dispositif prothétique</option>
+                <option value="CARDIAC_TRANSPLANT_WITH_VALVE_REGURGITATION_DUE_STRUCTURALLY_ABNORMAL_VALVE">Greffe cardiaque avec régurgitation liée à une valve structurellement anormale</option>
+                <option value="OTHER_CARDIAC_CONDITION">Autre cardiopathie</option>
+              </select>
+            </label>
 
             <label>
               <span className={labelClass}>Contexte rénal</span>

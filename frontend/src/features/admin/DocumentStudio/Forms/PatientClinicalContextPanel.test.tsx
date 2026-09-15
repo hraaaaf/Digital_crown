@@ -18,6 +18,8 @@ const emptyContext = {
   weight_kg: null,
   medication_allergy_status: 'UNKNOWN',
   medication_allergies: null,
+  penicillin_allergy_status: 'UNKNOWN',
+  ie_cardiac_risk_category: 'UNKNOWN',
   renal_context_status: 'UNKNOWN',
   renal_context_note: null,
   hepatic_context_status: 'UNKNOWN',
@@ -26,7 +28,7 @@ const emptyContext = {
   updated_by_user_id: null,
 };
 
-describe('PatientClinicalContextPanel C1', () => {
+describe('PatientClinicalContextPanel C2', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.mocked(api.get).mockResolvedValue({ data: emptyContext } as any);
@@ -41,49 +43,71 @@ describe('PatientClinicalContextPanel C1', () => {
     const expand = await screen.findByRole('button', { name: /Renseigner/i });
     expect(api.get).toHaveBeenCalledWith('/patients/42/clinical-context');
     expect(screen.getByText('Contexte patient')).toBeInTheDocument();
-    expect(screen.getByText(/Poids, allergies et informations rénales ou hépatiques utiles à la prescription/i)).toBeInTheDocument();
+    expect(screen.getByText(/Poids, allergies et informations médicales utiles à la prescription/i)).toBeInTheDocument();
     expect(screen.getByText(/Poids :/i)).toBeInTheDocument();
-    expect(screen.getByText(/non renseigné/i)).toBeInTheDocument();
+    expect(screen.getByText(/Pénicilline :/i)).toBeInTheDocument();
+    expect(screen.getByText(/Risque endocardite :/i)).toBeInTheDocument();
     expect(screen.queryByLabelText('Poids explicite en kilogrammes')).not.toBeInTheDocument();
 
     fireEvent.click(expand);
 
     expect(screen.getByLabelText('Poids explicite en kilogrammes')).toHaveValue(null);
     expect(screen.getByLabelText('Statut des allergies médicamenteuses')).toHaveValue('UNKNOWN');
+    expect(screen.getByLabelText('Statut allergie pénicilline ou amoxicilline')).toHaveValue('UNKNOWN');
+    expect(screen.getByLabelText('Catégorie cardiaque endocardite infectieuse')).toHaveValue('UNKNOWN');
     expect(screen.getByLabelText('Statut du contexte rénal')).toHaveValue('UNKNOWN');
     expect(screen.getByLabelText('Statut du contexte hépatique')).toHaveValue('UNKNOWN');
     expect(screen.queryByLabelText(/Indication/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/Aucun calcul de dose n’est activé/i)).not.toBeInTheDocument();
   });
 
-  it('enregistre uniquement les faits patient explicitement saisis puis replie le panneau', async () => {
+  it('enregistre les faits C1 et C2 explicitement saisis puis replie le panneau', async () => {
     render(<PatientClinicalContextPanel patientId={42} />);
     fireEvent.click(await screen.findByRole('button', { name: /Renseigner/i }));
 
-    const weight = screen.getByLabelText('Poids explicite en kilogrammes');
-    const saveButton = screen.getByRole('button', { name: /Enregistrer le contexte/i });
-    expect(saveButton).toBeEnabled();
-
-    fireEvent.change(weight, { target: { value: '72.5' } });
-    fireEvent.change(screen.getByLabelText('Statut des allergies médicamenteuses'), { target: { value: 'PRESENT' } });
-    fireEvent.change(screen.getByLabelText('Allergies médicamenteuses rapportées'), { target: { value: 'Pénicilline, Ibuprofène' } });
-    fireEvent.change(screen.getByLabelText('Statut du contexte rénal'), { target: { value: 'IMPAIRMENT_REPORTED' } });
-    fireEvent.change(screen.getByLabelText('Note rénale factuelle'), { target: { value: 'Atteinte rapportée' } });
-    fireEvent.click(saveButton);
+    fireEvent.change(screen.getByLabelText('Poids explicite en kilogrammes'), { target: { value: '72.5' } });
+    fireEvent.change(screen.getByLabelText('Statut des allergies médicamenteuses'), { target: { value: 'NONE_KNOWN' } });
+    fireEvent.change(screen.getByLabelText('Statut allergie pénicilline ou amoxicilline'), { target: { value: 'NONE_KNOWN' } });
+    fireEvent.change(screen.getByLabelText('Catégorie cardiaque endocardite infectieuse'), { target: { value: 'PREVIOUS_INFECTIVE_ENDOCARDITIS' } });
+    fireEvent.change(screen.getByLabelText('Statut du contexte rénal'), { target: { value: 'NO_KNOWN_IMPAIRMENT' } });
+    fireEvent.click(screen.getByRole('button', { name: /Enregistrer le contexte/i }));
 
     await waitFor(() => expect(api.put).toHaveBeenCalledWith('/patients/42/clinical-context', {
       weight_kg: 72.5,
-      medication_allergy_status: 'PRESENT',
-      medication_allergies: ['Pénicilline', 'Ibuprofène'],
-      renal_context_status: 'IMPAIRMENT_REPORTED',
-      renal_context_note: 'Atteinte rapportée',
+      medication_allergy_status: 'NONE_KNOWN',
+      medication_allergies: [],
+      penicillin_allergy_status: 'NONE_KNOWN',
+      ie_cardiac_risk_category: 'PREVIOUS_INFECTIVE_ENDOCARDITIS',
+      renal_context_status: 'NO_KNOWN_IMPAIRMENT',
+      renal_context_note: null,
       hepatic_context_status: 'UNKNOWN',
       hepatic_context_note: null,
     }));
     expect(await screen.findByText('Contexte enregistré')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Renseigner/i })).toHaveAttribute('aria-expanded', 'false');
-    expect(screen.queryByLabelText('Poids explicite en kilogrammes')).not.toBeInTheDocument();
     expect(screen.getByText('72.5 kg')).toBeInTheDocument();
+    expect(screen.getByText('aucune connue')).toBeInTheDocument();
+    expect(screen.getByText('haut risque déclaré')).toBeInTheDocument();
+  });
+
+  it('préserve les faits C2 existants lors d une sauvegarde C1', async () => {
+    vi.mocked(api.get).mockResolvedValueOnce({
+      data: {
+        ...emptyContext,
+        penicillin_allergy_status: 'NONE_KNOWN',
+        ie_cardiac_risk_category: 'PROSTHETIC_CARDIAC_VALVE',
+      },
+    } as any);
+    render(<PatientClinicalContextPanel patientId={42} />);
+
+    fireEvent.click(await screen.findByRole('button', { name: /Renseigner/i }));
+    fireEvent.change(screen.getByLabelText('Poids explicite en kilogrammes'), { target: { value: '68' } });
+    fireEvent.click(screen.getByRole('button', { name: /Enregistrer le contexte/i }));
+
+    await waitFor(() => expect(api.put).toHaveBeenCalled());
+    const [, payload] = vi.mocked(api.put).mock.calls[0];
+    expect((payload as any).penicillin_allergy_status).toBe('NONE_KNOWN');
+    expect((payload as any).ie_cardiac_risk_category).toBe('PROSTHETIC_CARDIAC_VALVE');
   });
 
   it('échoue fermé si le contexte ne peut pas être chargé', async () => {
@@ -93,7 +117,6 @@ describe('PatientClinicalContextPanel C1', () => {
     expect(await screen.findByText(/Contexte non chargé. Aucune valeur n’est supposée/i)).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /Renseigner/i })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /Enregistrer le contexte/i })).not.toBeInTheDocument();
-    expect(screen.queryByLabelText('Poids explicite en kilogrammes')).not.toBeInTheDocument();
   });
 
   it('ne persiste pas une note d organe après retour à un statut non atteint', async () => {

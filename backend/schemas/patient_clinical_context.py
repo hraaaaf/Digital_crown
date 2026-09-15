@@ -6,7 +6,19 @@ from pydantic import BaseModel, ConfigDict, field_validator, model_validator
 
 
 MedicationAllergyStatus = Literal["UNKNOWN", "NONE_KNOWN", "PRESENT"]
+PenicillinAllergyStatus = Literal["UNKNOWN", "NONE_KNOWN", "PRESENT"]
 OrganContextStatus = Literal["UNKNOWN", "NO_KNOWN_IMPAIRMENT", "IMPAIRMENT_REPORTED"]
+IECardiacRiskCategory = Literal[
+    "UNKNOWN",
+    "NONE_REPORTED",
+    "OTHER_CARDIAC_CONDITION",
+    "PROSTHETIC_CARDIAC_VALVE",
+    "PROSTHETIC_MATERIAL_FOR_CARDIAC_VALVE_REPAIR",
+    "PREVIOUS_INFECTIVE_ENDOCARDITIS",
+    "UNREPAIRED_CYANOTIC_CONGENITAL_HEART_DISEASE",
+    "REPAIRED_CHD_WITH_RESIDUAL_SHUNT_OR_VALVULAR_REGURGITATION_AT_PROSTHETIC_PATCH_OR_DEVICE",
+    "CARDIAC_TRANSPLANT_WITH_VALVE_REGURGITATION_DUE_STRUCTURALLY_ABNORMAL_VALVE",
+]
 
 
 def _clean_optional_text(value: Optional[str]) -> Optional[str]:
@@ -28,6 +40,8 @@ class PatientClinicalContextUpdate(BaseModel):
     weight_kg: Optional[float] = None
     medication_allergy_status: MedicationAllergyStatus = "UNKNOWN"
     medication_allergies: Optional[List[str]] = None
+    penicillin_allergy_status: PenicillinAllergyStatus = "UNKNOWN"
+    ie_cardiac_risk_category: IECardiacRiskCategory = "UNKNOWN"
     renal_context_status: OrganContextStatus = "UNKNOWN"
     renal_context_note: Optional[str] = None
     hepatic_context_status: OrganContextStatus = "UNKNOWN"
