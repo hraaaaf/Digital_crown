@@ -10,12 +10,14 @@ import logging
 import re
 from pathlib import Path
 from typing import Any, Dict, Optional
+from urllib.parse import urlparse
 
 logger = logging.getLogger(__name__)
 
 _MANIFEST_PATH = Path(__file__).resolve().parents[1] / "data" / "medications_ma_ammps_rcp_manifest_2026.json"
 _ALLOWED_STATUSES = {"PENDING_DOWNLOAD", "SNAPSHOT_VERIFIED", "UNAVAILABLE_VERIFIED"}
 _SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
+_OFFICIAL_AMMPS_HOSTS = {"ammps.gov.ma", "www.ammps.gov.ma"}
 _MANIFEST: Optional[Dict[str, Any]] = None
 
 
@@ -38,6 +40,13 @@ def _load_manifest() -> Dict[str, Any]:
 
     _MANIFEST = raw
     return _MANIFEST
+
+
+def _is_official_ammps_url(value: Any) -> bool:
+    if not isinstance(value, str) or not value.strip():
+        return False
+    parsed = urlparse(value.strip())
+    return parsed.scheme == "https" and parsed.hostname in _OFFICIAL_AMMPS_HOSTS
 
 
 def manifest_metadata() -> Dict[str, Any]:
@@ -69,14 +78,15 @@ def get_rcp_evidence(regulatory_presentation_id: str) -> Optional[Dict[str, Any]
 
 
 def snapshot_is_verified(entry: Dict[str, Any]) -> bool:
-    """Vrai uniquement si le statut, le hash, la date, l'URL et l'artefact concordent."""
+    """Vrai uniquement si statut, provenance AMMPS, hash, date et artefact concordent."""
     if entry.get("capture_status") != "SNAPSHOT_VERIFIED":
         return False
     sha256 = entry.get("rcp_sha256")
     return bool(
         isinstance(sha256, str)
         and _SHA256_RE.fullmatch(sha256)
-        and entry.get("rcp_url")
+        and _is_official_ammps_url(entry.get("source_page_url"))
+        and _is_official_ammps_url(entry.get("rcp_url"))
         and entry.get("rcp_checked_at")
         and entry.get("local_artifact_path")
     )
@@ -87,9 +97,15 @@ def entry_is_fail_closed(entry: Dict[str, Any]) -> bool:
     status = entry.get("capture_status")
     if status not in _ALLOWED_STATUSES:
         return False
+    if not _is_official_ammps_url(entry.get("source_page_url")):
+        return False
 
     extracted = entry.get("extracted_clinical_fields")
     if not isinstance(extracted, dict):
+        return False
+
+    rcp_url = entry.get("rcp_url")
+    if rcp_url is not None and not _is_official_ammps_url(rcp_url):
         return False
 
     if status == "SNAPSHOT_VERIFIED":
@@ -103,5 +119,11 @@ def entry_is_fail_closed(entry: Dict[str, Any]) -> bool:
             and extracted == {}
         )
 
-    # UNAVAILABLE_VERIFIED exige une vérification officielle datée et aucune extraction.
-    return bool(entry.get("rcp_checked_at") and entry.get("source_page_url") and extracted == {})
+    # UNAVAILABLE_VERIFIED : absence officiellement contrôlée, aucun faux artefact/hash.
+    return bool(
+        entry.get("rcp_checked_at")
+        and rcp_url is None
+        and entry.get("rcp_sha256") is None
+        and entry.get("local_artifact_path") is None
+        and extracted == {}
+    )
