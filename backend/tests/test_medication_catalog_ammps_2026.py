@@ -34,14 +34,20 @@ def test_existing_cnops_result_keeps_existing_source_and_id_prefix():
     assert results[0]["source"]["id"] == "cnops-open-data-medications"
 
 
-def test_catalog_metadata_exposes_both_sources_without_overstating_marketing_status():
+def test_catalog_metadata_preserves_cnops_top_level_and_exposes_both_sources():
     metadata = medication_dict.catalog_metadata()
+
+    assert metadata["id"] == "cnops-open-data-medications"
+    assert metadata["record_count"] == 4234
+    assert metadata["available"] is True
+    assert metadata["total_record_count"] >= 4235
 
     source_ids = {source["id"] for source in metadata["sources"]}
     assert "cnops-open-data-medications" in source_ids
     assert "ammps-rmmg-2026-01" in source_ids
-    assert metadata["record_count"] >= 4235
+    cnops = next(source for source in metadata["sources"] if source["id"] == "cnops-open-data-medications")
     ammps = next(source for source in metadata["sources"] if source["id"] == "ammps-rmmg-2026-01")
+    assert cnops["record_count"] == metadata["record_count"]
     assert ammps["record_count"] >= 1
     assert ammps["current_marketing_status_verified"] is False
 
