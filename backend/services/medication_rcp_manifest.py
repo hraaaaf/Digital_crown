@@ -8,7 +8,7 @@ from __future__ import annotations
 import json
 import logging
 import re
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from typing import Any, Dict, Optional
 from urllib.parse import urlparse
 
@@ -18,6 +18,7 @@ _MANIFEST_PATH = Path(__file__).resolve().parents[1] / "data" / "medications_ma_
 _ALLOWED_STATUSES = {"PENDING_DOWNLOAD", "SNAPSHOT_VERIFIED", "UNAVAILABLE_VERIFIED"}
 _SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
 _OFFICIAL_AMMPS_HOSTS = {"ammps.gov.ma", "www.ammps.gov.ma"}
+_UNAVAILABLE_EVIDENCE = "OFFICIAL_SOURCE_EXPLICIT_NO_RCP"
 _MANIFEST: Optional[Dict[str, Any]] = None
 
 
@@ -47,6 +48,19 @@ def _is_official_ammps_url(value: Any) -> bool:
         return False
     parsed = urlparse(value.strip())
     return parsed.scheme == "https" and parsed.hostname in _OFFICIAL_AMMPS_HOSTS
+
+
+def _is_safe_local_artifact_path(value: Any) -> bool:
+    if not isinstance(value, str) or not value.strip():
+        return False
+    path = PurePosixPath(value.strip())
+    parts = path.parts
+    return bool(
+        not path.is_absolute()
+        and ".." not in parts
+        and len(parts) > 3
+        and parts[:3] == ("backend", "data", "rcp")
+    )
 
 
 def manifest_metadata() -> Dict[str, Any]:
@@ -88,7 +102,7 @@ def snapshot_is_verified(entry: Dict[str, Any]) -> bool:
         and _is_official_ammps_url(entry.get("source_page_url"))
         and _is_official_ammps_url(entry.get("rcp_url"))
         and entry.get("rcp_checked_at")
-        and entry.get("local_artifact_path")
+        and _is_safe_local_artifact_path(entry.get("local_artifact_path"))
     )
 
 
@@ -116,12 +130,14 @@ def entry_is_fail_closed(entry: Dict[str, Any]) -> bool:
             entry.get("rcp_sha256") is None
             and entry.get("rcp_checked_at") is None
             and entry.get("local_artifact_path") is None
+            and entry.get("unavailability_evidence") is None
             and extracted == {}
         )
 
-    # UNAVAILABLE_VERIFIED : absence officiellement contrôlée, aucun faux artefact/hash.
+    # UNAVAILABLE_VERIFIED : absence explicitement prouvée par la source officielle.
     return bool(
         entry.get("rcp_checked_at")
+        and entry.get("unavailability_evidence") == _UNAVAILABLE_EVIDENCE
         and rcp_url is None
         and entry.get("rcp_sha256") is None
         and entry.get("local_artifact_path") is None
