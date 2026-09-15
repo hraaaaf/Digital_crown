@@ -1,6 +1,6 @@
 # Prescription Pharmacology Morocco RCP M1
 
-Status: ACTIVE — M1-B0 RCP EVIDENCE FOUNDATION
+Status: ACTIVE — M1-B1 WAVE 1 RCP ACQUISITION
 
 ## Goal
 
@@ -14,47 +14,41 @@ Aucune ligne M1 n'autorise à elle seule une posologie ou un passage vers `AUTO_
 
 ## M1-A — clos et mergé
 
-PR #517 mergée en squash sur master : `d474ad18ba47d55a0d53f1f90e47a451f4dbac5e`.
+PR #517 mergée en squash : `d474ad18ba47d55a0d53f1f90e47a451f4dbac5e`.
 
-Preuves exact-head avant merge sur `6ef95315d8d08e870cedddbfe1a3abbc329d8268` :
+Preuves exact-head avant merge sur `6ef95315d8d08e870cedddbfe1a3abbc329d8268` : CI #4391, PostgreSQL #790, Catalog Connected Truth #1285 et T2 Runtime #3275 success ; M6-I skipped attendu.
 
-- CI #4391 : success ;
-- PostgreSQL #790 : success ;
-- Catalog Connected Truth #1285 : success ;
-- T2 Runtime #3275 : success ;
-- M6-I : skipped attendu.
+Post-merge master CI #4392 : frontend/build success, backend complet DB/patients/documents success, garde production success.
 
-Post-merge CI master #4392 : démarrée ; conclusion finale encore requise pour closeout post-merge.
+M1-A a livré le snapshot AMMPS courant package-level, `regulatory_presentation_id`, isolation des APIs historiques et APIs réglementaires fail-closed, sans activation clinique.
 
-M1-A a livré :
+## M1-B0 — fondation RCP close et mergée
 
-- snapshot AMMPS courant package-level ;
-- `regulatory_presentation_id` distinct par conditionnement ;
-- APIs historiques CNOPS/RMMG inchangées ;
-- APIs réglementaires fail-closed sur le snapshot AMMPS courant uniquement ;
-- aucune posologie, durée, décision clinique, DB, patient, document ou UI modifiés.
+PR #518 mergée en squash : `81bf142021cdf4770e9c6ca92078306ac4898783`.
 
-## M1-B0 — fondation de preuve RCP
+Preuves exact-head avant merge sur `4c01107c50a18a4055b818c564b63408679ac034` : CI #4399 success, PostgreSQL #797 success, T2 Runtime #3282 success, M6-I skipped attendu.
 
-Branche active : `feat/prescription-pharmacology-morocco-rcp-m1b-foundation`, créée depuis le merge M1-A exact `d474ad18ba47d55a0d53f1f90e47a451f4dbac5e`.
-
-Fondation actuellement implémentée :
+M1-B0 a livré :
 
 - `backend/data/medications_ma_ammps_rcp_manifest_2026.json` ;
 - schéma `m1b-rcp.1` ;
-- 8/8 présentations AMMPS d'amoxicilline liées à leur `regulatory_presentation_id` exact ;
-- toutes les entrées restent `PENDING_DOWNLOAD` ;
-- aucune extraction clinique ;
-- `SNAPSHOT_VERIFIED` exige URL officielle, date, artefact local et SHA-256 valide ;
-- absence de lien observé n'est jamais convertie automatiquement en `UNAVAILABLE_VERIFIED` ;
-- source secondaire autorisée uniquement comme recoupement, jamais comme preuve primaire d'activation ;
-- lecteur documentaire isolé `backend/services/medication_rcp_manifest.py` ;
-- manifest inclus dans le packaging desktop ;
-- tests fail-closed dédiés ajoutés.
+- 8/8 présentations d'amoxicilline liées à leur `regulatory_presentation_id` ;
+- toutes restent `PENDING_DOWNLOAD` ;
+- lecteur documentaire fail-closed ;
+- `SNAPSHOT_VERIFIED` exige URL AMMPS, date, SHA-256 et artefact sous `backend/data/rcp/...` ;
+- `UNAVAILABLE_VERIFIED` exige une preuve officielle explicite d'absence ;
+- aucun fallback CNOPS/RMMG ;
+- aucune extraction clinique.
 
-## Wave 1 M1-B
+Post-merge CI #4409 a été annulée/supplantée avant la régression complète ; elle n'est pas retenue comme preuve post-merge. Les preuves pre-merge exact-head restent vertes.
 
-Ordre prioritaire :
+## M1-B1 — Wave 1 acquisition
+
+Branche : `feat/prescription-pharmacology-morocco-rcp-m1b-wave1`, créée depuis le merge exact M1-B0 `81bf142021cdf4770e9c6ca92078306ac4898783`.
+
+Queue machine : `docs/audits/PRESCRIPTION_PHARMACOLOGY_MOROCCO_RCP_WAVE1_QUEUE.json`.
+
+Univers exact Wave 1 :
 
 1. paracétamol ;
 2. ibuprofène ;
@@ -64,12 +58,21 @@ Ordre prioritaire :
 6. clarithromycine ;
 7. clindamycine.
 
-AMMPS expose actuellement des liens « Télécharger RCP » pour plusieurs présentations exactes Wave 1. Le href du document n'étant pas encore capturé de façon fiable dans notre flux, aucune URL RCP ni aucun hash n'est inventé : l'état reste `PENDING_DOWNLOAD`.
+État vérifié au 2026-09-15 :
+
+- 4 molécules `READY_FOR_CAPTURE_TRANSPORT` ;
+- 1 `PENDING_RCP_LINK_CONFIRMATION` ;
+- 1 `PENDING_CURRENT_PAGE_CONFIRMATION` ;
+- 1 `PENDING_CURRENT_PRESENTATION_DISCOVERY` ;
+- aucune molécule omise silencieusement ;
+- aucune donnée clinique extraite.
+
+Les pages AMMPS officielles exposent le bouton « Télécharger RCP » pour plusieurs présentations Wave 1. Le href/fichier cible n'est pas exposé de façon fiable par les moyens de fetch actuellement disponibles. Aucun `rcp_url`, hash ou `SNAPSHOT_VERIFIED` n'est donc fabriqué.
 
 ## Règles de capture
 
 1. identifier la présentation réglementaire exacte ;
-2. récupérer le RCP depuis l'AMMPS officielle ;
+2. récupérer le document depuis l'AMMPS officielle ;
 3. conserver URL officielle exacte + date ;
 4. calculer SHA-256 ;
 5. seulement alors passer à `SNAPSHOT_VERIFIED` ;
