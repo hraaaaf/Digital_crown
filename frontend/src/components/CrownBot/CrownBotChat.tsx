@@ -131,7 +131,7 @@ function PremiumUpsellCard({ onClose }: { onClose: () => void }) {
         <ul className="space-y-1 mb-3">
           {[
             'Conversations LLM illimitées',
-            'Mémoire contextuelle étendue (Ghost Brain+)',
+            'Mémoire contextuelle étendue',
             'Actions avancées (ordonnances, devis auto)',
           ].map((item) => (
             <li key={item} className="flex items-start gap-1.5 text-[10px] text-amber-800 font-medium">
@@ -247,7 +247,7 @@ export function CrownBotChat({
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
-  // Tab & Ghost Brain state
+  // Tab & Mémoire contextuelle state
   const [activeTab, setActiveTab] = useState<Tab>('brain');
   const [insights, setInsights] = useState<GhostInsight[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
@@ -264,7 +264,7 @@ export function CrownBotChat({
     onUnreadChange?.(unreadCount);
   }, [unreadCount, onUnreadChange]);
 
-  // Ghost Brain WebSocket
+  // Mémoire contextuelle WebSocket
   useEffect(() => {
     if (!employerId) return;
     let ws: WebSocket | null = null;
@@ -485,7 +485,7 @@ export function CrownBotChat({
     }
   };
 
-  // Ghost Brain actions
+  // Mémoire contextuelle actions
   const markAsRead = async (logId: number) => {
     setInsights(prev => prev.filter(i => i.id !== logId));
     setUnreadCount(prev => Math.max(0, prev - 1));
@@ -584,7 +584,7 @@ export function CrownBotChat({
             className={cn('flex items-center gap-1.5 px-4 py-2 text-xs font-bold rounded-t-lg transition-colors relative',
               activeTab === 'brain' ? 'bg-white/15 text-white' : 'text-white/60 hover:text-white/80')}
           >
-            <BrainCircuit size={13} /> Ghost Brain
+            <BrainCircuit size={13} /> Mémoire contextuelle
             {unreadCount > 0 && (
               <span className="ml-1 w-4 h-4 bg-amber-400 text-slate-900 text-[8px] font-black rounded-full flex items-center justify-center animate-pulse">
                 {unreadCount}
@@ -646,7 +646,7 @@ export function CrownBotChat({
                 <BrainCircuit size={14} />
               </div>
               <div>
-                <p className="text-[10px] font-black text-primary uppercase tracking-widest leading-none">Ghost Brain V2</p>
+                <p className="text-[10px] font-black text-primary uppercase tracking-widest leading-none">Mémoire contextuelle V2</p>
                 <p className="text-[8px] text-slate-400 font-bold mt-0.5">Conscience Proactive</p>
               </div>
             </div>

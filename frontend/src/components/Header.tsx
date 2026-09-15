@@ -151,7 +151,7 @@ export const Header = ({ isCrownBotOpen = false, crownBotUnreadCount = 0, onTogg
 
           {showNotifs && (
             <div className="absolute top-full right-0 mt-2 w-72 bg-card-bg border border-border-main rounded-3xl shadow-elite p-4 animate-in slide-in-from-top-2 duration-300 z-50 backdrop-blur-xl">
-              <h4 className="text-[10px] font-black text-text-muted uppercase tracking-widest mb-3 px-2">Alertes Ghost Treasury</h4>
+              <h4 className="text-[10px] font-black text-text-muted uppercase tracking-widest mb-3 px-2">Alertes de trésorerie</h4>
               {treasuryCount > 0 ? (
                 <Link
                   to="/accounting?tab=treasury"

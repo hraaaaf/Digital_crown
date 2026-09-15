@@ -168,7 +168,7 @@ export const GhostBrainWidget = () => {
       <button 
         onClick={() => setIsOpen(!isOpen)}
         className="p-2.5 text-text-muted hover:text-primary hover:bg-primary/5 rounded-elite-sm transition-elite relative group"
-        title="Ghost Brain Insights"
+        title="Synthèse contextuelle"
       >
         <BrainCircuit size={20} className={`transition-elite ${unreadCount > 0 ? 'text-primary' : ''} group-hover:scale-110`} />
         {unreadCount > 0 && (

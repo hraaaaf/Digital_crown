@@ -110,7 +110,7 @@ const EvidenceRefs: React.FC<{
       </ul>
     ) : (
       <p className="mt-1 text-[9px] leading-3.5" style={{ color: P.textDim }}>
-        {authoritative ? 'Aucun élément déclaré.' : 'Non résolu · snapshot autoritaire absent.'}
+        {authoritative ? 'Aucun élément déclaré.' : 'Non résolu · données cliniques insuffisantes.'}
       </p>
     )}
   </div>

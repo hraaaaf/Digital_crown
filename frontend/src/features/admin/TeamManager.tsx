@@ -445,9 +445,9 @@ export const TeamManager: React.FC = () => {
               </label>
               <div className="min-w-0 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
                 {[
-                  { key: 'agenda', label: 'Studio Agenda', desc: 'Gestion des rendez-vous et plannings' },
+                  { key: 'agenda', label: 'Agenda', desc: 'Gestion des rendez-vous et plannings' },
                   { key: 'patients', label: 'Dossiers Patients', desc: 'Création, modification et fiches patients' },
-                  { key: 'prescriptions', label: 'Studio Prescriptions', desc: 'Rédaction d\'ordonnances cliniques' },
+                  { key: 'prescriptions', label: 'Prescriptions', desc: 'Rédaction d\'ordonnances cliniques' },
                   { key: 'accounting', label: 'Comptabilité & Chiffres', desc: 'Statistiques financières et paiements' },
                   { key: 'payments', label: 'Encaissements', desc: 'Valider et enregistrer les paiements' },
                   { key: 'clinical', label: 'Examen Clinique & IA', desc: 'Diagnostic, plan de traitement, synthèses IA' },
@@ -694,9 +694,9 @@ export const TeamManager: React.FC = () => {
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
               {[
-                { key: 'agenda', label: 'Studio Agenda', desc: 'Gestion des rendez-vous et plannings' },
+                { key: 'agenda', label: 'Agenda', desc: 'Gestion des rendez-vous et plannings' },
                 { key: 'patients', label: 'Dossiers Patients', desc: 'Création, modification et fiches patients' },
-                { key: 'prescriptions', label: 'Studio Prescriptions', desc: 'Rédaction d\'ordonnances cliniques' },
+                { key: 'prescriptions', label: 'Prescriptions', desc: 'Rédaction d\'ordonnances cliniques' },
                 { key: 'accounting', label: 'Comptabilité & Chiffres', desc: 'Statistiques financières et paiements' },
                 { key: 'payments', label: 'Encaissements', desc: 'Valider et enregistrer les paiements' },
                 { key: 'clinical', label: 'Examen Clinique & IA', desc: 'Diagnostic, plan de traitement, synthèses IA' },

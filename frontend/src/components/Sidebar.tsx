@@ -8,13 +8,9 @@ import {
   History,
   Calendar,
   Receipt,
-  FlaskConical,
   BookOpen,
   Shield,
-  Package,
   Store,
-  Armchair,
-  Construction
 } from 'lucide-react';
 import { cn } from '../utils/cn';
 import { hasAccess as userHasAccess } from '../utils/accessControl';
@@ -112,7 +108,7 @@ export const Sidebar = ({ isOpen = false, onClose }: SidebarProps) => {
           >
             <img 
               src={Logo} 
-              alt="Digital Crown AI" 
+              alt="Digital Crown" 
               className={cn(
                 "h-auto w-full max-w-[190px] object-contain transition-all duration-700", 
                 (isAiActive && tipsEnabled) && "animate-logo-pulse-light"
@@ -149,22 +145,15 @@ export const Sidebar = ({ isOpen = false, onClose }: SidebarProps) => {
 
         {/* STACKED NAVIGATION */}
         <nav className="flex-1 p-5 space-y-1.5 overflow-y-auto custom-scrollbar">
-          <div className="text-[10px] font-black text-text-muted uppercase tracking-widest px-4 mb-3 mt-2">Intelligence & Gestion</div>
+          <div className="text-[10px] font-black text-text-muted uppercase tracking-widest px-4 mb-3 mt-2">Cabinet</div>
           
           <NavItem to="/dashboard" icon={<LayoutDashboard size={20} />} label="Tableau de bord" badge={alertCount > 0 ? String(alertCount) : undefined} />
-          <NavItem to="/analytics" icon={<Activity size={20} />} label="Analytics" />
-          {hasAccess('agenda') && <NavItem to="/agenda" icon={<Calendar size={20} />} label="Studio Agenda" />}
+          <NavItem to="/analytics" icon={<Activity size={20} />} label="Indicateurs" />
+          {hasAccess('agenda') && <NavItem to="/agenda" icon={<Calendar size={20} />} label="Agenda" />}
           {hasAccess('accounting') && <NavItem to="/accounting" icon={<Receipt size={20} />} label="Comptabilité" />}
-          {hasAccess('patients') && <NavItem to="/patients" icon={<Users size={20} />} label="Dossiers Patients" />}
-          <NavItem to="/bibliotheque" icon={<BookOpen size={20} />} label="Bibliothèque Elite" />
-          {hasAccess('patients') && <NavItem to="/approvisionnement" icon={<Store size={20} />} label="Marketplace" />}
-
-          <div className="text-[10px] font-black text-amber-500 uppercase tracking-widest px-4 mb-3 mt-6 flex items-center gap-1.5">
-            <Construction size={12} /> Bientôt disponible
-          </div>
-          {hasAccess('patients') && <NavItem to="/stock" icon={<Package size={20} />} label="Gestion Stock" badge="Bientôt" />}
-          {hasAccess('agenda') && <NavItem to="/salle-attente" icon={<Armchair size={20} />} label="Salle d'attente" badge="Bientôt" />}
-          <NavItem to="/labo" icon={<FlaskConical size={20} />} label="Module Labo" badge="Bientôt" />
+          {hasAccess('patients') && <NavItem to="/patients" icon={<Users size={20} />} label="Patients" />}
+          <NavItem to="/bibliotheque" icon={<BookOpen size={20} />} label="Bibliothèque clinique" />
+          {hasAccess('patients') && <NavItem to="/approvisionnement" icon={<Store size={20} />} label="Approvisionnement" />}
 
           {/* SUPER ADMIN (Hidden for non-admin users) */}
           {user?.is_superadmin && (
@@ -193,7 +182,7 @@ export const Sidebar = ({ isOpen = false, onClose }: SidebarProps) => {
                 <NavItem 
                   to={`/patients/${currentPatientId}?tab=analysis`} 
                   icon={<Activity size={20} />} 
-                  label="Studio Céphalométrique"
+                  label="Céphalométrie"
                   forceActive={isInPatientDossier && currentTab === 'analysis'}
                 />
               )}
@@ -201,14 +190,14 @@ export const Sidebar = ({ isOpen = false, onClose }: SidebarProps) => {
               <NavItem 
                 to={`/patients/${currentPatientId}?tab=admin`} 
                 icon={<FileText size={20} />} 
-                label="Hub Documentaire"
+                label="Documents"
                 forceActive={isInPatientDossier && currentTab === 'admin'}
               />
 
               <NavItem 
                 to={`/patients/${currentPatientId}?tab=archives`} 
                 icon={<History size={20} />} 
-                label="Archives & Historique"
+                label="Archives"
                 forceActive={isInPatientDossier && currentTab === 'archives'}
               />
             </div>

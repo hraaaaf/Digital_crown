@@ -88,7 +88,7 @@ export const DocumentHubContent: React.FC<DocumentHubContentProps> = ({
     {activeTab === 'ordonnance' && (
       <div data-ordonnance-coherence="u6">
         <style>{`
-          [data-ordonnance-coherence="u6"] .prescription-r3-legacy div:has(> div[title^="État partiel des contrôles locaux"]) {
+          [data-ordonnance-coherence="u6"] .prescription-r3-legacy div:has(> div[title^="Contrôles de sécurité partiellement disponibles"]) {
             display: none !important;
           }
         `}</style>

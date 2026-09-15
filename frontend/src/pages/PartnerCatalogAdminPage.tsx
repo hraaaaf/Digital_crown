@@ -285,7 +285,7 @@ export const PartnerCatalogAdminPage: React.FC = () => {
       <div className="flex items-center justify-between gap-4">
         <Link to="/approvisionnement" className="inline-flex items-center gap-2 px-4 py-3 rounded-elite border border-border-main text-sm font-black text-slate-700 hover:bg-slate-50">
           <ArrowLeft size={16} />
-          Retour marketplace
+          Retour à l'approvisionnement
         </Link>
         <button
           type="button"

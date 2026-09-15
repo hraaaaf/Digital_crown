@@ -335,7 +335,7 @@ export const MobileSecurity = () => {
       <div className="bg-slate-50 dark:bg-white/5 rounded-2xl p-6 border border-slate-200/60 dark:border-white/5">
         <h4 className="text-sm font-bold text-slate-700 dark:text-slate-300 mb-2">Sécurité mobile locale</h4>
         <p className="text-xs text-slate-500 leading-relaxed">
-          Les données cliniques restent sur le réseau local du cabinet. Le pont QR transporte uniquement une adresse LAN et un secret temporaire. La clé locale est transmise chiffrée après l'échange ECDH et la destination est revalidée par le backend selon les permissions réelles de l'utilisateur appairé.
+          Les données cliniques restent sur le réseau local du cabinet. L'appairage mobile utilise une connexion chiffrée et respecte les droits de l'utilisateur.
         </p>
       </div>
     </div>

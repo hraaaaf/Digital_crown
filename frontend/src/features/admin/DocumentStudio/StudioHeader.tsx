@@ -140,7 +140,7 @@ export const StudioHeader: React.FC<StudioHeaderProps> = ({
               )}
               style={{ color: 'var(--primary)' }}
             >
-              {compactOrdonnance ? documentLabel : 'Studio Documentaire'}
+              {compactOrdonnance ? documentLabel : 'Documents'}
             </h2>
             {!compactOrdonnance && (
               <span className="rounded-full bg-slate-100 dark:bg-slate-800 px-2 py-1 text-[9px] font-black uppercase tracking-wider text-slate-500 dark:text-slate-300">

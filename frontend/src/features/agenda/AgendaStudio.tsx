@@ -245,7 +245,7 @@ export const AgendaStudio: React.FC = () => {
           </div>
           
           <div className="space-y-1">
-            <h1 className="text-2xl sm:text-3xl font-black text-primary tracking-tight whitespace-nowrap">Studio Agenda</h1>
+            <h1 className="text-2xl sm:text-3xl font-black text-primary tracking-tight whitespace-nowrap">Agenda</h1>
             <div className="flex items-center gap-3">
               <button onClick={handlePrev} className="p-1.5 hover:bg-white/60 rounded-full transition-colors text-primary">
                 <ChevronLeft size={20} />

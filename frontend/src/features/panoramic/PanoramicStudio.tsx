@@ -236,7 +236,7 @@ export const PanoramicStudio: React.FC<PanoramicStudioProps> = ({ patientId, pat
         <div className="bg-white rounded-[2rem] shadow-sm border border-slate-200/60 p-4 lg:p-6 flex flex-col lg:flex-row items-start lg:items-center justify-between shrink-0 gap-4">
           <div>
             <h2 className="text-xl font-black text-slate-800 tracking-tight flex items-center gap-2">
-              Studio Panoramique - {patientName}
+              Radiographie panoramique - {patientName}
             </h2>
             <p className="text-sm text-slate-500 mt-1 font-medium italic">Repérage dentaire automatique · validation praticien</p>
           </div>
@@ -265,7 +265,7 @@ export const PanoramicStudio: React.FC<PanoramicStudioProps> = ({ patientId, pat
               )}
             >
               <History size={18} />
-              {viewMode === 'history' ? 'Retour Studio' : 'Historique'}
+              {viewMode === 'history' ? 'Retour' : 'Historique'}
             </button>
 
             <input type="file" ref={fileInputRef} onChange={handleUpload} accept="image/*" className="hidden" />

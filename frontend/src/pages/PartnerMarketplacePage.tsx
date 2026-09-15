@@ -31,7 +31,7 @@ export const PartnerMarketplacePage = () => {
               <Zap size={14} className="text-primary" aria-hidden="true" />
               Approvisionnement rapide
             </div>
-            <h1 className="mt-1 font-outfit text-2xl font-black leading-tight text-text-main sm:text-3xl">Marketplace</h1>
+            <h1 className="mt-1 font-outfit text-2xl font-black leading-tight text-text-main sm:text-3xl">Approvisionnement</h1>
             <p className="mt-1 max-w-2xl text-sm font-medium text-text-muted">
               Trouvez une référence par nom ou SKU, ajustez la quantité et préparez un brouillon de commande.
             </p>
@@ -51,7 +51,7 @@ export const PartnerMarketplacePage = () => {
         </div>
       </header>
 
-      <section className="rounded-elite-lg border border-border-main bg-card-bg p-3 shadow-elite sm:p-4" aria-label="Recherche Marketplace">
+      <section className="rounded-elite-lg border border-border-main bg-card-bg p-3 shadow-elite sm:p-4" aria-label="Recherche approvisionnement">
         <div className="flex flex-col gap-3 md:flex-row md:items-center">
           <label className="relative min-w-0 flex-1" htmlFor="marketplace-search">
             <span className="sr-only">Rechercher par nom ou SKU</span>
@@ -75,7 +75,7 @@ export const PartnerMarketplacePage = () => {
           </button>
         </div>
 
-        <div className="mt-3 flex gap-2 overflow-x-auto pb-1" aria-label="Filtres Marketplace">
+        <div className="mt-3 flex gap-2 overflow-x-auto pb-1" aria-label="Filtres approvisionnement">
           <button
             type="button"
             onClick={() => marketplace.setAvailableOnly(!marketplace.availableOnly)}

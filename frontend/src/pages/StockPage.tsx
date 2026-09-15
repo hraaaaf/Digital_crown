@@ -234,7 +234,7 @@ export const StockPage = () => {
         {/* Bientôt disponible */}
         <div className="px-4 py-2 bg-amber-50 border border-amber-200 rounded-xl text-xs font-bold text-amber-700 flex items-center gap-2">
           <span className="text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-600 border border-amber-500/20">Bientôt</span>
-          Module en cours de finalisation — bientôt disponible dans sa version complète. Vous pouvez déjà l'utiliser normalement.
+          Module disponible. Les fonctions affichées sont celles actuellement prises en charge.
         </div>
 
         {/* Header */}

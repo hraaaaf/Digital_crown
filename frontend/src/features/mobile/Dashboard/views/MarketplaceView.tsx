@@ -22,7 +22,7 @@ export function MarketplaceView({ previewData }: { previewData?: MarketplacePrev
       <div className="flex items-start justify-between gap-3 pt-1">
         <div className="min-w-0">
           <p className="text-[9px] font-black uppercase tracking-[0.18em] text-text-muted">Approvisionnement</p>
-          <h1 className="mt-1 font-outfit text-[25px] font-black leading-none text-text-main">Marketplace</h1>
+          <h1 className="mt-1 font-outfit text-[25px] font-black leading-none text-text-main">Approvisionnement</h1>
           <p className="mt-1.5 text-[11px] font-bold leading-relaxed text-text-muted">Référence connue → quantité → panier.</p>
         </div>
         <button
@@ -49,7 +49,7 @@ export function MarketplaceView({ previewData }: { previewData?: MarketplacePrev
         />
       </label>
 
-      <div className="mt-3 flex gap-2 overflow-x-auto pb-1" aria-label="Filtres Marketplace mobile">
+      <div className="mt-3 flex gap-2 overflow-x-auto pb-1" aria-label="Filtres approvisionnement mobile">
         <button
           type="button"
           onClick={() => marketplace.setAvailableOnly(!marketplace.availableOnly)}

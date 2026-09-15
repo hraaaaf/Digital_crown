@@ -57,7 +57,7 @@ export function MobileBottomNav({
     {
       id: 'marketplace' as Tab,
       icon: ShoppingCart,
-      label: 'Marketplace',
+      label: 'Approvisionnement',
       allowedRoles: ['DENTISTE', 'ADMIN'],
     },
     {
