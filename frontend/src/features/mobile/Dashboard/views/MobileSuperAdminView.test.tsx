@@ -42,7 +42,7 @@ describe('MobileSuperAdminView', () => {
     fireEvent.click(sectionButton('Essais'));
     expect(screen.getByText('DC-DEMO-42A1-8BC2')).toBeTruthy();
 
-    fireEvent.click(sectionButton('Marketplace'));
+    fireEvent.click(sectionButton('Approvisionnement'));
     expect(screen.getByText('Dental Supply Demo')).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Catalogue' })).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Incidents' })).toBeTruthy();
