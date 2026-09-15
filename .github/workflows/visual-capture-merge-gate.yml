@@ -1,0 +1,220 @@
+name: Visual Capture Merge Gate
+
+# Merge invariant for Digital Crown:
+# any PR that changes product UI/UX is automatically returned to draft state
+# until the repository owner explicitly validates the screenshots/captures.
+#
+# Validation is intentionally invalidated on every new commit to the PR.
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review, labeled, unlabeled]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+  pull-requests: write
+
+jobs:
+  visual-capture-gate:
+    if: github.event_name == 'pull_request'
+    name: Visual captures validated
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout exact PR head
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+
+      - name: Detect UI/UX-impacting changes
+        id: detect
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          git fetch --no-tags origin "$BASE_SHA" "$HEAD_SHA" || true
+          git diff --name-only "$BASE_SHA" "$HEAD_SHA" > /tmp/changed-files.txt
+
+          python - <<'PY'
+          from pathlib import Path
+          import os
+
+          files = [line.strip() for line in Path('/tmp/changed-files.txt').read_text().splitlines() if line.strip()]
+
+          def is_ui_file(path: str) -> bool:
+              # Product frontend. Test-only files do not require screenshots.
+              if path.startswith('frontend/src/'):
+                  lowered = path.lower()
+                  if '/__tests__/' in lowered or '.test.' in lowered or '.spec.' in lowered:
+                      return False
+                  return True
+
+              if path.startswith('frontend/public/'):
+                  return True
+
+              if path == 'frontend/index.html':
+                  return True
+
+              # Visual assets/templates outside src.
+              visual_ext = {
+                  '.css', '.scss', '.sass', '.less',
+                  '.html', '.htm',
+                  '.svg', '.png', '.jpg', '.jpeg', '.webp', '.gif', '.ico',
+              }
+              suffix = Path(path).suffix.lower()
+              if path.startswith('frontend/') and suffix in visual_ext:
+                  return True
+
+              # Server-rendered templates, if any.
+              if ('/templates/' in f'/{path}' or path.startswith('templates/')) and suffix in {'.html', '.htm'}:
+                  return True
+
+              return False
+
+          ui_files = [path for path in files if is_ui_file(path)]
+          output = Path(os.environ['GITHUB_OUTPUT'])
+          with output.open('a') as fh:
+              fh.write(f"ui_changed={'true' if ui_files else 'false'}\n")
+
+          print('Changed files:')
+          for path in files:
+              print(f' - {path}')
+          if ui_files:
+              print('UI/UX-impacting files:')
+              for path in ui_files:
+                  print(f' - {path}')
+          else:
+              print('No UI/UX-impacting file detected.')
+          PY
+
+      - name: Ensure validation label exists
+        if: steps.detect.outputs.ui_changed == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh label create "captures-validated" \
+            --repo "${{ github.repository }}" \
+            --color "0E8A16" \
+            --description "Owner validated visual captures for the current PR HEAD" \
+            --force
+
+      - name: Invalidate stale visual approval after a new commit
+        if: steps.detect.outputs.ui_changed == 'true' && github.event.action == 'synchronize'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          gh api \
+            --method DELETE \
+            -H "Accept: application/vnd.github+json" \
+            "/repos/${{ github.repository }}/issues/${PR_NUMBER}/labels/captures-validated" \
+            >/dev/null 2>&1 || true
+
+          gh pr ready "$PR_NUMBER" \
+            --repo "${{ github.repository }}" \
+            --undo >/dev/null 2>&1 || true
+
+          echo "::error::UI/UX HEAD changed. Previous capture validation is invalid. New captures must be reviewed and validated by the repository owner."
+          exit 1
+
+      - name: Reject non-owner visual approval
+        if: >-
+          steps.detect.outputs.ui_changed == 'true' &&
+          github.event.action == 'labeled' &&
+          github.event.label.name == 'captures-validated' &&
+          github.actor != github.repository_owner
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          gh api \
+            --method DELETE \
+            -H "Accept: application/vnd.github+json" \
+            "/repos/${{ github.repository }}/issues/${PR_NUMBER}/labels/captures-validated" \
+            >/dev/null 2>&1 || true
+
+          gh pr ready "$PR_NUMBER" \
+            --repo "${{ github.repository }}" \
+            --undo >/dev/null 2>&1 || true
+
+          echo "::error::Only repository owner '${{ github.repository_owner }}' may validate visual captures."
+          exit 1
+
+      - name: Require capture validation for UI/UX PRs
+        if: steps.detect.outputs.ui_changed == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ACTION: ${{ github.event.action }}
+          LABEL_NAME: ${{ github.event.label.name }}
+          ACTOR: ${{ github.actor }}
+          OWNER: ${{ github.repository_owner }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          LABELS_JSON: ${{ toJson(github.event.pull_request.labels) }}
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          import subprocess
+          import sys
+
+          action = os.environ.get('ACTION', '')
+          label_name = os.environ.get('LABEL_NAME', '')
+          actor = os.environ.get('ACTOR', '')
+          owner = os.environ.get('OWNER', '')
+          pr_number = os.environ['PR_NUMBER']
+
+          labels = json.loads(os.environ.get('LABELS_JSON') or '[]')
+          names = {item.get('name') for item in labels}
+
+          approved_now = (
+              action == 'labeled'
+              and label_name == 'captures-validated'
+              and actor == owner
+          )
+          already_approved = 'captures-validated' in names
+
+          if action in {'opened', 'reopened', 'ready_for_review'} and not already_approved:
+              subprocess.run(
+                  ['gh', 'pr', 'ready', pr_number, '--repo', os.environ['GITHUB_REPOSITORY'], '--undo'],
+                  stdout=subprocess.DEVNULL,
+                  stderr=subprocess.DEVNULL,
+                  check=False,
+              )
+              print('::error::UI/UX change detected. Merge blocked until screenshots are reviewed and owner applies label captures-validated.')
+              sys.exit(1)
+
+          if action == 'unlabeled' and label_name == 'captures-validated':
+              subprocess.run(
+                  ['gh', 'pr', 'ready', pr_number, '--repo', os.environ['GITHUB_REPOSITORY'], '--undo'],
+                  stdout=subprocess.DEVNULL,
+                  stderr=subprocess.DEVNULL,
+                  check=False,
+              )
+              print('::error::Capture validation removed. Merge blocked.')
+              sys.exit(1)
+
+          if approved_now or already_approved:
+              subprocess.run(
+                  ['gh', 'pr', 'ready', pr_number, '--repo', os.environ['GITHUB_REPOSITORY']],
+                  stdout=subprocess.DEVNULL,
+                  stderr=subprocess.DEVNULL,
+                  check=False,
+              )
+              print('Visual capture validation present for this PR HEAD.')
+              sys.exit(0)
+
+          subprocess.run(
+              ['gh', 'pr', 'ready', pr_number, '--repo', os.environ['GITHUB_REPOSITORY'], '--undo'],
+              stdout=subprocess.DEVNULL,
+              stderr=subprocess.DEVNULL,
+              check=False,
+          )
+          print('::error::UI/UX change detected. Merge blocked until screenshots are reviewed and owner applies label captures-validated.')
+          sys.exit(1)
+          PY
+
+      - name: Non-visual change
+        if: steps.detect.outputs.ui_changed != 'true'
+        run: echo "No UI/UX change detected; screenshot validation not required."
