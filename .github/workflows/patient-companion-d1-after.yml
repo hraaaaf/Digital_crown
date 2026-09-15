@@ -10,7 +10,9 @@ on:
       - 'frontend/src/pages/PatientCompanionPage.tsx'
       - 'frontend/src/patient-companion/**'
       - 'frontend/src/main.tsx'
+      - 'frontend/src/styles/patientCompanionTheme.css'
       - 'frontend/package.json'
+      - 'frontend/package-lock.json'
   workflow_dispatch:
 
 concurrency:
@@ -32,8 +34,10 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
-      - name: Install D1 frontend manifest
-        run: npm install --package-lock=false --legacy-peer-deps
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install exact frontend lockfile
+        run: npm ci --legacy-peer-deps
       - name: Install capture browser
         run: |
           npm install --no-save --package-lock=false --legacy-peer-deps playwright@1.55.0 react-is@19.2.0
