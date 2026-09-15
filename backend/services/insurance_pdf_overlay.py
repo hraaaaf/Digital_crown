@@ -132,8 +132,11 @@ def _field_value(draft: InsuranceSubmissionDraft, key: str) -> str:
     match = _LINE_FIELD.fullmatch(key)
     if match:
         index = int(match.group(1))
+        # A profile describes the form's capacity, not the number of acts in a draft.
+        # Unused form rows stay blank; max_lines still fails closed when a draft
+        # contains more care lines than the exact form can represent.
         if index >= len(draft.lines):
-            raise ValueError("Overlay profile references a missing care line")
+            return ""
         return _text(getattr(draft.lines[index], match.group(2)))
 
     choice = _CHOICE_FIELD.fullmatch(key)
