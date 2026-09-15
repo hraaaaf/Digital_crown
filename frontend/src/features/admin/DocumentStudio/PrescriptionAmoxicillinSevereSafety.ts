@@ -29,6 +29,8 @@ const evidenceIds = (arbitration: PharmacologyArbitration) =>
  * This gate is deliberately conservative:
  * - it never infers severity from free text;
  * - it never invents a paediatric weight;
+ * - structured renal impairment blocks severe-dose adaptation because the SmPC
+ *   requires renal function to be considered;
  * - for 6 months to 11 years it exposes the source-backed ceiling
  *   (up to 30 mg/kg per dose, max 1 g, three times daily) but does not choose
  *   a replacement dose automatically;
@@ -50,6 +52,17 @@ export function applyAmoxicillinSevereDentalAbscessSafety(
 
   const ageYears = realAgeYears(patient);
   const ids = evidenceIds(arbitration);
+
+  if (patient.renalImpairment === true) {
+    return {
+      status: 'requires_review',
+      regimen: null,
+      messages: [
+        'Infection dentaire sévère avec insuffisance rénale structurée : aucune adaptation automatique de l’amoxicilline. Le SmPC exige de tenir compte de la fonction rénale/GFR ; validation praticien requise.',
+      ],
+      evidenceIds: ids,
+    };
+  }
 
   if (ageYears == null) {
     return {
