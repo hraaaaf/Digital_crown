@@ -15,6 +15,7 @@ from backend.models_patient_companion import (
     PatientCompanionAccess,
     PatientCompanionIdentity,
     PatientCompanionInvitation,
+    PatientCompanionShareGrant,
 )
 from backend.routers.auth import get_current_user
 from backend.routers.patient_companion_common import (
@@ -50,6 +51,71 @@ class InvitationCreateRequest(BaseModel):
 class ActivationRequest(BaseModel):
     token: str | None = Field(default=None, max_length=256)
     manual_code: str | None = Field(default=None, max_length=32)
+
+
+@router.get("/admin/patients/{patient_id}/status")
+def get_patient_companion_staff_status(
+    patient_id: int,
+    response: Response,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    """Read-only staff projection over the certified D0 models.
+
+    No credential subject, recipient hash, token hash or manual-code hash is exposed.
+    """
+    patient = staff_patient_or_404(db, current_user, patient_id)
+    employer_id = int(current_user.get_employer_id())
+    now = datetime.utcnow()
+
+    accesses = db.query(PatientCompanionAccess).filter(
+        PatientCompanionAccess.employer_id == employer_id,
+        PatientCompanionAccess.patient_id == patient.id,
+        PatientCompanionAccess.revoked_at.is_(None),
+    ).order_by(PatientCompanionAccess.created_at.asc()).all()
+
+    invitation = db.query(PatientCompanionInvitation).filter(
+        PatientCompanionInvitation.employer_id == employer_id,
+        PatientCompanionInvitation.patient_id == patient.id,
+        PatientCompanionInvitation.consumed_at.is_(None),
+        PatientCompanionInvitation.revoked_at.is_(None),
+        PatientCompanionInvitation.expires_at > now,
+    ).order_by(PatientCompanionInvitation.created_at.desc()).first()
+
+    shares = db.query(PatientCompanionShareGrant).filter(
+        PatientCompanionShareGrant.employer_id == employer_id,
+        PatientCompanionShareGrant.patient_id == patient.id,
+        PatientCompanionShareGrant.revoked_at.is_(None),
+    ).order_by(PatientCompanionShareGrant.created_at.desc()).all()
+
+    response.headers["Cache-Control"] = "no-store"
+    return {
+        "patient_id": patient.id,
+        "active_accesses": [
+            {
+                "access_id": access.public_id,
+                "relationship_type": access.relationship_type,
+                "created_at": access.created_at,
+            }
+            for access in accesses
+        ],
+        "pending_invitation": None if invitation is None else {
+            "invitation_id": invitation.public_id,
+            "relationship_type": invitation.relationship_type,
+            "recipient_type": invitation.recipient_type,
+            "created_at": invitation.created_at,
+            "expires_at": invitation.expires_at,
+        },
+        "shares": [
+            {
+                "share_id": share.public_id,
+                "resource_type": share.resource_type,
+                "resource_id": share.resource_id,
+                "created_at": share.created_at,
+            }
+            for share in shares
+        ],
+    }
 
 
 @router.post("/admin/patients/{patient_id}/invitation", status_code=201)
@@ -167,9 +233,6 @@ def activate_patient_companion(
     ):
         raise HTTPException(status_code=400, detail="Invitation invalide ou expirée.")
 
-    # Firebase-authenticated requests intentionally carry no cabinet JWT, so the
-    # global staff licence middleware cannot resolve their tenant. Activation is
-    # a write: enforce the owning cabinet licence locally before creating links.
     require_companion_cabinet_write_license(db, invitation.employer_id)
 
     credential_digest = credential_recipient_hash(credential, invitation.recipient_type)
