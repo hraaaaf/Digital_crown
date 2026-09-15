@@ -2,434 +2,183 @@
 
 Status: **ACTIVE — canonical roadmap for the competitive gap chantier after Media closure**  
 Created: **2026-09-14**  
-Repository: `hraaaaf/Digital_crown`  
-Baseline at creation: `master@626a14e00f010627f81f459c7126c2739ecb6b60`
+Repository: `hraaaaf/Digital_crown`
 
-> This file is the canonical restart point for this chantier. In a new window, read it first, then re-check `master`, current HEAD, relevant branches/PRs and CI before drawing conclusions. Never assume the baseline SHA is still current.
-
----
+> Canonical restart point. In a new window: read this file first, then re-check current `master`, active branch/PR and exact-head CI. Never trust an old SHA merely because humans enjoy copying them into documents.
 
 ## 1. Goal
 
-Turn the post-Media competitive audit into an executable roadmap that closes only real product gaps, without rebuilding capabilities Digital Crown already has.
+Close only real competitive gaps without duplicating capabilities Digital Crown already has.
 
-### Success
+## 2. Certified baseline — Media
 
-- Media remains closed and is not reopened without a demonstrated regression or an explicitly new scope.
-- Each remaining competitive gap has one bounded lot with explicit in-scope, out-of-scope, dependencies, success criteria and proof requirements.
-- No lot duplicates existing Patient Journey, Media Core, notification, orthodontic, lab or analytics capabilities.
-- Every lot is closed only after code, tests, observed behavior, exact-head CI, merge and post-merge evidence agree.
+**Lot C Media Core = CLOSED — 50/50 EP — 100%.**
 
-### Proof
+Key evidence:
+- PR #483 merged;
+- certified candidate `cf56bb69e65d0eca5b8c5a73e593a02c788cb2d7`;
+- squash merge `fdaa969f4369c7335e9badcd9480df223f8ee30c`;
+- closeout `e05ecf51da34edc40b434ec2d508340d0e1e19e9`;
+- CI #3941 success;
+- backend 3467 passed / 10 skipped;
+- PostgreSQL #374 success;
+- T2 #2859 success;
+- P7 #1474 success;
+- C4 Visual #58 success;
+- post-merge CI #3942 success;
+- volumetric proof 5,000 tenant-A assets + 500 cross-tenant assets;
+- responsive proof 390×844 / 768×1024 / 1280×900;
+- visual score 9.6/10.
 
-For each lot, retain:
-
-1. anti-duplication audit;
-2. implementation diff;
-3. automated tests and security/isolation tests;
-4. UI/UX BEFORE → AFTER evidence when visual behavior changes;
-5. exact-head CI result;
-6. PR audit / merge evidence;
-7. post-merge verification;
-8. canonical closeout update in this file or a dedicated linked closeout.
-
----
-
-## 2. Certified baseline — Competitive / Media
-
-**Lot C Media Core = 50/50 EP = 100% CLOSED.**
-
-Verified closeout baseline:
-
-- PR #483 `feat(media): certify Competitive / Media C7`: **MERGED**.
-- Certified candidate HEAD: `cf56bb69e65d0eca5b8c5a73e593a02c788cb2d7`.
-- Squash merge: `fdaa969f4369c7335e9badcd9480df223f8ee30c`.
-- Closeout commit: `e05ecf51da34edc40b434ec2d508340d0e1e19e9`.
-- `master@626a14e00f010627f81f459c7126c2739ecb6b60` is a direct descendant of the C7 closeout at the time this canonical was created.
-- Candidate CI #3941: **SUCCESS**.
-- Backend: **3467 passed / 10 skipped**.
-- PostgreSQL #374: **SUCCESS**.
-- T2 #2859: **SUCCESS**.
-- P7 #1474: **SUCCESS**.
-- C4 Visual #58: **SUCCESS**.
-- Post-merge CI #3942: **SUCCESS**.
-- Volumetric proof: **5,000 tenant-A assets + 500 cross-tenant assets**.
-- Responsive proof: **390×844, 768×1024, 1280×900**.
-- Preserved visual score: **9.6/10**.
-
-### Hard rule
-
-Do **not** list C6 or C7 as remaining work. Do **not** reopen Media because another roadmap lot needs images, attachments or patient media. Reuse the certified Media Core / Media Hub contracts instead.
-
----
+Do not reopen Media C6/C7 unless a real regression or new scope is demonstrated.
 
 ## 3. Anti-duplication baseline
 
-The roadmap below starts from these already-existing product areas. Their existence does not mean the new gaps are closed; it means future lots must extend them rather than clone them.
+- Internal Patient Journey / patient cockpit exists: Patient Companion must not clone it.
+- Notification/push/preferences exist: Connect Hub must reuse them.
+- Ortho/cephalo exists: Ortho Journey is longitudinal workflow, not a second diagnostic engine.
+- `lab_jobs` exists: Lab lot extends collaboration, not greenfield lab ordering.
+- Financial/operational analytics exist: BI lot targets recall/outcomes, not duplicate dashboards.
+- Media Core / Media Hub is canonical for all future image/file workflows.
 
-| Existing area | Roadmap consequence |
-|---|---|
-| Internal Patient Journey / patient cockpit capabilities | Do not rebuild an internal cabinet journey under the name Patient Companion. |
-| Notification / preference / push infrastructure | Connect Hub must reuse it; do not introduce a second notification engine. |
-| Orthodontic / cephalometric clinical capabilities | Ortho Journey must focus on longitudinal treatment workflow, not reimplement diagnosis/cephalo. |
-| `lab_jobs` / lab prescription workflow | Lab lot must enrich collaboration and traceability, not create a second lab order model. |
-| Existing financial/analytics indicators | BI lot must add recall/outcomes/longitudinal insight, not recreate existing financial dashboards. |
-| Certified Media Core / Media Hub | All future image/file workflows must integrate through the canonical media model, not dual-write. |
+## 4. Lot D — Patient Companion
 
-At the start of every lot, re-check these facts against current `master`; code moves, humans rename things, and roadmaps otherwise age like milk.
-
----
-
-## 4. Roadmap lots
-
-### Lot D — Patient Companion
-
-**Status:** NOT STARTED  
 **Priority:** P1  
-**Goal:** provide a secure patient-facing companion without duplicating the internal cabinet Patient Journey.
-
-#### In scope
-
-- patient identity and authenticated patient access;
-- strict patient + tenant authorization;
-- patient-visible appointments and care follow-up;
-- patient-visible documents/media through existing controlled services;
-- consent and acknowledgement surfaces where applicable;
-- self-service actions that are explicitly safe and bounded;
-- mobile-first responsive experience.
-
-#### Out of scope
-
-- replacing the internal Patient Journey;
-- rebuilding Media Core;
-- inventing a new clinical record model;
-- autonomous clinical decisions;
-- Vercel deployment without explicit authorization.
-
-#### Success
-
-A patient can authenticate and access only the information/actions explicitly authorized for that patient, with no cross-patient or cross-tenant leakage.
-
-#### Mandatory proof
-
-- API/data-contract audit;
-- authorization matrix;
-- negative cross-patient and cross-tenant tests;
-- patient E2E journey tests;
-- responsive BEFORE/AFTER evidence at 390 / 768 / 1280 when UI is implemented;
-- exact-head CI + post-merge CI.
-
-#### First sub-lot
-
-**D0 — architecture + anti-duplication audit**: map existing patient/cockpit/auth/document/media contracts, define the minimal patient-facing boundary, then implement only missing primitives.
-
----
-
-### Lot E — Connect Hub
-
-**Status:** NOT STARTED  
-**Priority:** P1, coupled to Lot D  
-**Goal:** create one patient communication hub on top of the existing notification infrastructure.
-
-#### In scope
-
-- patient/cabinet conversation timeline or equivalent unified communication surface;
-- reuse of current notification preferences and push primitives;
-- traceable message state and patient context;
-- explicit permissions, auditability and tenant isolation;
-- integration points for reminders and future recall workflows.
-
-#### Out of scope
-
-- a second notification engine;
-- replacing all current notification services;
-- unverified external messaging channels added without security/privacy review.
-
-#### Success
-
-Patient communication is visible and traceable in one canonical workflow while existing notification infrastructure remains the underlying delivery foundation.
-
-#### Mandatory proof
-
-- notification anti-duplication audit;
-- permission and audit-log tests;
-- conversation/message ordering and idempotency tests where applicable;
-- cross-tenant negative tests;
-- UI evidence if a new hub is introduced;
-- exact-head + post-merge CI.
-
----
-
-### Lot F — Ortho Journey
-
-**Status:** NOT STARTED  
-**Priority:** P2  
-**Goal:** add longitudinal orthodontic treatment tracking around the already-existing orthodontic/cephalometric capabilities.
-
-#### In scope
-
-- treatment phases / milestones;
-- longitudinal controls and progression history;
-- progress media through certified Media Core;
-- comparison over time;
-- treatment-specific follow-up events and outcomes;
-- practitioner-facing and, where safe, patient-facing progress views.
-
-#### Out of scope
-
-- rebuilding cephalometric analysis;
-- replacing existing ortho diagnostic logic;
-- storing duplicate media outside Media Core.
-
-#### Success
-
-An orthodontic case can be followed coherently from treatment start through controls to closure/outcome, with chronology, provenance and no duplicate clinical/media model.
-
-#### Mandatory proof
-
-- existing ortho capability map;
-- migration/data-model proof if schema changes;
-- longitudinal ordering/integrity tests;
-- Media Core integration tests;
-- representative treatment E2E;
-- UI BEFORE/AFTER certification where applicable;
-- exact-head + post-merge CI.
-
----
-
-### Lot G — Assurance Maroc
-
-**Status:** NOT STARTED  
-**Priority:** P2, business-priority candidate  
-**Goal:** create a Morocco-specific insurance/coverage workflow only after the applicable operational and regulatory requirements are verified.
-
-#### In scope
-
-- verified payer/coverage data model;
-- eligibility / coverage capture as supported by reliable sources and real workflows;
-- estimate/claim/supporting-document workflow where legally and operationally valid;
-- traceability of status and practitioner/admin actions;
-- clear distinction between patient, insurer and cabinet data responsibilities.
-
-#### Out of scope
-
-- guessing CNSS/CNOPS/AMO rules;
-- hard-coding unverified reimbursement rules;
-- presenting legal/coverage assumptions as certified facts.
-
-#### Success
-
-A real Morocco insurance workflow can be executed end-to-end using verified rules and source-backed data, with auditable state transitions.
-
-#### Mandatory proof
-
-- external regulatory/operational source pack before implementation;
-- rule provenance in code/docs;
-- calculation/state-machine tests if calculations are introduced;
-- representative real-world workflow tests;
-- exact-head + post-merge CI.
-
-#### Gate
-
-**Research gate:** no implementation of reimbursement/coverage logic until current Moroccan requirements have been verified against authoritative sources.
-
----
-
-### Lot H — Lab / Prosthesis Collaboration
-
-**Status:** NOT STARTED  
-**Priority:** P3  
-**Goal:** extend the existing lab-job workflow into a traceable cabinet ↔ lab collaboration flow.
-
-#### In scope
-
-- enrich existing lab jobs, not replace them;
-- controlled attachments/media through Media Core;
-- production/status milestones;
-- due dates and delay visibility;
-- remake / correction traceability;
-- quality-control checkpoints;
-- optional lab-facing surface only if justified by the workflow audit.
-
-#### Out of scope
-
-- parallel lab-order tables with duplicated ownership;
-- uncontrolled external file storage;
-- marketplace functionality unless explicitly opened as a new chantier.
-
-#### Success
-
-A prosthetic/lab case remains traceable from prescription to delivery/acceptance/remake using one canonical lab job and one canonical media layer.
-
-#### Mandatory proof
-
-- `lab_jobs` anti-duplication audit;
-- state-transition tests;
-- attachment/media integration tests;
-- deadline/remake/QC tests;
-- tenant and patient authorization tests;
-- UI evidence if workflow surfaces change;
-- exact-head + post-merge CI.
-
----
-
-### Lot I — BI / Recall / Outcomes
-
-**Status:** NOT STARTED  
-**Priority:** P3  
-**Goal:** add longitudinal operational/clinical insight and recall automation without recreating existing financial analytics.
-
-#### In scope
-
-- recall eligibility and scheduling rules;
-- traceable reminder/recall lifecycle using Connect/notification foundations;
-- longitudinal treatment outcomes;
-- clinically meaningful cohort/operational indicators where data quality is sufficient;
-- dashboards built from canonical event/data sources.
-
-#### Out of scope
-
-- duplicating current financial dashboards;
-- opaque scores without sourceable inputs;
-- outcome claims unsupported by collected data.
-
-#### Success
-
-The cabinet can identify who needs follow-up, why, when and what happened after recall/treatment, with metrics traceable to canonical data.
-
-#### Mandatory proof
-
-- source-data completeness audit;
-- recall rule tests;
-- deduplication/idempotency tests for reminders;
-- outcome metric definitions + calculation tests;
-- dashboard data reconciliation tests;
-- exact-head + post-merge CI.
-
----
-
-## 5. Default execution order
-
-Technical default:
-
-1. **Lot D — Patient Companion**
-2. **Lot E — Connect Hub foundation**, developed with D where contracts overlap
-3. **Lot F — Ortho Journey**
-4. **Lot G — Assurance Maroc**
-5. **Lot H — Lab / Prosthesis Collaboration**
-6. **Lot I — BI / Recall / Outcomes**
-
-Business override allowed: **F and G may be inverted** if Morocco insurance becomes the higher commercial priority. That reprioritization does not change the anti-duplication rules or Definition of Done.
-
-Rationale: D + E create the patient-facing identity/communication substrate. F can then reuse Patient Companion + Media. I benefits from the event/history generated by D/E/F/H rather than inventing analytics over incomplete workflows.
-
----
-
-## 6. Cross-cutting rules
-
-These apply to every lot.
-
-### Architecture
-
-- Reuse canonical services and data models before adding new ones.
-- No dual-write merely to satisfy a new UI.
-- Preserve tenant isolation and patient scoping end-to-end.
-- Preserve auditability for meaningful clinical/admin state changes.
-- Digital Crown remains local/on-premise in product architecture; do not quietly turn a roadmap lot into a SaaS dependency.
-- Do not reintroduce LLM features into this chantier without an explicit new product decision.
-
-### UI/UX
-
-For any visual change:
-
+**Goal:** secure patient-facing companion without duplicating internal Patient Journey.
+
+### D0 — identity / authorization foundation
+
+**Status:** CLOSEOUT HEAD CANDIDATE — latest-master alignment complete; exact-head certification, merge and post-merge remaining.
+
+Canonical: `docs/audits/PATIENT_COMPANION_D0.md`
+PR: **#490**
+Runtime candidate before documentation closeout: `3119c316548d3b75c52dacd2a4e12cd9fe79a894`
+Base master: `0aa34f39ca97fd3a220bc8a5d9d9ae3e5412c8`
+
+Verified structural state before documentation closeout:
+- PR #490 open and mergeable;
+- D0 overlay restricted to 11 Patient Companion files, including minimal frontdesk router composition;
+- no prescription/cephalo implementation file in the D0 PR diff after latest-master alignment;
+- pre-closeout audit found 0 reviews, 0 review threads and 0 comments.
+
+Historical D0-specific evidence before master realignment:
+- candidate `e5b841a9f22cee7d83573cb8479bd5835a728151`;
+- Cabinet Upgrade PostgreSQL #592 **SUCCESS**;
+- Patient P7 #1557 **SUCCESS**;
+- T2 Runtime Browser #3077 **SUCCESS**.
+
+These runs are retained as historical evidence only. Final certification must use the final documentation closeout HEAD after alignment with current master.
+
+D0 implemented:
+- separate Firebase patient principal;
+- recipient-bound QR/manual activation;
+- single-use/replay protection;
+- tenant+patient authorization;
+- many-to-many guardian/family access;
+- appointment safe read projection;
+- explicit document/media share allow-list;
+- revocation and auditing;
+- owner/admin-only Companion administration in D0;
+- owning-cabinet licence gate on Firebase activation;
+- runtime route-mount certification test;
+- no duplicate Patient/Appointment/Document/Media stores;
+- no rewrite of existing Patient/Appointment/Document models.
+
+D0 explicitly does **not** include patient UI, remote gateway, consent UX, appointment mutations, content byte-serving, Connect Hub or Vercel deployment.
+
+### D1 — next sublot after D0 merge
+
+**Status:** NOT STARTED.
+
+Goal: patient activation/onboarding UI and minimum useful companion shell on top of D0.
+
+Mandatory UI sequence:
 1. BEFORE capture;
 2. written Goal;
 3. mockup/reference;
 4. implementation;
-5. AFTER at the same viewports;
+5. AFTER at 390×844, 768×1024, 1280×900;
 6. comparison + tests;
-7. visual score supported by evidence.
+7. visual score backed by evidence.
 
-Default responsive certification viewports: **390 / 768 / 1280** unless the feature requires an additional device-specific viewport.
+D1 must not weaken D0 auth isolation. Remote/home access remains a separate gateway decision unless an existing verified secure path is found.
 
-### Security / privacy
+## 5. Remaining roadmap order
 
-- deny by default;
-- explicit patient + tenant authorization;
-- negative cross-tenant tests for all patient-facing or external collaboration surfaces;
-- no public/unscoped media or document fallback;
-- no security claim without automated/observed evidence.
+1. Lot D — Patient Companion
+2. Lot E — Connect Hub
+3. Lot F — Ortho Journey
+4. Lot G — Assurance Maroc
+5. Lot H — Lab / Prosthesis Collaboration
+6. Lot I — BI / Recall / Outcomes
 
-### Deployment
+F/G may be swapped if Morocco insurance becomes higher commercial priority.
 
-**No Vercel deployment without explicit user authorization.**
+## 6. Lot E — Connect Hub
 
----
+**Status:** NOT STARTED.
 
-## 7. Definition of Done for each lot
+Goal: unified patient/cabinet communication surface on top of existing notification infrastructure. No second notification engine.
 
-A lot is not CLOSED until all applicable steps are complete:
+## 7. Lot F — Ortho Journey
 
-1. anti-duplication audit against current `master`;
-2. bounded scope and explicit exclusions;
+**Status:** NOT STARTED.
+
+Goal: longitudinal treatment phases, controls, progression, progress media and outcomes around existing ortho/cephalo capabilities.
+
+## 8. Lot G — Assurance Maroc
+
+**Status:** NOT STARTED — research gate applies.
+
+No reimbursement/coverage logic may be implemented before current Moroccan operational/regulatory rules are verified against authoritative sources.
+
+## 9. Lot H — Lab / Prosthesis Collaboration
+
+**Status:** NOT STARTED.
+
+Extend canonical `lab_jobs` with richer collaboration, media, deadlines, QC and remakes. No second lab-order model.
+
+## 10. Lot I — BI / Recall / Outcomes
+
+**Status:** NOT STARTED.
+
+Add recall automation and longitudinal outcomes using canonical data/events. Do not recreate current financial analytics.
+
+## 11. Cross-cutting rules
+
+- Reuse before creating.
+- No dual-write for UI convenience.
+- Tenant + patient isolation end-to-end.
+- Meaningful mutations audited.
+- No patient-facing public/unscoped media/document fallback.
+- No security claim without automated/observed proof.
+- Every modification must preserve existing DB, patient data, documents and already validated functionality; significant changes require proportional non-regression proof before merge.
+- UI changes require BEFORE → Goal → reference/mockup → implementation → AFTER same viewports → comparison/tests → visual score.
+- **No Vercel deployment without explicit user authorization.**
+
+## 12. Definition of Done
+
+A lot is not CLOSED until applicable steps are complete:
+1. anti-dup audit;
+2. bounded scope/exclusions;
 3. implementation;
-4. proportional automated tests;
-5. security/tenant isolation tests;
-6. UI/UX certification if visual change;
-7. documentation and migrations reconciled;
-8. exact-head CI green;
-9. PR review state checked: comments / threads / mergeability;
+4. automated tests;
+5. security/isolation tests;
+6. UI certification if visual;
+7. docs/migrations reconciled;
+8. exact-head CI green, including non-regression coverage appropriate to the change;
+9. PR comments/reviews/threads/mergeability checked;
 10. merge;
-11. post-merge CI/behavior check;
-12. canonical closeout update with exact commit/PR/run evidence.
+11. post-merge CI/behavior verified;
+12. canonical closeout updated with exact evidence.
 
-A queued/in-progress CI alone is never a reason to idle; perform independent work first. If no independent work remains and the CI result is indispensable, record the exact run and state as the external asynchronous blocker.
+## 13. Current state / Next exact
 
----
+- Media C: CLOSED.
+- Patient Companion D0: latest-master alignment complete; both closeout canoniques are being finalized on PR #490; D0 is not CLOSED.
+- D1–I: not started.
+- No deployment authorized.
 
-## 8. Current state
-
-- Competitive / Media Lot C: **CLOSED — 50/50 EP — 100%**.
-- Remaining roadmap axes classified: **6/6**.
-- Lots D–I: **NOT STARTED** at creation of this canonical.
-- No implementation from D–I should be inferred from this document alone.
-- No deployment is authorized by this roadmap.
-
-### Next exact
-
-**Start Lot D0 — Patient Companion architecture + anti-duplication audit on the latest `master`; map existing patient/auth/cockpit/document/media contracts, identify only missing patient-facing primitives, and write the D0 implementation plan with tests and UI proof requirements before changing product behavior.**
-
----
-
-## 9. Restart checklist
-
-When resuming this chantier:
-
-1. read this file completely;
-2. fetch current `master` HEAD;
-3. inspect relevant open PRs/branches;
-4. inspect current CI state only where relevant;
-5. verify the lot status against code/tests, not memory;
-6. do not reopen Media C6/C7;
-7. continue from `Next exact` unless newer verified evidence in this file supersedes it.
-
----
-
-## 10. Repères at creation
-
-- chantier: Competitive roadmap post-Media
-- canonical: `docs/audits/COMPETITIVE_ROADMAP_POST_MEDIA.md`
-- repository: `hraaaaf/Digital_crown`
-- baseline master: `626a14e00f010627f81f459c7126c2739ecb6b60`
-- Media C7 PR: #483 MERGED
-- Media certified candidate: `cf56bb69e65d0eca5b8c5a73e593a02c788cb2d7`
-- Media squash merge: `fdaa969f4369c7335e9badcd9480df223f8ee30c`
-- Media closeout: `e05ecf51da34edc40b434ec2d508340d0e1e19e9`
-- Media candidate CI: #3941 SUCCESS
-- Media post-merge CI: #3942 SUCCESS
-- real blocker: none for D0 analysis
-- next exact: Lot D0 architecture + anti-duplication audit
-
----
+**Next exact:** certify the final documentation closeout HEAD of PR #490 → if green, recheck comments/reviews/threads/mergeability → squash merge with expected HEAD protection → verify post-merge `master` CI → record merged evidence and mark D0 CLOSED → start D1 with mandatory UI BEFORE evidence.
 
 End of canonical roadmap.
