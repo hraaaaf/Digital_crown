@@ -57,6 +57,12 @@ if (!visibleTexts.some(text => /ACIGAM 100 MG/i.test(text))) throw new Error('AC
 if (!visibleTexts.some(text => /ACIGAM 200 MG/i.test(text))) throw new Error('ACIGAM 200 MG suggestion missing');
 if ((await nameInput.inputValue()) !== 'ACIG') throw new Error('Input changed unexpectedly');
 
+const provenanceLabel = results.getByText(
+  'Référentiel documentaire Maroc · provenance par présentation · statut commercial actuel non certifié',
+  { exact: true },
+);
+await provenanceLabel.waitFor({ state: 'visible', timeout: 10000 });
+
 const selectedBadges = page.getByText('Présentation identifiée', { exact: true });
 if (await selectedBadges.count()) throw new Error('A presentation was selected unexpectedly');
 
@@ -66,10 +72,17 @@ fs.writeFileSync(path.join(outDir, 'acig-autocomplete-proof.json'), JSON.stringi
   query: 'ACIG',
   selected: false,
   suggestionCount: count,
+  provenanceLabel: await provenanceLabel.innerText(),
   visibleSuggestions: visibleTexts,
   screenshot: shot,
 }, null, 2));
 
 await browser.close();
 await api.dispose();
-console.log(JSON.stringify({ query: 'ACIG', selected: false, suggestionCount: count, visibleSuggestions: visibleTexts }, null, 2));
+console.log(JSON.stringify({
+  query: 'ACIG',
+  selected: false,
+  suggestionCount: count,
+  provenanceLabel: await provenanceLabel.innerText(),
+  visibleSuggestions: visibleTexts,
+}, null, 2));
