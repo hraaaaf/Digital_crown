@@ -1,0 +1,246 @@
+name: Patient Companion D2 Implement
+
+on:
+  push:
+    branches:
+      - feat/patient-companion-d2-staff-ui
+    paths:
+      - '.github/workflows/patient-companion-d2-implement.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  implement-and-verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feat/patient-companion-d2-staff-ui
+          fetch-depth: 0
+
+      - name: Apply deterministic D2 wiring
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          activation = Path('backend/routers/patient_companion_activation.py')
+          s = activation.read_text()
+          marker = 'import secrets\n'
+          assert marker in s, 'activation import marker drifted'
+          s = s.replace(marker, 'import base64\nimport secrets\n', 1)
+          marker = 'from backend.services.firebase_patient_auth import FirebasePatientCredential\n'
+          assert marker in s, 'firebase import marker drifted'
+          s = s.replace(marker, marker + 'from backend.services.qr_service import qr_service\n', 1)
+          marker = '    raw_token = secrets.token_urlsafe(32)\n    manual_code = generate_manual_code()\n'
+          assert marker in s, 'invitation secret marker drifted'
+          s = s.replace(marker, marker + '    qr_data_url = "data:image/png;base64," + base64.b64encode(\n        qr_service.generate_qr_bytes(raw_token, qr_style="classic").getvalue()\n    ).decode("ascii")\n', 1)
+          marker = '        "qr_token": raw_token,\n        "manual_code": manual_code,\n'
+          assert marker in s, 'invitation response marker drifted'
+          s = s.replace(marker, '        "qr_token": raw_token,\n        "qr_data_url": qr_data_url,\n        "manual_code": manual_code,\n', 1)
+          activation.write_text(s)
+
+          patient = Path('frontend/src/features/patients/PatientDetailsInner.tsx')
+          s = patient.read_text()
+          marker = '  Images,\n} from \'lucide-react\';'
+          assert marker in s, 'lucide marker drifted'
+          s = s.replace(marker, '  Images,\n  Smartphone,\n} from \'lucide-react\';', 1)
+          marker = "import { PatientMobileBridge } from './components/PatientMobileBridge';\n"
+          assert marker in s, 'component import marker drifted'
+          s = s.replace(marker, marker + "import { PatientCompanionPanel } from './components/PatientCompanionPanel';\n", 1)
+          marker = "type TabType = 'tracking' | 'clinical' | 'radiology' | 'admin' | 'archives' | 'finances';"
+          assert marker in s, 'TabType marker drifted'
+          s = s.replace(marker, "type TabType = 'tracking' | 'clinical' | 'radiology' | 'admin' | 'archives' | 'finances' | 'companion';", 1)
+          marker = "  useEffect(() => {\n    if (!canFinance && activeTab === 'finances') {\n      setIsPayModalOpen(false);\n      setSearchParams({ tab: 'tracking' }, { replace: true });\n    }\n  }, [canFinance, activeTab, setSearchParams]);\n"
+          assert marker in s, 'finance guard marker drifted'
+          companion_guard = marker + "\n  useEffect(() => {\n    if (!ownerOrAdmin && activeTab === 'companion') {\n      setSearchParams({ tab: 'tracking' }, { replace: true });\n    }\n  }, [ownerOrAdmin, activeTab, setSearchParams]);\n"
+          s = s.replace(marker, companion_guard, 1)
+          marker = '            <TabButton compact={isRadiology} active={isDocuments} onClick={handleDocumentCreate} icon={<FileText size={17} />} label="Documents" />\n'
+          assert marker in s, 'tabs marker drifted'
+          s = s.replace(marker, marker + "            {ownerOrAdmin && <TabButton compact={isRadiology} active={activeTab === 'companion'} onClick={() => handleTabChange('companion')} icon={<Smartphone size={17} />} label=\"Companion\" />}\n", 1)
+          marker = "          {canFinance && activeTab === 'finances' && <PatientFinances patientId={Number(id)} />}\n"
+          assert marker in s, 'render marker drifted'
+          s = s.replace(marker, "          {ownerOrAdmin && activeTab === 'companion' && <PatientCompanionPanel patientId={Number(id)} patientEmail={patient.email} />}\n\n" + marker, 1)
+          patient.write_text(s)
+
+          Path('frontend/src/features/patients/components/PatientCompanionPanel.test.ts').write_text(r'''import { readFileSync } from 'node:fs';
+import { describe, expect, it } from 'vitest';
+
+const panel = readFileSync(new URL('./PatientCompanionPanel.tsx', import.meta.url), 'utf8');
+const details = readFileSync(new URL('../PatientDetailsInner.tsx', import.meta.url), 'utf8');
+
+describe('Patient Companion D2 staff surface', () => {
+  it('reuses the D0 staff contracts and keeps invitation secrets memory-only', () => {
+    expect(panel).toContain('/patient-companion/admin/patients/${patientId}/status');
+    expect(panel).toContain('/patient-companion/admin/patients/${patientId}/invitation');
+    expect(panel).toContain('/patient-companion/admin/patients/${patientId}/shares');
+    expect(panel).toContain('/patient-companion/admin/accesses/${access.access_id}/revoke');
+    expect(panel).toContain('qr_data_url');
+    expect(panel).not.toContain('localStorage');
+    expect(panel).not.toContain('sessionStorage');
+    expect(panel).toContain("recipient_type: 'email'");
+    expect(panel).toContain('setEphemeralInvitation(null)');
+  });
+
+  it('is exposed only to the principal owner/admin inside PatientDetails', () => {
+    expect(details).toContain("| 'companion'");
+    expect(details).toContain("ownerOrAdmin && <TabButton");
+    expect(details).toContain("activeTab === 'companion'");
+    expect(details).toContain('<PatientCompanionPanel patientId={Number(id)} patientEmail={patient.email} />');
+    expect(details).toContain("if (!ownerOrAdmin && activeTab === 'companion')");
+  });
+});
+''')
+
+          Path('backend/tests/test_patient_companion_d2_staff.py').write_text(r'''from __future__ import annotations
+
+import uuid
+from datetime import datetime
+
+from backend import models
+from backend.models_media_core import ClinicalAsset
+from backend.models_patient_companion import PatientCompanionInvitation
+from backend.security import get_password_hash
+
+
+def _owner(db, email: str):
+    user = models.User(
+        email=email,
+        hashed_password=get_password_hash("TestPass123!"),
+        role="DENTISTE",
+        nom_complet="Dr D2",
+        is_active=True,
+        is_licensed=True,
+    )
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+    return user
+
+
+def _patient(db, owner, nom: str):
+    patient = models.Patient(
+        numero_dossier=f"D2-{uuid.uuid4().hex[:8]}",
+        nom=nom,
+        prenom="Patient",
+        date_naissance=datetime(1990, 1, 1),
+        sexe="M",
+        employer_id=owner.id,
+    )
+    db.add(patient)
+    db.commit()
+    db.refresh(patient)
+    return patient
+
+
+def _headers(client, owner):
+    response = client.post(
+        "/api/auth/login",
+        data={"username": owner.email, "password": "TestPass123!"},
+    )
+    assert response.status_code == 200, response.text
+    return {"Authorization": f"Bearer {response.json()['access_token']}"}
+
+
+def test_staff_status_is_read_only_safe_projection_and_qr_is_ephemeral(client, db):
+    owner = _owner(db, "d2-owner@test.local")
+    patient = _patient(db, owner, "D2")
+    headers = _headers(client, owner)
+
+    invitation = client.post(
+        f"/api/patient-companion/admin/patients/{patient.id}/invitation",
+        headers=headers,
+        json={"recipient_type": "email", "recipient": "patient@example.test"},
+    )
+    assert invitation.status_code == 201, invitation.text
+    payload = invitation.json()
+    assert payload["qr_data_url"].startswith("data:image/png;base64,")
+    assert payload["qr_token"] not in payload["qr_data_url"]
+
+    media = ClinicalAsset(
+        employer_id=owner.id,
+        patient_id=patient.id,
+        asset_type="PHOTO",
+        source_kind="UPLOAD",
+        mime_type="image/jpeg",
+        created_by=owner.id,
+    )
+    db.add(media)
+    db.commit()
+    db.refresh(media)
+    grant = client.post(
+        f"/api/patient-companion/admin/patients/{patient.id}/shares",
+        headers=headers,
+        json={"resource_type": "media", "resource_id": media.id},
+    )
+    assert grant.status_code == 201, grant.text
+
+    status = client.get(
+        f"/api/patient-companion/admin/patients/{patient.id}/status",
+        headers=headers,
+    )
+    assert status.status_code == 200, status.text
+    assert status.headers["cache-control"] == "no-store"
+    body = status.json()
+    assert body["patient_id"] == patient.id
+    assert body["pending_invitation"]["invitation_id"] == payload["invitation_id"]
+    assert body["shares"][0]["resource_id"] == media.id
+    serialized = status.text
+    assert "token_hash" not in serialized
+    assert "manual_code_hash" not in serialized
+    assert "recipient_hash" not in serialized
+    assert payload["qr_token"] not in serialized
+    assert payload["manual_code"] not in serialized
+
+    row = db.query(PatientCompanionInvitation).filter_by(public_id=payload["invitation_id"]).one()
+    assert row.token_hash != payload["qr_token"]
+    assert row.manual_code_hash not in serialized
+
+
+def test_staff_status_is_tenant_scoped(client, db):
+    owner_a = _owner(db, "d2-a@test.local")
+    owner_b = _owner(db, "d2-b@test.local")
+    patient_b = _patient(db, owner_b, "Tenant-B")
+    headers_a = _headers(client, owner_a)
+    response = client.get(
+        f"/api/patient-companion/admin/patients/{patient_b.id}/status",
+        headers=headers_a,
+    )
+    assert response.status_code == 404
+''')
+          PY
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install backend
+        run: pip install -r backend/requirements.txt
+      - name: Backend D0 + D2 tests
+        env:
+          DIGITAL_CROWN_TESTING: '1'
+        run: pytest -q backend/tests/test_patient_companion_d0.py backend/tests/test_patient_companion_runtime_integration.py backend/tests/test_patient_companion_share_rbac.py backend/tests/test_patient_companion_d2_staff.py
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install frontend
+        working-directory: frontend
+        run: npm ci --legacy-peer-deps
+      - name: Frontend targeted tests
+        working-directory: frontend
+        run: npx vitest run src/features/patients/PatientDetailsFlowHandoff.test.ts src/features/patients/components/PatientCompanionPanel.test.ts
+      - name: Frontend TypeScript build
+        working-directory: frontend
+        run: npm run build:test
+
+      - name: Commit verified D2 wiring
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add backend/routers/patient_companion_activation.py backend/tests/test_patient_companion_d2_staff.py frontend/src/features/patients/PatientDetailsInner.tsx frontend/src/features/patients/components/PatientCompanionPanel.test.ts
+          git diff --cached --check
+          git commit -m "feat: wire Patient Companion D2 staff operations"
+          git push origin HEAD:feat/patient-companion-d2-staff-ui
