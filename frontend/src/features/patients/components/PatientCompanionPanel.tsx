@@ -223,7 +223,7 @@ export const PatientCompanionPanel = ({ patientId, patientEmail }: PatientCompan
     if (!window.confirm("Révoquer tous les accès Patient Companion actifs et l'invitation en attente ?")) return;
     setBusyKey('revoke-all');
     try {
-      await Promise.all([
+      const results = await Promise.allSettled([
         ...status.active_accesses.map(access => api.post(`/patient-companion/admin/accesses/${access.access_id}/revoke`)),
         ...(status.pending_invitation
           ? [api.post(`/patient-companion/admin/invitations/${status.pending_invitation.invitation_id}/revoke`)]
@@ -231,9 +231,11 @@ export const PatientCompanionPanel = ({ patientId, patientEmail }: PatientCompan
       ]);
       setEphemeralInvitation(null);
       await load();
-      toast.success('Accès Companion révoqué');
-    } catch {
-      toast.error("La révocation complète n'a pas pu être finalisée");
+      if (results.some(result => result.status === 'rejected')) {
+        toast.error('Révocation partielle : état actualisé, réessayez les éléments restants.');
+      } else {
+        toast.success('Accès Companion révoqué');
+      }
     } finally {
       setBusyKey(null);
     }
