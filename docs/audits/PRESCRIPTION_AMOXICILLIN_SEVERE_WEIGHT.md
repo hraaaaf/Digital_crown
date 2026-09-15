@@ -1,80 +1,70 @@
 # Prescription Pharmacology — Amoxicilline sévère + poids
 
-Status: ACTIVE
+Status: VALIDATED — PRE-MERGE
 
 ## Goal
 
-Sécuriser l’adaptation de l’amoxicilline lorsqu’une infection dentaire sévère est explicitement structurée, en utilisant l’âge et le poids réels sans inférer la sévérité, sans inventer de poids et sans transformer une borne de sécurité en dose automatique.
+Sécuriser l’adaptation de l’amoxicilline lorsqu’une infection dentaire sévère est explicitement structurée, en utilisant uniquement des données patient réelles et un contexte clinique structuré, sans inférence depuis du texte libre et sans auto-sélection d’un schéma thérapeutique lorsque les sources doivent être réconciliées.
 
-## Success
+## Contrat de sécurité
 
 - `severeInfection` n’est consommé que via `DentalAbscessContext` explicite ;
 - aucun texte libre n’est converti en sévérité clinique ;
-- entre 6 mois et 11 ans, poids réel obligatoire ;
-- le plafond SDCEP `jusqu’à 30 mg/kg par prise, max 1 g, 3 fois/jour` est calculé comme borne, pas comme prescription automatique ;
-- l’absence de poids échoue fermé ;
+- aucun poids n’est inventé ;
+- une donnée pondérale requise mais absente échoue fermé ;
 - une insuffisance rénale structurée bloque toute adaptation automatique ;
-- les adolescents sont revus manuellement lorsque la recommandation dentaire par âge et le SmPC pondéral doivent être réconciliés ;
+- les adolescents sont revus manuellement lorsque les référentiels d’âge et de poids doivent être réconciliés ;
 - aucune valeur explicitement saisie par le praticien n’est écrasée ;
 - le gate Maroc reste inchangé ;
-- aucune nouvelle proposition thérapeutique n’est auto-adoptée sans preuve marocaine appropriée.
+- aucune nouvelle proposition thérapeutique n’est auto-adoptée sans preuve locale appropriée.
 
 ## Sources vérifiées
 
-### SDCEP — source dentaire primaire
+- SDCEP, Drug Prescribing for Dentistry — Amoxicillin / Dental abscess.
+- SmPC amoxicilline eMC, utilisé comme cross-check produit pour âge, poids, sévérité et fonction rénale.
 
-https://sdcepdentalprescribing.nhs.scot/guidance/bacterial-infections/dental-abscess/first-line-antibiotics/amoxicillin/
-
-Règle publiée :
-- schémas usuels par âge ;
-- infection sévère adultes et 12–17 ans : dose doublée ;
-- infection sévère 6 mois–11 ans : augmentation jusqu’à 30 mg/kg par prise, maximum 1 g, trois fois par jour.
-
-### SmPC amoxicilline — cross-check produit
-
-https://www.medicines.org.uk/emc/product/14146/smpc
-
-Le SmPC impose de tenir compte de la sévérité, de l’âge, du poids et de la fonction rénale. Pour l’abcès dentaire avec cellulite diffuse :
-- adultes et enfants >=40 kg : en infection sévère, 750 mg à 1 g toutes les 8 heures ;
-- enfants <40 kg : 40 à 90 mg/kg/j en prises réparties ;
-- l’insuffisance rénale nécessite des adaptations dépendant du niveau de fonction rénale/GFR.
-
-## Divergence importante
-
-Chez certains adolescents légers, une lecture purement par âge de l’escalade SDCEP peut diverger d’une lecture pondérale du SmPC. Digital Crown ne choisit donc pas automatiquement une dose sévère dans ce contexte : `requires_weight` ou `requires_review` selon les données présentes.
+Les deux sources justifient un comportement fail-closed lorsque le contexte clinique ou patient est incomplet ou lorsqu’une réconciliation entre référentiels est nécessaire.
 
 ## Architecture
 
 `PrescriptionAmoxicillinSevereSafety` est un gate post-arbitrage :
 
-1. vérifie que la molécule est bien l’amoxicilline simple ;
-2. exige `DentalAbscessContext.severeInfection === true` ;
-3. conserve tous les blocages antérieurs (allergie, absence de preuve, etc.) ;
-4. insuffisance rénale structurée : `requires_review`, aucune adaptation automatique ;
-5. 6 mois–11 ans : exige le poids réel et calcule uniquement la borne `min(30 mg/kg, 1000 mg)` par prise ;
-6. adolescent sans poids : `requires_weight` ;
-7. adolescent/adulte sévère : `requires_review`, aucune dose internationale sélectionnée automatiquement ;
-8. les saisies explicites du praticien restent inchangées mais signalées pour validation.
+1. vérifie la molécule concernée ;
+2. exige un contexte d’infection sévère explicitement structuré ;
+3. conserve les blocages antérieurs ;
+4. refuse toute adaptation automatique en cas d’insuffisance rénale structurée ;
+5. exige le poids réel lorsque la règle source-backed en dépend ;
+6. expose seulement des bornes de sécurité issues des sources, sans choisir automatiquement une dose ;
+7. impose une revue praticien pour les contextes où les référentiels doivent être réconciliés ;
+8. préserve les valeurs explicitement saisies par le praticien.
 
-Le pipeline expose `dentalAbscessContext` comme paramètre explicite. Il n’est pas construit depuis du texte clinique libre.
+Le pipeline expose `dentalAbscessContext` comme paramètre explicite. Il n’est jamais construit depuis du texte clinique libre.
 
 ## Tests
 
-Couverture ajoutée :
-- sévère non explicite => comportement précédent inchangé ;
-- enfant sévère sans poids => `requires_weight` ;
-- enfant 20 kg => plafond 600 mg/prise, aucune dose auto ;
-- plafond absolu 1 g ;
-- insuffisance rénale structurée => fail-closed ;
-- adolescent sévère sans poids => `requires_weight` ;
-- adolescent sévère avec poids => `requires_review` ;
-- valeurs praticien explicites préservées ;
-- adulte sévère => pas de sélection automatique à partir d’une plage internationale.
+9 scénarios couvrent : contexte non sévère inchangé, poids absent, borne pondérale, plafond absolu, insuffisance rénale, adolescent avec/sans poids, saisie explicite praticien et adulte sévère.
 
 ## UI/UX
 
-Aucun changement visuel dans ce sous-lot. Aucun AFTER visuel requis tant que le gate n’est pas branché à une nouvelle interaction visible.
+Aucun changement visuel dans ce sous-lot. Aucun AFTER visuel requis.
 
 ## Proof
 
-À compléter après PR et CI exacte du HEAD final.
+HEAD fonctionnel certifié : `58eadfaca959746b7853b248f003a04290fa6bfd`.
+
+PR : #514.
+
+Certifications exactes du HEAD fonctionnel :
+- CI #4342 : SUCCESS ;
+- Ordonnance Fidelity V3 Visual Certification #183 : SUCCESS ;
+- Cabinet Upgrade PostgreSQL Certification #743 : SUCCESS ;
+- Settings R11 TemplateBuilder Dependency Audit #752 : SUCCESS ;
+- T2 Runtime Browser Certification #3228 : SUCCESS ;
+- Patient P7 Final Certification #1658 : SUCCESS ;
+- M6-I Biometric Passkey Certification #2028 : skipped attendu.
+
+Revue statique : 5 fichiers, uniquement pharmacologie + documentation ; aucune DB ; aucun changement UI/UX ; aucun déploiement Vercel.
+
+Post-merge du lot précédent : master `e1540b18342aeb9f1ae60e1da0295adf23b3f9ff`, CI #4338 SUCCESS.
+
+Gate final : le commit documentaire de closeout doit être certifié avant passage en ready/merge.
