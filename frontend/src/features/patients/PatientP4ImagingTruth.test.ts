@@ -47,11 +47,11 @@ describe('P4 unified imaging truth boundary', () => {
   });
 
   it('uses terminology matching the panoramic tooth-landmark contract', () => {
-    for (const forbidden of ['Studio Panoramique IA', 'Détection SOTA', 'Intelligence Clinique IA', 'Zéro-Hallucination']) {
+    for (const forbidden of ['Studio Panoramique IA', 'Détection SOTA', 'Intelligence Clinique IA', 'Zéro-Hallucination', 'Moteur déterministe']) {
       expect(pano).not.toContain(forbidden);
     }
     expect(pano).toContain('Repérage dentaire automatique · validation praticien');
-    expect(pano).toContain('Moteur déterministe • validation praticien');
+    expect(pano).toContain('Repérage automatique • validation praticien');
     expect(pano).toContain('Constatations cliniques');
     expect(panoHistory).not.toContain('anomalie');
     expect(panoHistory).toContain('repère');
