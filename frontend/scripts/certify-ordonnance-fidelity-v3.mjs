@@ -103,7 +103,7 @@ async function measure(page) {
       : 0;
     const internalCopyVisible = [...document.querySelectorAll('*')]
       .filter(visible)
-      .some(el => /règle de dose v1 certifiée|suggestion clinique indisponible/i.test(el.textContent || ''));
+      .some(el => /règle de dose v1 certifiée|suggestion clinique indisponible/i.test(el.innerText || ''));
     return {
       studio,
       clinicalContext,
