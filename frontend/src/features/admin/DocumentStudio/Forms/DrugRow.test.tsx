@@ -28,6 +28,24 @@ const presentation = {
   },
 };
 
+const supplementPresentation = {
+  presentation_id: 'ma-doc:acigam-100',
+  nom: 'ACIGAM 100 MG',
+  dci: 'ACIDE TIAPROFÉNIQUE',
+  dosage: '100',
+  unite: 'MG',
+  forme: 'COMPRIME SECABLE',
+  source: {
+    id: 'ma-acigam-official-plus-crosscheck-2026-01-16',
+    label: 'Ministère de la Santé + Medicament.ma',
+    license: 'official_publication + secondary_reference',
+    source_url: 'https://www.sante.gov.ma/example.pdf',
+    snapshot_date: '2026-01-16',
+    freshness: 'cross_checked_secondary_2026',
+    current_marketing_status_verified: false,
+  },
+};
+
 const baseDrug: DrugItem = {
   id: 1,
   name: 'PARACE',
@@ -81,6 +99,17 @@ describe('DrugRow — Prescription Intelligence V1', () => {
     });
     expect(await screen.findByText('PARACETAMOL TEST 500 MG')).toBeInTheDocument();
     expect(screen.getByText(/snapshot 13\/12\/2021/i)).toBeInTheDocument();
+  });
+
+  it('affiche une provenance générique si les suggestions ne sont pas toutes CNOPS', async () => {
+    vi.mocked(api.get).mockResolvedValueOnce({ data: [supplementPresentation] } as any);
+    renderDrugRow({ drug: { ...baseDrug, name: 'ACIG' } });
+
+    expect(await screen.findByText('ACIGAM 100 MG')).toBeInTheDocument();
+    expect(screen.getByText(
+      'Référentiel documentaire Maroc · provenance par présentation · statut commercial actuel non certifié',
+    )).toBeInTheDocument();
+    expect(screen.queryByText(/snapshot 13\/12\/2021/i)).not.toBeInTheDocument();
   });
 
   it('sélectionne explicitement une présentation et n injecte aucune posologie', async () => {
