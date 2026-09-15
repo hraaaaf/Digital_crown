@@ -129,6 +129,26 @@ def test_cnss_profile_rejects_more_lines_than_the_form_can_display():
         )
 
 
+def test_cnss_profile_renders_one_line_and_leaves_unused_form_rows_blank():
+    template = _synthetic_template()
+    template_hash = hashlib.sha256(template).hexdigest()
+    profile = replace(CNSS_610_1_04_PROFILE_V1, template_hash=template_hash)
+    draft = _draft(template_hash, line_count=1)
+
+    rendered = render_insurance_pdf_overlay(
+        draft=draft,
+        template_bytes=template,
+        profile=profile,
+    )
+    document = fitz.open(stream=rendered, filetype="pdf")
+    text = "\n".join(page.get_text("text") for page in document)
+    document.close()
+
+    assert "D708" in text
+    assert "2026-09-15" in text
+    assert text.count("D708") == 1
+
+
 def test_cnss_profile_renders_relationship_and_care_choices_without_signature_fields():
     template = _synthetic_template()
     template_hash = hashlib.sha256(template).hexdigest()
