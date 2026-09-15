@@ -4,6 +4,7 @@ from backend.services import medication_dict, medication_rcp_manifest
 
 
 CURRENT_SOURCE_ID = "ammps-medications-current-2026-09-15"
+OFFICIAL_SOURCE_PAGE = "https://www.ammps.gov.ma/recherche-medicaments?page=42"
 
 
 def test_rcp_manifest_covers_exact_current_amoxicillin_regulatory_ids():
@@ -45,9 +46,10 @@ def test_rcp_reader_has_no_historical_fallback():
     assert medication_rcp_manifest.get_rcp_evidence(regulatory_id) is None
 
 
-def test_snapshot_verified_requires_complete_hash_and_provenance():
+def test_snapshot_verified_requires_complete_hash_and_official_provenance():
     incomplete = {
         "capture_status": "SNAPSHOT_VERIFIED",
+        "source_page_url": OFFICIAL_SOURCE_PAGE,
         "rcp_url": "https://www.ammps.gov.ma/example.pdf",
         "rcp_sha256": None,
         "rcp_checked_at": "2026-09-15",
@@ -63,6 +65,33 @@ def test_snapshot_verified_requires_complete_hash_and_provenance():
     }
     assert medication_rcp_manifest.snapshot_is_verified(complete) is True
     assert medication_rcp_manifest.entry_is_fail_closed(complete) is True
+
+    non_official = {
+        **complete,
+        "rcp_url": "https://example.com/rcp.pdf",
+    }
+    assert medication_rcp_manifest.snapshot_is_verified(non_official) is False
+    assert medication_rcp_manifest.entry_is_fail_closed(non_official) is False
+
+
+def test_unavailable_verified_cannot_carry_fake_artifact_or_hash():
+    valid = {
+        "capture_status": "UNAVAILABLE_VERIFIED",
+        "source_page_url": OFFICIAL_SOURCE_PAGE,
+        "rcp_url": None,
+        "rcp_sha256": None,
+        "rcp_checked_at": "2026-09-15",
+        "local_artifact_path": None,
+        "extracted_clinical_fields": {},
+    }
+    assert medication_rcp_manifest.entry_is_fail_closed(valid) is True
+
+    invalid = {
+        **valid,
+        "rcp_sha256": "b" * 64,
+        "local_artifact_path": "backend/data/rcp/ghost.pdf",
+    }
+    assert medication_rcp_manifest.entry_is_fail_closed(invalid) is False
 
 
 def test_missing_link_is_not_promoted_to_unavailable_verified():
