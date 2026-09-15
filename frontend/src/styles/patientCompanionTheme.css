@@ -1,0 +1,38 @@
+/* Patient Companion consumes the existing Digital Crown theme tokens only. */
+body[data-surface='patient-companion'] {
+  background: linear-gradient(135deg, var(--bg-gradient-start), var(--bg-gradient-end));
+  color: var(--text-main);
+}
+
+body[data-surface='patient-companion'] main {
+  background: linear-gradient(135deg, var(--bg-gradient-start), var(--bg-gradient-end));
+  color: var(--text-main);
+}
+
+body[data-surface='patient-companion'] header,
+body[data-surface='patient-companion'] main :is(section, article)[class*='bg-white'],
+body[data-surface='patient-companion'] main :is(form, div)[class*='bg-white/80'],
+body[data-surface='patient-companion'] main :is(form, div)[class*='bg-white/90'] {
+  background-color: var(--glass-bg);
+  border-color: var(--glass-border);
+  box-shadow: var(--shadow-glass);
+  backdrop-filter: blur(var(--blur-glass-xl));
+  -webkit-backdrop-filter: blur(var(--blur-glass-xl));
+}
+
+body[data-surface='patient-companion'] main :is(input, select, button)[class*='bg-white'] {
+  background-color: var(--card-bg);
+  border-color: var(--border-color);
+}
+
+body[data-surface='patient-companion'] main :is(.text-slate-900, .text-slate-800, .text-slate-700) {
+  color: var(--text-main);
+}
+
+body[data-surface='patient-companion'] main :is(.text-slate-600, .text-slate-500, .text-slate-400) {
+  color: var(--text-muted);
+}
+
+body[data-surface='patient-companion'] main :is(.border-slate-100, .border-slate-200, .border-slate-200\/80) {
+  border-color: var(--border-color);
+}

@@ -86,29 +86,53 @@ D0 explicitly does **not** include patient UI, remote gateway, consent UX, appoi
 
 ### D1 — activation/onboarding UI + minimum useful shell
 
-**Status: NEXT — not yet implemented.**
+**Status: READY FOR PR — implementation complete; owner visual validation accepted; exact-head PR CI / merge pending.**
 
-Goal: patient activation/onboarding UI and minimum useful companion shell on top of the certified D0 security boundary.
+Canonical: `docs/audits/PATIENT_COMPANION_D1.md`
+Branch: `feat/patient-companion-d1-ui`
 
-Mandatory UI sequence:
-1. BEFORE capture;
-2. written Goal;
-3. mockup/reference;
-4. implementation;
-5. AFTER at 390×844, 768×1024, 1280×900;
-6. comparison + tests;
-7. visual score backed by evidence.
+Implemented scope:
+- public Patient Companion entry independent from staff auth;
+- dedicated Firebase patient Web Auth client;
+- isolated Firebase transport using exact `Authorization: Firebase <ID_TOKEN>` and `credentials: 'omit'`;
+- recipient-bound activation UX with QR token memory-only handling and manual code path;
+- `/me`-driven patient context selection;
+- future appointments read-only;
+- explicit document/media share metadata only;
+- fail-closed revoked/invalid access behavior;
+- no cabinet sidebar, no shared cabinet JWT, no patient byte serving;
+- native Digital Crown theme tokens consumed by the Patient Companion surface; no parallel glass system.
 
-D1 must not weaken D0 auth isolation. Remote/home access remains a separate gateway decision unless an existing verified secure path is found.
+Visual sequence completed:
+1. BEFORE capture certified;
+2. Goal written;
+3. mockup/reference locked;
+4. implementation completed;
+5. AFTER captured at 390×844, 768×1024, 1280×900;
+6. comparison/tests performed;
+7. final themed AFTER run `34969236348` **SUCCESS** on `e92dc5e9b2459c2737e3a72587c3266ff9045bca`;
+8. 9/9 captures valid, zero D1 overflow/browser errors/unexpected egress;
+9. owner human visual validation **ACCEPTED 2026-09-15**;
+10. visual assessment **9/10**.
+
+Reproducibility cleanup:
+- Firebase pinned `12.19.0`;
+- `@testing-library/dom` pinned `10.4.1`;
+- frontend lockfile synchronized by run `34970452423` **SUCCESS**;
+- D1 frontend/visual gates switched to `npm ci --legacy-peer-deps`;
+- temporary repair/lock workflows removed.
+
+D1 still requires exact-head PR certification, merge, post-merge verification and final canonical closeout before CLOSED.
 
 ## 5. Remaining roadmap order
 
-1. Lot D1+ — Patient Companion UI / useful patient workflows
-2. Lot E — Connect Hub
-3. Lot F — Ortho Journey
-4. Lot G — Assurance Maroc
-5. Lot H — Lab / Prosthesis Collaboration
-6. Lot I — BI / Recall / Outcomes
+1. Finish D1 closeout — PR / exact-head CI / merge / post-merge
+2. Lot D1+ — useful patient workflows beyond the minimum shell, only after new scope is explicitly bounded
+3. Lot E — Connect Hub
+4. Lot F — Ortho Journey
+5. Lot G — Assurance Maroc
+6. Lot H — Lab / Prosthesis Collaboration
+7. Lot I — BI / Recall / Outcomes
 
 F/G may be swapped if Morocco insurance becomes higher commercial priority.
 
@@ -173,11 +197,11 @@ A lot is not CLOSED until applicable steps are complete:
 ## 13. Current state / Next exact
 
 - Media C: CLOSED.
-- Patient Companion D0: **CLOSED** with exact merge and post-merge evidence recorded.
-- Patient Companion D1: NEXT, not yet implemented.
+- Patient Companion D0: CLOSED with exact merge and post-merge evidence recorded.
+- Patient Companion D1: **READY FOR PR**, human visual validation accepted; exact-head PR CI / merge pending.
 - E–I: not started.
 - No deployment authorized.
 
-**Next exact:** verify the documentation-closeout `master` HEAD and its CI, then start D1 with mandatory BEFORE evidence → written Goal → mockup/reference → implementation → AFTER at 390×844 / 768×1024 / 1280×900 → comparison/tests → visual score.
+**Next exact:** open D1 PR against current `master`, run exact-head focused + backend/non-regression CI, fix any failure without weakening D0 isolation, merge only when green, then verify post-merge and record final evidence.
 
 End of canonical roadmap.

@@ -96,6 +96,12 @@ jobs:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
           clean: false
 
+      - name: Sync frontend dependencies to exact PR head
+        working-directory: frontend
+        run: |
+          npm ci
+          npm install --no-save playwright@1.55.0
+
       - name: Restore disposable runtime credential for AFTER parity
         shell: bash
         run: |
