@@ -8,6 +8,7 @@ on:
     paths:
       - '.github/workflows/mutuelles-cnss-ui-after.yml'
       - 'frontend/scripts/capture-mutuelles-cnss-ui-after.mjs'
+      - 'frontend/src/MutuellesCnssUI.test.ts'
       - 'frontend/src/features/patients/PatientDocuments.tsx'
       - 'frontend/src/features/patients/CnssInsuranceAction.tsx'
       - 'frontend/src/features/patients/CnssInsuranceSubmissionReview.tsx'
