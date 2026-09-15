@@ -88,7 +88,9 @@ def test_prepare_cnss_draft_from_real_archived_honoraires(client, auth_headers, 
     assert draft.administrative.beneficiary_full_name == "Insurance PREP"
     assert draft.administrative.practitioner_full_name == "Dr Preparation"
     assert draft.administrative.practitioner_inpe == "INPE-777"
-    assert "administrative.insured_registration_number" in draft.unresolved_fields
+    assert draft.administrative.insured_registration_number is None
+    assert "administrative.insured_registration_number" not in draft.unresolved_fields
+    assert "administrative.beneficiary_national_id" in draft.unresolved_fields
     assert draft.status == InsuranceDraftStatus.INCOMPLETE
 
 
