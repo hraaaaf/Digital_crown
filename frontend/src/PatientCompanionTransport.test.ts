@@ -12,7 +12,7 @@ const read = (path: string) => readFileSync(new URL(path, import.meta.url), 'utf
 
 describe('Patient Companion D1 transport isolation', () => {
   beforeEach(() => {
-    vi.restoreAllMocks();
+    vi.clearAllMocks();
   });
 
   it('sends only Firebase auth and explicitly omits cabinet cookies', async () => {
