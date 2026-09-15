@@ -21,16 +21,14 @@ const states = ['public-entry', 'home', 'activation'];
 const entrySource = `
 import React from 'react';
 import ReactDOM from 'react-dom/client';
-import { MemoryRouter } from 'react-router-dom';
-import { LandingPage } from './pages/LandingPage';
 import { PatientCompanionPage } from './pages/PatientCompanionPage';
 import { PatientCompanionApiError } from './patient-companion/patientCompanionApi';
 import './index.css';
 import './styles/patientCompanionTheme.css';
 
 document.body.dataset.theme = 'light';
+document.body.dataset.surface = 'patient-companion';
 const state = new URLSearchParams(window.location.search).get('state') || 'home';
-if (state !== 'public-entry') document.body.dataset.surface = 'patient-companion';
 const verifiedUser = { uid: 'visual-patient', email: 'nadia@example.test', emailVerified: true };
 const context = {
   access_id: 'visual-access',
@@ -40,7 +38,7 @@ const context = {
 const services = {
   auth: {
     configured: () => true,
-    observe: async (listener) => { listener(verifiedUser); return () => {}; },
+    observe: async (listener) => { listener(state === 'public-entry' ? null : verifiedUser); return () => {}; },
     signIn: async () => verifiedUser,
     create: async () => verifiedUser,
     resendVerification: async () => {},
@@ -64,10 +62,7 @@ const services = {
   },
   initialToken: state === 'activation' ? 'visual-opaque-token' : '',
 };
-const node = state === 'public-entry'
-  ? <MemoryRouter initialEntries={['/landing']}><LandingPage /></MemoryRouter>
-  : <PatientCompanionPage services={services} />;
-ReactDOM.createRoot(document.getElementById('root')).render(node);
+ReactDOM.createRoot(document.getElementById('root')).render(<PatientCompanionPage services={services} />);
 `;
 
 const htmlSource = `<!doctype html><html lang="fr"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/><title>Patient Companion D1 AFTER</title><style>html,body,#root{width:100%;min-height:100%;margin:0}</style></head><body><div id="root"></div><script type="module" src="/src/patient-companion-d1-after-entry.tsx"></script></body></html>`;
@@ -127,17 +122,15 @@ try {
       });
 
       const response = await page.goto(`${BASE_URL}/patient-companion-d1-after.html?state=${state}`, { waitUntil: 'domcontentloaded', timeout: 30000 });
+      await page.getByText('Patient Companion').first().waitFor({ state: 'visible', timeout: 30000 });
       if (state === 'public-entry') {
-        await page.getByText('DigitalCrown').first().waitFor({ state: 'visible', timeout: 30000 });
-        await page.getByText(/Logiciel dentaire nouvelle génération/i).waitFor({ state: 'visible', timeout: 30000 });
+        await page.getByText('Accès patient').waitFor({ state: 'visible', timeout: 30000 });
+        await page.getByText('Vos rendez-vous et partages, sans ouvrir le dossier du cabinet.').waitFor({ state: 'visible', timeout: 30000 });
+      } else if (state === 'home') {
+        await page.getByText('Prochains rendez-vous').waitFor({ state: 'visible', timeout: 30000 });
+        await page.getByText('Éléments partagés').waitFor({ state: 'visible', timeout: 30000 });
       } else {
-        await page.getByText('Patient Companion').first().waitFor({ state: 'visible', timeout: 30000 });
-        if (state === 'home') {
-          await page.getByText('Prochains rendez-vous').waitFor({ state: 'visible', timeout: 30000 });
-          await page.getByText('Éléments partagés').waitFor({ state: 'visible', timeout: 30000 });
-        } else {
-          await page.getByText('Activer mon espace patient').waitFor({ state: 'visible', timeout: 30000 });
-        }
+        await page.getByText('Activer mon espace patient').waitFor({ state: 'visible', timeout: 30000 });
       }
       await page.evaluate(async () => { if (document.fonts?.ready) await document.fonts.ready; });
       await page.waitForTimeout(150);
@@ -153,19 +146,19 @@ try {
           innerWidth,
           scrollWidth,
           horizontalDocumentOverflow: scrollWidth > innerWidth + 1,
-          hasBrand: text.includes('digitalcrown'),
-          hasLandingHero: text.includes('logiciel dentaire nouvelle génération'),
           hasPatientCompanion: text.includes('patient companion'),
+          hasPatientEntry: text.includes('accès patient') && text.includes('vos rendez-vous et partages'),
           hasActivation: text.includes('activer mon espace patient'),
           hasAppointments: text.includes('prochains rendez-vous'),
           hasShares: text.includes('éléments partagés'),
           hasStaffNavigation: text.includes('approvisionnement') || text.includes('science hub') || text.includes('super-admin'),
+          hasDentistMarketingHero: text.includes('logiciel dentaire nouvelle génération'),
         };
       }, { viewportName: viewport.name, visualState: state });
 
       let stateValid = false;
       if (state === 'public-entry') {
-        stateValid = metrics.hasBrand && metrics.hasLandingHero && !metrics.hasPatientCompanion && !metrics.hasActivation;
+        stateValid = metrics.hasPatientCompanion && metrics.hasPatientEntry && !metrics.hasDentistMarketingHero && !metrics.hasActivation && !metrics.horizontalDocumentOverflow;
       } else if (state === 'home') {
         stateValid = metrics.hasPatientCompanion && metrics.hasAppointments && metrics.hasShares && !metrics.hasActivation && !metrics.horizontalDocumentOverflow;
       } else {
@@ -174,7 +167,7 @@ try {
       const valid = response?.status() === 200
         && pageErrors.length === 0
         && consoleErrors.length === 0
-        && (state === 'public-entry' || !metrics.hasStaffNavigation)
+        && !metrics.hasStaffNavigation
         && stateValid;
 
       await page.screenshot({ path: path.join(OUTPUT_DIR, `after-${state}-${viewport.name}.png`), fullPage: false });
@@ -198,7 +191,8 @@ const report = {
   productHead: PRODUCT_HEAD,
   viewports: viewports.map(item => item.name),
   states,
-  baselineComparableState: 'public-entry',
+  baselineComparableState: 'patient-public-entry',
+  baselineNote: 'D0 had no patient-facing public entry. The public-entry AFTER state certifies the actual signed-out /patient-companion surface, not the dentist marketing landing.',
   captures,
   blockedExternalRequests,
   invalidCount: invalid.length,
