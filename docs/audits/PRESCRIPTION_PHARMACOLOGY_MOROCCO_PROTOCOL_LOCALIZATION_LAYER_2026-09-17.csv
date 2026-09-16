@@ -1,0 +1,16 @@
+domain,item_or_dci,target_form_or_strength,morocco_evidence_status,morocco_evidence_detail,clinical_role,validation_status,clinical_activation
+XEROSTOMIA,Pilocarpine,systemic oral,TO_VERIFY_MA,No sufficiently proven Morocco product found in 2026-09-17 public pass,SPECIALIST_OR_EXCEPTION,TO_VALIDATE,NO
+XEROSTOMIA,Cevimeline,systemic oral,TO_VERIFY_MA,No sufficiently proven Morocco authorization/availability found in 2026-09-17 public pass,SPECIALIST_OR_EXCEPTION,TO_VALIDATE,NO
+SEDATION,Midazolam,5 mg/mL injectable IM/IV/rectal,VERIFIED_FORM_MA,AMMPS RMMG 2026 MIDAZOLAM MYLAN 5 mg/mL; injectable form only,PROTOCOL_ONLY,FORM_VERIFIED_PROTOCOL_NOT_VALIDATED,NO
+SEDATION,Midazolam,5 mg/mL oromucosal,TO_VERIFY_MA,No exact Morocco oromucosal form proven; injectable must not be substituted,PROTOCOL_ONLY,TO_VALIDATE,NO
+SEDATION,Diazepam,5 mg and 10 mg tablets + 1% oral solution,VERIFIED_FORMS_MA_ORAL,AMMPS public database VALIUM presentations; availability does not imply dental indication,SPECIALIST_OR_EXCEPTION,FORM_VERIFIED_PROTOCOL_NOT_VALIDATED,NO
+SEDATION,Hydroxyzine,25 mg tablet + 2 mg/mL syrup,MARKET_EVIDENCE_MA_ORAL,Medicament.ma current market evidence; primary AMMPS form-level proof still desirable,SPECIALIST_OR_EXCEPTION,TO_VALIDATE,NO
+SEDATION,Nitrous oxide + oxygen,inhalation sedation system,TO_VERIFY_MA_REGULATORY_FRAMEWORK,No specific Morocco dental regulatory framework locked in this pass,PROTOCOL_ONLY,TO_VALIDATE,NO
+EMERGENCY,Epinephrine,1 mg/mL IM (1:1000),TO_VERIFY_MA_EXACT_1MG_ML,Found ADRENALINE SOTHEMA 0.25 mg/mL commercialized; concentration mismatch,PROTOCOL_ONLY,MISMATCH,NO
+EMERGENCY,Aspirin,300 mg dispersible,TO_VERIFY_MA_EXACT_FORM_STRENGTH,AMMPS confirms aspirin products but not exact 300 mg dispersible form in this pass,PROTOCOL_ONLY,TO_VALIDATE,NO
+EMERGENCY,Glucagon,1 mg IM,TO_VERIFY_MA,No sufficiently clean exact current Morocco product proof found in this pass,PROTOCOL_ONLY,TO_VALIDATE,NO
+EMERGENCY,Glyceryl trinitrate,400 microgram/dose spray,TO_VERIFY_MA_EXACT_STRENGTH,Found NATISPRAY 0.3 mg/dose commercialized; 300 vs 400 microgram mismatch,PROTOCOL_ONLY,MISMATCH,NO
+EMERGENCY,Glucose,oral emergency glucose,TO_DEFINE_PROTOCOL_PRODUCT_MA,No exact standardized Morocco cabinet product locked,PROTOCOL_ONLY,TO_VALIDATE,NO
+EMERGENCY,Medical oxygen,medical oxygen supply + regulator,TO_VERIFY_MA_SUPPLY_AND_REGULATORY_FRAMEWORK,Requires supply/equipment/regulatory verification separate from drug database,PROTOCOL_ONLY,TO_VALIDATE,NO
+EMERGENCY,Salbutamol,100 microgram/dose inhaler,VERIFIED_FORM_MA,AMMPS RMMG lists 100 microgram aerosol generics; Medicament.ma lists Ventoline 100 microgram commercialized,PROTOCOL_ONLY,FORM_VERIFIED_PROTOCOL_NOT_VALIDATED,NO
+EMERGENCY,Cetirizine / chlorphenamine / loratadine,oral antihistamine appropriate form,TO_VERIFY_MA_BY_DCI_AND_FORM,Exact Morocco forms not closed in this pass; never substitute for epinephrine in anaphylaxis,PROTOCOL_ONLY,TO_VALIDATE,NO
