@@ -10,9 +10,9 @@ const OUTPUT_DIR = path.join(FRONTEND_DIR, 'connect-hub-e-before-artifacts');
 const PORT = 5197;
 const BASE_URL = `http://127.0.0.1:${PORT}`;
 const viewports = [
-  { name: '390x844', width: 390, height: 844 },
-  { name: '768x1024', width: 768, height: 1024 },
-  { name: '1280x900', width: 1280, height: 900 },
+  { name: '390x844', width: 390, height: 844, expectBell: true },
+  { name: '768x1024', width: 768, height: 1024, expectBell: true },
+  { name: '1280x900', width: 1280, height: 900, expectBell: false },
 ];
 
 const entrySource = `
@@ -119,21 +119,27 @@ async function capture(viewport) {
       bellCount: document.querySelectorAll('header button svg.lucide-bell').length,
     }));
     await page.screenshot({ path: path.join(OUTPUT_DIR, `before-shell-${viewport.name}.png`), fullPage: false });
-    const bell = page.locator('header button').filter({ has: page.locator('svg.lucide-bell') }).first();
-    await bell.click();
-    await page.getByText('Alertes de trésorerie', { exact: true }).waitFor({ state: 'visible', timeout: 10000 });
-    const open = await page.evaluate(() => ({
-      innerWidth,
-      scrollWidth: Math.max(document.documentElement.scrollWidth, document.body.scrollWidth),
-      hasTreasuryPopover: (document.body.textContent || '').includes('Alertes de trésorerie'),
-      hasConnectHub: (document.body.textContent || '').includes('Connect Hub'),
-      hasTreasuryAction: (document.body.textContent || '').includes('Relances en attente'),
-    }));
-    await page.screenshot({ path: path.join(OUTPUT_DIR, `before-bell-open-${viewport.name}.png`), fullPage: false });
-    const valid = response?.status() === 200 && pageErrors.length === 0 && consoleErrors.length === 0 && closed.bellCount === 1 && !closed.hasTreasuryPopover && !closed.hasConnectHub && open.hasTreasuryPopover && open.hasTreasuryAction && !open.hasConnectHub && closed.scrollWidth <= closed.innerWidth + 1 && open.scrollWidth <= open.innerWidth + 1;
-    return { viewport: viewport.name, httpStatus: response?.status() ?? null, pageErrors, consoleErrors, closed, open, valid };
+
+    let open = null;
+    if (viewport.expectBell) {
+      const bell = page.locator('header button').filter({ has: page.locator('svg.lucide-bell') }).first();
+      await bell.click();
+      await page.getByText('Alertes de trésorerie', { exact: true }).waitFor({ state: 'visible', timeout: 10000 });
+      open = await page.evaluate(() => ({
+        innerWidth,
+        scrollWidth: Math.max(document.documentElement.scrollWidth, document.body.scrollWidth),
+        hasTreasuryPopover: (document.body.textContent || '').includes('Alertes de trésorerie'),
+        hasConnectHub: (document.body.textContent || '').includes('Connect Hub'),
+        hasTreasuryAction: (document.body.textContent || '').includes('Relances en attente'),
+      }));
+      await page.screenshot({ path: path.join(OUTPUT_DIR, `before-bell-open-${viewport.name}.png`), fullPage: false });
+    }
+
+    const closedValid = response?.status() === 200 && pageErrors.length === 0 && consoleErrors.length === 0 && closed.bellCount === (viewport.expectBell ? 1 : 0) && !closed.hasTreasuryPopover && !closed.hasConnectHub && closed.scrollWidth <= closed.innerWidth + 1;
+    const openValid = !viewport.expectBell || (open && open.hasTreasuryPopover && open.hasTreasuryAction && !open.hasConnectHub && open.scrollWidth <= open.innerWidth + 1);
+    return { viewport: viewport.name, expectBell: viewport.expectBell, httpStatus: response?.status() ?? null, pageErrors, consoleErrors, closed, open, valid: Boolean(closedValid && openValid) };
   } catch (error) {
-    return { viewport: viewport.name, pageErrors: [...pageErrors, error instanceof Error ? error.message : String(error)], consoleErrors, valid: false };
+    return { viewport: viewport.name, expectBell: viewport.expectBell, pageErrors: [...pageErrors, error instanceof Error ? error.message : String(error)], consoleErrors, valid: false };
   } finally {
     await context.close().catch(() => {});
     await browser.close().catch(() => {});
@@ -149,7 +155,7 @@ try {
   await writeFile(path.join(OUTPUT_DIR, 'vite.log'), serverLog, 'utf8');
 }
 const invalid = captures.filter(item => !item.valid);
-const report = { lot: 'LOT-E-CONNECT-HUB', phase: 'BEFORE', productHead: PRODUCT_HEAD, viewports: viewports.map(v => v.name), fixturePolicy: 'Exact baseline Header + Sidebar production components with deterministic cabinet/treasury/intelligence API fixtures; no target UI injected.', captures, blockedExternalRequests, invalidCount: invalid.length };
+const report = { lot: 'LOT-E-CONNECT-HUB', phase: 'BEFORE', productHead: PRODUCT_HEAD, viewports: viewports.map(v => ({ name: v.name, expectBell: v.expectBell })), fixturePolicy: 'Exact baseline Header + Sidebar production components with deterministic cabinet/treasury/intelligence API fixtures; no target UI injected. Desktop baseline is certified as rendered: no bell interaction is asserted when the baseline exposes no bell.', captures, blockedExternalRequests, invalidCount: invalid.length };
 await writeFile(path.join(OUTPUT_DIR, 'report.json'), JSON.stringify(report, null, 2), 'utf8');
 console.log(JSON.stringify(report, null, 2));
 if (invalid.length || blockedExternalRequests.length) process.exitCode = 1;
