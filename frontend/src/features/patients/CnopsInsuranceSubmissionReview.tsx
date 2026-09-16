@@ -183,7 +183,7 @@ export const CnopsInsuranceSubmissionReview = ({
               </span>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
               <label className="space-y-1.5">
                 <span className={labelClass}>Nature de la demande</span>
                 <select data-cnops-field="request_nature" value={admin.request_nature || ''} onChange={e => updateAdmin('request_nature', (e.target.value || null) as InsuranceRequestNature | null)} className={inputClass}>
@@ -217,7 +217,7 @@ export const CnopsInsuranceSubmissionReview = ({
                 <input data-cnops-field="insured_address" value={admin.insured_address || ''} onChange={e => updateAdmin('insured_address', e.target.value || null)} className={inputClass} />
               </label>
 
-              <div className="sm:col-span-2 h-px bg-slate-200 my-1" aria-hidden="true" />
+              <div className="sm:col-span-2 lg:col-span-4 h-px bg-slate-200 my-1" aria-hidden="true" />
 
               <label className="space-y-1.5">
                 <span className={labelClass}>Bénéficiaire</span>
