@@ -1,7 +1,7 @@
 # Digital Crown — Pharmacologie & produits bucco-dentaires Maroc — Internal continuation
 
 Date: 2026-09-16
-Status: ACTIVE — internal/documentary only
+Status: ACTIVE — master inventory created; Morocco validation in progress; no clinical activation
 
 ## Goal
 Construire un référentiel marocain complet de ce qu'un chirurgien-dentiste peut prescrire, recommander ou utiliser en prévention/soins bucco-dentaires : médicaments + OTC + parapharmacie + hygiène + prothèse + orthodontie + prévention, sans contact AMMPS et sans affaiblir les règles fail-closed.
@@ -73,14 +73,20 @@ Aucune demande, formulaire, email, appel ou autre contact AMMPS n'est autorisé.
 - clarithromycin: fail-closed; présentations AMMPS observées, aucun RCP cible capturé.
 - clindamycin: fail-closed; présentation systémique/orale courante utile non prouvée dans le pass actuel.
 
+## Artifacts produits
+- `PRESCRIPTION_PHARMACOLOGY_MOROCCO_MASTER_INVENTORY_2026-09-16.md`: taxonomie maître médicaments + oral-care.
+- `PRESCRIPTION_PHARMACOLOGY_MOROCCO_MASTER_INVENTORY_2026-09-16.csv`: dataset structuré avec statuts Maroc/clinique séparés.
+- `PRESCRIPTION_PHARMACOLOGY_MOROCCO_AVAILABILITY_PASS1_2026-09-16.md`: première passe officielle AMMPS.
+- `PRESCRIPTION_PHARMACOLOGY_MOROCCO_PARA_AVAILABILITY_PASS1_2026-09-16.md`: première passe marché Maroc sur interdentaire, sensibilité, chlorhexidine, prothèses et hydropulseurs.
+
 ## Travail interne autorisé
-- constituer l'inventaire exhaustif des classes, DCI et produits para réellement pertinents ;
+- poursuivre l'inventaire et fermer les omissions ;
 - sourcer les données cliniques et d'usage avec au moins deux références sérieuses lorsque le risque le justifie ;
 - distinguer preuve réglementaire marocaine, preuve clinique internationale et recommandation d'usage ;
 - consolider les identités de présentation déjà prouvées et leurs références de provenance publique ;
 - vérifier que les manifests/consommateurs ne transforment jamais un état pending en donnée clinique exploitable ;
 - renforcer les tests négatifs du gate déterministe ;
-- préparer la structure de données commune médicament/OTC/para sans prétendre à une validation non acquise.
+- enrichir la structure de données commune médicament/OTC/para sans prétendre à une validation non acquise.
 
 ## Interdits
 - aucun contact AMMPS ;
@@ -90,4 +96,4 @@ Aucune demande, formulaire, email, appel ou autre contact AMMPS n'est autorisé.
 - aucune activation clinique sans validation correspondante.
 
 ## Next exact
-Produire la taxonomie exhaustive médicaments + OTC + parapharmacie bucco-dentaire, puis établir la liste détaillée des entrées à documenter avant enrichissement posologique et validation croisée.
+Continuer la passe de disponibilité Maroc sur les médicaments et familles para encore `TO_VERIFY_MA`, puis enrichir chaque médicament avec indication dentaire, forme/dosage, posologie adulte/enfant/poids/âge, durée, dose maximale, contre-indications, précautions et interactions sur validation croisée >=2 sources sérieuses.
