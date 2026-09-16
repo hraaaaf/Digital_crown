@@ -72,7 +72,7 @@ jobs:
           const out='agenda-a3-theme'; await fs.mkdir(out,{recursive:true});
           const server=await createServer({server:{host:'127.0.0.1',port:4205,strictPort:true},clearScreen:false}); await server.listen();
           const browser=await chromium.launch();
-          const themes=['default','emerald','dark']; const viewports=[[390,844],[1280,900]]; const report=[]; let defaultColors=null;
+          const themes=['default','emerald','dark']; const viewports=[[390,844],[1280,900]]; const report=[];
           const json=(body,status=200)=>({status,contentType:'application/json',body:JSON.stringify(body)});
           try {
             for (const theme of themes) for (const [width,height] of viewports) {
@@ -87,7 +87,8 @@ jobs:
               });
               await page.goto('http://127.0.0.1:4205/agenda-a3-theme.html',{waitUntil:'networkidle'});
               await page.evaluate((value)=>{ if(value==='default') delete document.documentElement.dataset.theme; else document.documentElement.dataset.theme=value; },theme);
-              await page.evaluate(()=>new Promise(requestAnimationFrame));
+              // Global theme transitions last 400ms. Read only the settled render.
+              await page.waitForTimeout(550);
               await page.getByText('Disponibilités par praticien',{exact:true}).waitFor(); await page.getByText('Heure',{exact:true}).waitFor();
               const available=page.getByLabel('Créer un rendez-vous avec Dr Youssef Benali à 10:00');
               const pause=page.getByLabel('Dr Youssef Benali indisponible à 12:15 : Pause du praticien');
@@ -100,20 +101,30 @@ jobs:
                 const personalize=Array.from(document.querySelectorAll('button')).find(el=>el.textContent?.trim()==='Personnaliser');
                 const byLabel=(needle)=>Array.from(document.querySelectorAll('button')).find(el=>el.getAttribute('aria-label')?.includes(needle));
                 const css=(el)=>el?getComputedStyle(el):null;
+                const resolveBackground=(name)=>{const el=document.createElement('div');el.style.backgroundColor=`var(${name})`;document.body.appendChild(el);const value=getComputedStyle(el).backgroundColor;el.remove();return value;};
+                const resolveColor=(name)=>{const el=document.createElement('div');el.style.color=`var(${name})`;document.body.appendChild(el);const value=getComputedStyle(el).color;el.remove();return value;};
                 return {
                   panelBg:css(panel)?.backgroundColor, panelText:css(panel)?.color,
                   timelineBg:css(root)?.backgroundColor, primaryButtonBg:css(personalize)?.backgroundColor,
                   availableBg:css(byLabel('Créer un rendez-vous avec Dr Youssef Benali à 10:00'))?.backgroundColor,
                   pauseBg:css(byLabel('Pause du praticien'))?.backgroundColor,
                   leaveBg:css(byLabel('Absence : Congé'))?.backgroundColor,
+                  tokens:{
+                    cardBg:resolveBackground('--card-bg'),
+                    glassBg:resolveBackground('--glass-bg'),
+                    primary:resolveBackground('--primary'),
+                    textMain:resolveColor('--text-main'),
+                  },
                   page:{clientWidth:document.documentElement.clientWidth,scrollWidth:document.documentElement.scrollWidth},
                 };
               });
               if(colors.page.scrollWidth>colors.page.clientWidth) throw new Error(`${theme} page overflow ${width}`);
-              if(colors.pauseBg===colors.availableBg||colors.leaveBg===colors.availableBg) throw new Error(`${theme} semantic states collapsed`);
+              if(colors.panelBg!==colors.tokens.cardBg) throw new Error(`${theme} panel is not using --card-bg: ${colors.panelBg} != ${colors.tokens.cardBg}`);
+              if(colors.panelText!==colors.tokens.textMain) throw new Error(`${theme} panel is not using --text-main: ${colors.panelText} != ${colors.tokens.textMain}`);
+              if(colors.timelineBg!==colors.tokens.glassBg) throw new Error(`${theme} timeline is not using --glass-bg: ${colors.timelineBg} != ${colors.tokens.glassBg}`);
+              if(colors.primaryButtonBg!==colors.tokens.primary) throw new Error(`${theme} primary action is not using --primary: ${colors.primaryButtonBg} != ${colors.tokens.primary}`);
+              if(colors.pauseBg===colors.availableBg||colors.leaveBg===colors.availableBg||colors.pauseBg===colors.leaveBg) throw new Error(`${theme} semantic availability states collapsed`);
               if(errors.length) throw new Error(errors.join(' | '));
-              if(theme==='default'&&width===1280) defaultColors=colors;
-              if(theme!=='default'&&width===1280&&defaultColors&&colors.panelBg===defaultColors.panelBg&&colors.primaryButtonBg===defaultColors.primaryButtonBg) throw new Error(`${theme} did not inherit app theme tokens`);
               await page.screenshot({path:`${out}/${theme}-${width}x${height}.png`,fullPage:true,animations:'disabled'});
               report.push({theme,width,height,...colors}); await context.close();
             }
@@ -128,7 +139,7 @@ jobs:
         run: |
           test "$(find agenda-a3-theme -name '*.png' | wc -l)" -eq 6
           test -s agenda-a3-theme/report.json
-          printf '%s\n' "head_sha=${{ github.event.pull_request.head.sha || github.sha }}" "themes=default,emerald,dark" "viewports=390x844,1280x900" "goal=A3 chrome inherits Digital Crown theme tokens while availability states remain distinct" > agenda-a3-theme/metadata.txt
+          printf '%s\n' "head_sha=${{ github.event.pull_request.head.sha || github.sha }}" "themes=default,emerald,dark" "viewports=390x844,1280x900" "assertion=settled computed colors equal resolved Digital Crown tokens" "goal=A3 chrome inherits Digital Crown theme tokens while availability states remain distinct" > agenda-a3-theme/metadata.txt
       - uses: actions/upload-artifact@v4
         with:
           name: agenda-a3-theme-evidence

@@ -66,71 +66,71 @@
 }
 
 /* Agenda Multi A3. The unique scroll test id scopes the bridge to this view only.
- * Deliberately avoid :where(): these selectors must outrank the global dark-theme
- * compatibility overrides, which also use !important.
+ * The extra [class] specificity intentionally outranks the app's dark-theme
+ * compatibility selectors when both sides use !important.
  */
-div:has(> [data-testid='multi-practitioner-scroll']) {
+div[class]:has(> [data-testid='multi-practitioner-scroll']) {
   background-color: var(--glass-bg) !important;
   border-color: var(--glass-border) !important;
   color: var(--text-main) !important;
 }
 
-div:has(> [data-testid='multi-practitioner-scroll']) :is(.text-slate-900, .text-slate-800, .text-slate-700, .text-slate-600, .text-slate-500) {
+div[class]:has(> [data-testid='multi-practitioner-scroll']) :is(.text-slate-900, .text-slate-800, .text-slate-700, .text-slate-600, .text-slate-500) {
   color: var(--text-main) !important;
 }
 
-div:has(> [data-testid='multi-practitioner-scroll']) .text-slate-400 {
+div[class]:has(> [data-testid='multi-practitioner-scroll']) .text-slate-400 {
   color: var(--text-muted) !important;
 }
 
-div:has(> [data-testid='multi-practitioner-scroll']) [class*='border-slate-'] {
+div[class]:has(> [data-testid='multi-practitioner-scroll']) [class*='border-slate-'] {
   border-color: var(--border-color) !important;
 }
 
-div:has(> [data-testid='multi-practitioner-scroll']) [class*='bg-white'] {
+div[class]:has(> [data-testid='multi-practitioner-scroll']) [class*='bg-white'] {
   background-color: var(--card-bg) !important;
 }
 
-div:has(> [data-testid='multi-practitioner-scroll']) [class*='bg-slate-50'] {
+div[class]:has(> [data-testid='multi-practitioner-scroll']) [class*='bg-slate-50'] {
   background-color: var(--input-bg) !important;
 }
 
-div:has(> [data-testid='multi-practitioner-scroll']) [class*='bg-slate-200'] {
+div[class]:has(> [data-testid='multi-practitioner-scroll']) [class*='bg-slate-200'] {
   background-color: var(--a3-closed-surface) !important;
 }
 
-div:has(> [data-testid='multi-practitioner-scroll']) [class*='bg-indigo-50'] {
+div[class]:has(> [data-testid='multi-practitioner-scroll']) [class*='bg-indigo-50'] {
   background-color: var(--a3-primary-soft) !important;
 }
 
-div:has(> [data-testid='multi-practitioner-scroll']) [class*='bg-indigo-700'] {
+div[class]:has(> [data-testid='multi-practitioner-scroll']) [class*='bg-indigo-700'] {
   background-color: var(--primary) !important;
   color: var(--text-on-primary, #fff) !important;
 }
 
-div:has(> [data-testid='multi-practitioner-scroll']) [class*='text-indigo-'] {
+div[class]:has(> [data-testid='multi-practitioner-scroll']) [class*='text-indigo-'] {
   color: var(--primary) !important;
 }
 
-div:has(> [data-testid='multi-practitioner-scroll']) button:not(:disabled)[class*='hover:bg-indigo-50']:hover {
+div[class]:has(> [data-testid='multi-practitioner-scroll']) button:not(:disabled)[class*='hover:bg-indigo-50']:hover {
   background-color: var(--a3-primary-soft) !important;
 }
 
 /* Availability states remain semantically distinct in every app theme. */
-div:has(> [data-testid='multi-practitioner-scroll']) button[disabled][title='Pause du praticien'] {
+div[class]:has(> [data-testid='multi-practitioner-scroll']) button[disabled][title='Pause du praticien'] {
   background-color: var(--a3-pause-surface) !important;
 }
 
-div:has(> [data-testid='multi-practitioner-scroll']) button[disabled][title^='Absence'] {
+div[class]:has(> [data-testid='multi-practitioner-scroll']) button[disabled][title^='Absence'] {
   background-color: var(--a3-leave-surface) !important;
 }
 
-div:has(> [data-testid='multi-practitioner-scroll']) button[disabled][title^='Cabinet fermé'] {
+div[class]:has(> [data-testid='multi-practitioner-scroll']) button[disabled][title^='Cabinet fermé'] {
   background-color: var(--a3-closed-surface) !important;
 }
 
-div:has(> [data-testid='multi-practitioner-scroll']) button[disabled][title^='Hors horaires'],
-div:has(> [data-testid='multi-practitioner-scroll']) button[disabled][title^='Praticien absent'],
-div:has(> [data-testid='multi-practitioner-scroll']) button[disabled][title^='Configuration praticien invalide'] {
+div[class]:has(> [data-testid='multi-practitioner-scroll']) button[disabled][title^='Hors horaires'],
+div[class]:has(> [data-testid='multi-practitioner-scroll']) button[disabled][title^='Praticien absent'],
+div[class]:has(> [data-testid='multi-practitioner-scroll']) button[disabled][title^='Configuration praticien invalide'] {
   background-color: var(--a3-muted-surface) !important;
 }
