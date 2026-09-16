@@ -6,11 +6,12 @@ from sqlalchemy import pool
 
 from alembic import context
 from alembic.script import ScriptDirectory
+from backend.core.postgresql_alembic_baseline import bootstrap_empty_postgresql_to_head
 from backend.core.sqlite_alembic_baseline import bootstrap_empty_sqlite_to_head
 from backend.models import Base
 # The catalog tables are declared by the service module rather than the legacy
 # model module. Importing the module registers metadata only; schema creation is
-# still performed solely by versioned Alembic migrations.
+# still performed solely by versioned Alembic operator actions.
 from backend.services import cabinet_catalog_store as _cabinet_catalog_store  # noqa: F401
 
 # this is the Alembic Config object, which provides
@@ -66,9 +67,10 @@ def run_migrations_offline() -> None:
 def run_migrations_online() -> None:
     """Run migrations in 'online' mode.
 
-    New, genuinely empty SQLite/SQLCipher databases use an operator-only
-    metadata baseline stamped to the exact unique Alembic head. Existing SQLite
-    databases and PostgreSQL always execute the normal revision chain.
+    Genuinely empty SQLite/SQLCipher and PostgreSQL databases use explicit
+    Alembic-operator baselines from the metadata snapshot of the exact checked-out
+    code and are stamped to the exact unique head. Existing databases always run
+    the normal revision chain and are never rebuilt or re-stamped.
 
     PostgreSQL is connected directly from the explicit operator DATABASE_URL so
     Alembic does not import the application database runtime merely to migrate a
@@ -85,6 +87,17 @@ def run_migrations_online() -> None:
 
     with connectable.connect() as connection:
         heads = ScriptDirectory.from_config(config).get_heads()
+
+        if connection.dialect.name == "postgresql":
+            with connection.begin():
+                baselined = bootstrap_empty_postgresql_to_head(
+                    connection,
+                    target_metadata,
+                    heads,
+                )
+            if baselined:
+                return
+
         if connection.dialect.name == "sqlite":
             with connection.begin():
                 baselined = bootstrap_empty_sqlite_to_head(
