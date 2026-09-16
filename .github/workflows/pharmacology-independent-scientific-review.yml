@@ -18,8 +18,8 @@ concurrency:
 
 env:
   TARGET_PR: '525'
-  TARGET_HEAD: '7379ddeab663b833b6be43f455c434be28cafe75'
-  EXPECTED_BASE: '1e9fd49af91ffafad89ad9936c6f2e372e883354'
+  TARGET_HEAD: '84dfb02e979e634363814cab8f856983578aefe6'
+  EXPECTED_BASE: 'fb3a870e2fba92a005a3e3de57ee378042b23be3'
 
 jobs:
   independent-review:
@@ -225,8 +225,8 @@ jobs:
           You are the independent scientific reviewer for Digital Crown PR #525.
 
           NON-NEGOTIABLE TARGET
-          - Review only repository state at exact HEAD 7379ddeab663b833b6be43f455c434be28cafe75.
-          - Expected base included in this HEAD: 1e9fd49af91ffafad89ad9936c6f2e372e883354.
+          - Review only repository state at exact HEAD 84dfb02e979e634363814cab8f856983578aefe6.
+          - Expected base included in this HEAD: fb3a870e2fba92a005a3e3de57ee378042b23be3.
           - If git evidence does not match either SHA, return decision "blocked".
 
           GOVERNANCE
@@ -281,8 +281,8 @@ jobs:
             "reviewer": "github-copilot-cli",
             "model_selector": "auto",
             "target_pr": 525,
-            "target_head": "7379ddeab663b833b6be43f455c434be28cafe75",
-            "expected_base": "1e9fd49af91ffafad89ad9936c6f2e372e883354",
+            "target_head": "84dfb02e979e634363814cab8f856983578aefe6",
+            "expected_base": "fb3a870e2fba92a005a3e3de57ee378042b23be3",
             "decision": "approve|approve_with_reservations|request_changes|blocked",
             "blocking_findings": [],
             "major_findings": [],
@@ -345,9 +345,9 @@ jobs:
               raise SystemExit('Reviewer/model selector mismatch')
           if report['target_pr'] != 525:
               raise SystemExit('Target PR mismatch')
-          if report['target_head'] != '7379ddeab663b833b6be43f455c434be28cafe75':
+          if report['target_head'] != '84dfb02e979e634363814cab8f856983578aefe6':
               raise SystemExit('Target HEAD mismatch')
-          if report['expected_base'] != '1e9fd49af91ffafad89ad9936c6f2e372e883354':
+          if report['expected_base'] != 'fb3a870e2fba92a005a3e3de57ee378042b23be3':
               raise SystemExit('Expected base mismatch')
           if report['decision'] not in {'approve','approve_with_reservations','request_changes','blocked'}:
               raise SystemExit('Invalid decision')
@@ -390,7 +390,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: pharmacology-independent-review-7379ddeab663b833b6be43f455c434be28cafe75
+          name: pharmacology-independent-review-84dfb02e979e634363814cab8f856983578aefe6
           path: |
             audit/out/pharmacology-independent-review/
             audit/out/pharmacology-scientific-gate/
