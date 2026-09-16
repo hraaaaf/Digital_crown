@@ -6,9 +6,10 @@ Digital Crown est une application de gestion de cabinet **on-premise / local-fir
 >
 > 1. `STATE.md`
 > 2. `AGENTS.md`
-> 3. règle de domaine sous `.claude/rules/`
-> 4. `SKILL.md` correspondant au scope
-> 5. code, tests, sources ou runbooks référencés
+> 3. `.claude/rules/execution-scoring-verification.md`
+> 4. règle de domaine sous `.claude/rules/`
+> 5. `SKILL.md` correspondant au scope
+> 6. code, tests, sources ou runbooks référencés
 >
 > L'ancienne version détaillée de ce guide reste disponible dans l'historique Git à `master@f6dd36e`.
 
@@ -30,6 +31,20 @@ Digital Crown est une application de gestion de cabinet **on-premise / local-fir
 Source : `backend/main.py::validate_environment_invariants()`.
 
 ## Règles absolues
+
+### Scoring d'exécution et vérification
+
+Lire et appliquer **à chaque étape matérielle** `.claude/rules/execution-scoring-verification.md`.
+
+- produire `EXECUTION_SCORE /10` puis `ADVERSARIAL_SCORE /10` ;
+- retenir **le minimum**, jamais une moyenne ;
+- tout écart `> 0.5` impose investigation, correction si possible, puis rescoring ;
+- auto-revue du même agent : plafond `9.4/10` ; `9.5+` exige une vraie revue indépendante ;
+- preuve/gate requis manquant ou rouge : max `7.9/10` ; régression : max `6.9/10` ; blocker sécurité/privacy/data/claim clinique : max `5.9/10` + `BLOCKED` ;
+- UI sans vraie comparaison `Target ↔ Render` : fidélité visuelle max `7.5/10` ; une dimension critique faible ne peut jamais être masquée par une moyenne ;
+- un lot n'est `VERIFIED` qu'avec `RETAINED_SCORE >= 9.0/10`, tous les gates binaires applicables verts et une **Perfection Pass finale** terminée.
+
+Le score est une couche de preuve supplémentaire : il ne remplace jamais CI, rehearsal, validation humaine, review scientifique, sécurité ou politique de release.
 
 ### Données et isolation
 
@@ -171,17 +186,19 @@ Ne déclarer aucun SHA `CODE_CERTIFIED` sans preuve du run + attestation corresp
 
 ## Workflow par lot
 
-1. Lire `STATE.md` et le skill pertinent.
-2. Cartographier scope et invariants.
+1. Lire `STATE.md`, `.claude/rules/execution-scoring-verification.md` et le skill pertinent.
+2. Cartographier scope, invariants et gates binaires applicables.
 3. Audit read-only d'abord lorsque le skill l'impose.
 4. Implémenter dans un lot distinct.
-5. Tests ciblés puis régression proportionnée au risque.
-6. Smoke/rehearsal lorsque nécessaire.
-7. Review indépendante si requise.
-8. Mettre à jour les canoniques.
-9. Vérifier leur cohérence.
-10. PR/merge/certification seulement après preuves.
-11. Pour distribution cabinet : certifier le HEAD master exact en `CODE_CERTIFIED`.
-12. Certifier les assets runtime pour ce même SHA, composer en `INSTALLABLE_CERTIFIED`, puis seulement construire/activer.
+5. Après chaque étape matérielle : preuve + `EXECUTION_SCORE` + `ADVERSARIAL_SCORE` + minimum retenu ; investiguer tout écart `> 0.5`.
+6. Tests ciblés puis régression proportionnée au risque.
+7. Smoke/rehearsal lorsque nécessaire.
+8. Review indépendante si requise, notamment pour toute revendication `>= 9.5/10`.
+9. Mettre à jour les canoniques et vérifier leur cohérence.
+10. Si le score atteint `9.0+`, exécuter la **Perfection Pass finale**, corriger les faiblesses améliorables, rerun les preuves impactées et rescorrer.
+11. Ne marquer `VERIFIED` qu'avec score retenu `>= 9.0/10` **et** tous les gates binaires applicables verts.
+12. PR/merge/certification seulement après preuves et gates satisfaits.
+13. Pour distribution cabinet : certifier le HEAD master exact en `CODE_CERTIFIED`.
+14. Certifier les assets runtime pour ce même SHA, composer en `INSTALLABLE_CERTIFIED`, puis seulement construire/activer.
 
-**Dernière révision canonique : 12 septembre 2026.**
+**Dernière révision canonique : 16 septembre 2026.**
