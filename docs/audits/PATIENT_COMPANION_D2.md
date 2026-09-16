@@ -76,6 +76,50 @@ Target = ajouter `Companion` comme surface d'administration cohérente avec la f
 
 Le target ne doit pas introduire une navigation parallèle, un dashboard global Companion ou une nouvelle identité visuelle.
 
+## Mobile simplification target — locked before implementation
+
+### BEFORE observed at 390×844
+La certification visuelle du HEAD `1f0e419b7821ce8cd2407f206bcb1a1ed473a428` est techniquement verte mais l'écran réel est trop dense : toast NBA global superposé, actions rapides redondantes, barre d'onglets longue, métriques Companion empilées verticalement et trop de hauteur consommée avant l'action d'invitation.
+
+### Goal mobile
+À 390×844, comprendre l'état Companion et atteindre l'action d'invitation sans combattre l'interface, tout en gardant intactes les capacités métier et le rendu tablette/desktop.
+
+### Reference / wireframe
+```text
+[←] NOM PATIENT                 [assurance]
+    dossier · âge               [alerte si utile]
+
+[Suivi] [Clinique] [Image] [Docs] [Companion] [Finance]  ← barre compacte scrollable
+
+Patient Companion                     [↻]
+[Actifs 0] [Invitation attente] [Partages 0]             ← 3 métriques compactes
+
+Invitation
+[email________________________________]
+[lien________] [15 min________]
+[        CRÉER / RÉÉMETTRE L'INVITATION        ]
+
+QR/code si généré
+
+Documents / Médias / Révocation plus bas
+```
+
+### Implementation constraints
+- masquer sur mobile la rangée d'actions rapides redondantes, sans supprimer leurs routes/fonctions ;
+- ne pas afficher le toast NBA contextuel sur l'onglet Companion ;
+- compacter uniquement la présentation mobile du shell patient et du résumé Companion ;
+- aucune modification des endpoints, du RBAC, du stockage, des modèles ou des règles D0 ;
+- conserver tablette/desktop fonctionnellement et visuellement stables ;
+- AFTER obligatoire aux mêmes viewports 390×844, 768×1024, 1280×900.
+
+### Success observable
+- aucune superposition de toast NBA sur Companion ;
+- header mobile plus court ;
+- actions rapides non redondantes absentes à 390 px ;
+- 3 métriques visibles sur une seule rangée mobile ;
+- invitation atteignable plus haut dans le premier écran ;
+- aucune régression tests/build/certifications.
+
 ## Explicit exclusions
 - nouveau moteur métier Companion ;
 - nouveau store persistant frontend ;
