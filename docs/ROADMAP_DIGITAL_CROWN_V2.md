@@ -221,7 +221,8 @@ Semaine 4 : Module Lab UI réactivation + tests + stabilisation + release P0
 
 **Complexité :** Élevée. Seul module à créer de zéro : modèle DB (StockProduct, StockMovement), router backend (/api/stock/), page frontend StockPage. L'infrastructure ProactiveAlert pour type STOCK est déjà prête dans models.py.
 
-**Risque :** Moyen. Nouvelle table DB (additive, jamais de DROP). Migration `create_all()` safe.
+**Risque :** Moyen. Nouvelle table DB (additive, jamais de DROP). Une migration
+Alembic explicite et idempotente est requise avant le boot cabinet.
 
 **Dépendances :** Aucune dépendance sur les missions précédentes.
 
@@ -495,7 +496,7 @@ Toute mission future DOIT respecter :
 - Préserver `digitalcrown_db` et tous ses patients/documents/médias
 - Uniquement des opérations **additives** (CREATE TABLE, ADD COLUMN, INSERT) — jamais de DROP, TRUNCATE, ALTER de colonnes existantes sans migration additive validée
 - Compter les patients/documents avant et après chaque migration (`preflight_data_audit.py`)
-- La migration est faite par `create_all()` + fonctions additives dans le lifespan de `main.py` — Alembic n'est **jamais** invoqué automatiquement
+- Les migrations cabinet sont versionnées et exécutées explicitement par Alembic avant le boot ; `main.py` vérifie ensuite l'head en lecture seule et ne fait ni `create_all()` ni auto-migration sur les données réelles
 
 ### Contraintes médias
 - Préserver tous les médias dans `%APPDATA%/DigitalCrown/media/`

@@ -1,4 +1,5 @@
 from datetime import datetime
+from uuid import uuid4
 
 import pytest
 from fastapi import HTTPException
@@ -16,7 +17,7 @@ from backend.routers.appointments import (
 
 def _team_user(db, owner, *, role=models.UserRole.DENTISTE, active=True, approval="approved"):
     user = models.User(
-        email=f"team-{owner.id}-{role.value}-{len(owner.email)}-{datetime.now().timestamp()}@test.ma",
+        email=f"team-{owner.id}-{role.value}-{uuid4().hex}@test.ma",
         hashed_password="x",
         role=role,
         is_active=active,
@@ -33,7 +34,7 @@ def _team_user(db, owner, *, role=models.UserRole.DENTISTE, active=True, approva
 
 def _foreign_owner(db):
     user = models.User(
-        email=f"foreign-{datetime.now().timestamp()}@test.ma",
+        email=f"foreign-{uuid4().hex}@test.ma",
         hashed_password="x",
         role=models.UserRole.DENTISTE,
         is_active=True,

@@ -7,11 +7,14 @@ import uuid
 
 # Doit être fait avant tout import backend (database.py lit l'env au chargement)
 os.environ["DATABASE_URL"] = "sqlite:///:memory:"
+os.environ["ENVIRONMENT"] = "test"
+os.environ["DIGITALCROWN_ISOLATED_RUNTIME"] = "true"
+os.environ.setdefault("CABINET_MASTER_KEY_HEX", "00" * 32)
 os.environ.setdefault("SECRET_KEY", "test-only-secret-key-minimum-32chars-x")
 
 from unittest.mock import AsyncMock, patch
 import pytest
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, inspect
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 from fastapi.testclient import TestClient
@@ -44,17 +47,31 @@ def _create_tables():
 @pytest.fixture()
 def db():
     """Session SQLite — les données sont supprimées entre tests via delete."""
+    from backend.security import token_blacklist
+
+    # The blacklist keeps an in-process tenant cutoff in production. The test
+    # database is recreated logically between tests and reuses the same integer
+    # IDs, so retaining that cache would make one test's revocation affect the
+    # next test's freshly-created tenant.
+    token_blacklist._store.clear()
+    token_blacklist._mobile_cutoffs.clear()
     from backend import models
     session = _SessionLocal()
     try:
         yield session
     finally:
         session.rollback()
-        # Purge toutes les tables en ordre inverse des FK pour isoler les tests
+        # Purge toutes les tables en ordre inverse des FK pour isoler les tests.
+        # Some optional model modules are imported after this session fixture has
+        # created the schema, so their metadata table may not exist in SQLite.
+        existing_tables = set(inspect(_engine).get_table_names())
         for table in reversed(models.Base.metadata.sorted_tables):
-            session.execute(table.delete())
+            if table.name in existing_tables:
+                session.execute(table.delete())
         session.commit()
         session.close()
+        token_blacklist._store.clear()
+        token_blacklist._mobile_cutoffs.clear()
 
 
 @pytest.fixture()
@@ -84,6 +101,7 @@ def client(db):
          patch("backend.main.sync_manager.start_listening", return_value=None), \
          patch("backend.main._sync_all_licenses_from_firebase", new_callable=AsyncMock), \
          patch("backend.services.daily_scheduler.start_daily_scheduler", return_value=None), \
+         patch("backend.services.fts_indexer.bulk_index_unindexed_patients", return_value=None), \
          patch("backend.routers.auth.check_rate_limit", return_value=None):
         with TestClient(app, raise_server_exceptions=True) as c:
             yield c

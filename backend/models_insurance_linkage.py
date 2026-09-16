@@ -7,7 +7,7 @@ source_line_uid plus an explicit CatalogAct foreign key.
 
 from __future__ import annotations
 
-from sqlalchemy import Column, ForeignKey, Integer, String, event, inspect, text
+from sqlalchemy import Column, ForeignKey, Integer, String, inspect, text
 
 _INSTALLED = False
 
@@ -17,18 +17,21 @@ def attach_insurance_linkage_columns() -> None:
     from backend.models import Acte
 
     if "source_line_uid" not in Acte.__table__.c:
-        Acte.source_line_uid = Column("source_line_uid", String(36), nullable=True)
+        Acte.source_line_uid = Column(
+            "source_line_uid", String(36), nullable=True, index=True
+        )
     if "catalog_act_id" not in Acte.__table__.c:
         Acte.catalog_act_id = Column(
             "catalog_act_id",
             Integer,
             ForeignKey("catalog_acts.id", ondelete="SET NULL"),
             nullable=True,
+            index=True,
         )
 
 
 def _migrate_existing_actes(_metadata, connection, **_kwargs) -> None:
-    """Self-heal historical cabinet DBs immediately before create_all()."""
+    """Explicit compatibility helper for certification/tests; never auto-registered."""
     inspector = inspect(connection)
     if not inspector.has_table("actes"):
         return
@@ -59,20 +62,17 @@ def _migrate_existing_actes(_metadata, connection, **_kwargs) -> None:
 
 
 def install_insurance_linkage() -> None:
-    """Install ORM columns plus the startup compatibility migration once."""
+    """Register ORM columns only; persistent schema changes belong to Alembic."""
     global _INSTALLED
     if _INSTALLED:
         return
 
-    from backend.models import Base
-
     attach_insurance_linkage_columns()
-    event.listen(Base.metadata, "before_create", _migrate_existing_actes)
     _INSTALLED = True
 
 
 def migrate_insurance_linkage_columns(bind) -> None:
-    """Explicit idempotent migration helper used by certification tests/tools."""
+    """Explicit idempotent compatibility helper used by certification tests/tools."""
     attach_insurance_linkage_columns()
     with bind.begin() as connection:
         _migrate_existing_actes(None, connection)

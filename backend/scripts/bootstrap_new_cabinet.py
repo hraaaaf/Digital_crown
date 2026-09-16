@@ -4,7 +4,7 @@
 Rôle : DENTISTE (propriétaire dentiste du cabinet, jamais SUPERADMIN global)
 
 Sécurité :
-- Refuse si DB = digitalcrown_db
+- Refuse la cible cabinet connue, quel que soit son nom de base
 - Refuse si ENVIRONMENT n'est pas safe (rehearsal/test)
 - Utilise modèles/services officiels
 - Utilise hashing officiel (pas de bypass)
@@ -16,11 +16,12 @@ import os
 import sys
 import uuid
 from datetime import datetime
+from backend.core.runtime_safety import is_known_cabinet_database
 
 # Vérifications de sécurité AVANT les imports
 db_url = os.environ.get('DATABASE_URL', '')
-if 'digitalcrown_db' in db_url:
-    print("ERROR: DATABASE_URL pointe vers digitalcrown_db (vraie base cabinet)")
+if is_known_cabinet_database(db_url):
+    print("ERROR: DATABASE_URL pointe vers la cible cabinet connue")
     print("BLOCKED: Utiliser une DB isolée pour bootstrap")
     sys.exit(1)
 
@@ -101,6 +102,6 @@ print(f"Cabinet ID: {cabinet.id}")
 print(f"User ID: {owner_user.id}")
 print(f"Actif: {owner_user.is_active}")
 print("\nPassword stocké en hash sécurisé (non affiché)")
-print("\nNOTE: Le superadmin global reste benmoussa.achraf@gmail.com sur digitalcrown_db")
+print("\nNOTE: Le superadmin global reste benmoussa.achraf@gmail.com sur la base configurée")
 
 db.close()

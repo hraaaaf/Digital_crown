@@ -41,22 +41,25 @@ _WEEKDAYS = (
 
 
 def _ensure_tenant_columns(db: Session) -> None:
-    """Add tenant and additive Agenda columns idempotently for legacy installations."""
-    bind = db.get_bind()
-    inspector = inspect(bind)
-    for table_name in ("cabinet_settings", "agenda_exceptions"):
-        columns = {col["name"] for col in inspector.get_columns(table_name)}
-        if "employer_id" not in columns:
-            db.execute(text(f"ALTER TABLE {table_name} ADD COLUMN employer_id INTEGER"))
-            db.commit()
-        if table_name == "cabinet_settings" and "weekly_schedule_json" not in columns:
-            db.execute(text("ALTER TABLE cabinet_settings ADD COLUMN weekly_schedule_json TEXT"))
-            db.commit()
-        db.execute(text(
-            f"CREATE INDEX IF NOT EXISTS ix_{table_name}_employer_id "
-            f"ON {table_name} (employer_id)"
-        ))
-        db.commit()
+    """Verify the versioned Agenda schema without mutating the live database."""
+    inspector = inspect(db.connection())
+    required = {
+        "cabinet_settings": {"employer_id", "weekly_schedule_json"},
+        "agenda_exceptions": {"employer_id"},
+    }
+    missing = []
+    for table_name, columns in required.items():
+        if not inspector.has_table(table_name):
+            missing.append(table_name)
+            continue
+        absent = sorted(columns - {col["name"] for col in inspector.get_columns(table_name)})
+        if absent:
+            missing.append(f"{table_name} ({', '.join(absent)})")
+    if missing:
+        raise RuntimeError(
+            "Agenda schema non migré; exécutez explicitement Alembic avant l'API: "
+            + ", ".join(missing)
+        )
 
 
 def _claim_legacy_rows_if_unambiguous(db: Session, employer_id: int) -> None:

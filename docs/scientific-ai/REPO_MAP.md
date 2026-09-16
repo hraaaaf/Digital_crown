@@ -46,9 +46,10 @@ ci-dessus (une ordonnance est un document PDF généré via
 | `a1b2c3d4e5f6_add_user_id_to_bot_sessions.py` | Non | hors périmètre |
 | `b2c3d4e5f6a7_add_patient_id_to_bot_sessions.py` | Non | hors périmètre |
 
-Rappel `CLAUDE.md` : Alembic n'est **jamais auto-appliqué** ; le schéma
-réel est géré par `create_all()` + `migrate_appointment_columns()`
-(additif uniquement) dans le lifespan de `main.py`.
+Rappel `CLAUDE.md` : Alembic n'est **jamais auto-appliqué** ; les migrations
+cabinet sont exécutées explicitement avant le boot. `main.py` vérifie ensuite
+l'head en lecture seule et ne fait ni `create_all()` ni auto-migration sur les
+données réelles.
 
 ## 3. Routes FastAPI pertinentes
 

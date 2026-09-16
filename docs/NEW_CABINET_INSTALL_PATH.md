@@ -5,9 +5,10 @@
 Pour un cabinet à un seul poste, tout ce guide manuel est désormais remplacé
 par `DigitalCrownSetup.exe` (compilé depuis `installer/DigitalCrown.iss`,
 voir `docs/CABINET_ONPREM_GUIDE.md` section installeur) : aucun terminal,
-aucune commande, secrets générés automatiquement au premier lancement,
+aucune commande, secrets générés automatiquement par l'installation,
 SQLite/SQLCipher chiffré (`ENVIRONMENT=cabinet`, mode solo officiellement
-supporté — voir doctrine ci-dessous). Le reste de ce document décrit la
+supporté). Le schéma est préparé par la procédure d'installation/Alembic
+explicite ; le service ne crée ni tables ni migration au démarrage. Le reste de ce document décrit la
 procédure manuelle, toujours valable pour un cabinet multi-postes
 (PostgreSQL) ou pour comprendre ce que l'installeur fait pour vous.
 
@@ -477,7 +478,9 @@ Ne jamais lancer le backend rehearsal à la main. Utiliser uniquement :
 Ce script :
 - charge `.env.e2e-install-rehearsal` **dans le process courant uniquement**
   (aucune variable persistante modifiée, aucun `setx`)
-- refuse de démarrer si `DATABASE_URL` contient `digitalcrown_db`
+- exige une `DATABASE_URL` explicitement présente dans le fichier rehearsal et
+  calcule une empreinte de la cible ; les alias PostgreSQL équivalents à la
+  cible cabinet connue sont refusés par le garde Python
 - refuse de démarrer si `ENVIRONMENT` global est `production`/`cabinet`
 - refuse de démarrer si `PORT=8005` est défini persistemment (port du
   cabinet réel)
@@ -491,10 +494,9 @@ python -m backend.scripts.bootstrap_new_cabinet
 ```
 
 `backend/scripts/bootstrap_new_cabinet.py` refuse de s'exécuter si la DB
-cible est `digitalcrown_db` ou si `ENVIRONMENT` n'est pas
+cible correspond à la cible cabinet connue ou si `ENVIRONMENT` n'est pas
 rehearsal/test/development. Il crée un owner cabinet avec `role=DENTISTE`
-(jamais `ADMIN` global — le seul superadmin global reste
-`benmoussa.achraf@gmail.com` sur `digitalcrown_db`).
+(jamais `ADMIN` global — le superadmin réel reste hors de toute cible rehearsal).
 
 **⚠️ Piège email de test — TLD réservé** : ne jamais utiliser un domaine de
 test en `.local` (ex. `owner@test.local`). Le validateur email Pydantic
@@ -603,7 +605,8 @@ $env:DIGITALCROWN_ENV_FILE = (Resolve-Path .\.env.e2e-install-rehearsal)
 Checklist avant installateur :
 
 - vérifier que `run_rehearsal_backend.ps1` affiche `ENVIRONMENT=e2e_install_rehearsal`
-- vérifier que la DB affichée n'est pas `digitalcrown_db`
+- vérifier que l'empreinte affichée correspond à la cible isolée attendue et
+  que la cible n'est pas la cible cabinet connue
 - vérifier que `MEDIA_ROOT` affiché contient `install_rehearsal_media`
 - lancer les deux backups en `--dry-run` avec `DIGITALCROWN_ENV_FILE`
 - générer un document de test et confirmer qu'aucun fichier nouveau n'apparaît
@@ -615,9 +618,9 @@ Checklist avant installateur :
 `load_backend_env(override=True)` **sans condition d'environnement**
 (contrairement à `main.py`, qui protège les variables déjà injectées via
 `override=False` en premier). Si `backend/.env.local` définit
-`DATABASE_URL=...digitalcrown_db`, lancer ces scripts avec seulement des
-variables exportées dans le shell **ne suffit pas** — le script écrasera
-silencieusement `DATABASE_URL` par celui du vrai cabinet.
+une `DATABASE_URL` issue du fichier cabinet, lancer ces scripts avec seulement
+des variables exportées dans le shell **ne suffit pas** — le script écrasera
+silencieusement la cible par celle du fichier chargé en priorité.
 
 **Protection obligatoire** : toujours définir `DIGITALCROWN_ENV_FILE` (chemin
 absolu vers `.env.e2e-install-rehearsal`) avant d'appeler ces scripts — ce

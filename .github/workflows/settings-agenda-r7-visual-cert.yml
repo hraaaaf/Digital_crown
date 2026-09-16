@@ -59,7 +59,7 @@ jobs:
           const weekly_schedule = Object.fromEntries(['monday','tuesday','wednesday','thursday','friday','saturday','sunday'].map(key => [key, { ...day }]));
           const settings = { id: 1, opening_time_morning: '09:00', closing_time_morning: '13:00', opening_time_afternoon: '14:00', closing_time_afternoon: '18:00', is_continuous: false, agenda_mode: 'EXACT', use_tickets: true, weekly_schedule };
           const json = body => ({ status: 200, contentType: 'application/json', body: JSON.stringify(body) });
-          const server = await createServer({ server: { host: '127.0.0.1', port: 4182, strictPort: true }, clearScreen: false });
+          const server = await createServer({ optimizeDeps: { include: ['workbox-window'] }, server: { host: '127.0.0.1', port: 4182, strictPort: true }, clearScreen: false });
           await server.listen();
           const browser = await chromium.launch();
           try {

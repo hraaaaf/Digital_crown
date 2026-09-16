@@ -9,20 +9,28 @@ from pathlib import Path
 from backend.env_loader import load_backend_env
 
 # Charger l'env backend explicitement avant toute lecture de os.getenv().
-# Deux passes : 1) override=False pour ne JAMAIS écraser des variables déjà
-# injectées par l'OS/l'orchestrateur (Docker/systemd/k8s secrets) en
-# préprod/prod — sinon un fichier .env.local oublié dans l'image écraserait
-# silencieusement la config réelle du déploiement. 2) en dev/local/test
-# uniquement, on recharge avec override=True pour garder le confort habituel
-# (le fichier fait toujours foi, même si le shell a des variables résiduelles).
+# Les variables injectées par l'OS/l'orchestrateur gardent la priorité dans tous
+# les environnements. Un fichier local ne doit jamais remplacer silencieusement une
+# cible explicitement isolée ou un secret de runtime.
 load_backend_env(override=False)
-if os.environ.get("ENVIRONMENT", "development").lower() in ("development", "local", "test"):
-    load_backend_env(override=True)
 from fastapi import FastAPI, Request, HTTPException, Response
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.exceptions import RequestValidationError
+
+from backend.core.runtime_safety import (
+    DEV_BOOTSTRAP,
+    REHEARSAL_MIGRATION_ONLY,
+    assert_runtime_startup_allowed,
+)
+from backend.core.schema_runtime import assert_database_at_current_head
+from backend.config import settings as app_settings
+
+# Resolve and enforce the startup policy before importing ``backend.database``.
+# That module performs SQLite/SQLCipher preparation during import, so the
+# anti-accident gate must happen before it can ever inspect or mutate a path.
+_IMPORT_BOOT_POLICY = assert_runtime_startup_allowed(app_settings)
 
 from backend import models, database
 from backend.services.sync_manager import sync_manager
@@ -34,7 +42,6 @@ from backend.core.media_paths import get_media_root
 from backend.core.paths import AppPaths
 from backend.services.license_service import LicenseService
 import sentry_sdk
-from backend.config import settings as app_settings
 
 sentry_dsn = os.getenv("SENTRY_DSN")
 if sentry_dsn:
@@ -198,56 +205,71 @@ async def lifespan(app: FastAPI):
             "SECURITE : démarrage refusé. " + " ".join(_prod_errors)
         )
 
+    firebase_sync_task = None
     try:
-        # 1. Initialisation DB dans %APPDATA% via AppPaths
-        models.Base.metadata.create_all(bind=database.engine)
+        boot_policy = assert_runtime_startup_allowed(_cfg)
 
-        # 2. Migration des colonnes frontdesk pour les appointments
-        database.migrate_appointment_columns()
-        database.migrate_actes_columns()
-        database.migrate_patient_columns()
-        database.migrate_proactive_alert_columns()
-        database.migrate_cabinet_config_columns()
-        database.migrate_zka_pairing_token_columns()
+        if boot_policy == DEV_BOOTSTRAP:
+            # Tests/dev are allowed to use create_all only after the explicit
+            # isolation guard above has passed. Cabinet and rehearsal never enter
+            # this branch.
+            models.Base.metadata.create_all(bind=database.engine)
+            database.migrate_appointment_columns()
+            database.migrate_actes_columns()
+            database.migrate_patient_columns()
+            database.migrate_proactive_alert_columns()
+            database.migrate_cabinet_config_columns()
+            database.migrate_zka_pairing_token_columns()
 
-        # Activation de la synchronisation Zero-Knowledge (Observer Mode)
-        sync_manager.start_listening()
+            with database.SessionLocal() as db:
+                run_full_seed(db)
+                seed_clinical_data(db)
+                from backend.seed_catalog import seed_catalog
+                seed_catalog(db)
 
-        with database.SessionLocal() as db:
-            run_full_seed(db)
-            seed_clinical_data(db)
-            # Catalogue Dynamique (spécialités/actes) — seed additif idempotent,
-            # source unique partagée par les Réglages ET la recherche d'actes agenda.
-            from backend.seed_catalog import seed_catalog
-            seed_catalog(db)
+            seed_admin_user()
+        else:
+            # Cabinet/production/rehearsal schemas are created only by the
+            # explicitly versioned Alembic workflow. This check is read-only.
+            assert_database_at_current_head(database.engine)
 
-        # S'assure que l'admin par defaut existe
-        seed_admin_user()
+        # The rehearsal must not launch observers, seeds, FTS indexing, schedulers
+        # or remote licence synchronization that could mutate its fixture while the
+        # schema contract is being measured.
+        if boot_policy != REHEARSAL_MIGRATION_ONLY:
+            sync_manager.start_listening()
 
         # 2. Vérification des licences Firebase (par cabinet via public_id)
         #    Chaque CabinetConfig.public_id est l'identifiant unique du document Firestore
-        await _sync_all_licenses_from_firebase()
+        if boot_policy != REHEARSAL_MIGRATION_ONLY:
+            await _sync_all_licenses_from_firebase()
 
         # 3. Initialisation asynchrone du moteur panoramique (OPG)
         await panoramic_engine.initialize()
 
         # Ghost Hub — FTS5 bulk index au démarrage (background)
-        import threading
-        def _bulk_index():
-            try:
-                from backend.services.fts_indexer import bulk_index_unindexed_patients
-                with database.SessionLocal() as idx_db:
-                    bulk_index_unindexed_patients(idx_db)
-            except Exception as _e:
-                logger.warning("FTS bulk index startup failed: %s", _e)
-        threading.Thread(target=_bulk_index, daemon=True).start()
+        if boot_policy != REHEARSAL_MIGRATION_ONLY:
+            import threading
+            def _bulk_index():
+                try:
+                    from backend.services.fts_indexer import bulk_index_unindexed_patients
+                    with database.SessionLocal() as idx_db:
+                        bulk_index_unindexed_patients(idx_db)
+                except Exception as _e:
+                    logger.warning("FTS bulk index startup failed: %s", _e)
+            threading.Thread(target=_bulk_index, daemon=True).start()
 
         # E1 — Scheduler quotidien alertes proactives
         from backend.services.daily_scheduler import start_daily_scheduler
-        start_daily_scheduler()
+        if boot_policy != REHEARSAL_MIGRATION_ONLY:
+            start_daily_scheduler()
 
         # 4. Tâche background : re-synchronisation Firebase toutes les 6h
-        firebase_sync_task = asyncio.create_task(_periodic_firebase_sync())
+        firebase_sync_task = (
+            asyncio.create_task(_periodic_firebase_sync())
+            if boot_policy != REHEARSAL_MIGRATION_ONLY
+            else None
+        )
 
     except asyncio.CancelledError:
         raise
@@ -257,7 +279,8 @@ async def lifespan(app: FastAPI):
 
     yield
 
-    firebase_sync_task.cancel()
+    if firebase_sync_task is not None:
+        firebase_sync_task.cancel()
     logger.info("Arret de l'API...")
 
 

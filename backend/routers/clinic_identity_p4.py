@@ -4,14 +4,8 @@ from sqlalchemy.orm import Session
 
 from backend import database, models
 from backend.database import get_db
-from backend.models_identity_p4 import migrate_identity_columns
 from backend.routers.auth import get_current_user, is_superadmin_user
 from backend.schemas.clinic_identity_p4 import PractitionerIdentityOut, PractitionerIdentityUpdate
-
-# Existing installations must gain the additive columns before any normal auth query
-# attempts to materialize User/CabinetConfig with the expanded mapper. Fresh databases
-# do not have the tables yet and are handled later by Base.metadata.create_all.
-migrate_identity_columns(database.engine)
 
 router = APIRouter()
 

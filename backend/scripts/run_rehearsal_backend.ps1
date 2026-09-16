@@ -36,16 +36,7 @@ function Test-UnsafeMediaRoot([string]$MediaRoot) {
     return $false
 }
 
-# 1. Check if digitalcrown_db in persistent env vars
-$global_db = [Environment]::GetEnvironmentVariable("DATABASE_URL", [EnvironmentVariableTarget]::Machine)
-$user_db = [Environment]::GetEnvironmentVariable("DATABASE_URL", [EnvironmentVariableTarget]::User)
-
-if ($global_db -like "*digitalcrown_db*" -or $user_db -like "*digitalcrown_db*") {
-    Write-Host 'ERROR: DATABASE_URL contains digitalcrown_db in persistent env' -ForegroundColor Red
-    exit 1
-}
-
-# 2. Check if ENVIRONMENT is production/cabinet globally
+# 1. Check if ENVIRONMENT is production/cabinet globally
 $global_env = [Environment]::GetEnvironmentVariable("ENVIRONMENT", [EnvironmentVariableTarget]::Machine)
 $user_env = [Environment]::GetEnvironmentVariable("ENVIRONMENT", [EnvironmentVariableTarget]::User)
 
@@ -54,7 +45,7 @@ if ($global_env -eq "production" -or $global_env -eq "cabinet" -or $user_env -eq
     exit 1
 }
 
-# 3. Check if PORT 8005 is set
+# 2. Check if PORT 8005 is set
 $global_port = [Environment]::GetEnvironmentVariable("PORT", [EnvironmentVariableTarget]::Machine)
 $user_port = [Environment]::GetEnvironmentVariable("PORT", [EnvironmentVariableTarget]::User)
 
@@ -63,7 +54,7 @@ if ($global_port -eq "8005" -or $user_port -eq "8005") {
     exit 1
 }
 
-# 4. Load rehearsal env file
+# 3. Load rehearsal env file
 $env_file = '.env.e2e-install-rehearsal'
 if (-not (Test-Path $env_file)) {
     Write-Host 'ERROR: .env.e2e-install-rehearsal not found' -ForegroundColor Red
@@ -75,19 +66,21 @@ Write-Host 'OK: Safety checks passed' -ForegroundColor Green
 # Load env into current process only (NOT persistent)
 Write-Host 'Loading rehearsal env...' -ForegroundColor Cyan
 $env_content = Get-Content $env_file
+$env_keys = @{}
 foreach ($line in $env_content) {
     if ($line -match '^([^=]+)=(.*)$' -and -not $line.StartsWith('#')) {
         $key = $matches[1].Trim()
         $val = $matches[2].Trim()
         if ($key) {
+            $env_keys[$key] = $true
             Set-Item "env:$key" $val -ErrorAction SilentlyContinue
         }
     }
 }
 
 # Verify isolation
-if ($env:DATABASE_URL -like "*digitalcrown_db*") {
-    Write-Host 'ERROR: DATABASE_URL points to digitalcrown_db' -ForegroundColor Red
+if (-not $env_keys.ContainsKey('DATABASE_URL') -or [string]::IsNullOrWhiteSpace($env:DATABASE_URL)) {
+    Write-Host 'ERROR: rehearsal env must explicitly define DATABASE_URL' -ForegroundColor Red
     exit 1
 }
 
@@ -111,10 +104,22 @@ if ($env:PORT -and $env:PORT -eq "8005") {
     exit 1
 }
 
+# The application requires a process-local attestation for every persistent
+# development/rehearsal target. Derive it from the exact target after the env
+# file has been loaded; never hard-code or print the password-bearing URL.
+$env:DIGITALCROWN_ISOLATED_RUNTIME = "true"
+$fingerprint = (& .\.venv312\Scripts\python.exe -c "from backend.core.runtime_safety import database_target_fingerprint; import os; print(database_target_fingerprint(os.environ['DATABASE_URL']))").Trim()
+if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace($fingerprint)) {
+    Write-Host 'ERROR: unable to attest the isolated rehearsal database target' -ForegroundColor Red
+    exit 1
+}
+$env:DIGITALCROWN_ISOLATION_DB_FINGERPRINT = $fingerprint
+
 Write-Host ''
 Write-Host '=== REHEARSAL ACTIVE (process-local) ===' -ForegroundColor Green
 Write-Host 'ENVIRONMENT=e2e_install_rehearsal'
 Write-Host "DB=$(Mask-DatabaseUrl $env:DATABASE_URL)"
+Write-Host "DB_FINGERPRINT=$fingerprint"
 Write-Host "PORT=8008"
 Write-Host "MEDIA_ROOT=$($env:MEDIA_ROOT)"
 Write-Host "Ctrl+C to stop"

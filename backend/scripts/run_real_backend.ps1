@@ -123,9 +123,9 @@ $dbUrl = if ($dbLine) { $dbLine -replace '^DATABASE_URL=', '' } else { '' }
 $envValue = if ($envLine) { ($envLine -replace '^ENVIRONMENT=', '').Trim() } else { 'development' }
 $mediaRoot = if ($mediaLine) { ($mediaLine -replace '^MEDIA_ROOT=', '').Trim() } else { '' }
 
+if ([string]::IsNullOrWhiteSpace($dbUrl)) { Fail "DATABASE_URL is missing from the real cabinet environment" }
 if ($dbUrl -match 'rehearsal') { Fail "DATABASE_URL contains rehearsal" }
-if ($dbUrl -notmatch 'digitalcrown_db') { Fail "DATABASE_URL does not point to digitalcrown_db" }
-if ($envValue -match 'rehearsal') { Fail "ENVIRONMENT contains rehearsal" }
+if ($envValue -notin @('cabinet', 'production')) { Fail "ENVIRONMENT must be cabinet or production, got: $envValue" }
 if ($mediaRoot -match 'rehearsal') { Fail "MEDIA_ROOT contains rehearsal" }
 
 # 3. TLS and runtime startup contract.

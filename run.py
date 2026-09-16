@@ -117,8 +117,6 @@ def _load_launcher_environment() -> None:
     from backend.env_loader import load_backend_env
 
     load_backend_env(override=False)
-    if os.environ.get("ENVIRONMENT", "development").lower() in ("development", "local", "test"):
-        load_backend_env(override=True)
 
 
 def _resolve_host_port():
