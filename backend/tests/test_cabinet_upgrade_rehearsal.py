@@ -112,6 +112,45 @@ def test_snapshot_preserves_historical_rows_when_additive_column_is_added() -> N
     assert before["patients"]["pk_sha256"] == after["patients"]["pk_sha256"]
 
 
+def test_snapshot_rejects_primary_key_drift() -> None:
+    before_engine = sa.create_engine("sqlite+pysqlite:///:memory:")
+    with before_engine.begin() as connection:
+        connection.exec_driver_sql(
+            "CREATE TABLE patients (id INTEGER PRIMARY KEY, external_id INTEGER, nom TEXT)"
+        )
+        connection.exec_driver_sql("INSERT INTO patients(id, external_id, nom) VALUES (1, 10, 'A')")
+    before = rehearsal._database_snapshot(before_engine)
+
+    after_engine = sa.create_engine("sqlite+pysqlite:///:memory:")
+    with after_engine.begin() as connection:
+        connection.exec_driver_sql(
+            "CREATE TABLE patients (id INTEGER, external_id INTEGER PRIMARY KEY, nom TEXT)"
+        )
+        connection.exec_driver_sql("INSERT INTO patients(id, external_id, nom) VALUES (1, 10, 'A')")
+
+    with pytest.raises(RuntimeError, match="Clé primaire historique modifiée"):
+        rehearsal._database_snapshot_after(after_engine, before)
+
+
+def test_relation_preservation_allows_additive_foreign_keys() -> None:
+    historical = {"patients(employer_id)->users(id)": 0}
+    after = {
+        "patients(employer_id)->users(id)": 0,
+        "actes(catalog_act_id)->catalog_acts(id)": 0,
+    }
+    rehearsal._assert_relations_preserved(historical, after, "migration")
+
+
+def test_relation_preservation_rejects_removed_or_degraded_historical_fk() -> None:
+    historical = {"patients(employer_id)->users(id)": 0}
+    with pytest.raises(RuntimeError, match="FK historique supprimée"):
+        rehearsal._assert_relations_preserved(historical, {}, "migration")
+    with pytest.raises(RuntimeError, match="orphans 0 -> 1"):
+        rehearsal._assert_relations_preserved(
+            historical, {"patients(employer_id)->users(id)": 1}, "migration"
+        )
+
+
 def test_connection_args_omit_empty_user() -> None:
     target = rehearsal._parse_postgres_target("postgresql://localhost/example")
     args = rehearsal._connection_args(target)
