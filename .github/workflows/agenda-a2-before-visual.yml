@@ -1,0 +1,16 @@
+name: Agenda A2 BEFORE Visual Certification (frozen)
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  notice:
+    runs-on: ubuntu-latest
+    steps:
+      - run: |
+          echo "Immutable BEFORE already captured on 2911da0f4e8bd4766b725089924e5ba5a616eaff"
+          echo "Run 35084989399"
+          echo "Artifact digest sha256:c4fc22b6a489170e06b5a7f6ff09f76cdaa2e68ac40cec82c5bdd55abc7a3755"
