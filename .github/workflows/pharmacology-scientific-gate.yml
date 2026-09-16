@@ -48,7 +48,12 @@ jobs:
           python-version: '3.12'
 
       - name: Install minimal documentary-test dependencies
-        run: python -m pip install --disable-pip-version-check pytest SQLAlchemy
+        run: >-
+          python -m pip install --disable-pip-version-check
+          pytest
+          SQLAlchemy==2.0.28
+          'pydantic[email]==2.6.3'
+          pydantic-settings==2.2.1
 
       - name: Run targeted pharmacology documentary tests
         run: |
