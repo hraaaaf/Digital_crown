@@ -1,0 +1,71 @@
+name: PR Merge Summary
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pull-requests: write
+
+concurrency:
+  group: pr-merge-summary-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  summary:
+    if: github.event_name == 'pull_request' && github.event.pull_request.draft == false
+    runs-on: ubuntu-latest
+    steps:
+      - name: Build concise merge summary
+        id: summary
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          PR: ${{ github.event.pull_request.number }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          pr_json="$(gh api "repos/$REPO/pulls/$PR")"
+          files_json="$(gh api --paginate "repos/$REPO/pulls/$PR/files?per_page=100" --slurp)"
+
+          title="$(jq -r '.title' <<<"$pr_json")"
+          additions="$(jq -r '.additions' <<<"$pr_json")"
+          deletions="$(jq -r '.deletions' <<<"$pr_json")"
+          changed="$(jq -r '.changed_files' <<<"$pr_json")"
+          head="$(jq -r '.head.sha' <<<"$pr_json")"
+          base="$(jq -r '.base.ref' <<<"$pr_json")"
+          files="$(jq -r '[.[][] | .filename] | .[:8] | map("- `" + . + "`") | join("\n")' <<<"$files_json")"
+
+          cat > /tmp/merge-summary.md <<EOF
+          <!-- digital-crown-merge-summary -->
+          ## Résumé rapide avant merge
+
+          **Ce qui a été fait :** $title
+
+          **Impact :** $changed fichier(s), +$additions / -$deletions. Base \`$base\`, HEAD \`${head:0:12}\`.
+
+          **Fichiers principaux :**
+          $files
+
+          **Validation attendue :** vérifie les checks GitHub de ce HEAD. Les grosses régressions backend/PostgreSQL sont exécutées une seule fois après merge sur \`master\` ; les checks ciblés du lot restent pré-merge.
+
+          **Décision humaine requise :** merge uniquement après validation explicite du propriétaire.
+          EOF
+
+      - name: Publish or refresh PR summary
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          PR: ${{ github.event.pull_request.number }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          marker='<!-- digital-crown-merge-summary -->'
+          comment_id="$(gh api "repos/$REPO/issues/$PR/comments?per_page=100" --jq ".[] | select(.body | contains(\"$marker\")) | .id" | head -n1 || true)"
+          if [ -n "$comment_id" ]; then
+            gh api --method PATCH "repos/$REPO/issues/comments/$comment_id" -f body="$(cat /tmp/merge-summary.md)" >/dev/null
+          else
+            gh api --method POST "repos/$REPO/issues/$PR/comments" -f body="$(cat /tmp/merge-summary.md)" >/dev/null
+          fi
