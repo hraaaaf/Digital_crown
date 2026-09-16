@@ -1,0 +1,133 @@
+/* Agenda A3 theme bridge
+ * Structural chrome inherits Digital Crown theme tokens.
+ * Clinical/availability states keep their semantic identity.
+ */
+
+:root {
+  --a3-primary-soft: color-mix(in srgb, var(--primary) 10%, var(--card-bg));
+  --a3-primary-border: color-mix(in srgb, var(--primary) 28%, var(--border-color));
+  --a3-muted-surface: color-mix(in srgb, var(--text-muted) 10%, var(--card-bg));
+  --a3-closed-surface: color-mix(in srgb, var(--text-muted) 18%, var(--card-bg));
+  --a3-pause-surface: color-mix(in srgb, #f59e0b 16%, var(--card-bg));
+  --a3-leave-surface: color-mix(in srgb, #f43f5e 14%, var(--card-bg));
+  --a3-inherit-surface: color-mix(in srgb, #10b981 14%, var(--card-bg));
+}
+
+/* Settings > Horaires & Agenda > Disponibilités par praticien */
+[data-testid='practitioner-availability-panel'] {
+  background-color: var(--card-bg) !important;
+  border-color: var(--border-color) !important;
+  color: var(--text-main) !important;
+}
+
+[data-testid='practitioner-availability-panel'] :is(.text-slate-900, .text-slate-800, .text-slate-700, .text-slate-600) {
+  color: var(--text-main) !important;
+}
+
+[data-testid='practitioner-availability-panel'] :is(.text-slate-500, .text-slate-400) {
+  color: var(--text-muted) !important;
+}
+
+[data-testid='practitioner-availability-panel'] [class*='border-slate-'] {
+  border-color: var(--border-color) !important;
+}
+
+[data-testid='practitioner-availability-panel'] [class*='bg-white'] {
+  background-color: var(--card-bg) !important;
+}
+
+[data-testid='practitioner-availability-panel'] :is([class*='bg-slate-50'], [class*='bg-slate-100']) {
+  background-color: var(--input-bg) !important;
+}
+
+[data-testid='practitioner-availability-panel'] [class*='bg-indigo-50'] {
+  background-color: var(--a3-primary-soft) !important;
+}
+
+[data-testid='practitioner-availability-panel'] [class*='text-indigo-'] {
+  color: var(--primary) !important;
+}
+
+[data-testid='practitioner-availability-panel'] [class*='border-indigo-'] {
+  border-color: var(--a3-primary-border) !important;
+}
+
+[data-testid='practitioner-availability-panel'] button[class*='bg-slate-900'] {
+  background-color: var(--primary) !important;
+  color: var(--text-on-primary, #fff) !important;
+}
+
+[data-testid='practitioner-availability-panel'] [class*='bg-emerald-50'] {
+  background-color: var(--a3-inherit-surface) !important;
+}
+
+[data-testid='practitioner-availability-panel'] [class*='text-emerald-'] {
+  color: color-mix(in srgb, #10b981 72%, var(--text-main)) !important;
+}
+
+/* Agenda Multi A3. The unique scroll test id scopes the bridge to this view only. */
+:where(div:has(> [data-testid='multi-practitioner-scroll'])) {
+  background-color: var(--glass-bg) !important;
+  border-color: var(--glass-border) !important;
+  color: var(--text-main) !important;
+}
+
+:where(div:has(> [data-testid='multi-practitioner-scroll'])) :is(.text-slate-900, .text-slate-800, .text-slate-700, .text-slate-600, .text-slate-500) {
+  color: var(--text-main) !important;
+}
+
+:where(div:has(> [data-testid='multi-practitioner-scroll'])) .text-slate-400 {
+  color: var(--text-muted) !important;
+}
+
+:where(div:has(> [data-testid='multi-practitioner-scroll'])) [class*='border-slate-'] {
+  border-color: var(--border-color) !important;
+}
+
+:where(div:has(> [data-testid='multi-practitioner-scroll'])) [class*='bg-white'] {
+  background-color: var(--card-bg) !important;
+}
+
+:where(div:has(> [data-testid='multi-practitioner-scroll'])) [class*='bg-slate-50'] {
+  background-color: var(--input-bg) !important;
+}
+
+:where(div:has(> [data-testid='multi-practitioner-scroll'])) [class*='bg-slate-200'] {
+  background-color: var(--a3-closed-surface) !important;
+}
+
+:where(div:has(> [data-testid='multi-practitioner-scroll'])) [class*='bg-indigo-50'] {
+  background-color: var(--a3-primary-soft) !important;
+}
+
+:where(div:has(> [data-testid='multi-practitioner-scroll'])) [class*='bg-indigo-700'] {
+  background-color: var(--primary) !important;
+  color: var(--text-on-primary, #fff) !important;
+}
+
+:where(div:has(> [data-testid='multi-practitioner-scroll'])) [class*='text-indigo-'] {
+  color: var(--primary) !important;
+}
+
+:where(div:has(> [data-testid='multi-practitioner-scroll'])) button:not(:disabled)[class*='hover:bg-indigo-50']:hover {
+  background-color: var(--a3-primary-soft) !important;
+}
+
+/* Availability states remain semantically distinct in every app theme. */
+:where(div:has(> [data-testid='multi-practitioner-scroll'])) button[disabled][title='Pause du praticien'] {
+  background-color: var(--a3-pause-surface) !important;
+}
+
+:where(div:has(> [data-testid='multi-practitioner-scroll'])) button[disabled][title^='Absence'] {
+  background-color: var(--a3-leave-surface) !important;
+}
+
+:where(div:has(> [data-testid='multi-practitioner-scroll'])) button[disabled][title^='Cabinet fermé'] {
+  background-color: var(--a3-closed-surface) !important;
+}
+
+:where(div:has(> [data-testid='multi-practitioner-scroll'])) button[disabled][title^='Hors horaires'],
+:where(div:has(> [data-testid='multi-practitioner-scroll'])) button[disabled][title^='Praticien absent'],
+:where(div:has(> [data-testid='multi-practitioner-scroll'])) button[disabled][title^='Configuration praticien invalide'] {
+  background-color: var(--a3-muted-surface) !important;
+}

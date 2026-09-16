@@ -43,6 +43,23 @@ Sous les horaires cabinet, ajouter une section `Disponibilités par praticien` :
 - bloc `Absences & congés` avec début, fin et motif ;
 - copie explicite : `disponibilité effective = cabinet ∩ praticien`.
 
+## Contrat thème Digital Crown
+Le chrome A3 ne doit pas constituer un sous-thème autonome. Les surfaces, textes, bordures, champs et accents structuraux héritent des tokens dynamiques existants :
+- `--card-bg` / `--glass-bg` ;
+- `--text-main` / `--text-muted` ;
+- `--border-color` ;
+- `--input-bg` ;
+- `--primary`.
+
+Les seules couleurs volontairement sémantiques sont les états métier nécessaires à la lecture de disponibilité : fermeture globale, pause, absence/congé et états de rendez-vous existants. Elles doivent rester distinctes dans les thèmes clair, coloré et sombre.
+
+Preuve attendue :
+- rendu réel A3 en thème par défaut ;
+- preuve navigateur complémentaire sur au moins un thème coloré et un thème sombre ;
+- couleurs calculées du panneau Settings et de la grille différentes lorsque les tokens du thème changent ;
+- Pause/Absence restent visuellement distinctes du créneau disponible ;
+- aucun overflow de page introduit.
+
 ## Invariants UI
 - aucune régression Jour / Semaine / Mois / Multi A2 ;
 - aucune largeur de page supérieure au viewport ;

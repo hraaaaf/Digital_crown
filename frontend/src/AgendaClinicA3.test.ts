@@ -36,6 +36,23 @@ describe('agenda clinic A3 practitioner availability', () => {
     expect(panel).toContain('Aucun praticien assignable actif.');
   });
 
+  it('inherits Digital Crown theme tokens for A3 chrome while preserving semantic availability states', () => {
+    const bridge = read('./styles/agendaA3Theme.css');
+    const cn = read('./utils/cn.ts');
+
+    expect(cn).toContain("import '../styles/agendaA3Theme.css'");
+    expect(bridge).toContain("[data-testid='practitioner-availability-panel']");
+    expect(bridge).toContain("[data-testid='multi-practitioner-scroll']");
+    expect(bridge).toContain('var(--card-bg)');
+    expect(bridge).toContain('var(--text-main)');
+    expect(bridge).toContain('var(--text-muted)');
+    expect(bridge).toContain('var(--border-color)');
+    expect(bridge).toContain('var(--input-bg)');
+    expect(bridge).toContain('var(--primary)');
+    expect(bridge).toContain("button[disabled][title='Pause du praticien']");
+    expect(bridge).toContain("button[disabled][title^='Absence']");
+  });
+
   it('passes the effective practitioner into every server-side availability gate', () => {
     const appointments = read('../../backend/routers/appointments.py');
 
