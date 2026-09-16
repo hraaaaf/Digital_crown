@@ -23,7 +23,7 @@ export const CEPHALO_SCIENTIFIC_BASE_HUES: Readonly<Record<CephaloScientificFami
 });
 
 const adaptiveScientificColor = (baseHue: string): string =>
-  `color-mix(in srgb, ${baseHue} 66%, var(--text-main) 34%)`;
+  `color-mix(in srgb, ${baseHue} 60%, var(--text-main) 40%)`;
 
 export const CEPHALO_SCIENTIFIC_COLORS: Readonly<Record<CephaloScientificFamily, string>> = Object.freeze({
   skeletal: adaptiveScientificColor(CEPHALO_SCIENTIFIC_BASE_HUES.skeletal),
