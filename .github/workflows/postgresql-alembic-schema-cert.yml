@@ -1,0 +1,169 @@
+name: PostgreSQL Alembic Schema Certification
+
+on:
+  pull_request:
+    paths:
+      - "alembic/**"
+      - "backend/models*.py"
+      - "backend/core/schema_runtime.py"
+      - "backend/core/runtime_safety.py"
+      - "backend/core/sqlite_alembic_baseline.py"
+      - "backend/tests/test_schema_runtime_head_sync.py"
+      - ".github/workflows/postgresql-alembic-schema-cert.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  postgres-schema:
+    name: PostgreSQL 18 Alembic from-scratch
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: digitalcrown_schema_cert
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d digitalcrown_schema_cert"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/digitalcrown_schema_cert
+      ENVIRONMENT: rehearsal
+      SECRET_KEY: postgresql-schema-cert-only-secret-key-000001
+      TELEMETRY_ENABLED: "false"
+      CLOUD_AI_ENABLED: "false"
+      DEBUG: "false"
+
+    steps:
+      - name: Checkout exact PR head
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+
+      - name: Setup Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install migration boundary dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install \
+            alembic \
+            sqlalchemy==2.0.28 \
+            psycopg2-binary==2.9.9 \
+            "pydantic[email]==2.6.3" \
+            pydantic-settings==2.2.1 \
+            fastapi==0.110.0 \
+            python-multipart==0.0.9 \
+            python-dotenv \
+            cryptography \
+            PyYAML==6.0.3 \
+            pytest
+
+      - name: Prove runtime gate matches unique Alembic head
+        run: python -m pytest backend/tests/test_schema_runtime_head_sync.py -q --noconftest
+
+      - name: Assert fresh PostgreSQL database is empty
+        run: |
+          python - <<'PY'
+          import os
+          from sqlalchemy import create_engine, inspect
+
+          engine = create_engine(os.environ["DATABASE_URL"])
+          with engine.connect() as connection:
+              tables = inspect(connection).get_table_names(schema="public")
+          assert tables == [], tables
+          print("fresh PostgreSQL schema is empty")
+          PY
+
+      - name: Upgrade fresh PostgreSQL database to head
+        run: alembic upgrade head
+
+      - name: Record first-upgrade schema proof
+        run: |
+          python - <<'PY'
+          import hashlib
+          import json
+          import os
+          from pathlib import Path
+
+          from sqlalchemy import create_engine, inspect, text
+          from backend.core.schema_runtime import CURRENT_ALEMBIC_HEAD, assert_database_at_current_head
+
+          engine = create_engine(os.environ["DATABASE_URL"])
+          assert_database_at_current_head(engine)
+          payload = []
+          with engine.connect() as connection:
+              inspector = inspect(connection)
+              tables = sorted(inspector.get_table_names(schema="public"))
+              version = connection.execute(text("SELECT version_num FROM alembic_version")).scalar_one()
+              assert version == CURRENT_ALEMBIC_HEAD, (version, CURRENT_ALEMBIC_HEAD)
+              for table in tables:
+                  columns = sorted(
+                      (column["name"], str(column["type"]), bool(column["nullable"]))
+                      for column in inspector.get_columns(table, schema="public")
+                  )
+                  indexes = sorted(
+                      (index["name"], tuple(index.get("column_names") or ()), bool(index.get("unique")))
+                      for index in inspector.get_indexes(table, schema="public")
+                  )
+                  payload.append((table, columns, indexes))
+
+              for table in ("patients", "appointments", "actes", "paiements", "document_archives"):
+                  if table in tables:
+                      count = connection.execute(text(f'SELECT COUNT(*) FROM "{table}"')).scalar_one()
+                      assert count == 0, (table, count)
+
+          digest = hashlib.sha256(json.dumps(payload, sort_keys=True, default=str).encode()).hexdigest()
+          Path("/tmp/postgres-schema-first.sha256").write_text(digest, encoding="utf-8")
+          Path("/tmp/postgres-table-count.txt").write_text(str(len(tables)), encoding="utf-8")
+          print(f"head={version} tables={len(tables)} schema_sha256={digest}")
+          PY
+
+      - name: Prove second upgrade is a schema no-op
+        run: |
+          alembic upgrade head
+          python - <<'PY'
+          import hashlib
+          import json
+          import os
+          from pathlib import Path
+
+          from sqlalchemy import create_engine, inspect, text
+          from backend.core.schema_runtime import CURRENT_ALEMBIC_HEAD, assert_database_at_current_head
+
+          engine = create_engine(os.environ["DATABASE_URL"])
+          assert_database_at_current_head(engine)
+          payload = []
+          with engine.connect() as connection:
+              inspector = inspect(connection)
+              tables = sorted(inspector.get_table_names(schema="public"))
+              version = connection.execute(text("SELECT version_num FROM alembic_version")).scalar_one()
+              assert version == CURRENT_ALEMBIC_HEAD
+              for table in tables:
+                  columns = sorted(
+                      (column["name"], str(column["type"]), bool(column["nullable"]))
+                      for column in inspector.get_columns(table, schema="public")
+                  )
+                  indexes = sorted(
+                      (index["name"], tuple(index.get("column_names") or ()), bool(index.get("unique")))
+                      for index in inspector.get_indexes(table, schema="public")
+                  )
+                  payload.append((table, columns, indexes))
+
+          digest = hashlib.sha256(json.dumps(payload, sort_keys=True, default=str).encode()).hexdigest()
+          first = Path("/tmp/postgres-schema-first.sha256").read_text(encoding="utf-8").strip()
+          first_count = int(Path("/tmp/postgres-table-count.txt").read_text(encoding="utf-8").strip())
+          assert digest == first, (first, digest)
+          assert len(tables) == first_count, (first_count, len(tables))
+          print(f"second upgrade no-op: head={version} tables={len(tables)} schema_sha256={digest}")
+          PY
