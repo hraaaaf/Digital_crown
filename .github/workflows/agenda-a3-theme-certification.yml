@@ -44,6 +44,7 @@ jobs:
           import { createRoot } from 'react-dom/client';
           import { MemoryRouter } from 'react-router-dom';
           import './index.css';
+          import './styles/agendaA3Theme.css';
           import { MultiPractitionerTimelineView } from './features/agenda/MultiPractitionerTimelineView';
           import { PractitionerAvailabilityPanel } from './features/admin/Settings/tabs/PractitionerAvailabilityPanel';
           const week = Object.fromEntries(['monday','tuesday','wednesday','thursday','friday','saturday','sunday'].map(day => [day,{is_open:true,is_continuous:false,morning_start:'09:00',morning_end:'13:00',afternoon_start:'14:00',afternoon_end:'18:00'}])) as any;
