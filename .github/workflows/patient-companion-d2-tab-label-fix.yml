@@ -1,0 +1,41 @@
+name: Patient Companion D2 Single-node Mobile Tab Labels
+on:
+  push:
+    branches: [feat/patient-companion-d2-staff-ui]
+permissions:
+  contents: write
+jobs:
+  apply:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feat/patient-companion-d2-staff-ui
+          fetch-depth: 0
+      - name: Apply single-node responsive tab labels
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p = Path('frontend/src/features/patients/PatientDetailsInner.tsx')
+          s = p.read_text(encoding='utf-8')
+          old = '<TabButton compact={isRadiology} active={isDocuments} onClick={handleDocumentCreate} icon={<FileText size={17} />} label="Documents" mobileLabel="Documents" ariaLabel="Document" />'
+          new = '<TabButton compact={isRadiology} active={isDocuments} onClick={handleDocumentCreate} icon={<FileText size={17} />} label="Documents" mobileLabel="Docs" ariaLabel="Document" />'
+          if old not in s:
+              raise SystemExit('Documents tab target missing')
+          s = s.replace(old, new, 1)
+          old2 = '{icon}<span className="sm:hidden">{mobileLabel || label}</span><span className="hidden sm:inline">{label}</span>'
+          new2 = '{icon}<span data-mobile-label={mobileLabel || label} className="max-sm:text-[0] max-sm:after:content-[attr(data-mobile-label)] max-sm:after:text-[9px] max-sm:after:tracking-[0.04em] sm:text-inherit">{label}</span>'
+          if old2 not in s:
+              raise SystemExit('TabButton dual-label target missing')
+          s = s.replace(old2, new2, 1)
+          p.write_text(s, encoding='utf-8')
+          PY
+      - name: Commit product fix and remove temporary workflow
+        run: |
+          rm .github/workflows/patient-companion-d2-tab-label-fix.yml
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add frontend/src/features/patients/PatientDetailsInner.tsx .github/workflows/patient-companion-d2-tab-label-fix.yml
+          git commit -m "fix(patient): keep mobile tabs compact without duplicate labels"
+          git push origin HEAD:feat/patient-companion-d2-staff-ui
