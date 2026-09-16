@@ -1,4 +1,4 @@
-name: Pharmacology AMMPS Active RCP Identity Map
+name: Pharmacology AMMPS Strict Active RCP Identity Map
 
 on:
   push:
@@ -20,11 +20,10 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - name: Map active RCP identities
-        env:
-          OUT_DIR: audit/out/pharmacology-active-rcp-identity-map
+      - name: Strictly bind each active RCP href to its exact AMMPS modal
         run: |
           python - <<'PY'
+          import html as html_lib
           import json, re, time, urllib.request
           from pathlib import Path
 
@@ -84,20 +83,34 @@ jobs:
               last = None
               for attempt in range(5):
                   try:
-                      req = urllib.request.Request(url, headers={'User-Agent':'Digital-Crown-read-only-active-rcp-map/1.1'})
+                      req = urllib.request.Request(url, headers={'User-Agent':'Digital-Crown-read-only-strict-active-rcp-map/1.0'})
                       with urllib.request.urlopen(req, timeout=30) as r:
                           return r.read().decode('utf-8', errors='replace')
                   except Exception as e:
                       last = e
-                      time.sleep(0.4 * (attempt + 1))
+                      if attempt < 4:
+                          time.sleep(0.5 * (attempt + 1))
               raise last
 
-          def clean(s):
-              s = re.sub(r'<script[\s\S]*?</script>', ' ', s, flags=re.I)
-              s = re.sub(r'<style[\s\S]*?</style>', ' ', s, flags=re.I)
-              s = re.sub(r'<[^>]+>', ' ', s)
-              s = s.replace('&nbsp;', ' ').replace('&amp;', '&').replace('&#039;', "'").replace('&quot;', '"')
-              return re.sub(r'\s+', ' ', s).strip()
+          def clean(raw):
+              raw = re.sub(r'<script[\s\S]*?</script>', ' ', raw, flags=re.I)
+              raw = re.sub(r'<style[\s\S]*?</style>', ' ', raw, flags=re.I)
+              raw = re.sub(r'<[^>]+>', ' ', raw)
+              return re.sub(r'\s+', ' ', html_lib.unescape(raw)).strip()
+
+          def exact_modal_block(page_html, modal_id):
+              modal_re = re.compile(r'<div\b[^>]*\bid=["\'](medicamentModal\d+)["\'][^>]*>', re.I)
+              starts = [(m.start(), m.group(1)) for m in modal_re.finditer(page_html)]
+              positions = {mid: i for i, (_, mid) in enumerate(starts)}
+              if modal_id not in positions:
+                  raise SystemExit(f'exact modal start missing: {modal_id}')
+              i = positions[modal_id]
+              start = starts[i][0]
+              end = starts[i + 1][0] if i + 1 < len(starts) else len(page_html)
+              block = page_html[start:end]
+              if re.search(r'<div\b[^>]*\bid=["\']medicamentModal\d+["\']', block[len(starts[i][1]):], re.I):
+                  raise SystemExit(f'nested/ambiguous modal boundary: {modal_id}')
+              return block
 
           dental = re.compile(r'AMOXICIL|CLARITHROMYC|METRONIDAZOL|CLINDAMYC|IBUPROF|PARACETAMOL|PHENOXYMETHYLPENICILL|PENICILLIN|SPIRAMYC|CLAVULAN|AZITHROMYC|DOXYCYCL|DICLOFENAC|KETOPROFEN|NAPROXEN|CHLORHEXID|LIDOCAIN|ARTICAIN|MEPIVACAIN|PRILOCAIN|EPINEPHRIN|ADRENALIN', re.I)
           pages = {}
@@ -105,56 +118,77 @@ jobs:
           for page, modal_id, href in targets:
               if page not in pages:
                   pages[page] = fetch(f'{origin}/recherche-medicaments?page={page}')
-              html = pages[page]
-              idx = html.find(href)
-              if idx < 0:
-                  raise SystemExit(f'href missing page={page} href={href}')
-              start = max(0, idx - 12000)
-              end = min(len(html), idx + 2500)
-              context = clean(html[start:end])
+              block = exact_modal_block(pages[page], modal_id)
+              href_count = block.count(href)
+              if href_count != 1:
+                  raise SystemExit(f'exact href binding failed modal={modal_id} count={href_count} href={href}')
+              rcp_links = re.findall(r'href\s*=\s*["\']([^"\']*uploads/rcp/[^"\']+\.pdf[^"\']*)["\']', block, flags=re.I)
+              if len(rcp_links) != 1 or rcp_links[0] != href:
+                  raise SystemExit(f'ambiguous RCP links modal={modal_id} links={rcp_links}')
+              text = clean(block)
+              title_m = re.search(r'<h5[^>]*class=["\'][^"\']*modal-title[^"\']*["\'][^>]*>([\s\S]*?)</h5>', block, flags=re.I)
+              title = clean(title_m.group(1)) if title_m else None
+              sa_m = re.search(r'Substance active\s*:?[\s\S]{0,120}?<[^>]*>\s*([^<]{2,160})', block, flags=re.I)
+              substance = clean(sa_m.group(1)) if sa_m else None
+              match = dental.search(text)
               results.append({
                   'page': page,
                   'modalId': modal_id,
                   'href': href,
-                  'dentalRelevanceKeywordMatch': bool(dental.search(context)),
-                  'contextText': context,
+                  'title': title,
+                  'substanceActiveParsed': substance,
+                  'dentalRelevanceKeywordMatch': bool(match),
+                  'matchedKeyword': match.group(0) if match else None,
+                  'modalText': text,
+                  'exactModalBinding': True,
+                  'exactRcpHrefBinding': True,
                   'manifestMutationPerformed': False,
                   'clinicalActivationPerformed': False,
               })
 
           relevant = [x for x in results if x['dentalRelevanceKeywordMatch']]
           report = {
-              'schemaVersion':'ammps-active-rcp-identity-map.2',
+              'schemaVersion':'ammps-active-rcp-identity-map.3',
               'source':'https://www.ammps.gov.ma/recherche-medicaments',
               'mappedCount':len(results),
+              'strictBindingCount':sum(1 for x in results if x['exactModalBinding'] and x['exactRcpHrefBinding']),
               'relevantKeywordMatchCount':len(relevant),
               'manifestMutationPerformed':False,
               'clinicalActivationPerformed':False,
               'relevant':relevant,
               'results':results,
           }
-          out = Path('audit/out/pharmacology-active-rcp-identity-map')
+          out = Path('audit/out/pharmacology-active-rcp-identity-map-strict')
           out.mkdir(parents=True, exist_ok=True)
-          (out/'active-rcp-identity-map.json').write_text(json.dumps(report, ensure_ascii=False, indent=2))
-          print(json.dumps({'mappedCount':len(results),'relevantKeywordMatchCount':len(relevant),'relevant':[{'page':x['page'],'modalId':x['modalId'],'href':x['href'],'contextText':x['contextText'][-1200:]} for x in relevant]}, ensure_ascii=False, indent=2))
+          (out/'active-rcp-identity-map-strict.json').write_text(json.dumps(report, ensure_ascii=False, indent=2))
+          print(json.dumps({
+              'mappedCount': report['mappedCount'],
+              'strictBindingCount': report['strictBindingCount'],
+              'relevantKeywordMatchCount': report['relevantKeywordMatchCount'],
+              'relevant': [
+                  {'page':x['page'],'modalId':x['modalId'],'href':x['href'],'title':x['title'],'substanceActiveParsed':x['substanceActiveParsed'],'matchedKeyword':x['matchedKeyword'],'modalText':x['modalText'][:1200]}
+                  for x in relevant
+              ]
+          }, ensure_ascii=False, indent=2))
           PY
-      - name: Validate identity map
+      - name: Validate strict identity map
         run: |
           python - <<'PY'
           import json
           from pathlib import Path
-          p=Path('audit/out/pharmacology-active-rcp-identity-map/active-rcp-identity-map.json')
+          p=Path('audit/out/pharmacology-active-rcp-identity-map-strict/active-rcp-identity-map-strict.json')
           r=json.loads(p.read_text())
-          assert r['schemaVersion']=='ammps-active-rcp-identity-map.2'
+          assert r['schemaVersion']=='ammps-active-rcp-identity-map.3'
           assert r['mappedCount']==48
+          assert r['strictBindingCount']==48
           assert len(r['results'])==48
-          assert r['manifestMutationPerformed'] is False
-          assert r['clinicalActivationPerformed'] is False
+          assert all(x['exactModalBinding'] and x['exactRcpHrefBinding'] for x in r['results'])
           assert all(x['href'].startswith('uploads/rcp/') for x in r['results'])
-          print('ACTIVE_RCP_IDENTITY_MAP_VERIFIED', r['mappedCount'], 'RELEVANT_KEYWORD_MATCH', r['relevantKeywordMatchCount'])
+          assert r['manifestMutationPerformed'] is False and r['clinicalActivationPerformed'] is False
+          print('STRICT_ACTIVE_RCP_IDENTITY_MAP_VERIFIED', r['mappedCount'], 'RELEVANT', r['relevantKeywordMatchCount'])
           PY
       - uses: actions/upload-artifact@v4
         with:
-          name: pharmacology-active-rcp-identity-map
-          path: audit/out/pharmacology-active-rcp-identity-map/
+          name: pharmacology-active-rcp-identity-map-strict
+          path: audit/out/pharmacology-active-rcp-identity-map-strict/
           retention-days: 30
