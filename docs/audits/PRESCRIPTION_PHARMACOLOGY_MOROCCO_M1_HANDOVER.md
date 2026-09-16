@@ -1,7 +1,7 @@
 # Digital Crown — Pharmacologie Maroc M1 handover
 
 Date: 2026-09-16
-Status: ACTIVE — M1-B2 merged; AMMPS RCP mechanism proven; target dental families remain fail-closed; no clinical activation
+Status: ACTIVE — M1-B2 merged; AMMPS RCP mechanism proven; active-RCP identity mapping running; target dental families remain fail-closed; no clinical activation
 
 ## Goal
 Construire la couverture pharmacologique dentaire Maroc avec preuve réglementaire fail-closed, puis validation scientifique indépendante avant toute activation clinique.
@@ -100,26 +100,44 @@ Trois RCP actifs AMMPS ont été vérifiés end-to-end:
 
 Le mécanisme officiel réellement observé est un href explicite sous `uploads/rcp/...`; aucune URL n'est à fabriquer pour un bouton désactivé.
 
+## Mapping identité des 48 RCP actifs — en cours
+Objectif: rattacher chacun des 48 hrefs actifs du census à son identité médicament/principe actif courante et filtrer les candidats potentiellement utiles au scope dentaire sans inférence clinique.
+
+Run #13 `35131747120`, commit `67bad3c63d20f76a0988361fb9a828d183e91020`: FAILURE de parsing workflow avant création de job. Aucune requête AMMPS exécutée, aucune conclusion scientifique/réglementaire autorisée.
+
+Workflow simplifié/réparé au commit `bdb2cc8a6be2ec71d0f0c6288dbc9c98b53ea469`:
+- lecture read-only des seules pages contenant les 48 hrefs déjà prouvés;
+- retries bornés;
+- conservation du contexte texte autour de chaque href;
+- filtre lexical conservateur des familles anti-infectieuses/antalgiques/anesthésiques potentiellement pertinentes;
+- aucune promotion manifest, aucune activation clinique.
+
+Run #14 `35131871843`.
+État au dernier contrôle: `IN_PROGRESS`, étape `Map active RCP identities` active.
+
 ## État repo
 Master vérifié le 2026-09-16: `5290df7cb1a12989ef3799f92e32fd49d02d5ca1`, commit GitHub signed/verified.
-Branche recherche HEAD: `a1df648f60dc77a438e777cf79d95d6f9e5f923d`.
+Branche recherche HEAD: `bdb2cc8a6be2ec71d0f0c6288dbc9c98b53ea469`.
 Aucune mutation manifest, DB, patient, document ou activation clinique issue de cette phase de recherche.
 
 ## Décision actuelle
-- Le mécanisme AMMPS RCP est maintenant techniquement prouvé.
+- Le mécanisme AMMPS RCP est techniquement prouvé.
 - Les familles dentaires ciblées restent fail-closed parce que leurs contrôles RCP sont désactivés et aucun vrai PDF AMMPS correspondant n'a été capturé.
 - Ne pas dériver une URL depuis le numéro de modal ou le pattern de fichier des 48 cas actifs.
+- Le mapping #14 doit confirmer explicitement l'identité des 48 hrefs avant toute conclusion sur leur pertinence dentaire.
 
 ## Next exact
-1. Cartographier les 48 RCP actifs et leur identité médicament/principe actif afin de confirmer qu'aucun ne correspond indirectement à une famille dentaire utile non encore reconnue.
-2. Pour les 7 familles cibles sans RCP actif, chercher uniquement des voies officielles non déduites: autre page/document AMMPS, publication officielle, ou nouvelle mise à disposition AMMPS.
-3. Si un vrai RCP AMMPS d'une famille cible est trouvé: capturer URL + bytes + SHA-256 + identité de présentation, lancer reviewer indépendant, puis seulement préparer la promotion manifest.
-4. Aucune activation clinique avant revue scientifique/humaine dédiée.
+1. Lire le résultat + artifact du mapping #14 `35131871843` une fois terminé.
+2. Vérifier chaque candidat lexicalement pertinent par association explicite href ↔ identité médicament/principe actif; rejeter tout faux positif de voisinage de texte.
+3. Si un vrai RCP AMMPS d'une famille cible ou d'une famille dentaire utile est identifié: capturer URL + bytes + SHA-256 + identité de présentation et lancer reviewer indépendant.
+4. Sinon poursuivre uniquement des voies officielles non déduites pour les 7 familles cibles.
+5. Aucune activation clinique avant revue scientifique/humaine dédiée.
 
 ## Interdits
 - Pas de `SNAPSHOT_VERIFIED` ou `UNAVAILABLE_VERIFIED` à partir d'un bouton désactivé.
 - Pas d'URL fabriquée à partir de `modalId`, d'un timestamp ou d'un pattern `/uploads/rcp/`.
 - Pas d'assimilation CI verte = validation clinique.
+- Pas de sélection d'un RCP dentaire sur simple mot-clé voisin sans identité explicitement rattachée au href.
 
 ## Prompt de reprise
-`Lis ce fichier depuis docs/pharmacology-m1-handover-20260915. Vérifie master et la branche recherche. M1-B2 est mergé/post-merge vert. Census AMMPS #35127544097: 9908 médicaments, 826/826 pages, 0 erreur, 48 contrôles RCP actifs, 9860 désactivés. Transport officiel prouvé par #35131011934 sur 3 vrais PDF HTTPS AMMPS 200 + application/pdf + %PDF- + SHA-256. Les 7 familles dentaires ciblées restent fail-closed: aucun vrai PDF AMMPS correspondant capturé. Prochaine action: cartographier les 48 actifs puis poursuivre uniquement les voies officielles non déduites.`
+`Lis ce fichier depuis docs/pharmacology-m1-handover-20260915. Vérifie master, la branche recherche et le mapping #35131871843. M1-B2 est mergé/post-merge vert. Census AMMPS #35127544097: 9908 médicaments, 826/826 pages, 0 erreur, 48 contrôles RCP actifs, 9860 désactivés. Transport officiel prouvé par #35131011934 sur 3 vrais PDF HTTPS AMMPS 200 + application/pdf + %PDF- + SHA-256. Les 7 familles dentaires ciblées restent fail-closed. Mapping des 48 actifs: #13 était un échec de parsing sans job; #14 au commit bdb2cc8... est le runner réparé. Prochaine action: exploiter son artifact, vérifier les candidats pertinents, puis seulement lancer une revue indépendante si un vrai RCP utile est prouvé.`
