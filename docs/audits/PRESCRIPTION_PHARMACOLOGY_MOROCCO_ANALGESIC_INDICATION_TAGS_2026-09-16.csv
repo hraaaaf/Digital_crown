@@ -1,0 +1,3 @@
+source_id,item,canonical_context,additional_indication_tag,clinical_status,guardrail,new_inventory_row_required,clinical_activation
+MED-EMG-005,aspirin,emergency,analgesic_antiinflammatory_dental_pain,CLINICAL_FAMILY_SUPPORTED,"SDCEP: effective NSAID but avoid in children and do not prescribe after dental extraction/minor surgery; NSAID contraindications/cautions apply",NO,NO
+SCOPE-CANDIDATE-CELECOXIB,celecoxib,analgesic_scope_boundary,prescription_nsaid,BOUNDARY_REVIEW,"ADA oral-analgesics overview cites celecoxib as an NSAID and AMMPS shows marketed Moroccan presentations, but current ADA living dental-pain guideline foregrounds ibuprofen/naproxen rather than celecoxib; do not promote without a dedicated evidence pass",NO,NO
