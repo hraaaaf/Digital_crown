@@ -39,8 +39,12 @@ Construire un référentiel marocain complet de ce qu'un chirurgien-dentiste peu
 - révélateurs de plaque ;
 - substituts salivaires, gels/sprays de xérostomie ;
 - produits fluorés d'usage à domicile et prévention carieuse ;
+- vernis fluorés et autres agents préventifs professionnels lorsque pertinents ;
 - produits de reminéralisation / gestion de sensibilité lorsque leur indication est documentée ;
+- produits désensibilisants professionnels ou à domicile ;
+- produits de blanchiment/éclaircissement supervisés ou recommandés par le dentiste, avec concentrations, indications, précautions et contre-indications lorsqu'ils relèvent du scope de soins ;
 - chewing-gums / pastilles bucco-dentaires lorsque pertinents et documentés ;
+- produits de contrôle de l'halitose ;
 - hygiène orthodontique : cire orthodontique, brossettes, fils spécifiques, protections et accessoires ;
 - hygiène des implants et parodontale : brosses mono-touffe, brossettes adaptées, fils spécifiques, autres accessoires pertinents ;
 - hygiène de prothèse amovible : nettoyants, brosses à prothèse, comprimés/solutions de nettoyage ;
@@ -54,7 +58,7 @@ Construire un référentiel marocain complet de ce qu'un chirurgien-dentiste peu
 ## Hors scope par défaut
 - cosmétique pur sans bénéfice bucco-dentaire démontré ;
 - gadgets marketing sans indication ou utilité dentaire établie ;
-- dispositifs de cabinet nécessitant une base matériovigilance distincte ;
+- matériaux restaurateurs, instruments, équipements et dispositifs techniques de cabinet relevant d'un référentiel dispositif/matériovigilance distinct ;
 - recommandations commerciales non fondées sur une source vérifiable.
 
 ## Décision propriétaire
