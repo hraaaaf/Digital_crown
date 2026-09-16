@@ -70,8 +70,27 @@ def _secure_lan_enabled() -> bool:
     return os.getenv("DIGITALCROWN_ENABLE_HTTPS", "false").strip().lower() in {"1", "true", "yes", "on"}
 
 
+def _disable_legacy_fcm_registration_route() -> None:
+    """Remove the obsolete FCM token registration facade before the mobile router is mounted.
+
+    M6-D2 Web Push is the single canonical OS-push transport. The legacy DeviceToken
+    model may remain temporarily for schema compatibility, but no runtime route may
+    create or update FCM registrations.
+    """
+    _legacy.router.routes = [
+        route
+        for route in _legacy.router.routes
+        if not (
+            getattr(route, "path", None) == "/register-device"
+            and "POST" in (getattr(route, "methods", set()) or set())
+        )
+    ]
+
+
 def install_secure_lan_url_overrides() -> None:
     """Keep QR/API discovery aligned with the HTTPS runtime selected by the launcher."""
+    _disable_legacy_fcm_registration_route()
+
     def lan_backend_url() -> str:
         scheme = "https" if _secure_lan_enabled() else "http"
         return f"{scheme}://{_legacy._detect_lan_ip()}:{os.getenv('PORT', '8005')}"
