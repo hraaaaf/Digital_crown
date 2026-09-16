@@ -16,7 +16,10 @@ from backend.services.insurance_source_store import (
     lock_and_store_insurance_template,
     lock_and_store_ngap_primary,
 )
-from backend.services.insurance_template_registry import CNSS_610_1_04
+from backend.services.insurance_template_registry import (
+    CNOPS_DENTAL_CABINET_2026_09_16,
+    CNSS_610_1_04,
+)
 from backend.services.insurance_validation import validate_insurance_draft_by_practitioner
 from backend.services.ngap_reference import DENTAL_NGAP_PRIMARY_PENDING
 
@@ -47,7 +50,7 @@ def _catalog_act(db):
     return act
 
 
-def _patient(client, auth_headers):
+def _patient(client, auth_headers, *, assurance="CNSS"):
     response = client.post(
         "/api/patients/",
         json={
@@ -56,7 +59,7 @@ def _patient(client, auth_headers):
             "date_naissance": "1990-01-01",
             "sexe": "M",
             "telephone": "0612345678",
-            "assurance": "CNSS",
+            "assurance": assurance,
         },
         headers=auth_headers,
     )
@@ -93,7 +96,7 @@ def _complete_admin(draft):
     # This test targets the practitioner-validation gate itself. Keep the
     # administrative snapshot explicit and complete instead of depending on
     # unrelated prefill inference details.
-    return draft.administrative.model_copy(update={
+    common = {
         "request_nature": InsuranceRequestNature.EXECUTION,
         "insured_full_name": "Insurance VALIDATION",
         "insured_registration_number": "123456789",
@@ -107,15 +110,26 @@ def _complete_admin(draft):
         "practitioner_full_name": "Dr Validation",
         "practitioner_inpe": "INPE-VALID",
         "care_type": InsuranceCareType.SOINS,
-    })
+    }
+    if draft.organization == InsuranceOrganization.CNOPS:
+        common["insured_affiliation_number"] = "AFF-123456"
+    return draft.administrative.model_copy(update=common)
 
 
-def _prepared_fixture(client, auth_headers, db, dentiste, tmp_path):
+def _prepared_fixture(
+    client,
+    auth_headers,
+    db,
+    dentiste,
+    tmp_path,
+    *,
+    organization=InsuranceOrganization.CNSS,
+):
     dentiste.nom_complet = "Dr Validation"
     dentiste.identifiants_legaux = {"inpe": "INPE-VALID"}
     db.flush()
 
-    patient_id = _patient(client, auth_headers)
+    patient_id = _patient(client, auth_headers, assurance=organization.value)
     catalog_act = _catalog_act(db)
     catalog_act_id = catalog_act.id
     # Document generation renders in a separate SessionLocal/thread, so the
@@ -156,19 +170,27 @@ def _prepared_fixture(client, auth_headers, db, dentiste, tmp_path):
     ))
     db.flush()
 
-    template_pdf = _pdf(pages=2, text="CNSS 610-1-04 synthetic validation template")
+    definition = (
+        CNSS_610_1_04
+        if organization == InsuranceOrganization.CNSS
+        else CNOPS_DENTAL_CABINET_2026_09_16
+    )
+    template_pdf = _pdf(
+        pages=2,
+        text=f"{organization.value} synthetic validation template",
+    )
     locked_template, _ = lock_and_store_insurance_template(
         root=tmp_path,
-        definition=CNSS_610_1_04,
+        definition=definition,
         pdf_bytes=template_pdf,
-        source_url="cabinet://validated/CNSS-610-1-04.pdf",
+        source_url=f"cabinet://validated/{definition.version}.pdf",
         cabinet_validated_by="Dr Validation",
     )
 
     draft = prepare_insurance_draft_from_honoraires(
         db,
         honoraires_document_id=document.id,
-        organization=InsuranceOrganization.CNSS,
+        organization=organization,
         locked_template=locked_template,
         ngap_reference_version=locked_release.version,
     )
@@ -191,6 +213,36 @@ def test_practitioner_validation_gate_builds_validated_snapshot(
 
     assert validated.status == InsuranceDraftStatus.VALIDATED
     assert validated.validated_by_practitioner_id == dentiste.id
+    assert validated.lines[0].ngap_code == "D1"
+    assert validated.reference.ngap_reference_hash == locked_release.source_hash
+    assert validated.unresolved_fields == []
+
+
+def test_cnops_practitioner_validation_reuses_same_authoritative_gate(
+    client, auth_headers, db, dentiste, tmp_path
+):
+    draft, locked_release = _prepared_fixture(
+        client,
+        auth_headers,
+        db,
+        dentiste,
+        tmp_path,
+        organization=InsuranceOrganization.CNOPS,
+    )
+    draft = draft.model_copy(update={"administrative": _complete_admin(draft)})
+
+    validated = validate_insurance_draft_by_practitioner(
+        db,
+        draft=draft,
+        practitioner_id=dentiste.id,
+        source_store_root=tmp_path,
+        validated_at=datetime(2026, 9, 14, 20, 30),
+    )
+
+    assert validated.organization == InsuranceOrganization.CNOPS
+    assert validated.status == InsuranceDraftStatus.VALIDATED
+    assert validated.template.template_version == CNOPS_DENTAL_CABINET_2026_09_16.version
+    assert validated.template.trust.value == "CABINET_VALIDATED_BINARY"
     assert validated.lines[0].ngap_code == "D1"
     assert validated.reference.ngap_reference_hash == locked_release.source_hash
     assert validated.unresolved_fields == []

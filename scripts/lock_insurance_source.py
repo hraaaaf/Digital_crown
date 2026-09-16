@@ -7,6 +7,10 @@ Examples:
   python scripts/lock_insurance_source.py --kind cnss --file ./610-1-04.pdf \
       --source-url cabinet://validated/CNSS-610-1-04.pdf \
       --confirm-cabinet-validation --validated-by "Dr Nom"
+
+  python scripts/lock_insurance_source.py --kind cnops --file ./cnops-dentaire.pdf \
+      --source-url cabinet://validated/CNOPS-dental.pdf \
+      --confirm-cabinet-validation --validated-by "Dr Nom"
 """
 
 from __future__ import annotations
@@ -21,7 +25,7 @@ from backend.services.insurance_source_store import (
     lock_and_store_ngap_primary,
 )
 from backend.services.insurance_template_registry import (
-    CNOPS_DENTAL_PENDING,
+    CNOPS_DENTAL_CABINET_2026_09_16,
     CNSS_610_1_04,
     FAR_2021_1,
     InsuranceTemplateTrust,
@@ -82,7 +86,7 @@ def main() -> int:
     else:
         definitions = {
             "cnss": CNSS_610_1_04,
-            "cnops": CNOPS_DENTAL_PENDING,
+            "cnops": CNOPS_DENTAL_CABINET_2026_09_16,
             "far": FAR_2021_1,
         }
         definition = definitions[args.kind]

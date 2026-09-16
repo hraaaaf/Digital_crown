@@ -1,15 +1,14 @@
 """Administrative prefill and completeness policy for dental insurance drafts.
 
-Only values already explicit in Digital Crown are copied. Fields from the CNSS insured
-section that the cabinet explicitly chose to leave untouched are never guessed and are
-not blockers for practitioner validation. Missing fields inside the validated Digital
-Crown practitioner/beneficiary zone remain visible in ``unresolved_fields``.
+Only values already explicit in Digital Crown are copied. Organization-specific policies
+control which fields block practitioner validation; unknown administrative facts are
+never inferred silently.
 """
 
 from __future__ import annotations
 
 from datetime import date, datetime
-from typing import Any, Iterable
+from typing import Any
 
 from sqlalchemy.orm import Session
 
@@ -34,6 +33,29 @@ CNSS_REQUIRED_ADMIN_FIELDS = (
     "beneficiary_national_id",
     "beneficiary_sex",
     "practitioner_full_name",
+    "practitioner_inpe",
+    "care_type",
+)
+
+# Exact CNOPS dental binary SHA-256:
+# 89097caca32aef6b4d34d2d06fb9cc6f9bdc1f3c4385cf5558b5742a3af6f505
+# Cabinet-validated on 2026-09-16. Its visible administrative zone contains separate
+# affiliation and immatriculation numbers. It does NOT contain an insured-quality or
+# practitioner-name field. Relationship is intentionally optional because the form only
+# exposes Conjoint/Enfant marks and a self-beneficiary can legitimately leave both blank.
+# Optional/case-dependent prior-approval and accident fields are also not unconditional
+# blockers. Missing facts remain unresolved; nothing below is inferred from lookalike data.
+CNOPS_REQUIRED_ADMIN_FIELDS = (
+    "request_nature",
+    "insured_full_name",
+    "insured_affiliation_number",
+    "insured_registration_number",
+    "insured_national_id",
+    "insured_address",
+    "beneficiary_full_name",
+    "beneficiary_birth_date",
+    "beneficiary_national_id",
+    "beneficiary_sex",
     "practitioner_inpe",
     "care_type",
 )
@@ -120,38 +142,35 @@ def _infer_single_care_type(db: Session, draft: InsuranceSubmissionDraft) -> Ins
     return next(iter(care_types))
 
 
-def missing_cnss_administrative_fields(
+def _missing_administrative_fields(
     administrative: InsuranceAdministrativeSnapshot,
+    required_fields: tuple[str, ...],
 ) -> list[str]:
     missing: list[str] = []
-    for field_name in CNSS_REQUIRED_ADMIN_FIELDS:
+    for field_name in required_fields:
         value = getattr(administrative, field_name)
         if value is None or (isinstance(value, str) and not value.strip()):
             missing.append(f"administrative.{field_name}")
     return missing
 
 
-def prefill_cnss_administrative(
+def missing_cnss_administrative_fields(administrative: InsuranceAdministrativeSnapshot) -> list[str]:
+    return _missing_administrative_fields(administrative, CNSS_REQUIRED_ADMIN_FIELDS)
+
+
+def missing_cnops_administrative_fields(administrative: InsuranceAdministrativeSnapshot) -> list[str]:
+    return _missing_administrative_fields(administrative, CNOPS_REQUIRED_ADMIN_FIELDS)
+
+
+def _prefill_explicit_common_facts(
     db: Session,
     *,
     draft: InsuranceSubmissionDraft,
     patient: models.Patient,
     practitioner: models.User,
-) -> InsuranceSubmissionDraft:
-    """Prefill only explicit patient/practitioner facts and expose every missing field.
-
-    Existing manually entered draft values always win. Patient address is deliberately
-    not copied to the insured address because the beneficiary may not be the insured.
-    No insured identity, relationship, CIN or affiliation number is inferred.
-    """
-    if draft.organization != InsuranceOrganization.CNSS:
-        raise ValueError("CNSS administrative prefill requires a CNSS draft")
-    if int(patient.id) != int(draft.patient_id):
-        raise ValueError("Patient/draft mismatch")
-
+) -> InsuranceAdministrativeSnapshot:
     current = draft.administrative
     updates = current.model_dump()
-
     if not current.beneficiary_full_name:
         updates["beneficiary_full_name"] = _full_name(patient.prenom, patient.nom)
     if current.beneficiary_birth_date is None:
@@ -164,23 +183,19 @@ def prefill_cnss_administrative(
         updates["practitioner_inpe"] = _explicit_practitioner_inpe(practitioner)
     if current.care_type is None:
         updates["care_type"] = _infer_single_care_type(db, draft)
+    return InsuranceAdministrativeSnapshot(**updates)
 
-    administrative = InsuranceAdministrativeSnapshot(**updates)
-    unresolved = [
-        value for value in draft.unresolved_fields
-        if not value.startswith("administrative.")
-    ]
-    unresolved.extend(missing_cnss_administrative_fields(administrative))
 
-    all_exact = all(
-        line.mapping_status == InsuranceMappingStatus.EXACT for line in draft.lines
-    )
-    status = (
-        InsuranceDraftStatus.READY_FOR_REVIEW
-        if all_exact and not unresolved
-        else InsuranceDraftStatus.INCOMPLETE
-    )
-
+def _apply_admin_policy(
+    *,
+    draft: InsuranceSubmissionDraft,
+    administrative: InsuranceAdministrativeSnapshot,
+    missing: list[str],
+) -> InsuranceSubmissionDraft:
+    unresolved = [value for value in draft.unresolved_fields if not value.startswith("administrative.")]
+    unresolved.extend(missing)
+    all_exact = all(line.mapping_status == InsuranceMappingStatus.EXACT for line in draft.lines)
+    status = InsuranceDraftStatus.READY_FOR_REVIEW if all_exact and not unresolved else InsuranceDraftStatus.INCOMPLETE
     return draft.model_copy(update={
         "administrative": administrative,
         "unresolved_fields": unresolved,
@@ -188,3 +203,49 @@ def prefill_cnss_administrative(
         "validated_by_practitioner_id": None,
         "validated_at": None,
     })
+
+
+def prefill_cnss_administrative(
+    db: Session,
+    *,
+    draft: InsuranceSubmissionDraft,
+    patient: models.Patient,
+    practitioner: models.User,
+) -> InsuranceSubmissionDraft:
+    """Prefill explicit CNSS practitioner/beneficiary facts only."""
+    if draft.organization != InsuranceOrganization.CNSS:
+        raise ValueError("CNSS administrative prefill requires a CNSS draft")
+    if int(patient.id) != int(draft.patient_id):
+        raise ValueError("Patient/draft mismatch")
+    administrative = _prefill_explicit_common_facts(
+        db, draft=draft, patient=patient, practitioner=practitioner
+    )
+    return _apply_admin_policy(
+        draft=draft,
+        administrative=administrative,
+        missing=missing_cnss_administrative_fields(administrative),
+    )
+
+
+def prefill_cnops_administrative(
+    db: Session,
+    *,
+    draft: InsuranceSubmissionDraft,
+    patient: models.Patient,
+    practitioner: models.User,
+) -> InsuranceSubmissionDraft:
+    """Prefill only explicit common CNOPS facts; insured facts remain manual/fail-closed."""
+    if draft.organization != InsuranceOrganization.CNOPS:
+        raise ValueError("CNOPS administrative prefill requires a CNOPS draft")
+    if int(patient.id) != int(draft.patient_id):
+        raise ValueError("Patient/draft mismatch")
+    administrative = _prefill_explicit_common_facts(
+        db, draft=draft, patient=patient, practitioner=practitioner
+    )
+    # Deliberately do not copy patient address/CIN into insured fields and do not infer
+    # insured identity, affiliation/immatriculation or relationship from beneficiary data.
+    return _apply_admin_policy(
+        draft=draft,
+        administrative=administrative,
+        missing=missing_cnops_administrative_fields(administrative),
+    )

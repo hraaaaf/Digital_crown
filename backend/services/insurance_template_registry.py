@@ -93,13 +93,20 @@ CNSS_610_1_04 = InsuranceTemplateDefinition(
     expected_page_count=2,
 )
 
-CNOPS_DENTAL_PENDING = InsuranceTemplateDefinition(
+# Exact two-page CNOPS dental form validated by the cabinet on 2026-09-16.
+# Binary identity is enforced by the source store/profile layer; this registry entry
+# only promotes the validated form version/trust and does not claim official provenance.
+CNOPS_DENTAL_CABINET_2026_09_16 = InsuranceTemplateDefinition(
     organization=InsuranceOrganization.CNOPS,
-    version="CNOPS-DENTAL-BINARY-PENDING",
-    label="Feuille de soins dentaires CNOPS",
-    trust=InsuranceTemplateTrust.SECONDARY_REFERENCE,
+    version="CNOPS-DENTAL-CABINET-2026-09-16",
+    label="Feuille de soins dentaires CNOPS — binaire valide cabinet",
+    trust=InsuranceTemplateTrust.CABINET_VALIDATED_BINARY,
     expected_page_count=2,
 )
+
+# Backward-compatible alias for code/scripts that previously referenced the pending
+# placeholder. It now resolves to the exact cabinet-validated template definition.
+CNOPS_DENTAL_PENDING = CNOPS_DENTAL_CABINET_2026_09_16
 
 FAR_2021_1 = InsuranceTemplateDefinition(
     organization=InsuranceOrganization.FAR,
