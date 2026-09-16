@@ -1,10 +1,12 @@
 from __future__ import annotations
 
 import math
+import uuid
 from datetime import datetime
 from typing import Any, Iterable
 
 from sqlalchemy.orm import Session
+from sqlalchemy.orm.attributes import flag_modified
 
 from backend import models
 from backend.services.acte_classification import classify_acte_type
@@ -55,22 +57,47 @@ def _validated_honoraires_item(item: dict[str, Any]) -> tuple[str, float]:
 
 
 def _business_datetime(item: dict[str, Any], fallback: datetime) -> datetime:
-    """Return the document business date, preserving fallback time when absent.
-
-    Document Studio writes the selected document date on every Honoraires line.
-    That date is the accounting truth: editing a note from one day/month to
-    another must move the same Acte/Payment rather than create a second entry.
-    """
     raw = item.get("date")
     if raw in (None, ""):
         return fallback
     if isinstance(raw, datetime):
         return raw
     try:
-        parsed = datetime.fromisoformat(str(raw).strip())
+        return datetime.fromisoformat(str(raw).strip())
     except (TypeError, ValueError) as exc:
         raise ValueError("La date de la note d'honoraires est invalide.") from exc
-    return parsed
+
+
+def _normalized_source_line_uid(value: Any) -> str | None:
+    if value in (None, ""):
+        return None
+    try:
+        return str(uuid.UUID(str(value).strip()))
+    except (ValueError, AttributeError, TypeError) as exc:
+        raise ValueError("Identifiant stable de ligne Honoraires invalide") from exc
+
+
+def _resolved_catalog_act_id(db: Session, item: dict[str, Any], acte) -> int | None:
+    if "catalog_act_id" not in item:
+        return getattr(acte, "catalog_act_id", None) if acte is not None else None
+
+    raw = item.get("catalog_act_id")
+    if raw in (None, ""):
+        return None
+    try:
+        catalog_act_id = int(raw)
+    except (TypeError, ValueError) as exc:
+        raise ValueError("catalog_act_id invalide") from exc
+    if catalog_act_id <= 0:
+        raise ValueError("catalog_act_id invalide")
+
+    catalog_act = db.query(models.CatalogAct).filter(
+        models.CatalogAct.id == catalog_act_id,
+        models.CatalogAct.is_active.is_(True),
+    ).first()
+    if catalog_act is None:
+        raise ValueError("CatalogAct introuvable ou inactif")
+    return catalog_act_id
 
 
 def _generated_payment_note(document_archive_id: int) -> str:
@@ -103,12 +130,11 @@ def persist_honoraires_lines(
 ) -> tuple[list[models.Acte], list[models.Payment]]:
     """Stage or reconcile Acte rows and exact document-generated payments.
 
-    The DocumentArchive is canonical. Re-generating the same archive id updates the
-    derived Acte rows instead of duplicating them. The selected document date is the
-    accounting date, so changing it moves the same rows between day/month buckets.
-    Payments created manually through another flow are never deleted or rewritten here.
-
-    No commit is performed here. The caller owns the transaction.
+    New lines get a stable UUID mirrored into the canonical Honoraires snapshot when
+    the source DocumentArchive exists, and always into the derived Acte. Existing rows
+    prefer explicit UID matching; historical rows without UID retain the controlled
+    index fallback. Direct service-level callers without a persisted archive remain
+    supported. No fuzzy catalogue matching.
     """
     practitioner_id = effective_document_practitioner_id(practitioner_id)
     if practitioner_id is None:
@@ -119,7 +145,6 @@ def persist_honoraires_lines(
         raise ValueError("Une note d'honoraires doit contenir au moins un acte.")
 
     validated_items = [(_validated_honoraires_item(item), item) for item in item_list]
-
     if payment_status == models.PaiementStatut.PAYE:
         for _, item in validated_items:
             normalize_document_payment_method(item.get("mode_reglement"))
@@ -130,29 +155,41 @@ def persist_honoraires_lines(
         .order_by(models.Acte.id.asc())
         .all()
     )
-    # Une ligne déjà sortie par une édition reste un historique immuable. Elle ne
-    # doit jamais redevenir la nouvelle ligne active lors d'un shrink -> expand.
     existing_actes = [acte for acte in all_existing_actes if acte.deleted_at is None]
+    existing_by_uid = {
+        str(acte.source_line_uid): acte
+        for acte in existing_actes
+        if getattr(acte, "source_line_uid", None)
+    }
 
     actes: list[models.Acte] = []
+    used_existing_ids: set[int] = set()
     edit_timestamp = datetime.now()
 
     for index, ((libelle, amount), item) in enumerate(validated_items):
-        business_date = _business_datetime(item, document_created_at)
-        if index < len(existing_actes):
-            acte = existing_actes[index]
-            acte.patient_id = patient_id
-            acte.praticien_id = practitioner_id
-            acte.type_acte = classify_acte_type(libelle)
-            acte.libelle = libelle
-            acte.montant = amount
-            acte.date_debut = business_date
-            acte.statut_paiement = payment_status
-            acte.is_accounted = is_accounted
-            acte.is_collected = payment_status == models.PaiementStatut.PAYE
-            acte.validated_by = validated_by
-            acte.document_archive_id = document_archive_id
+        requested_uid = _normalized_source_line_uid(item.get("source_line_uid"))
+        acte = existing_by_uid.get(requested_uid) if requested_uid else None
+        if acte is not None and acte.id in used_existing_ids:
+            raise ValueError("source_line_uid dupliqué dans la note d'honoraires")
+
+        if acte is None and requested_uid is None and index < len(existing_actes):
+            candidate = existing_actes[index]
+            if candidate.id not in used_existing_ids:
+                acte = candidate
+
+        if acte is not None:
+            source_line_uid = requested_uid or _normalized_source_line_uid(
+                getattr(acte, "source_line_uid", None)
+            ) or str(uuid.uuid4())
         else:
+            source_line_uid = requested_uid or str(uuid.uuid4())
+
+        catalog_act_id = _resolved_catalog_act_id(db, item, acte)
+        item["source_line_uid"] = source_line_uid
+        item["catalog_act_id"] = catalog_act_id
+        business_date = _business_datetime(item, document_created_at)
+
+        if acte is None:
             acte = models.Acte(
                 patient_id=patient_id,
                 praticien_id=practitioner_id,
@@ -165,17 +202,47 @@ def persist_honoraires_lines(
                 is_collected=(payment_status == models.PaiementStatut.PAYE),
                 validated_by=validated_by,
                 document_archive_id=document_archive_id,
+                source_line_uid=source_line_uid,
+                catalog_act_id=catalog_act_id,
             )
             db.add(acte)
+        else:
+            acte.patient_id = patient_id
+            acte.praticien_id = practitioner_id
+            acte.type_acte = classify_acte_type(libelle)
+            acte.libelle = libelle
+            acte.montant = amount
+            acte.date_debut = business_date
+            acte.statut_paiement = payment_status
+            acte.is_accounted = is_accounted
+            acte.is_collected = payment_status == models.PaiementStatut.PAYE
+            acte.validated_by = validated_by
+            acte.document_archive_id = document_archive_id
+            acte.source_line_uid = source_line_uid
+            acte.catalog_act_id = catalog_act_id
+            if acte.id is not None:
+                used_existing_ids.add(acte.id)
         actes.append(acte)
 
-    # Les anciennes lignes surnuméraires restent auditables mais sortent de toutes
-    # les vues comptables. Elles ne seront pas restaurées avec une future corbeille
-    # du document car leur timestamp diffère de celui de cette suppression future.
-    for stale_acte in existing_actes[len(validated_items):]:
+    active_existing_ids = {acte.id for acte in actes if acte.id is not None}
+    for stale_acte in existing_actes:
+        if stale_acte.id in active_existing_ids:
+            continue
         if stale_acte.deleted_at is None:
             stale_acte.deleted_at = edit_timestamp
         stale_acte.is_collected = False
+
+    archive = db.query(models.DocumentArchive).filter(
+        models.DocumentArchive.id == document_archive_id
+    ).first()
+    if archive is not None:
+        snapshot = dict(archive.clinical_data or {})
+        snapshot["payments"] = item_list
+        archive.clinical_data = snapshot
+        # The original archived JSON and ``items`` can share nested dict/list objects.
+        # UUID/catalog mutations happen in-place, so SQLAlchemy may otherwise compare
+        # equal old/new JSON values and skip the UPDATE. Force persistence explicitly.
+        flag_modified(archive, "clinical_data")
 
     db.flush()
 
@@ -189,7 +256,6 @@ def persist_honoraires_lines(
                 payments_by_acte.setdefault(payment.acte_id, []).append(payment)
 
     active_generated_payments: list[models.Payment] = []
-
     for ((_, amount), item), acte in zip(validated_items, actes):
         generated = next(
             (
@@ -202,10 +268,7 @@ def persist_honoraires_lines(
 
         if payment_status == models.PaiementStatut.PAYE:
             if generated is None:
-                generated = models.Payment(
-                    patient_id=patient_id,
-                    acte_id=acte.id,
-                )
+                generated = models.Payment(patient_id=patient_id, acte_id=acte.id)
                 db.add(generated)
             generated.patient_id = patient_id
             generated.amount = amount
@@ -218,8 +281,6 @@ def persist_honoraires_lines(
         elif generated is not None:
             generated.notes = _voided_payment_note(document_archive_id)
 
-    # Toute ligne supprimée par l'édition annule uniquement l'encaissement qui avait
-    # été généré par ce document. Un paiement manuel lié au même Acte reste intact.
     active_acte_ids = {acte.id for acte in actes if acte.id is not None}
     for stale_acte in all_existing_actes:
         if stale_acte.id in active_acte_ids:

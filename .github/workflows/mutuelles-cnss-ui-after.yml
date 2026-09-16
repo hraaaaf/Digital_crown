@@ -1,0 +1,92 @@
+name: Mutuelles CNSS UI AFTER
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - feature/mutuelles-dentaires-integration-v2-20260914
+    paths:
+      - '.github/workflows/mutuelles-cnss-ui-after.yml'
+      - 'frontend/scripts/capture-mutuelles-cnss-ui-after.mjs'
+      - 'frontend/src/MutuellesCnssUI.test.ts'
+      - 'frontend/src/features/patients/PatientDocuments.tsx'
+      - 'frontend/src/features/patients/CnssInsuranceAction.tsx'
+      - 'frontend/src/features/patients/CnssInsuranceSubmissionReview.tsx'
+      - 'frontend/src/features/patients/InsuranceSubmissionTypes.ts'
+
+permissions:
+  contents: read
+
+env:
+  CNSS_UI_AFTER_SHA: ${{ github.sha }}
+
+jobs:
+  visual-after:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Checkout exact AFTER product tree
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Verify exact AFTER HEAD
+        run: test "$(git rev-parse HEAD)" = "$CNSS_UI_AFTER_SHA"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install frontend and browser dependencies
+        working-directory: frontend
+        run: |
+          npm ci
+          npm install --no-save --package-lock=false --legacy-peer-deps playwright@1.55.0 react-is@19.2.0
+          npx playwright install --with-deps chromium
+
+      - name: Capture and exercise CNSS UI AFTER
+        working-directory: frontend
+        run: PRODUCT_HEAD="$CNSS_UI_AFTER_SHA" node scripts/capture-mutuelles-cnss-ui-after.mjs
+
+      - name: Verify exact AFTER artifact contract
+        working-directory: frontend
+        run: |
+          node --input-type=module <<'NODE'
+          import { readFile } from 'node:fs/promises';
+          const report = JSON.parse(await readFile('mutuelles-cnss-ui-after-artifacts/report.json', 'utf8'));
+          const expected = process.env.CNSS_UI_AFTER_SHA;
+          if (report.productHead !== expected) throw new Error(`Wrong AFTER SHA ${report.productHead}`);
+          if (report.phase !== 'AFTER') throw new Error(`Wrong phase ${report.phase}`);
+          if (report.invalidCount !== 0) throw new Error(`Invalid captures ${report.invalidCount}`);
+          if (report.blockedExternalRequests.length !== 0) throw new Error('Unexpected external egress');
+          if (report.captures.length !== 3) throw new Error('Expected three certified viewports');
+          for (const capture of report.captures) {
+            if (!capture.valid) throw new Error(`Invalid ${capture.viewport}`);
+            if (!capture.hasInsuranceAction) throw new Error(`Missing CNSS action ${capture.viewport}`);
+            if (!capture.reviewVisible) throw new Error(`Missing CNSS review ${capture.viewport}`);
+            if (capture.upperInsuredControls !== 0) throw new Error(`Upper insured controls leaked ${capture.viewport}`);
+            if (capture.validatedZoneControls !== 10) throw new Error(`Wrong validated-zone control count ${capture.viewport}`);
+            if (!capture.mentionsInsuredBlank) throw new Error(`Missing insured-zone guard copy ${capture.viewport}`);
+            if (!capture.validateInitiallyEnabled) throw new Error(`Validate unexpectedly disabled ${capture.viewport}`);
+            if (!capture.finalizeAfterValidationEnabled) throw new Error(`Finalize unavailable after validation ${capture.viewport}`);
+            if (!capture.exactPostSequence) throw new Error(`Wrong API action sequence ${capture.viewport}`);
+            if (capture.reviewMetrics.horizontalOverflow || capture.metrics.horizontalOverflow) throw new Error(`Horizontal overflow ${capture.viewport}`);
+            if (capture.consoleErrors.length) throw new Error(`Console errors ${capture.viewport}`);
+            if (capture.pageErrors.length) throw new Error(`Page errors ${capture.viewport}`);
+          }
+          NODE
+          for viewport in 390x844 768x1024 1280x900; do
+            test -s "mutuelles-cnss-ui-after-artifacts/after-card-${viewport}.png"
+            test -s "mutuelles-cnss-ui-after-artifacts/after-menu-${viewport}.png"
+            test -s "mutuelles-cnss-ui-after-artifacts/after-review-${viewport}.png"
+          done
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: mutuelles-cnss-ui-after-exact
+          path: frontend/mutuelles-cnss-ui-after-artifacts
+          if-no-files-found: error
+          retention-days: 30
