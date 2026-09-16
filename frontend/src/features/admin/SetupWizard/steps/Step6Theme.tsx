@@ -51,7 +51,7 @@ export const Step6Theme: React.FC<Props> = ({ selectedTheme, setSelectedTheme })
       <Info size={18} className="mt-0.5 shrink-0 text-blue-600" />
       <div>
         <p className="text-xs font-black">Aperçu uniquement</p>
-        <p className="mt-1 text-[11px] font-medium leading-relaxed text-blue-800/80">Le thème n’est enregistré localement qu’après la confirmation backend finale. Quitter ou échouer pendant l’installation ne modifie pas vos préférences persistantes.</p>
+        <p className="mt-1 text-[11px] font-medium leading-relaxed text-blue-800/80">Le thème est enregistré uniquement lorsque la configuration est confirmée. Quitter avant la fin conserve vos préférences actuelles.</p>
       </div>
     </div>
   </div>

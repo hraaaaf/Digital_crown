@@ -148,7 +148,7 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
   }, [location.pathname]);
 
   if (isLoading) {
-    return <DigitalCrownLoader text="Patientez pendant le démarrage de l'IA..." />;
+    return <DigitalCrownLoader text="Démarrage de Digital Crown…" />;
   }
 
   // BYPASS AUTH : Si on est sur /login et pas connecté, on laisse passer pour afficher la page
@@ -231,7 +231,7 @@ const ProtectedRoutes = () => {
           <Route path="/analytics" element={<Analytics />} />
           <Route
             path="/labo"
-            element={<ComingSoon title="Module Labo" description="Ce module est en construction et sera bientôt disponible dans une prochaine mise à jour." />} />
+            element={<ComingSoon title="Module Labo" description="Ce module n’est pas disponible dans cette version." />} />
           <Route path="/stock" element={<StockPage />} />
           <Route path="/approvisionnement" element={<PartnerMarketplacePage />} />
           <Route
@@ -242,7 +242,7 @@ const ProtectedRoutes = () => {
           <Route path="/approvisionnement/produits/:productId" element={<PartnerProductPage />} />
           <Route
             path="/salle-attente"
-            element={<ComingSoon title="Salle d'attente" description="Ce module est en construction et sera bientôt disponible dans une prochaine mise à jour." />} />
+            element={<ComingSoon title="Salle d'attente" description="Ce module n’est pas disponible dans cette version." />} />
           <Route path="/bibliotheque" element={<EliteLibrary />} />
           <Route path="/bibliotheque/:code" element={<EliteLibrary />} />
           <Route path="/science-hub" element={<EliteScienceHub />} />

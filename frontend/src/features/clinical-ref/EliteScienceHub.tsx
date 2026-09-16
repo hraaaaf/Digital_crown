@@ -35,7 +35,7 @@ export const EliteScienceHub: React.FC = () => {
                <GraduationCap size={16} className="text-primary" style={{ color: 'var(--primary)' }} />
                <span className="text-[10px] font-black uppercase tracking-[0.2em] text-primary/60">Evidence-Based Dentistry</span>
             </div>
-            <h1 className="text-3xl font-black text-slate-800 tracking-tight uppercase">Elite Science Hub</h1>
+            <h1 className="text-3xl font-black text-slate-800 tracking-tight uppercase">Bibliothèque scientifique</h1>
             <p className="text-slate-500 font-bold text-sm tracking-wide">Base de données de publications scientifiques de référence</p>
           </div>
         </div>

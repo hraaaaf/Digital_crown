@@ -336,9 +336,9 @@ export const OnboardingScanner = () => {
           <div className="w-full mt-6 p-5 rounded-3xl flex gap-4 mb-10 shadow-elite" style={{ backgroundColor: 'var(--glass-bg)', borderColor: 'var(--glass-border)', borderWidth: '1px' }}>
             <Lock size={20} className="text-primary shrink-0 mt-0.5" />
             <div>
-              <p className="text-[10px] font-black text-primary uppercase tracking-widest mb-1">Zero-Knowledge</p>
+              <p className="text-[10px] font-black text-primary uppercase tracking-widest mb-1">Données protégées</p>
               <p className="text-[10px] text-text-muted leading-relaxed font-bold">
-                La clé AES-256 reste sur ce téléphone. Aucune donnée lisible ne quitte votre réseau local.
+                Les informations de connexion restent protégées sur ce téléphone. Aucune donnée lisible ne quitte le cabinet.
               </p>
             </div>
           </div>
@@ -428,7 +428,7 @@ export const OnboardingScanner = () => {
             </div>
             <h2 className="text-2xl font-black tracking-tight text-center mb-2">Connexion sécurisée</h2>
             <p className="text-xs text-text-muted font-medium text-center leading-relaxed">
-              Activez HTTPS pour chiffrer vos données sur le réseau local.{' '}
+              Activez la connexion sécurisée pour chiffrer vos données sur le réseau local.{' '}
               <span className="font-black text-primary">Une seule fois.</span>
             </p>
             <p className="mt-3 text-xs font-black text-primary">Destination : {destinationLabel}</p>
@@ -460,7 +460,7 @@ export const OnboardingScanner = () => {
             onClick={skipAndGo}
             className="w-full min-h-11 px-3 text-xs font-bold text-text-muted hover:text-text-main transition-colors flex items-center justify-center gap-1"
           >
-            Accéder à {destinationLabel} sans HTTPS
+            Accéder à {destinationLabel} sans connexion sécurisée
             <ArrowRight size={14} />
           </button>
         </div>

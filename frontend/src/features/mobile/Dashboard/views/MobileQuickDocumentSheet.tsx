@@ -243,7 +243,7 @@ export function MobileQuickDocumentSheet({ patient, preview = false, onClose }: 
     <section className="w-full max-w-2xl max-h-[92dvh] overflow-y-auto rounded-t-[30px] sm:rounded-[30px] border border-glass-border bg-card p-4 sm:p-5 shadow-2xl" style={{ backgroundColor: 'var(--glass-bg)' }}>
       <div className="sticky top-0 z-10 -mx-1 mb-4 flex items-center gap-3 rounded-[20px] bg-card/95 px-1 py-2 backdrop-blur" style={{ backgroundColor: 'var(--glass-bg)' }}>
         {type ? <button type="button" onClick={() => { setType(null); setPreviewPayload(null); setPreviewPdfUrl(null); setError(''); setSuccess(''); }} className="h-11 w-11 rounded-[14px] border border-glass-border flex items-center justify-center text-primary" aria-label="Retour aux types"><ArrowLeft size={18} /></button> : <div className="h-11 w-11 rounded-[14px] bg-primary/10 text-primary flex items-center justify-center"><FileText size={19} /></div>}
-        <div className="min-w-0 flex-1"><p className="text-[10px] font-black uppercase tracking-[0.16em] text-text-muted">Quick Document Studio</p><h2 className="truncate text-lg font-black text-text-main">{selected?.label || patient.name}</h2></div>
+        <div className="min-w-0 flex-1"><p className="text-[10px] font-black uppercase tracking-[0.16em] text-text-muted">Document rapide</p><h2 className="truncate text-lg font-black text-text-main">{selected?.label || patient.name}</h2></div>
         <button type="button" onClick={onClose} className="h-11 w-11 rounded-[14px] border border-glass-border flex items-center justify-center text-text-muted" aria-label="Fermer"><X size={18} /></button>
       </div>
 

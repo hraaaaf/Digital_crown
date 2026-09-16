@@ -12,7 +12,7 @@ export function MobilePreviewBotView() {
               </div>
               <div className="min-w-0">
                 <p className="text-xs font-black tracking-wide">Crown Bot</p>
-                <p className="text-[9px] text-white/70 font-bold">Preview locale · données fictives</p>
+                <p className="text-[9px] text-white/70 font-bold">Démonstration locale · données fictives</p>
               </div>
             </div>
             <div className="w-9 h-9 rounded-xl bg-white/10 flex items-center justify-center">
@@ -32,7 +32,7 @@ export function MobilePreviewBotView() {
         <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-slate-50/70">
           <div className="max-w-[86%] rounded-[18px] rounded-bl-md border border-border-main bg-white p-3 shadow-sm">
             <p className="text-[11px] font-bold leading-relaxed text-slate-700">
-              Bonjour. Cette Preview montre l’interface Crown Bot sans charger de session cabinet ni contacter le backend.
+              Bonjour. Voici un aperçu de l’assistant Digital Crown.
             </p>
           </div>
           <div className="ml-auto max-w-[82%] rounded-[18px] rounded-br-md bg-primary p-3 text-white shadow-sm">
@@ -47,7 +47,7 @@ export function MobilePreviewBotView() {
 
         <div className="border-t border-border-main bg-white p-3 shrink-0">
           <div className="min-h-[52px] rounded-2xl border border-border-main bg-slate-50 px-4 flex items-center gap-3 text-text-muted">
-            <span className="flex-1 text-[11px] font-bold">Assistant désactivé dans la Preview</span>
+            <span className="flex-1 text-[11px] font-bold">Assistant désactivé dans cette démonstration</span>
             <div className="w-9 h-9 rounded-xl bg-slate-200 text-slate-400 flex items-center justify-center" aria-hidden="true">
               <Send size={15} />
             </div>

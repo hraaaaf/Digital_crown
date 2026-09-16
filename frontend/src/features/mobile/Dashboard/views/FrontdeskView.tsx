@@ -88,12 +88,12 @@ export function FrontdeskView({ previewData }: { previewData?: PendingRequest[] 
       <div className="mb-4 flex items-start justify-between gap-3">
         <div>
           <p className="text-[10px] font-black uppercase tracking-[0.18em] text-primary">Demandes RDV</p>
-          <h1 className="mt-1 text-[24px] font-black text-text-main">Frontdesk</h1>
+          <h1 className="mt-1 text-[24px] font-black text-text-main">Accueil</h1>
           <p className="mt-1 text-[11px] font-bold text-text-muted">{sorted.length} demande{sorted.length > 1 ? 's' : ''} en attente</p>
         </div>
         <button
           type="button"
-          aria-label="Actualiser Frontdesk"
+          aria-label="Actualiser les demandes de rendez-vous"
           onClick={() => void load()}
           disabled={loading || previewMode}
           className="grid min-h-11 min-w-11 place-items-center rounded-full border border-glass-border bg-card text-text-muted disabled:opacity-50"
@@ -109,7 +109,7 @@ export function FrontdeskView({ previewData }: { previewData?: PendingRequest[] 
         <div className="rounded-[24px] border border-glass-border bg-card px-5 py-8 text-center shadow-sm">
           <CalendarClock size={28} className="mx-auto text-primary" />
           <h2 className="mt-3 text-[16px] font-black text-text-main">Aucune demande en attente</h2>
-          <p className="mt-1 text-[11px] font-bold text-text-muted">Le Frontdesk est à jour.</p>
+          <p className="mt-1 text-[11px] font-bold text-text-muted">Toutes les demandes de rendez-vous ont été traitées.</p>
         </div>
       )}
 

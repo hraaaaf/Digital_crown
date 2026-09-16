@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from "react";
 
-// Simple date utilities (replacing date-fns)
 const formatDistanceToNowStrict = (date: Date): string => {
   const diffMs = date.getTime() - Date.now();
   const diffDays = Math.round(diffMs / (1000 * 60 * 60 * 24));
@@ -13,11 +12,6 @@ import type { LabJob } from "../types/labJob";
 import { LabJobStatus } from "../types/labJob";
 import { fetchLabJobs, patchLabJobStatus, createLabJob } from "../services/labJobService";
 
-/**
- * Minimal Kanban board for LabJob management.
- * Columns represent active statuses. Cards display tooth number, type, and a countdown.
- * If a job is late (is_late flag) or its deadline is <24h away, the border turns red.
- */
 const STATUS_ORDER: LabJobStatus[] = [
   LabJobStatus.PRESCRIPTION,
   LabJobStatus.SENT,
@@ -47,7 +41,7 @@ export const LabJobsBoard: React.FC = () => {
   const [newJob, setNewJob] = useState({ patient_id: "", act_id: "", type: "Couronne", tooth_number: "", material: "Céramique", is_remake: false });
 
   const handleCreate = async () => {
-    if (!newJob.patient_id || !newJob.act_id) return alert("L'ID du patient et de l'acte sont requis.");
+    if (!newJob.patient_id || !newJob.act_id) return alert("Le patient et l'acte sont requis.");
     const deadline = new Date();
     deadline.setDate(deadline.getDate() + 7);
     await createLabJob({
@@ -63,7 +57,6 @@ export const LabJobsBoard: React.FC = () => {
     setNewJob({ patient_id: "", act_id: "", type: "Couronne", tooth_number: "", material: "Céramique", is_remake: false });
     await loadJobs();
   };
-
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -86,21 +79,16 @@ export const LabJobsBoard: React.FC = () => {
 
   return (
     <div className="flex flex-col h-full w-full relative">
-      <div className="mx-4 mt-4 px-4 py-2.5 bg-amber-50 border border-amber-200 rounded-xl text-xs font-bold text-amber-700 flex items-center gap-2">
-        <span className="text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-600 border border-amber-500/20">Bientôt</span>
-        Module en cours de finalisation — bientôt disponible dans sa version complète. Vous pouvez déjà l'utiliser normalement.
-      </div>
       <div className="flex justify-between items-center mb-4 px-4 pt-4">
-        <h1 className="text-xl font-black text-slate-800 tracking-tight">Travaux Prothétiques</h1>
-        <button 
-          onClick={() => setShowModal(true)} 
+        <h1 className="text-xl font-black text-slate-800 tracking-tight">Travaux prothétiques</h1>
+        <button
+          onClick={() => setShowModal(true)}
           className="px-5 py-2.5 bg-slate-900 text-white rounded-xl font-bold text-xs shadow-md hover:bg-slate-800 transition-colors flex items-center gap-2"
         >
-          <span>+ Nouvelle Demande Manuelle</span>
+          <span>+ Nouvelle demande manuelle</span>
         </button>
       </div>
 
-      {/* Kanban Board */}
       <div className="flex space-x-4 overflow-x-auto p-4 flex-1">
       {STATUS_ORDER.map((status) => (
         <div key={status} className="flex-1 min-w-[200px]">
@@ -149,21 +137,20 @@ export const LabJobsBoard: React.FC = () => {
       ))}
     </div>
 
-      {/* Modale de création manuelle */}
       {showModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4">
           <div className="bg-white rounded-3xl p-6 shadow-xl w-full max-w-md border border-slate-200">
-            <h2 className="text-lg font-black text-slate-800 mb-4 tracking-tight">Demande Labo Manuelle</h2>
-            
+            <h2 className="text-lg font-black text-slate-800 mb-4 tracking-tight">Demande labo manuelle</h2>
+
             <div className="space-y-4">
               <div className="flex gap-4">
                 <div className="flex-1">
-                  <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Patient ID (Requis)</label>
-                  <input type="number" className="w-full text-sm font-bold text-slate-700 bg-slate-50 border border-slate-200 rounded-xl p-3 focus:ring-2 focus:ring-primary/20 outline-none transition-all" value={newJob.patient_id} onChange={e => setNewJob({...newJob, patient_id: e.target.value})} placeholder="Ex: 1" />
+                  <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">N° patient (requis)</label>
+                  <input type="number" className="w-full text-sm font-bold text-slate-700 bg-slate-50 border border-slate-200 rounded-xl p-3 focus:ring-2 focus:ring-primary/20 outline-none transition-all" value={newJob.patient_id} onChange={e => setNewJob({...newJob, patient_id: e.target.value})} placeholder="Ex : 1" />
                 </div>
                 <div className="flex-1">
-                  <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Acte ID (Requis)</label>
-                  <input type="number" className="w-full text-sm font-bold text-slate-700 bg-slate-50 border border-slate-200 rounded-xl p-3 focus:ring-2 focus:ring-primary/20 outline-none transition-all" value={newJob.act_id} onChange={e => setNewJob({...newJob, act_id: e.target.value})} placeholder="Ex: 15" />
+                  <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">N° acte (requis)</label>
+                  <input type="number" className="w-full text-sm font-bold text-slate-700 bg-slate-50 border border-slate-200 rounded-xl p-3 focus:ring-2 focus:ring-primary/20 outline-none transition-all" value={newJob.act_id} onChange={e => setNewJob({...newJob, act_id: e.target.value})} placeholder="Ex : 15" />
                 </div>
               </div>
 
@@ -174,7 +161,7 @@ export const LabJobsBoard: React.FC = () => {
                 </div>
                 <div className="w-24">
                   <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Dent</label>
-                  <input type="text" className="w-full text-sm font-bold text-slate-700 bg-slate-50 border border-slate-200 rounded-xl p-3 text-center focus:ring-2 focus:ring-primary/20 outline-none transition-all" value={newJob.tooth_number} onChange={e => setNewJob({...newJob, tooth_number: e.target.value})} placeholder="Ex: 46" />
+                  <input type="text" className="w-full text-sm font-bold text-slate-700 bg-slate-50 border border-slate-200 rounded-xl p-3 text-center focus:ring-2 focus:ring-primary/20 outline-none transition-all" value={newJob.tooth_number} onChange={e => setNewJob({...newJob, tooth_number: e.target.value})} placeholder="Ex : 46" />
                 </div>
               </div>
 
@@ -185,7 +172,7 @@ export const LabJobsBoard: React.FC = () => {
 
               <label className="flex items-center gap-2 cursor-pointer mt-2">
                 <input type="checkbox" className="w-4 h-4 text-slate-900 rounded border-slate-300 focus:ring-slate-900" checked={newJob.is_remake} onChange={e => setNewJob({...newJob, is_remake: e.target.checked})} />
-                <span className="text-xs font-bold text-slate-700">Ceci est une réfection (Refonte / Réparation)</span>
+                <span className="text-xs font-bold text-slate-700">Réfection ou réparation</span>
               </label>
             </div>
 
@@ -198,5 +185,4 @@ export const LabJobsBoard: React.FC = () => {
       )}
     </div>
   );
-
 };

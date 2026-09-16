@@ -505,7 +505,7 @@ export const MobileContext = () => {
             <div className="pt-4 border-t border-border-main"><p className="text-[10px] font-black uppercase tracking-widest text-text-muted">Statut</p><p className="mt-1 inline-flex min-h-11 items-center rounded-xl bg-primary/10 px-3 text-sm font-black text-primary">{appointment.status}</p></div>
             {appointment.notes && <div className="pt-4 border-t border-border-main"><p className="text-[10px] font-black uppercase tracking-widest text-text-muted">Notes</p><p className="mt-1 text-sm font-bold text-text-main whitespace-pre-wrap">{appointment.notes}</p></div>}
           </section>
-          <p className="mt-4 text-[11px] font-bold text-text-muted text-center">Contexte résolu côté serveur · aucun identifiant rendez-vous dans l’URL</p>
+          <p className="mt-4 text-[11px] font-bold text-text-muted text-center">Rendez-vous vérifié de manière sécurisée</p>
           <button data-m4d-touch type="button" onClick={() => navigate('/mobile/dashboard?tab=agenda', { replace: true })} className="mt-6 w-full min-h-[54px] rounded-2xl bg-primary text-white font-black text-xs uppercase tracking-widest">Retour au mobile</button>
         </div>
       </div>

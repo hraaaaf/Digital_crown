@@ -446,7 +446,7 @@ export const AgendaModal: React.FC<AgendaModalProps> = ({ isOpen, onClose, onSav
                   onClick={() => setShowGhostPanel(true)}
                   className="mt-3 flex items-center gap-2 px-3 py-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition-all text-[10px] font-black uppercase tracking-widest"
                 >
-                  <Ghost size={13} /> Ghost Intelligence
+                  <Ghost size={13} /> Suggestions
                 </button>
               )}
 
@@ -459,7 +459,7 @@ export const AgendaModal: React.FC<AgendaModalProps> = ({ isOpen, onClose, onSav
                         <Sparkles size={14} className={cn((loadingIntel || isLoadingSuggested) && "animate-pulse")} />
                       </div>
                       <span className="text-[10px] font-black uppercase tracking-widest">
-                        {(loadingIntel || isLoadingSuggested) ? "Analyse en cours..." : "Ghost Intelligence"}
+                        {(loadingIntel || isLoadingSuggested) ? "Analyse en cours..." : "Suggestions"}
                       </span>
                     </div>
                     {smartIntel?.solde_attente > 0 && (

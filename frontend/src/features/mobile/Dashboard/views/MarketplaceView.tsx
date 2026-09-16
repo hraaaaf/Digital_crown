@@ -22,7 +22,7 @@ export function MarketplaceView({ previewData }: { previewData?: MarketplacePrev
       <div className="flex items-start justify-between gap-3 pt-1">
         <div className="min-w-0">
           <p className="text-[9px] font-black uppercase tracking-[0.18em] text-text-muted">Approvisionnement</p>
-          <h1 className="mt-1 font-outfit text-[25px] font-black leading-none text-text-main">Marketplace</h1>
+          <h1 className="mt-1 font-outfit text-[25px] font-black leading-none text-text-main">Approvisionnement</h1>
           <p className="mt-1.5 text-[11px] font-bold leading-relaxed text-text-muted">Référence connue → quantité → panier.</p>
         </div>
         <button
@@ -49,7 +49,7 @@ export function MarketplaceView({ previewData }: { previewData?: MarketplacePrev
         />
       </label>
 
-      <div className="mt-3 flex gap-2 overflow-x-auto pb-1" aria-label="Filtres Marketplace mobile">
+      <div className="mt-3 flex gap-2 overflow-x-auto pb-1" aria-label="Filtres approvisionnement mobile">
         <button
           type="button"
           onClick={() => marketplace.setAvailableOnly(!marketplace.availableOnly)}
@@ -186,7 +186,7 @@ function MobileCheckout({ customer, cartLines, total, submitting, successMessage
           <div className="flex items-start justify-between gap-3">
             <div>
               <p className="text-[9px] font-black uppercase tracking-[0.16em] text-text-muted">Panier · {cartLines.reduce((sum, line) => sum + line.quantity, 0)} unité(s)</p>
-              <h2 id="mobile-marketplace-checkout-title" className="mt-1 font-outfit text-[22px] font-black text-text-main">Préparer le DRAFT</h2>
+              <h2 id="mobile-marketplace-checkout-title" className="mt-1 font-outfit text-[22px] font-black text-text-main">Préparer le brouillon</h2>
             </div>
             <button type="button" onClick={onClose} className="grid h-11 w-11 place-items-center rounded-full border border-glass-border bg-background text-text-muted" aria-label="Fermer"><X size={18} /></button>
           </div>
@@ -232,7 +232,7 @@ function MobileCheckout({ customer, cartLines, total, submitting, successMessage
               {submitting ? 'Enregistrement…' : 'Enregistrer le brouillon'}
             </button>
             <p className="pb-[max(4px,env(safe-area-inset-bottom))] text-center text-[9px] font-bold leading-relaxed text-text-muted">
-              Crée un DRAFT Digital Crown. Rien n’est transmis au fournisseur.
+              Crée un brouillon de commande Digital Crown. Rien n’est transmis au fournisseur.
             </p>
           </form>
         </div>

@@ -20,7 +20,7 @@ export const MarketplaceCard = ({ visible }: { visible: boolean }) => {
           <div className="min-w-0">
             <p className="text-[10px] uppercase tracking-widest font-black text-text-muted">Approvisionnement</p>
             <h2 className="text-lg font-black tracking-tight font-outfit text-main" style={{ color: 'var(--text-main)' }}>
-              Marketplace
+              Approvisionnement
             </h2>
             <p className="text-xs font-medium text-text-muted mt-0.5">Commander les consommables et fournitures du cabinet</p>
           </div>

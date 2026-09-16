@@ -82,7 +82,7 @@ jobs:
             text.includes('Failed to load resource: the server responded with a status of 503') ||
             text === 'unavailable';
 
-          const server = await createServer({ server: { host: '127.0.0.1', port: 4178, strictPort: true }, clearScreen: false });
+          const server = await createServer({ server: { host: '127.0.0.1', port: 4178, strictPort: true }, clearScreen: false, optimizeDeps: { include: ['workbox-window'] } });
           await server.listen();
           const browser = await chromium.launch();
           try {

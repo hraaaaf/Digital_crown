@@ -21,7 +21,7 @@ describe('MobilePatientsView MOB-5F', () => {
   it('adds one primary document CTA without breaking preview isolation', () => {
     render(<MobilePatientsView onClose={() => undefined} previewData={PREVIEW} />);
     fireEvent.click(screen.getByRole('button', { name: /Créer un document/i }));
-    expect(screen.getByText(/Quick Document Studio/i)).toBeTruthy();
+    expect(screen.getByText(/Document rapide/i)).toBeTruthy();
     expect(screen.getByRole('button', { name: /Ordonnance/i })).toBeTruthy();
     expect(mobileFetch).not.toHaveBeenCalled();
   });

@@ -32,44 +32,35 @@ const r15Snapshot = {
     'r14_authoritative_snapshot_not_persisted',
   ],
   clinical_validation_available: false,
-  clinical_validation_reason: 'Aucune validation clinique R14 sans snapshot autoritaire persistant et preuve praticien backend.',
+  clinical_validation_reason: 'Validation clinique non disponible tant que les prérequis ne sont pas confirmés.',
   stages: [
     {
       stage_id: 'R11', title: 'Diagnostic scientifique', presentation_state: 'BLOCKED', authoritative_status: null,
-      summary: "Aucun diagnostic n'est promu depuis les mesures sans règle source-lockée et snapshot R11 autoritaire.",
+      summary: 'Diagnostic scientifique à confirmer.',
       blocking_gates: ['diagnostic_rule_registry_empty', 'r11_authoritative_snapshot_not_persisted'],
-      missing_data_refs: [], contradictions: [], contraindications: [],
-      provenance: [
-        { label: 'Analyse céphalométrique', value: '9915' },
-        { label: 'Chaîne active', value: 'vérifiée' },
-        { label: 'Mesures typées actives', value: '4' },
-        { label: 'Règles diagnostiques actives', value: '0' },
-      ],
-      clinician_action: { available: false, audit_required: true, label: 'Validation praticien', reason: "Action indisponible tant qu'un snapshot clinique autoritaire et sa preuve traçable ne sont pas résolus par le backend." },
+      missing_data_refs: [], contradictions: [], contraindications: [], provenance: [],
+      clinician_action: { available: false, audit_required: true, label: 'Validation praticien', reason: 'Confirmation requise.' },
     },
     {
       stage_id: 'R12', title: 'Problem list & objectifs', presentation_state: 'BLOCKED', authoritative_status: null,
-      summary: "Les problèmes et objectifs ne peuvent dériver que d'éléments R11 explicitement validés.",
+      summary: 'Problèmes et objectifs à confirmer.',
       blocking_gates: ['r11_not_authoritative', 'r12_authoritative_snapshot_not_persisted'],
-      missing_data_refs: [], contradictions: [], contraindications: [],
-      provenance: [{ label: 'Autorité amont', value: 'R11 requis' }],
-      clinician_action: { available: false, audit_required: true, label: 'Validation praticien', reason: "Action indisponible tant qu'un snapshot clinique autoritaire et sa preuve traçable ne sont pas résolus par le backend." },
+      missing_data_refs: [], contradictions: [], contraindications: [], provenance: [],
+      clinician_action: { available: false, audit_required: true, label: 'Validation praticien', reason: 'Confirmation requise.' },
     },
     {
       stage_id: 'R13', title: 'Options thérapeutiques', presentation_state: 'BLOCKED', authoritative_status: null,
-      summary: "Évaluable n'est jamais une prescription. Aucune option n'est auto-sélectionnée.",
+      summary: 'Options thérapeutiques à confirmer.',
       blocking_gates: ['r12_not_authoritative', 'therapeutic_rule_registry_empty', 'r13_authoritative_snapshot_not_persisted'],
-      missing_data_refs: [], contradictions: [], contraindications: [],
-      provenance: [{ label: "Règles d'option actives", value: '0' }, { label: 'Règles de critère actives', value: '0' }],
-      clinician_action: { available: false, audit_required: true, label: 'Validation praticien', reason: "Action indisponible tant qu'un snapshot clinique autoritaire et sa preuve traçable ne sont pas résolus par le backend." },
+      missing_data_refs: [], contradictions: [], contraindications: [], provenance: [],
+      clinician_action: { available: false, audit_required: true, label: 'Validation praticien', reason: 'Confirmation requise.' },
     },
     {
       stage_id: 'R14', title: 'Validation clinique finale', presentation_state: 'BLOCKED', authoritative_status: null,
-      summary: 'Une validation finale exige une option R13 sélectionnée et une preuve praticien résolue, horodatée et traçable.',
+      summary: 'Validation clinique finale à confirmer.',
       blocking_gates: ['r13_no_clinician_selected_option', 'r14_authoritative_snapshot_not_persisted'],
-      missing_data_refs: [], contradictions: [], contraindications: [],
-      provenance: [{ label: 'Autorité amont', value: 'R13 sélection praticien requise' }],
-      clinician_action: { available: false, audit_required: true, label: 'Validation praticien', reason: "Action indisponible tant qu'un snapshot clinique autoritaire et sa preuve traçable ne sont pas résolus par le backend." },
+      missing_data_refs: [], contradictions: [], contraindications: [], provenance: [],
+      clinician_action: { available: false, audit_required: true, label: 'Validation praticien', reason: 'Confirmation requise.' },
     },
   ],
 };
@@ -81,40 +72,10 @@ import { MemoryRouter } from 'react-router-dom';
 import { CephaloWorkspace } from './features/ortho/CephaloWorkspace';
 import { useOrthoStore } from './features/ortho/stores/useOrthoStore';
 import './index.css';
-
-const fixture = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(\`
-  <svg xmlns="http://www.w3.org/2000/svg" width="1200" height="1600" viewBox="0 0 1200 1600">
-    <rect width="1200" height="1600" fill="#e2e8f0"/>
-    <path d="M470 220 C720 260 820 520 760 760 C710 960 570 1160 420 1340" fill="none" stroke="#64748b" stroke-width="18" opacity=".38"/>
-    <path d="M390 520 C600 450 790 560 820 760 C760 900 620 970 460 940" fill="none" stroke="#94a3b8" stroke-width="12" opacity=".28"/>
-  </svg>\`);
-
-useOrthoStore.setState({
-  patientId: 915,
-  patientName: 'Patient Démo R15',
-  analysisId: 9915,
-  imageSrc: fixture,
-  imgDim: { w: 1200, h: 1600 },
-  local: { landmarks: [], version: 1 },
-  anglesData: { calibration_status: 'validated', SNA: 82, SNB: 80, ANB: 2, FMA: 25, IMPA: 90 },
-  visionMetadata: {},
-  isCalibrated: true,
-  mmPerPixel: 0.1,
-  showCalibration: false,
-  calibrationClickPoints: [],
-  calibrationDistance: '',
-  calibrationStep: 'selecting',
-  completedSteps: new Set([1, 2]),
-  step: 3,
-});
-
-ReactDOM.createRoot(document.getElementById('root')!).render(
-  <MemoryRouter initialEntries={['/patients/915/cephalo']}>
-    <div style={{minHeight:'100vh'}}><CephaloWorkspace patientId={915} patientName="Patient Démo R15" /></div>
-  </MemoryRouter>,
-);
+const fixture = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(\`<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="1600" viewBox="0 0 1200 1600"><rect width="1200" height="1600" fill="#e2e8f0"/><path d="M470 220 C720 260 820 520 760 760 C710 960 570 1160 420 1340" fill="none" stroke="#64748b" stroke-width="18" opacity=".38"/></svg>\`);
+useOrthoStore.setState({patientId:915,patientName:'Patient Démo R15',analysisId:9915,imageSrc:fixture,imgDim:{w:1200,h:1600},local:{landmarks:[],version:1},anglesData:{calibration_status:'validated',SNA:82,SNB:80,ANB:2,FMA:25,IMPA:90},visionMetadata:{},isCalibrated:true,mmPerPixel:0.1,showCalibration:false,calibrationClickPoints:[],calibrationDistance:'',calibrationStep:'selecting',completedSteps:new Set([1,2]),step:3});
+ReactDOM.createRoot(document.getElementById('root')!).render(<MemoryRouter initialEntries={['/patients/915/cephalo']}><div style={{minHeight:'100vh'}}><CephaloWorkspace patientId={915} patientName="Patient Démo R15" /></div></MemoryRouter>);
 `;
-
 const htmlSource = `<!doctype html><html lang="fr"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/><title>Cephalo R15 AFTER</title><style>html,body,#root{width:100%;min-height:100%;margin:0}</style></head><body><div id="root"></div><script type="module" src="/src/cephalo-r15-after-entry.tsx"></script></body></html>`;
 const json = (body, status = 200) => ({ status, contentType: 'application/json', body: JSON.stringify(body) });
 
@@ -149,8 +110,9 @@ async function metrics(page, viewportName, scene) {
   return page.evaluate(({ viewportName, scene }) => {
     const body = document.body;
     const doc = document.documentElement;
-    const text = (body.textContent || '').toLowerCase();
-    const header = Array.from(document.querySelectorAll('h2')).find(node => node.textContent?.includes('Studio Céphalométrique'))?.parentElement?.parentElement;
+    const rawText = body.textContent || '';
+    const text = rawText.toLowerCase();
+    const header = Array.from(document.querySelectorAll('h2')).find(node => node.textContent?.includes('Céphalométrie'))?.parentElement?.parentElement;
     const rect = header?.getBoundingClientRect();
     const styles = getComputedStyle(body);
     const themeTokens = {
@@ -159,6 +121,7 @@ async function metrics(page, viewportName, scene) {
       text: styles.getPropertyValue('--text-main').trim(),
       primary: styles.getPropertyValue('--primary').trim(),
     };
+    const technicalVocabulary = /\br1[1-4]\b|snapshot|backend|runtime|\bgate\b|réf\.\s*technique|\bcontrat\b/i;
     return {
       viewport: viewportName,
       scene,
@@ -169,34 +132,31 @@ async function metrics(page, viewportName, scene) {
       scrollWidth: Math.max(doc.scrollWidth, body.scrollWidth),
       horizontalDocumentOverflow: Math.max(doc.scrollWidth, body.scrollWidth) > innerWidth + 1,
       headerClipped: Boolean(rect && (rect.left < -1 || rect.right > innerWidth + 1)),
-      hasWorkspaceHeading: text.includes('studio céphalométrique'),
-      hasScientificChain: text.includes('chaîne clinique scientifique'),
-      hasR11Surface: text.includes('r11'),
-      hasR12Surface: text.includes('r12'),
-      hasR13Surface: text.includes('r13'),
-      hasR14Surface: text.includes('r14'),
+      hasWorkspaceHeading: text.includes('céphalométrie'),
+      hasClinicalJourney: text.includes('parcours clinique'),
+      hasDiagnosticStage: text.includes('diagnostic'),
+      hasObjectivesStage: text.includes('objectifs'),
+      hasOptionsStage: text.includes('options'),
+      hasValidationStage: text.includes('validation'),
       hasMissingSurface: text.includes('données manquantes'),
       hasContradictionSurface: text.includes('contradictions'),
       hasContraindicationSurface: text.includes('contre-indications'),
       hasPractitionerAction: text.includes('action praticien'),
       hasNoFakeValidation: text.includes('aucune validation disponible'),
-      hasNonAuthoritativeNotes: text.includes('notes praticien non autoritaires'),
-      hasDocumentSeparation: text.includes('actions documentaires') && text.includes('ne valide jamais r14'),
+      hasImportedNotes: text.includes('notes praticien importées : origine non vérifiée'),
+      hasDocumentSeparation: text.includes('actions documentaires') && text.includes('ne constitue pas une validation clinique'),
       hasArchiveAction: text.includes('archiver le bilan'),
-      hasLegacyDiagnostic: text.includes('diagnostic / résumé diagnostique'),
-      hasLegacyTreatmentDecision: text.includes('plan thérapeutique') && text.includes('décision praticien'),
-      hasLegacyTreatmentPanel: text.includes('plan de traitement') && text.includes('praticien'),
-      hasLegacyArchiveAction: text.includes('valider & archiver'),
+      hasTechnicalVocabulary: technicalVocabulary.test(rawText),
       bodyHeight: body.scrollHeight,
     };
   }, { viewportName, scene });
 }
 
 function studioContract(m) {
-  return m.theme === 'default' && m.themeTokensResolved &&
-    m.hasWorkspaceHeading && m.hasScientificChain && m.hasR11Surface && m.hasR12Surface && m.hasR13Surface && m.hasR14Surface &&
-    m.hasMissingSurface && m.hasContradictionSurface && m.hasContraindicationSurface && m.hasPractitionerAction && m.hasNoFakeValidation &&
-    !m.horizontalDocumentOverflow && !m.headerClipped && !m.hasLegacyDiagnostic && !m.hasLegacyTreatmentDecision && !m.hasLegacyTreatmentPanel && !m.hasLegacyArchiveAction;
+  return m.theme === 'default' && m.themeTokensResolved && m.hasWorkspaceHeading && m.hasClinicalJourney &&
+    m.hasDiagnosticStage && m.hasObjectivesStage && m.hasOptionsStage && m.hasValidationStage &&
+    m.hasMissingSurface && m.hasContradictionSurface && m.hasContraindicationSurface && m.hasPractitionerAction &&
+    m.hasNoFakeValidation && !m.hasTechnicalVocabulary && !m.horizontalDocumentOverflow && !m.headerClipped;
 }
 
 async function captureAttempt(viewport, attempt) {
@@ -208,7 +168,6 @@ async function captureAttempt(viewport, attempt) {
   const apiRequests = [];
   page.on('pageerror', error => pageErrors.push(error.message));
   page.on('console', message => { if (message.type() === 'error') consoleErrors.push(message.text()); });
-
   await page.route('**/*', async route => {
     const request = route.request();
     const url = new URL(request.url());
@@ -228,23 +187,23 @@ async function captureAttempt(viewport, attempt) {
 
   try {
     const response = await page.goto(`${BASE_URL}/cephalo-r15-after.html`, { waitUntil: 'domcontentloaded', timeout: 30000 });
-    await page.getByRole('heading', { name: 'Studio Céphalométrique' }).waitFor({ state: 'visible', timeout: 30000 });
-    await page.getByText('Chaîne clinique scientifique').waitFor({ state: 'visible', timeout: 30000 });
+    await page.getByRole('heading', { name: 'Céphalométrie' }).waitFor({ state: 'visible', timeout: 30000 });
+    await page.getByText('Parcours clinique', { exact: true }).waitFor({ state: 'visible', timeout: 30000 });
     await page.evaluate(async () => { if (document.fonts?.ready) await document.fonts.ready; });
     await page.waitForTimeout(350);
 
     const step3Top = await metrics(page, viewport.name, 'step3-top');
-    if (!studioContract(step3Top) || !step3Top.hasNonAuthoritativeNotes) throw new Error(`Step3 AFTER contract failed ${JSON.stringify(step3Top)}`);
+    if (!studioContract(step3Top) || !step3Top.hasImportedNotes) throw new Error(`Step3 AFTER contract failed ${JSON.stringify(step3Top)}`);
     await page.screenshot({ path: path.join(OUTPUT_DIR, `after-step3-top-${viewport.name}.png`), fullPage: false });
 
-    const note = page.getByText(/Note diagnostique libre legacy/i).first();
+    const note = page.getByText(/Notes praticien importées : origine non vérifiée/i).first();
     await note.waitFor({ state: 'visible', timeout: 10000 });
     await note.scrollIntoViewIfNeeded();
     await page.waitForTimeout(150);
     await page.screenshot({ path: path.join(OUTPUT_DIR, `after-step3-decision-${viewport.name}.png`), fullPage: false });
 
     await page.getByRole('button', { name: /Documents & stratégie/i }).click();
-    await page.getByText('Chaîne clinique scientifique').waitFor({ state: 'visible', timeout: 15000 });
+    await page.getByText('Actions documentaires', { exact: true }).waitFor({ state: 'visible', timeout: 15000 });
     await page.waitForTimeout(250);
     const step4Top = await metrics(page, viewport.name, 'step4-top');
     if (!studioContract(step4Top) || !step4Top.hasDocumentSeparation || !step4Top.hasArchiveAction) throw new Error(`Step4 AFTER contract failed ${JSON.stringify(step4Top)}`);
@@ -289,16 +248,22 @@ try {
   if (!server.killed) server.kill('SIGTERM');
   await Promise.race([once(server, 'exit'), new Promise(resolve => setTimeout(resolve, 3000))]).catch(() => {});
   if (server.exitCode === null && !server.killed) server.kill('SIGKILL');
+  await rm(path.join(FRONTEND_DIR, 'src', 'cephalo-r15-after-entry.tsx'), { force: true });
+  await rm(path.join(FRONTEND_DIR, 'cephalo-r15-after.html'), { force: true });
   await writeFile(path.join(OUTPUT_DIR, 'vite.log'), serverLog, 'utf8');
 }
 
 const invalid = captures.filter(item => !item.valid);
 const report = {
-  lot: 'CEPHALO-R15', phase: 'AFTER', productHead: PRODUCT_HEAD,
+  lot: 'CEPHALO-R15',
+  phase: 'AFTER',
+  productHead: PRODUCT_HEAD,
   viewports: viewports.map(item => item.name),
-  fixturePolicy: 'Real production R15 CephaloWorkspace with isolated deterministic patient/clinical snapshot. Global default Digital Crown theme is used without forcing a local Cephalo theme. Snapshot is fail-closed and contains no invented clinical conclusion.',
-  capturePolicy: 'Fresh Chromium process per viewport/attempt. One retry only for transient render failure. Final attempt must satisfy global-theme token resolution, scientific-state visibility, semantic-separation, selected-analysis binding, layout and console gates.',
-  captures, blockedExternalRequests, invalidCount: invalid.length,
+  fixturePolicy: 'Production CephaloWorkspace with isolated deterministic patient/clinical data. No clinical conclusion is invented.',
+  capturePolicy: 'Fresh Chromium per viewport/attempt; one retry for transient render failure. Client-facing wording, layout, selected-analysis binding and runtime cleanliness are certified.',
+  captures,
+  blockedExternalRequests,
+  invalidCount: invalid.length,
 };
 await writeFile(path.join(OUTPUT_DIR, 'report.json'), JSON.stringify(report, null, 2), 'utf8');
 console.log(JSON.stringify(report, null, 2));

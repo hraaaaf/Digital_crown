@@ -10,7 +10,7 @@ import { FrontdeskModal } from './FrontdeskModal';
 import { AgendaModal } from './AgendaModal';
 import { PendingRequestCard } from './PendingRequestCard';
 import { api } from '../../services/api';
-import { Ghost, Settings, AlertCircle } from 'lucide-react';
+import { CalendarClock, Settings, AlertCircle } from 'lucide-react';
 
 export type AgendaViewMode = 'day' | 'week' | 'month' | 'multi';
 
@@ -212,15 +212,15 @@ export const AgendaStudio: React.FC = () => {
   return (
     <div className="w-full max-w-7xl mx-auto space-y-6 min-w-0 overflow-x-clip">
       
-      {/* GHOST CALENDRIER */}
+      {/* JOUR FÉRIÉ À VENIR */}
       {upcomingHolidays.length > 0 && (
         <div className="bg-primary text-white p-4 rounded-2xl shadow-lg flex flex-col sm:flex-row sm:items-center justify-between gap-4 animate-in fade-in slide-in-from-top-4">
           <div className="flex items-center gap-4">
             <div className="p-2 bg-white/20 rounded-xl">
-              <Ghost size={24} className="animate-pulse" />
+              <CalendarClock size={24} />
             </div>
             <div>
-              <h3 className="font-black text-lg">Ghost Calendrier</h3>
+              <h3 className="font-black text-lg">Jour férié à venir</h3>
               <p className="text-white/80 text-sm">
                 Prochain jour férié : <strong>{upcomingHolidays[0].name}</strong> le {new Date(upcomingHolidays[0].date).toLocaleDateString('fr-FR')}
               </p>
@@ -245,7 +245,7 @@ export const AgendaStudio: React.FC = () => {
           </div>
           
           <div className="space-y-1">
-            <h1 className="text-2xl sm:text-3xl font-black text-primary tracking-tight whitespace-nowrap">Studio Agenda</h1>
+            <h1 className="text-2xl sm:text-3xl font-black text-primary tracking-tight whitespace-nowrap">Agenda</h1>
             <div className="flex items-center gap-3">
               <button onClick={handlePrev} className="p-1.5 hover:bg-white/60 rounded-full transition-colors text-primary">
                 <ChevronLeft size={20} />
@@ -267,7 +267,7 @@ export const AgendaStudio: React.FC = () => {
           <button
             onClick={() => setIsFrontdeskModalOpen(true)}
             className="flex items-center gap-2 px-4 py-2.5 text-orange-600 hover:bg-orange-100 font-bold text-sm rounded-xl transition-all relative"
-            title="Nouvelle demande RDV frontdesk"
+            title="Nouvelle demande de rendez-vous"
           >
             <AlertCircle size={18} />
             <span className="hidden xl:inline">Demande RDV</span>

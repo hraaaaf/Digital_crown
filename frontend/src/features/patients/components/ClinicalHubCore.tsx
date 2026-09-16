@@ -552,7 +552,7 @@ export const ClinicalHub: React.FC<ClinicalHubProps> = ({ patientId }) => {
 
         <aside className="min-w-0 space-y-4 xl:col-span-4">
           <div className="flex items-center justify-between gap-3">
-            <div><h3 className="text-xs font-black uppercase tracking-[0.18em] text-text-muted">Master Plan</h3><p className="mt-1 text-[10px] font-bold text-text-muted">Source backend enregistrée</p></div>
+            <div><h3 className="text-xs font-black uppercase tracking-[0.18em] text-text-muted">Master Plan</h3><p className="mt-1 text-[10px] font-bold text-text-muted">Source enregistrée</p></div>
             <button
               onClick={async () => {
                 if (window.confirm('Remplacer le plan enregistré par un plan vide ?') && await savePlan([])) toast.success('Plan de traitement réinitialisé.');

@@ -48,7 +48,7 @@ export const Analytics = () => {
             <AlertTriangle size={40} />
           </div>
           <div>
-            <h1 className="text-2xl font-black text-slate-800 dark:text-white mb-2">Impossible de charger les analytics</h1>
+            <h1 className="text-2xl font-black text-slate-800 dark:text-white mb-2">Impossible de charger les indicateurs</h1>
             <p className="text-slate-500 dark:text-slate-400 font-medium text-sm">Erreur réseau. Vérifiez votre connexion et réessayez.</p>
           </div>
           <button
@@ -70,7 +70,7 @@ export const Analytics = () => {
       <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-indigo-600 dark:from-blue-400 dark:to-indigo-400">
-            Analytics & Intelligence
+            Indicateurs
           </h1>
           <p className="text-slate-500 dark:text-slate-400 mt-1">
             Indicateurs de performance et de rentabilité en temps réel.
@@ -146,7 +146,7 @@ export const Analytics = () => {
                 Générer relances WhatsApp (Top 5)
               </p>
               <p className="text-blue-100 text-sm mt-1">
-                Le Ghost Brain rédigera des messages personnalisés pour les devis les plus élevés.
+                Des messages personnalisés peuvent être préparés pour les devis les plus élevés.
               </p>
             </div>
             <div className="bg-white/20 p-2 rounded-xl group-hover:scale-110 transition-transform">

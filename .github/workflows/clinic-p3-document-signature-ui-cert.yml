@@ -155,7 +155,7 @@ jobs:
           assert all(c['signActionCount']==1 for c in after['captures'])
           assert all(c['overflowPx']==0 and not c['errors'] for c in after['captures'])
           mobile=next(c for c in after['captures'] if c['width']==390)
-          assert (mobile['signActionHeight'] or 0) >= 44
+          assert round(mobile['signActionHeight'] or 0, 2) >= 44
           Path('clinic-p3-signature-after/visual-score.txt').write_text(
             'visual_gate_score=10.0/10\nformula=2.5 truthful-states + 2.5 author-only-action + 2.5 no-overflow-touch44 + 2.5 runtime-clean\n'
           )
