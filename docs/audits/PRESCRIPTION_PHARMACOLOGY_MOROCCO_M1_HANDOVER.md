@@ -1,7 +1,7 @@
 # Digital Crown — Pharmacologie Maroc M1 handover
 
 Date: 2026-09-16
-Status: ACTIVE — M1-B2 merged; AMMPS RCP transport proven; strict identity mapping pending; target dental families remain fail-closed; no clinical activation
+Status: ACTIVE — M1-B2 merged; AMMPS RCP transport proven; 48 active RCPs strictly mapped with zero dental target proven; public-route audit complete; official AMMPS request is the next human gate; no clinical activation
 
 ## Goal
 Construire la couverture pharmacologique dentaire Maroc avec preuve réglementaire fail-closed, puis validation scientifique indépendante avant toute activation clinique.
@@ -13,7 +13,9 @@ Construire la couverture pharmacologique dentaire Maroc avec preuve réglementai
 - Recherche négative ou bouton désactivé != preuve d'absence réglementaire.
 - Aucun `AUTO_OK`, aucune activation clinique M1.
 - Aucun `SNAPSHOT_VERIFIED` sans vrai PDF AMMPS + URL officielle exacte + bytes + SHA-256 concordant + identité de présentation + revue indépendante.
+- Aucun `UNAVAILABLE_VERIFIED` sans preuve officielle explicite d'absence.
 - Aucun RCP ne peut être qualifié dentaire sur simple voisinage HTML; l'association exacte modal ↔ href ↔ identité est requise.
+- ANSM/EMA ou autre régulateur étranger ne remplace pas la provenance réglementaire AMMPS exigée par le contrat M1.
 
 ## Lots fermés
 - M1-A PR #517 → `d474ad18ba47d55a0d53f1f90e47a451f4dbac5e`.
@@ -85,49 +87,83 @@ Mécanisme réellement observé: href explicite sous `uploads/rcp/...`; aucune U
 ### #13
 Run `35131747120`, commit `67bad3c63d20f76a0988361fb9a828d183e91020`: FAILURE de parsing workflow avant job. Aucune conclusion scientifique.
 
-### #14 — cartographie de voisinage, utile mais insuffisante
+### #14 — cartographie de voisinage, insuffisante
 Commit `bdb2cc8a6be2ec71d0f0c6288dbc9c98b53ea469`.
 Run `35131871843`: SUCCESS.
 Artifact `10461837711`, digest `sha256:8af08efbe149de29081359c4e397e999c8ed183eb9613a65dd25ff8a1227cd1b`.
 - 48/48 hrefs mappés.
-- 2 matches lexicaux remontés: modal9539 avec texte voisin SCANDONEST/mépivacaïne; modal9203 avec texte voisin SOCLAV/amoxicilline-acide clavulanique.
-- Revue adversariale: ces 2 matches ne prouvent PAS l'identité du RCP; le voisinage HTML inclut des entrées adjacentes. Ils sont reclassés comme faux positifs/non prouvés et ne peuvent déclencher aucune promotion.
+- 2 matches lexicaux SCANDONEST/mépivacaïne et SOCLAV/amoxicilline-clavulanate.
+- Revue adversariale: faux positifs/non prouvés de voisinage HTML; aucune promotion autorisée.
 
-### #15 — mapping strict exact-modal
+### #15 — mapping strict exact-modal, fermé
 Commit `cbb223eff8ce6cc4f8765cf03e495e1e69385769`.
-Principe:
-- localiser exactement le `div` du `modalId` cible;
-- borner le bloc à l'entrée du modal suivant;
-- exiger exactement 1 href `uploads/rcp/...pdf` dans ce bloc;
-- exiger que cet href soit celui du census;
-- filtrer les mots-clés dentaires uniquement dans CE bloc;
-- aucune mutation manifest/DB, aucune activation clinique.
+Run `35142068612`: SUCCESS.
+Artifact `10465272557`, digest `sha256:15857f36225b3f04375170db9f26e8fb7fe1548c8399efa523db58e52384ad78`.
 
-Run #15 `35142068612`.
-État au dernier contrôle: `QUEUED`.
+Preuve exacte:
+- `mappedCount=48`;
+- `strictBindingCount=48`;
+- chaque href actif est rattaché à son modal exact;
+- seul match lexical restant = modal9203, titre exact `SMOFKABIVEN E`; le mot `AMOXICIL...` appartient au début de l'entrée SOCLAV suivante et ne prouve aucun RCP SOCLAV;
+- zéro RCP actif parmi les 48 n'est prouvé comme appartenant au scope dentaire Wave 1;
+- aucune mutation manifest/DB; aucune activation clinique.
+
+Décision: fermer la piste « 48 RCP actifs → candidat dentaire » et ne pas poursuivre le scraping de ces 48 entrées.
+
+## Audit des surfaces officielles AMMPS — fermé
+Document: `docs/audits/PRESCRIPTION_PHARMACOLOGY_MOROCCO_RCP_OFFICIAL_SURFACE_AUDIT_2026-09-16.md`.
+Commit docs: `398b29ebd50f376dafe993dafc9f46fa8efb6ed8`.
+
+Constats vérifiés:
+- la surface Recherche médicaments présente les familles cibles mais leurs contrôles RCP observés sont non actifs;
+- la Liste Marocaine des médicaments affiche `Lien RCP / NAF -` pour plusieurs présentations pertinentes et courantes, dont CLAMOXYL 500 mg suspension 60 ml, CLARADOL 500 mg, ZECLAR 25 mg/ml et 500 mg, ainsi que plusieurs amoxicilline/acide clavulanique;
+- le RMMG est utile pour l'identité package/EAN, notamment le métronidazole, mais n'est pas un fallback RCP autorisé;
+- ces preuves démontrent la non-exposition publique du lien dans ces surfaces, PAS l'absence réglementaire du RCP;
+- `UNAVAILABLE_VERIFIED` reste interdit;
+- le contrat M1 exige toujours une provenance AMMPS officielle pour `SNAPSHOT_VERIFIED`.
+
+## Demande AMMPS préparée — human gate
+Draft: `docs/audits/PRESCRIPTION_PHARMACOLOGY_MOROCCO_RCP_AMMPS_REQUEST_DRAFT_2026-09-16.md`.
+Commit docs: `7a701628839b5671ca12fd0fa3afe6823a8aa232`.
+
+Le draft demande pour les 7 familles soit l'URL officielle exacte du RCP courant, soit une copie officielle liée à la présentation, soit la procédure/statut documentaire officiel si le RCP n'est pas publiquement accessible.
+
+Canaux documentés:
+- coordonnées institutionnelles courantes publiées sur le site AMMPS + parcours réclamation/recours;
+- communiqué AMMPS historique du 15/02/2019: Service de l'enregistrement, `enregistrement.dmp@sante.gov.ma` (`u.dm.dmp@sante.gov.ma` indiqué entre parenthèses). Cette adresse historique n'est pas supposée opérationnelle sans confirmation/réponse.
+
+Aucun message n'a été envoyé. L'envoi est le premier vrai human gate externe.
 
 ## État repo
 Master dernière vérification: `5290df7cb1a12989ef3799f92e32fd49d02d5ca1`, signed/verified.
 Branche recherche HEAD: `cbb223eff8ce6cc4f8765cf03e495e1e69385769`.
-Aucune mutation manifest, DB, patient, document ou activation clinique issue de cette phase.
+Branche docs: `docs/pharmacology-m1-handover-20260915`.
+Aucune mutation manifest, DB, patient, document clinique ou activation clinique issue de cette phase.
 
 ## Décision actuelle
 - Le mécanisme AMMPS RCP est techniquement prouvé.
-- Les 7 familles dentaires ciblées restent fail-closed.
-- Les 2 hits de #14 sont invalidés comme preuves d'identité.
-- Seul #15 peut décider si l'un des 48 RCP actifs appartient réellement à une molécule dentaire pertinente.
+- Les 48 RCP publics actifs ne contiennent aucun candidat dentaire Wave 1 prouvé.
+- Les surfaces AMMPS publiques secondaires confirment l'identité/statut de plusieurs présentations mais n'exposent pas de lien RCP pour les cibles vérifiées.
+- Les 7 familles restent fail-closed.
+- La prochaine étape n'est plus du scraping: c'est une demande documentaire officielle AMMPS.
 
 ## Next exact
-1. Lire le résultat + artifact de #15 `35142068612` une fois exécuté.
-2. Si candidat strict réel: capturer son PDF officiel + bytes + SHA-256 + identité de présentation; lancer reviewer indépendant.
-3. Si zéro candidat strict: fermer le mapping des 48 actifs et poursuivre uniquement les voies officielles non déduites pour les 7 familles cibles.
-4. Aucune activation clinique avant revue scientifique/humaine dédiée.
+HUMAN GATE: confirmer l'envoi de la demande AMMPS préparée et l'identité/signature de l'expéditeur.
+
+Après réponse AMMPS:
+1. lier chaque document à la présentation exacte;
+2. vérifier domaine/chaîne de provenance officielle, `%PDF-`, bytes et SHA-256;
+3. stocker uniquement l'artefact autorisé sous `backend/data/rcp/...`;
+4. lancer le reviewer scientifique indépendant;
+5. seulement ensuite préparer une promotion manifest;
+6. tests/gates exact-head puis closeout.
 
 ## Interdits
-- Pas de `SNAPSHOT_VERIFIED` ou `UNAVAILABLE_VERIFIED` à partir d'un bouton désactivé.
+- Pas de `SNAPSHOT_VERIFIED` ou `UNAVAILABLE_VERIFIED` à partir d'un bouton désactivé ou `Lien RCP / NAF -`.
 - Pas d'URL fabriquée à partir de modalId/timestamp/pattern `/uploads/rcp/`.
+- Pas de fallback réglementaire ANSM/EMA/CNOPS/RMMG pour satisfaire M1.
 - Pas d'assimilation CI verte = validation clinique.
-- Pas de sélection sur simple mot-clé voisin.
+- Pas d'activation clinique avant revue scientifique/humaine dédiée.
 
 ## Prompt de reprise
-`Lis ce fichier depuis docs/pharmacology-m1-handover-20260915. Vérifie master, la branche recherche et #35142068612. Census #35127544097: 9908 médicaments, 826/826 pages, 48 RCP actifs. Transport officiel #35131011934: 3 vrais PDF AMMPS vérifiés. #35131871843 a mappé 48/48 mais ses 2 hits SCANDONEST/SOCLAV étaient des faux positifs de voisinage, donc invalidés. #35142068612 au commit cbb223ef... impose une association stricte modal↔href↔identité. Les 7 familles ciblées restent fail-closed jusqu'à preuve PDF officielle + revue indépendante.`
+`Lis ce fichier depuis docs/pharmacology-m1-handover-20260915. Vérifie master et la branche recherche. Census #35127544097: 9908 médicaments, 826/826 pages, 48 RCP actifs. Transport #35131011934: 3 vrais PDF AMMPS vérifiés. Mapping strict #35142068612: SUCCESS, 48/48 bindings exacts, zéro candidat dentaire Wave 1 prouvé. L'audit officiel des surfaces AMMPS est dans PRESCRIPTION_PHARMACOLOGY_MOROCCO_RCP_OFFICIAL_SURFACE_AUDIT_2026-09-16.md. La demande AMMPS est prête dans PRESCRIPTION_PHARMACOLOGY_MOROCCO_RCP_AMMPS_REQUEST_DRAFT_2026-09-16.md mais n'a pas été envoyée. Les 7 familles restent fail-closed. Next = human gate pour envoi AMMPS; aucune promotion avant PDF officiel + SHA + revue indépendante.`
