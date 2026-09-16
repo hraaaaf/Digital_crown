@@ -1,0 +1,240 @@
+"""Immutable local storage for validated insurance/NGAP source PDFs.
+
+The cabinet product is local-first. Official servers are therefore not a runtime
+dependency: once exact bytes are obtained, they are validated first, then persisted
+under their SHA-256 with a deterministic JSON manifest. Reads re-verify both the bytes
+and manifest identity before a renderer can consume them.
+"""
+
+from __future__ import annotations
+
+import hashlib
+import json
+import os
+import re
+from dataclasses import dataclass
+from pathlib import Path
+from typing import Any
+
+from backend.schemas.insurance_submission import InsuranceTemplateTrust
+from backend.services.insurance_template_registry import (
+    InsuranceTemplateDefinition,
+    LockedInsuranceTemplate,
+    lock_template_pdf,
+)
+from backend.services.ngap_reference import NgapRelease, lock_ngap_primary_pdf
+
+_SAFE_COMPONENT = re.compile(r"^[A-Za-z0-9_.-]+$")
+_SHA256 = re.compile(r"^[0-9a-f]{64}$")
+
+
+@dataclass(frozen=True)
+class StoredInsuranceSource:
+    namespace: str
+    version: str
+    sha256: str
+    pdf_path: str
+    manifest_path: str
+
+
+@dataclass(frozen=True)
+class LoadedInsuranceSource:
+    stored: StoredInsuranceSource
+    pdf_bytes: bytes
+    manifest: dict[str, Any]
+
+
+def _safe_component(value: str, field: str) -> str:
+    normalized = str(value or "").strip()
+    if not normalized or not _SAFE_COMPONENT.fullmatch(normalized):
+        raise ValueError(f"Invalid {field} for immutable insurance source store")
+    return normalized
+
+
+def _safe_sha256(value: str) -> str:
+    normalized = str(value or "").strip().lower()
+    if not _SHA256.fullmatch(normalized):
+        raise ValueError("Invalid SHA-256 for immutable insurance source store")
+    return normalized
+
+
+def _store_locked_bytes(
+    *,
+    root: Path,
+    namespace: str,
+    version: str,
+    expected_sha256: str,
+    pdf_bytes: bytes,
+    manifest: dict[str, Any],
+) -> StoredInsuranceSource:
+    namespace = _safe_component(namespace, "namespace")
+    version = _safe_component(version, "version")
+    expected_sha256 = _safe_sha256(expected_sha256)
+    actual_sha256 = hashlib.sha256(pdf_bytes).hexdigest()
+    if actual_sha256 != expected_sha256:
+        raise ValueError("Insurance source SHA-256 mismatch")
+    if not pdf_bytes.startswith(b"%PDF"):
+        raise ValueError("Insurance source store accepts PDF bytes only")
+
+    target_dir = Path(root) / namespace / version / actual_sha256
+    target_dir.mkdir(parents=True, exist_ok=True)
+    pdf_path = target_dir / "source.pdf"
+    manifest_path = target_dir / "manifest.json"
+
+    canonical_manifest = {
+        **manifest,
+        "namespace": namespace,
+        "version": version,
+        "sha256": actual_sha256,
+    }
+    manifest_bytes = (
+        json.dumps(canonical_manifest, ensure_ascii=False, sort_keys=True, indent=2)
+        + "\n"
+    ).encode("utf-8")
+
+    if pdf_path.exists() and pdf_path.read_bytes() != pdf_bytes:
+        raise ValueError("Immutable insurance source PDF collision")
+    if manifest_path.exists() and manifest_path.read_bytes() != manifest_bytes:
+        raise ValueError("Immutable insurance source manifest collision")
+
+    if not pdf_path.exists():
+        tmp_pdf = pdf_path.with_suffix(".pdf.tmp")
+        tmp_pdf.write_bytes(pdf_bytes)
+        os.replace(tmp_pdf, pdf_path)
+    if not manifest_path.exists():
+        tmp_manifest = manifest_path.with_suffix(".json.tmp")
+        tmp_manifest.write_bytes(manifest_bytes)
+        os.replace(tmp_manifest, manifest_path)
+
+    return StoredInsuranceSource(
+        namespace=namespace,
+        version=version,
+        sha256=actual_sha256,
+        pdf_path=str(pdf_path),
+        manifest_path=str(manifest_path),
+    )
+
+
+def load_stored_insurance_source(
+    *,
+    root: Path,
+    namespace: str,
+    version: str,
+    sha256: str,
+) -> LoadedInsuranceSource:
+    """Load one exact immutable source and fail closed on any tampering/mismatch."""
+    namespace = _safe_component(namespace, "namespace")
+    version = _safe_component(version, "version")
+    sha256 = _safe_sha256(sha256)
+    target_dir = Path(root) / namespace / version / sha256
+    pdf_path = target_dir / "source.pdf"
+    manifest_path = target_dir / "manifest.json"
+    if not pdf_path.is_file() or not manifest_path.is_file():
+        raise ValueError("Stored insurance source is incomplete or missing")
+
+    pdf_bytes = pdf_path.read_bytes()
+    if not pdf_bytes.startswith(b"%PDF"):
+        raise ValueError("Stored insurance source is not a PDF")
+    if hashlib.sha256(pdf_bytes).hexdigest() != sha256:
+        raise ValueError("Stored insurance source PDF SHA-256 mismatch")
+
+    try:
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeError, json.JSONDecodeError) as exc:
+        raise ValueError("Stored insurance source manifest is unreadable") from exc
+    if not isinstance(manifest, dict):
+        raise ValueError("Stored insurance source manifest is invalid")
+    expected_identity = {
+        "namespace": namespace,
+        "version": version,
+        "sha256": sha256,
+    }
+    for key, expected in expected_identity.items():
+        if manifest.get(key) != expected:
+            raise ValueError(f"Stored insurance source manifest {key} mismatch")
+
+    stored = StoredInsuranceSource(
+        namespace=namespace,
+        version=version,
+        sha256=sha256,
+        pdf_path=str(pdf_path),
+        manifest_path=str(manifest_path),
+    )
+    return LoadedInsuranceSource(stored=stored, pdf_bytes=pdf_bytes, manifest=manifest)
+
+
+def lock_and_store_ngap_primary(
+    *,
+    root: Path,
+    release: NgapRelease,
+    pdf_bytes: bytes,
+    source_url: str | None = None,
+) -> tuple[NgapRelease, StoredInsuranceSource]:
+    """Validate legal NGAP identity, hash-lock, then store immutable exact bytes."""
+    locked = lock_ngap_primary_pdf(
+        release=release,
+        pdf_bytes=pdf_bytes,
+        source_url=source_url,
+    )
+    if not locked.source_hash:
+        raise ValueError("Locked NGAP release has no SHA-256")
+    stored = _store_locked_bytes(
+        root=root,
+        namespace="ngap",
+        version=locked.version,
+        expected_sha256=locked.source_hash,
+        pdf_bytes=pdf_bytes,
+        manifest={
+            "kind": "NGAP_PRIMARY",
+            "authority": locked.authority,
+            "source_url": locked.source_url,
+            "publication_reference": locked.publication_reference,
+            "status": locked.status.value,
+        },
+    )
+    return locked, stored
+
+
+def lock_and_store_insurance_template(
+    *,
+    root: Path,
+    definition: InsuranceTemplateDefinition,
+    pdf_bytes: bytes,
+    source_url: str,
+    cabinet_validated_by: str | None = None,
+) -> tuple[LockedInsuranceTemplate, StoredInsuranceSource]:
+    """Validate insurer template constraints, then store immutable exact bytes.
+
+    A CABINET_VALIDATED_BINARY cannot be stored without the explicit identity of the
+    practitioner/operator who validated that exact binary. Secondary references remain
+    storable for comparison but cannot satisfy the submission VALIDATED gate.
+    """
+    validator = str(cabinet_validated_by or "").strip() or None
+    if (
+        definition.trust == InsuranceTemplateTrust.CABINET_VALIDATED_BINARY
+        and validator is None
+    ):
+        raise ValueError("Cabinet-validated template requires validator identity")
+
+    locked = lock_template_pdf(
+        definition=definition,
+        pdf_bytes=pdf_bytes,
+        source_url=source_url,
+    )
+    stored = _store_locked_bytes(
+        root=root,
+        namespace=f"template-{definition.organization.value.lower()}",
+        version=definition.version,
+        expected_sha256=locked.sha256,
+        pdf_bytes=pdf_bytes,
+        manifest={
+            "kind": "INSURANCE_TEMPLATE",
+            "organization": definition.organization.value,
+            "label": definition.label,
+            "trust": definition.trust.value,
+            "source_url": locked.source_url,
+            "page_count": locked.page_count,
+            "cabinet_validated_by": validator,
+        },
+    )
+    return locked, stored

@@ -1,0 +1,26 @@
+{
+  "schema_version": 1,
+  "dataset_id": "ngap-dental-177-06-provenance-v1",
+  "status": "LOCKED_BINARY_REFERENCE_ONLY",
+  "locked_binary": {
+    "authority": "Secrétariat Général du Gouvernement - Bulletin officiel",
+    "publication": "Bulletin officiel n° 5414 du 20 avril 2006",
+    "filename": "bo_5414_fr.pdf",
+    "page_count": 220,
+    "byte_size": 11334738,
+    "sha256": "e9db137d6a758bd4ad7a506a94a7c0c84726813de3db1e225c761318a75e1fdb"
+  },
+  "discovery_sources": [
+    {
+      "authority": "Ministère de la Santé",
+      "url": "https://www.sante.gov.ma/Reglementation/Nomenclature/Documents/Arr%C3%AAt%C3%A9%20n%C2%B0%20177-06.pdf",
+      "role": "TEXT_CORROBORATION_NOT_LOCKED_BINARY"
+    },
+    {
+      "authority": "CNOPS",
+      "url": "https://cnops.org.ma/sites/default/files/2022-10/Nomeclature_0.pdf",
+      "role": "TEXT_CORROBORATION_NOT_LOCKED_BINARY"
+    }
+  ],
+  "note": "Les URLs de corroboration servent à recroiser le contenu juridique; leurs octets ne sont jamais supposés identiques au binaire verrouillé sans vérification SHA-256 explicite."
+}
