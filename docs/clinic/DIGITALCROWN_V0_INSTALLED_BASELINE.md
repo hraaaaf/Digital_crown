@@ -1,46 +1,34 @@
 # Digital Crown — V0 installed cabinet baseline
 
-Status: CANDIDATE ONLY — NOT CANONICAL UNTIL LOCAL PC VERIFICATION
+Status: CANONICAL SOFTWARE BASELINE — locally verified installed worktree
 
 ## Goal
 
-Identify and then freeze the exact software version currently installed on the cabinet PC as V0, so the next installable SHA can be treated as a controlled migration without replacing or recreating cabinet data.
+Freeze the exact software version currently installed in the cabinet's principal worktree as **V0**, so the next installable SHA is treated as a controlled migration without replacing or recreating cabinet data.
 
-## Current candidate — UNVERIFIED
+## Canonical V0 identity
 
-The SHA below comes from an earlier local observation and is **not yet accepted as V0**:
+Fresh local proof from the cabinet PC established:
 
-- Historical candidate commit: `76547ed178b98b4d8cf14c0fdc691ff3f787076e`
-- Existing convenience branch: `release/v0-installed-cabinet`
+- Principal worktree branch: `test/local-validation-76547ed`
+- Principal worktree HEAD: `76547ed178b98b4d8cf14c0fdc691ff3f787076e`
+- Canonical V0 SHA: `76547ed178b98b4d8cf14c0fdc691ff3f787076e`
+- GitHub reference: `release/v0-installed-cabinet`
 - GitHub commit verified: yes
 - Commit message: `Merge PR #387: polish P4 mobile density`
 
-The branch name above is historical and MUST NOT be interpreted as proof of the currently installed cabinet version.
+A separate rehearsal worktree was also observed:
 
-## Mandatory local Codex verification before V0 freeze
+- Rehearsal branch: `fix/boot-schema-explicit-migrations`
+- Rehearsal HEAD: `49eff48185029658030245fa1bbbea1e8203217a`
 
-An agent with direct access to the cabinet PC must provide fresh evidence from the machine that is actually running Digital Crown:
-
-1. Exact repository/runtime path used to launch Digital Crown.
-2. `git rev-parse HEAD` from that exact path.
-3. `git status --short`.
-4. Current branch/ref.
-5. `/api/health` version/build identifier.
-6. Active backend/frontend processes with executable and working-directory paths.
-7. Current Alembic revision.
-8. PostgreSQL version plus resolved host/database name, credentials masked.
-9. Current user/media data root.
-10. Whether the running installation is a packaged runtime or the development repository.
-
-Only when those signals agree may the installed SHA be frozen as canonical **V0**.
-
-If the live PC SHA differs from `76547ed178b98b4d8cf14c0fdc691ff3f787076e`, the live PC SHA wins and this historical candidate remains non-canonical.
+The rehearsal worktree is **not** the installed cabinet V0 and must never be used as the source version for a real cabinet update.
 
 ## Data rule
 
 V0 freezes the **software/schema origin**, not the living patient dataset.
 
-The following must remain persistent across updates:
+The following remain persistent across updates:
 
 - PostgreSQL cabinet database
 - patient records
@@ -55,23 +43,24 @@ Application files may be replaced. Cabinet data must not be recreated, reseeded,
 
 ## Mandatory PREUPDATE capture for the first managed update
 
-Before touching the installed cabinet, the update agent MUST collect and persist a PREUPDATE manifest containing at minimum:
+Before touching the installed cabinet, the update agent MUST collect and persist a fresh PREUPDATE manifest containing at minimum:
 
-1. locally verified canonical V0 SHA
-2. working-tree status
-3. `/api/health` version
-4. Python/runtime version and launch mode
-5. environment and resolved DB engine/host/database name, secrets masked
-6. current Alembic revision and target Alembic head from the candidate SHA
-7. PostgreSQL version
-8. current table count plus row/content/PK fingerprints for all historical tables
-9. FK/orphan fingerprint
-10. current document archive count and archive-resolution proof
-11. current media manifest: file count, total bytes, deterministic fingerprint
-12. sufficient free disk space
-13. verified PostgreSQL dump
-14. verified media/document backup or immutable copy
-15. candidate package/SHA identity and integrity proof
+1. `git rev-parse HEAD` from the principal cabinet worktree and proof that it is canonical V0 (`76547ed178b98b4d8cf14c0fdc691ff3f787076e`)
+2. working-tree status; any local modification must be classified/preserved before update
+3. `/api/health` version/build identifier
+4. active backend/frontend processes and their working-directory paths
+5. Python/runtime version and launch mode
+6. environment and resolved DB engine/host/database name, secrets masked
+7. current Alembic revision and target Alembic head from the candidate SHA
+8. PostgreSQL version
+9. current table count plus row/content/PK fingerprints for all historical tables
+10. FK/orphan fingerprint
+11. current document archive count and archive-resolution proof
+12. current media manifest: file count, total bytes, deterministic fingerprint
+13. sufficient free disk space
+14. verified PostgreSQL dump
+15. verified media/document backup or immutable copy
+16. exact candidate package/SHA identity and integrity proof
 
 If any mandatory item cannot be proven, status is **BLOCKED — DO NOT UPDATE**.
 
@@ -111,8 +100,23 @@ Failure at migration, integrity, startup, or smoke-test stage is fail-closed. Do
 
 ## Rollback rule
 
-Rollback must be planned before update. Because schema migrations can be irreversible, rollback means restoring the verified PREUPDATE DB/media snapshot together with the previous application code when necessary; never blindly run destructive Alembic downgrades against the live cabinet.
+Rollback must be planned before update. Because schema migrations can be irreversible, rollback means restoring the verified PREUPDATE DB/media snapshot together with the V0 application code when necessary; never blindly run destructive Alembic downgrades against the live cabinet.
 
-## Current decision
+## First managed update contract
 
-**No V0 is frozen yet.** The next action is local machine verification by Codex (or another agent with direct PC access). Only after receiving that evidence may this document be promoted from `CANDIDATE ONLY` to `CANONICAL SOFTWARE BASELINE`.
+When the next SHA is ready to install, treat it as a **V1 candidate** only after:
+
+- exact SHA locked
+- CI/certification green
+- fresh PREUPDATE snapshot from the cabinet
+- isolated representative rehearsal PASS
+- backup verification PASS
+- explicit install package identity
+
+Then perform the real V0 -> candidate update using the sequence above.
+
+## Canonical decision
+
+**V0 is frozen at `76547ed178b98b4d8cf14c0fdc691ff3f787076e`.**
+
+The branch name of the principal cabinet worktree (`test/local-validation-76547ed`) is incidental; the immutable SHA is the authoritative software baseline.
