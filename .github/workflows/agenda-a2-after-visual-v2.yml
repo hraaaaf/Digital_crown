@@ -1,0 +1,108 @@
+name: Agenda A2 AFTER Visual Certification V2
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/agenda-a2-after-visual-v2.yml"
+      - "frontend/src/features/agenda/**"
+      - "frontend/src/pages/AgendaPage.tsx"
+      - "frontend/src/AgendaClinicA2.test.ts"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify-after:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install
+        working-directory: frontend
+        run: |
+          npm ci
+          npm install --no-save --package-lock=false playwright@1.55.0
+          npx playwright install --with-deps chromium
+      - name: A2 contract
+        working-directory: frontend
+        run: npx vitest run src/AgendaClinicA2.test.ts
+      - name: Materialize deterministic harness
+        working-directory: frontend
+        run: |
+          cat > agenda-a2-v2.html <<'EOF'
+          <div id="root"></div><script type="module" src="/src/agenda-a2-v2.tsx"></script>
+          EOF
+          cat > src/agenda-a2-v2.tsx <<'EOF'
+          import React from 'react';
+          import { createRoot } from 'react-dom/client';
+          import { MemoryRouter } from 'react-router-dom';
+          import './index.css';
+          import { AgendaPage } from './pages/AgendaPage';
+          import { useAuthStore } from './stores/useAuthStore';
+          useAuthStore.setState({user:{id:1,email:'a2@test.local',nom_complet:'Dr Lina Alaoui',role:'ADMIN',is_superadmin:false,permissions:{}} as any,isAuthenticated:true,isLoading:false,error:null});
+          createRoot(document.getElementById('root')!).render(<MemoryRouter initialEntries={['/agenda']}><div className="min-h-screen min-w-0 overflow-x-hidden bg-slate-50 p-3 sm:p-4 lg:p-6"><AgendaPage /></div></MemoryRouter>);
+          EOF
+          cat > agenda-a2-v2.mjs <<'EOF'
+          import { chromium } from 'playwright';
+          import { createServer } from 'vite';
+          import fs from 'node:fs/promises';
+          const out='agenda-a2-after-v2'; await fs.mkdir(out,{recursive:true});
+          const json=(body,status=200)=>({status,contentType:'application/json',body:JSON.stringify(body)});
+          const mk=(id,name,pid,start,duration,motif,status='PRÉVU')=>({id,patient_name:name,patient_id:id+1000,praticien_id:pid,datetime_start:start,duration_minutes:duration,motif,status,scheduling_type:'EXACT_TIME',reminder_sent:false});
+          const lina=[mk(201,'Sara El Amrani',1,'2026-09-16T09:00:00',30,'Consultation'),mk(202,'Adam Tazi',1,'2026-09-16T11:00:00',45,'Endodontie','CONFIRMÉ')];
+          const youssef=[mk(211,'Yasmine Fassi',2,'2026-09-16T09:00:00',60,'Prothèse','CONFIRMÉ'),mk(212,'Omar Bennani',2,'2026-09-16T14:30:00',30,'Consultation')];
+          const salma=[mk(221,'Aya Alaoui',3,'2026-09-16T10:30:00',30,'Contrôle')];
+          const legacy=[mk(299,'Legacy non assigné',null,'2026-09-16T12:00:00',30,'RDV historique')];
+          const multi={plan:'ELITE',dentists:[{dentist_id:1,dentist_name:'Dr Lina Alaoui',appointments:lina},{dentist_id:2,dentist_name:'Dr Youssef Benali',appointments:youssef},{dentist_id:3,dentist_name:'Dr Salma Idrissi',appointments:salma}],legacy_unassigned:legacy,total_appointments:6};
+          const all=[...lina,...youssef,...salma,...legacy];
+          const server=await createServer({server:{host:'127.0.0.1',port:4201,strictPort:true},clearScreen:false}); await server.listen();
+          const browser=await chromium.launch(); const report=[];
+          try {
+            for(const [width,height] of [[390,844],[768,1024],[1280,900]]){
+              const context=await browser.newContext({viewport:{width,height},locale:'fr-FR',timezoneId:'Africa/Casablanca'}); const page=await context.newPage();
+              await page.clock.setFixedTime(new Date('2026-09-16T10:00:00+01:00'));
+              const errors=[]; let createdBody=null;
+              page.on('pageerror',e=>errors.push(`pageerror: ${e.message}`)); page.on('console',m=>{if(m.type()==='error')errors.push(`console: ${m.text()}`)});
+              await page.route('**/api/**',async route=>{const req=route.request(), url=new URL(req.url());
+                if(url.pathname==='/api/appointments/multi-practitioner') return route.fulfill(json(multi));
+                if(url.pathname==='/api/appointments/check-conflicts') return route.fulfill(json({conflicts:[]}));
+                if(url.pathname==='/api/appointments/'&&req.method()==='POST'){try{createdBody=req.postDataJSON()}catch{} return route.fulfill(json({id:777,...(createdBody||{})}));}
+                if(url.pathname==='/api/appointments/'||url.pathname.startsWith('/api/appointments?')) return route.fulfill(json(all));
+                if(url.pathname==='/api/appointments/pending'||url.pathname==='/api/patients/'||url.pathname==='/api/agenda/exceptions'||url.pathname==='/api/upcoming-holidays') return route.fulfill(json([]));
+                if(url.pathname==='/api/agenda/settings') return route.fulfill(json({opening_time_morning:'09:00',closing_time_morning:'13:00',opening_time_afternoon:'14:00',closing_time_afternoon:'18:00',is_continuous:false}));
+                if(url.pathname==='/api/actes/catalog/search') return route.fulfill(json([]));
+                if(req.method()!=='GET') return route.fulfill(json({})); return route.fulfill(json({}));
+              });
+              await page.goto('http://127.0.0.1:4201/agenda-a2-v2.html',{waitUntil:'networkidle'}); await page.getByRole('heading',{name:'Agenda'}).waitFor(); await page.getByRole('button',{name:'Multi',exact:true}).click();
+              await page.getByText('Heure',{exact:true}).waitFor(); await page.getByText('Non assigné · 12:00').waitFor();
+              const sara=await page.getByText('09:00 · Sara El Amrani',{exact:true}).locator('..').boundingBox(); const yasmine=await page.getByText('09:00 · Yasmine Fassi',{exact:true}).locator('..').boundingBox();
+              const scroll=await page.getByTestId('multi-practitioner-scroll').evaluate(el=>({clientWidth:el.clientWidth,scrollWidth:el.scrollWidth})); const layout=await page.evaluate(()=>({clientWidth:document.documentElement.clientWidth,scrollWidth:document.documentElement.scrollWidth})); const delta=sara&&yasmine?Math.abs(sara.y-yasmine.y):null;
+              const row={width,height,sara,yasmine,syncDelta:delta,scroll,layout,errors}; await fs.writeFile(`${out}/${width}x${height}.json`,JSON.stringify(row,null,2)); await page.screenshot({path:`${out}/${width}x${height}.png`,fullPage:true,animations:'disabled'});
+              if(!sara||!yasmine||delta===null||delta>2) throw new Error(`09:00 card mismatch ${width}: ${JSON.stringify({sara,yasmine,delta})}`); if(width===390&&scroll.scrollWidth<=scroll.clientWidth) throw new Error('mobile internal scroll missing'); if(layout.scrollWidth>layout.clientWidth) throw new Error(`page overflow at ${width}`); if(errors.length) throw new Error(errors.join(' | ')); report.push(row);
+              if(width===1280){const conflict=page.waitForRequest(req=>{const u=new URL(req.url());return u.pathname==='/api/appointments/check-conflicts'&&u.searchParams.get('praticien_id')==='2'}); await page.getByRole('button',{name:'Créer un rendez-vous avec Dr Youssef Benali à 15:00'}).click(); await conflict; await page.getByPlaceholder('Rechercher ou saisir un nom...').fill('Patient A2'); await page.getByPlaceholder("Saisir l'acte ou rechercher dans le catalogue...").fill('Consultation A2'); const post=page.waitForRequest(req=>new URL(req.url()).pathname==='/api/appointments/'&&req.method()==='POST'); await page.getByRole('button',{name:'Confirmer le RDV'}).click(); const req=await post, body=req.postDataJSON(); if(Number(body.praticien_id)!==2||Number(createdBody?.praticien_id)!==2) throw new Error(`praticien mismatch ${JSON.stringify(body)}`); await fs.writeFile(`${out}/lane-create-contract.json`,JSON.stringify({praticien_id:body.praticien_id,datetime_start:body.datetime_start,duration_minutes:body.duration_minutes},null,2));}
+              await context.close();
+            }
+            await fs.writeFile(`${out}/report.json`,JSON.stringify(report,null,2));
+          } finally {await browser.close();await server.close();}
+          EOF
+      - name: Verify AFTER at identical viewports
+        working-directory: frontend
+        run: node agenda-a2-v2.mjs
+      - name: Evidence manifest
+        working-directory: frontend
+        run: |
+          test "$(find agenda-a2-after-v2 -name '*.png' | wc -l)" -eq 3
+          test -s agenda-a2-after-v2/lane-create-contract.json
+          printf '%s\n' "phase=AFTER_V2" "head_sha=${{ github.event.pull_request.head.sha || github.sha }}" "before_run=35084989399" "before_digest=sha256:c4fc22b6a489170e06b5a7f6ff09f76cdaa2e68ac40cec82c5bdd55abc7a3755" "fixed_clock=2026-09-16T10:00:00+01:00" "viewports=390x844,768x1024,1280x900" > agenda-a2-after-v2/metadata.txt
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: agenda-a2-after-v2-visual-evidence
+          path: frontend/agenda-a2-after-v2/
+          if-no-files-found: error
+          retention-days: 14
