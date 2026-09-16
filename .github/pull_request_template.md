@@ -13,7 +13,7 @@
 - Si oui, investigation + preuve + rescoring :
 - Plafond(s) appliqué(s), le cas échéant :
 
-> Jamais de moyenne. Une dimension critique faible borne le score global.
+> Jamais de moyenne. Une dimension critique faible borne le score global. `10/10` est exceptionnel et exige l'absence de faiblesse améliorable connue dans le scope, toutes les preuves/gates requis et une vraie revue indépendante.
 
 ## Gates binaires
 
