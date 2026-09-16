@@ -1,7 +1,7 @@
 # Digital Crown — Pharmacologie & produits bucco-dentaires Maroc — Internal continuation
 
 Date: 2026-09-16
-Status: ACTIVE — master inventory created; Morocco validation in progress; no clinical activation
+Status: ACTIVE — master inventory created; medicines clinical enrichment in progress; no clinical activation
 
 ## Goal
 Construire un référentiel marocain complet de ce qu'un chirurgien-dentiste peut prescrire, recommander ou utiliser en prévention/soins bucco-dentaires : médicaments + OTC + parapharmacie + hygiène + prothèse + orthodontie + prévention, sans contact AMMPS et sans affaiblir les règles fail-closed.
@@ -78,6 +78,17 @@ Aucune demande, formulaire, email, appel ou autre contact AMMPS n'est autorisé.
 - `PRESCRIPTION_PHARMACOLOGY_MOROCCO_MASTER_INVENTORY_2026-09-16.csv`: dataset structuré avec statuts Maroc/clinique séparés.
 - `PRESCRIPTION_PHARMACOLOGY_MOROCCO_AVAILABILITY_PASS1_2026-09-16.md`: première passe officielle AMMPS.
 - `PRESCRIPTION_PHARMACOLOGY_MOROCCO_PARA_AVAILABILITY_PASS1_2026-09-16.md`: première passe marché Maroc sur interdentaire, sensibilité, chlorhexidine, prothèses et hydropulseurs.
+- blocs cliniques déjà documentés : antalgiques/anti-infectieux prioritaires, antifongiques/antiviraux/muqueuses, urgences médicales et anesthésiques locaux.
+- `PRESCRIPTION_PHARMACOLOGY_MOROCCO_REMAINING_MEDICINES_PASS_2026-09-16.md`: corticoïdes buccaux, hémostase, xérostomie et sédation avec sources croisées et guardrails.
+- `PRESCRIPTION_PHARMACOLOGY_MOROCCO_REMAINING_MEDICINES_PASS_2026-09-16.csv`: version structurée des familles restantes.
+
+## Résultats nouveaux vérifiés
+- hydrocortisone buccale : usage ulcères inflammatoires documenté; disponibilité Maroc de cette forme non prouvée.
+- acide tranexamique : ne doit pas être transformé en prescription dentaire primaire routinière; mesures locales prioritaires selon SDCEP.
+- pilocarpine : indication xérostomie et contre-indications majeures documentées; statut Maroc encore à vérifier.
+- protoxyde d'azote/oxygène : protocole de sédation/anxiolyse, pas simple prescription; cadre marocain à vérifier.
+- midazolam : présence dans le RMMG AMMPS 2026 prouvée pour solution injectable 5 mg/mL; usage sédation reste spécialisé/protocolisé.
+- diazepam : formes VALIUM observées commercialisées dans la base AMMPS; aucune indication dentaire déduite de cette présence.
 
 ## Travail interne autorisé
 - poursuivre l'inventaire et fermer les omissions ;
@@ -96,4 +107,4 @@ Aucune demande, formulaire, email, appel ou autre contact AMMPS n'est autorisé.
 - aucune activation clinique sans validation correspondante.
 
 ## Next exact
-Continuer la passe de disponibilité Maroc sur les médicaments et familles para encore `TO_VERIFY_MA`, puis enrichir chaque médicament avec indication dentaire, forme/dosage, posologie adulte/enfant/poids/âge, durée, dose maximale, contre-indications, précautions et interactions sur validation croisée >=2 sources sérieuses.
+Fermer la matrice des omissions médicaments (AINS restants, anti-infectieux secondaires, muqueuse/hémostase/sédation) puis démarrer l'enrichissement para complet : dentifrices, bains de bouche, fluor, hypersensibilité, xérostomie, interdentaire, prothèse, orthodontie, implants/parodonte, halitose, blanchiment et pédiatrie, avec usage, âge/population, mode d'emploi, précautions et preuve Maroc séparés.
