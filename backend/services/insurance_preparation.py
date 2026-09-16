@@ -11,28 +11,24 @@ from datetime import date
 from sqlalchemy.orm import Session
 
 from backend import models
-from backend.schemas.insurance_submission import (
-    InsuranceOrganization,
-    InsuranceSubmissionDraft,
+from backend.schemas.insurance_submission import InsuranceOrganization, InsuranceSubmissionDraft
+from backend.services.insurance_administrative import (
+    prefill_cnops_administrative,
+    prefill_cnss_administrative,
 )
-from backend.services.insurance_administrative import prefill_cnss_administrative
 from backend.services.insurance_consistency import load_honoraires_insurance_source
-from backend.services.insurance_submission import (
-    apply_ngap_reference_to_draft,
-    build_draft_from_honoraires_snapshot,
-)
+from backend.services.insurance_submission import apply_ngap_reference_to_draft, build_draft_from_honoraires_snapshot
 from backend.services.insurance_template_registry import (
-    CNOPS_DENTAL_PENDING,
+    CNOPS_DENTAL_CABINET_2026_09_16,
     CNSS_610_1_04,
     FAR_2021_1,
     InsuranceTemplateDefinition,
     LockedInsuranceTemplate,
 )
 
-
 _TEMPLATE_BY_ORGANIZATION = {
     InsuranceOrganization.CNSS: CNSS_610_1_04,
-    InsuranceOrganization.CNOPS: CNOPS_DENTAL_PENDING,
+    InsuranceOrganization.CNOPS: CNOPS_DENTAL_CABINET_2026_09_16,
     InsuranceOrganization.FAR: FAR_2021_1,
 }
 
@@ -54,11 +50,7 @@ def prepare_insurance_draft_from_honoraires(
     on_date: date | None = None,
 ) -> InsuranceSubmissionDraft:
     """Build a traceable, non-final insurance draft from one archived Honoraires note."""
-    source = load_honoraires_insurance_source(
-        db,
-        honoraires_document_id=honoraires_document_id,
-        organization=organization,
-    )
+    source = load_honoraires_insurance_source(db, honoraires_document_id=honoraires_document_id, organization=organization)
     practitioner = db.query(models.User).filter(
         models.User.id == source.practitioner_id,
         models.User.is_active.is_(True),
@@ -78,7 +70,6 @@ def prepare_insurance_draft_from_honoraires(
     else:
         template_hash = None
         template_source_url = None
-        # Trust is evidence attached to exact locked bytes, not to a registry label.
         template_trust = None
 
     draft = build_draft_from_honoraires_snapshot(
@@ -95,18 +86,10 @@ def prepare_insurance_draft_from_honoraires(
     )
 
     if organization == InsuranceOrganization.CNSS:
-        draft = prefill_cnss_administrative(
-            db,
-            draft=draft,
-            patient=source.patient,
-            practitioner=practitioner,
-        )
+        draft = prefill_cnss_administrative(db, draft=draft, patient=source.patient, practitioner=practitioner)
+    elif organization == InsuranceOrganization.CNOPS:
+        draft = prefill_cnops_administrative(db, draft=draft, patient=source.patient, practitioner=practitioner)
 
     if ngap_reference_version:
-        draft = apply_ngap_reference_to_draft(
-            db,
-            draft=draft,
-            reference_version=ngap_reference_version,
-            on_date=on_date,
-        )
+        draft = apply_ngap_reference_to_draft(db, draft=draft, reference_version=ngap_reference_version, on_date=on_date)
     return draft

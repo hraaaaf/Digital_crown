@@ -10,6 +10,7 @@ from backend.services.insurance_source_store import (
     lock_and_store_ngap_primary,
 )
 from backend.services.insurance_template_registry import (
+    CNOPS_DENTAL_CABINET_2026_09_16,
     CNSS_610_1_04,
     InsuranceTemplateDefinition,
     InsuranceTemplateTrust,
@@ -75,6 +76,37 @@ def test_template_source_store_is_hash_addressed_and_idempotent(tmp_path):
     assert loaded.pdf_bytes == payload
     assert loaded.manifest["trust"] == "CABINET_VALIDATED_BINARY"
     assert loaded.manifest["cabinet_validated_by"] == "Dr Test"
+
+
+def test_cnops_template_source_requires_validator_and_preserves_provenance(tmp_path):
+    payload = _pdf_bytes(pages=2, text="CNOPS dental cabinet validated template")
+    with pytest.raises(ValueError, match="validator identity"):
+        lock_and_store_insurance_template(
+            root=tmp_path,
+            definition=CNOPS_DENTAL_CABINET_2026_09_16,
+            pdf_bytes=payload,
+            source_url="cabinet://validated/CNOPS-dental.pdf",
+        )
+
+    locked, stored = lock_and_store_insurance_template(
+        root=tmp_path,
+        definition=CNOPS_DENTAL_CABINET_2026_09_16,
+        pdf_bytes=payload,
+        source_url="cabinet://validated/CNOPS-dental.pdf",
+        cabinet_validated_by="Dr Test",
+    )
+    loaded = load_stored_insurance_source(
+        root=tmp_path,
+        namespace="template-cnops",
+        version=CNOPS_DENTAL_CABINET_2026_09_16.version,
+        sha256=locked.sha256,
+    )
+    assert loaded.pdf_bytes == payload
+    assert loaded.manifest["organization"] == "CNOPS"
+    assert loaded.manifest["trust"] == "CABINET_VALIDATED_BINARY"
+    assert loaded.manifest["cabinet_validated_by"] == "Dr Test"
+    assert loaded.manifest["source_url"] == "cabinet://validated/CNOPS-dental.pdf"
+    assert Path(stored.pdf_path).read_bytes() == payload
 
 
 def test_source_store_read_rejects_pdf_tampering(tmp_path):
