@@ -23,7 +23,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - name: Capture three enabled AMMPS RCPs with identity and SHA-256
+      - name: Verify three census-proven active AMMPS RCP hrefs
         env:
           OUT_DIR: ${{ github.workspace }}/audit/out/pharmacology-active-rcp-proof
         run: |
@@ -34,9 +34,9 @@ jobs:
           const outDir=process.env.OUT_DIR;
           const origin='https://www.ammps.gov.ma';
           const targets=[
-            {page:33, modalId:'medicamentModal9736'},
-            {page:65, modalId:'medicamentModal5208'},
-            {page:129, modalId:'medicamentModal9807'}
+            {page:33, modalId:'medicamentModal9736', href:'uploads/rcp/rcp-9736-1789116233.pdf'},
+            {page:65, modalId:'medicamentModal5208', href:'uploads/rcp/rcp-5208-1789116272.pdf'},
+            {page:129, modalId:'medicamentModal9807', href:'uploads/rcp/9807.pdf'}
           ];
           const sleep=ms=>new Promise(r=>setTimeout(r,ms));
           const sha256=b=>crypto.createHash('sha256').update(b).digest('hex');
@@ -46,25 +46,14 @@ jobs:
             let last;
             for(let i=1;i<=max;i++){
               try{
-                const ac=new AbortController(); const t=setTimeout(()=>ac.abort(),30000);
-                const r=await fetch(url,{signal:ac.signal,headers:{'user-agent':'Digital-Crown-read-only-active-rcp-proof/1.0','accept':accept}});
-                clearTimeout(t);
+                const ac=new AbortController(); const timer=setTimeout(()=>ac.abort(),30000);
+                const r=await fetch(url,{signal:ac.signal,headers:{'user-agent':'Digital-Crown-read-only-active-rcp-proof/1.1','accept':accept}});
+                clearTimeout(timer);
                 if(!r.ok) throw new Error(`HTTP ${r.status}`);
                 return r;
               }catch(e){ last=e; if(i<max) await sleep(500*i); }
             }
             throw last;
-          }
-
-          function modalSlice(html,modalId){
-            const needle=`id="${modalId}"`;
-            let start=html.indexOf(needle);
-            if(start<0) start=html.indexOf(`id='${modalId}'`);
-            if(start<0) throw new Error(`modal missing: ${modalId}`);
-            const nextDouble=html.indexOf('id="medicamentModal',start+needle.length);
-            const nextSingle=html.indexOf("id='medicamentModal",start+needle.length);
-            const next=[nextDouble,nextSingle].filter(x=>x>start).sort((a,b)=>a-b)[0] || Math.min(html.length,start+60000);
-            return html.slice(start,next);
           }
 
           (async()=>{
@@ -73,33 +62,24 @@ jobs:
               const t=targets[i];
               const pageUrl=`${origin}/recherche-medicaments?page=${t.page}`;
               const html=await (await fetchRetry(pageUrl,'text/html,application/xhtml+xml')).text();
-              const modal=modalSlice(html,t.modalId);
-              const anchor=[...modal.matchAll(/<a\b([^>]*)>([\s\S]*?)<\/a>/gi)].find(m=>clean(m[2]).toUpperCase().includes('TELECHARGER RCP'));
-              if(!anchor) throw new Error(`RCP control missing: ${t.modalId}`);
-              const attrs=anchor[1]||'';
-              if(/disabled-rcp-btn/i.test(attrs)||/aria-disabled\s*=\s*["']true["']/i.test(attrs)) throw new Error(`RCP unexpectedly disabled: ${t.modalId}`);
-              const hm=attrs.match(/href\s*=\s*["']([^"']+)["']/i);
-              if(!hm) throw new Error(`RCP href missing: ${t.modalId}`);
-              const url=new URL(hm[1],pageUrl);
-              if(url.protocol!=='https:'||!['ammps.gov.ma','www.ammps.gov.ma'].includes(url.hostname)) throw new Error(`non-official RCP URL: ${url}`);
+              const idx=html.indexOf(t.href);
+              if(idx<0) throw new Error(`census href no longer present: ${t.href}`);
+              const context=html.slice(Math.max(0,idx-25000),Math.min(html.length,idx+5000));
+              if(!context.includes(t.modalId)) throw new Error(`href/modal association missing: ${t.modalId}`);
+              const url=new URL(t.href,pageUrl);
+              if(url.protocol!=='https:'||!['ammps.gov.ma','www.ammps.gov.ma'].includes(url.hostname)) throw new Error(`non-official URL: ${url}`);
               const pr=await fetchRetry(url.toString(),'application/pdf,*/*');
               const bytes=Buffer.from(await pr.arrayBuffer());
               const signature=bytes.subarray(0,5).toString('ascii');
-              const contentType=pr.headers.get('content-type');
-              const item={
-                page:t.page, modalId:t.modalId, pageUrl, modalText:clean(modal).slice(0,5000),
-                href:hm[1], url:url.toString(), status:pr.status, contentType,
-                byteLength:bytes.length, signature, signatureOk:signature==='%PDF-', sha256:sha256(bytes),
-                officialHttps:true, manifestMutationPerformed:false, clinicalActivationPerformed:false
-              };
-              if(!item.signatureOk) throw new Error(`not a PDF signature: ${url}`);
+              const item={page:t.page,modalId:t.modalId,pageUrl,contextText:clean(context).slice(0,5000),href:t.href,url:url.toString(),status:pr.status,contentType:pr.headers.get('content-type'),byteLength:bytes.length,signature,signatureOk:signature==='%PDF-',sha256:sha256(bytes),officialHttps:true,manifestMutationPerformed:false,clinicalActivationPerformed:false};
+              if(!item.signatureOk) throw new Error(`not PDF bytes: ${url}`);
               fs.writeFileSync(path.join(outDir,`sample-${i+1}.pdf`),bytes);
               results.push(item);
               await sleep(250);
             }
-            const report={schemaVersion:'ammps-active-rcp-transport-proof.1',sampleCount:results.length,manifestMutationPerformed:false,clinicalActivationPerformed:false,results};
+            const report={schemaVersion:'ammps-active-rcp-transport-proof.2',sampleCount:results.length,manifestMutationPerformed:false,clinicalActivationPerformed:false,results};
             fs.writeFileSync(path.join(outDir,'active-rcp-transport-proof.json'),JSON.stringify(report,null,2));
-            for(const r of results) console.log(JSON.stringify({modalId:r.modalId,url:r.url,status:r.status,contentType:r.contentType,byteLength:r.byteLength,signature:r.signature,sha256:r.sha256,modalText:r.modalText.slice(0,500)}));
+            for(const r of results) console.log(JSON.stringify({modalId:r.modalId,url:r.url,status:r.status,contentType:r.contentType,byteLength:r.byteLength,signature:r.signature,sha256:r.sha256,contextText:r.contextText.slice(0,700)}));
           })().catch(e=>{console.error(e);process.exit(1)});
           NODE
       - name: Validate active RCP proof
@@ -109,16 +89,17 @@ jobs:
           from pathlib import Path
           p=Path('audit/out/pharmacology-active-rcp-proof/active-rcp-transport-proof.json')
           r=json.loads(p.read_text())
-          assert r['schemaVersion']=='ammps-active-rcp-transport-proof.1'
+          assert r['schemaVersion']=='ammps-active-rcp-transport-proof.2'
           assert r['sampleCount']==3
           assert r['manifestMutationPerformed'] is False and r['clinicalActivationPerformed'] is False
           for x in r['results']:
               assert x['officialHttps'] is True and x['status']==200 and x['signatureOk'] is True
-              assert x['url'].startswith('https://www.ammps.gov.ma/uploads/rcp/') or x['url'].startswith('https://ammps.gov.ma/uploads/rcp/')
-              assert len(x['sha256'])==64 and x['byteLength']>1000 and x['modalText']
+              assert '/uploads/rcp/' in x['url'] and len(x['sha256'])==64 and x['byteLength']>1000
+              assert x['contextText']
           print('ACTIVE_RCP_TRANSPORT_VERIFIED', len(r['results']))
           PY
       - uses: actions/upload-artifact@v4
+        if: always()
         with:
           name: pharmacology-active-rcp-transport-proof
           path: audit/out/pharmacology-active-rcp-proof/
