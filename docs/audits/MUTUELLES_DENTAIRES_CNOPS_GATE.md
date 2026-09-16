@@ -2,8 +2,9 @@
 
 Date: 2026-09-16
 Repo: `hraaaaf/Digital_crown`
-Branche: `feature/mutuelles-cnops-20260916`
-PR: `#534`
+Branche d'implementation historique: `feature/mutuelles-cnops-20260916`
+PR: `#534` — MERGED
+Closeout final: `docs/audits/MUTUELLES_DENTAIRES_CNOPS_CLOSEOUT.md`
 
 ## Goal
 
@@ -43,7 +44,7 @@ Identite immuable:
 
 Cette validation ne transforme pas la provenance en `OFFICIAL_PRIMARY`. Toute autre sequence d'octets doit repasser le gate hash/validation.
 
-## Implementation — ACQUISE SUR LE CODE DU LOT
+## Implementation — ACQUISE
 
 ### Moteur commun
 
@@ -60,7 +61,7 @@ CNOPS reutilise les briques existantes:
 - hash du PDF final;
 - archivage `DocumentArchive`.
 
-Le facade commun supporte maintenant CNSS et CNOPS via les memes endpoints prepare/validate/finalize.
+Le facade commun supporte CNSS et CNOPS via les memes endpoints prepare/validate/finalize.
 
 ### Politique administrative CNOPS
 
@@ -111,41 +112,86 @@ Le flow partage expose `Preparer CNOPS`, la revue praticien, la validation et la
 - toute divergence Honoraires/Acte/NGAP/template apres validation invalide la finalisation;
 - CNSS reste dans le meme moteur et doit rester non-regresse.
 
-## Preuve UI deja acquise
+## Preuve UI
 
-Une certification runtime reelle a ete executee sur le composant React CNOPS sous Chromium, avec donnees deterministes de test:
+Premiere certification runtime reelle sur le composant React CNOPS sous Chromium:
 
 - ancien HEAD certifie: `2acc3b1214219dc57897eb7388cda4065da2fb43`;
 - workflow: `Mutuelles CNOPS Visual Certification`;
-- run `#1` / id `35100939954`: `SUCCESS`;
+- run `#1` / id `35100939954`: SUCCESS;
 - viewports: `390x844`, `768x1024`, `1280x900`;
 - `overflowPx: 0` et aucune erreur runtime sur la preuve inspectee;
-- validation visuelle humaine explicite acquise dans la conversation le 2026-09-16.
+- validation visuelle humaine explicite acquise le 2026-09-16.
 
-Cette preuve valide le design/flow implemente; elle ne remplace pas la recertification du HEAD final apres rebase/closeout.
+Cette preuve a ensuite ete recertifiee sur le HEAD final exact avant merge.
 
-## Rebase non-regressif — PREUVE STRUCTURELLE ACQUISE
+## Rebase non-regressif — PREUVE STRUCTURELLE
 
 Pour eviter de reintroduire un ancien arbre et de supprimer des travaux recents, le lot CNOPS a ete reconstruit depuis le master courant en reappliquant uniquement ses fichiers CNOPS/assurance.
 
-Base verifiee au moment de la reconstruction:
-
+Ancienne reconstruction documentee:
 - `master@63d3902656d0525dccac60cbc15cf2aa21b1ffd9`;
-- tree master `af33ffcf33fb9d561e6e9cb42cf156d9ec4d7586`.
+- tree master `af33ffcf33fb9d561e6e9cb42cf156d9ec4d7586`;
+- implementation `70bcff19086f691df224ba4ca47512743027b6f6`.
 
-Commit d'implementation reconstruit avant closeout documentaire:
+La reconstruction finale a ensuite ete repetee sur le master plus recent et certifiee sur:
+- base finale `35c4ee606e953f2f2a8a9d91ab540bf6c7ef476a`;
+- HEAD final `7d48357c312ca8447f55b5986b0c50454f954ab7`;
+- `ahead_by=1`;
+- `behind_by=0`;
+- exactement 21 fichiers modifies, tous dans le perimetre CNOPS/assurance.
 
-- `70bcff19086f691df224ba4ca47512743027b6f6`;
-- comparaison master -> implementation: `ahead_by=1`, `behind_by=0`;
-- exactement `21` fichiers modifies;
-- tous appartiennent au perimetre CNOPS/assurance;
-- aucun fichier Agenda, Cephalo ou Patient Companion retire/modifie par ce rebase.
+Une branche de sauvegarde conserve l'ancien HEAD certifie:
+`backup/mutuelles-cnops-pre-rebase-20260916`.
 
-Une branche de sauvegarde conserve l'ancien HEAD certifie: `backup/mutuelles-cnops-pre-rebase-20260916`.
+## Certification finale — ACQUISE
 
-## Certification finale
+HEAD final:
+`7d48357c312ca8447f55b5986b0c50454f954ab7`.
 
-Au moment de ce closeout documentaire, les workflows du commit d'implementation `70bcff19...` ont ete declenches. Leur etat intermediaire n'est pas une preuve finale. Le HEAD documentaire final doit etre recertifie avant passage de la PR en ready/merge.
+Workflows exact-HEAD:
+- CI #4655 — SUCCESS;
+- T2 Runtime Browser Certification #3513 — SUCCESS;
+- Patient P7 Final Certification #1773 — SUCCESS;
+- Patient UX1-C Overlay Visual Certification #222 — SUCCESS;
+- Clinic P2 Patient Billing Visual Certification #265 — SUCCESS;
+- Mutuelles CNOPS Visual Certification #14 — SUCCESS;
+- PR Merge Summary #124 — SUCCESS.
+
+Workflow CNOPS #14:
+- `capture` — SUCCESS;
+- `backend-contract` — SUCCESS;
+- artifact `10457336943`;
+- digest `sha256:f92f88100cced08d863d9206ca1faa17a70963e0ce69b87ba97cb697253c2476`.
+
+## Merge et post-merge — ACQUIS
+
+PR #534 mergée après accord utilisateur explicite.
+
+Merge commit:
+`5290df7cb1a12989ef3799f92e32fd49d02d5ca1`.
+
+Master vérifié sur ce SHA après merge.
+
+CI post-merge:
+- CI #4674 / run `35126199252` — SUCCESS;
+- Full backend regression DB/patients/documents — SUCCESS;
+- Frontend tests & build — SUCCESS;
+- Garde production négative — SUCCESS.
+
+Cabinet Upgrade PostgreSQL Certification #925:
+- Windows PowerShell 5.1 release guards — SUCCESS;
+- PostgreSQL 18 + immutable release invariants — SUCCESS.
+
+Aucune mutation production et aucun déploiement Vercel dans ce lot.
+
+## Score final
+
+EXECUTION_SCORE: 9.4/10
+ADVERSARIAL_SCORE: 9.4/10
+Score retenu: 9.4/10.
+
+Plafond appliqué car le même agent a réalisé exécution et revue adversariale.
 
 ## Interdits maintenus
 
@@ -158,11 +204,14 @@ Au moment de ce closeout documentaire, les workflows du commit d'implementation 
 - deploiement Vercel sans autorisation explicite;
 - merge sans accord explicite utilisateur.
 
+## Statut final
+
+`CNOPS_CLOSED_VERIFIED_POST_MERGE`
+
 ## Next exact
 
-1. certifier le HEAD final apres ce closeout documentaire;
-2. verifier CNOPS Visual + CI + non-regressions pertinentes;
-3. verifier PR #534 mergeable et sans divergence master;
-4. passer la PR en ready uniquement si tout est vert;
-5. merger seulement apres accord explicite utilisateur;
-6. verifier post-merge puis ouvrir le lot FAR separement.
+Reprendre FAR via:
+- `docs/audits/MUTUELLES_DENTAIRES_CNOPS_TO_FAR_HANDOVER.md`;
+- `docs/audits/MUTUELLES_DENTAIRES_FAR_START_PROMPT.md`.
+
+Le premier lot FAR est un gate source/template. La page ordonnance signalée par le cabinet doit être traitée séparément des autres pages et vérifiée sur le binaire FAR exact avant tout code.
