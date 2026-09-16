@@ -1,4 +1,5 @@
 from types import SimpleNamespace
+from pathlib import Path
 
 import pytest
 
@@ -30,8 +31,10 @@ def test_certificate_save_path_keeps_patient_name_inside_output_directory(tmp_pa
     path = generator._get_save_path(patient, SimpleNamespace())
 
     assert str(tmp_path) in path
-    assert '..' not in path.split('/')[-1]
-    assert '\\' not in path.split('/')[-1]
+    filename = Path(path).name
+    assert '..' not in filename
+    assert '/' not in filename
+    assert '\\' not in filename
 
 
 @pytest.mark.parametrize(

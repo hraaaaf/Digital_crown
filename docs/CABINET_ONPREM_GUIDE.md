@@ -164,7 +164,7 @@ DigitalCrown AppEnvironmentExtra ...`).
 
 | Variable | Valeur cabinet | Note |
 |---|---|---|
-| `ENVIRONMENT` | `production` | Active les invariants de démarrage fail-fast (SECRET_KEY fort, pas de wildcard CORS). NB : en `production`, `DATABASE_URL` SQLite est refusé par le garde — pour le mode SQLite cabinet, utiliser `ENVIRONMENT=cabinet` n'existe pas encore ; utiliser `development` + vérifs manuelles, OU PostgreSQL local. **Point à trancher avant le pilote.** |
+| `ENVIRONMENT` | `cabinet` (solo) ou `production` (PostgreSQL) | Active les invariants fail-fast (SECRET_KEY fort, pas de wildcard CORS). `cabinet` autorise SQLite/SQLCipher ou PostgreSQL ; `production` exige PostgreSQL. Dans les deux cas, une release certifiée et un upgrade Alembic explicite sont requis avant le boot. |
 | `SECRET_KEY` | généré (64 hex) | `python -c "import secrets;print(secrets.token_hex(32))"` — sert aussi aux JWT (pas de JWT_SECRET séparé dans ce codebase) |
 | `DATABASE_URL` | absent (SQLite) ou `postgresql://...` local | |
 | `CABINET_MASTER_KEY_HEX` | généré (64 hex) | Chiffre DB SQLCipher + backups |
@@ -225,9 +225,10 @@ d'installation, horloge synchronisée (anti-rollback licence).
 2. Arrêter le service : `nssm stop DigitalCrown`
 3. Renommer `C:\DigitalCrown\` → `C:\DigitalCrown_old\` (rollback instantané)
 4. Copier le nouveau build vers `C:\DigitalCrown\`
-5. Migrations : automatiques au démarrage (`create_all()` additif +
-   `migrate_appointment_columns()` idempotent) — aucune commande manuelle.
-   Les migrations sont non-destructives (jamais de DROP).
+5. Exécuter explicitement les migrations versionnées après le backup et le
+   rehearsal sur copie isolée : `alembic upgrade head`. Le service refuse de
+   démarrer sur un schéma cabinet obsolète ; le boot ne fait ni `create_all()`
+   ni migration implicite. Les migrations sont additives et non-destructives.
 6. Redémarrer : `nssm start DigitalCrown`
 7. Vérifier `/api/health` (le champ `version` = hash git du build)
 8. Smoke tests rapides (login + 1 document + 1 patient)

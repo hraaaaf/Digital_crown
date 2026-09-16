@@ -3,6 +3,8 @@
 Extension models that share ``models.Base`` are imported here so they are registered in
 SQLAlchemy metadata before startup/test ``create_all`` runs.
 """
+import os
+
 from . import models as models
 from . import models_identity_p4 as _models_identity_p4  # noqa: F401
 from . import models_clinical_p3 as _models_clinical_p3  # noqa: F401
@@ -11,9 +13,16 @@ from . import models_media_core as _models_media_core  # noqa: F401
 from . import models_appointments_p0 as _models_appointments_p0  # noqa: F401
 from . import models_agenda_a3 as _models_agenda_a3  # noqa: F401
 from . import models_patient_clinical_context as _models_patient_clinical_context  # noqa: F401
+from . import models_patient_companion as _models_patient_companion  # noqa: F401
 from . import models_ngap_reference as _models_ngap_reference  # noqa: F401
 from .models_insurance_linkage import install_insurance_linkage
 from .services.honoraires_archive_conflict_policy import install_honoraires_archive_conflict_policy
 
 install_insurance_linkage()
-install_honoraires_archive_conflict_policy()
+
+# Alembic/rehearsal is schema-only by contract. Installing the Honoraires archive
+# conflict policy imports ArchiveService, which resolves MEDIA_ROOT and therefore
+# crosses into runtime/media initialization. Keep the business policy active for
+# normal application environments, but never during a migration-only rehearsal.
+if "rehearsal" not in os.environ.get("ENVIRONMENT", "").strip().lower():
+    install_honoraires_archive_conflict_policy()

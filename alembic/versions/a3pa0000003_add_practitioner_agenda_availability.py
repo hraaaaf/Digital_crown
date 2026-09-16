@@ -1,7 +1,7 @@
 """add practitioner agenda availability
 
 Revision ID: a3pa0000003
-Revises: c2ie0000002
+Revises: d0b000000003
 Create Date: 2026-09-16
 """
 
@@ -12,7 +12,7 @@ import sqlalchemy as sa
 
 
 revision: str = "a3pa0000003"
-down_revision: Union[str, None] = "c2ie0000002"
+down_revision: Union[str, None] = "d0b000000003"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 

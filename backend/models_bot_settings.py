@@ -97,6 +97,11 @@ class CabinetSettings(Base):
     agenda_mode: Mapped[AgendaMode] = mapped_column(SQLEnum(AgendaMode), default=AgendaMode.EXACT)
     use_tickets: Mapped[bool] = mapped_column(Boolean, default=False)
 
+    # Tenant extensions are versioned by Alembic. Keeping them mapped here lets
+    # isolated test bootstrap and the runtime share the same contract.
+    employer_id: Mapped[Optional[int]] = mapped_column(Integer, nullable=True, index=True)
+    weekly_schedule_json: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+
 class AgendaException(Base):
     __tablename__ = "agenda_exceptions"
     
@@ -107,3 +112,4 @@ class AgendaException(Base):
     is_holiday: Mapped[bool] = mapped_column(Boolean, default=False)
     
     created_at: Mapped[datetime] = mapped_column(DateTime, default=func.now())
+    employer_id: Mapped[Optional[int]] = mapped_column(Integer, nullable=True, index=True)

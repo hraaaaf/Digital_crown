@@ -65,7 +65,8 @@ def test_cabinet_plaintext_migration_failure_restores_db_and_refuses_startup(tmp
     output = result.stdout + result.stderr
 
     assert result.returncode != 0
-    assert "migration de la base locale impossible" in output
+    assert "base SQLite non chiffrée détectée" in output
+    assert "aucune mutation n'est effectuée" in output
     assert db_path.exists()
     assert not Path(str(db_path) + ".unencrypted.tmp").exists()
     with sqlite3.connect(db_path) as conn:

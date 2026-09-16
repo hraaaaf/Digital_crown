@@ -59,10 +59,11 @@ def test_backup_media_dry_run_uses_rehearsal_media_root(monkeypatch, tmp_path, c
     assert "Dry-run" in caplog.text
 
 
-def test_backup_db_rehearsal_refuses_digitalcrown_db(monkeypatch):
+def test_backup_db_rehearsal_refuses_known_cabinet_target(monkeypatch):
     monkeypatch.setenv("ENVIRONMENT", "e2e_install_rehearsal")
 
     import backend.scripts.backup_db as backup_db
+    monkeypatch.setattr(backup_db, "is_known_cabinet_database", lambda _url: True)
 
     with pytest.raises(RuntimeError, match="Unsafe DATABASE_URL for rehearsal"):
         backup_db._validate_rehearsal_database(
@@ -71,6 +72,12 @@ def test_backup_db_rehearsal_refuses_digitalcrown_db(monkeypatch):
 
 
 def test_backup_db_dry_run_logs_masked_target(monkeypatch, caplog):
+    # Import the singleton while the test harness still has ENVIRONMENT=test;
+    # changing only os.environ below must not leave the shared Settings object
+    # in rehearsal mode for a later TestClient fixture.
+    from backend.config import settings
+    import backend.scripts.backup_db as backup_db
+
     monkeypatch.setenv("ENVIRONMENT", "e2e_install_rehearsal")
     caplog.set_level("INFO")
 
@@ -79,10 +86,8 @@ def test_backup_db_dry_run_logs_masked_target(monkeypatch, caplog):
     # backup_db.py as a library from the live server process). `settings` is now
     # imported lazily inside backup_db(), but it's still the same singleton object
     # from backend.config — mutating it there has the same effect.
-    from backend.config import settings
-    import backend.scripts.backup_db as backup_db
-
     original_url = settings.DATABASE_URL
+    original_environment = settings.ENVIRONMENT
     settings.DATABASE_URL = (
         "postgresql://digitalcrown_e2e_user:secret@localhost:5432/"
         "digitalcrown_e2e_install_rehearsal"
@@ -91,6 +96,7 @@ def test_backup_db_dry_run_logs_masked_target(monkeypatch, caplog):
         backup_db.backup_db(dry_run=True)
     finally:
         settings.DATABASE_URL = original_url
+        settings.ENVIRONMENT = original_environment
 
     assert "Target database: postgresql://digitalcrown_e2e_user:***@localhost:5432/digitalcrown_e2e_install_rehearsal" in caplog.text
     assert "Dry-run PostgreSQL target: db=digitalcrown_e2e_install_rehearsal host=localhost port=5432 user=digitalcrown_e2e_user" in caplog.text
@@ -99,7 +105,8 @@ def test_backup_db_dry_run_logs_masked_target(monkeypatch, caplog):
 def test_run_rehearsal_backend_script_contains_safety_guards():
     script = Path("backend/scripts/run_rehearsal_backend.ps1").read_text(encoding="utf-8")
 
-    assert "digitalcrown_db" in script
+    assert "DIGITALCROWN_ISOLATION_DB_FINGERPRINT" in script
+    assert "rehearsal env must explicitly define DATABASE_URL" in script
     assert "MEDIA_ROOT missing" in script
     assert "unsafe folder for rehearsal" in script
     assert "PORT=8005 forbidden for rehearsal" in script

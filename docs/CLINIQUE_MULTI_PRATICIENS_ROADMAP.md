@@ -79,13 +79,13 @@ Un premier rehearsal Codex en lecture seule sur la vraie installation cabinet a 
 
 Un troisième risque a été corrigé : seed superadmin automatique au démarrage cabinet.
 
-### Correctifs certifiés
+### Correctifs candidats à certifier
 
-- self-migration ciblée et idempotente de `appointments.praticien_id` + index ;
+- migration Alembic explicite et idempotente de `appointments.praticien_id` + index ;
 - FK praticien vers `users(id)` en `ON DELETE SET NULL` ;
 - alignement additif de l'enum PostgreSQL avec `A_ENCAISSER` ;
 - `seed_admin_user()` interdit automatiquement en `cabinet` et `production` avant ouverture DB/génération de secret ;
-- pas d'exécution forcée de toute la chaîne Alembic historique ;
+- vérification read-only de l'head Alembic au boot cabinet, sans auto-migration ;
 - aucun backfill Patient/Document ;
 - chemins DB/media inchangés.
 
@@ -134,7 +134,7 @@ Multi-site : hors périmètre tant qu'un besoin produit réel et prioritaire n'e
 - `docs/clinic/P1_MULTI_PRACTITIONER_UI.md` — spécification P1.
 - `docs/clinic/P2_PATIENT_PRACTITIONER_BILLING.md` — spécification et preuves P2.
 - `docs/clinic/CABINET_UPGRADE_COMPATIBILITY_GATE.md` — gate cabinet réel et procédure de certification.
-- Chaîne Alembic : P0 `d3a55e700003`; P2 ajoute `e4a55e700004` de façon additive ; le runtime cabinet conserve des self-migrations ciblées pour compatibilité historique.
+- Chaîne Alembic : base `f7a8b9c0d1e2` puis `d0b000000001` (Companion) et `d0b000000002` (compatibilité runtime additive) ; le runtime cabinet n'exécute aucune migration implicite.
 
 ## Next exact
 

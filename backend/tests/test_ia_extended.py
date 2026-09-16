@@ -179,14 +179,15 @@ class TestPanoramicPdf:
         r = client.get("/api/ia/panoramic/999999/pdf", headers=auth_headers)
         assert r.status_code in (404, 500)
 
-    def test_pdf_existing_analysis_returns_url_or_500(self, client, db, auth_headers, dentiste):
-        """Generator may fail in test env (no WeasyPrint) but should not 401/403."""
+    def test_pdf_existing_analysis_streams_pdf_or_500(self, client, db, auth_headers, dentiste):
+        """The current contract is a patient-authorized PDF/FileResponse."""
         pat = _make_patient(db, dentiste, "PANOPDF")
         analysis = _make_panoramic(db, pat.id)
         r = client.get(f"/api/ia/panoramic/{analysis.id}/pdf", headers=auth_headers)
         assert r.status_code in (200, 500)
         if r.status_code == 200:
-            assert "pdf_url" in r.json()
+            assert r.headers["content-type"].startswith("application/pdf")
+            assert r.content.startswith(b"%PDF")
 
 
 class TestUploadRadioGuards:

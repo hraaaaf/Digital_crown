@@ -48,22 +48,27 @@ _WEEKDAYS = (
 
 
 def _ensure_tenant_columns(db: Session) -> None:
-    """Add tenant and additive Agenda columns idempotently for legacy installations."""
-    bind = db.get_bind()
-    inspector = inspect(bind)
-    for table_name in ("cabinet_settings", "agenda_exceptions"):
-        columns = {col["name"] for col in inspector.get_columns(table_name)}
-        if "employer_id" not in columns:
-            db.execute(text(f"ALTER TABLE {table_name} ADD COLUMN employer_id INTEGER"))
-            db.commit()
-        if table_name == "cabinet_settings" and "weekly_schedule_json" not in columns:
-            db.execute(text("ALTER TABLE cabinet_settings ADD COLUMN weekly_schedule_json TEXT"))
-            db.commit()
-        db.execute(text(
-            f"CREATE INDEX IF NOT EXISTS ix_{table_name}_employer_id "
-            f"ON {table_name} (employer_id)"
-        ))
-        db.commit()
+    """Verify the versioned Agenda schema without mutating the live database."""
+    inspector = inspect(db.connection())
+    required = {
+        "cabinet_settings": {"employer_id", "weekly_schedule_json"},
+        "agenda_exceptions": {"employer_id"},
+        "practitioner_agenda_settings": {"employer_id", "practitioner_id", "weekly_schedule_json"},
+        "practitioner_agenda_exceptions": {"employer_id", "practitioner_id", "start_date", "end_date"},
+    }
+    missing = []
+    for table_name, columns in required.items():
+        if not inspector.has_table(table_name):
+            missing.append(table_name)
+            continue
+        absent = sorted(columns - {col["name"] for col in inspector.get_columns(table_name)})
+        if absent:
+            missing.append(f"{table_name} ({', '.join(absent)})")
+    if missing:
+        raise RuntimeError(
+            "Agenda schema non migré; exécutez explicitement Alembic avant l'API: "
+            + ", ".join(missing)
+        )
 
 
 def _claim_legacy_rows_if_unambiguous(db: Session, employer_id: int) -> None:
@@ -321,7 +326,7 @@ def list_practitioner_agenda_summaries(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(require_permission("agenda")),
 ):
-    employer_id = current_user.get_employer_id()
+    employer_id = _prepare_tenant(db, current_user)
     owner = db.query(models.User).filter(models.User.id == employer_id).first()
     practitioners = db.query(models.User).filter(
         models.User.employer_id == employer_id,
@@ -355,7 +360,7 @@ def get_practitioner_agenda_settings(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(require_permission("agenda")),
 ):
-    employer_id = current_user.get_employer_id()
+    employer_id = _prepare_tenant(db, current_user)
     practitioner = _get_practitioner(db, employer_id, practitioner_id)
     row = db.query(PractitionerAgendaSettings).filter(
         PractitionerAgendaSettings.employer_id == employer_id,
@@ -371,7 +376,7 @@ def update_practitioner_agenda_settings(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(require_permission("settings")),
 ):
-    employer_id = current_user.get_employer_id()
+    employer_id = _prepare_tenant(db, current_user)
     practitioner = _get_practitioner(db, employer_id, practitioner_id)
     row = db.query(PractitionerAgendaSettings).filter(
         PractitionerAgendaSettings.employer_id == employer_id,
@@ -404,7 +409,7 @@ def reset_practitioner_agenda_settings(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(require_permission("settings")),
 ):
-    employer_id = current_user.get_employer_id()
+    employer_id = _prepare_tenant(db, current_user)
     _get_practitioner(db, employer_id, practitioner_id)
     db.query(PractitionerAgendaSettings).filter(
         PractitionerAgendaSettings.employer_id == employer_id,
@@ -423,7 +428,7 @@ def list_practitioner_exceptions(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(require_permission("agenda")),
 ):
-    employer_id = current_user.get_employer_id()
+    employer_id = _prepare_tenant(db, current_user)
     _get_practitioner(db, employer_id, practitioner_id)
     return db.query(PractitionerAgendaException).filter(
         PractitionerAgendaException.employer_id == employer_id,
@@ -441,7 +446,7 @@ def create_practitioner_exception(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(require_permission("settings")),
 ):
-    employer_id = current_user.get_employer_id()
+    employer_id = _prepare_tenant(db, current_user)
     _get_practitioner(db, employer_id, practitioner_id)
     row = PractitionerAgendaException(
         employer_id=employer_id,
@@ -465,7 +470,7 @@ def delete_practitioner_exception(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(require_permission("settings")),
 ):
-    employer_id = current_user.get_employer_id()
+    employer_id = _prepare_tenant(db, current_user)
     _get_practitioner(db, employer_id, practitioner_id)
     deleted = db.query(PractitionerAgendaException).filter(
         PractitionerAgendaException.id == exc_id,

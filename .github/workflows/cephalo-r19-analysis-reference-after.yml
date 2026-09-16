@@ -6,9 +6,16 @@ on:
     branches: [master]
     paths:
       - 'frontend/src/features/ortho/CephaloTracingLayer.tsx'
+      - 'frontend/src/features/ortho/CephaloTracingLayerBase.tsx'
       - 'frontend/src/features/ortho/cephaloAnalysisBridge.ts'
+      - 'frontend/src/features/ortho/cephaloVisualSemantics.ts'
+      - 'frontend/src/features/ortho/cephaloVisualSemantics.test.ts'
+      - 'frontend/src/features/ortho/cephaloVisualSemantics.audit.test.ts'
       - 'frontend/src/features/ortho/components/CephaloAnalysisWorkbenchPanel.tsx'
       - 'frontend/src/features/ortho/components/CephaloAnalysisWorkbenchPanel.test.tsx'
+      - 'frontend/src/features/ortho/components/CephaloCalibrationOverlay.tsx'
+      - 'frontend/src/features/ortho/components/CephaloLandmarkReticles.tsx'
+      - 'frontend/src/features/ortho/components/CephaloSvgDefs.tsx'
       - 'frontend/src/features/ortho/components/Step1Cephalo.tsx'
       - 'frontend/src/features/ortho/components/Step1CephaloBase.tsx'
       - 'frontend/scripts/capture-cephalo-r19-analysis-reference-after.mjs'
@@ -42,7 +49,7 @@ jobs:
           npx playwright install --with-deps chromium
       - name: Run focused R19 contract test
         working-directory: frontend
-        run: npx vitest run src/features/ortho/components/CephaloAnalysisWorkbenchPanel.test.tsx
+        run: npx vitest run src/features/ortho/components/CephaloAnalysisWorkbenchPanel.test.tsx src/features/ortho/cephaloVisualSemantics.test.ts src/features/ortho/cephaloVisualSemantics.audit.test.ts
       - name: Capture exact-head R19 analysis AFTER
         working-directory: frontend
         env:
@@ -56,7 +63,7 @@ jobs:
           node --input-type=module <<'NODE'
           import { readFile } from 'node:fs/promises';
           const r=JSON.parse(await readFile('cephalo-r19-analysis-reference-after-artifacts/report.json','utf8'));
-          if(r.productHead!==process.env.PRODUCT_HEAD||r.phase!=='AFTER'||r.invalidCount!==0||r.blockedExternalRequests.length) throw new Error('Invalid R19 AFTER evidence');
+          if(r.productHead!==process.env.PRODUCT_HEAD||r.phase!=='AFTER'||r.theme!=='default'||r.invalidCount!==0||r.blockedExternalRequests.length) throw new Error('Invalid R19 AFTER evidence');
           if(r.captures.length!==3) throw new Error('Expected three viewports');
           for(const c of r.captures){
             if(!c.valid) throw new Error(`Invalid ${c.viewport}`);
@@ -72,7 +79,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: cephalo-r19-analysis-reference-after-${{ github.sha }}
+          name: cephalo-r19-analysis-reference-after-default-${{ github.sha }}
           path: frontend/cephalo-r19-analysis-reference-after-artifacts
           if-no-files-found: error
           retention-days: 30
