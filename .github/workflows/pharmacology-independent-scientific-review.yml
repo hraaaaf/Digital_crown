@@ -25,7 +25,7 @@ jobs:
   independent-review:
     name: Independent scientific review — PR 525
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 30
     steps:
       - name: Checkout exact target HEAD
         uses: actions/checkout@v4
@@ -57,6 +57,133 @@ jobs:
         with:
           node-version: '20'
 
+      - name: Setup Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install reviewer test dependencies
+        run: python -m pip install --disable-pip-version-check pytest SQLAlchemy==2.0.28
+
+      - name: Isolate documentary imports from application bootstrap
+        run: |
+          mkdir -p "$RUNNER_TEMP/pharmacology-isolation"
+          cat > "$RUNNER_TEMP/pharmacology-isolation/sitecustomize.py" <<'PY'
+          import os
+          import sys
+          import types
+          from pathlib import Path
+
+          workspace = Path(os.environ["GITHUB_WORKSPACE"]).resolve()
+          package = types.ModuleType("backend")
+          package.__path__ = [str(workspace / "backend")]
+          package.__package__ = "backend"
+          sys.modules["backend"] = package
+          PY
+
+      - name: Run exact-head documentary tests and deterministic oracle
+        env:
+          PYTHONPATH: ${{ runner.temp }}/pharmacology-isolation:${{ github.workspace }}
+        run: |
+          set -euo pipefail
+          mkdir -p audit/out/pharmacology-independent-review
+          {
+            echo '## Targeted pharmacology documentary tests'
+            python -m pytest --noconftest \
+              backend/tests/test_prescription_pharmacology_morocco_m0_matrix.py \
+              backend/tests/test_medication_rcp_manifest_m1b.py \
+              -q
+            echo
+            echo '## Deterministic pharmacology safety oracle'
+            python scripts/pharmacology_scientific_gate.py --output-dir audit/out/pharmacology-scientific-gate
+          } 2>&1 | tee audit/out/pharmacology-independent-review/technical-evidence.txt
+
+      - name: Capture live AMMPS evidence with browser
+        env:
+          EVIDENCE_DIR: ${{ github.workspace }}/audit/out/pharmacology-independent-review
+        run: |
+          set -euo pipefail
+          BROWSER_DIR="$RUNNER_TEMP/pharmacology-review-browser"
+          mkdir -p "$BROWSER_DIR" "$EVIDENCE_DIR"
+          cd "$BROWSER_DIR"
+          npm init -y >/dev/null 2>&1
+          npm install --silent playwright
+          npx playwright install --with-deps chromium
+          node - <<'NODE'
+          const { chromium } = require('playwright');
+          const fs = require('fs');
+          const path = require('path');
+
+          const outDir = process.env.EVIDENCE_DIR;
+          const targets = [
+            ['https://www.ammps.gov.ma/recherche-medicaments?page=42', 'ammps-recherche-medicaments-page-42-live.txt'],
+            ['https://www.ammps.gov.ma/basesdedonnes/liste_marocaine_des_medicaments?page=96', 'ammps-liste-marocaine-page-96-live.txt'],
+          ];
+
+          (async () => {
+            const browser = await chromium.launch({ headless: true });
+            try {
+              for (const [url, filename] of targets) {
+                const page = await browser.newPage();
+                await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 60000 });
+                await page.waitForTimeout(5000);
+                const text = await page.locator('body').innerText();
+                if (!text || text.length < 500) {
+                  throw new Error(`AMMPS rendered evidence too short for ${url}`);
+                }
+                const payload = [
+                  `URL: ${url}`,
+                  `retrieved_at_utc: ${new Date().toISOString()}`,
+                  '',
+                  text,
+                ].join('\n');
+                fs.writeFileSync(path.join(outDir, filename), payload, 'utf8');
+                await page.close();
+              }
+            } finally {
+              await browser.close();
+            }
+          })().catch((err) => {
+            console.error(err);
+            process.exit(1);
+          });
+          NODE
+
+      - name: Verify live AMMPS evidence contains the exact reviewed presentations
+        env:
+          EVIDENCE_DIR: ${{ github.workspace }}/audit/out/pharmacology-independent-review
+        run: |
+          python - <<'PY'
+          import re
+          from pathlib import Path
+
+          root = Path(__import__('os').environ['EVIDENCE_DIR'])
+          page42 = re.sub(r'\s+', ' ', (root / 'ammps-recherche-medicaments-page-42-live.txt').read_text(encoding='utf-8')).strip()
+          page96 = re.sub(r'\s+', ' ', (root / 'ammps-liste-marocaine-page-96-live.txt').read_text(encoding='utf-8')).strip()
+
+          required_42 = [
+              'AMOXICILLINE LLORENTE 500 MG | GELULE Substance active AMOXICILLINE EPI AFRIC PHAR Dosage 500 MG Forme GELULE Présentation BOITE DE 12',
+              'AMOXICILLINE LLORENTE 500 MG | GELULE Substance active AMOXICILLINE EPI AFRIC PHAR Dosage 500 MG Forme GELULE Présentation BOITE DE 24',
+              'AMOXICILLINE SP 1 G | COMPRIME DISPERSIBLE Substance active AMOXICILLINE EPI AMANYS PHARMA Dosage 1 G Forme COMPRIME DISPERSIBLE Présentation BOITE DE 12',
+              'AMOXICILLINE SP 1 G | COMPRIME DISPERSIBLE Substance active AMOXICILLINE EPI AMANYS PHARMA Dosage 1 G Forme COMPRIME DISPERSIBLE Présentation BOITE DE 24',
+              'AMOXICILLINE SP 250 MG / 5 ML | POUDRE POUR SUSPENSION BUVABLE Substance active AMOXICILLINE EPI AMANYS PHARMA Dosage 250 MG / 5 ML Forme POUDRE POUR SUSPENSION BUVABLE Présentation FLACON DE 60 ML',
+              'AMOXICILLINE SP 500 MG / 5 ML | POUDRE POUR SUSPENSION BUVABLE Substance active AMOXICILLINE EPI AMANYS PHARMA Dosage 500 MG / 5 ML Forme POUDRE POUR SUSPENSION BUVABLE Présentation FLACON DE 60 ML',
+          ]
+          required_96 = [
+              'CLAMOXYL 500 MG | POUDRE POUR SUSPENSION BUVABLE Statut AMM AMM ENREGISTREE Statut commercialisation Commercialisé Présentation FLACON DE 60 ML',
+              'CLAMOXYL 500 MG | POUDRE POUR SUSPENSION BUVABLE Statut AMM AMM RETIREE Statut commercialisation Retiré du Marché Présentation FLACON DE 100 ML',
+          ]
+
+          missing = [item for item in required_42 if item not in page42]
+          missing += [item for item in required_96 if item not in page96]
+          if missing:
+              raise SystemExit('Live AMMPS evidence missing expected presentation(s): ' + repr(missing))
+          if page42.count('Télécharger RCP') < 6:
+              raise SystemExit('Live AMMPS page 42 did not expose at least six RCP download controls')
+          if page96.count('Lien RCP / NAF -') < 2:
+              raise SystemExit('Live AMMPS page 96 did not expose the expected no-link markers')
+          PY
+
       - name: Install GitHub Copilot CLI
         run: npm install -g @github/copilot
 
@@ -83,9 +210,19 @@ jobs:
           - backend/tests/test_medication_rcp_manifest_m1b.py
           - docs/audits/PRESCRIPTION_PHARMACOLOGY_MOROCCO_RCP_M1.md
           - backend/data/medications_ma_ammps_rcp_manifest_2026.json
+          - backend/data/medications_ma_ammps_current_2026.json
           - docs/audits/PRESCRIPTION_PHARMACOLOGY_MOROCCO_COVERAGE.md
           - docs/audits/PRESCRIPTION_PHARMACOLOGY_SCIENTIFIC_GATE.md
+          - audit/out/pharmacology-independent-review/technical-evidence.txt
+          - audit/out/pharmacology-independent-review/ammps-recherche-medicaments-page-42-live.txt
+          - audit/out/pharmacology-independent-review/ammps-liste-marocaine-page-96-live.txt
           - git history/diff needed to prove the three-file scope
+
+          RUNTIME EVIDENCE
+          - The technical-evidence file was generated on this runner immediately before your review from the exact target checkout.
+          - The two AMMPS evidence files were rendered immediately before your review with headless Chromium from the exact official URLs shown inside each file.
+          - The workflow already failed closed unless all six AMOXICILLINE LLORENTE/SP presentations and both CLAMOXYL presentations were present in the rendered official source text.
+          - Independently inspect those files and directly re-open official AMMPS URLs with curl when useful. Do not treat repository assertions alone as regulatory proof.
 
           CLAIMS TO CHALLENGE INDEPENDENTLY
           - The helper is transport-only and performs no download, persistence or clinical extraction.
@@ -93,6 +230,7 @@ jobs:
           - PENDING_DOWNLOAD and UNAVAILABLE_VERIFIED remain fail-closed.
           - No dose, duration, indication, molecule selection, AUTO_OK, DB, patient, document, UI or clinical activation behavior is changed by this PR.
           - The manifest still has exactly 8 current amoxicillin entries and none is falsely promoted to SNAPSHOT_VERIFIED or UNAVAILABLE_VERIFIED.
+          - The synthetic regulatory_presentation_id values are repository-derived SHA-256 package identifiers, not AMMPS-issued identifiers; verify their deterministic mapping from the official presentation fields in medication_dict.py.
           - Negative web search is not treated as evidence of regulatory absence.
           - Current AMMPS provenance claims used by the PR are actually checkable; if official evidence is unavailable, classify the uncertainty rather than inventing a conclusion.
 
@@ -129,6 +267,7 @@ jobs:
       - name: Run independent reviewer with GitHub Copilot auto model
         env:
           GITHUB_TOKEN: ${{ github.token }}
+          PYTHONPATH: ${{ runner.temp }}/pharmacology-isolation:${{ github.workspace }}
         run: |
           set -euo pipefail
           mkdir -p audit/out/pharmacology-independent-review
@@ -219,6 +358,8 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: pharmacology-independent-review-7379ddeab663b833b6be43f455c434be28cafe75
-          path: audit/out/pharmacology-independent-review/
+          path: |
+            audit/out/pharmacology-independent-review/
+            audit/out/pharmacology-scientific-gate/
           if-no-files-found: warn
           retention-days: 30
