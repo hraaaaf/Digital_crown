@@ -25,6 +25,17 @@ def test_ngap_dental_reference_is_locked_and_reference_only():
     assert len(payload["acts"]) == EXPECTED_ENTRY_COUNT == 145
 
 
+def test_mapping_loader_never_equates_discovery_url_with_locked_binary():
+    payload = load_ngap_dental_reference()
+    reference = payload["reference"]
+    assert "primary_url" not in reference
+    assert reference["locked_binary_url"] is None
+    assert reference["discovery_url"].startswith("https://www.sante.gov.ma/")
+    assert "rules" not in payload
+    assert payload["conditions_dataset_id"] == "ngap-dental-177-06-conditions-v1"
+    assert payload["provenance_dataset_id"] == "ngap-dental-177-06-provenance-v1"
+
+
 def test_ngap_dental_reference_has_exact_expected_coverage():
     payload = load_ngap_dental_reference()
     codes = [row[0] for row in payload["acts"]]

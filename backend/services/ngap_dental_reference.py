@@ -183,9 +183,23 @@ def _load_json_object(path: Path | str, *, context: str) -> dict[str, Any]:
 
 def load_ngap_dental_reference(path: Path | str | None = None) -> dict[str, Any]:
     reference_path = Path(path) if path is not None else DEFAULT_REFERENCE_PATH
-    return validate_ngap_dental_reference(
+    payload = validate_ngap_dental_reference(
         _load_json_object(reference_path, context="NGAP dental reference")
     )
+
+    # v1 stored a Ministry standalone-PDF URL beside the SHA of the locked full BO.
+    # Never expose that discovery locator as the binary that produced the locked hash.
+    reference = payload["reference"]
+    discovery_url = reference.pop("primary_url", None)
+    if discovery_url:
+        reference["discovery_url"] = discovery_url
+    reference["locked_binary_url"] = None
+
+    # Conditions have their own source-bound dataset. Avoid two competing rule surfaces.
+    payload.pop("rules", None)
+    payload["conditions_dataset_id"] = CONDITIONS_DATASET_ID
+    payload["provenance_dataset_id"] = PROVENANCE_DATASET_ID
+    return payload
 
 
 def load_ngap_dental_conditions(path: Path | str | None = None) -> dict[str, Any]:
