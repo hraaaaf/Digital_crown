@@ -6,9 +6,16 @@ on:
     branches: [master]
     paths:
       - 'frontend/src/features/ortho/CephaloTracingLayer.tsx'
+      - 'frontend/src/features/ortho/CephaloTracingLayerBase.tsx'
       - 'frontend/src/features/ortho/cephaloAnalysisBridge.ts'
+      - 'frontend/src/features/ortho/cephaloVisualSemantics.ts'
+      - 'frontend/src/features/ortho/cephaloVisualSemantics.test.ts'
+      - 'frontend/src/features/ortho/cephaloVisualSemantics.audit.test.ts'
       - 'frontend/src/features/ortho/components/CephaloAnalysisWorkbenchPanel.tsx'
       - 'frontend/src/features/ortho/components/CephaloAnalysisWorkbenchPanel.test.tsx'
+      - 'frontend/src/features/ortho/components/CephaloCalibrationOverlay.tsx'
+      - 'frontend/src/features/ortho/components/CephaloLandmarkReticles.tsx'
+      - 'frontend/src/features/ortho/components/CephaloSvgDefs.tsx'
       - 'frontend/src/features/ortho/components/Step1Cephalo.tsx'
       - 'frontend/src/features/ortho/components/Step1CephaloBase.tsx'
       - 'frontend/scripts/capture-cephalo-r19-analysis-reference-after.mjs'
@@ -42,7 +49,7 @@ jobs:
           npx playwright install --with-deps chromium
       - name: Run focused R19 contract test
         working-directory: frontend
-        run: npx vitest run src/features/ortho/components/CephaloAnalysisWorkbenchPanel.test.tsx
+        run: npx vitest run src/features/ortho/components/CephaloAnalysisWorkbenchPanel.test.tsx src/features/ortho/cephaloVisualSemantics.test.ts src/features/ortho/cephaloVisualSemantics.audit.test.ts
       - name: Capture exact-head R19 analysis AFTER
         working-directory: frontend
         env:
