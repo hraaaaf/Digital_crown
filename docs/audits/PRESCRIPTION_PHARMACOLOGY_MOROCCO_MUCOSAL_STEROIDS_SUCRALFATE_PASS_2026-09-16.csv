@@ -1,0 +1,6 @@
+id,item,clinical_status,morocco_status,form_status,regimen_status,key_guardrail,clinical_activation
+MED-MUC-001,triamcinolone acetonide oral paste,CLINICAL_FAMILY_SUPPORTED,TO_VERIFY_MA,ORAL_PASTE_MA_UNPROVEN,PRODUCT_SPECIFIC,"Confirm diagnosis; exclude trauma/infection/suspicious lesion; no foreign product regimen auto-import",NO
+MED-MUC-002,hydrocortisone buccal,CLINICAL_FAMILY_SUPPORTED,TO_VERIFY_MA,BUCCAL_FORM_MA_UNPROVEN,PRODUCT_SPECIFIC,"Do not use symptomatically for denture trauma/injury/infection without treating cause; foreign 2.5 mg buccal regimen is not Morocco-validated",NO
+MED-MUC-003,dexamethasone oral rinse/topical,SPECIALIST_OR_EXCEPTION,TO_VERIFY_MA,TOPICAL_OR_RINSE_MA_UNPROVEN,NO_GENERIC_RINSE_REGIMEN,"Systemic oral solution is not interchangeable with swish-and-spit/topical preparation; indication-specific evidence only",NO
+MED-MUC-004,prednisolone oral rinse/topical,SPECIALIST_OR_EXCEPTION,TO_VERIFY_MA,TOPICAL_OR_RINSE_MA_UNPROVEN,NO_GENERIC_RINSE_REGIMEN,"Insufficient product-specific dental evidence for a generic rinse; systemic solution evidence is not topical proof",NO
+MED-MUC-008,sucralfate oral/local,EVIDENCE_MIXED,MARKET_MA_GI_FORMS_PRESENT,NO_DEDICATED_DENTAL_FORM_PROVEN,NO_GENERIC_ORAL_MUCOSA_REGIMEN,"Moroccan GI availability does not establish oral-mucosa indication; conflicting RAS/mucositis trial evidence",NO
