@@ -1,8 +1,11 @@
-"""Validated loader for the audited dental subset of Morocco's NGAP 177-06.
+"""Validated loaders for the audited dental subset of Morocco's NGAP 177-06.
 
-Reference-only by design: loading this JSON never certifies a CatalogAct mapping and
-never promotes a row to VERIFIED_PRIMARY. Runtime activation still requires the
-existing source-lock and practitioner-validation gates.
+Reference-only by design: loading these JSON files never certifies a CatalogAct
+mapping and never promotes a row to VERIFIED_PRIMARY. Runtime activation still
+requires the existing source-lock and practitioner-validation gates.
+
+The act/coefficient mapping and the legal conditions are intentionally separate:
+the latter evolve independently and must not be inferred from a coefficient row.
 """
 
 from __future__ import annotations
@@ -13,12 +16,18 @@ from pathlib import Path
 from typing import Any
 
 DATASET_ID = "ngap-dental-177-06-v1"
+CONDITIONS_DATASET_ID = "ngap-dental-177-06-conditions-v1"
 EXPECTED_SOURCE_SHA256 = "e9db137d6a758bd4ad7a506a94a7c0c84726813de3db1e225c761318a75e1fdb"
+EXPECTED_LEGAL_REFERENCE = "177-06 du 26 hija 1426 (27 janvier 2006)"
 REFERENCE_STATUS = "REFERENCE_ONLY_NOT_RUNTIME_CERTIFIED"
 EXPECTED_ENTRY_COUNT = 145
 EXPECTED_COLUMNS = ["code", "acte", "coefficient", "anesthesia_coefficient", "entry_type"]
 DEFAULT_REFERENCE_PATH = Path(__file__).resolve().parents[1] / "data" / "ngap_dental_177_06.json"
+DEFAULT_CONDITIONS_PATH = (
+    Path(__file__).resolve().parents[1] / "data" / "ngap_dental_177_06_conditions.json"
+)
 _CODE_RE = re.compile(r"^D\d{3}$")
+_CONDITION_KEY_RE = re.compile(r"^D\d{3}(?:-D\d{3})?$")
 _ALLOWED_ENTRY_TYPES = {"act", "anesthesia", "ceiling", "calculation_rule", "quote_required"}
 
 
@@ -30,23 +39,26 @@ def _expected_codes() -> list[str]:
     ]
 
 
+def _validate_provenance(payload: dict[str, Any], *, context: str) -> None:
+    if payload.get("status") != REFERENCE_STATUS:
+        raise ValueError(f"{context} must remain reference-only")
+    reference = payload.get("reference")
+    if not isinstance(reference, dict):
+        raise ValueError(f"{context} provenance is missing")
+    if reference.get("source_sha256") != EXPECTED_SOURCE_SHA256:
+        raise ValueError(f"{context} primary source hash mismatch")
+    if reference.get("arrete") != EXPECTED_LEGAL_REFERENCE:
+        raise ValueError(f"{context} legal reference mismatch")
+
+
 def validate_ngap_dental_reference(payload: dict[str, Any]) -> dict[str, Any]:
-    """Validate structure, coverage and provenance without activating runtime mappings."""
+    """Validate mapping structure, coverage and provenance without runtime activation."""
 
     if payload.get("schema_version") != 1:
         raise ValueError("Unsupported NGAP dental reference schema version")
     if payload.get("dataset_id") != DATASET_ID:
         raise ValueError("Unexpected NGAP dental dataset id")
-    if payload.get("status") != REFERENCE_STATUS:
-        raise ValueError("NGAP dental reference must remain reference-only")
-
-    reference = payload.get("reference")
-    if not isinstance(reference, dict):
-        raise ValueError("NGAP dental reference provenance is missing")
-    if reference.get("source_sha256") != EXPECTED_SOURCE_SHA256:
-        raise ValueError("NGAP dental primary source hash mismatch")
-    if reference.get("arrete") != "177-06 du 26 hija 1426 (27 janvier 2006)":
-        raise ValueError("NGAP dental legal reference mismatch")
+    _validate_provenance(payload, context="NGAP dental reference")
 
     if payload.get("columns") != EXPECTED_COLUMNS:
         raise ValueError("NGAP dental row schema mismatch")
@@ -93,7 +105,6 @@ def validate_ngap_dental_reference(payload: dict[str, Any]) -> dict[str, Any]:
     if not isinstance(scope, dict) or scope.get("entry_count") != EXPECTED_ENTRY_COUNT:
         raise ValueError("NGAP dental scope metadata mismatch")
 
-    # A canonical JSON is evidence, not runtime certification.
     forbidden = {"verification_status", "validated_by_practitioner_id", "validated_at"}
     if forbidden.intersection(payload):
         raise ValueError("Runtime certification fields are forbidden in canonical JSON")
@@ -101,13 +112,64 @@ def validate_ngap_dental_reference(payload: dict[str, Any]) -> dict[str, Any]:
     return payload
 
 
-def load_ngap_dental_reference(path: Path | str | None = None) -> dict[str, Any]:
-    reference_path = Path(path) if path is not None else DEFAULT_REFERENCE_PATH
-    with reference_path.open("r", encoding="utf-8") as handle:
+def validate_ngap_dental_conditions(payload: dict[str, Any]) -> dict[str, Any]:
+    """Validate source-bound legal conditions separately from act coefficients."""
+
+    if payload.get("schema_version") != 1:
+        raise ValueError("Unsupported NGAP dental conditions schema version")
+    if payload.get("dataset_id") != CONDITIONS_DATASET_ID:
+        raise ValueError("Unexpected NGAP dental conditions dataset id")
+    _validate_provenance(payload, context="NGAP dental conditions")
+
+    conditions = payload.get("conditions")
+    if not isinstance(conditions, dict) or not conditions:
+        raise ValueError("NGAP dental conditions are missing")
+    for key, value in conditions.items():
+        if not isinstance(key, str) or not _CONDITION_KEY_RE.fullmatch(key):
+            raise ValueError(f"Invalid NGAP dental condition key: {key}")
+        if not isinstance(value, str) or not value.strip():
+            raise ValueError(f"Empty NGAP dental condition: {key}")
+
+    forbidden = {"verification_status", "validated_by_practitioner_id", "validated_at"}
+    if forbidden.intersection(payload):
+        raise ValueError("Runtime certification fields are forbidden in conditions JSON")
+
+    return payload
+
+
+def _load_json_object(path: Path | str, *, context: str) -> dict[str, Any]:
+    with Path(path).open("r", encoding="utf-8") as handle:
         payload = json.load(handle)
     if not isinstance(payload, dict):
-        raise ValueError("NGAP dental reference root must be an object")
-    return validate_ngap_dental_reference(payload)
+        raise ValueError(f"{context} root must be an object")
+    return payload
+
+
+def load_ngap_dental_reference(path: Path | str | None = None) -> dict[str, Any]:
+    reference_path = Path(path) if path is not None else DEFAULT_REFERENCE_PATH
+    return validate_ngap_dental_reference(
+        _load_json_object(reference_path, context="NGAP dental reference")
+    )
+
+
+def load_ngap_dental_conditions(path: Path | str | None = None) -> dict[str, Any]:
+    conditions_path = Path(path) if path is not None else DEFAULT_CONDITIONS_PATH
+    return validate_ngap_dental_conditions(
+        _load_json_object(conditions_path, context="NGAP dental conditions")
+    )
+
+
+def load_ngap_dental_bundle(
+    reference_path: Path | str | None = None,
+    conditions_path: Path | str | None = None,
+) -> dict[str, dict[str, Any]]:
+    """Load the source-bound mapping and conditions without runtime certification."""
+
+    reference = load_ngap_dental_reference(reference_path)
+    conditions = load_ngap_dental_conditions(conditions_path)
+    if reference["reference"]["source_sha256"] != conditions["reference"]["source_sha256"]:
+        raise ValueError("NGAP dental mapping/conditions source hash mismatch")
+    return {"reference": reference, "conditions": conditions}
 
 
 def index_ngap_dental_reference(payload: dict[str, Any] | None = None) -> dict[str, dict[str, Any]]:

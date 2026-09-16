@@ -6,14 +6,16 @@ from backend.services.ngap_dental_reference import (
     EXPECTED_ENTRY_COUNT,
     EXPECTED_SOURCE_SHA256,
     index_ngap_dental_reference,
+    load_ngap_dental_bundle,
+    load_ngap_dental_conditions,
     load_ngap_dental_reference,
+    validate_ngap_dental_conditions,
     validate_ngap_dental_reference,
 )
 
 
 def test_ngap_dental_reference_is_locked_and_reference_only():
     payload = load_ngap_dental_reference()
-
     assert payload["dataset_id"] == "ngap-dental-177-06-v1"
     assert payload["status"] == "REFERENCE_ONLY_NOT_RUNTIME_CERTIFIED"
     assert payload["reference"]["source_sha256"] == EXPECTED_SOURCE_SHA256
@@ -24,7 +26,6 @@ def test_ngap_dental_reference_is_locked_and_reference_only():
 def test_ngap_dental_reference_has_exact_expected_coverage():
     payload = load_ngap_dental_reference()
     codes = [row[0] for row in payload["acts"]]
-
     assert codes == [
         *(f"D{value}" for value in range(600, 642)),
         *(f"D{value}" for value in range(700, 786)),
@@ -35,7 +36,6 @@ def test_ngap_dental_reference_has_exact_expected_coverage():
 
 def test_ngap_dental_reference_sentinel_mappings():
     entries = index_ngap_dental_reference()
-
     assert entries["D626"]["coefficient"] == 15
     assert entries["D627"]["coefficient"] == 5
     assert entries["D700"]["coefficient"] == 10
@@ -52,7 +52,6 @@ def test_ngap_dental_reference_sentinel_mappings():
 
 def test_non_fixed_rules_do_not_invent_coefficients():
     entries = index_ngap_dental_reference()
-
     assert entries["D630"]["entry_type"] == "ceiling"
     assert entries["D630"]["coefficient"] == 540
     assert entries["D757"]["entry_type"] == "calculation_rule"
@@ -63,7 +62,6 @@ def test_non_fixed_rules_do_not_invent_coefficients():
 
 def test_anesthesia_column_is_preserved_when_source_lists_it():
     entries = index_ngap_dental_reference()
-
     assert entries["D600"]["coefficient"] == 50
     assert entries["D600"]["anesthesia_coefficient"] == 20
     assert entries["D614"]["coefficient"] == 200
@@ -72,20 +70,47 @@ def test_anesthesia_column_is_preserved_when_source_lists_it():
     assert entries["D726"]["anesthesia_coefficient"] == 30
 
 
+def test_conditions_are_source_bound_and_keep_distinct_rules():
+    payload = load_ngap_dental_conditions()
+    rules = payload["conditions"]
+    assert payload["reference"]["source_sha256"] == EXPECTED_SOURCE_SHA256
+    assert "D608" in rules
+    assert "D626" in rules
+    assert "D628" in rules
+    assert "D712" in rules
+    assert rules["D738-D741"].startswith("Radiographie obligatoire")
+    assert rules["D739-D741"].startswith("Marsupialisation")
+
+
+def test_mapping_and_conditions_bundle_share_exact_source_hash():
+    bundle = load_ngap_dental_bundle()
+    assert (
+        bundle["reference"]["reference"]["source_sha256"]
+        == bundle["conditions"]["reference"]["source_sha256"]
+        == EXPECTED_SOURCE_SHA256
+    )
+
+
 def test_primary_hash_drift_is_rejected():
     payload = load_ngap_dental_reference()
     altered = copy.deepcopy(payload)
     altered["reference"]["source_sha256"] = "0" * 64
-
     with pytest.raises(ValueError, match="primary source hash mismatch"):
         validate_ngap_dental_reference(altered)
+
+
+def test_conditions_hash_drift_is_rejected():
+    payload = load_ngap_dental_conditions()
+    altered = copy.deepcopy(payload)
+    altered["reference"]["source_sha256"] = "0" * 64
+    with pytest.raises(ValueError, match="primary source hash mismatch"):
+        validate_ngap_dental_conditions(altered)
 
 
 def test_duplicate_or_missing_code_is_rejected():
     payload = load_ngap_dental_reference()
     altered = copy.deepcopy(payload)
     altered["acts"][-1][0] = "D815"
-
     with pytest.raises(ValueError, match="Duplicate NGAP dental code"):
         validate_ngap_dental_reference(altered)
 
@@ -94,6 +119,5 @@ def test_canonical_json_cannot_self_certify_runtime_mapping():
     payload = load_ngap_dental_reference()
     altered = copy.deepcopy(payload)
     altered["verification_status"] = "VERIFIED_PRIMARY"
-
     with pytest.raises(ValueError, match="Runtime certification fields are forbidden"):
         validate_ngap_dental_reference(altered)
