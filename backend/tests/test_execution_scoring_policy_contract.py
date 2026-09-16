@@ -4,6 +4,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 POLICY = ROOT / ".claude" / "rules" / "execution-scoring-verification.md"
 VISUAL = ROOT / ".claude" / "rules" / "visual-closeout-human-validation.md"
+PR_TEMPLATE = ROOT / ".github" / "pull_request_template.md"
 AGENTS = ROOT / "AGENTS.md"
 CLAUDE = ROOT / "CLAUDE.md"
 
@@ -58,3 +59,34 @@ def test_visual_closeout_keeps_target_render_cap_and_human_gate():
     assert "hard cap" in text
     assert "BLOQUÉ HUMAIN — VALIDATION CAPTURES" in text
     assert "validation humaine explicite" in text
+
+
+def test_github_pr_template_exposes_scoring_and_verification_gates():
+    text = _read(PR_TEMPLATE)
+
+    required_fragments = (
+        "Goal",
+        "Succès observable",
+        "Preuve",
+        "EXECUTION_SCORE /10",
+        "ADVERSARIAL_SCORE /10",
+        "RETAINED_SCORE /10",
+        "min(EXECUTION_SCORE, ADVERSARIAL_SCORE)",
+        "> 0.5",
+        "10/10",
+        "exceptionnel",
+        "9.4/10",
+        "9.5/10",
+        "7.9/10",
+        "6.9/10",
+        "5.9/10",
+        "7.5/10",
+        "Target ↔ Render",
+        "RETAINED_SCORE >= 9.0/10",
+        "Perfection Pass finale",
+        "VERIFIED",
+        "BLOCKED",
+    )
+
+    for fragment in required_fragments:
+        assert fragment in text, fragment
