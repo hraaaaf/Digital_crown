@@ -86,6 +86,10 @@ jobs:
           pip install -r /tmp/requirements-d2-visual.txt
           pip install httpx==0.27.2
 
+      - name: Targeted Patient Companion D2 backend tests
+        working-directory: after
+        run: python -m pytest backend/tests/test_patient_companion_d2_staff.py -q --maxfail=1
+
       - name: Install AFTER frontend and Chromium
         working-directory: after/frontend
         run: |
