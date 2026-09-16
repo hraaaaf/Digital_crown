@@ -74,30 +74,83 @@ Le correctif candidat reste ciblé et additif :
 
 1. la migration versionnée `d0b000000001` crée explicitement les quatre tables Companion, sans backfill ;
 2. la migration versionnée `d0b000000002` ajoute les colonnes/index compatibles, les tables Agenda/catalogue et `A_ENCAISSER`, sans suppression ni réécriture des données patient/document existantes ;
-3. l'upgrade Alembic est exécuté explicitement après backup et rehearsal, avant le service ;
-4. le boot `cabinet`/`production` vérifie en lecture seule l'head Alembic et refuse un schéma obsolète ; il ne fait ni `create_all()`, ni migration implicite, ni seed admin ;
-5. le boot dev/test conserve `create_all()` uniquement après attestation d'isolation explicite.
+3. la migration versionnée `d0b000000003` ajoute le schéma NGAP/linkage assurance sans réécriture des lignes historiques ;
+4. l'upgrade Alembic est exécuté explicitement après backup et rehearsal, avant le service ;
+5. le boot `cabinet`/`production` vérifie en lecture seule l'head Alembic et refuse un schéma obsolète ; il ne fait ni `create_all()`, ni migration implicite, ni seed admin ;
+6. le boot dev/test conserve `create_all()` uniquement après attestation d'isolation explicite.
+
+## Rehearsal représentatif déterministe
+
+Le script canonique est :
+
+`backend/scripts/cabinet_upgrade_rehearsal.py`
+
+Contrat :
+
+- la DB cabinet source est lue **uniquement par `pg_dump`** ;
+- le même dump est restauré dans deux nouvelles DB `dc_rehearsal_*` ;
+- `BEFORE` reste contrôle immuable ;
+- `AFTER` seul reçoit `alembic upgrade head` puis le smoke backend ;
+- toutes les tables/lignes/PK historiques sont fingerprintées ;
+- les FK historiques doivent rester présentes avec le même nombre d'orphelins ;
+- les nouvelles FK additives sont autorisées ;
+- les médias source sont hashés avant/après copie ; toute mutation concurrente bloque le run ;
+- tous les `DocumentArchive.file_path` historiques doivent résoudre vers un fichier existant avec SHA-256 cohérent quand `file_hash` est disponible ;
+- le second `alembic upgrade head` doit être un no-op de schéma ;
+- le boot rehearsal doit rendre `/api/health = 200` sans changer schéma, données historiques, relations ni médias ;
+- en échec, les clones et le dossier de preuve sont conservés ;
+- `--cleanup` ne peut supprimer que les DB créées par ce run et uniquement après PASS.
+
+### Préconditions opérateur
+
+- checkout exact de la branche/HEAD candidat ;
+- PostgreSQL local joignable avec droit de créer deux DB temporaires ;
+- `pg_dump` et `pg_restore` disponibles ;
+- environnement Python complet du backend installé ;
+- `DIGITALCROWN_REHEARSAL_SOURCE_DATABASE_URL` chargé depuis la configuration cabinet existante sans publier le secret dans les logs ;
+- `MEDIA_ROOT` cabinet connu et accessible en lecture.
+
+### Commande Windows / PowerShell
+
+Première exécution : **ne pas utiliser `--cleanup`**, afin de conserver les preuves et clones pour inspection.
+
+```powershell
+python backend/scripts/cabinet_upgrade_rehearsal.py `
+  --media-root "$env:APPDATA\DigitalCrown\media" `
+  --work-dir "$env:TEMP\digitalcrown_rehearsal_final" `
+  --confirm-source-dump-only
+```
+
+Le script lit l'URL source depuis `DIGITALCROWN_REHEARSAL_SOURCE_DATABASE_URL` si `--source-database-url` n'est pas fourni.
+
+Verdict acceptable : `report.json` avec `"status": "PASS"`. Toute sortie `REHEARSAL BLOCKED` maintient le lot en NO-GO.
+
+Le rapport ne contient pas les lignes patient ni le mot de passe DB ; il contient seulement identités de cibles masquées, compteurs/fingerprints, révision Alembic, preuves médias/archives et résultat health.
 
 ## Critères obligatoires du prochain rehearsal
 
 Le candidat exact ne devient **GO** que si une nouvelle copie fraîche des données réelles prouve :
 
+- mêmes tables/lignes/PK historiques BEFORE/AFTER ;
 - mêmes patients BEFORE/AFTER ;
 - mêmes documents DB BEFORE/AFTER ;
 - mêmes liens patient-document ;
 - mêmes fichiers et SHA-256 historiques ;
 - mêmes actes/paiements historiques ;
+- toutes les FK historiques conservées sans nouvelle rupture ;
 - `appointments.praticien_id` créé, nullable, indexé, sans réécriture des rendez-vous historiques ;
 - scheduler sans `UndefinedColumn` ;
 - enum PostgreSQL comprenant `A_ENCAISSER` après migration Alembic explicite ;
-- endpoint Finances HTTP 200 ;
 - aucun seed admin ni génération/impression de mot de passe en mode cabinet ;
-- attribution/désattribution praticien sans mutation Patient/DocumentArchive.
+- boot rehearsal `/api/health = 200` sans mutation de données/médias/schéma ;
+- CI exacte du même HEAD verte pour auth/tenant/PDF/documents et certifications ciblées applicables.
 
 ## Gate de merge / installation
 
 - CI verte : nécessaire, **non suffisante**.
 - Tests unitaires : nécessaires, **non suffisants**.
-- Aucun merge de ce correctif avant verdict Codex `GO` sur une copie fraîche.
+- Rehearsal représentatif `PASS` : obligatoire.
+- Aucun merge de ce correctif avant verdict `GO` sur une copie fraîche.
 - Aucune installation ni aucun alignement du runtime réel avant ce même verdict.
 - Toute activation réelle ultérieure exige encore backup DB + médias, compteurs BEFORE/AFTER et smoke patient/document connu.
+- Le lot ne peut être `VERIFIED` qu'avec tous les gates binaires verts et un score retenu >= 9.0/10 selon `.claude/rules/material-step-scoring.md`.
