@@ -52,10 +52,11 @@ const FAMILY_LEGEND = [
  * R20 workbench composition.
  *
  * Scientific/clinical behavior stays in the existing R18/R19 components.
- * This wrapper only reorganizes the real controls into a left utility rail,
+ * This wrapper only reorganizes real controls into a left utility rail,
  * keeps the radiograph as the dominant central surface, and preserves the
- * real measure panel on the right. On narrow screens the rail becomes a
- * compact horizontal control block instead of compressing the radiograph.
+ * real measure panel on the right. On narrow screens the rail collapses to a
+ * compact horizontal control strip so the radiograph remains immediately
+ * visible instead of being pushed down by a desktop-style card.
  */
 export const Step1Cephalo: React.FC<Step1CephaloProps> = (props) => {
   const hasImage = useOrthoStore(state => Boolean(state.imageSrc));
@@ -79,7 +80,7 @@ export const Step1Cephalo: React.FC<Step1CephaloProps> = (props) => {
   if (!hasImage) return <Step1CephaloBase {...props} />;
 
   const toggleClass = (active: boolean) =>
-    `min-h-10 rounded-xl border px-3 py-2 text-left text-[11px] font-bold transition-all ${active ? 'shadow-sm' : ''}`;
+    `min-h-9 shrink-0 whitespace-nowrap rounded-xl border px-3 py-2 text-[10px] font-bold transition-all xl:min-h-10 xl:w-full xl:text-left xl:text-[11px] ${active ? 'shadow-sm' : ''}`;
 
   const toggleStyle = (active: boolean): React.CSSProperties => ({
     background: active ? props.P.bgCard : props.P.bgInput,
@@ -96,15 +97,15 @@ export const Step1Cephalo: React.FC<Step1CephaloProps> = (props) => {
       <aside
         data-r20-workbench-sidebar
         aria-label="Contrôles du workbench céphalométrique"
-        className="min-w-0 rounded-2xl border p-3 xl:h-[80vh] xl:overflow-y-auto"
+        className="min-w-0 rounded-2xl border p-2 xl:h-[80vh] xl:overflow-y-auto xl:p-3"
         style={{ background: props.P.bgPanel, borderColor: props.P.border, boxShadow: props.P.shadow }}
       >
-        <div className="flex items-start justify-between gap-2 xl:block">
+        <div className="hidden xl:block">
           <div className="min-w-0">
             <p className="text-[9px] font-black uppercase tracking-[0.16em]" style={{ color: props.P.textDim }}>Workbench</p>
             <h3 className="mt-1 truncate text-sm font-black" style={{ color: props.P.text }}>{ANALYSIS_LABELS[analysis]}</h3>
           </div>
-          <span className="shrink-0 rounded-full border px-2 py-1 text-[9px] font-black uppercase tracking-wide" style={{ borderColor: props.P.border, color: props.P.textMuted }}>
+          <span className="mt-2 inline-flex rounded-full border px-2 py-1 text-[9px] font-black uppercase tracking-wide" style={{ borderColor: props.P.border, color: props.P.textMuted }}>
             Analyse active
           </span>
         </div>
@@ -118,9 +119,9 @@ export const Step1Cephalo: React.FC<Step1CephaloProps> = (props) => {
           ))}
         </div>
 
-        <div className="mt-3 border-t pt-3" style={{ borderColor: props.P.border }}>
-          <p className="mb-2 text-[9px] font-black uppercase tracking-[0.16em]" style={{ color: props.P.textDim }}>Affichage</p>
-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 xl:grid-cols-1">
+        <div className="xl:mt-3 xl:border-t xl:pt-3" style={{ borderColor: props.P.border }}>
+          <p className="mb-2 hidden text-[9px] font-black uppercase tracking-[0.16em] xl:block" style={{ color: props.P.textDim }}>Affichage</p>
+          <div className="flex min-w-0 gap-2 overflow-x-auto pb-0.5 xl:grid xl:grid-cols-1 xl:overflow-visible xl:pb-0">
             <button
               type="button"
               aria-pressed={magnifierEnabled}
