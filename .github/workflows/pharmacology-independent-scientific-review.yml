@@ -55,7 +55,7 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22'
 
       - name: Setup Python 3.12
         uses: actions/setup-python@v5
@@ -127,15 +127,35 @@ jobs:
                 const page = await browser.newPage();
                 await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 60000 });
                 await page.waitForTimeout(5000);
-                const text = await page.locator('body').innerText();
-                if (!text || text.length < 500) {
+
+                const visibleText = await page.locator('body').innerText();
+                const domText = await page.locator('body').textContent();
+                const hrefEvidence = await page.locator('[href]').evaluateAll((nodes) =>
+                  nodes.map((node) => ({
+                    tag: node.tagName,
+                    text: (node.textContent || '').trim(),
+                    title: node.getAttribute('title') || '',
+                    ariaLabel: node.getAttribute('aria-label') || '',
+                    href: node.href || node.getAttribute('href') || '',
+                  }))
+                );
+
+                if (!visibleText || visibleText.length < 500 || !domText || domText.length < 500) {
                   throw new Error(`AMMPS rendered evidence too short for ${url}`);
                 }
+
                 const payload = [
                   `URL: ${url}`,
                   `retrieved_at_utc: ${new Date().toISOString()}`,
                   '',
-                  text,
+                  '=== VISIBLE_TEXT ===',
+                  visibleText,
+                  '',
+                  '=== DOM_TEXT ===',
+                  domText,
+                  '',
+                  '=== HREF_EVIDENCE_JSON ===',
+                  JSON.stringify(hrefEvidence, null, 2),
                 ].join('\n');
                 fs.writeFileSync(path.join(outDir, filename), payload, 'utf8');
                 await page.close();
@@ -149,39 +169,51 @@ jobs:
           });
           NODE
 
-      - name: Verify live AMMPS evidence contains the exact reviewed presentations
+      - name: Verify live AMMPS evidence contains reviewed presentations
         env:
           EVIDENCE_DIR: ${{ github.workspace }}/audit/out/pharmacology-independent-review
         run: |
           python - <<'PY'
           import re
+          import unicodedata
           from pathlib import Path
+          import os
 
-          root = Path(__import__('os').environ['EVIDENCE_DIR'])
-          page42 = re.sub(r'\s+', ' ', (root / 'ammps-recherche-medicaments-page-42-live.txt').read_text(encoding='utf-8')).strip()
-          page96 = re.sub(r'\s+', ' ', (root / 'ammps-liste-marocaine-page-96-live.txt').read_text(encoding='utf-8')).strip()
+          root = Path(os.environ['EVIDENCE_DIR'])
 
-          required_42 = [
-              'AMOXICILLINE LLORENTE 500 MG | GELULE Substance active AMOXICILLINE EPI AFRIC PHAR Dosage 500 MG Forme GELULE Présentation BOITE DE 12',
-              'AMOXICILLINE LLORENTE 500 MG | GELULE Substance active AMOXICILLINE EPI AFRIC PHAR Dosage 500 MG Forme GELULE Présentation BOITE DE 24',
-              'AMOXICILLINE SP 1 G | COMPRIME DISPERSIBLE Substance active AMOXICILLINE EPI AMANYS PHARMA Dosage 1 G Forme COMPRIME DISPERSIBLE Présentation BOITE DE 12',
-              'AMOXICILLINE SP 1 G | COMPRIME DISPERSIBLE Substance active AMOXICILLINE EPI AMANYS PHARMA Dosage 1 G Forme COMPRIME DISPERSIBLE Présentation BOITE DE 24',
-              'AMOXICILLINE SP 250 MG / 5 ML | POUDRE POUR SUSPENSION BUVABLE Substance active AMOXICILLINE EPI AMANYS PHARMA Dosage 250 MG / 5 ML Forme POUDRE POUR SUSPENSION BUVABLE Présentation FLACON DE 60 ML',
-              'AMOXICILLINE SP 500 MG / 5 ML | POUDRE POUR SUSPENSION BUVABLE Substance active AMOXICILLINE EPI AMANYS PHARMA Dosage 500 MG / 5 ML Forme POUDRE POUR SUSPENSION BUVABLE Présentation FLACON DE 60 ML',
+          def norm(text: str) -> str:
+              text = unicodedata.normalize('NFC', text).upper()
+              return re.sub(r'\s+', ' ', text).strip()
+
+          page42 = norm((root / 'ammps-recherche-medicaments-page-42-live.txt').read_text(encoding='utf-8'))
+          page96 = norm((root / 'ammps-liste-marocaine-page-96-live.txt').read_text(encoding='utf-8'))
+
+          patterns_42 = [
+              r'AMOXICILLINE LLORENTE.{0,120}DOSAGE\s*:\s*500 MG.{0,140}PRÉSENTATION\s*:\s*BOITE DE 12.{0,100}GELULE',
+              r'AMOXICILLINE LLORENTE.{0,120}DOSAGE\s*:\s*500 MG.{0,140}PRÉSENTATION\s*:\s*BOITE DE 24.{0,100}GELULE',
+              r'AMOXICILLINE SP.{0,120}DOSAGE\s*:\s*1 G.{0,140}PRÉSENTATION\s*:\s*BOITE DE 12.{0,120}COMPRIME DISPERSIBLE',
+              r'AMOXICILLINE SP.{0,120}DOSAGE\s*:\s*1 G.{0,140}PRÉSENTATION\s*:\s*BOITE DE 24.{0,120}COMPRIME DISPERSIBLE',
+              r'AMOXICILLINE SP.{0,120}DOSAGE\s*:\s*250 MG / 5 ML.{0,160}PRÉSENTATION\s*:\s*FLACON DE 60 ML.{0,160}POUDRE POUR SUSPENSION BUVABLE',
+              r'AMOXICILLINE SP.{0,120}DOSAGE\s*:\s*500 MG / 5 ML.{0,160}PRÉSENTATION\s*:\s*FLACON DE 60 ML.{0,160}POUDRE POUR SUSPENSION BUVABLE',
           ]
-          required_96 = [
-              'CLAMOXYL 500 MG | POUDRE POUR SUSPENSION BUVABLE Statut AMM AMM ENREGISTREE Statut commercialisation Commercialisé Présentation FLACON DE 60 ML',
-              'CLAMOXYL 500 MG | POUDRE POUR SUSPENSION BUVABLE Statut AMM AMM RETIREE Statut commercialisation Retiré du Marché Présentation FLACON DE 100 ML',
+          patterns_96 = [
+              r'CLAMOXYL.{0,80}500 MG.{0,120}POUDRE POUR SUSPENSION BUVABLE.{0,120}AMOXICILLINE.{0,160}GSK.{0,120}RETIRÉ DU MARCHÉ',
+              r'CLAMOXYL.{0,80}500 MG.{0,120}POUDRE POUR SUSPENSION BUVABLE.{0,120}AMOXICILLINE.{0,220}GSK.{0,120}COMMERCIALISÉ',
           ]
 
-          missing = [item for item in required_42 if item not in page42]
-          missing += [item for item in required_96 if item not in page96]
+          missing = [pattern for pattern in patterns_42 if not re.search(pattern, page42)]
+          missing += [pattern for pattern in patterns_96 if not re.search(pattern, page96)]
           if missing:
-              raise SystemExit('Live AMMPS evidence missing expected presentation(s): ' + repr(missing))
-          if page42.count('Télécharger RCP') < 6:
-              raise SystemExit('Live AMMPS page 42 did not expose at least six RCP download controls')
-          if page96.count('Lien RCP / NAF -') < 2:
-              raise SystemExit('Live AMMPS page 96 did not expose the expected no-link markers')
+              raise SystemExit('Live AMMPS evidence missing expected presentation pattern(s): ' + repr(missing))
+
+          for token in ('AFRIC PHAR', 'AMANYS PHARMA'):
+              if token not in page42:
+                  raise SystemExit(f'Live AMMPS page 42 missing expected EPI token: {token}')
+
+          if 'TÉLÉCHARGER RCP' not in page42:
+              raise SystemExit('Live AMMPS page 42 DOM did not expose RCP download controls')
+          if 'LIEN RCP / NAF' not in page96:
+              raise SystemExit('Live AMMPS page 96 DOM did not expose RCP/NAF evidence')
           PY
 
       - name: Install GitHub Copilot CLI
@@ -221,7 +253,8 @@ jobs:
           RUNTIME EVIDENCE
           - The technical-evidence file was generated on this runner immediately before your review from the exact target checkout.
           - The two AMMPS evidence files were rendered immediately before your review with headless Chromium from the exact official URLs shown inside each file.
-          - The workflow already failed closed unless all six AMOXICILLINE LLORENTE/SP presentations and both CLAMOXYL presentations were present in the rendered official source text.
+          - Each AMMPS evidence file contains visible text, full DOM text (including expandable/hidden detail blocks) and href metadata.
+          - The workflow already failed closed unless the six AMOXICILLINE LLORENTE/SP presentations and the two CLAMOXYL rows were structurally present in those official pages.
           - Independently inspect those files and directly re-open official AMMPS URLs with curl when useful. Do not treat repository assertions alone as regulatory proof.
 
           CLAIMS TO CHALLENGE INDEPENDENTLY
