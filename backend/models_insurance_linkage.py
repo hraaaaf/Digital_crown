@@ -17,13 +17,16 @@ def attach_insurance_linkage_columns() -> None:
     from backend.models import Acte
 
     if "source_line_uid" not in Acte.__table__.c:
-        Acte.source_line_uid = Column("source_line_uid", String(36), nullable=True)
+        Acte.source_line_uid = Column(
+            "source_line_uid", String(36), nullable=True, index=True
+        )
     if "catalog_act_id" not in Acte.__table__.c:
         Acte.catalog_act_id = Column(
             "catalog_act_id",
             Integer,
             ForeignKey("catalog_acts.id", ondelete="SET NULL"),
             nullable=True,
+            index=True,
         )
 
 

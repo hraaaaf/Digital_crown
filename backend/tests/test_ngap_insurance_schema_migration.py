@@ -138,6 +138,10 @@ def test_empty_sqlite_baseline_materializes_ngap_and_insurance_at_current_head()
             "source_line_uid",
             "catalog_act_id",
         }
+        assert {item["name"] for item in inspector.get_indexes("actes")} >= {
+            "ix_actes_source_line_uid",
+            "ix_actes_catalog_act_id",
+        }
 
 
 def test_insurance_linkage_install_does_not_register_implicit_schema_ddl():
