@@ -1,0 +1,333 @@
+name: Pharmacology AMMPS First RCP Capture Probe
+
+on:
+  push:
+    branches:
+      - research/pharmacology-rcp-first-capture-20260916
+    paths:
+      - '.github/workflows/pharmacology-rcp-first-capture-probe.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pharmacology-rcp-first-capture-probe
+  cancel-in-progress: true
+
+jobs:
+  probe:
+    name: Read-only AMMPS RCP probe — AMOXICILLINE SP 1 G B12
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout exact research branch
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install Playwright Chromium
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/rcp-probe"
+          cd "$RUNNER_TEMP/rcp-probe"
+          npm init -y >/dev/null 2>&1
+          npm install --silent playwright
+          npx playwright install --with-deps chromium
+
+      - name: Probe exact AMMPS presentation and intercept RCP action
+        env:
+          OUT_DIR: ${{ github.workspace }}/audit/out/pharmacology-rcp-first-capture-probe
+          TARGET_URL: https://www.ammps.gov.ma/recherche-medicaments?page=42
+        run: |
+          set -euo pipefail
+          mkdir -p "$OUT_DIR"
+          cd "$RUNNER_TEMP/rcp-probe"
+          node - <<'NODE'
+          const { chromium } = require('playwright');
+          const fs = require('fs');
+          const path = require('path');
+          const crypto = require('crypto');
+
+          const outDir = process.env.OUT_DIR;
+          const targetUrl = process.env.TARGET_URL;
+          const officialHosts = new Set(['ammps.gov.ma', 'www.ammps.gov.ma']);
+          const requiredTokens = [
+            'AMOXICILLINE SP',
+            '1 G',
+            'BOITE DE 12',
+            'AMANYS PHARMA',
+          ];
+
+          function normalize(value) {
+            return (value || '')
+              .normalize('NFD')
+              .replace(/[\u0300-\u036f]/g, '')
+              .replace(/\s+/g, ' ')
+              .trim()
+              .toUpperCase();
+          }
+
+          function isOfficialHttps(value) {
+            try {
+              const url = new URL(value);
+              return url.protocol === 'https:' && officialHosts.has(url.hostname);
+            } catch {
+              return false;
+            }
+          }
+
+          function sha256(buffer) {
+            return crypto.createHash('sha256').update(buffer).digest('hex');
+          }
+
+          (async () => {
+            const browser = await chromium.launch({ headless: true });
+            const context = await browser.newContext({ acceptDownloads: true });
+            const page = await context.newPage();
+            const events = [];
+            const pdfCandidates = [];
+            let armed = false;
+            let seq = 0;
+
+            context.on('request', request => {
+              if (!armed) return;
+              events.push({
+                seq: ++seq,
+                kind: 'request',
+                method: request.method(),
+                resourceType: request.resourceType(),
+                url: request.url(),
+                postData: request.postData() || null,
+              });
+            });
+
+            context.on('response', async response => {
+              if (!armed) return;
+              const headers = await response.allHeaders();
+              const url = response.url();
+              const contentType = (headers['content-type'] || '').toLowerCase();
+              const disposition = (headers['content-disposition'] || '').toLowerCase();
+              const looksPdf = contentType.includes('application/pdf') || disposition.includes('.pdf') || /\.pdf(?:$|[?#])/i.test(url);
+              events.push({
+                seq: ++seq,
+                kind: 'response',
+                status: response.status(),
+                url,
+                contentType: headers['content-type'] || null,
+                contentDisposition: headers['content-disposition'] || null,
+                looksPdf,
+              });
+              if (!looksPdf) return;
+              try {
+                const body = await response.body();
+                const signatureOk = body.subarray(0, 5).toString('ascii') === '%PDF-';
+                const candidate = {
+                  source: 'response',
+                  url,
+                  status: response.status(),
+                  contentType: headers['content-type'] || null,
+                  contentDisposition: headers['content-disposition'] || null,
+                  byteLength: body.length,
+                  signatureOk,
+                  officialHttps: isOfficialHttps(url),
+                  sha256: sha256(body),
+                };
+                pdfCandidates.push(candidate);
+                fs.writeFileSync(path.join(outDir, `response-candidate-${pdfCandidates.length}.bin`), body);
+              } catch (error) {
+                pdfCandidates.push({ source: 'response', url, bodyError: String(error) });
+              }
+            });
+
+            page.on('popup', popup => {
+              if (!armed) return;
+              events.push({ seq: ++seq, kind: 'popup', url: popup.url() });
+              popup.on('framenavigated', frame => {
+                if (frame === popup.mainFrame()) {
+                  events.push({ seq: ++seq, kind: 'popup-navigation', url: frame.url() });
+                }
+              });
+            });
+
+            page.on('download', async download => {
+              if (!armed) return;
+              const filename = download.suggestedFilename();
+              const saved = path.join(outDir, `download-${Date.now()}-${filename.replace(/[^a-zA-Z0-9._-]/g, '_')}`);
+              try {
+                await download.saveAs(saved);
+                const body = fs.readFileSync(saved);
+                const signatureOk = body.subarray(0, 5).toString('ascii') === '%PDF-';
+                pdfCandidates.push({
+                  source: 'download',
+                  suggestedFilename: filename,
+                  savedPath: path.basename(saved),
+                  byteLength: body.length,
+                  signatureOk,
+                  sha256: sha256(body),
+                  sourceUrlVerified: false,
+                });
+                events.push({ seq: ++seq, kind: 'download', suggestedFilename: filename, savedPath: path.basename(saved), signatureOk });
+              } catch (error) {
+                events.push({ seq: ++seq, kind: 'download-error', suggestedFilename: filename, error: String(error) });
+              }
+            });
+
+            try {
+              const mainResponse = await page.goto(targetUrl, { waitUntil: 'domcontentloaded', timeout: 60000 });
+              if (!mainResponse || mainResponse.status() >= 400) {
+                throw new Error(`AMMPS page load failed: ${mainResponse ? mainResponse.status() : 'no response'}`);
+              }
+              await page.waitForTimeout(5000);
+
+              const target = await page.evaluate(({ requiredTokens }) => {
+                const norm = value => (value || '')
+                  .normalize('NFD')
+                  .replace(/[\u0300-\u036f]/g, '')
+                  .replace(/\s+/g, ' ')
+                  .trim()
+                  .toUpperCase();
+                const controls = Array.from(document.querySelectorAll('a,button,[role="button"]'))
+                  .filter(el => norm(el.textContent).includes('TELECHARGER RCP'));
+                const matches = [];
+                for (const control of controls) {
+                  let node = control;
+                  let depth = 0;
+                  while (node && node !== document.body) {
+                    const text = norm(node.innerText || node.textContent || '');
+                    if (requiredTokens.every(token => text.includes(norm(token)))) {
+                      matches.push({ control, container: node, text, depth, length: text.length });
+                      break;
+                    }
+                    node = node.parentElement;
+                    depth += 1;
+                  }
+                }
+                if (!matches.length) return null;
+                matches.sort((a, b) => a.length - b.length || a.depth - b.depth);
+                const winner = matches[0];
+                winner.control.setAttribute('data-rcp-probe-target', 'true');
+                return {
+                  candidateCount: matches.length,
+                  containerText: winner.text,
+                  containerHtml: winner.container.outerHTML,
+                  controlTag: winner.control.tagName,
+                  controlText: (winner.control.textContent || '').trim(),
+                  controlHref: winner.control.getAttribute('href'),
+                  controlOnclick: winner.control.getAttribute('onclick'),
+                  controlDataset: { ...winner.control.dataset },
+                  controlAttributes: Array.from(winner.control.attributes).reduce((acc, attr) => {
+                    acc[attr.name] = attr.value;
+                    return acc;
+                  }, {}),
+                };
+              }, { requiredTokens });
+
+              if (!target) {
+                throw new Error('Exact AMOXICILLINE SP 1 G B12 / AMANYS PHARMA RCP control not found');
+              }
+
+              fs.writeFileSync(path.join(outDir, 'target-control.json'), JSON.stringify({ targetUrl, requiredTokens, target }, null, 2));
+              await page.screenshot({ path: path.join(outDir, 'before-click.png'), fullPage: true });
+
+              const resourcesBefore = await page.evaluate(() => performance.getEntriesByType('resource').map(r => r.name));
+              armed = true;
+              const clickStartedAt = new Date().toISOString();
+              await page.locator('[data-rcp-probe-target="true"]').click({ timeout: 15000 });
+              await page.waitForTimeout(10000);
+              const clickEndedAt = new Date().toISOString();
+
+              const resourcesAfter = await page.evaluate(() => performance.getEntriesByType('resource').map(r => r.name));
+              const newResources = resourcesAfter.filter(url => !resourcesBefore.includes(url));
+              const finalUrl = page.url();
+              const bodyTextAfter = await page.locator('body').innerText();
+              const bodyHtmlAfter = await page.locator('body').evaluate(el => el.outerHTML);
+
+              fs.writeFileSync(path.join(outDir, 'after-click-visible.txt'), bodyTextAfter, 'utf8');
+              fs.writeFileSync(path.join(outDir, 'after-click-dom.html'), bodyHtmlAfter, 'utf8');
+              await page.screenshot({ path: path.join(outDir, 'after-click.png'), fullPage: true });
+
+              const verifiedResponsePdfs = pdfCandidates.filter(candidate =>
+                candidate.source === 'response' &&
+                candidate.signatureOk === true &&
+                candidate.officialHttps === true &&
+                candidate.status >= 200 && candidate.status < 300
+              );
+
+              const report = {
+                schemaVersion: 'ammps-rcp-capture-probe.1',
+                target: {
+                  name: 'AMOXICILLINE SP',
+                  dosage: '1 G',
+                  presentation: 'BOITE DE 12',
+                  epi: 'AMANYS PHARMA',
+                  internalRegulatoryPresentationId: 'ammps-reg:6fd268f476e7efe0c11f0c4b',
+                  sourcePageUrl: targetUrl,
+                },
+                clickStartedAt,
+                clickEndedAt,
+                finalPageUrl: finalUrl,
+                control: target,
+                newPerformanceResources: newResources,
+                events,
+                pdfCandidates,
+                verifiedResponsePdfs,
+                result: verifiedResponsePdfs.length === 1
+                  ? 'ONE_OFFICIAL_PDF_RESPONSE_CAPTURED'
+                  : verifiedResponsePdfs.length > 1
+                    ? 'MULTIPLE_OFFICIAL_PDF_RESPONSES_CAPTURED_REVIEW_REQUIRED'
+                    : 'NO_VERIFIED_OFFICIAL_PDF_RESPONSE_CAPTURED',
+                manifestMutationPerformed: false,
+                clinicalActivationPerformed: false,
+              };
+              fs.writeFileSync(path.join(outDir, 'probe-report.json'), JSON.stringify(report, null, 2));
+
+              console.log(`Target control href: ${target.controlHref}`);
+              console.log(`Observed post-click network events: ${events.length}`);
+              console.log(`PDF candidates: ${pdfCandidates.length}`);
+              console.log(`Verified official PDF responses: ${verifiedResponsePdfs.length}`);
+              console.log(`Probe result: ${report.result}`);
+            } finally {
+              await browser.close();
+            }
+          })().catch(error => {
+            fs.writeFileSync(path.join(outDir, 'probe-error.txt'), String(error && error.stack ? error.stack : error), 'utf8');
+            console.error(error);
+            process.exit(1);
+          });
+          NODE
+
+      - name: Validate probe report is non-mutating
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          report_path = Path('audit/out/pharmacology-rcp-first-capture-probe/probe-report.json')
+          if not report_path.is_file():
+              raise SystemExit('probe-report.json missing')
+          report = json.loads(report_path.read_text(encoding='utf-8'))
+          if report.get('schemaVersion') != 'ammps-rcp-capture-probe.1':
+              raise SystemExit('unexpected probe schema')
+          if report.get('manifestMutationPerformed') is not False:
+              raise SystemExit('probe must not mutate manifest')
+          if report.get('clinicalActivationPerformed') is not False:
+              raise SystemExit('probe must not activate clinical logic')
+          if report['target']['internalRegulatoryPresentationId'] != 'ammps-reg:6fd268f476e7efe0c11f0c4b':
+              raise SystemExit('wrong regulatory presentation target')
+          print('PASS: read-only RCP capture probe evidence produced')
+          print('result=', report.get('result'))
+          print('verified_official_pdf_responses=', len(report.get('verifiedResponsePdfs', [])))
+          PY
+
+      - name: Upload RCP capture probe evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pharmacology-rcp-first-capture-probe
+          path: audit/out/pharmacology-rcp-first-capture-probe/
+          if-no-files-found: warn
+          retention-days: 30
