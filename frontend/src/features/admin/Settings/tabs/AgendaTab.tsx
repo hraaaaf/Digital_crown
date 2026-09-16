@@ -12,6 +12,7 @@ import { api } from '../../../../services/api';
 import { toast } from 'react-hot-toast';
 import { SettingsReadError } from '../components/SharedUI';
 import { cn } from '../../../../utils/cn';
+import { PractitionerAvailabilityPanel } from './PractitionerAvailabilityPanel';
 
 type WeekdayKey = 'monday' | 'tuesday' | 'wednesday' | 'thursday' | 'friday' | 'saturday' | 'sunday';
 
@@ -401,6 +402,8 @@ export const AgendaTab: React.FC = () => {
           </div>
         )}
       </section>
+
+      <PractitionerAvailabilityPanel cabinetSchedule={settings.weekly_schedule} />
 
       {formError && <p role="alert" className="rounded-2xl bg-rose-50 px-5 py-4 text-sm font-bold text-rose-700">{formError}</p>}
 

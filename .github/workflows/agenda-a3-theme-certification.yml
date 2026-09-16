@@ -1,0 +1,80 @@
+name: Agenda A3 Theme Certification
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/agenda-a3-theme-certification.yml"
+      - "frontend/src/styles/agendaA3Theme.css"
+      - "frontend/src/utils/cn.ts"
+      - "frontend/src/AgendaClinicA3.test.ts"
+      - "frontend/src/features/agenda/MultiPractitionerTimelineView.tsx"
+      - "frontend/src/features/admin/Settings/tabs/PractitionerAvailabilityPanel.tsx"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  theme-visual:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install
+        working-directory: frontend
+        run: |
+          npm ci
+          npm install --no-save --package-lock=false playwright@1.55.0
+          npx playwright install --with-deps chromium
+      - name: A3 theme contract
+        working-directory: frontend
+        run: npx vitest run src/AgendaClinicA3.test.ts
+      - name: Materialize themed A3 harness
+        working-directory: frontend
+        run: |
+          cat > agenda-a3-theme.html <<'EOF'
+          <!doctype html><html lang="fr"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/><title>A3 Theme</title></head><body><div id="root"></div><script type="module" src="/src/agenda-a3-theme.tsx"></script></body></html>
+          EOF
+          cat > src/agenda-a3-theme.tsx <<'EOF'
+          import React from 'react';
+          import { createRoot } from 'react-dom/client';
+          import { MemoryRouter } from 'react-router-dom';
+          import './index.css';
+          import './styles/agendaA3Theme.css';
+          import { MultiPractitionerTimelineView } from './features/agenda/MultiPractitionerTimelineView';
+          import { PractitionerAvailabilityPanel } from './features/admin/Settings/tabs/PractitionerAvailabilityPanel';
+          const week = Object.fromEntries(['monday','tuesday','wednesday','thursday','friday','saturday','sunday'].map(day => [day,{is_open:true,is_continuous:false,morning_start:'09:00',morning_end:'13:00',afternoon_start:'14:00',afternoon_end:'18:00'}])) as any;
+          const data = {dentists:[{dentist_id:1,dentist_name:'Dr Lina Alaoui',appointments:[],availability:{date:'2026-09-16',inherits_cabinet:true,config_error:false,intervals:[],exceptions:[]}},{dentist_id:2,dentist_name:'Dr Youssef Benali',appointments:[],availability:{date:'2026-09-16',inherits_cabinet:false,config_error:false,intervals:[{start:'09:00',end:'12:00'},{start:'14:00',end:'17:00'}],exceptions:[{id:77,start_date:'2026-09-16T16:00:00',end_date:'2026-09-16T17:00:00',reason:'Congé'}]}}],legacy_unassigned:[],total_appointments:0};
+          const settings = {weekly_schedule:week,opening_time_morning:'09:00',closing_time_morning:'13:00',opening_time_afternoon:'14:00',closing_time_afternoon:'18:00',is_continuous:false} as any;
+          createRoot(document.getElementById('root')!).render(<MemoryRouter><div className="min-h-screen bg-background p-3 sm:p-5 space-y-6"><MultiPractitionerTimelineView data={data as any} loading={false} selectedDate={new Date('2026-09-16T10:00:00+01:00')} agendaSettings={settings} exceptions={[]} onSaved={() => undefined} /><PractitionerAvailabilityPanel cabinetSchedule={week} /></div></MemoryRouter>);
+          EOF
+          cat > agenda-a3-theme.mjs <<'EOF'
+          import { chromium } from 'playwright'; import { createServer } from 'vite'; import fs from 'node:fs/promises';
+          const out='agenda-a3-theme'; await fs.mkdir(out,{recursive:true});
+          const server=await createServer({server:{host:'127.0.0.1',port:4205,strictPort:true},clearScreen:false,optimizeDeps:{include:['workbox-window']}}); await server.listen();
+          const browser=await chromium.launch(); const themes=['default','emerald','dark']; const viewports=[[390,844],[1280,900]]; const report=[]; const json=(body,status=200)=>({status,contentType:'application/json',body:JSON.stringify(body)});
+          try { for (const theme of themes) for (const [width,height] of viewports) { const context=await browser.newContext({viewport:{width,height},locale:'fr-FR',timezoneId:'Africa/Casablanca'}); const page=await context.newPage(); const errors=[]; page.on('pageerror',e=>errors.push(`pageerror: ${e.message}`)); page.on('console',m=>{if(m.type()==='error')errors.push(`console: ${m.text()}`)}); await page.route('**/api/**',async route=>{const u=new URL(route.request().url()); if(u.pathname==='/api/agenda/practitioners') return route.fulfill(json([{practitioner_id:1,practitioner_name:'Dr Lina Alaoui',inherits_cabinet:true}])); if(u.pathname==='/api/agenda/practitioners/1/settings') return route.fulfill(json({practitioner_id:1,practitioner_name:'Dr Lina Alaoui',inherits_cabinet:true,weekly_schedule:null,updated_at:null})); if(u.pathname==='/api/agenda/practitioners/1/exceptions') return route.fulfill(json([])); return route.fulfill(json([]));});
+          await page.goto('http://127.0.0.1:4205/agenda-a3-theme.html',{waitUntil:'networkidle'}); await page.getByText('Disponibilités par praticien',{exact:true}).waitFor(); await page.getByText('Heure',{exact:true}).waitFor(); await page.evaluate((value)=>{if(value==='default') delete document.documentElement.dataset.theme; else document.documentElement.dataset.theme=value;},theme); await page.waitForTimeout(550);
+          const available=page.getByLabel('Créer un rendez-vous avec Dr Youssef Benali à 10:00'); const pause=page.getByLabel('Dr Youssef Benali indisponible à 12:15 : Pause du praticien'); const leave=page.getByLabel('Dr Youssef Benali indisponible à 16:15 : Absence : Congé'); await Promise.all([available.waitFor(),pause.waitFor(),leave.waitFor()]);
+          const colors=await page.evaluate(()=>{const panel=document.querySelector('[data-testid="practitioner-availability-panel"]'); const panelHeading=panel?.querySelector('h3'); const scroll=document.querySelector('[data-testid="multi-practitioner-scroll"]'); const root=scroll?.parentElement; const personalize=Array.from(document.querySelectorAll('button')).find(el=>el.textContent?.trim()==='Personnaliser'); const byLabel=(needle)=>Array.from(document.querySelectorAll('button')).find(el=>el.getAttribute('aria-label')?.includes(needle)); const css=(el)=>el?getComputedStyle(el):null; const tokenHost=document.documentElement; const resolveBackground=(name)=>{const el=document.createElement('div');el.style.backgroundColor=`var(${name})`;tokenHost.appendChild(el);const value=getComputedStyle(el).backgroundColor;el.remove();return value;}; const resolveColor=(name)=>{const el=document.createElement('div');el.style.color=`var(${name})`;tokenHost.appendChild(el);const value=getComputedStyle(el).color;el.remove();return value;}; return {panelBg:css(panel)?.backgroundColor,panelHeadingText:css(panelHeading)?.color,timelineBg:css(root)?.backgroundColor,primaryButtonBg:css(personalize)?.backgroundColor,availableBg:css(byLabel('Créer un rendez-vous avec Dr Youssef Benali à 10:00'))?.backgroundColor,pauseBg:css(byLabel('Pause du praticien'))?.backgroundColor,leaveBg:css(byLabel('Absence : Congé'))?.backgroundColor,tokens:{cardBg:resolveBackground('--card-bg'),glassBg:resolveBackground('--glass-bg'),primary:resolveBackground('--primary'),textMain:resolveColor('--text-main')},page:{clientWidth:document.documentElement.clientWidth,scrollWidth:document.documentElement.scrollWidth}};});
+          if(colors.page.scrollWidth>colors.page.clientWidth) throw new Error(`${theme} page overflow ${width}`); if(colors.panelBg!==colors.tokens.cardBg) throw new Error(`${theme} panel token mismatch`); if(colors.panelHeadingText!==colors.tokens.textMain) throw new Error(`${theme} heading text token mismatch`); if(colors.timelineBg!==colors.tokens.glassBg) throw new Error(`${theme} glass token mismatch`); if(colors.primaryButtonBg!==colors.tokens.primary) throw new Error(`${theme} primary token mismatch`); if(colors.pauseBg===colors.availableBg||colors.leaveBg===colors.availableBg||colors.pauseBg===colors.leaveBg) throw new Error(`${theme} semantic availability states collapsed`); if(errors.length) throw new Error(errors.join(' | ')); await page.screenshot({path:`${out}/${theme}-${width}x${height}.png`,fullPage:true,animations:'disabled'}); report.push({theme,width,height,...colors}); await context.close(); } await fs.writeFile(`${out}/report.json`,JSON.stringify(report,null,2)); } finally {await browser.close();await server.close();}
+          EOF
+      - name: Verify theme inheritance
+        working-directory: frontend
+        run: node agenda-a3-theme.mjs
+      - name: Evidence manifest
+        working-directory: frontend
+        run: |
+          test "$(find agenda-a3-theme -name '*.png' | wc -l)" -eq 6
+          test -s agenda-a3-theme/report.json
+          printf '%s\n' "head_sha=${{ github.event.pull_request.head.sha || github.sha }}" "themes=default,emerald,dark" "viewports=390x844,1280x900" "assertion=settled computed colors equal resolved Digital Crown tokens" > agenda-a3-theme/metadata.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: agenda-a3-theme-evidence
+          path: frontend/agenda-a3-theme/
+          if-no-files-found: error
+          retention-days: 14
