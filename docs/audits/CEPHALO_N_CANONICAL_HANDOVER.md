@@ -2,9 +2,9 @@
 
 Statut : **CHANTIER ACTIF — NON TERMINÉ — ORTHO V2 PARKED**
 
-Date d’état : 2026-09-15
+Date d’état : 2026-09-16
 
-Ce fichier est le **fichier canonique de reprise du chantier Céphalo-N**. Toujours le lire en premier, puis revérifier GitHub avant toute mutation : les SHA et CI ci-dessous sont des preuves historiques/snapshots, jamais une autorité temps réel.
+Ce fichier est le **fichier canonique de reprise du chantier Céphalo-N**. Toujours le lire en premier, puis revérifier GitHub avant toute mutation : les SHA et CI ci-dessous sont des preuves historiques vérifiées, jamais une autorité temps réel.
 
 ---
 
@@ -39,7 +39,7 @@ Céphalo-N n’est clos que si :
 - BEFORE/AFTER + validation visuelle si UI/PDF visuel modifié ;
 - CI HEAD final verte ;
 - merge + post-merge verts ;
-- ce fichier mis à jour ;
+- ce fichier à jour ;
 - gate `CEPHALO_N_CLOSEOUT_VERIFIED` posé uniquement après ces preuves.
 
 ### Preuve attendue par lot
@@ -100,6 +100,15 @@ Règles :
 7. Le SVG utilise exactement les mêmes primitives géométriques que les calculs.
 8. La synthèse n’émet pas de diagnostic final automatique.
 
+Registre runtime unique :
+
+- `backend/services/cephalo_measure_registry.py`
+- ne jamais créer un second registre canonique parallèle ;
+- conserver `cephalo_unit()`, `is_mm_metric()` et les comportements legacy validés ;
+- unité canonique inconnue = `None` / fail-closed ;
+- `M_OVERBITE_V1` reste sans unité canonique verrouillée tant qu’une source exacte ne la verrouille pas ;
+- registre normatif séparé du registre géométrique.
+
 États canoniques utilisés :
 
 - `GEOMETRY_COVERED`
@@ -124,8 +133,6 @@ Profils :
 - `STEINER_1953_CORE_V1`
 - `STEINER_1959_CLINICAL_EXTENSION_V1`
 
-Core documenté : 13 mesures. Extension 1959 : 6 références supplémentaires.
-
 Les mesures linéaires U1-NA / L1-NB nécessitent la surface faciale/coronaire exacte, pas seulement le bord incisif.
 
 ### Tweed
@@ -134,7 +141,7 @@ Sources primaires : Tweed 1946 / 1954.
 
 Triangle : FMA + IMPA + FMIA.
 
-Décision Digital Crown verrouillée :
+Convention Digital Crown verrouillée :
 
 ```text
 DC_TWEED_ANATOMICAL_FH_VARIANT = Porion anatomique → Orbitale
@@ -144,11 +151,17 @@ Ne jamais présenter cette convention comme reproduction stricte du Frankfort ea
 
 ### McNamara
 
-Source primaire : McNamara 1984.
+Source primaire du profil : McNamara JA Jr, 1984.
 
 Profil : `MCNAMARA_1984_SINGLE_FILM_V1`.
 
-13 variables quantitatives principales documentées. Séparer strictement `Gn_anatomic` et `Gn_constructed`.
+Source verrouillée pour le lot N-perp :
+
+- DOI `10.1016/S0002-9416(84)90352-X`
+- PMID `6594933`
+- cross-check secondaire : `PMC4436328`
+
+Séparer strictement `Gn_anatomic` et `Gn_constructed`.
 
 Airway = indicateur céphalométrique, jamais diagnostic ORL.
 
@@ -158,13 +171,11 @@ Source principale : Ricketts 1981.
 
 Profil : `RICKETTS_1981_SUMMARY_DESCRIPTIVE_V1`.
 
-- 11 facteurs latéraux ;
-- 12 facteurs PA/frontaux ;
-- PA reste `BLOCKED_MODALITY_PA` sans vraie incidence frontale.
+- facteurs latéraux séparés des facteurs PA/frontaux ;
+- PA reste `BLOCKED_MODALITY_PA` sans vraie incidence frontale ;
+- ne pas confondre Pt Ricketts, Xi, Pm, Sub.Go.-M, PTV, true Frankfort.
 
-Ne pas confondre : Pt Ricketts, Xi, Pm, Sub.Go.-M, PTV, true Frankfort.
-
-Dette de nomenclature connue : `RICKETTS_FACIAL_DEPTH_DEG_V1` calcule `FH ↔ N-Pog`, géométrie correspondant au **Facial Angle** validé. Aucun renommage sans lot de compatibilité dédié.
+Dette de nomenclature conservée : `RICKETTS_FACIAL_DEPTH_DEG_V1` calcule `FH ↔ N-Pog`, géométrie correspondant au Facial Angle validé. Aucun renommage sans lot de compatibilité dédié.
 
 ### COM
 
@@ -187,129 +198,137 @@ Ne jamais fusionner ni aliaser :
 - `Gn_anatomic` ≠ `Gn_constructed`
 - `Pt_Ricketts` ≠ `PTM_McNamara`
 - `Pog_hard` ≠ `Pog_soft`
-- profil latéral ≠ incidence PA/frontale
+- profil latéral ≠ incidence PA/frontale.
+
+Aucun alias `PENDING_EQUIVALENCE` / `SOURCE_LOCK_REQUIRED` ne peut être promu par simple ressemblance de nom.
 
 ---
 
-## 6. Sources canoniques du chantier
-
-Documents à conserver cohérents :
-
-- `docs/audits/CEPHALO_N_CANONICAL_HANDOVER.md` — reprise/état global ;
-- `docs/audits/CEPHALO_CANONICAL_MEASUREMENT_REGISTRY.md` — identités de mesures ;
-- `docs/audits/CEPHALO_ANALYSIS_MEASUREMENT_PROFILES.md` — composition des analyses ;
-- `docs/audits/ORTHO_MODULE_V2.md` — futur uniquement.
-
-Le mapping local SRPose38 reste `LEGACY_LOCAL_MAPPING / SOURCE_LOCK_REQUIRED`. L’existence d’un canal ONNX ne suffit jamais à promouvoir un landmark clinique en vérité anatomique.
-
----
-
-## 7. État GitHub vérifié
+## 6. État GitHub vérifié au 2026-09-16
 
 Repo : `hraaaaf/Digital_crown`
 
-### PR #513 — CLOSED
+### PR #513 — MERGED
 
-- titre : `test(cephalo): lock source-specific geometry fixtures`
 - merge SHA : `d762dec2487b42b6775990fdaa0b2f67b7a1a6f8`
-- post-merge CI : **#4407 SUCCESS**
-- scope : contrats/fixtures géométriques Céphalo, sans modification runtime production.
+- post-merge CI #4407 : **SUCCESS**
+- scope : contrats/fixtures géométriques Céphalo.
 
-Conclusion : **lot géométrie source-lockée intégré et post-merge vérifié**.
+### PR #515 — MERGED
 
-### PR #515 — CLOSED
+- merge SHA : `8f74464998a721414e67957e0c9346f6a67efdb2`
+- post-merge CI #4442 : **SUCCESS**
+- scope : registre documentaire canonique + profils + Ortho V2 parked.
 
-- titre : `docs(cephalo): canonicalize measurements before analysis profiles`
-- merge SHA / master de départ du lot runtime : `8f74464998a721414e67957e0c9346f6a67efdb2`
-- post-merge CI : **#4442 SUCCESS**
-- scope : registre documentaire canonique + profils + handover + Ortho V2 parked.
+### PR #524 — MERGED — runtime registry
 
-Conclusion : **registre/profils documentaires intégrés et post-merge vérifiés**.
+- titre : `feat(cephalo): add canonical runtime measurement registry`
+- merge SHA : `e83b9713e80c94c42a16014d802be850c246adde`
+- post-merge CI #4488 : **SUCCESS**
+- registre canonique runtime matérialisé dans le registre existant ;
+- helpers legacy conservés ;
+- unité canonique inconnue fail-closed ;
+- aucun faux alias introduit ;
+- pas de DB, persistance, UI ou norme fusionnée dans ce lot.
 
-### PR #524 — ACTIVE — runtime registry
+Conclusion : **registre runtime canonique intégré et post-merge vérifié**.
 
-Branche : `feat/cephalo-canonical-runtime-registry`
+### PR #527 — MERGED — mesures McNamara N-perp runtime
 
-Goal : matérialiser le registre canonique dans le runtime existant, sans second registre et sans casser le legacy.
+- titre : `feat(cephalo): add canonical McNamara N-perp runtime measures`
+- branche historique : `feat/cephalo-n-missing-runtime-measurements`
+- HEAD pré-merge certifié : `800729c55c4c256239a910c6aa48aade05c92526`
+- merge commit réel : `2c36a04d90933d70fe8d501f44b9f8e04f7acca0`
+- master vérifié sur ce merge commit après merge ;
+- diff pré-merge final : 9 fichiers Céphalo attendus, +567/-36 ;
+- 0 behind au gate final ;
+- reviews : 0 ; threads de review : 0 au dernier audit pré-merge ;
+- CI pré-merge #4552 : **SUCCESS** ;
+- T2 Runtime Browser Certification #3419 : **SUCCESS** ;
+- PR Merge Summary #20 : **SUCCESS** ;
+- M6-I #2219 : **SKIPPED attendu** ;
+- post-merge CI #4565 : **SUCCESS** ;
+- post-merge Cabinet Upgrade PostgreSQL Certification #916 : **SUCCESS**.
 
-Décisions verrouillées du lot :
+Conclusion : **lot mesures manquantes N-perp intégré et post-merge vérifié**.
 
-- enrichir `backend/services/cephalo_measure_registry.py` existant ;
-- conserver `cephalo_unit()` et `is_mm_metric()` pour les noms legacy ;
-- exposer les IDs `M_*` canoniques explicitement ;
-- unité canonique non source-lockée = **pas d’invention** (`None` / fail-closed) ;
-- `M_OVERBITE_V1` reste sans unité canonique verrouillée ;
-- aucun alias automatique ;
-- conserver `method_id` de `cephalo_measurement_adapter.py` ;
-- conserver le registre normatif séparé ;
-- Ricketts facial axis : géométrie couverte mais usage auto encore `BLOCKED_LANDMARK`.
+Master vérifié lors du closeout de ce lot :
 
-Snapshot avant mise à jour du présent canonique :
+```text
+2c36a04d90933d70fe8d501f44b9f8e04f7acca0
+```
 
-- HEAD : `9bc2f69752810ce4db2a4792b9358d99177d8c11`
-- compare : 3 ahead / 0 behind master
-- fichiers alors modifiés : runtime registry + test dédié
-- PR `mergeable=true`
-- review threads : 0
-- exact-head workflows alors lancés : CI #4451, PostgreSQL #842, T2 #3327 ; M6-I #2127 skipped attendu.
-
-**Important : cette mise à jour du canonique crée un nouveau HEAD. Les états CI ci-dessus sont donc un snapshot pré-canonique et ne valent pas certification finale. Revérifier le nouveau HEAD exact avant merge.**
+Toujours revérifier le master réel avant toute nouvelle mutation.
 
 ---
 
-## 8. Runtime registry — contrat attendu
+## 7. Mesures activées par le lot #527
 
-Le registre runtime canonique doit :
+Seulement :
 
-1. rester dans `backend/services/cephalo_measure_registry.py` ;
-2. fournir identité canonique + unité source-lockée si connue + statut scientifique ;
-3. ne résoudre aucun faux alias ;
-4. conserver le fallback legacy existant ;
-5. ne pas remplacer les `method_id` d’evidence ;
-6. ne pas fusionner le registre normatif ;
-7. ne pas activer une mesure `SOURCE_LOCK_REQUIRED`, `BLOCKED_*` ou unité inconnue par simple convention de nom ;
-8. ne modifier ni DB, ni données patients, ni documents persistés, ni UI dans ce lot.
+- `M_A_NPERP_MM_V1`
+- `M_POG_NPERP_MM_V1`
 
-Tests minimum :
+Contrat scientifique verrouillé :
 
-- IDs canoniques résolus exactement ;
-- unités mm/° correctes ;
-- unité non verrouillée fail-closed ;
-- helpers legacy inchangés ;
-- faux équivalents distincts ;
-- non-régression générale via CI.
+- Frankfort anatomique `Po → Or` ;
+- N-perpendicular passant par `N` ;
+- `Pog` = Pogonion osseux / hard tissue ;
+- distance antéro-postérieure signée ;
+- positif = antérieur ;
+- négatif = postérieur ;
+- calibration obligatoire pour une sortie en mm ;
+- calibration absente/incohérente = fail-closed ;
+- aucune équivalence avec `M_B_NPERP_MM_V1`.
+
+Cycle runtime désormais préservé :
+
+```text
+création
+→ édition landmarks
+→ reconstruction evidence
+→ calibration/recalibration
+→ lecture du graphe actif
+```
+
+Le rebuild après édition des landmarks et la recalibration rematérialisent les constructions/mesures McNamara N-perp sans dupliquer les formules ni créer un registre parallèle.
+
+---
+
+## 8. Mesures encore bloquées / non autorisées
+
+Restent explicitement bloquées tant que leurs prérequis scientifiques ne sont pas tous prouvés :
+
+- L1-GoGn ;
+- McNamara differential ;
+- McNamara facial axis ;
+- Sub.Go.-M ;
+- toute mesure dépendant d’un `Go`, `Gn`, `Co`, `Pt`, `PTM` ambigu/non source-locké ;
+- toute mesure PA/frontale sans vraie modalité PA ;
+- tout alias fondé uniquement sur ressemblance de nom.
+
+Gate obligatoire pour une nouvelle mesure :
+
+1. source exacte ;
+2. landmarks exacts disponibles ;
+3. construction non ambiguë ;
+4. unité verrouillée ;
+5. calibration si distance réelle ;
+6. ID canonique ;
+7. calcul centralisé ;
+8. tests numériques déterministes ;
+9. tests négatifs/fail-closed ;
+10. absence de duplication sémantique.
+
+Un seul élément manquant → **BLOCKED**.
 
 ---
 
 ## 9. Roadmap restante Céphalo-N
 
-Ordre obligatoire :
+### Prochain lot — SVG synchronisé
 
-### Lot actuel — fermer #524
-
-Succès :
-
-- diff limité au registre runtime + tests + présent canonique ;
-- exact HEAD CI/T2/PostgreSQL verts, M6-I skipped attendu ;
-- master toujours compatible ;
-- 0 thread bloquant ;
-- PR ready ;
-- **accord utilisateur explicite avant merge** ;
-- squash merge ;
-- post-merge CI verte.
-
-### Lot suivant — mesures manquantes réellement calculables
-
-Implémenter seulement si :
-
-- source exacte verrouillée ;
-- landmarks exacts disponibles/certifiés ;
-- convention géométrique verrouillée ;
-- calibration disponible pour les distances.
-
-Sinon : rester explicitement bloqué.
-
-### Puis — SVG synchronisé
+Goal : faire représenter visuellement exactement les primitives réellement calculées, sans ligne décorative ni géométrie parallèle.
 
 Règles UI/UX obligatoires :
 
@@ -319,11 +338,12 @@ BEFORE mêmes viewports
 → mockup/référence
 → implémentation
 → AFTER mêmes viewports
-→ comparaison/tests
-→ score visuel
+→ comparaison visuelle
+→ tests fonctionnels/non-régression
+→ score visuel argumenté
 ```
 
-Aucune ligne décorative sans correspondance calculée.
+Le lot n’est pas validable sans preuves visuelles BEFORE/AFTER si le rendu Céphalo est modifié.
 
 ### Puis — normes/interprétation
 
@@ -335,7 +355,7 @@ normative_context
 interpretation
 ```
 
-Normes versionnées avec population/âge/sexe/source quand pertinent.
+Normes versionnées avec population/âge/sexe/source lorsque pertinent.
 
 ### Puis — synthèse inter-analyses
 
@@ -349,7 +369,7 @@ Interdit : moyenne naïve / diagnostic final automatique.
 
 Le praticien doit pouvoir corriger landmarks, revoir mesures, valider/modifier la synthèse et produire un PDF reflétant exactement l’état validé.
 
-### Enfin — closeout
+### Enfin — closeout global
 
 ```text
 tests ciblés
@@ -369,15 +389,13 @@ Ensuite seulement : Ortho V2.
 
 ## 10. Next exact
 
-1. Relever le nouveau HEAD de #524 après cette mise à jour canonique.
-2. Vérifier compare vs `master` et scope exact.
-3. Certifier les workflows du **nouveau HEAD**.
-4. Recontrôler review threads + mergeability + master.
-5. Si tout est vert : marquer #524 ready.
-6. Stop au **HUMAN GATE — ACCORD MERGE #524 REQUIS**.
-7. Après accord : squash merge avec `expected_head_sha`.
-8. Vérifier master réel + post-merge CI.
-9. Enchaîner automatiquement sur le lot « mesures manquantes réellement calculables ».
+1. Fermer documentalement le lot #527 avec ce canonique actualisé.
+2. Vérifier que le diff documentaire ne modifie que ce canonique.
+3. Ouvrir une PR documentaire dédiée ; **ne pas la merger sans accord utilisateur explicite**.
+4. En parallèle, auditer le rendu Céphalo actuel pour le prochain lot SVG.
+5. Capturer/identifier le BEFORE aux mêmes viewports avant toute mutation visuelle.
+6. Écrire le Goal SVG et la référence/mockup.
+7. Seulement ensuite implémenter le SVG synchronisé.
 
 ---
 
@@ -391,13 +409,29 @@ Toute modification doit préserver :
 - comportements déjà validés ;
 - compatibilité runtime existante sauf migration explicitement conçue et prouvée.
 
+Aucune migration DB n’est autorisée par défaut : elle doit être démontrée nécessaire.
+
 Aucun déploiement Vercel n’est pertinent pour Digital Crown local/on-premise.
 
-Ne jamais déclarer « terminé », « validé », « production-ready » ou poser `CEPHALO_N_CLOSEOUT_VERIFIED` sans preuve exacte.
+Ne jamais déclarer « terminé », « validé », « production-ready » ni poser `CEPHALO_N_CLOSEOUT_VERIFIED` sans preuve exacte.
 
 ---
 
-## 12. Handover compact
+## 12. Sources canoniques du chantier
+
+Documents à conserver cohérents :
+
+- `docs/audits/CEPHALO_N_CANONICAL_HANDOVER.md` — reprise/état global ;
+- `docs/audits/CEPHALO_CANONICAL_MEASUREMENT_REGISTRY.md` — identités de mesures ;
+- `docs/audits/CEPHALO_ANALYSIS_MEASUREMENT_PROFILES.md` — composition des analyses ;
+- `docs/audits/CEPHALO_N_MISSING_MEASUREMENTS_INVENTORY.md` — inventaire des mesures manquantes/blocked ;
+- `docs/audits/ORTHO_MODULE_V2.md` — futur uniquement.
+
+Le mapping local SRPose38 reste `LEGACY_LOCAL_MAPPING / SOURCE_LOCK_REQUIRED`. L’existence d’un canal ONNX ne suffit jamais à promouvoir un landmark clinique en vérité anatomique.
+
+---
+
+## 13. Handover compact
 
 ```text
 CHANTIER
@@ -412,12 +446,17 @@ Céphalo-N actif. Ortho V2 parked derrière CEPHALO_N_CLOSEOUT_VERIFIED.
 ACQUIS
 #513 merged d762dec2 + post-merge CI #4407 SUCCESS.
 #515 merged 8f744649 + post-merge CI #4442 SUCCESS.
-Registre/profils scientifiques documentés.
+#524 merged e83b9713 + post-merge CI #4488 SUCCESS.
+#527 merged 2c36a04d + post-merge CI #4565 SUCCESS + PostgreSQL #916 SUCCESS.
+Registre runtime canonique unique conservé.
+M_A_NPERP_MM_V1 et M_POG_NPERP_MM_V1 activées avec calibration fail-closed et lifecycle édition/recalibration préservé.
 
-LOT ACTIF
-PR #524 — feat/cephalo-canonical-runtime-registry.
-Étendre le registre existant, préserver legacy, aucun faux alias, normes séparées, unités inconnues fail-closed.
+BLOQUÉ
+L1-GoGn, McNamara differential, facial axis McNamara, Sub.Go.-M et toute géométrie dépendant de landmarks ambigus ou non source-lockés.
+
+LOT SUIVANT
+SVG synchronisé.
 
 NEXT
-Certifier le HEAD final de #524 → master/reviews/mergeability → ready → accord utilisateur merge → squash merge → post-merge → mesures manquantes → SVG → normes → synthèse → validation praticien → PDF → closeout.
+Closeout documentaire #527 → audit/capture BEFORE SVG → Goal + référence → implémentation → AFTER mêmes viewports → comparaison/tests/score → normes → synthèse → validation praticien → PDF → closeout global.
 ```
