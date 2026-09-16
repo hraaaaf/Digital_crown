@@ -54,7 +54,31 @@ Le même axe temporel doit permettre de voir immédiatement les créneaux libres
 
 ## Référence UX figée avant implémentation
 
-Référence visuelle : `docs/audits/AGENDA_CLINIC_A2_REFERENCE.svg`.
+Wireframe canonique :
+
+```text
+┌────────┬──────────────────────┬──────────────────────┬──────────────────────┐
+│ HEURE  │ Dr Lina Alaoui       │ Dr Youssef Benali    │ Dr Salma Idrissi     │
+│        │ 2 RDV aujourd'hui    │ 2 RDV aujourd'hui    │ 1 RDV aujourd'hui    │
+├────────┼──────────────────────┼──────────────────────┼──────────────────────┤
+│ 09:00  │ Sara · Consultation  │ Yasmine · Prothèse   │                      │
+│        │ 30 min               │ 60 min               │                      │
+├────────┼──────────────────────┼──────────────────────┼──────────────────────┤
+│ 10:00  │                      │                      │ Aya · 10:30 · 30 min │
+├────────┼──────────────────────┼──────────────────────┼──────────────────────┤
+│ 11:00  │ Adam · Endodontie    │                      │                      │
+├────────┴──────────────────────┴──────────────────────┴──────────────────────┤
+│ 12:00  LEGACY NON ASSIGNÉ — bloque tous les praticiens — 30 min            │
+├────────┬──────────────────────┬──────────────────────┬──────────────────────┤
+│ 13:00  │      HORS HORAIRES CABINET / pause globale existante              │
+├────────┼──────────────────────┼──────────────────────┼──────────────────────┤
+│ 14:00  │                      │ Omar · 14:30 · 30 min│                      │
+├────────┼──────────────────────┼──────────────────────┼──────────────────────┤
+│ 15:00+ │        zones blanches = créneaux libres cliquables                 │
+└────────┴──────────────────────┴──────────────────────┴──────────────────────┘
+```
+
+Référence mobile/tablette : même matrice, jamais transformée en listes. L'axe `HEURE` reste visible ; les lanes praticiens ont `min-width: 220px` et défilent horizontalement.
 
 Décisions :
 
