@@ -238,7 +238,7 @@ export const MultiPractitionerTimelineView: React.FC<MultiPractitionerTimelineVi
         <div className="flex flex-wrap items-center gap-3 text-[10px] font-black uppercase tracking-wider text-slate-500">
           <span className="inline-flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded border border-slate-300 bg-white" /> Libre</span>
           <span className="inline-flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded border border-slate-300 bg-slate-100" /> Hors horaires</span>
-          <span className="inline-flex items-center gap-1.5 text-orange-700"><span className="h-2.5 w-2.5 rounded border border-orange-400 bg-orange-50" /> Legacy global</span>
+          <span className="inline-flex items-center gap-1.5 text-orange-700"><span className="h-2.5 w-2.5 rounded border border-orange-400 bg-orange-50" /> RDV non assigné</span>
         </div>
         <span className="text-[10px] font-bold text-slate-400">Créneaux de 15 min · défilement horizontal sur petit écran</span>
       </div>
@@ -247,7 +247,7 @@ export const MultiPractitionerTimelineView: React.FC<MultiPractitionerTimelineVi
         <div className="flex items-start gap-2 border-b border-orange-200 bg-orange-50 px-4 py-3 text-xs font-bold text-orange-800">
           <AlertTriangle size={16} className="mt-0.5 shrink-0" />
           <div>
-            <p className="font-black">Rendez-vous flexibles legacy non assignés</p>
+            <p className="font-black">Rendez-vous flexibles non assignés</p>
             <p className="mt-0.5 font-medium text-orange-700">
               {flexibleLegacy.map((appointment) => `${schedulingLabel(appointment)} · ${appointment.patient_name || 'Patient'}`).join(' · ')}
             </p>
