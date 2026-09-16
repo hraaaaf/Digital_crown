@@ -69,7 +69,10 @@ jobs:
           pip install torch==2.12.0 torchvision==0.27.0 --index-url https://download.pytorch.org/whl/cpu
           grep -vE '^(torch|torchvision)([<=>].*)?$' requirements.txt > /tmp/requirements-t2-runtime.txt
           pip install -r /tmp/requirements-t2-runtime.txt
-          pip install httpx==0.27.2
+          pip install httpx==0.27.2 pytest pytest-asyncio
+
+      - name: Certify mobile numeric-sub license regression
+        run: python -m pytest backend/tests/test_mobile_identity_security.py::test_mobile_mutation_uses_numeric_subject_as_user_id -q
 
       - name: Install frontend and Chromium
         working-directory: frontend
