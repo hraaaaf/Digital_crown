@@ -108,7 +108,7 @@ jobs:
           {
             "schema_version": "pharmacology-independent-review.1",
             "reviewer": "github-copilot-cli",
-            "model": "claude-opus-5",
+            "model": "claude-sonnet-4.6",
             "target_pr": 525,
             "target_head": "7379ddeab663b833b6be43f455c434be28cafe75",
             "expected_base": "1e9fd49af91ffafad89ad9936c6f2e372e883354",
@@ -126,7 +126,7 @@ jobs:
           Every finding/action must be concrete and traceable to a file, line/behavior, command result or source URL where possible.
           PROMPT
 
-      - name: Run independent reviewer with Claude Opus 5
+      - name: Run independent reviewer with Claude Sonnet 4.6
         env:
           GITHUB_TOKEN: ${{ github.token }}
         run: |
@@ -136,7 +136,7 @@ jobs:
             -p "$(cat /tmp/reviewer-prompt.txt)" \
             -s \
             --no-ask-user \
-            --model claude-opus-5 \
+            --model claude-sonnet-4.6 \
             --allow-tool='shell(git:*)' \
             --allow-tool='shell(cat:*)' \
             --allow-tool='shell(grep:*)' \
@@ -169,7 +169,7 @@ jobs:
               raise SystemExit(f'Unexpected reviewer keys: {sorted(set(report) ^ expected_keys)}')
           if report['schema_version'] != 'pharmacology-independent-review.1':
               raise SystemExit('Wrong schema version')
-          if report['reviewer'] != 'github-copilot-cli' or report['model'] != 'claude-opus-5':
+          if report['reviewer'] != 'github-copilot-cli' or report['model'] != 'claude-sonnet-4.6':
               raise SystemExit('Reviewer/model mismatch')
           if report['target_pr'] != 525:
               raise SystemExit('Target PR mismatch')
