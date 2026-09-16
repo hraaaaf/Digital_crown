@@ -25,7 +25,7 @@ Le canonique `PRESCRIPTION_PHARMACOLOGY_MOROCCO_RCP_M1.md` impose pour `SNAPSHOT
 - identité de présentation ;
 - revue scientifique indépendante avant changement réglementaire mergé.
 
-Le déterministic safety gate exige lui aussi une provenance HTTPS AMMPS officielle. ANSM/EMA ou autre régulateur étranger ne peuvent donc pas remplacer la preuve réglementaire marocaine dans M1.
+Le deterministic safety gate exige lui aussi une provenance HTTPS AMMPS officielle. ANSM/EMA ou autre régulateur étranger ne peuvent donc pas remplacer la preuve réglementaire marocaine dans M1.
 
 ## Preuve préalable — mapping des 48 RCP actifs
 Run GitHub Actions #15 `35142068612` sur `cbb223eff8ce6cc4f8765cf03e495e1e69385769`: SUCCESS.
@@ -63,6 +63,24 @@ Source officielle : `https://ammps.gov.ma/repertoire-medicaments-generiques`.
 
 Utilité : identité/package-level et EAN pour les génériques, notamment le métronidazole oral. Cette surface ne remplace pas le RCP et ne peut pas servir de fallback réglementaire dans le contrat M1.
 
+## Surface 4 — canal institutionnel AMMPS courant
+Source officielle : `https://www.ammps.gov.ma/reclamation`.
+
+La page AMMPS courante expose une `Fiche de Réclamation Client` destinée à recueillir, traiter et suivre les réclamations relatives aux services de l'Agence. Elle permet notamment :
+- catégorie `Professionnel de santé` ;
+- thématique `Réglementaire / Juridique` ;
+- champ `Service ou dossier concerné` ;
+- description des faits et `Résultat attendu / Demande formulée` ;
+- pièces jointes PDF/JPG/PNG ;
+- envoi via la plateforme AMMPS ;
+- numéro de traitement des réclamations publié : `08 000 000 18`.
+
+Le site AMMPS courant publie également ses coordonnées institutionnelles à Rabat et les parcours `Déposer une réclamation` / `Déposer un recours`.
+
+Ce canal actuel est préféré pour la première demande documentaire formelle, car il est présent sur la surface institutionnelle 2026 et fournit un mécanisme de suivi.
+
+Une communication AMMPS historique du 15/02/2019 publie par ailleurs le canal du Service de l'enregistrement pour les demandes d'information concernant l'enregistrement des médicaments : `enregistrement.dmp@sante.gov.ma` avec `u.dm.dmp@sante.gov.ma` indiqué entre parenthèses. Ce canal est conservé comme preuve historique officielle, mais son actualité opérationnelle n'est pas supposée sans réponse.
+
 ## État Wave 1 après audit officiel
 - paracetamol: `PENDING` — identité AMMPS présente, aucun PDF RCP exact capturé ;
 - ibuprofen: `PENDING` — identité AMMPS présente, aucun PDF RCP exact capturé ;
@@ -74,16 +92,11 @@ Utilité : identité/package-level et EAN pour les génériques, notamment le m�
 
 Aucun de ces états n'autorise `UNAVAILABLE_VERIFIED`.
 
-## Voie officielle suivante
-L'AMMPS publie actuellement des coordonnées institutionnelles sur son site et expose des parcours `Déposer une réclamation` / `Déposer un recours`. Une communication AMMPS historique du 15/02/2019 publie aussi une adresse du Service de l'enregistrement pour les demandes d'information concernant l'enregistrement des médicaments : `enregistrement.dmp@sante.gov.ma` (avec `u.dm.dmp@sante.gov.ma` indiqué entre parenthèses).
-
-Cette adresse 2019 est conservée comme canal officiel historiquement publié, mais son actualité opérationnelle n'est pas supposée sans réponse. Les coordonnées institutionnelles actuelles du site AMMPS doivent être privilégiées pour confirmer/acheminer la demande si nécessaire.
-
 ## Demande documentaire recommandée
-Demander à l'AMMPS, pour chaque famille prioritaire, soit :
+Utiliser en priorité la Fiche de Réclamation Client AMMPS courante, catégorie `Professionnel de santé`, thématique `Réglementaire / Juridique`, afin de demander pour chaque famille prioritaire soit :
 1. l'URL publique exacte du RCP marocain courant ; ou
 2. une copie officielle du RCP courant avec identification exacte de la présentation ; ou
-3. une confirmation explicite si aucun RCP n'est publiquement disponible pour la présentation citée.
+3. une confirmation explicite de la procédure/statut documentaire si le RCP n'est pas publiquement disponible.
 
 Champs à demander : nom commercial, DCI, dosage, forme, présentation, statut AMM/commercialisation, identifiant réglementaire si communicable, URL RCP officielle ou document officiel.
 
@@ -92,7 +105,8 @@ Champs à demander : nom commercial, DCI, dosage, forme, présentation, statut A
 - `Lien RCP / NAF -` n'est pas transformé en `UNAVAILABLE_VERIFIED` ;
 - aucun document ANSM/EMA n'est utilisé comme substitut à la provenance AMMPS ;
 - aucune donnée clinique, posologie, indication ou règle de prescription n'est activée ;
+- aucune soumission AMMPS n'est faite sans human gate explicite ;
 - toute réponse AMMPS devra encore être liée à l'identité exacte, vérifiée en bytes/PDF/SHA-256 et revue indépendamment avant promotion du manifest.
 
 ## Verdict
-La voie publique AMMPS a été explorée suffisamment pour fermer le scraping ciblé comme stratégie principale : le mécanisme RCP existe et fonctionne, mais aucun RCP actif pertinent aux 7 familles Wave 1 n'a été prouvé. La prochaine étape rationnelle est une demande documentaire officielle AMMPS, soumise à human gate avant envoi.
+La voie publique AMMPS a été explorée suffisamment pour fermer le scraping ciblé comme stratégie principale : le mécanisme RCP existe et fonctionne, mais aucun RCP actif pertinent aux 7 familles Wave 1 n'a été prouvé. La prochaine étape rationnelle est une demande documentaire officielle via le canal AMMPS courant de réclamation/suivi, soumise à human gate avant envoi.
