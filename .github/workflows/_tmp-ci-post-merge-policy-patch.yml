@@ -35,12 +35,7 @@ jobs:
           new_trigger = """on:\n  push:\n    branches: [main, master]\n  workflow_dispatch:\n"""
           if text.count(old_trigger) != 1:
               raise SystemExit(f'postgres trigger anchor mismatch: {text.count(old_trigger)}')
-          text = text.replace(old_trigger, new_trigger, 1)
-          old_group = 'group: cabinet-upgrade-postgres-${{ github.event.pull_request.number || github.ref }}'
-          new_group = 'group: cabinet-upgrade-postgres-${{ github.ref }}'
-          if text.count(old_group) != 1:
-              raise SystemExit(f'postgres concurrency anchor mismatch: {text.count(old_group)}')
-          pg.write_text(text.replace(old_group, new_group, 1))
+          pg.write_text(text.replace(old_trigger, new_trigger, 1))
           PY
 
       - name: Remove temporary patch workflow
