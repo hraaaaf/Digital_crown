@@ -22,7 +22,9 @@ on:
 
 concurrency:
   group: ci-${{ github.ref }}
-  cancel-in-progress: true
+  # Keep every post-merge default-branch regression alive. Superseded PR/feature
+  # runs may still be cancelled to avoid wasting CI capacity.
+  cancel-in-progress: ${{ !(github.event_name == 'push' && (github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main')) }}
 
 jobs:
   # Generic full backend regression is intentionally post-merge.
