@@ -1,18 +1,16 @@
 import { chromium } from 'playwright';
 import { spawn } from 'node:child_process';
 import { once } from 'node:events';
-import { mkdir, rm, writeFile } from 'node:fs/promises';
+import { mkdir, rm, writeFile, appendFile } from 'node:fs/promises';
 import path from 'node:path';
 
 const PRODUCT_HEAD = process.env.PRODUCT_HEAD || 'unknown';
 const FRONTEND_DIR = process.cwd();
 const OUTPUT_DIR = path.join(FRONTEND_DIR, 'connect-hub-e-before-artifacts');
-const PORT = 5197;
-const BASE_URL = `http://127.0.0.1:${PORT}`;
 const viewports = [
-  { name: '390x844', width: 390, height: 844, expectBell: true },
-  { name: '768x1024', width: 768, height: 1024, expectBell: true },
-  { name: '1280x900', width: 1280, height: 900, expectBell: true },
+  { name: '390x844', width: 390, height: 844 },
+  { name: '768x1024', width: 768, height: 1024 },
+  { name: '1280x900', width: 1280, height: 900 },
 ];
 
 const entrySource = `
@@ -58,6 +56,7 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
 `;
 const htmlSource = `<!doctype html><html lang="fr"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/><title>Connect Hub E BEFORE</title><style>html,body,#root{width:100%;height:100%;margin:0}</style></head><body><div id="root"></div><script type="module" src="/src/connect-hub-e-before-entry.tsx"></script></body></html>`;
 const json = (body, status = 200) => ({ status, contentType: 'application/json', body: JSON.stringify(body) });
+const viteBin = path.join(FRONTEND_DIR, 'node_modules', '.bin', process.platform === 'win32' ? 'vite.cmd' : 'vite');
 
 async function waitForServer(url, timeoutMs = 30000) {
   const startedAt = Date.now();
@@ -68,26 +67,41 @@ async function waitForServer(url, timeoutMs = 30000) {
   throw new Error(`Vite server unavailable at ${url}`);
 }
 
+async function startServer(port, viewportName) {
+  await rm(path.join(FRONTEND_DIR, 'node_modules', '.vite'), { recursive: true, force: true });
+  await rm(path.join(FRONTEND_DIR, '.vite'), { recursive: true, force: true });
+  const server = spawn(viteBin, ['--host', '127.0.0.1', '--port', String(port), '--force'], {
+    cwd: FRONTEND_DIR,
+    env: { ...process.env, BROWSER: 'none', VITE_API_URL: 'http://127.0.0.1:8005' },
+    stdio: ['ignore', 'pipe', 'pipe'],
+  });
+  let log = '';
+  server.stdout.on('data', chunk => { log += chunk.toString(); });
+  server.stderr.on('data', chunk => { log += chunk.toString(); });
+  const baseUrl = `http://127.0.0.1:${port}`;
+  await waitForServer(`${baseUrl}/connect-hub-e-before.html`);
+  await appendFile(path.join(OUTPUT_DIR, 'vite.log'), `\n===== ${viewportName} port ${port} =====\n${log}`, 'utf8');
+  return { server, baseUrl, getLog: () => log };
+}
+
+async function stopServer(server, viewportName, getLog) {
+  if (!server.killed) server.kill('SIGTERM');
+  await Promise.race([once(server, 'exit'), new Promise(resolve => setTimeout(resolve, 3000))]).catch(() => {});
+  await appendFile(path.join(OUTPUT_DIR, 'vite.log'), `\n===== ${viewportName} final log =====\n${getLog()}`, 'utf8');
+}
+
 await rm(OUTPUT_DIR, { recursive: true, force: true });
-await rm(path.join(FRONTEND_DIR, 'node_modules', '.vite'), { recursive: true, force: true });
-await rm(path.join(FRONTEND_DIR, '.vite'), { recursive: true, force: true });
 await mkdir(OUTPUT_DIR, { recursive: true });
+await writeFile(path.join(OUTPUT_DIR, 'vite.log'), '', 'utf8');
 await writeFile(path.join(FRONTEND_DIR, 'src', 'connect-hub-e-before-entry.tsx'), entrySource, 'utf8');
 await writeFile(path.join(FRONTEND_DIR, 'connect-hub-e-before.html'), htmlSource, 'utf8');
 
-const viteBin = path.join(FRONTEND_DIR, 'node_modules', '.bin', process.platform === 'win32' ? 'vite.cmd' : 'vite');
-const server = spawn(viteBin, ['--host', '127.0.0.1', '--port', String(PORT), '--force'], {
-  cwd: FRONTEND_DIR,
-  env: { ...process.env, BROWSER: 'none', VITE_API_URL: 'http://127.0.0.1:8005' },
-  stdio: ['ignore', 'pipe', 'pipe'],
-});
-let serverLog = '';
-server.stdout.on('data', chunk => { serverLog += chunk.toString(); });
-server.stderr.on('data', chunk => { serverLog += chunk.toString(); });
 const captures = [];
 const blockedExternalRequests = [];
 
-async function capture(viewport) {
+async function capture(viewport, index) {
+  const port = 5197 + index;
+  const { server, baseUrl, getLog } = await startServer(port, viewport.name);
   const browser = await chromium.launch({ headless: true });
   const context = await browser.newContext({ viewport: { width: viewport.width, height: viewport.height }, reducedMotion: 'reduce', locale: 'fr-FR' });
   const page = await context.newPage();
@@ -98,7 +112,7 @@ async function capture(viewport) {
   await page.route('**/*', async route => {
     const request = route.request();
     const url = new URL(request.url());
-    if (url.hostname === '127.0.0.1' && url.port === String(PORT)) return route.continue();
+    if (url.hostname === '127.0.0.1' && url.port === String(port)) return route.continue();
     if (url.hostname === '127.0.0.1' && url.port === '8005') {
       if (url.pathname === '/api/clinics/me') return route.fulfill(json({ nom_cabinet: 'Cabinet Démo', nom_praticien: 'Dr. Démo', header_lines_fr: ['Dr. Démo', 'Chirurgien Dentiste'] }));
       if (url.pathname === '/api/accounting/treasury-hub') return route.fulfill(json({ pending_count: 3 }));
@@ -109,10 +123,11 @@ async function capture(viewport) {
     blockedExternalRequests.push({ viewport: viewport.name, url: request.url(), method: request.method() });
     return route.abort('blockedbyclient');
   });
+
   try {
-    const response = await page.goto(`${BASE_URL}/connect-hub-e-before.html`, { waitUntil: 'networkidle', timeout: 30000 });
+    const response = await page.goto(`${baseUrl}/connect-hub-e-before.html`, { waitUntil: 'networkidle', timeout: 30000 });
     await page.locator('header').waitFor({ state: 'visible', timeout: 30000 });
-    await page.waitForTimeout(300);
+    await page.waitForTimeout(250);
     const closed = await page.evaluate(() => ({
       innerWidth,
       scrollWidth: Math.max(document.documentElement.scrollWidth, document.body.scrollWidth),
@@ -134,27 +149,30 @@ async function capture(viewport) {
     }));
     await page.screenshot({ path: path.join(OUTPUT_DIR, `before-bell-open-${viewport.name}.png`), fullPage: false });
 
-    const closedValid = response?.status() === 200 && pageErrors.length === 0 && consoleErrors.length === 0 && closed.bellCount === 1 && !closed.hasTreasuryPopover && !closed.hasConnectHub && closed.scrollWidth <= closed.innerWidth + 1;
-    const openValid = open.hasTreasuryPopover && open.hasTreasuryAction && !open.hasConnectHub && open.scrollWidth <= open.innerWidth + 1;
-    return { viewport: viewport.name, expectBell: true, httpStatus: response?.status() ?? null, pageErrors, consoleErrors, closed, open, valid: Boolean(closedValid && openValid) };
+    const valid = response?.status() === 200 && pageErrors.length === 0 && consoleErrors.length === 0 && closed.bellCount === 1 && !closed.hasTreasuryPopover && !closed.hasConnectHub && open.hasTreasuryPopover && open.hasTreasuryAction && !open.hasConnectHub && closed.scrollWidth <= closed.innerWidth + 1 && open.scrollWidth <= open.innerWidth + 1;
+    return { viewport: viewport.name, httpStatus: response?.status() ?? null, pageErrors, consoleErrors, closed, open, valid };
   } catch (error) {
-    return { viewport: viewport.name, expectBell: true, pageErrors: [...pageErrors, error instanceof Error ? error.message : String(error)], consoleErrors, valid: false };
+    return { viewport: viewport.name, pageErrors: [...pageErrors, error instanceof Error ? error.message : String(error)], consoleErrors, valid: false };
   } finally {
     await context.close().catch(() => {});
     await browser.close().catch(() => {});
+    await stopServer(server, viewport.name, getLog);
   }
 }
 
-try {
-  await waitForServer(`${BASE_URL}/connect-hub-e-before.html`);
-  for (const viewport of viewports) captures.push(await capture(viewport));
-} finally {
-  if (!server.killed) server.kill('SIGTERM');
-  await Promise.race([once(server, 'exit'), new Promise(resolve => setTimeout(resolve, 3000))]).catch(() => {});
-  await writeFile(path.join(OUTPUT_DIR, 'vite.log'), serverLog, 'utf8');
-}
+for (const [index, viewport] of viewports.entries()) captures.push(await capture(viewport, index));
+
 const invalid = captures.filter(item => !item.valid);
-const report = { lot: 'LOT-E-CONNECT-HUB', phase: 'BEFORE', productHead: PRODUCT_HEAD, viewports: viewports.map(v => ({ name: v.name, expectBell: v.expectBell })), fixturePolicy: 'Exact baseline Header + Sidebar production components with deterministic cabinet/treasury/intelligence API fixtures; no target UI injected. All three canonical viewports assert the observed production bell and treasury-only popover.', captures, blockedExternalRequests, invalidCount: invalid.length };
+const report = {
+  lot: 'LOT-E-CONNECT-HUB',
+  phase: 'BEFORE',
+  productHead: PRODUCT_HEAD,
+  viewports: viewports.map(v => v.name),
+  fixturePolicy: 'Exact baseline Header + Sidebar production components with deterministic cabinet/treasury/intelligence API fixtures; one fresh forced Vite server per viewport to avoid optimizer cross-viewport cache contamination; no target UI injected.',
+  captures,
+  blockedExternalRequests,
+  invalidCount: invalid.length,
+};
 await writeFile(path.join(OUTPUT_DIR, 'report.json'), JSON.stringify(report, null, 2), 'utf8');
 console.log(JSON.stringify(report, null, 2));
 if (invalid.length || blockedExternalRequests.length) process.exitCode = 1;
