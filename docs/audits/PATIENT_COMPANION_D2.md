@@ -1,6 +1,6 @@
 # PATIENT COMPANION D2 — STAFF OPERABILITY
 
-Status: PRE-MERGE CERTIFIED
+Status: PRE-MERGE RE-CERTIFICATION IN PROGRESS
 
 ## Goal
 Rendre les capacités d'administration Patient Companion D0 réellement opérables depuis la fiche patient du cabinet, sans nouveau moteur métier ni nouvelle source de vérité.
@@ -15,7 +15,7 @@ Depuis `/patients/:id`, le praticien principal peut :
 
 Après reload, l'état durable est reconstruit depuis les modèles D0 existants. Aucun secret d'invitation n'est persisté en clair côté frontend.
 
-## Certified pre-merge proof — 2026-09-16
+## Certified product proof retained — 2026-09-16
 
 Product validation HEAD: `5018fbbfd4144f1f8f7c19417458a8164762570c`.
 
@@ -38,7 +38,27 @@ Product validation HEAD: `5018fbbfd4144f1f8f7c19417458a8164762570c`.
 - DB de certification isolée ; aucune DB cabinet touchée.
 - Aucun déploiement Vercel.
 
-Le commit documentaire de closeout qui porte ce fichier n'altère pas le code produit certifié ci-dessus. Depuis le merge CI #529, les grosses régressions backend génériques et PostgreSQL sont volontairement certifiées post-merge sur `master`; elles ne doivent plus être relancées à chaque commit de PR.
+Cette preuve produit antérieure reste conservée comme référence. Elle ne vaut pas certification du HEAD courant tant que les checks de re-certification de ce HEAD ne sont pas terminés.
+
+Depuis le merge CI #529, les grosses régressions backend génériques et PostgreSQL sont volontairement certifiées post-merge sur `master`; elles ne doivent plus être relancées à chaque commit de PR.
+
+## Current pre-merge re-certification — 2026-09-16
+
+Après réconciliation avec `master` `bc3d8d145670dc70dc6c6842e772e56d1d89aa99`, le HEAD `9f8865f51eb381921026a977a2f6de51933d08e1` était mergeable avec zéro divergence connue.
+
+Résultats vérifiés sur ce HEAD :
+- CI #4555: SUCCESS.
+- UX Continuity PatientDetails #101: SUCCESS.
+- Patient Companion D2 Visual #46: FAILURE avant exécution du test ciblé, car `pytest` n'était pas installé dans le workflow.
+- Media C4 #102: 22 tests backend PASS + build frontend PASS, puis FAILURE Playwright sur un locator obsolète `Studio Céphalométrique`.
+
+Corrections CI/certification minimales poussées :
+- `67e9712e5c2ed6617230ec2970594f36fbb62095`: installation explicite de `pytest` dans le gate D2 ciblé ;
+- `9f7614b20073714c6fb9597c89bb5924f9247e35`: Media C4 attend désormais le heading réel `Céphalométrie` du `CephaloWorkspace`.
+
+Diff vérifié entre `9f8865f51eb381921026a977a2f6de51933d08e1` et `9f7614b20073714c6fb9597c89bb5924f9247e35` : exactement deux fichiers modifiés, une ligne ajoutée et une supprimée dans chacun ; aucun code produit modifié.
+
+Les nouvelles certifications du HEAD `9f7614b20073714c6fb9597c89bb5924f9247e35` sont en cours. Le lot ne doit pas être déclaré pré-merge certifié avant leur résultat.
 
 ## Anti-dup audit — locked insertion point
 Flux staff canonique vérifié :
@@ -107,13 +127,14 @@ Le correctif responsive ne modifie aucun endpoint, modèle, RBAC, stockage ou mo
 
 ## Current integration state
 Branch: `feat/patient-companion-d2-staff-ui`.
-PR: #523.
-Product validation HEAD: `5018fbbfd4144f1f8f7c19417458a8164762570c`.
-Master rechecked after CI policy merge #529: `8a37913c23f182a8de4e0f1dd0e2049e48b7267f`.
-The D2 branch is currently diverged from master; mergeability must be restored/rechecked before merge.
+PR: #523 OPEN, mergeable au dernier contrôle.
+Current HEAD after certification-only fixes: `9f7614b20073714c6fb9597c89bb5924f9247e35`.
+Base/master observed by PR: `bc3d8d145670dc70dc6c6842e772e56d1d89aa99`.
+No product-code change was introduced by the two certification fixes above.
 
 ## Remaining gates
-1. Reconcile D2 with current master without altering the certified D2 product behavior.
-2. Recheck PR mergeability and exact diff.
-3. Merge only after explicit user authorization.
-4. Post-merge: verify the single heavy backend regression + PostgreSQL/cabinet certification on the D2 merge commit, then mark D2 CLOSED.
+1. Obtain green Patient Companion D2 Visual on the current HEAD, including execution of `backend/tests/test_patient_companion_d2_staff.py`.
+2. Obtain green Media C4 on the current HEAD.
+3. Recheck current master, PR mergeability, exact diff and all targeted checks.
+4. Present the pre-merge validation summary and merge only after explicit user authorization.
+5. Post-merge: verify the single heavy backend regression + PostgreSQL/cabinet certification on the D2 merge commit, then mark D2 CLOSED.
