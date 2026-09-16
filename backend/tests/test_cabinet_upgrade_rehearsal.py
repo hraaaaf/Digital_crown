@@ -104,7 +104,7 @@ def test_snapshot_preserves_historical_rows_when_additive_column_is_added() -> N
         connection.exec_driver_sql("CREATE TABLE patients (id INTEGER PRIMARY KEY, nom TEXT NOT NULL)")
         connection.exec_driver_sql("INSERT INTO patients(id, nom) VALUES (1, 'A'), (2, 'B')")
 
-    before = rehearsal._database_snapshot(engine)
+    before = {"patients": rehearsal._table_snapshot(engine, "patients")}
     with engine.begin() as connection:
         connection.exec_driver_sql("ALTER TABLE patients ADD COLUMN new_nullable TEXT")
     after = rehearsal._database_snapshot_after(engine, before)
@@ -119,7 +119,7 @@ def test_snapshot_rejects_primary_key_drift() -> None:
             "CREATE TABLE patients (id INTEGER PRIMARY KEY, external_id INTEGER, nom TEXT)"
         )
         connection.exec_driver_sql("INSERT INTO patients(id, external_id, nom) VALUES (1, 10, 'A')")
-    before = rehearsal._database_snapshot(before_engine)
+    before = {"patients": rehearsal._table_snapshot(before_engine, "patients")}
 
     after_engine = sa.create_engine("sqlite+pysqlite:///:memory:")
     with after_engine.begin() as connection:
