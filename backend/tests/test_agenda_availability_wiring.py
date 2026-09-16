@@ -1,9 +1,21 @@
+import ast
 from pathlib import Path
 
 
 def test_appointment_mutations_use_authoritative_agenda_availability():
     source = Path('backend/routers/appointments.py').read_text()
-    assert 'from backend.services.agenda_availability import validate_appointment_availability' in source
+    tree = ast.parse(source)
+    agenda_imports = [
+        node
+        for node in ast.walk(tree)
+        if isinstance(node, ast.ImportFrom)
+        and node.module == 'backend.services.agenda_availability'
+    ]
+    assert any(
+        alias.name == 'validate_appointment_availability'
+        for node in agenda_imports
+        for alias in node.names
+    )
     assert source.count('validate_appointment_availability(') >= 3
     assert 'any(key in update_data for key in ("datetime_start", "duration_minutes", "scheduling_type", "praticien_id"))' in source
     assert source.count('raise HTTPException(status_code=422, detail=availability_error)') >= 3
