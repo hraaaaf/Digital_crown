@@ -63,7 +63,7 @@ jobs:
           node --input-type=module <<'NODE'
           import { readFile } from 'node:fs/promises';
           const r=JSON.parse(await readFile('cephalo-r19-analysis-reference-after-artifacts/report.json','utf8'));
-          if(r.productHead!==process.env.PRODUCT_HEAD||r.phase!=='AFTER'||r.invalidCount!==0||r.blockedExternalRequests.length) throw new Error('Invalid R19 AFTER evidence');
+          if(r.productHead!==process.env.PRODUCT_HEAD||r.phase!=='AFTER'||r.theme!=='default'||r.invalidCount!==0||r.blockedExternalRequests.length) throw new Error('Invalid R19 AFTER evidence');
           if(r.captures.length!==3) throw new Error('Expected three viewports');
           for(const c of r.captures){
             if(!c.valid) throw new Error(`Invalid ${c.viewport}`);
@@ -79,7 +79,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: cephalo-r19-analysis-reference-after-${{ github.sha }}
+          name: cephalo-r19-analysis-reference-after-default-${{ github.sha }}
           path: frontend/cephalo-r19-analysis-reference-after-artifacts
           if-no-files-found: error
           retention-days: 30
