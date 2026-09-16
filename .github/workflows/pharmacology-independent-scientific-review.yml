@@ -18,7 +18,7 @@ concurrency:
 
 env:
   TARGET_PR: '525'
-  TARGET_HEAD: '84dfb02e979e634363814cab8f856983578aefe6'
+  TARGET_HEAD: '4b4cfd968951c97af39d3e757afde5185ffeb196'
   EXPECTED_BASE: 'fb3a870e2fba92a005a3e3de57ee378042b23be3'
 
 jobs:
@@ -225,7 +225,7 @@ jobs:
           You are the independent scientific reviewer for Digital Crown PR #525.
 
           NON-NEGOTIABLE TARGET
-          - Review only repository state at exact HEAD 84dfb02e979e634363814cab8f856983578aefe6.
+          - Review only repository state at exact HEAD 4b4cfd968951c97af39d3e757afde5185ffeb196.
           - Expected base included in this HEAD: fb3a870e2fba92a005a3e3de57ee378042b23be3.
           - If git evidence does not match either SHA, return decision "blocked".
 
@@ -250,6 +250,11 @@ jobs:
           - audit/out/pharmacology-independent-review/ammps-liste-marocaine-page-96-live.txt
           - git history/diff needed to prove the three-file scope
 
+          PRIOR BLOCKING FINDING TO RECHECK
+          - Prior exact-head review found a symlink escape because _read_local_artifact_bytes() only enforced resolved containment within repository root rather than the canonical backend/data/rcp directory.
+          - The candidate claims to fix this by enforcing resolved containment within backend/data/rcp, rejecting a redirected canonical RCP root, and adding regression tests for file-symlink and directory-symlink escapes.
+          - Reproduce/challenge this fix independently. Do not accept it merely because the new tests pass.
+
           RUNTIME EVIDENCE
           - The technical-evidence file was generated on this runner immediately before your review from the exact target checkout.
           - The two AMMPS evidence files were rendered immediately before your review with headless Chromium from the exact official URLs shown inside each file.
@@ -259,7 +264,7 @@ jobs:
 
           CLAIMS TO CHALLENGE INDEPENDENTLY
           - The helper is transport-only and performs no download, persistence or clinical extraction.
-          - SNAPSHOT_VERIFIED cannot be produced without an official AMMPS HTTPS URL, a strict ISO date, a safe backend/data/rcp/*.pdf path, a real local PDF-like artifact and matching SHA-256.
+          - SNAPSHOT_VERIFIED cannot be produced without an official AMMPS HTTPS URL, a strict ISO date, a safe and resolved-contained backend/data/rcp/*.pdf artifact, a real local PDF-like artifact and matching SHA-256.
           - PENDING_DOWNLOAD and UNAVAILABLE_VERIFIED remain fail-closed.
           - No dose, duration, indication, molecule selection, AUTO_OK, DB, patient, document, UI or clinical activation behavior is changed by this PR.
           - The manifest still has exactly 8 current amoxicillin entries and none is falsely promoted to SNAPSHOT_VERIFIED or UNAVAILABLE_VERIFIED.
@@ -281,7 +286,7 @@ jobs:
             "reviewer": "github-copilot-cli",
             "model_selector": "auto",
             "target_pr": 525,
-            "target_head": "84dfb02e979e634363814cab8f856983578aefe6",
+            "target_head": "4b4cfd968951c97af39d3e757afde5185ffeb196",
             "expected_base": "fb3a870e2fba92a005a3e3de57ee378042b23be3",
             "decision": "approve|approve_with_reservations|request_changes|blocked",
             "blocking_findings": [],
@@ -345,7 +350,7 @@ jobs:
               raise SystemExit('Reviewer/model selector mismatch')
           if report['target_pr'] != 525:
               raise SystemExit('Target PR mismatch')
-          if report['target_head'] != '84dfb02e979e634363814cab8f856983578aefe6':
+          if report['target_head'] != '4b4cfd968951c97af39d3e757afde5185ffeb196':
               raise SystemExit('Target HEAD mismatch')
           if report['expected_base'] != 'fb3a870e2fba92a005a3e3de57ee378042b23be3':
               raise SystemExit('Expected base mismatch')
@@ -390,7 +395,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: pharmacology-independent-review-84dfb02e979e634363814cab8f856983578aefe6
+          name: pharmacology-independent-review-4b4cfd968951c97af39d3e757afde5185ffeb196
           path: |
             audit/out/pharmacology-independent-review/
             audit/out/pharmacology-scientific-gate/
