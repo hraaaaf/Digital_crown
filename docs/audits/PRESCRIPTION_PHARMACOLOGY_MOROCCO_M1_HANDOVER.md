@@ -1,7 +1,7 @@
 # Digital Crown — Pharmacologie Maroc M1 handover
 
 Date: 2026-09-16
-Status: ACTIVE — M1-B2 merged; RCP acquisition fail-closed; global RCP census active; no clinical activation
+Status: ACTIVE — M1-B2 merged; RCP acquisition fail-closed; resumable global RCP census active; no clinical activation
 
 ## Goal
 Construire la couverture pharmacologique dentaire Maroc avec preuve réglementaire fail-closed, puis validation scientifique indépendante avant toute activation clinique.
@@ -127,23 +127,36 @@ Le statut reste donc prudemment `PENDING_CURRENT_PRESENTATION_DISCOVERY`.
 ## Pivot technique — census global RCP AMMPS
 Après 7 familles avec le même pattern (`javascript:void(0)` + `disabled-rcp-btn` + `aria-disabled=true`), les probes ciblés sont arrêtés.
 
-Census initial commit `0a9db11827ce44a29aa5fb41a97c87d4bb22885b`, run #8 `35126944871`: `FAILURE` avant le scan complet.
-Cause exacte: garde-fou interne `pageCount <= 700` trop strict alors que la base courante déduit `826` pages pour `9908` médicaments. Aucune conclusion scientifique/réglementaire ne doit être tirée de ce run.
+Census #8, commit `0a9db11827ce44a29aa5fb41a97c87d4bb22885b`, run `35126944871`: `FAILURE` avant scan complet. Cause: garde-fou `pageCount <= 700` trop strict alors que la base courante comporte 826 pages pour 9908 médicaments. Aucune conclusion scientifique/réglementaire tirée.
 
-Réparation: commit `a2164cd38d01c0b565295388cd2887e19241f715` relève uniquement ce garde-fou à `1200` et le timeout à 30 min; logique de lecture et permissions inchangées.
-Run #9: `35127141170`.
-But: recenser les 826 pages de `recherche-medicaments`, compter les contrôles RCP activés/désactivés et capturer tout href/PDF réellement exposé, sans clic forcé et sans mutation.
+Census #9, commit `a2164cd38d01c0b565295388cd2887e19241f715`, run `35127141170`: `FAILURE` après démarrage du scan. Cause exacte: `UND_ERR_SOCKET`, le serveur distant a fermé une socket pendant le scan concurrent à 3 workers. Aucune conclusion scientifique/réglementaire tirée et aucun artifact final n'a été produit.
+
+Changement de stratégie: commit `d700dce5ebec123f1e44aaaf3e1e2ade72e2d941`.
+- scan séquentiel;
+- jusqu'à 5 retries bornés par page;
+- timeout par requête;
+- checkpoint JSON toutes les 25 pages;
+- pages définitivement en erreur enregistrées explicitement;
+- artifact uploadé avec `if: always()`;
+- validation complète uniquement si `scannedPageCount == pageCount` et `failedPageCount == 0`.
+
+Run #10: `35127544097`.
 État au dernier contrôle: `IN_PROGRESS`.
+
+Cartographie documentaire indépendante:
+- les pièces jointes officielles AMMPS observées dans les rubriques publiques utilisent des chemins explicites sous `/uploads/<rubrique>/...`, notamment `uploads/news` et `uploads/formulaires-medicaments`;
+- aucune URL RCP médicament ne doit être déduite de ces conventions: aucune relation de stockage RCP n'a encore été prouvée.
 
 ## État repo
 Master vérifié le 2026-09-16: `35c4ee606e953f2f2a8a9d91ab540bf6c7ef476a`, commit GitHub signé/verified.
 Le master a avancé après M1-B2; aucun nouveau travail produit M1 n'est fusionné depuis la branche de recherche.
 
 ## Next exact
-1. Lire le résultat + artifact du census #9 `35127141170` une fois terminé.
-2. Si au moins un contrôle RCP actif existe: inspecter son href/transport et capturer un exemple réel officiel avant toute généralisation.
-3. Si 0 contrôle actif sur toute la base: considérer la voie UI actuelle AMMPS comme non exploitable pour le contrat PDF strict et chercher une source documentaire officielle AMMPS alternative; ne pas inventer d'URL.
-4. Toute capture candidate doit encore satisfaire HTTPS AMMPS + 2xx + `%PDF-` + bytes + SHA-256 + identité de présentation + reviewer indépendant avant `SNAPSHOT_VERIFIED`.
+1. Lire le résultat + artifact du census #10 `35127544097` une fois terminé.
+2. Si census incomplet: exploiter `failedPages` et reprendre seulement les pages manquantes, sans rescanner inutilement les pages prouvées.
+3. Si au moins un contrôle RCP actif existe: inspecter son href/transport et capturer un exemple réel officiel avant toute généralisation.
+4. Si 0 contrôle actif sur les 826 pages avec census complet: considérer la voie UI actuelle AMMPS comme non exploitable pour le contrat PDF strict et poursuivre la cartographie documentaire officielle; ne pas inventer d'URL.
+5. Toute capture candidate doit encore satisfaire HTTPS AMMPS + 2xx + `%PDF-` + bytes + SHA-256 + identité de présentation + reviewer indépendant avant `SNAPSHOT_VERIFIED`.
 
 ## Interdits
 - Pas d'activation clinique M1.
@@ -151,7 +164,7 @@ Le master a avancé après M1-B2; aucun nouveau travail produit M1 n'est fusionn
 - Pas de `UNAVAILABLE_VERIFIED` sur simple absence/recherche négative/bouton désactivé.
 - Pas de faux verdict reviewer.
 - Pas d'assimilation CI verte = validation scientifique.
-- Pas d'URL RCP déduite/fabriquée à partir de `javascript:void(0)`.
+- Pas d'URL RCP déduite/fabriquée à partir de `javascript:void(0)` ou d'un répertoire `/uploads/` observé ailleurs.
 
 ## Prompt de reprise
-`Lis ce fichier depuis docs/pharmacology-m1-handover-20260915, vérifie master et le census RCP #35127141170. M1-B2 est mergé et post-merge vert. Les 5 candidats READY ont tous été vérifiés sans contrôle RCP activé. Metronidazole est présent avec 12 contrôles RCP désactivés; clindamycin ne fournit dans le pass courant que deux présentations topiques non utilisables comme preuve d'une présentation systémique actuelle. Le census #8 a échoué uniquement sur un cap pageCount trop bas; #9 scanne les 826 pages. Ne promouvoir aucun SNAPSHOT_VERIFIED avant PDF officiel réel + revue indépendante.`
+`Lis ce fichier depuis docs/pharmacology-m1-handover-20260915, vérifie master et le census RCP #35127544097. M1-B2 est mergé et post-merge vert. Les 5 candidats READY ont tous été vérifiés sans contrôle RCP activé. Metronidazole est présent avec 12 contrôles RCP désactivés; clindamycin ne fournit dans le pass courant que deux présentations topiques non utilisables comme preuve d'une présentation systémique actuelle. #8 a échoué sur un cap pageCount interne; #9 sur une socket distante pendant le scan concurrent; #10 est séquentiel, retryable et checkpointé. Ne promouvoir aucun SNAPSHOT_VERIFIED avant PDF officiel réel + revue indépendante.`
