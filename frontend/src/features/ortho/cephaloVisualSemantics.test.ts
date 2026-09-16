@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  CEPHALO_SCIENTIFIC_BASE_HUES,
   CEPHALO_SCIENTIFIC_COLORS,
   cephaloGeometryColor,
   cephaloGeometryFamily,
@@ -9,7 +10,17 @@ import {
 
 describe('Céphalo scientific color semantics', () => {
   it('keeps the five scientific families distinct', () => {
+    expect(new Set(Object.values(CEPHALO_SCIENTIFIC_BASE_HUES)).size).toBe(5);
     expect(new Set(Object.values(CEPHALO_SCIENTIFIC_COLORS)).size).toBe(5);
+  });
+
+  it('uses Digital Crown text token to adapt scientific contrast across themes', () => {
+    for (const family of Object.keys(CEPHALO_SCIENTIFIC_BASE_HUES) as Array<keyof typeof CEPHALO_SCIENTIFIC_BASE_HUES>) {
+      const rendered = CEPHALO_SCIENTIFIC_COLORS[family];
+      expect(rendered).toContain(CEPHALO_SCIENTIFIC_BASE_HUES[family]);
+      expect(rendered).toContain('var(--text-main)');
+      expect(rendered).toContain('color-mix(in srgb');
+    }
   });
 
   it('maps skeletal metrics to the skeletal family', () => {
