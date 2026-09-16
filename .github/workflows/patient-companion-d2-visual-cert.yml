@@ -1,0 +1,201 @@
+name: Patient Companion D2 Visual Certification
+
+on:
+  push:
+    branches:
+      - feat/patient-companion-d2-staff-ui
+    paths:
+      - 'backend/routers/patient_companion_activation.py'
+      - 'backend/routers/patient_companion_shares.py'
+      - 'backend/tests/test_patient_companion_d2_staff.py'
+      - 'frontend/src/features/patients/PatientDetailsInner.tsx'
+      - 'frontend/src/features/patients/components/PatientCompanionPanel.tsx'
+      - 'frontend/src/features/patients/components/PatientCompanionPanel.test.ts'
+      - 'frontend/scripts/capture-patient-companion-d2-visual.mjs'
+      - 'docs/audits/PATIENT_COMPANION_D2.md'
+      - '.github/workflows/patient-companion-d2-visual-cert.yml'
+  pull_request:
+    branches: [master]
+    paths:
+      - 'backend/routers/patient_companion_activation.py'
+      - 'backend/routers/patient_companion_shares.py'
+      - 'backend/tests/test_patient_companion_d2_staff.py'
+      - 'frontend/src/features/patients/PatientDetailsInner.tsx'
+      - 'frontend/src/features/patients/components/PatientCompanionPanel.tsx'
+      - 'frontend/src/features/patients/components/PatientCompanionPanel.test.ts'
+      - 'frontend/scripts/capture-patient-companion-d2-visual.mjs'
+      - 'docs/audits/PATIENT_COMPANION_D2.md'
+      - '.github/workflows/patient-companion-d2-visual-cert.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  before-after:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    env:
+      BASE_HEAD: 8f74464998a721414e67957e0c9346f6a67efdb2
+      PRODUCT_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+      ENVIRONMENT: test
+      SECRET_KEY: patient-companion-d2-visual-secret-key-000001
+      DATABASE_URL: sqlite:///./patient-companion-d2-visual.db
+      TELEMETRY_ENABLED: "false"
+      CLOUD_AI_ENABLED: "false"
+      DEBUG: "false"
+      DIGITAL_CROWN_TESTING: "1"
+      ALLOWED_ORIGINS: "http://127.0.0.1:5173,http://localhost:5173"
+      T2_USER: t2-browser@cabinet.ma
+    steps:
+      - name: Checkout AFTER exact head
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          path: after
+
+      - name: Checkout BEFORE locked base
+        uses: actions/checkout@v4
+        with:
+          ref: 8f74464998a721414e67957e0c9346f6a67efdb2
+          path: before
+
+      - name: Assert evidence heads
+        run: |
+          test "$(git -C after rev-parse HEAD)" = "$PRODUCT_HEAD"
+          test "$(git -C before rev-parse HEAD)" = "$BASE_HEAD"
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: after/frontend/package-lock.json
+
+      - name: Generate isolated runtime credential
+        run: python -c 'import secrets; print("T2_PASSWORD=" + secrets.token_urlsafe(24))' >> "$GITHUB_ENV"
+
+      - name: Install backend dependencies
+        working-directory: after
+        run: |
+          python -m pip install --upgrade pip
+          pip install torch==2.12.0 torchvision==0.27.0 --index-url https://download.pytorch.org/whl/cpu
+          grep -vE '^(torch|torchvision)([<=>].*)?$' requirements.txt > /tmp/requirements-d2-visual.txt
+          pip install -r /tmp/requirements-d2-visual.txt
+          pip install httpx==0.27.2
+
+      - name: Install AFTER frontend and Chromium
+        working-directory: after/frontend
+        run: |
+          npm ci
+          npm install --no-save playwright@1.55.0
+          npx playwright install chromium
+
+      - name: Install BEFORE frontend
+        working-directory: before/frontend
+        run: npm ci
+
+      - name: Start isolated backend from AFTER head
+        working-directory: after
+        run: |
+          python scripts/t2_runtime_server.py > /tmp/d2-backend.log 2>&1 &
+          echo $! > /tmp/d2-backend.pid
+          for i in {1..60}; do
+            if curl -fsS http://127.0.0.1:8005/health >/dev/null; then exit 0; fi
+            sleep 1
+          done
+          cat /tmp/d2-backend.log
+          exit 1
+
+      - name: Start BEFORE frontend
+        working-directory: before/frontend
+        run: |
+          node node_modules/vite/bin/vite.js --host 127.0.0.1 --port 5173 > /tmp/d2-before-frontend.log 2>&1 &
+          echo $! > /tmp/d2-before-frontend.pid
+          for i in {1..60}; do
+            if curl -fsS http://127.0.0.1:5173 >/dev/null; then exit 0; fi
+            sleep 1
+          done
+          cat /tmp/d2-before-frontend.log
+          exit 1
+
+      - name: Capture BEFORE locked base
+        working-directory: after/frontend
+        env:
+          D2_PHASE: BEFORE
+          D2_API_URL: http://127.0.0.1:8005
+          D2_APP_URL: http://127.0.0.1:5173
+          D2_OUT_DIR: ../../artifacts/patient-companion-d2-before
+          PRODUCT_HEAD: ${{ env.BASE_HEAD }}
+        run: node scripts/capture-patient-companion-d2-visual.mjs
+
+      - name: Stop BEFORE frontend
+        if: always()
+        run: |
+          kill "$(cat /tmp/d2-before-frontend.pid)" 2>/dev/null || true
+          for i in {1..20}; do
+            if ! curl -fsS http://127.0.0.1:5173 >/dev/null 2>&1; then exit 0; fi
+            sleep 0.25
+          done
+          echo 'BEFORE frontend still bound to port 5173'
+          cat /tmp/d2-before-frontend.log || true
+          exit 1
+
+      - name: Start AFTER frontend
+        working-directory: after/frontend
+        run: |
+          node node_modules/vite/bin/vite.js --host 127.0.0.1 --port 5173 > /tmp/d2-after-frontend.log 2>&1 &
+          echo $! > /tmp/d2-after-frontend.pid
+          for i in {1..60}; do
+            if curl -fsS http://127.0.0.1:5173 >/dev/null; then exit 0; fi
+            sleep 1
+          done
+          cat /tmp/d2-after-frontend.log
+          exit 1
+
+      - name: Capture AFTER exact head
+        working-directory: after/frontend
+        env:
+          D2_PHASE: AFTER
+          D2_API_URL: http://127.0.0.1:8005
+          D2_APP_URL: http://127.0.0.1:5173
+          D2_OUT_DIR: ../../artifacts/patient-companion-d2-after
+          PRODUCT_HEAD: ${{ env.PRODUCT_HEAD }}
+        run: node scripts/capture-patient-companion-d2-visual.mjs
+
+      - name: Verify BEFORE/AFTER evidence contract
+        run: |
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const before = JSON.parse(fs.readFileSync('artifacts/patient-companion-d2-before/report.json', 'utf8'));
+          const after = JSON.parse(fs.readFileSync('artifacts/patient-companion-d2-after/report.json', 'utf8'));
+          const labels = ['390x844', '768x1024', '1280x900'];
+          if (before.phase !== 'BEFORE' || before.productHead !== process.env.BASE_HEAD) throw new Error('BEFORE head mismatch');
+          if (after.phase !== 'AFTER' || after.productHead !== process.env.PRODUCT_HEAD) throw new Error('AFTER head mismatch');
+          if (before.captures.length !== 3 || after.captures.length !== 3) throw new Error('Expected three captures per phase');
+          for (const label of labels) {
+            const b = before.captures.find(item => item.viewport.label === label);
+            const a = after.captures.find(item => item.viewport.label === label);
+            if (!b || !a) throw new Error(`Missing viewport ${label}`);
+            if (b.hasCompanionTab) throw new Error(`BEFORE already exposes Companion ${label}`);
+            if (!a.hasCompanionTab || !a.panelVisible || !a.ephemeralVisible) throw new Error(`AFTER incomplete ${label}`);
+            if (b.pageErrors.length || b.consoleErrors.length || a.pageErrors.length || a.consoleErrors.length) throw new Error(`Runtime errors ${label}`);
+          }
+          NODE
+
+      - name: Dump runtime logs on failure
+        if: failure()
+        run: |
+          echo '===== BACKEND ====='; cat /tmp/d2-backend.log || true
+          echo '===== BEFORE FRONTEND ====='; cat /tmp/d2-before-frontend.log || true
+          echo '===== AFTER FRONTEND ====='; cat /tmp/d2-after-frontend.log || true
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: patient-companion-d2-before-after-${{ github.event.pull_request.head.sha || github.sha }}
+          path: artifacts/patient-companion-d2-*
+          if-no-files-found: warn
+          retention-days: 30
