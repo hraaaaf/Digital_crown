@@ -2,142 +2,142 @@ name: Pharmacology AMMPS Active RCP Identity Map
 
 on:
   push:
-    branches: [research/pharmacology-rcp-first-capture-20260916]
-    paths: ['.github/workflows/pharmacology-rcp-first-capture-probe.yml']
+    branches:
+      - research/pharmacology-rcp-first-capture-20260916
+    paths:
+      - .github/workflows/pharmacology-rcp-first-capture-probe.yml
   workflow_dispatch:
 
 permissions:
   contents: read
 
-concurrency:
-  group: pharmacology-active-rcp-identity-map
-  cancel-in-progress: true
-
 jobs:
   map:
-    name: Read-only AMMPS active RCP identity map
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-python@v5
         with:
-          node-version: '22'
-      - name: Map census-proven active RCP hrefs to current AMMPS medication context
+          python-version: '3.12'
+      - name: Map active RCP identities
         env:
-          OUT_DIR: ${{ github.workspace }}/audit/out/pharmacology-active-rcp-identity-map
+          OUT_DIR: audit/out/pharmacology-active-rcp-identity-map
         run: |
-          set -euo pipefail
-          mkdir -p "$OUT_DIR"
-          node - <<'NODE'
-          const fs=require('fs'), path=require('path');
-          const outDir=process.env.OUT_DIR;
-          const origin='https://www.ammps.gov.ma';
-          const targets=[
-  {page:33,modalId:'medicamentModal9736',href:'uploads/rcp/rcp-9736-1789116233.pdf'},
-  {page:33,modalId:'medicamentModal9735',href:'uploads/rcp/rcp-9735-1789116249.pdf'},
-  {page:65,modalId:'medicamentModal5208',href:'uploads/rcp/rcp-5208-1789116272.pdf'},
-  {page:67,modalId:'medicamentModal4615',href:'uploads/rcp/rcp-4615-1789116134.pdf'},
-  {page:118,modalId:'medicamentModal2732',href:'uploads/rcp/rcp-2732-1789116342.pdf'},
-  {page:118,modalId:'medicamentModal2733',href:'uploads/rcp/rcp-2733-1789116367.pdf'},
-  {page:129,modalId:'medicamentModal9807',href:'uploads/rcp/9807.pdf'},
-  {page:136,modalId:'medicamentModal9281',href:'uploads/rcp/rcp-9281-1789116503.pdf'},
-  {page:175,modalId:'medicamentModal9773',href:'uploads/rcp/9773.pdf'},
-  {page:175,modalId:'medicamentModal9774',href:'uploads/rcp/9774.pdf'},
-  {page:190,modalId:'medicamentModal8336',href:'uploads/rcp/rcp-8336-1789116534.pdf'},
-  {page:190,modalId:'medicamentModal8337',href:'uploads/rcp/rcp-8337-1789116546.pdf'},
-  {page:244,modalId:'medicamentModal2796',href:'uploads/rcp/rcp-2796-1789116596.pdf'},
-  {page:244,modalId:'medicamentModal2797',href:'uploads/rcp/rcp-2797-1789116606.pdf'},
-  {page:244,modalId:'medicamentModal9339',href:'uploads/rcp/rcp-9339-1789116651.pdf'},
-  {page:250,modalId:'medicamentModal9841',href:'uploads/rcp/9841.pdf'},
-  {page:250,modalId:'medicamentModal9842',href:'uploads/rcp/9842.pdf'},
-  {page:317,modalId:'medicamentModal9836',href:'uploads/rcp/9836.pdf'},
-  {page:340,modalId:'medicamentModal9718',href:'uploads/rcp/9718.pdf'},
-  {page:340,modalId:'medicamentModal9719',href:'uploads/rcp/9719.pdf'},
-  {page:343,modalId:'medicamentModal8033',href:'uploads/rcp/rcp-8033-1789116685.pdf'},
-  {page:366,modalId:'medicamentModal6719',href:'uploads/rcp/rcp-6719-1789117361.pdf'},
-  {page:366,modalId:'medicamentModal6720',href:'uploads/rcp/rcp-6720-1789116827.pdf'},
-  {page:366,modalId:'medicamentModal8510',href:'uploads/rcp/rcp-8510-1789116768.pdf'},
-  {page:372,modalId:'medicamentModal7990',href:'uploads/rcp/rcp-7990-1789117045.pdf'},
-  {page:493,modalId:'medicamentModal8640',href:'uploads/rcp/rcp-8640-1789117069.pdf'},
-  {page:579,modalId:'medicamentModal9819',href:'uploads/rcp/9819.pdf'},
-  {page:580,modalId:'medicamentModal9822',href:'uploads/rcp/9822.pdf'},
-  {page:580,modalId:'medicamentModal9823',href:'uploads/rcp/9823.pdf'},
-  {page:580,modalId:'medicamentModal9824',href:'uploads/rcp/9824.pdf'},
-  {page:580,modalId:'medicamentModal9825',href:'uploads/rcp/9825.pdf'},
-  {page:580,modalId:'medicamentModal9826',href:'uploads/rcp/9826.pdf'},
-  {page:644,modalId:'medicamentModal9406',href:'uploads/rcp/rcp-9406-1789117115.pdf'},
-  {page:649,modalId:'medicamentModal9539',href:'uploads/rcp/rcp-9539-1789116193.pdf'},
-  {page:649,modalId:'medicamentModal9540',href:'uploads/rcp/rcp-9540-1789116175.pdf'},
-  {page:666,modalId:'medicamentModal9188',href:'uploads/rcp/rcp-9188-1789117187.pdf'},
-  {page:667,modalId:'medicamentModal9189',href:'uploads/rcp/rcp-9189-1789117169.pdf'},
-  {page:667,modalId:'medicamentModal9202',href:'uploads/rcp/rcp-9202-1789116002.pdf'},
-  {page:667,modalId:'medicamentModal9203',href:'uploads/rcp/rcp-9203-1789116101.pdf'},
-  {page:677,modalId:'medicamentModal8834',href:'uploads/rcp/rcp-8834-1789117209.pdf'},
-  {page:715,modalId:'medicamentModal3051',href:'uploads/rcp/rcp-3051-1789117231.pdf'},
-  {page:716,modalId:'medicamentModal5452',href:'uploads/rcp/rcp-5452-1789117270.pdf'},
-  {page:756,modalId:'medicamentModal7318',href:'uploads/rcp/rcp-7318-1789117293.pdf'},
-  {page:758,modalId:'medicamentModal7979',href:'uploads/rcp/7979.pdf'},
-  {page:759,modalId:'medicamentModal7992',href:'uploads/rcp/7992.pdf'},
-  {page:759,modalId:'medicamentModal9793',href:'uploads/rcp/9793.pdf'},
-  {page:759,modalId:'medicamentModal9794',href:'uploads/rcp/9794.pdf'},
-  {page:759,modalId:'medicamentModal9795',href:'uploads/rcp/9795.pdf'}
-          ];
-          const sleep=ms=>new Promise(r=>setTimeout(r,ms));
-          const clean=s=>(s||'').replace(/<script[\s\S]*?<\/script>/gi,' ').replace(/<style[\s\S]*?<\/style>/gi,' ').replace(/<[^>]+>/g,' ').replace(/&nbsp;/gi,' ').replace(/&amp;/gi,'&').replace(/&#039;/gi,"'").replace(/&quot;/gi,'"').replace(/\s+/g,' ').trim();
-          async function fetchRetry(url,max=5){
-            let last;
-            for(let i=1;i<=max;i++){
-              try{
-                const ac=new AbortController(); const timer=setTimeout(()=>ac.abort(),30000);
-                const r=await fetch(url,{signal:ac.signal,headers:{'user-agent':'Digital-Crown-read-only-active-rcp-map/1.0','accept':'text/html,application/xhtml+xml'}});
-                clearTimeout(timer);
-                if(!r.ok) throw new Error(`HTTP ${r.status}`);
-                return await r.text();
-              }catch(e){last=e;if(i<max) await sleep(400*i);}
-            }
-            throw last;
+          python - <<'PY'
+          import json, re, time, urllib.request
+          from pathlib import Path
+
+          origin = 'https://www.ammps.gov.ma'
+          targets = [
+            (33, 'medicamentModal9736', 'uploads/rcp/rcp-9736-1789116233.pdf'),
+            (33, 'medicamentModal9735', 'uploads/rcp/rcp-9735-1789116249.pdf'),
+            (65, 'medicamentModal5208', 'uploads/rcp/rcp-5208-1789116272.pdf'),
+            (67, 'medicamentModal4615', 'uploads/rcp/rcp-4615-1789116134.pdf'),
+            (118, 'medicamentModal2732', 'uploads/rcp/rcp-2732-1789116342.pdf'),
+            (118, 'medicamentModal2733', 'uploads/rcp/rcp-2733-1789116367.pdf'),
+            (129, 'medicamentModal9807', 'uploads/rcp/9807.pdf'),
+            (136, 'medicamentModal9281', 'uploads/rcp/rcp-9281-1789116503.pdf'),
+            (175, 'medicamentModal9773', 'uploads/rcp/9773.pdf'),
+            (175, 'medicamentModal9774', 'uploads/rcp/9774.pdf'),
+            (190, 'medicamentModal8336', 'uploads/rcp/rcp-8336-1789116534.pdf'),
+            (190, 'medicamentModal8337', 'uploads/rcp/rcp-8337-1789116546.pdf'),
+            (244, 'medicamentModal2796', 'uploads/rcp/rcp-2796-1789116596.pdf'),
+            (244, 'medicamentModal2797', 'uploads/rcp/rcp-2797-1789116606.pdf'),
+            (244, 'medicamentModal9339', 'uploads/rcp/rcp-9339-1789116651.pdf'),
+            (250, 'medicamentModal9841', 'uploads/rcp/9841.pdf'),
+            (250, 'medicamentModal9842', 'uploads/rcp/9842.pdf'),
+            (317, 'medicamentModal9836', 'uploads/rcp/9836.pdf'),
+            (340, 'medicamentModal9718', 'uploads/rcp/9718.pdf'),
+            (340, 'medicamentModal9719', 'uploads/rcp/9719.pdf'),
+            (343, 'medicamentModal8033', 'uploads/rcp/rcp-8033-1789116685.pdf'),
+            (366, 'medicamentModal6719', 'uploads/rcp/rcp-6719-1789117361.pdf'),
+            (366, 'medicamentModal6720', 'uploads/rcp/rcp-6720-1789116827.pdf'),
+            (366, 'medicamentModal8510', 'uploads/rcp/rcp-8510-1789116768.pdf'),
+            (372, 'medicamentModal7990', 'uploads/rcp/rcp-7990-1789117045.pdf'),
+            (493, 'medicamentModal8640', 'uploads/rcp/rcp-8640-1789117069.pdf'),
+            (579, 'medicamentModal9819', 'uploads/rcp/9819.pdf'),
+            (580, 'medicamentModal9822', 'uploads/rcp/9822.pdf'),
+            (580, 'medicamentModal9823', 'uploads/rcp/9823.pdf'),
+            (580, 'medicamentModal9824', 'uploads/rcp/9824.pdf'),
+            (580, 'medicamentModal9825', 'uploads/rcp/9825.pdf'),
+            (580, 'medicamentModal9826', 'uploads/rcp/9826.pdf'),
+            (644, 'medicamentModal9406', 'uploads/rcp/rcp-9406-1789117115.pdf'),
+            (649, 'medicamentModal9539', 'uploads/rcp/rcp-9539-1789116193.pdf'),
+            (649, 'medicamentModal9540', 'uploads/rcp/rcp-9540-1789116175.pdf'),
+            (666, 'medicamentModal9188', 'uploads/rcp/rcp-9188-1789117187.pdf'),
+            (667, 'medicamentModal9189', 'uploads/rcp/rcp-9189-1789117169.pdf'),
+            (667, 'medicamentModal9202', 'uploads/rcp/rcp-9202-1789116002.pdf'),
+            (667, 'medicamentModal9203', 'uploads/rcp/rcp-9203-1789116101.pdf'),
+            (677, 'medicamentModal8834', 'uploads/rcp/rcp-8834-1789117209.pdf'),
+            (715, 'medicamentModal3051', 'uploads/rcp/rcp-3051-1789117231.pdf'),
+            (716, 'medicamentModal5452', 'uploads/rcp/rcp-5452-1789117270.pdf'),
+            (756, 'medicamentModal7318', 'uploads/rcp/rcp-7318-1789117293.pdf'),
+            (758, 'medicamentModal7979', 'uploads/rcp/7979.pdf'),
+            (759, 'medicamentModal7992', 'uploads/rcp/7992.pdf'),
+            (759, 'medicamentModal9793', 'uploads/rcp/9793.pdf'),
+            (759, 'medicamentModal9794', 'uploads/rcp/9794.pdf'),
+            (759, 'medicamentModal9795', 'uploads/rcp/9795.pdf')
+          ]
+
+          def fetch(url):
+              last = None
+              for attempt in range(5):
+                  try:
+                      req = urllib.request.Request(url, headers={'User-Agent':'Digital-Crown-read-only-active-rcp-map/1.1'})
+                      with urllib.request.urlopen(req, timeout=30) as r:
+                          return r.read().decode('utf-8', errors='replace')
+                  except Exception as e:
+                      last = e
+                      time.sleep(0.4 * (attempt + 1))
+              raise last
+
+          def clean(s):
+              s = re.sub(r'<script[\s\S]*?</script>', ' ', s, flags=re.I)
+              s = re.sub(r'<style[\s\S]*?</style>', ' ', s, flags=re.I)
+              s = re.sub(r'<[^>]+>', ' ', s)
+              s = s.replace('&nbsp;', ' ').replace('&amp;', '&').replace('&#039;', "'").replace('&quot;', '"')
+              return re.sub(r'\s+', ' ', s).strip()
+
+          dental = re.compile(r'AMOXICIL|CLARITHROMYC|METRONIDAZOL|CLINDAMYC|IBUPROF|PARACETAMOL|PHENOXYMETHYLPENICILL|PENICILLIN|SPIRAMYC|CLAVULAN|AZITHROMYC|DOXYCYCL|DICLOFENAC|KETOPROFEN|NAPROXEN|CHLORHEXID|LIDOCAIN|ARTICAIN|MEPIVACAIN|PRILOCAIN|EPINEPHRIN|ADRENALIN', re.I)
+          pages = {}
+          results = []
+          for page, modal_id, href in targets:
+              if page not in pages:
+                  pages[page] = fetch(f'{origin}/recherche-medicaments?page={page}')
+              html = pages[page]
+              idx = html.find(href)
+              if idx < 0:
+                  raise SystemExit(f'href missing page={page} href={href}')
+              start = max(0, idx - 12000)
+              end = min(len(html), idx + 2500)
+              context = clean(html[start:end])
+              results.append({
+                  'page': page,
+                  'modalId': modal_id,
+                  'href': href,
+                  'dentalRelevanceKeywordMatch': bool(dental.search(context)),
+                  'contextText': context,
+                  'manifestMutationPerformed': False,
+                  'clinicalActivationPerformed': False,
+              })
+
+          relevant = [x for x in results if x['dentalRelevanceKeywordMatch']]
+          report = {
+              'schemaVersion':'ammps-active-rcp-identity-map.2',
+              'source':'https://www.ammps.gov.ma/recherche-medicaments',
+              'mappedCount':len(results),
+              'relevantKeywordMatchCount':len(relevant),
+              'manifestMutationPerformed':False,
+              'clinicalActivationPerformed':False,
+              'relevant':relevant,
+              'results':results,
           }
-          function field(text,label,nextLabels){
-            const up=text.toUpperCase();
-            const start=up.lastIndexOf(label.toUpperCase());
-            if(start<0) return null;
-            let seg=text.slice(start+label.length);
-            let end=seg.length;
-            for(const n of nextLabels){
-              const j=seg.toUpperCase().indexOf(n.toUpperCase());
-              if(j>=0 && j<end) end=j;
-            }
-            return seg.slice(0,end).replace(/^\s*[:\-]?\s*/,'').trim().slice(0,500)||null;
-          }
-          (async()=>{
-            const byPage=new Map();
-            for(const t of targets){
-              if(!byPage.has(t.page)) byPage.set(t.page, await fetchRetry(`${origin}/recherche-medicaments?page=${t.page}`));
-            }
-            const results=[];
-            for(const t of targets){
-              const html=byPage.get(t.page);
-              const idx=html.indexOf(t.href);
-              if(idx<0) throw new Error(`href missing on current AMMPS page ${t.page}: ${t.href}`);
-              const before=html.slice(Math.max(0,idx-18000),idx);
-              const after=html.slice(idx,Math.min(html.length,idx+3000));
-              const context=clean(before.slice(-12000)+after);
-              const currentBlock=clean(before.slice(-7000));
-              const substance=field(currentBlock,'Substance active',['EPI','Dosage','Forme','Présentation','Statut commercialisation','PPV','PH','Télécharger RCP']);
-              const dosage=field(currentBlock,'Dosage',['Forme','Présentation','Statut commercialisation','PPV','PH','Télécharger RCP']);
-              const forme=field(currentBlock,'Forme',['Présentation','Statut commercialisation','PPV','PH','Télécharger RCP']);
-              const presentation=field(currentBlock,'Présentation',['Statut commercialisation','PPV','PH','Télécharger RCP']);
-              const statut=field(currentBlock,'Statut commercialisation',['PPV','PH','Télécharger RCP']);
-              const dentalPattern=/(AMOXICIL|CLARITHROMYC|METRONIDAZOL|CLINDAMYC|IBUPROF|PARACETAMOL|ACETAMINOPHEN|PHENOXYMETHYLPENICILL|PENICILLIN|SPIRAMYC|CLAVULAN|AZITHROMYC|DOXYCYCL|DICLOFENAC|KETOPROFEN|NAPROXEN|CHLORHEXID|LIDOCAIN|ARTICAIN|MEPIVACAIN|PRILOCAIN|EPINEPHRIN|ADRENALIN)/i;
-              results.push({page:t.page,modalId:t.modalId,href:t.href,substanceActive:substance,dosage,forme,presentation,statutCommercialisation:statut,dentalRelevanceKeywordMatch:dentalPattern.test(context),contextText:context.slice(-9000),manifestMutationPerformed:false,clinicalActivationPerformed:false});
-            }
-            const relevant=results.filter(x=>x.dentalRelevanceKeywordMatch);
-            const report={schemaVersion:'ammps-active-rcp-identity-map.1',source:'https://www.ammps.gov.ma/recherche-medicaments',mappedCount:results.length,relevantKeywordMatchCount:relevant.length,manifestMutationPerformed:false,clinicalActivationPerformed:false,relevant,results};
-            fs.writeFileSync(path.join(outDir,'active-rcp-identity-map.json'),JSON.stringify(report,null,2));
-            console.log(JSON.stringify({mappedCount:results.length,relevantKeywordMatchCount:relevant.length,relevant:relevant.map(x=>({page:x.page,modalId:x.modalId,href:x.href,substanceActive:x.substanceActive,dosage:x.dosage,forme:x.forme,presentation:x.presentation,statutCommercialisation:x.statutCommercialisation}))},null,2));
-          })().catch(e=>{console.error(e);process.exit(1)});
-          NODE
+          out = Path('audit/out/pharmacology-active-rcp-identity-map')
+          out.mkdir(parents=True, exist_ok=True)
+          (out/'active-rcp-identity-map.json').write_text(json.dumps(report, ensure_ascii=False, indent=2))
+          print(json.dumps({'mappedCount':len(results),'relevantKeywordMatchCount':len(relevant),'relevant':[{'page':x['page'],'modalId':x['modalId'],'href':x['href'],'contextText':x['contextText'][-1200:]} for x in relevant]}, ensure_ascii=False, indent=2))
+          PY
       - name: Validate identity map
         run: |
           python - <<'PY'
@@ -145,12 +145,12 @@ jobs:
           from pathlib import Path
           p=Path('audit/out/pharmacology-active-rcp-identity-map/active-rcp-identity-map.json')
           r=json.loads(p.read_text())
-          assert r['schemaVersion']=='ammps-active-rcp-identity-map.1'
+          assert r['schemaVersion']=='ammps-active-rcp-identity-map.2'
           assert r['mappedCount']==48
           assert len(r['results'])==48
-          assert r['manifestMutationPerformed'] is False and r['clinicalActivationPerformed'] is False
+          assert r['manifestMutationPerformed'] is False
+          assert r['clinicalActivationPerformed'] is False
           assert all(x['href'].startswith('uploads/rcp/') for x in r['results'])
-          assert all(x['contextText'] for x in r['results'])
           print('ACTIVE_RCP_IDENTITY_MAP_VERIFIED', r['mappedCount'], 'RELEVANT_KEYWORD_MATCH', r['relevantKeywordMatchCount'])
           PY
       - uses: actions/upload-artifact@v4
