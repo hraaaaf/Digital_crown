@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { AlertTriangle, Users } from 'lucide-react';
 import { api } from '../../services/api';
 import { cn } from '../../utils/cn';
@@ -106,6 +106,7 @@ export const MultiPractitionerTimelineView: React.FC<MultiPractitionerTimelineVi
   const [initialTime, setInitialTime] = useState('09:00');
   const [editingAppointment, setEditingAppointment] = useState<MultiAppointment | null>(null);
   const [modalPractitioner, setModalPractitioner] = useState<{ id?: number; name: string } | null>(null);
+  const createInterceptorId = useRef<number | null>(null);
 
   const dentists = useMemo(() => data?.dentists || [], [data]);
   const legacy = useMemo(
@@ -159,11 +160,15 @@ export const MultiPractitionerTimelineView: React.FC<MultiPractitionerTimelineVi
   const timelineHeight = totalHours * HOUR_HEIGHT;
   const gridMinWidth = TIME_AXIS_WIDTH + Math.max(1, dentists.length) * LANE_MIN_WIDTH;
 
-  useEffect(() => {
-    const practitionerId = modalPractitioner?.id;
-    if (!isModalOpen || editingAppointment || !practitionerId) return undefined;
+  const clearCreateInterceptor = () => {
+    if (createInterceptorId.current === null) return;
+    api.interceptors.request.eject(createInterceptorId.current);
+    createInterceptorId.current = null;
+  };
 
-    const interceptorId = api.interceptors.request.use((config) => {
+  const installCreateInterceptor = (practitionerId: number) => {
+    clearCreateInterceptor();
+    createInterceptorId.current = api.interceptors.request.use((config) => {
       const method = (config.method || 'get').toLowerCase();
       const url = (config.url || '').split('?')[0];
 
@@ -180,11 +185,17 @@ export const MultiPractitionerTimelineView: React.FC<MultiPractitionerTimelineVi
 
       return config;
     });
+  };
 
-    return () => api.interceptors.request.eject(interceptorId);
-  }, [editingAppointment, isModalOpen, modalPractitioner]);
+  useEffect(() => () => {
+    if (createInterceptorId.current !== null) {
+      api.interceptors.request.eject(createInterceptorId.current);
+      createInterceptorId.current = null;
+    }
+  }, []);
 
   const openCreate = (dentist: PractitionerLane, time: string) => {
+    installCreateInterceptor(dentist.dentist_id);
     setEditingAppointment(null);
     setInitialTime(time);
     setModalPractitioner({ id: dentist.dentist_id, name: dentist.dentist_name });
@@ -192,6 +203,7 @@ export const MultiPractitionerTimelineView: React.FC<MultiPractitionerTimelineVi
   };
 
   const openEdit = (appointment: MultiAppointment, practitioner?: PractitionerLane) => {
+    clearCreateInterceptor();
     setEditingAppointment(appointment);
     setModalPractitioner(practitioner
       ? { id: practitioner.dentist_id, name: practitioner.dentist_name }
@@ -200,6 +212,7 @@ export const MultiPractitionerTimelineView: React.FC<MultiPractitionerTimelineVi
   };
 
   const closeModal = () => {
+    clearCreateInterceptor();
     setIsModalOpen(false);
     setEditingAppointment(null);
     setModalPractitioner(null);
