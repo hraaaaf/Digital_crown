@@ -1,175 +1,137 @@
 # HANDOVER — Digital Crown / Mutuelles dentaires — FAR SOURCE/GATE
 
-Date: 2026-09-16
+Date: 2026-09-17
 Repository: `hraaaaf/Digital_crown`
 Branch: `docs/mutuelles-far-source-gate-20260916`
 PR: `#559` — OPEN / DRAFT / NOT MERGED
-Branch HEAD before this handover commit: `8ecc1a6f3298d45dbbbc7f1d60e1dfb3dc9ca277`
-Latest verified master while preparing the gate: `ef23b7147c5ed3dfa7c06267eec797a520cb7366`
 
 ## Goal
 
-Complete a reliable FAR SOURCE/GATE before any FAR implementation.
+Certify one printable FAR application reference before any FAR implementation.
 
-Exact outcome required:
+Success is observable only when `docs/audits/MUTUELLES_DENTAIRES_FAR_GATE.md` is upgraded from BLOCKED with a hash-bound printable binary, proven page geometry, visual Target -> Render validation, prescription isolation and exact field contract.
 
-1. recover the exact FAR reference binary;
-2. compute SHA-256 and byte size;
-3. establish physical PDF page count and dimensions;
+## Cabinet decision now recorded
+
+The cabinet explicitly confirmed that the correct visual/model identity is:
+
+`https://fr.scribd.com/document/1025435397/Feuille-de-Mutuelle-FAR-2021-1`
+
+Current trust classification:
+
+`CABINET_VALIDATED_LAYOUT_IDENTITY`
+
+This validates the intended layout, not one exact PDF binary.
+
+## Recovered real bytes
+
+### Public Scribd render — doc 777249804
+
+Downloaded successfully from the public Scribd CDN:
+
+`https://imgv2-2-f.scribdassets.com/img/document/777249804/original/83ef2ce61d/1730193779?v=1`
+
+Verified:
+
+- JPEG;
+- 768 x 1024 px;
+- 175012 bytes;
+- SHA-256 `cf6a071beb0bb8934684d0cd137b1f7b237895976ace8aea44d1bdaf49df6dd5`.
+
+The image contains the four logical FAR areas in a 2x2 composition: Page 4, Page 1, Page 2 `ORDONNANCE`, Page 3 provider acts.
+
+### Independent public Scribd render — doc 700464590
+
+Downloaded successfully:
+
+`https://imgv2-1-f.scribdassets.com/img/document/700464590/original/a669235acb/1706029303?v=1`
+
+Verified:
+
+- JPEG;
+- 768 x 1024 px;
+- 183182 bytes;
+- SHA-256 `aacddaa2b8ccf3fd1a7a065939a334ee786f8ca957959b701c53300244be3154`.
+
+It independently reproduces the same four logical pages but with different scan/crop characteristics. Automated feature registration found matches on all four logical quadrants; the two assets are not pixel-identical and are not one canonical binary.
+
+### Low-resolution doc 742194320 asset
+
+The exposed `original` URL resolves only to:
+
+- 255 x 330 px;
+- 2163 bytes;
+- SHA-256 `b52459bb3b0283eb244ee40b8655bd2ab8ff4ba96a245bd4bcc65678d1ccaf2f`.
+
+Tested `/1`..`/4` variants returned identical bytes. Guessed higher-resolution dimension variants returned `403`. Do not use this asset for print geometry.
+
+## Download endpoint result
+
+Unauthenticated/no-cookie checks only; no bypass attempted:
+
+- Scribd download endpoint for `777249804` -> `403`;
+- exact cabinet-selected `1025435397` -> `403`;
+- `742194320` -> `302` to deleted page.
+
+A Studocu signed image URL is indexed and visually corroborates Page 1/Page 4, but its exposed signature is expired/currently rejected with `403`; no separate Studocu page bytes were certified.
+
+## Logical layout — verified
+
+- Page 1: feuille de maladie/member/beneficiary + treating practitioner;
+- Page 2: `ORDONNANCE`;
+- Page 3: acts/dates/coefficients/fees/stamp-signature;
+- Page 4: `SOINS ET PROTHESE DENTAIRE (INPE)` + dental chart/prosthetic table/medical control.
+
+Scribd lists the selected/corroborating documents as 2 pages, while the form labels four logical pages. The recovered 768 x 1024 assets are preview compositions and do not prove the original physical two-page dimensions/imposition.
+
+## Exact blocker now
+
+The model identity is no longer the blocker.
+
+The remaining blocker is:
+
+**no certified printable reference geometry at sufficient fidelity**.
+
+Therefore do not yet claim:
+
+- exact original PDF binary;
+- original physical page dimensions;
+- exact original imposition;
+- safe overlay coordinates;
+- `OFFICIAL_PRIMARY`;
+- `CABINET_VALIDATED_BINARY`.
+
+## Two valid continuation paths
+
+### Path A — preferred if obtained
+
+Recover a legitimate full-resolution PDF/scan matching the cabinet-selected model, then SHA -> bytes -> pages -> dimensions -> render -> visual inspection -> trust -> gate.
+
+### Path B — authorized technical fallback
+
+Create a clean printable reconstruction based on the cabinet-validated layout and corroborating render assets.
+
+Required classification:
+
+`CABINET_VALIDATED_RECONSTRUCTED_REFERENCE`
+
+It must never be described as the original/official FAR binary.
+
+Before it can authorize implementation:
+
+1. freeze exact reconstructed binary;
+2. compute SHA-256 + byte size;
+3. record exact page count/dimensions;
 4. visually inspect every page;
-5. map physical pages to logical form roles;
-6. isolate and certify the `ORDONNANCE` role independently;
-7. bind provenance/trust to the exact binary SHA;
-8. map allowed and forbidden fields;
-9. verify reuse of the existing Mutuelles engine;
-10. only then authorize implementation.
-
-Success is observable only when `docs/audits/MUTUELLES_DENTAIRES_FAR_GATE.md` is upgraded from BLOCKED with exact binary proofs.
-
-## Mandatory start order in the next conversation
-
-Read:
-
-1. `docs/audits/MUTUELLES_DENTAIRES_FAR_START_PROMPT.md`
-2. `docs/audits/MUTUELLES_DENTAIRES_FAR_GATE.md`
-3. this handover
-4. `docs/audits/MUTUELLES_DENTAIRES_INTEGRATION_ROADMAP.md`
-5. `docs/audits/MUTUELLES_DENTAIRES_CNOPS_TO_FAR_HANDOVER.md`
-6. `docs/audits/MUTUELLES_NGAP_DENTAL_REFERENCE.md`
-
-Then re-check GitHub `master`, PR #559, branch HEAD and compare/mergeability before any write because master is moving through parallel Digital Crown work.
-
-## Verified current state
-
-### Repository / Git
-
-The earlier FAR start point `4cffca14...` is obsolete.
-
-During this pass master first advanced to:
-
-`96a5d1a68ac027f112e0ca349ed6f2f0abbe3243`
-
-Then Agenda A3 merged and master advanced again to:
-
-`ef23b7147c5ed3dfa7c06267eec797a520cb7366`
-
-The FAR branch was reconciled onto that latter master before re-adding the gate.
-
-Verified compare before this handover:
-
-- base: `ef23b7147c5ed3dfa7c06267eec797a520cb7366`
-- FAR gate HEAD: `8ecc1a6f3298d45dbbbc7f1d60e1dfb3dc9ca277`
-- status: ahead
-- ahead_by: 1
-- behind_by: 0
-- changed files: exactly 1, `docs/audits/MUTUELLES_DENTAIRES_FAR_GATE.md`
-
-PR #559 is OPEN + DRAFT and not merged. It was temporarily auto-closed when the branch ref was reconciled to master, then reopened after the gate commit was recreated. Do not merge without explicit user agreement.
-
-No FAR code, DB mutation or deployment has been performed.
-
-### CI
-
-At HEAD `8ecc1a6f...`, `fetch_commit_workflow_runs` returned no workflow runs at the time checked. Do not interpret absence as green CI. Re-check when relevant.
-
-## FAR source identity
-
-Chosen/fixed layout identity from the project context:
-
-**MFAR — `Feuille de Mutuelle FAR 2021-1`**
-
-This identity is strongly corroborated by multiple independent web uploads, but one exact binary has NOT yet been certified byte-for-byte.
-
-Corroborating sources used in the gate:
-
-- Scribd document `1025435397/Feuille-de-Mutuelle-FAR-2021-1`
-- Scribd document `742194320/FAR-Recto-Verso`
-- Studocu `feuille-de-soins-dentaire-inpe-mutuelle-des-far/137649272`
-
-These are secondary user-upload sources, not official primary FAR publications.
-
-Verified/corroborated logical content includes:
-
-- Page 1 — member/beneficiary / feuille de maladie information;
-- Page 2 — `ORDONNANCE`;
-- Page 3 — acts/dates/coefficients/fees/practitioner area;
-- Page 4 — `SOINS ET PROTHESE DENTAIRE (INPE)` with dental chart and dental/prosthetic work areas.
-
-Important ambiguity still open:
-
-The web uploads are indexed as **2 PDF pages** while the reproduced form itself carries logical labels Page 1 through Page 4. Physical imposition, dimensions and exact geometry must therefore be derived from the recovered binary, not guessed.
-
-## Exact blocker
-
-**Exact FAR binary bytes are still missing.**
-
-Therefore these facts are NOT verified:
-
-- SHA-256;
-- byte size;
-- exact physical page count from the chosen bytes;
-- page dimensions;
-- exact page/imposition geometry;
-- overlay coordinates;
-- byte-bound provenance/trust.
-
-No source may be labelled `OFFICIAL_PRIMARY` without real primary proof.
-No source may be labelled `CABINET_VALIDATED_BINARY` unless the cabinet explicitly validates those exact bytes and that validation is bound to the SHA-256.
-
-## Download/search attempts
-
-Scribd and Studocu downloads require authentication for the accessible copies.
-
-A strategy change was started: target only direct file/image assets or other mirrors rather than repeatedly searching locked document platforms.
-
-A temporary Sprite named `far-source-fetch-20260916` was created to test retrieval of a Scribd asset URL. The first command invocation failed because the command wrapper was malformed; this is a tooling/quoting failure, NOT evidence that the asset is unavailable.
-
-A corrected shell script `fetch_far.sh` was then written inside that Sprite, but **it has not yet been executed**. This is the immediate executable continuation if the Sprite remains available. Do not claim the asset was downloaded unless the script actually succeeds and the resulting bytes are inspected.
-
-Candidate asset URL embedded in that script was a guessed Scribd CDN pattern for document `742194320`. Because the asset path/hash itself was not independently proven, a successful HTTP response would still need image/content verification before use.
-
-After two similar retrieval failures, change strategy rather than repeatedly guessing CDN URLs: inspect page source/network metadata where legitimately accessible, search direct mirrors/caches, or obtain the cabinet scan.
-
-## Gate file already created
-
-`docs/audits/MUTUELLES_DENTAIRES_FAR_GATE.md`
-
-Current gate decision:
-
-**BLOCKED — SOURCE BINARY NOT YET CERTIFIED**
-
-Current scores:
-
-- EXECUTION_SCORE: 5.9/10
-- ADVERSARIAL_SCORE: 5.9/10
-- retained: 5.9/10 — BLOCKED
-
-Reason: clinical/data source trust blocker. The exact binary proof required for implementation is absent.
-
-## Architecture constraints — preserve exactly
-
-There is one Mutuelles engine:
-
-`Patient -> Honoraires -> Preparer organisme -> Revue praticien -> Validation -> PDF -> DocumentArchive`
-
-Reuse the existing submission draft, Honoraires financial truth, clinical catalog, regulatory mapping layer, immutable/hash-addressed source handling, practitioner validation, anti-stale revalidation, hash-bound PDF finalization and DocumentArchive.
-
-Forbidden:
-
-- second Mutuelles/Honoraires engine;
-- second clinical catalog;
-- fuzzy NGAP;
-- artificial backfill;
-- silent deduction of unknown fields;
-- fabricated signature/stamp;
-- fabricated insurer decision/approval;
-- production mutation during this source gate;
-- Vercel deployment without explicit authorization;
-- merge without explicit user agreement.
+5. Target -> Render comparison against the selected model at the same logical views;
+6. isolate `FAR_PRESCRIPTION`;
+7. cabinet accepts the reconstructed printable output;
+8. bind source/trust to its SHA;
+9. only then derive overlay coordinates.
 
 ## Prescription hard boundary
 
-The `ORDONNANCE` portion is a separate clinical sub-document/role, provisionally `FAR_PRESCRIPTION` until the exact binary confirms the geometry.
+`FAR_PRESCRIPTION` remains independently validated.
 
 Never infer from dental acts/NGAP:
 
@@ -179,35 +141,64 @@ Never infer from dental acts/NGAP:
 - duration;
 - frequency.
 
-Medication content must come from an explicit prescription source and require practitioner review. Prescription validation must be independent from dental claim validation. If the final FAR binary requires a combined PDF, reassemble only after independent validation of its logical sub-documents.
+Medication content comes only from explicit prescription data and practitioner review.
 
-## UI/visual requirement for later implementation
+## Architecture constraint
 
-For every FAR visual change:
+One Mutuelles engine only:
 
-BEFORE real -> written Goal -> exact reference/mockup -> implementation -> AFTER at the same viewports -> Target vs Render comparison -> tests -> visual score.
+`Patient -> Honoraires -> Preparer organisme -> Revue praticien -> Validation -> PDF -> DocumentArchive`
 
-The prescription page/role requires its own visual certification. No visual fidelity score above 7.5 without a real Target vs Render comparison.
+Forbidden:
+
+- second Mutuelles/Honoraires engine;
+- second clinical catalog;
+- fuzzy NGAP;
+- artificial backfill;
+- silent deduction of unknown fields;
+- fabricated signature/stamp;
+- fabricated insurer decision;
+- FAR implementation from preview coordinates;
+- production mutation during source gate;
+- Vercel deploy without explicit authorization;
+- merge without explicit user agreement.
+
+## Git state last verified before the evidence update
+
+- prior branch HEAD: `5a2798ce063fd7503503e83dc863d561cee41d96`;
+- master: `eb2353b68d880b89dfadd13819fb43d1c71e2f1d`;
+- branch was ahead by 2 and behind master by 5;
+- master-only compared changes were outside FAR docs: `backend/tests/test_agenda_availability_wiring.py` and `backend/tests/test_mobile_identity_security.py`.
+
+Gate update commit created after that comparison:
+
+`63d3cd03f46b98ab335203b740791638f3d8d940`
+
+No FAR code, DB mutation, production mutation, deploy or merge was performed.
+
+## Current gate score
+
+- EXECUTION_SCORE: 5.9/10
+- ADVERSARIAL_SCORE: 5.9/10
+- retained: 5.9/10 — BLOCKED
+
+Reason: the clinical printable-source/geometry proof remains mandatory and absent.
 
 ## Next exact
 
-1. Re-check current master and PR #559 state because master may have moved again.
-2. Continue direct binary retrieval, beginning with the already prepared Sprite script only if the Sprite is still available.
-3. If that path fails, switch strategy immediately to direct mirror/cache/page-asset discovery; do not loop on Scribd/Studocu login walls.
-4. Once bytes are obtained: compute SHA-256 + byte size.
-5. Determine exact page count + dimensions.
-6. Render and visually inspect every physical page.
-7. Map physical pages to logical Page 1/2/3/4 roles and isolate `ORDONNANCE`.
-8. Verify provenance/trust and bind it to SHA.
-9. Update `MUTUELLES_DENTAIRES_FAR_GATE.md` with exact field/geometry evidence.
-10. Only if all source gates pass, begin FAR implementation on a correctly based branch.
+Proceed with Path B while continuing to prefer Path A if a legitimate full-resolution binary appears:
+
+1. create a reconstructed printable reference without claiming it is official;
+2. preserve the four logical roles and separate `ORDONNANCE`;
+3. render and compare against the cabinet-selected target;
+4. freeze SHA/pages/dimensions;
+5. present the reconstruction for cabinet acceptance;
+6. after acceptance only: upgrade gate and start FAR implementation on a branch reconciled with current master.
 
 ## Sequence remaining
 
-`exact binary -> SHA/size -> PDF geometry -> page-by-page visual inspection -> ordonnance isolation -> provenance/trust -> exact allowed/forbidden field map -> common-engine delta -> gate upgrade -> implementation -> tests -> UI Target↔Render proof -> regression certification CNSS/CNOPS/Honoraires -> exact-HEAD CI -> user merge agreement -> merge -> post-merge proof -> closeout`
-
-If the exact binary cannot be recovered from legitimate public sources, the true human gate is: obtain/upload a clean cabinet FAR scan/PDF and explicitly validate those exact bytes as the cabinet reference.
+`printable reconstruction -> render/compare -> cabinet acceptance -> SHA/page geometry/trust -> gate upgrade -> reconcile master -> FAR implementation -> tests -> UI/PDF Target↔Render -> CNSS/CNOPS/Honoraires regressions -> exact-HEAD CI -> user merge agreement -> merge -> post-merge proof -> closeout`
 
 ## Resume prompt
 
-Continue Digital Crown / Mutuelles dentaires / FAR SOURCE-GATE from `docs/audits/MUTUELLES_DENTAIRES_FAR_HANDOVER.md`. Re-read the FAR start prompt and gate first, then verify current master/PR #559/branch HEAD. Do not code FAR until an exact binary is recovered and certified. Continue direct binary retrieval without looping on Scribd/Studocu login walls. Once bytes exist, SHA-256 -> size/pages/dimensions -> visual inspection every page -> isolate ORDONNANCE -> provenance/trust -> update gate -> only then implementation. No merge without explicit user agreement and no Vercel deployment without explicit authorization.
+Continue Digital Crown / Mutuelles dentaires / FAR SOURCE-GATE from this file. Re-read `MUTUELLES_DENTAIRES_FAR_GATE.md`, verify current master/PR #559/branch HEAD, then continue Path B reconstruction unless a legitimate higher-fidelity Path A binary is available. Do not code FAR until the gate is upgraded. No merge without explicit user agreement and no Vercel deployment without explicit authorization.
