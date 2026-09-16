@@ -1,226 +1,214 @@
 # Mutuelles dentaires — Integration Roadmap
 
-Date: 2026-09-14
-Branch: `feature/mutuelles-dentaires-integration-v2-20260914`
-PR: `#493`
+Date de realignement: 2026-09-16
+Repo: `hraaaaf/Digital_crown`
+Branche du lot courant: `feature/mutuelles-cnops-20260916`
+Base du lot courant: `master@d15d81d0c040a5e6b255e02e635c988cd6d720ee`
+Lot precedent: PR `#493` MERGED
 
-## Goal
-Integrer un workflow unique de feuille de soins CNSS/CNOPS/FAR a partir des donnees existantes Digital Crown, avec validation praticien, tracabilite NGAP et archivage du PDF final dans le dossier patient, sans dupliquer Honoraires, Ordonnance, CatalogAct ni DocumentArchive.
+## Goal global
 
-## UX cible verrouillee
-`Patient -> Honoraires -> Preparer feuille de soins -> Revue/validation -> PDF -> DocumentArchive`
-
-- CTA principal depuis une note d'honoraires lorsque le patient a un organisme compatible.
-- Acces secondaire depuis Documents sur une note d'honoraires existante.
-- Ecran intermediaire obligatoire: assure/beneficiaire, INPE, nature demande, type de soins, actes, dents, honoraires, NGAP, champs manquants.
-- Ambiguite ou donnee absente = saisie/validation praticien, jamais inference silencieuse.
-- Generation finale uniquement apres validation explicite du praticien.
-- PDF final archive automatiquement dans le dossier patient.
-- Reimpression historique depuis le snapshot archive, jamais recalcul implicite avec un nouveau referentiel.
-
-## Strategie archive P0
-Pas de nouvel enum SQL immediatement:
-- `DocumentType.AUTRE`;
-- tags `insurance_submission`, organisme, version template;
-- `clinical_data.kind = INSURANCE_SUBMISSION`;
-- snapshot complet `InsuranceSubmissionDraft` + provenance Honoraires + template/version/hash/trust + NGAP/version/hash + validation praticien + preuve de rendu.
-
-## Lot 1 — Contrat runtime — IMPLEMENTE
-`InsuranceSubmissionDraft` fail-closed.
-
-Invariants:
-- `READY_FOR_REVIEW`: toutes lignes NGAP EXACT + aucun champ non resolu;
-- `VALIDATED`: conditions precedentes + praticien/date + template SHA-256/provenance + trust `OFFICIAL_PRIMARY|CABINET_VALIDATED_BINARY` + version/hash NGAP;
-- `SECONDARY_REFERENCE` ne peut jamais devenir un document final valide;
-- aucune archive finale depuis un draft non `VALIDATED`.
-
-Le snapshot administratif comprend:
-- nature demande `EXECUTION|PRIOR_APPROVAL`;
-- assure: nom, immatriculation, CIN, adresse, qualite;
-- beneficiaire: nom, naissance, CIN, sexe, lien;
-- praticien: nom, INPE;
-- type soins `SOINS|PROTHESE|ORTHODONTIE_FACIALE|AUTRES`;
-- entente prealable, accident, pieces jointes.
-
-## Lot 2 — Honoraires -> Draft — IMPLEMENTE
-- source: `DocumentArchive.clinical_data.payments[*]` + `Acte` derives;
-- dents depuis snapshot;
-- mismatch historique fail-closed;
-- `source_line_uid` stable + `catalog_act_id` explicite;
-- liaison UID prioritaire, fallback index seulement historique;
-- organisme demande doit correspondre a `Patient.assurance`.
-
-### Regressions CI liaison/archive — CORRIGEES
-1. CI #4065: UID cree dans `Acte` mais pas durablement marque dans le JSON archive. Correctif `6a4778f8...`: reconstruction snapshot + `flag_modified(archive, "clinical_data")`.
-2. CI #4123 sur `7a01205e...`: la metadonnee technique `source_line_uid` enrichissant la premiere archive cassait ensuite la detection de doublon d'une note utilisateur identique; 1548 tests passes avant arret. Correctif: politique NOTE_HONORAIRES qui compare le contenu metier en ignorant uniquement `source_line_uid` et `catalog_act_id=None`, tout en conservant un vrai `catalog_act_id` comme identite significative. Tests dedies ajoutes.
-3. CI #4139 sur `8d7415d9...`: fixture de validation reutilisait une instance `CatalogAct` expiree apres appel HTTP. Premier correctif: identite primitive conservee.
-4. CI #4141 sur `b7aa96ce...`: cause racine transactionnelle confirmee; `/documents/generate` rend dans une seconde `SessionLocal` en thread, donc un `CatalogAct` seulement `flush()` n'etait pas visible. Correctif test uniquement: commit de la donnee de reference avant appel HTTP.
-5. CI #4142 sur `1b8a7879...`: le gate arrivait ensuite jusqu'a la completude administrative et bloquait car la fixture ne renseignait explicitement que 7/13 champs CNSS obligatoires. Correctif `672133f6...`: fixture du test de validation rendue explicitement complete et independante du prefill.
-
-## Lot 3 — Archivage PDF final — IMPLEMENTE
-- uniquement draft `VALIDATED`;
-- PDF final archive dans `DocumentArchive`;
-- snapshot/tags/provenance complets;
-- hashes template + NGAP + trust template conserves;
-- preuve renderer conservee: version, profil complet de coordonnees, hash profil, hash template, hash PDF final;
-- reimpression historique fondee sur le snapshot + profil archive, pas sur le referentiel courant.
-
-## Lot 4 — Liaison actes/catalogue — IMPLEMENTE
-- `Acte.source_line_uid` nullable;
-- `Acte.catalog_act_id` nullable FK `CatalogAct`;
-- migration additive/idempotente, aucun backfill artificiel;
-- rollback certification disponible;
-- edition par UID, fallback index uniquement historique;
-- CatalogAct inconnu/inactif => fail-closed.
-
-## Lot 5 — NGAP versionnee — MOTEUR IMPLEMENTE / DONNEES PRIMAIRES NON ACTIVEES
-`CatalogAct` reste le catalogue clinique. `ngap_catalog_mappings` est uniquement la couche reglementaire versionnee.
-
-Double gate `VERIFIED_PRIMARY`:
-1. PDF primaire lisible + marqueurs juridiques `177-06` et `nomenclature generale des actes professionnels` + SHA-256;
-2. mapping explicitement valide par praticien actif (`validated_by_practitioner_id`, `validated_at`).
-
-Runtime:
-- source non verrouillee / mapping non valide / expiration => `OUTDATED`;
-- absence/non-NGAP => `NO_MATCH`;
-- `EXACT` uniquement via `CatalogAct.id + reference_version`, jamais `CatalogAct.code` ou fuzzy label;
-- plusieurs hashes pour la meme version => blocage.
-
-Sources recroisees:
-- Ministere Sante: arrete 177-06 du 27/01/2006;
-- SGG/DIO: BO 5414 du 20/04/2006;
-- data.gov.ma: ressource NGAP, producteur CNOPS;
-- CNOPS: nomenclature 177-06;
-- ONMD 01/26 du 02/02/2026: NGAP + TNR;
-- ANAM: convention/arretes chirurgiens-dentistes.
-
-Blocage externe: les sources officielles sont identifiees, mais les octets exacts du PDF primaire ne sont pas recuperables de facon reproductible depuis l'environnement actuel (timeouts/403/DNS/cache miss). Aucun hash officiel invente. La File Library et Google Drive ont ete recherches: aucun binaire `177-06`/NGAP primaire n'y est present; seul le communique ONMD 01/26 est present sur Drive comme corroboration.
-
-## Lot 5B — Store local immuable des sources — IMPLEMENTE
-`insurance_source_store.py`:
-- validation source AVANT stockage;
-- stockage hash-addressed `namespace/version/sha256/source.pdf`;
-- `manifest.json` deterministe;
-- ecriture atomique;
-- lecture avec revalidation SHA + identite manifeste;
-- collision/alteration => blocage;
-- NGAP passe par le controle identite juridique;
-- template passe par controle PDF/pages/hash/trust;
-- `CABINET_VALIDATED_BINARY` exige l'identite explicite du validateur dans le manifeste.
-
-Commande locale `scripts/lock_insurance_source.py`:
-- `--kind ngap|cnss|cnops|far`;
-- fichier local + provenance;
-- CNSS/FAR cabinet-valide exige `--confirm-cabinet-validation --validated-by "..."`;
-- aucun binaire n'a encore ete promu faute de fichier source exact disponible.
-
-## Lot 6 — CNSS 610-1-04 — BACKEND DE PREPARATION/VALIDATION/RENDU GENERIQUE IMPLEMENTE / CALIBRATION BLOQUEE PAR BINAIRE
-Reference dentaire confirmee: `CNSS-610-1-04`, 2 pages attendues, ref ANAM `1.2.03.01`.
-
-Une copie secondaire coherente 2 pages a ete retrouvee et recroisee, mais aucune copie officielle CNSS exacte n'est recuperable/verrouillee depuis l'environnement. Elle ne doit pas etre promue silencieusement en `OFFICIAL_PRIMARY`. La voie `CABINET_VALIDATED_BINARY` reste possible uniquement apres validation explicite d'un binaire exact par le praticien/cabinet.
-
-### Politique administrative CNSS — IMPLEMENTEE
-- prefill uniquement faits explicites: nom beneficiaire, naissance, sexe, nom praticien;
-- INPE seulement depuis une cle explicitement INPE/INP;
-- type de soins seulement si tous les Acte sources convergent vers une categorie deterministe;
-- note mixte => manuel;
-- adresse patient jamais assimilee automatiquement a l'adresse assure;
-- CIN/immatriculation/identite assure/lien jamais inventes;
-- tous champs obligatoires manquants deviennent `administrative.<field>`.
-
-### Preparation et coherence source — IMPLEMENTEES
-`prepare_insurance_draft_from_honoraires()` + `assert_draft_matches_honoraires_source()`:
-- relisent Honoraires/Acte cote serveur;
-- recroisent patient, organisme, UID, Acte, catalog_act_id, date, dents, libelle, montant;
-- toute divergence => blocage avant validation.
-
-### Validation praticien — IMPLEMENTEE
-`validate_insurance_draft_by_practitioner()`:
-- seul le praticien source peut valider;
-- NGAP recalcule depuis la DB, jamais depuis le client;
-- completude administrative recalculee;
-- template + source NGAP relus dans le store immuable;
-- produit un nouveau snapshot `VALIDATED` uniquement si toutes les preuves restent coherentes.
-
-### Renderer generique — IMPLEMENTE
-`insurance_pdf_overlay.py`:
-- aucune coordonnee assureur hardcodee;
-- profil separe lie a `organization + template_version + template_hash`;
-- profil canonique serialisable + SHA-256;
-- champs signature/cachet/decision assureur explicitement interdits;
-- hash template exact obligatoire avant insertion PDF.
-
-### Finalisation rendu -> archive — IMPLEMENTEE
-`finalize_insurance_submission_pdf()`:
-1. exige un draft deja `VALIDATED`;
-2. revalide immediatement DB + NGAP + sources immuables avec le meme praticien/date;
-3. compare le snapshot reconstruit au snapshot valide: difference => `stale or altered`, nouvelle revue obligatoire;
-4. relit le template exact depuis le store;
-5. rend via le profil hash-bound;
-6. calcule le SHA-256 du PDF final;
-7. archive PDF + profil complet + hash profil + hash PDF final.
-
-Aucune coordonnee CNSS reelle n'est inventee avant verrouillage du binaire exact. La calibration fidele du `610-1-04` reste donc bloquee par le fichier source.
-
-## Lot 7 — UX/UI — A FAIRE APRES GATES BINAIRES/METIER
-Protocole obligatoire:
-`BEFORE -> Goal -> mockup/reference -> implementation -> AFTER memes viewports -> comparaison/tests -> score visuel`.
+Integrer un workflow unique de feuille de soins CNSS/CNOPS/FAR a partir des donnees existantes Digital Crown, avec validation praticien, tracabilite NGAP, rendu sur template exact verrouille et archivage reproductible dans `DocumentArchive`, sans dupliquer Honoraires, `CatalogAct` ni l'archive documentaire.
 
 UX cible:
-- CTA Honoraires;
-- second acces Documents;
-- ecran Preparation feuille de soins;
-- champs pre-remplis vs manquants clairement differencies;
-- revue NGAP et administrative;
-- preview formulaire;
+
+`Patient -> Honoraires -> Preparer organisme -> Revue/validation -> PDF -> DocumentArchive`
+
+## Architecture verrouillee
+
+- un seul moteur Mutuelles;
+- Honoraires reste la source financiere;
+- `CatalogAct` reste le catalogue clinique;
+- `ngap_catalog_mappings` reste la couche reglementaire versionnee;
+- `DocumentArchive` reste l'archive documentaire;
+- aucun fuzzy mapping NGAP;
+- aucun backfill artificiel;
+- aucune signature/cachet/decision assureur fabrique;
+- toute donnee inconnue reste fail-closed;
+- tout template finalisable doit etre lie a des octets exacts et a un SHA-256;
+- tout profil overlay est lie a `organization + template_version + template_hash` exacts;
+- reimpression historique depuis le snapshot/profil archive, jamais depuis un recalcul implicite courant.
+
+## Moteur commun — ACQUIS
+
+Les briques suivantes existent et doivent etre reutilisees pour CNOPS/FAR:
+
+- `InsuranceSubmissionDraft`;
+- preparation depuis Honoraires;
+- coherence serveur Honoraires/Acte;
+- liaison `source_line_uid` / `catalog_act_id`;
+- resolution NGAP serveur sans fuzzy matching;
+- source store local immuable et hash-addressed;
 - validation praticien;
-- generation + archive.
+- revalidation anti-stale avant finalisation;
+- renderer PDF overlay hash-bound;
+- hash du PDF final;
+- archivage `DocumentArchive` avec preuve de rendu.
 
-## Lot 8 — Gate cabinet
-Activation seulement si:
-- source NGAP primaire binaire/hash verrouillee;
-- mappings representatifs valides par praticien;
-- template assureur exact verrouille et trust acceptable;
-- profil de coordonnees calibre/valide sur ce hash exact;
-- migration/rollback, archivage/reimpression et UX certifies.
+`SECONDARY_REFERENCE` reste insuffisant pour une validation/finalisation praticien. Le trust final acceptable reste `OFFICIAL_PRIMARY` ou `CABINET_VALIDATED_BINARY` avec provenance explicite.
 
-## Certification backend — PROUVEE
-HEAD code certifie: `672133f6040e2f6c1bc91f71ceffff2a7380067d`.
+## NGAP dentaire — REFERENCE VERROUILLEE / RUNTIME NON AUTO-CERTIFIE
 
-Exact-head:
-- CI #4143: **SUCCESS**;
-- Cabinet Upgrade PostgreSQL #566: **SUCCESS**;
-- Clinic P3 Document Provenance #116: **SUCCESS**;
-- T2 Runtime Browser #3051: **SUCCESS**;
-- Catalog Connected Truth #1192: **SUCCESS**;
-- M6-I Biometric #1851: **SKIPPED attendu**.
+Fichiers canoniques:
 
-Closeout documentaire `67d3dcf23c6da45e1385c81e97d3f109902389d0`:
-- CI #4146: **SUCCESS**;
-- PostgreSQL #568: **SUCCESS**;
-- Provenance #118: **SUCCESS**;
-- Browser #3053: **SUCCESS**;
-- Catalog #1194: **SUCCESS**.
+- `backend/data/ngap_dental_177_06.json`
+- `backend/data/ngap_dental_177_06_conditions.json`
+- `backend/data/ngap_dental_177_06_provenance.json`
+- `backend/services/ngap_dental_reference.py`
+- `docs/audits/MUTUELLES_NGAP_DENTAL_REFERENCE.md`
 
-## Realignement master
-- `master` courant absorbe: `38dc018426d93437c6a77e9d5856c529096dda5a`;
-- les trois commits depuis `e7198b27...` ne modifient que `.github/workflows/ci.yml` et ajoutent/restaurent l'invariant explicite de non-regression, le workflow M4-C complet et les versions d'actions deja en usage;
-- merge explicite sur la branche Mutuelles: `7f8d2c6ed31f7ca94c6252fe67fd6d4e92d36cf3`;
-- apres merge: **91 ahead / 0 behind**, merge-base exactement `38dc018426d93437c6a77e9d5856c529096dda5a`;
-- PR #493: draft, mergeable=true;
-- certification exact-head `7f8d2c6e...`: PostgreSQL #584, Provenance #119, Browser #3069 et Catalog #1195 **SUCCESS**; M6-I #1869 **SKIPPED attendu**; CI #4165 encore `in_progress` au dernier controle, seule la regression backend complete restant en execution.
+Source verrouillee:
+
+- B.O. n°5414 / arrete 177-06;
+- fichier `bo_5414_fr.pdf`;
+- 220 pages;
+- 11 334 738 octets;
+- SHA-256 `e9db137d6a758bd4ad7a506a94a7c0c84726813de3db1e225c761318a75e1fdb`.
+
+Dataset actuel:
+
+- 145 entrees;
+- `D600-D641`;
+- `D700-D785`;
+- `D800-D816`.
+
+Statut volontaire: `REFERENCE_ONLY_NOT_RUNTIME_CERTIFIED`.
+
+Le dataset ne devient jamais automatiquement un mapping runtime `VERIFIED_PRIMARY`; les mappings `CatalogAct -> NGAP` restent soumis aux gates existants.
+
+## CNSS 610-1-04 — MERGE #493 ACQUIS
+
+Le lot CNSS a ete merge dans `master` via PR `#493`, merge commit `d15d81d0c040a5e6b255e02e635c988cd6d720ee`.
+
+Binaire cabinet valide utilise par le profil CNSS:
+
+- version `CNSS-610-1-04`;
+- 2 pages;
+- SHA-256 `e1fb63afb1893886d518135dfb209f24f2464e8cd664e89881fc7c373854864d`;
+- trust `CABINET_VALIDATED_BINARY`.
+
+Profil courant:
+
+- `backend/services/insurance_cnss_610_1_04_profile.py`;
+- version `cnss-610-1-04-e1fb63af-v2`;
+- capacite 3 lignes;
+- zone superieure reservee a l'assure volontairement non remplie;
+- remplissage limite a la zone praticien/beneficiaire validee;
+- aucune coordonnee signature/cachet/decision assureur.
+
+UI CNSS acquise:
+
+- action `Preparer CNSS` depuis Honoraires/Documents;
+- revue praticien;
+- validation;
+- finalisation;
+- archivage;
+- captures AFTER exact-head realisees sur `390x844`, `768x1024`, `1280x900` et validation visuelle humaine acquise avant merge.
+
+Certification pre-merge de reference:
+
+- HEAD `f5c888166a6471a13fa7df67f6e43b17eb67574a`;
+- CI `#4515`: SUCCESS;
+- M6-I: SKIPPED attendu.
+
+Post-merge `master@d15d81d0...`:
+
+- CI `#4522` existe bien sur le merge commit;
+- au controle du 2026-09-16 pendant l'ouverture du lot CNOPS, etat: `in_progress`, conclusion: aucune;
+- ceci ne constitue pas encore une certification post-merge.
+
+## CNOPS — LOT COURANT
+
+Fichier de gate canonique du lot:
+
+`docs/audits/MUTUELLES_DENTAIRES_CNOPS_GATE.md`
+
+### Etat repo verifie
+
+- `InsuranceOrganization`/types frontend supportent deja `CNOPS`;
+- `insurance_template_registry.py` contient `CNOPS_DENTAL_PENDING`;
+- definition actuelle: 2 pages attendues, trust `SECONDARY_REFERENCE`;
+- le moteur de preparation/finalisation reste generique sous les couches CNSS;
+- les seams encore CNSS-only sont principalement:
+  - politique administrative;
+  - selection template/profile du router;
+  - action/revue frontend.
+
+### Sources primaires CNOPS recroisees
+
+Le site officiel CNOPS expose la `Feuille de soins dentaires` et documente les donnees exigees pour le dossier dentaire, notamment selon les cas: identite assure/malade, INPE, date, honoraires, dent(s), actes, schema dentaire, cotation NGAP, signature/cachet et pieces justificatives.
+
+Sources officielles de decouverte/corroboration:
+
+- `https://www.cnops.org.ma/fr/infopratiques`
+- `https://www.cnops.org.ma/fr/soins-dentaires`
+- `https://www.cnops.org.ma/fr/dossierem?r=117`
+- `https://cnops.org.ma/fr/prestations?r=86`
+
+Aucun binaire PDF officiel exact n'a ete recupere de facon reproductible dans l'environnement courant. Aucun hash `OFFICIAL_PRIMARY` n'est donc declare.
+
+### Binaire candidat secondaire exact
+
+Un candidat 2 pages a ete acquis depuis une copie secondaire Google Drive exposee par un site tiers:
+
+- fichier: `Feuile de soins denatires CNOPS - ATARBAWI.COM.pdf`;
+- taille: `1 325 493` octets;
+- pages: 2;
+- format: A4 paysage, `841.89 x 595.276 pt`;
+- formulaire PDF: aucun;
+- SHA-256: `89097caca32aef6b4d34d2d06fb9cc6f9bdc1f3c4385cf5558b5742a3af6f505`;
+- reference ANAM visible sur ce candidat: `1.1.01.01`;
+- trust actuel obligatoire: `SECONDARY_REFERENCE`.
+
+Aucune coordonnee overlay CNOPS n'est canonisee avant validation du binaire exact.
+
+### Human gate courant
+
+Le premier vrai gate du lot CNOPS est la validation du binaire exact.
+
+Le candidat de SHA-256 `89097caca32aef6b4d34d2d06fb9cc6f9bdc1f3c4385cf5558b5742a3af6f505` ne peut devenir `CABINET_VALIDATED_BINARY` qu'apres confirmation explicite du praticien/cabinet qu'il s'agit bien du formulaire CNOPS dentaire utilise/acceptable.
+
+Si refuse, obtenir le PDF exact cabinet/officiel puis recalculer hash/provenance avant toute calibration.
+
+## FAR — NON OUVERT DANS CE LOT
+
+FAR reste hors scope de la branche CNOPS. Aucun travail CNOPS ne doit muter le comportement FAR sauf refactor generique strictement couvert par tests de non-regression.
+
+## Protocole UI obligatoire
+
+Pour toute modification visuelle CNOPS:
+
+`BEFORE -> Goal ecrit -> mockup/reference -> implementation -> AFTER memes viewports -> comparaison/tests -> score visuel -> validation humaine si necessaire`.
+
+Les viewports CNSS de reference `390x844 / 768x1024 / 1280x900` doivent etre conserves pour la comparaison lorsqu'ils s'appliquent au meme flow.
+
+## Non-regression obligatoire
+
+Toute modification CNOPS doit prouver proportionnellement au risque:
+
+- aucun changement non maitrise de schema/DB;
+- aucun dommage donnees patients/documents;
+- CNSS prepare/validate/finalize/archive reste fonctionnel;
+- source store/hash gates restent fail-closed;
+- NGAP reste non fuzzy et non auto-certifie;
+- signatures/cachets/decision assureur restent hors rendu automatique.
 
 ## Interdits
-Second moteur Honoraires, second catalogue clinique, Ordonnance bis, fuzzy mapping, backfill artificiel, signature/cachet/accord assureur fabrique, auto-cotation sans source primaire hashee ET validation metier, template secondaire promu en final, rendu approximatif d'un formulaire officiel, deploiement Vercel sans autorisation explicite.
 
-## Etat
-`LOTS_1_4_IMPLEMENTED / NGAP_ENGINE_IMPLEMENTED_SOURCE_PENDING / LOCAL_SOURCE_STORE_IMPLEMENTED / CNSS_ADMIN_PREFILL_IMPLEMENTED / SOURCE_CONSISTENCY_GATE_IMPLEMENTED / PRACTITIONER_VALIDATION_GATE_IMPLEMENTED / HASH_BOUND_OVERLAY_IMPLEMENTED / FINALIZATION_ARCHIVE_IMPLEMENTED / BACKEND_CODE_HEAD_CERTIFIED / MASTER_REALIGNED / EXACT_HEAD_SPECIAL_CERTS_GREEN / CI_4165_PENDING / PRIMARY_HASH_PENDING / CNSS_TEMPLATE_BINARY_PENDING / RUNTIME_NOT_ACTIVATED`
+Second moteur Honoraires, second catalogue clinique, Ordonnance bis, fuzzy mapping, backfill artificiel, signature/cachet/accord assureur fabrique, template secondaire promu silencieusement en final, rendu approximatif d'un formulaire officiel, mutation production, deploiement Vercel sans autorisation explicite, merge sans accord explicite utilisateur.
+
+## Etat courant
+
+`PR_493_MERGED / CNSS_FLOW_ACQUIRED / NGAP_REFERENCE_LOCKED_REFERENCE_ONLY / CNOPS_BRANCH_CREATED / CNOPS_SECONDARY_BINARY_HASHED / CNOPS_OFFICIAL_BINARY_NOT_LOCKED / CNOPS_CABINET_BINARY_VALIDATION_PENDING / CNOPS_RUNTIME_NOT_ENABLED / POST_MERGE_CI_4522_IN_PROGRESS_AT_LAST_CHECK`
 
 ## Next exact
-1. Obtenir le verdict CI #4165 sur `7f8d2c6e...`; si vert, ne plus muter le HEAD pour de la documentation seule.
-2. Recuperer localement le binaire primaire NGAP exact depuis Ministere/DIO -> lock/store/hash.
-3. Valider un premier lot representatif de mappings NGAP par praticien.
-4. Recuperer/verrouiller le binaire CNSS 610-1-04 exact; a defaut de source officielle recuperable, utiliser `CABINET_VALIDATED_BINARY` uniquement apres validation explicite du fichier exact.
-5. Calibrer profil CNSS sur CE hash -> test visuel fidele.
-6. BEFORE/mockup -> UX -> AFTER/tests.
-7. CNOPS/FAR -> gate cabinet -> closeout/merge.
+
+1. Gate humain: confirmer ou refuser le binaire CNOPS exact de SHA-256 `89097caca32aef6b4d34d2d06fb9cc6f9bdc1f3c4385cf5558b5742a3af6f505`.
+2. Si confirme: le promouvoir uniquement en `CABINET_VALIDATED_BINARY` avec identite du validateur, puis lock/store exact.
+3. Implementer policy administrative CNOPS fail-closed + tests.
+4. Calibrer profil overlay lie a CE SHA + tests des zones interdites/capacite lignes.
+5. Generaliser le router/action/revue sans casser CNSS.
+6. Executer BEFORE/Goal/mockup -> UI -> AFTER memes viewports -> comparaison/tests -> validation visuelle.
+7. Certification exact-head + documentation/handover CNOPS -> FAR.
+8. Demander accord merge; ne merger qu'apres accord.
+9. Verifier post-merge; nouvelle fenetre pour FAR.
