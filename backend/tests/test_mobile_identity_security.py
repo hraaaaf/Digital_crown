@@ -222,9 +222,15 @@ def test_mobile_mutation_uses_numeric_subject_as_user_id(client, db, dentiste):
         licensed=False,
     )
     body = _claim(client, _pairing(db, dentiste, secretary)).json()
+    appointment = {
+        'datetime_start': '2026-09-17T10:00:00',
+        'patient_name': 'Test Licence Mobile',
+        'motif': 'Contrôle licence mobile',
+        'duration_minutes': 30,
+    }
     response = client.post(
-        '/api/mobile/register-device',
-        json={'fcm_token': f'm6-license-{uuid.uuid4()}', 'platform': 'ios'},
+        '/api/mobile/appointments',
+        json=appointment,
         headers={'Authorization': f"Bearer {body['access_token']}"},
     )
     assert response.status_code == 200, response.text
@@ -233,8 +239,8 @@ def test_mobile_mutation_uses_numeric_subject_as_user_id(client, db, dentiste):
     db.commit()
     backend_main._license_cache.clear()
     denied = client.post(
-        '/api/mobile/register-device',
-        json={'fcm_token': f'm6-license-denied-{uuid.uuid4()}', 'platform': 'ios'},
+        '/api/mobile/appointments',
+        json={**appointment, 'datetime_start': '2026-09-17T11:00:00'},
         headers={'Authorization': f"Bearer {body['access_token']}"},
     )
     assert denied.status_code == 403
