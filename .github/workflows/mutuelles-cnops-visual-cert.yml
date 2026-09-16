@@ -1,0 +1,150 @@
+name: Mutuelles CNOPS Visual Certification
+
+on:
+  pull_request:
+    paths:
+      - "frontend/src/features/patients/CnopsInsuranceSubmissionReview.tsx"
+      - "frontend/src/features/patients/InsuranceSubmissionTypes.ts"
+      - ".github/workflows/mutuelles-cnops-visual-cert.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: mutuelles-cnops-visual-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  capture:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install frontend and Chromium
+        working-directory: frontend
+        run: |
+          npm ci
+          npm install --no-save --package-lock=false playwright@1.55.0
+          npx playwright install --with-deps chromium
+      - name: Inject deterministic CNOPS runtime harness
+        working-directory: frontend
+        run: |
+          cat > mutuelles-cnops-visual.html <<'EOF'
+          <!doctype html><html lang="fr"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/><title>CNOPS Visual</title></head><body><div id="root"></div><script type="module" src="/src/mutuelles-cnops-visual.tsx"></script></body></html>
+          EOF
+          cat > src/mutuelles-cnops-visual.tsx <<'EOF'
+          import React, { useState } from 'react';
+          import { createRoot } from 'react-dom/client';
+          import './index.css';
+          import { CnopsInsuranceSubmissionReview } from './features/patients/CnopsInsuranceSubmissionReview';
+          import type { InsuranceSubmissionDraft } from './features/patients/InsuranceSubmissionTypes';
+
+          const initialDraft: InsuranceSubmissionDraft = {
+            schema_version: 'insurance-submission-v1',
+            draft_id: 'cnops-visual-cert',
+            organization: 'CNOPS',
+            patient_id: 101,
+            honoraires_document_id: 1284,
+            honoraires_document_hash: 'honoraires-cert-hash',
+            ngap: { source_version: 'cabinet-reference', source_hash: 'ngap-cert-hash', trust: 'CABINET_VALIDATED_BINARY' },
+            template: { template_version: 'CNOPS-DENTAL-CABINET-2026-09-16', template_hash: '89097caca32aef6b4d34d2d06fb9cc6f9bdc1f3c4385cf5558b5742a3af6f505', trust: 'CABINET_VALIDATED_BINARY' },
+            lines: [{
+              source: { honoraires_document_id: 1284, honoraires_line_index: 0, source_line_uid: 'line-1', acte_id: 42, catalog_act_id: 12 },
+              service_date: '2026-09-16',
+              label: 'Obturation composite',
+              teeth: ['12'],
+              amount_mad: 650,
+              ngap_code: 'DENT',
+              ngap_coefficient: 12,
+              mapping_status: 'EXACT',
+              mapping_rule: 'catalog_exact',
+            }],
+            administrative: {
+              request_nature: 'EXECUTION',
+              insured_full_name: 'Amal El Mansouri',
+              insured_affiliation_number: 'AFF-2026-00184',
+              insured_registration_number: 'IMM-778842',
+              insured_national_id: 'AB123456',
+              insured_address: 'Rabat',
+              relationship_to_insured: null,
+              beneficiary_full_name: 'Amal El Mansouri',
+              beneficiary_birth_date: '1990-04-18',
+              beneficiary_national_id: 'AB123456',
+              beneficiary_sex: 'F',
+              practitioner_inpe: '123456789',
+              care_type: 'SOINS',
+              prior_approval_number: null,
+              accident_date: null,
+              accident_circumstances: null,
+            },
+            computed: { total_amount_mad: 650, attachments_count: 0 },
+            unresolved_fields: [],
+            status: 'READY_FOR_REVIEW',
+            validated_by_practitioner_id: null,
+            validated_at: null,
+          };
+
+          function Harness() {
+            const [draft, setDraft] = useState(initialDraft);
+            return <CnopsInsuranceSubmissionReview draft={draft} onChange={setDraft} onValidate={() => {}} onFinalize={() => {}} onClose={() => {}} />;
+          }
+          createRoot(document.getElementById('root')!).render(<Harness />);
+          EOF
+          cat > mutuelles-cnops-visual.mjs <<'EOF'
+          import { chromium } from 'playwright';
+          import { createServer } from 'vite';
+          import fs from 'node:fs/promises';
+          const out='mutuelles-cnops-visual';
+          await fs.mkdir(out,{recursive:true});
+          const server=await createServer({server:{host:'127.0.0.1',port:4199,strictPort:true},clearScreen:false});
+          await server.listen();
+          const browser=await chromium.launch();
+          try {
+            for (const [width,height] of [[390,844],[768,1024],[1280,900]]) {
+              const context=await browser.newContext({viewport:{width,height}});
+              const page=await context.newPage();
+              const errors=[];
+              page.on('pageerror',e=>errors.push(`pageerror: ${e.message}`));
+              page.on('console',m=>{ if(m.type()==='error') errors.push(`console: ${m.text()}`); });
+              await page.goto('http://127.0.0.1:4199/mutuelles-cnops-visual.html',{waitUntil:'networkidle'});
+              await page.locator('[data-insurance-review="cnops"]').waitFor({state:'visible',timeout:15000});
+              await page.getByRole('heading',{name:'Revue avant validation praticien'}).waitFor({state:'visible'});
+              await page.locator('[data-cnops-field="insured_affiliation_number"]').waitFor({state:'visible'});
+              await page.locator('[data-cnops-action="validate"]').waitFor({state:'visible'});
+              const state=await page.evaluate(()=>({clientWidth:document.documentElement.clientWidth,scrollWidth:document.documentElement.scrollWidth}));
+              await page.screenshot({path:`${out}/cnops-${width}x${height}.png`,fullPage:true,animations:'disabled'});
+              await fs.writeFile(`${out}/cnops-${width}x${height}.json`,JSON.stringify({...state,overflowPx:Math.max(0,state.scrollWidth-state.clientWidth),errors},null,2));
+              if(state.scrollWidth>state.clientWidth) throw new Error(`CNOPS overflow ${state.scrollWidth}>${state.clientWidth} at ${width}`);
+              if(errors.length) throw new Error(`CNOPS runtime errors at ${width}: ${errors.join(' | ')}`);
+              await context.close();
+            }
+          } finally { await browser.close(); await server.close(); }
+          EOF
+      - name: Capture CNOPS AFTER
+        working-directory: frontend
+        run: node mutuelles-cnops-visual.mjs
+      - name: Verify evidence
+        working-directory: frontend
+        run: |
+          test "$(find mutuelles-cnops-visual -name '*.png' | wc -l)" -eq 3
+          test "$(find mutuelles-cnops-visual -name '*.json' | wc -l)" -eq 3
+          cat > mutuelles-cnops-visual/metadata.txt <<EOF
+          head_sha=${{ github.event.pull_request.head.sha || github.sha }}
+          base_sha=${{ github.event.pull_request.base.sha || github.sha }}
+          phase=AFTER
+          viewports=390x844,768x1024,1280x900
+          component=CnopsInsuranceSubmissionReview
+          goal=runtime proof of the real CNOPS practitioner-review React component
+          EOF
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: mutuelles-cnops-visual-evidence
+          path: frontend/mutuelles-cnops-visual/
+          if-no-files-found: error
+          retention-days: 14
