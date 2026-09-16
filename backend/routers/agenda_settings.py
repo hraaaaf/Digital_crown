@@ -8,11 +8,18 @@ from sqlalchemy.orm import Session
 
 from backend import models
 from backend.database import get_db
+from backend.models_agenda_a3 import PractitionerAgendaException, PractitionerAgendaSettings
 from backend.schemas.agenda import (
     CabinetSettingsOut,
     CabinetSettingsUpdate,
     AgendaExceptionOut,
     AgendaExceptionCreate,
+    PractitionerAgendaExceptionCreate,
+    PractitionerAgendaExceptionOut,
+    PractitionerAgendaSettingsOut,
+    PractitionerAgendaSettingsUpdate,
+    PractitionerAgendaSummaryOut,
+    PractitionerWeeklySchedule,
 )
 from backend.routers.auth import require_permission
 from backend.services.holiday_engine import holiday_engine
@@ -146,6 +153,56 @@ def _create_default_settings(db: Session, employer_id: int):
     return _settings_row(db, employer_id)
 
 
+def _is_assignable_practitioner(user: models.User, employer_id: int) -> bool:
+    if not user.is_active or user.approval_status != models.ApprovalStatus.APPROVED.value:
+        return False
+    if user.id == employer_id:
+        return user.role in (models.UserRole.DENTISTE, models.UserRole.ADMIN)
+    return user.employer_id == employer_id and user.role == models.UserRole.DENTISTE
+
+
+def _get_practitioner(db: Session, employer_id: int, practitioner_id: int) -> models.User:
+    practitioner = db.query(models.User).filter(models.User.id == practitioner_id).first()
+    if not practitioner or not _is_assignable_practitioner(practitioner, employer_id):
+        raise HTTPException(status_code=404, detail="Praticien introuvable dans ce cabinet")
+    return practitioner
+
+
+def _practitioner_name(practitioner: models.User) -> str:
+    return practitioner.nom_complet or practitioner.email
+
+
+def _parse_practitioner_schedule(raw: str) -> PractitionerWeeklySchedule:
+    try:
+        return PractitionerWeeklySchedule.model_validate(json.loads(raw))
+    except (TypeError, ValueError, json.JSONDecodeError) as exc:
+        raise HTTPException(
+            status_code=500,
+            detail="Configuration horaire praticien invalide. Corrigez-la avant toute nouvelle réservation.",
+        ) from exc
+
+
+def _practitioner_settings_payload(
+    practitioner: models.User,
+    row: PractitionerAgendaSettings | None,
+) -> dict:
+    if row is None:
+        return {
+            "practitioner_id": practitioner.id,
+            "practitioner_name": _practitioner_name(practitioner),
+            "inherits_cabinet": True,
+            "weekly_schedule": None,
+            "updated_at": None,
+        }
+    return {
+        "practitioner_id": practitioner.id,
+        "practitioner_name": _practitioner_name(practitioner),
+        "inherits_cabinet": False,
+        "weekly_schedule": _parse_practitioner_schedule(row.weekly_schedule_json),
+        "updated_at": row.updated_at,
+    }
+
+
 @router.get("/settings", response_model=CabinetSettingsOut)
 def get_cabinet_settings(
     db: Session = Depends(get_db),
@@ -255,6 +312,169 @@ def delete_exception(
     if result.rowcount == 0:
         db.rollback()
         raise HTTPException(status_code=404, detail="Exception not found")
+    db.commit()
+    return None
+
+
+@router.get("/practitioners", response_model=List[PractitionerAgendaSummaryOut])
+def list_practitioner_agenda_summaries(
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(require_permission("agenda")),
+):
+    employer_id = current_user.get_employer_id()
+    owner = db.query(models.User).filter(models.User.id == employer_id).first()
+    practitioners = db.query(models.User).filter(
+        models.User.employer_id == employer_id,
+        models.User.role == models.UserRole.DENTISTE,
+        models.User.is_active.is_(True),
+        models.User.approval_status == models.ApprovalStatus.APPROVED.value,
+    ).order_by(models.User.id).all()
+    all_practitioners = list(practitioners)
+    if owner and _is_assignable_practitioner(owner, employer_id):
+        all_practitioners.insert(0, owner)
+
+    configured_ids = {
+        row[0]
+        for row in db.query(PractitionerAgendaSettings.practitioner_id).filter(
+            PractitionerAgendaSettings.employer_id == employer_id
+        ).all()
+    }
+    return [
+        {
+            "practitioner_id": practitioner.id,
+            "practitioner_name": _practitioner_name(practitioner),
+            "inherits_cabinet": practitioner.id not in configured_ids,
+        }
+        for practitioner in all_practitioners
+    ]
+
+
+@router.get("/practitioners/{practitioner_id}/settings", response_model=PractitionerAgendaSettingsOut)
+def get_practitioner_agenda_settings(
+    practitioner_id: int,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(require_permission("agenda")),
+):
+    employer_id = current_user.get_employer_id()
+    practitioner = _get_practitioner(db, employer_id, practitioner_id)
+    row = db.query(PractitionerAgendaSettings).filter(
+        PractitionerAgendaSettings.employer_id == employer_id,
+        PractitionerAgendaSettings.practitioner_id == practitioner_id,
+    ).first()
+    return _practitioner_settings_payload(practitioner, row)
+
+
+@router.put("/practitioners/{practitioner_id}/settings", response_model=PractitionerAgendaSettingsOut)
+def update_practitioner_agenda_settings(
+    practitioner_id: int,
+    settings_update: PractitionerAgendaSettingsUpdate,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(require_permission("settings")),
+):
+    employer_id = current_user.get_employer_id()
+    practitioner = _get_practitioner(db, employer_id, practitioner_id)
+    row = db.query(PractitionerAgendaSettings).filter(
+        PractitionerAgendaSettings.employer_id == employer_id,
+        PractitionerAgendaSettings.practitioner_id == practitioner_id,
+    ).first()
+    serialized = json.dumps(
+        settings_update.weekly_schedule.model_dump(),
+        ensure_ascii=False,
+        separators=(",", ":"),
+    )
+    if row is None:
+        row = PractitionerAgendaSettings(
+            employer_id=employer_id,
+            practitioner_id=practitioner_id,
+            weekly_schedule_json=serialized,
+            updated_at=datetime.utcnow(),
+        )
+        db.add(row)
+    else:
+        row.weekly_schedule_json = serialized
+        row.updated_at = datetime.utcnow()
+    db.commit()
+    db.refresh(row)
+    return _practitioner_settings_payload(practitioner, row)
+
+
+@router.delete("/practitioners/{practitioner_id}/settings", status_code=status.HTTP_204_NO_CONTENT)
+def reset_practitioner_agenda_settings(
+    practitioner_id: int,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(require_permission("settings")),
+):
+    employer_id = current_user.get_employer_id()
+    _get_practitioner(db, employer_id, practitioner_id)
+    db.query(PractitionerAgendaSettings).filter(
+        PractitionerAgendaSettings.employer_id == employer_id,
+        PractitionerAgendaSettings.practitioner_id == practitioner_id,
+    ).delete(synchronize_session=False)
+    db.commit()
+    return None
+
+
+@router.get(
+    "/practitioners/{practitioner_id}/exceptions",
+    response_model=List[PractitionerAgendaExceptionOut],
+)
+def list_practitioner_exceptions(
+    practitioner_id: int,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(require_permission("agenda")),
+):
+    employer_id = current_user.get_employer_id()
+    _get_practitioner(db, employer_id, practitioner_id)
+    return db.query(PractitionerAgendaException).filter(
+        PractitionerAgendaException.employer_id == employer_id,
+        PractitionerAgendaException.practitioner_id == practitioner_id,
+    ).order_by(PractitionerAgendaException.start_date, PractitionerAgendaException.id).all()
+
+
+@router.post(
+    "/practitioners/{practitioner_id}/exceptions",
+    response_model=PractitionerAgendaExceptionOut,
+)
+def create_practitioner_exception(
+    practitioner_id: int,
+    exc_in: PractitionerAgendaExceptionCreate,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(require_permission("settings")),
+):
+    employer_id = current_user.get_employer_id()
+    _get_practitioner(db, employer_id, practitioner_id)
+    row = PractitionerAgendaException(
+        employer_id=employer_id,
+        practitioner_id=practitioner_id,
+        **exc_in.model_dump(),
+        created_at=datetime.utcnow(),
+    )
+    db.add(row)
+    db.commit()
+    db.refresh(row)
+    return row
+
+
+@router.delete(
+    "/practitioners/{practitioner_id}/exceptions/{exc_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+)
+def delete_practitioner_exception(
+    practitioner_id: int,
+    exc_id: int,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(require_permission("settings")),
+):
+    employer_id = current_user.get_employer_id()
+    _get_practitioner(db, employer_id, practitioner_id)
+    deleted = db.query(PractitionerAgendaException).filter(
+        PractitionerAgendaException.id == exc_id,
+        PractitionerAgendaException.employer_id == employer_id,
+        PractitionerAgendaException.practitioner_id == practitioner_id,
+    ).delete(synchronize_session=False)
+    if not deleted:
+        db.rollback()
+        raise HTTPException(status_code=404, detail="Indisponibilité praticien introuvable")
     db.commit()
     return None
 

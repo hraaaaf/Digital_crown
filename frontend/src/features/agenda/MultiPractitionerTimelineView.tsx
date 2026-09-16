@@ -9,6 +9,7 @@ import {
   getDaySchedule,
   isDateOpen,
   isTimeWithinSchedule,
+  timeToMinutes,
   type AgendaExceptionLike,
   type AgendaSettingsLike,
 } from './agendaSchedule';
@@ -21,10 +22,21 @@ const LANE_MIN_WIDTH = 220;
 
 type MultiAppointment = Appointment & { praticien_id?: number | null };
 
+type PractitionerInterval = { start: string; end: string };
+type PractitionerException = { id: number; start_date: string; end_date: string; reason?: string | null };
+type PractitionerAvailability = {
+  date: string;
+  inherits_cabinet: boolean;
+  config_error?: boolean;
+  intervals: PractitionerInterval[];
+  exceptions: PractitionerException[];
+};
+
 type PractitionerLane = {
   dentist_id: number;
   dentist_name: string;
   appointments: MultiAppointment[];
+  availability?: PractitionerAvailability;
 };
 
 type MultiPractitionerData = {
@@ -43,6 +55,14 @@ interface MultiPractitionerTimelineViewProps {
   onSaved: () => void;
 }
 
+type SlotState = 'AVAILABLE' | 'GLOBAL_CLOSED' | 'PRACTITIONER_HOURS' | 'PAUSE' | 'LEAVE';
+
+type SlotAvailability = {
+  available: boolean;
+  state: SlotState;
+  label: string;
+};
+
 const STATUS_COLORS: Record<string, string> = {
   PRÉVU: 'bg-blue-100 text-blue-700 border-blue-200',
   EN_S_ATTENTE: 'bg-amber-100 text-amber-700 border-amber-200',
@@ -55,6 +75,14 @@ const STATUS_COLORS: Record<string, string> = {
   REFUSÉ: 'bg-red-100 text-red-500 border-red-200 line-through opacity-70',
   EXPIRÉ: 'bg-gray-100 text-gray-400 border-gray-200 opacity-60',
   ABSENT: 'bg-rose-100 text-rose-600 border-rose-200',
+};
+
+const SLOT_STATE_CLASSES: Record<SlotState, string> = {
+  AVAILABLE: 'cursor-crosshair bg-white hover:bg-indigo-50',
+  GLOBAL_CLOSED: 'cursor-not-allowed bg-slate-200/80',
+  PRACTITIONER_HOURS: 'cursor-not-allowed bg-slate-50',
+  PAUSE: 'cursor-not-allowed bg-amber-50/90',
+  LEAVE: 'cursor-not-allowed bg-rose-50/90',
 };
 
 const isExact = (appointment: MultiAppointment) =>
@@ -92,6 +120,67 @@ const addPractitionerToPayload = (payload: unknown, practitionerId: number) => {
     return { ...objectPayload, praticien_id: objectPayload.praticien_id ?? practitionerId };
   }
   return payload;
+};
+
+const slotDate = (selectedDate: Date, time: string) => {
+  const [hours, minutes] = time.split(':').map(Number);
+  const value = new Date(selectedDate);
+  value.setHours(hours, minutes, 0, 0);
+  return value;
+};
+
+const getPractitionerSlotAvailability = (
+  dentist: PractitionerLane,
+  selectedDate: Date,
+  time: string,
+  globalAvailable: boolean,
+): SlotAvailability => {
+  if (!globalAvailable) {
+    return { available: false, state: 'GLOBAL_CLOSED', label: 'Cabinet fermé ou hors horaires du cabinet' };
+  }
+
+  const availability = dentist.availability;
+  if (!availability || availability.inherits_cabinet) {
+    return { available: true, state: 'AVAILABLE', label: 'Disponible' };
+  }
+  if (availability.config_error) {
+    return { available: false, state: 'PRACTITIONER_HOURS', label: 'Configuration praticien invalide' };
+  }
+
+  const start = slotDate(selectedDate, time);
+  const end = new Date(start.getTime() + SLOT_MINUTES * 60_000);
+  const exception = (availability.exceptions || []).find((item) => {
+    const exceptionStart = new Date(item.start_date);
+    const exceptionEnd = new Date(item.end_date);
+    return start < exceptionEnd && end > exceptionStart;
+  });
+  if (exception) {
+    return {
+      available: false,
+      state: 'LEAVE',
+      label: exception.reason ? `Absence : ${exception.reason}` : 'Absence du praticien',
+    };
+  }
+
+  const startMinutes = timeToMinutes(time);
+  const endMinutes = startMinutes + SLOT_MINUTES;
+  const intervals = [...(availability.intervals || [])]
+    .filter((interval) => /^\d{2}:\d{2}$/.test(interval.start) && /^\d{2}:\d{2}$/.test(interval.end))
+    .sort((a, b) => timeToMinutes(a.start) - timeToMinutes(b.start));
+
+  if (intervals.some((interval) => startMinutes >= timeToMinutes(interval.start) && endMinutes <= timeToMinutes(interval.end))) {
+    return { available: true, state: 'AVAILABLE', label: 'Disponible' };
+  }
+  if (intervals.length === 0) {
+    return { available: false, state: 'PRACTITIONER_HOURS', label: 'Praticien absent ce jour' };
+  }
+
+  const firstStart = timeToMinutes(intervals[0].start);
+  const lastEnd = timeToMinutes(intervals[intervals.length - 1].end);
+  if (startMinutes >= firstStart && endMinutes <= lastEnd) {
+    return { available: false, state: 'PAUSE', label: 'Pause du praticien' };
+  }
+  return { available: false, state: 'PRACTITIONER_HOURS', label: 'Hors horaires du praticien' };
 };
 
 export const MultiPractitionerTimelineView: React.FC<MultiPractitionerTimelineViewProps> = ({
@@ -250,7 +339,10 @@ export const MultiPractitionerTimelineView: React.FC<MultiPractitionerTimelineVi
       <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 px-4 py-3 sm:px-5">
         <div className="flex flex-wrap items-center gap-3 text-[10px] font-black uppercase tracking-wider text-slate-500">
           <span className="inline-flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded border border-slate-300 bg-white" /> Libre</span>
-          <span className="inline-flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded border border-slate-300 bg-slate-100" /> Hors horaires</span>
+          <span className="inline-flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded border border-slate-300 bg-slate-200" /> Cabinet fermé</span>
+          <span className="inline-flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded border border-slate-200 bg-slate-50" /> Hors horaires praticien</span>
+          <span className="inline-flex items-center gap-1.5 text-amber-700"><span className="h-2.5 w-2.5 rounded border border-amber-200 bg-amber-50" /> Pause</span>
+          <span className="inline-flex items-center gap-1.5 text-rose-700"><span className="h-2.5 w-2.5 rounded border border-rose-200 bg-rose-50" /> Absence</span>
           <span className="inline-flex items-center gap-1.5 text-orange-700"><span className="h-2.5 w-2.5 rounded border border-orange-400 bg-orange-50" /> RDV non assigné</span>
         </div>
         <span className="text-[10px] font-bold text-slate-400">Créneaux de 15 min · défilement horizontal sur petit écran</span>
@@ -282,7 +374,7 @@ export const MultiPractitionerTimelineView: React.FC<MultiPractitionerTimelineVi
               return (
                 <div key={dentist.dentist_id} className="min-w-0 border-r border-slate-100 px-3 py-3 text-center last:border-r-0">
                   <p className="truncate text-sm font-black text-slate-800">{dentist.dentist_name}</p>
-                  <p className="mt-0.5 text-[9px] font-bold text-slate-400">{count} RDV aujourd'hui</p>
+                  <p className="mt-0.5 text-[9px] font-bold text-slate-400">{count} RDV aujourd'hui · {dentist.availability?.inherits_cabinet === false ? 'horaires perso' : 'horaires cabinet'}</p>
                 </div>
               );
             })}
@@ -345,18 +437,22 @@ export const MultiPractitionerTimelineView: React.FC<MultiPractitionerTimelineVi
                           const hours = Math.floor(totalMinutes / 60);
                           const minutes = totalMinutes % 60;
                           const time = `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
-                          const available = dayOpen && isTimeWithinSchedule(time, daySchedule);
+                          const globalAvailable = dayOpen && isTimeWithinSchedule(time, daySchedule);
+                          const slot = getPractitionerSlotAvailability(dentist, selectedDate, time, globalAvailable);
                           return (
                             <button
                               key={slotIndex}
                               type="button"
-                              disabled={!available}
-                              aria-label={available ? `Créer un rendez-vous avec ${dentist.dentist_name} à ${time}` : undefined}
+                              disabled={!slot.available}
+                              aria-label={slot.available
+                                ? `Créer un rendez-vous avec ${dentist.dentist_name} à ${time}`
+                                : `${dentist.dentist_name} indisponible à ${time} : ${slot.label}`}
+                              title={slot.available ? undefined : slot.label}
                               onClick={() => openCreate(dentist, time)}
                               className={cn(
                                 'h-5 shrink-0 border-b border-slate-100/80 transition-colors',
                                 slotIndex % SLOTS_PER_HOUR === SLOTS_PER_HOUR - 1 && 'border-b-slate-200',
-                                available ? 'cursor-crosshair bg-white hover:bg-indigo-50' : 'cursor-not-allowed bg-slate-100/85',
+                                SLOT_STATE_CLASSES[slot.state],
                               )}
                             />
                           );
