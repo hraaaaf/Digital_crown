@@ -9,6 +9,7 @@ const FRONTEND_DIR = process.cwd();
 const OUTPUT_DIR = path.join(FRONTEND_DIR, 'cephalo-r19-analysis-reference-after-artifacts');
 const PORT = 5194;
 const BASE_URL = `http://127.0.0.1:${PORT}`;
+const CAPTURE_THEME = 'default';
 const viewports = [
   { name: '390x844', width: 390, height: 844 },
   { name: '768x1024', width: 768, height: 1024 },
@@ -24,7 +25,6 @@ import { CephaloWorkspace } from './features/ortho/CephaloWorkspace';
 import { useOrthoStore } from './features/ortho/stores/useOrthoStore';
 import './index.css';
 
-document.body.dataset.theme = 'dark';
 const fixture = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(\`
 <svg xmlns="http://www.w3.org/2000/svg" width="1200" height="1600" viewBox="0 0 1200 1600">
 <defs><radialGradient id="g"><stop offset="0" stop-color="#475569"/><stop offset="1" stop-color="#020617"/></radialGradient></defs>
@@ -90,6 +90,8 @@ async function captureViewport(viewport,attempt){
  await page.route('**/*',async route=>{const req=route.request();const u=new URL(req.url());if(u.hostname==='127.0.0.1'&&u.port===String(PORT))return route.continue();if(u.hostname==='127.0.0.1'&&u.port==='8005'){if(req.method()==='GET'&&u.pathname==='/api/patients/919')return route.fulfill(json({id:919,age:34,sexe:'M'}));return route.fulfill(json({detail:'neutralized'},418));}if(u.hostname==='fonts.googleapis.com')return route.fulfill({status:200,contentType:'text/css',body:''});blockedExternalRequests.push({viewport:viewport.name,attempt,url:req.url()});return route.abort('blockedbyclient')});
  try{
   const response=await page.goto(`${BASE_URL}/cephalo-r19-analysis-reference-after.html`,{waitUntil:'domcontentloaded',timeout:30000});
+  const theme=await page.evaluate(()=>document.body.dataset.theme||document.documentElement.dataset.theme||'default');
+  if(theme!==CAPTURE_THEME) throw new Error(`Unexpected capture theme: ${theme}`);
   await page.getByRole('heading',{name:'Céphalométrie',exact:true}).waitFor({state:'visible',timeout:30000});
   await page.locator('[aria-label="Analyse du tracé"]').waitFor({state:'visible',timeout:10000});
   await page.locator('[data-r19-reference-layout]').waitFor({state:'visible',timeout:10000});
@@ -143,5 +145,5 @@ try{
   captures.push({...finalAttempt,attempts:attempts.map(a=>({attempt:a.attempt,valid:a.valid,pageErrors:a.pageErrors,consoleErrors:a.consoleErrors,states:a.states})),recoveredTransientRender:attempts.length===2&&!attempts[0].valid&&attempts[1].valid});
  }
 }finally{if(!server.killed)server.kill('SIGTERM');await Promise.race([once(server,'exit'),new Promise(r=>setTimeout(r,3000))]).catch(()=>{});await writeFile(path.join(OUTPUT_DIR,'vite.log'),serverLog,'utf8')}
-const invalid=captures.filter(c=>!c.valid); const report={lot:'CEPHALO-R19-ANALYSIS-REFERENCE-LAYOUT',phase:'AFTER',productHead:PRODUCT_HEAD,viewports:viewports.map(v=>v.name),modes,capturePolicy:'R18 deterministic fixture lineage; same 390/768/1280 viewports; R19 adds analysis panel and autonomous COM; validates rendered constructions and rejects legacy McNamara leakage in COM; fresh Chromium per viewport; one retry only after invalid first render.',captures,blockedExternalRequests,invalidCount:invalid.length};
+const invalid=captures.filter(c=>!c.valid); const report={lot:'CEPHALO-R19-ANALYSIS-REFERENCE-LAYOUT',phase:'AFTER',theme:CAPTURE_THEME,productHead:PRODUCT_HEAD,viewports:viewports.map(v=>v.name),modes,capturePolicy:'R18 deterministic fixture lineage; default Digital Crown theme; same 390/768/1280 viewports; R19 adds analysis panel and autonomous COM; validates rendered constructions and rejects legacy McNamara leakage in COM; fresh Chromium per viewport; one retry only after invalid first render.',captures,blockedExternalRequests,invalidCount:invalid.length};
 await writeFile(path.join(OUTPUT_DIR,'report.json'),JSON.stringify(report,null,2),'utf8'); console.log(JSON.stringify(report,null,2)); if(invalid.length||blockedExternalRequests.length)process.exitCode=1;
