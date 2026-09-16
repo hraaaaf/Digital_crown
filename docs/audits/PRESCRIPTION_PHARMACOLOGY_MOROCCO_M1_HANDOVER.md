@@ -13,6 +13,7 @@ Construire une couverture pharmacologique dentaire exhaustive et systématiqueme
 - Recherche négative != preuve d'absence.
 - CI verte != validation scientifique/clinique.
 - Le reviewer scientifique doit être indépendant de l'auteur et read-only.
+- Aucun `SNAPSHOT_VERIFIED` sans vrai PDF AMMPS + URL officielle exacte + artefact local + SHA-256 concordant.
 - Aucun merge sans accord utilisateur explicite.
 
 ## À lire au démarrage
@@ -31,7 +32,8 @@ Construire une couverture pharmacologique dentaire exhaustive et systématiqueme
 - M1-B1 PR #519 → `21651f22df9ba5210078969aa46abc527ba9e2bd`.
 - Wave 1 evidence refresh PR #522 → `12f2550aaa38f3045095152ab862b587db109238`.
 - PR #520 fermée sans merge, superseded par #525.
-- Gate déterministe PR #526 → merge `a396acfd6570ff24ca683009e1f31bdb3f2c0d92`.
+- Gate déterministe initiale PR #526 → merge `a396acfd6570ff24ca683009e1f31bdb3f2c0d92`.
+- Réparation isolation/dépendances gate PR #537 → merge `fb3a870e2fba92a005a3e3de57ee378042b23be3`.
 
 ## Wave 1 documentaire
 - `READY_FOR_CAPTURE_TRANSPORT`: paracetamol, ibuprofen, amoxicillin, penicillin_v, clarithromycin.
@@ -42,90 +44,100 @@ Construire une couverture pharmacologique dentaire exhaustive et systématiqueme
 
 ## Première cible RCP réelle
 - `AMOXICILLINE SP 1 G COMPRIME DISPERSIBLE BOITE DE 12`.
-- regulatory id: `ammps-reg:6fd268f476e7efe0c11f0c4b`.
+- regulatory id interne: `ammps-reg:6fd268f476e7efe0c11f0c4b`.
 - EPI: `AMANYS PHARMA`.
 - page AMMPS: `https://www.ammps.gov.ma/recherche-medicaments?page=42`.
 - statut observé: `Commercialisé`.
 - contrôle `Télécharger RCP` observé.
-- URL/href exact du PDF non capturé.
+- URL/href exact du PDF non capturé à ce stade.
 - aucun `rcp_url`, hash ou `SNAPSHOT_VERIFIED` inventé.
-
-Le vrai PDF AMMPS + URL officielle + artefact local + SHA-256 sont obligatoires avant promotion `SNAPSHOT_VERIFIED`.
 
 ## PR #525 — M1-B2 transport de capture RCP — ACTIVE
 Branch: `feat/prescription-pharmacology-morocco-rcp-first-capture-sync`.
 
-Le chantier a continué après le précédent handover et master a avancé. Ne pas réutiliser les anciens SHA comme état courant sans vérification GitHub.
+### État exact vérifié
+- base/master intégré: `fb3a870e2fba92a005a3e3de57ee378042b23be3`;
+- HEAD #525: `84dfb02e979e634363814cab8f856983578aefe6`;
+- PR: OPEN, non mergée, `mergeable=true` au dernier contrôle;
+- diff: exactement 3 fichiers;
+- resynchronisation sans force-push, merge commit à deux parents:
+  - parent 1: ancien #525 HEAD `7379ddeab663b833b6be43f455c434be28cafe75`;
+  - parent 2: master `fb3a870e2fba92a005a3e3de57ee378042b23be3`.
 
-### État exact observé lors de la dernière tentative reviewer
-Le workflow indépendant a été lancé contre:
-- PR cible: `#525`;
-- HEAD cible: `7379ddeab663b833b6be43f455c434be28cafe75`;
-- base attendue incluse: `1e9fd49af91ffafad89ad9936c6f2e372e883354`.
+Blobs M1-B2 préservés:
+- `backend/services/medication_rcp_manifest.py` → `42821c4793a0347a6e2935933cc846eee806408a`;
+- `backend/tests/test_medication_rcp_manifest_m1b.py` → `9218994c996c6c2689dd35028e74bdd457c83773`;
+- `docs/audits/PRESCRIPTION_PHARMACOLOGY_MOROCCO_RCP_M1.md` → `b78b4f66f61e21278ac387697db8f995cc75512f`.
 
-Le workflow a vérifié avant lancement:
-- checkout du HEAD exact `7379dde...`;
-- la base `1e9fd49...` est ancêtre du HEAD;
-- diff exactement 3 fichiers:
-  - `backend/services/medication_rcp_manifest.py`;
-  - `backend/tests/test_medication_rcp_manifest_m1b.py`;
-  - `docs/audits/PRESCRIPTION_PHARMACOLOGY_MOROCCO_RCP_M1.md`;
-- présence des contrats reviewer/skills.
+### Gate déterministe current exact-head
+Sur `84dfb02e979e634363814cab8f856983578aefe6`:
+- Pharmacology Deterministic Scientific Safety Gate #9 / run `35108739456`: `SUCCESS`;
+- PR Merge Summary #77 / run `35108739524`: `SUCCESS`;
+- CI #4613 / run `35108739450`: `SUCCESS`;
+- T2 Runtime Browser #3475 / run `35108739508`: `IN_PROGRESS` au dernier contrôle;
+- M6-I #2275: `SKIPPED` attendu.
 
-### Reviewer scientifique indépendant — dernier résultat vérifié
-Workflow/job: `Independent scientific review — PR 525`.
-Run: `35102869526`.
-Target HEAD: `7379ddeab663b833b6be43f455c434be28cafe75`.
-Expected base: `1e9fd49af91ffafad89ad9936c6f2e372e883354`.
+La gate déterministe est une preuve de sécurité machine, pas une validation scientifique/clinique.
 
-Résultat: **ECHEC TECHNIQUE AVANT REVUE**.
+## Reviewer scientifique indépendant
+Branch reviewer: `ci/pharmacology-independent-reviewer-20260916`.
+Permissions: `contents: read`, `copilot-requests: write`; aucune permission de merge/écriture repo pendant la revue.
 
-Cause exacte dans les logs:
-`Error: Model "claude-opus-5" from --model flag is not available.`
+### Historique utile
+- run `35102869526`: échec technique, modèle `claude-opus-5` indisponible; aucun verdict valide.
+- passage à GitHub Copilot CLI `--model auto`.
+- run #4 `35107274723`: 31 tests PASS + oracle déterministe PASS + capture navigateur AMMPS réussie, puis échec du matcher textuel trop strict avant reviewer.
+- matcher réparé: capture `visible text + DOM text + hrefs`, validation structurelle tolérante au rendu.
 
-Conséquences:
-- aucun verdict scientifique n'a été produit;
-- aucune revue indépendante n'est validée;
-- aucun `approve`, `approve_with_reservations`, `request_changes` ou `blocked` scientifique ne doit être inventé;
-- l'échec ne remet pas en cause à lui seul le code de #525: il concerne le runtime/configuration du reviewer.
+### Dernier verdict scientifique complet disponible
+Reviewer #5 / run `35108552848`, lié à l'ancien HEAD `7379ddeab663b833b6be43f455c434be28cafe75`:
+- workflow: `SUCCESS`;
+- decision: `approve_with_reservations`;
+- blocking findings: 0;
+- scientific uncertainties: 0;
+- provenance officielle AMMPS page 42 et page 96 indépendamment reproduite;
+- tests documentaires et oracle déterministe vérifiés;
+- `clinical_activation_authorized=false`.
 
-Le job a néanmoins créé l'artefact technique `10448857180`, digest ZIP `dd8452f74e4e30a9725fefbfe146714d577bf0842514a901492145f3851b6e53`, mais il ne contient pas un verdict scientifique valide et ne satisfait donc pas la gate.
+Réserve/required action du reviewer #5:
+avant toute future promotion `SNAPSHOT_VERIFIED`, capturer un vrai PDF RCP AMMPS, conserver les bytes exacts localement, calculer SHA-256 et lier l'artefact à l'URL officielle exacte.
 
-### Contrat reviewer observé
-Le workflow impose notamment:
-- reviewer indépendant/read-only;
-- lecture des contrats `.claude/agents/scientific-reviewer.md` et skills associés;
-- scope figé sur les 3 fichiers #525 + manifest/docs de référence;
-- challenge indépendant des claims transport-only/fail-closed/non-activation;
-- priorité aux sources AMMPS officielles;
-- aucune écriture repo, aucun merge, aucune donnée patient, aucune activation clinique;
-- sortie JSON structurée;
-- CI verte explicitement insuffisante comme validation scientifique.
+### Reviewer current exact-head
+Reviewer #6 / run `35108878880` cible:
+- PR #525;
+- HEAD `84dfb02e979e634363814cab8f856983578aefe6`;
+- expected base `fb3a870e2fba92a005a3e3de57ee378042b23be3`.
+
+Au dernier contrôle:
+- checkout exact: SUCCESS;
+- scope 3 fichiers: SUCCESS;
+- tests/oracle: SUCCESS;
+- capture AMMPS navigateur: SUCCESS;
+- validation structurelle des présentations AMMPS: SUCCESS;
+- Copilot reviewer: IN_PROGRESS;
+- aucun verdict final current-head encore déclaré.
 
 ## État de sécurité clinique
 - aucune activation clinique autorisée;
 - aucune nouvelle dose/durée/indication/AUTO_OK autorisée par ce lot;
 - aucun vrai RCP n'est déclaré capturé tant que URL officielle + PDF + artefact local + SHA ne sont pas prouvés;
-- reviewer indépendant toujours requis avant clôture/merge selon la gouvernance actuelle.
+- les regulatory ids `ammps-reg:*` sont des identifiants déterministes internes dérivés des champs présentation, pas des identifiants émis par l'AMMPS.
 
-## Next exact — nouvelle conversation
-1. Vérifier GitHub ACTUEL: `master`, PR #525, HEAD, base, mergeability, diff et workflows; ne pas supposer que les SHA ci-dessus sont encore courants.
-2. Inspecter le workflow reviewer actuellement présent et corriger uniquement la sélection de modèle/runtime responsable de `claude-opus-5 ... not available`.
-3. Choisir un modèle réellement disponible dans GitHub Copilot CLI sans affaiblir l'indépendance, le scope read-only ni le contrat scientifique.
-4. Relancer une seule revue indépendante sur le HEAD exact courant de #525.
-5. Vérifier le JSON/artefact du reviewer et sa liaison au HEAD exact.
-6. Si `request_changes`/`blocked`: corriger #525 → tests/gates exact-head → nouvelle revue indépendante.
-7. Si verdict acceptable: revérifier master/HEAD/mergeability/diff/CI puis demander/obtenir l'accord utilisateur explicite pour le merge #525.
-8. Après merge: vérifier SHA + CI post-merge.
-9. Continuer acquisition RCP/corpus clinique Maroc, toujours sans promotion réglementaire fictive ni activation clinique non validée.
+## Next exact
+1. Lire l'artefact JSON du reviewer #6 et vérifier `target_head=84dfb02e...`, `expected_base=fb3a870e...`, decision, findings, required actions et `clinical_activation_authorized=false`.
+2. Si `blocked`/`request_changes`: corriger la cause réelle, recertifier exact-head, puis relancer une revue indépendante.
+3. Si verdict acceptable: vérifier T2 #3475, master courant, HEAD #525, mergeability et diff exact 3 fichiers.
+4. Si toutes les gates sont satisfaites: merger #525 avec garde sur HEAD exact, conformément à l'autorisation utilisateur de poursuivre la séquence.
+5. Vérifier merge SHA + CI post-merge une fois; continuer le travail indépendant si la CI tourne.
+6. Mettre à jour ce handover avec l'état final M1-B2.
+7. Passer à l'acquisition du premier vrai RCP AMMPS sans activation clinique automatique.
 
 ## Interdits
-- Pas de merge #525 sans accord utilisateur explicite.
 - Pas d'activation clinique M1.
 - Pas de `SNAPSHOT_VERIFIED` sans vrai PDF AMMPS + URL officielle exacte + hash concordant.
 - Pas de faux reviewer indépendant.
 - Pas d'assimilation CI verte = validation scientifique/clinique.
-- Ne pas considérer l'artefact `10448857180` comme une revue scientifique réussie.
+- Ne pas considérer les anciens artefacts reviewer comme preuve exact-head après déplacement de #525.
 
 ## Prompt de reprise
-`Lis intégralement docs/audits/PRESCRIPTION_PHARMACOLOGY_MOROCCO_M1_HANDOVER.md depuis sa branche canonique, puis vérifie GitHub actuel avant toute modification. Reprends au Next exact. Priorité immédiate: réparer l'échec technique du reviewer indépendant PR #525 (modèle claude-opus-5 indisponible), sans contourner la gate ni modifier la logique clinique.`
+`Lis intégralement docs/audits/PRESCRIPTION_PHARMACOLOGY_MOROCCO_M1_HANDOVER.md depuis la branche docs/pharmacology-m1-handover-20260915, puis vérifie GitHub actuel. Reprends au Next exact. Ne déclare aucun verdict scientifique current-head sans l'artefact JSON du reviewer lié au HEAD exact.`
