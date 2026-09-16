@@ -23,101 +23,100 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - name: Census all current AMMPS medication pages for enabled RCP controls
+      - name: Census current AMMPS medication pages with retries and checkpoints
         env:
           OUT_DIR: ${{ github.workspace }}/audit/out/pharmacology-rcp-availability-census
         run: |
           set -euo pipefail
           mkdir -p "$OUT_DIR"
           node - <<'NODE'
-          const fs = require('fs');
-          const path = require('path');
+          const fs=require('fs'), path=require('path');
+          const outDir=process.env.OUT_DIR;
+          const base='https://www.ammps.gov.ma/recherche-medicaments';
+          const norm=v=>(v||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/\s+/g,' ').trim().toUpperCase();
+          const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 
-          const outDir = process.env.OUT_DIR;
-          const origin = 'https://www.ammps.gov.ma';
-          const base = `${origin}/recherche-medicaments`;
-          const norm = v => (v || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, ' ').trim().toUpperCase();
-          const sleep = ms => new Promise(r => setTimeout(r, ms));
-
-          function parsePage(html, pageNumber) {
-            const anchors = [...html.matchAll(/<a\b([^>]*)>([\s\S]*?)<\/a>/gi)];
-            const controls = [];
-            for (const m of anchors) {
-              const text = norm(m[2].replace(/<[^>]+>/g, ' '));
-              if (!text.includes('TELECHARGER RCP')) continue;
-              const attrs = m[1] || '';
-              const hrefMatch = attrs.match(/href\s*=\s*["']([^"']*)["']/i);
-              const href = hrefMatch ? hrefMatch[1] : null;
-              const disabled = /disabled-rcp-btn/i.test(attrs) || /aria-disabled\s*=\s*["']true["']/i.test(attrs) || /(?:^|\s)disabled(?:\s|=|$)/i.test(attrs);
-              const before = html.slice(Math.max(0, m.index - 30000), m.index);
-              const modalMatches = [...before.matchAll(/id\s*=\s*["']medicamentModal(\d+)["']/gi)];
-              const modalId = modalMatches.length ? `medicamentModal${modalMatches[modalMatches.length - 1][1]}` : null;
-              const titleMatches = [...before.matchAll(/<h5[^>]*class=["'][^"']*modal-title[^"']*["'][^>]*>([\s\S]*?)<\/h5>/gi)];
-              const title = titleMatches.length ? norm(titleMatches[titleMatches.length - 1][1].replace(/<[^>]+>/g, ' ')) : null;
-              controls.push({page: pageNumber, modalId, title, href, disabled, attributes: attrs.slice(0, 3000)});
+          function parsePage(html,pageNumber){
+            const controls=[];
+            for(const m of html.matchAll(/<a\b([^>]*)>([\s\S]*?)<\/a>/gi)){
+              const text=norm(m[2].replace(/<[^>]+>/g,' '));
+              if(!text.includes('TELECHARGER RCP')) continue;
+              const attrs=m[1]||'';
+              const hm=attrs.match(/href\s*=\s*["']([^"']*)["']/i);
+              const href=hm?hm[1]:null;
+              const disabled=/disabled-rcp-btn/i.test(attrs)||/aria-disabled\s*=\s*["']true["']/i.test(attrs)||/(?:^|\s)disabled(?:\s|=|$)/i.test(attrs);
+              const before=html.slice(Math.max(0,m.index-30000),m.index);
+              const mm=[...before.matchAll(/id\s*=\s*["']medicamentModal(\d+)["']/gi)];
+              const modalId=mm.length?`medicamentModal${mm[mm.length-1][1]}`:null;
+              controls.push({page:pageNumber,modalId,href,disabled,attributes:attrs.slice(0,3000)});
             }
-            const pdfUrls = [...new Set((html.match(/(?:https?:\/\/[^"'<>\s]+|\/[^"'<>\s]+)\.pdf(?:\?[^"'<>\s]*)?/gi) || []))]
-              .filter(u => /rcp|medicament|upload|storage|document/i.test(u));
-            const modalCount = (html.match(/id\s*=\s*["']medicamentModal\d+["']/gi) || []).length;
-            return {controls, pdfUrls, modalCount};
+            const pdfUrls=[...new Set((html.match(/(?:https?:\/\/[^"'<>\s]+|\/[^"'<>\s]+)\.pdf(?:\?[^"'<>\s]*)?/gi)||[]))]
+              .filter(u=>/rcp|medicament|upload|storage|document/i.test(u));
+            const modalCount=(html.match(/id\s*=\s*["']medicamentModal\d+["']/gi)||[]).length;
+            return {page:pageNumber,controls,pdfUrls,modalCount};
           }
 
-          async function fetchHtml(url) {
-            const r = await fetch(url, {headers: {'user-agent': 'Digital-Crown-read-only-evidence-census/1.0'}});
-            if (!r.ok) throw new Error(`HTTP ${r.status} ${url}`);
-            return await r.text();
-          }
-
-          (async () => {
-            const first = await fetchHtml(`${base}?page=1`);
-            const firstParsed = parsePage(first, 1);
-            const totalMatch = norm(first.replace(/<[^>]+>/g, ' ')).match(/([0-9][0-9\s]*) MEDICAMENT\(S\) TROUVE/);
-            const totalMedicaments = totalMatch ? Number(totalMatch[1].replace(/\s+/g, '')) : null;
-            const pageLinks = [...first.matchAll(/[?&]page=(\d+)/g)].map(m => Number(m[1])).filter(Number.isFinite);
-            let pageCount = pageLinks.length ? Math.max(...pageLinks) : null;
-            if ((!pageCount || pageCount < 2) && totalMedicaments && firstParsed.modalCount > 0) {
-              pageCount = Math.ceil(totalMedicaments / firstParsed.modalCount);
-            }
-            if (!pageCount || pageCount < 1 || pageCount > 1200) throw new Error(`Untrusted page count: ${pageCount}`);
-
-            const pages = new Array(pageCount);
-            pages[0] = {page: 1, ...firstParsed};
-            let next = 2;
-            const workers = Array.from({length: 3}, async () => {
-              while (true) {
-                const p = next++;
-                if (p > pageCount) return;
-                const html = await fetchHtml(`${base}?page=${p}`);
-                pages[p - 1] = {page: p, ...parsePage(html, p)};
-                await sleep(100);
+          async function fetchHtml(url,maxAttempts=5){
+            let last;
+            for(let attempt=1;attempt<=maxAttempts;attempt++){
+              try{
+                const ac=new AbortController();
+                const timer=setTimeout(()=>ac.abort(),30000);
+                const r=await fetch(url,{signal:ac.signal,headers:{'user-agent':'Digital-Crown-read-only-evidence-census/1.1','accept':'text/html,application/xhtml+xml'}});
+                clearTimeout(timer);
+                if(!r.ok) throw new Error(`HTTP ${r.status}`);
+                return await r.text();
+              }catch(e){
+                last=e;
+                if(attempt<maxAttempts) await sleep(500*attempt);
               }
-            });
-            await Promise.all(workers);
+            }
+            throw last;
+          }
 
-            const controls = pages.flatMap(p => p.controls);
-            const enabled = controls.filter(c => !c.disabled);
-            const disabled = controls.filter(c => c.disabled);
-            const pdfCandidates = [...new Set(pages.flatMap(p => p.pdfUrls))];
-            const report = {
-              schemaVersion: 'ammps-rcp-availability-census.1',
-              source: base,
-              totalMedicaments,
-              pageCount,
-              scannedPageCount: pages.filter(Boolean).length,
-              modalCount: pages.reduce((n, p) => n + p.modalCount, 0),
-              rcpControlCount: controls.length,
-              enabledRcpControlCount: enabled.length,
-              disabledRcpControlCount: disabled.length,
-              enabledExamples: enabled.slice(0, 25),
-              pdfCandidates: pdfCandidates.slice(0, 100),
-              manifestMutationPerformed: false,
-              clinicalActivationPerformed: false
+          function buildReport(totalMedicaments,pageCount,pages,failedPages){
+            const controls=pages.flatMap(p=>p.controls);
+            const enabled=controls.filter(c=>!c.disabled), disabled=controls.filter(c=>c.disabled);
+            const pdfCandidates=[...new Set(pages.flatMap(p=>p.pdfUrls))];
+            return {
+              schemaVersion:'ammps-rcp-availability-census.2',source:base,totalMedicaments,pageCount,
+              scannedPageCount:pages.length,failedPageCount:failedPages.length,failedPages,
+              modalCount:pages.reduce((n,p)=>n+p.modalCount,0),rcpControlCount:controls.length,
+              enabledRcpControlCount:enabled.length,disabledRcpControlCount:disabled.length,
+              enabledExamples:enabled.slice(0,50),pdfCandidates:pdfCandidates.slice(0,200),
+              manifestMutationPerformed:false,clinicalActivationPerformed:false
             };
-            fs.writeFileSync(path.join(outDir, 'rcp-availability-census.json'), JSON.stringify(report, null, 2));
-            console.log(JSON.stringify({totalMedicaments, pageCount, scannedPageCount: report.scannedPageCount, rcpControlCount: controls.length, enabledRcpControlCount: enabled.length, disabledRcpControlCount: disabled.length, pdfCandidateCount: pdfCandidates.length}, null, 2));
-          })().catch(e => { console.error(e); process.exit(1); });
+          }
+
+          (async()=>{
+            const first=await fetchHtml(`${base}?page=1`);
+            const p1=parsePage(first,1);
+            const tm=norm(first.replace(/<[^>]+>/g,' ')).match(/([0-9][0-9\s]*) MEDICAMENT\(S\) TROUVE/);
+            const totalMedicaments=tm?Number(tm[1].replace(/\s+/g,'')):null;
+            const pageLinks=[...first.matchAll(/[?&]page=(\d+)/g)].map(m=>Number(m[1])).filter(Number.isFinite);
+            let pageCount=pageLinks.length?Math.max(...pageLinks):null;
+            if((!pageCount||pageCount<2)&&totalMedicaments&&p1.modalCount>0) pageCount=Math.ceil(totalMedicaments/p1.modalCount);
+            if(!pageCount||pageCount<1||pageCount>1200) throw new Error(`Untrusted page count: ${pageCount}`);
+
+            const pages=[p1], failedPages=[];
+            const write=()=>fs.writeFileSync(path.join(outDir,'rcp-availability-census.json'),JSON.stringify(buildReport(totalMedicaments,pageCount,pages,failedPages),null,2));
+            write();
+            for(let p=2;p<=pageCount;p++){
+              try{
+                const html=await fetchHtml(`${base}?page=${p}`);
+                pages.push(parsePage(html,p));
+              }catch(e){
+                failedPages.push({page:p,error:String(e&&e.message?e.message:e)});
+              }
+              if(p%25===0) write();
+              await sleep(150);
+            }
+            write();
+            const r=buildReport(totalMedicaments,pageCount,pages,failedPages);
+            console.log(JSON.stringify({totalMedicaments,pageCount,scannedPageCount:r.scannedPageCount,failedPageCount:r.failedPageCount,rcpControlCount:r.rcpControlCount,enabledRcpControlCount:r.enabledRcpControlCount,disabledRcpControlCount:r.disabledRcpControlCount,pdfCandidateCount:r.pdfCandidates.length},null,2));
+          })().catch(e=>{console.error(e);process.exit(1)});
           NODE
-      - name: Validate census report
+      - name: Validate census completeness
         run: |
           python - <<'PY'
           import json
@@ -125,14 +124,16 @@ jobs:
           p=Path('audit/out/pharmacology-rcp-availability-census/rcp-availability-census.json')
           if not p.is_file(): raise SystemExit('rcp-availability-census.json missing')
           r=json.loads(p.read_text())
-          assert r['schemaVersion']=='ammps-rcp-availability-census.1'
+          assert r['schemaVersion']=='ammps-rcp-availability-census.2'
           assert r['manifestMutationPerformed'] is False and r['clinicalActivationPerformed'] is False
-          assert r['scannedPageCount']==r['pageCount'] and r['pageCount']>0
           assert r['rcpControlCount']==r['enabledRcpControlCount']+r['disabledRcpControlCount']
+          if r['failedPageCount'] or r['scannedPageCount'] != r['pageCount']:
+              raise SystemExit(f"INCOMPLETE_CENSUS scanned={r['scannedPageCount']}/{r['pageCount']} failed={r['failedPageCount']}")
           assert r['rcpControlCount']>0
-          print(json.dumps({k:r[k] for k in ['totalMedicaments','pageCount','scannedPageCount','modalCount','rcpControlCount','enabledRcpControlCount','disabledRcpControlCount']}, indent=2))
+          print(json.dumps({k:r[k] for k in ['totalMedicaments','pageCount','scannedPageCount','failedPageCount','modalCount','rcpControlCount','enabledRcpControlCount','disabledRcpControlCount']},indent=2))
           PY
       - uses: actions/upload-artifact@v4
+        if: always()
         with:
           name: pharmacology-rcp-availability-census
           path: audit/out/pharmacology-rcp-availability-census/
