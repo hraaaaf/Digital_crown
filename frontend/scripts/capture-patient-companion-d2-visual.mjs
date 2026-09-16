@@ -82,8 +82,9 @@ for (const viewport of viewports) {
       await generatedToast.waitFor({ state: 'hidden', timeout: 10000 }).catch(() => {});
     }
 
-    // First AFTER frame: top of the Companion surface, consistently aligned on every viewport.
-    await panel.evaluate(element => element.scrollIntoView({ block: 'start', behavior: 'instant' }));
+    // First AFTER frame: true page-top experience after transient invitation feedback settles.
+    // Do not force the panel underneath the sticky patient header.
+    await page.evaluate(() => window.scrollTo({ top: 0, behavior: 'auto' }));
     await page.waitForTimeout(100);
   }
 
@@ -94,7 +95,7 @@ for (const viewport of viewports) {
     // Second AFTER frame: QR/manual-code area. This prevents mobile evidence from pretending
     // one 844px viewport can show both the complete admin surface and the ephemeral secret.
     const invitation = page.locator('[data-ephemeral-invitation]');
-    await invitation.evaluate(element => element.scrollIntoView({ block: 'start', behavior: 'instant' }));
+    await invitation.evaluate(element => element.scrollIntoView({ block: 'start', behavior: 'auto' }));
     await page.waitForTimeout(100);
     detailShot = `after-patient-companion-invitation-${viewport.label}.png`;
     await page.screenshot({ path: path.join(outDir, detailShot), fullPage: false });

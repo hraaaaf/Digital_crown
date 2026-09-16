@@ -32,4 +32,13 @@ describe('Patient Companion D2 staff surface', () => {
     expect(details).toContain('<PatientCompanionPanel patientId={Number(id)} patientEmail={patient.email} />');
     expect(details).toContain("if (!ownerOrAdmin && activeTab === 'companion')");
   });
+
+  it('keeps the 390px Companion shell compact without changing D0 contracts', () => {
+    expect(details).toContain("if (!id || activeTab === 'companion') return;");
+    expect(details).toContain("'hidden sm:grid gap-2 w-full xl:w-auto'");
+    expect(details).toContain('mobileLabel="Suivi"');
+    expect(panel).toContain('grid grid-cols-3 gap-2');
+    expect(panel).toContain('hidden sm:block mt-1 text-sm');
+    expect(panel).toContain('w-40 h-40 sm:w-48 sm:h-48');
+  });
 });
