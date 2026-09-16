@@ -15,6 +15,10 @@ export type CephaloScientificFamily =
  * work surface can provide --cephalo-scientific-anchor to render a brighter
  * on-dark variant from the SAME family hue, without remapping semantics or
  * creating a parallel application theme system.
+ *
+ * The 42/58 mix is deliberate: it is the strongest family-hue contribution
+ * that clears the >= 4.5:1 surface-contrast gate across all supported Digital
+ * Crown themes with the current separated palette.
  */
 export const CEPHALO_SCIENTIFIC_BASE_HUES: Readonly<Record<CephaloScientificFamily, string>> = Object.freeze({
   skeletal: '#38a8ff',
@@ -25,7 +29,7 @@ export const CEPHALO_SCIENTIFIC_BASE_HUES: Readonly<Record<CephaloScientificFami
 });
 
 const adaptiveScientificColor = (baseHue: string): string =>
-  `color-mix(in srgb, ${baseHue} 60%, var(--cephalo-scientific-anchor, var(--text-main)) 40%)`;
+  `color-mix(in srgb, ${baseHue} 42%, var(--cephalo-scientific-anchor, var(--text-main)) 58%)`;
 
 export const CEPHALO_SCIENTIFIC_COLORS: Readonly<Record<CephaloScientificFamily, string>> = Object.freeze({
   skeletal: adaptiveScientificColor(CEPHALO_SCIENTIFIC_BASE_HUES.skeletal),

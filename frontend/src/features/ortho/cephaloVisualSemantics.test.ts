@@ -12,6 +12,10 @@ import {
 
 type Rgb = readonly [number, number, number];
 
+const SCIENTIFIC_BASE_WEIGHT = 0.42;
+const RADIOGRAPH_ANCHOR = '#f8fafc';
+const RADIOGRAPH_BACKGROUND = '#020617';
+
 const parseColor = (value: string): Rgb => {
   const normalized = value.trim().toLowerCase();
   if (normalized === 'white') return [255, 255, 255];
@@ -25,7 +29,7 @@ const parseColor = (value: string): Rgb => {
   ];
 };
 
-const mixSrgb = (base: Rgb, anchor: Rgb, baseWeight = 0.6): Rgb => [
+const mixSrgb = (base: Rgb, anchor: Rgb, baseWeight = SCIENTIFIC_BASE_WEIGHT): Rgb => [
   Math.round(base[0] * baseWeight + anchor[0] * (1 - baseWeight)),
   Math.round(base[1] * baseWeight + anchor[1] * (1 - baseWeight)),
   Math.round(base[2] * baseWeight + anchor[2] * (1 - baseWeight)),
@@ -78,10 +82,13 @@ describe('Céphalo scientific color semantics', () => {
     expect(new Set(Object.values(CEPHALO_SCIENTIFIC_COLORS)).size).toBe(5);
   });
 
-  it('uses Digital Crown text token to adapt scientific contrast across themes', () => {
+  it('uses a context anchor with Digital Crown text fallback', () => {
     for (const family of Object.keys(CEPHALO_SCIENTIFIC_BASE_HUES) as Array<keyof typeof CEPHALO_SCIENTIFIC_BASE_HUES>) {
       const rendered = CEPHALO_SCIENTIFIC_COLORS[family];
       expect(rendered).toContain(CEPHALO_SCIENTIFIC_BASE_HUES[family]);
+      expect(rendered).toContain('42%');
+      expect(rendered).toContain('58%');
+      expect(rendered).toContain('var(--cephalo-scientific-anchor');
       expect(rendered).toContain('var(--text-main)');
       expect(rendered).toContain('color-mix(in srgb');
     }
@@ -102,6 +109,18 @@ describe('Céphalo scientific color semantics', () => {
           ).toBeGreaterThanOrEqual(4.5);
         }
       }
+    }
+  });
+
+  it('keeps on-radiograph family variants strongly visible on the cinematic viewer', () => {
+    const anchor = parseColor(RADIOGRAPH_ANCHOR);
+    const background = parseColor(RADIOGRAPH_BACKGROUND);
+    for (const [family, baseHue] of Object.entries(CEPHALO_SCIENTIFIC_BASE_HUES)) {
+      const rendered = mixSrgb(parseColor(baseHue), anchor);
+      expect(
+        contrastRatio(rendered, background),
+        `${family} is too dark on the radiographic viewer`,
+      ).toBeGreaterThanOrEqual(7);
     }
   });
 
