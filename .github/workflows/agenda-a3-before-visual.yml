@@ -1,0 +1,119 @@
+name: Agenda A3 BEFORE Visual
+
+on:
+  push:
+    branches:
+      - feat/agenda-clinic-a3-practitioner-availability-20260916
+    paths:
+      - ".github/workflows/agenda-a3-before-visual.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  capture-before:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install
+        working-directory: frontend
+        run: |
+          npm ci
+          npm install --no-save --package-lock=false playwright@1.55.0
+          npx playwright install --with-deps chromium
+      - name: A2 regression contract
+        working-directory: frontend
+        run: npx vitest run src/AgendaClinicA2.test.ts
+      - name: Materialize deterministic BEFORE harness
+        working-directory: frontend
+        run: |
+          cat > agenda-a3-before-agenda.html <<'EOF'
+          <div id="root"></div><script type="module" src="/src/agenda-a3-before-agenda.tsx"></script>
+          EOF
+          cat > agenda-a3-before-settings.html <<'EOF'
+          <div id="root"></div><script type="module" src="/src/agenda-a3-before-settings.tsx"></script>
+          EOF
+          cat > src/agenda-a3-before-agenda.tsx <<'EOF'
+          import React from 'react';
+          import { createRoot } from 'react-dom/client';
+          import { MemoryRouter } from 'react-router-dom';
+          import './index.css';
+          import { AgendaPage } from './pages/AgendaPage';
+          import { useAuthStore } from './stores/useAuthStore';
+          useAuthStore.setState({user:{id:1,email:'a3@test.local',nom_complet:'Dr Lina Alaoui',role:'ADMIN',is_superadmin:false,permissions:{}} as any,isAuthenticated:true,isLoading:false,error:null});
+          createRoot(document.getElementById('root')!).render(<MemoryRouter initialEntries={['/agenda']}><div className="min-h-screen min-w-0 overflow-x-hidden bg-slate-50 p-3 sm:p-4 lg:p-6"><AgendaPage /></div></MemoryRouter>);
+          EOF
+          cat > src/agenda-a3-before-settings.tsx <<'EOF'
+          import React from 'react';
+          import { createRoot } from 'react-dom/client';
+          import './index.css';
+          import { AgendaTab } from './features/admin/Settings/tabs/AgendaTab';
+          createRoot(document.getElementById('root')!).render(<div className="min-h-screen min-w-0 overflow-x-hidden bg-slate-50 p-3 sm:p-4 lg:p-6"><AgendaTab /></div>);
+          EOF
+          cat > agenda-a3-before.mjs <<'EOF'
+          import { chromium } from 'playwright';
+          import { createServer } from 'vite';
+          import fs from 'node:fs/promises';
+          const out='agenda-a3-before'; await fs.mkdir(out,{recursive:true});
+          const json=(body,status=200)=>({status,contentType:'application/json',body:JSON.stringify(body)});
+          const mk=(id,name,pid,start,duration,motif,status='PRÉVU')=>({id,patient_name:name,patient_id:id+1000,praticien_id:pid,datetime_start:start,duration_minutes:duration,motif,status,scheduling_type:'EXACT_TIME',reminder_sent:false});
+          const lina=[mk(201,'Sara El Amrani',1,'2026-09-16T09:00:00',30,'Consultation'),mk(202,'Adam Tazi',1,'2026-09-16T11:00:00',45,'Endodontie','CONFIRMÉ')];
+          const youssef=[mk(211,'Yasmine Fassi',2,'2026-09-16T09:00:00',60,'Prothèse','CONFIRMÉ'),mk(212,'Omar Bennani',2,'2026-09-16T14:30:00',30,'Consultation')];
+          const salma=[mk(221,'Aya Alaoui',3,'2026-09-16T10:30:00',30,'Contrôle')];
+          const legacy=[mk(299,'Legacy non assigné',null,'2026-09-16T12:00:00',30,'RDV historique')];
+          const multi={plan:'ELITE',dentists:[{dentist_id:1,dentist_name:'Dr Lina Alaoui',appointments:lina},{dentist_id:2,dentist_name:'Dr Youssef Benali',appointments:youssef},{dentist_id:3,dentist_name:'Dr Salma Idrissi',appointments:salma}],legacy_unassigned:legacy,total_appointments:6};
+          const all=[...lina,...youssef,...salma,...legacy];
+          const settings={id:1,opening_time_morning:'09:00',closing_time_morning:'13:00',opening_time_afternoon:'14:00',closing_time_afternoon:'18:00',is_continuous:false,agenda_mode:'EXACT',use_tickets:false,weekly_schedule:Object.fromEntries(['monday','tuesday','wednesday','thursday','friday','saturday','sunday'].map(day=>[day,{is_open:true,is_continuous:false,morning_start:'09:00',morning_end:'13:00',afternoon_start:'14:00',afternoon_end:'18:00'}]))};
+          const server=await createServer({server:{host:'127.0.0.1',port:4203,strictPort:true},clearScreen:false}); await server.listen();
+          const browser=await chromium.launch(); const report=[];
+          try {
+            for(const [width,height] of [[390,844],[768,1024],[1280,900]]){
+              const context=await browser.newContext({viewport:{width,height},locale:'fr-FR',timezoneId:'Africa/Casablanca'}); const page=await context.newPage();
+              await page.clock.setFixedTime(new Date('2026-09-16T10:00:00+01:00')); const errors=[];
+              page.on('pageerror',e=>errors.push(`pageerror: ${e.message}`)); page.on('console',m=>{if(m.type()==='error')errors.push(`console: ${m.text()}`)});
+              await page.route('**/api/**',async route=>{const req=route.request(),u=new URL(req.url());
+                if(u.pathname==='/api/appointments/multi-practitioner') return route.fulfill(json(multi));
+                if(u.pathname==='/api/appointments/check-conflicts') return route.fulfill(json({conflicts:[]}));
+                if(u.pathname==='/api/appointments/'||u.pathname.startsWith('/api/appointments?')) return route.fulfill(json(all));
+                if(u.pathname==='/api/appointments/pending'||u.pathname==='/api/patients/'||u.pathname==='/api/upcoming-holidays'||u.pathname==='/api/catalog/specialties'||u.pathname==='/api/actes/catalog/search') return route.fulfill(json([]));
+                if(u.pathname==='/api/agenda/settings') return route.fulfill(json(settings));
+                if(u.pathname==='/api/agenda/exceptions') return route.fulfill(json([]));
+                return route.fulfill(json(req.method()==='GET'?[]:{}));
+              });
+              await page.goto('http://127.0.0.1:4203/agenda-a3-before-agenda.html',{waitUntil:'networkidle'}); await page.getByRole('heading',{name:'Agenda'}).waitFor(); await page.getByRole('button',{name:'Multi',exact:true}).click(); await page.getByText('Heure',{exact:true}).waitFor(); await page.getByText('Non assigné · 12:00').waitFor();
+              const sara=await page.getByText('09:00 · Sara El Amrani',{exact:true}).locator('..').boundingBox(); const yasmine=await page.getByText('09:00 · Yasmine Fassi',{exact:true}).locator('..').boundingBox(); const syncDelta=sara&&yasmine?Math.abs(sara.y-yasmine.y):null;
+              const agendaLayout=await page.evaluate(()=>({clientWidth:document.documentElement.clientWidth,scrollWidth:document.documentElement.scrollWidth})); const internal=await page.getByTestId('multi-practitioner-scroll').evaluate(el=>({clientWidth:el.clientWidth,scrollWidth:el.scrollWidth}));
+              if(syncDelta===null||syncDelta>2) throw new Error(`BEFORE lane sync mismatch ${width}: ${syncDelta}`); if(agendaLayout.scrollWidth>agendaLayout.clientWidth) throw new Error(`BEFORE agenda page overflow ${width}`); if(width===390&&internal.scrollWidth<=internal.clientWidth) throw new Error('BEFORE mobile internal scroll missing'); if(errors.length) throw new Error(errors.join(' | '));
+              await page.screenshot({path:`${out}/agenda-${width}x${height}.png`,fullPage:true,animations:'disabled'});
+              errors.length=0; await page.goto('http://127.0.0.1:4203/agenda-a3-before-settings.html',{waitUntil:'networkidle'}); await page.getByRole('heading',{name:'Horaires & Agenda'}).waitFor(); await page.getByText("Semaine d'ouverture",{exact:true}).waitFor(); const settingsLayout=await page.evaluate(()=>({clientWidth:document.documentElement.clientWidth,scrollWidth:document.documentElement.scrollWidth})); if(settingsLayout.scrollWidth>settingsLayout.clientWidth) throw new Error(`BEFORE settings overflow ${width}`); if(errors.length) throw new Error(errors.join(' | ')); await page.screenshot({path:`${out}/settings-${width}x${height}.png`,fullPage:true,animations:'disabled'});
+              const row={width,height,syncDelta,agendaLayout,internal,settingsLayout}; report.push(row); await fs.writeFile(`${out}/${width}x${height}.json`,JSON.stringify(row,null,2)); await context.close();
+            }
+            await fs.writeFile(`${out}/report.json`,JSON.stringify(report,null,2));
+          } finally {await browser.close();await server.close();}
+          EOF
+      - name: Capture BEFORE at identical A3 viewports
+        working-directory: frontend
+        run: node agenda-a3-before.mjs
+      - name: Evidence manifest
+        working-directory: frontend
+        run: |
+          test "$(find agenda-a3-before -name '*.png' | wc -l)" -eq 6
+          printf '%s\n' \
+            "phase=BEFORE_A3" \
+            "head_sha=${{ github.sha }}" \
+            "baseline_master=63d3902656d0525dccac60cbc15cf2aa21b1ffd9" \
+            "goal=effective availability equals cabinet intersection practitioner without breaking A2 synchronized lanes" \
+            "viewports=390x844,768x1024,1280x900" > agenda-a3-before/metadata.txt
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: agenda-a3-before-visual-evidence
+          path: frontend/agenda-a3-before/
+          if-no-files-found: error
+          retention-days: 14
