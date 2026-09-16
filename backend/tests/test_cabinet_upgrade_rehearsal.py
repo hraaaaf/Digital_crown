@@ -171,3 +171,27 @@ def test_clone_name_is_strictly_rehearsal_scoped() -> None:
     name = rehearsal._clone_name("20260916_120000_abc123", "after")
     assert name.startswith("dc_rehearsal_")
     assert rehearsal.SAFE_DB_NAME.fullmatch(name)
+
+
+def test_main_requires_explicit_source_dump_acknowledgement(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(
+        "sys.argv",
+        ["cabinet_upgrade_rehearsal.py", "--media-root", "."],
+    )
+    assert rehearsal.main() == 2
+
+
+def test_main_requires_source_database_url_after_acknowledgement(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.delenv("DIGITALCROWN_REHEARSAL_SOURCE_DATABASE_URL", raising=False)
+    monkeypatch.setattr(
+        "sys.argv",
+        [
+            "cabinet_upgrade_rehearsal.py",
+            "--media-root",
+            ".",
+            "--confirm-source-dump-only",
+        ],
+    )
+    assert rehearsal.main() == 2
