@@ -7,6 +7,10 @@ import {
   type CephaloAnalysisMode,
   type CephaloMetricFocus,
 } from '../cephaloAnalysisBridge';
+import {
+  CEPHALO_SCIENTIFIC_COLORS,
+  cephaloMetricColor,
+} from '../cephaloVisualSemantics';
 
 interface ThemePalette {
   bg: string;
@@ -86,6 +90,13 @@ const ANALYSIS_LABELS: Record<CephaloAnalysisMode, string> = {
   all: 'Toutes analyses', steiner: 'Steiner', tweed: 'Tweed', mcnamara: 'McNamara', com: 'COM', ricketts: 'Ricketts',
 };
 
+const FAMILY_LEGEND = [
+  ['skeletal', 'Squelettique'],
+  ['dental', 'Dentaire'],
+  ['soft_tissue', 'Tissus mous'],
+  ['reference', 'Référence'],
+] as const;
+
 const readValue = (metric?: MetricRecord): number | null => {
   const value = metric?.value ?? metric?.valeur;
   return typeof value === 'number' && Number.isFinite(value) ? value : null;
@@ -153,13 +164,14 @@ export const CephaloAnalysisWorkbenchPanel: React.FC<CephaloAnalysisWorkbenchPan
     };
   }, [activeDefinition, activeMetric]);
 
-  const tone = (metric?: MetricRecord) => {
+  const statusTone = (metric?: MetricRecord) => {
     if (!metric || readValue(metric) === null) return P.textDim;
     const status = (metric.status || '').toLowerCase();
     if (status.includes('normal')) return P.accentSuccess;
     if (status.includes('high') || status.includes('low') || status.includes('compens')) return P.accentWarning;
     if (status.includes('missing')) return P.textDim;
-    return P.accent;
+    if (status && status !== 'n/a') return P.accentError;
+    return P.textMuted;
   };
 
   return (
@@ -177,6 +189,14 @@ export const CephaloAnalysisWorkbenchPanel: React.FC<CephaloAnalysisWorkbenchPan
             <h3 className="truncate text-sm font-black" style={{ color: P.text }}>Analyse {ANALYSIS_LABELS[analysis]}</h3>
             <p className="mt-0.5 text-[11px]" style={{ color: P.textMuted }}>Mesure ↔ construction géométrique</p>
           </div>
+        </div>
+        <div className="mt-3 flex flex-wrap gap-x-3 gap-y-1.5" aria-label="Code couleur céphalométrique">
+          {FAMILY_LEGEND.map(([family, label]) => (
+            <span key={family} className="inline-flex items-center gap-1.5 text-[9px] font-bold" style={{ color: P.textMuted }}>
+              <span className="h-2 w-2 rounded-full" style={{ background: CEPHALO_SCIENTIFIC_COLORS[family] }} />
+              {label}
+            </span>
+          ))}
         </div>
       </div>
 
@@ -196,7 +216,8 @@ export const CephaloAnalysisWorkbenchPanel: React.FC<CephaloAnalysisWorkbenchPan
               const value = readValue(metric);
               const selected = activeKey === definition.key;
               const deviation = value !== null && typeof metric?.norm_mean === 'number' ? value - metric.norm_mean : null;
-              const rowTone = tone(metric);
+              const familyTone = cephaloMetricColor(definition.key);
+              const clinicalTone = statusTone(metric);
               return (
                 <tr
                   key={definition.key}
@@ -212,7 +233,7 @@ export const CephaloAnalysisWorkbenchPanel: React.FC<CephaloAnalysisWorkbenchPan
                 >
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-2">
-                      <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: rowTone }} />
+                      <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: familyTone }} />
                       <span className="truncate text-[11px] font-semibold" style={{ color: selected ? P.text : P.textMuted }}>{definition.label}</span>
                     </div>
                   </td>
@@ -220,7 +241,7 @@ export const CephaloAnalysisWorkbenchPanel: React.FC<CephaloAnalysisWorkbenchPan
                     {value === null ? 'NC' : `${formatNumber(value)} ${definition.unit}`}
                   </td>
                   <td className="px-2 py-3 text-[10px]" style={{ color: P.textMuted }}>{normText(metric, definition.unit)}</td>
-                  <td className="px-2 py-3 text-right font-mono text-[10px]" style={{ color: deviation === null ? P.textDim : rowTone }}>
+                  <td className="px-2 py-3 text-right font-mono text-[10px]" style={{ color: deviation === null ? P.textDim : clinicalTone }}>
                     {deviation === null ? '—' : `${deviation > 0 ? '+' : ''}${formatNumber(deviation)}`}
                   </td>
                 </tr>
@@ -233,12 +254,15 @@ export const CephaloAnalysisWorkbenchPanel: React.FC<CephaloAnalysisWorkbenchPan
       {activeDefinition && (
         <div data-r19-measure-detail={activeDefinition.key} className="m-3 rounded-2xl border p-4 sm:m-4" style={{ background: P.bgCard, borderColor: P.border }}>
           <div className="flex items-start gap-3">
-            <Info size={16} className="mt-0.5 shrink-0" style={{ color: P.accent }} />
+            <Info size={16} className="mt-0.5 shrink-0" style={{ color: cephaloMetricColor(activeDefinition.key) }} />
             <div className="min-w-0">
               <div className="text-[10px] font-black uppercase tracking-[0.12em]" style={{ color: P.accent }}>Détail de la mesure sélectionnée</div>
-              <div className="mt-1 text-sm font-black" style={{ color: P.text }}>{activeDefinition.label}</div>
+              <div className="mt-1 flex items-center gap-2 text-sm font-black" style={{ color: P.text }}>
+                <span className="h-2.5 w-2.5 rounded-full" style={{ background: cephaloMetricColor(activeDefinition.key) }} />
+                {activeDefinition.label}
+              </div>
               <p className="mt-2 text-[11px] leading-relaxed" style={{ color: P.textMuted }}>{activeDefinition.construction}</p>
-              <div className="mt-3 flex items-start gap-2 rounded-xl px-3 py-2" style={{ background: `${tone(activeMetric)}12`, color: tone(activeMetric) }}>
+              <div className="mt-3 flex items-start gap-2 rounded-xl px-3 py-2" style={{ background: `${statusTone(activeMetric)}12`, color: statusTone(activeMetric) }}>
                 {readValue(activeMetric) === null ? <AlertTriangle size={13} className="mt-0.5 shrink-0" /> : <CheckCircle2 size={13} className="mt-0.5 shrink-0" />}
                 <span className="text-[10px] font-bold leading-relaxed">{statusLabel(activeMetric)}{activeMetric?.interpretation ? ` · ${activeMetric.interpretation}` : ''}</span>
               </div>
