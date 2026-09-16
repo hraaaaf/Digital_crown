@@ -37,48 +37,13 @@ jobs:
           new_nba = '''  useEffect(() => {\n    // The contextual next-best-action belongs to clinical navigation, not the Companion admin flow.\n    // Keeping it out of Companion also prevents a large mobile toast from obscuring the access controls.\n    if (!id || activeTab === 'companion') return;\n    const timer = setTimeout(() => {\n      api.get(`/intelligence/patient/${id}/nba`).then(res => {\n        if (res.data.nba) toast(`💡 ${res.data.nba.title} — ${res.data.nba.message}${res.data.nba.action ? ` · Action : ${res.data.nba.action}` : ''}`, { duration: 7000 });\n      }).catch(() => {});\n    }, 1500);\n    return () => clearTimeout(timer);\n  }, [id, activeTab]);'''
           details = replace_once(details, old_nba, new_nba, 'NBA context')
 
-          details = replace_once(
-              details,
-              "<div className={cn('max-w-[1600px] mx-auto md:px-8', isRadiology ? 'px-2.5 pt-1.5' : 'px-4 pt-3')}>",
-              "<div className={cn('max-w-[1600px] mx-auto md:px-8', isRadiology ? 'px-2.5 pt-1.5' : 'px-3 pt-2 sm:px-4 sm:pt-3')}>",
-              'mobile header padding',
-          )
-          details = replace_once(
-              details,
-              "<div className={cn('flex flex-col xl:flex-row xl:items-center xl:justify-between', isRadiology ? 'gap-1.5 mb-1.5' : 'gap-3 mb-3')}>",
-              "<div className={cn('flex flex-col xl:flex-row xl:items-center xl:justify-between', isRadiology ? 'gap-1.5 mb-1.5' : 'gap-2 mb-2 sm:gap-3 sm:mb-3')}>",
-              'mobile header spacing',
-          )
-          details = replace_once(
-              details,
-              "isRadiology ? 'w-8 h-8 rounded-lg' : 'w-10 h-10'",
-              "isRadiology ? 'w-8 h-8 rounded-lg' : 'w-9 h-9 sm:w-10 sm:h-10'",
-              'back button size',
-          )
-          details = replace_once(
-              details,
-              "isRadiology ? 'text-base md:text-lg' : 'text-xl md:text-2xl'",
-              "isRadiology ? 'text-base md:text-lg' : 'text-lg sm:text-xl md:text-2xl'",
-              'patient title size',
-          )
-          details = replace_once(
-              details,
-              "isRadiology ? 'mt-0.5 gap-x-2 gap-y-0.5 text-[10px]' : 'mt-1.5 gap-x-3 gap-y-1 text-xs'",
-              "isRadiology ? 'mt-0.5 gap-x-2 gap-y-0.5 text-[10px]' : 'mt-1 gap-x-2 gap-y-0.5 text-[11px] sm:mt-1.5 sm:gap-x-3 sm:gap-y-1 sm:text-xs'",
-              'patient metadata density',
-          )
-          details = replace_once(
-              details,
-              "isRadiology ? 'hidden md:inline-flex' : 'inline-flex'",
-              "isRadiology ? 'hidden md:inline-flex' : 'hidden sm:inline-flex'",
-              'hide redundant phone mobile',
-          )
-          details = replace_once(
-              details,
-              "<div className={cn('grid gap-2 w-full xl:w-auto', canFinance ? 'grid-cols-4' : 'grid-cols-3', isRadiology && 'hidden lg:grid')} aria-label=\"Actions rapides patient\">",
-              "<div className={cn('hidden sm:grid gap-2 w-full xl:w-auto', canFinance ? 'grid-cols-4' : 'grid-cols-3', isRadiology && 'sm:hidden lg:grid')} aria-label=\"Actions rapides patient\">",
-              'hide redundant quick actions mobile',
-          )
+          details = replace_once(details, "<div className={cn('max-w-[1600px] mx-auto md:px-8', isRadiology ? 'px-2.5 pt-1.5' : 'px-4 pt-3')}>", "<div className={cn('max-w-[1600px] mx-auto md:px-8', isRadiology ? 'px-2.5 pt-1.5' : 'px-3 pt-2 sm:px-4 sm:pt-3')}>", 'mobile header padding')
+          details = replace_once(details, "<div className={cn('flex flex-col xl:flex-row xl:items-center xl:justify-between', isRadiology ? 'gap-1.5 mb-1.5' : 'gap-3 mb-3')}>", "<div className={cn('flex flex-col xl:flex-row xl:items-center xl:justify-between', isRadiology ? 'gap-1.5 mb-1.5' : 'gap-2 mb-2 sm:gap-3 sm:mb-3')}>", 'mobile header spacing')
+          details = replace_once(details, "isRadiology ? 'w-8 h-8 rounded-lg' : 'w-10 h-10'", "isRadiology ? 'w-8 h-8 rounded-lg' : 'w-9 h-9 sm:w-10 sm:h-10'", 'back button size')
+          details = replace_once(details, "isRadiology ? 'text-base md:text-lg' : 'text-xl md:text-2xl'", "isRadiology ? 'text-base md:text-lg' : 'text-lg sm:text-xl md:text-2xl'", 'patient title size')
+          details = replace_once(details, "isRadiology ? 'mt-0.5 gap-x-2 gap-y-0.5 text-[10px]' : 'mt-1.5 gap-x-3 gap-y-1 text-xs'", "isRadiology ? 'mt-0.5 gap-x-2 gap-y-0.5 text-[10px]' : 'mt-1 gap-x-2 gap-y-0.5 text-[11px] sm:mt-1.5 sm:gap-x-3 sm:gap-y-1 sm:text-xs'", 'patient metadata density')
+          details = replace_once(details, "isRadiology ? 'hidden md:inline-flex' : 'inline-flex'", "isRadiology ? 'hidden md:inline-flex' : 'hidden sm:inline-flex'", 'hide redundant phone mobile')
+          details = replace_once(details, "<div className={cn('grid gap-2 w-full xl:w-auto', canFinance ? 'grid-cols-4' : 'grid-cols-3', isRadiology && 'hidden lg:grid')} aria-label=\"Actions rapides patient\">", "<div className={cn('hidden sm:grid gap-2 w-full xl:w-auto', canFinance ? 'grid-cols-4' : 'grid-cols-3', isRadiology && 'sm:hidden lg:grid')} aria-label=\"Actions rapides patient\">", 'hide redundant quick actions mobile')
 
           tab_replacements = {
               'label="Vue d’ensemble" />': 'label="Vue d’ensemble" mobileLabel="Suivi" />',
@@ -91,12 +56,7 @@ jobs:
           for old, new in tab_replacements.items():
               details = replace_once(details, old, new, f'tab {old}')
 
-          details = replace_once(
-              details,
-              "'flex-1 px-4 py-6 md:px-8 md:py-8 space-y-6'",
-              "'flex-1 px-3 py-3 sm:px-4 sm:py-6 md:px-8 md:py-8 space-y-4 sm:space-y-6'",
-              'mobile content spacing',
-          )
+          details = replace_once(details, "'flex-1 px-4 py-6 md:px-8 md:py-8 space-y-6'", "'flex-1 px-3 py-3 sm:px-4 sm:py-6 md:px-8 md:py-8 space-y-4 sm:space-y-6'", 'mobile content spacing')
 
           old_tab = '''const TabButton = ({ active, onClick, icon, label, compact = false }: any) => (\n  <button onClick={onClick} className={cn('shrink-0 flex items-center font-black uppercase transition-all border-b-[3px] whitespace-nowrap', compact ? 'gap-1 pb-1.5 px-1 text-[9px] tracking-[0.04em] md:gap-1.5 md:px-2 md:text-[11px] md:tracking-[0.06em]' : 'gap-1.5 sm:gap-2 pb-2 px-1.5 md:px-3 text-[10px] md:text-[12px] tracking-[0.06em] md:tracking-[0.08em]', active ? 'text-primary' : 'border-transparent text-text-muted hover:text-main hover:border-border-main')} style={active ? { borderColor: 'var(--primary)', color: 'var(--primary)' } : {}}>\n    {icon} {label}\n  </button>\n);'''
           new_tab = '''const TabButton = ({ active, onClick, icon, label, mobileLabel, compact = false }: any) => (\n  <button onClick={onClick} aria-label={label} className={cn('shrink-0 flex items-center font-black uppercase transition-all border-b-[3px] whitespace-nowrap', compact ? 'gap-1 pb-1.5 px-1 text-[9px] tracking-[0.04em] md:gap-1.5 md:px-2 md:text-[11px] md:tracking-[0.06em]' : 'gap-1 pb-1.5 px-1 text-[9px] tracking-[0.04em] sm:gap-2 sm:pb-2 sm:px-1.5 sm:text-[10px] sm:tracking-[0.06em] md:px-3 md:text-[12px] md:tracking-[0.08em]', active ? 'text-primary' : 'border-transparent text-text-muted hover:text-main hover:border-border-main')} style={active ? { borderColor: 'var(--primary)', color: 'var(--primary)' } : {}}>\n    {icon}<span className=\"sm:hidden\">{mobileLabel || label}</span><span className=\"hidden sm:inline\">{label}</span>\n  </button>\n);'''
@@ -107,12 +67,15 @@ jobs:
           panel = panel_path.read_text()
           panel = replace_once(panel, '<div className="space-y-5" data-patient-companion-admin>', '<div className="space-y-4 sm:space-y-5 scroll-mt-28" data-patient-companion-admin>', 'panel spacing')
           panel = replace_once(panel, '<section className="grid grid-cols-1 lg:grid-cols-[1.15fr_0.85fr] gap-4">', '<section className="grid grid-cols-1 lg:grid-cols-[1.15fr_0.85fr] gap-3 sm:gap-4">', 'panel grid gap')
-          panel = replace_once(panel, '<div className="bg-card-bg rounded-[1.75rem] border border-border-main shadow-elite p-5 md:p-6">', '<div className="bg-card-bg rounded-2xl sm:rounded-[1.75rem] border border-border-main shadow-elite p-4 sm:p-5 md:p-6">', 'status card density')
+          old_card = '<div className="bg-card-bg rounded-[1.75rem] border border-border-main shadow-elite p-5 md:p-6">'
+          new_card = '<div className="bg-card-bg rounded-2xl sm:rounded-[1.75rem] border border-border-main shadow-elite p-4 sm:p-5 md:p-6">'
+          if panel.count(old_card) < 2:
+              raise SystemExit(f'missing top cards: count={panel.count(old_card)}')
+          panel = panel.replace(old_card, new_card, 2)
           panel = replace_once(panel, '<h2 className="mt-2 text-2xl font-black text-main">Patient Companion</h2>', '<h2 className="mt-1.5 text-xl sm:mt-2 sm:text-2xl font-black text-main">Patient Companion</h2>', 'mobile title density')
           panel = replace_once(panel, '<p className="mt-1 text-sm font-medium text-text-muted">Administration sécurisée de l’accès mobile, sans dupliquer le dossier patient.</p>', '<p className="hidden sm:block mt-1 text-sm font-medium text-text-muted">Administration sécurisée de l’accès mobile, sans dupliquer le dossier patient.</p>', 'hide explanatory copy mobile')
           panel = replace_once(panel, '<RefreshCcw size={15} /> Actualiser', '<RefreshCcw size={15} /><span className="hidden sm:inline">Actualiser</span>', 'compact refresh')
           panel = replace_once(panel, '<div className="mt-5 grid grid-cols-1 sm:grid-cols-3 gap-3">', '<div className="mt-4 grid grid-cols-3 gap-2 sm:mt-5 sm:gap-3">', 'metrics one row mobile')
-          panel = replace_once(panel, '<div className="bg-card-bg rounded-[1.75rem] border border-border-main shadow-elite p-5 md:p-6">', '<div className="bg-card-bg rounded-2xl sm:rounded-[1.75rem] border border-border-main shadow-elite p-4 sm:p-5 md:p-6">', 'invitation card density')
           panel = replace_once(panel, '<section className="bg-card-bg rounded-[1.75rem] border border-primary/20 shadow-elite p-5 md:p-6" data-ephemeral-invitation>', '<section className="scroll-mt-28 sm:scroll-mt-36 bg-card-bg rounded-2xl sm:rounded-[1.75rem] border border-primary/20 shadow-elite p-4 sm:p-5 md:p-6" data-ephemeral-invitation>', 'ephemeral card density')
           panel = replace_once(panel, 'className="rounded-2xl border border-border-main bg-white p-3 flex items-center justify-center min-h-[220px]"', 'className="rounded-2xl border border-border-main bg-white p-3 flex items-center justify-center min-h-[180px] sm:min-h-[220px]"', 'QR card height')
           panel = replace_once(panel, 'className="w-48 h-48 object-contain"', 'className="w-40 h-40 sm:w-48 sm:h-48 object-contain"', 'QR mobile size')
