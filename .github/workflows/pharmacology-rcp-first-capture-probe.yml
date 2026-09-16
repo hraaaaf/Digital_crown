@@ -17,7 +17,7 @@ concurrency:
 
 jobs:
   probe:
-    name: Read-only AMMPS RCP probe — AMOXICILLINE SP 1 G B12
+    name: Read-only AMMPS RCP inventory and capture probe
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -38,10 +38,11 @@ jobs:
           npm install --silent playwright
           npx playwright install --with-deps chromium
 
-      - name: Probe exact AMMPS presentation and intercept RCP action
+      - name: Inventory manifest-bound AMMPS RCP controls and capture one enabled response
         env:
           OUT_DIR: ${{ github.workspace }}/audit/out/pharmacology-rcp-first-capture-probe
           TARGET_URL: https://www.ammps.gov.ma/recherche-medicaments?page=42
+          MANIFEST_PATH: ${{ github.workspace }}/backend/data/medications_ma_ammps_rcp_manifest_2026.json
         run: |
           set -euo pipefail
           mkdir -p "$OUT_DIR"
@@ -54,15 +55,11 @@ jobs:
 
           const outDir = process.env.OUT_DIR;
           const targetUrl = process.env.TARGET_URL;
+          const manifestPath = process.env.MANIFEST_PATH;
           const officialHosts = new Set(['ammps.gov.ma', 'www.ammps.gov.ma']);
-          const requiredTokens = [
-            'AMOXICILLINE SP',
-            '1 G',
-            'BOITE DE 12',
-            'AMANYS PHARMA',
-          ];
+          const preferredId = 'ammps-reg:6fd268f476e7efe0c11f0c4b';
 
-          function normalize(value) {
+          function norm(value) {
             return (value || '')
               .normalize('NFD')
               .replace(/[\u0300-\u036f]/g, '')
@@ -83,6 +80,10 @@ jobs:
           function sha256(buffer) {
             return crypto.createHash('sha256').update(buffer).digest('hex');
           }
+
+          const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
+          const pageEntries = manifest.entries.filter(entry => entry.source_page_url === targetUrl);
+          if (!pageEntries.length) throw new Error('No manifest entries bound to target AMMPS page');
 
           (async () => {
             const browser = await chromium.launch({ headless: true });
@@ -183,56 +184,137 @@ jobs:
               }
               await page.waitForTimeout(5000);
 
-              const target = await page.evaluate(({ requiredTokens }) => {
-                const norm = value => (value || '')
+              const inventory = await page.evaluate(({ entries }) => {
+                const normalize = value => (value || '')
                   .normalize('NFD')
                   .replace(/[\u0300-\u036f]/g, '')
                   .replace(/\s+/g, ' ')
                   .trim()
                   .toUpperCase();
+
                 const controls = Array.from(document.querySelectorAll('a,button,[role="button"]'))
-                  .filter(el => norm(el.textContent).includes('TELECHARGER RCP'));
-                const matches = [];
-                for (const control of controls) {
-                  let node = control;
-                  let depth = 0;
-                  while (node && node !== document.body) {
-                    const text = norm(node.innerText || node.textContent || '');
-                    if (requiredTokens.every(token => text.includes(norm(token)))) {
-                      matches.push({ control, container: node, text, depth, length: text.length });
-                      break;
+                  .filter(el => normalize(el.textContent).includes('TELECHARGER RCP'));
+
+                return entries.map(entry => {
+                  const tokens = [entry.nom, entry.dosage, entry.presentation, entry.epi, entry.forme].map(normalize);
+                  const matches = [];
+                  for (const control of controls) {
+                    let node = control;
+                    let depth = 0;
+                    while (node && node !== document.body) {
+                      const text = normalize(node.innerText || node.textContent || '');
+                      if (tokens.every(token => text.includes(token))) {
+                        const modal = control.closest('.modal');
+                        matches.push({
+                          length: text.length,
+                          depth,
+                          modalId: modal ? modal.id : null,
+                          control,
+                          container: node,
+                        });
+                        break;
+                      }
+                      node = node.parentElement;
+                      depth += 1;
                     }
-                    node = node.parentElement;
-                    depth += 1;
                   }
-                }
-                if (!matches.length) return null;
-                matches.sort((a, b) => a.length - b.length || a.depth - b.depth);
-                const winner = matches[0];
-                winner.control.setAttribute('data-rcp-probe-target', 'true');
-                return {
-                  candidateCount: matches.length,
-                  containerText: winner.text,
-                  containerHtml: winner.container.outerHTML,
-                  controlTag: winner.control.tagName,
-                  controlText: (winner.control.textContent || '').trim(),
-                  controlHref: winner.control.getAttribute('href'),
-                  controlOnclick: winner.control.getAttribute('onclick'),
-                  controlDataset: { ...winner.control.dataset },
-                  controlAttributes: Array.from(winner.control.attributes).reduce((acc, attr) => {
+                  matches.sort((a, b) => a.length - b.length || a.depth - b.depth);
+                  if (!matches.length) {
+                    return { ...entry, found: false, enabled: false, reason: 'NO_MATCHING_RCP_CONTROL' };
+                  }
+                  const winner = matches[0];
+                  const control = winner.control;
+                  const attrs = Array.from(control.attributes).reduce((acc, attr) => {
                     acc[attr.name] = attr.value;
                     return acc;
-                  }, {}),
-                };
-              }, { requiredTokens });
+                  }, {});
+                  const disabled = control.getAttribute('aria-disabled') === 'true' ||
+                    control.classList.contains('disabled-rcp-btn') ||
+                    control.hasAttribute('disabled');
+                  return {
+                    regulatory_presentation_id: entry.regulatory_presentation_id,
+                    nom: entry.nom,
+                    dosage: entry.dosage,
+                    unite: entry.unite,
+                    forme: entry.forme,
+                    presentation: entry.presentation,
+                    epi: entry.epi,
+                    found: true,
+                    enabled: !disabled,
+                    modalId: winner.modalId,
+                    controlHref: control.getAttribute('href'),
+                    controlOnclick: control.getAttribute('onclick'),
+                    controlAttributes: attrs,
+                    containerText: normalize(winner.container.innerText || winner.container.textContent || ''),
+                  };
+                });
+              }, { entries: pageEntries });
 
-              if (!target) {
-                throw new Error('Exact AMOXICILLINE SP 1 G B12 / AMANYS PHARMA RCP control not found');
+              fs.writeFileSync(path.join(outDir, 'rcp-control-inventory.json'), JSON.stringify(inventory, null, 2));
+              await page.screenshot({ path: path.join(outDir, 'inventory-page.png'), fullPage: true });
+
+              const preferred = inventory.find(item => item.regulatory_presentation_id === preferredId) || null;
+              const enabled = inventory.filter(item => item.found && item.enabled);
+              let selected = null;
+              if (preferred && preferred.enabled) {
+                selected = preferred;
+              } else if (enabled.length) {
+                selected = enabled[0];
               }
 
-              fs.writeFileSync(path.join(outDir, 'target-control.json'), JSON.stringify({ targetUrl, requiredTokens, target }, null, 2));
-              await page.screenshot({ path: path.join(outDir, 'before-click.png'), fullPage: true });
+              const baseReport = {
+                schemaVersion: 'ammps-rcp-capture-probe.2',
+                sourcePageUrl: targetUrl,
+                preferredRegulatoryPresentationId: preferredId,
+                preferredControlState: preferred ? (preferred.enabled ? 'ENABLED' : 'DISABLED') : 'NOT_FOUND',
+                inventory,
+                selected,
+                manifestMutationPerformed: false,
+                clinicalActivationPerformed: false,
+              };
 
+              if (!selected) {
+                const report = {
+                  ...baseReport,
+                  events: [],
+                  pdfCandidates: [],
+                  verifiedResponsePdfs: [],
+                  result: 'NO_ENABLED_RCP_CONTROL_AMONG_MANIFEST_ENTRIES',
+                };
+                fs.writeFileSync(path.join(outDir, 'probe-report.json'), JSON.stringify(report, null, 2));
+                console.log(`Preferred control state: ${report.preferredControlState}`);
+                console.log('No enabled RCP control exists among manifest-bound entries on page 42.');
+                return;
+              }
+
+              await page.evaluate(({ selectedId }) => {
+                const normalize = value => (value || '')
+                  .normalize('NFD')
+                  .replace(/[\u0300-\u036f]/g, '')
+                  .replace(/\s+/g, ' ')
+                  .trim()
+                  .toUpperCase();
+                const map = window.__rcpProbeManifestMap || null;
+                const controls = Array.from(document.querySelectorAll('a,button,[role="button"]'))
+                  .filter(el => normalize(el.textContent).includes('TELECHARGER RCP'));
+                const selectedInventory = window.__rcpProbeSelected || null;
+                for (const control of controls) control.removeAttribute('data-rcp-probe-target');
+                const modal = selectedId ? document.getElementById(selectedId) : null;
+                if (!modal) throw new Error(`Selected modal not found: ${selectedId}`);
+                const control = Array.from(modal.querySelectorAll('a,button,[role="button"]'))
+                  .find(el => normalize(el.textContent).includes('TELECHARGER RCP'));
+                if (!control) throw new Error('Selected modal RCP control not found');
+                control.setAttribute('data-rcp-probe-target', 'true');
+                if (window.bootstrap && window.bootstrap.Modal) {
+                  window.bootstrap.Modal.getOrCreateInstance(modal).show();
+                } else {
+                  modal.classList.add('show');
+                  modal.style.display = 'block';
+                  modal.removeAttribute('aria-hidden');
+                }
+              }, { selectedId: selected.modalId });
+
+              await page.waitForTimeout(500);
               const resourcesBefore = await page.evaluate(() => performance.getEntriesByType('resource').map(r => r.name));
               armed = true;
               const clickStartedAt = new Date().toISOString();
@@ -242,14 +324,6 @@ jobs:
 
               const resourcesAfter = await page.evaluate(() => performance.getEntriesByType('resource').map(r => r.name));
               const newResources = resourcesAfter.filter(url => !resourcesBefore.includes(url));
-              const finalUrl = page.url();
-              const bodyTextAfter = await page.locator('body').innerText();
-              const bodyHtmlAfter = await page.locator('body').evaluate(el => el.outerHTML);
-
-              fs.writeFileSync(path.join(outDir, 'after-click-visible.txt'), bodyTextAfter, 'utf8');
-              fs.writeFileSync(path.join(outDir, 'after-click-dom.html'), bodyHtmlAfter, 'utf8');
-              await page.screenshot({ path: path.join(outDir, 'after-click.png'), fullPage: true });
-
               const verifiedResponsePdfs = pdfCandidates.filter(candidate =>
                 candidate.source === 'response' &&
                 candidate.signatureOk === true &&
@@ -258,19 +332,10 @@ jobs:
               );
 
               const report = {
-                schemaVersion: 'ammps-rcp-capture-probe.1',
-                target: {
-                  name: 'AMOXICILLINE SP',
-                  dosage: '1 G',
-                  presentation: 'BOITE DE 12',
-                  epi: 'AMANYS PHARMA',
-                  internalRegulatoryPresentationId: 'ammps-reg:6fd268f476e7efe0c11f0c4b',
-                  sourcePageUrl: targetUrl,
-                },
+                ...baseReport,
                 clickStartedAt,
                 clickEndedAt,
-                finalPageUrl: finalUrl,
-                control: target,
+                finalPageUrl: page.url(),
                 newPerformanceResources: newResources,
                 events,
                 pdfCandidates,
@@ -280,12 +345,12 @@ jobs:
                   : verifiedResponsePdfs.length > 1
                     ? 'MULTIPLE_OFFICIAL_PDF_RESPONSES_CAPTURED_REVIEW_REQUIRED'
                     : 'NO_VERIFIED_OFFICIAL_PDF_RESPONSE_CAPTURED',
-                manifestMutationPerformed: false,
-                clinicalActivationPerformed: false,
               };
               fs.writeFileSync(path.join(outDir, 'probe-report.json'), JSON.stringify(report, null, 2));
+              await page.screenshot({ path: path.join(outDir, 'after-click.png'), fullPage: true });
 
-              console.log(`Target control href: ${target.controlHref}`);
+              console.log(`Preferred control state: ${report.preferredControlState}`);
+              console.log(`Selected presentation: ${selected.regulatory_presentation_id}`);
               console.log(`Observed post-click network events: ${events.length}`);
               console.log(`PDF candidates: ${pdfCandidates.length}`);
               console.log(`Verified official PDF responses: ${verifiedResponsePdfs.length}`);
@@ -300,7 +365,7 @@ jobs:
           });
           NODE
 
-      - name: Validate probe report is non-mutating
+      - name: Validate probe report is non-mutating and fail-closed
         run: |
           python - <<'PY'
           import json
@@ -310,15 +375,24 @@ jobs:
           if not report_path.is_file():
               raise SystemExit('probe-report.json missing')
           report = json.loads(report_path.read_text(encoding='utf-8'))
-          if report.get('schemaVersion') != 'ammps-rcp-capture-probe.1':
+          if report.get('schemaVersion') != 'ammps-rcp-capture-probe.2':
               raise SystemExit('unexpected probe schema')
           if report.get('manifestMutationPerformed') is not False:
               raise SystemExit('probe must not mutate manifest')
           if report.get('clinicalActivationPerformed') is not False:
               raise SystemExit('probe must not activate clinical logic')
-          if report['target']['internalRegulatoryPresentationId'] != 'ammps-reg:6fd268f476e7efe0c11f0c4b':
-              raise SystemExit('wrong regulatory presentation target')
-          print('PASS: read-only RCP capture probe evidence produced')
+          if report.get('preferredRegulatoryPresentationId') != 'ammps-reg:6fd268f476e7efe0c11f0c4b':
+              raise SystemExit('wrong preferred regulatory presentation target')
+          allowed = {
+              'NO_ENABLED_RCP_CONTROL_AMONG_MANIFEST_ENTRIES',
+              'NO_VERIFIED_OFFICIAL_PDF_RESPONSE_CAPTURED',
+              'ONE_OFFICIAL_PDF_RESPONSE_CAPTURED',
+              'MULTIPLE_OFFICIAL_PDF_RESPONSES_CAPTURED_REVIEW_REQUIRED',
+          }
+          if report.get('result') not in allowed:
+              raise SystemExit('unexpected probe result')
+          print('PASS: read-only fail-closed RCP probe evidence produced')
+          print('preferred_control_state=', report.get('preferredControlState'))
           print('result=', report.get('result'))
           print('verified_official_pdf_responses=', len(report.get('verifiedResponsePdfs', [])))
           PY
