@@ -58,6 +58,12 @@ if SQLALCHEMY_DATABASE_URL.startswith("sqlite"):
 
             if is_plaintext:
                 logger.warning(f"⚠️ Détection d'une base locale non chiffrée : {db_file_path}")
+                if ENVIRONMENT in {"cabinet", "production"} or "rehearsal" in ENVIRONMENT:
+                    raise RuntimeError(
+                        "SECURITE : base SQLite non chiffrée détectée. "
+                        "La conversion SQLCipher est une opération explicite hors démarrage; "
+                        "aucune mutation n'est effectuée."
+                    )
                 logger.warning("🚀 Lancement de la migration transparente à chaud vers SQLCipher AES-256...")
                 temp_unencrypted = db_file_path + ".unencrypted.tmp"
                 try:

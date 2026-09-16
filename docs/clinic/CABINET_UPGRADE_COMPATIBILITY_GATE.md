@@ -70,13 +70,13 @@ Un cabinet/production ne doit jamais créer automatiquement un compte privilégi
 
 ## Stratégie de correction
 
-Le correctif candidat doit rester ciblé et additif :
+Le correctif candidat reste ciblé et additif :
 
-1. compléter la self-migration réellement exécutée afin d'ajouter `appointments.praticien_id` nullable + index sans backfill ;
-2. sur PostgreSQL, découvrir le type enum réellement attaché à `actes.statut_paiement` et ajouter uniquement la valeur `A_ENCAISSER` si elle manque ;
-3. interdire `seed_admin_user()` en `cabinet` et `production` avant toute ouverture de session DB ou génération de secret ;
-4. conserver séparément les seeds de données système/référentielles idempotentes ;
-5. ne pas lancer automatiquement toute la chaîne Alembic sur le cabinet historique uniquement pour résoudre ces divergences ciblées.
+1. la migration versionnée `d0b000000001` crée explicitement les quatre tables Companion, sans backfill ;
+2. la migration versionnée `d0b000000002` ajoute les colonnes/index compatibles, les tables Agenda/catalogue et `A_ENCAISSER`, sans suppression ni réécriture des données patient/document existantes ;
+3. l'upgrade Alembic est exécuté explicitement après backup et rehearsal, avant le service ;
+4. le boot `cabinet`/`production` vérifie en lecture seule l'head Alembic et refuse un schéma obsolète ; il ne fait ni `create_all()`, ni migration implicite, ni seed admin ;
+5. le boot dev/test conserve `create_all()` uniquement après attestation d'isolation explicite.
 
 ## Critères obligatoires du prochain rehearsal
 
@@ -89,7 +89,7 @@ Le candidat exact ne devient **GO** que si une nouvelle copie fraîche des donn�
 - mêmes actes/paiements historiques ;
 - `appointments.praticien_id` créé, nullable, indexé, sans réécriture des rendez-vous historiques ;
 - scheduler sans `UndefinedColumn` ;
-- enum PostgreSQL comprenant `A_ENCAISSER` après self-migration additive ;
+- enum PostgreSQL comprenant `A_ENCAISSER` après migration Alembic explicite ;
 - endpoint Finances HTTP 200 ;
 - aucun seed admin ni génération/impression de mot de passe en mode cabinet ;
 - attribution/désattribution praticien sans mutation Patient/DocumentArchive.

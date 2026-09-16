@@ -13,6 +13,7 @@ from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 
 from backend.env_loader import load_backend_env
 from backend.core.media_paths import is_rehearsal_environment
+from backend.core.runtime_safety import is_known_cabinet_database
 
 # Charger l'env backend pour obtenir CABINET_MASTER_KEY_HEX.
 # NE PAS appeler load_backend_env(override=True) au niveau module, et NE PAS importer
@@ -54,7 +55,7 @@ def _parse_postgres_url(db_url: str) -> tuple[str, str, str | None, str, str]:
 
 
 def _validate_rehearsal_database(db_url: str) -> None:
-    if is_rehearsal_environment() and "digitalcrown_db" in db_url.lower():
+    if is_rehearsal_environment() and is_known_cabinet_database(db_url):
         raise RuntimeError("Unsafe DATABASE_URL for rehearsal")
 
 

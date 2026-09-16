@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from sqlalchemy import (
     Table, Column, Integer, String, Float, Boolean, Text,
-    ForeignKey, UniqueConstraint, select, insert, update
+    ForeignKey, UniqueConstraint, inspect, select, insert, update
 )
 from sqlalchemy.orm import Session
 
@@ -45,7 +45,15 @@ acts = Table(
 
 
 def ensure_schema(db: Session) -> None:
-    metadata.create_all(bind=db.get_bind(), tables=[specialties, pathologies, acts])
+    connection = db.connection()
+    required = {specialties.name, pathologies.name, acts.name}
+    existing = set(inspect(connection).get_table_names())
+    missing = sorted(required - existing)
+    if missing:
+        raise RuntimeError(
+            "Catalogue cabinet non migré; exécutez explicitement Alembic avant l'API: "
+            + ", ".join(missing)
+        )
 
 
 def _root_owners(db: Session) -> list[int]:

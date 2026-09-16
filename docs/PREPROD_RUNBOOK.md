@@ -140,13 +140,13 @@ Ne jamais faire de rollback automatique. Toujours suivre ces étapes dans l'ordr
    git checkout <commit_stable>
    # redéployer / relancer le service applicatif
    ```
-5. **Vérifier que les migrations ne sont pas destructives dans le sens du
-   rollback** — `create_all()` ne supprime jamais de colonnes/tables ; un
-   rollback vers un commit antérieur peut laisser des colonnes/enum ajoutées
-   par une version plus récente encore présentes en DB (inoffensif, juste
-   inutilisées). Ne JAMAIS `DROP` manuellement une colonne/table pour
-   "nettoyer" après un rollback sans vérifier qu'aucune donnée réelle n'y est
-   stockée.
+5. **Vérifier que les migrations versionnées ne sont pas destructives dans le
+   sens du rollback** — les upgrades cabinet sont exécutés explicitement par
+   Alembic et le boot ne modifie plus le schéma. Un rollback vers un commit
+   antérieur peut laisser des colonnes/tables/enum ajoutés par une version plus
+   récente présents en DB (inoffensif, simplement inutilisés). Ne JAMAIS
+   `DROP` manuellement une colonne/table pour "nettoyer" après un rollback sans
+   vérifier qu'aucune donnée réelle n'y est stockée.
 6. **Relancer les smoke tests** (section 5 ci-dessous)
 7. **Vérifier les logs d'erreur** post-rollback :
    ```sql
