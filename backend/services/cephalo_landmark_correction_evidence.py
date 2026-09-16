@@ -22,6 +22,10 @@ from backend.schemas.clinical import CephaloAnalysisResult
 from backend.services.cephalo_construction_evidence_adapter import materialize_craniom_linear_constructions
 from backend.services.cephalo_evidence_case_integrity import validate_case_evidence_graph
 from backend.services.cephalo_evidence_graph import EvidenceGraphSnapshot
+from backend.services.cephalo_mcnamara_evidence import (
+    adapt_mcnamara_nperp_measurements,
+    materialize_mcnamara_nperp_constructions,
+)
 from backend.services.cephalo_measurement_adapter import adapt_craniom_linear_measurements
 from backend.services.cephalo_runtime_evidence import EVIDENCE_SCHEMA_VERSION, CephaloRuntimeEvidenceError
 from backend.services.cephalo_steiner_dental_evidence import (
@@ -297,6 +301,10 @@ def rebuild_evidence_after_landmark_edit(
         next_current,
         construction_namespace=f"construction:{case_id}:r{next_revision}:steiner:dental",
     )
+    mcnamara_nperp_constructions = materialize_mcnamara_nperp_constructions(
+        next_current,
+        construction_namespace=f"construction:{case_id}:r{next_revision}:mcnamara:nperp",
+    )
 
     calibration_sources = [source for source in sources if source.kind == "calibration"]
     if len(calibration_sources) > 1:
@@ -318,16 +326,24 @@ def rebuild_evidence_after_landmark_edit(
         measurement_namespace=f"measurement:{case_id}:r{next_revision}:steiner:dental",
         constructions=steiner_dental_constructions,
     )
+    mcnamara_nperp_measurements = adapt_mcnamara_nperp_measurements(
+        measurement_namespace=f"measurement:{case_id}:r{next_revision}:mcnamara:nperp",
+        constructions=mcnamara_nperp_constructions,
+        mm_per_pixel=result.analysis_metadata.pixel_ratio,
+        calibration_ref=calibration_ref,
+    )
 
     all_constructions = [
         *craniom_constructions.values(),
         *steiner_constructions.values(),
         *steiner_dental_constructions.values(),
+        *mcnamara_nperp_constructions.values(),
     ]
     all_measurements = [
         *craniom_measurements,
         *steiner_measurements,
         *steiner_dental_measurements,
+        *mcnamara_nperp_measurements,
     ]
 
     graph = EvidenceGraphSnapshot(
