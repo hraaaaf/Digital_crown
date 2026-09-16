@@ -73,7 +73,7 @@ jobs:
                 if(url.pathname==='/api/appointments/check-conflicts') return route.fulfill(json({conflicts:[]}));
                 if(url.pathname==='/api/appointments/'&&req.method()==='POST'){try{createdBody=req.postDataJSON()}catch{} return route.fulfill(json({id:777,...(createdBody||{})}));}
                 if(url.pathname==='/api/appointments/'||url.pathname.startsWith('/api/appointments?')) return route.fulfill(json(all));
-                if(url.pathname==='/api/appointments/pending'||url.pathname==='/api/patients/'||url.pathname==='/api/agenda/exceptions'||url.pathname==='/api/upcoming-holidays') return route.fulfill(json([]));
+                if(url.pathname==='/api/appointments/pending'||url.pathname==='/api/patients/'||url.pathname==='/api/agenda/exceptions'||url.pathname==='/api/upcoming-holidays'||url.pathname==='/api/catalog/specialties') return route.fulfill(json([]));
                 if(url.pathname==='/api/agenda/settings') return route.fulfill(json({opening_time_morning:'09:00',closing_time_morning:'13:00',opening_time_afternoon:'14:00',closing_time_afternoon:'18:00',is_continuous:false}));
                 if(url.pathname==='/api/actes/catalog/search') return route.fulfill(json([]));
                 if(req.method()!=='GET') return route.fulfill(json({})); return route.fulfill(json({}));
