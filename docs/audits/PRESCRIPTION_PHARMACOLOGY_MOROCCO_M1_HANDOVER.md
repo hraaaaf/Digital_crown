@@ -1,7 +1,7 @@
 # Digital Crown — Pharmacologie Maroc M1 handover
 
 Date: 2026-09-16
-Status: ACTIVE — M1-B2 merged; RCP acquisition next; no clinical activation
+Status: ACTIVE — M1-B2 merged; RCP acquisition fail-closed; no clinical activation
 
 ## Goal
 Construire la couverture pharmacologique dentaire Maroc avec preuve réglementaire fail-closed, puis validation scientifique indépendante avant toute activation clinique.
@@ -25,86 +25,83 @@ Construire la couverture pharmacologique dentaire Maroc avec preuve réglementai
 - Réparation gate PR #537 → merge `fb3a870e2fba92a005a3e3de57ee378042b23be3`.
 - M1-B2 PR #525 → merge `601cee32bab3169143cf61ca917e35d7bd1d6ee5`.
 
-## M1-B2 — preuve finale pré-merge
-HEAD exact: `4b4cfd968951c97af39d3e757afde5185ffeb196`.
-Base exacte: `fb3a870e2fba92a005a3e3de57ee378042b23be3`.
-Diff final: exactement 3 fichiers M1-B2.
+## M1-B2 — preuve finale
+HEAD pré-merge: `4b4cfd968951c97af39d3e757afde5185ffeb196`.
+Base: `fb3a870e2fba92a005a3e3de57ee378042b23be3`.
+Merge: `601cee32bab3169143cf61ca917e35d7bd1d6ee5`.
 
 Certifications exact-head:
 - Pharmacology Deterministic Scientific Safety Gate #11 / `35109483397`: `SUCCESS`;
 - tests ciblés: `33 passed in 0.31s`;
-- oracle déterministe: `PASS`;
-- gate artifact `10451164482`, digest `sha256:1aeeaae2f8d6b8252bd90938db5701c0ab1c0f5e65cdc9b77cbc3f259949ac80`;
+- oracle: `PASS`;
 - CI #4618 / `35109483296`: `SUCCESS`;
-- T2 Runtime Browser #3480 / `35109483225`: `SUCCESS`;
-- PR Merge Summary #82 / `35109483555`: `SUCCESS`;
-- M6-I #2280: `SKIPPED` attendu.
+- T2 #3480 / `35109483225`: `SUCCESS`;
+- PR Merge Summary #82 / `35109483555`: `SUCCESS`.
 
-## Reviewer scientifique indépendant final
-Reviewer #7 / run `35109624600`.
-Target HEAD: `4b4cfd968951c97af39d3e757afde5185ffeb196`.
-Expected base: `fb3a870e2fba92a005a3e3de57ee378042b23be3`.
-
-Artifact:
-- ID `10451698081`;
-- digest `sha256:4fb424dbd0e97790dd7f588ea1010aeb694050a32e2a6276982d3342563c86c4`.
-
-Verdict:
+Reviewer #7 / `35109624600`:
 - `approve_with_reservations`;
 - blocking findings: 0;
 - major findings: 0;
 - missing tests: 0;
 - `clinical_activation_authorized=false`.
 
-Le reviewer a indépendamment reproduit/challengé la correction du finding précédent `RCP-PATH-SYMLINK-ESCAPE`; les évasions par symlink fichier et par redirection du dossier canonique RCP sont rejetées.
-
-Réserves restantes, hors scope M1-B2:
-1. capturer le vrai RCP officiel avant toute promotion `SNAPSHOT_VERIFIED`;
-2. conserver l'URL officielle exacte, les bytes PDF locaux et le SHA-256;
-3. aucune activation clinique / `AUTO_OK_MAROC` sans validation clinique humaine ultérieure.
-
-## Merge M1-B2
-PR #525 mergée le 2026-09-16.
-Merge SHA: `601cee32bab3169143cf61ca917e35d7bd1d6ee5`.
-Master vérifié sur ce SHA immédiatement après merge; commit GitHub signé/verified.
-
-Post-merge au premier contrôle:
-- CI #4619 / run `35110253634`: `IN_PROGRESS`;
-- Cabinet Upgrade PostgreSQL #921 / run `35110253569`: `IN_PROGRESS`.
-
-Ne pas transformer cet état en certification post-merge avant conclusion réelle des runs.
+Post-merge:
+- CI #4619 / `35110253634`: `SUCCESS`;
+- Cabinet Upgrade PostgreSQL #921 / `35110253569`: `SUCCESS`.
 
 ## Wave 1 documentaire
+Queue connue:
 - `READY_FOR_CAPTURE_TRANSPORT`: paracetamol, ibuprofen, amoxicillin, penicillin_v, clarithromycin.
 - `PENDING_RCP_LINK_CONFIRMATION`: metronidazole.
 - `PENDING_CURRENT_PRESENTATION_DISCOVERY`: clindamycin.
 - aucune donnée clinique extraite.
 
-## Première cible RCP réelle
-- `AMOXICILLINE SP 1 G COMPRIME DISPERSIBLE BOITE DE 12`.
-- regulatory id interne: `ammps-reg:6fd268f476e7efe0c11f0c4b`.
-- EPI: `AMANYS PHARMA`.
-- page AMMPS: `https://www.ammps.gov.ma/recherche-medicaments?page=42`.
-- statut observé: `Commercialisé`.
-- contrôle `Télécharger RCP` observé.
-- le bouton rendu expose `javascript:void(0)` et non l'URL PDF finale.
-- l'URL PDF exacte reste donc à capturer par interaction navigateur + interception de requête/download; ne jamais l'inventer.
+## Acquisition RCP read-only — résultats vérifiés
+Branche de recherche: `research/pharmacology-rcp-first-capture-20260916`.
+Aucune mutation manifest et aucune activation clinique dans les probes.
+
+### Amoxicilline
+Probe inventaire #2 / run `35110885162`: `SUCCESS`.
+Artifact `10451738662`, digest `sha256:e4a88000c3293e090f12e2904fadd05a0cb61e666e99b05d64ec1e24d3b2189a`.
+
+Résultat:
+- les 6 présentations amoxicilline liées au manifest sur la page 42 ont un contrôle `Télécharger RCP` rendu mais désactivé (`aria-disabled=true`, classe `disabled-rcp-btn`);
+- aucun PDF capturé;
+- ne pas conclure `UNAVAILABLE_VERIFIED` à partir de ce seul état UI.
+
+### Ibuprofène
+Probe #3 / run `35115618383`: `SUCCESS` sur HEAD recherche `ddda7361e40c0e558fd215fd548a3c386c687c45`.
+Artifact `10454722384`, digest `sha256:3d781cf7cd37369df668fcefc8688628ec0967065b924591fa8a2558b22a2ef5`.
+
+Résultat exact du rapport: `NO_ENABLED_IBUPROFEN_RCP_CONTROL`.
+- `enabledCount=0`;
+- les contrôles ibuprofène inventoriés sont désactivés (`aria-disabled=true`, `disabled-rcp-btn`);
+- les présentations orales ALGANTIL 200 mg B10 effervescent, B20 effervescent et B20 dragée sont notamment observées `Commercialisé` mais leur contrôle RCP est désactivé;
+- aucun PDF, URL finale ou SHA-256 PDF n'a été capturé;
+- aucune promotion réglementaire autorisée.
+
+### Paracétamol
+Après deux molécules sans contrôle activé, changement de stratégie conformément à la règle anti-répétition: probe ciblé page 47 lancé via commit recherche `0c66d0e59c1d473b0431d5e19a4315e65e79abae`.
+Le probe ne clique que sur un contrôle explicitement activé et n'accepte comme preuve qu'une réponse HTTPS AMMPS 2xx dont les bytes commencent par `%PDF-`, avec URL réelle + SHA-256.
+Statut du run à renseigner après résultat; ne pas inventer.
+
+## État repo
+Master vérifié pendant l'acquisition: `10c9b084ed0582dc24147808e911defcc2806b50`.
+Le master a avancé après M1-B2; aucun nouveau travail produit M1 n'est fusionné depuis la branche de recherche.
 
 ## Next exact
-1. Préparer un lot d'acquisition RCP read-only depuis master `601cee32...`.
-2. Avec navigateur automatisé, identifier la carte exacte AMOXICILLINE SP / 1 G / B12 / AMANYS PHARMA.
-3. Attacher des listeners `download`, `request`, `response`, puis déclencher `Télécharger RCP`.
-4. Accepter uniquement une ressource réellement observée provenant du domaine officiel AMMPS; conserver URL finale, status/content-type et bytes si PDF.
-5. Vérifier signature PDF et calculer SHA-256, sans encore modifier le manifest ni promouvoir `SNAPSHOT_VERIFIED`.
-6. Faire revoir indépendamment cette preuve de capture avant toute promotion réglementaire.
-7. Recontrôler les runs post-merge #4619 et #921 seulement quand nécessaire.
+1. Lire le résultat + artifact du probe paracétamol lancé sur `0c66d0e...`.
+2. Si un unique PDF officiel est capturé: vérifier URL HTTPS AMMPS, status 2xx, `%PDF-`, bytes, SHA-256, identité de présentation, puis revue indépendante avant toute promotion `SNAPSHOT_VERIFIED`.
+3. Si aucun contrôle paracétamol n'est activé: enregistrer la preuve fail-closed et passer au prochain candidat Wave 1 (`penicillin_v`, puis `clarithromycin`) sans forcer de bouton désactivé.
+4. Ne modifier le manifest qu'après preuve complète + revue indépendante.
 
 ## Interdits
 - Pas d'activation clinique M1.
 - Pas de `SNAPSHOT_VERIFIED` sans artefact réel vérifié.
+- Pas de `UNAVAILABLE_VERIFIED` sur simple absence/recherche négative/bouton désactivé.
 - Pas de faux verdict reviewer.
 - Pas d'assimilation CI verte = validation scientifique.
-- Pas d'URL RCP déduite/fabriquée à partir du bouton `javascript:void(0)`.
+- Pas d'URL RCP déduite/fabriquée à partir de `javascript:void(0)`.
 
 ## Prompt de reprise
-`Lis ce fichier depuis docs/pharmacology-m1-handover-20260915, vérifie master et les runs post-merge, puis reprends au Next exact. M1-B2 est mergé; le prochain objectif est la capture read-only du vrai RCP AMMPS AMOXICILLINE SP 1 G B12, sans promotion SNAPSHOT_VERIFIED avant preuve complète et revue indépendante.`
+`Lis ce fichier depuis docs/pharmacology-m1-handover-20260915, vérifie master et le dernier probe RCP. M1-B2 est mergé et post-merge vert. Amoxicilline et ibuprofène ont été vérifiés fail-closed sans contrôle RCP activé. Reprendre au probe paracétamol, puis poursuivre Wave 1 jusqu'à capturer un vrai PDF AMMPS ou épuiser proprement les candidats, sans promotion SNAPSHOT_VERIFIED avant preuve complète et revue indépendante.`
