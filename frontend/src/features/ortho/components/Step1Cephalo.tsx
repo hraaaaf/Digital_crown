@@ -6,6 +6,7 @@ import {
   CEPHALO_ANALYSIS_CHANGE_EVENT,
   type CephaloAnalysisMode,
 } from '../cephaloAnalysisBridge';
+import { CEPHALO_SCIENTIFIC_COLORS } from '../cephaloVisualSemantics';
 
 interface ThemePalette {
   bg: string;
@@ -31,17 +32,39 @@ interface Step1CephaloProps {
   step1ContainerRef: React.RefObject<HTMLDivElement | null>;
 }
 
+const ANALYSIS_LABELS: Record<CephaloAnalysisMode, string> = {
+  all: 'Toutes analyses',
+  steiner: 'Steiner',
+  tweed: 'Tweed',
+  mcnamara: 'McNamara',
+  com: 'COM',
+  ricketts: 'Ricketts',
+};
+
+const FAMILY_LEGEND = [
+  ['skeletal', 'Squelettique'],
+  ['dental', 'Dentaire'],
+  ['soft_tissue', 'Tissus mous'],
+  ['reference', 'Références'],
+] as const;
+
 /**
- * R19 layout controller.
+ * R20 workbench composition.
  *
- * The R18 Step1 implementation is preserved unchanged in Step1CephaloBase.tsx.
- * This wrapper only changes page composition: tracing on the left, analysis
- * measurements/details on the right at desktop widths, stacked on smaller
- * screens. All visual styling in the analysis panel comes from Digital Crown
- * theme tokens supplied by CephaloWorkspace.
+ * Scientific/clinical behavior stays in the existing R18/R19 components.
+ * This wrapper only reorganizes the real controls into a left utility rail,
+ * keeps the radiograph as the dominant central surface, and preserves the
+ * real measure panel on the right. On narrow screens the rail becomes a
+ * compact horizontal control block instead of compressing the radiograph.
  */
 export const Step1Cephalo: React.FC<Step1CephaloProps> = (props) => {
   const hasImage = useOrthoStore(state => Boolean(state.imageSrc));
+  const magnifierEnabled = useOrthoStore(state => state.magnifierEnabled);
+  const setMagnifierEnabled = useOrthoStore(state => state.setMagnifierEnabled);
+  const vtoSettings = useOrthoStore(state => state.vtoSettings);
+  const setVtoSettings = useOrthoStore(state => state.setVtoSettings);
+  const activeMorphing = useOrthoStore(state => state.activeMorphing);
+  const setActiveMorphing = useOrthoStore(state => state.setActiveMorphing);
   const [analysis, setAnalysis] = React.useState<CephaloAnalysisMode>('all');
 
   React.useEffect(() => {
@@ -55,12 +78,107 @@ export const Step1Cephalo: React.FC<Step1CephaloProps> = (props) => {
 
   if (!hasImage) return <Step1CephaloBase {...props} />;
 
+  const toggleClass = (active: boolean) =>
+    `min-h-10 rounded-xl border px-3 py-2 text-left text-[11px] font-bold transition-all ${active ? 'shadow-sm' : ''}`;
+
+  const toggleStyle = (active: boolean): React.CSSProperties => ({
+    background: active ? props.P.bgCard : props.P.bgInput,
+    borderColor: active ? props.P.borderFocus : props.P.border,
+    color: active ? props.P.text : props.P.textMuted,
+  });
+
   return (
-    <div data-r19-reference-layout className="grid min-w-0 grid-cols-1 gap-3 xl:grid-cols-[minmax(0,1.55fr)_minmax(330px,0.82fr)] xl:items-stretch">
-      <div className="min-w-0">
+    <div
+      data-r19-reference-layout
+      data-r20-workbench-layout
+      className="grid min-w-0 grid-cols-1 gap-3 xl:grid-cols-[168px_minmax(0,1fr)_minmax(332px,0.72fr)] xl:items-stretch"
+    >
+      <aside
+        data-r20-workbench-sidebar
+        aria-label="Contrôles du workbench céphalométrique"
+        className="min-w-0 rounded-2xl border p-3 xl:h-[80vh] xl:overflow-y-auto"
+        style={{ background: props.P.bgPanel, borderColor: props.P.border, boxShadow: props.P.shadow }}
+      >
+        <div className="flex items-start justify-between gap-2 xl:block">
+          <div className="min-w-0">
+            <p className="text-[9px] font-black uppercase tracking-[0.16em]" style={{ color: props.P.textDim }}>Workbench</p>
+            <h3 className="mt-1 truncate text-sm font-black" style={{ color: props.P.text }}>{ANALYSIS_LABELS[analysis]}</h3>
+          </div>
+          <span className="shrink-0 rounded-full border px-2 py-1 text-[9px] font-black uppercase tracking-wide" style={{ borderColor: props.P.border, color: props.P.textMuted }}>
+            Analyse active
+          </span>
+        </div>
+
+        <div className="mt-3 hidden space-y-2 xl:block" aria-label="Familles scientifiques">
+          {FAMILY_LEGEND.map(([family, label]) => (
+            <div key={family} className="flex items-center gap-2 text-[10px] font-bold" style={{ color: props.P.textMuted }}>
+              <span className="h-2.5 w-2.5 rounded-full" style={{ background: CEPHALO_SCIENTIFIC_COLORS[family] }} />
+              <span>{label}</span>
+            </div>
+          ))}
+        </div>
+
+        <div className="mt-3 border-t pt-3" style={{ borderColor: props.P.border }}>
+          <p className="mb-2 text-[9px] font-black uppercase tracking-[0.16em]" style={{ color: props.P.textDim }}>Affichage</p>
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 xl:grid-cols-1">
+            <button
+              type="button"
+              aria-pressed={magnifierEnabled}
+              onClick={() => setMagnifierEnabled(!magnifierEnabled)}
+              className={toggleClass(magnifierEnabled)}
+              style={toggleStyle(magnifierEnabled)}
+            >
+              Loupe
+            </button>
+            <button
+              type="button"
+              aria-pressed={vtoSettings.showSoftTissue}
+              onClick={() => setVtoSettings(value => ({ ...value, showSoftTissue: !value.showSoftTissue }))}
+              className={toggleClass(vtoSettings.showSoftTissue)}
+              style={toggleStyle(vtoSettings.showSoftTissue)}
+            >
+              Tissus mous
+            </button>
+            <button
+              type="button"
+              aria-pressed={vtoSettings.showGhostFace}
+              onClick={() => setVtoSettings(value => ({ ...value, showGhostFace: !value.showGhostFace }))}
+              className={toggleClass(vtoSettings.showGhostFace)}
+              style={toggleStyle(vtoSettings.showGhostFace)}
+            >
+              Face 3D
+            </button>
+            <button
+              type="button"
+              aria-pressed={activeMorphing === 'T1'}
+              onClick={() => setActiveMorphing(activeMorphing === 'T1' ? 'none' : 'T1')}
+              className={toggleClass(activeMorphing === 'T1')}
+              style={toggleStyle(activeMorphing === 'T1')}
+            >
+              Projection T1
+            </button>
+            <button
+              type="button"
+              aria-pressed={activeMorphing === 'T2'}
+              onClick={() => setActiveMorphing(activeMorphing === 'T2' ? 'none' : 'T2')}
+              className={toggleClass(activeMorphing === 'T2')}
+              style={toggleStyle(activeMorphing === 'T2')}
+            >
+              Projection T2
+            </button>
+          </div>
+        </div>
+      </aside>
+
+      <div
+        data-r20-radiograph-stage
+        className="min-w-0"
+        style={{ '--cephalo-scientific-anchor': '#f8fafc' } as React.CSSProperties}
+      >
         <Step1CephaloBase {...props} />
       </div>
-      <div className="min-w-0 h-[68vh] xl:h-[80vh]">
+
+      <div data-r20-measures-panel className="min-w-0 h-[68vh] xl:h-[80vh]">
         <CephaloAnalysisWorkbenchPanel P={props.P} analysis={analysis} />
       </div>
     </div>

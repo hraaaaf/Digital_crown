@@ -10,22 +10,22 @@ export type CephaloScientificFamily =
  *
  * Families intentionally occupy distant hue regions so overlapping geometry
  * remains quickly distinguishable on a radiograph. Scientific identity is
- * carried by the stable base hue; rendered table/UI color is mixed with
- * Digital Crown's existing --text-main token so contrast adapts across themes
- * without creating a parallel Céphalo theme system. Radiographic rendering may
- * use a dedicated on-dark variant derived from the same family identity, but
- * must never remap the family itself.
+ * carried by the stable base hue. UI/table rendering falls back to Digital
+ * Crown's existing --text-main token for accessible contrast. A radiographic
+ * work surface can provide --cephalo-scientific-anchor to render a brighter
+ * on-dark variant from the SAME family hue, without remapping semantics or
+ * creating a parallel application theme system.
  */
 export const CEPHALO_SCIENTIFIC_BASE_HUES: Readonly<Record<CephaloScientificFamily, string>> = Object.freeze({
   skeletal: '#38a8ff',
   dental: '#ff7a45',
-  soft_tissue: '#32d296',
+  soft_tissue: '#2ec68c',
   reference: '#e85aad',
   auxiliary: '#64748b',
 });
 
 const adaptiveScientificColor = (baseHue: string): string =>
-  `color-mix(in srgb, ${baseHue} 60%, var(--text-main) 40%)`;
+  `color-mix(in srgb, ${baseHue} 60%, var(--cephalo-scientific-anchor, var(--text-main)) 40%)`;
 
 export const CEPHALO_SCIENTIFIC_COLORS: Readonly<Record<CephaloScientificFamily, string>> = Object.freeze({
   skeletal: adaptiveScientificColor(CEPHALO_SCIENTIFIC_BASE_HUES.skeletal),
