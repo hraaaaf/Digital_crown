@@ -9,8 +9,10 @@ from backend.services.ngap_dental_reference import (
     load_ngap_dental_bundle,
     load_ngap_dental_conditions,
     load_ngap_dental_reference,
+    load_ngap_dental_provenance,
     validate_ngap_dental_conditions,
     validate_ngap_dental_reference,
+    validate_ngap_dental_provenance,
 )
 
 
@@ -82,12 +84,25 @@ def test_conditions_are_source_bound_and_keep_distinct_rules():
     assert rules["D739-D741"].startswith("Marsupialisation")
 
 
-def test_mapping_and_conditions_bundle_share_exact_source_hash():
+def test_mapping_conditions_and_locked_binary_share_exact_source_hash():
     bundle = load_ngap_dental_bundle()
     assert (
         bundle["reference"]["reference"]["source_sha256"]
         == bundle["conditions"]["reference"]["source_sha256"]
+        == bundle["provenance"]["locked_binary"]["sha256"]
         == EXPECTED_SOURCE_SHA256
+    )
+
+
+def test_locked_binary_provenance_does_not_equate_discovery_urls():
+    payload = load_ngap_dental_provenance()
+    locked = payload["locked_binary"]
+    assert locked["filename"] == "bo_5414_fr.pdf"
+    assert locked["page_count"] == 220
+    assert locked["byte_size"] == 11334738
+    assert all(
+        source["role"] == "TEXT_CORROBORATION_NOT_LOCKED_BINARY"
+        for source in payload["discovery_sources"]
     )
 
 
@@ -105,6 +120,14 @@ def test_conditions_hash_drift_is_rejected():
     altered["reference"]["source_sha256"] = "0" * 64
     with pytest.raises(ValueError, match="primary source hash mismatch"):
         validate_ngap_dental_conditions(altered)
+
+
+def test_provenance_hash_drift_is_rejected():
+    payload = load_ngap_dental_provenance()
+    altered = copy.deepcopy(payload)
+    altered["locked_binary"]["sha256"] = "0" * 64
+    with pytest.raises(ValueError, match="locked binary hash mismatch"):
+        validate_ngap_dental_provenance(altered)
 
 
 def test_duplicate_or_missing_code_is_rejected():

@@ -17,6 +17,7 @@ from typing import Any
 
 DATASET_ID = "ngap-dental-177-06-v1"
 CONDITIONS_DATASET_ID = "ngap-dental-177-06-conditions-v1"
+PROVENANCE_DATASET_ID = "ngap-dental-177-06-provenance-v1"
 EXPECTED_SOURCE_SHA256 = "e9db137d6a758bd4ad7a506a94a7c0c84726813de3db1e225c761318a75e1fdb"
 EXPECTED_LEGAL_REFERENCE = "177-06 du 26 hija 1426 (27 janvier 2006)"
 REFERENCE_STATUS = "REFERENCE_ONLY_NOT_RUNTIME_CERTIFIED"
@@ -25,6 +26,9 @@ EXPECTED_COLUMNS = ["code", "acte", "coefficient", "anesthesia_coefficient", "en
 DEFAULT_REFERENCE_PATH = Path(__file__).resolve().parents[1] / "data" / "ngap_dental_177_06.json"
 DEFAULT_CONDITIONS_PATH = (
     Path(__file__).resolve().parents[1] / "data" / "ngap_dental_177_06_conditions.json"
+)
+DEFAULT_PROVENANCE_PATH = (
+    Path(__file__).resolve().parents[1] / "data" / "ngap_dental_177_06_provenance.json"
 )
 _CODE_RE = re.compile(r"^D\d{3}$")
 _CONDITION_KEY_RE = re.compile(r"^D\d{3}(?:-D\d{3})?$")
@@ -137,6 +141,38 @@ def validate_ngap_dental_conditions(payload: dict[str, Any]) -> dict[str, Any]:
     return payload
 
 
+def validate_ngap_dental_provenance(payload: dict[str, Any]) -> dict[str, Any]:
+    """Validate the exact locked binary identity separately from discovery URLs."""
+
+    if payload.get("schema_version") != 1:
+        raise ValueError("Unsupported NGAP dental provenance schema version")
+    if payload.get("dataset_id") != PROVENANCE_DATASET_ID:
+        raise ValueError("Unexpected NGAP dental provenance dataset id")
+    if payload.get("status") != "LOCKED_BINARY_REFERENCE_ONLY":
+        raise ValueError("NGAP dental provenance must remain reference-only")
+
+    locked = payload.get("locked_binary")
+    if not isinstance(locked, dict):
+        raise ValueError("NGAP dental locked binary metadata is missing")
+    if locked.get("sha256") != EXPECTED_SOURCE_SHA256:
+        raise ValueError("NGAP dental locked binary hash mismatch")
+    if locked.get("filename") != "bo_5414_fr.pdf":
+        raise ValueError("NGAP dental locked binary filename mismatch")
+    if locked.get("page_count") != 220 or locked.get("byte_size") != 11334738:
+        raise ValueError("NGAP dental locked binary dimensions mismatch")
+
+    sources = payload.get("discovery_sources")
+    if not isinstance(sources, list) or not sources:
+        raise ValueError("NGAP dental discovery sources are missing")
+    for source in sources:
+        if not isinstance(source, dict) or source.get("role") != "TEXT_CORROBORATION_NOT_LOCKED_BINARY":
+            raise ValueError("NGAP dental discovery source role is unsafe")
+        if not isinstance(source.get("url"), str) or not source["url"].startswith("https://"):
+            raise ValueError("NGAP dental discovery source URL is invalid")
+
+    return payload
+
+
 def _load_json_object(path: Path | str, *, context: str) -> dict[str, Any]:
     with Path(path).open("r", encoding="utf-8") as handle:
         payload = json.load(handle)
@@ -159,17 +195,31 @@ def load_ngap_dental_conditions(path: Path | str | None = None) -> dict[str, Any
     )
 
 
+def load_ngap_dental_provenance(path: Path | str | None = None) -> dict[str, Any]:
+    provenance_path = Path(path) if path is not None else DEFAULT_PROVENANCE_PATH
+    return validate_ngap_dental_provenance(
+        _load_json_object(provenance_path, context="NGAP dental provenance")
+    )
+
+
 def load_ngap_dental_bundle(
     reference_path: Path | str | None = None,
     conditions_path: Path | str | None = None,
+    provenance_path: Path | str | None = None,
 ) -> dict[str, dict[str, Any]]:
-    """Load the source-bound mapping and conditions without runtime certification."""
+    """Load mapping, conditions and exact source identity without runtime certification."""
 
     reference = load_ngap_dental_reference(reference_path)
     conditions = load_ngap_dental_conditions(conditions_path)
-    if reference["reference"]["source_sha256"] != conditions["reference"]["source_sha256"]:
-        raise ValueError("NGAP dental mapping/conditions source hash mismatch")
-    return {"reference": reference, "conditions": conditions}
+    provenance = load_ngap_dental_provenance(provenance_path)
+    hashes = {
+        reference["reference"]["source_sha256"],
+        conditions["reference"]["source_sha256"],
+        provenance["locked_binary"]["sha256"],
+    }
+    if hashes != {EXPECTED_SOURCE_SHA256}:
+        raise ValueError("NGAP dental bundle source hash mismatch")
+    return {"reference": reference, "conditions": conditions, "provenance": provenance}
 
 
 def index_ngap_dental_reference(payload: dict[str, Any] | None = None) -> dict[str, dict[str, Any]]:
