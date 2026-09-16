@@ -1,0 +1,24 @@
+{
+  "schema_version": 1,
+  "dataset_id": "ngap-dental-177-06-conditions-v1",
+  "status": "REFERENCE_ONLY_NOT_RUNTIME_CERTIFIED",
+  "reference": {
+    "arrete": "177-06 du 26 hija 1426 (27 janvier 2006)",
+    "publication": "Bulletin officiel n° 5414 du 20 avril 2006",
+    "source_sha256": "e9db137d6a758bd4ad7a506a94a7c0c84726813de3db1e225c761318a75e1fdb"
+  },
+  "scope_note": "Conditions de base de l'arrêté 177-06 uniquement. Les assimilations, évolutions postérieures et règles payeur plus récentes doivent rester dans une couche versionnée séparée.",
+  "conditions": {
+    "D608": "Radiographie indispensable selon le texte source.",
+    "D626": "Les examens spéciaux concourant au diagnostic, notamment radiographies dentaires et téléradiographie de la tête, sont remboursés en sus.",
+    "D628": "Lorsque la rééducation et le traitement ODF sont réalisés par le même praticien, cette cotation ne s'ajoute pas à la cotation globale ODF.",
+    "D629-D641": "Traitements ODF dans le cadre d'accord préalable de la section.",
+    "D703-D706": "Radiographies pré- et post-opératoires obligatoires; majoration de 50 % sur dents permanentes chez l'enfant de moins de 13 ans.",
+    "D712": "Prise en charge limitée aux premières et deuxièmes molaires permanentes, une fois par dent, en cas de risque carieux jusqu'à 14 ans sauf disposition réglementaire contraire.",
+    "D720-D732": "Radiographie pré-opératoire obligatoire.",
+    "D738-D741": "Radiographie obligatoire selon le texte source.",
+    "D739-D741": "Marsupialisation d'un kyste: 50 % des coefficients correspondants.",
+    "D757": "Chaque élément de bridge est coté comme une couronne unitaire de même nature.",
+    "D816": "Prise en charge après accord préalable, suivant devis du praticien."
+  }
+}

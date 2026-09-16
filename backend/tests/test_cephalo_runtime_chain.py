@@ -78,6 +78,8 @@ def _assert_mcnamara(graph, *, calibrated: bool):
         "MCNAMARA_CO_A_MM_V1",
         "MCNAMARA_CO_GN_MM_V1",
         "MCNAMARA_ANS_ME_MM_V1",
+        "M_A_NPERP_MM_V1",
+        "M_POG_NPERP_MM_V1",
     }
     assert all(measurement["requires_calibration"] is True for measurement in mcnamara)
     if calibrated:

@@ -1,0 +1,89 @@
+name: Mutuelles CNSS UI BEFORE
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - feature/mutuelles-dentaires-integration-v2-20260914
+    paths:
+      - '.github/workflows/mutuelles-cnss-ui-before.yml'
+
+permissions:
+  contents: read
+
+env:
+  CNSS_UI_BEFORE_SHA: 688242badac1a8f2ad56589ef490a19e7161980b
+
+jobs:
+  visual-before:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Checkout harness branch
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Prepare exact BEFORE product tree
+        run: |
+          git worktree add /tmp/dc-cnss-before "$CNSS_UI_BEFORE_SHA"
+          test "$(git -C /tmp/dc-cnss-before rev-parse HEAD)" = "$CNSS_UI_BEFORE_SHA"
+
+      - name: Install harness browser dependencies
+        working-directory: frontend
+        run: |
+          npm ci
+          npm install --no-save --package-lock=false --legacy-peer-deps playwright@1.55.0 react-is@19.2.0
+          npx playwright install --with-deps chromium
+
+      - name: Install exact BEFORE frontend
+        run: |
+          cd /tmp/dc-cnss-before/frontend
+          npm ci
+          npm install --no-save --package-lock=false --legacy-peer-deps playwright@1.55.0 react-is@19.2.0
+
+      - name: Capture exact CNSS UI BEFORE
+        run: |
+          cd /tmp/dc-cnss-before/frontend
+          PRODUCT_HEAD="$CNSS_UI_BEFORE_SHA" node "$GITHUB_WORKSPACE/frontend/scripts/capture-mutuelles-cnss-ui-before.mjs"
+          rm -rf "$GITHUB_WORKSPACE/frontend/mutuelles-cnss-ui-before-artifacts"
+          cp -R mutuelles-cnss-ui-before-artifacts "$GITHUB_WORKSPACE/frontend/"
+
+      - name: Verify exact BEFORE artifact contract
+        working-directory: frontend
+        run: |
+          node --input-type=module <<'NODE'
+          import { readFile } from 'node:fs/promises';
+          const report = JSON.parse(await readFile('mutuelles-cnss-ui-before-artifacts/report.json', 'utf8'));
+          const expected = process.env.CNSS_UI_BEFORE_SHA;
+          if (report.productHead !== expected) throw new Error(`Wrong BEFORE SHA ${report.productHead}`);
+          if (report.phase !== 'BEFORE') throw new Error(`Wrong phase ${report.phase}`);
+          if (report.invalidCount !== 0) throw new Error(`Invalid captures ${report.invalidCount}`);
+          if (report.blockedExternalRequests.length !== 0) throw new Error('Unexpected external egress');
+          if (report.captures.length !== 3) throw new Error('Expected three certified viewports');
+          for (const capture of report.captures) {
+            if (!capture.valid) throw new Error(`Invalid ${capture.viewport}`);
+            if (capture.hasInsuranceAction) throw new Error(`CNSS action already present in BEFORE ${capture.viewport}`);
+            if (capture.metrics.horizontalOverflow) throw new Error(`Horizontal overflow ${capture.viewport}`);
+            if (capture.consoleErrors.length) throw new Error(`Console errors ${capture.viewport}`);
+            if (capture.pageErrors.length) throw new Error(`Page errors ${capture.viewport}`);
+          }
+          NODE
+          for viewport in 390x844 768x1024 1280x900; do
+            test -s "mutuelles-cnss-ui-before-artifacts/before-card-${viewport}.png"
+            test -s "mutuelles-cnss-ui-before-artifacts/before-menu-${viewport}.png"
+          done
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: mutuelles-cnss-ui-before-exact
+          path: frontend/mutuelles-cnss-ui-before-artifacts
+          if-no-files-found: error
+          retention-days: 30

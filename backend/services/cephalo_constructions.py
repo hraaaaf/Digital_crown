@@ -61,6 +61,24 @@ def orthogonal_projection_v1(
     return projected
 
 
+def signed_axis_distance_px_v1(
+    target: Optional[Point],
+    origin: Optional[Point],
+    axis: Optional[Point],
+) -> Optional[float]:
+    """Signed distance from origin to target along a unit axis, in pixels."""
+    if target is None or origin is None or axis is None:
+        return None
+    axis_length = math.hypot(axis[0], axis[1])
+    if not math.isfinite(axis_length) or abs(axis_length - 1.0) > 1e-9:
+        return None
+    value = (
+        (target[0] - origin[0]) * axis[0]
+        + (target[1] - origin[1]) * axis[1]
+    )
+    return value if math.isfinite(value) else None
+
+
 def signed_axis_distance_mm_v1(
     target: Optional[Point],
     origin: Optional[Point],
@@ -68,13 +86,13 @@ def signed_axis_distance_mm_v1(
     mm_per_pixel: Optional[float],
 ) -> Optional[float]:
     """Signed distance from origin to target along a unit axis, in millimetres."""
-    if target is None or origin is None or axis is None or not _valid_ratio(mm_per_pixel):
+    if not _valid_ratio(mm_per_pixel):
+        return None
+    distance_px = signed_axis_distance_px_v1(target, origin, axis)
+    if distance_px is None:
         return None
     assert mm_per_pixel is not None
-    value = (
-        (target[0] - origin[0]) * axis[0]
-        + (target[1] - origin[1]) * axis[1]
-    ) * mm_per_pixel
+    value = distance_px * mm_per_pixel
     return value if math.isfinite(value) else None
 
 

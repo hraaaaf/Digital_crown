@@ -1,14 +1,17 @@
 name: Cabinet Upgrade PostgreSQL Certification
 
+# Heavy cabinet compatibility certification runs once after integration on main/master.
+# Feature PRs must carry targeted tests appropriate to the changed lot.
 on:
-  pull_request:
+  push:
+    branches: [main, master]
   workflow_dispatch:
 
 permissions:
   contents: read
 
 concurrency:
-  group: cabinet-upgrade-postgres-${{ github.event.pull_request.number || github.ref }}
+  group: cabinet-upgrade-postgres-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
