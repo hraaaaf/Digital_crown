@@ -1,20 +1,12 @@
 """Deterministic, fail-closed rehearsal of a cabinet PostgreSQL upgrade.
 
-Safety contract
----------------
-* The source/live database is touched only by ``pg_dump``.
-* The same dump is restored into two new databases whose names start with
-  ``dc_rehearsal_``.  Existing databases are never dropped or overwritten.
-* BEFORE is the immutable control clone.  AFTER alone receives Alembic and the
-  backend smoke boot.
-* Source media are copied to an isolated directory and hashed before/after the
-  copy.  Any concurrent source-media mutation blocks the proof.
-* On failure the clones/work directory are intentionally kept for inspection.
-
-This is an operator tool, not a cabinet startup path.  It never changes the live
-schema and never silently stamps a non-empty existing database.
+Safety contract:
+- source/live PostgreSQL is touched only by pg_dump;
+- the same dump is restored into two new dc_rehearsal_* databases;
+- BEFORE is immutable control, AFTER alone receives Alembic + smoke boot;
+- source media are copied and hashed, and any concurrent mutation blocks proof;
+- failures keep clones/workdir for inspection; cleanup only drops this run's clones.
 """
-
 from __future__ import annotations
 
 import argparse
@@ -39,7 +31,6 @@ from urllib.parse import unquote, urlsplit, urlunsplit
 
 import sqlalchemy as sa
 from sqlalchemy.engine import Engine, URL, make_url
-
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 ALEMBIC_VERSION_TABLE = "alembic_version"
@@ -94,7 +85,6 @@ def _find_pg_binary(name: str) -> str:
         return found
     if os.name == "nt":
         import glob
-
         candidates = sorted(
             glob.glob(f"C:/Program Files/PostgreSQL/*/bin/{name}.exe"), reverse=True
         )
@@ -104,7 +94,6 @@ def _find_pg_binary(name: str) -> str:
 
 
 def _canonical_database_target(database_url: str) -> str:
-    """Mirror the runtime PostgreSQL isolation identity without importing backend."""
     parsed = urlsplit(str(database_url or "").strip())
     if not parsed.scheme:
         return str(database_url or "").strip().lower()
@@ -132,8 +121,7 @@ def _media_manifest(root: Path) -> dict[str, Any]:
         raise RuntimeError(f"MEDIA_ROOT introuvable: {root}")
     files: list[tuple[str, int, str]] = []
     for path in sorted((p for p in root.rglob("*") if p.is_file()), key=lambda p: p.as_posix()):
-        rel = path.relative_to(root).as_posix()
-        files.append((rel, path.stat().st_size, _sha256_file(path)))
+        files.append((path.relative_to(root).as_posix(), path.stat().st_size, _sha256_file(path)))
     return {
         "file_count": len(files),
         "total_bytes": sum(item[1] for item in files),
@@ -173,7 +161,9 @@ def _admin_engine(source: PostgresTarget) -> Engine:
 
 def _database_exists(admin: Engine, name: str) -> bool:
     with admin.connect() as connection:
-        return bool(connection.execute(sa.text("SELECT 1 FROM pg_database WHERE datname=:name"), {"name": name}).scalar())
+        return bool(
+            connection.execute(sa.text("SELECT 1 FROM pg_database WHERE datname=:name"), {"name": name}).scalar()
+        )
 
 
 def _create_database(admin: Engine, name: str) -> None:
@@ -192,7 +182,10 @@ def _drop_database(admin: Engine, name: str) -> None:
     quoted = admin.dialect.identifier_preparer.quote(name)
     with admin.connect() as connection:
         connection.execute(
-            sa.text("SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname=:name AND pid<>pg_backend_pid()"),
+            sa.text(
+                "SELECT pg_terminate_backend(pid) FROM pg_stat_activity "
+                "WHERE datname=:name AND pid<>pg_backend_pid()"
+            ),
             {"name": name},
         )
         connection.exec_driver_sql(f"DROP DATABASE IF EXISTS {quoted}")
@@ -253,14 +246,22 @@ def _table_rows(engine: Engine, table: str, columns: Iterable[str]) -> list[list
     columns = list(columns)
     if not columns:
         return []
-    preparer = engine.dialect.identifier_preparer
-    quoted_table = preparer.quote(table)
-    quoted_columns = ",".join(preparer.quote(column) for column in columns)
+    prep = engine.dialect.identifier_preparer
+    quoted_table = prep.quote(table)
+    quoted_columns = ",".join(prep.quote(column) for column in columns)
     with engine.connect() as connection:
-        return [list(row) for row in connection.execute(sa.text(f"SELECT {quoted_columns} FROM {quoted_table}"))]
+        return [
+            list(row)
+            for row in connection.execute(sa.text(f"SELECT {quoted_columns} FROM {quoted_table}"))
+        ]
 
 
-def _table_snapshot(engine: Engine, table: str, expected_columns: list[str] | None = None) -> dict[str, Any]:
+def _table_snapshot(
+    engine: Engine,
+    table: str,
+    expected_columns: list[str] | None = None,
+    expected_pk_columns: list[str] | None = None,
+) -> dict[str, Any]:
     inspector = sa.inspect(engine)
     if not inspector.has_table(table):
         raise RuntimeError(f"Table historique absente: {table}")
@@ -270,6 +271,10 @@ def _table_snapshot(engine: Engine, table: str, expected_columns: list[str] | No
     if missing:
         raise RuntimeError(f"Colonnes historiques supprimées de {table}: {sorted(missing)}")
     pk_columns = list((inspector.get_pk_constraint(table) or {}).get("constrained_columns") or [])
+    if expected_pk_columns is not None and pk_columns != expected_pk_columns:
+        raise RuntimeError(
+            f"Clé primaire historique modifiée sur {table}: {expected_pk_columns} -> {pk_columns}"
+        )
     rows = _table_rows(engine, table, columns)
     row_hashes = sorted(_stable_hash(dict(zip(columns, row, strict=True))) for row in rows)
     pk_hashes: list[str] = []
@@ -289,18 +294,29 @@ def _table_snapshot(engine: Engine, table: str, expected_columns: list[str] | No
 
 
 def _database_snapshot(engine: Engine) -> dict[str, dict[str, Any]]:
-    tables = sorted(t for t in sa.inspect(engine).get_table_names(schema="public") if t != ALEMBIC_VERSION_TABLE)
+    tables = sorted(
+        t for t in sa.inspect(engine).get_table_names(schema="public") if t != ALEMBIC_VERSION_TABLE
+    )
     return {table: _table_snapshot(engine, table) for table in tables}
 
 
-def _database_snapshot_after(engine: Engine, before: dict[str, dict[str, Any]]) -> dict[str, dict[str, Any]]:
+def _database_snapshot_after(
+    engine: Engine, before: dict[str, dict[str, Any]]
+) -> dict[str, dict[str, Any]]:
     return {
-        table: _table_snapshot(engine, table, list(snapshot["columns"]))
+        table: _table_snapshot(
+            engine,
+            table,
+            list(snapshot["columns"]),
+            list(snapshot["pk_columns"]),
+        )
         for table, snapshot in before.items()
     }
 
 
-def _assert_data_preserved(before: dict[str, dict[str, Any]], after: dict[str, dict[str, Any]]) -> None:
+def _assert_data_preserved(
+    before: dict[str, dict[str, Any]], after: dict[str, dict[str, Any]]
+) -> None:
     failures: list[str] = []
     for table, snapshot in before.items():
         for key in ("count", "rows_sha256", "pk_sha256"):
@@ -329,7 +345,8 @@ def _relation_snapshot(engine: Engine, tables: Iterable[str]) -> dict[str, int]:
             missing = f"dst.{prep.quote(target_cols[0])} IS NULL"
             sql = (
                 f"SELECT COUNT(*) FROM {prep.quote(table)} src "
-                f"LEFT JOIN {prep.quote(target_table)} dst ON {join} WHERE {present} AND {missing}"
+                f"LEFT JOIN {prep.quote(target_table)} dst ON {join} "
+                f"WHERE {present} AND {missing}"
             )
             key = f"{table}({','.join(source_cols)})->{target_table}({','.join(target_cols)})"
             with engine.connect() as connection:
@@ -337,30 +354,64 @@ def _relation_snapshot(engine: Engine, tables: Iterable[str]) -> dict[str, int]:
     return dict(sorted(output.items()))
 
 
+def _assert_relations_preserved(
+    before: dict[str, int], after: dict[str, int], label: str
+) -> None:
+    failures: list[str] = []
+    for key, count in before.items():
+        if key not in after:
+            failures.append(f"FK historique supprimée: {key}")
+        elif after[key] != count:
+            failures.append(f"{key}: orphans {count} -> {after[key]}")
+    if failures:
+        raise RuntimeError(f"Régression relations historiques ({label}): " + "; ".join(failures[:20]))
+
+
 def _schema_fingerprint(engine: Engine) -> dict[str, Any]:
     inspector = sa.inspect(engine)
     tables = sorted(inspector.get_table_names(schema="public"))
     payload: list[Any] = []
     for table in tables:
-        columns = sorted((c["name"], str(c["type"]), bool(c["nullable"])) for c in inspector.get_columns(table))
-        indexes = sorted((i.get("name"), tuple(i.get("column_names") or ()), bool(i.get("unique"))) for i in inspector.get_indexes(table))
-        uniques = sorted((u.get("name"), tuple(u.get("column_names") or ())) for u in inspector.get_unique_constraints(table))
-        fks = sorted((tuple(f.get("constrained_columns") or ()), f.get("referred_table"), tuple(f.get("referred_columns") or ())) for f in inspector.get_foreign_keys(table))
-        payload.append((table, columns, indexes, uniques, fks))
-    return {"table_count": len(tables), "schema_sha256": _stable_hash(payload), "tables": tables}
+        columns = sorted(
+            (c["name"], str(c["type"]), bool(c["nullable"])) for c in inspector.get_columns(table)
+        )
+        indexes = sorted(
+            (i.get("name"), tuple(i.get("column_names") or ()), bool(i.get("unique")))
+            for i in inspector.get_indexes(table)
+        )
+        uniques = sorted(
+            (u.get("name"), tuple(u.get("column_names") or ()))
+            for u in inspector.get_unique_constraints(table)
+        )
+        fks = sorted(
+            (
+                tuple(f.get("constrained_columns") or ()),
+                f.get("referred_table"),
+                tuple(f.get("referred_columns") or ()),
+            )
+            for f in inspector.get_foreign_keys(table)
+        )
+        checks = sorted(
+            (c.get("name"), str(c.get("sqltext") or ""))
+            for c in inspector.get_check_constraints(table)
+        )
+        payload.append((table, columns, indexes, uniques, fks, checks))
+    return {
+        "table_count": len(tables),
+        "schema_sha256": _stable_hash(payload),
+        "tables": tables,
+    }
 
 
 def _archive_relative_path(raw_path: str, source_media: Path) -> Path:
-    """Map historical archive paths onto MEDIA_ROOT without duplicating static/media."""
     raw = str(raw_path or "").strip().replace("\\", "/")
     if not raw:
         raise ValueError("empty archive path")
     candidate = Path(raw)
     source_root = source_media.resolve()
     if candidate.is_absolute():
-        resolved = candidate.resolve()
         try:
-            return resolved.relative_to(source_root)
+            return candidate.resolve().relative_to(source_root)
         except ValueError as exc:
             raise ValueError("absolute archive path outside MEDIA_ROOT") from exc
     parts = tuple(part for part in candidate.parts if part not in {"", "."})
@@ -412,12 +463,15 @@ def _archive_file_proof(engine: Engine, media_root: Path, source_media: Path) ->
         raise RuntimeError(
             f"Archives non prouvées: missing={missing[:20]} hash_mismatch={hash_mismatches[:20]}"
         )
-    return {"archive_count": len(rows), "proved_files": len(proof_rows), "proof_sha256": _stable_hash(sorted(proof_rows))}
+    return {
+        "archive_count": len(rows),
+        "proved_files": len(proof_rows),
+        "proof_sha256": _stable_hash(sorted(proof_rows)),
+    }
 
 
 def _alembic_revision(engine: Engine) -> str | None:
-    inspector = sa.inspect(engine)
-    if not inspector.has_table(ALEMBIC_VERSION_TABLE):
+    if not sa.inspect(engine).has_table(ALEMBIC_VERSION_TABLE):
         return None
     with engine.connect() as connection:
         return connection.execute(sa.text("SELECT version_num FROM alembic_version")).scalar_one_or_none()
@@ -464,7 +518,16 @@ def _smoke_backend(after_url: str, media_root: Path) -> dict[str, Any]:
         }
     )
     process = subprocess.Popen(
-        [sys.executable, "-m", "uvicorn", "backend.main:app", "--host", "127.0.0.1", "--port", str(port)],
+        [
+            sys.executable,
+            "-m",
+            "uvicorn",
+            "backend.main:app",
+            "--host",
+            "127.0.0.1",
+            "--port",
+            str(port),
+        ],
         cwd=REPO_ROOT,
         env=env,
         stdout=subprocess.PIPE,
@@ -478,16 +541,19 @@ def _smoke_backend(after_url: str, media_root: Path) -> dict[str, Any]:
             if process.poll() is not None:
                 break
             try:
-                with urllib.request.urlopen(f"http://127.0.0.1:{port}/api/health", timeout=2) as response:
+                with urllib.request.urlopen(
+                    f"http://127.0.0.1:{port}/api/health", timeout=2
+                ) as response:
                     body = response.read().decode("utf-8", errors="replace")
                     if response.status == 200:
-                        return {"status": response.status, "body_sha256": hashlib.sha256(body.encode()).hexdigest()}
+                        return {
+                            "status": response.status,
+                            "body_sha256": hashlib.sha256(body.encode()).hexdigest(),
+                        }
             except Exception as exc:  # noqa: BLE001 - bounded local health probe
                 last_error = str(exc)
             time.sleep(0.5)
-        output = ""
-        if process.stdout:
-            output = process.stdout.read()[-4000:]
+        output = process.stdout.read()[-4000:] if process.stdout else ""
         raise RuntimeError(f"backend smoke /api/health failed: {last_error}\n{output}")
     finally:
         if process.poll() is None:
@@ -566,8 +632,7 @@ def run(source_url: str, source_media: Path, work_dir: Path, *, cleanup: bool) -
         after_data = _database_snapshot_after(after_engine, before_data)
         _assert_data_preserved(before_data, after_data)
         after_relations = _relation_snapshot(after_engine, before_data)
-        if before_relations != after_relations:
-            raise RuntimeError("Régression des relations/FK historiques après migration.")
+        _assert_relations_preserved(before_relations, after_relations, "migration")
         after_archive = _archive_file_proof(after_engine, copied_media, source_media)
         if before_archive != after_archive:
             raise RuntimeError("Preuve archive différente BEFORE/AFTER.")
@@ -585,8 +650,8 @@ def run(source_url: str, source_media: Path, work_dir: Path, *, cleanup: bool) -
             raise RuntimeError("Le boot rehearsal a modifié les médias.")
         data_post_boot = _database_snapshot_after(after_engine, before_data)
         _assert_data_preserved(before_data, data_post_boot)
-        if _relation_snapshot(after_engine, before_data) != before_relations:
-            raise RuntimeError("Le boot rehearsal a modifié l'intégrité relationnelle historique.")
+        relations_post_boot = _relation_snapshot(after_engine, before_data)
+        _assert_relations_preserved(before_relations, relations_post_boot, "boot")
         if _schema_fingerprint(after_engine) != schema_after_second:
             raise RuntimeError("Le boot rehearsal a modifié le schéma.")
 
@@ -594,7 +659,9 @@ def run(source_url: str, source_media: Path, work_dir: Path, *, cleanup: bool) -
             "alembic_revision": _alembic_revision(after_engine),
             "schema": schema_after_second,
             "table_data_sha256": _stable_hash(data_post_boot),
-            "relations_sha256": _stable_hash(before_relations),
+            "historical_relations_sha256": _stable_hash(
+                {key: relations_post_boot[key] for key in before_relations}
+            ),
             "archive": after_archive,
             "health": smoke,
             "media": media_post_boot,
@@ -618,19 +685,27 @@ def run(source_url: str, source_media: Path, work_dir: Path, *, cleanup: bool) -
 
 
 def _build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(description="Rehearse Digital Crown cabinet upgrade on isolated clones.")
+    parser = argparse.ArgumentParser(
+        description="Rehearse Digital Crown cabinet upgrade on isolated clones."
+    )
     parser.add_argument(
         "--source-database-url",
         default=os.environ.get("DIGITALCROWN_REHEARSAL_SOURCE_DATABASE_URL", ""),
-        help="Live/source PostgreSQL URL. It is used only by pg_dump and for creating isolated clone DBs.",
+        help="Live/source PostgreSQL URL; used only by pg_dump and clone DB administration.",
     )
-    parser.add_argument("--media-root", required=True, type=Path, help="Current cabinet MEDIA_ROOT (read-only source).")
-    parser.add_argument("--work-dir", type=Path, default=None, help="New evidence directory; must not already exist.")
-    parser.add_argument("--cleanup", action="store_true", help="Drop only this run's clone DBs after a PASS.")
+    parser.add_argument(
+        "--media-root", required=True, type=Path, help="Current cabinet MEDIA_ROOT (read-only source)."
+    )
+    parser.add_argument(
+        "--work-dir", type=Path, default=None, help="New evidence directory; must not already exist."
+    )
+    parser.add_argument(
+        "--cleanup", action="store_true", help="Drop only this run's clone DBs after a PASS."
+    )
     parser.add_argument(
         "--confirm-source-dump-only",
         action="store_true",
-        help="Required acknowledgement that the source DB must only be read by pg_dump.",
+        help="Required acknowledgement that source DB must only be read by pg_dump.",
     )
     return parser
 
