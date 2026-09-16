@@ -56,7 +56,7 @@ for (const viewport of viewports) {
     : `${appUrl}/patients/${patient.id}?tab=tracking`;
   const response = await page.goto(target, { waitUntil: 'networkidle', timeout: 90000 });
   const httpStatus = response?.status() ?? null;
-  await page.getByRole('button', { name: 'Document', exact: true }).waitFor({ state: 'visible', timeout: 30000 });
+  await page.locator('[data-tour="patient-tabs"]').waitFor({ state: 'visible', timeout: 30000 });
   await page.addStyleTag({ content: '*,*::before,*::after{animation-duration:0s!important;transition-duration:0s!important;caret-color:transparent!important}' });
 
   const hasCompanionTab = (await page.getByRole('button', { name: 'Companion', exact: true }).count()) > 0;
