@@ -97,6 +97,14 @@ export const AgendaPage: React.FC = () => {
         return config;
       }
 
+      if (method === 'get' && url === '/appointments/' && activePractitionerId) {
+        config.params = {
+          ...(config.params || {}),
+          praticien_id: config.params?.praticien_id ?? activePractitionerId,
+        };
+        return config;
+      }
+
       if (!activePractitionerId) return config;
 
       if (method === 'post' && url === '/appointments/') {

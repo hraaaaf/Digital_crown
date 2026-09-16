@@ -122,11 +122,20 @@ def _appointments_overlap(start_a: datetime, duration_a: int, start_b: datetime,
 def get_appointments(
     start_date: Optional[str] = None,
     end_date: Optional[str] = None,
+    praticien_id: Optional[int] = Query(None),
     db: Session = Depends(database.get_db),
     current_user: models.User = Depends(require_permission("agenda")),
 ):
     user_employer_id = current_user.get_employer_id()
     query = db.query(models.Appointment).filter(models.Appointment.employer_id == user_employer_id)
+    if praticien_id is not None:
+        _validate_practitioner(db, user_employer_id, praticien_id)
+        query = query.filter(
+            or_(
+                models.Appointment.praticien_id == praticien_id,
+                models.Appointment.praticien_id.is_(None),
+            )
+        )
     if start_date:
         query = query.filter(models.Appointment.datetime_start >= datetime.fromisoformat(start_date.replace("Z", "+00:00")))
     if end_date:
