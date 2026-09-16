@@ -235,6 +235,55 @@ def test_prepare_verified_snapshot_entry_rejects_missing_local_artifact(tmp_path
         )
 
 
+def test_local_artifact_reader_rejects_symlink_escape_from_rcp_directory(tmp_path, monkeypatch):
+    monkeypatch.setattr(medication_rcp_manifest, "_REPO_ROOT", tmp_path)
+    payload = b"%PDF-1.7\noutside allowed RCP directory\n%%EOF"
+    outside = tmp_path / "backend" / "data" / "outside.pdf"
+    outside.parent.mkdir(parents=True, exist_ok=True)
+    outside.write_bytes(payload)
+
+    declared = tmp_path / "backend" / "data" / "rcp" / "escape.pdf"
+    declared.parent.mkdir(parents=True, exist_ok=True)
+    try:
+        declared.symlink_to(outside)
+    except (OSError, NotImplementedError) as exc:
+        pytest.skip(f"symlinks unavailable on this platform: {exc}")
+
+    relative_path = "backend/data/rcp/escape.pdf"
+    assert medication_rcp_manifest._is_safe_local_pdf_artifact_path(relative_path) is True
+    assert medication_rcp_manifest._read_local_artifact_bytes(relative_path) is None
+
+    original = medication_rcp_manifest._load_manifest()["entries"][0]
+    with pytest.raises(ValueError, match="must exist"):
+        medication_rcp_manifest.prepare_verified_snapshot_entry(
+            original,
+            pdf_bytes=payload,
+            rcp_url="https://www.ammps.gov.ma/rcp/example.pdf",
+            checked_at="2026-09-15",
+            local_artifact_path=relative_path,
+        )
+
+
+def test_local_artifact_reader_rejects_symlinked_canonical_rcp_root(tmp_path, monkeypatch):
+    monkeypatch.setattr(medication_rcp_manifest, "_REPO_ROOT", tmp_path)
+    payload = b"%PDF-1.7\nredirected RCP root\n%%EOF"
+
+    redirected_root = tmp_path / "redirected-rcp"
+    redirected_root.mkdir(parents=True, exist_ok=True)
+    (redirected_root / "example.pdf").write_bytes(payload)
+
+    declared_root = tmp_path / "backend" / "data" / "rcp"
+    declared_root.parent.mkdir(parents=True, exist_ok=True)
+    try:
+        declared_root.symlink_to(redirected_root, target_is_directory=True)
+    except (OSError, NotImplementedError) as exc:
+        pytest.skip(f"directory symlinks unavailable on this platform: {exc}")
+
+    relative_path = "backend/data/rcp/example.pdf"
+    assert medication_rcp_manifest._is_safe_local_pdf_artifact_path(relative_path) is True
+    assert medication_rcp_manifest._read_local_artifact_bytes(relative_path) is None
+
+
 @pytest.mark.parametrize(
     ("pdf_bytes", "rcp_url", "checked_at", "local_artifact_path"),
     [
