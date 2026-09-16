@@ -103,21 +103,41 @@ def test_cnops_prefill_keeps_insured_identity_fail_closed(db, dentiste):
     result = prefill_cnops_administrative(db, draft=_draft(patient.id, acte.id, organization=InsuranceOrganization.CNOPS), patient=patient, practitioner=dentiste)
     admin = result.administrative
     assert admin.beneficiary_full_name == "Youssef PatientCNOPS"
-    assert admin.insured_full_name is None; assert admin.insured_address is None; assert admin.relationship_to_insured is None
-    for key in ("request_nature","insured_full_name","insured_registration_number","insured_national_id","insured_address","insured_quality","beneficiary_national_id","relationship_to_insured"):
+    assert admin.insured_full_name is None
+    assert admin.insured_affiliation_number is None
+    assert admin.insured_registration_number is None
+    assert admin.insured_address is None
+    assert admin.relationship_to_insured is None
+    for key in (
+        "request_nature", "insured_full_name", "insured_affiliation_number",
+        "insured_registration_number", "insured_national_id", "insured_address",
+        "beneficiary_national_id",
+    ):
         assert f"administrative.{key}" in result.unresolved_fields
+    # Exact validated form has no insured-quality/practitioner-name field, and relation
+    # is optional because only Conjoint/Enfant marks exist (self can leave both blank).
+    assert "administrative.insured_quality" not in result.unresolved_fields
+    assert "administrative.practitioner_full_name" not in result.unresolved_fields
+    assert "administrative.relationship_to_insured" not in result.unresolved_fields
     assert result.status == InsuranceDraftStatus.INCOMPLETE
 
 
-def test_complete_cnops_declaration_plus_exact_mapping_becomes_ready(db, dentiste):
+def test_complete_cnops_form_zone_plus_exact_mapping_becomes_ready(db, dentiste):
     patient = _patient(db, dentiste, suffix="CNOPSREADY", assurance="CNOPS"); acte = _acte(db, patient, dentiste)
     complete = InsuranceAdministrativeSnapshot(
-        request_nature=InsuranceRequestNature.EXECUTION, insured_full_name="Ahmed Assure",
-        insured_registration_number="12345678", insured_national_id="AB123456",
-        insured_address="Adresse assure explicite", insured_quality="Adherent",
-        beneficiary_full_name="Youssef PatientCNOPSREADY", beneficiary_birth_date=date(1992,4,3),
-        beneficiary_national_id="CD123456", beneficiary_sex="M", relationship_to_insured="Enfant",
-        practitioner_full_name="Dr Test", practitioner_inpe="123456", care_type=InsuranceCareType.SOINS,
+        request_nature=InsuranceRequestNature.EXECUTION,
+        insured_full_name="Ahmed Assure",
+        insured_affiliation_number="AFF-123456",
+        insured_registration_number="IMM-12345678",
+        insured_national_id="AB123456",
+        insured_address="Adresse assure explicite",
+        beneficiary_full_name="Youssef PatientCNOPSREADY",
+        beneficiary_birth_date=date(1992,4,3),
+        beneficiary_national_id="CD123456",
+        beneficiary_sex="M",
+        # Relationship deliberately absent: valid for self-beneficiary on exact form.
+        practitioner_inpe="123456",
+        care_type=InsuranceCareType.SOINS,
     )
     result = prefill_cnops_administrative(db, draft=_draft(patient.id, acte.id, exact=True, administrative=complete, organization=InsuranceOrganization.CNOPS), patient=patient, practitioner=dentiste)
     assert result.unresolved_fields == []; assert result.status == InsuranceDraftStatus.READY_FOR_REVIEW
