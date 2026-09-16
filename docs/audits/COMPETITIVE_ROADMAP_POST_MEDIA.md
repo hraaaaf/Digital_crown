@@ -143,9 +143,50 @@ Reproducibility controls retained:
 
 D1 non-goals remain: no appointment mutation, no patient byte download/open fallback, no employee delegation, no second business source, no remote gateway, no Vercel deployment.
 
+### D2 — staff operability
+
+**Status: CLOSED — merged and post-merge certified.**
+
+Canonical: `docs/audits/PATIENT_COMPANION_D2.md`
+PR: **#523 — MERGED**
+Certified PR head: `206f58e6571c6fdfa2af8e726ce032d694928799`
+Merge commit: `6cc0c41fd64d40ef8929bebe11c67ecc4fc42672`
+Post-merge CI #4574 / run `35100604875`: **SUCCESS**
+Post-merge PostgreSQL #917 / run `35100604888`: **SUCCESS**
+
+Implemented scope:
+- staff Companion tab inside canonical patient details;
+- owner/admin access status projection from D0 models;
+- invitation/reissue with memory-only temporary code/QR;
+- explicit canonical Document/Media share and revoke operations;
+- full Companion access revoke;
+- no new Patient/Appointment/Document/Media source of truth;
+- no patient appointment mutation;
+- no remote gateway;
+- no destructive migration;
+- no Vercel deployment.
+
+Closure evidence:
+- Patient Companion D2 Visual #51 **SUCCESS** on exact final PR head;
+- targeted D2 backend tests executed successfully inside that gate;
+- Media C4 #105 **SUCCESS**;
+- general CI #4561 **SUCCESS**;
+- responsive BEFORE/AFTER evidence at 390×844 / 768×1024 / 1280×900;
+- merge after explicit owner authorization;
+- post-merge full backend regression, frontend tests/build and production negative guard **SUCCESS** on exact merge SHA;
+- PostgreSQL 18 cabinet preservation + immutable release invariants **SUCCESS**.
+
+### Patient Companion continuation after D2
+
+There is **no canonical D3 defined** at the D2 closeout point.
+
+The pre-D2 roadmap label `D1+ — useful patient workflows beyond the minimum shell` remains the canonical placeholder for any additional Patient Companion product workflows. Do not silently rename this to D3 unless the roadmap is explicitly revised after scope definition.
+
+Before implementation, the next Patient Companion lot must first be bounded against D0/D1/D2 and the existing internal Patient Journey so it does not duplicate business logic, storage or staff workflows.
+
 ## 5. Remaining roadmap order
 
-1. Lot D1+ — useful patient workflows beyond the minimum shell, only after new scope is explicitly bounded
+1. Patient Companion continuation (`D1+` placeholder) — useful patient workflows beyond the minimum shell, only after new scope is explicitly bounded
 2. Lot E — Connect Hub
 3. Lot F — Ortho Journey
 4. Lot G — Assurance Maroc
@@ -215,12 +256,14 @@ A lot is not CLOSED until applicable steps are complete:
 ## 13. Current state / Next exact
 
 - Media C: **CLOSED**.
-- Patient Companion D0: **CLOSED** with exact merge and post-merge evidence recorded.
-- Patient Companion D1: **CLOSED** with exact-head visual proof, human validation, merge and post-merge CI recorded.
-- D1+: not started; scope must be bounded before implementation.
+- Patient Companion D0: **CLOSED**.
+- Patient Companion D1: **CLOSED**.
+- Patient Companion D2: **CLOSED**, with exact merge and post-merge CI/PostgreSQL evidence recorded.
+- No canonical D3 exists at this point.
+- Patient Companion continuation (`D1+` placeholder): not started; scope must be bounded before implementation.
 - E–I: not started.
 - No deployment authorized.
 
-**Next exact:** either bound the D1+ patient workflow scope, or if no additional Patient Companion scope is selected, begin Lot E with an anti-duplication audit of existing notification/push/preferences infrastructure before any implementation.
+**Next exact:** open the Patient Companion continuation handover, re-check current master/PR/CI, then bound the next patient-facing workflow scope. If no additional Patient Companion scope is selected, begin Lot E with an anti-duplication audit of existing notification/push/preferences infrastructure before any implementation.
 
 End of canonical roadmap.
