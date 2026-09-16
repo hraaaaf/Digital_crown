@@ -37,7 +37,7 @@ jobs:
         working-directory: frontend
         run: |
           cat > agenda-a3-theme.html <<'EOF'
-          <div id="root"></div><script type="module" src="/src/agenda-a3-theme.tsx"></script>
+          <!doctype html><html lang="fr"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/><title>A3 Theme</title></head><body><div id="root"></div><script type="module" src="/src/agenda-a3-theme.tsx"></script></body></html>
           EOF
           cat > src/agenda-a3-theme.tsx <<'EOF'
           import React from 'react';
@@ -77,7 +77,6 @@ jobs:
           try {
             for (const theme of themes) for (const [width,height] of viewports) {
               const context=await browser.newContext({viewport:{width,height},locale:'fr-FR',timezoneId:'Africa/Casablanca'});
-              await context.addInitScript((value)=>{ if(value==='default') delete document.documentElement.dataset.theme; else document.documentElement.dataset.theme=value; },theme);
               const page=await context.newPage(); const errors=[];
               page.on('pageerror',e=>errors.push(`pageerror: ${e.message}`)); page.on('console',m=>{if(m.type()==='error')errors.push(`console: ${m.text()}`)});
               await page.route('**/api/**',async route=>{const u=new URL(route.request().url());
@@ -87,6 +86,8 @@ jobs:
                 return route.fulfill(json([]));
               });
               await page.goto('http://127.0.0.1:4205/agenda-a3-theme.html',{waitUntil:'networkidle'});
+              await page.evaluate((value)=>{ if(value==='default') delete document.documentElement.dataset.theme; else document.documentElement.dataset.theme=value; },theme);
+              await page.evaluate(()=>new Promise(requestAnimationFrame));
               await page.getByText('Disponibilités par praticien',{exact:true}).waitFor(); await page.getByText('Heure',{exact:true}).waitFor();
               const available=page.getByLabel('Créer un rendez-vous avec Dr Youssef Benali à 10:00');
               const pause=page.getByLabel('Dr Youssef Benali indisponible à 12:15 : Pause du praticien');
