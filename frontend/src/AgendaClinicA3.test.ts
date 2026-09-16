@@ -27,6 +27,7 @@ describe('agenda clinic A3 practitioner availability', () => {
     expect(panel).toContain("api.post(`/agenda/practitioners/${selectedId}/exceptions`");
   });
 
+  // Regression guard for older Settings/browser harnesses that return {} on unknown GET endpoints.
   it('fails safe when legacy harnesses return non-array collection payloads', () => {
     const panel = read('./features/admin/Settings/tabs/PractitionerAvailabilityPanel.tsx');
 
