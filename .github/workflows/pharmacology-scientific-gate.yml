@@ -1,0 +1,80 @@
+name: Pharmacology Deterministic Scientific Safety Gate
+
+on:
+  pull_request:
+    paths:
+      - 'backend/services/medication_rcp_manifest.py'
+      - 'backend/services/medication_dict.py'
+      - 'backend/data/medications_ma_ammps*.json'
+      - 'backend/tests/test_medication_rcp_manifest_m1b.py'
+      - 'backend/tests/test_prescription_pharmacology_morocco_m0_matrix.py'
+      - 'docs/audits/PRESCRIPTION_PHARMACOLOGY_MOROCCO_**'
+      - '.claude/agents/scientific-reviewer.md'
+      - '.claude/skills/review-scientific-pull-request/**'
+      - '.claude/skills/scientific-source-research/**'
+      - 'scripts/pharmacology_scientific_gate.py'
+      - '.github/workflows/pharmacology-scientific-gate.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: pharmacology-scientific-gate-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  deterministic-safety:
+    name: Pharmacology deterministic safety (not scientific approval)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout exact candidate HEAD
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+
+      - name: Record and verify exact candidate HEAD
+        env:
+          EXPECTED_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          PRODUCT_HEAD=$(git rev-parse HEAD)
+          test "$PRODUCT_HEAD" = "$EXPECTED_HEAD"
+          echo "PRODUCT_HEAD=$PRODUCT_HEAD" >> "$GITHUB_ENV"
+
+      - name: Setup Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install minimal test dependency
+        run: python -m pip install --disable-pip-version-check pytest
+
+      - name: Run targeted pharmacology documentary tests
+        run: |
+          python -m pytest \
+            backend/tests/test_prescription_pharmacology_morocco_m0_matrix.py \
+            backend/tests/test_medication_rcp_manifest_m1b.py \
+            -q
+
+      - name: Run independent deterministic safety oracle
+        run: python scripts/pharmacology_scientific_gate.py --output-dir audit/out/pharmacology-scientific-gate
+
+      - name: Publish gate summary
+        if: always()
+        run: |
+          if test -f audit/out/pharmacology-scientific-gate/summary.md; then
+            cat audit/out/pharmacology-scientific-gate/summary.md >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo '## Pharmacology deterministic scientific safety gate' >> "$GITHUB_STEP_SUMMARY"
+            echo 'Gate report unavailable because execution failed before report generation.' >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Upload deterministic evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pharmacology-deterministic-safety-${{ env.PRODUCT_HEAD }}
+          path: audit/out/pharmacology-scientific-gate/
+          if-no-files-found: warn
+          retention-days: 30
