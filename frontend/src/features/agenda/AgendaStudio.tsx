@@ -10,6 +10,7 @@ import { FrontdeskModal } from './FrontdeskModal';
 import { AgendaModal } from './AgendaModal';
 import { PendingRequestCard } from './PendingRequestCard';
 import { api } from '../../services/api';
+import { usePractitionerContextStore } from '../clinic/practitionerContext';
 import { CalendarClock, Settings, AlertCircle } from 'lucide-react';
 
 export type AgendaViewMode = 'day' | 'week' | 'month' | 'multi';
@@ -83,6 +84,7 @@ const MultiPractitionerView: React.FC<{ data: any; loading: boolean }> = ({ data
 
 export const AgendaStudio: React.FC = () => {
   const location = useLocation();
+  const selectedPractitionerId = usePractitionerContextStore((state) => state.selectedPractitionerId);
   const [viewMode, setViewMode] = useState<AgendaViewMode>('week');
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
@@ -182,13 +184,14 @@ export const AgendaStudio: React.FC = () => {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [viewMode, selectedDate]);
 
+  const practitionerViewKey = selectedPractitionerId ?? 'unscoped';
   const renderView = () => {
     switch (viewMode) {
-      case 'day': return <DailyView key={`day-${refreshKey}`} selectedDate={selectedDate} agendaSettings={settings} exceptions={exceptions} />;
-      case 'week': return <WeeklyView key={`week-${refreshKey}`} selectedDate={selectedDate} agendaSettings={settings} exceptions={exceptions} />;
-      case 'month': return <MonthlyView key={`month-${refreshKey}`} selectedDate={selectedDate} />;
+      case 'day': return <DailyView key={`day-${refreshKey}-${practitionerViewKey}`} selectedDate={selectedDate} agendaSettings={settings} exceptions={exceptions} />;
+      case 'week': return <WeeklyView key={`week-${refreshKey}-${practitionerViewKey}`} selectedDate={selectedDate} agendaSettings={settings} exceptions={exceptions} />;
+      case 'month': return <MonthlyView key={`month-${refreshKey}-${practitionerViewKey}`} selectedDate={selectedDate} />;
       case 'multi': return <MultiPractitionerView data={multiData} loading={loadingMulti} />;
-      default: return <WeeklyView key={`week-${refreshKey}`} selectedDate={selectedDate} agendaSettings={settings} exceptions={exceptions} />;
+      default: return <WeeklyView key={`week-${refreshKey}-${practitionerViewKey}`} selectedDate={selectedDate} agendaSettings={settings} exceptions={exceptions} />;
     }
   };
 
