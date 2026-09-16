@@ -1,8 +1,9 @@
 """Audited manual-calibration transition for persisted cephalometric evidence.
 
-This module changes calibration provenance and the four already-versioned CRANIOM
-linear measurements only. Calibration-independent measurements, including Steiner,
-are preserved exactly. It never activates norms, diagnosis or treatment.
+This module changes calibration provenance and rebuilds every certified
+calibration-dependent measurement present in the current snapshot from its typed
+construction. Calibration-independent measurements, including Steiner, are preserved
+exactly. It never activates norms, diagnosis or treatment.
 """
 from __future__ import annotations
 
@@ -19,6 +20,7 @@ from backend.schemas.cephalo_evidence import (
 from backend.schemas.clinical import CephaloAnalysisResult
 from backend.services.cephalo_evidence_case_integrity import validate_case_evidence_graph
 from backend.services.cephalo_evidence_graph import EvidenceGraphSnapshot
+from backend.services.cephalo_mcnamara_evidence import adapt_mcnamara_nperp_measurements
 from backend.services.cephalo_measurement_adapter import adapt_craniom_linear_measurements
 from backend.services.cephalo_runtime_evidence import (
     EVIDENCE_SCHEMA_VERSION,
@@ -280,13 +282,23 @@ def rebuild_evidence_after_manual_calibration(
         constructions=construction_map,
         calibration_ref=calibration.evidence_id,
     )
+    rebuilt_mcnamara_nperp = adapt_mcnamara_nperp_measurements(
+        measurement_namespace=f"measurement:{case_id}:r{next_revision}:mcnamara:nperp",
+        constructions=construction_map,
+        mm_per_pixel=ratio,
+        calibration_ref=calibration.evidence_id,
+    )
     preserved_independent = [
         item for item in old_measurements if not item.requires_calibration
     ]
     rebuilt_calibrated = [
         item for item in rebuilt_craniom if item.requires_calibration
     ]
-    measurements = [*preserved_independent, *rebuilt_calibrated]
+    measurements = [
+        *preserved_independent,
+        *rebuilt_calibrated,
+        *rebuilt_mcnamara_nperp,
+    ]
 
     current_sources = [source for source in sources if source.kind != "calibration"] + [calibration]
     graph = EvidenceGraphSnapshot(
