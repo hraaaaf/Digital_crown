@@ -37,24 +37,25 @@ CNSS_REQUIRED_ADMIN_FIELDS = (
     "care_type",
 )
 
-# The exact CNOPS dental binary SHA-256 89097caca32aef6b4d34d2d06fb9cc6f9bdc1f3c4385cf5558b5742a3af6f505
-# was cabinet-validated on 2026-09-16. Unlike the deliberately untouched CNSS insured
-# zone, its visible insured/beneficiary declaration is part of the CNOPS review gate.
-# Optional/case-dependent fields (prior approval and accident details) are not made
-# unconditional blockers. No value below is fabricated: missing facts remain unresolved.
+# Exact CNOPS dental binary SHA-256:
+# 89097caca32aef6b4d34d2d06fb9cc6f9bdc1f3c4385cf5558b5742a3af6f505
+# Cabinet-validated on 2026-09-16. Its visible administrative zone contains separate
+# affiliation and immatriculation numbers. It does NOT contain an insured-quality or
+# practitioner-name field. Relationship is intentionally optional because the form only
+# exposes Conjoint/Enfant marks and a self-beneficiary can legitimately leave both blank.
+# Optional/case-dependent prior-approval and accident fields are also not unconditional
+# blockers. Missing facts remain unresolved; nothing below is inferred from lookalike data.
 CNOPS_REQUIRED_ADMIN_FIELDS = (
     "request_nature",
     "insured_full_name",
+    "insured_affiliation_number",
     "insured_registration_number",
     "insured_national_id",
     "insured_address",
-    "insured_quality",
     "beneficiary_full_name",
     "beneficiary_birth_date",
     "beneficiary_national_id",
     "beneficiary_sex",
-    "relationship_to_insured",
-    "practitioner_full_name",
     "practitioner_inpe",
     "care_type",
 )
@@ -242,7 +243,7 @@ def prefill_cnops_administrative(
         db, draft=draft, patient=patient, practitioner=practitioner
     )
     # Deliberately do not copy patient address/CIN into insured fields and do not infer
-    # insured identity, quality or relationship from the beneficiary identity.
+    # insured identity, affiliation/immatriculation or relationship from beneficiary data.
     return _apply_admin_policy(
         draft=draft,
         administrative=administrative,
