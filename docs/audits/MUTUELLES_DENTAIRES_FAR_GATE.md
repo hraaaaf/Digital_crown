@@ -1,7 +1,7 @@
 # MUTUELLES DENTAIRES — FAR SOURCE / GATE
 
 Date: 2026-09-17
-Status: **BLOCKED — SOURCE PDF / PRINT GEOMETRY NOT YET CERTIFIED**
+Status: **BLOCKED — PRINTABLE REFERENCE NOT YET CABINET-ACCEPTED**
 Scope: FAR only. No FAR implementation is authorized by this gate.
 
 ## Goal
@@ -22,7 +22,8 @@ The FAR SOURCE/GATE becomes implementation-authorizing only when all of the foll
 8. allowed / forbidden auto-filled fields are mapped;
 9. common Mutuelles engine coverage is checked and only the minimum FAR-specific extension is permitted;
 10. the printable geometry is proven sufficiently reliable for overlays / final PDF output;
-11. no implementation starts before this gate is upgraded from BLOCKED.
+11. the cabinet explicitly accepts the printable reconstructed reference if Path B is used;
+12. no implementation starts before this gate is upgraded from BLOCKED.
 
 ## Cabinet-validated layout identity
 
@@ -72,7 +73,7 @@ Verified properties:
 
 Visual content shows the four logical FAR pages/areas in a 2x2 preview composition: Page 4, Page 1, Page 2 `ORDONNANCE`, Page 3 acts/providers.
 
-This asset is therefore useful as a **layout/render reference**, but it is not proven to be either physical page of the original 2-page PDF and is not high-resolution enough to certify final print geometry.
+This asset is useful as a **layout/render reference**, but it is not proven to be either physical page of the original 2-page PDF and is not high-resolution enough to certify final print geometry by itself.
 
 ### Independent Scribd render asset — document 700464590
 
@@ -92,7 +93,7 @@ It independently reproduces the same four logical areas but with different scan/
 
 ### Low-resolution Scribd asset — document 742194320
 
-The indexed `original/.../1?v=1` URL was also actually downloaded, but resolves only to:
+The indexed `original/.../1?v=1` URL was actually downloaded, but resolves only to:
 
 - JPEG `255 x 330 px`;
 - `2163` bytes;
@@ -123,7 +124,49 @@ The cabinet-validated/corroborated form contains:
 
 Scribd indexes the chosen/corroborating uploads as **2 pages**, while the form itself carries logical labels Page 1 through Page 4. The recovered 768x1024 preview assets compose all four logical pages into one preview image; they do not prove the exact two physical PDF page dimensions/imposition.
 
-Therefore physical print geometry remains unverified.
+Therefore original physical print geometry remains unverified.
+
+## Reconstructed preview generated — Path B proof artifact
+
+Using only the recovered `777249804` public render asset, two **non-official preview binaries** were generated to make the implied imposition inspectable without pretending to own the original FAR PDF.
+
+### Two-side preview
+
+Filename:
+
+`FAR_RECONSTRUCTED_PREVIEW_2UP.pdf`
+
+Construction:
+
+- page 1: top half of the 768x1024 render -> logical `Page4 | Page1`;
+- page 2: bottom half -> logical `Page2 | Page3`;
+- custom geometry: `768 x 512 pt` per page;
+- this geometry preserves source-preview pixels 1:1 and is **not** asserted to be the original FAR paper size.
+
+Verified binary:
+
+- page count: `2`;
+- byte size: `575527`;
+- SHA-256: `61202c763817e5dc8a037fa178f6ef5785ae527adf23ecd7b7a4ee54c4902cbd`.
+
+### Four-logical-page inspection preview
+
+Filename:
+
+`FAR_RECONSTRUCTED_PREVIEW_LOGICAL_4P.pdf`
+
+Construction/order:
+
+`Page1 -> Page2 ORDONNANCE -> Page3 acts -> Page4 dental`.
+
+Verified binary:
+
+- page count: `4`;
+- custom geometry: `384 x 512 pt` per page;
+- byte size: `557916`;
+- SHA-256: `7e115403fc25cacf3039a7e80704c97c5c1e638955f48906519926e47662566a`.
+
+These previews are explicitly **audit/reconstruction artifacts only**. They are not yet a printable application reference and are not stored in the Git repository. They exist in the temporary source-recovery workspace so the next step can be cabinet visual acceptance or replacement by a higher-fidelity source.
 
 ## Prescription isolation
 
@@ -162,6 +205,7 @@ Potentially sourced from existing explicit cabinet/patient/practitioner data, su
 - no FAR implementation from low-resolution preview geometry;
 - no source labelled `OFFICIAL_PRIMARY` without primary proof;
 - no source labelled `CABINET_VALIDATED_BINARY` unless exact bytes are explicitly cabinet-validated and bound to their SHA-256;
+- no reconstructed preview labelled as an original FAR document;
 - no production mutation;
 - no Vercel deployment without explicit user authorization;
 - no merge without explicit user agreement.
@@ -185,34 +229,43 @@ What is now proven:
 - correct cabinet-selected visual/layout identity;
 - multiple independent corroborating uploads;
 - exact bytes, SHA-256, byte size and dimensions for two independent public render assets;
-- all four logical roles visible, including isolated `ORDONNANCE`.
+- all four logical roles visible, including isolated `ORDONNANCE`;
+- deterministic two-side and four-logical-page reconstruction previews with exact hashes and page geometry.
 
 What is still missing:
 
-- an exact printable application reference at sufficient fidelity;
-- certified physical page count/dimensions/imposition for that reference;
-- exact overlay geometry derived from that printable reference.
+- a cabinet-accepted printable application reference at sufficient fidelity;
+- exact final page dimensions chosen for that printable reference;
+- Target -> Render acceptance for that reference;
+- exact overlay geometry derived from the accepted printable reference.
 
-The blocker has therefore narrowed from “unknown model / no bytes” to **“no certified printable reference geometry”**.
+The blocker has therefore narrowed to **cabinet acceptance / printable fidelity**, not model identity.
 
 ## Next exact
 
-Use one of these two valid paths:
+Present the Path B reconstruction to the cabinet for visual acceptance, or replace it with a legitimate higher-fidelity Path A PDF/scan if one becomes available.
 
-A. recover a legitimate full-resolution PDF/scan matching the cabinet-validated model; or
+If the reconstructed output is accepted, the next source-gate pass must:
 
-B. create a clean reconstructed printable reference from the validated layout, classify it explicitly as `CABINET_VALIDATED_RECONSTRUCTED_REFERENCE`, visually compare it against the cabinet-selected target, bind exact SHA-256/page geometry to the reconstructed binary, and only then use that binary for overlays.
+1. freeze the exact accepted binary;
+2. classify it `CABINET_VALIDATED_RECONSTRUCTED_REFERENCE`;
+3. select and record final printable page dimensions without distorting the validated geometry;
+4. render the final binary and compare Target -> Render;
+5. bind trust to SHA-256;
+6. map exact overlay coordinates;
+7. upgrade this gate;
+8. reconcile the implementation branch with current master;
+9. only then begin FAR implementation.
 
-For path B, reconstruction must not be presented as an official FAR original. It becomes acceptable only after real Target -> Render comparison and cabinet acceptance of the reconstructed printable output.
-
-## Repository state observed before this update
+## Repository state observed in this pass
 
 - repository: `hraaaaf/Digital_crown`;
 - branch: `docs/mutuelles-far-source-gate-20260916`;
-- prior branch HEAD: `5a2798ce063fd7503503e83dc863d561cee41d96`;
-- current master observed: `eb2353b68d880b89dfadd13819fb43d1c71e2f1d`;
-- compare before write: branch ahead `2`, behind master `5`;
-- master-only changes observed in compare are outside these FAR docs (`backend/tests/test_agenda_availability_wiring.py`, `backend/tests/test_mobile_identity_security.py`).
+- master observed: `eb2353b68d880b89dfadd13819fb43d1c71e2f1d`;
+- PR `#559`: OPEN / DRAFT / mergeable at last check;
+- branch before this update: `ae9d9bc6d09b02858b7a9cfa4a1272d823b98c8b`;
+- compare before this update: branch ahead `4`, behind master `5`;
+- exact-HEAD CI on `ae9d9bc6...`: main `CI` success and `T2 Runtime Browser Certification` success; unrelated workflows skipped.
 
 No FAR code, DB mutation, production mutation, deployment or merge was performed in this source pass.
 
@@ -222,4 +275,4 @@ No FAR code, DB mutation, production mutation, deployment or merge was performed
 - ADVERSARIAL_SCORE: **5.9/10**
 - Retained: **5.9/10 — BLOCKED**
 
-Rationale: source identity is now cabinet-validated and real render bytes were recovered, but a required clinical printable-source proof remains absent. Under the project scoring rule, that blocker prevents VERIFIED status and caps the retained score at 5.9.
+Rationale: the visual identity and preview bytes are now well evidenced, but the cabinet has not yet accepted a printable reconstructed reference and original print geometry remains unproven. The clinical printable-source gate therefore remains blocking.
