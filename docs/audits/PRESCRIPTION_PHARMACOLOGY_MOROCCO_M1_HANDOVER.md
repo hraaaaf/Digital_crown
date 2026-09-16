@@ -1,7 +1,7 @@
 # Digital Crown — Pharmacologie Maroc M1 handover
 
 Date: 2026-09-16
-Status: ACTIVE — M1-B2 merged; RCP acquisition fail-closed; no clinical activation
+Status: ACTIVE — M1-B2 merged; RCP acquisition fail-closed; pending-family discovery active; no clinical activation
 
 ## Goal
 Construire la couverture pharmacologique dentaire Maroc avec preuve réglementaire fail-closed, puis validation scientifique indépendante avant toute activation clinique.
@@ -56,6 +56,8 @@ Queue connue:
 - `PENDING_CURRENT_PRESENTATION_DISCOVERY`: clindamycin.
 - aucune donnée clinique extraite.
 
+Le RMMG AMMPS de janvier 2026 confirme des présentations orales de métronidazole dans le répertoire générique; cela ne constitue pas encore une preuve de RCP disponible.
+
 ## Acquisition RCP read-only — résultats vérifiés
 Branche de recherche: `research/pharmacology-rcp-first-capture-20260916`.
 Aucune mutation manifest et aucune activation clinique dans les probes.
@@ -80,33 +82,48 @@ Probe #5 / run `35117194902`: `SUCCESS` sur `d35733b77513a8728240dd6607bd8ad3d5c
 Artifact `10454339652`, digest `sha256:99e7fa7cde1146dc51fde61d0809790f7dd0646f26d21df59b52cc75027d0573`.
 Résultat: `NO_ENABLED_PENICILLIN_V_RCP_CONTROL`; aucune mutation manifest et aucune activation clinique.
 
-## Changement d'exécution — enchaînement automatique des familles
-À partir du commit recherche `9c57795ec6f51c5a7389ad90424d3134bde95033`, le workflow n'est plus ciblé manuellement molécule par molécule.
-Il lit directement `PRESCRIPTION_PHARMACOLOGY_MOROCCO_RCP_WAVE1_QUEUE.json` et enchaîne tous les candidats `READY_FOR_CAPTURE_TRANSPORT` dans un seul run/browser partagé.
+## Enchaînement automatique Wave 1 READY — vérifié
+Workflow chainé introduit au commit recherche `9c57795ec6f51c5a7389ad90424d3134bde95033`.
+Run chaîne #6: `35121834201` → `SUCCESS`.
+Artifact: `10457267023`.
+Digest artifact: `sha256:71efe115c423fb3107a461d7e471d4fafa116393cadc0f9f9fc5682a304d07fe`.
 
-Garde-fous:
-- domaine HTTPS AMMPS obligatoire;
-- contrôle RCP explicitement activé uniquement;
-- aucune tentative de forcer un bouton désactivé;
-- réponse 2xx + signature `%PDF-` + URL réelle + SHA-256 exigés pour une capture vérifiée;
-- download sans URL source corrélée reste non vérifié;
-- aucun `SNAPSHOT_VERIFIED`, aucun `UNAVAILABLE_VERIFIED`, aucune activation clinique automatique;
-- ciblage DOM resserré au modal/card contenant la substance, pour éviter les faux positifs de conteneur page entier.
+Résultat exact:
+- paracetamol: `NO_ENABLED_RCP_CONTROL`;
+- ibuprofen: `NO_ENABLED_RCP_CONTROL`;
+- amoxicillin: `NO_ENABLED_RCP_CONTROL`;
+- penicillin_v: `NO_ENABLED_RCP_CONTROL`;
+- clarithromycin: `NO_ENABLED_RCP_CONTROL`.
 
-Run chaîne #6: `35121834201`.
-HEAD: `9c57795ec6f51c5a7389ad90424d3134bde95033`.
-État au dernier contrôle: `QUEUED`.
-Ne pas inventer le résultat avant conclusion réelle.
+Interprétation autorisée:
+- la voie UI référencée dans la queue Wave 1 READY n'a produit aucun contrôle RCP activé exploitable;
+- cela ne prouve ni l'absence réglementaire du RCP ni l'indisponibilité officielle du médicament;
+- aucun PDF officiel n'a été capturé;
+- aucune mutation du manifest et aucune activation clinique n'ont eu lieu.
+
+## Pivot — découverte pending + mécanisme RCP
+Après l'échec homogène des 5 candidats READY, la stratégie est changée: ne plus répéter des probes identiques sur les boutons désactivés.
+
+Workflow de découverte introduit au commit recherche `ccf03cc376f1592be028700c46ab9a823b4f2f9a`.
+Il cible:
+- `metronidazole`: découverte de présentation actuelle, recoupement RMMG AMMPS et inspection des contrôles/attributs/DOM/ressources réseau RCP;
+- `clindamycin`: découverte via recherche AMMPS avec variantes `CLINDAMYCINE`, `CLINDAMYCIN`, `DALACINE`, sans conclure à l'absence en cas de résultat négatif.
+
+Le workflow capture aussi les indices techniques du transport RCP: hrefs, attributs, HTML modal/card, formulaires de recherche, scripts, requêtes/réponses réseau intéressantes et toute réponse PDF détectée. Une réponse n'est considérée comme PDF officiel vérifié que si HTTPS AMMPS + 2xx + signature `%PDF-` + SHA-256 réel.
+
+Au moment de cette mise à jour, aucun run associé au commit `ccf03cc...` n'était encore visible; ne pas inventer de résultat.
 
 ## État repo
-Master vérifié pendant l'acquisition: `10c9b084ed0582dc24147808e911defcc2806b50`.
+Master vérifié le 2026-09-16: `35c4ee606e953f2f2a8a9d91ab540bf6c7ef476a`, commit GitHub signé/verified.
 Le master a avancé après M1-B2; aucun nouveau travail produit M1 n'est fusionné depuis la branche de recherche.
 
 ## Next exact
-1. Lire le résultat + artifact du run chaîne #6 `35121834201` quand il est terminé.
-2. Si une ou plusieurs réponses PDF officielles sont capturées: vérifier URL HTTPS AMMPS, status 2xx, `%PDF-`, bytes, SHA-256 et identité exacte de présentation, puis lancer une revue indépendante dédiée.
-3. Si aucun READY ne donne de PDF vérifié: passer au sous-lot de découverte pour `metronidazole`, puis `clindamycin`, sans les promouvoir artificiellement en READY.
-4. Ne modifier le manifest qu'après preuve complète + revue indépendante.
+1. Lire une fois le run déclenché par `ccf03cc376f1592be028700c46ab9a823b4f2f9a` dès qu'il est visible/terminé.
+2. Inspecter `metronidazole` et `clindamycin`: présentations trouvées, états RCP, indices DOM/réseau et éventuels PDF réels.
+3. Si un PDF officiel est capturé: vérifier identité exacte de présentation + URL HTTPS AMMPS + status 2xx + `%PDF-` + bytes + SHA-256, puis lancer un reviewer scientifique indépendant dédié avant toute promotion.
+4. Si aucun PDF n'est capturé mais qu'un endpoint/document transport est découvert: créer un probe ciblé read-only sur cet endpoint.
+5. Si aucun mécanisme RCP n'est découvert: passer à la cartographie officielle des documents/endpoints AMMPS sans répéter les boutons UI.
+6. Ne modifier le manifest qu'après preuve complète + revue indépendante.
 
 ## Interdits
 - Pas d'activation clinique M1.
@@ -117,4 +134,4 @@ Le master a avancé après M1-B2; aucun nouveau travail produit M1 n'est fusionn
 - Pas d'URL RCP déduite/fabriquée à partir de `javascript:void(0)`.
 
 ## Prompt de reprise
-`Lis ce fichier depuis docs/pharmacology-m1-handover-20260915, vérifie master et le run chaîne RCP #35121834201. M1-B2 est mergé et post-merge vert. Amoxicilline, ibuprofène, paracétamol et pénicilline V ont été vérifiés fail-closed sans contrôle RCP activé. Le workflow enchaîne désormais tous les candidats Wave 1 READY automatiquement. Si aucun PDF officiel n'est capturé, poursuivre par découverte metronidazole puis clindamycin, sans promotion réglementaire non prouvée.`
+`Lis ce fichier depuis docs/pharmacology-m1-handover-20260915, vérifie master et le run du commit recherche ccf03cc376f1592be028700c46ab9a823b4f2f9a. M1-B2 est mergé et post-merge vert. Les 5 candidats READY Wave 1 ont tous donné NO_ENABLED_RCP_CONTROL dans le run chaîne #35121834201; aucun PDF officiel n'a été capturé. La stratégie a pivoté vers découverte metronidazole + clindamycin et inspection du mécanisme RCP AMMPS. Continuer jusqu'à preuve PDF réelle ou cartographie technique solide, sans promotion réglementaire non prouvée.`
