@@ -166,11 +166,19 @@ export const CephaloAnalysisWorkbenchPanel: React.FC<CephaloAnalysisWorkbenchPan
 
   const statusTone = (metric?: MetricRecord) => {
     if (!metric || readValue(metric) === null) return P.textDim;
-    const status = (metric.status || '').toLowerCase();
-    if (status.includes('normal')) return P.accentSuccess;
-    if (status.includes('high') || status.includes('low') || status.includes('compens')) return P.accentWarning;
-    if (status.includes('missing')) return P.textDim;
-    if (status && status !== 'n/a') return P.accentError;
+    const status = (metric.status || '').trim().toLowerCase();
+    if (!status || status === 'n/a') return P.textMuted;
+    if (status.includes('missing') || status.includes('non calcul')) return P.textDim;
+    if (status.includes('normal') || status.includes('valid')) return P.accentSuccess;
+    if (
+      status.includes('high') || status.includes('low') || status.includes('compens') ||
+      status.includes('limit') || status.includes('borderline') || status.includes('vigil') ||
+      status.includes('warning')
+    ) return P.accentWarning;
+    if (
+      status.includes('hors') || status.includes('abnormal') || status.includes('severe') ||
+      status.includes('critical') || status.includes('error') || status.includes('invalid')
+    ) return P.accentError;
     return P.textMuted;
   };
 
