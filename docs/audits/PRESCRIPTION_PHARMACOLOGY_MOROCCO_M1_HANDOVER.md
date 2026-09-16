@@ -127,9 +127,12 @@ Le statut reste donc prudemment `PENDING_CURRENT_PRESENTATION_DISCOVERY`.
 ## Pivot technique — census global RCP AMMPS
 Après 7 familles avec le même pattern (`javascript:void(0)` + `disabled-rcp-btn` + `aria-disabled=true`), les probes ciblés sont arrêtés.
 
-Commit recherche census: `0a9db11827ce44a29aa5fb41a97c87d4bb22885b`.
-Run #8: `35126944871`.
-But: recenser toutes les pages courantes de `recherche-medicaments`, compter les contrôles RCP activés/désactivés et capturer tout href/PDF réellement exposé, sans clic forcé et sans mutation.
+Census initial commit `0a9db11827ce44a29aa5fb41a97c87d4bb22885b`, run #8 `35126944871`: `FAILURE` avant le scan complet.
+Cause exacte: garde-fou interne `pageCount <= 700` trop strict alors que la base courante déduit `826` pages pour `9908` médicaments. Aucune conclusion scientifique/réglementaire ne doit être tirée de ce run.
+
+Réparation: commit `a2164cd38d01c0b565295388cd2887e19241f715` relève uniquement ce garde-fou à `1200` et le timeout à 30 min; logique de lecture et permissions inchangées.
+Run #9: `35127141170`.
+But: recenser les 826 pages de `recherche-medicaments`, compter les contrôles RCP activés/désactivés et capturer tout href/PDF réellement exposé, sans clic forcé et sans mutation.
 État au dernier contrôle: `IN_PROGRESS`.
 
 ## État repo
@@ -137,7 +140,7 @@ Master vérifié le 2026-09-16: `35c4ee606e953f2f2a8a9d91ab540bf6c7ef476a`, comm
 Le master a avancé après M1-B2; aucun nouveau travail produit M1 n'est fusionné depuis la branche de recherche.
 
 ## Next exact
-1. Lire le résultat + artifact du census #8 `35126944871` une fois terminé.
+1. Lire le résultat + artifact du census #9 `35127141170` une fois terminé.
 2. Si au moins un contrôle RCP actif existe: inspecter son href/transport et capturer un exemple réel officiel avant toute généralisation.
 3. Si 0 contrôle actif sur toute la base: considérer la voie UI actuelle AMMPS comme non exploitable pour le contrat PDF strict et chercher une source documentaire officielle AMMPS alternative; ne pas inventer d'URL.
 4. Toute capture candidate doit encore satisfaire HTTPS AMMPS + 2xx + `%PDF-` + bytes + SHA-256 + identité de présentation + reviewer indépendant avant `SNAPSHOT_VERIFIED`.
@@ -151,4 +154,4 @@ Le master a avancé après M1-B2; aucun nouveau travail produit M1 n'est fusionn
 - Pas d'URL RCP déduite/fabriquée à partir de `javascript:void(0)`.
 
 ## Prompt de reprise
-`Lis ce fichier depuis docs/pharmacology-m1-handover-20260915, vérifie master et le census RCP #35126944871. M1-B2 est mergé et post-merge vert. Les 5 candidats READY ont tous été vérifiés sans contrôle RCP activé. Metronidazole est présent avec 12 contrôles RCP désactivés; clindamycin ne fournit dans le pass courant que deux présentations topiques non utilisables comme preuve d'une présentation systémique actuelle. Le census global AMMPS doit déterminer si un seul vrai RCP actif est exposé par la base. Ne promouvoir aucun SNAPSHOT_VERIFIED avant PDF officiel réel + revue indépendante.`
+`Lis ce fichier depuis docs/pharmacology-m1-handover-20260915, vérifie master et le census RCP #35127141170. M1-B2 est mergé et post-merge vert. Les 5 candidats READY ont tous été vérifiés sans contrôle RCP activé. Metronidazole est présent avec 12 contrôles RCP désactivés; clindamycin ne fournit dans le pass courant que deux présentations topiques non utilisables comme preuve d'une présentation systémique actuelle. Le census #8 a échoué uniquement sur un cap pageCount trop bas; #9 scanne les 826 pages. Ne promouvoir aucun SNAPSHOT_VERIFIED avant PDF officiel réel + revue indépendante.`
