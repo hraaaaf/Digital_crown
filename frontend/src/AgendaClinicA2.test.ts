@@ -41,6 +41,6 @@ describe('agenda clinic A2 synchronized multi-practitioner grid', () => {
     expect(view).toContain("appointment.scheduling_type === 'MORNING'");
     expect(view).toContain("appointment.scheduling_type === 'AFTERNOON'");
     expect(view).toContain("appointment.scheduling_type === 'FULL_DAY'");
-    expect(view).toContain('Rendez-vous flexibles legacy non assignés');
+    expect(view).toContain('Rendez-vous flexibles non assignés');
   });
 });
