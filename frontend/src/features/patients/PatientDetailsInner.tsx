@@ -266,7 +266,7 @@ export const PatientDetails = () => {
 
   return (
     <div className={cn('flex flex-col bg-transparent', isDocuments ? 'h-screen overflow-hidden' : 'min-h-screen')}>
-      <header className="sticky top-0 z-[300] bg-card-bg/90 backdrop-blur-xl border-b border-border-main shadow-elite">
+      <header className="sm:sticky sm:top-0 z-[300] bg-card-bg/90 backdrop-blur-xl border-b border-border-main shadow-elite">
         <div className={cn('max-w-[1600px] mx-auto md:px-8', isRadiology ? 'px-2.5 pt-1.5' : 'px-3 pt-2 sm:px-4 sm:pt-3')}>
           <div className={cn('flex flex-col xl:flex-row xl:items-center xl:justify-between', isRadiology ? 'gap-1.5 mb-1.5' : 'gap-2 mb-2 sm:gap-3 sm:mb-3')}>
             <div className={cn('flex items-start sm:items-center min-w-0', isRadiology ? 'gap-2' : 'gap-3')}>
@@ -393,13 +393,13 @@ export const PatientDetails = () => {
 };
 
 const QuickAction = ({ icon, label, onClick, accent = 'primary' }: any) => (
-  <button onClick={onClick} aria-label={ariaLabel || label} className={cn('h-11 sm:h-10 min-w-0 px-1 sm:px-3 rounded-xl border border-border-main bg-card-bg shadow-sm transition-all flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-2 active:scale-95', accent === 'emerald' ? 'text-text-muted hover:text-emerald-600 hover:border-emerald-500/30 hover:bg-emerald-500/5' : 'text-text-muted hover:text-primary hover:border-primary/30 hover:bg-primary/5')}>
+  <button onClick={onClick} aria-label={label} className={cn('h-11 sm:h-10 min-w-0 px-1 sm:px-3 rounded-xl border border-border-main bg-card-bg shadow-sm transition-all flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-2 active:scale-95', accent === 'emerald' ? 'text-text-muted hover:text-emerald-600 hover:border-emerald-500/30 hover:bg-emerald-500/5' : 'text-text-muted hover:text-primary hover:border-primary/30 hover:bg-primary/5')}>
     {icon}<span className="inline text-[8px] sm:text-[10px] leading-none font-black uppercase tracking-[0.04em] sm:tracking-widest whitespace-nowrap">{label}</span>
   </button>
 );
 
 const TabButton = ({ active, onClick, icon, label, mobileLabel, ariaLabel, compact = false }: any) => (
-  <button onClick={onClick} aria-label={label} className={cn('shrink-0 flex items-center font-black uppercase transition-all border-b-[3px] whitespace-nowrap', compact ? 'gap-1 pb-1.5 px-1 text-[9px] tracking-[0.04em] md:gap-1.5 md:px-2 md:text-[11px] md:tracking-[0.06em]' : 'gap-1 pb-1.5 px-1 text-[9px] tracking-[0.04em] sm:gap-2 sm:pb-2 sm:px-1.5 sm:text-[10px] sm:tracking-[0.06em] md:px-3 md:text-[12px] md:tracking-[0.08em]', active ? 'text-primary' : 'border-transparent text-text-muted hover:text-main hover:border-border-main')} style={active ? { borderColor: 'var(--primary)', color: 'var(--primary)' } : {}}>
+  <button onClick={onClick} aria-label={ariaLabel || label} className={cn('shrink-0 flex items-center font-black uppercase transition-all border-b-[3px] whitespace-nowrap', compact ? 'gap-1 pb-1.5 px-1 text-[9px] tracking-[0.04em] md:gap-1.5 md:px-2 md:text-[11px] md:tracking-[0.06em]' : 'gap-1 pb-1.5 px-1 text-[9px] tracking-[0.04em] sm:gap-2 sm:pb-2 sm:px-1.5 sm:text-[10px] sm:tracking-[0.06em] md:px-3 md:text-[12px] md:tracking-[0.08em]', active ? 'text-primary' : 'border-transparent text-text-muted hover:text-main hover:border-border-main')} style={active ? { borderColor: 'var(--primary)', color: 'var(--primary)' } : {}}>
     {icon}<span className="sm:hidden">{mobileLabel || label}</span><span className="hidden sm:inline">{label}</span>
   </button>
 );
