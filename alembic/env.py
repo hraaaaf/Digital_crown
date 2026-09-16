@@ -1,6 +1,7 @@
+import os
 from logging.config import fileConfig
 
-from sqlalchemy import engine_from_config
+from sqlalchemy import create_engine
 from sqlalchemy import pool
 
 from alembic import context
@@ -27,26 +28,30 @@ if config.config_file_name is not None:
 # target_metadata = mymodel.Base.metadata
 target_metadata = Base.metadata
 
-# other values from the config, defined by the needs of env.py,
-# can be acquired:
-# my_important_option = config.get_main_option("my_important_option")
-# ... etc.
+
+def _explicit_postgresql_url() -> str | None:
+    """Return the operator-supplied PostgreSQL URL without importing app runtime.
+
+    PostgreSQL schema upgrades must remain migration-boundary operations. Importing
+    ``backend.database`` here would pull password/runtime dependencies and startup
+    preparation into Alembic before a migration has even begun. SQLite/SQLCipher
+    deliberately keep the existing backend database path because their encrypted
+    connection preparation is application-specific.
+    """
+    url = os.environ.get("DATABASE_URL", "").strip()
+    if url.lower().startswith(("postgresql://", "postgresql+")):
+        return url
+    return None
 
 
 def run_migrations_offline() -> None:
-    """Run migrations in 'offline' mode.
+    """Run migrations in 'offline' mode."""
+    url = _explicit_postgresql_url()
+    if url is None:
+        from backend.database import SQLALCHEMY_DATABASE_URL
 
-    This configures the context with just a URL
-    and not an Engine, though an Engine is acceptable
-    here as well.  By skipping the Engine creation
-    we don't even need a DBAPI to be available.
+        url = SQLALCHEMY_DATABASE_URL
 
-    Calls to context.execute() here emit the given string to the
-    script output.
-
-    """
-    from backend.database import SQLALCHEMY_DATABASE_URL
-    url = SQLALCHEMY_DATABASE_URL
     context.configure(
         url=url,
         target_metadata=target_metadata,
@@ -64,9 +69,19 @@ def run_migrations_online() -> None:
     New, genuinely empty SQLite/SQLCipher databases use an operator-only
     metadata baseline stamped to the exact unique Alembic head. Existing SQLite
     databases and PostgreSQL always execute the normal revision chain.
+
+    PostgreSQL is connected directly from the explicit operator DATABASE_URL so
+    Alembic does not import the application database runtime merely to migrate a
+    schema. SQLite/SQLCipher retain the backend engine because their encrypted
+    connection setup is application-specific.
     """
-    from backend.database import engine
-    connectable = engine
+    postgres_url = _explicit_postgresql_url()
+    if postgres_url is not None:
+        connectable = create_engine(postgres_url, poolclass=pool.NullPool)
+    else:
+        from backend.database import engine
+
+        connectable = engine
 
     with connectable.connect() as connection:
         heads = ScriptDirectory.from_config(config).get_heads()
