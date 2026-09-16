@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { AlertTriangle, Users } from 'lucide-react';
 import { api } from '../../services/api';
 import { cn } from '../../utils/cn';
+import '../../styles/agendaA3Theme.css';
 import { AgendaModal } from './AgendaModal';
 import type { Appointment } from './DailyView';
 import {
@@ -343,193 +344,178 @@ export const MultiPractitionerTimelineView: React.FC<MultiPractitionerTimelineVi
           <span className="inline-flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded border border-slate-200 bg-slate-50" /> Hors horaires praticien</span>
           <span className="inline-flex items-center gap-1.5 text-amber-700"><span className="h-2.5 w-2.5 rounded border border-amber-200 bg-amber-50" /> Pause</span>
           <span className="inline-flex items-center gap-1.5 text-rose-700"><span className="h-2.5 w-2.5 rounded border border-rose-200 bg-rose-50" /> Absence</span>
-          <span className="inline-flex items-center gap-1.5 text-orange-700"><span className="h-2.5 w-2.5 rounded border border-orange-400 bg-orange-50" /> RDV non assigné</span>
+          <span className="inline-flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded border border-indigo-300 bg-indigo-50" /> RDV non assigné</span>
         </div>
-        <span className="text-[10px] font-bold text-slate-400">Créneaux de 15 min · défilement horizontal sur petit écran</span>
+        <div className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">
+          {selectedDate.toLocaleDateString('fr-FR', { weekday: 'short', day: '2-digit', month: 'short' })}
+        </div>
       </div>
 
-      {flexibleLegacy.length > 0 && (
-        <div className="flex items-start gap-2 border-b border-orange-200 bg-orange-50 px-4 py-3 text-xs font-bold text-orange-800">
-          <AlertTriangle size={16} className="mt-0.5 shrink-0" />
-          <div>
-            <p className="font-black">Rendez-vous flexibles non assignés</p>
-            <p className="mt-0.5 font-medium text-orange-700">
-              {flexibleLegacy.map((appointment) => `${schedulingLabel(appointment)} · ${appointment.patient_name || 'Patient'}`).join(' · ')}
-            </p>
+      {hasFlexible && (
+        <div className="border-b border-slate-100 bg-slate-50/60 px-4 py-3 sm:px-5">
+          <div className="mb-2 text-[10px] font-black uppercase tracking-wider text-slate-400">Rendez-vous flexibles</div>
+          <div className="flex flex-wrap gap-2">
+            {appointmentsForDay
+              .filter(({ appointment }) => !isExact(appointment))
+              .map(({ appointment, dentist }) => (
+                <button
+                  key={`flex-${appointment.id}`}
+                  type="button"
+                  onClick={() => openEdit(appointment, dentist)}
+                  className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-left text-xs font-bold text-slate-700 hover:border-indigo-300"
+                >
+                  {schedulingLabel(appointment)} · {appointment.patient_name || 'Patient'} · {dentist.dentist_name}
+                </button>
+              ))}
+            {flexibleLegacy.map((appointment) => (
+              <button
+                key={`legacy-flex-${appointment.id}`}
+                type="button"
+                onClick={() => openEdit(appointment)}
+                className="rounded-xl border border-indigo-200 bg-indigo-50 px-3 py-2 text-left text-xs font-bold text-indigo-700"
+              >
+                {schedulingLabel(appointment)} · {appointment.patient_name || 'Patient'} · Non assigné
+              </button>
+            ))}
           </div>
         </div>
       )}
 
-      <div data-testid="multi-practitioner-scroll" className="max-h-[680px] overflow-auto overscroll-contain">
-        <div style={{ minWidth: `${gridMinWidth}px` }}>
+      <div data-testid="multi-practitioner-scroll" className="overflow-x-auto overscroll-x-contain">
+        <div style={{ minWidth: gridMinWidth }}>
           <div
-            className="sticky top-0 z-40 grid border-b border-slate-200 bg-slate-50/95 backdrop-blur-xl"
+            className="sticky top-0 z-30 grid border-b border-slate-200 bg-white/95 backdrop-blur-xl"
             style={{ gridTemplateColumns: gridColumns }}
           >
-            <div className="sticky left-0 z-50 flex items-center justify-center border-r border-slate-200 bg-slate-50 px-2 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">
+            <div className="border-r border-slate-200 px-2 py-3 text-center text-[9px] font-black uppercase tracking-wider text-slate-400">
               Heure
             </div>
-            {dentists.map((dentist) => {
-              const count = (dentist.appointments || []).filter((appointment) => isSameLocalDay(appointment.datetime_start, selectedDate)).length;
-              return (
-                <div key={dentist.dentist_id} className="min-w-0 border-r border-slate-100 px-3 py-3 text-center last:border-r-0">
-                  <p className="truncate text-sm font-black text-slate-800">{dentist.dentist_name}</p>
-                  <p className="mt-0.5 text-[9px] font-bold text-slate-400">{count} RDV aujourd'hui · {dentist.availability?.inherits_cabinet === false ? 'horaires perso' : 'horaires cabinet'}</p>
+            {dentists.map((dentist) => (
+              <div key={dentist.dentist_id} className="border-r border-slate-100 px-3 py-3 text-center last:border-r-0">
+                <div className="truncate text-xs font-black text-slate-800">{dentist.dentist_name}</div>
+                <div className={cn(
+                  'mt-0.5 text-[9px] font-bold uppercase tracking-wide',
+                  dentist.availability?.inherits_cabinet !== false ? 'text-emerald-600' : 'text-indigo-500',
+                )}>
+                  {dentist.availability?.inherits_cabinet !== false ? 'Horaires cabinet' : 'Horaires personnalisés'}
                 </div>
-              );
-            })}
+              </div>
+            ))}
           </div>
 
-          {hasFlexible && (
-            <div className="grid border-b border-slate-200 bg-slate-50/50" style={{ gridTemplateColumns: gridColumns }}>
-              <div className="sticky left-0 z-30 flex items-center justify-center border-r border-slate-200 bg-slate-50 px-2 py-2 text-[9px] font-black uppercase tracking-wider text-slate-400">
-                Flexible
-              </div>
-              {dentists.map((dentist) => {
-                const flexible = (dentist.appointments || []).filter(
-                  (appointment) => isSameLocalDay(appointment.datetime_start, selectedDate) && !isExact(appointment),
-                );
+          <div className="relative grid" style={{ gridTemplateColumns: gridColumns, height: timelineHeight }}>
+            <div className="relative border-r border-slate-200 bg-slate-50/80">
+              {Array.from({ length: totalHours + 1 }, (_, index) => {
+                const hour = timelineBounds.startHour + index;
                 return (
-                  <div key={dentist.dentist_id} className="min-h-12 border-r border-slate-100 p-1.5 last:border-r-0">
-                    <div className="flex flex-wrap gap-1">
-                      {flexible.map((appointment) => (
-                        <button
-                          key={appointment.id}
-                          type="button"
-                          onClick={() => openEdit(appointment, dentist)}
-                          className={cn(
-                            'rounded-lg border px-2 py-1 text-left text-[9px] font-bold',
-                            STATUS_COLORS[appointment.status] || 'bg-slate-50 text-slate-600 border-slate-200',
-                          )}
-                        >
-                          {schedulingLabel(appointment)} · {appointment.patient_name || 'Patient'}
-                        </button>
-                      ))}
-                    </div>
+                  <div
+                    key={hour}
+                    className="absolute right-2 -translate-y-1/2 text-[10px] font-black text-slate-400"
+                    style={{ top: index * HOUR_HEIGHT }}
+                  >
+                    {String(hour).padStart(2, '0')}:00
                   </div>
                 );
               })}
             </div>
-          )}
 
-          <div className="grid" style={{ gridTemplateColumns: `${TIME_AXIS_WIDTH}px 1fr` }}>
-            <div className="sticky left-0 z-30 border-r border-slate-200 bg-slate-50" style={{ height: `${timelineHeight}px` }}>
-              {Array.from({ length: totalHours }).map((_, index) => (
-                <div key={index} className="relative h-20 border-b border-slate-200">
-                  <span className="absolute left-2 top-1 text-[10px] font-black text-slate-500">
-                    {String(timelineBounds.startHour + index).padStart(2, '0')}:00
-                  </span>
+            {dentists.map((dentist) => (
+              <div key={dentist.dentist_id} className="relative border-r border-slate-100 last:border-r-0">
+                <div className="absolute inset-0 grid" style={{ gridTemplateRows: `repeat(${totalSlots}, ${HOUR_HEIGHT / SLOTS_PER_HOUR}px)` }}>
+                  {Array.from({ length: totalSlots }, (_, slotIndex) => {
+                    const minutes = timelineBounds.startHour * 60 + slotIndex * SLOT_MINUTES;
+                    const hour = Math.floor(minutes / 60);
+                    const minute = minutes % 60;
+                    const time = `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
+                    const globalAvailable = dayOpen && isTimeWithinSchedule(time, daySchedule);
+                    const availability = getPractitionerSlotAvailability(dentist, selectedDate, time, globalAvailable);
+                    return (
+                      <button
+                        key={`${dentist.dentist_id}-${time}`}
+                        type="button"
+                        disabled={!availability.available}
+                        onClick={() => openCreate(dentist, time)}
+                        className={cn(
+                          'border-b border-slate-100/90 transition-colors focus:outline-none focus:ring-2 focus:ring-inset focus:ring-indigo-400',
+                          SLOT_STATE_CLASSES[availability.state],
+                        )}
+                        title={availability.label}
+                        aria-label={availability.available
+                          ? `Créer un rendez-vous avec ${dentist.dentist_name} à ${time}`
+                          : `${dentist.dentist_name} indisponible à ${time} : ${availability.label}`}
+                      />
+                    );
+                  })}
                 </div>
-              ))}
-            </div>
 
-            <div className="relative" style={{ height: `${timelineHeight}px` }}>
-              <div className="grid h-full" style={{ gridTemplateColumns: `repeat(${dentists.length}, minmax(${LANE_MIN_WIDTH}px, 1fr))` }}>
-                {dentists.map((dentist) => {
-                  const exactAppointments = (dentist.appointments || []).filter(
-                    (appointment) => isSameLocalDay(appointment.datetime_start, selectedDate) && isExact(appointment),
-                  );
-                  return (
-                    <div key={dentist.dentist_id} className="relative border-r border-slate-100 last:border-r-0">
-                      <div className="absolute inset-0 flex flex-col">
-                        {Array.from({ length: totalSlots }).map((_, slotIndex) => {
-                          const totalMinutes = timelineBounds.startHour * 60 + slotIndex * SLOT_MINUTES;
-                          const hours = Math.floor(totalMinutes / 60);
-                          const minutes = totalMinutes % 60;
-                          const time = `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
-                          const globalAvailable = dayOpen && isTimeWithinSchedule(time, daySchedule);
-                          const slot = getPractitionerSlotAvailability(dentist, selectedDate, time, globalAvailable);
-                          return (
-                            <button
-                              key={slotIndex}
-                              type="button"
-                              disabled={!slot.available}
-                              aria-label={slot.available
-                                ? `Créer un rendez-vous avec ${dentist.dentist_name} à ${time}`
-                                : `${dentist.dentist_name} indisponible à ${time} : ${slot.label}`}
-                              title={slot.available ? undefined : slot.label}
-                              onClick={() => openCreate(dentist, time)}
-                              className={cn(
-                                'h-5 shrink-0 border-b border-slate-100/80 transition-colors',
-                                slotIndex % SLOTS_PER_HOUR === SLOTS_PER_HOUR - 1 && 'border-b-slate-200',
-                                SLOT_STATE_CLASSES[slot.state],
-                              )}
-                            />
-                          );
-                        })}
-                      </div>
-
-                      {exactAppointments.map((appointment) => {
-                        const start = new Date(appointment.datetime_start);
-                        const startMinutes = start.getHours() * 60 + start.getMinutes();
-                        const top = ((startMinutes - timelineBounds.startHour * 60) / 60) * HOUR_HEIGHT;
-                        const height = Math.max(18, (appointment.duration_minutes / 60) * HOUR_HEIGHT - 2);
-                        return (
-                          <button
-                            key={appointment.id}
-                            type="button"
-                            onClick={() => openEdit(appointment, dentist)}
-                            className={cn(
-                              'absolute left-1 right-1 z-20 overflow-hidden rounded-lg border px-2 py-1 text-left text-[10px] font-bold shadow-sm transition-transform hover:scale-[1.01]',
-                              STATUS_COLORS[appointment.status] || 'bg-slate-50 text-slate-600 border-slate-200',
-                            )}
-                            style={{ top: `${top}px`, height: `${height}px` }}
-                          >
-                            <span className="block truncate font-black">{formatClock(start)} · {appointment.patient_name || 'Patient'}</span>
-                            {height >= 34 && (
-                              <span className="block truncate text-[9px] opacity-70">
-                                {appointment.motif || 'Rendez-vous'} · {appointment.duration_minutes} min
-                              </span>
-                            )}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  );
-                })}
+                {(dentist.appointments || [])
+                  .filter((appointment) => isExact(appointment) && isSameLocalDay(appointment.datetime_start, selectedDate))
+                  .map((appointment) => {
+                    const start = new Date(appointment.datetime_start);
+                    const startMinutes = start.getHours() * 60 + start.getMinutes();
+                    const offsetMinutes = startMinutes - timelineBounds.startHour * 60;
+                    const duration = Math.max(15, appointment.duration_minutes || 30);
+                    const top = (offsetMinutes / 60) * HOUR_HEIGHT;
+                    const height = Math.max(22, (duration / 60) * HOUR_HEIGHT);
+                    return (
+                      <button
+                        key={appointment.id}
+                        type="button"
+                        onClick={() => openEdit(appointment, dentist)}
+                        className={cn(
+                          'absolute left-1.5 right-1.5 z-20 overflow-hidden rounded-xl border px-2 py-1 text-left shadow-sm transition hover:z-30 hover:shadow-md',
+                          STATUS_COLORS[appointment.status] || 'bg-white text-slate-700 border-slate-200',
+                        )}
+                        style={{ top, height }}
+                      >
+                        <div className="truncate text-[10px] font-black">{formatClock(start)} · {appointment.patient_name || 'Patient'}</div>
+                        <div className="truncate text-[9px] font-bold opacity-75">{appointment.duration_minutes || 0} min</div>
+                      </button>
+                    );
+                  })}
               </div>
+            ))}
 
-              {exactLegacy.map((appointment) => {
-                const start = new Date(appointment.datetime_start);
-                const startMinutes = start.getHours() * 60 + start.getMinutes();
-                const top = ((startMinutes - timelineBounds.startHour * 60) / 60) * HOUR_HEIGHT;
-                const height = Math.max(20, (appointment.duration_minutes / 60) * HOUR_HEIGHT - 2);
-                return (
-                  <button
-                    key={appointment.id}
-                    type="button"
-                    onClick={() => openEdit(appointment)}
-                    className="absolute left-0 right-0 z-30 overflow-hidden border-y-2 border-orange-400 bg-orange-50/95 px-3 text-left text-[10px] font-black text-orange-800 shadow-sm"
-                    style={{ top: `${top}px`, height: `${height}px` }}
-                    aria-label={`Rendez-vous non assigné à ${formatClock(start)}, bloque tous les praticiens`}
-                  >
-                    <span className="sticky left-2 inline-flex h-full items-center whitespace-nowrap">
-                      Non assigné · {formatClock(start)} · {appointment.patient_name || 'Patient'} · bloque tous les praticiens
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
+            {exactLegacy.map((appointment) => {
+              const start = new Date(appointment.datetime_start);
+              const startMinutes = start.getHours() * 60 + start.getMinutes();
+              const top = ((startMinutes - timelineBounds.startHour * 60) / 60) * HOUR_HEIGHT;
+              const duration = Math.max(15, appointment.duration_minutes || 30);
+              const height = Math.max(22, (duration / 60) * HOUR_HEIGHT);
+              return (
+                <button
+                  key={`legacy-${appointment.id}`}
+                  type="button"
+                  onClick={() => openEdit(appointment)}
+                  className="absolute z-40 overflow-hidden rounded-xl border-2 border-dashed border-indigo-400 bg-indigo-50/95 px-3 py-1 text-left text-indigo-800 shadow-sm"
+                  style={{
+                    top,
+                    height,
+                    left: TIME_AXIS_WIDTH + 6,
+                    right: 6,
+                  }}
+                >
+                  <div className="flex items-center gap-1 truncate text-[10px] font-black">
+                    <AlertTriangle size={11} /> Non assigné · {formatClock(start)} · {appointment.patient_name || 'Patient'}
+                  </div>
+                </button>
+              );
+            })}
           </div>
         </div>
       </div>
-
-      {isModalOpen && modalPractitioner && (
-        <div className="pointer-events-none fixed left-1/2 top-24 z-[130] -translate-x-1/2 rounded-full bg-indigo-700 px-4 py-2 text-xs font-black text-white shadow-xl">
-          Praticien : {modalPractitioner.name}
-        </div>
-      )}
 
       <AgendaModal
         isOpen={isModalOpen}
         onClose={closeModal}
         onSaved={() => {
-          onSaved();
           closeModal();
+          onSaved();
         }}
-        selectedDate={selectedDate}
+        initialDate={selectedDate}
         initialTime={initialTime}
-        editingAppointment={editingAppointment}
+        appointment={editingAppointment}
+        selectedPractitioner={modalPractitioner}
       />
     </div>
   );
