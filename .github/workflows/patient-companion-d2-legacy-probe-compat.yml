@@ -13,31 +13,28 @@ jobs:
         with:
           ref: feat/patient-companion-d2-staff-ui
           fetch-depth: 0
-      - name: Keep compact mobile UI compatible with canonical probes
+      - name: Apply mobile compatibility and overlay fixes
         run: |
           python - <<'PY'
           from pathlib import Path
           p=Path('frontend/src/features/patients/PatientDetailsInner.tsx')
           s=p.read_text()
-          old='<TabButton compact={isRadiology} active={isDocuments} onClick={handleDocumentCreate} icon={<FileText size={17} />} label="Documents" mobileLabel="Docs" />'
-          new='<TabButton compact={isRadiology} active={isDocuments} onClick={handleDocumentCreate} icon={<FileText size={17} />} label="Documents" mobileLabel="Documents" ariaLabel="Document" />'
-          if old not in s: raise SystemExit('Documents tab target missing')
-          s=s.replace(old,new,1)
-          old2='const TabButton = ({ active, onClick, icon, label, mobileLabel, compact = false }: any) => ('
-          new2='const TabButton = ({ active, onClick, icon, label, mobileLabel, ariaLabel, compact = false }: any) => ('
-          if old2 not in s: raise SystemExit('TabButton signature target missing')
-          s=s.replace(old2,new2,1)
-          old3='<button onClick={onClick} aria-label={label} className={cn('
-          new3='<button onClick={onClick} aria-label={ariaLabel || label} className={cn('
-          if old3 not in s: raise SystemExit('TabButton aria target missing')
-          s=s.replace(old3,new3,1)
+          replacements=[
+            ('<header className="sticky top-0 z-[300] bg-card-bg/90 backdrop-blur-xl border-b border-border-main shadow-elite">','<header className="sm:sticky sm:top-0 z-[300] bg-card-bg/90 backdrop-blur-xl border-b border-border-main shadow-elite">'),
+            ('<TabButton compact={isRadiology} active={isDocuments} onClick={handleDocumentCreate} icon={<FileText size={17} />} label="Documents" mobileLabel="Docs" />','<TabButton compact={isRadiology} active={isDocuments} onClick={handleDocumentCreate} icon={<FileText size={17} />} label="Documents" mobileLabel="Documents" ariaLabel="Document" />'),
+            ('const TabButton = ({ active, onClick, icon, label, mobileLabel, compact = false }: any) => (','const TabButton = ({ active, onClick, icon, label, mobileLabel, ariaLabel, compact = false }: any) => ('),
+            ('<button onClick={onClick} aria-label={label} className={cn(','<button onClick={onClick} aria-label={ariaLabel || label} className={cn('),
+          ]
+          for old,new in replacements:
+            if old not in s: raise SystemExit(f'target missing: {old[:80]}')
+            s=s.replace(old,new,1)
           p.write_text(s)
           PY
-      - name: Commit compatibility fix and remove temporary workflow
+      - name: Commit product fix and remove temporary workflow
         run: |
           rm .github/workflows/patient-companion-d2-legacy-probe-compat.yml
           git config user.name github-actions[bot]
           git config user.email 41898282+github-actions[bot]@users.noreply.github.com
           git add frontend/src/features/patients/PatientDetailsInner.tsx .github/workflows/patient-companion-d2-legacy-probe-compat.yml
-          git commit -m "fix(patient): preserve mobile document probe semantics"
+          git commit -m "fix(patient): stabilize mobile patient navigation"
           git push origin HEAD:feat/patient-companion-d2-staff-ui
