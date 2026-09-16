@@ -1,0 +1,224 @@
+name: Pharmacology Independent Scientific Reviewer
+
+on:
+  push:
+    branches:
+      - ci/pharmacology-independent-reviewer-20260916
+    paths:
+      - '.github/workflows/pharmacology-independent-scientific-review.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  copilot-requests: write
+
+concurrency:
+  group: pharmacology-independent-review-525
+  cancel-in-progress: true
+
+env:
+  TARGET_PR: '525'
+  TARGET_HEAD: '7379ddeab663b833b6be43f455c434be28cafe75'
+  EXPECTED_BASE: '1e9fd49af91ffafad89ad9936c6f2e372e883354'
+
+jobs:
+  independent-review:
+    name: Independent scientific review — PR 525
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Checkout exact target HEAD
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.TARGET_HEAD }}
+          fetch-depth: 0
+
+      - name: Verify immutable review target
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$TARGET_HEAD"
+          git merge-base --is-ancestor "$EXPECTED_BASE" "$TARGET_HEAD"
+          CHANGED=$(git diff --name-only "$EXPECTED_BASE...$TARGET_HEAD")
+          printf '%s\n' "$CHANGED"
+          test "$(printf '%s\n' "$CHANGED" | sed '/^$/d' | wc -l)" -eq 3
+          printf '%s\n' "$CHANGED" | grep -Fx 'backend/services/medication_rcp_manifest.py'
+          printf '%s\n' "$CHANGED" | grep -Fx 'backend/tests/test_medication_rcp_manifest_m1b.py'
+          printf '%s\n' "$CHANGED" | grep -Fx 'docs/audits/PRESCRIPTION_PHARMACOLOGY_MOROCCO_RCP_M1.md'
+
+      - name: Verify reviewer contract exists on target
+        run: |
+          set -euo pipefail
+          test -s .claude/agents/scientific-reviewer.md
+          test -s .claude/skills/review-scientific-pull-request/SKILL.md
+          test -s .claude/skills/scientific-source-research/SKILL.md
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install GitHub Copilot CLI
+        run: npm install -g @github/copilot
+
+      - name: Build immutable reviewer prompt
+        run: |
+          cat > /tmp/reviewer-prompt.txt <<'PROMPT'
+          You are the independent scientific reviewer for Digital Crown PR #525.
+
+          NON-NEGOTIABLE TARGET
+          - Review only repository state at exact HEAD 7379ddeab663b833b6be43f455c434be28cafe75.
+          - Expected base included in this HEAD: 1e9fd49af91ffafad89ad9936c6f2e372e883354.
+          - If git evidence does not match either SHA, return decision "blocked".
+
+          GOVERNANCE
+          1. Read .claude/agents/scientific-reviewer.md in full.
+          2. Read .claude/skills/review-scientific-pull-request/SKILL.md in full.
+          3. Read .claude/skills/scientific-source-research/SKILL.md in full.
+          4. Follow those contracts. You are not the author. Be adversarial, read-only and fail closed.
+          5. Green CI is not scientific approval.
+          6. Do not modify repository files, do not commit, do not push, do not merge, do not access patient data, and do not activate clinical rules.
+
+          SCOPE TO INSPECT
+          - backend/services/medication_rcp_manifest.py
+          - backend/tests/test_medication_rcp_manifest_m1b.py
+          - docs/audits/PRESCRIPTION_PHARMACOLOGY_MOROCCO_RCP_M1.md
+          - backend/data/medications_ma_ammps_rcp_manifest_2026.json
+          - docs/audits/PRESCRIPTION_PHARMACOLOGY_MOROCCO_COVERAGE.md
+          - docs/audits/PRESCRIPTION_PHARMACOLOGY_SCIENTIFIC_GATE.md
+          - git history/diff needed to prove the three-file scope
+
+          CLAIMS TO CHALLENGE INDEPENDENTLY
+          - The helper is transport-only and performs no download, persistence or clinical extraction.
+          - SNAPSHOT_VERIFIED cannot be produced without an official AMMPS HTTPS URL, a strict ISO date, a safe backend/data/rcp/*.pdf path, a real local PDF-like artifact and matching SHA-256.
+          - PENDING_DOWNLOAD and UNAVAILABLE_VERIFIED remain fail-closed.
+          - No dose, duration, indication, molecule selection, AUTO_OK, DB, patient, document, UI or clinical activation behavior is changed by this PR.
+          - The manifest still has exactly 8 current amoxicillin entries and none is falsely promoted to SNAPSHOT_VERIFIED or UNAVAILABLE_VERIFIED.
+          - Negative web search is not treated as evidence of regulatory absence.
+          - Current AMMPS provenance claims used by the PR are actually checkable; if official evidence is unavailable, classify the uncertainty rather than inventing a conclusion.
+
+          SOURCE RULES
+          - Open actual sources when possible; do not rely on search snippets.
+          - Prefer AMMPS / official Moroccan sources. Secondary sources may corroborate but may not promote regulatory state.
+          - Record jurisdiction, version/date and limitations for any external scientific/regulatory source actually used.
+          - If required evidence cannot be checked, decision must be "blocked" or "request_changes" as appropriate.
+
+          REQUIRED OUTPUT
+          Return ONLY one valid JSON object. No Markdown fences and no prose outside JSON.
+          Exact top-level keys:
+          {
+            "schema_version": "pharmacology-independent-review.1",
+            "reviewer": "github-copilot-cli",
+            "model": "claude-opus-5",
+            "target_pr": 525,
+            "target_head": "7379ddeab663b833b6be43f455c434be28cafe75",
+            "expected_base": "1e9fd49af91ffafad89ad9936c6f2e372e883354",
+            "decision": "approve|approve_with_reservations|request_changes|blocked",
+            "blocking_findings": [],
+            "major_findings": [],
+            "minor_findings": [],
+            "missing_tests": [],
+            "scientific_uncertainties": [],
+            "source_checks": [],
+            "required_actions": [],
+            "clinical_activation_authorized": false,
+            "independence_statement": "..."
+          }
+          Every finding/action must be concrete and traceable to a file, line/behavior, command result or source URL where possible.
+          PROMPT
+
+      - name: Run independent reviewer with Claude Opus 5
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p audit/out/pharmacology-independent-review
+          copilot \
+            -p "$(cat /tmp/reviewer-prompt.txt)" \
+            -s \
+            --no-ask-user \
+            --model claude-opus-5 \
+            --allow-tool='shell(git:*)' \
+            --allow-tool='shell(cat:*)' \
+            --allow-tool='shell(grep:*)' \
+            --allow-tool='shell(find:*)' \
+            --allow-tool='shell(python:*)' \
+            --allow-tool='shell(curl:*)' \
+            --allow-url='https://www.ammps.gov.ma/*' \
+            > audit/out/pharmacology-independent-review/report.raw.txt
+
+      - name: Validate reviewer report fail-closed
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          src = Path('audit/out/pharmacology-independent-review/report.raw.txt')
+          raw = src.read_text(encoding='utf-8').strip()
+          try:
+              report = json.loads(raw)
+          except Exception as exc:
+              raise SystemExit(f'Reviewer did not return strict JSON: {exc}')
+
+          expected_keys = {
+              'schema_version','reviewer','model','target_pr','target_head','expected_base',
+              'decision','blocking_findings','major_findings','minor_findings','missing_tests',
+              'scientific_uncertainties','source_checks','required_actions',
+              'clinical_activation_authorized','independence_statement'
+          }
+          if set(report) != expected_keys:
+              raise SystemExit(f'Unexpected reviewer keys: {sorted(set(report) ^ expected_keys)}')
+          if report['schema_version'] != 'pharmacology-independent-review.1':
+              raise SystemExit('Wrong schema version')
+          if report['reviewer'] != 'github-copilot-cli' or report['model'] != 'claude-opus-5':
+              raise SystemExit('Reviewer/model mismatch')
+          if report['target_pr'] != 525:
+              raise SystemExit('Target PR mismatch')
+          if report['target_head'] != '7379ddeab663b833b6be43f455c434be28cafe75':
+              raise SystemExit('Target HEAD mismatch')
+          if report['expected_base'] != '1e9fd49af91ffafad89ad9936c6f2e372e883354':
+              raise SystemExit('Expected base mismatch')
+          if report['decision'] not in {'approve','approve_with_reservations','request_changes','blocked'}:
+              raise SystemExit('Invalid decision')
+          for key in ('blocking_findings','major_findings','minor_findings','missing_tests','scientific_uncertainties','source_checks','required_actions'):
+              if not isinstance(report[key], list):
+                  raise SystemExit(f'{key} must be a list')
+          if report['clinical_activation_authorized'] is not False:
+              raise SystemExit('Reviewer must not authorize clinical activation')
+          if not isinstance(report['independence_statement'], str) or not report['independence_statement'].strip():
+              raise SystemExit('Missing independence statement')
+
+          out = Path('audit/out/pharmacology-independent-review/report.json')
+          out.write_text(json.dumps(report, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
+          summary = [
+              '# Independent pharmacology scientific review',
+              '',
+              f"- target PR: {report['target_pr']}",
+              f"- target HEAD: `{report['target_head']}`",
+              f"- model: `{report['model']}`",
+              f"- decision: **{report['decision']}**",
+              f"- blocking findings: {len(report['blocking_findings'])}",
+              f"- major findings: {len(report['major_findings'])}",
+              f"- scientific uncertainties: {len(report['scientific_uncertainties'])}",
+              '- clinical activation authorized: false',
+          ]
+          Path('audit/out/pharmacology-independent-review/summary.md').write_text('\n'.join(summary) + '\n', encoding='utf-8')
+          PY
+
+      - name: Publish reviewer summary
+        if: always()
+        run: |
+          if test -s audit/out/pharmacology-independent-review/summary.md; then
+            cat audit/out/pharmacology-independent-review/summary.md >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo '## Independent pharmacology scientific review' >> "$GITHUB_STEP_SUMMARY"
+            echo 'Reviewer report unavailable or validation failed.' >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Upload independent reviewer evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pharmacology-independent-review-7379ddeab663b833b6be43f455c434be28cafe75
+          path: audit/out/pharmacology-independent-review/
+          if-no-files-found: warn
+          retention-days: 30
