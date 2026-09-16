@@ -206,5 +206,11 @@ def test_empty_personal_day_is_day_off(db):
 
 def test_booking_cannot_escape_cabinet_hours_even_with_personal_override(db):
     configure(db, 10, [{"start": "08:00", "end": "20:00"}])
-    assert "cabinet" in validate(db, 10, 8, 30).lower()
-    assert "cabinet" in validate(db, 10, 18, 0).lower()
+
+    before_opening = validate(db, 10, 8, 30)
+    after_closing = validate(db, 10, 18, 0)
+
+    assert before_opening is not None
+    assert after_closing is not None
+    assert "horaires d'ouverture" in before_opening.lower()
+    assert "horaires d'ouverture" in after_closing.lower()
