@@ -78,7 +78,7 @@ Le vrai PDF AMMPS + URL officielle + artefact local + SHA-256 sont obligatoires 
 ## PR #526 — gate déterministe pharmacologie
 - Branch: `ci/pharmacology-scientific-gate-20260916`.
 - Base vérifiée: master `e83b9713e80c94c42a16014d802be850c246adde`.
-- PR: #526, draft, mergeable=true au dernier recheck.
+- PR: #526, OPEN / Ready / mergeable=true.
 - HEAD exact: `331e008361227e6ed001c2f7e00fc327d4c5994a`.
 - Diff final vérifié: 3 fichiers uniquement:
   - `.github/workflows/pharmacology-scientific-gate.yml`
@@ -97,7 +97,7 @@ Le workflow:
 - vérifie les états fail-closed du manifest RCP AMMPS;
 - produit `report.json` + `summary.md` et un artefact lié au SHA exact.
 
-### Preuve exacte #526 déjà acquise
+### Preuve exacte #526
 Pharmacology Deterministic Scientific Safety Gate #3 / run `35071354622`: SUCCESS sur HEAD `331e008361227e6ed001c2f7e00fc327d4c5994a`.
 
 Artefact `10436103626`, digest `sha256:f6a1fdcc5305eb8f8654d667d83b1ec9148404f5a523b86e7cf3aca504af7aa5`.
@@ -115,13 +115,14 @@ Rapport vérifié:
 
 Le premier run de cette gate a échoué uniquement parce que pytest chargeait le `backend/tests/conftest.py` global sans ses dépendances applicatives. Le workflow final isole les tests documentaires avec `--noconftest` et installe `pytest + SQLAlchemy`; le run exact-head final est vert.
 
-### Certifications #526 encore en cours au dernier check
-- CI générale #4491: IN_PROGRESS.
-- Cabinet Upgrade PostgreSQL #879: IN_PROGRESS.
-- T2 Runtime Browser #3364: IN_PROGRESS.
-- M6-I #2164: SKIPPED attendu.
+### Certifications exact-head #526
+- CI générale #4491 / run `35071354564`: SUCCESS.
+- Cabinet Upgrade PostgreSQL #879 / run `35071354601`: SUCCESS.
+- T2 Runtime Browser #3364 / run `35071354605`: SUCCESS.
+- Pharmacology Deterministic Scientific Safety Gate #3 / run `35071354622`: SUCCESS.
+- M6-I #2164 / run `35071354559`: SKIPPED attendu.
 
-Aucun merge de #526 tant que les certifications applicables ne sont pas terminées et sans accord utilisateur explicite.
+Toutes les validations techniques applicables de #526 sont terminées et vertes. La PR est sortie du mode draft. Le seul gate restant avant merge #526 est l'accord utilisateur explicite.
 
 ## Relation #526 → #525
 La gate #526 ne protège durablement les nouvelles PR pharmacologie qu'après merge sur `master`. Elle ne transforme pas rétroactivement #525 en PR revue scientifiquement.
@@ -129,14 +130,12 @@ La gate #526 ne protège durablement les nouvelles PR pharmacologie qu'après me
 Après merge de #526, #525 devra être resynchronisée ou recevoir un événement PR/HEAD permettant d'exécuter la nouvelle gate sur son contenu exact. Même si la gate déterministe passe, la revue indépendante `scientific-reviewer` reste une gate distincte lorsque requise.
 
 ## Next exact
-1. Finir les certifications exact-head #526.
-2. Si échec: diagnostiquer, corriger, rerun; si vert: recheck master/PR/diff/threads.
-3. Obtenir accord utilisateur explicite avant merge #526.
-4. Après merge #526: vérifier SHA + post-merge CI.
-5. Resynchroniser/retester #525 avec la nouvelle gate déterministe.
-6. Faire exécuter le `scientific-reviewer` indépendant sur #525 à partir du paquet `5689006817`.
-7. Si review acceptable: recheck exact HEAD/CI/master puis obtenir accord utilisateur explicite avant merge #525.
-8. Continuer ensuite l'acquisition RCP/corpus clinique Maroc, sans promotion réglementaire fictive ni activation clinique non validée.
+1. Obtenir l'accord utilisateur explicite avant merge #526.
+2. Après merge #526: vérifier SHA + post-merge CI.
+3. Resynchroniser/retester #525 avec la nouvelle gate déterministe.
+4. Faire exécuter le `scientific-reviewer` indépendant sur #525 à partir du paquet `5689006817`.
+5. Si review acceptable: recheck exact HEAD/CI/master puis obtenir accord utilisateur explicite avant merge #525.
+6. Continuer ensuite l'acquisition RCP/corpus clinique Maroc, sans promotion réglementaire fictive ni activation clinique non validée.
 
 ## Interdits
 - Pas de merge sans accord utilisateur.
