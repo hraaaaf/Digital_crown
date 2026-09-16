@@ -1,7 +1,7 @@
 # Digital Crown — Pharmacologie Maroc M1 handover
 
 Date: 2026-09-16
-Status: ACTIVE — M1-B2 merged; RCP acquisition fail-closed; pending-family discovery active; no clinical activation
+Status: ACTIVE — M1-B2 merged; RCP acquisition fail-closed; global RCP census active; no clinical activation
 
 ## Goal
 Construire la couverture pharmacologique dentaire Maroc avec preuve réglementaire fail-closed, puis validation scientifique indépendante avant toute activation clinique.
@@ -56,8 +56,6 @@ Queue connue:
 - `PENDING_CURRENT_PRESENTATION_DISCOVERY`: clindamycin.
 - aucune donnée clinique extraite.
 
-Le RMMG AMMPS de janvier 2026 confirme des présentations orales de métronidazole dans le répertoire générique; cela ne constitue pas encore une preuve de RCP disponible.
-
 ## Acquisition RCP read-only — résultats vérifiés
 Branche de recherche: `research/pharmacology-rcp-first-capture-20260916`.
 Aucune mutation manifest et aucune activation clinique dans les probes.
@@ -85,8 +83,7 @@ Résultat: `NO_ENABLED_PENICILLIN_V_RCP_CONTROL`; aucune mutation manifest et au
 ## Enchaînement automatique Wave 1 READY — vérifié
 Workflow chainé introduit au commit recherche `9c57795ec6f51c5a7389ad90424d3134bde95033`.
 Run chaîne #6: `35121834201` → `SUCCESS`.
-Artifact: `10457267023`.
-Digest artifact: `sha256:71efe115c423fb3107a461d7e471d4fafa116393cadc0f9f9fc5682a304d07fe`.
+Artifact `10457267023`, digest `sha256:71efe115c423fb3107a461d7e471d4fafa116393cadc0f9f9fc5682a304d07fe`.
 
 Résultat exact:
 - paracetamol: `NO_ENABLED_RCP_CONTROL`;
@@ -101,29 +98,49 @@ Interprétation autorisée:
 - aucun PDF officiel n'a été capturé;
 - aucune mutation du manifest et aucune activation clinique n'ont eu lieu.
 
-## Pivot — découverte pending + mécanisme RCP
-Après l'échec homogène des 5 candidats READY, la stratégie est changée: ne plus répéter des probes identiques sur les boutons désactivés.
+## Pending-family discovery — vérifié
+Commit recherche: `ccf03cc376f1592be028700c46ab9a823b4f2f9a`.
+Run #7: `35123369625` → `SUCCESS`.
+Artifact `10458925243`, digest `sha256:a21f4b7384eae1116c89470ae6799671952cb2befd96f51c1af2e73aaf497fe9`.
 
-Workflow de découverte introduit au commit recherche `ccf03cc376f1592be028700c46ab9a823b4f2f9a`.
-Il cible:
-- `metronidazole`: découverte de présentation actuelle, recoupement RMMG AMMPS et inspection des contrôles/attributs/DOM/ressources réseau RCP;
-- `clindamycin`: découverte via recherche AMMPS avec variantes `CLINDAMYCINE`, `CLINDAMYCIN`, `DALACINE`, sans conclure à l'absence en cas de résultat négatif.
+### Metronidazole
+Résultat exact: `PRESENTATION_WITH_DISABLED_RCP_CONTROL`.
+- recherche AMMPS courante par `METRONIDAZOLE` réussie;
+- 12 contrôles RCP scoppés, 0 activé;
+- présentations orales commercialisées observées dont `FLAGYL 250 MG` comprimé pelliculé B20 et `FLAGYL 500 MG` comprimé pelliculé B20;
+- RMMG AMMPS page 11 chargé avec présence de `METRONIDAZOLE`;
+- aucun PDF officiel capturé.
 
-Le workflow capture aussi les indices techniques du transport RCP: hrefs, attributs, HTML modal/card, formulaires de recherche, scripts, requêtes/réponses réseau intéressantes et toute réponse PDF détectée. Une réponse n'est considérée comme PDF officiel vérifié que si HTTPS AMMPS + 2xx + signature `%PDF-` + SHA-256 réel.
+Le statut reste `PENDING_RCP_LINK_CONFIRMATION`: bouton désactivé != absence réglementaire.
 
-Au moment de cette mise à jour, aucun run associé au commit `ccf03cc...` n'était encore visible; ne pas inventer de résultat.
+### Clindamycin
+Résultat exact: `PRESENTATION_WITH_DISABLED_RCP_CONTROL`.
+- recherche AMMPS courante par `CLINDAMYCINE` réussie;
+- 2 contrôles RCP scoppés, 0 activé;
+- `DALACINE T TOPIC 300 MG`, solution pour application locale, est marqué `NON COMMERCIALISE`;
+- `DUAC 6,67% / 1,28%`, gel, est marqué `RETIRE DU MARCHE`;
+- aucune présentation systémique/orale commercialisée utile au scope dentaire n'a été prouvée dans ce pass;
+- aucun PDF officiel capturé.
+
+Le statut reste donc prudemment `PENDING_CURRENT_PRESENTATION_DISCOVERY`.
+
+## Pivot technique — census global RCP AMMPS
+Après 7 familles avec le même pattern (`javascript:void(0)` + `disabled-rcp-btn` + `aria-disabled=true`), les probes ciblés sont arrêtés.
+
+Commit recherche census: `0a9db11827ce44a29aa5fb41a97c87d4bb22885b`.
+Run #8: `35126944871`.
+But: recenser toutes les pages courantes de `recherche-medicaments`, compter les contrôles RCP activés/désactivés et capturer tout href/PDF réellement exposé, sans clic forcé et sans mutation.
+État au dernier contrôle: `IN_PROGRESS`.
 
 ## État repo
 Master vérifié le 2026-09-16: `35c4ee606e953f2f2a8a9d91ab540bf6c7ef476a`, commit GitHub signé/verified.
 Le master a avancé après M1-B2; aucun nouveau travail produit M1 n'est fusionné depuis la branche de recherche.
 
 ## Next exact
-1. Lire une fois le run déclenché par `ccf03cc376f1592be028700c46ab9a823b4f2f9a` dès qu'il est visible/terminé.
-2. Inspecter `metronidazole` et `clindamycin`: présentations trouvées, états RCP, indices DOM/réseau et éventuels PDF réels.
-3. Si un PDF officiel est capturé: vérifier identité exacte de présentation + URL HTTPS AMMPS + status 2xx + `%PDF-` + bytes + SHA-256, puis lancer un reviewer scientifique indépendant dédié avant toute promotion.
-4. Si aucun PDF n'est capturé mais qu'un endpoint/document transport est découvert: créer un probe ciblé read-only sur cet endpoint.
-5. Si aucun mécanisme RCP n'est découvert: passer à la cartographie officielle des documents/endpoints AMMPS sans répéter les boutons UI.
-6. Ne modifier le manifest qu'après preuve complète + revue indépendante.
+1. Lire le résultat + artifact du census #8 `35126944871` une fois terminé.
+2. Si au moins un contrôle RCP actif existe: inspecter son href/transport et capturer un exemple réel officiel avant toute généralisation.
+3. Si 0 contrôle actif sur toute la base: considérer la voie UI actuelle AMMPS comme non exploitable pour le contrat PDF strict et chercher une source documentaire officielle AMMPS alternative; ne pas inventer d'URL.
+4. Toute capture candidate doit encore satisfaire HTTPS AMMPS + 2xx + `%PDF-` + bytes + SHA-256 + identité de présentation + reviewer indépendant avant `SNAPSHOT_VERIFIED`.
 
 ## Interdits
 - Pas d'activation clinique M1.
@@ -134,4 +151,4 @@ Le master a avancé après M1-B2; aucun nouveau travail produit M1 n'est fusionn
 - Pas d'URL RCP déduite/fabriquée à partir de `javascript:void(0)`.
 
 ## Prompt de reprise
-`Lis ce fichier depuis docs/pharmacology-m1-handover-20260915, vérifie master et le run du commit recherche ccf03cc376f1592be028700c46ab9a823b4f2f9a. M1-B2 est mergé et post-merge vert. Les 5 candidats READY Wave 1 ont tous donné NO_ENABLED_RCP_CONTROL dans le run chaîne #35121834201; aucun PDF officiel n'a été capturé. La stratégie a pivoté vers découverte metronidazole + clindamycin et inspection du mécanisme RCP AMMPS. Continuer jusqu'à preuve PDF réelle ou cartographie technique solide, sans promotion réglementaire non prouvée.`
+`Lis ce fichier depuis docs/pharmacology-m1-handover-20260915, vérifie master et le census RCP #35126944871. M1-B2 est mergé et post-merge vert. Les 5 candidats READY ont tous été vérifiés sans contrôle RCP activé. Metronidazole est présent avec 12 contrôles RCP désactivés; clindamycin ne fournit dans le pass courant que deux présentations topiques non utilisables comme preuve d'une présentation systémique actuelle. Le census global AMMPS doit déterminer si un seul vrai RCP actif est exposé par la base. Ne promouvoir aucun SNAPSHOT_VERIFIED avant PDF officiel réel + revue indépendante.`
