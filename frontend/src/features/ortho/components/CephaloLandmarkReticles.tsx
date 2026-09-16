@@ -22,6 +22,7 @@ interface CephaloLandmarkReticlesProps {
     ptSoft: string;
     ptFocus: string;
     text: string;
+    magnifierBg: string;
     isolationDim: number;
   };
   isPro: boolean;
@@ -177,7 +178,7 @@ export const CephaloLandmarkReticles = ({
                   fontWeight="900"
                   className="pointer-events-none select-none"
                   fill={P.text}
-                  style={{ paintOrder: 'stroke', stroke: P.magnifierBg ?? 'transparent', strokeWidth: isPro ? '2px' : '3.5px' }}
+                  style={{ paintOrder: 'stroke', stroke: P.magnifierBg, strokeWidth: isPro ? '2px' : '3.5px' }}
                 >
                   {pt.id}
                 </text>
