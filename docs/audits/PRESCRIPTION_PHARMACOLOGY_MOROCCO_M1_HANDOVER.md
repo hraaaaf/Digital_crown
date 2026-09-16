@@ -63,36 +63,49 @@ Aucune mutation manifest et aucune activation clinique dans les probes.
 ### Amoxicilline
 Probe inventaire #2 / run `35110885162`: `SUCCESS`.
 Artifact `10451738662`, digest `sha256:e4a88000c3293e090f12e2904fadd05a0cb61e666e99b05d64ec1e24d3b2189a`.
-
-Résultat:
-- les 6 présentations amoxicilline liées au manifest sur la page 42 ont un contrôle `Télécharger RCP` rendu mais désactivé (`aria-disabled=true`, classe `disabled-rcp-btn`);
-- aucun PDF capturé;
-- ne pas conclure `UNAVAILABLE_VERIFIED` à partir de ce seul état UI.
+Résultat: les présentations liées au manifest ont des contrôles RCP désactivés; aucun PDF capturé; aucune conclusion `UNAVAILABLE_VERIFIED` autorisée.
 
 ### Ibuprofène
-Probe #3 / run `35115618383`: `SUCCESS` sur HEAD recherche `ddda7361e40c0e558fd215fd548a3c386c687c45`.
+Probe #3 / run `35115618383`: `SUCCESS` sur `ddda7361e40c0e558fd215fd548a3c386c687c45`.
 Artifact `10454722384`, digest `sha256:3d781cf7cd37369df668fcefc8688628ec0967065b924591fa8a2558b22a2ef5`.
-
-Résultat exact du rapport: `NO_ENABLED_IBUPROFEN_RCP_CONTROL`.
-- `enabledCount=0`;
-- les contrôles ibuprofène inventoriés sont désactivés (`aria-disabled=true`, `disabled-rcp-btn`);
-- les présentations orales ALGANTIL 200 mg B10 effervescent, B20 effervescent et B20 dragée sont notamment observées `Commercialisé` mais leur contrôle RCP est désactivé;
-- aucun PDF, URL finale ou SHA-256 PDF n'a été capturé;
-- aucune promotion réglementaire autorisée.
+Résultat: `NO_ENABLED_IBUPROFEN_RCP_CONTROL`; aucun PDF/URL finale/SHA-256 PDF capturé.
 
 ### Paracétamol
-Après deux molécules sans contrôle activé, changement de stratégie conformément à la règle anti-répétition: probe ciblé page 47 lancé via commit recherche `0c66d0e59c1d473b0431d5e19a4315e65e79abae`.
-Le probe ne clique que sur un contrôle explicitement activé et n'accepte comme preuve qu'une réponse HTTPS AMMPS 2xx dont les bytes commencent par `%PDF-`, avec URL réelle + SHA-256.
-Statut du run à renseigner après résultat; ne pas inventer.
+Probe #4 / run `35116683651`: `SUCCESS` sur `0c66d0e59c1d473b0431d5e19a4315e65e79abae`.
+Artifact `10455083590`, digest `sha256:46ceaa5835bfec127c6735a2cebbfb9fdec353f903b91aac57957caaeeac19a6`.
+Résultat: `NO_ENABLED_PARACETAMOL_RCP_CONTROL`; aucune mutation manifest et aucune activation clinique.
+
+### Pénicilline V
+Probe #5 / run `35117194902`: `SUCCESS` sur `d35733b77513a8728240dd6607bd8ad3d5c01cc8`.
+Artifact `10454339652`, digest `sha256:99e7fa7cde1146dc51fde61d0809790f7dd0646f26d21df59b52cc75027d0573`.
+Résultat: `NO_ENABLED_PENICILLIN_V_RCP_CONTROL`; aucune mutation manifest et aucune activation clinique.
+
+## Changement d'exécution — enchaînement automatique des familles
+À partir du commit recherche `9c57795ec6f51c5a7389ad90424d3134bde95033`, le workflow n'est plus ciblé manuellement molécule par molécule.
+Il lit directement `PRESCRIPTION_PHARMACOLOGY_MOROCCO_RCP_WAVE1_QUEUE.json` et enchaîne tous les candidats `READY_FOR_CAPTURE_TRANSPORT` dans un seul run/browser partagé.
+
+Garde-fous:
+- domaine HTTPS AMMPS obligatoire;
+- contrôle RCP explicitement activé uniquement;
+- aucune tentative de forcer un bouton désactivé;
+- réponse 2xx + signature `%PDF-` + URL réelle + SHA-256 exigés pour une capture vérifiée;
+- download sans URL source corrélée reste non vérifié;
+- aucun `SNAPSHOT_VERIFIED`, aucun `UNAVAILABLE_VERIFIED`, aucune activation clinique automatique;
+- ciblage DOM resserré au modal/card contenant la substance, pour éviter les faux positifs de conteneur page entier.
+
+Run chaîne #6: `35121834201`.
+HEAD: `9c57795ec6f51c5a7389ad90424d3134bde95033`.
+État au dernier contrôle: `QUEUED`.
+Ne pas inventer le résultat avant conclusion réelle.
 
 ## État repo
 Master vérifié pendant l'acquisition: `10c9b084ed0582dc24147808e911defcc2806b50`.
 Le master a avancé après M1-B2; aucun nouveau travail produit M1 n'est fusionné depuis la branche de recherche.
 
 ## Next exact
-1. Lire le résultat + artifact du probe paracétamol lancé sur `0c66d0e...`.
-2. Si un unique PDF officiel est capturé: vérifier URL HTTPS AMMPS, status 2xx, `%PDF-`, bytes, SHA-256, identité de présentation, puis revue indépendante avant toute promotion `SNAPSHOT_VERIFIED`.
-3. Si aucun contrôle paracétamol n'est activé: enregistrer la preuve fail-closed et passer au prochain candidat Wave 1 (`penicillin_v`, puis `clarithromycin`) sans forcer de bouton désactivé.
+1. Lire le résultat + artifact du run chaîne #6 `35121834201` quand il est terminé.
+2. Si une ou plusieurs réponses PDF officielles sont capturées: vérifier URL HTTPS AMMPS, status 2xx, `%PDF-`, bytes, SHA-256 et identité exacte de présentation, puis lancer une revue indépendante dédiée.
+3. Si aucun READY ne donne de PDF vérifié: passer au sous-lot de découverte pour `metronidazole`, puis `clindamycin`, sans les promouvoir artificiellement en READY.
 4. Ne modifier le manifest qu'après preuve complète + revue indépendante.
 
 ## Interdits
@@ -104,4 +117,4 @@ Le master a avancé après M1-B2; aucun nouveau travail produit M1 n'est fusionn
 - Pas d'URL RCP déduite/fabriquée à partir de `javascript:void(0)`.
 
 ## Prompt de reprise
-`Lis ce fichier depuis docs/pharmacology-m1-handover-20260915, vérifie master et le dernier probe RCP. M1-B2 est mergé et post-merge vert. Amoxicilline et ibuprofène ont été vérifiés fail-closed sans contrôle RCP activé. Reprendre au probe paracétamol, puis poursuivre Wave 1 jusqu'à capturer un vrai PDF AMMPS ou épuiser proprement les candidats, sans promotion SNAPSHOT_VERIFIED avant preuve complète et revue indépendante.`
+`Lis ce fichier depuis docs/pharmacology-m1-handover-20260915, vérifie master et le run chaîne RCP #35121834201. M1-B2 est mergé et post-merge vert. Amoxicilline, ibuprofène, paracétamol et pénicilline V ont été vérifiés fail-closed sans contrôle RCP activé. Le workflow enchaîne désormais tous les candidats Wave 1 READY automatiquement. Si aucun PDF officiel n'est capturé, poursuivre par découverte metronidazole puis clindamycin, sans promotion réglementaire non prouvée.`
