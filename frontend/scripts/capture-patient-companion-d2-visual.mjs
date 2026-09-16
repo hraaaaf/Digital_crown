@@ -59,9 +59,10 @@ for (const viewport of viewports) {
   await page.getByRole('button', { name: 'Document', exact: true }).waitFor({ state: 'visible', timeout: 30000 });
   await page.addStyleTag({ content: '*,*::before,*::after{animation-duration:0s!important;transition-duration:0s!important;caret-color:transparent!important}' });
 
-  let hasCompanionTab = (await page.getByRole('button', { name: 'Companion', exact: true }).count()) > 0;
+  const hasCompanionTab = (await page.getByRole('button', { name: 'Companion', exact: true }).count()) > 0;
   let panelVisible = false;
   let ephemeralVisible = false;
+  let detailShot = null;
 
   if (phase === 'AFTER') {
     const panel = page.locator('[data-patient-companion-admin]');
@@ -74,10 +75,31 @@ for (const viewport of viewports) {
     const invitation = page.locator('[data-ephemeral-invitation]');
     await invitation.waitFor({ state: 'visible', timeout: 30000 });
     ephemeralVisible = await invitation.isVisible();
+
+    // Visual evidence must represent the settled product, not the transient success toast.
+    const generatedToast = page.getByText('Invitation Companion générée', { exact: true });
+    if (await generatedToast.count()) {
+      await generatedToast.waitFor({ state: 'hidden', timeout: 10000 }).catch(() => {});
+    }
+
+    // First AFTER frame: top of the Companion surface, consistently aligned on every viewport.
+    await panel.evaluate(element => element.scrollIntoView({ block: 'start', behavior: 'instant' }));
+    await page.waitForTimeout(100);
   }
 
   const shot = `${phase.toLowerCase()}-patient-companion-${viewport.label}.png`;
   await page.screenshot({ path: path.join(outDir, shot), fullPage: false });
+
+  if (phase === 'AFTER') {
+    // Second AFTER frame: QR/manual-code area. This prevents mobile evidence from pretending
+    // one 844px viewport can show both the complete admin surface and the ephemeral secret.
+    const invitation = page.locator('[data-ephemeral-invitation]');
+    await invitation.evaluate(element => element.scrollIntoView({ block: 'start', behavior: 'instant' }));
+    await page.waitForTimeout(100);
+    detailShot = `after-patient-companion-invitation-${viewport.label}.png`;
+    await page.screenshot({ path: path.join(outDir, detailShot), fullPage: false });
+  }
+
   const capture = {
     phase,
     viewport,
@@ -88,6 +110,7 @@ for (const viewport of viewports) {
     pageErrors,
     consoleErrors,
     shot,
+    detailShot,
   };
   captures.push(capture);
 
@@ -97,7 +120,7 @@ for (const viewport of viewports) {
   if (phase === 'BEFORE' && hasCompanionTab) {
     throw new Error(`Companion tab unexpectedly exists in BEFORE ${viewport.label}`);
   }
-  if (phase === 'AFTER' && (!hasCompanionTab || !panelVisible || !ephemeralVisible)) {
+  if (phase === 'AFTER' && (!hasCompanionTab || !panelVisible || !ephemeralVisible || !detailShot)) {
     throw new Error(`Companion target incomplete in AFTER ${viewport.label}: ${JSON.stringify(capture)}`);
   }
   await context.close();
