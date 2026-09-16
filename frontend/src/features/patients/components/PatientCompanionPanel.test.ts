@@ -1,8 +1,9 @@
 import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
-const panel = readFileSync(new URL('./PatientCompanionPanel.tsx', import.meta.url), 'utf8');
-const details = readFileSync(new URL('../PatientDetailsInner.tsx', import.meta.url), 'utf8');
+const panel = readFileSync(resolve(process.cwd(), 'src/features/patients/components/PatientCompanionPanel.tsx'), 'utf8');
+const details = readFileSync(resolve(process.cwd(), 'src/features/patients/PatientDetailsInner.tsx'), 'utf8');
 
 describe('Patient Companion D2 staff surface', () => {
   it('reuses D0 staff contracts and keeps invitation secrets memory-only', () => {
