@@ -6,10 +6,11 @@ Digital Crown est une application **on-premise / local-first**. Le runtime princ
 >
 > 1. `STATE.md`
 > 2. `CLAUDE.md`
-> 3. règle applicable sous `.claude/rules/`
-> 4. `SKILL.md` du domaine
-> 5. agent spécialisé éventuel sous `.claude/agents/`
-> 6. code, tests et runbooks référencés
+> 3. `.claude/rules/execution-scoring-verification.md`
+> 4. règle applicable sous `.claude/rules/`
+> 5. `SKILL.md` du domaine
+> 6. agent spécialisé éventuel sous `.claude/agents/`
+> 7. code, tests et runbooks référencés
 >
 > L'ancienne version détaillée reste disponible dans l'historique Git à `master@f6dd36e`.
 
@@ -49,6 +50,20 @@ Source : `backend/main.py::validate_environment_invariants()`.
 Tous imposent un mode **read-only** pour leur phase d'audit/validation.
 
 ## Règles absolues d'ingénierie
+
+### Scoring d'exécution et vérification
+
+Lire et appliquer **à chaque étape matérielle** `.claude/rules/execution-scoring-verification.md`.
+
+- produire `EXECUTION_SCORE /10` puis `ADVERSARIAL_SCORE /10` ;
+- retenir le minimum, jamais une moyenne ;
+- tout écart `> 0.5` impose investigation puis rescoring ;
+- auto-revue du même agent : max `9.4/10` ; `9.5+` exige une vraie revue indépendante ;
+- preuve/gate requis manquant ou rouge : max `7.9/10` ; régression : max `6.9/10` ; blocker sécurité/privacy/data/claim clinique : max `5.9/10` + `BLOCKED` ;
+- UI sans vraie comparaison `Target ↔ Render` : fidélité visuelle max `7.5/10` ; aucune faiblesse critique ne peut être masquée par une moyenne ;
+- `VERIFIED` exige score retenu `>= 9.0/10`, tous les gates binaires applicables verts et une **Perfection Pass finale** terminée.
+
+Le scoring ne remplace jamais CI, rehearsal, validation humaine, revue scientifique, sécurité ou politique de release.
 
 - Ne jamais perdre, réinitialiser ou reseeder une vraie donnée utilisateur.
 - Jamais de seed/demo sur une DB cabinet.
@@ -153,17 +168,20 @@ Ne déclarer aucun SHA `CODE_CERTIFIED` sans preuve du run + attestation. Ne dé
 
 ## Workflow par lot
 
-1. Lire `STATE.md`.
+1. Lire `STATE.md` et `.claude/rules/execution-scoring-verification.md`.
 2. Lire `CLAUDE.md`, la règle et le skill du domaine.
-3. Cartographier scope et invariants.
+3. Cartographier scope, invariants et gates binaires applicables.
 4. Audit read-only d'abord lorsque le skill l'impose.
 5. Implémenter dans un lot distinct.
-6. Tests ciblés puis régression proportionnée au risque.
-7. Smoke/rehearsal lorsque nécessaire.
-8. Review indépendante si requise.
-9. Mettre à jour les canoniques et vérifier leur cohérence.
-10. PR/merge/certification seulement après preuves.
-11. Pour distribution cabinet : certifier le HEAD master exact en `CODE_CERTIFIED`.
-12. Certifier les assets du même SHA, composer en `INSTALLABLE_CERTIFIED`, puis seulement construire/activer.
+6. Après chaque étape matérielle : preuve + `EXECUTION_SCORE` + `ADVERSARIAL_SCORE` + minimum retenu ; investiguer tout écart `> 0.5`.
+7. Tests ciblés puis régression proportionnée au risque.
+8. Smoke/rehearsal lorsque nécessaire.
+9. Review indépendante si requise, notamment pour toute revendication `>= 9.5/10`.
+10. Mettre à jour les canoniques et vérifier leur cohérence.
+11. Si le score atteint `9.0+`, exécuter la **Perfection Pass finale**, corriger les faiblesses améliorables, rerun les preuves impactées et rescorrer.
+12. Ne marquer `VERIFIED` qu'avec score retenu `>= 9.0/10` **et** tous les gates binaires applicables verts.
+13. PR/merge/certification seulement après preuves et gates satisfaits.
+14. Pour distribution cabinet : certifier le HEAD master exact en `CODE_CERTIFIED`.
+15. Certifier les assets du même SHA, composer en `INSTALLABLE_CERTIFIED`, puis seulement construire/activer.
 
-**Dernière révision canonique : 12 septembre 2026.**
+**Dernière révision canonique : 16 septembre 2026.**
