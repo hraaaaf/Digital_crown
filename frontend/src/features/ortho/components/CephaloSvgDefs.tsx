@@ -1,3 +1,5 @@
+import { CEPHALO_SCIENTIFIC_COLORS } from '../cephaloVisualSemantics';
+
 interface CephaloSvgDefsProps {
   magX: number;
   magY: number;
@@ -7,7 +9,6 @@ interface CephaloSvgDefsProps {
 
 export const CephaloSvgDefs = ({ magX, magY, MAG_R, isPro }: CephaloSvgDefsProps) => (
   <>
-    {/* ── DEFS ──────────────────────────────────────────────────── */}
     <defs>
       <clipPath id="cephalo-mag-clip">
         <circle cx={magX} cy={magY} r={MAG_R} />
@@ -21,11 +22,10 @@ export const CephaloSvgDefs = ({ magX, magY, MAG_R, isPro }: CephaloSvgDefsProps
           </feMerge>
         </filter>
       )}
-      {/* Définitions VTO Elite */}
       <linearGradient id="ghostFaceGradient" x1="0%" y1="0%" x2="100%" y2="0%">
-        <stop offset="0%" stopColor="#00f5ff" stopOpacity="0.22" />
-        <stop offset="60%" stopColor="#00f5ff" stopOpacity="0.08" />
-        <stop offset="100%" stopColor="#00f5ff" stopOpacity="0" />
+        <stop offset="0%" stopColor={CEPHALO_SCIENTIFIC_COLORS.soft_tissue} stopOpacity="0.22" />
+        <stop offset="60%" stopColor={CEPHALO_SCIENTIFIC_COLORS.soft_tissue} stopOpacity="0.08" />
+        <stop offset="100%" stopColor={CEPHALO_SCIENTIFIC_COLORS.soft_tissue} stopOpacity="0" />
       </linearGradient>
       <filter id="skinGlow">
         <feGaussianBlur stdDeviation="15" result="blur" />
