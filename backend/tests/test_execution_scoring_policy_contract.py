@@ -73,6 +73,8 @@ def test_github_pr_template_exposes_scoring_and_verification_gates():
         "RETAINED_SCORE /10",
         "min(EXECUTION_SCORE, ADVERSARIAL_SCORE)",
         "> 0.5",
+        "10/10",
+        "exceptionnel",
         "9.4/10",
         "9.5/10",
         "7.9/10",
