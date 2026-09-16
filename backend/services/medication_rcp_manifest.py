@@ -75,16 +75,25 @@ def _is_safe_local_pdf_artifact_path(value: Any) -> bool:
 
 
 def _read_local_artifact_bytes(value: Any) -> Optional[bytes]:
-    """Lit uniquement un artefact réellement présent sous backend/data/rcp."""
+    """Lit uniquement un artefact réellement contenu sous backend/data/rcp."""
     if not _is_safe_local_artifact_path(value):
         return None
+
     relative = PurePosixPath(str(value).strip())
     root = _REPO_ROOT.resolve()
+    declared_artifact_root = root / "backend" / "data" / "rcp"
+    resolved_artifact_root = declared_artifact_root.resolve()
+
+    # Le répertoire canonique lui-même ne doit pas être redirigé par un symlink.
+    if resolved_artifact_root != declared_artifact_root or not resolved_artifact_root.is_dir():
+        return None
+
     candidate = root.joinpath(*relative.parts).resolve()
     try:
-        candidate.relative_to(root)
+        candidate.relative_to(resolved_artifact_root)
     except ValueError:
         return None
+
     if not candidate.is_file():
         return None
     try:
