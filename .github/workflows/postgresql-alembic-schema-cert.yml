@@ -70,7 +70,7 @@ jobs:
             pytest
 
       - name: Prove runtime gate matches unique Alembic head
-        run: python -m pytest backend/tests/test_schema_runtime_head_sync.py -q --noconftest
+        run: python backend/tests/test_schema_runtime_head_sync.py
 
       - name: Assert fresh PostgreSQL database is empty
         run: |
