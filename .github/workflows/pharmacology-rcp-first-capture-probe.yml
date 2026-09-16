@@ -1,19 +1,23 @@
-name: Pharmacology AMMPS First RCP Capture Probe
+name: Pharmacology AMMPS Wave 1 RCP Chain
+
 on:
   push:
     branches: [research/pharmacology-rcp-first-capture-20260916]
     paths: ['.github/workflows/pharmacology-rcp-first-capture-probe.yml']
   workflow_dispatch:
+
 permissions:
   contents: read
+
 concurrency:
-  group: pharmacology-rcp-first-capture-probe
+  group: pharmacology-rcp-wave1-chain
   cancel-in-progress: true
+
 jobs:
-  probe:
-    name: Read-only AMMPS penicillin V RCP capture probe
+  chain:
+    name: Read-only AMMPS Wave 1 family chain
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 35
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -22,47 +26,207 @@ jobs:
       - name: Install Playwright Chromium
         run: |
           set -euo pipefail
-          mkdir -p "$RUNNER_TEMP/rcp-probe" && cd "$RUNNER_TEMP/rcp-probe"
+          mkdir -p "$RUNNER_TEMP/rcp-chain" && cd "$RUNNER_TEMP/rcp-chain"
           npm init -y >/dev/null 2>&1
           npm install --silent playwright
           npx playwright install --with-deps chromium
-      - name: Inventory phenoxymethylpenicillin RCP controls and capture one enabled official PDF
+      - name: Chain every READY_FOR_CAPTURE_TRANSPORT family
         env:
-          OUT_DIR: ${{ github.workspace }}/audit/out/pharmacology-rcp-first-capture-probe
-          TARGET_URL: https://www.ammps.gov.ma/recherche-medicaments?page=49
+          OUT_DIR: ${{ github.workspace }}/audit/out/pharmacology-rcp-wave1-chain
+          QUEUE_FILE: ${{ github.workspace }}/docs/audits/PRESCRIPTION_PHARMACOLOGY_MOROCCO_RCP_WAVE1_QUEUE.json
         run: |
           set -euo pipefail
-          mkdir -p "$OUT_DIR" && cd "$RUNNER_TEMP/rcp-probe"
+          mkdir -p "$OUT_DIR"
+          cd "$RUNNER_TEMP/rcp-chain"
           node - <<'NODE'
-          const { chromium }=require('playwright'); const fs=require('fs'),path=require('path'),crypto=require('crypto');
-          const outDir=process.env.OUT_DIR,targetUrl=process.env.TARGET_URL,hosts=new Set(['ammps.gov.ma','www.ammps.gov.ma']);
-          const sha=b=>crypto.createHash('sha256').update(b).digest('hex'); const official=v=>{try{const u=new URL(v);return u.protocol==='https:'&&hosts.has(u.hostname)}catch{return false}};
-          (async()=>{const browser=await chromium.launch({headless:true});const context=await browser.newContext({acceptDownloads:true});const page=await context.newPage();const events=[],pdfs=[];let armed=false;
-          context.on('request',r=>{if(armed)events.push({kind:'request',method:r.method(),url:r.url(),postData:r.postData()||null})});
-          context.on('response',async r=>{if(!armed)return;const h=await r.allHeaders(),url=r.url(),looks=(h['content-type']||'').toLowerCase().includes('application/pdf')||(h['content-disposition']||'').toLowerCase().includes('.pdf')||/\.pdf(?:$|[?#])/i.test(url);events.push({kind:'response',status:r.status(),url,contentType:h['content-type']||null,looksPdf:looks});if(!looks)return;try{const body=await r.body();const x={source:'response',url,status:r.status(),byteLength:body.length,signatureOk:body.subarray(0,5).toString('ascii')==='%PDF-',officialHttps:official(url),sha256:sha(body)};pdfs.push(x);fs.writeFileSync(path.join(outDir,`response-${pdfs.length}.pdf`),body)}catch(e){pdfs.push({source:'response',url,error:String(e)})}});
-          page.on('download',async d=>{if(!armed)return;const saved=path.join(outDir,'download-'+Date.now()+'.bin');try{await d.saveAs(saved);const b=fs.readFileSync(saved);pdfs.push({source:'download',suggestedFilename:d.suggestedFilename(),byteLength:b.length,signatureOk:b.subarray(0,5).toString('ascii')==='%PDF-',sha256:sha(b),sourceUrlVerified:false})}catch(e){events.push({kind:'download-error',error:String(e)})}});
-          try{const r=await page.goto(targetUrl,{waitUntil:'domcontentloaded',timeout:60000});if(!r||r.status()>=400)throw new Error('AMMPS page load failed');await page.waitForTimeout(5000);
-          const inventory=await page.evaluate(()=>{const n=v=>(v||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/\s+/g,' ').trim().toUpperCase();const controls=[...document.querySelectorAll('a,button,[role="button"]')].filter(el=>n(el.textContent).includes('TELECHARGER RCP'));const out=[];for(const c of controls){let node=c,chosen=null;while(node&&node!==document.body){const t=n(node.innerText||node.textContent||'');if(t.includes('PHENOXYMETHYLPENICILLINE')){chosen={text:t};break}node=node.parentElement}if(!chosen)continue;const modal=c.closest('.modal');const disabled=c.getAttribute('aria-disabled')==='true'||c.classList.contains('disabled-rcp-btn')||c.hasAttribute('disabled');out.push({enabled:!disabled,modalId:modal?modal.id:null,href:c.getAttribute('href'),attributes:[...c.attributes].reduce((a,x)=>(a[x.name]=x.value,a),{}),containerText:chosen.text})}const seen=new Set();return out.filter(x=>{const k=(x.modalId||'')+'|'+x.containerText;if(seen.has(k))return false;seen.add(k);return true})});
-          fs.writeFileSync(path.join(outDir,'penicillin-v-rcp-inventory.json'),JSON.stringify(inventory,null,2));await page.screenshot({path:path.join(outDir,'inventory.png'),fullPage:true});const enabled=inventory.filter(x=>x.enabled&&x.modalId);const base={schemaVersion:'ammps-penicillin-v-rcp-probe.1',sourcePageUrl:targetUrl,inventory,enabledCount:enabled.length,manifestMutationPerformed:false,clinicalActivationPerformed:false};
-          if(!enabled.length){fs.writeFileSync(path.join(outDir,'probe-report.json'),JSON.stringify({...base,result:'NO_ENABLED_PENICILLIN_V_RCP_CONTROL'},null,2));console.log('NO_ENABLED_PENICILLIN_V_RCP_CONTROL');return}
-          const selected=enabled[0];await page.evaluate(id=>{const modal=document.getElementById(id);if(!modal)throw new Error('selected modal missing');const n=v=>(v||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/\s+/g,' ').trim().toUpperCase();const c=[...modal.querySelectorAll('a,button,[role="button"]')].find(el=>n(el.textContent).includes('TELECHARGER RCP'));if(!c)throw new Error('RCP control missing');c.setAttribute('data-rcp-probe-target','true');if(window.bootstrap&&window.bootstrap.Modal)window.bootstrap.Modal.getOrCreateInstance(modal).show();else{modal.classList.add('show');modal.style.display='block';modal.removeAttribute('aria-hidden')}},selected.modalId);await page.waitForTimeout(500);armed=true;await page.locator('[data-rcp-probe-target="true"]').click({timeout:15000});await page.waitForTimeout(10000);const verified=pdfs.filter(x=>x.source==='response'&&x.signatureOk===true&&x.officialHttps===true&&x.status>=200&&x.status<300);const result=verified.length===1?'ONE_OFFICIAL_PDF_RESPONSE_CAPTURED':verified.length>1?'MULTIPLE_OFFICIAL_PDF_RESPONSES_CAPTURED_REVIEW_REQUIRED':'NO_VERIFIED_OFFICIAL_PDF_RESPONSE_CAPTURED';fs.writeFileSync(path.join(outDir,'probe-report.json'),JSON.stringify({...base,selected,events,pdfCandidates:pdfs,verifiedResponsePdfs:verified,result},null,2));console.log(`Enabled penicillin V RCP controls: ${enabled.length}`);console.log(`Verified official PDF responses: ${verified.length}`);console.log(`Probe result: ${result}`)}finally{await browser.close()}})().catch(e=>{fs.writeFileSync(path.join(outDir,'probe-error.txt'),String(e&&e.stack?e.stack:e));console.error(e);process.exit(1)});
+          const { chromium } = require('playwright');
+          const fs = require('fs');
+          const path = require('path');
+          const crypto = require('crypto');
+
+          const outDir = process.env.OUT_DIR;
+          const queue = JSON.parse(fs.readFileSync(process.env.QUEUE_FILE, 'utf8'));
+          const hosts = new Set(['ammps.gov.ma', 'www.ammps.gov.ma']);
+          const terms = {
+            paracetamol: 'PARACETAMOL',
+            ibuprofen: 'IBUPROFENE',
+            amoxicillin: 'AMOXICILLINE',
+            penicillin_v: 'PHENOXYMETHYLPENICILLINE',
+            clarithromycin: 'CLARITHROMYCINE'
+          };
+          const norm = v => (v || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, ' ').trim().toUpperCase();
+          const sha256 = b => crypto.createHash('sha256').update(b).digest('hex');
+          const isOfficial = v => { try { const u = new URL(v); return u.protocol === 'https:' && hosts.has(u.hostname); } catch { return false; } };
+          const ready = queue.entries.filter(e => e.state === 'READY_FOR_CAPTURE_TRANSPORT');
+          const targets = ready.map(e => ({
+            moleculeId: e.molecule_id,
+            term: terms[e.molecule_id] || null,
+            url: (e.source_urls || []).find(u => /\/recherche-medicaments\?page=\d+/.test(u)) || null
+          }));
+
+          (async () => {
+            const browser = await chromium.launch({ headless: true });
+            const results = [];
+            try {
+              for (const target of targets) {
+                const moleculeDir = path.join(outDir, target.moleculeId);
+                fs.mkdirSync(moleculeDir, { recursive: true });
+                const base = {
+                  moleculeId: target.moleculeId,
+                  sourcePageUrl: target.url,
+                  searchTerm: target.term,
+                  manifestMutationPerformed: false,
+                  clinicalActivationPerformed: false
+                };
+                if (!target.url || !target.term) {
+                  results.push({ ...base, result: 'SKIPPED_UNRESOLVED_TARGET' });
+                  continue;
+                }
+
+                const context = await browser.newContext({ acceptDownloads: true });
+                const page = await context.newPage();
+                const events = [];
+                const pdfs = [];
+                let armed = false;
+
+                context.on('request', r => {
+                  if (armed) events.push({ kind: 'request', method: r.method(), url: r.url(), postData: r.postData() || null });
+                });
+                context.on('response', async r => {
+                  if (!armed) return;
+                  const h = await r.allHeaders();
+                  const url = r.url();
+                  const looksPdf = (h['content-type'] || '').toLowerCase().includes('application/pdf') ||
+                    (h['content-disposition'] || '').toLowerCase().includes('.pdf') || /\.pdf(?:$|[?#])/i.test(url);
+                  events.push({ kind: 'response', status: r.status(), url, contentType: h['content-type'] || null, contentDisposition: h['content-disposition'] || null, looksPdf });
+                  if (!looksPdf) return;
+                  try {
+                    const body = await r.body();
+                    const item = {
+                      source: 'response', url, status: r.status(), contentType: h['content-type'] || null,
+                      byteLength: body.length, signatureOk: body.subarray(0, 5).toString('ascii') === '%PDF-',
+                      officialHttps: isOfficial(url), sha256: sha256(body)
+                    };
+                    pdfs.push(item);
+                    fs.writeFileSync(path.join(moleculeDir, `response-${pdfs.length}.pdf`), body);
+                  } catch (e) {
+                    pdfs.push({ source: 'response', url, error: String(e) });
+                  }
+                });
+                page.on('download', async d => {
+                  if (!armed) return;
+                  const saved = path.join(moleculeDir, 'download-' + Date.now() + '.bin');
+                  try {
+                    await d.saveAs(saved);
+                    const body = fs.readFileSync(saved);
+                    pdfs.push({
+                      source: 'download', suggestedFilename: d.suggestedFilename(), byteLength: body.length,
+                      signatureOk: body.subarray(0, 5).toString('ascii') === '%PDF-', sha256: sha256(body), sourceUrlVerified: false
+                    });
+                  } catch (e) { events.push({ kind: 'download-error', error: String(e) }); }
+                });
+
+                try {
+                  const response = await page.goto(target.url, { waitUntil: 'domcontentloaded', timeout: 60000 });
+                  if (!response || response.status() >= 400) throw new Error('AMMPS page load failed');
+                  await page.waitForTimeout(4500);
+                  const inventory = await page.evaluate(searchTerm => {
+                    const n = v => (v || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, ' ').trim().toUpperCase();
+                    const controls = Array.from(document.querySelectorAll('a,button,[role="button"]')).filter(el => n(el.textContent).includes('TELECHARGER RCP'));
+                    const out = [];
+                    for (const c of controls) {
+                      const modal = c.closest('.modal');
+                      const scope = modal || c.closest('.card') || c.parentElement;
+                      const scopeText = n(scope ? (scope.innerText || scope.textContent || '') : '');
+                      if (!scopeText.includes(searchTerm)) continue;
+                      const disabled = c.getAttribute('aria-disabled') === 'true' || c.classList.contains('disabled-rcp-btn') || c.hasAttribute('disabled');
+                      out.push({
+                        enabled: !disabled,
+                        modalId: modal ? modal.id : null,
+                        href: c.getAttribute('href'),
+                        attributes: Array.from(c.attributes).reduce((a, x) => (a[x.name] = x.value, a), {}),
+                        containerText: scopeText
+                      });
+                    }
+                    const seen = new Set();
+                    return out.filter(x => {
+                      const k = (x.modalId || '') + '|' + x.containerText;
+                      if (seen.has(k)) return false;
+                      seen.add(k); return true;
+                    });
+                  }, target.term);
+
+                  fs.writeFileSync(path.join(moleculeDir, 'inventory.json'), JSON.stringify(inventory, null, 2));
+                  await page.screenshot({ path: path.join(moleculeDir, 'inventory.png'), fullPage: true });
+                  const enabled = inventory.filter(x => x.enabled && x.modalId);
+                  if (!enabled.length) {
+                    results.push({ ...base, inventory, enabledCount: 0, result: 'NO_ENABLED_RCP_CONTROL' });
+                    continue;
+                  }
+
+                  const selected = enabled[0];
+                  await page.evaluate(id => {
+                    const modal = document.getElementById(id);
+                    if (!modal) throw new Error('selected modal missing');
+                    const n = v => (v || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, ' ').trim().toUpperCase();
+                    const c = Array.from(modal.querySelectorAll('a,button,[role="button"]')).find(el => n(el.textContent).includes('TELECHARGER RCP'));
+                    if (!c) throw new Error('RCP control missing');
+                    c.setAttribute('data-rcp-chain-target', 'true');
+                    if (window.bootstrap && window.bootstrap.Modal) window.bootstrap.Modal.getOrCreateInstance(modal).show();
+                    else { modal.classList.add('show'); modal.style.display = 'block'; modal.removeAttribute('aria-hidden'); }
+                  }, selected.modalId);
+                  await page.waitForTimeout(500);
+                  armed = true;
+                  await page.locator('[data-rcp-chain-target="true"]').click({ timeout: 15000 });
+                  await page.waitForTimeout(9000);
+                  armed = false;
+
+                  const verified = pdfs.filter(x => x.source === 'response' && x.signatureOk === true && x.officialHttps === true && x.status >= 200 && x.status < 300);
+                  const result = verified.length === 1 ? 'ONE_OFFICIAL_PDF_RESPONSE_CAPTURED' :
+                    verified.length > 1 ? 'MULTIPLE_OFFICIAL_PDF_RESPONSES_CAPTURED_REVIEW_REQUIRED' : 'NO_VERIFIED_OFFICIAL_PDF_RESPONSE_CAPTURED';
+                  results.push({ ...base, inventory, enabledCount: enabled.length, selected, events, pdfCandidates: pdfs, verifiedResponsePdfs: verified, result });
+                } catch (e) {
+                  results.push({ ...base, result: 'PROBE_ERROR', error: String(e && e.stack ? e.stack : e) });
+                } finally {
+                  await context.close();
+                }
+              }
+            } finally {
+              await browser.close();
+            }
+
+            const report = {
+              schemaVersion: 'ammps-rcp-wave1-chain.1',
+              queueSchemaVersion: queue.schema_version,
+              processedReadyCount: targets.length,
+              manifestMutationPerformed: false,
+              clinicalActivationPerformed: false,
+              results
+            };
+            fs.writeFileSync(path.join(outDir, 'wave1-chain-report.json'), JSON.stringify(report, null, 2));
+            for (const r of results) console.log(`${r.moleculeId}: ${r.result}`);
+          })().catch(e => { console.error(e); process.exit(1); });
           NODE
-      - name: Validate fail-closed report
+      - name: Validate fail-closed chain report
         run: |
           python - <<'PY'
           import json
           from pathlib import Path
-          r=json.loads(Path('audit/out/pharmacology-rcp-first-capture-probe/probe-report.json').read_text())
-          assert r['schemaVersion']=='ammps-penicillin-v-rcp-probe.1'
+          p=Path('audit/out/pharmacology-rcp-wave1-chain/wave1-chain-report.json')
+          if not p.is_file(): raise SystemExit('wave1-chain-report.json missing')
+          r=json.loads(p.read_text())
+          assert r['schemaVersion']=='ammps-rcp-wave1-chain.1'
           assert r['manifestMutationPerformed'] is False and r['clinicalActivationPerformed'] is False
-          allowed={'NO_ENABLED_PENICILLIN_V_RCP_CONTROL','NO_VERIFIED_OFFICIAL_PDF_RESPONSE_CAPTURED','ONE_OFFICIAL_PDF_RESPONSE_CAPTURED','MULTIPLE_OFFICIAL_PDF_RESPONSES_CAPTURED_REVIEW_REQUIRED'}
-          assert r['result'] in allowed
-          if r['result']=='ONE_OFFICIAL_PDF_RESPONSE_CAPTURED':
-              v=r.get('verifiedResponsePdfs',[]); assert len(v)==1 and v[0].get('sha256') and v[0].get('url') and v[0].get('signatureOk') and v[0].get('officialHttps')
-          print(r['result'])
+          allowed={'NO_ENABLED_RCP_CONTROL','NO_VERIFIED_OFFICIAL_PDF_RESPONSE_CAPTURED','ONE_OFFICIAL_PDF_RESPONSE_CAPTURED','MULTIPLE_OFFICIAL_PDF_RESPONSES_CAPTURED_REVIEW_REQUIRED','SKIPPED_UNRESOLVED_TARGET','PROBE_ERROR'}
+          assert r['results'] and all(x.get('result') in allowed for x in r['results'])
+          for x in r['results']:
+              if x['result']=='ONE_OFFICIAL_PDF_RESPONSE_CAPTURED':
+                  v=x.get('verifiedResponsePdfs',[])
+                  assert len(v)==1 and v[0].get('sha256') and v[0].get('url') and v[0].get('signatureOk') and v[0].get('officialHttps')
+          print('\n'.join(f"{x['moleculeId']}: {x['result']}" for x in r['results']))
           PY
       - uses: actions/upload-artifact@v4
         with:
-          name: pharmacology-penicillin-v-rcp-probe
-          path: audit/out/pharmacology-rcp-first-capture-probe/
+          name: pharmacology-rcp-wave1-chain
+          path: audit/out/pharmacology-rcp-wave1-chain/
           retention-days: 30
