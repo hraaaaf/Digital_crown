@@ -1,11 +1,9 @@
 # Digital Crown — Agenda clinique multi-praticiens
 
-Statut: chantier actif — A1 mergé, certification post-merge du master courant en cours
+Statut: chantier actif — A1 clôturé; A2 produit certifié pré-merge; closeout documentaire en cours
 Date d'ouverture: 2026-09-16
 Repo: `hraaaaf/Digital_crown`
-Branche d'ouverture: `feat/agenda-clinic-a1-practitioner-filter-20260916`
-Base vérifiée à l'ouverture: `master@a396acfd6570ff24ca683009e1f31bdb3f2c0d92`
-CI master de référence à l'ouverture: `CI #4494` — SUCCESS
+Fichier canonique: `docs/audits/AGENDA_CLINIC_CANONICAL.md`
 
 ## Goal global
 
@@ -15,125 +13,170 @@ Architecture à préserver:
 
 `Appointment + employer_id + praticien_id + logique de conflits existante`
 
-Le chantier ajoute une couche clinique au-dessus de ce socle.
-
-## Baseline vérifiée avant chantier
+## Baseline métier vérifiée
 
 - Les rendez-vous sont isolés par `employer_id`.
-- `praticien_id` est un FK nullable vers `users.id`.
-- Un praticien assignable doit être actif, approuvé et appartenir au cabinet.
-- Deux praticiens différents peuvent avoir un rendez-vous au même horaire.
+- `praticien_id` est nullable pour compatibilité historique.
+- Un praticien assignable doit appartenir au cabinet et respecter les règles d'activité/approbation existantes.
+- Deux praticiens différents peuvent occuper le même horaire.
 - Un même praticien ne peut pas avoir deux rendez-vous exact-time qui se chevauchent.
-- Les rendez-vous legacy avec `praticien_id = NULL` sont des bloqueurs globaux.
-- La création, la réaffectation et le bulk revalident les conflits.
-- Les horaires et exceptions actuels sont au niveau cabinet, pas au niveau praticien.
-- Avant A1, les vues Jour/Semaine/Mois lisaient l'ensemble des rendez-vous du cabinet.
-- Avant A1, le sélecteur praticien influençait l'attribution des nouveaux rendez-vous, pas la lecture de l'agenda standard.
-- Une vue multi-praticiens PREMIUM+ existe mais n'est pas encore une grille horaire synchronisée.
+- Les rendez-vous historiques `praticien_id = NULL` restent des bloqueurs globaux.
+- Les horaires et exceptions existants sont au niveau cabinet, pas au niveau praticien.
 - Aucun fauteuil/salle/ressource n'est actuellement modélisé dans `Appointment`.
 
-## Règles de sécurité du chantier
+## Règles de sécurité
 
-1. Préserver la compatibilité des données existantes.
+1. Préserver DB, patients, documents, rendez-vous et fonctionnalités validées.
 2. Aucune migration destructive.
-3. Aucun changement silencieux d'affectation d'un rendez-vous existant.
-4. Les rendez-vous legacy non assignés restent visibles tant qu'ils peuvent bloquer un créneau.
-5. Toute modification significative doit inclure des tests de non-régression adaptés.
+3. Aucune réaffectation silencieuse d'un rendez-vous existant.
+4. Les rendez-vous non assignés restent visibles tant qu'ils peuvent bloquer un créneau.
+5. Toute modification significative inclut des tests de non-régression adaptés.
 6. Aucun merge sans accord explicite utilisateur sur le HEAD exact.
 7. Aucun déploiement Vercel sans autorisation explicite.
-8. Un lot à la fois; pas de mélange de responsabilités entre lots.
-9. Toute modification UI/UX visuelle doit suivre BEFORE → Goal → référence/mockup → implémentation → AFTER mêmes viewports → comparaison/tests → score visuel.
+8. Un lot à la fois.
+9. Toute évolution UI/UX suit BEFORE → Goal → référence/mockup → implémentation → AFTER mêmes viewports → comparaison/tests → score visuel.
 
-## Découpage canonique
-
-### LOT A1 — Filtrage praticien réel
+## LOT A1 — Filtrage praticien réel
 
 Goal: quand un praticien est sélectionné dans le contexte clinique, les vues Jour/Semaine/Mois affichent réellement son agenda.
 
-Succès observable:
+Résultat livré:
 - `GET /appointments/` accepte un filtre praticien sécurisé et tenant-scoped;
-- la vue d'un praticien inclut ses rendez-vous et les rendez-vous legacy non assignés qui restent des bloqueurs globaux;
-- elle n'affiche pas les rendez-vous attribués à un autre praticien;
-- sans filtre, le comportement historique cabinet-wide est inchangé;
-- le changement de praticien rafraîchit Jour/Semaine/Mois;
-- création et édition conservent les règles actuelles d'attribution/non-réaffectation;
-- tests backend + frontend/non-régression verts sur le HEAD pré-merge exact.
+- la lecture filtrée contient le praticien sélectionné + les rendez-vous `praticien_id = NULL`;
+- les rendez-vous d'un autre praticien sont exclus;
+- sans filtre, le comportement cabinet-wide historique est conservé;
+- changement de praticien → refetch Jour/Semaine/Mois;
+- édition sans réaffectation silencieuse;
+- aucune migration DB;
+- moteur de conflits inchangé.
 
-État vérifié A1:
-- PR `#528` — `feat(agenda): A1 real practitioner filtering`;
-- HEAD pré-merge exact: `9e3d9e8de8362b8bb4d69e908e1c68b971d43f51`;
+Preuve A1:
+- PR `#528` mergée;
+- HEAD pré-merge: `9e3d9e8de8362b8bb4d69e908e1c68b971d43f51`;
+- merge commit: `86958c913e5c2872504505eb3af0485b22e66c05`;
 - CI pré-merge `#4520` — SUCCESS;
-- T2 Runtime Browser Certification `#3392` — SUCCESS;
-- Cabinet Upgrade PostgreSQL Certification `#907` — SUCCESS;
-- Clinic P1 Multi-Practitioner Visual Certification `#109` — SUCCESS;
-- M6-I Biometric Passkey Certification `#2192` — SKIPPED attendu;
-- aucun commentaire, aucune review et aucun review thread au dernier contrôle avant merge;
-- PR #528 mergée avec accord utilisateur explicite;
-- merge commit A1: `86958c913e5c2872504505eb3af0485b22e66c05`.
+- T2 `#3392` — SUCCESS;
+- PostgreSQL `#907` — SUCCESS;
+- Clinic P1 `#109` — SUCCESS;
+- master contenant A1 vérifié: `8a37913c23f182a8de4e0f1dd0e2049e48b7267f`;
+- CI post-merge `#4528` / run `35081648852` — SUCCESS;
+- Cabinet Upgrade PostgreSQL `#912` / run `35081649142` — SUCCESS.
 
-Post-merge:
-- le CI push `#4527` sur `86958c913e5c2872504505eb3af0485b22e66c05` a été CANCELLED car master a avancé immédiatement après;
-- master vérifié ensuite: `8a37913c23f182a8de4e0f1dd0e2049e48b7267f`, qui contient `86958c913e5c2872504505eb3af0485b22e66c05` comme parent;
-- sur ce master courant, `CI #4528` et `Cabinet Upgrade PostgreSQL Certification #912` étaient QUEUED au dernier contrôle;
-- ne pas déclarer la certification post-merge A1 terminée tant que ces gates du master contenant A1 ne sont pas vérifiés verts.
+État A1: **CLÔTURÉ**.
 
-Hors scope A1:
-- grille multi-lanes;
-- horaires individuels;
-- fauteuils/salles/ressources;
-- timezone explicite;
-- soft-delete;
-- migration des rendez-vous legacy.
+## LOT A2 — Vue clinique multi-praticiens
 
-### LOT A2 — Vue clinique multi-praticiens
+Goal: remplacer la lecture Multi en listes verticales par une grille horaire journalière synchronisée, sans introduire les disponibilités individuelles A3.
 
-Goal: remplacer la lecture multi-praticiens en listes verticales par une vraie matrice horaire synchronisée, sans modifier la logique métier des disponibilités individuelles.
+Cible UX: `Heure | Dr A | Dr B | Dr C ...`
 
-Cible UX: `Heure | Dr A | Dr B | Dr C ...`, avec création/édition dans la colonne du praticien et lecture immédiate des créneaux occupés/libres.
+### Résultat produit certifié
 
-Gate d'entrée A2:
-1. lire le présent fichier et `docs/audits/AGENDA_CLINIC_A1_HANDOVER.md`;
-2. vérifier le master ACTUEL, sans réutiliser un SHA ancien;
-3. confirmer que le merge A1 est bien ancêtre du master;
-4. vérifier les certifications post-merge pertinentes du master contenant A1;
-5. si un gate est rouge, diagnostiquer/corriger avant A2;
-6. si les gates sont verts, exécuter obligatoirement le protocole UI/UX A2: BEFORE → Goal écrit → mockup/référence → implémentation → AFTER mêmes viewports → comparaison/tests → score visuel.
+- Multi devient une vue quotidienne J-1/J+1.
+- Axe horaire commun, slots de 15 minutes, même repère temporel pour toutes les lanes.
+- Une lane par praticien actif/assignable renvoyé par l'API existante.
+- Les rendez-vous exact-time sont positionnés à leur vraie heure et selon leur vraie durée.
+- Les rendez-vous flexibles restent visibles sans heure inventée.
+- Les rendez-vous `praticien_id = NULL` sont affichés comme bloqueurs transversaux explicites.
+- Création depuis une lane: praticien de lane injecté au GET de conflit et au POST de création.
+- L'intercepteur de création est installé avant l'ouverture du modal et supprimé à la fermeture/édition/unmount.
+- Aucun praticien n'est injecté sur un PUT d'édition: pas de réaffectation silencieuse.
+- Les horaires globaux cabinet existants sont réutilisés; aucune disponibilité individuelle n'est introduite.
+- Jour/Semaine/Mois A1 restent préservés.
+- Responsive: matrice conservée, scroll horizontal interne sur petit écran, pas d'overflow horizontal de page.
+- Aucun backend A2, aucune migration DB.
 
-### LOT A3 — Disponibilités individuelles
+### BEFORE A2
+
+- base produit: `bc3d8d145670dc70dc6c6842e772e56d1d89aa99`;
+- capture HEAD: `2911da0f4e8bd4766b725089924e5ba5a616eaff`;
+- run `35084989399` — SUCCESS;
+- viewports: `390×844`, `768×1024`, `1280×900`;
+- artifact digest: `sha256:c4fc22b6a489170e06b5a7f6ff09f76cdaa2e68ac40cec82c5bdd55abc7a3755`;
+- référence UX: `docs/audits/AGENDA_CLINIC_A2_UX_REFERENCE.md`.
+
+### AFTER / preuve produit A2
+
+PR: `#533` — `feat(agenda): A2 synchronized multi-practitioner grid`
+Branche: `feat/agenda-clinic-a2-multi-grid-20260916`
+HEAD produit certifié: `677414578010a7b9983e19e035a2ee5a0001603c`
+
+Gates exacts sur ce HEAD:
+- CI `#4558` / run `35093443889` — SUCCESS;
+- T2 Runtime Browser `#3425` / run `35093443907` — SUCCESS;
+- Clinic P1 Multi-Practitioner Visual `#125` / run `35093444003` — SUCCESS;
+- Agenda A2 AFTER Visual Certification V2 `#11` / run `35093443999` — SUCCESS;
+- M6-I `#2225` — SKIPPED attendu;
+- test contractuel A2: 4/4 PASS.
+
+Artifact AFTER V2:
+- id `10445091768`;
+- digest `sha256:51eab42cf5522cc199b7f3cfd561518406a658427916a74e8155cc922b3739d4`;
+- mêmes viewports que le BEFORE;
+- `syncDelta = 0 px` aux trois viewports;
+- aucune erreur navigateur;
+- aucun overflow horizontal de page;
+- mobile 390 px: scroll interne `364 → 728` px;
+- création lane Dr Youssef: `praticien_id = 2` sur le contrôle de conflit ET le POST;
+- modal seedé `2026-09-16 15:00`, durée `30 min`;
+- `datetime_start = 2026-09-16T14:00:00.000Z`, cohérent avec 15:00 à Casablanca UTC+1.
+
+Comparaison visuelle:
+- BEFORE: cartes empilées, dates mélangées, pas d'axe temporel commun, legacy non assigné absent de la lecture Multi;
+- AFTER: axe commun, durées proportionnelles, simultanéité lisible, fermeture cabinet visible, legacy transversal explicite, matrice responsive.
+
+Score visuel observé: **9.1/10**.
+Compromis connu: à 390 px, trois praticiens nécessitent un scroll horizontal interne; c'est intentionnel et la page elle-même ne déborde pas.
+
+Contrat backend revalidé sans modification A2:
+- `/appointments/check-conflicts` accepte `praticien_id` et conserve `praticien_id = NULL` comme bloqueur global;
+- `/appointments/multi-practitioner` renvoie `legacy_unassigned` séparément;
+- aucun changement du moteur de collision n'était nécessaire.
+
+Au dernier contrôle du HEAD produit certifié:
+- master: `bc3d8d145670dc70dc6c6842e772e56d1d89aa99`;
+- branche A2: ahead 18 / behind 0;
+- PR #533 mergeable et encore draft;
+- aucun commentaire, aucune review, aucun review thread.
+
+Important: le commit documentaire qui contient le présent closeout est un descendant docs-only du HEAD produit certifié ci-dessus. Son SHA et ses gates doivent être vérifiés live avant merge; ne pas extrapoler les certifications du parent à un HEAD différent sans cette vérification.
+
+État A2: **PRODUIT CERTIFIÉ PRÉ-MERGE — CLOSEOUT DOCS À RECERTIFIER SUR LE HEAD FINAL**.
+
+## LOT A3 — Disponibilités individuelles
 
 Goal: horaires, jours travaillés, pauses, congés et absences propres à chaque praticien, superposés aux fermetures globales du cabinet.
 
-### LOT A4 — Fauteuils / salles / ressources
+Baseline vérifiée avant A3:
+- `cabinet_settings.weekly_schedule_json` est tenant-scoped par `employer_id` et décrit les horaires globaux du cabinet;
+- `agenda_exceptions` est tenant-scoped par `employer_id` et décrit les fermetures globales;
+- `validate_appointment_availability(...)` applique aujourd'hui ces règles globales;
+- A2 n'a ajouté aucune disponibilité individuelle.
 
-Goal: capacité physique réelle du cabinet avec allocation facultative de ressource et contrôle des collisions praticien + ressource.
+Principe A3 à préserver:
+`disponibilité effective = disponibilité cabinet ∩ disponibilité praticien`.
 
-### LOT A5 — Robustesse clinique + closeout
+## LOT A4 — Fauteuils / salles / ressources
+
+Goal: modéliser la capacité physique du cabinet avec allocation facultative de ressource et contrôle des collisions praticien + ressource.
+
+## LOT A5 — Robustesse clinique + closeout
 
 Goal: timezone cabinet explicite, stratégie soft-delete/historique, traitement/migration legacy, non-régression globale, documentation et certification finale du chantier.
-
-## Règle d'or de continuité
-
-A1 se traite dans la conversation d'ouverture du chantier.
-
-Dès que A1 est mergé et que A2 devient le prochain lot, produire obligatoirement:
-1. un handover compact et vérifié d'A1;
-2. un prompt prêt à copier pour une NOUVELLE conversation dédiée à A2;
-3. le chemin exact du présent fichier canonique à lire en premier;
-4. l'état repo/branche/PR/HEAD/CI exact au moment du handover.
-
-Même règle ensuite pour chaque changement de lot.
 
 ## Procédure de reprise
 
 Dans toute nouvelle conversation:
-1. lire intégralement `docs/audits/AGENDA_CLINIC_CANONICAL.md` et le dernier handover du chantier;
-2. vérifier `master`, branche du lot, PR, HEAD, CI et divergence réelle;
-3. ne jamais supposer qu'un SHA ou une CI ancien est encore actuel;
-4. reprendre uniquement le lot actif et ses gates.
+1. lire intégralement ce fichier;
+2. lire le dernier handover du chantier;
+3. vérifier live `master`, branche, PR, HEAD, CI, reviews/threads et divergence;
+4. ne jamais supposer qu'un SHA ou une CI ancien est encore actuel;
+5. reprendre uniquement le lot actif et ses gates.
 
 ## État courant
 
-A1: MERGÉ — post-merge du master contenant A1 à confirmer.
-Prochain lot: A2 — Vue clinique multi-praticiens.
+A1: **CLOSED**.
+A2: produit certifié sur `677414578010a7b9983e19e035a2ee5a0001603c`; closeout documentaire descendant en cours de recertification.
+A3: **NON DÉMARRÉ**.
 
-Next exact: vérifier une fois `CI #4528` et `Cabinet Upgrade PostgreSQL Certification #912` sur le master contenant A1; si verts, A1 est clôturable et la nouvelle conversation A2 peut démarrer par le BEFORE UI/UX.
+Next exact: vérifier le HEAD documentaire final de PR #533, ses gates et sa divergence; si propre, passer la PR ready et obtenir l'accord utilisateur explicite pour merger ce HEAD exact. Après merge/post-merge vérifié, démarrer A3 dans une nouvelle conversation via `docs/audits/AGENDA_CLINIC_A3_START_PROMPT.md`.
