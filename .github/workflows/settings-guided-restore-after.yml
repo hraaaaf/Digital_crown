@@ -117,7 +117,11 @@ jobs:
             warnings: ['Sauvegarde DB seule : les médias actuels seront préservés'], errors: [],
           };
 
-          const server = await createServer({ server: { host: '127.0.0.1', port: 4178, strictPort: true }, clearScreen: false });
+          const server = await createServer({
+            server: { host: '127.0.0.1', port: 4178, strictPort: true },
+            optimizeDeps: { include: ['workbox-window'] },
+            clearScreen: false,
+          });
           await server.listen();
           const browser = await chromium.launch({ headless: true });
           const evidence = [];
@@ -135,6 +139,12 @@ jobs:
               await page.route('**/*', async route => {
                 const request = route.request();
                 const url = new URL(request.url());
+                if (url.hostname === 'fonts.googleapis.com') {
+                  return route.fulfill({ status: 200, contentType: 'text/css', body: '' });
+                }
+                if (url.hostname === 'fonts.gstatic.com') {
+                  return route.fulfill({ status: 204, body: '' });
+                }
                 if (url.port !== '8005' || !url.pathname.startsWith('/api/')) return route.continue();
                 if (request.method() === 'POST' && url.pathname === '/api/admin/restore/preflight') return route.fulfill(json(preflight));
                 if (request.method() === 'DELETE' && url.pathname.startsWith('/api/admin/restore/')) return route.fulfill(json({ status: 'cancelled' }));
