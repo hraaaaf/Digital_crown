@@ -1,4 +1,4 @@
-name: Pharmacology AMMPS Wave 1 RCP Chain
+name: Pharmacology AMMPS Pending RCP Discovery
 
 on:
   push:
@@ -10,12 +10,12 @@ permissions:
   contents: read
 
 concurrency:
-  group: pharmacology-rcp-wave1-chain
+  group: pharmacology-rcp-pending-discovery
   cancel-in-progress: true
 
 jobs:
-  chain:
-    name: Read-only AMMPS Wave 1 family chain
+  discovery:
+    name: Read-only AMMPS pending-family and RCP mechanism discovery
     runs-on: ubuntu-latest
     timeout-minutes: 35
     steps:
@@ -26,18 +26,17 @@ jobs:
       - name: Install Playwright Chromium
         run: |
           set -euo pipefail
-          mkdir -p "$RUNNER_TEMP/rcp-chain" && cd "$RUNNER_TEMP/rcp-chain"
+          mkdir -p "$RUNNER_TEMP/rcp-discovery" && cd "$RUNNER_TEMP/rcp-discovery"
           npm init -y >/dev/null 2>&1
           npm install --silent playwright
           npx playwright install --with-deps chromium
-      - name: Chain every READY_FOR_CAPTURE_TRANSPORT family
+      - name: Discover metronidazole and clindamycin presentations plus RCP transport clues
         env:
-          OUT_DIR: ${{ github.workspace }}/audit/out/pharmacology-rcp-wave1-chain
-          QUEUE_FILE: ${{ github.workspace }}/docs/audits/PRESCRIPTION_PHARMACOLOGY_MOROCCO_RCP_WAVE1_QUEUE.json
+          OUT_DIR: ${{ github.workspace }}/audit/out/pharmacology-rcp-pending-discovery
         run: |
           set -euo pipefail
           mkdir -p "$OUT_DIR"
-          cd "$RUNNER_TEMP/rcp-chain"
+          cd "$RUNNER_TEMP/rcp-discovery"
           node - <<'NODE'
           const { chromium } = require('playwright');
           const fs = require('fs');
@@ -45,148 +44,204 @@ jobs:
           const crypto = require('crypto');
 
           const outDir = process.env.OUT_DIR;
-          const queue = JSON.parse(fs.readFileSync(process.env.QUEUE_FILE, 'utf8'));
-          const hosts = new Set(['ammps.gov.ma', 'www.ammps.gov.ma']);
-          const terms = {
-            paracetamol: 'PARACETAMOL',
-            ibuprofen: 'IBUPROFENE',
-            amoxicillin: 'AMOXICILLINE',
-            penicillin_v: 'PHENOXYMETHYLPENICILLINE',
-            clarithromycin: 'CLARITHROMYCINE'
-          };
+          const officialHosts = new Set(['ammps.gov.ma', 'www.ammps.gov.ma']);
+          const baseSearch = 'https://www.ammps.gov.ma/recherche-medicaments?page=1';
+          const targets = [
+            {
+              moleculeId: 'metronidazole',
+              terms: ['METRONIDAZOLE'],
+              corroborationUrls: [
+                'https://ammps.gov.ma/repertoire-medicaments-generiques?page=11',
+                'https://www.ammps.gov.ma/note-information/repertoire-marocain-des-medicaments-generiques'
+              ]
+            },
+            {
+              moleculeId: 'clindamycin',
+              terms: ['CLINDAMYCINE', 'CLINDAMYCIN', 'DALACINE'],
+              corroborationUrls: []
+            }
+          ];
+
           const norm = v => (v || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, ' ').trim().toUpperCase();
           const sha256 = b => crypto.createHash('sha256').update(b).digest('hex');
-          const isOfficial = v => { try { const u = new URL(v); return u.protocol === 'https:' && hosts.has(u.hostname); } catch { return false; } };
-          const ready = queue.entries.filter(e => e.state === 'READY_FOR_CAPTURE_TRANSPORT');
-          const targets = ready.map(e => ({
-            moleculeId: e.molecule_id,
-            term: terms[e.molecule_id] || null,
-            url: (e.source_urls || []).find(u => /\/recherche-medicaments\?page=\d+/.test(u)) || null
-          }));
+          const isOfficial = value => { try { const u = new URL(value); return u.protocol === 'https:' && officialHosts.has(u.hostname); } catch { return false; } };
+          const interestingUrl = u => /rcp|pdf|download|document|medicament|recherche|api|ajax/i.test(u || '');
+
+          async function snapshotPage(page, dir, label, term) {
+            await page.waitForTimeout(3500);
+            const data = await page.evaluate(({ term }) => {
+              const n = v => (v || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, ' ').trim().toUpperCase();
+              const bodyText = n(document.body ? document.body.innerText : '');
+              const controls = Array.from(document.querySelectorAll('a,button,[role="button"]'))
+                .filter(el => n(el.textContent).includes('RCP'))
+                .map(el => {
+                  const modal = el.closest('.modal');
+                  const card = el.closest('.card');
+                  const scope = modal || card || el.parentElement;
+                  const scopeText = n(scope ? (scope.innerText || scope.textContent || '') : '');
+                  return {
+                    text: n(el.textContent),
+                    enabled: !(el.getAttribute('aria-disabled') === 'true' || el.classList.contains('disabled-rcp-btn') || el.hasAttribute('disabled')),
+                    href: el.getAttribute('href'),
+                    modalId: modal ? modal.id : null,
+                    attributes: Array.from(el.attributes).reduce((a, x) => (a[x.name] = x.value, a), {}),
+                    outerHTML: el.outerHTML.slice(0, 8000),
+                    scopeText: scopeText.slice(0, 12000),
+                    modalHTML: modal ? modal.outerHTML.slice(0, 20000) : null,
+                    matchesTerm: scopeText.includes(term)
+                  };
+                });
+              const links = Array.from(document.querySelectorAll('a[href]')).map(a => a.href).filter(Boolean);
+              const scripts = Array.from(document.querySelectorAll('script')).map(s => ({ src: s.src || null, inline: s.src ? null : (s.textContent || '').slice(0, 12000) }));
+              const inputs = Array.from(document.querySelectorAll('input')).map(i => ({ type: i.type, name: i.name, id: i.id, placeholder: i.placeholder, value: i.value }));
+              const forms = Array.from(document.querySelectorAll('form')).map(f => ({ action: f.action, method: f.method, outerHTML: f.outerHTML.slice(0, 12000) }));
+              const matchingText = bodyText.includes(term);
+              return { title: document.title, url: location.href, matchingText, controls, links, scripts, inputs, forms, bodyExcerpt: bodyText.includes(term) ? bodyText.slice(Math.max(0, bodyText.indexOf(term) - 4000), bodyText.indexOf(term) + 12000) : bodyText.slice(0, 8000) };
+            }, { term });
+            fs.writeFileSync(path.join(dir, `${label}.json`), JSON.stringify(data, null, 2));
+            await page.screenshot({ path: path.join(dir, `${label}.png`), fullPage: true });
+            return data;
+          }
+
+          async function runSearch(page, term) {
+            const inputs = page.locator('input');
+            const count = await inputs.count();
+            let chosen = null;
+            for (let i = 0; i < count; i++) {
+              const input = inputs.nth(i);
+              const meta = await input.evaluate(el => ({ type: el.type, placeholder: el.placeholder || '', name: el.name || '', id: el.id || '' }));
+              const hay = norm(`${meta.placeholder} ${meta.name} ${meta.id}`);
+              if ((meta.type === 'search' || meta.type === 'text' || !meta.type) && /RECHERCHE|MEDICAMENT|NOM/.test(hay)) { chosen = input; break; }
+            }
+            if (!chosen) return { submitted: false, reason: 'NO_SEARCH_INPUT' };
+            await chosen.fill(term);
+            await chosen.press('Enter').catch(() => {});
+            await page.waitForTimeout(3500);
+            const now = norm(await page.locator('body').innerText());
+            if (now.includes(term)) return { submitted: true, method: 'ENTER', termVisible: true, url: page.url() };
+            const button = page.getByRole('button', { name: /rechercher/i }).first();
+            if (await button.count()) {
+              await button.click().catch(() => {});
+              await page.waitForTimeout(3500);
+            }
+            const after = norm(await page.locator('body').innerText());
+            return { submitted: true, method: 'ENTER_OR_BUTTON', termVisible: after.includes(term), url: page.url() };
+          }
 
           (async () => {
             const browser = await chromium.launch({ headless: true });
             const results = [];
             try {
               for (const target of targets) {
-                const moleculeDir = path.join(outDir, target.moleculeId);
-                fs.mkdirSync(moleculeDir, { recursive: true });
-                const base = {
-                  moleculeId: target.moleculeId,
-                  sourcePageUrl: target.url,
-                  searchTerm: target.term,
-                  manifestMutationPerformed: false,
-                  clinicalActivationPerformed: false
-                };
-                if (!target.url || !target.term) {
-                  results.push({ ...base, result: 'SKIPPED_UNRESOLVED_TARGET' });
-                  continue;
-                }
-
+                const dir = path.join(outDir, target.moleculeId);
+                fs.mkdirSync(dir, { recursive: true });
                 const context = await browser.newContext({ acceptDownloads: true });
                 const page = await context.newPage();
-                const events = [];
+                const network = [];
                 const pdfs = [];
-                let armed = false;
-
-                context.on('request', r => {
-                  if (armed) events.push({ kind: 'request', method: r.method(), url: r.url(), postData: r.postData() || null });
-                });
+                context.on('request', r => { if (interestingUrl(r.url())) network.push({ kind: 'request', method: r.method(), url: r.url(), postData: r.postData() || null }); });
                 context.on('response', async r => {
-                  if (!armed) return;
-                  const h = await r.allHeaders();
+                  const headers = await r.allHeaders().catch(() => ({}));
                   const url = r.url();
-                  const looksPdf = (h['content-type'] || '').toLowerCase().includes('application/pdf') ||
-                    (h['content-disposition'] || '').toLowerCase().includes('.pdf') || /\.pdf(?:$|[?#])/i.test(url);
-                  events.push({ kind: 'response', status: r.status(), url, contentType: h['content-type'] || null, contentDisposition: h['content-disposition'] || null, looksPdf });
+                  const ct = (headers['content-type'] || '').toLowerCase();
+                  const cd = (headers['content-disposition'] || '').toLowerCase();
+                  const looksPdf = ct.includes('application/pdf') || cd.includes('.pdf') || /\.pdf(?:$|[?#])/i.test(url);
+                  if (interestingUrl(url) || looksPdf) network.push({ kind: 'response', status: r.status(), url, contentType: headers['content-type'] || null, contentDisposition: headers['content-disposition'] || null, looksPdf });
                   if (!looksPdf) return;
                   try {
                     const body = await r.body();
-                    const item = {
-                      source: 'response', url, status: r.status(), contentType: h['content-type'] || null,
-                      byteLength: body.length, signatureOk: body.subarray(0, 5).toString('ascii') === '%PDF-',
-                      officialHttps: isOfficial(url), sha256: sha256(body)
-                    };
+                    const item = { source: 'response', url, status: r.status(), contentType: headers['content-type'] || null, byteLength: body.length, signatureOk: body.subarray(0, 5).toString('ascii') === '%PDF-', officialHttps: isOfficial(url), sha256: sha256(body) };
                     pdfs.push(item);
-                    fs.writeFileSync(path.join(moleculeDir, `response-${pdfs.length}.pdf`), body);
-                  } catch (e) {
-                    pdfs.push({ source: 'response', url, error: String(e) });
-                  }
-                });
-                page.on('download', async d => {
-                  if (!armed) return;
-                  const saved = path.join(moleculeDir, 'download-' + Date.now() + '.bin');
-                  try {
-                    await d.saveAs(saved);
-                    const body = fs.readFileSync(saved);
-                    pdfs.push({
-                      source: 'download', suggestedFilename: d.suggestedFilename(), byteLength: body.length,
-                      signatureOk: body.subarray(0, 5).toString('ascii') === '%PDF-', sha256: sha256(body), sourceUrlVerified: false
-                    });
-                  } catch (e) { events.push({ kind: 'download-error', error: String(e) }); }
+                    fs.writeFileSync(path.join(dir, `response-${pdfs.length}.pdf`), body);
+                  } catch (e) { pdfs.push({ source: 'response', url, error: String(e) }); }
                 });
 
+                const attempts = [];
+                let best = null;
                 try {
-                  const response = await page.goto(target.url, { waitUntil: 'domcontentloaded', timeout: 60000 });
-                  if (!response || response.status() >= 400) throw new Error('AMMPS page load failed');
-                  await page.waitForTimeout(4500);
-                  const inventory = await page.evaluate(searchTerm => {
-                    const n = v => (v || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, ' ').trim().toUpperCase();
-                    const controls = Array.from(document.querySelectorAll('a,button,[role="button"]')).filter(el => n(el.textContent).includes('TELECHARGER RCP'));
-                    const out = [];
-                    for (const c of controls) {
-                      const modal = c.closest('.modal');
-                      const scope = modal || c.closest('.card') || c.parentElement;
-                      const scopeText = n(scope ? (scope.innerText || scope.textContent || '') : '');
-                      if (!scopeText.includes(searchTerm)) continue;
-                      const disabled = c.getAttribute('aria-disabled') === 'true' || c.classList.contains('disabled-rcp-btn') || c.hasAttribute('disabled');
-                      out.push({
-                        enabled: !disabled,
-                        modalId: modal ? modal.id : null,
-                        href: c.getAttribute('href'),
-                        attributes: Array.from(c.attributes).reduce((a, x) => (a[x.name] = x.value, a), {}),
-                        containerText: scopeText
-                      });
-                    }
-                    const seen = new Set();
-                    return out.filter(x => {
-                      const k = (x.modalId || '') + '|' + x.containerText;
-                      if (seen.has(k)) return false;
-                      seen.add(k); return true;
-                    });
-                  }, target.term);
-
-                  fs.writeFileSync(path.join(moleculeDir, 'inventory.json'), JSON.stringify(inventory, null, 2));
-                  await page.screenshot({ path: path.join(moleculeDir, 'inventory.png'), fullPage: true });
-                  const enabled = inventory.filter(x => x.enabled && x.modalId);
-                  if (!enabled.length) {
-                    results.push({ ...base, inventory, enabledCount: 0, result: 'NO_ENABLED_RCP_CONTROL' });
-                    continue;
+                  for (const term of target.terms) {
+                    const nav = await page.goto(baseSearch, { waitUntil: 'domcontentloaded', timeout: 60000 });
+                    if (!nav || nav.status() >= 400) throw new Error(`AMMPS search page load failed: ${nav ? nav.status() : 'no response'}`);
+                    await page.waitForTimeout(2500);
+                    const submit = await runSearch(page, term);
+                    const snap = await snapshotPage(page, dir, `search-${term.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`, term);
+                    const scoped = snap.controls.filter(c => c.matchesTerm);
+                    attempts.push({ term, submit, matchingText: snap.matchingText, scopedRcpControls: scoped.length, enabledScopedRcpControls: scoped.filter(c => c.enabled).length, url: snap.url });
+                    if (!best || (snap.matchingText && !best.matchingText) || scoped.length > best.scoped.length) best = { term, snap, scoped };
+                    if (snap.matchingText && scoped.length) break;
                   }
 
-                  const selected = enabled[0];
-                  await page.evaluate(id => {
-                    const modal = document.getElementById(id);
-                    if (!modal) throw new Error('selected modal missing');
-                    const n = v => (v || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, ' ').trim().toUpperCase();
-                    const c = Array.from(modal.querySelectorAll('a,button,[role="button"]')).find(el => n(el.textContent).includes('TELECHARGER RCP'));
-                    if (!c) throw new Error('RCP control missing');
-                    c.setAttribute('data-rcp-chain-target', 'true');
-                    if (window.bootstrap && window.bootstrap.Modal) window.bootstrap.Modal.getOrCreateInstance(modal).show();
-                    else { modal.classList.add('show'); modal.style.display = 'block'; modal.removeAttribute('aria-hidden'); }
-                  }, selected.modalId);
-                  await page.waitForTimeout(500);
-                  armed = true;
-                  await page.locator('[data-rcp-chain-target="true"]').click({ timeout: 15000 });
-                  await page.waitForTimeout(9000);
-                  armed = false;
+                  const corroboration = [];
+                  for (let i = 0; i < target.corroborationUrls.length; i++) {
+                    const u = target.corroborationUrls[i];
+                    const r = await page.goto(u, { waitUntil: 'domcontentloaded', timeout: 60000 });
+                    if (!r || r.status() >= 400) { corroboration.push({ url: u, status: r ? r.status() : null, loaded: false }); continue; }
+                    const term = target.terms[0];
+                    const snap = await snapshotPage(page, dir, `corroboration-${i + 1}`, term);
+                    corroboration.push({ url: u, status: r.status(), loaded: true, matchingText: snap.matchingText, pageUrl: snap.url });
+                  }
 
+                  const chosen = best || { term: target.terms[0], snap: { matchingText: false, controls: [] }, scoped: [] };
+                  const enabled = chosen.scoped.filter(c => c.enabled && c.modalId);
+                  let clickResult = null;
+                  if (enabled.length) {
+                    await page.goto(chosen.snap.url || baseSearch, { waitUntil: 'domcontentloaded', timeout: 60000 });
+                    await page.waitForTimeout(2500);
+                    await runSearch(page, chosen.term);
+                    const candidate = await page.evaluate(term => {
+                      const n = v => (v || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, ' ').trim().toUpperCase();
+                      for (const c of Array.from(document.querySelectorAll('a,button,[role="button"]'))) {
+                        if (!n(c.textContent).includes('RCP')) continue;
+                        const modal = c.closest('.modal'); const scope = modal || c.closest('.card') || c.parentElement;
+                        const text = n(scope ? (scope.innerText || scope.textContent || '') : '');
+                        const disabled = c.getAttribute('aria-disabled') === 'true' || c.classList.contains('disabled-rcp-btn') || c.hasAttribute('disabled');
+                        if (text.includes(term) && !disabled && modal) { c.setAttribute('data-discovery-rcp-target', 'true'); return { modalId: modal.id, text }; }
+                      }
+                      return null;
+                    }, chosen.term);
+                    if (candidate) {
+                      await page.evaluate(id => {
+                        const modal = document.getElementById(id); if (!modal) return;
+                        if (window.bootstrap && window.bootstrap.Modal) window.bootstrap.Modal.getOrCreateInstance(modal).show();
+                        else { modal.classList.add('show'); modal.style.display = 'block'; modal.removeAttribute('aria-hidden'); }
+                      }, candidate.modalId);
+                      await page.waitForTimeout(500);
+                      await page.locator('[data-discovery-rcp-target="true"]').click({ timeout: 15000 }).catch(() => {});
+                      await page.waitForTimeout(9000);
+                      const verified = pdfs.filter(x => x.source === 'response' && x.signatureOk === true && x.officialHttps === true && x.status >= 200 && x.status < 300);
+                      clickResult = { attempted: true, verifiedOfficialPdfs: verified };
+                    }
+                  }
+
+                  const discoveredPresentation = Boolean(chosen.snap.matchingText);
+                  const scopedCount = chosen.scoped.length;
+                  const enabledCount = chosen.scoped.filter(c => c.enabled).length;
                   const verified = pdfs.filter(x => x.source === 'response' && x.signatureOk === true && x.officialHttps === true && x.status >= 200 && x.status < 300);
-                  const result = verified.length === 1 ? 'ONE_OFFICIAL_PDF_RESPONSE_CAPTURED' :
-                    verified.length > 1 ? 'MULTIPLE_OFFICIAL_PDF_RESPONSES_CAPTURED_REVIEW_REQUIRED' : 'NO_VERIFIED_OFFICIAL_PDF_RESPONSE_CAPTURED';
-                  results.push({ ...base, inventory, enabledCount: enabled.length, selected, events, pdfCandidates: pdfs, verifiedResponsePdfs: verified, result });
+                  let result = 'NO_CURRENT_PRESENTATION_FOUND';
+                  if (verified.length === 1) result = 'ONE_OFFICIAL_PDF_RESPONSE_CAPTURED';
+                  else if (verified.length > 1) result = 'MULTIPLE_OFFICIAL_PDF_RESPONSES_CAPTURED_REVIEW_REQUIRED';
+                  else if (discoveredPresentation && enabledCount > 0) result = 'PRESENTATION_WITH_ENABLED_RCP_BUT_NO_VERIFIED_PDF';
+                  else if (discoveredPresentation && scopedCount > 0) result = 'PRESENTATION_WITH_DISABLED_RCP_CONTROL';
+                  else if (discoveredPresentation) result = 'PRESENTATION_FOUND_NO_SCOPED_RCP_CONTROL';
+
+                  results.push({
+                    moleculeId: target.moleculeId,
+                    attempts,
+                    corroboration,
+                    selectedTerm: chosen.term,
+                    presentationDiscovered: discoveredPresentation,
+                    scopedRcpControlCount: scopedCount,
+                    enabledScopedRcpControlCount: enabledCount,
+                    rcpControls: chosen.scoped,
+                    interestingNetwork: network,
+                    pdfCandidates: pdfs,
+                    clickResult,
+                    result,
+                    manifestMutationPerformed: false,
+                    clinicalActivationPerformed: false
+                  });
                 } catch (e) {
-                  results.push({ ...base, result: 'PROBE_ERROR', error: String(e && e.stack ? e.stack : e) });
+                  results.push({ moleculeId: target.moleculeId, result: 'DISCOVERY_ERROR', error: String(e && e.stack ? e.stack : e), interestingNetwork: network, pdfCandidates: pdfs, manifestMutationPerformed: false, clinicalActivationPerformed: false });
                 } finally {
                   await context.close();
                 }
@@ -196,37 +251,46 @@ jobs:
             }
 
             const report = {
-              schemaVersion: 'ammps-rcp-wave1-chain.1',
-              queueSchemaVersion: queue.schema_version,
-              processedReadyCount: targets.length,
+              schemaVersion: 'ammps-rcp-pending-discovery.1',
+              targetCount: targets.length,
               manifestMutationPerformed: false,
               clinicalActivationPerformed: false,
               results
             };
-            fs.writeFileSync(path.join(outDir, 'wave1-chain-report.json'), JSON.stringify(report, null, 2));
+            fs.writeFileSync(path.join(outDir, 'pending-discovery-report.json'), JSON.stringify(report, null, 2));
             for (const r of results) console.log(`${r.moleculeId}: ${r.result}`);
           })().catch(e => { console.error(e); process.exit(1); });
           NODE
-      - name: Validate fail-closed chain report
+      - name: Validate fail-closed discovery report
         run: |
           python - <<'PY'
           import json
           from pathlib import Path
-          p=Path('audit/out/pharmacology-rcp-wave1-chain/wave1-chain-report.json')
-          if not p.is_file(): raise SystemExit('wave1-chain-report.json missing')
+          p=Path('audit/out/pharmacology-rcp-pending-discovery/pending-discovery-report.json')
+          if not p.is_file(): raise SystemExit('pending-discovery-report.json missing')
           r=json.loads(p.read_text())
-          assert r['schemaVersion']=='ammps-rcp-wave1-chain.1'
+          assert r['schemaVersion']=='ammps-rcp-pending-discovery.1'
+          assert r['targetCount']==2
           assert r['manifestMutationPerformed'] is False and r['clinicalActivationPerformed'] is False
-          allowed={'NO_ENABLED_RCP_CONTROL','NO_VERIFIED_OFFICIAL_PDF_RESPONSE_CAPTURED','ONE_OFFICIAL_PDF_RESPONSE_CAPTURED','MULTIPLE_OFFICIAL_PDF_RESPONSES_CAPTURED_REVIEW_REQUIRED','SKIPPED_UNRESOLVED_TARGET','PROBE_ERROR'}
-          assert r['results'] and all(x.get('result') in allowed for x in r['results'])
+          allowed={
+              'NO_CURRENT_PRESENTATION_FOUND',
+              'PRESENTATION_FOUND_NO_SCOPED_RCP_CONTROL',
+              'PRESENTATION_WITH_DISABLED_RCP_CONTROL',
+              'PRESENTATION_WITH_ENABLED_RCP_BUT_NO_VERIFIED_PDF',
+              'ONE_OFFICIAL_PDF_RESPONSE_CAPTURED',
+              'MULTIPLE_OFFICIAL_PDF_RESPONSES_CAPTURED_REVIEW_REQUIRED',
+              'DISCOVERY_ERROR',
+          }
+          assert len(r['results'])==2 and all(x.get('result') in allowed for x in r['results'])
           for x in r['results']:
+              assert x['manifestMutationPerformed'] is False and x['clinicalActivationPerformed'] is False
               if x['result']=='ONE_OFFICIAL_PDF_RESPONSE_CAPTURED':
-                  v=x.get('verifiedResponsePdfs',[])
-                  assert len(v)==1 and v[0].get('sha256') and v[0].get('url') and v[0].get('signatureOk') and v[0].get('officialHttps')
+                  v=[p for p in x.get('pdfCandidates',[]) if p.get('source')=='response' and p.get('signatureOk') is True and p.get('officialHttps') is True and 200 <= p.get('status',0) < 300]
+                  assert len(v)==1 and v[0].get('url') and v[0].get('sha256')
           print('\n'.join(f"{x['moleculeId']}: {x['result']}" for x in r['results']))
           PY
       - uses: actions/upload-artifact@v4
         with:
-          name: pharmacology-rcp-wave1-chain
-          path: audit/out/pharmacology-rcp-wave1-chain/
+          name: pharmacology-rcp-pending-discovery
+          path: audit/out/pharmacology-rcp-pending-discovery/
           retention-days: 30
