@@ -112,7 +112,7 @@ jobs:
       - name: Start BEFORE frontend
         working-directory: before/frontend
         run: |
-          npm run dev -- --host 127.0.0.1 --port 5173 > /tmp/d2-before-frontend.log 2>&1 &
+          node node_modules/vite/bin/vite.js --host 127.0.0.1 --port 5173 > /tmp/d2-before-frontend.log 2>&1 &
           echo $! > /tmp/d2-before-frontend.pid
           for i in {1..60}; do
             if curl -fsS http://127.0.0.1:5173 >/dev/null; then exit 0; fi
@@ -133,12 +133,20 @@ jobs:
 
       - name: Stop BEFORE frontend
         if: always()
-        run: kill "$(cat /tmp/d2-before-frontend.pid)" || true
+        run: |
+          kill "$(cat /tmp/d2-before-frontend.pid)" 2>/dev/null || true
+          for i in {1..20}; do
+            if ! curl -fsS http://127.0.0.1:5173 >/dev/null 2>&1; then exit 0; fi
+            sleep 0.25
+          done
+          echo 'BEFORE frontend still bound to port 5173'
+          cat /tmp/d2-before-frontend.log || true
+          exit 1
 
       - name: Start AFTER frontend
         working-directory: after/frontend
         run: |
-          npm run dev -- --host 127.0.0.1 --port 5173 > /tmp/d2-after-frontend.log 2>&1 &
+          node node_modules/vite/bin/vite.js --host 127.0.0.1 --port 5173 > /tmp/d2-after-frontend.log 2>&1 &
           echo $! > /tmp/d2-after-frontend.pid
           for i in {1..60}; do
             if curl -fsS http://127.0.0.1:5173 >/dev/null; then exit 0; fi
