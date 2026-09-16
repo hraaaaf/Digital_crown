@@ -1,10 +1,12 @@
 export type InsuranceMappingStatus = 'NOT_EVALUATED' | 'EXACT' | 'AMBIGUOUS' | 'NO_MATCH' | 'OUTDATED';
 export type InsuranceDraftStatus = 'INCOMPLETE' | 'READY_FOR_REVIEW' | 'VALIDATED';
 export type InsuranceCareType = 'SOINS' | 'PROTHESE' | 'ORTHODONTIE_FACIALE' | 'AUTRES';
+export type InsuranceRequestNature = 'EXECUTION' | 'PRIOR_APPROVAL';
 
 export interface InsuranceAdministrativeSnapshot {
-  request_nature?: 'EXECUTION' | 'PRIOR_APPROVAL' | null;
+  request_nature?: InsuranceRequestNature | null;
   insured_full_name?: string | null;
+  insured_affiliation_number?: string | null;
   insured_registration_number?: string | null;
   insured_national_id?: string | null;
   insured_address?: string | null;

@@ -88,6 +88,7 @@ _CHOICE_FIELD = re.compile(
 _ADMIN_FIELDS = {
     "request_nature",
     "insured_full_name",
+    "insured_affiliation_number",
     "insured_registration_number",
     "insured_national_id",
     "insured_address",
