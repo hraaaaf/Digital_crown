@@ -106,8 +106,80 @@ jobs:
           with engine.connect() as connection:
               inspector = inspect(connection)
               tables = sorted(inspector.get_table_names(schema="public"))
+              table_set = set(tables)
               version = connection.execute(text("SELECT version_num FROM alembic_version")).scalar_one()
               assert version == CURRENT_ALEMBIC_HEAD, (version, CURRENT_ALEMBIC_HEAD)
+
+              critical_tables = {
+                  "patient_companion_identities",
+                  "patient_companion_accesses",
+                  "patient_companion_invitations",
+                  "patient_companion_share_grants",
+                  "cabinet_settings",
+                  "agenda_exceptions",
+                  "cabinet_specialties",
+                  "cabinet_pathologies",
+                  "cabinet_catalog_acts",
+                  "ngap_catalog_mappings",
+              }
+              missing_tables = critical_tables - table_set
+              assert not missing_tables, sorted(missing_tables)
+
+              def column_names(table):
+                  return {item["name"] for item in inspector.get_columns(table, schema="public")}
+
+              required_columns = {
+                  "appointments": {"source", "phone", "confirmed_by_id", "confirmed_at", "expires_at"},
+                  "actes": {"document_archive_id", "deleted_at", "source_line_uid", "catalog_act_id"},
+                  "patients": {"deleted_at", "deleted_by"},
+                  "proactive_alerts": {"snoozed_until"},
+                  "users": {"nom_complet_ar", "inpe_professionnel"},
+                  "zka_pairing_tokens": {"user_id", "manual_code"},
+                  "cabinet_settings": {"employer_id", "weekly_schedule_json"},
+                  "agenda_exceptions": {"employer_id"},
+              }
+              for table, required in required_columns.items():
+                  missing = required - column_names(table)
+                  assert not missing, (table, sorted(missing))
+
+              actes_fks = inspector.get_foreign_keys("actes", schema="public")
+              assert any(
+                  (item.get("constrained_columns") or []) == ["catalog_act_id"]
+                  and item.get("referred_table") == "catalog_acts"
+                  and (item.get("referred_columns") or []) == ["id"]
+                  for item in actes_fks
+              ), "actes.catalog_act_id FK missing"
+
+              ngap_checks = {
+                  item.get("name")
+                  for item in inspector.get_check_constraints("ngap_catalog_mappings", schema="public")
+                  if item.get("name")
+              }
+              required_ngap_checks = {
+                  "ck_ngap_mapping_code_kind",
+                  "ck_ngap_mapping_verification_status",
+                  "ck_ngap_mapping_ngap_payload",
+                  "ck_ngap_mapping_verified_evidence",
+              }
+              assert required_ngap_checks <= ngap_checks, sorted(required_ngap_checks - ngap_checks)
+
+              ngap_unique_sets = {
+                  tuple(item.get("column_names") or ())
+                  for item in inspector.get_unique_constraints("ngap_catalog_mappings", schema="public")
+              }
+              assert ("catalog_act_id", "reference_version") in ngap_unique_sets
+              assert ("mapping_rule_id",) in ngap_unique_sets
+
+              payment_labels = set(connection.execute(text("""
+                  SELECT e.enumlabel
+                  FROM pg_type t
+                  JOIN pg_enum e ON e.enumtypid = t.oid
+                  JOIN pg_namespace n ON n.oid = t.typnamespace
+                  WHERE n.nspname = current_schema()
+                    AND t.typname = 'paiementstatut'
+              """)).scalars().all())
+              assert "A_ENCAISSER" in payment_labels, sorted(payment_labels)
+
               for table in tables:
                   columns = sorted(
                       (column["name"], str(column["type"]), bool(column["nullable"]))
@@ -120,7 +192,7 @@ jobs:
                   payload.append((table, columns, indexes))
 
               for table in ("patients", "appointments", "actes", "payments", "document_archives"):
-                  if table in tables:
+                  if table in table_set:
                       count = connection.execute(text(f'SELECT COUNT(*) FROM "{table}"')).scalar_one()
                       assert count == 0, (table, count)
 
