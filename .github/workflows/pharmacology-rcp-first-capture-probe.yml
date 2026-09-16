@@ -17,7 +17,7 @@ jobs:
   census:
     name: Read-only AMMPS RCP availability census
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -78,7 +78,7 @@ jobs:
             if ((!pageCount || pageCount < 2) && totalMedicaments && firstParsed.modalCount > 0) {
               pageCount = Math.ceil(totalMedicaments / firstParsed.modalCount);
             }
-            if (!pageCount || pageCount < 1 || pageCount > 700) throw new Error(`Untrusted page count: ${pageCount}`);
+            if (!pageCount || pageCount < 1 || pageCount > 1200) throw new Error(`Untrusted page count: ${pageCount}`);
 
             const pages = new Array(pageCount);
             pages[0] = {page: 1, ...firstParsed};
