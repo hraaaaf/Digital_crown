@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
-import { Calendar, ChevronLeft, ChevronRight, LayoutGrid, CalendarDays, ListFilter, UploadCloud, Users } from 'lucide-react';
+import { Calendar, ChevronLeft, ChevronRight, LayoutGrid, CalendarDays, ListFilter, UploadCloud, Users, CalendarClock, AlertCircle } from 'lucide-react';
 import { cn } from '../../utils/cn';
 import { DailyView } from './DailyView';
 import { WeeklyView } from './WeeklyView';
@@ -9,78 +9,11 @@ import { GoogleImportModal } from './GoogleImportModal';
 import { FrontdeskModal } from './FrontdeskModal';
 import { AgendaModal } from './AgendaModal';
 import { PendingRequestCard } from './PendingRequestCard';
+import { MultiPractitionerTimelineView } from './MultiPractitionerTimelineView';
 import { api } from '../../services/api';
 import { usePractitionerContextStore } from '../clinic/practitionerContext';
-import { CalendarClock, Settings, AlertCircle } from 'lucide-react';
 
 export type AgendaViewMode = 'day' | 'week' | 'month' | 'multi';
-
-const STATUS_COLORS: Record<string, string> = {
-  'PRÉVU': 'bg-blue-100 text-blue-700',
-  'EN_S_ATTENTE': 'bg-amber-100 text-amber-700',
-  'EN_FAUTEUIL': 'bg-emerald-100 text-emerald-700',
-  'TERMINÉ': 'bg-slate-100 text-slate-400',
-  'ANNULÉ': 'bg-rose-50 text-rose-400',
-  'EN_ATTENTE_DEMANDE': 'bg-orange-100 text-orange-700',
-  'EN_ATTENTE_CONFIRM': 'bg-yellow-100 text-yellow-700',
-  'CONFIRMÉ': 'bg-blue-100 text-blue-700',
-  'REFUSÉ': 'bg-red-100 text-red-500 line-through',
-  'EXPIRÉ': 'bg-gray-100 text-gray-400',
-  'ABSENT': 'bg-rose-100 text-rose-600',
-};
-
-const MultiPractitionerView: React.FC<{ data: any; loading: boolean }> = ({ data, loading }) => {
-  if (loading) return (
-    <div className="py-20 text-center text-slate-400 font-bold animate-pulse">Chargement…</div>
-  );
-  if (!data) return null;
-  if (data.error === 'PREMIUM') return (
-    <div className="py-20 flex flex-col items-center gap-4">
-      <div className="w-16 h-16 bg-indigo-50 rounded-3xl flex items-center justify-center">
-        <Users size={32} className="text-indigo-400" />
-      </div>
-      <h3 className="text-xl font-black text-slate-700">Vue multi-praticien</h3>
-      <p className="text-slate-400 font-medium text-center max-w-sm">
-        Cette vue est disponible à partir du plan <strong>PREMIUM</strong> (2 dentistes et plus).
-      </p>
-    </div>
-  );
-
-  const dentists: any[] = data.dentists || [];
-  return (
-    <div className="bg-white/60 backdrop-blur-2xl border border-white rounded-[2.5rem] shadow-2xl overflow-hidden">
-      <div className={cn("grid divide-x divide-slate-100")} style={{ gridTemplateColumns: `repeat(${dentists.length}, 1fr)` }}>
-        {dentists.map((dentist: any) => (
-          <div key={dentist.dentist_id} className="flex flex-col">
-            <div className="px-6 py-4 bg-indigo-50/50 border-b border-slate-100 text-center">
-              <p className="text-[10px] font-black text-indigo-600 uppercase tracking-widest">Dr.</p>
-              <p className="font-black text-slate-800 text-sm truncate">{dentist.dentist_name}</p>
-              <p className="text-[9px] text-slate-400 font-bold">{dentist.appointments.length} RDV cette semaine</p>
-            </div>
-            <div className="p-3 space-y-2 min-h-[300px]">
-              {dentist.appointments.length === 0 ? (
-                <p className="text-center text-[10px] text-slate-300 font-bold pt-8">Aucun RDV</p>
-              ) : (
-                dentist.appointments.map((appt: any) => (
-                  <div key={appt.id} className={cn("p-2 rounded-xl text-[10px] font-bold border", STATUS_COLORS[appt.status] || 'bg-slate-50 text-slate-500')}>
-                    <p className="font-black truncate">{appt.patient_name || 'Patient'}</p>
-                    <p className="opacity-70 mt-0.5">
-                      {new Date(appt.datetime_start).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' })}
-                      {' '}
-                      {new Date(appt.datetime_start).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
-                      {' · '}{appt.duration_minutes}min
-                    </p>
-                    {appt.motif && <p className="opacity-60 truncate mt-0.5 italic">{appt.motif}</p>}
-                  </div>
-                ))
-              )}
-            </div>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-};
 
 export const AgendaStudio: React.FC = () => {
   const location = useLocation();
@@ -139,7 +72,7 @@ export const AgendaStudio: React.FC = () => {
 
   const handlePrev = () => {
     const newDate = new Date(selectedDate);
-    if (viewMode === 'day') newDate.setDate(newDate.getDate() - 1);
+    if (viewMode === 'day' || viewMode === 'multi') newDate.setDate(newDate.getDate() - 1);
     else if (viewMode === 'week') newDate.setDate(newDate.getDate() - 7);
     else if (viewMode === 'month') newDate.setMonth(newDate.getMonth() - 1);
     setSelectedDate(newDate);
@@ -147,7 +80,7 @@ export const AgendaStudio: React.FC = () => {
 
   const handleNext = () => {
     const newDate = new Date(selectedDate);
-    if (viewMode === 'day') newDate.setDate(newDate.getDate() + 1);
+    if (viewMode === 'day' || viewMode === 'multi') newDate.setDate(newDate.getDate() + 1);
     else if (viewMode === 'week') newDate.setDate(newDate.getDate() + 7);
     else if (viewMode === 'month') newDate.setMonth(newDate.getMonth() + 1);
     setSelectedDate(newDate);
@@ -161,11 +94,9 @@ export const AgendaStudio: React.FC = () => {
     setLoadingMulti(true);
     try {
       const start = new Date(selectedDate);
-      start.setDate(start.getDate() - start.getDay() + 1);
-      start.setHours(0,0,0,0);
-      const end = new Date(start);
-      end.setDate(end.getDate() + 6);
-      end.setHours(23,59,59,999);
+      start.setHours(0, 0, 0, 0);
+      const end = new Date(selectedDate);
+      end.setHours(23, 59, 59, 999);
       const res = await api.get('/appointments/multi-practitioner', {
         params: { start_date: start.toISOString(), end_date: end.toISOString() }
       });
@@ -190,7 +121,16 @@ export const AgendaStudio: React.FC = () => {
       case 'day': return <DailyView key={`day-${refreshKey}-${practitionerViewKey}`} selectedDate={selectedDate} agendaSettings={settings} exceptions={exceptions} />;
       case 'week': return <WeeklyView key={`week-${refreshKey}-${practitionerViewKey}`} selectedDate={selectedDate} agendaSettings={settings} exceptions={exceptions} />;
       case 'month': return <MonthlyView key={`month-${refreshKey}-${practitionerViewKey}`} selectedDate={selectedDate} />;
-      case 'multi': return <MultiPractitionerView data={multiData} loading={loadingMulti} />;
+      case 'multi': return (
+        <MultiPractitionerTimelineView
+          data={multiData}
+          loading={loadingMulti}
+          selectedDate={selectedDate}
+          agendaSettings={settings}
+          exceptions={exceptions}
+          onSaved={fetchMulti}
+        />
+      );
       default: return <WeeklyView key={`week-${refreshKey}-${practitionerViewKey}`} selectedDate={selectedDate} agendaSettings={settings} exceptions={exceptions} />;
     }
   };
