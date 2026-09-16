@@ -155,8 +155,9 @@ export const Step1Cephalo: React.FC<Step1CephaloProps> = (props) => {
               onClick={() => setActiveMorphing(activeMorphing === 'T1' ? 'none' : 'T1')}
               className={toggleClass(activeMorphing === 'T1')}
               style={toggleStyle(activeMorphing === 'T1')}
+              aria-label="Projection T1"
             >
-              Projection T1
+              <span className="sm:hidden">T1</span><span className="hidden sm:inline">Projection T1</span>
             </button>
             <button
               type="button"
@@ -164,8 +165,9 @@ export const Step1Cephalo: React.FC<Step1CephaloProps> = (props) => {
               onClick={() => setActiveMorphing(activeMorphing === 'T2' ? 'none' : 'T2')}
               className={toggleClass(activeMorphing === 'T2')}
               style={toggleStyle(activeMorphing === 'T2')}
+              aria-label="Projection T2"
             >
-              Projection T2
+              <span className="sm:hidden">T2</span><span className="hidden sm:inline">Projection T2</span>
             </button>
           </div>
         </div>
