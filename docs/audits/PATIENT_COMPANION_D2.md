@@ -120,6 +120,16 @@ Documents / Médias / Révocation plus bas
 - invitation atteignable plus haut dans le premier écran ;
 - aucune régression tests/build/certifications.
 
+## Responsive validation checkpoint — 2026-09-16
+
+- Le correctif mobile est limité à la présentation de `PatientDetails`/Companion ; aucun endpoint, modèle, RBAC, stockage ou moteur D0 n'est modifié.
+- Le header patient n'est plus sticky sous le breakpoint `sm`, afin d'éviter le recouvrement observé à 390×844.
+- Les actions rapides restent disponibles à partir de `sm` et sont masquées sur mobile étroit.
+- Les onglets gardent un seul libellé DOM canonique et utilisent un libellé visuel compact sur mobile, afin de préserver l'accessibilité et les probes navigateur sans dupliquer le texte.
+- Le commit produit `e3a8c8544bcdfc1e3ba15fbfa48c013922bbd472` contient le correctif single-node des onglets. Les runs PR déclenchés directement par ce commit bot ont été classés `action_required` par GitHub ; ce statut ne constitue pas une validation produit.
+- Le présent commit documentaire sert de nouveau HEAD humain pour relancer les certifications exactes sur le même contenu produit.
+- Statut maintenu `IN PROGRESS` tant que CI exacte, preuves AFTER finales, audit visuel et validation humaine ne sont pas acquis.
+
 ## Explicit exclusions
 - nouveau moteur métier Companion ;
 - nouveau store persistant frontend ;
