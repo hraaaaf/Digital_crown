@@ -27,6 +27,14 @@ describe('agenda clinic A3 practitioner availability', () => {
     expect(panel).toContain("api.post(`/agenda/practitioners/${selectedId}/exceptions`");
   });
 
+  it('fails safe when legacy harnesses return non-array collection payloads', () => {
+    const panel = read('./features/admin/Settings/tabs/PractitionerAvailabilityPanel.tsx');
+
+    expect(panel).toContain('Array.isArray(response.data) ? response.data : []');
+    expect(panel).toContain('Array.isArray(exceptionsResponse.data) ? exceptionsResponse.data : []');
+    expect(panel).toContain('Aucun praticien assignable actif.');
+  });
+
   it('passes the effective practitioner into every server-side availability gate', () => {
     const appointments = read('../../backend/routers/appointments.py');
 
