@@ -34,3 +34,7 @@ def test_runtime_schema_gate_matches_unique_alembic_head():
     heads = script.get_heads()
 
     assert heads == [_declared_runtime_head()]
+
+
+if __name__ == "__main__":
+    test_runtime_schema_gate_matches_unique_alembic_head()
