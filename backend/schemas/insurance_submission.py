@@ -52,6 +52,7 @@ class InsuranceAdministrativeSnapshot(BaseModel):
     request_nature: Optional[InsuranceRequestNature] = None
 
     insured_full_name: Optional[str] = None
+    insured_affiliation_number: Optional[str] = None
     insured_registration_number: Optional[str] = None
     insured_national_id: Optional[str] = None
     insured_address: Optional[str] = None
