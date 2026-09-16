@@ -1,7 +1,7 @@
 # Digital Crown — Pharmacologie Maroc M1 handover
 
 Date: 2026-09-16
-Status: ACTIVE — M1-B2 merged; AMMPS RCP transport proven; 48 active RCPs strictly mapped with zero dental target proven; public-route audit complete; official AMMPS request is the next human gate; no clinical activation
+Status: ACTIVE — M1-B2 merged; AMMPS RCP transport proven; 48 active RCPs strictly mapped with zero dental target proven; public-route audit complete; current AMMPS request form identified; human gate before submission; no clinical activation
 
 ## Goal
 Construire la couverture pharmacologique dentaire Maroc avec preuve réglementaire fail-closed, puis validation scientifique indépendante avant toute activation clinique.
@@ -112,7 +112,7 @@ Décision: fermer la piste « 48 RCP actifs → candidat dentaire » et ne pas p
 
 ## Audit des surfaces officielles AMMPS — fermé
 Document: `docs/audits/PRESCRIPTION_PHARMACOLOGY_MOROCCO_RCP_OFFICIAL_SURFACE_AUDIT_2026-09-16.md`.
-Commit docs: `398b29ebd50f376dafe993dafc9f46fa8efb6ed8`.
+Dernier commit docs: `48441c580b49bea076f89315aa79b218a2b559b4`.
 
 Constats vérifiés:
 - la surface Recherche médicaments présente les familles cibles mais leurs contrôles RCP observés sont non actifs;
@@ -122,17 +122,27 @@ Constats vérifiés:
 - `UNAVAILABLE_VERIFIED` reste interdit;
 - le contrat M1 exige toujours une provenance AMMPS officielle pour `SNAPSHOT_VERIFIED`.
 
+## Canal AMMPS courant vérifié — human gate
+La page officielle actuelle `https://www.ammps.gov.ma/reclamation` expose une Fiche de Réclamation Client avec :
+- catégorie `Professionnel de santé`;
+- thématique `Réglementaire / Juridique`;
+- champ `Service ou dossier concerné`;
+- description + résultat attendu;
+- pièces jointes PDF/JPG/PNG;
+- soumission via `Plateforme AMMPS`;
+- numéro de traitement publié `08 000 000 18`.
+
+Ce canal 2026 est préféré au vieux canal email pour la demande initiale car il est explicitement courant et traçable.
+
+Le communiqué AMMPS du 15/02/2019 reste une preuve historique du canal Service de l'enregistrement: `enregistrement.dmp@sante.gov.ma` (`u.dm.dmp@sante.gov.ma` entre parenthèses), mais son actualité opérationnelle n'est pas supposée sans réponse.
+
 ## Demande AMMPS préparée — human gate
 Draft: `docs/audits/PRESCRIPTION_PHARMACOLOGY_MOROCCO_RCP_AMMPS_REQUEST_DRAFT_2026-09-16.md`.
-Commit docs: `7a701628839b5671ca12fd0fa3afe6823a8aa232`.
+Dernier commit docs: `b87a7608fe96371b6bc1c5054cc339423cf2ddd7`.
 
-Le draft demande pour les 7 familles soit l'URL officielle exacte du RCP courant, soit une copie officielle liée à la présentation, soit la procédure/statut documentaire officiel si le RCP n'est pas publiquement accessible.
+Le draft est maintenant structuré pour la Fiche de Réclamation Client AMMPS courante. Il demande pour les 7 familles soit l'URL officielle exacte du RCP courant, soit une copie officielle liée à la présentation, soit la procédure/statut documentaire officiel si le RCP n'est pas publiquement accessible.
 
-Canaux documentés:
-- coordonnées institutionnelles courantes publiées sur le site AMMPS + parcours réclamation/recours;
-- communiqué AMMPS historique du 15/02/2019: Service de l'enregistrement, `enregistrement.dmp@sante.gov.ma` (`u.dm.dmp@sante.gov.ma` indiqué entre parenthèses). Cette adresse historique n'est pas supposée opérationnelle sans confirmation/réponse.
-
-Aucun message n'a été envoyé. L'envoi est le premier vrai human gate externe.
+Aucun message/formulaire n'a été envoyé. La soumission est le premier vrai human gate externe et requiert les coordonnées/signature de l'expéditeur.
 
 ## État repo
 Master dernière vérification: `5290df7cb1a12989ef3799f92e32fd49d02d5ca1`, signed/verified.
@@ -145,10 +155,10 @@ Aucune mutation manifest, DB, patient, document clinique ou activation clinique 
 - Les 48 RCP publics actifs ne contiennent aucun candidat dentaire Wave 1 prouvé.
 - Les surfaces AMMPS publiques secondaires confirment l'identité/statut de plusieurs présentations mais n'exposent pas de lien RCP pour les cibles vérifiées.
 - Les 7 familles restent fail-closed.
-- La prochaine étape n'est plus du scraping: c'est une demande documentaire officielle AMMPS.
+- La prochaine étape n'est plus du scraping: c'est la soumission de la demande documentaire officielle AMMPS via le canal courant.
 
 ## Next exact
-HUMAN GATE: confirmer l'envoi de la demande AMMPS préparée et l'identité/signature de l'expéditeur.
+HUMAN GATE: confirmer la soumission via `https://www.ammps.gov.ma/reclamation` et fournir/valider les champs expéditeur requis (nom/raison sociale, qualité/fonction, adresse, téléphone, email).
 
 Après réponse AMMPS:
 1. lier chaque document à la présentation exacte;
@@ -163,7 +173,8 @@ Après réponse AMMPS:
 - Pas d'URL fabriquée à partir de modalId/timestamp/pattern `/uploads/rcp/`.
 - Pas de fallback réglementaire ANSM/EMA/CNOPS/RMMG pour satisfaire M1.
 - Pas d'assimilation CI verte = validation clinique.
+- Pas de soumission externe sans human gate.
 - Pas d'activation clinique avant revue scientifique/humaine dédiée.
 
 ## Prompt de reprise
-`Lis ce fichier depuis docs/pharmacology-m1-handover-20260915. Vérifie master et la branche recherche. Census #35127544097: 9908 médicaments, 826/826 pages, 48 RCP actifs. Transport #35131011934: 3 vrais PDF AMMPS vérifiés. Mapping strict #35142068612: SUCCESS, 48/48 bindings exacts, zéro candidat dentaire Wave 1 prouvé. L'audit officiel des surfaces AMMPS est dans PRESCRIPTION_PHARMACOLOGY_MOROCCO_RCP_OFFICIAL_SURFACE_AUDIT_2026-09-16.md. La demande AMMPS est prête dans PRESCRIPTION_PHARMACOLOGY_MOROCCO_RCP_AMMPS_REQUEST_DRAFT_2026-09-16.md mais n'a pas été envoyée. Les 7 familles restent fail-closed. Next = human gate pour envoi AMMPS; aucune promotion avant PDF officiel + SHA + revue indépendante.`
+`Lis ce fichier depuis docs/pharmacology-m1-handover-20260915. Vérifie master et la branche recherche. Census #35127544097: 9908 médicaments, 826/826 pages, 48 RCP actifs. Transport #35131011934: 3 vrais PDF AMMPS vérifiés. Mapping strict #35142068612: SUCCESS, 48/48 bindings exacts, zéro candidat dentaire Wave 1 prouvé. Audit officiel: PRESCRIPTION_PHARMACOLOGY_MOROCCO_RCP_OFFICIAL_SURFACE_AUDIT_2026-09-16.md. Demande prête: PRESCRIPTION_PHARMACOLOGY_MOROCCO_RCP_AMMPS_REQUEST_DRAFT_2026-09-16.md. Canal préféré = Fiche de Réclamation Client AMMPS courante, Professionnel de santé, Réglementaire/Juridique. Aucune soumission encore effectuée. Next = human gate pour compléter les coordonnées/signature et soumettre; aucune promotion avant PDF officiel + SHA + revue indépendante.`
