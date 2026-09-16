@@ -2,7 +2,7 @@
 
 Date de realignement: 2026-09-16
 Repo: `hraaaaf/Digital_crown`
-Branche de closeout courant: `docs/mutuelles-cnops-post-merge-closeout`
+Branche gate FAR courante: `audit/mutuelles-far-source-gate-20260916`
 PR CNOPS: `#534` — MERGED
 Merge CNOPS: `5290df7cb1a12989ef3799f92e32fd49d02d5ca1`
 
@@ -179,13 +179,16 @@ Score final CNOPS:
 Statut:
 `CNOPS_CLOSED_VERIFIED_POST_MERGE`.
 
-## FAR — LOT SUIVANT, GATE NON OUVERT
+## FAR — SOURCE GATE OUVERT / BLOQUE SUR BINAIRE EXACT
 
 Handover:
 `docs/audits/MUTUELLES_DENTAIRES_CNOPS_TO_FAR_HANDOVER.md`.
 
-Prompt de nouvelle conversation:
+Prompt de reprise:
 `docs/audits/MUTUELLES_DENTAIRES_FAR_START_PROMPT.md`.
+
+Gate courant:
+`docs/audits/MUTUELLES_DENTAIRES_FAR_GATE.md`.
 
 FAR doit reutiliser le meme moteur et repasser ses propres gates de provenance/template/politique administrative/profil overlay/UI/tests.
 
@@ -195,39 +198,47 @@ Information explicite fournie par le cabinet:
 
 **Le dossier/feuille de soins FAR contient une page d'ordonnance incluse dans le document. Cette page doit etre traitee separement des autres feuilles/pages FAR.**
 
-Statut actuel:
+État vérifié du source gate:
 - exigence produit/cabinet: confirmée;
-- binaire FAR exact: non encore inspecté dans ce lot;
-- SHA-256 FAR: non connu ici;
-- nombre/index exact de la page ordonnance: non vérifié;
-- coordonnées overlay ordonnance: non connues;
-- trust/provenance FAR: à établir.
+- binaire FAR exact: absent du repo, du Drive connecté et de la File Library après recherche;
+- copies publiques secondaires concordantes: localisées, mais non promues en source de confiance;
+- SHA-256 FAR exact: non acquis;
+- nombre/index PDF exact de la page ordonnance: non acquis;
+- dimensions/champs AcroForm/XFA: non acquis;
+- coordonnées overlay ordonnance: interdites tant que le binaire exact manque;
+- trust/provenance FAR: non établi pour un SHA exact.
 
 Le lot FAR ne doit donc pas coder à partir d'une hypothèse de pagination.
 
-Principe architectural à confirmer après inspection du binaire:
+Principe architectural verrouillé:
 - conserver le binaire FAR original verrouillé par SHA-256;
-- classifier les pages par rôle;
-- traiter l'ordonnance comme un sous-document logique séparé (`FAR_PRESCRIPTION` ou nom cohérent avec le code réel);
-- contrat de données, profil overlay, revue praticien, validation/finalisation, tests et preuve visuelle séparés;
-- aucune molécule, dose, posologie, durée ou fréquence déduite depuis les actes/NGAP;
-- toute prescription provient d'une source explicite et est revue par le praticien;
+- classifier les pages par rôle sur ce binaire exact;
+- traiter l'ordonnance comme une surface clinique logique séparée;
+- utiliser une source explicite de prescription liée au dossier FAR;
+- aucune molécule, dose, posologie, durée ou fréquence déduite depuis les actes/NGAP/Honoraires;
 - conserver la relation avec le dossier FAR global;
 - un éventuel réassemblage pour impression/export ne peut intervenir qu'après validation indépendante des sous-documents.
 
-### Premier gate FAR obligatoire
+### Source gate FAR
 
-Avant implémentation:
-1. identifier le binaire FAR exact;
-2. calculer SHA-256, taille, pages et dimensions;
-3. inspecter visuellement chaque page;
-4. identifier le rôle de chaque page;
-5. confirmer précisément la page ordonnance;
-6. établir le trust réel de la source;
-7. cartographier champs autorisés/interdits;
-8. vérifier l'extension minimale du moteur commun;
-9. créer `docs/audits/MUTUELLES_DENTAIRES_FAR_GATE.md`;
-10. seulement ensuite commencer l'implémentation.
+Le gate a été matérialisé avant tout code dans `docs/audits/MUTUELLES_DENTAIRES_FAR_GATE.md`.
+
+Verdict courant:
+`NO_GO_IMPLEMENTATION_SOURCE_BINARY_REQUIRED`.
+
+Constats structurants:
+- l'entrée historique `FAR_2021_1` du registre est un placeholder et ne prouve pas qu'un binaire FAR exact a été validé;
+- `expected_page_count=None` ne permet aucune validation de pagination;
+- la validation serveur actuelle possède des politiques administratives CNSS/CNOPS mais rejette FAR comme non implémenté;
+- le schéma commun expose déjà `source_ordonnance_document_id`, utilisable comme point de liaison explicite sans fabriquer de prescription.
+
+Human gate exact:
+- fournir/acquérir le PDF FAR exact actuellement utilisé/accepté par le cabinet, idéalement non recompressé;
+- calculer son SHA-256;
+- inspecter nativement pages, dimensions, orientation, AcroForm/XFA et champs;
+- confirmer le rôle de chaque page et l'ordonnance;
+- documenter la validation cabinet/praticien si la source n'est pas officielle primaire;
+- seulement alors choisir provider fields/overlay/mixte et passer le gate en GO ou NO-GO définitif.
 
 ## Non-regression obligatoire pour FAR
 
@@ -249,14 +260,14 @@ Second moteur Honoraires, second catalogue clinique, fuzzy mapping, backfill art
 
 ## Etat courant
 
-`CNSS_ACQUIRED / NGAP_REFERENCE_LOCKED_REFERENCE_ONLY / CNOPS_CLOSED_VERIFIED_POST_MERGE / FAR_SOURCE_GATE_NOT_STARTED / FAR_PRESCRIPTION_SEPARATE_GATE_REQUIRED`
+`CNSS_ACQUIRED / NGAP_REFERENCE_LOCKED_REFERENCE_ONLY / CNOPS_CLOSED_VERIFIED_POST_MERGE / FAR_SOURCE_GATE_BLOCKED_ON_EXACT_BINARY / FAR_PRESCRIPTION_SEPARATE_GATE_REQUIRED`
 
 ## Next exact
 
-1. merger le closeout documentaire après ses propres checks et accord utilisateur explicite;
-2. ouvrir une nouvelle conversation avec `docs/audits/MUTUELLES_DENTAIRES_FAR_START_PROMPT.md`;
-3. verifier master/CI actuels;
-4. localiser le binaire FAR exact;
-5. inspecter FAR page par page et confirmer l'ordonnance;
-6. produire le gate FAR;
-7. ne coder FAR qu'après ce gate.
+1. acquérir le PDF FAR exact du cabinet;
+2. calculer SHA-256 et taille;
+3. inspecter nativement pages/dimensions/orientations/AcroForm/XFA;
+4. confirmer la correspondance page logique <-> index PDF et la page ordonnance;
+5. documenter provenance + validation cabinet;
+6. mettre à jour `MUTUELLES_DENTAIRES_FAR_GATE.md` avec le verdict GO/NO-GO;
+7. uniquement si GO, ouvrir le lot d'implémentation FAR.
