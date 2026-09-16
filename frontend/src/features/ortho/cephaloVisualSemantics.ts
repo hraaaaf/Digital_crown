@@ -8,17 +8,19 @@ export type CephaloScientificFamily =
 /**
  * Global Céphalo scientific color contract.
  *
- * Scientific identity is carried by a stable base hue. The rendered color is
- * mixed with Digital Crown's existing --text-main token so contrast adapts to
- * light, dark, prestige and high-contrast themes without creating a parallel
- * Céphalo theme system. App surfaces, borders, shadows and interaction focus
- * remain fully owned by Digital Crown theme tokens.
+ * Families intentionally occupy distant hue regions so overlapping geometry
+ * remains quickly distinguishable on a radiograph. Scientific identity is
+ * carried by the stable base hue; rendered table/UI color is mixed with
+ * Digital Crown's existing --text-main token so contrast adapts across themes
+ * without creating a parallel Céphalo theme system. Radiographic rendering may
+ * use a dedicated on-dark variant derived from the same family identity, but
+ * must never remap the family itself.
  */
 export const CEPHALO_SCIENTIFIC_BASE_HUES: Readonly<Record<CephaloScientificFamily, string>> = Object.freeze({
-  skeletal: '#2563eb',
-  dental: '#7c3aed',
-  soft_tissue: '#059669',
-  reference: '#d97706',
+  skeletal: '#38a8ff',
+  dental: '#ff7a45',
+  soft_tissue: '#32d296',
+  reference: '#e85aad',
   auxiliary: '#64748b',
 });
 
