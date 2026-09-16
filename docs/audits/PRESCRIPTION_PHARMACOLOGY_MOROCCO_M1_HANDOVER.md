@@ -7,7 +7,8 @@ Status: ACTIVE — no clinical activation
 Construire une couverture pharmacologique dentaire exhaustive et systématiquement sourcée Maroc, avec séparation stricte entre preuve réglementaire, indication, dose et activation clinique.
 
 ## Invariants
-- Local/on-premise; aucun changement SaaS/Vercel.
+- Digital Crown reste local/on-premise; aucun déploiement de l'application clinique ni de ses données sur Vercel.
+- Exception explicitement autorisée le 2026-09-16: Vercel peut héberger uniquement un `scientific-reviewer` indépendant, sans DB/patient/document clinique et sans merge automatique.
 - Préserver DB, données patients, documents et fonctionnalités validées.
 - Aucun `AUTO_OK` ni activation clinique sans preuve Maroc suffisante et revue humaine/scientifique requise.
 - Recherche négative != preuve d'absence.
@@ -26,10 +27,10 @@ Construire une couverture pharmacologique dentaire exhaustive et systématiqueme
 8. `.claude/skills/scientific-source-research/SKILL.md`
 
 ## Master vérifié
-- `master`: `a396acfd6570ff24ca683009e1f31bdb3f2c0d92`.
+- `master`: `a396acfd6570ff24ca683009e1f31bdb3f2c0d92` au dernier contrôle de ce chantier.
 - Ce SHA est le squash merge de PR #526 `ci(pharmacology): add deterministic scientific safety gate`.
 - Commit GitHub signé/verified.
-- Post-merge CI master #4494 / run `35075198843`: `IN_PROGRESS` au dernier recheck; ne pas le considérer vert tant qu'il n'est pas terminé.
+- Post-merge CI master #4494 / run `35075198843`: `SUCCESS` vérifié.
 
 ## Lots fermés
 - M1-A PR #517 → `d474ad18ba47d55a0d53f1f90e47a451f4dbac5e`.
@@ -78,6 +79,9 @@ Exact-head pré-merge `331e008361227e6ed001c2f7e00fc327d4c5994a`:
 
 Artefact gate pré-merge `10436103626`, digest `sha256:f6a1fdcc5305eb8f8654d667d83b1ec9148404f5a523b86e7cf3aca504af7aa5`.
 
+Post-merge master:
+- CI #4494 / run `35075198843`: SUCCESS vérifié.
+
 ## PR #525 — M1-B2 transport de capture RCP — CURRENT
 Branch: `feat/prescription-pharmacology-morocco-rcp-first-capture-sync`.
 
@@ -90,7 +94,7 @@ La resynchronisation a été faite sans force-push par un merge commit à deux p
 - premier parent = ancien #525 HEAD `d86149c8f4d84f144d2b6548296e12fa1e4b6e14`;
 - second parent = master `a396acfd6570ff24ca683009e1f31bdb3f2c0d92`.
 
-Le tree du merge reprend master partout sauf les 3 fichiers M1-B2 intentionnels. PR #525 est de nouveau `mergeable=true` et son diff reste exactement 3 fichiers.
+Le tree du merge reprend master partout sauf les 3 fichiers M1-B2 intentionnels. PR #525 est `OPEN`, non mergée, `mergeable=true` au dernier contrôle et son diff reste exactement 3 fichiers.
 
 Blobs préservés:
 - `backend/services/medication_rcp_manifest.py` → `42821c4793a0347a6e2935933cc846eee806408a`;
@@ -108,7 +112,7 @@ Blobs préservés:
 - `snapshot_is_verified(...)` relit l'artefact et refuse fichier absent, hash faux, mauvaise extension ou faux PDF.
 - aucune persistance automatique.
 - aucune extraction clinique.
-- aucun changement dose/durée/indication/AUTO_OK/DB/patient/document/UI/Vercel.
+- aucun changement dose/durée/indication/AUTO_OK/DB/patient/document/UI/Vercel de l'application clinique.
 
 ### Gate déterministe sur #525 exact HEAD
 `Pharmacology Deterministic Scientific Safety Gate` #4 / run `35075958218`: SUCCESS sur `8ae695412a9208ca89f4cd3be741e845c805cf45`.
@@ -126,11 +130,18 @@ Rapport vérifié:
 - `clinical_activation_authorized=false`;
 - `independent_scientific_review_required=true`.
 
-### Certifications #525 au dernier recheck
-- CI #4500: `IN_PROGRESS`.
-- PostgreSQL #887: `IN_PROGRESS`.
-- T2 #3372: `IN_PROGRESS`.
-- M6-I #2172: `SKIPPED` attendu.
+### Certifications #525 vérifiées sur HEAD exact
+- CI #4500 / run `35075958219`: `SUCCESS`.
+  - Frontend tests/build: SUCCESS.
+  - Prod safety check: SUCCESS.
+  - Full backend regression suite, DB/patients/documents inclus: SUCCESS.
+  - Garde production négative: SUCCESS.
+- PostgreSQL #887 / run `35075958228`: `SUCCESS`.
+- T2 Runtime Browser #3372 / run `35075958205`: `SUCCESS`.
+- Gate pharmacologie #4 / run `35075958218`: `SUCCESS`.
+- M6-I #2172 / run `35075958404`: `SKIPPED` attendu.
+
+Aucun échec technique exact-head connu ne reste ouvert.
 
 ### Revue scientifique indépendante
 Toujours non satisfaite.
@@ -138,21 +149,35 @@ Toujours non satisfaite.
 Paquet historique: commentaire `5689006817`.
 Paquet rafraîchi exact-head après resync: commentaire `5694730976`.
 
-Ne pas auto-valider cette gate. Aucun reviewer indépendant réel n'est actuellement attesté dans cette session.
+Au dernier contrôle GitHub, aucune review PR soumise n'attestait une revue indépendante.
+
+### Reviewer Vercel — tentative autorisée, non encore valide
+Autorisation utilisateur explicite reçue le 2026-09-16 uniquement pour héberger/exécuter le reviewer scientifique sur Vercel.
+
+Projet Vercel créé: `digital-crown-scientific-reviewer` (`prj_gw1orfRCrQfVuJr2N1tR3C3AlmZj`).
+
+État observé:
+- plusieurs previews ont été créées isolément, sans DB/patient/document clinique;
+- un essai a atteint la function mais a renvoyé HTTP 500 `AI Gateway authentication unavailable`;
+- le dernier deployment vérifié `dpl_2fddABQMUjtQC8o32TxyhRCTzFG9` est `READY` côté plateforme mais répond HTTP 404 à la racine;
+- donc aucune exécution reviewer ni aucun verdict scientifique n'est revendiqué.
+
+Un projet local de correction a été préparé avec AI SDK `generateText`, modèle distinct `anthropic/claude-opus-5`, fetch direct read-only des pages AMMPS, scope figé sur #525 HEAD exact et output JSON contraint. Il reste à déployer puis à prouver fonctionnellement son endpoint avant toute utilisation comme gate.
+
+Ne pas auto-valider cette gate et ne pas transformer un déploiement Vercel `READY` en preuve d'exécution scientifique.
 
 ## Next exact
-1. Laisser finir les certifications exact-head #525 sans polling passif.
-2. Si échec: diagnostiquer/corriger/retester sur nouveau HEAD puis refaire la gate.
-3. Si vert: vérifier master, HEAD, mergeability, diff et review threads une fois.
-4. Faire exécuter le `scientific-reviewer` indépendant sur #525 à partir du paquet `5694730976`.
-5. Si findings: corriger puis rerun/re-review.
-6. Si review acceptable: obtenir accord utilisateur explicite avant merge #525.
-7. Après merge: vérifier SHA + post-merge CI.
-8. Continuer l'acquisition RCP/corpus clinique Maroc sans promotion réglementaire fictive ni activation clinique non validée.
+1. Déployer la correction reviewer Vercel avec authentification OIDC/AI Gateway réellement fonctionnelle.
+2. Tester l'endpoint reviewer jusqu'à obtenir une réponse HTTP 200 liée au HEAD exact #525.
+3. Vérifier que le service a lu les preuves/sources sans écrire dans Digital Crown et conserver le verdict structuré.
+4. Si verdict `request_changes`/`blocked`: corriger #525, rerun exact-head CI/gate puis re-review.
+5. Si verdict acceptable: revérifier master/HEAD/mergeability/diff/reviews puis obtenir accord utilisateur explicite avant merge #525.
+6. Après merge: vérifier SHA + post-merge CI.
+7. Continuer l'acquisition RCP/corpus clinique Maroc sans promotion réglementaire fictive ni activation clinique non validée.
 
 ## Interdits
 - Pas de merge #525 sans accord utilisateur explicite.
-- Pas de Vercel deploy.
+- Pas de Vercel pour Digital Crown ou ses données; exception limitée au reviewer scientifique explicitement autorisé.
 - Pas d'activation clinique M1.
 - Pas de `SNAPSHOT_VERIFIED` sans vrai PDF AMMPS + URL officielle exacte + hash concordant.
 - Pas de faux reviewer indépendant.
