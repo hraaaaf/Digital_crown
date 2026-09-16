@@ -1,4 +1,4 @@
-name: Pharmacology AMMPS RCP Availability Census
+name: Pharmacology AMMPS Active RCP Transport Proof
 
 on:
   push:
@@ -10,131 +10,116 @@ permissions:
   contents: read
 
 concurrency:
-  group: pharmacology-rcp-availability-census
+  group: pharmacology-active-rcp-transport-proof
   cancel-in-progress: true
 
 jobs:
-  census:
-    name: Read-only AMMPS RCP availability census
+  proof:
+    name: Read-only AMMPS active RCP transport proof
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - name: Census current AMMPS medication pages with retries and checkpoints
+      - name: Capture three enabled AMMPS RCPs with identity and SHA-256
         env:
-          OUT_DIR: ${{ github.workspace }}/audit/out/pharmacology-rcp-availability-census
+          OUT_DIR: ${{ github.workspace }}/audit/out/pharmacology-active-rcp-proof
         run: |
           set -euo pipefail
           mkdir -p "$OUT_DIR"
           node - <<'NODE'
-          const fs=require('fs'), path=require('path');
+          const fs=require('fs'), path=require('path'), crypto=require('crypto');
           const outDir=process.env.OUT_DIR;
-          const base='https://www.ammps.gov.ma/recherche-medicaments';
-          const norm=v=>(v||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/\s+/g,' ').trim().toUpperCase();
+          const origin='https://www.ammps.gov.ma';
+          const targets=[
+            {page:33, modalId:'medicamentModal9736'},
+            {page:65, modalId:'medicamentModal5208'},
+            {page:129, modalId:'medicamentModal9807'}
+          ];
           const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+          const sha256=b=>crypto.createHash('sha256').update(b).digest('hex');
+          const clean=s=>(s||'').replace(/<script[\s\S]*?<\/script>/gi,' ').replace(/<style[\s\S]*?<\/style>/gi,' ').replace(/<[^>]+>/g,' ').replace(/&nbsp;/gi,' ').replace(/&amp;/gi,'&').replace(/\s+/g,' ').trim();
 
-          function parsePage(html,pageNumber){
-            const controls=[];
-            for(const m of html.matchAll(/<a\b([^>]*)>([\s\S]*?)<\/a>/gi)){
-              const text=norm(m[2].replace(/<[^>]+>/g,' '));
-              if(!text.includes('TELECHARGER RCP')) continue;
-              const attrs=m[1]||'';
-              const hm=attrs.match(/href\s*=\s*["']([^"']*)["']/i);
-              const href=hm?hm[1]:null;
-              const disabled=/disabled-rcp-btn/i.test(attrs)||/aria-disabled\s*=\s*["']true["']/i.test(attrs)||/(?:^|\s)disabled(?:\s|=|$)/i.test(attrs);
-              const before=html.slice(Math.max(0,m.index-30000),m.index);
-              const mm=[...before.matchAll(/id\s*=\s*["']medicamentModal(\d+)["']/gi)];
-              const modalId=mm.length?`medicamentModal${mm[mm.length-1][1]}`:null;
-              controls.push({page:pageNumber,modalId,href,disabled,attributes:attrs.slice(0,3000)});
-            }
-            const pdfUrls=[...new Set((html.match(/(?:https?:\/\/[^"'<>\s]+|\/[^"'<>\s]+)\.pdf(?:\?[^"'<>\s]*)?/gi)||[]))]
-              .filter(u=>/rcp|medicament|upload|storage|document/i.test(u));
-            const modalCount=(html.match(/id\s*=\s*["']medicamentModal\d+["']/gi)||[]).length;
-            return {page:pageNumber,controls,pdfUrls,modalCount};
-          }
-
-          async function fetchHtml(url,maxAttempts=5){
+          async function fetchRetry(url,accept,max=4){
             let last;
-            for(let attempt=1;attempt<=maxAttempts;attempt++){
+            for(let i=1;i<=max;i++){
               try{
-                const ac=new AbortController();
-                const timer=setTimeout(()=>ac.abort(),30000);
-                const r=await fetch(url,{signal:ac.signal,headers:{'user-agent':'Digital-Crown-read-only-evidence-census/1.1','accept':'text/html,application/xhtml+xml'}});
-                clearTimeout(timer);
+                const ac=new AbortController(); const t=setTimeout(()=>ac.abort(),30000);
+                const r=await fetch(url,{signal:ac.signal,headers:{'user-agent':'Digital-Crown-read-only-active-rcp-proof/1.0','accept':accept}});
+                clearTimeout(t);
                 if(!r.ok) throw new Error(`HTTP ${r.status}`);
-                return await r.text();
-              }catch(e){
-                last=e;
-                if(attempt<maxAttempts) await sleep(500*attempt);
-              }
+                return r;
+              }catch(e){ last=e; if(i<max) await sleep(500*i); }
             }
             throw last;
           }
 
-          function buildReport(totalMedicaments,pageCount,pages,failedPages){
-            const controls=pages.flatMap(p=>p.controls);
-            const enabled=controls.filter(c=>!c.disabled), disabled=controls.filter(c=>c.disabled);
-            const pdfCandidates=[...new Set(pages.flatMap(p=>p.pdfUrls))];
-            return {
-              schemaVersion:'ammps-rcp-availability-census.2',source:base,totalMedicaments,pageCount,
-              scannedPageCount:pages.length,failedPageCount:failedPages.length,failedPages,
-              modalCount:pages.reduce((n,p)=>n+p.modalCount,0),rcpControlCount:controls.length,
-              enabledRcpControlCount:enabled.length,disabledRcpControlCount:disabled.length,
-              enabledExamples:enabled.slice(0,50),pdfCandidates:pdfCandidates.slice(0,200),
-              manifestMutationPerformed:false,clinicalActivationPerformed:false
-            };
+          function modalSlice(html,modalId){
+            const needle=`id="${modalId}"`;
+            let start=html.indexOf(needle);
+            if(start<0) start=html.indexOf(`id='${modalId}'`);
+            if(start<0) throw new Error(`modal missing: ${modalId}`);
+            const nextDouble=html.indexOf('id="medicamentModal',start+needle.length);
+            const nextSingle=html.indexOf("id='medicamentModal",start+needle.length);
+            const next=[nextDouble,nextSingle].filter(x=>x>start).sort((a,b)=>a-b)[0] || Math.min(html.length,start+60000);
+            return html.slice(start,next);
           }
 
           (async()=>{
-            const first=await fetchHtml(`${base}?page=1`);
-            const p1=parsePage(first,1);
-            const tm=norm(first.replace(/<[^>]+>/g,' ')).match(/([0-9][0-9\s]*) MEDICAMENT\(S\) TROUVE/);
-            const totalMedicaments=tm?Number(tm[1].replace(/\s+/g,'')):null;
-            const pageLinks=[...first.matchAll(/[?&]page=(\d+)/g)].map(m=>Number(m[1])).filter(Number.isFinite);
-            let pageCount=pageLinks.length?Math.max(...pageLinks):null;
-            if((!pageCount||pageCount<2)&&totalMedicaments&&p1.modalCount>0) pageCount=Math.ceil(totalMedicaments/p1.modalCount);
-            if(!pageCount||pageCount<1||pageCount>1200) throw new Error(`Untrusted page count: ${pageCount}`);
-
-            const pages=[p1], failedPages=[];
-            const write=()=>fs.writeFileSync(path.join(outDir,'rcp-availability-census.json'),JSON.stringify(buildReport(totalMedicaments,pageCount,pages,failedPages),null,2));
-            write();
-            for(let p=2;p<=pageCount;p++){
-              try{
-                const html=await fetchHtml(`${base}?page=${p}`);
-                pages.push(parsePage(html,p));
-              }catch(e){
-                failedPages.push({page:p,error:String(e&&e.message?e.message:e)});
-              }
-              if(p%25===0) write();
-              await sleep(150);
+            const results=[];
+            for(let i=0;i<targets.length;i++){
+              const t=targets[i];
+              const pageUrl=`${origin}/recherche-medicaments?page=${t.page}`;
+              const html=await (await fetchRetry(pageUrl,'text/html,application/xhtml+xml')).text();
+              const modal=modalSlice(html,t.modalId);
+              const anchor=[...modal.matchAll(/<a\b([^>]*)>([\s\S]*?)<\/a>/gi)].find(m=>clean(m[2]).toUpperCase().includes('TELECHARGER RCP'));
+              if(!anchor) throw new Error(`RCP control missing: ${t.modalId}`);
+              const attrs=anchor[1]||'';
+              if(/disabled-rcp-btn/i.test(attrs)||/aria-disabled\s*=\s*["']true["']/i.test(attrs)) throw new Error(`RCP unexpectedly disabled: ${t.modalId}`);
+              const hm=attrs.match(/href\s*=\s*["']([^"']+)["']/i);
+              if(!hm) throw new Error(`RCP href missing: ${t.modalId}`);
+              const url=new URL(hm[1],pageUrl);
+              if(url.protocol!=='https:'||!['ammps.gov.ma','www.ammps.gov.ma'].includes(url.hostname)) throw new Error(`non-official RCP URL: ${url}`);
+              const pr=await fetchRetry(url.toString(),'application/pdf,*/*');
+              const bytes=Buffer.from(await pr.arrayBuffer());
+              const signature=bytes.subarray(0,5).toString('ascii');
+              const contentType=pr.headers.get('content-type');
+              const item={
+                page:t.page, modalId:t.modalId, pageUrl, modalText:clean(modal).slice(0,5000),
+                href:hm[1], url:url.toString(), status:pr.status, contentType,
+                byteLength:bytes.length, signature, signatureOk:signature==='%PDF-', sha256:sha256(bytes),
+                officialHttps:true, manifestMutationPerformed:false, clinicalActivationPerformed:false
+              };
+              if(!item.signatureOk) throw new Error(`not a PDF signature: ${url}`);
+              fs.writeFileSync(path.join(outDir,`sample-${i+1}.pdf`),bytes);
+              results.push(item);
+              await sleep(250);
             }
-            write();
-            const r=buildReport(totalMedicaments,pageCount,pages,failedPages);
-            console.log(JSON.stringify({totalMedicaments,pageCount,scannedPageCount:r.scannedPageCount,failedPageCount:r.failedPageCount,rcpControlCount:r.rcpControlCount,enabledRcpControlCount:r.enabledRcpControlCount,disabledRcpControlCount:r.disabledRcpControlCount,pdfCandidateCount:r.pdfCandidates.length},null,2));
+            const report={schemaVersion:'ammps-active-rcp-transport-proof.1',sampleCount:results.length,manifestMutationPerformed:false,clinicalActivationPerformed:false,results};
+            fs.writeFileSync(path.join(outDir,'active-rcp-transport-proof.json'),JSON.stringify(report,null,2));
+            for(const r of results) console.log(JSON.stringify({modalId:r.modalId,url:r.url,status:r.status,contentType:r.contentType,byteLength:r.byteLength,signature:r.signature,sha256:r.sha256,modalText:r.modalText.slice(0,500)}));
           })().catch(e=>{console.error(e);process.exit(1)});
           NODE
-      - name: Validate census completeness
+      - name: Validate active RCP proof
         run: |
           python - <<'PY'
           import json
           from pathlib import Path
-          p=Path('audit/out/pharmacology-rcp-availability-census/rcp-availability-census.json')
-          if not p.is_file(): raise SystemExit('rcp-availability-census.json missing')
+          p=Path('audit/out/pharmacology-active-rcp-proof/active-rcp-transport-proof.json')
           r=json.loads(p.read_text())
-          assert r['schemaVersion']=='ammps-rcp-availability-census.2'
+          assert r['schemaVersion']=='ammps-active-rcp-transport-proof.1'
+          assert r['sampleCount']==3
           assert r['manifestMutationPerformed'] is False and r['clinicalActivationPerformed'] is False
-          assert r['rcpControlCount']==r['enabledRcpControlCount']+r['disabledRcpControlCount']
-          if r['failedPageCount'] or r['scannedPageCount'] != r['pageCount']:
-              raise SystemExit(f"INCOMPLETE_CENSUS scanned={r['scannedPageCount']}/{r['pageCount']} failed={r['failedPageCount']}")
-          assert r['rcpControlCount']>0
-          print(json.dumps({k:r[k] for k in ['totalMedicaments','pageCount','scannedPageCount','failedPageCount','modalCount','rcpControlCount','enabledRcpControlCount','disabledRcpControlCount']},indent=2))
+          for x in r['results']:
+              assert x['officialHttps'] is True and x['status']==200 and x['signatureOk'] is True
+              assert x['url'].startswith('https://www.ammps.gov.ma/uploads/rcp/') or x['url'].startswith('https://ammps.gov.ma/uploads/rcp/')
+              assert len(x['sha256'])==64 and x['byteLength']>1000 and x['modalText']
+          print('ACTIVE_RCP_TRANSPORT_VERIFIED', len(r['results']))
           PY
       - uses: actions/upload-artifact@v4
-        if: always()
         with:
-          name: pharmacology-rcp-availability-census
-          path: audit/out/pharmacology-rcp-availability-census/
+          name: pharmacology-active-rcp-transport-proof
+          path: audit/out/pharmacology-active-rcp-proof/
           retention-days: 30
