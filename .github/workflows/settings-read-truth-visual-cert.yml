@@ -39,6 +39,7 @@ jobs:
           import React from 'react';
           import { createRoot } from 'react-dom/client';
           import { MemoryRouter } from 'react-router-dom';
+          import 'workbox-window';
           import './index.css';
           import Settings from './pages/Settings';
           import { useAuthStore } from './stores/useAuthStore';

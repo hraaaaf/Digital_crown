@@ -10,7 +10,10 @@ from backend.utils.access_control import assert_patient_access
 from backend.services.elite_manager import elite_manager
 from backend.services.notification_service import notification_service
 from backend.services.audit_service import audit_service
-from backend.services.agenda_availability import validate_appointment_availability
+from backend.services.agenda_availability import (
+    get_practitioner_day_availability,
+    validate_appointment_availability,
+)
 
 router = APIRouter(tags=["Appointments"])
 
@@ -156,7 +159,12 @@ def create_appointment(
     practitioner_id = _resolve_practitioner_id(db, employer_id, current_user, appt.praticien_id)
     normalized_start = _naive_datetime(appt.datetime_start)
     availability_error = validate_appointment_availability(
-        db, employer_id, normalized_start, appt.duration_minutes, appt.scheduling_type
+        db,
+        employer_id,
+        normalized_start,
+        appt.duration_minutes,
+        appt.scheduling_type,
+        practitioner_id=practitioner_id,
     )
     if availability_error:
         raise HTTPException(status_code=422, detail=availability_error)
@@ -222,7 +230,12 @@ def update_appointment(
         effective_type = update_data.get("scheduling_type", db_appt.scheduling_type)
         effective_practitioner = update_data.get("praticien_id", db_appt.praticien_id)
         availability_error = validate_appointment_availability(
-            db, employer_id, effective_start, effective_duration, effective_type
+            db,
+            employer_id,
+            effective_start,
+            effective_duration,
+            effective_type,
+            practitioner_id=effective_practitioner,
         )
         if availability_error:
             raise HTTPException(status_code=422, detail=availability_error)
@@ -300,7 +313,12 @@ def create_bulk_appointments(
         practitioner_id = _resolve_practitioner_id(db, employer_id, current_user, item.praticien_id)
         normalized_start = _naive_datetime(item.datetime_start)
         availability_error = validate_appointment_availability(
-            db, employer_id, normalized_start, item.duration_minutes, item.scheduling_type
+            db,
+            employer_id,
+            normalized_start,
+            item.duration_minutes,
+            item.scheduling_type,
+            practitioner_id=practitioner_id,
         )
         if availability_error:
             raise HTTPException(status_code=422, detail=availability_error)
@@ -430,6 +448,16 @@ def check_conflicts(
         raise HTTPException(status_code=422, detail="Format datetime invalide")
     employer_id = current_user.get_employer_id()
     practitioner_id = _resolve_practitioner_id(db, employer_id, current_user, praticien_id)
+    availability_error = validate_appointment_availability(
+        db,
+        employer_id,
+        dt,
+        duration_minutes,
+        models.SchedulingType.EXACT_TIME,
+        practitioner_id=practitioner_id,
+    )
+    if availability_error:
+        raise HTTPException(status_code=422, detail=availability_error)
     conflicts = _find_conflicts(db, employer_id, practitioner_id, dt, duration_minutes, exclude_id)
     return {
         "has_conflict": bool(conflicts),
@@ -493,11 +521,20 @@ def get_multi_practitioner_appointments(
         all_dentists.insert(0, owner)
 
     q_base = db.query(models.Appointment).filter(models.Appointment.employer_id == employer_id)
-    if start_date:
-        q_base = q_base.filter(models.Appointment.datetime_start >= datetime.fromisoformat(start_date.replace("Z", "+00:00")))
-    if end_date:
-        q_base = q_base.filter(models.Appointment.datetime_start <= datetime.fromisoformat(end_date.replace("Z", "+00:00")))
+    parsed_start = datetime.fromisoformat(start_date.replace("Z", "+00:00")) if start_date else None
+    parsed_end = datetime.fromisoformat(end_date.replace("Z", "+00:00")) if end_date else None
+    if parsed_start:
+        q_base = q_base.filter(models.Appointment.datetime_start >= parsed_start)
+    if parsed_end:
+        q_base = q_base.filter(models.Appointment.datetime_start <= parsed_end)
     all_appts = q_base.order_by(models.Appointment.datetime_start.asc()).all()
+
+    if parsed_start and parsed_end:
+        availability_date = (parsed_start + (parsed_end - parsed_start) / 2).date()
+    elif parsed_start:
+        availability_date = parsed_start.date()
+    else:
+        availability_date = datetime.now().date()
 
     def serialize(a: models.Appointment) -> dict:
         return {
@@ -518,6 +555,12 @@ def get_multi_practitioner_appointments(
             "dentist_id": dentist.id,
             "dentist_name": dentist.nom_complet or dentist.email,
             "appointments": [serialize(a) for a in all_appts if a.praticien_id == dentist.id],
+            "availability": get_practitioner_day_availability(
+                db,
+                employer_id,
+                dentist.id,
+                availability_date,
+            ),
         }
         for dentist in all_dentists
     ]
