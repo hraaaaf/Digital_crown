@@ -8,6 +8,7 @@ on:
       - "backend/core/schema_runtime.py"
       - "backend/core/runtime_safety.py"
       - "backend/core/sqlite_alembic_baseline.py"
+      - "backend/core/postgresql_alembic_baseline.py"
       - "backend/tests/test_schema_runtime_head_sync.py"
       - ".github/workflows/postgresql-alembic-schema-cert.yml"
   workflow_dispatch:
@@ -118,7 +119,7 @@ jobs:
                   )
                   payload.append((table, columns, indexes))
 
-              for table in ("patients", "appointments", "actes", "paiements", "document_archives"):
+              for table in ("patients", "appointments", "actes", "payments", "document_archives"):
                   if table in tables:
                       count = connection.execute(text(f'SELECT COUNT(*) FROM "{table}"')).scalar_one()
                       assert count == 0, (table, count)
