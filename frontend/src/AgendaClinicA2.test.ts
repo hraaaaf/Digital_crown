@@ -24,14 +24,17 @@ describe('agenda clinic A2 synchronized multi-practitioner grid', () => {
     expect(view).toContain('data-testid="multi-practitioner-scroll"');
   });
 
-  it('forces the clicked practitioner into create conflict checks and POSTs only', () => {
+  it('binds the clicked practitioner before opening create, and never on edit PUTs', () => {
     const view = read('./features/agenda/MultiPractitionerTimelineView.tsx');
 
     expect(view).toContain("url === '/appointments/check-conflicts'");
     expect(view).toContain('praticien_id: config.params?.praticien_id ?? practitionerId');
     expect(view).toContain("method === 'post' && url === '/appointments/'");
     expect(view).toContain('addPractitionerToPayload(config.data, practitionerId)');
-    expect(view).toContain('if (!isModalOpen || editingAppointment || !practitionerId) return undefined');
+    expect(view).toContain('installCreateInterceptor(dentist.dentist_id);');
+    expect(view.indexOf('installCreateInterceptor(dentist.dentist_id);')).toBeLessThan(view.indexOf('setIsModalOpen(true);'));
+    expect(view).toContain('const openEdit =');
+    expect(view).toContain('clearCreateInterceptor();');
     expect(view).not.toContain("method === 'put' && url === '/appointments/'");
   });
 
