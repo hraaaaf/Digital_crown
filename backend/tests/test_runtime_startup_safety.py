@@ -4,7 +4,7 @@ import pytest
 from sqlalchemy import create_engine, text
 
 from backend.core import runtime_safety
-from backend.core.schema_runtime import assert_database_at_current_head
+from backend.core.schema_runtime import CURRENT_ALEMBIC_HEAD, assert_database_at_current_head
 
 
 def _cfg(environment="development", database_url="sqlite:///:memory:"):
@@ -88,7 +88,10 @@ def test_schema_gate_supports_existing_sqlite_without_write_side_effect(tmp_path
     engine = create_engine(f"sqlite:///{database_path}")
     with engine.begin() as connection:
         connection.execute(text("CREATE TABLE alembic_version (version_num VARCHAR(32) NOT NULL)"))
-        connection.execute(text("INSERT INTO alembic_version(version_num) VALUES ('d0b000000002')"))
+        connection.execute(
+            text("INSERT INTO alembic_version(version_num) VALUES (:revision)"),
+            {"revision": CURRENT_ALEMBIC_HEAD},
+        )
 
     assert_database_at_current_head(engine)
     assert database_path.is_file()
