@@ -8,17 +8,29 @@ export type CephaloScientificFamily =
 /**
  * Global Céphalo scientific color contract.
  *
- * These colors encode scientific meaning only. App surfaces, text, borders,
- * shadows and interaction focus remain owned by Digital Crown theme tokens.
- * The hues stay stable across app themes so the same scientific family never
- * changes identity when the user changes the application theme.
+ * Scientific identity is carried by a stable base hue. The rendered color is
+ * mixed with Digital Crown's existing --text-main token so contrast adapts to
+ * light, dark, prestige and high-contrast themes without creating a parallel
+ * Céphalo theme system. App surfaces, borders, shadows and interaction focus
+ * remain fully owned by Digital Crown theme tokens.
  */
-export const CEPHALO_SCIENTIFIC_COLORS: Readonly<Record<CephaloScientificFamily, string>> = Object.freeze({
+export const CEPHALO_SCIENTIFIC_BASE_HUES: Readonly<Record<CephaloScientificFamily, string>> = Object.freeze({
   skeletal: '#2563eb',
   dental: '#7c3aed',
   soft_tissue: '#059669',
   reference: '#d97706',
   auxiliary: '#64748b',
+});
+
+const adaptiveScientificColor = (baseHue: string): string =>
+  `color-mix(in srgb, ${baseHue} 66%, var(--text-main) 34%)`;
+
+export const CEPHALO_SCIENTIFIC_COLORS: Readonly<Record<CephaloScientificFamily, string>> = Object.freeze({
+  skeletal: adaptiveScientificColor(CEPHALO_SCIENTIFIC_BASE_HUES.skeletal),
+  dental: adaptiveScientificColor(CEPHALO_SCIENTIFIC_BASE_HUES.dental),
+  soft_tissue: adaptiveScientificColor(CEPHALO_SCIENTIFIC_BASE_HUES.soft_tissue),
+  reference: adaptiveScientificColor(CEPHALO_SCIENTIFIC_BASE_HUES.reference),
+  auxiliary: adaptiveScientificColor(CEPHALO_SCIENTIFIC_BASE_HUES.auxiliary),
 });
 
 const METRIC_FAMILY: Readonly<Record<string, CephaloScientificFamily>> = Object.freeze({
