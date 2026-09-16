@@ -22,8 +22,8 @@ PARA-MR-HEX-001,Mouthrinse,Hexetidine,hexetidine,mouthrinse,antimicrobial_claim_
 PARA-MR-PVP-001,Mouthrinse,Povidone iodine,povidone_iodine,mouthrinse,antimicrobial_claim_candidate,PRODUCT_AND_CONTRAINDICATION_SPECIFIC,EVIDENCE_REVIEW_REQUIRED,TO_VERIFY_BY_PRODUCT,YES,NO
 PARA-INT-FLOSS-001,Interdental,Floss,nylon_or_PTFE_or_other,floss_or_tape,interdental_plaque,DEXTERITY_SPECIFIC,CLINICAL_FAMILY_SUPPORTED,TO_VERIFY_BY_PRODUCT,YES,NO
 PARA-INT-HOLDER-001,Interdental,Floss holder,device,holder,interdental_plaque;dexterity_support,PRODUCT_SPECIFIC,CLINICAL_FAMILY_SUPPORTED,VERIFIED_MARKET_MA,YES,NO
-PARA-INT-BRUSH-001,Interdental,Brush,device,interdental_brush,interdental_plaque;ortho;implant;perio,SIZE_PATIENT_SPECIFIC,CLINICAL_FAMILY_SUPPORTED,TO_VERIFY_BY_PRODUCT,YES,NO
-PARA-INT-PICK-001,Interdental,Pick,device,interdental_pick,interdental_plaque,PRODUCT_SPECIFIC,CLINICAL_FAMILY_SUPPORTED,TO_VERIFY_BY_PRODUCT,YES,NO
+PARA-INT-BRUSH-001,Interdental,Brush,device,interdental_brush,interdental_plaque;ortho;implant;perio,SIZE_PATIENT_SPECIFIC,CLINICAL_FAMILY_SUPPORTED,VERIFIED_MARKET_MA,YES,NO
+PARA-INT-PICK-001,Interdental,Pick,device,interdental_pick,interdental_plaque,PRODUCT_SPECIFIC,CLINICAL_FAMILY_SUPPORTED,VERIFIED_MARKET_MA,YES,NO
 PARA-INT-WF-001,Interdental,Water flosser,device,oral_irrigator,interdental_plaque;ortho;implant;perio,PRODUCT_SPECIFIC,CLINICAL_FAMILY_SUPPORTED,TO_VERIFY_BY_PRODUCT,YES,NO
 PARA-BR-MAN-001,Toothbrush,Manual,device,manual_brush,plaque_control;general;ortho;implant;perio,AGE_SIZE_DEXTERITY_SPECIFIC,CLINICAL_FAMILY_SUPPORTED,TO_VERIFY_BY_PRODUCT,YES,NO
 PARA-BR-PWR-001,Toothbrush,Powered,device,powered_brush,plaque_control;dexterity_support;general;ortho;implant;perio,AGE_DEXTERITY_PRODUCT_SPECIFIC,CLINICAL_FAMILY_SUPPORTED,TO_VERIFY_BY_PRODUCT,YES,NO
