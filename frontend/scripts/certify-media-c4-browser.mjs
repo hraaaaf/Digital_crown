@@ -125,7 +125,7 @@ for (const viewport of viewports) {
 
   await cephTab.click();
   surfaces.push({ surface: 'imaging-cephalo', ...(await capture(page, viewport, 'imaging-cephalo', async () => {
-    await page.getByText('Studio Céphalométrique', { exact: true }).waitFor({ state: 'visible', timeout: 30000 });
+    await page.getByRole('heading', { name: 'Céphalométrie', exact: true }).waitFor({ state: 'visible', timeout: 30000 });
   })) });
 
   evidence.push({ viewport, surfaces, pageErrors, http5xx });

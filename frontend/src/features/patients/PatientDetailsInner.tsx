@@ -17,6 +17,7 @@ import {
   Banknote,
   Image,
   Images,
+  Smartphone,
 } from 'lucide-react';
 import { api } from '../../services/api';
 import { cn } from '../../utils/cn';
@@ -34,6 +35,7 @@ import { PatientRvgPanel } from './components/PatientRvgPanel';
 import { PatientMediaTimeline } from './components/PatientMediaTimeline';
 import { QuickPayModal } from './components/QuickPayModal';
 import { PatientMobileBridge } from './components/PatientMobileBridge';
+import { PatientCompanionPanel } from './components/PatientCompanionPanel';
 import { usePatientStore } from '../../stores/usePatientStore';
 import { useAuthStore } from '../../stores/useAuthStore';
 import { EliteGhostLoader } from '../../components/EliteGhostLoader';
@@ -62,7 +64,7 @@ interface Patient {
   };
 }
 
-type TabType = 'tracking' | 'clinical' | 'radiology' | 'admin' | 'archives' | 'finances';
+type TabType = 'tracking' | 'clinical' | 'radiology' | 'admin' | 'archives' | 'finances' | 'companion';
 type RadioTab = 'media' | 'rvg' | 'panoramic' | 'cephalo';
 
 const userRoleValue = (role: unknown): string => {
@@ -180,14 +182,16 @@ export const PatientDetails = () => {
   }, [fetchPatient]);
 
   useEffect(() => {
-    if (!id) return;
+    // The contextual next-best-action belongs to clinical navigation, not the Companion admin flow.
+    // Keeping it out of Companion also prevents a large mobile toast from obscuring the access controls.
+    if (!id || activeTab === 'companion') return;
     const timer = setTimeout(() => {
       api.get(`/intelligence/patient/${id}/nba`).then(res => {
         if (res.data.nba) toast(`💡 ${res.data.nba.title} — ${res.data.nba.message}${res.data.nba.action ? ` · Action : ${res.data.nba.action}` : ''}`, { duration: 7000 });
       }).catch(() => {});
     }, 1500);
     return () => clearTimeout(timer);
-  }, [id]);
+  }, [id, activeTab]);
 
   useEffect(() => {
     if (!canClinical && activeTab === 'clinical') {
@@ -201,6 +205,12 @@ export const PatientDetails = () => {
       setSearchParams({ tab: 'tracking' }, { replace: true });
     }
   }, [canFinance, activeTab, setSearchParams]);
+
+  useEffect(() => {
+    if (!ownerOrAdmin && activeTab === 'companion') {
+      setSearchParams({ tab: 'tracking' }, { replace: true });
+    }
+  }, [ownerOrAdmin, activeTab, setSearchParams]);
 
   const activateOrtho = async () => {
     try {
@@ -256,29 +266,29 @@ export const PatientDetails = () => {
 
   return (
     <div className={cn('flex flex-col bg-transparent', isDocuments ? 'h-screen overflow-hidden' : 'min-h-screen')}>
-      <header className="sticky top-0 z-[300] bg-card-bg/90 backdrop-blur-xl border-b border-border-main shadow-elite">
-        <div className={cn('max-w-[1600px] mx-auto md:px-8', isRadiology ? 'px-2.5 pt-1.5' : 'px-4 pt-3')}>
-          <div className={cn('flex flex-col xl:flex-row xl:items-center xl:justify-between', isRadiology ? 'gap-1.5 mb-1.5' : 'gap-3 mb-3')}>
+      <header className="lg:sticky lg:top-0 z-[300] bg-card-bg/90 backdrop-blur-xl border-b border-border-main shadow-elite">
+        <div className={cn('max-w-[1600px] mx-auto md:px-8', isRadiology ? 'px-2.5 pt-1.5' : 'px-3 pt-2 sm:px-4 sm:pt-3')}>
+          <div className={cn('flex flex-col xl:flex-row xl:items-center xl:justify-between', isRadiology ? 'gap-1.5 mb-1.5' : 'gap-2 mb-2 sm:gap-3 sm:mb-3')}>
             <div className={cn('flex items-start sm:items-center min-w-0', isRadiology ? 'gap-2' : 'gap-3')}>
-              <button onClick={() => navigate('/patients')} className={cn('shrink-0 bg-card-bg border border-border-main flex items-center justify-center rounded-xl shadow-sm active:scale-95 transition-all', isRadiology ? 'w-8 h-8 rounded-lg' : 'w-10 h-10')} style={{ color: 'var(--primary)' }} aria-label="Retourner à la liste des patients"><ArrowLeft size={isRadiology ? 16 : 20} strokeWidth={2.5} /></button>
+              <button onClick={() => navigate('/patients')} className={cn('shrink-0 bg-card-bg border border-border-main flex items-center justify-center rounded-xl shadow-sm active:scale-95 transition-all', isRadiology ? 'w-8 h-8 rounded-lg' : 'w-9 h-9 sm:w-10 sm:h-10')} style={{ color: 'var(--primary)' }} aria-label="Retourner à la liste des patients"><ArrowLeft size={isRadiology ? 16 : 20} strokeWidth={2.5} /></button>
               <div className="min-w-0">
                 <div className={cn('flex flex-wrap items-center', isRadiology ? 'gap-1.5' : 'gap-2')}>
-                  <h1 className={cn('font-black tracking-tight truncate', isRadiology ? 'text-base md:text-lg' : 'text-xl md:text-2xl')} style={{ color: 'var(--primary)' }}>{fullName}</h1>
+                  <h1 className={cn('font-black tracking-tight truncate', isRadiology ? 'text-base md:text-lg' : 'text-lg sm:text-xl md:text-2xl')} style={{ color: 'var(--primary)' }}>{fullName}</h1>
                   <AssuranceBadge assurance={patient.assurance} size="full" hideWhenNone />
                   {patient.antecedents_medicaux && <span className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-red-50 border border-red-200 text-red-700 text-[10px] font-black uppercase tracking-wide"><AlertTriangle size={12} /> Alerte médicale</span>}
                   <button onClick={() => navigate(`/patients/${id}/edit`)} className={cn('font-black uppercase rounded-lg border border-primary/15 bg-primary/5 hover:bg-primary/10 transition-colors', isRadiology ? 'px-2 py-0.5 text-[9px] tracking-wide' : 'px-2.5 py-1 text-[10px] tracking-widest')} style={{ color: 'var(--primary)' }}>Modifier</button>
                   <PatientMobileBridge patientId={patient.id} patientName={fullName} />
                 </div>
-                <div className={cn('flex flex-wrap items-center font-bold text-text-muted', isRadiology ? 'mt-0.5 gap-x-2 gap-y-0.5 text-[10px]' : 'mt-1.5 gap-x-3 gap-y-1 text-xs')}>
+                <div className={cn('flex flex-wrap items-center font-bold text-text-muted', isRadiology ? 'mt-0.5 gap-x-2 gap-y-0.5 text-[10px]' : 'mt-1 gap-x-2 gap-y-0.5 text-[11px] sm:mt-1.5 sm:gap-x-3 sm:gap-y-1 sm:text-xs')}>
                   <span className="inline-flex items-center gap-1.5"><FileDigit size={12} style={{ color: 'var(--primary)' }} /><span className="font-mono" style={{ color: 'var(--primary)' }}>{patient.numero_dossier || `ID-${patient.id}`}</span></span>
                   <span>{age >= 0 && age < 130 ? `${age} ans · ` : ''}{birthLabel}</span>
-                  <span className={cn('items-center gap-1.5', isRadiology ? 'hidden md:inline-flex' : 'inline-flex')}><Phone size={12} />{patient.telephone}</span>
+                  <span className={cn('items-center gap-1.5', isRadiology ? 'hidden md:inline-flex' : 'hidden sm:inline-flex')}><Phone size={12} />{patient.telephone}</span>
                   {patient.email && <span className="hidden lg:inline-flex items-center gap-1.5"><Mail size={12} />{patient.email}</span>}
                 </div>
               </div>
             </div>
 
-            <div className={cn('grid gap-2 w-full xl:w-auto', canFinance ? 'grid-cols-4' : 'grid-cols-3', isRadiology && 'hidden lg:grid')} aria-label="Actions rapides patient">
+            <div className={cn('hidden sm:grid gap-2 w-full xl:w-auto', canFinance ? 'grid-cols-4' : 'grid-cols-3', isRadiology && 'sm:hidden lg:grid')} aria-label="Actions rapides patient">
               <QuickAction icon={<Calendar size={18} />} label="RDV" onClick={() => navigate('/agenda', { state: { prefillPatientId: patient.id, prefillPatientNom: patient.nom, prefillPatientPrenom: patient.prenom } })} />
               <QuickAction icon={<Stethoscope size={18} />} label={canClinical ? 'Examen' : 'Suivi'} onClick={() => handleTabChange(canClinical ? 'clinical' : 'tracking')} />
               <QuickAction icon={<FileText size={18} />} label="Document" onClick={handleDocumentCreate} />
@@ -287,16 +297,17 @@ export const PatientDetails = () => {
           </div>
 
           <div data-tour="patient-tabs" className={cn('flex overflow-x-auto border-b border-transparent -mb-[1px] scrollbar-none', isRadiology ? 'gap-0.5 sm:gap-1.5' : 'gap-1 sm:gap-3')}>
-            <TabButton compact={isRadiology} active={activeTab === 'tracking'} onClick={() => handleTabChange('tracking')} icon={<Calendar size={17} />} label="Vue d’ensemble" />
-            {canClinical && <TabButton compact={isRadiology} active={activeTab === 'clinical'} onClick={() => handleTabChange('clinical')} icon={<Stethoscope size={17} />} label="Clinique" />}
-            <TabButton compact={isRadiology} active={activeTab === 'radiology'} onClick={() => handleTabChange('radiology')} icon={<Activity size={17} />} label="Imagerie" />
-            <TabButton compact={isRadiology} active={isDocuments} onClick={handleDocumentCreate} icon={<FileText size={17} />} label="Documents" />
-            {canFinance && <TabButton compact={isRadiology} active={activeTab === 'finances'} onClick={() => handleTabChange('finances')} icon={<Banknote size={17} />} label="Finances" />}
+            <TabButton compact={isRadiology} active={activeTab === 'tracking'} onClick={() => handleTabChange('tracking')} icon={<Calendar size={17} />} label="Vue d’ensemble" mobileLabel="Suivi" />
+            {canClinical && <TabButton compact={isRadiology} active={activeTab === 'clinical'} onClick={() => handleTabChange('clinical')} icon={<Stethoscope size={17} />} label="Clinique" mobileLabel="Clinique" />}
+            <TabButton compact={isRadiology} active={activeTab === 'radiology'} onClick={() => handleTabChange('radiology')} icon={<Activity size={17} />} label="Imagerie" mobileLabel="Image" />
+            <TabButton compact={isRadiology} active={isDocuments} onClick={handleDocumentCreate} icon={<FileText size={17} />} label="Documents" mobileLabel="Docs" ariaLabel="Document" />
+            {ownerOrAdmin && <TabButton compact={isRadiology} active={activeTab === 'companion'} onClick={() => handleTabChange('companion')} icon={<Smartphone size={17} />} label="Companion" mobileLabel="Companion" />}
+            {canFinance && <TabButton compact={isRadiology} active={activeTab === 'finances'} onClick={() => handleTabChange('finances')} icon={<Banknote size={17} />} label="Finances" mobileLabel="Finance" />}
           </div>
         </div>
       </header>
 
-      <main ref={flowContentRef} data-flow-patient-surface={activeTab} className={cn('max-w-[1600px] mx-auto w-full transition-all duration-500', isDocuments ? 'flex-1 min-h-0 px-3 py-3 md:px-6 md:py-4' : isRadiology ? 'flex-1 px-2 py-2 sm:px-3 sm:py-2.5 md:px-4 md:py-3 space-y-2' : 'flex-1 px-4 py-6 md:px-8 md:py-8 space-y-6')}>
+      <main ref={flowContentRef} data-flow-patient-surface={activeTab} className={cn('max-w-[1600px] mx-auto w-full transition-all duration-500', isDocuments ? 'flex-1 min-h-0 px-3 py-3 md:px-6 md:py-4' : isRadiology ? 'flex-1 px-2 py-2 sm:px-3 sm:py-2.5 md:px-4 md:py-3 space-y-2' : 'flex-1 px-3 py-3 sm:px-4 sm:py-6 md:px-8 md:py-8 space-y-4 sm:space-y-6')}>
         {!isDocuments && (patient.antecedents_medicaux || patient.motif_consultation) && (
           <div className={cn('flex flex-col animate-in fade-in slide-in-from-top-4 duration-500', isRadiology ? 'gap-2' : 'gap-3')}>
             {patient.antecedents_medicaux && <div className={cn('bg-red-50 border border-red-200 flex items-start text-red-700 shadow-sm', isRadiology ? 'p-2.5 rounded-xl gap-2' : 'p-4 rounded-2xl gap-3')}><AlertTriangle className={cn('shrink-0 mt-0.5', isRadiology ? 'w-4 h-4' : 'w-5 h-5')} /><div><h4 className={cn('font-black uppercase tracking-widest', isRadiology ? 'text-[10px] mb-0.5' : 'text-sm mb-1')}>Antécédents Médicaux</h4><p className={cn('font-medium whitespace-pre-wrap', isRadiology ? 'text-xs line-clamp-2' : 'text-sm')}>{patient.antecedents_medicaux}</p></div></div>}
@@ -368,6 +379,8 @@ export const PatientDetails = () => {
             </div>
           )}
 
+          {ownerOrAdmin && activeTab === 'companion' && <PatientCompanionPanel patientId={Number(id)} patientEmail={patient.email} />}
+
           {canFinance && activeTab === 'finances' && <PatientFinances patientId={Number(id)} />}
         </div>
       </main>
@@ -385,9 +398,9 @@ const QuickAction = ({ icon, label, onClick, accent = 'primary' }: any) => (
   </button>
 );
 
-const TabButton = ({ active, onClick, icon, label, compact = false }: any) => (
-  <button onClick={onClick} className={cn('shrink-0 flex items-center font-black uppercase transition-all border-b-[3px] whitespace-nowrap', compact ? 'gap-1 pb-1.5 px-1 text-[9px] tracking-[0.04em] md:gap-1.5 md:px-2 md:text-[11px] md:tracking-[0.06em]' : 'gap-1.5 sm:gap-2 pb-2 px-1.5 md:px-3 text-[10px] md:text-[12px] tracking-[0.06em] md:tracking-[0.08em]', active ? 'text-primary' : 'border-transparent text-text-muted hover:text-main hover:border-border-main')} style={active ? { borderColor: 'var(--primary)', color: 'var(--primary)' } : {}}>
-    {icon} {label}
+const TabButton = ({ active, onClick, icon, label, mobileLabel, ariaLabel, compact = false }: any) => (
+  <button onClick={onClick} aria-label={ariaLabel || label} className={cn('shrink-0 flex items-center font-black uppercase transition-all border-b-[3px] whitespace-nowrap', compact ? 'gap-1 pb-1.5 px-1 text-[9px] tracking-[0.04em] md:gap-1.5 md:px-2 md:text-[11px] md:tracking-[0.06em]' : 'gap-1 pb-1.5 px-1 text-[9px] tracking-[0.04em] sm:gap-2 sm:pb-2 sm:px-1.5 sm:text-[10px] sm:tracking-[0.06em] md:px-3 md:text-[12px] md:tracking-[0.08em]', active ? 'text-primary' : 'border-transparent text-text-muted hover:text-main hover:border-border-main')} style={active ? { borderColor: 'var(--primary)', color: 'var(--primary)' } : {}}>
+    {icon}<span data-mobile-label={mobileLabel || label} className="max-sm:text-[0] max-sm:after:content-[attr(data-mobile-label)] max-sm:after:text-[9px] max-sm:after:tracking-[0.04em] sm:text-inherit">{label}</span>
   </button>
 );
 
