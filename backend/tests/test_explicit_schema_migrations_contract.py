@@ -6,6 +6,7 @@ from alembic.migration import MigrationContext
 from alembic.operations import Operations
 from sqlalchemy import MetaData, Table, Column, Integer, create_engine, inspect, text
 
+from backend.core.schema_runtime import CURRENT_ALEMBIC_HEAD
 from backend.core.sqlite_alembic_baseline import bootstrap_empty_sqlite_to_head
 from backend.models import Base
 from backend.services import cabinet_catalog_store as _cabinet_catalog_store  # noqa: F401
@@ -115,13 +116,13 @@ def test_empty_sqlite_alembic_baseline_materializes_current_metadata_and_stamps_
         assert bootstrap_empty_sqlite_to_head(
             connection,
             Base.metadata,
-            ["d0b000000002"],
+            [CURRENT_ALEMBIC_HEAD],
         ) is True
 
         inspector = inspect(connection)
         actual_tables = set(inspector.get_table_names())
         assert actual_tables >= expected_tables | {"alembic_version"}
-        assert connection.execute(text("SELECT version_num FROM alembic_version")).scalar_one() == "d0b000000002"
+        assert connection.execute(text("SELECT version_num FROM alembic_version")).scalar_one() == CURRENT_ALEMBIC_HEAD
 
         # Representative high-risk runtime schema must come from the same snapshot.
         assert {column["name"] for column in inspector.get_columns("appointments")} >= {
@@ -156,7 +157,7 @@ def test_sqlite_alembic_baseline_refuses_to_touch_non_empty_database():
         assert bootstrap_empty_sqlite_to_head(
             connection,
             MetaData(),
-            ["d0b000000002"],
+            [CURRENT_ALEMBIC_HEAD],
         ) is False
         assert "alembic_version" not in set(inspect(connection).get_table_names())
 
