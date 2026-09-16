@@ -145,6 +145,16 @@ Le candidat exact ne devient **GO** que si une nouvelle copie fraîche des donn�
 - boot rehearsal `/api/health = 200` sans mutation de données/médias/schéma ;
 - CI exacte du même HEAD verte pour auth/tenant/PDF/documents et certifications ciblées applicables.
 
+## Scoring du gate courant
+
+- `EXECUTION_SCORE` interne du sous-lot rehearsal harness : **9.3/10** ;
+- `ADVERSARIAL_SCORE` interne : **9.4/10** ;
+- score retenu : **9.3/10** (minimum, jamais moyenne) ;
+- écart : **0.1** ;
+- cap même agent respecté ;
+- score du lot global : **maximum 7.9/10 tant que le rehearsal représentatif frais et la CI exact-HEAD ne sont pas tous deux prouvés verts** ;
+- statut global : `IN_PROGRESS`, jamais `VERIFIED` avant tous les gates binaires verts puis Perfection Pass finale.
+
 ## Gate de merge / installation
 
 - CI verte : nécessaire, **non suffisante**.
