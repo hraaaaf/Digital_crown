@@ -221,15 +221,28 @@ def test_mobile_mutation_uses_numeric_subject_as_user_id(client, db, dentiste):
         permissions={'agenda': True, 'patients': True},
         licensed=False,
     )
+    patient = models.Patient(
+        nom='Licence',
+        prenom='Mobile',
+        date_naissance=datetime(1990, 1, 1),
+        sexe='M',
+        employer_id=dentiste.id,
+    )
+    db.add(patient)
+    db.commit()
+    db.refresh(patient)
+
     body = _claim(client, _pairing(db, dentiste, secretary)).json()
     appointment = {
-        'datetime_start': '2026-09-17T10:00:00',
+        'patient_id': patient.id,
         'patient_name': 'Test Licence Mobile',
+        'praticien_id': dentiste.id,
+        'datetime_start': '2026-09-17T10:00:00',
         'motif': 'Contrôle licence mobile',
         'duration_minutes': 30,
     }
     response = client.post(
-        '/api/mobile/appointments',
+        '/api/appointments/',
         json=appointment,
         headers={'Authorization': f"Bearer {body['access_token']}"},
     )
@@ -239,7 +252,7 @@ def test_mobile_mutation_uses_numeric_subject_as_user_id(client, db, dentiste):
     db.commit()
     backend_main._license_cache.clear()
     denied = client.post(
-        '/api/mobile/appointments',
+        '/api/appointments/',
         json={**appointment, 'datetime_start': '2026-09-17T11:00:00'},
         headers={'Authorization': f"Bearer {body['access_token']}"},
     )
