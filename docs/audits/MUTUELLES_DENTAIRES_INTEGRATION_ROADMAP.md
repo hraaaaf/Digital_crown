@@ -2,8 +2,9 @@
 
 Date de realignement: 2026-09-16
 Repo: `hraaaaf/Digital_crown`
-Branche du lot courant: `feature/mutuelles-cnops-20260916`
-PR courante: `#534`
+Branche de closeout courant: `docs/mutuelles-cnops-post-merge-closeout`
+PR CNOPS: `#534` — MERGED
+Merge CNOPS: `5290df7cb1a12989ef3799f92e32fd49d02d5ca1`
 
 ## Goal global
 
@@ -30,7 +31,7 @@ UX cible:
 
 ## Moteur commun — ACQUIS
 
-Briques partagees CNSS/CNOPS:
+Briques partagees CNSS/CNOPS et a reutiliser pour FAR:
 
 - `InsuranceSubmissionDraft`;
 - preparation depuis Honoraires;
@@ -81,9 +82,13 @@ Profil:
 
 UI CNSS acquise: `Preparer CNSS -> revue -> validation -> finalisation -> archivage`, avec preuves multi-viewport et validation humaine avant merge.
 
-## CNOPS — IMPLEMENTATION ACQUISE / CERTIFICATION FINALE EN COURS
+## CNOPS — CLOS / VERIFIED POST-MERGE
 
-Fichier canonique du lot: `docs/audits/MUTUELLES_DENTAIRES_CNOPS_GATE.md`.
+Gate historique du lot:
+`docs/audits/MUTUELLES_DENTAIRES_CNOPS_GATE.md`.
+
+Closeout final:
+`docs/audits/MUTUELLES_DENTAIRES_CNOPS_CLOSEOUT.md`.
 
 ### Binaire
 
@@ -96,9 +101,7 @@ Le cabinet a valide explicitement le 2026-09-16 le binaire exact:
 
 Cette validation ne vaut pas `OFFICIAL_PRIMARY`.
 
-### Backend
-
-Acquis dans le lot:
+### Backend acquis
 
 - politique administrative CNOPS explicite et fail-closed;
 - affiliation assure modelisee separement;
@@ -110,9 +113,7 @@ Acquis dans le lot:
 - zones signature/cachet/mutuelle/agent exclues;
 - tests backend CNOPS + non-regression des contrats partages.
 
-### Frontend
-
-Acquis dans le lot:
+### Frontend acquis
 
 - action `Preparer CNOPS` dans le flow partage;
 - composant `CnopsInsuranceSubmissionReview`;
@@ -121,73 +122,141 @@ Acquis dans le lot:
 - action CNSS conservee;
 - tests de contrat CNOPS/CNSS.
 
-### Preuve visuelle
+### Certification exacte avant merge
 
-Certification runtime reelle du composant React sous Chromium deja acquise sur l'ancien HEAD certifie `2acc3b1214219dc57897eb7388cda4065da2fb43`:
+HEAD final certifie:
+`7d48357c312ca8447f55b5986b0c50454f954ab7`.
 
-- `Mutuelles CNOPS Visual Certification #1`: SUCCESS;
-- `390x844`, `768x1024`, `1280x900`;
-- aucune erreur runtime/overflow sur la preuve inspectee;
-- validation visuelle humaine explicite acquise le 2026-09-16.
+Base master au gate final:
+`35c4ee606e953f2f2a8a9d91ab540bf6c7ef476a`.
 
-Le HEAD final rebased doit etre recertifie; l'ancienne preuve ne suffit pas seule au merge.
-
-### Rebase non-regressif
-
-Le lot a ete reconstruit au-dessus du master courant plutot que fusionne avec un arbre ancien.
-
-Base de reconstruction verifiee:
-
-- `master@63d3902656d0525dccac60cbc15cf2aa21b1ffd9`;
-- tree `af33ffcf33fb9d561e6e9cb42cf156d9ec4d7586`.
-
-Implementation rebasee avant closeout documentaire:
-
-- `70bcff19086f691df224ba4ca47512743027b6f6`;
+Comparaison:
 - `ahead_by=1`;
 - `behind_by=0`;
-- exactement 21 fichiers modifies, tous dans le perimetre CNOPS/assurance;
-- aucune suppression Agenda/Cephalo/Patient Companion.
+- exactement 21 fichiers dans le perimetre CNOPS/assurance.
 
-Ancien HEAD conserve sur `backup/mutuelles-cnops-pre-rebase-20260916`.
+Workflows exact-HEAD:
+- CI #4655 — SUCCESS;
+- T2 Runtime Browser Certification #3513 — SUCCESS;
+- Patient P7 Final Certification #1773 — SUCCESS;
+- Patient UX1-C Overlay Visual Certification #222 — SUCCESS;
+- Clinic P2 Patient Billing Visual Certification #265 — SUCCESS;
+- Mutuelles CNOPS Visual Certification #14 — SUCCESS;
+- PR Merge Summary #124 — SUCCESS.
 
-### Gate restant CNOPS
+Workflow CNOPS #14:
+- `capture` — SUCCESS;
+- `backend-contract` — SUCCESS;
+- artifact `10457336943`;
+- digest `sha256:f92f88100cced08d863d9206ca1faa17a70963e0ce69b87ba97cb697253c2476`.
 
-Un seul gate technique reste avant passage ready:
+Validation visuelle humaine explicite acquise le 2026-09-16.
 
-`HEAD final closeout -> CI + CNOPS Visual + non-regressions pertinentes -> PR mergeable sans divergence`.
+### Merge et post-merge
 
-Le merge reste interdit sans accord explicite utilisateur.
+PR #534 mergée après accord utilisateur explicite.
 
-## FAR — LOT SUIVANT, NON OUVERT
+Merge commit:
+`5290df7cb1a12989ef3799f92e32fd49d02d5ca1`.
 
-FAR reste hors scope de PR #534. Il doit reutiliser le meme moteur et repasser ses propres gates de provenance/template/politique administrative/profil overlay/UI/tests.
+CI push post-merge sur ce commit:
+- CI #4674 / run `35126199252` — SUCCESS;
+- Full backend regression DB/patients/documents — SUCCESS;
+- Frontend tests & build — SUCCESS;
+- Garde production négative — SUCCESS.
 
-## Non-regression obligatoire
+Cabinet Upgrade PostgreSQL Certification #925:
+- Windows PowerShell 5.1 release guards — SUCCESS;
+- PostgreSQL 18 + immutable release invariants — SUCCESS.
 
-Avant merge CNOPS, prouver:
+Aucun déploiement Vercel et aucune mutation production dans ce lot.
+
+Score final CNOPS:
+- EXECUTION_SCORE 9.4/10;
+- ADVERSARIAL_SCORE 9.4/10;
+- retenu 9.4/10, plafonné car exécution et revue adversariale par le même agent.
+
+Statut:
+`CNOPS_CLOSED_VERIFIED_POST_MERGE`.
+
+## FAR — LOT SUIVANT, GATE NON OUVERT
+
+Handover:
+`docs/audits/MUTUELLES_DENTAIRES_CNOPS_TO_FAR_HANDOVER.md`.
+
+Prompt de nouvelle conversation:
+`docs/audits/MUTUELLES_DENTAIRES_FAR_START_PROMPT.md`.
+
+FAR doit reutiliser le meme moteur et repasser ses propres gates de provenance/template/politique administrative/profil overlay/UI/tests.
+
+### Contrainte produit FAR — ordonnance séparée
+
+Information explicite fournie par le cabinet:
+
+**Le dossier/feuille de soins FAR contient une page d'ordonnance incluse dans le document. Cette page doit etre traitee separement des autres feuilles/pages FAR.**
+
+Statut actuel:
+- exigence produit/cabinet: confirmée;
+- binaire FAR exact: non encore inspecté dans ce lot;
+- SHA-256 FAR: non connu ici;
+- nombre/index exact de la page ordonnance: non vérifié;
+- coordonnées overlay ordonnance: non connues;
+- trust/provenance FAR: à établir.
+
+Le lot FAR ne doit donc pas coder à partir d'une hypothèse de pagination.
+
+Principe architectural à confirmer après inspection du binaire:
+- conserver le binaire FAR original verrouillé par SHA-256;
+- classifier les pages par rôle;
+- traiter l'ordonnance comme un sous-document logique séparé (`FAR_PRESCRIPTION` ou nom cohérent avec le code réel);
+- contrat de données, profil overlay, revue praticien, validation/finalisation, tests et preuve visuelle séparés;
+- aucune molécule, dose, posologie, durée ou fréquence déduite depuis les actes/NGAP;
+- toute prescription provient d'une source explicite et est revue par le praticien;
+- conserver la relation avec le dossier FAR global;
+- un éventuel réassemblage pour impression/export ne peut intervenir qu'après validation indépendante des sous-documents.
+
+### Premier gate FAR obligatoire
+
+Avant implémentation:
+1. identifier le binaire FAR exact;
+2. calculer SHA-256, taille, pages et dimensions;
+3. inspecter visuellement chaque page;
+4. identifier le rôle de chaque page;
+5. confirmer précisément la page ordonnance;
+6. établir le trust réel de la source;
+7. cartographier champs autorisés/interdits;
+8. vérifier l'extension minimale du moteur commun;
+9. créer `docs/audits/MUTUELLES_DENTAIRES_FAR_GATE.md`;
+10. seulement ensuite commencer l'implémentation.
+
+## Non-regression obligatoire pour FAR
+
+Avant merge FAR, prouver:
 
 - aucune mutation schema/DB non maitrisee;
 - aucun dommage donnees patients/documents;
 - CNSS prepare/validate/finalize/archive reste fonctionnel;
+- CNOPS prepare/validate/finalize/archive reste fonctionnel;
 - source store/hash gates restent fail-closed;
 - NGAP reste non fuzzy et non auto-certifie;
 - signatures/cachets/decision assureur restent hors rendu automatique;
-- aucun fichier de domaines paralleles n'est retire par la reconstruction du lot.
+- ordonnance FAR reste un gate distinct des autres pages;
+- aucun fichier de domaines paralleles n'est retire par le lot.
 
 ## Interdits
 
-Second moteur Honoraires, second catalogue clinique, fuzzy mapping, backfill artificiel, signature/cachet/accord assureur fabrique, promotion silencieuse d'un template secondaire, mutation production, deploiement Vercel sans autorisation explicite, merge sans accord explicite utilisateur.
+Second moteur Honoraires, second catalogue clinique, fuzzy mapping, backfill artificiel, prescription inventee, signature/cachet/accord assureur fabrique, promotion silencieuse d'un template secondaire, mutation production, deploiement Vercel sans autorisation explicite, merge sans accord explicite utilisateur.
 
 ## Etat courant
 
-`CNSS_ACQUIRED / NGAP_REFERENCE_LOCKED_REFERENCE_ONLY / CNOPS_BINARY_CABINET_VALIDATED / CNOPS_BACKEND_IMPLEMENTED / CNOPS_UI_IMPLEMENTED / CNOPS_VISUAL_HUMAN_VALIDATED / CNOPS_REBASED_ON_CURRENT_MASTER / FINAL_EXACT_HEAD_CERTIFICATION_REQUIRED / FAR_NOT_STARTED`
+`CNSS_ACQUIRED / NGAP_REFERENCE_LOCKED_REFERENCE_ONLY / CNOPS_CLOSED_VERIFIED_POST_MERGE / FAR_SOURCE_GATE_NOT_STARTED / FAR_PRESCRIPTION_SEPARATE_GATE_REQUIRED`
 
 ## Next exact
 
-1. recertifier le HEAD final apres closeout documentaire;
-2. verifier CI, CNOPS Visual et non-regressions pertinentes;
-3. verifier PR #534 `mergeable`, `behind_by=0` et perimetre intact;
-4. passer PR #534 en ready si tout est vert;
-5. attendre l'accord explicite de merge;
-6. merger, verifier post-merge et produire le handover FAR.
+1. merger le closeout documentaire après ses propres checks et accord utilisateur explicite;
+2. ouvrir une nouvelle conversation avec `docs/audits/MUTUELLES_DENTAIRES_FAR_START_PROMPT.md`;
+3. verifier master/CI actuels;
+4. localiser le binaire FAR exact;
+5. inspecter FAR page par page et confirmer l'ordonnance;
+6. produire le gate FAR;
+7. ne coder FAR qu'après ce gate.
