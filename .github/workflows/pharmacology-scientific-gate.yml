@@ -74,7 +74,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: pharmacology-deterministic-safety-${{ env.PRODUCT_HEAD }}
+          name: pharmacology-deterministic-safety-${{ github.event.pull_request.head.sha || github.sha }}
           path: audit/out/pharmacology-scientific-gate/
           if-no-files-found: warn
           retention-days: 30
