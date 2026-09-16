@@ -48,9 +48,27 @@ jobs:
           python-version: '3.12'
 
       - name: Install minimal documentary-test dependencies
-        run: python -m pip install --disable-pip-version-check pytest SQLAlchemy
+        run: python -m pip install --disable-pip-version-check pytest SQLAlchemy==2.0.28
+
+      - name: Isolate documentary imports from application bootstrap
+        run: |
+          mkdir -p "$RUNNER_TEMP/pharmacology-isolation"
+          cat > "$RUNNER_TEMP/pharmacology-isolation/sitecustomize.py" <<'PY'
+          import os
+          import sys
+          import types
+          from pathlib import Path
+
+          workspace = Path(os.environ["GITHUB_WORKSPACE"]).resolve()
+          package = types.ModuleType("backend")
+          package.__path__ = [str(workspace / "backend")]
+          package.__package__ = "backend"
+          sys.modules["backend"] = package
+          PY
 
       - name: Run targeted pharmacology documentary tests
+        env:
+          PYTHONPATH: ${{ runner.temp }}/pharmacology-isolation:${{ github.workspace }}
         run: |
           python -m pytest --noconftest \
             backend/tests/test_prescription_pharmacology_morocco_m0_matrix.py \
