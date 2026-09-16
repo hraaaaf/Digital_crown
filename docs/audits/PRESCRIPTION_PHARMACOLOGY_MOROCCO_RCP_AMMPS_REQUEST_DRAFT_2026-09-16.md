@@ -3,21 +3,29 @@
 Date de préparation: 2026-09-16
 Status: DRAFT ONLY — DO NOT SEND WITHOUT HUMAN APPROVAL
 
+## Canal recommandé
+Priorité : `https://www.ammps.gov.ma/reclamation` — Fiche de Réclamation Client AMMPS courante.
+
+Paramétrage proposé :
+- Catégorie : `Professionnel de santé` ;
+- Thématique : `Réglementaire / Juridique` ;
+- Service ou dossier concerné : `Médicaments — accès aux RCP / documentation réglementaire` ;
+- Canal de dépôt : `Plateforme AMMPS` ;
+- Pièces jointes : uniquement références réglementaires publiques utiles, jamais de donnée patient.
+
+La page AMMPS courante publie un mécanisme de suivi et le numéro de traitement des réclamations `08 000 000 18`.
+
+Canal secondaire historique : communiqué AMMPS du 15/02/2019, Service de l'enregistrement, `enregistrement.dmp@sante.gov.ma` avec `u.dm.dmp@sante.gov.ma` indiqué entre parenthèses. Ne pas supposer que cette adresse historique est encore opérationnelle sans confirmation/réponse.
+
 ## Objet proposé
-Demande d'accès aux RCP marocains courants — médicaments à usage en médecine dentaire
+Demande d'accès aux RCP marocains courants — médicaments pertinents en médecine dentaire
 
-## Destinataire
-Canal AMMPS institutionnel à confirmer au moment de l'envoi.
-
-Canal historiquement publié par l'AMMPS pour les demandes d'information concernant l'enregistrement des médicaments (communiqué du 15/02/2019): `enregistrement.dmp@sante.gov.ma` ; la page indiquait également `u.dm.dmp@sante.gov.ma` entre parenthèses.
-
-Ne pas supposer que cette adresse historique est encore opérationnelle sans vérification/réponse. Le site AMMPS courant publie aussi ses coordonnées institutionnelles et les parcours de réclamation/recours.
-
-## Corps proposé
-
+## Exposé des faits proposé
 Madame, Monsieur,
 
-Dans le cadre de la constitution d'une documentation réglementaire locale et traçable pour un logiciel de gestion de cabinet dentaire utilisé au Maroc, nous souhaitons disposer des RCP marocains officiels et à jour de plusieurs médicaments couramment pertinents en pratique odontologique.
+Dans le cadre de la constitution d'une documentation réglementaire locale et traçable pour un logiciel de gestion de cabinet dentaire utilisé au Maroc, nous souhaitons disposer des RCP marocains officiels et à jour de plusieurs médicaments pertinents en pratique odontologique.
+
+Les présentations concernées sont bien identifiées dans les bases publiques AMMPS, mais pour les entrées vérifiées le lien RCP public n'est pas exposé ou n'est pas actif. Nous ne souhaitons pas déduire ni fabriquer d'URL documentaire.
 
 Pour chacune des substances/préparations ci-dessous, pourriez-vous nous communiquer, lorsqu'il existe, soit l'URL publique officielle AMMPS du RCP courant, soit une copie officielle du RCP correspondant à la présentation autorisée au Maroc, avec si possible l'identification exacte de la présentation concernée (nom commercial, dosage, forme pharmaceutique, présentation, statut AMM/commercialisation et identifiant réglementaire) ?
 
@@ -34,18 +42,27 @@ Lorsque le RCP n'est pas disponible publiquement sur le site, une confirmation e
 
 Notre demande porte uniquement sur la documentation réglementaire officielle. Elle ne vise pas à automatiser une décision thérapeutique et aucune donnée ne sera activée cliniquement sans validation médicale dédiée.
 
-Nous vous remercions par avance pour votre aide et restons disponibles pour préciser les références exactes des présentations concernées.
+Nous vous remercions par avance pour votre aide.
 
-Cordialement,
-[Nom / établissement / coordonnées à compléter par l'expéditeur]
+## Résultat attendu / Demande formulée
+Pour chaque famille citée : URL officielle AMMPS du RCP courant ou copie officielle du RCP avec identité exacte de la présentation ; à défaut, indication de la procédure officielle permettant d'obtenir le document ou confirmation explicite de son statut documentaire.
+
+## Signature à compléter avant soumission
+- Nom et prénom / raison sociale : `[HUMAN GATE]`
+- Qualité / fonction : `[HUMAN GATE]`
+- Adresse : `[HUMAN GATE]`
+- Téléphone : `[HUMAN GATE]`
+- Email : `[HUMAN GATE]`
 
 ## Pièces de contexte à joindre uniquement si utile
-- liste exacte des `regulatory_presentation_id` internes liés aux présentations AMMPS ;
-- captures/preuves des fiches publiques AMMPS montrant le médicament et l'absence de lien RCP public ;
+- liste exacte des présentations AMMPS prioritaires ;
+- captures/preuves des fiches publiques AMMPS montrant le médicament et `Lien RCP / NAF -` ou contrôle RCP non actif ;
 - aucun document patient, aucune donnée clinique personnelle.
 
 ## Human gate
-Avant envoi, le propriétaire du projet doit confirmer :
-- le nom/établissement/signature à utiliser ;
-- le canal AMMPS actuel choisi ;
-- l'opportunité d'envoyer une seule demande groupée ou plusieurs demandes par famille.
+Avant soumission :
+- compléter l'identité/signature et les coordonnées de l'expéditeur ;
+- confirmer que la soumission via la Fiche de Réclamation Client est souhaitée ;
+- décider si la demande reste groupée (recommandé pour la traçabilité) ou est scindée par famille.
+
+Aucune soumission n'est autorisée par ce document seul.
