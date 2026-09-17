@@ -22,8 +22,10 @@ const viewports = [
 ];
 
 const api = await request.newContext({ baseURL: 'http://127.0.0.1:8005' });
+const runtimePassword = process.env.T2_PASSWORD;
+if (!runtimePassword) throw new Error('T2_PASSWORD is required');
 const login = await api.post('/api/auth/login', {
-  form: { username: 't2-browser@cabinet.ma', password: 'T2BrowserPass123!' },
+  form: { username: 't2-browser@cabinet.ma', password: runtimePassword },
 });
 if (!login.ok()) throw new Error(`Login failed: ${login.status()} ${await login.text()}`);
 const tokens = await login.json();
@@ -67,7 +69,7 @@ async function certifyStudioPage(page, studioPage, viewport, colorScheme) {
 
   const url = `http://127.0.0.1:5173/patients/${patient.id}?tab=admin&documentTab=${studioPage.slug}`;
   await page.goto(url, { waitUntil: 'networkidle', timeout: 90000 });
-  await page.locator('[data-tour="patient-tabs"]').getByText('Documents', { exact: true }).waitFor({ timeout: 30000 });
+  await page.locator('[data-tour="document-tabs"]').waitFor({ state: 'attached', timeout: 30000 });
   await assertCompanionAbsent(page);
   await page.getByText(studioPage.label, { exact: true }).first().waitFor({ timeout: 30000 });
 
