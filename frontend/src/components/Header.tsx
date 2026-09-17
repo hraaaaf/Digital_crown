@@ -8,178 +8,34 @@ import { useAuthStore } from '../stores/useAuthStore';
 import { authService } from '../services/auth';
 import { TutorialHelpButton } from '../features/tutorial/VoluntaryTutorial';
 
-interface HeaderProps {
-  isCrownBotOpen?: boolean;
-  crownBotUnreadCount?: number;
-  onToggleCrownBot?: () => void;
-}
+interface HeaderProps { isCrownBotOpen?: boolean; crownBotUnreadCount?: number; onToggleCrownBot?: () => void; }
+type ConnectHubItem = { id:string; source:'proactive_alert'|'treasury_hub'|string; title:string; message:string; destination:string; priority:string; channel:string; delivery_state:string; delivery_verified:boolean; };
+type ConnectHubPayload = { total:number; requires_attention:number; items:ConnectHubItem[]; delivery_semantics:string; };
 
-type ConnectHubItem = {
-  id: string;
-  source: 'proactive_alert' | 'treasury_hub' | string;
-  title: string;
-  message: string;
-  destination: string;
-  priority: string;
-  channel: string;
-  delivery_state: string;
-  delivery_verified: boolean;
-};
-
-type ConnectHubPayload = {
-  total: number;
-  requires_attention: number;
-  items: ConnectHubItem[];
-  delivery_semantics: string;
-};
-
-export const Header = ({ isCrownBotOpen = false, crownBotUnreadCount = 0, onToggleCrownBot }: HeaderProps) => {
-  const [cabinetName, setCabinetName] = useState('Chargement...');
-  const [praticienName, setPraticienName] = useState('Praticien');
-  const [connectHub, setConnectHub] = useState<ConnectHubPayload>({ total: 0, requires_attention: 0, items: [], delivery_semantics: 'source_state_only' });
-  const [showNotifs, setShowNotifs] = useState(false);
-  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
-  const { user } = useAuthStore();
-  const notifRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (notifRef.current && !notifRef.current.contains(event.target as Node)) setShowNotifs(false);
-    };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
-
-  useEffect(() => {
-    const activeId = localStorage.getItem('active_cabinet_id') || 'benmoussa';
-    if (activeId === 'benmoussa') {
-      setCabinetName('Centre Dentaire Benmoussa');
-      setPraticienName('Dr. Benmoussa');
-    }
-
-    const fetchData = async () => {
-      try {
-        const config = await cabinetApi.getMine();
-        if (!localStorage.getItem('active_cabinet_id')) {
-          setCabinetName(config.nom_cabinet || 'Mon Cabinet');
-          if (config.header_lines_fr && config.header_lines_fr.length > 0) setPraticienName(config.header_lines_fr[0]);
-        }
-      } catch (error) {
-        console.error('Erreur header config:', error);
-      }
-    };
-
-    let intervalId: ReturnType<typeof setInterval> | null = null;
-    const fetchConnectHub = async () => {
-      try {
-        const res = await api.get('/intelligence/connect-hub');
-        setConnectHub(res.data);
-      } catch (e: any) {
-        const status = e?.response?.status;
-        if (status === 401 || status === 402) {
-          if (intervalId !== null) clearInterval(intervalId);
-        }
-      }
-    };
-
-    fetchData();
-    fetchConnectHub();
-
-    const handleCabinetChange = (e: any) => {
-      const { cabinet } = e.detail;
-      setCabinetName(cabinet.nom);
-      setPraticienName(cabinet.specialty);
-      fetchConnectHub();
-    };
-    window.addEventListener('cabinet-changed', handleCabinetChange);
-    intervalId = setInterval(fetchConnectHub, 60000);
-    return () => {
-      if (intervalId !== null) clearInterval(intervalId);
-      window.removeEventListener('cabinet-changed', handleCabinetChange);
-    };
-  }, []);
-
-  const handleLogout = async () => {
-    safeStorage.remove('appMode');
-    await authService.logout();
-    window.location.href = '/landing';
-  };
-
-  const attentionCount = connectHub.requires_attention || connectHub.total;
-
-  return (
-    <header className="h-20 bg-transparent flex items-center justify-end gap-2 pl-16 pr-3 sm:pl-20 sm:pr-6 lg:gap-6 lg:px-8 shrink-0 relative z-[1000]">
-      <div className="flex items-center gap-1 sm:gap-2">
-        {user?.is_superadmin && (
-          <Link to="/super-admin" className="hidden lg:flex items-center gap-2 px-3 py-2 bg-amber-400/10 text-amber-500 hover:bg-amber-400/20 rounded-elite-sm font-black text-xs transition-elite border border-amber-400/20 mr-2">Gestion des Dentistes</Link>
-        )}
-        {user?.is_superadmin && (
-          <Link to="/super-admin" className="hidden sm:flex lg:hidden p-2.5 text-amber-500 bg-amber-400/10 hover:bg-amber-400/20 rounded-elite-sm transition-elite border border-amber-400/20" title="Gestion des Dentistes"><Shield size={20} /></Link>
-        )}
-        {onToggleCrownBot && (
-          <button type="button" data-ux1-c-crownbot-header onClick={onToggleCrownBot} aria-label={isCrownBotOpen ? 'Fermer CrownBot' : 'Ouvrir CrownBot'} aria-expanded={isCrownBotOpen} className="lg:hidden relative min-w-11 min-h-11 inline-flex items-center justify-center text-text-muted hover:text-primary hover:bg-primary/5 rounded-elite-sm transition-elite">
-            <Bot size={20} />
-            {crownBotUnreadCount > 0 && !isCrownBotOpen && <span className="absolute top-1 right-1 min-w-4 h-4 px-1 bg-amber-400 text-slate-900 text-[8px] font-black rounded-full flex items-center justify-center border border-card-bg">{crownBotUnreadCount}</span>}
-          </button>
-        )}
-        <TutorialHelpButton />
-        <Link to="/settings" className="p-2.5 text-text-muted hover:text-primary hover:bg-primary/5 rounded-elite-sm transition-elite" title="Réglages"><Settings size={20} /></Link>
-
-        <div className="relative" ref={notifRef}>
-          <button onClick={() => setShowNotifs(!showNotifs)} aria-label="Ouvrir le centre d’attention" aria-expanded={showNotifs} className="p-2.5 text-text-muted hover:text-primary hover:bg-primary/5 rounded-elite-sm transition-elite relative group">
-            <Bell size={20} className="group-hover:scale-110 transition-elite" />
-            {attentionCount > 0 && <span className="absolute top-1 right-1 min-w-4 h-4 px-1 bg-red-500 text-white text-[8px] font-black rounded-full border border-card-bg flex items-center justify-center">{attentionCount > 99 ? '99+' : attentionCount}</span>}
-          </button>
-
-          {showNotifs && (
-            <div className="absolute top-full right-0 mt-2 w-[min(22rem,calc(100vw-1.5rem))] bg-card-bg border border-border-main rounded-3xl shadow-elite p-4 animate-in slide-in-from-top-2 duration-300 z-50 backdrop-blur-xl">
-              <div className="flex items-center justify-between gap-3 mb-3 px-1">
-                <div><h4 className="text-xs font-black text-main">Centre d’attention</h4><p className="text-[9px] font-bold text-text-muted mt-0.5">Alertes cabinet et relances, au même endroit</p></div>
-                {attentionCount > 0 && <span className="shrink-0 px-2 py-1 rounded-full bg-red-500/10 text-red-500 text-[9px] font-black">{attentionCount}</span>}
-              </div>
-
-              <div className="max-h-80 overflow-y-auto custom-scrollbar space-y-1">
-                {connectHub.items.length > 0 ? connectHub.items.map((item) => {
-                  const isTreasury = item.source === 'treasury_hub';
-                  return (
-                    <Link key={item.id} to={item.destination} onClick={() => setShowNotifs(false)} className="flex items-start gap-3 p-3 hover:bg-primary/5 rounded-2xl transition-all border border-transparent hover:border-primary/10">
-                      <div className={`w-9 h-9 shrink-0 rounded-xl flex items-center justify-center ${isTreasury ? 'bg-primary/10 text-primary' : 'bg-amber-400/10 text-amber-500'}`}>{isTreasury ? <Calculator size={17} /> : <AlertTriangle size={17} />}</div>
-                      <div className="min-w-0 flex-1"><p className="text-xs font-black text-main leading-tight truncate">{item.title}</p><p className="text-[10px] text-text-muted font-bold mt-1 line-clamp-2">{item.message}</p></div>
-                      <ArrowRight size={14} className="shrink-0 mt-2 text-text-muted" />
-                    </Link>
-                  );
-                }) : (
-                  <div className="text-center py-7"><p className="text-xs font-black text-main">Tout est à jour</p><p className="text-[10px] font-bold text-text-muted mt-1">Aucune attention requise pour le moment.</p></div>
-                )}
-              </div>
-
-              <div className="mt-3 pt-3 border-t border-border-main flex items-center justify-between gap-3 px-1">
-                <span className="text-[8px] font-bold text-text-muted">État source uniquement · aucune livraison externe déduite</span>
-                <Link to="/accounting?tab=treasury" onClick={() => setShowNotifs(false)} className="shrink-0 text-[9px] font-black text-primary hover:opacity-80">Trésorerie</Link>
-              </div>
-            </div>
-          )}
-        </div>
-      </div>
-
-      <div className="hidden lg:block w-px h-6 bg-border-main mx-2" />
-      <div className="hidden lg:flex items-center gap-4">
-        <div className="text-right hidden lg:block"><p className="text-sm font-black text-primary leading-none tracking-tight font-outfit">{cabinetName}</p><p className="text-[10px] font-bold text-text-muted mt-1 uppercase tracking-tighter">{user?.nom_complet || (user?.role === 'SECRETAIRE' ? 'Assistante' : 'Praticien')}</p></div>
-        <div className="w-11 h-11 rounded-elite-sm bg-card-bg border border-border-main flex items-center justify-center text-primary shadow-elite transition-elite hover:scale-105"><UserCircle size={24} /></div>
-      </div>
-      <button onClick={() => setShowLogoutConfirm(true)} className="ml-0 lg:ml-2 p-2.5 text-text-muted hover:text-red-600 hover:bg-red-500/10 rounded-elite-sm transition-elite group" title="Déconnexion"><LogOut size={20} className="group-hover:scale-110 transition-elite" /></button>
-
-      {showLogoutConfirm && (
-        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="bg-card-bg border border-border-main rounded-3xl p-6 shadow-elite max-w-sm w-full mx-4 animate-in zoom-in-95 duration-200">
-            <div className="flex flex-col items-center text-center">
-              <div className="w-16 h-16 rounded-full bg-red-500/10 flex items-center justify-center text-red-500 mb-4"><LogOut size={32} /></div>
-              <h3 className="text-xl font-black text-main mb-2">Déconnexion</h3><p className="text-sm font-bold text-text-muted mb-6">Êtes-vous sûr de vouloir vous déconnecter de votre session ?</p>
-              <div className="flex w-full gap-3"><button onClick={() => setShowLogoutConfirm(false)} className="flex-1 py-3 rounded-xl border border-border-main font-bold text-text-muted hover:text-main hover:bg-main/5 transition-elite">Annuler</button><button onClick={() => { setShowLogoutConfirm(false); handleLogout(); }} className="flex-1 py-3 rounded-xl bg-red-500 text-white font-black shadow-lg shadow-red-500/20 hover:bg-red-600 transition-elite">Confirmer</button></div>
-            </div>
-          </div>
-        </div>
-      )}
-    </header>
-  );
+export const Header = ({ isCrownBotOpen=false, crownBotUnreadCount=0, onToggleCrownBot }: HeaderProps) => {
+  const [cabinetName,setCabinetName]=useState('Chargement...'); const [praticienName,setPraticienName]=useState('Praticien');
+  const [connectHub,setConnectHub]=useState<ConnectHubPayload>({total:0,requires_attention:0,items:[],delivery_semantics:'source_state_only'});
+  const [showNotifs,setShowNotifs]=useState(false); const [showLogoutConfirm,setShowLogoutConfirm]=useState(false); const {user}=useAuthStore(); const notifRef=useRef<HTMLDivElement>(null);
+  useEffect(()=>{const handleClickOutside=(event:MouseEvent)=>{if(notifRef.current&&!notifRef.current.contains(event.target as Node))setShowNotifs(false)};document.addEventListener('mousedown',handleClickOutside);return()=>document.removeEventListener('mousedown',handleClickOutside)},[]);
+  useEffect(()=>{const activeId=localStorage.getItem('active_cabinet_id')||'benmoussa';if(activeId==='benmoussa'){setCabinetName('Centre Dentaire Benmoussa');setPraticienName('Dr. Benmoussa')}
+    const fetchData=async()=>{try{const config=await cabinetApi.getMine();if(!localStorage.getItem('active_cabinet_id')){setCabinetName(config.nom_cabinet||'Mon Cabinet');if(config.header_lines_fr&&config.header_lines_fr.length>0)setPraticienName(config.header_lines_fr[0])}}catch(error){console.error('Erreur header config:',error)}};
+    let intervalId:ReturnType<typeof setInterval>|null=null;const fetchConnectHub=async()=>{try{const res=await api.get('/intelligence/connect-hub');setConnectHub(res.data)}catch(e:any){const status=e?.response?.status;if(status===401||status===402){if(intervalId!==null)clearInterval(intervalId)}}};fetchData();fetchConnectHub();
+    const handleCabinetChange=(e:any)=>{const {cabinet}=e.detail;setCabinetName(cabinet.nom);setPraticienName(cabinet.specialty);fetchConnectHub()};window.addEventListener('cabinet-changed',handleCabinetChange);intervalId=setInterval(fetchConnectHub,60000);return()=>{if(intervalId!==null)clearInterval(intervalId);window.removeEventListener('cabinet-changed',handleCabinetChange)}},[]);
+  const handleLogout=async()=>{safeStorage.remove('appMode');await authService.logout();window.location.href='/landing'}; const attentionCount=connectHub.requires_attention||connectHub.total;
+  return <header className="h-20 bg-transparent flex items-center justify-end gap-2 pl-16 pr-3 sm:pl-20 sm:pr-6 lg:gap-6 lg:px-8 shrink-0 relative z-[1000]">
+    <div className="flex items-center gap-1 sm:gap-2">
+      {user?.is_superadmin&&<Link to="/super-admin" className="hidden lg:flex items-center gap-2 px-3 py-2 bg-amber-400/10 text-amber-500 hover:bg-amber-400/20 rounded-elite-sm font-black text-xs transition-elite border border-amber-400/20 mr-2">Gestion des Dentistes</Link>}
+      {user?.is_superadmin&&<Link to="/super-admin" className="hidden sm:flex lg:hidden p-2.5 text-amber-500 bg-amber-400/10 hover:bg-amber-400/20 rounded-elite-sm transition-elite border border-amber-400/20" title="Gestion des Dentistes"><Shield size={20}/></Link>}
+      {onToggleCrownBot&&<button type="button" data-ux1-c-crownbot-header onClick={onToggleCrownBot} aria-label={isCrownBotOpen?'Fermer CrownBot':'Ouvrir CrownBot'} aria-expanded={isCrownBotOpen} className="lg:hidden relative min-w-11 min-h-11 inline-flex items-center justify-center text-text-muted hover:text-primary hover:bg-primary/5 rounded-elite-sm transition-elite"><Bot size={20}/>{crownBotUnreadCount>0&&!isCrownBotOpen&&<span className="absolute top-1 right-1 min-w-4 h-4 px-1 bg-amber-400 text-slate-900 text-[8px] font-black rounded-full flex items-center justify-center border border-card-bg">{crownBotUnreadCount}</span>}</button>}
+      <TutorialHelpButton/><Link to="/settings" className="p-2.5 text-text-muted hover:text-primary hover:bg-primary/5 rounded-elite-sm transition-elite" title="Réglages"><Settings size={20}/></Link>
+      <div className="relative" ref={notifRef}><button onClick={()=>setShowNotifs(!showNotifs)} aria-label="Ouvrir le centre d’attention" aria-expanded={showNotifs} className="p-2.5 text-text-muted hover:text-primary hover:bg-primary/5 rounded-elite-sm transition-elite relative group"><Bell size={20} className="group-hover:scale-110 transition-elite"/>{attentionCount>0&&<span className="absolute top-1 right-1 min-w-4 h-4 px-1 bg-red-500 text-white text-[8px] font-black rounded-full border border-card-bg flex items-center justify-center">{attentionCount>99?'99+':attentionCount}</span>}</button>
+      {showNotifs&&<div className="fixed left-3 right-3 top-[4.75rem] sm:absolute sm:left-auto sm:right-0 sm:top-full sm:mt-2 sm:w-[22rem] bg-card-bg border border-border-main rounded-3xl shadow-elite p-4 animate-in slide-in-from-top-2 duration-300 z-50 backdrop-blur-xl">
+        <div className="flex items-start justify-between gap-3 mb-3 px-1"><div className="min-w-0"><h4 className="text-sm sm:text-xs font-black text-main">Centre d’attention</h4><p className="text-[10px] sm:text-[9px] font-bold text-text-muted mt-1 sm:mt-0.5 leading-relaxed">Alertes cabinet et relances, au même endroit</p></div>{attentionCount>0&&<span className="shrink-0 px-2 py-1 rounded-full bg-red-500/10 text-red-500 text-[9px] font-black">{attentionCount}</span>}</div>
+        <div className="max-h-[min(24rem,calc(100vh-10.5rem))] overflow-y-auto custom-scrollbar space-y-1">{connectHub.items.length>0?connectHub.items.map(item=>{const isTreasury=item.source==='treasury_hub';return <Link key={item.id} to={item.destination} onClick={()=>setShowNotifs(false)} className="flex items-start gap-3 p-3 hover:bg-primary/5 rounded-2xl transition-all border border-transparent hover:border-primary/10"><div className={`w-9 h-9 shrink-0 rounded-xl flex items-center justify-center ${isTreasury?'bg-primary/10 text-primary':'bg-amber-400/10 text-amber-500'}`}>{isTreasury?<Calculator size={17}/>:<AlertTriangle size={17}/>}</div><div className="min-w-0 flex-1"><p className="text-xs font-black text-main leading-tight truncate">{item.title}</p><p className="text-[10px] text-text-muted font-bold mt-1 line-clamp-2 leading-relaxed">{item.message}</p></div><ArrowRight size={14} className="shrink-0 mt-2 text-text-muted"/></Link>}):<div className="text-center py-7"><p className="text-xs font-black text-main">Tout est à jour</p><p className="text-[10px] font-bold text-text-muted mt-1">Aucune attention requise pour le moment.</p></div>}</div>
+        <div className="mt-3 pt-3 border-t border-border-main flex items-end justify-between gap-3 px-1"><span className="text-[8px] font-bold leading-relaxed text-text-muted max-w-[15rem]">État source uniquement · aucune livraison externe déduite</span><Link to="/accounting?tab=treasury" onClick={()=>setShowNotifs(false)} className="shrink-0 text-[9px] font-black text-primary hover:opacity-80">Trésorerie</Link></div>
+      </div>}</div>
+    </div><div className="hidden lg:block w-px h-6 bg-border-main mx-2"/><div className="hidden lg:flex items-center gap-4"><div className="text-right hidden lg:block"><p className="text-sm font-black text-primary leading-none tracking-tight font-outfit">{cabinetName}</p><p className="text-[10px] font-bold text-text-muted mt-1 uppercase tracking-tighter">{user?.nom_complet||(user?.role==='SECRETAIRE'?'Assistante':'Praticien')}</p></div><div className="w-11 h-11 rounded-elite-sm bg-card-bg border border-border-main flex items-center justify-center text-primary shadow-elite transition-elite hover:scale-105"><UserCircle size={24}/></div></div>
+    <button onClick={()=>setShowLogoutConfirm(true)} className="ml-0 lg:ml-2 p-2.5 text-text-muted hover:text-red-600 hover:bg-red-500/10 rounded-elite-sm transition-elite group" title="Déconnexion"><LogOut size={20} className="group-hover:scale-110 transition-elite"/></button>
+    {showLogoutConfirm&&<div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 backdrop-blur-sm animate-in fade-in duration-200"><div className="bg-card-bg border border-border-main rounded-3xl p-6 shadow-elite max-w-sm w-full mx-4 animate-in zoom-in-95 duration-200"><div className="flex flex-col items-center text-center"><div className="w-16 h-16 rounded-full bg-red-500/10 flex items-center justify-center text-red-500 mb-4"><LogOut size={32}/></div><h3 className="text-xl font-black text-main mb-2">Déconnexion</h3><p className="text-sm font-bold text-text-muted mb-6">Êtes-vous sûr de vouloir vous déconnecter de votre session ?</p><div className="flex w-full gap-3"><button onClick={()=>setShowLogoutConfirm(false)} className="flex-1 py-3 rounded-xl border border-border-main font-bold text-text-muted hover:text-main hover:bg-main/5 transition-elite">Annuler</button><button onClick={()=>{setShowLogoutConfirm(false);handleLogout()}} className="flex-1 py-3 rounded-xl bg-red-500 text-white font-black shadow-lg shadow-red-500/20 hover:bg-red-600 transition-elite">Confirmer</button></div></div></div></div>}
+  </header>;
 };
