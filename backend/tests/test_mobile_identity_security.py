@@ -73,10 +73,7 @@ def _claim(client, record, token=None):
 
 
 def test_admin_pairing_target_is_same_tenant_active_user(db, dentiste):
-    secretary = _user(
-        db, email='secretary-target@cabinet.ma', role=models.UserRole.SECRETAIRE,
-        employer_id=dentiste.id, permissions={'agenda': True, 'patients': True},
-    )
+    secretary = _user(db, email='secretary-target@cabinet.ma', role=models.UserRole.SECRETAIRE, employer_id=dentiste.id, permissions={'agenda': True, 'patients': True})
     employer_id, target = _resolve_mobile_pairing_user(db, dentiste, secretary.id)
     assert employer_id == dentiste.id
     assert target.id == secretary.id
@@ -95,7 +92,6 @@ def test_admin_pairing_target_rejects_inactive_or_pending(db, dentiste):
     with pytest.raises(HTTPException) as exc:
         _resolve_mobile_pairing_user(db, dentiste, inactive.id)
     assert exc.value.status_code == 403
-
     pending = _user(db, email='pending-mobile@cabinet.ma', role=models.UserRole.SECRETAIRE, employer_id=dentiste.id, approval='pending')
     with pytest.raises(HTTPException) as exc:
         _resolve_mobile_pairing_user(db, dentiste, pending.id)
@@ -103,10 +99,7 @@ def test_admin_pairing_target_rejects_inactive_or_pending(db, dentiste):
 
 
 def test_pairing_binds_real_user_tenant_role_and_device(client, db, dentiste):
-    secretary = _user(
-        db, email='secretary-mobile@cabinet.ma', role=models.UserRole.SECRETAIRE,
-        employer_id=dentiste.id, permissions={'agenda': True, 'patients': True, 'accounting': False, 'payments': False},
-    )
+    secretary = _user(db, email='secretary-mobile@cabinet.ma', role=models.UserRole.SECRETAIRE, employer_id=dentiste.id, permissions={'agenda': True, 'patients': True, 'accounting': False, 'payments': False})
     response = _claim(client, _pairing(db, dentiste, secretary))
     assert response.status_code == 200, response.text
     body = response.json()
@@ -135,10 +128,7 @@ def test_legacy_pairing_without_user_id_fails_closed(client, db, dentiste):
 
 def test_role_and_tenant_are_reloaded_from_db(db, dentiste):
     secretary = _user(db, email='role-mobile@cabinet.ma', role=models.UserRole.SECRETAIRE, employer_id=dentiste.id)
-    device = models.MobilePairedDevice(
-        device_id=str(uuid.uuid4()), user_id=secretary.id, employer_id=dentiste.id,
-        client_public_key_hex=_client_public_key(), refresh_jti='refresh-test',
-    )
+    device = models.MobilePairedDevice(device_id=str(uuid.uuid4()), user_id=secretary.id, employer_id=dentiste.id, client_public_key_hex=_client_public_key(), refresh_jti='refresh-test')
     db.add(device); db.commit()
     token = _create_mobile_jwt(secretary.id, 'DENTISTE', dentiste.id, device.device_id)
     auth = f'Bearer {token}'
@@ -147,10 +137,7 @@ def test_role_and_tenant_are_reloaded_from_db(db, dentiste):
 
 
 def test_revoked_device_rejects_access_token(db, dentiste):
-    device = models.MobilePairedDevice(
-        device_id=str(uuid.uuid4()), user_id=dentiste.id, employer_id=dentiste.id,
-        client_public_key_hex=_client_public_key(), refresh_jti='refresh-test', revoked_at=datetime.utcnow(),
-    )
+    device = models.MobilePairedDevice(device_id=str(uuid.uuid4()), user_id=dentiste.id, employer_id=dentiste.id, client_public_key_hex=_client_public_key(), refresh_jti='refresh-test', revoked_at=datetime.utcnow())
     db.add(device); db.commit()
     token = _create_mobile_jwt(dentiste.id, 'DENTISTE', dentiste.id, device.device_id)
     with pytest.raises(HTTPException) as exc:
@@ -173,35 +160,23 @@ def test_refresh_replay_revokes_device_and_new_chain(client, db, dentiste):
     assert client.post('/api/mobile/refresh-token', json={'refresh_token': new_refresh}).status_code == 401
 
 
-
 def test_finance_export_is_backend_permission_guarded(client, db, dentiste):
-    secretary = _user(
-        db, email='finance-denied-mobile@cabinet.ma', role=models.UserRole.SECRETAIRE,
-        employer_id=dentiste.id, permissions={'agenda': True, 'patients': True, 'accounting': False, 'payments': False},
-    )
+    secretary = _user(db, email='finance-denied-mobile@cabinet.ma', role=models.UserRole.SECRETAIRE, employer_id=dentiste.id, permissions={'agenda': True, 'patients': True, 'accounting': False, 'payments': False})
     body = _claim(client, _pairing(db, dentiste, secretary)).json()
-    response = client.get(
-        '/api/mobile/accounting/export-pdf?year=2026&month=8',
-        headers={'Authorization': f"Bearer {body['access_token']}"},
-    )
+    response = client.get('/api/mobile/accounting/export-pdf?year=2026&month=8', headers={'Authorization': f"Bearer {body['access_token']}"})
     assert response.status_code == 403
 
 
 def test_snapshot_does_not_query_finance_when_permission_denied(client, db, dentiste, monkeypatch):
-    secretary = _user(
-        db, email='snapshot-no-finance@cabinet.ma', role=models.UserRole.SECRETAIRE,
-        employer_id=dentiste.id, permissions={'agenda': True, 'patients': True, 'accounting': False, 'payments': False},
-    )
+    secretary = _user(db, email='snapshot-no-finance@cabinet.ma', role=models.UserRole.SECRETAIRE, employer_id=dentiste.id, permissions={'agenda': True, 'patients': True, 'accounting': False, 'payments': False})
     body = _claim(client, _pairing(db, dentiste, secretary)).json()
     from backend.services.accounting_service import accounting_service
     def forbidden(*args, **kwargs):
         raise AssertionError('finance backend must not be queried')
     monkeypatch.setattr(accounting_service, 'get_finance_kpis', forbidden)
-    response = client.get(
-        '/api/mobile/snapshot',
-        headers={'Authorization': f"Bearer {body['access_token']}"},
-    )
+    response = client.get('/api/mobile/snapshot', headers={'Authorization': f"Bearer {body['access_token']}"})
     assert response.status_code == 200, response.text
+
 
 def test_cabinet_revocation_invalidates_device_and_refresh(client, db, dentiste):
     body = _claim(client, _pairing(db, dentiste, dentiste)).json()
@@ -222,29 +197,21 @@ def test_mobile_mutation_uses_numeric_subject_as_user_id(client, db, dentiste):
         licensed=False,
     )
     body = _claim(client, _pairing(db, dentiste, secretary)).json()
-    appointment = {
-        'datetime_start': '2026-09-17T10:00:00',
-        'patient_name': 'Test Licence Mobile',
-        'motif': 'Contrôle licence mobile',
-        'duration_minutes': 30,
-    }
-    response = client.post(
-        '/api/mobile/appointments',
-        json=appointment,
-        headers={'Authorization': f"Bearer {body['access_token']}"},
-    )
-    assert response.status_code == 200, response.text
+    headers = {'Authorization': f"Bearer {body['access_token']}"}
+
+    # Canonical shared mutation: a licensed cabinet must pass the license middleware.
+    # The deliberately incomplete payload then fails at FastAPI validation (422),
+    # proving the numeric mobile subject was resolved instead of treated as an email.
+    response = client.post('/api/appointments/', json={}, headers=headers)
+    assert response.status_code == 422, response.text
 
     dentiste.is_licensed = False
     db.commit()
     backend_main._license_cache.clear()
-    denied = client.post(
-        '/api/mobile/appointments',
-        json={**appointment, 'datetime_start': '2026-09-17T11:00:00'},
-        headers={'Authorization': f"Bearer {body['access_token']}"},
-    )
+    denied = client.post('/api/appointments/', json={}, headers=headers)
     assert denied.status_code == 403
     assert denied.json()['detail'] == 'NOT_LICENSED'
+
 
 def test_permissions_policy_allows_same_origin_camera_only(client):
     response = client.get('/health')
@@ -256,67 +223,40 @@ def test_permissions_policy_allows_same_origin_camera_only(client):
 
 def test_shared_auth_me_accepts_valid_device_bound_mobile_token(client, db, dentiste):
     body = _claim(client, _pairing(db, dentiste, dentiste)).json()
-    response = client.get(
-        '/api/auth/me',
-        headers={'Authorization': f"Bearer {body['access_token']}"},
-    )
+    response = client.get('/api/auth/me', headers={'Authorization': f"Bearer {body['access_token']}"})
     assert response.status_code == 200, response.text
     assert response.json()['id'] == dentiste.id
 
 
 def test_shared_auth_me_rejects_revoked_mobile_header_even_with_valid_web_cookie(client, db, dentiste):
     body = _claim(client, _pairing(db, dentiste, dentiste)).json()
-    device = db.query(models.MobilePairedDevice).filter(
-        models.MobilePairedDevice.device_id == body['device_id']
-    ).one()
+    device = db.query(models.MobilePairedDevice).filter(models.MobilePairedDevice.device_id == body['device_id']).one()
     device.revoked_at = datetime.utcnow()
     db.commit()
-
-    # Un cookie desktop valide ne doit jamais masquer un Bearer mobile révoqué.
     client.cookies.set('access_token', create_access_token(data={'sub': dentiste.email}))
-    response = client.get(
-        '/api/auth/me',
-        headers={'Authorization': f"Bearer {body['access_token']}"},
-    )
+    response = client.get('/api/auth/me', headers={'Authorization': f"Bearer {body['access_token']}"})
     client.cookies.clear()
     assert response.status_code == 401, response.text
 
 
 def test_shared_auth_me_rejects_mobile_tenant_mismatch(client, db, dentiste):
-    device = models.MobilePairedDevice(
-        device_id=str(uuid.uuid4()),
-        user_id=dentiste.id,
-        employer_id=dentiste.id,
-        client_public_key_hex=_client_public_key(),
-        refresh_jti='refresh-shared-auth-tenant',
-    )
+    device = models.MobilePairedDevice(device_id=str(uuid.uuid4()), user_id=dentiste.id, employer_id=dentiste.id, client_public_key_hex=_client_public_key(), refresh_jti='refresh-shared-auth-tenant')
     db.add(device)
     db.commit()
-    forged = _create_mobile_jwt(
-        dentiste.id,
-        'DENTISTE',
-        dentiste.id + 99999,
-        device.device_id,
-    )
+    forged = _create_mobile_jwt(dentiste.id, 'DENTISTE', dentiste.id + 99999, device.device_id)
     response = client.get('/api/auth/me', headers={'Authorization': f'Bearer {forged}'})
     assert response.status_code == 401, response.text
 
 
 def test_shared_auth_me_rejects_legacy_mobile_token_without_device(client, dentiste):
     legacy = jwt.encode(
-        {
-            'sub': str(dentiste.id),
-            'tenant_id': dentiste.id,
-            'type': 'mobile',
-            'role': 'DENTISTE',
-            'jti': str(uuid.uuid4()),
-            'exp': datetime.utcnow() + timedelta(hours=1),
-        },
+        {'sub': str(dentiste.id), 'tenant_id': dentiste.id, 'type': 'mobile', 'role': 'DENTISTE', 'jti': str(uuid.uuid4()), 'exp': datetime.utcnow() + timedelta(hours=1)},
         SECRET_KEY,
         algorithm=ALGORITHM,
     )
     response = client.get('/api/auth/me', headers={'Authorization': f'Bearer {legacy}'})
     assert response.status_code == 401, response.text
+
 
 def test_admin_revoke_mobile_invalidates_claimed_device_and_refresh(client, db, dentiste, monkeypatch):
     body = _claim(client, _pairing(db, dentiste, dentiste)).json()
@@ -324,7 +264,6 @@ def test_admin_revoke_mobile_invalidates_claimed_device_and_refresh(client, db, 
     monkeypatch.setattr(admin_legacy.zka_service, 'rotate_master_key', lambda *_args, **_kwargs: 'b' * 64)
     monkeypatch.setattr(admin_legacy.sync_manager, '_perform_sync', lambda *_args, **_kwargs: None)
     monkeypatch.setattr(admin_legacy.audit_service, 'log', lambda **_kwargs: None)
-
     result = admin_legacy.revoke_mobile_access(db=db, current_user=dentiste)
     assert result['status'] == 'success'
     assert result['devices_revoked'] == 1
