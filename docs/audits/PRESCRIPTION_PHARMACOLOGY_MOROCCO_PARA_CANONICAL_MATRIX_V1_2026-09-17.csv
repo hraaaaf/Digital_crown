@@ -29,7 +29,7 @@ PARA-BR-MAN-001,Toothbrush,Manual,device,manual_brush,plaque_control;general;ort
 PARA-BR-PWR-001,Toothbrush,Powered,device,powered_brush,plaque_control;dexterity_support;general;ortho;implant;perio,AGE_DEXTERITY_PRODUCT_SPECIFIC,CLINICAL_FAMILY_SUPPORTED,VERIFIED_MARKET_MA_OFFICIAL_BRAND_SITE,YES,NO
 PARA-BR-SINGLE-001,Toothbrush,Single tuft,device,single_tuft_brush,ortho;implant;perio;targeted_hygiene,PRODUCT_SPECIFIC,TAXONOMY_SUPPORTED,VERIFIED_MARKET_MA_OFFICIAL_BRAND_SITE,YES,NO
 PARA-PLAQUE-DISC-001,Plaque control,Discloser,dye,tablet_or_solution,plaque_visualization,USE_SUPERVISION_SPECIFIC,TAXONOMY_SUPPORTED,TO_VERIFY_BY_PRODUCT,YES,NO
-PARA-TONGUE-001,Tongue care,Scraper,device,tongue_cleaning;halitosis,PRODUCT_SPECIFIC,TAXONOMY_SUPPORTED,VERIFIED_MARKET_MA_OFFICIAL_BRAND_SITE,YES,NO
+PARA-TONGUE-001,Tongue care,Scraper,device,scraper,tongue_cleaning;halitosis,PRODUCT_SPECIFIC,TAXONOMY_SUPPORTED,VERIFIED_MARKET_MA_OFFICIAL_BRAND_SITE,YES,NO
 PARA-XERO-SUB-001,Xerostomia,Saliva substitute/moisturizer,moisturizing_agents,gel_spray_rinse,dry_mouth_relief,PRODUCT_SPECIFIC,CLINICAL_FAMILY_SUPPORTED,VERIFIED_MARKET_MA_OFFICIAL_BRAND_SITE,YES,NO
 PARA-XERO-TP-001,Xerostomia,Dry-mouth toothpaste,product_specific,toothpaste,dry_mouth_support;oral_hygiene,AGE_PRODUCT_SPECIFIC,TAXONOMY_SUPPORTED,VERIFIED_MARKET_MA_OFFICIAL_BRAND_SITE,YES,NO
 PARA-XERO-GUM-001,Xerostomia,Sugar-free gum,sugar_free_or_xylitol,gum,salivary_stimulation;dry_mouth,CHOKING_AND_PATIENT_SPECIFIC,CLINICAL_FAMILY_SUPPORTED,TO_VERIFY_BY_PRODUCT,YES,NO
