@@ -212,7 +212,7 @@ def test_cabinet_revocation_invalidates_device_and_refresh(client, db, dentiste)
     assert device.revoked_at is not None
 
 
-def test_mobile_mutation_uses_numeric_subject_as_user_id(client, db, dentiste):
+def test_mobile_mutation_uses_numeric_subject_as_user_id(client, db, dentiste, monkeypatch):
     secretary = _user(
         db,
         email='license-inherited-mobile@cabinet.ma',
@@ -222,23 +222,44 @@ def test_mobile_mutation_uses_numeric_subject_as_user_id(client, db, dentiste):
         licensed=False,
     )
     body = _claim(client, _pairing(db, dentiste, secretary)).json()
+    monkeypatch.setattr(
+        'backend.routers.mobile_push.get_or_create_vapid_keypair',
+        lambda: ('test-private-key', 'test-public-key'),
+    )
+    subscription = {
+        'endpoint': f'https://push.example.test/subscription/{uuid.uuid4()}',
+        'keys': {'p256dh': 'A' * 32, 'auth': 'B' * 8},
+        'platform': 'ios',
+    }
     response = client.post(
-        '/api/mobile/register-device',
-        json={'fcm_token': f'm6-license-{uuid.uuid4()}', 'platform': 'ios'},
+        '/api/mobile/push/subscription',
+        json=subscription,
         headers={'Authorization': f"Bearer {body['access_token']}"},
     )
     assert response.status_code == 200, response.text
+    assert response.json()['status'] == 'registered'
 
     dentiste.is_licensed = False
     db.commit()
     backend_main._license_cache.clear()
     denied = client.post(
-        '/api/mobile/register-device',
-        json={'fcm_token': f'm6-license-denied-{uuid.uuid4()}', 'platform': 'ios'},
+        '/api/mobile/push/subscription',
+        json={**subscription, 'endpoint': f'https://push.example.test/subscription/{uuid.uuid4()}'},
         headers={'Authorization': f"Bearer {body['access_token']}"},
     )
     assert denied.status_code == 403
     assert denied.json()['detail'] == 'NOT_LICENSED'
+
+
+def test_legacy_fcm_registration_route_stays_unmounted(client, db, dentiste):
+    body = _claim(client, _pairing(db, dentiste, dentiste)).json()
+    response = client.post(
+        '/api/mobile/register-device',
+        json={'fcm_token': f'legacy-{uuid.uuid4()}', 'platform': 'ios'},
+        headers={'Authorization': f"Bearer {body['access_token']}"},
+    )
+    assert response.status_code == 404
+
 
 def test_permissions_policy_allows_same_origin_camera_only(client):
     response = client.get('/health')
