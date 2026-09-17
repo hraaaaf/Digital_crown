@@ -7,8 +7,7 @@ from sqlalchemy.orm import Session
 
 from backend import models
 from backend.core.media_paths import get_media_root
-from backend.schemas import ConflictResolution
-from backend.schemas.documents import OrdonnanceData
+from backend.schemas.documents import ConflictResolution, OrdonnanceData
 from backend.services.archive_service import get_archive_service
 from backend.services.far_ordonnance_bridge import (
     build_far_ordonnance_payload,
@@ -69,6 +68,8 @@ def archive_far_ordonnance_from_source(
         raise ValueError("FAR stored source organization mismatch")
     if manifest.get("trust") != FAR_2021_1.trust.value:
         raise ValueError("FAR stored source trust mismatch")
+    if loaded.stored.sha256 != FAR_2021_1_DERIVED_TEMPLATE_SHA256:
+        raise ValueError("FAR stored source SHA-256 mismatch")
     if not str(manifest.get("cabinet_validated_by") or "").strip():
         raise ValueError("FAR cabinet-validated source has no validator identity")
 
