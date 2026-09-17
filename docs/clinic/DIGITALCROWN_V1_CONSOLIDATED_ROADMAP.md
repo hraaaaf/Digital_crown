@@ -51,34 +51,42 @@ The stale documentation PR `#577` is a competing pre-consolidation roadmap and i
 
 ### LOT V1-00 — Foundation: CI / Windows / dependency contract
 
-Status: **IN_PROGRESS — ONLY UNLOCKED LOT**
+Status: **MERGE_READY — HUMAN MERGE AUTHORIZATION REQUIRED — NOT CLOSED**
 
-Working reference: PR `#580`, branch `fix/windows-build-contract-post579`, last verified branch HEAD `3ce59839156e053fb12ba920b94838c9cbc11a42`.
+Current working reference: PR `#582`, branch `fix/v1-00-foundation-contract-current-master`.
 
-Important: master advanced after that branch was based. PR #580 must be reconciled/replayed onto current master before merge; old exact-head greens are evidence, not post-reconciliation proof.
+Reconstruction base master: `569f0771ded59c4409c17155d659d037bc9b2b40`.
+
+Certified product HEAD: `cc34fdf42874f06d4ac3ec45073e1cbb012c6007`.
+
+PR `#580` / HEAD `3ce59839156e053fb12ba920b94838c9cbc11a42` is retained only as historical baseline evidence; it was not rebased or merged into the current reconstruction.
 
 Goal: establish one coherent, reproducible runtime/build dependency contract on the actual current master, including clean Windows Python 3.12 validation and stable Linux CI consumers.
 
-Success:
-- root/backend dependency contract coherent;
-- WebAuthn/cryptography resolver conflict eliminated;
-- Linux dependency installation stable without Cairo build failure;
-- Windows clean install + `pip check` green;
-- isolated cabinet import smoke green;
-- required exact-head CI/runtime gates green after reconciliation with current master;
-- post-merge master proof green.
+Pre-merge Success evidence on certified product HEAD `cc34fdf42874f06d4ac3ec45073e1cbb012c6007`:
+- root `requirements.txt` and `backend/requirements.txt` are an exact 140-package lock mirror;
+- WebAuthn/cryptography contract is pinned to `webauthn==3.0.0` + `cryptography==49.0.0`;
+- `svglib==1.5.1` is retained in the default lock to avoid the Cairo regression introduced by the previous `svglib==1.6.0` dependency shape;
+- Windows build-only toolchain is isolated in `backend/requirements-windows-build.txt` with `pyinstaller==6.22.3`;
+- Media C4 now supplies the explicit DB-isolation attestation required by `backend/core/runtime_safety.py`; Patient UX1-C already carried the same contract;
+- Windows Build Dependency Contract run `35261174495` — **SUCCESS** on Windows Server 2025 / CPython 3.12.10; static contract reported `ROOT_REQUIREMENTS_MIRROR=OK`, `WINDOWS_RUNTIME_LOCK=OK (140 exact top-level dependencies)`, `WINDOWS_P5_NATIVE_PARITY=OK`, `WINDOWS_BUILD_TOOLCHAIN=OK`, `WINDOWS_BUILD_DEPENDENCY_CONTRACT=SUCCESS`; clean install completed; `python -m pip check` reported `No broken requirements found`; version proof passed; cabinet import smoke reported `WINDOWS_CABINET_IMPORT_SMOKE=OK`;
+- CI run `35261174409` — **SUCCESS**;
+- Portability P5 Native Dependency Certification `35261174502` — **SUCCESS**;
+- Media C4 Visual Certification `35261174469` — **SUCCESS**, including isolated backend start and responsive browser matrix;
+- Patient UX1-C Overlay Visual Certification `35261174611` — **SUCCESS**, including isolated backend start and 390 / 768 / 1280 capture matrix;
+- Patient P7 Final Certification `35261174478` — **SUCCESS**;
+- T2 Runtime Browser Certification `35261174525` — **SUCCESS**;
+- Catalog Connected Truth Certification `35261174529` — **SUCCESS**;
+- Marketplace Final Certification `35261174526` — **SUCCESS**;
+- M6-I Biometric Passkey Certification `35261174425` — skipped by workflow conditions, not a failure;
+- PR Merge Summary `35261174500` — skipped by workflow conditions, not a failure.
 
-Known evidence on pre-reconciliation HEAD `3ce59839156e...`:
-- CI `35253874609` SUCCESS;
-- Windows Build Dependency Contract `35253874931` SUCCESS;
-- P5 Native `35253874675` SUCCESS;
-- Marketplace `35253874691` SUCCESS;
-- Catalog Connected Truth `35253874671` SUCCESS;
-- Patient UX1-C `35253874586` FAILURE at isolated backend startup;
-- Media C4 `35253874628` FAILURE at isolated backend startup;
-- T2/P7 were still running at the last explicit check.
+Remaining Success criterion:
+- merge PR `#582` only after explicit human authorization;
+- require post-merge master proof green;
+- only then mark V1-00 closed and unlock V1-01.
 
-Next exact: replay/reconcile #580 onto current master, reproduce the two common isolated-backend startup failures if still present, fix only the root cause required by V1-00, rerun impacted exact-head gates, then merge and require post-merge master green before closeout.
+Next exact: obtain explicit human authorization to merge PR `#582`; merge with an expected-head guard; verify exact post-merge master SHA and required master CI; if green, record V1-00 closeout here and unlock V1-01. No V1-01 work starts before that proof.
 
 ### LOT V1-01 — Agenda A4: physical resources and capacity
 
@@ -211,8 +219,11 @@ Pending CI does not unlock the next lot. Independent work is permitted only insi
 
 ## 6. Current canonical state
 
-- active lot: **V1-00**
+- active lot: **V1-00 — MERGE_READY / NOT CLOSED**
 - next lot: **V1-01 — BLOCKED**
+- certified V1-00 product HEAD: `cc34fdf42874f06d4ac3ec45073e1cbb012c6007`
+- merge authorization: **REQUIRED**
+- post-merge master proof: **PENDING**
 - V1 candidate SHA: **NOT SELECTED**
 - V1 state: **EXECUTION LOCKED / NOT OPERATIONAL**
 - production/cabinet mutation: **NOT AUTHORIZED**
