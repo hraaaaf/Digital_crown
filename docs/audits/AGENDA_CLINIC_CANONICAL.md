@@ -1,8 +1,8 @@
 # Digital Crown — Agenda clinique multi-praticiens
 
-Statut: chantier actif — A1/A2 clôturés; A3 validé humainement et techniquement, closeout pré-merge
+Statut: chantier actif — A1/A2 clôturés; A3 produit mergé et post-merge certifié, closeout documentaire final en cours
 Date d'ouverture: 2026-09-16
-Dernière mise à jour: 2026-09-16
+Dernière mise à jour: 2026-09-17
 Repo: `hraaaaf/Digital_crown`
 Fichier canonique: `docs/audits/AGENDA_CLINIC_CANONICAL.md`
 
@@ -103,7 +103,6 @@ Le praticien peut réduire sa disponibilité mais jamais élargir celle du cabin
 - panneau Settings praticien: héritage, plages personnalisées multiples, reset cabinet, absences;
 - thème A3 branché sur les tokens Digital Crown; états sémantiques conservés;
 - migration additive `a3pa0000003` chaînée après `d0b000000003`;
-- `CURRENT_ALEMBIC_HEAD = a3pa0000003`;
 - aucune migration destructive.
 
 ### UX / validation humaine
@@ -116,43 +115,29 @@ Le terme `legacy_unassigned` est interne. L'UI produit présente un rendez-vous 
 
 Résiduel accepté: Settings à 390 px est verticalement dense mais lisible et sans overflow horizontal.
 
-### Preuves exact-head avant closeout documentaire
+### Preuves et merge
 
 HEAD produit validé humainement: `c286bcf9713bc9fcc5a9701a7fa75b35d94d843c`.
 
-- CI #4703 / run `35147129150`: SUCCESS;
-- Agenda A3 Certification #22 / `35147129229`: SUCCESS;
-- Agenda A3 Theme Certification #16 / `35147129160`: SUCCESS;
-- PostgreSQL Alembic Schema Certification #34 / `35147129187`: SUCCESS;
-- Settings Read Truth Visual Certification #66 / `35147129136`: SUCCESS;
-- Settings Agenda R7 Visual Certification #87 / `35147129129`: SUCCESS;
-- Settings RBAC Visual Certification #389 / `35147129167`: SUCCESS;
-- Clinic P1 Multi-Practitioner Visual Certification #151 / `35147129212`: SUCCESS;
-- Agenda A2 AFTER Visual Certification V2 #37 / `35147129149`: SUCCESS;
-- T2 Runtime Browser Certification #3556 / `35147129145`: SUCCESS;
-- Mobile SuperAdmin MOB-5H Cert #120 / `35147129292`: SUCCESS.
-
-AFTER artifact exact-head:
-- `agenda-a3-after-visual-evidence`;
-- artifact `10467149884`;
-- digest `sha256:9410e5791cc6e288924942a7209438a8db21ff29be97379e03b54bf5cbb8ef56`.
-
-Settings Read Truth artifact:
-- artifact `10467870005`;
-- digest `sha256:419d0a6c9a7d1e4a7b9e80068f3fe4a8d93d5881118846816701cf2a5a59a5c1`.
+- preuves produit détaillées dans `docs/audits/AGENDA_CLINIC_A3_CLOSEOUT.md`;
+- PR #542 mergée; merge réel `ef23b7147c5ed3dfa7c06267eec797a520cb7366`;
+- correctif wiring A3 PR #560 mergé `c547e30d4bab4928ff64de3757bff98a83a60a53`;
+- les régressions postérieures mobile puis NGAP/Alembic ont été diagnostiquées comme indépendantes du comportement A3;
+- PR #566 a corrigé le gate NGAP/Alembic sans réécrire l'historique de migration;
+- master certifié `24844a5d19a6bd575d175b331a1bba68bc3c0b0f`;
+- Cabinet Upgrade PostgreSQL #943 / run `35203491675`: SUCCESS;
+- CI globale #4757 / run `35203491846`: SUCCESS, incluant Frontend, garde production et Full backend regression post-merge.
 
 ### Perfection Pass
 
-Après validation humaine:
-- aucune review thread ouverte sur PR #542;
-- aucune CI requise rouge sur le HEAD produit validé;
+- validation humaine conservée car aucun changement visuel A3 après le HEAD validé;
 - thème default/emerald/dark certifié;
-- pas d'overflow page;
+- pas d'overflow page sur les captures certifiées;
 - lanes synchronisées;
-- migration/runtime schema head cohérents;
-- le correctif Settings Read Truth stabilise le harness Vite/workbox sans affaiblir l'oracle métier.
+- migration additive et chaîne Alembic contrôlées;
+- master final observé possède une régression backend globale verte.
 
-Scoring final produit:
+Scoring produit:
 - EXECUTION_SCORE 9.3/10;
 - ADVERSARIAL_SCORE 9.2/10;
 - retenu 9.2/10.
@@ -161,9 +146,7 @@ La revue adversariale étant réalisée par le même agent que l'exécution, auc
 
 Closeout détaillé: `docs/audits/AGENDA_CLINIC_A3_CLOSEOUT.md`.
 
-Important: les commits documentaires descendants du HEAD produit validé doivent être re-vérifiés avant merge. La validation humaine porte sur les captures du produit; aucun changement visuel ne doit intervenir après cette validation sans nouvelle capture/validation.
-
-État A3: **VALIDÉ HUMAINEMENT + PRODUIT CERTIFIÉ — CLOSEOUT DOCS PRÉ-MERGE**.
+État A3: **PRODUIT MERGÉ + POST-MERGE CERTIFIÉ — CLOSEOUT DOCS FINAL EN COURS**.
 
 ## LOT A4 — Fauteuils / salles / ressources
 
@@ -190,8 +173,8 @@ Dans toute nouvelle conversation:
 
 A1: **CLOSED**.
 A2: **CLOSED**.
-A3: **VALIDÉ HUMAINEMENT — CLOSEOUT PRÉ-MERGE**.
+A3: **PRODUIT MERGÉ + POST-MERGE CERTIFIÉ — CLOSEOUT DOCS FINAL EN COURS**.
 A4: **NON DÉMARRÉ**.
 A5: **NON DÉMARRÉ**.
 
-Next exact: vérifier le HEAD documentaire final de PR #542 et ses gates. Si aucune régression n'est introduite, passer la PR ready. Le merge exige ensuite l'accord explicite utilisateur sur le HEAD exact. Après merge et post-merge verts, préparer le handover/start prompt A4 avant tout code A4.
+Next exact: vérifier les gates du HEAD documentaire final, puis obtenir l'accord explicite utilisateur sur ce HEAD avant merge. Après merge documentaire et vérification master, déclarer A3 CLOSED et préparer le handover/start prompt A4 avant tout code A4.
