@@ -11,6 +11,7 @@ on:
       - "backend/services/sota_vision_service.py"
       - "backend/services/vision_service.py"
       - "backend/services/panoramic_service.py"
+      - "backend/tests/test_vision_service_lazy_pytorch.py"
       - "scripts/portability_p5_check.py"
       - ".github/workflows/portability-p5-native-cert.yml"
   workflow_dispatch:
@@ -76,6 +77,9 @@ jobs:
           backend/services/vision_service.py
           backend/services/panoramic_service.py
           scripts/portability_p5_check.py
+
+      - name: Execute lazy PyTorch boot regression
+        run: python -m pytest backend/tests/test_vision_service_lazy_pytorch.py -q
 
       - name: Execute native runtime + scientific fail-closed certification
         run: python -m scripts.portability_p5_check --runtime --fail-closed
