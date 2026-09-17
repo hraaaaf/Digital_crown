@@ -94,6 +94,7 @@ python-multipart==0.0.9
 pywebpush==2.4.0
 PyYAML==6.0.3
 qrcode==8.2
+rembg[cpu]==2.0.84
 reportlab==4.4.10
 requests==2.32.5
 rich==14.3.2
@@ -104,10 +105,10 @@ six==1.17.0
 sqlcipher3==0.6.2
 SQLAlchemy==2.0.28
 starlette==0.41.3
+svglib==1.6.0
 sympy==1.14.0
 tensorboard==2.20.0
 tensorboard-data-server==0.7.2
-
 termcolor==3.3.0
 tinycss2==1.5.1
 tinyhtml5==2.1.0
@@ -129,8 +130,5 @@ websockets==16.0
 Werkzeug==3.1.5
 wheel==0.46.3
 wrapt==2.1.1
-zeroconf>=0.131.0,<1.0
+zeroconf==0.150.0
 zopfli==0.4.1
-
-rembg[cpu]
-svglib==1.6.0
