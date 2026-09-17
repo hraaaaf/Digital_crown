@@ -23,6 +23,7 @@ jobs:
     env:
       ENVIRONMENT: test
       DATABASE_URL: "sqlite:///:memory:"
+      DIGITALCROWN_ISOLATED_RUNTIME: "1"
       SECRET_KEY: windows-build-contract-secret-key-minimum-32-characters
       TELEMETRY_ENABLED: "false"
       CLOUD_AI_ENABLED: "false"
