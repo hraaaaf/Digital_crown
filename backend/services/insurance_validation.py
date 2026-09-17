@@ -8,11 +8,27 @@ from pathlib import Path
 from sqlalchemy.orm import Session
 
 from backend import models
-from backend.schemas.insurance_submission import InsuranceDraftStatus, InsuranceOrganization, InsuranceSubmissionDraft, InsuranceTemplateTrust
-from backend.services.insurance_administrative import missing_cnops_administrative_fields, missing_cnss_administrative_fields
+from backend.schemas.insurance_submission import (
+    InsuranceDraftStatus,
+    InsuranceOrganization,
+    InsuranceSubmissionDraft,
+    InsuranceTemplateTrust,
+)
+from backend.services.insurance_administrative import (
+    missing_cnops_administrative_fields,
+    missing_cnss_administrative_fields,
+    missing_far_administrative_fields,
+)
 from backend.services.insurance_consistency import assert_draft_matches_honoraires_source
 from backend.services.insurance_source_store import load_stored_insurance_source
 from backend.services.insurance_submission import apply_ngap_reference_to_draft
+
+
+_ALLOWED_TEMPLATE_TRUSTS = {
+    InsuranceTemplateTrust.OFFICIAL_PRIMARY,
+    InsuranceTemplateTrust.CABINET_VALIDATED_BINARY,
+    InsuranceTemplateTrust.CABINET_VALIDATED_DERIVED_REFERENCE,
+}
 
 
 def assert_insurance_template_source(*, source_store_root: Path, draft: InsuranceSubmissionDraft) -> None:
@@ -34,9 +50,12 @@ def assert_insurance_template_source(*, source_store_root: Path, draft: Insuranc
     for key, value in expected.items():
         if manifest.get(key) != value:
             raise ValueError(f"Insurance template manifest {key} mismatch")
-    if draft.template.trust not in {InsuranceTemplateTrust.OFFICIAL_PRIMARY, InsuranceTemplateTrust.CABINET_VALIDATED_BINARY}:
+    if draft.template.trust not in _ALLOWED_TEMPLATE_TRUSTS:
         raise ValueError("Insurance template trust is insufficient for practitioner validation")
-    if draft.template.trust == InsuranceTemplateTrust.CABINET_VALIDATED_BINARY and not str(manifest.get("cabinet_validated_by") or "").strip():
+    if draft.template.trust in {
+        InsuranceTemplateTrust.CABINET_VALIDATED_BINARY,
+        InsuranceTemplateTrust.CABINET_VALIDATED_DERIVED_REFERENCE,
+    } and not str(manifest.get("cabinet_validated_by") or "").strip():
         raise ValueError("Cabinet-validated template has no validator identity")
 
 
@@ -78,8 +97,10 @@ def validate_insurance_draft_by_practitioner(
         administrative_missing = missing_cnss_administrative_fields(draft.administrative)
     elif draft.organization == InsuranceOrganization.CNOPS:
         administrative_missing = missing_cnops_administrative_fields(draft.administrative)
+    elif draft.organization == InsuranceOrganization.FAR:
+        administrative_missing = missing_far_administrative_fields(draft.administrative)
     else:
-        raise ValueError("Administrative validation policy is not yet implemented for this insurer")
+        raise ValueError("Administrative validation policy is not implemented for this insurer")
 
     unresolved = [value for value in resolved.unresolved_fields if not value.startswith("administrative.")]
     unresolved.extend(administrative_missing)
