@@ -45,7 +45,7 @@ Important correction: the previous draft roadmap incorrectly listed already-inte
 
 Security/physical historical programs `#288`, `#289`, `#383` are **not promoted into the mandatory V1 path by default**. They remain parked unless a concrete requirement from a mandatory lot proves a bounded delta necessary for V1 installability/safety. They must not be resurrected wholesale.
 
-The stale documentation PR `#577` is a competing pre-consolidation roadmap and must be closed without merge after this canonical file is established.
+The stale documentation PR `#577` is a competing pre-consolidation roadmap and is to be closed without merge.
 
 ## 4. Mandatory execution sequence
 
