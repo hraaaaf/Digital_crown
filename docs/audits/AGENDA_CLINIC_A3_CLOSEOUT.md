@@ -42,6 +42,10 @@ Le comportement livré conserve les rendez-vous historiques sans `praticien_id` 
 - PR #566 mergée sur master: `24844a5d19a6bd575d175b331a1bba68bc3c0b0f`.
 - Cabinet Upgrade PostgreSQL Certification #943 / run `35203491675`: SUCCESS sur `24844a5d…`.
 - CI #4757 / run `35203491846`: SUCCESS sur `24844a5d…`; Frontend SUCCESS, garde production SUCCESS, Full backend regression post-merge SUCCESS.
+- PR #568 `docs(agenda): finalize A3 closeout` mergée; merge commit `ec6bf4f40137f6e7d395effd97e0be3b0f6a2362`.
+- Cabinet Upgrade PostgreSQL Certification #944 / run `35204790254`: SUCCESS sur `ec6bf4f…`.
+- CI #4761 / run `35204790247`: SUCCESS sur `ec6bf4f…`; Frontend SUCCESS, garde production SUCCESS, Full backend regression post-merge SUCCESS.
+- Master a ensuite avancé jusqu'à `7d936cc76257911d03e98f7788f25056399783d3` via PR #569 Céphalo. Le diff `ec6bf4f… → 7d936cc…` contient uniquement 4 fichiers de documentation Céphalo et ne modifie aucun fichier Agenda ou produit.
 
 ## Perfection Pass
 
@@ -54,7 +58,9 @@ Revue finale après validation humaine:
 - migration additive chaînée après `d0b000000003`, runtime schema head aligné sur `a3pa0000003` au lot A3;
 - la chaîne Alembic est désormais testée par appartenance au head courant plutôt que par un head historique figé;
 - le correctif du harness Settings Read Truth stabilise Vite/workbox sans affaiblir l'oracle métier;
-- le master `24844a5d…` possède enfin la preuve post-merge globale verte requise après les régressions indépendantes successives.
+- le master `24844a5d…` possède la preuve post-merge globale verte requise après les régressions indépendantes successives;
+- le merge documentaire A3 `ec6bf4f…` possède lui-même PostgreSQL #944 SUCCESS et CI #4761 SUCCESS;
+- aucun changement Agenda ou produit n'a été introduit entre `ec6bf4f…` et le master courant `7d936cc…`.
 
 Résiduel non bloquant: la surface Settings 390 px reste verticalement dense, mais lisible et sans overflow horizontal.
 
@@ -66,6 +72,16 @@ Résiduel non bloquant: la surface Settings 390 px reste verticalement dense, ma
 
 La revue adversariale est réalisée par le même agent que l'exécution ; aucun score >=9.5 n'est revendiqué.
 
-## Gate
+## Gate final
 
-A3 satisfait désormais le gate technique post-merge sur le master `24844a5d19a6bd575d175b331a1bba68bc3c0b0f`: PostgreSQL #943 SUCCESS et CI globale #4757 SUCCESS. Le présent commit documentaire doit encore passer ses propres gates puis être mergé avec l'accord explicite utilisateur sur son HEAD exact avant de déclarer A3 CLOSED dans master.
+A3 est **CLOSED**.
+
+Preuve de fermeture:
+- produit A3 mergé et validation humaine conservée;
+- correctifs post-merge nécessaires intégrés sans altérer le contrat A3;
+- PostgreSQL #943 et CI #4757 verts sur `24844a5d…`;
+- PR #568 mergée sur `ec6bf4f…`;
+- PostgreSQL #944 et CI #4761 verts sur ce merge documentaire exact;
+- master courant `7d936cc…` n'ajoute depuis `ec6bf4f…` que de la documentation Céphalo.
+
+Le prochain lot Agenda potentiel est A4. Son démarrage produit reste subordonné à la roadmap V1 consolidée; le handover est préparé dans `docs/audits/AGENDA_CLINIC_A4_START_HANDOVER.md`.
