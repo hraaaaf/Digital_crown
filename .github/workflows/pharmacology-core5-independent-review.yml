@@ -53,7 +53,7 @@ jobs:
           python-version: '3.12'
 
       - name: Install isolated review dependencies
-        run: python -m pip install --disable-pip-version-check pytest
+        run: python -m pip install --disable-pip-version-check pytest SQLAlchemy==2.0.28
 
       - name: Run deterministic Core-5 review tests
         run: |
