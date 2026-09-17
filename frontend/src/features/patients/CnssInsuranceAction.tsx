@@ -4,6 +4,7 @@ import { Loader2, ShieldCheck } from 'lucide-react';
 import { api } from '../../services/api';
 import { CnssInsuranceSubmissionReview } from './CnssInsuranceSubmissionReview';
 import { CnopsInsuranceSubmissionReview } from './CnopsInsuranceSubmissionReview';
+import { FarInsuranceSubmissionReview } from './FarInsuranceSubmissionReview';
 import type {
   InsuranceFinalizationResult,
   InsuranceSubmissionDraft,
@@ -15,7 +16,7 @@ interface CnssInsuranceActionProps {
   onCloseMenu: () => void;
 }
 
-type SupportedOrganization = 'CNSS' | 'CNOPS';
+type SupportedOrganization = 'CNSS' | 'CNOPS' | 'FAR';
 type BusyAction = 'prepare' | 'validate' | 'finalize' | null;
 
 const apiErrorMessage = (error: any, fallback: string): string => {
@@ -140,11 +141,26 @@ export const CnssInsuranceAction = ({
         {preparingOrganization === 'CNOPS' ? <Loader2 size={16} className="animate-spin" /> : <ShieldCheck size={16} />}
         {preparingOrganization === 'CNOPS' ? 'Préparation CNOPS…' : 'Préparer CNOPS'}
       </button>
+      <div className="mx-2 my-0.5 h-px bg-slate-100" aria-hidden="true" />
+      <button
+        data-insurance-action="prepare-far"
+        data-m4c-touch
+        role="menuitem"
+        type="button"
+        disabled={busyAction === 'prepare'}
+        onClick={() => void handlePrepare('FAR')}
+        className="w-full min-h-11 px-3 rounded-lg hover:bg-primary/5 text-primary font-bold text-xs inline-flex items-center gap-2 transition-colors disabled:opacity-60"
+      >
+        {preparingOrganization === 'FAR' ? <Loader2 size={16} className="animate-spin" /> : <ShieldCheck size={16} />}
+        {preparingOrganization === 'FAR' ? 'Préparation FAR…' : 'Préparer FAR'}
+      </button>
 
       {draft && reviewProps && typeof document !== 'undefined' && createPortal(
         draft.organization === 'CNOPS'
           ? <CnopsInsuranceSubmissionReview {...reviewProps} />
-          : <CnssInsuranceSubmissionReview {...reviewProps} />,
+          : draft.organization === 'FAR'
+            ? <FarInsuranceSubmissionReview {...reviewProps} />
+            : <CnssInsuranceSubmissionReview {...reviewProps} />,
         document.body,
       )}
     </>

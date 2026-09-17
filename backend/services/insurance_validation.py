@@ -20,6 +20,7 @@ from backend.services.insurance_administrative import (
     missing_far_administrative_fields,
 )
 from backend.services.insurance_consistency import assert_draft_matches_honoraires_source
+from backend.services.insurance_far_2021_1_profile import FAR_2021_1_DERIVED_MAX_LINES
 from backend.services.insurance_source_store import load_stored_insurance_source
 from backend.services.insurance_submission import apply_ngap_reference_to_draft
 
@@ -104,13 +105,22 @@ def validate_insurance_draft_by_practitioner(
 
     unresolved = [value for value in resolved.unresolved_fields if not value.startswith("administrative.")]
     unresolved.extend(administrative_missing)
+    if draft.organization == InsuranceOrganization.FAR:
+        if len(resolved.lines) > FAR_2021_1_DERIVED_MAX_LINES:
+            unresolved.append("form.capacity")
+        # Prescription is a distinct clinical sub-document. Until its dedicated
+        # validation contract is supplied, linking one must block the dental claim
+        # rather than silently treating it as validated or deriving medication data.
+        if draft.source_ordonnance_document_id is not None:
+            unresolved.append("far_prescription.separate_validation_required")
+
     resolved = resolved.model_copy(update={
         "administrative": draft.administrative,
-        "unresolved_fields": unresolved,
+        "unresolved_fields": list(dict.fromkeys(unresolved)),
         "status": InsuranceDraftStatus.INCOMPLETE,
         "template": draft.template,
     })
-    if unresolved:
+    if resolved.unresolved_fields:
         raise ValueError("Insurance submission still has unresolved required fields")
     if any(line.mapping_status.value != "EXACT" for line in resolved.lines):
         raise ValueError("Insurance submission contains unresolved NGAP mappings")
