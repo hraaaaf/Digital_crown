@@ -7,7 +7,7 @@ from backend.models_agenda_a4 import AgendaResource
 from backend.routers.auth import require_permission
 from backend.schemas.agenda_resources import AgendaResourceCreate, AgendaResourceOut, AgendaResourceUpdate
 
-router = APIRouter(prefix="/agenda/resources", tags=["Agenda Resources"])
+router = APIRouter(prefix="/resources", tags=["Agenda Resources"])
 
 
 def _tenant_id(user: models.User) -> int:
@@ -15,11 +15,7 @@ def _tenant_id(user: models.User) -> int:
 
 
 @router.get("", response_model=list[AgendaResourceOut])
-def list_resources(
-    include_inactive: bool = False,
-    db: Session = Depends(database.get_db),
-    current_user: models.User = Depends(require_permission("agenda")),
-):
+def list_resources(include_inactive: bool = False, db: Session = Depends(database.get_db), current_user: models.User = Depends(require_permission("agenda"))):
     q = db.query(AgendaResource).filter(AgendaResource.employer_id == _tenant_id(current_user))
     if not include_inactive:
         q = q.filter(AgendaResource.is_active.is_(True))
@@ -27,16 +23,8 @@ def list_resources(
 
 
 @router.post("", response_model=AgendaResourceOut, status_code=201)
-def create_resource(
-    payload: AgendaResourceCreate,
-    db: Session = Depends(database.get_db),
-    current_user: models.User = Depends(require_permission("agenda")),
-):
-    resource = AgendaResource(
-        employer_id=_tenant_id(current_user),
-        name=payload.name.strip(),
-        resource_type=payload.resource_type,
-    )
+def create_resource(payload: AgendaResourceCreate, db: Session = Depends(database.get_db), current_user: models.User = Depends(require_permission("agenda"))):
+    resource = AgendaResource(employer_id=_tenant_id(current_user), name=payload.name.strip(), resource_type=payload.resource_type)
     db.add(resource)
     try:
         db.commit()
@@ -48,16 +36,8 @@ def create_resource(
 
 
 @router.patch("/{resource_id}", response_model=AgendaResourceOut)
-def update_resource(
-    resource_id: int,
-    payload: AgendaResourceUpdate,
-    db: Session = Depends(database.get_db),
-    current_user: models.User = Depends(require_permission("agenda")),
-):
-    resource = db.query(AgendaResource).filter(
-        AgendaResource.id == resource_id,
-        AgendaResource.employer_id == _tenant_id(current_user),
-    ).first()
+def update_resource(resource_id: int, payload: AgendaResourceUpdate, db: Session = Depends(database.get_db), current_user: models.User = Depends(require_permission("agenda"))):
+    resource = db.query(AgendaResource).filter(AgendaResource.id == resource_id, AgendaResource.employer_id == _tenant_id(current_user)).first()
     if not resource:
         raise HTTPException(status_code=404, detail="Ressource agenda introuvable")
     data = payload.model_dump(exclude_unset=True)
