@@ -1,0 +1,9 @@
+source_id,source_set,disposition,canonical_target,required_discriminator,clinical_activation
+MED-CORT-001,ADDENDUM_V1,IDENTITY_RETAINED,MED-CORT-001,form|strength|route_or_use|indication_tags,NO
+MED-CORT-002,ADDENDUM_V1,IDENTITY_RETAINED,MED-CORT-002,form|strength|route_or_use|indication_tags,NO
+OC-TP-014,ADDENDUM_V1,MAP_PRODUCT_SPECIFIC_ALIAS,PARA-TP-GING-ANTIMIC-001,active_or_material|concentration|product|indication_tags,NO
+OC-MUC-004,ADDENDUM_V1,MAP_FAMILY_WITH_REQUIRED_ATTRIBUTE,PARA-MUC-BARRIER-001,form=spray_or_solution|composition|indication,NO
+OC-INT-013,ADDENDUM_V2,MAP_EXACT,PARA-INT-HOLDER-001,device_form|product,NO
+OC-FLUOR-004,ADDENDUM_V2,MAP_EXACT,PARA-FLUOR-HOME-001,fluoride_type|concentration|age|protocol,NO
+MED-FLUOR-001,ADDENDUM_V2,IDENTITY_RETAINED,MED-FLUOR-001,form|strength|age|systemic_fluoride_exposure|indication_tags,NO
+OC-TEETH-002,ADDENDUM_V2,MAP_EXACT,PARA-PED-TEETHER-001,device_design|age|supervision|product_safety,NO
