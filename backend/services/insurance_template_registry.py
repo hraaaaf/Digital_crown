@@ -108,10 +108,13 @@ CNOPS_DENTAL_CABINET_2026_09_16 = InsuranceTemplateDefinition(
 # placeholder. It now resolves to the exact cabinet-validated template definition.
 CNOPS_DENTAL_PENDING = CNOPS_DENTAL_CABINET_2026_09_16
 
+# Cabinet-accepted printable reconstruction. This definition is deliberately distinct
+# from CABINET_VALIDATED_BINARY/OFFICIAL_PRIMARY because the exact original FAR binary
+# was not recovered. Runtime rendering is still hash-bound to the frozen derived bytes.
 FAR_2021_1 = InsuranceTemplateDefinition(
     organization=InsuranceOrganization.FAR,
-    version="FAR-2021-1",
-    label="Feuille de Mutuelle FAR 2021-1",
-    trust=InsuranceTemplateTrust.CABINET_VALIDATED_BINARY,
-    expected_page_count=None,
+    version="FAR-2021-1-DERIVED-CABINET-2026-09-17",
+    label="Feuille de Mutuelle FAR 2021-1 — référence dérivée validée cabinet",
+    trust=InsuranceTemplateTrust.CABINET_VALIDATED_DERIVED_REFERENCE,
+    expected_page_count=2,
 )
