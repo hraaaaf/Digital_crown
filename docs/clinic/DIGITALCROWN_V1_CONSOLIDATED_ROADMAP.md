@@ -37,6 +37,124 @@ The consolidation phase is successful when:
 - current Orthalis public capability surface re-checked on official Orthalis pages on 2026-09-17;
 - this roadmap is proposed through documentation-only PR #577.
 
+## Checklist protocol — mandatory
+
+This file is the live V1 execution ledger.
+
+- `[ ]` = not yet proven complete.
+- `[x]` = complete only after observable proof has been obtained.
+- A step MUST NOT be checked merely because code was written, a PR exists, or a workflow started.
+- The proof can be an exact commit SHA, merged PR, successful exact-head CI/certification run, deterministic test result, UI BEFORE/AFTER evidence, qualified human review where required, or installation/data-integrity evidence.
+- After every completed step, update this roadmap in the same workstream closeout and add the proof reference next to the checked item or in the relevant canonical closeout document.
+- If later evidence invalidates a checked item, revert it to `[ ]` and record why.
+- V1 candidate selection is forbidden while a mandatory item below remains unchecked.
+
+## Master execution checklist
+
+### Phase 0 — Consolidation / repository hygiene
+
+- [x] Audit and classify the 14 PRs open at audit start against live master. Proof: consolidation audit recorded in this roadmap and PR #577.
+- [x] Record Connect Hub #557 as merged/acquired rather than remaining product work. Proof: merge on master `7c175bdd37b2f53afb7b05fd8cf21aaf4bda2164`.
+- [ ] Verify Connect Hub post-merge CI + Cabinet Upgrade PostgreSQL on the relevant master SHA and record exact runs.
+- [ ] Close/supersede stale candidates #401/#505/#279/#563/#572 after preserving any explicitly reusable evidence/tests.
+
+### Phase 1A — Agenda A4 #575
+
+- [ ] Re-baseline/reconcile A4 against current master without resurrecting stale deltas.
+- [ ] Align runtime schema head with unique Alembic head `a4rs0000004`.
+- [ ] Prove PostgreSQL from-scratch migration.
+- [ ] Prove second Alembic upgrade is a no-op.
+- [ ] Wire appointment create/update/bulk/check-conflicts to the A4 resource model.
+- [ ] Pass targeted backend/resource/conflict tests.
+- [ ] Capture UI BEFORE at 390/768/1280.
+- [ ] Implement required Agenda A4 UI only after BEFORE is locked.
+- [ ] Capture AFTER at the same 390/768/1280 viewports.
+- [ ] Compare BEFORE/AFTER and record visual score + regressions.
+- [ ] Pass exact-head CI/certification relevant to A4.
+- [ ] Write A4 closeout/canonical evidence.
+- [ ] Merge A4 to master and verify post-merge state.
+
+### Phase 1B — Agenda A5
+
+- [ ] Make cabinet timezone explicit and tested.
+- [ ] Close soft-delete/history policy.
+- [ ] Close legacy treatment/migration strategy.
+- [ ] Pass transversal Agenda regressions.
+- [ ] Complete final Agenda documentation/certification.
+- [ ] Merge A5 to master and verify post-merge state.
+
+### Phase 1C — FAR / mutuelles
+
+- [ ] Reconcile FAR base #559 against current master.
+- [ ] Diagnose and fix FAR visual capture failure.
+- [ ] Re-certify FAR source/rendering and CNSS/CNOPS regressions.
+- [ ] Capture required UI BEFORE/AFTER evidence for any visual change.
+- [ ] Pass exact-head FAR tests/CI.
+- [ ] Merge #559 or explicitly defer FAR before V1 freeze.
+- [ ] Only after #559 resolution, reconcile ordonnance bridge #576.
+- [ ] Prove fail-closed FAR -> ordonnance bridge behavior.
+- [ ] Merge #576 or explicitly defer it with no dependency left in the V1 candidate.
+
+### Phase 2 — Pharmacology / Ordonnance
+
+- [ ] Complete documentary/source review of the scientific branch assets.
+- [ ] Separate Morocco regulatory/commercial presence from clinical indication and exact product/form/strength suitability.
+- [ ] Resolve internal contradictions and malformed mappings.
+- [ ] Rebuild only accepted assets/tests on a clean current-master branch.
+- [ ] Prove fail-closed behavior for unresolved medication domains.
+- [ ] Prepare the Core-5 qualified-review packet.
+- [ ] Obtain qualified independent human clinical/scientific review if automatic prescription activation is required for V1.
+- [ ] Apply reviewer corrections and document dispositions.
+- [ ] Pass deterministic negative tests + exact-head CI + integration review.
+- [ ] Merge the accepted pharmacology/ordonnance V1 delta or explicitly keep clinical activation disabled.
+
+### Phase 3 — Ortho / Céphalo
+
+- [ ] Re-baseline live master against the canonical Céphalo scientific inventory.
+- [ ] Search remaining BLOCKED/TODO/legacy/scientific gaps.
+- [ ] Select only the highest-priority genuine V1-relevant open gap, if one exists.
+- [ ] Define Goal / Success / Proof for that lot.
+- [ ] Execute and certify the lot, or document Céphalo as non-blocking if no genuine blocker exists.
+
+### Phase 4 — Orthalis benchmark refresh
+
+- [ ] Inventory current Digital Crown capabilities from code/tests/runtime only.
+- [ ] Re-check current Orthalis official capability claims and label marketing claims as such.
+- [ ] Build a domain-by-domain evidence matrix.
+- [ ] Recalculate from current evidence; do not reuse historical #407 scores.
+- [ ] Identify only Morocco/local-first/clinical-workflow-relevant gaps.
+- [ ] Convert only verified high-value gaps into bounded V1 lots; defer the rest.
+- [ ] Close every resulting V1-critical Orthalis gap or document it as non-blocking/deferred before freeze.
+
+### Phase 5 — Functional freeze
+
+- [ ] All selected V1 workstreams are closed and on master.
+- [ ] All intentionally deferred work is documented and non-dependent on the candidate.
+- [ ] Unique Alembic head equals runtime schema head.
+- [ ] No relevant red/absent exact-head workflow remains for included scope.
+- [ ] No unreviewed clinical activation exists.
+- [ ] FAR is fully merged or explicitly deferred with no half-integration.
+- [ ] Orthalis benchmark is current and no stale #407 score is used as a decision basis.
+- [ ] Select and record one immutable exact V1 candidate SHA.
+
+### Phase 6 — V0 -> V1 installability certification
+
+- [ ] Lock exact candidate SHA.
+- [ ] Pass candidate exact-head CI/certification.
+- [ ] Execute fresh real-cabinet PREUPDATE.
+- [ ] Create and verify PostgreSQL backup.
+- [ ] Create and verify media/document backup.
+- [ ] Restore backups in isolated rehearsal environment.
+- [ ] Run exact candidate migrations.
+- [ ] Compare row counts / PK / FK / orphan integrity / documents / media.
+- [ ] Prove second Alembic upgrade is a no-op.
+- [ ] Prove application startup.
+- [ ] Prove `/api/health` and critical smoke paths.
+- [ ] Record `INSTALLABLE_CERTIFIED` for the exact candidate SHA.
+- [ ] Update the real cabinet from that same immutable SHA.
+- [ ] Re-run post-update integrity/startup/critical smoke checks.
+- [ ] Close V1 baseline documentation with final installed SHA and evidence.
+
 ## PR inventory — classification against current master
 
 | PR | Workstream | Divergence at audit | Classification | V1 action |
@@ -211,6 +329,6 @@ V1 candidate selection is blocked if any of these are true:
 
 ## Next exact
 
-Start with Agenda A4 because it is a near-master active implementation with a precisely identified technical blocker and no human gate. In parallel, continue the pharmacology documentary review/reconstruction up to the qualified-review gate. After A4/A5, resolve FAR, re-baseline Céphalo, refresh the Orthalis benchmark, then freeze the V1 candidate.
+Start with Agenda A4 because it is a near-master active implementation with a precisely identified technical blocker and no human gate. Do not run Agenda/Céphalo/FAR/Orthalis implementation in parallel on competing branches. The pharmacology documentary review may progress independently only up to its qualified-review gate without changing the active product-integration sequence.
 
 No Vercel deployment is part of this roadmap without explicit user authorization.
