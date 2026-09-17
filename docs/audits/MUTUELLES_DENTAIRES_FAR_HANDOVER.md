@@ -33,44 +33,59 @@ One engine only:
 
 `Patient -> Honoraires -> Preparer organisme -> Revue praticien -> Validation -> PDF -> DocumentArchive`
 
-Reuse existing `InsuranceSubmissionDraft`, Honoraires truth, `CatalogAct`, NGAP exact mapping, source store, practitioner validation, anti-stale finalization and archive.
+The Digital Crown ordonnance remains the single clinical prescription truth. FAR only copies explicit archived prescription fields; no medication fact is inferred from acts or NGAP.
 
-## Required FAR extension
+## Implemented and verified
 
-1. add explicit derived-reference trust accepted only with cabinet validator identity;
-2. bind FAR template/profile to the exact SHA and 2-page geometry;
-3. model FAR-only explicit member facts instead of overloading unrelated fields: account number, phone, grade, unit;
-4. add explicit claim context `MALADIE|MATERNITE|ACCIDENT`;
-5. preserve explicit relationship `ADHERENT|CONJOINT|ENFANT`;
-6. overlay Page 1 administrative fields and logical Page 4 dental rows;
-7. do not duplicate dental lines on logical Page 3;
-8. keep logical Page 2 as `FAR_PRESCRIPTION` with independent validation/source;
-9. no molecule/dose/posology/duration/frequency inferred from acts/NGAP.
+- FAR derived-reference trust and exact SHA binding.
+- FAR administrative facts, relationship and claim-context validation.
+- FAR overlay/profile integrated into the existing Mutuelles engine.
+- Logical Page 2 ORDONNANCE remains clinically separate from dental-act mapping.
+- Automatic bridge after successful archived Digital Crown ordonnance for FAR patients.
+- Dedicated deterministic FAR prescription renderer with fixed PDF typography independent from the application theme.
+- Explicit medication name/dosage/form/posology copied without inference.
+- Fail-closed template SHA, page-count, capacity and printable-width checks.
+- Derived FAR archive linked to `source_ordonnance_document_id`.
+- No generated signature, cachet or insurer-decision content.
+- FAR review UI and deterministic visual certification harness.
 
-## Required tests
+## Visual proof
 
-Positive and negative coverage for:
+Cabinet visual calibration V4 was explicitly accepted on 2026-09-17.
 
-- derived trust accepted only for exact cabinet-validated source manifest;
-- wrong hash/trust/page count rejected;
-- missing FAR member facts fail closed;
-- unknown relationship/context fail closed;
-- overlay bound to FAR SHA and page indices;
-- signature/cachet/insurer zones never generated;
-- prescription not populated from dental acts;
-- CNSS and CNOPS existing contracts remain green;
-- exact-head CI before merge.
+Automated AFTER evidence:
 
-## Git state
+- workflow: `Mutuelles FAR Visual Certification`
+- run: `35255531577`
+- conclusion: `SUCCESS`
+- artifact: `10511859997`
+- artifact size: `313777` bytes
+- artifact digest: `sha256:44530836575a5740b752597bea9835b3ffb966945440a7931e9f6784974d140b`
+- viewports: `390x844`, `768x1024`, `1280x900`
 
-The FAR branch was reconciled with master `7d936cc76257911d03e98f7788f25056399783d3` before the source-gate upgrade.
+The harness uses deterministic Vite build + preview rather than the former brittle development-server dependency optimization path.
 
-No merge and no Vercel deployment are authorized without explicit user agreement.
+## Merge history
+
+Prescription renderer PR `#581` was explicitly authorized and merged into this FAR branch.
+
+- certified head before merge: `da49fc183ff578c8434c40e3844d7ec0a769702c`
+- merge SHA: `6c6cc7ae00bf476a6b133784da4a6b70f442d1be`
+
+No Vercel deployment and no production DB mutation occurred.
+
+## Post-merge state
+
+GitHub triggered 12 workflows for merge SHA `6c6cc7ae00bf476a6b133784da4a6b70f442d1be` through global FAR PR `#559`. At the first post-merge inspection some workflows, including Patient P7, were still `in_progress`; no final all-green post-merge claim is made until those runs complete.
+
+## Remaining gate
+
+Global FAR PR `#559` remains OPEN / DRAFT against `master`. It is not authorized for merge yet.
 
 ## Next exact
 
-Implement runtime trust + FAR admin policy + FAR overlay profile + tests. Then inspect rendered PDF, perform CNSS/CNOPS regression and exact-head CI.
+Validate the post-merge workflow set for `6c6cc7ae00bf476a6b133784da4a6b70f442d1be`. If green, reconcile PR `#559`, mark it ready for review, then request explicit merge authorization.
 
 ## Sequence remaining
 
-`runtime trust -> FAR admin schema/policy -> FAR template/profile -> router wiring -> prescription boundary -> backend tests -> rendered PDF proof -> CNSS/CNOPS regression -> frontend FAR review/action -> responsive AFTER -> exact-head CI -> explicit merge agreement -> merge -> post-merge proof -> closeout`
+`post-merge workflow validation -> PR #559 coherence/ready -> explicit merge agreement -> merge #559 -> final post-merge proof -> FAR global closeout`
