@@ -1,0 +1,73 @@
+name: Connect Hub E AFTER
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [feat/lot-e-connect-hub]
+    paths:
+      - 'frontend/src/components/Header.tsx'
+      - 'frontend/scripts/capture-connect-hub-e-after.mjs'
+      - '.github/workflows/connect-hub-e-after.yml'
+  pull_request:
+    branches: [master]
+    paths:
+      - 'frontend/src/components/Header.tsx'
+      - 'frontend/scripts/capture-connect-hub-e-after.mjs'
+      - '.github/workflows/connect-hub-e-after.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  visual-after:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Checkout exact LOT E HEAD
+        uses: actions/checkout@v4
+      - name: Record exact product HEAD
+        run: echo "PRODUCT_HEAD=$(git rev-parse HEAD)" >> "$GITHUB_ENV"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install frontend and Chromium
+        working-directory: frontend
+        run: |
+          npm ci
+          npm install --no-save --package-lock=false --legacy-peer-deps playwright@1.55.0
+          npx playwright install --with-deps chromium
+      - name: Capture exact-head LOT E AFTER
+        working-directory: frontend
+        run: node scripts/capture-connect-hub-e-after.mjs
+      - name: Assert AFTER artifact contract
+        working-directory: frontend
+        run: |
+          node --input-type=module <<'NODE'
+          import { readFile } from 'node:fs/promises';
+          const report = JSON.parse(await readFile('connect-hub-e-after-artifacts/report.json','utf8'));
+          if (report.productHead !== process.env.PRODUCT_HEAD) throw new Error(`Wrong HEAD ${report.productHead}`);
+          if (report.phase !== 'AFTER') throw new Error(`Wrong phase ${report.phase}`);
+          if (report.invalidCount !== 0) throw new Error(`Invalid captures ${report.invalidCount}`);
+          if (report.blockedExternalRequests.length !== 0) throw new Error('Unexpected external egress');
+          if (report.captures.length !== 3) throw new Error('Expected three viewports');
+          for (const c of report.captures) {
+            if (!c.valid) throw new Error(`Invalid ${c.viewport}`);
+            if (c.pageErrors.length || c.consoleErrors.length) throw new Error(`Runtime errors ${c.viewport}`);
+            if (c.closed.scrollWidth > c.closed.innerWidth + 1 || c.open.scrollWidth > c.open.innerWidth + 1) throw new Error(`Overflow ${c.viewport}`);
+            if (c.closed.bellCount !== 1) throw new Error(`Bell count ${c.viewport}`);
+            if (!c.open.hasCenter || !c.open.hasClinical || !c.open.hasTreasury || !c.open.hasTruth) throw new Error(`Connect Hub semantics ${c.viewport}`);
+          }
+          NODE
+          for viewport in 390x844 768x1024 1280x900; do
+            test -s "connect-hub-e-after-artifacts/after-shell-${viewport}.png"
+            test -s "connect-hub-e-after-artifacts/after-bell-open-${viewport}.png"
+          done
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: connect-hub-e-after-exact-head
+          path: frontend/connect-hub-e-after-artifacts
+          if-no-files-found: error
+          retention-days: 30

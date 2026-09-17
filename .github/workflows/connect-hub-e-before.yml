@@ -1,0 +1,99 @@
+name: Connect Hub E BEFORE
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - feat/lot-e-connect-hub
+    paths:
+      - 'frontend/scripts/capture-connect-hub-e-before.mjs'
+      - '.github/workflows/connect-hub-e-before.yml'
+  pull_request:
+    branches:
+      - master
+    paths:
+      - 'frontend/scripts/capture-connect-hub-e-before.mjs'
+      - '.github/workflows/connect-hub-e-before.yml'
+
+permissions:
+  contents: read
+
+env:
+  CONNECT_HUB_E_BASE_SHA: 49db132882ba5b352ae761bda34e1a9fa3d82e27
+
+jobs:
+  visual-before:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Checkout LOT E harness branch
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Prepare exact pre-LOT-E baseline
+        run: |
+          git worktree add /tmp/dc-connect-hub-e-before "$CONNECT_HUB_E_BASE_SHA"
+          test "$(git -C /tmp/dc-connect-hub-e-before rev-parse HEAD)" = "$CONNECT_HUB_E_BASE_SHA"
+      - name: Install harness browser dependencies
+        working-directory: frontend
+        run: |
+          npm ci
+          npm install --no-save --package-lock=false --legacy-peer-deps playwright@1.55.0
+          npx playwright install --with-deps chromium
+      - name: Install exact baseline frontend
+        run: |
+          cd /tmp/dc-connect-hub-e-before/frontend
+          npm ci
+          rm -rf node_modules/.vite .vite
+      - name: Capture exact LOT E BEFORE
+        shell: bash
+        run: |
+          set +e
+          cd /tmp/dc-connect-hub-e-before/frontend
+          PRODUCT_HEAD="$CONNECT_HUB_E_BASE_SHA" node "$GITHUB_WORKSPACE/frontend/scripts/capture-connect-hub-e-before.mjs"
+          capture_status=$?
+          rm -rf "$GITHUB_WORKSPACE/frontend/connect-hub-e-before-artifacts"
+          if [ -d connect-hub-e-before-artifacts ]; then
+            cp -R connect-hub-e-before-artifacts "$GITHUB_WORKSPACE/frontend/"
+          fi
+          exit "$capture_status"
+      - name: Verify exact baseline artifact contract
+        working-directory: frontend
+        run: |
+          node --input-type=module <<'NODE'
+          import { readFile } from 'node:fs/promises';
+          const report = JSON.parse(await readFile('connect-hub-e-before-artifacts/report.json', 'utf8'));
+          const expected = process.env.CONNECT_HUB_E_BASE_SHA;
+          if (report.productHead !== expected) throw new Error(`Wrong baseline SHA ${report.productHead}`);
+          if (report.phase !== 'BEFORE') throw new Error(`Wrong phase ${report.phase}`);
+          if (report.invalidCount !== 0) throw new Error(`Invalid captures ${report.invalidCount}`);
+          if (report.blockedExternalRequests.length !== 0) throw new Error('Unexpected external egress');
+          if (report.captures.length !== 3) throw new Error('Expected three certified viewports');
+          for (const capture of report.captures) {
+            if (!capture.valid) throw new Error(`Invalid ${capture.viewport}`);
+            if (capture.pageErrors.length) throw new Error(`Page errors ${capture.viewport}`);
+            if (capture.consoleErrors.length) throw new Error(`Console errors ${capture.viewport}`);
+            if (capture.closed.scrollWidth > capture.closed.innerWidth + 1) throw new Error(`Closed overflow ${capture.viewport}`);
+            if (capture.closed.bellCount !== 1) throw new Error(`Bell contract ${capture.viewport}: expected 1, got ${capture.closed.bellCount}`);
+            if (capture.closed.hasTreasuryPopover || capture.closed.hasConnectHub) throw new Error(`Closed baseline semantics ${capture.viewport}`);
+            if (!capture.open) throw new Error(`Missing open state ${capture.viewport}`);
+            if (capture.open.scrollWidth > capture.open.innerWidth + 1) throw new Error(`Open overflow ${capture.viewport}`);
+            if (!capture.open.hasTreasuryPopover || !capture.open.hasTreasuryAction || capture.open.hasConnectHub) throw new Error(`Open baseline semantics ${capture.viewport}`);
+          }
+          NODE
+          for viewport in 390x844 768x1024 1280x900; do
+            test -s "connect-hub-e-before-artifacts/before-shell-${viewport}.png"
+            test -s "connect-hub-e-before-artifacts/before-bell-open-${viewport}.png"
+          done
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: connect-hub-e-before-exact-baseline
+          path: frontend/connect-hub-e-before-artifacts
+          if-no-files-found: error
+          retention-days: 30

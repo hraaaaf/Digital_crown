@@ -309,3 +309,9 @@ documents.router.include_router(insurance_submissions.router, prefix="/insurance
 # canonical patient surface; it does not create diagnoses or therapeutic decisions.
 from . import cephalo_clinical_studio as cephalo_clinical_studio
 patients.router.include_router(cephalo_clinical_studio.router)
+
+# LOT E mounts the read-only Connect Hub under the already-canonical intelligence
+# surface. It aggregates existing source truth only: no new persistence or transport.
+from . import intelligence as intelligence
+from . import connect_hub as connect_hub
+intelligence.router.include_router(connect_hub.router)
