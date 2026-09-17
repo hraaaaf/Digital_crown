@@ -1,0 +1,6 @@
+# Canonical Windows cabinet build environment.
+# Runtime dependencies are owned by backend/requirements.txt.
+-r requirements.txt
+
+# Build toolchain: Windows package must be built on Windows.
+pyinstaller==6.22.3
