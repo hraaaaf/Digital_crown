@@ -56,9 +56,13 @@ class VisionEngine:
         try:
             import torch
         except Exception as exc:
-            # Importing torch on Windows can fail with OSError/WinError 1455,
-            # not only ImportError. Fail closed without taking down the backend.
             logger.error("Legacy PyTorch runtime unavailable: %s", exc)
+            return
+
+        if self.is_ready and self.model is not None:
+            self.torch = torch
+            if self.device == "cpu":
+                self.device = torch.device("cpu")
             return
 
         try:
@@ -108,7 +112,6 @@ class VisionEngine:
         mode_inference = "PRODUCTION"
         warning_msg = None
 
-        # Certified primary path: SRPose38 ONNX.
         if sota_vision_engine.is_ready:
             try:
                 res = sota_vision_engine.predict_landmarks(file_location)
@@ -120,7 +123,6 @@ class VisionEngine:
             except Exception as exc:
                 logger.error("SOTA engine failure, trying legacy PyTorch fallback: %s", exc)
 
-        # Optional legacy path is initialized only when actually needed.
         if not final_landmarks:
             self._initialize_legacy_engine()
 
@@ -168,5 +170,4 @@ class VisionEngine:
         }
 
 
-# Singleton instantiation is now lightweight: no PyTorch import/model load here.
 vision_engine = VisionEngine()
