@@ -4,7 +4,7 @@ Digital Crown est une application de gestion de cabinet **on-premise / local-fir
 
 > **Ordre de lecture obligatoire**
 >
-> 1. `docs/clinic/DIGITALCROWN_V1_CANONICAL_ROADMAP.md`
+> 1. `docs/clinic/DIGITALCROWN_V1_CONSOLIDATED_ROADMAP.md`
 > 2. `STATE.md`
 > 3. `AGENTS.md`
 > 4. `.claude/rules/execution-scoring-verification.md`
@@ -16,18 +16,18 @@ Digital Crown est une application de gestion de cabinet **on-premise / local-fir
 
 ## VERROU V1 — AUTORITÉ D'EXÉCUTION ABSOLUE
 
-Jusqu'à ce que `V1_OPERATIONAL` soit explicitement enregistré dans `docs/clinic/DIGITALCROWN_V1_CANONICAL_ROADMAP.md` :
+Jusqu'à ce que `V1_OPERATIONAL` soit explicitement enregistré dans `docs/clinic/DIGITALCROWN_V1_CONSOLIDATED_ROADMAP.md` :
 
-- ce fichier de roadmap est **la seule roadmap autorisée** ;
+- ce fichier est **la seule roadmap autorisée** ;
 - un chantier, lot, feature, refactor, cleanup, recherche implémentée, merge, release ou déploiement hors du lot V1 actuellement déverrouillé doit être **refusé** ;
 - seules les corrections, tests, preuves et mises à jour documentaires strictement nécessaires pour faire passer les gates du lot courant sont autorisées ;
 - les PR ouvertes appartenant à des lots ultérieurs restent parkées et ne peuvent ni autoriser du travail ni être mergées hors séquence ;
 - aucun autre `ROADMAP`, `PLAN`, `HANDOVER`, `BACKLOG`, `OBJECTIVE` ou document historique ne peut modifier l'ordre, le scope ou déverrouiller un lot ;
-- un lot `N+1` ne démarre qu'après closeout documenté du lot `N` avec Goal atteint, Success observable, Proof capturée, CI/tests requis verts et merge/post-merge terminé si applicable ;
-- aucune mutation cabinet/production n'est autorisée avant LOT V1-12 et validation humaine explicite ;
+- un lot N+1 ne démarre qu'après closeout documenté du lot N avec Goal atteint, Success observable, Proof capturée, CI/tests requis verts et merge/post-merge terminé si applicable ;
+- aucune mutation cabinet/production n'est autorisée avant le lot final de mise à jour cabinet et validation humaine explicite ;
 - aucun déploiement Vercel n'est autorisé par ce verrou.
 
-En cas de conflit entre un document historique et `DIGITALCROWN_V1_CANONICAL_ROADMAP.md`, la roadmap V1 canonique prévaut.
+En cas de conflit, `DIGITALCROWN_V1_CONSOLIDATED_ROADMAP.md` prévaut.
 
 ## Architecture courante
 
@@ -182,15 +182,11 @@ npm --prefix frontend run build
 
 ### CI actuelle
 
-`.github/workflows/ci.yml` contient :
-
-- backend : install + prod safety check + pytest ;
-- frontend : `npm ci` + tests + build ;
-- garde production négatif.
+`.github/workflows/ci.yml` contient backend install + prod safety check + pytest, frontend `npm ci` + tests + build, et garde production négatif.
 
 `.github/workflows/cabinet-upgrade-postgres-cert.yml` est un gate PR global sans filtre de chemin et verrouille PostgreSQL 18 + préservation + politique de release.
 
-Ne déclarer aucun SHA `CODE_CERTIFIED` sans preuve du run + attestation correspondants. Ne déclarer aucune version **installable** sans certificat final `INSTALLABLE_CERTIFIED` vérifié.
+Ne déclarer aucun SHA `CODE_CERTIFIED` sans preuve du run + attestation correspondants. Ne déclarer aucune version installable sans certificat final `INSTALLABLE_CERTIFIED` vérifié.
 
 ## Runbooks utiles
 
@@ -202,20 +198,20 @@ Ne déclarer aucun SHA `CODE_CERTIFIED` sans preuve du run + attestation corresp
 
 ## Workflow par lot
 
-1. Lire `docs/clinic/DIGITALCROWN_V1_CANONICAL_ROADMAP.md`, puis `STATE.md`, `.claude/rules/execution-scoring-verification.md` et le skill pertinent.
+1. Lire `docs/clinic/DIGITALCROWN_V1_CONSOLIDATED_ROADMAP.md`, puis `STATE.md`, `.claude/rules/execution-scoring-verification.md` et le skill pertinent.
 2. Vérifier que le scope demandé appartient au **lot V1 actuellement déverrouillé** ; sinon refuser le chantier.
 3. Cartographier scope, invariants et gates binaires applicables.
 4. Audit read-only d'abord lorsque le skill l'impose.
-5. Implémenter dans un lot distinct.
+5. Implémenter uniquement le scope autorisé par le lot courant.
 6. Après chaque étape matérielle : preuve + `EXECUTION_SCORE` + `ADVERSARIAL_SCORE` + minimum retenu ; investiguer tout écart `> 0.5`.
 7. Tests ciblés puis régression proportionnée au risque.
 8. Smoke/rehearsal lorsque nécessaire.
 9. Review indépendante si requise, notamment pour toute revendication `>= 9.5/10`.
-10. Mettre à jour les canoniques et vérifier leur cohérence.
+10. Mettre à jour le fichier canonique unique et vérifier sa cohérence.
 11. Si le score atteint `9.0+`, exécuter la **Perfection Pass finale**, corriger les faiblesses améliorables, rerun les preuves impactées et rescorrer.
 12. Ne marquer `VERIFIED` qu'avec score retenu `>= 9.0/10` **et** tous les gates binaires applicables verts.
 13. PR/merge/certification seulement après preuves et gates satisfaits.
 14. Pour distribution cabinet : certifier le HEAD master exact en `CODE_CERTIFIED`.
 15. Certifier les assets runtime pour ce même SHA, composer en `INSTALLABLE_CERTIFIED`, puis seulement construire/activer.
 
-**Dernière révision canonique : 17 septembre 2026 — verrou V1 actif.**
+**Dernière révision canonique : 17 septembre 2026 — verrou V1 consolidé actif.**
