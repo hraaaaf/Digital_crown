@@ -2,8 +2,10 @@
 
 Date: 2026-09-17
 Repository: `hraaaaf/Digital_crown`
-Branch: `docs/mutuelles-far-source-gate-20260916`
-PR: `#559` — OPEN / DRAFT / NOT MERGED
+Branch: `master`
+Global PR: `#559` — MERGED
+Merge SHA: `20d2e01aa1f097ca93dd0a5a6699a596a392d7d8`
+Status: `FAR_GLOBAL_CLOSEOUT_COMPLETE`
 
 ## Goal
 
@@ -67,25 +69,40 @@ The harness uses deterministic Vite build + preview rather than the former britt
 
 ## Merge history
 
-Prescription renderer PR `#581` was explicitly authorized and merged into this FAR branch.
+Prescription renderer PR `#581` was explicitly authorized and merged into the FAR integration branch.
 
 - certified head before merge: `da49fc183ff578c8434c40e3844d7ec0a769702c`
 - merge SHA: `6c6cc7ae00bf476a6b133784da4a6b70f442d1be`
 
+Global FAR PR `#559` was explicitly authorized, moved from draft to ready, and merged into `master` with an expected-head guard.
+
+- certified PR head: `44781f601b9835d06f5d59a84303eb39418fa426`
+- global merge SHA: `20d2e01aa1f097ca93dd0a5a6699a596a392d7d8`
+
 No Vercel deployment and no production DB mutation occurred.
 
-## Post-merge state
+## Final post-merge proof
 
-GitHub triggered 12 workflows for merge SHA `6c6cc7ae00bf476a6b133784da4a6b70f442d1be` through global FAR PR `#559`. At the first post-merge inspection some workflows, including Patient P7, were still `in_progress`; no final all-green post-merge claim is made until those runs complete.
+Post-merge checks were inspected on the exact master merge SHA `20d2e01aa1f097ca93dd0a5a6699a596a392d7d8`.
 
-## Remaining gate
+Observed executed checks include:
 
-Global FAR PR `#559` remains OPEN / DRAFT against `master`. It is not authorized for merge yet.
+- `Frontend (tests & build)` — `SUCCESS`
+- `PostgreSQL 18 + immutable release invariants` — `SUCCESS`
+- contextual M4 checks not applicable to this merge — `SKIPPED`
+
+No observed post-merge check failure was present in the inspected check set.
+
+## Closeout
+
+The FAR global implementation is merged on `master` and its source trust, architecture boundary, prescription bridge, deterministic renderer, archive linkage, visual evidence, pre-merge certification and observed post-merge checks are recorded above.
+
+No further FAR functional development is part of this closeout.
 
 ## Next exact
 
-Validate the post-merge workflow set for `6c6cc7ae00bf476a6b133784da4a6b70f442d1be`. If green, reconcile PR `#559`, mark it ready for review, then request explicit merge authorization.
+Return to the next authorized Digital Crown V1 chantier. Any future FAR change starts from `master` and must preserve the single Mutuelles/Honoraires engine and the no-inference prescription boundary.
 
 ## Sequence remaining
 
-`post-merge workflow validation -> PR #559 coherence/ready -> explicit merge agreement -> merge #559 -> final post-merge proof -> FAR global closeout`
+`none for FAR global closeout`
