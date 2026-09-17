@@ -15,6 +15,7 @@ from backend.schemas.insurance_submission import InsuranceOrganization, Insuranc
 from backend.services.insurance_administrative import (
     prefill_cnops_administrative,
     prefill_cnss_administrative,
+    prefill_far_administrative,
 )
 from backend.services.insurance_consistency import load_honoraires_insurance_source
 from backend.services.insurance_submission import apply_ngap_reference_to_draft, build_draft_from_honoraires_snapshot
@@ -89,6 +90,8 @@ def prepare_insurance_draft_from_honoraires(
         draft = prefill_cnss_administrative(db, draft=draft, patient=source.patient, practitioner=practitioner)
     elif organization == InsuranceOrganization.CNOPS:
         draft = prefill_cnops_administrative(db, draft=draft, patient=source.patient, practitioner=practitioner)
+    elif organization == InsuranceOrganization.FAR:
+        draft = prefill_far_administrative(db, draft=draft, patient=source.patient, practitioner=practitioner)
 
     if ngap_reference_version:
         draft = apply_ngap_reference_to_draft(db, draft=draft, reference_version=ngap_reference_version, on_date=on_date)

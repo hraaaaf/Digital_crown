@@ -23,10 +23,6 @@ from backend.schemas.insurance_submission import (
 )
 
 
-# Human visual validation of CNSS 610-1-04 on 2026-09-15 deliberately limits
-# Digital Crown auto-fill to the practitioner declaration area. The upper insured
-# section is completed outside Digital Crown and must therefore never block the
-# practitioner validation/finalization gate.
 CNSS_REQUIRED_ADMIN_FIELDS = (
     "beneficiary_full_name",
     "beneficiary_birth_date",
@@ -37,14 +33,6 @@ CNSS_REQUIRED_ADMIN_FIELDS = (
     "care_type",
 )
 
-# Exact CNOPS dental binary SHA-256:
-# 89097caca32aef6b4d34d2d06fb9cc6f9bdc1f3c4385cf5558b5742a3af6f505
-# Cabinet-validated on 2026-09-16. Its visible administrative zone contains separate
-# affiliation and immatriculation numbers. It does NOT contain an insured-quality or
-# practitioner-name field. Relationship is intentionally optional because the form only
-# exposes Conjoint/Enfant marks and a self-beneficiary can legitimately leave both blank.
-# Optional/case-dependent prior-approval and accident fields are also not unconditional
-# blockers. Missing facts remain unresolved; nothing below is inferred from lookalike data.
 CNOPS_REQUIRED_ADMIN_FIELDS = (
     "request_nature",
     "insured_full_name",
@@ -59,6 +47,23 @@ CNOPS_REQUIRED_ADMIN_FIELDS = (
     "practitioner_inpe",
     "care_type",
 )
+
+FAR_REQUIRED_ADMIN_FIELDS = (
+    "insured_national_id",
+    "insured_account_number",
+    "insured_phone",
+    "insured_full_name",
+    "insured_grade",
+    "insured_unit",
+    "insured_address",
+    "beneficiary_full_name",
+    "beneficiary_birth_date",
+    "relationship_to_insured",
+    "claim_context",
+    "practitioner_inpe",
+)
+
+FAR_RELATIONSHIPS = {"ADHERENT", "CONJOINT", "ENFANT"}
 
 _EXPLICIT_INPE_KEYS = {
     "inpe",
@@ -162,6 +167,16 @@ def missing_cnops_administrative_fields(administrative: InsuranceAdministrativeS
     return _missing_administrative_fields(administrative, CNOPS_REQUIRED_ADMIN_FIELDS)
 
 
+def missing_far_administrative_fields(administrative: InsuranceAdministrativeSnapshot) -> list[str]:
+    missing = _missing_administrative_fields(administrative, FAR_REQUIRED_ADMIN_FIELDS)
+    relationship = str(administrative.relationship_to_insured or "").strip().upper()
+    if relationship and relationship not in FAR_RELATIONSHIPS:
+        key = "administrative.relationship_to_insured"
+        if key not in missing:
+            missing.append(key)
+    return missing
+
+
 def _prefill_explicit_common_facts(
     db: Session,
     *,
@@ -212,7 +227,6 @@ def prefill_cnss_administrative(
     patient: models.Patient,
     practitioner: models.User,
 ) -> InsuranceSubmissionDraft:
-    """Prefill explicit CNSS practitioner/beneficiary facts only."""
     if draft.organization != InsuranceOrganization.CNSS:
         raise ValueError("CNSS administrative prefill requires a CNSS draft")
     if int(patient.id) != int(draft.patient_id):
@@ -234,7 +248,6 @@ def prefill_cnops_administrative(
     patient: models.Patient,
     practitioner: models.User,
 ) -> InsuranceSubmissionDraft:
-    """Prefill only explicit common CNOPS facts; insured facts remain manual/fail-closed."""
     if draft.organization != InsuranceOrganization.CNOPS:
         raise ValueError("CNOPS administrative prefill requires a CNOPS draft")
     if int(patient.id) != int(draft.patient_id):
@@ -242,10 +255,29 @@ def prefill_cnops_administrative(
     administrative = _prefill_explicit_common_facts(
         db, draft=draft, patient=patient, practitioner=practitioner
     )
-    # Deliberately do not copy patient address/CIN into insured fields and do not infer
-    # insured identity, affiliation/immatriculation or relationship from beneficiary data.
     return _apply_admin_policy(
         draft=draft,
         administrative=administrative,
         missing=missing_cnops_administrative_fields(administrative),
+    )
+
+
+def prefill_far_administrative(
+    db: Session,
+    *,
+    draft: InsuranceSubmissionDraft,
+    patient: models.Patient,
+    practitioner: models.User,
+) -> InsuranceSubmissionDraft:
+    if draft.organization != InsuranceOrganization.FAR:
+        raise ValueError("FAR administrative prefill requires a FAR draft")
+    if int(patient.id) != int(draft.patient_id):
+        raise ValueError("Patient/draft mismatch")
+    administrative = _prefill_explicit_common_facts(
+        db, draft=draft, patient=patient, practitioner=practitioner
+    )
+    return _apply_admin_policy(
+        draft=draft,
+        administrative=administrative,
+        missing=missing_far_administrative_fields(administrative),
     )

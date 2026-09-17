@@ -11,15 +11,23 @@ Examples:
   python scripts/lock_insurance_source.py --kind cnops --file ./cnops-dentaire.pdf \
       --source-url cabinet://validated/CNOPS-dental.pdf \
       --confirm-cabinet-validation --validated-by "Dr Nom"
+
+  python scripts/lock_insurance_source.py --kind far \
+      --file ./FAR_CABINET_VALIDATED_DERIVED_REFERENCE_FINAL.pdf \
+      --source-url cabinet://derived/FAR-2021-1-2026-09-17.pdf \
+      --confirm-cabinet-validation --validated-by "Cabinet"
 """
 
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 from pathlib import Path
 
 from backend.core.media_paths import get_media_root
+from backend.schemas.insurance_submission import InsuranceTemplateTrust
+from backend.services.insurance_far_2021_1_profile import FAR_2021_1_DERIVED_TEMPLATE_SHA256
 from backend.services.insurance_source_store import (
     lock_and_store_insurance_template,
     lock_and_store_ngap_primary,
@@ -28,7 +36,6 @@ from backend.services.insurance_template_registry import (
     CNOPS_DENTAL_CABINET_2026_09_16,
     CNSS_610_1_04,
     FAR_2021_1,
-    InsuranceTemplateTrust,
 )
 from backend.services.ngap_reference import DENTAL_NGAP_PRIMARY_PENDING
 
@@ -48,7 +55,7 @@ def _parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--confirm-cabinet-validation",
         action="store_true",
-        help="Required before a CABINET_VALIDATED_BINARY template can be locked",
+        help="Required before any cabinet-validated template can be locked",
     )
     parser.add_argument(
         "--validated-by",
@@ -91,16 +98,31 @@ def main() -> int:
         }
         definition = definitions[args.kind]
         validator = str(args.validated_by or "").strip() or None
-        if definition.trust == InsuranceTemplateTrust.CABINET_VALIDATED_BINARY:
+        cabinet_trusts = {
+            InsuranceTemplateTrust.CABINET_VALIDATED_BINARY,
+            InsuranceTemplateTrust.CABINET_VALIDATED_DERIVED_REFERENCE,
+        }
+        if definition.trust in cabinet_trusts:
             if not args.confirm_cabinet_validation:
                 raise SystemExit(
-                    "This template is CABINET_VALIDATED_BINARY: rerun with "
-                    "--confirm-cabinet-validation only after explicit practitioner validation."
+                    "This template uses cabinet-validated trust: rerun with "
+                    "--confirm-cabinet-validation only after explicit cabinet validation."
                 )
             if validator is None:
                 raise SystemExit(
-                    "--validated-by is required when confirming a cabinet-validated binary."
+                    "--validated-by is required when confirming a cabinet-validated template."
                 )
+
+        # FAR runtime is deliberately pinned to one exact accepted reconstruction. Reject
+        # look-alike/tampered files before anything is written into the immutable store.
+        if args.kind == "far":
+            actual_sha256 = hashlib.sha256(pdf_bytes).hexdigest()
+            if actual_sha256 != FAR_2021_1_DERIVED_TEMPLATE_SHA256:
+                raise SystemExit(
+                    "FAR derived reference SHA-256 mismatch: "
+                    f"expected {FAR_2021_1_DERIVED_TEMPLATE_SHA256}, got {actual_sha256}"
+                )
+
         locked, stored = lock_and_store_insurance_template(
             root=root,
             definition=definition,

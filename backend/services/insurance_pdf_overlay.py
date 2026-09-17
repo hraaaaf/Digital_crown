@@ -58,7 +58,6 @@ def insurance_overlay_profile_payload(profile: InsuranceOverlayProfile) -> dict:
             for placement in profile.placements
         ],
     }
-    # Preserve hashes of historical profiles that predate the optional capacity gate.
     if profile.max_lines is not None:
         payload["max_lines"] = profile.max_lines
     return payload
@@ -83,7 +82,7 @@ _FORBIDDEN_FIELD_TOKENS = (
 )
 _LINE_FIELD = re.compile(r"^lines\[(\d+)\]\.(label|service_date|amount_mad|ngap_code|ngap_coefficient|teeth)$")
 _CHOICE_FIELD = re.compile(
-    r"^choice\.(request_nature|care_type|beneficiary_sex|relationship_to_insured)\.([A-Za-z0-9_]+)$"
+    r"^choice\.(request_nature|care_type|beneficiary_sex|relationship_to_insured|claim_context)\.([A-Za-z0-9_]+)$"
 )
 _ADMIN_FIELDS = {
     "request_nature",
@@ -93,11 +92,16 @@ _ADMIN_FIELDS = {
     "insured_national_id",
     "insured_address",
     "insured_quality",
+    "insured_account_number",
+    "insured_phone",
+    "insured_grade",
+    "insured_unit",
     "beneficiary_full_name",
     "beneficiary_birth_date",
     "beneficiary_national_id",
     "beneficiary_sex",
     "relationship_to_insured",
+    "claim_context",
     "practitioner_full_name",
     "practitioner_inpe",
     "care_type",
@@ -133,9 +137,6 @@ def _field_value(draft: InsuranceSubmissionDraft, key: str) -> str:
     match = _LINE_FIELD.fullmatch(key)
     if match:
         index = int(match.group(1))
-        # A profile describes the form's capacity, not the number of acts in a draft.
-        # Unused form rows stay blank; max_lines still fails closed when a draft
-        # contains more care lines than the exact form can represent.
         if index >= len(draft.lines):
             return ""
         return _text(getattr(draft.lines[index], match.group(2)))

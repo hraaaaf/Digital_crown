@@ -26,12 +26,17 @@ from backend.services.insurance_cnss_610_1_04_profile import (
     CNSS_610_1_04_PROFILE_V1,
     CNSS_610_1_04_TEMPLATE_SHA256,
 )
+from backend.services.insurance_far_2021_1_profile import (
+    FAR_2021_1_DERIVED_PROFILE,
+    FAR_2021_1_DERIVED_TEMPLATE_SHA256,
+)
 from backend.services.insurance_finalization import finalize_insurance_submission_pdf
 from backend.services.insurance_preparation import prepare_insurance_draft_from_honoraires
 from backend.services.insurance_source_store import load_stored_insurance_source
 from backend.services.insurance_template_registry import (
     CNOPS_DENTAL_CABINET_2026_09_16,
     CNSS_610_1_04,
+    FAR_2021_1,
     InsuranceTemplateDefinition,
     LockedInsuranceTemplate,
 )
@@ -69,6 +74,8 @@ def _template_config_for(organization: InsuranceOrganization):
             CNOPS_DENTAL_TEMPLATE_SHA256,
             CNOPS_DENTAL_PROFILE,
         )
+    if organization == InsuranceOrganization.FAR:
+        return FAR_2021_1, FAR_2021_1_DERIVED_TEMPLATE_SHA256, FAR_2021_1_DERIVED_PROFILE
     raise ValueError(f"Insurance UI preparation is not enabled for {organization.value}")
 
 

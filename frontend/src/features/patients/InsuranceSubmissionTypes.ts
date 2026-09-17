@@ -2,6 +2,7 @@ export type InsuranceMappingStatus = 'NOT_EVALUATED' | 'EXACT' | 'AMBIGUOUS' | '
 export type InsuranceDraftStatus = 'INCOMPLETE' | 'READY_FOR_REVIEW' | 'VALIDATED';
 export type InsuranceCareType = 'SOINS' | 'PROTHESE' | 'ORTHODONTIE_FACIALE' | 'AUTRES';
 export type InsuranceRequestNature = 'EXECUTION' | 'PRIOR_APPROVAL';
+export type InsuranceClaimContext = 'MALADIE' | 'MATERNITE' | 'ACCIDENT';
 
 export interface InsuranceAdministrativeSnapshot {
   request_nature?: InsuranceRequestNature | null;
@@ -11,11 +12,16 @@ export interface InsuranceAdministrativeSnapshot {
   insured_national_id?: string | null;
   insured_address?: string | null;
   insured_quality?: string | null;
+  insured_account_number?: string | null;
+  insured_phone?: string | null;
+  insured_grade?: string | null;
+  insured_unit?: string | null;
   beneficiary_full_name?: string | null;
   beneficiary_birth_date?: string | null;
   beneficiary_national_id?: string | null;
   beneficiary_sex?: string | null;
   relationship_to_insured?: string | null;
+  claim_context?: InsuranceClaimContext | null;
   practitioner_full_name?: string | null;
   practitioner_inpe?: string | null;
   care_type?: InsuranceCareType | null;
@@ -62,6 +68,7 @@ export interface InsuranceSubmissionDraft {
     ngap_reference_version?: string | null;
     ngap_reference_hash?: string | null;
   };
+  source_ordonnance_document_id?: number | null;
   validated_by_practitioner_id?: number | null;
   validated_at?: string | null;
 }
