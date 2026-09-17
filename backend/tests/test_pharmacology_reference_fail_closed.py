@@ -44,6 +44,14 @@ def test_rejects_any_clinical_activation(tmp_path: Path) -> None:
     assert any("clinical_activation must fail closed to NO" in error for error in errors)
 
 
+def test_rejects_blank_clinical_activation_without_crashing(tmp_path: Path) -> None:
+    root = _fixture(tmp_path)
+    path = root / "docs" / "audits" / "PRESCRIPTION_PHARMACOLOGY_MOROCCO_PARA_CANONICAL_MATRIX_V1_2026-09-17.csv"
+    _rewrite_csv(path, lambda rows: rows[0].__setitem__("clinical_activation", ""))
+    errors = validator.validate(root)
+    assert any("clinical_activation must fail closed to NO, got ''" in error for error in errors)
+
+
 def test_rejects_missing_historical_mapping_row(tmp_path: Path) -> None:
     root = _fixture(tmp_path)
     path = root / "docs" / "audits" / "PRESCRIPTION_PHARMACOLOGY_MOROCCO_HISTORICAL_TO_CANONICAL_MAP_V1_2026-09-17.csv"
