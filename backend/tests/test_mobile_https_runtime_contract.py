@@ -88,7 +88,7 @@ def test_mdns_registration_runs_off_application_event_loop(monkeypatch) -> None:
 
 def test_zeroconf_runtime_dependency_is_declared() -> None:
     requirements = _read("backend/requirements.txt")
-    assert "zeroconf>=0.131.0,<1.0" in requirements.splitlines()
+    assert "zeroconf==0.150.0" in requirements.splitlines()
 
 
 def test_https_setup_targets_immutable_runtime() -> None:
