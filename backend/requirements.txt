@@ -1,4 +1,5 @@
 absl-py==2.4.0
+alembic==1.20.0
 annotated-doc==0.0.4
 annotated-types==0.7.0
 anyio==4.12.1
@@ -21,6 +22,7 @@ ecdsa==0.19.2
 email-validator==2.3.0
 fastapi==0.115.6
 filelock==3.24.3
+firebase-admin==7.5.0
 flatbuffers==25.12.19
 fonttools==4.61.1
 fsspec==2026.2.0
@@ -90,6 +92,8 @@ python-bidi==0.6.7
 python-dateutil==2.9.0.post0
 python-dotenv==1.2.1
 python-jose==3.5.0
+python-magic==0.4.27
+python-magic-bin==0.4.14; platform_system == "Windows"
 python-multipart==0.0.9
 pywebpush==2.4.0
 PyYAML==6.0.3
@@ -100,6 +104,7 @@ requests==2.32.5
 rich==14.3.2
 rsa==4.9.1
 scipy==1.17.1
+sentry-sdk[fastapi]==2.69.0
 setuptools==82.0.0
 six==1.17.0
 sqlcipher3==0.6.2
@@ -124,6 +129,7 @@ uritemplate==4.2.0
 urllib3==2.6.3
 uvicorn==0.27.1
 watchfiles==1.1.1
+webauthn==3.0.0
 weasyprint==68.1
 webencodings==0.5.1
 websockets==16.0
