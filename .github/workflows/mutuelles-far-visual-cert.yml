@@ -143,7 +143,7 @@ jobs:
           import fs from 'node:fs/promises';
           const out='mutuelles-far-visual';
           await fs.mkdir(out,{recursive:true});
-          const server=await createServer({server:{host:'127.0.0.1',port:4201,strictPort:true},clearScreen:false});
+          const server=await createServer({server:{host:'127.0.0.1',port:4201,strictPort:true},clearScreen:false,optimizeDeps:{disabled:true}});
           await server.listen();
           const browser=await chromium.launch();
           try {
@@ -153,11 +153,12 @@ jobs:
               const errors=[];
               page.on('pageerror',e=>errors.push(`pageerror: ${e.message}`));
               page.on('console',m=>{ if(m.type()==='error') errors.push(`console: ${m.text()}`); });
-              await page.goto('http://127.0.0.1:4201/mutuelles-far-visual.html',{waitUntil:'networkidle'});
-              await page.locator('[data-insurance-review="far"]').waitFor({state:'visible',timeout:15000});
+              await page.goto('http://127.0.0.1:4201/mutuelles-far-visual.html',{waitUntil:'domcontentloaded'});
+              const review=page.locator('[data-insurance-review="far"]');
+              await review.waitFor({state:'visible',timeout:15000});
               await page.locator('[data-far-section="administrative"]').waitFor({state:'visible'});
-              await page.locator('[data-far-section="prescription"]').scrollIntoViewIfNeeded();
-              await page.locator('[data-far-action="validate"]').scrollIntoViewIfNeeded();
+              await page.locator('[data-far-section="prescription"]').waitFor({state:'attached'});
+              await page.locator('[data-far-action="validate"]').waitFor({state:'attached'});
               const state=await page.evaluate(()=>({clientWidth:document.documentElement.clientWidth,scrollWidth:document.documentElement.scrollWidth}));
               await page.screenshot({path:`${out}/far-${width}x${height}.png`,fullPage:true,animations:'disabled'});
               await fs.writeFile(`${out}/far-${width}x${height}.json`,JSON.stringify({...state,overflowPx:Math.max(0,state.scrollWidth-state.clientWidth),errors},null,2));
