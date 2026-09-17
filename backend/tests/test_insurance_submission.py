@@ -87,7 +87,7 @@ def test_validated_requires_practitioner_timestamp_and_locked_sources():
             validated_at=datetime(2026, 9, 14, 18, 45),
         )
 
-    with pytest.raises(ValueError, match="official or cabinet-validated"):
+    with pytest.raises(ValueError, match="approved hash-bound template trust"):
         _draft(
             status=InsuranceDraftStatus.VALIDATED,
             lines=[_exact_line()],
