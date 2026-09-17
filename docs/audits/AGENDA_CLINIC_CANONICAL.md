@@ -1,6 +1,6 @@
 # Digital Crown — Agenda clinique multi-praticiens
 
-Statut: chantier actif — A1/A2 clôturés; A3 produit mergé et post-merge certifié, closeout documentaire final en cours
+Statut: chantier actif — A1/A2/A3 clôturés; A4 non démarré
 Date d'ouverture: 2026-09-16
 Dernière mise à jour: 2026-09-17
 Repo: `hraaaaf/Digital_crown`
@@ -126,7 +126,11 @@ HEAD produit validé humainement: `c286bcf9713bc9fcc5a9701a7fa75b35d94d843c`.
 - PR #566 a corrigé le gate NGAP/Alembic sans réécrire l'historique de migration;
 - master certifié `24844a5d19a6bd575d175b331a1bba68bc3c0b0f`;
 - Cabinet Upgrade PostgreSQL #943 / run `35203491675`: SUCCESS;
-- CI globale #4757 / run `35203491846`: SUCCESS, incluant Frontend, garde production et Full backend regression post-merge.
+- CI globale #4757 / run `35203491846`: SUCCESS, incluant Frontend, garde production et Full backend regression post-merge;
+- PR #568 `docs(agenda): finalize A3 closeout` mergée sur `ec6bf4f40137f6e7d395effd97e0be3b0f6a2362`;
+- Cabinet Upgrade PostgreSQL #944 / run `35204790254`: SUCCESS sur `ec6bf4f…`;
+- CI globale #4761 / run `35204790247`: SUCCESS sur `ec6bf4f…`, incluant Frontend, garde production et Full backend regression post-merge;
+- master a ensuite avancé jusqu'à `7d936cc76257911d03e98f7788f25056399783d3` uniquement par 4 fichiers de documentation Céphalo; aucun fichier Agenda ou produit n'a changé depuis `ec6bf4f…`.
 
 ### Perfection Pass
 
@@ -135,7 +139,8 @@ HEAD produit validé humainement: `c286bcf9713bc9fcc5a9701a7fa75b35d94d843c`.
 - pas d'overflow page sur les captures certifiées;
 - lanes synchronisées;
 - migration additive et chaîne Alembic contrôlées;
-- master final observé possède une régression backend globale verte.
+- post-merge final A3 certifié sur le merge documentaire exact `ec6bf4f…`;
+- aucune évolution Agenda entre `ec6bf4f…` et le master `7d936cc…`.
 
 Scoring produit:
 - EXECUTION_SCORE 9.3/10;
@@ -146,13 +151,15 @@ La revue adversariale étant réalisée par le même agent que l'exécution, auc
 
 Closeout détaillé: `docs/audits/AGENDA_CLINIC_A3_CLOSEOUT.md`.
 
-État A3: **PRODUIT MERGÉ + POST-MERGE CERTIFIÉ — CLOSEOUT DOCS FINAL EN COURS**.
+État A3: **CLOSED**.
 
 ## LOT A4 — Fauteuils / salles / ressources
 
 Goal: modéliser la capacité physique du cabinet avec allocation facultative de ressource et contrôle des collisions praticien + ressource.
 
 État A4: **NON DÉMARRÉ**.
+
+Handover/start: `docs/audits/AGENDA_CLINIC_A4_START_HANDOVER.md`.
 
 ## LOT A5 — Robustesse clinique + closeout
 
@@ -173,8 +180,8 @@ Dans toute nouvelle conversation:
 
 A1: **CLOSED**.
 A2: **CLOSED**.
-A3: **PRODUIT MERGÉ + POST-MERGE CERTIFIÉ — CLOSEOUT DOCS FINAL EN COURS**.
+A3: **CLOSED**.
 A4: **NON DÉMARRÉ**.
 A5: **NON DÉMARRÉ**.
 
-Next exact: vérifier les gates du HEAD documentaire final, puis obtenir l'accord explicite utilisateur sur ce HEAD avant merge. Après merge documentaire et vérification master, déclarer A3 CLOSED et préparer le handover/start prompt A4 avant tout code A4.
+Next exact: lire `docs/audits/AGENDA_CLINIC_A4_START_HANDOVER.md`, puis vérifier la roadmap V1 consolidée avant d'autoriser tout code A4. Si A4 devient le prochain lot global, démarrer par audit du modèle de ressources/collisions et établir le BEFORE avant toute modification UI/UX.
