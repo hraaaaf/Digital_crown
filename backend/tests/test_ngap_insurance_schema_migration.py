@@ -25,16 +25,30 @@ def _load_migration():
     return module
 
 
-def _alembic_heads() -> list[str]:
+def _alembic_script() -> ScriptDirectory:
     config = Config(str(ROOT / "alembic.ini"))
     config.set_main_option("script_location", str(ROOT / "alembic"))
-    return list(ScriptDirectory.from_config(config).get_heads())
+    return ScriptDirectory.from_config(config)
 
 
-def test_ngap_insurance_migration_is_current_unique_head():
+def _alembic_heads() -> list[str]:
+    return list(_alembic_script().get_heads())
+
+
+def test_ngap_insurance_migration_is_on_current_unique_revision_chain():
     migration = _load_migration()
+    script = _alembic_script()
+    heads = list(script.get_heads())
+
+    assert migration.revision == "d0b000000003"
     assert migration.down_revision == "d0b000000002"
-    assert _alembic_heads() == ["d0b000000003"]
+    assert len(heads) == 1
+
+    revisions_to_head = {
+        revision.revision
+        for revision in script.iterate_revisions(heads[0], "base")
+    }
+    assert migration.revision in revisions_to_head
 
 
 def test_ngap_insurance_migration_is_additive_repeatable_and_preserves_actes():
@@ -132,7 +146,7 @@ def test_empty_sqlite_baseline_materializes_ngap_and_insurance_at_current_head()
         inspector = inspect(connection)
         assert connection.execute(
             text("SELECT version_num FROM alembic_version")
-        ).scalar_one() == "d0b000000003"
+        ).scalar_one() == heads[0]
         assert "ngap_catalog_mappings" in set(inspector.get_table_names())
         assert {column["name"] for column in inspector.get_columns("actes")} >= {
             "source_line_uid",
