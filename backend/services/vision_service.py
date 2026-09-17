@@ -61,6 +61,16 @@ class VisionEngine:
             logger.error("Legacy PyTorch runtime unavailable: %s", exc)
             return
 
+        # Tests and controlled callers may inject an already-prepared legacy model.
+        # In that case only bind the lazy torch runtime; do not re-import the legacy
+        # model class or touch weights. This preserves the no-PyTorch-at-boot contract
+        # while honoring an explicitly ready runtime.
+        if self.is_ready and self.model is not None:
+            self.torch = torch
+            if self.device == "cpu":
+                self.device = torch.device("cpu")
+            return
+
         try:
             from models.unet_w_cartesian_se import U_Net_w_Cartesian_SE
         except Exception as exc:
