@@ -11,7 +11,6 @@ WINDOWS_BUILD = ROOT / "backend" / "requirements-windows-build.txt"
 
 EXACT_RE = re.compile(r"^([A-Za-z0-9_.-]+)(?:\[[A-Za-z0-9_,.-]+\])?==([^\s;]+)$")
 WINDOWS_MARKER = 'platform_system == "Windows"'
-
 NATIVE_SHARED = {"numpy", "onnx", "onnxruntime", "opencv-python-headless", "pillow", "qrcode", "reportlab", "weasyprint", "sqlcipher3", "torch", "torchvision", "torchaudio", "pydantic", "pydantic-settings", "python-dotenv"}
 REQUIRED_CABINET_PACKAGES = {"alembic", "firebase-admin", "python-magic", "python-magic-bin", "sentry-sdk", "webauthn"}
 FORBIDDEN_ORT_VARIANTS = {"onnxruntime-directml", "onnxruntime-gpu", "onnxruntime-qnn"}
@@ -43,9 +42,9 @@ def _exact_pins(path: Path) -> dict[str, str]:
     return pins
 
 
-def check_root_alias() -> None:
-    _require(_lines(ROOT_REQUIREMENTS) == ["-r backend/requirements.txt"], "Root requirements.txt must be a pure alias to backend/requirements.txt")
-    print("ROOT_REQUIREMENTS_ALIAS=OK")
+def check_root_mirror() -> None:
+    _require(_lines(ROOT_REQUIREMENTS) == _lines(RUNTIME), "Root requirements.txt must exactly mirror backend/requirements.txt for legacy CI compatibility")
+    print("ROOT_REQUIREMENTS_MIRROR=OK")
 
 
 def check_runtime_lock() -> dict[str, str]:
@@ -83,7 +82,7 @@ def check_windows_build_lock() -> None:
 
 
 def main() -> int:
-    check_root_alias()
+    check_root_mirror()
     runtime = check_runtime_lock()
     check_p5_parity(runtime)
     check_windows_build_lock()
