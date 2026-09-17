@@ -32,18 +32,20 @@ Until `V1_OPERATIONAL` is explicitly recorded here:
 
 ## 3. Verified starting baseline — 17 September 2026
 
-Current master observed before this roadmap refresh: `0483883445d432ce6c7887dfab800a559c99dec4`.
+Master before this roadmap refresh: `0483883445d432ce6c7887dfab800a559c99dec4`.
 
 Already acquired on master and therefore **not future V1 lots**:
 
-- Connect Hub: PR `#557` already integrated before this refresh.
-- Céphalo injected legacy fallback repair: PR `#579` merged; post-merge work moved to current master history.
-- FAR / Mutuelles: PR `#559` merged at merge commit `20d2e01aa1f097ca93dd0a5a6699a596a392d7d8`; subsequent FAR global closeout reached master `0483883445d432ce6c7887dfab800a559c99dec4`.
+- Connect Hub: PR `#557` integrated.
+- Céphalo injected legacy fallback repair: PR `#579` merged.
+- FAR / Mutuelles: PR `#559` merged at `20d2e01aa1f097ca93dd0a5a6699a596a392d7d8`; FAR global closeout then reached master `0483883445d432ce6c7887dfab800a559c99dec4`.
 - obsolete/superseded PRs `#279`, `#401`, `#407`, `#505`, `#563`, `#578` are closed and are not future execution lots.
 
 Important correction: the previous draft roadmap incorrectly listed already-integrated Connect Hub and FAR as future mandatory lots and referenced closed PRs as future work. This consolidated roadmap removes those contradictions.
 
-Security/physical historical programs `#288`, `#289`, `#383` are **not promoted into the mandatory V1 path by default**. They remain parked unless a concrete requirement from a mandatory lot proves they are necessary for V1 installability/safety. They must not be resurrected wholesale.
+Security/physical historical programs `#288`, `#289`, `#383` are **not promoted into the mandatory V1 path by default**. They remain parked unless a concrete requirement from a mandatory lot proves a bounded delta necessary for V1 installability/safety. They must not be resurrected wholesale.
+
+The stale documentation PR `#577` is a competing pre-consolidation roadmap and must be closed without merge after this canonical file is established.
 
 ## 4. Mandatory execution sequence
 
@@ -76,7 +78,7 @@ Known evidence on pre-reconciliation HEAD `3ce59839156e...`:
 - Media C4 `35253874628` FAILURE at isolated backend startup;
 - T2/P7 were still running at the last explicit check.
 
-Next exact: rebase/replay #580 onto current master, reproduce the two common isolated-backend startup failures if still present, fix only the root cause required by V1-00, rerun impacted exact-head gates, then merge and require post-merge master green before closeout.
+Next exact: replay/reconcile #580 onto current master, reproduce the two common isolated-backend startup failures if still present, fix only the root cause required by V1-00, rerun impacted exact-head gates, then merge and require post-merge master green before closeout.
 
 ### LOT V1-01 — Agenda A4: physical resources and capacity
 
@@ -203,14 +205,7 @@ Proof: installed SHA + POSTUPDATE integrity + health/smoke evidence + rollback i
 
 ## 5. Unlock / closeout rule
 
-Only one lot may be `IN_PROGRESS` at a time. Lot N+1 unlocks only when lot N has:
-
-1. Goal met;
-2. observable Success met;
-3. Proof captured;
-4. impacted tests/CI green;
-5. canonical closeout written here;
-6. merge/post-merge completed when applicable.
+Only one lot may be `IN_PROGRESS` at a time. Lot N+1 unlocks only when lot N has Goal met, observable Success met, Proof captured, impacted tests/CI green, canonical closeout written here, and merge/post-merge completed when applicable.
 
 Pending CI does not unlock the next lot. Independent work is permitted only inside the same unlocked lot.
 
