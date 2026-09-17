@@ -18,7 +18,7 @@ from backend.services.insurance_template_registry import FAR_2021_1
 FAR_2021_1_DERIVED_TEMPLATE_SHA256 = (
     "c953d74f25ee5e3160683f16c45783448d55ea89640c710653a3e2cbf782bf42"
 )
-FAR_2021_1_DERIVED_PROFILE_VERSION = "far-2021-1-derived-c953d74f-v1"
+FAR_2021_1_DERIVED_PROFILE_VERSION = "far-2021-1-derived-c953d74f-v2"
 FAR_2021_1_DERIVED_MAX_LINES = 6
 
 
@@ -35,37 +35,46 @@ _PAGE_1_ADMIN = (
     InsuranceOverlayPlacement("administrative.beneficiary_full_name", 0, 558, 334, 6.4, max_chars=38),
     InsuranceOverlayPlacement("administrative.beneficiary_birth_date", 0, 558, 351, 6.4, max_chars=10),
     InsuranceOverlayPlacement(
-        "choice.relationship_to_insured.ADHERENT", 0, 546, 375, 8, kind=OverlayKind.MARK,
+        "choice.relationship_to_insured.ADHERENT", 0, 537, 375, 8,
+        kind=OverlayKind.MARK,
     ),
     InsuranceOverlayPlacement(
-        "choice.relationship_to_insured.CONJOINT", 0, 666, 375, 8, kind=OverlayKind.MARK,
+        "choice.relationship_to_insured.CONJOINT", 0, 656, 375, 8,
+        kind=OverlayKind.MARK,
     ),
     InsuranceOverlayPlacement(
-        "choice.relationship_to_insured.ENFANT", 0, 776, 375, 8, kind=OverlayKind.MARK,
+        "choice.relationship_to_insured.ENFANT", 0, 766, 375, 8,
+        kind=OverlayKind.MARK,
     ),
     InsuranceOverlayPlacement(
-        "choice.claim_context.MALADIE", 0, 512, 407, 8, kind=OverlayKind.MARK,
+        "choice.claim_context.MALADIE", 0, 504, 407, 8,
+        kind=OverlayKind.MARK,
     ),
     InsuranceOverlayPlacement(
-        "choice.claim_context.MATERNITE", 0, 642, 407, 8, kind=OverlayKind.MARK,
+        "choice.claim_context.MATERNITE", 0, 634, 407, 8,
+        kind=OverlayKind.MARK,
     ),
     InsuranceOverlayPlacement(
-        "choice.claim_context.ACCIDENT", 0, 770, 407, 8, kind=OverlayKind.MARK,
+        "choice.claim_context.ACCIDENT", 0, 762, 407, 8,
+        kind=OverlayKind.MARK,
     ),
     InsuranceOverlayPlacement("administrative.practitioner_inpe", 0, 558, 450, 6.4, max_chars=18),
     InsuranceOverlayPlacement("computed.total_amount_mad", 0, 447, 519, 6.4, max_chars=12),
     InsuranceOverlayPlacement("computed.attachments_count", 0, 570, 508, 6.4, max_chars=2),
     InsuranceOverlayPlacement(
-        "choice.care_type.SOINS", 0, 168, 206, 8, kind=OverlayKind.MARK,
+        "choice.care_type.SOINS", 0, 168, 206, 8,
+        kind=OverlayKind.MARK,
     ),
     InsuranceOverlayPlacement(
-        "choice.care_type.PROTHESE", 0, 292, 206, 8, kind=OverlayKind.MARK,
+        "choice.care_type.PROTHESE", 0, 292, 206, 8,
+        kind=OverlayKind.MARK,
     ),
 )
 
 
-# Six full dental rows are visible in the accepted logical Page 4 table.
-_ROW_Y = (89.0, 106.0, 123.0, 140.0, 157.0, 174.0)
+# Six full dental rows are visible in the accepted logical Page 4 table. Baselines were
+# calibrated against the rendered frozen PDF, not copied from CNSS/CNOPS coordinates.
+_ROW_Y = (95.0, 110.0, 125.0, 140.0, 155.0, 170.0)
 
 
 def _dental_line_placements() -> tuple[InsuranceOverlayPlacement, ...]:
