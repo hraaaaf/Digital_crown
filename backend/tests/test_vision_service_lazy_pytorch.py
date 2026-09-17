@@ -1,8 +1,24 @@
+import ast
 import builtins
+from pathlib import Path
 
 import numpy as np
 
 from backend.services import vision_service
+
+
+def test_vision_service_has_no_top_level_torch_import():
+    source_path = Path(vision_service.__file__)
+    module = ast.parse(source_path.read_text(encoding="utf-8"))
+
+    top_level_imports = []
+    for node in module.body:
+        if isinstance(node, ast.Import):
+            top_level_imports.extend(alias.name for alias in node.names)
+        elif isinstance(node, ast.ImportFrom) and node.module:
+            top_level_imports.append(node.module)
+
+    assert "torch" not in top_level_imports
 
 
 def test_vision_engine_constructor_does_not_initialize_legacy_runtime():
