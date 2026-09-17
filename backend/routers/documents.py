@@ -16,6 +16,8 @@ from backend.routers.auth import get_current_user, has_permission, is_superadmin
 from backend.utils.access_control import assert_patient_access
 from backend.services.document_factory import DocumentFactory
 from backend.services.archive_service import get_archive_service
+from backend.services.far_ordonnance_archive_service import archive_far_ordonnance_from_source
+from backend.services.far_ordonnance_bridge import patient_requires_far_ordonnance
 from backend.services.generators.report_gen import ReportGenerator
 from backend.services.clinical_coherence import coherence_service
 from backend.utils.accounting_utils import extract_amount_from_clinical_data
@@ -145,6 +147,15 @@ async def generate_document(req: schemas.DocumentRequest, archive: bool = False,
             raise ValueError(f"Type de document non supporté : {req.type}")
 
     patient = db.query(models.Patient).filter(models.Patient.id == patient_id).first()
+    far_required = bool(
+        req.type == "ordonnance"
+        and patient is not None
+        and patient_requires_far_ordonnance(assurance=patient.assurance)
+    )
+    far_status = "pending_archive" if far_required else "not_required"
+    far_document = None
+    far_error = None
+    far_source_ordonnance_document_id = None
     replacement_file_backups: list[tuple[pathlib.Path, Optional[bytes]]] = []
     financial_edit_committed = False
 
@@ -236,6 +247,29 @@ async def generate_document(req: schemas.DocumentRequest, archive: bool = False,
             )
             pdf_path = doc.file_path
 
+            if req.type == "ordonnance" and far_required:
+                far_source_ordonnance_document_id = int(doc.id)
+                try:
+                    far_document = archive_far_ordonnance_from_source(
+                        db,
+                        patient=patient,
+                        source_ordonnance_document=doc,
+                        ordonnance=schemas.OrdonnanceData(**req.data),
+                        uploaded_by_id=user_id,
+                    )
+                    far_status = "generated" if far_document is not None else "not_required"
+                except ValueError as far_exc:
+                    # The clinical ordonnance is already the archived source of truth.
+                    # A missing/unrepresentable FAR administrative output must be explicit
+                    # without pretending that the clinical prescription itself failed.
+                    far_status = "blocked"
+                    far_error = str(far_exc)
+                    logger.warning(
+                        "FAR ordonnance dérivée bloquée (source=%s): %s",
+                        far_source_ordonnance_document_id,
+                        far_error,
+                    )
+
             # Le miroir historique éventuel doit évoluer dans le même lot que le
             # PDF canonique. En cas d'échec comptable, les deux seront restaurés.
             if req.type in ["honoraires", "note"]:
@@ -291,6 +325,9 @@ async def generate_document(req: schemas.DocumentRequest, archive: bool = False,
 
         # Analyse de cohérence déterministe.
         warnings = await coherence_service.analyze_coherence(patient.id, req.type, req.data, db, doctor_id=user_id)
+        if far_error:
+            warnings = list(warnings or [])
+            warnings.append(f"FAR: {far_error}")
 
         # Nettoyage du chemin pour le frontend
         if isinstance(pdf_path, dict):
@@ -326,7 +363,18 @@ async def generate_document(req: schemas.DocumentRequest, archive: bool = False,
 
         if not preview:
             audit_service.log(db=db, user_id=current_user.id, employer_id=current_user.get_employer_id(), action="GENERATE", resource_type="Document", resource_id=str(req.patient_id), details=f"Type: {req.type}, Preview: {preview}, Archive: {should_archive}")
-        return {"status": "success", "pdf_url": pdf_url, "warnings": warnings, "rdv_suggestion": rdv_suggestion, "suggest_radio": suggest_radio}
+        return {
+            "status": "success",
+            "pdf_url": pdf_url,
+            "warnings": warnings,
+            "rdv_suggestion": rdv_suggestion,
+            "suggest_radio": suggest_radio,
+            "far_required": far_required,
+            "far_status": far_status,
+            "far_document_id": int(far_document.id) if far_document is not None else None,
+            "far_pdf_url": far_document.file_path if far_document is not None else None,
+            "far_source_ordonnance_document_id": far_source_ordonnance_document_id,
+        }
     except ValueError as e:
         db.rollback()
         _restore_financial_edit_files()
