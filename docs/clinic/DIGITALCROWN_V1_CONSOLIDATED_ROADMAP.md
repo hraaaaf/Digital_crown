@@ -51,46 +51,46 @@ The stale documentation PR `#577` is a competing pre-consolidation roadmap and i
 
 ### LOT V1-00 — Foundation: CI / Windows / dependency contract
 
-Status: **MERGE_READY — HUMAN MERGE AUTHORIZATION REQUIRED — NOT CLOSED**
-
-Current working reference: PR `#582`, branch `fix/v1-00-foundation-contract-current-master`.
-
-Reconstruction base master: `569f0771ded59c4409c17155d659d037bc9b2b40`.
-
-Certified product HEAD: `cc34fdf42874f06d4ac3ec45073e1cbb012c6007`.
-
-PR `#580` / HEAD `3ce59839156e053fb12ba920b94838c9cbc11a42` is retained only as historical baseline evidence; it was not rebased or merged into the current reconstruction.
+Status: **CLOSED — POST-MERGE MASTER CERTIFIED**
 
 Goal: establish one coherent, reproducible runtime/build dependency contract on the actual current master, including clean Windows Python 3.12 validation and stable Linux CI consumers.
 
-Pre-merge Success evidence on certified product HEAD `cc34fdf42874f06d4ac3ec45073e1cbb012c6007`:
-- root `requirements.txt` and `backend/requirements.txt` are an exact 140-package lock mirror;
-- WebAuthn/cryptography contract is pinned to `webauthn==3.0.0` + `cryptography==49.0.0`;
-- `svglib==1.5.1` is retained in the default lock to avoid the Cairo regression introduced by the previous `svglib==1.6.0` dependency shape;
-- Windows build-only toolchain is isolated in `backend/requirements-windows-build.txt` with `pyinstaller==6.22.3`;
-- Media C4 now supplies the explicit DB-isolation attestation required by `backend/core/runtime_safety.py`; Patient UX1-C already carried the same contract;
-- Windows Build Dependency Contract run `35261174495` — **SUCCESS** on Windows Server 2025 / CPython 3.12.10; static contract reported `ROOT_REQUIREMENTS_MIRROR=OK`, `WINDOWS_RUNTIME_LOCK=OK (140 exact top-level dependencies)`, `WINDOWS_P5_NATIVE_PARITY=OK`, `WINDOWS_BUILD_TOOLCHAIN=OK`, `WINDOWS_BUILD_DEPENDENCY_CONTRACT=SUCCESS`; clean install completed; `python -m pip check` reported `No broken requirements found`; version proof passed; cabinet import smoke reported `WINDOWS_CABINET_IMPORT_SMOKE=OK`;
-- CI run `35261174409` — **SUCCESS**;
-- Portability P5 Native Dependency Certification `35261174502` — **SUCCESS**;
-- Media C4 Visual Certification `35261174469` — **SUCCESS**, including isolated backend start and responsive browser matrix;
-- Patient UX1-C Overlay Visual Certification `35261174611` — **SUCCESS**, including isolated backend start and 390 / 768 / 1280 capture matrix;
-- Patient P7 Final Certification `35261174478` — **SUCCESS**;
-- T2 Runtime Browser Certification `35261174525` — **SUCCESS**;
-- Catalog Connected Truth Certification `35261174529` — **SUCCESS**;
-- Marketplace Final Certification `35261174526` — **SUCCESS**;
-- M6-I Biometric Passkey Certification `35261174425` — skipped by workflow conditions, not a failure;
-- PR Merge Summary `35261174500` — skipped by workflow conditions, not a failure.
+Certified foundation product HEAD: `cc34fdf42874f06d4ac3ec45073e1cbb012c6007`.
+
+Foundation evidence:
+- Windows Build Dependency Contract `35261174495` — **SUCCESS** on Windows Server 2025 / CPython 3.12.10; exact 140-package runtime lock; `pip check` green; cabinet import smoke green;
+- CI `35261174409` — **SUCCESS**;
+- P5 Native `35261174502`, Media C4 `35261174469`, Patient UX1-C `35261174611`, Patient P7 `35261174478`, T2 `35261174525`, Catalog `35261174529`, Marketplace `35261174526` — **SUCCESS**;
+- foundation docs commit `41978064008deab3f7e91866d2a858ec21100e7e`;
+- PR `#582` merged as `15b5c2084b890c8375558c80b6bd7a44f577c016`.
+
+Post-merge repair evidence:
+- first master CI `35267802853` exposed Linux dependency/Connect Hub contract drift; PostgreSQL certification `35267803004` remained **SUCCESS**;
+- PR `#583` repaired Linux torch/httpx/Connect Hub/T2 contracts; exact repair HEAD `7b3d89248405296b8503d5eb16d4e54059057dee`;
+- exact-head CI `35282100416`, T2 `35282100475`, Connect Hub E `35282100413`, PR Merge Summary `35282100436` — **SUCCESS**;
+- PR `#583` merged as `bc7e1e1f1762431a048661ad9495a3430774f6e0`;
+- subsequent master CI `35282593094` exposed one stale insurance-validator assertion while PostgreSQL certification `35282593275` remained **SUCCESS**;
+- PR `#585` aligned that assertion and repaired file-backed SQLite/SQLCipher pooling after T2 `35283365207` exposed `SingletonThreadPool` detached-connection failures;
+- final PR `#585` HEAD `244b452bde8eacdd873b87ef80f31a38b297af8a`: CI `35283989343`, T2 `35283989391`, FAR `35283989308`, CNOPS `35283989425`, PR Merge Summary `35283989374`, UI Human Visual Approval `35283987548` — **SUCCESS**; M6-I `35283989353` skipped by workflow conditions;
+- PR `#585` merged as master `9b448dea18b1943f8b15beebf7cada1a75e96af9`.
 
 Remaining Success criterion:
-- merge PR `#582` only after explicit human authorization;
-- require post-merge master proof green;
-- only then mark V1-00 closed and unlock V1-01.
+- Cabinet Upgrade PostgreSQL Certification `35284854114` — **SUCCESS** on current master `9b448dea18b1943f8b15beebf7cada1a75e96af9`;
+- master CI `35284853774` — **FAILURE** after `2055 passed, 5 skipped`; the only failure was `test_zeroconf_runtime_dependency_is_declared`, whose static assertion still required the obsolete range `zeroconf>=0.131.0,<1.0` while the canonical mirrored runtime lock pins `zeroconf==0.150.0`;
+- repair PR `#587`, HEAD `330994e4454a30074e8ee4e1c7e301f071cb060b`, changes only that stale test assertion; exact-head CI `35286042393`, T2 `35286042275`, PR Merge Summary `35286042260`, UI Human Visual Approval `35286041958` — **SUCCESS**; M6-I `35286042180` skipped by workflow conditions.
 
-Next exact: obtain explicit human authorization to merge PR `#582`; merge with an expected-head guard; verify exact post-merge master SHA and required master CI; if green, record V1-00 closeout here and unlock V1-01. No V1-01 work starts before that proof.
+Remaining Success criterion:
+- PR `#587` merged under expected-head guard as master `1edd440bf69ca4a79c5e265b20957148297adb3f`;
+- final master CI `35286577382` — **SUCCESS**;
+- final Cabinet Upgrade PostgreSQL Certification `35286577467` — **SUCCESS**.
+
+V1-00 Success criterion is satisfied on exact master `1edd440bf69ca4a79c5e265b20957148297adb3f`. V1-01 is unlocked after this canonical closeout is merged.
+
+Next exact: merge this canonical closeout PR after its exact-head checks/coherence are green, then start V1-01 against the resulting current master.
 
 ### LOT V1-01 — Agenda A4: physical resources and capacity
 
-Status: **BLOCKED BY V1-00**
+Status: **UNLOCKED AFTER V1-00 CANONICAL CLOSEOUT MERGE**
 
 Working reference: PR `#575` is evidence/WIP only until revalidated against the then-current master.
 
@@ -219,11 +219,13 @@ Pending CI does not unlock the next lot. Independent work is permitted only insi
 
 ## 6. Current canonical state
 
-- active lot: **V1-00 — MERGE_READY / NOT CLOSED**
-- next lot: **V1-01 — BLOCKED**
-- certified V1-00 product HEAD: `cc34fdf42874f06d4ac3ec45073e1cbb012c6007`
-- merge authorization: **REQUIRED**
-- post-merge master proof: **PENDING**
+- active lot: **V1-00 — CLOSED / CANONICAL CLOSEOUT PR PENDING MERGE**
+- next lot: **V1-01 — UNLOCKED AFTER CANONICAL CLOSEOUT MERGE**
+- current master: `1edd440bf69ca4a79c5e265b20957148297adb3f`
+- certified V1-00 foundation product HEAD: `cc34fdf42874f06d4ac3ec45073e1cbb012c6007`
+- final repair PR: `#587` / `330994e4454a30074e8ee4e1c7e301f071cb060b` — **MERGED** as `1edd440bf69ca4a79c5e265b20957148297adb3f`
+- merge authorization: **SATISFIED for PR #582, #583, #585 and #587**
+- final post-merge master proof: **CI 35286577382 SUCCESS / PostgreSQL 35286577467 SUCCESS**
 - V1 candidate SHA: **NOT SELECTED**
 - V1 state: **EXECUTION LOCKED / NOT OPERATIONAL**
 - production/cabinet mutation: **NOT AUTHORIZED**
