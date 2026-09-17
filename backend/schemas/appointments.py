@@ -10,6 +10,7 @@ class AppointmentBase(BaseModel):
     patient_id: Optional[int] = None
     patient_name: Optional[str] = None
     praticien_id: Optional[int] = None
+    resource_id: Optional[int] = None
     datetime_start: datetime.datetime
     duration_minutes: int = 30
     motif: Optional[str] = None
@@ -20,7 +21,6 @@ class AppointmentBase(BaseModel):
     reminder_sent: bool = False
     reminder_sent_at: Optional[datetime.datetime] = None
     ticket_number: Optional[int] = None
-    # Frontdesk fields
     source: Optional[str] = None
     phone: Optional[str] = None
     confirmed_by_id: Optional[int] = None
@@ -37,6 +37,7 @@ class AppointmentUpdate(BaseModel):
     patient_id: Optional[int] = None
     patient_name: Optional[str] = None
     praticien_id: Optional[int] = None
+    resource_id: Optional[int] = None
     datetime_start: Optional[datetime.datetime] = None
     duration_minutes: Optional[int] = None
     motif: Optional[str] = None
@@ -46,7 +47,6 @@ class AppointmentUpdate(BaseModel):
     reminder_sent: Optional[bool] = None
     reminder_sent_at: Optional[datetime.datetime] = None
     ticket_number: Optional[int] = None
-    # Frontdesk fields
     source: Optional[str] = None
     phone: Optional[str] = None
     confirmed_by_id: Optional[int] = None
@@ -68,6 +68,7 @@ class AppointmentImportItem(BaseModel):
     notes: Optional[str] = None
     patient_id: Optional[int] = None
     praticien_id: Optional[int] = None
+    resource_id: Optional[int] = None
     status: AppointmentStatus = AppointmentStatus.PREVU
     scheduling_type: SchedulingType = SchedulingType.EXACT_TIME
 
