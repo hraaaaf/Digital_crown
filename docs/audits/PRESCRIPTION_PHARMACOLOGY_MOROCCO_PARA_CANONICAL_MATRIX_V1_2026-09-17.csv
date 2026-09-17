@@ -1,5 +1,5 @@
 canonical_id,family,subfamily,active_or_material,form,indication_tags,age_guard,evidence_status,morocco_status,product_specific,clinical_activation
-PARA-TP-F-001,Toothpaste,Daily fluoride,fluoride compounds,toothpaste,caries_prevention,AGE_PRODUCT_AND_GUIDELINE_SPECIFIC,CLINICAL_FAMILY_SUPPORTED,TO_VERIFY_BY_PRODUCT,YES,NO
+PARA-TP-F-001,Toothpaste,Daily fluoride,fluoride compounds,toothpaste,caries_prevention,AGE_PRODUCT_AND_GUIDELINE_SPECIFIC,CLINICAL_FAMILY_SUPPORTED,VERIFIED_MARKET_MA_OFFICIAL_BRAND_SITE_PRODUCT_SPECIFIC,YES,NO
 PARA-TP-HF-001,Toothpaste,High fluoride,fluoride,toothpaste,high_caries_risk,AGE_PRODUCT_AND_GUIDELINE_SPECIFIC,CLINICAL_FAMILY_SUPPORTED,TO_VERIFY_BY_PRODUCT,YES,NO
 PARA-DH-SN-001,Desensitization,Stannous,stannous fluoride,toothpaste_or_gel,dentin_hypersensitivity,PRODUCT_SPECIFIC,CLINICAL_FAMILY_SUPPORTED,TO_VERIFY_BY_PRODUCT,YES,NO
 PARA-DH-K-001,Desensitization,Potassium,potassium salts,toothpaste_or_gel,dentin_hypersensitivity,PRODUCT_SPECIFIC,CLINICAL_FAMILY_SUPPORTED,VERIFIED_MARKET_MA_OFFICIAL_BRAND_SITE_PRODUCT_SPECIFIC,YES,NO
@@ -48,6 +48,6 @@ PARA-POST-COLD-001,Post-op,Cold pack,device,cold_pack,postop_comfort,PROCEDURE_P
 PARA-POST-GAUZE-001,Post-op,Gauze,medical_textile,gauze_or_compress,local_postop_support;haemostasis_support,PROCEDURE_PROTOCOL_SPECIFIC,TAXONOMY_SUPPORTED_PROTOCOL_SPECIFIC,TO_VERIFY_BY_PRODUCT,YES,NO
 PARA-MG-STOCK-001,Trauma prevention,Mouthguard stock/boil bite,device,mouthguard,sports_trauma_prevention,AGE_FIT_ACTIVITY_SPECIFIC,CLINICAL_FAMILY_SUPPORTED,TO_VERIFY_BY_PRODUCT,YES,NO
 PARA-MG-CUSTOM-001,Trauma prevention,Mouthguard custom,device,custom_mouthguard,sports_trauma_prevention,AGE_FIT_ACTIVITY_SPECIFIC,CLINICAL_FAMILY_SUPPORTED,TO_VERIFY_BY_PRODUCT,YES,NO
-PARA-PED-BRUSH-001,Pediatric,Toothbrush,device,infant_or_child_brush,plaque_control,AGE_SIZE_SPECIFIC,CLINICAL_FAMILY_SUPPORTED,TO_VERIFY_BY_PRODUCT,YES,NO
+PARA-PED-BRUSH-001,Pediatric,Toothbrush,device,infant_or_child_brush,plaque_control,AGE_SIZE_SPECIFIC,CLINICAL_FAMILY_SUPPORTED,VERIFIED_MARKET_MA_OFFICIAL_BRAND_SITE,YES,NO
 PARA-PED-TEETHER-001,Pediatric,Non-drug teether,device,teether,teething_comfort,TEETHING_STAGE_PRODUCT_SPECIFIC,CLINICAL_FAMILY_SUPPORTED,VERIFIED_MARKET_MA,YES,NO
 PARA-PED-GEL-001,Pediatric,Medicated teething product,product_specific,gel_or_solution,teething_comfort_claim,SAFETY_REVIEW_REQUIRED,SAFETY_REVIEW_REQUIRED,TO_VERIFY_BY_PRODUCT,YES,NO
