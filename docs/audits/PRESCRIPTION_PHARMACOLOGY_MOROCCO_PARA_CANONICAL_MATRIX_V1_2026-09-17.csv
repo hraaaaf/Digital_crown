@@ -25,9 +25,9 @@ PARA-INT-HOLDER-001,Interdental,Floss holder,device,holder,interdental_plaque;de
 PARA-INT-BRUSH-001,Interdental,Brush,device,interdental_brush,interdental_plaque;ortho;implant;perio,SIZE_PATIENT_SPECIFIC,CLINICAL_FAMILY_SUPPORTED,VERIFIED_MARKET_MA,YES,NO
 PARA-INT-PICK-001,Interdental,Pick,device,interdental_pick,interdental_plaque,PRODUCT_SPECIFIC,CLINICAL_FAMILY_SUPPORTED,VERIFIED_MARKET_MA,YES,NO
 PARA-INT-WF-001,Interdental,Water flosser,device,oral_irrigator,interdental_plaque;ortho;implant;perio,PRODUCT_SPECIFIC,CLINICAL_FAMILY_SUPPORTED,TO_VERIFY_BY_PRODUCT,YES,NO
-PARA-BR-MAN-001,Toothbrush,Manual,device,manual_brush,plaque_control;general;ortho;implant;perio,AGE_SIZE_DEXTERITY_SPECIFIC,CLINICAL_FAMILY_SUPPORTED,TO_VERIFY_BY_PRODUCT,YES,NO
-PARA-BR-PWR-001,Toothbrush,Powered,device,powered_brush,plaque_control;dexterity_support;general;ortho;implant;perio,AGE_DEXTERITY_PRODUCT_SPECIFIC,CLINICAL_FAMILY_SUPPORTED,TO_VERIFY_BY_PRODUCT,YES,NO
-PARA-BR-SINGLE-001,Toothbrush,Single tuft,device,single_tuft_brush,ortho;implant;perio;targeted_hygiene,PRODUCT_SPECIFIC,TAXONOMY_SUPPORTED,TO_VERIFY_BY_PRODUCT,YES,NO
+PARA-BR-MAN-001,Toothbrush,Manual,device,manual_brush,plaque_control;general;ortho;implant;perio,AGE_SIZE_DEXTERITY_SPECIFIC,CLINICAL_FAMILY_SUPPORTED,VERIFIED_MARKET_MA_OFFICIAL_BRAND_SITE,YES,NO
+PARA-BR-PWR-001,Toothbrush,Powered,device,powered_brush,plaque_control;dexterity_support;general;ortho;implant;perio,AGE_DEXTERITY_PRODUCT_SPECIFIC,CLINICAL_FAMILY_SUPPORTED,VERIFIED_MARKET_MA_OFFICIAL_BRAND_SITE,YES,NO
+PARA-BR-SINGLE-001,Toothbrush,Single tuft,device,single_tuft_brush,ortho;implant;perio;targeted_hygiene,PRODUCT_SPECIFIC,TAXONOMY_SUPPORTED,VERIFIED_MARKET_MA_OFFICIAL_BRAND_SITE,YES,NO
 PARA-PLAQUE-DISC-001,Plaque control,Discloser,dye,tablet_or_solution,plaque_visualization,USE_SUPERVISION_SPECIFIC,TAXONOMY_SUPPORTED,TO_VERIFY_BY_PRODUCT,YES,NO
 PARA-TONGUE-001,Tongue care,Scraper,device,tongue_cleaning;halitosis,PRODUCT_SPECIFIC,TAXONOMY_SUPPORTED,VERIFIED_MARKET_MA_OFFICIAL_BRAND_SITE,YES,NO
 PARA-XERO-SUB-001,Xerostomia,Saliva substitute/moisturizer,moisturizing_agents,gel_spray_rinse,dry_mouth_relief,PRODUCT_SPECIFIC,CLINICAL_FAMILY_SUPPORTED,VERIFIED_MARKET_MA_OFFICIAL_BRAND_SITE,YES,NO
