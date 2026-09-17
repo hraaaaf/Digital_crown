@@ -82,9 +82,9 @@ class TestMobileAuthGuard:
         r = client.get("/api/mobile/patients")
         assert r.status_code == 422
 
-    def test_register_device_requires_mobile_auth(self, client):
+    def test_removed_register_device_is_not_mounted(self, client):
         r = client.post("/api/mobile/register-device", json={"device_name": "iPhone"})
-        assert r.status_code == 422
+        assert r.status_code == 404
 
 
 # ── claim-token endpoint ───────────────────────────────────────────────────────
