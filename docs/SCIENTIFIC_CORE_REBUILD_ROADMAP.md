@@ -6,9 +6,11 @@
 
 Pour toute reprise du chantier Céphalo-N, lire d'abord `docs/CEPHALO_N_CANONICAL.md` puis vérifier l'état GitHub live.
 
-État R20 au 2026-09-17 : produit/UI mergé et validé visuellement ; PR #566 mergée ; certification PostgreSQL post-merge verte ; full CI final `35204697524` encore `IN_PROGRESS` lors de la dernière vérification. En conséquence, `CEPHALO_N_CLOSEOUT_VERIFIED` n'est pas encore déclaré.
+État R20 au 2026-09-17 : produit/UI mergé et validé visuellement ; PR #566 mergée ; certification PostgreSQL `35203491675` verte ; full CI final `35204697524` verte avec `Full backend regression (post-merge)` job `105147523280` SUCCESS. Le delta jusqu'à `master@ec6bf4f40137f6e7d395effd97e0be3b0f6a2362` est documentaire Agenda uniquement.
 
-Aucun travail Ortho V2 dépendant de ce closeout ne doit être considéré débloqué avant la preuve finale définie dans le fichier canonique.
+Statut : `CEPHALO_N_CLOSEOUT_VERIFIED`.
+
+Le prochain lot Ortho/Céphalo peut être préparé uniquement à partir de `docs/CEPHALO_N_CANONICAL.md`, après merge et vérification post-merge de ce lot documentaire.
 
 ## GOAL FINAL
 
@@ -73,6 +75,6 @@ La protection de branche/required checks n'est pas entièrement lisible avec les
 
 ## NEXT EXACT
 
-Pour Céphalo-N R20 : suivre `docs/CEPHALO_N_CANONICAL.md` jusqu'à `CEPHALO_N_CLOSEOUT_VERIFIED`.
+Pour Céphalo-N R20 : merger le lot documentaire canonique, vérifier les quatre fichiers canoniques sur le `master` post-merge, puis considérer R20 fermé.
 
-Pour le reste du noyau scientifique : re-baseliner l'inventaire scientifique restant sur le `master` live après fermeture R20, identifier le prochain lot ouvert le plus critique, puis créer son Goal / Succès / Preuve avant toute modification. Aucun déploiement Vercel.
+Pour le reste du noyau scientifique : re-baseliner l'inventaire scientifique restant sur le `master` live après ce merge documentaire, identifier le prochain lot ouvert le plus critique, puis créer son Goal / Succès / Preuve avant toute modification. Aucun déploiement Vercel.
