@@ -8,7 +8,7 @@ on:
       - "backend/requirements-p5-native.txt"
       - "backend/requirements-windows-build.txt"
       - "backend/scripts/build_installable_windows.ps1"
-      - "scripts/windows_build_dependency_contract.py"
+      - "backend/scripts/windows_build_dependency_contract.py"
       - "DigitalCrown.spec"
       - ".github/workflows/windows-build-dependency-contract.yml"
   workflow_dispatch:
@@ -39,7 +39,7 @@ jobs:
           python-version: "3.12"
 
       - name: Static dependency contract
-        run: python scripts/windows_build_dependency_contract.py
+        run: python backend/scripts/windows_build_dependency_contract.py
 
       - name: Install pinned build environment
         shell: pwsh
@@ -73,4 +73,17 @@ jobs:
           }
 
       - name: Re-run dependency contract after install
-        run: python scripts/windows_build_dependency_contract.py
+        run: python backend/scripts/windows_build_dependency_contract.py
+
+      - name: Capture resolved Windows environment
+        shell: pwsh
+        run: |
+          python -m pip freeze | Set-Content -Encoding UTF8 windows-build-resolved.txt
+          python --version | Add-Content windows-build-resolved.txt
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows-build-resolved-${{ github.event.pull_request.head.sha || github.sha }}
+          path: windows-build-resolved.txt
+          if-no-files-found: error
+          retention-days: 30
