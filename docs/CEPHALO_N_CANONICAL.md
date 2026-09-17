@@ -22,7 +22,7 @@ R20 specifically closes the Workbench UX redesign without changing or inventing 
 
 ## SUCCESS
 
-R20 may be declared `CEPHALO_N_CLOSEOUT_VERIFIED` only when all of the following are true on the final integrated state:
+R20 is declared `CEPHALO_N_CLOSEOUT_VERIFIED` only when all of the following are true on the final integrated state:
 
 1. Product/UI implementation is merged and visual evidence remains valid.
 2. Scientific/calculation architecture and fail-closed contracts are preserved.
@@ -65,39 +65,47 @@ Successive repository-wide stale-test fixes:
 - `#564` — aligned a second removed-FCM test with deliberate 404 behavior.
 - `#566` — aligned the NGAP migration test with the current Alembic-head contract while preserving the NGAP revision-chain invariant.
 
-## CURRENT VERIFIED STATE
+## FINAL VERIFIED STATE
 
 Repository: `hraaaaf/Digital_crown`.
-
-Current `master` observed during this documentation lot: `ec6bf4f40137f6e7d395effd97e0be3b0f6a2362` (`Merge PR #568: finalize Agenda A3 closeout`).
 
 PR `#566` is MERGED.
 
 PR `#566` head: `7f79c16b0c8e8066ea55c0ede178b1b0a83d5dbd`.
 Merge SHA: `24844a5d19a6bd575d175b331a1bba68bc3c0b0f`.
 
-On merge SHA `24844a5d...`:
+Final proof on merge SHA `24844a5d...`:
 
 - Cabinet Upgrade PostgreSQL Certification run `35203491675` / #943: SUCCESS.
-- Manual full CI run `35204697524` / #4760: IN_PROGRESS at the last verification in this file.
+- Manual CI run `35204697524` / #4760: SUCCESS.
+- `Full backend regression (post-merge)` job `105147523280`: SUCCESS.
+- `Frontend (tests & build)` job `105147523277`: SUCCESS.
+- `Garde production (négatif)` job `105147523081`: SUCCESS.
 
-Therefore R20 is NOT YET declared `CEPHALO_N_CLOSEOUT_VERIFIED` in this file.
+Current `master` at final reconciliation: `ec6bf4f40137f6e7d395effd97e0be3b0f6a2362`.
+
+Verified delta `24844a5d... -> ec6bf4f...`: only Agenda closeout documentation changed (`docs/audits/AGENDA_CLINIC_A3_CLOSEOUT.md` and `docs/audits/AGENDA_CLINIC_CANONICAL.md`). No application/runtime change exists in that delta.
+
+## CLOSEOUT
+
+Status: `CEPHALO_N_CLOSEOUT_VERIFIED`.
+
+R20 product/UI, scientific invariants, repository-wide backend regression and PostgreSQL certification are all evidenced. The corrective regression chain did not require restoring deprecated FCM/mobile runtime behavior.
 
 ## NEXT EXACT
 
-Inspect run `35204697524` once.
+Merge this documentation-only canonicalization lot after its PR diff/CI are coherent, then perform one post-merge documentation verification on `master`.
 
-- If green: verify its backend/full-regression jobs and exact SHA; then update this file plus the R20 closeout handover with final proof, reconcile against current `master`, and close the R20 documentation state.
-- If failed: diagnose the exact failing test/runtime contract, correct only the proven stale/broken behavior, test exact head, merge safely, then repeat the final post-merge proof chain.
-- If still queued/in-progress: continue all independent documentation/roadmap reconciliation; do not poll or wait passively.
+After that, unpark the next Ortho/Céphalo lot from this canonical baseline. Do not reopen R20 unless a new regression is evidenced.
 
 ## REMAINING SEQUENCE
 
-`final full backend proof -> canonical R20 closeout update -> roadmap coherence -> merge documentation lot -> post-merge verification -> CEPHALO_N_CLOSEOUT_VERIFIED -> unpark next Ortho/Céphalo lot`
+`docs PR -> docs CI/diff coherence -> merge -> post-merge canonical verification -> next Ortho/Céphalo lot`
 
 ## SOURCE / HISTORY
 
-Detailed R20 chronology is preserved in `docs/audits/CEPHALO_N_R20_CLOSEOUT_HANDOVER.md` on its documentation branch until reconciled into the final closeout.
+Detailed R20 chronology is preserved in `docs/audits/CEPHALO_N_R20_CLOSEOUT_HANDOVER.md`.
 
+The active Céphalo-N roadmap is `docs/CEPHALO_N_ROADMAP.md`.
 The global scientific constraints remain governed by `docs/SCIENTIFIC_CORE_REBUILD_ROADMAP.md`.
-The product trajectory remains governed by `docs/ROADMAP_DIGITAL_CROWN_V2.md`.
+The historical product trajectory remains governed by `docs/ROADMAP_DIGITAL_CROWN_V2.md` and is intentionally left read-only.
