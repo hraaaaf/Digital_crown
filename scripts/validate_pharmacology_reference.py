@@ -49,9 +49,19 @@ def _activation_errors(root: Path) -> list[str]:
     audits = root / "docs" / "audits"
     for path in sorted(audits.glob("PRESCRIPTION_PHARMACOLOGY_MOROCCO_*.csv")):
         rows = _rows(path)
-        if not rows or "clinical_activation" not in rows[0]:
+        if not rows:
             continue
+        has_activation = "clinical_activation" in rows[0]
         for index, row in enumerate(rows, start=2):
+            if None in row:
+                errors.append(f"{path.name}:{index} CSV row has unexpected extra columns")
+            missing_columns = [key for key, value in row.items() if key is not None and value is None]
+            if missing_columns:
+                errors.append(
+                    f"{path.name}:{index} CSV row is missing columns: {missing_columns}"
+                )
+            if not has_activation:
+                continue
             raw_value = row.get("clinical_activation")
             value = (raw_value or "").strip().upper()
             if value != "NO":
@@ -62,7 +72,6 @@ def _activation_errors(root: Path) -> list[str]:
 
 
 def validate(root: Path = ROOT) -> list[str]:
-    global AUDITS
     errors: list[str] = []
     audits = root / "docs" / "audits"
 
