@@ -3,39 +3,44 @@
 Status: AUDIT CONSOLIDATED — V1 CANDIDATE NOT SELECTED  
 Date: 2026-09-17  
 Repository: `hraaaaf/Digital_crown`  
+Canonical roadmap: this file is the single V1 execution ledger. No competing V1 roadmap is authoritative.  
 Initial audit baseline: `master@3beea0a4cee0eb227bd531d1aaf0ea29d13c4118`  
-Live master after in-audit merge of #557: `7c175bdd37b2f53afb7b05fd8cf21aaf4bda2164`
+Live master: `7c175bdd37b2f53afb7b05fd8cf21aaf4bda2164` (`#557` Connect Hub merged)
 
 ## Goal
 
-Reach one intentionally frozen Digital Crown V1 candidate SHA only after the active V1 workstreams are either closed with evidence or explicitly deferred, then prove that exact SHA installable from canonical cabinet V0 without data loss.
+Reach one intentionally frozen Digital Crown V1 candidate SHA only after the selected V1 workstreams are either closed with evidence or explicitly deferred, then prove that exact SHA installable from canonical cabinet V0 without data loss.
 
 Canonical V0: `76547ed178b98b4d8cf14c0fdc691ff3f787076e`.
 
-V1 is not `latest master`. The final candidate remains `NOT SELECTED` until this roadmap reaches the freeze gate.
+V1 is not `latest master`. The final candidate remains `NOT SELECTED` until the functional freeze gate is closed.
 
 ## Success
 
-The consolidation phase is successful when:
+The consolidation/execution phase is successful only when:
 
-1. every PR open at audit start is classified against live `master`;
-2. stale/superseded branches are not merged merely because they remain open;
+1. every surviving open PR is classified against live `master`;
+2. stale/superseded branches are closed or reduced to explicitly reusable evidence, never merged merely to clear the queue;
 3. each surviving workstream has a dependency order and explicit closure gate;
-4. pharmacology remains fail-closed until the independent qualified clinical/scientific review required by its own gate is completed;
-5. Agenda A4/A5, the Ortho/Céphalo re-baseline, and the Orthalis benchmark are resolved before candidate freeze;
-6. FAR is either integrated after its own gates or explicitly deferred before freeze;
-7. already-merged Connect Hub is verified post-merge rather than kept as false remaining work;
+4. master regressions are repaired before they are treated as baseline;
+5. pharmacology remains fail-closed until the qualified independent clinical/scientific gate required by its own contract is completed, unless V1 intentionally keeps automatic clinical activation disabled;
+6. Agenda A4/A5, Ortho/Céphalo re-baseline, Windows build/installability prerequisites and the refreshed Orthalis comparison are resolved before candidate freeze;
+7. FAR is either fully integrated after its gates or explicitly deferred before freeze;
 8. only after the functional freeze is complete is one immutable V1 SHA selected and passed through the managed V0 -> V1 installation certification.
 
 ## Proof baseline
 
-- `master` verified first at `3beea0a4...`, then re-verified at `7c175bdd...` after #557 merged during this audit;
-- canonical V1 objective and V0 -> V1 handover read from current master;
-- the 14 PRs open at audit start were inventoried and compared to master;
-- exact-head CI/workflow state checked for the active near-master PRs;
-- current Agenda and Céphalo canonical handovers read;
-- current Orthalis public capability surface re-checked on official Orthalis pages on 2026-09-17;
-- this roadmap is proposed through documentation-only PR #577.
+- `master` verified at `7c175bdd37b2f53afb7b05fd8cf21aaf4bda2164` after merge of #557;
+- canonical V1 objective and V0 -> V1 handover were used as constraints;
+- the 14 PRs open at the initial audit were classified;
+- live refresh after cleanup shows exactly 10 open PRs: `#288 #289 #383 #559 #565 #572 #575 #577 #578 #579`;
+- stale/superseded PRs `#279 #401 #407 #505 #563` were closed on 2026-09-17 without merge after repository proof;
+- `#576` is closed/merged into the #559 branch, not into master; merge commit `28e9a13f19c299cb3bbae8a8ffb7b5b542b1a85f`;
+- post-#557 master Cabinet Upgrade PostgreSQL run `35245309371` is `SUCCESS`;
+- post-#557 master CI run `35245309329` is `FAILURE` with exactly one backend failure after `3746 passed, 10 skipped`: `test_pytorch_landmarks_do_not_gain_synthetic_incisor_apices`;
+- targeted regression PR #579 exact head `b00f44acffff3687b6034686254bf7def6be3922` has CI `35248190003` SUCCESS, P5 Native `35248189724` SUCCESS and T2 Runtime `35248189918` SUCCESS;
+- Windows build contract #578 exact head `da74620da0c89de26fc7d59c82725e55f4d5969e` remains red: Windows Build Dependency Contract `35248048864` fails during dependency installation because the branch pins `cryptography==47.0.0` while `webauthn==3.0.0` requires `cryptography>=49.0.0`;
+- no V1 candidate SHA has been selected.
 
 ## Checklist protocol — mandatory
 
@@ -44,23 +49,27 @@ This file is the live V1 execution ledger.
 - `[ ]` = not yet proven complete.
 - `[x]` = complete only after observable proof has been obtained.
 - A step MUST NOT be checked merely because code was written, a PR exists, or a workflow started.
-- The proof can be an exact commit SHA, merged PR, successful exact-head CI/certification run, deterministic test result, UI BEFORE/AFTER evidence, qualified human review where required, or installation/data-integrity evidence.
-- After every completed step, update this roadmap in the same workstream closeout and add the proof reference next to the checked item or in the relevant canonical closeout document.
+- Proof may be an exact commit SHA, merged PR, successful exact-head CI/certification run, deterministic test result, UI BEFORE/AFTER evidence, qualified human review where required, or installation/data-integrity evidence.
+- After every completed step, update this same roadmap in the workstream closeout and add the proof reference.
 - If later evidence invalidates a checked item, revert it to `[ ]` and record why.
 - V1 candidate selection is forbidden while a mandatory item below remains unchecked.
 
 ## Master execution checklist
 
-### Phase 0 — Consolidation / repository hygiene
+### Phase 0 — Consolidation / repository hygiene / master health
 
-- [x] Audit and classify the 14 PRs open at audit start against live master. Proof: consolidation audit recorded in this roadmap and PR #577.
-- [x] Record Connect Hub #557 as merged/acquired rather than remaining product work. Proof: merge on master `7c175bdd37b2f53afb7b05fd8cf21aaf4bda2164`.
-- [ ] Verify Connect Hub post-merge CI + Cabinet Upgrade PostgreSQL on the relevant master SHA and record exact runs.
-- [ ] Close/supersede stale candidates #401/#505/#279/#563/#572 after preserving any explicitly reusable evidence/tests.
+- [x] Audit and classify the 14 PRs open at audit start against live master. Proof: PR #577 consolidation audit.
+- [x] Record Connect Hub #557 as merged/acquired rather than remaining product work. Proof: master `7c175bdd37b2f53afb7b05fd8cf21aaf4bda2164`.
+- [x] Verify post-#557 Cabinet Upgrade PostgreSQL. Proof: run `35245309371` SUCCESS.
+- [x] Diagnose post-#557 master CI rather than claiming it green. Proof: run `35245309329` FAILURE; only failing test is `backend/tests/test_vision_apex_provenance.py::test_pytorch_landmarks_do_not_gain_synthetic_incisor_apices`; `3746 passed, 10 skipped`.
+- [x] Close obsolete/superseded #279, #401, #407, #505 and #563 without merge after preserving repository evidence.
+- [ ] Integrate the targeted master regression fix #579 after explicit merge authorization. Exact-head proof already green: CI `35248190003`, P5 `35248189724`, T2 `35248189918`.
+- [ ] After #579 integration, prove the resulting master CI green; do not treat #579 PR-head green as post-merge proof.
+- [ ] Extract the unique deterministic denominator/Core-8 evidence from #572 into the accepted pharmacology reconstruction, then close #572. Do not close it as merely superseded: #572 and #565 diverged from common ancestor `34ee8c627bc9ec5e2af5628a80405bd0f9790854` and #572 still contains unique tests/data.
 
 ### Phase 1A — Agenda A4 #575
 
-- [ ] Re-baseline/reconcile A4 against current master without resurrecting stale deltas.
+- [ ] Re-baseline/reconcile A4 against current master after the master regression baseline is healthy, without resurrecting stale deltas.
 - [ ] Align runtime schema head with unique Alembic head `a4rs0000004`.
 - [ ] Prove PostgreSQL from-scratch migration.
 - [ ] Prove second Alembic upgrade is a no-op.
@@ -85,54 +94,77 @@ This file is the live V1 execution ledger.
 
 ### Phase 1C — FAR / mutuelles
 
-- [ ] Reconcile FAR base #559 against current master.
+- [x] Preserve the fail-closed FAR -> ordonnance bridge inside the FAR branch. Proof: #576 closed/merged into #559 branch at `28e9a13f19c299cb3bbae8a8ffb7b5b542b1a85f`.
+- [ ] Reconcile #559, including the already-merged #576 bridge, against current master. No separate #576 merge remains.
 - [ ] Diagnose and fix FAR visual capture failure.
 - [ ] Re-certify FAR source/rendering and CNSS/CNOPS regressions.
 - [ ] Capture required UI BEFORE/AFTER evidence for any visual change.
-- [ ] Pass exact-head FAR tests/CI.
-- [ ] Merge #559 or explicitly defer FAR before V1 freeze.
-- [ ] Only after #559 resolution, reconcile ordonnance bridge #576.
-- [ ] Prove fail-closed FAR -> ordonnance bridge behavior.
-- [ ] Merge #576 or explicitly defer it with no dependency left in the V1 candidate.
+- [ ] Re-prove the FAR -> ordonnance bridge copies only explicit archived ordonnance data and remains fail-closed with no medication inference.
+- [ ] Pass exact-head FAR tests/CI on the reconciled candidate.
+- [ ] Merge #559 as one coherent FAR stack or explicitly defer FAR before V1 freeze.
 
 ### Phase 2 — Pharmacology / Ordonnance
 
-- [ ] Complete documentary/source review of the scientific branch assets.
+- [ ] Complete documentary/source review of #565 scientific assets plus the unique #572 evidence.
 - [ ] Separate Morocco regulatory/commercial presence from clinical indication and exact product/form/strength suitability.
 - [ ] Resolve internal contradictions and malformed mappings.
-- [ ] Rebuild only accepted assets/tests on a clean current-master branch.
+- [ ] Preserve the deterministic 68-row fail-closed denominator and accepted Core-8 triage evidence from #572 where it survives review.
+- [ ] Rebuild only accepted assets/tests on a clean current-master branch; never brute-force merge the stale #565/#572 histories.
 - [ ] Prove fail-closed behavior for unresolved medication domains.
-- [ ] Prepare the Core-5 qualified-review packet.
+- [x] Core-5 qualified-review packet prepared on #565; automatic activation remains `0/5` and `clinical_activation=NO`.
 - [ ] Obtain qualified independent human clinical/scientific review if automatic prescription activation is required for V1.
 - [ ] Apply reviewer corrections and document dispositions.
 - [ ] Pass deterministic negative tests + exact-head CI + integration review.
-- [ ] Merge the accepted pharmacology/ordonnance V1 delta or explicitly keep clinical activation disabled.
+- [ ] Merge the accepted pharmacology/ordonnance V1 delta or explicitly keep automatic clinical activation disabled for V1.
+- [ ] Close #565 and #572 only after accepted evidence is safely reconstructed or explicitly archived as non-product evidence.
 
 ### Phase 3 — Ortho / Céphalo
 
-- [ ] Re-baseline live master against the canonical Céphalo scientific inventory.
+R20 remains CLOSED. #579 is a runtime regression repair, not a reopening of R20 or a new scientific lot.
+
+- [x] Identify the current master Céphalo runtime regression. Proof: master CI `35245309329`, single failing apex-provenance test after 3746 passes.
+- [x] Produce and exact-head certify targeted fix #579. Proof: head `b00f44acffff3687b6034686254bf7def6be3922`; CI/P5/T2 all SUCCESS.
+- [ ] Merge #579 after explicit authorization and prove subsequent master CI green.
+- [ ] Re-baseline healthy live master against the canonical Céphalo scientific inventory.
 - [ ] Search remaining BLOCKED/TODO/legacy/scientific gaps.
-- [ ] Select only the highest-priority genuine V1-relevant open gap, if one exists.
+- [ ] Select only the highest-priority genuine V1-relevant open scientific gap, if one exists.
 - [ ] Define Goal / Success / Proof for that lot.
-- [ ] Execute and certify the lot, or document Céphalo as non-blocking if no genuine blocker exists.
+- [ ] Execute and certify the lot, or document Céphalo as non-blocking if no genuine V1 blocker exists.
 
 ### Phase 4 — Orthalis benchmark refresh
 
+Historical PR #407 was closed without merge and is not a competing roadmap. Its domain structure may be reused as historical input only; its old scores are not current evidence.
+
 - [ ] Inventory current Digital Crown capabilities from code/tests/runtime only.
-- [ ] Re-check current Orthalis official capability claims and label marketing claims as such.
+- [ ] Re-check current Orthalis official capability claims and label marketing claims as claims.
 - [ ] Build a domain-by-domain evidence matrix.
 - [ ] Recalculate from current evidence; do not reuse historical #407 scores.
 - [ ] Identify only Morocco/local-first/clinical-workflow-relevant gaps.
 - [ ] Convert only verified high-value gaps into bounded V1 lots; defer the rest.
 - [ ] Close every resulting V1-critical Orthalis gap or document it as non-blocking/deferred before freeze.
 
+### Phase 4B — Windows cabinet dependency/build contract #578
+
+This is a V1 installability prerequisite for the Windows cabinet target, not proof of a V1 candidate by itself.
+
+- [x] Establish a static Windows dependency/build contract harness on #578. Proof: static contract step reports `WINDOWS_BUILD_DEPENDENCY_CONTRACT=SUCCESS` on run `35248048864` before install.
+- [ ] Replay/rebuild #578 on the then-current master after #579 integration; current branch is stale and must not merge as-is.
+- [ ] Resolve the real dependency conflict: current #578 pins `cryptography==47.0.0` while `webauthn==3.0.0` requires `cryptography>=49.0.0`; choose and lock an actually resolvable compatible set rather than loosening blindly.
+- [ ] Pass clean Windows Python 3.12 dependency installation and `pip check` on exact head.
+- [ ] Pass cabinet import smoke and Windows build guard.
+- [ ] Pass exact-head Windows Build Dependency Contract; current run `35248048864` is FAILURE and therefore not proof.
+- [ ] Re-run relevant CI/P5/T2/package workflows on the reconciled exact head and close unrelated failures introduced by stale branch drift.
+- [ ] Merge only the accepted current-master Windows dependency/build contract before V1 candidate freeze.
+
 ### Phase 5 — Functional freeze
 
+- [ ] Master CI is green after all included regression fixes.
 - [ ] All selected V1 workstreams are closed and on master.
 - [ ] All intentionally deferred work is documented and non-dependent on the candidate.
 - [ ] Unique Alembic head equals runtime schema head.
 - [ ] No relevant red/absent exact-head workflow remains for included scope.
-- [ ] No unreviewed clinical activation exists.
+- [ ] Windows cabinet dependency/build contract is resolvable and certified on the included code line.
+- [ ] No unreviewed automatic clinical activation exists.
 - [ ] FAR is fully merged or explicitly deferred with no half-integration.
 - [ ] Orthalis benchmark is current and no stale #407 score is used as a decision basis.
 - [ ] Select and record one immutable exact V1 candidate SHA.
@@ -141,6 +173,7 @@ This file is the live V1 execution ledger.
 
 - [ ] Lock exact candidate SHA.
 - [ ] Pass candidate exact-head CI/certification.
+- [ ] Build/certify the Windows cabinet package from the locked dependency/build contract.
 - [ ] Execute fresh real-cabinet PREUPDATE.
 - [ ] Create and verify PostgreSQL backup.
 - [ ] Create and verify media/document backup.
@@ -155,144 +188,168 @@ This file is the live V1 execution ledger.
 - [ ] Re-run post-update integrity/startup/critical smoke checks.
 - [ ] Close V1 baseline documentation with final installed SHA and evidence.
 
-## PR inventory — classification against current master
+## Live PR inventory — 2026-09-17 refresh
 
-| PR | Workstream | Divergence at audit | Classification | V1 action |
-|---|---|---:|---|---|
-| #576 | FAR -> ordonnance bridge | +24 / -18 commits | ACTIVE STACKED on #559 | Do not merge independently. Reconcile #559 first; then retain only the fail-closed bridge delta and certify it. |
-| #575 | Agenda A4 resources | +11 / -14 | ACTIVE / INCOMPLETE | Keep. Reconcile current master, update schema runtime head to `a4rs0000004`, rerun PostgreSQL gate, wire create/update/bulk/check-conflicts, then UI BEFORE/AFTER and closeout. |
-| #572 | Pharmacology gap denominator | +127 / -482 | SUPERSEDED by later #565 lineage | Preserve useful evidence through the later branch; close separately after consolidation. |
-| #565 | Pharmacology Core-5 / fail-closed | +127 / -482 | ACTIVE SCIENTIFIC CORPUS / STALE INTEGRATION BASE | Never brute-force merge. Preserve/review scientific assets, rebuild the accepted minimal delta from current master, keep `clinical_activation=NO` until qualified independent review. |
-| #563 | Mobile numeric-sub license regression | +2 / -38 | FUNCTIONALLY SUPERSEDED | Master already contains the canonical 422/403 regression logic. Optionally port only the explicit T2 targeted-check idea; close old PR. |
-| #559 | FAR derived-reference runtime/UI | +22 / -18 | ACTIVE | Reconcile current master. Backend contract is green; FAR visual capture is red. Diagnose capture, re-certify source/rendering/CNSS-CNOPS regressions, then closeout. |
-| #557 | Connect Hub Lot E | +22 / -18 effective delta | MERGED DURING AUDIT | Merge `7c175bdd...` is now on master. Treat product work as acquired; only post-merge CI/PostgreSQL verification remains before closeout proof. |
-| #505 | ACIGAM catalog supplement | +17 / -499 | OBSOLETE / SUPERSEDED | Do not merge. The medication-source direction was superseded by the later merged AMMPS-based catalog work. Close. |
-| #407 | Digital Crown vs Orthalis roadmap | +3 / -1140 | HISTORICAL STRATEGY INPUT | Do not merge as canonical. Reuse its domain structure only; rebuild benchmark against current master and current official Orthalis claims. |
-| #401 | P5 installment runtime invariants | +1 / -1163 | ALREADY ABSORBED | `backend/tests/test_installments_p5_runtime.py` is already on master. Close. |
-| #383 | Portability P13 physical cabinet certification | +3 / -1469 | HISTORICAL HUMAN-GATE RUNBOOK | Do not certify old release as V1. Re-issue physical/installation certification against the final locked V1 SHA. |
-| #289 | SEC-2 device binding | +69 / -2065 | STALE / DEPENDS ON #288 | Not part of the immediate first-installable-V1 critical path unless explicitly promoted into V1 scope. Rebuild from current master only after SEC-1 decision. |
-| #288 | SEC-1 signed licenses / OWNER entitlement | +225 / -2031 | LARGE STALE SECURITY PROGRAM | Do not rebase/merge wholesale. Treat as separate security program; promote only with an explicit V1 scope decision and reconstruct in bounded current-master lots. |
-| #279 | Mobile mDNS bootstrap | +1 / -2085 | SUPERSEDED IMPLEMENTATION | Current master has a newer `mobile_mdns.py` using the stable HTTPS origin/port 8005 and safer threaded lifecycle. Do not merge old branch; optionally add current-implementation tests if coverage is missing. |
+Current open PRs: `#288 #289 #383 #559 #565 #572 #575 #577 #578 #579`.
+
+| PR | Workstream | Live classification | V1 action |
+|---|---|---|---|
+| #579 | Céphalo runtime regression | ACTIVE TARGETED FIX / EXACT-HEAD GREEN | CI `35248190003`, P5 `35248189724`, T2 `35248189918` SUCCESS. Merge requires explicit authorization; then prove master CI green. |
+| #578 | Windows dependency/build contract | ACTIVE / BROKEN / STALE BASE | Static contract exists, but Windows install run `35248048864` fails: `cryptography==47.0.0` conflicts with `webauthn==3.0.0` requiring `>=49.0.0`. Rebuild on current master after #579. |
+| #577 | V1 consolidated roadmap | ACTIVE CANONICAL LEDGER | This file is the single V1 roadmap. Keep updated; no parallel V1 roadmap. |
+| #575 | Agenda A4 resources | ACTIVE / INCOMPLETE | Reconcile healthy current master, align runtime/Alembic head, PostgreSQL proof, functional wiring, UI BEFORE/AFTER, exact-head CI, closeout. |
+| #572 | Pharmacology denominator/Core-8 evidence | EVIDENCE TO EXTRACT THEN CLOSE | Not literally absorbed by #565; branches diverged. Preserve accepted unique tests/data into clean reconstruction, then close. |
+| #565 | Pharmacology Core-5 / fail-closed | ACTIVE SCIENTIFIC CORPUS / STALE INTEGRATION BASE | Never brute-force merge. Review/reconstruct accepted evidence on current master. Keep automatic activation fail-closed pending qualified review if activation is required. |
+| #559 | FAR derived-reference runtime/UI + ordonnance bridge | ACTIVE STACK | #576 already merged into this branch at `28e9a13f...`; reconcile whole stack to current master, certify visual/source/regressions/bridge, then merge or explicitly defer. |
+| #383 | Portability P13 physical certification | HISTORICAL HUMAN-GATE RUNBOOK | Do not certify old release as V1. Re-issue physical/installability certification against final locked V1 SHA where applicable. |
+| #289 | SEC-2 device binding | STALE / DEPENDS ON #288 | Separate security program unless explicitly promoted into V1. Rebuild from current master only after SEC-1 scope decision. |
+| #288 | SEC-1 signed licenses / OWNER entitlement | LARGE STALE SECURITY PROGRAM / EXTERNAL PRODUCTION GATE | Do not resurrect wholesale. Production control-plane inputs remain absent; promote only by explicit V1 scope decision and bounded current-master reconstruction. |
+
+## Closed during consolidation — do not resurrect as branches
+
+| PR | Final classification | Proof/action |
+|---|---|---|
+| #576 | CLOSED / MERGED INTO #559 BRANCH | Merge commit `28e9a13f19c299cb3bbae8a8ffb7b5b542b1a85f`; not on master independently. |
+| #563 | CLOSED / FUNCTIONALLY SUPERSEDED | Master already contains canonical numeric-sub license regression on `/api/appointments/`: licensed path reaches 422 validation; unlicensed path returns 403 `NOT_LICENSED`. |
+| #505 | CLOSED / OBSOLETE SOURCE DIRECTION | Current master AMMPS 2026 catalog contains ACIGAM 200 MG; old 100 MG supplement relied on historical/cross-check evidence and was not current-directory matched. |
+| #407 | CLOSED / HISTORICAL STRATEGY INPUT | Competing historical roadmap closed. Reuse domain structure only; no inherited score. |
+| #401 | CLOSED / ALREADY ABSORBED | `backend/tests/test_installments_p5_runtime.py` exists on master. |
+| #279 | CLOSED / SUPERSEDED IMPLEMENTATION | Current master `mobile_mdns.py` uses stable HTTPS origin on port 8005 and newer threaded lifecycle; old PR targeted port 5173. |
+| #557 | MERGED / ACQUIRED | Master `7c175bdd...`; PostgreSQL green, master CI regression separately tracked by #579. |
 
 ## Verified active gaps
 
-### 1. Pharmacology / Ordonnance
+### 1. Master health / Céphalo regression
 
-Current state: the scientific branch contains substantial Morocco-specific evidence and deterministic fail-closed tooling, but it is 482 commits behind the audit master lineage. Automatic clinical activation remains off. The Core-5 review packet explicitly requires an independent dentist/pharmacist/qualified clinical reviewer.
+Current master is not yet a clean V1 integration baseline because post-#557 CI `35245309329` is red. The failure is bounded to one Céphalo legacy-injected-model regression after 3746 passing backend tests. #579 provides a targeted one-file repair and is exact-head green on CI/P5/T2.
 
 Closure contract:
 
-- complete an independent documentary/source review of the branch assets;
+`explicit merge authorization -> merge #579 -> master CI rerun -> require green -> only then treat master as healthy baseline for subsequent integration lots`.
+
+### 2. Pharmacology / Ordonnance
+
+#565 contains substantial Morocco-specific scientific evidence and deterministic fail-closed tooling but has a stale/diverged integration base. #572 contains additional unique deterministic denominator/Core-8 evidence and diverged independently from the same ancestor; it must not be discarded merely because #565 is newer.
+
+Closure contract:
+
+- independent documentary/source review of #565 + #572 assets;
 - separate regulatory/commercial presence from clinical indication and exact product/form/strength suitability;
-- resolve internal contradictions or malformed mappings;
-- rebuild only accepted assets/tests on a clean branch from current master;
-- keep every medicine fail-closed while any required domain is unresolved;
-- submit the Core-5 packet to the qualified independent human reviewer;
-- after that review, apply corrections and only then perform any technical activation review;
-- deterministic negative tests + exact-head CI + integration review before merge.
+- resolve malformed mappings/contradictions;
+- reconstruct only accepted assets/tests on clean current master;
+- preserve fail-closed behavior for unresolved dimensions;
+- if automatic prescription activation is required, complete qualified independent human review before activation;
+- deterministic negative tests + exact-head CI + integration review;
+- then close the stale evidence branches.
 
-Human gate: qualified independent clinical/scientific review if automatic prescription activation is required for V1.
+Human gate: qualified independent clinical/scientific review only if automatic clinical activation is required for V1. V1 may instead deliberately ship with automatic clinical activation disabled.
 
-### 2. Agenda
+### 3. Agenda
 
-Current canonical state on master: A1/A2/A3 CLOSED; A4 and A5 open.
+Canonical state: A1/A2/A3 CLOSED; A4 and A5 open.
 
-A4 current PR #575 has already created the minimal resource model, nullable appointment `resource_id`, tenant-scoped resource CRUD and capacity-1 conflict service. Its PostgreSQL certification fails before migration because `backend/core/schema_runtime.py` still declares `CURRENT_ALEMBIC_HEAD = "a3pa0000003"` while A4 adds `a4rs0000004`.
+A4 #575 has the minimal resource model, nullable appointment `resource_id`, tenant-scoped resource CRUD and capacity-1 conflict service. Its known closure sequence remains:
 
-A4 closure order:
-
-`reconcile master -> align runtime schema head -> PostgreSQL from-scratch/no-op proof -> wire create/update/bulk/check-conflicts -> targeted backend tests -> UI BEFORE -> implementation -> AFTER same 390/768/1280 viewports -> visual comparison -> exact-head CI -> closeout -> merge`
+`healthy master -> reconcile A4 -> align runtime schema head to a4rs0000004 -> PostgreSQL from-scratch/no-op proof -> wire create/update/bulk/check-conflicts -> targeted backend tests -> UI BEFORE -> implementation -> AFTER same 390/768/1280 viewports -> visual comparison -> exact-head CI -> closeout -> merge`.
 
 Then A5:
 
 `explicit cabinet timezone -> soft-delete/history policy -> legacy treatment/migration strategy -> transversal regressions -> final Agenda documentation/certification`.
 
-### 3. Ortho / Céphalo
+### 4. FAR
 
-R20 itself is CLOSED and must not be reopened without new evidence. The next lot is intentionally undefined by the canonical handover.
+FAR remains active but is not intrinsically required by the canonical installability definition of V1.
 
-Before declaring additional Céphalo work mandatory for V1:
+#576 no longer exists as a separate future integration step: it is already merged into the #559 branch. The whole #559 stack must now be reconciled together.
 
-`live master re-baseline -> read canonical scientific inventory -> search remaining BLOCKED/TODO/legacy/scientific gaps -> select only the highest-priority genuine open gap -> Goal/Success/Proof -> execute if no human scientific gate`.
+Rule before freeze: FAR must be either (A) reconciled, fully certified and merged, or (B) explicitly deferred with no dependency left in the chosen V1 candidate. A half-integrated branch is not acceptable.
 
-If that re-baseline finds no critical unresolved V1 blocker, the correct action is to record Céphalo as non-blocking for the V1 freeze rather than create work artificially.
+### 5. Ortho / Céphalo scientific scope
 
-### 4. Orthalis comparative
+R20 itself is CLOSED and must not be reopened without new scientific evidence. #579 is only a regression fix needed to restore the already-intended legacy injected-model contract.
 
-PR #407 is not a valid current scorecard: its internal baseline predates more than one thousand master commits.
+After the runtime baseline is healthy:
 
-The domain model remains useful, but all scores must be recalculated from current evidence. Official Orthalis pages checked on 2026-09-17 still advertise, among other capabilities, multi-practitioner planning, a digital media library/Kitview, Ceph with more than 25 methods and automatic tracings, patient-facing/options, external gateways, and Orthalis Connect cloud access.
+`live master re-baseline -> read canonical scientific inventory -> search remaining BLOCKED/TODO/legacy/scientific gaps -> select only the highest-priority genuine V1-relevant open gap -> Goal/Success/Proof -> execute if required`.
+
+If no critical unresolved V1 scientific blocker exists, record Céphalo as non-blocking rather than manufacturing work.
+
+### 6. Orthalis comparative
+
+#407 is closed and is not a current scorecard. Any comparative score must be recalculated from current Digital Crown evidence and current official Orthalis material. Historical scores may not be carried forward as truth.
 
 Re-benchmark contract:
 
 - current Digital Crown inventory from code/tests/runtime only;
 - current Orthalis claims from official sources, with marketing claims labelled as claims rather than independent validation;
 - comparable domain-by-domain evidence matrix;
-- no inherited 70.0/90.5 score without recalculation;
-- produce gaps relevant to Morocco/local-first/clinical workflow rather than cloning France-specific features;
-- convert only verified high-value gaps into V1 blockers; push the rest to post-V1.
+- no inherited historical score;
+- gaps relevant to Morocco/local-first/clinical workflow;
+- only verified high-value gaps may become V1 blockers; the rest is post-V1.
 
-Official sources re-checked:
-- `https://www.orthalis.com/orthalis/`
-- `https://www.orthalis.com/ceph/`
-- `https://www.orthalis.com/kitview/`
-- `https://www.orthalis.com/les-passerelles/`
-- `https://www.orthalis.com/orthalis-connect-2/`
+### 7. Windows cabinet dependency/build contract
 
-### 5. FAR
+#578 exposes a real installability problem rather than a cosmetic CI issue. Its static contract passes, but the clean Windows dependency install is unsatisfiable as pinned: `webauthn==3.0.0` requires `cryptography>=49.0.0`, while the branch pins `cryptography==47.0.0`.
 
-FAR is active near-master work but is not intrinsically required by the canonical installability definition of V1.
+Closure contract:
 
-Rule before freeze: FAR must be either (A) reconciled, fully certified and merged, or (B) explicitly deferred with no dependency left in the chosen V1 candidate. A half-integrated branch is not acceptable.
+`#579 integrated -> replay #578 on current master -> choose exact compatible dependency set -> clean Windows install -> pip check -> import smoke -> build guard -> exact-head Windows contract green -> relevant package/certification wave -> merge accepted contract`.
 
-Dependency: FAR base #559 before stacked ordonnance bridge #576.
+Do not weaken security/dependency constraints merely to make the resolver green.
 
-### 6. Connect Hub
+### 8. Connect Hub
 
-#557 merged during this audit as `master@7c175bdd...`.
-
-Pre-merge exact-head proof already included green dedicated Connect Hub BEFORE/AFTER/backend, CI and T2. One legacy Patient UX1-C workflow had failed while starting the isolated backend on the pre-#573 base; the later master contains the #573 boot fix. Post-merge master CI and Cabinet Upgrade PostgreSQL must be read once when complete; they were still `in_progress` at the roadmap re-baseline and therefore are not claimed green here.
+#557 is acquired on master. PostgreSQL post-merge certification is green (`35245309371`). The global post-merge CI is not green because of the separate Céphalo regression now isolated in #579. Connect Hub itself must not be treated as false remaining product work.
 
 ## Consolidated execution order
 
-### Phase 0 — Repository hygiene / re-baseline
+### Gate 0 — Restore healthy master
 
-Goal: remove false work from the V1 plan.
+1. #579 exact-head proof is already green.
+2. Human gate: explicit authorization to merge #579.
+3. Merge #579.
+4. Require post-merge master CI green.
 
-Actions: mark #401/#505/#279/#563/#572 as close/supersede candidates; preserve only explicitly identified reusable tests/docs; never merge stale historical branches to clear the queue. Verify Connect Hub post-merge runs without waiting passively.
+Independent analysis work may continue while merge authorization is absent, but subsequent product integration must not pretend the current red master is fully healthy.
 
 ### Phase 1 — Finish autonomous high-value active work
 
 1. Agenda A4 (#575) through PostgreSQL + functional wiring + UI proof.
 2. Agenda A5 final robustness/closeout.
-3. Reconcile FAR #559, then #576 if FAR remains in V1 scope.
-
-Reason: these can progress without waiting for the pharmacology human gate.
+3. Reconcile FAR #559 as one stack including the already-merged #576 bridge if FAR remains in V1 scope.
 
 ### Phase 2 — Pharmacology / Ordonnance scientific closeout
 
-Run the independent documentary review and clean-current-master reconstruction in parallel with Phase 1 where possible. Prepare the qualified reviewer packet completely. When the human review arrives, apply corrections, technical activation review if authorized, exact-head CI and closeout.
+Review #565 and #572 together as evidence sources, reconstruct accepted material on current master, and keep unresolved medication domains fail-closed. Prepare/execute the qualified review gate only if automatic clinical activation is in V1 scope.
 
-Do not use waiting for the human review as a reason to stop other work.
+Do not use a human clinical-review wait as a reason to stop independent engineering work.
 
-### Phase 3 — Ortho/Céphalo re-baseline
+### Phase 3 — Ortho/Céphalo scientific re-baseline
 
-Re-baseline current master and select at most the genuine next critical scientific lot. Execute only if evidence shows a V1-relevant gap; otherwise record the domain as non-blocking.
+After #579 is integrated and master green, re-baseline current scientific inventory and select at most the genuine next critical scientific lot. If none blocks V1, record the domain non-blocking.
 
 ### Phase 4 — Orthalis benchmark refresh
 
-Rebuild the competitive matrix against the now-near-final Digital Crown state. Convert only evidence-backed critical gaps into bounded final V1 lots. No stale score carry-over.
+Rebuild the comparative matrix against near-final Digital Crown. Convert only evidence-backed critical gaps into bounded final V1 lots. No stale #407 score carry-over.
+
+### Phase 4B — Windows installability foundation
+
+Rebuild #578 on the then-current master, resolve the real dependency conflict, prove clean Windows dependency installation/build contract, and merge the accepted foundation before candidate freeze.
 
 ### Phase 5 — Functional freeze
 
 Requirements:
+
+- master green for included scope;
 - all selected V1 workstreams closed and on master;
 - all intentionally deferred work documented as non-dependent on V1 candidate;
-- no open migration-head inconsistency;
+- no migration-head inconsistency;
 - no unresolved red exact-head workflow relevant to included scope;
-- no unreviewed clinical activation;
-- FAR either closed or explicitly deferred;
-- current master cleanly represents the intended feature freeze.
+- Windows dependency/build contract resolvable and certified;
+- no unreviewed automatic clinical activation;
+- FAR either merged or explicitly deferred;
+- Orthalis benchmark current;
+- current master represents the intended feature freeze.
 
 Output: choose one exact candidate SHA. Do not move it afterward.
 
@@ -300,35 +357,39 @@ Output: choose one exact candidate SHA. Do not move it afterward.
 
 Execute the canonical managed-update contract:
 
-`candidate SHA lock -> candidate CI -> fresh real-cabinet PREUPDATE -> verified PostgreSQL + media/document backups -> isolated restore -> exact migrations -> row/PK/FK/orphan/document/media integrity comparison -> second Alembic upgrade no-op -> app startup -> /api/health + critical smoke -> INSTALLABLE_CERTIFIED -> real cabinet update from same SHA -> post-update integrity/startup/smoke -> V1 baseline closeout`.
+`candidate SHA lock -> candidate CI -> Windows package/build proof -> fresh real-cabinet PREUPDATE -> verified PostgreSQL + media/document backups -> isolated restore -> exact migrations -> row/PK/FK/orphan/document/media integrity comparison -> second Alembic upgrade no-op -> app startup -> /api/health + critical smoke -> INSTALLABLE_CERTIFIED -> real cabinet update from same SHA -> post-update integrity/startup/smoke -> V1 baseline closeout`.
 
 No code-certified SHA becomes V1 merely because CI is green.
 
 ## Critical path
 
-Current critical path is:
+Current critical path:
 
-`Agenda A4/A5 + pharmacology review/reconstruction -> Céphalo re-baseline -> refreshed Orthalis gap check -> functional freeze -> exact V1 SHA -> installation rehearsal/certification -> real cabinet update`.
+`#579 integration + master green -> Agenda A4/A5 -> pharmacology evidence reconstruction/review decision -> Céphalo scientific re-baseline -> Orthalis refresh -> Windows build/dependency contract -> functional freeze -> exact V1 SHA -> V0→V1 installation rehearsal/certification -> real cabinet update`.
 
-FAR runs alongside this path and must be resolved (merge or explicit defer) before freeze. Connect Hub is now acquired on master, pending only post-merge verification evidence.
+FAR runs alongside this path and must be resolved by merge or explicit defer before freeze. Connect Hub is already acquired on master.
 
-SEC-1/SEC-2 and the historical P13 release are not merged into the first V1 critical path by default because their current branches are massively stale and the canonical V1 installability objective does not require those specific feature sets. If they are later declared mandatory for V1, they require clean current-master reconstruction rather than branch resurrection.
+SEC-1/#288, SEC-2/#289 and historical P13/#383 remain separate from the first V1 functional path unless explicitly promoted. Their stale branches must never be brute-force merged into V1; any promotion requires bounded current-master reconstruction and the relevant human/external gates.
 
 ## Freeze gates
 
 V1 candidate selection is blocked if any of these are true:
 
+- master CI remains red for included scope;
 - selected functional lot still open;
 - schema runtime head differs from the unique Alembic head;
-- required CI/certification red or absent on included changes;
-- pharmacology has automatic clinical activation without the required independent qualified review;
+- required CI/certification is red or absent on included changes;
+- Windows cabinet dependency/build contract is unresolved;
+- pharmacology has automatic clinical activation without the required qualified independent review;
 - FAR code is half-integrated rather than merged or explicitly deferred;
-- Orthalis benchmark still relies on the stale #407 score without current recalculation;
+- Orthalis benchmark relies on stale #407 scores rather than current evidence;
 - candidate SHA is moving;
 - fresh cabinet PREUPDATE/backups/rehearsal proof has not been completed for installation certification.
 
 ## Next exact
 
-Start with Agenda A4 because it is a near-master active implementation with a precisely identified technical blocker and no human gate. Do not run Agenda/Céphalo/FAR/Orthalis implementation in parallel on competing branches. The pharmacology documentary review may progress independently only up to its qualified-review gate without changing the active product-integration sequence.
+Human merge gate: #579 is exact-head green but is not merged. After explicit merge authorization, merge #579 and require post-merge master CI green.
+
+Until that gate is crossed, the next independent executable work is to re-baseline Agenda A4 #575 and continue the pharmacology documentary/evidence review without performing product integration that assumes master is green.
 
 No Vercel deployment is part of this roadmap without explicit user authorization.
