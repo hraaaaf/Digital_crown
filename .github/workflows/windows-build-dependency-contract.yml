@@ -1,0 +1,54 @@
+name: Windows Build Dependency Contract
+
+on:
+  pull_request:
+    paths:
+      - "requirements.txt"
+      - "backend/requirements.txt"
+      - "backend/requirements-p5-native.txt"
+      - "backend/requirements-windows-build.txt"
+      - "backend/scripts/windows_build_dependency_contract.py"
+      - "DigitalCrown.spec"
+      - ".github/workflows/windows-build-dependency-contract.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: windows-build-dependency-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  clean-windows-contract:
+    name: Clean Windows Python 3.12 runtime/build contract
+    runs-on: windows-latest
+    env:
+      ENVIRONMENT: test
+      DATABASE_URL: "sqlite:///:memory:"
+      DIGITALCROWN_ISOLATED_RUNTIME: "1"
+      SECRET_KEY: windows-build-contract-secret-key-minimum-32-characters
+      TELEMETRY_ENABLED: "false"
+      CLOUD_AI_ENABLED: "false"
+    steps:
+      - name: Checkout exact PR head
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Static dependency contract
+        run: python backend/scripts/windows_build_dependency_contract.py
+      - name: Install pinned build environment
+        shell: pwsh
+        run: |
+          python -m pip install --upgrade pip==26.0.1
+          python -m pip install -r backend/requirements-windows-build.txt
+      - name: Resolver integrity
+        run: python -m pip check
+      - name: Runtime version proof
+        shell: pwsh
+        run: |
+          python -c "import cryptography, webauthn, torch, torchvision, torchaudio, onnxruntime, cv2, numpy, PyInstaller; print('cryptography', cryptography.__version__); assert cryptography.__version__ == '49.0.0'; assert torch.__version__.split('+')[0] == '2.10.0'; assert torchvision.__version__.split('+')[0] == '0.25.0'; assert torchaudio.__version__.split('+')[0] == '2.10.0'; assert onnxruntime.__version__ == '1.25.0'; assert PyInstaller.__version__ == '6.22.3'"
+      - name: Cabinet import smoke
+        run: python -c "import backend.main; import backend.release_certification; import backend.runtime_asset_certification; print('WINDOWS_CABINET_IMPORT_SMOKE=OK')"
+      - name: Re-run dependency contract after install
+        run: python backend/scripts/windows_build_dependency_contract.py
