@@ -30,6 +30,7 @@ class InsuranceDraftStatus(str, Enum):
 class InsuranceTemplateTrust(str, Enum):
     OFFICIAL_PRIMARY = "OFFICIAL_PRIMARY"
     CABINET_VALIDATED_BINARY = "CABINET_VALIDATED_BINARY"
+    CABINET_VALIDATED_DERIVED_REFERENCE = "CABINET_VALIDATED_DERIVED_REFERENCE"
     SECONDARY_REFERENCE = "SECONDARY_REFERENCE"
 
 
@@ -45,6 +46,12 @@ class InsuranceCareType(str, Enum):
     AUTRES = "AUTRES"
 
 
+class InsuranceClaimContext(str, Enum):
+    MALADIE = "MALADIE"
+    MATERNITE = "MATERNITE"
+    ACCIDENT = "ACCIDENT"
+
+
 class InsuranceAdministrativeSnapshot(BaseModel):
     """Administrative data required by insurer forms, never inferred when absent."""
     model_config = ConfigDict(extra="forbid")
@@ -58,11 +65,19 @@ class InsuranceAdministrativeSnapshot(BaseModel):
     insured_address: Optional[str] = None
     insured_quality: Optional[str] = None
 
+    # FAR-only explicit member facts. They intentionally remain separate from CNSS/CNOPS
+    # identifiers so account/telephone/grade/unit can never be silently overloaded.
+    insured_account_number: Optional[str] = None
+    insured_phone: Optional[str] = None
+    insured_grade: Optional[str] = None
+    insured_unit: Optional[str] = None
+
     beneficiary_full_name: Optional[str] = None
     beneficiary_birth_date: Optional[date] = None
     beneficiary_national_id: Optional[str] = None
     beneficiary_sex: Optional[str] = None
     relationship_to_insured: Optional[str] = None
+    claim_context: Optional[InsuranceClaimContext] = None
 
     practitioner_full_name: Optional[str] = None
     practitioner_inpe: Optional[str] = None
@@ -155,8 +170,9 @@ class InsuranceSubmissionDraft(BaseModel):
             if self.template.trust not in {
                 InsuranceTemplateTrust.OFFICIAL_PRIMARY,
                 InsuranceTemplateTrust.CABINET_VALIDATED_BINARY,
+                InsuranceTemplateTrust.CABINET_VALIDATED_DERIVED_REFERENCE,
             }:
-                raise ValueError("VALIDATED requires an official or cabinet-validated template binary")
+                raise ValueError("VALIDATED requires an approved hash-bound template trust")
             if (
                 not self.reference.ngap_reference_version
                 or not self.reference.ngap_reference_hash
