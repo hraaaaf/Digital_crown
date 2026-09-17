@@ -4,11 +4,13 @@ import re
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
+ROOT_REQUIREMENTS = ROOT / "requirements.txt"
 RUNTIME = ROOT / "backend" / "requirements.txt"
 P5 = ROOT / "backend" / "requirements-p5-native.txt"
 WINDOWS_BUILD = ROOT / "backend" / "requirements-windows-build.txt"
 
 EXACT_RE = re.compile(r"^([A-Za-z0-9_.-]+)(?:\[[A-Za-z0-9_,.-]+\])?==([^\s;]+)$")
+WINDOWS_MARKER = 'platform_system == "Windows"'
 
 # Native/scientific packages must be identical between the full cabinet runtime
 # and the focused cross-platform P5 certification environment.
@@ -28,6 +30,15 @@ NATIVE_SHARED = {
     "pydantic",
     "pydantic-settings",
     "python-dotenv",
+}
+
+REQUIRED_CABINET_PACKAGES = {
+    "alembic",
+    "firebase-admin",
+    "python-magic",
+    "python-magic-bin",
+    "sentry-sdk",
+    "webauthn",
 }
 
 FORBIDDEN_ORT_VARIANTS = {
@@ -55,7 +66,10 @@ def _exact_pins(path: Path) -> dict[str, str]:
     for line in _lines(path):
         if line.startswith("-r "):
             continue
-        match = EXACT_RE.fullmatch(line)
+        requirement, separator, marker = line.partition(";")
+        if separator:
+            _require(marker.strip() == WINDOWS_MARKER, f"Unsupported environment marker in {path.relative_to(ROOT)}: {line}")
+        match = EXACT_RE.fullmatch(requirement.strip())
         _require(match is not None, f"Non-exact dependency in {path.relative_to(ROOT)}: {line}")
         name = match.group(1).lower().replace("_", "-")
         version = match.group(2)
@@ -64,15 +78,23 @@ def _exact_pins(path: Path) -> dict[str, str]:
     return pins
 
 
+def check_root_alias() -> None:
+    lines = _lines(ROOT_REQUIREMENTS)
+    _require(lines == ["-r backend/requirements.txt"], "Root requirements.txt must be a pure alias to backend/requirements.txt")
+    print("ROOT_REQUIREMENTS_ALIAS=OK")
+
+
 def check_runtime_lock() -> dict[str, str]:
     pins = _exact_pins(RUNTIME)
     for forbidden in FORBIDDEN_ORT_VARIANTS:
         _require(forbidden not in pins, f"Conflicting ONNX Runtime variant in cabinet lock: {forbidden}")
+    missing = sorted(REQUIRED_CABINET_PACKAGES - pins.keys())
+    _require(not missing, f"Required cabinet runtime dependencies missing: {missing}")
     _require(pins.get("onnxruntime") == "1.25.0", "Cabinet baseline must use onnxruntime==1.25.0 CPU")
     _require(pins.get("torch") == "2.10.0", "Cabinet baseline must use torch==2.10.0")
     _require(pins.get("torchvision") == "0.25.0", "Cabinet baseline must use torchvision==0.25.0")
     _require(pins.get("torchaudio") == "2.10.0", "Cabinet baseline must use torchaudio==2.10.0")
-    print(f"WINDOWS_RUNTIME_LOCK=OK ({len(pins)} exact dependencies)")
+    print(f"WINDOWS_RUNTIME_LOCK=OK ({len(pins)} exact top-level dependencies)")
     return pins
 
 
@@ -99,6 +121,7 @@ def check_windows_build_lock() -> None:
 
 
 def main() -> int:
+    check_root_alias()
     runtime = check_runtime_lock()
     check_p5_parity(runtime)
     check_windows_build_lock()
