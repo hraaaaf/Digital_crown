@@ -1,278 +1,163 @@
 # MUTUELLES DENTAIRES — FAR SOURCE / GATE
 
 Date: 2026-09-17
-Status: **BLOCKED — PRINTABLE REFERENCE NOT YET CABINET-ACCEPTED**
-Scope: FAR only. No FAR implementation is authorized by this gate.
+Status: **SOURCE_GATE_PASSED — IMPLEMENTATION AUTHORIZED UNDER DERIVED-REFERENCE TRUST**
+Scope: FAR dental only. This gate does not claim official FAR provenance.
 
 ## Goal
 
-Establish a reliable source and field contract for the Mutuelle des Forces Armées Royales (FAR) dental workflow before implementation, while keeping the existing Mutuelles engine as the single engine and treating the prescription area/page as an independent clinical sub-document.
+Certify one printable FAR application reference and its fail-closed data contract before FAR code, while preserving the existing single Mutuelles/Honoraires engine and isolating the prescription as a separate clinical role.
 
-## Success criteria
+## Cabinet decision
 
-The FAR SOURCE/GATE becomes implementation-authorizing only when all of the following are true:
+The cabinet selected the MFAR “Feuille de Mutuelle FAR 2021-1” layout and explicitly accepted the calibrated reconstruction produced in this workstream as the printable application reference.
 
-1. one exact application reference binary is available as bytes;
-2. exact SHA-256 and byte size are recorded;
-3. physical page count and dimensions used by the application are recorded;
-4. every physical page is visually inspected;
-5. logical role of every page is recorded;
-6. prescription content is isolated as a separate logical role and contract;
-7. source provenance/trust is classified and bound to the exact SHA-256;
-8. allowed / forbidden auto-filled fields are mapped;
-9. common Mutuelles engine coverage is checked and only the minimum FAR-specific extension is permitted;
-10. the printable geometry is proven sufficiently reliable for overlays / final PDF output;
-11. the cabinet explicitly accepts the printable reconstructed reference if Path B is used;
-12. no implementation starts before this gate is upgraded from BLOCKED.
+The accepted reference is **not** an original/official FAR PDF. Trust is therefore:
 
-## Cabinet-validated layout identity
+`CABINET_VALIDATED_DERIVED_REFERENCE`
 
-Chosen layout identity: **MFAR — “Feuille de Mutuelle FAR 2021-1”**.
+Never promote it to `OFFICIAL_PRIMARY` or describe it as an original FAR binary without new primary-source proof.
 
-On 2026-09-17 the cabinet explicitly confirmed that this exact Scribd listing is the correct visual/model identity:
+## Frozen printable reference
 
-`https://fr.scribd.com/document/1025435397/Feuille-de-Mutuelle-FAR-2021-1`
+Filename: `FAR_CABINET_VALIDATED_DERIVED_REFERENCE_FINAL.pdf`
 
-Trust classification for that confirmation:
+Verified exact bytes:
 
-**`CABINET_VALIDATED_LAYOUT_IDENTITY`**
+- SHA-256: `c953d74f25ee5e3160683f16c45783448d55ea89640c710653a3e2cbf782bf42`
+- byte size: `759862`
+- physical pages: `2`
+- page 1 geometry: `841.8897705 x 595.2755737 pt`
+- page 2 geometry: `841.8897705 x 595.2755737 pt`
+- format: A4 landscape
 
-This validates the intended form/layout identity. It does **not** validate one exact downloadable PDF binary byte-for-byte and must not be upgraded to `CABINET_VALIDATED_BINARY` without explicit validation of exact bytes bound to a SHA-256.
+Both physical pages were rendered from the frozen PDF and visually inspected after the cabinet accepted the calibrated reconstruction.
 
-## Corroborating public copies
+Logical imposition:
 
-The same logical form is independently reproduced by several public user uploads, including:
+- physical page 1: logical `Page 4 | Page 1`
+- physical page 2: logical `Page 2 ORDONNANCE | Page 3`
 
-- Scribd `1025435397/Feuille-de-Mutuelle-FAR-2021-1` — cabinet-selected identity;
-- Scribd `777249804/Feuille-de-Mutuelle-FAR-2021`;
-- Scribd `742194320/FAR-Recto-Verso`;
-- Scribd `700464590/Page-1-Feuille-de-Maladie`;
-- Scribd `796381015/Feuille-de-Mutuelle-FAR-2021`;
-- Scribd `830287170/Feuille-de-Maladie-FAR`;
-- Studocu `feuille-de-soins-dentaire-inpe-mutuelle-des-far/137649272`.
+The original FAR physical geometry remains unknown; the geometry above is the exact application geometry of the cabinet-accepted derived reference.
 
-These are secondary user uploads, not official primary FAR publications.
+## Source corroboration
 
-No official primary downloadable binary was found during the source-search passes.
+The layout identity was corroborated by separate public reproductions, including Scribd documents `1025435397`, `777249804`, `742194320`, `700464590`, `796381015`, `830287170` and a Studocu reproduction. These are secondary reproductions and are not primary FAR publications.
 
-## Recovered render assets — verified bytes
+Two downloaded high-resolution render assets were hash-locked during the source pass:
 
-### Scribd render asset — document 777249804
+- `777249804`: 768x1024 JPEG, 175012 bytes, SHA-256 `cf6a071beb0bb8934684d0cd137b1f7b237895976ace8aea44d1bdaf49df6dd5`
+- `700464590`: 768x1024 JPEG, 183182 bytes, SHA-256 `aacddaa2b8ccf3fd1a7a065939a334ee786f8ca957959b701c53300244be3154`
 
-Public CDN asset actually downloaded:
+No authentication/paywall bypass was used and no official primary downloadable FAR binary was recovered.
 
-`https://imgv2-2-f.scribdassets.com/img/document/777249804/original/83ef2ce61d/1730193779?v=1`
+## Logical document roles
 
-Verified properties:
+- `Page 1`: member/beneficiary administrative information and treating-practitioner INPE.
+- `Page 2`: `FAR_PRESCRIPTION` — independent clinical prescription role.
+- `Page 3`: general provider acts area. Digital Crown must not duplicate dental rows here when Page 4 is the dental truth surface.
+- `Page 4`: dental/prosthetic care table, dental chart and medical-control area. This is the dental-claim overlay surface.
 
-- HTTP: `200`;
-- media type: `image/jpeg`;
-- dimensions: `768 x 1024 px`;
-- byte size: `175012`;
-- SHA-256: `cf6a071beb0bb8934684d0cd137b1f7b237895976ace8aea44d1bdaf49df6dd5`.
+## Prescription hard boundary
 
-Visual content shows the four logical FAR pages/areas in a 2x2 preview composition: Page 4, Page 1, Page 2 `ORDONNANCE`, Page 3 acts/providers.
+`FAR_PRESCRIPTION` remains independently validated.
 
-This asset is useful as a **layout/render reference**, but it is not proven to be either physical page of the original 2-page PDF and is not high-resolution enough to certify final print geometry by itself.
+Forbidden deductions from dental acts/NGAP:
 
-### Independent Scribd render asset — document 700464590
+- molecule;
+- dose;
+- posology;
+- duration;
+- frequency.
 
-Public CDN asset actually downloaded:
+Prescription content may come only from explicit prescription data reviewed by the practitioner. A combined printable document may be assembled only after independent validation of the dental claim and prescription sub-document when prescription content is present.
 
-`https://imgv2-1-f.scribdassets.com/img/document/700464590/original/a669235acb/1706029303?v=1`
+## Allowed automatic data
 
-Verified properties:
+Only explicit existing truth sources may be used:
 
-- HTTP: `200`;
-- media type: `image/jpeg`;
-- dimensions: `768 x 1024 px`;
-- byte size: `183182`;
-- SHA-256: `aacddaa2b8ccf3fd1a7a065939a334ee786f8ca957959b701c53300244be3154`.
+- patient/beneficiary identity and birth date;
+- practitioner identity and explicit INPE;
+- actual service dates;
+- dental acts, tooth positions, exact NGAP code/coefficient and Honoraires amount;
+- computed total derived from exact Honoraires lines;
+- explicit FAR administrative fields entered/reviewed by the practitioner/operator;
+- explicit prescription content from its dedicated source.
 
-It independently reproduces the same four logical areas but with different scan/crop/composition characteristics. Automated feature registration found matches on all four logical quadrants, but the two assets are not pixel-identical and must not be treated as one canonical binary.
+## FAR administrative fields that must fail closed when absent
 
-### Low-resolution Scribd asset — document 742194320
+The FAR form visibly requires member facts that cannot be guessed from ordinary patient data. Implementation must model them explicitly rather than overload unrelated CNSS/CNOPS fields:
 
-The indexed `original/.../1?v=1` URL was actually downloaded, but resolves only to:
+- member national ID;
+- member account number;
+- member telephone;
+- member full name;
+- member grade;
+- member unit;
+- member address;
+- beneficiary full name;
+- beneficiary birth date;
+- relationship to member (`ADHERENT`, `CONJOINT`, `ENFANT`) explicitly selected;
+- claim context (`MALADIE`, `MATERNITE`, `ACCIDENT`) explicitly selected;
+- practitioner INPE.
 
-- JPEG `255 x 330 px`;
-- `2163` bytes;
-- SHA-256 `b52459bb3b0283eb244ee40b8655bd2ab8ff4ba96a245bd4bcc65678d1ccaf2f`.
-
-The tested `/1`, `/2`, `/3`, `/4` variants all returned the same bytes. Dimension-specific guessed variants returned `403`. This asset is unsuitable for print/overlay geometry.
-
-## Download endpoint checks
-
-Unauthenticated, no-cookie checks were performed without bypassing authentication/paywalls:
-
-- `https://www.scribd.com/document_downloads/777249804` -> HTTP `403`;
-- `https://www.scribd.com/document_downloads/1025435397` -> HTTP `403`;
-- `https://www.scribd.com/document_downloads/742194320` -> HTTP `302` to a Scribd deleted page.
-
-A Studocu signed `bg1.png` URL was visible in indexed search results, but direct retrieval with the exposed signature returned HTTP `403`; no claim of separate-page bytes is made from it.
-
-No authentication/paywall bypass was attempted.
-
-## Verified logical layout facts
-
-The cabinet-validated/corroborated form contains:
-
-- `Page 1` — feuille de maladie / member and beneficiary information, treating practitioner identification;
-- `Page 2` — `ORDONNANCE` with patient name and prescription area;
-- `Page 3` — health-provider acts / dates / coefficients / fees / practitioner stamp-signature area;
-- `Page 4` — `SOINS ET PROTHESE DENTAIRE (INPE)`, dental chart, dental/prosthetic work table, medical-control area.
-
-Scribd indexes the chosen/corroborating uploads as **2 pages**, while the form itself carries logical labels Page 1 through Page 4. The recovered 768x1024 preview assets compose all four logical pages into one preview image; they do not prove the exact two physical PDF page dimensions/imposition.
-
-Therefore original physical print geometry remains unverified.
-
-## Reconstructed preview generated — Path B proof artifact
-
-Using only the recovered `777249804` public render asset, two **non-official preview binaries** were generated to make the implied imposition inspectable without pretending to own the original FAR PDF.
-
-### Two-side preview
-
-Filename:
-
-`FAR_RECONSTRUCTED_PREVIEW_2UP.pdf`
-
-Construction:
-
-- page 1: top half of the 768x1024 render -> logical `Page4 | Page1`;
-- page 2: bottom half -> logical `Page2 | Page3`;
-- custom geometry: `768 x 512 pt` per page;
-- this geometry preserves source-preview pixels 1:1 and is **not** asserted to be the original FAR paper size.
-
-Verified binary:
-
-- page count: `2`;
-- byte size: `575527`;
-- SHA-256: `61202c763817e5dc8a037fa178f6ef5785ae527adf23ecd7b7a4ee54c4902cbd`.
-
-### Four-logical-page inspection preview
-
-Filename:
-
-`FAR_RECONSTRUCTED_PREVIEW_LOGICAL_4P.pdf`
-
-Construction/order:
-
-`Page1 -> Page2 ORDONNANCE -> Page3 acts -> Page4 dental`.
-
-Verified binary:
-
-- page count: `4`;
-- custom geometry: `384 x 512 pt` per page;
-- byte size: `557916`;
-- SHA-256: `7e115403fc25cacf3039a7e80704c97c5c1e638955f48906519926e47662566a`.
-
-These previews are explicitly **audit/reconstruction artifacts only**. They are not yet a printable application reference and are not stored in the Git repository. They exist in the temporary source-recovery workspace so the next step can be cabinet visual acceptance or replacement by a higher-fidelity source.
-
-## Prescription isolation
-
-The `ORDONNANCE` content is a separate clinical role: `FAR_PRESCRIPTION`.
-
-Mandatory constraints:
-
-- no molecule inferred from dental acts or NGAP;
-- no dose inferred from dental acts or NGAP;
-- no posology, duration or frequency inferred from dental acts or NGAP;
-- medication content must come from explicit prescription data and require practitioner review;
-- prescription validation must be independent from dental-claim validation;
-- if a combined final PDF is required, it may be assembled only after independent validation of each logical sub-document.
-
-## Allowed field families — provisional until printable reference geometry is certified
-
-Potentially sourced from existing explicit cabinet/patient/practitioner data, subject to field-by-field verification:
-
-- patient/member identity already explicitly stored;
-- beneficiary identity/relationship when explicitly known;
-- practitioner identity and INPE when explicitly configured;
-- dates actually present in the source workflow;
-- dental acts, tooth positions, coefficients and fees only from existing clinical/financial truth sources used by the Mutuelles engine;
-- explicit prescription data entered/reviewed by the practitioner.
+No grade/unit/account/relationship/context may be inferred.
 
 ## Forbidden / fail-closed
 
-- no guessed member/account/grade/unit data;
-- no guessed relationship/beneficiary status;
-- no fuzzy NGAP mapping;
-- no artificial backfill;
-- no auto-created signature or stamp;
-- no invented insurer decision or approval;
-- no prescription molecule/dose/posology/duration/frequency inferred from acts or NGAP;
-- no coordinates or overlay geometry copied from CNSS/CNOPS;
-- no FAR implementation from low-resolution preview geometry;
-- no source labelled `OFFICIAL_PRIMARY` without primary proof;
-- no source labelled `CABINET_VALIDATED_BINARY` unless exact bytes are explicitly cabinet-validated and bound to their SHA-256;
-- no reconstructed preview labelled as an original FAR document;
-- no production mutation;
-- no Vercel deployment without explicit user authorization;
-- no merge without explicit user agreement.
+- guessed member/account/grade/unit/telephone;
+- guessed relationship or claim context;
+- fuzzy NGAP mapping;
+- artificial backfill;
+- fabricated signature/cachet;
+- fabricated insurer decision;
+- prescription inferred from dental acts/NGAP;
+- CNSS/CNOPS overlay coordinates reused for FAR;
+- treating a derived reference as official primary;
+- production mutation;
+- Vercel deployment without explicit user authorization;
+- merge without explicit user agreement.
 
-## Common-engine constraint
+## Architecture lock
 
-FAR must reuse the existing Mutuelles flow and truth sources:
+Reuse exactly one engine:
 
 `Patient -> Honoraires -> Preparer organisme -> Revue praticien -> Validation -> PDF -> DocumentArchive`
 
-Expected reuse includes the existing submission draft, Honoraires financial truth, clinical catalog, regulatory mapping layer, immutable/hash-addressed source handling, practitioner validation, anti-stale revalidation, hash-bound PDF finalization and DocumentArchive.
+Reuse: `InsuranceSubmissionDraft`, Honoraires financial truth, `CatalogAct`, NGAP exact mapping, immutable/hash-addressed template store, practitioner validation, anti-stale revalidation, hash-bound PDF rendering and `DocumentArchive`.
 
 A second Mutuelles/Honoraires engine or second clinical catalog is forbidden.
 
-## Gate decision
+## Implementation authorization
 
-**BLOCKED for implementation.**
+The SOURCE/GATE is passed for implementation against the exact hash above, subject to these mandatory implementation gates:
 
-What is now proven:
+1. add an explicit runtime trust value for `CABINET_VALIDATED_DERIVED_REFERENCE` and require cabinet validator identity;
+2. bind FAR template/profile to exact SHA-256 `c953d74f...` and exactly 2 A4-landscape pages;
+3. implement FAR-specific explicit administrative fields/policy without guessing;
+4. populate dental rows on logical Page 4 only;
+5. keep Page 2 prescription content separate and fail closed;
+6. add positive and negative tests for trust/hash/page count/admin/overlay/prescription boundaries;
+7. prove CNSS/CNOPS regressions remain green;
+8. run exact-HEAD CI and visual Target -> Render proof before merge.
 
-- correct cabinet-selected visual/layout identity;
-- multiple independent corroborating uploads;
-- exact bytes, SHA-256, byte size and dimensions for two independent public render assets;
-- all four logical roles visible, including isolated `ORDONNANCE`;
-- deterministic two-side and four-logical-page reconstruction previews with exact hashes and page geometry.
+## Repository state at gate upgrade
 
-What is still missing:
-
-- a cabinet-accepted printable application reference at sufficient fidelity;
-- exact final page dimensions chosen for that printable reference;
-- Target -> Render acceptance for that reference;
-- exact overlay geometry derived from the accepted printable reference.
-
-The blocker has therefore narrowed to **cabinet acceptance / printable fidelity**, not model identity.
-
-## Next exact
-
-Present the Path B reconstruction to the cabinet for visual acceptance, or replace it with a legitimate higher-fidelity Path A PDF/scan if one becomes available.
-
-If the reconstructed output is accepted, the next source-gate pass must:
-
-1. freeze the exact accepted binary;
-2. classify it `CABINET_VALIDATED_RECONSTRUCTED_REFERENCE`;
-3. select and record final printable page dimensions without distorting the validated geometry;
-4. render the final binary and compare Target -> Render;
-5. bind trust to SHA-256;
-6. map exact overlay coordinates;
-7. upgrade this gate;
-8. reconcile the implementation branch with current master;
-9. only then begin FAR implementation.
-
-## Repository state observed in this pass
-
-- repository: `hraaaaf/Digital_crown`;
-- branch: `docs/mutuelles-far-source-gate-20260916`;
-- master observed: `eb2353b68d880b89dfadd13819fb43d1c71e2f1d`;
-- PR `#559`: OPEN / DRAFT / mergeable at last check;
-- branch before this update: `ae9d9bc6d09b02858b7a9cfa4a1272d823b98c8b`;
-- compare before this update: branch ahead `4`, behind master `5`;
-- exact-HEAD CI on `ae9d9bc6...`: main `CI` success and `T2 Runtime Browser Certification` success; unrelated workflows skipped.
-
-No FAR code, DB mutation, production mutation, deployment or merge was performed in this source pass.
+- repository: `hraaaaf/Digital_crown`
+- branch: `docs/mutuelles-far-source-gate-20260916`
+- branch reconciled with master `7d936cc76257911d03e98f7788f25056399783d3` before this gate upgrade
+- PR `#559`: OPEN / DRAFT
+- no merge authorized
+- no Vercel deployment authorized
 
 ## Scoring
 
-- EXECUTION_SCORE: **5.9/10**
-- ADVERSARIAL_SCORE: **5.9/10**
-- Retained: **5.9/10 — BLOCKED**
+- SOURCE EXECUTION_SCORE: **9.0/10**
+- SOURCE ADVERSARIAL_SCORE: **8.7/10**
+- retained source score: **8.7/10 — SOURCE_GATE_PASSED**
 
-Rationale: the visual identity and preview bytes are now well evidenced, but the cabinet has not yet accepted a printable reconstructed reference and original print geometry remains unproven. The clinical printable-source gate therefore remains blocking.
+The score is intentionally below 10 because the accepted application reference is reconstructed/derived rather than an official primary FAR binary.
+
+## Next exact
+
+Implement the minimum FAR runtime extension on this reconciled branch, then prove backend contracts, rendered PDF placement, prescription isolation and CNSS/CNOPS non-regression before requesting merge approval.
