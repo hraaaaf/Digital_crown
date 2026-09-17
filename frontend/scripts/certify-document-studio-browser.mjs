@@ -67,7 +67,7 @@ async function certifyStudioPage(page, studioPage, viewport, colorScheme) {
 
   const url = `http://127.0.0.1:5173/patients/${patient.id}?tab=admin&documentTab=${studioPage.slug}`;
   await page.goto(url, { waitUntil: 'networkidle', timeout: 90000 });
-  await page.locator('[data-tour="patient-tabs"]').getByText('Documents', { exact: true }).waitFor({ timeout: 30000 });
+  await page.locator(`[data-tour="${studioPage.tourId}"]`).waitFor({ state: 'attached', timeout: 30000 });
   await assertCompanionAbsent(page);
   await page.getByText(studioPage.label, { exact: true }).first().waitFor({ timeout: 30000 });
 
