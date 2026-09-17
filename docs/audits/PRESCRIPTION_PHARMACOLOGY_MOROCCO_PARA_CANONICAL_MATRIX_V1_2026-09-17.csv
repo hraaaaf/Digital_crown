@@ -20,7 +20,7 @@ PARA-MR-CDO2-001,Mouthrinse,Chlorine dioxide,chlorine_dioxide,mouthrinse,halitos
 PARA-MR-ZN-001,Mouthrinse,Zinc,zinc_salts,mouthrinse,halitosis,UNDER6_NOT_ROUTINE;PRODUCT_SPECIFIC,CLINICAL_FAMILY_SUPPORTED,TO_VERIFY_BY_PRODUCT,YES,NO
 PARA-MR-HEX-001,Mouthrinse,Hexetidine,hexetidine,mouthrinse,antimicrobial_claim_candidate,UNDER6_NOT_ROUTINE;PRODUCT_SPECIFIC,EVIDENCE_REVIEW_REQUIRED,TO_VERIFY_BY_PRODUCT,YES,NO
 PARA-MR-PVP-001,Mouthrinse,Povidone iodine,povidone_iodine,mouthrinse,antimicrobial_claim_candidate,PRODUCT_AND_CONTRAINDICATION_SPECIFIC,EVIDENCE_REVIEW_REQUIRED,TO_VERIFY_BY_PRODUCT,YES,NO
-PARA-INT-FLOSS-001,Interdental,Floss,nylon_or_PTFE_or_other,floss_or_tape,interdental_plaque,DEXTERITY_SPECIFIC,CLINICAL_FAMILY_SUPPORTED,TO_VERIFY_BY_PRODUCT,YES,NO
+PARA-INT-FLOSS-001,Interdental,Floss,nylon_or_PTFE_or_other,floss_or_tape,interdental_plaque,DEXTERITY_SPECIFIC,CLINICAL_FAMILY_SUPPORTED,VERIFIED_MARKET_MA_OFFICIAL_BRAND_SITE,YES,NO
 PARA-INT-HOLDER-001,Interdental,Floss holder,device,holder,interdental_plaque;dexterity_support,PRODUCT_SPECIFIC,CLINICAL_FAMILY_SUPPORTED,VERIFIED_MARKET_MA,YES,NO
 PARA-INT-BRUSH-001,Interdental,Brush,device,interdental_brush,interdental_plaque;ortho;implant;perio,SIZE_PATIENT_SPECIFIC,CLINICAL_FAMILY_SUPPORTED,VERIFIED_MARKET_MA,YES,NO
 PARA-INT-PICK-001,Interdental,Pick,device,interdental_pick,interdental_plaque,PRODUCT_SPECIFIC,CLINICAL_FAMILY_SUPPORTED,VERIFIED_MARKET_MA,YES,NO
@@ -29,7 +29,7 @@ PARA-BR-MAN-001,Toothbrush,Manual,device,manual_brush,plaque_control;general;ort
 PARA-BR-PWR-001,Toothbrush,Powered,device,powered_brush,plaque_control;dexterity_support;general;ortho;implant;perio,AGE_DEXTERITY_PRODUCT_SPECIFIC,CLINICAL_FAMILY_SUPPORTED,TO_VERIFY_BY_PRODUCT,YES,NO
 PARA-BR-SINGLE-001,Toothbrush,Single tuft,device,single_tuft_brush,ortho;implant;perio;targeted_hygiene,PRODUCT_SPECIFIC,TAXONOMY_SUPPORTED,TO_VERIFY_BY_PRODUCT,YES,NO
 PARA-PLAQUE-DISC-001,Plaque control,Discloser,dye,tablet_or_solution,plaque_visualization,USE_SUPERVISION_SPECIFIC,TAXONOMY_SUPPORTED,TO_VERIFY_BY_PRODUCT,YES,NO
-PARA-TONGUE-001,Tongue care,Scraper,device,tongue_cleaning;halitosis,PRODUCT_SPECIFIC,TAXONOMY_SUPPORTED,TO_VERIFY_BY_PRODUCT,YES,NO
+PARA-TONGUE-001,Tongue care,Scraper,device,tongue_cleaning;halitosis,PRODUCT_SPECIFIC,TAXONOMY_SUPPORTED,VERIFIED_MARKET_MA_OFFICIAL_BRAND_SITE,YES,NO
 PARA-XERO-SUB-001,Xerostomia,Saliva substitute/moisturizer,moisturizing_agents,gel_spray_rinse,dry_mouth_relief,PRODUCT_SPECIFIC,CLINICAL_FAMILY_SUPPORTED,VERIFIED_MARKET_MA_OFFICIAL_BRAND_SITE,YES,NO
 PARA-XERO-TP-001,Xerostomia,Dry-mouth toothpaste,product_specific,toothpaste,dry_mouth_support;oral_hygiene,AGE_PRODUCT_SPECIFIC,TAXONOMY_SUPPORTED,VERIFIED_MARKET_MA_OFFICIAL_BRAND_SITE,YES,NO
 PARA-XERO-GUM-001,Xerostomia,Sugar-free gum,sugar_free_or_xylitol,gum,salivary_stimulation;dry_mouth,CHOKING_AND_PATIENT_SPECIFIC,CLINICAL_FAMILY_SUPPORTED,TO_VERIFY_BY_PRODUCT,YES,NO
@@ -40,7 +40,7 @@ PARA-APP-BOX-001,Appliance care,Storage,device,storage_case,aligner;retainer;mou
 PARA-DENT-CLEAN-001,Denture,Cleanser,cleaning_agents,tablet_solution_cream_paste_gel,denture_hygiene,MATERIAL_PRODUCT_SPECIFIC,CLINICAL_FAMILY_SUPPORTED,TO_VERIFY_BY_PRODUCT,YES,NO
 PARA-DENT-ADH-001,Denture,Adhesive,adhesive_agents,cream_powder_wafer_strip,denture_retention,PRODUCT_SPECIFIC;ZINC_CAUTION,CLINICAL_FAMILY_SUPPORTED,TO_VERIFY_LOCAL_MA_NONIMPORT,YES,NO
 PARA-DENT-RELINE-001,Denture,OTC reline,reline_material,kit,temporary_fit_adjustment,SAFETY_REVIEW_REQUIRED,SAFETY_REVIEW_REQUIRED,TO_VERIFY_BY_PRODUCT,YES,NO
-PARA-WHITE-TP-001,Whitening,Toothpaste,abrasive_or_peroxide_product_specific,toothpaste,extrinsic_stain_reduction,PRODUCT_SPECIFIC,CLINICAL_FAMILY_SUPPORTED,TO_VERIFY_BY_PRODUCT,YES,NO
+PARA-WHITE-TP-001,Whitening,Toothpaste,abrasive_or_peroxide_product_specific,toothpaste,extrinsic_stain_reduction,PRODUCT_SPECIFIC,CLINICAL_FAMILY_SUPPORTED,VERIFIED_MARKET_MA_OFFICIAL_BRAND_SITE_PRODUCT_SPECIFIC,YES,NO
 PARA-WHITE-STRIP-001,Whitening,Strip,peroxide,strip,tooth_whitening,AGE_PRODUCT_SPECIFIC,CLINICAL_FAMILY_SUPPORTED,TO_VERIFY_BY_PRODUCT,YES,NO
 PARA-WHITE-GEL-001,Whitening,Home gel,hydrogen_or_carbamide_peroxide,gel_or_tray,tooth_whitening,AGE_CONCENTRATION_PROTOCOL_SPECIFIC,CLINICAL_FAMILY_SUPPORTED,TO_VERIFY_BY_PRODUCT,YES,NO
 PARA-WHITE-PRO-001,Whitening,Professional,hydrogen_or_carbamide_peroxide,professional_system,tooth_whitening,PROTOCOL_SPECIFIC,CLINICAL_FAMILY_SUPPORTED,TO_VERIFY_BY_PRODUCT,YES,NO
