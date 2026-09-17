@@ -3,6 +3,7 @@ import sys
 import sqlite3
 import logging
 from sqlalchemy import create_engine
+from sqlalchemy.pool import QueuePool
 from sqlalchemy.orm import sessionmaker
 from passlib.context import CryptContext
 from backend.core.paths import AppPaths
@@ -111,9 +112,19 @@ if SQLALCHEMY_DATABASE_URL.startswith("sqlite"):
 
 # --- INITIALISATION DU MOTEUR ---
 if "pysqlcipher" in SQLALCHEMY_DATABASE_URL or SQLALCHEMY_DATABASE_URL.startswith("sqlite"):
+    sqlite_engine_kwargs = {
+        "connect_args": {"check_same_thread": False},
+    }
+    # pysqlcipher defaults to SingletonThreadPool even for file databases. FastAPI
+    # serves synchronous DB dependencies from multiple worker threads, so that pool
+    # can evict a still-referenced thread-local connection under concurrency.
+    # A file-backed SQLite/SQLCipher database can safely use QueuePool instead.
+    if ":memory:" not in SQLALCHEMY_DATABASE_URL:
+        sqlite_engine_kwargs["poolclass"] = QueuePool
+
     engine = create_engine(
         SQLALCHEMY_DATABASE_URL,
-        connect_args={"check_same_thread": False}
+        **sqlite_engine_kwargs,
     )
 
     from sqlalchemy import event
