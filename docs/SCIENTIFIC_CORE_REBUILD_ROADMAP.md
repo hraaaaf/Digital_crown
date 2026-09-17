@@ -2,6 +2,14 @@
 
 **Règle de reprise :** vérifier `repo / branche / PR / HEAD / CI` avant toute conclusion. Les runs historiques ne valent jamais état courant.
 
+## CANONICAL CÉPHALO-N ENTRY
+
+Pour toute reprise du chantier Céphalo-N, lire d'abord `docs/CEPHALO_N_CANONICAL.md` puis vérifier l'état GitHub live.
+
+État R20 au 2026-09-17 : produit/UI mergé et validé visuellement ; PR #566 mergée ; certification PostgreSQL post-merge verte ; full CI final `35204697524` encore `IN_PROGRESS` lors de la dernière vérification. En conséquence, `CEPHALO_N_CLOSEOUT_VERIFIED` n'est pas encore déclaré.
+
+Aucun travail Ortho V2 dépendant de ce closeout ne doit être considéré débloqué avant la preuve finale définie dans le fichier canonique.
+
 ## GOAL FINAL
 
 Noyau scientifique minimal, explicable, sourcé/versionné et fail-closed.
@@ -65,4 +73,6 @@ La protection de branche/required checks n'est pas entièrement lisible avec les
 
 ## NEXT EXACT
 
-Re-baseliner l'inventaire scientifique restant sur `master@4c4f7e11b29c6a37d3dd4bbd96069b347359227a`, identifier le prochain lot ouvert le plus critique, puis créer son Goal / Succès / Preuve avant toute modification. Aucun déploiement Vercel.
+Pour Céphalo-N R20 : suivre `docs/CEPHALO_N_CANONICAL.md` jusqu'à `CEPHALO_N_CLOSEOUT_VERIFIED`.
+
+Pour le reste du noyau scientifique : re-baseliner l'inventaire scientifique restant sur le `master` live après fermeture R20, identifier le prochain lot ouvert le plus critique, puis créer son Goal / Succès / Preuve avant toute modification. Aucun déploiement Vercel.
