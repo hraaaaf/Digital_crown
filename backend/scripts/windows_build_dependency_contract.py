@@ -59,6 +59,7 @@ def check_runtime_lock() -> dict[str, str]:
     _require(pins.get("torch") == "2.10.0", "Cabinet baseline must use torch==2.10.0")
     _require(pins.get("torchvision") == "0.25.0", "Cabinet baseline must use torchvision==0.25.0")
     _require(pins.get("torchaudio") == "2.10.0", "Cabinet baseline must use torchaudio==2.10.0")
+    _require(pins.get("svglib") == "1.5.1", "PDF SVG rendering lock must use svglib==1.5.1; svglib 1.6.0 forces the optional Cairo bitmap backend into default installs")
     print(f"WINDOWS_RUNTIME_LOCK=OK ({len(pins)} exact top-level dependencies)")
     return pins
 

@@ -110,7 +110,7 @@ six==1.17.0
 sqlcipher3==0.6.2
 SQLAlchemy==2.0.28
 starlette==0.41.3
-svglib==1.6.0
+svglib==1.5.1
 sympy==1.14.0
 tensorboard==2.20.0
 tensorboard-data-server==0.7.2
