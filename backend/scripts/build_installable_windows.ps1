@@ -12,7 +12,7 @@ if ($env:OS -ne "Windows_NT") {
 
 $releaseRoot = (Resolve-Path $ReleaseDir).Path
 $verifyScript = Join-Path $releaseRoot "backend\scripts\verify_installable_release.py"
-$contractScript = Join-Path $releaseRoot "scripts\windows_build_dependency_contract.py"
+$contractScript = Join-Path $releaseRoot "backend\scripts\windows_build_dependency_contract.py"
 $buildRequirements = Join-Path $releaseRoot "backend\requirements-windows-build.txt"
 $specPath = Join-Path $releaseRoot "DigitalCrown.spec"
 
@@ -22,7 +22,8 @@ foreach ($required in @($verifyScript, $contractScript, $buildRequirements, $spe
     }
 }
 
-# Verify the immutable release before reading/installing its dependency lock.
+# Verify immutable release identity and every packaged asset before consuming
+# any dependency/build input from the release.
 & py -3.12 $verifyScript --release-dir $releaseRoot
 if ($LASTEXITCODE -ne 0) {
     throw "INSTALLABLE_CERTIFIED verification failed before build."
