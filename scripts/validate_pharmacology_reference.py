@@ -52,7 +52,8 @@ def _activation_errors(root: Path) -> list[str]:
         if not rows or "clinical_activation" not in rows[0]:
             continue
         for index, row in enumerate(rows, start=2):
-            value = row.get("clinical_activation", "").strip().upper()
+            raw_value = row.get("clinical_activation")
+            value = (raw_value or "").strip().upper()
             if value != "NO":
                 errors.append(
                     f"{path.name}:{index} clinical_activation must fail closed to NO, got {value!r}"
