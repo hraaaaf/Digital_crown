@@ -23,6 +23,13 @@ describe('Ortho F3 UI contract', () => {
     expect(file).toContain('interprétation clinique par le praticien');
   });
 
+  it('routes canonical evidence back to the owning radiology surfaces', () => {
+    const file = fs.readFileSync(path.join(root, 'src/features/ortho/OrthoLongitudinalComparePanel.tsx'), 'utf8');
+    expect(file).toContain("item.kind === 'CEPHALO'");
+    expect(file).toContain("item.kind === 'PANORAMIC'");
+    expect(file).toContain("setSearchParams({ tab: 'radiology', radioTab })");
+  });
+
   it('keeps mobile comparison free of horizontal table scrolling', () => {
     const file = fs.readFileSync(path.join(root, 'src/features/ortho/OrthoLongitudinalComparePanel.tsx'), 'utf8');
     expect(file).toContain('sm:hidden');
