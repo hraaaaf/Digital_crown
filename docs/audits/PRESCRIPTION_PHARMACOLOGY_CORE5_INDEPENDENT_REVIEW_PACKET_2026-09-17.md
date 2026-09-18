@@ -14,11 +14,12 @@ Provide a bounded, traceable package for an independent dentist/pharmacist/clini
 - MED-ABX-004 — metronidazole
 
 ## Required inputs
-1. `PRESCRIPTION_PHARMACOLOGY_MOROCCO_CLINICAL_PASS1_CORE_2026-09-16.csv`
+1. `PRESCRIPTION_PHARMACOLOGY_MOROCCO_MEDICINE_CURRENT_STATUS_PROJECTION_V1_2026-09-17.csv`
 2. `PRESCRIPTION_PHARMACOLOGY_CORE5_MOROCCO_REGULATORY_PASS_2026-09-17.md`
 3. `PRESCRIPTION_PHARMACOLOGY_CORE5_SAFETY_EVIDENCE_INDEX_2026-09-17.csv`
 4. `PRESCRIPTION_PHARMACOLOGY_CORE5_SOURCE_REVALIDATION_2026-09-18.md`
-5. Current deterministic fail-closed validator and tests.
+5. Current primary clinical sources reviewed directly by the qualified reviewer.
+6. Current deterministic fail-closed validator and tests.
 
 ## Reviewer decisions required for each Core-5 row
 The reviewer must explicitly mark each dimension PASS / FAIL / NEEDS_CORRECTION:
@@ -55,6 +56,7 @@ The independent review does not itself activate a medicine. Technical activation
 - Morocco molecule/product evidence: indexed for Core-5.
 - Safety evidence domains: revalidated against current public authoritative sources on 2026-09-18.
 - Exact AMMPS product/presentation revalidation on 2026-09-18: NOT REPRODUCED FROM PUBLIC SEARCH; historical direct AMMPS capture retained, exact automation target still PENDING.
+- Historical unreviewed regimen CSV is intentionally not restored into the V1 master as an activation source; the reviewer must validate regimen dimensions from current primary clinical references.
 - Deterministic fail-closed baseline: established.
 - Automatic clinical activation: 0/5.
 - Independent clinical/scientific review: NOT YET PERFORMED.
