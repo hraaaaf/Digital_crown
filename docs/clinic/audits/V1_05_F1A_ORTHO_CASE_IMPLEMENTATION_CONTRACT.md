@@ -251,7 +251,14 @@ No DELETE endpoint in F1A.
 
 ## Migration strategy
 
-Use one additive Alembic revision chained from the actual current head verified at implementation time.
+Verified current schema contract on master:
+- runtime declares one unique Alembic head: `a5th0000005`;
+- `backend/core/schema_runtime.py` performs a **read-only fail-closed** head assertion;
+- normal application boot does **not** migrate the database;
+- stale/new cabinets must be upgraded explicitly by the operator/install workflow;
+- `backend/tests/test_schema_runtime_head_sync.py` asserts the runtime head equals the unique Alembic script head.
+
+Therefore F1A must use one additive Alembic revision whose `down_revision` is the **actual unique head at implementation time**. If master is still at `a5th0000005`, F1A chains directly from it; if master has moved, re-resolve the unique head before creating the revision.
 
 Migration:
 - CREATE `ortho_cases`
@@ -259,16 +266,21 @@ Migration:
 - indexes for:
   - tenant/patient lookup;
   - case/history chronological lookup;
-  - active-case lookup.
+  - active-case lookup;
+- update `CURRENT_ALEMBIC_HEAD` in the same implementation change;
+- extend the schema-head synchronization contract test.
 
 No:
 - DROP;
 - destructive ALTER;
 - patient backfill;
 - derivation from `DossierClinique.is_ortho_active`;
-- production/cabinet DB mutation during development.
+- production/cabinet DB mutation during development;
+- startup/self-healing DDL;
+- ad-hoc `ALTER TABLE` fallback;
+- implicit `create_all()` schema advancement.
 
-Because current Digital Crown also has historical self-healing schema behavior, implementation must explicitly decide whether these new tables are fully covered by `Base.metadata.create_all()` for legacy installs or require a bounded startup schema assertion. Do not add ad-hoc duplicate ALTER logic if Alembic + create_all already covers fresh additive tables.
+Upgrade execution is an explicit operator/test action only. Application boot must continue to fail closed on a stale schema.
 
 ---
 
@@ -311,10 +323,11 @@ Because current Digital Crown also has historical self-healing schema behavior, 
 
 ### Migration
 - fresh PostgreSQL schema;
-- upgrade from current certified head;
-- second upgrade no-op;
-- one coherent Alembic head;
-- SQLite test schema remains usable where supported.
+- upgrade from the exact previous unique head;
+- second `alembic upgrade head` is a no-op;
+- `CURRENT_ALEMBIC_HEAD` equals the unique Alembic head;
+- stale runtime schema fails closed rather than auto-migrating;
+- SQLite test baseline remains usable where supported.
 
 ---
 
