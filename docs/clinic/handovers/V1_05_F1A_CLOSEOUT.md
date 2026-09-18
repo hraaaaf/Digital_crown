@@ -60,15 +60,31 @@ On exact product HEAD `cf9662812a4bbeb9a8433bd96fa555b258d59420`:
 
 Therefore F1A is **not yet declared certified**.
 
-A temporary product-equivalent certification PR #604 was created from exact product HEAD `cf9662812a4bbeb9a8433bd96fa555b258d59420`.
-Its only intended semantic change is to allow the generic Full backend regression job on that temporary PR. It MUST NOT be merged.
+Temporary certification PR #604 was created from exact product-equivalent HEAD `cf9662812a4bbeb9a8433bd96fa555b258d59420`.
+
+#604 Full backend result:
+- job `105716173258` — FAILURE
+- 2252 tests passed / 5 skipped before first failure
+- sole first failure: `test_invalid_phase_contract_is_rejected_by_schema`
+- root cause: Pydantic `model_validator` raised a `ValueError` embedded in FastAPI validation `ctx`; the repository's global 422 handler attempted to JSON-serialize that exception object and raised `TypeError: Object of type ValueError is not JSON serializable`
+- state machine and DB persistence were not the failing layer
+
+Corrective product commit:
+- `d62ffa4977f5813a2010e99e743273b8a49c2221`
+- removed the redundant Pydantic cross-field validator
+- kept the same phase contract enforced at the service/API boundary, which already returns explicit HTTP 422 for missing/stray phase keys
+
+PR #604 was closed without merge.
+
+Temporary certification PR #605 was then created from corrected exact product HEAD `d62ffa4977f5813a2010e99e743273b8a49c2221`.
+Its only semantic difference is the temporary CI condition forcing the generic Full backend regression job. It MUST NOT be merged.
 
 ## Certification gate
 
 F1A becomes certifiable only when:
-1. PR #604 Full backend regression completes SUCCESS;
-2. no product changes exist between `cf966281...` and the certification candidate beyond the temporary CI condition;
-3. PR #604 is closed without merge;
+1. PR #605 Full backend regression completes SUCCESS;
+2. no product changes exist between `d62ffa497...` and the certification candidate beyond the temporary CI condition;
+3. PR #605 is closed without merge;
 4. exact run/job evidence is recorded here;
 5. PR #596 remains the product PR.
 
