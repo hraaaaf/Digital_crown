@@ -17,6 +17,7 @@ REQUIRED = [
     "PRESCRIPTION_PHARMACOLOGY_CORE5_MOROCCO_REGULATORY_PASS_2026-09-17.md",
     "PRESCRIPTION_PHARMACOLOGY_CORE5_SAFETY_EVIDENCE_INDEX_2026-09-17.csv",
     "PRESCRIPTION_PHARMACOLOGY_CORE5_SOURCE_REVALIDATION_2026-09-18.md",
+    "PRESCRIPTION_PHARMACOLOGY_CORE5_QUALIFIED_REVIEW_FORM_2026-09-18.md",
 ]
 
 
@@ -29,6 +30,9 @@ def test_core5_review_packet_references_existing_inputs_and_stays_fail_closed():
     assert "Automatic clinical activation: 0/5." in text
     assert "Independent clinical/scientific review: NOT YET PERFORMED." in text
     assert "Historical unreviewed regimen CSV is intentionally not restored" in text
+    review_form = (AUDITS / "PRESCRIPTION_PHARMACOLOGY_CORE5_QUALIFIED_REVIEW_FORM_2026-09-18.md").read_text(encoding="utf-8")
+    assert review_form.count("KEEP_FAIL_CLOSED | NO") == 5
+    assert "Clinical activation authorized: NO" in review_form
 
 
 def test_core5_projection_remains_explicitly_fail_closed_until_review():
