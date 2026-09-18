@@ -32,7 +32,7 @@ const valueLabel = (value: number, unit: string) =>
   `${value.toLocaleString('fr-FR', { maximumFractionDigits: 2 })} ${unit}`;
 
 const EvidenceLane = ({ items, onOpen }: { items: OrthoCompareEvidence[]; onOpen: (item: OrthoCompareEvidence) => void }) => (
-  <div className="space-y-2">
+  <div className="space-y-1.5 sm:space-y-2">
     {items.length === 0 ? (
       <p className="text-xs font-bold text-text-muted">Aucune preuve liée</p>
     ) : (
@@ -41,7 +41,7 @@ const EvidenceLane = ({ items, onOpen }: { items: OrthoCompareEvidence[]; onOpen
           type="button"
           key={`${item.kind}:${item.ref_id}`}
           onClick={() => onOpen(item)}
-          className="flex w-full items-center justify-between gap-3 rounded-xl border border-border-main bg-white/60 px-3 py-2 text-left transition-colors hover:bg-white"
+          className="flex w-full items-center justify-between gap-2 rounded-lg border border-border-main bg-white/60 px-2.5 py-1.5 text-left transition-colors hover:bg-white sm:gap-3 sm:rounded-xl sm:px-3 sm:py-2"
           aria-label={`Ouvrir la source ${item.label} #${item.ref_id}`}
         >
           <div className="flex min-w-0 items-center gap-2 text-slate-700">
@@ -129,24 +129,24 @@ export const OrthoLongitudinalComparePanel = ({ patientId }: Props) => {
 
   return (
     <section
-      className="rounded-[2rem] border border-border-main bg-card-bg p-4 shadow-sm sm:p-5 md:p-6"
+      className="rounded-[1.5rem] border border-border-main bg-card-bg p-3 shadow-sm sm:rounded-[2rem] sm:p-5 md:p-6"
       aria-label="Comparaison orthodontique"
       data-ortho-f3-compare
     >
-      <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+      <div className="mb-3 flex flex-col gap-1.5 sm:mb-4 sm:gap-2 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <p className="text-[10px] font-black uppercase tracking-[0.12em] text-text-muted">Suivi longitudinal</p>
-          <h2 className="mt-1 text-lg font-black text-slate-800 md:text-xl">Comparaison orthodontique</h2>
-          <p className="mt-1 text-xs font-bold text-text-muted">Comparer deux repères du traitement sans interprétation automatique.</p>
+          <h2 className="mt-0.5 text-base font-black text-slate-800 sm:mt-1 sm:text-lg md:text-xl">Comparaison orthodontique</h2>
+          <p className="mt-0.5 text-[11px] font-bold leading-4 text-text-muted sm:mt-1 sm:text-xs sm:leading-normal">Comparer deux repères du traitement sans interprétation automatique.</p>
         </div>
         {comparison && (
-          <span className="self-start rounded-full border border-border-main bg-slate-50 px-3 py-1 text-[10px] font-black text-text-muted">
+          <span className="self-start rounded-full border border-border-main bg-slate-50 px-2.5 py-0.5 text-[9px] font-black text-text-muted sm:px-3 sm:py-1 sm:text-[10px]">
             {comparison.from_timepoint.evidences.length + comparison.to_timepoint.evidences.length} preuves
           </span>
         )}
       </div>
 
-      <div className="grid grid-cols-1 gap-3 md:grid-cols-[1fr_auto_1fr] md:items-stretch">
+      <div className="grid grid-cols-1 gap-2 sm:gap-3 md:grid-cols-[1fr_auto_1fr] md:items-stretch">
         <TimepointSelector
           label="Repère initial"
           value={fromOrdinal}
@@ -157,7 +157,7 @@ export const OrthoLongitudinalComparePanel = ({ patientId }: Props) => {
         <button
           type="button"
           onClick={swap}
-          className="mx-auto flex h-9 w-9 items-center justify-center rounded-xl border border-border-main bg-slate-50 text-slate-500 transition-colors hover:text-primary md:self-center"
+          className="mx-auto flex h-8 w-8 items-center justify-center rounded-lg border border-border-main bg-slate-50 text-slate-500 transition-colors hover:text-primary sm:h-9 sm:w-9 sm:rounded-xl md:self-center"
           aria-label="Permuter les timepoints"
         >
           <ArrowLeftRight size={15} />
@@ -179,11 +179,11 @@ export const OrthoLongitudinalComparePanel = ({ patientId }: Props) => {
 
       {comparison && (
         <>
-          <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-2">
+          <div className="mt-3 grid grid-cols-1 gap-2 sm:mt-4 sm:gap-3 md:grid-cols-2">
             {[comparison.from_timepoint, comparison.to_timepoint].map((tp) => (
-              <div key={tp.id} className="rounded-2xl border border-border-main bg-slate-50/60 p-4">
-                <div className="mb-3 flex items-baseline justify-between gap-3">
-                  <div className="text-lg font-black text-slate-800">T{tp.ordinal}</div>
+              <div key={tp.id} className="rounded-xl border border-border-main bg-slate-50/60 p-3 sm:rounded-2xl sm:p-4">
+                <div className="mb-2 flex items-baseline justify-between gap-2 sm:mb-3 sm:gap-3">
+                  <div className="text-base font-black text-slate-800 sm:text-lg">T{tp.ordinal}</div>
                   <div className="text-[11px] font-bold text-text-muted">
                     {format(new Date(tp.occurred_at), 'd MMM yyyy', { locale: fr })}
                   </div>
@@ -193,8 +193,8 @@ export const OrthoLongitudinalComparePanel = ({ patientId }: Props) => {
             ))}
           </div>
 
-          <div className="mt-4 rounded-2xl border border-border-main bg-white/60 p-3 sm:p-4">
-            <div className="mb-3">
+          <div className="mt-3 rounded-xl border border-border-main bg-white/60 p-2.5 sm:mt-4 sm:rounded-2xl sm:p-4">
+            <div className="mb-2 sm:mb-3">
               <p className="text-[10px] font-black uppercase tracking-[0.12em] text-text-muted">Mesures communes</p>
               <p className="mt-1 text-[11px] font-bold text-text-muted">Variation numérique — interprétation clinique par le praticien.</p>
             </div>
@@ -221,14 +221,14 @@ export const OrthoLongitudinalComparePanel = ({ patientId }: Props) => {
                   ))}
                 </div>
 
-                <div className="space-y-2 sm:hidden">
+                <div className="space-y-1.5 sm:hidden">
                   {comparison.measurements.map((m) => (
-                    <div key={m.key} className="rounded-xl border border-border-main bg-slate-50/70 p-3">
+                    <div key={m.key} className="rounded-lg border border-border-main bg-slate-50/70 px-2.5 py-2">
                       <div className="text-xs font-black text-slate-700">{m.label}</div>
-                      <div className="mt-1 text-[11px] font-bold text-text-muted">
+                      <div className="mt-0.5 text-[10px] font-bold leading-4 text-text-muted">
                         T{comparison.from_timepoint.ordinal} {valueLabel(m.from_value, m.unit)} → T{comparison.to_timepoint.ordinal} {valueLabel(m.to_value, m.unit)}
                       </div>
-                      <div className="mt-1 text-xs font-black text-slate-800">Δ {signed(m.delta, m.unit)}</div>
+                      <div className="mt-0.5 text-[11px] font-black text-slate-800">Δ {signed(m.delta, m.unit)}</div>
                     </div>
                   ))}
                 </div>
@@ -254,13 +254,13 @@ const TimepointSelector = ({
   onChange: (value: number) => void;
   disabledOrdinal: number | null;
 }) => (
-  <label className="block rounded-2xl border border-border-main bg-slate-50/70 p-3">
+  <label className="block rounded-xl border border-border-main bg-slate-50/70 p-2.5 sm:rounded-2xl sm:p-3">
     <span className="text-[10px] font-black uppercase tracking-[0.12em] text-text-muted">{label}</span>
     <select
       value={value ?? ''}
       onChange={(event) => onChange(Number(event.target.value))}
       className={cn(
-        'mt-2 w-full rounded-xl border border-border-main bg-white px-3 py-2 text-sm font-black text-slate-800 outline-none',
+        'mt-1.5 w-full rounded-lg border border-border-main bg-white px-2.5 py-1.5 text-sm font-black text-slate-800 outline-none sm:mt-2 sm:rounded-xl sm:px-3 sm:py-2',
         'focus:border-primary/40 focus:ring-2 focus:ring-primary/10',
       )}
     >
