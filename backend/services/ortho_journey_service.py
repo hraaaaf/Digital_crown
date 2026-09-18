@@ -218,3 +218,94 @@ def transition_ortho_case(
     db.commit()
 
     return get_ortho_case(db, patient_id, employer_id)
+
+
+def list_ortho_controls(
+    db: Session,
+    patient_id: int,
+    case_id: int,
+    employer_id: int,
+):
+    return (
+        db.query(models.OrthoControl)
+        .filter(
+            models.OrthoControl.ortho_case_id == case_id,
+            models.OrthoControl.patient_id == patient_id,
+            models.OrthoControl.employer_id == employer_id,
+        )
+        .order_by(models.OrthoControl.occurred_at.desc(), models.OrthoControl.id.desc())
+        .all()
+    )
+
+
+def create_ortho_control(
+    db: Session,
+    patient_id: int,
+    case_id: int,
+    employer_id: int,
+    created_by: int,
+    occurred_at: datetime,
+    phase_key: str | None,
+    appointment_id: int | None,
+    note: str | None,
+    next_control_at: datetime | None,
+):
+    case = (
+        db.query(models.OrthoCase)
+        .filter(
+            models.OrthoCase.id == case_id,
+            models.OrthoCase.patient_id == patient_id,
+            models.OrthoCase.employer_id == employer_id,
+        )
+        .with_for_update()
+        .first()
+    )
+    if case is None:
+        raise HTTPException(status_code=404, detail="Traitement orthodontique introuvable.")
+    if case.lifecycle_status in TERMINAL_STATUSES:
+        raise HTTPException(
+            status_code=409,
+            detail="Impossible d'ajouter un contrôle à un traitement orthodontique terminé.",
+        )
+    if occurred_at < case.started_at:
+        raise HTTPException(
+            status_code=409,
+            detail="Le contrôle ne peut pas précéder le début du traitement.",
+        )
+    if next_control_at is not None and next_control_at < occurred_at:
+        raise HTTPException(
+            status_code=422,
+            detail="next_control_at ne peut pas précéder occurred_at.",
+        )
+
+    if appointment_id is not None:
+        appointment = (
+            db.query(models.Appointment)
+            .filter(
+                models.Appointment.id == appointment_id,
+                models.Appointment.patient_id == patient_id,
+                models.Appointment.employer_id == employer_id,
+            )
+            .first()
+        )
+        if appointment is None:
+            raise HTTPException(
+                status_code=422,
+                detail="Le rendez-vous référencé n'appartient pas à ce patient/cabinet.",
+            )
+
+    control = models.OrthoControl(
+        ortho_case_id=case.id,
+        employer_id=employer_id,
+        patient_id=patient_id,
+        appointment_id=appointment_id,
+        occurred_at=occurred_at,
+        phase_key=phase_key,
+        note=note,
+        next_control_at=next_control_at,
+        created_by=created_by,
+    )
+    db.add(control)
+    db.commit()
+    db.refresh(control)
+    return control
