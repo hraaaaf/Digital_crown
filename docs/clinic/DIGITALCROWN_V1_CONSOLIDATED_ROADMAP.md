@@ -134,9 +134,9 @@ Proof: current-master reconciliation + PostgreSQL migration rehearsal from scrat
 
 ### LOT V1-02 — Agenda A5: temporal/history finalization
 
-Status: **IMPLEMENTED — TECHNICAL EXACT-HEAD GREEN; VISUAL MERGE EVIDENCE PENDING**
+Status: **CLOSED — MERGED AND POST-MERGE MASTER CERTIFIED**
 
-Candidate: PR `#589`, exact product/test HEAD `282781f8a978ad086899326df25afb3abb9b442b`.
+Merged: PR `#589`; final PR HEAD `5fcf127e5d660d2ca7a4a8c84edc93da58cca83c`; merge SHA `66bc45b6c88bdefa9dc29a2bded055a3c8ff40ab`.
 
 Verified scope: appointment history uses soft-delete markers (`deleted_at`, `deleted_by`) instead of destructive deletion; deleted appointments are excluded from active agenda reads and practitioner/resource capacity checks; cabinet wall-clock normalization remains explicit; Alembic advances coherently to `a5th0000005`; A4 bulk creation now persists the already-validated `resource_id`. No product frontend/UI files changed.
 
@@ -151,7 +151,11 @@ Exact-head proof:
 - UI Human Visual Approval `35317834933` — SUCCESS; no V1-02 product UI delta.
 - M6-I `35317837179` — SKIPPED by workflow conditions.
 
-Next exact: produce and inspect mandatory deterministic BEFORE/AFTER captures for the impacted Agenda workflow at 390×844 / 768×1024 / 1280×900, record a severe visual score, then request the human merge authorization for PR `#589`; after merge, certify exact master CI/PostgreSQL before unlocking V1-03.
+Final visual proof: Agenda A5 Visual Evidence `35320330136` — SUCCESS; artifact `agenda-a5-before-after` contains six deterministic BEFORE/AFTER captures at 390×844 / 768×1024 / 1280×900, with zero horizontal overflow. Human visual review completed before merge; severe visual score 9.2/10.
+
+Post-merge master proof at `66bc45b6c88bdefa9dc29a2bded055a3c8ff40ab`: CI `35324967441` — SUCCESS; Cabinet Upgrade PostgreSQL Certification `35324967435` — SUCCESS.
+
+Next exact: start LOT V1-03 from certified master; reconstruct accepted Morocco pharmacology evidence from stale PRs #565/#572 without merging either branch as-is.
 
 Goal: finish Agenda V1 hardening.
 
@@ -161,7 +165,7 @@ Success/Proof: deterministic temporal/history behavior + no Agenda regression + 
 
 ### LOT V1-03 — Pharmacology Morocco evidence reconstruction
 
-Status: **BLOCKED BY V1-02**
+Status: **UNLOCKED — START FROM CERTIFIED MASTER**
 
 Working references: PR `#565` and divergent evidence PR `#572`; both are stale evidence branches, not merge-as-is product branches.
 
