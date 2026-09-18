@@ -1,0 +1,5 @@
+id,domain,subdomain,item,item_type,morocco_status,clinical_status,gap_reason,clinical_activation
+MED-CORT-001,medicine,corticosteroid,dexamethasone systemic,drug,TO_VERIFY_MA,TO_VALIDATE,"Mandatory corticosteroid scope present in continuation contract but absent from 170-row base inventory; exact dental indication/formulation/regimen must be validated before use",NO
+MED-CORT-002,medicine,corticosteroid,prednisolone systemic,drug,TO_VERIFY_MA,TO_VALIDATE,"Mandatory corticosteroid scope present in continuation contract but absent from 170-row base inventory; exact dental indication/formulation/regimen must be validated before use",NO
+OC-TP-014,oral_care,toothpaste,gingival antimicrobial toothpaste,otc_para,VERIFIED_EXAMPLE_MA,PRODUCT_SPECIFIC,"Explicit family documented in PARA_CORE_PASS and required by scope, but missing as a distinct row from the base inventory",NO
+OC-MUC-004,oral_care,oral_mucosa,oral barrier or film-forming spray/solution,otc_para,VERIFIED_EXAMPLE_MA,PRODUCT_SPECIFIC,"Sprays/solutions are explicitly in scope and a Morocco example is documented in PARA_FINAL_FAMILIES_PASS, while base inventory only represented gel/patch forms",NO
