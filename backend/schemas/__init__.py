@@ -229,6 +229,10 @@ from .ortho_journey import (
     OrthoTimepointEvidenceCreate,
     OrthoTimepointEvidenceOut,
     OrthoTimepointOut,
+    OrthoCompareEvidenceOut,
+    OrthoCompareTimepointOut,
+    OrthoMeasurementDeltaOut,
+    OrthoLongitudinalCompareOut,
 )
 
 __all__ = [
@@ -303,4 +307,6 @@ __all__ = [
     "OrthoControlCreate", "OrthoControlOut",
     "OrthoTimepointCreate", "OrthoTimepointEvidenceCreate",
     "OrthoTimepointEvidenceOut", "OrthoTimepointOut",
+    "OrthoCompareEvidenceOut", "OrthoCompareTimepointOut",
+    "OrthoMeasurementDeltaOut", "OrthoLongitudinalCompareOut",
 ]

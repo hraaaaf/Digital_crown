@@ -159,3 +159,37 @@ class OrthoTimepointOut(BaseModel):
     created_at: datetime.datetime
     evidences: List[OrthoTimepointEvidenceOut] = Field(default_factory=list)
     model_config = ConfigDict(from_attributes=True)
+
+
+class OrthoCompareEvidenceOut(BaseModel):
+    kind: str
+    ref_id: int
+    recorded_at: Optional[datetime.datetime] = None
+    label: str
+
+
+class OrthoCompareTimepointOut(BaseModel):
+    id: int
+    ordinal: int
+    occurred_at: datetime.datetime
+    note: Optional[str] = None
+    evidences: List[OrthoCompareEvidenceOut] = Field(default_factory=list)
+
+
+class OrthoMeasurementDeltaOut(BaseModel):
+    key: str
+    label: str
+    unit: str
+    from_value: float
+    to_value: float
+    delta: float
+
+
+class OrthoLongitudinalCompareOut(BaseModel):
+    patient_id: int
+    ortho_case_id: int
+    from_timepoint: OrthoCompareTimepointOut
+    to_timepoint: OrthoCompareTimepointOut
+    measurements: List[OrthoMeasurementDeltaOut] = Field(default_factory=list)
+    measurement_status: str
+    interpretation_policy: str = "NUMERIC_ONLY_CLINICIAN_INTERPRETATION"

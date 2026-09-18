@@ -999,6 +999,31 @@ def add_patient_ortho_timepoint_evidence(
 
 
 
+
+@router.get(
+    "/{patient_id}/ortho-case/{case_id}/compare",
+    response_model=schemas.OrthoLongitudinalCompareOut,
+)
+def compare_patient_ortho_timepoints(
+    patient_id: int,
+    case_id: int,
+    from_ordinal: int,
+    to_ordinal: int,
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(require_permission("patients")),
+):
+    assert_patient_access(patient_id, current_user, db)
+    from backend.services import ortho_journey_service
+
+    return ortho_journey_service.compare_ortho_timepoints(
+        db=db,
+        patient_id=patient_id,
+        case_id=case_id,
+        employer_id=current_user.get_employer_id(),
+        from_ordinal=from_ordinal,
+        to_ordinal=to_ordinal,
+    )
+
 @router.put("/{patient_id}", response_model=schemas.PatientOut)
 def update_patient(patient_id: int, patient_update: schemas.PatientUpdate, db: Session = Depends(database.get_db), current_user: models.User = Depends(require_permission("patients"))):
     assert_patient_access(patient_id, current_user, db)

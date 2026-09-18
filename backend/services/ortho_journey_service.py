@@ -501,3 +501,237 @@ def add_ortho_timepoint_evidence(
     db.commit()
     db.refresh(evidence)
     return evidence
+
+
+_F3_MEASUREMENTS = {
+    "SNA": ("SNA", "deg"),
+    "SNB": ("SNB", "deg"),
+    "ANB": ("ANB", "deg"),
+    "FMA": ("FMA", "deg"),
+    "IMPA": ("IMPA", "deg"),
+    "Inter_Incisif": ("Inter-incisif", "deg"),
+    "I_Francfort": ("Incisive / Francfort", "deg"),
+    "Angle_de_Tweed": ("Angle de Tweed", "deg"),
+    "Angle_Nasolabial": ("Angle naso-labial", "deg"),
+    "Surplomb": ("Surplomb", "mm"),
+    "Recouvrement": ("Recouvrement", "mm"),
+    "Wits": ("Wits", "mm"),
+    "Decalage_A_B": ("Décalage A-B", "mm"),
+    "Situation_A": ("Situation A", "mm"),
+    "Situation_B": ("Situation B", "mm"),
+    "Profondeur_Faciale": ("Profondeur faciale", "deg"),
+    "Ligne_E_Ls": ("Ligne E lèvre sup.", "mm"),
+    "Ligne_E_Li": ("Ligne E lèvre inf.", "mm"),
+}
+
+
+def _numeric_value(value):
+    if isinstance(value, bool):
+        return None
+    if isinstance(value, (int, float)):
+        return float(value)
+    if isinstance(value, dict):
+        candidate = value.get("valeur")
+        if isinstance(candidate, bool):
+            return None
+        if isinstance(candidate, (int, float)):
+            return float(candidate)
+    return None
+
+
+def _extract_f3_measurements(payload: dict | None) -> dict[str, float]:
+    found: dict[str, float] = {}
+
+    def visit(node):
+        if not isinstance(node, dict):
+            return
+        for key, value in node.items():
+            if key in _F3_MEASUREMENTS and key not in found:
+                numeric = _numeric_value(value)
+                if numeric is not None:
+                    found[key] = numeric
+            if isinstance(value, dict):
+                visit(value)
+
+    visit(payload or {})
+    return found
+
+
+def _f3_timepoint_or_404(
+    db: Session,
+    patient_id: int,
+    case_id: int,
+    employer_id: int,
+    ordinal: int,
+):
+    timepoint = (
+        db.query(models.OrthoTimepoint)
+        .options(joinedload(models.OrthoTimepoint.evidences))
+        .filter(
+            models.OrthoTimepoint.ortho_case_id == case_id,
+            models.OrthoTimepoint.patient_id == patient_id,
+            models.OrthoTimepoint.employer_id == employer_id,
+            models.OrthoTimepoint.ordinal == ordinal,
+        )
+        .first()
+    )
+    if timepoint is None:
+        raise HTTPException(status_code=404, detail=f"Timepoint T{ordinal} introuvable.")
+    return timepoint
+
+
+def _f3_evidence_summaries(db: Session, timepoint, patient_id: int, employer_id: int):
+    summaries = []
+    for evidence in timepoint.evidences:
+        if evidence.clinical_asset_id is not None:
+            asset = (
+                db.query(ClinicalAsset)
+                .filter(
+                    ClinicalAsset.id == evidence.clinical_asset_id,
+                    ClinicalAsset.patient_id == patient_id,
+                    ClinicalAsset.employer_id == employer_id,
+                )
+                .first()
+            )
+            if asset is not None:
+                summaries.append(
+                    schemas.OrthoCompareEvidenceOut(
+                        kind="CLINICAL_ASSET",
+                        ref_id=asset.id,
+                        recorded_at=asset.captured_at or asset.created_at,
+                        label=asset.asset_type,
+                    )
+                )
+        elif evidence.cephalo_analysis_id is not None:
+            ceph = (
+                db.query(models.CephaloAnalysis)
+                .filter(
+                    models.CephaloAnalysis.id == evidence.cephalo_analysis_id,
+                    models.CephaloAnalysis.patient_id == patient_id,
+                )
+                .first()
+            )
+            if ceph is not None:
+                summaries.append(
+                    schemas.OrthoCompareEvidenceOut(
+                        kind="CEPHALO",
+                        ref_id=ceph.id,
+                        recorded_at=ceph.created_at,
+                        label="Céphalométrie calibrée" if ceph.is_calibrated else "Céphalométrie non calibrée",
+                    )
+                )
+        elif evidence.panoramic_analysis_id is not None:
+            pano = (
+                db.query(models.PanoramicAnalysis)
+                .filter(
+                    models.PanoramicAnalysis.id == evidence.panoramic_analysis_id,
+                    models.PanoramicAnalysis.patient_id == patient_id,
+                )
+                .first()
+            )
+            if pano is not None:
+                summaries.append(
+                    schemas.OrthoCompareEvidenceOut(
+                        kind="PANORAMIC",
+                        ref_id=pano.id,
+                        recorded_at=pano.created_at,
+                        label="Panoramique",
+                    )
+                )
+    return summaries
+
+
+def compare_ortho_timepoints(
+    db: Session,
+    patient_id: int,
+    case_id: int,
+    employer_id: int,
+    from_ordinal: int,
+    to_ordinal: int,
+):
+    if from_ordinal == to_ordinal:
+        raise HTTPException(status_code=422, detail="Deux timepoints distincts sont requis.")
+
+    case = get_ortho_case_by_id(db, patient_id, case_id, employer_id)
+    if case is None:
+        raise HTTPException(status_code=404, detail="Traitement orthodontique introuvable.")
+
+    left = _f3_timepoint_or_404(db, patient_id, case_id, employer_id, from_ordinal)
+    right = _f3_timepoint_or_404(db, patient_id, case_id, employer_id, to_ordinal)
+
+    def cephalo_rows(timepoint):
+        ids = [
+            e.cephalo_analysis_id
+            for e in timepoint.evidences
+            if e.cephalo_analysis_id is not None
+        ]
+        if not ids:
+            return []
+        return (
+            db.query(models.CephaloAnalysis)
+            .filter(
+                models.CephaloAnalysis.id.in_(ids),
+                models.CephaloAnalysis.patient_id == patient_id,
+            )
+            .all()
+        )
+
+    left_ceph = cephalo_rows(left)
+    right_ceph = cephalo_rows(right)
+    measurements = []
+    measurement_status = "NO_CEPHALO_PAIR"
+
+    if len(left_ceph) == 1 and len(right_ceph) == 1:
+        left_values = _extract_f3_measurements(left_ceph[0].angles_data)
+        right_values = _extract_f3_measurements(right_ceph[0].angles_data)
+        both_calibrated = bool(left_ceph[0].is_calibrated and right_ceph[0].is_calibrated)
+
+        for key, (label, unit) in _F3_MEASUREMENTS.items():
+            if key not in left_values or key not in right_values:
+                continue
+            if unit == "mm" and not both_calibrated:
+                continue
+            from_value = left_values[key]
+            to_value = right_values[key]
+            measurements.append(
+                schemas.OrthoMeasurementDeltaOut(
+                    key=key,
+                    label=label,
+                    unit=unit,
+                    from_value=from_value,
+                    to_value=to_value,
+                    delta=round(to_value - from_value, 4),
+                )
+            )
+
+        if measurements:
+            measurement_status = (
+                "AVAILABLE"
+                if both_calibrated
+                else "AVAILABLE_ANGULAR_ONLY_LINEAR_UNCALIBRATED"
+            )
+        else:
+            measurement_status = "NO_COMMON_MEASUREMENTS"
+    elif len(left_ceph) > 1 or len(right_ceph) > 1:
+        measurement_status = "AMBIGUOUS_CEPHALO_PAIR"
+
+    return schemas.OrthoLongitudinalCompareOut(
+        patient_id=patient_id,
+        ortho_case_id=case_id,
+        from_timepoint=schemas.OrthoCompareTimepointOut(
+            id=left.id,
+            ordinal=left.ordinal,
+            occurred_at=left.occurred_at,
+            note=left.note,
+            evidences=_f3_evidence_summaries(db, left, patient_id, employer_id),
+        ),
+        to_timepoint=schemas.OrthoCompareTimepointOut(
+            id=right.id,
+            ordinal=right.ordinal,
+            occurred_at=right.occurred_at,
+            note=right.note,
+            evidences=_f3_evidence_summaries(db, right, patient_id, employer_id),
+        ),
+        measurements=measurements,
+        measurement_status=measurement_status,
+    )

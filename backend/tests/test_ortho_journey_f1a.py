@@ -894,3 +894,220 @@ class TestOrthoJourneyF2:
         events = [e for e in journey.json()["events"] if e["source"] == "ortho_timepoint"]
         assert len(events) == 1
         assert events[0]["type"] == "T0"
+
+
+class TestOrthoJourneyF3:
+    def _create_timepoint_with_ceph(
+        self,
+        client,
+        db,
+        patient_id,
+        case_id,
+        headers,
+        dentiste_id,
+        ordinal,
+        occurred_at,
+        angles,
+        calibrated=True,
+    ):
+        from backend import models
+
+        tp = client.post(
+            f"/api/patients/{patient_id}/ortho-case/{case_id}/timepoints",
+            headers=headers,
+            json={"ordinal": ordinal, "occurred_at": occurred_at.isoformat()},
+        )
+        assert tp.status_code == 201, tp.text
+
+        ceph = models.CephaloAnalysis(
+            patient_id=patient_id,
+            image_original_path=f"ceph-f3-t{ordinal}.png",
+            landmarks_data={},
+            angles_data=angles,
+            is_calibrated=calibrated,
+            mm_per_pixel=0.1 if calibrated else None,
+        )
+        db.add(ceph)
+        db.commit()
+        db.refresh(ceph)
+
+        link = client.post(
+            f"/api/patients/{patient_id}/ortho-case/{case_id}/timepoints/{tp.json()['id']}/evidences",
+            headers=headers,
+            json={"cephalo_analysis_id": ceph.id},
+        )
+        assert link.status_code == 201, link.text
+        return tp.json(), ceph
+
+    def test_compare_returns_raw_numeric_deltas_only(self, client, db, dentiste, auth_headers):
+        patient = _make_patient(db, dentiste.id, "ORTHO_F3_DELTA")
+        start = datetime(2026, 1, 10, 9, 0, 0)
+        created = _create_case(client, patient.id, auth_headers, start)
+        assert created.status_code == 201
+        case_id = created.json()["id"]
+
+        self._create_timepoint_with_ceph(
+            client, db, patient.id, case_id, auth_headers, dentiste.id, 0, start,
+            {"SNA": 82.0, "SNB": {"valeur": 80.0}, "Surplomb": {"valeur": 4.0}},
+            calibrated=True,
+        )
+        self._create_timepoint_with_ceph(
+            client, db, patient.id, case_id, auth_headers, dentiste.id, 1, start + timedelta(days=180),
+            {"SNA": 83.2, "SNB": {"valeur": 79.5}, "Surplomb": {"valeur": 2.5}},
+            calibrated=True,
+        )
+
+        response = client.get(
+            f"/api/patients/{patient.id}/ortho-case/{case_id}/compare",
+            params={"from_ordinal": 0, "to_ordinal": 1},
+            headers=auth_headers,
+        )
+        assert response.status_code == 200, response.text
+        body = response.json()
+        assert body["measurement_status"] == "AVAILABLE"
+        assert body["interpretation_policy"] == "NUMERIC_ONLY_CLINICIAN_INTERPRETATION"
+
+        by_key = {item["key"]: item for item in body["measurements"]}
+        assert by_key["SNA"]["delta"] == pytest.approx(1.2)
+        assert by_key["SNB"]["delta"] == pytest.approx(-0.5)
+        assert by_key["Surplomb"]["delta"] == pytest.approx(-1.5)
+        assert all(
+            forbidden not in response.text.lower()
+            for forbidden in ("improved", "worsened", "success", "failure", "amélior", "aggrav")
+        )
+
+    def test_compare_excludes_linear_values_when_one_ceph_is_uncalibrated(
+        self, client, db, dentiste, auth_headers
+    ):
+        patient = _make_patient(db, dentiste.id, "ORTHO_F3_CAL")
+        start = datetime(2026, 2, 1, 9, 0, 0)
+        created = _create_case(client, patient.id, auth_headers, start)
+        case_id = created.json()["id"]
+
+        self._create_timepoint_with_ceph(
+            client, db, patient.id, case_id, auth_headers, dentiste.id, 0, start,
+            {"SNA": 82.0, "Surplomb": {"valeur": 4.0}},
+            calibrated=True,
+        )
+        self._create_timepoint_with_ceph(
+            client, db, patient.id, case_id, auth_headers, dentiste.id, 1, start + timedelta(days=90),
+            {"SNA": 83.0, "Surplomb": {"valeur": 3.0}},
+            calibrated=False,
+        )
+
+        response = client.get(
+            f"/api/patients/{patient.id}/ortho-case/{case_id}/compare",
+            params={"from_ordinal": 0, "to_ordinal": 1},
+            headers=auth_headers,
+        )
+        assert response.status_code == 200, response.text
+        body = response.json()
+        assert body["measurement_status"] == "AVAILABLE_ANGULAR_ONLY_LINEAR_UNCALIBRATED"
+        keys = {item["key"] for item in body["measurements"]}
+        assert "SNA" in keys
+        assert "Surplomb" not in keys
+
+    def test_compare_requires_two_distinct_existing_timepoints(self, client, db, dentiste, auth_headers):
+        patient = _make_patient(db, dentiste.id, "ORTHO_F3_PAIR")
+        start = datetime(2026, 3, 1, 9, 0, 0)
+        created = _create_case(client, patient.id, auth_headers, start)
+        case_id = created.json()["id"]
+        tp = client.post(
+            f"/api/patients/{patient.id}/ortho-case/{case_id}/timepoints",
+            headers=auth_headers,
+            json={"ordinal": 0, "occurred_at": start.isoformat()},
+        )
+        assert tp.status_code == 201
+
+        same = client.get(
+            f"/api/patients/{patient.id}/ortho-case/{case_id}/compare",
+            params={"from_ordinal": 0, "to_ordinal": 0},
+            headers=auth_headers,
+        )
+        assert same.status_code == 422
+
+        missing = client.get(
+            f"/api/patients/{patient.id}/ortho-case/{case_id}/compare",
+            params={"from_ordinal": 0, "to_ordinal": 1},
+            headers=auth_headers,
+        )
+        assert missing.status_code == 404
+
+    def test_compare_case_patient_pairing_is_scoped(self, client, db, dentiste, auth_headers):
+        patient_a = _make_patient(db, dentiste.id, "ORTHO_F3_SCOPE_A")
+        patient_b = _make_patient(db, dentiste.id, "ORTHO_F3_SCOPE_B")
+        start = datetime(2026, 4, 1, 9, 0, 0)
+        created = _create_case(client, patient_a.id, auth_headers, start)
+        case_id = created.json()["id"]
+
+        response = client.get(
+            f"/api/patients/{patient_b.id}/ortho-case/{case_id}/compare",
+            params={"from_ordinal": 0, "to_ordinal": 1},
+            headers=auth_headers,
+        )
+        assert response.status_code == 404
+
+
+    def test_compare_reports_ambiguous_cephalo_pair_without_guessing(
+        self, client, db, dentiste, auth_headers
+    ):
+        from backend import models
+
+        patient = _make_patient(db, dentiste.id, "ORTHO_F3_AMBIG")
+        start = datetime(2026, 5, 1, 9, 0, 0)
+        created = _create_case(client, patient.id, auth_headers, start)
+        case_id = created.json()["id"]
+
+        t0 = client.post(
+            f"/api/patients/{patient.id}/ortho-case/{case_id}/timepoints",
+            headers=auth_headers,
+            json={"ordinal": 0, "occurred_at": start.isoformat()},
+        )
+        t1 = client.post(
+            f"/api/patients/{patient.id}/ortho-case/{case_id}/timepoints",
+            headers=auth_headers,
+            json={"ordinal": 1, "occurred_at": (start + timedelta(days=60)).isoformat()},
+        )
+        assert t0.status_code == 201
+        assert t1.status_code == 201
+
+        cephs = [
+            models.CephaloAnalysis(
+                patient_id=patient.id,
+                image_original_path=f"ambig-{idx}.png",
+                landmarks_data={},
+                angles_data={"SNA": 82.0 + idx},
+                is_calibrated=True,
+                mm_per_pixel=0.1,
+            )
+            for idx in range(3)
+        ]
+        db.add_all(cephs)
+        db.commit()
+        for ceph in cephs:
+            db.refresh(ceph)
+
+        for ceph in cephs[:2]:
+            linked = client.post(
+                f"/api/patients/{patient.id}/ortho-case/{case_id}/timepoints/{t0.json()['id']}/evidences",
+                headers=auth_headers,
+                json={"cephalo_analysis_id": ceph.id},
+            )
+            assert linked.status_code == 201, linked.text
+
+        linked = client.post(
+            f"/api/patients/{patient.id}/ortho-case/{case_id}/timepoints/{t1.json()['id']}/evidences",
+            headers=auth_headers,
+            json={"cephalo_analysis_id": cephs[2].id},
+        )
+        assert linked.status_code == 201, linked.text
+
+        response = client.get(
+            f"/api/patients/{patient.id}/ortho-case/{case_id}/compare",
+            params={"from_ordinal": 0, "to_ordinal": 1},
+            headers=auth_headers,
+        )
+        assert response.status_code == 200, response.text
+        body = response.json()
+        assert body["measurement_status"] == "AMBIGUOUS_CEPHALO_PAIR"
+        assert body["measurements"] == []

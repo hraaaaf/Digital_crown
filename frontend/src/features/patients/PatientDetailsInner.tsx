@@ -25,6 +25,7 @@ import toast from 'react-hot-toast';
 import { parseMotifs, findMotifById } from '../../data/motifsDictionary';
 
 import { CephaloWorkspace } from '../ortho/CephaloWorkspace';
+import { OrthoLongitudinalComparePanel } from '../ortho/OrthoLongitudinalComparePanel';
 import { PanoramicStudio } from '../panoramic/PanoramicStudio';
 import { DocumentHub } from '../admin/DocumentHub';
 import { PatientDocuments } from './PatientDocuments';
@@ -362,7 +363,12 @@ export const PatientDetails = () => {
             </div>
           )}
 
-          {activeTab === 'tracking' && <PatientJourney patientId={Number(id)} />}
+          {activeTab === 'tracking' && (
+            <>
+              <OrthoLongitudinalComparePanel patientId={Number(id)} />
+              <PatientJourney patientId={Number(id)} />
+            </>
+          )}
           {activeTab === 'clinical' && <ClinicalHub patientId={Number(id)} />}
 
           {isDocuments && (
