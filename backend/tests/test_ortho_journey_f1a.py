@@ -328,3 +328,160 @@ class TestOrthoJourneyF1A:
             },
         )
         assert stray_phase.status_code == 422
+
+
+class TestOrthoJourneyF1B:
+    def test_create_and_list_structured_control(self, client, db, dentiste, auth_headers):
+        patient = _make_patient(db, dentiste.id, "ORTHO_CONTROL")
+        start = datetime(2026, 9, 18, 9, 0, 0)
+        created = _create_case(client, patient.id, auth_headers, start)
+        assert created.status_code == 201
+        case_id = created.json()["id"]
+
+        control = client.post(
+            f"/api/patients/{patient.id}/ortho-case/{case_id}/controls",
+            headers=auth_headers,
+            json={
+                "occurred_at": (start + timedelta(days=7)).isoformat(),
+                "phase_key": "APPAREILLAGE",
+                "note": "Arc contrôlé, note factuelle.",
+                "next_control_at": (start + timedelta(days=35)).isoformat(),
+            },
+        )
+        assert control.status_code == 201, control.text
+        body = control.json()
+        assert body["ortho_case_id"] == case_id
+        assert body["phase_key"] == "APPAREILLAGE"
+        assert body["note"] == "Arc contrôlé, note factuelle."
+
+        listed = client.get(
+            f"/api/patients/{patient.id}/ortho-case/{case_id}/controls",
+            headers=auth_headers,
+        )
+        assert listed.status_code == 200
+        assert [item["id"] for item in listed.json()] == [body["id"]]
+
+    def test_control_does_not_change_current_phase(self, client, db, dentiste, auth_headers):
+        patient = _make_patient(db, dentiste.id, "ORTHO_CONTROL_PHASE")
+        start = datetime(2026, 9, 18, 9, 0, 0)
+        created = _create_case(client, patient.id, auth_headers, start, phase="DIAGNOSTIC")
+        case_id = created.json()["id"]
+
+        control = client.post(
+            f"/api/patients/{patient.id}/ortho-case/{case_id}/controls",
+            headers=auth_headers,
+            json={
+                "occurred_at": (start + timedelta(days=1)).isoformat(),
+                "phase_key": "ALIGNEMENT",
+            },
+        )
+        assert control.status_code == 201
+
+        fetched = client.get(
+            f"/api/patients/{patient.id}/ortho-case",
+            headers=auth_headers,
+        )
+        assert fetched.status_code == 200
+        assert fetched.json()["current_phase_key"] == "DIAGNOSTIC"
+
+    def test_terminal_case_rejects_new_control(self, client, db, dentiste, auth_headers):
+        patient = _make_patient(db, dentiste.id, "ORTHO_CONTROL_TERMINAL")
+        start = datetime(2026, 9, 18, 9, 0, 0)
+        created = _create_case(client, patient.id, auth_headers, start)
+        case_id = created.json()["id"]
+
+        closed = client.post(
+            f"/api/patients/{patient.id}/ortho-case/{case_id}/transitions",
+            headers=auth_headers,
+            json={
+                "event_type": "CLOSE",
+                "effective_at": (start + timedelta(days=1)).isoformat(),
+            },
+        )
+        assert closed.status_code == 200
+
+        control = client.post(
+            f"/api/patients/{patient.id}/ortho-case/{case_id}/controls",
+            headers=auth_headers,
+            json={
+                "occurred_at": (start + timedelta(days=2)).isoformat(),
+            },
+        )
+        assert control.status_code == 409
+
+    def test_control_rejects_foreign_patient_appointment(self, client, db, dentiste, auth_headers):
+        from backend import models
+
+        patient = _make_patient(db, dentiste.id, "ORTHO_CONTROL_APPT_A")
+        other = _make_patient(db, dentiste.id, "ORTHO_CONTROL_APPT_B")
+        start = datetime(2026, 9, 18, 9, 0, 0)
+        created = _create_case(client, patient.id, auth_headers, start)
+        case_id = created.json()["id"]
+
+        appointment = models.Appointment(
+            patient_id=other.id,
+            patient_name="Other",
+            datetime_start=start + timedelta(days=1),
+            duration_minutes=30,
+            status=models.AppointmentStatus.PREVU,
+            scheduling_type=models.SchedulingType.EXACT_TIME,
+            employer_id=dentiste.id,
+        )
+        db.add(appointment)
+        db.commit()
+        db.refresh(appointment)
+
+        control = client.post(
+            f"/api/patients/{patient.id}/ortho-case/{case_id}/controls",
+            headers=auth_headers,
+            json={
+                "occurred_at": (start + timedelta(days=1)).isoformat(),
+                "appointment_id": appointment.id,
+            },
+        )
+        assert control.status_code == 422
+
+    def test_control_next_date_cannot_precede_control(self, client, db, dentiste, auth_headers):
+        patient = _make_patient(db, dentiste.id, "ORTHO_CONTROL_DATE")
+        start = datetime(2026, 9, 18, 9, 0, 0)
+        created = _create_case(client, patient.id, auth_headers, start)
+        case_id = created.json()["id"]
+
+        control = client.post(
+            f"/api/patients/{patient.id}/ortho-case/{case_id}/controls",
+            headers=auth_headers,
+            json={
+                "occurred_at": (start + timedelta(days=2)).isoformat(),
+                "next_control_at": (start + timedelta(days=1)).isoformat(),
+            },
+        )
+        assert control.status_code == 422
+
+    def test_control_is_reused_by_existing_patient_journey(self, client, db, dentiste, auth_headers):
+        patient = _make_patient(db, dentiste.id, "ORTHO_CONTROL_JOURNEY")
+        start = datetime.now() - timedelta(days=3)
+        created = _create_case(client, patient.id, auth_headers, start)
+        case_id = created.json()["id"]
+
+        control = client.post(
+            f"/api/patients/{patient.id}/ortho-case/{case_id}/controls",
+            headers=auth_headers,
+            json={
+                "occurred_at": datetime.now().isoformat(),
+                "phase_key": "FINITION",
+            },
+        )
+        assert control.status_code == 201
+
+        journey = client.get(
+            f"/api/patients/{patient.id}/journey?full_history=true",
+            headers=auth_headers,
+        )
+        assert journey.status_code == 200
+        events = [
+            event for event in journey.json()["events"]
+            if event["source"] == "ortho_control"
+        ]
+        assert len(events) == 1
+        assert events[0]["type"] == "CONTROLE"
+        assert events[0]["phase_hint"] == "finition"
