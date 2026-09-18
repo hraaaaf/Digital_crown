@@ -1,8 +1,9 @@
 """
 Treatment Journey — agrégation en lecture seule du parcours patient.
 
-Fusionne 9 sources indépendantes (Appointment, TreatmentPlanStep, DocumentArchive,
-PanoramicAnalysis, CephaloAnalysis, Payment, Installment, LabJob, JourneyMilestone) en un
+Fusionne 10 sources indépendantes (Appointment, TreatmentPlanStep, DocumentArchive,
+PanoramicAnalysis, CephaloAnalysis, Payment, Installment, LabJob, JourneyMilestone,
+OrthoPhaseEvent) en un
 flux chronologique unique, sans jamais dupliquer la donnée : chaque table source reste la
 seule vérité, ce module ne fait que lire et normaliser.
 
@@ -55,7 +56,7 @@ def _event(event_key, source, type_, ref_id, date, title, status, phase_hint,
     )
 
 
-def _collect_events(db: Session, patient_id: int, since: Optional[datetime]) -> list:
+def _collect_events(db: Session, patient_id: int, since: Optional[datetime], employer_id: Optional[int] = None) -> list:
     events = []
 
     # 1. Appointment (status=TERMINE) — événements passés de la timeline
@@ -203,6 +204,42 @@ def _collect_events(db: Session, patient_id: int, since: Optional[datetime]) -> 
             schemas.NavigationTarget.INLINE,
         ))
 
+    # 10. OrthoPhaseEvent — événements factuels de cycle/phase, source de vérité F1A.
+    # employer_id reste optionnel pour préserver les appels internes historiques de
+    # _collect_events() utilisés par les tests P2. En production, build_journey()
+    # fournit toujours explicitement le tenant.
+    ortho_q = db.query(models.OrthoPhaseEvent).filter(
+        models.OrthoPhaseEvent.patient_id == patient_id,
+    )
+    if employer_id is not None:
+        ortho_q = ortho_q.filter(models.OrthoPhaseEvent.employer_id == employer_id)
+    if since is not None:
+        ortho_q = ortho_q.filter(models.OrthoPhaseEvent.effective_at >= since)
+
+    ortho_titles = {
+        "START": "Traitement orthodontique démarré",
+        "ENTER_PHASE": "Phase orthodontique enregistrée",
+        "INTERRUPT": "Traitement orthodontique interrompu",
+        "RESUME": "Traitement orthodontique repris",
+        "ABANDON": "Traitement orthodontique abandonné",
+        "CLOSE": "Traitement orthodontique clôturé",
+    }
+    for e in ortho_q.all():
+        title = ortho_titles.get(e.event_type, e.event_type.replace("_", " ").title())
+        if e.event_type == "ENTER_PHASE" and e.phase_key:
+            title = f"{title} — {e.phase_key.replace('_', ' ').title()}"
+        events.append(_event(
+            f"ortho_phase_event:{e.id}",
+            "ortho_phase_event",
+            e.event_type,
+            e.id,
+            e.effective_at,
+            title,
+            e.event_type,
+            (e.phase_key or "ortho").lower(),
+            schemas.NavigationTarget.INLINE,
+        ))
+
     return events
 
 
@@ -234,7 +271,7 @@ def _sort_key(event: "schemas.JourneyEventResponse"):
 def build_journey(db: Session, patient_id: int, employer_id: int, full_history: bool = False) -> schemas.PatientJourneyResponse:
     since = None if full_history else (datetime.now() - timedelta(days=WINDOW_MONTHS * 30))
 
-    events = _collect_events(db, patient_id, since)
+    events = _collect_events(db, patient_id, since=since, employer_id=employer_id)
     events.sort(key=_sort_key)
 
     total_available = len(events)

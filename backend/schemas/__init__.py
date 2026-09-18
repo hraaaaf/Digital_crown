@@ -215,6 +215,16 @@ from .journey import (
     PatientJourneyResponse,
 )
 
+from .ortho_journey import (
+    OrthoLifecycleStatus,
+    OrthoPhaseKey,
+    OrthoPhaseEventType,
+    OrthoCaseCreate,
+    OrthoTransitionCreate,
+    OrthoPhaseEventOut,
+    OrthoCaseOut,
+)
+
 __all__ = [
     # base
     "QRCodeType", "StyleKey", "AppointmentStatus", "SchedulingType",
@@ -281,4 +291,7 @@ __all__ = [
     "MilestoneType", "NavigationTarget", "JourneyMilestoneCreate", "JourneyMilestoneOut",
     "JourneyMilestoneCreateResponse", "JourneyEventResponse", "JourneySummaryResponse",
     "PatientJourneyResponse",
+    # ortho journey
+    "OrthoLifecycleStatus", "OrthoPhaseKey", "OrthoPhaseEventType",
+    "OrthoCaseCreate", "OrthoTransitionCreate", "OrthoPhaseEventOut", "OrthoCaseOut",
 ]

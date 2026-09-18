@@ -15,6 +15,7 @@ from . import models_agenda_a3 as _models_agenda_a3  # noqa: F401
 from . import models_patient_clinical_context as _models_patient_clinical_context  # noqa: F401
 from . import models_patient_companion as _models_patient_companion  # noqa: F401
 from . import models_ngap_reference as _models_ngap_reference  # noqa: F401
+from . import models_ortho_journey as _models_ortho_journey  # noqa: F401
 from .models_insurance_linkage import install_insurance_linkage
 from .services.honoraires_archive_conflict_policy import install_honoraires_archive_conflict_policy
 
