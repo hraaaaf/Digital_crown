@@ -1,0 +1,274 @@
+name: Pharmacology Core-5 Adversarial Pre-Review
+
+on:
+  push:
+    branches:
+      - ci/pharmacology-core5-prereview-20260918
+    paths:
+      - '.github/workflows/pharmacology-core5-prereview.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  copilot-requests: write
+
+concurrency:
+  group: pharmacology-core5-prereview-594
+  cancel-in-progress: true
+
+env:
+  TARGET_PR: '594'
+  TARGET_HEAD: '689e6c7af7a548ca25f008887b7ce95b8af73eda'
+  EXPECTED_BASE: 'd6ba162f14545be521279c2dd38226161633287a'
+
+jobs:
+  adversarial-prereview:
+    name: Core-5 adversarial scientific pre-review
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout immutable Core-5 target
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.TARGET_HEAD }}
+          fetch-depth: 0
+
+      - name: Verify immutable target and bounded scope
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$TARGET_HEAD"
+          git merge-base --is-ancestor "$EXPECTED_BASE" "$TARGET_HEAD"
+          CHANGED=$(git diff --name-only "$EXPECTED_BASE...$TARGET_HEAD")
+          printf '%s\n' "$CHANGED"
+          test "$(printf '%s\n' "$CHANGED" | sed '/^$/d' | wc -l)" -eq 9
+          printf '%s\n' "$CHANGED" | grep -Fx 'docs/audits/PRESCRIPTION_PHARMACOLOGY_CORE5_INDEPENDENT_REVIEW_PACKET_2026-09-17.md'
+          printf '%s\n' "$CHANGED" | grep -Fx 'docs/audits/PRESCRIPTION_PHARMACOLOGY_CORE5_SAFETY_EVIDENCE_INDEX_2026-09-17.csv'
+          printf '%s\n' "$CHANGED" | grep -Fx 'docs/audits/PRESCRIPTION_PHARMACOLOGY_CORE5_QUALIFIED_REVIEW_FORM_2026-09-18.md'
+          printf '%s\n' "$CHANGED" | grep -Fx 'docs/audits/PRESCRIPTION_PHARMACOLOGY_CORE5_SOURCE_REVALIDATION_2026-09-18.md'
+
+      - name: Verify reviewer governance
+        run: |
+          set -euo pipefail
+          test -s .claude/agents/scientific-reviewer.md
+          test -s .claude/skills/review-scientific-pull-request/SKILL.md
+          test -s .claude/skills/scientific-source-research/SKILL.md
+
+      - name: Setup Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install documentary test dependencies
+        run: python -m pip install --disable-pip-version-check pytest SQLAlchemy==2.0.28
+
+      - name: Isolate documentary imports from application bootstrap
+        run: |
+          mkdir -p "$RUNNER_TEMP/pharmacology-isolation"
+          cat > "$RUNNER_TEMP/pharmacology-isolation/sitecustomize.py" <<'PY'
+          import os
+          import sys
+          import types
+          from pathlib import Path
+
+          workspace = Path(os.environ["GITHUB_WORKSPACE"]).resolve()
+          package = types.ModuleType("backend")
+          package.__path__ = [str(workspace / "backend")]
+          package.__package__ = "backend"
+          sys.modules["backend"] = package
+          PY
+
+      - name: Re-run Core-5 fail-closed technical evidence
+        env:
+          PYTHONPATH: ${{ runner.temp }}/pharmacology-isolation:${{ github.workspace }}
+        run: |
+          set -euo pipefail
+          mkdir -p audit/out/pharmacology-core5-prereview
+          {
+            python -m pytest --noconftest \
+              backend/tests/test_pharmacology_core5_safety_evidence_index.py \
+              backend/tests/test_pharmacology_core5_review_packet.py \
+              -q
+            python scripts/validate_pharmacology_reference.py
+            python scripts/pharmacology_medicine_gap_audit.py
+            python scripts/pharmacology_scientific_gate.py --output-dir audit/out/pharmacology-core5-prereview/oracle
+          } 2>&1 | tee audit/out/pharmacology-core5-prereview/technical-evidence.txt
+
+      - name: Setup Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install GitHub Copilot CLI
+        run: npm install -g @github/copilot
+
+      - name: Build immutable reviewer prompt
+        run: |
+          cat > /tmp/core5-reviewer-prompt.txt <<'PROMPT'
+          You are an adversarial scientific pre-reviewer for Digital Crown PR #594.
+
+          TARGET
+          - exact repository HEAD: 689e6c7af7a548ca25f008887b7ce95b8af73eda
+          - expected base: d6ba162f14545be521279c2dd38226161633287a
+          - if either identity is not true, decision must be "blocked".
+
+          GOVERNANCE
+          - Read .claude/agents/scientific-reviewer.md.
+          - Read .claude/skills/review-scientific-pull-request/SKILL.md.
+          - Read .claude/skills/scientific-source-research/SKILL.md.
+          - Be adversarial, read-only and fail closed.
+          - This is an automated pre-review, never a qualified human clinical review.
+          - Green CI is not clinical approval.
+          - Never authorize clinical activation.
+          - Do not modify files, commit, push, merge, access patient data, or propose a new automatic dosing rule.
+
+          REVIEW THESE FILES
+          - docs/audits/PRESCRIPTION_PHARMACOLOGY_CORE5_INDEPENDENT_REVIEW_PACKET_2026-09-17.md
+          - docs/audits/PRESCRIPTION_PHARMACOLOGY_CORE5_MOROCCO_REGULATORY_PASS_2026-09-17.md
+          - docs/audits/PRESCRIPTION_PHARMACOLOGY_CORE5_SAFETY_EVIDENCE_INDEX_2026-09-17.csv
+          - docs/audits/PRESCRIPTION_PHARMACOLOGY_CORE5_SOURCE_REVALIDATION_2026-09-18.md
+          - docs/audits/PRESCRIPTION_PHARMACOLOGY_CORE5_QUALIFIED_REVIEW_FORM_2026-09-18.md
+          - docs/audits/PRESCRIPTION_PHARMACOLOGY_CORE5_V1_HANDOVER_2026-09-18.md
+          - docs/audits/PRESCRIPTION_PHARMACOLOGY_MOROCCO_MEDICINE_CURRENT_STATUS_PROJECTION_V1_2026-09-17.csv
+          - backend/tests/test_pharmacology_core5_safety_evidence_index.py
+          - backend/tests/test_pharmacology_core5_review_packet.py
+          - audit/out/pharmacology-core5-prereview/technical-evidence.txt
+
+          CORE QUESTIONS
+          1. Do all five Core-5 medicines remain mechanically fail-closed?
+          2. Does the package clearly separate market/catalogue evidence, regulatory evidence, clinical evidence and activation?
+          3. Are the current safety-source URLs authoritative enough for the safety domains they are claimed to index?
+          4. Are any safety domains materially overclaimed relative to the cited sources?
+          5. Does the package improperly treat the 2026-09-17 AMMPS capture as a fresh exact-product revalidation? It must not.
+          6. Does the qualified-review form force unresolved dimensions to remain visible?
+          7. Is any historical unreviewed dosing dataset reintroduced into the V1 activation path? It must not be.
+          8. What exact issues must a qualified human dentist/pharmacist resolve before any medicine can even become eligible for a later technical activation review?
+
+          SOURCE CHECKING
+          - Open actual current source URLs when possible, not search snippets.
+          - Prefer official/current sources.
+          - You may use curl only for read-only source verification.
+          - Do not infer Moroccan exact product/form/strength approval where the package itself says it was not freshly reproduced.
+          - If a source cannot be verified, record uncertainty and keep the gate closed.
+
+          REQUIRED OUTPUT
+          Return ONLY one JSON object, no Markdown fences and no prose outside JSON:
+          {
+            "schema_version": "pharmacology-core5-prereview.1",
+            "reviewer": "github-copilot-cli",
+            "model_selector": "auto",
+            "target_pr": 594,
+            "target_head": "689e6c7af7a548ca25f008887b7ce95b8af73eda",
+            "decision": "approve_for_human_review|approve_for_human_review_with_reservations|request_changes|blocked",
+            "blocking_findings": [],
+            "major_findings": [],
+            "minor_findings": [],
+            "scientific_uncertainties": [],
+            "source_checks": [],
+            "required_human_review_items": [],
+            "clinical_activation_authorized": false,
+            "human_clinical_review_required": true,
+            "independence_statement": "..."
+          }
+          Findings must be concrete and traceable. Approval means only that the package is fit to be handed to a qualified human reviewer.
+          PROMPT
+
+      - name: Run adversarial reviewer
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          copilot \
+            -p "$(cat /tmp/core5-reviewer-prompt.txt)" \
+            -s \
+            --no-ask-user \
+            --model auto \
+            --allow-tool='shell(git:*)' \
+            --allow-tool='shell(cat:*)' \
+            --allow-tool='shell(grep:*)' \
+            --allow-tool='shell(find:*)' \
+            --allow-tool='shell(python:*)' \
+            --allow-tool='shell(curl:*)' \
+            --allow-url='https://www.acutedentalproblems.sdcep.org.uk/*' \
+            --allow-url='https://dailymed.nlm.nih.gov/*' \
+            --allow-url='https://www.medicines.org.uk/*' \
+            > audit/out/pharmacology-core5-prereview/report.raw.txt
+
+      - name: Validate reviewer report fail-closed
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          raw = Path('audit/out/pharmacology-core5-prereview/report.raw.txt').read_text(encoding='utf-8').strip()
+          try:
+              report = json.loads(raw)
+          except Exception as exc:
+              raise SystemExit(f'Pre-reviewer did not return strict JSON: {exc}')
+
+          expected = {
+              'schema_version','reviewer','model_selector','target_pr','target_head','decision',
+              'blocking_findings','major_findings','minor_findings','scientific_uncertainties',
+              'source_checks','required_human_review_items','clinical_activation_authorized',
+              'human_clinical_review_required','independence_statement'
+          }
+          if set(report) != expected:
+              raise SystemExit(f'Unexpected report keys: {sorted(set(report) ^ expected)}')
+          if report['schema_version'] != 'pharmacology-core5-prereview.1':
+              raise SystemExit('Wrong schema version')
+          if report['reviewer'] != 'github-copilot-cli' or report['model_selector'] != 'auto':
+              raise SystemExit('Reviewer identity mismatch')
+          if report['target_pr'] != 594 or report['target_head'] != '689e6c7af7a548ca25f008887b7ce95b8af73eda':
+              raise SystemExit('Immutable target mismatch')
+          if report['decision'] not in {
+              'approve_for_human_review',
+              'approve_for_human_review_with_reservations',
+              'request_changes',
+              'blocked',
+          }:
+              raise SystemExit('Invalid decision')
+          for key in ('blocking_findings','major_findings','minor_findings','scientific_uncertainties','source_checks','required_human_review_items'):
+              if not isinstance(report[key], list):
+                  raise SystemExit(f'{key} must be a list')
+          if report['clinical_activation_authorized'] is not False:
+              raise SystemExit('Automated reviewer must never authorize clinical activation')
+          if report['human_clinical_review_required'] is not True:
+              raise SystemExit('Qualified human review must remain required')
+          if not isinstance(report['independence_statement'], str) or not report['independence_statement'].strip():
+              raise SystemExit('Missing independence statement')
+
+          Path('audit/out/pharmacology-core5-prereview/report.json').write_text(
+              json.dumps(report, ensure_ascii=False, indent=2) + '\n', encoding='utf-8'
+          )
+          summary = [
+              '# Core-5 adversarial scientific pre-review',
+              '',
+              f"- target PR: {report['target_pr']}",
+              f"- target HEAD: `{report['target_head']}`",
+              f"- decision: **{report['decision']}**",
+              f"- blocking findings: {len(report['blocking_findings'])}",
+              f"- major findings: {len(report['major_findings'])}",
+              f"- scientific uncertainties: {len(report['scientific_uncertainties'])}",
+              '- clinical activation authorized: false',
+              '- qualified human clinical review required: true',
+          ]
+          Path('audit/out/pharmacology-core5-prereview/summary.md').write_text('\n'.join(summary) + '\n', encoding='utf-8')
+          PY
+
+      - name: Publish reviewer summary
+        if: always()
+        run: |
+          if test -s audit/out/pharmacology-core5-prereview/summary.md; then
+            cat audit/out/pharmacology-core5-prereview/summary.md >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo '## Core-5 adversarial scientific pre-review' >> "$GITHUB_STEP_SUMMARY"
+            echo 'Pre-review report unavailable or validation failed.' >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Upload pre-review evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pharmacology-core5-prereview-689e6c7
+          path: audit/out/pharmacology-core5-prereview/
+          if-no-files-found: warn
+          retention-days: 30
