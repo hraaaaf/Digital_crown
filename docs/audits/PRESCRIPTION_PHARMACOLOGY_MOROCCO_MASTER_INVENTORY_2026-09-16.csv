@@ -1,0 +1,171 @@
+id,domain,subdomain,item,item_type,morocco_status,clinical_status
+MED-PAIN-001,medicine,pain,paracetamol,drug,PARTIAL_VERIFIED,TO_VALIDATE
+MED-PAIN-002,medicine,pain,ibuprofen,drug,PARTIAL_VERIFIED,TO_VALIDATE
+MED-PAIN-003,medicine,pain,naproxen,drug,TO_VERIFY_MA,TO_VALIDATE
+MED-PAIN-004,medicine,pain,diclofenac,drug,TO_VERIFY_MA,TO_VALIDATE
+MED-PAIN-005,medicine,pain,ketoprofen,drug,TO_VERIFY_MA,TO_VALIDATE
+MED-PAIN-006,medicine,pain,dexketoprofen,drug,TO_VERIFY_MA,TO_VALIDATE
+MED-PAIN-007,medicine,pain,paracetamol + codeine,drug,TO_VERIFY_MA,SPECIALIST_OR_EXCEPTION
+MED-PAIN-008,medicine,pain,tramadol,drug,TO_VERIFY_MA,SPECIALIST_OR_EXCEPTION
+MED-ABX-001,medicine,antibiotic,amoxicillin,drug,PARTIAL_VERIFIED,TO_VALIDATE
+MED-ABX-002,medicine,antibiotic,amoxicillin + clavulanic acid,drug,PARTIAL_VERIFIED,TO_VALIDATE
+MED-ABX-003,medicine,antibiotic,phenoxymethylpenicillin / penicillin V,drug,PARTIAL_VERIFIED,TO_VALIDATE
+MED-ABX-004,medicine,antibiotic,metronidazole,drug,PARTIAL_VERIFIED,TO_VALIDATE
+MED-ABX-005,medicine,antibiotic,clindamycin,drug,PARTIAL_VERIFIED,TO_VALIDATE
+MED-ABX-006,medicine,antibiotic,clarithromycin,drug,PARTIAL_VERIFIED,TO_VALIDATE
+MED-ABX-007,medicine,antibiotic,azithromycin,drug,TO_VERIFY_MA,TO_VALIDATE
+MED-ABX-008,medicine,antibiotic,spiramycin,drug,TO_VERIFY_MA,TO_VALIDATE
+MED-ABX-009,medicine,antibiotic,spiramycin + metronidazole,drug,TO_VERIFY_MA,TO_VALIDATE
+MED-ABX-010,medicine,antibiotic,doxycycline,drug,TO_VERIFY_MA,TO_VALIDATE
+MED-ABX-011,medicine,antibiotic,cephalexin,drug,TO_VERIFY_MA,TO_VALIDATE
+MED-ABX-012,medicine,antibiotic,cefuroxime,drug,TO_VERIFY_MA,NON_ROUTINE
+MED-ABX-013,medicine,antibiotic,cefadroxil,drug,TO_VERIFY_MA,NON_ROUTINE
+MED-ABX-014,medicine,periodontal_local_antibiotic,doxycycline local periodontal,drug_or_device,TO_VERIFY_MA,SPECIALIST_OR_EXCEPTION
+MED-ABX-015,medicine,periodontal_local_antibiotic,minocycline local periodontal,drug_or_device,TO_VERIFY_MA,SPECIALIST_OR_EXCEPTION
+MED-FUNG-001,medicine,antifungal,miconazole oral gel,drug,TO_VERIFY_MA,TO_VALIDATE
+MED-FUNG-002,medicine,antifungal,nystatin oral suspension,drug,TO_VERIFY_MA,TO_VALIDATE
+MED-FUNG-003,medicine,antifungal,fluconazole oral,drug,TO_VERIFY_MA,TO_VALIDATE
+MED-FUNG-004,medicine,antifungal,miconazole topical cream,drug,TO_VERIFY_MA,TO_VALIDATE
+MED-FUNG-005,medicine,antifungal,clotrimazole oral,drug,TO_VERIFY_MA,TO_VALIDATE
+MED-FUNG-006,medicine,antifungal,amphotericin B oral/local,drug,TO_VERIFY_MA,SPECIALIST_OR_EXCEPTION
+MED-VIR-001,medicine,antiviral,aciclovir oral,drug,TO_VERIFY_MA,TO_VALIDATE
+MED-VIR-002,medicine,antiviral,valaciclovir oral,drug,TO_VERIFY_MA,TO_VALIDATE
+MED-VIR-003,medicine,antiviral,famciclovir,drug,TO_VERIFY_MA,TO_VALIDATE
+MED-VIR-004,medicine,antiviral,aciclovir topical,drug,TO_VERIFY_MA,TO_VALIDATE
+MED-VIR-005,medicine,antiviral,penciclovir topical,drug,TO_VERIFY_MA,TO_VALIDATE
+MED-MUC-001,medicine,oral_mucosa,triamcinolone acetonide oral paste,drug,TO_VERIFY_MA,TO_VALIDATE
+MED-MUC-002,medicine,oral_mucosa,hydrocortisone buccal,drug,TO_VERIFY_MA,TO_VALIDATE
+MED-MUC-003,medicine,oral_mucosa,dexamethasone oral rinse/topical,drug,TO_VERIFY_MA,SPECIALIST_OR_EXCEPTION
+MED-MUC-004,medicine,oral_mucosa,prednisolone oral rinse/topical,drug,TO_VERIFY_MA,SPECIALIST_OR_EXCEPTION
+MED-MUC-005,medicine,oral_mucosa,benzydamine mouthwash/spray,drug,TO_VERIFY_MA,TO_VALIDATE
+MED-MUC-006,medicine,oral_mucosa,lidocaine viscous/topical,drug,TO_VERIFY_MA,TO_VALIDATE
+MED-MUC-007,medicine,oral_mucosa,benzocaine topical,drug,TO_VERIFY_MA,TO_VALIDATE
+MED-MUC-008,medicine,oral_mucosa,sucralfate oral/local,drug,TO_VERIFY_MA,SPECIALIST_OR_EXCEPTION
+MED-LA-001,medicine,local_anesthetic,articaine + epinephrine,chairside_drug,TO_VERIFY_MA,TO_VALIDATE
+MED-LA-002,medicine,local_anesthetic,lidocaine + epinephrine,chairside_drug,TO_VERIFY_MA,TO_VALIDATE
+MED-LA-003,medicine,local_anesthetic,mepivacaine plain,chairside_drug,TO_VERIFY_MA,TO_VALIDATE
+MED-LA-004,medicine,local_anesthetic,mepivacaine + vasoconstrictor,chairside_drug,TO_VERIFY_MA,TO_VALIDATE
+MED-LA-005,medicine,local_anesthetic,prilocaine ± felypressin,chairside_drug,TO_VERIFY_MA,TO_VALIDATE
+MED-LA-006,medicine,local_anesthetic,bupivacaine + epinephrine,chairside_drug,TO_VERIFY_MA,TO_VALIDATE
+MED-LA-007,medicine,topical_anesthetic,lidocaine topical spray/gel,chairside_drug,TO_VERIFY_MA,TO_VALIDATE
+MED-LA-008,medicine,topical_anesthetic,benzocaine topical,chairside_drug,TO_VERIFY_MA,TO_VALIDATE
+MED-HEM-001,medicine,hemostasis,tranexamic acid,drug,TO_VERIFY_MA,SPECIALIST_OR_EXCEPTION
+MED-XERO-001,medicine,xerostomia,pilocarpine,drug,TO_VERIFY_MA,SPECIALIST_OR_EXCEPTION
+MED-XERO-002,medicine,xerostomia,cevimeline,drug,TO_VERIFY_MA,SPECIALIST_OR_EXCEPTION
+MED-SED-001,medicine,sedation,nitrous oxide + oxygen,medicinal_gas,TO_VERIFY_MA,SPECIALIST_OR_EXCEPTION
+MED-SED-002,medicine,sedation,midazolam,drug,TO_VERIFY_MA,SPECIALIST_OR_EXCEPTION
+MED-SED-003,medicine,sedation,diazepam,drug,TO_VERIFY_MA,SPECIALIST_OR_EXCEPTION
+MED-SED-004,medicine,sedation,hydroxyzine,drug,TO_VERIFY_MA,SPECIALIST_OR_EXCEPTION
+MED-EMG-001,medicine,emergency,epinephrine IM,emergency_drug,TO_VERIFY_MA,TO_VALIDATE
+MED-EMG-002,medicine,emergency,medical oxygen,emergency_drug,TO_VERIFY_MA,TO_VALIDATE
+MED-EMG-003,medicine,emergency,salbutamol inhaled,emergency_drug,TO_VERIFY_MA,TO_VALIDATE
+MED-EMG-004,medicine,emergency,glyceryl trinitrate,emergency_drug,TO_VERIFY_MA,TO_VALIDATE
+MED-EMG-005,medicine,emergency,aspirin oral,emergency_drug,TO_VERIFY_MA,TO_VALIDATE
+MED-EMG-006,medicine,emergency,oral glucose / glucose gel,emergency_drug,TO_VERIFY_MA,TO_VALIDATE
+MED-EMG-007,medicine,emergency,glucagon,emergency_drug,TO_VERIFY_MA,TO_VALIDATE
+MED-EMG-008,medicine,emergency,midazolam rescue seizure,emergency_drug,TO_VERIFY_MA,TO_VALIDATE
+MED-EMG-009,medicine,emergency,naloxone,emergency_drug,TO_VERIFY_MA,TO_VALIDATE
+MED-EMG-010,medicine,emergency,antihistamine emergency adjunct,emergency_drug,TO_VERIFY_MA,TO_VALIDATE
+MED-EMG-011,medicine,emergency,systemic corticosteroid emergency adjunct,emergency_drug,TO_VERIFY_MA,TO_VALIDATE
+OC-TP-001,oral_care,toothpaste,fluoride toothpaste 1000-1500 ppm,otc_para,TO_VERIFY_MA,CLINICAL_FAMILY_SUPPORTED
+OC-TP-002,oral_care,toothpaste,pediatric fluoride toothpaste,otc_para,TO_VERIFY_MA,CLINICAL_FAMILY_SUPPORTED
+OC-TP-003,oral_care,toothpaste,high fluoride toothpaste 2800 ppm,otc_or_rx,TO_VERIFY_MA,TO_VALIDATE
+OC-TP-004,oral_care,toothpaste,high fluoride toothpaste 5000 ppm,otc_or_rx,TO_VERIFY_MA,TO_VALIDATE
+OC-TP-005,oral_care,toothpaste,stannous fluoride toothpaste,otc_para,TO_VERIFY_MA,TO_VALIDATE
+OC-TP-006,oral_care,toothpaste,potassium nitrate sensitivity toothpaste,otc_para,TO_VERIFY_MA,CLINICAL_FAMILY_SUPPORTED
+OC-TP-007,oral_care,toothpaste,arginine + calcium carbonate sensitivity toothpaste,otc_para,TO_VERIFY_MA,TO_VALIDATE
+OC-TP-008,oral_care,toothpaste,strontium salt sensitivity toothpaste,otc_para,TO_VERIFY_MA,TO_VALIDATE
+OC-TP-009,oral_care,toothpaste,low-abrasivity erosion toothpaste,otc_para,TO_VERIFY_MA,TO_VALIDATE
+OC-TP-010,oral_care,toothpaste,whitening/stain-removal toothpaste,otc_para,TO_VERIFY_MA,TO_VALIDATE
+OC-TP-011,oral_care,toothpaste,SLS-free toothpaste,otc_para,TO_VERIFY_MA,TO_VALIDATE
+OC-TP-012,oral_care,toothpaste,dry-mouth toothpaste,otc_para,TO_VERIFY_MA,TO_VALIDATE
+OC-TP-013,oral_care,toothpaste,hydroxyapatite toothpaste,otc_para,TO_VERIFY_MA,TO_VALIDATE
+OC-RINSE-001,oral_care,mouthrinse,chlorhexidine 0.12%,otc_or_rx,TO_VERIFY_MA,CLINICAL_FAMILY_SUPPORTED
+OC-RINSE-002,oral_care,mouthrinse,chlorhexidine 0.2%,otc_or_rx,TO_VERIFY_MA,CLINICAL_FAMILY_SUPPORTED
+OC-RINSE-003,oral_care,mouthrinse,chlorhexidine gel,otc_or_rx,TO_VERIFY_MA,TO_VALIDATE
+OC-RINSE-004,oral_care,mouthrinse,cetylpyridinium chloride CPC,otc_para,TO_VERIFY_MA,CLINICAL_FAMILY_SUPPORTED
+OC-RINSE-005,oral_care,mouthrinse,essential-oil mouthrinse,otc_para,TO_VERIFY_MA,CLINICAL_FAMILY_SUPPORTED
+OC-RINSE-006,oral_care,mouthrinse,sodium fluoride 0.05%,otc_para,TO_VERIFY_MA,CLINICAL_FAMILY_SUPPORTED
+OC-RINSE-007,oral_care,mouthrinse,sodium fluoride 0.2%,otc_or_rx,TO_VERIFY_MA,CLINICAL_FAMILY_SUPPORTED
+OC-RINSE-008,oral_care,mouthrinse,hydrogen peroxide mouthrinse,otc_para,TO_VERIFY_MA,TO_VALIDATE
+OC-RINSE-009,oral_care,mouthrinse,hexetidine mouthrinse,otc_para,TO_VERIFY_MA,TO_VALIDATE
+OC-RINSE-010,oral_care,mouthrinse,povidone iodine oral rinse,otc_or_rx,TO_VERIFY_MA,TO_VALIDATE
+OC-RINSE-011,oral_care,mouthrinse,chlorine dioxide mouthrinse,otc_para,TO_VERIFY_MA,TO_VALIDATE
+OC-RINSE-012,oral_care,mouthrinse,zinc mouthrinse,otc_para,TO_VERIFY_MA,TO_VALIDATE
+OC-RINSE-013,oral_care,mouthrinse,CPC + zinc mouthrinse,otc_para,TO_VERIFY_MA,TO_VALIDATE
+OC-RINSE-014,oral_care,mouthrinse,benzydamine mouthrinse,otc_or_rx,TO_VERIFY_MA,TO_VALIDATE
+OC-RINSE-015,oral_care,mouthrinse,saline rinse,home_care,AVAILABLE_GENERIC,CLINICAL_FAMILY_SUPPORTED
+OC-RINSE-016,oral_care,mouthrinse,bicarbonate rinse,home_care,AVAILABLE_GENERIC,TO_VALIDATE
+OC-FLUOR-001,oral_care,fluoride,sodium fluoride varnish professional,professional_product,TO_VERIFY_MA,CLINICAL_FAMILY_SUPPORTED
+OC-FLUOR-002,oral_care,fluoride,professional fluoride gel/foam,professional_product,TO_VERIFY_MA,CLINICAL_FAMILY_SUPPORTED
+OC-FLUOR-003,oral_care,fluoride,silver diamine fluoride 38%,professional_product,TO_VERIFY_MA,TO_VALIDATE
+OC-REM-001,oral_care,remineralization,CPP-ACP / CPP-ACPF,otc_or_professional,TO_VERIFY_MA,TO_VALIDATE
+OC-REM-002,oral_care,remineralization,hydroxyapatite remineralization product,otc_para,TO_VERIFY_MA,TO_VALIDATE
+OC-XERO-001,oral_care,xerostomia,saliva substitute spray,otc_para,TO_VERIFY_MA,CLINICAL_FAMILY_SUPPORTED
+OC-XERO-002,oral_care,xerostomia,saliva substitute gel,otc_para,TO_VERIFY_MA,CLINICAL_FAMILY_SUPPORTED
+OC-XERO-003,oral_care,xerostomia,saliva substitute mouthrinse,otc_para,TO_VERIFY_MA,CLINICAL_FAMILY_SUPPORTED
+OC-XERO-004,oral_care,xerostomia,sugar-free/xylitol gum,otc_para,TO_VERIFY_MA,CLINICAL_FAMILY_SUPPORTED
+OC-XERO-005,oral_care,xerostomia,sugar-free lozenge,otc_para,TO_VERIFY_MA,TO_VALIDATE
+OC-BRUSH-001,oral_care,toothbrush,manual soft toothbrush,device_para,TO_VERIFY_MA,CLINICAL_FAMILY_SUPPORTED
+OC-BRUSH-002,oral_care,toothbrush,manual ultrasoft toothbrush,device_para,TO_VERIFY_MA,TO_VALIDATE
+OC-BRUSH-003,oral_care,toothbrush,powered oscillating-rotating toothbrush,device_para,TO_VERIFY_MA,CLINICAL_FAMILY_SUPPORTED
+OC-BRUSH-004,oral_care,toothbrush,powered sonic toothbrush,device_para,TO_VERIFY_MA,CLINICAL_FAMILY_SUPPORTED
+OC-BRUSH-005,oral_care,toothbrush,orthodontic V-cut toothbrush,device_para,TO_VERIFY_MA,TO_VALIDATE
+OC-BRUSH-006,oral_care,toothbrush,end-tuft / single-tuft toothbrush,device_para,TO_VERIFY_MA,TO_VALIDATE
+OC-BRUSH-007,oral_care,toothbrush,sulcular toothbrush,device_para,TO_VERIFY_MA,TO_VALIDATE
+OC-BRUSH-008,oral_care,toothbrush,post-surgical ultrasoft toothbrush,device_para,TO_VERIFY_MA,TO_VALIDATE
+OC-BRUSH-009,oral_care,toothbrush,denture brush,device_para,TO_VERIFY_MA,TO_VALIDATE
+OC-BRUSH-010,oral_care,toothbrush,infant/child toothbrush,device_para,TO_VERIFY_MA,TO_VALIDATE
+OC-TONGUE-001,oral_care,tongue_cleaning,tongue scraper,device_para,TO_VERIFY_MA,TO_VALIDATE
+OC-INT-001,oral_care,interdental,waxed dental floss,device_para,TO_VERIFY_MA,CLINICAL_FAMILY_SUPPORTED
+OC-INT-002,oral_care,interdental,unwaxed dental floss,device_para,TO_VERIFY_MA,CLINICAL_FAMILY_SUPPORTED
+OC-INT-003,oral_care,interdental,dental tape,device_para,TO_VERIFY_MA,CLINICAL_FAMILY_SUPPORTED
+OC-INT-004,oral_care,interdental,PTFE floss,device_para,TO_VERIFY_MA,TO_VALIDATE
+OC-INT-005,oral_care,interdental,superfloss,device_para,TO_VERIFY_MA,TO_VALIDATE
+OC-INT-006,oral_care,interdental,floss threader,device_para,TO_VERIFY_MA,TO_VALIDATE
+OC-INT-007,oral_care,interdental,interdental brush,device_para,TO_VERIFY_MA,CLINICAL_FAMILY_SUPPORTED
+OC-INT-008,oral_care,interdental,implant-safe coated interdental brush,device_para,TO_VERIFY_MA,TO_VALIDATE
+OC-INT-009,oral_care,interdental,rubber interdental pick,device_para,TO_VERIFY_MA,TO_VALIDATE
+OC-INT-010,oral_care,interdental,wood/plastic interdental stick,device_para,TO_VERIFY_MA,TO_VALIDATE
+OC-INT-011,oral_care,interdental,oral irrigator / water flosser,device_para,TO_VERIFY_MA,CLINICAL_FAMILY_SUPPORTED
+OC-INT-012,oral_care,interdental,powered interdental cleaner,device_para,TO_VERIFY_MA,CLINICAL_FAMILY_SUPPORTED
+OC-DENT-001,oral_care,denture,denture adhesive cream,otc_para,TO_VERIFY_MA,CLINICAL_FAMILY_SUPPORTED
+OC-DENT-002,oral_care,denture,denture adhesive powder,otc_para,TO_VERIFY_MA,CLINICAL_FAMILY_SUPPORTED
+OC-DENT-003,oral_care,denture,denture adhesive strip,otc_para,TO_VERIFY_MA,CLINICAL_FAMILY_SUPPORTED
+OC-DENT-004,oral_care,denture,denture adhesive wafer/pad,otc_para,TO_VERIFY_MA,CLINICAL_FAMILY_SUPPORTED
+OC-DENT-005,oral_care,denture,effervescent denture cleanser,otc_para,TO_VERIFY_MA,CLINICAL_FAMILY_SUPPORTED
+OC-DENT-006,oral_care,denture,denture cleanser paste/gel/cream,otc_para,TO_VERIFY_MA,CLINICAL_FAMILY_SUPPORTED
+OC-DENT-007,oral_care,denture,denture soaking box,device_para,TO_VERIFY_MA,TO_VALIDATE
+OC-DENT-008,oral_care,denture,denture adhesive residue remover,otc_para,TO_VERIFY_MA,TO_VALIDATE
+OC-DENT-009,oral_care,denture,temporary OTC denture cushion/reline,device_para,TO_VERIFY_MA,CAUTION_OR_SPECIALIST
+OC-ORTHO-001,oral_care,orthodontics,orthodontic wax,device_para,TO_VERIFY_MA,TO_VALIDATE
+OC-ORTHO-002,oral_care,orthodontics,orthodontic protective silicone,device_para,TO_VERIFY_MA,TO_VALIDATE
+OC-ORTHO-003,oral_care,orthodontics,aligner/retainer cleanser,otc_para,TO_VERIFY_MA,TO_VALIDATE
+OC-ORTHO-004,oral_care,orthodontics,appliance effervescent cleanser,otc_para,TO_VERIFY_MA,TO_VALIDATE
+OC-ORTHO-005,oral_care,orthodontics,ventilated appliance storage case,device_para,TO_VERIFY_MA,TO_VALIDATE
+OC-PERIO-001,oral_care,periodontal_implant,implant-specific floss/tape,device_para,TO_VERIFY_MA,TO_VALIDATE
+OC-PERIO-002,oral_care,periodontal_implant,low-abrasivity implant/restoration toothpaste,otc_para,TO_VERIFY_MA,TO_VALIDATE
+OC-SENS-001,oral_care,sensitivity,potassium nitrate desensitizing product,otc_para,TO_VERIFY_MA,CLINICAL_FAMILY_SUPPORTED
+OC-SENS-002,oral_care,sensitivity,stannous fluoride desensitizing product,otc_para,TO_VERIFY_MA,CLINICAL_FAMILY_SUPPORTED
+OC-SENS-003,oral_care,sensitivity,arginine + calcium carbonate desensitizing product,otc_para,TO_VERIFY_MA,TO_VALIDATE
+OC-SENS-004,oral_care,sensitivity,strontium salt desensitizing product,otc_para,TO_VERIFY_MA,TO_VALIDATE
+OC-SENS-005,oral_care,sensitivity,home desensitizing gel,otc_or_professional,TO_VERIFY_MA,TO_VALIDATE
+OC-HAL-001,oral_care,halitosis,CPC halitosis product,otc_para,TO_VERIFY_MA,TO_VALIDATE
+OC-HAL-002,oral_care,halitosis,zinc halitosis product,otc_para,TO_VERIFY_MA,TO_VALIDATE
+OC-HAL-003,oral_care,halitosis,chlorine dioxide halitosis product,otc_para,TO_VERIFY_MA,TO_VALIDATE
+OC-WHITE-001,oral_care,whitening,whitening/stain-removal toothpaste,otc_para,TO_VERIFY_MA,TO_VALIDATE
+OC-WHITE-002,oral_care,whitening,hydrogen peroxide strips/gel,otc_or_professional,TO_VERIFY_MA,TO_VALIDATE
+OC-WHITE-003,oral_care,whitening,carbamide peroxide tray gel,professional_or_home_supervised,TO_VERIFY_MA,TO_VALIDATE
+OC-WHITE-004,oral_care,whitening,post-whitening desensitizing product,otc_or_professional,TO_VERIFY_MA,TO_VALIDATE
+OC-WHITE-005,oral_care,whitening,charcoal oral product,market_product,TO_VERIFY_MA,MARKET_ONLY_REVIEW
+OC-MUC-001,oral_care,oral_mucosa,hyaluronic acid oral gel,otc_para,TO_VERIFY_MA,TO_VALIDATE
+OC-MUC-002,oral_care,oral_mucosa,oral barrier/film-forming gel,otc_para,TO_VERIFY_MA,TO_VALIDATE
+OC-MUC-003,oral_care,oral_mucosa,oral protective patch,otc_para,TO_VERIFY_MA,TO_VALIDATE
+OC-PLAQUE-001,oral_care,plaque_control,plaque disclosing tablet,otc_para,TO_VERIFY_MA,TO_VALIDATE
+OC-PLAQUE-002,oral_care,plaque_control,plaque disclosing solution,otc_para,TO_VERIFY_MA,TO_VALIDATE
+OC-GUM-001,oral_care,prevention,sugar-free/xylitol chewing gum,otc_para,TO_VERIFY_MA,CLINICAL_FAMILY_SUPPORTED
+OC-SPORT-001,oral_care,protection,sports mouthguard,device_para,TO_VERIFY_MA,CLINICAL_FAMILY_SUPPORTED
+OC-TEETH-001,oral_care,pediatric_teething,teething gel,otc_para,TO_VERIFY_MA,SAFETY_REVIEW_REQUIRED
+OC-SMOKE-001,adjacent_care,smoking_cessation,nicotine gum,otc_or_rx,TO_VERIFY_MA,MEDICAL_CONTEXT
+OC-SMOKE-002,adjacent_care,smoking_cessation,nicotine lozenge,otc_or_rx,TO_VERIFY_MA,MEDICAL_CONTEXT
+OC-SMOKE-003,adjacent_care,smoking_cessation,nicotine patch,otc_or_rx,TO_VERIFY_MA,MEDICAL_CONTEXT
