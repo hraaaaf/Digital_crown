@@ -63,7 +63,7 @@ Master before this roadmap refresh: `0483883445d432ce6c7887dfab800a559c99dec4`.
 
 Already acquired on master and therefore **not future V1 lots**:
 
-- Connect Hub: PR `#557` integrated.
+- Connect Hub: PR `#557` integrated; canonical closeout: `docs/audits/CONNECT_HUB_E_CLOSEOUT.md`.
 - Céphalo injected legacy fallback repair: PR `#579` merged.
 - FAR / Mutuelles: PR `#559` merged at `20d2e01aa1f097ca93dd0a5a6699a596a392d7d8`; FAR global closeout then reached master `0483883445d432ce6c7887dfab800a559c99dec4`.
 - obsolete/superseded PRs `#279`, `#401`, `#407`, `#505`, `#563`, `#578` are closed and are not future execution lots.
@@ -243,7 +243,7 @@ Historical competitive canonical:
 - `docs/audits/COMPETITIVE_ROADMAP_POST_MEDIA.md`
 - Competitive / Media Lot C: CLOSED.
 - Patient Companion Lot D: implemented through D0/D1/D2 with final continuation handover merged.
-- Connect Hub Lot E: merged via PR #557; merge commit `7c175bdd37b2f53afb7b05fd8cf21aaf4bda2164`.
+- Connect Hub Lot E: **CLOSED**; merged via PR #557, merge commit `7c175bdd37b2f53afb7b05fd8cf21aaf4bda2164`; canonical closeout: `docs/audits/CONNECT_HUB_E_CLOSEOUT.md`.
 - Therefore the next historical competitive lot is **Lot F — Ortho Journey**.
 
 V1-05 principle:
