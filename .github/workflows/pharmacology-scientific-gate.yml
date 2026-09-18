@@ -1,13 +1,6 @@
 name: Pharmacology Deterministic Scientific Safety Gate
 
 on:
-  push:
-    branches:
-      - 'feat/v1-ordonnance-core5-certification'
-    paths:
-      - 'docs/audits/PRESCRIPTION_PHARMACOLOGY_CORE5_**'
-      - 'backend/tests/test_pharmacology_core5_**'
-      - '.github/workflows/pharmacology-scientific-gate.yml'
   pull_request:
     paths:
       - 'backend/services/medication_rcp_manifest.py'
