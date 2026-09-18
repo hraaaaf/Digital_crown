@@ -30,8 +30,11 @@ jobs:
   # Generic full backend regression is intentionally post-merge.
   # PRs keep targeted lot checks plus frontend/build and the lightweight prod gate.
   test:
+    # TEMP V1-05 F3 final certification branch. MUST NOT MERGE.
     if: >-
       github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'pull_request' &&
+       github.head_ref == 'cert/v1-05-f3-full-backend-final') ||
       (github.event_name == 'push' &&
        (github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main'))
     name: Full backend regression (post-merge)
