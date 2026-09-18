@@ -912,6 +912,8 @@ from backend.models_platform import (
     JourneyMilestone,
 )
 
+from backend.models_ortho_journey import OrthoCase, OrthoPhaseEvent
+
 from backend.models_operations import (
     LabJobStatus,
     Lab,
