@@ -47,10 +47,28 @@ jobs:
             backend/tests/test_agenda_a3_practitioner_availability.py \
             backend/tests/test_agenda_a3_wall_clock.py \
             -q
-      - name: Alembic head contract
+      - name: Alembic A3 ancestry contract
         run: |
-          python -m alembic heads | tee /tmp/alembic-heads.txt
-          grep -q "a3pa0000003 (head)" /tmp/alembic-heads.txt
+          python - <<'PY'
+          from alembic.config import Config
+          from alembic.script import ScriptDirectory
+
+          script = ScriptDirectory.from_config(Config("alembic.ini"))
+          heads = script.get_heads()
+          assert len(heads) == 1, f"Expected one Alembic head, got {heads}"
+          revision = script.get_revision(heads[0])
+          lineage = set()
+          while revision is not None:
+              lineage.add(revision.revision)
+              down = revision.down_revision
+              if down is None:
+                  break
+              if not isinstance(down, str):
+                  raise AssertionError(f"Unexpected branched Alembic lineage at {revision.revision}: {down}")
+              revision = script.get_revision(down)
+          assert "a3pa0000003" in lineage, f"A3 missing from migration lineage ending at {heads[0]}"
+          print(f"A3 ancestry verified under current head {heads[0]}")
+          PY
 
   after-visual:
     runs-on: ubuntu-latest
