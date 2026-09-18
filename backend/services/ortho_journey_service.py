@@ -7,6 +7,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, joinedload
 
 from backend import models, schemas
+from backend.models_media_core import ClinicalAsset
 
 
 ACTIVE_STATUSES = {"ACTIVE", "INTERRUPTED"}
@@ -327,3 +328,172 @@ def create_ortho_control(
     db.commit()
     db.refresh(control)
     return control
+
+
+def list_ortho_timepoints(
+    db: Session,
+    patient_id: int,
+    case_id: int,
+    employer_id: int,
+):
+    return (
+        db.query(models.OrthoTimepoint)
+        .options(joinedload(models.OrthoTimepoint.evidences))
+        .filter(
+            models.OrthoTimepoint.ortho_case_id == case_id,
+            models.OrthoTimepoint.patient_id == patient_id,
+            models.OrthoTimepoint.employer_id == employer_id,
+        )
+        .order_by(models.OrthoTimepoint.ordinal.asc())
+        .all()
+    )
+
+
+def create_ortho_timepoint(
+    db: Session,
+    patient_id: int,
+    case_id: int,
+    employer_id: int,
+    created_by: int,
+    ordinal: int,
+    occurred_at: datetime,
+    note: str | None,
+):
+    case = get_ortho_case_by_id(db, patient_id, case_id, employer_id)
+    if case is None:
+        raise HTTPException(status_code=404, detail="Traitement orthodontique introuvable.")
+    if occurred_at < case.started_at:
+        raise HTTPException(
+            status_code=409,
+            detail="Le timepoint ne peut pas précéder le début du traitement.",
+        )
+
+    existing = (
+        db.query(models.OrthoTimepoint)
+        .filter(
+            models.OrthoTimepoint.ortho_case_id == case_id,
+            models.OrthoTimepoint.ordinal == ordinal,
+        )
+        .first()
+    )
+    if existing is not None:
+        raise HTTPException(
+            status_code=409,
+            detail=f"Le timepoint T{ordinal} existe déjà pour ce traitement.",
+        )
+
+    timepoint = models.OrthoTimepoint(
+        ortho_case_id=case_id,
+        employer_id=employer_id,
+        patient_id=patient_id,
+        ordinal=ordinal,
+        occurred_at=occurred_at,
+        note=note,
+        created_by=created_by,
+    )
+    db.add(timepoint)
+    db.commit()
+    db.refresh(timepoint)
+    return timepoint
+
+
+def add_ortho_timepoint_evidence(
+    db: Session,
+    patient_id: int,
+    case_id: int,
+    timepoint_id: int,
+    employer_id: int,
+    created_by: int,
+    clinical_asset_id: int | None,
+    cephalo_analysis_id: int | None,
+    panoramic_analysis_id: int | None,
+):
+    timepoint = (
+        db.query(models.OrthoTimepoint)
+        .filter(
+            models.OrthoTimepoint.id == timepoint_id,
+            models.OrthoTimepoint.ortho_case_id == case_id,
+            models.OrthoTimepoint.patient_id == patient_id,
+            models.OrthoTimepoint.employer_id == employer_id,
+        )
+        .with_for_update()
+        .first()
+    )
+    if timepoint is None:
+        raise HTTPException(status_code=404, detail="Timepoint orthodontique introuvable.")
+
+    supplied = [
+        clinical_asset_id is not None,
+        cephalo_analysis_id is not None,
+        panoramic_analysis_id is not None,
+    ]
+    if sum(supplied) != 1:
+        raise HTTPException(status_code=422, detail="Une seule source canonique doit être référencée.")
+
+    if clinical_asset_id is not None:
+        asset = (
+            db.query(ClinicalAsset)
+            .filter(
+                ClinicalAsset.id == clinical_asset_id,
+                ClinicalAsset.patient_id == patient_id,
+                ClinicalAsset.employer_id == employer_id,
+            )
+            .first()
+        )
+        if asset is None:
+            raise HTTPException(status_code=422, detail="Média clinique introuvable pour ce patient/cabinet.")
+        if asset.timepoint and asset.timepoint != f"T{timepoint.ordinal}":
+            raise HTTPException(
+                status_code=409,
+                detail=f"Le média est déjà étiqueté {asset.timepoint}, incompatible avec T{timepoint.ordinal}.",
+            )
+
+    if cephalo_analysis_id is not None:
+        cephalo = (
+            db.query(models.CephaloAnalysis)
+            .filter(
+                models.CephaloAnalysis.id == cephalo_analysis_id,
+                models.CephaloAnalysis.patient_id == patient_id,
+            )
+            .first()
+        )
+        if cephalo is None:
+            raise HTTPException(status_code=422, detail="Analyse céphalométrique introuvable pour ce patient.")
+
+    if panoramic_analysis_id is not None:
+        pano = (
+            db.query(models.PanoramicAnalysis)
+            .filter(
+                models.PanoramicAnalysis.id == panoramic_analysis_id,
+                models.PanoramicAnalysis.patient_id == patient_id,
+            )
+            .first()
+        )
+        if pano is None:
+            raise HTTPException(status_code=422, detail="Analyse panoramique introuvable pour ce patient.")
+
+    duplicate_q = db.query(models.OrthoTimepointEvidence).filter(
+        models.OrthoTimepointEvidence.ortho_timepoint_id == timepoint_id
+    )
+    if clinical_asset_id is not None:
+        duplicate_q = duplicate_q.filter(models.OrthoTimepointEvidence.clinical_asset_id == clinical_asset_id)
+    elif cephalo_analysis_id is not None:
+        duplicate_q = duplicate_q.filter(models.OrthoTimepointEvidence.cephalo_analysis_id == cephalo_analysis_id)
+    else:
+        duplicate_q = duplicate_q.filter(models.OrthoTimepointEvidence.panoramic_analysis_id == panoramic_analysis_id)
+    if duplicate_q.first() is not None:
+        raise HTTPException(status_code=409, detail="Cette preuve est déjà liée à ce timepoint.")
+
+    evidence = models.OrthoTimepointEvidence(
+        ortho_timepoint_id=timepoint_id,
+        employer_id=employer_id,
+        patient_id=patient_id,
+        clinical_asset_id=clinical_asset_id,
+        cephalo_analysis_id=cephalo_analysis_id,
+        panoramic_analysis_id=panoramic_analysis_id,
+        created_by=created_by,
+    )
+    db.add(evidence)
+    db.commit()
+    db.refresh(evidence)
+    return evidence
