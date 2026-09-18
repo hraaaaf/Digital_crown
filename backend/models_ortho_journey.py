@@ -107,7 +107,7 @@ class OrthoPhaseEvent(Base):
         ForeignKey("ortho_cases.id", ondelete="CASCADE"), nullable=False, index=True
     )
     employer_id: Mapped[int] = mapped_column(
-        ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
+        ForeignKey("users.id"), nullable=False, index=True
     )
     patient_id: Mapped[int] = mapped_column(
         ForeignKey("patients.id", ondelete="CASCADE"), nullable=False, index=True
