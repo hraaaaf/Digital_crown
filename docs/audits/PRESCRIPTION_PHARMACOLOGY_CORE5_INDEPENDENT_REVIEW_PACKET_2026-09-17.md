@@ -18,8 +18,9 @@ Provide a bounded, traceable package for an independent dentist/pharmacist/clini
 2. `PRESCRIPTION_PHARMACOLOGY_CORE5_MOROCCO_REGULATORY_PASS_2026-09-17.md`
 3. `PRESCRIPTION_PHARMACOLOGY_CORE5_SAFETY_EVIDENCE_INDEX_2026-09-17.csv`
 4. `PRESCRIPTION_PHARMACOLOGY_CORE5_SOURCE_REVALIDATION_2026-09-18.md`
-5. Current primary clinical sources reviewed directly by the qualified reviewer.
-6. Current deterministic fail-closed validator and tests.
+5. `PRESCRIPTION_PHARMACOLOGY_CORE5_QUALIFIED_REVIEW_FORM_2026-09-18.md`
+6. Current primary clinical sources reviewed directly by the qualified reviewer.
+7. Current deterministic fail-closed validator and tests.
 
 ## Reviewer decisions required for each Core-5 row
 The reviewer must explicitly mark each dimension PASS / FAIL / NEEDS_CORRECTION:
