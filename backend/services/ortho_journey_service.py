@@ -20,6 +20,24 @@ _ALLOWED_TRANSITIONS = {
 }
 
 
+def get_ortho_case_by_id(
+    db: Session,
+    patient_id: int,
+    case_id: int,
+    employer_id: int,
+):
+    return (
+        db.query(models.OrthoCase)
+        .options(joinedload(models.OrthoCase.events))
+        .filter(
+            models.OrthoCase.id == case_id,
+            models.OrthoCase.patient_id == patient_id,
+            models.OrthoCase.employer_id == employer_id,
+        )
+        .first()
+    )
+
+
 def get_ortho_case(
     db: Session,
     patient_id: int,
