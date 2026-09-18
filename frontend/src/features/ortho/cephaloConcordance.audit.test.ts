@@ -25,6 +25,8 @@ describe('R18 scientific concordance audit - frontend extraction', () => {
         fmia: blankToNull(r.dentaire?.fmia) as number|null,
         u1_frankfort: blankToNull(r.dentaire?.i_francfort) as number|null,
         interincisal: blankToNull(r.dentaire?.inter_incisif) as number|null,
+        overjet: blankToNull(r.dentaire?.surplomb) as number|null,
+        overbite: blankToNull(r.dentaire?.recouvrement) as number|null,
         eline_ls: blankToNull(r.esthetique?.ligne_e_ls) as number|null,
         eline_li: blankToNull(r.esthetique?.ligne_e_li) as number|null,
         i_na_mm: blankToNull(r.dentaire?.i_na_mm) as number|null,
