@@ -809,12 +809,13 @@ def list_patient_ortho_controls(
     assert_patient_access(patient_id, current_user, db)
     from backend.services import ortho_journey_service
 
-    case = ortho_journey_service.get_ortho_case(
+    case = ortho_journey_service.get_ortho_case_by_id(
         db,
         patient_id,
+        case_id,
         current_user.get_employer_id(),
     )
-    if case is None or case.id != case_id:
+    if case is None:
         raise HTTPException(status_code=404, detail="Traitement orthodontique introuvable.")
 
     return ortho_journey_service.list_ortho_controls(
