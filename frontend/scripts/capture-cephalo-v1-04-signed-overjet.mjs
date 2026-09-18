@@ -104,6 +104,8 @@ try {
       await page.route('**/*', async route => {
         const url = new URL(route.request().url());
         if (url.hostname === '127.0.0.1' && url.port === String(PORT)) return route.continue();
+        if (url.hostname === 'fonts.googleapis.com') return route.fulfill({ status: 200, contentType: 'text/css; charset=utf-8', body: '/* offline visual harness */' });
+        if (url.hostname === 'fonts.gstatic.com') return route.fulfill({ status: 204, body: '' });
         return route.abort('blockedbyclient');
       });
       const response = await page.goto(`${BASE_URL}/cephalo-v1-04.html`, { waitUntil: 'networkidle', timeout: 30000 });
