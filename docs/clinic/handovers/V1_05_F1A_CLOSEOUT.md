@@ -89,7 +89,10 @@ Temporary certification PR #605:
 - Frontend tests/build — SUCCESS
 - Prod safety negative gate — SUCCESS
 - M4-A / M4-B / M4-C evidence jobs — SUCCESS
-- PostgreSQL Alembic certification on the same certification cycle — triggered separately and required to remain green before merge
+- PostgreSQL Alembic certification `35382007335` — SUCCESS
+- T2 Runtime Browser `35382007339` — SUCCESS
+- Agenda A5 `35382007321` — SUCCESS
+- Patient P7 `35382007477` — SUCCESS
 - PR #605 closed without merge
 
 Conclusion:
