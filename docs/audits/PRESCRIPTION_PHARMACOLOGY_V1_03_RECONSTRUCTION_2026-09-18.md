@@ -29,3 +29,32 @@ Reconstruct only machine-verifiable Morocco pharmacology reference assets from s
 
 ## Deferred scientific gate
 Clinical activation remains prohibited until a qualified independent clinical/scientific review validates specific claims against current primary/authoritative sources and the resulting evidence is recorded separately.
+
+## Extraction decisions and contradictions
+
+Accepted into the clean reconstruction:
+- structural master inventory and historical/addenda mappings required to prove denominator and identity integrity;
+- para canonical/gap/addenda/entity maps required to prove target reachability and non-destructive overlap handling;
+- medicine current-status projection strictly as a documentary gap ledger, with all 68 rows inactive;
+- final #572 fail-closed validator hardening, medicine-gap audit, and their negative tests.
+
+#572 supersedes the stale #565 versions where they differ:
+- the `PARA-TONGUE-001` canonical row uses the repaired schema/cardinality from #572;
+- blank `clinical_activation` is an explicit failure instead of a crash/implicit value;
+- malformed CSV rows with unexpected or missing columns fail closed.
+
+Intentionally not reconstructed in this structural batch:
+- Core8 activation triage and candidate classifications;
+- Core5 or other clinical/regimen/safety passes that would require accepting indication, dose, duration, pediatric, contraindication, interaction or specialist-boundary claims;
+- stale operational handovers, intermediate progress notes and superseded audit snapshots.
+
+Reason: those assets can be preserved as historical evidence in #565/#572, but this V1 reconstruction does not promote their clinical assertions to an accepted current reference without a fresh qualified source review.
+
+## Exact-head evidence
+The pharmacology deterministic gate must prove, on the final candidate HEAD:
+- targeted documentary tests green;
+- `scripts/validate_pharmacology_reference.py` green;
+- deterministic medicine-gap report green;
+- independent deterministic safety oracle green.
+
+A green deterministic gate remains explicitly **not scientific approval**.
