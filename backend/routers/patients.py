@@ -853,7 +853,10 @@ def create_patient_ortho_control(
         occurred_at=payload.occurred_at,
         phase_key=payload.phase_key.value if payload.phase_key else None,
         appointment_id=payload.appointment_id,
-        note=payload.note,
+        observations=payload.observations,
+        appliance_context=payload.appliance_context,
+        notable_event=payload.notable_event,
+        next_planned_step=payload.next_planned_step,
         next_control_at=payload.next_control_at,
     )
     audit_service.log(
@@ -867,7 +870,8 @@ def create_patient_ortho_control(
             f"patient_id={patient_id} case_id={case_id} occurred_at={payload.occurred_at.isoformat()} "
             f"phase={payload.phase_key.value if payload.phase_key else None} "
             f"appointment_id={payload.appointment_id} next_control_at={payload.next_control_at.isoformat() if payload.next_control_at else None} "
-            f"note_present={bool(payload.note)} note_length={len(payload.note) if payload.note else 0}"
+            f"observations_present={bool(payload.observations)} appliance_context_present={bool(payload.appliance_context)} "
+            f"notable_event_present={bool(payload.notable_event)} next_planned_step_present={bool(payload.next_planned_step)}"
         ),
     )
     return result
