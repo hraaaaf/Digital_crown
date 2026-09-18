@@ -165,9 +165,11 @@ Success/Proof: deterministic temporal/history behavior + no Agenda regression + 
 
 ### LOT V1-03 — Pharmacology Morocco evidence reconstruction
 
-Status: **UNLOCKED — START FROM CERTIFIED MASTER**
+Status: **IN PROGRESS — STRUCTURAL FAIL-CLOSED RECONSTRUCTION**
 
-Working references: PR `#565` and divergent evidence PR `#572`; both are stale evidence branches, not merge-as-is product branches.
+Working references: stale PR `#565` and divergent evidence PR `#572`; neither is merge-as-is. Clean reconstruction branch: `feat/v1-03-pharmacology-reconstruction` from certified master.
+
+Current reconstruction scope: machine-verifiable inventory/mapping/projection assets, fail-closed validators and deterministic gap audit only. Core8 clinical triage and any clinical activation remain explicitly deferred pending qualified independent scientific review.
 
 Goal: reconstruct only accepted Morocco pharmacology assets/tests on a clean then-current-master branch while preserving fail-closed clinical activation.
 
