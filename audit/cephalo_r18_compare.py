@@ -16,6 +16,7 @@ pairs = [
  ('u1_frankfort','u1_frankfort','CRANIOM U1/Frankfort'),
  ('impa','l1_downs_craniom','CRANIOM L1/Downs'),
  ('interincisal','interincisal','CRANIOM interincisal'),
+ ('overjet','overjet','COM overjet / Surplomb'), ('overbite','overbite','COM overbite / Recouvrement'),
  ('eline_ls','eline_ls','Ricketts E-line Ls V2'), ('eline_li','eline_li','Ricketts E-line Li V2')
 ]
 rows=[]

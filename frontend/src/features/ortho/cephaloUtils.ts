@@ -127,7 +127,7 @@ export function computeStep3Data(lms:Landmark[],age:number|'',_sexe:'M'|'F',mmPe
   if(po&&or_&&l1i&&l1a){const fmia=computeAxisAngle(l1a,l1i,po,or_);if(fmia!==null)results.dentaire!.fmia=Math.round(fmia);}
   if(u1i&&u1a&&po&&or_){const iF=computeClinicalObtuseAngle(u1a,u1i,po,or_);if(iF!==null)results.dentaire!.i_francfort=Math.round(iF*10)/10;}
 
-  if(ratio!==null&&u1i&&l1i&&po&&or_){const overjet=computeDistanceToVertical(l1i,u1i,po,or_,ratio);results.dentaire!.surplomb=Math.round(Math.abs(overjet)*10)/10;const overbite=computeSignedOverbite(u1i,l1i,po,or_,ratio);if(overbite!==null)results.dentaire!.recouvrement=overbite;}
+  if(ratio!==null&&u1i&&l1i&&po&&or_){const overjet=computeDistanceToVertical(u1i,l1i,po,or_,ratio);results.dentaire!.surplomb=Math.round(overjet*10)/10;const overbite=computeSignedOverbite(u1i,l1i,po,or_,ratio);if(overbite!==null)results.dentaire!.recouvrement=overbite;}
   const anb=results.osseuse!.anb!==''?Number(results.osseuse!.anb):null; results.classe_squelettique=anb!==null?'Non classifiable':'Indéterminée';
   if(ratio!==null&&prn&&pogSoft&&po&&or_){const eLineLs=computeSignedELineDistance(ls,prn,pogSoft,po,or_,ratio),eLineLi=computeSignedELineDistance(li,prn,pogSoft,po,or_,ratio);if(eLineLs!==null)results.esthetique!.ligne_e_ls=Math.round(eLineLs*10)/10;if(eLineLi!==null)results.esthetique!.ligne_e_li=Math.round(eLineLi*10)/10;}
   if(etape2){const{molaire_droite,molaire_gauche,canine_droite,canine_gauche}=etape2.occlusal;results.analyse_moulages_auto=`Classe Molaire : D:${molaire_droite} / G:${molaire_gauche}\nClasse Canine : D:${canine_droite} / G:${canine_gauche}\n`;}

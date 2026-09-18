@@ -81,7 +81,7 @@ Légende :
 | M_L6_NB_MM_V1 | source-lock | L6 vers NB | L6,N,B | oui | BLOCKED_LANDMARK | B | L6 exact absent |
 | M_INTERINCISAL_DEG_V1 | Steiner/Ricketts/COM | axes U1/L1 | U1 apex/edge,L1 apex/edge | non | GEOMETRY_COVERED | A | conserver |
 | M_OVERJET_MM_V1 | COM legacy | relation incisive | incisive landmarks | oui | LEGACY_TO_AUDIT | B | sémantique legacy à auditer |
-| M_OVERBITE_V1 | COM legacy | relation incisive | incisive landmarks | non verrouillée | LEGACY_TO_AUDIT | B | unité et sémantique non verrouillées |
+| M_OVERBITE_V1 | COM legacy | relation incisive | incisive landmarks | oui (mm) | LEGACY_TO_AUDIT | B | unité verrouillée; géométrie/sémantique legacy encore à auditer |
 | M_LI_EPLANE_MM_V1 | Ricketts | Li vers E-plane | Li,Prn,Pog_soft | oui | GEOMETRY_COVERED | A | conserver |
 | M_LS_EPLANE_MM_V1 | Ricketts | Ls vers E-plane | Ls,Prn,Pog_soft | oui | GEOMETRY_COVERED | A | conserver |
 | M_NASOLABIAL_ANGLE_DEG_V1 | soft tissue | angle nasolabial | landmarks soft exacts | non | SOURCE_LOCK_REQUIRED | B | définition/landmarks source-lock requis |

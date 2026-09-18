@@ -202,13 +202,34 @@ Proof: source evidence + validators + negative tests + qualified review if activ
 
 ### LOT V1-04 — Céphalométrie scientific re-baseline
 
-Status: **BLOCKED BY V1-03**
+Status: **IMPLEMENTED — EXACT-HEAD TECHNICAL + VISUAL EVIDENCE GREEN; HUMAN MERGE AUTHORIZATION PENDING**
 
 Goal: inspect current master after all preceding integrations and identify only genuine remaining V1-relevant scientific/runtime gaps; do not manufacture work or reopen already certified lots.
 
 Success: canonical scientific inventory/provenance rebaselined; BLOCKED/TODO/legacy gaps classified; only evidence-backed V1 blockers corrected; no diagnostic/treatment inference introduced without required evidence/review.
 
 Proof: code + scientific tests + provenance + runtime evidence + mandatory UI BEFORE/AFTER if visual changes + review + exact-head CI + closeout. If no genuine V1 blocker remains, record that finding and close the lot without invented implementation.
+
+Verified V1-04 result:
+- certified base: `master@7454215274032898d1a50659d624a5cb32aab494`, CI `35335941911` SUCCESS and PostgreSQL `35335941919` SUCCESS;
+- selected blocker: R18 concordance omitted COM `Surplomb` / `Recouvrement`; proof run `35338035397` exposed one deterministic Surplomb divergence on `clinical_orientation_reference`: frontend `+2.6 mm` vs backend `-2.6 mm`, delta `5.2 mm`; Recouvrement was concordant;
+- correction: Step 3 now preserves signed overjet instead of converting it to an absolute magnitude; positive/reverse overjet and signed overbite regressions are locked; `M_OVERBITE_V1` unit is `mm`, while overjet/overbite construction provenance remains `LEGACY_TO_AUDIT`;
+- scientific boundary: reverse overjet is preserved as a signed negative measurement when mandibular incisors are anterior to maxillary incisors; no norm, diagnostic classification, severity, indication or treatment rule was activated; R20 remains closed;
+- current exact HEAD before this canonical closeout commit: `46aed2c9758b82f3ee67ffa268859e7d75232a44`;
+- exact-head proof on `46aed2c9758b82f3ee67ffa268859e7d75232a44`: CI `35343025885` SUCCESS; T2 `35343025880` SUCCESS; Cephalo R15 AFTER `35343025883` SUCCESS; Cephalo R15bis AFTER `35343025868` SUCCESS; Cephalo R18 Scientific Concordance `35343025882` SUCCESS with zero divergence; Agenda A5 Visual Evidence `35343025861` SUCCESS;
+- mandatory V1-04 visual artifact on that exact HEAD: artifact `10545955945`, digest `sha256:b26de23b83fd5e484d84a5d07ee922fbebe5d9f8c4e9ab82e9b6c64bb7b98fee`; BEFORE shows `+2.6 mm`, AFTER shows `-2.6 mm`, at `390x844`, `768x1024`, `1280x900`; all six captures have zero horizontal overflow, zero page errors and zero console errors;
+- severe visual review: `9.4/10`; second severe expert-style review: `9.3/10`;
+- Achraf explicitly approved the six retained BEFORE/AFTER captures on 2026-09-18; the `visual-approved-by-achraf` label was applied to PR #592;
+- prior generic UI Human Visual Approval failure `35340553905` was diagnosed as intentional stale-approval invalidation after a HEAD change, not a product or harness defect; failed jobs were re-run after explicit approval.
+
+Remaining scientific inventory is not promoted into invented V1 work:
+- `BLOCKED_LANDMARK`: exact required landmarks are absent/non-certified;
+- `BLOCKED_MODALITY_PA`: true PA/frontal acquisition is absent;
+- serial displacement/change measures: paired-study/superposition authority is absent;
+- `SOURCE_LOCK_REQUIRED` measures remain inactive until their exact construction/provenance is locked;
+- Steiner U1-NA/L1-NB linear measures remain unavailable until the required crown landmark exists.
+
+Next exact: certify this documentation-only closeout HEAD, re-materialize visual approval if the generic workflow invalidates it solely because of this documentation commit, then present PR #592 for explicit human merge authorization. V1-05 remains blocked until V1-04 is merged and post-merge certified.
 
 ### LOT V1-05 — Orthalis current benchmark / gap decision
 
@@ -291,13 +312,15 @@ Pending CI does not unlock the next lot. Independent work is permitted only insi
 
 ## 6. Current canonical state
 
-- active lot: **V1-00 — CLOSED / CANONICAL CLOSEOUT PR PENDING MERGE**
-- next lot: **V1-01 — UNLOCKED AFTER CANONICAL CLOSEOUT MERGE**
-- current master: `1edd440bf69ca4a79c5e265b20957148297adb3f`
-- certified V1-00 foundation product HEAD: `cc34fdf42874f06d4ac3ec45073e1cbb012c6007`
-- final repair PR: `#587` / `330994e4454a30074e8ee4e1c7e301f071cb060b` — **MERGED** as `1edd440bf69ca4a79c5e265b20957148297adb3f`
-- merge authorization: **SATISFIED for PR #582, #583, #585 and #587**
-- final post-merge master proof: **CI 35286577382 SUCCESS / PostgreSQL 35286577467 SUCCESS**
+- active lot: **V1-04 — Céphalométrie scientific re-baseline / PRE-MERGE CLOSEOUT**
+- next lot: **V1-05 — BLOCKED BY V1-04**
+- certified lot base: `master@7454215274032898d1a50659d624a5cb32aab494`
+- base proof: **CI 35335941911 SUCCESS / PostgreSQL 35335941919 SUCCESS**
+- active branch: `feat/v1-04-cephalo-rebaseline`
+- active PR: **#592 DRAFT — HUMAN MERGE AUTHORIZATION PENDING**
+- first V1-04 evidence: Cephalo R18 concordance run `35338035397` deliberately exposed one frontend/backend Surplomb divergence (+2.6 mm vs -2.6 mm) while Recouvrement remained concordant.
+- correction principle: preserve signed incisor relation; do not activate new norms, diagnosis, indication or treatment inference.
+- latest certified product/docs HEAD before canonical closeout commit: `46aed2c9758b82f3ee67ffa268859e7d75232a44`; CI/R18/R15/R15bis/T2 green; six canonical BEFORE/AFTER captures explicitly approved by Achraf.
 - V1 candidate SHA: **NOT SELECTED**
 - V1 state: **EXECUTION LOCKED / NOT OPERATIONAL**
 - production/cabinet mutation: **NOT AUTHORIZED**

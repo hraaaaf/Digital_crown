@@ -5,8 +5,16 @@ on:
     paths:
       - 'audit/**'
       - 'frontend/src/features/ortho/cephaloConcordance.audit.test.ts'
+      - 'frontend/src/features/ortho/cephaloUtils.ts'
+      - 'frontend/scripts/capture-cephalo-v1-04-signed-overjet.mjs'
+      - 'backend/services/cephalo_measure_registry.py'
+      - 'backend/tests/test_cephalo_incisor_relations_runtime.py'
+      - 'backend/tests/test_cephalo_measure_registry.py'
       - '.github/workflows/cephalo-r18-scientific-concordance.yml'
   workflow_dispatch:
+
+env:
+  V104_BASE_SHA: 7454215274032898d1a50659d624a5cb32aab494
 
 jobs:
   audit:
@@ -22,6 +30,45 @@ jobs:
           node-version: '22'
           cache: npm
           cache-dependency-path: frontend/package-lock.json
+      - name: Verify canonical cephalo measurement registry
+        run: |
+          python - <<'PY'
+          import ast
+          from pathlib import Path
+
+          path = Path("backend/services/cephalo_measure_registry.py")
+          source = path.read_text(encoding="utf-8")
+          tree = ast.parse(source, filename=str(path))
+
+          registry = {}
+          registry_dict = None
+          for node in ast.walk(tree):
+              if isinstance(node, ast.AnnAssign) and isinstance(node.target, ast.Name) and node.target.id == "CANONICAL_MEASUREMENTS":
+                  registry_dict = node.value
+                  break
+              if isinstance(node, ast.Assign) and any(isinstance(t, ast.Name) and t.id == "CANONICAL_MEASUREMENTS" for t in node.targets):
+                  registry_dict = node.value
+                  break
+
+          if not isinstance(registry_dict, ast.Dict):
+              raise AssertionError("CANONICAL_MEASUREMENTS is not a literal dict")
+
+          for key_node, value_node in zip(registry_dict.keys, registry_dict.values):
+                  if not isinstance(key_node, ast.Constant) or not isinstance(key_node.value, str):
+                      continue
+                  if not isinstance(value_node, ast.Call) or not isinstance(value_node.func, ast.Name) or value_node.func.id != "_m":
+                      continue
+                  args = value_node.args
+                  unit = args[1].value if len(args) > 1 and isinstance(args[1], ast.Constant) else None
+                  status = args[2].value if len(args) > 2 and isinstance(args[2], ast.Constant) else None
+                  registry[key_node.value] = (unit, status)
+
+          assert registry["M_OVERJET_MM_V1"] == ("mm", "LEGACY_TO_AUDIT")
+          assert registry["M_OVERBITE_V1"] == ("mm", "LEGACY_TO_AUDIT")
+          assert registry["M_PA_SKELETAL_SYMMETRY_V1"][0] is None
+          assert 'raise ValueError(' in source and 'has no source-locked unit' in source
+          print("V1_04_CEPHALO_REGISTRY_AST_OK")
+          PY
       - name: Install frontend lockfile
         working-directory: frontend
         run: npm ci
@@ -40,4 +87,77 @@ jobs:
         with:
           name: cephalo-r18-scientific-concordance-${{ github.sha }}
           path: audit/out/
+          retention-days: 30
+
+  visual-v1-04:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout candidate
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install candidate frontend and browser
+        working-directory: frontend
+        run: |
+          npm ci
+          npm install --no-save --package-lock=false --legacy-peer-deps playwright@1.55.0 react-is@19.2.0 @testing-library/dom@10.4.1
+          npx playwright install --with-deps chromium
+      - name: Prepare exact V1-04 BEFORE worktree
+        run: |
+          git worktree add /tmp/dc-v104-before "$V104_BASE_SHA"
+          test "$(git -C /tmp/dc-v104-before rev-parse HEAD)" = "$V104_BASE_SHA"
+          cd /tmp/dc-v104-before/frontend
+          npm ci
+          npm install --no-save --package-lock=false --legacy-peer-deps playwright@1.55.0 react-is@19.2.0 @testing-library/dom@10.4.1
+          cp "$GITHUB_WORKSPACE/frontend/scripts/capture-cephalo-v1-04-signed-overjet.mjs" scripts/capture-cephalo-v1-04-signed-overjet.mjs
+      - name: Capture V1-04 BEFORE
+        run: |
+          cd /tmp/dc-v104-before/frontend
+          PHASE=before PRODUCT_HEAD="$V104_BASE_SHA" EXPECTED_OVERJET="+2.6 mm" node scripts/capture-cephalo-v1-04-signed-overjet.mjs
+          rm -rf "$GITHUB_WORKSPACE/frontend/cephalo-v1-04-before"
+          mv cephalo-v1-04-before "$GITHUB_WORKSPACE/frontend/cephalo-v1-04-before"
+      - name: Capture V1-04 AFTER
+        working-directory: frontend
+        env:
+          PRODUCT_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: PHASE=after PRODUCT_HEAD="$PRODUCT_HEAD" EXPECTED_OVERJET="-2.6 mm" node scripts/capture-cephalo-v1-04-signed-overjet.mjs
+      - name: Verify V1-04 visual evidence
+        working-directory: frontend
+        env:
+          PRODUCT_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          node --input-type=module <<'NODE'
+          import { readFile } from 'node:fs/promises';
+          const before = JSON.parse(await readFile('cephalo-v1-04-before/report.json', 'utf8'));
+          const after = JSON.parse(await readFile('cephalo-v1-04-after/report.json', 'utf8'));
+          if (before.productHead !== process.env.V104_BASE_SHA) throw new Error('BEFORE SHA mismatch');
+          if (after.productHead !== process.env.PRODUCT_HEAD) throw new Error('AFTER SHA mismatch');
+          if (before.expectedOverjet !== '+2.6 mm' || after.expectedOverjet !== '-2.6 mm') throw new Error('Signed overjet mismatch');
+          for (const report of [before, after]) {
+            if (report.captures.length !== 3) throw new Error('Expected three captures');
+            for (const capture of report.captures) {
+              if (capture.pageErrors.length || capture.consoleErrors.length) throw new Error('Runtime error');
+              if (capture.layout.scrollWidth > capture.layout.clientWidth + 1) throw new Error('Horizontal overflow');
+            }
+          }
+          NODE
+          for viewport in 390x844 768x1024 1280x900; do
+            test -s "cephalo-v1-04-before/before-step3-$viewport.png"
+            test -s "cephalo-v1-04-after/after-step3-$viewport.png"
+          done
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: cephalo-v1-04-before-after-${{ github.event.pull_request.head.sha || github.sha }}
+          path: |
+            frontend/cephalo-v1-04-before/
+            frontend/cephalo-v1-04-after/
+          if-no-files-found: error
           retention-days: 30

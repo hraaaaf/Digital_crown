@@ -63,6 +63,25 @@ def extract(case: dict) -> dict[str, float | None]:
     out['u1_frankfort'] = safe(craniom.craniom_u1_frankfort_deg_v1, p, ('U1_apex','U1_incisal','Po','Or'), lambda v: js_round(v,1))
     out['l1_downs_craniom'] = safe(craniom.craniom_l1_downs_deg_v1, p, ('L1_apex','L1_incisal','Go','Me'), lambda v: js_round(v,1))
     out['interincisal'] = safe(craniom.craniom_interincisal_deg_v1, p, ('U1_apex','U1_incisal','L1_apex','L1_incisal'), lambda v: js_round(v,0))
+    if ratio is not None and have(p, 'Po','Or','U1_incisal','L1_incisal'):
+        dx = p['Or'][0] - p['Po'][0]
+        dy = p['Or'][1] - p['Po'][1]
+        length = math.hypot(dx, dy)
+        if length > 1e-12:
+            ux, uy = dx / length, dy / length
+            px, py = -uy, ux
+            if py < 0:
+                px, py = -px, -py
+            vx = p['U1_incisal'][0] - p['L1_incisal'][0]
+            vy = p['U1_incisal'][1] - p['L1_incisal'][1]
+            out['overjet'] = js_round((vx * ux + vy * uy) * float(ratio), 1)
+            out['overbite'] = js_round((vx * px + vy * py) * float(ratio), 1)
+        else:
+            out['overjet'] = None
+            out['overbite'] = None
+    else:
+        out['overjet'] = None
+        out['overbite'] = None
     for out_key, lip_key in (('eline_ls','Ls_soft'),('eline_li','Li_soft')):
         if ratio is not None and have(p, lip_key,'Prn','Pog_soft','Po','Or'):
             value = ricketts.ricketts_e_line_perpendicular_signed_distance_px_v2(
