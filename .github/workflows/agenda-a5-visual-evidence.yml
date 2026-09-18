@@ -45,7 +45,7 @@ jobs:
               if(u.pathname==='/api/agenda/settings') return route.fulfill(json({opening_time_morning:'09:00',closing_time_morning:'13:00',opening_time_afternoon:'14:00',closing_time_afternoon:'18:00',is_continuous:false}));
               return route.fulfill(json(req.method()==='GET'?[]:{}));});
             for(const phase of ['before','after']) {state=phase; await page.goto('http://127.0.0.1:4205/agenda-a5.html',{waitUntil:'networkidle'}); await page.getByRole('heading',{name:'Agenda'}).waitFor();
-              if(phase==='before') await page.getByText('RDV supprimé',{exact:true}).waitFor(); else if(await page.getByText('RDV supprimé',{exact:true}).count()) throw new Error('deleted appointment visible in AFTER');
+              if(phase==='before') { const deletedCount=await page.getByText('RDV supprimé',{exact:true}).count(); if(deletedCount<1) throw new Error('deleted appointment missing in BEFORE'); } else if(await page.getByText('RDV supprimé',{exact:true}).count()) throw new Error('deleted appointment visible in AFTER');
               const layout=await page.evaluate(()=>({clientWidth:document.documentElement.clientWidth,scrollWidth:document.documentElement.scrollWidth})); if(layout.scrollWidth>layout.clientWidth) throw new Error(phase+' overflow '+width);
               await page.screenshot({path:out+'/'+phase+'-'+width+'x'+height+'.png',fullPage:true,animations:'disabled'}); report.push({phase,width,height,layout});}
             await context.close(); } await fs.writeFile(out+'/report.json',JSON.stringify(report,null,2)); } finally {await browser.close();await server.close();}
