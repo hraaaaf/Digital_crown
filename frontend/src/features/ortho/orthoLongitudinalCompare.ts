@@ -50,6 +50,15 @@ export interface OrthoCaseSummary {
   current_phase_key: string | null;
 }
 
+export interface OrthoTimepointEvidenceSummary {
+  id: number;
+  clinical_asset_id: number | null;
+  cephalo_analysis_id: number | null;
+  panoramic_analysis_id: number | null;
+  created_by: number | null;
+  created_at: string;
+}
+
 export interface OrthoTimepointSummary {
   id: number;
   ortho_case_id: number;
@@ -57,7 +66,7 @@ export interface OrthoTimepointSummary {
   ordinal: number;
   occurred_at: string;
   note: string | null;
-  evidences: OrthoCompareEvidence[];
+  evidences: OrthoTimepointEvidenceSummary[];
 }
 
 export async function fetchOrthoCase(patientId: number): Promise<OrthoCaseSummary | null> {
