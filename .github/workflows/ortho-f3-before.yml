@@ -1,0 +1,77 @@
+name: Ortho F3 BEFORE
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - feat/v1-05-f3-longitudinal-compare
+    paths:
+      - 'frontend/scripts/capture-ortho-f3-before.mjs'
+      - '.github/workflows/ortho-f3-before.yml'
+
+permissions:
+  contents: read
+
+env:
+  F3_BASE_SHA: 35ccdf5ad73b403279e129c7affe2d9364c6d4cc
+
+jobs:
+  visual-before:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Prepare exact merged F2 baseline
+        run: |
+          git worktree add /tmp/dc-f3-before "$F3_BASE_SHA"
+          test "$(git -C /tmp/dc-f3-before rev-parse HEAD)" = "$F3_BASE_SHA"
+      - name: Install browser dependencies
+        working-directory: frontend
+        run: |
+          npm ci
+          npm install --no-save --package-lock=false --legacy-peer-deps playwright@1.55.0 react-is@19.2.0
+          npx playwright install --with-deps chromium
+      - name: Install exact baseline frontend
+        run: |
+          cd /tmp/dc-f3-before/frontend
+          npm ci
+          npm install --no-save --package-lock=false --legacy-peer-deps react-is@19.2.0
+      - name: Capture exact F3 BEFORE
+        run: |
+          cd /tmp/dc-f3-before/frontend
+          PRODUCT_HEAD="$F3_BASE_SHA" node "$GITHUB_WORKSPACE/frontend/scripts/capture-ortho-f3-before.mjs"
+          rm -rf "$GITHUB_WORKSPACE/frontend/ortho-f3-before-artifacts"
+          cp -R ortho-f3-before-artifacts "$GITHUB_WORKSPACE/frontend/"
+      - name: Verify BEFORE contract
+        working-directory: frontend
+        run: |
+          node --input-type=module <<'NODE'
+          import { readFile } from 'node:fs/promises';
+          const report = JSON.parse(await readFile('ortho-f3-before-artifacts/report.json','utf8'));
+          if (report.productHead !== process.env.F3_BASE_SHA) throw new Error('Wrong baseline SHA');
+          if (report.phase !== 'BEFORE') throw new Error('Wrong phase');
+          if (report.invalidCount !== 0) throw new Error('Invalid visual captures');
+          if (report.blockedExternalRequests.length !== 0) throw new Error('Unexpected external egress');
+          if (report.captures.length !== 3) throw new Error('Expected three viewports');
+          for (const c of report.captures) {
+            if (!c.valid) throw new Error('Invalid '+c.viewport);
+            if (c.metrics.hasCompareSurface || c.metrics.hasT0Visible || c.metrics.hasT1Visible) throw new Error('F3 UI leaked into BEFORE '+c.viewport);
+          }
+          NODE
+          for viewport in 390x844 768x1024 1280x900; do
+            test -s "ortho-f3-before-artifacts/before-overview-$viewport.png"
+          done
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ortho-f3-before-exact-f2
+          path: frontend/ortho-f3-before-artifacts
+          if-no-files-found: error
+          retention-days: 30
