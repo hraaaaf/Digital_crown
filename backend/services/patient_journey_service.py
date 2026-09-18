@@ -1,7 +1,7 @@
 """
 Treatment Journey — agrégation en lecture seule du parcours patient.
 
-Fusionne 10 sources indépendantes (Appointment, TreatmentPlanStep, DocumentArchive,
+Fusionne 11 sources indépendantes (Appointment, TreatmentPlanStep, DocumentArchive,
 PanoramicAnalysis, CephaloAnalysis, Payment, Installment, LabJob, JourneyMilestone,
 OrthoPhaseEvent) en un
 flux chronologique unique, sans jamais dupliquer la donnée : chaque table source reste la
@@ -237,6 +237,31 @@ def _collect_events(db: Session, patient_id: int, since: Optional[datetime], emp
             title,
             e.event_type,
             (e.phase_key or "ortho").lower(),
+            schemas.NavigationTarget.INLINE,
+        ))
+
+    # 11. OrthoControl — contrôle orthodontique structuré, source F1B.
+    control_q = db.query(models.OrthoControl).filter(
+        models.OrthoControl.patient_id == patient_id,
+    )
+    if employer_id is not None:
+        control_q = control_q.filter(models.OrthoControl.employer_id == employer_id)
+    if since is not None:
+        control_q = control_q.filter(models.OrthoControl.occurred_at >= since)
+
+    for control in control_q.all():
+        title = "Contrôle orthodontique"
+        if control.phase_key:
+            title = f"{title} — {control.phase_key.replace('_', ' ').title()}"
+        events.append(_event(
+            f"ortho_control:{control.id}",
+            "ortho_control",
+            "CONTROLE",
+            control.id,
+            control.occurred_at,
+            title,
+            "ENREGISTRE",
+            (control.phase_key or "controle").lower(),
             schemas.NavigationTarget.INLINE,
         ))
 

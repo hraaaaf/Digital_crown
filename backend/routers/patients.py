@@ -796,6 +796,87 @@ def transition_patient_ortho_case(
     return result
 
 
+@router.get(
+    "/{patient_id}/ortho-case/{case_id}/controls",
+    response_model=List[schemas.OrthoControlOut],
+)
+def list_patient_ortho_controls(
+    patient_id: int,
+    case_id: int,
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(require_permission("patients")),
+):
+    assert_patient_access(patient_id, current_user, db)
+    from backend.services import ortho_journey_service
+
+    case = ortho_journey_service.get_ortho_case_by_id(
+        db,
+        patient_id,
+        case_id,
+        current_user.get_employer_id(),
+    )
+    if case is None:
+        raise HTTPException(status_code=404, detail="Traitement orthodontique introuvable.")
+
+    return ortho_journey_service.list_ortho_controls(
+        db,
+        patient_id,
+        case_id,
+        current_user.get_employer_id(),
+    )
+
+
+@router.post(
+    "/{patient_id}/ortho-case/{case_id}/controls",
+    response_model=schemas.OrthoControlOut,
+    status_code=status.HTTP_201_CREATED,
+)
+def create_patient_ortho_control(
+    patient_id: int,
+    case_id: int,
+    payload: schemas.OrthoControlCreate,
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(require_permission("patients")),
+):
+    assert_patient_access(patient_id, current_user, db)
+    _assert_ortho_mutation_authorized(current_user)
+
+    from backend.services import ortho_journey_service
+    from backend.services.audit_service import audit_service
+
+    result = ortho_journey_service.create_ortho_control(
+        db=db,
+        patient_id=patient_id,
+        case_id=case_id,
+        employer_id=current_user.get_employer_id(),
+        created_by=current_user.id,
+        occurred_at=payload.occurred_at,
+        phase_key=payload.phase_key.value if payload.phase_key else None,
+        appointment_id=payload.appointment_id,
+        observations=payload.observations,
+        appliance_context=payload.appliance_context,
+        notable_event=payload.notable_event,
+        next_planned_step=payload.next_planned_step,
+        next_control_at=payload.next_control_at,
+    )
+    audit_service.log(
+        db=db,
+        user_id=current_user.id,
+        employer_id=current_user.get_employer_id(),
+        action="CREATE",
+        resource_type="OrthoControl",
+        resource_id=str(result.id),
+        details=(
+            f"patient_id={patient_id} case_id={case_id} occurred_at={payload.occurred_at.isoformat()} "
+            f"phase={payload.phase_key.value if payload.phase_key else None} "
+            f"appointment_id={payload.appointment_id} next_control_at={payload.next_control_at.isoformat() if payload.next_control_at else None} "
+            f"observations_present={bool(payload.observations)} appliance_context_present={bool(payload.appliance_context)} "
+            f"notable_event_present={bool(payload.notable_event)} next_planned_step_present={bool(payload.next_planned_step)}"
+        ),
+    )
+    return result
+
+
 @router.put("/{patient_id}", response_model=schemas.PatientOut)
 def update_patient(patient_id: int, patient_update: schemas.PatientUpdate, db: Session = Depends(database.get_db), current_user: models.User = Depends(require_permission("patients"))):
     assert_patient_access(patient_id, current_user, db)

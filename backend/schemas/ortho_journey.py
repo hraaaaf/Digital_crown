@@ -77,3 +77,40 @@ class OrthoCaseOut(BaseModel):
     updated_at: datetime.datetime
     events: List[OrthoPhaseEventOut] = Field(default_factory=list)
     model_config = ConfigDict(from_attributes=True)
+
+
+class OrthoControlCreate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    occurred_at: datetime.datetime
+    phase_key: Optional[OrthoPhaseKey] = None
+    appointment_id: Optional[int] = None
+    observations: Optional[str] = None
+    appliance_context: Optional[str] = None
+    notable_event: Optional[str] = None
+    next_planned_step: Optional[str] = None
+    next_control_at: Optional[datetime.datetime] = None
+
+    @field_validator("observations", "appliance_context", "notable_event", "next_planned_step")
+    @classmethod
+    def normalize_control_text(cls, value):
+        if value is None:
+            return None
+        value = value.strip()
+        return value or None
+
+
+class OrthoControlOut(BaseModel):
+    id: int
+    ortho_case_id: int
+    patient_id: int
+    appointment_id: Optional[int] = None
+    occurred_at: datetime.datetime
+    phase_key: Optional[OrthoPhaseKey] = None
+    observations: Optional[str] = None
+    appliance_context: Optional[str] = None
+    notable_event: Optional[str] = None
+    next_planned_step: Optional[str] = None
+    next_control_at: Optional[datetime.datetime] = None
+    created_by: Optional[int] = None
+    created_at: datetime.datetime
+    model_config = ConfigDict(from_attributes=True)

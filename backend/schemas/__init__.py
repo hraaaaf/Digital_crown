@@ -223,6 +223,8 @@ from .ortho_journey import (
     OrthoTransitionCreate,
     OrthoPhaseEventOut,
     OrthoCaseOut,
+    OrthoControlCreate,
+    OrthoControlOut,
 )
 
 __all__ = [
@@ -294,4 +296,5 @@ __all__ = [
     # ortho journey
     "OrthoLifecycleStatus", "OrthoPhaseKey", "OrthoPhaseEventType",
     "OrthoCaseCreate", "OrthoTransitionCreate", "OrthoPhaseEventOut", "OrthoCaseOut",
+    "OrthoControlCreate", "OrthoControlOut",
 ]
