@@ -27,7 +27,11 @@ def upgrade():
         sa.Column("created_by", sa.Integer(), nullable=True),
         sa.Column("created_at", sa.DateTime(), nullable=False, server_default=sa.func.now()),
         sa.Column("updated_at", sa.DateTime(), nullable=False, server_default=sa.func.now()),
-        sa.ForeignKeyConstraint(["employer_id"], ["users.id"], ondelete="CASCADE"),
+        sa.CheckConstraint(
+            "lifecycle_status IN ('ACTIVE','INTERRUPTED','ABANDONED','CLOSED')",
+            name="ck_ortho_cases_lifecycle_status",
+        ),
+        sa.ForeignKeyConstraint(["employer_id"], ["users.id"]),
         sa.ForeignKeyConstraint(["patient_id"], ["patients.id"], ondelete="CASCADE"),
         sa.ForeignKeyConstraint(["created_by"], ["users.id"], ondelete="SET NULL"),
     )
@@ -40,6 +44,14 @@ def upgrade():
         "ortho_cases",
         ["employer_id", "patient_id", "lifecycle_status"],
         unique=False,
+    )
+    op.create_index(
+        "uq_ortho_cases_one_open_per_patient",
+        "ortho_cases",
+        ["employer_id", "patient_id"],
+        unique=True,
+        postgresql_where=sa.text("lifecycle_status IN ('ACTIVE','INTERRUPTED')"),
+        sqlite_where=sa.text("lifecycle_status IN ('ACTIVE','INTERRUPTED')"),
     )
 
     op.create_table(
@@ -54,8 +66,24 @@ def upgrade():
         sa.Column("note", sa.Text(), nullable=True),
         sa.Column("created_by", sa.Integer(), nullable=True),
         sa.Column("created_at", sa.DateTime(), nullable=False, server_default=sa.func.now()),
+        sa.CheckConstraint(
+            "event_type IN ('START','ENTER_PHASE','INTERRUPT','RESUME','ABANDON','CLOSE')",
+            name="ck_ortho_phase_events_event_type",
+        ),
+        sa.CheckConstraint(
+            "phase_key IS NULL OR phase_key IN ('DIAGNOSTIC','PREPARATION','APPAREILLAGE','ALIGNEMENT','FINITION','CONTENTION','CLOTURE')",
+            name="ck_ortho_phase_events_phase_key",
+        ),
+        sa.CheckConstraint(
+            "event_type <> 'ENTER_PHASE' OR phase_key IS NOT NULL",
+            name="ck_ortho_phase_events_enter_phase_requires_phase",
+        ),
+        sa.CheckConstraint(
+            "event_type IN ('START','ENTER_PHASE') OR phase_key IS NULL",
+            name="ck_ortho_phase_events_phase_only_on_start_or_enter",
+        ),
         sa.ForeignKeyConstraint(["ortho_case_id"], ["ortho_cases.id"], ondelete="CASCADE"),
-        sa.ForeignKeyConstraint(["employer_id"], ["users.id"], ondelete="CASCADE"),
+        sa.ForeignKeyConstraint(["employer_id"], ["users.id"]),
         sa.ForeignKeyConstraint(["patient_id"], ["patients.id"], ondelete="CASCADE"),
         sa.ForeignKeyConstraint(["created_by"], ["users.id"], ondelete="SET NULL"),
     )
