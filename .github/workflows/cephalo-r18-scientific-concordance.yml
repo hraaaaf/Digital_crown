@@ -8,10 +8,10 @@ on:
       - 'frontend/src/features/ortho/cephaloUtils.ts'
       - 'frontend/scripts/capture-cephalo-v1-04-signed-overjet.mjs'
       - '.github/workflows/cephalo-r18-scientific-concordance.yml'
+  workflow_dispatch:
 
 env:
   V104_BASE_SHA: 7454215274032898d1a50659d624a5cb32aab494
-  workflow_dispatch:
 
 jobs:
   audit:
