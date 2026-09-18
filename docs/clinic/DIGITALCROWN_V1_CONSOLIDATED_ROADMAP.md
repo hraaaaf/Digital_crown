@@ -120,7 +120,7 @@ Proof: current-master reconciliation + PostgreSQL migration rehearsal from scrat
 
 ### LOT V1-02 — Agenda A5: temporal/history finalization
 
-Status: **BLOCKED BY V1-01**
+Status: **ACTIVE — CLEAN REBUILD FROM POST-A4 MASTER**
 
 Goal: finish Agenda V1 hardening.
 

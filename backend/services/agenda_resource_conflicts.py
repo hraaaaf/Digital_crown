@@ -44,6 +44,7 @@ def find_resource_conflict(
     query = db.query(models.Appointment).filter(
         models.Appointment.employer_id == employer_id,
         models.Appointment.resource_id == resource_id,
+        models.Appointment.deleted_at.is_(None),
         models.Appointment.datetime_start < candidate_end,
     )
     if exclude_appointment_id is not None:

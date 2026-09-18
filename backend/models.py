@@ -281,6 +281,8 @@ class Appointment(Base):
     resource_id: Mapped[Optional[int]] = mapped_column(ForeignKey("agenda_resources.id", ondelete="SET NULL"), nullable=True, index=True)
     
     created_at: Mapped[datetime] = mapped_column(DateTime, default=func.now())
+    deleted_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True, index=True)
+    deleted_by: Mapped[Optional[int]] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
 
     # Frontdesk fields (nullable, backward-compatible)
     source: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)           # "frontdesk"|"web"|"bot"|"internal"

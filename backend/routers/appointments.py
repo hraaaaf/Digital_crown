@@ -95,6 +95,7 @@ def _find_conflicts(
         models.Appointment.employer_id == employer_id,
         models.Appointment.status != models.AppointmentStatus.ANNULE,
         models.Appointment.scheduling_type == models.SchedulingType.EXACT_TIME,
+        models.Appointment.deleted_at.is_(None),
         models.Appointment.datetime_start < end,
         models.Appointment.datetime_start >= window_start,
     )
@@ -131,7 +132,7 @@ def get_appointments(
     current_user: models.User = Depends(require_permission("agenda")),
 ):
     user_employer_id = current_user.get_employer_id()
-    query = db.query(models.Appointment).filter(models.Appointment.employer_id == user_employer_id)
+    query = db.query(models.Appointment).filter(models.Appointment.employer_id == user_employer_id, models.Appointment.deleted_at.is_(None))
     if praticien_id is not None:
         _validate_practitioner(db, user_employer_id, praticien_id)
         query = query.filter(
@@ -214,6 +215,7 @@ def update_appointment(
     db_appt = db.query(models.Appointment).filter(
         models.Appointment.id == id,
         models.Appointment.employer_id == employer_id,
+        models.Appointment.deleted_at.is_(None),
     ).first()
     if not db_appt:
         raise HTTPException(status_code=404, detail="Rendez-vous introuvable")
@@ -292,7 +294,8 @@ def delete_appointment(
     ).first()
     if not db_appt:
         raise HTTPException(status_code=404, detail="Rendez-vous introuvable")
-    db.delete(db_appt)
+    db_appt.deleted_at = datetime.now()
+    db_appt.deleted_by = current_user.id
     db.commit()
     audit_service.log(
         db=db,
@@ -372,6 +375,7 @@ def create_bulk_appointments(
             patient_name=item.patient_name,
             patient_id=item.patient_id,
             praticien_id=prepared_item["praticien_id"],
+            resource_id=item.resource_id,
             datetime_start=prepared_item["datetime_start"],
             duration_minutes=item.duration_minutes,
             notes=item.notes,
@@ -442,6 +446,7 @@ def get_patient_appointments(
     return db.query(models.Appointment).filter(
         models.Appointment.patient_id == patient_id,
         models.Appointment.employer_id == current_user.get_employer_id(),
+        models.Appointment.deleted_at.is_(None),
     ).order_by(models.Appointment.datetime_start.desc()).all()
 
 
@@ -537,7 +542,7 @@ def get_multi_practitioner_appointments(
     if owner and _is_assignable_practitioner(owner, employer_id):
         all_dentists.insert(0, owner)
 
-    q_base = db.query(models.Appointment).filter(models.Appointment.employer_id == employer_id)
+    q_base = db.query(models.Appointment).filter(models.Appointment.employer_id == employer_id, models.Appointment.deleted_at.is_(None))
     parsed_start = datetime.fromisoformat(start_date.replace("Z", "+00:00")) if start_date else None
     parsed_end = datetime.fromisoformat(end_date.replace("Z", "+00:00")) if end_date else None
     if parsed_start:
