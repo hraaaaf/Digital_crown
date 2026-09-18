@@ -573,3 +573,324 @@ class TestOrthoJourneyF1B:
             json={"occurred_at": (start - timedelta(minutes=1)).isoformat()},
         )
         assert control.status_code == 409
+
+class TestOrthoJourneyF2:
+    def test_create_list_t0_t1_and_unique_ordinal(self, client, db, dentiste, auth_headers):
+        patient = _make_patient(db, dentiste.id, "ORTHO_TP")
+        start = datetime(2026, 9, 18, 9, 0, 0)
+        created = _create_case(client, patient.id, auth_headers, start)
+        case_id = created.json()["id"]
+
+        t0 = client.post(
+            f"/api/patients/{patient.id}/ortho-case/{case_id}/timepoints",
+            headers=auth_headers,
+            json={"ordinal": 0, "occurred_at": start.isoformat(), "note": "Bilan initial"},
+        )
+        assert t0.status_code == 201, t0.text
+        assert t0.json()["ordinal"] == 0
+
+        t1 = client.post(
+            f"/api/patients/{patient.id}/ortho-case/{case_id}/timepoints",
+            headers=auth_headers,
+            json={"ordinal": 1, "occurred_at": (start + timedelta(days=90)).isoformat()},
+        )
+        assert t1.status_code == 201, t1.text
+
+        duplicate = client.post(
+            f"/api/patients/{patient.id}/ortho-case/{case_id}/timepoints",
+            headers=auth_headers,
+            json={"ordinal": 1, "occurred_at": (start + timedelta(days=91)).isoformat()},
+        )
+        assert duplicate.status_code == 409
+
+        listed = client.get(
+            f"/api/patients/{patient.id}/ortho-case/{case_id}/timepoints",
+            headers=auth_headers,
+        )
+        assert listed.status_code == 200
+        assert [item["ordinal"] for item in listed.json()] == [0, 1]
+
+    def test_timepoint_cannot_precede_case_start(self, client, db, dentiste, auth_headers):
+        patient = _make_patient(db, dentiste.id, "ORTHO_TP_DATE")
+        start = datetime(2026, 9, 18, 9, 0, 0)
+        created = _create_case(client, patient.id, auth_headers, start)
+        case_id = created.json()["id"]
+
+        response = client.post(
+            f"/api/patients/{patient.id}/ortho-case/{case_id}/timepoints",
+            headers=auth_headers,
+            json={"ordinal": 0, "occurred_at": (start - timedelta(days=1)).isoformat()},
+        )
+        assert response.status_code == 409
+
+    def test_bind_clinical_asset_without_copying_or_relabeling(self, client, db, dentiste, auth_headers):
+        from backend.models_media_core import ClinicalAsset
+
+        patient = _make_patient(db, dentiste.id, "ORTHO_TP_ASSET")
+        start = datetime(2026, 9, 18, 9, 0, 0)
+        created = _create_case(client, patient.id, auth_headers, start)
+        case_id = created.json()["id"]
+
+        asset = ClinicalAsset(
+            employer_id=dentiste.id,
+            patient_id=patient.id,
+            asset_type="PHOTO",
+            source_kind="UPLOAD",
+            original_filename="face.jpg",
+            timepoint="T0",
+        )
+        db.add(asset)
+        db.commit()
+        db.refresh(asset)
+
+        tp = client.post(
+            f"/api/patients/{patient.id}/ortho-case/{case_id}/timepoints",
+            headers=auth_headers,
+            json={"ordinal": 0, "occurred_at": start.isoformat()},
+        )
+        assert tp.status_code == 201
+        timepoint_id = tp.json()["id"]
+
+        link = client.post(
+            f"/api/patients/{patient.id}/ortho-case/{case_id}/timepoints/{timepoint_id}/evidences",
+            headers=auth_headers,
+            json={"clinical_asset_id": asset.id},
+        )
+        assert link.status_code == 201, link.text
+        assert link.json()["clinical_asset_id"] == asset.id
+
+        db.refresh(asset)
+        assert asset.original_filename == "face.jpg"
+        assert asset.timepoint == "T0"
+
+    def test_reject_asset_with_conflicting_media_timepoint(self, client, db, dentiste, auth_headers):
+        from backend.models_media_core import ClinicalAsset
+
+        patient = _make_patient(db, dentiste.id, "ORTHO_TP_ASSET_CONFLICT")
+        start = datetime(2026, 9, 18, 9, 0, 0)
+        created = _create_case(client, patient.id, auth_headers, start)
+        case_id = created.json()["id"]
+
+        asset = ClinicalAsset(
+            employer_id=dentiste.id,
+            patient_id=patient.id,
+            asset_type="PHOTO",
+            source_kind="UPLOAD",
+            timepoint="T2",
+        )
+        db.add(asset)
+        db.commit()
+        db.refresh(asset)
+
+        tp = client.post(
+            f"/api/patients/{patient.id}/ortho-case/{case_id}/timepoints",
+            headers=auth_headers,
+            json={"ordinal": 1, "occurred_at": (start + timedelta(days=30)).isoformat()},
+        )
+        timepoint_id = tp.json()["id"]
+
+        link = client.post(
+            f"/api/patients/{patient.id}/ortho-case/{case_id}/timepoints/{timepoint_id}/evidences",
+            headers=auth_headers,
+            json={"clinical_asset_id": asset.id},
+        )
+        assert link.status_code == 409
+
+    def test_bind_cephalo_and_panoramic_by_reference(self, client, db, dentiste, auth_headers):
+        from backend import models
+
+        patient = _make_patient(db, dentiste.id, "ORTHO_TP_RADIO")
+        start = datetime(2026, 9, 18, 9, 0, 0)
+        created = _create_case(client, patient.id, auth_headers, start)
+        case_id = created.json()["id"]
+
+        ceph = models.CephaloAnalysis(
+            patient_id=patient.id,
+            image_original_path="cephalo.png",
+            landmarks_data={},
+            angles_data={"SNA": 82.0},
+            is_calibrated=True,
+            mm_per_pixel=0.2,
+        )
+        pano = models.PanoramicAnalysis(
+            patient_id=patient.id,
+            image_path="pano.png",
+            detections_data={"teeth": []},
+        )
+        db.add_all([ceph, pano])
+        db.commit()
+        db.refresh(ceph)
+        db.refresh(pano)
+
+        tp = client.post(
+            f"/api/patients/{patient.id}/ortho-case/{case_id}/timepoints",
+            headers=auth_headers,
+            json={"ordinal": 0, "occurred_at": start.isoformat()},
+        )
+        timepoint_id = tp.json()["id"]
+
+        ceph_link = client.post(
+            f"/api/patients/{patient.id}/ortho-case/{case_id}/timepoints/{timepoint_id}/evidences",
+            headers=auth_headers,
+            json={"cephalo_analysis_id": ceph.id},
+        )
+        pano_link = client.post(
+            f"/api/patients/{patient.id}/ortho-case/{case_id}/timepoints/{timepoint_id}/evidences",
+            headers=auth_headers,
+            json={"panoramic_analysis_id": pano.id},
+        )
+        assert ceph_link.status_code == 201, ceph_link.text
+        assert pano_link.status_code == 201, pano_link.text
+
+        db.refresh(ceph)
+        db.refresh(pano)
+        assert ceph.angles_data == {"SNA": 82.0}
+        assert pano.detections_data == {"teeth": []}
+
+    def test_reject_cross_patient_evidence(self, client, db, dentiste, auth_headers):
+        from backend.models_media_core import ClinicalAsset
+
+        patient = _make_patient(db, dentiste.id, "ORTHO_TP_OWNER")
+        other = _make_patient(db, dentiste.id, "ORTHO_TP_OTHER")
+        start = datetime(2026, 9, 18, 9, 0, 0)
+        created = _create_case(client, patient.id, auth_headers, start)
+        case_id = created.json()["id"]
+
+        foreign_asset = ClinicalAsset(
+            employer_id=dentiste.id,
+            patient_id=other.id,
+            asset_type="PHOTO",
+            source_kind="UPLOAD",
+        )
+        db.add(foreign_asset)
+        db.commit()
+        db.refresh(foreign_asset)
+
+        tp = client.post(
+            f"/api/patients/{patient.id}/ortho-case/{case_id}/timepoints",
+            headers=auth_headers,
+            json={"ordinal": 0, "occurred_at": start.isoformat()},
+        )
+        timepoint_id = tp.json()["id"]
+
+        link = client.post(
+            f"/api/patients/{patient.id}/ortho-case/{case_id}/timepoints/{timepoint_id}/evidences",
+            headers=auth_headers,
+            json={"clinical_asset_id": foreign_asset.id},
+        )
+        assert link.status_code == 422
+
+    def test_timepoint_evidence_requires_exactly_one_source(self, client, db, dentiste, auth_headers):
+        from backend.models_media_core import ClinicalAsset
+        from backend import models
+
+        patient = _make_patient(db, dentiste.id, "ORTHO_TP_ONE_SOURCE")
+        start = datetime(2026, 9, 18, 9, 0, 0)
+        created = _create_case(client, patient.id, auth_headers, start)
+        case_id = created.json()["id"]
+
+        asset = ClinicalAsset(
+            employer_id=dentiste.id,
+            patient_id=patient.id,
+            asset_type="PHOTO",
+            source_kind="UPLOAD",
+        )
+        ceph = models.CephaloAnalysis(
+            patient_id=patient.id,
+            image_original_path="cephalo-one-source.png",
+            landmarks_data={},
+            angles_data={},
+        )
+        db.add_all([asset, ceph])
+        db.commit()
+        db.refresh(asset)
+        db.refresh(ceph)
+
+        tp = client.post(
+            f"/api/patients/{patient.id}/ortho-case/{case_id}/timepoints",
+            headers=auth_headers,
+            json={"ordinal": 0, "occurred_at": start.isoformat()},
+        )
+        assert tp.status_code == 201
+        timepoint_id = tp.json()["id"]
+
+        none = client.post(
+            f"/api/patients/{patient.id}/ortho-case/{case_id}/timepoints/{timepoint_id}/evidences",
+            headers=auth_headers,
+            json={},
+        )
+        assert none.status_code == 422
+
+        multiple = client.post(
+            f"/api/patients/{patient.id}/ortho-case/{case_id}/timepoints/{timepoint_id}/evidences",
+            headers=auth_headers,
+            json={"clinical_asset_id": asset.id, "cephalo_analysis_id": ceph.id},
+        )
+        assert multiple.status_code == 422
+
+    def test_same_canonical_asset_cannot_be_reused_across_timepoints(self, client, db, dentiste, auth_headers):
+        from backend.models_media_core import ClinicalAsset
+
+        patient = _make_patient(db, dentiste.id, "ORTHO_TP_REUSE")
+        start = datetime(2026, 9, 18, 9, 0, 0)
+        created = _create_case(client, patient.id, auth_headers, start)
+        case_id = created.json()["id"]
+
+        asset = ClinicalAsset(
+            employer_id=dentiste.id,
+            patient_id=patient.id,
+            asset_type="PHOTO",
+            source_kind="UPLOAD",
+        )
+        db.add(asset)
+        db.commit()
+        db.refresh(asset)
+
+        t0 = client.post(
+            f"/api/patients/{patient.id}/ortho-case/{case_id}/timepoints",
+            headers=auth_headers,
+            json={"ordinal": 0, "occurred_at": start.isoformat()},
+        )
+        t1 = client.post(
+            f"/api/patients/{patient.id}/ortho-case/{case_id}/timepoints",
+            headers=auth_headers,
+            json={"ordinal": 1, "occurred_at": (start + timedelta(days=30)).isoformat()},
+        )
+        assert t0.status_code == 201
+        assert t1.status_code == 201
+
+        first = client.post(
+            f"/api/patients/{patient.id}/ortho-case/{case_id}/timepoints/{t0.json()['id']}/evidences",
+            headers=auth_headers,
+            json={"clinical_asset_id": asset.id},
+        )
+        assert first.status_code == 201, first.text
+
+        second = client.post(
+            f"/api/patients/{patient.id}/ortho-case/{case_id}/timepoints/{t1.json()['id']}/evidences",
+            headers=auth_headers,
+            json={"clinical_asset_id": asset.id},
+        )
+        assert second.status_code == 409
+
+    def test_timepoint_is_reused_by_existing_patient_journey(self, client, db, dentiste, auth_headers):
+        patient = _make_patient(db, dentiste.id, "ORTHO_TP_JOURNEY")
+        start = datetime.now() - timedelta(days=1)
+        created = _create_case(client, patient.id, auth_headers, start)
+        case_id = created.json()["id"]
+
+        tp = client.post(
+            f"/api/patients/{patient.id}/ortho-case/{case_id}/timepoints",
+            headers=auth_headers,
+            json={"ordinal": 0, "occurred_at": start.isoformat()},
+        )
+        assert tp.status_code == 201
+
+        journey = client.get(
+            f"/api/patients/{patient.id}/journey?full_history=true",
+            headers=auth_headers,
+        )
+        assert journey.status_code == 200
+        events = [e for e in journey.json()["events"] if e["source"] == "ortho_timepoint"]
+        assert len(events) == 1
+        assert events[0]["type"] == "T0"
