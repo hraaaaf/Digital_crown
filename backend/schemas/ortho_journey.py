@@ -2,7 +2,7 @@ import enum
 import datetime
 from typing import Optional, List
 
-from pydantic import BaseModel, ConfigDict, field_validator, model_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 
 class OrthoLifecycleStatus(str, enum.Enum):
@@ -83,5 +83,5 @@ class OrthoCaseOut(BaseModel):
     created_by: Optional[int] = None
     created_at: datetime.datetime
     updated_at: datetime.datetime
-    events: List[OrthoPhaseEventOut] = []
+    events: List[OrthoPhaseEventOut] = Field(default_factory=list)
     model_config = ConfigDict(from_attributes=True)
