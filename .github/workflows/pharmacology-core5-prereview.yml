@@ -10,6 +10,8 @@ on:
 
 permissions:
   contents: read
+  pull-requests: read
+  actions: read
   copilot-requests: write
 
 concurrency:
@@ -36,6 +38,16 @@ jobs:
       - name: Verify immutable target and bounded scope
         run: |
           set -euo pipefail
+          mkdir -p audit/out/pharmacology-core5-prereview
+          {
+            echo "checked_out_head=$(git rev-parse HEAD)"
+            echo "expected_head=$TARGET_HEAD"
+            echo "expected_base=$EXPECTED_BASE"
+            git merge-base --is-ancestor "$EXPECTED_BASE" "$TARGET_HEAD"
+            echo "base_is_ancestor=true"
+            echo "changed_files:"
+            git diff --name-only "$EXPECTED_BASE...$TARGET_HEAD"
+          } | tee audit/out/pharmacology-core5-prereview/identity-evidence.txt
           test "$(git rev-parse HEAD)" = "$TARGET_HEAD"
           git merge-base --is-ancestor "$EXPECTED_BASE" "$TARGET_HEAD"
           CHANGED=$(git diff --name-only "$EXPECTED_BASE...$TARGET_HEAD")
@@ -45,6 +57,38 @@ jobs:
           printf '%s\n' "$CHANGED" | grep -Fx 'docs/audits/PRESCRIPTION_PHARMACOLOGY_CORE5_SAFETY_EVIDENCE_INDEX_2026-09-17.csv'
           printf '%s\n' "$CHANGED" | grep -Fx 'docs/audits/PRESCRIPTION_PHARMACOLOGY_CORE5_QUALIFIED_REVIEW_FORM_2026-09-18.md'
           printf '%s\n' "$CHANGED" | grep -Fx 'docs/audits/PRESCRIPTION_PHARMACOLOGY_CORE5_SOURCE_REVALIDATION_2026-09-18.md'
+
+      - name: Capture PR relationship and exact-head safety proof
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          curl -fsSL \
+            -H "Authorization: Bearer $GH_TOKEN" \
+            -H "Accept: application/vnd.github+json" \
+            https://api.github.com/repos/hraaaaf/Digital_crown/pulls/594 \
+            > audit/out/pharmacology-core5-prereview/pr-594.json
+          curl -fsSL \
+            -H "Authorization: Bearer $GH_TOKEN" \
+            -H "Accept: application/vnd.github+json" \
+            https://api.github.com/repos/hraaaaf/Digital_crown/actions/runs/35358582607 \
+            > audit/out/pharmacology-core5-prereview/exact-head-safety-run.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          root = Path('audit/out/pharmacology-core5-prereview')
+          pr = json.loads((root / 'pr-594.json').read_text())
+          run = json.loads((root / 'exact-head-safety-run.json').read_text())
+
+          assert pr['number'] == 594
+          assert pr['head']['sha'] == '689e6c7af7a548ca25f008887b7ce95b8af73eda'
+          assert pr['base']['sha'] == 'd6ba162f14545be521279c2dd38226161633287a'
+          assert run['id'] == 35358582607
+          assert run['head_sha'] == '689e6c7af7a548ca25f008887b7ce95b8af73eda'
+          assert run['status'] == 'completed'
+          assert run['conclusion'] == 'success'
+          PY
 
       - name: Verify reviewer governance
         run: |
@@ -131,9 +175,13 @@ jobs:
           - docs/audits/PRESCRIPTION_PHARMACOLOGY_MOROCCO_MEDICINE_CURRENT_STATUS_PROJECTION_V1_2026-09-17.csv
           - backend/tests/test_pharmacology_core5_safety_evidence_index.py
           - backend/tests/test_pharmacology_core5_review_packet.py
+          - audit/out/pharmacology-core5-prereview/identity-evidence.txt
+          - audit/out/pharmacology-core5-prereview/pr-594.json
+          - audit/out/pharmacology-core5-prereview/exact-head-safety-run.json
           - audit/out/pharmacology-core5-prereview/technical-evidence.txt
 
           CORE QUESTIONS
+          0. Verify the immutable target, PR base/head relationship, and exact-head safety run from the retained identity/GitHub evidence files before judging the package.
           1. Do all five Core-5 medicines remain mechanically fail-closed?
           2. Does the package clearly separate market/catalogue evidence, regulatory evidence, clinical evidence and activation?
           3. Are the current safety-source URLs authoritative enough for the safety domains they are claimed to index?
