@@ -13,6 +13,11 @@ on:
       - '.claude/skills/review-scientific-pull-request/**'
       - '.claude/skills/scientific-source-research/**'
       - 'scripts/pharmacology_scientific_gate.py'
+      - 'scripts/validate_pharmacology_reference.py'
+      - 'scripts/pharmacology_medicine_gap_audit.py'
+      - 'backend/tests/test_pharmacology_reference_fail_closed.py'
+      - 'backend/tests/test_pharmacology_medicine_current_status_projection.py'
+      - 'backend/tests/test_pharmacology_medicine_gap_audit.py'
       - '.github/workflows/pharmacology-scientific-gate.yml'
   workflow_dispatch:
 
@@ -73,7 +78,16 @@ jobs:
           python -m pytest --noconftest \
             backend/tests/test_prescription_pharmacology_morocco_m0_matrix.py \
             backend/tests/test_medication_rcp_manifest_m1b.py \
+            backend/tests/test_pharmacology_reference_fail_closed.py \
+            backend/tests/test_pharmacology_medicine_current_status_projection.py \
+            backend/tests/test_pharmacology_medicine_gap_audit.py \
             -q
+
+      - name: Validate reconstructed pharmacology reference
+        run: python scripts/validate_pharmacology_reference.py
+
+      - name: Record deterministic medicine gap audit
+        run: python scripts/pharmacology_medicine_gap_audit.py
 
       - name: Run independent deterministic safety oracle
         run: python scripts/pharmacology_scientific_gate.py --output-dir audit/out/pharmacology-scientific-gate
