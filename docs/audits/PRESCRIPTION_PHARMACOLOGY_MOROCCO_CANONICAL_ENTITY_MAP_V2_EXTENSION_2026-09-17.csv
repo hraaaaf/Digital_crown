@@ -1,0 +1,6 @@
+source_id,canonical_entity_id,relation_type,preserve_source_row,auto_merge_allowed,required_discriminator,clinical_activation,notes
+MED-SED-002,CAN-MED-MIDAZOLAM,PROTOCOL_CONTEXT_OVERLAP,YES,NO,form|concentration|route_or_use|protocol_context,NO,Sedation context; do not merge with emergency rescue context without protocol discriminator.
+MED-EMG-008,CAN-MED-MIDAZOLAM,PROTOCOL_CONTEXT_OVERLAP,YES,NO,form|concentration|route_or_use|protocol_context,NO,Emergency seizure-rescue context; do not merge with sedation context without protocol discriminator.
+OC-SMOKE-001,ADJ-SMOKING-CESSATION-NICOTINE,ADJACENT_MEDICAL_BOUNDARY,YES,NO,form=gum|strength|medical_context,NO,Adjacent smoking-cessation medical context; not dental-para activation.
+OC-SMOKE-002,ADJ-SMOKING-CESSATION-NICOTINE,ADJACENT_MEDICAL_BOUNDARY,YES,NO,form=lozenge|strength|medical_context,NO,Adjacent smoking-cessation medical context; not dental-para activation.
+OC-SMOKE-003,ADJ-SMOKING-CESSATION-NICOTINE,ADJACENT_MEDICAL_BOUNDARY,YES,NO,form=patch|strength|medical_context,NO,Adjacent smoking-cessation medical context; not dental-para activation.
