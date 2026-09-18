@@ -124,3 +124,61 @@ class OrthoPhaseEvent(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, default=func.now(), nullable=False)
 
     ortho_case: Mapped[OrthoCase] = relationship(back_populates="events")
+
+
+class OrthoControl(Base):
+    """Structured factual orthodontic control checkpoint.
+
+    A control records what the practitioner documented at a visit/checkpoint.
+    It never infers diagnosis, severity, treatment quality, progress, or phase.
+    """
+
+    __tablename__ = "ortho_controls"
+    __table_args__ = (
+        CheckConstraint(
+            "phase_key IS NULL OR phase_key IN ('DIAGNOSTIC','PREPARATION','APPAREILLAGE','ALIGNEMENT','FINITION','CONTENTION','CLOTURE')",
+            name="ck_ortho_controls_phase_key",
+        ),
+        CheckConstraint(
+            "next_control_at IS NULL OR next_control_at >= occurred_at",
+            name="ck_ortho_controls_next_after_control",
+        ),
+        Index(
+            "ix_ortho_controls_employer_patient_occurred",
+            "employer_id",
+            "patient_id",
+            "occurred_at",
+        ),
+        Index(
+            "ix_ortho_controls_case_occurred",
+            "ortho_case_id",
+            "occurred_at",
+        ),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    ortho_case_id: Mapped[int] = mapped_column(
+        ForeignKey("ortho_cases.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    employer_id: Mapped[int] = mapped_column(
+        ForeignKey("users.id"), nullable=False, index=True
+    )
+    patient_id: Mapped[int] = mapped_column(
+        ForeignKey("patients.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    appointment_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("appointments.id", ondelete="SET NULL"), nullable=True, index=True
+    )
+
+    occurred_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, index=True)
+    phase_key: Mapped[Optional[str]] = mapped_column(String(32), nullable=True)
+    note: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    next_control_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+
+    created_by: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=func.now(), nullable=False)
+
+    ortho_case: Mapped[OrthoCase] = relationship()
+    appointment = relationship("Appointment", foreign_keys=[appointment_id])
