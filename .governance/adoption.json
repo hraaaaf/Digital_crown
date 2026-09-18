@@ -1,0 +1,17 @@
+{
+  "schema_version": "1.0",
+  "repository": "hraaaaf/Digital_crown",
+  "doctrine": {
+    "version": "1.0.0",
+    "commit_sha": "4c0ed295cc095fc5e7f9d0ddde3b1af95ac8dba9"
+  },
+  "adopted_at": "2026-09-18",
+  "local_governance": [
+    "AGENTS.md",
+    "docs/clinic/DIGITALCROWN_V1_CONSOLIDATED_ROADMAP.md",
+    ".claude/rules/execution-scoring-verification.md",
+    "docs/CABINET_CERTIFIED_RELEASE_POLICY.md"
+  ],
+  "exceptions": [],
+  "notes": "Central doctrine is a minimum baseline. Digital Crown's V1 execution lock, local-first/on-premise safeguards, cabinet release certification, data-integrity/privacy rules, and clinical/scientific gates remain authoritative stricter additions."
+}
