@@ -7,6 +7,9 @@ on:
       - 'frontend/src/features/ortho/cephaloConcordance.audit.test.ts'
       - 'frontend/src/features/ortho/cephaloUtils.ts'
       - 'frontend/scripts/capture-cephalo-v1-04-signed-overjet.mjs'
+      - 'backend/services/cephalo_measure_registry.py'
+      - 'backend/tests/test_cephalo_incisor_relations_runtime.py'
+      - 'backend/tests/test_cephalo_measure_registry.py'
       - '.github/workflows/cephalo-r18-scientific-concordance.yml'
   workflow_dispatch:
 
