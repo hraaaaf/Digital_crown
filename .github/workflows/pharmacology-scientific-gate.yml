@@ -9,6 +9,7 @@ on:
       - 'backend/tests/test_medication_rcp_manifest_m1b.py'
       - 'backend/tests/test_prescription_pharmacology_morocco_m0_matrix.py'
       - 'docs/audits/PRESCRIPTION_PHARMACOLOGY_MOROCCO_**'
+      - 'docs/audits/PRESCRIPTION_PHARMACOLOGY_CORE5_**'
       - '.claude/agents/scientific-reviewer.md'
       - '.claude/skills/review-scientific-pull-request/**'
       - '.claude/skills/scientific-source-research/**'
@@ -19,6 +20,8 @@ on:
       - 'backend/tests/test_pharmacology_medicine_current_status_projection.py'
       - 'backend/tests/test_pharmacology_medicine_gap_audit.py'
       - 'backend/tests/test_pharmacology_reference_runtime_isolation.py'
+      - 'backend/tests/test_pharmacology_core5_safety_evidence_index.py'
+      - 'backend/tests/test_pharmacology_core5_review_packet.py'
       - '.github/workflows/pharmacology-scientific-gate.yml'
   workflow_dispatch:
 
@@ -83,6 +86,8 @@ jobs:
             backend/tests/test_pharmacology_medicine_current_status_projection.py \
             backend/tests/test_pharmacology_medicine_gap_audit.py \
             backend/tests/test_pharmacology_reference_runtime_isolation.py \
+            backend/tests/test_pharmacology_core5_safety_evidence_index.py \
+            backend/tests/test_pharmacology_core5_review_packet.py \
             -q
 
       - name: Validate reconstructed pharmacology reference
