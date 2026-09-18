@@ -2,7 +2,7 @@ import enum
 import datetime
 from typing import Optional, List
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
 class OrthoLifecycleStatus(str, enum.Enum):
@@ -52,14 +52,6 @@ class OrthoTransitionCreate(BaseModel):
         value = value.strip()
         return value or None
 
-    @model_validator(mode="after")
-    def validate_phase_contract(self):
-        if self.event_type == OrthoPhaseEventType.ENTER_PHASE and self.phase_key is None:
-            raise ValueError("phase_key est requis pour ENTER_PHASE")
-        if self.event_type != OrthoPhaseEventType.ENTER_PHASE and self.phase_key is not None:
-            raise ValueError("phase_key est autorisé uniquement pour ENTER_PHASE")
-        return self
-
 
 class OrthoPhaseEventOut(BaseModel):
     id: int
@@ -92,22 +84,19 @@ class OrthoControlCreate(BaseModel):
     occurred_at: datetime.datetime
     phase_key: Optional[OrthoPhaseKey] = None
     appointment_id: Optional[int] = None
-    note: Optional[str] = None
+    observations: Optional[str] = None
+    appliance_context: Optional[str] = None
+    notable_event: Optional[str] = None
+    next_planned_step: Optional[str] = None
     next_control_at: Optional[datetime.datetime] = None
 
-    @field_validator("note")
+    @field_validator("observations", "appliance_context", "notable_event", "next_planned_step")
     @classmethod
-    def normalize_control_note(cls, value):
+    def normalize_control_text(cls, value):
         if value is None:
             return None
         value = value.strip()
         return value or None
-
-    @model_validator(mode="after")
-    def validate_next_control(self):
-        if self.next_control_at is not None and self.next_control_at < self.occurred_at:
-            raise ValueError("next_control_at ne peut pas précéder occurred_at")
-        return self
 
 
 class OrthoControlOut(BaseModel):
@@ -117,7 +106,10 @@ class OrthoControlOut(BaseModel):
     appointment_id: Optional[int] = None
     occurred_at: datetime.datetime
     phase_key: Optional[OrthoPhaseKey] = None
-    note: Optional[str] = None
+    observations: Optional[str] = None
+    appliance_context: Optional[str] = None
+    notable_event: Optional[str] = None
+    next_planned_step: Optional[str] = None
     next_control_at: Optional[datetime.datetime] = None
     created_by: Optional[int] = None
     created_at: datetime.datetime
