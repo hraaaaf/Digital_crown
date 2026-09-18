@@ -9,6 +9,7 @@ on:
     paths:
       - 'frontend/scripts/capture-ortho-f3-before.mjs'
       - '.github/workflows/ortho-f3-before.yml'
+      - 'docs/clinic/audits/V1_05_F3_LONGITUDINAL_COMPARE_GOAL.md'
 
 permissions:
   contents: read
