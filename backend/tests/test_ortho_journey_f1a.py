@@ -693,6 +693,54 @@ class TestOrthoJourneyF2:
         )
         assert link.status_code == 422
 
+    def test_timepoint_evidence_requires_exactly_one_source(self, client, db, dentiste, auth_headers):
+        from backend.models_media_core import ClinicalAsset
+        from backend import models
+
+        patient = _make_patient(db, dentiste.id, "ORTHO_TP_ONE_SOURCE")
+        start = datetime(2026, 9, 18, 9, 0, 0)
+        created = _create_case(client, patient.id, auth_headers, start)
+        case_id = created.json()["id"]
+
+        asset = ClinicalAsset(
+            employer_id=dentiste.id,
+            patient_id=patient.id,
+            asset_type="PHOTO",
+            source_kind="UPLOAD",
+        )
+        ceph = models.CephaloAnalysis(
+            patient_id=patient.id,
+            image_original_path="cephalo-one-source.png",
+            landmarks_data={},
+            angles_data={},
+        )
+        db.add_all([asset, ceph])
+        db.commit()
+        db.refresh(asset)
+        db.refresh(ceph)
+
+        tp = client.post(
+            f"/api/patients/{patient.id}/ortho-case/{case_id}/timepoints",
+            headers=auth_headers,
+            json={"ordinal": 0, "occurred_at": start.isoformat()},
+        )
+        assert tp.status_code == 201
+        timepoint_id = tp.json()["id"]
+
+        none = client.post(
+            f"/api/patients/{patient.id}/ortho-case/{case_id}/timepoints/{timepoint_id}/evidences",
+            headers=auth_headers,
+            json={},
+        )
+        assert none.status_code == 422
+
+        multiple = client.post(
+            f"/api/patients/{patient.id}/ortho-case/{case_id}/timepoints/{timepoint_id}/evidences",
+            headers=auth_headers,
+            json={"clinical_asset_id": asset.id, "cephalo_analysis_id": ceph.id},
+        )
+        assert multiple.status_code == 422
+
     def test_same_canonical_asset_cannot_be_reused_across_timepoints(self, client, db, dentiste, auth_headers):
         from backend.models_media_core import ClinicalAsset
 
