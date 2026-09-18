@@ -85,3 +85,40 @@ class OrthoCaseOut(BaseModel):
     updated_at: datetime.datetime
     events: List[OrthoPhaseEventOut] = Field(default_factory=list)
     model_config = ConfigDict(from_attributes=True)
+
+
+class OrthoControlCreate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    occurred_at: datetime.datetime
+    phase_key: Optional[OrthoPhaseKey] = None
+    appointment_id: Optional[int] = None
+    note: Optional[str] = None
+    next_control_at: Optional[datetime.datetime] = None
+
+    @field_validator("note")
+    @classmethod
+    def normalize_control_note(cls, value):
+        if value is None:
+            return None
+        value = value.strip()
+        return value or None
+
+    @model_validator(mode="after")
+    def validate_next_control(self):
+        if self.next_control_at is not None and self.next_control_at < self.occurred_at:
+            raise ValueError("next_control_at ne peut pas précéder occurred_at")
+        return self
+
+
+class OrthoControlOut(BaseModel):
+    id: int
+    ortho_case_id: int
+    patient_id: int
+    appointment_id: Optional[int] = None
+    occurred_at: datetime.datetime
+    phase_key: Optional[OrthoPhaseKey] = None
+    note: Optional[str] = None
+    next_control_at: Optional[datetime.datetime] = None
+    created_by: Optional[int] = None
+    created_at: datetime.datetime
+    model_config = ConfigDict(from_attributes=True)
