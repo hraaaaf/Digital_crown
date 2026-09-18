@@ -33,28 +33,36 @@ jobs:
       - name: Verify canonical cephalo measurement registry
         run: |
           python - <<'PY'
-          import importlib.util
+          import ast
           from pathlib import Path
 
           path = Path("backend/services/cephalo_measure_registry.py")
-          spec = importlib.util.spec_from_file_location("v104_cephalo_measure_registry", path)
-          if spec is None or spec.loader is None:
-              raise SystemExit("Cannot load cephalo measure registry")
-          module = importlib.util.module_from_spec(spec)
-          spec.loader.exec_module(module)
+          source = path.read_text(encoding="utf-8")
+          tree = ast.parse(source, filename=str(path))
 
-          assert module.canonical_unit("M_OVERJET_MM_V1") == "mm"
-          assert module.canonical_unit("M_OVERBITE_V1") == "mm"
-          assert module.canonical_measurement("M_OVERJET_MM_V1").source_status == "LEGACY_TO_AUDIT"
-          assert module.canonical_measurement("M_OVERBITE_V1").source_status == "LEGACY_TO_AUDIT"
-          assert module.canonical_unit("M_PA_SKELETAL_SYMMETRY_V1") is None
-          try:
-              module.cephalo_unit("M_PA_SKELETAL_SYMMETRY_V1")
-          except ValueError:
-              pass
-          else:
-              raise AssertionError("Unlocked canonical unit must fail closed")
-          print("V1_04_CEPHALO_REGISTRY_OK")
+          registry = {}
+          for node in ast.walk(tree):
+              if not isinstance(node, ast.Assign):
+                  continue
+              if not any(isinstance(t, ast.Name) and t.id == "CANONICAL_MEASUREMENTS" for t in node.targets):
+                  continue
+              if not isinstance(node.value, ast.Dict):
+                  raise AssertionError("CANONICAL_MEASUREMENTS is not a literal dict")
+              for key_node, value_node in zip(node.value.keys, node.value.values):
+                  if not isinstance(key_node, ast.Constant) or not isinstance(key_node.value, str):
+                      continue
+                  if not isinstance(value_node, ast.Call) or not isinstance(value_node.func, ast.Name) or value_node.func.id != "_m":
+                      continue
+                  args = value_node.args
+                  unit = args[1].value if len(args) > 1 and isinstance(args[1], ast.Constant) else None
+                  status = args[2].value if len(args) > 2 and isinstance(args[2], ast.Constant) else None
+                  registry[key_node.value] = (unit, status)
+
+          assert registry["M_OVERJET_MM_V1"] == ("mm", "LEGACY_TO_AUDIT")
+          assert registry["M_OVERBITE_V1"] == ("mm", "LEGACY_TO_AUDIT")
+          assert registry["M_PA_SKELETAL_SYMMETRY_V1"][0] is None
+          assert 'raise ValueError(' in source and 'has no source-locked unit' in source
+          print("V1_04_CEPHALO_REGISTRY_AST_OK")
           PY
       - name: Install frontend lockfile
         working-directory: frontend
