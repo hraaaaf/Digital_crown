@@ -1,7 +1,7 @@
 """
 Treatment Journey — agrégation en lecture seule du parcours patient.
 
-Fusionne 10 sources indépendantes (Appointment, TreatmentPlanStep, DocumentArchive,
+Fusionne 11 sources indépendantes (Appointment, TreatmentPlanStep, DocumentArchive,
 PanoramicAnalysis, CephaloAnalysis, Payment, Installment, LabJob, JourneyMilestone,
 OrthoPhaseEvent) en un
 flux chronologique unique, sans jamais dupliquer la donnée : chaque table source reste la
