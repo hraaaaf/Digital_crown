@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Optional
 
-from sqlalchemy import DateTime, ForeignKey, Index, Integer, String, Text, func
+from sqlalchemy import CheckConstraint, DateTime, ForeignKey, Index, Integer, String, Text, func, text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from backend.models_base import Base
@@ -18,17 +18,29 @@ class OrthoCase(Base):
 
     __tablename__ = "ortho_cases"
     __table_args__ = (
+        CheckConstraint(
+            "lifecycle_status IN ('ACTIVE','INTERRUPTED','ABANDONED','CLOSED')",
+            name="ck_ortho_cases_lifecycle_status",
+        ),
         Index(
             "ix_ortho_cases_employer_patient_status",
             "employer_id",
             "patient_id",
             "lifecycle_status",
         ),
+        Index(
+            "uq_ortho_cases_one_open_per_patient",
+            "employer_id",
+            "patient_id",
+            unique=True,
+            postgresql_where=text("lifecycle_status IN ('ACTIVE','INTERRUPTED')"),
+            sqlite_where=text("lifecycle_status IN ('ACTIVE','INTERRUPTED')"),
+        ),
     )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
     employer_id: Mapped[int] = mapped_column(
-        ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
+        ForeignKey("users.id"), nullable=False, index=True
     )
     patient_id: Mapped[int] = mapped_column(
         ForeignKey("patients.id", ondelete="CASCADE"), nullable=False, index=True
@@ -61,6 +73,22 @@ class OrthoPhaseEvent(Base):
 
     __tablename__ = "ortho_phase_events"
     __table_args__ = (
+        CheckConstraint(
+            "event_type IN ('START','ENTER_PHASE','INTERRUPT','RESUME','ABANDON','CLOSE')",
+            name="ck_ortho_phase_events_event_type",
+        ),
+        CheckConstraint(
+            "phase_key IS NULL OR phase_key IN ('DIAGNOSTIC','PREPARATION','APPAREILLAGE','ALIGNEMENT','FINITION','CONTENTION','CLOTURE')",
+            name="ck_ortho_phase_events_phase_key",
+        ),
+        CheckConstraint(
+            "event_type <> 'ENTER_PHASE' OR phase_key IS NOT NULL",
+            name="ck_ortho_phase_events_enter_phase_requires_phase",
+        ),
+        CheckConstraint(
+            "event_type IN ('START','ENTER_PHASE') OR phase_key IS NULL",
+            name="ck_ortho_phase_events_phase_only_on_start_or_enter",
+        ),
         Index(
             "ix_ortho_phase_events_employer_patient_effective",
             "employer_id",
