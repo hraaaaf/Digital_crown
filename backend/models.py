@@ -912,7 +912,7 @@ from backend.models_platform import (
     JourneyMilestone,
 )
 
-from backend.models_ortho_journey import OrthoCase, OrthoPhaseEvent, OrthoControl
+from backend.models_ortho_journey import OrthoCase, OrthoPhaseEvent, OrthoControl, OrthoTimepoint, OrthoTimepointEvidence
 
 from backend.models_operations import (
     LabJobStatus,
