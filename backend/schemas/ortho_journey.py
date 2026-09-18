@@ -2,7 +2,7 @@ import enum
 import datetime
 from typing import Optional, List
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
 class OrthoLifecycleStatus(str, enum.Enum):
@@ -51,14 +51,6 @@ class OrthoTransitionCreate(BaseModel):
             return None
         value = value.strip()
         return value or None
-
-    @model_validator(mode="after")
-    def validate_phase_contract(self):
-        if self.event_type == OrthoPhaseEventType.ENTER_PHASE and self.phase_key is None:
-            raise ValueError("phase_key est requis pour ENTER_PHASE")
-        if self.event_type != OrthoPhaseEventType.ENTER_PHASE and self.phase_key is not None:
-            raise ValueError("phase_key est autorisé uniquement pour ENTER_PHASE")
-        return self
 
 
 class OrthoPhaseEventOut(BaseModel):
