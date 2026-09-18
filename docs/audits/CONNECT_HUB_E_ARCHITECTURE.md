@@ -1,7 +1,7 @@
 # Digital Crown — LOT E — Connect Hub Architecture Contract
 
-Status: **ACTIVE — implementation gate**
-Branch: `feat/lot-e-connect-hub`
+Status: **CLOSED — merged and certified**
+Implementation branch: `feat/lot-e-connect-hub` (merged via PR #557)
 Base at start: `49db132882ba5b352ae761bda34e1a9fa3d82e27`
 Canonical roadmap: `docs/audits/COMPETITIVE_ROADMAP_POST_MEDIA.md`
 
@@ -85,3 +85,26 @@ Current known residual: historical `DeviceToken/device_tokens` schema remains fo
 ## Definition of Done
 
 Follow the canonical roadmap DoD: anti-dup audit, bounded scope, implementation, automated/security/isolation tests, UI certification if visual, docs/migrations reconciliation, exact-head CI, PR discussion/mergeability audit, merge, post-merge verification, canonical closeout with exact evidence.
+
+
+## Closeout evidence
+
+LOT E is closed. The implementation was merged via PR #557 as merge commit `7c175bdd37b2f53afb7b05fd8cf21aaf4bda2164`.
+
+Verified implementation head before merge:
+- `ad171dd559bd6af517e57ea945de4c03317c1b72`
+- CI #4813 / run `35241949730`: SUCCESS.
+- Connect Hub E Backend Certification #7 / run `35241949680`: SUCCESS.
+- Connect Hub E AFTER #10 / run `35241949717`: SUCCESS.
+- AFTER artifact `10505184198`, digest `sha256:d9dcacb39eeca88a44ae3740d3097c8f887e865e5516089398178efcefffed39`.
+
+The immediate post-merge global CI #4814 / run `35245309329` failed outside the Connect Hub scope after 3746 backend tests passed: the single failure was `backend/tests/test_vision_apex_provenance.py::test_pytorch_landmarks_do_not_gain_synthetic_incisor_apices`, with the legacy Céphalo model import unavailable. The Frontend job and production guard were SUCCESS.
+
+Subsequent repository reconciliation repaired Linux dependency / Connect Hub contract drift via PR #583. Exact repair evidence recorded by the consolidated V1 roadmap:
+- Connect Hub E run `35282100413`: SUCCESS.
+- CI run `35282100416`: SUCCESS.
+- PR #583 merge: `bc7e1e1f1762431a048661ad9495a3430774f6e0`.
+
+Current master `a18a84cb50f34f2a95263e75e581b379dab334c8` retains LOT E and has CI #4956 / run `35364084023`: SUCCESS.
+
+Canonical closeout: `docs/audits/CONNECT_HUB_E_CLOSEOUT.md`.
