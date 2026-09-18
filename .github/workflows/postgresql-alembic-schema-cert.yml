@@ -1,5 +1,7 @@
 name: PostgreSQL Alembic Schema Certification
 
+# Temporary V1-04 recertification trigger only; no product/schema logic changed.
+
 on:
   pull_request:
     paths:
