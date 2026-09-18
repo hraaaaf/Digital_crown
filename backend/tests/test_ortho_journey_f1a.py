@@ -344,7 +344,10 @@ class TestOrthoJourneyF1B:
             json={
                 "occurred_at": (start + timedelta(days=7)).isoformat(),
                 "phase_key": "APPAREILLAGE",
-                "note": "Arc contrôlé, note factuelle.",
+                "observations": "Arc contrôlé, observation factuelle.",
+                "appliance_context": "Arc NiTi 0.016 explicitement saisi.",
+                "notable_event": "Bracket 12 recollé.",
+                "next_planned_step": "Contrôle de l'alignement antérieur.",
                 "next_control_at": (start + timedelta(days=35)).isoformat(),
             },
         )
@@ -352,7 +355,10 @@ class TestOrthoJourneyF1B:
         body = control.json()
         assert body["ortho_case_id"] == case_id
         assert body["phase_key"] == "APPAREILLAGE"
-        assert body["note"] == "Arc contrôlé, note factuelle."
+        assert body["observations"] == "Arc contrôlé, observation factuelle."
+        assert body["appliance_context"] == "Arc NiTi 0.016 explicitement saisi."
+        assert body["notable_event"] == "Bracket 12 recollé."
+        assert body["next_planned_step"] == "Contrôle de l'alignement antérieur."
 
         listed = client.get(
             f"/api/patients/{patient.id}/ortho-case/{case_id}/controls",
