@@ -873,6 +873,127 @@ def create_patient_ortho_control(
     return result
 
 
+@router.get(
+    "/{patient_id}/ortho-case/{case_id}/timepoints",
+    response_model=List[schemas.OrthoTimepointOut],
+)
+def list_patient_ortho_timepoints(
+    patient_id: int,
+    case_id: int,
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(require_permission("patients")),
+):
+    assert_patient_access(patient_id, current_user, db)
+    from backend.services import ortho_journey_service
+
+    case = ortho_journey_service.get_ortho_case_by_id(
+        db,
+        patient_id,
+        case_id,
+        current_user.get_employer_id(),
+    )
+    if case is None:
+        raise HTTPException(status_code=404, detail="Traitement orthodontique introuvable.")
+
+    return ortho_journey_service.list_ortho_timepoints(
+        db,
+        patient_id,
+        case_id,
+        current_user.get_employer_id(),
+    )
+
+
+@router.post(
+    "/{patient_id}/ortho-case/{case_id}/timepoints",
+    response_model=schemas.OrthoTimepointOut,
+    status_code=status.HTTP_201_CREATED,
+)
+def create_patient_ortho_timepoint(
+    patient_id: int,
+    case_id: int,
+    payload: schemas.OrthoTimepointCreate,
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(require_permission("patients")),
+):
+    assert_patient_access(patient_id, current_user, db)
+    _assert_ortho_mutation_authorized(current_user)
+
+    from backend.services import ortho_journey_service
+    from backend.services.audit_service import audit_service
+
+    result = ortho_journey_service.create_ortho_timepoint(
+        db=db,
+        patient_id=patient_id,
+        case_id=case_id,
+        employer_id=current_user.get_employer_id(),
+        created_by=current_user.id,
+        ordinal=payload.ordinal,
+        occurred_at=payload.occurred_at,
+        note=payload.note,
+    )
+    audit_service.log(
+        db=db,
+        user_id=current_user.id,
+        employer_id=current_user.get_employer_id(),
+        action="CREATE",
+        resource_type="OrthoTimepoint",
+        resource_id=str(result.id),
+        details=(
+            f"patient_id={patient_id} case_id={case_id} "
+            f"timepoint=T{payload.ordinal} occurred_at={payload.occurred_at.isoformat()} "
+            f"note_present={bool(payload.note)}"
+        ),
+    )
+    return result
+
+
+@router.post(
+    "/{patient_id}/ortho-case/{case_id}/timepoints/{timepoint_id}/evidences",
+    response_model=schemas.OrthoTimepointEvidenceOut,
+    status_code=status.HTTP_201_CREATED,
+)
+def add_patient_ortho_timepoint_evidence(
+    patient_id: int,
+    case_id: int,
+    timepoint_id: int,
+    payload: schemas.OrthoTimepointEvidenceCreate,
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(require_permission("patients")),
+):
+    assert_patient_access(patient_id, current_user, db)
+    _assert_ortho_mutation_authorized(current_user)
+
+    from backend.services import ortho_journey_service
+    from backend.services.audit_service import audit_service
+
+    result = ortho_journey_service.add_ortho_timepoint_evidence(
+        db=db,
+        patient_id=patient_id,
+        case_id=case_id,
+        timepoint_id=timepoint_id,
+        employer_id=current_user.get_employer_id(),
+        created_by=current_user.id,
+        clinical_asset_id=payload.clinical_asset_id,
+        cephalo_analysis_id=payload.cephalo_analysis_id,
+        panoramic_analysis_id=payload.panoramic_analysis_id,
+    )
+    audit_service.log(
+        db=db,
+        user_id=current_user.id,
+        employer_id=current_user.get_employer_id(),
+        action="CREATE",
+        resource_type="OrthoTimepointEvidence",
+        resource_id=str(result.id),
+        details=(
+            f"patient_id={patient_id} case_id={case_id} timepoint_id={timepoint_id} "
+            f"clinical_asset_id={payload.clinical_asset_id} "
+            f"cephalo_analysis_id={payload.cephalo_analysis_id} "
+            f"panoramic_analysis_id={payload.panoramic_analysis_id}"
+        ),
+    )
+    return result
+
+
 @router.put("/{patient_id}", response_model=schemas.PatientOut)
 def update_patient(patient_id: int, patient_update: schemas.PatientUpdate, db: Session = Depends(database.get_db), current_user: models.User = Depends(require_permission("patients"))):
     assert_patient_access(patient_id, current_user, db)
