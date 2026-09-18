@@ -110,9 +110,8 @@ try {
       });
       const response = await page.goto(`${BASE_URL}/cephalo-v1-04.html`, { waitUntil: 'networkidle', timeout: 30000 });
       await page.getByText('Surplomb mesuré', { exact: true }).waitFor({ state: 'visible', timeout: 15000 });
-      const row = page.getByText('Surplomb mesuré', { exact: true }).locator('..');
-      await row.scrollIntoViewIfNeeded();
-      const rowText = (await row.textContent()) || '';
+      const label = page.getByText('Surplomb mesuré', { exact: true }).first();
+      const rowText = await label.evaluate(el => el.parentElement?.textContent || '');
       if (!rowText.includes(EXPECTED_OVERJET)) throw new Error(`Expected ${EXPECTED_OVERJET}, got ${rowText}`);
       const layout = await page.evaluate(() => ({
         clientWidth: document.documentElement.clientWidth,
