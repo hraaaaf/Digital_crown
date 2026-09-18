@@ -1024,6 +1024,25 @@ def compare_patient_ortho_timepoints(
         to_ordinal=to_ordinal,
     )
 
+@router.get(
+    "/{patient_id}/ortho-cockpit",
+    response_model=schemas.OrthoCockpitOut,
+)
+def get_patient_ortho_cockpit(
+    patient_id: int,
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(require_permission("patients")),
+):
+    assert_patient_access(patient_id, current_user, db)
+    from backend.services import ortho_journey_service
+
+    return ortho_journey_service.build_ortho_cockpit(
+        db=db,
+        patient_id=patient_id,
+        employer_id=current_user.get_employer_id(),
+    )
+
+
 @router.put("/{patient_id}", response_model=schemas.PatientOut)
 def update_patient(patient_id: int, patient_update: schemas.PatientUpdate, db: Session = Depends(database.get_db), current_user: models.User = Depends(require_permission("patients"))):
     assert_patient_access(patient_id, current_user, db)
