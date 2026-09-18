@@ -202,7 +202,7 @@ Proof: source evidence + validators + negative tests + qualified review if activ
 
 ### LOT V1-04 — Céphalométrie scientific re-baseline
 
-Status: **BLOCKED BY V1-03**
+Status: **IN PROGRESS — SIGNED INCISOR RELATION CONCORDANCE**
 
 Goal: inspect current master after all preceding integrations and identify only genuine remaining V1-relevant scientific/runtime gaps; do not manufacture work or reopen already certified lots.
 
@@ -291,13 +291,14 @@ Pending CI does not unlock the next lot. Independent work is permitted only insi
 
 ## 6. Current canonical state
 
-- active lot: **V1-00 — CLOSED / CANONICAL CLOSEOUT PR PENDING MERGE**
-- next lot: **V1-01 — UNLOCKED AFTER CANONICAL CLOSEOUT MERGE**
-- current master: `1edd440bf69ca4a79c5e265b20957148297adb3f`
-- certified V1-00 foundation product HEAD: `cc34fdf42874f06d4ac3ec45073e1cbb012c6007`
-- final repair PR: `#587` / `330994e4454a30074e8ee4e1c7e301f071cb060b` — **MERGED** as `1edd440bf69ca4a79c5e265b20957148297adb3f`
-- merge authorization: **SATISFIED for PR #582, #583, #585 and #587**
-- final post-merge master proof: **CI 35286577382 SUCCESS / PostgreSQL 35286577467 SUCCESS**
+- active lot: **V1-04 — Céphalométrie scientific re-baseline / IN PROGRESS**
+- next lot: **V1-05 — BLOCKED BY V1-04**
+- certified lot base: `master@7454215274032898d1a50659d624a5cb32aab494`
+- base proof: **CI 35335941911 SUCCESS / PostgreSQL 35335941919 SUCCESS**
+- active branch: `feat/v1-04-cephalo-rebaseline`
+- active PR: **#592 DRAFT**
+- first V1-04 evidence: Cephalo R18 concordance run `35338035397` deliberately exposed one frontend/backend Surplomb divergence (+2.6 mm vs -2.6 mm) while Recouvrement remained concordant.
+- correction principle: preserve signed incisor relation; do not activate new norms, diagnosis, indication or treatment inference.
 - V1 candidate SHA: **NOT SELECTED**
 - V1 state: **EXECUTION LOCKED / NOT OPERATIONAL**
 - production/cabinet mutation: **NOT AUTHORIZED**
