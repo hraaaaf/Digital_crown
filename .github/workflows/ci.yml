@@ -1,5 +1,9 @@
 name: CI
 
+# Temporary certification harness note: branch cert/v1-04-postmerge-recert
+# runs the post-merge backend job against master-equivalent product code.
+# This branch must never be merged.
+
 # S9 — Pipeline d'intégration continue Digital Crown.
 # Gate de pré-production : durcissement config + suite de tests (sécurité,
 # contrôle d'accès, capsule IA, Crown Bot). Aucune donnée patient n'est touchée :
@@ -33,7 +37,9 @@ jobs:
     if: >-
       github.event_name == 'workflow_dispatch' ||
       (github.event_name == 'push' &&
-       (github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main'))
+       (github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main')) ||
+      (github.event_name == 'pull_request' &&
+       github.head_ref == 'cert/v1-04-postmerge-recert')
     name: Full backend regression (post-merge)
     runs-on: ubuntu-latest
     env:
