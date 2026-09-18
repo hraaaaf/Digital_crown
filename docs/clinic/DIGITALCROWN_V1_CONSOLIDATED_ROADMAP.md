@@ -202,13 +202,33 @@ Proof: source evidence + validators + negative tests + qualified review if activ
 
 ### LOT V1-04 — Céphalométrie scientific re-baseline
 
-Status: **IN PROGRESS — SIGNED INCISOR RELATION CONCORDANCE**
+Status: **IMPLEMENTED — PRODUCT EXACT-HEAD + VISUAL EVIDENCE GREEN; HUMAN VISUAL / MERGE GATE PENDING**
 
 Goal: inspect current master after all preceding integrations and identify only genuine remaining V1-relevant scientific/runtime gaps; do not manufacture work or reopen already certified lots.
 
 Success: canonical scientific inventory/provenance rebaselined; BLOCKED/TODO/legacy gaps classified; only evidence-backed V1 blockers corrected; no diagnostic/treatment inference introduced without required evidence/review.
 
 Proof: code + scientific tests + provenance + runtime evidence + mandatory UI BEFORE/AFTER if visual changes + review + exact-head CI + closeout. If no genuine V1 blocker remains, record that finding and close the lot without invented implementation.
+
+Verified V1-04 result:
+- certified base: `master@7454215274032898d1a50659d624a5cb32aab494`, CI `35335941911` SUCCESS and PostgreSQL `35335941919` SUCCESS;
+- selected blocker: R18 concordance omitted COM `Surplomb` / `Recouvrement`; proof run `35338035397` exposed one deterministic Surplomb divergence on `clinical_orientation_reference`: frontend `+2.6 mm` vs backend `-2.6 mm`, delta `5.2 mm`; Recouvrement was concordant;
+- correction: Step 3 now preserves signed overjet instead of converting it to an absolute magnitude; positive/reverse overjet and signed overbite regressions are locked; `M_OVERBITE_V1` unit is `mm`, while overjet/overbite construction provenance remains `LEGACY_TO_AUDIT`;
+- scientific boundary: no norm, diagnostic classification, severity, indication or treatment rule was activated; R20 remains closed;
+- final product HEAD: `086126a550363e67a786a07ef47d2d7c1140bb57`;
+- exact-head proof: CI `35339515537` SUCCESS; T2 `35339515511` SUCCESS; Cephalo R15 AFTER `35339515504` SUCCESS; Cephalo R15bis AFTER `35339515559` SUCCESS; Cephalo R18 Scientific Concordance `35339515581` SUCCESS with zero divergence; Agenda A5 Visual Evidence `35339515582` SUCCESS;
+- mandatory V1-04 visual artifact: `10544905213`, digest `sha256:59ce0bc1f2c9693e214bfcc649a210e7b6161bf3a6df1c0076747cd2b42783c3`; BEFORE exact base shows `+2.6 mm`, AFTER exact product HEAD shows `-2.6 mm`, at `390x844`, `768x1024`, `1280x900`; all six captures have zero horizontal overflow, zero page errors and zero console errors;
+- severe visual review: `9.4/10` — layout is unchanged and clean across all canonical viewports; deduction because the corrected sign is deliberately a small semantic value change rather than a stronger visual emphasis;
+- the generic `UI Human Visual Approval` remains red by design until the current exact-head captures are shown to Achraf and explicitly approved.
+
+Remaining scientific inventory is not promoted into invented V1 work:
+- `BLOCKED_LANDMARK`: exact required landmarks are absent/non-certified;
+- `BLOCKED_MODALITY_PA`: true PA/frontal acquisition is absent;
+- serial displacement/change measures: paired-study/superposition authority is absent;
+- `SOURCE_LOCK_REQUIRED` measures remain inactive until their exact construction/provenance is locked;
+- Steiner U1-NA/L1-NB linear measures remain unavailable until the required crown landmark exists.
+
+Next exact: certify this documentation-only closeout HEAD, show the retained BEFORE/AFTER captures to Achraf, obtain explicit visual approval, then satisfy the human merge gate for PR `#592`. V1-05 remains blocked until V1-04 is merged and post-merge certified.
 
 ### LOT V1-05 — Orthalis current benchmark / gap decision
 
