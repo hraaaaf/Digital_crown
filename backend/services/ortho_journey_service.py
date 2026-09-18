@@ -472,9 +472,7 @@ def add_ortho_timepoint_evidence(
         if pano is None:
             raise HTTPException(status_code=422, detail="Analyse panoramique introuvable pour ce patient.")
 
-    duplicate_q = db.query(models.OrthoTimepointEvidence).filter(
-        models.OrthoTimepointEvidence.ortho_timepoint_id == timepoint_id
-    )
+    duplicate_q = db.query(models.OrthoTimepointEvidence)
     if clinical_asset_id is not None:
         duplicate_q = duplicate_q.filter(models.OrthoTimepointEvidence.clinical_asset_id == clinical_asset_id)
     elif cephalo_analysis_id is not None:
@@ -482,7 +480,7 @@ def add_ortho_timepoint_evidence(
     else:
         duplicate_q = duplicate_q.filter(models.OrthoTimepointEvidence.panoramic_analysis_id == panoramic_analysis_id)
     if duplicate_q.first() is not None:
-        raise HTTPException(status_code=409, detail="Cette preuve est déjà liée à ce timepoint.")
+        raise HTTPException(status_code=409, detail="Cette preuve est déjà liée à un timepoint orthodontique.")
 
     evidence = models.OrthoTimepointEvidence(
         ortho_timepoint_id=timepoint_id,
