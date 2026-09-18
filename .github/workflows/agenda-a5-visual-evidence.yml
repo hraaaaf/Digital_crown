@@ -1,0 +1,63 @@
+name: Agenda A5 Visual Evidence
+on:
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  capture:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install browser
+        working-directory: frontend
+        run: |
+          npm ci
+          npm install --no-save --package-lock=false playwright@1.55.0
+          npx playwright install --with-deps chromium
+      - name: Materialize deterministic harness
+        working-directory: frontend
+        run: |
+          cat > agenda-a5.html <<'EOF'
+          <div id="root"></div><script type="module" src="/src/agenda-a5.tsx"></script>
+          EOF
+          cat > src/agenda-a5.tsx <<'EOF'
+          import React from 'react'; import {createRoot} from 'react-dom/client'; import {MemoryRouter} from 'react-router-dom'; import './index.css'; import {AgendaPage} from './pages/AgendaPage'; import {useAuthStore} from './stores/useAuthStore';
+          useAuthStore.setState({user:{id:1,email:'a5@test.local',nom_complet:'Dr Lina Alaoui',role:'ADMIN',is_superadmin:false,permissions:{}} as any,isAuthenticated:true,isLoading:false,error:null});
+          createRoot(document.getElementById('root')!).render(<MemoryRouter initialEntries={['/agenda']}><div className="min-h-screen min-w-0 overflow-x-hidden bg-slate-50 p-3 sm:p-4 lg:p-6"><AgendaPage/></div></MemoryRouter>);
+          EOF
+          cat > agenda-a5.mjs <<'EOF'
+          import {chromium} from 'playwright'; import {createServer} from 'vite'; import fs from 'node:fs/promises';
+          const out='agenda-a5-visual'; await fs.mkdir(out,{recursive:true}); const json=body=>({status:200,contentType:'application/json',body:JSON.stringify(body)});
+          const mk=(id,name,start,motif)=>({id,patient_name:name,patient_id:id+1000,praticien_id:1,resource_id:1,datetime_start:start,duration_minutes:30,motif,status:'PRÉVU',scheduling_type:'EXACT_TIME',reminder_sent:false});
+          const active=[mk(201,'Sara El Amrani','2026-09-18T09:00:00','Consultation'),mk(202,'Adam Tazi','2026-09-18T11:00:00','Contrôle')], deleted=mk(299,'RDV supprimé','2026-09-18T10:00:00','Historique supprimé');
+          const server=await createServer({server:{host:'127.0.0.1',port:4205,strictPort:true},clearScreen:false}); await server.listen(); const browser=await chromium.launch(); const report=[];
+          try { for(const [width,height] of [[390,844],[768,1024],[1280,900]]) { const context=await browser.newContext({viewport:{width,height},locale:'fr-FR',timezoneId:'Africa/Casablanca'}); const page=await context.newPage(); await page.clock.setFixedTime(new Date('2026-09-18T08:00:00+01:00')); let state='before';
+            await page.route('**/api/**',async route=>{const req=route.request(),u=new URL(req.url()), appointments=state==='before'?[...active,deleted]:active;
+              if(u.pathname==='/api/appointments/multi-practitioner') return route.fulfill(json({plan:'ELITE',dentists:[{dentist_id:1,dentist_name:'Dr Lina Alaoui',appointments}],legacy_unassigned:[],total_appointments:appointments.length}));
+              if(u.pathname==='/api/appointments/check-conflicts') return route.fulfill(json({has_conflict:false,conflicts:[]}));
+              if(u.pathname==='/api/appointments/'||u.pathname.startsWith('/api/appointments?')) return route.fulfill(json(appointments));
+              if(u.pathname==='/api/agenda/settings') return route.fulfill(json({opening_time_morning:'09:00',closing_time_morning:'13:00',opening_time_afternoon:'14:00',closing_time_afternoon:'18:00',is_continuous:false}));
+              return route.fulfill(json(req.method()==='GET'?[]:{}));});
+            for(const phase of ['before','after']) {state=phase; await page.goto('http://127.0.0.1:4205/agenda-a5.html',{waitUntil:'networkidle'}); await page.getByRole('heading',{name:'Agenda'}).waitFor();
+              if(phase==='before') { const deletedCount=await page.getByText('RDV supprimé',{exact:true}).count(); if(deletedCount<1) throw new Error('deleted appointment missing in BEFORE'); } else if(await page.getByText('RDV supprimé',{exact:true}).count()) throw new Error('deleted appointment visible in AFTER');
+              const layout=await page.evaluate(()=>({clientWidth:document.documentElement.clientWidth,scrollWidth:document.documentElement.scrollWidth})); if(layout.scrollWidth>layout.clientWidth) throw new Error(phase+' overflow '+width);
+              await page.screenshot({path:out+'/'+phase+'-'+width+'x'+height+'.png',fullPage:true,animations:'disabled'}); report.push({phase,width,height,layout});}
+            await context.close(); } await fs.writeFile(out+'/report.json',JSON.stringify(report,null,2)); } finally {await browser.close();await server.close();}
+          EOF
+      - name: Capture and verify
+        working-directory: frontend
+        run: |
+          node agenda-a5.mjs
+          test "$(find agenda-a5-visual -name '*.png' | wc -l)" -eq 6
+      - uses: actions/upload-artifact@v4
+        with:
+          name: agenda-a5-before-after
+          path: frontend/agenda-a5-visual/
+          if-no-files-found: error
+          retention-days: 14
