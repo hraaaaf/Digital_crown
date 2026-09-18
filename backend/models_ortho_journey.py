@@ -172,7 +172,10 @@ class OrthoControl(Base):
 
     occurred_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, index=True)
     phase_key: Mapped[Optional[str]] = mapped_column(String(32), nullable=True)
-    note: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    observations: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    appliance_context: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    notable_event: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    next_planned_step: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     next_control_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
 
     created_by: Mapped[Optional[int]] = mapped_column(
