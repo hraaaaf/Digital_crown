@@ -265,7 +265,10 @@ def create_ortho_control(
     occurred_at: datetime,
     phase_key: str | None,
     appointment_id: int | None,
-    note: str | None,
+    observations: str | None,
+    appliance_context: str | None,
+    notable_event: str | None,
+    next_planned_step: str | None,
     next_control_at: datetime | None,
 ):
     case = (
@@ -319,7 +322,10 @@ def create_ortho_control(
         appointment_id=appointment_id,
         occurred_at=occurred_at,
         phase_key=phase_key,
-        note=note,
+        observations=observations,
+        appliance_context=appliance_context,
+        notable_event=notable_event,
+        next_planned_step=next_planned_step,
         next_control_at=next_control_at,
         created_by=created_by,
     )
