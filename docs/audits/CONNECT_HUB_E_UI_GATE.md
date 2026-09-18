@@ -1,6 +1,6 @@
 # Digital Crown — LOT E — Connect Hub UI Gate
 
-Status: **BEFORE REQUIRED — no visual implementation yet**
+Status: **CLOSED — BEFORE/AFTER certified and human-approved**
 Architecture: `docs/audits/CONNECT_HUB_E_ARCHITECTURE.md`
 Baseline product SHA: `49db132882ba5b352ae761bda34e1a9fa3d82e27`
 
@@ -92,8 +92,29 @@ AFTER must use the same three viewports and comparable shell state. It must prov
 - authorized context only;
 - Target ↔ Render comparison against this contract and the certified BEFORE.
 
-Visual fidelity score remains capped at 7.5/10 until real BEFORE/AFTER screenshots and Target ↔ Render comparison are inspected.
+Real BEFORE/AFTER screenshots were inspected at all three canonical viewports. Final observed visual score: **9.2/10**, above the project minimum 9.1/10.
+
+## Certified evidence
+
+BEFORE:
+- baseline product SHA: `49db132882ba5b352ae761bda34e1a9fa3d82e27`;
+- workflow run `35202983003`: SUCCESS;
+- artifact `10488787031`, `connect-hub-e-before-exact-baseline`;
+- digest `sha256:dac724723b62dd8cc8f6bedecf749dca4e0d27085f6aeb882197d474096edffa`;
+- captured viewports: 390×844, 768×1024, 1280×900.
+
+AFTER:
+- product HEAD `ad171dd559bd6af517e57ea945de4c03317c1b72`;
+- Connect Hub E AFTER #10 / run `35241949717`: SUCCESS;
+- artifact `10505184198`, `connect-hub-e-after-exact-head`;
+- digest `sha256:d9dcacb39eeca88a44ae3740d3097c8f887e865e5516089398178efcefffed39`;
+- same three viewports inspected;
+- no horizontal overflow observed in the certification report;
+- mobile panel refined to symmetric safe margins;
+- source-state truth language retained;
+- visual score: **9.2/10**;
+- human visual approval recorded in the project conversation before merge.
 
 ## Gate
 
-No visual Connect Hub implementation is authorized until the BEFORE artifacts satisfy the certification contract. Backend/read-model work may proceed independently only if it does not mutate the visual baseline or violate the architecture contract.
+**CLOSED.** BEFORE → Goal/reference → implementation → AFTER → comparison → automated checks → human approval were completed. No further visual change is required for LOT E closeout.
