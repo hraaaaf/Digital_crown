@@ -1046,3 +1046,68 @@ class TestOrthoJourneyF3:
             headers=auth_headers,
         )
         assert response.status_code == 404
+
+
+    def test_compare_reports_ambiguous_cephalo_pair_without_guessing(
+        self, client, db, dentiste, auth_headers
+    ):
+        from backend import models
+
+        patient = _make_patient(db, dentiste.id, "ORTHO_F3_AMBIG")
+        start = datetime(2026, 5, 1, 9, 0, 0)
+        created = _create_case(client, patient.id, auth_headers, start)
+        case_id = created.json()["id"]
+
+        t0 = client.post(
+            f"/api/patients/{patient.id}/ortho-case/{case_id}/timepoints",
+            headers=auth_headers,
+            json={"ordinal": 0, "occurred_at": start.isoformat()},
+        )
+        t1 = client.post(
+            f"/api/patients/{patient.id}/ortho-case/{case_id}/timepoints",
+            headers=auth_headers,
+            json={"ordinal": 1, "occurred_at": (start + timedelta(days=60)).isoformat()},
+        )
+        assert t0.status_code == 201
+        assert t1.status_code == 201
+
+        cephs = [
+            models.CephaloAnalysis(
+                patient_id=patient.id,
+                image_original_path=f"ambig-{idx}.png",
+                landmarks_data={},
+                angles_data={"SNA": 82.0 + idx},
+                is_calibrated=True,
+                mm_per_pixel=0.1,
+            )
+            for idx in range(3)
+        ]
+        db.add_all(cephs)
+        db.commit()
+        for ceph in cephs:
+            db.refresh(ceph)
+
+        for ceph in cephs[:2]:
+            linked = client.post(
+                f"/api/patients/{patient.id}/ortho-case/{case_id}/timepoints/{t0.json()['id']}/evidences",
+                headers=auth_headers,
+                json={"cephalo_analysis_id": ceph.id},
+            )
+            assert linked.status_code == 201, linked.text
+
+        linked = client.post(
+            f"/api/patients/{patient.id}/ortho-case/{case_id}/timepoints/{t1.json()['id']}/evidences",
+            headers=auth_headers,
+            json={"cephalo_analysis_id": cephs[2].id},
+        )
+        assert linked.status_code == 201, linked.text
+
+        response = client.get(
+            f"/api/patients/{patient.id}/ortho-case/{case_id}/compare",
+            params={"from_ordinal": 0, "to_ordinal": 1},
+            headers=auth_headers,
+        )
+        assert response.status_code == 200, response.text
+        body = response.json()
+        assert body["measurement_status"] == "AMBIGUOUS_CEPHALO_PAIR"
+        assert body["measurements"] == []
