@@ -41,14 +41,19 @@ jobs:
           tree = ast.parse(source, filename=str(path))
 
           registry = {}
+          registry_dict = None
           for node in ast.walk(tree):
-              if not isinstance(node, ast.Assign):
-                  continue
-              if not any(isinstance(t, ast.Name) and t.id == "CANONICAL_MEASUREMENTS" for t in node.targets):
-                  continue
-              if not isinstance(node.value, ast.Dict):
-                  raise AssertionError("CANONICAL_MEASUREMENTS is not a literal dict")
-              for key_node, value_node in zip(node.value.keys, node.value.values):
+              if isinstance(node, ast.AnnAssign) and isinstance(node.target, ast.Name) and node.target.id == "CANONICAL_MEASUREMENTS":
+                  registry_dict = node.value
+                  break
+              if isinstance(node, ast.Assign) and any(isinstance(t, ast.Name) and t.id == "CANONICAL_MEASUREMENTS" for t in node.targets):
+                  registry_dict = node.value
+                  break
+
+          if not isinstance(registry_dict, ast.Dict):
+              raise AssertionError("CANONICAL_MEASUREMENTS is not a literal dict")
+
+          for key_node, value_node in zip(registry_dict.keys, registry_dict.values):
                   if not isinstance(key_node, ast.Constant) or not isinstance(key_node.value, str):
                       continue
                   if not isinstance(value_node, ast.Call) or not isinstance(value_node.func, ast.Name) or value_node.func.id != "_m":
