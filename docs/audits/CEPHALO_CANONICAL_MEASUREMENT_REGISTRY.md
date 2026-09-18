@@ -135,7 +135,7 @@ Ces deux mesures portent un nom proche mais **ne sont pas fusionnées** car leur
 |---|---|---|---|---|---|
 | `M_INTERINCISAL_DEG_V1` | Angle interincisif | axe U1 / axe L1 | U1_apex,U1_incisal,L1_apex,L1_incisal | angle ° | `GEOMETRY_COVERED` |
 | `M_OVERJET_MM_V1` | Surplomb | relation sagittale U1/L1 selon convention DC à verrouiller | incisives exactes | mm | `LEGACY_TO_AUDIT` |
-| `M_OVERBITE_V1` | Recouvrement | relation verticale U1/L1 selon convention DC à verrouiller | incisives exactes | unité à verrouiller | `LEGACY_TO_AUDIT` |
+| `M_OVERBITE_V1` | Recouvrement | relation verticale U1/L1 selon convention DC à verrouiller | incisives exactes | mm | `LEGACY_TO_AUDIT` |
 
 # 8. Tissus mous
 
