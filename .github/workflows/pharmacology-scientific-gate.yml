@@ -18,6 +18,7 @@ on:
       - 'backend/tests/test_pharmacology_reference_fail_closed.py'
       - 'backend/tests/test_pharmacology_medicine_current_status_projection.py'
       - 'backend/tests/test_pharmacology_medicine_gap_audit.py'
+      - 'backend/tests/test_pharmacology_reference_runtime_isolation.py'
       - '.github/workflows/pharmacology-scientific-gate.yml'
   workflow_dispatch:
 
@@ -81,6 +82,7 @@ jobs:
             backend/tests/test_pharmacology_reference_fail_closed.py \
             backend/tests/test_pharmacology_medicine_current_status_projection.py \
             backend/tests/test_pharmacology_medicine_gap_audit.py \
+            backend/tests/test_pharmacology_reference_runtime_isolation.py \
             -q
 
       - name: Validate reconstructed pharmacology reference
