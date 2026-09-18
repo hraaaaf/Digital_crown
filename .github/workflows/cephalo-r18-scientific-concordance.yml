@@ -32,8 +32,30 @@ jobs:
           cache-dependency-path: frontend/package-lock.json
       - name: Verify canonical cephalo measurement registry
         run: |
-          python -m pip install --disable-pip-version-check pytest==9.0.3
-          python -m pytest -q --noconftest backend/tests/test_cephalo_measure_registry.py
+          python - <<'PY'
+          import importlib.util
+          from pathlib import Path
+
+          path = Path("backend/services/cephalo_measure_registry.py")
+          spec = importlib.util.spec_from_file_location("v104_cephalo_measure_registry", path)
+          if spec is None or spec.loader is None:
+              raise SystemExit("Cannot load cephalo measure registry")
+          module = importlib.util.module_from_spec(spec)
+          spec.loader.exec_module(module)
+
+          assert module.canonical_unit("M_OVERJET_MM_V1") == "mm"
+          assert module.canonical_unit("M_OVERBITE_V1") == "mm"
+          assert module.canonical_measurement("M_OVERJET_MM_V1").source_status == "LEGACY_TO_AUDIT"
+          assert module.canonical_measurement("M_OVERBITE_V1").source_status == "LEGACY_TO_AUDIT"
+          assert module.canonical_unit("M_PA_SKELETAL_SYMMETRY_V1") is None
+          try:
+              module.cephalo_unit("M_PA_SKELETAL_SYMMETRY_V1")
+          except ValueError:
+              pass
+          else:
+              raise AssertionError("Unlocked canonical unit must fail closed")
+          print("V1_04_CEPHALO_REGISTRY_OK")
+          PY
       - name: Install frontend lockfile
         working-directory: frontend
         run: npm ci
