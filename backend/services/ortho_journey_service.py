@@ -3,6 +3,7 @@ from __future__ import annotations
 from datetime import datetime
 
 from fastapi import HTTPException
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, joinedload
 
 from backend import models, schemas
@@ -108,7 +109,25 @@ def create_ortho_case(
         created_by=created_by,
     )
     db.add(event)
-    db.commit()
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        existing = (
+            db.query(models.OrthoCase)
+            .filter(
+                models.OrthoCase.patient_id == patient_id,
+                models.OrthoCase.employer_id == employer_id,
+                models.OrthoCase.lifecycle_status.in_(ACTIVE_STATUSES),
+            )
+            .first()
+        )
+        if existing is not None:
+            raise HTTPException(
+                status_code=409,
+                detail="Un traitement orthodontique actif ou interrompu existe déjà pour ce patient.",
+            )
+        raise
 
     return get_ortho_case(db, patient_id, employer_id)
 
