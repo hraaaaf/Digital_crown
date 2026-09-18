@@ -122,8 +122,7 @@ try {
         fullPage: true,
         animations: 'disabled',
       });
-      captures.push({ viewport: viewport.name, rowText, layout, pageErrors, consoleErrors, httpStatus: response?.status() ?? null });
-      if (pageErrors.length || consoleErrors.length) throw new Error(`Runtime errors at ${viewport.name}`);
+      captures.push({ viewport: viewport.name, rowText, layout, pageErrors, consoleErrors, httpStatus: response?.status() ?? null, valid: pageErrors.length === 0 && consoleErrors.length === 0 });
       await context.close();
     }
   } finally {
@@ -136,7 +135,7 @@ try {
   await rm(path.join(FRONTEND_DIR, 'cephalo-v1-04.html'), { force: true });
   await writeFile(path.join(OUTPUT_DIR, 'vite.log'), serverLog, 'utf8');
 }
-await writeFile(path.join(OUTPUT_DIR, 'report.json'), JSON.stringify({
+const report = {
   lot: 'V1-04',
   phase: PHASE.toUpperCase(),
   productHead: PRODUCT_HEAD,
@@ -144,4 +143,7 @@ await writeFile(path.join(OUTPUT_DIR, 'report.json'), JSON.stringify({
   fixture: 'clinical_orientation_reference',
   viewports: viewports.map(v => v.name),
   captures,
-}, null, 2), 'utf8');
+};
+await writeFile(path.join(OUTPUT_DIR, 'report.json'), JSON.stringify(report, null, 2), 'utf8');
+console.log(JSON.stringify(report, null, 2));
+if (captures.some(c => !c.valid)) process.exitCode = 1;
