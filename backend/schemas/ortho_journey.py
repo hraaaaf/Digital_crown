@@ -193,3 +193,57 @@ class OrthoLongitudinalCompareOut(BaseModel):
     measurements: List[OrthoMeasurementDeltaOut] = Field(default_factory=list)
     measurement_status: str
     interpretation_policy: str = "NUMERIC_ONLY_CLINICIAN_INTERPRETATION"
+
+
+class OrthoCockpitCaseOut(BaseModel):
+    case_id: int
+    started_at: datetime.datetime
+    lifecycle_status: OrthoLifecycleStatus
+    current_phase_key: Optional[OrthoPhaseKey] = None
+    closed_at: Optional[datetime.datetime] = None
+    controls_count: int
+
+
+class OrthoCockpitControlOut(BaseModel):
+    id: int
+    occurred_at: datetime.datetime
+    phase_key: Optional[OrthoPhaseKey] = None
+    notable_event: Optional[str] = None
+    next_planned_step: Optional[str] = None
+    next_control_at: Optional[datetime.datetime] = None
+    appointment_id: Optional[int] = None
+
+
+class OrthoCockpitAppointmentOut(BaseModel):
+    id: int
+    datetime_start: datetime.datetime
+    status: str
+    motif: Optional[str] = None
+
+
+class OrthoCockpitTimepointOut(BaseModel):
+    id: int
+    ordinal: int
+    occurred_at: datetime.datetime
+    note: Optional[str] = None
+    evidence_count: int
+
+
+class OrthoCockpitEvidenceOut(BaseModel):
+    kind: str
+    ref_id: int
+    recorded_at: Optional[datetime.datetime] = None
+    label: str
+    timepoint_ordinal: int
+
+
+class OrthoCockpitOut(BaseModel):
+    patient_id: int
+    case: Optional[OrthoCockpitCaseOut] = None
+    latest_control: Optional[OrthoCockpitControlOut] = None
+    next_appointment: Optional[OrthoCockpitAppointmentOut] = None
+    latest_timepoint: Optional[OrthoCockpitTimepointOut] = None
+    latest_cephalo: Optional[OrthoCockpitEvidenceOut] = None
+    latest_panoramic: Optional[OrthoCockpitEvidenceOut] = None
+    latest_clinical_asset: Optional[OrthoCockpitEvidenceOut] = None
+    attention: List[str] = Field(default_factory=list)
