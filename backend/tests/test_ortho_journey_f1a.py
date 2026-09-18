@@ -344,7 +344,10 @@ class TestOrthoJourneyF1B:
             json={
                 "occurred_at": (start + timedelta(days=7)).isoformat(),
                 "phase_key": "APPAREILLAGE",
-                "note": "Arc contrôlé, note factuelle.",
+                "observations": "Arc contrôlé, observation factuelle.",
+                "appliance_context": "Arc NiTi 0.016 explicitement saisi.",
+                "notable_event": "Bracket 12 recollé.",
+                "next_planned_step": "Contrôle de l'alignement antérieur.",
                 "next_control_at": (start + timedelta(days=35)).isoformat(),
             },
         )
@@ -352,7 +355,10 @@ class TestOrthoJourneyF1B:
         body = control.json()
         assert body["ortho_case_id"] == case_id
         assert body["phase_key"] == "APPAREILLAGE"
-        assert body["note"] == "Arc contrôlé, note factuelle."
+        assert body["observations"] == "Arc contrôlé, observation factuelle."
+        assert body["appliance_context"] == "Arc NiTi 0.016 explicitement saisi."
+        assert body["notable_event"] == "Bracket 12 recollé."
+        assert body["next_planned_step"] == "Contrôle de l'alignement antérieur."
 
         listed = client.get(
             f"/api/patients/{patient.id}/ortho-case/{case_id}/controls",
@@ -485,3 +491,85 @@ class TestOrthoJourneyF1B:
         assert len(events) == 1
         assert events[0]["type"] == "CONTROLE"
         assert events[0]["phase_hint"] == "finition"
+
+
+    def test_abandoned_case_rejects_new_control(self, client, db, dentiste, auth_headers):
+        patient = _make_patient(db, dentiste.id, "ORTHO_CONTROL_ABANDONED")
+        start = datetime(2026, 9, 18, 9, 0, 0)
+        created = _create_case(client, patient.id, auth_headers, start)
+        case_id = created.json()["id"]
+
+        abandoned = client.post(
+            f"/api/patients/{patient.id}/ortho-case/{case_id}/transitions",
+            headers=auth_headers,
+            json={
+                "event_type": "ABANDON",
+                "effective_at": (start + timedelta(days=1)).isoformat(),
+            },
+        )
+        assert abandoned.status_code == 200
+
+        control = client.post(
+            f"/api/patients/{patient.id}/ortho-case/{case_id}/controls",
+            headers=auth_headers,
+            json={"occurred_at": (start + timedelta(days=2)).isoformat()},
+        )
+        assert control.status_code == 409
+
+    def test_control_case_patient_pairing_is_scoped(self, client, db, dentiste, auth_headers):
+        patient_a = _make_patient(db, dentiste.id, "ORTHO_CONTROL_PAIR_A")
+        patient_b = _make_patient(db, dentiste.id, "ORTHO_CONTROL_PAIR_B")
+        start = datetime(2026, 9, 18, 9, 0, 0)
+        created = _create_case(client, patient_a.id, auth_headers, start)
+        case_id = created.json()["id"]
+
+        read = client.get(
+            f"/api/patients/{patient_b.id}/ortho-case/{case_id}/controls",
+            headers=auth_headers,
+        )
+        assert read.status_code == 404
+
+        write = client.post(
+            f"/api/patients/{patient_b.id}/ortho-case/{case_id}/controls",
+            headers=auth_headers,
+            json={"occurred_at": (start + timedelta(days=1)).isoformat()},
+        )
+        assert write.status_code == 404
+
+    def test_secretary_can_read_controls_but_cannot_create(self, client, db):
+        owner = make_user(db, email="ortho-control-owner@x.ma")
+        secretary = make_user(db, email="ortho-control-secretary@x.ma", role="SECRETAIRE")
+        secretary.employer_id = owner.id
+        db.commit()
+
+        patient = _make_patient(db, owner.id, "ORTHO_CONTROL_RBAC")
+        owner_headers = _login(client, owner.email)
+        created = _create_case(client, patient.id, owner_headers)
+        case_id = created.json()["id"]
+
+        secretary_headers = _login(client, secretary.email)
+        read = client.get(
+            f"/api/patients/{patient.id}/ortho-case/{case_id}/controls",
+            headers=secretary_headers,
+        )
+        assert read.status_code == 200
+
+        write = client.post(
+            f"/api/patients/{patient.id}/ortho-case/{case_id}/controls",
+            headers=secretary_headers,
+            json={"occurred_at": datetime(2026, 9, 19, 9, 0, 0).isoformat()},
+        )
+        assert write.status_code == 403
+
+    def test_control_before_case_start_is_rejected(self, client, db, dentiste, auth_headers):
+        patient = _make_patient(db, dentiste.id, "ORTHO_CONTROL_BEFORE_START")
+        start = datetime(2026, 9, 18, 9, 0, 0)
+        created = _create_case(client, patient.id, auth_headers, start)
+        case_id = created.json()["id"]
+
+        control = client.post(
+            f"/api/patients/{patient.id}/ortho-case/{case_id}/controls",
+            headers=auth_headers,
+            json={"occurred_at": (start - timedelta(minutes=1)).isoformat()},
+        )
+        assert control.status_code == 409
