@@ -3,9 +3,9 @@ name: Ortho F3 BEFORE
 
 on:
   workflow_dispatch:
-  push:
+  pull_request:
     branches:
-      - feat/v1-05-f3-longitudinal-compare
+      - master
     paths:
       - 'frontend/scripts/capture-ortho-f3-before.mjs'
       - '.github/workflows/ortho-f3-before.yml'
