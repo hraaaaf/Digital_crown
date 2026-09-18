@@ -1,6 +1,6 @@
 # V1-05 Ortho Journey — F3 Closeout
 
-Status: **IMPLEMENTED — CERTIFICATION IN PROGRESS**
+Status: **HUMAN VISUAL VALIDATED — FINAL CERTIFICATION IN PROGRESS**
 
 ## Trailer
 
@@ -122,3 +122,55 @@ If AFTER is green:
 6. human merge gate
 7. merge + post-merge proof
 8. F4 cockpit practitioner
+
+
+## Final human visual validation
+
+Human gate:
+- desktop/tablet accepted in the first AFTER review
+- mobile initially rejected as too vertically dense
+- mobile-only polish applied at `152d39f34e76d00162f80d58da21389e843d39b2`
+- polished mobile AFTER re-captured and explicitly validated by the product owner
+
+Polished exact-head visual proof:
+- Ortho F3 AFTER `35402797193` — SUCCESS
+- BEFORE `35402797259` — SUCCESS
+- CI `35402797295` — SUCCESS
+- T2 `35402797297` — SUCCESS
+- A5 `35402797197` — SUCCESS
+- Cephalo R15 `35402797310` — SUCCESS
+- Cephalo R15bis `35402797280` — SUCCESS
+- Media C4 `35402797276` — SUCCESS
+- Patient UX1-C `35402797360` — SUCCESS
+
+AFTER artifact:
+- id `10570369062`
+- digest `sha256:d8c00bc20ea5e1c04582c27e78d8d1cc5c1a2a416a4701ef7b23274116125d36`
+
+Certified viewports:
+- 390×844
+- 768×1024
+- 1280×900
+
+Visual score — severe:
+- hierarchy / findability: 1.9 / 2.0
+- T0/T1 comparison clarity: 1.9 / 2.0
+- evidence provenance readability: 1.4 / 1.5
+- responsiveness: 1.9 / 2.0
+- PatientDetails visual consistency: 1.4 / 1.5
+- clinical-neutrality communication: 1.0 / 1.0
+
+**Total: 9.5 / 10**
+
+Reason score is not 10/10:
+- evidence rows remain intentionally compact rather than visually rich
+- F3 is a focused comparator, not the full practitioner cockpit; broader synthesis belongs to F4
+
+## Final certification
+
+Temporary Full Backend PR:
+- #615
+- product-equivalent base `152d39f34e76d00162f80d58da21389e843d39b2`
+- cert-only commit `6e7464e46628106d4c23b37be3eb7afc078407f8`
+- delta: `.github/workflows/ci.yml` only
+- MUST NOT MERGE
