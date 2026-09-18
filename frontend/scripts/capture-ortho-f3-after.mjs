@@ -110,6 +110,7 @@ for(const viewport of viewports){
     await waitForServer(`${BASE_URL}/ortho-f3-after.html`);
     const response=await page.goto(`${BASE_URL}/ortho-f3-after.html`,{waitUntil:'domcontentloaded',timeout:30000});
     await page.locator('[data-ortho-f3-compare]').waitFor({state:'visible',timeout:30000});
+    await page.getByText(/Variation numérique/i).waitFor({state:'visible',timeout:30000});
     const metrics=await page.evaluate(()=>{
       const text=(document.body.textContent||'').toLowerCase(); const doc=document.documentElement;
       return {
