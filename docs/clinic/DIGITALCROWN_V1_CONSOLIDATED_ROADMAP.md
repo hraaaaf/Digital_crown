@@ -165,7 +165,7 @@ Success/Proof: deterministic temporal/history behavior + no Agenda regression + 
 
 ### LOT V1-03 — Pharmacology Morocco evidence reconstruction
 
-Status: **IMPLEMENTED — EXACT-HEAD TECHNICAL CERTIFICATION GREEN; HUMAN MERGE GATE PENDING**
+Status: **CLOSED — MERGED AND POST-MERGE MASTER CERTIFIED**
 
 Working references: stale PR `#565` and divergent evidence PR `#572`; neither is merge-as-is. Clean reconstruction branch: `feat/v1-03-pharmacology-reconstruction` from certified master.
 
@@ -173,7 +173,7 @@ Current reconstruction scope: machine-verifiable inventory/mapping/projection as
 
 Exact-head candidate: `f4940771fc00adb35fc81690bd635aeb861cae40` on PR `#590`. Pharmacology Deterministic Scientific Safety Gate `35327749998` — SUCCESS with 43 targeted tests, including runtime-isolation proof; reference validator proves 170 historical + 8 addenda, 20 structural gaps, and activation=NO; medicine projection proves 68/68 clinical_activation=NO. CI `35327749969` — SUCCESS; T2 Runtime Browser Certification `35327749953` — SUCCESS; Agenda A5 Visual Evidence `35327750115` — SUCCESS; UI Human Visual Approval `35327745996` — SUCCESS. No frontend or product runtime implementation is changed by V1-03; the visual doctrine is satisfied operationally by unchanged runtime/browser certification plus the explicit audit-only isolation test, rather than fabricated pharmacology UI screenshots.
 
-Next exact: human merge authorization for PR `#590`; after merge, certify exact master CI and pharmacology/post-merge gates before closing V1-03.
+Final merge: PR `#590` merged as `667e9e15ac22c9cc982415e7b662df5f34dd6bb5`. Post-merge master certification: CI `35331628877` — SUCCESS; Cabinet Upgrade PostgreSQL Certification `35331628834` — SUCCESS on rerun attempt 2 after the first attempt was cancelled during setup-python before PostgreSQL assertions executed. V1-03 is closed. Next exact: start V1-04 Cephalometry scientific re-baseline from certified master.
 
 Goal: reconstruct only accepted Morocco pharmacology assets/tests on a clean then-current-master branch while preserving fail-closed clinical activation.
 
