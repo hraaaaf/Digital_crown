@@ -56,7 +56,7 @@ def _event(event_key, source, type_, ref_id, date, title, status, phase_hint,
     )
 
 
-def _collect_events(db: Session, patient_id: int, employer_id: int, since: Optional[datetime]) -> list:
+def _collect_events(db: Session, patient_id: int, since: Optional[datetime], employer_id: Optional[int] = None) -> list:
     events = []
 
     # 1. Appointment (status=TERMINE) — événements passés de la timeline
@@ -205,10 +205,14 @@ def _collect_events(db: Session, patient_id: int, employer_id: int, since: Optio
         ))
 
     # 10. OrthoPhaseEvent — événements factuels de cycle/phase, source de vérité F1A.
+    # employer_id reste optionnel pour préserver les appels internes historiques de
+    # _collect_events() utilisés par les tests P2. En production, build_journey()
+    # fournit toujours explicitement le tenant.
     ortho_q = db.query(models.OrthoPhaseEvent).filter(
         models.OrthoPhaseEvent.patient_id == patient_id,
-        models.OrthoPhaseEvent.employer_id == employer_id,
     )
+    if employer_id is not None:
+        ortho_q = ortho_q.filter(models.OrthoPhaseEvent.employer_id == employer_id)
     if since is not None:
         ortho_q = ortho_q.filter(models.OrthoPhaseEvent.effective_at >= since)
 
@@ -267,7 +271,7 @@ def _sort_key(event: "schemas.JourneyEventResponse"):
 def build_journey(db: Session, patient_id: int, employer_id: int, full_history: bool = False) -> schemas.PatientJourneyResponse:
     since = None if full_history else (datetime.now() - timedelta(days=WINDOW_MONTHS * 30))
 
-    events = _collect_events(db, patient_id, employer_id, since)
+    events = _collect_events(db, patient_id, since=since, employer_id=employer_id)
     events.sort(key=_sort_key)
 
     total_available = len(events)
