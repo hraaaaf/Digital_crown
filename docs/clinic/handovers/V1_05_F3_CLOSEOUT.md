@@ -1,6 +1,6 @@
 # V1-05 Ortho Journey — F3 Closeout
 
-Status: **HUMAN VISUAL VALIDATED — FINAL CERTIFICATION IN PROGRESS**
+Status: **MERGED — POST-MERGE CERTIFIED**
 
 ## Trailer
 
@@ -174,3 +174,24 @@ Temporary Full Backend PR:
 - cert-only commit `6e7464e46628106d4c23b37be3eb7afc078407f8`
 - delta: `.github/workflows/ci.yml` only
 - MUST NOT MERGE
+
+
+## Post-merge certification — FINAL
+
+Merged product SHA:
+`413af20093367e43bc3c59efbaa1ad156b668ef4`
+
+Temporary post-merge certification PR:
+- #616
+- cert HEAD: `0dc32b98255717881ebcf2046db9a05b1ad6a0cd`
+- product-equivalent base: exact merged F3 SHA above
+- MUST NOT MERGE
+- closed without merge after green certification
+
+Post-merge runs:
+- CI `35406097352` — SUCCESS
+- T2 Runtime Browser Certification `35406097313` — SUCCESS
+- Agenda A5 Visual Evidence `35406097318` — SUCCESS
+
+Conclusion:
+F3 is fully closed and F4 product implementation is authorized, subject to its own BEFORE → Goal → mockup → implementation → AFTER sequence.
