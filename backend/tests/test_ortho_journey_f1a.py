@@ -257,6 +257,50 @@ class TestOrthoJourneyF1A:
         assert {event["type"] for event in ortho_events} >= {"START", "ENTER_PHASE"}
         assert any(event["phase_hint"] == "preparation" for event in ortho_events)
 
+    def test_database_enforces_one_non_terminal_case(self, db, dentiste):
+        from sqlalchemy.exc import IntegrityError
+        from backend import models
+
+        patient = _make_patient(db, dentiste.id, "ORTHO_DB_UNIQUE")
+        first = models.OrthoCase(
+            employer_id=dentiste.id,
+            patient_id=patient.id,
+            started_at=datetime(2026, 9, 18, 9, 0, 0),
+            lifecycle_status="ACTIVE",
+            created_by=dentiste.id,
+        )
+        db.add(first)
+        db.commit()
+
+        duplicate = models.OrthoCase(
+            employer_id=dentiste.id,
+            patient_id=patient.id,
+            started_at=datetime(2026, 9, 19, 9, 0, 0),
+            lifecycle_status="INTERRUPTED",
+            created_by=dentiste.id,
+        )
+        db.add(duplicate)
+        with pytest.raises(IntegrityError):
+            db.commit()
+        db.rollback()
+
+    def test_database_rejects_invalid_lifecycle_status(self, db, dentiste):
+        from sqlalchemy.exc import IntegrityError
+        from backend import models
+
+        patient = _make_patient(db, dentiste.id, "ORTHO_DB_CHECK")
+        invalid = models.OrthoCase(
+            employer_id=dentiste.id,
+            patient_id=patient.id,
+            started_at=datetime(2026, 9, 18, 9, 0, 0),
+            lifecycle_status="IMPROVED",
+            created_by=dentiste.id,
+        )
+        db.add(invalid)
+        with pytest.raises(IntegrityError):
+            db.commit()
+        db.rollback()
+
     def test_invalid_phase_contract_is_rejected_by_schema(
         self, client, db, dentiste, auth_headers
     ):
