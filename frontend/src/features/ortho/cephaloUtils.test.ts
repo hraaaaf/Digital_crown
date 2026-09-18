@@ -40,6 +40,29 @@ describe('nasolabial angle quarantine', () => {
   });
 });
 
+describe('computeStep3Data signed overjet', () => {
+  const base = [
+    { id: 'po', x: 0, y: 0 },
+    { id: 'or', x: 100, y: 0 },
+  ] as any;
+
+  it('preserves positive and reverse overjet instead of taking an absolute value', () => {
+    const positive = computeStep3Data([
+      ...base,
+      { id: 'u1i', x: 60, y: 20 },
+      { id: 'l1i', x: 50, y: 20 },
+    ] as any, 20, 'M', 1);
+    const reverse = computeStep3Data([
+      ...base,
+      { id: 'u1i', x: 40, y: 20 },
+      { id: 'l1i', x: 50, y: 20 },
+    ] as any, 20, 'M', 1);
+
+    expect(positive.dentaire?.surplomb).toBe(10);
+    expect(reverse.dentaire?.surplomb).toBe(-10);
+  });
+});
+
 describe('computeSignedOverbite', () => {
   const po = { x: 0, y: 0 };
   const or_ = { x: 100, y: 0 };
