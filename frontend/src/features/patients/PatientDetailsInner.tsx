@@ -26,6 +26,7 @@ import { parseMotifs, findMotifById } from '../../data/motifsDictionary';
 
 import { CephaloWorkspace } from '../ortho/CephaloWorkspace';
 import { OrthoLongitudinalComparePanel } from '../ortho/OrthoLongitudinalComparePanel';
+import { OrthoCockpitPanel } from '../ortho/OrthoCockpitPanel';
 import { PanoramicStudio } from '../panoramic/PanoramicStudio';
 import { DocumentHub } from '../admin/DocumentHub';
 import { PatientDocuments } from './PatientDocuments';
@@ -365,6 +366,7 @@ export const PatientDetails = () => {
 
           {activeTab === 'tracking' && (
             <>
+              <OrthoCockpitPanel patientId={Number(id)} />
               <OrthoLongitudinalComparePanel patientId={Number(id)} />
               <PatientJourney patientId={Number(id)} />
             </>
