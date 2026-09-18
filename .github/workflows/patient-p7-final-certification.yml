@@ -15,6 +15,10 @@ on:
       - "backend/**/*odontogram*"
       - "backend/**/*imaging*"
       - "backend/**/*master_plan*"
+      - "backend/models_ortho_journey.py"
+      - "backend/services/ortho_journey_service.py"
+      - "backend/tests/test_ortho_journey_f1a.py"
+      - "alembic/versions/ojf*.py"
       - "scripts/t2_runtime_server.py"
       - "requirements.txt"
       - "frontend/package.json"
@@ -133,7 +137,8 @@ jobs:
             backend/tests/test_patient_p3_master_plan_revisions.py \
             backend/tests/test_patient_p4_imaging_trash.py \
             backend/tests/test_patient_p4_imaging_consumers.py \
-            backend/tests/test_patient_p6_financial_snapshot.py
+            backend/tests/test_patient_p6_financial_snapshot.py \
+            backend/tests/test_ortho_journey_f1a.py
 
       - name: Install frontend and Chromium
         working-directory: frontend
