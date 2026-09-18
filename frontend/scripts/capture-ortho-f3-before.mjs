@@ -117,8 +117,7 @@ for (const viewport of viewports) {
   try {
     await waitForServer(`${BASE_URL}/ortho-f3-before.html`);
     const response = await page.goto(`${BASE_URL}/ortho-f3-before.html`, { waitUntil:'domcontentloaded', timeout:30000 });
-    await page.getByText('Prochaine action').waitFor({state:'visible',timeout:30000});
-    await page.waitForTimeout(350);
+    await page.locator('[aria-label="Prochaine action factuelle"]').waitFor({state:'visible',timeout:30000});
     const metrics = await page.evaluate(() => {
       const bodyText = (document.body.textContent || '').toLowerCase();
       const doc = document.documentElement;
@@ -129,7 +128,7 @@ for (const viewport of viewports) {
         hasCompareSurface: bodyText.includes('comparaison orthodontique'),
         hasT0Visible: bodyText.includes('timepoint orthodontique t0'),
         hasT1Visible: bodyText.includes('timepoint orthodontique t1'),
-        hasJourney: bodyText.includes('prochaine action'),
+        hasJourney: Boolean(document.querySelector('[aria-label="Prochaine action factuelle"]')),
         hasRadioGroup: bodyText.includes('radios & analyses'),
       };
     });
