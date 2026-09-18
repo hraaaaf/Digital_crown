@@ -114,3 +114,48 @@ class OrthoControlOut(BaseModel):
     created_by: Optional[int] = None
     created_at: datetime.datetime
     model_config = ConfigDict(from_attributes=True)
+
+
+class OrthoTimepointCreate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    ordinal: int = Field(ge=0, le=999)
+    occurred_at: datetime.datetime
+    note: Optional[str] = None
+
+    @field_validator("note")
+    @classmethod
+    def normalize_timepoint_note(cls, value):
+        if value is None:
+            return None
+        value = value.strip()
+        return value or None
+
+
+class OrthoTimepointEvidenceCreate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    clinical_asset_id: Optional[int] = None
+    cephalo_analysis_id: Optional[int] = None
+    panoramic_analysis_id: Optional[int] = None
+
+
+class OrthoTimepointEvidenceOut(BaseModel):
+    id: int
+    clinical_asset_id: Optional[int] = None
+    cephalo_analysis_id: Optional[int] = None
+    panoramic_analysis_id: Optional[int] = None
+    created_by: Optional[int] = None
+    created_at: datetime.datetime
+    model_config = ConfigDict(from_attributes=True)
+
+
+class OrthoTimepointOut(BaseModel):
+    id: int
+    ortho_case_id: int
+    patient_id: int
+    ordinal: int
+    occurred_at: datetime.datetime
+    note: Optional[str] = None
+    created_by: Optional[int] = None
+    created_at: datetime.datetime
+    evidences: List[OrthoTimepointEvidenceOut] = Field(default_factory=list)
+    model_config = ConfigDict(from_attributes=True)
