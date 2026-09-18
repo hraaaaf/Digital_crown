@@ -231,15 +231,155 @@ Remaining scientific inventory is not promoted into invented V1 work:
 
 Next exact: certify this documentation-only closeout HEAD, re-materialize visual approval if the generic workflow invalidates it solely because of this documentation commit, then present PR #592 for explicit human merge authorization. V1-05 remains blocked until V1-04 is merged and post-merge certified.
 
-### LOT V1-05 — Orthalis current benchmark / gap decision
+### LOT V1-05 — Orthalis benchmark reconciliation + Ortho Journey
 
-Status: **BLOCKED BY V1-04**
+Status: **BLOCKED BY V1-04 POST-MERGE CERTIFICATION**
 
-Goal: refresh the Orthalis comparison from current Digital Crown evidence and current official Orthalis claims, without inheriting historical scores from closed PR `#407`.
+Goal: reconcile the historical competitive roadmap with current master and resume the already-defined **Lot F — Ortho Journey** instead of restarting a generic Orthalis benchmark from zero.
 
-Success: current feature/evidence matrix; marketing claims labeled as such; Morocco/local-first/clinical workflow relevance explicit; only high-value verified V1 blockers, if any, converted into bounded corrections inside this lot.
+Historical competitive canonical:
+- `docs/audits/COMPETITIVE_ROADMAP_POST_MEDIA.md`
+- Competitive / Media Lot C: CLOSED.
+- Patient Companion Lot D: implemented through D0/D1/D2 with final continuation handover merged.
+- Connect Hub Lot E: merged via PR #557; merge commit `7c175bdd37b2f53afb7b05fd8cf21aaf4bda2164`.
+- Therefore the next historical competitive lot is **Lot F — Ortho Journey**.
 
-Proof: current code/tests/runtime + current primary Orthalis sources + sourced matrix + tests/CI for any accepted correction + closeout.
+V1-05 principle:
+- do not duplicate Patient Journey, Patient Companion, Connect Hub, Media Core or Céphalométrie;
+- use current Orthalis claims only as an external comparison input, not as the roadmap source of truth;
+- reopen an old competitive gap only if current master proves the capability is still absent or materially insufficient;
+- preserve local/on-prem architecture, tenant isolation, provenance and fail-closed clinical behavior.
+
+#### F0 — Current-state audit + Ortho Case model
+
+Goal: map the current orthodontic, Patient Journey, Media Core, Céphalo, TreatmentPlanStep and JourneyMilestone contracts on current master and define the minimum additive Ortho Case boundary without duplication.
+
+Success:
+- exact current capability map;
+- explicit reuse boundaries;
+- no second patient timeline, no second media store, no duplicate cephalo engine;
+- additive data model only where the current schema cannot represent longitudinal orthodontic state safely.
+
+Proof:
+- code/model audit;
+- anti-duplication matrix;
+- schema/migration proof if needed;
+- exact-head CI before implementation proceeds.
+
+#### F1 — Orthodontic phases + structured controls
+
+Goal: represent orthodontic treatment longitudinally as a real clinical chronology rather than another generic patient timeline.
+
+Target flow:
+`T0 Diagnostic → Préparation → Appareillage → Alignement → Finition → Contention → Clôture`
+
+In scope:
+- treatment start date;
+- current phase + phase history;
+- structured orthodontic controls;
+- control date, phase, observations, appliance/device context, notable event, next planned step;
+- interruption/abandon/closure documented explicitly;
+- each control becomes a traceable event in the existing Patient Journey.
+
+Out of scope:
+- automatic diagnosis;
+- automatic treatment prescription;
+- rebuilding cephalometric analysis;
+- unsourced normative inference.
+
+#### F2 — T0 / T1 / T2 / Tn + certified Media Core
+
+Goal: bind each meaningful orthodontic study timepoint to canonical evidence.
+
+Each timepoint may reference:
+- panoramic imaging;
+- cephalometric analysis;
+- clinical photographs;
+- scans/impressions where an existing canonical source exists;
+- source-locked measurements;
+- dates and provenance.
+
+Rules:
+- all media remain in certified Media Core;
+- Ortho Journey stores references/relationships, not duplicate files;
+- no derived clinical conclusion without source-backed rules.
+
+#### F3 — Longitudinal Compare
+
+Goal: provide an evidence-backed comparison over time.
+
+In scope:
+- side-by-side T0/T1/T2/Tn;
+- before/after visual comparison;
+- longitudinal evolution of already-certified measurements;
+- exact date/provenance for every compared value;
+- representative examples such as `ANB: T0 → T1 → T2` only when the underlying measurement is valid and available.
+
+Safety boundary:
+- never convert a numeric change into “improvement”, “success”, severity, diagnosis or treatment recommendation unless separately source-locked and clinically reviewed.
+
+#### F4 — Ortho Cockpit
+
+Goal: give the practitioner one compact orthodontic control surface.
+
+Target summary:
+- treatment start;
+- current phase;
+- control count;
+- last control;
+- next appointment;
+- latest cephalometric study/timepoint;
+- number of progress photo series;
+- outstanding longitudinal items/events.
+
+UX rule:
+- extend/reuse existing patient/ortho navigation patterns;
+- mandatory BEFORE → written Goal → implementation → AFTER at 390×844 / 768×1024 / 1280×900 → comparison/tests → severe visual score;
+- do not create a competing Patient Journey surface.
+
+#### F5 — Scientific Superimposition (separate scientific gate)
+
+Status at V1-05 start: **NOT AUTHORIZED FOR IMPLEMENTATION WITHOUT SCIENTIFIC SOURCE-LOCK**
+
+Goal: evaluate whether a clinically defensible cephalometric superimposition method can be implemented.
+
+Required before code:
+- dedicated scientific benchmark;
+- exact method/source provenance;
+- landmark/reference stability requirements;
+- reproducibility/error analysis;
+- explicit boundary between visualization and clinical inference.
+
+Until that gate is satisfied:
+- no homemade geometric superimposition;
+- no claims of treatment success based on overlay;
+- no automatic diagnostic/treatment interpretation.
+
+#### V1-05 Success
+
+V1-05 is successful when:
+- historical competitive roadmap and current master are reconciled;
+- D/E are not rebuilt;
+- F0 establishes the exact non-duplicative architecture;
+- only evidence-backed F1–F4 gaps required for V1 are implemented;
+- any F5 scientific work remains separately gated unless fully source-locked;
+- all applicable migrations/tests/security/tenant-isolation/runtime/UI evidence are green;
+- exact-head CI, merge and post-merge certification are complete.
+
+#### V1-05 Proof
+
+Required evidence:
+- current-master anti-duplication audit;
+- competitive reconciliation against `docs/audits/COMPETITIVE_ROADMAP_POST_MEDIA.md`;
+- current primary Orthalis sources for external claims used in the comparison;
+- code + tests + behavior evidence for accepted F1–F4 changes;
+- Media Core integration proof;
+- longitudinal ordering/integrity proof;
+- mandatory visual BEFORE/AFTER evidence for UI changes;
+- severe dual review;
+- canonical closeout with exact PR/HEAD/run/artifact/digest/merge/post-merge evidence.
+
+Next exact after V1-04 post-merge certification: execute **F0 — current-state audit + Ortho Case model**, then decide which of F1–F4 are genuine V1 gaps on current master. Do not start F5 implementation without its separate scientific gate.
 
 ### LOT V1-06 — Pre-freeze repository reconciliation
 
@@ -313,7 +453,7 @@ Pending CI does not unlock the next lot. Independent work is permitted only insi
 ## 6. Current canonical state
 
 - active lot: **V1-04 — Céphalométrie scientific re-baseline / PRE-MERGE CLOSEOUT**
-- next lot: **V1-05 — BLOCKED BY V1-04**
+- next lot: **V1-05 — Orthalis benchmark reconciliation + Ortho Journey — BLOCKED BY V1-04 POST-MERGE CERTIFICATION**
 - certified lot base: `master@7454215274032898d1a50659d624a5cb32aab494`
 - base proof: **CI 35335941911 SUCCESS / PostgreSQL 35335941919 SUCCESS**
 - active branch: `feat/v1-04-cephalo-rebaseline`
