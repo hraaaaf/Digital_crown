@@ -1,6 +1,6 @@
 # V1-05 F1A — ORTHO CASE CLOSEOUT
 
-Status: **IMPLEMENTED — FINAL FULL BACKEND CERTIFICATION PENDING**
+Status: **CERTIFIED — PRE-MERGE HUMAN GATE**
 
 Repository: `hraaaaf/Digital_crown`
 PR: #596
@@ -79,14 +79,24 @@ PR #604 was closed without merge.
 Temporary certification PR #605 was then created from corrected exact product HEAD `d62ffa4977f5813a2010e99e743273b8a49c2221`.
 Its only semantic difference is the temporary CI condition forcing the generic Full backend regression job. It MUST NOT be merged.
 
-## Certification gate
+## Final certification evidence
 
-F1A becomes certifiable only when:
-1. PR #605 Full backend regression completes SUCCESS;
-2. no product changes exist between `d62ffa497...` and the certification candidate beyond the temporary CI condition;
-3. PR #605 is closed without merge;
-4. exact run/job evidence is recorded here;
-5. PR #596 remains the product PR.
+Temporary certification PR #605:
+- head: `89eda101bc4fe1fcb63b2fd5d883bb778fd00c1c`
+- exact delta vs corrected product code `d62ffa4977f5813a2010e99e743273b8a49c2221`: **1 commit, CI-only**, only `.github/workflows/ci.yml`
+- CI run: `35382007377` — SUCCESS
+- Full backend regression job: `105720133525` — SUCCESS
+- Frontend tests/build — SUCCESS
+- Prod safety negative gate — SUCCESS
+- M4-A / M4-B / M4-C evidence jobs — SUCCESS
+- PostgreSQL Alembic certification on the same certification cycle — triggered separately and required to remain green before merge
+- PR #605 closed without merge
+
+Conclusion:
+F1A product code at `d62ffa4977f5813a2010e99e743273b8a49c2221` is certified against the full backend regression suite.
+Subsequent commits on PR #596 after that code commit are documentation-only unless explicitly noted otherwise.
+
+Merge remains a human gate.
 
 ## Next after certification
 
