@@ -241,19 +241,16 @@ class OrthoTimepointEvidence(Base):
         ),
         Index(
             "uq_ortho_timepoint_evidence_asset",
-            "ortho_timepoint_id",
             "clinical_asset_id",
             unique=True,
         ),
         Index(
             "uq_ortho_timepoint_evidence_cephalo",
-            "ortho_timepoint_id",
             "cephalo_analysis_id",
             unique=True,
         ),
         Index(
             "uq_ortho_timepoint_evidence_panoramic",
-            "ortho_timepoint_id",
             "panoramic_analysis_id",
             unique=True,
         ),
