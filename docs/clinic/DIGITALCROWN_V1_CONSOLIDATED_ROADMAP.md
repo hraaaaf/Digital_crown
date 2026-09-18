@@ -90,9 +90,27 @@ Next exact: merge this canonical closeout PR after its exact-head checks/coheren
 
 ### LOT V1-01 — Agenda A4: physical resources and capacity
 
-Status: **UNLOCKED AFTER V1-00 CANONICAL CLOSEOUT MERGE**
+Status: **IMPLEMENTED — EXACT-HEAD CERTIFIED; MERGE GATE PENDING**
 
-Working reference: PR `#575` is evidence/WIP only until revalidated against the then-current master.
+Working reference: stale PR `#575` was revalidated against certified master and used only as extraction evidence; V1-01 was rebuilt on clean branch `feat/v1-01-agenda-a4-rebuild`, PR `#588`.
+
+Implementation candidate: `0354bdcba7d7c7390e96a94ec5e3f0e778cf28d0`.
+
+Verified scope: tenant-scoped physical resources; canonical nullable `Appointment.resource_id` with `ON DELETE SET NULL`; resource CRUD; deterministic capacity-1 resource conflicts wired through create/update/bulk/check-conflicts; Alembic head advanced from A3 to `a4rs0000004`; A3 certification now verifies ancestry instead of incorrectly requiring A3 to remain the terminal head. No product frontend/UI files were changed.
+
+Exact-head proof:
+- CI `35316680604` — SUCCESS.
+- PostgreSQL Alembic Schema Certification `35316680541` — SUCCESS.
+- Agenda A3 Certification `35316680555` — SUCCESS.
+- T2 Runtime Browser Certification `35316680538` — SUCCESS.
+- Portability Runtime Certification `35316680511` — SUCCESS.
+- Settings TemplateEngine Reachability `35316680524` — SUCCESS.
+- Settings R11 TemplateBuilder Dependency `35316680605` — SUCCESS.
+- Settings R11 TemplateBuilder Reachability `35316680465` — SUCCESS.
+- UI Human Visual Approval `35316678700` — SUCCESS; no V1-01 product UI delta.
+- M6-I `35316680502` — SKIPPED by workflow conditions.
+
+Next exact: human merge authorization for PR `#588`; after merge, certify exact master CI/PostgreSQL before unlocking V1-02.
 
 Goal: complete Agenda physical-resource scheduling.
 
