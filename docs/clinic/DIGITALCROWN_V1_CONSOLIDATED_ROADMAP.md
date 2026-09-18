@@ -120,7 +120,24 @@ Proof: current-master reconciliation + PostgreSQL migration rehearsal from scrat
 
 ### LOT V1-02 — Agenda A5: temporal/history finalization
 
-Status: **ACTIVE — CLEAN REBUILD FROM POST-A4 MASTER**
+Status: **IMPLEMENTED — EXACT-HEAD CERTIFIED; MERGE GATE PENDING**
+
+Candidate: PR `#589`, exact product/test HEAD `282781f8a978ad086899326df25afb3abb9b442b`.
+
+Verified scope: appointment history uses soft-delete markers (`deleted_at`, `deleted_by`) instead of destructive deletion; deleted appointments are excluded from active agenda reads and practitioner/resource capacity checks; cabinet wall-clock normalization remains explicit; Alembic advances coherently to `a5th0000005`; A4 bulk creation now persists the already-validated `resource_id`. No product frontend/UI files changed.
+
+Exact-head proof:
+- CI `35317837168` — SUCCESS.
+- PostgreSQL Alembic Schema Certification `35317837149` — SUCCESS.
+- Agenda A3 Certification `35317837110` — SUCCESS.
+- T2 Runtime Browser Certification `35317837156` — SUCCESS.
+- Settings TemplateEngine Reachability `35317837232` — SUCCESS.
+- Settings R11 TemplateBuilder Reachability `35317837090` — SUCCESS.
+- Settings R11 TemplateBuilder Dependency `35317837089` — SUCCESS.
+- UI Human Visual Approval `35317834933` — SUCCESS; no V1-02 product UI delta.
+- M6-I `35317837179` — SKIPPED by workflow conditions.
+
+Next exact: human merge authorization for PR `#589`; after merge, certify exact master CI/PostgreSQL before unlocking V1-03.
 
 Goal: finish Agenda V1 hardening.
 
