@@ -48,9 +48,13 @@ jobs:
       - name: Capture exact F3 BEFORE
         run: |
           cd /tmp/dc-f3-before/frontend
+          set +e
           PRODUCT_HEAD="$F3_BASE_SHA" node "$GITHUB_WORKSPACE/frontend/scripts/capture-ortho-f3-before.mjs"
+          capture_status=$?
+          set -e
           rm -rf "$GITHUB_WORKSPACE/frontend/ortho-f3-before-artifacts"
           cp -R ortho-f3-before-artifacts "$GITHUB_WORKSPACE/frontend/"
+          exit "$capture_status"
       - name: Verify BEFORE contract
         working-directory: frontend
         run: |
