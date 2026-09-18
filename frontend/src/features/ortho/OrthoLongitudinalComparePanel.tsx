@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import { useSearchParams } from 'react-router-dom';
 import { ArrowLeftRight, FileImage, ScanLine, Waypoints } from 'lucide-react';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
@@ -30,28 +31,32 @@ const signed = (value: number, unit: string) => {
 const valueLabel = (value: number, unit: string) =>
   `${value.toLocaleString('fr-FR', { maximumFractionDigits: 2 })} ${unit}`;
 
-const EvidenceLane = ({ items }: { items: OrthoCompareEvidence[] }) => (
+const EvidenceLane = ({ items, onOpen }: { items: OrthoCompareEvidence[]; onOpen: (item: OrthoCompareEvidence) => void }) => (
   <div className="space-y-2">
     {items.length === 0 ? (
       <p className="text-xs font-bold text-text-muted">Aucune preuve liée</p>
     ) : (
       items.map((item) => (
-        <div
+        <button
+          type="button"
           key={`${item.kind}:${item.ref_id}`}
-          className="flex items-center justify-between gap-3 rounded-xl border border-border-main bg-white/60 px-3 py-2"
+          onClick={() => onOpen(item)}
+          className="flex w-full items-center justify-between gap-3 rounded-xl border border-border-main bg-white/60 px-3 py-2 text-left transition-colors hover:bg-white"
+          aria-label={`Ouvrir la source ${item.label} #${item.ref_id}`}
         >
           <div className="flex min-w-0 items-center gap-2 text-slate-700">
             <span className="shrink-0 text-primary">{evidenceIcon(item.kind)}</span>
             <span className="truncate text-xs font-black">{item.label}</span>
           </div>
           <span className="shrink-0 font-mono text-[10px] font-bold text-text-muted">#{item.ref_id}</span>
-        </div>
+        </button>
       ))
     )}
   </div>
 );
 
 export const OrthoLongitudinalComparePanel = ({ patientId }: Props) => {
+  const [, setSearchParams] = useSearchParams();
   const [fromOrdinal, setFromOrdinal] = useState<number | null>(null);
   const [toOrdinal, setToOrdinal] = useState<number | null>(null);
 
@@ -105,6 +110,17 @@ export const OrthoLongitudinalComparePanel = ({ patientId }: Props) => {
   }
 
   const comparison = comparisonQuery.data;
+
+  const openEvidence = (item: OrthoCompareEvidence) => {
+    const radioTab =
+      item.kind === 'CEPHALO'
+        ? 'cephalo'
+        : item.kind === 'PANORAMIC'
+          ? 'panoramic'
+          : 'media';
+    setSearchParams({ tab: 'radiology', radioTab });
+  };
+
   const swap = () => {
     if (fromOrdinal === null || toOrdinal === null) return;
     setFromOrdinal(toOrdinal);
@@ -172,7 +188,7 @@ export const OrthoLongitudinalComparePanel = ({ patientId }: Props) => {
                     {format(new Date(tp.occurred_at), 'd MMM yyyy', { locale: fr })}
                   </div>
                 </div>
-                <EvidenceLane items={tp.evidences} />
+                <EvidenceLane items={tp.evidences} onOpen={openEvidence} />
               </div>
             ))}
           </div>
