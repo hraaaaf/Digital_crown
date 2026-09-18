@@ -18,6 +18,20 @@ Until `V1_OPERATIONAL` is explicitly recorded here:
 - no Vercel deployment is authorized;
 - no real cabinet/production mutation is authorized before the final cabinet-update lot and explicit human authorization.
 
+## 1A. Mandatory visual merge evidence
+
+Before confirming that any product PR is ready to merge, visual proof is mandatory even when the implementation is backend-only or claims no UI delta.
+
+Required sequence: **BEFORE → written visual Goal → implementation → AFTER at the same viewports → side-by-side comparison → visual tests → severe visual score → human review before merge authorization**.
+
+Canonical viewports unless a lot proves another surface is more appropriate: **390×844 / 768×1024 / 1280×900**.
+
+The BEFORE and AFTER captures must represent the actual impacted user workflow/screen, use deterministic fixtures/state when practical, and be retained as CI artifacts or another reproducible evidence source. A generic “UI Human Visual Approval” status alone is insufficient: the closeout must identify the BEFORE and AFTER artifact/run and the captures must be inspectable before merge confirmation.
+
+For backend-only changes, capture the nearest product workflow whose behavior depends on that backend contract. If no user-visible workflow exists, document why and capture an appropriate operational/runtime evidence surface instead; never waive evidence merely because no frontend file changed.
+
+No lot may be presented as **merge-ready** until this visual evidence is available and reviewed.
+
 ## 2. Global Goal / Success / Proof
 
 **Goal:** produce the first operational V1 cabinet release from canonical V0 while preserving real cabinet data, historical integrity and rollback capability.
@@ -120,7 +134,7 @@ Proof: current-master reconciliation + PostgreSQL migration rehearsal from scrat
 
 ### LOT V1-02 — Agenda A5: temporal/history finalization
 
-Status: **IMPLEMENTED — EXACT-HEAD CERTIFIED; MERGE GATE PENDING**
+Status: **IMPLEMENTED — TECHNICAL EXACT-HEAD GREEN; VISUAL MERGE EVIDENCE PENDING**
 
 Candidate: PR `#589`, exact product/test HEAD `282781f8a978ad086899326df25afb3abb9b442b`.
 
@@ -137,7 +151,7 @@ Exact-head proof:
 - UI Human Visual Approval `35317834933` — SUCCESS; no V1-02 product UI delta.
 - M6-I `35317837179` — SKIPPED by workflow conditions.
 
-Next exact: human merge authorization for PR `#589`; after merge, certify exact master CI/PostgreSQL before unlocking V1-03.
+Next exact: produce and inspect mandatory deterministic BEFORE/AFTER captures for the impacted Agenda workflow at 390×844 / 768×1024 / 1280×900, record a severe visual score, then request the human merge authorization for PR `#589`; after merge, certify exact master CI/PostgreSQL before unlocking V1-03.
 
 Goal: finish Agenda V1 hardening.
 
