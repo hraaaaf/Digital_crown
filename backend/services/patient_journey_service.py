@@ -1,7 +1,7 @@
 """
 Treatment Journey — agrégation en lecture seule du parcours patient.
 
-Fusionne 11 sources indépendantes (Appointment, TreatmentPlanStep, DocumentArchive,
+Fusionne 12 sources indépendantes (Appointment, TreatmentPlanStep, DocumentArchive,
 PanoramicAnalysis, CephaloAnalysis, Payment, Installment, LabJob, JourneyMilestone,
 OrthoPhaseEvent) en un
 flux chronologique unique, sans jamais dupliquer la donnée : chaque table source reste la
@@ -262,6 +262,28 @@ def _collect_events(db: Session, patient_id: int, since: Optional[datetime], emp
             title,
             "ENREGISTRE",
             (control.phase_key or "controle").lower(),
+            schemas.NavigationTarget.INLINE,
+        ))
+
+    # 12. OrthoTimepoint — repère longitudinal factuel T0..T999, sans inférence.
+    timepoint_q = db.query(models.OrthoTimepoint).filter(
+        models.OrthoTimepoint.patient_id == patient_id,
+    )
+    if employer_id is not None:
+        timepoint_q = timepoint_q.filter(models.OrthoTimepoint.employer_id == employer_id)
+    if since is not None:
+        timepoint_q = timepoint_q.filter(models.OrthoTimepoint.occurred_at >= since)
+
+    for tp in timepoint_q.all():
+        events.append(_event(
+            f"ortho_timepoint:{tp.id}",
+            "ortho_timepoint",
+            f"T{tp.ordinal}",
+            tp.id,
+            tp.occurred_at,
+            f"Timepoint orthodontique T{tp.ordinal}",
+            "ENREGISTRE",
+            "ortho",
             schemas.NavigationTarget.INLINE,
         ))
 
