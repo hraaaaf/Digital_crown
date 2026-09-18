@@ -182,3 +182,103 @@ class OrthoControl(Base):
 
     ortho_case: Mapped[OrthoCase] = relationship()
     appointment = relationship("Appointment", foreign_keys=[appointment_id])
+
+
+class OrthoTimepoint(Base):
+    """Orthodontic longitudinal grouping key (T0..T999), not a clinical inference."""
+
+    __tablename__ = "ortho_timepoints"
+    __table_args__ = (
+        CheckConstraint("ordinal >= 0 AND ordinal <= 999", name="ck_ortho_timepoints_ordinal"),
+        Index(
+            "uq_ortho_timepoints_case_ordinal",
+            "ortho_case_id",
+            "ordinal",
+            unique=True,
+        ),
+        Index(
+            "ix_ortho_timepoints_employer_patient_occurred",
+            "employer_id",
+            "patient_id",
+            "occurred_at",
+        ),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    ortho_case_id: Mapped[int] = mapped_column(
+        ForeignKey("ortho_cases.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    employer_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False, index=True)
+    patient_id: Mapped[int] = mapped_column(
+        ForeignKey("patients.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    ordinal: Mapped[int] = mapped_column(Integer, nullable=False)
+    occurred_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, index=True)
+    note: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    created_by: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=func.now(), nullable=False)
+
+    evidences = relationship(
+        "OrthoTimepointEvidence",
+        back_populates="timepoint",
+        cascade="all, delete-orphan",
+        order_by="OrthoTimepointEvidence.id",
+    )
+
+
+class OrthoTimepointEvidence(Base):
+    """Reference-only link to one canonical evidence row. No data duplication."""
+
+    __tablename__ = "ortho_timepoint_evidences"
+    __table_args__ = (
+        CheckConstraint(
+            "(CASE WHEN clinical_asset_id IS NOT NULL THEN 1 ELSE 0 END + "
+            "CASE WHEN cephalo_analysis_id IS NOT NULL THEN 1 ELSE 0 END + "
+            "CASE WHEN panoramic_analysis_id IS NOT NULL THEN 1 ELSE 0 END) = 1",
+            name="ck_ortho_timepoint_evidence_exactly_one_source",
+        ),
+        Index(
+            "uq_ortho_timepoint_evidence_asset",
+            "ortho_timepoint_id",
+            "clinical_asset_id",
+            unique=True,
+        ),
+        Index(
+            "uq_ortho_timepoint_evidence_cephalo",
+            "ortho_timepoint_id",
+            "cephalo_analysis_id",
+            unique=True,
+        ),
+        Index(
+            "uq_ortho_timepoint_evidence_panoramic",
+            "ortho_timepoint_id",
+            "panoramic_analysis_id",
+            unique=True,
+        ),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    ortho_timepoint_id: Mapped[int] = mapped_column(
+        ForeignKey("ortho_timepoints.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    employer_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False, index=True)
+    patient_id: Mapped[int] = mapped_column(
+        ForeignKey("patients.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    clinical_asset_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("clinical_assets.id"), nullable=True, index=True
+    )
+    cephalo_analysis_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("cephalo_analyses.id"), nullable=True, index=True
+    )
+    panoramic_analysis_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("panoramic_analyses.id"), nullable=True, index=True
+    )
+    created_by: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=func.now(), nullable=False)
+
+    timepoint: Mapped[OrthoTimepoint] = relationship(back_populates="evidences")
