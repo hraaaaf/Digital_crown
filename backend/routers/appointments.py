@@ -14,6 +14,7 @@ from backend.services.agenda_availability import (
     get_practitioner_day_availability,
     validate_appointment_availability,
 )
+from backend.services.agenda_resource_conflicts import assert_resource_available, find_resource_conflict, validate_assignable_resource
 
 router = APIRouter(tags=["Appointments"])
 
@@ -157,6 +158,7 @@ def create_appointment(
 
     employer_id = current_user.get_employer_id()
     practitioner_id = _resolve_practitioner_id(db, employer_id, current_user, appt.praticien_id)
+    validate_assignable_resource(db, employer_id, appt.resource_id)
     normalized_start = _naive_datetime(appt.datetime_start)
     availability_error = validate_appointment_availability(
         db,
@@ -179,6 +181,7 @@ def create_appointment(
         )
         if conflicts:
             raise HTTPException(status_code=409, detail=_conflict_detail(conflicts))
+        assert_resource_available(db, employer_id=employer_id, resource_id=appt.resource_id, datetime_start=normalized_start, duration_minutes=appt.duration_minutes)
 
     appt_data = appt.model_dump()
     appt_data["datetime_start"] = normalized_start
@@ -224,7 +227,10 @@ def update_appointment(
             raise HTTPException(status_code=422, detail="praticien_id ne peut pas être supprimé d'un rendez-vous existant")
         _validate_practitioner(db, employer_id, update_data["praticien_id"])
 
-    if any(key in update_data for key in ("datetime_start", "duration_minutes", "scheduling_type", "praticien_id")):
+    if "resource_id" in update_data:
+        validate_assignable_resource(db, employer_id, update_data["resource_id"])
+
+    if any(key in update_data for key in ("datetime_start", "duration_minutes", "scheduling_type", "praticien_id", "resource_id")):
         effective_start = _naive_datetime(update_data.get("datetime_start", db_appt.datetime_start))
         effective_duration = update_data.get("duration_minutes", db_appt.duration_minutes)
         effective_type = update_data.get("scheduling_type", db_appt.scheduling_type)
@@ -251,6 +257,7 @@ def update_appointment(
             )
             if conflicts:
                 raise HTTPException(status_code=409, detail=_conflict_detail(conflicts))
+            assert_resource_available(db, employer_id=employer_id, resource_id=update_data.get("resource_id", db_appt.resource_id), datetime_start=effective_start, duration_minutes=effective_duration, exclude_appointment_id=id)
 
         if "datetime_start" in update_data and update_data["datetime_start"] is not None:
             update_data["datetime_start"] = effective_start
@@ -311,6 +318,7 @@ def create_bulk_appointments(
         if item.patient_id:
             assert_patient_access(item.patient_id, current_user, db)
         practitioner_id = _resolve_practitioner_id(db, employer_id, current_user, item.praticien_id)
+        validate_assignable_resource(db, employer_id, item.resource_id)
         normalized_start = _naive_datetime(item.datetime_start)
         availability_error = validate_appointment_availability(
             db,
@@ -332,6 +340,7 @@ def create_bulk_appointments(
             )
             if conflicts:
                 raise HTTPException(status_code=409, detail=_conflict_detail(conflicts))
+            assert_resource_available(db, employer_id=employer_id, resource_id=item.resource_id, datetime_start=normalized_start, duration_minutes=item.duration_minutes)
             for previous_index, previous in enumerate(prepared):
                 if (
                     _is_exact_time(previous["item"].scheduling_type)
@@ -351,6 +360,9 @@ def create_bulk_appointments(
                             "praticien_id": practitioner_id,
                         },
                     )
+            for previous_index, previous in enumerate(prepared):
+                if item.resource_id is not None and previous["item"].resource_id == item.resource_id and _is_exact_time(previous["item"].scheduling_type) and _appointments_overlap(previous["datetime_start"], previous["item"].duration_minutes, normalized_start, item.duration_minutes):
+                    raise HTTPException(status_code=409, detail={"message": "Conflit de ressource interne au lot", "indexes": [previous_index, index], "resource_id": item.resource_id})
         prepared.append({"item": item, "praticien_id": practitioner_id, "datetime_start": normalized_start})
 
     created_appts = []
@@ -438,6 +450,7 @@ def check_conflicts(
     datetime_start: str = Query(...),
     duration_minutes: int = Query(30),
     praticien_id: Optional[int] = Query(None),
+    resource_id: Optional[int] = Query(None),
     exclude_id: Optional[int] = Query(None),
     db: Session = Depends(database.get_db),
     current_user: models.User = Depends(require_permission("agenda")),
@@ -459,8 +472,12 @@ def check_conflicts(
     if availability_error:
         raise HTTPException(status_code=422, detail=availability_error)
     conflicts = _find_conflicts(db, employer_id, practitioner_id, dt, duration_minutes, exclude_id)
+    validate_assignable_resource(db, employer_id, resource_id)
+    resource_conflict = find_resource_conflict(db, employer_id=employer_id, resource_id=resource_id, datetime_start=dt, duration_minutes=duration_minutes, exclude_appointment_id=exclude_id)
     return {
-        "has_conflict": bool(conflicts),
+        "has_conflict": bool(conflicts) or resource_conflict is not None,
+        "resource_id": resource_id,
+        "resource_conflict_id": resource_conflict.id if resource_conflict is not None else None,
         "praticien_id": practitioner_id,
         "conflicts": [
             {

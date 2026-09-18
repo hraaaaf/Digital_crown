@@ -244,6 +244,18 @@ class Patient(Base):
     documents: Mapped[List["DocumentArchive"]] = relationship("DocumentArchive", back_populates="patient", cascade="all, delete-orphan")
     appointments: Mapped[List["Appointment"]] = relationship(back_populates="patient", cascade="all, delete-orphan")
 
+class AgendaResource(Base):
+    __tablename__ = "agenda_resources"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    employer_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    name: Mapped[str] = mapped_column(String(120), nullable=False)
+    resource_type: Mapped[str] = mapped_column(String(20), nullable=False, default="CHAIR")
+    is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=func.now(), nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=func.now(), onupdate=func.now(), nullable=False)
+    __table_args__ = (UniqueConstraint("employer_id", "name", name="uq_agenda_resources_tenant_name"), Index("ix_agenda_resources_tenant_active", "employer_id", "is_active"))
+
+
 class Appointment(Base):
     __tablename__ = "appointments"
     
@@ -266,6 +278,7 @@ class Appointment(Base):
     
     # Multi-tenant
     employer_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    resource_id: Mapped[Optional[int]] = mapped_column(ForeignKey("agenda_resources.id", ondelete="SET NULL"), nullable=True, index=True)
     
     created_at: Mapped[datetime] = mapped_column(DateTime, default=func.now())
 
