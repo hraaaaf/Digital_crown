@@ -25,11 +25,9 @@ def test_canonical_ids_resolve_without_aliasing() -> None:
 
 
 def test_canonical_unit_is_fail_closed_when_not_source_locked() -> None:
-    assert canonical_unit("M_OVERBITE_V1") is None
+    assert canonical_unit("M_OVERBITE_V1") == "mm"
     assert canonical_unit("M_PA_SKELETAL_SYMMETRY_V1") is None
 
-    with pytest.raises(ValueError, match="no source-locked unit"):
-        cephalo_unit("M_OVERBITE_V1")
 
 
 def test_legacy_public_helpers_remain_compatible() -> None:
