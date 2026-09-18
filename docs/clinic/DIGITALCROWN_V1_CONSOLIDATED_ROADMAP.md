@@ -188,6 +188,8 @@ Exact-head candidate: `f4940771fc00adb35fc81690bd635aeb861cae40` on PR `#590`. P
 
 Final merge: PR `#590` merged as `667e9e15ac22c9cc982415e7b662df5f34dd6bb5`. Post-merge master certification: CI `35331628877` — SUCCESS; Cabinet Upgrade PostgreSQL Certification `35331628834` — SUCCESS on rerun attempt 2 after the first attempt was cancelled during setup-python before PostgreSQL assertions executed. V1-03 is closed. Next exact: start V1-04 Cephalometry scientific re-baseline from certified master.
 
+Residual Core-5 closeout on 18 September 2026: PR `#594` merged as `2304003a4757ed8442f0b3f2ec121aa3dce6dac2` after exact-head Pharmacology gate `35358582607` SUCCESS, CI `35358582688` SUCCESS, T2 `35358582593` SUCCESS, Agenda A5 Visual Evidence `35358582692` SUCCESS and UI Human Visual Approval `35358579137` SUCCESS. Adversarial scientific pre-review `35359075923` completed SUCCESS with decision `approve_for_human_review_with_reservations`, zero blocking findings, and explicit `clinical_activation_authorized=false`. The five Core-5 medicines remain fail-closed (`clinical_activation=NO`); exact Morocco product/form/strength/presentation closure is not a V1 merge blocker while activation stays disabled. Stale PRs `#565` and `#572` were closed without merge after evidence extraction. This residual package does not reopen V1-03 and does not authorize automatic prescribing.
+
 Goal: reconstruct only accepted Morocco pharmacology assets/tests on a clean then-current-master branch while preserving fail-closed clinical activation.
 
 Rules:

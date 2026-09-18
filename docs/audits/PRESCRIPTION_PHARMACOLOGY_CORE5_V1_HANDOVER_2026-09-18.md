@@ -1,6 +1,6 @@
 # Digital Crown — Ordonnance Core-5 V1 Handover — 2026-09-18
 
-Status: TECHNICALLY_FAIL_CLOSED / QUALIFIED_HUMAN_REVIEW_REQUIRED
+Status: CLOSED_AS_FAIL_CLOSED_EVIDENCE_PACKAGE / NO_CLINICAL_ACTIVATION
 
 ## Goal
 Close the residual Core-5 pharmacology evidence gap on top of the certified V1-03 audit-only reconstruction without reintroducing stale #565 history or authorizing prescribing automation.
@@ -8,10 +8,11 @@ Close the residual Core-5 pharmacology evidence gap on top of the certified V1-0
 ## Base
 - repository: hraaaaf/Digital_crown
 - base master: d6ba162f14545be521279c2dd38226161633287a
-- branch: feat/v1-ordonnance-core5-certification
-- PR: #594 DRAFT
-- stale source PR #565: evidence source only; never merge as-is
-- divergent audit PR #572: evidence source only; never merge as-is
+- merged branch: feat/v1-ordonnance-core5-certification
+- PR #594: MERGED
+- merge SHA: 2304003a4757ed8442f0b3f2ec121aa3dce6dac2
+- stale source PR #565: CLOSED WITHOUT MERGE
+- divergent audit PR #572: CLOSED WITHOUT MERGE
 
 ## Core-5 scope
 - MED-PAIN-001 — paracetamol
@@ -35,16 +36,27 @@ Safety evidence was rechecked on 2026-09-18 against current public authoritative
 The direct AMMPS observations from 2026-09-17 are retained as historical primary-source capture. Public search on 2026-09-18 did not independently reproduce every exact presentation-level AMMPS record, so no fresh exact-product regulatory closure is claimed.
 
 ## Deterministic proof
-Pharmacology Deterministic Scientific Safety Gate run 35358243923 completed SUCCESS on candidate HEAD 82e95c16af89841af52b4c1bdf3ba43dd2b95e7f:
+Final PR exact-head proof on `689e6c7af7a548ca25f008887b7ce95b8af73eda`:
+- Pharmacology Deterministic Scientific Safety Gate `35358582607`: SUCCESS
+- CI `35358582688`: SUCCESS
+- T2 Runtime Browser Certification `35358582593`: SUCCESS
+- Agenda A5 Visual Evidence `35358582692`: SUCCESS
+- UI Human Visual Approval `35358579137`: SUCCESS
+
+The earlier candidate gate `35358243923` also completed SUCCESS and established:
 - targeted pharmacology documentary tests: SUCCESS
 - reconstructed reference validator: SUCCESS
 - deterministic medicine gap audit: SUCCESS
 - deterministic scientific safety oracle: SUCCESS
 
-The temporary branch push trigger used to materialize the gate was removed afterward. Final exact-HEAD recertification is therefore required on the final PR head before technical closeout.
+The temporary branch push trigger used during development was removed before merge. Final exact-head recertification is complete.
 
-## Human gate
-A qualified independent dentist/pharmacist/clinical reviewer must review the five medicines using:
+## Scientific pre-review and activation boundary
+Automated adversarial scientific pre-review run `35359075923` completed SUCCESS on immutable target `689e6c7...` with decision `approve_for_human_review_with_reservations`, 0 blocking findings, `clinical_activation_authorized=false`, and `human_clinical_review_required=true`.
+
+Product-owner decision on 2026-09-18: exact Morocco product/form/strength/presentation closure and qualified human review are not required to merge this documentation/evidence package because all five medicines remain fail-closed. They remain required before any future clinical activation is considered.
+
+If future activation is requested, a qualified independent dentist/pharmacist/clinical reviewer must review the five medicines using:
 1. PRESCRIPTION_PHARMACOLOGY_MOROCCO_MEDICINE_CURRENT_STATUS_PROJECTION_V1_2026-09-17.csv
 2. PRESCRIPTION_PHARMACOLOGY_CORE5_MOROCCO_REGULATORY_PASS_2026-09-17.md
 3. PRESCRIPTION_PHARMACOLOGY_CORE5_SAFETY_EVIDENCE_INDEX_2026-09-17.csv
@@ -61,12 +73,10 @@ The qualified review must explicitly decide each required dimension for each med
 - do not restore historical dosing data as an automatic prescribing source;
 - do not merge #565 or #572 wholesale.
 
+## Closeout
+The residual Core-5 evidence package is merged and closed as fail-closed documentation. No medicine is clinically activated by this work.
+
 ## Next exact
-1. obtain final exact-HEAD deterministic pharmacology gate on the final PR head;
-2. record that technical proof here if green;
-3. execute qualified independent clinical/scientific review using the review form;
-4. correct and re-review any failed dimension;
-5. only if qualified review clears a medicine, create a separate technical activation change with deterministic negative tests and exact-HEAD CI;
-6. merge/closeout only within the canonical V1 roadmap rules.
+No Core-5 action is required for the current V1 path while `clinical_activation=NO` remains unchanged. If future activation is requested, reopen a separate activation lot beginning with qualified clinical/scientific review, exact Morocco product/form/strength/presentation closure where relevant, deterministic negative tests, and exact-head CI.
 
 No clinical activation is authorized by this handover.
