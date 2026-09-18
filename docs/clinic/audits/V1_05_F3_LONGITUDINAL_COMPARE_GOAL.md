@@ -76,3 +76,8 @@ Patient Overview / Vue d’ensemble:
 - automatic treatment recommendation
 - cephalometric superimposition
 - F4 full orthodontic cockpit
+
+
+## Visual evidence baseline
+
+BEFORE harness baseline: exact merged F2 `35ccdf5ad73b403279e129c7affe2d9364c6d4cc`.
