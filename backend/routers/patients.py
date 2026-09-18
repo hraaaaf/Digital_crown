@@ -570,6 +570,18 @@ _MILESTONE_PHYSICIAN_ONLY = {
 }
 
 
+def _assert_ortho_mutation_authorized(current_user: models.User) -> None:
+    """F1A mutations are practitioner/admin actions; patient permission alone is read-only."""
+    if is_superadmin_user(current_user):
+        return
+    role_value = current_user.role.value if hasattr(current_user.role, "value") else current_user.role
+    if role_value not in ("DENTISTE", "ADMIN"):
+        raise HTTPException(
+            status_code=403,
+            detail="Seul un dentiste/admin peut modifier le parcours orthodontique.",
+        )
+
+
 def _assert_milestone_authorized(milestone_type: schemas.MilestoneType, current_user: models.User):
     """Matrice de permissions par type de jalon — DIAGNOSTIC/CONTROLE/CLOTURE réservés au
     dentiste/admin ; DEVIS_VALIDE autorisé aussi aux sous-comptes avec la permission accounting.
@@ -599,7 +611,7 @@ def get_patient_journey(
     db: Session = Depends(database.get_db),
     current_user: models.User = Depends(require_permission("patients")),
 ):
-    """Fil chronologique du parcours patient — agrège 9 sources en lecture seule."""
+    """Fil chronologique du parcours patient — agrège 10 sources en lecture seule."""
     assert_patient_access(patient_id, current_user, db)
     from backend.services import patient_journey_service
     return patient_journey_service.build_journey(db, patient_id, current_user.get_employer_id(), full_history)
@@ -679,6 +691,109 @@ def delete_patient_journey_milestone(
         ),
     )
     return {"status": "deleted", "id": milestone_id}
+
+
+# --- ORTHO JOURNEY F1A ---
+
+@router.get("/{patient_id}/ortho-case", response_model=Optional[schemas.OrthoCaseOut])
+def get_patient_ortho_case(
+    patient_id: int,
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(require_permission("patients")),
+):
+    assert_patient_access(patient_id, current_user, db)
+    from backend.services import ortho_journey_service
+
+    return ortho_journey_service.get_ortho_case(
+        db,
+        patient_id,
+        current_user.get_employer_id(),
+    )
+
+
+@router.post(
+    "/{patient_id}/ortho-case",
+    response_model=schemas.OrthoCaseOut,
+    status_code=status.HTTP_201_CREATED,
+)
+def create_patient_ortho_case(
+    patient_id: int,
+    payload: schemas.OrthoCaseCreate,
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(require_permission("patients")),
+):
+    assert_patient_access(patient_id, current_user, db)
+    _assert_ortho_mutation_authorized(current_user)
+
+    from backend.services import ortho_journey_service
+    from backend.services.audit_service import audit_service
+
+    result = ortho_journey_service.create_ortho_case(
+        db=db,
+        patient_id=patient_id,
+        employer_id=current_user.get_employer_id(),
+        created_by=current_user.id,
+        started_at=payload.started_at,
+        initial_phase_key=payload.initial_phase_key.value if payload.initial_phase_key else None,
+    )
+    audit_service.log(
+        db=db,
+        user_id=current_user.id,
+        employer_id=current_user.get_employer_id(),
+        action="CREATE",
+        resource_type="OrthoCase",
+        resource_id=str(result.id),
+        details=(
+            f"patient_id={patient_id} started_at={payload.started_at.isoformat()} "
+            f"initial_phase={payload.initial_phase_key.value if payload.initial_phase_key else None}"
+        ),
+    )
+    return result
+
+
+@router.post(
+    "/{patient_id}/ortho-case/{case_id}/transitions",
+    response_model=schemas.OrthoCaseOut,
+)
+def transition_patient_ortho_case(
+    patient_id: int,
+    case_id: int,
+    payload: schemas.OrthoTransitionCreate,
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(require_permission("patients")),
+):
+    assert_patient_access(patient_id, current_user, db)
+    _assert_ortho_mutation_authorized(current_user)
+
+    from backend.services import ortho_journey_service
+    from backend.services.audit_service import audit_service
+
+    result = ortho_journey_service.transition_ortho_case(
+        db=db,
+        patient_id=patient_id,
+        case_id=case_id,
+        employer_id=current_user.get_employer_id(),
+        created_by=current_user.id,
+        event_type=payload.event_type.value,
+        effective_at=payload.effective_at,
+        phase_key=payload.phase_key.value if payload.phase_key else None,
+        note=payload.note,
+    )
+    audit_service.log(
+        db=db,
+        user_id=current_user.id,
+        employer_id=current_user.get_employer_id(),
+        action="UPDATE",
+        resource_type="OrthoCase",
+        resource_id=str(case_id),
+        details=(
+            f"patient_id={patient_id} event_type={payload.event_type.value} "
+            f"effective_at={payload.effective_at.isoformat()} "
+            f"phase={payload.phase_key.value if payload.phase_key else None} "
+            f"note_present={bool(payload.note)} note_length={len(payload.note) if payload.note else 0}"
+        ),
+    )
+    return result
 
 
 @router.put("/{patient_id}", response_model=schemas.PatientOut)
