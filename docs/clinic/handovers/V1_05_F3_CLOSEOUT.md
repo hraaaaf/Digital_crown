@@ -1,6 +1,6 @@
 # V1-05 Ortho Journey — F3 Closeout
 
-Status: **HUMAN VISUAL VALIDATED — FINAL CERTIFICATION IN PROGRESS**
+Status: **MERGED — POST-MERGE CERTIFICATION IN PROGRESS**
 
 ## Trailer
 
@@ -174,3 +174,27 @@ Temporary Full Backend PR:
 - cert-only commit `6e7464e46628106d4c23b37be3eb7afc078407f8`
 - delta: `.github/workflows/ci.yml` only
 - MUST NOT MERGE
+
+
+## Merge
+
+Product PR:
+- #613 — MERGED
+- merge SHA: `413af20093367e43bc3c59efbaa1ad156b668ef4`
+
+Final human-validated product candidate:
+- `152d39f34e76d00162f80d58da21389e843d39b2`
+
+Docs-only commits were added above the validated product candidate before merge.
+
+## Post-merge certification
+
+Temporary certification PR:
+- #616
+- exact merged base: `413af20093367e43bc3c59efbaa1ad156b668ef4`
+- cert-only commit: `0dc32b98255717881ebcf2046db9a05b1ad6a0cd`
+- delta must remain `.github/workflows/ci.yml` only
+- MUST NOT MERGE
+
+Status:
+- in progress
