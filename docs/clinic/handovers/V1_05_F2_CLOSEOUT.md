@@ -1,6 +1,6 @@
 # V1-05 Ortho Journey — F2 Closeout
 
-Status: **PRE-MERGE CERTIFICATION IN PROGRESS**
+Status: **POST-MERGE CERTIFIED**
 
 ## Trailer
 
@@ -74,3 +74,23 @@ Do not merge #610 until the Full backend job above is SUCCESS and #611 is closed
 After F2 merge + post-merge proof:
 
 F3 — longitudinal comparison: compare two selected timepoints (for example T0 vs T1) using canonical evidence and certified measurements, without automatic claims of improvement or treatment success.
+
+
+## Post-merge certification
+
+Merged product commit:
+`35ccdf5ad73b403279e129c7affe2d9364c6d4cc`
+
+Temporary certification:
+- PR #612 — closed without merge
+- certification HEAD `141ddb47c7a9ccee4c679d24b84a744a0707386f`
+- exact merged baseline + one CI-only workflow commit
+
+Post-merge gates:
+- CI `35396881335` — SUCCESS
+- Full Backend job `105767649621` — SUCCESS
+- T2 Runtime Browser `35396881376` — SUCCESS
+- Agenda A5 `35396881338` — SUCCESS
+- Frontend / production guard / M4-A / M4-B / M4-C — SUCCESS
+
+F2 is closed. F3 is authorized on the merged baseline.
