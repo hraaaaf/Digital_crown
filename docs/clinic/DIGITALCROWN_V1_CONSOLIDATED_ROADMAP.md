@@ -32,6 +32,19 @@ For backend-only changes, capture the nearest product workflow whose behavior de
 
 No lot may be presented as **merge-ready** until this visual evidence is available and reviewed.
 
+
+## 1B. Mandatory lot-end user recap
+
+At the end of every lot, before moving to the next lot, provide the product owner with a short, concrete recap together with the retained visual evidence:
+- BEFORE: what existed / what was missing or faulty before the lot;
+- DURING: what was added, modified or removed in the lot;
+- AFTER: the observable resulting behavior and the exact validation evidence;
+- CAPTURES: show the retained BEFORE and AFTER captures for the same canonical viewports when the lot has UI/UX impact;
+- NO-UI EXCEPTION: when the lot truly has no user-visible UI impact, explicitly say so and show the closest inspectable operational/runtime evidence instead; never fabricate screenshots;
+- keep the recap short and decision-oriented, and distinguish verified facts from remaining uncertainty.
+
+This recap is a mandatory closeout deliverable in addition to tests, severe scoring, merge evidence and canonical roadmap updates.
+
 ## 2. Global Goal / Success / Proof
 
 **Goal:** produce the first operational V1 cabinet release from canonical V0 while preserving real cabinet data, historical integrity and rollback capability.
