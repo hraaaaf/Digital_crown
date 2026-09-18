@@ -1,5 +1,7 @@
 name: Cephalo R18 Scientific Concordance Audit
 
+# Temporary V1-04 recertification trigger only; no product/scientific logic changed.
+
 on:
   pull_request:
     paths:
