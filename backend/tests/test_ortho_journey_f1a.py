@@ -693,6 +693,51 @@ class TestOrthoJourneyF2:
         )
         assert link.status_code == 422
 
+    def test_same_canonical_asset_cannot_be_reused_across_timepoints(self, client, db, dentiste, auth_headers):
+        from backend.models_media_core import ClinicalAsset
+
+        patient = _make_patient(db, dentiste.id, "ORTHO_TP_REUSE")
+        start = datetime(2026, 9, 18, 9, 0, 0)
+        created = _create_case(client, patient.id, auth_headers, start)
+        case_id = created.json()["id"]
+
+        asset = ClinicalAsset(
+            employer_id=dentiste.id,
+            patient_id=patient.id,
+            asset_type="PHOTO",
+            source_kind="UPLOAD",
+        )
+        db.add(asset)
+        db.commit()
+        db.refresh(asset)
+
+        t0 = client.post(
+            f"/api/patients/{patient.id}/ortho-case/{case_id}/timepoints",
+            headers=auth_headers,
+            json={"ordinal": 0, "occurred_at": start.isoformat()},
+        )
+        t1 = client.post(
+            f"/api/patients/{patient.id}/ortho-case/{case_id}/timepoints",
+            headers=auth_headers,
+            json={"ordinal": 1, "occurred_at": (start + timedelta(days=30)).isoformat()},
+        )
+        assert t0.status_code == 201
+        assert t1.status_code == 201
+
+        first = client.post(
+            f"/api/patients/{patient.id}/ortho-case/{case_id}/timepoints/{t0.json()['id']}/evidences",
+            headers=auth_headers,
+            json={"clinical_asset_id": asset.id},
+        )
+        assert first.status_code == 201, first.text
+
+        second = client.post(
+            f"/api/patients/{patient.id}/ortho-case/{case_id}/timepoints/{t1.json()['id']}/evidences",
+            headers=auth_headers,
+            json={"clinical_asset_id": asset.id},
+        )
+        assert second.status_code == 409
+
     def test_timepoint_is_reused_by_existing_patient_journey(self, client, db, dentiste, auth_headers):
         patient = _make_patient(db, dentiste.id, "ORTHO_TP_JOURNEY")
         start = datetime.now() - timedelta(days=1)
