@@ -85,19 +85,19 @@ def upgrade():
     op.create_index(
         "uq_ortho_timepoint_evidence_asset",
         "ortho_timepoint_evidences",
-        ["ortho_timepoint_id", "clinical_asset_id"],
+        ["clinical_asset_id"],
         unique=True,
     )
     op.create_index(
         "uq_ortho_timepoint_evidence_cephalo",
         "ortho_timepoint_evidences",
-        ["ortho_timepoint_id", "cephalo_analysis_id"],
+        ["cephalo_analysis_id"],
         unique=True,
     )
     op.create_index(
         "uq_ortho_timepoint_evidence_panoramic",
         "ortho_timepoint_evidences",
-        ["ortho_timepoint_id", "panoramic_analysis_id"],
+        ["panoramic_analysis_id"],
         unique=True,
     )
 
