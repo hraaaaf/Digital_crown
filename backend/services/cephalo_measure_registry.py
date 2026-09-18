@@ -99,7 +99,7 @@ CANONICAL_MEASUREMENTS: dict[str, CanonicalMeasurement] = {
     # Dental / occlusal relations.
     "M_INTERINCISAL_DEG_V1": _m("M_INTERINCISAL_DEG_V1", "°", "GEOMETRY_COVERED"),
     "M_OVERJET_MM_V1": _m("M_OVERJET_MM_V1", "mm", "LEGACY_TO_AUDIT"),
-    "M_OVERBITE_V1": _m("M_OVERBITE_V1", None, "LEGACY_TO_AUDIT"),
+    "M_OVERBITE_V1": _m("M_OVERBITE_V1", "mm", "LEGACY_TO_AUDIT"),
     # Soft tissue and airway.
     "M_LI_EPLANE_MM_V1": _m("M_LI_EPLANE_MM_V1", "mm", "GEOMETRY_COVERED"),
     "M_LS_EPLANE_MM_V1": _m("M_LS_EPLANE_MM_V1", "mm", "GEOMETRY_COVERED"),
