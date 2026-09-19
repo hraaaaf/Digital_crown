@@ -91,11 +91,16 @@ Required remediation:
 
 ### MUST-FIX — implicit Sentry cloud observability
 
-Sentry currently initializes whenever `SENTRY_DSN` exists, with traces/profiling at 100%, independent of the explicit telemetry opt-in.
+Original finding: frontend Sentry initialized whenever `VITE_SENTRY_DSN` existed, independent of the explicit telemetry opt-in. Backend Sentry was already guarded by `TELEMETRY_ENABLED`.
 
-Required remediation:
-- cloud observability must require explicit opt-in;
-- cabinet remains local-first by default.
+Remediation on PR #633:
+- frontend Sentry now requires both exact `VITE_TELEMETRY_ENABLED=true` and a non-empty `VITE_SENTRY_DSN`;
+- DSN-only configuration fails closed;
+- preview and Patient Companion exclusions remain intact;
+- `frontend/src/telemetryPolicy.g8Interactive.test.ts` locks the fail-closed matrix;
+- `frontend/.env.example` documents telemetry OFF by default.
+
+Status: **REMEDIATED IN CODE/TEST — EXACT-HEAD CERTIFICATION PENDING**.
 
 ### MUST-FIX (low) — raw health exception disclosure
 
