@@ -95,8 +95,21 @@ def decrypt_and_verify(
         "typ": JWE_TYP,
         "cty": JWE_CTY,
     }
-    if jwe_header != expected_jwe:
+    for key, value in expected_jwe.items():
+        if jwe_header.get(key) != value:
+            raise ValueError("unexpected JWE protected header")
+    if set(jwe_header) != {*expected_jwe, "epk"}:
         raise ValueError("unexpected JWE protected header")
+    epk = jwe_header.get("epk")
+    if (
+        not isinstance(epk, dict)
+        or epk.get("kty") != "EC"
+        or epk.get("crv") != "P-256"
+        or not isinstance(epk.get("x"), str)
+        or not isinstance(epk.get("y"), str)
+        or "d" in epk
+    ):
+        raise ValueError("invalid ECDH ephemeral public key")
 
     recipient_key = jwk.JWK.from_json(_json(recipient_encryption_private_jwk))
     encrypted = jwe.JWE(algs=[JOSE_JWE_ALG, JOSE_JWE_ENC])
