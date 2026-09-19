@@ -1,6 +1,6 @@
 # Patient Companion — PC-00 Local Bridge & Encrypted Device Vault
 
-Status: APPROVED / IMPLEMENTATION IN PROGRESS
+Status: VERIFIED — exact-head certification completed
 
 ## Goal
 
@@ -148,3 +148,32 @@ AFTER:
 ## Gate
 
 PC-00 closes only when all required evidence above exists and no raw Firebase/cloud patient portal dependency remains in the active patient UI.
+
+
+## Certification evidence — 2026-09-19
+
+Certified candidate HEAD before this documentation closeout:
+`3cfceca5601c7562cb30992ee571d8b736f12ffc`
+
+Exact-head workflow evidence:
+- PC-00 Patient Companion Visual Certification run `35471266296`: SUCCESS;
+- CI run `35471266310`: SUCCESS;
+- Patient P7 `35471266313`: SUCCESS;
+- T2 Runtime Browser `35471266293`: SUCCESS;
+- UX1-C `35471266320`: SUCCESS;
+- V1-07 Commercial Pack Button Matrix `35471266306`: SUCCESS.
+
+Artifact:
+- id `10592874065`;
+- name `pc00-patient-companion-before-after`;
+- digest `sha256:e4f0ff1e392e8a598011ff19afcd8075e1943a28aaf14dedc91f8d6be918da19`;
+- 16 matched Chromium/WebKit captures at 360×800 and 390×844;
+- no horizontal overflow in AFTER evidence;
+- AFTER home vault probes confirm envelope v1, ciphertext present, AES-GCM, non-extractable key, no access-token leak in envelope/Web Storage and no manual-code leak in Web Storage.
+
+Manual artifact inspection:
+- Welcome 390×844: QR primary action and manual-code fallback are legible with no staff navigation or raw Firebase token field.
+- Home 390×844 Chromium and 360×800 WebKit: patient identity, local-vault state, cabinet reachability action, PC-01 placeholders and destructive erase action are visually separated and fit without horizontal overflow.
+- Visual quality score: 8.7/10 for PC-00 scope. Remaining polish is non-blocking and belongs to later wallet/product polish; no fake PC-01 functionality was introduced.
+
+No Vercel deployment.
