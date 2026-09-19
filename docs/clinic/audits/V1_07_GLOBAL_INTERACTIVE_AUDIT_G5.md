@@ -129,3 +129,9 @@ Do not certify G5 until:
 - mutation error surfacing.
 
 G5 functional surfaces inspected are now mapped to behavioral proof. Certification still requires exact-head frontend tests + build.
+
+
+## Functional reconciliation
+All currently identified G5 interactive surfaces are mapped to behavioral proof or verified LOT2 reuse.
+
+Status: FUNCTIONALLY RECONCILED — CERTIFICATION PENDING EXACT-HEAD TESTS + BUILD.
