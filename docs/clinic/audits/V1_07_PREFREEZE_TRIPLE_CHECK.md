@@ -168,6 +168,7 @@ Repository hygiene note:
 The final router/auth/admin/mobile sweep found additional V1 issues after the initial Pass 3 notes. They are part of this audit and must not be hidden behind the earlier green runs.
 
 - **MUST-FIX — public trial activation input bounds.** `TrialActivationRequest` now bounds activation code (128), full name (160) and cabinet name (160); oversized codes are rejected before the DB lookup. Remediation commits: `f8b6942a…`, `57c93713…`; regression contract: `cab63b95…`.
+- **MUST-FIX — pre-parse body bound for small unauthenticated JSON routes.** Endpoint-level rate limits execute after FastAPI/Pydantic parsing. A targeted 64 KiB `Content-Length` gate now runs before parsing for signup/refresh/demo/activate-trial/mobile claim/mobile refresh; missing length is refused and multipart/upload plus larger authenticated business JSON paths are untouched. Remediation: `ac7f94e1…`; test: `2ad79f19…`.
 - **MUST-FIX — unauthenticated signup abuse boundary.** `/api/auth/signup` previously wrote DB state, scheduled emails and attempted a Firebase onboarding write without a rate limit. It now uses the existing scoped/IP limiter. Signup and refresh payload fields are bounded. Remediation: `6d0eed47…`, `ad566062…`; tests: `9b72043…`.
 - **MUST-FIX — legacy team approval parity across Google OAuth.** Local login and refresh rejected non-approved employee accounts; Google callback did not explicitly enforce the same invariant for legacy-inconsistent rows. The callback now rejects employee accounts whose `approval_status` is not `approved`. Remediation: `ad566062…`.
 - **BLOCKER — admin document normalization was a cross-tenant GET mutation.** `GET /api/admin/normalize-docs` executed global `UPDATE document_archives` statements without cabinet scope. It is now POST-only, scoped through patients belonging to the authenticated employer, and no longer returns raw SQL exception strings. Remediation: `59e5105c…`; test: `898e1386…`.
@@ -176,7 +177,7 @@ The final router/auth/admin/mobile sweep found additional V1 issues after the in
 - **NO FINDING — legacy HTTP mobile URL helper in the secure cabinet runtime.** The literal legacy helper remains HTTP, but the canonical secure runtime installs `mobile_mdns` overrides to `https://digitalcrown.local:8005`; this invariant is already locked by `test_mobile_https_runtime_contract.py`. It is therefore not treated as a runtime plaintext-LAN regression.
 - **NO NEW BLOCKER — documents/media final sweep.** Canonical auth, document permission gates, patient/cabinet ownership checks and fail-closed media provenance remained present on the audited branch.
 
-Code remediation through `8eb33d183aeed94389e4ff2012f15949afcd1a27` is complete for the findings above. This statement is not a certification: the documentation commit containing this section and any later remediation must pass the exact-head gate matrix below.
+Code remediation through `2ad79f19057fd52e983f6479d9fd5921443e0f78` is complete for the findings above. This statement is not a certification: the documentation commit containing this section and any later remediation must pass the exact-head gate matrix below.
 
 ## Current freeze gate
 
