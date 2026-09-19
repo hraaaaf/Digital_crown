@@ -5,6 +5,8 @@ import { ArrowLeftRight, FileImage, Layers3, ScanLine, Waypoints } from 'lucide-
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { cn } from '../../utils/cn';
+import { hasAccess } from '../../utils/accessControl';
+import { useAuthStore } from '../../stores/useAuthStore';
 import { OrthoSuperimpositionViewer } from './OrthoSuperimpositionViewer';
 import {
   fetchOrthoCase,
@@ -61,6 +63,8 @@ export const OrthoLongitudinalComparePanel = ({ patientId }: Props) => {
   const [fromOrdinal, setFromOrdinal] = useState<number | null>(null);
   const [toOrdinal, setToOrdinal] = useState<number | null>(null);
   const [superimpositionOpen, setSuperimpositionOpen] = useState(false);
+  const user = useAuthStore((state) => state.user);
+  const canUseCephalo = hasAccess(user, 'cephalo');
 
   const caseQuery = useQuery({
     queryKey: ['ortho-case', patientId],
@@ -242,7 +246,7 @@ export const OrthoLongitudinalComparePanel = ({ patientId }: Props) => {
             const fromCephalo = comparison.from_timepoint.evidences.filter((item) => item.kind === 'CEPHALO');
             const toCephalo = comparison.to_timepoint.evidences.filter((item) => item.kind === 'CEPHALO');
             const chronological = comparison.from_timepoint.ordinal < comparison.to_timepoint.ordinal;
-            const canOpenF5 = fromCephalo.length === 1 && toCephalo.length === 1 && chronological;
+            const canOpenF5 = canUseCephalo && fromCephalo.length === 1 && toCephalo.length === 1 && chronological;
             return (
               <div className="mt-3 flex flex-col gap-2 rounded-xl border border-border-main bg-slate-50/60 p-3 sm:mt-4 sm:flex-row sm:items-center sm:justify-between sm:rounded-2xl sm:p-4">
                 <div className="min-w-0">
@@ -250,9 +254,11 @@ export const OrthoLongitudinalComparePanel = ({ patientId }: Props) => {
                   <p className="mt-0.5 text-[11px] font-bold text-text-muted">
                     {canOpenF5
                       ? 'Comparer visuellement les deux céphalogrammes canoniques, sans interprétation automatique.'
-                      : !chronological
-                        ? 'Remettez les timepoints dans l’ordre chronologique pour ouvrir F5.'
-                        : 'Une céphalométrie canonique unique est requise à chaque timepoint.'}
+                      : !canUseCephalo
+                        ? 'Permission céphalométrie requise pour ouvrir F5.'
+                        : !chronological
+                          ? 'Remettez les timepoints dans l’ordre chronologique pour ouvrir F5.'
+                          : 'Une céphalométrie canonique unique est requise à chaque timepoint.'}
                   </p>
                 </div>
                 <button

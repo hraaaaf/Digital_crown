@@ -22,7 +22,22 @@ import { MemoryRouter } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { OrthoLongitudinalComparePanel } from './features/ortho/OrthoLongitudinalComparePanel';
 import { PatientJourney } from './features/patients/components/PatientJourney';
+import { useAuthStore } from './stores/useAuthStore';
 import './index.css';
+
+useAuthStore.setState({
+  user: {
+    id: 1,
+    email: 'visual-f5@local.test',
+    role: 'DENTISTE',
+    employer_id: null,
+    permissions: {},
+    is_superadmin: false,
+  },
+  isAuthenticated: true,
+  isLoading: false,
+  error: null,
+});
 
 const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
 ReactDOM.createRoot(document.getElementById('root')!).render(

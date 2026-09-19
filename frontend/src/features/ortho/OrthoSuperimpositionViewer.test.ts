@@ -52,3 +52,13 @@ describe('Ortho F5 modal keyboard contract', () => {
     expect(file).toContain('tabIndex={-1}');
   });
 });
+
+
+describe('Ortho F5 frontend permission boundary', () => {
+  it('gates the F5 CTA with the canonical cephalo permission', () => {
+    const file = fs.readFileSync(path.join(root, 'src/features/ortho/OrthoLongitudinalComparePanel.tsx'), 'utf8');
+    expect(file).toContain("hasAccess(user, 'cephalo')");
+    expect(file).toContain('canUseCephalo && fromCephalo.length === 1');
+    expect(file).toContain('Permission céphalométrie requise pour ouvrir F5.');
+  });
+});
