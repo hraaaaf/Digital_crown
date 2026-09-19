@@ -3,6 +3,7 @@ from pathlib import Path
 import pytest
 
 from backend.services import cephalo_superimposition_api as api_service
+from backend.tests.conftest import make_user
 from backend.services.cephalo_superimposition_source import SuperimpositionSourceError
 
 
@@ -72,3 +73,36 @@ def test_context_rejects_external_or_noncanonical_source_before_browser_use(monk
         )
 
     assert error.value.code == "SOURCE_PATH_UNSUPPORTED"
+
+
+def test_f5_routes_require_cephalo_permission_not_general_patient_access(client, db, dentiste):
+    employee = make_user(db, email="f5-patient-only@cabinet.ma", role="DENTISTE")
+    employee.employer_id = dentiste.id
+    employee.permissions = {"patients": True, "cephalo": False}
+    db.commit()
+
+    login = client.post(
+        "/api/auth/login",
+        data={"username": employee.email, "password": "TestPass123!"},
+    )
+    assert login.status_code == 200, login.text
+    headers = {"Authorization": f"Bearer {login.json()['access_token']}"}
+
+    context = client.get(
+        "/api/patients/999/ortho-case/999/superimposition/context",
+        params={"from_timepoint_id": 1, "to_timepoint_id": 2},
+        headers=headers,
+    )
+    estimate = client.post(
+        "/api/patients/999/ortho-case/999/superimposition/estimate",
+        headers=headers,
+        json={
+            "from_timepoint_id": 1,
+            "to_timepoint_id": 2,
+            "reference_roi": {"x": 0, "y": 0, "width": 10, "height": 10},
+            "moving_roi": {"x": 0, "y": 0, "width": 10, "height": 10},
+        },
+    )
+
+    assert context.status_code == 403
+    assert estimate.status_code == 403

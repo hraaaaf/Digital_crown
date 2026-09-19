@@ -227,6 +227,10 @@ def register_acb_similarity(
     if len(keypoints_ref) < 2 or len(keypoints_mov) < 2:
         raise SuperimpositionError("At least two feature correspondences are required.")
 
+    # SIFT descriptors are floating-point vectors. OpenCV specifies L1/L2 for
+    # SIFT/SURF and Hamming for binary descriptors. Zhao 2025 reports SIFT
+    # with a Hamming KNN matcher; we intentionally follow the descriptor
+    # contract here rather than reproduce that internal inconsistency.
     matcher = cv2.BFMatcher(cv2.NORM_L2, crossCheck=False)
     candidate_pairs = matcher.knnMatch(descriptors_mov, descriptors_ref, k=2)
     good_matches = []

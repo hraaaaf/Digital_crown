@@ -30,14 +30,18 @@ Jiang Y et al. *The application and accuracy of feature matching on automated ce
 
 Source: https://pmc.ncbi.nlm.nih.gov/articles/PMC7083061/
 
-The study compared automated feature matching with traditional structural hand superimposition on 28 longitudinal pairs. It supports feature matching as a plausible deterministic registration approach, but the sample is limited and does not establish universal individual-case validity.
+The study compared automated feature matching with traditional structural hand superimposition on 28 longitudinal pairs. The images were acquired under a controlled protocol, so the result does not establish cross-machine or cross-protocol robustness. It supports feature matching as a plausible deterministic registration approach, but the sample is limited and does not establish universal individual-case validity.
 
 ### Zhao et al. 2025 — automated stable-region feature matching
 Zhao L et al. *Evaluation of an Automatic Cephalometric Superimposition Method Based on Feature Matching.* J Digit Imaging. 2025;38(6):4138-4147. DOI: 10.1007/s10278-025-01447-0.
 
 Source: https://pmc.ncbi.nlm.nih.gov/articles/PMC12701167/
 
-The method detects a stable cranial region, uses SIFT keypoints, KNN matching with a nearest/second-nearest ratio threshold below 0.7, then estimates a finite four-degree-of-freedom similarity transformation. This is directly relevant to a non-deforming 2D registration engine.
+The method detects a stable cranial region, uses SIFT keypoints, KNN matching with a nearest/second-nearest ratio threshold below 0.7, then estimates a finite four-degree-of-freedom similarity transformation. The validation sample was restricted to adults (18–40 years) and images acquired under the study's defined radiographic conditions, so transfer to growing patients or materially different acquisition protocols is not assumed.
+
+**Implementation caveat:** the article describes Hamming distance while also describing SIFT descriptors. OpenCV documentation recommends L1/L2 for SIFT/SURF descriptors and Hamming for binary descriptors such as ORB/BRISK/BRIEF. Digital Crown therefore uses L2 with SIFT and does not claim literal reproduction of the article's matcher implementation.
+
+OpenCV reference: https://docs.opencv.org/4.x/d3/da1/classcv_1_1BFMatcher.html
 
 ### Structural-region anatomy
 The literature on Björk-style anterior-cranial-base superimposition uses stable structures rather than only the S-N line. Commonly cited structures include the anterior part/wall of sella, cribriform plate and ethmoidal structures. This is the essential reason a simple S-N landmark registration is not an acceptable substitute for structural superimposition.

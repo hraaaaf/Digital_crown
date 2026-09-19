@@ -59,7 +59,7 @@ No shear, non-uniform scaling, perspective transformation, elastic deformation o
 ## Stable-region contract
 The region must contain the anterior-cranial-base structures used for structural superimposition, not merely S and N.
 
-For F5 v1, the ROI is operator-selected/confirmed and persisted as source metadata. The engine must not silently change it.
+For F5 v1, the ROI is operator-selected/confirmed and carried in the recalculable result metadata. The engineering preview does not create a persistent F5 result table. The engine must not silently change the ROI.
 
 ## Determinism and provenance
 A result must retain or expose enough metadata to reproduce it:
@@ -75,8 +75,10 @@ A result must retain or expose enough metadata to reproduce it:
 - inlier count/mask summary;
 - image dimensions;
 - calibration status;
-- computation timestamp;
-- software version/commit where available.
+- runtime/library version needed to reproduce the computation;
+- software commit where the calling layer can supply it.
+
+A computation timestamp is audit metadata, not an input required to reproduce the transform; the current engineering preview therefore does not persist one.
 
 The original image is immutable.
 
@@ -91,7 +93,7 @@ No usable superimposition result when:
 - population is outside the validated applicability record;
 - future quality thresholds are not satisfied.
 
-Quality thresholds beyond the literature-derived 0.7 KNN ratio are **not invented here**. They must be derived and versioned from the validation program before clinical activation.
+Quality thresholds beyond the literature-derived 0.7 KNN ratio are **not invented here**. Zhao et al. report SIFT with KNN ratio filtering but describe Hamming distance; OpenCV's own descriptor contract recommends L1/L2 for SIFT and Hamming for binary descriptors. Digital Crown therefore uses SIFT + L2 and treats Zhao as support for the feature-matching/ratio/similarity-transform method family, not as a byte-for-byte implementation specification. They must be derived and versioned from the validation program before clinical activation.
 
 ## UI safety
 The viewer may show source, overlay, opacity/alternation and method metadata.
