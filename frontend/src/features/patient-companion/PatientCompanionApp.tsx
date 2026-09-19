@@ -314,8 +314,8 @@ export const PatientCompanionApp = () => {
             </Card>
             <section className="mt-4 grid gap-3" aria-label="Portefeuille Patient Companion">
               <WalletSection title="Mes rendez-vous" empty="Aucun rendez-vous synchronisé.">
-                {activeWallet?.appointments.map(item => (
-                  <div key={item.id} className="rounded-2xl border border-border-main bg-card-bg p-4">
+                {activeWallet?.appointments.map((item, index) => (
+                  <div key={`${item.datetime_start}-${item.motif}-${index}`} className="rounded-2xl border border-border-main bg-card-bg p-4">
                     <p className="font-black">{item.motif}</p>
                     <p className="mt-1 text-xs font-bold text-text-muted">{new Date(item.datetime_start).toLocaleString()} · {item.status}</p>
                   </div>
