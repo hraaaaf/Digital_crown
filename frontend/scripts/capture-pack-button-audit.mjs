@@ -125,7 +125,9 @@ async function capture(viewport, scenario) {
   }
   if (scenario === 'superadmin-downgrade') {
     await page.getByText('Dr Audit Pack', { exact: true }).waitFor();
-    await page.getByDisplayValue('ELITE').selectOption('GOLD');
+    const clientCard = page.getByText('Dr Audit Pack', { exact: true }).locator('xpath=ancestor::div[contains(@class,"rounded-2xl") or contains(@class,"rounded")]').first();
+    const planSelect = clientCard.locator('select').filter({ has: page.locator('option[value="ELITE"]') }).first();
+    await planSelect.selectOption('GOLD');
     await page.waitForTimeout(150);
   }
   if (scenario === 'superadmin-renewal') {

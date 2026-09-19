@@ -3,6 +3,10 @@ from fastapi import HTTPException
 from unittest.mock import MagicMock, patch
 
 from backend import models
+# Initialize the application router graph first: superadmin imports a runtime
+# cache seam from backend.main, so direct collection-time import can create a
+# circular partially-initialized module.
+import backend.main  # noqa: F401
 from backend.routers import superadmin
 from backend.services.subscription_policy import TeamUsage
 
