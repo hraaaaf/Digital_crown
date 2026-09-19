@@ -51,3 +51,81 @@ Do not certify G5 until:
 2. TeamManager reuse is reconciled against current source;
 3. exact-head frontend tests + build pass;
 4. evidence is recorded here and in Notion.
+
+
+## Behavioral proof
+
+1. `frontend/src/features/admin/Settings/SettingsContainer.g5Interactive.test.tsx`
+   - permission-gated settings tabs;
+   - tab switching;
+   - shared dirty/save bar;
+   - profile read failure fail-closed + retry;
+   - failed save keeps dirty state.
+
+2. `frontend/src/features/admin/Settings/tabs/SecurityTab.g5Interactive.test.tsx`
+   - verified backup export;
+   - restore preflight multipart with no destructive mutation;
+   - incompatible backup blocks prepare/apply;
+   - prepare gate;
+   - exact RESTAURER confirmation;
+   - apply + terminal status;
+   - cancel/delete;
+   - preflight refusal.
+
+3. `frontend/src/features/admin/Settings/tabs/IATab.g5Interactive.test.tsx`
+   - performance mode;
+   - contextual clinical tips;
+   - patient indicators;
+   - all stage dirty runtime preferences before shared save.
+
+4. `frontend/src/features/admin/Settings/tabs/AgendaTab.g5Interactive.test.tsx`
+   - backend schedule truth;
+   - staged weekday changes;
+   - overlap validation before mutation;
+   - save/refusal;
+   - closure add/delete with explicit confirmation.
+
+5. `frontend/src/features/admin/Settings/tabs/CatalogTab.g5Interactive.test.tsx`
+   - specialty create;
+   - act create/edit/deactivate;
+   - invalid tariff blocking;
+   - pathology create/edit/deactivate;
+   - read failure + retry;
+   - refused mutation keeps modal.
+
+6. `frontend/src/features/admin/Settings/tabs/ProfileTab.g5Interactive.test.tsx`
+   - cabinet identity staging;
+   - specialty/header regeneration;
+   - contact controls;
+   - logo upload/delete;
+   - explicit save/refusal;
+   - employee practitioner identity lock.
+
+7. `frontend/src/features/admin/Settings/tabs/BrandingTab.g5Interactive.test.tsx`
+   - preview scope is non-mutating;
+   - preset staging;
+   - reset confirmation;
+   - animated background runtime preference.
+
+8. `frontend/src/features/clinic/ClinicPractitionerBar.g5Interactive.test.tsx`
+   - multi-practitioner backend truth;
+   - explicit practitioner selection;
+   - owner fallback;
+   - secretary employer fallback.
+
+## Reused current-code proof
+
+`frontend/src/features/admin/TeamManager.buttonMatrix.test.tsx` remains behaviorally aligned with current TeamManager implementation and covers:
+- GOLD / PREMIUM / ELITE quotas;
+- member create;
+- backend quota refusal;
+- approve / reject;
+- suspend / reactivate;
+- permissions save;
+- permanent delete;
+- load error + retry;
+- modal close;
+- anti-double-action;
+- mutation error surfacing.
+
+G5 functional surfaces inspected are now mapped to behavioral proof. Certification still requires exact-head frontend tests + build.
