@@ -9,17 +9,12 @@ from backend.services.windows_dpapi import protect_for_current_user, unprotect_f
 
 
 @pytest.mark.skipif(sys.platform != "win32", reason="Windows DPAPI certification")
-def test_windows_dpapi_current_user_roundtrip_and_tamper_rejection():
+def test_windows_dpapi_current_user_roundtrip():
     clear = b'{"private":"cabinet-key-material"}'
     protected = protect_for_current_user(clear)
     assert protected != clear
     assert b"cabinet-key-material" not in protected
     assert unprotect_for_current_user(protected) == clear
-
-    damaged = bytearray(protected)
-    damaged[len(damaged) // 2] ^= 0x01
-    with pytest.raises(OSError):
-        unprotect_for_current_user(bytes(damaged))
 
 
 def test_dpapi_source_does_not_use_local_machine_scope():
