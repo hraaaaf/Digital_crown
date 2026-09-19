@@ -63,3 +63,72 @@ Do not certify G7 until all exposed controls have behavioral mapping and exact-h
 3. Stock add/edit/delete/quantity mutation failures have no explicit user-facing refusal/error state in this page.
 
 These are product-truth/safety defects. G7 cannot be certified while they remain unresolved.
+
+
+## Additional G7 behavioral proof
+
+1. `frontend/src/features/partnerMarketplace/usePartnerMarketplace.g7Interactive.test.tsx`
+   - empty-cart guard;
+   - required-customer guard;
+   - discontinued product cannot enter cart;
+   - rejected order preserves cart;
+   - catalog read failure remains explicit/unverified;
+   - local filters are non-mutating.
+
+2. `frontend/src/pages/PartnerMarketplacePage.g7Interactive.test.tsx`
+   - search / refresh / availability / category controls;
+   - visible +/− quantity controls;
+   - checkout open/close;
+   - customer edits delegated to canonical controller;
+   - checkout closes only on successful draft save;
+   - catalog error retry;
+   - empty-cart controls disabled.
+
+3. `frontend/src/pages/PartnerCatalogAdminPage.g7Interactive.test.tsx`
+   - canonical admin reads;
+   - supplier creation + refusal;
+   - product creation with numeric/benefit normalization;
+   - local catalog filters;
+   - partner-order reconciliation + reload;
+   - reconciliation refusal;
+   - explicit reload.
+
+4. `frontend/src/pages/PartnerDetailPages.g7Interactive.test.tsx`
+   - supplier canonical load;
+   - supplier category/specialty filtering;
+   - supplier retry/reload;
+   - product-detail navigation;
+   - product API truth;
+   - shared-cart quantity persistence;
+   - discontinued-product ordering lock;
+   - explicit unavailable/not-found state.
+
+5. `frontend/src/features/clinical-ref/EliteLibrary.g7Interactive.test.tsx`
+   - search/reset;
+   - local favorite persistence;
+   - sort and grid/list;
+   - deep-link open/close;
+   - recent history;
+   - previous/next;
+   - print;
+   - immersive care mode;
+   - command palette / keyboard.
+
+6. `frontend/src/features/clinical-ref/EliteScienceHub.g7Interactive.test.tsx`
+   - search title/author;
+   - category filtering;
+   - truthful no-results state;
+   - exact safe external-study links;
+   - router back navigation.
+
+## G7 reconciliation
+
+All inspected G7 families now map to behavioral proof:
+- Stock;
+- Marketplace controller and visible checkout controls;
+- Supplier/Product detail pages;
+- Partner catalog administration and order reconciliation;
+- Clinical Library;
+- Science Hub.
+
+G7 remains **IN PROGRESS / NOT CERTIFIED** because the three documented Stock product defects remain open and exact-head frontend tests/build have not yet been proven green.
