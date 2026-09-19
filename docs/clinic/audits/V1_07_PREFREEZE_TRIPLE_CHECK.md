@@ -183,7 +183,7 @@ The final router/auth/admin/mobile sweep found additional V1 issues after the in
 - **NO FINDING — legacy HTTP mobile URL helper in the secure cabinet runtime.** The literal legacy helper remains HTTP, but the canonical secure runtime installs `mobile_mdns` overrides to `https://digitalcrown.local:8005`; this invariant is already locked by `test_mobile_https_runtime_contract.py`. It is therefore not treated as a runtime plaintext-LAN regression.
 - **NO NEW BLOCKER — documents/media final sweep.** Canonical auth, document permission gates, patient/cabinet ownership checks and fail-closed media provenance remained present on the audited branch.
 
-Code remediation through `2ad79f19057fd52e983f6479d9fd5921443e0f78` is complete for the findings above. This statement is not a certification: the documentation commit containing this section and any later remediation must pass the exact-head gate matrix below.
+`2ad79f19057fd52e983f6479d9fd5921443e0f78` is a **historical remediation checkpoint only**. Later adversarial findings/remediations (including frontend telemetry opt-in, root health redaction, OAuth one-shot proof and Firebase payload contract) supersede it. No SHA is certified by this paragraph; only the final exact-head gate matrix below can certify the candidate.
 
 ## Current freeze gate
 
