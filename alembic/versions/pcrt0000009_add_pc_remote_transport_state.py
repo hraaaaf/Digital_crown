@@ -83,12 +83,26 @@ def upgrade() -> None:
         sa.ForeignKeyConstraint(["access_id"], ["patient_companion_accesses.id"], ondelete="CASCADE"),
         sa.PrimaryKeyConstraint("id"),
         sa.UniqueConstraint("public_id"),
+        sa.UniqueConstraint("patient_signing_kid"),
+        sa.UniqueConstraint("patient_encryption_kid"),
     )
     op.create_index(
         "ix_pc_remote_keyset_access_status",
         "patient_companion_remote_keysets",
         ["access_id", "status"],
         unique=False,
+    )
+    op.create_index(
+        "ix_patient_companion_remote_keysets_patient_signing_kid",
+        "patient_companion_remote_keysets",
+        ["patient_signing_kid"],
+        unique=True,
+    )
+    op.create_index(
+        "ix_patient_companion_remote_keysets_patient_encryption_kid",
+        "patient_companion_remote_keysets",
+        ["patient_encryption_kid"],
+        unique=True,
     )
     op.create_index(
         "ix_patient_companion_remote_keysets_access_id",
@@ -161,6 +175,8 @@ def downgrade() -> None:
     op.drop_index("ix_patient_companion_remote_keysets_status", table_name="patient_companion_remote_keysets")
     op.drop_index("ix_patient_companion_remote_keysets_public_id", table_name="patient_companion_remote_keysets")
     op.drop_index("ix_patient_companion_remote_keysets_access_id", table_name="patient_companion_remote_keysets")
+    op.drop_index("ix_patient_companion_remote_keysets_patient_encryption_kid", table_name="patient_companion_remote_keysets")
+    op.drop_index("ix_patient_companion_remote_keysets_patient_signing_kid", table_name="patient_companion_remote_keysets")
     op.drop_index("ix_pc_remote_keyset_access_status", table_name="patient_companion_remote_keysets")
     op.drop_table("patient_companion_remote_keysets")
 
