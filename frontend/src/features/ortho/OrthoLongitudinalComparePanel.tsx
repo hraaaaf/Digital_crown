@@ -1,16 +1,21 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useSearchParams } from 'react-router-dom';
-import { ArrowLeftRight, FileImage, ScanLine, Waypoints } from 'lucide-react';
+import { ArrowLeftRight, FileImage, Layers3, ScanLine, Waypoints } from 'lucide-react';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { cn } from '../../utils/cn';
+import { hasAccess } from '../../utils/accessControl';
+import { useAuthStore } from '../../stores/useAuthStore';
+import { OrthoSuperimpositionViewer } from './OrthoSuperimpositionViewer';
 import {
   fetchOrthoCase,
   fetchOrthoLongitudinalCompare,
   fetchOrthoTimepoints,
   type OrthoCompareEvidence,
 } from './orthoLongitudinalCompare';
+
+const F5_ENGINEERING_PREVIEW = import.meta.env.VITE_F5_ENGINEERING_PREVIEW === '1';
 
 interface Props {
   patientId: number;
@@ -59,6 +64,9 @@ export const OrthoLongitudinalComparePanel = ({ patientId }: Props) => {
   const [, setSearchParams] = useSearchParams();
   const [fromOrdinal, setFromOrdinal] = useState<number | null>(null);
   const [toOrdinal, setToOrdinal] = useState<number | null>(null);
+  const [superimpositionOpen, setSuperimpositionOpen] = useState(false);
+  const user = useAuthStore((state) => state.user);
+  const canUseCephalo = hasAccess(user, 'cephalo');
 
   const caseQuery = useQuery({
     queryKey: ['ortho-case', patientId],
@@ -235,6 +243,47 @@ export const OrthoLongitudinalComparePanel = ({ patientId }: Props) => {
               </>
             )}
           </div>
+
+          {F5_ENGINEERING_PREVIEW && (() => {
+            const fromCephalo = comparison.from_timepoint.evidences.filter((item) => item.kind === 'CEPHALO');
+            const toCephalo = comparison.to_timepoint.evidences.filter((item) => item.kind === 'CEPHALO');
+            const chronological = comparison.from_timepoint.ordinal < comparison.to_timepoint.ordinal;
+            const canOpenF5 = canUseCephalo && fromCephalo.length === 1 && toCephalo.length === 1 && chronological;
+            return (
+              <div className="mt-3 flex flex-col gap-2 rounded-xl border border-border-main bg-slate-50/60 p-3 sm:mt-4 sm:flex-row sm:items-center sm:justify-between sm:rounded-2xl sm:p-4">
+                <div className="min-w-0">
+                  <p className="text-xs font-black text-main">Superposition structurale F5</p>
+                  <p className="mt-0.5 text-[11px] font-bold text-text-muted">
+                    {canOpenF5
+                      ? 'Comparer visuellement les deux céphalogrammes canoniques, sans interprétation automatique.'
+                      : !canUseCephalo
+                        ? 'Permission céphalométrie requise pour ouvrir F5.'
+                        : !chronological
+                          ? 'Remettez les timepoints dans l’ordre chronologique pour ouvrir F5.'
+                          : 'Une céphalométrie canonique unique est requise à chaque timepoint.'}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  disabled={!canOpenF5}
+                  onClick={() => setSuperimpositionOpen(true)}
+                  className="inline-flex min-h-11 shrink-0 items-center justify-center gap-2 rounded-xl border border-border-main bg-card-bg px-4 text-[10px] font-black uppercase tracking-wide text-main transition-colors hover:border-primary/30 hover:text-primary disabled:cursor-not-allowed disabled:opacity-40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
+                >
+                  <Layers3 size={14} /> Superposition scientifique
+                </button>
+              </div>
+            );
+          })()}
+
+          {superimpositionOpen && (
+            <OrthoSuperimpositionViewer
+              patientId={patientId}
+              caseId={comparison.ortho_case_id}
+              fromTimepoint={comparison.from_timepoint}
+              toTimepoint={comparison.to_timepoint}
+              onClose={() => setSuperimpositionOpen(false)}
+            />
+          )}
         </>
       )}
     </section>

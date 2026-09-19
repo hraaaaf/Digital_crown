@@ -1,0 +1,77 @@
+name: Ortho F5 AFTER
+
+on:
+  pull_request:
+    branches:
+      - master
+    paths:
+      - 'frontend/src/features/ortho/OrthoLongitudinalComparePanel.tsx'
+      - 'frontend/src/features/ortho/OrthoSuperimpositionViewer.tsx'
+      - 'frontend/src/features/ortho/orthoSuperimposition.ts'
+      - 'frontend/scripts/capture-ortho-f5-after.mjs'
+      - '.github/workflows/ortho-f5-after.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  F5_PRODUCT_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+
+jobs:
+  visual-after:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install browser dependencies
+        working-directory: frontend
+        run: |
+          npm ci
+          npm install --no-save --package-lock=false --legacy-peer-deps playwright@1.55.0 react-is@19.2.0
+          npx playwright install --with-deps chromium
+      - name: Capture F5 AFTER
+        working-directory: frontend
+        run: |
+          PRODUCT_HEAD="$F5_PRODUCT_HEAD" node scripts/capture-ortho-f5-after.mjs
+      - name: Verify AFTER contract
+        working-directory: frontend
+        run: |
+          node --input-type=module <<'NODE'
+          import { readFile } from 'node:fs/promises';
+          const report = JSON.parse(await readFile('ortho-f5-after-artifacts/report.json','utf8'));
+          if (report.phase !== 'AFTER') throw new Error('Wrong phase');
+          if (report.productHead !== process.env.F5_PRODUCT_HEAD) throw new Error('AFTER report is not pinned to the PR head SHA');
+          if (report.invalidCount !== 0) throw new Error('Invalid AFTER captures');
+          if (report.blockedExternalRequests.length !== 0) throw new Error('Unexpected external egress');
+          if (report.captures.length !== 3) throw new Error('Expected three viewports');
+          if (!report.accessibility?.closeInitiallyFocused) throw new Error('F5 close control did not receive initial focus');
+          if (!report.accessibility?.escapeClosedViewer) throw new Error('Escape did not close F5 viewer');
+          if (!report.accessibility?.focusRestoredToTrigger) throw new Error('Focus was not restored to F5 trigger');
+          for (const c of report.captures) {
+            if (!c.valid) throw new Error('Invalid '+c.viewport);
+            if (c.metrics.horizontalOverflow) throw new Error('Overflow '+c.viewport);
+            if (c.metrics.methodMetadataOverflow) throw new Error('Method metadata overflow '+c.viewport);
+            if (!c.metrics.hasF5Viewer || !c.metrics.hasF5Canvas) throw new Error('Missing F5 viewer '+c.viewport);
+            if (!c.metrics.hasEngineeringStatus) throw new Error('Missing scientific status '+c.viewport);
+            if (!c.metrics.hasAcquisitionWarning) throw new Error('Missing acquisition-protocol warning '+c.viewport);
+            if (!c.metrics.hasSourceProvenance) throw new Error('Missing source provenance '+c.viewport);
+            if (!c.metrics.hasApplicability) throw new Error('Missing applicability boundary '+c.viewport);
+            if (c.metrics.forbidden.length) throw new Error('Forbidden interpretation '+c.viewport);
+          }
+          NODE
+          for viewport in 390x844 768x1024 1280x900; do
+            test -s "ortho-f5-after-artifacts/after-superimposition-$viewport.png"
+          done
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ortho-f5-after
+          path: frontend/ortho-f5-after-artifacts
+          if-no-files-found: error
+          retention-days: 30

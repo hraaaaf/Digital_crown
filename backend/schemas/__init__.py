@@ -241,6 +241,17 @@ from .ortho_journey import (
     OrthoCockpitOut,
 )
 
+from .ortho_superimposition import (
+    SuperimpositionPixelROI,
+    OrthoSuperimpositionSourceOut,
+    OrthoSuperimpositionContextOut,
+    OrthoSuperimpositionEstimateRequest,
+    SuperimpositionImageSize,
+    SuperimpositionTranslation,
+    OrthoSuperimpositionRegistrationOut,
+    OrthoSuperimpositionEstimateOut,
+)
+
 __all__ = [
     # base
     "QRCodeType", "StyleKey", "AppointmentStatus", "SchedulingType",
@@ -318,4 +329,9 @@ __all__ = [
     "OrthoCockpitCaseOut", "OrthoCockpitControlOut",
     "OrthoCockpitAppointmentOut", "OrthoCockpitTimepointOut",
     "OrthoCockpitEvidenceOut", "OrthoCockpitOut",
+    # ortho scientific superimposition
+    "SuperimpositionPixelROI", "OrthoSuperimpositionSourceOut",
+    "OrthoSuperimpositionContextOut", "OrthoSuperimpositionEstimateRequest",
+    "SuperimpositionImageSize", "SuperimpositionTranslation",
+    "OrthoSuperimpositionRegistrationOut", "OrthoSuperimpositionEstimateOut",
 ]
