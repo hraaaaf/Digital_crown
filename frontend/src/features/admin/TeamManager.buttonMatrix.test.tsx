@@ -259,8 +259,10 @@ describe('TeamManager commercial pack button matrix', () => {
 
   it('locks a member mutation against accidental double click', async () => {
     membersState = [activeMember];
-    let resolvePut: ((value: unknown) => void) | null = null;
-    vi.mocked(api.put).mockImplementationOnce(() => new Promise((resolve) => { resolvePut = resolve; }) as never);
+    let releasePut: () => void = () => {};
+    vi.mocked(api.put).mockImplementationOnce(
+      () => new Promise((resolve) => { releasePut = () => resolve({ data: {} }); }) as never,
+    );
 
     render(<TeamManager />);
     expect(await screen.findByText('Active User')).toBeTruthy();
@@ -270,7 +272,7 @@ describe('TeamManager commercial pack button matrix', () => {
     fireEvent.click(suspend);
     expect(vi.mocked(api.put)).toHaveBeenCalledTimes(1);
 
-    resolvePut?.({ data: {} });
+    releasePut();
   });
 
   it('shows and dismisses a mutation error instead of silently failing', async () => {
