@@ -4,7 +4,15 @@ import fs from 'node:fs/promises';
 const phase = process.env.TRUTH_SAFETY_PHASE || 'after';
 const baseUrl = process.env.TRUTH_SAFETY_URL || 'http://127.0.0.1:5176/truth-safety-audit.html';
 const out = process.env.TRUTH_SAFETY_DIR || '../artifacts/v1-07-truth-safety-after';
-const scenarios = ['license-expired','stock-read-error','stock-delete-confirm','stock-quantity-refusal','stock-add-refusal','stock-delete-refusal'];
+const scenarios = [
+  'license-expired',
+  'landing-geography',
+  'stock-read-error',
+  'stock-delete-confirm',
+  'stock-quantity-refusal',
+  'stock-add-refusal',
+  'stock-delete-refusal',
+];
 const viewports = [[390,844],[768,1024],[1440,1000]];
 
 await fs.mkdir(out,{recursive:true});
@@ -20,17 +28,13 @@ try {
       const deletes=[];
       page.on('pageerror',e=>runtimeErrors.push(`pageerror: ${e.message}`));
       page.on('console',m=>{ if(m.type()==='error') runtimeErrors.push(`console: ${m.text()}`); });
+
       await page.route('**/api/**', async route => {
         const req=route.request();
         const url=new URL(req.url());
+
         if (url.pathname.endsWith('/stock/items') && req.method()==='GET') {
-          if (scenario==='landing-geography') {
-        await page.getByText(/dentistes (algériens|marocains)/i).waitFor({state:'visible',timeout:15000});
-        const body=await page.locator('body').innerText();
-        if (phase==='before' && !body.includes('dentistes algériens')) throw new Error('BEFORE landing geography defect not present');
-        if (phase==='after' && (body.includes('dentistes algériens') || !body.includes('dentistes marocains'))) throw new Error('AFTER landing geography is not Morocco-aligned');
-      }
-      if (scenario==='stock-read-error') {
+          if (scenario==='stock-read-error') {
             return route.fulfill({status:503,contentType:'application/json',body:'{"detail":"stock unavailable"}'});
           }
           return route.fulfill({status:200,contentType:'application/json',body:JSON.stringify([{
@@ -38,35 +42,49 @@ try {
             prix_unitaire:30,fournisseur:'Atlas Dental',notes:'Taille M',alerte:false
           }])});
         }
+
         if (url.pathname.endsWith('/stock/alerts') && req.method()==='GET') {
           return route.fulfill({status:200,contentType:'application/json',body:'{"count":0,"items":[]}'});
         }
+
         if (url.pathname.endsWith('/stock/items/1') && req.method()==='PATCH') {
           if (scenario==='stock-quantity-refusal') {
             return route.fulfill({status:503,contentType:'application/json',body:'{"detail":"Quantité refusée"}'});
           }
           return route.fulfill({status:200,contentType:'application/json',body:'{}'});
         }
+
         if (url.pathname.endsWith('/stock/items') && req.method()==='POST') {
           if (scenario==='stock-add-refusal') {
             return route.fulfill({status:503,contentType:'application/json',body:'{"detail":"Article refusé"}'});
           }
           return route.fulfill({status:201,contentType:'application/json',body:'{"id":2}'});
         }
+
         if (url.pathname.endsWith('/stock/items/1') && req.method()==='DELETE') {
           deletes.push(url.pathname);
           return route.fulfill({status:503,contentType:'application/json',body:'{"detail":"delete refused"}'});
         }
+
         return route.fulfill({status:200,contentType:'application/json',body:'{}'});
       });
 
       await page.goto(`${baseUrl}?scenario=${scenario}`,{waitUntil:'networkidle'});
+
       if (scenario==='license-expired') {
         await page.getByRole('heading',{name:'Licence Expirée'}).waitFor({state:'visible',timeout:15000});
         const body=await page.locator('body').innerText();
         if (phase==='before' && !body.includes('licence Elite a expiré')) throw new Error('BEFORE licence copy no longer exposes baseline defect');
         if (phase==='after' && (body.includes('licence Elite a expiré') || !body.includes('Votre licence a expiré'))) throw new Error('AFTER licence copy is not plan-neutral');
       }
+
+      if (scenario==='landing-geography') {
+        await page.getByText(/dentistes (algériens|marocains)/i).waitFor({state:'visible',timeout:15000});
+        const body=await page.locator('body').innerText();
+        if (phase==='before' && !body.includes('dentistes algériens')) throw new Error('BEFORE landing geography defect not present');
+        if (phase==='after' && (body.includes('dentistes algériens') || !body.includes('dentistes marocains'))) throw new Error('AFTER landing geography is not Morocco-aligned');
+      }
+
       if (scenario==='stock-read-error') {
         if (phase==='before') {
           await page.getByText('Aucun article. Commencez par en ajouter un.').waitFor({state:'visible',timeout:15000});
@@ -76,6 +94,7 @@ try {
           if (body.includes('Aucun article. Commencez par en ajouter un.')) throw new Error('False empty stock still visible after read failure');
         }
       }
+
       if (scenario==='stock-delete-confirm') {
         await page.getByText('Gants nitrile',{exact:true}).waitFor({state:'visible',timeout:15000});
         await page.getByTitle('Supprimer').click();
@@ -88,6 +107,7 @@ try {
           if (deletes.length!==0) throw new Error('AFTER dispatched DELETE before explicit confirmation');
         }
       }
+
       if (scenario==='stock-quantity-refusal') {
         const row=page.getByText('Gants nitrile',{exact:true}).locator('xpath=ancestor::tr');
         await row.waitFor({state:'visible',timeout:15000});
@@ -100,6 +120,7 @@ try {
           await page.getByText('Quantité refusée',{exact:true}).waitFor({state:'visible',timeout:5000});
         }
       }
+
       if (scenario==='stock-add-refusal') {
         await page.getByRole('button',{name:/Ajouter un article/i}).click();
         await page.getByPlaceholder('Ex: Gants nitrile S').fill('Masques FFP2');
@@ -112,6 +133,7 @@ try {
           await page.getByText('Nouvel article',{exact:true}).waitFor({state:'visible',timeout:5000});
         }
       }
+
       if (scenario==='stock-delete-refusal') {
         await page.getByText('Gants nitrile',{exact:true}).waitFor({state:'visible',timeout:15000});
         await page.getByTitle('Supprimer').click();
@@ -134,6 +156,7 @@ try {
         scrollWidth:document.documentElement.scrollWidth,
       }));
       if(layout.scrollWidth>layout.clientWidth) throw new Error(`${scenario} horizontal overflow ${layout.scrollWidth}>${layout.clientWidth} at ${width}`);
+
       if(runtimeErrors.length) {
         const unexpected=runtimeErrors.filter(x=>!x.includes('503'));
         if(unexpected.length) throw new Error(unexpected.join('\n'));
@@ -148,4 +171,5 @@ try {
 } finally {
   await browser.close();
 }
+
 await fs.writeFile(`${out}/evidence.json`,JSON.stringify(evidence,null,2));
