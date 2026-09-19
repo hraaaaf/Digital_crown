@@ -32,6 +32,7 @@ export const PatientCompanionApp = () => {
   const [manualCode, setManualCode] = useState('');
   const [error, setError] = useState('');
   const [selectingContext, setSelectingContext] = useState(false);
+  const [cabinetReachability, setCabinetReachability] = useState<'unknown' | 'checking' | 'online' | 'offline'>('unknown');
 
   const activePairing = useMemo(
     () => vault.pairings.find(item => item.context.access_id === vault.activeAccessId) || null,
@@ -159,6 +160,20 @@ export const PatientCompanionApp = () => {
     }
   }
 
+  const checkCabinet = async () => {
+    if (!activePairing) return;
+    setCabinetReachability('checking');
+    try {
+      const response = await fetch(`${API_BASE}/api/patient-companion/me`, {
+        headers: { Authorization: `Bearer ${activePairing.accessToken}` },
+        cache: 'no-store',
+      });
+      setCabinetReachability(response.ok ? 'online' : 'offline');
+    } catch {
+      setCabinetReachability('offline');
+    }
+  };
+
   const submitManual = () => {
     const code = manualCode.trim();
     if (!code) {
@@ -250,6 +265,9 @@ export const PatientCompanionApp = () => {
               <p className="text-xl font-black">{activePairing.context.patient.display_name || `${activePairing.context.patient.prenom || ''} ${activePairing.context.patient.nom || ''}`.trim()}</p>
               <p className="mt-1 text-xs font-bold text-text-muted">{relationshipLabel(activePairing.context.relationship_type)}</p>
               <div className="mt-4 rounded-2xl border border-emerald-200 bg-emerald-50 px-3 py-2.5 text-[11px] font-black text-emerald-800">Coffre local actif · utilisable même si le cabinet est momentanément hors ligne</div>
+              <button data-pc00-cabinet-link onClick={() => void checkCabinet()} className="mt-3 min-h-[48px] w-full rounded-2xl border border-border-main bg-background px-3 text-xs font-black">
+                {cabinetReachability === 'checking' ? 'Vérification du cabinet…' : cabinetReachability === 'online' ? 'Cabinet joignable ✓' : cabinetReachability === 'offline' ? 'Cabinet hors ligne · coffre local disponible' : 'Vérifier la connexion au cabinet'}
+              </button>
             </Card>
             <section className="mt-4 grid grid-cols-2 gap-3" aria-label="Fonctions Patient Companion">
               <Placeholder label="Mes rendez-vous" />
