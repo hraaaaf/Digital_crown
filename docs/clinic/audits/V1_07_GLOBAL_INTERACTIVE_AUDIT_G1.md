@@ -51,3 +51,14 @@ Cabinet switch, permission-gated navigation, SuperAdmin visibility, patient doss
 Do **not** mark G1 certified until the current PR HEAD has a green CI frontend test/build. If any new test fails, diagnose and fix before continuing to G2.
 
 No Vercel deployment. V1-08 remains blocked.
+
+
+## Landing geography truth
+A public product-truth defect was verified: the Landing hero said “dentistes algériens” while Digital Crown targets Morocco/MAD.
+
+Remediation:
+- copy changed to “dentistes marocains” in the same hero location;
+- `LandingPage.g1Interactive.test.tsx` asserts Morocco wording and absence of Algeria wording;
+- `landing-geography` was added to the matched BEFORE/AFTER truth-safety visual workflow.
+
+Status: CODE REMEDIATED — CERTIFICATION PENDING matched visual evidence + exact-head tests/build.
