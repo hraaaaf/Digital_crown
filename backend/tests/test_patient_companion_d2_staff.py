@@ -78,7 +78,8 @@ def test_staff_status_is_read_only_safe_projection_and_qr_is_ephemeral(client, d
     assert invitation.status_code == 201, invitation.text
     payload = invitation.json()
     assert payload["qr_data_url"].startswith("data:image/png;base64,")
-    assert payload["qr_token"] not in payload["qr_data_url"]
+    assert "qr_token" not in payload
+    assert payload["manual_code"] not in payload["qr_data_url"]
 
     media = ClinicalAsset(
         employer_id=owner.id,
@@ -112,11 +113,12 @@ def test_staff_status_is_read_only_safe_projection_and_qr_is_ephemeral(client, d
     assert "token_hash" not in serialized
     assert "manual_code_hash" not in serialized
     assert "recipient_hash" not in serialized
-    assert payload["qr_token"] not in serialized
     assert payload["manual_code"] not in serialized
 
     row = db.query(PatientCompanionInvitation).filter_by(public_id=payload["invitation_id"]).one()
-    assert row.token_hash != payload["qr_token"]
+    assert row.token_hash
+    assert row.manual_code_hash
+    assert row.token_hash not in serialized
     assert row.manual_code_hash not in serialized
 
 
