@@ -25,6 +25,12 @@ Certify transverse/adversarial interaction behavior across previously audited su
 - Tab / Shift+Tab focus loop;
 - closed state does not render/lock.
 
+### Cloud telemetry fail-closed
+`frontend/src/telemetryPolicy.g8Interactive.test.ts`
+- Sentry DSN alone does not activate cloud telemetry;
+- only exact explicit opt-in + non-empty DSN enables it;
+- missing/blank DSN remains disabled.
+
 ### Offline truth
 `frontend/src/components/mobile/OfflineQueueViewer.g8Interactive.test.tsx`
 - online/no queue;
