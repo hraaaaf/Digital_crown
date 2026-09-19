@@ -1,4 +1,4 @@
-import { chromium } from 'playwright';
+import { chromium, webkit } from 'playwright';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 
@@ -13,7 +13,7 @@ const viewports = [
 await fs.mkdir(path.join(outputRoot, 'before'), { recursive: true });
 await fs.mkdir(path.join(outputRoot, 'after'), { recursive: true });
 
-const browser = await chromium.launch({ headless: true });
+const browserTypes = { chromium, webkit };
 const evidence = [];
 
 async function installRoutes(page) {
@@ -44,7 +44,7 @@ async function installRoutes(page) {
   });
 }
 
-async function capture(phase, scenario, viewport) {
+async function capture(browserName, browser, phase, scenario, viewport) {
   const context = await browser.newContext({ viewport });
   const page = await context.newPage();
   const runtimeErrors = [];
@@ -65,7 +65,7 @@ async function capture(phase, scenario, viewport) {
     }
   }
 
-  const screenshot = `${scenario}-${viewport.width}x${viewport.height}.png`;
+  const screenshot = `${browserName}-${scenario}-${viewport.width}x${viewport.height}.png`;
   await page.screenshot({ path: path.join(outputRoot, phase, screenshot), fullPage: false });
 
   const snapshot = await page.evaluate(async ({ phase, scenario }) => {
@@ -90,9 +90,13 @@ async function capture(phase, scenario, viewport) {
       const envelope = await read('companion-state');
       const deviceKey = await read('device-aes-key');
       db.close();
+      const readStorageValues = storage => Array.from({ length: storage.length }, (_, index) => {
+        const key = storage.key(index);
+        return key ? storage.getItem(key) || '' : '';
+      });
       const webStorage = [
-        ...Object.values(localStorage),
-        ...Object.values(sessionStorage),
+        ...readStorageValues(localStorage),
+        ...readStorageValues(sessionStorage),
       ].join('|');
       storageProbe = {
         envelopeVersion: envelope?.version ?? null,
@@ -117,23 +121,27 @@ async function capture(phase, scenario, viewport) {
   if (snapshot.horizontalOverflow) throw new Error(`${phase}/${scenario}/${viewport.width}: horizontal overflow`);
   if (runtimeErrors.length) throw new Error(`${phase}/${scenario}/${viewport.width}: ${runtimeErrors.join(' | ')}`);
 
-  evidence.push({ phase, scenario, viewport, screenshot, ...snapshot });
+  evidence.push({ browser: browserName, phase, scenario, viewport, screenshot, ...snapshot });
   await context.close();
 }
 
-try {
-  for (const viewport of viewports) {
-    for (const scenario of ['welcome', 'home']) {
-      await capture('before', scenario, viewport);
-      await capture('after', scenario, viewport);
+for (const [browserName, browserType] of Object.entries(browserTypes)) {
+  const browser = await browserType.launch({ headless: true });
+  try {
+    for (const viewport of viewports) {
+      for (const scenario of ['welcome', 'home']) {
+        await capture(browserName, browser, 'before', scenario, viewport);
+        await capture(browserName, browser, 'after', scenario, viewport);
+      }
     }
+  } finally {
+    await browser.close();
   }
-} finally {
-  await browser.close();
 }
 
 await fs.writeFile(path.join(outputRoot, 'evidence.json'), JSON.stringify(evidence, null, 2));
 console.log(JSON.stringify(evidence.map(item => ({
+  browser: item.browser,
   phase: item.phase,
   scenario: item.scenario,
   viewport: item.viewport,
