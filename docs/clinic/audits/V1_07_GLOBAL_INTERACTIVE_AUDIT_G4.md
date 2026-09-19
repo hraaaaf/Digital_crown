@@ -188,3 +188,14 @@ Remaining G4-G reconciliation focus:
 - any PatientFinances deep controls not already proved by payment/installment matrices;
 - final G0 ↔ G4 control reconciliation;
 - exact-head CI/test/build.
+
+
+13. `frontend/src/features/patients/components/wizards/ClinicalWizards.g4Interactive.test.tsx`
+    - all nine structured clinical assistants;
+    - cancel without conclusion;
+    - backward navigation;
+    - Examen complet triage return;
+    - explicit option-driven completion;
+    - completion returns structured proposal only.
+
+G4-G reconciliation now focuses on verifying that every deep module exposed by G0 maps to one of the behavioral matrices above, then exact-head tests/build.
