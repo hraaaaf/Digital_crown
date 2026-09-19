@@ -199,3 +199,24 @@ Remaining G4-G reconciliation focus:
     - completion returns structured proposal only.
 
 G4-G reconciliation now focuses on verifying that every deep module exposed by G0 maps to one of the behavioral matrices above, then exact-head tests/build.
+
+
+## G4-G reconciliation — inspected deep modules
+
+| Deep module | Behavioral proof |
+| --- | --- |
+| Document Studio shell / tabs / preview / print | `DocumentStudioShell.g4Interactive.test.tsx` |
+| Ordonnance / prescription | `PrescriptionForm.g4Interactive.test.tsx`, `DocumentGeneration.g4Interactive.test.tsx` |
+| Certificates / libre docs | `CertificateLibre.g4Interactive.test.tsx` |
+| Honoraires / treasury | `Honoraires.g4Interactive.test.tsx`, `DocumentGeneration.g4Interactive.test.tsx` |
+| Devis / odontogram accounting | `DevisOdontogram.g4Interactive.test.tsx` |
+| Installments | `InstallmentStudio.g4Interactive.test.tsx` |
+| Direct patient payments | `Payments.g4Interactive.test.tsx` |
+| Patient finance screen | `PatientFinances.g4Interactive.test.tsx` |
+| Clinical odontogram / conclusions / master plan | `ClinicalHubCore.g4Interactive.test.tsx` |
+| Structured clinical assistants | `ClinicalWizards.g4Interactive.test.tsx` |
+| RVG | `RvgDeep.g4Interactive.test.tsx` |
+| Panoramic | `PanoramicStudio.g4Interactive.test.tsx` |
+| Cephalometry | `CephaloWorkspace.g4Interactive.test.tsx` |
+
+Based on the inspected G4 surfaces, no known deep module is currently left without a behavioral proof file. This is not certification yet: exact-head frontend tests/build must still pass, and any CI failure must be resolved before G4 can be marked certified.
