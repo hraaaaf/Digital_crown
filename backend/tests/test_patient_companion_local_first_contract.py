@@ -37,3 +37,4 @@ def test_patient_wallet_does_not_expose_internal_numeric_ids():
     shares = (ROOT / "routers" / "patient_companion_shares.py").read_text(encoding="utf-8")
     assert '"id": row.id' not in activation
     assert '"resource_id": resource.id' not in shares
+    assert '"resource_id": resource.id' not in shares
