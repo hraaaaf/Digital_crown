@@ -107,14 +107,14 @@ jobs:
           b={(x["scenario"],x["viewport"]["width"],x["viewport"]["height"]) for x in before}
           a={(x["scenario"],x["viewport"]["width"],x["viewport"]["height"]) for x in after}
           assert b == a, (sorted(b-a), sorted(a-b))
-          assert len(a) == 9, len(a)
-          print("matched_before_after=9")
+          assert len(a) == 18, len(a)
+          print("matched_before_after=18")
           PY
 
       - name: Record proof metadata
         shell: bash
         run: |
-          printf 'base=%s\nhead=%s\nphase=before\nviewports=390x844,768x1024,1440x1000\nscenarios=license-expired,stock-read-error,stock-delete-confirm\ndeployment=none\n' "$BASE_SHA" "$HEAD_SHA" > artifacts/v1-07-truth-safety-before/result.txt
+          printf 'base=%s\nhead=%s\nphase=before\nviewports=390x844,768x1024,1440x1000\nscenarios=license-expired,stock-read-error,stock-delete-confirm,stock-quantity-refusal,stock-add-refusal,stock-delete-refusal\ndeployment=none\n' "$BASE_SHA" "$HEAD_SHA" > artifacts/v1-07-truth-safety-before/result.txt
           printf 'base=%s\nhead=%s\nphase=after\nviewports=390x844,768x1024,1440x1000\nscenarios=license-expired,stock-read-error,stock-delete-confirm\ndeployment=none\n' "$BASE_SHA" "$HEAD_SHA" > artifacts/v1-07-truth-safety-after/result.txt
           cp /tmp/truth-safety-before.log artifacts/v1-07-truth-safety-before/vite.log
           cp /tmp/truth-safety-after.log artifacts/v1-07-truth-safety-after/vite.log
