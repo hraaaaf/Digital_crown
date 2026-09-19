@@ -183,7 +183,6 @@ def list_patient_shares(
             items.append({
                 "share_id": grant.public_id,
                 "resource_type": "document",
-                "resource_id": resource.id,
                 "title": resource.title or resource.original_filename,
                 "document_type": getattr(resource.document_type, "value", resource.document_type),
                 "created_at": resource.created_at,
