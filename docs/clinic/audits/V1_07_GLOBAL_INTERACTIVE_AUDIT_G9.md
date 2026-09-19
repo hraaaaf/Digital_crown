@@ -9,14 +9,16 @@ Reconcile G0 static inventory with G1→G8 behavioral evidence, isolate every un
 
 ### G0
 Status: denominator not certified.
-Raw inventory remains a discovery signal only:
+The numbers below are the **historical initial G0 run**, retained only for traceability:
 - 418 source files scanned;
 - 40 route declarations;
 - 38 unique explicit routes;
 - 3653 raw static interaction/action signals;
-- 195 existing test files at initial G0 run.
+- 195 existing test files.
 
-Raw signals are not the semantic denominator because shared components and overlapping static signals can both overcount and undercount real user controls.
+The scanner was subsequently hardened to include generic native anchors/inputs, additional roles/custom controls, keyboard actions and root/wildcard shell routing. Therefore these numbers are not the final G0 counts and must not be reused at freeze.
+
+Raw signals are discovery evidence, not the semantic denominator, because shared components and overlapping static signals can both overcount and undercount real user controls.
 
 ### G1 — Shell/auth/onboarding
 Functional matrices exist.
