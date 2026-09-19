@@ -57,24 +57,40 @@ for (const viewport of [{ width: 390, height: 844 }, { width: 1280, height: 900 
   const actions = [];
 
   const plan = page.getByRole('button', { name: /Plan de soins/i });
+  await page.getByRole('button', { name: 'Adulte', exact: true }).waitFor({ state: 'visible' });
+  await plan.click();
+  await page.getByRole('button', { name: 'Adulte', exact: true }).waitFor({ state: 'hidden' });
   await plan.click();
   await page.getByRole('button', { name: 'Adulte', exact: true }).waitFor({ state: 'visible' });
   await page.getByRole('button', { name: 'Enfant', exact: true }).click();
   await page.getByRole('button', { name: 'Adulte', exact: true }).click();
-  actions.push('odontogram-open-adult-pediatric');
+
+  await page.getByRole('button', { name: 'Réduire Schéma', exact: true }).click();
+  await page.getByRole('button', { name: 'Afficher Schéma', exact: true }).waitFor({ state: 'visible' });
+  await page.getByRole('button', { name: 'Afficher Schéma', exact: true }).click();
+  await page.getByRole('button', { name: 'Réduire Schéma', exact: true }).waitFor({ state: 'visible' });
+  actions.push('odontogram-open-collapse-adult-pediatric');
 
   await page.getByRole('button', { name: /Bridge & Prothèses/i }).click();
   for (const group of ['Q1','Q2','Q3','Q4','S1','S2','S3','S4','S5','S6']) {
     await page.getByRole('button', { name: group, exact: true }).click();
     await page.getByText(/dents sélectionnées/i).waitFor({ state: 'visible', timeout: 5000 });
+    await page.getByRole('button', { name: 'Réinitialiser', exact: true }).click();
+    await page.getByRole('button', { name: group, exact: true }).waitFor({ state: 'visible', timeout: 5000 });
   }
-  await page.getByRole('button', { name: 'Réinitialiser', exact: true }).click();
   actions.push('adult-quick-groups-reset');
 
-  for (const act of ['Bridge', 'Stellite', 'Prothèse Adjointe (PAP)', 'Attelle de contention']) {
+  for (const act of [
+    { button: 'Bridge', result: 'Bridge' },
+    { button: 'Stellite', result: 'Stellite' },
+    { button: 'Prothèse Adjointe (PAP)', result: 'Prothèse Adjointe (PAP)' },
+    { button: /^Curetage /, result: /^Curetage / },
+    { button: /^Surfaçage /, result: /^Surfaçage / },
+    { button: 'Attelle de contention', result: 'Attelle de contention' },
+  ]) {
     await page.getByRole('button', { name: 'Q1', exact: true }).click();
-    await page.getByRole('button', { name: act, exact: true }).click();
-    await page.getByText(act, { exact: true }).last().waitFor({ state: 'visible', timeout: 5000 });
+    await page.getByRole('button', { name: act.button, exact: typeof act.button === 'string' }).click();
+    await page.getByText(act.result, { exact: typeof act.result === 'string' }).last().waitFor({ state: 'visible', timeout: 5000 });
   }
   await page.getByRole('button', { name: 'Q1', exact: true }).click();
   await page.getByPlaceholder('Ou saisir un autre acte...').fill('Acte groupé G4');
@@ -84,6 +100,17 @@ for (const viewport of [{ width: 390, height: 844 }, { width: 1280, height: 900 
   actions.push('grouped-acts-custom');
 
   await page.getByRole('button', { name: /Soins Ciblés/i }).click();
+  const adultTeeth = [11,12,13,14,15,16,17,18,21,22,23,24,25,26,27,28,31,32,33,34,35,36,37,38,41,42,43,44,45,46,47,48];
+  for (const tooth of adultTeeth) {
+    await page.getByRole('button', { name: new RegExp('^Dent ' + tooth + ',') }).click();
+    const title = page.getByText('Dent ' + tooth, { exact: true });
+    await title.waitFor({ state: 'visible', timeout: 10000 });
+    const selector = title.locator('xpath=ancestor::div[contains(@class,"fixed")][1]');
+    await selector.locator('button').first().click();
+    await title.waitFor({ state: 'hidden', timeout: 10000 });
+  }
+  actions.push('all-32-adult-teeth-open-close');
+
   await page.getByRole('button', { name: /Dent 11,/i }).click();
   await page.getByText('Dent 11', { exact: true }).waitFor({ state: 'visible', timeout: 10000 });
   const search = page.getByPlaceholder('Rechercher un acte (Composite, Extraction, Couronne...)');
@@ -97,8 +124,19 @@ for (const viewport of [{ width: 390, height: 844 }, { width: 1280, height: 900 
   actions.push('targeted-tooth-treatment');
 
   await page.getByRole('button', { name: /Soins Généraux/i }).click();
-  for (const act of ['Détartrage & Polissage','Bilan Parodontal Complet','Blanchiment Dentaire','Fluorisation','Gouttière de Bruxisme','Semestre ODF','Consultation Standard','Aéropolissage']) {
-    await page.getByRole('button', { name: act, exact: false }).first().click();
+  for (const act of [
+    'Détartrage & Polissage',
+    'Surfaçage Radiculaire (par secteur)',
+    'Bilan Parodontal Complet',
+    'Blanchiment Dentaire',
+    'Fluorisation',
+    'Gouttière de Bruxisme',
+    'Semestre ODF',
+    'Consultation Standard',
+    'Aéropolissage',
+    'Traitement Parodontal (Séance)',
+  ]) {
+    await page.getByRole('button', { name: act, exact: true }).click();
   }
   actions.push('global-care-actions');
 
@@ -168,7 +206,7 @@ for (const viewport of [{ width: 390, height: 844 }, { width: 1280, height: 900 
 await browser.close();
 await api.dispose();
 
-const expectedActionGroups = 9;
+const expectedActionGroups = 10;
 for (const row of evidence) {
   if (row.actions.length !== expectedActionGroups) throw new Error('Honoraires action-group count mismatch');
 }
