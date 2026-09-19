@@ -1,0 +1,80 @@
+name: V1-07 LOT3 SuperAdmin Buttons
+
+on:
+  pull_request:
+    branches: [master]
+    paths:
+      - "backend/routers/superadmin.py"
+      - "backend/tests/test_v1_07_lot3_superadmin_renewal.py"
+      - "frontend/src/features/superadmin/SuperAdminDashboard.tsx"
+      - "frontend/src/features/superadmin/SuperAdminDashboard.packButtons.test.tsx"
+      - "frontend/src/features/mobile/Dashboard/views/MobileSuperAdminView.packButtons.test.tsx"
+      - "frontend/src/features/mobile/superadmin/useMobileSuperAdmin.packActions.test.tsx"
+      - ".github/workflows/v1-07-lot3-superadmin-buttons.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  backend-renewal:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      SECRET_KEY: ci-only-secret-key-minimum-32-characters-long
+      DATABASE_URL: sqlite:///:memory:
+      ENVIRONMENT: test
+      DIGITALCROWN_ISOLATED_RUNTIME: "true"
+      TELEMETRY_ENABLED: "false"
+      CLOUD_AI_ENABLED: "false"
+    steps:
+      - name: Checkout exact PR head
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - name: Record exact candidate
+        run: |
+          if [ -n "${{ github.event.pull_request.head.sha }}" ]; then
+            test "$(git rev-parse HEAD)" = "${{ github.event.pull_request.head.sha }}"
+          fi
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install backend dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install torch==2.10.0 torchvision==0.25.0 torchaudio==2.10.0 --index-url https://download.pytorch.org/whl/cpu
+          grep -vE '^(torch|torchvision|torchaudio)([<=>].*)?$' requirements.txt > /tmp/requirements-ci.txt
+          pip install -r /tmp/requirements-ci.txt
+          python -m pip check
+      - name: Run truthful renewal tests
+        run: python -m pytest backend/tests/test_v1_07_lot3_superadmin_renewal.py -q --maxfail=1
+
+  frontend-superadmin:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Checkout exact PR head
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - name: Record exact candidate
+        run: |
+          if [ -n "${{ github.event.pull_request.head.sha }}" ]; then
+            test "$(git rev-parse HEAD)" = "${{ github.event.pull_request.head.sha }}"
+          fi
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install frontend
+        working-directory: frontend
+        run: npm ci
+      - name: Run desktop and mobile SuperAdmin button matrices
+        working-directory: frontend
+        run: >-
+          npx vitest run
+          src/features/superadmin/SuperAdminDashboard.packButtons.test.tsx
+          src/features/mobile/Dashboard/views/MobileSuperAdminView.packButtons.test.tsx
+          src/features/mobile/superadmin/useMobileSuperAdmin.packActions.test.tsx
