@@ -94,7 +94,7 @@ python-dotenv==1.2.1
 python-jose==3.5.0
 python-magic==0.4.27
 python-magic-bin==0.4.14; platform_system == "Windows"
-python-multipart==0.0.9
+python-multipart==0.0.31
 pywebpush==2.4.0
 PyYAML==6.0.3
 qrcode==8.2

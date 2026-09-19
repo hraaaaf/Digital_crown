@@ -138,3 +138,22 @@ class TestSignup:
         assert body["email"] == "new-client@cabinet.ma"
         assert body["is_active"] is False
         assert body["is_licensed"] is False
+
+
+class TestUrlencodedBodyLimit:
+    def test_oversized_urlencoded_login_is_rejected_before_form_parser(self, client):
+        body = "username=" + ("a" * (64 * 1024)) + "&password=x"
+        response = client.post(
+            "/api/auth/login",
+            content=body,
+            headers={"Content-Type": "application/x-www-form-urlencoded"},
+        )
+        assert response.status_code == 413
+
+    def test_normal_urlencoded_login_still_reaches_auth_handler(self, client):
+        response = client.post(
+            "/api/auth/login",
+            content="username=missing%40example.invalid&password=x",
+            headers={"Content-Type": "application/x-www-form-urlencoded"},
+        )
+        assert response.status_code == 401

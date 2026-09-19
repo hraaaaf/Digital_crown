@@ -465,6 +465,30 @@ async def license_check_middleware(request: Request, call_next):
 
     return await call_next(request)
 
+_MAX_URLENCODED_BODY_BYTES = 64 * 1024
+
+
+@app.middleware("http")
+async def urlencoded_body_limit_middleware(request: Request, call_next):
+    """Bound Starlette's legacy urlencoded form parser before endpoint parsing."""
+    content_type = request.headers.get("content-type", "").split(";", 1)[0].strip().lower()
+    if content_type == "application/x-www-form-urlencoded":
+        raw_length = request.headers.get("content-length")
+        if raw_length is None:
+            return JSONResponse(
+                status_code=411,
+                content={"detail": "Content-Length requis pour ce type de requête"},
+            )
+        try:
+            content_length = int(raw_length)
+        except ValueError:
+            return JSONResponse(status_code=400, content={"detail": "Content-Length invalide"})
+        if content_length < 0 or content_length > _MAX_URLENCODED_BODY_BYTES:
+            return JSONResponse(status_code=413, content={"detail": "Corps de formulaire trop volumineux"})
+
+    return await call_next(request)
+
+
 @app.middleware("http")
 async def security_headers_middleware(request: Request, call_next):
     response = await call_next(request)
