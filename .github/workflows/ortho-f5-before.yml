@@ -8,6 +8,7 @@ on:
       - '.github/workflows/ortho-f5-before.yml'
       - '.audit/ortho-f5-goal.md'
       - 'docs/assets/ortho/f5-superimposition-target.svg'
+      - 'frontend/scripts/capture-ortho-f5-before.mjs'
   workflow_dispatch:
 
 permissions:
@@ -21,45 +22,33 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 25
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout proof harness
+        uses: actions/checkout@v4
         with:
-          fetch-depth: 0
+          path: proof-head
       - name: Checkout certified F4 baseline
-        run: |
-          git cat-file -e "$F5_BEFORE_BASE^{commit}"
-          git checkout --detach "$F5_BEFORE_BASE"
-          test "$(git rev-parse HEAD)" = "$F5_BEFORE_BASE"
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.F5_BEFORE_BASE }}
+          path: baseline
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
           cache: npm
-          cache-dependency-path: frontend/package-lock.json
+          cache-dependency-path: baseline/frontend/package-lock.json
       - name: Install browser dependencies
-        working-directory: frontend
+        working-directory: baseline/frontend
         run: |
           npm ci
           npm install --no-save --package-lock=false --legacy-peer-deps playwright@1.55.0 react-is@19.2.0
           npx playwright install --with-deps chromium
       - name: Capture certified F4/F3 surface as F5 BEFORE
-        working-directory: frontend
+        working-directory: baseline/frontend
         run: |
-          PRODUCT_HEAD="$F5_BEFORE_BASE" node scripts/capture-ortho-f3-after.mjs
-          mkdir -p ortho-f5-before-artifacts
-          for viewport in 390x844 768x1024 1280x900; do
-            cp "ortho-f3-after-artifacts/after-overview-$viewport.png" "ortho-f5-before-artifacts/before-overview-$viewport.png"
-          done
-          cp ortho-f3-after-artifacts/vite.log ortho-f5-before-artifacts/vite.log
-          node --input-type=module <<'NODE'
-          import { readFile, writeFile } from 'node:fs/promises';
-          const report = JSON.parse(await readFile('ortho-f3-after-artifacts/report.json','utf8'));
-          report.lot = 'V1-05-F5';
-          report.phase = 'BEFORE';
-          report.sourceHarness = 'capture-ortho-f3-after.mjs';
-          report.baselineCommit = process.env.F5_BEFORE_BASE;
-          await writeFile('ortho-f5-before-artifacts/report.json', JSON.stringify(report,null,2));
-          NODE
+          test "$(git rev-parse HEAD)" = "$F5_BEFORE_BASE"
+          PRODUCT_HEAD="$F5_BEFORE_BASE" F5_BEFORE_BASE="$F5_BEFORE_BASE" node ../../proof-head/frontend/scripts/capture-ortho-f5-before.mjs
       - name: Verify BEFORE contract
-        working-directory: frontend
+        working-directory: baseline/frontend
         run: |
           node --input-type=module <<'NODE'
           import { readFile } from 'node:fs/promises';
@@ -82,6 +71,6 @@ jobs:
         if: always()
         with:
           name: ortho-f5-before
-          path: frontend/ortho-f5-before-artifacts
+          path: baseline/frontend/ortho-f5-before-artifacts
           if-no-files-found: error
           retention-days: 30

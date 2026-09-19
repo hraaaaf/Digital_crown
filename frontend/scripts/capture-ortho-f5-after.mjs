@@ -231,7 +231,7 @@ for(const viewport of viewports){
     const pageErrors=[...carryPageErrors,...activePageErrors];
     const consoleErrors=[...carryConsoleErrors,...activeConsoleErrors];
     const valid=response?.status()===200&&!metrics.horizontalOverflow&&metrics.hasCompareSurface&&metrics.hasT0&&metrics.hasT1&&metrics.hasEvidence&&metrics.hasNumericCaption&&metrics.hasDelta&&metrics.hasF5Viewer&&metrics.hasF5Canvas&&metrics.hasEngineeringStatus&&metrics.forbidden.length===0&&consoleErrors.length===0&&pageErrors.length===0;
-    await page.screenshot({path:path.join(OUTPUT_DIR,`after-superimposition-${viewport.name}.png`),fullPage:true});
+    await page.screenshot({path:path.join(OUTPUT_DIR,`after-superimposition-${viewport.name}.png`),fullPage:false});
     captures.push({viewport:viewport.name,httpStatus:response?.status()??null,metrics,consoleErrors,pageErrors,valid});
   }catch(error){
     const pageErrors=[...carryPageErrors,...activePageErrors,error instanceof Error?error.message:String(error)];
