@@ -242,6 +242,8 @@ export const OrthoSuperimpositionViewer = ({
   const [estimating, setEstimating] = useState(false);
   const [opacity, setOpacity] = useState(0.5);
   const [mode, setMode] = useState<'overlay' | 'reference' | 'moving'>('overlay');
+  const dialogRef = useRef<HTMLDivElement>(null);
+  const closeButtonRef = useRef<HTMLButtonElement>(null);
 
   const contextQuery = useQuery({
     queryKey: ['ortho-f5-context', patientId, caseId, fromTimepoint.id, toTimepoint.id],
@@ -280,15 +282,49 @@ export const OrthoSuperimpositionViewer = ({
   );
 
   useEffect(() => {
-    const previous = document.body.style.overflow;
+    const previousOverflow = document.body.style.overflow;
+    const previousFocused = document.activeElement instanceof HTMLElement
+      ? document.activeElement
+      : null;
     document.body.style.overflow = 'hidden';
+    closeButtonRef.current?.focus();
+
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') onClose();
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        onClose();
+        return;
+      }
+      if (event.key !== 'Tab' || !dialogRef.current) return;
+
+      const focusable = Array.from(
+        dialogRef.current.querySelectorAll<HTMLElement>(
+          'button:not([disabled]), input:not([disabled]), a[href], [tabindex]:not([tabindex="-1"])',
+        ),
+      ).filter((element) => !element.hasAttribute('hidden') && element.getAttribute('aria-hidden') !== 'true');
+
+      if (!focusable.length) {
+        event.preventDefault();
+        dialogRef.current.focus();
+        return;
+      }
+
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
     };
+
     window.addEventListener('keydown', onKeyDown);
     return () => {
-      document.body.style.overflow = previous;
+      document.body.style.overflow = previousOverflow;
       window.removeEventListener('keydown', onKeyDown);
+      previousFocused?.focus();
     };
   }, [onClose]);
 
@@ -317,6 +353,8 @@ export const OrthoSuperimpositionViewer = ({
 
   return (
     <div
+      ref={dialogRef}
+      tabIndex={-1}
       className="fixed inset-0 z-[1000] bg-slate-950/55 p-0 sm:p-4"
       role="dialog"
       aria-modal="true"
@@ -335,6 +373,7 @@ export const OrthoSuperimpositionViewer = ({
             </p>
           </div>
           <button
+            ref={closeButtonRef}
             type="button"
             onClick={onClose}
             className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-border-main text-text-muted hover:text-main focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"

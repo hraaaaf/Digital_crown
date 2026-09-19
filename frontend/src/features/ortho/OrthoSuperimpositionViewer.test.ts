@@ -40,3 +40,15 @@ describe('Ortho F5 source privacy boundary', () => {
     expect(file).not.toContain("if (/^https?:\\/\\//i.test(imagePath)) return imagePath");
   });
 });
+
+
+describe('Ortho F5 modal keyboard contract', () => {
+  it('traps focus, focuses close initially, restores focus, and supports Escape', () => {
+    const file = fs.readFileSync(path.join(root, 'src/features/ortho/OrthoSuperimpositionViewer.tsx'), 'utf8');
+    expect(file).toContain('closeButtonRef.current?.focus()');
+    expect(file).toContain("event.key !== 'Tab'");
+    expect(file).toContain('previousFocused?.focus()');
+    expect(file).toContain("event.key === 'Escape'");
+    expect(file).toContain('tabIndex={-1}');
+  });
+});

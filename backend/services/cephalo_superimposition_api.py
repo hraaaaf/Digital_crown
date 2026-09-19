@@ -30,6 +30,7 @@ from backend.services.cephalo_superimposition_source import (
 _BACKEND_ROOT = Path(__file__).resolve().parents[1]
 _STATIC_ROOT = (_BACKEND_ROOT / "static").resolve()
 _DB_STATIC_PREFIX = "api/static/"
+_DB_RADIO_PREFIX = "api/static/uploads/radios/"
 
 
 def engineering_preview_enabled() -> bool:
@@ -89,10 +90,10 @@ def build_context(
 
 def _canonical_local_path(db_path: str) -> Path:
     normalized = str(db_path or "").replace("\\", "/").lstrip("/")
-    if not normalized.startswith(_DB_STATIC_PREFIX):
+    if not normalized.startswith(_DB_RADIO_PREFIX):
         raise SuperimpositionSourceError(
             "SOURCE_PATH_UNSUPPORTED",
-            "F5 only reads canonical cephalograms stored under api/static/.",
+            "F5 only reads canonical cephalograms stored under api/static/uploads/radios/.",
         )
     relative = normalized[len(_DB_STATIC_PREFIX):]
     candidate = (_STATIC_ROOT / relative).resolve()
