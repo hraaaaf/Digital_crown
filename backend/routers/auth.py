@@ -112,6 +112,9 @@ async def get_current_user(
 
     if user is None or not user.is_active:
         raise credentials_exception
+    approval = getattr(user, "approval_status", "approved") or "approved"
+    if getattr(user, "employer_id", None) is not None and approval != "approved":
+        raise credentials_exception
     return user
 
 
@@ -367,6 +370,9 @@ async def refresh_access_token(
 
     user = db.query(models.User).filter(models.User.email == email).first()
     if user is None or not user.is_active:
+        raise credentials_exception
+    approval = getattr(user, "approval_status", "approved") or "approved"
+    if getattr(user, "employer_id", None) is not None and approval != "approved":
         raise credentials_exception
 
     token_blacklist.revoke(refresh_token_value, db)

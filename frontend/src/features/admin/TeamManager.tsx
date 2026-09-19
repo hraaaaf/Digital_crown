@@ -89,6 +89,8 @@ export const TeamManager: React.FC = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [editingPermissionsMember, setEditingPermissionsMember] = useState<TeamMember | null>(null);
   const [approvingId, setApprovingId] = useState<number | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [mutationKey, setMutationKey] = useState<string | null>(null);
 
   const [form, setForm] = useState<CreateForm>({
     email: '',
@@ -110,6 +112,8 @@ export const TeamManager: React.FC = () => {
   });
 
   const fetchMembers = useCallback(async () => {
+    setLoading(true);
+    setLoadError(null);
     try {
       const [membersRes, quotaRes] = await Promise.all([
         api.get(`/team/?_t=${Date.now()}`),
@@ -123,6 +127,7 @@ export const TeamManager: React.FC = () => {
       setQuota(quotaRes.data);
     } catch {
       console.error("Erreur chargement équipe");
+      setLoadError("Impossible de charger l'équipe. Les données affichées ne sont pas considérées comme à jour.");
     } finally {
       setLoading(false);
     }
@@ -148,15 +153,19 @@ export const TeamManager: React.FC = () => {
   };
 
   const rejectMember = async (member: TeamMember) => {
+    if (mutationKey) return;
     if (!confirm(`Refuser l'accès de ${member.nom_complet || member.email} ?`)) return;
+    setMutationKey(`reject:${member.id}`);
     setError(null);
     try {
       await api.post(`/team/${member.id}/reject`);
       setSuccess(`Demande de ${member.nom_complet || member.email} refusée.`);
-      fetchMembers();
+      await fetchMembers();
       setTimeout(() => setSuccess(null), 4000);
     } catch (err: any) {
       setError(err.response?.data?.detail || "Erreur lors du refus.");
+    } finally {
+      setMutationKey(null);
     }
   };
 
@@ -220,23 +229,31 @@ export const TeamManager: React.FC = () => {
   };
 
   const toggleActive = async (member: TeamMember) => {
+    if (mutationKey) return;
+    setMutationKey(`active:${member.id}`);
     try {
       await api.put(`/team/${member.id}`, { is_active: !member.is_active });
-      fetchMembers();
+      await fetchMembers();
     } catch {
       setError("Erreur lors de la modification du statut.");
+    } finally {
+      setMutationKey(null);
     }
   };
 
   const deleteMember = async (member: TeamMember) => {
+    if (mutationKey) return;
     if (!confirm(`Supprimer définitivement le compte de ${member.nom_complet || member.email} ?`)) return;
+    setMutationKey(`delete:${member.id}`);
     try {
       await api.delete(`/team/${member.id}`);
       setSuccess("Compte supprimé.");
-      fetchMembers();
+      await fetchMembers();
       setTimeout(() => setSuccess(null), 3000);
     } catch {
       setError("Erreur lors de la suppression.");
+    } finally {
+      setMutationKey(null);
     }
   };
 
@@ -301,7 +318,11 @@ export const TeamManager: React.FC = () => {
           {(!quota.can_add_dentiste || !quota.can_add_secretaire) && (
             <div className="sm:ml-auto max-w-full flex items-center gap-2 px-4 py-2 bg-amber-50 border border-amber-200 rounded-xl text-amber-700 text-xs font-black">
               <TrendingUp size={14} className="shrink-0" />
-              <span className="break-words">Quota atteint — passez au plan supérieur</span>
+              <span className="break-words">
+                {quota.plan === 'ELITE'
+                  ? 'Capacité temporairement indisponible — vérifiez les comptes en attente'
+                  : `Quota atteint pour ${!quota.can_add_dentiste && !quota.can_add_secretaire ? 'les dentistes et assistantes' : !quota.can_add_dentiste ? 'les dentistes' : 'les assistantes'} — ajustez l’équipe ou le pack`}
+              </span>
             </div>
           )}
         </div>
@@ -544,6 +565,7 @@ export const TeamManager: React.FC = () => {
                 </button>
                 <button
                   onClick={() => rejectMember(member)}
+                  disabled={mutationKey !== null}
                   className="px-4 py-2 bg-rose-50 text-rose-600 border border-rose-200 text-xs font-black rounded-xl transition-all hover:bg-rose-100 flex items-center gap-2"
                 >
                   <XCircle size={14} />
@@ -551,6 +573,7 @@ export const TeamManager: React.FC = () => {
                 </button>
                 <button
                   onClick={() => deleteMember(member)}
+                  disabled={mutationKey !== null}
                   className="p-2.5 bg-slate-50 text-slate-400 hover:text-rose-500 hover:bg-rose-50 border border-slate-200 rounded-xl transition-all"
                   title="Supprimer définitivement"
                 >
@@ -566,6 +589,19 @@ export const TeamManager: React.FC = () => {
       {loading ? (
         <div className="flex justify-center py-20">
           <Loader2 className="animate-spin" style={{ color: 'var(--primary)' }} size={40} />
+        </div>
+      ) : loadError ? (
+        <div className="bg-rose-50 border border-rose-200 rounded-2xl p-8 text-center">
+          <AlertTriangle className="mx-auto text-rose-500" size={32} />
+          <h4 className="mt-3 text-lg font-black text-rose-800">Équipe non chargée</h4>
+          <p className="mt-2 text-sm font-medium text-rose-700">{loadError}</p>
+          <button
+            type="button"
+            onClick={() => fetchMembers()}
+            className="mt-4 px-4 py-2 rounded-xl bg-white border border-rose-200 text-rose-700 text-xs font-black hover:bg-rose-100"
+          >
+            Réessayer
+          </button>
         </div>
       ) : members.length === 0 ? (
         <div className="bg-slate-50 border border-dashed border-slate-200 rounded-2xl p-16 text-center">
@@ -647,6 +683,7 @@ export const TeamManager: React.FC = () => {
                 </button>
                 <button
                   onClick={() => toggleActive(member)}
+                  disabled={mutationKey !== null}
                   className={cn(
                     "p-2.5 rounded-xl transition-all text-sm font-bold flex items-center gap-2",
                     member.is_active
@@ -660,6 +697,7 @@ export const TeamManager: React.FC = () => {
                 </button>
                 <button
                   onClick={() => deleteMember(member)}
+                  disabled={mutationKey !== null}
                   className="p-2.5 bg-rose-50 text-rose-500 hover:bg-rose-100 border border-rose-200 rounded-xl transition-all"
                   title="Supprimer définitivement"
                 >
@@ -747,7 +785,10 @@ export const TeamManager: React.FC = () => {
               </button>
               <button
                 type="button"
+                disabled={mutationKey !== null}
                 onClick={async () => {
+                  if (mutationKey) return;
+                  setMutationKey(`permissions:${editingPermissionsMember.id}`);
                   try {
                     await api.put(`/team/${editingPermissionsMember.id}`, {
                       permissions: editingPermissionsMember.permissions
@@ -758,6 +799,8 @@ export const TeamManager: React.FC = () => {
                     setTimeout(() => setSuccess(null), 3000);
                   } catch (err: any) {
                     setError(err.response?.data?.detail || "Erreur de mise à jour.");
+                  } finally {
+                    setMutationKey(null);
                   }
                 }}
                 className="px-6 py-2.5 text-xs font-black text-white rounded-xl shadow-md transition-all hover:brightness-110"
