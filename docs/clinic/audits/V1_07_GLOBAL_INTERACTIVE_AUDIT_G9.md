@@ -41,15 +41,12 @@ Settings tabs, backup/restore and practitioner context are mapped; TeamManager r
 Certification still depends on exact-head tests/build.
 
 ### G6 — Commercial/SuperAdmin/licences
-Most controls behaviorally covered.
-BLOCKER: LicenseStatusPage hardcodes “Elite” for every expired account despite no available subscription-plan truth.
+Most controls are behaviorally covered.
+The LicenseStatus product-truth defect is remediated in code and dedicated tests; certification still requires matched exact-head BEFORE/AFTER evidence and exact-head tests/build.
 
 ### G7 — Stock/marketplace/library
 Marketplace/admin/detail pages, Library and Science Hub are behaviorally mapped.
-BLOCKERS in Stock:
-1. read failure can render as truthful empty;
-2. permanent delete has no confirmation;
-3. mutation failures lack explicit user-facing refusal/error state.
+The three Stock product-truth/safety defects are remediated in code and behavior tests: read-error ≠ empty, explicit delete confirmation, and visible add/edit/quantity/delete refusal states. Certification still requires matched exact-head visual evidence and exact-head tests/build.
 
 ### G8 — Transverse/adversarial
 Functionally reconciled.
@@ -59,10 +56,19 @@ Certification still depends on exact-head tests/build.
 ## Freeze blockers
 
 G9 cannot freeze while any of these remain:
-1. G6 LicenseStatus product-truth defect.
-2. G7 Stock read/delete/mutation-error defects.
-3. Exact-head frontend tests/build not green for the final reconciled HEAD.
-4. G0 semantic denominator not frozen after final source changes.
+1. G6/G7 remediations are not yet backed by green matched exact-head visual evidence.
+2. Exact-head frontend tests/build are not green for the final reconciled HEAD.
+3. G0 final rerun/reconciliation has not been adjudicated semantically.
+4. The semantic denominator is not frozen after final source changes.
+
+## Evidence reconciliation seed
+`scripts/reconcile_interactive_evidence.py` generates a conservative **inspection seed**, never a coverage score or semantic denominator.
+
+A source file leaves the priority inspection queue only when at least one of these is true:
+- a gated G1→G8 test imports that exact source path directly (relative or `@/` import);
+- a canonical G1→G8 audit file explicitly references that source path.
+
+Filename/token similarity is retained only as a heuristic hint and cannot itself count as proof. Direct import or canonical reference also does not prove that every control in the source file is covered; G9 must still adjudicate control-level behavior before freeze.
 
 ## Semantic denominator rule
 A user-visible control counts once per distinct business behavior/state contract, not once per static source match.
