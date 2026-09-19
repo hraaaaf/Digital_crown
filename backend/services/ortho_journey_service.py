@@ -735,3 +735,137 @@ def compare_ortho_timepoints(
         measurements=measurements,
         measurement_status=measurement_status,
     )
+
+
+def build_ortho_cockpit(
+    db: Session,
+    patient_id: int,
+    employer_id: int,
+):
+    case = get_ortho_case(db, patient_id, employer_id)
+    if case is None:
+        return schemas.OrthoCockpitOut(patient_id=patient_id)
+
+    controls = list_ortho_controls(db, patient_id, case.id, employer_id)
+    latest_control = controls[0] if controls else None
+
+    timepoints = (
+        db.query(models.OrthoTimepoint)
+        .options(joinedload(models.OrthoTimepoint.evidences))
+        .filter(
+            models.OrthoTimepoint.ortho_case_id == case.id,
+            models.OrthoTimepoint.patient_id == patient_id,
+            models.OrthoTimepoint.employer_id == employer_id,
+        )
+        .order_by(
+            models.OrthoTimepoint.ordinal.desc(),
+            models.OrthoTimepoint.occurred_at.desc(),
+            models.OrthoTimepoint.id.desc(),
+        )
+        .all()
+    )
+    latest_timepoint = timepoints[0] if timepoints else None
+
+    next_appointment = (
+        db.query(models.Appointment)
+        .filter(
+            models.Appointment.patient_id == patient_id,
+            models.Appointment.employer_id == employer_id,
+            models.Appointment.deleted_at.is_(None),
+            models.Appointment.datetime_start >= datetime.now(),
+            models.Appointment.status.in_(
+                [
+                    models.AppointmentStatus.PREVU,
+                    models.AppointmentStatus.EN_SALLE_ATTENTE,
+                    models.AppointmentStatus.EN_FAUTEUIL,
+                    models.AppointmentStatus.CONFIRME,
+                ]
+            ),
+        )
+        .order_by(models.Appointment.datetime_start.asc(), models.Appointment.id.asc())
+        .first()
+    )
+
+    latest_by_kind = {
+        "CEPHALO": None,
+        "PANORAMIC": None,
+        "CLINICAL_ASSET": None,
+    }
+    for timepoint in timepoints:
+        for evidence in _f3_evidence_summaries(db, timepoint, patient_id, employer_id):
+            if latest_by_kind.get(evidence.kind) is None:
+                latest_by_kind[evidence.kind] = schemas.OrthoCockpitEvidenceOut(
+                    kind=evidence.kind,
+                    ref_id=evidence.ref_id,
+                    recorded_at=evidence.recorded_at,
+                    label=evidence.label,
+                    timepoint_ordinal=timepoint.ordinal,
+                )
+        if all(latest_by_kind.values()):
+            break
+
+    attention: list[str] = []
+    if case.lifecycle_status == "INTERRUPTED":
+        attention.append("TREATMENT_INTERRUPTED")
+    if latest_timepoint is None:
+        attention.append("NO_TIMEPOINT")
+    elif not latest_timepoint.evidences:
+        attention.append("LATEST_TIMEPOINT_WITHOUT_EVIDENCE")
+    if latest_control is None or latest_control.next_control_at is None:
+        attention.append("NO_NEXT_CONTROL_DATE")
+    if latest_control is not None and latest_control.next_planned_step:
+        attention.append("NEXT_PLANNED_STEP_PRESENT")
+
+    return schemas.OrthoCockpitOut(
+        patient_id=patient_id,
+        case=schemas.OrthoCockpitCaseOut(
+            case_id=case.id,
+            started_at=case.started_at,
+            lifecycle_status=case.lifecycle_status,
+            current_phase_key=case.current_phase_key,
+            closed_at=case.closed_at,
+            controls_count=len(controls),
+        ),
+        latest_control=(
+            schemas.OrthoCockpitControlOut(
+                id=latest_control.id,
+                occurred_at=latest_control.occurred_at,
+                phase_key=latest_control.phase_key,
+                notable_event=latest_control.notable_event,
+                next_planned_step=latest_control.next_planned_step,
+                next_control_at=latest_control.next_control_at,
+                appointment_id=latest_control.appointment_id,
+            )
+            if latest_control is not None
+            else None
+        ),
+        next_appointment=(
+            schemas.OrthoCockpitAppointmentOut(
+                id=next_appointment.id,
+                datetime_start=next_appointment.datetime_start,
+                status=(
+                    next_appointment.status.value
+                    if hasattr(next_appointment.status, "value")
+                    else str(next_appointment.status)
+                ),
+                motif=next_appointment.motif,
+            )
+            if next_appointment is not None
+            else None
+        ),
+        latest_timepoint=(
+            schemas.OrthoCockpitTimepointOut(
+                id=latest_timepoint.id,
+                ordinal=latest_timepoint.ordinal,
+                occurred_at=latest_timepoint.occurred_at,
+                note=latest_timepoint.note,
+                evidence_count=len(latest_timepoint.evidences),
+            )
+            if latest_timepoint is not None
+            else None
+        ),
+        latest_cephalo=latest_by_kind["CEPHALO"],
+        latest_panoramic=latest_by_kind["PANORAMIC"],
+        latest_clinical_asset=latest_by_kind["CLINICAL_ASSET"],
+        attention=attention,
+    )

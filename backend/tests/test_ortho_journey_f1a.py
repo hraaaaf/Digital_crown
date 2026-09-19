@@ -1111,3 +1111,81 @@ class TestOrthoJourneyF3:
         body = response.json()
         assert body["measurement_status"] == "AMBIGUOUS_CEPHALO_PAIR"
         assert body["measurements"] == []
+
+
+class TestOrthoJourneyF4:
+    def test_cockpit_without_case_fails_closed(self, client, db, dentiste, auth_headers):
+        patient = _make_patient(db, dentiste.id, "ORTHO_F4_EMPTY")
+        response = client.get(
+            f"/api/patients/{patient.id}/ortho-cockpit",
+            headers=auth_headers,
+        )
+        assert response.status_code == 200, response.text
+        body = response.json()
+        assert body["patient_id"] == patient.id
+        assert body["case"] is None
+        assert body["latest_control"] is None
+        assert body["latest_timepoint"] is None
+        assert body["next_appointment"] is None
+        assert body["attention"] == []
+
+    def test_cockpit_keeps_planned_control_distinct_from_real_appointment(
+        self, client, db, dentiste, auth_headers
+    ):
+        from backend import models
+
+        patient = _make_patient(db, dentiste.id, "ORTHO_F4_FACTS")
+        start = datetime.now() - timedelta(days=120)
+        created = _create_case(client, patient.id, auth_headers, start, phase="ALIGNEMENT")
+        assert created.status_code == 201, created.text
+        case_id = created.json()["id"]
+
+        planned_control = datetime.now() + timedelta(days=20)
+        control = client.post(
+            f"/api/patients/{patient.id}/ortho-case/{case_id}/controls",
+            headers=auth_headers,
+            json={
+                "occurred_at": (datetime.now() - timedelta(days=2)).isoformat(),
+                "phase_key": "ALIGNEMENT",
+                "notable_event": "Bracket 12 recollé.",
+                "next_planned_step": "Contrôle de l'alignement antérieur.",
+                "next_control_at": planned_control.isoformat(),
+            },
+        )
+        assert control.status_code == 201, control.text
+
+        appointment_start = datetime.now() + timedelta(days=25)
+        appointment = models.Appointment(
+            patient_id=patient.id,
+            patient_name="ORTHO_F4_FACTS Test",
+            datetime_start=appointment_start,
+            duration_minutes=30,
+            status=models.AppointmentStatus.PREVU,
+            scheduling_type=models.SchedulingType.EXACT_TIME,
+            employer_id=dentiste.id,
+        )
+        db.add(appointment)
+        db.commit()
+        db.refresh(appointment)
+
+        timepoint = client.post(
+            f"/api/patients/{patient.id}/ortho-case/{case_id}/timepoints",
+            headers=auth_headers,
+            json={"ordinal": 1, "occurred_at": (datetime.now() - timedelta(days=1)).isoformat()},
+        )
+        assert timepoint.status_code == 201, timepoint.text
+
+        response = client.get(
+            f"/api/patients/{patient.id}/ortho-cockpit",
+            headers=auth_headers,
+        )
+        assert response.status_code == 200, response.text
+        body = response.json()
+        assert body["case"]["current_phase_key"] == "ALIGNEMENT"
+        assert body["case"]["controls_count"] == 1
+        assert body["latest_control"]["next_control_at"].startswith(planned_control.date().isoformat())
+        assert body["next_appointment"]["id"] == appointment.id
+        assert body["next_appointment"]["datetime_start"].startswith(appointment_start.date().isoformat())
+        assert body["latest_timepoint"]["ordinal"] == 1
+        assert "NEXT_PLANNED_STEP_PRESENT" in body["attention"]
+        assert body["latest_control"]["next_control_at"] != body["next_appointment"]["datetime_start"]
