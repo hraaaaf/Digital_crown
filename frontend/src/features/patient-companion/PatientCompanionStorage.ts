@@ -22,7 +22,6 @@ export type PatientPairing = {
 };
 
 export type PatientAppointment = {
-  id: number;
   datetime_start: string;
   duration_minutes?: number | null;
   motif: string;
@@ -33,7 +32,6 @@ export type PatientAppointment = {
 export type PatientShare = {
   share_id: string;
   resource_type: 'document' | 'media';
-  resource_id: number;
   title?: string | null;
   document_type?: string | null;
   asset_type?: string | null;
