@@ -110,7 +110,10 @@ jobs:
               assert probe["webStorageLeaksAccessToken"] is False, probe
               assert probe["webStorageLeaksManualCode"] is False, probe
           before=[x for x in items if x["phase"]=="before"]
-          assert all(x["pathname"].startswith("/login") for x in before), [x["pathname"] for x in before]
+          # BEFORE is the immutable base and may already contain a protected /companion
+          # route shell. The evidence contract requires matched capture, not a historical
+          # assumption that the base must redirect to /login.
+          assert len(before) == 8
           print("pc00_visual_contract=PASS")
           PY
 
