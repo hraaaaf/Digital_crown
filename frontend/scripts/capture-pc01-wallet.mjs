@@ -57,7 +57,10 @@ async function pair(page) {
   await page.getByText('Appairer ce téléphone', { exact: true }).waitFor();
   await page.getByLabel('Code manuel').fill('ABCD-EFGH-JKLM');
   await page.getByText('Appairer avec le code', { exact: true }).click();
-  await page.getByText('Aya Audit', { exact: true }).waitFor();
+  await page.getByText('Aya Audit', { exact: true }).waitFor({ timeout: 10000 }).catch(async () => {
+    const pageBody = await page.locator('body').innerText();
+    throw new Error('PC01 pairing did not reach home. BODY=' + pageBody.slice(0, 2000));
+  });
 }
 
 async function probe(page) {
