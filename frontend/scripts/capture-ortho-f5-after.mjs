@@ -119,55 +119,76 @@ await writeFile(path.join(FRONTEND_DIR,'src','ortho-f5-after-entry.tsx'),entrySo
 await writeFile(path.join(FRONTEND_DIR,'ortho-f5-after.html'),htmlSource,'utf8');
 
 const viteBin=path.join(FRONTEND_DIR,'node_modules','.bin',process.platform==='win32'?'vite.cmd':'vite');
-const server=spawn(viteBin,['--host','127.0.0.1','--port',String(PORT)],{cwd:FRONTEND_DIR,env:{...process.env,BROWSER:'none',VITE_API_URL:'http://127.0.0.1:8005'},stdio:['ignore','pipe','pipe']});
+const server=spawn(viteBin,['--force','--host','127.0.0.1','--port',String(PORT)],{cwd:FRONTEND_DIR,env:{...process.env,BROWSER:'none',VITE_API_URL:'http://127.0.0.1:8005'},stdio:['ignore','pipe','pipe']});
 let serverLog=''; server.stdout.on('data',x=>serverLog+=x.toString()); server.stderr.on('data',x=>serverLog+=x.toString());
 const captures=[]; const blockedExternalRequests=[];
 
+let currentViewportName = viewports[0].name;
+let activeConsoleErrors = [];
+let activePageErrors = [];
+const browser = await chromium.launch({headless:true});
+const context = await browser.newContext({
+  viewport:{width:viewports[0].width,height:viewports[0].height},
+  reducedMotion:'reduce',
+  locale:'fr-FR',
+});
+const page = await context.newPage();
+page.on('console',m=>{if(m.type()==='error')activeConsoleErrors.push(m.text())});
+page.on('pageerror',e=>activePageErrors.push(e.message));
+await page.route('**/*',async route=>{
+  const req=route.request(); const url=new URL(req.url());
+  if(url.hostname==='127.0.0.1'&&url.port===String(PORT))return route.continue();
+  if(url.hostname==='127.0.0.1'&&url.port==='8005'){
+    if(req.method()==='GET'&&url.pathname==='/api/patients/915/ortho-case')return route.fulfill(json(orthoCase));
+    if(req.method()==='GET'&&url.pathname==='/api/patients/915/ortho-case/12/timepoints')return route.fulfill(json(timepoints));
+    if(req.method()==='GET'&&url.pathname==='/api/patients/915/ortho-case/12/compare')return route.fulfill(json(comparison));
+    if(req.method()==='GET'&&url.pathname==='/api/patients/915/journey')return route.fulfill(json(journey));
+    if(req.method()==='GET'&&url.pathname==='/api/patients/915/ortho-case/12/superimposition/context')return route.fulfill(json(f5Context));
+    if(req.method()==='POST'&&url.pathname==='/api/patients/915/ortho-case/12/superimposition/estimate')return route.fulfill(json(f5Estimate));
+    if(req.method()==='GET'&&url.pathname==='/api/ia/analyses/31')return route.fulfill(json(analysis31));
+    if(req.method()==='GET'&&url.pathname==='/api/ia/analyses/32')return route.fulfill(json(analysis32));
+    if(req.method()==='GET'&&url.pathname==='/api/static/uploads/radios/f5-t0.svg')return route.fulfill({status:200,contentType:'image/svg+xml',body:cephSvg(0)});
+    if(req.method()==='GET'&&url.pathname==='/api/static/uploads/radios/f5-t1.svg')return route.fulfill({status:200,contentType:'image/svg+xml',body:cephSvg(8)});
+    if(req.method()==='GET'&&url.pathname==='/api/actes/patient/915')return route.fulfill(json([]));
+    if(req.method()==='GET'&&url.pathname==='/api/patients/915/documents')return route.fulfill(json([]));
+    return route.fulfill(json({detail:'neutralized'},418));
+  }
+  if(url.hostname==='fonts.googleapis.com')return route.fulfill({status:200,contentType:'text/css',body:'/* offline */'});
+  blockedExternalRequests.push({viewport:currentViewportName,url:req.url(),method:req.method()}); return route.abort('blockedbyclient');
+});
+
+let response = null;
+try {
+  await waitForServer(`${BASE_URL}/ortho-f5-after.html`);
+  response=await page.goto(`${BASE_URL}/ortho-f5-after.html`,{waitUntil:'domcontentloaded',timeout:30000});
+  await page.locator('[data-ortho-f3-compare]').waitFor({state:'visible',timeout:30000});
+  await page.getByText(/Variation numérique/i).waitFor({state:'visible',timeout:30000});
+  await page.getByRole('button',{name:/Superposition scientifique/i}).click();
+  await page.locator('[data-ortho-f5-viewer]').waitFor({state:'visible',timeout:30000});
+  const drawRoi = async (selector) => {
+    const box = await page.locator(selector).boundingBox();
+    if(!box) throw new Error('Missing ROI box '+selector);
+    await page.mouse.move(box.x + box.width*0.28, box.y + box.height*0.24);
+    await page.mouse.down();
+    await page.mouse.move(box.x + box.width*0.70, box.y + box.height*0.63,{steps:8});
+    await page.mouse.up();
+  };
+  await drawRoi('[data-f5-roi="from"]');
+  await drawRoi('[data-f5-roi="to"]');
+  await page.getByRole('button',{name:/Calculer la superposition/i}).click();
+  await page.locator('[data-f5-overlay-canvas]').waitFor({state:'visible',timeout:30000});
+} catch(error) {
+  activePageErrors.push(error instanceof Error?error.message:String(error));
+}
+
 for(const viewport of viewports){
-  const browser=await chromium.launch({headless:true});
-  const context=await browser.newContext({viewport:{width:viewport.width,height:viewport.height},reducedMotion:'reduce',locale:'fr-FR'});
-  const page=await context.newPage(); const consoleErrors=[]; const pageErrors=[];
-  page.on('console',m=>{if(m.type()==='error')consoleErrors.push(m.text())}); page.on('pageerror',e=>pageErrors.push(e.message));
-  await page.route('**/*',async route=>{
-    const req=route.request(); const url=new URL(req.url());
-    if(url.hostname==='127.0.0.1'&&url.port===String(PORT))return route.continue();
-    if(url.hostname==='127.0.0.1'&&url.port==='8005'){
-      if(req.method()==='GET'&&url.pathname==='/api/patients/915/ortho-case')return route.fulfill(json(orthoCase));
-      if(req.method()==='GET'&&url.pathname==='/api/patients/915/ortho-case/12/timepoints')return route.fulfill(json(timepoints));
-      if(req.method()==='GET'&&url.pathname==='/api/patients/915/ortho-case/12/compare')return route.fulfill(json(comparison));
-      if(req.method()==='GET'&&url.pathname==='/api/patients/915/journey')return route.fulfill(json(journey));
-      if(req.method()==='GET'&&url.pathname==='/api/patients/915/ortho-case/12/superimposition/context')return route.fulfill(json(f5Context));
-      if(req.method()==='POST'&&url.pathname==='/api/patients/915/ortho-case/12/superimposition/estimate')return route.fulfill(json(f5Estimate));
-      if(req.method()==='GET'&&url.pathname==='/api/ia/analyses/31')return route.fulfill(json(analysis31));
-      if(req.method()==='GET'&&url.pathname==='/api/ia/analyses/32')return route.fulfill(json(analysis32));
-      if(req.method()==='GET'&&url.pathname==='/api/static/uploads/radios/f5-t0.svg')return route.fulfill({status:200,contentType:'image/svg+xml',body:cephSvg(0)});
-      if(req.method()==='GET'&&url.pathname==='/api/static/uploads/radios/f5-t1.svg')return route.fulfill({status:200,contentType:'image/svg+xml',body:cephSvg(8)});
-      if(req.method()==='GET'&&url.pathname==='/api/actes/patient/915')return route.fulfill(json([]));
-      if(req.method()==='GET'&&url.pathname==='/api/patients/915/documents')return route.fulfill(json([]));
-      return route.fulfill(json({detail:'neutralized'},418));
-    }
-    if(url.hostname==='fonts.googleapis.com')return route.fulfill({status:200,contentType:'text/css',body:'/* offline */'});
-    blockedExternalRequests.push({viewport:viewport.name,url:req.url(),method:req.method()}); return route.abort('blockedbyclient');
-  });
+  currentViewportName = viewport.name;
+  activeConsoleErrors = [];
+  const carryPageErrors = [...activePageErrors];
+  activePageErrors = [];
+  await page.setViewportSize({width:viewport.width,height:viewport.height});
+  await page.waitForTimeout(150);
   try{
-    await waitForServer(`${BASE_URL}/ortho-f5-after.html`);
-    const response=await page.goto(`${BASE_URL}/ortho-f5-after.html`,{waitUntil:'domcontentloaded',timeout:30000});
-    await page.locator('[data-ortho-f3-compare]').waitFor({state:'visible',timeout:30000});
-    await page.getByText(/Variation numérique/i).waitFor({state:'visible',timeout:30000});
-    await page.getByRole('button',{name:/Superposition scientifique/i}).click();
-    await page.locator('[data-ortho-f5-viewer]').waitFor({state:'visible',timeout:30000});
-    const drawRoi = async (selector) => {
-      const box = await page.locator(selector).boundingBox();
-      if(!box) throw new Error('Missing ROI box '+selector);
-      await page.mouse.move(box.x + box.width*0.28, box.y + box.height*0.24);
-      await page.mouse.down();
-      await page.mouse.move(box.x + box.width*0.70, box.y + box.height*0.63,{steps:8});
-      await page.mouse.up();
-    };
-    await drawRoi('[data-f5-roi="from"]');
-    await drawRoi('[data-f5-roi="to"]');
-    await page.getByRole('button',{name:/Calculer la superposition/i}).click();
-    await page.locator('[data-f5-overlay-canvas]').waitFor({state:'visible',timeout:30000});
     const metrics=await page.evaluate(()=>{
       const text=(document.body.textContent||'').toLowerCase(); const doc=document.documentElement;
       return {
@@ -184,13 +205,18 @@ for(const viewport of viewports){
         forbidden:['amélior','aggrav','succès thérapeutique','echec thérapeutique','échec thérapeutique','worsen','improv'].filter(k=>text.includes(k)),
       };
     });
+    const pageErrors=[...carryPageErrors,...activePageErrors];
+    const consoleErrors=[...activeConsoleErrors];
     const valid=response?.status()===200&&!metrics.horizontalOverflow&&metrics.hasCompareSurface&&metrics.hasT0&&metrics.hasT1&&metrics.hasEvidence&&metrics.hasNumericCaption&&metrics.hasDelta&&metrics.hasF5Viewer&&metrics.hasF5Canvas&&metrics.hasEngineeringStatus&&metrics.forbidden.length===0&&consoleErrors.length===0&&pageErrors.length===0;
     await page.screenshot({path:path.join(OUTPUT_DIR,`after-superimposition-${viewport.name}.png`),fullPage:true});
     captures.push({viewport:viewport.name,httpStatus:response?.status()??null,metrics,consoleErrors,pageErrors,valid});
   }catch(error){
-    captures.push({viewport:viewport.name,httpStatus:null,metrics:null,consoleErrors,pageErrors:[...pageErrors,error instanceof Error?error.message:String(error)],valid:false});
-  }finally{await context.close().catch(()=>{});await browser.close().catch(()=>{});}
+    const pageErrors=[...carryPageErrors,...activePageErrors,error instanceof Error?error.message:String(error)];
+    captures.push({viewport:viewport.name,httpStatus:response?.status()??null,metrics:null,consoleErrors:[...activeConsoleErrors],pageErrors,valid:false});
+  }
 }
+await context.close().catch(()=>{});
+await browser.close().catch(()=>{});
 if(!server.killed)server.kill('SIGTERM'); await Promise.race([once(server,'exit'),new Promise(r=>setTimeout(r,3000))]).catch(()=>{});
 await writeFile(path.join(OUTPUT_DIR,'vite.log'),serverLog,'utf8');
 const invalid=captures.filter(c=>!c.valid);
