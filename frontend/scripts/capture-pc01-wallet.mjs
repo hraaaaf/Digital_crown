@@ -48,13 +48,13 @@ async function installFetchHarness(context) {
       }
       if (url.pathname.endsWith('/appointments')) {
         return new Response(JSON.stringify({ items: [
-          { id: 11, datetime_start: '2026-09-22T09:30:00Z', duration_minutes: 30, motif: 'Contrôle orthodontique', status: 'CONFIRME' },
+          { datetime_start: '2026-09-22T09:30:00Z', duration_minutes: 30, motif: 'Contrôle orthodontique', status: 'CONFIRME' },
         ]}), { status: 200, headers: { 'Content-Type': 'application/json' } });
       }
       if (url.pathname.endsWith('/shares')) {
         return new Response(JSON.stringify({ items: [
-          { share_id: 'share-doc-1', resource_type: 'document', resource_id: 21, title: 'Ordonnance septembre', document_type: 'ORDONNANCE' },
-          { share_id: 'share-media-1', resource_type: 'media', resource_id: 22, title: 'Radiographie de contrôle', asset_type: 'RADIOGRAPH' },
+          { share_id: 'share-doc-1', resource_type: 'document', title: 'Ordonnance septembre', document_type: 'ORDONNANCE' },
+          { share_id: 'share-media-1', resource_type: 'media', title: 'Radiographie de contrôle', asset_type: 'RADIOGRAPH' },
         ]}), { status: 200, headers: { 'Content-Type': 'application/json' } });
       }
       if (url.pathname.endsWith('/me')) {
