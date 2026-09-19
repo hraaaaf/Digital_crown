@@ -200,4 +200,32 @@ describe('PatientDetails G2 interactive permission matrix', () => {
     expect(await screen.findByText('Document hub')).toBeTruthy();
     expect(api.patch).not.toHaveBeenCalled();
   });
+  it('shows a truthful patient-load error and retries successfully', async () => {
+    vi.mocked(api.get)
+      .mockRejectedValueOnce(new Error('patient load failed'))
+      .mockImplementation(async (url: string) => {
+        if (url === '/patients/7') return { data: state.patient } as never;
+        if (url === '/intelligence/patient/7/nba') return { data: { nba: null } } as never;
+        throw new Error('unexpected GET ' + url);
+      });
+
+    renderDetails();
+
+    expect(await screen.findByText('Impossible de charger le dossier')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: /Réessayer/i }));
+    expect(await screen.findByText('Tracking cockpit')).toBeTruthy();
+  });
+
+  it('switches Documents between create and history without entering deep document actions', async () => {
+    renderDetails();
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Document' }));
+    expect(await screen.findByText('Document hub')).toBeTruthy();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Historique' }));
+    expect(await screen.findByText('Patient documents history')).toBeTruthy();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Créer' }));
+    expect(await screen.findByText('Document hub')).toBeTruthy();
+  });
 });
