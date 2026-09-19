@@ -170,6 +170,13 @@ jobs:
           set -o pipefail
           node scripts/inventory-v1-07-g4-dynamic-controls.mjs 2>&1 | tee ../artifacts/t2-browser/g4-dynamic-inventory-runner.log
 
+      - name: Certify G4 residual document browser actions
+        working-directory: frontend
+        shell: bash
+        run: |
+          set -o pipefail
+          node scripts/certify-v1-07-g4-documents-residual-actions.mjs 2>&1 | tee ../artifacts/t2-browser/g4-documents-residual-runner.log
+
       - name: Dump runtime logs on failure
         if: failure()
         run: |
