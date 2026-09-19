@@ -197,4 +197,21 @@ describe('StockPage G7 interactive matrix', () => {
     expect(await scoped.findByText('Article refusé')).toBeTruthy();
     expect(screen.getByText('Nouvel article')).toBeTruthy();
   });
+
+  it('keeps edit modal open and surfaces backend detail when update is refused', async () => {
+    vi.mocked(api.patch).mockRejectedValueOnce({ response: { data: { detail: 'Modification refusée' } } });
+    renderStock();
+    const row = (await screen.findByText('Gants nitrile')).closest('tr')!;
+
+    fireEvent.click(within(row).getByTitle('Modifier'));
+    const modal = screen.getByText("Modifier l'article").closest('div.fixed')!;
+    const scoped = within(modal as HTMLElement);
+    fireEvent.change(scoped.getByDisplayValue('Gants nitrile'), { target: { value: 'Gants nitrile premium' } });
+    fireEvent.click(scoped.getByRole('button', { name: 'Mettre à jour' }));
+
+    expect(await scoped.findByText('Modification refusée')).toBeTruthy();
+    expect(screen.getByText("Modifier l'article")).toBeTruthy();
+    expect(screen.getByDisplayValue('Gants nitrile premium')).toBeTruthy();
+  });
+
 });
