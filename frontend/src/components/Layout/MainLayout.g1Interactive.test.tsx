@@ -67,7 +67,7 @@ describe('MainLayout G1 shell matrix', () => {
     expect(screen.getByRole('button', { name: 'Close CrownBot' })).toBeTruthy();
 
     fireEvent.click(screen.getByRole('button', { name: 'Close CrownBot' }));
-    expect(screen.queryByRole('button', { name: 'Close CrownBot' })).toBeNull();
+    await waitFor(() => expect(screen.queryByRole('button', { name: 'Close CrownBot' })).toBeNull());
     expect(screen.getByText('Page content')).toBeTruthy();
   });
 
