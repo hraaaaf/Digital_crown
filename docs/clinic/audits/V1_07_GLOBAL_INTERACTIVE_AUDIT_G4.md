@@ -139,3 +139,36 @@ Do not certify G4 until:
    - invalid prescription blocked before backend mutation.
 
 Status remains IN PROGRESS. Imaging and final deep-control reconciliation remain.
+
+
+8. `frontend/src/features/patients/components/ClinicalHubCore.g4Interactive.test.tsx`
+   - clinical odontogram dirty/save boundary;
+   - optimistic revision persistence;
+   - 409 conflict/reload;
+   - explicit practitioner conclusion;
+   - 403 conclusion refusal;
+   - treatment-plan status/delete persistence and refusal preservation.
+
+9. `frontend/src/features/panoramic/PanoramicStudio.g4Interactive.test.tsx`
+   - upload/refusal;
+   - practitioner findings;
+   - report generation/refusal;
+   - preview/download/edit;
+   - history/comparison;
+   - filters/manual annotations;
+   - evolution unavailable truth.
+
+10. `frontend/src/features/ortho/CephaloWorkspace.g4Interactive.test.tsx`
+    - patient truth gate;
+    - four-step navigation;
+    - save boundary;
+    - history hydration/refusal.
+
+11. `frontend/src/features/patients/components/RvgDeep.g4Interactive.test.tsx`
+    - upload + metadata;
+    - upload refusal;
+    - open/download authenticated blob;
+    - explicit delete confirmation;
+    - delete refusal preserves card.
+
+Imaging and clinical-authoritative boundaries are now covered. Remaining work is G4-G reconciliation against all deep controls exposed by G0 and exact-head CI.
