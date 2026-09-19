@@ -1,0 +1,121 @@
+name: V1-07 LOT3 SuperAdmin Visual Evidence
+
+on:
+  pull_request:
+    branches: [master]
+    paths:
+      - ".github/workflows/v1-07-lot3-superadmin-visual-evidence.yml"
+      - "frontend/superadmin-lot3-audit.html"
+      - "frontend/src/preview/SuperAdminLot3AuditEntry.tsx"
+      - "frontend/scripts/capture-superadmin-lot3.mjs"
+      - "frontend/src/features/superadmin/SuperAdminDashboard.tsx"
+      - "docs/ux/V1_07_LOT3_SUPERADMIN_GOAL_UI.md"
+
+permissions:
+  contents: read
+
+jobs:
+  capture:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+      - name: Record immutable identities
+        run: |
+          set -euo pipefail
+          HEAD_SHA="$(git rev-parse HEAD)"
+          BASE_SHA="${{ github.event.pull_request.base.sha }}"
+          test "$HEAD_SHA" = "${{ github.event.pull_request.head.sha }}"
+          echo "HEAD_SHA=$HEAD_SHA" >> "$GITHUB_ENV"
+          echo "BASE_SHA=$BASE_SHA" >> "$GITHUB_ENV"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install head frontend + Chromium
+        working-directory: frontend
+        run: |
+          npm ci
+          npm install --no-save --package-lock=false playwright@1.55.0
+          npx playwright install --with-deps chromium
+      - name: Materialize true baseline with audit-only harness
+        run: |
+          set -euo pipefail
+          git worktree add /tmp/v1-07-lot3-before "$BASE_SHA"
+          cp frontend/superadmin-lot3-audit.html /tmp/v1-07-lot3-before/frontend/superadmin-lot3-audit.html
+          mkdir -p /tmp/v1-07-lot3-before/frontend/src/preview /tmp/v1-07-lot3-before/frontend/scripts
+          cp frontend/src/preview/SuperAdminLot3AuditEntry.tsx /tmp/v1-07-lot3-before/frontend/src/preview/SuperAdminLot3AuditEntry.tsx
+          cp frontend/scripts/capture-superadmin-lot3.mjs /tmp/v1-07-lot3-before/frontend/scripts/capture-superadmin-lot3.mjs
+          cd /tmp/v1-07-lot3-before/frontend
+          npm ci
+          npm install --no-save --package-lock=false playwright@1.55.0
+      - name: Capture BEFORE
+        run: |
+          set -euo pipefail
+          cd /tmp/v1-07-lot3-before/frontend
+          npm run dev -- --host 127.0.0.1 --port 5174 >/tmp/lot3-before.log 2>&1 &
+          for i in {1..60}; do
+            if curl -fsS 'http://127.0.0.1:5174/superadmin-lot3-audit.html' >/dev/null; then break; fi
+            sleep 1
+          done
+          curl -fsS 'http://127.0.0.1:5174/superadmin-lot3-audit.html' >/dev/null
+          LOT3_EVIDENCE_PHASE=before LOT3_EVIDENCE_URL=http://127.0.0.1:5174/superadmin-lot3-audit.html LOT3_EVIDENCE_DIR="$GITHUB_WORKSPACE/artifacts/v1-07-lot3-before" node scripts/capture-superadmin-lot3.mjs
+      - name: Capture AFTER
+        working-directory: frontend
+        run: |
+          set -euo pipefail
+          npm run dev -- --host 127.0.0.1 --port 5175 >/tmp/lot3-after.log 2>&1 &
+          for i in {1..60}; do
+            if curl -fsS 'http://127.0.0.1:5175/superadmin-lot3-audit.html' >/dev/null; then break; fi
+            sleep 1
+          done
+          curl -fsS 'http://127.0.0.1:5175/superadmin-lot3-audit.html' >/dev/null
+          LOT3_EVIDENCE_PHASE=after LOT3_EVIDENCE_URL=http://127.0.0.1:5175/superadmin-lot3-audit.html LOT3_EVIDENCE_DIR=../artifacts/v1-07-lot3-after node scripts/capture-superadmin-lot3.mjs
+      - name: Assert matched BEFORE/AFTER and truthful deltas
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          before=json.loads(Path("artifacts/v1-07-lot3-before/evidence.json").read_text())
+          after=json.loads(Path("artifacts/v1-07-lot3-after/evidence.json").read_text())
+          key=lambda x:(x["scenario"],x["viewport"]["width"],x["viewport"]["height"])
+          b={key(x):x for x in before}
+          a={key(x):x for x in after}
+          assert set(b)==set(a)
+          assert len(a)==4
+          for k,x in b.items():
+              y=a[k]
+              if x["scenario"]=="downgrade":
+                  assert x["genericDowngrade"] is True
+                  assert y["genericDowngrade"] is False
+                  assert y["preciseDowngrade"] is True
+              else:
+                  assert x["genericRenewal"] is True
+                  assert x["renewalTitle"]=="Email de relance"
+                  assert y["genericRenewal"] is False
+                  assert y["preciseRenewal"] is True
+                  assert y["renewalTitle"]=="WhatsApp de relance"
+          print("matched_before_after=4 truthful_deltas=PASS")
+          PY
+      - name: Record proof metadata
+        run: |
+          printf 'base=%s\nhead=%s\nphase=before\nviewports=1024x900,1440x1000\ndeployment=none\n' "$BASE_SHA" "$HEAD_SHA" > artifacts/v1-07-lot3-before/result.txt
+          printf 'base=%s\nhead=%s\nphase=after\nviewports=1024x900,1440x1000\ndeployment=none\n' "$BASE_SHA" "$HEAD_SHA" > artifacts/v1-07-lot3-after/result.txt
+          cp /tmp/lot3-before.log artifacts/v1-07-lot3-before/vite.log
+          cp /tmp/lot3-after.log artifacts/v1-07-lot3-after/vite.log
+      - uses: actions/upload-artifact@v4
+        with:
+          name: v1-07-lot3-superadmin-before
+          path: artifacts/v1-07-lot3-before
+          if-no-files-found: error
+          retention-days: 30
+      - uses: actions/upload-artifact@v4
+        with:
+          name: v1-07-lot3-superadmin-after
+          path: artifacts/v1-07-lot3-after
+          if-no-files-found: error
+          retention-days: 30
