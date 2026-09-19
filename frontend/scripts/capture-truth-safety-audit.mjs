@@ -24,7 +24,13 @@ try {
         const req=route.request();
         const url=new URL(req.url());
         if (url.pathname.endsWith('/stock/items') && req.method()==='GET') {
-          if (scenario==='stock-read-error') {
+          if (scenario==='landing-geography') {
+        await page.getByText(/dentistes (algériens|marocains)/i).waitFor({state:'visible',timeout:15000});
+        const body=await page.locator('body').innerText();
+        if (phase==='before' && !body.includes('dentistes algériens')) throw new Error('BEFORE landing geography defect not present');
+        if (phase==='after' && (body.includes('dentistes algériens') || !body.includes('dentistes marocains'))) throw new Error('AFTER landing geography is not Morocco-aligned');
+      }
+      if (scenario==='stock-read-error') {
             return route.fulfill({status:503,contentType:'application/json',body:'{"detail":"stock unavailable"}'});
           }
           return route.fulfill({status:200,contentType:'application/json',body:JSON.stringify([{
