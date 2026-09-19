@@ -2,6 +2,7 @@ import pytest
 from fastapi import HTTPException
 from unittest.mock import MagicMock, patch
 
+from backend import models
 from backend.routers import superadmin
 from backend.services.subscription_policy import TeamUsage
 
