@@ -4,7 +4,7 @@ import uuid
 from datetime import datetime
 from typing import Optional
 
-from sqlalchemy import DateTime, ForeignKey, Index, String, Text, UniqueConstraint
+from sqlalchemy import DateTime, ForeignKey, Index, String, Text, UniqueConstraint, text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from backend.models_base import Base
@@ -186,6 +186,14 @@ class PatientCompanionCabinetRemoteKey(Base):
             "key_use",
             "status",
         ),
+        Index(
+            "uq_pc_cabinet_remote_key_one_active_per_use",
+            "employer_id",
+            "key_use",
+            unique=True,
+            sqlite_where=text("status = 'ACTIVE'"),
+            postgresql_where=text("status = 'ACTIVE'"),
+        ),
     )
 
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
@@ -210,6 +218,13 @@ class PatientCompanionRemoteKeyset(Base):
     __tablename__ = "patient_companion_remote_keysets"
     __table_args__ = (
         Index("ix_pc_remote_keyset_access_status", "access_id", "status"),
+        Index(
+            "uq_pc_remote_keyset_one_active_per_access",
+            "access_id",
+            unique=True,
+            sqlite_where=text("status = 'ACTIVE'"),
+            postgresql_where=text("status = 'ACTIVE'"),
+        ),
     )
 
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
