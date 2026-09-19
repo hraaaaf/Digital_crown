@@ -5,7 +5,9 @@ import {
   PatientCompanionStorage,
   type PatientCompanionVaultState,
   type PatientPairing,
+  type PatientWalletSnapshot,
 } from './PatientCompanionStorage';
+import { PatientCompanionSync } from './PatientCompanionSync';
 
 type Phase = 'loading' | 'welcome' | 'scanning' | 'pairing' | 'home' | 'error';
 
@@ -33,10 +35,21 @@ export const PatientCompanionApp = () => {
   const [error, setError] = useState('');
   const [selectingContext, setSelectingContext] = useState(false);
   const [cabinetReachability, setCabinetReachability] = useState<'unknown' | 'checking' | 'online' | 'offline'>('unknown');
+  const [syncState, setSyncState] = useState<'idle' | 'syncing' | 'synced' | 'offline' | 'expired'>('idle');
 
   const activePairing = useMemo(
     () => vault.pairings.find(item => item.context.access_id === vault.activeAccessId) || null,
     [vault],
+  );
+
+  const activeWallet = useMemo(
+    () => (vault.activeAccessId ? vault.cache[vault.activeAccessId] as PatientWalletSnapshot | undefined : undefined),
+    [vault],
+  );
+
+  const sessionExpired = useMemo(
+    () => Boolean(activePairing?.expiresAt && new Date(activePairing.expiresAt).getTime() <= Date.now()),
+    [activePairing],
   );
 
   useEffect(() => {
@@ -174,6 +187,30 @@ export const PatientCompanionApp = () => {
     }
   };
 
+  const syncWallet = async () => {
+    if (!activePairing) return;
+    if (sessionExpired) {
+      setSyncState('expired');
+      return;
+    }
+    setSyncState('syncing');
+    try {
+      const snapshot = await PatientCompanionSync.sync(activePairing);
+      const next = await PatientCompanionStorage.load();
+      setVault(next);
+      setCabinetReachability('online');
+      setSyncState(snapshot ? 'synced' : 'idle');
+    } catch (err) {
+      const status = typeof err === 'object' && err && 'status' in err ? Number((err as { status?: number }).status) : 0;
+      if (status === 401 || status === 403) {
+        setSyncState('expired');
+      } else {
+        setSyncState('offline');
+      }
+      setCabinetReachability('offline');
+    }
+  };
+
   const submitManual = () => {
     const code = manualCode.trim();
     if (!code) {
@@ -268,10 +305,30 @@ export const PatientCompanionApp = () => {
               <button data-pc00-cabinet-link onClick={() => void checkCabinet()} className="mt-3 min-h-[48px] w-full rounded-2xl border border-border-main bg-background px-3 text-xs font-black">
                 {cabinetReachability === 'checking' ? 'Vérification du cabinet…' : cabinetReachability === 'online' ? 'Cabinet joignable ✓' : cabinetReachability === 'offline' ? 'Cabinet hors ligne · coffre local disponible' : 'Vérifier la connexion au cabinet'}
               </button>
+              <button data-pc01-sync onClick={() => void syncWallet()} disabled={syncState === 'syncing'} className="mt-2 min-h-[48px] w-full rounded-2xl bg-primary text-white px-3 text-xs font-black disabled:opacity-60">
+                {syncState === 'syncing' ? 'Synchronisation…' : 'Synchroniser mon espace'}
+              </button>
+              {activeWallet?.syncedAt && <p className="mt-2 text-[10px] font-bold text-text-muted">Dernière synchronisation : {new Date(activeWallet.syncedAt).toLocaleString()}</p>}
+              {syncState === 'offline' && <p className="mt-2 text-[11px] font-black text-amber-700">Cabinet non joignable · dernière copie locale conservée.</p>}
+              {(syncState === 'expired' || sessionExpired) && <p className="mt-2 text-[11px] font-black text-rose-700">Connexion au cabinet expirée · votre copie locale reste disponible. Un nouvel appairage sera nécessaire pour synchroniser.</p>}
             </Card>
-            <section className="mt-4 grid grid-cols-2 gap-3" aria-label="Fonctions Patient Companion">
-              <Placeholder label="Mes rendez-vous" />
-              <Placeholder label="Mes documents" />
+            <section className="mt-4 grid gap-3" aria-label="Portefeuille Patient Companion">
+              <WalletSection title="Mes rendez-vous" empty="Aucun rendez-vous synchronisé.">
+                {activeWallet?.appointments.map(item => (
+                  <div key={item.id} className="rounded-2xl border border-border-main bg-card-bg p-4">
+                    <p className="font-black">{item.motif}</p>
+                    <p className="mt-1 text-xs font-bold text-text-muted">{new Date(item.datetime_start).toLocaleString()} · {item.status}</p>
+                  </div>
+                ))}
+              </WalletSection>
+              <WalletSection title="Mes documents & médias" empty="Aucun document ou média partagé.">
+                {activeWallet?.shares.map(item => (
+                  <div key={item.share_id} className="rounded-2xl border border-border-main bg-card-bg p-4">
+                    <p className="font-black">{item.title || (item.resource_type === 'media' ? 'Média clinique partagé' : 'Document partagé')}</p>
+                    <p className="mt-1 text-xs font-bold text-text-muted">{item.resource_type === 'media' ? 'Média' : item.document_type || 'Document'}</p>
+                  </div>
+                ))}
+              </WalletSection>
             </section>
             {vault.pairings.length > 1 && <button onClick={() => setSelectingContext(true)} className="mt-4 min-h-[48px] w-full rounded-2xl border border-primary/20 bg-primary/5 text-primary text-xs font-black">Changer de dossier</button>}
             <div className="mt-3 grid grid-cols-2 gap-3">
@@ -292,9 +349,12 @@ const Card = ({ title, icon, children }: { title: string; icon: React.ReactNode;
   </section>
 );
 
-const Placeholder = ({ label }: { label: string }) => (
-  <div className="min-h-[92px] rounded-2xl border border-border-main bg-card-bg p-4 opacity-70">
-    <p className="font-black">{label}</p>
-    <p className="mt-1 text-[10px] font-black uppercase tracking-widest text-text-muted">PC-01</p>
-  </div>
-);
+const WalletSection = ({ title, empty, children }: { title: string; empty: string; children: React.ReactNode }) => {
+  const hasItems = Array.isArray(children) ? children.length > 0 : Boolean(children);
+  return (
+    <section className="rounded-[1.5rem] border border-border-main bg-card-bg p-4">
+      <h3 className="font-black">{title}</h3>
+      <div className="mt-3 grid gap-2">{hasItems ? children : <p className="text-xs font-bold text-text-muted">{empty}</p>}</div>
+    </section>
+  );
+};
