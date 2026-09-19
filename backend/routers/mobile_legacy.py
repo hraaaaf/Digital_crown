@@ -11,7 +11,7 @@ from datetime import datetime, date, timedelta, time as dt_time, timezone
 from fastapi import APIRouter, Depends, HTTPException, Header, Body, BackgroundTasks, Request
 from sqlalchemy import func, extract
 from sqlalchemy.orm import Session, joinedload
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from jose import jwt, JWTError
 
 from backend import models, database
@@ -59,7 +59,13 @@ def _decode_mobile_identity(authorization: str, db: Session):
         if not device_id:
             raise err
         user = db.query(models.User).filter(models.User.id == user_id).first()
-        if not user or not user.is_active or user.get_employer_id() != tenant_id:
+        approval = getattr(user, "approval_status", "approved") if user else None
+        if (
+            not user
+            or not user.is_active
+            or user.get_employer_id() != tenant_id
+            or (getattr(user, "employer_id", None) is not None and (approval or "approved") != "approved")
+        ):
             raise err
         device = db.query(models.MobilePairedDevice).filter(
             models.MobilePairedDevice.device_id == device_id,
@@ -277,8 +283,8 @@ def get_ca_cert():
 # â”€â”€ CLAIM TOKEN â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class ClaimTokenRequest(BaseModel):
-    token: str
-    client_public_key_hex: str = None
+    token: str = Field(min_length=1, max_length=128)
+    client_public_key_hex: Optional[str] = Field(default=None, max_length=130)
 
 @router.post(
     "/claim-token",
@@ -308,7 +314,13 @@ def claim_pairing_token(
     if not user_id:
         raise HTTPException(status_code=409, detail="Ancien code d'appairage non compatible. Générez un nouveau QR.")
     user = db.query(models.User).filter(models.User.id == user_id).first()
-    if not user or not user.is_active or user.get_employer_id() != record.employer_id:
+    approval = getattr(user, "approval_status", "approved") if user else None
+    if (
+        not user
+        or not user.is_active
+        or user.get_employer_id() != record.employer_id
+        or (getattr(user, "employer_id", None) is not None and (approval or "approved") != "approved")
+    ):
         raise HTTPException(status_code=403, detail="Utilisateur mobile non autorisé.")
     role = user.role.value if hasattr(user.role, "value") else str(user.role)
 
