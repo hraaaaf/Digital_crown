@@ -4,7 +4,7 @@ import uuid
 import pytest
 from pydantic import ValidationError
 
-from backend.services.patient_companion_relay_contract import (
+from relay.contract import (
     JOSE_ALLOWED_JWE_ALGS,
     JOSE_ALLOWED_JWE_ENCS,
     JOSE_ALLOWED_JWS_ALGS,
