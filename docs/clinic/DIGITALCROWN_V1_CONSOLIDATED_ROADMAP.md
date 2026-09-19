@@ -235,7 +235,7 @@ Next exact: certify this documentation-only closeout HEAD, re-materialize visual
 
 ### LOT V1-05 — Orthalis benchmark reconciliation + Ortho Journey
 
-Status: **BLOCKED BY V1-04 POST-MERGE CERTIFICATION**
+Status: **CLOSED — MERGED AND POST-MERGE CERTIFIED (F5 ENGINEERING PREVIEW ONLY)**
 
 Goal: reconcile the historical competitive roadmap with current master and resume the already-defined **Lot F — Ortho Journey** instead of restarting a generic Orthalis benchmark from zero.
 
@@ -381,11 +381,24 @@ Required evidence:
 - severe dual review;
 - canonical closeout with exact PR/HEAD/run/artifact/digest/merge/post-merge evidence.
 
-Next exact after V1-04 post-merge certification: execute **F0 — current-state audit + Ortho Case model**, then decide which of F1–F4 are genuine V1 gaps on current master. Do not start F5 implementation without its separate scientific gate.
+Final V1-05 result — 2026-09-19:
+- F1A OrthoCase lifecycle: PR #596 merged as `c41f47d2eb7708d6494fd32c97814d7a968ed5e0`.
+- F1B structured controls: PR #598 merged as `81535364e4f98f3f9b53fac179f2fbfd2ec261f5`.
+- F2 canonical timepoints/evidence references: PR #610 merged as `35ccdf5ad73b403279e129c7affe2d9364c6d4cc`, post-merge certified.
+- F3 longitudinal compare: PR #613 merged as `413af20093367e43bc3c59efbaa1ad156b668ef4`, post-merge CI/T2/A5 certified; final severe visual score 9.5/10 with explicit owner visual approval.
+- F4 Ortho Cockpit: PR #617 merged as `20bfe3349399bf49a2f5ece14c5f70526e9d4a1b`; post-merge certification PR #619 closed without merge after required checks were green.
+- F5 Scientific Superimposition engineering preview: PR #620 merged as `2cfb0dc53b71daa9f8cbb63e966a5cab4481fc10`; exact-head CI `35430755915`, T2 `35430755873`, BEFORE `35430755892`, AFTER `35430755887` — SUCCESS.
+- F5 post-merge certification PR #622, base exact product merge above, closed without merge after CI `35432362856`, T2 `35432362901`, Agenda A5 `35432362881`, PR Merge Summary `35432362857` — SUCCESS.
+- F5 canonical closeout PR #621 merged as `455cff05de35166eed62ae58eb1ae9d9014503dd`.
+- Scite external evidence audit added at `docs/clinic/audits/V1_05_F5_SCITE_EVIDENCE_AUDIT.md`; no rollback signal found. Danz 2024 and Vasileiou 2026 were added as validation-relevant sources.
+- F5 remains OFF by default, `ENGINE_ESTIMATE_ONLY`, `clinically_validated=false`, `acquisition_protocol_status=UNVERIFIED`; independent named scientific review + human clinical validation remain required before any clinical activation.
+- No F6 exists inside V1-05. The next canonical lot is V1-06.
+
+V1-05 Goal/Success/Proof are satisfied for the engineering V1 path. This does not authorize F5 clinical activation.
 
 ### LOT V1-06 — Pre-freeze repository reconciliation
 
-Status: **BLOCKED BY V1-05**
+Status: **IN_PROGRESS — UNLOCKED BY V1-05 CLOSEOUT**
 
 Goal: ensure no stale PR or undocumented branch can silently contaminate the V1 freeze.
 
@@ -454,19 +467,18 @@ Pending CI does not unlock the next lot. Independent work is permitted only insi
 
 ## 6. Current canonical state
 
-- active lot: **V1-04 — Céphalométrie scientific re-baseline / PRE-MERGE CLOSEOUT**
-- next lot: **V1-05 — Orthalis benchmark reconciliation + Ortho Journey — BLOCKED BY V1-04 POST-MERGE CERTIFICATION**
-- certified lot base: `master@7454215274032898d1a50659d624a5cb32aab494`
-- base proof: **CI 35335941911 SUCCESS / PostgreSQL 35335941919 SUCCESS**
-- active branch: `feat/v1-04-cephalo-rebaseline`
-- active PR: **#592 DRAFT — HUMAN MERGE AUTHORIZATION PENDING**
-- first V1-04 evidence: Cephalo R18 concordance run `35338035397` deliberately exposed one frontend/backend Surplomb divergence (+2.6 mm vs -2.6 mm) while Recouvrement remained concordant.
-- correction principle: preserve signed incisor relation; do not activate new norms, diagnosis, indication or treatment inference.
-- latest certified product/docs HEAD before canonical closeout commit: `46aed2c9758b82f3ee67ffa268859e7d75232a44`; CI/R18/R15/R15bis/T2 green; six canonical BEFORE/AFTER captures explicitly approved by Achraf.
+- active lot: **V1-06 — Pre-freeze repository reconciliation / IN_PROGRESS**
+- previous lot: **V1-05 — Orthalis benchmark reconciliation + Ortho Journey — CLOSED**
+- certified V1-05 closeout base: `master@455cff05de35166eed62ae58eb1ae9d9014503dd`
+- V1-05 product chain: F1A #596 → F1B #598 → F2 #610 → F3 #613 → F4 #617 → F5 #620; all product PRs merged.
+- F5 post-merge proof: CI `35432362856` SUCCESS / T2 `35432362901` SUCCESS / Agenda A5 `35432362881` SUCCESS / PR Merge Summary `35432362857` SUCCESS.
+- F5 clinical activation: **NOT AUTHORIZED**; engineering preview remains OFF by default with `clinically_validated=false` and `acquisition_protocol_status=UNVERIFIED`.
+- V1-06 Goal: classify every currently open PR against current master before freeze and remove stale/competing V1 contamination.
 - V1 candidate SHA: **NOT SELECTED**
 - V1 state: **EXECUTION LOCKED / NOT OPERATIONAL**
 - production/cabinet mutation: **NOT AUTHORIZED**
 - Vercel deployment: **NOT AUTHORIZED**
+- Next exact: inventory every open PR and classify it as required-for-V1, parked-post-V1, or superseded/closeable; compare ambiguous branches against current master before any close/merge action.
 
 ## 7. Maintenance rule
 
