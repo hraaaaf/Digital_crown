@@ -191,7 +191,6 @@ def list_patient_shares(
             items.append({
                 "share_id": grant.public_id,
                 "resource_type": "media",
-                "resource_id": resource.id,
                 "asset_type": resource.asset_type,
                 "mime_type": resource.mime_type,
                 "captured_at": resource.captured_at,
