@@ -398,7 +398,7 @@ V1-05 Goal/Success/Proof are satisfied for the engineering V1 path. This does no
 
 ### LOT V1-06 — Pre-freeze repository reconciliation
 
-Status: **IN_PROGRESS — UNLOCKED BY V1-05 CLOSEOUT**
+Status: **CLOSED — MERGED AND RECONCILED**
 
 Goal: ensure no stale PR or undocumented branch can silently contaminate the V1 freeze.
 
@@ -408,9 +408,26 @@ Success: every open PR classified against current master; no half-integrated man
 
 Proof: inventory + compare/tests where needed + canonical closeout.
 
+V1-06 final result — 2026-09-19:
+- canonical reconciliation PR #623 merged as `f05b9dc7c176a5752448793c8a0a585dfb728679`;
+- exact-head #623 checks: CI `35435256394` SUCCESS; T2 `35435256380` SUCCESS; Agenda A5 `35435256377` SUCCESS; PR Merge Summary `35435256371` SUCCESS;
+- stale/superseded PRs #593, #607 and #575 closed without merge after preservation of their unique evidence;
+- remaining open PR set re-proven after merge: #618, #383, #289, #288 only;
+- #618 classified PARKED_POST_V1;
+- #288/#289 classified PARKED_POST_V1;
+- #383 classified HUMAN_GATE_PARKED;
+- branch census recorded 404 refs; no destructive mass deletion performed;
+- freeze rule: only reconciled `master` and the later exact candidate SHA are canonical; historical branches cannot enter V1 without a fresh compare + explicit classified PR.
+
+Canonical evidence:
+- `docs/clinic/audits/V1_06_PREFREEZE_PR_INVENTORY.md`
+- `docs/clinic/audits/V1_06_PREFREEZE_BRANCH_CENSUS.md`
+
+V1-06 Success criterion is satisfied. V1-07 is unlocked.
+
 ### LOT V1-07 — Master stabilization
 
-Status: **BLOCKED BY V1-06**
+Status: **IN_PROGRESS — UNLOCKED BY V1-06 CLOSEOUT**
 
 Goal: establish a stable pre-candidate master.
 
@@ -467,18 +484,17 @@ Pending CI does not unlock the next lot. Independent work is permitted only insi
 
 ## 6. Current canonical state
 
-- active lot: **V1-06 — Pre-freeze repository reconciliation / IN_PROGRESS**
-- previous lot: **V1-05 — Orthalis benchmark reconciliation + Ortho Journey — CLOSED**
-- certified V1-05 closeout base: `master@455cff05de35166eed62ae58eb1ae9d9014503dd`
-- V1-05 product chain: F1A #596 → F1B #598 → F2 #610 → F3 #613 → F4 #617 → F5 #620; all product PRs merged.
-- F5 post-merge proof: CI `35432362856` SUCCESS / T2 `35432362901` SUCCESS / Agenda A5 `35432362881` SUCCESS / PR Merge Summary `35432362857` SUCCESS.
-- F5 clinical activation: **NOT AUTHORIZED**; engineering preview remains OFF by default with `clinically_validated=false` and `acquisition_protocol_status=UNVERIFIED`.
-- V1-06 Goal: classify every currently open PR against current master before freeze and remove stale/competing V1 contamination.
+- active lot: **V1-07 — Master stabilization / IN_PROGRESS**
+- previous lot: **V1-06 — Pre-freeze repository reconciliation — CLOSED**
+- certified reconciliation base: `master@f05b9dc7c176a5752448793c8a0a585dfb728679`
+- V1-06 proof: #623 exact-head CI `35435256394` SUCCESS / T2 `35435256380` SUCCESS / Agenda A5 `35435256377` SUCCESS / PR Merge Summary `35435256371` SUCCESS.
+- remaining open PRs are explicitly parked: #618, #383, #289, #288.
+- V1-07 Goal: establish one stable pre-candidate master with required global regressions green, coherent migrations/docs, no unresolved mandatory V1 blocker.
 - V1 candidate SHA: **NOT SELECTED**
 - V1 state: **EXECUTION LOCKED / NOT OPERATIONAL**
 - production/cabinet mutation: **NOT AUTHORIZED**
 - Vercel deployment: **NOT AUTHORIZED**
-- Next exact: inventory every open PR and classify it as required-for-V1, parked-post-V1, or superseded/closeable; compare ambiguous branches against current master before any close/merge action.
+- Next exact: certify current master globally, inspect migrations/roadmap coherence/open-PR invariants, repair only proven blockers, then close V1-07 before freezing V1-08.
 
 ## 7. Maintenance rule
 
